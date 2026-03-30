@@ -1,0 +1,106 @@
+[pipelines.video]
+llm_provider = "vertexai"
+llm_model = "gemini-2.5-flash"
+temperature = 0.3
+
+[pipelines.video_asr]
+model_type = "medium"
+fp16 = false
+
+[pipelines.line_chat]
+llm_provider = "vertexai"
+llm_model = "gemini-2.5-flash"
+temperature = 0.3
+auto_reply_patterns = [
+    "電子鎖安裝前評估",
+    "鎖市位於哪裡？今天有營業嗎？如何聯絡？",
+]
+
+[pipelines.youtube_fetch]
+playlists = [
+    "https://www.youtube.com/playlist?list=PLix8orsft3k0NiM5TIzCa7db9CF_YZTOA",
+    "https://www.youtube.com/playlist?list=PLix8orsft3k2zBqjIakEOrNuLJp5JfwKy",
+    "https://www.youtube.com/playlist?list=PLM5vIu1JtWIL2vQjUMOl9WskjQxqVkvWU",
+    "https://www.youtube.com/playlist?list=PLM5vIu1JtWIIk_yXslcOrOTGt8E_e0hU4",
+    "https://www.youtube.com/playlist?list=PLQQFsbE4rjk8A8WHQ8tmsZlmUI42gHEPz",
+    "https://www.youtube.com/playlist?list=PLQQFsbE4rjk-tEp5opU7E1QLpGegzzHGK"
+]
+
+[pipelines.youtube_vision]
+llm_provider = "vertexai"
+llm_model = "gemini-2.5-flash"
+temperature = 0.1
+
+[pipelines.youtube_silver]
+llm_provider = "vertexai"
+llm_model = "gemini-2.5-flash"
+temperature = 0.3
+
+[pipelines.website]
+llm_provider = "vertexai"
+llm_model = "gemini-2.5-flash"
+temperature = 0.3
+
+[pipelines.gdrive]
+service_account_file = "credentials.json"
+scopes = ["https://www.googleapis.com/auth/drive.readonly"]
+
+[pipelines.gdrive_silver]
+llm_provider = "vertexai"
+llm_model = "gemini-2.5-flash"
+temperature = 0.3
+
+[databases.video]
+type = "pgvector"
+collection_name = "kb_video"
+source_dir = "video"
+connection_uri_env = "PG_VECTOR_URI"
+embedding_provider = "vertexai"
+embedding_model = "text-embedding-004"
+embedding_dimensions = 768
+chunk_size = 600
+chunk_overlap = 60
+
+[databases.line_chat]
+type = "pgvector"
+collection_name = "kb_line_chat"
+source_dir = "line_chat"
+connection_uri_env = "PG_VECTOR_URI"
+embedding_provider = "vertexai"
+embedding_model = "text-embedding-004"
+embedding_dimensions = 768
+chunk_size = 600
+chunk_overlap = 60
+
+[databases.website]
+type = "pgvector"
+collection_name = "kb_website"
+source_dir = "website"
+connection_uri_env = "PG_VECTOR_URI"
+embedding_provider = "vertexai"
+embedding_model = "text-embedding-004"
+embedding_dimensions = 768
+chunk_size = 600
+chunk_overlap = 60
+
+[databases.youtube]
+type = "pgvector"
+collection_name = "kb_youtube"
+source_dir = "youtube"
+connection_uri_env = "PG_VECTOR_URI"
+embedding_provider = "vertexai"
+embedding_model = "text-embedding-004"
+embedding_dimensions = 768
+chunk_size = 600
+chunk_overlap = 60
+
+[databases.gdrive]
+type = "pgvector"
+collection_name = "kb_gdrive"
+source_dir = "gdrive"
+connection_uri_env = "PG_VECTOR_URI"
+embedding_provider = "vertexai"
+embedding_model = "text-embedding-004"
+embedding_dimensions = 768
+chunk_size = 600
+chunk_overlap = 60
