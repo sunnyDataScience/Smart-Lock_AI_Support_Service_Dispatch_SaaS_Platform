@@ -1,9 +1,13 @@
+import json
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode
 from langchain_core.messages import SystemMessage
+from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import StructuredTool
 from graph.state import GraphState
 from core.config import SYSTEM_CONFIG, REQUIRED_SLOTS
+from tools.pgvector_store import UI_METADATA_DELIMITER
+from core.debug_log import log_messages as debug_log_messages, log_response as debug_log_response, log_tool_results as debug_log_tool_results
 
 
 def load_prompt_template(prompt_file: str, **kwargs) -> str:
@@ -24,18 +28,27 @@ def _build_slots_section() -> str:
    如果使用者無法提供，仍可給予通用建議，但應提醒資訊不足可能影響準確度。"""
 
 
-def build_agent_executor(agent_config: dict, tools_dict: dict[str, StructuredTool], llm):
+def build_agent_executor(agent_config: dict, tools_dict: dict[str, StructuredTool], llm, ui_type_map: dict[str, str] | None = None):
     """為單一 agent 建構可呼叫的 subgraph（agent_llm ↔ tool_node 迴圈）"""
     agent_name = agent_config["name"]
     prompt_file = agent_config["prompt_file"]
     tool_names = agent_config.get("tools", [])
+    _ui_type_map = ui_type_map or {}
 
     # 收集此 agent 使用的工具
     agent_tools = [tools_dict[name] for name in tool_names if name in tools_dict]
 
-    # 綁定工具到 LLM（一般模式 + 強制呼叫模式）
-    llm_with_tools = llm.bind_tools(agent_tools)
-    llm_force_tool = llm.bind_tools(agent_tools, tool_choice="any")
+    # 判斷是否有 retriever 工具（db_* 開頭）
+    has_retriever = any(name.startswith("db_") for name in tool_names)
+
+    # 綁定工具到 LLM（無工具時跳過綁定）
+    if agent_tools:
+        llm_with_tools = llm.bind_tools(agent_tools)
+        # 只在有 retriever 時才強制首次使用工具
+        llm_force_tool = llm.bind_tools(agent_tools, tool_choice="any") if has_retriever else llm_with_tools
+    else:
+        llm_with_tools = llm
+        llm_force_tool = llm
 
     # 建構 subgraph
     def build_subgraph():
@@ -58,23 +71,89 @@ def build_agent_executor(agent_config: dict, tools_dict: dict[str, StructuredToo
             # 將 system prompt 注入到 messages 最前面
             messages = [SystemMessage(content=system_prompt)] + list(state.get("messages", []))
 
-            # 首次呼叫強制使用工具（messages 中尚無 tool 回覆時）
-            has_tool_result = any(
-                hasattr(m, "type") and m.type == "tool"
-                for m in state.get("messages", [])
-            )
-            active_llm = llm_with_tools if has_tool_result else llm_force_tool
+            # 無工具時直接使用 LLM；有工具時首次強制使用工具
+            if not agent_tools:
+                active_llm = llm_with_tools
+            else:
+                has_tool_result = any(
+                    hasattr(m, "type") and m.type == "tool"
+                    for m in state.get("messages", [])
+                )
+                active_llm = llm_with_tools if has_tool_result else llm_force_tool
+
+            # [DEBUG] agent 送進 LLM 的完整 messages
+            previews = []
+            for m in messages:
+                mt = getattr(m, "type", "unknown")
+                mc = m.content if hasattr(m, "content") else str(m)
+                if not isinstance(mc, str):
+                    mc = str(mc)
+                mc = mc.replace("\n", " ")
+                previews.append(f"{mt}:{mc[:20]}")
+            print(f"  [{agent_name}:agent_llm] 送進 {len(messages)} 則: {' | '.join(previews)}")
+            debug_log_messages(f"{agent_name}:agent_llm 輸入", messages)
 
             response = await active_llm.ainvoke(messages)
-            print(f"  [{agent_name}:agent_llm] 回應類型: {'tool_calls' if getattr(response, 'tool_calls', None) else 'text'}")
+
+            # [DEBUG] agent → head：LLM 回傳
+            if getattr(response, "tool_calls", None):
+                tool_names = [tc.get("name", "?") for tc in response.tool_calls]
+                print(f"  [{agent_name}:agent_llm] → head: tool_calls={tool_names}")
+            else:
+                if isinstance(response.content, str):
+                    rc = response.content
+                elif isinstance(response.content, list):
+                    rc = " ".join(p.get("text", "") for p in response.content if isinstance(p, dict) and "text" in p)
+                else:
+                    rc = str(response.content)
+                rc = rc.replace("\n", " ")
+                print(f"  [{agent_name}:agent_llm] → head: text={rc[:20]}")
+            debug_log_response(f"{agent_name}:agent_llm → 回傳", response)
+
             return {"messages": [response], "history": [f"{agent_name}:agent_llm"]}
 
         tool_node = ToolNode(agent_tools)
 
-        async def execute_tools(state: GraphState):
+        async def execute_tools(state: GraphState, config: RunnableConfig):
             print(f"  [{agent_name}:tool_node] 正在執行工具呼叫...")
+
+            # 注入正確 user_id 到 transfer_to_human 呼叫
+            cfg = config.get("configurable", {})
+            real_user_id = cfg.get("user_id") or cfg.get("thread_id", "anonymous")
+            last_msg = state["messages"][-1]
+            if getattr(last_msg, "tool_calls", None):
+                for tc in last_msg.tool_calls:
+                    if tc.get("name") == "transfer_to_human":
+                        tc["args"]["user_id"] = real_user_id
+                        print(f"  [{agent_name}:tool_node] 注入 user_id={real_user_id}")
+
             result = await tool_node.ainvoke(state)
-            return {"messages": result["messages"], "history": [f"{agent_name}:tool_node"]}
+
+            # 攔截 metadata：從 ToolMessage 中剝離 UI_METADATA，寫入 ui_hints
+            ui_hints = []
+            for msg in result["messages"]:
+                if not (hasattr(msg, "type") and msg.type == "tool"):
+                    continue
+                tool_name = getattr(msg, "name", "")
+                if _ui_type_map.get(tool_name, "TEXT") == "TEXT":
+                    continue
+                if not (isinstance(msg.content, str) and UI_METADATA_DELIMITER in msg.content):
+                    continue
+                clean_text, raw_meta = msg.content.split(UI_METADATA_DELIMITER, 1)
+                msg.content = clean_text  # LLM 只看乾淨文字
+                try:
+                    meta = json.loads(raw_meta)
+                    ui_hints.append(meta)
+                except json.JSONDecodeError:
+                    print(f"  [{agent_name}:tool_node] UI metadata JSON 解析失敗，跳過")
+
+            debug_log_tool_results(f"{agent_name}:tool_node → 結果", result["messages"])
+
+            return {
+                "messages": result["messages"],
+                "ui_hints": ui_hints,
+                "history": [f"{agent_name}:tool_node"],
+            }
 
         def should_continue(state: GraphState):
             last_message = state["messages"][-1]
@@ -92,19 +171,30 @@ def build_agent_executor(agent_config: dict, tools_dict: dict[str, StructuredToo
             should_continue,
             {"tools": "tools", END: END}
         )
-        workflow.add_edge("tools", "agent_llm")
+        def should_continue_after_tools(state: GraphState):
+            """工具執行後：transfer_to_human → 結束；其他 → 回 LLM"""
+            last_message = state["messages"][-1]
+            if hasattr(last_message, "name") and last_message.name == "transfer_to_human":
+                return END
+            return "agent_llm"
+
+        workflow.add_conditional_edges(
+            "tools",
+            should_continue_after_tools,
+            {"agent_llm": "agent_llm", END: END}
+        )
 
         return workflow.compile()
 
     return build_subgraph()
 
 
-def build_all_agents(agents_config: list, tools_dict: dict[str, StructuredTool], llm) -> dict:
+def build_all_agents(agents_config: list, tools_dict: dict[str, StructuredTool], llm, ui_type_map: dict[str, str] | None = None) -> dict:
     """建構所有 agent 子圖，回傳 dict[str, CompiledGraph]"""
     agents = {}
     for agent_config in agents_config:
         name = agent_config["name"]
-        subgraph = build_agent_executor(agent_config, tools_dict, llm)
+        subgraph = build_agent_executor(agent_config, tools_dict, llm, ui_type_map=ui_type_map)
         agents[name] = subgraph
         print(f"[*] 已建構 Agent: {name} — {agent_config.get('label', '')}")
     return agents

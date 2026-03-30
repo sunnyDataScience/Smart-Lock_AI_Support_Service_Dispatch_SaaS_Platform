@@ -1,3 +1,4 @@
+import json
 import re
 from langchain_core.messages import HumanMessage, SystemMessage, RemoveMessage
 from langchain_core.runnables import RunnableConfig
@@ -6,11 +7,12 @@ from core.config import (
     SYSTEM_CONFIG, USER_PROFILE_CONFIG, MEMORY_CONFIG, AGENTS_CONFIG,
     PROMPTS_CONFIG, TEMPLATES_CONFIG,
 )
-from core.constants import PHONE_REGEX, ADDRESS_REGEX
 from profiles import ProfileManager
+from tools.line_ui_factory import build_line_messages
 from graph.state import GraphState
 from llms import get_llm
 from agents import load_prompt_template
+from core.debug_log import log_final_answer as debug_log_final_answer
 
 llm = get_llm(LLM_CONFIG)
 profile_manager = ProfileManager(USER_PROFILE_CONFIG)
@@ -25,7 +27,7 @@ async def pre_process(state: GraphState, config: RunnableConfig):
     if USER_PROFILE_CONFIG.get("enabled", False):
         cfg = config.get("configurable", {})
         user_id = cfg.get("user_id") or cfg.get("thread_id", "anonymous")
-        user_profile = await profile_manager.load_profile(user_id)
+        user_profile = await profile_manager.load_full_profile(user_id)
         if user_profile:
             print(f"  [pre_process] 已載入 {user_id} 的輪廓 ({len(user_profile)} 字元)")
         else:
@@ -37,7 +39,12 @@ async def pre_process(state: GraphState, config: RunnableConfig):
     # 加入對話摘要（來自 manage_memory 壓縮）
     summary = state.get("summary", "")
     if summary:
-        messages.append(SystemMessage(content=f"[前情提要]\n{summary}"))
+        messages.append(SystemMessage(content=(
+            f"[前情提要]\n{summary}\n\n"
+            "【注意】以上為歷史對話摘要，可能包含多個不同話題。"
+            "請只參考與使用者「當前問題」直接相關的部分，"
+            "忽略不相關的歷史話題，避免將不同主題的資訊混入回答。"
+        )))
 
     # 加入當前問題
     messages.append(HumanMessage(content=state["question"]))
@@ -46,6 +53,8 @@ async def pre_process(state: GraphState, config: RunnableConfig):
         "messages": messages,
         "user_profile": user_profile,
         "answer": "",
+        "ui_hints": [],
+        "response_ui": [],
         "history": ["pre_process"]
     }
 
@@ -116,6 +125,71 @@ async def manage_memory(state: GraphState, config: RunnableConfig):
     }
 
 
+async def rewrite_query(state: GraphState, config: RunnableConfig):
+    """用 LLM 將口語化問題改寫為精準檢索句"""
+    original = state.get("question", "")
+    user_profile = state.get("user_profile", "")
+    summary = state.get("summary", "")
+    domain = SYSTEM_CONFIG.get("domain", "電子鎖")
+
+    # 載入 prompt 並呼叫 LLM
+    prompt = load_prompt_template(
+        PROMPTS_CONFIG.get("rewriter", "agents/prompts/rewrite_query.md"),
+        domain=domain,
+        user_profile=user_profile or "(無使用者輪廓)",
+        summary=summary or "(無前情提要)",
+        question=original,
+    )
+
+    try:
+        response = await llm.ainvoke([HumanMessage(content=prompt)])
+        rewritten = response.content.strip()
+        if not rewritten:
+            rewritten = original
+    except Exception as e:
+        print(f"  [rewrite_query] 改寫失敗，使用原始問題: {e}")
+        rewritten = original
+
+    if rewritten != original:
+        print(f"  [rewrite_query] 改寫: {original} → {rewritten}")
+    else:
+        print(f"  [rewrite_query] 問題無需改寫")
+
+    return {
+        "question": rewritten,
+        "messages": [HumanMessage(content=rewritten)],
+        "history": ["rewrite_query"],
+    }
+
+
+def _extract_recent_pairs(messages: list, max_pairs: int, skip_latest_human: bool = False) -> list:
+    """從 messages 中取出最近 N 輪 human+AI 對話（過濾掉 tool 相關訊息）。
+
+    Args:
+        messages: state["messages"]
+        max_pairs: 要保留幾輪（1 輪 = 1 human + 1 ai）
+        skip_latest_human: True 時跳過最新的 HumanMessage（router 用，因為 question 另外加）
+    """
+    conversation = []
+    for msg in messages:
+        if not hasattr(msg, "type"):
+            continue
+        if msg.type == "human":
+            conversation.append(msg)
+        elif msg.type == "ai" and msg.content and not getattr(msg, "tool_calls", None):
+            conversation.append(msg)
+
+    if skip_latest_human and conversation and conversation[-1].type == "human":
+        conversation = conversation[:-1]
+
+    # 移除尾端未配對的 HumanMessage（前一輪的 AI 回覆被清除時會產生）
+    # 避免 orphaned human messages 污染 router 上下文
+    while conversation and conversation[-1].type == "human":
+        conversation.pop()
+
+    return conversation[-(max_pairs * 2):]
+
+
 async def router(state: GraphState, config: RunnableConfig):
     """用 LLM 做意圖分類，回傳 next_agents（支援多意圖）"""
     print("  [router] 正在分類意圖...")
@@ -141,15 +215,47 @@ async def router(state: GraphState, config: RunnableConfig):
     # 取得使用者問題（從 messages 中找最後一個 HumanMessage）
     question = state.get("question", "")
 
-    response = await llm.ainvoke([
-        SystemMessage(content=router_prompt),
-        HumanMessage(content=question),
-    ])
+    # Guardrail：敏感交易詞彙強制轉接真人
+    sensitive_keywords = SYSTEM_CONFIG.get("sensitive_keywords", [])
+    if sensitive_keywords:
+        for kw in sensitive_keywords:
+            if kw in question:
+                print(f"  [Guardrail] 偵測到敏感詞彙「{kw}」，轉交 receptionist 處理")
+                return {
+                    "next_agents": ["receptionist"],
+                    "history": ["guardrail_triggered"],
+                }
 
-    # 解析 LLM 回覆（可能含多行意圖名稱）
+    router_context_pairs = MEMORY_CONFIG.get("router_context_pairs", 3)
+    recent_context = _extract_recent_pairs(
+        state.get("messages", []), router_context_pairs, skip_latest_human=True
+    )
+
+    router_messages = [SystemMessage(content=router_prompt)]
+    router_messages.extend(recent_context)
+    router_messages.append(HumanMessage(content=question))
+
+    print(f"  [router] 送出 {len(router_messages)} 則 messages（含 {len(recent_context)} 則歷史上下文）")
+
+    response = await llm.ainvoke(router_messages)
+
+    # 解析 LLM 回覆：intent 區塊 + consolidated query（用 --- 分隔）
     raw = response.content.strip()
-    intent_names = [line.strip().strip('"').strip("'").lower() for line in raw.splitlines() if line.strip()]
+    consolidated_query = question  # fallback 為原始問題
+
+    if "---" in raw:
+        parts = raw.split("---", 1)
+        intent_block = parts[0].strip()
+        query_block = parts[1].strip()
+        if query_block:
+            consolidated_query = query_block
+    else:
+        intent_block = raw
+
+    intent_names = [line.strip().strip('"').strip("'").lower() for line in intent_block.splitlines() if line.strip()]
     print(f"  [router] 意圖分類結果: {intent_names}")
+    if consolidated_query != question:
+        print(f"  [router] 濃縮問題: {question} → {consolidated_query}")
 
     # 建構意圖名稱 → target 對應表
     intent_to_target = {}
@@ -176,64 +282,36 @@ async def router(state: GraphState, config: RunnableConfig):
         targets = ["product_expert"]
         print("  [router] 無有效意圖，fallback 到 product_expert")
 
-    # out_of_domain / human 不與其他意圖混合
-    if "out_of_domain" in targets or "human" in targets:
-        targets = [targets[0]]
+    # out_of_domain 不與其他意圖混合
+    if "out_of_domain" in targets:
+        targets = ["out_of_domain"]
+
+    # out_of_domain：由 router 直接產生禮貌拒絕
+    if targets == ["out_of_domain"]:
+        print("  [router] 直接處理 out_of_domain...")
+        domain = SYSTEM_CONFIG.get("domain", "電子鎖")
+        prompt = f"你是「{domain}」專屬客服。使用者問了與服務範圍無關的問題：「{question}」。請用繁體中文禮貌拒絕並引導詢問{domain}相關問題。語氣親切簡潔。"
+        response = await llm.ainvoke([HumanMessage(content=prompt)])
+        return {
+            "answer": response.content.strip(),
+            "next_agents": [],
+            "history": ["router:out_of_domain"],
+        }
 
     print(f"  [router] 派發目標: {targets}")
 
-    return {
+    result = {
         "next_agents": targets,
-        "history": [f"router:{'+'.join(targets)}"]
+        "history": [f"router:{'+'.join(targets)}"],
     }
 
+    # 如果 router 濃縮了問題，更新 question 讓 agent 使用
+    if consolidated_query != question:
+        result["question"] = consolidated_query
 
-async def handle_out_of_domain(state: GraphState):
-    """用 LLM 禮貌拒絕非業務問題"""
-    print("  [out_of_domain] 用 LLM 生成禮貌拒絕...")
-    domain = SYSTEM_CONFIG.get("domain", "電子鎖")
-    question = state.get("question", "")
-    prompt = f"你是「{domain}」專屬客服。使用者問了與服務範圍無關的問題：「{question}」。請用繁體中文禮貌拒絕並引導詢問{domain}相關問題。語氣親切簡潔。"
-    response = await llm.ainvoke([HumanMessage(content=prompt)])
-    return {
-        "answer": response.content.strip(),
-        "history": ["out_of_domain"]
-    }
+    return result
 
 
-async def handle_transfer_human(state: GraphState, config: RunnableConfig):
-    """轉接真人客服"""
-    print("  [transfer_human] 正在準備轉接...")
-    cfg = config.get("configurable", {})
-    user_id = cfg.get("user_id") or cfg.get("thread_id", "anonymous")
-
-    user_profile = await profile_manager.load_profile(user_id)
-    current_question = state.get("question", "")
-    combined_text = f"{user_profile}\n{current_question}"
-
-    phone = ""
-    address = ""
-    brand_model = ""
-    phone_match = PHONE_REGEX.search(combined_text)
-    if phone_match:
-        phone = phone_match.group()
-    addr_match = ADDRESS_REGEX.search(combined_text)
-    if addr_match:
-        address = addr_match.group().strip()
-
-    has_info = any([brand_model, phone, address])
-    header = "您好\n麻煩您確認並補充以下資訊" if has_info else "您好\n麻煩您留下以下資訊"
-
-    transfer_form_path = PROMPTS_CONFIG.get("transfer_form", "agents/prompts/transfer_human_form.md")
-    answer = load_prompt_template(
-        transfer_form_path,
-        header=header, address=address, phone=phone, brand_model=brand_model,
-    )
-
-    return {
-        "answer": answer,
-        "history": ["transfer_human", "topic_resolved"]
-    }
 
 
 async def merge_answers(state: GraphState):
@@ -299,24 +377,69 @@ async def merge_answers(state: GraphState):
 
     print(f"  [merge_answers] 最終回覆: {answer[:10]}...")
 
-    # 判斷是否為轉接真人（檢查 history 和 tool 呼叫）
+    # 判斷是否為轉接真人（掃描當前 messages 中的 tool 呼叫）
     topic_resolved = False
-    if "topic_resolved" in state.get("history", []):
-        topic_resolved = True
+    for msg in state.get("messages", []):
+        if hasattr(msg, "type") and msg.type == "ai" and getattr(msg, "tool_calls", None):
+            for tc in msg.tool_calls:
+                if tc.get("name") == "transfer_to_human":
+                    topic_resolved = True
+                    # 將 Agent 的過場語氣與 Tool 回傳的表單合併
+                    # Gemini 會將 tool_calls 和文字回覆分開為兩個 AI message：
+                    #   AI(tool_calls, 無文字) → Tool(表單) → AI(道歉語)
+                    # 因此道歉語要從「最後一個無 tool_calls 的 AI message」取得
+                    agent_apology = ""
+                    form_content = ""
+                    for rmsg in reversed(state.get("messages", [])):
+                        if not form_content and hasattr(rmsg, "type") and rmsg.type == "tool" and rmsg.name == "transfer_to_human":
+                            form_content = rmsg.content
+                        elif not agent_apology and hasattr(rmsg, "type") and rmsg.type == "ai" and rmsg.content:
+                            content = rmsg.content
+                            if isinstance(content, list):
+                                text_parts = [p.get("text", "") for p in content if isinstance(p, dict) and "text" in p]
+                                agent_apology = "\n".join(text_parts).strip()
+                            else:
+                                agent_apology = str(content).strip()
 
-    # 也檢查 tool 呼叫歷史
-    if not topic_resolved:
-        for msg in state.get("messages", []):
-            if hasattr(msg, "type") and msg.type == "ai" and getattr(msg, "tool_calls", None):
-                for tc in msg.tool_calls:
-                    if tc.get("name") == "transfer_to_human":
-                        topic_resolved = True
-                        # 使用 tool 回傳的格式化文字作為 answer
-                        for rmsg in reversed(state.get("messages", [])):
-                            if hasattr(rmsg, "type") and rmsg.type == "tool" and rmsg.name == "transfer_to_human":
-                                answer = rmsg.content
-                                break
-                        break
+                        if agent_apology and form_content:
+                            break
+
+                    # 組合最終回覆：道歉語 + 分隔符 + 表單
+                    if agent_apology and form_content:
+                        answer = f"{agent_apology}\n===SPLIT_MSG===\n{form_content}"
+                    elif form_content:
+                        answer = form_content
+                    break
+
+    # 清除 tool 相關的中間訊息，只保留對話脈絡（human / ai 純文字 / system）
+    remove_messages = []
+    for msg in state.get("messages", []):
+        if not (hasattr(msg, "id") and msg.id):
+            continue
+        if hasattr(msg, "type") and msg.type == "tool":
+            remove_messages.append(RemoveMessage(id=msg.id))
+        elif hasattr(msg, "type") and msg.type == "ai" and getattr(msg, "tool_calls", None):
+            remove_messages.append(RemoveMessage(id=msg.id))
+
+    # 轉接完成時，也清除 agent 的純文字 AI 回覆（道歉語）
+    # 這些訊息的內容已擷取到 answer，留在歷史中會讓 router 誤判後續意圖
+    if topic_resolved:
+        msgs = state.get("messages", [])
+        already_removing = {rm.id for rm in remove_messages}
+        # 找最後一個 HumanMessage 的位置，其後的 AI 訊息都是本輪 agent 產出
+        last_human_idx = -1
+        for i, msg in enumerate(msgs):
+            if hasattr(msg, "type") and msg.type == "human":
+                last_human_idx = i
+        if last_human_idx >= 0:
+            for msg in msgs[last_human_idx + 1:]:
+                if (hasattr(msg, "id") and msg.id
+                        and msg.id not in already_removing
+                        and hasattr(msg, "type") and msg.type == "ai"):
+                    remove_messages.append(RemoveMessage(id=msg.id))
+
+    if remove_messages:
+        print(f"  [merge_answers] 清除 {len(remove_messages)} 條 tool 相關訊息")
 
     history_items = ["merge_answers"]
     if topic_resolved:
@@ -324,6 +447,7 @@ async def merge_answers(state: GraphState):
 
     return {
         "answer": answer,
+        "messages": remove_messages,
         "history": history_items,
     }
 
@@ -341,20 +465,47 @@ async def update_profile(state: GraphState, config: RunnableConfig):
         question = state.get("question", "")
         domain = SYSTEM_CONFIG.get("domain", "電子鎖")
 
+        fact_attrs = ", ".join(USER_PROFILE_CONFIG.get("fact_attributes", []))
         prompt = load_prompt_template(
             PROMPTS_CONFIG.get("profile_updater", "agents/prompts/update_profile.md"),
             domain=domain,
             existing_profile=existing_profile if existing_profile else "(empty - new user)",
             question=question,
             answer=answer,
+            fact_attributes=fact_attrs if fact_attrs else "phone, address, device_model, device_brand",
         )
 
         try:
             response = await llm.ainvoke(prompt)
-            updated = response.content.strip()
-            if updated and len(updated) >= 10:
-                await profile_manager.save_profile(user_id, updated)
-                print(f"  [update_profile] 已更新 {user_id} 的輪廓")
+            raw_text = response.content.strip()
+
+            # Strip code fence if LLM wraps output in ```json ... ```
+            cleaned = re.sub(r'^```(?:json)?\s*', '', raw_text)
+            cleaned = re.sub(r'\s*```$', '', cleaned)
+
+            try:
+                parsed = json.loads(cleaned)
+
+                # Write hard_facts to PostgreSQL via SCD Type 2
+                hard_facts = parsed.get("hard_facts", {})
+                if hard_facts and isinstance(hard_facts, dict):
+                    for key, val in hard_facts.items():
+                        if val is not None and str(val).strip():
+                            await profile_manager.update_fact(user_id, key, str(val).strip())
+                            print(f"  [update_profile] fact 寫入: {key}={val}")
+
+                # Write soft_profile to .md file
+                soft_profile = parsed.get("soft_profile")
+                if soft_profile and isinstance(soft_profile, str) and len(soft_profile.strip()) >= 10:
+                    await profile_manager.save_profile(user_id, soft_profile.strip())
+                    print(f"  [update_profile] 已更新 {user_id} 的軟輪廓")
+
+            except json.JSONDecodeError:
+                # Fallback: treat entire response as soft profile (backward compatible)
+                print("  [update_profile] JSON 解析失敗，fallback 為軟輪廓存檔")
+                if raw_text and len(raw_text) >= 10:
+                    await profile_manager.save_profile(user_id, raw_text)
+
         except Exception as e:
             print(f"  [update_profile] 更新輪廓失敗: {e}")
 
@@ -378,11 +529,15 @@ def _strip_markdown(text: str) -> str:
 
 
 async def post_process(state: GraphState):
-    """回傳最終 answer"""
+    """回傳最終 answer + 建構 LINE Message 物件"""
     print("  [post_process] 回傳最終回覆...")
     answer = state.get("answer", "")
     answer = _strip_markdown(answer)
+    ui_hints = state.get("ui_hints", [])
+    response_ui = build_line_messages(answer, ui_hints)
+    debug_log_final_answer("head → 使用者（最終回覆）", answer)
     return {
         "answer": answer,
-        "history": ["post_process"]
+        "response_ui": response_ui,
+        "history": ["post_process"],
     }

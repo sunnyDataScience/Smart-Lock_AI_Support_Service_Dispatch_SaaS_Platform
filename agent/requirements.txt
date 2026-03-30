@@ -4,11 +4,14 @@ langchain-google-vertexai
 langchain-community
 langchain-ollama
 langchain-chroma
+langchain-postgres
+psycopg[binary]
 duckduckgo-search
 python-dotenv
 line-bot-sdk
 langgraph
 langgraph-checkpoint-sqlite
+langgraph-checkpoint-postgres
 requests
 fastapi
 uvicorn

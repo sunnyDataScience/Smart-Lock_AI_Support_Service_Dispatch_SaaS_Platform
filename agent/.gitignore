@@ -35,8 +35,5 @@ data/db/chat_history.db-wal
 # 使用者輪廓（執行時動態產生）
 data/profiles/
 
-# 測試執行輸出
-result.txt
-
 # Jupyter
 .ipynb_checkpoints/

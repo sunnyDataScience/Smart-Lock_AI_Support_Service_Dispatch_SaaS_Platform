@@ -115,56 +115,47 @@ location_env = "VERTEX_LOCATION"      # GCP 區域 (例: us-central1)
 
 ---
 
-## 6. 向量模型設定 `[embedding]`
+## 6. 知識庫與檢索器設定 `[[databases]]`
 
-設定全域 Embedding 引擎，驅動所有向量檢索器（如 ChromaDB）的文字向量化。透過 Embeddings Factory（`embeddings/__init__.py`）動態載入。此為全域設定，所有 `[[databases]]` 中的向量檢索器會自動套用，無需重複定義。
+定義系統可用的資料來源。每個 `[[databases]]` 區塊代表一個檢索器（Retriever），透過 Tool Factory（`tools/__init__.py`）動態載入。Agent 透過 `tools` 欄位綁定所需的檢索器。
 
-```toml
-[embedding]
-provider     = "ollama"              # 支援: "ollama"（未來可擴充 "openai" 等）
-model        = "nomic-embed-text"    # Embedding 模型名稱
-base_url     = "http://localhost:11434"
-base_url_env = "OLLAMA_BASE_URL"     # 優先讀取環境變數，若為空則使用 base_url
-```
+### A. 向量資料庫 (pgvector)
 
-| 參數 | 說明 |
-|------|------|
-| `provider` | Embedding 供應商，需對應 `embeddings/` 目錄下已註冊的 provider |
-| `model` | Embedding 模型名稱，依 provider 不同填入對應值 |
-| `base_url` | Ollama 專用，本地服務連線網址 |
-| `base_url_env` | Ollama 專用，優先從環境變數讀取 |
+> **重要**：Embedding 設定為 per-database 配置，每個向量資料庫獨立設定自己的 `embedding_provider`、`embedding_model` 等參數，系統不存在全域 Embedding 設定。
 
-> **Fallback 機制**：`get_embedding()` 在未收到帶有 `embedding_provider` 的 config 時，會自動 fallback 至此全域設定。個別 `[[databases]]` 仍可透過 `embedding_provider` 欄位覆蓋（per-database override），但通常不需要。
+每個向量資料庫獨立配置 Embedding 參數（`embedding_provider`、`embedding_model` 等），透過 Embeddings Factory（`embeddings/__init__.py`）動態載入，將文字轉為向量進行語意搜尋。
 
----
-
-## 7. 知識庫與檢索器設定 `[[databases]]`
-
-定義系統可用的資料來源。每個 `[[databases]]` 區塊代表一個檢索器（Retriever），透過 Retriever Factory（`retrievers/__init__.py`）動態載入。Agent 透過 `tools` 欄位綁定所需的檢索器。
-
-### A. 向量資料庫 (ChromaDB)
-
-結合 Embedding Engine（全域 `[embedding]` 設定），將文字轉為向量進行語意搜尋。
+底層檢索採用 **MMR (Maximal Marginal Relevance)** 演算法，先撈出 `top_k × 3` 筆候選文件，再從中挑選 `top_k` 筆兼顧相關性與多樣性的結果，避免回傳內容高度重複。
 
 ```toml
 [[databases]]
-name = "db_smartlock_manual"             # 唯一名稱，供 Agent tools 綁定
-type = "chroma"                          # 檢索器類型
-description = "智能門鎖規格、設定與保固手冊"  # Agent 看到的工具描述
-path = "./data/db/chroma_db_default"     # 資料庫本機路徑
-top_k = 3                               # 每次檢索取回最相關的幾筆資料
-# Embedding 自動使用全域 [embedding] 設定，無需重複定義
+name               = "db_smartlock_manual"       # 唯一名稱，供 Agent tools 綁定
+type               = "pgvector"                  # 檢索器類型
+description        = "智能門鎖規格、設定與保固手冊"  # Agent 看到的工具描述
+collection_name    = "smartlock_manual"           # pgvector collection 名稱
+connection_uri_env = "PG_VECTOR_URI"             # PostgreSQL 連線字串環境變數
+top_k              = 3                           # 每次檢索取回最相關的幾筆資料
+embedding_provider       = "vertexai"            # Embedding 供應商
+embedding_model          = "text-embedding-004"  # Embedding 模型名稱
+embedding_project_id_env = "VERTEX_PROJECT_ID"   # GCP 專案 ID 環境變數
+embedding_location_env   = "VERTEX_LOCATION"     # GCP 區域環境變數
+embedding_dimensions     = 768                   # 向量維度
 ```
 
 | 參數 | 說明 |
 |------|------|
 | `name` | 唯一識別名，Agent 的 `tools` 陣列會引用此名稱 |
-| `type` | 檢索器類型，對應 `retrievers/REGISTRY` 中的 key |
+| `type` | 檢索器類型，對應 `tools/REGISTRY` 中的 key |
 | `description` | 工具描述，LLM 據此判斷何時呼叫該工具 |
-| `path` | ChromaDB 本機資料夾路徑 |
-| `top_k` | 語意搜尋回傳的最相關文件數量 |
-
-> Embedding 模型設定統一在 `[embedding]` 區塊管理，不再於此重複。若需個別覆蓋，可加入 `embedding_provider` 等欄位。
+| `collection_name` | pgvector collection 名稱 |
+| `connection_uri_env` | PostgreSQL 連線字串的環境變數名 |
+| `top_k` | 最終回傳的文件數量。底層 MMR 演算法會先撈出 top_k × 3 筆候選再精選。建議設為 6，為 Agent 多步分析提供足夠候選素材 |
+| `embedding_provider` | Embedding 供應商，需對應 `embeddings/` 目錄下已註冊的 provider |
+| `embedding_model` | Embedding 模型名稱 |
+| `embedding_project_id_env` | Vertex AI 專用，GCP 專案 ID 環境變數名 |
+| `embedding_location_env` | Vertex AI 專用，GCP 區域環境變數名 |
+| `embedding_dimensions` | 向量維度，需與 Embedding 模型輸出一致 |
+| `ui_type` | （選填）回覆 UI 類型。預設 `"TEXT"`（純文字）。可選值：`"TEXT"` / `"VIDEO_CARD"`（FlexMessage 影片卡片）。設為 `"VIDEO_CARD"` 時，retriever 會將 metadata 嵌入回傳，`post_process` 會自動產生 LINE FlexMessage 影片卡片。 |
 
 ### B. 內部 API 串接 (API Store)
 
@@ -217,7 +208,7 @@ max_results = 3                    # 最多參考幾篇網頁結果
 
 ---
 
-## 8. Agent 定義 `[[agents]]`
+## 7. Agent 定義 `[[agents]]`
 
 定義多 Agent 架構中的每個 Agent。Router 根據意圖分類結果，透過 `Send()` fan-out 將請求派發給對應的 Agent 子圖。每個 Agent 是獨立的 LLM + Tools 迴圈。
 
@@ -246,12 +237,14 @@ prompt_file = "agents/prompts/product_expert.md"      # System Prompt 檔案路�
 | `troubleshooter` | `db_troubleshooting` + `transfer_to_human` | 故障排除、維修指引 |
 | `order_clerk` | `db_order_api` + `transfer_to_human` | 訂單查詢、物流追蹤 |
 | `web_researcher` | `db_web_search` + `transfer_to_human` | 網路搜尋補充資訊 |
+| `youtuber` | `db_youtube` + `transfer_to_human` | YouTube 教學影片搜尋（ui_type=VIDEO_CARD） |
+| `receptionist` | _(無工具)_ | 一般問候、感謝、個資更新（Tool-less Agent，不查知識庫） |
 
 > **擴充方式**：新增一個 `[[agents]]` 區塊 + 對應的 prompt 檔案 + `[[intents]]` 路由即可，無需修改程式碼。
 
 ---
 
-## 9. 意圖偵測路由設定 `[[intents]]`
+## 8. 意圖偵測路由設定 `[[intents]]`
 
 定義 Router 的「語意路由（Semantic Routing）」規則。Router 節點使用 LLM 根據這些定義進行意圖分類，支援**多意圖平行派發**（一個問題可同時命中多個意圖）。
 
@@ -280,28 +273,31 @@ require_slots = false                # 是否需要先完成槽位填充
 | `troubleshooting` | `troubleshooter` | 是 | 設備故障排除 |
 | `general_knowledge` | `product_expert` | 否 | 產品規格與操作問題（預設 Fallback） |
 | `web_search` | `web_researcher` | 否 | 需要即時網路資訊的問題 |
+| `youtube_knowledge` | `youtuber` | 是 | YouTube 教學影片查詢 |
+| `general_reception` | `receptionist` | 否 | 一般問候、感謝、個資更新（不需查閱知識庫） |
 | `out_of_domain` | `out_of_domain` | 否 | 非業務範圍，禮貌拒絕 |
 | `transfer_human` | `human` | 否 | 使用者明確堅持轉接真人 |
 
 ---
 
-## 10. 對話記憶儲存設定 `[memory]`
+## 9. 對話記憶儲存設定 `[memory]`
 
 管理系統如何記住跨回合的歷史對話（LangGraph Checkpointer）以及語意摘要壓縮策略。透過 Memory Factory（`memory/__init__.py`）動態載入。
 
 ```toml
 [memory]
-type = "sqlite"                    # 可選: "memory" (暫存), "sqlite" (本地持久化), "postgres" (資料庫持久化)
-sqlite_path = "./data/db/chat_history.db"  # sqlite 專用，資料庫檔案路徑
-# postgres_uri_env = "POSTGRES_URI"        # PostgreSQL 連線字串（未來擴充）
-max_messages_threshold = 10        # messages 超過此數量時觸發語意摘要壓縮
-context_retention_pair = 2         # 壓縮後保留最近幾對 (human+ai) 訊息
+type                   = "postgres"           # 可選: "memory" (暫存), "sqlite" (本地持久化), "postgres" (資料庫持久化，預設)
+postgres_uri_env       = "POSTGRES_URI"       # PostgreSQL 連線字串環境變數
+# sqlite_path          = "./data/db/chat_history.db"  # sqlite 回退時取消註解
+max_messages_threshold = 10                   # messages 超過此數量時觸發語意摘要壓縮
+context_retention_pair = 2                    # 壓縮後保留最近幾對 (human+ai) 訊息
 ```
 
 | 參數 | 說明 |
 |------|------|
-| `type` | Checkpointer 類型。`"memory"` 僅存於記憶體（重啟即失）；`"sqlite"` 持久化至本地檔案；`"postgres"` 持久化至 PostgreSQL |
-| `sqlite_path` | `sqlite` 類型專用，指定 `.db` 檔案路徑 |
+| `type` | Checkpointer 類型。`"postgres"` 持久化至 PostgreSQL（預設）；`"sqlite"` 持久化至本地檔案（回退方案）；`"memory"` 僅存於記憶體（重啟即失） |
+| `postgres_uri_env` | `postgres` 類型專用，指向 `.env` 中的 PostgreSQL 連線字串變數名 |
+| `sqlite_path` | `sqlite` 類型專用，指定 `.db` 檔案路徑（回退時使用） |
 | `max_messages_threshold` | `manage_memory` 節點的觸發門檻。當 `messages` 數量超過此值，LLM 會將舊訊息壓縮為結構化摘要 |
 | `context_retention_pair` | 壓縮後保留的最近對話對數（1 對 = 1 human + 1 ai = 2 條 message） |
 
@@ -309,7 +305,7 @@ context_retention_pair = 2         # 壓縮後保留最近幾對 (human+ai) 訊�
 
 ---
 
-## 11. 必填資訊收集 `[required_slots]`
+## 10. 必填資訊收集 `[required_slots]`
 
 定義特定意圖（`require_slots = true`）在進入 Agent 前，必須向使用者釐清的關鍵資訊（Slot Filling）。
 
@@ -326,14 +322,17 @@ device_brand = "使用者的電子鎖品牌。"
 
 ---
 
-## 12. 使用者輪廓記憶設定 `[user_profile]`
+## 11. 使用者輪廓記憶設定 `[user_profile]`
 
-管理動態使用者輪廓（User Profile），系統會在 `update_profile` 節點透過 LLM 從對話中萃取個人資訊（設備型號、地址、電話等），持久化至檔案系統。
+管理動態使用者輪廓（User Profile）。系統採用「雙軌設計」：**硬事實**（電話、地址、設備型號/品牌）儲存於 PostgreSQL `user_facts` 表，以 SCD Type 2 版本控制；**軟資訊**（偏好、過去問題、個性等）則持久化至 `.md` 檔案，由 LLM 萃取管理。
 
 ```toml
 [user_profile]
-enabled = true                     # 是否啟用輪廓功能
-profile_dir = "./data/profiles"    # 輪廓檔案儲存目錄
+enabled                = true                  # 是否啟用輪廓功能
+profile_dir            = "./data/profiles"     # 軟資訊 Markdown 檔案儲存目錄
+facts_enabled          = true                  # 是否啟用硬事實 SQL 儲存
+facts_postgres_uri_env = "POSTGRES_URI"        # 硬事實 PostgreSQL 連線字串環境變數
+fact_attributes        = ["phone", "address", "device_model", "device_brand"]  # 硬事實欄位清單
 
 [user_profile.extraction]
 phone_regex   = '09\d{2}[\-\s]?\d{3}[\-\s]?\d{3}'
@@ -343,38 +342,42 @@ address_regex = '[\u4e00-\u9fff]*(?:市|縣)[\u4e00-\u9fff]*(?:區|鄉|鎮|市)[
 | 參數 | 說明 |
 |------|------|
 | `enabled` | 是否啟用使用者輪廓功能 |
-| `profile_dir` | 輪廓 Markdown 檔案的儲存目錄，每位使用者一個 `{user_id}.md` 檔 |
+| `profile_dir` | 軟資訊 Markdown 檔案的儲存目錄，每位使用者一個 `{user_id}.md` 檔 |
+| `facts_enabled` | 是否啟用硬事實 SQL 儲存（需要 PostgreSQL） |
+| `facts_postgres_uri_env` | 硬事實 PostgreSQL 連線字串的環境變數名 |
+| `fact_attributes` | 硬事實欄位清單，對應 `user_facts` 表的 `attr_key`。採用 key-value 結構，新增欄位只需加入此陣列 |
 | `phone_regex` | 電話號碼正則表達式（TOML 單引號 literal string，不轉義反斜線） |
 | `address_regex` | 地址正則表達式（用於 `transfer_to_human` 個資提取） |
 
-> **輪廓用途**：`pre_process` 載入輪廓注入對話；`update_profile` 在每輪結束後更新；`transfer_human` 從輪廓提取個資帶入轉接表單。
+> **雙軌輪廓設計**：`pre_process` 透過 `load_full_profile()` 組合 SQL facts（帶 `[Verified Fact]` 標記）+ `.md` 軟資訊，注入 Agent prompt 的 `{user_profile}` 變數。`update_profile` 節點透過 LLM 產生 JSON 結構化輸出（`hard_facts` → SQL、`soft_profile` → `.md`），硬事實寫入 PostgreSQL，軟資訊更新 Markdown 檔案。`transfer_to_human` 優先使用 SQL facts，無值才 fallback regex 提取。
 >
 > **Extraction 子表**：`[user_profile.extraction]` 定義 `transfer_to_human` 節點與工具從對話中提取個資的 regex。支援國際化——修改 regex 即可適應不同國家的電話/地址格式，無需改動 Python 程式碼。`core/constants.py` 會從此處動態載入，若未設定則使用台灣格式作為 fallback。
 
 ---
 
-## 13. 審計日誌儲存設定 `[storage]`
+## 12. 審計日誌儲存設定 `[storage]`
 
 持久化原始對話紀錄（user_raw + user + ai），供事後審計與分析。透過 Storage Factory（`storage/__init__.py`）動態載入。
 
 ```toml
 [storage]
-type        = "sqlite"
-sqlite_path = "./data/db/audit_log.db"
-# postgres_uri_env = "POSTGRES_URI"
+type             = "postgres"                  # 可選: "postgres" (資料庫持久化，預設), "sqlite" (本地持久化)
+postgres_uri_env = "POSTGRES_URI"              # PostgreSQL 連線字串環境變數
+# type           = "sqlite"                    # 回退時取消註解
+# sqlite_path    = "./data/db/audit_log.db"
 ```
 
 | 參數 | 說明 |
 |------|------|
-| `type` | 儲存類型。`"sqlite"` 持久化至本地檔案；`"postgres"` 持久化至 PostgreSQL（預留） |
-| `sqlite_path` | `sqlite` 類型專用，指定 `.db` 檔案路徑 |
-| `postgres_uri_env` | PostgreSQL 連線字串的環境變數名（未來擴充） |
+| `type` | 儲存類型。`"postgres"` 持久化至 PostgreSQL（預設）；`"sqlite"` 持久化至本地檔案（回退方案） |
+| `postgres_uri_env` | `postgres` 類型專用，指向 `.env` 中的 PostgreSQL 連線字串變數名 |
+| `sqlite_path` | `sqlite` 類型專用，指定 `.db` 檔案路徑（回退時使用） |
 
 > **角色區分**：`user_raw` 為 webhook 收到的原始碎裂訊息（debounce 之前）；`user` 為合併後送入 LangGraph 的訊息；`ai` 為 AI 回覆。
 
 ---
 
-## 14. Prompt 檔案路徑對照表 `[prompts]`
+## 13. Prompt 檔案路徑對照表 `[prompts]`
 
 集中管理所有 prompt 模板的路徑，避免路徑硬編碼在 Python 中。
 
@@ -385,6 +388,7 @@ summarizer      = "agents/prompts/summarize_messages.md"
 merger          = "agents/prompts/merge_answers.md"
 profile_updater = "agents/prompts/update_profile.md"
 transfer_form   = "agents/prompts/transfer_human_form.md"
+rewriter        = "agents/prompts/rewrite_query.md"
 ```
 
 | 參數 | 說明 |
@@ -394,6 +398,7 @@ transfer_form   = "agents/prompts/transfer_human_form.md"
 | `merger` | 多 Agent 回覆合併 prompt 路徑 |
 | `profile_updater` | 使用者輪廓萃取 prompt 路徑 |
 | `transfer_form` | 轉接真人表單模板路徑 |
+| `rewriter` | 問題改寫（rewrite_query）prompt 路徑 |
 
 > Agent 各自的 prompt 路徑定義在 `[[agents]].prompt_file` 中，不在此表。
 
@@ -404,17 +409,17 @@ transfer_form   = "agents/prompts/transfer_human_form.md"
 | 設定區塊 | 對應流程節點 / 模組 |
 |---------|-------------------|
 | `[system]` | Router prompt、out_of_domain 判斷 |
-| `[debounce]` | `app.py` 防抖層 |
+| `[debounce]` | `core/debounce.py` 防抖層 |
 | `[line_bot]` | `app.py` Loading 動畫 |
 | `[templates]` | `app.py` 錯誤回覆範本 + Push API fallback |
 | `[llm]` | 所有 LLM 呼叫（Router、Agent、manage_memory、merge_answers、update_profile） |
-| `[embedding]` | `embeddings/__init__.py` → 全域 Embedding 引擎（ChromaDB 等向量檢索器自動套用） |
-| `[[databases]]` | `tools/__init__.py` → Agent 工具 |
+| `[[databases]]` | `tools/__init__.py` → Agent 工具（向量資料庫各自配置 Embedding） |
 | `[[agents]]` | `graph/builder.py` → Agent 子圖動態建構 |
 | `[[intents]]` | `graph/nodes.py` Router → `Send()` fan-out 派發 |
 | `[memory]` | `memory/__init__.py` → Checkpointer + manage_memory 壓縮策略 |
 | `[required_slots]` | `graph/nodes.py` Router 槽位檢查 |
-| `[user_profile]` | `profiles/manager.py` → pre_process / update_profile |
+| `[user_profile]` | `profiles/manager.py` → pre_process / update_profile + PostgreSQL `user_facts` |
 | `[user_profile.extraction]` | `core/constants.py` → 電話/地址 regex 動態載入 |
 | `[storage]` | `storage/__init__.py` → 審計日誌持久化 |
+| `[prompts].rewriter` | `graph/nodes.py` rewrite_query 節點 — 問題改寫 |
 | `[prompts]` | `graph/nodes.py`、`tools/__init__.py` → prompt 路徑集中管理 |
