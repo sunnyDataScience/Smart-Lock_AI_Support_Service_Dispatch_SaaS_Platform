@@ -11,74 +11,62 @@
 ## 分層架構圖
 
 ```mermaid
-block-beta
-    columns 1
-
-    block:PRESENTATION["🖥️ Presentation Layer（介面層）"]
-        columns 3
-        LINE_BOT["LINE Bot\nWebhook Handler\n(Rich Menu / Flex Message)"]
-        TECH_WEB["Technician Web App\n(Next.js 14 PWA)"]
-        ADMIN_WEB["Admin Panel\n(Next.js 14 + shadcn/ui)"]
+flowchart TB
+    subgraph PRESENTATION["Presentation Layer"]
+        LINE_BOT["LINE Bot\nWebhook Handler"]
+        TECH_WEB["Technician Web App\nNext.js 14 PWA"]
+        ADMIN_WEB["Admin Panel\nNext.js 14 + shadcn/ui"]
     end
 
-    space
-
-    block:API["⚡ API Layer（API 層）"]
-        columns 3
+    subgraph API["API Layer"]
         WEBHOOK_EP["POST /webhook\nLINE Webhook"]
         REST_EP["REST API /api/v1/*\nCRUD + Query"]
         WS_EP["WebSocket\nReal-time Notification"]
     end
 
-    space
-
-    block:APPLICATION["🧠 Application Layer（應用層）"]
-        columns 4
-        CONV_MGR["Conversation\nManager\n(Debounce + State)"]
-        AGENT_ORCH["Agent\nOrchestrator\n(LangGraph)"]
-        DISPATCH_ENG["Dispatch\nEngine\n(V2.0)"]
-        PRICING_ENG["Pricing\nEngine\n(V2.0)"]
+    subgraph APPLICATION["Application Layer"]
+        CONV_MGR["Conversation\nManager"]
+        AGENT_ORCH["Agent\nOrchestrator\nLangGraph"]
+        DISPATCH_ENG["Dispatch\nEngine V2.0"]
+        PRICING_ENG["Pricing\nEngine V2.0"]
     end
 
-    space
-
-    block:DOMAIN["📦 Domain Layer（領域層）"]
-        columns 4
+    subgraph DOMAIN["Domain Layer"]
         PROBLEM["ProblemCard\nExtractor"]
-        RESOLUTION["Resolution\nEngine (L1/L2/L3)"]
+        RESOLUTION["Resolution\nEngine L1/L2/L3"]
         SOP_GEN["SOP\nGenerator"]
         SENTIMENT["Sentiment\nTriage"]
     end
 
-    space
-
-    block:AGENT_L["🤖 Agent Layer（Agent 層）"]
-        columns 4
+    subgraph AGENT_L["Agent Layer"]
         HW_AGENT["Hardware\nTechnician"]
         SALES_AGENT["Sales\nRepresentative"]
         APP_AGENT["App\nSpecialist"]
         OTHER_AGENT["Store / Manual\n/ Web / Receptionist"]
     end
 
-    space
-
-    block:INFRA["🔧 Infrastructure Layer（基礎設施層）"]
-        columns 4
-        LLM_GW["LLM Gateway\n(Gemini / Vertex AI)"]
+    subgraph INFRA["Infrastructure Layer"]
+        LLM_GW["LLM Gateway\nGemini / Vertex AI"]
         EMBED_SVC["Embedding\nService"]
         PROFILE_MGR["Profile\nManager"]
         AUDIT_LOG["Audit\nLogger"]
     end
 
-    space
-
-    block:DATA["💾 Data Layer（資料層）"]
-        columns 4
-        PG_DB["PostgreSQL 16\n(關聯式資料)"]
-        PGVEC["pgvector\n(HNSW 向量索引)"]
-        REDIS_DB["Redis 7\n(Session Cache)"]
-        FILE_STORE["File Storage\n(Profiles / Manuals)"]
+    subgraph DATA["Data Layer"]
+        PG_DB["PostgreSQL 16\n關聯式資料"]
+        PGVEC["pgvector\nHNSW 向量索引"]
+        REDIS_DB["Redis 7\nSession Cache"]
+        FILE_STORE["File Storage\nProfiles / Manuals"]
     end
+
+    PRESENTATION --> API
+    API --> APPLICATION
+    APPLICATION --> DOMAIN
+    APPLICATION --> AGENT_L
+    AGENT_L --> DOMAIN
+    DOMAIN --> INFRA
+    AGENT_L --> INFRA
+    INFRA --> DATA
 
     style PRESENTATION fill:#e3f2fd,stroke:#1565c0
     style API fill:#e0e0e0,stroke:#616161

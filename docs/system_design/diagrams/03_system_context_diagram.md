@@ -11,34 +11,38 @@
 ## 系統上下文圖
 
 ```mermaid
-C4Context
-    title Smart Lock AI SaaS Platform — System Context Diagram
+flowchart TB
+    subgraph Users["Users"]
+        consumer["客戶\n電子鎖終端使用者\n透過 LINE 報修諮詢"]
+        technician["技師\n外派維修技師\n透過 Web App 接單"]
+        admin["管理員\n營運/客服主管\n透過 Admin Panel"]
+    end
 
-    Person(consumer, "客戶", "電子鎖終端使用者，透過 LINE 報修諮詢")
-    Person(technician, "技師", "外派維修技師，透過 Web App 接單與回報")
-    Person(admin, "管理員", "營運/客服主管，透過 Admin Panel 管理系統")
+    platform["Smart Lock AI SaaS Platform\nAI 智能客服 + 自動派工\n+ 帳務結算一站式平台"]
 
-    System(platform, "Smart Lock AI SaaS Platform", "AI 智能客服 + 自動派工 + 帳務結算一站式平台")
+    subgraph External["External Systems"]
+        line_api["LINE Messaging API\n訊息收發 / Webhook\nRich Menu / Flex Message"]
+        gemini["Google Gemini API\nLLM 推論"]
+        embedding["Google Embedding API\ntext-embedding-004\n768 維向量化"]
+        maps["Google Maps API\n地理距離計算 V2.0"]
+        duckduckgo["DuckDuckGo Search\n網路搜尋"]
+        order_api["訂單查詢 API\nsunnie-lock.com"]
+    end
 
-    System_Ext(line_api, "LINE Messaging API", "訊息收發、Webhook、Rich Menu、Flex Message")
-    System_Ext(gemini, "Google Gemini API", "LLM 推論（意圖識別、對話生成、SOP 生成）")
-    System_Ext(embedding, "Google Embedding API", "text-embedding-004 文字向量化（768 維）")
-    System_Ext(maps, "Google Maps API", "地理距離計算、技師路線優化（V2.0）")
-    System_Ext(duckduckgo, "DuckDuckGo Search", "網路搜尋（市場趨勢、產品比較）")
-    System_Ext(order_api, "訂單查詢 API", "外部訂單狀態查詢（sunnie-lock.com）")
+    consumer -->|"LINE 報修諮詢"| platform
+    technician -->|"HTTPS/PWA 接單回報"| platform
+    admin -->|"HTTPS 管理監控"| platform
 
-    Rel(consumer, platform, "報修諮詢、查詢進度、提供回饋", "LINE")
-    Rel(technician, platform, "瀏覽工單、接單、完工回報", "HTTPS / PWA")
-    Rel(admin, platform, "監控儀表板、審核 SOP、管理知識庫", "HTTPS")
+    platform -->|"HTTPS Webhook"| line_api
+    platform -->|"HTTPS/gRPC"| gemini
+    platform -->|"HTTPS/gRPC"| embedding
+    platform -->|"HTTPS"| maps
+    platform -->|"HTTPS"| duckduckgo
+    platform -->|"HTTPS"| order_api
 
-    Rel(platform, line_api, "接收 Webhook、發送回覆/推播", "HTTPS")
-    Rel(platform, gemini, "LLM 推論請求", "HTTPS / gRPC")
-    Rel(platform, embedding, "文字向量化", "HTTPS / gRPC")
-    Rel(platform, maps, "地理距離查詢", "HTTPS")
-    Rel(platform, duckduckgo, "網路搜尋", "HTTPS")
-    Rel(platform, order_api, "訂單狀態查詢", "HTTPS")
-
-    UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
+    style Users fill:#e3f2fd,stroke:#1565c0
+    style platform fill:#fff3e0,stroke:#e65100
+    style External fill:#f3e5f5,stroke:#7b1fa2
 ```
 
 ---

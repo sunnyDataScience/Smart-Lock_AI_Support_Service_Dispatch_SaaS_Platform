@@ -13,7 +13,7 @@
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Customer as 👤 客戶
+    participantCustomer as 👤 客戶
     participant LINE as LINE App
     participant Webhook as FastAPI /webhook
     participant Debounce as Debounce Buffer
@@ -95,12 +95,12 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Customer as 👤 客戶
+    participantCustomer as 👤 客戶
     participant AI as AI 系統
     participant Dispatch as 派工引擎
     participant PG as PostgreSQL
     participant Pricing as 報價引擎
-    actor Technician as 🔧 技師
+    participantTechnician as 🔧 技師
     participant TechApp as 技師 Web App
     participant Maps as Google Maps
     participant LineAPI as LINE API
