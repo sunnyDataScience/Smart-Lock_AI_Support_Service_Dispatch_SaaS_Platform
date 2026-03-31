@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Lock AI SaaS Platform — System Architecture Diagrams</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Mono&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+<style>
+:root {
+  --surface: #fff;
+  --surface-variant: #f8f9fa;
+  --on-surface: #1f1f1f;
+  --on-surface-variant: #5f6368;
+  --primary: #1a73e8;
+  --primary-container: #d2e3fc;
+  --outline: #dadce0;
+  --outline-variant: #e8eaed;
+  --elevation-1: 0 1px 2px 0 rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);
+  --elevation-2: 0 1px 2px 0 rgba(60,64,67,.3), 0 2px 6px 2px rgba(60,64,67,.15);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --nav-width: 280px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Google Sans', 'Noto Sans TC', system-ui, sans-serif;
+  background: var(--surface-variant);
+  color: var(--on-surface);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Top Bar ── */
+.topbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  height: 64px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--outline);
+  display: flex; align-items: center; padding: 0 24px;
+  gap: 16px;
+}
+.topbar-logo {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--primary); color: #fff;
+  display: grid; place-items: center;
+  font-weight: 700; font-size: 14px;
+}
+.topbar h1 {
+  font-size: 18px; font-weight: 500; color: var(--on-surface);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.topbar .subtitle {
+  font-size: 12px; color: var(--on-surface-variant);
+  margin-left: auto; white-space: nowrap;
+}
+.menu-btn {
+  display: none; background: none; border: none; cursor: pointer;
+  color: var(--on-surface-variant); font-size: 24px; padding: 4px;
+}
+
+/* ── Side Nav ── */
+.sidenav {
+  position: fixed; top: 64px; left: 0; bottom: 0;
+  width: var(--nav-width); background: var(--surface);
+  border-right: 1px solid var(--outline);
+  overflow-y: auto; padding: 12px 0; z-index: 90;
+  transition: transform .25s cubic-bezier(.4,0,.2,1);
+}
+.sidenav a {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 24px; text-decoration: none;
+  color: var(--on-surface-variant); font-size: 14px;
+  font-weight: 400; border-radius: 0 24px 24px 0;
+  margin-right: 12px; transition: all .15s;
+}
+.sidenav a:hover { background: var(--outline-variant); color: var(--on-surface); }
+.sidenav a.active {
+  background: var(--primary-container); color: var(--primary);
+  font-weight: 500;
+}
+.sidenav a .material-icons-outlined { font-size: 20px; flex-shrink: 0; }
+.sidenav .nav-label { font-size: 11px; font-weight: 500; color: var(--on-surface-variant); padding: 16px 24px 4px; text-transform: uppercase; letter-spacing: .8px; }
+
+/* ── Main ── */
+.main {
+  margin-left: var(--nav-width); margin-top: 64px;
+  padding: 32px 40px 80px;
+  max-width: 1200px;
+}
+
+/* ── Section ── */
+.section { margin-bottom: 48px; scroll-margin-top: 80px; }
+.section-header {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 8px;
+}
+.section-number {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--primary); color: #fff;
+  display: grid; place-items: center;
+  font-size: 14px; font-weight: 700; flex-shrink: 0;
+}
+.section h2 { font-size: 22px; font-weight: 500; }
+.section-desc {
+  color: var(--on-surface-variant); font-size: 14px;
+  margin-bottom: 20px; padding-left: 44px;
+}
+
+/* ── Card ── */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--elevation-1);
+  overflow: hidden; margin-bottom: 24px;
+  border: 1px solid var(--outline-variant);
+}
+.card:hover { box-shadow: var(--elevation-2); }
+.card-title {
+  padding: 16px 24px 12px;
+  font-size: 14px; font-weight: 500;
+  color: var(--on-surface-variant);
+  border-bottom: 1px solid var(--outline-variant);
+  display: flex; align-items: center; gap: 8px;
+}
+.card-title .material-icons-outlined { font-size: 18px; }
+.card-body { padding: 24px; overflow-x: auto; }
+.card-body .mermaid { display: flex; justify-content: center; }
+
+/* ── Chips ── */
+.chip-group { display: flex; gap: 8px; flex-wrap: wrap; padding-left: 44px; margin-bottom: 16px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 12px; border-radius: 16px;
+  font-size: 12px; font-weight: 500;
+  background: var(--outline-variant); color: var(--on-surface-variant);
+}
+.chip.v1 { background: #e8eaf6; color: #283593; }
+.chip.v2 { background: #fff8e1; color: #f57f17; }
+.chip.v3 { background: #fce4ec; color: #c62828; }
+
+/* ── Footer ── */
+.footer {
+  margin-left: var(--nav-width);
+  padding: 24px 40px;
+  color: var(--on-surface-variant);
+  font-size: 12px;
+  border-top: 1px solid var(--outline);
+  background: var(--surface);
+}
+
+/* ── Responsive ── */
+@media (max-width: 960px) {
+  .sidenav { transform: translateX(-100%); }
+  .sidenav.open { transform: translateX(0); box-shadow: var(--elevation-2); }
+  .main { margin-left: 0; padding: 24px 16px 80px; }
+  .footer { margin-left: 0; }
+  .menu-btn { display: block; }
+}
+
+/* ── Dark mode ── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #292a2d;
+    --surface-variant: #1f2023;
+    --on-surface: #e8eaed;
+    --on-surface-variant: #bdc1c6;
+    --primary: #8ab4f8;
+    --primary-container: #394457;
+    --outline: #5f6368;
+    --outline-variant: #3c4043;
+    --elevation-1: 0 1px 3px rgba(0,0,0,.6), 0 1px 2px rgba(0,0,0,.4);
+    --elevation-2: 0 2px 6px rgba(0,0,0,.7), 0 1px 3px rgba(0,0,0,.5);
+  }
+  .card { border-color: var(--outline); }
+  .card-title { border-bottom-color: var(--outline); }
+  .chip { background: #3c4043; color: #bdc1c6; }
+  .chip.v1 { background: #394457; color: #8ab4f8; }
+  .chip.v2 { background: #4a3c28; color: #fdd663; }
+  .chip.v3 { background: #4a2c2c; color: #f28b82; }
+  .section-number { background: #8ab4f8; color: #1f2023; }
+  .topbar { background: #292a2d; border-bottom-color: #5f6368; }
+  .sidenav { background: #292a2d; border-right-color: #5f6368; }
+  .sidenav a:hover { background: #3c4043; }
+  .sidenav a.active { background: #394457; color: #8ab4f8; }
+  .footer { background: #292a2d; border-top-color: #5f6368; }
+  .mermaid svg { filter: brightness(1.1); }
+}
+</style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<header class="topbar">
+  <button class="menu-btn material-icons-outlined" onclick="document.querySelector('.sidenav').classList.toggle('open')">menu</button>
+  <div class="topbar-logo">SL</div>
+  <h1>Smart Lock AI SaaS Platform</h1>
+  <span class="subtitle">System Architecture Diagrams &middot; V21</span>
+</header>
+
+<!-- Side Nav -->
+<nav class="sidenav" id="sidenav">
+  <div class="nav-label">V1.0 AI Customer Service</div>
+  <a href="#sec01"><span class="material-icons-outlined">account_tree</span>Business Process</a>
+  <a href="#sec02"><span class="material-icons-outlined">person_search</span>Use Cases</a>
+  <a href="#sec03"><span class="material-icons-outlined">language</span>System Context</a>
+  <a href="#sec04"><span class="material-icons-outlined">hub</span>High-Level Architecture</a>
+  <a href="#sec05"><span class="material-icons-outlined">layers</span>Layered Components</a>
+  <a href="#sec06"><span class="material-icons-outlined">schema</span>Entity Relationships</a>
+  <div class="nav-label">Core Flows</div>
+  <a href="#sec07"><span class="material-icons-outlined">sync_alt</span>Sequence Diagrams</a>
+  <a href="#sec08"><span class="material-icons-outlined">api</span>API Interfaces</a>
+  <div class="nav-label">Infrastructure</div>
+  <a href="#sec09"><span class="material-icons-outlined">cloud</span>Deployment</a>
+  <a href="#sec10"><span class="material-icons-outlined">shield</span>Security & Permissions</a>
+</nav>
+
+<!-- Main Content -->
+<main class="main" id="main">
+
+<!-- 01 -->
+<section class="section" id="sec01">
+  <div class="section-header"><div class="section-number">01</div><h2>Business Process Diagram</h2></div>
+  <p class="section-desc">客戶報修 → AI 診斷 → 解決/派工 → 結案的完整業務流程</p>
+  <div class="chip-group"><span class="chip v1">V1.0 AI</span><span class="chip v2">V2.0 Dispatch</span></div>
+  <div class="card">
+    <div class="card-title"><span class="material-icons-outlined">account_tree</span>End-to-End Business Flow</div>
+    <div class="card-body"><pre class="mermaid">
+flowchart TB
+    subgraph CUSTOMER["Customer"]
+        A([Customer encounters lock issue]) --> B[Send repair message via LINE]
+    end
+    subgraph AI_SERVICE["V1.0 AI Customer Service"]
+        B --> C{Message Type}
+        C -->|Text| D[Conversation State Machine]
+        C -->|Non-text| E[Human Transfer Form]
+        D --> F[ProblemCard Extraction]
+        F --> G{Info Complete?}
+        G -->|No| H[Follow-up Questions]
+        H --> F
+        G -->|Yes| I[Three-Layer Resolution]
+        I --> J{L1: Vector Case Search}
+        J -->|Score >= 0.85| K[Return Historical Solution]
+        J -->|Miss| L{L2: RAG Manual Search}
+        L -->|Found| M[Return AI-Generated Answer]
+        L -->|Fail| N{L3: Escalation}
+        N --> O[Transfer to Human]
+        N --> P[Create Dispatch Request]
+    end
+    subgraph KNOWLEDGE["Knowledge Flywheel"]
+        K --> Q{Customer Feedback}
+        M --> Q
+        Q -->|Positive| R[Auto-Generate SOP Draft]
+        R --> S[Admin Review]
+        S -->|Approved| T[Publish to Knowledge Base]
+        T --> U[Next Query Hit Rate Improves]
+    end
+    subgraph DISPATCH["V2.0 Technician Dispatch"]
+        P --> V[Smart Dispatch Engine]
+        V --> W[Match Best Technician]
+        W --> X[Push Work Order]
+        X --> Y{Technician Accept?}
+        Y -->|Accept| Z[On-site Repair]
+        Y -->|Reject/Timeout| W
+        Z --> AA[Completion Report + Photos]
+    end
+    subgraph ACCOUNTING["V2.0 Accounting"]
+        AA --> AB[Pricing Engine Auto-Calculate]
+        AB --> AC[Generate Invoice]
+        AC --> AD[Monthly Reconciliation]
+        AD --> AE[Technician Payout]
+    end
+    subgraph CLOSURE["Case Closure"]
+        K --> AF[Case Closed]
+        M --> AF
+        O --> AF
+        AE --> AF
+        AF --> AG[Customer Satisfaction Survey]
+    end
+    style CUSTOMER fill:#e3f2fd,stroke:#1565c0
+    style AI_SERVICE fill:#f3e5f5,stroke:#7b1fa2
+    style KNOWLEDGE fill:#e8f5e9,stroke:#2e7d32
+    style DISPATCH fill:#fff3e0,stroke:#e65100
+    style ACCOUNTING fill:#fce4ec,stroke:#c62828
+    style CLOSURE fill:#f1f8e9,stroke:#558b2f
+    </pre></div>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="section" id="sec02">
+  <div class="section-header"><div class="section-number">02</div><h2>Use Case Diagram</h2></div>
+  <p class="section-desc">四大角色（客戶、技師、管理員、AI 系統）與各自功能邊界</p>
+  <div class="chip-group"><span class="chip v1">V1.0</span><span class="chip v2">V2.0</span></div>
+  <div class="card">
+    <div class="card-title"><span class="material-icons-outlined">person_search</span>Actor-UseCase Mapping</div>
+    <div class="card-body"><pre class="mermaid">
+flowchart LR
+    subgraph ACTORS_LEFT["Actors"]
+        Consumer["Customer\n(LINE User)"]
+        Technician["Technician\n(Web App)"]
+    end
+    subgraph SYSTEM["Smart Lock AI SaaS Platform"]
+        subgraph V1["V1.0 AI Customer Service"]
+            UC001["UC-001\nRepair Inquiry"]
+            UC002["UC-002\nReceive AI Diagnosis"]
+            UC003["UC-003\nConfirm ProblemCard"]
+            UC004["UC-004\nTrack Repair Status"]
+            UC005["UC-005\nProvide Feedback"]
+            UC006["UC-006\nHuman Transfer Notice"]
+            UC201["UC-201\nMonitor Dashboard"]
+            UC202["UC-202\nReview SOP Drafts"]
+            UC203["UC-203\nUpload Manuals"]
+            UC204["UC-204\nAudit Conversations"]
+            UC207["UC-207\nManage Knowledge Base"]
+        end
+        subgraph V2["V2.0 Dispatch and Accounting"]
+            UC101["UC-101\nBrowse Work Orders"]
+            UC102["UC-102\nAccept Work Order"]
+            UC103["UC-103\nCompletion Report"]
+            UC104["UC-104\nView Personal Accounting"]
+            UC105["UC-105\nCustomer Satisfaction"]
+            UC205["UC-205\nManual Dispatch"]
+            UC206["UC-206\nGenerate Monthly Report"]
+        end
+    end
+    subgraph ACTORS_RIGHT["Actors"]
+        Admin["Admin\n(Admin Panel)"]
+        AISystem["AI System\n(Internal)"]
+    end
+    Consumer --- UC001
+    Consumer --- UC002
+    Consumer --- UC003
+    Consumer --- UC004
+    Consumer --- UC005
+    Consumer --- UC006
+    Technician --- UC101
+    Technician --- UC102
+    Technician --- UC103
+    Technician --- UC104
+    Technician --- UC105
+    UC201 --- Admin
+    UC202 --- Admin
+    UC203 --- Admin
+    UC204 --- Admin
+    UC205 --- Admin
+    UC206 --- Admin
+    UC207 --- Admin
+    UC001 --- AISystem
+    UC002 --- AISystem
+    UC003 --- AISystem
+    style V1 fill:#e8eaf6,stroke:#283593
+    style V2 fill:#fff8e1,stroke:#f57f17
+    </pre></div>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="section" id="sec03">
+  <div class="section-header"><div class="section-number">03</div><h2>System Context Diagram</h2></div>
+  <p class="section-desc">C4 Model Level 1 — 平台與外部角色及系統的關係</p>
+  <div class="card">
+    <div class="card-title"><span class="material-icons-outlined">language</span>System Context</div>
+    <div class="card-body"><pre class="mermaid">
+flowchart TB
+    subgraph Users["Users"]
+        consumer["Customer\nSmart Lock End User\nvia LINE"]
+        technician["Technician\nField Repair\nvia Web App"]
+        admin["Admin\nOps Manager\nvia Admin Panel"]
+    end
+    platform["Smart Lock AI SaaS Platform\nAI Customer Service + Auto Dispatch\n+ Settlement Platform"]
+    subgraph External["External Systems"]
+        line_api["LINE Messaging API\nWebhook / Rich Menu\nFlex Message"]
+        gemini["Google Gemini API\nLLM Inference"]
+        embedding["Google Embedding API\ntext-embedding-004\n768-dim"]
+        maps["Google Maps API\nDistance Calc V2.0"]
+        duckduckgo["DuckDuckGo Search\nWeb Search"]
+        order_api["Order Query API\nsunnie-lock.com"]
+    end
+    consumer -->|"LINE Inquiry"| platform
+    technician -->|"HTTPS/PWA"| platform
+    admin -->|"HTTPS Admin"| platform
+    platform -->|"HTTPS Webhook"| line_api
+    platform -->|"HTTPS/gRPC"| gemini
+    platform -->|"HTTPS/gRPC"| embedding
+    platform -->|"HTTPS"| maps
+    platform -->|"HTTPS"| duckduckgo
+    platform -->|"HTTPS"| order_api
+    style Users fill:#e3f2fd,stroke:#1565c0
+    style platform fill:#fff3e0,stroke:#e65100
+    style External fill:#f3e5f5,stroke:#7b1fa2
+    </pre></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="material-icons-outlined">swap_horiz</span>Data Flow Summary</div>
+    <div class="card-body"><pre class="mermaid">
+flowchart LR
+    subgraph INBOUND["Inbound"]
+        A["LINE Webhook\n(User Messages)"] --> P["Platform"]
+        B["Order API\n(Status)"] --> P
+        C["DuckDuckGo\n(Search)"] --> P
+    end
+    subgraph CORE["Core Processing"]
+        P --> D["Gemini LLM\n(Inference)"]
+        P --> E["Embedding API\n(Vectorize)"]
+        D --> P
+        E --> P
+    end
+    subgraph OUTBOUND["Outbound"]
+        P --> F["LINE Reply/Push\n(Reply)"]
+        P --> G["Admin Panel\n(Dashboard)"]
+        P --> H["Technician App\n(Work Orders)"]
+    end
+    style INBOUND fill:#e3f2fd,stroke:#1565c0
+    style CORE fill:#f3e5f5,stroke:#7b1fa2
+    style OUTBOUND fill:#e8f5e9,stroke:#2e7d32
+    </pre></div>
+  </div>
+</section>
+
+<!-- 04 -->
+<section class="section" id="sec04">
+  <div class="section-header"><div class="section-number">04</div><h2>High-Level Architecture</h2></div>
+  <p class="section-desc">C4 Model Level 2 — 內部容器（Container）及互動方式</p>
+  <div class="card">
+    <div class="card-title"><span class="material-icons-outlined">hub</span>Container Diagram</div>
+    <div class="card-body"><pre class="mermaid">
+flowchart TB
+    subgraph CLIENTS["Client Interfaces"]
+        LINE["LINE Official Account\n(Rich Menu + Flex Message)"]
+        TECH_APP["Technician Web App\n(Next.js 14 / PWA)"]
+        ADMIN["Admin Panel\n(Next.js 14 / shadcn/ui)"]
+    end
+    subgraph GATEWAY["API Gateway Layer"]
+        FASTAPI["FastAPI Application\n(Python 3.11+ / Uvicorn)"]
+        WEBHOOK["/webhook\nLINE Webhook Handler"]
+        REST_API["/api/v1/*\nREST API Endpoints"]
+    end
+    subgraph AI_ENGINE["AI Engine Layer"]
+        LANGGRAPH["LangGraph State Machine\n(Workflow Orchestration)"]
+        subgraph AGENTS["Multi-Agent System"]
+            HW["Hardware\nTechnician"]
+            SALES["Sales\nRep"]
+            STORE["Store\nAssistant"]
+            APP["App\nSpecialist"]
+            MANUAL["Manual\nLibrarian"]
+            WEB["Web\nResearcher"]
+            RECEP["Receptionist"]
+        end
+        ROUTER["Intent Router\n(LLM-based + Guardrail)"]
+        MERGER["Answer Merger\n(Multi-agent Fusion)"]
+    end
+    subgraph LLM_LAYER["LLM and Embedding Layer"]
+        GEMINI["Google Gemini\n(gemini-2.5-flash)"]
+        EMBED["text-embedding-004\n(768 dim)"]
+    end
+    subgraph DATA_LAYER["Data and Storage Layer"]
+        PG["PostgreSQL 16\n(+ pgvector HNSW)"]
+        REDIS["Redis 7\n(Session Cache)"]
+        subgraph VECTOR_COLLECTIONS["Vector Knowledge Base"]
+            KB_VIDEO["kb_video"]
+            KB_LINE["kb_line_chat"]
+            KB_WEB["kb_website"]
+            KB_YT["kb_youtube"]
+            KB_MANUAL["kb_gdrive"]
+        end
+    end
+    subgraph EXTERNAL["External Services"]
+        LINE_API["LINE Messaging API"]
+        DUCK["DuckDuckGo Search"]
+        ORDER["Order Query API"]
+        MAPS["Google Maps API"]
+    end
+    LINE -->|Webhook| WEBHOOK
+    TECH_APP -->|REST| REST_API
+    ADMIN -->|REST| REST_API
+    WEBHOOK --> FASTAPI
+    REST_API --> FASTAPI
+    FASTAPI --> LANGGRAPH
+    LANGGRAPH --> ROUTER
+    ROUTER --> AGENTS
+    AGENTS --> MERGER
+    MERGER --> LANGGRAPH
+    AGENTS -->|Inference| GEMINI
+    AGENTS -->|Vectorize| EMBED
+    AGENTS -->|Vector Search| PG
+    LANGGRAPH -->|Session| REDIS
+    LANGGRAPH -->|Checkpoint| PG
+    FASTAPI -->|Reply/Push| LINE_API
+    WEB -->|Search| DUCK
+    AGENTS -->|Order Query| ORDER
+    AGENTS -->|Distance| MAPS
+    style CLIENTS fill:#e3f2fd,stroke:#1565c0
+    style GATEWAY fill:#f5f5f5,stroke:#616161
+    style AI_ENGINE fill:#f3e5f5,stroke:#7b1fa2
+    style LLM_LAYER fill:#fff3e0,stroke:#e65100
+    style DATA_LAYER fill:#e8f5e9,stroke:#2e7d32
+    style EXTERNAL fill:#fce4ec,stroke:#c62828
+    </pre></div>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="section" id="sec05">
+  <div class="section-header"><div class="section-number">05</div><h2>Layered Component Diagram</h2></div>
+  <p class="section-desc">分層架構 — 從介面層到資料儲存層的完整堆疊與依賴方向</p>
+  <div class="card">
+    <div class="card-title"><span class="material-icons-outlined">layers</span>Layered Architecture</div>
+    <div class="card-body"><pre class="mermaid">
+flowchart TB
+    subgraph PRESENTATION["Presentation Layer"]
+        LINE_BOT["LINE Bot\nWebhook Handler"]
+        TECH_WEB["Technician Web App\nNext.js 14 PWA"]
+        ADMIN_WEB["Admin Panel\nNext.js 14 + shadcn/ui"]
+    end
+    subgraph API["API Layer"]
+        WEBHOOK_EP["POST /webhook\nLINE Webhook"]
+        REST_EP["REST API /api/v1/*\nCRUD + Query"]
+        WS_EP["WebSocket\nReal-time Notification"]
+    end
+    subgraph APPLICATION["Application Layer"]
+        CONV_MGR["Conversation\nManager"]
+        AGENT_ORCH["Agent\nOrchestrator\nLangGraph"]
+        DISPATCH_ENG["Dispatch\nEngine V2.0"]
+        PRICING_ENG["Pricing\nEngine V2.0"]
+    end
+    subgraph DOMAIN["Domain Layer"]
+        PROBLEM["ProblemCard\nExtractor"]
+        RESOLUTION["Resolution\nEngine L1/L2/L3"]
+        SOP_GEN["SOP\nGenerator"]
+        SENTIMENT["Sentiment\nTriage"]
+    end
+    subgraph AGENT_L["Agent Layer"]
+        HW_AGENT["Hardware\nTechnician"]
+        SALES_AGENT["Sales\nRepresentative"]
+        APP_AGENT["App\nSpecialist"]
+        OTHER_AGENT["Store / Manual\n/ Web / Receptionist"]
+    end
+    subgraph INFRA["Infrastructure Layer"]
+        LLM_GW["LLM Gateway\nGemini / Vertex AI"]
+        EMBED_SVC["Embedding\nService"]
+        PROFILE_MGR["Profile\nManager"]
+        AUDIT_LOG["Audit\nLogger"]
+    end
+    subgraph DATA["Data Layer"]
+        PG_DB["PostgreSQL 16"]
+        PGVEC["pgvector\nHNSW Index"]
+        REDIS_DB["Redis 7\nSession Cache"]
+        FILE_STORE["File Storage\nProfiles / Manuals"]
+    end
+    PRESENTATION --> API
+    API --> APPLICATION
+    APPLICATION --> DOMAIN
+    APPLICATION --> AGENT_L
+    AGENT_L --> DOMAIN
+    DOMAIN --> INFRA
+    AGENT_L --> INFRA
+    INFRA --> DATA
+    style PRESENTATION fill:#e3f2fd,stroke:#1565c0
+    style API fill:#e0e0e0,stroke:#616161
+    style APPLICATION fill:#f3e5f5,stroke:#7b1fa2
+    style DOMAIN fill:#ede7f6,stroke:#4527a0
+    style AGENT_L fill:#fff3e0,stroke:#e65100
+    style INFRA fill:#e0f2f1,stroke:#00695c
+    style DATA fill:#e8f5e9,stroke:#2e7d32
+    </pre></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="material-icons-outlined">arrow_downward</span>Dependency Direction</div>
+    <div class="card-body"><pre class="mermaid">
+flowchart TD
+    A["Presentation"] --> B["API Layer"]
+    B --> C["Application Layer"]
+    C --> D["Domain Layer"]
+    C --> E["Agent Layer"]
+    E --> D
+    D --> F["Infrastructure Layer"]
+    E --> F
+    F --> G["Data Layer"]
+    style A fill:#e3f2fd
+    style B fill:#e0e0e0
+    style C fill:#f3e5f5
+    style D fill:#ede7f6
+    style E fill:#fff3e0
+    style F fill:#e0f2f1
+    style G fill:#e8f5e9
+    </pre></div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="section" id="sec06">
+  <div class="section-header"><div class="section-number">06</div><h2>Entity Relationship Diagram</h2></div>
+  <p class="section-desc">核心實體、屬性及關聯 — V1.0 客服 + V2.0 派工帳務</p>
+  <div class="card">
+    <div class="card-title"><span class="material-icons-outlined">schema</span>Full ERD</div>
+    <div class="card-body"><pre class="mermaid">
+erDiagram
+    USER {
+        uuid id PK
+        string line_user_id UK
+        string display_name
+        enum role
+        timestamp created_at
+    }
+    USER_FACTS {
+        serial id PK
+        string user_id FK
+        string attr_key
+        string attr_val
+        boolean is_current
+        timestamp start_date
+    }
+    CONVERSATION {
+        uuid id PK
+        string user_id FK
+        enum state
+        string thread_id
+        text summary
+        timestamp created_at
+    }
+    MESSAGE {
+        serial id PK
+        uuid conversation_id FK
+        enum role
+        text content
+        jsonb metadata
+        timestamp created_at
+    }
+    PROBLEM_CARD {
+        uuid id PK
+        uuid conversation_id FK
+        string brand
+        string model
+        text symptoms
+        string location
+        enum severity
+        boolean is_complete
+    }
+    CASE_ENTRY {
+        uuid id PK
+        string brand
+        text problem_description
+        text solution
+        float success_rate
+        integer usage_count
+    }
+    MANUAL_CHUNK {
+        uuid id PK
+        string source_file
+        integer chunk_index
+        text content
+    }
+    SOP_DRAFT {
+        uuid id PK
+        uuid source_conversation_id FK
+        string title
+        text content
+        enum status
+        string reviewed_by FK
+    }
+    TECHNICIAN {
+        uuid id PK
+        uuid user_id FK
+        string name
+        jsonb skill_set
+        jsonb service_regions
+        float rating
+    }
+    WORK_ORDER {
+        uuid id PK
+        uuid problem_card_id FK
+        uuid technician_id FK
+        enum status
+        timestamp scheduled_at
+        timestamp completed_at
+    }
+    PRICE_RULE {
+        uuid id PK
+        string brand
+        string lock_type
+        enum difficulty
+        decimal base_price
+    }
+    INVOICE {
+        uuid id PK
+        uuid work_order_id FK
+        decimal total
+        enum payment_status
+    }
+    RECONCILIATION {
+        uuid id PK
+        uuid technician_id FK
+        string period
+        decimal net_payout
+        enum status
+    }
+    USER ||--o{ USER_FACTS : "has facts"
+    USER ||--o{ CONVERSATION : "initiates"
+    CONVERSATION ||--o{ MESSAGE : "contains"
+    CONVERSATION ||--o| PROBLEM_CARD : "generates"
+    PROBLEM_CARD ||--o| WORK_ORDER : "escalates to"
+    SOP_DRAFT }o--|| CONVERSATION : "generated from"
+    SOP_DRAFT }o--o| CASE_ENTRY : "approved becomes"
+    USER ||--o| TECHNICIAN : "is a"
+    TECHNICIAN ||--o{ WORK_ORDER : "assigned to"
+    WORK_ORDER ||--|| INVOICE : "billed via"
+    TECHNICIAN ||--o{ RECONCILIATION : "settled in"
+    PRICE_RULE }o--o{ INVOICE : "calculates"
+    </pre></div>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="section" id="sec07">
+  <div class="section-header"><div class="section-number">07</div><h2>Sequence Diagrams</h2></div>
+  <p class="section-desc">三大核心流程：報修對話、技師派工、知識庫自進化</p>
+  <div class="card">
+    <div class="card-title"><span class="material-icons-outlined">chat</span>Flow 1: Customer Repair Conversation</div>
+    <div class="card-body"><pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant Customer as Customer
+    participant LINE as LINE App
+    participant Webhook as FastAPI /webhook
+    participant Debounce as Debounce Buffer
+    participant Graph as LangGraph
+    participant Router as Intent Router
+    participant Agent as Agent ReAct
+    participant LLM as Gemini LLM
+    participant PGVec as pgvector
+    participant PG as PostgreSQL
+    participant LineAPI as LINE API
+    Customer->>LINE: Send repair message
+    LINE->>Webhook: POST /webhook (HMAC-SHA256)
+    Webhook->>Webhook: Verify signature
+    Webhook->>PG: Log audit (user_raw)
+    Webhook->>Debounce: add_message_to_buffer()
+    Note over Debounce: Wait 1.5s for follow-up
+    alt Follow-up within 1.5s
+        Customer->>LINE: Additional message
+        LINE->>Webhook: POST /webhook
+        Webhook->>Debounce: append to buffer
+    end
+    Debounce->>Webhook: Trigger (merged messages)
+    Webhook->>LineAPI: show_loading_animation()
+    Webhook->>Graph: run_langgraph(question, thread_id)
+    rect rgb(243, 229, 245)
+        Note over Graph,PG: LangGraph State Machine
+        Graph->>PG: Load user_profile
+        Graph->>LLM: Router (intent classification)
+        LLM-->>Graph: intent: hardware_tech
+        Graph->>Agent: Fan-out to hardware_technician
+        rect rgb(255, 243, 224)
+            Note over Agent,PGVec: ReAct Loop
+            Agent->>LLM: System Prompt + Query
+            LLM-->>Agent: tool_call: db_video(query)
+            Agent->>PGVec: MMR vector search (>= 0.85)
+            PGVec-->>Agent: Relevant cases
+            Agent->>LLM: Tool result + context
+            LLM-->>Agent: Final answer
+        end
+        Graph->>Graph: merge_answers
+        Graph->>LLM: update_profile (extract facts)
+        Graph->>PG: upsert user_facts (SCD Type 2)
+    end
+    Graph-->>Webhook: answer + response_ui
+    Webhook->>LineAPI: reply(Flex Message)
+    LineAPI->>LINE: Flex Message + Video Card
+    LINE->>Customer: Display AI response
+    </pre></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="material-icons-outlined">build</span>Flow 2: L3 Escalation to Dispatch (V2.0)</div>
+    <div class="card-body"><pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant AI as AI System
+    participant Dispatch as Dispatch Engine
+    participant PG as PostgreSQL
+    participant Pricing as Pricing Engine
+    participant Technician as Technician
+    participant TechApp as Tech Web App
+    participant Maps as Google Maps
+    participant LineAPI as LINE API
+    AI->>AI: L1 Miss then L2 Fail then L3 Escalate
+    AI->>PG: Create WorkOrder (status: created)
+    AI->>LineAPI: Notify customer
+    Dispatch->>PG: Query ProblemCard
+    Dispatch->>PG: Query matching technicians
+    Dispatch->>Maps: Calculate distances
+    Maps-->>Dispatch: Distance matrix
+    Dispatch->>Dispatch: Weighted scoring
+    Dispatch->>PG: Update WorkOrder (assigned)
+    Dispatch->>TechApp: Push notification
+    alt Technician Accepts
+        Technician->>TechApp: Accept work order
+        TechApp->>PG: Update WorkOrder (in_progress)
+        TechApp->>Maps: Navigate to customer
+        Note over Technician: On-site repair...
+        Technician->>TechApp: Completion report
+        TechApp->>Pricing: Auto-calculate
+        Pricing-->>TechApp: Quote details
+        TechApp->>PG: Create Invoice
+        TechApp->>LineAPI: Notify customer
+    else Reject / Timeout
+        TechApp->>Dispatch: Re-match next technician
+    end
+    </pre></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="material-icons-outlined">auto_awesome</span>Flow 3: Knowledge Base Self-Evolution</div>
+    <div class="card-body"><pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant AI as AI System
+    participant LLM as Gemini LLM
+    participant PG as PostgreSQL
+    participant Admin as Admin
+    participant KB as Knowledge Base
+    AI->>AI: Detect successful resolution
+    rect rgb(232, 245, 233)
+        Note over AI,LLM: SOP Auto-Generation
+        AI->>LLM: Summarize + extract steps
+        LLM-->>AI: SOP draft content
+        AI->>PG: Create SOP_DRAFT (pending_review)
+    end
+    PG->>Admin: Review notification
+    alt Approved
+        Admin->>PG: Approve SOP
+        PG->>KB: Add CaseEntry + generate embedding
+        KB->>KB: Update HNSW index
+        Note over KB: Next L1 hit rate improves
+    else Rejected
+        Admin->>PG: Reject with notes
+    end
+    </pre></div>
+  </div>
+</section>
+
+<!-- 08 -->
+<section class="section" id="sec08">
+  <div class="section-header"><div class="section-number">08</div><h2>API Interface Diagram</h2></div>
+  <p class="section-desc">所有 API 端點、內部介面與外部整合規格</p>
+  <div class="card">
+    <div class="card-title"><span class="material-icons-outlined">api</span>API Architecture Overview</div>
+    <div class="card-body"><pre class="mermaid">
+flowchart TB
+    subgraph EXTERNAL_INBOUND["External Inbound"]
+        LINE_WH["LINE Webhook\nPOST /webhook\n(HMAC-SHA256)"]
+    end
+    subgraph INTERNAL_API["Internal REST API"]
+        subgraph V1_API["V1.0 Endpoints"]
+            KB_API["Knowledge Base\n/api/v1/knowledge/*"]
+            CONV_API["Conversations\n/api/v1/conversations/*"]
+            SOP_API["SOP\n/api/v1/sops/*"]
+            DASH_API["Dashboard\n/api/v1/dashboard/*"]
+        end
+        subgraph V2_API["V2.0 Endpoints"]
+            WO_API["Work Orders\n/api/v1/work-orders/*"]
+            TECH_API["Technicians\n/api/v1/technicians/*"]
+            PRICE_API["Pricing\n/api/v1/pricing/*"]
+            ACCT_API["Accounting\n/api/v1/accounting/*"]
+        end
+    end
+    subgraph EXTERNAL_OUTBOUND["External Outbound"]
+        GEMINI_API["Gemini API\nLLM"]
+        EMBED_API["Embedding API"]
+        LINE_REPLY["LINE Reply API"]
+        LINE_PUSH["LINE Push API"]
+        MAPS_API["Google Maps API"]
+        DUCK_API["DuckDuckGo"]
+    end
+    LINE_WH --> CONV_API
+    KB_API --> GEMINI_API
+    KB_API --> EMBED_API
+    CONV_API --> GEMINI_API
+    CONV_API --> LINE_REPLY
+    CONV_API --> LINE_PUSH
+    WO_API --> MAPS_API
+    WO_API --> LINE_PUSH
+    style EXTERNAL_INBOUND fill:#e3f2fd,stroke:#1565c0
+    style INTERNAL_API fill:#f3e5f5,stroke:#7b1fa2
+    style EXTERNAL_OUTBOUND fill:#fff3e0,stroke:#e65100
+    </pre></div>
+  </div>
+</section>
+
+<!-- 09 -->
+<section class="section" id="sec09">
+  <div class="section-header"><div class="section-number">09</div><h2>Deployment Diagram</h2></div>
+  <p class="section-desc">容器化策略、網路拓撲與 CI/CD 流程</p>
+  <div class="card">
+    <div class="card-title"><span class="material-icons-outlined">cloud</span>Production Deployment</div>
+    <div class="card-body"><pre class="mermaid">
+flowchart TB
+    subgraph INTERNET["Internet"]
+        USER_LINE["Customer\n(LINE)"]
+        USER_TECH["Technician\n(Browser)"]
+        USER_ADMIN["Admin\n(Browser)"]
+    end
+    subgraph CDN["CDN / DNS"]
+        DNS["DNS"]
+        SSL["SSL/TLS 1.2+"]
+    end
+    subgraph CLOUD["Cloud Infrastructure"]
+        NGINX["Nginx\nReverse Proxy"]
+        subgraph APP["App Cluster (Docker)"]
+            UV1["FastAPI #1\n:8000"]
+            UV2["FastAPI #2\n:8000"]
+        end
+        subgraph FRONT["Frontend (Docker)"]
+            NX_T["Tech App\nNext.js :3000"]
+            NX_A["Admin Panel\nNext.js :3001"]
+        end
+        subgraph DB["Data Tier"]
+            PG_P["PostgreSQL 16\nPrimary + pgvector"]
+            PG_R["PostgreSQL 16\nRead Replica"]
+            RD["Redis 7\n:6379"]
+        end
+    end
+    subgraph EXT["External"]
+        LINE_API["LINE Platform"]
+        GOOGLE["Google Cloud"]
+    end
+    USER_LINE --> DNS --> SSL --> NGINX
+    USER_TECH --> DNS
+    USER_ADMIN --> DNS
+    NGINX --> UV1
+    NGINX --> UV2
+    NGINX --> NX_T
+    NGINX --> NX_A
+    UV1 --> PG_P
+    UV2 --> PG_P
+    UV1 --> RD
+    PG_P --> PG_R
+    UV1 --> LINE_API
+    UV1 --> GOOGLE
+    style CLOUD fill:#f5f5f5,stroke:#616161
+    style APP fill:#f3e5f5,stroke:#7b1fa2
+    style DB fill:#e8f5e9,stroke:#2e7d32
+    style EXT fill:#fff3e0,stroke:#e65100
+    </pre></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="material-icons-outlined">rocket_launch</span>CI/CD Pipeline</div>
+    <div class="card-body"><pre class="mermaid">
+flowchart LR
+    subgraph DEV["Development"]
+        CODE["Developer Push\nto GitHub"]
+    end
+    subgraph CI["CI (GitHub Actions)"]
+        LINT["Lint"] --> TEST["Test"] --> BUILD["Build\nDocker"] --> SCAN["Security\nScan"]
+    end
+    subgraph CD["CD"]
+        PUSH_IMG["Push Image"] --> DEPLOY_STG["Deploy\nStaging"] --> SMOKE["Smoke\nTest"] --> DEPLOY_PROD["Deploy\nProduction"]
+    end
+    CODE --> LINT
+    SCAN --> PUSH_IMG
+    style DEV fill:#e3f2fd
+    style CI fill:#f3e5f5
+    style CD fill:#e8f5e9
+    </pre></div>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="section" id="sec10">
+  <div class="section-header"><div class="section-number">10</div><h2>Security & Permissions</h2></div>
+  <p class="section-desc">認證授權架構、RBAC、AI 安全防護、合規審計</p>
+  <div class="card">
+    <div class="card-title"><span class="material-icons-outlined">shield</span>Security Architecture Overview</div>
+    <div class="card-body"><pre class="mermaid">
+flowchart TB
+    subgraph PERIMETER["Perimeter Defense"]
+        WAF["WAF / Rate Limiting\n(Nginx)"]
+        SSL["TLS 1.2+\nHTTPS Only"]
+        CORS["CORS Policy"]
+    end
+    subgraph AUTH["Authentication"]
+        LINE_AUTH["LINE Webhook\nHMAC-SHA256"]
+        JWT_AUTH["JWT Bearer Token\n(Admin / Technician)"]
+    end
+    subgraph AUTHZ["Authorization (RBAC)"]
+        RBAC["Role-Based Access Control"]
+        ROLE_LINE["line_user"]
+        ROLE_ADMIN["admin"]
+        ROLE_REVIEWER["reviewer"]
+        ROLE_TECH["technician"]
+    end
+    subgraph AI_SAFETY["AI Safety"]
+        PROMPT_GUARD["Prompt Injection\nDetection"]
+        CONTENT_FILTER["Content\nFiltering"]
+        OUTPUT_GUARD["Output\nGuardrail"]
+    end
+    subgraph DATA_PROTECTION["Data Protection"]
+        ENCRYPT_TRANSIT["Transit: TLS 1.2+"]
+        ENCRYPT_REST["At Rest: AES-256"]
+        PII_MASK["PII Masking"]
+    end
+    subgraph AUDIT["Audit Trail"]
+        AUDIT_LOG["Complete Audit Log\n(5 types per contract 10.3)"]
+        TRACE_ID["Trace ID"]
+        SOP_REVIEW["SOP Review Workflow"]
+    end
+    WAF --> SSL --> AUTH
+    LINE_AUTH --> RBAC
+    JWT_AUTH --> RBAC
+    RBAC --> AI_SAFETY
+    AI_SAFETY --> DATA_PROTECTION
+    DATA_PROTECTION --> AUDIT
+    style PERIMETER fill:#ffebee,stroke:#c62828
+    style AUTH fill:#fff3e0,stroke:#e65100
+    style AUTHZ fill:#e8eaf6,stroke:#283593
+    style AI_SAFETY fill:#f3e5f5,stroke:#7b1fa2
+    style DATA_PROTECTION fill:#e8f5e9,stroke:#2e7d32
+    style AUDIT fill:#e3f2fd,stroke:#1565c0
+    </pre></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="material-icons-outlined">admin_panel_settings</span>RBAC Permission Matrix</div>
+    <div class="card-body"><pre class="mermaid">
+flowchart LR
+    subgraph ROLES["Roles"]
+        R1["line_user\n(Customer)"]
+        R2["admin\n(Manager)"]
+        R3["reviewer\n(Reviewer)"]
+        R4["technician\n(Field Tech)"]
+    end
+    subgraph RESOURCES["Resource Permissions"]
+        subgraph CONV_P["Conversations"]
+            C1["Own History"]
+            C2["All History"]
+        end
+        subgraph KB_P["Knowledge Base"]
+            K1["Read Cases"]
+            K2["CRUD Cases"]
+            K3["Review SOPs"]
+        end
+        subgraph WO_P["Work Orders"]
+            W1["Own Orders"]
+            W2["All + Assign"]
+        end
+    end
+    R1 --> C1
+    R2 --> C2
+    R2 --> K2
+    R2 --> K3
+    R2 --> W2
+    R3 --> C2
+    R3 --> K1
+    R3 --> K3
+    R4 --> W1
+    style ROLES fill:#e8eaf6
+    style RESOURCES fill:#f5f5f5
+    </pre></div>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  Smart Lock AI SaaS Platform &middot; Contract SPA-Funngo-001 V21 &middot; Generated 2026-03-31
+</footer>
+
+<!-- Mermaid.js CDN (v10.x for broad compatibility) -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+mermaid.initialize({
+  startOnLoad: true,
+  theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default',
+  flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' },
+  sequence: { useMaxWidth: true, showSequenceNumbers: true },
+  er: { useMaxWidth: true },
+  themeVariables: {
+    fontFamily: '"Google Sans", "Noto Sans TC", system-ui, sans-serif',
+    fontSize: '14px'
+  }
+});
+
+// Active nav highlighting
+const sections = document.querySelectorAll('.section');
+const navLinks = document.querySelectorAll('.sidenav a');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      navLinks.forEach(l => l.classList.remove('active'));
+      const id = entry.target.id;
+      const link = document.querySelector(`.sidenav a[href="#${id}"]`);
+      if (link) link.classList.add('active');
+    }
+  });
+}, { rootMargin: '-80px 0px -60% 0px' });
+sections.forEach(s => observer.observe(s));
+
+// Close mobile nav on link click
+navLinks.forEach(link => {
+  link.addEventListener('click', () => {
+    document.querySelector('.sidenav').classList.remove('open');
+  });
+});
+</script>
+</body>
+</html>
