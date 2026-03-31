@@ -6,108 +6,136 @@
 <title>Smart Lock AI SaaS Platform — System Architecture Diagrams</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Mono&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
 <style>
+/* ════════════════════════════════════════
+   Design Tokens
+   ════════════════════════════════════════ */
 :root {
-  --surface: #fff;
-  --surface-variant: #f8f9fa;
-  --on-surface: #1f1f1f;
-  --on-surface-variant: #5f6368;
+  --surface: #ffffff;
+  --surface-dim: #f8f9fa;
+  --surface-container: #f1f3f4;
+  --on-surface: #1d1d1f;
+  --on-surface-secondary: #5f6368;
+  --on-surface-tertiary: #80868b;
   --primary: #1a73e8;
+  --primary-hover: #1557b0;
   --primary-container: #d2e3fc;
+  --primary-on-container: #174ea6;
+  --secondary: #5f6368;
   --outline: #dadce0;
   --outline-variant: #e8eaed;
-  --elevation-1: 0 1px 2px 0 rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);
-  --elevation-2: 0 1px 2px 0 rgba(60,64,67,.3), 0 2px 6px 2px rgba(60,64,67,.15);
+  --shadow-1: 0 1px 3px rgba(60,64,67,.08), 0 1px 2px rgba(60,64,67,.04);
+  --shadow-2: 0 2px 6px rgba(60,64,67,.12), 0 1px 4px rgba(60,64,67,.06);
+  --shadow-3: 0 4px 12px rgba(60,64,67,.15), 0 2px 6px rgba(60,64,67,.08);
   --radius: 12px;
   --radius-sm: 8px;
-  --nav-width: 280px;
+  --radius-lg: 16px;
+  --nav-width: 272px;
+  --topbar-h: 60px;
+  /* Semantic colors */
+  --blue-bg: #e8f0fe; --blue-fg: #1967d2; --blue-border: #aecbfa;
+  --purple-bg: #f3e8fd; --purple-fg: #7627bb; --purple-border: #d7aefb;
+  --green-bg: #e6f4ea; --green-fg: #137333; --green-border: #a8dab5;
+  --orange-bg: #fef7e0; --orange-fg: #b06000; --orange-border: #fdd663;
+  --red-bg: #fce8e6; --red-fg: #c5221f; --red-border: #f28b82;
+  --teal-bg: #e0f7fa; --teal-fg: #00695c; --teal-border: #80cbc4;
+  --grey-bg: #f1f3f4; --grey-fg: #3c4043; --grey-border: #dadce0;
+  --yellow-bg: #fffde7; --yellow-fg: #e37400; --yellow-border: #fdd835;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  font-family: 'Google Sans', 'Noto Sans TC', system-ui, sans-serif;
-  background: var(--surface-variant);
+  font-family: 'Inter', 'Noto Sans TC', -apple-system, system-ui, sans-serif;
+  background: var(--surface-dim);
   color: var(--on-surface);
-  line-height: 1.6;
+  line-height: 1.65;
   -webkit-font-smoothing: antialiased;
+  font-size: 14px;
 }
 
 /* ── Top Bar ── */
 .topbar {
   position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  height: 64px;
+  height: var(--topbar-h);
   background: var(--surface);
   border-bottom: 1px solid var(--outline);
   display: flex; align-items: center; padding: 0 24px;
-  gap: 16px;
+  gap: 14px;
+  backdrop-filter: blur(12px);
 }
 .topbar-logo {
-  width: 32px; height: 32px; border-radius: 50%;
-  background: var(--primary); color: #fff;
-  display: grid; place-items: center;
-  font-weight: 700; font-size: 14px;
+  width: 36px; height: 36px; border-radius: 10px;
+  background: linear-gradient(135deg, #1a73e8, #4285f4);
+  color: #fff; display: grid; place-items: center;
+  font-weight: 700; font-size: 13px; letter-spacing: .5px;
+  flex-shrink: 0;
 }
-.topbar h1 {
-  font-size: 18px; font-weight: 500; color: var(--on-surface);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
+.topbar h1 { font-size: 16px; font-weight: 600; color: var(--on-surface); white-space: nowrap; }
 .topbar .subtitle {
-  font-size: 12px; color: var(--on-surface-variant);
+  font-size: 11px; color: var(--on-surface-tertiary);
   margin-left: auto; white-space: nowrap;
+  background: var(--surface-container); padding: 4px 10px;
+  border-radius: 20px; font-weight: 500;
 }
 .menu-btn {
   display: none; background: none; border: none; cursor: pointer;
-  color: var(--on-surface-variant); font-size: 24px; padding: 4px;
+  color: var(--on-surface-secondary); font-size: 24px; padding: 4px;
+  border-radius: 50%;
 }
+.menu-btn:hover { background: var(--surface-container); }
 
 /* ── Side Nav ── */
 .sidenav {
-  position: fixed; top: 64px; left: 0; bottom: 0;
+  position: fixed; top: var(--topbar-h); left: 0; bottom: 0;
   width: var(--nav-width); background: var(--surface);
   border-right: 1px solid var(--outline);
-  overflow-y: auto; padding: 12px 0; z-index: 90;
+  overflow-y: auto; padding: 8px 0; z-index: 90;
   transition: transform .25s cubic-bezier(.4,0,.2,1);
 }
 .sidenav a {
-  display: flex; align-items: center; gap: 12px;
-  padding: 10px 24px; text-decoration: none;
-  color: var(--on-surface-variant); font-size: 14px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 20px; text-decoration: none;
+  color: var(--on-surface-secondary); font-size: 13px;
   font-weight: 400; border-radius: 0 24px 24px 0;
   margin-right: 12px; transition: all .15s;
 }
-.sidenav a:hover { background: var(--outline-variant); color: var(--on-surface); }
+.sidenav a:hover { background: var(--surface-container); color: var(--on-surface); }
 .sidenav a.active {
-  background: var(--primary-container); color: var(--primary);
-  font-weight: 500;
+  background: var(--primary-container); color: var(--primary-on-container);
+  font-weight: 600;
 }
-.sidenav a .material-icons-outlined { font-size: 20px; flex-shrink: 0; }
-.sidenav .nav-label { font-size: 11px; font-weight: 500; color: var(--on-surface-variant); padding: 16px 24px 4px; text-transform: uppercase; letter-spacing: .8px; }
+.sidenav a .material-icons-outlined { font-size: 20px; flex-shrink: 0; opacity: .7; }
+.sidenav a.active .material-icons-outlined { opacity: 1; }
+.sidenav .nav-label {
+  font-size: 10px; font-weight: 600; color: var(--on-surface-tertiary);
+  padding: 14px 20px 4px; text-transform: uppercase; letter-spacing: 1px;
+}
 
 /* ── Main ── */
 .main {
-  margin-left: var(--nav-width); margin-top: 64px;
+  margin-left: var(--nav-width); margin-top: var(--topbar-h);
   padding: 32px 40px 80px;
-  max-width: 1200px;
+  max-width: 1240px;
 }
 
 /* ── Section ── */
-.section { margin-bottom: 48px; scroll-margin-top: 80px; }
+.section { margin-bottom: 56px; scroll-margin-top: 80px; }
 .section-header {
   display: flex; align-items: center; gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 .section-number {
-  width: 32px; height: 32px; border-radius: 50%;
+  width: 32px; height: 32px; border-radius: 8px;
   background: var(--primary); color: #fff;
   display: grid; place-items: center;
-  font-size: 14px; font-weight: 700; flex-shrink: 0;
+  font-size: 13px; font-weight: 700; flex-shrink: 0;
 }
-.section h2 { font-size: 22px; font-weight: 500; }
+.section h2 { font-size: 20px; font-weight: 600; }
 .section-desc {
-  color: var(--on-surface-variant); font-size: 14px;
+  color: var(--on-surface-secondary); font-size: 13px;
   margin-bottom: 20px; padding-left: 44px;
 }
 
@@ -115,80 +143,470 @@ body {
 .card {
   background: var(--surface);
   border-radius: var(--radius);
-  box-shadow: var(--elevation-1);
-  overflow: hidden; margin-bottom: 24px;
+  box-shadow: var(--shadow-1);
+  overflow: hidden; margin-bottom: 20px;
   border: 1px solid var(--outline-variant);
+  transition: box-shadow .2s;
 }
-.card:hover { box-shadow: var(--elevation-2); }
+.card:hover { box-shadow: var(--shadow-2); }
 .card-title {
-  padding: 16px 24px 12px;
-  font-size: 14px; font-weight: 500;
-  color: var(--on-surface-variant);
+  padding: 14px 20px;
+  font-size: 13px; font-weight: 600;
+  color: var(--on-surface-secondary);
   border-bottom: 1px solid var(--outline-variant);
   display: flex; align-items: center; gap: 8px;
+  background: var(--surface-dim);
 }
-.card-title .material-icons-outlined { font-size: 18px; }
+.card-title .material-icons-outlined { font-size: 18px; color: var(--primary); }
 .card-body { padding: 24px; overflow-x: auto; }
 .card-body .mermaid { display: flex; justify-content: center; }
 
 /* ── Chips ── */
-.chip-group { display: flex; gap: 8px; flex-wrap: wrap; padding-left: 44px; margin-bottom: 16px; }
+.chip-group { display: flex; gap: 6px; flex-wrap: wrap; padding-left: 44px; margin-bottom: 16px; }
 .chip {
   display: inline-flex; align-items: center; gap: 4px;
-  padding: 4px 12px; border-radius: 16px;
-  font-size: 12px; font-weight: 500;
-  background: var(--outline-variant); color: var(--on-surface-variant);
+  padding: 3px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 600; letter-spacing: .3px;
 }
-.chip.v1 { background: #e8eaf6; color: #283593; }
-.chip.v2 { background: #fff8e1; color: #f57f17; }
-.chip.v3 { background: #fce4ec; color: #c62828; }
+.chip.v1 { background: var(--blue-bg); color: var(--blue-fg); }
+.chip.v2 { background: var(--orange-bg); color: var(--orange-fg); }
+
+/* ── Tables ── */
+.data-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 13px;
+}
+.data-table thead th {
+  background: var(--surface-dim);
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--on-surface-secondary);
+  border-bottom: 2px solid var(--outline);
+  white-space: nowrap;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.data-table tbody td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--outline-variant);
+  vertical-align: top;
+}
+.data-table tbody tr:hover { background: var(--surface-dim); }
+.data-table tbody tr:last-child td { border-bottom: none; }
+.data-table code {
+  background: var(--surface-container);
+  padding: 2px 6px; border-radius: 4px;
+  font-size: 12px; font-family: 'SF Mono', 'Fira Code', monospace;
+  color: var(--primary-on-container);
+}
+.check { color: var(--green-fg); font-weight: 700; }
+.cross { color: var(--on-surface-tertiary); }
+.badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 8px; border-radius: 4px;
+  font-size: 11px; font-weight: 600;
+}
+.badge-get { background: var(--green-bg); color: var(--green-fg); }
+.badge-post { background: var(--blue-bg); color: var(--blue-fg); }
+.badge-put { background: var(--orange-bg); color: var(--orange-fg); }
+.badge-patch { background: var(--orange-bg); color: var(--orange-fg); }
+.badge-delete { background: var(--red-bg); color: var(--red-fg); }
+.badge-ws { background: var(--purple-bg); color: var(--purple-fg); }
+
+/* ── Flow Steps ── */
+.flow-phases {
+  display: flex; flex-direction: column; gap: 0;
+}
+.flow-phase {
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 2px;
+  position: relative;
+}
+.flow-phase-title {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 14px; font-weight: 600;
+  margin-bottom: 14px;
+}
+.flow-phase-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: grid; place-items: center;
+  font-size: 20px; flex-shrink: 0;
+}
+.flow-steps {
+  display: flex; gap: 0; align-items: flex-start; flex-wrap: wrap;
+}
+.flow-step {
+  display: flex; align-items: center; gap: 0;
+  flex-shrink: 0;
+}
+.flow-step-box {
+  background: var(--surface);
+  border: 1.5px solid var(--outline);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 12px; font-weight: 500;
+  text-align: center;
+  min-width: 100px;
+  box-shadow: var(--shadow-1);
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.flow-step-box .material-icons-outlined { font-size: 20px; color: var(--primary); }
+.flow-step-box.decision {
+  border-color: var(--orange-border);
+  background: var(--orange-bg);
+  transform: rotate(0deg);
+  border-radius: 4px;
+  border-style: dashed;
+}
+.flow-arrow {
+  color: var(--on-surface-tertiary);
+  font-size: 20px;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+.flow-arrow-down {
+  display: flex; justify-content: center;
+  color: var(--on-surface-tertiary);
+  font-size: 24px;
+  padding: 4px 0;
+}
+.flow-connector {
+  width: 2px; height: 20px;
+  background: var(--outline);
+  margin: 0 auto;
+}
+
+/* ── Hub Spoke ── */
+.hub-spoke {
+  display: flex; flex-direction: column; align-items: center; gap: 32px;
+  padding: 20px 0;
+}
+.hub-center {
+  background: linear-gradient(135deg, var(--primary), #4285f4);
+  color: #fff;
+  padding: 20px 32px;
+  border-radius: var(--radius-lg);
+  text-align: center;
+  font-weight: 600;
+  font-size: 15px;
+  box-shadow: var(--shadow-3);
+  max-width: 320px;
+}
+.hub-center small { display: block; font-weight: 400; font-size: 12px; opacity: .85; margin-top: 4px; }
+.spoke-group {
+  display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;
+  width: 100%;
+}
+.spoke-group-label {
+  width: 100%; text-align: center;
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--on-surface-tertiary);
+  margin-bottom: -8px;
+}
+.spoke-card {
+  border: 1.5px solid var(--outline);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  text-align: center;
+  min-width: 130px;
+  max-width: 170px;
+  flex: 1;
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  transition: box-shadow .15s, transform .15s;
+}
+.spoke-card:hover { box-shadow: var(--shadow-2); transform: translateY(-2px); }
+.spoke-card .material-icons-outlined {
+  font-size: 28px; margin-bottom: 6px; display: block;
+}
+.spoke-card-name { font-size: 12px; font-weight: 600; }
+.spoke-card-desc { font-size: 11px; color: var(--on-surface-secondary); margin-top: 2px; }
+.spoke-divider {
+  display: flex; align-items: center; gap: 8px;
+  color: var(--on-surface-tertiary); font-size: 11px; width: 100%;
+}
+.spoke-divider::before, .spoke-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--outline);
+}
+
+/* ── Layer Stack ── */
+.layer-stack {
+  display: flex; flex-direction: column; gap: 0;
+}
+.layer-row {
+  border: 1.5px solid var(--outline);
+  border-radius: var(--radius-sm);
+  padding: 16px 20px;
+  margin-bottom: -1px;
+  position: relative;
+}
+.layer-row:first-child { border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+.layer-row:last-child { border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
+.layer-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .8px; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 6px;
+}
+.layer-label .material-icons-outlined { font-size: 16px; }
+.layer-items {
+  display: flex; gap: 10px; flex-wrap: wrap;
+}
+.layer-item {
+  background: var(--surface);
+  border: 1px solid var(--outline-variant);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px; font-weight: 500;
+  display: flex; align-items: center; gap: 6px;
+  box-shadow: var(--shadow-1);
+}
+.layer-item .material-icons-outlined { font-size: 16px; }
+.layer-arrow {
+  display: flex; justify-content: center;
+  padding: 2px 0;
+  color: var(--on-surface-tertiary);
+  font-size: 18px;
+  z-index: 1;
+}
+
+/* ── Timeline ── */
+.timeline {
+  position: relative;
+  padding-left: 40px;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 16px; top: 0; bottom: 0;
+  width: 2px;
+  background: var(--outline);
+}
+.tl-event {
+  position: relative;
+  margin-bottom: 8px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+.tl-event::before {
+  content: attr(data-step);
+  position: absolute;
+  left: -34px; top: 10px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 10px; font-weight: 700;
+  display: grid; place-items: center;
+  z-index: 1;
+}
+.tl-event.alt::before { background: var(--orange-fg); }
+.tl-event.success::before { background: var(--green-fg); }
+.tl-actors {
+  display: flex; gap: 4px; margin-bottom: 4px;
+}
+.tl-actor {
+  font-size: 10px; font-weight: 600;
+  padding: 2px 6px; border-radius: 4px;
+}
+.tl-arrow { color: var(--on-surface-tertiary); font-size: 11px; }
+.tl-desc { color: var(--on-surface); font-weight: 500; }
+.tl-note {
+  background: var(--yellow-bg);
+  border: 1px dashed var(--yellow-border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 6px 0 6px 40px;
+  font-size: 11px;
+  color: var(--yellow-fg);
+  font-weight: 500;
+}
+.tl-group {
+  border-left: 3px solid var(--purple-border);
+  margin: 8px 0;
+  padding: 4px 0 4px 12px;
+  border-radius: 0;
+}
+.tl-group-label {
+  font-size: 11px; font-weight: 600;
+  color: var(--purple-fg);
+  margin-bottom: 6px;
+}
+
+/* ── Infra Diagram ── */
+.infra-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+.infra-zone {
+  border: 1.5px solid var(--outline);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.infra-zone-title {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .8px; margin-bottom: 12px;
+  display: flex; align-items: center; gap: 6px;
+}
+.infra-zone-title .material-icons-outlined { font-size: 16px; }
+.infra-nodes {
+  display: flex; gap: 12px; flex-wrap: wrap;
+}
+.infra-node {
+  background: var(--surface);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  text-align: center;
+  min-width: 110px;
+  flex: 1;
+  box-shadow: var(--shadow-1);
+}
+.infra-node .material-icons-outlined { font-size: 28px; display: block; margin-bottom: 6px; }
+.infra-node-name { font-size: 12px; font-weight: 600; }
+.infra-node-desc { font-size: 11px; color: var(--on-surface-secondary); }
+
+/* ── Entity Card ── */
+.entity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.entity-card {
+  border: 1.5px solid var(--outline);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.entity-card-header {
+  padding: 10px 14px;
+  font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; gap: 8px;
+}
+.entity-card-header .material-icons-outlined { font-size: 18px; }
+.entity-card table {
+  width: 100%; border-collapse: collapse; font-size: 12px;
+}
+.entity-card th {
+  background: var(--surface-dim);
+  padding: 6px 12px; text-align: left;
+  font-weight: 600; font-size: 10px;
+  text-transform: uppercase; letter-spacing: .5px;
+  color: var(--on-surface-tertiary);
+}
+.entity-card td {
+  padding: 5px 12px;
+  border-top: 1px solid var(--outline-variant);
+}
+.entity-card td code { font-family: 'SF Mono', monospace; font-size: 11px; }
+.pk { color: var(--blue-fg); font-weight: 600; }
+.fk { color: var(--purple-fg); font-weight: 600; }
+.uk { color: var(--green-fg); font-weight: 600; }
+
+/* ── Security Layers ── */
+.sec-layers {
+  display: flex; flex-direction: column; gap: 0;
+}
+.sec-layer {
+  padding: 16px 20px;
+  border: 1.5px solid;
+  margin-bottom: -1px;
+  display: flex; align-items: flex-start; gap: 16px;
+}
+.sec-layer:first-child { border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+.sec-layer:last-child { border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
+.sec-layer-icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: grid; place-items: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.sec-layer-content { flex: 1; }
+.sec-layer-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.sec-layer-items { display: flex; gap: 8px; flex-wrap: wrap; }
+.sec-layer-item {
+  font-size: 11px; font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(255,255,255,.6);
+  border: 1px solid rgba(0,0,0,.06);
+}
 
 /* ── Footer ── */
 .footer {
   margin-left: var(--nav-width);
-  padding: 24px 40px;
-  color: var(--on-surface-variant);
-  font-size: 12px;
+  padding: 20px 40px;
+  color: var(--on-surface-tertiary);
+  font-size: 11px;
   border-top: 1px solid var(--outline);
   background: var(--surface);
+}
+
+/* ── Two Column Layout ── */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
 }
 
 /* ── Responsive ── */
 @media (max-width: 960px) {
   .sidenav { transform: translateX(-100%); }
-  .sidenav.open { transform: translateX(0); box-shadow: var(--elevation-2); }
+  .sidenav.open { transform: translateX(0); box-shadow: var(--shadow-3); }
   .main { margin-left: 0; padding: 24px 16px 80px; }
   .footer { margin-left: 0; }
   .menu-btn { display: block; }
+  .two-col { grid-template-columns: 1fr; }
+  .flow-steps { flex-direction: column; }
+  .flow-arrow { transform: rotate(90deg); }
+  .spoke-group { flex-direction: column; align-items: center; }
 }
 
 /* ── Dark mode ── */
 @media (prefers-color-scheme: dark) {
   :root {
-    --surface: #292a2d;
-    --surface-variant: #1f2023;
+    --surface: #1e1e1e;
+    --surface-dim: #161616;
+    --surface-container: #2a2a2a;
     --on-surface: #e8eaed;
-    --on-surface-variant: #bdc1c6;
+    --on-surface-secondary: #bdc1c6;
+    --on-surface-tertiary: #80868b;
     --primary: #8ab4f8;
-    --primary-container: #394457;
-    --outline: #5f6368;
-    --outline-variant: #3c4043;
-    --elevation-1: 0 1px 3px rgba(0,0,0,.6), 0 1px 2px rgba(0,0,0,.4);
-    --elevation-2: 0 2px 6px rgba(0,0,0,.7), 0 1px 3px rgba(0,0,0,.5);
+    --primary-hover: #aecbfa;
+    --primary-container: #2d3f58;
+    --primary-on-container: #aecbfa;
+    --outline: #444;
+    --outline-variant: #333;
+    --shadow-1: 0 1px 3px rgba(0,0,0,.4);
+    --shadow-2: 0 2px 8px rgba(0,0,0,.5);
+    --shadow-3: 0 4px 16px rgba(0,0,0,.6);
+    --blue-bg: #1e2a3a; --blue-fg: #8ab4f8; --blue-border: #394d68;
+    --purple-bg: #2a1e3a; --purple-fg: #c58af8; --purple-border: #4d3968;
+    --green-bg: #1e2e22; --green-fg: #81c995; --green-border: #2e4a35;
+    --orange-bg: #2e2a1e; --orange-fg: #fdd663; --orange-border: #4a4228;
+    --red-bg: #2e1e1e; --red-fg: #f28b82; --red-border: #4a2828;
+    --teal-bg: #1e2e2e; --teal-fg: #80cbc4; --teal-border: #2e4a4a;
+    --grey-bg: #2a2a2a; --grey-fg: #bdc1c6; --grey-border: #444;
+    --yellow-bg: #2e2a1e; --yellow-fg: #fdd663; --yellow-border: #4a4228;
   }
-  .card { border-color: var(--outline); }
-  .card-title { border-bottom-color: var(--outline); }
-  .chip { background: #3c4043; color: #bdc1c6; }
-  .chip.v1 { background: #394457; color: #8ab4f8; }
-  .chip.v2 { background: #4a3c28; color: #fdd663; }
-  .chip.v3 { background: #4a2c2c; color: #f28b82; }
-  .section-number { background: #8ab4f8; color: #1f2023; }
-  .topbar { background: #292a2d; border-bottom-color: #5f6368; }
-  .sidenav { background: #292a2d; border-right-color: #5f6368; }
-  .sidenav a:hover { background: #3c4043; }
-  .sidenav a.active { background: #394457; color: #8ab4f8; }
-  .footer { background: #292a2d; border-top-color: #5f6368; }
-  .mermaid svg { filter: brightness(1.1); }
+  .sec-layer-item { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.08); }
+  .flow-step-box { background: var(--surface-container); }
+  .hub-center { background: linear-gradient(135deg, #1a53a8, #2b6ed4); }
+}
+
+/* ── Print ── */
+@media print {
+  .topbar, .sidenav, .menu-btn { display: none !important; }
+  .main { margin-left: 0; padding: 0; }
+  .footer { margin-left: 0; }
+  .card { break-inside: avoid; box-shadow: none; border: 1px solid #ccc; }
+  .section { page-break-inside: avoid; }
 }
 </style>
 </head>
@@ -199,7 +617,7 @@ body {
   <button class="menu-btn material-icons-outlined" onclick="document.querySelector('.sidenav').classList.toggle('open')">menu</button>
   <div class="topbar-logo">SL</div>
   <h1>Smart Lock AI SaaS Platform</h1>
-  <span class="subtitle">System Architecture Diagrams &middot; V21</span>
+  <span class="subtitle">System Architecture &middot; V2.1</span>
 </header>
 
 <!-- Side Nav -->
@@ -222,380 +640,525 @@ body {
 <!-- Main Content -->
 <main class="main" id="main">
 
-<!-- 01 -->
+<!-- ════════════════════════════════════════════════════════════════
+     01 Business Process
+     ════════════════════════════════════════════════════════════════ -->
 <section class="section" id="sec01">
   <div class="section-header"><div class="section-number">01</div><h2>Business Process Diagram</h2></div>
-  <p class="section-desc">客戶報修 → AI 診斷 → 解決/派工 → 結案的完整業務流程</p>
+  <p class="section-desc">End-to-end flow from customer issue to resolution, dispatch, accounting and case closure</p>
   <div class="chip-group"><span class="chip v1">V1.0 AI</span><span class="chip v2">V2.0 Dispatch</span></div>
+
   <div class="card">
     <div class="card-title"><span class="material-icons-outlined">account_tree</span>End-to-End Business Flow</div>
-    <div class="card-body"><pre class="mermaid">
-flowchart TB
-    subgraph CUSTOMER["Customer"]
-        A([Customer encounters lock issue]) --> B[Send repair message via LINE]
-    end
-    subgraph AI_SERVICE["V1.0 AI Customer Service"]
-        B --> C{Message Type}
-        C -->|Text| D[Conversation State Machine]
-        C -->|Non-text| E[Human Transfer Form]
-        D --> F[ProblemCard Extraction]
-        F --> G{Info Complete?}
-        G -->|No| H[Follow-up Questions]
-        H --> F
-        G -->|Yes| I[Three-Layer Resolution]
-        I --> J{L1: Vector Case Search}
-        J -->|Score >= 0.85| K[Return Historical Solution]
-        J -->|Miss| L{L2: RAG Manual Search}
-        L -->|Found| M[Return AI-Generated Answer]
-        L -->|Fail| N{L3: Escalation}
-        N --> O[Transfer to Human]
-        N --> P[Create Dispatch Request]
-    end
-    subgraph KNOWLEDGE["Knowledge Flywheel"]
-        K --> Q{Customer Feedback}
-        M --> Q
-        Q -->|Positive| R[Auto-Generate SOP Draft]
-        R --> S[Admin Review]
-        S -->|Approved| T[Publish to Knowledge Base]
-        T --> U[Next Query Hit Rate Improves]
-    end
-    subgraph DISPATCH["V2.0 Technician Dispatch"]
-        P --> V[Smart Dispatch Engine]
-        V --> W[Match Best Technician]
-        W --> X[Push Work Order]
-        X --> Y{Technician Accept?}
-        Y -->|Accept| Z[On-site Repair]
-        Y -->|Reject/Timeout| W
-        Z --> AA[Completion Report + Photos]
-    end
-    subgraph ACCOUNTING["V2.0 Accounting"]
-        AA --> AB[Pricing Engine Auto-Calculate]
-        AB --> AC[Generate Invoice]
-        AC --> AD[Monthly Reconciliation]
-        AD --> AE[Technician Payout]
-    end
-    subgraph CLOSURE["Case Closure"]
-        K --> AF[Case Closed]
-        M --> AF
-        O --> AF
-        AE --> AF
-        AF --> AG[Customer Satisfaction Survey]
-    end
-    style CUSTOMER fill:#e3f2fd,stroke:#1565c0
-    style AI_SERVICE fill:#f3e5f5,stroke:#7b1fa2
-    style KNOWLEDGE fill:#e8f5e9,stroke:#2e7d32
-    style DISPATCH fill:#fff3e0,stroke:#e65100
-    style ACCOUNTING fill:#fce4ec,stroke:#c62828
-    style CLOSURE fill:#f1f8e9,stroke:#558b2f
-    </pre></div>
+    <div class="card-body">
+      <div class="flow-phases">
+
+        <!-- Phase 1: Customer -->
+        <div class="flow-phase" style="background: var(--blue-bg); border: 1.5px solid var(--blue-border);">
+          <div class="flow-phase-title">
+            <div class="flow-phase-icon" style="background: var(--blue-fg); color: #fff;">
+              <span class="material-icons-outlined">person</span>
+            </div>
+            <span>Phase 1 &mdash; Customer Initiation</span>
+          </div>
+          <div class="flow-steps">
+            <div class="flow-step">
+              <div class="flow-step-box"><span class="material-icons-outlined">error_outline</span>Customer encounters<br>lock issue</div>
+            </div>
+            <div class="flow-arrow material-icons-outlined">arrow_forward</div>
+            <div class="flow-step">
+              <div class="flow-step-box"><span class="material-icons-outlined">chat</span>Send repair message<br>via LINE</div>
+            </div>
+            <div class="flow-arrow material-icons-outlined">arrow_forward</div>
+            <div class="flow-step">
+              <div class="flow-step-box decision"><span class="material-icons-outlined">call_split</span>Message Type?<br><small>Text / Image / Location</small></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-connector"></div>
+
+        <!-- Phase 2: AI Service -->
+        <div class="flow-phase" style="background: var(--purple-bg); border: 1.5px solid var(--purple-border);">
+          <div class="flow-phase-title">
+            <div class="flow-phase-icon" style="background: var(--purple-fg); color: #fff;">
+              <span class="material-icons-outlined">psychology</span>
+            </div>
+            <span>Phase 2 &mdash; V1.0 AI Customer Service</span>
+          </div>
+          <div class="flow-steps">
+            <div class="flow-step">
+              <div class="flow-step-box"><span class="material-icons-outlined">manage_search</span>Conversation<br>State Machine</div>
+            </div>
+            <div class="flow-arrow material-icons-outlined">arrow_forward</div>
+            <div class="flow-step">
+              <div class="flow-step-box"><span class="material-icons-outlined">badge</span>ProblemCard<br>Extraction</div>
+            </div>
+            <div class="flow-arrow material-icons-outlined">arrow_forward</div>
+            <div class="flow-step">
+              <div class="flow-step-box decision"><span class="material-icons-outlined">checklist</span>Info Complete?</div>
+            </div>
+            <div class="flow-arrow material-icons-outlined">arrow_forward</div>
+            <div class="flow-step">
+              <div class="flow-step-box"><span class="material-icons-outlined">neurology</span>Three-Layer<br>Resolution</div>
+            </div>
+          </div>
+          <div style="margin-top:14px;">
+            <table class="data-table" style="max-width:600px;">
+              <thead><tr><th>Layer</th><th>Strategy</th><th>Threshold</th><th>Fallback</th></tr></thead>
+              <tbody>
+                <tr><td><span class="badge badge-post">L1</span></td><td>Vector Case Search (pgvector cosine)</td><td>Score &ge; 0.85</td><td>Proceed to L2</td></tr>
+                <tr><td><span class="badge badge-put">L2</span></td><td>RAG Manual Search + Gemini Generation</td><td>Chunk found</td><td>Proceed to L3</td></tr>
+                <tr><td><span class="badge badge-delete">L3</span></td><td>Human Escalation / Dispatch Request</td><td>&mdash;</td><td>Create Work Order</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="flow-connector"></div>
+
+        <!-- Phase 3: Knowledge Flywheel -->
+        <div class="flow-phase" style="background: var(--green-bg); border: 1.5px solid var(--green-border);">
+          <div class="flow-phase-title">
+            <div class="flow-phase-icon" style="background: var(--green-fg); color: #fff;">
+              <span class="material-icons-outlined">auto_awesome</span>
+            </div>
+            <span>Phase 3 &mdash; Knowledge Flywheel</span>
+          </div>
+          <div class="flow-steps">
+            <div class="flow-step">
+              <div class="flow-step-box"><span class="material-icons-outlined">thumb_up</span>Customer<br>Positive Feedback</div>
+            </div>
+            <div class="flow-arrow material-icons-outlined">arrow_forward</div>
+            <div class="flow-step">
+              <div class="flow-step-box"><span class="material-icons-outlined">auto_fix_high</span>Auto-Generate<br>SOP Draft</div>
+            </div>
+            <div class="flow-arrow material-icons-outlined">arrow_forward</div>
+            <div class="flow-step">
+              <div class="flow-step-box"><span class="material-icons-outlined">rate_review</span>Admin<br>Review</div>
+            </div>
+            <div class="flow-arrow material-icons-outlined">arrow_forward</div>
+            <div class="flow-step">
+              <div class="flow-step-box"><span class="material-icons-outlined">publish</span>Publish to<br>Knowledge Base</div>
+            </div>
+            <div class="flow-arrow material-icons-outlined">arrow_forward</div>
+            <div class="flow-step">
+              <div class="flow-step-box" style="border-color: var(--green-border);"><span class="material-icons-outlined">trending_up</span>L1 Hit Rate<br>Improves</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-connector"></div>
+
+        <!-- Phase 4: Dispatch -->
+        <div class="flow-phase" style="background: var(--orange-bg); border: 1.5px solid var(--orange-border);">
+          <div class="flow-phase-title">
+            <div class="flow-phase-icon" style="background: var(--orange-fg); color: #fff;">
+              <span class="material-icons-outlined">engineering</span>
+            </div>
+            <span>Phase 4 &mdash; V2.0 Technician Dispatch</span>
+          </div>
+          <div class="flow-steps">
+            <div class="flow-step">
+              <div class="flow-step-box"><span class="material-icons-outlined">smart_toy</span>Smart Dispatch<br>Engine</div>
+            </div>
+            <div class="flow-arrow material-icons-outlined">arrow_forward</div>
+            <div class="flow-step">
+              <div class="flow-step-box"><span class="material-icons-outlined">person_pin_circle</span>Match Best<br>Technician</div>
+            </div>
+            <div class="flow-arrow material-icons-outlined">arrow_forward</div>
+            <div class="flow-step">
+              <div class="flow-step-box"><span class="material-icons-outlined">send_to_mobile</span>Push<br>Work Order</div>
+            </div>
+            <div class="flow-arrow material-icons-outlined">arrow_forward</div>
+            <div class="flow-step">
+              <div class="flow-step-box decision"><span class="material-icons-outlined">flaky</span>Technician<br>Accept?</div>
+            </div>
+            <div class="flow-arrow material-icons-outlined">arrow_forward</div>
+            <div class="flow-step">
+              <div class="flow-step-box"><span class="material-icons-outlined">home_repair_service</span>On-site Repair<br>+ Photos</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-connector"></div>
+
+        <!-- Phase 5: Accounting -->
+        <div class="flow-phase" style="background: var(--red-bg); border: 1.5px solid var(--red-border);">
+          <div class="flow-phase-title">
+            <div class="flow-phase-icon" style="background: var(--red-fg); color: #fff;">
+              <span class="material-icons-outlined">receipt_long</span>
+            </div>
+            <span>Phase 5 &mdash; V2.0 Accounting & Closure</span>
+          </div>
+          <div class="flow-steps">
+            <div class="flow-step">
+              <div class="flow-step-box"><span class="material-icons-outlined">calculate</span>Pricing Engine<br>Auto-Calculate</div>
+            </div>
+            <div class="flow-arrow material-icons-outlined">arrow_forward</div>
+            <div class="flow-step">
+              <div class="flow-step-box"><span class="material-icons-outlined">description</span>Generate<br>Invoice</div>
+            </div>
+            <div class="flow-arrow material-icons-outlined">arrow_forward</div>
+            <div class="flow-step">
+              <div class="flow-step-box"><span class="material-icons-outlined">account_balance</span>Monthly<br>Reconciliation</div>
+            </div>
+            <div class="flow-arrow material-icons-outlined">arrow_forward</div>
+            <div class="flow-step">
+              <div class="flow-step-box"><span class="material-icons-outlined">payments</span>Technician<br>Payout</div>
+            </div>
+            <div class="flow-arrow material-icons-outlined">arrow_forward</div>
+            <div class="flow-step">
+              <div class="flow-step-box" style="border-color: var(--green-border);"><span class="material-icons-outlined">sentiment_satisfied</span>Satisfaction<br>Survey</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
   </div>
 </section>
 
-<!-- 02 -->
+
+<!-- ════════════════════════════════════════════════════════════════
+     02 Use Cases — TABLE
+     ════════════════════════════════════════════════════════════════ -->
 <section class="section" id="sec02">
   <div class="section-header"><div class="section-number">02</div><h2>Use Case Diagram</h2></div>
-  <p class="section-desc">四大角色（客戶、技師、管理員、AI 系統）與各自功能邊界</p>
+  <p class="section-desc">Actor-to-use-case mapping across V1.0 and V2.0 features</p>
   <div class="chip-group"><span class="chip v1">V1.0</span><span class="chip v2">V2.0</span></div>
+
   <div class="card">
-    <div class="card-title"><span class="material-icons-outlined">person_search</span>Actor-UseCase Mapping</div>
-    <div class="card-body"><pre class="mermaid">
-flowchart LR
-    subgraph ACTORS_LEFT["Actors"]
-        Consumer["Customer\n(LINE User)"]
-        Technician["Technician\n(Web App)"]
-    end
-    subgraph SYSTEM["Smart Lock AI SaaS Platform"]
-        subgraph V1["V1.0 AI Customer Service"]
-            UC001["UC-001\nRepair Inquiry"]
-            UC002["UC-002\nReceive AI Diagnosis"]
-            UC003["UC-003\nConfirm ProblemCard"]
-            UC004["UC-004\nTrack Repair Status"]
-            UC005["UC-005\nProvide Feedback"]
-            UC006["UC-006\nHuman Transfer Notice"]
-            UC201["UC-201\nMonitor Dashboard"]
-            UC202["UC-202\nReview SOP Drafts"]
-            UC203["UC-203\nUpload Manuals"]
-            UC204["UC-204\nAudit Conversations"]
-            UC207["UC-207\nManage Knowledge Base"]
-        end
-        subgraph V2["V2.0 Dispatch and Accounting"]
-            UC101["UC-101\nBrowse Work Orders"]
-            UC102["UC-102\nAccept Work Order"]
-            UC103["UC-103\nCompletion Report"]
-            UC104["UC-104\nView Personal Accounting"]
-            UC105["UC-105\nCustomer Satisfaction"]
-            UC205["UC-205\nManual Dispatch"]
-            UC206["UC-206\nGenerate Monthly Report"]
-        end
-    end
-    subgraph ACTORS_RIGHT["Actors"]
-        Admin["Admin\n(Admin Panel)"]
-        AISystem["AI System\n(Internal)"]
-    end
-    Consumer --- UC001
-    Consumer --- UC002
-    Consumer --- UC003
-    Consumer --- UC004
-    Consumer --- UC005
-    Consumer --- UC006
-    Technician --- UC101
-    Technician --- UC102
-    Technician --- UC103
-    Technician --- UC104
-    Technician --- UC105
-    UC201 --- Admin
-    UC202 --- Admin
-    UC203 --- Admin
-    UC204 --- Admin
-    UC205 --- Admin
-    UC206 --- Admin
-    UC207 --- Admin
-    UC001 --- AISystem
-    UC002 --- AISystem
-    UC003 --- AISystem
-    style V1 fill:#e8eaf6,stroke:#283593
-    style V2 fill:#fff8e1,stroke:#f57f17
-    </pre></div>
+    <div class="card-title"><span class="material-icons-outlined">person_search</span>Actor &times; Use Case Matrix</div>
+    <div class="card-body">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Use Case</th>
+            <th>Version</th>
+            <th title="Customer (LINE User)"><span class="material-icons-outlined" style="font-size:16px;vertical-align:middle;">person</span> Customer</th>
+            <th title="Technician (Web App)"><span class="material-icons-outlined" style="font-size:16px;vertical-align:middle;">engineering</span> Technician</th>
+            <th title="Admin (Admin Panel)"><span class="material-icons-outlined" style="font-size:16px;vertical-align:middle;">admin_panel_settings</span> Admin</th>
+            <th title="AI System (Internal)"><span class="material-icons-outlined" style="font-size:16px;vertical-align:middle;">smart_toy</span> AI System</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>UC-001</code></td><td>Repair Inquiry</td><td><span class="chip v1">V1.0</span></td><td class="check">&#10003;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="check">&#10003;</td></tr>
+          <tr><td><code>UC-002</code></td><td>Receive AI Diagnosis</td><td><span class="chip v1">V1.0</span></td><td class="check">&#10003;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="check">&#10003;</td></tr>
+          <tr><td><code>UC-003</code></td><td>Confirm ProblemCard</td><td><span class="chip v1">V1.0</span></td><td class="check">&#10003;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td></tr>
+          <tr><td><code>UC-004</code></td><td>Track Repair Status</td><td><span class="chip v1">V1.0</span></td><td class="check">&#10003;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td></tr>
+          <tr><td><code>UC-005</code></td><td>Provide Feedback</td><td><span class="chip v1">V1.0</span></td><td class="check">&#10003;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td></tr>
+          <tr><td><code>UC-006</code></td><td>Human Transfer Notice</td><td><span class="chip v1">V1.0</span></td><td class="check">&#10003;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td></tr>
+          <tr style="border-top: 2px solid var(--outline);"><td><code>UC-101</code></td><td>Browse Work Orders</td><td><span class="chip v2">V2.0</span></td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td></tr>
+          <tr><td><code>UC-102</code></td><td>Accept Work Order</td><td><span class="chip v2">V2.0</span></td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td></tr>
+          <tr><td><code>UC-103</code></td><td>Completion Report</td><td><span class="chip v2">V2.0</span></td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td></tr>
+          <tr><td><code>UC-104</code></td><td>View Personal Accounting</td><td><span class="chip v2">V2.0</span></td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td></tr>
+          <tr><td><code>UC-105</code></td><td>Customer Satisfaction</td><td><span class="chip v2">V2.0</span></td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td></tr>
+          <tr style="border-top: 2px solid var(--outline);"><td><code>UC-201</code></td><td>Monitor Dashboard</td><td><span class="chip v1">V1.0</span></td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="cross">&mdash;</td></tr>
+          <tr><td><code>UC-202</code></td><td>Review SOP Drafts</td><td><span class="chip v1">V1.0</span></td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="cross">&mdash;</td></tr>
+          <tr><td><code>UC-203</code></td><td>Upload Manuals</td><td><span class="chip v1">V1.0</span></td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="cross">&mdash;</td></tr>
+          <tr><td><code>UC-204</code></td><td>Audit Conversations</td><td><span class="chip v1">V1.0</span></td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="cross">&mdash;</td></tr>
+          <tr><td><code>UC-205</code></td><td>Manual Dispatch</td><td><span class="chip v2">V2.0</span></td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="cross">&mdash;</td></tr>
+          <tr><td><code>UC-206</code></td><td>Generate Monthly Report</td><td><span class="chip v2">V2.0</span></td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="cross">&mdash;</td></tr>
+          <tr><td><code>UC-207</code></td><td>Manage Knowledge Base</td><td><span class="chip v1">V1.0</span></td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="cross">&mdash;</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </section>
 
-<!-- 03 -->
+
+<!-- ════════════════════════════════════════════════════════════════
+     03 System Context
+     ════════════════════════════════════════════════════════════════ -->
 <section class="section" id="sec03">
   <div class="section-header"><div class="section-number">03</div><h2>System Context Diagram</h2></div>
-  <p class="section-desc">C4 Model Level 1 — 平台與外部角色及系統的關係</p>
+  <p class="section-desc">C4 Model Level 1 — platform, external actors and integration points</p>
+
   <div class="card">
-    <div class="card-title"><span class="material-icons-outlined">language</span>System Context</div>
-    <div class="card-body"><pre class="mermaid">
-flowchart TB
-    subgraph Users["Users"]
-        consumer["Customer\nSmart Lock End User\nvia LINE"]
-        technician["Technician\nField Repair\nvia Web App"]
-        admin["Admin\nOps Manager\nvia Admin Panel"]
-    end
-    platform["Smart Lock AI SaaS Platform\nAI Customer Service + Auto Dispatch\n+ Settlement Platform"]
-    subgraph External["External Systems"]
-        line_api["LINE Messaging API\nWebhook / Rich Menu\nFlex Message"]
-        gemini["Google Gemini API\nLLM Inference"]
-        embedding["Google Embedding API\ntext-embedding-004\n768-dim"]
-        maps["Google Maps API\nDistance Calc V2.0"]
-        duckduckgo["DuckDuckGo Search\nWeb Search"]
-        order_api["Order Query API\nsunnie-lock.com"]
-    end
-    consumer -->|"LINE Inquiry"| platform
-    technician -->|"HTTPS/PWA"| platform
-    admin -->|"HTTPS Admin"| platform
-    platform -->|"HTTPS Webhook"| line_api
-    platform -->|"HTTPS/gRPC"| gemini
-    platform -->|"HTTPS/gRPC"| embedding
-    platform -->|"HTTPS"| maps
-    platform -->|"HTTPS"| duckduckgo
-    platform -->|"HTTPS"| order_api
-    style Users fill:#e3f2fd,stroke:#1565c0
-    style platform fill:#fff3e0,stroke:#e65100
-    style External fill:#f3e5f5,stroke:#7b1fa2
-    </pre></div>
+    <div class="card-title"><span class="material-icons-outlined">language</span>System Context (Hub &amp; Spoke)</div>
+    <div class="card-body">
+      <div class="hub-spoke">
+
+        <div class="spoke-group">
+          <div class="spoke-group-label">Users</div>
+          <div class="spoke-card" style="border-color: var(--blue-border);">
+            <span class="material-icons-outlined" style="color: var(--blue-fg);">person</span>
+            <div class="spoke-card-name">Customer</div>
+            <div class="spoke-card-desc">Smart Lock End User<br>via LINE</div>
+          </div>
+          <div class="spoke-card" style="border-color: var(--orange-border);">
+            <span class="material-icons-outlined" style="color: var(--orange-fg);">engineering</span>
+            <div class="spoke-card-name">Technician</div>
+            <div class="spoke-card-desc">Field Repair<br>via Web App (PWA)</div>
+          </div>
+          <div class="spoke-card" style="border-color: var(--purple-border);">
+            <span class="material-icons-outlined" style="color: var(--purple-fg);">admin_panel_settings</span>
+            <div class="spoke-card-name">Admin</div>
+            <div class="spoke-card-desc">Ops Manager<br>via Admin Panel</div>
+          </div>
+        </div>
+
+        <div class="spoke-divider"><span class="material-icons-outlined" style="font-size:18px;">arrow_downward</span> HTTPS / Webhook <span class="material-icons-outlined" style="font-size:18px;">arrow_downward</span></div>
+
+        <div class="hub-center">
+          <span class="material-icons-outlined" style="font-size:32px; margin-bottom:4px;">lock</span><br>
+          Smart Lock AI SaaS Platform
+          <small>AI Customer Service + Auto Dispatch + Settlement</small>
+        </div>
+
+        <div class="spoke-divider"><span class="material-icons-outlined" style="font-size:18px;">arrow_downward</span> HTTPS / gRPC <span class="material-icons-outlined" style="font-size:18px;">arrow_downward</span></div>
+
+        <div class="spoke-group">
+          <div class="spoke-group-label">External Services</div>
+          <div class="spoke-card">
+            <span class="material-icons-outlined" style="color: var(--green-fg);">chat</span>
+            <div class="spoke-card-name">LINE Messaging API</div>
+            <div class="spoke-card-desc">Webhook / Rich Menu<br>Flex Message</div>
+          </div>
+          <div class="spoke-card">
+            <span class="material-icons-outlined" style="color: var(--blue-fg);">psychology</span>
+            <div class="spoke-card-name">Google Gemini</div>
+            <div class="spoke-card-desc">LLM Inference<br>gemini-2.5-flash</div>
+          </div>
+          <div class="spoke-card">
+            <span class="material-icons-outlined" style="color: var(--purple-fg);">data_array</span>
+            <div class="spoke-card-name">Embedding API</div>
+            <div class="spoke-card-desc">text-embedding-004<br>768-dim</div>
+          </div>
+          <div class="spoke-card">
+            <span class="material-icons-outlined" style="color: var(--red-fg);">map</span>
+            <div class="spoke-card-name">Google Maps</div>
+            <div class="spoke-card-desc">Distance Calc<br>V2.0</div>
+          </div>
+          <div class="spoke-card">
+            <span class="material-icons-outlined" style="color: var(--orange-fg);">search</span>
+            <div class="spoke-card-name">DuckDuckGo</div>
+            <div class="spoke-card-desc">Web Search<br>Fallback</div>
+          </div>
+          <div class="spoke-card">
+            <span class="material-icons-outlined" style="color: var(--teal-fg);">shopping_cart</span>
+            <div class="spoke-card-name">Order Query API</div>
+            <div class="spoke-card-desc">sunnie-lock.com<br>Order Status</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
+
   <div class="card">
     <div class="card-title"><span class="material-icons-outlined">swap_horiz</span>Data Flow Summary</div>
-    <div class="card-body"><pre class="mermaid">
-flowchart LR
-    subgraph INBOUND["Inbound"]
-        A["LINE Webhook\n(User Messages)"] --> P["Platform"]
-        B["Order API\n(Status)"] --> P
-        C["DuckDuckGo\n(Search)"] --> P
-    end
-    subgraph CORE["Core Processing"]
-        P --> D["Gemini LLM\n(Inference)"]
-        P --> E["Embedding API\n(Vectorize)"]
-        D --> P
-        E --> P
-    end
-    subgraph OUTBOUND["Outbound"]
-        P --> F["LINE Reply/Push\n(Reply)"]
-        P --> G["Admin Panel\n(Dashboard)"]
-        P --> H["Technician App\n(Work Orders)"]
-    end
-    style INBOUND fill:#e3f2fd,stroke:#1565c0
-    style CORE fill:#f3e5f5,stroke:#7b1fa2
-    style OUTBOUND fill:#e8f5e9,stroke:#2e7d32
-    </pre></div>
+    <div class="card-body">
+      <table class="data-table">
+        <thead>
+          <tr><th>Direction</th><th>Source</th><th>Destination</th><th>Protocol</th><th>Data</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="badge badge-post">IN</span></td><td>LINE Webhook</td><td>Platform</td><td>HTTPS POST</td><td>User messages (text, image, location)</td></tr>
+          <tr><td><span class="badge badge-post">IN</span></td><td>Order API</td><td>Platform</td><td>HTTPS GET</td><td>Order status, shipment info</td></tr>
+          <tr><td><span class="badge badge-post">IN</span></td><td>DuckDuckGo</td><td>Platform</td><td>HTTPS GET</td><td>Web search results</td></tr>
+          <tr><td><span class="badge badge-put">CORE</span></td><td>Platform</td><td>Gemini LLM</td><td>HTTPS / gRPC</td><td>Prompts, tool calls</td></tr>
+          <tr><td><span class="badge badge-put">CORE</span></td><td>Platform</td><td>Embedding API</td><td>HTTPS / gRPC</td><td>Text chunks &rarr; 768-dim vectors</td></tr>
+          <tr><td><span class="badge badge-get">OUT</span></td><td>Platform</td><td>LINE Reply/Push</td><td>HTTPS POST</td><td>Flex Messages, notifications</td></tr>
+          <tr><td><span class="badge badge-get">OUT</span></td><td>Platform</td><td>Admin Panel</td><td>HTTPS REST</td><td>Dashboard data, SOP reviews</td></tr>
+          <tr><td><span class="badge badge-get">OUT</span></td><td>Platform</td><td>Tech Web App</td><td>HTTPS REST</td><td>Work orders, accounting</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </section>
 
-<!-- 04 -->
+
+<!-- ════════════════════════════════════════════════════════════════
+     04 High-Level Architecture
+     ════════════════════════════════════════════════════════════════ -->
 <section class="section" id="sec04">
   <div class="section-header"><div class="section-number">04</div><h2>High-Level Architecture</h2></div>
-  <p class="section-desc">C4 Model Level 2 — 內部容器（Container）及互動方式</p>
+  <p class="section-desc">C4 Model Level 2 — internal containers and their interactions</p>
+
   <div class="card">
     <div class="card-title"><span class="material-icons-outlined">hub</span>Container Diagram</div>
-    <div class="card-body"><pre class="mermaid">
-flowchart TB
-    subgraph CLIENTS["Client Interfaces"]
-        LINE["LINE Official Account\n(Rich Menu + Flex Message)"]
-        TECH_APP["Technician Web App\n(Next.js 14 / PWA)"]
-        ADMIN["Admin Panel\n(Next.js 14 / shadcn/ui)"]
-    end
-    subgraph GATEWAY["API Gateway Layer"]
-        FASTAPI["FastAPI Application\n(Python 3.11+ / Uvicorn)"]
-        WEBHOOK["/webhook\nLINE Webhook Handler"]
-        REST_API["/api/v1/*\nREST API Endpoints"]
-    end
-    subgraph AI_ENGINE["AI Engine Layer"]
-        LANGGRAPH["LangGraph State Machine\n(Workflow Orchestration)"]
-        subgraph AGENTS["Multi-Agent System"]
-            HW["Hardware\nTechnician"]
-            SALES["Sales\nRep"]
-            STORE["Store\nAssistant"]
-            APP["App\nSpecialist"]
-            MANUAL["Manual\nLibrarian"]
-            WEB["Web\nResearcher"]
-            RECEP["Receptionist"]
-        end
-        ROUTER["Intent Router\n(LLM-based + Guardrail)"]
-        MERGER["Answer Merger\n(Multi-agent Fusion)"]
-    end
-    subgraph LLM_LAYER["LLM and Embedding Layer"]
-        GEMINI["Google Gemini\n(gemini-2.5-flash)"]
-        EMBED["text-embedding-004\n(768 dim)"]
-    end
-    subgraph DATA_LAYER["Data and Storage Layer"]
-        PG["PostgreSQL 16\n(+ pgvector HNSW)"]
-        REDIS["Redis 7\n(Session Cache)"]
-        subgraph VECTOR_COLLECTIONS["Vector Knowledge Base"]
-            KB_VIDEO["kb_video"]
-            KB_LINE["kb_line_chat"]
-            KB_WEB["kb_website"]
-            KB_YT["kb_youtube"]
-            KB_MANUAL["kb_gdrive"]
-        end
-    end
-    subgraph EXTERNAL["External Services"]
-        LINE_API["LINE Messaging API"]
-        DUCK["DuckDuckGo Search"]
-        ORDER["Order Query API"]
-        MAPS["Google Maps API"]
-    end
-    LINE -->|Webhook| WEBHOOK
-    TECH_APP -->|REST| REST_API
-    ADMIN -->|REST| REST_API
-    WEBHOOK --> FASTAPI
-    REST_API --> FASTAPI
-    FASTAPI --> LANGGRAPH
-    LANGGRAPH --> ROUTER
-    ROUTER --> AGENTS
-    AGENTS --> MERGER
-    MERGER --> LANGGRAPH
-    AGENTS -->|Inference| GEMINI
-    AGENTS -->|Vectorize| EMBED
-    AGENTS -->|Vector Search| PG
-    LANGGRAPH -->|Session| REDIS
-    LANGGRAPH -->|Checkpoint| PG
-    FASTAPI -->|Reply/Push| LINE_API
-    WEB -->|Search| DUCK
-    AGENTS -->|Order Query| ORDER
-    AGENTS -->|Distance| MAPS
-    style CLIENTS fill:#e3f2fd,stroke:#1565c0
-    style GATEWAY fill:#f5f5f5,stroke:#616161
-    style AI_ENGINE fill:#f3e5f5,stroke:#7b1fa2
-    style LLM_LAYER fill:#fff3e0,stroke:#e65100
-    style DATA_LAYER fill:#e8f5e9,stroke:#2e7d32
-    style EXTERNAL fill:#fce4ec,stroke:#c62828
-    </pre></div>
+    <div class="card-body">
+      <div class="layer-stack">
+
+        <!-- Client Interfaces -->
+        <div class="layer-row" style="background: var(--blue-bg); border-color: var(--blue-border);">
+          <div class="layer-label" style="color: var(--blue-fg);"><span class="material-icons-outlined">devices</span>Client Interfaces</div>
+          <div class="layer-items">
+            <div class="layer-item"><span class="material-icons-outlined" style="color: var(--green-fg);">chat</span>LINE Official Account<br><small>Rich Menu + Flex Message</small></div>
+            <div class="layer-item"><span class="material-icons-outlined" style="color: var(--orange-fg);">phone_iphone</span>Technician Web App<br><small>Next.js 14 / PWA</small></div>
+            <div class="layer-item"><span class="material-icons-outlined" style="color: var(--purple-fg);">dashboard</span>Admin Panel<br><small>Next.js 14 / shadcn/ui</small></div>
+          </div>
+        </div>
+
+        <div class="layer-arrow"><span class="material-icons-outlined">arrow_downward</span></div>
+
+        <!-- API Gateway -->
+        <div class="layer-row" style="background: var(--grey-bg); border-color: var(--grey-border);">
+          <div class="layer-label" style="color: var(--grey-fg);"><span class="material-icons-outlined">dns</span>API Gateway Layer</div>
+          <div class="layer-items">
+            <div class="layer-item"><span class="material-icons-outlined" style="color: var(--blue-fg);">bolt</span>FastAPI Application<br><small>Python 3.11+ / Uvicorn</small></div>
+            <div class="layer-item"><span class="material-icons-outlined" style="color: var(--green-fg);">webhook</span>POST /webhook<br><small>LINE Webhook Handler</small></div>
+            <div class="layer-item"><span class="material-icons-outlined" style="color: var(--purple-fg);">api</span>/api/v1/*<br><small>REST API Endpoints</small></div>
+          </div>
+        </div>
+
+        <div class="layer-arrow"><span class="material-icons-outlined">arrow_downward</span></div>
+
+        <!-- AI Engine -->
+        <div class="layer-row" style="background: var(--purple-bg); border-color: var(--purple-border);">
+          <div class="layer-label" style="color: var(--purple-fg);"><span class="material-icons-outlined">psychology</span>AI Engine Layer</div>
+          <div class="layer-items">
+            <div class="layer-item"><span class="material-icons-outlined" style="color: var(--purple-fg);">schema</span>LangGraph State Machine<br><small>Workflow Orchestration</small></div>
+            <div class="layer-item"><span class="material-icons-outlined" style="color: var(--orange-fg);">route</span>Intent Router<br><small>LLM-based + Guardrail</small></div>
+            <div class="layer-item"><span class="material-icons-outlined" style="color: var(--green-fg);">merge</span>Answer Merger<br><small>Multi-agent Fusion</small></div>
+          </div>
+          <div style="margin-top: 12px;">
+            <div class="layer-label" style="color: var(--purple-fg);"><span class="material-icons-outlined">groups</span>Multi-Agent System</div>
+            <div class="layer-items">
+              <div class="layer-item"><span class="material-icons-outlined" style="color:#e65100;">build</span>Hardware Tech</div>
+              <div class="layer-item"><span class="material-icons-outlined" style="color:#1565c0;">sell</span>Sales Rep</div>
+              <div class="layer-item"><span class="material-icons-outlined" style="color:#2e7d32;">store</span>Store Asst.</div>
+              <div class="layer-item"><span class="material-icons-outlined" style="color:#7b1fa2;">phone_android</span>App Specialist</div>
+              <div class="layer-item"><span class="material-icons-outlined" style="color:#c62828;">menu_book</span>Manual Librarian</div>
+              <div class="layer-item"><span class="material-icons-outlined" style="color:#00695c;">travel_explore</span>Web Researcher</div>
+              <div class="layer-item"><span class="material-icons-outlined" style="color:#283593;">support_agent</span>Receptionist</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="layer-arrow"><span class="material-icons-outlined">arrow_downward</span></div>
+
+        <!-- LLM & Embedding -->
+        <div class="layer-row" style="background: var(--orange-bg); border-color: var(--orange-border);">
+          <div class="layer-label" style="color: var(--orange-fg);"><span class="material-icons-outlined">model_training</span>LLM &amp; Embedding Layer</div>
+          <div class="layer-items">
+            <div class="layer-item"><span class="material-icons-outlined" style="color: var(--orange-fg);">auto_awesome</span>Google Gemini<br><small>gemini-2.5-flash</small></div>
+            <div class="layer-item"><span class="material-icons-outlined" style="color: var(--blue-fg);">data_array</span>text-embedding-004<br><small>768-dim vectors</small></div>
+          </div>
+        </div>
+
+        <div class="layer-arrow"><span class="material-icons-outlined">arrow_downward</span></div>
+
+        <!-- Data & Storage -->
+        <div class="layer-row" style="background: var(--green-bg); border-color: var(--green-border);">
+          <div class="layer-label" style="color: var(--green-fg);"><span class="material-icons-outlined">storage</span>Data &amp; Storage Layer</div>
+          <div class="layer-items">
+            <div class="layer-item"><span class="material-icons-outlined" style="color: var(--blue-fg);">database</span>PostgreSQL 16<br><small>+ pgvector HNSW</small></div>
+            <div class="layer-item"><span class="material-icons-outlined" style="color: var(--red-fg);">memory</span>Redis 7<br><small>Session Cache</small></div>
+            <div class="layer-item"><span class="material-icons-outlined" style="color: var(--purple-fg);">library_books</span>Vector Collections<br><small>kb_video, kb_line_chat, kb_website, kb_youtube, kb_gdrive</small></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
   </div>
 </section>
 
-<!-- 05 -->
+
+<!-- ════════════════════════════════════════════════════════════════
+     05 Layered Components
+     ════════════════════════════════════════════════════════════════ -->
 <section class="section" id="sec05">
   <div class="section-header"><div class="section-number">05</div><h2>Layered Component Diagram</h2></div>
-  <p class="section-desc">分層架構 — 從介面層到資料儲存層的完整堆疊與依賴方向</p>
-  <div class="card">
-    <div class="card-title"><span class="material-icons-outlined">layers</span>Layered Architecture</div>
-    <div class="card-body"><pre class="mermaid">
-flowchart TB
-    subgraph PRESENTATION["Presentation Layer"]
-        LINE_BOT["LINE Bot\nWebhook Handler"]
-        TECH_WEB["Technician Web App\nNext.js 14 PWA"]
-        ADMIN_WEB["Admin Panel\nNext.js 14 + shadcn/ui"]
-    end
-    subgraph API["API Layer"]
-        WEBHOOK_EP["POST /webhook\nLINE Webhook"]
-        REST_EP["REST API /api/v1/*\nCRUD + Query"]
-        WS_EP["WebSocket\nReal-time Notification"]
-    end
-    subgraph APPLICATION["Application Layer"]
-        CONV_MGR["Conversation\nManager"]
-        AGENT_ORCH["Agent\nOrchestrator\nLangGraph"]
-        DISPATCH_ENG["Dispatch\nEngine V2.0"]
-        PRICING_ENG["Pricing\nEngine V2.0"]
-    end
-    subgraph DOMAIN["Domain Layer"]
-        PROBLEM["ProblemCard\nExtractor"]
-        RESOLUTION["Resolution\nEngine L1/L2/L3"]
-        SOP_GEN["SOP\nGenerator"]
-        SENTIMENT["Sentiment\nTriage"]
-    end
-    subgraph AGENT_L["Agent Layer"]
-        HW_AGENT["Hardware\nTechnician"]
-        SALES_AGENT["Sales\nRepresentative"]
-        APP_AGENT["App\nSpecialist"]
-        OTHER_AGENT["Store / Manual\n/ Web / Receptionist"]
-    end
-    subgraph INFRA["Infrastructure Layer"]
-        LLM_GW["LLM Gateway\nGemini / Vertex AI"]
-        EMBED_SVC["Embedding\nService"]
-        PROFILE_MGR["Profile\nManager"]
-        AUDIT_LOG["Audit\nLogger"]
-    end
-    subgraph DATA["Data Layer"]
-        PG_DB["PostgreSQL 16"]
-        PGVEC["pgvector\nHNSW Index"]
-        REDIS_DB["Redis 7\nSession Cache"]
-        FILE_STORE["File Storage\nProfiles / Manuals"]
-    end
-    PRESENTATION --> API
-    API --> APPLICATION
-    APPLICATION --> DOMAIN
-    APPLICATION --> AGENT_L
-    AGENT_L --> DOMAIN
-    DOMAIN --> INFRA
-    AGENT_L --> INFRA
-    INFRA --> DATA
-    style PRESENTATION fill:#e3f2fd,stroke:#1565c0
-    style API fill:#e0e0e0,stroke:#616161
-    style APPLICATION fill:#f3e5f5,stroke:#7b1fa2
-    style DOMAIN fill:#ede7f6,stroke:#4527a0
-    style AGENT_L fill:#fff3e0,stroke:#e65100
-    style INFRA fill:#e0f2f1,stroke:#00695c
-    style DATA fill:#e8f5e9,stroke:#2e7d32
-    </pre></div>
-  </div>
-  <div class="card">
-    <div class="card-title"><span class="material-icons-outlined">arrow_downward</span>Dependency Direction</div>
-    <div class="card-body"><pre class="mermaid">
-flowchart TD
-    A["Presentation"] --> B["API Layer"]
-    B --> C["Application Layer"]
-    C --> D["Domain Layer"]
-    C --> E["Agent Layer"]
-    E --> D
-    D --> F["Infrastructure Layer"]
-    E --> F
-    F --> G["Data Layer"]
-    style A fill:#e3f2fd
-    style B fill:#e0e0e0
-    style C fill:#f3e5f5
-    style D fill:#ede7f6
-    style E fill:#fff3e0
-    style F fill:#e0f2f1
-    style G fill:#e8f5e9
-    </pre></div>
+  <p class="section-desc">Full stack from presentation to data storage with dependency direction</p>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title"><span class="material-icons-outlined">layers</span>Layered Architecture</div>
+      <div class="card-body">
+        <table class="data-table">
+          <thead><tr><th>Layer</th><th>Components</th><th>Technology</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="badge" style="background:var(--blue-bg);color:var(--blue-fg);">Presentation</span></td>
+              <td>LINE Bot, Technician Web App, Admin Panel</td>
+              <td>LINE SDK, Next.js 14 PWA, shadcn/ui</td>
+            </tr>
+            <tr>
+              <td><span class="badge" style="background:var(--grey-bg);color:var(--grey-fg);">API</span></td>
+              <td>POST /webhook, REST /api/v1/*, WebSocket</td>
+              <td>FastAPI, Uvicorn</td>
+            </tr>
+            <tr>
+              <td><span class="badge" style="background:var(--purple-bg);color:var(--purple-fg);">Application</span></td>
+              <td>Conversation Manager, Agent Orchestrator, Dispatch Engine, Pricing Engine</td>
+              <td>LangGraph, Python async</td>
+            </tr>
+            <tr>
+              <td><span class="badge" style="background:var(--purple-bg);color:var(--purple-fg);">Domain</span></td>
+              <td>ProblemCard Extractor, Resolution Engine (L1/L2/L3), SOP Generator, Sentiment Triage</td>
+              <td>Pure Python, DDD entities</td>
+            </tr>
+            <tr>
+              <td><span class="badge" style="background:var(--orange-bg);color:var(--orange-fg);">Agent</span></td>
+              <td>Hardware Tech, Sales Rep, App Specialist, Store / Manual / Web / Receptionist</td>
+              <td>ReAct pattern, tool-calling</td>
+            </tr>
+            <tr>
+              <td><span class="badge" style="background:var(--teal-bg);color:var(--teal-fg);">Infrastructure</span></td>
+              <td>LLM Gateway, Embedding Service, Profile Manager, Audit Logger</td>
+              <td>Gemini SDK, Vertex AI</td>
+            </tr>
+            <tr>
+              <td><span class="badge" style="background:var(--green-bg);color:var(--green-fg);">Data</span></td>
+              <td>PostgreSQL 16, pgvector HNSW, Redis 7, File Storage</td>
+              <td>SQLAlchemy 2.0, asyncpg</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="material-icons-outlined">arrow_downward</span>Dependency Direction</div>
+      <div class="card-body">
+        <div class="layer-stack">
+          <div class="layer-row" style="background:var(--blue-bg);border-color:var(--blue-border);padding:10px 16px;text-align:center;">
+            <span style="font-size:13px;font-weight:600;color:var(--blue-fg);">Presentation</span>
+          </div>
+          <div class="layer-arrow"><span class="material-icons-outlined">arrow_downward</span></div>
+          <div class="layer-row" style="background:var(--grey-bg);border-color:var(--grey-border);padding:10px 16px;text-align:center;">
+            <span style="font-size:13px;font-weight:600;color:var(--grey-fg);">API Layer</span>
+          </div>
+          <div class="layer-arrow"><span class="material-icons-outlined">arrow_downward</span></div>
+          <div class="layer-row" style="background:var(--purple-bg);border-color:var(--purple-border);padding:10px 16px;text-align:center;">
+            <span style="font-size:13px;font-weight:600;color:var(--purple-fg);">Application Layer</span>
+          </div>
+          <div class="layer-arrow" style="display:flex;justify-content:center;gap:40px;">
+            <span class="material-icons-outlined">arrow_downward</span>
+            <span class="material-icons-outlined">arrow_downward</span>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <div class="layer-row" style="background:var(--purple-bg);border-color:var(--purple-border);padding:10px 16px;text-align:center;flex:1;">
+              <span style="font-size:13px;font-weight:600;color:var(--purple-fg);">Domain</span>
+            </div>
+            <div class="layer-row" style="background:var(--orange-bg);border-color:var(--orange-border);padding:10px 16px;text-align:center;flex:1;">
+              <span style="font-size:13px;font-weight:600;color:var(--orange-fg);">Agent</span>
+            </div>
+          </div>
+          <div class="layer-arrow"><span class="material-icons-outlined">arrow_downward</span></div>
+          <div class="layer-row" style="background:var(--teal-bg);border-color:var(--teal-border);padding:10px 16px;text-align:center;">
+            <span style="font-size:13px;font-weight:600;color:var(--teal-fg);">Infrastructure Layer</span>
+          </div>
+          <div class="layer-arrow"><span class="material-icons-outlined">arrow_downward</span></div>
+          <div class="layer-row" style="background:var(--green-bg);border-color:var(--green-border);padding:10px 16px;text-align:center;">
+            <span style="font-size:13px;font-weight:600;color:var(--green-fg);">Data Layer</span>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
-<!-- 06 -->
+
+<!-- ════════════════════════════════════════════════════════════════
+     06 ERD (Mermaid)
+     ════════════════════════════════════════════════════════════════ -->
 <section class="section" id="sec06">
   <div class="section-header"><div class="section-number">06</div><h2>Entity Relationship Diagram</h2></div>
-  <p class="section-desc">核心實體、屬性及關聯 — V1.0 客服 + V2.0 派工帳務</p>
+  <p class="section-desc">Core entities, attributes and relationships — V1.0 Customer Service + V2.0 Dispatch/Accounting</p>
   <div class="card">
     <div class="card-title"><span class="material-icons-outlined">schema</span>Full ERD</div>
     <div class="card-body"><pre class="mermaid">
@@ -715,10 +1278,13 @@ erDiagram
   </div>
 </section>
 
-<!-- 07 -->
+
+<!-- ════════════════════════════════════════════════════════════════
+     07 Sequence Diagrams (Mermaid)
+     ════════════════════════════════════════════════════════════════ -->
 <section class="section" id="sec07">
   <div class="section-header"><div class="section-number">07</div><h2>Sequence Diagrams</h2></div>
-  <p class="section-desc">三大核心流程：報修對話、技師派工、知識庫自進化</p>
+  <p class="section-desc">Core flows: repair conversation, technician dispatch, knowledge self-evolution</p>
   <div class="card">
     <div class="card-title"><span class="material-icons-outlined">chat</span>Flow 1: Customer Repair Conversation</div>
     <div class="card-body"><pre class="mermaid">
@@ -842,232 +1408,414 @@ sequenceDiagram
   </div>
 </section>
 
-<!-- 08 -->
+
+<!-- ════════════════════════════════════════════════════════════════
+     08 API Interfaces — TABLE
+     ════════════════════════════════════════════════════════════════ -->
 <section class="section" id="sec08">
   <div class="section-header"><div class="section-number">08</div><h2>API Interface Diagram</h2></div>
-  <p class="section-desc">所有 API 端點、內部介面與外部整合規格</p>
+  <p class="section-desc">All API endpoints, authentication requirements and external integrations</p>
+
   <div class="card">
-    <div class="card-title"><span class="material-icons-outlined">api</span>API Architecture Overview</div>
-    <div class="card-body"><pre class="mermaid">
-flowchart TB
-    subgraph EXTERNAL_INBOUND["External Inbound"]
-        LINE_WH["LINE Webhook\nPOST /webhook\n(HMAC-SHA256)"]
-    end
-    subgraph INTERNAL_API["Internal REST API"]
-        subgraph V1_API["V1.0 Endpoints"]
-            KB_API["Knowledge Base\n/api/v1/knowledge/*"]
-            CONV_API["Conversations\n/api/v1/conversations/*"]
-            SOP_API["SOP\n/api/v1/sops/*"]
-            DASH_API["Dashboard\n/api/v1/dashboard/*"]
-        end
-        subgraph V2_API["V2.0 Endpoints"]
-            WO_API["Work Orders\n/api/v1/work-orders/*"]
-            TECH_API["Technicians\n/api/v1/technicians/*"]
-            PRICE_API["Pricing\n/api/v1/pricing/*"]
-            ACCT_API["Accounting\n/api/v1/accounting/*"]
-        end
-    end
-    subgraph EXTERNAL_OUTBOUND["External Outbound"]
-        GEMINI_API["Gemini API\nLLM"]
-        EMBED_API["Embedding API"]
-        LINE_REPLY["LINE Reply API"]
-        LINE_PUSH["LINE Push API"]
-        MAPS_API["Google Maps API"]
-        DUCK_API["DuckDuckGo"]
-    end
-    LINE_WH --> CONV_API
-    KB_API --> GEMINI_API
-    KB_API --> EMBED_API
-    CONV_API --> GEMINI_API
-    CONV_API --> LINE_REPLY
-    CONV_API --> LINE_PUSH
-    WO_API --> MAPS_API
-    WO_API --> LINE_PUSH
-    style EXTERNAL_INBOUND fill:#e3f2fd,stroke:#1565c0
-    style INTERNAL_API fill:#f3e5f5,stroke:#7b1fa2
-    style EXTERNAL_OUTBOUND fill:#fff3e0,stroke:#e65100
-    </pre></div>
+    <div class="card-title"><span class="material-icons-outlined">webhook</span>External Inbound</div>
+    <div class="card-body">
+      <table class="data-table">
+        <thead><tr><th>Method</th><th>Endpoint</th><th>Auth</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge badge-post">POST</span></td><td><code>/webhook</code></td><td>HMAC-SHA256 (LINE Channel Secret)</td><td>LINE Webhook receiver — message, postback, follow events</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="material-icons-outlined">api</span>Internal REST API — V1.0 Endpoints</div>
+    <div class="card-body">
+      <table class="data-table">
+        <thead><tr><th>Method</th><th>Endpoint</th><th>Auth</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/v1/conversations</code></td><td>JWT (admin)</td><td>List conversations with cursor pagination</td></tr>
+          <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/v1/conversations/:id</code></td><td>JWT (admin)</td><td>Get conversation detail with messages</td></tr>
+          <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/v1/knowledge/cases</code></td><td>JWT (admin/reviewer)</td><td>List case entries</td></tr>
+          <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/v1/knowledge/cases</code></td><td>JWT (admin)</td><td>Create new case entry</td></tr>
+          <tr><td><span class="badge badge-put">PUT</span></td><td><code>/api/v1/knowledge/cases/:id</code></td><td>JWT (admin)</td><td>Update case entry</td></tr>
+          <tr><td><span class="badge badge-delete">DELETE</span></td><td><code>/api/v1/knowledge/cases/:id</code></td><td>JWT (admin)</td><td>Delete case entry</td></tr>
+          <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/v1/sops</code></td><td>JWT (admin/reviewer)</td><td>List SOP drafts pending review</td></tr>
+          <tr><td><span class="badge badge-patch">PATCH</span></td><td><code>/api/v1/sops/:id</code></td><td>JWT (admin/reviewer)</td><td>Approve or reject SOP draft</td></tr>
+          <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/v1/knowledge/manuals</code></td><td>JWT (admin)</td><td>Upload manual PDF for parsing/chunking</td></tr>
+          <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/v1/dashboard/stats</code></td><td>JWT (admin)</td><td>Dashboard KPI metrics</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="material-icons-outlined">api</span>Internal REST API — V2.0 Endpoints</div>
+    <div class="card-body">
+      <table class="data-table">
+        <thead><tr><th>Method</th><th>Endpoint</th><th>Auth</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/v1/work-orders</code></td><td>JWT (technician/admin)</td><td>List work orders (filtered by role)</td></tr>
+          <tr><td><span class="badge badge-patch">PATCH</span></td><td><code>/api/v1/work-orders/:id</code></td><td>JWT (technician/admin)</td><td>Accept, reject, or complete work order</td></tr>
+          <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/v1/work-orders/:id/report</code></td><td>JWT (technician)</td><td>Submit completion report with photos</td></tr>
+          <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/v1/technicians</code></td><td>JWT (admin)</td><td>List technicians with skill/region filters</td></tr>
+          <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/v1/work-orders/:id/assign</code></td><td>JWT (admin)</td><td>Manual dispatch assignment</td></tr>
+          <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/v1/pricing/rules</code></td><td>JWT (admin)</td><td>List pricing rules</td></tr>
+          <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/v1/pricing/calculate</code></td><td>JWT (technician/admin)</td><td>Calculate quote for work order</td></tr>
+          <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/v1/accounting/invoices</code></td><td>JWT (technician/admin)</td><td>List invoices (filtered by role)</td></tr>
+          <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/v1/accounting/reconciliation</code></td><td>JWT (admin)</td><td>Monthly reconciliation report</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="material-icons-outlined">cloud</span>External Outbound Integrations</div>
+    <div class="card-body">
+      <table class="data-table">
+        <thead><tr><th>Service</th><th>Protocol</th><th>Purpose</th><th>Consumer</th></tr></thead>
+        <tbody>
+          <tr><td><span class="material-icons-outlined" style="font-size:16px;vertical-align:middle;color:var(--orange-fg);">auto_awesome</span> Gemini API</td><td>HTTPS / gRPC</td><td>LLM inference (intent routing, answer generation, SOP extraction)</td><td>AI Engine, Knowledge Base</td></tr>
+          <tr><td><span class="material-icons-outlined" style="font-size:16px;vertical-align:middle;color:var(--blue-fg);">data_array</span> Embedding API</td><td>HTTPS / gRPC</td><td>Text vectorization (768-dim)</td><td>Knowledge Base</td></tr>
+          <tr><td><span class="material-icons-outlined" style="font-size:16px;vertical-align:middle;color:var(--green-fg);">chat</span> LINE Reply API</td><td>HTTPS POST</td><td>Reply to user messages (Flex Message)</td><td>Conversation Manager</td></tr>
+          <tr><td><span class="material-icons-outlined" style="font-size:16px;vertical-align:middle;color:var(--green-fg);">notifications</span> LINE Push API</td><td>HTTPS POST</td><td>Proactive notifications (dispatch status)</td><td>Dispatch Engine</td></tr>
+          <tr><td><span class="material-icons-outlined" style="font-size:16px;vertical-align:middle;color:var(--red-fg);">map</span> Google Maps API</td><td>HTTPS</td><td>Distance/time calculation for technician matching</td><td>Dispatch Engine</td></tr>
+          <tr><td><span class="material-icons-outlined" style="font-size:16px;vertical-align:middle;color:var(--purple-fg);">search</span> DuckDuckGo</td><td>HTTPS</td><td>Web search fallback for unknown issues</td><td>Web Researcher Agent</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </section>
 
-<!-- 09 -->
+
+<!-- ════════════════════════════════════════════════════════════════
+     09 Deployment
+     ════════════════════════════════════════════════════════════════ -->
 <section class="section" id="sec09">
   <div class="section-header"><div class="section-number">09</div><h2>Deployment Diagram</h2></div>
-  <p class="section-desc">容器化策略、網路拓撲與 CI/CD 流程</p>
+  <p class="section-desc">Containerized deployment topology, network zones and CI/CD pipeline</p>
+
   <div class="card">
     <div class="card-title"><span class="material-icons-outlined">cloud</span>Production Deployment</div>
-    <div class="card-body"><pre class="mermaid">
-flowchart TB
-    subgraph INTERNET["Internet"]
-        USER_LINE["Customer\n(LINE)"]
-        USER_TECH["Technician\n(Browser)"]
-        USER_ADMIN["Admin\n(Browser)"]
-    end
-    subgraph CDN["CDN / DNS"]
-        DNS["DNS"]
-        SSL["SSL/TLS 1.2+"]
-    end
-    subgraph CLOUD["Cloud Infrastructure"]
-        NGINX["Nginx\nReverse Proxy"]
-        subgraph APP["App Cluster (Docker)"]
-            UV1["FastAPI #1\n:8000"]
-            UV2["FastAPI #2\n:8000"]
-        end
-        subgraph FRONT["Frontend (Docker)"]
-            NX_T["Tech App\nNext.js :3000"]
-            NX_A["Admin Panel\nNext.js :3001"]
-        end
-        subgraph DB["Data Tier"]
-            PG_P["PostgreSQL 16\nPrimary + pgvector"]
-            PG_R["PostgreSQL 16\nRead Replica"]
-            RD["Redis 7\n:6379"]
-        end
-    end
-    subgraph EXT["External"]
-        LINE_API["LINE Platform"]
-        GOOGLE["Google Cloud"]
-    end
-    USER_LINE --> DNS --> SSL --> NGINX
-    USER_TECH --> DNS
-    USER_ADMIN --> DNS
-    NGINX --> UV1
-    NGINX --> UV2
-    NGINX --> NX_T
-    NGINX --> NX_A
-    UV1 --> PG_P
-    UV2 --> PG_P
-    UV1 --> RD
-    PG_P --> PG_R
-    UV1 --> LINE_API
-    UV1 --> GOOGLE
-    style CLOUD fill:#f5f5f5,stroke:#616161
-    style APP fill:#f3e5f5,stroke:#7b1fa2
-    style DB fill:#e8f5e9,stroke:#2e7d32
-    style EXT fill:#fff3e0,stroke:#e65100
-    </pre></div>
+    <div class="card-body">
+      <div class="infra-grid">
+
+        <!-- Internet -->
+        <div class="infra-zone" style="background: var(--blue-bg); border-color: var(--blue-border);">
+          <div class="infra-zone-title" style="color: var(--blue-fg);"><span class="material-icons-outlined">public</span>Internet</div>
+          <div class="infra-nodes">
+            <div class="infra-node">
+              <span class="material-icons-outlined" style="color: var(--green-fg);">person</span>
+              <div class="infra-node-name">Customer</div>
+              <div class="infra-node-desc">LINE App</div>
+            </div>
+            <div class="infra-node">
+              <span class="material-icons-outlined" style="color: var(--orange-fg);">engineering</span>
+              <div class="infra-node-name">Technician</div>
+              <div class="infra-node-desc">Browser / PWA</div>
+            </div>
+            <div class="infra-node">
+              <span class="material-icons-outlined" style="color: var(--purple-fg);">admin_panel_settings</span>
+              <div class="infra-node-name">Admin</div>
+              <div class="infra-node-desc">Browser</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="layer-arrow"><span class="material-icons-outlined">arrow_downward</span> <span style="font-size:11px;color:var(--on-surface-tertiary);">DNS + TLS 1.2+</span></div>
+
+        <!-- Cloud -->
+        <div class="infra-zone" style="background: var(--grey-bg); border-color: var(--grey-border);">
+          <div class="infra-zone-title" style="color: var(--grey-fg);"><span class="material-icons-outlined">cloud_queue</span>Cloud Infrastructure</div>
+
+          <!-- Nginx -->
+          <div style="margin-bottom: 16px;">
+            <div class="infra-nodes">
+              <div class="infra-node" style="flex: 0 0 100%; background: var(--surface-container);">
+                <span class="material-icons-outlined" style="color: var(--grey-fg);">dns</span>
+                <div class="infra-node-name">Nginx Reverse Proxy</div>
+                <div class="infra-node-desc">SSL termination, rate limiting, load balancing</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="layer-arrow"><span class="material-icons-outlined">arrow_downward</span></div>
+
+          <!-- App + Frontend -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+            <div style="border: 1px solid var(--purple-border); border-radius: var(--radius-sm); padding: 12px; background: var(--purple-bg);">
+              <div style="font-size:11px;font-weight:600;color:var(--purple-fg);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">App Cluster (Docker)</div>
+              <div class="infra-nodes" style="flex-direction: column;">
+                <div class="infra-node">
+                  <span class="material-icons-outlined" style="color: var(--purple-fg);">bolt</span>
+                  <div class="infra-node-name">FastAPI #1</div>
+                  <div class="infra-node-desc">:8000</div>
+                </div>
+                <div class="infra-node">
+                  <span class="material-icons-outlined" style="color: var(--purple-fg);">bolt</span>
+                  <div class="infra-node-name">FastAPI #2</div>
+                  <div class="infra-node-desc">:8000</div>
+                </div>
+              </div>
+            </div>
+            <div style="border: 1px solid var(--blue-border); border-radius: var(--radius-sm); padding: 12px; background: var(--blue-bg);">
+              <div style="font-size:11px;font-weight:600;color:var(--blue-fg);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Frontend (Docker)</div>
+              <div class="infra-nodes" style="flex-direction: column;">
+                <div class="infra-node">
+                  <span class="material-icons-outlined" style="color: var(--blue-fg);">phone_iphone</span>
+                  <div class="infra-node-name">Tech App</div>
+                  <div class="infra-node-desc">Next.js :3000</div>
+                </div>
+                <div class="infra-node">
+                  <span class="material-icons-outlined" style="color: var(--blue-fg);">dashboard</span>
+                  <div class="infra-node-name">Admin Panel</div>
+                  <div class="infra-node-desc">Next.js :3001</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="layer-arrow"><span class="material-icons-outlined">arrow_downward</span></div>
+
+          <!-- Data Tier -->
+          <div style="border: 1px solid var(--green-border); border-radius: var(--radius-sm); padding: 12px; background: var(--green-bg);">
+            <div style="font-size:11px;font-weight:600;color:var(--green-fg);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Data Tier</div>
+            <div class="infra-nodes">
+              <div class="infra-node">
+                <span class="material-icons-outlined" style="color: var(--blue-fg);">database</span>
+                <div class="infra-node-name">PostgreSQL 16 Primary</div>
+                <div class="infra-node-desc">+ pgvector</div>
+              </div>
+              <div class="infra-node">
+                <span class="material-icons-outlined" style="color: var(--teal-fg);">content_copy</span>
+                <div class="infra-node-name">PostgreSQL 16 Replica</div>
+                <div class="infra-node-desc">Read Replica</div>
+              </div>
+              <div class="infra-node">
+                <span class="material-icons-outlined" style="color: var(--red-fg);">memory</span>
+                <div class="infra-node-name">Redis 7</div>
+                <div class="infra-node-desc">:6379 Session Cache</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- External -->
+        <div class="infra-zone" style="background: var(--orange-bg); border-color: var(--orange-border);">
+          <div class="infra-zone-title" style="color: var(--orange-fg);"><span class="material-icons-outlined">cloud_sync</span>External Services</div>
+          <div class="infra-nodes">
+            <div class="infra-node">
+              <span class="material-icons-outlined" style="color: var(--green-fg);">chat</span>
+              <div class="infra-node-name">LINE Platform</div>
+            </div>
+            <div class="infra-node">
+              <span class="material-icons-outlined" style="color: var(--blue-fg);">cloud</span>
+              <div class="infra-node-name">Google Cloud</div>
+              <div class="infra-node-desc">Gemini, Embedding, Maps</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
   </div>
+
   <div class="card">
     <div class="card-title"><span class="material-icons-outlined">rocket_launch</span>CI/CD Pipeline</div>
-    <div class="card-body"><pre class="mermaid">
-flowchart LR
-    subgraph DEV["Development"]
-        CODE["Developer Push\nto GitHub"]
-    end
-    subgraph CI["CI (GitHub Actions)"]
-        LINT["Lint"] --> TEST["Test"] --> BUILD["Build\nDocker"] --> SCAN["Security\nScan"]
-    end
-    subgraph CD["CD"]
-        PUSH_IMG["Push Image"] --> DEPLOY_STG["Deploy\nStaging"] --> SMOKE["Smoke\nTest"] --> DEPLOY_PROD["Deploy\nProduction"]
-    end
-    CODE --> LINT
-    SCAN --> PUSH_IMG
-    style DEV fill:#e3f2fd
-    style CI fill:#f3e5f5
-    style CD fill:#e8f5e9
-    </pre></div>
+    <div class="card-body">
+      <div class="flow-steps" style="flex-wrap: nowrap; overflow-x: auto;">
+        <div class="flow-step">
+          <div class="flow-step-box" style="border-color: var(--blue-border);">
+            <span class="material-icons-outlined">code</span>Developer Push<br><small>to GitHub</small>
+          </div>
+        </div>
+        <div class="flow-arrow material-icons-outlined">arrow_forward</div>
+        <div class="flow-step">
+          <div class="flow-step-box" style="border-color: var(--purple-border);">
+            <span class="material-icons-outlined">rule</span>Lint<br><small>ruff + eslint</small>
+          </div>
+        </div>
+        <div class="flow-arrow material-icons-outlined">arrow_forward</div>
+        <div class="flow-step">
+          <div class="flow-step-box" style="border-color: var(--purple-border);">
+            <span class="material-icons-outlined">science</span>Test<br><small>pytest + vitest</small>
+          </div>
+        </div>
+        <div class="flow-arrow material-icons-outlined">arrow_forward</div>
+        <div class="flow-step">
+          <div class="flow-step-box" style="border-color: var(--purple-border);">
+            <span class="material-icons-outlined">inventory_2</span>Build<br><small>Docker Image</small>
+          </div>
+        </div>
+        <div class="flow-arrow material-icons-outlined">arrow_forward</div>
+        <div class="flow-step">
+          <div class="flow-step-box" style="border-color: var(--red-border);">
+            <span class="material-icons-outlined">security</span>Security<br><small>Scan</small>
+          </div>
+        </div>
+        <div class="flow-arrow material-icons-outlined">arrow_forward</div>
+        <div class="flow-step">
+          <div class="flow-step-box" style="border-color: var(--green-border);">
+            <span class="material-icons-outlined">cloud_upload</span>Push<br><small>Image</small>
+          </div>
+        </div>
+        <div class="flow-arrow material-icons-outlined">arrow_forward</div>
+        <div class="flow-step">
+          <div class="flow-step-box" style="border-color: var(--green-border);">
+            <span class="material-icons-outlined">science</span>Staging<br><small>Deploy + Smoke</small>
+          </div>
+        </div>
+        <div class="flow-arrow material-icons-outlined">arrow_forward</div>
+        <div class="flow-step">
+          <div class="flow-step-box" style="border-color: var(--green-border); border-width: 2px;">
+            <span class="material-icons-outlined">check_circle</span>Production<br><small>Deploy</small>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
-<!-- 10 -->
+
+<!-- ════════════════════════════════════════════════════════════════
+     10 Security & Permissions — TABLE + LAYERS
+     ════════════════════════════════════════════════════════════════ -->
 <section class="section" id="sec10">
   <div class="section-header"><div class="section-number">10</div><h2>Security & Permissions</h2></div>
-  <p class="section-desc">認證授權架構、RBAC、AI 安全防護、合規審計</p>
+  <p class="section-desc">Authentication, authorization (RBAC), AI safety, data protection and audit</p>
+
   <div class="card">
-    <div class="card-title"><span class="material-icons-outlined">shield</span>Security Architecture Overview</div>
-    <div class="card-body"><pre class="mermaid">
-flowchart TB
-    subgraph PERIMETER["Perimeter Defense"]
-        WAF["WAF / Rate Limiting\n(Nginx)"]
-        SSL["TLS 1.2+\nHTTPS Only"]
-        CORS["CORS Policy"]
-    end
-    subgraph AUTH["Authentication"]
-        LINE_AUTH["LINE Webhook\nHMAC-SHA256"]
-        JWT_AUTH["JWT Bearer Token\n(Admin / Technician)"]
-    end
-    subgraph AUTHZ["Authorization (RBAC)"]
-        RBAC["Role-Based Access Control"]
-        ROLE_LINE["line_user"]
-        ROLE_ADMIN["admin"]
-        ROLE_REVIEWER["reviewer"]
-        ROLE_TECH["technician"]
-    end
-    subgraph AI_SAFETY["AI Safety"]
-        PROMPT_GUARD["Prompt Injection\nDetection"]
-        CONTENT_FILTER["Content\nFiltering"]
-        OUTPUT_GUARD["Output\nGuardrail"]
-    end
-    subgraph DATA_PROTECTION["Data Protection"]
-        ENCRYPT_TRANSIT["Transit: TLS 1.2+"]
-        ENCRYPT_REST["At Rest: AES-256"]
-        PII_MASK["PII Masking"]
-    end
-    subgraph AUDIT["Audit Trail"]
-        AUDIT_LOG["Complete Audit Log\n(5 types per contract 10.3)"]
-        TRACE_ID["Trace ID"]
-        SOP_REVIEW["SOP Review Workflow"]
-    end
-    WAF --> SSL --> AUTH
-    LINE_AUTH --> RBAC
-    JWT_AUTH --> RBAC
-    RBAC --> AI_SAFETY
-    AI_SAFETY --> DATA_PROTECTION
-    DATA_PROTECTION --> AUDIT
-    style PERIMETER fill:#ffebee,stroke:#c62828
-    style AUTH fill:#fff3e0,stroke:#e65100
-    style AUTHZ fill:#e8eaf6,stroke:#283593
-    style AI_SAFETY fill:#f3e5f5,stroke:#7b1fa2
-    style DATA_PROTECTION fill:#e8f5e9,stroke:#2e7d32
-    style AUDIT fill:#e3f2fd,stroke:#1565c0
-    </pre></div>
+    <div class="card-title"><span class="material-icons-outlined">shield</span>Security Architecture — Defense in Depth</div>
+    <div class="card-body">
+      <div class="sec-layers">
+
+        <div class="sec-layer" style="background: var(--red-bg); border-color: var(--red-border);">
+          <div class="sec-layer-icon" style="background: var(--red-fg); color: #fff;">
+            <span class="material-icons-outlined">shield</span>
+          </div>
+          <div class="sec-layer-content">
+            <div class="sec-layer-title" style="color: var(--red-fg);">Layer 1 — Perimeter Defense</div>
+            <div class="sec-layer-items">
+              <span class="sec-layer-item">WAF / Rate Limiting (Nginx)</span>
+              <span class="sec-layer-item">TLS 1.2+ HTTPS Only</span>
+              <span class="sec-layer-item">CORS Policy</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec-layer" style="background: var(--orange-bg); border-color: var(--orange-border);">
+          <div class="sec-layer-icon" style="background: var(--orange-fg); color: #fff;">
+            <span class="material-icons-outlined">key</span>
+          </div>
+          <div class="sec-layer-content">
+            <div class="sec-layer-title" style="color: var(--orange-fg);">Layer 2 — Authentication</div>
+            <div class="sec-layer-items">
+              <span class="sec-layer-item">LINE Webhook HMAC-SHA256</span>
+              <span class="sec-layer-item">JWT Bearer Token (Admin / Technician)</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec-layer" style="background: var(--blue-bg); border-color: var(--blue-border);">
+          <div class="sec-layer-icon" style="background: var(--blue-fg); color: #fff;">
+            <span class="material-icons-outlined">admin_panel_settings</span>
+          </div>
+          <div class="sec-layer-content">
+            <div class="sec-layer-title" style="color: var(--blue-fg);">Layer 3 — Authorization (RBAC)</div>
+            <div class="sec-layer-items">
+              <span class="sec-layer-item">line_user (Customer)</span>
+              <span class="sec-layer-item">admin (Manager)</span>
+              <span class="sec-layer-item">reviewer (Reviewer)</span>
+              <span class="sec-layer-item">technician (Field Tech)</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec-layer" style="background: var(--purple-bg); border-color: var(--purple-border);">
+          <div class="sec-layer-icon" style="background: var(--purple-fg); color: #fff;">
+            <span class="material-icons-outlined">psychology</span>
+          </div>
+          <div class="sec-layer-content">
+            <div class="sec-layer-title" style="color: var(--purple-fg);">Layer 4 — AI Safety</div>
+            <div class="sec-layer-items">
+              <span class="sec-layer-item">Prompt Injection Detection</span>
+              <span class="sec-layer-item">Content Filtering</span>
+              <span class="sec-layer-item">Output Guardrail</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec-layer" style="background: var(--green-bg); border-color: var(--green-border);">
+          <div class="sec-layer-icon" style="background: var(--green-fg); color: #fff;">
+            <span class="material-icons-outlined">lock</span>
+          </div>
+          <div class="sec-layer-content">
+            <div class="sec-layer-title" style="color: var(--green-fg);">Layer 5 — Data Protection</div>
+            <div class="sec-layer-items">
+              <span class="sec-layer-item">Transit: TLS 1.2+</span>
+              <span class="sec-layer-item">At Rest: AES-256</span>
+              <span class="sec-layer-item">PII Masking</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec-layer" style="background: var(--teal-bg); border-color: var(--teal-border);">
+          <div class="sec-layer-icon" style="background: var(--teal-fg); color: #fff;">
+            <span class="material-icons-outlined">history</span>
+          </div>
+          <div class="sec-layer-content">
+            <div class="sec-layer-title" style="color: var(--teal-fg);">Layer 6 — Audit Trail</div>
+            <div class="sec-layer-items">
+              <span class="sec-layer-item">Complete Audit Log (5 types per contract 10.3)</span>
+              <span class="sec-layer-item">Trace ID</span>
+              <span class="sec-layer-item">SOP Review Workflow</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
   </div>
+
   <div class="card">
     <div class="card-title"><span class="material-icons-outlined">admin_panel_settings</span>RBAC Permission Matrix</div>
-    <div class="card-body"><pre class="mermaid">
-flowchart LR
-    subgraph ROLES["Roles"]
-        R1["line_user\n(Customer)"]
-        R2["admin\n(Manager)"]
-        R3["reviewer\n(Reviewer)"]
-        R4["technician\n(Field Tech)"]
-    end
-    subgraph RESOURCES["Resource Permissions"]
-        subgraph CONV_P["Conversations"]
-            C1["Own History"]
-            C2["All History"]
-        end
-        subgraph KB_P["Knowledge Base"]
-            K1["Read Cases"]
-            K2["CRUD Cases"]
-            K3["Review SOPs"]
-        end
-        subgraph WO_P["Work Orders"]
-            W1["Own Orders"]
-            W2["All + Assign"]
-        end
-    end
-    R1 --> C1
-    R2 --> C2
-    R2 --> K2
-    R2 --> K3
-    R2 --> W2
-    R3 --> C2
-    R3 --> K1
-    R3 --> K3
-    R4 --> W1
-    style ROLES fill:#e8eaf6
-    style RESOURCES fill:#f5f5f5
-    </pre></div>
+    <div class="card-body">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Resource</th>
+            <th>Operation</th>
+            <th><span class="material-icons-outlined" style="font-size:14px;vertical-align:middle;">person</span> line_user</th>
+            <th><span class="material-icons-outlined" style="font-size:14px;vertical-align:middle;">admin_panel_settings</span> admin</th>
+            <th><span class="material-icons-outlined" style="font-size:14px;vertical-align:middle;">rate_review</span> reviewer</th>
+            <th><span class="material-icons-outlined" style="font-size:14px;vertical-align:middle;">engineering</span> technician</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td rowspan="2"><strong>Conversations</strong></td><td>View Own History</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="cross">&mdash;</td></tr>
+          <tr><td>View All History</td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="cross">&mdash;</td></tr>
+          <tr><td rowspan="3"><strong>Knowledge Base</strong></td><td>Read Cases</td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="cross">&mdash;</td></tr>
+          <tr><td>CRUD Cases</td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td></tr>
+          <tr><td>Review SOPs</td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="cross">&mdash;</td></tr>
+          <tr><td rowspan="2"><strong>Work Orders</strong></td><td>View Own Orders</td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="cross">&mdash;</td><td class="check">&#10003;</td></tr>
+          <tr><td>View All + Assign</td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td></tr>
+          <tr><td rowspan="2"><strong>Accounting</strong></td><td>View Own Invoices</td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="cross">&mdash;</td><td class="check">&#10003;</td></tr>
+          <tr><td>Reconciliation Reports</td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td></tr>
+          <tr><td rowspan="2"><strong>Dashboard</strong></td><td>View KPI Metrics</td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td></tr>
+          <tr><td>Upload Manuals</td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </section>
 
 </main>
 
 <footer class="footer">
-  Smart Lock AI SaaS Platform &middot; Contract SPA-Funngo-001 V21 &middot; Generated 2026-03-31
+  Smart Lock AI SaaS Platform &middot; Contract SPA-Funngo-001 V2.1 &middot; System Architecture Document
 </footer>
 
-<!-- Mermaid.js CDN (v10.x for broad compatibility) -->
+<!-- Mermaid.js CDN (v10.x) -->
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <script>
 mermaid.initialize({
@@ -1077,12 +1825,14 @@ mermaid.initialize({
   sequence: { useMaxWidth: true, showSequenceNumbers: true },
   er: { useMaxWidth: true },
   themeVariables: {
-    fontFamily: '"Google Sans", "Noto Sans TC", system-ui, sans-serif',
+    fontFamily: '"Inter", "Noto Sans TC", system-ui, sans-serif',
     fontSize: '14px'
   }
 });
+</script>
 
-// Active nav highlighting
+<!-- Active nav highlighting -->
+<script>
 const sections = document.querySelectorAll('.section');
 const navLinks = document.querySelectorAll('.sidenav a');
 const observer = new IntersectionObserver(entries => {
