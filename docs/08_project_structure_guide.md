@@ -279,6 +279,24 @@ backend/src/smart_lock/
 │   │                                   #   - RAGStrategy: PDF 手冊 RAG pipeline
 │   │                                   #   - HumanHandoffStrategy: 人工轉接
 │   │
+│   ├── sentiment/                      # 情緒分流領域（V1.0, 合約 9.3）
+│   │   ├── __init__.py
+│   │   ├── entities.py                 #   - SentimentAlert: 負面情緒告警
+│   │   └── value_objects.py            #   - SentimentResult: 情緒分析結果
+│   │                                   #   - SentimentLabel: POSITIVE / NEUTRAL / NEGATIVE
+│   │
+│   ├── audit/                          # 審計日誌領域（V1.0, 合約 10.3）
+│   │   ├── __init__.py
+│   │   ├── entities.py                 #   - AuditLog: 審計紀錄 (Append-Only)
+│   │   │                               #   - FamilyReviewRecord: 家族覆核紀錄 (Immutable)
+│   │   └── value_objects.py            #   - AuditLogType: API_CALL / LLM_INTERACTION /
+│   │                                   #     RAG_RETRIEVAL / ADMIN_ACTION / AGENT_MESSAGE
+│   │
+│   ├── approval/                       # 財務雙簽領域（V2.0, 合約 7.4）
+│   │   ├── __init__.py
+│   │   ├── entities.py                 #   - ApprovalWorkflow: 雙簽審批流程
+│   │   └── value_objects.py            #   - ApprovalStatus: PENDING / APPROVED / REJECTED
+│   │
 │   ├── dispatch/                       # 派工引擎領域（V2.0）
 │   │   ├── __init__.py
 │   │   ├── entities.py                 #   - WorkOrder: 派工單實體

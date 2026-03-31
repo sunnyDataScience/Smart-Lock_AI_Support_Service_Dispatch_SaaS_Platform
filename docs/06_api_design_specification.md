@@ -1439,6 +1439,212 @@ curl -X GET "https://api.smartlock-saas.com/api/v1/dashboard/stats?period=30d" \
 
 ---
 
+### 7.9 Audit Logs（審計日誌）
+
+> 合約 10.3 條要求系統完整記錄：API 呼叫、模型互動歷史、RAG 來源引用、管理後台審批動作、跨代理人訊息紀錄。甲方得隨時查核。
+
+#### `GET /api/v1/audit-logs`
+
+**描述**: 查詢審計日誌（支援分頁、時間範圍、類型篩選）。
+
+**認證**: Bearer Token (Admin only)
+
+**Query Parameters**:
+
+| 參數 | 類型 | 必填 | 說明 |
+|:---|:---|:---|:---|
+| `log_type` | string | 否 | 日誌類型：`api_call` / `llm_interaction` / `rag_retrieval` / `admin_action` / `agent_message` |
+| `start_time` | string (ISO 8601) | 否 | 起始時間 |
+| `end_time` | string (ISO 8601) | 否 | 結束時間 |
+| `actor_id` | string (UUID) | 否 | 操作者 ID |
+| `cursor` | string | 否 | 分頁游標 |
+| `limit` | integer | 否 | 每頁數量（預設 50，上限 200） |
+
+**成功回應 (200)**:
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "log_type": "llm_interaction",
+      "actor_id": "uuid",
+      "action": "chat_completion",
+      "details": {
+        "model": "gemini-3-pro",
+        "input_tokens": 1500,
+        "output_tokens": 350,
+        "latency_ms": 2300,
+        "conversation_id": "uuid"
+      },
+      "created_at": "2026-03-15T10:30:00Z"
+    }
+  ],
+  "pagination": { "next_cursor": "..." }
+}
+```
+
+**日誌類型定義**:
+
+| log_type | 記錄內容 | 對應合約要求 |
+|:---|:---|:---|
+| `api_call` | 所有 REST API 呼叫（method, path, status, latency） | 10.3 - API 呼叫紀錄 |
+| `llm_interaction` | 模型名稱、Token 用量、延遲、conversation_id | 10.3 - 模型互動歷史 |
+| `rag_retrieval` | 查詢文字、匹配結果、相似度分數、來源文件/頁碼 | 10.3 - RAG 來源引用 |
+| `admin_action` | 管理員操作（SOP 審核、設定變更、帳號管理） | 10.3 - 管理後台審批 |
+| `agent_message` | 跨代理人訊息傳遞紀錄（預留 Stage 3） | 10.3 - 跨代理人紀錄 |
+
+---
+
+### 7.10 Sentiment Triage（情緒分流）
+
+> 合約 9.3 條、4.4(a) 條。偵測負面情緒關鍵詞，觸發優先回應協議並通知真人管理員。
+
+#### `GET /api/v1/sentiment/alerts`
+
+**描述**: 查詢負面情緒告警紀錄。
+
+**認證**: Bearer Token (Admin only)
+
+**Query Parameters**:
+
+| 參數 | 類型 | 必填 | 說明 |
+|:---|:---|:---|:---|
+| `status` | string | 否 | `pending` / `acknowledged` / `resolved` |
+| `start_time` | string (ISO 8601) | 否 | 起始時間 |
+| `cursor` | string | 否 | 分頁游標 |
+
+**成功回應 (200)**:
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "conversation_id": "uuid",
+      "consumer_message": "不能接受這種服務品質",
+      "sentiment_label": "negative",
+      "confidence": 0.95,
+      "detected_keywords": ["不能接受"],
+      "problem_card_id": "uuid",
+      "status": "pending",
+      "notified_admin_ids": ["uuid"],
+      "created_at": "2026-03-15T10:30:00Z"
+    }
+  ],
+  "pagination": { "next_cursor": "..." }
+}
+```
+
+#### `PATCH /api/v1/sentiment/alerts/{alert_id}`
+
+**描述**: 管理員確認/處理情緒告警。
+
+**Request Body**:
+```json
+{
+  "status": "acknowledged",
+  "admin_note": "已致電消費者道歉並安排優先處理"
+}
+```
+
+---
+
+### 7.11 Family Review（家族覆核）
+
+> 合約 4.4(d) 條。SOP 草稿經管理員初審後，須經甲方指定之家族成員覆核方可入庫。覆核率 100%。
+
+#### `GET /api/v1/family-reviews/pending`
+
+**描述**: 查詢待家族覆核的 SOP 草稿清單。
+
+**認證**: Bearer Token (family_reviewer role)
+
+**成功回應 (200)**:
+```json
+{
+  "data": [
+    {
+      "sop_draft_id": "uuid",
+      "title": "SHP-DP609 指紋模組重置流程",
+      "admin_reviewer": "管理員A",
+      "admin_approved_at": "2026-03-14T10:00:00Z",
+      "awaiting_family_review_since": "2026-03-14T10:00:00Z"
+    }
+  ]
+}
+```
+
+#### `POST /api/v1/family-reviews`
+
+**描述**: 提交家族覆核結果。
+
+**Request Body**:
+```json
+{
+  "sop_draft_id": "uuid",
+  "action": "approved",
+  "comment": "內容正確，符合品牌規範"
+}
+```
+
+**成功回應 (201)**:
+```json
+{
+  "id": "uuid",
+  "sop_draft_id": "uuid",
+  "reviewer_id": "uuid",
+  "action": "approved",
+  "comment": "內容正確，符合品牌規範",
+  "reviewed_at": "2026-03-15T10:30:00Z"
+}
+```
+
+| 狀態碼 | error.code | 情境 |
+|:---|:---|:---|
+| `403` | `insufficient_role` | 非 family_reviewer 角色 |
+| `409` | `invalid_sop_status` | SOP 草稿不在 admin_approved 狀態 |
+
+#### `GET /api/v1/family-reviews`
+
+**描述**: 查詢家族覆核歷史紀錄（不可刪除，僅供稽核查詢）。
+
+**認證**: Bearer Token (Admin or family_reviewer)
+
+---
+
+### 7.12 Vector Index Export（向量索引匯出）
+
+> 合約 9.3 條。甲方保有模型切換權，需可匯出向量索引、Prompt 設計文件及 Agent Flow 設定。
+
+#### `POST /api/v1/knowledge-base/export`
+
+**描述**: 匯出知識庫資產（案例庫向量索引、Prompt 設定、Agent Flow 設定），供甲方進行模型切換或系統遷移。
+
+**認證**: Bearer Token (Admin only)
+
+**Request Body**:
+```json
+{
+  "export_type": "full",
+  "include": ["case_entries", "manual_chunks", "prompt_configs", "agent_flows"],
+  "format": "json"
+}
+```
+
+**成功回應 (202 Accepted)**:
+```json
+{
+  "export_job_id": "uuid",
+  "status": "processing",
+  "estimated_completion": "2026-03-15T10:35:00Z"
+}
+```
+
+#### `GET /api/v1/knowledge-base/export/{job_id}`
+
+**描述**: 查詢匯出任務狀態並下載。
+
+---
+
 ## 8. V2.0 API 端點詳述
 
 ### 8.1 Technicians

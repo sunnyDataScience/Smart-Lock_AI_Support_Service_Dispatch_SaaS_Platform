@@ -118,9 +118,75 @@ classDiagram
         +completeness_score: float
         +resolution_layer: ResolutionLayer
         +extracted_fields: dict~JSONB~
+        +sentiment_label: str
+        +preliminary_diagnostic_logic: str
+        +attachment_links: list~dict~
         +calculate_completeness() float
         +confirm() void
         +is_ready_for_resolution() bool
+        +update_sentiment(label: str) void
+        +add_attachment(url: str, photo_type: str) void
+    }
+
+    %% 情緒分流 (合約 9.3, 4.4(a))
+    class SentimentResult {
+        <<Value Object>>
+        +sentiment_label: str
+        +confidence: float
+        +trigger_escalation: bool
+        +detected_keywords: list~str~
+    }
+
+    class SentimentAlert {
+        <<Entity>>
+        +id: UUID
+        +conversation_id: UUID
+        +consumer_message: str
+        +sentiment_result: SentimentResult
+        +problem_card_id: UUID
+        +status: str
+        +notified_admin_ids: list~UUID~
+        +admin_note: str
+        +created_at: datetime
+        +acknowledge(admin_id: UUID, note: str) void
+        +resolve() void
+    }
+
+    %% 審計日誌 (合約 10.3)
+    class AuditLog {
+        <<Entity - Append Only>>
+        +id: UUID
+        +log_type: str
+        +actor_id: UUID
+        +action: str
+        +details: dict~JSONB~
+        +created_at: datetime
+    }
+
+    %% 家族覆核 (合約 4.4(d))
+    class FamilyReviewRecord {
+        <<Entity - Immutable>>
+        +id: UUID
+        +sop_draft_id: UUID
+        +reviewer_id: UUID
+        +action: str
+        +comment: str
+        +reviewed_at: datetime
+    }
+
+    %% 財務雙簽 (合約 7.4, 附件七 4(f))
+    class ApprovalWorkflow {
+        <<Aggregate Root>>
+        +id: UUID
+        +transaction_type: str
+        +amount: Money
+        +first_approver_id: UUID
+        +second_approver_id: UUID
+        +status: str
+        +submit(approver_id: UUID) void
+        +approve(approver_id: UUID) void
+        +reject(approver_id: UUID, reason: str) void
+        +requires_dual_sign() bool
     }
 
     %% 客服 Value Objects
@@ -738,7 +804,7 @@ classDiagram
         +chat_completion(messages: list, system_prompt: str) str*
         +create_embedding(text: str) list~float~*
         +structured_output(messages: list, schema: type) dict*
-        +vision_analysis(image_url: str, prompt: str) str*
+        +sentiment_analysis(text: str) SentimentResult*
     }
 
     class ILineMessenger {
@@ -823,7 +889,7 @@ classDiagram
         +chat_completion(messages: list, system_prompt: str) str
         +create_embedding(text: str) list~float~
         +structured_output(messages: list, schema: type) dict
-        +vision_analysis(image_url: str, prompt: str) str
+        +sentiment_analysis(text: str) SentimentResult
     }
 
     class LineBotMessenger {
@@ -923,7 +989,7 @@ classDiagram
 | `PgConversationRepository` | Conversation 的 PostgreSQL 持久化：含 JSONB context 欄位的讀寫、cursor-based 分頁 | `ConversationRepository` | SQLAlchemy 2.0 Async, asyncpg |
 | `PgCaseRepository` | CaseEntry 的持久化與 pgvector cosine similarity 搜尋 | `CaseRepository` | SQLAlchemy 2.0, pgvector |
 | `PgVectorSearchService` | 統一向量搜尋服務：封裝 pgvector HNSW 索引查詢，支援 case_entries 與 manual_chunks 表 | `VectorSearchService` | pgvector, SQLAlchemy |
-| `LangChainLLMGateway` | Google Gemini 3 Pro 的 LangChain 封裝：chat completion、embedding (768-dim)、structured output、vision | `ILLMGateway` | LangChain 0.3.x, langchain-google-genai |
+| `LangChainLLMGateway` | Google Gemini 3 Pro 的 LangChain 封裝：chat completion、embedding (768-dim)、structured output、sentiment analysis | `ILLMGateway` | LangChain 0.3.x, langchain-google-genai |
 | `LineBotMessenger` | LINE Messaging API 封裝：文字/Flex Message/Quick Reply 發送、用戶 Profile 查詢 | `ILineMessenger` | line-bot-sdk-python 3+ |
 | `RedisSessionStore` | Redis 對話 Session 管理：TTL 30 分鐘自動過期、ProblemCard 暫存狀態讀寫 | `ISessionStore` | redis.asyncio |
 
@@ -945,7 +1011,7 @@ classDiagram
 
 - **`PgConversationRepository` implements `ConversationRepository`:** 所有 Application Layer 用例透過 `ConversationRepository` Protocol 存取對話資料，具體的 SQLAlchemy 實作完全封裝在 Infrastructure Layer。
 - **`PgCaseRepository` implements `CaseRepository`:** 案例庫的 CRUD 與向量搜尋邏輯封裝於 `PgCaseRepository`，包含 pgvector 的 HNSW 索引查詢。
-- **`LangChainLLMGateway` implements `ILLMGateway`:** LLM 呼叫（chat completion、embedding、structured output、vision）透過 Protocol 抽象，確保 LangChain 框架可被替換。
+- **`LangChainLLMGateway` implements `ILLMGateway`:** LLM 呼叫（chat completion、embedding、structured output、sentiment analysis）透過 Protocol 抽象，確保 LangChain 框架可被替換。
 - **`LineBotMessenger` implements `ILineMessenger`:** LINE SDK 的具體操作封裝於 Infrastructure Layer，Application Layer 僅呼叫抽象接口發送訊息。
 - **`RedisSessionStore` implements `ISessionStore`:** Redis 的 Session 管理細節（TTL、序列化、連線池）封裝於 Infrastructure Layer。
 
@@ -1119,10 +1185,10 @@ classDiagram
         *   **描述:** 調用 LLM 並將輸出解析為結構化 JSON，符合指定的 Pydantic schema。用於 ProblemCard 欄位提取。
         *   **前置條件:** `schema` 為 Pydantic BaseModel 子類別。
         *   **後置條件:** 返回符合 schema 的字典。
-    *   `async vision_analysis(image_url: str, prompt: str) -> str`
-        *   **描述:** 使用 Gemini 3 Pro Vision 分析用戶上傳的圖片（電子鎖故障照片、錯誤代碼截圖）。
-        *   **前置條件:** `image_url` 為可存取的圖片 URL。
-        *   **後置條件:** 返回 Vision 分析結果文本。
+    *   `async sentiment_analysis(text: str) -> SentimentResult`
+        *   **描述:** 分析使用者訊息的情緒傾向，偵測負面情緒關鍵詞（如「不能接受」「要求投訴」「太離譜」）。合約要求負面情緒識別率 >= 90%。
+        *   **前置條件:** `text` 為非空字串。
+        *   **後置條件:** 返回 SentimentResult（含 sentiment_label: positive/neutral/negative、confidence: float、trigger_escalation: bool）。
 
 ### 7.5 `ILineMessenger`
 

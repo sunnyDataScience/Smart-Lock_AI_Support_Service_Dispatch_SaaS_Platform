@@ -258,6 +258,8 @@ graph TB
 | **派工上下文** | Dispatch | 工單建立與管理、技師匹配與指派、排程、工單狀態追蹤 | WorkOrder, Technician, Assignment | V2.0 |
 | **帳務上下文** | Accounting | 計價規則管理、報價生成、對帳、發票管理、統計報表 | PriceRule, Invoice, Voucher, Report | V2.0 |
 | **使用者管理上下文** | UserManagement | LINE 用戶綁定、管理員帳號管理、技師帳號管理、角色與權限控制 | User, Admin, Role, Permission | V1.0 + V2.0 |
+| **審計上下文** | Audit | API 呼叫紀錄、LLM 互動歷史、RAG 來源引用、管理後台審批、跨代理人訊息紀錄（合約 10.3 條） | AuditLog, SentimentAlert, FamilyReviewRecord | V1.0 |
+| **情緒分流上下文** | SentimentTriage | 負面情緒偵測、優先回應協議觸發、管理員即時通知（合約 9.3 條、4.4(a) 條，識別率 >= 90%） | SentimentResult, EscalationNotification | V1.0 |
 
 #### 上下文地圖 (Context Map)
 
@@ -431,7 +433,7 @@ graph TB
 | **並發能力** | 系統同時處理的用戶數量 | V1.0: 50 concurrent / V2.0: 100 concurrent | V1.0 / V2.0 |
 | **API 延遲** | REST API 端點的回應延遲（不含 LLM 呼叫） | P95 < 2 秒 | V1.0 |
 | **LLM 回應延遲** | LLM API 呼叫的端到端延遲 | P95 < 10 秒（含網路） | V1.0 |
-| **可用性** | 系統正常運行時間 | >= 99.5%（月度） | V1.0 |
+| **可用性** | 系統正常運行時間 | >= 95%（月度，合約基準） | V1.0 |
 | **資料備份** | 每日自動備份 | 每日 1 次，保留 7 天 | V1.0 |
 | **安全性** | 資料傳輸加密 | SSL/TLS (HTTPS) | V1.0 |
 | **安全性** | LINE Webhook 驗證 | HMAC-SHA256 簽章驗證 | V1.0 |
@@ -1389,6 +1391,116 @@ gantt
 | M8: 派工系統 | Dispatch Engine, Technician Web App, WorkOrder 管理 | 新的 Dispatch 限界上下文，WebSocket 即時通知 |
 | M9: 帳務系統 | Pricing Engine, Invoice, Accounting Report | 新的 Accounting 限界上下文，報表匯出 |
 | M10: 整合上線 | 全功能整合測試, 效能壓力測試 | 端到端測試，並發 100 用戶壓力測試 |
+
+### Stage 3 — 多智能體擴展 (Multi-AI Agent Extending)
+
+> 合約第三階段（3%股份）交付物。合約附件七、第 1.5 條、第 4.7 條。
+
+#### 9.3.1 核心架構設計
+
+**Plug-and-play Foundation（隨插即用底層）**
+
+系統採用 Config-driven Agent Composition 架構，新增代理人僅需：
+1. 新增 Prompt 模板檔案（`configs/prompts/<agent_name>.md`）
+2. 在 `config.toml` 新增 `[[agents]]` 配置項
+3. 在 `config.toml` 新增 `[[intents]]` 路由規則
+4. 無需重構核心底層程式碼
+
+**Inter-Agent Messaging Protocol（跨代理人通訊協議）**
+
+```
+┌─────────────────────────────────────────────────┐
+│                  Agent Router                     │
+│  (LLM-based intent classification + fan-out)     │
+├─────────────────┬───────────────────────────────┤
+│   Agent A       │   Agent B       │   Agent C    │
+│  (LangGraph     │  (LangGraph     │  (LangGraph  │
+│   Subgraph)     │   Subgraph)     │   Subgraph)  │
+├─────────────────┴───────────────────────────────┤
+│              Merge Answers Node                   │
+│  (LLM-based multi-agent response synthesis)      │
+├──────────────────────────────────────────────────┤
+│         Unified ProblemCard JSON Schema           │
+│  (customer_id, location, fault_description,       │
+│   attachment_links, sentiment_label,              │
+│   preliminary_diagnostic_logic)                   │
+└──────────────────────────────────────────────────┘
+```
+
+所有代理人輸出遵循統一 ProblemCard JSON Schema（合約定義十），至少包含：
+- `customer_id`：客戶 ID
+- `location`：地理位置
+- `fault_description`：故障描述
+- `attachment_links`：附件連結
+- `sentiment_label`：情感標籤
+- `preliminary_diagnostic_logic`：初步診斷邏輯
+
+#### 9.3.2 Token 消耗熔斷機制 (Circuit Breaker)
+
+```python
+# Circuit Breaker Pattern for LLM API Cost Control
+class TokenCircuitBreaker:
+    max_tokens_per_task: int        # configurable via admin panel
+    max_tokens_per_problem_card: int
+    current_consumption: int
+    state: str  # "closed" | "open" | "half_open"
+
+    def check_and_consume(tokens: int) -> bool:
+        """Return False and trip breaker if limit exceeded."""
+
+    def on_breaker_trip() -> None:
+        """Force handoff to human, log to audit trail."""
+```
+
+- 甲方得於管理後台自訂「單一任務」或「單一 ProblemCard」之最大 Token 消耗閾值
+- 消耗量達上限時強制阻斷 LLM API 呼叫，自動轉交真人客服
+- 所有熔斷事件記錄至審計日誌
+
+#### 9.3.3 代理人內部溝通上限 (Max Turn Limits)
+
+- 管理後台可設定「代理人間最大溝通回合數」參數
+- 達上限未解決者，強制終止運算並記錄於審計日誌
+- 預設上限：10 回合（可由甲方調整）
+
+#### 9.3.4 動態模型路由 (Model Routing Capability)
+
+```toml
+# config.toml example
+[[agents]]
+name = "intent_classifier"
+provider = "gemini"
+model_name = "gemini-2.0-flash"  # lightweight, low cost
+
+[[agents]]
+name = "deep_troubleshooter"
+provider = "gemini"
+model_name = "gemini-3-pro"     # high capability, higher cost
+```
+
+- API 抽象層支援依任務難易度配置不同模型
+- 意圖識別使用低成本輕量化模型
+- 深度故障排除使用高階大模型
+- 模型切換僅需修改 config，無需改程式碼
+
+#### 9.3.5 異常費用告警 (Anomaly Alert)
+
+- 管理後台顯示即時 Token 消耗量
+- 可設定「單位時間費用/Token 上限」閾值
+- 系統偵測使用量異常飆高時主動發送告警通知予甲方管理員
+- 告警紀錄記入審計日誌
+
+#### 9.3.6 24 個月技術適配能力保證
+
+| 機制 | 說明 |
+| :--- | :--- |
+| **LLM Registry** | 支援 3+ LLM provider（ollama/gemini/vertexai），config-driven 切換 |
+| **Embedding Registry** | 支援 2+ embedding provider，維度變更透過 constants 管理 |
+| **LangChain 抽象層** | Protocol 介面隔離 LangChain 具體實作，LangChain 版本升級不影響業務邏輯 |
+| **向量索引匯出** | 知識庫資產可完整匯出（API: `POST /api/v1/knowledge-base/export`） |
+| **Prompt 外部化** | 所有 Prompt 模板存放於 `configs/prompts/`，非硬編碼 |
+| **Model Migration Runbook** | 模型遷移操作手冊，記錄遷移步驟、測試清單、回退方案 |
+
+---
 
 ### 未來展望（V3.0+）
 

@@ -67,7 +67,7 @@
 | `Given` | 場景的初始狀態 (Arrange) | `Given a ProblemCard exists for case "C-001"` |
 | `When` | 使用者執行的操作 (Act) | `When the user sends "電子鎖打不開"` |
 | `Then` | 預期的結果 (Assert) | `Then the system should respond with a solution` |
-| `And` / `But` | 連接同類步驟 | `And the confidence score should be above 0.75` |
+| `And` / `But` | 連接同類步驟 | `And the confidence score should be above 0.85` |
 
 ### 常用標籤
 
@@ -282,7 +282,7 @@ Feature: ProblemCard Smart Triage
 
 ### Feature: 三層解決引擎
 
-> 系統依序嘗試三層解決策略：L1 案例庫向量搜尋（相似度 >= 0.75）→ L2 PDF 手冊 RAG → L3 真人客服轉接，直到問題解決或升級。
+> 系統依序嘗試三層解決策略：L1 案例庫向量搜尋（相似度 >= 0.85）→ L2 PDF 手冊 RAG → L3 真人客服轉接，直到問題解決或升級。合約底線：RAG 相似度閾值不得低於 0.75。
 
 ```gherkin
 Feature: Three-Layer Resolution Engine
@@ -322,7 +322,7 @@ Feature: Three-Layer Resolution Engine
       | brand    | Samsung                    |
       | model    | SHP-DP609                  |
       | symptom  | 如何新增臨時密碼給訪客        |
-    And the Layer 1 vector search returns a top score of 0.52 which is below threshold 0.75
+    And the Layer 1 vector search returns a top score of 0.52 which is below threshold 0.85
     When the system escalates to Layer 2 RAG pipeline
     And the system queries the Samsung SHP-DP609 installation manual PDF
     Then the RAG pipeline should retrieve relevant passages about "temporary password setup"
@@ -385,7 +385,7 @@ Feature: Three-Layer Resolution Engine
       | model    | YDR-323            |
       | symptom  | 開門時發出異常聲音    |
     When the system performs a vector similarity search on the case library
-    And the top 3 results have similarity scores of 0.78, 0.76, and 0.75
+    And the top 3 results have similarity scores of 0.88, 0.86, and 0.85
     Then the system should present all 3 candidate solutions to the user
     And the system should ask "以下有幾個可能的解決方案，請問哪一個最符合您的狀況？"
     And each candidate should display a brief summary for the user to choose
@@ -399,8 +399,8 @@ Feature: Three-Layer Resolution Engine
     Examples:
       | brand   | model      | symptom            | score | resolution_path            |
       | Yale    | YDM-4109   | 電池耗電過快        | 0.95  | resolved_at_layer_1        |
-      | Samsung | SHP-DP609  | 藍牙配對失敗        | 0.75  | resolved_at_layer_1        |
-      | Gateman | WV-40      | 反鎖無法開啟        | 0.74  | escalate_to_layer_2        |
+      | Samsung | SHP-DP609  | 藍牙配對失敗        | 0.85  | resolved_at_layer_1        |
+      | Gateman | WV-40      | 反鎖無法開啟        | 0.84  | escalate_to_layer_2        |
       | Milre   | MI-6800    | 密碼重設方法        | 0.50  | escalate_to_layer_2        |
       | Unknown | Unknown    | 未知品牌鎖故障       | 0.20  | escalate_to_layer_2_then_3 |
 ```
@@ -633,6 +633,183 @@ Feature: Security Protection
       | 我忘記密碼被鎖在外面快崩潰了                        | acceptable     | process normally with empathy response   |
       | 請問如何破解電子鎖的密碼                            | ambiguous      | ask clarifying question about ownership  |
       | 我是屋主但忘記管理員密碼要怎麼重設                    | acceptable     | process normally as legitimate request   |
+```
+
+---
+
+### Feature: 情緒分流（Sentiment Triage）
+
+> AI 鎖匠代理人即時偵測消費者負面情緒關鍵詞，觸發優先回應協議並通知真人管理員。合約 9.3 條 / 驗收 4.4(a) 要求負面情緒識別率 >= 90%。
+
+```gherkin
+Feature: Sentiment Triage
+  As the AI system
+  I want to detect negative sentiment in user messages
+  So that I can trigger priority response and notify human administrators
+
+  Background:
+    Given a consumer is chatting with the AI locksmith agent via LINE
+    And the conversation is in "active" or "collecting" state
+
+  @critical @v1.0
+  Scenario: Detect explicit complaint keywords and trigger escalation
+    Given the consumer sends a message containing "不能接受這種服務品質"
+    When the system performs sentiment analysis on the message
+    Then the sentiment_label should be "negative" with confidence >= 0.90
+    And the system should switch to the priority response protocol
+    And the system should send a soothing acknowledgment within 3 seconds:
+      """
+      非常抱歉讓您有不好的體驗，我們非常重視您的意見。
+      我已經立即通知專人為您處理，請稍候片刻。
+      """
+    And the system should push a LINE notification to the admin with:
+      | field              | value                              |
+      | alert_type         | negative_sentiment_detected        |
+      | conversation_id    | <current_conversation_id>          |
+      | consumer_message   | 不能接受這種服務品質                  |
+      | problem_card_link  | <link_to_current_problem_card>     |
+    And the ProblemCard should be updated with sentiment_label = "negative"
+
+  @critical @v1.0
+  Scenario: Detect complaint escalation request
+    Given the consumer sends a message containing "要求投訴，找你們主管"
+    When the system performs sentiment analysis on the message
+    Then the sentiment_label should be "negative"
+    And the system should immediately trigger Layer 3 human handoff
+    And the system should log the escalation reason as "consumer_complaint_request"
+
+  @happy-path @v1.0
+  Scenario: Neutral sentiment does not trigger escalation
+    Given the consumer sends a message "請問 Yale 電子鎖怎麼更換電池？"
+    When the system performs sentiment analysis on the message
+    Then the sentiment_label should be "neutral"
+    And no admin notification should be sent
+    And the conversation should continue normal resolution flow
+
+  @edge-case @v1.0
+  Scenario: Ambiguous frustration expression
+    Given the consumer sends a message "已經試了很多次了，真的很煩"
+    When the system performs sentiment analysis on the message
+    Then the sentiment_label should be "negative" with confidence >= 0.85
+    And the system should proactively offer additional help:
+      """
+      我理解您的心情，重複嘗試確實讓人感到挫折。
+      讓我為您整理目前的狀況，看看還有什麼方法可以幫您解決。
+      """
+
+  @edge-case @v1.0
+  Scenario Outline: Negative sentiment keyword detection accuracy
+    Given the consumer sends a message "<message>"
+    When the system performs sentiment analysis
+    Then the sentiment_label should be "<expected_label>"
+
+    Examples:
+      | message                          | expected_label |
+      | 不能接受                          | negative       |
+      | 要求投訴                          | negative       |
+      | 太離譜了                          | negative       |
+      | 找你們主管                        | negative       |
+      | 我要退費                          | negative       |
+      | 什麼爛服務                        | negative       |
+      | 請問密碼怎麼設定                    | neutral        |
+      | 謝謝你的幫忙                       | positive       |
+      | 好的我試試看                       | neutral        |
+```
+
+---
+
+### Feature: 主動照片引導（Proactive Photo Guidance）
+
+> 當消費者描述模糊導致 ProblemCard 完整率不足時，AI 主動引導上傳特定部位照片以提升診斷精度。合約 9.3 條要求。圖片僅作附件，不含 AI 影像辨識（SOW 2.1(4) 排除項）。
+
+```gherkin
+Feature: Proactive Photo Guidance
+  As the AI locksmith agent
+  I want to guide users to upload specific photos when their description is vague
+  So that ProblemCard completeness can reach the contract-required 85%
+
+  Background:
+    Given a consumer is chatting with the AI locksmith agent via LINE
+    And a ProblemCard has been created for this conversation
+
+  @happy-path @v1.0
+  Scenario: Guide photo upload when description is vague
+    Given the ProblemCard has completeness_score = 0.50 (only brand and symptoms filled)
+    And the symptom description is "鎖好像壞了，開不了門"
+    When the system detects the description lacks specific visual diagnostic info
+    Then the system should send a LINE Flex Message with photo guidance:
+      """
+      為了更準確地判斷問題，可以請您拍攝以下部位的照片嗎？
+      1. 鎖舌側面（門側邊可以看到鎖舌的位置）
+      2. 把手/面板外觀（正面照）
+      3. 如果有錯誤代碼顯示，請拍螢幕畫面
+      """
+    And the Flex Message should include illustrative thumbnails for each photo type
+
+  @happy-path @v1.0
+  Scenario: Attach uploaded photo to ProblemCard
+    Given the system has requested photo upload
+    When the consumer uploads an image via LINE
+    Then the image should be stored and linked to the ProblemCard
+    And the ProblemCard attachment_links field should contain the image URL
+    And the system should acknowledge: "照片已收到，謝謝！讓我根據目前的資訊為您分析。"
+
+  @edge-case @v1.0
+  Scenario: Skip photo guidance when description is already specific
+    Given the ProblemCard has completeness_score = 0.90
+    And the symptom includes specific details like "SHP-DP609 指紋辨識模組失靈，錯誤碼 E3"
+    Then the system should NOT send photo guidance
+    And should proceed directly to the resolution engine
+```
+
+---
+
+### Feature: 家族成員覆核（Family Member Review）
+
+> 甲方指定之家族成員對 SOP 草稿進行覆核並留下不可刪除之紀錄。合約 4.4(d) 驗收要求，覆核率 100%。
+
+```gherkin
+Feature: Family Member Review
+  As a designated family member reviewer
+  I want to review and approve SOP drafts before they enter the knowledge base
+  So that all knowledge base entries meet the family's quality standards
+
+  Background:
+    Given I am logged in as a user with "family_reviewer" role
+    And there are SOP drafts that have passed initial admin review
+
+  @critical @v1.0
+  Scenario: Family member approves an SOP draft
+    Given an SOP draft "SHP-DP609 指紋模組重置流程" has status "admin_approved"
+    When I review the SOP draft and click "approve"
+    And I enter review comment "內容正確，符合品牌規範"
+    Then the SOP draft status should change to "family_approved"
+    And the SOP should be published to the case library
+    And the review record should contain:
+      | field          | value                        |
+      | reviewer_id    | <my_user_id>                 |
+      | reviewer_role  | family_reviewer              |
+      | action         | approved                     |
+      | comment        | 內容正確，符合品牌規範          |
+      | reviewed_at    | <current_timestamp>          |
+    And the review record should be immutable (cannot be deleted or modified)
+
+  @critical @v1.0
+  Scenario: Family member rejects an SOP draft
+    Given an SOP draft "YDM-7116 電池更換流程" has status "admin_approved"
+    When I review the SOP draft and click "reject"
+    And I enter review comment "步驟 3 缺少安全警語，請補充"
+    Then the SOP draft status should change to "family_rejected"
+    And the SOP should NOT be published to the case library
+    And the admin should be notified of the rejection with the comment
+
+  @critical @v1.0
+  Scenario: SOP cannot enter knowledge base without family review
+    Given an SOP draft "Gateman WV-40 故障排除" has status "admin_approved"
+    And no family member has reviewed it
+    When the system attempts to publish it to the case library
+    Then the publish should be blocked
+    And the system should display "此 SOP 需經家族覆核員確認後方可入庫"
 ```
 
 ---

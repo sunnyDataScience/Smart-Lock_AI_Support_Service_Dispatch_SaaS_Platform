@@ -659,6 +659,14 @@ graph LR
 | **infra/ persistence** | D | - | - | - | - | - | - | - | P | P | P | P | P | P | P |
 | **infra/ external** | D | - | - | - | - | - | - | - | P | P | P | P | - | - | - |
 | **infra/ cache** | D | - | - | - | - | - | - | - | P | - | - | - | - | - | - |
+| **app/ sentiment** | D | D | D | - | - | - | - | - | P | P | - | - | - | - | - |
+| **app/ audit** | D | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **app/ approval** | D | - | - | - | - | - | - | D | - | - | - | - | - | - | P |
+
+> **新增模組說明（合約對齊）:**
+> - **sentiment/** (合約 9.3, 4.4(a)): 依賴 conversation (讀取對話) + problem_card (更新 sentiment_label)
+> - **audit/** (合約 10.3): 跨切面模組，被所有其他模組透過 Event 呼叫，自身無上游依賴
+> - **approval/** (合約 7.4, 附件七 4(f)): 依賴 accounting (驗證金額是否觸發雙簽)
 
 ---
 

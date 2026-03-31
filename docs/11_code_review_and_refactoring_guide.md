@@ -82,8 +82,13 @@
 - [ ] 所有新增的 async function 中無同步阻塞呼叫（如 `time.sleep()`、同步 I/O）
 - [ ] SQLAlchemy async session 使用 `async with` 正確管理生命週期
 - [ ] LLM 相關程式碼有 Prompt Injection 防護措施
+- [ ] 情緒分流：負面情緒偵測邏輯已整合至對話處理流程（合約 9.3 條）
+- [ ] 審計日誌：所有 LLM 呼叫、RAG 檢索、管理員操作均記錄至 audit_logs（合約 10.3 條）
+- [ ] 家族覆核：SOP 入庫流程包含 family_reviewer 覆核步驟（合約 4.4(d) 條）
+- [ ] 財務雙簽：金額超過 NTD 100,000 之操作觸發 ApprovalWorkflow（合約 7.4 條）
+- [ ] ProblemCard 包含 sentiment_label、attachment_links、preliminary_diagnostic_logic 欄位
 - [ ] Pydantic model 用於所有 API 輸入 / 輸出驗證
-- [ ] 新增的 API endpoint 已加入適當的 RBAC 權限裝飾器
+- [ ] 新增的 API endpoint 已加入適當的 RBAC 權限裝飾器（含 family_reviewer 角色）
 - [ ] 新增的資料庫查詢已檢查 N+1 問題（使用 `selectinload` / `joinedload`）
 - [ ] Alembic migration 已生成且可正常執行（`alembic upgrade head`）
 - [ ] Linting 通過（`ruff check`、`mypy`）

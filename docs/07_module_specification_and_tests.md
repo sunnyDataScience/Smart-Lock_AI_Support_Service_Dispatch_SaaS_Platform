@@ -287,7 +287,7 @@ async def generate_problem_card(
     1. `problem_cards` 表中已建立或更新一筆記錄，`conversation_id` 外鍵指向傳入的對話。
     2. `completeness_score` 已根據關鍵欄位填充率重新計算（計算公式見規格 2-2）。
     3. `extracted_fields` JSONB 中記錄了 LLM 每個欄位的原始擷取結果與 confidence score。
-    4. 若 `completeness_score >= 0.6`（至少 `brand` + `symptoms` 已填），`status` 為 `"confirmed"` 或保持 `"incomplete"`（視是否有使用者確認）。
+    4. 若 `completeness_score >= 0.85`（合約要求 ProblemCard 必要欄位完整率 >= 85%），`status` 為 `"confirmed"` 或保持 `"incomplete"`（視是否有使用者確認）。
     5. 回傳的 `ProblemCardResponseDTO` 包含 `missing_fields` 列表與對應的 `follow_up_questions`。
 
 *   **不變性 (Invariants)**:
@@ -434,7 +434,7 @@ async def resolve(
 **契約式設計 (Design by Contract, DbC)**:
 
 *   **前置條件 (Preconditions)**:
-    1. `problem_card` 的 `completeness_score >= 0.5`（至少包含 `brand` 與 `symptoms`）。
+    1. `problem_card` 的 `completeness_score >= 0.85`（合約要求必要欄位完整率 >= 85%；至少包含 `brand`、`symptoms`、`model`、`location`）。
     2. `problem_card.status` 為 `"confirmed"` 或 `"incomplete"`（至少滿足最低欄位需求）。
     3. `conversation_id` 對應的對話記錄存在且 `status` 為 `"resolving"`。
 
@@ -642,7 +642,7 @@ async def escalate(
 #### 情境 6: 無效輸入 — ProblemCard 未達最低完整度
 
 *   **測試案例 ID**: `TC-TLR-006`
-*   **描述**: 傳入 `completeness_score < 0.5` 的 ProblemCard（例如只有 `brand`，缺 `symptoms`），系統應拒絕處理。
+*   **描述**: 傳入 `completeness_score < 0.85` 的 ProblemCard（例如只有 `brand` + `symptoms`，缺其餘欄位），系統應拒絕處理並引導使用者補充資訊。
 *   **測試步驟 (Arrange-Act-Assert)**:
     1.  **Arrange**:
         - 建立 ProblemCard: `brand = "Yale"`, 其餘所有欄位為 null，`completeness_score = 0.25`。
@@ -1086,6 +1086,224 @@ async def check_duplicate(
         - 驗證 `sop_drafts.review_comment` 包含管理員的回饋。
         - 驗證 `sop_drafts.reviewed_by` 記錄審核者 ID。
         - 驗證 `sop_drafts.reviewed_at` 記錄審核時間。
+
+---
+
+## 模組 6: SentimentTriageEngine (AnalyzeSentimentUseCase)
+
+**模組職責**: 即時分析消費者訊息的情緒傾向，偵測負面情緒關鍵詞（合約 9.3 條），觸發優先回應協議並通知真人管理員。合約驗收標準：負面情緒識別率 >= 90%。
+
+### 規格 6-1: `analyze_sentiment`
+
+**描述 (Description)**: 對消費者訊息進行情緒分析，返回情緒標籤、信心分數及是否觸發升級。
+
+**函式簽名**:
+```python
+async def analyze_sentiment(
+    self,
+    message_text: str,
+    conversation_id: UUID,
+) -> SentimentResultDTO:
+```
+
+**契約式設計 (Design by Contract, DbC)**:
+
+*   **前置條件 (Preconditions)**:
+    1. `message_text` 為非空字串，`role = "user"` 的訊息。
+    2. `conversation_id` 對應的對話記錄存在。
+
+*   **後置條件 (Postconditions)**:
+    1. 返回 `SentimentResultDTO` 包含 `sentiment_label`（positive / neutral / negative）、`confidence`（0.0 ~ 1.0）、`trigger_escalation`（bool）。
+    2. 若 `sentiment_label = "negative"` 且 `confidence >= 0.85`：
+       - `trigger_escalation = True`
+       - 系統透過 LINE Push API 通知管理員（含對話摘要 + ProblemCard 連結）。
+       - 對話切換為安撫語氣回覆模板。
+       - ProblemCard 的 `sentiment_label` 欄位更新為 `"negative"`。
+    3. 情緒分析結果記錄至 `audit_logs` 表。
+
+*   **不變性 (Invariants)**:
+    1. `confidence` 永遠在 `0.0` ~ `1.0` 之間。
+    2. 情緒分析不得阻塞主對話流程（以 BackgroundTask 或 asyncio.create_task 執行）。
+    3. 負面情緒識別率 >= 90%（以甲方提供之測試集驗證）。
+
+**返回 DTO**:
+```python
+@dataclass
+class SentimentResultDTO:
+    sentiment_label: str       # "positive" | "neutral" | "negative"
+    confidence: float          # 0.0 ~ 1.0
+    trigger_escalation: bool   # True if negative + high confidence
+    detected_keywords: list[str]  # matched negative keywords
+```
+
+**負面情緒關鍵詞清單**（基礎清單，可透過管理後台擴充）:
+- 投訴類：「不能接受」「要求投訴」「找你們主管」「我要退費」「叫你們經理來」
+- 情緒類：「太離譜」「什麼爛服務」「受夠了」「再也不會用」「垃圾」
+- 威脅類：「要告你們」「消保官」「媒體」「律師」
+
+---
+
+### 規格 6-2: `notify_admin_escalation`
+
+**描述 (Description)**: 當偵測到負面情緒時，透過 LINE Push API 通知管理員並記錄。
+
+**函式簽名**:
+```python
+async def notify_admin_escalation(
+    self,
+    conversation_id: UUID,
+    sentiment_result: SentimentResultDTO,
+    problem_card_id: UUID | None,
+) -> None:
+```
+
+**契約式設計**:
+
+*   **前置條件**: `sentiment_result.trigger_escalation = True`。
+*   **後置條件**:
+    1. LINE Push 訊息已發送至管理員群組，包含：對話摘要、消費者原始訊息、ProblemCard 連結、情緒分析結果。
+    2. `admin_notifications` 表新增一筆紀錄。
+    3. 通知發送失敗時不中斷主流程，僅記錄錯誤日誌。
+
+---
+
+### 測試情境與案例 (SentimentTriageEngine)
+
+#### 情境 1: 正常路徑 — 偵測明確負面情緒並通知管理員
+
+*   **測試案例 ID**: `TC-STE-001`
+*   **描述**: 消費者訊息包含「不能接受」，系統應識別為負面情緒並觸發管理員通知。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Arrange**: 建立對話記錄，消費者發送 `"不能接受這種服務品質，等了三天都沒人來"`。
+    2.  **Act**: 呼叫 `analyze_sentiment(message_text, conversation_id)`。
+    3.  **Assert**:
+        - 驗證 `sentiment_label = "negative"`。
+        - 驗證 `confidence >= 0.90`。
+        - 驗證 `trigger_escalation = True`。
+        - 驗證 `detected_keywords` 包含 `"不能接受"`。
+        - 驗證 LINE Push API 被呼叫（Mock 驗證）。
+        - 驗證 ProblemCard `sentiment_label` 已更新為 `"negative"`。
+
+#### 情境 2: 正常路徑 — 中性訊息不觸發升級
+
+*   **測試案例 ID**: `TC-STE-002`
+*   **描述**: 消費者發送一般技術問題，系統應識別為中性情緒，不觸發任何通知。
+*   **測試步驟**:
+    1.  **Arrange**: 消費者發送 `"請問 Samsung SHP-DP609 怎麼設定臨時密碼？"`。
+    2.  **Act**: 呼叫 `analyze_sentiment(message_text, conversation_id)`。
+    3.  **Assert**:
+        - 驗證 `sentiment_label = "neutral"`。
+        - 驗證 `trigger_escalation = False`。
+        - 驗證 LINE Push API **未被呼叫**。
+
+#### 情境 3: 邊界情況 — 隱含不滿但未使用關鍵詞
+
+*   **測試案例 ID**: `TC-STE-003`
+*   **描述**: 消費者表達隱含不滿（如「已經試了很多次了」），系統應正確識別。
+*   **測試步驟**:
+    1.  **Arrange**: 消費者發送 `"已經試了很多次了，真的很煩，你們到底行不行"`。
+    2.  **Act**: 呼叫 `analyze_sentiment(message_text, conversation_id)`。
+    3.  **Assert**:
+        - 驗證 `sentiment_label = "negative"`。
+        - 驗證 `confidence >= 0.85`。
+        - 驗證系統切換為安撫語氣回覆。
+
+#### 情境 4: 效能約束 — 情緒分析不阻塞對話
+
+*   **測試案例 ID**: `TC-STE-004`
+*   **描述**: 情緒分析應以 BackgroundTask 執行，不影響對話回應速度。
+*   **測試步驟**:
+    1.  **Arrange**: 設定 Mock LLM 情緒分析延遲 2 秒。
+    2.  **Act**: 呼叫 `process_message()`（包含情緒分析）。
+    3.  **Assert**:
+        - 驗證 LINE Webhook 回應在 1 秒內返回 200。
+        - 驗證情緒分析以 BackgroundTask 排入佇列。
+
+---
+
+## 模組 7: ProactivePhotoGuidance (GuidePhotoUploadUseCase)
+
+**模組職責**: 當消費者描述模糊導致 ProblemCard 完整率不足合約要求的 85% 時，主動引導上傳特定部位照片。合約 9.3 條要求。圖片僅作為附件存儲，不進行 AI 影像辨識（SOW 2.1(4) 排除項）。
+
+### 規格 7-1: `evaluate_and_guide_photo_upload`
+
+**描述**: 評估 ProblemCard 完整度，若低於閾值且缺乏視覺診斷資訊，則發送 LINE Flex Message 引導上傳照片。
+
+**函式簽名**:
+```python
+async def evaluate_and_guide_photo_upload(
+    self,
+    problem_card: ProblemCard,
+    conversation_id: UUID,
+) -> PhotoGuidanceResultDTO:
+```
+
+**契約式設計**:
+
+*   **前置條件**: ProblemCard 已建立且 `completeness_score < 0.85`。
+*   **後置條件**:
+    1. 若觸發引導：LINE Flex Message 已發送，包含照片拍攝指引與示意圖。
+    2. 若不觸發（completeness >= 0.85 或症狀描述已充分具體）：不發送引導訊息。
+    3. 照片引導記錄至對話日誌。
+
+**照片引導類型**:
+- `lock_bolt_side`：鎖舌側面照（門側邊可看到鎖舌位置）
+- `handle_front`：把手/面板正面照
+- `error_code_screen`：錯誤代碼螢幕截圖
+- `installation_overview`：安裝環境全景照
+
+### 規格 7-2: `attach_photo_to_problem_card`
+
+**描述**: 消費者上傳照片後，將照片 URL 附加至 ProblemCard。
+
+**函式簽名**:
+```python
+async def attach_photo_to_problem_card(
+    self,
+    problem_card_id: UUID,
+    image_url: str,
+    photo_type: str | None = None,
+) -> None:
+```
+
+**契約式設計**:
+
+*   **前置條件**: `problem_card_id` 對應的 ProblemCard 存在。`image_url` 為有效 URL。
+*   **後置條件**: ProblemCard `attachment_links` JSONB 陣列新增一筆 `{url, photo_type, uploaded_at}`。
+
+---
+
+## 模組 8: FamilyReviewEngine (FamilyReviewUseCase)
+
+**模組職責**: 實現甲方指定家族成員對 SOP 草稿的覆核機制。合約 4.4(d) 要求覆核率 100%，覆核紀錄不可刪除。
+
+### 規格 8-1: `submit_family_review`
+
+**描述**: 家族覆核員對已通過管理員初審的 SOP 草稿進行最終覆核（通過/退回）。
+
+**函式簽名**:
+```python
+async def submit_family_review(
+    self,
+    sop_draft_id: UUID,
+    reviewer_id: UUID,
+    action: str,  # "approved" | "rejected"
+    comment: str,
+) -> FamilyReviewRecordDTO:
+```
+
+**契約式設計**:
+
+*   **前置條件**:
+    1. `sop_draft_id` 對應的 SOP 草稿 `status = "admin_approved"`。
+    2. `reviewer_id` 對應使用者具有 `family_reviewer` 角色。
+*   **後置條件**:
+    1. `family_review_records` 表新增一筆不可刪除之紀錄（reviewer_id, action, comment, reviewed_at）。
+    2. 若 `action = "approved"`：SOP 草稿 `status` 更新為 `"family_approved"`，可正式入庫。
+    3. 若 `action = "rejected"`：SOP 草稿 `status` 更新為 `"family_rejected"`，通知原審管理員。
+*   **不變性**:
+    1. 覆核紀錄一經寫入不可修改或刪除（APPEND-ONLY）。
+    2. 所有 SOP 入庫前必須經過家族覆核（覆核率 100%）。
 
 ---
 
