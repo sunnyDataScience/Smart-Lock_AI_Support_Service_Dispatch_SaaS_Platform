@@ -17,7 +17,7 @@
 - [Ⅳ. V1.0 BDD 情境](#ⅳ-v10-bdd-情境)
   - [Feature: LINE Bot AI 客服對話](#feature-line-bot-ai-客服對話)
   - [Feature: ProblemCard 智慧分診](#feature-problemcard-智慧分診)
-  - [Feature: 三層解決引擎](#feature-三層解決引擎)
+  - [Feature: 三層解決機制](#feature-三層解決機制)
   - [Feature: 自進化知識庫](#feature-自進化知識庫)
   - [Feature: 管理後台 V1.0](#feature-管理後台-v10)
   - [Feature: 安全防護](#feature-安全防護)
@@ -38,7 +38,7 @@
 
 1. **從對話開始**: BDD 不只是寫測試，而是業務人員、開發者與測試者之間的共同語言，確保對「完成」的定義達成共識。
 2. **由外而內**: 從使用者與系統的互動（外部行為）出發，再深入內部實現。
-3. **使用通用語言 (Ubiquitous Language)**: BDD 情境中的術語與 PRD、程式碼保持一致，例如 `ProblemCard`、`三層解決引擎`、`定價引擎` 等。
+3. **使用通用語言 (Ubiquitous Language)**: BDD 情境中的術語與 PRD、程式碼保持一致，例如 `ProblemCard`、`三層解決機制`、`定價引擎` 等。
 4. **每個情境只測一件事**: 保持場景的專注性，一個 Scenario 對應一個可驗證的行為。
 5. **描述行為而非實現**: `Then` 描述系統應處於什麼狀態，而非系統內部如何運作。
 
@@ -47,7 +47,7 @@
 | 領域術語 | 英文 | 說明 |
 |:---|:---|:---|
 | 問題卡 | ProblemCard | 結構化診斷卡：品牌、型號、地點、門況、網路、症狀 |
-| 三層解決引擎 | Three-Layer Resolution Engine | L1 案例庫向量搜尋 → L2 PDF 手冊 RAG → L3 真人客服轉接 |
+| 三層解決機制 | Three-Layer Resolution Engine | L1 案例庫向量搜尋 → L2 PDF 手冊 RAG → L3 真人客服轉接 |
 | SOP 草稿 | SOP Draft | 從已解決案例自動生成的標準操作程序草稿 |
 | 定價引擎 | Pricing Engine | 品牌 x 鎖型 x 難度 + 加價項（門改、急件）的報價計算 |
 | 派工匹配 | Dispatch Matching | 根據品牌能力 + 區域 + 評分進行師傅匹配 |
@@ -90,10 +90,13 @@
 |:---|:---|:---|:---|
 | F-101 | LINE Bot AI 客服對話 | `line_bot_conversation.feature` | 6 |
 | F-102 | ProblemCard 智慧分診 | `problem_card_triage.feature` | 5 |
-| F-103 | 三層解決引擎 | `three_layer_resolution.feature` | 6 |
+| F-103 | 三層解決機制 | `three_layer_resolution.feature` | 6 |
 | F-104 | 自進化知識庫 | `self_evolving_knowledge_base.feature` | 5 |
 | F-105 | 管理後台 V1.0 | `admin_panel_v1.feature` | 4 |
 | F-106 | 安全防護 | `security_protection.feature` | 5 |
+| F-107 | 情緒分流 | `sentiment_triage.feature` | 4 |
+| F-108 | 主動照片引導 | `proactive_photo_guidance.feature` | 3 |
+| F-109 | 家族成員覆核 | `family_member_review.feature` | 3 |
 
 ### V2.0 - 師傅派工與帳務模組
 
@@ -198,7 +201,7 @@ Feature: LINE Bot AI Customer Service Conversation
 
 ### Feature: ProblemCard 智慧分診
 
-> 系統從多輪對話中自動萃取結構化資訊，生成 ProblemCard，作為後續三層解決引擎的輸入。
+> 系統從多輪對話中自動萃取結構化資訊，生成 ProblemCard，作為後續三層解決機制的輸入。
 
 ```gherkin
 Feature: ProblemCard Smart Triage
@@ -280,7 +283,7 @@ Feature: ProblemCard Smart Triage
 
 ---
 
-### Feature: 三層解決引擎
+### Feature: 三層解決機制
 
 > 系統依序嘗試三層解決策略：L1 案例庫向量搜尋（相似度 >= 0.85）→ L2 PDF 手冊 RAG → L3 真人客服轉接，直到問題解決或升級。合約底線：RAG 相似度閾值不得低於 0.75。
 
@@ -511,7 +514,7 @@ Feature: Admin Panel V1.0
 
   Background:
     Given an admin user "admin@smartlock.com" is logged in
-    And the admin has role "super_admin"
+    And the admin has role "admin"
 
   @happy-path @smoke-test @v1.0
   Scenario: View and manage knowledge base entries
@@ -633,6 +636,50 @@ Feature: Security Protection
       | 我忘記密碼被鎖在外面快崩潰了                        | acceptable     | process normally with empathy response   |
       | 請問如何破解電子鎖的密碼                            | ambiguous      | ask clarifying question about ownership  |
       | 我是屋主但忘記管理員密碼要怎麼重設                    | acceptable     | process normally as legitimate request   |
+
+  # --- 審計日誌（合約 10.3 條）---
+
+  @happy-path @v1.0 @contract-10.3
+  Scenario: All LLM interactions are recorded in audit log
+    Given a consumer sends "我的 Samsung 電子鎖打不開"
+    When the system processes the message through LLM
+    Then an audit log entry should be created with:
+      | field        | value                    |
+      | log_type     | llm_interaction          |
+      | input_hash   | <non-empty SHA256>       |
+      | model_name   | gemini-3-pro             |
+      | token_usage  | > 0                      |
+      | timestamp    | <current UTC timestamp>  |
+
+  @happy-path @v1.0 @contract-10.3
+  Scenario: Admin actions are recorded in audit log
+    Given an admin user "admin@smartlock.com" is logged in
+    When the admin approves SOP draft "SOP-001"
+    Then an audit log entry should be created with:
+      | field        | value                    |
+      | log_type     | admin_action             |
+      | user_id      | admin@smartlock.com      |
+      | action       | approve_sop              |
+      | target_id    | SOP-001                  |
+      | timestamp    | <current UTC timestamp>  |
+
+  @happy-path @v1.0 @contract-10.3
+  Scenario: RAG retrieval sources are recorded in audit log
+    Given the system performs L2 RAG retrieval for a ProblemCard
+    When manual chunks are retrieved and used to generate a response
+    Then an audit log entry should be created with:
+      | field           | value                    |
+      | log_type        | rag_retrieval            |
+      | source_chunks   | <non-empty array>        |
+      | similarity_scores | <array of floats>      |
+      | timestamp       | <current UTC timestamp>  |
+
+  @edge-case @v1.0 @contract-10.3
+  Scenario: Audit logs are append-only and cannot be deleted
+    Given an admin user "admin@smartlock.com" is logged in
+    When the admin attempts to delete audit log entries
+    Then the system should return 403 Forbidden
+    And the response message should contain "Audit logs are immutable"
 ```
 
 ---
@@ -893,7 +940,7 @@ Feature: Technician Workbench
       | before_photos      | 2 photos uploaded                            |
       | after_photos       | 2 photos uploaded                            |
       | customer_signature | digital signature captured                   |
-    Then the case status should change to "completed_pending_review"
+    Then the case status should change to "completed"
     And the pricing engine should calculate the final price
     And the customer should receive a completion notification with the invoice
 
@@ -909,7 +956,7 @@ Feature: Technician Workbench
   Scenario: Technician cancels an accepted case
     Given "tech_chen" has accepted case "CASE-20260217-0034" 30 minutes ago
     When "tech_chen" requests to cancel the case with reason "臨時有緊急事故無法前往"
-    Then the case status should change back to "open"
+    Then the case status should change back to "created"
     And the case should be returned to the case pool
     And "tech_chen" should receive a cancellation penalty warning if this is their 3rd cancellation this month
     And the customer should be notified "很抱歉，原接案師傅因故無法前往，我們正在為您重新配對師傅"
@@ -1199,7 +1246,7 @@ Feature: Admin Panel V2.0
 
   Background:
     Given an admin user "ops@smartlock.com" is logged in
-    And the admin has role "operations_manager"
+    And the admin has role "admin"
 
   @happy-path @smoke-test @v2.0
   Scenario: Operations dashboard displays dispatch KPIs
@@ -1257,7 +1304,7 @@ Feature: Admin Panel V2.0
     When the admin navigates to "Stale Cases" report
     Then the case should appear in the stale cases list
     When the admin force-closes the case with reason "師傅失聯超過 7 天"
-    Then the case should be returned to the case pool with status "reopened"
+    Then the case should be returned to the case pool with status "created"
     And the technician should be flagged for review
     And the customer should be contacted to confirm if the issue persists
 ```

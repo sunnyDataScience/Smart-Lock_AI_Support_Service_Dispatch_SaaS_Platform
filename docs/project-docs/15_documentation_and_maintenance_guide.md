@@ -232,7 +232,7 @@ FastAPI 框架基於程式碼中的 Pydantic Model 與 Router 定義，自動生
 
 ### 1.6 AI 知識庫文檔
 
-AI 知識庫是本專案的核心資產，直接影響三層解決引擎的品質：
+AI 知識庫是本專案的核心資產，直接影響三層解決機制的品質：
 
 | 資料類型 | 存放位置 | 用途 | 格式要求 |
 |:---|:---|:---|:---|
@@ -270,7 +270,7 @@ AI 知識庫是本專案的核心資產，直接影響三層解決引擎的品�
 | 中文術語 | 英文術語 | 定義 |
 |:---|:---|:---|
 | 問題卡 | ProblemCard | 結構化診斷卡：品牌、型號、地點、門況、網路、症狀 |
-| 三層解決引擎 | Three-Layer Resolution Engine | L1 案例庫向量搜尋 → L2 PDF 手冊 RAG → L3 真人轉接 |
+| 三層解決機制 | Three-Layer Resolution Engine | L1 案例庫向量搜尋 → L2 PDF 手冊 RAG → L3 真人轉接 |
 | 案例庫 | Case Entries | 歷史成功案例資料庫，支援 L1 向量相似度搜尋 |
 | 手冊切片 | Manual Chunks | PDF 手冊切割後的文字區塊，含 768 維嵌入向量 |
 | SOP 草稿 | SOP Draft | 由 AI 從成功案例自動生成的標準作業程序草稿 |
@@ -367,7 +367,7 @@ graph TD
     B --> C{意圖辨識}
     C -->|故障報修| D[ProblemCard 建立]
     C -->|一般諮詢| E[直接回覆]
-    D --> F[三層解決引擎]
+    D --> F[三層解決機制]
     F --> G{L1: 案例庫搜尋}
     G -->|命中 >= 0.85| H[回傳案例解法]
     G -->|未命中| I{L2: RAG 手冊搜尋}
@@ -481,7 +481,7 @@ sequenceDiagram
     WH->>WH: 驗證 X-Line-Signature
     WH->>Q: 將訊息推入非同步佇列
     WH-->>LP: HTTP 200 OK (< 1 秒)
-    Q->>AI: 呼叫三層解決引擎
+    Q->>AI: 呼叫三層解決機制
     AI->>DB: 查詢 case_entries (L1)
     DB-->>AI: 向量搜尋結果
     AI->>LP: Reply API 回覆用戶
@@ -534,7 +534,7 @@ class ProblemCardCreate(BaseModel):
     response_model=ProblemCardResponse,
     status_code=status.HTTP_201_CREATED,
     summary="建立問題卡",
-    description="根據 AI 問診結果建立結構化問題卡 (ProblemCard)，用於後續三層解決引擎的輸入。",
+    description="根據 AI 問診結果建立結構化問題卡 (ProblemCard)，用於後續三層解決機制的輸入。",
 )
 async def create_problem_card(payload: ProblemCardCreate):
     ...
@@ -546,7 +546,7 @@ async def create_problem_card(payload: ProblemCardCreate):
 
 ```python
 def resolve_problem(problem_card: ProblemCard) -> ResolutionResult:
-    """透過三層解決引擎處理問題卡。
+    """透過三層解決機制處理問題卡。
 
     依序嘗試 L1 案例庫向量搜尋、L2 RAG 手冊搜尋、L3 真人轉接，
     於第一個命中的層級回傳解決方案。
@@ -1021,7 +1021,7 @@ docker compose exec backend python scripts/seed_database.py
 ### 新增 (Added)
 - LINE Bot AI 智能客服對話功能
 - ProblemCard 結構化問題診斷
-- 三層解決引擎（L1 案例庫向量搜尋 / L2 RAG 手冊搜尋 / L3 真人轉接）
+- 三層解決機制（L1 案例庫向量搜尋 / L2 RAG 手冊搜尋 / L3 真人轉接）
 - 自進化知識庫（AI 自動生成 SOP 草稿）
 - 管理後台 V1.0（對話監控、知識庫管理、報表查詢）
 - JWT + LINE Signature 雙重認證機制
@@ -1100,7 +1100,7 @@ docker compose exec backend python scripts/seed_database.py
 
 ### 概述
 
-根據 AI 問診收集的結構化資訊，建立問題卡 (ProblemCard)。問題卡建立後自動觸發三層解決引擎。
+根據 AI 問診收集的結構化資訊，建立問題卡 (ProblemCard)。問題卡建立後自動觸發三層解決機制。
 
 ### 業務規則
 
@@ -1294,7 +1294,7 @@ backend/src/smart_lock/
 
 ## 第 9 部分：AI 知識庫維護
 
-*此部分專門針對本專案核心的 AI 知識資產，定義其完整的生命週期管理流程。知識庫的品質直接決定三層解決引擎的效能與客戶滿意度。*
+*此部分專門針對本專案核心的 AI 知識資產，定義其完整的生命週期管理流程。知識庫的品質直接決定三層解決機制的效能與客戶滿意度。*
 
 ### 9.1 案例庫 (case_entries) 生命週期
 
@@ -1325,7 +1325,7 @@ stateDiagram-v2
 | L3 真人客服解決 | 客服成功解決一個 L1/L2 未命中的問題 | 客服回報 → 管理員審核 → 錄入案例庫 |
 | 技師現場回報 (V2.0) | 技師完工回報中包含新的故障模式 | 自動提取 → 管理員審核 → 錄入案例庫 |
 | 領域專家訪談 | 定期訪談資深技師取得專業知識 | 逐字稿整理 → 結構化 → 錄入案例庫 |
-| SOP 草稿核准 | AI 生成的 SOP 草稿經管理員核准 | 自動轉化為案例庫條目 |
+| SOP 草稿核准 | AI 生成的 SOP 草稿經管理員核准 | 自動轉化為案例條目 |
 | 產品更新 | 新品牌/型號上市、韌體更新 | 手動建立基礎案例 |
 
 #### 案例品質標準
@@ -1500,7 +1500,7 @@ graph TB
    │
 4. 品質驗證 → 交叉比對已有知識庫，確認無矛盾
    │
-5. 上線 → 更新向量嵌入，納入三層解決引擎
+5. 上線 → 更新向量嵌入，納入三層解決機制
 ```
 
 #### 訪談排程建議

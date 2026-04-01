@@ -268,21 +268,21 @@ Layer 3 (Table Stakes) SOW 必交付，不構成差異化護城河
 
 #### Agent Harness 與護城河加速對齊
 
-**Harness Phase 0 完成狀態（M1 期間）：**
+**Harness H-Stage 0 完成狀態（M1 期間）：**
 - 8 層骨架程式碼就位（全部 disabled），GraphState 注入 5 個 harness 欄位（harness_trace_id, governance_result, safety_flags, feedback_signals, entropy_score）
 - `config.toml` 14 區段定義完成，含 `[harness]` 主開關與各層獨立啟用旗標
 - ProblemCard 重構為領域無關核心 + `domain_attributes` JSONB，作為 **Moat F 數據飛輪種子機制** — 每張 ProblemCard 同時餵養知識飛輪（Moat A）與定價飛輪（Moat B）
 
-**Phase 1-6 啟用路線圖與護城河對應：**
+**H-Stage 1-6 啟用路線圖與護城河對應：**
 
 | Harness 階段 | 啟用層級 | 護城河加速 | 預計時間 |
 |:------------|:--------|:----------|:--------|
-| Phase 1 | L1 Task + L8 Entropy | Moat A（意圖拆解精度）+ Moat F（混亂度→知識缺口識別） | M1 後期 |
-| Phase 2 | L2 Context Assembly | Moat A + F（上下文品質直接影響 L1 命中率） | M1-M2 交接 |
-| Phase 3 | L5 Safety Boundary | Moat F（安全事件→失敗解剖語料） | M2 初期 |
-| Phase 4 | L4 Feedback Loop | Moat F（回饋信號驅動 SOP 品質排序） | M2 中期 |
-| Phase 5 | L6 Observability Tap | Moat J（危機偵測、成本歸因） | M2 後期 |
-| Phase 6 | L3 Governance Gate | 全護城河（Token 預算治理、品質閘門） | M3 初期 |
+| H-Stage 1 | L1 Task + L8 Entropy | Moat A（意圖拆解精度）+ Moat F（混亂度→知識缺口識別） | M1 後期 |
+| H-Stage 2 | L2 Context Assembly | Moat A + F（上下文品質直接影響 L1 命中率） | M1-M2 交接 |
+| H-Stage 3 | L5 Safety Boundary | Moat F（安全事件→失敗解剖語料） | M2 初期 |
+| H-Stage 4 | L4 Feedback Loop | Moat F（回饋信號驅動 SOP 品質排序） | M2 中期 |
+| H-Stage 5 | L6 Observability Tap | Moat J（危機偵測、成本歸因） | M2 後期 |
+| H-Stage 6 | L3 Governance Gate | 全護城河（Token 預算治理、品質閘門） | M3 初期 |
 
 
 ### M2 (W18-W31): 定價與營運數據

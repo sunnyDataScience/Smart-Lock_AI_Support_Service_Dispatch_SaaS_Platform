@@ -616,7 +616,7 @@ class CreateCaseEntryRequest(BaseModel):
 | A01 存取控制失效 | Admin API、技師 API 的 RBAC | 每個 endpoint 是否有正確的角色檢查 |
 | A02 加密機制失效 | JWT Secret、LINE Channel Secret | 機密資訊是否從環境變數載入，而非 hardcode |
 | A03 注入攻擊 | SQL 查詢、LLM Prompt | SQLAlchemy 參數化查詢、Prompt sanitization |
-| A04 不安全設計 | 三層解決引擎的 L3 轉人工邏輯 | 是否可被繞過或濫用 |
+| A04 不安全設計 | 三層解決機制的 L3 轉人工邏輯 | 是否可被繞過或濫用 |
 | A05 安全設定缺陷 | FastAPI CORS、Redis 連線 | CORS 白名單是否正確，Redis 是否需要認證 |
 | A06 易受攻擊的元件 | 第三方套件 | `pip audit` / `npm audit` 是否定期執行 |
 | A07 身分驗證失敗 | JWT Token 有效期、Refresh Token | Token 過期機制、Refresh Token rotation |
@@ -740,7 +740,7 @@ async def get_or_create_active_conversation(
 
 ### 4.2 Replace Conditional with Polymorphism
 
-當出現大量 `if/elif` 判斷不同型別時，使用策略模式 (Strategy Pattern) 重構。此手法特別適用於三層解決引擎。
+當出現大量 `if/elif` 判斷不同型別時，使用策略模式 (Strategy Pattern) 重構。此手法特別適用於三層解決機制。
 
 ```python
 # 重構前：大量條件判斷
@@ -812,7 +812,7 @@ class L3EscalationStrategy(ResolutionStrategy):
 
 
 class ThreeLayerResolver:
-    """三層解決引擎：依序嘗試 L1 -> L2 -> L3"""
+    """三層解決機制：依序嘗試 L1 -> L2 -> L3"""
     def __init__(self, strategies: list[ResolutionStrategy]) -> None:
         self.strategies = strategies
 
@@ -1297,7 +1297,7 @@ export function useWorkOrders(status?: WorkOrderStatus) {
 | 模組 | 路徑 | 理由 |
 |:---|:---|:---|
 | LINE Webhook handler | `infrastructure/web/routers/webhook.py` | 系統入口，簽章驗證 |
-| 三層解決引擎 | `application/customer_service/three_layer_resolver.py` | 核心業務邏輯 |
+| 三層解決機制 | `application/customer_service/three_layer_resolver.py` | 核心業務邏輯 |
 | JWT 認證 | `core/security.py` | 安全關鍵模組 |
 | ProblemCard 引擎 | `application/customer_service/problem_card_engine.py` | 核心診斷流程 |
 | LLM Gateway | `infrastructure/llm/gateway.py` | Prompt Injection 防護 |
@@ -1361,7 +1361,7 @@ PR 合併後，作者與 Reviewer 需在指定時間窗口內持續關注系統�
 | `[suggestion]` | 建議改善，非必須 | `[suggestion] 考慮使用 selectinload 避免潛在的 N+1 查詢` |
 | `[question]` | 需要作者說明 | `[question] 這裡選擇 0.7 作為 confidence 閾值的依據是什麼？` |
 | `[nitpick]` | 微小的風格或命名建議 | `[nitpick] 建議將變數名從 res 改為 resolution，提升可讀性` |
-| `[praise]` | 肯定優秀的實作 | `[praise] 三層解決引擎的策略模式封裝得很好，擴充性佳` |
+| `[praise]` | 肯定優秀的實作 | `[praise] 三層解決機制的策略模式封裝得很好，擴充性佳` |
 | `[fyi]` | 資訊分享，無需行動 | `[fyi] pgvector 0.8 即將支援 IVFFlat 的 parallel build` |
 
 ### 溝通原則

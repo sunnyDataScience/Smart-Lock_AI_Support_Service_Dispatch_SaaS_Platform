@@ -82,7 +82,7 @@ Infrastructure (外層) --> Application (中層) --> Domain (內層)
 
 ### 2.4 根目錄簡潔 (Clean Root Directory)
 
-專案根目錄只放專案級別的設定檔（`README.md`、`.gitignore` 等），核心原始碼位於 `agent/`（V1.0 後端）和 `frontend/`（V2.0 前端）子目錄中。
+專案根目錄只放專案級別的設定檔（`README.md`、`.gitignore`、`docker-compose.yml` 等），核心原始碼位於 `agent/`（後端）和 `frontend/`（前端）子目錄中。
 
 ### 2.5 可預測性 (Predictability)
 
@@ -100,14 +100,14 @@ Infrastructure (外層) --> Application (中層) --> Domain (內層)
 ```plaintext
 Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/
 │
-├── agent/                              # V1.0 LangGraph Multi-Agent System (核心)
-│   ├── app.py                          #   FastAPI entry (LINE webhook)
+├── agent/                              # LangGraph Multi-Agent System (AI 客服核心)
+│   ├── app.py                          #   FastAPI entry (LINE webhook + V2 routers)
 │   ├── main.py                         #   CLI testing harness
-│   ├── config.toml                     #   14-section 系統設定檔
+│   ├── config.toml                     #   系統設定檔
 │   ├── requirements.txt                #   Python dependencies
 │   ├── graph/                          #   LangGraph workflow 定義
 │   ├── agents/                         #   7 Agent 子圖 + 14 prompt templates
-│   ├── harness/                        #   8-Layer Harness Framework (Phase 0)
+│   ├── harness/                        #   8-Layer Harness Framework
 │   ├── tools/                          #   7 retriever tools
 │   ├── llms/                           #   LLM providers
 │   ├── embeddings/                     #   Embedding providers
@@ -115,7 +115,23 @@ Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/
 │   ├── profiles/                       #   User profile (SCD Type 2)
 │   ├── core/                           #   Config, LINE Bot, Debounce, Debug Log
 │   ├── storage/                        #   Audit log backends
+│   ├── dispatch/                       #   智慧派工引擎 (技師匹配 / 工單生命週期) [尚未建立 — Phase 6 建立]
+│   ├── pricing/                        #   報價引擎 (品牌 × 鎖型 × 難度) [尚未建立 — Phase 6 建立]
+│   ├── accounting/                     #   帳務模組 (對帳 / 結算 / 憑證) [尚未建立 — Phase 7 建立]
+│   ├── docs/                           #   Agent 相關文件 (手冊、進度報告)
 │   └── scripts/                        #   Admin CLI utilities
+│
+├── frontend/                           # Next.js 14+ 前端 (Admin Panel + 技師工作台) [尚未建立 — Phase 5 建立]
+│   ├── src/
+│   │   ├── app/                        #   Next.js App Router (頁面路由)
+│   │   │   ├── (auth)/                 #     登入 / 忘記密碼
+│   │   │   └── (dashboard)/            #     後台管理 (儀表板 / 對話 / 知識庫 / 派工 / 帳務)
+│   │   ├── components/                 #   共用元件 (ui / layout / features / providers)
+│   │   ├── lib/                        #   API 客戶端 / Hooks / Utils / Types
+│   │   └── __tests__/                  #   前端測試 (Jest + RTL)
+│   ├── package.json
+│   ├── tailwind.config.ts
+│   └── tsconfig.json
 │
 ├── data/                               # ETL Pipeline (知識庫資料處理)
 │   ├── pipeline/                       #   Medallion Architecture 分層處理
@@ -124,11 +140,18 @@ Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/
 │   │   ├── bronze_to_silver/           #     LLM 內容增強
 │   │   └── silver_to_gold/             #     向量化 → pgvector 寫入
 │   ├── storage/                        #   Silver/Gold 層資料檔案
+│   ├── database/                       #   pgvector 啟動設定
+│   ├── embeddings/                     #   Embedding providers
+│   ├── llms/                           #   LLM providers (ETL 用)
+│   ├── docs/                           #   ETL Pipeline 文件與報告
 │   ├── config.toml                     #   ETL pipeline 設定
 │   └── requirements.txt                #   Data pipeline dependencies
 │
 ├── SQL/                                # Database DDL
-│   └── Schema.sql                      #   PostgreSQL schema (V1.0 + V2.0)
+│   └── Schema.sql                      #   PostgreSQL schema
+│
+├── nginx/                              # Nginx 反向代理設定 [尚未建立 — Phase 4 建立]
+│   └── conf.d/                         #   路由規則 (/api→agent, /webhook→agent, /*→frontend)
 │
 ├── docs/                               # 專案文件
 │   ├── project-docs/                   #   核心專案文件 (本目錄)
@@ -136,7 +159,13 @@ Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/
 │   ├── agent-harness-refactor/         #   Agent Harness 重構規格
 │   └── adrs/                           #   Architecture Decision Records
 │
+├── .github/workflows/                  # CI/CD Pipeline [尚未建立 — Phase 1 建立]
+│   ├── ci.yml                          #   lint + test (backend & frontend)
+│   └── deploy.yml                      #   build → push → migrate → deploy
+│
+├── docker-compose.yml                  # 容器編排 (agent + frontend + db + redis + nginx) [尚未建立 — Phase 1 建立]
 ├── .claude/                            #   Claude Code 設定
+├── .env                                #   環境變數 (不納入版本控制)
 ├── .gitignore                          #   Git 忽略規則
 └── README.md                           #   專案介紹與快速入門
 ```
@@ -460,9 +489,11 @@ agent/
 
 ---
 
-## 5. 前端目錄詳解 (frontend/) - V2.0
+## 5. 前端目錄詳解 (frontend/)
 
-前端在 V2.0 階段新增，使用 Next.js 14+ App Router 架構，為管理後台與技師工作台提供 Web UI。
+> **注意**：前端目錄尚未建立，以下為 Phase 5 的目標結構規劃。
+
+使用 Next.js 14+ App Router 架構，為管理後台與技師工作台提供 Web UI。
 
 ```plaintext
 frontend/src/
@@ -669,22 +700,24 @@ frontend/src/
 
 ## 6. Docker 與部署結構
 
+> **注意**：Docker 與 CI/CD 設定尚未建立，以下為目標部署架構規劃。
+
 ### 6.1 docker-compose.yml 服務定義
 
 ```plaintext
 docker-compose.yml
 │
-├── backend                             # FastAPI 後端服務
-│   ├── build: ./backend
+├── agent                               # FastAPI 後端服務 (LangGraph + 派工 + 帳務)
+│   ├── build: ./agent
 │   ├── ports: 8000:8000
 │   ├── depends_on: db, redis
 │   ├── env_file: .env
-│   └── volumes: ./backend/src:/app/src (開發環境 hot reload)
+│   └── volumes: ./agent:/app (開發環境 hot reload)
 │
-├── frontend                            # Next.js 前端服務（V2.0）
+├── frontend                            # Next.js 前端服務
 │   ├── build: ./frontend
 │   ├── ports: 3000:3000
-│   ├── depends_on: backend
+│   ├── depends_on: agent
 │   └── env_file: .env
 │
 ├── db                                  # PostgreSQL 16 + pgvector
@@ -704,7 +737,7 @@ docker-compose.yml
 └── nginx                               # Nginx 反向代理
     ├── image: nginx:alpine
     ├── ports: 80:80, 443:443
-    ├── depends_on: backend, frontend
+    ├── depends_on: agent, frontend
     └── volumes: ./nginx/conf.d:/etc/nginx/conf.d
 ```
 
@@ -712,10 +745,10 @@ docker-compose.yml
 
 | 路徑 | 上游服務 | 說明 |
 |------|---------|------|
-| `/api/v1/*` | `backend:8000` | 後端 REST API |
-| `/webhook/*` | `backend:8000` | LINE Webhook |
-| `/docs`, `/openapi.json` | `backend:8000` | FastAPI 自動生成的 API 文件 |
-| `/*` | `frontend:3000` | Next.js 前端（V2.0） |
+| `/api/v1/*` | `agent:8000` | 後端 REST API |
+| `/webhook/*` | `agent:8000` | LINE Webhook |
+| `/docs`, `/openapi.json` | `agent:8000` | FastAPI 自動生成的 API 文件 |
+| `/*` | `frontend:3000` | Next.js 前端 |
 
 ### 6.2 .github/workflows/
 
@@ -843,35 +876,9 @@ ORDER_API_TOKEN=your-bearer-token
 
 ---
 
-## 9. 演進原則
+## 9. 模組擴展原則
 
-### 9.1 版本演進路線
-
-```plaintext
-V1.0 (AI 客服)                           V2.0 (+ 派工/報價/對帳)
-================================          ====================================
-
-agent/                                    agent/
-├── graph/          (LangGraph 7-node)    ├── graph/          (不動)
-├── agents/         (7 agents)            ├── agents/         (不動)
-├── harness/        (Phase 0 skeleton)    ├── harness/        (Phase 1-6 啟用)
-├── tools/          (7 retrievers)        ├── tools/          (不動)
-├── core/           (config, LINE, etc)   ├── core/           (不動)
-├── llms/                                 ├── llms/           (不動)
-├── memory/                               ├── memory/         (不動)
-├── profiles/                             ├── profiles/       (不動)
-├── storage/                              ├── storage/        (不動)
-├── app.py          (webhook only)        ├── dispatch/       [NEW] 派工引擎
-├── config.toml     (14 sections)         ├── pricing/        [NEW] 計價引擎
-└── (無 frontend)                         ├── accounting/     [NEW] 帳務模組
-                                          ├── app.py          (webhook + V2 routers)
-                                          ├── config.toml     (17+ sections)
-                                          └── frontend/       [NEW] Next.js PWA
-```
-
-**關鍵原則**：V1.0 的 graph/ + agents/ + harness/ **完全不動**。V2.0 是**新增目錄**，不是修改現有結構。
-
-### 9.2 新增模組的標準流程
+### 9.1 新增模組的標準流程
 
 當需要新增一個業務模組（例如 V2.0 的 `dispatch/`）時：
 

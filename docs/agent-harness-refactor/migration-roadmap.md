@@ -1,17 +1,20 @@
 # Agent Harness Migration Roadmap
 
-> Phase 0-6 分階段遷移路線圖，含交付物、風險評估、回滾方案
+> H-Stage 0–6 分階段遷移路線圖，含交付物、風險評估、回滾方案
+
+> **命名規則**：本文件使用「H-Stage」（Harness Stage）編號，與專案交付的「Phase 0–8」為獨立體系。
+> H-Stage 0–6 是 Agent Harness 框架的內部遷移階段，嵌入在專案 Phase 1–2 的開發週期中執行。
 
 ---
 
 ## Core Principle
 
 **在現有節點之間插入 harness 層，而非替換。**
-所有新模組預設 `enabled = false`，每個 Phase 可獨立啟停。
+所有新模組預設 `enabled = false`，每個 H-Stage 可獨立啟停。
 
 ---
 
-## Phase 0: Foundation (Week 1-2)
+## H-Stage 0: Foundation (Week 1-2)
 
 ### Objective
 建立 harness 骨架，全部 disabled，現有系統不受影響。
@@ -34,7 +37,7 @@
 
 ---
 
-## Phase 1: L7 Observability (Week 2-3)
+## H-Stage 1: L7 Observability (Week 2-3)
 
 ### Objective
 結構化日誌系統，為後續 harness 層效果量化提供數據基礎。
@@ -60,7 +63,7 @@
 
 ---
 
-## Phase 2: L1 Task Decompose + ProblemCard (Week 3-5)
+## H-Stage 2: L1 Task Decompose + ProblemCard (Week 3-5)
 
 ### Objective
 ProblemCard 作為核心 artifact 開始累積，數據飛輪種子啟動。
@@ -75,7 +78,7 @@ ProblemCard 作為核心 artifact 開始累積，數據飛輪種子啟動。
 
 ### Key Files Modified
 - `graph/builder.py` (insert new node + edge)
-- `core/config.py` (already done in Phase 0)
+- `core/config.py` (already done in H-Stage 0)
 
 ### Risk: MEDIUM
 - New LLM call adds ~1-3s latency
@@ -91,7 +94,7 @@ ProblemCard 作為核心 artifact 開始累積，數據飛輪種子啟動。
 
 ---
 
-## Phase 3: L6 Safety Gate + L3 Tool Governance (Week 5-7)
+## H-Stage 3: L6 Safety Gate + L3 Tool Governance (Week 5-7)
 
 ### Objective
 工具執行受控，危險指令可攔截。
@@ -112,7 +115,7 @@ ProblemCard 作為核心 artifact 開始累積，數據飛輪種子啟動。
 
 ---
 
-## Phase 4: L2 Context Assembly (Week 7-9)
+## H-Stage 4: L2 Context Assembly (Week 7-9)
 
 ### Objective
 Context 品質提升，selective retrieval + token budget 控制。
@@ -133,7 +136,7 @@ Context 品質提升，selective retrieval + token budget 控制。
 
 ---
 
-## Phase 5: L5 Feedback Loop (Week 9-11)
+## H-Stage 5: L5 Feedback Loop (Week 9-11)
 
 ### Objective
 回覆品質有驗證機制，低品質可 retry。
@@ -153,7 +156,7 @@ Context 品質提升，selective retrieval + token budget 控制。
 
 ---
 
-## Phase 6: L8 Entropy Management (Week 11-14)
+## H-Stage 6: L8 Entropy Management (Week 11-14)
 
 ### Objective
 系統自我清潔機制，SOP auto-generation 啟動。
@@ -173,32 +176,32 @@ Context 品質提升，selective retrieval + token budget 控制。
 
 ---
 
-## Phase Dependencies
+## H-Stage Dependencies
 
 ```
-Phase 0 (Foundation)
+H-Stage 0 (Foundation)
   |
-  +-- Phase 1 (L7 Observability)
+  +-- H-Stage 1 (L7 Observability)
   |     |
-  +-- Phase 2 (L1 Task + ProblemCard)
+  +-- H-Stage 2 (L1 Task + ProblemCard)
   |     |
-  |     +-- Phase 3 (L6 Safety + L3 Governance)
+  |     +-- H-Stage 3 (L6 Safety + L3 Governance)
   |     |     |
-  |     |     +-- Phase 4 (L2 Context Assembly)
+  |     |     +-- H-Stage 4 (L2 Context Assembly)
   |     |           |
-  |     |           +-- Phase 5 (L5 Feedback Loop)
+  |     |           +-- H-Stage 5 (L5 Feedback Loop)
   |     |                 |
-  |     |                 +-- Phase 6 (L8 Entropy)
+  |     |                 +-- H-Stage 6 (L8 Entropy)
 ```
 
-Phase 1 and Phase 2 can run in parallel after Phase 0.
-Phase 3+ are sequential due to graph edge dependencies.
+H-Stage 1 and H-Stage 2 can run in parallel after H-Stage 0.
+H-Stage 3+ are sequential due to graph edge dependencies.
 
 ---
 
 ## Risk Summary
 
-| Phase | Risk | Primary Concern | Mitigation |
+| H-Stage | Risk | Primary Concern | Mitigation |
 |---|---|---|---|
 | 0 | Low | None | Additive only |
 | 1 | Low | None | Decorator, no logic change |

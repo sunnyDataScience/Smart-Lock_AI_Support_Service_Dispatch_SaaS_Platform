@@ -472,7 +472,7 @@ graph TB
 
     subgraph "External Services"
         LINE_API["LINE Messaging API"]
-        VERTEX["Vertex AI<br/>(Gemini 2.5 Flash<br/>+ text-embedding-004)"]
+        VERTEX["Vertex AI<br/>(Gemini 2.5 Flash<br/>+ text-embedding-004)<br/><i>開發環境備選</i>"]
     end
 
     subgraph "LangGraph StateGraph"
@@ -541,6 +541,8 @@ graph TB
     HW & SR & SA & AS & ML & WR --> VERTEX
     PO --> LINE_API
 ```
+
+> **注意**：正式環境使用 Gemini 3 Pro 作為主要 LLM。Vertex AI (Gemini 2.5 Flash) 為開發環境備選方案，供本地測試或配額不足時降級使用。
 
 ### 3.4 主要組件職責表
 
@@ -646,7 +648,7 @@ GraphState 是貫穿整個工作流的共享狀態物件，定義於 `graph/stat
 
 ### 3.6 V1↔V2 整合架構：ProblemCard → WorkOrder 資料橋接
 
-V1.0（AI 客服）與 V2.0（派工/帳務）透過 **ProblemCard** 作為資料橋接點。當 AI 三層解決引擎判斷為 L3（需派工）時，系統啟動 Dispatch Pipeline。
+V1.0（AI 客服）與 V2.0（派工/帳務）透過 **ProblemCard** 作為資料橋接點。當 AI 三層解決機制判斷為 L3（需派工）時，系統啟動 Dispatch Pipeline。
 
 #### 資料橋接流程
 
@@ -785,7 +787,7 @@ erDiagram
         string display_name
         string phone "nullable - collected at L3"
         string email "nullable"
-        string role "line_user | admin | technician"
+        string role "line_user | admin | family_reviewer | technician"
         timestamp created_at
         timestamp updated_at
     }
@@ -1341,6 +1343,10 @@ graph LR
     - 對話記錄查詢
     - 系統設定
     - V2.0: 技師管理、派工監控、帳務管理
+  Role: family_reviewer
+    - 甲方指定之家族成員（合約 4.4(d) 條）
+    - SOP 草稿二次覆核（一般管理員審核通過後，須家族覆核員確認方可入庫）
+    - 覆核紀錄不可刪除，供稽核查詢
   Role: technician (V2.0)
     - 查看指派給自己的工單
     - 接單/拒單

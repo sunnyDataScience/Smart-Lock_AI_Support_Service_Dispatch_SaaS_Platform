@@ -54,7 +54,7 @@
 **對應 BDD Feature**: `docs/03_behavior_driven_development.md#feature-line-bot-ai-客服對話`
 **對應 API 端點**: `POST /api/v1/webhook/line` (LINE Webhook Handler 內部呼叫)
 
-**模組描述**: ConversationManager 是 LINE Bot 客服對話的核心編排器。負責接收使用者訊息後，執行意圖辨識、NER 實體擷取、對話狀態機轉換、ProblemCard 更新，並在資訊收集完成後觸發三層解決引擎。此模組必須在 LINE Webhook 的 1 秒回應限制下，將 LLM 呼叫 (2-10 秒) 委派至非同步任務處理。
+**模組描述**: ConversationManager 是 LINE Bot 客服對話的核心編排器。負責接收使用者訊息後，執行意圖辨識、NER 實體擷取、對話狀態機轉換、ProblemCard 更新，並在資訊收集完成後觸發三層解決機制。此模組必須在 LINE Webhook 的 1 秒回應限制下，將 LLM 呼叫 (2-10 秒) 委派至非同步任務處理。
 
 ---
 
@@ -166,7 +166,7 @@ async def resume_expired_session(
         - 驗證回覆訊息詢問下一個缺失欄位（型號）。
         - 驗證 `conversations.message_count` 遞增 2。
 
-#### 情境 3: 正常路徑 — 資訊收集完成觸發三層解決引擎
+#### 情境 3: 正常路徑 — 資訊收集完成觸發三層解決機制
 
 *   **測試案例 ID**: `TC-CM-003`
 *   **描述**: 使用者提供最後一個缺失欄位後，系統應將對話狀態轉為 `"resolving"` 並觸發 ThreeLayerResolver。
@@ -257,7 +257,7 @@ async def resume_expired_session(
 **對應 BDD Feature**: `docs/03_behavior_driven_development.md#feature-problemcard-智慧分診`
 **對應資料庫表**: `problem_cards`
 
-**模組描述**: ProblemCardEngine 負責從多輪對話中萃取結構化資訊，生成 ProblemCard 診斷卡。它使用 LLM 進行實體擷取（品牌、型號、位置、門況、網路狀態、症狀），計算欄位完整度分數，並在資訊不足時產生追問問題。ProblemCard 是三層解決引擎的核心輸入。
+**模組描述**: ProblemCardEngine 負責從多輪對話中萃取結構化資訊，生成 ProblemCard 診斷卡。它使用 LLM 進行實體擷取（品牌、型號、位置、門況、網路狀態、症狀），計算欄位完整度分數，並在資訊不足時產生追問問題。ProblemCard 是三層解決機制的核心輸入。
 
 ---
 
@@ -411,7 +411,7 @@ def evaluate_completeness(self, problem_card: ProblemCard) -> float:
 
 **所在路徑**: `backend/src/smart_lock/application/resolution/use_cases.py`
 **對應領域層**: `backend/src/smart_lock/domains/resolution/strategies.py`
-**對應 BDD Feature**: `docs/03_behavior_driven_development.md#feature-三層解決引擎`
+**對應 BDD Feature**: `docs/03_behavior_driven_development.md#feature-三層解決機制`
 **對應資料庫表**: `conversations.resolution_layer`, `problem_cards.resolution_layer`
 
 **模組描述**: ThreeLayerResolver 是系統的核心解決引擎，採用策略模式 (Strategy Pattern) 依序嘗試三層解決策略：L1 案例庫向量搜尋（CaseLibraryStrategy） -> L2 PDF 手冊 RAG（RAGStrategy） -> L3 人工轉接（HumanHandoffStrategy）。每一層有明確的信心分數閾值，未達標則自動降級至下一層。
@@ -1313,7 +1313,7 @@ async def submit_family_review(
 |:---|:---|:---|:---|
 | TC-CM-001 | ConversationManager | Happy Path | 新使用者首次發送問題訊息 |
 | TC-CM-002 | ConversationManager | Happy Path | 多輪對話逐步收集 ProblemCard 資訊 |
-| TC-CM-003 | ConversationManager | Happy Path | 資訊收集完成觸發三層解決引擎 |
+| TC-CM-003 | ConversationManager | Happy Path | 資訊收集完成觸發三層解決機制 |
 | TC-CM-004 | ConversationManager | Edge Case | 對話超時後恢復 |
 | TC-CM-005 | ConversationManager | Invalid Input | 使用者發送不相關訊息 |
 | TC-CM-006 | ConversationManager | Invalid Input | LINE User ID 格式不合法 |

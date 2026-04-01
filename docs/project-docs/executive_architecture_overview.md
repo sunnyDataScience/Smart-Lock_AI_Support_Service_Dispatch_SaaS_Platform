@@ -59,7 +59,7 @@ graph TD
 
         subgraph AI 引擎
             PC[fa:fa-stethoscope 問題診斷引擎]
-            RES[fa:fa-lightbulb-o 三層解決引擎]
+            RES[fa:fa-lightbulb-o 三層解決機制]
             SOP[fa:fa-file-text SOP 自動生成]
         end
 
@@ -130,11 +130,11 @@ graph TD
 | 模組 | 服務 | 職責 | 關鍵技術 |
 | :--- | :--- | :--- | :--- |
 | **LINE Bot 接入** | Webhook Handler | 接收 LINE Webhook、驗證簽章、路由事件 | FastAPI, line-bot-sdk-python 3 |
-| **對話管理** | ConversationService | 對話狀態機 (Idle→Collecting→Resolving→Resolved)、多輪上下文、Session 超時 30min | Redis, 狀態機模式 |
-| **問題診斷** | ProblemCardService | 從自然語言提取結構化問題卡 (品牌/型號/症狀/位置)、AI 輔助欄位推斷、缺失欄位追問 | LangChain, Gemini 3 Pro |
-| **三層解決引擎** | ResolutionService | L1: pgvector 語意搜尋 (相似度≥0.85) → L2: RAG + Gemini 推理 → L3: 轉人工/建工單 | LangChain LCEL, pgvector HNSW |
-| **知識庫管理** | KnowledgeBaseService | 案例 CRUD、PDF 手冊上傳→分段→Embedding、向量搜尋、增量更新 | PyMuPDF, text-embedding-004 |
-| **SOP 自動生成** | SOPGeneratorService | 監聽成功解決事件→分析對話→AI 草擬 SOP→提交審核佇列 | LangChain, 事件驅動 |
+| **對話管理** | ConversationManager | 對話狀態機 (Idle→Collecting→Resolving→Resolved)、多輪上下文、Session 超時 30min | Redis, 狀態機模式 |
+| **問題診斷** | ProblemCardEngine | 從自然語言提取結構化問題卡 (品牌/型號/症狀/位置)、AI 輔助欄位推斷、缺失欄位追問 | LangChain, Gemini 3 Pro |
+| **三層解決機制** | ThreeLayerResolver | L1: pgvector 語意搜尋 (相似度≥0.85) → L2: RAG + Gemini 推理 → L3: 轉人工/建工單 | LangChain LCEL, pgvector HNSW |
+| **知識庫管理** | KnowledgeBaseManager | 案例 CRUD、PDF 手冊上傳→分段→Embedding、向量搜尋、增量更新 | PyMuPDF, text-embedding-004 |
+| **SOP 自動生成** | SOPGenerator | 監聽成功解決事件→分析對話→AI 草擬 SOP→提交審核佇列 | LangChain, 事件驅動 |
 | **LLM 閘道** | LLMGateway | 統一 LLM 呼叫入口、Prompt 模板管理、Token 追蹤、Retry/Fallback | LangChain, Google AI SDK |
 | **管理後台** | Admin Panel | 知識庫審核、對話紀錄查詢、系統監控、SOP 上架管理 | FastAPI + Jinja2/HTMX (V1.0) |
 

@@ -31,12 +31,12 @@
 ### 1.1 文檔目的 (Document Purpose)
 
 *   本文檔旨在分析和定義「電子鎖智能客服與派工 SaaS 平台 (Smart Lock AI Support & Service Dispatch SaaS Platform)」的內部模組與外部套件之間的依賴關係。
-*   系統採用 **Modular Monolith + Clean Architecture** 架構，以五個 DDD 限界上下文 (Bounded Contexts) 為核心組織單元。本文檔的目的不僅是記錄現狀，更是為了指導開發，確保專案遵循健康的依賴結構，以提升代碼的可維護性、可測試性和可擴展性。
+*   系統採用 **Modular Monolith + Clean Architecture** 架構，以七個 DDD 限界上下文 (Bounded Contexts) 為核心組織單元（CustomerService、KnowledgeBase、Dispatch、Accounting、UserManagement、Audit、SentimentTriage）。本文檔的目的不僅是記錄現狀，更是為了指導開發，確保專案遵循健康的依賴結構，以提升代碼的可維護性、可測試性和可擴展性。
 *   本文檔是程式碼審查 (Code Review) 和架構決策的重要參考依據，特別在 V1.0 到 V2.0 演進過程中，確保新增的派工 (Dispatch) 與帳務 (Accounting) 模組不會引入不良的依賴關係。
 
 ### 1.2 分析範圍 (Analysis Scope)
 
-*   **分析層級**: 套件級 (Package-level) 與模組級 (Module-level)。套件級聚焦五個限界上下文與 `core/` 共用模組之間的依賴；模組級深入每個上下文內部的 Domain / Application / Infrastructure 三層依賴。
+*   **分析層級**: 套件級 (Package-level) 與模組級 (Module-level)。套件級聚焦七個限界上下文與 `core/` 共用模組之間的依賴；模組級深入每個上下文內部的 Domain / Application / Infrastructure 三層依賴。
 *   **包含範圍**:
     *   應用程式原始碼內部依賴（`backend/src/smart_lock/` 內所有模組）
     *   限界上下文之間的跨上下文依賴
@@ -178,7 +178,7 @@ graph TD
 
 ### 3.2 限界上下文依賴圖 (Bounded Context Dependency Diagram)
 
-此圖展示五個限界上下文之間的跨上下文依賴關係，對應 DDD 上下文地圖。
+此圖展示七個限界上下文之間的跨上下文依賴關係，對應 DDD 上下文地圖。
 
 ```mermaid
 graph LR

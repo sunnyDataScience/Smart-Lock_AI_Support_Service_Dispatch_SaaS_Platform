@@ -382,7 +382,7 @@ def verify_line_signature(body: bytes, signature: str, channel_secret: str) -> b
 
 - **授權：** `admin`, `reviewer`
 - **分頁：** 支援
-- **過濾參數：** `status` (`active`, `resolved`, `escalated`), `line_user_id`, `created_after`, `created_before`
+- **過濾參數：** `status` (`active`, `collecting`, `resolving`, `resolved`, `escalated`, `expired`), `line_user_id`, `created_after`, `created_before`
 - **排序：** `sort_by` (`-created_at` 預設)
 
 **Request：**
@@ -630,10 +630,29 @@ curl -X GET "https://api.smartlock-saas.com/api/v1/problem-cards/pc_01HQXK6A9B7C
   "network_status": "offline",
   "symptoms": ["no_response", "battery_low_indicator"],
   "intent": "unlock_request",
+  "sentiment_label": "negative",
+  "completeness_score": 0.85,
+  "urgency": "high",
   "status": "open",
+  "attachment_links": [
+    {
+      "url": "https://storage.smartlock-saas.com/attachments/pc_01HQXK6A9B7C3D5E8F/photo1.jpg",
+      "type": "image/jpeg",
+      "uploaded_at": "2026-02-17T08:36:00Z"
+    }
+  ],
   "created_at": "2026-02-17T08:35:00Z"
 }
 ```
+
+**欄位說明：**
+
+| 欄位 | 型別 | 說明 |
+|:---|:---|:---|
+| `sentiment_label` | `string \| null` | 情緒標籤：`"negative"` / `"neutral"` / `"positive"`（合約 9.3 條） |
+| `completeness_score` | `number` | ProblemCard 完整度分數，範圍 0.0–1.0 |
+| `urgency` | `string` | 緊急程度：`"low"` / `"medium"` / `"high"` / `"critical"` |
+| `attachment_links` | `array` | 附件連結清單，每項含 `url`、`type`、`uploaded_at` |
 
 **Error Responses：**
 
@@ -1773,7 +1792,7 @@ curl -X GET "https://api.smartlock-saas.com/api/v1/dashboard/stats?period=30d" \
 
 - **授權：** `admin`, `technician`
 - **分頁：** 支援
-- **過濾參數：** `status` (`pending`, `assigned`, `accepted`, `in_progress`, `completed`, `confirmed`, `cancelled`), `technician_id`, `brand`, `created_after`, `created_before`
+- **過濾參數：** `status` (`created`, `assigned`, `accepted`, `in_progress`, `completed`, `confirmed`, `cancelled`), `technician_id`, `brand`, `created_after`, `created_before`
 - **排序：** `sort_by` (`-created_at` 預設)
 
 **Success Response（200 OK）：**
@@ -1785,7 +1804,7 @@ curl -X GET "https://api.smartlock-saas.com/api/v1/dashboard/stats?period=30d" \
       "id": "wo_01HQXS9G0H1I2J3K4L",
       "problem_card_id": "pc_01HQXK6A9B7C3D5E8F",
       "technician_id": null,
-      "status": "pending",
+      "status": "created",
       "brand": "Yale",
       "model": "YDM4109",
       "location": "台北市大安區忠孝東路四段100號12樓",
@@ -1833,12 +1852,41 @@ curl -X GET "https://api.smartlock-saas.com/api/v1/dashboard/stats?period=30d" \
     ],
     "total": 1100
   },
+  "customer_name": "陳小明",
+  "customer_phone": "0912-345-678",
+  "customer_address": "台北市大安區忠孝東路四段100號12樓",
+  "priority": "high",
   "scheduled_at": "2026-02-17T14:00:00Z",
+  "accepted_at": "2026-02-17T11:00:00Z",
+  "started_at": null,
   "completion_report": null,
+  "photos": [
+    {
+      "url": "https://storage.smartlock-saas.com/work-orders/wo_01HQXS9G0H1I2J3K4L/before_01.jpg",
+      "type": "before",
+      "uploaded_at": "2026-02-17T14:05:00Z"
+    }
+  ],
+  "rating": null,
+  "feedback": null,
   "created_at": "2026-02-17T10:30:00Z",
   "updated_at": "2026-02-17T11:00:00Z"
 }
 ```
+
+**欄位說明：**
+
+| 欄位 | 型別 | 說明 |
+|:---|:---|:---|
+| `customer_name` | `string` | 客戶姓名 |
+| `customer_phone` | `string` | 客戶電話 |
+| `customer_address` | `string` | 客戶地址 |
+| `priority` | `string` | 優先等級：`"low"` / `"medium"` / `"high"` / `"urgent"` |
+| `accepted_at` | `datetime \| null` | 技師接單時間 |
+| `started_at` | `datetime \| null` | 開始施工時間 |
+| `photos` | `array` | 施工照片，每項含 `url`、`type`（`"before"` / `"after"`）、`uploaded_at` |
+| `rating` | `number \| null` | 服務評分，範圍 1–5 |
+| `feedback` | `string \| null` | 客戶回饋 |
 
 ---
 

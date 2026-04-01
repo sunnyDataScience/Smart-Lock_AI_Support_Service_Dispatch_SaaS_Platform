@@ -61,7 +61,7 @@
 
 ### 2.1 V1.0 領域模型 — AI 智能客服核心
 
-此圖展示 V1.0 階段的核心領域實體、值物件、領域事件以及它們之間的關係。涵蓋客服上下文 (CustomerService)、知識庫上下文 (KnowledgeBase) 與三層解決引擎 (Resolution) 三個限界上下文。
+此圖展示 V1.0 階段的核心領域實體、值物件、領域事件以及它們之間的關係。涵蓋客服上下文 (CustomerService)、知識庫上下文 (KnowledgeBase) 與三層解決機制 (Resolution) 三個限界上下文。
 
 ```mermaid
 classDiagram
@@ -325,7 +325,7 @@ classDiagram
     }
 
     %% ============================
-    %% 三層解決引擎 (Resolution)
+    %% 三層解決機制 (Resolution)
     %% ============================
 
     class ResolutionLayer {
@@ -442,7 +442,7 @@ classDiagram
 
 - **客服上下文：** `Conversation` 作為聚合根，組合多個 `Message`，並與 `ProblemCard` 形成 1:1 關聯（UNIQUE FK）。`ProblemCard` 是另一個聚合根，從多輪對話中漸進式收集電子鎖故障資訊。
 - **知識庫上下文：** `CaseEntry` 與 `ManualChunk` 各自攜帶 768 維向量 (`EmbeddingVector`)，分別支援 L1 案例庫搜尋與 L2 RAG 檢索。`SOPDraft` 代表自演化知識庫的產出，經審核後可發布為 `CaseEntry`。
-- **三層解決引擎：** 採用策略模式 (Strategy Pattern)，`ResolutionStrategy` 定義統一接口，三個具體策略（CaseLibraryStrategy、RAGStrategy、HumanHandoffStrategy）分別實作 L1/L2/L3 邏輯。
+- **三層解決機制：** 採用策略模式 (Strategy Pattern)，`ResolutionStrategy` 定義統一接口，三個具體策略（CaseLibraryStrategy、RAGStrategy、HumanHandoffStrategy）分別實作 L1/L2/L3 邏輯。
 
 ### 2.2 V2.0 領域模型 — 派工與帳務擴展
 
@@ -955,12 +955,12 @@ classDiagram
 | :-- | :-- | :-- | :-- |
 | `Conversation` (Aggregate Root) | 管理一次完整客服對話的生命週期：狀態流轉（active -> collecting -> resolving -> resolved/escalated/expired）、訊息聚合、多輪上下文維護 | `Message`, `ProblemCard`, `SessionId`, `ConversationStatus` | `customer_service` |
 | `Message` | 表示對話中的單則訊息，記錄角色（user/assistant/system）、內容類型（text/image/location/flex）、元資訊（token 用量、延遲） | `MessageRole`, `ContentType` | `customer_service` |
-| `ProblemCard` (Aggregate Root) | 結構化問題診斷卡：AI 從對話中漸進式提取電子鎖故障資訊，計算欄位完整度，當完整度足夠時觸發三層解決引擎 | `LockModel`, `FaultSymptom`, `ProblemCardStatus` | `customer_service` |
+| `ProblemCard` (Aggregate Root) | 結構化問題診斷卡：AI 從對話中漸進式提取電子鎖故障資訊，計算欄位完整度，當完整度足夠時觸發三層解決機制 | `LockModel`, `FaultSymptom`, `ProblemCardStatus` | `customer_service` |
 | `CaseEntry` | 知識庫案例條目：包含問題描述、解決方案、適用品牌/鎖型、768 維向量嵌入。支援 L1 向量相似度搜尋（閾值 >= 0.85） | `EmbeddingVector`, `Difficulty` | `knowledge_base` |
 | `ManualChunk` | PDF 手冊切片：電子鎖操作手冊經 PyMuPDF 解析後的文本段落，含 768 維向量嵌入。供 L2 RAG 管線檢索使用 | `Manual`, `EmbeddingVector` | `knowledge_base` |
 | `Manual` | 手冊主體記錄：管理 PDF 上傳、解析進度（processing -> indexing -> completed/failed）、與切片的 1:N 關係 | `ManualChunk` | `knowledge_base` |
 | `SOPDraft` | SOP 草稿：系統從成功對話中自動生成的標準作業程序，需經管理員審核後發布至案例庫，實現知識庫自演化 | `CaseEntry`, `SOPStatus` | `knowledge_base` |
-| `ResolutionResult` | 三層解決引擎的輸出：包含答案文本、引用來源、信心分數、解決層級（L1/L2/L3）、是否需要升級 | `ResolutionLayer`, `SourceReference` | `resolution` |
+| `ResolutionResult` | 三層解決機制的輸出：包含答案文本、引用來源、信心分數、解決層級（L1/L2/L3）、是否需要升級 | `ResolutionLayer`, `SourceReference` | `resolution` |
 | `WorkOrder` (Aggregate Root, V2.0) | 派工單：由 ProblemCard L3 升級觸發建立，管理工單完整生命週期（建立 -> 指派 -> 接受 -> 進行中 -> 完成 -> 確認/取消） | `Technician`, `ProblemCard`, `WorkOrderStatus`, `Money` | `dispatch` |
 | `Technician` (V2.0) | 技師實體：包含技能矩陣（品牌 x 鎖型）、服務區域、可用時段、評分，供智能派工匹配算法使用 | `TechnicianSkill`, `ServiceRegion`, `User` | `dispatch` |
 | `PriceRule` (V2.0) | 計價規則：以品牌 x 鎖型 x 難度為維度定義基礎價格、人工費、零件費，支援特殊加價修飾器（夜間、偏遠） | `Money`, `Difficulty` | `accounting` |
@@ -973,7 +973,7 @@ classDiagram
 | 用例 | 核心職責 | 依賴的 Protocol | 所屬模組 |
 | :-- | :-- | :-- | :-- |
 | `ProcessMessageUseCase` | 核心對話處理流程：接收 LINE 訊息 -> 讀取 Session -> 意圖辨識 -> NER 擷取 -> 更新 ProblemCard -> 觸發解決引擎 -> 回覆用戶 | `ConversationRepository`, `ProblemCardRepository`, `ILLMGateway`, `ISessionStore`, `ILineMessenger` | `conversation` |
-| `ResolveQueryUseCase` | 三層解決引擎編排：L1 案例庫向量搜尋 (>= 0.85) -> L2 RAG 管線 -> L3 人工轉接 | `CaseRepository`, `ManualChunkRepository`, `ILLMGateway`, `VectorSearchService` | `resolution` |
+| `ResolveQueryUseCase` | 三層解決機制編排：L1 案例庫向量搜尋 (>= 0.85) -> L2 RAG 管線 -> L3 人工轉接 | `CaseRepository`, `ManualChunkRepository`, `ILLMGateway`, `VectorSearchService` | `resolution` |
 | `GenerateProblemCardUseCase` | LLM 輔助問題卡生成：從對話歷史中提取結構化欄位，填充 ProblemCard，計算完整度 | `ProblemCardRepository`, `ILLMGateway` | `problem_card` |
 | `IngestManualUseCase` | PDF 手冊處理管線：解析 PDF -> 文本切片 -> 生成 768 維向量 -> 批次儲存 | `ManualChunkRepository`, `ILLMGateway` | `knowledge_base` |
 | `DraftSOPUseCase` | SOP 自動生成：從成功對話中提取解決模式，使用 LLM 生成結構化 SOP 草稿 | `ConversationRepository`, `ILLMGateway` | `knowledge_base` |
@@ -999,7 +999,7 @@ classDiagram
 
 ### 4.1 繼承/實現 (Inheritance/Implementation)
 
-#### 策略模式 — 三層解決引擎
+#### 策略模式 — 三層解決機制
 
 - **`CaseLibraryStrategy` implements `ResolutionStrategy`:** L1 實作——對 `case_entries` 表執行 pgvector cosine similarity 搜尋，閾值 >= 0.85 視為命中，取 Top-3 結果。
 - **`RAGStrategy` implements `ResolutionStrategy`:** L2 實作——檢索 `manual_chunks` 表相關段落，組合上下文後調用 Gemini 3 Pro 生成答案。
@@ -1032,7 +1032,7 @@ classDiagram
 | 來源 | 目標 | 關係說明 |
 | :-- | :-- | :-- |
 | `ProcessMessageUseCase` | `ConversationRepository`, `ILLMGateway`, `ISessionStore`, `ILineMessenger` | 核心對話處理流程依賴四個 Protocol：讀取/寫入對話、調用 LLM、管理 Session、回覆 LINE 訊息。所有依賴透過 FastAPI `Depends()` 注入。 |
-| `ResolveQueryUseCase` | `CaseRepository`, `ManualChunkRepository`, `ILLMGateway`, `VectorSearchService` | 三層解決引擎需要存取案例庫與手冊切片（向量搜尋）以及 LLM 推理能力。 |
+| `ResolveQueryUseCase` | `CaseRepository`, `ManualChunkRepository`, `ILLMGateway`, `VectorSearchService` | 三層解決機制需要存取案例庫與手冊切片（向量搜尋）以及 LLM 推理能力。 |
 | `WorkOrder` | `ProblemCard` | V2.0 派工單由 ProblemCard L3 升級觸發建立（`FK: problem_card_id REFERENCES problem_cards(id)`）。跨限界上下文引用，透過 Anti-Corruption Layer 轉譯。 |
 | `Invoice` | `WorkOrder` | 帳務上下文的發票對應派工上下文的完工工單（`FK: work_order_id REFERENCES work_orders(id)`）。 |
 | `SOPDraft` | `Conversation`, `ProblemCard`, `CaseEntry` | SOP 草稿追溯來源對話與問題卡，發布後關聯至新建的案例條目。 |
@@ -1058,12 +1058,12 @@ classDiagram
 
 | 設計模式 | 應用場景 / 涉及類別 | 設計目的 / 解決的問題 |
 | :-- | :-- | :-- |
-| **策略模式 (Strategy)** | `ResolveQueryUseCase` 使用 `ResolutionStrategy` Protocol，具體策略為 `CaseLibraryStrategy`（L1）、`RAGStrategy`（L2）、`HumanHandoffStrategy`（L3） | 將三層解決引擎的各層邏輯解耦為獨立策略，可在運行時按順序嘗試。新增解決層級（如 L1.5 FAQ 匹配）時，只需新增策略類別，無需修改編排邏輯。 |
+| **策略模式 (Strategy)** | `ResolveQueryUseCase` 使用 `ResolutionStrategy` Protocol，具體策略為 `CaseLibraryStrategy`（L1）、`RAGStrategy`（L2）、`HumanHandoffStrategy`（L3） | 將三層解決機制的各層邏輯解耦為獨立策略，可在運行時按順序嘗試。新增解決層級（如 L1.5 FAQ 匹配）時，只需新增策略類別，無需修改編排邏輯。 |
 | **Repository 模式 (Repository)** | `ConversationRepository`、`CaseRepository`、`ProblemCardRepository`、`WorkOrderRepository` 等 Protocol 及其 `Pg*` 實作 | 將資料存取邏輯從業務邏輯中分離。Use Case 僅依賴 Protocol 抽象，不直接操作 SQLAlchemy Session 或 SQL 語句，提高可測試性（可 mock Repository）。 |
 | **依賴注入 (DI)** | FastAPI 的 `Depends()` 機制注入 `AsyncSession`、`Redis`、Repository 實作、LLM Client、LINE Client 到 Use Case | 降低組件之間的耦合度。Use Case 構造時接收 Protocol 實例而非自行建立，測試時可注入 mock 物件，生產環境注入真實實作。 |
 | **工廠模式 (Factory)** | ProblemCard 的建立邏輯（從 LLM 結構化輸出建立 ProblemCard）、WorkOrder 的建立（從 ProblemCard + 客戶資訊組裝）、FlexMessage 模板建構 | 封裝複雜物件的創建過程。ProblemCard 需要解析 LLM 輸出的 JSON、驗證欄位、計算完整度分數，這些邏輯集中在工廠方法中。 |
 | **狀態機模式 (State Machine)** | `Conversation.status` 狀態流轉（active -> collecting -> resolving -> resolved/escalated/expired）、`WorkOrder.status` 狀態流轉（created -> assigned -> accepted -> in_progress -> completed -> confirmed/cancelled） | 確保實體狀態轉換的合法性。例如，只有 `assigned` 狀態的工單才能轉為 `accepted`，防止非法狀態跳躍。 |
-| **觀察者模式 (Observer / Domain Events)** | `ProblemCardCompleted` 觸發三層解決引擎、`ResolutionFound` 觸發 LINE 回覆、`EscalatedToHuman` 觸發工單建立、`ServiceCompleted` 觸發帳務計算 | 實現限界上下文之間的鬆耦合通信。客服上下文不直接呼叫派工上下文的方法，而是發布領域事件，由事件處理器決定後續動作。 |
+| **觀察者模式 (Observer / Domain Events)** | `ProblemCardCompleted` 觸發三層解決機制、`ResolutionFound` 觸發 LINE 回覆、`EscalatedToHuman` 觸發工單建立、`ServiceCompleted` 觸發帳務計算 | 實現限界上下文之間的鬆耦合通信。客服上下文不直接呼叫派工上下文的方法，而是發布領域事件，由事件處理器決定後續動作。 |
 | **防腐層 (Anti-Corruption Layer)** | `Dispatch` 上下文讀取 `CustomerService` 上下文的 ProblemCard 時，透過 DTO 轉譯而非直接引用 Domain Entity | 避免不同限界上下文的領域模型直接耦合。派工上下文有自己對「問題描述」的理解（以工單維度），不應被客服上下文的 ProblemCard 結構綁定。 |
 | **值物件模式 (Value Object)** | `Money`（金額+幣別）、`LockModel`（品牌+型號）、`FaultSymptom`（代碼+描述+嚴重度）、`SessionId`、`EmbeddingVector`（768 維向量+相似度計算） | 以不可變物件封裝領域概念，提供語義化的比較與運算方法。`Money.add()` 確保幣別一致，`EmbeddingVector.cosine_similarity()` 封裝向量距離計算。 |
 
@@ -1081,7 +1081,7 @@ classDiagram
 
 *   `[x]` **O - 開放/封閉原則 (Open/Closed Principle):**
     *   **評估：遵循。** 系統在多處體現對擴展開放、對修改封閉：
-        - 三層解決引擎使用策略模式，新增解決層級只需新增 `ResolutionStrategy` 實作，不修改 `ResolveQueryUseCase`。
+        - 三層解決機制使用策略模式，新增解決層級只需新增 `ResolutionStrategy` 實作，不修改 `ResolveQueryUseCase`。
         - 新增資料庫支持（如測試用 SQLite）只需新增 Repository 實作，不修改 Use Case。
         - V2.0 的派工/帳務模組作為新的 Python package 加入，不修改 V1.0 的客服/知識庫模組。
         - LLM Provider 變更（如從 Gemini 切換至 Claude）只需新增 `ILLMGateway` 實作。
@@ -1149,7 +1149,7 @@ classDiagram
         *   **前置條件:** `entry.embedding` 為 768 維浮點數列表。
         *   **後置條件:** 案例已寫入 `case_entries` 表，HNSW 索引自動更新。
     *   `async search_by_vector(embedding: list[float], threshold: float = 0.85, limit: int = 3) -> list[CaseEntry]`
-        *   **描述:** 對案例庫執行 pgvector cosine similarity 搜尋，用於 L1 三層解決引擎。
+        *   **描述:** 對案例庫執行 pgvector cosine similarity 搜尋，用於 L1 三層解決機制。
         *   **前置條件:** `embedding` 為 768 維浮點數列表；`threshold` 為 0.0~1.0 的相似度閾值。
         *   **後置條件:** 返回相似度 >= `threshold` 的案例列表，按相似度降序排列，最多 `limit` 筆。命中的案例 `hit_count` 自動 +1。
     *   `async list_active(cursor: str | None = None, limit: int = 20) -> list[CaseEntry]`
@@ -1237,7 +1237,7 @@ classDiagram
 | Embedding 模型 | - | Google text-embedding-004 | 768 維 | 文本向量化 | 768 維平衡效能與精度；搭配 pgvector HNSW (m=16, ef_construction=64) | OpenAI ada-002 (1536-dim) | 成熟 | [ADR-002](../docs/adrs/adr-002-database-selection.md) |
 | LINE 整合 | Python | line-bot-sdk-python | 3+ | LINE Bot Webhook、訊息發送 | 官方 SDK，支援 Flex Message、Quick Reply、Webhook 簽章驗證 | 自行封裝 HTTP Client | 成熟，官方維護 | [ADR-004](../docs/adrs/adr-004-line-bot-architecture.md) |
 | Session 管理 | Python | redis.asyncio | Redis 7+ | 對話 Session 快取 | 讀取延遲 < 1ms，TTL 自動過期（30 分鐘），搭配 FastAPI async 架構 | 僅 PostgreSQL | 成熟 | [ADR-004](../docs/adrs/adr-004-line-bot-architecture.md) |
-| 前端 (V2.0) | TypeScript / React | Next.js 15+, shadcn/ui, Zustand | Next.js 15+, React 19+, TS 5+ | 管理後台、技師工作台 | App Router + Server Components 減少客戶端 JS；API Routes 作為 BFF 層；PWA 支援技師離線使用 | Nuxt.js, Plain React SPA | 成熟 | [ADR-005](../docs/adrs/adr-005-frontend-framework-v2.md) |
+| 前端 (V2.0) | TypeScript / React | Next.js 14+, shadcn/ui, Zustand | Next.js 14+, React 19+, TS 5+ | 管理後台、技師工作台 | App Router + Server Components 減少客戶端 JS；API Routes 作為 BFF 層；PWA 支援技師離線使用 | Nuxt.js, Plain React SPA | 成熟 | [ADR-005](../docs/adrs/adr-005-frontend-framework-v2.md) |
 | Domain Entities | Python | dataclasses / Pydantic BaseModel | Python 3.11+ | Domain Layer | 型別安全、不可變性、內建驗證；Value Object 使用 `frozen=True` 確保不可變 | attrs, 自定義 class | 成熟 | - |
 
 ### 8.2 外部依賴（基礎設施/服務）

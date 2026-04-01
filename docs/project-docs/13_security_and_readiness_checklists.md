@@ -29,7 +29,7 @@
 
 ## 目的
 
-**目的**: 本檢查清單旨在為「電子鎖智能客服與派工 SaaS 平台 (SmartLock-SaaS)」提供一個統一的框架，用於在專案的關鍵階段（V1.0 AI 客服上線、V2.0 派工帳務上線）進行全面的安全、隱私和生產準備就緒評估。所有檢查項目均依據專案實際的技術棧（FastAPI + PostgreSQL + pgvector + Redis + Google Gemini 3 Pro + LINE Bot SDK）與業務需求（LINE Bot AI 客服、ProblemCard 診斷、三層解決引擎、技師派工、報價帳務）進行具體化填寫。
+**目的**: 本檢查清單旨在為「電子鎖智能客服與派工 SaaS 平台 (SmartLock-SaaS)」提供一個統一的框架，用於在專案的關鍵階段（V1.0 AI 客服上線、V2.0 派工帳務上線）進行全面的安全、隱私和生產準備就緒評估。所有檢查項目均依據專案實際的技術棧（FastAPI + PostgreSQL + pgvector + Redis + Google Gemini 3 Pro + LINE Bot SDK）與業務需求（LINE Bot AI 客服、ProblemCard 診斷、三層解決機制、技師派工、報價帳務）進行具體化填寫。
 
 ---
 

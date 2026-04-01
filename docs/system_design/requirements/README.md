@@ -32,6 +32,7 @@
 | `06_line_bot_templates/` | IT / 開發團隊 | Phase 1 W4 | 待收集 |
 | `07_platform_accounts/` | IT / 開發團隊 | Phase 1 W4 | 待收集 |
 | `08_business_metrics/` | 甲方營運 | Phase 2 W3 | 待收集 |
+| `09_pricing_rules/` | 甲方 + PM | Phase 5 W19 | 待收集 |
 
 ---
 
@@ -44,6 +45,7 @@
 ### 甲方 + PM
 - [ ] `02_knowledge_base_seed_data/` — 歷史維修案例、產品手冊 PDF、FAQ 種子資料、案例分類體系
 - [ ] `03_resolution_rules/` — L1 案例匹配規則、L2 RAG 管線規則、L3 轉派規則、信心度評分
+- [ ] `09_pricing_rules/` — 標準報價矩陣（品牌×鎖型×工項）、特殊加價規則、結算與墊款規則
 
 ### 甲方營運
 - [ ] `05_technician_onboarding/` — 技師技能矩陣、服務區域劃分、Web App 操作指南、品質標準

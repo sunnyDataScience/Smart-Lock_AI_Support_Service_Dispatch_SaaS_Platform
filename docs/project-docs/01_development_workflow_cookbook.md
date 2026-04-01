@@ -34,7 +34,7 @@
 
 1.  **從「為何」到「什麼」，再到「如何」**:
     *   **為何 (Why)**: 革新電子鎖售後服務，將資深技師的專家知識系統化、可傳承，消除從報修到結案的所有人工瓶頸。
-    *   **什麼 (What)**: V1.0 AI 智能客服系統（LINE Bot + ProblemCard + 三層解決引擎 + 自進化知識庫），V2.0 技師派工與帳務平台（智慧媒合派工 + 計價引擎 + 帳務系統）。
+    *   **什麼 (What)**: V1.0 AI 智能客服系統（LINE Bot + ProblemCard + 三層解決機制 + 自進化知識庫），V2.0 技師派工與帳務平台（智慧媒合派工 + 計價引擎 + 帳務系統）。
     *   **如何 (How)**: FastAPI + PostgreSQL/pgvector + LangChain/Gemini 3 Pro + LINE Bot SDK，以 Clean Architecture + DDD 分層實現。
 
 2.  **品質內建 (Quality Built-in)**: 我們不將測試視為事後檢查，而是將其融入開發的每一步。BDD 情境定義允收標準、模組規格定義函式契約、TDD 確保每一行程式碼都被測試覆蓋，從根本上減少錯誤。
@@ -58,8 +58,8 @@
 
 2.  **[行為驅動情境 (BDD Scenarios)](./03_behavior_driven_development.md)** `活躍 (Active)`
     *   **目的**: 將 PRD 中的使用者故事轉化為精確、無歧義的 Gherkin 規格，作為連接業務與技術的橋樑。
-    *   **產出**: 完整的 BDD Feature 文件，涵蓋 V1.0 六大 Feature（LINE Bot 客服對話、ProblemCard 分診、三層解決引擎、自進化知識庫、管理後台、安全防護）與 V2.0 六大 Feature（師傅工作台、智慧派工引擎、標準化定價引擎、自動化會計系統、管理後台 V2.0、V1↔V2 資料串接）。
-    *   **通用語言 (Ubiquitous Language)**: ProblemCard（問題卡）、Three-Layer Resolution Engine（三層解決引擎）、SOP Draft（SOP 草稿）、Pricing Engine（定價引擎）、Dispatch Matching（派工匹配）、Case Pool（案件池）、Completion Report（完工回報）。
+    *   **產出**: 完整的 BDD Feature 文件，涵蓋 V1.0 六大 Feature（LINE Bot 客服對話、ProblemCard 分診、三層解決機制、自進化知識庫、管理後台、安全防護）與 V2.0 六大 Feature（師傅工作台、智慧派工引擎、標準化定價引擎、自動化會計系統、管理後台 V2.0、V1↔V2 資料串接）。
+    *   **通用語言 (Ubiquitous Language)**: ProblemCard（問題卡）、Three-Layer Resolution Engine（三層解決機制）、SOP Draft（SOP 草稿）、Pricing Engine（定價引擎）、Dispatch Matching（派工匹配）、Case Pool（案件池）、Completion Report（完工回報）。
 
 ### **第二階段：設計 (Design) - 定義「如何」的藍圖**
 
@@ -95,7 +95,7 @@
     *   **產出**: V1.0 五大核心模組規格，每個模組包含函式簽名、前置/後置條件、不變式、測試情境：
         - **模組 1: ConversationManager** — 對話編排器，處理意圖辨識、NER、狀態機轉換
         - **模組 2: ProblemCardEngine** — 問題卡生成與完整度評估
-        - **模組 3: ThreeLayerResolver** — 三層解決引擎（L1 案例庫 → L2 RAG → L3 轉人工）
+        - **模組 3: ThreeLayerResolver** — 三層解決機制（L1 案例庫 → L2 RAG → L3 轉人工）
         - **模組 4: KnowledgeBaseManager** — 案例庫搜尋與手冊匯入 Pipeline
         - **模組 5: SOPGenerator** — SOP 自動生成與去重
 
