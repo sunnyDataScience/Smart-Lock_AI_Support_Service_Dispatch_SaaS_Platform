@@ -73,6 +73,21 @@
    python main.py
    ```
 
+5. **LINE Webhook 設定**
+
+   本系統透過 `POST /webhook` 接收 LINE 訊息，需在 LINE 後台完成以下設定：
+
+   1. 登入 [LINE Developers Console](https://developers.line.biz/)，進入 Messaging API Channel。
+   2. 在 **Webhook settings** 中設定 Webhook URL：
+      - 正式環境：`https://<your-domain>/webhook`
+      - 開發環境：使用 ngrok 產生臨時 HTTPS URL
+        ```bash
+        ngrok http 8000
+        # 將產生的 URL 填入，例如 https://xxxx.ngrok.io/webhook
+        ```
+   3. 開啟 **Use webhook**，點擊 **Verify** 確認連通。
+   4. 關閉 **Auto-reply messages**，避免與 AI 回覆衝突。
+
 ## 相關文件 (Documentation)
 - [系統架構與設計文件](docs/05_architecture_and_design_document.md)
 - [開發工作流手冊](docs/01_development_workflow_cookbook.md)
