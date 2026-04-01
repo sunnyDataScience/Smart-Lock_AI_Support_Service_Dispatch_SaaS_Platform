@@ -416,6 +416,48 @@ agent/scripts/
 └── mock_api.py                         # Mock API server (測試用)
 ```
 
+### 4.10 V2.0 模組規劃 (dispatch/ pricing/ accounting/)
+
+V2.0 在 `agent/` 同一 FastAPI 進程內新增 3 個 bounded context，**不拆微服務**。
+
+```plaintext
+agent/
+├── graph/                       # V1.0 (不動)
+├── agents/                      # V1.0 (不動)
+├── harness/                     # V1.0 (不動)
+│
+├── dispatch/                    # V2.0 NEW ── 派工引擎
+│   ├── __init__.py
+│   ├── engine.py                #   TechnicianMatcher: skill × region × rating 匹配
+│   ├── models.py                #   WorkOrder, Assignment, TechnicianProfile dataclass
+│   ├── notifications.py         #   LINE Push + WebSocket 通知
+│   └── routes.py                #   FastAPI router: /api/v2/work-orders/*
+│
+├── pricing/                     # V2.0 NEW ── 計價引擎
+│   ├── __init__.py
+│   ├── engine.py                #   PriceRule 查詢 + 加成計算 (night/holiday/remote)
+│   ├── models.py                #   PriceRule, Quotation dataclass
+│   └── routes.py                #   FastAPI router: /api/v2/pricing/*
+│
+├── accounting/                  # V2.0 NEW ── 帳務模組
+│   ├── __init__.py
+│   ├── invoicing.py             #   Invoice CRUD
+│   ├── settlement.py            #   月結對帳 + Reconciliation 批次
+│   ├── models.py                #   Invoice, Reconciliation, Settlement dataclass
+│   └── routes.py                #   FastAPI router: /api/v2/accounting/*
+│
+├── app.py                       # FastAPI: V1 webhook + V2 routers mount
+└── config.toml                  # 新增 [dispatch] [pricing] [accounting] sections
+```
+
+**V1↔V2 整合點**：`tools/transfer_human.py` 觸發 L3 escalation → `dispatch/engine.py` 建立 WorkOrder（FK → ProblemCard）。
+
+**模組邊界規則**：
+- dispatch/ 可讀取 `harness/task/problem_card.py` 的 ProblemCard
+- pricing/ 只讀取 `config.toml` 的 PriceRule 設定
+- accounting/ 只讀取 WorkOrder + Invoice，不碰 LangGraph state
+- 三個模組**不互相 import**，透過 DB 和 event 解耦
+
 ---
 
 ## 5. 前端目錄詳解 (frontend/) - V2.0
@@ -806,57 +848,47 @@ ORDER_API_TOKEN=your-bearer-token
 ### 9.1 版本演進路線
 
 ```plaintext
-V1.0 (LINE Bot + Admin API)              V2.0 (+ 技師工作台 + 派工/報價/對帳)
+V1.0 (AI 客服)                           V2.0 (+ 派工/報價/對帳)
 ================================          ====================================
 
-smart-lock-platform/                      smart-lock-platform/
-├── backend/                              ├── backend/
-│   └── src/smart_lock/                   │   └── src/smart_lock/
-│       ├── domains/                      │       ├── domains/
-│       │   ├── conversation/             │       │   ├── conversation/
-│       │   ├── problem_card/             │       │   ├── problem_card/
-│       │   ├── knowledge_base/           │       │   ├── knowledge_base/
-│       │   └── resolution/               │       │   ├── resolution/
-│       ├── application/                  │       │   ├── dispatch/        [NEW]
-│       │   ├── conversation/             │       │   ├── pricing/         [NEW]
-│       │   ├── problem_card/             │       │   └── accounting/      [NEW]
-│       │   ├── knowledge_base/           │       ├── application/
-│       │   └── resolution/               │       │   ├── ...existing...
-│       └── infrastructure/               │       │   ├── dispatch/        [NEW]
-│           ├── web/routers/              │       │   ├── pricing/         [NEW]
-│           ├── persistence/              │       │   └── accounting/      [NEW]
-│           ├── external/                 │       └── infrastructure/
-│           └── cache/                    │           ├── web/routers/
-├── configs/                              │           │   ├── ...existing...
-├── data/                                 │           │   ├── work_orders.py    [NEW]
-├── scripts/                              │           │   ├── technicians.py    [NEW]
-├── docs/                                 │           │   ├── quotations.py     [NEW]
-└── docker-compose.yml                    │           │   └── accounting.py     [NEW]
-                                          │           └── ...existing...
-   (無 frontend/ 目錄)                    ├── frontend/                    [NEW]
-                                          │   └── src/
-                                          │       ├── app/
-                                          │       ├── components/
-                                          │       └── lib/
-                                          └── docker-compose.yml (新增 frontend service)
+agent/                                    agent/
+├── graph/          (LangGraph 7-node)    ├── graph/          (不動)
+├── agents/         (7 agents)            ├── agents/         (不動)
+├── harness/        (Phase 0 skeleton)    ├── harness/        (Phase 1-6 啟用)
+├── tools/          (7 retrievers)        ├── tools/          (不動)
+├── core/           (config, LINE, etc)   ├── core/           (不動)
+├── llms/                                 ├── llms/           (不動)
+├── memory/                               ├── memory/         (不動)
+├── profiles/                             ├── profiles/       (不動)
+├── storage/                              ├── storage/        (不動)
+├── app.py          (webhook only)        ├── dispatch/       [NEW] 派工引擎
+├── config.toml     (14 sections)         ├── pricing/        [NEW] 計價引擎
+└── (無 frontend)                         ├── accounting/     [NEW] 帳務模組
+                                          ├── app.py          (webhook + V2 routers)
+                                          ├── config.toml     (17+ sections)
+                                          └── frontend/       [NEW] Next.js PWA
 ```
+
+**關鍵原則**：V1.0 的 graph/ + agents/ + harness/ **完全不動**。V2.0 是**新增目錄**，不是修改現有結構。
 
 ### 9.2 新增模組的標準流程
 
-當需要新增一個業務模組（例如「通知中心」）時，遵循以下步驟：
+當需要新增一個業務模組（例如 V2.0 的 `dispatch/`）時：
 
-1. **建立 Domain 層：** `backend/src/smart_lock/domains/notification/`
-   - `entities.py` - 定義核心實體
-   - `value_objects.py` - 定義值物件
+1. **建立模組目錄**：`agent/dispatch/`
+   - `__init__.py`
+   - `engine.py` — 核心業務邏輯
+   - `models.py` — Pydantic/dataclass 資料模型
+   - `routes.py` — FastAPI router（掛載到 `app.py`）
 
-2. **建立 Application 層：** `backend/src/smart_lock/application/notification/`
-   - `use_cases.py` - 定義業務用例
-   - `dtos.py` - 定義資料傳輸物件
-   - `interfaces.py` - 定義 Repository Protocol
+2. **新增設定 section**：`config.toml [dispatch]`
+   - 所有行為參數外部化
+   - `enabled = false` 預設，開關可控
 
-3. **建立 Infrastructure 層：**
-   - `infrastructure/web/routers/notifications.py` - API 端點
-   - `infrastructure/persistence/orm_models/notification_model.py` - ORM 模型
+3. **建立資料庫 migration**：`SQL/` 新增 DDL
+   - FK 連結到既有實體（如 `work_orders.problem_card_id → problem_cards.card_id`）
+
+4. **掛載 Router**：`app.py` 新增 `app.include_router(dispatch_router, prefix="/api/v2")`
    - `infrastructure/persistence/repositories/notification_repo.py` - Repository 實作
 
 4. **建立測試：**

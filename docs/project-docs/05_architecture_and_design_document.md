@@ -644,6 +644,96 @@ GraphState 是貫穿整個工作流的共享狀態物件，定義於 `graph/stat
 4. 未來同類問題可被 Agent 直接檢索命中
 ```
 
+### 3.6 V1↔V2 整合架構：ProblemCard → WorkOrder 資料橋接
+
+V1.0（AI 客服）與 V2.0（派工/帳務）透過 **ProblemCard** 作為資料橋接點。當 AI 三層解決引擎判斷為 L3（需派工）時，系統啟動 Dispatch Pipeline。
+
+#### 資料橋接流程
+
+```mermaid
+flowchart TB
+    subgraph V1["V1.0 AI Customer Service (agent/)"]
+        LINE["LINE 用戶訊息"] --> GRAPH["LangGraph StateGraph"]
+        GRAPH --> L1_3["L1/L2 Resolution<br/>(自助解決)"]
+        GRAPH --> L3["L3 Escalation<br/>(需要派工)"]
+        GRAPH --> PC["ProblemCard<br/>status=escalated<br/>domain_attributes JSONB"]
+    end
+
+    subgraph BRIDGE["資料橋接點"]
+        PC -->|"FK: problem_card_id"| WO["WorkOrder<br/>status=created"]
+    end
+
+    subgraph V2["V2.0 Dispatch & Accounting"]
+        WO --> DISPATCH["Dispatch Engine<br/>技師匹配 (skill × region × rating)"]
+        DISPATCH --> PRICING["Pricing Engine<br/>報價 (brand × lock_type × difficulty)"]
+        PRICING --> NOTIFY["Push Notification<br/>技師接單池"]
+        NOTIFY --> ACCEPT["技師接單<br/>WorkOrder.status=accepted"]
+        ACCEPT --> COMPLETE["完工回報<br/>photos + GPS + materials"]
+        COMPLETE --> INVOICE["Invoice 生成"]
+        INVOICE --> SETTLE["月結對帳<br/>Reconciliation"]
+    end
+
+    ACCEPT -->|"LINE Push"| LINE2["通知用戶：技師已出發"]
+
+    style V1 fill:#f3e5f5,stroke:#7b1fa2
+    style BRIDGE fill:#fff3e0,stroke:#e65100
+    style V2 fill:#e8f5e9,stroke:#2e7d32
+```
+
+#### L3 Escalation 原子事務
+
+當 `transfer_to_human` 工具被觸發時，系統在**單一 database transaction** 中完成：
+
+```python
+async with db.begin():
+    # 1. ProblemCard 狀態更新
+    problem_card.status = "escalated"
+    problem_card.resolution_level = "L3_escalation"
+
+    # 2. 建立 WorkOrder (FK → ProblemCard)
+    work_order = WorkOrder(
+        problem_card_id=problem_card.card_id,
+        customer_user_id=problem_card.user_id,
+        description=problem_card.symptom_summary,
+        domain_attributes=problem_card.domain_attributes,  # 繼承 JSONB
+        estimated_price=await pricing_engine.estimate(problem_card),
+    )
+
+    # 3. 技師匹配 (async, 不阻塞 transaction)
+    candidates = await dispatch_engine.match(work_order)
+
+    # 4. 建立 Assignment 候選 (batch insert)
+    assignments = [Assignment(work_order_id=work_order.id, technician_id=t.id) for t in candidates[:5]]
+```
+
+事務失敗時 ProblemCard 狀態不變（仍為 diagnosing），用戶看到「正在尋找技師」的 LINE 訊息。
+
+#### V1↔V2 共享資料模型
+
+| 實體 | V1.0 寫入 | V2.0 讀取/寫入 | 橋接欄位 |
+|---|---|---|---|
+| **ProblemCard** | 建立、填充 domain_attributes | 讀取 symptom + domain_attributes → 建立 WorkOrder | `card_id` (PK) |
+| **User** | LINE 綁定、profile 更新 | 技師角色擴展、RBAC | `user_id` + `role` enum |
+| **User_Facts** | phone, address, device_model | technician skill, service_region | `attr_key` 擴展 |
+| **Audit_Log** | 對話記錄 | 派工記錄、計價記錄 | `log_type` 擴展 |
+
+#### 架構決策：為什麼不拆微服務
+
+| 評估面向 | Monolith | Microservices | 結論 |
+|---|---|---|---|
+| **Concurrent users** | 100 (目標) vs 2000+ (容量) | 每服務需獨立 infra + 運維 | 容量富餘 20 倍，**不需拆** |
+| **團隊規模** | 1-3 人 | 每服務至少 1 人維護 | 人力不足，**不能拆** |
+| **資料一致性** | Single DB transaction | 分散式事務 (Saga pattern) | L3 escalation 需原子性，**不該拆** |
+| **部署複雜度** | 1 container + 1 DB + 1 Redis | N containers + service mesh + API gateway | 運維成本高，**不值得拆** |
+| **開發效率** | 共用 model / config / harness | 重複定義 schema + 跨服務 API | Monolith 快 3-5 倍 |
+
+**拆分觸發條件**（未來評估）：
+1. Concurrent users 穩定超過 **500** 且不同模組 scaling profile 明顯不同
+2. 團隊超過 **8 人** 且各組之間的 merge conflict 頻繁
+3. Dispatch 的 P99 延遲超過 **5 秒** 且已完成 async + cache 優化仍不足
+
+在這三個條件**同時成立**之前，monolith 是正確選擇。
+
 ---
 
 ## 第 4 部分：技術選型詳述
@@ -1370,6 +1460,40 @@ START → pre_process → manage_memory → task_decompose → context_assemble
 | **Pricing Engine** | Python + PostgreSQL | 品牌 × 鎖型 × 難度計價規則 |
 | **Accounting Module** | Python + PostgreSQL | Invoice/Voucher CRUD，月度報表匯出 |
 | **Admin Panel 遷移** | Next.js (取代 Jinja2+HTMX) | 統一前端技術棧 |
+
+**V2.0 架構方針：Modular Monolith**
+
+V2.0 在 `agent/` 同一 FastAPI 進程內新增 3 個 bounded context（dispatch / pricing / accounting），共享 PostgreSQL + Redis，透過模組邊界而非網路邊界隔離。
+
+```
+agent/
+├── graph/                   # V1.0 LangGraph (不動)
+├── agents/                  # V1.0 7 Agents (不動)
+├── harness/                 # V1.0 Harness (不動)
+├── dispatch/                # V2.0 NEW: 派工引擎
+│   ├── engine.py            #   技師匹配算法
+│   ├── models.py            #   WorkOrder, Assignment dataclass
+│   └── notifications.py     #   Push notification (LINE + WebSocket)
+├── pricing/                 # V2.0 NEW: 計價引擎
+│   ├── engine.py            #   PriceRule 查詢 + 加成計算
+│   └── models.py            #   PriceRule, Quotation dataclass
+├── accounting/              # V2.0 NEW: 帳務模組
+│   ├── invoicing.py         #   Invoice CRUD
+│   ├── settlement.py        #   月結對帳
+│   └── models.py            #   Invoice, Reconciliation dataclass
+└── app.py                   # FastAPI: 新增 V2 REST routers
+```
+
+**V1→V2 整合點**：`transfer_to_human` 工具觸發 L3 escalation → `dispatch/engine.py` 建立 WorkOrder（詳見 §3.6）。
+
+**Performance 保證** (100 concurrent)：
+
+| 瓶頸 | 緩解策略 |
+|---|---|
+| DB 連線耗盡 | SQLAlchemy pool_size=20-30, pgbouncer 備案 |
+| 技師匹配延遲 | `asyncio.gather()` 平行評分，不用 sequential loop |
+| 報價查詢熱點 | Redis 快取 PriceRule (TTL 1hr) |
+| 月結批次壓力 | 排程背景任務 (不在 request path)，read replica 分流 |
 
 **護城河對齊 (M2)**：派工數據啟動 Moat C（標準化定價引擎）、Moat G（技師行為數據）。
 
