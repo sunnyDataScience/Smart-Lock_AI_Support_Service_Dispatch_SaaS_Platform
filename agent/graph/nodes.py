@@ -279,8 +279,13 @@ async def router(state: GraphState, config: RunnableConfig):
             seen.add(t)
 
     if not targets:
-        targets = ["product_expert"]
-        print("  [router] 無有效意圖，fallback 到 product_expert")
+        # Fallback to receptionist (or first configured agent if receptionist not found)
+        fallback = "receptionist"
+        agent_names = {a["name"] for a in AGENTS_CONFIG}
+        if fallback not in agent_names and agent_names:
+            fallback = next(iter(agent_names))
+        targets = [fallback]
+        print(f"  [router] 無有效意圖，fallback 到 {fallback}")
 
     # out_of_domain 不與其他意圖混合
     if "out_of_domain" in targets:

@@ -371,3 +371,61 @@ merger          = "agents/prompts/merge_answers.md"
 profile_updater = "agents/prompts/update_profile.md"
 transfer_form   = "agents/prompts/transfer_human_form.md"
 rewriter        = "agents/prompts/rewrite_query.md"
+# Harness layer prompts (Phase 2+)
+task_decomposer  = "harness/task/prompts/decompose_task.md"
+answer_evaluator = "harness/feedback/prompts/evaluate_answer.md"
+sop_generator    = "harness/entropy/prompts/generate_sop.md"
+
+
+# ==========================================
+# 14. Agent Harness Framework Settings
+# ==========================================
+# All layers default to disabled -- existing flow unaffected.
+# Enable incrementally per phase as implementation completes.
+
+[harness]
+enabled = false                          # Master switch for all harness layers
+
+[harness.task]
+# L1: Task Representation
+decompose_enabled = false                # Enable task_decompose node
+problem_card_intents = ["hardware_tech", "app_support"]   # Intents that trigger ProblemCard
+max_subtasks = 3                         # Cap subtask count
+
+[harness.task.domain_schema]
+# Domain-specific fields stored in ProblemCard.domain_attributes (JSONB).
+# Change these when switching to a different vertical domain.
+# e.g. home appliance: fields = ["appliance_brand", "appliance_model", "purchase_date", "warranty_status"]
+fields = ["device_brand", "device_model", "door_type", "fault_category"]
+
+[harness.context]
+# L2: Context Assembly
+token_budget = 4096                      # Max tokens for assembled context
+freshness_threshold_days = 90            # Sources older than this get low score
+
+[harness.governance]
+# L3: Tool Governance
+lazy_loading = false                     # Future: only load tools agent needs
+risk_levels = {transfer_to_human = "escalate", db_video = "read", db_line_chat = "read", db_website = "read", db_youtube = "read", db_manuals = "read", db_order_api = "read", db_web_search = "read"}
+
+[harness.feedback]
+# L5: Feedback & Verification
+verify_enabled = false                   # Enable verify_answer node
+quality_threshold = 0.6                  # Min score to pass (0.0~1.0)
+max_retry = 1                            # Max feedback retry count
+
+[harness.safety]
+# L6: Safety & Control
+dangerous_instruction_keywords = ["拆開電路板", "剪斷電線", "短路", "破壞鎖體"]
+audit_enabled = false                    # Enable tool audit trail
+
+[harness.observability]
+# L7: Observability
+trace_enabled = false                    # Enable @traced decorator
+metrics_backend = "postgres"             # "postgres" | "stdout"
+
+[harness.entropy]
+# L8: Entropy Management
+sop_generation_enabled = false           # Enable auto-SOP from novel resolutions
+novel_resolution_threshold = 0.3         # Similarity < this triggers SOP candidate
+staleness_check_interval_hours = 168     # Weekly freshness scan

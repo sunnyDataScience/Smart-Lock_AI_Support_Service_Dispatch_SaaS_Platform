@@ -15,7 +15,21 @@ def _add_or_reset(left, right):
     return (left or []) + (right or [])
 
 
+def _merge_dict(left, right):
+    """Reducer: deep-merge two dicts; right overwrites left on key collision.
+
+    Harness layer sub-states use this so nodes can incrementally update
+    individual fields without clobbering sibling keys.
+    """
+    if right is None:
+        return left
+    merged = (left or {}).copy()
+    merged.update(right)
+    return merged
+
+
 class GraphState(TypedDict):
+    # === Core fields (unchanged) ===
     messages: Annotated[list, add_messages]   # Agent 對話歷史（LLM + Tool messages）
     question: Annotated[str, _keep_last]      # 原始使用者輸入
     user_profile: Annotated[str, _keep_last]  # 使用者輪廓
@@ -25,3 +39,11 @@ class GraphState(TypedDict):
     next_agents: Annotated[list, _keep_last]    # 多 agent 派發清單
     ui_hints: Annotated[list, _add_or_reset]       # UI metadata（平行分支匯流自動合併）
     response_ui: Annotated[list, _keep_last]      # 最終 LINE Message 物件
+
+    # === Harness layer fields (Phase 0) ===
+    # All default to {} -- existing nodes never read/write these, zero breakage.
+    task: Annotated[dict, _merge_dict]           # L1: {goal, subtasks, problem_card_id, attempt_count}
+    context_meta: Annotated[dict, _merge_dict]   # L2: {freshness_scores, relevance_weights, budget_used}
+    feedback: Annotated[dict, _merge_dict]       # L5: {verification_status, quality_scores, retry_adjustments}
+    safety: Annotated[dict, _merge_dict]         # L6: {permission_level, audit_trail, flagged_risks}
+    entropy: Annotated[dict, _merge_dict]        # L8: {novel_resolution, sop_candidates}
