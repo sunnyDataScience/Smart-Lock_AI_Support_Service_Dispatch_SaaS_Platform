@@ -339,10 +339,15 @@ Smart Lock Platform (/)
 │  │  └─ ← /conversations (返回列表)
 │  │
 │  ├─ 5. /problem-cards                      [問題卡列表]
-│  │  ├─ Query: ?status={open|in_progress|resolved|escalated}&brand={brand}&cursor={cursor}
+│  │  ├─ Query: ?status={open|diagnosing|resolved|escalated}&category={category}&cursor={cursor}
+│  │  ├─ NOTE: ProblemCard 使用 domain-agnostic 設計，domain_attributes 為 JSONB
+│  │  │        前端需動態渲染欄位（由 config 定義，非固定 brand/model 欄位）
 │  │  └─ → /problem-cards/{id} (點擊查看)
 │  │
 │  ├─ 6. /problem-cards/{id}                 [問題卡詳情]
+│  │  ├─ Core fields: symptom_summary, category, completeness_score, status
+│  │  ├─ Domain fields: 動態渲染 domain_attributes JSONB（如 device_brand, device_model, door_type）
+│  │  ├─ Resolution: attempts[] 時間軸 + resolution_summary
 │  │  ├─ → /conversations/{conv_id} (查看關聯對話)
 │  │  ├─ → /work-orders/{wo_id} (查看關聯工單, V2.0)
 │  │  └─ ← /problem-cards (返回列表)
@@ -1671,7 +1676,7 @@ export const config = {
 |:-----|:-----|:-----|
 | **信息架構** | Information Architecture (IA) | 組織、結構化和標記內容的藝術與科學 |
 | **ProblemCard** | Problem Card | 一次客服對話的結構化問題描述卡 |
-| **三層解決引擎** | Three-Layer Resolution Engine | L1 案例庫向量搜尋 → L2 RAG → L3 人工轉接 |
+| **三層解決機制** | Three-Layer Resolution Engine | L1 案例庫向量搜尋 → L2 RAG → L3 人工轉接 |
 | **案件池** | Case Pool | 技師端可接案件的即時更新列表 |
 | **SOP 草稿** | SOP Draft | AI 從成功對話中自動生成的標準作業程序草稿 |
 | **Cursor-based 分頁** | Cursor-based Pagination | 使用游標而非偏移量的分頁方式，效能更穩定 |

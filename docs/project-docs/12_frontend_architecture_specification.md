@@ -247,7 +247,7 @@ graph TB
 
 | 方案類別 | 選用技術 | 選用原因 |
 |:---------|:---------|:---------|
-| **組件框架** | React 18+ (RSC) via Next.js 14+ | Server Components 減少 JS 體積、App Router Layout 機制、生態系統最豐富 |
+| **組件框架** | React 19 (RSC) via Next.js 14+ | Server Components 減少 JS 體積、App Router Layout 機制、生態系統最豐富 |
 | **樣式方案** | Tailwind CSS 3.4+ | 零運行時開銷、設計令牌一致性、Utility-First 加速開發、完美支援 RSC |
 | **組件庫** | shadcn/ui | Headless + Radix UI 基礎、原始碼可控、A11y 內建、與 Tailwind 完美整合 |
 | **動畫庫** | Framer Motion | React 生態最佳動畫庫、Layout Animation、手勢支援（技師端滑動操作） |
@@ -1683,6 +1683,20 @@ jobs:
 ## 第八部分：前後端協作契約
 
 ### 8.1 API 通訊規範
+
+**後端 API 來源架構：**
+
+前端所有 API 請求統一由 `agent/app.py` (FastAPI) 提供，分兩個版本路由：
+
+| API 群組 | Base URL | 後端來源 | 版本 |
+|:---|:---|:---|:---|
+| LINE Webhook | `POST /webhook` | `agent/app.py` (LINE 事件處理) | V1.0 |
+| Admin API | `/api/v1/*` | `agent/app.py` (知識庫、對話、ProblemCard CRUD) | V1.0 |
+| Dispatch API | `/api/v2/work-orders/*` | `agent/dispatch/routes.py` | V2.0 |
+| Pricing API | `/api/v2/pricing/*` | `agent/pricing/routes.py` | V2.0 |
+| Accounting API | `/api/v2/accounting/*` | `agent/accounting/routes.py` | V2.0 |
+
+> **注意**：後端為 Modular Monolith（單一 FastAPI 進程），V2.0 的 dispatch/pricing/accounting 為獨立模組但共享同一資料庫。詳見 `docs/project-docs/08_project_structure_guide.md §4.10`。
 
 **TypeScript 型別定義（映射後端 DTO）：**
 
