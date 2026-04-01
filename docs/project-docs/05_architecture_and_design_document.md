@@ -4,8 +4,8 @@
 
 ---
 
-**文件版本 (Document Version):** `v1.0`
-**最後更新 (Last Updated):** `2026-02-17`
+**文件版本 (Document Version):** `v2.0`
+**最後更新 (Last Updated):** `2026-04-01`
 **主要作者 (Lead Author):** `技術架構師`
 **審核者 (Reviewers):** `架構委員會, 核心開發團隊`
 **狀態 (Status):** `已批准 (Approved)`
@@ -17,7 +17,7 @@
 - [第 1 部分：架構總覽](#第-1-部分架構總覽)
   - [1.1 C4 模型：視覺化架構](#11-c4-模型視覺化架構)
   - [1.2 DDD 戰略設計](#12-ddd-戰略設計)
-  - [1.3 Clean Architecture 分層](#13-clean-architecture-分層)
+  - [1.3 五層 Agent 架構分層](#13-五層-agent-架構分層)
   - [1.4 技術選型與決策](#14-技術選型與決策)
 - [第 2 部分：需求摘要](#第-2-部分需求摘要)
   - [2.1 功能性需求摘要](#21-功能性需求摘要)
@@ -301,54 +301,50 @@ graph LR
 | Dispatch -> CustomerService | Anti-Corruption Layer | 派工上下文透過防腐層轉譯客服上下文的 ProblemCard，避免領域模型耦合 |
 | 所有上下文 -> UserManagement | Conformist | 所有上下文遵循 UserManagement 定義的身分與權限模型 |
 
-### 1.3 Clean Architecture 分層
+### 1.3 五層 Agent 架構分層
 
-系統遵循 Clean Architecture 原則，確保關注點分離。依賴方向嚴格由外而內：Infrastructure -> Application -> Domain。
+V1.0 實際採用 **LangGraph 多 Agent 架構**（`agent/` 目錄），以 config-driven composition 取代傳統 Clean Architecture。依賴方向由外而內：Interface → Graph → Agent → Harness → Infrastructure。
 
-```mermaid
-graph TB
-    subgraph "Clean Architecture Layers"
-        subgraph "Infrastructure Layer (基礎設施層) - 最外層"
-            CTRL["Web Controllers<br/>LINE Webhook Handler<br/>REST API Routes"]
-            REPOIMPL["Repository Implementations<br/>SQLAlchemy Models & Repos<br/>pgvector Search Implementation"]
-            EXTAPI["External API Clients<br/>LangChain/Google AI Client<br/>LINE SDK Adapter"]
-            CACHE["Cache Implementation<br/>Redis Client"]
-        end
+```
+┌─────────────────────────────────────────────────┐
+│  1. Interface Layer                              │
+│     app.py (FastAPI webhook)  main.py (CLI)     │
+├─────────────────────────────────────────────────┤
+│  2. Graph Layer                                  │
+│     graph/state.py   graph/builder.py            │
+│     graph/nodes.py   (StateGraph orchestration)  │
+├─────────────────────────────────────────────────┤
+│  3. Agent Layer                                  │
+│     agents/__init__.py  (7 agent subgraphs)      │
+│     agents/prompts/     (13 prompt templates)    │
+├─────────────────────────────────────────────────┤
+│  4. Harness Layer  (Phase 0 — all disabled)      │
+│     harness/task/       L1 Task Representation   │
+│     harness/context/    L2 Context Assembly      │
+│     harness/governance/ L3 Tool Governance       │
+│     harness/feedback/   L5 Feedback Loop         │
+│     harness/safety/     L6 Safety Gate           │
+│     harness/observability/ L7 Tracing            │
+│     harness/entropy/    L8 Entropy Management    │
+├─────────────────────────────────────────────────┤
+│  5. Infrastructure Layer                         │
+│     tools/  llms/  embeddings/  memory/          │
+│     profiles/  storage/  core/                   │
+└─────────────────────────────────────────────────┘
 
-        subgraph "Application Layer (應用層) - 中間層"
-            UC["Use Cases / Application Services<br/>ConversationService<br/>ProblemCardService<br/>ResolutionService<br/>KnowledgeBaseService<br/>DispatchService (V2.0)<br/>PricingService (V2.0)"]
-            DTO["DTOs / Request-Response Models<br/>Pydantic Schemas<br/>API Models"]
-            IFACE["Port Interfaces (Abstractions)<br/>IConversationRepository<br/>ICaseEntryRepository<br/>ILLMGateway<br/>ILineMessenger"]
-        end
-
-        subgraph "Domain Layer (領域層) - 最內層"
-            ENTITIES["Entities & Aggregates<br/>ProblemCard (Aggregate Root)<br/>Conversation (Aggregate Root)<br/>WorkOrder (Aggregate Root, V2.0)<br/>CaseEntry, ManualChunk<br/>Technician, PriceRule"]
-            VO["Value Objects<br/>LockModel, Location<br/>DoorStatus, NetworkStatus<br/>Symptom, ResolutionLevel<br/>WorkOrderStatus"]
-            DE["Domain Events<br/>ProblemCardCompleted<br/>ResolutionFound<br/>EscalatedToHuman<br/>WorkOrderAssigned (V2.0)<br/>ServiceCompleted (V2.0)"]
-            DS["Domain Services<br/>ThreeLayerResolutionPolicy<br/>TechnicianMatchingPolicy (V2.0)<br/>PriceCalculationPolicy (V2.0)"]
-        end
-    end
-
-    CTRL --> UC
-    REPOIMPL -.->|implements| IFACE
-    EXTAPI -.->|implements| IFACE
-    CACHE -.->|implements| IFACE
-    UC --> IFACE
-    UC --> DTO
-    UC --> ENTITIES
-    UC --> DE
-    ENTITIES --> VO
-    DS --> ENTITIES
-    DS --> VO
+依賴方向：Interface → Graph → Agent → Harness → Infrastructure
+          （外層可依賴內層，反向禁止）
 ```
 
-**各層職責明確定義：**
+**各層職責定義：**
 
-| 層 (Layer) | 職責 | 包含元素 | 依賴規則 |
+| 層 (Layer) | 職責 | 關鍵檔案 | 依賴規則 |
 | :--- | :--- | :--- | :--- |
-| **Domain Layer** | 核心業務規則與邏輯，完全不依賴任何外部框架 | Entities, Value Objects, Domain Events, Domain Services | 不依賴任何其他層 |
-| **Application Layer** | 編排業務用例流程，定義 Port 抽象介面 | Use Cases, DTOs, Port Interfaces | 僅依賴 Domain Layer |
-| **Infrastructure Layer** | 實現所有外部整合的具體細節 | Controllers, Repository Impls, API Clients, Cache | 依賴 Application Layer（實現 Port Interfaces） |
+| **Interface** | 接收外部請求（LINE Webhook / CLI），啟動 Graph 執行 | `app.py`, `main.py` | 僅呼叫 Graph Layer |
+| **Graph** | StateGraph 工作流編排，定義節點順序與條件路由 | `graph/builder.py`, `graph/state.py`, `graph/nodes.py` | 依賴 Agent + Infrastructure |
+| **Agent** | 7 個專業 Agent 子圖，各自持有 prompt + tools 組合 | `agents/__init__.py`, `agents/prompts/` | 依賴 Infrastructure（tools, llms） |
+| **Harness** | 8 層運行時框架：任務拆解、上下文裝配、安全閘門、品質驗證、熵管理 | `harness/` 各子目錄 | 依賴 Infrastructure |
+| **Infrastructure** | LLM 供應商、向量檢索、記憶體、使用者輪廓、審計日誌、設定載入 | `tools/`, `llms/`, `embeddings/`, `memory/`, `profiles/`, `storage/`, `core/` | 最內層，不依賴其他層 |
 
 ### 1.4 技術選型與決策
 
@@ -448,48 +444,16 @@ graph TB
 
 ### 3.1 架構模式
 
-**選定模式：** Modular Monolith (V1.0) -> Microservices-ready (V2.0)
+V1.0 採用四種架構模式的組合：
 
-**選擇理由：**
+| 模式 | 實作方式 | 選擇理由 |
+| :--- | :--- | :--- |
+| **Modular Monolith** | `config.toml` 14 個 section 驅動組合，所有模組共享同一 Python process | 小型團隊（1-3 人），Docker Compose 單機部署，模組透過設定檔 enable/disable |
+| **Event-Driven** | LangGraph `StateGraph` + Debounce buffer（`[debounce] buffer_wait=5s`） | LINE 訊息非同步處理，多則訊息自動合併後再觸發 Graph 執行 |
+| **ReAct Pattern** | Agent 子圖內 `agent_llm ↔ tool_node` 迴圈，直到 LLM 不再呼叫工具為止 | 每個 Agent 自主決定何時查詢知識庫、何時直接回答 |
+| **Fan-out / Fan-in** | `Send()` 平行派發至多個 Agent 子圖，`merge_answers` 節點匯流 | Router 可能同時派發 2+ Agent（如硬體問題同時需要技術 + 說明書） |
 
-V1.0 採用 **Modular Monolith**（模組化單體）而非微服務，基於以下考量：
-
-1. **團隊規模匹配**：小型團隊（1-3 人），微服務的分散式複雜度遠超收益
-2. **部署簡單性**：Docker Compose 單機部署，無需 K8s 等編排系統
-3. **開發效率**：模組間可直接呼叫，無需處理服務間通信、分散式事務等問題
-4. **V2.0 平滑升級**：透過 Clean Architecture 嚴格的分層與介面抽象，V2.0 新模組（Dispatch, Accounting）可作為新的 Python package 直接加入，或在需要時拆為獨立服務
-
-**模組化策略：**
-
-```
-src/
-  smartlock/
-    customer_service/     # 客服限界上下文 (V1.0)
-      domain/
-      application/
-      infrastructure/
-    knowledge_base/       # 知識庫限界上下文 (V1.0)
-      domain/
-      application/
-      infrastructure/
-    user_management/      # 使用者管理上下文 (V1.0)
-      domain/
-      application/
-      infrastructure/
-    dispatch/             # 派工限界上下文 (V2.0)
-      domain/
-      application/
-      infrastructure/
-    accounting/           # 帳務限界上下文 (V2.0)
-      domain/
-      application/
-      infrastructure/
-    shared/               # 共享核心
-      domain/             # 共用 Value Objects
-      infrastructure/     # 共用基礎設施 (DB, Cache, LLM)
-```
-
-每個限界上下文是一個獨立的 Python package，有明確的對外介面（Application Service），禁止跨上下文直接存取 Domain 層或 Infrastructure 層。
+**Config-driven 組合策略：** 新增 Agent 僅需 (1) 新增 prompt `.md` 檔、(2) 在 `config.toml` 新增 `[[agents]]` + `[[intents]]` 項目，無需修改核心程式碼。
 
 ### 3.2 系統上下文圖
 
@@ -497,209 +461,187 @@ src/
 
 ### 3.3 系統組件圖
 
-以下展示整體系統的高層組件互動，包含 V1.0 與 V2.0 的完整視圖：
+以下展示 V1.0 LangGraph 架構的實際組件互動：
 
 ```mermaid
 graph TB
     subgraph "User Interfaces"
         LINE_APP["LINE App<br/>(一般用戶)"]
-        TECH_WEB["Technician Web App<br/>(V2.0 - Next.js)"]
-        ADMIN_WEB["Admin Panel<br/>(V1.0: Jinja2+HTMX<br/>V2.0: Next.js)"]
+        CLI["main.py CLI<br/>(開發測試)"]
     end
 
     subgraph "External Services"
-        LINE_MsgAPI["LINE Messaging API"]
-        Google_AI_API["Google AI API<br/>(Gemini 3 Pro + Embeddings)"]
+        LINE_API["LINE Messaging API"]
+        VERTEX["Vertex AI<br/>(Gemini 2.5 Flash<br/>+ text-embedding-004)"]
     end
 
-    subgraph "Application Core (FastAPI)"
+    subgraph "LangGraph StateGraph"
+        direction TB
 
-        subgraph "Interface Adapters"
-            WEBHOOK["LINE Webhook<br/>Handler"]
-            REST_API["REST API<br/>Controllers"]
-            WS["WebSocket<br/>(V2.0 即時通知)"]
+        subgraph "Head Nodes (graph/nodes.py)"
+            PP["pre_process"]
+            MM["manage_memory"]
+            RT["router"]
+            MA["merge_answers"]
+            UP["update_profile"]
+            PO["post_process"]
         end
 
-        subgraph "V1.0 Modules"
-            CONV["Conversation<br/>Manager"]
-            PCARD["ProblemCard<br/>Engine"]
-            RESOLVER["Three-Layer<br/>Resolver"]
-            KB["Knowledge Base<br/>Manager"]
-            SOP["SOP<br/>Generator"]
+        subgraph "Harness Nodes (Phase 0 — disabled)"
+            TD["task_decompose"]
+            CA["context_assemble"]
+            SG["safety_gate"]
+            VA["verify_answer"]
+            EC["entropy_check"]
         end
 
-        subgraph "V2.0 Modules"
-            DISPATCH["Dispatch<br/>Engine"]
-            PRICING["Pricing<br/>Engine"]
-            ACCOUNT["Accounting<br/>Module"]
+        subgraph "Agent Subgraphs (agents/)"
+            HW["hardware_technician"]
+            SR["sales_representative"]
+            SA["store_assistant"]
+            AS["app_specialist"]
+            ML["manual_librarian"]
+            WR["web_researcher"]
+            RC["receptionist"]
         end
+    end
 
-        subgraph "Shared Infrastructure"
-            LLM_GW["LLM Gateway<br/>(LangChain)"]
-            LINE_SDK["LINE SDK<br/>Adapter"]
-            AUTH["Auth<br/>Module"]
-        end
+    subgraph "Tools Layer (tools/)"
+        DB_V["db_video<br/>(pgvector)"]
+        DB_L["db_line_chat<br/>(pgvector)"]
+        DB_W["db_website<br/>(pgvector)"]
+        DB_Y["db_youtube<br/>(pgvector)"]
+        DB_M["db_manuals<br/>(pgvector)"]
+        DB_WS["db_web_search<br/>(DuckDuckGo)"]
+        TH["transfer_to_human"]
     end
 
     subgraph "Data Stores"
-        PG_DB["PostgreSQL 16<br/>+ pgvector"]
-        REDIS_DB["Redis"]
+        PG["PostgreSQL 16<br/>+ pgvector"]
     end
 
-    LINE_APP --> LINE_MsgAPI
-    LINE_MsgAPI -- "Webhook" --> WEBHOOK
-    LINE_SDK --> LINE_MsgAPI
+    LINE_APP --> LINE_API
+    LINE_API -- "Webhook" --> PP
+    CLI --> PP
 
-    TECH_WEB --> REST_API
-    TECH_WEB --> WS
-    ADMIN_WEB --> REST_API
+    PP --> MM --> RT
+    RT -- "Send() fan-out" --> HW & SR & SA & AS & ML & WR & RC
+    HW & SR & SA & AS & ML & WR & RC --> MA
+    MA --> UP --> PO
 
-    WEBHOOK --> CONV
-    CONV --> PCARD
-    CONV --> RESOLVER
-    RESOLVER --> KB
-    RESOLVER --> SOP
-    RESOLVER --> DISPATCH
-    CONV --> LINE_SDK
+    HW --> DB_V
+    SR --> DB_L
+    SA --> DB_W
+    AS --> DB_Y
+    ML --> DB_M
+    WR --> DB_WS
+    RC --> TH
 
-    RESOLVER --> LLM_GW
-    PCARD --> LLM_GW
-    SOP --> LLM_GW
-    KB --> LLM_GW
-    LLM_GW --> Google_AI_API
-
-    REST_API --> KB
-    REST_API --> DISPATCH
-    REST_API --> PRICING
-    REST_API --> ACCOUNT
-    REST_API --> AUTH
-
-    DISPATCH --> PRICING
-
-    CONV --> PG_DB
-    CONV --> REDIS_DB
-    PCARD --> PG_DB
-    KB --> PG_DB
-    DISPATCH --> PG_DB
-    PRICING --> PG_DB
-    ACCOUNT --> PG_DB
-    AUTH --> PG_DB
-    AUTH --> REDIS_DB
+    DB_V & DB_L & DB_W & DB_Y & DB_M --> PG
+    HW & SR & SA & AS & ML & WR --> VERTEX
+    PO --> LINE_API
 ```
 
 ### 3.4 主要組件職責表
 
-| 組件名稱 | 核心職責 | 主要技術 | 依賴 | 階段 |
-| :--- | :--- | :--- | :--- | :--- |
-| **LINE Webhook Handler** | 接收 LINE 平台的 Webhook 回調事件，驗證 HMAC-SHA256 簽章，解析事件類型（Message, Postback, Follow），路由至對應處理器 | FastAPI, line-bot-sdk | Conversation Manager | V1.0 |
-| **Conversation Manager** | 管理對話狀態機（Idle -> Collecting -> Resolving -> Resolved/Escalated），維護多輪對話上下文，Session 超時處理（30 分鐘），訊息收發協調 | Python, Redis | ProblemCard Engine, Three-Layer Resolver, LINE SDK Adapter, Redis | V1.0 |
-| **ProblemCard Engine** | 從對話中提取結構化問題描述，AI 輔助欄位推斷（從自然語言中提取 model/location/symptoms），識別缺失欄位並產生追問訊息 | Python, LangChain | LLM Gateway, PostgreSQL | V1.0 |
-| **Three-Layer Resolver** | 依序執行三層解決機制：L1 向量搜尋 + 關鍵字匹配 -> L2 Gemini 3 Pro 推理（RAG）-> L3 轉人工/建單。記錄解決路徑供 SOP 生成使用 | Python, LangChain | Knowledge Base Manager, LLM Gateway, Dispatch Engine (V2.0) | V1.0 |
-| **Knowledge Base Manager** | CaseEntry 與 ManualChunk 的 CRUD 操作，PDF 上傳後自動分段（chunk），Embedding 批次計算與增量更新，向量搜尋介面 | Python, PyMuPDF, pgvector | LLM Gateway (Embedding), PostgreSQL + pgvector | V1.0 |
-| **SOP Generator** | 監聽「問題成功解決」事件，分析對話記錄與解決路徑，使用 Gemini 3 Pro 草擬 SOP，提交至管理員審核佇列 | Python, LangChain | LLM Gateway, PostgreSQL | V1.0 |
-| **LLM Gateway** | LangChain 封裝的 LLM 呼叫統一入口，管理 Prompt Templates，追蹤 Token 使用量，實現 retry/fallback 策略，回應品質過濾 | LangChain, Google AI SDK | Google AI API | V1.0 |
-| **LINE SDK Adapter** | 封裝 line-bot-sdk-python，提供 Reply Message, Push Message, Flex Message Builder 等便捷介面 | line-bot-sdk-python | LINE Messaging API | V1.0 |
-| **Auth Module** | JWT Token 發行與驗證，Admin / Technician 角色區分，API 存取控制 | FastAPI Security, JWT | PostgreSQL, Redis | V1.0 |
-| **Admin Panel** | V1.0: Jinja2 + HTMX 的伺服器端渲染管理介面。V2.0: 遷移至 Next.js SPA | V1.0: Jinja2/HTMX, V2.0: Next.js | REST API | V1.0 / V2.0 |
-| **Dispatch Engine** | 工單建立與生命週期管理，智能技師匹配（技能/地區/評分/可用時段），派工通知推送 | Python | PostgreSQL, Redis (通知) | V2.0 |
-| **Pricing Engine** | 計價規則管理（品牌 x 鎖型 x 難度），自動報價計算，折扣與加成規則 | Python | PostgreSQL | V2.0 |
-| **Accounting Module** | 對帳作業，發票/請款單 CRUD，月度統計報表生成，匯出功能 | Python | PostgreSQL | V2.0 |
-| **Technician Web App** | 技師端 SPA：工單列表、接單/拒單、到場打卡、服務回報（含照片上傳）、導航整合 | Next.js, TypeScript | REST API, WebSocket | V2.0 |
+#### Head Nodes（graph/nodes.py）
+
+| 節點 | 檔案 | 核心職責 |
+| :--- | :--- | :--- |
+| **pre_process** | `graph/nodes.py` | 訊息前處理：解析 LINE 事件、注入 user_profile、初始化 GraphState |
+| **manage_memory** | `graph/nodes.py` | 對話記憶管理：當 messages 超過閾值（50 則）觸發語意摘要壓縮，保留最近 20 對 |
+| **router** | `graph/nodes.py` | LLM 意圖分類：根據 `[[intents]]` 配置判斷 `next_agents` 清單，附帶最近 3 輪上下文濃縮問題 |
+| **merge_answers** | `graph/nodes.py` | 多 Agent 回覆匯流：合併 `ui_hints`，LLM 綜合多個 Agent 回答為單一連貫回覆 |
+| **update_profile** | `graph/nodes.py` | 使用者輪廓更新：從回覆中提取 phone/address/device_model 等 facts，寫入 ProfileManager |
+| **post_process** | `graph/nodes.py` | 回覆後處理：組裝 LINE Flex Message / 影片卡片 / 下載卡片，寫入審計日誌 |
+
+#### Harness Nodes（Phase 0 骨架，全部 disabled）
+
+| 節點 | 檔案 | 核心職責 | 啟用階段 |
+| :--- | :--- | :--- | :--- |
+| **task_decompose** | `harness/task/decomposer.py` | L1：將複雜問題拆解為子任務，建立 ProblemCard | Phase 2 |
+| **context_assemble** | `harness/context/assembler.py` | L2：token budget 控制，source freshness 評分 | Phase 4 |
+| **safety_gate** | `harness/safety/gate.py` | L6：攔截危險指令（拆電路板、剪電線等） | Phase 3 |
+| **verify_answer** | `harness/feedback/verifier.py` | L5：回覆品質驗證，低於 0.6 分觸發 retry | Phase 5 |
+| **entropy_check** | `harness/entropy/checker.py` | L8：偵測新型解法，觸發 SOP 自動生成 | Phase 6 |
+
+#### Agent Subgraphs（agents/__init__.py）
+
+| Agent | Label | 工具 | 知識庫 |
+| :--- | :--- | :--- | :--- |
+| **hardware_technician** | 硬體維修技師 | db_video, transfer_to_human | kb_video (pgvector) |
+| **sales_representative** | 報價與客服專員 | db_line_chat, transfer_to_human | kb_line_chat (pgvector) |
+| **store_assistant** | 門市與規格助理 | db_website, transfer_to_human | kb_website (pgvector) |
+| **app_specialist** | APP 設定專家 | db_youtube, transfer_to_human | kb_youtube (pgvector) |
+| **manual_librarian** | 說明書管理員 | db_manuals, transfer_to_human | kb_gdrive (pgvector) |
+| **web_researcher** | 網路搜尋助手 | db_web_search, transfer_to_human | DuckDuckGo (即時搜尋) |
+| **receptionist** | 前台接待專員 | transfer_to_human | 無（純對話） |
+
+每個 Agent 子圖內部結構相同：`START → agent_llm → [tool_calls? → tools → agent_llm] → END`（ReAct loop）。
 
 ### 3.5 關鍵用戶旅程
 
-#### 場景 1：用戶透過 LINE 諮詢電子鎖問題（V1.0 核心流程）
+#### GraphState 資料結構（14 欄位）
+
+GraphState 是貫穿整個工作流的共享狀態物件，定義於 `graph/state.py`：
+
+| 欄位 | 型別 | Reducer | 用途 |
+| :--- | :--- | :--- | :--- |
+| `messages` | `list` | `add_messages` | Agent 對話歷史（LLM + Tool messages） |
+| `question` | `str` | `_keep_last` | Router 濃縮後的使用者問題 |
+| `user_profile` | `str` | `_keep_last` | 使用者輪廓（Markdown 格式） |
+| `answer` | `str` | `_keep_last` | 最終回覆文字 |
+| `history` | `list` | `operator.add` | 節點路徑追蹤（除錯用） |
+| `summary` | `str` | `_keep_last` | 對話摘要（記憶體壓縮用） |
+| `next_agents` | `list` | `_keep_last` | Router 派發的 Agent 清單 |
+| `ui_hints` | `list` | `_add_or_reset` | UI metadata（影片卡、下載卡） |
+| `response_ui` | `list` | `_keep_last` | 最終 LINE Message 物件 |
+| `task` | `dict` | `_merge_dict` | L1 Harness：任務拆解 + ProblemCard |
+| `context_meta` | `dict` | `_merge_dict` | L2 Harness：上下文品質指標 |
+| `feedback` | `dict` | `_merge_dict` | L5 Harness：品質驗證結果 |
+| `safety` | `dict` | `_merge_dict` | L6 Harness：安全審計軌跡 |
+| `entropy` | `dict` | `_merge_dict` | L8 Harness：新型解法偵測 |
+
+> Harness 欄位（task ~ entropy）預設為 `{}`，現有節點不讀寫這些欄位，確保零破壞。
+
+#### 場景 1：用戶透過 LINE 諮詢電子鎖問題（V1.0 實際流程）
 
 **前提：** 用戶已加入 LINE 官方帳號好友
 
 ```
-1. 用戶 在 LINE App 中發送訊息：「我家的門鎖打不開了」
-2. LINE Platform 透過 Webhook POST 將事件發送至 LINE Webhook Handler
-3. Webhook Handler 驗證簽章，解析出 MessageEvent (Text)，轉發至 Conversation Manager
-4. Conversation Manager 以 LINE user_id 查詢 Redis 中是否有活躍 Session
-   - 無 Session -> 建立新 Conversation，狀態設為 Collecting
-   - 有 Session -> 載入既有對話上下文
-5. Conversation Manager 將用戶訊息傳給 ProblemCard Engine
-6. ProblemCard Engine 呼叫 LLM Gateway -> Gemini 3 Pro，從訊息中提取：
-   - symptoms: "門鎖打不開"
-   - intent: "報修"
-   - 缺失欄位：model, location, door_status, network
-7. ProblemCard Engine 回傳追問訊息：「請問您的電子鎖是哪個品牌和型號？」
-8. Conversation Manager 透過 LINE SDK Adapter 將追問以 Flex Message 發送給用戶
-9. （多輪對話持續，逐步填充 ProblemCard 欄位）
-10. ProblemCard 達到最低完整度 -> Conversation 狀態轉為 Resolving
-11. Three-Layer Resolver 啟動：
-    - L1: Knowledge Base Manager 以 ProblemCard 內容進行向量搜尋，
-          查詢 PostgreSQL + pgvector 中的 CaseEntry，相似度閾值 >= 0.85
-    - 命中 -> 回傳解決方案，Conversation 狀態 -> Resolved
-    - 未命中 -> 進入 L2
-12. L2: Three-Layer Resolver 組裝 RAG 上下文（ProblemCard + 相關 ManualChunk + 近似 CaseEntry），
-    呼叫 LLM Gateway -> Gemini 3 Pro 生成解決建議
-    - 生成品質通過過濾 -> 回傳解決方案，Conversation 狀態 -> Resolved
-    - 品質不足 -> 進入 L3
-13. L3: 收集客戶聯絡資訊，提示將轉接人工客服或安排技師到場
-14. 成功解決後，SOP Generator 非同步監聽 ResolutionFound 事件，
-    分析對話與解決路徑，草擬 SOP 待審核
+1. 用戶在 LINE 發送：「我家的門鎖打不開了」
+2. LINE Webhook POST → app.py → Debounce buffer（等待 5 秒合併後續訊息）
+3. pre_process：解析訊息、載入 user_profile
+4. manage_memory：檢查 messages 數量，必要時觸發語意摘要壓縮
+5. router：LLM 意圖分類 → next_agents = ["hardware_technician"]
+6. Send() fan-out → hardware_technician 子圖執行：
+   a. agent_llm：注入 system prompt + user_profile，首次強制呼叫 db_video 工具
+   b. tools：向 pgvector kb_video 集合執行向量搜尋
+   c. agent_llm：根據檢索結果生成回答（若需要更多資訊，再次呼叫工具）
+   d. 迴圈直到 LLM 不再發出 tool_calls → END
+7. merge_answers：合併 Agent 回覆 + ui_hints
+8. update_profile：提取 device_model 等 facts 寫入 ProfileManager
+9. post_process：組裝 LINE Flex Message，透過 Reply/Push API 回覆用戶
 ```
 
-#### 場景 2：管理員上傳新的電子鎖手冊 PDF（V1.0 知識庫管理）
+#### 場景 2：技師接收與完成派工單（V2.0 派工流程）
 
 ```
-1. 管理員 登入 Admin Panel (Jinja2 + HTMX)
-2. Auth Module 驗證 JWT Token，確認 Admin 角色
-3. 管理員 上傳 PDF 檔案至「手冊管理」頁面
-4. REST API Controller 接收檔案，轉交 Knowledge Base Manager
-5. Knowledge Base Manager 執行以下流程：
-   a. PDF 解析：使用 PyMuPDF 提取文本與頁碼
-   b. 文本分段：以 500 tokens 為窗口、100 tokens 重疊進行 chunk 分割
-   c. 元資料標注：每個 chunk 關聯來源 PDF、頁碼、章節標題
-   d. Embedding 計算：呼叫 LLM Gateway -> text-embedding-004 批次計算
-   e. 入庫：ManualChunk 記錄（含 embedding vector）寫入 PostgreSQL + pgvector
-   f. 索引更新：pgvector HNSW 索引自動更新
-6. Knowledge Base Manager 回傳處理結果（成功/失敗 chunk 數量）
-7. Admin Panel 顯示上傳結果摘要
+1. receptionist Agent 呼叫 transfer_to_human 工具 → 收集客戶聯絡資訊
+2. Dispatch Engine 建立 WorkOrder（關聯 ProblemCard）
+3. 智能匹配：技能 × 地區 × 歷史評分 → 選出 Top-1 技師
+4. WebSocket 即時通知 → 技師 Web App 接單
+5. 技師到場打卡 → 完成服務 → 上傳照片
+6. Accounting Module 產生 Invoice → 管理員審核 → Closed
 ```
 
-#### 場景 3：技師接收與完成派工單（V2.0 派工流程）
+#### 場景 3：知識庫自演化（V1.1+ Harness 啟用後）
 
 ```
-1. L3 解決機制觸發工單建立，Three-Layer Resolver 呼叫 Dispatch Engine
-2. Dispatch Engine 建立 WorkOrder：
-   - 關聯 ProblemCard 資訊
-   - 狀態設為 Created
-   - 呼叫 Pricing Engine 生成報價
-3. Dispatch Engine 執行智能匹配：
-   a. 篩選技師：技能涵蓋該鎖型品牌、服務地區涵蓋該地點
-   b. 排序：綜合評分 = 0.4 * 技能匹配度 + 0.3 * 距離評分 + 0.3 * 歷史評分
-   c. 選出 Top-1 技師，WorkOrder 狀態 -> Assigned
-4. Dispatch Engine 透過 WebSocket 即時通知 Technician Web App
-5. 技師 在 Web App 看到新工單通知，查看工單詳情（ProblemCard 摘要、客戶地址、預估報價）
-6. 技師 接單 -> WorkOrder 狀態 -> Accepted
-7. 技師 到場打卡 -> WorkOrder 狀態 -> InProgress
-8. 技師 完成服務，上傳照片，填寫服務報告 -> WorkOrder 狀態 -> Completed
-9. Dispatch Engine 發布 ServiceCompleted 事件
-10. Accounting Module 監聽事件，產生 Invoice/Voucher
-11. 管理員 在 Admin Panel 中審核帳務，確認後 WorkOrder 狀態 -> Closed
-```
-
-#### 場景 4：知識庫自演化 - SOP 從生成到上架（V1.0 閉環）
-
-```
-1. SOP Generator 接收 ResolutionFound 事件
-2. SOP Generator 分析該次對話：
-   a. 讀取完整 Conversation messages
-   b. 讀取 ProblemCard 內容
-   c. 識別解決路徑（L1 命中的 CaseEntry 或 L2 生成的方案）
-3. SOP Generator 呼叫 LLM Gateway -> Gemini 3 Pro，使用專用 Prompt Template：
-   - 輸入：ProblemCard + 解決步驟 + 用戶反饋
-   - 輸出：結構化 SOP（適用條件、步驟清單、注意事項）
-4. SOPDraft 寫入 PostgreSQL，狀態設為 PendingReview
-5. Admin Panel 顯示待審核 SOP 列表
-6. 管理員 審核 SOPDraft：
-   - 通過 -> 轉換為 CaseEntry，計算 Embedding，加入知識庫
-   - 修改 -> 管理員編輯後重新提交
-   - 拒絕 -> 標記為 Rejected，記錄原因
-7. 新 CaseEntry 生效，未來同類問題可在 L1 直接命中
+1. entropy_check 偵測到新型解法（similarity < 0.3）
+2. SOP Generator 自動草擬結構化 SOP
+3. 管理員審核 → 通過 → 計算 Embedding → 加入 pgvector 知識庫
+4. 未來同類問題可被 Agent 直接檢索命中
 ```
 
 ---
@@ -1349,169 +1291,106 @@ graph LR
 
 ```mermaid
 gantt
-    title 架構演進時間線
+    title 架構演進時間線（對齊 Moat M1/M2/M3 里程碑）
     dateFormat  YYYY-MM
     axisFormat  %Y-%m
 
-    section V1.0 AI 智能客服
-    核心基礎建設 (FastAPI + DB + Redis)           :v1_infra, 2026-03, 2026-04
-    LINE Bot + Webhook + 對話管理                  :v1_line, 2026-04, 2026-05
-    ProblemCard Engine + Three-Layer Resolver       :v1_core, 2026-05, 2026-07
-    知識庫管理 + Embedding + 向量搜尋              :v1_kb, 2026-06, 2026-07
-    SOP Generator + Admin Panel (Jinja2+HTMX)      :v1_admin, 2026-07, 2026-08
-    V1.0 上線與優化                                :v1_launch, 2026-08, 2026-09
+    section V1.0 AI 客服 (M1: W1-W17)
+    LangGraph 7-Agent + LINE Bot               :done, v10, 2026-01, 2026-04
+    5 pgvector 知識庫上線                        :done, v10kb, 2026-02, 2026-04
+    Harness Phase 0 骨架                         :done, h0, 2026-03, 2026-04
 
-    section V2.0 派工與帳務
-    Next.js 前端 + Admin Panel 遷移               :v2_fe, 2026-09, 2026-11
-    Dispatch Engine + Technician Web App           :v2_dispatch, 2026-10, 2026-12
-    Pricing Engine + Accounting Module             :v2_acc, 2026-11, 2027-01
-    V2.0 上線與整合測試                           :v2_launch, 2027-01, 2027-02
+    section V1.1 Harness 啟用 (M1 後半)
+    Phase 1: L7 Observability                    :h1, 2026-04, 2026-05
+    Phase 2: L1 Task + ProblemCard               :h2, 2026-05, 2026-06
+    Phase 3: L6 Safety + L3 Governance           :h3, 2026-06, 2026-07
 
-    section 未來展望
-    多租戶 SaaS 支援                              :future_mt, 2027-03, 2027-06
-    行動端原生 App (React Native)                  :future_app, 2027-06, 2027-09
+    section V1.2 Harness 完整 (M1→M2 銜接)
+    Phase 4: L2 Context Assembly                 :h4, 2026-07, 2026-08
+    Phase 5: L5 Feedback Loop                    :h5, 2026-08, 2026-09
+    Phase 6: L8 Entropy (SOP auto-gen)           :h6, 2026-09, 2026-10
+
+    section V2.0 派工與帳務 (M2: W18-W31)
+    Technician Web App (Next.js PWA)             :v20t, 2026-10, 2026-12
+    Smart Dispatch Engine                        :v20d, 2026-11, 2027-01
+    Pricing Engine + Accounting                  :v20a, 2027-01, 2027-02
+
+    section V3.0 智慧層 (M3: 5 個月)
+    影子驗證 + 報價信心分數                       :v30, 2027-03, 2027-06
+    預測備料 + 產業語言模型 V2                    :v31, 2027-05, 2027-08
 ```
 
-### V1.0 - AI 智能客服（目標：2026 Q3 上線）
+### V1.0 — 現況 (2026-04)
 
-| 里程碑 | 交付物 | 架構重點 |
+LangGraph 7-Agent 客服系統已上線運作。
+
+| 項目 | 狀態 | 說明 |
 | :--- | :--- | :--- |
-| M1: 基礎建設 | FastAPI skeleton, PostgreSQL + pgvector, Redis, Docker Compose, CI/CD | 建立 Clean Architecture 分層結構，定義模組邊界 |
-| M2: LINE Bot 核心 | Webhook Handler, Conversation Manager, Session 管理 | 對話狀態機設計，Redis Session 管理 |
-| M3: AI 問診引擎 | ProblemCard Engine, Three-Layer Resolver, LLM Gateway | LangChain 整合，Prompt Template 設計，RAG pipeline |
-| M4: 知識庫 | CaseEntry/ManualChunk CRUD, PDF Parser, Embedding Pipeline | pgvector HNSW 索引，批次 Embedding 計算 |
-| M5: 自演化 + 管理 | SOP Generator, Admin Panel | 事件驅動的 SOP 生成，Jinja2 + HTMX 管理介面 |
-| M6: 上線 | 部署、監控、備份 | Nginx SSL, 日誌收集, 備份排程 |
+| LangGraph StateGraph | **上線** | 7 head nodes + 7 agent subgraphs，Send() fan-out/fan-in |
+| 5 pgvector 知識庫 | **上線** | kb_video / kb_line_chat / kb_website / kb_youtube / kb_gdrive |
+| LINE Bot + Debounce | **上線** | FastAPI webhook + 5 秒訊息合併緩衝 |
+| User Profile (SCD Type 2) | **上線** | hard_facts (PostgreSQL) + soft_profile (.md) |
+| Harness Phase 0 | **骨架完成** | 8 層模組目錄 + GraphState 5 個 sub-dict + config.toml `[harness]` sections，全部 `enabled = false` |
 
-### V2.0 - 技師派工與帳務（目標：2027 Q1 上線）
+**護城河對齊 (M1)**：AI 客服上線、ProblemCard 結構定義完成（Moat A 種子數據開始累積）、知識庫運作（Moat F 數據飛輪種子）。
 
-| 里程碑 | 交付物 | 架構重點 |
+### V1.1 — Harness 啟用 (Phase 1-3)
+
+分三階段啟用 Harness 層，每階段獨立 enable/disable。
+
+| Phase | 層 | 交付物 | 風險 | 回滾方式 |
+| :--- | :--- | :--- | :--- | :--- |
+| **Phase 1** | L7 Observability | `@traced` decorator + `harness_traces` table | Low | `trace_enabled = false` |
+| **Phase 2** | L1 Task + ProblemCard | `task_decompose` node + `problem_cards` table | Medium (+1-3s) | `decompose_enabled = false` |
+| **Phase 3** | L6 Safety + L3 Governance | `safety_gate` node + ToolRegistry | Medium | 移除 edge |
+
+**護城河加速**：ProblemCard 累積啟動 Moat A（產業語言模型）種子數據，Safety Gate 建立 Moat I（合規壁壘）。
+
+### V1.2 — Harness 完整 (Phase 4-6)
+
+| Phase | 層 | 交付物 | 風險 | 回滾方式 |
+| :--- | :--- | :--- | :--- | :--- |
+| **Phase 4** | L2 Context Assembly | `context_assemble` node + token budget + freshness scoring | Medium-High | A/B test 50/50 |
+| **Phase 5** | L5 Feedback Loop | `verify_answer` node + retry conditional edge | High (延遲翻倍) | `verify_enabled = false` + `max_retry = 1` |
+| **Phase 6** | L8 Entropy Management | `entropy_check` node + SOP auto-generation + weekly freshness scan | Low (背景任務) | `sop_generation_enabled = false` |
+
+**目標 Graph Flow**（所有 Harness 啟用後）：
+```
+START → pre_process → manage_memory → task_decompose → context_assemble
+→ safety_gate → router → [fan-out agents] → merge_answers → verify_answer
+→ (retry loop) → update_profile → entropy_check → post_process → END
+```
+
+### V2.0 — 派工與帳務 (M2: W18-W31)
+
+| 交付物 | 技術 | 架構影響 |
 | :--- | :--- | :--- |
-| M7: 前端升級 | Next.js Admin Panel, 共用元件庫 | Admin Panel 從 Jinja2 遷移至 Next.js |
-| M8: 派工系統 | Dispatch Engine, Technician Web App, WorkOrder 管理 | 新的 Dispatch 限界上下文，WebSocket 即時通知 |
-| M9: 帳務系統 | Pricing Engine, Invoice, Accounting Report | 新的 Accounting 限界上下文，報表匯出 |
-| M10: 整合上線 | 全功能整合測試, 效能壓力測試 | 端到端測試，並發 100 用戶壓力測試 |
+| **Technician Web App** | Next.js PWA + TypeScript | 新增前端容器，WebSocket 即時通知 |
+| **Smart Dispatch Engine** | Python + PostgreSQL | 技能 × 地區 × 評分智能匹配，`transfer_to_human` 工具觸發工單建立 |
+| **Pricing Engine** | Python + PostgreSQL | 品牌 × 鎖型 × 難度計價規則 |
+| **Accounting Module** | Python + PostgreSQL | Invoice/Voucher CRUD，月度報表匯出 |
+| **Admin Panel 遷移** | Next.js (取代 Jinja2+HTMX) | 統一前端技術棧 |
 
-### Stage 3 — 多智能體擴展 (Multi-AI Agent Extending)
+**護城河對齊 (M2)**：派工數據啟動 Moat C（標準化定價引擎）、Moat G（技師行為數據）。
 
-> 合約第三階段（3%股份）交付物。合約附件七、第 1.5 條、第 4.7 條。
+### V3.0 — 智慧層 (M3: 5 個月)
 
-#### 9.3.1 核心架構設計
+| 方向 | 說明 | 護城河 |
+| :--- | :--- | :--- |
+| **影子驗證** | AI 回覆與真人客服並行比對，量化準確率 | Moat A V2 |
+| **報價信心分數** | 基於歷史數據的報價可信度評分 | Moat B |
+| **預測備料** | 根據 ProblemCard 統計預測常用零件需求 | Moat E |
+| **產業語言模型 V2** | 以 ProblemCard + SOP 語料微調 embedding | Moat A |
 
-**Plug-and-play Foundation（隨插即用底層）**
-
-系統採用 Config-driven Agent Composition 架構，新增代理人僅需：
-1. 新增 Prompt 模板檔案（`configs/prompts/<agent_name>.md`）
-2. 在 `config.toml` 新增 `[[agents]]` 配置項
-3. 在 `config.toml` 新增 `[[intents]]` 路由規則
-4. 無需重構核心底層程式碼
-
-**Inter-Agent Messaging Protocol（跨代理人通訊協議）**
-
-```
-┌─────────────────────────────────────────────────┐
-│                  Agent Router                     │
-│  (LLM-based intent classification + fan-out)     │
-├─────────────────┬───────────────────────────────┤
-│   Agent A       │   Agent B       │   Agent C    │
-│  (LangGraph     │  (LangGraph     │  (LangGraph  │
-│   Subgraph)     │   Subgraph)     │   Subgraph)  │
-├─────────────────┴───────────────────────────────┤
-│              Merge Answers Node                   │
-│  (LLM-based multi-agent response synthesis)      │
-├──────────────────────────────────────────────────┤
-│         Unified ProblemCard JSON Schema           │
-│  (customer_id, location, fault_description,       │
-│   attachment_links, sentiment_label,              │
-│   preliminary_diagnostic_logic)                   │
-└──────────────────────────────────────────────────┘
-```
-
-所有代理人輸出遵循統一 ProblemCard JSON Schema（合約定義十），至少包含：
-- `customer_id`：客戶 ID
-- `location`：地理位置
-- `fault_description`：故障描述
-- `attachment_links`：附件連結
-- `sentiment_label`：情感標籤
-- `preliminary_diagnostic_logic`：初步診斷邏輯
-
-#### 9.3.2 Token 消耗熔斷機制 (Circuit Breaker)
-
-```python
-# Circuit Breaker Pattern for LLM API Cost Control
-class TokenCircuitBreaker:
-    max_tokens_per_task: int        # configurable via admin panel
-    max_tokens_per_problem_card: int
-    current_consumption: int
-    state: str  # "closed" | "open" | "half_open"
-
-    def check_and_consume(tokens: int) -> bool:
-        """Return False and trip breaker if limit exceeded."""
-
-    def on_breaker_trip() -> None:
-        """Force handoff to human, log to audit trail."""
-```
-
-- 甲方得於管理後台自訂「單一任務」或「單一 ProblemCard」之最大 Token 消耗閾值
-- 消耗量達上限時強制阻斷 LLM API 呼叫，自動轉交真人客服
-- 所有熔斷事件記錄至審計日誌
-
-#### 9.3.3 代理人內部溝通上限 (Max Turn Limits)
-
-- 管理後台可設定「代理人間最大溝通回合數」參數
-- 達上限未解決者，強制終止運算並記錄於審計日誌
-- 預設上限：10 回合（可由甲方調整）
-
-#### 9.3.4 動態模型路由 (Model Routing Capability)
-
-```toml
-# config.toml example
-[[agents]]
-name = "intent_classifier"
-provider = "gemini"
-model_name = "gemini-2.0-flash"  # lightweight, low cost
-
-[[agents]]
-name = "deep_troubleshooter"
-provider = "gemini"
-model_name = "gemini-3-pro"     # high capability, higher cost
-```
-
-- API 抽象層支援依任務難易度配置不同模型
-- 意圖識別使用低成本輕量化模型
-- 深度故障排除使用高階大模型
-- 模型切換僅需修改 config，無需改程式碼
-
-#### 9.3.5 異常費用告警 (Anomaly Alert)
-
-- 管理後台顯示即時 Token 消耗量
-- 可設定「單位時間費用/Token 上限」閾值
-- 系統偵測使用量異常飆高時主動發送告警通知予甲方管理員
-- 告警紀錄記入審計日誌
-
-#### 9.3.6 24 個月技術適配能力保證
+### 技術適配保證 (24 個月)
 
 | 機制 | 說明 |
 | :--- | :--- |
-| **LLM Registry** | 支援 3+ LLM provider（ollama/gemini/vertexai），config-driven 切換 |
-| **Embedding Registry** | 支援 2+ embedding provider，維度變更透過 constants 管理 |
-| **LangChain 抽象層** | Protocol 介面隔離 LangChain 具體實作，LangChain 版本升級不影響業務邏輯 |
-| **向量索引匯出** | 知識庫資產可完整匯出（API: `POST /api/v1/knowledge-base/export`） |
-| **Prompt 外部化** | 所有 Prompt 模板存放於 `configs/prompts/`，非硬編碼 |
-| **Model Migration Runbook** | 模型遷移操作手冊，記錄遷移步驟、測試清單、回退方案 |
-
----
-
-### 未來展望（V3.0+）
-
-| 方向 | 說明 | 架構影響 |
-| :--- | :--- | :--- |
-| **多租戶 SaaS** | 支援多個電子鎖品牌商各自獨立的知識庫與管理後台 | 資料隔離策略（Schema-per-tenant 或 Row-level），租戶路由 |
-| **行動端 App** | 技師端 React Native App，替代 Web App | API 層已準備好，新增 App-specific endpoints |
-| **微服務拆分** | 若規模增長至需要獨立擴展某些模組 | Modular Monolith 的模組邊界已劃清，可按需拆分為獨立服務 |
-| **本地 LLM** | 部署開源 LLM 降低 API 費用 | LangChain 抽象層允許切換，需評估 GPU 基礎設施成本 |
-| **語音支援** | LINE 語音訊息 -> Speech-to-Text -> AI 處理 | 增加 STT 模組，接入 Whisper API |
-| **IoT 整合** | 直接讀取電子鎖裝置狀態（電量、連線、錯誤碼） | 新增 IoT Gateway 模組，MQTT/HTTP 整合 |
+| **LLM Registry** | 支援 3+ provider（Ollama / Gemini / Vertex AI），config-driven 切換 |
+| **Embedding Registry** | 支援 2+ provider，維度變更透過 config 管理 |
+| **Prompt 外部化** | 所有 Prompt 存放於 `agents/prompts/`，非硬編碼 |
+| **Config-driven Agent Composition** | 新增 Agent 僅需 prompt + config.toml，零核心程式碼修改 |
+| **Harness 層層開關** | 每個 Harness 功能獨立 enable/disable，風險可控 |
 
 ---
 
@@ -1669,140 +1548,10 @@ Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/
 
 ---
 
-## 附錄 E：實際實作架構與 Agent Harness 框架 (2026-04 Addendum)
-
-> **重要**：本文件第 1-9 部分描述的是 V1.0 規劃階段的 Clean Architecture 目標架構 (`backend/src/smart_lock/domains/`)。實際 V1.0 開發採用了 **LangGraph 多 Agent 架構** (`agent/` 目錄)，以 POC 快速驗證為優先。本 Addendum 記錄實際架構與後續 Harness 重構方向。
-
-### E.1 實際技術棧
-
-| 層級 | 規劃 (本文第 4 部分) | 實際實作 |
-|---|---|---|
-| 工作流引擎 | LangChain LCEL | **LangGraph StateGraph** (多 agent 平行派發) |
-| 對話編排 | ConversationManager UseCase | **graph/nodes.py** (pre_process → manage_memory → router → agents → merge_answers → update_profile → post_process) |
-| Agent 架構 | 單一 LLM Chain | **7 個獨立 Agent 子圖** (hardware_technician, sales_representative, store_assistant, app_specialist, manual_librarian, web_researcher, receptionist) |
-| 設定管理 | settings.toml + .env | **config.toml** (14 個 section) + .env |
-| 使用者輪廓 | User entity + repository | **ProfileManager** (SCD Type 2 hard_facts + .md soft_profile) |
-| LLM Provider | Google Gemini 3 Pro | **Google Gemini 2.5 Flash** (via Vertex AI)，支援 Ollama fallback |
-
-### E.2 實際目錄結構 (agent/)
-
-```plaintext
-agent/                              # LangGraph 多 Agent 客服系統
-├── app.py                          # FastAPI entry (LINE webhook + startup)
-├── main.py                         # CLI entry & local testing
-├── config.toml                     # 14-section configuration (含 [harness])
-├── requirements.txt                # Python dependencies
-│
-├── graph/                          # LangGraph 工作流定義
-│   ├── state.py                    # GraphState (14 fields, 含 5 harness sub-dicts)
-│   ├── builder.py                  # StateGraph assembly & edge routing
-│   └── nodes.py                    # 7 workflow nodes
-│
-├── agents/                         # 7 Agent 定義
-│   ├── __init__.py                 # build_agent_executor / build_all_agents
-│   └── prompts/                    # 13 prompt templates (.md)
-│
-├── harness/                        # 8-Layer Agent Harness Framework (Phase 0)
-│   ├── __init__.py                 # HarnessConfig, is_layer_enabled()
-│   ├── task/                       # L1 Task Representation
-│   │   ├── decomposer.py           #   task_decompose() graph node
-│   │   ├── problem_card.py          #   ProblemCard dataclass (domain-agnostic)
-│   │   └── prompts/decompose_task.md
-│   ├── context/                    # L2 Context Assembly
-│   │   ├── assembler.py             #   context_assemble() graph node
-│   │   ├── budget.py                #   Token budget calculator
-│   │   └── freshness.py             #   Source freshness scoring
-│   ├── governance/                 # L3 Tool Governance
-│   │   ├── registry.py              #   ToolRegistry with risk levels
-│   │   └── validator.py             #   Parameter schema validation
-│   ├── feedback/                   # L5 Feedback & Verification
-│   │   ├── verifier.py              #   verify_answer() graph node
-│   │   └── prompts/evaluate_answer.md
-│   ├── safety/                     # L6 Safety & Control
-│   │   └── gate.py                  #   safety_gate() graph node
-│   ├── observability/              # L7 Observability
-│   │   ├── tracer.py                #   @traced decorator
-│   │   └── metrics.py               #   SessionMetrics
-│   └── entropy/                    # L8 Entropy Management
-│       ├── checker.py               #   entropy_check() graph node
-│       ├── sop_generator.py         #   Auto-SOP from novel resolutions
-│       └── prompts/generate_sop.md
-│
-├── tools/                          # LangGraph 工具 (7 retrievers)
-├── llms/                           # LLM providers (Vertex AI / Gemini / Ollama)
-├── embeddings/                     # Embedding providers
-├── memory/                         # Checkpointer (PostgreSQL / SQLite)
-├── profiles/                       # User profile (SCD Type 2)
-├── core/                           # Config, LINE Bot, Debounce, Debug Log
-├── storage/                        # Audit log backends
-└── scripts/                        # Admin CLI utilities
-```
-
-### E.3 Agent Harness 8 層框架
-
-Harness 是 Agent 系統的**運行時基礎設施** -- 控制任務拆解、上下文裝配、工具治理、品質回饋、安全邊界、觀測和熵管理。
-
-```
-Agent Capability ≈ Model × Harness
-```
-
-| Layer | Name | Graph Node | Status |
-|---|---|---|---|
-| L1 | Task Representation | `task_decompose` | Phase 0 skeleton |
-| L2 | Context Assembly | `context_assemble` | Phase 0 skeleton |
-| L3 | Tool Governance | (middleware in agent subgraph) | Phase 0 skeleton |
-| L4 | State & Memory | (existing memory/ + profiles/) | 45% mature |
-| L5 | Feedback & Verification | `verify_answer` | Phase 0 skeleton |
-| L6 | Safety & Control | `safety_gate` | Phase 0 skeleton |
-| L7 | Observability | (@traced decorator) | Phase 0 skeleton |
-| L8 | Entropy Management | `entropy_check` | Phase 0 skeleton |
-
-**Target Graph Flow** (harness-aware):
-```
-START → pre_process → manage_memory → task_decompose → context_assemble
-→ safety_gate → router → [fan-out agents] → merge_answers → verify_answer
-→ (retry loop) → update_profile → entropy_check → post_process → END
-```
-
-### E.4 ProblemCard：Domain-Agnostic 設計
-
-ProblemCard 採用**核心欄位 + 動態 domain_attributes** 設計，支援領域切換：
-
-```python
-@dataclass
-class ProblemCard:
-    # Domain-agnostic core
-    symptom_summary: str        # every domain has a problem description
-    category: str               # every domain has classification
-    completeness_score: float   # every domain has completeness
-
-    # Domain-specific (JSONB, schema from config.toml)
-    domain_attributes: dict     # e.g. {"device_brand": "Yale", "door_type": "木門"}
-```
-
-配置切換：
-```toml
-# config.toml [harness.task.domain_schema]
-fields = ["device_brand", "device_model", "door_type", "fault_category"]
-```
-
-### E.5 詳細設計文件索引
-
-| 文件 | 位置 | 內容 |
-|---|---|---|
-| 8 層理論框架 | `docs/agent-harness-refactor/harness-architecture.md` | 完整 Harness 知識體系 |
-| Gap 分析 | `docs/agent-harness-refactor/gap-analysis.md` | 8 層 vs 現有成熟度 |
-| 遷移路線圖 | `docs/agent-harness-refactor/migration-roadmap.md` | Phase 0-6 + 風險評估 |
-| Graph Flow 對照 | `docs/agent-harness-refactor/graph-flow-redesign.md` | 新舊流程比較 |
-| ProblemCard 規格 | `docs/agent-harness-refactor/problem-card-spec.md` | 資料模型 + 生命週期 |
-| 設定演進 | `docs/agent-harness-refactor/config-evolution.md` | config.toml 擴展規格 |
-| POC 規格 | `docs/agent-harness-refactor/poc-spec.md` | 電子鎖匠 50 筆測試計畫 |
-
----
-
 **文件審核記錄 (Review History):**
 
 | 日期 | 審核人 | 版本 | 變更摘要 |
 | :--- | :--- | :--- | :--- |
 | 2026-02-17 | 技術架構師 | v1.0 | 初稿完成，涵蓋 V1.0 + V2.0 完整架構設計 |
 | 2026-04-01 | AI 架構助理 | v1.1 | 新增附錄 E：實際 LangGraph 架構 + 8 層 Agent Harness 框架 |
+| 2026-04-01 | AI 架構助理 | v2.0 | 重寫 §1.3/§3/§9 對齊實際 LangGraph 架構，移除附錄 E（內容已整合至主文） |

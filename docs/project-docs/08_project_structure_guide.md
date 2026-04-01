@@ -1,7 +1,7 @@
 # 專案結構指南 - 電子鎖智能客服與派工平台
 
-**文件版本:** v1.0
-**最後更新:** 2026-02-17
+**文件版本:** v2.0
+**最後更新:** 2026-04-01
 **主要作者:** 技術負責人
 **狀態:** 活躍 (Active)
 
@@ -12,10 +12,15 @@
 - [1. 指南目的](#1-指南目的)
 - [2. 核心設計原則](#2-核心設計原則)
 - [3. 頂層目錄結構](#3-頂層目錄結構)
-- [4. 後端目錄詳解 (backend/)](#4-後端目錄詳解-backend)
-  - [4.1 src/smart\_lock/ - 應用程式原始碼](#41-srcsmart_lock---應用程式原始碼)
-  - [4.2 tests/ - 測試代碼](#42-tests---測試代碼)
-  - [4.3 alembic/ - 資料庫遷移](#43-alembic---資料庫遷移)
+- [4. Agent 目錄詳解 (agent/)](#4-agent-目錄詳解-agent)
+  - [4.1 graph/ -- LangGraph Workflow Engine](#41-graph----langgraph-workflow-engine)
+  - [4.2 agents/ -- Multi-Agent System](#42-agents----multi-agent-system)
+  - [4.3 harness/ -- 8-Layer Harness Framework](#43-harness----8-layer-harness-framework)
+  - [4.4 tools/ -- Retriever & Action Tools](#44-tools----retriever--action-tools)
+  - [4.5 core/ -- System Foundations](#45-core----system-foundations)
+  - [4.6 llms/ + embeddings/ -- AI Providers](#46-llms--embeddings----ai-providers)
+  - [4.7 memory/ + profiles/ + storage/ -- Persistence](#47-memory--profiles--storage----persistence)
+  - [4.8 data/ -- ETL Knowledge Base Pipeline](#48-data----etl-knowledge-base-pipeline)
 - [5. 前端目錄詳解 (frontend/) - V2.0](#5-前端目錄詳解-frontend---v20)
   - [5.1 src/app/ - Next.js App Router](#51-srcapp---nextjs-app-router)
   - [5.2 src/components/ - 共用元件](#52-srccomponents---共用元件)
@@ -35,8 +40,8 @@
 
 - **新人快速上手：** 任何新加入的開發者閱讀本文件後，應能在 30 分鐘內定位任何模組的程式碼位置。
 - **一致性保障：** 團隊成員在新增功能或模組時，遵循統一的組織方式，避免結構混亂。
-- **關注點分離：** 透過 Clean Architecture 分層，確保領域邏輯不依賴基礎設施細節，提高可測試性與可維護性。
-- **版本演進可控：** V1.0（LINE Bot + Admin API）與 V2.0（技師工作台 + 派工/報價/對帳）的目錄結構能平滑過渡，無需大幅重構。
+- **關注點分離：** 透過 LangGraph 節點 + 模組化子目錄，確保 graph 流程、agent 邏輯、工具實作、持久化各自獨立。
+- **版本演進可控：** V1.0（LangGraph Multi-Agent LINE Bot）與 V2.0（技師工作台 + 派工/報價/對帳）的目錄結構能平滑過渡，無需大幅重構。
 
 ---
 
@@ -77,668 +82,338 @@ Infrastructure (外層) --> Application (中層) --> Domain (內層)
 
 ### 2.4 根目錄簡潔 (Clean Root Directory)
 
-專案根目錄只放專案級別的設定檔（`README.md`、`docker-compose.yml`、`.gitignore` 等），所有原始碼位於 `backend/` 和 `frontend/` 子目錄中。
+專案根目錄只放專案級別的設定檔（`README.md`、`.gitignore` 等），核心原始碼位於 `agent/`（V1.0 後端）和 `frontend/`（V2.0 前端）子目錄中。
 
 ### 2.5 可預測性 (Predictability)
 
-看到領域名稱就能推斷出檔案位置。例如：知道有個「問題卡」功能，就能預測以下路徑存在：
+看到功能名稱就能推斷出檔案位置。例如：知道有個「問題卡」功能，就能預測以下路徑存在：
 
-- `backend/src/smart_lock/domains/problem_card/entities.py`
-- `backend/src/smart_lock/application/problem_card/use_cases.py`
-- `backend/src/smart_lock/infrastructure/web/routers/problem_cards.py`
-- `backend/tests/features/problem_card/`
+- `agent/harness/task/problem_card.py` — ProblemCard dataclass
+- `agent/harness/task/decomposer.py` — task_decompose() 節點
+- `agent/harness/task/prompts/decompose_task.md` — LLM prompt
+- `agent/config.toml [harness.task]` — 設定開關
 
 ---
 
 ## 3. 頂層目錄結構
 
 ```plaintext
-smart-lock-platform/                    # 專案根目錄
+Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/
 │
-├── .github/                            # GitHub 相關設定
-│   └── workflows/                      # GitHub Actions CI/CD 工作流程
-│       ├── ci.yml                      #   Lint + 測試（每次 push/PR 觸發）
-│       └── deploy.yml                  #   建置 + 部署（merge 到 main 時觸發）
+├── agent/                              # V1.0 LangGraph Multi-Agent System (核心)
+│   ├── app.py                          #   FastAPI entry (LINE webhook)
+│   ├── main.py                         #   CLI testing harness
+│   ├── config.toml                     #   14-section 系統設定檔
+│   ├── requirements.txt                #   Python dependencies
+│   ├── graph/                          #   LangGraph workflow 定義
+│   ├── agents/                         #   7 Agent 子圖 + 14 prompt templates
+│   ├── harness/                        #   8-Layer Harness Framework (Phase 0)
+│   ├── tools/                          #   7 retriever tools
+│   ├── llms/                           #   LLM providers
+│   ├── embeddings/                     #   Embedding providers
+│   ├── memory/                         #   Checkpointer (PostgreSQL / SQLite)
+│   ├── profiles/                       #   User profile (SCD Type 2)
+│   ├── core/                           #   Config, LINE Bot, Debounce, Debug Log
+│   ├── storage/                        #   Audit log backends
+│   └── scripts/                        #   Admin CLI utilities
 │
-├── backend/                            # Python 後端（FastAPI）
-│   ├── src/                            #   應用程式原始碼
-│   │   └── smart_lock/                 #     主應用程式 Python package
-│   ├── tests/                          #   測試代碼
-│   ├── alembic/                        #   資料庫遷移（Alembic）
-│   ├── alembic.ini                     #   Alembic 設定檔
-│   ├── pyproject.toml                  #   Python 專案定義與依賴（Poetry）
-│   ├── poetry.lock                     #   Poetry 鎖定檔
-│   └── Dockerfile                      #   後端容器映像檔定義
+├── data/                               # ETL Pipeline (知識庫資料處理)
+│   ├── pipeline/                       #   Medallion Architecture 分層處理
+│   │   ├── source_to_raw/              #     原始資料收集
+│   │   ├── raw_to_bronze/              #     文字擷取 (YouTube, LINE, Website, GDrive)
+│   │   ├── bronze_to_silver/           #     LLM 內容增強
+│   │   └── silver_to_gold/             #     向量化 → pgvector 寫入
+│   ├── storage/                        #   Silver/Gold 層資料檔案
+│   ├── config.toml                     #   ETL pipeline 設定
+│   └── requirements.txt                #   Data pipeline dependencies
 │
-├── frontend/                           # Next.js 前端（V2.0 新增）
-│   ├── src/                            #   前端原始碼
-│   ├── public/                         #   靜態資源
-│   ├── package.json                    #   Node.js 專案定義
-│   ├── package-lock.json               #   依賴鎖定檔
-│   ├── tsconfig.json                   #   TypeScript 設定
-│   ├── next.config.js                  #   Next.js 設定
-│   ├── tailwind.config.ts              #   Tailwind CSS 設定
-│   └── Dockerfile                      #   前端容器映像檔定義
-│
-├── configs/                            # 外部化設定檔
-│   ├── settings.toml                   #   應用程式設定（非機密）
-│   ├── prompts/                        #   LLM System Prompts 模板
-│   │   ├── intent_recognition.txt      #     意圖辨識 prompt
-│   │   ├── ner_extraction.txt          #     NER 實體擷取 prompt
-│   │   ├── problem_card_gen.txt        #     問題卡自動生成 prompt
-│   │   ├── rag_answer.txt              #     RAG 回答生成 prompt
-│   │   ├── sop_draft.txt               #     SOP 草稿自動撰寫 prompt
-│   │   └── content_filter.txt          #     內容安全過濾 prompt
-│   └── logging.conf                    #   日誌設定
-│
-├── data/                               # 靜態資料與種子資料
-│   ├── seed/                           #   資料庫初始種子資料
-│   │   ├── lock_models.json            #     電子鎖型號主檔
-│   │   ├── fault_codes.json            #     標準故障代碼表
-│   │   └── default_faq.json            #     預設 FAQ 問答
-│   └── manuals/                        #   電子鎖操作手冊 PDF（供 RAG ingestion）
-│
-├── scripts/                            # 開發與運維腳本
-│   ├── setup_dev.sh                    #   開發環境一鍵安裝
-│   ├── seed_database.py                #   種子資料匯入
-│   ├── ingest_manuals.py               #   手冊 PDF 切片與向量化匯入
-│   ├── run_migrations.sh               #   執行資料庫遷移
-│   └── generate_api_client.sh          #   從 OpenAPI spec 生成前端 API client
+├── SQL/                                # Database DDL
+│   └── Schema.sql                      #   PostgreSQL schema (V1.0 + V2.0)
 │
 ├── docs/                               # 專案文件
-│   ├── adrs/                           #   架構決策記錄 (Architecture Decision Records)
-│   │   └── adr-001-backend-framework.md
-│   ├── design/                         #   設計文件
-│   ├── api/                            #   API 規格文件
-│   └── images/                         #   文件中使用的圖片
+│   ├── project-docs/                   #   核心專案文件 (本目錄)
+│   ├── system_design/                  #   系統設計 (PRD, SOW, diagrams)
+│   ├── agent-harness-refactor/         #   Agent Harness 重構規格
+│   └── adrs/                           #   Architecture Decision Records
 │
-├── nginx/                              # Nginx 反向代理設定
-│   ├── nginx.conf                      #   主設定檔
-│   └── conf.d/                         #   站台設定
-│       └── default.conf                #     路由規則（/api -> backend, / -> frontend）
-│
-├── docker-compose.yml                  # 容器編排定義（開發環境）
-├── docker-compose.prod.yml             # 容器編排定義（生產環境）
-├── .env.example                        # 環境變數範本（已納入 Git）
-├── .gitignore                          # Git 忽略規則
-├── .pre-commit-config.yaml             # pre-commit 鉤子設定
-├── Makefile                            # 常用指令快捷方式
-├── LICENSE                             # 授權條款
-└── README.md                           # 專案介紹與快速入門
+├── .claude/                            #   Claude Code 設定
+├── .gitignore                          #   Git 忽略規則
+└── README.md                           #   專案介紹與快速入門
 ```
 
 ---
 
-## 4. 後端目錄詳解 (backend/)
+## 4. Agent 目錄詳解 (agent/)
 
-### 4.1 src/smart_lock/ - 應用程式原始碼
+V1.0 核心系統採用 LangGraph Multi-Agent 架構。所有業務邏輯集中於 `agent/` 目錄，以 graph 節點為骨架、agent 子圖為肌肉、tools 為觸手。
 
-此為後端核心，採用 Clean Architecture 分層組織。所有業務功能分布在 `domains/`、`application/`、`infrastructure/` 三層中。
+### 4.1 graph/ -- LangGraph Workflow Engine
 
-```plaintext
-backend/src/smart_lock/
-│
-├── __init__.py                         # Package 標識，包含版本號
-├── main.py                             # FastAPI 應用程式入口點
-│                                       #   - 建立 FastAPI instance
-│                                       #   - 註冊所有 routers
-│                                       #   - 設定 middleware (CORS, logging, error handling)
-│                                       #   - 定義 lifespan 事件 (startup/shutdown)
-│
-├── core/                               # ── 核心共用模組 ──
-│   ├── __init__.py
-│   ├── config.py                       # 設定載入（讀取環境變數 + settings.toml）
-│   │                                   #   - Settings class (Pydantic BaseSettings)
-│   │                                   #   - Database URL, Redis URL
-│   │                                   #   - LINE Channel Secret/Token
-│   │                                   #   - Google API Key, model name
-│   │                                   #   - 各環境參數 (dev/staging/prod)
-│   ├── security.py                     # 安全模組
-│   │                                   #   - JWT token 生成與驗證
-│   │                                   #   - LINE Webhook 簽章驗證
-│   │                                   #   - 密碼雜湊 (bcrypt)
-│   │                                   #   - Prompt injection 防禦邏輯
-│   ├── dependencies.py                 # FastAPI Dependency Injection
-│   │                                   #   - get_db_session() -> AsyncSession
-│   │                                   #   - get_redis_client() -> Redis
-│   │                                   #   - get_current_user() -> AdminUser
-│   │                                   #   - get_google_genai_client() -> AsyncGoogleGenAI
-│   │                                   #   - get_line_client() -> LineBotApi
-│   ├── exceptions.py                   # 全域例外定義
-│   │                                   #   - AppException (base)
-│   │                                   #   - NotFoundError
-│   │                                   #   - ValidationError
-│   │                                   #   - AuthenticationError
-│   │                                   #   - ExternalServiceError
-│   │                                   #   - ContentFilterError
-│   ├── middleware.py                    # 自訂 Middleware
-│   │                                   #   - RequestLoggingMiddleware
-│   │                                   #   - ErrorHandlingMiddleware
-│   │                                   #   - RateLimitMiddleware
-│   └── constants.py                    # 全域常數
-│                                       #   - SessionState enum
-│                                       #   - ProblemCardStatus enum
-│                                       #   - ResolutionLayer enum
-│                                       #   - WorkOrderStatus enum (V2.0)
-│
-├── domains/                            # ── 領域模型層 (Domain Layer) ──
-│   ├── __init__.py                     #   純業務邏輯，零外部依賴
-│   │
-│   ├── conversation/                   # 對話管理領域
-│   │   ├── __init__.py
-│   │   ├── entities.py                 #   - Conversation: 對話 session 實體
-│   │   │                               #   - Message: 單則訊息（含角色、內容、時間戳）
-│   │   │                               #   - ConversationContext: 多輪對話上下文
-│   │   ├── value_objects.py            #   - SessionId: 會話識別碼
-│   │   │                               #   - MessageRole: USER / ASSISTANT / SYSTEM
-│   │   │                               #   - ChannelType: LINE / WEB / API
-│   │   └── events.py                   #   - ConversationStarted
-│   │                                   #   - MessageReceived
-│   │                                   #   - ConversationEscalated (轉人工)
-│   │                                   #   - ConversationClosed
-│   │
-│   ├── problem_card/                   # 問題卡引擎領域
-│   │   ├── __init__.py
-│   │   ├── entities.py                 #   - ProblemCard: 結構化診斷卡實體
-│   │   │                               #     (lock_model, fault_symptom, error_code,
-│   │   │                               #      user_description, environment_info,
-│   │   │                               #      confidence_score, status)
-│   │   │                               #   - ProblemCardHistory: 問題卡修改歷程
-│   │   └── value_objects.py            #   - LockModel: 電子鎖型號值物件
-│   │                                   #   - FaultSymptom: 故障症狀分類
-│   │                                   #   - ErrorCode: 標準錯誤代碼
-│   │                                   #   - ConfidenceScore: 信心分數 (0.0~1.0)
-│   │
-│   ├── knowledge_base/                 # 知識庫領域
-│   │   ├── __init__.py
-│   │   ├── entities.py                 #   - CaseEntry: 案例庫條目
-│   │   │                               #     (title, symptoms, solution_steps,
-│   │   │                               #      lock_models, success_rate, embedding)
-│   │   │                               #   - ManualChunk: 手冊分片（PDF 切片後的文本塊）
-│   │   │                               #     (source_pdf, page_range, content,
-│   │   │                               #      chunk_index, embedding)
-│   │   │                               #   - FAQEntry: 常見問答
-│   │   │                               #   - SOPDraft: 自進化 SOP 草稿
-│   │   │                               #     (trigger_problem_card, drafted_steps,
-│   │   │                               #      review_status, adopted_as_case_id)
-│   │   └── value_objects.py            #   - EmbeddingVector: 向量嵌入值物件
-│   │                                   #   - ReviewStatus: PENDING / APPROVED / REJECTED
-│   │                                   #   - ChunkMetadata: 分片元資料
-│   │
-│   ├── resolution/                     # 三層解析引擎領域
-│   │   ├── __init__.py
-│   │   ├── entities.py                 #   - ResolutionAttempt: 解析嘗試紀錄
-│   │   │                               #     (layer, query, result, success, duration)
-│   │   │                               #   - ResolutionResult: 最終解析結果
-│   │   │                               #     (answer, source_references, confidence,
-│   │   │                               #      resolution_layer, needs_escalation)
-│   │   ├── value_objects.py            #   - ResolutionLayer: CASE_LIBRARY / RAG / HUMAN
-│   │   │                               #   - SourceReference: 引用來源標記
-│   │   └── strategies.py              #   - ResolutionStrategy (Protocol/ABC)
-│   │                                   #   - CaseLibraryStrategy: 案例庫向量搜尋
-│   │                                   #   - RAGStrategy: PDF 手冊 RAG pipeline
-│   │                                   #   - HumanHandoffStrategy: 人工轉接
-│   │
-│   ├── sentiment/                      # 情緒分流領域（V1.0, 合約 9.3）
-│   │   ├── __init__.py
-│   │   ├── entities.py                 #   - SentimentAlert: 負面情緒告警
-│   │   └── value_objects.py            #   - SentimentResult: 情緒分析結果
-│   │                                   #   - SentimentLabel: POSITIVE / NEUTRAL / NEGATIVE
-│   │
-│   ├── audit/                          # 審計日誌領域（V1.0, 合約 10.3）
-│   │   ├── __init__.py
-│   │   ├── entities.py                 #   - AuditLog: 審計紀錄 (Append-Only)
-│   │   │                               #   - FamilyReviewRecord: 家族覆核紀錄 (Immutable)
-│   │   └── value_objects.py            #   - AuditLogType: API_CALL / LLM_INTERACTION /
-│   │                                   #     RAG_RETRIEVAL / ADMIN_ACTION / AGENT_MESSAGE
-│   │
-│   ├── approval/                       # 財務雙簽領域（V2.0, 合約 7.4）
-│   │   ├── __init__.py
-│   │   ├── entities.py                 #   - ApprovalWorkflow: 雙簽審批流程
-│   │   └── value_objects.py            #   - ApprovalStatus: PENDING / APPROVED / REJECTED
-│   │
-│   ├── dispatch/                       # 派工引擎領域（V2.0）
-│   │   ├── __init__.py
-│   │   ├── entities.py                 #   - WorkOrder: 派工單實體
-│   │   │                               #     (problem_card_id, technician_id, status,
-│   │   │                               #      scheduled_time, actual_arrival, completion)
-│   │   │                               #   - Technician: 技師實體
-│   │   │                               #     (name, skills, certifications,
-│   │   │                               #      current_location, availability, rating)
-│   │   │                               #   - DispatchMatch: 派工匹配結果
-│   │   └── value_objects.py            #   - WorkOrderStatus: PENDING / ASSIGNED / IN_PROGRESS
-│   │                                   #     / COMPLETED / CANCELLED
-│   │                                   #   - TechnicianSkill: 技師技能認證
-│   │                                   #   - GeoLocation: 經緯度座標
-│   │                                   #   - ServiceArea: 服務區域
-│   │
-│   ├── pricing/                        # 報價引擎領域（V2.0）
-│   │   ├── __init__.py
-│   │   ├── entities.py                 #   - PriceRule: 定價規則實體
-│   │   │                               #     (service_type, lock_model, base_price,
-│   │   │                               #      urgency_multiplier, distance_surcharge)
-│   │   │                               #   - Quotation: 報價單實體
-│   │   │                               #     (work_order_id, line_items, total,
-│   │   │                               #      valid_until, accepted)
-│   │   └── value_objects.py            #   - ServiceType: INSTALL / REPAIR / MAINTENANCE / UNLOCK
-│   │                                   #   - PriceComponent: 報價項目明細
-│   │                                   #   - Money: 金額值物件（含幣別）
-│   │
-│   └── accounting/                     # 對帳系統領域（V2.0）
-│       ├── __init__.py
-│       ├── entities.py                 #   - Reconciliation: 對帳紀錄
-│       │                               #     (period, technician_id, work_orders,
-│       │                               #      total_amount, adjustments, status)
-│       │                               #   - Settlement: 結算紀錄
-│       │                               #     (reconciliation_id, payee, amount,
-│       │                               #      payment_method, settled_at)
-│       │                               #   - Voucher: 憑證/傳票
-│       │                               #     (type, debit_account, credit_account,
-│       │                               #      amount, reference_id)
-│       └── value_objects.py            #   - ReconciliationStatus: DRAFT / CONFIRMED / SETTLED
-│                                       #   - AccountCode: 會計科目代碼
-│                                       #   - Period: 對帳期間（年/月）
-│
-├── application/                        # ── 應用邏輯層 (Application Layer) ──
-│   ├── __init__.py                     #   編排業務流程，不包含基礎設施細節
-│   │
-│   ├── conversation/                   # 對話管理應用邏輯
-│   │   ├── __init__.py
-│   │   ├── use_cases.py                #   - StartConversationUseCase
-│   │   │                               #   - ProcessMessageUseCase（核心：接收訊息 -> 意圖辨識
-│   │   │                               #     -> NER 擷取 -> 問題卡更新 -> 觸發解析引擎 -> 回覆）
-│   │   │                               #   - GetConversationHistoryUseCase
-│   │   │                               #   - EscalateToHumanUseCase
-│   │   │                               #   - CloseConversationUseCase
-│   │   ├── dtos.py                     #   - IncomingMessageDTO
-│   │   │                               #   - ConversationResponseDTO
-│   │   │                               #   - ConversationListDTO
-│   │   └── interfaces.py              #   - ConversationRepository (Protocol)
-│   │                                   #   - MessageBroker (Protocol)
-│   │
-│   ├── problem_card/                   # 問題卡應用邏輯
-│   │   ├── __init__.py
-│   │   ├── use_cases.py                #   - GenerateProblemCardUseCase（LLM 自動生成）
-│   │   │                               #   - UpdateProblemCardUseCase
-│   │   │                               #   - GetProblemCardUseCase
-│   │   │                               #   - ListProblemCardsUseCase
-│   │   ├── dtos.py                     #   - ProblemCardCreateDTO
-│   │   │                               #   - ProblemCardUpdateDTO
-│   │   │                               #   - ProblemCardResponseDTO
-│   │   └── interfaces.py              #   - ProblemCardRepository (Protocol)
-│   │
-│   ├── knowledge_base/                 # 知識庫應用邏輯
-│   │   ├── __init__.py
-│   │   ├── use_cases.py                #   - SearchCaseLibraryUseCase（向量相似度搜尋）
-│   │   │                               #   - CreateCaseEntryUseCase
-│   │   │                               #   - UpdateCaseEntryUseCase
-│   │   │                               #   - IngestManualUseCase（PDF 切片 + 向量化）
-│   │   │                               #   - ManageFAQUseCase
-│   │   │                               #   - DraftSOPUseCase（自進化：自動產生 SOP 草稿）
-│   │   │                               #   - ReviewSOPDraftUseCase（管理員審核）
-│   │   │                               #   - AdoptSOPAsCaseUseCase（採納為正式案例）
-│   │   ├── dtos.py                     #   - CaseEntryCreateDTO / CaseEntryResponseDTO
-│   │   │                               #   - ManualChunkDTO
-│   │   │                               #   - SOPDraftDTO / SOPReviewDTO
-│   │   │                               #   - KBSearchQueryDTO / KBSearchResultDTO
-│   │   └── interfaces.py              #   - CaseRepository (Protocol)
-│   │                                   #   - ManualChunkRepository (Protocol)
-│   │                                   #   - VectorSearchService (Protocol)
-│   │
-│   ├── resolution/                     # 三層解析引擎應用邏輯
-│   │   ├── __init__.py
-│   │   ├── use_cases.py                #   - ResolveQueryUseCase
-│   │   │                               #     核心流程：
-│   │   │                               #     1. Layer 1 - 案例庫向量搜尋
-│   │   │                               #        -> 命中且信心分數 >= 閾值 -> 回傳結果
-│   │   │                               #     2. Layer 2 - PDF 手冊 RAG pipeline
-│   │   │                               #        -> 生成回答且品質合格 -> 回傳結果
-│   │   │                               #     3. Layer 3 - 人工轉接
-│   │   │                               #        -> 建立轉接工單，通知客服人員
-│   │   │                               #   - GetResolutionHistoryUseCase
-│   │   ├── dtos.py                     #   - ResolutionQueryDTO
-│   │   │                               #   - ResolutionResultDTO
-│   │   └── interfaces.py              #   - ResolutionStrategyPort (Protocol)
-│   │
-│   ├── auth/                           # 認證與授權應用邏輯
-│   │   ├── __init__.py
-│   │   ├── use_cases.py                #   - LoginUseCase
-│   │   │                               #   - RefreshTokenUseCase
-│   │   │                               #   - ChangePasswordUseCase
-│   │   ├── dtos.py                     #   - LoginRequestDTO / TokenResponseDTO
-│   │   └── interfaces.py              #   - UserRepository (Protocol)
-│   │
-│   ├── dashboard/                      # 管理後台儀表板應用邏輯
-│   │   ├── __init__.py
-│   │   ├── use_cases.py                #   - GetDashboardStatsUseCase
-│   │   │                               #     (今日對話數、解析成功率、待處理工單、
-│   │   │                               #      待審核 SOP 數量)
-│   │   │                               #   - GetRecentConversationsUseCase
-│   │   │                               #   - GetSystemHealthUseCase
-│   │   └── dtos.py                     #   - DashboardStatsDTO
-│   │                                   #   - SystemHealthDTO
-│   │
-│   ├── dispatch/                       # 派工引擎應用邏輯（V2.0）
-│   │   ├── __init__.py
-│   │   ├── use_cases.py                #   - CreateWorkOrderUseCase
-│   │   │                               #   - MatchTechnicianUseCase（智慧匹配演算法）
-│   │   │                               #   - AssignWorkOrderUseCase
-│   │   │                               #   - UpdateWorkOrderStatusUseCase
-│   │   │                               #   - ListTechnicianWorkOrdersUseCase
-│   │   │                               #   - ManageTechnicianProfileUseCase
-│   │   ├── dtos.py                     #   - WorkOrderCreateDTO / WorkOrderResponseDTO
-│   │   │                               #   - TechnicianDTO / MatchResultDTO
-│   │   └── interfaces.py              #   - WorkOrderRepository (Protocol)
-│   │                                   #   - TechnicianRepository (Protocol)
-│   │                                   #   - GeocodingService (Protocol)
-│   │
-│   ├── pricing/                        # 報價引擎應用邏輯（V2.0）
-│   │   ├── __init__.py
-│   │   ├── use_cases.py                #   - CalculateQuotationUseCase（規則式報價計算）
-│   │   │                               #   - ManagePriceRuleUseCase
-│   │   │                               #   - AcceptQuotationUseCase
-│   │   ├── dtos.py                     #   - QuotationRequestDTO / QuotationResponseDTO
-│   │   │                               #   - PriceRuleDTO
-│   │   └── interfaces.py              #   - PriceRuleRepository (Protocol)
-│   │
-│   └── accounting/                     # 對帳系統應用邏輯（V2.0）
-│       ├── __init__.py
-│       ├── use_cases.py                #   - GenerateReconciliationUseCase（自動產生對帳單）
-│       │                               #   - ConfirmReconciliationUseCase
-│       │                               #   - ProcessSettlementUseCase
-│       │                               #   - GenerateVoucherUseCase
-│       │                               #   - GetAccountingReportUseCase
-│       ├── dtos.py                     #   - ReconciliationDTO / SettlementDTO
-│       │                               #   - VoucherDTO / AccountingReportDTO
-│       └── interfaces.py              #   - ReconciliationRepository (Protocol)
-│                                       #   - SettlementRepository (Protocol)
-│                                       #   - PaymentGateway (Protocol)
-│
-├── infrastructure/                     # ── 基礎設施層 (Infrastructure Layer) ──
-│   ├── __init__.py                     #   與外部世界交互的所有實作
-│   │
-│   ├── web/                            # Web 框架相關（FastAPI Routers）
-│   │   ├── __init__.py
-│   │   └── routers/                    # API 路由定義
-│   │       ├── __init__.py
-│   │       ├── webhook.py              #   POST /webhook/line
-│   │       │                           #     接收 LINE Messaging API 事件
-│   │       │                           #     驗證 X-Line-Signature
-│   │       │                           #     立即回應 HTTP 200
-│   │       │                           #     以 BackgroundTask 非同步處理訊息
-│   │       ├── conversations.py        #   GET  /api/v1/conversations
-│   │       │                           #   GET  /api/v1/conversations/{id}
-│   │       │                           #   POST /api/v1/conversations/{id}/escalate
-│   │       │                           #   POST /api/v1/conversations/{id}/close
-│   │       ├── problem_cards.py        #   GET  /api/v1/problem-cards
-│   │       │                           #   GET  /api/v1/problem-cards/{id}
-│   │       │                           #   PUT  /api/v1/problem-cards/{id}
-│   │       │                           #   GET  /api/v1/problem-cards/{id}/history
-│   │       ├── knowledge_base.py       #   GET  /api/v1/knowledge-base/cases
-│   │       │                           #   POST /api/v1/knowledge-base/cases
-│   │       │                           #   PUT  /api/v1/knowledge-base/cases/{id}
-│   │       │                           #   DELETE /api/v1/knowledge-base/cases/{id}
-│   │       │                           #   POST /api/v1/knowledge-base/search
-│   │       │                           #   GET  /api/v1/knowledge-base/faq
-│   │       │                           #   POST /api/v1/knowledge-base/faq
-│   │       ├── manuals.py              #   POST /api/v1/manuals/ingest  (上傳 PDF 並切片)
-│   │       │                           #   GET  /api/v1/manuals
-│   │       │                           #   GET  /api/v1/manuals/{id}/chunks
-│   │       ├── sop_drafts.py           #   GET  /api/v1/sop-drafts
-│   │       │                           #   GET  /api/v1/sop-drafts/{id}
-│   │       │                           #   POST /api/v1/sop-drafts/{id}/approve
-│   │       │                           #   POST /api/v1/sop-drafts/{id}/reject
-│   │       │                           #   POST /api/v1/sop-drafts/{id}/adopt
-│   │       ├── auth.py                 #   POST /api/v1/auth/login
-│   │       │                           #   POST /api/v1/auth/refresh
-│   │       │                           #   POST /api/v1/auth/change-password
-│   │       ├── dashboard.py            #   GET  /api/v1/dashboard/stats
-│   │       │                           #   GET  /api/v1/dashboard/recent
-│   │       │                           #   GET  /api/v1/dashboard/health
-│   │       ├── config_admin.py         #   GET  /api/v1/config  (系統參數管理)
-│   │       │                           #   PUT  /api/v1/config
-│   │       ├── work_orders.py          #   V2.0 - 派工單 CRUD + 狀態更新
-│   │       ├── technicians.py          #   V2.0 - 技師管理 + 可用性查詢
-│   │       ├── quotations.py           #   V2.0 - 報價單 CRUD
-│   │       ├── price_rules.py          #   V2.0 - 定價規則管理
-│   │       └── accounting.py           #   V2.0 - 對帳/結算/憑證
-│   │
-│   ├── persistence/                    # 持久化層（資料庫相關）
-│   │   ├── __init__.py
-│   │   ├── database.py                 #   AsyncEngine / AsyncSessionLocal 建立
-│   │   │                               #   SQLAlchemy 2.0 async session 工廠
-│   │   ├── base_model.py              #   ORM Base class（含 id, created_at, updated_at）
-│   │   ├── orm_models/                 #   SQLAlchemy ORM 模型（對應 DB tables）
-│   │   │   ├── __init__.py
-│   │   │   ├── conversation_model.py   #     conversations, messages tables
-│   │   │   ├── problem_card_model.py   #     problem_cards, problem_card_histories tables
-│   │   │   ├── knowledge_base_model.py #     case_entries, manual_chunks, faq_entries tables
-│   │   │   ├── sop_draft_model.py      #     sop_drafts table
-│   │   │   ├── resolution_model.py     #     resolution_attempts table
-│   │   │   ├── user_model.py           #     admin_users table
-│   │   │   ├── work_order_model.py     #     V2.0 - work_orders table
-│   │   │   ├── technician_model.py     #     V2.0 - technicians, technician_skills tables
-│   │   │   ├── pricing_model.py        #     V2.0 - price_rules, quotations tables
-│   │   │   └── accounting_model.py     #     V2.0 - reconciliations, settlements, vouchers
-│   │   └── repositories/              #   Repository 實作（實作 application 層的 Protocol）
-│   │       ├── __init__.py
-│   │       ├── conversation_repo.py
-│   │       ├── problem_card_repo.py
-│   │       ├── case_repo.py            #     含 pgvector 向量搜尋實作
-│   │       ├── manual_chunk_repo.py    #     含 pgvector 向量搜尋實作
-│   │       ├── sop_draft_repo.py
-│   │       ├── user_repo.py
-│   │       ├── work_order_repo.py      #     V2.0
-│   │       ├── technician_repo.py      #     V2.0
-│   │       ├── price_rule_repo.py      #     V2.0
-│   │       └── accounting_repo.py      #     V2.0
-│   │
-│   ├── external/                       # 外部服務客戶端
-│   │   ├── __init__.py
-│   │   ├── line_client.py              #   LINE Messaging API 封裝
-│   │   │                               #     - send_text_message()
-│   │   │                               #     - send_flex_message() (問題卡/報價呈現)
-│   │   │                               #     - send_quick_reply()
-│   │   │                               #     - get_user_profile()
-│   │   ├── google_genai_client.py      #   Google AI API 封裝
-│   │   │                               #     - chat_completion() (async)
-│   │   │                               #     - create_embedding() (async)
-│   │   │                               #     - content_moderation() (async)
-│   │   ├── langchain_chains/           #   LangChain chain 定義
-│   │   │   ├── __init__.py
-│   │   │   ├── intent_chain.py         #     意圖辨識 chain
-│   │   │   ├── ner_chain.py            #     NER 實體擷取 chain
-│   │   │   ├── problem_card_chain.py   #     問題卡自動生成 chain
-│   │   │   ├── rag_chain.py            #     RAG 問答 chain（RetrievalQA）
-│   │   │   ├── sop_draft_chain.py      #     SOP 自動撰寫 chain
-│   │   │   └── content_filter_chain.py #     內容安全過濾 chain
-│   │   └── geocoding_client.py         #   V2.0 - 地理編碼服務（技師定位）
-│   │
-│   └── cache/                          # 快取層（Redis）
-│       ├── __init__.py
-│       ├── redis_client.py             #   Redis 連線管理
-│       ├── session_store.py            #   對話 session 狀態快取
-│       │                               #     - 儲存多輪對話的暫存上下文
-│       │                               #     - Session TTL 管理
-│       │                               #     - 問題卡暫存（生成中的草稿）
-│       └── rate_limiter.py             #   API 請求頻率限制
-│
-└── py.typed                            # PEP 561 typed package marker
-```
-
-#### 4.1.1 core/ - 核心共用模組
-
-`core/` 放置跨領域共用的基礎設施，所有其他模組都可能依賴此處的程式碼。
-
-| 檔案 | 職責 | 關鍵類別/函式 |
-|------|------|--------------|
-| `config.py` | 從環境變數 + `settings.toml` 載入設定 | `Settings(BaseSettings)` |
-| `security.py` | 認證授權與安全防護 | `verify_line_signature()`, `create_jwt()`, `verify_jwt()`, `detect_prompt_injection()` |
-| `dependencies.py` | FastAPI DI 提供者 | `get_db_session()`, `get_redis_client()`, `get_current_user()` |
-| `exceptions.py` | 全域例外階層 | `AppException`, `NotFoundError`, `AuthenticationError` |
-| `middleware.py` | HTTP 中介層 | `RequestLoggingMiddleware`, `ErrorHandlingMiddleware` |
-| `constants.py` | 列舉值與常數 | `SessionState`, `ProblemCardStatus`, `ResolutionLayer` |
-
-#### 4.1.2 domains/ - 領域模型層
-
-此層是系統的核心，包含純業務規則。**嚴格禁止**在此層引入任何框架依賴（不可 import FastAPI、SQLAlchemy、Redis 等）。
-
-**V1.0 領域：**
-
-| 領域 | 核心實體 | 業務規則 |
-|------|---------|---------|
-| `conversation/` | Conversation, Message | 多輪對話狀態機、上下文視窗管理、轉接判斷邏輯 |
-| `problem_card/` | ProblemCard | 問題卡欄位完整度計算、信心分數邏輯、狀態流轉 |
-| `knowledge_base/` | CaseEntry, ManualChunk, SOPDraft | 案例匹配分數計算、SOP 草稿生命週期管理 |
-| `resolution/` | ResolutionAttempt, ResolutionResult | 三層引擎策略選擇、信心閾值判斷、降級邏輯 |
-
-**V2.0 新增領域：**
-
-| 領域 | 核心實體 | 業務規則 |
-|------|---------|---------|
-| `dispatch/` | WorkOrder, Technician, DispatchMatch | 技師匹配演算法（技能 + 距離 + 可用性）、工單狀態機 |
-| `pricing/` | PriceRule, Quotation | 報價計算規則引擎、急件加成、距離附加費 |
-| `accounting/` | Reconciliation, Settlement, Voucher | 對帳期間彙總、結算金額計算、複式記帳憑證 |
-
-#### 4.1.3 application/ - 應用邏輯層
-
-此層編排 domain entities 完成業務流程。每個 use case 是一個獨立的操作單元。
-
-**關鍵設計：**
-
-- 每個 use case class 只有一個公開方法 `execute()`，接收 DTO、回傳 DTO。
-- 透過 `interfaces.py` 中定義的 Protocol，宣告對 Repository 的依賴（依賴反轉）。
-- 此層不直接操作資料庫或呼叫外部 API，一切透過 Protocol 抽象。
-
-```python
-# 範例：application/resolution/use_cases.py
-class ResolveQueryUseCase:
-    def __init__(
-        self,
-        case_repo: CaseRepository,        # Protocol
-        chunk_repo: ManualChunkRepository, # Protocol
-        llm_client: LLMService,           # Protocol
-    ):
-        self._case_repo = case_repo
-        self._chunk_repo = chunk_repo
-        self._llm = llm_client
-
-    async def execute(self, query: ResolutionQueryDTO) -> ResolutionResultDTO:
-        # Layer 1: Case library vector search
-        # Layer 2: RAG pipeline
-        # Layer 3: Human handoff
-        ...
-```
-
-#### 4.1.4 infrastructure/ - 基礎設施層
-
-此層是所有外部世界交互的實作所在。分為四大區塊：
-
-| 區塊 | 職責 | 依賴的外部技術 |
-|------|------|--------------|
-| `web/routers/` | HTTP API 端點定義、請求/回應處理 | FastAPI |
-| `persistence/` | 資料庫存取、ORM 模型、遷移 | SQLAlchemy 2.0, asyncpg, pgvector |
-| `external/` | 第三方 API 客戶端 | LINE SDK, Google AI SDK, LangChain |
-| `cache/` | 快取與 session 管理 | Redis (aioredis) |
-
-### 4.2 tests/ - 測試代碼
-
-測試目錄結構鏡射 `src/smart_lock/` 的組織方式，方便定位。
+Graph 層定義整個對話流程的拓撲結構：節點（node）負責處理邏輯，邊（edge）負責條件路由。
 
 ```plaintext
-backend/tests/
-│
-├── __init__.py
-├── conftest.py                         # 全域 pytest fixtures
-│                                       #   - async_session fixture (test DB)
-│                                       #   - redis_client fixture (test Redis)
-│                                       #   - test_client fixture (FastAPI TestClient)
-│                                       #   - mock_google_genai_client fixture
-│                                       #   - mock_line_client fixture
-│                                       #   - sample_problem_card fixture
-├── factories.py                        # 測試資料工廠（factory-boy）
-│                                       #   - ConversationFactory
-│                                       #   - ProblemCardFactory
-│                                       #   - CaseEntryFactory
-│                                       #   - WorkOrderFactory (V2.0)
-│                                       #   - TechnicianFactory (V2.0)
-│
-├── unit/                               # 單元測試（不依賴外部服務）
-│   ├── __init__.py
-│   ├── domains/                        # Domain Layer 測試
-│   │   ├── test_conversation_entities.py
-│   │   ├── test_problem_card_entities.py
-│   │   ├── test_knowledge_base_entities.py
-│   │   ├── test_resolution_strategies.py
-│   │   ├── test_dispatch_entities.py       # V2.0
-│   │   ├── test_pricing_entities.py        # V2.0
-│   │   └── test_accounting_entities.py     # V2.0
-│   ├── application/                    # Application Layer 測試（mock repositories）
-│   │   ├── test_process_message.py
-│   │   ├── test_generate_problem_card.py
-│   │   ├── test_resolve_query.py
-│   │   ├── test_draft_sop.py
-│   │   ├── test_match_technician.py        # V2.0
-│   │   ├── test_calculate_quotation.py     # V2.0
-│   │   └── test_generate_reconciliation.py # V2.0
-│   └── core/
-│       ├── test_security.py
-│       └── test_config.py
-│
-├── integration/                        # 整合測試（使用 test DB / test Redis）
-│   ├── __init__.py
-│   ├── persistence/
-│   │   ├── test_conversation_repo.py
-│   │   ├── test_case_repo_vector_search.py # pgvector 向量搜尋測試
-│   │   ├── test_problem_card_repo.py
-│   │   └── test_work_order_repo.py         # V2.0
-│   ├── external/
-│   │   ├── test_google_genai_client.py #   使用 mock/VCR cassettes
-│   │   └── test_line_client.py
-│   └── cache/
-│       └── test_session_store.py
-│
-├── features/                           # 功能測試（端對端 API 測試）
-│   ├── __init__.py
-│   ├── test_webhook_flow.py            # LINE Webhook -> 對話 -> 解析 -> 回覆
-│   ├── test_problem_card_api.py        # 問題卡 CRUD API
-│   ├── test_knowledge_base_api.py      # 知識庫管理 API
-│   ├── test_sop_review_flow.py         # SOP 草稿 -> 審核 -> 採納 流程
-│   ├── test_auth_flow.py              # 登入 -> Token -> 受保護 API
-│   ├── test_dispatch_flow.py           # V2.0 - 建單 -> 匹配 -> 派工 -> 完工
-│   ├── test_pricing_flow.py            # V2.0 - 報價計算 -> 接受
-│   └── test_accounting_flow.py         # V2.0 - 對帳 -> 結算 -> 憑證
-│
-└── fixtures/                           # 測試用靜態資料
-    ├── sample_line_events.json         #   LINE Webhook event 範例
-    ├── sample_problem_card.json        #   問題卡範例資料
-    ├── sample_manual_chunk.txt         #   手冊文本分片範例
-    └── sample_case_entries.json        #   案例庫測試資料
+agent/graph/
+├── state.py                            # GraphState TypedDict (14 fields)
+├── builder.py                          # StateGraph assembly, node wiring, edge routing
+└── nodes.py                            # 7 workflow nodes
 ```
 
-### 4.3 alembic/ - 資料庫遷移
+**`state.py` -- GraphState TypedDict（14 欄位）**
 
-使用 Alembic 管理 PostgreSQL schema 變更歷史。
+| 類別 | 欄位 | Reducer | 說明 |
+|------|------|---------|------|
+| Core | `messages` | `add_messages` | Agent 對話歷史 |
+| Core | `question` | `_keep_last` | 原始使用者輸入 |
+| Core | `user_profile` | `_keep_last` | 使用者輪廓 Markdown |
+| Core | `answer` | `_keep_last` | 最終回覆文字 |
+| Core | `history` | `operator.add` | 路徑追蹤（除錯用） |
+| Core | `summary` | `_keep_last` | 對話摘要（記憶管理） |
+| Core | `next_agents` | `_keep_last` | 多 agent 派發清單 |
+| Core | `ui_hints` | `_add_or_reset` | UI metadata（平行分支合併） |
+| Core | `response_ui` | `_keep_last` | 最終 LINE Message 物件 |
+| Harness | `task` | `_merge_dict` | L1: goal, subtasks, problem_card_id |
+| Harness | `context_meta` | `_merge_dict` | L2: freshness_scores, budget_used |
+| Harness | `feedback` | `_merge_dict` | L5: verification_status, quality_scores |
+| Harness | `safety` | `_merge_dict` | L6: permission_level, flagged_risks |
+| Harness | `entropy` | `_merge_dict` | L8: novel_resolution, sop_candidates |
+
+**`builder.py` -- StateGraph 組裝**
+
+- `build_graph()`: 建立 `StateGraph(GraphState)`，串接所有節點與條件邊
+- `route_by_intent()`: 根據 `next_agents` 使用 `Send()` 實現 fan-out 平行派發
+- Harness 節點以條件邊插入，`is_layer_enabled()` 為 False 時自動跳過
+
+**`nodes.py` -- 7 個工作流節點**
+
+| 節點 | 說明 |
+|------|------|
+| `pre_process` | 載入 user_profile、將 question 轉為 HumanMessage |
+| `manage_memory` | 訊息超過閾值（50 則）時觸發語意摘要壓縮 |
+| `router` | LLM 意圖分類，輸出 next_agents 清單 |
+| `merge_answers` | Fan-in 合併多 agent 回覆，處理 ui_hints |
+| `update_profile` | SCD Type 2 使用者輪廓更新（hard_facts + soft_profile） |
+| `post_process` | Markdown 清理 + LINE Flex Message 建構 |
+| `rewrite_query` | 查詢改寫（目前 disabled） |
+
+**Graph 流程概覽：**
+
+```
+START → pre_process → manage_memory → [harness nodes] → router
+  → route_by_intent (fan-out) → [7 agent subgraphs] → merge_answers
+  → [verify_answer] → update_profile → [entropy_check] → post_process → END
+```
+
+`[方括號]` 節點為 Harness 層，Phase 0 為 pass-through skeleton。
+
+---
+
+### 4.2 agents/ -- Multi-Agent System
+
+每個 Agent 是獨立的 LangGraph 子圖，擁有專屬 system prompt 與工具集。
 
 ```plaintext
-backend/alembic/
-│
-├── env.py                              # Alembic 環境設定
-│                                       #   - 載入 SQLAlchemy Base.metadata
-│                                       #   - 設定 async migration 支援
-├── script.py.mako                      # 遷移腳本模板
-└── versions/                           # 遷移版本（按時間排序）
-    ├── 001_create_conversations.py
-    ├── 002_create_problem_cards.py
-    ├── 003_create_knowledge_base.py
-    ├── 004_add_pgvector_extension.py   #   啟用 pgvector，建立向量索引
-    ├── 005_create_resolution_attempts.py
-    ├── 006_create_admin_users.py
-    ├── 007_create_sop_drafts.py
-    ├── 010_create_work_orders.py       #   V2.0
-    ├── 011_create_technicians.py       #   V2.0
-    ├── 012_create_pricing.py           #   V2.0
-    └── 013_create_accounting.py        #   V2.0
+agent/agents/
+├── __init__.py                         # build_agent_executor(), build_all_agents(), load_prompt_template()
+└── prompts/                            # 14 個 .md prompt 模板
+    ├── router.md                       #   意圖分類 prompt
+    ├── summarize_messages.md           #   語意摘要壓縮 prompt
+    ├── merge_answers.md                #   多 agent 合併 prompt
+    ├── update_profile.md               #   使用者輪廓更新 prompt
+    ├── transfer_human_form.md          #   轉接真人表單 prompt
+    ├── rewrite_query.md                #   查詢改寫 prompt (disabled)
+    ├── hardware_technician.md          #   硬體維修技師
+    ├── sales_representative.md         #   報價與客服專員
+    ├── store_assistant.md              #   門市與規格助理
+    ├── app_specialist.md               #   APP 設定專家
+    ├── manual_librarian.md             #   說明書管理員
+    ├── web_researcher.md               #   網路搜尋助手
+    ├── receptionist.md                 #   前台接待專員
+    └── order_clerk.md                  #   訂單查詢專員 (未啟用)
+```
+
+**Agent 子圖模式：** `START → agent_llm → [has tool_calls?] → tools → agent_llm → ... → END`
+
+每個 agent 的 `agent_llm` 節點綁定 system prompt + 可用工具，`ToolNode` 自動處理工具呼叫迴圈。
+
+**7 個啟用中的 Agent：**
+
+| Agent | Label | Tools | 知識庫 |
+|-------|-------|-------|--------|
+| `hardware_technician` | 硬體維修技師 | db_video, transfer_to_human | 核心技術與維修知識 |
+| `sales_representative` | 報價與客服專員 | db_line_chat, transfer_to_human | 客服實務與報價 |
+| `store_assistant` | 門市與規格助理 | db_website, transfer_to_human | 營業資訊與產品規格 |
+| `app_specialist` | APP 設定專家 | db_youtube, transfer_to_human | APP 操作教學影片 |
+| `manual_librarian` | 說明書管理員 | db_manuals, transfer_to_human | PDF 說明書下載 |
+| `web_researcher` | 網路搜尋助手 | db_web_search, transfer_to_human | DuckDuckGo 即時搜尋 |
+| `receptionist` | 前台接待專員 | transfer_to_human | 無知識庫（一般對話） |
+
+---
+
+### 4.3 harness/ -- 8-Layer Harness Framework
+
+Harness 是 Agent 系統的運行時基礎設施層。所有模組預設 disabled（`config.toml [harness] enabled = false`），Phase 0 為 skeleton pass-through。
+
+```plaintext
+agent/harness/
+├── __init__.py                         # is_harness_enabled(), is_layer_enabled()
+├── task/                               # L1: Task Representation
+│   ├── decomposer.py                  #   task_decompose() - 問題分解
+│   └── problem_card.py                #   ProblemCard dataclass + CRUD
+├── context/                            # L2: Context Assembly
+│   ├── assembler.py                   #   context_assemble() - 上下文精選
+│   ├── budget.py                      #   Token budget 計算
+│   └── freshness.py                   #   來源新鮮度評分
+├── governance/                         # L3: Tool Governance
+│   ├── registry.py                    #   ToolRegistry (risk levels)
+│   └── validator.py                   #   參數 schema 驗證
+├── feedback/                           # L5: Feedback & Verification
+│   └── verifier.py                    #   verify_answer() - 品質評估 + retry
+├── safety/                             # L6: Safety & Control
+│   └── gate.py                        #   safety_gate() - 危險指令攔截
+├── observability/                      # L7: Observability
+│   ├── tracer.py                      #   @traced decorator
+│   └── metrics.py                     #   SessionMetrics + 執行報告
+└── entropy/                            # L8: Entropy Management
+    ├── checker.py                     #   entropy_check() - 新案例偵測
+    └── sop_generator.py               #   從新案例自動產生 SOP
+```
+
+> **注意：** L4 (State & Memory) 由既有 `memory/` + `profiles/` 模組承擔，未在 harness 目錄中重複。
+> 完整設計規格請參閱 `docs/agent-harness-refactor/`。
+
+---
+
+### 4.4 tools/ -- Retriever & Action Tools
+
+```plaintext
+agent/tools/
+├── __init__.py                         # build_tools(), UI_TYPE_MAP
+├── base.py                             # 工具基礎抽象
+├── base_retriever.py                   # RAG retriever 共用邏輯
+├── pgvector_store.py                   # pgvector RAG 工具 (5 個知識庫)
+├── api_store.py                        # REST API 查詢工具
+├── web_search.py                       # DuckDuckGo 網路搜尋
+├── chroma_store.py                     # ChromaDB 工具 (備用)
+├── transfer_human.py                   # 轉接真人客服
+└── line_ui_factory.py                  # LINE Flex Message 建構器
+```
+
+**5 個 pgvector 知識庫：**
+
+| Collection | 內容 | UI 類型 |
+|------------|------|---------|
+| `kb_video` | 技術維修影片逐字稿 | 文字 |
+| `kb_line_chat` | LINE 客服對話紀錄 | 文字 |
+| `kb_website` | 官網頁面內容 | 文字 |
+| `kb_youtube` | YouTube APP 教學影片 | VIDEO_CARD |
+| `kb_gdrive` | PDF 說明書 | DOWNLOAD_CARD |
+
+`line_ui_factory.py` 根據 `ui_hints` 中的 `ui_type` 自動建構 LINE Flex Message（影片卡片、下載卡片等）。
+
+---
+
+### 4.5 core/ -- System Foundations
+
+```plaintext
+agent/core/
+├── config.py                           # TOML 設定載入器 (14 個匯出常數)
+├── constants.py                        # 全域常數定義
+├── line_bot.py                         # LINE Messaging API 整合
+├── debounce.py                         # 訊息緩衝 (5s wait, 300s TTL)
+└── debug_log.py                        # 審計日誌記錄
+```
+
+- **`config.py`**：讀取 `config.toml`，匯出 `SYSTEM_CONFIG`、`LLM_CONFIG`、`AGENTS_CONFIG`、`INTENTS_CONFIG`、`MEMORY_CONFIG`、`USER_PROFILE_CONFIG`、`TEMPLATES_CONFIG`、`PROMPTS_CONFIG`、`HARNESS_CONFIG`、`REQUIRED_SLOTS` 等 14 個模組級常數。
+- **`line_bot.py`**：封裝 LINE Bot SDK，處理 webhook 簽章驗證、reply/push message、loading animation。
+- **`debounce.py`**：使用者連續傳送多則訊息時，等待 5 秒無新訊息後才合併處理，避免重複觸發 graph。
+
+---
+
+### 4.6 llms/ + embeddings/ -- AI Providers
+
+```plaintext
+agent/llms/
+├── __init__.py                         # get_llm(config) 工廠函式
+├── vertexai_model.py                   # Google Vertex AI (生產環境)
+├── gemini_model.py                     # Google Gemini API (開發環境)
+└── ollama_model.py                     # Ollama 本地推理 (離線開發)
+
+agent/embeddings/
+├── __init__.py                         # get_embeddings(config) 工廠函式
+├── vertexai_embed.py                   # Vertex AI text-embedding-004
+└── ollama_embed.py                     # Ollama 本地嵌入
+```
+
+透過 `config.toml [llm].provider` 切換 LLM 供應商（`"vertexai"` / `"gemini"` / `"ollama"`），程式碼零修改。Embedding 供應商由各 `[[databases]]` 條目的 `embedding_provider` 欄位獨立指定。
+
+---
+
+### 4.7 memory/ + profiles/ + storage/ -- Persistence
+
+```plaintext
+agent/memory/
+├── __init__.py                         # get_checkpointer() 工廠函式
+├── postgres_saver.py                   # PostgreSQL checkpointer (LangGraph 原生)
+└── sqlite_saver.py                     # SQLite checkpointer (本地開發)
+
+agent/profiles/
+├── __init__.py                         # ProfileManager
+└── manager.py                          # SCD Type 2: hard_facts (PostgreSQL) + soft_profile (.md)
+
+agent/storage/
+├── __init__.py                         # get_storage() 工廠函式
+├── postgres_impl.py                    # PostgreSQL 審計日誌
+└── sqlite_impl.py                      # SQLite 審計日誌 (回退)
+```
+
+- **memory/**：LangGraph 原生 checkpointer，負責對話 thread 的 state 持久化。超過 `max_messages_threshold`（50 則）時由 `manage_memory` 節點觸發語意摘要壓縮。
+- **profiles/**：使用者輪廓採 SCD Type 2 模式——`hard_facts`（電話、地址、設備型號）存 PostgreSQL JSONB，`soft_profile`（行為偏好）存 Markdown 檔案。
+- **storage/**：原始對話紀錄（user + AI）的審計日誌持久化。
+
+---
+
+### 4.8 data/ -- ETL Knowledge Base Pipeline
+
+```plaintext
+data/
+├── pipeline/
+│   ├── source_to_raw/                  # Raw 資料收集腳本
+│   ├── raw_to_bronze/                  # 文字擷取 (YouTube, LINE, Website, GDrive)
+│   ├── bronze_to_silver/               # LLM 內容增強與結構化
+│   └── silver_to_gold/                 # 向量嵌入 → pgvector 寫入
+├── storage/
+│   ├── silver/                         # Silver 層 JSON 檔案
+│   │   ├── video/                      #   影片逐字稿 (LLM enriched)
+│   │   ├── website/                    #   官網頁面內容
+│   │   └── youtube/                    #   YouTube 教學影片
+│   └── gold/                           #   Gold 層向量化資料
+├── config.toml                         # ETL pipeline 設定
+└── requirements.txt                    # Data pipeline dependencies
+```
+
+採用 **Medallion Architecture**（Raw → Bronze → Silver → Gold）：
+
+| 層級 | 處理內容 | 輸出 |
+|------|---------|------|
+| **Raw** | 原始檔案收集（PDF、影片 URL、網頁 URL） | 原始檔案 |
+| **Bronze** | 文字擷取（YouTube 字幕、LINE 對話匯出、網頁爬蟲、GDrive PDF） | 純文字 |
+| **Silver** | LLM 內容增強（摘要、分類、結構化 JSON） | 結構化 JSON |
+| **Gold** | 向量嵌入（text-embedding-004）→ pgvector 寫入 | pgvector collections |
+
+---
+
+### 4.9 scripts/ -- Admin CLI Utilities
+
+```plaintext
+agent/scripts/
+├── test_build.py                       # 驗證 graph 建構完整性
+├── seed_db.py                          # 初始化 / 重建知識庫
+├── view_logs.py                        # 查看審計日誌
+├── view_context.py                     # 查看對話上下文
+├── view_facts.py                       # 查看使用者 hard_facts
+├── debug_db.py                         # 資料庫除錯工具
+├── clean_data.py                       # 清理暫存資料
+└── mock_api.py                         # Mock API server (測試用)
 ```
 
 ---
@@ -1025,92 +700,64 @@ docker-compose.yml
 
 ## 7. 設定檔結構
 
-### 7.1 環境變數 (.env)
+### 7.1 config.toml -- 14 區塊系統設定
 
-`.env.example` 列出所有必要的環境變數，實際 `.env` 不納入版本控制。
+`agent/config.toml` 是系統唯一的非機密設定檔，納入版本控制。所有可配置行為集中於此。
+
+| # | Section | 關鍵設定 |
+|---|---------|---------|
+| 1 | `[system]` | `domain`（業務領域描述）、`thread_prefix`、`request_timeout=120`、`sensitive_keywords`（報價/金流觸發詞） |
+| 2 | `[debounce]` | `buffer_wait=5s`、`buffer_ttl=300s`、`cleanup_interval=60s` |
+| 3 | `[line_bot]` | `loading_animation_time=60`（秒，5 的倍數） |
+| 4 | `[templates]` | 系統錯誤訊息、Push fallback 前綴、逾時回覆文字 |
+| 5 | `[llm]` | `provider`（vertexai/gemini/ollama）、`model_name`、`temperature`、各供應商連線參數 |
+| 6 | `[[databases]]` | 7 個 retriever 定義（`name`、`type`、`collection_name`、`top_k`、`embedding_*`） |
+| 7 | `[[agents]]` | 7 個 agent 定義（`name`、`label`、`tools`、`prompt_file`） |
+| 8 | `[[intents]]` | 9 個意圖路由規則（`name`、`target`、`description`、`require_slots`） |
+| 9 | `[memory]` | `type=postgres`、`max_messages_threshold=50`、`context_retention_pair=20`、`router_context_pairs=3` |
+| 10 | `[required_slots]` | `device_model`、`device_brand`（故障排除前必填） |
+| 11 | `[user_profile]` | `enabled`、`profile_dir`、`facts_enabled`、`fact_attributes`、`extraction` regex |
+| 12 | `[storage]` | `type=postgres`、`postgres_uri_env`（審計日誌後端） |
+| 13 | `[prompts]` | 所有 prompt 模板的路徑註冊表（router、summarizer、merger、profile_updater 等） |
+| 14 | `[harness]` | Master switch + 7 個 layer 子區塊（task、context、governance、feedback、safety、observability、entropy），全部預設 disabled |
+
+### 7.2 環境變數 (.env)
+
+機密資訊一律透過 `.env` 注入，不納入版本控制。`config.toml` 中以 `*_env` 後綴欄位指定對應的環境變數名稱。
 
 ```plaintext
-# === Application ===
-APP_ENV=development                     # development / staging / production
-APP_DEBUG=true
-APP_SECRET_KEY=your-secret-key-here
-
-# === Database ===
-DATABASE_URL=postgresql+asyncpg://user:password@db:5432/smart_lock
-DATABASE_POOL_SIZE=20
-DATABASE_MAX_OVERFLOW=10
-
-# === Redis ===
-REDIS_URL=redis://redis:6379/0
-SESSION_TTL_SECONDS=3600
-
 # === LINE Messaging API ===
 LINE_CHANNEL_SECRET=your-channel-secret
 LINE_CHANNEL_ACCESS_TOKEN=your-access-token
 
-# === Google AI ===
-GOOGLE_API_KEY=your-api-key
-GOOGLE_MODEL=gemini-3-pro
-GOOGLE_EMBEDDING_MODEL=text-embedding-004
+# === Database ===
+POSTGRES_URI=postgresql+asyncpg://user:password@db:5432/smart_lock
+PG_VECTOR_URI=postgresql+asyncpg://user:password@db:5432/smart_lock
 
-# === Auth ===
-JWT_SECRET_KEY=your-jwt-secret
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60
-JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
+# === Google Vertex AI ===
+VERTEX_PROJECT_ID=your-gcp-project-id
+VERTEX_LOCATION=us-central1
 
-# === AI Engine ===
-CASE_LIBRARY_CONFIDENCE_THRESHOLD=0.85
-RAG_CONFIDENCE_THRESHOLD=0.70
-VECTOR_SEARCH_TOP_K=5
+# === Google Gemini (開發替代) ===
+GEMINI_API_KEY=your-api-key
 
-# === PostgreSQL (docker-compose) ===
-POSTGRES_DB=smart_lock
-POSTGRES_USER=smartlock
-POSTGRES_PASSWORD=your-db-password
+# === Ollama (本地開發) ===
+OLLAMA_BASE_URL=http://localhost:11434
+
+# === API Tools ===
+ORDER_API_URL=https://api.example.com/v1/status
+ORDER_API_TOKEN=your-bearer-token
 ```
 
-### 7.2 configs/settings.toml
+### 7.3 設定分工原則
 
-存放非機密的應用程式設定，可納入版本控制。
-
-```toml
-[app]
-name = "Smart Lock AI Support Platform"
-version = "1.0.0"
-api_prefix = "/api/v1"
-
-[conversation]
-max_turns = 20
-context_window_size = 10
-session_timeout_minutes = 60
-
-[problem_card]
-auto_generate_threshold = 3    # 幾輪對話後自動產生問題卡
-required_fields = ["lock_model", "fault_symptom"]
-
-[resolution]
-case_library_top_k = 5
-rag_chunk_top_k = 8
-rag_max_tokens = 1500
-
-[content_filter]
-enabled = true
-max_input_length = 2000
-blocked_patterns_file = "configs/blocked_patterns.txt"
-```
-
-### 7.3 configs/prompts/
-
-LLM System Prompt 以純文字檔案儲存，方便非工程人員編輯與版本追蹤。每個 prompt 對應一個 LangChain chain。
-
-| 檔案 | 對應 Chain | 用途 |
-|------|-----------|------|
-| `intent_recognition.txt` | `intent_chain.py` | 辨識用戶意圖（報修、查詢、操作指導等） |
-| `ner_extraction.txt` | `ner_chain.py` | 擷取鎖型、故障症狀、錯誤代碼等實體 |
-| `problem_card_gen.txt` | `problem_card_chain.py` | 從對話上下文自動生成問題卡 |
-| `rag_answer.txt` | `rag_chain.py` | 基於檢索到的手冊片段生成回答 |
-| `sop_draft.txt` | `sop_draft_chain.py` | 從成功案例自動撰寫 SOP 草稿 |
-| `content_filter.txt` | `content_filter_chain.py` | 偵測並過濾不當內容與 prompt injection |
+| 類別 | 存放位置 | 版本控制 |
+|------|---------|---------|
+| 系統行為 | `agent/config.toml` | Yes |
+| 機密金鑰 | `.env` | No |
+| Prompt 模板 | `agent/agents/prompts/*.md` | Yes |
+| ETL 設定 | `data/config.toml` | Yes |
+| DB Schema | `SQL/Schema.sql` | Yes |
 
 ---
 
@@ -1232,22 +879,21 @@ smart-lock-platform/                      smart-lock-platform/
 
 ## 附錄 A：快速定位指南
 
-| 我想找... | 去哪裡看 |
-|----------|---------|
-| LINE Webhook 處理邏輯 | `backend/src/smart_lock/infrastructure/web/routers/webhook.py` |
-| 問題卡的業務規則 | `backend/src/smart_lock/domains/problem_card/entities.py` |
-| 三層解析引擎的流程 | `backend/src/smart_lock/application/resolution/use_cases.py` |
-| RAG chain 的 prompt | `configs/prompts/rag_answer.txt` |
-| LangChain chain 定義 | `backend/src/smart_lock/infrastructure/external/langchain_chains/` |
-| 資料庫 schema | `backend/src/smart_lock/infrastructure/persistence/orm_models/` |
-| 向量搜尋實作 | `backend/src/smart_lock/infrastructure/persistence/repositories/case_repo.py` |
-| 對話 session 快取 | `backend/src/smart_lock/infrastructure/cache/session_store.py` |
-| API 端點列表 | FastAPI 自動生成：`http://localhost:8000/docs` |
-| 前端頁面路由 | `frontend/src/app/` 目錄結構即路由結構 |
-| 環境變數說明 | `.env.example` |
-| LLM prompt 模板 | `configs/prompts/` |
-| 資料庫遷移歷史 | `backend/alembic/versions/` |
-| CI/CD 流程 | `.github/workflows/` |
+| 我想要... | 去哪裡 |
+|----------|--------|
+| 新增一個 Agent | `config.toml [[agents]]` 新增條目 + `agents/prompts/new_agent.md` 建立 prompt |
+| 新增一個意圖 | `config.toml [[intents]]` 新增條目，`target` 指向對應 agent |
+| 新增知識庫 | `config.toml [[databases]]` 新增條目 + `data/pipeline/` 建立 ETL 流程 |
+| 切換 LLM 供應商 | `config.toml [llm].provider`（vertexai / gemini / ollama） |
+| 修改 Graph 流程 | `graph/builder.py`（新增節點 or 修改邊路由） |
+| 新增 Harness 層 | `harness/{layer_name}/` 建立模組 + `config.toml [harness.xxx]` 設定 |
+| 除錯對話內容 | `scripts/view_logs.py`、`scripts/view_context.py` |
+| 修改 LINE 訊息樣式 | `tools/line_ui_factory.py` |
+| 更新使用者輪廓邏輯 | `profiles/manager.py` + `agents/prompts/update_profile.md` |
+| 新增敏感詞 | `config.toml [system].sensitive_keywords` |
+| 查看資料庫 Schema | `SQL/Schema.sql` |
+| 查看使用者 hard_facts | `scripts/view_facts.py` |
+| 環境變數說明 | `.env`（機密）、`config.toml`（非機密） |
 | 架構決策記錄 | `docs/adrs/` |
 
 ## 附錄 B：依賴方向圖
@@ -1298,147 +944,3 @@ smart-lock-platform/                      smart-lock-platform/
 
 **依賴規則：** 箭頭方向代表依賴方向。外層可以依賴內層，內層絕不依賴外層。Infrastructure 透過 Application 層定義的 Protocol (interfaces.py) 實作依賴反轉。
 
----
-
-## 10. 實際實作目錄結構 (2026-04 Addendum)
-
-> **注意**：第 3-7 節描述的是規劃階段的 Clean Architecture 目標結構 (`backend/src/smart_lock/`)。
-> V1.0 實際開發採用了 LangGraph 多 Agent 架構，程式碼位於 `agent/` 目錄。
-> 本節記錄實際目錄結構，作為開發參考。
-
-### 10.1 實際頂層結構
-
-```plaintext
-Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/
-│
-├── agent/                          # V1.0 LangGraph 多 Agent 客服系統 (核心)
-│   ├── app.py                      #   FastAPI entry (LINE webhook)
-│   ├── main.py                     #   CLI entry & local testing
-│   ├── config.toml                 #   14-section 設定檔 (含 [harness])
-│   ├── requirements.txt            #   Python dependencies
-│   ├── graph/                      #   LangGraph workflow 定義
-│   ├── agents/                     #   7 Agent 子圖 + 13 prompt templates
-│   ├── harness/                    #   8-Layer Agent Harness Framework
-│   ├── tools/                      #   7 retriever tools (pgvector, API, web search)
-│   ├── llms/                       #   LLM providers (Vertex AI, Gemini, Ollama)
-│   ├── embeddings/                 #   Embedding providers
-│   ├── memory/                     #   Checkpointer (PostgreSQL, SQLite)
-│   ├── profiles/                   #   User profile (SCD Type 2)
-│   ├── core/                       #   Config, LINE Bot, Debounce, Debug Log
-│   ├── storage/                    #   Audit log backends
-│   └── scripts/                    #   Admin CLI utilities
-│
-├── data/                           # ETL Pipeline (知識庫資料處理)
-│   ├── pipeline/                   #   Bronze/Silver/Gold 分層處理
-│   │   ├── source_to_raw/          #     原始資料收集
-│   │   ├── raw_to_bronze/          #     文字擷取 (YouTube, LINE, Website, GDrive)
-│   │   ├── bronze_to_silver/       #     LLM 內容增強
-│   │   └── silver_to_gold/         #     向量化 → pgvector 寫入
-│   ├── config.toml                 #   ETL pipeline 設定
-│   └── requirements.txt            #   Data pipeline dependencies
-│
-├── SQL/                            # Database schema
-│   └── Schema.sql                  #   PostgreSQL DDL (V1.0 + V2.0)
-│
-├── docs/                           # 文件
-│   ├── project-docs/               #   核心專案文件 (本目錄)
-│   ├── system_design/              #   系統設計 (PRD, SOW, diagrams, requirements)
-│   ├── agent-harness-refactor/     #   Agent Harness 重構文件 (NEW)
-│   ├── adrs/                       #   Architecture Decision Records
-│   ├── Locksmith_Preparation_Checklist/  # 領域知識 (鎖匠準備)
-│   └── VibeCoding_Workflow_Templates/    # 設計思維模板
-│
-└── README.md
-```
-
-### 10.2 agent/harness/ -- 8 層 Harness 模組
-
-Harness 是 Agent 系統的運行時基礎設施層。所有模組預設 disabled (`config.toml [harness] enabled = false`)。
-
-```plaintext
-agent/harness/
-├── __init__.py                     # HarnessConfig, is_layer_enabled()
-│
-├── task/                           # L1: Task Representation
-│   ├── decomposer.py              #   task_decompose() - ProblemCard 初始化
-│   ├── problem_card.py            #   ProblemCard dataclass + CRUD
-│   └── prompts/decompose_task.md  #   LLM structured output prompt
-│
-├── context/                        # L2: Context Assembly
-│   ├── assembler.py               #   context_assemble() - freshness + budget
-│   ├── budget.py                  #   Token budget calculator
-│   └── freshness.py               #   Source freshness scoring
-│
-├── governance/                     # L3: Tool Governance
-│   ├── registry.py                #   ToolRegistry (risk levels)
-│   └── validator.py               #   Parameter schema validation
-│
-├── feedback/                       # L5: Feedback & Verification
-│   ├── verifier.py                #   verify_answer() - quality eval + retry
-│   └── prompts/evaluate_answer.md
-│
-├── safety/                         # L6: Safety & Control
-│   └── gate.py                    #   safety_gate() - dangerous instruction check
-│
-├── observability/                  # L7: Observability
-│   ├── tracer.py                  #   @traced decorator
-│   └── metrics.py                 #   SessionMetrics + run reports
-│
-└── entropy/                        # L8: Entropy Management
-    ├── checker.py                 #   entropy_check() - novelty detection
-    ├── sop_generator.py           #   Auto-SOP from novel resolutions
-    └── prompts/generate_sop.md
-```
-
-### 10.3 LangGraph Graph Flow
-
-```
-START
-  → pre_process          # 載入 user_profile, 注入 summary
-  → manage_memory        # 50 則閾值語意壓縮
-  → [task_decompose]     # L1: ProblemCard (harness, disabled)
-  → [context_assemble]   # L2: 上下文精選 (harness, disabled)
-  → [safety_gate]        # L6: 危險指令攔截 (harness, disabled)
-  → router               # LLM 意圖分類 → next_agents
-  → route_by_intent      # Fan-out Send() 至多 agent 平行執行
-     → [7 agent subgraphs, 各含 agent_llm ↔ tool_node 迴圈]
-  → merge_answers        # Fan-in 合併回覆
-  → [verify_answer]      # L5: 品質驗證 (harness, disabled)
-  → update_profile       # SCD Type 2 使用者輪廓更新
-  → [entropy_check]      # L8: 新案例偵測 (harness, disabled)
-  → post_process         # Markdown 清理 + LINE Flex Message 建構
-  → END
-```
-
-`[方括號]` 節點為 Harness 層，Phase 0 為 pass-through skeleton。
-
-### 10.4 config.toml 結構 (14 sections)
-
-| # | Section | Description |
-|---|---|---|
-| 1 | `[system]` | Domain, thread prefix, timeouts, sensitive keywords |
-| 2 | `[debounce]` | Message buffering (5s wait, 300s TTL) |
-| 3 | `[line_bot]` | Loading animation timing |
-| 4 | `[templates]` | Error & fallback messages |
-| 5 | `[llm]` | Provider, model, temperature |
-| 6 | `[[databases]]` | 7 retriever definitions (pgvector, API, web search) |
-| 7 | `[[agents]]` | 7 agent definitions (name, tools, prompt_file) |
-| 8 | `[[intents]]` | 9 intent routing rules |
-| 9 | `[memory]` | Checkpointer, compression threshold |
-| 10 | `[required_slots]` | Slot filling (device_model, device_brand) |
-| 11 | `[user_profile]` | Profile persistence, fact extraction |
-| 12 | `[storage]` | Audit log backend |
-| 13 | `[prompts]` | Prompt file path registry |
-| 14 | `[harness]` | **NEW**: 8-layer harness settings (all disabled) |
-
-### 10.5 規劃架構 vs 實際架構對照
-
-| 概念 | 規劃 (本文 §3-7) | 實際實作 |
-|---|---|---|
-| ConversationManager | `application/conversation/use_cases.py` | `graph/nodes.py` (pre_process + manage_memory + router) |
-| ProblemCardEngine | `application/problem_card/use_cases.py` | `harness/task/problem_card.py` + `decomposer.py` |
-| ThreeLayerResolver | `application/resolution/use_cases.py` | Router → Agent fan-out (L1=pgvector, L2=RAG, L3=transfer_human) |
-| KnowledgeBaseManager | `application/knowledge_base/use_cases.py` | `tools/pgvector_store.py` (5 collections) |
-| SOPGenerator | `application/sop/use_cases.py` | `harness/entropy/sop_generator.py` (Phase 6) |
-| Domain Entities | `domains/*/entities.py` | `graph/state.py` (GraphState TypedDict) |
-| Infrastructure/Repos | `infrastructure/repositories/` | `memory/`, `storage/`, `profiles/` |
