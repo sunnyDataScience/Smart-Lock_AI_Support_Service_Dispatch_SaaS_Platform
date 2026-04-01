@@ -85,6 +85,14 @@ AI 智能客服意圖辨識（報修 / 諮詢 / 投訴 / 其他）
 | **Admin Panel V1.0** | 知識庫審核、對話紀錄查詢、SOP 上架、基礎營運儀表板 (FastAPI + Jinja2/HTMX) |
 | **LLM 閘道** | 統一 LLM 呼叫入口、Prompt 模板管理、Token 追蹤、Retry/Fallback |
 
+### Agent Harness 框架與前端架構決策
+
+| 項目 | 說明 |
+|:---|:---|
+| **Agent Harness 8 層框架** | AI 運行時基礎設施，位於 `harness/` 目錄。8 層架構：L1 Task Decomposition、L2 Context Assembly、L3 Governance Gate、L4 Feedback Loop、L5 Safety Boundary、L6 Observability Tap、L7 Human Escalation、L8 Entropy Tracker。Phase 0 骨架完成（全部 disabled），由 `config.toml` 14 區段集中驅動所有行為 |
+| **前端統一決策** | Next.js 14 統一前端技術棧：V1.0 Admin Panel（取代原 Jinja2/HTMX 方案）+ V2.0 技師 Web App（PWA），共用 shadcn/ui + Tailwind CSS 元件庫 |
+| **ProblemCard 領域無關設計** | 核心欄位（id, conversation_id, status, completeness_score, sentiment_label）保持領域無關；電子鎖特有欄位（brand, model, symptom, door_status 等）遷入 `domain_attributes` JSONB 欄位，為多垂直領域擴展預留架構彈性 |
+
 ### V2.0 - 技師派工與帳務平台 (W18-W31)
 
 | 子模組 | 說明 |

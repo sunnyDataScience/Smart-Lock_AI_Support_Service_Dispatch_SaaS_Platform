@@ -239,7 +239,9 @@ graph TB
 
 | 表名 | 關鍵欄位 | 說明 |
 |:-----|:---------|:-----|
-| `problem_cards` | `id`, `conversation_id`, `line_user_id`, `brand`, `model`, `symptom`, `category`, `urgency`, `location`, `door_type`, `network_type`, `media_urls[]`, `completeness_score`, `sentiment_label`, `status` (draft/confirmed/resolved), `created_at` | 問題診斷卡 |
+| `problem_cards` | `id`, `conversation_id`, `line_user_id`, `category`, `urgency`, `completeness_score`, `sentiment_label`, `status` (draft/confirmed/resolved), `domain_attributes` (JSONB), `created_at` | 問題診斷卡（領域無關核心 + JSONB 領域欄位） |
+
+> **ProblemCard 領域無關設計**: 核心表欄位僅保留跨領域通用屬性（id, status, completeness_score, sentiment_label 等）。電子鎖特有欄位（brand, model, symptom, door_type, network_type, location, media_urls）遷入 `domain_attributes` JSONB，支援多垂直領域擴展而不需 Schema 變更。
 
 **AI Prompt 範本：**
 - 意圖識別 Prompt：分類用戶訊息為 `repair` / `purchase` / `inquiry` / `dispatch` / `other`
@@ -307,7 +309,56 @@ graph TD
 
 ---
 
-### 3.6 M6: Admin Panel V1.0
+### 3.6 M-Harness: Agent Harness 框架 (harness/)
+
+**職責：** LangGraph multi-agent 架構的 8 層運行時框架，為所有 AI agent 節點提供統一的任務分解、上下文組裝、治理閘門、安全邊界與可觀測性基礎設施。
+
+| 項目 | 內容 |
+|:-----|:-----|
+| **核心服務** | `TaskDecomposer` (L1), `ContextAssembler` (L2), `GovernanceGate` (L3), `FeedbackLoop` (L4), `SafetyBoundary` (L5), `ObservabilityTap` (L6), `HumanEscalation` (L7), `EntropyTracker` (L8) |
+| **AI 整合** | 包裹所有 LangGraph agent 節點，GraphState 注入 5 個 harness 欄位（harness_trace_id, governance_result, safety_flags, feedback_signals, entropy_score） |
+| **關鍵技術** | LangGraph StateGraph, config.toml `[harness]` 區段集中配置, Phase 0 骨架全部 disabled |
+
+**8 層架構摘要：**
+
+| 層級 | 名稱 | 職責 | 護城河對應 |
+|:-----|:-----|:-----|:-----------|
+| L1 | Task Decomposition | 將使用者意圖拆解為可執行子任務 | Moat A + F |
+| L2 | Context Assembly | 組裝 ProblemCard + 知識庫 + 對話歷史上下文 | Moat A + F |
+| L3 | Governance Gate | 治理閘門：Token 預算、品質門檻、合規檢查 | -- |
+| L4 | Feedback Loop | 收集使用者回饋 + 自動品質評估 | Moat F |
+| L5 | Safety Boundary | Prompt Injection 攔截、PII 過濾、Output Guardrail | Moat F |
+| L6 | Observability Tap | 結構化日誌、LangSmith 追蹤、成本歸因 | Moat J |
+| L7 | Human Escalation | 人工介入判斷與升級路由 | -- |
+| L8 | Entropy Tracker | 對話混亂度偵測、模型信心衰減追蹤 | Moat A + F |
+
+---
+
+### 3.7 M-Data: 資料管線模組 (data/)
+
+**職責：** ETL 管線實作 Medallion Architecture，將原始數據（Bronze）清洗為結構化數據（Silver）再聚合為分析就緒數據（Gold）。
+
+| 項目 | 內容 |
+|:-----|:-----|
+| **核心服務** | `BronzeIngestor`, `SilverTransformer`, `GoldAggregator`, `DataQualityChecker` |
+| **AI 整合** | Silver 層觸發 Embedding 批量計算；Gold 層產出訓練語料供 Moat A 語言模型回訓 |
+| **關鍵技術** | PostgreSQL JSONB, 事件驅動 ETL, 資料品質閘門 |
+
+---
+
+### 3.8 M-Frontend: 前端應用模組 (frontend/)
+
+**職責：** V1.0 Admin Panel 前端應用，採用 Next.js 14 統一前端技術棧（取代原 Jinja2/HTMX 方案），V2.0 技師 Web App 共用同一代碼庫。
+
+| 項目 | 內容 |
+|:-----|:-----|
+| **核心服務** | Next.js 14 App Router, React Server Components, shadcn/ui 元件庫 |
+| **AI 整合** | 無直接 AI 整合（呈現層），透過 FastAPI REST API 消費後端服務 |
+| **關鍵技術** | Next.js 14, TypeScript 5+, shadcn/ui + Tailwind CSS, PWA (V2.0 技師端) |
+
+---
+
+### 3.9 M6: Admin Panel V1.0
 
 **職責：** 提供知識庫管理 UI、對話紀錄查詢、SOP 審核佇列、營運儀表板、系統設定。
 

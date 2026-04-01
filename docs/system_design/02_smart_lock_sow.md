@@ -37,6 +37,11 @@
 | **CI/CD** | GitHub Actions | - | 自動化測試與部署流程 |
 | **測試框架** | pytest + pytest-asyncio | - | 單元測試與整合測試 |
 | **安全性** | TLS 1.2+ / AES-256 / JWT + RBAC | - | 傳輸加密 / 靜態加密 / 認證授權 |
+| **Agent Harness 框架** | 8 層 AI 運行時（Task/Context/Governance/Feedback/Safety/Observability/Escalation/Entropy） | Phase 0 | `config.toml` 14 區段集中驅動，取代分散式 .env 配置 |
+| **集中配置** | config.toml | 14 sections | LLM 參數、Harness 開關、安全閾值、可觀測性等全平台行為配置 |
+| **前端框架 (V1.0)** | Next.js (React) + shadcn/ui + Tailwind CSS | 14+ | V1.0 Admin Panel（取代 Jinja2/HTMX）+ V2.0 技師 Web App，統一前端棧 |
+| **ProblemCard 架構** | 領域無關核心 + `domain_attributes` JSONB | - | 多垂直領域擴展就緒（電子鎖欄位遷入 JSONB） |
+| **資料管線** | Bronze → Silver → Gold Medallion Architecture | - | ETL 管線：原始數據清洗 → 結構化 → 分析就緒 |
 
 **架構模式:** Modular Monolith (V1.0) → Microservices-ready (V2.0)
 
