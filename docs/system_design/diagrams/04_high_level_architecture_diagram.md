@@ -27,6 +27,14 @@ flowchart TB
     subgraph AI_ENGINE["AI Engine Layer"]
         LANGGRAPH["🧠 LangGraph State Machine<br/>(工作流編排)"]
 
+        subgraph HARNESS["Agent Harness Framework"]
+            L1["L1 Task Decompose<br/>(ProblemCard)"]
+            L2["L2 Context Assemble<br/>(Freshness + Budget)"]
+            L6["L6 Safety Gate<br/>(Dangerous Instruction Check)"]
+            L5["L5 Verify Answer<br/>(Quality Eval + Retry)"]
+            L8["L8 Entropy Check<br/>(Novel Detection + SOP)"]
+        end
+
         subgraph AGENTS["Multi-Agent System"]
             HW["Hardware<br/>Technician"]
             SALES["Sales<br/>Representative"]
@@ -74,10 +82,16 @@ flowchart TB
     REST_API --> FASTAPI
     FASTAPI --> LANGGRAPH
 
-    LANGGRAPH --> ROUTER
+    LANGGRAPH --> L1
+    L1 --> L2
+    L2 --> L6
+    L6 --> ROUTER
     ROUTER --> AGENTS
     AGENTS --> MERGER
-    MERGER --> LANGGRAPH
+    MERGER --> L5
+    L5 -->|retry| L2
+    L5 -->|pass| L8
+    L8 --> LANGGRAPH
 
     AGENTS -->|推論| GEMINI
     AGENTS -->|向量化| EMBED
@@ -93,6 +107,7 @@ flowchart TB
     style CLIENTS fill:#e3f2fd,stroke:#1565c0
     style GATEWAY fill:#f5f5f5,stroke:#616161
     style AI_ENGINE fill:#f3e5f5,stroke:#7b1fa2
+    style HARNESS fill:#ede7f6,stroke:#4527a0
     style LLM_LAYER fill:#fff3e0,stroke:#e65100
     style DATA_LAYER fill:#e8f5e9,stroke:#2e7d32
     style EXTERNAL fill:#fce4ec,stroke:#c62828

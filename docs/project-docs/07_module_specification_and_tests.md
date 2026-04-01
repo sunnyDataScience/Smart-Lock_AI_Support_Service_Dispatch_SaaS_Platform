@@ -1389,3 +1389,42 @@ Repository 介面使用 Protocol（非 ABC）。
 **文件結尾**
 
 *本文件為 V1.0 核心模組的模組規格與測試案例定義。V2.0 派工與帳務模組（DispatchEngine, PricingEngine, AccountingModule）的規格將在 V2.0 設計階段補充。*
+
+---
+
+## Addendum: 實際實作模組對照 (2026-04)
+
+> **注意**：本文件模組 1-5 描述的是規劃階段的 Clean Architecture UseCase 設計。
+> 實際 V1.0 採用 LangGraph 多 Agent 架構，以下為規劃模組與實際實作的對照。
+
+### 規劃 vs 實際對照表
+
+| 規劃模組 | 規劃路徑 | 實際實作 | 實際路徑 |
+|---|---|---|---|
+| **ConversationManager** (ProcessMessageUseCase) | `application/conversation/use_cases.py` | LangGraph graph nodes | `agent/graph/nodes.py` (pre_process, manage_memory, router, post_process) |
+| **ProblemCardEngine** (GenerateProblemCardUseCase) | `application/problem_card/use_cases.py` | Harness L1 Task Decomposer | `agent/harness/task/decomposer.py` + `problem_card.py` |
+| **ThreeLayerResolver** (ResolveQueryUseCase) | `application/resolution/use_cases.py` | Router + 7 Agent fan-out | `agent/graph/nodes.py:router` → `agent/agents/__init__.py` (L1=pgvector, L2=RAG, L3=transfer_human) |
+| **KnowledgeBaseManager** (SearchCaseLibraryUseCase) | `application/knowledge_base/use_cases.py` | pgvector tool + ETL pipeline | `agent/tools/pgvector_store.py` + `data/pipeline/` |
+| **SOPGenerator** (DraftSOPUseCase) | `application/sop/use_cases.py` | Harness L8 Entropy Manager | `agent/harness/entropy/sop_generator.py` (Phase 6) |
+
+### 新增 Harness 模組
+
+以下模組在規劃階段不存在，是 Agent Harness 重構新增的：
+
+| Harness Layer | Module | Path | Status |
+|---|---|---|---|
+| L1 Task Representation | `task_decompose()` | `agent/harness/task/decomposer.py` | Phase 0 skeleton |
+| L2 Context Assembly | `context_assemble()` | `agent/harness/context/assembler.py` | Phase 0 skeleton |
+| L3 Tool Governance | `ToolRegistry` | `agent/harness/governance/registry.py` | Phase 0 skeleton |
+| L5 Feedback & Verification | `verify_answer()` | `agent/harness/feedback/verifier.py` | Phase 0 skeleton |
+| L6 Safety & Control | `safety_gate()` | `agent/harness/safety/gate.py` | Phase 0 skeleton |
+| L7 Observability | `@traced` decorator | `agent/harness/observability/tracer.py` | Phase 0 skeleton |
+| L8 Entropy Management | `entropy_check()` | `agent/harness/entropy/checker.py` | Phase 0 skeleton |
+
+### 詳細設計文件
+
+Harness 模組的詳細規格請參考 `docs/agent-harness-refactor/` 目錄：
+- `gap-analysis.md` -- 8 層成熟度評估
+- `migration-roadmap.md` -- Phase 0-6 實作路線圖
+- `problem-card-spec.md` -- ProblemCard data model + lifecycle
+- `graph-flow-redesign.md` -- 新舊 graph flow 對照

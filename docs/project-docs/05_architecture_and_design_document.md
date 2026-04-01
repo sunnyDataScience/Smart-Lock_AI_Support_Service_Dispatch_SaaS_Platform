@@ -1667,8 +1667,142 @@ Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/
 
 ---
 
+---
+
+## 附錄 E：實際實作架構與 Agent Harness 框架 (2026-04 Addendum)
+
+> **重要**：本文件第 1-9 部分描述的是 V1.0 規劃階段的 Clean Architecture 目標架構 (`backend/src/smart_lock/domains/`)。實際 V1.0 開發採用了 **LangGraph 多 Agent 架構** (`agent/` 目錄)，以 POC 快速驗證為優先。本 Addendum 記錄實際架構與後續 Harness 重構方向。
+
+### E.1 實際技術棧
+
+| 層級 | 規劃 (本文第 4 部分) | 實際實作 |
+|---|---|---|
+| 工作流引擎 | LangChain LCEL | **LangGraph StateGraph** (多 agent 平行派發) |
+| 對話編排 | ConversationManager UseCase | **graph/nodes.py** (pre_process → manage_memory → router → agents → merge_answers → update_profile → post_process) |
+| Agent 架構 | 單一 LLM Chain | **7 個獨立 Agent 子圖** (hardware_technician, sales_representative, store_assistant, app_specialist, manual_librarian, web_researcher, receptionist) |
+| 設定管理 | settings.toml + .env | **config.toml** (14 個 section) + .env |
+| 使用者輪廓 | User entity + repository | **ProfileManager** (SCD Type 2 hard_facts + .md soft_profile) |
+| LLM Provider | Google Gemini 3 Pro | **Google Gemini 2.5 Flash** (via Vertex AI)，支援 Ollama fallback |
+
+### E.2 實際目錄結構 (agent/)
+
+```plaintext
+agent/                              # LangGraph 多 Agent 客服系統
+├── app.py                          # FastAPI entry (LINE webhook + startup)
+├── main.py                         # CLI entry & local testing
+├── config.toml                     # 14-section configuration (含 [harness])
+├── requirements.txt                # Python dependencies
+│
+├── graph/                          # LangGraph 工作流定義
+│   ├── state.py                    # GraphState (14 fields, 含 5 harness sub-dicts)
+│   ├── builder.py                  # StateGraph assembly & edge routing
+│   └── nodes.py                    # 7 workflow nodes
+│
+├── agents/                         # 7 Agent 定義
+│   ├── __init__.py                 # build_agent_executor / build_all_agents
+│   └── prompts/                    # 13 prompt templates (.md)
+│
+├── harness/                        # 8-Layer Agent Harness Framework (Phase 0)
+│   ├── __init__.py                 # HarnessConfig, is_layer_enabled()
+│   ├── task/                       # L1 Task Representation
+│   │   ├── decomposer.py           #   task_decompose() graph node
+│   │   ├── problem_card.py          #   ProblemCard dataclass (domain-agnostic)
+│   │   └── prompts/decompose_task.md
+│   ├── context/                    # L2 Context Assembly
+│   │   ├── assembler.py             #   context_assemble() graph node
+│   │   ├── budget.py                #   Token budget calculator
+│   │   └── freshness.py             #   Source freshness scoring
+│   ├── governance/                 # L3 Tool Governance
+│   │   ├── registry.py              #   ToolRegistry with risk levels
+│   │   └── validator.py             #   Parameter schema validation
+│   ├── feedback/                   # L5 Feedback & Verification
+│   │   ├── verifier.py              #   verify_answer() graph node
+│   │   └── prompts/evaluate_answer.md
+│   ├── safety/                     # L6 Safety & Control
+│   │   └── gate.py                  #   safety_gate() graph node
+│   ├── observability/              # L7 Observability
+│   │   ├── tracer.py                #   @traced decorator
+│   │   └── metrics.py               #   SessionMetrics
+│   └── entropy/                    # L8 Entropy Management
+│       ├── checker.py               #   entropy_check() graph node
+│       ├── sop_generator.py         #   Auto-SOP from novel resolutions
+│       └── prompts/generate_sop.md
+│
+├── tools/                          # LangGraph 工具 (7 retrievers)
+├── llms/                           # LLM providers (Vertex AI / Gemini / Ollama)
+├── embeddings/                     # Embedding providers
+├── memory/                         # Checkpointer (PostgreSQL / SQLite)
+├── profiles/                       # User profile (SCD Type 2)
+├── core/                           # Config, LINE Bot, Debounce, Debug Log
+├── storage/                        # Audit log backends
+└── scripts/                        # Admin CLI utilities
+```
+
+### E.3 Agent Harness 8 層框架
+
+Harness 是 Agent 系統的**運行時基礎設施** -- 控制任務拆解、上下文裝配、工具治理、品質回饋、安全邊界、觀測和熵管理。
+
+```
+Agent Capability ≈ Model × Harness
+```
+
+| Layer | Name | Graph Node | Status |
+|---|---|---|---|
+| L1 | Task Representation | `task_decompose` | Phase 0 skeleton |
+| L2 | Context Assembly | `context_assemble` | Phase 0 skeleton |
+| L3 | Tool Governance | (middleware in agent subgraph) | Phase 0 skeleton |
+| L4 | State & Memory | (existing memory/ + profiles/) | 45% mature |
+| L5 | Feedback & Verification | `verify_answer` | Phase 0 skeleton |
+| L6 | Safety & Control | `safety_gate` | Phase 0 skeleton |
+| L7 | Observability | (@traced decorator) | Phase 0 skeleton |
+| L8 | Entropy Management | `entropy_check` | Phase 0 skeleton |
+
+**Target Graph Flow** (harness-aware):
+```
+START → pre_process → manage_memory → task_decompose → context_assemble
+→ safety_gate → router → [fan-out agents] → merge_answers → verify_answer
+→ (retry loop) → update_profile → entropy_check → post_process → END
+```
+
+### E.4 ProblemCard：Domain-Agnostic 設計
+
+ProblemCard 採用**核心欄位 + 動態 domain_attributes** 設計，支援領域切換：
+
+```python
+@dataclass
+class ProblemCard:
+    # Domain-agnostic core
+    symptom_summary: str        # every domain has a problem description
+    category: str               # every domain has classification
+    completeness_score: float   # every domain has completeness
+
+    # Domain-specific (JSONB, schema from config.toml)
+    domain_attributes: dict     # e.g. {"device_brand": "Yale", "door_type": "木門"}
+```
+
+配置切換：
+```toml
+# config.toml [harness.task.domain_schema]
+fields = ["device_brand", "device_model", "door_type", "fault_category"]
+```
+
+### E.5 詳細設計文件索引
+
+| 文件 | 位置 | 內容 |
+|---|---|---|
+| 8 層理論框架 | `docs/agent-harness-refactor/harness-architecture.md` | 完整 Harness 知識體系 |
+| Gap 分析 | `docs/agent-harness-refactor/gap-analysis.md` | 8 層 vs 現有成熟度 |
+| 遷移路線圖 | `docs/agent-harness-refactor/migration-roadmap.md` | Phase 0-6 + 風險評估 |
+| Graph Flow 對照 | `docs/agent-harness-refactor/graph-flow-redesign.md` | 新舊流程比較 |
+| ProblemCard 規格 | `docs/agent-harness-refactor/problem-card-spec.md` | 資料模型 + 生命週期 |
+| 設定演進 | `docs/agent-harness-refactor/config-evolution.md` | config.toml 擴展規格 |
+| POC 規格 | `docs/agent-harness-refactor/poc-spec.md` | 電子鎖匠 50 筆測試計畫 |
+
+---
+
 **文件審核記錄 (Review History):**
 
 | 日期 | 審核人 | 版本 | 變更摘要 |
 | :--- | :--- | :--- | :--- |
 | 2026-02-17 | 技術架構師 | v1.0 | 初稿完成，涵蓋 V1.0 + V2.0 完整架構設計 |
+| 2026-04-01 | AI 架構助理 | v1.1 | 新增附錄 E：實際 LangGraph 架構 + 8 層 Agent Harness 框架 |

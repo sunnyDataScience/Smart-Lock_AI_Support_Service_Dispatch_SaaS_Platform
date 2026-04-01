@@ -53,15 +53,21 @@ erDiagram
     }
 
     PROBLEM_CARD {
-        uuid id PK
-        uuid conversation_id FK
-        string brand "Samsung | Yale | Gateman | Philips | Milre"
-        string model
-        text symptoms
-        string location
-        enum severity "low | medium | high | critical"
-        boolean is_complete
+        varchar card_id PK "pc_{uuid8}"
+        varchar user_id FK
+        varchar session_id
+        varchar status "open | diagnosing | resolved | escalated"
+        text symptom_summary "domain-agnostic core"
+        varchar category "hardware_fault | software_setting | ..."
+        float completeness_score "0.0~1.0"
+        jsonb domain_attributes "domain-specific fields from config"
+        text resolution_summary
+        varchar resolution_level "L1_self_service | L2_rag | L3_escalation"
+        jsonb attempts_json "ResolutionAttempt checkpoints"
+        boolean is_novel "L8 entropy trigger"
+        boolean sop_generated
         timestamp created_at
+        timestamp updated_at
     }
 
     CASE_ENTRY {
@@ -201,7 +207,7 @@ erDiagram
 | **User Facts** | 使用者資料 | SCD Type 2 歷史追蹤（電話、地址、設備品牌型號） | is_current + start/end_date |
 | **Conversation** | 客服對話 | 對話 Session，含狀態機與記憶壓縮 | thread_id 對應 LangGraph |
 | **Message** | 客服對話 | 單則訊息（含原始/處理後/AI 回覆三類） | 審計追蹤 |
-| **ProblemCard** | 問題診斷 | 結構化問題卡（品牌/型號/故障/地點） | 系統核心資料交換樞紐 |
+| **ProblemCard** | 問題診斷 | 結構化問題卡 (domain-agnostic core + JSONB domain_attributes) | Harness L1 核心 artifact，支援多領域切換 |
 | **Case Entry** | 知識庫 | 歷史案例 + 768 維向量，供 L1 搜尋 | HNSW 索引 + MMR |
 | **Manual Chunk** | 知識庫 | PDF 手冊分段 + 向量，供 L2 RAG | 分段索引 |
 | **SOP Draft** | 知識庫 | AI 自動生成 SOP，待審核發佈 | 審核工作流 |

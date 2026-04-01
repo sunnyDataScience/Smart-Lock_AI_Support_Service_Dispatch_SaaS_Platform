@@ -201,3 +201,88 @@ sequenceDiagram
     Memory->>Redis: 更新 checkpoint (summary + trimmed messages)
     Memory-->>Graph: 壓縮完成，繼續處理
 ```
+
+---
+
+## 流程五：Agent Harness 8 層處理流程 (2026-04 Addendum)
+
+> 以下為 Harness 框架啟用後的完整處理流程。Phase 0 階段所有 harness 節點為 pass-through。
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as LINE 用戶
+    participant LINE as LINE API
+    participant WH as Webhook Handler
+    participant Graph as LangGraph StateGraph
+    participant L1 as L1 Task Decompose
+    participant L2 as L2 Context Assemble
+    participant L6 as L6 Safety Gate
+    participant Router as Router (意圖分類)
+    participant Agent as Agent Subgraph
+    participant Tools as pgvector / API Tools
+    participant L5 as L5 Verify Answer
+    participant L8 as L8 Entropy Check
+    participant PG as PostgreSQL
+    participant LLM as Gemini LLM
+
+    User->>LINE: 發送訊息 "指紋沒反應螢幕不亮"
+    LINE->>WH: Webhook POST
+    WH->>Graph: invoke(question, thread_id)
+
+    Note over Graph: pre_process + manage_memory (unchanged)
+
+    Graph->>L1: task_decompose(question, user_profile)
+    L1->>LLM: Structured output (ProblemCard extraction)
+    LLM-->>L1: {symptom, category, domain_attributes}
+    L1->>PG: INSERT problem_cards
+    L1-->>Graph: task = {goal, subtasks, problem_card_id}
+
+    Graph->>L2: context_assemble(task, feedback)
+    L2->>PG: Query source freshness metadata
+    L2-->>Graph: context_meta = {freshness_scores, relevance_weights}
+
+    Graph->>L6: safety_gate(question)
+    L6-->>Graph: safety = {permission_level: read, requires_approval: false}
+
+    Graph->>Router: router(question, task.category)
+    Router->>LLM: 意圖分類
+    LLM-->>Router: intent = hardware_tech
+    Router-->>Graph: next_agents = [hardware_technician]
+
+    Graph->>Agent: Send(hardware_technician, state)
+    Agent->>Tools: db_video.search("指紋沒反應 螢幕不亮")
+    Tools->>PG: pgvector similarity search (HNSW)
+    PG-->>Tools: top_k results
+    Tools-->>Agent: RAG context
+    Agent->>LLM: System prompt + RAG context + question
+    LLM-->>Agent: 診斷回覆
+    Agent-->>Graph: answer, ui_hints
+
+    Note over Graph: merge_answers (unchanged)
+
+    Graph->>L5: verify_answer(answer, task.goal)
+    L5->>LLM: Evaluate quality (completeness, accuracy, safety)
+    LLM-->>L5: {overall: 0.8, status: passed}
+    L5->>PG: UPDATE problem_cards (append attempt)
+    L5-->>Graph: feedback = {verification_status: passed}
+
+    alt score < threshold (retry)
+        L5-->>Graph: feedback = {status: failed, retry_adjustments}
+        Graph->>L2: context_assemble (retry with broader keywords)
+        Note over L2: Re-enter loop (max 1 retry)
+    end
+
+    Note over Graph: update_profile (unchanged)
+
+    Graph->>L8: entropy_check(problem_card)
+    L8->>PG: find_similar_cards(symptom)
+    PG-->>L8: similar_cards (count: 0 → novel!)
+    L8->>PG: UPDATE problem_cards (is_novel = true)
+    L8-->>Graph: entropy = {novel_resolution: true, sop_candidates: [...]}
+
+    Note over Graph: post_process → LINE Flex Message
+    Graph-->>WH: response_ui
+    WH->>LINE: Reply API
+    LINE->>User: AI 診斷回覆
+```

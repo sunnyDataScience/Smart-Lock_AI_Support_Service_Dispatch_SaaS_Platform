@@ -1297,3 +1297,148 @@ smart-lock-platform/                      smart-lock-platform/
 ```
 
 **依賴規則：** 箭頭方向代表依賴方向。外層可以依賴內層，內層絕不依賴外層。Infrastructure 透過 Application 層定義的 Protocol (interfaces.py) 實作依賴反轉。
+
+---
+
+## 10. 實際實作目錄結構 (2026-04 Addendum)
+
+> **注意**：第 3-7 節描述的是規劃階段的 Clean Architecture 目標結構 (`backend/src/smart_lock/`)。
+> V1.0 實際開發採用了 LangGraph 多 Agent 架構，程式碼位於 `agent/` 目錄。
+> 本節記錄實際目錄結構，作為開發參考。
+
+### 10.1 實際頂層結構
+
+```plaintext
+Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/
+│
+├── agent/                          # V1.0 LangGraph 多 Agent 客服系統 (核心)
+│   ├── app.py                      #   FastAPI entry (LINE webhook)
+│   ├── main.py                     #   CLI entry & local testing
+│   ├── config.toml                 #   14-section 設定檔 (含 [harness])
+│   ├── requirements.txt            #   Python dependencies
+│   ├── graph/                      #   LangGraph workflow 定義
+│   ├── agents/                     #   7 Agent 子圖 + 13 prompt templates
+│   ├── harness/                    #   8-Layer Agent Harness Framework
+│   ├── tools/                      #   7 retriever tools (pgvector, API, web search)
+│   ├── llms/                       #   LLM providers (Vertex AI, Gemini, Ollama)
+│   ├── embeddings/                 #   Embedding providers
+│   ├── memory/                     #   Checkpointer (PostgreSQL, SQLite)
+│   ├── profiles/                   #   User profile (SCD Type 2)
+│   ├── core/                       #   Config, LINE Bot, Debounce, Debug Log
+│   ├── storage/                    #   Audit log backends
+│   └── scripts/                    #   Admin CLI utilities
+│
+├── data/                           # ETL Pipeline (知識庫資料處理)
+│   ├── pipeline/                   #   Bronze/Silver/Gold 分層處理
+│   │   ├── source_to_raw/          #     原始資料收集
+│   │   ├── raw_to_bronze/          #     文字擷取 (YouTube, LINE, Website, GDrive)
+│   │   ├── bronze_to_silver/       #     LLM 內容增強
+│   │   └── silver_to_gold/         #     向量化 → pgvector 寫入
+│   ├── config.toml                 #   ETL pipeline 設定
+│   └── requirements.txt            #   Data pipeline dependencies
+│
+├── SQL/                            # Database schema
+│   └── Schema.sql                  #   PostgreSQL DDL (V1.0 + V2.0)
+│
+├── docs/                           # 文件
+│   ├── project-docs/               #   核心專案文件 (本目錄)
+│   ├── system_design/              #   系統設計 (PRD, SOW, diagrams, requirements)
+│   ├── agent-harness-refactor/     #   Agent Harness 重構文件 (NEW)
+│   ├── adrs/                       #   Architecture Decision Records
+│   ├── Locksmith_Preparation_Checklist/  # 領域知識 (鎖匠準備)
+│   └── VibeCoding_Workflow_Templates/    # 設計思維模板
+│
+└── README.md
+```
+
+### 10.2 agent/harness/ -- 8 層 Harness 模組
+
+Harness 是 Agent 系統的運行時基礎設施層。所有模組預設 disabled (`config.toml [harness] enabled = false`)。
+
+```plaintext
+agent/harness/
+├── __init__.py                     # HarnessConfig, is_layer_enabled()
+│
+├── task/                           # L1: Task Representation
+│   ├── decomposer.py              #   task_decompose() - ProblemCard 初始化
+│   ├── problem_card.py            #   ProblemCard dataclass + CRUD
+│   └── prompts/decompose_task.md  #   LLM structured output prompt
+│
+├── context/                        # L2: Context Assembly
+│   ├── assembler.py               #   context_assemble() - freshness + budget
+│   ├── budget.py                  #   Token budget calculator
+│   └── freshness.py               #   Source freshness scoring
+│
+├── governance/                     # L3: Tool Governance
+│   ├── registry.py                #   ToolRegistry (risk levels)
+│   └── validator.py               #   Parameter schema validation
+│
+├── feedback/                       # L5: Feedback & Verification
+│   ├── verifier.py                #   verify_answer() - quality eval + retry
+│   └── prompts/evaluate_answer.md
+│
+├── safety/                         # L6: Safety & Control
+│   └── gate.py                    #   safety_gate() - dangerous instruction check
+│
+├── observability/                  # L7: Observability
+│   ├── tracer.py                  #   @traced decorator
+│   └── metrics.py                 #   SessionMetrics + run reports
+│
+└── entropy/                        # L8: Entropy Management
+    ├── checker.py                 #   entropy_check() - novelty detection
+    ├── sop_generator.py           #   Auto-SOP from novel resolutions
+    └── prompts/generate_sop.md
+```
+
+### 10.3 LangGraph Graph Flow
+
+```
+START
+  → pre_process          # 載入 user_profile, 注入 summary
+  → manage_memory        # 50 則閾值語意壓縮
+  → [task_decompose]     # L1: ProblemCard (harness, disabled)
+  → [context_assemble]   # L2: 上下文精選 (harness, disabled)
+  → [safety_gate]        # L6: 危險指令攔截 (harness, disabled)
+  → router               # LLM 意圖分類 → next_agents
+  → route_by_intent      # Fan-out Send() 至多 agent 平行執行
+     → [7 agent subgraphs, 各含 agent_llm ↔ tool_node 迴圈]
+  → merge_answers        # Fan-in 合併回覆
+  → [verify_answer]      # L5: 品質驗證 (harness, disabled)
+  → update_profile       # SCD Type 2 使用者輪廓更新
+  → [entropy_check]      # L8: 新案例偵測 (harness, disabled)
+  → post_process         # Markdown 清理 + LINE Flex Message 建構
+  → END
+```
+
+`[方括號]` 節點為 Harness 層，Phase 0 為 pass-through skeleton。
+
+### 10.4 config.toml 結構 (14 sections)
+
+| # | Section | Description |
+|---|---|---|
+| 1 | `[system]` | Domain, thread prefix, timeouts, sensitive keywords |
+| 2 | `[debounce]` | Message buffering (5s wait, 300s TTL) |
+| 3 | `[line_bot]` | Loading animation timing |
+| 4 | `[templates]` | Error & fallback messages |
+| 5 | `[llm]` | Provider, model, temperature |
+| 6 | `[[databases]]` | 7 retriever definitions (pgvector, API, web search) |
+| 7 | `[[agents]]` | 7 agent definitions (name, tools, prompt_file) |
+| 8 | `[[intents]]` | 9 intent routing rules |
+| 9 | `[memory]` | Checkpointer, compression threshold |
+| 10 | `[required_slots]` | Slot filling (device_model, device_brand) |
+| 11 | `[user_profile]` | Profile persistence, fact extraction |
+| 12 | `[storage]` | Audit log backend |
+| 13 | `[prompts]` | Prompt file path registry |
+| 14 | `[harness]` | **NEW**: 8-layer harness settings (all disabled) |
+
+### 10.5 規劃架構 vs 實際架構對照
+
+| 概念 | 規劃 (本文 §3-7) | 實際實作 |
+|---|---|---|
+| ConversationManager | `application/conversation/use_cases.py` | `graph/nodes.py` (pre_process + manage_memory + router) |
+| ProblemCardEngine | `application/problem_card/use_cases.py` | `harness/task/problem_card.py` + `decomposer.py` |
+| ThreeLayerResolver | `application/resolution/use_cases.py` | Router → Agent fan-out (L1=pgvector, L2=RAG, L3=transfer_human) |
+| KnowledgeBaseManager | `application/knowledge_base/use_cases.py` | `tools/pgvector_store.py` (5 collections) |
+| SOPGenerator | `application/sop/use_cases.py` | `harness/entropy/sop_generator.py` (Phase 6) |
+| Domain Entities | `domains/*/entities.py` | `graph/state.py` (GraphState TypedDict) |
+| Infrastructure/Repos | `infrastructure/repositories/` | `memory/`, `storage/`, `profiles/` |
