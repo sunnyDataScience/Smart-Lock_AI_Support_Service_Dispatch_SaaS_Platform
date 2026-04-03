@@ -200,8 +200,18 @@ async def task_decompose(state: GraphState, config: RunnableConfig):
     return await _harness_decompose(state, config)
 
 
+async def safety_gate(state: GraphState, config: RunnableConfig):
+    """L6 Harness: Pre-routing safety check.
+
+    Scans for dangerous instructions, PII, sentiment, and Red_Code emergencies.
+    When disabled, acts as pass-through.
+    """
+    from harness.safety.gate import safety_gate as _harness_gate
+    return await _harness_gate(state)
+
+
 async def router(state: GraphState, config: RunnableConfig):
-    """意圖分�� + agent 派發。
+    """意圖分類 + agent 派發。
 
     Phase 1: LLM-based intent classification (current).
     Phase 2: If task_decompose populated state["task"]["intents"], use those instead (config lookup).
