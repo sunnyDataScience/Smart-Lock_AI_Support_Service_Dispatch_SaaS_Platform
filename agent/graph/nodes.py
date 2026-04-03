@@ -190,8 +190,41 @@ def _extract_recent_pairs(messages: list, max_pairs: int, skip_latest_human: boo
     return conversation[-(max_pairs * 2):]
 
 
+async def task_decompose(state: GraphState, config: RunnableConfig):
+    """L1 Harness: Software 3.0 diagnostic reasoning engine.
+
+    When harness.task is disabled, acts as pass-through.
+    When enabled, loads knowledge → LLM diagnostic reasoning → updates state.
+    """
+    from harness.task.decomposer import task_decompose as _harness_decompose
+    return await _harness_decompose(state, config)
+
+
 async def router(state: GraphState, config: RunnableConfig):
-    """用 LLM 做意圖分類，回傳 next_agents（支援多意圖）"""
+    """意圖分�� + agent 派發。
+
+    Phase 1: LLM-based intent classification (current).
+    Phase 2: If task_decompose populated state["task"]["intents"], use those instead (config lookup).
+    """
+    # Software 3.0: if task_decompose already classified intents, use them directly
+    task_intents = state.get("task", {}).get("intents")
+    if task_intents:
+        from core.config import INTENTS_CONFIG, AGENTS_CONFIG
+        intent_to_target = {i["name"]: i.get("target", i["name"]) for i in INTENTS_CONFIG}
+        valid_agents = {a["name"] for a in AGENTS_CONFIG}
+        targets = []
+        for intent_name in task_intents:
+            t = intent_to_target.get(intent_name, intent_name)
+            if t in valid_agents and t not in targets:
+                targets.append(t)
+        if targets:
+            print(f"  [router] config dispatch from task_decompose intents: {targets}")
+            return {
+                "next_agents": targets,
+                "history": [f"router:config_dispatch:{'+'.join(targets)}"],
+            }
+        # Fallback to LLM-based classification if intents didn't map
+
     print("  [router] 正在分類意圖...")
 
     domain = SYSTEM_CONFIG.get("domain", "電子鎖")

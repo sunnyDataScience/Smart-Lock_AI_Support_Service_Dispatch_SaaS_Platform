@@ -6,6 +6,7 @@ from core.debug_log import log_messages as debug_log_messages
 from graph.state import GraphState
 from graph.nodes import (
     pre_process, manage_memory, rewrite_query, router,
+    task_decompose,
     merge_answers, update_profile, post_process,
     llm as base_llm
 )
@@ -61,6 +62,7 @@ async def build_graph():
     workflow.add_node("pre_process", pre_process)
     workflow.add_node("manage_memory", manage_memory)
     workflow.add_node("rewrite_query", rewrite_query)
+    workflow.add_node("task_decompose", task_decompose)
     workflow.add_node("router", router)
     workflow.add_node("merge_answers", merge_answers)
     workflow.add_node("update_profile", update_profile)
@@ -73,7 +75,8 @@ async def build_graph():
     workflow.add_edge(START, "pre_process")
     workflow.add_edge("pre_process", "manage_memory")
     workflow.add_edge("manage_memory", "rewrite_query")
-    workflow.add_edge("rewrite_query", "router")
+    workflow.add_edge("rewrite_query", "task_decompose")
+    workflow.add_edge("task_decompose", "router")
 
     # router → 各 agent / merge_answers（透過 Send() fan-out）
     workflow.add_conditional_edges("router", route_by_intent)

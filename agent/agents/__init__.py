@@ -66,11 +66,17 @@ def build_agent_executor(agent_config: dict, tools_dict: dict[str, StructuredToo
             profile_section = user_profile if user_profile else "新使用者，尚無歷史資料。"
             slots_section = _build_slots_section()
 
+            # Diagnostic context from task_decompose (Software 3.0)
+            diagnostic_context = state.get("task", {}).get("diagnostic_context", "")
+            if not diagnostic_context:
+                diagnostic_context = "(no diagnostic context available)"
+
             system_prompt = load_prompt_template(
                 prompt_file,
                 domain=domain,
                 user_profile=profile_section,
                 slots_section=slots_section,
+                diagnostic_context=diagnostic_context,
             )
 
             # 將 system prompt 注入到 messages 最前面
