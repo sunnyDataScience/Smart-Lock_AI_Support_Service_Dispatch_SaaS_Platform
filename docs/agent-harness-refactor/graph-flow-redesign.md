@@ -1,6 +1,9 @@
 # Graph Flow Redesign
 
 > 新舊 Graph Flow 對照 + GraphState 演進
+>
+> **Architecture reference**: 診斷推理引擎設計詳見 [`diagnostic-intelligence-architecture.md`](./diagnostic-intelligence-architecture.md)。
+> 啟用策略詳見 [`optimization-strategy.md`](./optimization-strategy.md) §6。
 
 ---
 
@@ -62,7 +65,9 @@ pre_process          # (unchanged)
 manage_memory        # (unchanged)
   |
   v
-task_decompose       # [NEW L1] ProblemCard init + goal decomposition
+task_decompose       # [NEW L1] Intent classification + Software 3.0 diagnostic reasoning + ProblemCard init
+                     #   Absorbs router's intent classification; PDCA loop via LLM prompt with knowledge injection
+                     #   See diagnostic-intelligence-architecture.md §4
   |                    Disabled: pass-through
   v
 context_assemble     # [NEW L2] Freshness scoring + token budget
@@ -73,7 +78,7 @@ safety_gate          # [NEW L6] Dangerous instruction check
   |                    requires_approval=true -> short-circuit to post_process
   |                    Disabled: pass-through
   v
-router               # (unchanged, but can read task.fault_category)
+router               # Becomes pure config-based dispatch (zero LLM); reads intents from task_decompose
   |
   v
 route_by_intent      # (unchanged fan-out Send())
@@ -210,7 +215,7 @@ User Message
 [manage_memory] -> summary (if compressed)
     |
     v
-[task_decompose] -> task.goal, task.subtasks, task.problem_card_id
+[task_decompose] -> task.intents, task.goal, task.subtasks, task.problem_card_id, task.diagnostic_context, task.extracted_symptoms, task.diagnosis_status
     |
     v
 [context_assemble] -> context_meta.freshness_scores, context_meta.relevance_weights
@@ -219,7 +224,7 @@ User Message
 [safety_gate] -> safety.permission_level, safety.flagged_risks
     |
     v
-[router] -> next_agents (reads task.fault_category for smarter routing)
+[router] -> next_agents (reads task.intents from task_decompose; pure config lookup, zero LLM)
     |
     v
 [agents] -> answer, ui_hints (+ L3 governance audit)

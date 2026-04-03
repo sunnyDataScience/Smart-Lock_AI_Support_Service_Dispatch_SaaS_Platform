@@ -1,6 +1,10 @@
 # ProblemCard Specification
 
 > ProblemCard data model, lifecycle, and cross-layer integration
+>
+> **Architecture reference**: ProblemCard 由 Software 3.0 diagnostic reasoning engine 建立和更新，
+> 詳見 [`diagnostic-intelligence-architecture.md`](./diagnostic-intelligence-architecture.md) §4。
+> ProblemCard 承載四層因果鏈狀態 (Symptom → Failure → Failure Mode → Defect hypothesis)。
 
 ---
 

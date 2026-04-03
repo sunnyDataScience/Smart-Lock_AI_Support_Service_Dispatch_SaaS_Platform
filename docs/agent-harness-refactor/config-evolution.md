@@ -1,6 +1,10 @@
 # Config Evolution
 
 > config.toml 新增 `[harness]` section 規格
+>
+> **Note**: `[harness.task]` 已改為 Software 3.0 架構 — 移除 `mode = "lite"/"full"`，
+> 新增 `knowledge_base_dir` 和 `diagnostic_prompt`。
+> 詳見 [`diagnostic-intelligence-architecture.md`](./diagnostic-intelligence-architecture.md) §7。
 
 ---
 

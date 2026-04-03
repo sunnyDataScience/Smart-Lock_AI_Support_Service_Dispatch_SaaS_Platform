@@ -1,9 +1,13 @@
 # Agent Harness Migration Roadmap
 
 > H-Stage 0–6 分階段遷移路線圖，含交付物、風險評估、回滾方案
-
+>
 > **命名規則**：本文件使用「H-Stage」（Harness Stage）編號，與專案交付的「Phase 0–8」為獨立體系。
 > H-Stage 0–6 是 Agent Harness 框架的內部遷移階段，嵌入在專案 Phase 1–2 的開發週期中執行。
+>
+> **Software 3.0 設計原則**：L1 Task (task_decompose) 採 Software 3.0 架構 — Python 只做 load+filter+serialize+validate，
+> 所有診斷推理在 LLM prompt 中完成。知識資產以 JSON/TOML 檔案管理，Phase 2 視規模遷移 PostgreSQL。
+> 詳見 [`diagnostic-intelligence-architecture.md`](./diagnostic-intelligence-architecture.md)。
 
 ---
 

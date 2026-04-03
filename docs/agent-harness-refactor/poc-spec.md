@@ -1,6 +1,9 @@
 # 電子鎖匠 POC Specification
 
 > 以電子鎖匠 (Electronic Locksmith) 垂直場景驗證 Agent Harness 8 層架構
+>
+> **Architecture reference**: Software 3.0 診斷推理引擎詳見 [`diagnostic-intelligence-architecture.md`](./diagnostic-intelligence-architecture.md)。
+> task_decompose 吸收意圖分類 + PDCA 診斷推理，知識以 JSON/TOML 檔案注入 LLM prompt。
 
 ---
 
@@ -35,7 +38,9 @@
 ```
 Input: "我的電子鎖按指紋沒反應，螢幕也不亮"
 
-[L1 task_decompose]
+[L1 task_decompose] (Software 3.0: intent classification + PDCA diagnostic reasoning via LLM prompt)
+  -> KnowledgeLoader injects Tier 1 context (symptoms.toml + FM registry + component graph)
+  -> LLM extracts symptoms [fingerprint_no_response, screen_off] + identifies FM hypotheses
   -> Create ProblemCard:
      {
        symptom_summary: "電子鎖按指紋沒反應，螢幕不亮",

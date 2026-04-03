@@ -591,7 +591,18 @@ Anthropic 很明白地說，context engineering 的問題不是 prompt wording�
 
 ---
 
-你若要，我下一步可以直接幫你把這份內容再轉成一份 **「Agent Harness 研究型知識樹 + SA 架構圖 + 論文閱讀地圖」**，整理成投影片可用版本。
+---
+
+## 本專案的落地實作
+
+本文件定義 Harness 的通用理論框架（8 層）。以下文件定義本專案（電子鎖 AI 藍領平台）的具體實作：
+
+| 文件 | 內容 |
+|---|---|
+| [`diagnostic-intelligence-architecture.md`](./diagnostic-intelligence-architecture.md) | **Software 3.0 診斷推理引擎** — 四層因果鏈 (Symptom→Failure→FM→Defect)、七層診斷架構 (Layer 0-6)、PDCA 推理流程、知識沉澱閉環 |
+| [`optimization-strategy.md`](./optimization-strategy.md) | **啟用策略 + 延遲預算** — 哪些 Harness 層該開、什麼不開、為什麼；Software 3.0 中 Python 只做 load+inject，LLM 做所有推理 |
+| [`graph-flow-redesign.md`](./graph-flow-redesign.md) | **Graph Flow 對照** — task_decompose 吸收意圖分類 + 診斷推理，router 退化為純 config 派發 |
+| [`migration-roadmap.md`](./migration-roadmap.md) | **H-Stage 遷移路線圖** — Phase 0-1 檔案驅動，Phase 2 視規模遷移 PostgreSQL |
 
 [1]: https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents "Demystifying evals for AI agents \ Anthropic"
 [2]: https://openai.com/index/unlocking-the-codex-harness/ "Unlocking the Codex harness: how we built the App Server | OpenAI"
