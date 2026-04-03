@@ -80,31 +80,76 @@ TERMINAL CLOSED                  案件結案，ProblemCard 歸檔
 
 ### 轉移圖
 
+```mermaid
+stateDiagram-v2
+    direction TB
+
+    state "PLAN Phase" as plan {
+        [*] --> INTAKE
+        INTAKE --> SYMPTOM_COLLECTED : symptoms extracted
+        SYMPTOM_COLLECTED --> FAILURE_IDENTIFIED : failure matched
+    }
+
+    state "DO Phase" as do_phase {
+        FAILURE_IDENTIFIED --> HYPOTHESIS_FORMED : FM hypotheses generated
+        HYPOTHESIS_FORMED --> VERIFYING : start verification chain
+        VERIFYING --> VERIFYING : next question (max 3 rounds)
+        VERIFYING --> HYPOTHESIS_FORMED : updated hypothesis
+    }
+
+    state "CHECK Phase" as check {
+        HYPOTHESIS_FORMED --> CONCLUSION_READY : high confidence
+        VERIFYING --> CONCLUSION_READY : verification converged
+    }
+
+    state "ACT Phase" as act {
+        CONCLUSION_READY --> REMOTE_RESOLVED : user confirms fix
+        CONCLUSION_READY --> DISPATCH_RECOMMENDED : user requests on-site
+        CONCLUSION_READY --> VERIFYING : new info changes diagnosis
+        REMOTE_RESOLVED --> CLOSED
+        DISPATCH_RECOMMENDED --> CLOSED
+    }
+
+    state "Emergency" as emergency {
+        ESCALATED --> CLOSED : human handled
+    }
+
+    %% Escalation from any state
+    INTAKE --> ESCALATED : Red_Code
+    SYMPTOM_COLLECTED --> ESCALATED : Red_Code
+    FAILURE_IDENTIFIED --> ESCALATED : Red_Code
+    HYPOTHESIS_FORMED --> ESCALATED : dispatch signal
+    VERIFYING --> ESCALATED : Red_Code / sentiment / 3-round limit
+    VERIFYING --> DISPATCH_RECOMMENDED : 3-round limit
+    HYPOTHESIS_FORMED --> DISPATCH_RECOMMENDED : brand error code
+    CONCLUSION_READY --> ESCALATED : sentiment escalation
 ```
-         ┌──────────────────────────────────────────────────────────┐
-         │                    force_escalation                      │
-         │                 (Red_Code / sentiment)                   │
-         ▼                                                          │
-    ┌─────────┐    ┌──────────┐    ┌───────────┐    ┌───────────┐  │
-    │ INTAKE  │───→│ SYMPTOM  │───→│ FAILURE   │───→│HYPOTHESIS │  │
-    └─────────┘    │COLLECTED │    │IDENTIFIED │    │ FORMED    │  │
-                   └────┬─────┘    └─────┬─────┘    └─────┬─────┘  │
-                        │                │                │         │
-                        └────────────────┴───→┌───────────┤         │
-                                              │ VERIFYING │◄──┐     │
-                                              │ (max 3輪) │───┘     │
-                                              └─────┬─────┘         │
-                                                    │               │
-    ESCALATED◄──────────────────────────────────────┤               │
-         │                                          ▼               │
-         │                                  CONCLUSION_READY────────┤
-         │                                    │          │          │
-         │                                    ▼          ▼          │
-         │                           REMOTE_RESOLVED  DISPATCH_REC  │
-         │                                    │          │          │
-         └────────────────────────────────────┴────┬─────┘          │
-                                                   ▼                │
-                                                CLOSED ─────────────┘
+
+### 簡化版（核心路徑）
+
+```mermaid
+graph LR
+    A[INTAKE] --> B[SYMPTOM_COLLECTED]
+    B --> C[FAILURE_IDENTIFIED]
+    C --> D[HYPOTHESIS_FORMED]
+    D --> E[VERIFYING]
+    E -->|loop max 3| E
+    E --> F[CONCLUSION_READY]
+    F --> G[REMOTE_RESOLVED]
+    F --> H[DISPATCH_RECOMMENDED]
+    G --> I((CLOSED))
+    H --> I
+
+    style A fill:#e1f5fe
+    style E fill:#fff3e0
+    style F fill:#e8f5e9
+    style I fill:#f5f5f5,stroke:#999
+
+    %% Emergency path
+    A -.->|Red_Code| J[ESCALATED]
+    E -.->|safety/limit| J
+    J --> I
+    style J fill:#ffebee
 ```
 
 ### 不允許的轉移（守衛規則）
@@ -122,27 +167,27 @@ TERMINAL CLOSED                  案件結案，ProblemCard 歸檔
 
 當 LLM 輸出 `diagnosis_status` 後，Python 依以下優先順序決定實際轉移：
 
-```
-Priority 1: Safety Override (不可覆蓋)
-  safety_result.red_code = true        → ESCALATED
-  safety_result.escalation_required    → ESCALATED
+```mermaid
+flowchart TD
+    START([LLM output + safety result]) --> P1{P1: Red_Code<br/>or escalation?}
+    P1 -->|Yes| ESC[ESCALATED]
+    P1 -->|No| P2{P2: Dispatch signal<br/>or LLM=recommend_dispatch?}
+    P2 -->|Yes| DISP[DISPATCH_RECOMMENDED]
+    P2 -->|No| P3{P3: Verification<br/>round >= 3?}
+    P3 -->|Yes & need_more_info| DISP
+    P3 -->|No| P4{P4: LLM<br/>diagnosis_status?}
+    P4 -->|need_more_info| VER[VERIFYING]
+    P4 -->|hypothesis_formed| HYP[HYPOTHESIS_FORMED]
+    P4 -->|ready_to_conclude| CON[CONCLUSION_READY]
+    P4 -->|recommend_dispatch| DISP
+    P4 -->|unknown| DEF[VERIFYING<br/>default]
 
-Priority 2: Dispatch Signal
-  LLM status = "recommend_dispatch"    → DISPATCH_RECOMMENDED
-  ctx.dispatch_signal_detected = true  → DISPATCH_RECOMMENDED
-
-Priority 3: Verification Round Limit (安全網)
-  ctx.verification_round >= 3
-  AND LLM status = "need_more_info"    → DISPATCH_RECOMMENDED
-
-Priority 4: LLM Status Mapping
-  "need_more_info"      → VERIFYING
-  "hypothesis_formed"   → HYPOTHESIS_FORMED
-  "ready_to_conclude"   → CONCLUSION_READY
-  "recommend_dispatch"  → DISPATCH_RECOMMENDED
-
-Priority 5: Default
-  (unknown status)      → VERIFYING
+    style ESC fill:#ffebee,stroke:#c62828
+    style DISP fill:#fff3e0,stroke:#e65100
+    style VER fill:#e3f2fd,stroke:#1565c0
+    style HYP fill:#e8f5e9,stroke:#2e7d32
+    style CON fill:#e8f5e9,stroke:#2e7d32
+    style DEF fill:#f5f5f5,stroke:#999
 ```
 
 **關鍵設計**：LLM 的建議可以被 Python 覆寫。例如 LLM 說 `ready_to_conclude` 但 safety gate 偵測到 Red_Code → 強制 ESCALATED。
@@ -188,65 +233,100 @@ new_task["diagnostic_fsm"] = ctx.to_dict()
 
 ## 6. 與 decomposer.py 的整合
 
-```
-每輪對話的 decomposer 執行流程:
+```mermaid
+flowchart TD
+    A[每輪對話開始] --> B["1. ctx = DiagnosticContext.from_dict(state)"]
+    B --> C{2. Safety check<br/>Red_Code?}
+    C -->|Yes| D["force_escalation() → return early"]
+    C -->|No| E["3. 組裝 knowledge context<br/>(Tier 1 + Tier 2)"]
+    E --> F["4. LLM call → structured JSON"]
+    F --> G["5. 驗證 symptom IDs<br/>(validate against taxonomy)"]
+    G --> H["6. 更新 ctx 累積證據<br/>(symptoms, failures, FMs)"]
+    H --> I["7. resolve_next_state()<br/>(priority: safety > dispatch > limit > LLM)"]
+    I --> J{"8. ctx.transition(target)<br/>合法?"}
+    J -->|Yes| K["9. ctx.to_dict() → GraphState"]
+    J -->|No| L["嘗試中間步驟<br/>HYPOTHESIS → target"]
+    L --> K
+    K --> M["10. Build diagnostic_context<br/>→ 注入 agent prompt"]
+    M --> N[輪次結束]
 
-1. 恢復 ctx = DiagnosticContext.from_dict(...)
-2. Safety check → Red_Code? → force_escalation → return early
-3. 組裝 knowledge context (Tier 1 + Tier 2)
-4. LLM call → structured JSON output
-5. 驗證 symptom IDs
-6. 更新 ctx 累積證據 (symptoms, failures, FMs)
-7. resolve_next_state(ctx, llm_status, safety) → target state
-8. ctx.transition(target_state) → 驗證合法性
-9. Serialize ctx.to_dict() → GraphState["task"]["diagnostic_fsm"]
-10. Build diagnostic_context JSON → 注入 agent prompt
+    style D fill:#ffebee,stroke:#c62828
+    style F fill:#e3f2fd,stroke:#1565c0
+    style I fill:#fff3e0,stroke:#e65100
 ```
 
 ---
 
 ## 7. 範例：完整 4 輪對話的狀態轉移
 
-```
-輪次 1: "我的鎖壞了"
-  ctx: INTAKE
-  LLM: extracted_symptoms=[], status="need_more_info"
-  Transition: INTAKE → SYMPTOM_COLLECTED (empty) → VERIFYING
-  Agent: "能描述一下具體是什麼狀況嗎？"
-  ctx.verification_round = 1
+### Happy Path: 遠端診斷 → 派工
 
-輪次 2: "按指紋沒反應，螢幕是亮的"
-  ctx: VERIFYING (round 1)
-  LLM: extracted_symptoms=[fingerprint_fail], matched_failures=[F-LOCK-001]
-       status="need_more_info", next_action="按密碼試試看？"
-  Transition: VERIFYING → HYPOTHESIS_FORMED → VERIFYING
-  Agent: "可以試試用密碼開鎖嗎？"
-  ctx.verification_round = 2
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant D as Decomposer
+    participant FSM as State Machine
+    participant LLM as LLM
+    participant A as Agent
 
-輪次 3: "密碼可以開"
-  ctx: VERIFYING (round 2)
-  LLM: FM-ELEC hypothesis confirmed, status="ready_to_conclude"
-  Transition: VERIFYING → CONCLUSION_READY
-  Agent: "指紋模組可能有問題，建議安排技師檢測，目前可先用密碼..."
-  ctx.verification_round = 2 (no increment, concluded)
+    Note over FSM: State: INTAKE
 
-輪次 4: "好，幫我預約"
-  ctx: CONCLUSION_READY
-  Transition: CONCLUSION_READY → DISPATCH_RECOMMENDED → CLOSED
-  Agent: "已為您安排技師，預計..."
+    U->>D: "我的鎖壞了"
+    D->>LLM: Tier 1 context + question
+    LLM-->>D: symptoms=[], status=need_more_info
+    D->>FSM: transition(SYMPTOM_COLLECTED)
+    FSM->>FSM: transition(VERIFYING)
+    Note over FSM: State: VERIFYING (round 1)
+    D->>A: next_action="請描述具體狀況"
+    A->>U: "能描述一下是什麼狀況嗎？按指紋沒反應？螢幕不亮？"
+
+    U->>D: "按指紋沒反應，螢幕是亮的"
+    D->>LLM: Tier 1+2 context + history
+    LLM-->>D: symptoms=[fingerprint_fail], failures=[F-LOCK-001], status=need_more_info
+    D->>FSM: transition(HYPOTHESIS_FORMED)
+    FSM->>FSM: transition(VERIFYING)
+    Note over FSM: State: VERIFYING (round 2)
+    D->>A: hypotheses=[FM-ELEC], question="按密碼試試看？"
+    A->>U: "可以試試用密碼開鎖嗎？這樣可以幫我判斷問題範圍。"
+
+    U->>D: "密碼可以開"
+    D->>LLM: updated context
+    LLM-->>D: FM-ELEC confirmed, status=ready_to_conclude
+    D->>FSM: transition(CONCLUSION_READY)
+    Note over FSM: State: CONCLUSION_READY
+    D->>A: conclusion + CA + dispatch recommendation
+    A->>U: "指紋模組可能有問題，建議安排技師，目前可用密碼..."
+
+    U->>D: "好，幫我預約"
+    D->>FSM: transition(DISPATCH_RECOMMENDED)
+    FSM->>FSM: transition(CLOSED)
+    Note over FSM: State: CLOSED
+    A->>U: "已為您安排技師，預計..."
 ```
 
 ### Red_Code 中斷範例
 
-```
-輪次 1: "我被鎖在外面，小孩在裡面，爐子還開著"
-  Safety gate: red_code=true
-  ctx: INTAKE → force_escalation("red_code")
-  Transition: INTAKE → ESCALATED (forced)
-  Agent: 不走正常診斷，直接:
-    1. 提供備用鑰匙指引
-    2. 建議撥打 119
-    3. 同時安排緊急派工
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant SG as Safety Gate
+    participant D as Decomposer
+    participant FSM as State Machine
+    participant A as Agent
+
+    Note over FSM: State: INTAKE
+
+    U->>SG: "我被鎖在外面，小孩在裡面，爐子還開著"
+    SG-->>SG: red_code=true (OCAP-EMERGENCY-001)
+
+    SG->>D: safety_result.red_code=true
+    D->>FSM: force_escalation("red_code")
+    Note over FSM: State: ESCALATED (forced)
+
+    D->>A: 跳過正常診斷流程
+    A->>U: 1. 提供備用鑰匙指引
+    A->>U: 2. 建議撥打 119 消防局
+    Note over A: 同時啟動緊急派工 (SLA 2hr)
 ```
 
 ---
@@ -268,26 +348,28 @@ new_task["diagnostic_fsm"] = ctx.to_dict()
 
 ## 9. 與其他模組的關係
 
-```
-safety_gate.py
-  │ safety_result (red_code, escalation_required)
-  ▼
-decomposer.py ←── diagnostic_state_machine.py
-  │                  │
-  │  ctx = DiagnosticContext.from_dict(state["task"]["diagnostic_fsm"])
-  │  ...LLM call...
-  │  target = resolve_next_state(ctx, llm_status, safety_result)
-  │  ctx.transition(target)
-  │  state["task"]["diagnostic_fsm"] = ctx.to_dict()
-  │
-  ▼
-knowledge_loader.py
-  │ Tier 1 + Tier 2 context (filtered by ctx.extracted_symptoms)
-  ▼
-diagnostic_reasoning.md (prompt)
-  │ LLM structured output
-  ▼
-agent prompt injection (diagnostic_context JSON)
+```mermaid
+graph TD
+    SG[safety_gate.py] -->|safety_result<br/>red_code, escalation| DEC[decomposer.py]
+    DSM[diagnostic_state_machine.py] -->|DiagnosticContext<br/>resolve_next_state| DEC
+    KL[knowledge_loader.py] -->|Tier 1 + Tier 2<br/>context strings| DEC
+    PR[diagnostic_reasoning.md] -->|prompt template| DEC
+
+    DEC -->|structured JSON| LLM[LLM Call]
+    LLM -->|diagnosis_status<br/>symptoms, FM hypotheses| DEC
+
+    DEC -->|"state['task']['diagnostic_fsm']"| GS[GraphState]
+    DEC -->|diagnostic_context JSON| AP[Agent Prompt Injection]
+
+    GS -->|next turn restore| DEC
+
+    PC[problem_card.py] -->|ProblemCard fields| DEC
+
+    style DEC fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style DSM fill:#fff3e0,stroke:#e65100
+    style SG fill:#ffebee,stroke:#c62828
+    style LLM fill:#f3e5f5,stroke:#7b1fa2
+    style KL fill:#e8f5e9,stroke:#2e7d32
 ```
 
 ---
