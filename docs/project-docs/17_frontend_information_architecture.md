@@ -2,8 +2,8 @@
 
 ---
 
-**文件版本 (Document Version):** `v1.0`
-**最後更新 (Last Updated):** `2026-02-26`
+**文件版本 (Document Version):** `v1.1`
+**最後更新 (Last Updated):** `2026-04-04`
 **主要作者 (Lead Author):** `前端架構師, UX 設計師`
 **審核者 (Reviewers):** `PM, 技術負責人, 後端技術負責人`
 **狀態 (Status):** `草稿 (Draft)`
@@ -194,6 +194,12 @@ graph TB
 | A14 | `/technicians/[id]` | 技師詳情 | 查看技師完整資料 | 管理技師資訊與績效 | Level 3 | V2.0 |
 | A15 | `/accounting` | 帳務管理 | 對帳、結算報表 | 完成月度結算 | Level 2 | V2.0 |
 | A16 | `/settings` | 系統設定 | 管理帳號與系統配置 | 維護系統設定 | Level 2 | V1.0 |
+| A17 | `/admin/refunds` | 退款審批頁 | 退款審批佇列與雙簽工作流 | 審核退款申請 | Level 2 | V2.0 |
+| A18 | `/admin/roles` | RBAC 管理頁 | 角色與權限管理 | 配置角色權限矩陣 | Level 2 | V2.0 |
+| A19 | `/admin/inventory` | 庫存管理頁 | 庫存水位與低庫存告警 | 監控材料庫存 | Level 2 | V2.0 |
+| A20 | `/admin/audit-events` | 稽核日誌頁 | 7 種事件類型可篩選查詢 | 稽核系統操作記錄 | Level 2 | V2.0 |
+| A21 | `/admin/warranty-claims` | 保固索賠頁 | 保固驗證與核准流程 | 處理保固索賠 | Level 2 | V2.0 |
+| A22 | `/admin/disputes` | 爭議仲裁頁 | 證據包檢視與裁決 | 仲裁服務爭議 | Level 2 | V2.0 |
 
 #### Technician Web App 頁面
 
@@ -205,7 +211,7 @@ graph TB
 | T3 | `/my-orders/[id]` | 工單詳情/完工回報 | 查看詳情與提交回報 | 查看工作內容/提交完工 | Level 3 | V2.0 |
 | T4 | `/account` | 帳戶中心 | 收入統計與歷史 | 掌握財務狀況 | Level 2 | V2.0 |
 
-**總計：** Admin Panel 17 頁 + Technician App 5 頁 = **22 頁**
+**總計：** Admin Panel 23 頁 + Technician App 5 頁 = **28 頁**
 
 ---
 
@@ -1699,6 +1705,7 @@ export const config = {
 | 日期 | 版本 | 作者 | 變更摘要 |
 |:-----|:-----|:-----|:---------|
 | 2026-02-26 | v1.0 | 前端架構師 | 初版發布：涵蓋 V1.0 Admin Panel + V2.0 Technician App 完整 IA |
+| 2026-04-04 | v1.1 | 前端架構師 | 新增 V2.0 Admin Panel 6 頁：退款審批、RBAC、庫存、稽核、保固索賠、爭議仲裁 |
 
 ### 11.4 審核記錄
 

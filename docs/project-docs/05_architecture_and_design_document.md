@@ -5,7 +5,7 @@
 ---
 
 **文件版本 (Document Version):** `v2.0`
-**最後更新 (Last Updated):** `2026-04-01`
+**最後更新 (Last Updated):** `2026-04-04`
 **主要作者 (Lead Author):** `技術架構師`
 **審核者 (Reviewers):** `架構委員會, 核心開發團隊`
 **狀態 (Status):** `已批准 (Approved)`
@@ -18,7 +18,8 @@
   - [1.1 C4 模型：視覺化架構](#11-c4-模型視覺化架構)
   - [1.2 DDD 戰略設計](#12-ddd-戰略設計)
   - [1.3 五層 Agent 架構分層](#13-五層-agent-架構分層)
-  - [1.4 技術選型與決策](#14-技術選型與決策)
+  - [1.4 Software 3.0 設計哲學](#14-software-30-設計哲學)
+  - [1.5 技術選型與決策](#15-技術選型與決策)
 - [第 2 部分：需求摘要](#第-2-部分需求摘要)
   - [2.1 功能性需求摘要](#21-功能性需求摘要)
   - [2.2 非功能性需求](#22-非功能性需求)
@@ -77,7 +78,7 @@ graph TB
 
     subgraph "外部系統 (External Systems)"
         LINE["LINE Messaging API<br/>---<br/>訊息收發、Rich Menu<br/>Flex Message 推送"]
-        GOOGLE_AI["Google Gemini 3 Pro API<br/>---<br/>自然語言理解、意圖識別<br/>對話生成、SOP 草稿生成"]
+        GOOGLE_AI["Google Gemini 2.5 Flash API<br/>---<br/>自然語言理解、意圖識別<br/>對話生成、SOP 草稿生成"]
     end
 
     LU -- "LINE 訊息<br/>(文字/圖片/位置)" --> SYS
@@ -105,7 +106,7 @@ graph TB
 
     subgraph "外部系統"
         LINE_API["LINE Messaging API"]
-        GOOGLE_AI_API["Google Gemini 3 Pro API"]
+        GOOGLE_AI_API["Google Gemini 2.5 Flash API"]
     end
 
     subgraph "Platform Containers"
@@ -260,6 +261,10 @@ graph TB
 | **使用者管理上下文** | UserManagement | LINE 用戶綁定、管理員帳號管理、技師帳號管理、角色與權限控制 | User, Admin, Role, Permission | V1.0 + V2.0 |
 | **審計上下文** | Audit | API 呼叫紀錄、LLM 互動歷史、RAG 來源引用、管理後台審批、跨代理人訊息紀錄（合約 10.3 條） | AuditLog, SentimentAlert, FamilyReviewRecord | V1.0 |
 | **情緒分流上下文** | SentimentTriage | 負面情緒偵測、優先回應協議觸發、管理員即時通知（合約 9.3 條、4.4(a) 條，識別率 >= 90%） | SentimentResult, EscalationNotification | V1.0 |
+| **爭議處理上下文** | DisputeResolution | 客訴案件建立、爭議調解流程、退款審批、結案歸檔 | Dispute, RefundRequest, Resolution | V2.0 |
+| **保固上下文** | Warranty | 保固期限查詢、保固條件驗證、保固理賠流程 | WarrantyRecord, WarrantyClaim | V2.0 |
+| **庫存上下文** | Inventory | 零件庫存追蹤、備料建議、庫存預警、進出庫紀錄 | InventoryItem, StockMovement | V2.0 |
+| **品牌管理上下文** | BrandManagement | 品牌/型號主檔維護、品牌對應技師技能映射、型號生命週期管理 | Brand, LockModel, SkillMapping | V2.0 |
 
 #### 上下文地圖 (Context Map)
 
@@ -346,7 +351,75 @@ V1.0 實際採用 **LangGraph 多 Agent 架構**（`agent/` 目錄），以 conf
 | **Harness** | 8 層運行時框架：任務拆解、上下文裝配、安全閘門、品質驗證、熵管理 | `harness/` 各子目錄 | 依賴 Infrastructure |
 | **Infrastructure** | LLM 供應商、向量檢索、記憶體、使用者輪廓、審計日誌、設定載入 | `tools/`, `llms/`, `embeddings/`, `memory/`, `profiles/`, `storage/`, `core/` | 最內層，不依賴其他層 |
 
-### 1.4 技術選型與決策
+### 1.4 Software 3.0 設計哲學
+
+本系統遵循 Software 3.0 設計典範：知識儲存於結構化資料檔案，推理由 LLM 透過 Prompt 驅動，Python 程式碼僅負責編排與 I/O。
+
+#### 知識即資料 (Knowledge as Data)
+
+所有領域知識均以結構化格式儲存，而非硬編碼於 Python 規則引擎中：
+
+| 知識類型 | 儲存格式 | 路徑 | 說明 |
+| :--- | :--- | :--- | :--- |
+| 故障症狀定義 | TOML | `agent/config/symptoms.toml` | 品牌 x 型號 x 症狀的結構化描述 |
+| 故障樹 | JSON/TOML | `agent/config/fault_trees/` | 層級式故障診斷決策樹 |
+| 失敗模式 | JSON/TOML | `agent/config/failure_modes/` | 已知失敗模式與對應解決方案 |
+| Agent 設定 | TOML | `agent/agents/config.toml` | Agent 組合、Prompt 路徑、Tool 綁定 |
+| Prompt 模板 | Markdown/Jinja2 | `agent/agents/prompts/` | 13 個 Prompt 模板，驅動 LLM 推理 |
+
+#### 推理即 Prompt (Reasoning as Prompts)
+
+LLM 推理取代傳統 if/else 規則引擎。Python 程式碼不做業務判斷，僅負責：
+
+1. **I/O 操作** -- 資料庫查詢、API 呼叫、檔案讀取
+2. **流程編排** -- LangGraph StateGraph 定義節點順序與條件路由
+3. **格式轉換** -- Pydantic 模型驗證、Flex Message 模板渲染
+
+#### 8-Layer Harness Framework
+
+Harness 層為 Agent 執行提供運行時保障，每層可獨立啟用/停用：
+
+| Layer | 名稱 | V1.0 啟用狀態 | 職責 |
+| :--- | :--- | :--- | :--- |
+| L1 | Task Representation | Enabled (Phase 2) | task_decompose: 將自然語言轉為結構化 ProblemCard |
+| L2 | Context Assembly | Disabled | Token 預算管理、上下文新鮮度評分、來源組裝 |
+| L3 | Tool Governance | Enabled (Phase 3) | ToolRegistry 白名單、工具呼叫權限控制 |
+| L4 | (Reserved) | - | 保留供未來擴展 |
+| L5 | Feedback Loop | Disabled | verify_answer 品質驗證、retry conditional edge |
+| L6 | Safety Gate | Enabled (Phase 3) | Regex 安全閘門 (<50ms, zero LLM)、PII 過濾 |
+| L7 | Observability | Enabled (Phase 1) | @traced decorator、harness_traces table、LLM 呼叫追蹤 |
+| L8 | Entropy Management | Disabled | SOP 自動生成、知識庫新鮮度掃描、熵值監控 |
+
+#### 三重機制堆疊 (Three-Mechanism Stacking)
+
+系統透過三重機制確保回覆品質：
+
+1. **Multi-Agent Fan-out** -- Router 將任務分派至多個專業 Agent 並行執行，merge_answers 節點匯總結果
+2. **Three-Layer Cascade** -- L1 知識庫精確匹配 -> L2 RAG + LLM 推理 -> L3 轉人工/建工單
+3. **Harness L5 Verify** -- (啟用後) verify_answer 節點對最終回覆進行品質驗證，不合格則重試
+
+#### Router 演進：從 LLM 到 Config-only
+
+| 版本 | Router 實作 | LLM 呼叫數 | 延遲 |
+| :--- | :--- | :--- | :--- |
+| V0 (舊) | LLM-based task_decompose 同時做分類 + 診斷 | 1 次 LLM | 2-4s |
+| V1 (現行) | task_decompose 做分類 + 診斷 (single LLM call)，Router 改為 config-only 查表 | 0 次 LLM (Router) | <10ms (Router) |
+
+Router 零 LLM 設計：根據 task_decompose 輸出的 intent 欄位，直接查詢 `config.toml` 中的 agent 映射表，不再額外呼叫 LLM 做路由決策。
+
+#### Latency Budget
+
+| Layer | Budget | 說明 |
+| :--- | :--- | :--- |
+| LINE Webhook -> FastAPI | <200ms | 網路傳輸 |
+| Safety Gate (L6) | <50ms | Regex 比對，zero LLM |
+| task_decompose (L1) | 2-4s | Single LLM call (分類 + 診斷) |
+| Router | <10ms | Config 查表，zero LLM |
+| Agent RAG (L1+L2) | 2-5s | pgvector 搜尋 + LLM 生成 |
+| Response format | <500ms | Template 渲染 |
+| **Total** | **<8s** | 目標：簡單查詢 <5s |
+
+### 1.5 技術選型與決策
 
 #### 技術棧總覽 (Tech Stack Overview)
 
@@ -356,7 +429,7 @@ V1.0 實際採用 **LangGraph 多 Agent 架構**（`agent/` 目錄），以 conf
 | **後端框架** | FastAPI | 0.110+ | REST API / WebSocket / Webhook |
 | **ASGI Server** | Uvicorn | 0.29+ | 高效能非同步 HTTP Server |
 | **LLM 框架** | LangChain | 0.2+ | LLM 調用抽象、Chain 編排、Prompt 管理 |
-| **LLM 模型** | Google Gemini 3 Pro | - | 意圖識別、對話生成、SOP 草稿 |
+| **LLM 模型** | Google Gemini 2.5 Flash | - | 意圖識別、對話生成、SOP 草稿 |
 | **Embedding 模型** | Google text-embedding-004 | - | 文本向量化 (768 維) |
 | **關聯式資料庫** | PostgreSQL | 16 | 主要資料儲存 |
 | **向量擴展** | pgvector | 0.7+ | 向量索引與相似度搜尋 |
@@ -381,12 +454,15 @@ V1.0 實際採用 **LangGraph 多 Agent 架構**（`agent/` 目錄），以 conf
 | :--- | :--- | :--- | :--- |
 | ADR-001 | 選用 FastAPI 作為後端框架 | Accepted | 全系統 |
 | ADR-002 | 選用 PostgreSQL + pgvector 作為資料庫與向量儲存 | Accepted | 數據層 |
-| ADR-003 | 選用 LangChain + Google Gemini 3 Pro 作為 LLM 方案 | Accepted | AI 元件 |
+| ADR-003 | 選用 LangChain + Google Gemini 2.5 Flash 作為 LLM 方案 | Accepted | AI 元件 |
 | ADR-004 | V1.0 採用 Modular Monolith 架構 | Accepted | 全系統 |
 | ADR-005 | 選用 Redis 作為 Session 與快取方案 | Accepted | 數據層 |
 | ADR-006 | Admin UI V1.0 使用 Jinja2 + HTMX，V2.0 遷移至 Next.js | Accepted | 前端 |
 | ADR-007 | 採用 Docker Compose 作為部署策略 | Accepted | 基礎設施 |
 | ADR-008 | Embedding 模型選用 text-embedding-004 | Accepted | AI 元件 |
+| ADR-009 | 採用 8-Layer Harness Framework 作為 Agent 運行時保障 | Accepted | AI 元件 |
+| ADR-010 | Router 從 LLM-based 改為 config-only 查表 | Accepted | AI 元件 |
+| ADR-011 | Schema_v2_extensions.sql 擴展 6 張業務表 | Accepted | 數據層 |
 
 ---
 
@@ -402,7 +478,7 @@ V1.0 實際採用 **LangGraph 多 Agent 架構**（`agent/` 目錄），以 conf
 | FR-102 | 多輪對話管理 | 維護對話上下文，支援多輪問診流程，對話超時自動清理 |
 | FR-103 | ProblemCard 引擎 | AI 輔助從對話中提取結構化欄位，建立問題卡，識別缺失欄位並追問 |
 | FR-104 | 三層解決機制 (L1) | 知識庫精確匹配：向量搜尋 + 關鍵字匹配，命中閾值 >= 0.85 |
-| FR-105 | 三層解決機制 (L2) | AI 推理生成：基於 ProblemCard + 手冊段落 + 歷史案例，使用 Gemini 3 Pro 生成解決建議 |
+| FR-105 | 三層解決機制 (L2) | AI 推理生成：基於 ProblemCard + 手冊段落 + 歷史案例，使用 Gemini 2.5 Flash 生成解決建議 |
 | FR-106 | 三層解決機制 (L3) | 轉人工/建立工單：AI 無法解決時，收集客戶資訊準備轉接或建立派工需求 |
 | FR-107 | 知識庫管理 | CaseEntry CRUD、PDF 手冊上傳與自動分段、Embedding 批次計算與更新 |
 | FR-108 | SOP 自動生成 | 從成功對話中萃取解決模式，自動草擬 SOP，管理員審核後上架 |
@@ -542,7 +618,7 @@ graph TB
     PO --> LINE_API
 ```
 
-> **注意**：正式環境使用 Gemini 3 Pro 作為主要 LLM。Vertex AI (Gemini 2.5 Flash) 為開發環境備選方案，供本地測試或配額不足時降級使用。
+> **注意**：正式環境使用 Gemini 2.5 Flash 作為主要 LLM，透過 Vertex AI 存取。Provider 抽象層 (LLM Registry) 支援 config-driven 切換至其他供應商。
 
 ### 3.4 主要組件職責表
 
@@ -756,8 +832,8 @@ async with db.begin():
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **後端框架** | Python 3.11+ / FastAPI | 1. 原生 async/await 支援，適合 I/O 密集的 LLM 呼叫場景<br/>2. 自動 OpenAPI 文檔生成，降低 API 文檔維護成本<br/>3. Pydantic 整合提供強型別驗證<br/>4. Python 生態在 AI/ML 領域最為豐富 | **Django REST Framework**: 功能全面但較重，async 支援尚不成熟<br/>**Node.js / Express**: 非同步效能佳，但 Python 在 AI 生態更強<br/>**Go / Gin**: 高效能，但 LLM 庫生態不如 Python | 成熟 (Mature) | ADR-001 |
 | **LLM 框架** | LangChain 0.2+ | 1. 統一抽象層，便於切換 LLM Provider<br/>2. 內建 Chain/Agent 編排能力<br/>3. RAG pipeline 原生支援<br/>4. Prompt Template 管理<br/>5. 活躍社群與豐富文檔 | **直接使用 Google AI SDK**: 更輕量，但缺乏抽象層與 RAG 支援<br/>**LlamaIndex**: RAG 專精，但通用性不如 LangChain<br/>**Semantic Kernel**: 微軟出品，Python 支援較弱 | 成熟但迭代快 | ADR-003 |
-| **LLM 模型** | Google Gemini 3 Pro | 1. 目前最佳的多模態理解能力（可處理用戶上傳的門鎖照片）<br/>2. 中文對話品質優異<br/>3. Function Calling 支援結構化輸出<br/>4. 穩定的 API 可用性 | **Claude 3.5 Sonnet**: 同等級能力，但中文場景資料較少<br/>**OpenAI GPT-4o**: 同等級能力，成熟穩定<br/>**本地部署 LLM**: 延遲低但硬體成本高，品質不及 Gemini 3 Pro | 成熟 (Mature) | ADR-003 |
-| **Embedding 模型** | text-embedding-004 | 1. 768 維向量，平衡精度與成本<br/>2. 與 Gemini 3 Pro 同一供應商，降低整合複雜度<br/>3. 支援 dimensions 參數可降維<br/>4. 多語言支援優異 | **OpenAI text-embedding-3-small**: 1536 維，精度高但增加供應商依賴<br/>**Cohere Embed**: 多語言能力強，但增加供應商依賴<br/>**本地 BERT**: 零成本但精度差且需維護 GPU | 成熟 (Mature) | ADR-008 |
+| **LLM 模型** | Google Gemini 2.5 Flash | 1. 目前最佳的多模態理解能力（可處理用戶上傳的門鎖照片）<br/>2. 中文對話品質優異<br/>3. Function Calling 支援結構化輸出<br/>4. 穩定的 API 可用性 | **Claude 3.5 Sonnet**: 同等級能力，但中文場景資料較少<br/>**OpenAI GPT-4o**: 同等級能力，成熟穩定<br/>**本地部署 LLM**: 延遲低但硬體成本高，品質不及 Gemini 2.5 Flash | 成熟 (Mature) | ADR-003 |
+| **Embedding 模型** | text-embedding-004 | 1. 768 維向量，平衡精度與成本<br/>2. 與 Gemini 2.5 Flash 同一供應商，降低整合複雜度<br/>3. 支援 dimensions 參數可降維<br/>4. 多語言支援優異 | **OpenAI text-embedding-3-small**: 1536 維，精度高但增加供應商依賴<br/>**Cohere Embed**: 多語言能力強，但增加供應商依賴<br/>**本地 BERT**: 零成本但精度差且需維護 GPU | 成熟 (Mature) | ADR-008 |
 | **資料庫** | PostgreSQL 16 + pgvector | 1. 單一資料庫同時提供關聯式與向量儲存，架構最簡<br/>2. pgvector 支援 HNSW 索引，查詢效能滿足需求<br/>3. 團隊熟悉 PostgreSQL<br/>4. 成熟的備份、複製、監控生態 | **PostgreSQL + Pinecone**: 向量搜尋更專業，但增加基礎設施與成本<br/>**PostgreSQL + Milvus**: 自建向量 DB，運維複雜度高<br/>**MongoDB + Atlas Vector**: 文件型 DB，但本專案需要強事務保證 | 成熟 (Mature) | ADR-002 |
 | **快取** | Redis 7+ | 1. 對話 Session 暫存（TTL 30 分鐘）<br/>2. Rate Limiting（LINE Webhook 防洪）<br/>3. 極低延遲（< 1ms）<br/>4. 成熟穩定，運維成本低 | **Memcached**: 更簡單但功能不足（無 TTL 精細控制）<br/>**Application Memory Cache**: 不支援多 Worker 共享 | 成熟 (Mature) | ADR-005 |
 | **前端 (V2.0)** | Next.js 14+ / TypeScript | 1. React 生態系最成熟的全端框架<br/>2. SSR/SSG 提升首屏載入速度<br/>3. TypeScript 型別安全<br/>4. App Router 簡化路由管理 | **Nuxt.js (Vue)**: 同類框架，但 React 生態更大<br/>**SvelteKit**: 更輕量但生態較小<br/>**純 React SPA**: 無 SSR 支援，SEO 與首屏效能較差 | 成熟 (Mature) | ADR-006 |
@@ -772,6 +848,19 @@ async with db.begin():
 ---
 
 ## 第 5 部分：數據架構
+
+> **Schema 檔案參考**：核心 Schema 定義於 `SQL/Schema.sql`，V2.0 業務擴展定義於 `SQL/Schema_v2_extensions.sql`。
+>
+> **Schema_v2_extensions.sql** 新增 6 張業務表：
+>
+> | 表名 | 所屬上下文 | 說明 |
+> | :--- | :--- | :--- |
+> | `disputes` | DisputeResolution | 客訴/爭議案件主表 |
+> | `refund_requests` | DisputeResolution | 退款申請與審批紀錄 |
+> | `warranty_records` | Warranty | 保固紀錄與保固期限 |
+> | `inventory_items` | Inventory | 零件庫存主表 |
+> | `stock_movements` | Inventory | 庫存進出異動紀錄 |
+> | `brands` | BrandManagement | 品牌/型號主檔 |
 
 ### 5.1 數據模型
 
@@ -1003,7 +1092,7 @@ graph LR
         CM["Conversation Manager<br/>Load/Create Session"]
         PCE["ProblemCard Engine<br/>Extract Fields (LLM)"]
         L1["L1: Vector Search<br/>(pgvector cosine similarity)"]
-        L2["L2: AI Reasoning<br/>(RAG - Gemini 3 Pro)"]
+        L2["L2: AI Reasoning<br/>(RAG - Gemini 2.5 Flash)"]
         L3["L3: Escalation<br/>(Human / WorkOrder)"]
     end
 
@@ -1371,7 +1460,7 @@ graph LR
 
 | 風險類別 | 風險描述 | 可能性 | 影響程度 | 緩解策略 |
 | :--- | :--- | :--- | :--- | :--- |
-| **AI 品質** | Gemini 3 Pro 對特定品牌/型號的電子鎖問題診斷不準確，低於 80% 目標 | 中 | 高 | 1. 建立 50 題標準測試集，持續追蹤準確率<br/>2. 持續豐富知識庫（案例 + 手冊），提升 L1 命中率<br/>3. Prompt Engineering 迭代優化<br/>4. SOP 自演化機制持續改善知識品質 |
+| **AI 品質** | Gemini 2.5 Flash 對特定品牌/型號的電子鎖問題診斷不準確，低於 80% 目標 | 中 | 高 | 1. 建立 50 題標準測試集，持續追蹤準確率<br/>2. 持續豐富知識庫（案例 + 手冊），提升 L1 命中率<br/>3. Prompt Engineering 迭代優化<br/>4. SOP 自演化機制持續改善知識品質 |
 | **LLM API 依賴** | Google AI API 故障或回應延遲過高，導致系統功能降級 | 低 | 高 | 1. LangChain 抽象層允許快速切換 Provider（如 OpenAI）<br/>2. L1（知識庫搜尋）不依賴 LLM API，可獨立運作<br/>3. 設定 timeout (30s) + retry (3 次 exponential backoff)<br/>4. 降級策略：LLM 不可用時回退至 L1 + L3 |
 | **LLM 成本** | 用戶量增長導致 Google AI API 費用超出預算 | 中 | 中 | 1. 使用較便宜的 text-embedding-004<br/>2. L1 命中率越高，L2 LLM 呼叫越少<br/>3. Redis 快取相同問題的回覆（TTL 24h）<br/>4. 監控 Token 使用量，設定每日/每月告警閾值 |
 | **Prompt Injection** | 惡意用戶注入指令導致 AI 產生不當回應 | 中 | 高 | 1. System Prompt 硬化（角色固定、範圍限制）<br/>2. 輸出過濾（敏感詞檢測、格式驗證）<br/>3. 輸入長度限制<br/>4. 定期紅隊測試 |
@@ -1656,7 +1745,7 @@ Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/
 | `DATABASE_URL` | PostgreSQL 連線字串 | `postgresql+asyncpg://user:pass@postgres:5432/smartlock` | 是 |
 | `REDIS_URL` | Redis 連線字串 | `redis://redis:6379/0` | 是 |
 | `GOOGLE_API_KEY` | Google AI API 金鑰 | `AIza...` | 是 |
-| `GOOGLE_MODEL` | LLM 模型名稱 | `gemini-3-pro` | 是 |
+| `GOOGLE_MODEL` | LLM 模型名稱 | `gemini-2.5-flash` | 是 |
 | `GOOGLE_EMBEDDING_MODEL` | Embedding 模型名稱 | `text-embedding-004` | 是 |
 | `LINE_CHANNEL_SECRET` | LINE Channel Secret | `abc123...` | 是 |
 | `LINE_CHANNEL_ACCESS_TOKEN` | LINE Channel Access Token | `xyz789...` | 是 |
@@ -1685,3 +1774,4 @@ Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/
 | 2026-02-17 | 技術架構師 | v1.0 | 初稿完成，涵蓋 V1.0 + V2.0 完整架構設計 |
 | 2026-04-01 | AI 架構助理 | v1.1 | 新增附錄 E：實際 LangGraph 架構 + 8 層 Agent Harness 框架 |
 | 2026-04-01 | AI 架構助理 | v2.0 | 重寫 §1.3/§3/§9 對齊實際 LangGraph 架構，移除附錄 E（內容已整合至主文） |
+| 2026-04-04 | AI 架構助理 | v2.1 | 新增 §1.4 Software 3.0 設計哲學 + Latency Budget；Gemini 3 Pro -> 2.5 Flash；新增 4 個 Bounded Context (DisputeResolution, Warranty, Inventory, BrandManagement)；Schema_v2_extensions.sql 6 表；ADR-009/010/011 |

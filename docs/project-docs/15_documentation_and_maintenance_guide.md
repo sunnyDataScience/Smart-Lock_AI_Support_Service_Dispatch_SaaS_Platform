@@ -4,8 +4,8 @@
 
 ---
 
-**文件版本 (Document Version):** `v1.0`
-**最後更新 (Last Updated):** `2026-02-25`
+**文件版本 (Document Version):** `v1.1`
+**最後更新 (Last Updated):** `2026-04-04`
 **主要作者 (Lead Author):** `開發團隊`
 **審核者 (Reviewers):** `技術負責人, 核心開發團隊`
 **狀態 (Status):** `草稿 (Draft)`
@@ -83,7 +83,13 @@
 │   ├── docs/06_api_design_specification.md       # REST API 契約規範
 │   ├── docs/08_project_structure_guide.md        # 目錄結構與分層規範
 │   ├── docs/WBS_電子鎖智能平台.md                  # 工作分解結構
-│   └── docs/adrs/                                # 架構決策記錄 (ADR-001 ~ ADR-005)
+│   └── docs/adrs/                                # 架構決策記錄 (ADR-001 ~ ADR-006)
+│
+├── 系統設計規格 (System Design Specs)
+│   └── docs/system_design/specs/                 # V2.0 設計規格文件 (14 份)
+│
+├── 架構決策記錄 (ADR)
+│   └── docs/adrs/                                # 架構決策記錄 (ADR-001 ~ ADR-006, 共 6 份)
 │
 ├── API 文檔 (API Documentation)
 │   ├── FastAPI 自動生成 OpenAPI/Swagger (/docs)  # 即時互動式 API 文檔
@@ -1557,3 +1563,4 @@ graph TB
 | 版本 | 日期 | 作者 | 變更說明 |
 |:---|:---|:---|:---|
 | v1.0 | 2026-02-25 | 開發團隊 | 初版建立 — 完整文檔與維護指南 |
+| v1.1 | 2026-04-04 | 開發團隊 | 新增系統設計規格 (14 份) 與 ADR (6 份) 分類，文件總數更新 |

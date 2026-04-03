@@ -2,9 +2,9 @@
 
 ---
 
-**文件版本 (Document Version):** `v1.0`
+**文件版本 (Document Version):** `v2.0`
 
-**最後更新 (Last Updated):** `2026-02-25`
+**最後更新 (Last Updated):** `2026-04-04`
 
 **主要作者 (Lead Author):** `技術架構師`
 
@@ -671,3 +671,42 @@ graph LR
 ---
 
 > **維護指引:** 本文檔應與程式碼庫同步更新。任何重大的架構或依賴關係變更（如新增限界上下文、引入新的外部依賴、或修改跨上下文通信模式）都應在此處反映。在進行程式碼審查時，請參考本文檔中的原則和圖表，以評估變更是否引入了不良的依賴關係。
+
+---
+
+## V2.0 業務服務模組依賴圖
+
+`agent/services/` 下的 16 個模組依賴關係：
+
+### Infrastructure Layer (外部依賴)
+
+```
+Infrastructure Layer (外部):
+  ├── PostgreSQL (psycopg async) -- 所有 services 共用
+  ├── Redis (session cache) -- messaging/realtime
+  ├── Google Maps API -- dispatch/matcher (距離計算)
+  └── LINE Messaging API -- consent/, completion/ (通知)
+```
+
+### Service Layer 內部依賴
+
+```
+Service Layer 內部依賴:
+  work_order/exception  → dispatch/matcher      (重派)
+  work_order/exception  → finance/refund        (取消退款)
+  complaint/lifecycle   → finance/refund        (補償退款)
+  completion/evidence   → consent/signature     (客戶簽收)
+  dispatch/matcher      → technician/rating     (評分查詢)
+  pricing/engine        → warranty/claims       (保固檢查)
+  dispute/evidence      → 多表聯合查詢          (problem_cards, conversations, invoices)
+  brand/data_upload     → data pipeline         (PDF → RAG)
+```
+
+### Harness Layer 依賴
+
+```
+Harness Layer 依賴:
+  harness/safety/gate        → harness/task/knowledge/ocap_rules.json
+  harness/task/decomposer    → harness/task/knowledge/ (全部知識資產)
+  harness/context/budget     → core/config (token_budget 設定)
+```

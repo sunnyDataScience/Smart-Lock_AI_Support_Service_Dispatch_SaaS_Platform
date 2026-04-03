@@ -1,7 +1,7 @@
 # Code Review 與重構指南 - 電子鎖智能客服與派工平台
 
-**文件版本:** v1.0
-**最後更新:** 2026-02-25
+**文件版本:** v1.1
+**最後更新:** 2026-04-04
 **主要作者:** 技術負責人
 **狀態:** 草稿 (Draft)
 **相關文檔:**
@@ -1374,4 +1374,28 @@ PR 合併後，作者與 Reviewer 需在指定時間窗口內持續關注系統�
 
 ---
 
-**文件結束 -- Code Review 與重構指南 v1.0**
+---
+
+## V2.0 Service Module Review Checklist
+
+> 針對 V2.0 新增的 16 個業務服務模組，Code Review 時須額外檢查以下事項：
+
+### 資料庫存取
+- [ ] 所有 service 必須使用 async psycopg (asyncpg)，禁止使用同步 psycopg2 驅動
+- [ ] 涉及金額計算的操作（退款、結算、墊款核銷）必須使用 `SELECT ... FOR UPDATE` row locking，防止並發修改
+
+### 狀態機
+- [ ] 狀態機轉換 (State Machine Transition) 必須在執行前驗證當前狀態是否允許目標轉換
+- [ ] 非法狀態轉換必須拋出明確的業務例外 (e.g., `InvalidStateTransition`)，而非靜默忽略
+
+### 稽核與隱私
+- [ ] PII 欄位 (phone, email, id_number) 必須在寫入 AuditEvent 前經 AuditLogger 自動遮罩處理
+- [ ] 稽核日誌不得包含未遮罩的個人識別資訊
+
+### 業務規則追溯
+- [ ] 所有業務規則實作必須在程式碼註解中引用其對應的 BR- 編碼 (e.g., `# BR-007: 退款金額 > 100,000 TWD 需雙簽`)
+- [ ] 業務規則與對應的 GAP 編號須可從程式碼追溯至設計規格文件
+
+---
+
+**文件結束 -- Code Review 與重構指南 v1.1**

@@ -2,8 +2,8 @@
 
 ---
 
-**文件版本 (Document Version):** `v1.0`
-**最後更新 (Last Updated):** `2026-02-25`
+**文件版本 (Document Version):** `v1.1`
+**最後更新 (Last Updated):** `2026-04-04`
 **主要作者 (Lead Author):** `前端架構師, 前端技術負責人`
 **審核者 (Reviewers):** `UX 設計師, 後端技術負責人, 架構委員會`
 **狀態 (Status):** `草稿 (Draft)`
@@ -553,6 +553,10 @@ export const conversationApi = {
 | `technicians.ts` | `dispatch` (V2.0) | `lib/api/technicians.ts` |
 | `pricing.ts` | `accounting` (V2.0) | `lib/api/pricing.ts` |
 | `accounting.ts` | `accounting` (V2.0) | `lib/api/accounting.ts` |
+| `refunds.ts` | `accounting` (V2.0) | `lib/api/refunds.ts` |
+| `roles.ts` | `rbac` (V2.0) | `lib/api/roles.ts` |
+| `inventory.ts` | `inventory` (V2.0) | `lib/api/inventory.ts` |
+| `audit-events.ts` | `audit` (V2.0) | `lib/api/audit-events.ts` |
 
 #### Cursor-Based 分頁處理
 
@@ -2244,9 +2248,10 @@ const securityHeaders = [
 | 日期 | 審核人 | 版本 | 變更摘要/主要反饋 |
 |:-----|:-------|:-----|:-----------------|
 | 2026-02-25 | 前端架構師 | v1.0 | 初稿完成，涵蓋 V1.0 Admin Panel + V2.0 Technician App 完整架構規範 |
+| 2026-04-04 | 前端架構師 | v1.1 | 新增 V2.0 API 模組參照：退款審批、RBAC 管理、庫存儀表板、派工監控 |
 
 ---
 
-**最後更新：** 2026-02-25
+**最後更新：** 2026-04-04
 **維護者：** 前端架構團隊
 **問題回報：** GitHub Issues

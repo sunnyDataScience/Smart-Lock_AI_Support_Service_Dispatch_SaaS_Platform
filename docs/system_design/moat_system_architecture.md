@@ -396,7 +396,7 @@ backend/src/smart_lock/
   // === 合約必要欄位 (SOW) ===
   "customer_id": "U1234567890abcdef1234567890abcdef",
   "location": {"address": "新北市板橋區...", "gps": [25.0145, 121.4593]},
-  "brand_model": {"brand": "Samsung", "model": "SHP-DP609"},
+  "brand_model": {"brand": "dormakaba", "model": "DP850"},
   "fault_description": "指紋辨識失敗率突然升高",
   "attachment_links": [{"url": "...", "photo_type": "handle_front"}],
   "sentiment_label": "neutral",
@@ -406,7 +406,7 @@ backend/src/smart_lock/
   "fault_category": "fingerprint_module_failure",     // Moat A: 標準分類
   "emotion_severity": 2,                              // Moat J: 1-5 級
   "is_urgent": false,                                 // Moat J: 急件標記
-  "predicted_parts": ["fingerprint_sensor_DP609"],     // Moat H: 備料預測
+  "predicted_parts": ["fingerprint_sensor_DP850"],     // Moat H: 備料預測
   "device_error_log": null,                            // Moat I: IoT 預留
   "crisis_code": "Normal",                             // Moat J: Red_Code/Warning/Normal
   "door_status": {"material": "木門", "thickness": "4cm", "direction": "左開"},
@@ -417,6 +417,59 @@ backend/src/smart_lock/
 ```
 
 > 預留欄位在 M1 為 null 值，但 Schema 必須存在。這不增加開發成本但保留擴展性。合約定義十說「至少包含」而非「僅包含」，允許額外欄位。
+
+---
+
+---
+
+## 異常處理資料作為護城河加速器
+
+> 客訴、爭議、退款、保固索賠不只是成本中心 — 它們是護城河最有價值的數據來源。
+
+### 異常資料 → 護城河回饋矩陣
+
+| 異常資料來源 | 回饋至護城河 | 回饋機制 | 累積效果 |
+|---|---|---|---|
+| **complaints** (客訴) | Moat A 產業語言模型 | 客訴描述→新增症狀 aliases | 口語覆蓋率提升 |
+| **complaints** (客訴) | Moat E 帳務金流 | 補償金額統計→預算模型 | 補償預測更準確 |
+| **disputes** (爭議) | Moat B 報價智慧 | 爭議原因分析→報價偏差修正 | 報價爭議率下降 |
+| **refund_requests** (退款) | Moat E 帳務金流 | 退款模式→風險預警 | 大額退款提前攔截 |
+| **warranty_claims** (保固) | Moat H 預測備料 | 保固期內故障統計→零件壽命預測 | 備料準確率提升 |
+| **warranty_claims** (保固) | Moat I 硬體診斷圖譜 | 品牌×型號×故障模式→故障樹權重修正 | 診斷正確率提升 |
+| **scope_changes** (範圍變更) | Moat A 產業語言模型 | ProblemCard vs 實際差異→診斷盲點識別 | AI 診斷更貼近現場 |
+| **scope_changes** (範圍變更) | Moat C 標準化定價 | 範圍變更頻率×類型→報價風險係數 | 報價更保守/準確 |
+| **dispatch_logs** (派工日誌) | Moat G 智慧派工 | 拒單原因+匹配分數→演算法優化 | 首次匹配成功率提升 |
+| **appearance_change_consents** | Moat D 完工證據 | 客戶同意記錄→爭議防火牆 | 爭議舉證完整度提升 |
+
+### OCAP 規則與護城河整合
+
+| OCAP 規則 | 護城河 | 觸發條件 | 加速效果 |
+|---|---|---|---|
+| OCAP-001 同故障爆量 | Moat I | 24h > 10 件同 failure_id | 自動啟動批次追溯 → 品牌原廠通知 |
+| OCAP-003 型號異常集中 | Moat H | 7d > 20 件同型號 | 觸發預測備料 → 庫存預警 |
+| OCAP-004 AI 正確率下降 | Moat F 數據飛輪 | 30d 正確率 < 60% | 觸發故障樹全面審查 → 知識閉環修正 |
+| OCAP-SENTIMENT 情緒升級 | Moat J 危機處理 | 35 個關鍵字觸發 | 即時轉人工 → 客訴預防 |
+| OCAP-EMERGENCY Red_Code | Moat J | 7 個緊急關鍵字 | 30秒回應→15分鐘派工→2小時到場 |
+
+### 知識沉澱閉環 (Knowledge Loop) 在護城河中的位置
+
+```
+完工報告 (M10)
+  │
+  ├── predicted_fm vs actual_fm → ai_prediction_hit
+  │     └── 回饋至 Moat F 數據飛輪 → 故障樹權重修正
+  │
+  ├── defect_type (5 分類) + defect_description
+  │     └── 回饋至 Moat I 硬體診斷圖譜 → 缺陷標籤漸進標準化
+  │
+  ├── parts_used
+  │     └── 回饋至 Moat H 預測備料 → 消耗率統計
+  │
+  └── customer satisfaction
+        └── 回饋至 Moat G 智慧派工 → 技師評分加權
+```
+
+**核心洞察**：每張完工報告 = 一筆 ground truth。異常案件（客訴、爭議、二次派工）比正常案件更有價值 — 它們暴露系統盲點，是知識飛輪最高效的燃料。
 
 ---
 

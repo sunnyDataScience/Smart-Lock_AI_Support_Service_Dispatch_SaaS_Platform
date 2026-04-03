@@ -2,8 +2,8 @@
 
 ---
 
-**文件版本:** `v1.0`
-**最後更新:** `2026-02-17`
+**文件版本:** `v1.1`
+**最後更新:** `2026-04-04`
 **主要作者:** `開發團隊`
 **狀態:** `活躍 (Active)`
 
@@ -53,6 +53,11 @@
 | 派工匹配 | Dispatch Matching | 根據品牌能力 + 區域 + 評分進行師傅匹配 |
 | 案件池 | Case Pool | 待接案件的集中展示區域 |
 | 完工回報 | Completion Report | 師傅完工後提交的照片、描述與工時報告 |
+| 交接上下文 | HandoffContext | L3 轉派工時攜帶的診斷摘要、對話歷史與 ProblemCard 快照 |
+| 回傳上下文 | HandbackContext | 完工回報後回饋至知識庫的結構化維修結果 |
+| 稽核事件 | AuditEvent | 系統關鍵操作的不可變日誌記錄 (7 種事件類型) |
+| 證據包 | EvidencePackage | 完工照片、材料清單、工時記錄與客戶簽收的組合封裝 |
+| 電子簽收 | DigitalSignature | SHA-256 完整性雜湊 + 時間戳 + IP 記錄的簽收憑證 |
 
 ---
 
@@ -108,6 +113,16 @@
 | F-204 | 自動化會計系統 | `accounting_system.feature` | 5 |
 | F-205 | 管理後台 V2.0 | `admin_panel_v2.feature` | 4 |
 | F-206 | V1↔V2 資料串接 | `v1_v2_data_bridge.feature` | 4 |
+| F-207 | 退款審批與雙簽 | `refund_approval.feature` | 4 |
+| F-208 | 保固爭議處理 | `warranty_disputes.feature` | 4 |
+| F-209 | 動態 RBAC 權限管理 | `dynamic_rbac.feature` | 3 |
+| F-210 | 庫存與材料管理 | `inventory_management.feature` | 4 |
+
+> **V2.0 新增 Feature 說明：**
+> - **F-207 退款審批與雙簽 (GAP #11):** 金額 > 100,000 TWD 需雙重簽核，含審批佇列與簽核歷程追蹤。
+> - **F-208 保固爭議處理 (GAP #12):** 保固期間判定、證據包審查、仲裁流程與結案歸檔。
+> - **F-209 動態 RBAC 權限管理 (GAP #16):** 7 角色 x resource x action 權限矩陣，支援角色動態建立與權限即時生效。
+> - **F-210 庫存與材料管理 (GAP #17):** 材料進出庫、低庫存告警、技師領料記錄與成本歸屬。
 
 ---
 

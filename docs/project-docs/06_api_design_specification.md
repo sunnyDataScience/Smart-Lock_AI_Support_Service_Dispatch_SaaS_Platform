@@ -2,9 +2,9 @@
 
 ---
 
-**文件版本:** `v1.0`
+**文件版本:** `v1.1`
 
-**最後更新:** `2026-02-17`
+**最後更新:** `2026-04-04`
 
 **主要作者:** 開發團隊
 
@@ -2820,8 +2820,60 @@ curl -s -X POST "https://api.smartlock-saas.com/api/v1/pricing/calculate" \
 
 ---
 
+## 9. V2.0 擴展 API 端點
+
+> 以下端點對應 GAP 補齊階段新增的業務服務模組，詳見各 GAP 編號對應的設計規格。
+
+### 9.1 Refund API（退款審批，GAP #11）
+
+| Method | 端點 | 說明 | 授權 |
+|:-------|:-----|:-----|:-----|
+| `POST` | `/api/v2/refunds` | 建立退款申請 | admin |
+| `PATCH` | `/api/v2/refunds/{id}/approve` | 核准退款（金額 > 100,000 TWD 需雙簽） | admin (dual-sign) |
+| `PATCH` | `/api/v2/refunds/{id}/reject` | 駁回退款申請 | admin |
+
+### 9.2 RBAC API（動態權限管理，GAP #16）
+
+| Method | 端點 | 說明 | 授權 |
+|:-------|:-----|:-----|:-----|
+| `GET` | `/api/v2/roles` | 取得所有角色與權限清單 | admin |
+| `POST` | `/api/v2/roles` | 建立新角色 | admin |
+| `PUT` | `/api/v2/roles/{id}/permissions` | 更新角色權限矩陣 (resource x action) | admin |
+
+### 9.3 Export API（報表匯出）
+
+| Method | 端點 | 說明 | 授權 |
+|:-------|:-----|:-----|:-----|
+| `POST` | `/api/v2/exports` | 建立匯出任務（非同步） | admin |
+| `GET` | `/api/v2/exports/{id}` | 查詢匯出任務狀態 | admin |
+| `GET` | `/api/v2/exports/{id}/download` | 下載匯出檔案 | admin |
+
+### 9.4 B2B API（品牌/社區/經銷商報表）
+
+| Method | 端點 | 說明 | 授權 |
+|:-------|:-----|:-----|:-----|
+| `GET` | `/api/v2/brands/{id}/fault-stats` | 品牌故障統計 | admin |
+| `GET` | `/api/v2/communities/{id}/work-orders` | 社區工單彙總 | admin |
+| `GET` | `/api/v2/distributors/{id}/service-reports` | 經銷商服務報表 | admin |
+
+### 9.5 Inventory API（庫存與材料管理，GAP #17）
+
+| Method | 端點 | 說明 | 授權 |
+|:-------|:-----|:-----|:-----|
+| `GET` | `/api/v2/inventory` | 查詢庫存清單（支援低庫存篩選） | admin, technician |
+| `POST` | `/api/v2/inventory/transactions` | 建立進出庫交易記錄 | admin |
+
+### 9.6 Audit API（稽核事件）
+
+| Method | 端點 | 說明 | 授權 |
+|:-------|:-----|:-----|:-----|
+| `GET` | `/api/v2/audit-events` | 查詢稽核事件（支援 7 種事件類型篩選、時間範圍、操作者） | admin |
+
+---
+
 **文件審核記錄：**
 
 | 日期 | 審核人 | 版本 | 變更摘要 |
 |:---|:---|:---|:---|
 | 2026-02-17 | 開發團隊 | v1.0 | 初版：V1.0 + V2.0 完整 API 規範 |
+| 2026-04-04 | 開發團隊 | v1.1 | 新增 V2.0 擴展端點：Refund、RBAC、Export、B2B、Inventory、Audit |

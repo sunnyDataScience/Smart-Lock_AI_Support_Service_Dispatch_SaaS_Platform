@@ -4,8 +4,8 @@
 
 ---
 
-**文件版本 (Document Version):** `v1.0`
-**最後更新 (Last Updated):** `2026-02-25`
+**文件版本 (Document Version):** `v1.1`
+**最後更新 (Last Updated):** `2026-04-04`
 **主要作者 (Lead Author):** `DevOps / 技術負責人`
 **審核者 (Reviewers):** `架構委員會, 核心開發團隊`
 **狀態 (Status):** `草稿 (Draft)`
@@ -1173,6 +1173,8 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./SQL/Schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      # Knowledge Assets Volume (read-only)
+      # - ./harness/task/knowledge/:/app/knowledge/:ro
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-smart_lock}
       POSTGRES_USER: ${POSTGRES_USER:-smartlock}
@@ -1524,6 +1526,11 @@ server {
     }
 
     # ----- Health Check -----
+    # 細粒度健康檢查端點 (SLA 定義詳見 docs/system_design/specs/sla-availability-spec.md)
+    #   /health      — 整體健康狀態
+    #   /health/llm  — LLM (Gemini) API 可用性
+    #   /health/db   — PostgreSQL 連線狀態
+    #   /health/redis — Redis 連線狀態
     location /health {
         proxy_pass http://backend;
         proxy_set_header Host $host;
@@ -2204,6 +2211,7 @@ APP_DEBUG=true                          # true (dev) / false (staging, prod)
 APP_SECRET_KEY=your-secret-key-here
 
 # === Database ===
+# V2.0 Schema 擴展: SQL/Schema_v2_extensions.sql (RBAC, inventory, signatures, audit)
 DATABASE_URL=postgresql+asyncpg://user:password@db:5432/smart_lock
 DATABASE_POOL_SIZE=20                   # dev: 5 / staging: 10 / prod: 20
 DATABASE_MAX_OVERFLOW=10                # dev: 5 / staging: 5 / prod: 10

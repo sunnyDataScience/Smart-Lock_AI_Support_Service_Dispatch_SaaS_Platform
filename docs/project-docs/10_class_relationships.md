@@ -2,9 +2,9 @@
 
 ---
 
-**文件版本 (Document Version):** `v1.0`
+**文件版本 (Document Version):** `v2.0`
 
-**最後更新 (Last Updated):** `2026-02-25`
+**最後更新 (Last Updated):** `2026-04-04`
 
 **主要作者 (Lead Author):** `技術架構師`
 
@@ -1331,3 +1331,84 @@ classDiagram
 | 日期 | 審核人 | 版本 | 變更摘要/主要反饋 |
 | :-- | :-- | :-- | :-- |
 | 2026-02-25 | 技術架構師 | v1.0 | 初稿提交：涵蓋 V1.0/V2.0 完整領域模型、Clean Architecture 分層、7 個 Protocol 接口契約、8 項設計模式、SOLID 評估 |
+| 2026-04-04 | 技術架構師 | v2.0 | 新增診斷智能領域模型與 V2.0 業務服務領域模型 |
+
+---
+
+## 診斷智能領域模型 (Diagnostic Intelligence Domain Model)
+
+基於 `docs/agent-harness-refactor/diagnostic-intelligence-architecture.md` 的四層因果鏈：
+
+```
+Symptom (症狀) → Failure (失效) → Failure Mode (失效模式) → Defect (缺陷)
+```
+
+### Entity 定義
+
+| Entity | 說明 | 範例 |
+|---|---|---|
+| **Symptom** | 客戶可觀察到的現象 | "門鎖沒反應" |
+| **Failure** | 功能性失效 | "keypad_no_response" |
+| **FailureMode** | 工程機制 (FMEA 結構) | "circuit_board_corrosion" |
+| **Defect** | 物理根因，需技師到場確認 | 電路板腐蝕、馬達齒輪磨損 |
+| **VerificationStep** | 驗證假設的問診步驟 | "請確認電池電量是否正常" |
+
+### Knowledge Assets (結構化知識檔案)
+
+| 檔案 | 用途 |
+|---|---|
+| `symptoms.toml` | 51 標準症狀碼 |
+| `failure_taxonomy.json` | 失效分類體系 |
+| `failure_mode_registry.json` | 15 種失效模式 (FMEA 結構) |
+| `fault_trees/FT-HW-001~005.json` | 5 棵故障樹 |
+| `ocap_rules.json` | 品質異常行動規則 |
+
+### ProblemCard 作為資料中樞
+
+```
+ProblemCard ←→ Symptom          (多對多)
+ProblemCard  → Failure          (推斷)
+ProblemCard  → FailureMode      (假設)
+ProblemCard  → ResolutionAttempt (1 對多)
+ProblemCard  → WorkOrder        (升級時建立)
+```
+
+---
+
+## V2.0 業務服務領域模型
+
+16 個 Service 類別的聚合關係：
+
+### WorkOrder 聚合根
+
+```
+WorkOrder (聚合根)
+  ├── CompletionEvidence      (完工證據)
+  ├── ScopeChange             (範圍變更)
+  ├── MaterialRequest         (材料請購)
+  ├── AppearanceChangeConsent (門外觀同意)
+  ├── DigitalSignature        (電子簽收)
+  ├── DispatchDecision        (派工決策)
+  ├── Invoice                 (發票)
+  │   └── RefundRequest       (退款申請)
+  ├── Complaint               (客訴)
+  └── Dispute                 (爭議)
+       └── EvidencePackage    (舉證包)
+```
+
+### Technician 聚合根
+
+```
+Technician (聚合根)
+  ├── TechnicianRating        (評分)
+  ├── InventoryTransaction    (庫存異動)
+  └── Settlement              (結算)
+```
+
+### User 聚合根
+
+```
+User (聚合根)
+  ├── Role → Permission       (RBAC)
+  └── WarrantyClaim           (保固索賠)
+```

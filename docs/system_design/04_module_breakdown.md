@@ -993,5 +993,142 @@ Admin Panel 中提供消費者完整歷史：
 
 ---
 
+## V2.0 異常處理模組擴展
+
+> 以下模組對應 `requirements/10_work_order_interaction_flows.md` 定義的 9 個異常流程，以及 `SQL/Schema.sql` 新增的 8 張資料表。
+
+### M14：客訴管理模組 (Complaint Management)
+
+| 項目 | 說明 |
+|---|---|
+| **功能** | 客訴立案、分類、指派、調查、解決、補償、追蹤 |
+| **資料表** | `complaints` (severity/status 狀態機) |
+| **狀態流** | filed → assigned → investigating → proposed → accepted/rejected → resolved → closed |
+| **整合** | 工單系統 (work_orders)、OCAP 情緒偵測 (35 關鍵字)、退款模組 |
+| **SLA** | 一般 < 3 工作日、高優先 < 24 小時 |
+| **角色** | 客戶 (filed)、客服主管 (investigate/resolve)、營運主管 (escalate) |
+| **對應流程** | Flow 9: 客訴處理完整生命週期 |
+
+### M15：爭議仲裁模組 (Dispute Resolution)
+
+| 項目 | 說明 |
+|---|---|
+| **功能** | 爭議建立、證據收集、仲裁、解決金額調整 |
+| **資料表** | `disputes` (dispute_type: pricing/quality/warranty/cancellation_fee/settlement) |
+| **狀態流** | filed → under_review → mediation → resolved/escalated |
+| **整合** | 客訴模組、帳務模組 (invoices)、完工照片 |
+| **SLA** | < 7 工作日 |
+| **角色** | 客戶/技師 (filed)、客服主管 (review)、營運主管 (mediate) |
+| **參考案例** | `docs/Locksmith_Preparation_Checklist/18_爭議處理案例.md` (6 個實案) |
+
+### M16：退款審批模組 (Refund Approval)
+
+| 項目 | 說明 |
+|---|---|
+| **功能** | 退款申請、分級審批、雙簽核准、退款執行 |
+| **資料表** | `refund_requests` (approval_chain JSONB, requires_dual_sign) |
+| **審批規則** | ≤$10K 客服主管 / ≤$100K 營運主管 / >$100K 營運+財務雙簽 (BR-006) |
+| **整合** | 客訴模組、爭議模組、帳務模組 |
+| **SLA** | < 5 工作日 |
+| **角色** | 客服主管 (create)、營運主管 (approve)、財務主管 (dual-sign + execute) |
+| **對應流程** | Flow 6: 退款審批與大額雙簽 |
+
+### M17：保固索賠模組 (Warranty Claims)
+
+| 項目 | 說明 |
+|---|---|
+| **功能** | 保固驗證、索賠處理、爭議、折扣方案 |
+| **資料表** | `warranty_claims` (warranty_start_date = 交屋日, is_within_warranty 系統計算) |
+| **關鍵規則** | 保固起算日 = 建商點交日，非住戶入住日 (BR-002) |
+| **整合** | 工單模組、品牌原廠資料庫 (P2)、爭議模組 |
+| **角色** | 客戶 (file)、客服主管 (verify)、營運主管 (decide) |
+| **對應流程** | Flow 7: 保固爭議 |
+
+### M18：範圍變更模組 (Scope Change)
+
+| 項目 | 說明 |
+|---|---|
+| **功能** | 範圍變更申請、重新報價、客戶核准、改期/繼續 |
+| **資料表** | `scope_changes` (original_scope/new_scope JSONB, customer_decision) |
+| **審批規則** | 新報價 ≤ 2x 原價 → 客戶自行決定 / > 2x → 技術主管審核 (BR-010) |
+| **整合** | 工單模組、報價引擎、客戶通知 |
+| **角色** | 技師 (report)、客戶 (approve/reject)、營運主管 (override) |
+| **對應流程** | Flow 3: 範圍變更 |
+
+### M19：材料請購模組 (Material Request)
+
+| 項目 | 說明 |
+|---|---|
+| **功能** | 缺料回報、請購審批、到貨追蹤、改期聯動 |
+| **資料表** | `material_requests` (items JSONB, source: company_stock/external/technician_advance) |
+| **SLA** | 備料到位 < 72 小時 |
+| **整合** | 工單模組 (建立改期工單)、技師通知 |
+| **參考** | `docs/Locksmith_Preparation_Checklist/19_各工種常用物料清單.md` |
+| **對應流程** | Flow 4: 缺料處理 |
+
+### M20：派工日誌模組 (Dispatch Logging)
+
+| 項目 | 說明 |
+|---|---|
+| **功能** | 派工決策審計、拒單原因記錄、匹配分數追蹤 |
+| **資料表** | `dispatch_logs` (action, match_score, match_factors JSONB, rejection_reason) |
+| **用途** | 稽核、匹配演算法優化、技師考核 |
+| **整合** | 派工引擎、技師管理 |
+| **對應流程** | Flow 2: 拒單與逾時重派 |
+
+### M21：門外觀變更同意模組 (Appearance Change Consent)
+
+| 項目 | 說明 |
+|---|---|
+| **功能** | 外觀變更告知、客戶簽署、開工前同意閘門 |
+| **資料表** | `appearance_change_consents` (change_description, customer_consented, consent_method) |
+| **關鍵規則** | 韓規/日規側板切割會造成門漆起泡 → 必須開工前取得書面同意 (BR-003) |
+| **角色** | 技師 (submit)、客戶 (sign) |
+| **對應流程** | Flow 10: 門外觀變更確認 |
+
+## 模組依賴矩陣（異常處理擴展）
+
+```
+M14 客訴 ←→ M15 爭議 ←→ M16 退款
+  ↑              ↑
+M8 派工 → M7 工作台 → M18 範圍變更
+                ↓         ↓
+              M19 材料 ← M21 外觀同意
+                ↓
+              M10 完工 → M17 保固 → M15 爭議
+                ↓
+              M20 派工日誌
+```
+
+## 知識資產與診斷引擎整合
+
+> 對應 `diagnostic-intelligence-architecture.md` + `optimization-strategy.md`
+
+### 診斷推理引擎在模組中的位置
+
+```
+M4 三層解決引擎
+  └── task_decompose (Harness L1)
+        ├── Tier 1: 意圖分類 (所有查詢)
+        └── Tier 2: 診斷推理 (技術查詢)
+              ├── 知識注入: symptoms.toml (51) + components.toml (30)
+              ├── 知識注入: failure_taxonomy (7) + failure_mode_registry (15)
+              ├── 知識注入: fault_trees (5, 按症狀過濾)
+              ├── PDCA 循環: Plan→Do→Check→Act
+              ├── diagnosis_status: need_more_info / confident / recommend_dispatch
+              └── recommend_dispatch → 建立工單 (M8 派工)
+```
+
+### OCAP 異常監控整合
+
+| OCAP 規則 | 觸發條件 | 影響模組 |
+|---|---|---|
+| 同一故障 24h > 10 件 | failure_id 計數 | M4 (提高該故障的驗證鏈優先級) |
+| 轉人率 7 日 > 30% | transfer_rate | M5 知識庫 (觸發 SOP 補充) |
+| 高風險情緒關鍵字 | 35 個觸發詞 | M14 客訴 (自動立案 + 轉人工) |
+| Red_Code 緊急 | 7 個關鍵字 | M8 派工 (30秒回應/15分鐘派工/2小時到場) |
+
+---
+
 > **文件結尾**
 > 本文件定義了電子鎖智能客服與派工平台的模組分解、依賴關係、資料庫設計與開發計畫，作為系統開發的架構參考。

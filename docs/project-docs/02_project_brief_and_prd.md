@@ -2,8 +2,8 @@
 
 ---
 
-**文件版本 (Document Version):** `v1.0`
-**最後更新 (Last Updated):** `2026-02-17`
+**文件版本 (Document Version):** `v1.1`
+**最後更新 (Last Updated):** `2026-04-04`
 **主要作者 (Lead Author):** `開發團隊`
 **審核者 (Reviewers):** `甲方專案負責人, 技術負責人`
 **狀態 (Status):** `已批准 (Approved)`
@@ -354,7 +354,7 @@ V2.0 技師派工與帳務平台 (W18-W31, 共 14 週)
 | 編號 | 依賴項目 | 提供者 | 用途 | 風險等級 |
 | :--- | :--- | :--- | :--- | :--- |
 | D-001 | LINE Messaging API | LINE Corporation | 消費者對話管道、Webhook 接收訊息、發送回覆 | 低 - 成熟穩定的服務 |
-| D-002 | Google Gemini 3 Pro API | Google | 意圖辨識、對話生成、SOP 生成、ProblemCard 擷取 | 中 - 需監控 API 配額與成本 |
+| D-002 | Google Gemini 3 Pro API [^1] | Google | 意圖辨識、對話生成、SOP 生成、ProblemCard 擷取 | 中 - 需監控 API 配額與成本 |
 | D-003 | Google Embeddings API | Google | 文本向量化 (案例庫、產品手冊 chunks) | 中 - 與 D-002 相同風險 |
 | ~~D-004~~ | ~~Google Gemini Vision API~~ | ~~Google~~ | ~~圖片分析 (故障照片辨識)~~ | **已移除 -- 合約 SOW 2.1(4) 明確排除 AI 影像辨識** |
 | D-005 | Google Maps API | Google | V2.0 地圖視覺化、距離計算 | 低 - 成熟穩定的服務 |
@@ -364,7 +364,7 @@ V2.0 技師派工與帳務平台 (W18-W31, 共 14 週)
 | 編號 | 約束描述 | 原因 |
 | :--- | :--- | :--- |
 | T-001 | LINE Messaging API 作為主要客戶對話管道 | 甲方需求，消費者不需安裝額外 App |
-| T-002 | Google Gemini 3 Pro 作為 LLM | 中文理解能力最佳，結構化輸出能力成熟 |
+| T-002 | Google Gemini 3 Pro 作為 LLM [^1] | 中文理解能力最佳，結構化輸出能力成熟 |
 | T-003 | PostgreSQL 作為主要關聯式資料庫 | 開源、成熟、支援 JSON 欄位 |
 | T-004 | 向量資料庫用於案例/手冊語義搜尋 | 核心功能需求 (pgvector 或 Qdrant 待 ADR 決定) |
 | T-005 | Docker 容器化部署 | 環境一致性、可移植性 |
@@ -380,7 +380,7 @@ V2.0 技師派工與帳務平台 (W18-W31, 共 14 週)
 | 決策 ID | 描述 | 決定結果 | 日期 | 負責人 | ADR 連結 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | D-001 | 主要資料庫選型 | PostgreSQL | 2026-02-17 | Tech Lead | [ADR-001] |
-| D-002 | LLM 選型 | Google Gemini 3 Pro | 2026-02-17 | Tech Lead | [ADR-002] |
+| D-002 | LLM 選型 | Google Gemini 3 Pro [^1] | 2026-02-17 | Tech Lead | [ADR-002] |
 | D-003 | 消費者端通訊管道 | LINE Messaging API | 2026-02-17 | PM / 甲方 | [ADR-003] |
 | D-004 | 後端框架 | FastAPI (Python) | 2026-02-17 | Tech Lead | [ADR-004] |
 | D-005 | 部署方式 | Docker 容器化 | 2026-02-17 | Tech Lead | [ADR-005] |
@@ -414,3 +414,7 @@ V2.0 技師派工與帳務平台 (W18-W31, 共 14 週)
 ---
 
 *本文件為「電子鎖智能客服與派工平台」專案的唯一事實來源。所有後續的架構設計 (ADR)、行為驅動開發 (BDD)、模組規格 (Module Spec)、API 設計均以本文件為依據。任何需求變更須經變更審核流程，更新本文件後方可執行。*
+
+---
+
+[^1]: V1.0 實際採用 Gemini 2.5 Flash (見 ADR-006)
