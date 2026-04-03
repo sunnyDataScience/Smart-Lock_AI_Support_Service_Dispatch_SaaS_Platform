@@ -1,0 +1,568 @@
+# ==========================================
+# Symptom Taxonomy - Smart Lock Domain
+# ==========================================
+# Source data:
+#   - 06_客戶常用口語對照表.md (colloquial → technical mappings)
+#   - 07_故障分類體系.md (7 fault categories)
+#   - 03_故障碼_蜂鳴聲_燈號對照表.md (brand-specific error codes)
+#
+# Field descriptions:
+#   id          — unique symptom identifier
+#   label       — standard Chinese name (for logs and reports)
+#   aliases     — colloquial user expressions (for LLM mapping)
+#   component   — related hardware component (for Tier 2 correlation)
+#   severity    — 1 (minor) to 5 (critical/safety)
+#   category    — fault classification from 07_故障分類體系
+#   brands      — brand-specific notes (optional)
+# ==========================================
+
+
+# ==========================================================
+# Category 1: 門扇卡死無法開啟 (Physical Deadlock)
+# ==========================================================
+
+[symptoms.lock_tongue_stuck]
+label     = "鎖舌卡死"
+aliases   = [
+    "鎖卡住了", "門打不開", "鎖死了", "門卡住", "開不了門",
+    "被鎖在外面", "鑰匙轉不動", "鎖舌卡住",
+    "長嗶+馬達聲+無法開門",
+]
+component = "lock_body"
+severity  = 5
+category  = "door_physical"
+
+[symptoms.motor_sound_no_open]
+label     = "馬達有聲但門不開"
+aliases   = [
+    "有聽到馬達聲但打不開", "鎖有反應但開不了", "聽到聲音但卡住",
+    "馬達在轉但門不動",
+]
+component = "motor"
+severity  = 5
+category  = "door_physical"
+
+[symptoms.receiver_plate_misalign]
+label     = "受口片偏移"
+aliases   = [
+    "鎖舌插不進去", "門框那邊對不上", "鎖舌撞到門框",
+    "受口片歪了", "鎖舌卡到鐵片",
+]
+component = "receiver_plate"
+severity  = 4
+category  = "door_physical"
+
+[symptoms.handle_stuck]
+label     = "把手卡死/離合器故障"
+aliases   = [
+    "把手轉不動", "把手卡住", "把手沒有作用",
+    "轉把手沒反應", "把手空轉",
+]
+component = "handle"
+severity  = 4
+category  = "door_physical"
+brands    = { Philips = "紅燈閃3次=離合器異常(需派工)" }
+
+[symptoms.locked_out_urgent]
+label     = "被鎖在外面(緊急)"
+aliases   = [
+    "被鎖在外面", "進不了門", "出不了門", "鑰匙忘在裡面",
+    "人在外面打不開", "回不了家",
+]
+component = "lock_body"
+severity  = 5
+category  = "door_physical"
+
+[symptoms.door_scraping]
+label     = "門扇磨擦"
+aliases   = [
+    "門很難推", "門會卡到地板", "門擦到門框", "開門很緊",
+]
+component = "door_structure"
+severity  = 3
+category  = "door_physical"
+
+
+# ==========================================================
+# Category 2: 門扇無法閉合與自動上鎖失效 (Auto-lock Failure)
+# ==========================================================
+
+[symptoms.door_cant_close]
+label     = "門關不起來"
+aliases   = [
+    "門關不起來", "鎖不住", "門關了但沒上鎖", "鎖不起來",
+    "門沒辦法關好", "門會彈開",
+]
+component = "lock_body"
+severity  = 4
+category  = "auto_lock"
+
+[symptoms.auto_lock_fail]
+label     = "自動上鎖失效"
+aliases   = [
+    "門關了不會自己鎖", "自動上鎖壞了", "關門沒有上鎖",
+    "門要手動鎖",
+]
+component = "lock_body"
+severity  = 4
+category  = "auto_lock"
+
+[symptoms.bolt_cant_extend]
+label     = "鎖栓無法伸出"
+aliases   = [
+    "鎖栓不會跑出來", "大鎖舌不動", "上鎖但鎖栓沒伸出",
+]
+component = "lock_body"
+severity  = 4
+category  = "auto_lock"
+
+[symptoms.motor_free_spin]
+label     = "馬達空轉"
+aliases   = [
+    "馬達一直轉", "聽到馬達聲但鎖不上", "馬達空轉",
+    "嗶嗶嗶快速",
+]
+component = "motor"
+severity  = 4
+category  = "auto_lock"
+brands    = { Kaadas = "嗶嗶嗶快速=上鎖失敗" }
+
+[symptoms.door_rebound]
+label     = "門扇回彈"
+aliases   = [
+    "門會自己開", "門自己彈開", "關了又開", "門沒辦法合上",
+    "斜舌被頂回去",
+]
+component = "lock_body"
+severity  = 4
+category  = "auto_lock"
+
+[symptoms.abnormal_unlock]
+label     = "異常解鎖/鎖舌自動縮回"
+aliases   = [
+    "鎖自己打開了", "沒人開但鎖開了", "鎖舌自己縮回去",
+    "門鎖自動解鎖",
+]
+component = "lock_body"
+severity  = 5
+category  = "auto_lock"
+
+[symptoms.post_install_lock_fail]
+label     = "裝好後仍無法關鎖"
+aliases   = [
+    "鎖裝好還是關不了", "剛裝完就鎖不住", "新裝的鎖關不起來",
+]
+component = "lock_body"
+severity  = 4
+category  = "auto_lock"
+
+
+# ==========================================================
+# Category 3: 異常警報聲響 (Abnormal Alarms)
+# ==========================================================
+
+[symptoms.door_not_closed_alarm]
+label     = "未關門警報"
+aliases   = [
+    "鎖一直叫", "一直嗶嗶叫", "門沒關警報一直響",
+    "關了門還是一直叫", "短嗶5聲",
+]
+component = "alarm_speaker"
+severity  = 3
+category  = "alarm"
+brands    = { dormakaba = "短嗶5聲=未關門", Philips = "連續急促嗶聲=未關門" }
+
+[symptoms.low_battery_alarm]
+label     = "低電量警報"
+aliases   = [
+    "鎖一直嗶嗶叫", "電池快沒電的聲音", "嗶聲4次",
+    "短嗶3聲",
+]
+component = "power_supply"
+severity  = 3
+category  = "alarm"
+brands    = { dormakaba = "短嗶3聲=低電量", Milre = "嗶聲4次=電量不足", Kaadas = "語音:請更換電池", AiLock = "語音:電池電量低", Philips = "語音:電量不足" }
+
+[symptoms.burglar_alarm]
+label     = "防盜警報/鎖定"
+aliases   = [
+    "防盜警報響了", "被鎖定了", "短嗶10聲", "防撬警報",
+    "鎖被鎖住不能用",
+]
+component = "alarm_speaker"
+severity  = 4
+category  = "alarm"
+brands    = { dormakaba = "短嗶10聲=防盜鎖定", Kaadas = "長鳴+紅燈閃=防盜鎖定" }
+
+[symptoms.seismic_false_alarm]
+label     = "震動感應誤報"
+aliases   = [
+    "半夜自己響", "沒人碰但警報響", "風吹就響",
+    "一直誤報",
+]
+component = "alarm_speaker"
+severity  = 3
+category  = "alarm"
+
+[symptoms.lock_fail_alarm]
+label     = "關鎖失敗警報"
+aliases   = [
+    "關門後會叫", "鎖完會嗶", "長鳴3秒",
+]
+component = "alarm_speaker"
+severity  = 3
+category  = "alarm"
+brands    = { dormakaba = "長鳴3秒×1=關鎖失敗" }
+
+[symptoms.motor_noise]
+label     = "馬達異音/鎖舌撞框"
+aliases   = [
+    "鎖很大聲", "開鎖聲音很大", "馬達聲很吵",
+    "鎖舌撞到框", "金屬摩擦聲",
+]
+component = "motor"
+severity  = 2
+category  = "alarm"
+
+
+# ==========================================================
+# Category 4: 驗證失敗與錯誤碼 (Verification Failure)
+# ==========================================================
+
+[symptoms.fingerprint_fail]
+label     = "指紋辨識失敗"
+aliases   = [
+    "指紋感應不到", "指紋讀不到", "按指紋沒反應",
+    "指紋辨識不了", "感應不到指紋", "指紋一直失敗",
+    "手指放上去沒用", "紅燈閃2次",
+]
+component = "fingerprint_sensor"
+severity  = 3
+category  = "verification"
+brands    = { dormakaba = "紅燈閃2次=指紋失敗", Milre = "紅燈+嗶2聲=指紋不匹配", AiLock = "短嗶3聲+紅燈=生物辨識失敗" }
+
+[symptoms.card_fail]
+label     = "卡片驗證失敗"
+aliases   = [
+    "感應卡刷不過", "卡片沒反應", "門卡刷不了", "卡片失效",
+    "NFC感應不到", "短嗶2聲+紅燈",
+]
+component = "card_reader"
+severity  = 3
+category  = "verification"
+brands    = { Philips = "短嗶2聲+紅燈=卡片未授權" }
+
+[symptoms.face_recognition_fail]
+label     = "人臉辨識失敗"
+aliases   = [
+    "臉辨識不到", "人臉辨識失敗", "臉對了但不開",
+    "短嗶3聲+黃燈",
+]
+component = "camera"
+severity  = 3
+category  = "verification"
+brands    = { Kaadas = "短嗶3聲+黃燈=人臉辨識失敗" }
+
+[symptoms.panel_unresponsive]
+label     = "面板完全無反應"
+aliases   = [
+    "密碼按了沒反應", "螢幕不亮", "觸控沒反應",
+    "面板沒反應", "按了什麼都沒用", "整個面板不動",
+]
+component = "front_panel"
+severity  = 5
+category  = "verification"
+
+[symptoms.battery_dead]
+label     = "電池耗盡"
+aliases   = [
+    "鎖沒電了", "完全沒電", "電池沒電了", "換電池也沒用",
+    "面板無反應",
+]
+component = "power_supply"
+severity  = 5
+category  = "verification"
+brands    = { Philips = "面板無反應=電池耗盡" }
+
+[symptoms.password_lockout]
+label     = "密碼錯誤次數上限"
+aliases   = [
+    "密碼輸入太多次", "被鎖定", "輸入次數超過",
+    "短嗶6聲",
+]
+component = "keypad"
+severity  = 3
+category  = "verification"
+brands    = { Philips = "短嗶6聲=密碼錯誤上限" }
+
+[symptoms.screen_flash_6]
+label     = "面板閃爍數字6(驗證失敗)"
+aliases   = [
+    "面板閃爍6", "螢幕顯示6一直閃", "閃6",
+]
+component = "front_panel"
+severity  = 3
+category  = "verification"
+brands    = { dormakaba = "面板閃爍6=驗證失敗" }
+
+[symptoms.data_not_stored]
+label     = "資料未儲存/設定失敗"
+aliases   = [
+    "指紋存不進去", "密碼設定失敗", "登錄不了新資料",
+    "存了但不能用",
+]
+component = "mainboard"
+severity  = 3
+category  = "verification"
+
+[symptoms.pending_diagnosis]
+label     = "電子鎖故障(待診斷)"
+aliases   = [
+    "電子鎖壞掉了", "鎖壞了", "門鎖故障", "鎖不能用了",
+]
+component = "mainboard"
+severity  = 4
+category  = "verification"
+
+
+# ==========================================================
+# Category 5: 權限混淆 (Permission Confusion)
+# ==========================================================
+
+[symptoms.permission_anomaly]
+label     = "權限異常/密碼被篡改"
+aliases   = [
+    "密碼被改了", "不是我改的密碼", "密碼突然不對",
+    "有人改我密碼",
+]
+component = "firmware"
+severity  = 4
+category  = "permission"
+
+[symptoms.admin_locked_out]
+label     = "管理員權限無法進入"
+aliases   = [
+    "鎖進不去設定", "管理員密碼忘了", "進不了設定畫面",
+    "管理模式打不開",
+]
+component = "firmware"
+severity  = 4
+category  = "permission"
+
+[symptoms.admin_vs_general_confusion]
+label     = "管理者與一般密碼混淆"
+aliases   = [
+    "不知道哪個是管理密碼", "管理密碼跟一般密碼搞混",
+    "用一般密碼改設定",
+]
+component = "firmware"
+severity  = 2
+category  = "permission"
+
+[symptoms.settings_lost]
+label     = "系統重置/設定遺失"
+aliases   = [
+    "設定跑掉了", "資料不見了", "指紋全部消失",
+    "恢復原廠了", "設定全部不見",
+]
+component = "firmware"
+severity  = 4
+category  = "permission"
+
+
+# ==========================================================
+# Category 6: 誤觸雙重驗證模式 (Accidental Dual Auth)
+# ==========================================================
+
+[symptoms.dual_auth_activated]
+label     = "雙重驗證模式誤觸"
+aliases   = [
+    "要刷卡又要按密碼", "要兩種才能開", "突然要雙重驗證",
+    "原本指紋就好現在還要密碼",
+]
+component = "firmware"
+severity  = 3
+category  = "dual_auth"
+
+[symptoms.dual_auth_cant_disable]
+label     = "無法關閉雙重驗證"
+aliases   = [
+    "雙重驗證關不掉", "不知道怎麼關雙驗證",
+    "設定裡面找不到關閉",
+]
+component = "firmware"
+severity  = 3
+category  = "dual_auth"
+
+
+# ==========================================================
+# Category 7: 網路連線與電力規範 (Network & Power)
+# ==========================================================
+
+[symptoms.wifi_disconnected]
+label     = "Wi-Fi模組斷線"
+aliases   = [
+    "APP連不上", "Wi-Fi斷了", "遠端連不上",
+    "手機連不到鎖", "間歇嗶聲每30秒",
+]
+component = "wifi_module"
+severity  = 3
+category  = "network_power"
+brands    = { AiLock = "間歇嗶聲每30秒=Wi-Fi斷線" }
+
+[symptoms.wifi_5g_issue]
+label     = "5GHz頻段不相容"
+aliases   = [
+    "Wi-Fi連不上", "換了路由器就連不上", "只支援2.4G",
+]
+component = "wifi_module"
+severity  = 2
+category  = "network_power"
+
+[symptoms.battery_type_wrong]
+label     = "電池規格錯誤"
+aliases   = [
+    "用充電電池不行", "裝錯電池", "電池裝了沒反應",
+]
+component = "power_supply"
+severity  = 3
+category  = "network_power"
+
+[symptoms.abnormal_drain]
+label     = "異常耗電/漏電"
+aliases   = [
+    "鎖會漏電", "電池很快沒電", "才換電池又沒電",
+    "耗電異常", "電池撐不到一個月",
+]
+component = "power_supply"
+severity  = 3
+category  = "network_power"
+
+[symptoms.emergency_power_needed]
+label     = "需要緊急供電"
+aliases   = [
+    "沒電了怎麼開", "要用行動電源充", "USB充電在哪",
+]
+component = "emergency_power_port"
+severity  = 4
+category  = "network_power"
+
+
+# ==========================================================
+# Supplementary: 生物辨識 (Biometric)
+# ==========================================================
+
+[symptoms.fingerprint_slow]
+label     = "指紋辨識緩慢"
+aliases   = [
+    "指紋很慢", "要按好幾次", "指紋辨識很久", "感應很慢",
+]
+component = "fingerprint_sensor"
+severity  = 1
+category  = "biometric"
+
+[symptoms.fingerprint_false_reject]
+label     = "指紋頻繁誤判"
+aliases   = [
+    "指紋一直失敗", "自己的指紋都不認", "常常要重按",
+    "手濕就不能用",
+]
+component = "fingerprint_sensor"
+severity  = 2
+category  = "biometric"
+
+[symptoms.face_slow_or_inaccurate]
+label     = "人臉辨識緩慢或不準"
+aliases   = [
+    "人臉辨識很慢", "臉要對很久", "戴眼鏡就不認",
+]
+component = "camera"
+severity  = 2
+category  = "biometric"
+
+
+# ==========================================================
+# Supplementary: 安裝相關 (Installation)
+# ==========================================================
+
+[symptoms.poor_installation]
+label     = "安裝不良/鎖裝歪"
+aliases   = [
+    "鎖裝歪了", "安裝有問題", "前後面板對不上",
+    "螺絲鎖不到",
+]
+component = "door_structure"
+severity  = 3
+category  = "installation"
+
+[symptoms.door_sag]
+label     = "門扇下垂/鉸鏈鬆脫"
+aliases   = [
+    "門縫很大", "門下垂", "鉸鏈鬆了", "門變形",
+    "門跟框有縫隙",
+]
+component = "door_structure"
+severity  = 3
+category  = "installation"
+
+[symptoms.side_plate_mismatch]
+label     = "側板規格不合"
+aliases   = [
+    "側板裝不上去", "尺寸不對", "要換側板",
+]
+component = "side_plate"
+severity  = 2
+category  = "installation"
+
+
+# ==========================================================
+# Brand-Specific Error Codes (as diagnostic symptoms)
+# ==========================================================
+
+[symptoms.dormakaba_motor_error]
+label     = "dormakaba 馬達異常(紅燈閃4次)"
+aliases   = ["紅燈閃4次", "dormakaba馬達異常"]
+component = "motor"
+severity  = 5
+category  = "verification"
+brands    = { dormakaba = "紅燈閃4次=馬達異常(需派工)" }
+
+[symptoms.dormakaba_system_error]
+label     = "dormakaba 系統錯誤(紅燈常亮)"
+aliases   = ["紅燈常亮", "dormakaba系統錯誤", "紅燈一直亮"]
+component = "mainboard"
+severity  = 5
+category  = "verification"
+brands    = { dormakaba = "紅燈常亮=系統錯誤" }
+
+[symptoms.philips_clutch_error]
+label     = "Philips 離合器異常(紅燈閃3次)"
+aliases   = ["Philips紅燈閃3次", "離合器壞了"]
+component = "handle"
+severity  = 5
+category  = "door_physical"
+brands    = { Philips = "紅燈閃3次=離合器異常(需派工)" }
+
+[symptoms.kaadas_motor_stall]
+label     = "Kaadas 馬達堵轉(紅燈閃5次)"
+aliases   = ["紅燈閃5次", "Kaadas馬達堵轉"]
+component = "motor"
+severity  = 5
+category  = "door_physical"
+brands    = { Kaadas = "紅燈閃5次=馬達堵轉(需派工)" }
+
+[symptoms.milre_mainboard_error]
+label     = "Milre 主機板異常(面板全亮後熄滅)"
+aliases   = ["面板全亮後熄滅", "Milre主機板異常"]
+component = "mainboard"
+severity  = 5
+category  = "verification"
+brands    = { Milre = "面板全亮後熄滅=主機板異常(需派工)" }
+
+[symptoms.milre_tongue_sensor_error]
+label     = "Milre 鎖舌感應異常(長鳴不斷)"
+aliases   = ["長鳴不斷", "Milre鎖舌感應異常"]
+component = "lock_body"
+severity  = 4
+category  = "alarm"
+brands    = { Milre = "長鳴不斷=鎖舌感應異常" }

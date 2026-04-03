@@ -1,0 +1,68 @@
+{
+  "_doc": "Fault Tree: multi-function simultaneous failure. Maps Failure Modes to Defect hypotheses with verification chain. fm_id references failure_modes/failure_mode_registry.json.",
+  "id": "FT-HW-003",
+  "title": "多功能同時失效",
+  "version": "1.0",
+  "updated_by": "expert",
+
+  "required_symptoms": ["fingerprint_no_response", "bluetooth_disconnected"],
+  "optional_symptoms": ["screen_off", "keypad_no_response"],
+
+  "related_failures": ["F-LOCK-001", "F-LOCK-003", "F-LOCK-004"],
+
+  "failure_modes": [
+    {
+      "fm_id": "FM-ELEC-002",
+      "name": "I2C 匯流排通訊間歇中斷",
+      "mechanism_type": "electrical",
+      "defect_hypotheses": [
+        {"defect": "排線扣老化接觸不良", "type": "process", "probability": 0.40, "source": "expert_estimate"},
+        {"defect": "通訊板焊點虛焊", "type": "material", "probability": 0.35, "source": "expert_estimate"}
+      ]
+    },
+    {
+      "fm_id": "FM-POWER-002",
+      "name": "供電電壓波動低於模組工作閾值",
+      "mechanism_type": "electrical",
+      "defect_hypotheses": [
+        {"defect": "電池接點氧化", "type": "material", "probability": 0.15, "source": "expert_estimate"},
+        {"defect": "電源管理 IC 老化", "type": "material", "probability": 0.05, "source": "technical_doc"}
+      ]
+    }
+  ],
+
+  "verification_chain": [
+    {
+      "order": 1,
+      "method": "ask_user",
+      "question": "螢幕有亮嗎？",
+      "if_yes": "排除主板供電問題 → 聚焦 I2C 通訊 (FM-ELEC-002)",
+      "if_no": "供電問題優先 (FM-POWER-002) → 追問電池狀況",
+      "cost": "zero",
+      "confidence_gain": 0.20
+    },
+    {
+      "order": 2,
+      "method": "ask_user",
+      "question": "按密碼有反應嗎？",
+      "if_yes": "密碼走 GPIO (獨立電路)，確認 I2C 通訊問題",
+      "if_no": "主板級問題，多匯流排同時異常",
+      "cost": "zero",
+      "confidence_gain": 0.15
+    },
+    {
+      "order": 3,
+      "method": "ask_user",
+      "question": "輕拍鎖體後指紋有時候會恢復嗎？",
+      "if_yes": "高度懷疑接觸不良 (排線/焊點)",
+      "if_no": "模組本體故障機率上升",
+      "cost": "zero",
+      "confidence_gain": 0.15
+    }
+  ],
+
+  "corrective_actions": {
+    "immediate": "告知用戶使用密碼或備用鑰匙作為臨時方案",
+    "if_remote_inconclusive": "建議到府檢測，檢測費 $500 (維修可折抵)"
+  }
+}

@@ -1,0 +1,131 @@
+# ==========================================
+# 元件關係圖 (Component Graph)
+# ==========================================
+# 說明：
+# 1. 定義電子鎖硬體元件間的連接與依賴關係（靜態拓撲）。
+# 2. task_decompose Tier 2 使用此圖判斷「不同 component 的症狀是否可能同源」。
+# 3. 若兩個症狀的 component 共享上層依賴 → 觸發故障樹搜尋。
+# 4. 新增產品線/元件時同步更新此檔案。
+#
+# 欄位說明：
+#   label         — 元件中文名稱
+#   type          — module | bus | board | power | structure
+#   connects_to   — 直接連接的匯流排或介面
+#   part_of       — 所屬上層元件
+#   powered_by    — 供電來源
+#   shared_fault  — 此元件故障時會影響哪些下游模組
+#                   (用於快速判斷「共同依賴」)
+# ==========================================
+
+
+# ------------------------------------------
+# 功能模組 (末端元件)
+# ------------------------------------------
+
+[components.fingerprint_module]
+label        = "指紋辨識模組"
+type         = "module"
+connects_to  = ["i2c_bus"]
+powered_by   = "mainboard"
+
+[components.comm_module]
+label        = "藍牙/Wi-Fi 通訊模組"
+type         = "module"
+connects_to  = ["i2c_bus", "antenna"]
+powered_by   = "mainboard"
+
+[components.keypad_module]
+label        = "密碼觸控鍵盤"
+type         = "module"
+connects_to  = ["gpio_bus"]
+powered_by   = "mainboard"
+
+[components.card_module]
+label        = "卡片/NFC 感應模組"
+type         = "module"
+connects_to  = ["i2c_bus"]
+powered_by   = "mainboard"
+
+[components.screen]
+label        = "顯示螢幕"
+type         = "module"
+connects_to  = ["gpio_bus"]
+powered_by   = "mainboard"
+
+[components.motor]
+label        = "鎖舌馬達"
+type         = "module"
+connects_to  = ["motor_driver"]
+powered_by   = "mainboard"
+
+[components.alarm_speaker]
+label        = "警報喇叭"
+type         = "module"
+connects_to  = ["gpio_bus"]
+powered_by   = "mainboard"
+
+
+# ------------------------------------------
+# 匯流排與介面 (中間層)
+# ------------------------------------------
+
+[components.i2c_bus]
+label        = "I2C 匯流排"
+type         = "bus"
+part_of      = "mainboard"
+shared_fault = ["fingerprint_module", "comm_module", "card_module"]
+
+[components.gpio_bus]
+label        = "GPIO 匯流排"
+type         = "bus"
+part_of      = "mainboard"
+shared_fault = ["keypad_module", "screen", "alarm_speaker"]
+
+[components.motor_driver]
+label        = "馬達驅動電路"
+type         = "bus"
+part_of      = "mainboard"
+shared_fault = ["motor"]
+
+[components.antenna]
+label        = "天線"
+type         = "module"
+part_of      = "comm_module"
+shared_fault = []
+
+
+# ------------------------------------------
+# 主板與電源 (核心層)
+# ------------------------------------------
+
+[components.mainboard]
+label        = "主機板"
+type         = "board"
+powered_by   = "power_supply"
+shared_fault = ["fingerprint_module", "comm_module", "keypad_module", "card_module", "screen", "motor", "alarm_speaker"]
+
+[components.power_supply]
+label        = "電源供應 (電池/外接)"
+type         = "power"
+shared_fault = ["mainboard"]
+
+[components.firmware]
+label        = "韌體"
+type         = "module"
+part_of      = "mainboard"
+shared_fault = []
+
+
+# ------------------------------------------
+# 機械結構 (獨立於電路)
+# ------------------------------------------
+
+[components.mechanical]
+label        = "機械結構 (鎖舌/把手/鎖體)"
+type         = "structure"
+shared_fault = []
+
+[components.installation]
+label        = "安裝結構 (門體/螺絲/對位)"
+type         = "structure"
+shared_fault = []

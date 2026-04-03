@@ -1,0 +1,59 @@
+{
+  "_doc": "OCAP (Out of Control Action Plan) rules. Triggered by L8 Entropy background monitoring when failure patterns exceed thresholds. Phase 0-1: evaluated in batch by entropy_check. Phase 2: real-time triggers.",
+  "_version": "0.1.0",
+
+  "rules": [
+    {
+      "id": "OCAP-001",
+      "name": "single_failure_spike",
+      "description": "同一 Failure ID 短期爆量",
+      "trigger": {
+        "metric": "failure_id_count",
+        "window": "24h",
+        "threshold": 10
+      },
+      "immediate_action": "通知所有在線 agent 提高該 Failure 的警覺；自動將該 Failure 的驗證鏈置頂",
+      "escalation_rule": "通知維修主管 + 啟動批次追溯 (同型號/同批次/同地區)",
+      "notification_target": ["maintenance_lead", "cs_manager"]
+    },
+    {
+      "id": "OCAP-002",
+      "name": "transfer_rate_spike",
+      "description": "轉人率突然上升",
+      "trigger": {
+        "metric": "transfer_to_human_rate",
+        "window": "7d",
+        "threshold_percent": 30
+      },
+      "immediate_action": "檢查是否有新的未覆蓋症狀組合；匯出近期 unknown:* 症狀清單",
+      "escalation_rule": "通知維修專家審查，評估是否需新增故障樹或症狀標籤",
+      "notification_target": ["maintenance_lead"]
+    },
+    {
+      "id": "OCAP-003",
+      "name": "model_specific_cluster",
+      "description": "特定型號故障集中爆發",
+      "trigger": {
+        "metric": "same_device_model_failure_count",
+        "window": "7d",
+        "threshold": 20
+      },
+      "immediate_action": "在該型號的診斷 prompt 中置頂高頻故障樹；通知客服團隊準備標準話術",
+      "escalation_rule": "通知產品部門評估是否為批次品質問題；考慮主動通知已購客戶",
+      "notification_target": ["product_manager", "cs_manager", "maintenance_lead"]
+    },
+    {
+      "id": "OCAP-004",
+      "name": "ai_prediction_accuracy_drop",
+      "description": "AI 診斷預測正確率下降 (Phase 2, 需完工報告資料)",
+      "trigger": {
+        "metric": "ai_prediction_hit_rate",
+        "window": "30d",
+        "threshold_percent_below": 60
+      },
+      "immediate_action": "檢查最近新增/修改的故障樹是否引入錯誤；暫時降低診斷信心表述",
+      "escalation_rule": "觸發故障樹全面 review",
+      "notification_target": ["maintenance_lead"]
+    }
+  ]
+}

@@ -91,6 +91,7 @@ description        = "核心技術與維修知識庫：專門用於回答電子�
 collection_name    = "kb_video"
 connection_uri_env = "PG_VECTOR_URI"
 top_k              = 10
+score_threshold    = 0.85
 embedding_provider       = "vertexai"
 embedding_model          = "text-embedding-004"
 embedding_project_id_env = "VERTEX_PROJECT_ID"
@@ -104,6 +105,7 @@ description        = "客服實務與報價知識庫：專門用於回答「各�
 collection_name    = "kb_line_chat"
 connection_uri_env = "PG_VECTOR_URI"
 top_k              = 10
+score_threshold    = 0.85
 embedding_provider       = "vertexai"
 embedding_model          = "text-embedding-004"
 embedding_project_id_env = "VERTEX_PROJECT_ID"
@@ -117,6 +119,7 @@ description        = "營業資訊與產品規格知識庫：專門用於回答�
 collection_name    = "kb_website"
 connection_uri_env = "PG_VECTOR_URI"
 top_k              = 10
+score_threshold    = 0.85
 embedding_provider       = "vertexai"
 embedding_model          = "text-embedding-004"
 embedding_project_id_env = "VERTEX_PROJECT_ID"
@@ -130,6 +133,7 @@ description        = "APP操作與設定教學庫：專門用於回答「Chatloc
 collection_name    = "kb_youtube"
 connection_uri_env = "PG_VECTOR_URI"
 top_k              = 10
+score_threshold    = 0.85
 ui_type            = "VIDEO_CARD"
 embedding_provider       = "vertexai"
 embedding_model          = "text-embedding-004"
@@ -144,6 +148,7 @@ description        = "各型號電子鎖的 PDF 說明書與下載連結"
 collection_name    = "kb_gdrive"
 connection_uri_env = "PG_VECTOR_URI"
 top_k              = 3
+score_threshold    = 0.85
 ui_type            = "DOWNLOAD_CARD"
 embedding_provider       = "vertexai"
 embedding_model          = "text-embedding-004"
@@ -177,47 +182,53 @@ max_results   = 3
 # ==========================================
 
 [[agents]]
-name        = "hardware_technician"
-label       = "硬體維修技師"
-description = "負責回答電子鎖內部構造、鎖舌卡住、硬體故障排除、防回頭機制與安裝評估等深度技術問題"
-tools       = ["db_video", "transfer_to_human"]
-prompt_file = "agents/prompts/hardware_technician.md"
+name           = "hardware_technician"
+label          = "硬體維修技師"
+description    = "負責回答電子鎖內部構造、鎖舌卡住、硬體故障排除、防回頭機制與安裝評估等深度技術問題"
+tools          = ["db_video", "transfer_to_human"]
+fallback_tools = ["db_line_chat", "db_manuals"]
+prompt_file    = "agents/prompts/hardware_technician.md"
 
 [[agents]]
-name        = "sales_representative"
-label       = "報價與客服專員"
-description = "負責回答維修與安裝費用、到府檢測費、代工安裝規範與服務預約流程等問題"
-tools       = ["db_line_chat", "transfer_to_human"]
-prompt_file = "agents/prompts/sales_representative.md"
+name           = "sales_representative"
+label          = "報價與客服專員"
+description    = "負責回答維修與安裝費用、到府檢測費、代工安裝規範與服務預約流程等問題"
+tools          = ["db_line_chat", "transfer_to_human"]
+fallback_tools = ["db_video", "db_website"]
+prompt_file    = "agents/prompts/sales_representative.md"
 
 [[agents]]
-name        = "store_assistant"
-label       = "門市與規格助理"
-description = "負責回答門市地址、營業時間、聯絡電話、服務項目與電池挑選規範等問題"
-tools       = ["db_website", "transfer_to_human"]
-prompt_file = "agents/prompts/store_assistant.md"
+name           = "store_assistant"
+label          = "門市與規格助理"
+description    = "負責回答門市地址、營業時間、聯絡電話、服務項目與電池挑選規範等問題"
+tools          = ["db_website", "transfer_to_human"]
+fallback_tools = ["db_line_chat"]
+prompt_file    = "agents/prompts/store_assistant.md"
 
 [[agents]]
-name        = "app_specialist"
-label       = "APP 設定專家"
-description = "負責回答 Chatlock AI-99 智慧鎖的使用與設定問題，包含「使用者管理(指紋/密碼/人臉/掌靜脈/NFC卡片的新增與刪除)」、「APP功能(遠端開鎖/視訊監看/家庭成員邀請/裝置解綁/清除緩存)」、「系統設定(雙重認證/常開模式/童鎖/門鈴與語音音量/語言切換)」及「裝置維護(Wi-Fi配對/電池更換)」"
-tools       = ["db_youtube", "transfer_to_human"]
-prompt_file = "agents/prompts/app_specialist.md"
+name           = "app_specialist"
+label          = "APP 設定專家"
+description    = "負責回答 Chatlock AI-99 智慧鎖的使用與設定問題，包含「使用者管理(指紋/密碼/人臉/掌靜脈/NFC卡片的新增與刪除)」、「APP功能(遠端開鎖/視訊監看/家庭成員邀請/裝置解綁/清除緩存)」、「系統設定(雙重認證/常開模式/童鎖/門鈴與語音音量/語言切換)」及「裝置維護(Wi-Fi配對/電池更換)」"
+tools          = ["db_youtube", "transfer_to_human"]
+fallback_tools = ["db_manuals", "db_video"]
+prompt_file    = "agents/prompts/app_specialist.md"
 
 [[agents]]
-name        = "manual_librarian"
-label       = "說明書管理員"
-description = "負責提供各型號電子鎖的官方說明書 PDF 下載連結"
-tools       = ["db_manuals", "transfer_to_human"]
-prompt_file = "agents/prompts/manual_librarian.md"
+name           = "manual_librarian"
+label          = "說明書管理員"
+description    = "負責提供各型號電子鎖的官方說明書 PDF 下載連結"
+tools          = ["db_manuals", "transfer_to_human"]
+fallback_tools = ["db_video"]
+prompt_file    = "agents/prompts/manual_librarian.md"
 
 # -----基本Agent-----
 [[agents]]
-name        = "web_researcher"
-label       = "網路搜尋助手"
-description = "當內部資料庫不足時，負責搜尋網路資料"
-tools       = ["db_web_search", "transfer_to_human"]
-prompt_file = "agents/prompts/web_researcher.md"
+name           = "web_researcher"
+label          = "網路搜尋助手"
+description    = "當內部資料庫不足時，負責搜尋網路資料"
+tools          = ["db_web_search", "transfer_to_human"]
+fallback_tools = []
+prompt_file    = "agents/prompts/web_researcher.md"
 
 [[agents]]
 name        = "receptionist"
@@ -387,10 +398,14 @@ sop_generator    = "harness/entropy/prompts/generate_sop.md"
 enabled = false                          # Master switch for all harness layers
 
 [harness.task]
-# L1: Task Representation
+# L1: Task Representation — Software 3.0 Diagnostic Reasoning Engine
 decompose_enabled = false                # Enable task_decompose node
+# No mode switch needed — diagnostic depth determined by knowledge context richness
 problem_card_intents = ["hardware_tech", "app_support"]   # Intents that trigger ProblemCard
+diagnostic_intents = ["hardware_tech"]   # Intents eligible for diagnostic reasoning
 max_subtasks = 3                         # Cap subtask count
+knowledge_base_dir = "harness/task"      # Base dir for taxonomy/ and knowledge/ subdirs
+diagnostic_prompt  = "harness/task/prompts/diagnostic_reasoning.md"  # Software 3.0 prompt
 
 [harness.task.domain_schema]
 # Domain-specific fields stored in ProblemCard.domain_attributes (JSONB).

@@ -1,0 +1,23 @@
+{
+  "_doc": "SOP: hardware fault repair standard workflow. Defines the step sequence after root cause hypothesis is formed.",
+  "id": "SOP-HW-001",
+  "category": "hardware_fault",
+  "title": "硬體故障維修標準流程",
+  "version": "1.0",
+  "owner": "維修部",
+
+  "steps": [
+    {"id": "diagnose",  "label": "線上診斷",  "description": "確認故障現象、型號、購買時間，透過驗證鏈縮窄 Failure Mode"},
+    {"id": "quote",     "label": "報價",      "description": "依型號+故障類型查價目表，提供維修/更換報價"},
+    {"id": "confirm",   "label": "客戶確認",  "description": "客戶確認報價與施工時間"},
+    {"id": "dispatch",  "label": "派工",      "description": "匹配技師（專長+地區+排程）"},
+    {"id": "complete",  "label": "完工回報",  "description": "技師回報施作結果 + 客戶滿意度調查 + 案例入庫"}
+  ],
+
+  "decision_points": [
+    {"at_step": "diagnose", "condition": "判定非硬體問題",     "action": "轉 app_support 或 general_info"},
+    {"at_step": "diagnose", "condition": "遠端 3 輪追問仍無法鑑別", "action": "直接進入 quote (到府檢測)"},
+    {"at_step": "quote",    "condition": "超出保固",          "action": "告知自費金額，客戶可選擇不修"},
+    {"at_step": "dispatch", "condition": "無可用技師",        "action": "排入候補，告知預計等待時間"}
+  ]
+}

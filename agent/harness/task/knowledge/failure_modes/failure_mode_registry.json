@@ -1,0 +1,171 @@
+{
+  "_doc": "Failure Mode Registry — Layer 3 of diagnostic architecture. Centralized definition of all known failure modes. Fault trees reference fm_id from this registry.",
+  "_version": "0.1.0",
+  "_id_scheme": "FM-{mechanism_type_abbr}-{seq:3d}. Abbrev: ELEC=electrical, MECH=mechanical, POWER=power, COMM=communication, FW=firmware, THERM=thermal",
+
+  "failure_modes": [
+
+    {
+      "id": "FM-ELEC-001",
+      "name": "fingerprint_module_comm_failure",
+      "label": "指紋模組通訊中斷",
+      "mechanism_type": "electrical",
+      "mechanism_detail": "指紋模組與主板間 I2C 通訊逾時或無回應",
+      "related_failures": ["F-LOCK-001", "F-LOCK-003"],
+      "related_components": ["fingerprint_module", "i2c_bus"],
+      "observable_signals": ["fingerprint_no_response"],
+      "trigger_conditions": ["長時間使用", "環境溫度劇變", "排線老化"],
+      "detectability": "high"
+    },
+    {
+      "id": "FM-ELEC-002",
+      "name": "i2c_bus_intermittent",
+      "label": "I2C 匯流排通訊間歇中斷",
+      "mechanism_type": "electrical",
+      "mechanism_detail": "I2C 匯流排上多個模組同時出現間歇性通訊異常，通常因共用匯流排上的物理接觸問題",
+      "related_failures": ["F-LOCK-001", "F-LOCK-003", "F-LOCK-004"],
+      "related_components": ["i2c_bus", "fingerprint_module", "comm_module", "card_module"],
+      "observable_signals": ["fingerprint_no_response", "bluetooth_disconnected", "card_no_response"],
+      "trigger_conditions": ["振動", "溫度變化", "排線老化", "接觸不良"],
+      "detectability": "medium"
+    },
+    {
+      "id": "FM-ELEC-003",
+      "name": "gpio_bus_failure",
+      "label": "GPIO 匯流排異常",
+      "mechanism_type": "electrical",
+      "mechanism_detail": "GPIO 匯流排信號異常，影響鍵盤、螢幕、喇叭等模組",
+      "related_failures": ["F-LOCK-001", "F-LOCK-007"],
+      "related_components": ["gpio_bus", "keypad_module", "screen", "alarm_speaker"],
+      "observable_signals": ["keypad_no_response", "screen_off", "screen_flickering"],
+      "trigger_conditions": ["靜電放電", "主板受潮"],
+      "detectability": "medium"
+    },
+
+    {
+      "id": "FM-POWER-001",
+      "name": "total_power_loss",
+      "label": "完全斷電",
+      "mechanism_type": "power",
+      "mechanism_detail": "主板無供電，所有功能失效",
+      "related_failures": ["F-LOCK-001", "F-LOCK-007"],
+      "related_components": ["power_supply", "mainboard"],
+      "observable_signals": ["power_no_response", "screen_off"],
+      "trigger_conditions": ["電池耗盡", "電池接點脫落", "外接電源中斷"],
+      "detectability": "high"
+    },
+    {
+      "id": "FM-POWER-002",
+      "name": "voltage_fluctuation",
+      "label": "供電電壓波動",
+      "mechanism_type": "power",
+      "mechanism_detail": "供電電壓不穩，低於模組工作電壓閾值時造成間歇失效",
+      "related_failures": ["F-LOCK-003", "F-LOCK-005"],
+      "related_components": ["power_supply", "mainboard"],
+      "observable_signals": ["screen_flickering", "fingerprint_no_response", "bluetooth_disconnected"],
+      "trigger_conditions": ["電池老化", "電池接點氧化", "電源管理 IC 異常"],
+      "detectability": "medium"
+    },
+
+    {
+      "id": "FM-MECH-001",
+      "name": "lock_bolt_jam",
+      "label": "鎖舌卡滯",
+      "mechanism_type": "mechanical",
+      "mechanism_detail": "鎖舌無法正常伸縮，機械結構卡死",
+      "related_failures": ["F-LOCK-001", "F-LOCK-002"],
+      "related_components": ["mechanical", "motor"],
+      "observable_signals": ["lock_stuck", "abnormal_noise"],
+      "trigger_conditions": ["門框變形", "鎖舌積灰", "馬達力矩不足", "對位偏差"],
+      "detectability": "high"
+    },
+    {
+      "id": "FM-MECH-002",
+      "name": "handle_mechanism_failure",
+      "label": "把手機構失效",
+      "mechanism_type": "mechanical",
+      "mechanism_detail": "把手傳動機構鬆動或斷裂",
+      "related_failures": ["F-LOCK-001", "F-LOCK-002"],
+      "related_components": ["mechanical"],
+      "observable_signals": ["handle_malfunction", "lock_not_locking"],
+      "trigger_conditions": ["暴力操作", "零件疲勞", "安裝不當"],
+      "detectability": "high"
+    },
+
+    {
+      "id": "FM-COMM-001",
+      "name": "bluetooth_module_failure",
+      "label": "藍牙模組故障",
+      "mechanism_type": "communication",
+      "mechanism_detail": "BLE 模組無法廣播或建立連線",
+      "related_failures": ["F-LOCK-004"],
+      "related_components": ["comm_module", "antenna"],
+      "observable_signals": ["bluetooth_disconnected"],
+      "trigger_conditions": ["模組硬體故障", "天線損壞", "韌體異常"],
+      "detectability": "high"
+    },
+    {
+      "id": "FM-COMM-002",
+      "name": "wifi_connection_failure",
+      "label": "Wi-Fi 連線失敗",
+      "mechanism_type": "communication",
+      "mechanism_detail": "Wi-Fi 模組無法連接路由器或雲端",
+      "related_failures": ["F-LOCK-004"],
+      "related_components": ["comm_module"],
+      "observable_signals": ["wifi_disconnected"],
+      "trigger_conditions": ["路由器設定變更", "模組故障", "訊號干擾"],
+      "detectability": "medium"
+    },
+
+    {
+      "id": "FM-FW-001",
+      "name": "mcu_boot_failure",
+      "label": "MCU 啟動失敗",
+      "mechanism_type": "firmware",
+      "mechanism_detail": "主控 MCU 無法完成啟動序列，可能因 bootloader 損壞或韌體校驗失敗",
+      "related_failures": ["F-LOCK-007"],
+      "related_components": ["firmware", "mainboard"],
+      "observable_signals": ["power_no_response", "firmware_update_failed"],
+      "trigger_conditions": ["OTA 中斷", "電壓不穩導致寫入損壞"],
+      "detectability": "low"
+    },
+    {
+      "id": "FM-FW-002",
+      "name": "state_machine_deadlock",
+      "label": "韌體狀態機鎖死",
+      "mechanism_type": "firmware",
+      "mechanism_detail": "韌體進入未預期狀態，無法跳轉，需重啟或重置",
+      "related_failures": ["F-LOCK-003", "F-LOCK-007"],
+      "related_components": ["firmware"],
+      "observable_signals": ["power_no_response", "factory_reset_needed"],
+      "trigger_conditions": ["邊界條件觸發", "競態條件", "記憶體溢位"],
+      "detectability": "low"
+    },
+
+    {
+      "id": "FM-THERM-001",
+      "name": "thermal_degradation",
+      "label": "高溫性能衰退",
+      "mechanism_type": "thermal",
+      "mechanism_detail": "環境高溫導致電子元件性能下降或加速老化",
+      "related_failures": ["F-LOCK-005"],
+      "related_components": ["mainboard", "fingerprint_module"],
+      "observable_signals": ["fingerprint_slow", "fingerprint_false_reject", "battery_drain_fast"],
+      "trigger_conditions": ["門鎖安裝於西曬處", "夏季高溫"],
+      "detectability": "medium"
+    },
+
+    {
+      "id": "FM-ELEC-004",
+      "name": "alarm_false_trigger",
+      "label": "警報誤觸發",
+      "mechanism_type": "electrical",
+      "mechanism_detail": "防撬感測器靈敏度過高或訊號干擾導致無故觸發警報",
+      "related_failures": ["F-LOCK-006"],
+      "related_components": ["alarm_speaker", "mainboard"],
+      "observable_signals": ["false_alarm"],
+      "trigger_conditions": ["門框振動", "感測器靈敏度設定過高", "電磁干擾"],
+      "detectability": "high"
+    }
+  ]
+}

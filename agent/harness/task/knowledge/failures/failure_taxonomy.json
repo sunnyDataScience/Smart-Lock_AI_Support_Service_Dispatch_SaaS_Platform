@@ -1,0 +1,84 @@
+{
+  "_doc": "Failure Taxonomy — Layer 2 of diagnostic architecture. Standardized failure definitions mapped from user symptoms.",
+  "_version": "0.1.0",
+
+  "failures": [
+    {
+      "id": "F-LOCK-001",
+      "name": "unable_to_unlock",
+      "label": "無法開鎖",
+      "category": "functional",
+      "customer_impact": "被鎖在門外，無法進入",
+      "severity": "critical",
+      "detection_stage": "user_report",
+      "acceptance_criteria": "所有解鎖方式至少一種可用",
+      "common_symptoms": ["fingerprint_no_response", "keypad_no_response", "card_no_response", "lock_stuck", "power_no_response"]
+    },
+    {
+      "id": "F-LOCK-002",
+      "name": "unable_to_lock",
+      "label": "無法上鎖",
+      "category": "functional",
+      "customer_impact": "門無法鎖住，安全風險",
+      "severity": "critical",
+      "detection_stage": "user_report",
+      "acceptance_criteria": "自動上鎖或手動上鎖功能恢復正常",
+      "common_symptoms": ["lock_not_locking", "lock_stuck", "handle_malfunction"]
+    },
+    {
+      "id": "F-LOCK-003",
+      "name": "intermittent_failure",
+      "label": "間歇性功能失效",
+      "category": "intermittent",
+      "customer_impact": "功能時好時壞，不可預測",
+      "severity": "high",
+      "detection_stage": "user_report",
+      "acceptance_criteria": "連續 7 天無再發",
+      "common_symptoms": ["fingerprint_no_response", "bluetooth_disconnected", "screen_flickering", "bluetooth_unstable"]
+    },
+    {
+      "id": "F-LOCK-004",
+      "name": "remote_control_failure",
+      "label": "遠端控制失效",
+      "category": "functional",
+      "customer_impact": "APP/藍牙無法操作門鎖",
+      "severity": "high",
+      "detection_stage": "user_report",
+      "acceptance_criteria": "APP 可正常連線並控制門鎖",
+      "common_symptoms": ["bluetooth_disconnected", "bluetooth_unstable", "wifi_disconnected", "app_pairing_failed"]
+    },
+    {
+      "id": "F-LOCK-005",
+      "name": "performance_degradation",
+      "label": "性能衰退",
+      "category": "degradation",
+      "customer_impact": "反應變慢、辨識率下降",
+      "severity": "medium",
+      "detection_stage": "user_report",
+      "acceptance_criteria": "辨識速度和成功率恢復出廠水準",
+      "common_symptoms": ["fingerprint_slow", "fingerprint_false_reject", "card_slow", "battery_drain_fast"]
+    },
+    {
+      "id": "F-LOCK-006",
+      "name": "false_alarm",
+      "label": "異常警報",
+      "category": "performance",
+      "customer_impact": "誤觸警報擾民",
+      "severity": "medium",
+      "detection_stage": "user_report",
+      "acceptance_criteria": "警報僅在真實威脅時觸發",
+      "common_symptoms": ["false_alarm"]
+    },
+    {
+      "id": "F-LOCK-007",
+      "name": "total_unresponsive",
+      "label": "完全無反應",
+      "category": "functional",
+      "customer_impact": "所有功能失效，鎖如同磚塊",
+      "severity": "critical",
+      "detection_stage": "user_report",
+      "acceptance_criteria": "基本操作功能全部恢復",
+      "common_symptoms": ["power_no_response", "screen_off", "firmware_update_failed"]
+    }
+  ]
+}
