@@ -1216,6 +1216,7 @@ IF accuracy < 80% (SOW 標準):
 | `graph-flow-redesign.md`                      | 新舊 graph flow 對照                  | 架構參考          |
 | `problem-card-spec.md`                        | ProblemCard data model            | 資料模型          |
 | `config-evolution.md`                         | config.toml 擴展規格                  | 設定參考          |
-| `**wbs-harness-development.md`**              | **WBS 工作分解 + 時程 + Critical Path** | **專案管理**      |
+| **`wbs-harness-development.md`** | **WBS 工作分解 + 時程 + Critical Path** | **專案管理** |
+| **`diagnostic-state-machine-spec.md`** | **狀態機規格：10 狀態 + 轉移規則 + PDCA 生命週期** | **狀態管理** |
 
 
