@@ -1,32 +1,32 @@
 {
-  "_doc": "Fault Tree: multi-function simultaneous failure. Maps Failure Modes to Defect hypotheses with verification chain. fm_id references failure_modes/failure_mode_registry.json.",
+  "_doc": "Fault Tree: 異常警報聲響 — false alarm diagnosis. Root cause: seismic vibration triggering anti-theft sensor OR battery type error.",
   "id": "FT-HW-003",
-  "title": "多功能同時失效",
-  "version": "1.0",
-  "updated_by": "expert",
+  "title": "異常警報聲響診斷樹",
+  "version": "2.0",
+  "updated_by": "domain_expert",
 
-  "required_symptoms": ["fingerprint_no_response", "bluetooth_disconnected"],
-  "optional_symptoms": ["screen_off", "keypad_no_response"],
+  "required_symptoms": ["false_alarm", "beeping_no_operation"],
+  "optional_symptoms": ["random_alarm_sound", "intermittent_beeping"],
 
-  "related_failures": ["F-LOCK-001", "F-LOCK-003", "F-LOCK-004"],
+  "related_failures": ["F-LOCK-003"],
 
   "failure_modes": [
     {
-      "fm_id": "FM-ELEC-002",
-      "name": "I2C 匯流排通訊間歇中斷",
-      "mechanism_type": "electrical",
+      "fm_id": "FM-SENSOR-001",
+      "name": "防盜感應器誤觸發",
+      "mechanism_type": "sensor",
       "defect_hypotheses": [
-        {"defect": "排線扣老化接觸不良", "type": "process", "probability": 0.40, "source": "expert_estimate"},
-        {"defect": "通訊板焊點虛焊", "type": "material", "probability": 0.35, "source": "expert_estimate"}
+        {"defect": "地震或環境震動觸發防盜感應器", "type": "environmental", "probability": 0.45, "source": "domain_expert"},
+        {"defect": "感應器靈敏度過高", "type": "configuration", "probability": 0.15, "source": "domain_expert"}
       ]
     },
     {
-      "fm_id": "FM-POWER-002",
-      "name": "供電電壓波動低於模組工作閾值",
-      "mechanism_type": "electrical",
+      "fm_id": "FM-POWER-001",
+      "name": "電池類型錯誤導致電壓異常",
+      "mechanism_type": "power",
       "defect_hypotheses": [
-        {"defect": "電池接點氧化", "type": "material", "probability": 0.15, "source": "expert_estimate"},
-        {"defect": "電源管理 IC 老化", "type": "material", "probability": 0.05, "source": "technical_doc"}
+        {"defect": "使用碳鋅電池造成電壓不穩", "type": "user_error", "probability": 0.25, "source": "domain_expert"},
+        {"defect": "電池電量不足觸發低電警報", "type": "consumable", "probability": 0.15, "source": "domain_expert"}
       ]
     }
   ],
@@ -35,34 +35,48 @@
     {
       "order": 1,
       "method": "ask_user",
-      "question": "螢幕有亮嗎？",
-      "if_yes": "排除主板供電問題 → 聚焦 I2C 通訊 (FM-ELEC-002)",
-      "if_no": "供電問題優先 (FM-POWER-002) → 追問電池狀況",
+      "question": "請問您使用的是什麼電池？是鹼性電池還是碳鋅電池？品牌是什麼？",
+      "if_alkaline_panasonic": "電池正確 → 排除電池問題，聚焦感應器誤觸發",
+      "if_carbon_zinc_or_other": "電池類型錯誤 → 請更換為Panasonic鹼性電池",
       "cost": "zero",
-      "confidence_gain": 0.20
+      "confidence_gain": 0.30
     },
     {
       "order": 2,
       "method": "ask_user",
-      "question": "按密碼有反應嗎？",
-      "if_yes": "密碼走 GPIO (獨立電路)，確認 I2C 通訊問題",
-      "if_no": "主板級問題，多匯流排同時異常",
+      "question": "警報是在什麼時候響的？最近有沒有地震或附近有施工？",
+      "if_yes": "震動觸發防盜感應器 → 正常反應，非故障",
+      "if_no": "可能是感應器過度靈敏或其他電子問題",
       "cost": "zero",
-      "confidence_gain": 0.15
+      "confidence_gain": 0.20
     },
     {
       "order": 3,
       "method": "ask_user",
-      "question": "輕拍鎖體後指紋有時候會恢復嗎？",
-      "if_yes": "高度懷疑接觸不良 (排線/焊點)",
-      "if_no": "模組本體故障機率上升",
+      "question": "警報聲是什麼樣的？持續長鳴、間歇嗶聲、還是短嗶幾聲？",
+      "pattern_map": {
+        "dormakaba_嗶嗶嗶間歇": "防盜感應器誤觸發",
+        "dormakaba_短嗶3聲": "低電量警報",
+        "milre_長鳴不斷": "鎖舌感應異常"
+      },
+      "cost": "zero",
+      "confidence_gain": 0.20
+    },
+    {
+      "order": 4,
+      "method": "ask_user",
+      "question": "門扇目前是否正常關閉？鎖舌有沒有完全縮入或伸出？",
+      "if_door_closed_properly": "非門扇問題，確認為感應器或電池",
+      "if_door_not_closed": "門未關好觸發未關門警報 → 非異常警報",
       "cost": "zero",
       "confidence_gain": 0.15
     }
   ],
 
   "corrective_actions": {
-    "immediate": "告知用戶使用密碼或備用鑰匙作為臨時方案",
-    "if_remote_inconclusive": "建議到府檢測，檢測費 $500 (維修可折抵)"
+    "immediate_remote": "第一步永遠是確認電池類型：必須使用Panasonic鹼性電池，禁用碳鋅電池。更換正確電池後觀察是否再發。",
+    "if_battery_correct": "地震或震動觸發屬正常，可降低感應器靈敏度（需查閱該品牌設定方式）",
+    "if_persistent": "持續誤觸發且電池正確 → 可能需現場調整感應器或檢查線路",
+    "dispatch_criteria": ["更換正確電池後仍持續警報", "milre長鳴不斷(鎖舌感應異常)"]
   }
 }

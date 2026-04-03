@@ -5,10 +5,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import shutil
 from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_postgres import PGVector
 from core.config import DB_CONFIG
 from embeddings import get_embedding
+
+# Chunk overlap splitter for normalizing long documents
+# chunk_size=600 chars, overlap=60 chars (10%) to prevent boundary information loss
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=600,
+    chunk_overlap=60,
+    length_function=len,
+    separators=["\n\n", "\n", "。", "，", " ", ""],
+)
 
 def seed_databases():
     print(">>> 開始建立 Demo 測試假資料...\n")
@@ -318,6 +328,14 @@ def seed_databases():
         ), metadata={"source": "troubleshoot_guide.txt", "category": "error_code"}),
     ]
 
+    def _split_docs(docs: list[Document]) -> list[Document]:
+        """Apply chunk overlap splitting; short docs pass through unchanged."""
+        split_result = text_splitter.split_documents(docs)
+        if len(split_result) != len(docs):
+            print(f"  [Chunking] {len(docs)} docs → {len(split_result)} chunks "
+                  f"(size=600, overlap=60)")
+        return split_result
+
     for db in DB_CONFIG:
         if db.get("type") == "chroma":
             db_path = db.get("path", "./data/db/chroma_db_default")
@@ -334,11 +352,13 @@ def seed_databases():
             vector_store = Chroma(persist_directory=db_path, embedding_function=embed_fn)
 
             if db["name"] == "db_smartlock_manual":
-                vector_store.add_documents(manual_docs)
-                print(f"  [完成] db_smartlock_manual: {len(manual_docs)} 筆文件")
+                chunks = _split_docs(manual_docs)
+                vector_store.add_documents(chunks)
+                print(f"  [完成] db_smartlock_manual: {len(chunks)} 筆 chunks")
             elif db["name"] == "db_troubleshooting":
-                vector_store.add_documents(troubleshooting_docs)
-                print(f"  [完成] db_troubleshooting: {len(troubleshooting_docs)} 筆文件")
+                chunks = _split_docs(troubleshooting_docs)
+                vector_store.add_documents(chunks)
+                print(f"  [完成] db_troubleshooting: {len(chunks)} 筆 chunks")
 
         elif db.get("type") == "pgvector":
             collection_name = db.get("collection_name", db["name"])
@@ -361,11 +381,13 @@ def seed_databases():
             )
 
             if db["name"] == "db_smartlock_manual":
-                vector_store.add_documents(manual_docs)
-                print(f"  [完成] db_smartlock_manual: {len(manual_docs)} 筆文件")
+                chunks = _split_docs(manual_docs)
+                vector_store.add_documents(chunks)
+                print(f"  [完成] db_smartlock_manual: {len(chunks)} 筆 chunks")
             elif db["name"] == "db_troubleshooting":
-                vector_store.add_documents(troubleshooting_docs)
-                print(f"  [完成] db_troubleshooting: {len(troubleshooting_docs)} 筆文件")
+                chunks = _split_docs(troubleshooting_docs)
+                vector_store.add_documents(chunks)
+                print(f"  [完成] db_troubleshooting: {len(chunks)} 筆 chunks")
 
     print("\n>>> 假資料寫入完成！現在可以執行 python main.py 觀賞 Demo。")
 

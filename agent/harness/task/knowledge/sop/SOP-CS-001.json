@@ -1,0 +1,91 @@
+{
+  "_doc": "SOP: Customer service triage — first contact flow. Always ask brand first, then model, then symptoms.",
+  "id": "SOP-CS-001",
+  "category": "customer_service",
+  "title": "客服進線分流標準流程",
+  "version": "1.0",
+  "owner": "客服部",
+
+  "steps": [
+    {
+      "id": "greeting",
+      "label": "問候與確認身份",
+      "description": "歡迎用戶，確認LINE綁定身份，查詢過往服務記錄",
+      "script": "您好，我是智慧鎖AI客服。請問有什麼可以為您服務的？"
+    },
+    {
+      "id": "identify_brand",
+      "label": "確認品牌",
+      "description": "第一步永遠先問品牌。不同品牌的錯誤碼和維修方式完全不同。",
+      "question": "請問您的智慧鎖是什麼品牌？（dormakaba / Philips / Kaadas / 美樂Milre / AiLock）",
+      "priority": "highest",
+      "rationale": "品牌決定錯誤碼對照表、零件規格、維修流程"
+    },
+    {
+      "id": "identify_model",
+      "label": "確認型號",
+      "description": "確認具體型號，可從鎖體背面標籤或購買紀錄取得",
+      "brand_models": {
+        "dormakaba": ["AS901", "DP850", "ML660"],
+        "Philips": ["7300", "Alpha", "702E", "9200", "9300"],
+        "Kaadas": ["藍寶堅尼3D人臉辨識", "藍寶堅尼門鈴款"],
+        "Milre": ["6500F", "6500S", "7150"],
+        "AiLock": ["七合一旗艦款"]
+      }
+    },
+    {
+      "id": "collect_symptoms",
+      "label": "症狀收集",
+      "description": "收集故障現象，使用結構化問題引導",
+      "structured_questions": [
+        "門可以打開嗎？還是完全打不開？",
+        "面板有亮嗎？有沒有顯示數字或燈號？",
+        "有沒有聽到任何聲音？（嗶聲、馬達聲、語音提示）",
+        "這個問題是什麼時候開始的？之前有正常過嗎？",
+        "最近有沒有更換電池或做過任何設定？"
+      ]
+    },
+    {
+      "id": "sentiment_check",
+      "label": "情緒偵測",
+      "description": "即時監測用戶情緒，偵測高風險關鍵字觸發升級",
+      "high_risk_keywords": ["要投訴", "找你們主管", "找負責人", "消保官", "消費者保護", "要告你們", "報警", "詐騙", "不能接受", "太離譜了"],
+      "emergency_keywords": ["被鎖在外面", "家裡有小孩", "小孩被鎖在裡面", "進不了家門", "爐子還開著", "寵物在裡面", "很急"],
+      "high_risk_action": "立即轉接人工客服主管",
+      "emergency_action": "觸發Red_Code緊急處理流程（SOP-EMERGENCY-001）"
+    },
+    {
+      "id": "classify_fault",
+      "label": "故障分類",
+      "description": "根據品牌+症狀對應7大故障分類，選擇對應故障樹",
+      "fault_categories": [
+        {"id": "F-LOCK-001", "label": "門扇卡死無法開啟", "fault_tree": "FT-HW-001"},
+        {"id": "F-LOCK-002", "label": "門扇無法閉合與自動上鎖失效", "fault_tree": "FT-HW-002"},
+        {"id": "F-LOCK-003", "label": "異常警報聲響", "fault_tree": "FT-HW-003"},
+        {"id": "F-LOCK-004", "label": "驗證失敗與錯誤碼", "fault_tree": "FT-HW-004"},
+        {"id": "F-LOCK-005", "label": "權限混淆", "fault_tree": "FT-HW-004"},
+        {"id": "F-LOCK-006", "label": "誤觸雙重驗證模式", "fault_tree": "FT-HW-004"},
+        {"id": "F-LOCK-007", "label": "網路連線與電力規範", "fault_tree": "FT-HW-005"}
+      ]
+    },
+    {
+      "id": "execute_fault_tree",
+      "label": "執行故障樹診斷",
+      "description": "按對應故障樹的verification_chain逐步詢問，縮窄故障原因"
+    },
+    {
+      "id": "resolution_or_escalate",
+      "label": "解決或升級",
+      "description": "遠端可解決則提供修復指導；需派工則轉SOP-DISPATCH-001；需人工則轉接"
+    }
+  ],
+
+  "decision_points": [
+    {"at_step": "sentiment_check", "condition": "偵測到高風險關鍵字", "action": "立即轉接人工客服主管，不再繼續AI對話"},
+    {"at_step": "sentiment_check", "condition": "偵測到緊急關鍵字", "action": "觸發SOP-EMERGENCY-001"},
+    {"at_step": "classify_fault", "condition": "無法歸類至7大分類", "action": "收集完整資訊後轉接人工客服"},
+    {"at_step": "execute_fault_tree", "condition": "3輪問答仍無法確定", "action": "轉人工客服或直接建議到府檢測"},
+    {"at_step": "resolution_or_escalate", "condition": "遠端解決成功", "action": "確認用戶滿意 → 結案 → 記錄知識庫"},
+    {"at_step": "resolution_or_escalate", "condition": "需要派工", "action": "轉SOP-DISPATCH-001派工流程"}
+  ]
+}

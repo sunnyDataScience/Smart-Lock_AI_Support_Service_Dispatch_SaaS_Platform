@@ -1,0 +1,104 @@
+{
+  "_doc": "Fault Tree: 驗證失敗 — verification failure diagnosis. Covers error code 6 (dormakaba), dual-auth accidental enable, and permission confusion.",
+  "id": "FT-HW-004",
+  "title": "驗證失敗與權限問題診斷樹",
+  "version": "1.0",
+  "updated_by": "domain_expert",
+
+  "required_symptoms": ["verification_failure"],
+  "optional_symptoms": ["screen_flashing_6", "password_alone_fails", "card_alone_fails", "fingerprint_rejected", "cannot_access_admin_menu"],
+
+  "related_failures": ["F-LOCK-004", "F-LOCK-005", "F-LOCK-006"],
+
+  "failure_modes": [
+    {
+      "fm_id": "FM-CONFIG-001",
+      "name": "驗證資料未儲存於鎖內",
+      "mechanism_type": "configuration",
+      "defect_hypotheses": [
+        {"defect": "指紋/卡片/密碼註冊過程中斷或未完成", "type": "user_error", "probability": 0.35, "source": "domain_expert"},
+        {"defect": "儲存空間異常導致資料遺失", "type": "firmware", "probability": 0.05, "source": "domain_expert"}
+      ]
+    },
+    {
+      "fm_id": "FM-CONFIG-002",
+      "name": "雙重驗證模式誤啟用",
+      "mechanism_type": "configuration",
+      "defect_hypotheses": [
+        {"defect": "誤觸設定選單啟用雙重驗證", "type": "user_error", "probability": 0.30, "source": "domain_expert"}
+      ]
+    },
+    {
+      "fm_id": "FM-CONFIG-003",
+      "name": "管理員密碼與一般密碼混淆",
+      "mechanism_type": "configuration",
+      "defect_hypotheses": [
+        {"defect": "用戶不了解密碼分級制度", "type": "user_knowledge", "probability": 0.20, "source": "domain_expert"}
+      ]
+    },
+    {
+      "fm_id": "FM-ELEC-001",
+      "name": "主機板異常導致驗證模組失效",
+      "mechanism_type": "electrical",
+      "defect_hypotheses": [
+        {"defect": "主機板硬體故障", "type": "hardware", "probability": 0.10, "source": "domain_expert"}
+      ]
+    }
+  ],
+
+  "verification_chain": [
+    {
+      "order": 1,
+      "method": "ask_user",
+      "question": "請問您的鎖是什麼品牌和型號？",
+      "purpose": "確定品牌以查詢對應錯誤碼含義",
+      "cost": "zero",
+      "confidence_gain": 0.10
+    },
+    {
+      "order": 2,
+      "method": "ask_user",
+      "question": "面板上有沒有顯示數字或閃爍？如果是dormakaba，有沒有閃爍數字「6」？",
+      "if_flashing_6": "資料未儲存於鎖內 (FM-CONFIG-001) → 用實體鑰匙開門後重新註冊",
+      "if_no_error_code": "可能是雙重驗證模式 (FM-CONFIG-002) → 進入步驟3",
+      "if_red_led": "查看紅燈閃爍次數判斷硬體問題",
+      "cost": "zero",
+      "confidence_gain": 0.25
+    },
+    {
+      "order": 3,
+      "method": "ask_user",
+      "question": "密碼和卡片是不是「各自單獨都不行」？但沒有顯示錯誤碼？",
+      "if_yes": "雙重驗證模式被啟用 (FM-CONFIG-002) → 喚醒面板→管理員密碼→*→8",
+      "if_only_one_method_fails": "該驗證方式的資料可能未註冊或已被刪除",
+      "cost": "zero",
+      "confidence_gain": 0.25
+    },
+    {
+      "order": 4,
+      "method": "ask_user",
+      "question": "密碼可以開門，但無法進入設定模式嗎？",
+      "if_yes": "使用的是一般密碼而非管理員密碼 (FM-CONFIG-003) → 需使用管理員密碼",
+      "if_no": "非權限混淆問題",
+      "cost": "zero",
+      "confidence_gain": 0.15
+    },
+    {
+      "order": 5,
+      "method": "ask_user",
+      "question": "面板有沒有出現紅燈常亮、或面板全亮後熄滅的情況？",
+      "if_red_solid": "dormakaba系統錯誤 → 需派工",
+      "if_all_lit_then_off": "milre主機板異常 → 需派工",
+      "if_no": "排除硬體故障",
+      "cost": "zero",
+      "confidence_gain": 0.15
+    }
+  ],
+
+  "corrective_actions": {
+    "for_data_not_stored": "使用實體鑰匙開門 → 進入管理員模式 → 重新註冊指紋/卡片/密碼",
+    "for_dual_auth": "喚醒面板 → 輸入管理員密碼 → 按 * → 按 8 → 關閉雙重驗證模式",
+    "for_permission_confusion": "說明一般密碼僅能開門，管理員密碼才能進入設定。引導使用管理員密碼。",
+    "dispatch_criteria": ["dormakaba紅燈常亮(系統錯誤)", "milre面板全亮後熄滅(主機板異常)", "重新註冊後仍驗證失敗"]
+  }
+}

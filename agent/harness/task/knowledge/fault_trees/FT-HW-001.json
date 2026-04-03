@@ -1,0 +1,87 @@
+{
+  "_doc": "Fault Tree: 門扇卡死無法開啟 — physical deadlock diagnosis. Root cause: receiver plate & lock tongue clearance issue.",
+  "id": "FT-HW-001",
+  "title": "門扇卡死無法開啟診斷樹",
+  "version": "1.0",
+  "updated_by": "domain_expert",
+
+  "required_symptoms": ["motor_sound_but_door_stuck"],
+  "optional_symptoms": ["lock_stuck", "door_wont_open_after_unlock_sound", "abnormal_motor_noise"],
+
+  "related_failures": ["F-LOCK-001"],
+
+  "failure_modes": [
+    {
+      "fm_id": "FM-MECH-001",
+      "name": "鎖舌卡死（承接板間隙不足）",
+      "mechanism_type": "mechanical",
+      "defect_hypotheses": [
+        {"defect": "承接板與鎖舌之間無預留間隙", "type": "installation", "probability": 0.55, "source": "domain_expert"},
+        {"defect": "門扇熱脹冷縮導致間隙消失", "type": "environmental", "probability": 0.25, "source": "domain_expert"}
+      ]
+    },
+    {
+      "fm_id": "FM-MECH-002",
+      "name": "馬達異常",
+      "mechanism_type": "mechanical",
+      "defect_hypotheses": [
+        {"defect": "馬達老化力矩不足", "type": "wear", "probability": 0.10, "source": "domain_expert"},
+        {"defect": "齒輪組磨損", "type": "wear", "probability": 0.05, "source": "domain_expert"}
+      ]
+    },
+    {
+      "fm_id": "FM-MECH-005",
+      "name": "門扇反弓",
+      "mechanism_type": "mechanical",
+      "defect_hypotheses": [
+        {"defect": "門扇物理變形導致鎖舌無法對準", "type": "structural", "probability": 0.05, "source": "domain_expert"}
+      ]
+    }
+  ],
+
+  "verification_chain": [
+    {
+      "order": 1,
+      "method": "ask_user",
+      "question": "您按開鎖時，有聽到馬達運轉的聲音嗎？",
+      "if_yes": "馬達正常運轉但鎖舌卡住 → 高度懷疑承接板間隙問題 (FM-MECH-001)",
+      "if_no": "可能是馬達故障或電力問題 → 轉 FT-HW-003 或 FT-HW-005",
+      "cost": "zero",
+      "confidence_gain": 0.25
+    },
+    {
+      "order": 2,
+      "method": "ask_user",
+      "question": "請試試看：用力將門往關門方向推緊（或拉緊），同時按開鎖，門能開嗎？",
+      "if_yes": "確認是承接板間隙問題，遠端解決成功 → 提供後續使用技巧",
+      "if_no": "間隙問題較嚴重或有其他機械故障 → 繼續診斷",
+      "cost": "zero",
+      "confidence_gain": 0.35
+    },
+    {
+      "order": 3,
+      "method": "ask_user",
+      "question": "門框和門扇之間的縫隙是否不均勻？上面大下面小，或者門有點變形？",
+      "if_yes": "門扇反弓 (FM-MECH-005) → 需派工調整",
+      "if_no": "承接板偏位 → 輕微可遠端指導，嚴重需派工",
+      "cost": "zero",
+      "confidence_gain": 0.15
+    },
+    {
+      "order": 4,
+      "method": "ask_user",
+      "question": "請問您的鎖是什麼品牌和型號？面板上有沒有顯示紅燈閃爍？閃幾次？",
+      "if_yes": "dormakaba紅燈閃4次=馬達異常/kaadas紅燈閃5次=馬達堵轉 → 需派工",
+      "if_no": "非馬達硬體故障，回到承接板間隙問題",
+      "cost": "zero",
+      "confidence_gain": 0.15
+    }
+  ],
+
+  "corrective_actions": {
+    "immediate_remote": "將門扇往關門方向用力推緊（或拉緊）→ 同時按開鎖 → 保持推緊狀態將門拉開。之後每次開門都先推緊再開。",
+    "long_term_remote": "建議預約技師調整承接板位置，增加鎖舌預留間隙",
+    "if_remote_fails": "門扇反弓或承接板嚴重偏位，需派工現場調整",
+    "dispatch_criteria": ["紅燈閃4次(dormakaba馬達異常)", "紅燈閃5次(kaadas馬達堵轉)", "門扇明顯變形", "推緊仍無法開門"]
+  }
+}

@@ -62,20 +62,42 @@ class PGVectorRetriever(BaseRetriever):
             print(f"  [Query 清洗] '{question}' → '{search_query}'")
 
         loop = asyncio.get_event_loop()
-        # 採用 MMR (Maximal Marginal Relevance) 演算法，提升檢索結果的多樣性
-        # fetch_k = k * 3 是經驗值，表示先撈出 3 倍數量的候選人，再從中挑選 k 個最多樣化的
-        docs = await loop.run_in_executor(
+        # MMR + score gating: 先用 similarity_search_with_score 取得帶分數的結果，
+        # 過濾低於閾值的結果後，再依分數排序取 top_k
+        score_threshold = self.config.get("score_threshold", 0.85)
+        raw_results = await loop.run_in_executor(
             None,
             partial(
-                self.vector_store.max_marginal_relevance_search,
+                self.vector_store.similarity_search_with_score,
                 search_query,
-                k=self.top_k,
-                fetch_k=self.top_k * 3
+                k=self.top_k * 3,  # fetch more candidates for filtering
             ),
         )
+
+        # pgvector distance: lower = more similar (L2/cosine distance)
+        # LangChain PGVector returns (doc, distance), convert to similarity
+        scored_docs = []
+        for doc, distance in raw_results:
+            similarity = 1.0 - distance  # cosine distance → cosine similarity
+            scored_docs.append((doc, similarity))
+
+        # Filter by score threshold and take top_k
+        passed = [(doc, score) for doc, score in scored_docs if score >= score_threshold]
+        passed.sort(key=lambda x: x[1], reverse=True)
+        docs = [doc for doc, _ in passed[:self.top_k]]
+
+        if passed:
+            top_score = passed[0][1]
+            print(f"  [Score Gate] {len(passed)}/{len(raw_results)} docs passed "
+                  f"(threshold={score_threshold}, top={top_score:.3f})")
+        else:
+            print(f"  [Score Gate] 0/{len(raw_results)} docs passed "
+                  f"(threshold={score_threshold})")
+            return "RETRIEVAL_LOW_CONFIDENCE"
+
         context = "\n---\n".join([doc.page_content for doc in docs])
         if not context:
-            return "查無相關資訊。"
+            return "RETRIEVAL_LOW_CONFIDENCE"
 
         # 當 ui_type 非 TEXT 時，在尾部附加 metadata JSON
         ui_type = self.config.get("ui_type", "TEXT")

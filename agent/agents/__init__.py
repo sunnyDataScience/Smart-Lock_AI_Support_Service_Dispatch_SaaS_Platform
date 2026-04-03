@@ -35,8 +35,13 @@ def build_agent_executor(agent_config: dict, tools_dict: dict[str, StructuredToo
     tool_names = agent_config.get("tools", [])
     _ui_type_map = ui_type_map or {}
 
-    # 收集此 agent 使用的工具
-    agent_tools = [tools_dict[name] for name in tool_names if name in tools_dict]
+    # 收集此 agent 使用的工具 (primary + fallback for L2 cascade)
+    fallback_names = agent_config.get("fallback_tools", [])
+    all_tool_names = tool_names + [n for n in fallback_names if n not in tool_names]
+    agent_tools = [tools_dict[name] for name in all_tool_names if name in tools_dict]
+
+    if fallback_names:
+        print(f"  [{agent_name}] L2 fallback tools: {fallback_names}")
 
     # 判斷是否有 retriever 工具（db_* 開頭）
     has_retriever = any(name.startswith("db_") for name in tool_names)

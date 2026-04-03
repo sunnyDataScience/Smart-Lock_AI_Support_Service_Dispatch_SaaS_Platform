@@ -1,0 +1,127 @@
+{
+  "_doc": "SOP: Emergency lockout — Red_Code flow for urgent situations where user safety is at risk.",
+  "id": "SOP-EMERGENCY-001",
+  "category": "emergency",
+  "title": "緊急鎖定處理流程（Red_Code）",
+  "version": "1.0",
+  "owner": "客服部 + 維修部",
+
+  "trigger_keywords": [
+    "被鎖在外面",
+    "家裡有小孩",
+    "小孩被鎖在裡面",
+    "進不了家門",
+    "爐子還開著",
+    "寵物在裡面",
+    "很急"
+  ],
+
+  "severity": "critical",
+  "sla": {
+    "response_time": "30秒內回應",
+    "dispatch_time": "確認後15分鐘內派工",
+    "arrival_time": "2小時內到場",
+    "after_hours": "24小時服務，夜間加收出勤費"
+  },
+
+  "steps": [
+    {
+      "id": "immediate_response",
+      "label": "即時回應",
+      "description": "偵測到緊急關鍵字後，立即切換為緊急處理模式，安撫用戶情緒",
+      "script": "我了解您目前的情況很緊急，我們會立即處理。請先不要慌張，我馬上為您安排。",
+      "priority_override": true
+    },
+    {
+      "id": "safety_assessment",
+      "label": "安全評估",
+      "description": "評估是否有人身安全風險",
+      "risk_levels": {
+        "critical_safety": {
+          "indicators": ["小孩被鎖在裡面", "爐子還開著", "寵物在裡面"],
+          "action": "建議同時撥打119，AI持續協助"
+        },
+        "lockout": {
+          "indicators": ["被鎖在外面", "進不了家門"],
+          "action": "嘗試緊急遠端解決，同時準備派工"
+        }
+      }
+    },
+    {
+      "id": "emergency_remote_fix",
+      "label": "緊急遠端修復嘗試",
+      "description": "在派工同時，嘗試遠端協助開門",
+      "quick_fixes": [
+        {
+          "method": "physical_key",
+          "question": "您身上有實體鑰匙嗎？",
+          "instruction": "實體鑰匙插入鎖孔轉動即可開門"
+        },
+        {
+          "method": "emergency_power",
+          "question": "門鎖面板完全沒反應嗎？（可能電池耗盡）",
+          "instruction": "如果有9V方塊電池，可以接觸面板下方的緊急供電接點暫時供電開門"
+        },
+        {
+          "method": "push_tight_unlock",
+          "question": "按開鎖有聽到馬達聲但門打不開嗎？",
+          "instruction": "用力將門往關門方向推緊，同時按開鎖，保持推緊狀態拉開門"
+        },
+        {
+          "method": "neighbor_help",
+          "question": "附近有鄰居或管理室可以借用工具嗎？",
+          "instruction": "如果門鎖有機械鑰匙孔，任何人用鑰匙都可以開"
+        }
+      ],
+      "max_time": "5分鐘",
+      "if_failed": "確認地址，立即派工"
+    },
+    {
+      "id": "emergency_dispatch",
+      "label": "緊急派工",
+      "description": "跳過標準報價流程，直接派遣最近可用技師",
+      "dispatch_rules": {
+        "technician_selection": "距客戶最近的可用技師，不限品牌專長",
+        "schedule_override": true,
+        "notification": "同時通知技師主管",
+        "tracking": "每15分鐘更新客戶技師位置和預計到達時間"
+      }
+    },
+    {
+      "id": "continuous_support",
+      "label": "持續陪伴",
+      "description": "技師到達前持續與用戶保持聯繫，提供情緒支持和替代方案",
+      "actions": [
+        "每10分鐘主動回報技師進度",
+        "提供替代建議（如到附近咖啡廳等候）",
+        "若涉及安全風險，持續確認狀況"
+      ]
+    },
+    {
+      "id": "resolution_followup",
+      "label": "解決後追蹤",
+      "description": "技師到場解決後的追蹤處理",
+      "actions": [
+        "確認門已正常開啟",
+        "確認所有人員安全",
+        "記錄緊急案件完整過程",
+        "24小時內進行客戶關懷回訪",
+        "評估是否需要預防性維護"
+      ]
+    }
+  ],
+
+  "decision_points": [
+    {"at_step": "safety_assessment", "condition": "涉及人身安全（小孩/爐火/寵物）", "action": "建議客戶同時撥打119消防局"},
+    {"at_step": "emergency_remote_fix", "condition": "遠端修復成功", "action": "確認安全後結案，但仍建議預約檢修"},
+    {"at_step": "emergency_remote_fix", "condition": "5分鐘內無法遠端解決", "action": "立即進入emergency_dispatch"},
+    {"at_step": "emergency_dispatch", "condition": "所有技師不可用", "action": "通知技師主管協調，同時建議客戶聯繫鎖匠"}
+  ],
+
+  "escalation_chain": [
+    {"level": 1, "role": "AI客服", "action": "緊急遠端修復+派工", "timeout": "5分鐘"},
+    {"level": 2, "role": "客服主管", "action": "確認派工+安撫客戶", "timeout": "10分鐘"},
+    {"level": 3, "role": "技師主管", "action": "協調技師資源", "timeout": "15分鐘"},
+    {"level": 4, "role": "營運主管", "action": "跨部門資源調度", "timeout": "30分鐘"}
+  ]
+}

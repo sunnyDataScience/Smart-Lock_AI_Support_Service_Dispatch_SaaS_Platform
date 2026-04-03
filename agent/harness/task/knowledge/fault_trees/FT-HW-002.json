@@ -1,0 +1,94 @@
+{
+  "_doc": "Fault Tree: 自動上鎖失效 — auto-lock failure diagnosis. Diagnostic key: inverted-triangle sensor test.",
+  "id": "FT-HW-002",
+  "title": "自動上鎖失效診斷樹",
+  "version": "1.0",
+  "updated_by": "domain_expert",
+
+  "required_symptoms": ["auto_lock_not_engaging"],
+  "optional_symptoms": ["motor_free_spin", "door_gap_too_large", "lock_not_locking"],
+
+  "related_failures": ["F-LOCK-002"],
+
+  "failure_modes": [
+    {
+      "fm_id": "FM-SENSOR-002",
+      "name": "門扇感應器未被壓到",
+      "mechanism_type": "sensor",
+      "defect_hypotheses": [
+        {"defect": "門縫過大，感應器無法被門框壓到", "type": "installation", "probability": 0.40, "source": "domain_expert"},
+        {"defect": "感應器本體磨損", "type": "wear", "probability": 0.10, "source": "domain_expert"}
+      ]
+    },
+    {
+      "fm_id": "FM-MECH-006",
+      "name": "承接板需調整",
+      "mechanism_type": "mechanical",
+      "defect_hypotheses": [
+        {"defect": "承接板偏位導致鎖舌無法完全入扣", "type": "installation", "probability": 0.25, "source": "domain_expert"}
+      ]
+    },
+    {
+      "fm_id": "FM-MECH-003",
+      "name": "離合器異常",
+      "mechanism_type": "mechanical",
+      "defect_hypotheses": [
+        {"defect": "離合器磨損無法正常接合", "type": "wear", "probability": 0.15, "source": "domain_expert"}
+      ]
+    },
+    {
+      "fm_id": "FM-MECH-005",
+      "name": "門扇反弓",
+      "mechanism_type": "mechanical",
+      "defect_hypotheses": [
+        {"defect": "門扇變形導致無法完全閉合", "type": "structural", "probability": 0.10, "source": "domain_expert"}
+      ]
+    }
+  ],
+
+  "verification_chain": [
+    {
+      "order": 1,
+      "method": "ask_user",
+      "question": "請將門打開，找到鎖體側面的倒三角形感應器，用手按壓它，鎖舌有伸出來嗎？",
+      "if_yes": "鎖具本身正常 → 問題在門縫/感應器/承接板",
+      "if_no": "鎖具內部問題（離合器或馬達）→ 可能需派工",
+      "cost": "zero",
+      "confidence_gain": 0.35
+    },
+    {
+      "order": 2,
+      "method": "ask_user",
+      "question": "把門關上後，門和門框之間的縫隙大嗎？可以塞進一根手指嗎？",
+      "if_yes": "門縫過大，感應器無法被壓到 → 需調整承接板或加墊片",
+      "if_no": "感應器應該有被壓到 → 檢查感應器本體是否損壞",
+      "cost": "zero",
+      "confidence_gain": 0.20
+    },
+    {
+      "order": 3,
+      "method": "ask_user",
+      "question": "關門時有聽到馬達空轉的聲音嗎？（馬達轉但鎖舌沒伸出）",
+      "if_yes": "離合器異常 (FM-MECH-003) → 需派工",
+      "if_no": "感應器或承接板問題，非離合器故障",
+      "cost": "zero",
+      "confidence_gain": 0.20
+    },
+    {
+      "order": 4,
+      "method": "ask_user",
+      "question": "請問您的鎖是什麼品牌？有沒有顯示紅燈或發出警報聲？",
+      "if_yes": "philips紅燈閃3次=離合器異常 → 需派工",
+      "if_no": "非硬體嚴重故障，偏向安裝調整問題",
+      "cost": "zero",
+      "confidence_gain": 0.10
+    }
+  ],
+
+  "corrective_actions": {
+    "immediate_remote": "倒三角感應器測試：開門→按壓感應器→確認鎖舌動作。若鎖正常但自動失敗，用手按住感應器同時關門測試。",
+    "if_door_gap_issue": "建議預約技師調整承接板位置或加裝墊片",
+    "if_remote_fails": "離合器異常或馬達問題，需派工",
+    "dispatch_criteria": ["philips紅燈閃3次(離合器異常)", "馬達空轉(離合器磨損)", "倒三角測試鎖舌無反應"]
+  }
+}
