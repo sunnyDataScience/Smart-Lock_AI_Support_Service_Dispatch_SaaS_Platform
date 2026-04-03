@@ -270,7 +270,7 @@ WBS 0 — 開發前交付物蒐集
 | 子項 | 交付物 | 格式 | 說明 |
 |:-----|:-------|:-----|:-----|
 | 0.7.1 | LINE Developer 帳號 | 安全傳遞 | LINE Developers Console 帳號，已建立 Provider 與 Messaging API Channel（與 0.4 對應） |
-| 0.7.2 | Google Cloud 帳號 | 安全傳遞 | 已啟用的 Google Cloud 專案，包含：Gemini API（gemini-3-pro 模型存取權限）、Embeddings API（text-embedding-004）、Maps API（Distance Matrix API, Maps JavaScript API）。提供 API Key 或 Service Account JSON |
+| 0.7.2 | Google Cloud 帳號 | 安全傳遞 | 已啟用的 Google Cloud 專案，包含：Gemini API（gemini-2.5-flash 模型存取權限）、Embeddings API（text-embedding-004）、Maps API（Distance Matrix API, Maps JavaScript API）。提供 API Key 或 Service Account JSON |
 | 0.7.3 | 網域與 SSL 憑證 | 設定文件 | 平台使用的網域名稱（如 smartlock-platform.com）、SSL/TLS 憑證（Let's Encrypt 或其他），用於 Webhook HTTPS 與 Web App 部署 |
 | 0.7.4 | 部署環境帳號 | 安全傳遞 | 部署環境的存取帳號（VPS / Cloud Instance），包含 SSH 金鑰、資料庫連線資訊、Redis 連線資訊 |
 

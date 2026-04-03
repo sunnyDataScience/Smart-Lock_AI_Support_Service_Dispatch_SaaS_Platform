@@ -43,7 +43,7 @@
 | 設定項目 | 說明 | 狀態 |
 | :--- | :--- | :--- |
 | GCP Project ID | 專案識別碼 | 待建立 |
-| Gemini API Key | Google Gemini 3 Pro API 存取金鑰 | 待申請 |
+| Gemini API Key | Google Gemini 2.5 Flash API 存取金鑰 | 待申請 |
 | Embeddings API | text-embedding-004 模型存取 | 待啟用 |
 | Maps API Key | Google Maps API（V2.0 技師導航用） | 待申請 |
 | API 配額 | 每分鐘 / 每日呼叫上限設定 | 待設定 |

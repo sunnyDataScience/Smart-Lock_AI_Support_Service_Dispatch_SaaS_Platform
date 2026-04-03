@@ -18,7 +18,7 @@
 | **後端框架** | FastAPI | 0.110+ | REST API / WebSocket / Webhook |
 | **ASGI Server** | Uvicorn | 0.29+ | 高效能非同步 HTTP Server |
 | **LLM 框架** | LangChain | 0.3+ (LCEL) | LLM 調用抽象、Chain 編排、Prompt 管理 |
-| **LLM 模型** | Google Gemini 3 Pro | - | 意圖識別、對話生成、ProblemCard 擷取、SOP 草擬 |
+| **LLM 模型** | Google Gemini 2.5 Flash | - | 意圖識別、對話生成、ProblemCard 擷取、SOP 草擬 |
 | **Embedding 模型** | Google text-embedding-004 | - | 文本向量化 (768 維) |
 | **關聯式資料庫** | PostgreSQL | 16 | 主要資料儲存 |
 | **向量擴展** | pgvector | 0.7+ | 向量索引 (HNSW) 與相似度搜尋 |
@@ -29,17 +29,16 @@
 | **LINE 整合** | line-bot-sdk-python | 3+ | LINE Messaging API 互動 |
 | **PDF 解析** | PyMuPDF (fitz) | - | 電子鎖手冊 PDF 解析與分段 |
 | **LLM 觀測** | LangSmith | - | LLM 呼叫追蹤與偵錯 |
-| **前端框架 (V2.0)** | Next.js (React) | 14+ | 技師 Web App / 增強管理後台 |
-| **前端語言 (V2.0)** | TypeScript | 5+ | 型別安全的前端開發 |
-| **UI 元件 (V2.0)** | shadcn/ui + Tailwind CSS | - | Admin Panel / 技師工作台 UI |
-| **Admin UI (V1.0)** | FastAPI + Jinja2 / HTMX | - | 輕量管理後台（V2.0 遷移至 Next.js） |
+| **前端框架** | Next.js (React) | 14+ | V1.0 Admin Panel + V2.0 技師 Web App，統一前端技術棧 |
+| **前端語言** | TypeScript | 5+ | 型別安全的前端開發 |
+| **UI 元件** | shadcn/ui + Tailwind CSS | - | Admin Panel / 技師工作台 UI |
 | **容器化** | Docker + docker-compose | 24+ | 開發與部署環境標準化 |
 | **CI/CD** | GitHub Actions | - | 自動化測試與部署流程 |
 | **測試框架** | pytest + pytest-asyncio | - | 單元測試與整合測試 |
 | **安全性** | TLS 1.2+ / AES-256 / JWT + RBAC | - | 傳輸加密 / 靜態加密 / 認證授權 |
 | **Agent Harness 框架** | 8 層 AI 運行時（Task/Context/Governance/Feedback/Safety/Observability/Escalation/Entropy） | Phase 0 | `config.toml` 14 區段集中驅動，取代分散式 .env 配置 |
 | **集中配置** | config.toml | 14 sections | LLM 參數、Harness 開關、安全閾值、可觀測性等全平台行為配置 |
-| **前端框架 (V1.0)** | Next.js (React) + shadcn/ui + Tailwind CSS | 14+ | V1.0 Admin Panel（取代 Jinja2/HTMX）+ V2.0 技師 Web App，統一前端棧 |
+| **前端決策備註** | — | — | 前端統一決策：Next.js 14 自 V1.0 起取代原 Jinja2/HTMX 方案，V1.0 Admin Panel 與 V2.0 技師 Web App 共用統一技術棧 |
 | **ProblemCard 架構** | 領域無關核心 + `domain_attributes` JSONB | - | 多垂直領域擴展就緒（電子鎖欄位遷入 JSONB） |
 | **資料管線** | Bronze → Silver → Gold Medallion Architecture | - | ETL 管線：原始數據清洗 → 結構化 → 分析就緒 |
 
@@ -68,6 +67,7 @@
 | 對話管理模組 | 對話狀態機 (Idle → Collecting → Resolving → Resolved)、Redis Session 管理、30min 超時 |
 | ProblemCard 引擎 | AI 輔助從對話提取結構化欄位（品牌/型號/症狀/位置）、缺失欄位追問 |
 | L1 解決引擎 | 案例庫向量搜尋 (pgvector HNSW, 相似度 >= 0.85)、Top-3 結果回覆 |
+| 診斷推理引擎 (task_decompose) | Software 3.0 模式：Tier 1 意圖分類 + Tier 2 FMEA 四層因果鏈診斷（Symptom→Failure→FM→Defect）。知識注入 LLM prompt，structured output。V1.0 Phase 0 收集模式：L7 記錄 symptoms 組合 + 轉人上下文，為 Phase 1 故障樹建構儲備原料 |
 | 初始知識庫 | 匯入甲方提供之 200+ 歷史案例、基礎案例 CRUD API |
 | 安全防護基礎 | Prompt Injection 偵測、內容過濾、Output Guardrail |
 
@@ -75,12 +75,12 @@
 
 | 交付物 | 說明 |
 |:---|:---|
-| L2 解決引擎 (RAG) | ProblemCard + ManualChunk + CaseEntry 上下文組裝、Gemini 3 Pro 推理生成、來源標註 |
-| L3 轉接機制 | 人工轉接流程、ProblemCard + 對話摘要自動傳遞、非上班時間建單 |
+| L2 解決引擎 (RAG) | ProblemCard + ManualChunk + CaseEntry 上下文組裝、Gemini 2.5 Flash 推理生成、來源標註 |
+| L3 轉接機制 (HITL) | 人工轉接流程（觸發條件：L1+L2 未命中/消費者要求/負面情緒/危險操作/多輪未解決）、ProblemCard + 對話摘要自動傳遞至 Admin Panel、人工回覆透過 LINE Push、解決後回交系統觸發 SOP 生成、非上班時間自動建單次日優先處理 |
 | PDF 手冊上傳 | 手冊 PDF 上傳 → PyMuPDF 分段 → text-embedding-004 向量化 → pgvector 索引 |
 | SOP 自動生成 | 監聽成功解決事件、AI 草擬 SOP、審核佇列 |
 | 情緒分流模組 | 負面情緒偵測 (>= 90%)、安撫語氣切換、管理員即時通知 |
-| Admin Panel V1.0 | 知識庫管理、對話紀錄查詢、SOP 審核/發布、基礎儀表板 (Jinja2 + HTMX) |
+| Admin Panel V1.0 | 知識庫管理、對話紀錄查詢、SOP 審核/發布、基礎儀表板 (Next.js 14 + shadcn/ui) |
 
 ### Phase 3: V1.0 UAT 使用者驗收測試 (W13-W15)
 
@@ -124,10 +124,11 @@
 | 交付物 | 說明 |
 |:---|:---|
 | 帳務結算模組 | 墊款追蹤、月結報表生成、發票/請款單、記帳憑證 |
-| 完工報告流程 | 維修前後照片上傳、材料清單、實際工時記錄 |
+| 完工報告流程 | 維修前後照片上傳、材料清單、實際工時記錄、AI 預測 FM vs 實際 FM 驗證（`ai_prediction_hit`）、缺陷分類（5 粗類 + 自由文字，漸進提煉為標準標籤）、修復動作 + 預防建議、驗證清單（各功能通過/不通過） |
 | 增強 Admin Panel | 派工監控儀表板（地圖視覺化）、技師管理、帳務審核 (Next.js 14 + shadcn/ui) |
-| 客訴處理流程 | 客訴建立、指派、追蹤、結案 |
-| 系統整合測試 | V1.0 + V2.0 完整 E2E 流程驗證 |
+| CRM 客訴管理模組 | 客訴生命週期（建立→指派→處理→確認→結案）、消費者滿意度調查（完工後 LINE 問卷）、技師績效評分模型、消費者統一歷史視圖 |
+| 異常流程處理 | 派工異常（拒單/取消/逾時/改約）、現場異常（加價/材料短缺/無法維修）、財務異常（報價爭議/退費/墊付爭議） |
+| 系統整合測試 | V1.0 + V2.0 完整 E2E 流程驗證（含異常流程） |
 
 ### Phase 8: V2.0 UAT 與正式上線 (W30-W31)
 
@@ -155,6 +156,9 @@
 | **Technician** | 技師 | 登錄技師資料，含技能清單、服務地區、可用時段、評分 | V2.0 |
 | **PriceRule** | 計價規則 | 品牌 x 鎖型 x 難度的計價規則定義 | V2.0 |
 | **Invoice** | 發票/請款單 | 服務完成後的帳務憑證，含明細、金額、付款狀態 | V2.0 |
+| **Complaint** | 客訴記錄 | 客訴生命週期（submitted→assigned→in_progress→resolved），含類型、描述、解決方案 | V2.0 |
+| **SatisfactionSurvey** | 滿意度調查 | 完工後消費者評分（整體/準時/品質/態度），LINE Flex Message 收集 | V2.0 |
+| **TechnicianRating** | 技師評分 | 週期性績效指標（平均評分/完成率/準時率/首次修復率/客訴數） | V2.0 |
 
 ### 實體關聯
 
@@ -165,11 +169,33 @@ ProblemCard 1:N Resolution (解決嘗試紀錄)
 ProblemCard 0..1:1 WorkOrder (L3 觸發時建立)
 WorkOrder N:1 Technician
 WorkOrder 1:1 Invoice
+WorkOrder 0..N Complaint (客訴關聯)
+WorkOrder 1:0..1 SatisfactionSurvey (完工後調查)
 CaseEntry --[embedding]--> pgvector index
 ManualChunk --[embedding]--> pgvector index
 SOPDraft --[審核通過]--> CaseEntry (入庫)
 PriceRule --[查表]--> Invoice (自動報價)
 ```
+
+### 向量存儲（Vector Collections）
+
+系統使用 7 個向量存儲，全部基於 pgvector 0.7 HNSW 索引（768 維）：
+
+- **核心業務表（V1.0 啟用）**: `case_entries`（L1 案例庫搜尋）、`manual_chunks`（L2 RAG 手冊檢索）
+- **Agent 知識庫（逐步啟用）**: `kb_video`（硬體維修影片）、`kb_line_chat`（LINE 對話記錄）、`kb_website`（官網資訊）、`kb_youtube`（APP 教學）、`kb_gdrive`（內部文件）
+
+> 完整規格見 `04_module_breakdown.md` §9 Vector Collections。
+
+### 使用者角色（RBAC）
+
+| 角色 | 身份 | 階段 |
+|:-----|:-----|:-----|
+| `line_user` | 消費者 | V1.0 |
+| `reviewer` | 知識庫審核員（SOP 審核、對話唯讀） | V1.0 |
+| `admin` | 營運管理員（全資源 CRUD） | V1.0 |
+| `technician` | 簽約維修技師 | V2.0 |
+
+> V2.0+ 預留 B2B 角色（brand_oem / distributor / community_manager），RBAC schema 支援動態新增。完整權限矩陣見 `04_module_breakdown.md` §13。
 
 ---
 
@@ -301,7 +327,7 @@ PriceRule --[查表]--> Invoice (自動報價)
 | **效能** | Admin Panel 頁面載入 | < 2 秒 |
 | **並發** | V1.0 同時在線使用者 | >= 50 |
 | **並發** | V2.0 同時在線使用者 | >= 100 |
-| **可用性** | 系統 Uptime | >= 95%（月度） |
+| **可用性** | 系統 Uptime | V1.0 >= 95%（月度）；V2.0 目標 >= 99.5%（需 Read Replica + 負載均衡） |
 | **安全性** | API 通訊加密 | HTTPS / TLS 1.2+ |
 | **安全性** | 敏感資料加密 | AES-256 at rest |
 | **安全性** | Prompt Injection 攔截率 | >= 95% |
@@ -317,7 +343,7 @@ PriceRule --[查表]--> Invoice (自動報價)
 
 | 風險 ID | 風險描述 | 影響程度 | 發生機率 | 緩解策略 |
 |:---|:---|:---|:---|:---|
-| R-001 | **AI 準確率未達標** - Gemini 3 Pro 對電子鎖領域知識不足，無法達到 80% 準確率 | 高 | 中 | 持續擴充知識庫種子資料；優化 Prompt Template；利用 Few-shot 範例；加強 RAG 上下文品質 |
+| R-001 | **AI 準確率未達標** - Gemini 2.5 Flash 對電子鎖領域知識不足，無法達到 80% 準確率 | 高 | 中 | 持續擴充知識庫種子資料；優化 Prompt Template；利用 Few-shot 範例；加強 RAG 上下文品質 |
 | R-002 | **LLM API 配額與成本** - Google AI API 呼叫量超出預算或遇到限流 | 中 | 中 | 設定 Token 追蹤與成本告警；實作 Redis 快取減少重複呼叫；設計 Fallback 機制 |
 | R-003 | **甲方種子資料品質** - 歷史案例資料不足或品質不一致，影響知識庫初始效果 | 高 | 中 | 提前與甲方確認資料格式與數量要求；設計資料清洗流程；提供 CSV 匯入範本 |
 | R-004 | **LINE API 限制** - LINE Messaging API 的 Rate Limit 或 Flex Message 格式限制影響使用體驗 | 低 | 低 | 實作 Rate Limiting 保護；簡化 Flex Message 設計；預留降級方案（純文字回覆） |
@@ -334,7 +360,7 @@ PriceRule --[查表]--> Invoice (自動報價)
 | 依賴項目 | 提供者 | 用途 | 風險等級 |
 |:---|:---|:---|:---|
 | LINE Messaging API | LINE Corporation | 消費者對話管道、Webhook 接收、訊息推送 | 低 |
-| Google Gemini 3 Pro API | Google | 意圖辨識、對話生成、SOP 生成、ProblemCard 擷取 | 中 |
+| Google Gemini 2.5 Flash API | Google | 意圖辨識、對話生成、SOP 生成、ProblemCard 擷取 | 中 |
 | Google Embeddings API (text-embedding-004) | Google | 文本向量化（案例庫、手冊 chunks） | 中 |
 | Google Maps API | Google | V2.0 地圖視覺化、距離計算 | 低 |
 
