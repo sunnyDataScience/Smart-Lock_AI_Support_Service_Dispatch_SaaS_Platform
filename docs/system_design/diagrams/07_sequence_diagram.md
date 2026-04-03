@@ -286,3 +286,185 @@ sequenceDiagram
     WH->>LINE: Reply API
     LINE->>User: AI 診斷回覆
 ```
+
+---
+
+## 流程六：範圍變更 (Scope Change)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Tech as 技師 (現場)
+    participant TechApp as 技師 Web App
+    participant DB as PostgreSQL
+    participant Pricing as 報價引擎
+    participant Admin as 管理員
+    participant LINE as LINE API
+    participant Customer as 客戶
+
+    Note over Tech: 到場發現狀況與 ProblemCard 不符
+    Tech->>TechApp: 提交範圍變更申請 (原因+照片+新範圍)
+    TechApp->>DB: INSERT scope_changes (status: pending)
+    TechApp->>DB: UPDATE work_orders SET status=scope_changed
+    TechApp->>Pricing: 重新計價 (new_scope)
+    Pricing-->>TechApp: 新報價明細
+    TechApp->>DB: UPDATE scope_changes SET new_price
+
+    alt 新報價 <= 2x 原價
+        TechApp->>LINE: 發送新報價給客戶
+        LINE->>Customer: 「技師到場後發現...新報價為 $X，是否同意？」
+    else 新報價 > 2x 原價
+        TechApp->>Admin: 需技術主管審核
+        Admin->>DB: 審核通過
+        Admin->>LINE: 發送新報價給客戶
+        LINE->>Customer: 「經技術主管確認，新報價為 $X」
+    end
+
+    alt 客戶同意
+        Customer->>LINE: 點擊「同意繼續」
+        LINE->>DB: UPDATE scope_changes SET status=customer_approved
+        DB->>DB: UPDATE work_orders SET status=in_progress
+        Tech->>TechApp: 繼續施工 → 完工
+    else 客戶拒絕
+        Customer->>LINE: 點擊「改期」或「取消」
+        LINE->>DB: UPDATE scope_changes SET customer_decision
+        alt 改期
+            DB->>DB: 建立新工單 (rescheduled_from_id = 原工單)
+        else 取消
+            DB->>DB: UPDATE work_orders SET status=cancelled
+            Note over Customer: 收車馬費、免工資 (BR-013)
+        end
+    end
+```
+
+---
+
+## 流程七：客訴處理 (Complaint Lifecycle)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Customer as 客戶
+    participant LINE as LINE API
+    participant AI as AI 系統
+    participant DB as PostgreSQL
+    participant CSM as 客服主管
+    participant OPS as 營運主管
+    participant Finance as 財務
+
+    Customer->>LINE: 投訴訊息 (含情緒關鍵字)
+    LINE->>AI: 偵測情緒等級
+
+    alt anger_level >= 4 (高風險)
+        AI->>DB: INSERT complaints (severity: high)
+        AI->>LINE: 立即轉接真人
+        LINE->>Customer: 「非常抱歉，正在為您轉接專人處理」
+        AI->>CSM: 即時通知 (Web Alert)
+    else anger_level < 4
+        AI->>DB: INSERT complaints (severity: medium)
+        AI->>LINE: AI 嘗試處理
+    end
+
+    CSM->>DB: UPDATE complaints SET assigned_to, status=investigating
+    CSM->>DB: 調閱工單 + 對話紀錄 + 完工照片
+    CSM->>CSM: 調查問題根因
+    CSM->>DB: UPDATE complaints SET resolution (提出解決方案)
+    CSM->>LINE: 發送解決方案給客戶
+    LINE->>Customer: 「經查明...我們的解決方案是...」
+
+    alt 客戶接受
+        Customer->>LINE: 「好的，謝謝」
+        LINE->>DB: UPDATE complaints SET status=resolved
+    else 客戶不接受 → 升級
+        Customer->>LINE: 「不能接受」
+        LINE->>DB: UPDATE complaints SET status=escalated
+        DB->>OPS: 升級至營運主管
+        OPS->>Customer: 主管回電處理
+        alt 需要退款
+            OPS->>Finance: 建立退款申請
+            Finance->>DB: INSERT refund_requests
+            Note over Finance: 金額 > $100K 需雙簽 (BR-006)
+        end
+    end
+
+    Note over DB: 結案後 30 天再投訴 → 自動升級 (BR-014)
+```
+
+---
+
+## 流程八：二次派工 / 品質不合格 (Rework)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Customer as 客戶
+    participant LINE as LINE API
+    participant System as 系統
+    participant DB as PostgreSQL
+    participant Dispatch as 派工引擎
+    participant TechApp as 技師 Web App
+    participant Tech2 as S 級技師
+
+    Customer->>LINE: 「修了又壞 / 昨天才修好今天又不行」
+    LINE->>System: 偵測二次客訴關鍵字
+    System->>DB: 查詢 7 天內同症狀工單
+
+    alt 找到匹配工單 (同客戶 + 同症狀 + 7天內)
+        System->>DB: INSERT complaints (severity: high, 觸發二次客訴)
+        System->>DB: UPDATE work_orders (原工單) SET rework_required
+        System->>DB: INSERT work_orders (新工單, is_rework=true, rework_of_id=原工單)
+        Note over Dispatch: 強制 S 級技師 + 免費 (BR-005)
+        Dispatch->>DB: 查詢 S 級技師
+        Dispatch->>TechApp: 推播工單 (標記：品質回訪、免費、優先)
+        TechApp->>Tech2: 新工單通知
+        Tech2->>TechApp: 接受
+        TechApp->>LINE: 通知客戶
+        LINE->>Customer: 「已為您安排資深技師免費回訪」
+        Note over DB: 原技師標記「診斷不完整」，扣績效分
+    else 未找到匹配工單
+        System->>System: 走正常客訴流程 (Flow 5)
+    end
+```
+
+---
+
+## 流程九：知識沉澱閉環 (Knowledge Loop — Post-Completion)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Tech as 技師
+    participant DB as PostgreSQL
+    participant Batch as 週批次作業
+    participant KnowledgeBase as 知識資產 (JSON)
+    participant L8 as L8 Entropy
+    participant Expert as 維修專家
+
+    Note over Tech, DB: === 完工報告入庫 ===
+    Tech->>DB: 提交結構化完工報告
+    Note over DB: predicted_fm vs actual_fm<br/>defect_type (5 分類)<br/>corrective_action + preventive_action
+    DB->>DB: 計算 ai_prediction_hit (Boolean)
+
+    Note over Batch, KnowledgeBase: === 週批次：故障樹修正 ===
+    Batch->>DB: GROUP BY fault_tree_id, actual_fm_id
+    Batch->>KnowledgeBase: 更新故障樹機率權重
+    Note over Batch: n > 50 時統計取代專家估算
+
+    Batch->>DB: AVG(ai_prediction_hit) 各品牌
+    Note over Batch: 診斷正確率 KPI
+
+    Note over L8, Expert: === OCAP 知識缺口偵測 ===
+    L8->>DB: 掃描 unknown 症狀頻率
+    L8->>DB: 掃描高轉人率症狀組合
+
+    alt 發現未覆蓋症狀組合
+        L8->>Expert: 通知：待建故障樹 TOP 10
+        Expert->>KnowledgeBase: 新增故障樹 + 症狀標籤
+    end
+
+    alt 故障樹權重偏差 > 10%
+        Batch->>KnowledgeBase: 自動修正機率權重
+    end
+
+    Note over KnowledgeBase: 知識飛輪：用越多 → 案例越多<br/>→ 故障樹越準 → 診斷越好
+```

@@ -251,3 +251,163 @@ flowchart LR
 | SQL Injection | 中 | SQLAlchemy ORM (參數化查詢) |
 | XSS 攻擊 | 低 | Next.js 自動轉義 + CSP Headers |
 | 密鑰外洩 | 高 | .env 不入版控 + Secrets Manager |
+
+---
+
+## V2.0 擴展角色與異常處理權限
+
+### 新增角色定義
+
+| 角色 | 識別碼 | 說明 |
+|:-----|:-------|:-----|
+| 客服主管 | cs_manager | 客訴審查、一般退款審批、SOP 審核 |
+| 營運主管 | ops_manager | 客訴升級、範圍變更審核、大額退款審批 |
+| 財務主管 | finance_manager | 退款執行、對帳、大額雙簽 |
+| 品牌原廠 | brand_oem | 唯讀儀表板、產品手冊更新、保固規則管理 (P2) |
+| 社區/建商 | community | 批次報修、完工查看、保固追蹤 (P2) |
+
+### 異常處理 RBAC 權限矩陣
+
+| Resource | Operation | line_user | technician | cs_manager | ops_manager | finance_manager | admin |
+|:---------|:----------|:---------:|:----------:|:----------:|:-----------:|:---------------:|:-----:|
+| **Complaints** | File | ✓ | — | — | — | — | ✓ |
+| **Complaints** | Review/Assign | — | — | ✓ | ✓ | — | ✓ |
+| **Complaints** | Escalate | — | — | ✓ | ✓ | — | ✓ |
+| **Complaints** | Close | — | — | ✓ | ✓ | — | ✓ |
+| **Scope Changes** | Report | — | ✓ | — | — | — | — |
+| **Scope Changes** | Approve | ✓ (own) | — | — | ✓ | — | ✓ |
+| **Material Requests** | Create | — | ✓ | — | — | — | — |
+| **Material Requests** | Approve | — | — | — | ✓ | — | ✓ |
+| **Disputes** | File | ✓ | ✓ | — | — | — | — |
+| **Disputes** | Resolve | — | — | ✓ | ✓ | — | ✓ |
+| **Refund Requests** | Create | — | — | ✓ | ✓ | — | ✓ |
+| **Refund Requests** | Approve ≤$10K | — | — | ✓ | — | — | ✓ |
+| **Refund Requests** | Approve ≤$100K | — | — | — | ✓ | — | ✓ |
+| **Refund Requests** | Approve >$100K | — | — | — | ✓+Finance | ✓+Ops | — |
+| **Warranty Claims** | File | ✓ | — | — | — | — | ✓ |
+| **Warranty Claims** | Verify/Decide | — | — | ✓ | ✓ | — | ✓ |
+| **Dispatch Logs** | View | — | — | ✓ | ✓ | — | ✓ |
+| **Appearance Consent** | Submit | — | ✓ | — | — | — | — |
+| **Appearance Consent** | Sign | ✓ (own) | — | — | — | — | — |
+
+### 擴展 RBAC 角色架構
+
+```mermaid
+flowchart LR
+    subgraph ROLES["V2.0 擴展角色"]
+        R1["👤 line_user<br/>(LINE 客戶)"]
+        R2["🔧 technician<br/>(技師)"]
+        R3["📋 cs_manager<br/>(客服主管)"]
+        R4["📊 ops_manager<br/>(營運主管)"]
+        R5["💰 finance_manager<br/>(財務主管)"]
+        R6["👔 admin<br/>(系統管理員)"]
+    end
+
+    subgraph EXCEPTION_RESOURCES["異常處理資源"]
+        subgraph COMP_R["客訴"]
+            COMP_FILE["投訴: 建立"]
+            COMP_REVIEW["客訴: 審查/指派"]
+            COMP_ESC["客訴: 升級"]
+            COMP_CLOSE["客訴: 結案"]
+        end
+
+        subgraph SCOPE_R["範圍變更"]
+            SCOPE_RPT["範圍變更: 回報"]
+            SCOPE_APR["範圍變更: 核准"]
+        end
+
+        subgraph MAT_R["缺料"]
+            MAT_CRT["缺料: 建立"]
+            MAT_APR["缺料: 核准"]
+        end
+
+        subgraph DISP_R["爭議"]
+            DISP_FILE["爭議: 建立"]
+            DISP_RES["爭議: 仲裁"]
+        end
+
+        subgraph REF_R["退款"]
+            REF_CRT["退款: 建立"]
+            REF_SM["退款: 審批 ≤$10K"]
+            REF_MD["退款: 審批 ≤$100K"]
+            REF_LG["退款: 審批 >$100K<br/>(雙簽)"]
+        end
+
+        subgraph WAR_R["保固"]
+            WAR_FILE["保固索賠: 建立"]
+            WAR_VER["保固: 驗證/決議"]
+        end
+
+        subgraph OTHER_R["其他"]
+            LOG_VIEW["派工日誌: 查看"]
+            APP_SUB["門外觀同意: 提交"]
+            APP_SIGN["門外觀同意: 簽署"]
+        end
+    end
+
+    R1 --> COMP_FILE
+    R1 --> DISP_FILE
+    R1 --> WAR_FILE
+    R1 --> SCOPE_APR
+    R1 --> APP_SIGN
+
+    R2 --> SCOPE_RPT
+    R2 --> MAT_CRT
+    R2 --> DISP_FILE
+    R2 --> APP_SUB
+
+    R3 --> COMP_REVIEW
+    R3 --> COMP_ESC
+    R3 --> COMP_CLOSE
+    R3 --> DISP_RES
+    R3 --> REF_CRT
+    R3 --> REF_SM
+    R3 --> WAR_VER
+    R3 --> LOG_VIEW
+
+    R4 --> COMP_REVIEW
+    R4 --> COMP_ESC
+    R4 --> COMP_CLOSE
+    R4 --> SCOPE_APR
+    R4 --> MAT_APR
+    R4 --> DISP_RES
+    R4 --> REF_CRT
+    R4 --> REF_MD
+    R4 --> REF_LG
+    R4 --> WAR_VER
+    R4 --> LOG_VIEW
+
+    R5 --> REF_LG
+
+    R6 --> COMP_FILE
+    R6 --> COMP_REVIEW
+    R6 --> COMP_ESC
+    R6 --> COMP_CLOSE
+    R6 --> SCOPE_APR
+    R6 --> MAT_APR
+    R6 --> DISP_RES
+    R6 --> REF_CRT
+    R6 --> REF_SM
+    R6 --> REF_MD
+    R6 --> WAR_FILE
+    R6 --> WAR_VER
+    R6 --> LOG_VIEW
+
+    style ROLES fill:#e8eaf6,stroke:#283593
+    style EXCEPTION_RESOURCES fill:#f5f5f5,stroke:#616161
+    style COMP_R fill:#ffebee,stroke:#c62828
+    style SCOPE_R fill:#fff8e1,stroke:#f57f17
+    style MAT_R fill:#e3f2fd,stroke:#1565c0
+    style DISP_R fill:#fce4ec,stroke:#880e4f
+    style REF_R fill:#f3e5f5,stroke:#7b1fa2
+    style WAR_R fill:#e8f5e9,stroke:#2e7d32
+    style OTHER_R fill:#f5f5f5,stroke:#9e9e9e
+```
+
+### 退款分級審批流程
+
+| 退款金額 | 審批層級 | 簽核者 | 說明 |
+|:---------|:---------|:-------|:-----|
+| ≤ $10,000 | 單簽 | cs_manager 或 admin | 客服主管可獨立審批 |
+| ≤ $100,000 | 單簽 | ops_manager 或 admin | 營運主管可獨立審批 |
+| > $100,000 | 雙簽 | ops_manager + finance_manager | 營運主管與財務主管需同時簽核 |

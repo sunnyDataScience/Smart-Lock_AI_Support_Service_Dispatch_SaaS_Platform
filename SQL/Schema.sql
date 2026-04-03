@@ -22,6 +22,9 @@
 --   [6] sop_drafts         — SOP 草稿 (自進化知識庫)
 --   [V2.0] technicians, work_orders, price_rules, invoices,
 --          reconciliations, settlements
+--   [V2.0] complaints, scope_changes, material_requests, disputes,
+--          dispatch_logs, refund_requests, warranty_claims,
+--          appearance_change_consents
 --
 -- 向量維度：768 (Google text-embedding-004)
 -- 向量索引：HNSW (m=16, ef_construction=64, cosine similarity)
@@ -555,6 +558,352 @@ CREATE TABLE settlements (
 
 
 -- ============================================================================
+-- [V2.0] 工單異常處理擴展欄位 (Work Order Exception Handling Extensions)
+-- ============================================================================
+
+ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS
+    rejection_reason    TEXT;                            -- 技師拒單原因
+
+ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS
+    scope_change_id     UUID;                           -- 關聯範圍變更申請
+
+ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS
+    material_shortage   BOOLEAN DEFAULT FALSE;          -- 缺料標記
+
+ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS
+    delay_notified_at   TIMESTAMP WITH TIME ZONE;       -- 延遲通知時間戳
+
+ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS
+    dispute_status      VARCHAR(50);                    -- 爭議狀態: 'none','pending','resolved','escalated'
+
+ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS
+    rescheduled_from_id UUID REFERENCES work_orders(id);-- 改期前原工單
+
+ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS
+    is_rework           BOOLEAN DEFAULT FALSE;          -- 二次派工標記
+
+ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS
+    rework_of_id        UUID REFERENCES work_orders(id);-- 原始工單 (二次派工時)
+
+ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS
+    cancellation_reason TEXT;                           -- 取消原因
+
+ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS
+    appearance_change_consent BOOLEAN;                  -- 門外觀變更客戶同意
+
+
+-- ============================================================================
+-- [V2.0] 客訴管理 (Complaints)
+-- ============================================================================
+--
+-- 客訴處理流程：
+--   1. 消費者或系統提交客訴 → status='filed'
+--   2. 分派專責人員處理 → assigned_to
+--   3. 調查並提出解決方案 → status='proposed'
+--   4. 消費者接受/拒絕 → status='accepted'/'rejected'
+--   5. 結案 → status='resolved' / 'closed'
+--   6. SLA 依嚴重程度設定：critical=4h, high=24h, medium=72h, low=168h
+-- ============================================================================
+
+CREATE TABLE complaints (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    work_order_id       UUID REFERENCES work_orders(id),
+    customer_id         UUID REFERENCES users(id),
+    category            VARCHAR(50) NOT NULL,           -- 客訴類型: 'service','quality','pricing','attitude','other'
+    severity            VARCHAR(50) DEFAULT 'medium',   -- 嚴重程度: 'low','medium','high','critical'
+    status              VARCHAR(50) DEFAULT 'filed',
+                        -- 'filed'         : 已提交
+                        -- 'assigned'      : 已分派
+                        -- 'investigating' : 調查中
+                        -- 'proposed'      : 已提出方案
+                        -- 'accepted'      : 消費者接受
+                        -- 'rejected'      : 消費者拒絕
+                        -- 'resolved'      : 已解決
+                        -- 'closed'        : 已結案
+    assigned_to         UUID REFERENCES users(id),      -- 負責處理的管理員
+    description         TEXT NOT NULL,                   -- 客訴描述
+    resolution          TEXT,                           -- 解決方案描述
+    compensation_amount FLOAT,                          -- 補償金額
+    compensation_type   VARCHAR(50),                    -- 補償方式: 'refund','discount_code','free_service','none'
+    filed_at            TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    resolved_at         TIMESTAMP WITH TIME ZONE,
+    sla_deadline        TIMESTAMP WITH TIME ZONE,       -- SLA 期限 (依 severity 計算)
+    created_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON TABLE  complaints IS '客訴管理表：追蹤消費者投訴的完整生命週期，含 SLA 期限與補償機制';
+COMMENT ON COLUMN complaints.sla_deadline IS 'SLA 回應期限，依嚴重程度自動設定：critical=4h, high=24h, medium=72h, low=168h';
+
+CREATE TRIGGER trg_complaints_updated_at
+    BEFORE UPDATE ON complaints
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+
+-- ============================================================================
+-- [V2.0] 範圍變更申請 (Scope Changes)
+-- ============================================================================
+--
+-- 設計要點：
+--   - 技師到場後發現問題範圍與原 ProblemCard 不同時提出
+--   - 保留原始範圍與新範圍的 JSONB 快照，方便比對
+--   - 客戶可選擇：繼續施工、改期、取消
+--   - 管理員可覆寫客戶決策 (admin_override)
+-- ============================================================================
+
+CREATE TABLE scope_changes (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    work_order_id       UUID NOT NULL REFERENCES work_orders(id),
+    technician_id       UUID NOT NULL REFERENCES technicians(id),
+    reason              TEXT NOT NULL,                   -- 技師描述的變更原因
+    original_scope      JSONB NOT NULL,                 -- 原始 ProblemCard 摘要
+    new_scope           JSONB NOT NULL,                 -- 新發現的問題範圍
+    original_price      FLOAT NOT NULL,                 -- 原始報價
+    new_price           FLOAT,                          -- 重新報價
+    status              VARCHAR(50) DEFAULT 'pending',
+                        -- 'pending'           : 等待客戶決定
+                        -- 'customer_approved' : 客戶同意
+                        -- 'customer_rejected' : 客戶拒絕
+                        -- 'admin_override'    : 管理員覆寫
+    customer_decision   VARCHAR(50),                    -- 客戶決策: 'continue','reschedule','cancel'
+    approved_by         UUID REFERENCES users(id),      -- 核准者 (管理員覆寫時)
+    photos              JSONB,                          -- 現場照片佐證 URL 陣列
+    created_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON TABLE  scope_changes IS '範圍變更申請表：技師到場後發現實際問題與原始診斷不符時提出變更';
+COMMENT ON COLUMN scope_changes.original_scope IS '原始 ProblemCard 範圍快照 JSON，用於變更前後比對';
+
+CREATE TRIGGER trg_scope_changes_updated_at
+    BEFORE UPDATE ON scope_changes
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+
+-- ============================================================================
+-- [V2.0] 材料請購 (Material Requests)
+-- ============================================================================
+--
+-- 設計要點：
+--   - 技師現場缺料時提出請購
+--   - items 為 JSONB 陣列：[{part_name, spec, qty, estimated_cost}]
+--   - 審核通過後可追蹤預計到貨時間
+--   - 來源區分：公司庫存、外部採購、技師墊付
+-- ============================================================================
+
+CREATE TABLE material_requests (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    work_order_id       UUID NOT NULL REFERENCES work_orders(id),
+    technician_id       UUID NOT NULL REFERENCES technicians(id),
+    items               JSONB NOT NULL,                 -- 材料清單: [{part_name, spec, qty, estimated_cost}]
+    status              VARCHAR(50) DEFAULT 'requested',
+                        -- 'requested'  : 已提交
+                        -- 'approved'   : 已核准
+                        -- 'ordered'    : 已下單
+                        -- 'fulfilled'  : 已到貨
+                        -- 'cancelled'  : 已取消
+    approved_by         UUID REFERENCES users(id),      -- 核准者
+    estimated_arrival   TIMESTAMP WITH TIME ZONE,       -- 預計到貨時間
+    total_cost          FLOAT,                          -- 材料總成本
+    source              VARCHAR(50),                    -- 來源: 'company_stock','external_purchase','technician_advance'
+    created_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON TABLE  material_requests IS '材料請購表：技師現場缺料時提出請購申請，含審核與到貨追蹤';
+COMMENT ON COLUMN material_requests.items IS '材料清單 JSON 陣列，每項包含 part_name, spec, qty, estimated_cost';
+
+CREATE TRIGGER trg_material_requests_updated_at
+    BEFORE UPDATE ON material_requests
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+
+-- ============================================================================
+-- [V2.0] 爭議仲裁 (Disputes)
+-- ============================================================================
+--
+-- 設計要點：
+--   - 可由消費者或技師提出
+--   - 關聯工單或發票
+--   - 類型涵蓋：定價、品質、保固、取消費、結算
+--   - resolution_amount 正值=補償客戶，負值=扣款
+-- ============================================================================
+
+CREATE TABLE disputes (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    work_order_id       UUID REFERENCES work_orders(id),
+    invoice_id          UUID REFERENCES invoices(id),
+    filed_by            UUID NOT NULL REFERENCES users(id), -- 提出者 (消費者或技師)
+    dispute_type        VARCHAR(50) NOT NULL,           -- 爭議類型: 'pricing','quality','warranty','cancellation_fee','settlement'
+    status              VARCHAR(50) DEFAULT 'filed',
+                        -- 'filed'        : 已提交
+                        -- 'under_review' : 審查中
+                        -- 'mediation'    : 調解中
+                        -- 'resolved'     : 已解決
+                        -- 'escalated'    : 已升級
+    description         TEXT NOT NULL,                   -- 爭議描述
+    evidence            JSONB,                          -- 佐證資料: [{type, url, description}]
+    resolution          TEXT,                           -- 仲裁結果描述
+    resolution_amount   FLOAT,                          -- 調整金額 (正=補償客戶, 負=扣款)
+    resolved_by         UUID REFERENCES users(id),      -- 仲裁者
+    filed_at            TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    resolved_at         TIMESTAMP WITH TIME ZONE,
+    sla_deadline        TIMESTAMP WITH TIME ZONE,       -- SLA 處理期限
+    created_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON TABLE  disputes IS '爭議仲裁表：消費者或技師對工單/帳務提出爭議，含佐證資料與仲裁流程';
+COMMENT ON COLUMN disputes.resolution_amount IS '調整金額：正值表示補償客戶，負值表示扣款';
+
+CREATE TRIGGER trg_disputes_updated_at
+    BEFORE UPDATE ON disputes
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+
+-- ============================================================================
+-- [V2.0] 派工決策日誌 (Dispatch Logs)
+-- ============================================================================
+--
+-- 設計要點：
+--   - 記錄每次派工的決策過程與匹配因子
+--   - 追蹤自動匹配、手動指派、拒單、超時、重派、級聯等行為
+--   - match_factors 記錄各維度匹配分數，便於演算法調優
+--   - 無 updated_at (僅追加，不更新)
+-- ============================================================================
+
+CREATE TABLE dispatch_logs (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    work_order_id       UUID NOT NULL REFERENCES work_orders(id),
+    action              VARCHAR(50) NOT NULL,           -- 動作: 'auto_match','manual_assign','rejection','timeout','reassign','cascade'
+    technician_id       UUID REFERENCES technicians(id),-- 相關技師
+    match_score         FLOAT,                          -- 匹配總分
+    match_factors       JSONB,                          -- 匹配因子: {brand_score, distance_score, rating_score, availability_score}
+    rejection_reason    TEXT,                           -- 拒單原因 (action='rejection' 時)
+    timeout_seconds     INTEGER,                        -- 超時秒數 (action='timeout' 時)
+    notes               TEXT,                           -- 備註
+    created_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON TABLE  dispatch_logs IS '派工決策日誌表：記錄每次派工匹配、拒單、超時、重派等決策過程';
+COMMENT ON COLUMN dispatch_logs.match_factors IS '匹配因子 JSON：含 brand_score, distance_score, rating_score, availability_score';
+
+
+-- ============================================================================
+-- [V2.0] 退款審批 (Refund Requests)
+-- ============================================================================
+--
+-- 設計要點：
+--   - 退款流程需經審核鏈簽核
+--   - 金額 > 100,000 TWD 時需雙重簽核 (requires_dual_sign=TRUE)
+--   - approval_chain 記錄完整簽核歷程：[{role, user_id, decision, decided_at}]
+-- ============================================================================
+
+CREATE TABLE refund_requests (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    work_order_id       UUID REFERENCES work_orders(id),
+    invoice_id          UUID REFERENCES invoices(id),
+    complaint_id        UUID REFERENCES complaints(id),
+    requested_by        UUID NOT NULL REFERENCES users(id), -- 申請者
+    amount              FLOAT NOT NULL,                 -- 退款金額
+    reason              TEXT NOT NULL,                   -- 退款原因
+    status              VARCHAR(50) DEFAULT 'pending',
+                        -- 'pending'      : 待審核
+                        -- 'csm_approved' : 客服主管核准
+                        -- 'ops_approved' : 營運主管核准
+                        -- 'dual_signed'  : 雙重簽核完成
+                        -- 'executed'     : 已執行退款
+                        -- 'rejected'     : 已拒絕
+    approval_chain      JSONB,                          -- 簽核鏈: [{role, user_id, decision, decided_at}]
+    requires_dual_sign  BOOLEAN DEFAULT FALSE,          -- 金額 > 100,000 TWD 時需雙重簽核
+    executed_at         TIMESTAMP WITH TIME ZONE,       -- 退款執行時間
+    created_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON TABLE  refund_requests IS '退款審批表：退款申請與多層簽核流程，金額超過 100,000 TWD 需雙重簽核';
+COMMENT ON COLUMN refund_requests.approval_chain IS '簽核鏈 JSON 陣列，記錄每位簽核者的角色、決策與時間';
+
+CREATE TRIGGER trg_refund_requests_updated_at
+    BEFORE UPDATE ON refund_requests
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+
+-- ============================================================================
+-- [V2.0] 保固索賠 (Warranty Claims)
+-- ============================================================================
+--
+-- 設計要點：
+--   - 保固起算日以「交屋日」為準，非購買日
+--   - is_within_warranty 由系統根據 claim_date 與 warranty_end_date 計算
+--   - 保固外客戶可獲折扣報價 (discount_offered)
+--   - 驗證來源：建案資料庫、收據、發票
+-- ============================================================================
+
+CREATE TABLE warranty_claims (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    work_order_id       UUID REFERENCES work_orders(id),
+    customer_id         UUID NOT NULL REFERENCES users(id),
+    device_brand        VARCHAR(100) NOT NULL,          -- 設備品牌
+    device_model        VARCHAR(100) NOT NULL,          -- 設備型號
+    purchase_date       DATE,                           -- 購買日期
+    warranty_start_date DATE NOT NULL,                  -- 保固起算日 (交屋日)
+    warranty_end_date   DATE NOT NULL,                  -- 保固到期日
+    claim_date          DATE NOT NULL DEFAULT CURRENT_DATE, -- 索賠日期
+    is_within_warranty  BOOLEAN NOT NULL,               -- 系統計算：claim_date <= warranty_end_date
+    status              VARCHAR(50) DEFAULT 'filed',
+                        -- 'filed'    : 已提交
+                        -- 'verified' : 已驗證
+                        -- 'approved' : 已核准
+                        -- 'rejected' : 已拒絕
+                        -- 'disputed' : 爭議中
+    dispute_reason      TEXT,                           -- 消費者對拒絕結果的爭議理由
+    verification_source VARCHAR(100),                   -- 驗證來源: 'project_database','receipt','invoice'
+    resolution          TEXT,                           -- 處理結果描述
+    discount_offered    FLOAT,                          -- 保固外折扣 (百分比)
+    created_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON TABLE  warranty_claims IS '保固索賠表：追蹤設備保固驗證與索賠流程，保固起算日以交屋日為準';
+COMMENT ON COLUMN warranty_claims.warranty_start_date IS '保固起算日以交屋日 (handover date) 為準，非購買日期';
+COMMENT ON COLUMN warranty_claims.is_within_warranty IS '系統自動計算：claim_date <= warranty_end_date';
+
+CREATE TRIGGER trg_warranty_claims_updated_at
+    BEFORE UPDATE ON warranty_claims
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+
+-- ============================================================================
+-- [V2.0] 門外觀變更同意書 (Appearance Change Consents)
+-- ============================================================================
+--
+-- 設計要點：
+--   - 施工可能造成門外觀變化時 (如韓規側板切割導致門漆起泡)，技師須取得客戶同意
+--   - 記錄施工前門面照片 (original_photo_urls)
+--   - 同意方式：數位簽名、LINE 訊息確認、口頭錄音
+--   - 無 updated_at (同意書一旦建立即為歷史紀錄)
+-- ============================================================================
+
+CREATE TABLE appearance_change_consents (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    work_order_id       UUID NOT NULL REFERENCES work_orders(id),
+    technician_id       UUID NOT NULL REFERENCES technicians(id),
+    customer_id         UUID NOT NULL REFERENCES users(id),
+    change_description  TEXT NOT NULL,                  -- 外觀變更描述 (例: "韓規側板切割會造成門漆起泡")
+    affected_area       TEXT,                           -- 受影響區域描述
+    original_photo_urls JSONB,                          -- 施工前門面照片 URL 陣列
+    customer_consented  BOOLEAN,                        -- 客戶是否同意
+    consented_at        TIMESTAMP WITH TIME ZONE,       -- 同意時間
+    consent_method      VARCHAR(50),                    -- 同意方式: 'digital_signature','line_confirmation','verbal_recorded'
+    created_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON TABLE  appearance_change_consents IS '門外觀變更同意書：施工可能影響門外觀時，記錄客戶知情同意';
+COMMENT ON COLUMN appearance_change_consents.consent_method IS '同意方式：digital_signature=數位簽名, line_confirmation=LINE確認, verbal_recorded=口頭錄音';
+
+
+-- ============================================================================
 -- 建立資料表索引 (參照架構文件 §5.1 表格索引策略)
 -- ============================================================================
 
@@ -594,6 +943,33 @@ CREATE INDEX idx_inv_wo ON invoices (work_order_id);
 
 -- [reconciliations] 索引 (V2.0)
 CREATE INDEX idx_recon_tech_period ON reconciliations (technician_id, period_start);
+
+-- [complaints] 索引 (V2.0)
+CREATE INDEX idx_complaints_work_order ON complaints (work_order_id);
+CREATE INDEX idx_complaints_customer ON complaints (customer_id);
+CREATE INDEX idx_complaints_status ON complaints (status);
+
+-- [scope_changes] 索引 (V2.0)
+CREATE INDEX idx_scope_changes_work_order ON scope_changes (work_order_id);
+
+-- [material_requests] 索引 (V2.0)
+CREATE INDEX idx_material_requests_work_order ON material_requests (work_order_id);
+
+-- [disputes] 索引 (V2.0)
+CREATE INDEX idx_disputes_work_order ON disputes (work_order_id);
+CREATE INDEX idx_disputes_invoice ON disputes (invoice_id);
+
+-- [dispatch_logs] 索引 (V2.0)
+CREATE INDEX idx_dispatch_logs_work_order ON dispatch_logs (work_order_id);
+
+-- [refund_requests] 索引 (V2.0)
+CREATE INDEX idx_refund_requests_work_order ON refund_requests (work_order_id);
+
+-- [warranty_claims] 索引 (V2.0)
+CREATE INDEX idx_warranty_claims_customer ON warranty_claims (customer_id);
+
+-- [appearance_change_consents] 索引 (V2.0)
+CREATE INDEX idx_appearance_consents_work_order ON appearance_change_consents (work_order_id);
 
 
 -- ============================================================================

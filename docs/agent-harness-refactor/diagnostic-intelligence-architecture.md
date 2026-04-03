@@ -98,7 +98,7 @@ Symptom 是對話的入口。Defect 是分析的終點。
 | **Symptom**      | 症狀/現象 | 用戶觀察層  | 用戶**看到/感覺到**什麼？   | "指紋時好時壞"、"螢幕一直閃"  |
 | **Failure**      | 失效/故障 | 系統功能層  | 什麼**功能壞了**？       | 無法開鎖、遠端控制失效       |
 | **Failure Mode** | 失效模式  | 工程機制層  | 它是**怎麼壞的**？       | I2C 通訊間歇中斷、供電電壓不穩 |
-| **Defect**       | 缺陷/瑕疵 | 零件/製程層 | **哪裡不對**？有什麼具體證據？ | 排線鬆脫、電池接點氧化、韌體損壞  |
+| **Defect**       | 缺陷/瑕疵 | 零件/製程層 | **哪裡不對**？有什麼具體證據？ | 排線鬆脫、電池接點氧化、韌體損壞（需到府確認） |
 
 
 ### 因果鏈方向
@@ -132,7 +132,7 @@ Symptom（症狀）                          Defect（缺陷）
 | **Symptom**      | `symptoms.toml` 標準標籤 + 用戶原文 | 用戶描述 → LLM 提取 | task_decompose Tier 1        |
 | **Failure**      | `failures` 表                | 系統預定義         | task_decompose → 匹配 Symptom  |
 | **Failure Mode** | `failure_modes` 表           | 專家建構 / 案例庫回饋  | task_decompose Tier 2 → 假設排序 |
-| **Defect**       | `defects` 表 + 完工回報          | 技師到府確認        | 案例庫 → 知識閉環                   |
+| **Defect**       | `defects` 表 + 完工回報 *(Phase 2 才建立，Phase 0-1 不存在)* | 技師到府確認        | 案例庫 → 知識閉環                   |
 
 
 **Symptom 是 AI 能直接從對話中取得的。Defect 通常需要到府才能確認。**
@@ -571,7 +571,7 @@ AI 對話 → ProblemCard → 派工 → 技師到府
 ```
 為什麼完工報告不能用 JSON 檔案:
   · 多技師同時外勤 → 併發寫入 (JSON 無 lock 機制)
-  · 管理後台查詢 → "列出本月所有 DP609 排線問題" (JSON 無 index)
+  · 管理後台查詢 → "列出本月所有 DP850 排線問題" (JSON 無 index)
   · 聚合統計 → "排線問題占比" (JSON 無 GROUP BY)
   · 照片/影片 → 二進位檔案 (JSON 存不了)
 
@@ -585,7 +585,7 @@ PostgreSQL schema (Phase 2 藍圖，現在不建表):
     actual_fm_id      → 技師確認的實際 FM
     ai_prediction_hit → Boolean (AI 猜對了嗎)
     defect_description→ 自由文字 (Phase 2 初期)
-    defect_type       → 'design'|'material'|'process'|'integration'|'operation'
+    defect_type       → 'design'|'material'|'process'|'operation'|'other'
     corrective_action → 修了什麼
     preventive_action → 建議的預防措施
     parts_used        → JSONB [{part_name, quantity, cost}]
@@ -646,7 +646,7 @@ LLM (reasoning — 在 prompt 中拿到完整知識上下文):
   · Failure 識別 (讀 failure_taxonomy → 匹配)
   · FM 假設生成 (讀 failure_mode_registry + 故障樹 → 排序)
   · 元件關聯推理 (讀 components.toml → 共享依賴)
-  · 資訊充分度判斷 (diagnosis_status: need_more_info / hypothesis_formed / ready_to_conclude)
+  · 資訊充分度判斷 (diagnosis_status: need_more_info / confident / recommend_dispatch)
   · 驗證問題選擇 (讀驗證鏈 → 選最適合當前對話的題)
   · CA 建議 (讀故障樹 corrective_actions)
 ```
@@ -705,7 +705,7 @@ Pre-filter (Python, NOT reasoning):
   │    "matched_failures": [...],                             │
   │    "hypothesized_failure_modes": [{fm_id, reasoning, confidence}], │
   │    "shared_dependency_detected": {detected, components, reasoning}, │
-  │    "diagnosis_status": "need_more_info | hypothesis_formed | ready_to_conclude", │
+  │    "diagnosis_status": "need_more_info | confident | recommend_dispatch", │
   │    "next_action": {type, question, reasoning},            │
   │    "corrective_action": "...",                            │
   │    "updated_problem_card": {...}                          │
@@ -719,8 +719,9 @@ Pre-filter (Python, NOT reasoning):
   │  6. 更新 ProblemCard                                      │
   │  7. 檢查 diagnosis_status:                                │
   │     · "need_more_info" + 輪次 < 3 → 注入 next_action      │
-  │     · "need_more_info" + 輪次 >= 3 → 建議到府              │
-  │     · "ready_to_conclude" → 注入結論 + CA + SOP            │
+  │     · "need_more_info" + 輪次 >= 3 → 強制 recommend_dispatch│
+  │     · "confident" → 注入結論 + CA + SOP                    │
+  │     · "recommend_dispatch" → 建議到府檢測                   │
   │  8. 注入 diagnostic context 到 agent prompt                │
   └──────────────────────────────────────────────────────────┘
 ```
@@ -737,8 +738,8 @@ Software 1.0 (已淘汰):
 Software 3.0 (現行):
   LLM 輸出 diagnosis_status:
     "need_more_info" — LLM 判斷現有資訊不足以形成假設
-    "hypothesis_formed" — LLM 有初步假設但建議到府確認
-    "ready_to_conclude" — LLM 有高信心結論
+    "confident" — LLM 有高信心結論，可提供具體方案
+    "recommend_dispatch" — LLM 判斷需要技師到府（或超過最大追問輪次）
 
   LLM 的判斷依據 (在 prompt 中):
     · 驗證鏈的 confidence_gain 值 (故障樹中已標註)
@@ -786,10 +787,10 @@ Software 3.0 (零故障樹):
 task_decompose:
   症狀提取: symptoms = [] (無具體症狀)
   Failure 識別: 無法確定具體 Failure
-  資訊充分度: 0.0 (嚴重不足)
+  diagnosis_status: "need_more_info" (嚴重不足)
   CA 預備: 備用鑰匙資訊 (以防用戶被鎖在門外)
-  
-  → 需要追問，從 Layer 4 取出最高效的第一個問題
+
+  → 需要追問，LLM 選擇最高效的第一個問題
   → "具體是什麼狀況？" (開放式，讓用戶描述現象)
 
 agent 回覆:
@@ -803,13 +804,12 @@ agent 回覆:
 task_decompose:
   症狀更新: [fingerprint_no_response], 排除訊號: [screen_on]
   Failure 識別: F-LOCK-001 (無法開鎖) 或 F-LOCK-003 (間歇失效)
-  FM 假設排序:
-    FM-ELEC-001 指紋模組通訊中斷 (40%) ← screen_on 排除了供電問題
-    FM-ELEC-002 接觸不良 (30%)
-    FM-FW-001 韌體問題 (20%)
-    other (10%)
-  資訊充分度: 0.35
-  
+  FM 假設排序 (LLM 推理，非 hardcoded 分數):
+    FM-ELEC-001 指紋模組通訊中斷 ← screen_on 排除了供電問題，最可能
+    FM-ELEC-002 接觸不良
+    FM-FW-001 韌體問題
+  diagnosis_status: "need_more_info"
+
   → 下一個驗證步驟: "按密碼試試看？"
   → 為什麼這個問題？因為密碼走不同電路 (gpio_bus vs i2c_bus)
      如果密碼 OK → 問題隔離到指紋模組/I2C
@@ -824,34 +824,32 @@ agent 回覆:
 
 task_decompose:
   更新: 密碼 OK → gpio_bus 正常 → 主板供電正常
-  假設縮窄:
-    FM-ELEC-001 指紋模組通訊中斷 (55%) ↑
-    FM-ELEC-002 接觸不良 (35%) ↑
-    FM-FW-001 韌體問題 (5%) ↓ (密碼正常說明韌體基本 OK)
-  資訊充分度: 0.55
-  
-  → 查設備型號歷史: 用戶 profile 有 Samsung DP609
-  → case_library: DP609 + fingerprint_no_response → 歷史 40% 是排線
-  → 資訊充分度更新: 0.65
+  假設縮窄 (LLM 根據排除法調整):
+    FM-ELEC-001 指紋模組通訊中斷 ↑ (最可能)
+    FM-ELEC-002 接觸不良 ↑
+    FM-FW-001 韌體問題 ↓ (密碼正常說明韌體基本 OK)
+
+  → 查設備型號: 用戶 profile 有 dormakaba DP850
+  diagnosis_status: "confident"
 
 ── Act ───────────────────────────────────────────
-  confidence = 0.65 → 高信心，可提供具體方案
+  diagnosis_status = "confident" → 可提供具體方案
 
 agent 回覆:
   "密碼可以開，表示鎖的主要功能是正常的，問題在指紋模組。
 
-   根據 Samsung DP609 的維修紀錄，這個情況有兩種常見原因：
-   1. 排線接觸不良 (約 40%) — 維修費約 $800
-   2. 指紋感應器故障 (約 35%) — 維修費約 $1,500
+   根據 dormakaba DP850 的常見情況，這有兩種可能原因：
+   1. 排線接觸不良 — 維修費約 $800
+   2. 指紋感應器故障 — 維修費約 $1,500
 
    建議安排技師到府檢測確認，檢測費 $500（維修可折抵）。
    目前您可以先用密碼開鎖。需要幫您預約嗎？"
 
   → ProblemCard 建立:
     failure: F-LOCK-001
-    failure_modes: [FM-ELEC-001 (55%), FM-ELEC-002 (35%)]
+    failure_modes: [FM-ELEC-001, FM-ELEC-002]
     verified_facts: [screen_on, password_ok]
-    device: Samsung DP609
+    device: dormakaba DP850
     ca_applied: "告知用戶使用密碼作為臨時方案"
 ```
 
@@ -918,21 +916,34 @@ Phase 0-1 的資料規模:
 
 ```
 agent/harness/task/
+├── __init__.py                        # L1 Task Representation Layer
+├── decomposer.py                      # task_decompose node 實作
+├── problem_card.py                    # ProblemCard dataclass + CRUD
+├── knowledge_loader.py                # KnowledgeLoader — load + serialize for prompt
 ├── taxonomy/                          # 標準化詞表 (TOML)
-│   ├── symptoms.toml                  # Layer 1: Symptom 標準標籤
-│   └── components.toml                # 元件拓撲圖
+│   ├── symptoms.toml                  # Layer 1: Symptom 標準標籤 (51 症狀)
+│   └── components.toml                # 元件拓撲圖 (30 元件)
 ├── knowledge/                         # 知識資產 (JSON)
+│   ├── README.md                      # 知識資產目錄說明
 │   ├── failures/
-│   │   └── failure_taxonomy.json      # Layer 2: Failure 標準分類
+│   │   └── failure_taxonomy.json      # Layer 2: Failure 標準分類 (7 故障類別)
+│   ├── failure_modes/
+│   │   └── failure_mode_registry.json # Layer 3: FM 定義 (15 失效模式)
 │   ├── fault_trees/
-│   │   ├── FT-HW-001.json            # Layer 3+5: FM 假設 + 驗證鏈
-│   │   ├── FT-HW-002.json
-│   │   └── FT-HW-003.json
-│   └── sop/
-│       ├── SOP-HW-001.json           # 維修流程
-│       └── SOP-INST-001.json         # 安裝流程
+│   │   ├── FT-HW-001.json            # 門扇卡死
+│   │   ├── FT-HW-002.json            # 自動上鎖失效
+│   │   ├── FT-HW-003.json            # 異常警報
+│   │   ├── FT-HW-004.json            # 驗證失敗
+│   │   └── FT-HW-005.json            # 電力與網路
+│   ├── sop/
+│   │   ├── SOP-HW-001.json           # 硬體維修 SOP
+│   │   ├── SOP-CS-001.json           # 客服分診 SOP
+│   │   ├── SOP-DISPATCH-001.json     # 派工決策 SOP
+│   │   └── SOP-EMERGENCY-001.json    # 緊急鎖門 Red_Code SOP
+│   └── ocap_rules.json               # OCAP 異常應變規則 + 情緒升級
 └── prompts/
-    └── decompose_task.md              # task_decompose prompt 模板
+    ├── diagnostic_reasoning.md        # 主 prompt: PDCA 診斷推理引擎
+    └── decompose_task.md              # 任務分解 prompt (V2.0 跨輪次派工)
 ```
 
 ### KnowledgeLoader：載入 + 序列化 (不做推理)
@@ -1139,7 +1150,15 @@ Phase 2 (V2.0+): Data-driven 自我進化
 | 本文件 (diagnostic-intelligence-architecture.md) | 六層診斷架構 + 推理引擎 + 知識閉環 | 核心模組設計     |
 | `optimization-strategy.md`                    | 什麼該開什麼不開 + 延遲預算      | 引用本文件 §6   |
 | `harness-architecture.md`                     | 8 層 Harness 理論框架     | 理論基礎       |
-| `taxonomy/symptoms.toml`                      | 症狀標準詞表               | Layer 4 輸入 |
-| `taxonomy/components.toml`                    | 元件拓撲圖                | FM 關聯分析    |
+| `taxonomy/symptoms.toml`                      | 症狀標準詞表 (51 症狀)      | Layer 1 輸入 |
+| `taxonomy/components.toml`                    | 元件拓撲圖 (30 元件)       | FM 關聯分析    |
+| `knowledge/failures/failure_taxonomy.json`    | Failure 標準分類 (7 類)   | Layer 2    |
+| `knowledge/failure_modes/failure_mode_registry.json` | FM 定義 (15 模式)  | Layer 3    |
+| `knowledge/fault_trees/FT-HW-*.json`          | 故障樹 + 驗證鏈 (5 棵)     | Layer 3+5  |
+| `knowledge/sop/SOP-*.json`                    | 標準作業流程 (4 份)        | 作業指引       |
+| `knowledge/ocap_rules.json`                   | OCAP 異常應變 + 情緒升級    | Layer 6    |
+| `knowledge_loader.py`                         | 知識載入 + 序列化          | Python I/O |
+| `decomposer.py`                               | task_decompose node   | 推理引擎入口     |
+| `prompts/diagnostic_reasoning.md`             | PDCA 診斷推理 prompt     | LLM 推理指令   |
 
 

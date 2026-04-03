@@ -84,8 +84,8 @@ fields = ["device_brand", "device_model", "door_type", "fault_category"]
 ### Accessor Methods
 
 ```python
-card.get_attr("device_brand")              # -> "Yale"
-card.set_attr("device_brand", "Samsung")   # updates domain_attributes
+card.get_attr("device_brand")              # -> "Philips"
+card.set_attr("device_brand", "dormakaba")  # updates domain_attributes
 ```
 
 ---

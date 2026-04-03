@@ -234,3 +234,121 @@ erDiagram
 | kb_website | 門市網站資訊 | 768 | HNSW | store_assistant |
 | kb_youtube | APP 教學影片 | 768 | HNSW | app_specialist |
 | kb_gdrive | PDF 產品手冊 | 768 | HNSW | manual_librarian |
+
+---
+
+## V2.0 工單異常處理擴展
+
+```mermaid
+erDiagram
+    %% ===== V2.0 Work Order Exception Handling Extension =====
+
+    COMPLAINT {
+        uuid id PK
+        uuid work_order_id FK
+        uuid customer_id FK
+        varchar category
+        varchar severity
+        varchar status
+        uuid assigned_to FK
+        text description
+        text resolution
+        float compensation_amount
+        timestamp sla_deadline
+    }
+
+    SCOPE_CHANGE {
+        uuid id PK
+        uuid work_order_id FK
+        uuid technician_id FK
+        text reason
+        jsonb original_scope
+        jsonb new_scope
+        float original_price
+        float new_price
+        varchar status
+        varchar customer_decision
+    }
+
+    MATERIAL_REQUEST {
+        uuid id PK
+        uuid work_order_id FK
+        uuid technician_id FK
+        jsonb items
+        varchar status
+        float total_cost
+        varchar source
+        timestamp estimated_arrival
+    }
+
+    DISPUTE {
+        uuid id PK
+        uuid work_order_id FK
+        uuid invoice_id FK
+        uuid filed_by FK
+        varchar dispute_type
+        varchar status
+        text description
+        jsonb evidence
+        text resolution
+        float resolution_amount
+    }
+
+    DISPATCH_LOG {
+        uuid id PK
+        uuid work_order_id FK
+        varchar action
+        uuid technician_id FK
+        float match_score
+        jsonb match_factors
+        text rejection_reason
+    }
+
+    REFUND_REQUEST {
+        uuid id PK
+        uuid work_order_id FK
+        uuid invoice_id FK
+        uuid complaint_id FK
+        float amount
+        varchar status
+        jsonb approval_chain
+        boolean requires_dual_sign
+    }
+
+    WARRANTY_CLAIM {
+        uuid id PK
+        uuid work_order_id FK
+        uuid customer_id FK
+        varchar device_brand
+        varchar device_model
+        date warranty_start_date
+        date warranty_end_date
+        boolean is_within_warranty
+        varchar status
+    }
+
+    APPEARANCE_CHANGE_CONSENT {
+        uuid id PK
+        uuid work_order_id FK
+        uuid technician_id FK
+        uuid customer_id FK
+        text change_description
+        boolean customer_consented
+        varchar consent_method
+    }
+
+    %% ===== Relationships =====
+
+    WORK_ORDER ||--o{ COMPLAINT : "triggers"
+    WORK_ORDER ||--o{ SCOPE_CHANGE : "reports"
+    WORK_ORDER ||--o{ MATERIAL_REQUEST : "needs"
+    WORK_ORDER ||--o{ DISPUTE : "disputes"
+    WORK_ORDER ||--o{ DISPATCH_LOG : "logs"
+    WORK_ORDER ||--o{ REFUND_REQUEST : "refunds"
+    WORK_ORDER ||--o| WARRANTY_CLAIM : "claims"
+    WORK_ORDER ||--o| APPEARANCE_CHANGE_CONSENT : "consents"
+    COMPLAINT ||--o| REFUND_REQUEST : "leads to"
+    COMPLAINT ||--o| DISPUTE : "escalates to"
+    INVOICE ||--o{ DISPUTE : "challenged by"
+    INVOICE ||--o{ REFUND_REQUEST : "refunds from"
+```

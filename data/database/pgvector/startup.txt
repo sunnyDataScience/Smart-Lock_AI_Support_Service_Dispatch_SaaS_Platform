@@ -9,3 +9,6 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 # 查看已安裝的 extensions，確認 pgvector 是否有成功安裝
 \dx
+
+
+#- 連線: localhost:5433, user=lock, password=0000, db=lock_AI_data    

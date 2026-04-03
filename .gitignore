@@ -40,3 +40,4 @@ GEMINI.md
 # 鎖匠方資料（大型二進位 / 含個資，僅保留 INDEX.md）
 docs/Locksmith_Preparation_Checklist/01_各品牌電子鎖維修手冊/*.pdf
 docs/Locksmith_Preparation_Checklist/04_歷史客服對話紀錄/*.csv
+cloud-sql-proxy

@@ -113,3 +113,127 @@ flowchart LR
 | UC-205 | 手動指派技師 | 逾時工單手動指定技師 | Admin Panel |
 | UC-206 | 生成月結報表 | 技師對帳、撥款報表 | Admin Panel |
 | UC-207 | 管理知識庫 | 案例 CRUD、分類管理 | Admin Panel |
+
+---
+
+## V2.0 異常處理擴展 Use Cases
+
+```mermaid
+flowchart LR
+    subgraph ACTORS_LEFT["角色（左）"]
+        Consumer["👤 客戶<br/>(LINE User)"]
+        Technician["🔧 技師<br/>(Web App)"]
+    end
+
+    subgraph SYSTEM["Smart Lock AI SaaS Platform — 異常處理"]
+        subgraph EX_COMPLAINT["客訴處理"]
+            UC301["UC-301<br/>客戶投訴"]
+            UC302["UC-302<br/>審查客訴"]
+            UC303["UC-303<br/>升級客訴"]
+        end
+
+        subgraph EX_SCOPE["範圍變更"]
+            UC304["UC-304<br/>回報範圍變更"]
+            UC305["UC-305<br/>審核範圍變更"]
+        end
+
+        subgraph EX_MATERIAL["缺料處理"]
+            UC306["UC-306<br/>回報缺料"]
+        end
+
+        subgraph EX_DISPUTE["爭議與退款"]
+            UC307["UC-307<br/>提出爭議"]
+            UC308["UC-308<br/>仲裁爭議"]
+            UC309["UC-309<br/>申請退款"]
+            UC310["UC-310<br/>審批退款<br/>(含大額雙簽)"]
+        end
+
+        subgraph EX_WARRANTY["保固與同意"]
+            UC311["UC-311<br/>提出保固索賠"]
+            UC312["UC-312<br/>驗證保固"]
+            UC313["UC-313<br/>同意門外觀變更"]
+        end
+
+        subgraph EX_DISPATCH["二次派工"]
+            UC314["UC-314<br/>觸發二次派工"]
+        end
+    end
+
+    subgraph ACTORS_RIGHT["角色（右）"]
+        CSManager["📋 客服主管<br/>(Admin Panel)"]
+        OpsManager["📊 營運主管<br/>(Admin Panel)"]
+        FinanceManager["💰 財務主管<br/>(Admin Panel)"]
+        AISystem["🤖 AI 系統<br/>(Internal)"]
+    end
+
+    Consumer --- UC301
+    Consumer --- UC307
+    Consumer --- UC309
+    Consumer --- UC311
+    Consumer --- UC313
+
+    Technician --- UC304
+    Technician --- UC306
+
+    UC302 --- CSManager
+    UC303 --- CSManager
+    UC308 --- CSManager
+    UC312 --- CSManager
+
+    UC303 --- OpsManager
+    UC305 --- OpsManager
+    UC310 --- OpsManager
+    UC314 --- OpsManager
+
+    UC310 --- FinanceManager
+
+    UC314 --- AISystem
+
+    style EX_COMPLAINT fill:#ffebee,stroke:#c62828
+    style EX_SCOPE fill:#fff8e1,stroke:#f57f17
+    style EX_MATERIAL fill:#e3f2fd,stroke:#1565c0
+    style EX_DISPUTE fill:#fce4ec,stroke:#880e4f
+    style EX_WARRANTY fill:#e8f5e9,stroke:#2e7d32
+    style EX_DISPATCH fill:#f3e5f5,stroke:#7b1fa2
+```
+
+### V2.0 異常處理 — Use Case 清單
+
+#### 客訴處理
+
+| ID | 名稱 | 說明 | 角色 | 介面 |
+|:---|:-----|:-----|:-----|:-----|
+| UC-301 | 客戶投訴 | 客戶針對服務品質或技師表現提出客訴 | Consumer | LINE Bot |
+| UC-302 | 審查客訴 | 客服主管審查客訴內容，指派負責人調查 | CSManager | Admin Panel |
+| UC-303 | 升級客訴 | 客服/營運主管將嚴重客訴升級至上級處理 | CSManager, OpsManager | Admin Panel |
+
+#### 範圍變更與缺料
+
+| ID | 名稱 | 說明 | 角色 | 介面 |
+|:---|:-----|:-----|:-----|:-----|
+| UC-304 | 回報範圍變更 | 技師到場後發現實際維修範圍與原工單不符，回報變更 | Technician | Web App (PWA) |
+| UC-305 | 審核範圍變更 | 營運主管審核技師提出的範圍變更申請 | OpsManager | Admin Panel |
+| UC-306 | 回報缺料 | 技師回報現場缺少所需材料，觸發請購流程 | Technician | Web App (PWA) |
+
+#### 爭議與退款
+
+| ID | 名稱 | 說明 | 角色 | 介面 |
+|:---|:-----|:-----|:-----|:-----|
+| UC-307 | 提出爭議 | 客戶對維修結果或費用提出爭議 | Consumer | LINE Bot |
+| UC-308 | 仲裁爭議 | 客服主管依據舉證資料進行爭議仲裁 | CSManager | Admin Panel |
+| UC-309 | 申請退款 | 客戶申請部分或全額退款 | Consumer | LINE Bot |
+| UC-310 | 審批退款 | 依金額分級審批：≤$10K 客服主管、≤$100K 營運主管、>$100K 營運+財務雙簽 | OpsManager, FinanceManager | Admin Panel |
+
+#### 保固與同意
+
+| ID | 名稱 | 說明 | 角色 | 介面 |
+|:---|:-----|:-----|:-----|:-----|
+| UC-311 | 提出保固索賠 | 客戶針對保固期內產品問題提出索賠 | Consumer | LINE Bot |
+| UC-312 | 驗證保固 | 客服主管驗證保固資格（購買日期、保固條款） | CSManager | Admin Panel |
+| UC-313 | 同意門外觀變更 | 維修涉及門面外觀變更時，客戶簽署同意書 | Consumer | LINE Bot |
+
+#### 二次派工
+
+| ID | 名稱 | 說明 | 角色 | 介面 |
+|:---|:-----|:-----|:-----|:-----|
+| UC-314 | 觸發二次派工 | AI 偵測 7 日內同一症狀再次報修，自動觸發二次派工 | AISystem, OpsManager | System / Admin Panel |
