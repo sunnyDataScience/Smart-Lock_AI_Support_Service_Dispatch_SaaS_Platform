@@ -1,5 +1,9 @@
 import os
-import tomllib
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python < 3.11
+    import tomli as tomllib  # type: ignore[no-redef]
 from dotenv import load_dotenv
 
 load_dotenv()
