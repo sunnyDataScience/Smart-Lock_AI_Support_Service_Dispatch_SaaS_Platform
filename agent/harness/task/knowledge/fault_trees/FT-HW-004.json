@@ -5,8 +5,8 @@
   "version": "1.0",
   "updated_by": "domain_expert",
 
-  "required_symptoms": ["verification_failure"],
-  "optional_symptoms": ["screen_flashing_6", "password_alone_fails", "card_alone_fails", "fingerprint_rejected", "cannot_access_admin_menu"],
+  "required_symptoms": ["fingerprint_fail"],
+  "optional_symptoms": ["screen_flash_6", "password_lockout", "card_fail", "fingerprint_fail", "admin_locked_out"],
 
   "related_failures": ["F-LOCK-004", "F-LOCK-005", "F-LOCK-006"],
 

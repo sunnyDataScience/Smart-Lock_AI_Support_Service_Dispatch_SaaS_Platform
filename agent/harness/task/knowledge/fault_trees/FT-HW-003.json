@@ -5,8 +5,8 @@
   "version": "2.0",
   "updated_by": "domain_expert",
 
-  "required_symptoms": ["false_alarm", "beeping_no_operation"],
-  "optional_symptoms": ["random_alarm_sound", "intermittent_beeping"],
+  "required_symptoms": ["seismic_false_alarm", "beeping_no_operation"],
+  "optional_symptoms": ["seismic_false_alarm", "intermittent_beeping"],
 
   "related_failures": ["F-LOCK-003"],
 

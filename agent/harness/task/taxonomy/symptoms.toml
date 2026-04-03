@@ -566,3 +566,59 @@ component = "lock_body"
 severity  = 4
 category  = "alarm"
 brands    = { Milre = "長鳴不斷=鎖舌感應異常" }
+
+
+# ==========================================================
+# Fault Tree Cross-Reference Supplements
+# (Added to resolve FT-HW-001~005 missing symptom IDs)
+# ==========================================================
+
+[symptoms.door_wont_open_after_unlock_sound]
+label     = "解鎖有聲但門打不開"
+aliases   = [
+    "有解鎖聲但打不開", "聽到開鎖聲但門開不了",
+    "解鎖了但門推不開", "鎖有反應但門不動",
+]
+component = "lock_body"
+severity  = 5
+category  = "door_physical"
+
+[symptoms.door_gap_too_large]
+label     = "門縫過大"
+aliases   = [
+    "門縫太大", "門和門框有縫隙", "門關不緊有縫",
+    "門合不攏", "門縫很大",
+]
+component = "door_structure"
+severity  = 3
+category  = "auto_lock"
+
+[symptoms.beeping_no_operation]
+label     = "無操作但持續嗶聲"
+aliases   = [
+    "沒按什麼但一直嗶", "鎖自己嗶嗶叫",
+    "沒人碰但一直響", "待機也在叫",
+]
+component = "alarm_speaker"
+severity  = 3
+category  = "alarm"
+
+[symptoms.intermittent_beeping]
+label     = "間歇性嗶聲"
+aliases   = [
+    "偶爾嗶一下", "不定時嗶", "有時候會響",
+    "間歇嗶聲", "時不時嗶一聲",
+]
+component = "alarm_speaker"
+severity  = 2
+category  = "alarm"
+
+[symptoms.device_unstable]
+label     = "設備運作不穩定"
+aliases   = [
+    "鎖不太穩定", "功能時好時壞", "有時正常有時不正常",
+    "鎖很不穩", "一下可以一下不行",
+]
+component = "mainboard"
+severity  = 3
+category  = "network_power"

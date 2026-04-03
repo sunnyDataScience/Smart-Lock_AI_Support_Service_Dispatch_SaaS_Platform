@@ -5,8 +5,8 @@
   "version": "1.0",
   "updated_by": "domain_expert",
 
-  "required_symptoms": ["auto_lock_not_engaging"],
-  "optional_symptoms": ["motor_free_spin", "door_gap_too_large", "lock_not_locking"],
+  "required_symptoms": ["auto_lock_fail"],
+  "optional_symptoms": ["motor_free_spin", "door_gap_too_large", "door_cant_close"],
 
   "related_failures": ["F-LOCK-002"],
 

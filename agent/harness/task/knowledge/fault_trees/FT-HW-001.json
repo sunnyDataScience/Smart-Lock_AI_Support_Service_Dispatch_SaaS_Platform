@@ -5,8 +5,8 @@
   "version": "1.0",
   "updated_by": "domain_expert",
 
-  "required_symptoms": ["motor_sound_but_door_stuck"],
-  "optional_symptoms": ["lock_stuck", "door_wont_open_after_unlock_sound", "abnormal_motor_noise"],
+  "required_symptoms": ["motor_sound_no_open"],
+  "optional_symptoms": ["lock_tongue_stuck", "door_wont_open_after_unlock_sound", "motor_noise"],
 
   "related_failures": ["F-LOCK-001"],
 

@@ -5,9 +5,9 @@
   "version": "1.0",
   "updated_by": "domain_expert",
 
-  "required_symptoms": ["low_battery_warning", "wifi_disconnected", "battery_drain_fast", "device_unstable"],
+  "required_symptoms": ["low_battery_alarm", "wifi_disconnected", "abnormal_drain", "device_unstable"],
   "symptom_match_mode": "any_one",
-  "optional_symptoms": ["panel_no_response", "wifi_cannot_connect", "intermittent_beeping"],
+  "optional_symptoms": ["panel_unresponsive", "wifi_disconnected", "intermittent_beeping"],
 
   "related_failures": ["F-LOCK-007"],
 
