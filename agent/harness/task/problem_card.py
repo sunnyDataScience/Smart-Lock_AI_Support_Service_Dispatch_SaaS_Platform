@@ -129,22 +129,162 @@ def calculate_completeness(card: ProblemCard) -> float:
     return round(score, 2)
 
 
-# --- CRUD stubs (Phase 2 implementation) ---
+# --- CRUD (PostgreSQL persistence) ---
+
+import json as _json
+import os as _os
+
+
+async def _get_connection():
+    """Get async PostgreSQL connection from environment."""
+    uri = _os.getenv("POSTGRES_URI")
+    if not uri:
+        return None
+    try:
+        from psycopg import AsyncConnection
+        return await AsyncConnection.connect(uri)
+    except Exception as e:
+        print(f"[ProblemCard] DB connect failed: {e}")
+        return None
+
 
 async def save_problem_card(card: ProblemCard) -> None:
     """Persist ProblemCard to PostgreSQL problem_cards table.
 
-    Core fields -> dedicated columns.
-    domain_attributes -> JSONB column.
+    Uses UPSERT on card_id to handle both create and update.
+    Core fields → dedicated columns. domain_attributes → JSONB column.
     """
-    pass
+    conn = await _get_connection()
+    if not conn:
+        return
+
+    try:
+        await conn.execute("""
+            INSERT INTO problem_cards (
+                card_id, status, symptom_summary, category,
+                completeness_score, domain_attributes, diagnosis_status,
+                diagnostic_round, confidence_score, attempts,
+                resolution_summary, is_novel, sop_generated
+            ) VALUES (
+                %(card_id)s, %(status)s, %(symptom_summary)s, %(category)s,
+                %(completeness_score)s, %(domain_attributes)s, %(diagnosis_status)s,
+                %(diagnostic_round)s, %(confidence_score)s, %(attempts)s,
+                %(resolution_summary)s, %(is_novel)s, %(sop_generated)s
+            )
+            ON CONFLICT (card_id) DO UPDATE SET
+                status = EXCLUDED.status,
+                symptom_summary = EXCLUDED.symptom_summary,
+                category = EXCLUDED.category,
+                completeness_score = EXCLUDED.completeness_score,
+                domain_attributes = EXCLUDED.domain_attributes,
+                diagnosis_status = EXCLUDED.diagnosis_status,
+                diagnostic_round = EXCLUDED.diagnostic_round,
+                confidence_score = EXCLUDED.confidence_score,
+                attempts = EXCLUDED.attempts,
+                resolution_summary = EXCLUDED.resolution_summary,
+                is_novel = EXCLUDED.is_novel,
+                sop_generated = EXCLUDED.sop_generated,
+                updated_at = CURRENT_TIMESTAMP
+        """, {
+            "card_id": card.card_id,
+            "status": card.status.value if isinstance(card.status, CardStatus) else card.status,
+            "symptom_summary": card.symptom_summary,
+            "category": card.category,
+            "completeness_score": card.completeness_score,
+            "domain_attributes": _json.dumps(card.domain_attributes, ensure_ascii=False),
+            "diagnosis_status": "",
+            "diagnostic_round": 0,
+            "confidence_score": 0.0,
+            "attempts": _json.dumps(card.attempts, ensure_ascii=False, default=str),
+            "resolution_summary": card.resolution_summary,
+            "is_novel": card.is_novel,
+            "sop_generated": card.sop_generated,
+        })
+        await conn.commit()
+    except Exception as e:
+        print(f"[ProblemCard] save failed: {e}")
+    finally:
+        await conn.close()
 
 
 async def load_problem_card(card_id: str) -> ProblemCard | None:
-    """Load ProblemCard from PostgreSQL."""
-    return None
+    """Load ProblemCard from PostgreSQL by card_id."""
+    conn = await _get_connection()
+    if not conn:
+        return None
+
+    try:
+        cursor = await conn.execute(
+            "SELECT card_id, status, symptom_summary, category, "
+            "completeness_score, domain_attributes, attempts, "
+            "resolution_summary, is_novel, sop_generated "
+            "FROM problem_cards WHERE card_id = %s",
+            (card_id,),
+        )
+        row = await cursor.fetchone()
+        if not row:
+            return None
+
+        card = ProblemCard(
+            card_id=row[0],
+            symptom_summary=row[2] or "",
+            category=row[3] or "",
+            completeness_score=row[4] or 0.0,
+            domain_attributes=row[5] if isinstance(row[5], dict) else _json.loads(row[5] or "{}"),
+            resolution_summary=row[7] or "",
+            is_novel=row[8] or False,
+            sop_generated=row[9] or False,
+        )
+        try:
+            card.status = CardStatus(row[1])
+        except ValueError:
+            pass
+        card.attempts = row[6] if isinstance(row[6], list) else _json.loads(row[6] or "[]")
+        return card
+    except Exception as e:
+        print(f"[ProblemCard] load failed: {e}")
+        return None
+    finally:
+        await conn.close()
 
 
 async def find_similar_cards(symptom: str, limit: int = 5) -> list[ProblemCard]:
-    """Vector similarity search on symptom_summary for entropy detection."""
-    return []
+    """Find ProblemCards with similar symptom_summary (text search, not vector).
+
+    Phase 2: basic LIKE search. Phase 3: upgrade to vector similarity.
+    """
+    conn = await _get_connection()
+    if not conn:
+        return []
+
+    try:
+        cursor = await conn.execute(
+            "SELECT card_id, status, symptom_summary, category, "
+            "completeness_score, domain_attributes, attempts, "
+            "resolution_summary, is_novel, sop_generated "
+            "FROM problem_cards "
+            "WHERE symptom_summary ILIKE %s "
+            "ORDER BY created_at DESC LIMIT %s",
+            (f"%{symptom[:20]}%", limit),
+        )
+        rows = await cursor.fetchall()
+        cards = []
+        for row in rows:
+            card = ProblemCard(
+                card_id=row[0],
+                symptom_summary=row[2] or "",
+                category=row[3] or "",
+                completeness_score=row[4] or 0.0,
+                domain_attributes=row[5] if isinstance(row[5], dict) else _json.loads(row[5] or "{}"),
+                resolution_summary=row[7] or "",
+                is_novel=row[8] or False,
+                sop_generated=row[9] or False,
+            )
+            card.attempts = row[6] if isinstance(row[6], list) else _json.loads(row[6] or "[]")
+            cards.append(card)
+        return cards
+    except Exception as e:
+        print(f"[ProblemCard] find_similar failed: {e}")
+        return []
+    finally:
+        await conn.close()

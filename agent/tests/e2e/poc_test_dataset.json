@@ -1,0 +1,67 @@
+{
+  "_doc": "POC 測試資料集 — 50 筆對話，涵蓋 poc-spec.md 定義的 7 個類別",
+  "_version": "1.0",
+  "_date": "2026-04-06",
+
+  "test_cases": [
+
+    {"id": "TC-FP-01", "category": "fingerprint_verification", "query": "我的電子鎖按指紋沒反應，螢幕也不亮", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "驗證失敗 + 可能電力問題"},
+    {"id": "TC-FP-02", "category": "fingerprint_verification", "query": "指紋辨識變得很慢，要按好幾次才能開門", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "指紋感應器退化"},
+    {"id": "TC-FP-03", "category": "fingerprint_verification", "query": "我老婆的指紋一直感應不到，但我的可以", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "特定使用者指紋問題"},
+    {"id": "TC-FP-04", "category": "fingerprint_verification", "query": "密碼鎖打不開，按完密碼沒反應", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "密碼驗證失敗"},
+    {"id": "TC-FP-05", "category": "fingerprint_verification", "query": "人臉辨識一直失敗，是不是壞了", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "人臉辨識故障"},
+    {"id": "TC-FP-06", "category": "fingerprint_verification", "query": "感應卡片嗶一聲但門沒開", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "卡片驗證失敗"},
+    {"id": "TC-FP-07", "category": "fingerprint_verification", "query": "我輸入密碼後螢幕閃了6下紅燈", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "品牌錯誤碼 — 螢幕閃6下"},
+    {"id": "TC-FP-08", "category": "fingerprint_verification", "query": "新登錄的指紋都存不進去", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "資料未儲存"},
+    {"id": "TC-FP-09", "category": "fingerprint_verification", "query": "dormakaba 的鎖，指紋跟卡片都不能單獨開門了", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "雙重認證誤觸"},
+    {"id": "TC-FP-10", "category": "fingerprint_verification", "query": "密碼輸入後被鎖住了，要等多久才能再試", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "密碼鎖定"},
+
+    {"id": "TC-PW-01", "category": "power_screen_battery", "query": "電子鎖螢幕完全不亮了", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "電力問題"},
+    {"id": "TC-PW-02", "category": "power_screen_battery", "query": "電池多久需要換一次？用什麼電池？", "expected_intent": "store_info", "expected_path": "rag", "notes": "電池規格查詢"},
+    {"id": "TC-PW-03", "category": "power_screen_battery", "query": "換了新電池還是會一直發出警報聲", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "電池類型錯誤導致假警報"},
+    {"id": "TC-PW-04", "category": "power_screen_battery", "query": "用行動電源可以緊急供電嗎", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "緊急供電方式"},
+    {"id": "TC-PW-05", "category": "power_screen_battery", "query": "鎖沒電了，我有鑰匙但找不到鑰匙孔", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "緊急開鎖"},
+    {"id": "TC-PW-06", "category": "power_screen_battery", "query": "電池才換一個禮拜就沒電了", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "異常耗電"},
+    {"id": "TC-PW-07", "category": "power_screen_battery", "query": "可以用快充頭幫電子鎖充電嗎", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "快充禁止"},
+    {"id": "TC-PW-08", "category": "power_screen_battery", "query": "螢幕有時亮有時不亮，接觸不良嗎", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "排線問題"},
+
+    {"id": "TC-LM-01", "category": "latch_mechanism", "query": "門鎖打不開，按解鎖有聽到馬達聲", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "鎖舌卡死 — FT-HW-001"},
+    {"id": "TC-LM-02", "category": "latch_mechanism", "query": "門關不上，鎖舌縮不回去", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "自動上鎖失效"},
+    {"id": "TC-LM-03", "category": "latch_mechanism", "query": "關門後不會自動上鎖了", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "感應器問題 — FT-HW-002"},
+    {"id": "TC-LM-04", "category": "latch_mechanism", "query": "馬達一直空轉，鎖舌不動", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "馬達/離合器故障"},
+    {"id": "TC-LM-05", "category": "latch_mechanism", "query": "門關上去會彈開來", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "門扇反弓"},
+    {"id": "TC-LM-06", "category": "latch_mechanism", "query": "dormakaba 的鎖紅燈閃了 4 次", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "品牌錯誤碼 — 馬達異常"},
+    {"id": "TC-LM-07", "category": "latch_mechanism", "query": "Kaadas 鎖紅燈閃 5 下是什麼意思", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "品牌錯誤碼 — 馬達堵轉"},
+    {"id": "TC-LM-08", "category": "latch_mechanism", "query": "Philips 鎖紅燈閃 3 次，把手轉不動", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "品牌錯誤碼 — 離合器異常"},
+
+    {"id": "TC-APP-01", "category": "app_operation", "query": "怎麼把家人加入 Chatlock AI-99 的 APP", "expected_intent": "app_support", "expected_path": "rag", "notes": "家庭成員邀請"},
+    {"id": "TC-APP-02", "category": "app_operation", "query": "APP 怎麼解除綁定", "expected_intent": "app_support", "expected_path": "rag", "notes": "裝置解綁"},
+    {"id": "TC-APP-03", "category": "app_operation", "query": "怎麼用手機遠端開鎖", "expected_intent": "app_support", "expected_path": "rag", "notes": "遠端開鎖"},
+    {"id": "TC-APP-04", "category": "app_operation", "query": "APP 連不上鎖，一直轉圈圈", "expected_intent": "app_support", "expected_path": "rag", "notes": "WiFi 連線問題"},
+    {"id": "TC-APP-05", "category": "app_operation", "query": "怎麼設定管理者密碼", "expected_intent": "app_support", "expected_path": "rag", "notes": "權限設定"},
+    {"id": "TC-APP-06", "category": "app_operation", "query": "Chatlock AI-99 的視訊監看怎麼用", "expected_intent": "app_support", "expected_path": "rag", "notes": "視訊功能"},
+    {"id": "TC-APP-07", "category": "app_operation", "query": "怎麼清除 APP 緩存", "expected_intent": "app_support", "expected_path": "rag", "notes": "APP 維護"},
+    {"id": "TC-APP-08", "category": "app_operation", "query": "APP 裡面怎麼改語言設定", "expected_intent": "app_support", "expected_path": "rag", "notes": "語言切換"},
+    {"id": "TC-APP-09", "category": "app_operation", "query": "WiFi 一直斷線，是不是路由器的問題", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "網路問題 — 2.4G/5G 頻段"},
+    {"id": "TC-APP-10", "category": "app_operation", "query": "怎麼開啟雙重認證模式", "expected_intent": "app_support", "expected_path": "rag", "notes": "雙重認證設定"},
+
+    {"id": "TC-INS-01", "category": "installation", "query": "我家的門可以裝電子鎖嗎？是木門", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "安裝評估"},
+    {"id": "TC-INS-02", "category": "installation", "query": "玻璃門能裝電子鎖嗎", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "玻璃門評估"},
+    {"id": "TC-INS-03", "category": "installation", "query": "鐵門裝電子鎖需要另外買什麼嗎", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "鐵門安裝"},
+    {"id": "TC-INS-04", "category": "installation", "query": "裝電子鎖需要改門嗎", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "門改造評估"},
+    {"id": "TC-INS-05", "category": "installation", "query": "側板規格歐規跟美規差在哪", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "側板規格"},
+    {"id": "TC-INS-06", "category": "installation", "query": "安裝費用大概多少", "expected_intent": "sales_and_service", "expected_path": "rag", "notes": "安裝報價"},
+
+    {"id": "TC-MIX-01", "category": "mixed_vague", "query": "鎖壞了怎麼辦", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "模糊描述 — 需要追問"},
+    {"id": "TC-MIX-02", "category": "mixed_vague", "query": "鎖怪怪的", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "極度模糊 — 需要追問品牌+症狀"},
+    {"id": "TC-MIX-03", "category": "mixed_vague", "query": "門鎖好像不太正常，有時候可以開有時候不行", "expected_intent": "hardware_tech", "expected_path": "diagnostic", "notes": "間歇性故障"},
+    {"id": "TC-MIX-04", "category": "mixed_vague", "query": "我要修鎖，可以到府服務嗎", "expected_intent": "sales_and_service", "expected_path": "rag", "notes": "服務預約"},
+    {"id": "TC-MIX-05", "category": "mixed_vague", "query": "幫我查一下我之前的維修紀錄", "expected_intent": "general_reception", "expected_path": "rag", "notes": "無對應功能"},
+
+    {"id": "TC-BD-01", "category": "boundary", "query": "你們週末有開嗎", "expected_intent": "store_info", "expected_path": "rag", "notes": "門市資訊"},
+    {"id": "TC-BD-02", "category": "boundary", "query": "今天台北天氣如何", "expected_intent": "out_of_domain", "expected_path": "reject", "notes": "領域外問題"},
+    {"id": "TC-BD-03", "category": "boundary", "query": "我被鎖在門外了，家裡有小孩很急！", "expected_intent": "hardware_tech", "expected_path": "red_code", "notes": "Red_Code 緊急"},
+    {"id": "TC-BD-04", "category": "boundary", "query": "你們服務態度很差，我要投訴", "expected_intent": "transfer_human", "expected_path": "escalation", "notes": "情緒升級"},
+    {"id": "TC-BD-05", "category": "boundary", "query": "請幫我下載 dormakaba 的說明書", "expected_intent": "manual_request", "expected_path": "rag", "notes": "說明書下載"}
+  ]
+}

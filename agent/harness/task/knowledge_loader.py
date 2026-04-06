@@ -88,11 +88,30 @@ class KnowledgeLoader:
             indent=2,
         )
 
-    def get_component_graph(self) -> str:
-        """Serialize component topology for prompt injection."""
-        components = self._components.get("components", {})
+    def get_component_graph(self, brand: str = "") -> str:
+        """Serialize component topology for prompt injection.
+
+        If brand is specified, merge brand-specific overrides from
+        [brand_overrides.<brand>.components.*] in components.toml.
+        """
+        components = dict(self._components.get("components", {}))
         if not components:
             return "(no component graph loaded)"
+
+        # Merge brand-specific overrides
+        if brand:
+            overrides = (
+                self._components
+                .get("brand_overrides", {})
+                .get(brand, {})
+                .get("components", {})
+            )
+            for cid, override_data in overrides.items():
+                if cid in components:
+                    components[cid] = {**components[cid], **override_data}
+                else:
+                    components[cid] = override_data
+
         lines = []
         for cid, data in components.items():
             parts = [f"{cid} ({data.get('label', cid)}, {data.get('type', '?')})"]
@@ -104,6 +123,10 @@ class KnowledgeLoader:
                 parts.append(f"powered_by: {pb}")
             if sf := data.get("shared_fault"):
                 parts.append(f"shared_fault: {sf}")
+            if ec := data.get("error_codes"):
+                parts.append(f"error_codes: {ec}")
+            if ds := data.get("dispatch_signals"):
+                parts.append(f"dispatch_signals: {ds}")
             lines.append("  ".join(parts))
         return "\n".join(lines)
 

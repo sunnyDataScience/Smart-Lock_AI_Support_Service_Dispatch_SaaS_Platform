@@ -47,3 +47,6 @@ class GraphState(TypedDict):
     feedback: Annotated[dict, _merge_dict]       # L5: {verification_status, quality_scores, retry_adjustments}
     safety: Annotated[dict, _merge_dict]         # L6: {permission_level, audit_trail, flagged_risks}
     entropy: Annotated[dict, _merge_dict]        # L8: {novel_resolution, sop_candidates}
+
+    # === Inter-Agent Messaging (Phase 0) ===
+    agent_messages: Annotated[list, _add_or_reset]  # Serialized AgentMessage records

@@ -5,7 +5,7 @@ from langchain_core.runnables import RunnableConfig
 from core.config import (
     LLM_CONFIG, INTENTS_CONFIG,
     SYSTEM_CONFIG, USER_PROFILE_CONFIG, MEMORY_CONFIG, AGENTS_CONFIG,
-    PROMPTS_CONFIG, TEMPLATES_CONFIG,
+    PROMPTS_CONFIG, TEMPLATES_CONFIG, HARNESS_CONFIG,
 )
 from profiles import ProfileManager
 from tools.line_ui_factory import build_line_messages
@@ -13,11 +13,13 @@ from graph.state import GraphState
 from llms import get_llm
 from agents import load_prompt_template
 from core.debug_log import log_final_answer as debug_log_final_answer
+from harness.observability.tracer import traced
 
 llm = get_llm(LLM_CONFIG)
 profile_manager = ProfileManager(USER_PROFILE_CONFIG)
 
 
+@traced("pre_process")
 async def pre_process(state: GraphState, config: RunnableConfig):
     """載入 user profile、將 question 轉為 HumanMessage"""
     print("  [pre_process] 正在準備輸入...")
@@ -59,6 +61,7 @@ async def pre_process(state: GraphState, config: RunnableConfig):
     }
 
 
+@traced("manage_memory")
 async def manage_memory(state: GraphState, config: RunnableConfig):
     """語意摘要壓縮：當 messages 超過閾值時，用 LLM 摘要舊訊息並刪除"""
     print("  [manage_memory] 檢查是否需要壓縮記憶...")
@@ -125,6 +128,7 @@ async def manage_memory(state: GraphState, config: RunnableConfig):
     }
 
 
+@traced("rewrite_query")
 async def rewrite_query(state: GraphState, config: RunnableConfig):
     """用 LLM 將口語化問題改寫為精準檢索句"""
     original = state.get("question", "")
@@ -190,6 +194,7 @@ def _extract_recent_pairs(messages: list, max_pairs: int, skip_latest_human: boo
     return conversation[-(max_pairs * 2):]
 
 
+@traced("task_decompose")
 async def task_decompose(state: GraphState, config: RunnableConfig):
     """L1 Harness: Software 3.0 diagnostic reasoning engine.
 
@@ -200,6 +205,17 @@ async def task_decompose(state: GraphState, config: RunnableConfig):
     return await _harness_decompose(state, config)
 
 
+@traced("context_assemble")
+async def context_assemble(state: GraphState, config: RunnableConfig):
+    """L2 Harness: Context assembly with freshness scoring and token budget.
+
+    When disabled, acts as pass-through.
+    """
+    from harness.context.assembler import context_assemble as _assembler
+    return await _assembler(state, config)
+
+
+@traced("safety_gate")
 async def safety_gate(state: GraphState, config: RunnableConfig):
     """L6 Harness: Pre-routing safety check.
 
@@ -207,138 +223,168 @@ async def safety_gate(state: GraphState, config: RunnableConfig):
     When disabled, acts as pass-through.
     """
     from harness.safety.gate import safety_gate as _harness_gate
-    return await _harness_gate(state)
+    result = await _harness_gate(state)
+
+    # Audit log: record safety gate decision
+    safety = result.get("safety", {})
+    if safety:
+        try:
+            cfg = config.get("configurable", {})
+            user_id = cfg.get("user_id") or cfg.get("thread_id", "anonymous")
+            audit = cfg.get("audit_storage")
+            if audit and hasattr(audit, "log_safety_gate"):
+                decision = "blocked" if safety.get("requires_approval") else "passed"
+                await audit.log_safety_gate(
+                    user_id=user_id,
+                    decision=decision,
+                    risks=safety.get("flagged_risks", []),
+                    sentiment_level=safety.get("sentiment_level", ""),
+                    red_code=safety.get("red_code", False),
+                )
+        except Exception:
+            pass
+
+    return result
 
 
-async def router(state: GraphState, config: RunnableConfig):
-    """意圖分類 + agent 派發。
+@traced("diagnostic_respond")
+async def diagnostic_respond(state: GraphState, config: RunnableConfig):
+    """將診斷推理結果轉換為自然語言回覆（診斷短路，跳過 RAG agents）。"""
+    print("  [diagnostic_respond] 正在產生診斷回覆...")
 
-    Phase 1: LLM-based intent classification (current).
-    Phase 2: If task_decompose populated state["task"]["intents"], use those instead (config lookup).
-    """
-    # Software 3.0: if task_decompose already classified intents, use them directly
-    task_intents = state.get("task", {}).get("intents")
-    if task_intents:
-        from core.config import INTENTS_CONFIG, AGENTS_CONFIG
-        intent_to_target = {i["name"]: i.get("target", i["name"]) for i in INTENTS_CONFIG}
-        valid_agents = {a["name"] for a in AGENTS_CONFIG}
-        targets = []
-        for intent_name in task_intents:
-            t = intent_to_target.get(intent_name, intent_name)
-            if t in valid_agents and t not in targets:
-                targets.append(t)
-        if targets:
-            print(f"  [router] config dispatch from task_decompose intents: {targets}")
-            return {
-                "next_agents": targets,
-                "history": [f"router:config_dispatch:{'+'.join(targets)}"],
-            }
-        # Fallback to LLM-based classification if intents didn't map
+    task = state.get("task", {})
+    diagnostic_context_raw = task.get("diagnostic_context", "{}")
+    diagnosis_status = task.get("diagnosis_status", "")
 
-    print("  [router] 正在分類意圖...")
+    try:
+        ctx = json.loads(diagnostic_context_raw) if isinstance(diagnostic_context_raw, str) else diagnostic_context_raw
+    except (json.JSONDecodeError, TypeError):
+        ctx = {}
 
+    next_action = ctx.get("next_action", {})
+    action_type = next_action.get("type", "")
+    immediate_fix = ctx.get("corrective_action_immediate", "")
+
+    if diagnosis_status == "verifying":
+        # 追問驗證：提取追問問題
+        question = next_action.get("question", "")
+        if immediate_fix and question:
+            answer = f"{immediate_fix}\n\n{question}"
+        elif question:
+            answer = question
+        else:
+            answer = "可以請您提供更多關於故障狀況的資訊嗎？"
+
+    elif diagnosis_status in ("conclusion_ready", "remote_resolved"):
+        # 結論已收斂：用 LLM 將結構化結果轉為友善回覆
+        answer = await _format_diagnostic_conclusion(ctx, state.get("question", ""))
+
+    elif diagnosis_status == "dispatch_recommended":
+        # 建議派工
+        answer = await _format_dispatch_recommendation(ctx, state.get("question", ""))
+
+    else:
+        answer = ""
+
+    print(f"  [diagnostic_respond] status={diagnosis_status}, answer={answer[:30]}...")
+
+    return {
+        "answer": answer,
+        "next_agents": [],
+        "history": [f"diagnostic_respond:{diagnosis_status}"],
+    }
+
+
+async def _format_diagnostic_conclusion(ctx: dict, question: str) -> str:
+    """用 LLM 將診斷結論轉為親切的繁體中文回覆"""
+    immediate_fix = ctx.get("corrective_action_immediate", "")
+    steps = ctx.get("corrective_action_steps", [])
+    hypotheses = ctx.get("hypothesized_failure_modes", [])
     domain = SYSTEM_CONFIG.get("domain", "電子鎖")
 
-    # 建構意圖選項清單
-    intent_lines = []
-    for intent in INTENTS_CONFIG:
-        name = intent["name"]
-        label = intent.get("label", name)
-        desc = intent.get("description", "")
-        intent_lines.append(f'- "{name}": {label} — {desc}')
-    intent_list = "\n".join(intent_lines)
+    diagnosis_summary = json.dumps({
+        "hypothesized_failure_modes": hypotheses,
+        "corrective_action_immediate": immediate_fix,
+        "corrective_action_steps": steps,
+    }, ensure_ascii=False, indent=2)
 
-    # 載入 router prompt
-    router_prompt = load_prompt_template(
-        PROMPTS_CONFIG.get("router", "agents/prompts/router.md"),
-        domain=domain,
-        intent_list=intent_list,
+    prompt = (
+        f"你是「{domain}」專屬客服。根據以下診斷結果，用親切的繁體中文回覆使用者。\n"
+        f"使用者問題：{question}\n"
+        f"診斷結果：\n{diagnosis_summary}\n\n"
+        "要求：\n"
+        "- 用自然口語回覆，不要機械式條列\n"
+        "- 先說明可能的原因，再提供修復步驟\n"
+        "- 如果有立即可嘗試的方法，優先告訴使用者\n"
+        "- 語氣親切專業，像有經驗的師傅在指導\n"
+        "- 不要提及任何系統內部資訊（如 JSON、向量搜尋等）"
     )
 
-    # 取得使用者問題（從 messages 中找最後一個 HumanMessage）
+    response = await llm.ainvoke([HumanMessage(content=prompt)])
+    return response.content.strip()
+
+
+async def _format_dispatch_recommendation(ctx: dict, question: str) -> str:
+    """用 LLM 格式化派工建議"""
+    hypotheses = ctx.get("hypothesized_failure_modes", [])
+    domain = SYSTEM_CONFIG.get("domain", "電子鎖")
+
+    dispatch_summary = json.dumps({
+        "hypothesized_failure_modes": hypotheses,
+        "dispatch_reason": ctx.get("dispatch_reason", "需要現場檢修"),
+    }, ensure_ascii=False, indent=2)
+
+    prompt = (
+        f"你是「{domain}」專屬客服。根據診斷結果，這個問題需要派技師到現場處理。\n"
+        f"使用者問題：{question}\n"
+        f"診斷結果：\n{dispatch_summary}\n\n"
+        "要求：\n"
+        "- 先說明為什麼需要現場處理\n"
+        "- 語氣親切，表示理解使用者的不便\n"
+        "- 告知接下來會安排技師聯繫\n"
+        "- 不要提及任何系統內部資訊"
+    )
+
+    response = await llm.ainvoke([HumanMessage(content=prompt)])
+    return response.content.strip()
+
+
+@traced("router")
+async def router(state: GraphState, config: RunnableConfig):
+    """Pure config-based intent dispatch (zero LLM).
+
+    Reads task.intents from task_decompose → maps to agents via config.toml [[intents]].
+    Only uses LLM for out_of_domain polite rejection.
+    """
     question = state.get("question", "")
 
     # Guardrail：敏感交易詞彙強制轉接真人
     sensitive_keywords = SYSTEM_CONFIG.get("sensitive_keywords", [])
-    if sensitive_keywords:
-        for kw in sensitive_keywords:
-            if kw in question:
-                print(f"  [Guardrail] 偵測到敏感詞彙「{kw}」，轉交 receptionist 處理")
-                return {
-                    "next_agents": ["receptionist"],
-                    "history": ["guardrail_triggered"],
-                }
+    for kw in sensitive_keywords:
+        if kw in question:
+            print(f"  [Guardrail] 偵測到敏感詞彙「{kw}」，轉交 receptionist 處理")
+            return {
+                "next_agents": ["receptionist"],
+                "history": ["guardrail_triggered"],
+            }
 
-    router_context_pairs = MEMORY_CONFIG.get("router_context_pairs", 3)
-    recent_context = _extract_recent_pairs(
-        state.get("messages", []), router_context_pairs, skip_latest_human=True
-    )
-
-    router_messages = [SystemMessage(content=router_prompt)]
-    router_messages.extend(recent_context)
-    router_messages.append(HumanMessage(content=question))
-
-    print(f"  [router] 送出 {len(router_messages)} 則 messages（含 {len(recent_context)} 則歷史上下文）")
-
-    response = await llm.ainvoke(router_messages)
-
-    # 解析 LLM 回覆：intent 區塊 + consolidated query（用 --- 分隔）
-    raw = response.content.strip()
-    consolidated_query = question  # fallback 為原始問題
-
-    if "---" in raw:
-        parts = raw.split("---", 1)
-        intent_block = parts[0].strip()
-        query_block = parts[1].strip()
-        if query_block:
-            consolidated_query = query_block
-    else:
-        intent_block = raw
-
-    intent_names = [line.strip().strip('"').strip("'").lower() for line in intent_block.splitlines() if line.strip()]
-    print(f"  [router] 意圖分類結果: {intent_names}")
-    if consolidated_query != question:
-        print(f"  [router] 濃縮問題: {question} → {consolidated_query}")
-
-    # 建構意圖名稱 → target 對應表
-    intent_to_target = {}
-    for intent in INTENTS_CONFIG:
-        intent_to_target[intent["name"]] = intent.get("target", intent["name"])
+    # Config lookup: task_decompose 已分類意圖
+    task_intents = state.get("task", {}).get("intents", [])
+    intent_to_target = {i["name"]: i.get("target", i["name"]) for i in INTENTS_CONFIG}
     valid_agents = {a["name"] for a in AGENTS_CONFIG}
 
-    # 逐一解析，去重
     targets = []
-    seen = set()
-    for intent_name in intent_names:
-        if intent_name in intent_to_target:
-            t = intent_to_target[intent_name]
-        elif intent_name in valid_agents:
-            t = intent_name
-        else:
-            print(f"  [router] 未知意圖 '{intent_name}'，跳過")
-            continue
-        if t not in seen:
+    for intent_name in task_intents:
+        t = intent_to_target.get(intent_name, intent_name)
+        if t in valid_agents and t not in targets:
             targets.append(t)
-            seen.add(t)
-
-    if not targets:
-        # Fallback to receptionist (or first configured agent if receptionist not found)
-        fallback = "receptionist"
-        agent_names = {a["name"] for a in AGENTS_CONFIG}
-        if fallback not in agent_names and agent_names:
-            fallback = next(iter(agent_names))
-        targets = [fallback]
-        print(f"  [router] 無有效意圖，fallback 到 {fallback}")
-
-    # out_of_domain 不與其他意圖混合
-    if "out_of_domain" in targets:
-        targets = ["out_of_domain"]
 
     # out_of_domain：由 router 直接產生禮貌拒絕
-    if targets == ["out_of_domain"]:
+    if "out_of_domain" in targets or (task_intents and task_intents == ["out_of_domain"]):
         print("  [router] 直接處理 out_of_domain...")
         domain = SYSTEM_CONFIG.get("domain", "電子鎖")
-        prompt = f"你是「{domain}」專屬客服。使用者問了與服務範圍無關的問題：「{question}」。請用繁體中文禮貌拒絕並引導詢問{domain}相關問題。語氣親切簡潔。"
+        prompt = (f"你是「{domain}」專屬客服。使用者問了與服務範圍無關的問題："
+                  f"「{question}」。請用繁體中文禮貌拒絕並引導詢問{domain}相關問題。語氣親切簡潔。")
         response = await llm.ainvoke([HumanMessage(content=prompt)])
         return {
             "answer": response.content.strip(),
@@ -346,22 +392,21 @@ async def router(state: GraphState, config: RunnableConfig):
             "history": ["router:out_of_domain"],
         }
 
-    print(f"  [router] 派發目標: {targets}")
+    if not targets:
+        targets = ["receptionist"]
+        print(f"  [router] 無有效意圖，fallback 到 receptionist")
 
-    result = {
+    print(f"  [router] config dispatch: {task_intents} → {targets}")
+
+    return {
         "next_agents": targets,
-        "history": [f"router:{'+'.join(targets)}"],
+        "history": [f"router:config_dispatch:{'+'.join(targets)}"],
     }
 
-    # 如果 router 濃縮了問題，更新 question 讓 agent 使用
-    if consolidated_query != question:
-        result["question"] = consolidated_query
-
-    return result
 
 
 
-
+@traced("merge_answers")
 async def merge_answers(state: GraphState):
     """從 agent 回覆提取 answer（多 agent 用 LLM 合併）+ 偵測 topic_resolved"""
     print("  [merge_answers] 正在提取並合併回覆...")
@@ -500,6 +545,17 @@ async def merge_answers(state: GraphState):
     }
 
 
+@traced("verify_answer")
+async def verify_answer(state: GraphState, config: RunnableConfig):
+    """L5 Harness: Answer quality evaluation + retry decision.
+
+    When disabled, acts as pass-through.
+    """
+    from harness.feedback.verifier import verify_answer as _verifier
+    return await _verifier(state, config)
+
+
+@traced("update_profile")
 async def update_profile(state: GraphState, config: RunnableConfig):
     """用 LLM 從對話萃取個資並更新 user profile"""
     print("  [update_profile] 正在更新使用者輪廓...")
@@ -576,16 +632,46 @@ def _strip_markdown(text: str) -> str:
     return text.strip()
 
 
+@traced("entropy_check")
+async def entropy_check(state: GraphState, config: RunnableConfig):
+    """L8 Harness: Novel resolution detection + SOP generation trigger.
+
+    When disabled, acts as pass-through.
+    """
+    from harness.entropy.checker import entropy_check as _checker
+    return await _checker(state)
+
+
+@traced("post_process")
 async def post_process(state: GraphState):
-    """回傳最終 answer + 建構 LINE Message 物件"""
+    """回傳最終 answer + 建構 LINE Message 物件 + flush traces + serialize agent messages"""
     print("  [post_process] 回傳最終回覆...")
     answer = state.get("answer", "")
     answer = _strip_markdown(answer)
     ui_hints = state.get("ui_hints", [])
     response_ui = build_line_messages(answer, ui_hints)
     debug_log_final_answer("head → 使用者（最終回覆）", answer)
-    return {
+
+    result = {
         "answer": answer,
         "response_ui": response_ui,
         "history": ["post_process"],
     }
+
+    # Flush harness traces to DB (non-blocking)
+    try:
+        from harness.observability.tracer import flush_traces_to_db
+        await flush_traces_to_db()
+    except Exception:
+        pass
+
+    # Serialize inter-agent messages to state
+    try:
+        from messaging.bus import get_message_bus
+        bus = get_message_bus()
+        if bus.count > 0:
+            result["agent_messages"] = bus.serialize()
+    except Exception:
+        pass
+
+    return result

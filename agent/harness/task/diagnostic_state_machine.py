@@ -148,6 +148,10 @@ class DiagnosticContext:
     hypothesized_fms: list[dict] = field(default_factory=list)
     verification_answers: list[dict] = field(default_factory=list)
 
+    # Confidence accumulation
+    confidence_score: float = 0.0
+    confidence_threshold: float = 0.75
+
     # Flags
     red_code: bool = False
     escalation_required: bool = False
@@ -185,6 +189,8 @@ class DiagnosticContext:
             "matched_failures": self.matched_failures,
             "hypothesized_fms": self.hypothesized_fms,
             "verification_answers": self.verification_answers,
+            "confidence_score": self.confidence_score,
+            "confidence_threshold": self.confidence_threshold,
             "red_code": self.red_code,
             "escalation_required": self.escalation_required,
             "dispatch_signal_detected": self.dispatch_signal_detected,
@@ -204,6 +210,8 @@ class DiagnosticContext:
         ctx.matched_failures = data.get("matched_failures", [])
         ctx.hypothesized_fms = data.get("hypothesized_fms", [])
         ctx.verification_answers = data.get("verification_answers", [])
+        ctx.confidence_score = data.get("confidence_score", 0.0)
+        ctx.confidence_threshold = data.get("confidence_threshold", 0.75)
         ctx.red_code = data.get("red_code", False)
         ctx.escalation_required = data.get("escalation_required", False)
         ctx.dispatch_signal_detected = data.get("dispatch_signal_detected", False)
@@ -220,9 +228,10 @@ def resolve_next_state(
     Priority order:
     1. Red_Code / escalation (safety gate) → ESCALATED
     2. Dispatch signal (LLM detected brand error code) → DISPATCH_RECOMMENDED
-    3. Verification round limit → DISPATCH_RECOMMENDED
-    4. LLM diagnosis_status → mapped state
-    5. Default → VERIFYING (need more info)
+    3. Confidence threshold reached → CONCLUSION_READY
+    4. Verification round limit → DISPATCH_RECOMMENDED
+    5. LLM diagnosis_status → mapped state
+    6. Default → VERIFYING (need more info)
     """
     # 1. Safety override
     if safety_result:
@@ -237,7 +246,11 @@ def resolve_next_state(
     if llm_status == "recommend_dispatch" or ctx.dispatch_signal_detected:
         return DiagnosticState.DISPATCH_RECOMMENDED
 
-    # 3. Verification round limit
+    # 3. Confidence threshold reached
+    if ctx.confidence_score >= ctx.confidence_threshold and llm_status == "need_more_info":
+        return DiagnosticState.CONCLUSION_READY
+
+    # 4. Verification round limit
     if ctx.verification_round >= ctx.max_verification_rounds and llm_status == "need_more_info":
         return DiagnosticState.DISPATCH_RECOMMENDED
 

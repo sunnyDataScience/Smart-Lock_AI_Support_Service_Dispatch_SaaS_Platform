@@ -395,11 +395,11 @@ sop_generator    = "harness/entropy/prompts/generate_sop.md"
 # Enable incrementally per phase as implementation completes.
 
 [harness]
-enabled = false                          # Master switch for all harness layers
+enabled = true                           # Master switch for all harness layers
 
 [harness.task]
 # L1: Task Representation — Software 3.0 Diagnostic Reasoning Engine
-decompose_enabled = false                # Enable task_decompose node
+decompose_enabled = true                 # Enable task_decompose node
 # No mode switch needed — diagnostic depth determined by knowledge context richness
 problem_card_intents = ["hardware_tech", "app_support"]   # Intents that trigger ProblemCard
 diagnostic_intents = ["hardware_tech"]   # Intents eligible for diagnostic reasoning
@@ -415,6 +415,7 @@ fields = ["device_brand", "device_model", "door_type", "fault_category"]
 
 [harness.context]
 # L2: Context Assembly
+assemble_enabled = false                 # V1.0: disabled for latency (optimization-strategy.md)
 token_budget = 4096                      # Max tokens for assembled context
 freshness_threshold_days = 90            # Sources older than this get low score
 
@@ -425,22 +426,22 @@ risk_levels = {transfer_to_human = "escalate", db_video = "read", db_line_chat =
 
 [harness.feedback]
 # L5: Feedback & Verification
-verify_enabled = false                   # Enable verify_answer node
+verify_enabled = false                   # V1.0: disabled for latency (optimization-strategy.md)
 quality_threshold = 0.6                  # Min score to pass (0.0~1.0)
 max_retry = 1                            # Max feedback retry count
 
 [harness.safety]
 # L6: Safety & Control
 dangerous_instruction_keywords = ["拆開電路板", "剪斷電線", "短路", "破壞鎖體"]
-audit_enabled = false                    # Enable tool audit trail
+audit_enabled = true                     # Enable tool audit trail
 
 [harness.observability]
 # L7: Observability
-trace_enabled = false                    # Enable @traced decorator
+trace_enabled = true                     # Enable @traced decorator
 metrics_backend = "postgres"             # "postgres" | "stdout"
 
 [harness.entropy]
 # L8: Entropy Management
-sop_generation_enabled = false           # Enable auto-SOP from novel resolutions
+sop_generation_enabled = true            # Enable auto-SOP from novel resolutions
 novel_resolution_threshold = 0.3         # Similarity < this triggers SOP candidate
 staleness_check_interval_hours = 168     # Weekly freshness scan

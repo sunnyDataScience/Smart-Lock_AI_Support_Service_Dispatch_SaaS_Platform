@@ -25,17 +25,47 @@ graph TD
     subgraph supervisor_graph ["Supervisor Graph（LangGraph + PostgreSQL Checkpointer）"]
         pre_process["pre_process<br/><small>載入 user profile<br/>注入 [前情提要] 摘要<br/>加入 HumanMessage<br/>組裝 messages</small>"]
         manage_memory["manage_memory<br/><small>語意摘要壓縮<br/>messages > 閾值時觸發<br/>LLM 壓縮舊訊息</small>"]
-        router["router<br/><small>敏感詞攔截 → 強制轉接<br/>LLM 意圖分類<br/>直產轉接表單/拒絕語<br/>→ next_agents</small>"]
+        rewrite_query["rewrite_query<br/><small>LLM 口語改寫<br/>代名詞補全<br/>輪廓/摘要補充上下文</small>"]
+        task_decompose["task_decompose ⚡L1<br/><small>Software 3.0 診斷推理<br/>意圖分類 → task.intents<br/>Confidence Score 累積</small>"]
+        context_assemble["context_assemble 📋L2<br/><small>Freshness 評分<br/>Token Budget 控制<br/>Retry 調整<br/>V1.0: pass-through</small>"]
+        safety_gate["safety_gate 🛡️L6<br/><small>危險指令偵測<br/>PII 偵測<br/>情緒分析 + Red_Code<br/>requires_approval → 攔截</small>"]
+        diagnostic_respond["diagnostic_respond<br/><small>診斷短路（跳過 RAG）<br/>verifying → 追問問題<br/>conclusion → 修復步驟<br/>dispatch → 派工建議</small>"]
+        router["router<br/><small>Config Lookup 派發<br/>讀取 task.intents<br/>LLM fallback（備用）<br/>敏感詞攔截 → 轉接<br/>→ next_agents</small>"]
         merge_answers["merge_answers<br/><small>提取 answer<br/>多 agent 時 LLM 合併<br/>話題偵測<br/>轉接後清除 agent 訊息</small>"]
+        verify_answer["verify_answer ✅L5<br/><small>LLM 品質評分<br/>completeness/accuracy/<br/>safety/actionability<br/>V1.0: pass-through</small>"]
         update_profile["update_profile<br/><small>LLM 萃取個資<br/>更新 user profile</small>"]
+        entropy_check["entropy_check 🔄L8<br/><small>新案例偵測<br/>SOP 候選佇列<br/>知識飛輪觸發</small>"]
         post_process["post_process<br/><small>Markdown 清洗<br/>UI 工廠（ui_hints → FlexMessage）<br/>回傳 answer + response_ui</small>"]
     end
 
-    subgraph agents_layer ["Agent 子圖（Send fan-out 平行派發 + ui_hints 攔截）"]
+    subgraph problem_card_flow ["ProblemCard 生命週期（跨層資料中樞）"]
+        direction LR
+        PC_CREATE["L1 建立<br/><small>card_id: pc_{uuid8}<br/>symptom_summary<br/>category<br/>domain_attributes<br/>completeness_score</small>"]
+        PC_DIAG["診斷階段<br/><small>status: DIAGNOSING<br/>extracted_symptoms 累積<br/>matched_failures<br/>hypothesized_fms<br/>confidence_score 遞增</small>"]
+        PC_VERIFY["L5 驗證<br/><small>ResolutionAttempt 追蹤<br/>agent_name / strategy<br/>quality_score<br/>attempt_count</small>"]
+        PC_RESOLVE["結案<br/><small>status: RESOLVED<br/>resolution_summary<br/>resolution_level<br/>L1/L2/L3</small>"]
+        PC_ENTROPY["L8 熵偵測<br/><small>is_novel?<br/>sop_generated?<br/>→ SOP 候選佇列</small>"]
+        PC_CREATE --> PC_DIAG
+        PC_DIAG --> PC_VERIFY
+        PC_VERIFY --> PC_RESOLVE
+        PC_RESOLVE --> PC_ENTROPY
+    end
+
+    subgraph harness_knowledge ["Harness 知識資產（harness/task/）"]
+        direction LR
+        symptom_tax[("symptoms.toml<br/><small>100+ 症狀分類<br/>7 大類 + aliases</small>")]
+        component_graph[("components.toml<br/><small>30+ 元件拓撲<br/>品牌覆蓋段</small>")]
+        fault_trees[("fault_trees/*.json<br/><small>5 棵故障樹<br/>驗證鏈 + 信心值</small>")]
+        failure_reg[("failure_taxonomy.json<br/><small>7 Failures<br/>13 Failure Modes</small>")]
+        ocap_rules[("ocap_rules.json<br/><small>35+ 情緒關鍵字<br/>14 OCAP 規則</small>")]
+        diag_prompt[("diagnostic_reasoning.md<br/><small>PDCA 診斷推理<br/>Software 3.0 Prompt</small>")]
+    end
+
+    subgraph agents_layer ["Agent 子圖（Send fan-out 平行派發 + L3 Governance + ui_hints 攔截）"]
         subgraph hardware_technician_sub ["hardware_technician"]
             direction LR
             HT_LLM["agent_llm"]
-            HT_TOOL["tool_node"]
+            HT_TOOL["tool_node<br/><small>L3 風險檢查<br/>結果裁剪 3000 字</small>"]
             HT_LLM -->|tool_calls| HT_TOOL
             HT_TOOL -->|tool results| HT_LLM
         end
@@ -43,7 +73,7 @@ graph TD
         subgraph sales_representative_sub ["sales_representative"]
             direction LR
             SR_LLM["agent_llm"]
-            SR_TOOL["tool_node"]
+            SR_TOOL["tool_node<br/><small>L3 風險檢查<br/>結果裁剪 3000 字</small>"]
             SR_LLM -->|tool_calls| SR_TOOL
             SR_TOOL -->|tool results| SR_LLM
         end
@@ -51,7 +81,7 @@ graph TD
         subgraph store_assistant_sub ["store_assistant"]
             direction LR
             SA_LLM["agent_llm"]
-            SA_TOOL["tool_node"]
+            SA_TOOL["tool_node<br/><small>L3 風險檢查<br/>結果裁剪 3000 字</small>"]
             SA_LLM -->|tool_calls| SA_TOOL
             SA_TOOL -->|tool results| SA_LLM
         end
@@ -59,7 +89,7 @@ graph TD
         subgraph app_specialist_sub ["app_specialist"]
             direction LR
             AS_LLM["agent_llm"]
-            AS_TOOL["tool_node<br/><small>攔截 UI metadata<br/>→ ui_hints (VIDEO_CARD)</small>"]
+            AS_TOOL["tool_node<br/><small>L3 + 攔截 UI metadata<br/>→ ui_hints (VIDEO_CARD)</small>"]
             AS_LLM -->|tool_calls| AS_TOOL
             AS_TOOL -->|tool results| AS_LLM
         end
@@ -67,7 +97,7 @@ graph TD
         subgraph manual_librarian_sub ["manual_librarian"]
             direction LR
             ML_LLM["agent_llm"]
-            ML_TOOL["tool_node<br/><small>攔截 UI metadata<br/>→ ui_hints (DOWNLOAD_CARD)</small>"]
+            ML_TOOL["tool_node<br/><small>L3 + 攔截 UI metadata<br/>→ ui_hints (DOWNLOAD_CARD)</small>"]
             ML_LLM -->|tool_calls| ML_TOOL
             ML_TOOL -->|tool results| ML_LLM
         end
@@ -75,7 +105,7 @@ graph TD
         subgraph web_researcher_sub ["web_researcher"]
             direction LR
             WR_LLM["agent_llm"]
-            WR_TOOL["tool_node"]
+            WR_TOOL["tool_node<br/><small>L3 風險檢查<br/>結果裁剪 3000 字</small>"]
             WR_LLM -->|tool_calls| WR_TOOL
             WR_TOOL -->|tool results| WR_LLM
         end
@@ -88,6 +118,7 @@ graph TD
     subgraph prompts_store ["System Prompts"]
         direction LR
         prompt_router[("router.md<br/><small>意圖分類器</small>")]
+        prompt_rewrite[("rewrite_query.md<br/><small>口語改寫</small>")]
         prompt_ht[("hardware_technician.md<br/><small>硬體維修技師</small>")]
         prompt_sr[("sales_representative.md<br/><small>報價與客服專員</small>")]
         prompt_sa[("store_assistant.md<br/><small>門市與規格助理</small>")]
@@ -99,6 +130,7 @@ graph TD
         prompt_profile[("update_profile.md<br/><small>輪廓更新</small>")]
         prompt_summarize[("summarize_messages.md<br/><small>語意摘要壓縮</small>")]
         prompt_transfer[("transfer_human_form.md<br/><small>轉接真人表單</small>")]
+        prompt_evaluate[("evaluate_answer.md<br/><small>L5 品質評估</small>")]
     end
 
     subgraph tools_store ["Tools（UI_TYPE_MAP 驅動 ui_type）"]
@@ -137,10 +169,29 @@ graph TD
         LLM_ENGINE["LLM Engine<br/><small>Gemini / Vertex AI / Ollama<br/>config.toml [llm]</small>"]
         EMBEDDING_ENGINE["Embedding Engine<br/><small>Vertex AI / Ollama<br/>各 [[databases]] 獨立設定</small>"]
     end
+
+    %% === 主流程連線 ===
     LINE_USER -->|"傳送訊息"| webhook
     langgraph_reply -->|"合併訊息"| pre_process
+
+    %% 前處理鏈
     pre_process --> manage_memory
-    manage_memory --> router
+    manage_memory --> rewrite_query
+    rewrite_query --> task_decompose
+
+    %% Harness 鏈
+    task_decompose --> context_assemble
+    context_assemble --> safety_gate
+
+    %% Safety 三向條件邊
+    safety_gate -->|"診斷收斂<br/><small>跳過 RAG</small>"| diagnostic_respond
+    safety_gate -->|"正常流程"| router
+    safety_gate -->|"requires_approval<br/><small>安全攔截</small>"| post_process
+
+    %% 診斷短路 → merge
+    diagnostic_respond --> merge_answers
+
+    %% Router fan-out
     router -->|"hardware_tech"| hardware_technician_sub
     router -->|"sales_and_service"| sales_representative_sub
     router -->|"store_info"| store_assistant_sub
@@ -149,6 +200,8 @@ graph TD
     router -->|"web_search"| web_researcher_sub
     router -->|"general_reception"| receptionist_sub
     router -->|"out_of_domain / transfer_human<br/><small>Router 直接產生 answer</small>"| merge_answers
+
+    %% Agent → merge
     hardware_technician_sub --> merge_answers
     sales_representative_sub --> merge_answers
     store_assistant_sub --> merge_answers
@@ -156,12 +209,37 @@ graph TD
     manual_librarian_sub --> merge_answers
     web_researcher_sub --> merge_answers
     receptionist_sub --> merge_answers
-    merge_answers --> update_profile
-    update_profile --> post_process
+
+    %% Feedback 條件邊
+    merge_answers --> verify_answer
+    verify_answer -->|"品質通過"| update_profile
+    verify_answer -->|"品質不足 retry<br/><small>attempt < max_retry</small>"| context_assemble
+
+    %% Post-verification 鏈
+    update_profile --> entropy_check
+    entropy_check --> post_process
     post_process -->|"answer + response_ui"| langgraph_reply
     langgraph_reply -->|"Reply / Push API<br/><small>TextMessage + FlexMessage</small>"| LINE_USER
+
+    %% === ProblemCard 跨層連線 ===
+    task_decompose -.->|"建立/更新"| PC_CREATE
+    PC_DIAG -.->|"diagnostic_context 注入"| diagnostic_respond
+    verify_answer -.->|"ResolutionAttempt"| PC_VERIFY
+    entropy_check -.->|"is_novel?"| PC_ENTROPY
+    context_assemble -.->|"讀取 category<br/>domain_attributes"| PC_DIAG
+
+    %% === Harness 知識資產連線 ===
+    symptom_tax --- task_decompose
+    component_graph --- task_decompose
+    fault_trees --- task_decompose
+    failure_reg --- task_decompose
+    ocap_rules --- safety_gate
+    diag_prompt --- task_decompose
+
+    %% === Prompt 連線 ===
     prompt_transfer --- router
     prompt_summarize --- manage_memory
+    prompt_rewrite --- rewrite_query
     prompt_router --- router
     prompt_ht --- HT_LLM
     prompt_sr --- SR_LLM
@@ -172,6 +250,9 @@ graph TD
     prompt_rc --- RC_LLM
     prompt_merge --- merge_answers
     prompt_profile --- update_profile
+    prompt_evaluate --- verify_answer
+
+    %% === Tool 連線 ===
     tool_transfer --- router
     tool_video --- HT_TOOL
     tool_transfer --- HT_TOOL
@@ -185,6 +266,8 @@ graph TD
     tool_transfer --- ML_TOOL
     tool_web --- WR_TOOL
     tool_transfer --- WR_TOOL
+
+    %% === 資料源連線 ===
     tool_video --- pgvec_video
     tool_line_chat --- pgvec_line_chat
     tool_website --- pgvec_website
@@ -192,6 +275,8 @@ graph TD
     tool_manuals --- pgvec_gdrive
     tool_order --- order_api
     tool_web --- duckduckgo
+
+    %% === 持久化連線 ===
     pre_process -.->|"載入"| profile_store
     pre_process -.->|"載入事實"| pg_facts
     update_profile -.->|"儲存"| profile_store
@@ -199,13 +284,18 @@ graph TD
     manage_memory -.->|"讀寫摘要"| pg_checkpointer
     webhook -.->|"user_raw"| pg_audit
     langgraph_reply -.->|"user + ai"| pg_audit
+
+    %% === AI 引擎連線 ===
     EMBEDDING_ENGINE -..- pgvec_video
     EMBEDDING_ENGINE -..- pgvec_line_chat
     EMBEDDING_ENGINE -..- pgvec_website
     EMBEDDING_ENGINE -..- pgvec_youtube
     EMBEDDING_ENGINE -..- pgvec_gdrive
     LLM_ENGINE -..- manage_memory
+    LLM_ENGINE -..- rewrite_query
+    LLM_ENGINE -..- task_decompose
     LLM_ENGINE -..- router
+    LLM_ENGINE -..- diagnostic_respond
     LLM_ENGINE -..- HT_LLM
     LLM_ENGINE -..- SR_LLM
     LLM_ENGINE -..- SA_LLM
@@ -215,11 +305,15 @@ graph TD
     LLM_ENGINE -..- RC_LLM
     LLM_ENGINE -..- merge_answers
     LLM_ENGINE -..- update_profile
+    LLM_ENGINE -..- verify_answer
+
+    %% === 樣式定義 ===
     classDef userNode fill:#A5D6A7,stroke:#388E3C,color:#000,stroke-width:2px
     classDef debounce fill:#FFE0B2,stroke:#F57C00,color:#000,stroke-width:1px
     classDef process fill:#BBDEFB,stroke:#1976D2,color:#000,stroke-width:1px
     classDef router_style fill:#FFCC80,stroke:#EF6C00,color:#000,stroke-width:2px
-    classDef special fill:#FFCDD2,stroke:#D32F2F,color:#000,stroke-width:1px
+    classDef harness_node fill:#FFCDD2,stroke:#D32F2F,color:#000,stroke-width:2px
+    classDef harness_skip fill:#F5F5F5,stroke:#9E9E9E,color:#666,stroke-width:1px,stroke-dasharray:5 5
     classDef agent_llm fill:#C8E6C9,stroke:#43A047,color:#000,stroke-width:1px
     classDef agent_tool fill:#B2DFDB,stroke:#00897B,color:#000,stroke-width:1px
     classDef datastore fill:#D7CCC8,stroke:#5D4037,color:#000,stroke-width:1px
@@ -227,16 +321,21 @@ graph TD
     classDef llm_style fill:#90CAF9,stroke:#1565C0,color:#000,stroke-width:2px
     classDef prompt_style fill:#E1BEE7,stroke:#7B1FA2,color:#000,stroke-width:1px
     classDef tool_style fill:#B2EBF2,stroke:#0097A7,color:#000,stroke-width:1px
+    classDef knowledge_style fill:#FFF9C4,stroke:#F9A825,color:#000,stroke-width:1px
+    classDef problemcard_style fill:#F3E5F5,stroke:#8E24AA,color:#000,stroke-width:2px
 
     class LINE_USER userNode
-    class webhook,buffer debounce
-    class pre_process,manage_memory,merge_answers,update_profile,post_process process
+    class webhook,buffer,langgraph_reply debounce
+    class pre_process,manage_memory,rewrite_query,merge_answers,update_profile,post_process process
     class router router_style
+    class task_decompose,safety_gate,diagnostic_respond,entropy_check harness_node
+    class context_assemble,verify_answer harness_skip
     class HT_LLM,SR_LLM,SA_LLM,AS_LLM,ML_LLM,WR_LLM,RC_LLM agent_llm
     class HT_TOOL,SR_TOOL,SA_TOOL,AS_TOOL,ML_TOOL,WR_TOOL agent_tool
     class pgvec_video,pgvec_line_chat,pgvec_website,pgvec_youtube,pgvec_gdrive,order_api,duckduckgo datastore
     class profile_store,pg_checkpointer,pg_audit,pg_facts persist
     class LLM_ENGINE,EMBEDDING_ENGINE llm_style
-    class prompt_router,prompt_ht,prompt_sr,prompt_sa,prompt_as,prompt_ml,prompt_wr,prompt_rc,prompt_merge,prompt_profile,prompt_summarize,prompt_transfer prompt_style
-    class langgraph_reply debounce
+    class prompt_router,prompt_rewrite,prompt_ht,prompt_sr,prompt_sa,prompt_as,prompt_ml,prompt_wr,prompt_rc,prompt_merge,prompt_profile,prompt_summarize,prompt_transfer,prompt_evaluate prompt_style
     class tool_video,tool_line_chat,tool_website,tool_youtube,tool_manuals,tool_order,tool_web,tool_transfer tool_style
+    class symptom_tax,component_graph,fault_trees,failure_reg,ocap_rules,diag_prompt knowledge_style
+    class PC_CREATE,PC_DIAG,PC_VERIFY,PC_RESOLVE,PC_ENTROPY problemcard_style

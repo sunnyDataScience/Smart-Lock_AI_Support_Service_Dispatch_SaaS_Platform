@@ -1,13 +1,15 @@
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import Send
 from langchain_core.messages import HumanMessage
-from core.config import LLM_CONFIG, MEMORY_CONFIG, AGENTS_CONFIG
+from core.config import LLM_CONFIG, MEMORY_CONFIG, AGENTS_CONFIG, HARNESS_CONFIG
 from core.debug_log import log_messages as debug_log_messages
 from graph.state import GraphState
 from graph.nodes import (
-    pre_process, manage_memory, rewrite_query, router,
-    task_decompose, safety_gate,
-    merge_answers, update_profile, post_process,
+    pre_process, manage_memory, rewrite_query,
+    task_decompose, context_assemble, safety_gate,
+    router, diagnostic_respond,
+    merge_answers, verify_answer,
+    update_profile, entropy_check, post_process,
     llm as base_llm
 )
 from memory import get_checkpointer
@@ -20,16 +22,50 @@ async def build_graph():
     tools_dict = build_tools()
     agent_subgraphs = build_all_agents(AGENTS_CONFIG, tools_dict, base_llm, ui_type_map=UI_TYPE_MAP)
 
-    # 路由函數：根據 next_agents 用 Send() 實現 fan-out
+    # ── 條件路由函數 ──
+
+    def after_safety_gate(state: GraphState):
+        """Safety gate 後的三向分支：診斷短路 / 正常路由 / 安全攔截"""
+        # 1. 需人工批准 → 直接結束
+        safety = state.get("safety", {})
+        if safety.get("requires_approval"):
+            return "post_process"
+
+        # 2. 診斷已收斂 → 跳過 RAG agents
+        task = state.get("task", {})
+        diagnosis_status = task.get("diagnosis_status", "")
+        if diagnosis_status in (
+            "verifying",
+            "conclusion_ready",
+            "remote_resolved",
+            "dispatch_recommended",
+        ):
+            return "diagnostic_respond"
+
+        # 3. 正常流程 → router
+        return "router"
+
+    def after_verify(state: GraphState):
+        """Feedback 條件邊：品質通過 / retry"""
+        feedback = state.get("feedback", {})
+        task = state.get("task", {})
+        status = feedback.get("verification_status", "passed")
+        attempt = task.get("attempt_count", 0)
+        max_retry = HARNESS_CONFIG.get("feedback", {}).get("max_retry", 1)
+
+        if status == "failed" and attempt < max_retry:
+            return "context_assemble"  # retry
+        return "update_profile"        # pass
+
     def route_by_intent(state: GraphState):
+        """根據 next_agents 用 Send() 實現 fan-out"""
         agents = state.get("next_agents", [])
 
-        # summary (SystemMessage) + 濃縮後的問題（router 已將多輪上下文合併為一句）
+        # summary (SystemMessage) + 濃縮後的問題
         agent_msgs = []
         for msg in state.get("messages", []):
             if hasattr(msg, "type") and msg.type == "system":
                 agent_msgs.append(msg)
-        # 使用 router 濃縮後的 question（已包含對話上下文）
         agent_msgs.append(HumanMessage(content=state.get("question", "")))
 
         # [DEBUG] head → agent：派發的 messages
@@ -48,48 +84,82 @@ async def build_graph():
 
         if not agents:
             return [Send("merge_answers", clean)]
-        # 過濾出有效的 agent，無效的跳過
         valid = [a for a in agents if a in agent_subgraphs]
         if not valid:
             return [Send("merge_answers", clean)]
 
+        # Inter-Agent Messaging: record REQUEST for each dispatched agent
+        from messaging import create_message, MessageType
+        from messaging.bus import get_message_bus
+        bus = get_message_bus()
+        for a in valid:
+            bus.send(create_message(
+                from_agent="router",
+                to_agent=a,
+                msg_type=MessageType.REQUEST,
+                payload={"question": state.get("question", "")[:100]},
+            ))
+
         return [Send(a, clean) for a in valid]
 
-    # 組裝 StateGraph
+    # ── 組裝 StateGraph ──
     workflow = StateGraph(GraphState)
 
     # 節點
     workflow.add_node("pre_process", pre_process)
     workflow.add_node("manage_memory", manage_memory)
     workflow.add_node("rewrite_query", rewrite_query)
-    workflow.add_node("task_decompose", task_decompose)
-    workflow.add_node("safety_gate", safety_gate)
+    workflow.add_node("task_decompose", task_decompose)          # L1
+    workflow.add_node("context_assemble", context_assemble)      # L2
+    workflow.add_node("safety_gate", safety_gate)                # L6
     workflow.add_node("router", router)
+    workflow.add_node("diagnostic_respond", diagnostic_respond)  # 診斷短路
     workflow.add_node("merge_answers", merge_answers)
+    workflow.add_node("verify_answer", verify_answer)            # L5
     workflow.add_node("update_profile", update_profile)
+    workflow.add_node("entropy_check", entropy_check)            # L8
     workflow.add_node("post_process", post_process)
 
     for name, subgraph in agent_subgraphs.items():
         workflow.add_node(name, subgraph)
 
-    # 連線
+    # ── 連線 ──
+
+    # 前處理鏈（線性）
     workflow.add_edge(START, "pre_process")
     workflow.add_edge("pre_process", "manage_memory")
     workflow.add_edge("manage_memory", "rewrite_query")
-    workflow.add_edge("rewrite_query", "task_decompose")
-    workflow.add_edge("task_decompose", "safety_gate")
-    workflow.add_edge("safety_gate", "router")
+    workflow.add_edge("rewrite_query", "task_decompose")         # L1
+    workflow.add_edge("task_decompose", "context_assemble")      # L1 → L2
+    workflow.add_edge("context_assemble", "safety_gate")         # L2 → L6
 
-    # router → 各 agent / merge_answers（透過 Send() fan-out）
+    # Safety 條件邊（三向）
+    workflow.add_conditional_edges("safety_gate", after_safety_gate, {
+        "diagnostic_respond": "diagnostic_respond",  # 診斷收斂 → 跳過 RAG
+        "router": "router",                          # 正常 → router
+        "post_process": "post_process",              # 需人工批准 → 直接結束
+    })
+
+    # Router fan-out（不變）
     workflow.add_conditional_edges("router", route_by_intent)
 
     # 各 agent → merge_answers
     for name in agent_subgraphs:
         workflow.add_edge(name, "merge_answers")
 
-    # merge_answers → update_profile → post_process → END
-    workflow.add_edge("merge_answers", "update_profile")
-    workflow.add_edge("update_profile", "post_process")
+    # 診斷短路 → merge_answers
+    workflow.add_edge("diagnostic_respond", "merge_answers")
+
+    # Feedback 條件邊（L5）
+    workflow.add_edge("merge_answers", "verify_answer")
+    workflow.add_conditional_edges("verify_answer", after_verify, {
+        "update_profile": "update_profile",          # 品質通過
+        "context_assemble": "context_assemble",      # 品質不足 → retry
+    })
+
+    # Post-verification 鏈（線性）
+    workflow.add_edge("update_profile", "entropy_check")         # L8
+    workflow.add_edge("entropy_check", "post_process")
     workflow.add_edge("post_process", END)
 
     # Checkpointer

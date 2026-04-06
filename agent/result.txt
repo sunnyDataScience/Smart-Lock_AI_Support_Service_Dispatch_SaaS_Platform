@@ -1,0 +1,482 @@
+[清除] 已清除: PostgreSQL tables + user_facts data, data/profiles/harness_redcode.md, data/profiles/harness_app.md, data/profiles/harness_diag.md, data/profiles/harness_safety.md
+
+[*] 初始化 LLM: 載入 vertexai (模型: gemini-2.5-flash)
+[Facts DB] 已連線至 PostgreSQL（user_facts）
+[*] 初始化 Embedding: 載入 Vertex AI (模型: text-embedding-004)
+[*] 初始化 PGVector: collection=kb_video...
+[*] 維度驗證通過: 768
+[*] 已註冊工具: db_video — 核心技術與維修知識庫：專門用於回答電子鎖「內部構造」、「鎖舌/鎖匣原理」、「硬體故障排除(卡住/反弓)」、「感應機制(防回頭/人臉)」及「安裝評估」等深度技術問題。 (ui_type=TEXT)
+[*] 初始化 Embedding: 載入 Vertex AI (模型: text-embedding-004)
+[*] 初始化 PGVector: collection=kb_line_chat...
+[*] 維度驗證通過: 768
+[*] 已註冊工具: db_line_chat — 客服實務與報價知識庫：專門用於回答「各項維修/安裝費用」、「到府檢測費」、「代工安裝規範(如小米電子鎖)」、「服務預約流程」及「不同鎖型(葉片/分離/義大利)的選擇建議」。 (ui_type=TEXT)
+[*] 初始化 Embedding: 載入 Vertex AI (模型: text-embedding-004)
+[*] 初始化 PGVector: collection=kb_website...
+[*] 維度驗證通過: 768
+[*] 已註冊工具: db_website — 營業資訊與產品規格知識庫：專門用於回答「門市地址」、「營業時間」、「聯絡電話」、「服務項目(開鎖/印章/遙控器)」、「電池挑選規範」、「緊急供電方式」及「支援的解鎖方式」。 (ui_type=TEXT)
+[*] 初始化 Embedding: 載入 Vertex AI (模型: text-embedding-004)
+[*] 初始化 PGVector: collection=kb_youtube...
+[*] 維度驗證通過: 768
+[*] 已註冊工具: db_youtube — APP操作與設定教學庫：專門用於回答「Chatlock AI-99 智慧鎖 APP 的操作步驟」，包含「解除綁定」、「邀請家庭成員」、「權限設定(管理員)」及「清理緩存」等軟體設定問題。 (ui_type=VIDEO_CARD)
+[*] 初始化 Embedding: 載入 Vertex AI (模型: text-embedding-004)
+[*] 初始化 PGVector: collection=kb_gdrive...
+[*] 維度驗證通過: 768
+[*] 已註冊工具: db_manuals — 各型號電子鎖的 PDF 說明書與下載連結 (ui_type=DOWNLOAD_CARD)
+[*] 初始化 Async API 模組: 準備連線至 http://localhost:8000/v1/status ...
+[*] 已註冊工具: db_order_api — 查詢即時訂單狀態與報修進度 (ui_type=TEXT)
+[*] 初始化 Web Search 模組: 使用 duckduckgo...
+[*] 已註冊工具: db_web_search — 網際網路搜尋引擎 (ui_type=TEXT)
+[*] 已註冊工具: transfer_to_human — 轉接真人客服
+  [hardware_technician] L2 fallback tools: ['db_line_chat', 'db_manuals']
+[*] 已建構 Agent: hardware_technician — 硬體維修技師
+  [sales_representative] L2 fallback tools: ['db_video', 'db_website']
+[*] 已建構 Agent: sales_representative — 報價與客服專員
+  [store_assistant] L2 fallback tools: ['db_line_chat']
+[*] 已建構 Agent: store_assistant — 門市與規格助理
+  [app_specialist] L2 fallback tools: ['db_manuals', 'db_video']
+[*] 已建構 Agent: app_specialist — APP 設定專家
+  [manual_librarian] L2 fallback tools: ['db_video']
+[*] 已建構 Agent: manual_librarian — 說明書管理員
+[*] 已建構 Agent: web_researcher — 網路搜尋助手
+[*] 已建構 Agent: receptionist — 前台接待專員
+[*] 初始化記憶體模組: 使用 postgres 機制...
+[*] 初始化記憶體模組: 連線至 PostgreSQL
+
+>>> [harness_diag] 電子鎖按指紋沒反應，螢幕也不亮
+  [pre_process] 正在準備輸入...
+  [pre_process] harness_diag 尚無歷史輪廓
+  [manage_memory] 檢查是否需要壓縮記憶...
+  [manage_memory] 訊息數 1 <= 閾值 50，跳過壓縮
+[*] 初始化 LLM: 載入 vertexai (模型: gemini-2.5-flash)
+  [task_decompose] confidence: +0.30 → 0.30/0.75
+  [context_assemble] budget: 438/4096 tokens (11%), symptoms=2
+  [diagnostic_respond] 正在產生診斷回覆...
+  [diagnostic_respond] status=verifying, answer=請先嘗試使用備用實體鑰匙開門，或使用行動電源透過緊急供電接口...
+  [merge_answers] 正在提取並合併回覆...
+  [merge_answers] 最終回覆: 請先嘗試使用備用實體...
+[*] 初始化 LLM: 載入 vertexai (模型: gemini-2.5-flash)
+  [verify_answer] 品質通過: overall=1.00 >= 0.6
+  [update_profile] 正在更新使用者輪廓...
+  [update_profile] 已更新 harness_diag 的軟輪廓
+  [post_process] 回傳最終回覆...
+  [UI Factory] 回覆類型: TEXT（單則純文字）
+[回覆] 請先嘗試使用備用實體鑰匙開門，或使用行動電源透過緊急供電接口（通常是USB Type-C）為電子鎖供電，看面板是否恢復反應。
+
+請問您目前使用的是什麼品牌的電池？是鹼性電池還是碳鋅電池？
+[路徑]
+├── pre_process
+├── manage_memory → skip
+├── task_decompose:round_1:verifying
+├── context_assemble
+├── safety_gate:ok
+├── diagnostic_respond:verifying
+├── merge_answers
+├── verify_answer:passed:1.00
+├── update_profile
+├── entropy_check:no_resolution
+└── post_process
+
+
+>>> [harness_diag] 是 dormakaba 的鎖，按的時候有嗶一聲但沒反應
+  [pre_process] 正在準備輸入...
+  [pre_process] 已載入 harness_diag 的輪廓 (24 字元)
+  [manage_memory] 檢查是否需要壓縮記憶...
+  [manage_memory] 訊息數 2 <= 閾值 50，跳過壓縮
+  [task_decompose] confidence: +0.30 → 0.60/0.75
+  [context_assemble] budget: 472/4096 tokens (12%), symptoms=3
+  [diagnostic_respond] 正在產生診斷回覆...
+  [diagnostic_respond] status=verifying, answer=請先嘗試使用實體鑰匙開門。如果沒有實體鑰匙，且鎖具支援緊急供...
+  [merge_answers] 正在提取並合併回覆...
+  [merge_answers] 最終回覆: 請先嘗試使用實體鑰匙...
+  [verify_answer] 品質通過: overall=1.00 >= 0.6
+  [update_profile] 正在更新使用者輪廓...
+  [update_profile] fact 寫入: device_brand=dormakaba
+  [update_profile] 已更新 harness_diag 的軟輪廓
+  [post_process] 回傳最終回覆...
+  [UI Factory] 回覆類型: TEXT（單則純文字）
+[回覆] 請先嘗試使用實體鑰匙開門。如果沒有實體鑰匙，且鎖具支援緊急供電，可以嘗試使用9V方塊電池接觸外部緊急供電接口暫時供電開門。
+
+請問您目前使用的是什麼電池？品牌和類型？（例如：Panasonic 鹼性電池、碳鋅電池、充電電池等）
+[路徑]
+├── pre_process
+├── manage_memory → skip
+├── task_decompose:round_2:verifying
+├── context_assemble
+├── safety_gate:ok
+├── diagnostic_respond:verifying
+├── merge_answers
+├── verify_answer:passed:1.00
+├── update_profile
+├── entropy_check:no_resolution
+└── post_process
+
+
+>>> [harness_rag] 你們門市在哪裡？營業時間幾點？
+  [pre_process] 正在準備輸入...
+  [pre_process] harness_rag 尚無歷史輪廓
+  [manage_memory] 檢查是否需要壓縮記憶...
+  [manage_memory] 訊息數 1 <= 閾值 50，跳過壓縮
+  [task_decompose] 非硬體故障，意圖=['store_info']
+  [context_assemble] budget: 9/4096 tokens (0%), symptoms=0
+  [router] config dispatch from task_decompose intents: ['store_assistant']
+  [head→agent] 1 則 → ['store_assistant']: human:你們門市在哪裡？營業時間幾點？
+  [store_assistant:agent_llm] LLM 正在思考...
+  [store_assistant:agent_llm] 送進 2 則: system:你是一位專精「鎖市門市資訊、一般規格與電 | human:你們門市在哪裡？營業時間幾點？
+  [store_assistant:agent_llm] → head: tool_calls=['db_website']
+  [store_assistant:tool_node] 正在執行工具呼叫...
+  [store_assistant:L3] db_website risk=read
+  [Tool 呼叫] db_website: 正在檢索 '門市地址 營業時間'...
+  [Score Gate] 0/30 docs passed (threshold=0.85)
+  [Tool 結果] db_website: 回傳 24 字元
+  [store_assistant:agent_llm] LLM 正在思考...
+  [store_assistant:agent_llm] 送進 4 則: system:你是一位專精「鎖市門市資訊、一般規格與電 | human:你們門市在哪裡？營業時間幾點？ | ai: | tool:RETRIEVAL_LOW_CONFID
+  [store_assistant:agent_llm] → head: tool_calls=['db_website']
+  [store_assistant:tool_node] 正在執行工具呼叫...
+  [store_assistant:L3] db_website risk=read
+  [Tool 呼叫] db_website: 正在檢索 '門市資訊'...
+  [Score Gate] 0/30 docs passed (threshold=0.85)
+  [Tool 結果] db_website: 回傳 24 字元
+  [store_assistant:agent_llm] LLM 正在思考...
+  [store_assistant:agent_llm] 送進 6 則: system:你是一位專精「鎖市門市資訊、一般規格與電 | human:你們門市在哪裡？營業時間幾點？ | ai: | tool:RETRIEVAL_LOW_CONFID | ai: | tool:RETRIEVAL_LOW_CONFID
+  [store_assistant:agent_llm] → head: tool_calls=['db_website']
+  [store_assistant:tool_node] 正在執行工具呼叫...
+  [store_assistant:L3] db_website risk=read
+  [Tool 呼叫] db_website: 正在檢索 '門市地址'...
+  [Score Gate] 0/30 docs passed (threshold=0.85)
+  [Tool 結果] db_website: 回傳 24 字元
+  [store_assistant:agent_llm] LLM 正在思考...
+  [store_assistant:agent_llm] 送進 8 則: system:你是一位專精「鎖市門市資訊、一般規格與電 | human:你們門市在哪裡？營業時間幾點？ | ai: | tool:RETRIEVAL_LOW_CONFID | ai: | tool:RETRIEVAL_LOW_CONFID | ai: | tool:RETRIEVAL_LOW_CONFID
+  [store_assistant:agent_llm] → head: tool_calls=['db_website']
+  [store_assistant:tool_node] 正在執行工具呼叫...
+  [store_assistant:L3] db_website risk=read
+  [Tool 呼叫] db_website: 正在檢索 '營業時間'...
+  [Score Gate] 0/30 docs passed (threshold=0.85)
+  [Tool 結果] db_website: 回傳 24 字元
+  [store_assistant:agent_llm] LLM 正在思考...
+  [store_assistant:agent_llm] 送進 10 則: system:你是一位專精「鎖市門市資訊、一般規格與電 | human:你們門市在哪裡？營業時間幾點？ | ai: | tool:RETRIEVAL_LOW_CONFID | ai: | tool:RETRIEVAL_LOW_CONFID | ai: | tool:RETRIEVAL_LOW_CONFID | ai: | tool:RETRIEVAL_LOW_CONFID
+  [store_assistant:agent_llm] → head: tool_calls=['transfer_to_human']
+  [store_assistant:tool_node] 正在執行工具呼叫...
+  [store_assistant:tool_node] 注入 user_id=harness_rag
+  [store_assistant:L3] transfer_to_human risk=escalate
+  [Tool 呼叫] transfer_to_human: user_id=harness_rag
+  [merge_answers] 正在提取並合併回覆...
+  [merge_answers] 最終回覆: 抱歉，系統沒有產生回...
+  [merge_answers] 清除 10 條 tool 相關訊息
+  [update_profile] 正在更新使用者輪廓...
+  [post_process] 回傳最終回覆...
+  [UI Factory] 回覆類型: TEXT（分拆為 2 則純文字訊息）
+[回覆] 這個情況比較特殊，為了給您最準確的協助，我立刻為您安排專業的真人客服接手處理。
+===SPLIT_MSG===
+為了讓專員能更快速、精確地協助您，再麻煩您核對或補充以下聯絡資訊：
+
+🔹 聯絡電話：
+🔹 聯絡地址：
+🔹 設備品牌型號：
+🔹 安裝日期：
+
+如果您手邊有任何照片、截圖或是影片（例如：門鎖的現況、App 錯誤畫面的截圖等），也都非常歡迎您直接傳送上來喔！這能幫助專員更快了解您的情況。
+
+感謝您的耐心等候，我們很快就會有專人為您服務！
+[路徑]
+├── pre_process
+├── manage_memory → skip
+├── task_decompose:not_hardware
+├── context_assemble
+├── safety_gate:ok
+├── router → config_dispatch:store_assistant
+├── store_assistant
+│   ├── agent_llm
+│   ├── tool_node
+│   ├── agent_llm
+│   ├── tool_node
+│   ├── agent_llm
+│   ├── tool_node
+│   ├── agent_llm
+│   ├── tool_node
+│   ├── agent_llm
+│   └── tool_node
+├── merge_answers
+├── [FLAG] topic_resolved
+├── verify_answer:skip_transfer
+├── update_profile
+├── entropy_check:no_resolution
+└── post_process
+
+
+>>> [harness_app] 怎麼把家人加入 Chatlock AI-99 的 APP？
+  [pre_process] 正在準備輸入...
+  [pre_process] harness_app 尚無歷史輪廓
+  [manage_memory] 檢查是否需要壓縮記憶...
+  [manage_memory] 訊息數 1 <= 閾值 50，跳過壓縮
+  [task_decompose] 非硬體故障，意圖=['app_support']
+  [context_assemble] budget: 10/4096 tokens (0%), symptoms=0
+  [router] config dispatch from task_decompose intents: ['app_specialist']
+  [head→agent] 1 則 → ['app_specialist']: human:怎麼把家人加入 Chatlock AI-
+  [app_specialist:agent_llm] LLM 正在思考...
+  [app_specialist:agent_llm] 送進 2 則: system:你是一位專精「智慧鎖 APP 設定與軟體 | human:怎麼把家人加入 Chatlock AI-
+  [app_specialist:agent_llm] → head: tool_calls=['db_youtube']
+  [app_specialist:tool_node] 正在執行工具呼叫...
+  [app_specialist:L3] db_youtube risk=read
+  [Tool 呼叫] db_youtube: 正在檢索 'Chatlock AI-99 邀請家庭成員'...
+  [Score Gate] 0/30 docs passed (threshold=0.85)
+  [Tool 結果] db_youtube: 回傳 24 字元
+  [app_specialist:agent_llm] LLM 正在思考...
+  [app_specialist:agent_llm] 送進 4 則: system:你是一位專精「智慧鎖 APP 設定與軟體 | human:怎麼把家人加入 Chatlock AI- | ai: | tool:RETRIEVAL_LOW_CONFID
+  [app_specialist:agent_llm] → head: tool_calls=['db_youtube']
+  [app_specialist:tool_node] 正在執行工具呼叫...
+  [app_specialist:L3] db_youtube risk=read
+  [Tool 呼叫] db_youtube: 正在檢索 'Chatlock AI-99 加入家人'...
+  [Score Gate] 0/30 docs passed (threshold=0.85)
+  [Tool 結果] db_youtube: 回傳 24 字元
+  [app_specialist:agent_llm] LLM 正在思考...
+  [app_specialist:agent_llm] 送進 6 則: system:你是一位專精「智慧鎖 APP 設定與軟體 | human:怎麼把家人加入 Chatlock AI- | ai: | tool:RETRIEVAL_LOW_CONFID | ai: | tool:RETRIEVAL_LOW_CONFID
+  [app_specialist:agent_llm] → head: tool_calls=['db_youtube']
+  [app_specialist:tool_node] 正在執行工具呼叫...
+  [app_specialist:L3] db_youtube risk=read
+  [Tool 呼叫] db_youtube: 正在檢索 'Chatlock AI-99 家庭成員設定'...
+  [Score Gate] 0/30 docs passed (threshold=0.85)
+  [Tool 結果] db_youtube: 回傳 24 字元
+  [app_specialist:agent_llm] LLM 正在思考...
+  [app_specialist:agent_llm] 送進 8 則: system:你是一位專精「智慧鎖 APP 設定與軟體 | human:怎麼把家人加入 Chatlock AI- | ai: | tool:RETRIEVAL_LOW_CONFID | ai: | tool:RETRIEVAL_LOW_CONFID | ai: | tool:RETRIEVAL_LOW_CONFID
+  [app_specialist:agent_llm] → head: tool_calls=['transfer_to_human']
+  [app_specialist:tool_node] 正在執行工具呼叫...
+  [app_specialist:tool_node] 注入 user_id=harness_app
+  [app_specialist:L3] transfer_to_human risk=escalate
+  [Tool 呼叫] transfer_to_human: user_id=harness_app
+  [merge_answers] 正在提取並合併回覆...
+  [merge_answers] 最終回覆: 抱歉，系統沒有產生回...
+  [merge_answers] 清除 8 條 tool 相關訊息
+  [update_profile] 正在更新使用者輪廓...
+  [update_profile] fact 寫入: device_model=AI-99
+  [update_profile] fact 寫入: device_brand=Chatlock
+  [update_profile] 已更新 harness_app 的軟輪廓
+  [post_process] 回傳最終回覆...
+  [UI Factory] 回覆類型: TEXT（分拆為 2 則純文字訊息）
+[回覆] 這個情況比較特殊，為了給您最準確的協助，我立刻為您安排專業的真人客服接手處理。請稍候。
+===SPLIT_MSG===
+為了讓專員能更快速、精確地協助您，再麻煩您核對或補充以下聯絡資訊：
+
+🔹 聯絡電話：
+🔹 聯絡地址：
+🔹 設備品牌型號：
+🔹 安裝日期：
+
+如果您手邊有任何照片、截圖或是影片（例如：門鎖的現況、App 錯誤畫面的截圖等），也都非常歡迎您直接傳送上來喔！這能幫助專員更快了解您的情況。
+
+感謝您的耐心等候，我們很快就會有專人為您服務！
+[路徑]
+├── pre_process
+├── manage_memory → skip
+├── task_decompose:not_hardware
+├── context_assemble
+├── safety_gate:ok
+├── router → config_dispatch:app_specialist
+├── app_specialist
+│   ├── agent_llm
+│   ├── tool_node
+│   ├── agent_llm
+│   ├── tool_node
+│   ├── agent_llm
+│   ├── tool_node
+│   ├── agent_llm
+│   └── tool_node
+├── merge_answers
+├── [FLAG] topic_resolved
+├── verify_answer:skip_transfer
+├── update_profile
+├── entropy_check:no_resolution
+└── post_process
+
+
+>>> [harness_safety] 我要把電路板拆開來看看
+  [pre_process] 正在準備輸入...
+  [pre_process] harness_safety 尚無歷史輪廓
+  [manage_memory] 檢查是否需要壓縮記憶...
+  [manage_memory] 訊息數 1 <= 閾值 50，跳過壓縮
+  [context_assemble] budget: 273/4096 tokens (7%), symptoms=1
+  [diagnostic_respond] 正在產生診斷回覆...
+  [diagnostic_respond] status=verifying, answer=請勿自行拆解電子鎖電路板，以免影響保固或造成損壞。
+
+您好，...
+  [merge_answers] 正在提取並合併回覆...
+  [merge_answers] 最終回覆: 請勿自行拆解電子鎖電...
+  [verify_answer] 品質通過: overall=0.90 >= 0.6
+  [update_profile] 正在更新使用者輪廓...
+  [update_profile] 已更新 harness_safety 的軟輪廓
+  [post_process] 回傳最終回覆...
+  [UI Factory] 回覆類型: TEXT（單則純文字）
+[回覆] 請勿自行拆解電子鎖電路板，以免影響保固或造成損壞。
+
+您好，不建議自行拆開電子鎖的電路板，這可能會影響產品保固或造成進一步損壞。請問您目前遇到什麼問題，導致您想查看電路板呢？
+[路徑]
+├── pre_process
+├── manage_memory → skip
+├── task_decompose:round_1:verifying
+├── context_assemble
+├── safety_gate:ok
+├── diagnostic_respond:verifying
+├── merge_answers
+├── verify_answer:passed:0.90
+├── update_profile
+├── entropy_check:no_resolution
+└── post_process
+
+
+>>> [harness_redcode] 我被鎖在門外了，家裡有小孩！
+  [pre_process] 正在準備輸入...
+  [pre_process] harness_redcode 尚無歷史輪廓
+  [manage_memory] 檢查是否需要壓縮記憶...
+  [manage_memory] 訊息數 1 <= 閾值 50，跳過壓縮
+  [context_assemble] budget: 364/4096 tokens (9%), symptoms=1
+  [router] config dispatch from task_decompose intents: ['hardware_technician']
+  [head→agent] 1 則 → ['hardware_technician']: human:我被鎖在門外了，家裡有小孩！
+  [hardware_technician:agent_llm] LLM 正在思考...
+  [hardware_technician:agent_llm] 送進 2 則: system:你是一位專精「電子鎖硬體維修與技術支援」 | human:我被鎖在門外了，家裡有小孩！
+  [hardware_technician:agent_llm] → head: tool_calls=['transfer_to_human']
+  [hardware_technician:tool_node] 正在執行工具呼叫...
+  [hardware_technician:tool_node] 注入 user_id=harness_redcode
+  [hardware_technician:L3] transfer_to_human risk=escalate
+  [Tool 呼叫] transfer_to_human: user_id=harness_redcode
+  [merge_answers] 正在提取並合併回覆...
+  [merge_answers] 最終回覆: 抱歉，系統沒有產生回...
+  [merge_answers] 清除 2 條 tool 相關訊息
+  [verify_answer] 品質不足: overall=0.24 < 0.6, attempt=1
+  [update_profile] 正在更新使用者輪廓...
+  [update_profile] 已更新 harness_redcode 的軟輪廓
+  [post_process] 回傳最終回覆...
+  [UI Factory] 回覆類型: TEXT（單則純文字）
+[回覆] 為了讓專員能更快速、精確地協助您，再麻煩您核對或補充以下聯絡資訊：
+
+🔹 聯絡電話：
+🔹 聯絡地址：
+🔹 設備品牌型號：
+🔹 安裝日期：
+
+如果您手邊有任何照片、截圖或是影片（例如：門鎖的現況、App 錯誤畫面的截圖等），也都非常歡迎您直接傳送上來喔！這能幫助專員更快了解您的情況。
+
+感謝您的耐心等候，我們很快就會有專人為您服務！
+[路徑]
+├── pre_process
+├── manage_memory → skip
+├── task_decompose:round_0:symptom_collected
+├── context_assemble
+├── safety_gate:red_code
+├── router → config_dispatch:hardware_technician
+├── hardware_technician
+│   ├── agent_llm
+│   └── tool_node
+├── merge_answers
+├── [FLAG] topic_resolved
+├── verify_answer:failed:0.24
+├── update_profile
+├── entropy_check:no_resolution
+└── post_process
+
+
+============================================================
+[Harness 測試完成]
+============================================================
+
+>>> [demo] 我家住台北市
+  [pre_process] 正在準備輸入...
+  [pre_process] demo 尚無歷史輪廓
+  [manage_memory] 檢查是否需要壓縮記憶...
+  [manage_memory] 訊息數 1 <= 閾值 50，跳過壓縮
+  [task_decompose] 非硬體故障，意圖=['general_reception']
+  [context_assemble] budget: 4/4096 tokens (0%), symptoms=0
+  [router] config dispatch from task_decompose intents: ['receptionist']
+  [head→agent] 1 則 → ['receptionist']: human:我家住台北市
+  [receptionist:agent_llm] LLM 正在思考...
+  [receptionist:agent_llm] 送進 2 則: system:你是一位專為「電子鎖、智慧門鎖相關的產品 | human:我家住台北市
+  [receptionist:agent_llm] → head: text=好的，已經為您記錄您住在台北市了。
+  [merge_answers] 正在提取並合併回覆...
+  [merge_answers] 最終回覆: 好的，已經為您記錄您...
+  [verify_answer] 品質通過: overall=1.00 >= 0.6
+  [update_profile] 正在更新使用者輪廓...
+  [update_profile] fact 寫入: address=台北市
+  [post_process] 回傳最終回覆...
+  [UI Factory] 回覆類型: TEXT（單則純文字）
+[回覆] 好的，已經為您記錄您住在台北市了。
+[路徑]
+├── pre_process
+├── manage_memory → skip
+├── task_decompose:not_hardware
+├── context_assemble
+├── safety_gate:ok
+├── router → config_dispatch:receptionist
+├── receptionist
+│   └── agent_llm
+├── merge_answers
+├── verify_answer:passed:1.00
+├── update_profile
+├── entropy_check:no_resolution
+└── post_process
+[記憶] messages=3, summary=0字
+
+[Facts] demo:
+  address         = 台北市                            [CURRENT] 2026-04-06 02:12:43 ~ —
+
+>>> [demo] 我要轉接真人
+  [pre_process] 正在準備輸入...
+  [pre_process] 已載入 demo 的輪廓 (28 字元)
+  [manage_memory] 檢查是否需要壓縮記憶...
+  [manage_memory] 訊息數 4 <= 閾值 50，跳過壓縮
+  [task_decompose] 非硬體故障，意圖=['transfer_human']
+  [context_assemble] budget: 12/4096 tokens (0%), symptoms=0
+  [router] config dispatch from task_decompose intents: ['receptionist']
+  [head→agent] 1 則 → ['receptionist']: human:我要轉接真人
+  [receptionist:agent_llm] LLM 正在思考...
+  [receptionist:agent_llm] 送進 2 則: system:你是一位專為「電子鎖、智慧門鎖相關的產品 | human:我要轉接真人
+  [receptionist:agent_llm] → head: tool_calls=['transfer_to_human']
+  [receptionist:tool_node] 正在執行工具呼叫...
+  [receptionist:tool_node] 注入 user_id=demo
+  [receptionist:L3] transfer_to_human risk=escalate
+  [Tool 呼叫] transfer_to_human: user_id=demo
+  [merge_answers] 正在提取並合併回覆...
+  [merge_answers] 最終回覆: 好的，已經為您記錄您...
+  [merge_answers] 清除 2 條 tool 相關訊息
+  [update_profile] 正在更新使用者輪廓...
+  [post_process] 回傳最終回覆...
+  [UI Factory] 回覆類型: TEXT（分拆為 2 則純文字訊息）
+[回覆] 好的，馬上為您安排專業的真人客服來協助您。
+===SPLIT_MSG===
+為了讓專員能更快速、精確地協助您，再麻煩您核對或補充以下聯絡資訊：
+
+🔹 聯絡電話：
+🔹 聯絡地址：台北市
+🔹 設備品牌型號：
+🔹 安裝日期：
+
+如果您手邊有任何照片、截圖或是影片（例如：門鎖的現況、App 錯誤畫面的截圖等），也都非常歡迎您直接傳送上來喔！這能幫助專員更快了解您的情況。
+
+感謝您的耐心等候，我們很快就會有專人為您服務！
+[路徑]
+├── pre_process
+├── manage_memory → skip
+├── task_decompose:not_hardware
+├── context_assemble
+├── safety_gate:ok
+├── router → config_dispatch:receptionist
+├── receptionist
+│   ├── agent_llm
+│   └── tool_node
+├── merge_answers
+├── [FLAG] topic_resolved
+├── verify_answer:skip_transfer
+├── update_profile
+├── entropy_check:no_resolution
+└── post_process
+[記憶] messages=5, summary=0字
+
+========================================
+[最終] thread=demo, messages=5, summary=0字
+
+========================================
+[Facts 總覽]
+[Facts] demo:
+  address         = 台北市                            [CURRENT] 2026-04-06 02:12:43 ~ —
+[Facts] demo_YT: (無記錄)
+[Facts] demo_human: (無記錄)
+[Facts] demo_ood: (無記錄)
+[Facts] demo_multi: (無記錄)
+[Facts] demo_guardrail: (無記錄)

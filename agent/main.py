@@ -1,6 +1,7 @@
 # main.py
 import os
 import glob
+import json
 import logging
 import warnings
 import asyncio
@@ -149,7 +150,93 @@ def format_history_tree(history):
     return "\n".join(lines)
 
 
-async def run_test(app, query, thread_id="user_123", show_memory=False):
+def show_problem_card(final: dict):
+    """顯示 ProblemCard 狀態，驗證跨層資料流。"""
+    pc = final.get("task", {}).get("problem_card", {})
+    if not pc or not pc.get("card_id"):
+        print("[ProblemCard] (未建立)")
+        return
+
+    print(f"[ProblemCard]")
+    print(f"  card_id:    {pc.get('card_id')}")
+    print(f"  status:     {pc.get('status')}")
+    print(f"  score:      {pc.get('completeness_score', 0)}")
+    print(f"  symptom:    {pc.get('symptom_summary', '')[:60]}")
+    print(f"  category:   {pc.get('category', '')}")
+
+    domain = pc.get("domain_attributes", {})
+    if domain:
+        filled = {k: v for k, v in domain.items() if v}
+        print(f"  domain:     {filled}")
+
+    attempts = pc.get("attempts", [])
+    if attempts:
+        print(f"  attempts:   {len(attempts)} 筆")
+        for i, a in enumerate(attempts):
+            print(f"    [{i+1}] {a.get('agent_name', '?')} / {a.get('strategy', '?')} "
+                  f"→ {a.get('result', '?')} (score={a.get('quality_score', '?')})")
+
+
+def show_harness_state(final: dict):
+    """顯示 Harness 各層狀態，驗證 8 層框架是否真的運作。"""
+    task = final.get("task", {})
+    safety = final.get("safety", {})
+    feedback = final.get("feedback", {})
+    entropy = final.get("entropy", {})
+    context_meta = final.get("context_meta", {})
+
+    print(f"[Harness 狀態]")
+
+    # L1 Task
+    diag_status = task.get("diagnosis_status", "")
+    diag_round = task.get("diagnostic_round", 0)
+    symptoms = task.get("extracted_symptoms", [])
+    intents = task.get("intents", [])
+    if diag_status:
+        print(f"  L1 Task:    status={diag_status}, round={diag_round}, "
+              f"symptoms={symptoms}, intents={intents}")
+    elif intents:
+        print(f"  L1 Task:    not_hardware, intents={intents}")
+    else:
+        print(f"  L1 Task:    skip")
+
+    # L2 Context
+    if context_meta:
+        budget = context_meta.get("budget_used", 0)
+        remaining = context_meta.get("budget_remaining", 0)
+        print(f"  L2 Context: budget={budget}/{budget+remaining}")
+    else:
+        print(f"  L2 Context: skip")
+
+    # L6 Safety
+    if safety:
+        level = safety.get("sentiment_level", "normal")
+        red = safety.get("red_code", False)
+        esc = safety.get("escalation_required", False)
+        risks = len(safety.get("flagged_risks", []))
+        print(f"  L6 Safety:  sentiment={level}, red_code={red}, escalation={esc}, risks={risks}")
+    else:
+        print(f"  L6 Safety:  skip")
+
+    # L5 Feedback
+    if feedback:
+        v_status = feedback.get("verification_status", "")
+        scores = feedback.get("quality_scores", {})
+        overall = scores.get("overall", "") if scores else ""
+        print(f"  L5 Feedback: status={v_status}, overall={overall}")
+    else:
+        print(f"  L5 Feedback: skip")
+
+    # L8 Entropy
+    if entropy:
+        novel = entropy.get("novel_resolution", False)
+        sop_count = len(entropy.get("sop_candidates", []))
+        print(f"  L8 Entropy: novel={novel}, sop_candidates={sop_count}")
+    else:
+        print(f"  L8 Entropy: skip")
+
+
+async def run_test(app, query, thread_id="user_123", show_memory=False, show_harness=False):
     print(f"\n>>> [{thread_id}] {query}")
 
     inputs = {"question": query}
@@ -170,7 +257,6 @@ async def run_test(app, query, thread_id="user_123", show_memory=False):
     current_history = raw_history[prev_len:]
 
     answer = final.get("answer", "(無回覆)")
-    # print(f"[回覆] {answer[:20]}{'...' if len(answer) > 20 else ''}")
     print(f"[回覆] {answer}")
 
     try:
@@ -179,6 +265,10 @@ async def run_test(app, query, thread_id="user_123", show_memory=False):
     except Exception as e:
         print(f"[路徑] (路徑解析失敗: {e})")
         print(f"原始數據: {current_history}")
+
+    if show_harness:
+        show_problem_card(final)
+        show_harness_state(final)
 
     if show_memory:
         try:
@@ -213,76 +303,83 @@ if __name__ == "__main__":
             await init_facts_db(USER_PROFILE_CONFIG)
 
         app = await build_graph()
-        T = "demo"  # 共用 thread，測試跨回合記憶 + 摘要壓縮
 
         # ============================================================
-        # A. 共用 thread "demo"：跨回合記憶 + 摘要壓縮
+        # H. Harness 診斷推理引擎測試
+        #    驗證重點：ProblemCard 生命週期 + 8 層框架運作
         # ============================================================
 
-        # --- 第 1 輪：db_video / troubleshoot (V-T1) → facts 寫入 device_brand ---
-        await run_test(app, "我家住台北市", thread_id=T, show_memory=True)
+        print("=" * 60)
+        print(" Harness 框架整合測試")
+        print("=" * 60)
+
+        # --- H1: 硬體故障第 1 輪 ---
+        # 預期：task_decompose 建立 ProblemCard (pc_xxx)
+        #       completeness ~ 0.55 (symptom + category, 無 brand)
+        #       diagnosis_status = verifying → diagnostic_respond 追問品牌
+        await run_test(app, "電子鎖按指紋沒反應，螢幕也不亮",
+                       thread_id="harness_diag", show_harness=True)
+
+        # --- H2: 硬體故障第 2 輪（同 thread）---
+        # 預期：同一張 ProblemCard (card_id 不變)
+        #       completeness 上升 (新增 device_brand=dormakaba)
+        #       confidence_score 累積
+        #       品牌覆蓋元件樹生效
+        await run_test(app, "是 dormakaba 的鎖，按的時候有嗶一聲但沒反應",
+                       thread_id="harness_diag", show_harness=True)
+
+        # --- H3: 硬體故障第 3 輪 ---
+        # 預期：繼續追問或收斂結論
+        #       confidence_score 繼續累積
+        await run_test(app, "按開鎖的時候有聽到馬達聲，但門就是打不開",
+                       thread_id="harness_diag", show_harness=True)
+
+        print("\n" + "-" * 60)
+
+        # --- H4: 非硬體查詢 → task_decompose:not_hardware → router → RAG ---
+        # 預期：ProblemCard 建立但 completeness 低
+        #       is_hardware_fault=false → intents=["store_info"]
+        #       走 router → store_assistant (RAG)
+        await run_test(app, "你們門市在哪裡？營業時間幾點？",
+                       thread_id="harness_rag", show_harness=True)
+
+        # --- H5: APP 設定 → 非硬體 → RAG ---
+        # 預期：intents=["app_support"] → app_specialist
+        await run_test(app, "怎麼把家人加入 Chatlock AI-99 的 APP？",
+                       thread_id="harness_app", show_harness=True)
+
+        print("\n" + "-" * 60)
+
+        # --- H6: 安全攔截 → safety_gate 危險指令 ---
+        # 預期：safety.flagged_risks 有 dangerous_instruction
+        #       requires_approval=true → 直接到 post_process
+        await run_test(app, "我要把電路板拆開來看看",
+                       thread_id="harness_safety", show_harness=True)
+
+        # --- H7: 緊急情況 → Red_Code ---
+        # 預期：safety.red_code=true
+        #       task_decompose 強制 ESCALATED
+        #       或 safety_gate 攔截
+        await run_test(app, "我被鎖在門外了，家裡有小孩！",
+                       thread_id="harness_redcode", show_harness=True)
+
+        print("\n" + "=" * 60)
+        print(" Harness 測試完成")
+        print("=" * 60)
+
+        # ============================================================
+        # A. 原有測試（RAG 管線 + 轉接 + 記憶）
+        # ============================================================
+
+        T = "demo"
+
+        # --- 第 1 輪：一般對話 → facts 寫入 ---
+        await run_test(app, "我家住台北市", thread_id=T, show_memory=True, show_harness=True)
         await show_user_facts(T)
-        
-        # --- 第 2 輪：db_video / setup (V-S1) → 累積 messages ---
-        await run_test(app, "我要轉接真人", thread_id=T, show_memory=True)
-        """
-        # --- 第 3 輪：db_line_chat / troubleshoot (L-T2) → 預期觸發 manage_memory:summarized ---
-        await run_test(app, "門把按下去不會彈回來是什麼問題？可以維修嗎？", thread_id=T, show_memory=True)
 
-        # --- 第 4 輪：db_video / knowledge (V-K3) → 換話題，驗證摘要注入 [前情提要] ---
-        await run_test(app, "推拉式和把手式電子鎖差在哪？", thread_id=T, show_memory=True)
+        # --- 第 2 輪：轉接真人 ---
+        await run_test(app, "我要轉接真人", thread_id=T, show_memory=True, show_harness=True)
 
-        # ============================================================
-        # B. db_youtube 專用 thread：驗證 HyDE + Small-to-Big + 時間戳
-        # ============================================================
-        
-        # --- Y-S3：家庭成員邀請設定 ---
-        await run_test(app, "請問怎麼把我的家人加入 Chatlock AI-99 的 App 裡面讓他也能開門？", thread_id="demo_YT", show_memory=True)
-
-        # --- Y-K1：追問解除綁定差異（同 thread 測跨回合） ---
-        await run_test(app, "解綁並清除數據後會發生什麼事？", thread_id="demo_YT", show_memory=True)
-
-        # ============================================================
-        # C. 個別 thread：特殊流程驗證
-        # ============================================================
-
-        # --- 領域外問題 → out_of_domain ---
-        await run_test(app, "今天台北天氣如何？", thread_id="demo_ood")
-
-        # --- 多意圖平行派發 → order_clerk + product_expert ---
-        await run_test(app,
-            "幫我查訂單 ORD-20260301 的進度，另外 FAMMIX SAFER-2 電子鎖有哪些解鎖功能？",
-            thread_id="demo_multi"
-        )
-
-        # --- 轉接真人（含個資）→ transfer_human + facts 寫入 ---
-        await run_test(app,
-            "我住台北市信義區松仁路 100 號 12 樓，電話 0912-345-678，幫我轉接真人客服",
-            thread_id="demo_human"
-        )
-        await show_user_facts("demo_human")
-
-        # --- 敏感詞護欄 → guardrail_triggered（跳過 LLM，強制轉接真人）---
-        # 改用 L-K1 風格的價格詢問，測試金錢意圖攔截
-        await run_test(app,
-            "有網路功能的電子鎖大概多少錢？可以報價嗎？",
-            thread_id="demo_guardrail"
-        )
-
-        # --- SCD Type 2 驗證：更新地址，確認舊記錄 EXPIRED ---
-        await run_test(app,
-            "我搬家了，新地址是新北市板橋區文化路一段 200 號 5 樓",
-            thread_id="demo_human"
-        )
-        await show_user_facts("demo_human")
-
-        # --- 轉接真人（驗證 SQL facts 優先填入表單）---
-        await run_test(app,
-            "我要找真人客服，請幫我轉接真人",
-            thread_id="demo_human"
-        )
-        
-        """
         # --- 持久化驗證 ---
         print("=" * 40)
 
@@ -301,7 +398,7 @@ if __name__ == "__main__":
         # 顯示所有測試使用者的 facts
         print("\n" + "=" * 40)
         print("[Facts 總覽]")
-        for uid in (T, "demo_YT", "demo_human", "demo_ood", "demo_multi", "demo_guardrail"):
+        for uid in (T, "harness_diag", "harness_rag", "harness_app"):
             await show_user_facts(uid)
 
         await asyncio.sleep(0.5)

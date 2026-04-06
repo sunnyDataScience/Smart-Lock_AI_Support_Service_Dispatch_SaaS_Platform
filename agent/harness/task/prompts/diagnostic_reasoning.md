@@ -171,6 +171,8 @@ Perform PDCA diagnostic reasoning in a single pass:
 
 ```json
 {{
+  "is_hardware_fault": true,
+  "intent_classification": ["hardware_tech"],
   "extracted_symptoms": ["symptom_id_1", "symptom_id_2"],
   "matched_failures": ["F-LOCK-001"],
   "hypothesized_failure_modes": [
@@ -190,6 +192,10 @@ Perform PDCA diagnostic reasoning in a single pass:
     "brand": "dormakaba | Philips | Kaadas | Milre | AiLock | Chainlock | none",
     "signal_description": "e.g. red flash x4",
     "interpretation": "e.g. motor failure — dispatch required"
+  }},
+  "confidence_update": {{
+    "confidence_gain": 0.25,
+    "cumulative_confidence": 0.25
   }},
   "diagnosis_status": "need_more_info | hypothesis_formed | ready_to_conclude",
   "red_code": false,
@@ -257,4 +263,10 @@ Perform PDCA diagnostic reasoning in a single pass:
 
 13. **Sentiment override**: If `escalation_required` is detected, STOP diagnosis and output `next_action.type = "transfer_to_human"`.
 
-14. **Output ONLY the JSON**. No explanation outside the JSON structure.
+14. **is_hardware_fault**: Set to `true` if the user's question is about hardware faults, installation, troubleshooting, or any lock-related technical issue. Set to `false` for non-hardware queries such as store info, APP settings, greetings, pricing, manual requests, or out-of-domain questions.
+
+15. **intent_classification**: When `is_hardware_fault` is `false`, classify the user's intent into one or more of these intent names: `"hardware_tech"`, `"sales_and_service"`, `"store_info"`, `"app_support"`, `"manual_request"`, `"web_search"`, `"general_reception"`, `"out_of_domain"`, `"transfer_human"`. When `is_hardware_fault` is `true`, use `["hardware_tech"]`.
+
+16. **confidence_update**: After each verification question answer, calculate the confidence gain based on the fault tree's verification chain. `confidence_gain` is how much this round adds (typically 0.15-0.35). `cumulative_confidence` is the running total. When cumulative confidence reaches 0.75+, set `diagnosis_status` to `"ready_to_conclude"`.
+
+17. **Output ONLY the JSON**. No explanation outside the JSON structure.

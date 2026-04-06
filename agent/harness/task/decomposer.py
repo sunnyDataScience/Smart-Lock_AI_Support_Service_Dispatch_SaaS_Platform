@@ -9,13 +9,18 @@ and guardrails. decomposer.py is the orchestrator that drives the machine.
 """
 
 import json
+from uuid import uuid4
 from langchain_core.runnables import RunnableConfig
 
 from agents import load_prompt_template
-from core.config import SYSTEM_CONFIG, HARNESS_CONFIG
+from core.config import SYSTEM_CONFIG, HARNESS_CONFIG, LLM_CONFIG
 from graph.state import GraphState
+from llms import get_llm
 from harness import is_layer_enabled
 from harness.task.knowledge_loader import KnowledgeLoader
+from harness.task.problem_card import (
+    ProblemCard, CardStatus, calculate_completeness,
+)
 from harness.task.diagnostic_state_machine import (
     DiagnosticContext,
     DiagnosticState,
@@ -24,6 +29,7 @@ from harness.task.diagnostic_state_machine import (
 
 _task_config = HARNESS_CONFIG.get("task", {})
 _knowledge_loader: KnowledgeLoader | None = None
+_llm = get_llm(LLM_CONFIG)
 
 
 def _get_loader() -> KnowledgeLoader:
@@ -32,6 +38,48 @@ def _get_loader() -> KnowledgeLoader:
         base_dir = _task_config.get("knowledge_base_dir", "harness/task")
         _knowledge_loader = KnowledgeLoader(base_dir)
     return _knowledge_loader
+
+
+def _dict_to_problem_card(d: dict) -> ProblemCard:
+    """Reconstruct ProblemCard from dict stored in GraphState."""
+    card = ProblemCard(
+        card_id=d.get("card_id", ""),
+        user_id=d.get("user_id", ""),
+        symptom_summary=d.get("symptom_summary", ""),
+        category=d.get("category", ""),
+        completeness_score=d.get("completeness_score", 0.0),
+        domain_attributes=d.get("domain_attributes", {}),
+    )
+    if d.get("status"):
+        try:
+            card.status = CardStatus(d["status"])
+        except ValueError:
+            pass
+    card.attempts = d.get("attempts", [])
+    card.resolution_summary = d.get("resolution_summary", "")
+    card.resolution_level = d.get("resolution_level", "")
+    card.is_novel = d.get("is_novel", False)
+    card.sop_generated = d.get("sop_generated", False)
+    return card
+
+
+def _problem_card_to_dict(card: ProblemCard) -> dict:
+    """Serialize ProblemCard to dict for GraphState storage."""
+    return {
+        "card_id": card.card_id,
+        "user_id": card.user_id,
+        "created_at": card.created_at.isoformat() if hasattr(card.created_at, "isoformat") else str(card.created_at),
+        "status": card.status.value if isinstance(card.status, CardStatus) else card.status,
+        "symptom_summary": card.symptom_summary,
+        "category": card.category,
+        "completeness_score": card.completeness_score,
+        "domain_attributes": card.domain_attributes,
+        "attempts": card.attempts,
+        "resolution_summary": card.resolution_summary,
+        "resolution_level": card.resolution_level,
+        "is_novel": card.is_novel,
+        "sop_generated": card.sop_generated,
+    }
 
 
 async def task_decompose(state: GraphState, config: RunnableConfig) -> dict:
@@ -52,24 +100,41 @@ async def task_decompose(state: GraphState, config: RunnableConfig) -> dict:
     # ── Restore state machine context ──
     ctx = DiagnosticContext.from_dict(task_state.get("diagnostic_fsm", {}))
 
+    # ── Restore or create ProblemCard ──
+    pc_dict = task_state.get("problem_card", {})
+    if pc_dict.get("card_id"):
+        pc = _dict_to_problem_card(pc_dict)
+    else:
+        cfg = config.get("configurable", {})
+        user_id = cfg.get("user_id") or cfg.get("thread_id", "anonymous")
+        pc = ProblemCard(
+            card_id=f"pc_{uuid4().hex[:8]}",
+            user_id=user_id,
+            status=CardStatus.DIAGNOSING,
+        )
+        print(f"  [task_decompose] 建立 ProblemCard: {pc.card_id}")
+
     # ── Safety override: check before any LLM call ──
     if safety_result.get("red_code") or safety_result.get("escalation_required"):
         ctx.force_escalation(
             "red_code" if safety_result.get("red_code") else "sentiment_escalation"
         )
+        pc.status = CardStatus.ESCALATED
         return {
             "history": [f"task_decompose:escalated:{ctx.current_state.value}"],
             "task": {
                 **task_state,
                 "diagnosis_status": "escalated",
                 "diagnostic_fsm": ctx.to_dict(),
+                "problem_card": _problem_card_to_dict(pc),
             },
         }
 
-    # ── Tier 1: Always injected context ──
+    # ── Tier 1: Always injected context (with brand-specific overrides) ──
     symptom_taxonomy = loader.get_symptom_taxonomy()
     failure_context = loader.get_failure_context()
-    component_graph = loader.get_component_graph()
+    brand = pc.domain_attributes.get("device_brand", "")
+    component_graph = loader.get_component_graph(brand=brand)
 
     # ── Tier 2: Filtered by accumulated symptoms ──
     prev_symptoms = ctx.extracted_symptoms or []
@@ -81,9 +146,6 @@ async def task_decompose(state: GraphState, config: RunnableConfig) -> dict:
         f"{m.type}: {m.content}" for m in messages[-10:] if hasattr(m, "content")
     )
 
-    # ── ProblemCard state ──
-    problem_card = json.dumps(task_state.get("problem_card", {}), ensure_ascii=False, indent=2)
-
     # ── Assemble diagnostic reasoning prompt ──
     prompt = load_prompt_template(
         _task_config.get("diagnostic_prompt", "harness/task/prompts/diagnostic_reasoning.md"),
@@ -93,16 +155,11 @@ async def task_decompose(state: GraphState, config: RunnableConfig) -> dict:
         component_graph=component_graph,
         fault_trees=fault_trees,
         conversation_history=conversation_history,
-        problem_card=problem_card,
+        problem_card=json.dumps(_problem_card_to_dict(pc), ensure_ascii=False, indent=2),
     )
 
     # ── LLM call ──
-    cfg = config.get("configurable", {})
-    llm = cfg.get("diagnostic_llm") or cfg.get("llm")
-    if llm is None:
-        return {"history": ["task_decompose:no_llm"], "task": task_state}
-
-    response = await llm.ainvoke(prompt)
+    response = await _llm.ainvoke(prompt)
     raw = response.content if hasattr(response, "content") else str(response)
 
     # ── Parse structured JSON output ──
@@ -116,8 +173,38 @@ async def task_decompose(state: GraphState, config: RunnableConfig) -> dict:
         ctx.verification_round += 1
         return {
             "history": ["task_decompose:parse_error"],
-            "task": {**task_state, "diagnostic_fsm": ctx.to_dict()},
+            "task": {
+                **task_state,
+                "diagnostic_fsm": ctx.to_dict(),
+                "problem_card": _problem_card_to_dict(pc),
+            },
         }
+
+    # ── Non-hardware early exit: let router handle via RAG ──
+    if result.get("is_hardware_fault") is False:
+        intent_classification = result.get("intent_classification", [])
+        print(f"  [task_decompose] 非硬體故障，意圖={intent_classification}")
+        return {
+            "history": ["task_decompose:not_hardware"],
+            "task": {
+                **task_state,
+                "diagnosis_status": "",
+                "intents": intent_classification,
+                "problem_card": _problem_card_to_dict(pc),
+            },
+        }
+
+    # ── Merge LLM output into ProblemCard ──
+    updated_pc = result.get("updated_problem_card", {})
+    if updated_pc.get("symptom_summary"):
+        pc.symptom_summary = updated_pc["symptom_summary"]
+    if updated_pc.get("category"):
+        pc.category = updated_pc["category"]
+    for key, val in updated_pc.get("domain_attributes", {}).items():
+        if val and str(val).strip() and val not in ("unknown", "empty", ""):
+            pc.domain_attributes[key] = val
+    pc.completeness_score = calculate_completeness(pc)
+    print(f"  [task_decompose] ProblemCard completeness: {pc.completeness_score}")
 
     # ── Validate symptom IDs ──
     extracted = loader.validate_symptom_ids(result.get("extracted_symptoms", []))
@@ -125,12 +212,18 @@ async def task_decompose(state: GraphState, config: RunnableConfig) -> dict:
 
     # ── Update accumulated evidence in context ──
     if extracted:
-        # Merge new symptoms with existing (deduplicate)
         all_symptoms = list(dict.fromkeys(ctx.extracted_symptoms + extracted))
         ctx.extracted_symptoms = all_symptoms
 
     ctx.matched_failures = result.get("matched_failures", ctx.matched_failures)
     ctx.hypothesized_fms = result.get("hypothesized_failure_modes", ctx.hypothesized_fms)
+
+    # Accumulate confidence score
+    conf_update = result.get("confidence_update", {})
+    if conf_update.get("confidence_gain"):
+        ctx.confidence_score += conf_update["confidence_gain"]
+        print(f"  [task_decompose] confidence: +{conf_update['confidence_gain']:.2f} "
+              f"→ {ctx.confidence_score:.2f}/{ctx.confidence_threshold}")
 
     # Check if LLM detected dispatch signal (brand error codes)
     next_action = result.get("next_action", {})
@@ -142,15 +235,12 @@ async def task_decompose(state: GraphState, config: RunnableConfig) -> dict:
     target_state = resolve_next_state(ctx, llm_status, safety_result)
 
     if ctx.current_state == DiagnosticState.INTAKE and extracted:
-        # First round: intake → symptom_collected → target
         ctx.transition(DiagnosticState.SYMPTOM_COLLECTED, "symptoms extracted")
         if result.get("matched_failures"):
             ctx.transition(DiagnosticState.FAILURE_IDENTIFIED, "failure matched")
 
-    # Transition to target (may skip intermediate states)
     transitioned = ctx.transition(target_state, f"llm:{llm_status}")
     if not transitioned:
-        # If direct transition not valid, try intermediate steps
         if target_state == DiagnosticState.CONCLUSION_READY:
             ctx.transition(DiagnosticState.HYPOTHESIS_FORMED, "intermediate")
             ctx.transition(DiagnosticState.CONCLUSION_READY, f"llm:{llm_status}")
@@ -174,6 +264,9 @@ async def task_decompose(state: GraphState, config: RunnableConfig) -> dict:
             "hypothesized_failure_modes": ctx.hypothesized_fms,
             "next_action": next_action,
             "corrective_action_immediate": result.get("corrective_action_immediate", ""),
+            "corrective_action_steps": result.get("corrective_action_steps", []),
+            "dispatch_required": result.get("dispatch_required", False),
+            "dispatch_reason": result.get("dispatch_reason", ""),
             "diagnosis_status": ctx.current_state.value,
             "shared_dependency": result.get("shared_dependency_detected", {}),
             "state_history": ctx.state_history,
@@ -183,20 +276,35 @@ async def task_decompose(state: GraphState, config: RunnableConfig) -> dict:
     )
 
     # ── Update task state ──
-    updated_pc = result.get("updated_problem_card", {})
+    intent_classification = result.get("intent_classification", ["hardware_tech"])
     new_task = {
         **task_state,
         "extracted_symptoms": ctx.extracted_symptoms,
         "matched_failures": ctx.matched_failures,
+        "hypothesized_failure_modes": ctx.hypothesized_fms,
         "diagnosis_status": ctx.current_state.value,
         "diagnostic_round": ctx.verification_round,
         "diagnostic_context": diagnostic_context,
         "diagnostic_fsm": ctx.to_dict(),
-        "problem_card": {**task_state.get("problem_card", {}), **updated_pc},
+        "problem_card": _problem_card_to_dict(pc),
+        "intents": intent_classification,
     }
+
+    # Fire-and-forget: persist ProblemCard to PostgreSQL
+    import asyncio
+    asyncio.create_task(_save_pc_background(pc))
 
     state_val = ctx.current_state.value
     return {
         "history": [f"task_decompose:round_{ctx.verification_round}:{state_val}"],
         "task": new_task,
     }
+
+
+async def _save_pc_background(pc: ProblemCard) -> None:
+    """Non-blocking ProblemCard persistence."""
+    try:
+        from harness.task.problem_card import save_problem_card
+        await save_problem_card(pc)
+    except Exception as e:
+        print(f"  [task_decompose] ProblemCard 持久化失敗（非致命）: {e}")

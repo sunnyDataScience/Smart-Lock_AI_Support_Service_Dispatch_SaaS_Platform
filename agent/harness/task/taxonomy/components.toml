@@ -313,3 +313,42 @@ part_of      = "lock_body"
 connects_to  = ["lock_body"]
 shared_fault = []
 brands       = { notes = "規格因標準而異: 歐規/美規/義大利規/日規/韓規" }
+
+
+# ==========================================================
+# Brand-Specific Overrides
+# ==========================================================
+# Merged at runtime by KnowledgeLoader.get_component_graph(brand=...)
+# Only fields that differ from the shared tree are listed.
+
+[brand_overrides.dormakaba.components.motor]
+error_codes    = ["紅燈閃4次=馬達異常", "紅燈常亮=系統錯誤"]
+dispatch_signals = ["red_flash_4", "red_steady_on"]
+notes          = "dormakaba 馬達異常以紅色 LED 閃爍4次為特徵信號"
+
+[brand_overrides.dormakaba.components.mainboard]
+error_codes    = ["紅燈常亮=系統錯誤"]
+dispatch_signals = ["red_steady_on"]
+
+[brand_overrides.Kaadas.components.motor]
+error_codes    = ["紅燈閃5次=馬達堵轉"]
+dispatch_signals = ["red_flash_5"]
+notes          = "Kaadas 馬達堵轉以紅色 LED 閃爍5次為特徵信號"
+
+[brand_overrides.Kaadas.components.camera]
+label          = "3D人臉辨識鏡頭"
+notes          = "Kaadas 高階款搭載 3D 結構光人臉辨識"
+
+[brand_overrides.Philips.components.clutch]
+error_codes    = ["紅燈閃3次=離合器故障"]
+dispatch_signals = ["red_flash_3"]
+notes          = "Philips 離合器故障以紅色 LED 閃爍3次為特徵信號"
+
+[brand_overrides.Milre.components.mainboard]
+error_codes    = ["全燈亮後熄滅=主機板故障", "鎖舌感應器異常"]
+dispatch_signals = ["all_lights_on_then_off"]
+notes          = "Milre 主機板故障以全燈同時亮後熄滅為特徵信號"
+
+[brand_overrides.Milre.components.tongue_sensor]
+error_codes    = ["鎖舌感應器異常"]
+notes          = "Milre 鎖舌感應器較敏感，需定期校正"

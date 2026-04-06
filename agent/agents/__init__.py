@@ -138,7 +138,31 @@ def build_agent_executor(agent_config: dict, tools_dict: dict[str, StructuredToo
                         tc["args"]["user_id"] = real_user_id
                         print(f"  [{agent_name}:tool_node] 注入 user_id={real_user_id}")
 
+            # ── L3 Governance: Pre-execution check ──
+            from harness import is_harness_enabled
+            if is_harness_enabled() and getattr(last_msg, "tool_calls", None):
+                from harness.governance.registry import ToolRegistry, RiskLevel
+                from core.config import HARNESS_CONFIG
+                risk_config = HARNESS_CONFIG.get("governance", {}).get("risk_levels", {})
+                registry = ToolRegistry(tools_dict, risk_config)
+                for tc in last_msg.tool_calls:
+                    t_name = tc.get("name", "")
+                    risk = registry.get_risk_level(t_name)
+                    if not registry.validate_invocation(t_name, tc.get("args", {})):
+                        print(f"  [{agent_name}:L3] 工具 {t_name} 參數驗證失敗")
+                    else:
+                        print(f"  [{agent_name}:L3] {t_name} risk={risk.value}")
+
             result = await tool_node.ainvoke(state)
+
+            # ── L3 Governance: Post-execution result truncation ──
+            max_content_len = 3000  # 防止單條結果過長灌爆 context
+            for msg in result["messages"]:
+                if hasattr(msg, "type") and msg.type == "tool":
+                    if isinstance(msg.content, str) and len(msg.content) > max_content_len:
+                        original_len = len(msg.content)
+                        msg.content = msg.content[:max_content_len] + "\n...(已截斷)"
+                        print(f"  [{agent_name}:L3] 截斷 {msg.name} 結果: {original_len} → {max_content_len}")
 
             # 攔截 metadata：從 ToolMessage 中剝離 UI_METADATA，寫入 ui_hints
             ui_hints = []

@@ -34,7 +34,8 @@ async def run_langgraph(user_id: str, user_text: str) -> tuple[str, list, list]:
         config = {
             "configurable": {
                 "thread_id": thread_id,
-                "user_id": user_id
+                "user_id": user_id,
+                "audit_storage": _audit_storage,
             }
         }
 
