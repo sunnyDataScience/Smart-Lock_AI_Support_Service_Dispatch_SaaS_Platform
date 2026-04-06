@@ -32,6 +32,8 @@ docker-compose.override.yml
 # Misc
 *.log
 tmp/
+agent/temp/
+agent/result.txt
 
 # AI assistant context (local only)
 CLAUDE.md
