@@ -60,6 +60,16 @@ async def run_langgraph(user_id: str, user_text: str) -> tuple[str, list, list]:
         full_history = result_state.get("history", [])
         current_history = full_history[prev_history_len:]
         response_ui = result_state.get("response_ui", [])
+
+        # 後台顯示執行流程
+        try:
+            from core.debug_display import format_history_tree, show_problem_card, show_harness_state
+            print(f"[路徑]\n{format_history_tree(current_history)}")
+            show_problem_card(result_state)
+            show_harness_state(result_state)
+        except Exception:
+            pass
+
         return final_answer, current_history, response_ui
 
     except Exception as e:
