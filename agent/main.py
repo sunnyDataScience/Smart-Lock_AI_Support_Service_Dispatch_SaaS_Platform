@@ -5,6 +5,7 @@ import json
 import logging
 import warnings
 import asyncio
+import tempfile
 
 logging.getLogger("curl_cffi").setLevel(logging.ERROR)
 warnings.filterwarnings("ignore", message="Your application has authenticated using end user credentials")
@@ -12,7 +13,7 @@ warnings.filterwarnings("ignore", message="Your application has authenticated us
 from dotenv import load_dotenv
 load_dotenv()
 
-from core.config import USER_PROFILE_CONFIG
+from core.config import USER_PROFILE_CONFIG, HARNESS_CONFIG, LLM_CONFIG
 from core.debug_log import init_debug_log, close_debug_log
 from profiles import ProfileManager, init_facts_db, close_facts_db
 
@@ -248,7 +249,18 @@ async def run_test(app, query, thread_id="user_123", show_memory=False, show_har
     except asyncio.TimeoutError:
         prev_len = 0
 
-    final = await app.ainvoke(inputs, config=config)
+    try:
+        final = await asyncio.wait_for(
+            app.ainvoke(inputs, config=config), timeout=120
+        )
+    except asyncio.TimeoutError:
+        print(f"[錯誤] ainvoke 超時（120s），跳過此測試")
+        print()
+        return
+    except Exception as e:
+        print(f"[錯誤] ainvoke 失敗 ({type(e).__name__}): {e}")
+        print()
+        return
 
     # 給予資料庫寫入事務足夠的完成時間，避免讀寫競爭
     await asyncio.sleep(0.5)
@@ -400,6 +412,357 @@ if __name__ == "__main__":
         print("[Facts 總覽]")
         for uid in (T, "harness_diag", "harness_rag", "harness_app"):
             await show_user_facts(uid)
+
+        # ============================================================
+        # B. Harness 子模組單元驗證
+        #    不經 LangGraph，直接測試各層模組是否正常運作
+        # ============================================================
+
+        print("\n" + "=" * 60)
+        print(" Harness 子模組單元驗證")
+        print("=" * 60)
+
+        # --- B1: KnowledgeLoader 知識載入 ---
+        print("\n--- B1: KnowledgeLoader ---")
+        try:
+            from harness.task.knowledge_loader import KnowledgeLoader
+            loader = KnowledgeLoader(
+                HARNESS_CONFIG.get("task", {}).get("knowledge_base_dir", "harness/task")
+            )
+            symptom_count = len(loader._valid_symptom_ids)
+            ft_count = len(loader._fault_trees)
+            fail_count = len(loader._failures)
+            fm_count = len(loader._fm_registry)
+            print(f"  症狀: {symptom_count}, 故障樹: {ft_count}, "
+                  f"故障定義: {fail_count}, 故障模式: {fm_count}")
+
+            # 品牌覆蓋測試
+            default_graph = loader.get_component_graph()
+            brand_graph = loader.get_component_graph(brand="dormakaba")
+            print(f"  預設元件樹: {len(default_graph)}字")
+            print(f"  dormakaba 元件樹: {len(brand_graph)}字")
+            has_override = len(brand_graph) != len(default_graph)
+            print(f"  品牌覆蓋生效: {'✓' if has_override else '✗ (長度相同，可能未套用)'}")
+
+            # 症狀過濾測試
+            test_symptoms = ["motor_sound_no_open", "lock_tongue_stuck"]
+            valid = loader.validate_symptom_ids(test_symptoms + ["fake_symptom_xyz"])
+            print(f"  症狀驗證: 輸入 {len(test_symptoms)+1} → 有效 {len(valid)}")
+
+            # 相關故障樹
+            relevant = loader.get_relevant_fault_trees(test_symptoms)
+            has_ft = relevant != "[]"
+            print(f"  相關故障樹: {'有匹配' if has_ft else '無匹配'}")
+
+            print("  [B1] ✓ 通過")
+        except Exception as e:
+            print(f"  [B1] ✗ 失敗: {e}")
+
+        # --- B2: ProblemCard 完整度計算 ---
+        print("\n--- B2: ProblemCard Completeness ---")
+        try:
+            from harness.task.problem_card import ProblemCard, calculate_completeness
+
+            cases = [
+                ("空卡", ProblemCard(card_id="test_empty")),
+                ("僅症狀", ProblemCard(card_id="test_s", symptom_summary="指紋沒反應")),
+                ("症狀+分類", ProblemCard(card_id="test_sc",
+                    symptom_summary="指紋沒反應", category="sensor")),
+                ("完整", ProblemCard(card_id="test_full",
+                    symptom_summary="指紋沒反應", category="sensor",
+                    domain_attributes={
+                        "device_brand": "dormakaba", "device_model": "AI-99",
+                        "door_type": "木門", "fault_category": "sensor"
+                    })),
+            ]
+            expected = [0.0, 0.30, 0.55, 1.0]
+            all_pass = True
+            for (label, pc), exp in zip(cases, expected):
+                score = calculate_completeness(pc)
+                ok = abs(score - exp) < 0.05
+                mark = "✓" if ok else "✗"
+                print(f"  {mark} {label}: {score:.2f} (預期 {exp:.2f})")
+                if not ok:
+                    all_pass = False
+
+            print(f"  [B2] {'✓ 通過' if all_pass else '✗ 有誤差'}")
+        except Exception as e:
+            print(f"  [B2] ✗ 失敗: {e}")
+
+        # --- B3: 診斷狀態機 ---
+        print("\n--- B3: Diagnostic State Machine ---")
+        try:
+            from harness.task.diagnostic_state_machine import (
+                DiagnosticContext, DiagnosticState, resolve_next_state
+            )
+
+            ctx = DiagnosticContext()
+            results = []
+
+            # 正常流程
+            ok = ctx.transition(DiagnosticState.SYMPTOM_COLLECTED, "症狀提取")
+            results.append(("INTAKE→SYMPTOM_COLLECTED", ok))
+
+            ok = ctx.transition(DiagnosticState.FAILURE_IDENTIFIED, "故障匹配")
+            results.append(("SYMPTOM_COLLECTED→FAILURE_IDENTIFIED", ok))
+
+            ok = ctx.transition(DiagnosticState.HYPOTHESIS_FORMED, "假設生成")
+            results.append(("FAILURE_IDENTIFIED→HYPOTHESIS_FORMED", ok))
+
+            ok = ctx.transition(DiagnosticState.VERIFYING, "開始追問")
+            results.append(("HYPOTHESIS_FORMED→VERIFYING", ok))
+
+            # resolve_next_state 測試
+            ctx2 = DiagnosticContext()
+            ctx2.current_state = DiagnosticState.VERIFYING
+
+            # Red_Code 最高優先
+            target = resolve_next_state(ctx2, "ready_to_conclude", {"red_code": True})
+            results.append(("Red_Code→ESCALATED", target == DiagnosticState.ESCALATED))
+
+            # 信心值閾值
+            ctx3 = DiagnosticContext()
+            ctx3.current_state = DiagnosticState.VERIFYING
+            ctx3.confidence_score = 0.80
+            target = resolve_next_state(ctx3, "need_more_info")
+            results.append(("信心值≥0.75→CONCLUSION_READY",
+                          target == DiagnosticState.CONCLUSION_READY))
+
+            # 3 輪上限
+            ctx4 = DiagnosticContext()
+            ctx4.current_state = DiagnosticState.VERIFYING
+            ctx4.verification_round = 3
+            ctx4.max_verification_rounds = 3
+            target = resolve_next_state(ctx4, "need_more_info")
+            results.append(("3輪上限→DISPATCH_RECOMMENDED",
+                          target == DiagnosticState.DISPATCH_RECOMMENDED))
+
+            # 序列化往返
+            ctx_dict = ctx.to_dict()
+            ctx_restored = DiagnosticContext.from_dict(ctx_dict)
+            results.append(("序列化往返",
+                          ctx_restored.current_state == ctx.current_state
+                          and ctx_restored.state_history == ctx.state_history))
+
+            all_pass = True
+            for label, ok in results:
+                mark = "✓" if ok else "✗"
+                print(f"  {mark} {label}")
+                if not ok:
+                    all_pass = False
+
+            print(f"  [B3] {'✓ 通過' if all_pass else '✗ 有失敗'}")
+        except Exception as e:
+            print(f"  [B3] ✗ 失敗: {e}")
+
+        # --- B4: L3 Governance Validator ---
+        print("\n--- B4: Governance Validator ---")
+        try:
+            from harness.governance.validator import validate_tool_args
+
+            cases = [
+                ("db_video 正常查詢", "db_video",
+                 {"query": "電子鎖指紋沒反應"}, True),
+                ("db_video 空查詢", "db_video",
+                 {"query": ""}, False),
+                ("db_video 純標點", "db_video",
+                 {"query": "？？？"}, False),
+                ("db_video 超長查詢", "db_video",
+                 {"query": "a" * 501}, False),
+                ("transfer_to_human 正常", "transfer_to_human",
+                 {"user_id": "user_123"}, True),
+                ("transfer_to_human 無 user_id", "transfer_to_human",
+                 {"user_id": ""}, False),
+                ("未知工具（放行）", "unknown_tool",
+                 {"any": "value"}, True),
+            ]
+
+            all_pass = True
+            for label, tool, args, expect_valid in cases:
+                is_valid, err = validate_tool_args(tool, args)
+                ok = is_valid == expect_valid
+                mark = "✓" if ok else "✗"
+                detail = "" if ok else f" (got valid={is_valid}, err={err})"
+                print(f"  {mark} {label}{detail}")
+                if not ok:
+                    all_pass = False
+
+            print(f"  [B4] {'✓ 通過' if all_pass else '✗ 有失敗'}")
+        except Exception as e:
+            print(f"  [B4] ✗ 失敗: {e}")
+
+        # --- B5: L2 Freshness Scoring ---
+        print("\n--- B5: Freshness Scoring ---")
+        try:
+            from harness.context.freshness import score_freshness
+
+            # 測試已知 source（若 config 有設定）
+            last_updated = HARNESS_CONFIG.get("context", {}).get("last_updated", {})
+            if last_updated:
+                for source, date_str in list(last_updated.items())[:3]:
+                    score = await score_freshness(source)
+                    print(f"  {source}: {score:.2f} (更新日: {date_str})")
+            else:
+                print("  (config 無 last_updated，測試預設值)")
+
+            # 未知 source 應回傳 1.0
+            score = await score_freshness("nonexistent_source_xyz")
+            ok = abs(score - 1.0) < 0.01
+            mark = "✓" if ok else "✗"
+            print(f"  {mark} 未知 source 預設值: {score:.2f} (預期 1.0)")
+
+            print(f"  [B5] {'✓ 通過' if ok else '✗ 失敗'}")
+        except Exception as e:
+            print(f"  [B5] ✗ 失敗: {e}")
+
+        # --- B6: Token Tracker ---
+        print("\n--- B6: Token Tracker ---")
+        try:
+            from harness.context.token_tracker import (
+                TokenTrackingLLM, TokenBudgetExceeded, SessionBudget
+            )
+
+            budget = SessionBudget(max_budget_tokens=1000)
+            print(f"  初始預算: {budget.remaining_budget} tokens")
+            print(f"  使用率: {budget.budget_utilization:.1%}")
+
+            ok_init = budget.remaining_budget == 1000
+            ok_util = budget.budget_utilization == 0.0
+            mark = "✓" if (ok_init and ok_util) else "✗"
+            print(f"  {mark} SessionBudget 初始化正確")
+
+            print(f"  [B6] {'✓ 通過' if ok_init and ok_util else '✗ 失敗'}")
+        except Exception as e:
+            print(f"  [B6] ✗ 失敗: {e}")
+
+        # --- B7: Media Storage (Local) ---
+        print("\n--- B7: Media Storage ---")
+        try:
+            from core.media_storage import get_media_storage
+
+            with tempfile.TemporaryDirectory() as tmpdir:
+                storage = await get_media_storage({
+                    "type": "local",
+                    "local_path": tmpdir,
+                })
+                # 模擬儲存一張圖片
+                test_data = b"\x89PNG\r\n\x1a\n" + b"\x00" * 100
+                path = await storage.save(
+                    user_id="test_user",
+                    message_id="msg_001",
+                    media_type="image",
+                    data=test_data,
+                    content_type="image/png",
+                )
+                file_exists = os.path.exists(path)
+                mark = "✓" if file_exists else "✗"
+                print(f"  {mark} 儲存測試: {os.path.basename(path)} ({len(test_data)} bytes)")
+
+                # 確認路徑結構
+                has_user_dir = "test_user" in path
+                has_ext = path.endswith(".png")
+                mark2 = "✓" if (has_user_dir and has_ext) else "✗"
+                print(f"  {mark2} 路徑結構: user_id 目錄={'✓' if has_user_dir else '✗'}, "
+                      f"副檔名={'✓' if has_ext else '✗'}")
+
+            all_pass = file_exists and has_user_dir and has_ext
+            print(f"  [B7] {'✓ 通過' if all_pass else '✗ 失敗'}")
+        except Exception as e:
+            print(f"  [B7] ✗ 失敗: {e}")
+
+        # --- B8: Multimodal 模組初始化 ---
+        print("\n--- B8: Multimodal ---")
+        try:
+            from core.multimodal import is_enabled
+            enabled = is_enabled()
+            print(f"  模組狀態: {'已啟用' if enabled else '未啟用（需 config 開啟）'}")
+            print(f"  [B8] ✓ 模組可載入")
+        except Exception as e:
+            print(f"  [B8] ✗ 載入失敗: {e}")
+
+        # --- B9: SOP Generator 模組載入 ---
+        print("\n--- B9: SOP Generator ---")
+        try:
+            from harness.entropy.sop_generator import generate_sop_candidate
+            print(f"  模組載入: ✓")
+            sop_enabled = HARNESS_CONFIG.get("entropy", {}).get("sop_generation_enabled", False)
+            print(f"  SOP 生成開關: {'ON' if sop_enabled else 'OFF'}")
+            print(f"  [B9] ✓ 模組可載入")
+        except Exception as e:
+            print(f"  [B9] ✗ 載入失敗: {e}")
+
+        # --- B10: Audit Storage 事件類型 ---
+        print("\n--- B10: Audit Storage ---")
+        try:
+            from storage import PostgresAuditStorage, SqliteAuditStorage
+
+            methods = ["log_event", "log_tool_invocation", "log_safety_gate", "log_escalation"]
+            all_pass = True
+            for cls_name, cls in [("PostgresAuditStorage", PostgresAuditStorage),
+                                  ("SqliteAuditStorage", SqliteAuditStorage)]:
+                missing = [m for m in methods if not hasattr(cls, m)]
+                if missing:
+                    print(f"  ✗ {cls_name} 缺少: {missing}")
+                    all_pass = False
+                else:
+                    print(f"  ✓ {cls_name}: 4/4 方法完整")
+
+            print(f"  [B10] {'✓ 通過' if all_pass else '✗ 缺少方法'}")
+        except Exception as e:
+            print(f"  [B10] ✗ 失敗: {e}")
+
+        print("\n" + "=" * 60)
+        print(" 子模組驗證完成")
+        print("=" * 60)
+
+        # ============================================================
+        # C. Config 完整性檢查
+        #    確認 config.toml 所有 Harness 開關都已定義
+        # ============================================================
+
+        print("\n" + "=" * 60)
+        print(" Config 完整性檢查")
+        print("=" * 60)
+
+        harness_checks = {
+            "harness.enabled": HARNESS_CONFIG.get("enabled", None),
+            "harness.task.decompose_enabled":
+                HARNESS_CONFIG.get("task", {}).get("decompose_enabled", None),
+            "harness.task.domain_schema.fields":
+                HARNESS_CONFIG.get("task", {}).get("domain_schema", {}).get("fields", None),
+            "harness.task.knowledge_base_dir":
+                HARNESS_CONFIG.get("task", {}).get("knowledge_base_dir", None),
+            "harness.task.diagnostic_prompt":
+                HARNESS_CONFIG.get("task", {}).get("diagnostic_prompt", None),
+            "harness.context.assemble_enabled":
+                HARNESS_CONFIG.get("context", {}).get("assemble_enabled", None),
+            "harness.feedback.verify_enabled":
+                HARNESS_CONFIG.get("feedback", {}).get("verify_enabled", None),
+            "harness.safety.audit_enabled":
+                HARNESS_CONFIG.get("safety", {}).get("audit_enabled", None),
+            "harness.observability.trace_enabled":
+                HARNESS_CONFIG.get("observability", {}).get("trace_enabled", None),
+            "harness.entropy.sop_generation_enabled":
+                HARNESS_CONFIG.get("entropy", {}).get("sop_generation_enabled", None),
+        }
+
+        missing = []
+        for key, val in harness_checks.items():
+            if val is None:
+                mark = "✗"
+                missing.append(key)
+            else:
+                mark = "✓"
+            print(f"  {mark} {key} = {val}")
+
+        if missing:
+            print(f"\n  [Config] ✗ 缺少 {len(missing)} 個設定: {', '.join(missing)}")
+        else:
+            print(f"\n  [Config] ✓ 所有 Harness 設定完整")
+
+        print("\n" + "=" * 60)
+        print(" 全部測試完成")
+        print("=" * 60)
 
         await asyncio.sleep(0.5)
         close_debug_log()

@@ -56,7 +56,7 @@ loading_animation_time = 60   # Loading 動畫顯示時間（秒，必須是 5 �
 push_fallback_prefix = "【系統通知】讓您久等了，以下是您的回覆：\n"   # Reply Token 過期時，Push API 的訊息前綴
 error_timeout        = "不好意思，系統處理時間過長，請稍後再試一次。如果問題持續，建議轉接真人客服。"
 error_system         = "不好意思，系統大腦剛剛稍微當機了一下，請稍後再試一次！"
-error_no_reply       = "抱歉，系統沒有產生回覆。"
+error_no_reply       = "很抱歉，目前系統無法查詢到相關資訊。如需進一步協助，請撥打客服專線，將有專人為您服務。"
 
 
 # ==========================================
@@ -91,7 +91,7 @@ description        = "核心技術與維修知識庫：專門用於回答電子�
 collection_name    = "kb_video"
 connection_uri_env = "PG_VECTOR_URI"
 top_k              = 10
-score_threshold    = 0.85
+score_threshold    = 0.75
 embedding_provider       = "vertexai"
 embedding_model          = "text-embedding-004"
 embedding_project_id_env = "VERTEX_PROJECT_ID"
@@ -105,7 +105,7 @@ description        = "客服實務與報價知識庫：專門用於回答「各�
 collection_name    = "kb_line_chat"
 connection_uri_env = "PG_VECTOR_URI"
 top_k              = 10
-score_threshold    = 0.85
+score_threshold    = 0.75
 embedding_provider       = "vertexai"
 embedding_model          = "text-embedding-004"
 embedding_project_id_env = "VERTEX_PROJECT_ID"
@@ -119,7 +119,7 @@ description        = "營業資訊與產品規格知識庫：專門用於回答�
 collection_name    = "kb_website"
 connection_uri_env = "PG_VECTOR_URI"
 top_k              = 10
-score_threshold    = 0.85
+score_threshold    = 0.75
 embedding_provider       = "vertexai"
 embedding_model          = "text-embedding-004"
 embedding_project_id_env = "VERTEX_PROJECT_ID"
@@ -133,7 +133,7 @@ description        = "APP操作與設定教學庫：專門用於回答「Chatloc
 collection_name    = "kb_youtube"
 connection_uri_env = "PG_VECTOR_URI"
 top_k              = 10
-score_threshold    = 0.85
+score_threshold    = 0.75
 ui_type            = "VIDEO_CARD"
 embedding_provider       = "vertexai"
 embedding_model          = "text-embedding-004"
@@ -148,7 +148,7 @@ description        = "各型號電子鎖的 PDF 說明書與下載連結"
 collection_name    = "kb_gdrive"
 connection_uri_env = "PG_VECTOR_URI"
 top_k              = 3
-score_threshold    = 0.85
+score_threshold    = 0.75
 ui_type            = "DOWNLOAD_CARD"
 embedding_provider       = "vertexai"
 embedding_model          = "text-embedding-004"
@@ -448,7 +448,15 @@ max_retry = 1                            # Max feedback retry count
 
 [harness.safety]
 # L6: Safety & Control
-dangerous_instruction_keywords = ["拆開電路板", "剪斷電線", "短路", "破壞鎖體"]
+dangerous_instruction_keywords = [
+    "拆開電路板", "電路板拆開", "拆解電路板", "電路板拆解",
+    "拆開鎖體", "鎖體拆開", "拆解鎖體", "鎖體拆解",
+    "剪斷電線", "電線剪斷",
+    "短路",
+    "破壞鎖體",
+    "拆解內部", "拆開內部",
+    "自行拆解", "自己拆",
+]
 audit_enabled = true                     # Enable tool audit trail
 
 [harness.observability]

@@ -98,20 +98,29 @@ async def safety_gate(state: dict) -> dict:
         return {"history": ["safety_gate:skip"]}
 
     question = state.get("question", "")
+    original = state.get("original_question", "") or question
     flagged_risks = []
     audit_trail = []
     ts = datetime.now(timezone.utc).isoformat()
 
-    # 1. Dangerous instruction keywords
+    # 1. Dangerous instruction keywords — check BOTH original and rewritten
     danger_risks = _check_dangerous_keywords(question)
+    if not danger_risks and original != question:
+        danger_risks = _check_dangerous_keywords(original)
     flagged_risks.extend(danger_risks)
 
-    # 2. PII exposure
+    # 2. PII exposure — check both
     pii_risks = _check_pii(question)
+    if not pii_risks and original != question:
+        pii_risks = _check_pii(original)
     flagged_risks.extend(pii_risks)
 
-    # 3. Sentiment + emergency (OCAP rules)
+    # 3. Sentiment + emergency (OCAP rules) — check both
     sentiment = _check_sentiment_and_emergency(question)
+    if not sentiment["red_code"] and not sentiment["escalation_required"] and original != question:
+        orig_sentiment = _check_sentiment_and_emergency(original)
+        if orig_sentiment["red_code"] or orig_sentiment["escalation_required"]:
+            sentiment = orig_sentiment
 
     # Build audit entry
     audit_entry = {

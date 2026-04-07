@@ -104,7 +104,14 @@ def build_agent_executor(agent_config: dict, tools_dict: dict[str, StructuredToo
             print(f"  [{agent_name}:agent_llm] 送進 {len(messages)} 則: {' | '.join(previews)}")
             debug_log_messages(f"{agent_name}:agent_llm 輸入", messages)
 
-            response = await active_llm.ainvoke(messages)
+            try:
+                response = await active_llm.ainvoke(messages)
+            except Exception as e:
+                err_name = type(e).__name__
+                print(f"  [{agent_name}:agent_llm] ✗ LLM 呼叫失敗 ({err_name}): {e}")
+                from langchain_core.messages import AIMessage
+                fallback = AIMessage(content=f"很抱歉，系統暫時無法處理您的問題，請稍後再試。（{err_name}）")
+                return {"messages": [fallback], "history": [f"{agent_name}:agent_llm"]}
 
             # [DEBUG] agent → head：LLM 回傳
             if getattr(response, "tool_calls", None):
@@ -157,6 +164,18 @@ def build_agent_executor(agent_config: dict, tools_dict: dict[str, StructuredToo
                     is_valid, err_msg = validate_tool_args(t_name, tc.get("args", {}))
                     if not is_valid:
                         print(f"  [{agent_name}:L3] 工具 {t_name} 語意驗證失敗: {err_msg}")
+                        # 攔截：回傳錯誤 ToolMessage，不執行工具
+                        from langchain_core.messages import ToolMessage
+                        blocked_msg = ToolMessage(
+                            content=f"工具呼叫被攔截：{err_msg}",
+                            tool_call_id=tc.get("id", ""),
+                            name=t_name,
+                        )
+                        return {
+                            "messages": [blocked_msg],
+                            "ui_hints": [],
+                            "history": [f"{agent_name}:tool_node"],
+                        }
                     else:
                         print(f"  [{agent_name}:L3] {t_name} risk={risk.value}")
 
@@ -237,6 +256,21 @@ def build_agent_executor(agent_config: dict, tools_dict: dict[str, StructuredToo
         def should_continue(state: GraphState):
             last_message = state["messages"][-1]
             if getattr(last_message, "tool_calls", None):
+                # Max iteration guard: 超過上限時不再執行工具，強制結束
+                tool_count = sum(
+                    1 for h in state.get("history", [])
+                    if h == f"{agent_name}:tool_node"
+                )
+                if tool_count >= 3:
+                    print(f"  [{agent_name}] 達到最大工具呼叫次數 (3)，忽略 tool_calls")
+                    # 清除 tool_calls，保留 content（如有），讓 merge_answers 能提取
+                    last_message.tool_calls = []
+                    if not last_message.content:
+                        last_message.content = (
+                            "很抱歉，目前系統無法查詢到相關資訊。"
+                            "如需進一步協助，請撥打客服專線，將有專人為您服務。"
+                        )
+                    return END
                 return "tools"
             return END
 
@@ -251,7 +285,7 @@ def build_agent_executor(agent_config: dict, tools_dict: dict[str, StructuredToo
             {"tools": "tools", END: END}
         )
         def should_continue_after_tools(state: GraphState):
-            """工具執行後：transfer_to_human → 結束；其他 → 回 LLM"""
+            """工具執行後：transfer_to_human → 結束；其他 → 回 LLM（讓 LLM 產生文字回覆）"""
             last_message = state["messages"][-1]
             if hasattr(last_message, "name") and last_message.name == "transfer_to_human":
                 return END

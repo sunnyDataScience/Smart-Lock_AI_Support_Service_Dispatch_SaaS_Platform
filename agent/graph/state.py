@@ -31,7 +31,8 @@ def _merge_dict(left, right):
 class GraphState(TypedDict):
     # === Core fields (unchanged) ===
     messages: Annotated[list, add_messages]   # Agent 對話歷史（LLM + Tool messages）
-    question: Annotated[str, _keep_last]      # 原始使用者輸入
+    question: Annotated[str, _keep_last]      # 改寫後使用者輸入（rewrite_query 覆蓋）
+    original_question: Annotated[str, _keep_last]  # 改寫前原文（safety_gate 用）
     user_profile: Annotated[str, _keep_last]  # 使用者輪廓
     answer: Annotated[str, _keep_last]        # 最終回覆（給 app.py 讀取）
     history: Annotated[list, operator.add]      # 路徑追蹤（除錯用）

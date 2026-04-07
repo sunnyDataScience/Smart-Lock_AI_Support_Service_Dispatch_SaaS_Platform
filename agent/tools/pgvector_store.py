@@ -57,6 +57,10 @@ class PGVectorRetriever(BaseRetriever):
         return cleaned or question
 
     async def aretrieve(self, question: str) -> str:
+        if not question or not question.strip():
+            print(f"  [Score Gate] 空查詢，跳過檢索")
+            return "RETRIEVAL_LOW_CONFIDENCE"
+
         search_query = self._clean_query(question)
         if search_query != question:
             print(f"  [Query 清洗] '{question}' → '{search_query}'")

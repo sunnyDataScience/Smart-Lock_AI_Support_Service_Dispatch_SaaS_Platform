@@ -74,6 +74,7 @@ async def pre_process(state: GraphState, config: RunnableConfig):
     return {
         "messages": messages,
         "user_profile": user_profile,
+        "original_question": state["question"],
         "answer": "",
         "ui_hints": [],
         "response_ui": [],
@@ -181,6 +182,7 @@ async def rewrite_query(state: GraphState, config: RunnableConfig):
 
     return {
         "question": rewritten,
+        "original_question": original,
         "messages": [HumanMessage(content=rewritten)],
         "history": ["rewrite_query"],
     }
@@ -263,6 +265,19 @@ async def safety_gate(state: GraphState, config: RunnableConfig):
                 )
         except Exception:
             pass
+
+    # 安全攔截時設定警告回覆（否則 post_process 會輸出空白）
+    if safety.get("requires_approval"):
+        risks = safety.get("flagged_risks", [])
+        if any(r.get("risk_type") == "dangerous_instruction" for r in risks):
+            result["answer"] = (
+                "⚠️ 為了您的安全，我們不建議自行拆解或改裝電子鎖內部零件，"
+                "這可能會導致保固失效或造成進一步損壞。\n\n"
+                "如果您的電子鎖遇到問題，請描述具體的故障狀況，"
+                "我們會協助您判斷是否需要安排專業技術人員到府處理。"
+            )
+        else:
+            result["answer"] = "您的訊息包含需要人工審核的內容，我們已記錄並將由專人處理。"
 
     return result
 
@@ -486,7 +501,10 @@ async def merge_answers(state: GraphState, config: RunnableConfig):
                 answer = merge_response.content.strip()
 
     if not answer:
-        answer = TEMPLATES_CONFIG.get("error_no_reply", "抱歉，系統沒有產生回覆。")
+        answer = TEMPLATES_CONFIG.get(
+            "error_no_reply",
+            "很抱歉，目前系統無法查詢到相關資訊。如需進一步協助，請撥打客服專線，將有專人為您服務。"
+        )
 
     print(f"  [merge_answers] 最終回覆: {answer[:10]}...")
 
