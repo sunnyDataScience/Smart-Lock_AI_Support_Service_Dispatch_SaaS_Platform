@@ -55,12 +55,30 @@ async def entropy_check(state: GraphState) -> dict:
 
     if is_novel:
         problem_card = task.get("problem_card", {})
-        sop_candidates.append({
-            "symptom_summary": problem_card.get("symptom_summary", ""),
-            "resolution_summary": answer[:200] if answer else "",
-            "category": problem_card.get("category", "unknown"),
-            "status": "pending_review",
-        })
+        symptom = problem_card.get("symptom_summary", "")
+        resolution = answer[:200] if answer else ""
+        device = problem_card.get("domain_attributes", {}).get("device_model", "unknown")
+
+        # 嘗試 LLM 生成 SOP；失敗時降級為 inline 候選
+        if _entropy_config.get("sop_generation_enabled", False) and symptom and resolution:
+            from harness.entropy.sop_generator import generate_sop_candidate
+            sop = await generate_sop_candidate(symptom, resolution, device)
+            if sop.get("title"):
+                sop_candidates.append(sop)
+            else:
+                sop_candidates.append({
+                    "symptom_summary": symptom,
+                    "resolution_summary": resolution,
+                    "category": problem_card.get("category", "unknown"),
+                    "status": "pending_review",
+                })
+        else:
+            sop_candidates.append({
+                "symptom_summary": symptom,
+                "resolution_summary": resolution,
+                "category": problem_card.get("category", "unknown"),
+                "status": "pending_review",
+            })
         print(f"  [entropy_check] 偵測到新案例，已加入 SOP 候選佇列")
     else:
         print(f"  [entropy_check] 非新案例，跳過 SOP 生成")

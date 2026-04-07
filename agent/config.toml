@@ -419,6 +419,22 @@ assemble_enabled = false                 # V1.0: disabled for latency (optimizat
 token_budget = 4096                      # Max tokens for assembled context
 freshness_threshold_days = 90            # Sources older than this get low score
 
+[harness.context.last_updated]
+# 知識來源最後更新日期（ISO 格式），用於新鮮度評分。
+# 未列出的來源預設 1.0（最新鮮）。
+# 可由 CI/CD 管線在資料匯入後自動更新。
+# kb_video = "2026-03-15"
+# kb_line_chat = "2026-04-01"
+# kb_website = "2026-03-20"
+# kb_youtube = "2026-04-05"
+# kb_gdrive = "2026-03-10"
+
+[harness.budget]
+# Token 成本斷路器
+enabled = true                           # 啟用 token 追蹤與預算控制
+session_token_limit = 50000              # 單次對話 session 最大 token 數
+warn_threshold = 0.8                     # 預算使用達此比例時印出警告
+
 [harness.governance]
 # L3: Tool Governance
 lazy_loading = false                     # Future: only load tools agent needs

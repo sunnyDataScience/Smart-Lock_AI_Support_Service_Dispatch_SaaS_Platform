@@ -20,9 +20,9 @@ def load_all_silver(source_filter: str = "") -> list[dict]:
     """Load all silver documents as a flat list.
 
     Args:
-        source_filter: if set, only load from this source (video/youtube/website/gdrive)
+        source_filter: if set, only load from this source (video/youtube/website/gdrive/problem_cards)
     """
-    sources = [source_filter] if source_filter else ["video", "youtube", "website", "gdrive"]
+    sources = [source_filter] if source_filter else ["video", "youtube", "website", "gdrive", "problem_cards"]
     docs = []
     for source in sources:
         source_dir = SILVER_DIR / source
@@ -45,7 +45,7 @@ def load_silver_by_file(source_filter: str = "") -> dict[str, list[dict]]:
 
     Returns: {filename: [doc, doc, ...]}
     """
-    sources = [source_filter] if source_filter else ["video", "youtube", "website", "gdrive"]
+    sources = [source_filter] if source_filter else ["video", "youtube", "website", "gdrive", "problem_cards"]
     grouped = {}
     for source in sources:
         source_dir = SILVER_DIR / source

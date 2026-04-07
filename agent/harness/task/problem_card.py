@@ -75,6 +75,11 @@ class ProblemCard:
     resolution_summary: str = ""
     resolution_level: str = ""     # "L1_self_service" | "L2_rag" | "L3_escalation"
 
+    # --- Diagnostic progress (from state machine, persisted for export) ---
+    diagnosis_status: str = ""         # current DiagnosticState value
+    diagnostic_round: int = 0          # verification round count
+    confidence_score: float = 0.0      # accumulated diagnostic confidence
+
     # --- Entropy trigger (domain-agnostic, L8) ---
     is_novel: bool = False
     sop_generated: bool = False
@@ -192,9 +197,9 @@ async def save_problem_card(card: ProblemCard) -> None:
             "category": card.category,
             "completeness_score": card.completeness_score,
             "domain_attributes": _json.dumps(card.domain_attributes, ensure_ascii=False),
-            "diagnosis_status": "",
-            "diagnostic_round": 0,
-            "confidence_score": 0.0,
+            "diagnosis_status": card.diagnosis_status,
+            "diagnostic_round": card.diagnostic_round,
+            "confidence_score": card.confidence_score,
             "attempts": _json.dumps(card.attempts, ensure_ascii=False, default=str),
             "resolution_summary": card.resolution_summary,
             "is_novel": card.is_novel,
@@ -217,7 +222,8 @@ async def load_problem_card(card_id: str) -> ProblemCard | None:
         cursor = await conn.execute(
             "SELECT card_id, status, symptom_summary, category, "
             "completeness_score, domain_attributes, attempts, "
-            "resolution_summary, is_novel, sop_generated "
+            "resolution_summary, is_novel, sop_generated, "
+            "diagnosis_status, diagnostic_round, confidence_score "
             "FROM problem_cards WHERE card_id = %s",
             (card_id,),
         )
@@ -234,6 +240,9 @@ async def load_problem_card(card_id: str) -> ProblemCard | None:
             resolution_summary=row[7] or "",
             is_novel=row[8] or False,
             sop_generated=row[9] or False,
+            diagnosis_status=row[10] or "",
+            diagnostic_round=row[11] or 0,
+            confidence_score=row[12] or 0.0,
         )
         try:
             card.status = CardStatus(row[1])
@@ -261,7 +270,8 @@ async def find_similar_cards(symptom: str, limit: int = 5) -> list[ProblemCard]:
         cursor = await conn.execute(
             "SELECT card_id, status, symptom_summary, category, "
             "completeness_score, domain_attributes, attempts, "
-            "resolution_summary, is_novel, sop_generated "
+            "resolution_summary, is_novel, sop_generated, "
+            "diagnosis_status, diagnostic_round, confidence_score "
             "FROM problem_cards "
             "WHERE symptom_summary ILIKE %s "
             "ORDER BY created_at DESC LIMIT %s",
@@ -279,6 +289,9 @@ async def find_similar_cards(symptom: str, limit: int = 5) -> list[ProblemCard]:
                 resolution_summary=row[7] or "",
                 is_novel=row[8] or False,
                 sop_generated=row[9] or False,
+                diagnosis_status=row[10] or "",
+                diagnostic_round=row[11] or 0,
+                confidence_score=row[12] or 0.0,
             )
             card.attempts = row[6] if isinstance(row[6], list) else _json.loads(row[6] or "[]")
             cards.append(card)

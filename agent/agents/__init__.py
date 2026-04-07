@@ -140,16 +140,23 @@ def build_agent_executor(agent_config: dict, tools_dict: dict[str, StructuredToo
 
             # ── L3 Governance: Pre-execution check ──
             from harness import is_harness_enabled
+            _governance_registry = None
             if is_harness_enabled() and getattr(last_msg, "tool_calls", None):
                 from harness.governance.registry import ToolRegistry, RiskLevel
+                from harness.governance.validator import validate_tool_args
                 from core.config import HARNESS_CONFIG
                 risk_config = HARNESS_CONFIG.get("governance", {}).get("risk_levels", {})
-                registry = ToolRegistry(tools_dict, risk_config)
+                _governance_registry = ToolRegistry(tools_dict, risk_config)
                 for tc in last_msg.tool_calls:
                     t_name = tc.get("name", "")
-                    risk = registry.get_risk_level(t_name)
-                    if not registry.validate_invocation(t_name, tc.get("args", {})):
-                        print(f"  [{agent_name}:L3] 工具 {t_name} 參數驗證失敗")
+                    risk = _governance_registry.get_risk_level(t_name)
+                    # Schema validation
+                    if not _governance_registry.validate_invocation(t_name, tc.get("args", {})):
+                        print(f"  [{agent_name}:L3] 工具 {t_name} schema 驗證失敗")
+                    # Semantic validation
+                    is_valid, err_msg = validate_tool_args(t_name, tc.get("args", {}))
+                    if not is_valid:
+                        print(f"  [{agent_name}:L3] 工具 {t_name} 語意驗證失敗: {err_msg}")
                     else:
                         print(f"  [{agent_name}:L3] {t_name} risk={risk.value}")
 
@@ -183,6 +190,43 @@ def build_agent_executor(agent_config: dict, tools_dict: dict[str, StructuredToo
                     print(f"  [{agent_name}:tool_node] UI metadata JSON 解析失敗，跳過")
 
             debug_log_tool_results(f"{agent_name}:tool_node → 結果", result["messages"])
+
+            # ── Audit: tool_invocation + rag_citation ──
+            try:
+                audit = cfg.get("audit_storage")
+                if audit and getattr(last_msg, "tool_calls", None):
+                    for tc in last_msg.tool_calls:
+                        t_name = tc.get("name", "")
+                        risk_str = "read"
+                        if _governance_registry:
+                            risk_str = _governance_registry.get_risk_level(t_name).value
+                        # Find tool result for summary
+                        result_summary = ""
+                        for rmsg in result.get("messages", []):
+                            if hasattr(rmsg, "name") and rmsg.name == t_name:
+                                result_summary = str(rmsg.content)[:200] if rmsg.content else ""
+                                break
+                        if hasattr(audit, "log_tool_invocation"):
+                            await audit.log_tool_invocation(
+                                user_id=real_user_id,
+                                agent_name=agent_name,
+                                tool_name=t_name,
+                                risk_level=risk_str,
+                                args_summary=str(tc.get("args", {}))[:200],
+                                result_summary=result_summary,
+                            )
+                        # RAG citation for db_* retriever tools
+                        if t_name.startswith("db_") and hasattr(audit, "log_rag_citation"):
+                            result_count = result_summary.count("---") + 1 if result_summary else 0
+                            await audit.log_rag_citation(
+                                user_id=real_user_id,
+                                agent_name=agent_name,
+                                tool_name=t_name,
+                                query=str(tc.get("args", {}).get("query", ""))[:200],
+                                result_count=result_count,
+                            )
+            except Exception:
+                pass
 
             return {
                 "messages": result["messages"],

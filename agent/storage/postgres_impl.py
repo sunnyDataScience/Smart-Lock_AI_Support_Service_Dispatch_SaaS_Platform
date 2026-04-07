@@ -159,6 +159,48 @@ class PostgresAuditStorage:
         )
 
 
+    async def log_llm_interaction(
+        self, user_id: str, model: str, node_name: str,
+        input_tokens: int = 0, output_tokens: int = 0,
+        latency_ms: float = 0.0, cost_usd: float = 0.0,
+    ):
+        """Log LLM call details for cost tracking."""
+        await self.log_event(
+            event_type="llm_interaction",
+            actor_id=user_id,
+            actor_role="system",
+            action=f"llm.invoke.{node_name}",
+            target_type="model",
+            target_id=model,
+            payload={
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": input_tokens + output_tokens,
+                "latency_ms": round(latency_ms, 1),
+                "estimated_cost_usd": round(cost_usd, 6),
+            },
+        )
+
+    async def log_rag_citation(
+        self, user_id: str, agent_name: str, tool_name: str,
+        query: str = "", result_count: int = 0,
+    ):
+        """Log RAG retrieval source attribution."""
+        await self.log_event(
+            event_type="rag_citation",
+            actor_id=user_id,
+            actor_role="agent",
+            action=f"rag.retrieve.{tool_name}",
+            target_type="knowledge_source",
+            target_id=tool_name,
+            payload={
+                "query": query[:200],
+                "agent_name": agent_name,
+                "result_count": result_count,
+            },
+        )
+
+
 async def build_postgres_storage(config: dict) -> PostgresAuditStorage:
     global _postgres_conn
     uri = os.getenv(config.get("postgres_uri_env", "POSTGRES_URI"))

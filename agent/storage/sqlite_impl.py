@@ -101,6 +101,40 @@ class SqliteAuditStorage:
         )
 
 
+    async def log_llm_interaction(
+        self, user_id: str, model: str, node_name: str,
+        input_tokens: int = 0, output_tokens: int = 0,
+        latency_ms: float = 0.0, cost_usd: float = 0.0,
+    ):
+        await self.log_event(
+            event_type="llm_interaction",
+            actor_id=user_id,
+            actor_role="system",
+            action=f"llm.invoke.{node_name}",
+            target_type="model",
+            target_id=model,
+            payload={"input_tokens": input_tokens, "output_tokens": output_tokens,
+                     "total_tokens": input_tokens + output_tokens,
+                     "latency_ms": round(latency_ms, 1),
+                     "estimated_cost_usd": round(cost_usd, 6)},
+        )
+
+    async def log_rag_citation(
+        self, user_id: str, agent_name: str, tool_name: str,
+        query: str = "", result_count: int = 0,
+    ):
+        await self.log_event(
+            event_type="rag_citation",
+            actor_id=user_id,
+            actor_role="agent",
+            action=f"rag.retrieve.{tool_name}",
+            target_type="knowledge_source",
+            target_id=tool_name,
+            payload={"query": query[:200], "agent_name": agent_name,
+                     "result_count": result_count},
+        )
+
+
 async def build_sqlite_storage(config: dict) -> SqliteAuditStorage:
     global _sqlite_conn
     db_path = config.get("sqlite_path", "./data/db/audit_log.db")

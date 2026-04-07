@@ -15,7 +15,24 @@ from agents import load_prompt_template
 from core.debug_log import log_final_answer as debug_log_final_answer
 from harness.observability.tracer import traced
 
+from harness.context.budget import SessionBudget
+from harness.context.token_tracker import TokenTrackingLLM
+
+_budget_config = HARNESS_CONFIG.get("budget", {})
+_session_budget = SessionBudget(
+    max_budget_tokens=_budget_config.get("session_token_limit", 50000),
+)
+
 llm = get_llm(LLM_CONFIG)
+if _budget_config.get("enabled", False):
+    llm = TokenTrackingLLM(
+        llm,
+        _session_budget,
+        model_name=LLM_CONFIG.get("model_name", ""),
+        warn_threshold=_budget_config.get("warn_threshold", 0.8),
+    )
+    print(f"[*] Token 斷路器已啟用 (上限: {_session_budget.max_budget_tokens} tokens)")
+
 profile_manager = ProfileManager(USER_PROFILE_CONFIG)
 
 
@@ -23,6 +40,9 @@ profile_manager = ProfileManager(USER_PROFILE_CONFIG)
 async def pre_process(state: GraphState, config: RunnableConfig):
     """載入 user profile、將 question 轉為 HumanMessage"""
     print("  [pre_process] 正在準備輸入...")
+
+    # Reset token budget for new conversation turn
+    _session_budget.usages.clear()
 
     # 載入 user profile
     user_profile = ""
@@ -407,7 +427,7 @@ async def router(state: GraphState, config: RunnableConfig):
 
 
 @traced("merge_answers")
-async def merge_answers(state: GraphState):
+async def merge_answers(state: GraphState, config: RunnableConfig):
     """從 agent 回覆提取 answer（多 agent 用 LLM 合併）+ 偵測 topic_resolved"""
     print("  [merge_answers] 正在提取並合併回覆...")
 
@@ -477,6 +497,21 @@ async def merge_answers(state: GraphState):
             for tc in msg.tool_calls:
                 if tc.get("name") == "transfer_to_human":
                     topic_resolved = True
+                    # Audit: escalation event
+                    try:
+                        cfg = config.get("configurable", {})
+                        audit = cfg.get("audit_storage")
+                        if audit and hasattr(audit, "log_escalation"):
+                            task = state.get("task", {})
+                            await audit.log_escalation(
+                                user_id=cfg.get("user_id", "anonymous"),
+                                reason="Agent triggered transfer_to_human",
+                                problem_card_id=task.get("problem_card", {}).get("card_id", ""),
+                                from_agent=state.get("next_agents", ["unknown"])[0] if state.get("next_agents") else "unknown",
+                                diagnosis_summary=task.get("diagnostic_context", "")[:300],
+                            )
+                    except Exception:
+                        pass
                     # 將 Agent 的過場語氣與 Tool 回傳的表單合併
                     # Gemini 會將 tool_calls 和文字回覆分開為兩個 AI message：
                     #   AI(tool_calls, 無文字) → Tool(表單) → AI(道歉語)
@@ -657,6 +692,14 @@ async def post_process(state: GraphState):
         "response_ui": response_ui,
         "history": ["post_process"],
     }
+
+    # Log token budget summary
+    if _session_budget.total_tokens > 0:
+        print(
+            f"  [post_process] Token 使用: {_session_budget.total_tokens} tokens, "
+            f"${_session_budget.total_cost_usd:.4f}, "
+            f"預算使用率 {_session_budget.budget_utilization:.0%}"
+        )
 
     # Flush harness traces to DB (non-blocking)
     try:

@@ -58,6 +58,9 @@ def _dict_to_problem_card(d: dict) -> ProblemCard:
     card.attempts = d.get("attempts", [])
     card.resolution_summary = d.get("resolution_summary", "")
     card.resolution_level = d.get("resolution_level", "")
+    card.diagnosis_status = d.get("diagnosis_status", "")
+    card.diagnostic_round = d.get("diagnostic_round", 0)
+    card.confidence_score = d.get("confidence_score", 0.0)
     card.is_novel = d.get("is_novel", False)
     card.sop_generated = d.get("sop_generated", False)
     return card
@@ -77,6 +80,9 @@ def _problem_card_to_dict(card: ProblemCard) -> dict:
         "attempts": card.attempts,
         "resolution_summary": card.resolution_summary,
         "resolution_level": card.resolution_level,
+        "diagnosis_status": card.diagnosis_status,
+        "diagnostic_round": card.diagnostic_round,
+        "confidence_score": card.confidence_score,
         "is_novel": card.is_novel,
         "sop_generated": card.sop_generated,
     }
@@ -289,6 +295,11 @@ async def task_decompose(state: GraphState, config: RunnableConfig) -> dict:
         "problem_card": _problem_card_to_dict(pc),
         "intents": intent_classification,
     }
+
+    # Populate diagnostic progress before persisting
+    pc.diagnosis_status = ctx.current_state.value
+    pc.diagnostic_round = ctx.verification_round
+    pc.confidence_score = ctx.confidence_score
 
     # Fire-and-forget: persist ProblemCard to PostgreSQL
     import asyncio
