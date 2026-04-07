@@ -17,3 +17,5 @@ fastapi
 uvicorn
 ddgs
 aiosqlite
+google-genai
+aiofiles

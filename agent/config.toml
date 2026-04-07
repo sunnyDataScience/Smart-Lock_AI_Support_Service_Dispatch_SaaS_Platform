@@ -445,3 +445,32 @@ metrics_backend = "postgres"             # "postgres" | "stdout"
 sop_generation_enabled = true            # Enable auto-SOP from novel resolutions
 novel_resolution_threshold = 0.3         # Similarity < this triggers SOP candidate
 staleness_check_interval_hours = 168     # Weekly freshness scan
+
+
+# ==========================================
+# 15. 多模態訊息處理
+# ==========================================
+[multimodal]
+enabled = true
+provider = "gemini"                      # 使用 google-genai SDK
+model_name = "gemini-2.5-flash-lite"     # 多模態前處理模型（快速、低成本）
+temperature = 0.2
+api_key_env = "GEMINI_API_KEY"           # 可與 [llm] 共用同一把金鑰
+
+image_prompt = "你是電子鎖客服助手。請描述這張圖片的內容，特別注意：錯誤代碼、螢幕顯示、故障現象、門鎖型號、安裝狀況。用繁體中文簡潔描述。"
+audio_prompt = "你是電子鎖客服助手。請描述這段音檔的內容，特別注意：異常聲音、嗶嗶聲模式、機械噪音、馬達聲。用繁體中文簡潔描述。"
+video_prompt = "你是電子鎖客服助手。請描述這段影片的內容，特別注意：故障現象、操作步驟、門鎖狀態、錯誤顯示。用繁體中文簡潔描述。"
+sticker_reply = "收到您的貼圖了！請問有什麼關於電子鎖的問題我可以幫忙的嗎？"
+
+max_file_size_mb = 20                    # 超過此大小的媒體略過處理
+download_timeout = 10                    # LINE 媒體下載超時秒數
+preprocessing_timeout = 30               # Flash-Lite 呼叫超時秒數
+fallback_text = "抱歉，我無法辨識您傳送的{media_type}。請用文字描述您的問題，或拍攝更清晰的照片重新傳送。"
+
+[multimodal.storage]
+type = "local"                           # "local" | 未來: "gcs", "s3"
+local_path = "./data/media"              # 本地存儲根目錄
+# 未來雲端設定預留：
+# bucket_name = "smart-lock-media"
+# prefix = "line-uploads/"
+# credentials_env = "GCS_SERVICE_ACCOUNT_KEY"

@@ -423,3 +423,70 @@ rewriter        = "agents/prompts/rewrite_query.md"
 | `[storage]` | `storage/__init__.py` → 審計日誌持久化 |
 | `[prompts].rewriter` | `graph/nodes.py` rewrite_query 節點 — 問題改寫 |
 | `[prompts]` | `graph/nodes.py`、`tools/__init__.py` → prompt 路徑集中管理 |
+| `[multimodal]` | `core/multimodal.py` → 多模態前處理（Flash-Lite 媒體描述） |
+| `[multimodal.storage]` | `core/media_storage/__init__.py` → 媒體檔案存儲 |
+
+---
+
+## 15. 多模態訊息處理 `[multimodal]`
+
+控制 LINE 圖片、音訊、影片訊息的 AI 辨識與前處理。使用 Gemini Flash-Lite 將媒體轉為文字描述後注入正常的 LangGraph 診斷流程。
+
+```toml
+[multimodal]
+enabled = true
+provider = "gemini"                      # 使用 google-genai SDK
+model_name = "gemini-2.5-flash-lite"     # 多模態前處理模型
+temperature = 0.2
+api_key_env = "GEMINI_API_KEY"           # 可與 [llm] 共用
+
+image_prompt = "你是電子鎖客服助手。請描述這張圖片的內容..."
+audio_prompt = "你是電子鎖客服助手。請描述這段音檔的內容..."
+video_prompt = "你是電子鎖客服助手。請描述這段影片的內容..."
+sticker_reply = "收到您的貼圖了！請問有什麼關於電子鎖的問題我可以幫忙的嗎？"
+
+max_file_size_mb = 20                    # 超過此大小的媒體略過處理
+download_timeout = 10                    # LINE 媒體下載超時秒數
+preprocessing_timeout = 30               # Flash-Lite 呼叫超時秒數
+fallback_text = "抱歉，我無法辨識您傳送的{media_type}。請用文字描述您的問題。"
+```
+
+| 參數 | 說明 |
+|------|------|
+| `enabled` | 是否啟用多模態處理。`false` 時非文字訊息回退到轉接真人 |
+| `provider` | LLM 供應商（目前僅支援 `"gemini"`） |
+| `model_name` | 多模態前處理模型名稱（建議用輕量模型降低成本） |
+| `temperature` | 生成溫度，描述任務建議 0.1~0.3 |
+| `api_key_env` | API Key 環境變數名（可與 `[llm]` 共用同一把金鑰） |
+| `image_prompt` | 收到圖片時給 Flash-Lite 的辨識 prompt |
+| `audio_prompt` | 收到音訊時給 Flash-Lite 的辨識 prompt |
+| `video_prompt` | 收到影片時給 Flash-Lite 的辨識 prompt |
+| `sticker_reply` | 收到貼圖時的友善回覆（不進 LangGraph） |
+| `max_file_size_mb` | 媒體檔案大小上限（MB），超過則略過 |
+| `download_timeout` | LINE Blob API 下載超時秒數 |
+| `preprocessing_timeout` | Flash-Lite 模型呼叫超時秒數 |
+| `fallback_text` | 處理失敗時的回覆文字，`{media_type}` 會被替換為「圖片」「音檔」「影片」 |
+
+> **Prompt 調校建議**：prompt 內容直接影響辨識品質。針對電子鎖場景，應強調「錯誤代碼」「螢幕顯示」「嗶聲模式」等特徵。若切換到其他垂直領域，修改 prompt 即可。
+
+### 媒體存儲設定 `[multimodal.storage]`
+
+```toml
+[multimodal.storage]
+type = "local"                           # "local" | 未來: "gcs", "s3"
+local_path = "./data/media"              # 本地存儲根目錄
+# 未來雲端設定：
+# bucket_name = "smart-lock-media"
+# prefix = "line-uploads/"
+# credentials_env = "GCS_SERVICE_ACCOUNT_KEY"
+```
+
+| 參數 | 說明 |
+|------|------|
+| `type` | 存儲類型。`"local"` 存至本地檔案系統，未來可擴充 `"gcs"` / `"s3"` |
+| `local_path` | `local` 專用，本地儲存根目錄。目錄結構為 `{local_path}/{user_id}/{date}/{message_id}.{ext}` |
+| `bucket_name` | 雲端專用（預留），GCS/S3 bucket 名稱 |
+| `prefix` | 雲端專用（預留），物件路徑前綴 |
+| `credentials_env` | 雲端專用（預留），服務帳號金鑰環境變數名 |
+
+> **擴充方式**：新增 `core/media_storage/{provider}_impl.py` 繼承 `BaseMediaStorage`，在 `MEDIA_STORAGE_REGISTRY` 註冊後修改 `type` 即可切換。詳見系統擴充開發指南 §15。
