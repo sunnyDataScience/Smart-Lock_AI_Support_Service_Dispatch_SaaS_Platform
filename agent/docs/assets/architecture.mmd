@@ -13,12 +13,15 @@ config:
 graph TD
     LINE_USER(("LINE 使用者"))
 
-    subgraph debounce_layer ["防抖層（app.py + core/debounce.py + core/line_bot.py）"]
+    subgraph debounce_layer ["防抖層（app.py + core/debounce.py + core/line_bot.py + core/multimodal.py）"]
         direction TB
         webhook["webhook<br/><small>接收 LINE 訊息<br/>顯示 Loading 動畫<br/>記錄 user_raw 審計日誌</small>"]
-        buffer["訊息緩衝池<br/><small>累積多則訊息<br/>新訊息重設計時器<br/>buffer_wait 秒後送出</small>"]
+        multimodal_pre["多模態前處理<br/><small>圖片/音訊/影片 → Flash-Lite 描述<br/>佔位 → 替換機制<br/>媒體存儲（local/GCS/S3）</small>"]
+        buffer["訊息緩衝池<br/><small>累積多則訊息<br/>新訊息重設計時器<br/>媒體佔位等待 ≤ 10s<br/>buffer_wait 秒後送出</small>"]
         langgraph_reply["langgraph_and_reply<br/><small>記錄 user + ai 審計日誌<br/>傳遞 response_ui</small>"]
-        webhook --> buffer
+        webhook -->|"文字"| buffer
+        webhook -->|"圖片/音訊/影片"| multimodal_pre
+        multimodal_pre -->|"佔位 + 描述替換"| buffer
         buffer --> langgraph_reply
     end
 
@@ -30,12 +33,18 @@ graph TD
         context_assemble["context_assemble 📋L2<br/><small>Freshness 評分<br/>Token Budget 控制<br/>Retry 調整<br/>V1.0: pass-through</small>"]
         safety_gate["safety_gate 🛡️L6<br/><small>危險指令偵測<br/>PII 偵測<br/>情緒分析 + Red_Code<br/>requires_approval → 攔截</small>"]
         diagnostic_respond["diagnostic_respond<br/><small>診斷短路（跳過 RAG）<br/>verifying → 追問問題<br/>conclusion → 修復步驟<br/>dispatch → 派工建議</small>"]
-        router["router<br/><small>Config Lookup 派發<br/>讀取 task.intents<br/>LLM fallback（備用）<br/>敏感詞攔截 → 轉接<br/>→ next_agents</small>"]
+        router["router<br/><small>Config Lookup 派發<br/>讀取 task.intents<br/>滑動窗口 20 輪對話<br/>敏感詞攔截 → 轉接<br/>→ next_agents</small>"]
         merge_answers["merge_answers<br/><small>提取 answer<br/>多 agent 時 LLM 合併<br/>話題偵測<br/>轉接後清除 agent 訊息</small>"]
         verify_answer["verify_answer ✅L5<br/><small>LLM 品質評分<br/>completeness/accuracy/<br/>safety/actionability<br/>V1.0: pass-through</small>"]
         update_profile["update_profile<br/><small>LLM 萃取個資<br/>更新 user profile</small>"]
         entropy_check["entropy_check 🔄L8<br/><small>新案例偵測<br/>SOP 候選佇列<br/>知識飛輪觸發</small>"]
         post_process["post_process<br/><small>Markdown 清洗<br/>UI 工廠（ui_hints → FlexMessage）<br/>回傳 answer + response_ui</small>"]
+    end
+
+    subgraph domain_layer ["Domain 領域模型（domain/）"]
+        direction LR
+        domain_pc["ProblemCard<br/><small>業務領域模型<br/>診斷資料結構</small>"]
+        domain_fsm["DiagnosticStateMachine<br/><small>PDCA 狀態流轉<br/>10 狀態 + 轉移規則</small>"]
     end
 
     subgraph problem_card_flow ["ProblemCard 生命週期（跨層資料中樞）"]
@@ -51,7 +60,7 @@ graph TD
         PC_RESOLVE --> PC_ENTROPY
     end
 
-    subgraph harness_knowledge ["Harness 知識資產（harness/task/）"]
+    subgraph harness_knowledge ["Harness 知識資產（harness/task/ + domain/）"]
         direction LR
         symptom_tax[("symptoms.toml<br/><small>100+ 症狀分類<br/>7 大類 + aliases</small>")]
         component_graph[("components.toml<br/><small>30+ 元件拓撲<br/>品牌覆蓋段</small>")]
@@ -228,6 +237,11 @@ graph TD
     entropy_check -.->|"is_novel?"| PC_ENTROPY
     context_assemble -.->|"讀取 category<br/>domain_attributes"| PC_DIAG
 
+    %% === Domain 領域模型連線 ===
+    domain_pc -.->|"建立/讀取"| task_decompose
+    domain_fsm -.->|"狀態轉移"| task_decompose
+    domain_pc -.->|"匯出 novel cases"| entropy_check
+
     %% === Harness 知識資產連線 ===
     symptom_tax --- task_decompose
     component_graph --- task_decompose
@@ -324,8 +338,13 @@ graph TD
     classDef knowledge_style fill:#FFF9C4,stroke:#F9A825,color:#000,stroke-width:1px
     classDef problemcard_style fill:#F3E5F5,stroke:#8E24AA,color:#000,stroke-width:2px
 
+    classDef multimodal_style fill:#FFF9C4,stroke:#F57F17,color:#000,stroke-width:2px
+    classDef domain_style fill:#F3E5F5,stroke:#8E24AA,color:#000,stroke-width:2px
+
     class LINE_USER userNode
     class webhook,buffer,langgraph_reply debounce
+    class multimodal_pre multimodal_style
+    class domain_pc,domain_fsm domain_style
     class pre_process,manage_memory,rewrite_query,merge_answers,update_profile,post_process process
     class router router_style
     class task_decompose,safety_gate,diagnostic_respond,entropy_check harness_node
