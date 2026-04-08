@@ -31,8 +31,13 @@ async def build_graph():
         if safety.get("requires_approval"):
             return "post_process"
 
-        # 2. 診斷已收斂 → 跳過 RAG agents
+        # 2. 轉接真人意圖 → 優先走 router（不被診斷狀態攔截）
         task = state.get("task", {})
+        intents = task.get("intents", [])
+        if "transfer_human" in intents:
+            return "router"
+
+        # 3. 診斷已收斂 → 跳過 RAG agents
         diagnosis_status = task.get("diagnosis_status", "")
         if diagnosis_status in (
             "verifying",
@@ -42,7 +47,7 @@ async def build_graph():
         ):
             return "diagnostic_respond"
 
-        # 3. 正常流程 → router
+        # 4. 正常流程 → router
         return "router"
 
     def after_verify(state: GraphState):

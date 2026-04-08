@@ -203,15 +203,15 @@ Perform PDCA diagnostic reasoning in a single pass:
   "dispatch_required": false,
   "next_action": {{
     "type": "ask_verification_question | provide_conclusion | recommend_dispatch | emergency_response | transfer_to_human",
-    "question": "the verification question to ask (if type=ask_verification_question)",
+    "question": "the verification question to ask (if type=ask_verification_question). MUST be ONE short sentence, no extra explanation or comfort phrases.",
     "reasoning": "why this question/action is the best next step",
     "if_yes": "what it means if user answers yes",
     "if_no": "what it means if user answers no"
   }},
-  "corrective_action_immediate": "immediate workaround for the user (e.g. use backup physical key, push door tight then unlock), or empty if none",
+  "corrective_action_immediate": "ONE sentence immediate workaround (e.g. 請用實體鑰匙開門), or empty if none",
   "corrective_action_steps": [
-    "step 1: detailed instruction",
-    "step 2: detailed instruction"
+    "step 1: one sentence per step",
+    "step 2: one sentence per step"
   ],
   "updated_problem_card": {{
     "symptom_summary": "concise technical summary of all known symptoms",

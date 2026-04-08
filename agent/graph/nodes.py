@@ -44,6 +44,21 @@ async def pre_process(state: GraphState, config: RunnableConfig):
     # Reset token budget for new conversation turn
     _session_budget.usages.clear()
 
+    # 上一輪 topic_resolved（轉接真人）後，重置診斷狀態，避免污染新對話
+    prev_history = state.get("history", [])
+    reset_task = {}
+    if "topic_resolved" in prev_history:
+        print("  [pre_process] 上一輪已轉接真人，重置診斷狀態")
+        reset_task = {
+            "diagnosis_status": "",
+            "diagnostic_round": 0,
+            "extracted_symptoms": [],
+            "intents": [],
+            "problem_card": {},
+            "diagnostic_fsm": {},
+            "diagnostic_context": "{}",
+        }
+
     # 載入 user profile
     user_profile = ""
     if USER_PROFILE_CONFIG.get("enabled", False):
@@ -71,15 +86,18 @@ async def pre_process(state: GraphState, config: RunnableConfig):
     # 加入當前問題
     messages.append(HumanMessage(content=state["question"]))
 
-    return {
+    result = {
         "messages": messages,
         "user_profile": user_profile,
         "original_question": state["question"],
         "answer": "",
         "ui_hints": [],
         "response_ui": [],
-        "history": ["pre_process"]
+        "history": ["pre_process"],
     }
+    if reset_task:
+        result["task"] = reset_task
+    return result
 
 
 @traced("manage_memory")
@@ -180,12 +198,23 @@ async def rewrite_query(state: GraphState, config: RunnableConfig):
     else:
         print(f"  [rewrite_query] 問題無需改寫")
 
-    return {
+    result = {
         "question": rewritten,
         "original_question": original,
-        "messages": [HumanMessage(content=rewritten)],
         "history": ["rewrite_query"],
     }
+    # 只有改寫時才替換 messages 中的 HumanMessage，避免重複
+    if rewritten != original:
+        from langchain_core.messages import RemoveMessage
+        # 移除 pre_process 加的原始 HumanMessage，換成改寫版
+        msgs = state.get("messages", [])
+        remove_msgs = []
+        for msg in reversed(msgs):
+            if hasattr(msg, "type") and msg.type == "human" and msg.id:
+                remove_msgs.append(RemoveMessage(id=msg.id))
+                break
+        result["messages"] = remove_msgs + [HumanMessage(content=rewritten)]
+    return result
 
 
 def _extract_recent_pairs(messages: list, max_pairs: int, skip_latest_human: bool = False) -> list:
@@ -348,10 +377,11 @@ async def _format_diagnostic_conclusion(ctx: dict, question: str) -> str:
         f"使用者問題：{question}\n"
         f"診斷結果：\n{diagnosis_summary}\n\n"
         "要求：\n"
-        "- 用自然口語回覆，不要機械式條列\n"
-        "- 先說明可能的原因，再提供修復步驟\n"
-        "- 如果有立即可嘗試的方法，優先告訴使用者\n"
+        "- 回覆控制在 150 字以內，精簡扼要\n"
+        "- 先說最重要的一個動作（如：用實體鑰匙開門），再簡述原因\n"
+        "- 如果有步驟，每步一句話，最多 3 步\n"
         "- 語氣親切專業，像有經驗的師傅在指導\n"
+        "- 禁止使用 Markdown 語法，純文字即可\n"
         "- 不要提及任何系統內部資訊（如 JSON、向量搜尋等）"
     )
 
@@ -374,9 +404,9 @@ async def _format_dispatch_recommendation(ctx: dict, question: str) -> str:
         f"使用者問題：{question}\n"
         f"診斷結果：\n{dispatch_summary}\n\n"
         "要求：\n"
-        "- 先說明為什麼需要現場處理\n"
-        "- 語氣親切，表示理解使用者的不便\n"
-        "- 告知接下來會安排技師聯繫\n"
+        "- 回覆控制在 100 字以內\n"
+        "- 一句話說明原因，一句話告知會安排技師\n"
+        "- 語氣親切，禁止使用 Markdown 語法\n"
         "- 不要提及任何系統內部資訊"
     )
 
@@ -430,6 +460,12 @@ async def router(state: GraphState, config: RunnableConfig):
     if not targets:
         targets = ["receptionist"]
         print(f"  [router] 無有效意圖，fallback 到 receptionist")
+
+    # transfer_human 優先：用戶明確要求轉接時，只派 receptionist
+    if "receptionist" in targets and len(targets) > 1:
+        if "transfer_human" in task_intents:
+            targets = ["receptionist"]
+            print(f"  [router] transfer_human 優先，僅派 receptionist")
 
     print(f"  [router] config dispatch: {task_intents} → {targets}")
 
