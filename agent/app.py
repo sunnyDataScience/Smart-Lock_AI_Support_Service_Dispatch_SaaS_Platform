@@ -66,15 +66,18 @@ async def shutdown_event():
     await close_checkpointer()
 
 async def _handle_media_message(
-    user_id: str, reply_token: str, message_id: str, media_type: str
+    user_id: str, message_id: str, media_type: str
 ):
-    """背景任務：下載媒體 → 存檔 → Flash-Lite 描述 → 注入 debounce buffer。"""
+    """背景任務：下載媒體 → 存檔 → Flash-Lite 描述 → 注入 debounce buffer。
+
+    不持有 reply_token — 媒體描述注入 buffer 後，由 debounce 統一回覆。
+    """
+    media_label = {"image": "圖片", "audio": "音檔", "video": "影片"}.get(
+        media_type, "媒體"
+    )
     try:
         description = await multimodal.process_media_message(
             message_id, media_type, user_id
-        )
-        media_label = {"image": "圖片", "audio": "音檔", "video": "影片"}.get(
-            media_type, "媒體"
         )
         enriched_text = f"[使用者傳送了{media_label}，以下是內容描述]\n{description}"
 
@@ -86,12 +89,14 @@ async def _handle_media_message(
             except Exception as e:
                 print(f"[Audit] 記錄媒體描述失敗: {e}")
 
-        debounce.add_message_to_buffer(user_id, reply_token, enriched_text)
-
     except Exception as e:
         print(f"[Media Handler Error] {media_type} 處理異常 (user={user_id}): {e}")
-        fallback = multimodal.get_sticker_reply()  # 最後防線：友善回覆
-        await line_bot.send_response(user_id, reply_token, fallback)
+        enriched_text = f"[使用者傳送了{media_label}，但系統無法辨識內容，請根據對話脈絡盡量協助]"
+
+    # 替換佔位訊息，讓 debounce 統一處理
+    debounce.add_message_to_buffer(
+        user_id, None, enriched_text, replace_media_placeholder=True
+    )
 
 
 @app.post("/webhook")
@@ -144,8 +149,15 @@ async def line_webhook(request: Request):
             if multimodal.is_enabled():
                 print(f"[收到{media_type}訊息] user={user_id}, msg_id={message_id}")
                 await line_bot.show_loading(user_id)
+                # 先佔位：將 reply_token 存入 buffer，防止先前的文字 debounce 先觸發
+                media_label = {"image": "圖片", "audio": "音檔", "video": "影片"}.get(media_type, "媒體")
+                debounce.add_message_to_buffer(
+                    user_id, reply_token,
+                    f"[使用者正在傳送{media_label}，處理中...]"
+                )
+                # 背景處理：完成後會替換 buffer 中的佔位訊息
                 asyncio.create_task(
-                    _handle_media_message(user_id, reply_token, message_id, media_type)
+                    _handle_media_message(user_id, message_id, media_type)
                 )
                 continue
 

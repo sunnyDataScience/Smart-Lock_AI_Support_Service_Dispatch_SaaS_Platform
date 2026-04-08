@@ -106,7 +106,25 @@ async def process_and_reply(user_id: str, reply_token: str):
     """背景執行：等待緩衝 -> 執行 LangGraph -> 嘗試 Reply -> 失敗則 Push"""
     try:
         await asyncio.sleep(DEBOUNCE_CONFIG.get("buffer_wait", 1.5))
+
+        # 若有媒體佔位訊息，額外等待媒體處理完成（最多再等 10 秒）
+        media_wait = DEBOUNCE_CONFIG.get("media_extra_wait", 10)
+        waited = 0.0
+        while waited < media_wait:
+            texts = user_buffers.get(user_id, {}).get("text", [])
+            if not any(t.startswith(_MEDIA_PLACEHOLDER_PREFIX) for t in texts):
+                break
+            await asyncio.sleep(0.5)
+            waited += 0.5
+
         combined_text = "\n".join(user_buffers[user_id]["text"])
+        # 清除殘留的佔位訊息（超時時 Flash-Lite 還沒回來）
+        combined_text = "\n".join(
+            t for t in user_buffers[user_id]["text"]
+            if not t.startswith(_MEDIA_PLACEHOLDER_PREFIX)
+        )
+        if not combined_text.strip():
+            combined_text = "[使用者傳送了媒體檔案，但系統處理超時，請盡量協助]"
         await langgraph_and_reply(user_id, reply_token, combined_text)
 
     except asyncio.CancelledError:
@@ -136,17 +154,37 @@ async def cleanup_stale_buffers():
                 print(f"  [Buffer 清理] 移除 {uid} 的過期緩衝")
 
 
-def add_message_to_buffer(user_id: str, reply_token: str, text: str):
-    """將訊息加入緩衝池，建立/重設防抖計時器"""
+_MEDIA_PLACEHOLDER_PREFIX = "[使用者正在傳送"
+
+
+def add_message_to_buffer(
+    user_id: str, reply_token: str | None, text: str,
+    *, replace_media_placeholder: bool = False,
+):
+    """將訊息加入緩衝池，建立/重設防抖計時器。
+
+    Args:
+        reply_token: LINE reply token（None 表示不更新 token）。
+        replace_media_placeholder: True 時，將 buffer 中的媒體佔位訊息替換為此 text。
+    """
     if user_id in user_buffers:
         user_buffers[user_id]["task"].cancel()
+
+        if replace_media_placeholder:
+            # 替換佔位訊息（保留其他文字）
+            user_buffers[user_id]["text"] = [
+                t for t in user_buffers[user_id]["text"]
+                if not t.startswith(_MEDIA_PLACEHOLDER_PREFIX)
+            ]
         user_buffers[user_id]["text"].append(text)
-        user_buffers[user_id]["reply_token"] = reply_token
+
+        if reply_token is not None:
+            user_buffers[user_id]["reply_token"] = reply_token
         user_buffers[user_id]["created_at"] = time.monotonic()
     else:
         user_buffers[user_id] = {
             "text": [text],
-            "reply_token": reply_token,
+            "reply_token": reply_token or "",
             "created_at": time.monotonic()
         }
 
