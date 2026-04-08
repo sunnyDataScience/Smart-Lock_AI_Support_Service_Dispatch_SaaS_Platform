@@ -171,6 +171,7 @@ Perform PDCA diagnostic reasoning in a single pass:
 
 ```json
 {{
+  "is_continuation": true,
   "is_hardware_fault": true,
   "intent_classification": ["hardware_tech"],
   "extracted_symptoms": ["symptom_id_1", "symptom_id_2"],
@@ -287,4 +288,6 @@ Perform PDCA diagnostic reasoning in a single pass:
 
 16. **confidence_update**: After each verification question answer, calculate the confidence gain based on the fault tree's verification chain. `confidence_gain` is how much this round adds (typically 0.15-0.35). `cumulative_confidence` is the running total. When cumulative confidence reaches 0.75+, set `diagnosis_status` to `"ready_to_conclude"`.
 
-17. **Output ONLY the JSON**. No explanation outside the JSON structure.
+17. **is_continuation**: Set to `true` if the user's current message is continuing or following up on the SAME topic/issue from the previous turns (e.g. answering a follow-up question, providing brand info for the same fault). Set to `false` if the user is asking about a completely different topic (e.g. switching from hardware fault to store hours), starting a new issue, or sending their first message in the conversation.
+
+18. **Output ONLY the JSON**. No explanation outside the JSON structure.

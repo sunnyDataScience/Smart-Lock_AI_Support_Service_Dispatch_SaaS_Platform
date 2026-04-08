@@ -186,11 +186,35 @@ async def task_decompose(state: GraphState, config: RunnableConfig) -> dict:
             },
         }
 
+    # ── Topic continuity check: reset on new topic ──
+    is_continuation = result.get("is_continuation", True)
+    _topic_remove_msgs = []
+    if not is_continuation and pc_dict.get("card_id"):
+        cfg = config.get("configurable", {})
+        user_id = cfg.get("user_id") or cfg.get("thread_id", "anonymous")
+        pc = ProblemCard(
+            card_id=f"pc_{uuid4().hex[:8]}",
+            user_id=user_id,
+            status=CardStatus.DIAGNOSING,
+        )
+        ctx = DiagnosticContext()
+        # 清理舊 messages：只保留最後一則 HumanMessage（當前問題）
+        from langchain_core.messages import RemoveMessage
+        msgs = state.get("messages", [])
+        last_human_idx = -1
+        for i, m in enumerate(msgs):
+            if hasattr(m, "type") and m.type == "human":
+                last_human_idx = i
+        for m in msgs[:last_human_idx]:
+            if hasattr(m, "id") and m.id:
+                _topic_remove_msgs.append(RemoveMessage(id=m.id))
+        print(f"  [task_decompose] 話題轉換，重建 ProblemCard: {pc.card_id}，清理 {len(_topic_remove_msgs)} 則舊訊息")
+
     # ── Non-hardware early exit: let router handle via RAG ──
     if result.get("is_hardware_fault") is False:
         intent_classification = result.get("intent_classification", [])
         print(f"  [task_decompose] 非硬體故障，意圖={intent_classification}")
-        return {
+        result_dict = {
             "history": ["task_decompose:not_hardware"],
             "task": {
                 **task_state,
@@ -199,6 +223,9 @@ async def task_decompose(state: GraphState, config: RunnableConfig) -> dict:
                 "problem_card": _problem_card_to_dict(pc),
             },
         }
+        if _topic_remove_msgs:
+            result_dict["messages"] = _topic_remove_msgs
+        return result_dict
 
     # ── Merge LLM output into ProblemCard ──
     updated_pc = result.get("updated_problem_card", {})
@@ -306,10 +333,13 @@ async def task_decompose(state: GraphState, config: RunnableConfig) -> dict:
     asyncio.create_task(_save_pc_background(pc))
 
     state_val = ctx.current_state.value
-    return {
+    result_dict = {
         "history": [f"task_decompose:round_{ctx.verification_round}:{state_val}"],
         "task": new_task,
     }
+    if _topic_remove_msgs:
+        result_dict["messages"] = _topic_remove_msgs
+    return result_dict
 
 
 async def _save_pc_background(pc: ProblemCard) -> None:

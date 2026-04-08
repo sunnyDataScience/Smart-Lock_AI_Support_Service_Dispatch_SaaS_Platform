@@ -65,7 +65,7 @@ async def download_media(message_id: str) -> tuple[bytes, str]:
     """
     from linebot.v3.messaging import (
         AsyncApiClient,
-        AsyncMessagingApiBlobApi,
+        AsyncMessagingApiBlob,
         Configuration,
     )
 
@@ -74,7 +74,7 @@ async def download_media(message_id: str) -> tuple[bytes, str]:
     async with AsyncApiClient(
         Configuration(access_token=_line_access_token)
     ) as api_client:
-        blob_api = AsyncMessagingApiBlobApi(api_client)
+        blob_api = AsyncMessagingApiBlob(api_client)
         response = await asyncio.wait_for(
             blob_api.get_message_content(message_id),
             timeout=timeout,
