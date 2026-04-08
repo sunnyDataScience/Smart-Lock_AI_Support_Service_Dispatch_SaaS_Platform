@@ -332,7 +332,7 @@ postgres_uri_env       = "POSTGRES_URI"       # PostgreSQL 連線字串
 # sqlite_path          = "./data/db/chat_history.db"  # sqlite 專用，回退時取消註解
 max_messages_threshold = 50                   # messages 超過此數量時觸發語意摘要壓縮
 context_retention_pair = 20                   # 壓縮後保留最近幾對對話（1 對 = 1 human + 1 ai）
-router_context_pairs   = 3                    # router 意圖分類時，附帶最近幾輪對話作為上下文（同時濃縮問題給 agent）
+router_context_pairs   = 20                   # router 派發給 agent 時，附帶最近幾輪對話（與 context_retention_pair 對齊）
 
 
 # ==========================================

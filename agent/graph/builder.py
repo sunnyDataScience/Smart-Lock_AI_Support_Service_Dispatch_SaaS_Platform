@@ -61,11 +61,29 @@ async def build_graph():
         """根據 next_agents 用 Send() 實現 fan-out"""
         agents = state.get("next_agents", [])
 
-        # summary (SystemMessage) + 濃縮後的問題
+        # summary (SystemMessage) + 最近 N 輪對話 + 當前問題
+        context_pairs = MEMORY_CONFIG.get("router_context_pairs", 3)
+        all_msgs = state.get("messages", [])
+
         agent_msgs = []
-        for msg in state.get("messages", []):
+        # 1. 保留 SystemMessage（摘要）
+        for msg in all_msgs:
             if hasattr(msg, "type") and msg.type == "system":
                 agent_msgs.append(msg)
+
+        # 2. 取最近 N 輪 human/ai 對話（不含 tool messages 和當前問題）
+        recent_dialogue = [
+            msg for msg in all_msgs
+            if hasattr(msg, "type") and msg.type in ("human", "ai")
+        ]
+        # 最後一則 human 是當前問題（pre_process 剛加的），排除它
+        if recent_dialogue and recent_dialogue[-1].type == "human":
+            recent_dialogue = recent_dialogue[:-1]
+        # 取最後 N*2 則（N 輪 = N human + N ai）
+        window = recent_dialogue[-(context_pairs * 2):]
+        agent_msgs.extend(window)
+
+        # 3. 當前問題放最後
         agent_msgs.append(HumanMessage(content=state.get("question", "")))
 
         # [DEBUG] head → agent：派發的 messages
