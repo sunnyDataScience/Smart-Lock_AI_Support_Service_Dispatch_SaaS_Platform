@@ -18,10 +18,10 @@ from graph.state import GraphState
 from llms import get_llm
 from harness import is_layer_enabled
 from harness.task.knowledge_loader import KnowledgeLoader
-from harness.task.problem_card import (
+from domain.problem_card import (
     ProblemCard, CardStatus, calculate_completeness,
 )
-from harness.task.diagnostic_state_machine import (
+from domain.diagnostic_state_machine import (
     DiagnosticContext,
     DiagnosticState,
     resolve_next_state,
@@ -315,7 +315,7 @@ async def task_decompose(state: GraphState, config: RunnableConfig) -> dict:
 async def _save_pc_background(pc: ProblemCard) -> None:
     """Non-blocking ProblemCard persistence."""
     try:
-        from harness.task.problem_card import save_problem_card
+        from domain.problem_card import save_problem_card
         await save_problem_card(pc)
     except Exception as e:
         print(f"  [task_decompose] ProblemCard 持久化失敗（非致命）: {e}")

@@ -315,7 +315,7 @@ if __name__ == "__main__":
         # --- B2: ProblemCard 完整度計算 ---
         print("\n--- B2: ProblemCard Completeness ---")
         try:
-            from harness.task.problem_card import ProblemCard, calculate_completeness
+            from domain.problem_card import ProblemCard, calculate_completeness
 
             cases = [
                 ("空卡", ProblemCard(card_id="test_empty")),
@@ -346,7 +346,7 @@ if __name__ == "__main__":
         # --- B3: 診斷狀態機 ---
         print("\n--- B3: Diagnostic State Machine ---")
         try:
-            from harness.task.diagnostic_state_machine import (
+            from domain.diagnostic_state_machine import (
                 DiagnosticContext, DiagnosticState, resolve_next_state
             )
 

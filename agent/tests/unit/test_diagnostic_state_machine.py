@@ -2,7 +2,7 @@
 
 import pytest
 
-from harness.task.diagnostic_state_machine import (
+from domain.diagnostic_state_machine import (
     DiagnosticContext,
     DiagnosticState,
     resolve_next_state,
