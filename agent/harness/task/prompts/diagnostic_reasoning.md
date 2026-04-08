@@ -263,9 +263,27 @@ Perform PDCA diagnostic reasoning in a single pass:
 
 13. **Sentiment override**: If `escalation_required` is detected, STOP diagnosis and output `next_action.type = "transfer_to_human"`.
 
-14. **is_hardware_fault**: Set to `true` if the user's question is about hardware faults, installation, troubleshooting, or any lock-related technical issue. Set to `false` for non-hardware queries such as store info, APP settings, greetings, pricing, manual requests, or out-of-domain questions.
+14. **is_hardware_fault**: Set to `true` ONLY if the user's current message is asking about hardware faults, installation, troubleshooting, or lock-related technical issues (e.g. 鎖打不開, 指紋沒反應, 螢幕不亮, 異常聲響, 電池問題). Set to `false` for ALL of the following:
+    - Personal info updates: 更新地址, 更新電話, 修改資料, 變更聯絡方式
+    - Greetings & thanks: 你好, 謝謝, 掰掰
+    - Store inquiries: 門市在哪, 營業時間, 怎麼過去
+    - APP operation questions: 怎麼加入家人, App設定, 成員管理
+    - Manual/document requests: 說明書, 使用手冊, 操作指南
+    - Pricing & service: 費用多少, 維修收費, 預約安裝
+    - Transfer requests: 轉接真人, 找客服, 我要投訴
+    - Out-of-domain: 天氣, 股票, 任何與電子鎖無關的話題
+    **IMPORTANT**: Even if the user was previously discussing a hardware issue, a new message about personal info updates or non-technical requests should be classified as `false`.
 
-15. **intent_classification**: When `is_hardware_fault` is `false`, classify the user's intent into one or more of these intent names: `"hardware_tech"`, `"sales_and_service"`, `"store_info"`, `"app_support"`, `"manual_request"`, `"web_search"`, `"general_reception"`, `"out_of_domain"`, `"transfer_human"`. When `is_hardware_fault` is `true`, use `["hardware_tech"]`.
+15. **intent_classification**: When `is_hardware_fault` is `false`, classify the user's intent into one or more of these intent names based on the examples below. When `is_hardware_fault` is `true`, use `["hardware_tech"]`.
+    - `"hardware_tech"`: 硬體故障、安裝、維修、技術問題
+    - `"sales_and_service"`: 費用、收費、報價、預約安裝、購買
+    - `"store_info"`: 門市地址、營業時間、怎麼到門市
+    - `"app_support"`: App操作、成員管理、藍牙配對、App設定
+    - `"manual_request"`: 說明書、使用手冊、操作指南
+    - `"web_search"`: 市場比較、其他品牌資訊
+    - `"general_reception"`: 更新地址、更新電話、修改個人資料、一般問候、感謝、情緒安撫
+    - `"out_of_domain"`: 與電子鎖服務完全無關的問題
+    - `"transfer_human"`: 明確要求轉接真人、找主管、投訴
 
 16. **confidence_update**: After each verification question answer, calculate the confidence gain based on the fault tree's verification chain. `confidence_gain` is how much this round adds (typically 0.15-0.35). `cumulative_confidence` is the running total. When cumulative confidence reaches 0.75+, set `diagnosis_status` to `"ready_to_conclude"`.
 
