@@ -289,8 +289,9 @@ require_slots = false                # 是否需要先完成槽位填充
 type                   = "postgres"           # 可選: "memory" (暫存), "sqlite" (本地持久化), "postgres" (資料庫持久化，預設)
 postgres_uri_env       = "POSTGRES_URI"       # PostgreSQL 連線字串環境變數
 # sqlite_path          = "./data/db/chat_history.db"  # sqlite 回退時取消註解
-max_messages_threshold = 10                   # messages 超過此數量時觸發語意摘要壓縮
-context_retention_pair = 2                    # 壓縮後保留最近幾對 (human+ai) 訊息
+max_messages_threshold = 50                   # messages 超過此數量時觸發語意摘要壓縮
+context_retention_pair = 20                   # 壓縮後保留最近幾對對話（1 對 = 1 human + 1 ai）
+router_context_pairs   = 20                   # router 派發給 agent 時，附帶最近幾輪對話（與 context_retention_pair 對齊）
 ```
 
 | 參數 | 說明 |
@@ -299,7 +300,8 @@ context_retention_pair = 2                    # 壓縮後保留最近幾對 (hum
 | `postgres_uri_env` | `postgres` 類型專用，指向 `.env` 中的 PostgreSQL 連線字串變數名 |
 | `sqlite_path` | `sqlite` 類型專用，指定 `.db` 檔案路徑（回退時使用） |
 | `max_messages_threshold` | `manage_memory` 節點的觸發門檻。當 `messages` 數量超過此值，LLM 會將舊訊息壓縮為結構化摘要 |
-| `context_retention_pair` | 壓縮後保留的最近對話對數（1 對 = 1 human + 1 ai = 2 條 message） |
+| `context_retention_pair` | 壓縮後保留的最近對話對數（1 對 = 1 human + 1 ai = 2 條 message）。與 `router_context_pairs` 對齊，確保保留的訊息都能被 agent 看到 |
+| `router_context_pairs` | `route_by_intent()` 派發給 agent 子圖時，附帶的最近對話輪數（滑動窗口）。Agent 會看到這些歷史 human/ai 對話 + 當前問題，避免重複回答 |
 
 > **摘要壓縮流程**：`manage_memory` 節點呼叫 LLM（使用 `summarize_messages.md` 模板）將舊訊息壓縮為結構化摘要，透過 `RemoveMessage` API 刪除已壓縮的訊息，摘要存入 `state.summary`，由 `pre_process` 以 `[前情提要]` SystemMessage 注入後續流程。
 

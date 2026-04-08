@@ -105,7 +105,7 @@
 4. 新增 `scripts/resolution_metrics.py` 聚合統計：`confirmed_resolved / total_resolved`
 
 **涉及檔案：**
-- `agent/harness/task/problem_card.py` — 新增 `resolution_confirmed` 欄位
+- `agent/domain/problem_card.py` — 新增 `resolution_confirmed` 欄位
 - `agent/graph/nodes.py` — `diagnostic_respond` 或 `post_process` 加入 Quick Reply
 - `agent/tools/line_ui_factory.py` — 新增 Quick Reply 按鈕建構
 - `agent/app.py` — 處理 Quick Reply postback 回呼
@@ -228,9 +228,9 @@
 
 ---
 
-## 已完成項目（本次 session）
+## 已完成項目
 
-以下項目已於 2026-04-07 完成，列出供交叉參照：
+### 2026-04-07 完成
 
 - [x] 多模態訊息支援（圖片/音訊/影片 → Gemini Flash-Lite 前處理）
 - [x] 媒體存儲抽象層（local 實作 + GCS/S3 擴充介面）
@@ -244,6 +244,14 @@
 - [x] _loaders.py 加入 problem_cards 來源
 - [x] 系統擴充開發指南更新（§15 多模態）
 - [x] 系統設定檔說明文件更新（§15 [multimodal]）
+
+### 2026-04-08 完成
+
+- [x] **對話記憶失效修復**：`route_by_intent()` 加入滑動窗口（20 輪），Agent 可見完整對話歷史，解決鸚鵡式重複回答（`8a9c864`）
+- [x] **意圖分類修復**：`diagnostic_reasoning.md` Rule 14-15 重寫，明確 8 類非硬體排除項目 + 每 intent 附中文範例（`4c8ede3`）
+- [x] **多模態競態條件修復**：佔位→替換機制 + debounce 媒體等待 ≤10s + 錯誤 fallback 改善（`1f729c1`）
+- [x] **架構分層**：ProblemCard / DiagnosticStateMachine 從 `harness/task/` 搬到 `domain/`（`515760c`）
+- [x] `router_context_pairs` 與 `context_retention_pair` 對齊為 20
 
 ---
 
