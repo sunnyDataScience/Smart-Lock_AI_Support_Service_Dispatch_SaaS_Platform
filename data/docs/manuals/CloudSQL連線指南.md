@@ -23,28 +23,9 @@
 
 ### 2.1 安裝 Proxy
 
-**方式 A：已安裝 Google Cloud SDK（`gcloud`）**
-
 ```bash
 gcloud components install cloud-sql-proxy
 ```
-
-安裝後 `cloud-sql-proxy` 會出現在 gcloud 的 `bin` 目錄（需已將該目錄加入 `PATH`）。
-
-**方式 B：未安裝 gcloud（例如 WSL 僅需 Proxy）**
-
-可改為下載官方獨立二進位（以 Linux x86_64 為例；版本號請以 [發行頁](https://github.com/GoogleCloudPlatform/cloud-sql-proxy/releases) 為準）：
-
-```bash
-mkdir -p ~/.local/bin
-curl -fsSL "https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.14.3/cloud-sql-proxy.linux.amd64" \
-  -o ~/.local/bin/cloud-sql-proxy
-chmod +x ~/.local/bin/cloud-sql-proxy
-# 確保 ~/.local/bin 在 PATH 中（可寫入 ~/.zshrc 或 ~/.bashrc）
-export PATH="$HOME/.local/bin:$PATH"
-```
-
-完成後執行 `cloud-sql-proxy --version` 應可顯示版本號。
 
 ### 2.2 登入 GCP
 
@@ -52,7 +33,10 @@ export PATH="$HOME/.local/bin:$PATH"
 
 ```bash
 gcloud auth login
+gcloud auth application-default login
 ```
+
+> **說明**：`gcloud auth login` 用於 gcloud CLI 本身的認證；`gcloud auth application-default login` 則設定 Application Default Credentials (ADC)，供 Vertex AI SDK、langchain-google-genai 等程式庫使用。
 
 ### 2.3 啟動 Proxy
 
