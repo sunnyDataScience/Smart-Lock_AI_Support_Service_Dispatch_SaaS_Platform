@@ -25,7 +25,30 @@ user-invocable: true
 | **Milre 美樂** | 6500F、6500S、7150 | 韓系品牌 |
 | **AiLock** | 七合一旗艦款 | 多合一功能 |
 
-**更多型號手冊：** GL220、RL599、FA9000、DP850、AS901、ML660、AS701、MP750、RL320、RL360、RL360V、ML550、ML770、FSL800
+### 型號操作手冊（Google Drive 連結）
+
+| 型號 | 手冊連結 |
+|------|---------|
+| GL220 | https://drive.google.com/file/d/10mP8RipmqMzSGV_Uh_4dNo36L9CZs-eP/view |
+| FA9000 | https://drive.google.com/file/d/1CjWZ2DgpSRNdQ4urSuz1sh_AOhm6LE0D/view |
+| DP850 | https://drive.google.com/file/d/1D4vaLLSFdNAMNysM7OahYyLYfKhATfWd/view |
+| AS701 | https://drive.google.com/file/d/1JKWr7SlJPEHpK957ZZX7fnz0xOFAd9Ir/view |
+| AS901 | https://drive.google.com/file/d/1ev_ljYIQU-pVyo1WCYketF7oQHbRsflv/view |
+| ML550 | https://drive.google.com/file/d/1Y-MFe2cJtCtsIXaugS3O1Av7xNhVAP0-/view |
+| ML660 | https://drive.google.com/file/d/1hrxc409DBOE74aEzXLfnE4lKGjb4vihb/view |
+| ML770 | https://drive.google.com/file/d/1zeYFSb-ucBQWbRd6G9S0uIXqY-PpR5FA/view |
+| MP750 | https://drive.google.com/file/d/1jWTZCMQtxZ9PyxyTjcuwIS09_gLrJpNd/view |
+| RL320 | https://drive.google.com/file/d/1lXckimPvBbNKA7TDtvsT15rG3-2FwfD8/view |
+| RL360 | https://drive.google.com/file/d/1Uk58i4KerNlELEwYpwhnyrxFnLj92-sn/view |
+| RL360V | https://drive.google.com/file/d/1yfPop_5WAP9HQf59MzRgEcOdpanZR2sc/view |
+| RL599 | https://drive.google.com/file/d/1b8P6X8jiEPO4a6_SFaUAmKnoAGsx6lMT/view |
+| FSL800 | https://drive.google.com/file/d/1txrX9j_IBFNv4gKYis91ER9wZ75aaSK9/view |
+| Rose | https://drive.google.com/file/d/1HWi8-2u4sMbUxhvyIkqhbrB0bqwrGwBU/view |
+| WiFi 設定 | https://drive.google.com/file/d/1MW01SxJAl_nMyPFpTX9s-5jWcV_MI8N1/view |
+| APP 遠端操作 | https://drive.google.com/file/d/1XlFF_HobHgwsOLu70ArmvaLAGLzgDNIE/view |
+| APP 操作手冊 | https://drive.google.com/file/d/1z_N6ZEQkofjlFpVpXqj6W1xAYsrjuPjz/view |
+
+> 客戶詢問特定型號的操作手冊時，直接提供對應的 Google Drive 連結。
 
 ---
 
