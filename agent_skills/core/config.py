@@ -28,6 +28,11 @@ class AppConfig:
     skills: dict = field(default_factory=dict)
     prompts: dict = field(default_factory=dict)
     safety: dict = field(default_factory=dict)
+    storage: dict = field(default_factory=dict)
+    debounce: dict = field(default_factory=dict)
+    multimodal: dict = field(default_factory=dict)
+    templates: dict = field(default_factory=dict)
+    user_profile: dict = field(default_factory=dict)
 
 
 def load_config(file_path: str | None = None) -> AppConfig:
@@ -52,6 +57,11 @@ def load_config(file_path: str | None = None) -> AppConfig:
         skills=data.get("skills", {}),
         prompts=data.get("prompts", {}),
         safety=data.get("safety", {}),
+        storage=data.get("storage", {}),
+        debounce=data.get("debounce", {}),
+        multimodal=data.get("multimodal", {}),
+        templates=data.get("templates", {}),
+        user_profile=data.get("user_profile", {}),
     )
 
 

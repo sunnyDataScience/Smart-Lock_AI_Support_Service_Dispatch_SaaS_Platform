@@ -26,7 +26,10 @@ max_reply_length         = 5000
 
 # ── 4. 對話記憶 ──
 [memory]
-type = "memory"   # "memory" (in-process) | "sqlite" | "postgres"
+type                   = "postgres"  # "memory" (in-process) | "sqlite" | "postgres"
+postgres_uri_env       = "POSTGRES_URI"
+max_messages_threshold = 20         # 訊息數超過此值時觸發壓縮
+context_retention_pair = 10          # 壓縮後保留最近 N 輪對話
 
 # ── 5. 技能系統 ──
 [skills]
@@ -34,9 +37,58 @@ data_dir = "skills/data"
 
 # ── 6. 提示詞檔案路徑 ──
 [prompts]
-system_prompt       = "prompts/system.md"
-transfer_human_form = "prompts/transfer_human.md"
+system_prompt          = "prompts/system.md"
+transfer_human_form    = "prompts/transfer_human.md"
+summarize_prompt       = "prompts/summarize_messages.md"
+update_profile_prompt  = "prompts/update_profile.md"
 
 # ── 7. 安全設定 ──
 [safety]
 dangerous_keywords = ["拆開電路板", "剪斷電線", "破壞鎖芯", "撬開"]
+
+# ── 8. 審計日誌 ──
+[storage]
+type             = "postgres"
+postgres_uri_env = "POSTGRES_URI"
+# sqlite_path = "./data/db/audit_log.db"
+
+# ── 9. Debounce 防抖設定 ──
+[debounce]
+buffer_wait      = 1.5    # 秒，最後一則訊息後等待時間
+buffer_ttl       = 300    # 秒，緩衝區過期清理
+cleanup_interval = 60     # 秒，清理迴圈間隔
+media_extra_wait = 10     # 秒，等待媒體處理完成
+
+# ── 9. 多模態處理 ──
+[multimodal]
+enabled               = false
+api_key_env           = "GEMINI_API_KEY"
+model_name            = "gemini-2.5-flash-lite"
+temperature           = 0.2
+download_timeout      = 10
+preprocessing_timeout = 30
+max_file_size_mb      = 20
+image_prompt          = "請描述這張圖片的內容。用繁體中文簡潔描述，著重於電子鎖相關的細節。"
+audio_prompt          = "請將這段音訊轉成文字。用繁體中文。"
+video_prompt          = "請描述這段影片的內容。用繁體中文簡潔描述。"
+sticker_reply         = "收到您的貼圖了！請問有什麼關於電子鎖的問題我可以幫忙的嗎？"
+fallback_text         = "抱歉，我無法辨識您傳送的{media_type}。請用文字描述您的問題。"
+
+[multimodal.storage]
+type       = "local"
+local_path = "./data/media"
+
+# ── 10. 回覆模板 ──
+[templates]
+push_fallback_prefix = "【系統通知】讓您久等了，以下是您的回覆：\n"
+error_timeout        = "不好意思，系統處理時間過長，請稍後再試一次。"
+error_no_reply       = "抱歉，系統沒有產生回覆。"
+error_system         = "不好意思，系統大腦剛剛稍微當機了一下，請稍後再試一次！"
+
+# ── 11. 用戶畫像 ──
+[user_profile]
+enabled     = true
+profile_dir = "./data/profiles"
+facts_enabled = true
+facts_postgres_uri_env = "POSTGRES_URI"
+fact_attributes = ["phone", "address", "device_model", "device_brand"]

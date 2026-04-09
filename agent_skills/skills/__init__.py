@@ -66,7 +66,7 @@ def load_skills(skills_dir: str | None = None) -> list[Skill]:
             skill = _parse_skill_md(skill_file)
             if skill:
                 skills.append(skill)
-                print(f"[skills] 載入: {skill.name}")
+                print(f"[skills] 索引: {skill.name}")
 
-    print(f"[skills] 共載入 {len(skills)} 個技能")
+    print(f"[skills] 共索引 {len(skills)} 個技能（runtime 按需載入）")
     return skills

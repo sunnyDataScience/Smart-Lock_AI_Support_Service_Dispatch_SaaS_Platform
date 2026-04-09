@@ -11,12 +11,26 @@ from . import Skill
 # ── 模組層級狀態（由 app 啟動時注入）──
 _skills: list[Skill] = []
 _transfer_message: str = ""
+_profile_mgr = None
+_current_user_id: str = ""
 
 
 def set_skills(skills: list[Skill]) -> None:
     """注入技能清單（app 啟動時呼叫）。"""
     global _skills
     _skills = skills
+
+
+def set_profile_mgr(profile_mgr) -> None:
+    """注入 ProfileManager（app 啟動時呼叫）。"""
+    global _profile_mgr
+    _profile_mgr = profile_mgr
+
+
+def set_current_user_id(user_id: str) -> None:
+    """設定當前請求的 user_id（每次 run_agent 前呼叫）。"""
+    global _current_user_id
+    _current_user_id = user_id
 
 
 @tool
@@ -40,18 +54,44 @@ def load_skill(skill_name: str) -> str:
 
 
 @tool
-def transfer_to_human(reason: str) -> str:
+async def transfer_to_human(reason: str) -> str:
     """轉接真人客服。當客戶明確要求轉真人、或問題超出 AI 能力範圍時使用。
 
     觸發情境：客戶說「轉真人」「我要找真人」「找專員」「找人工客服」「幫我轉接」
-    「我不要跟機器人講」「讓我跟人說話」等任何表達想與真人對話的意圖。
+    「我不要跟機器人講」「讓我跟人說話」「請師傅來」「派師傅」等。
 
     Args:
         reason: 轉接原因摘要
     """
     print(f"[transfer] >>> 轉接真人: {reason}")
-    # TODO: 實際串接 LINE 轉接或通知機制
-    return _transfer_message
+
+    # 從模組層級 user_id 查 DB，自動填入已知資料
+    facts = {}
+    if _profile_mgr and _profile_mgr.facts_enabled and _current_user_id:
+        try:
+            facts = await _profile_mgr.load_facts(_current_user_id)
+            print(f"[transfer] 已載入 {_current_user_id} 的 facts: {facts}")
+        except Exception as e:
+            print(f"[transfer] 載入 facts 失敗: {e}")
+
+    phone = facts.get("phone", "")
+    address = facts.get("address", "")
+    device_brand = facts.get("device_brand", "")
+    device_model = facts.get("device_model", "")
+    device_info = f"{device_brand} {device_model}".strip() if (device_brand or device_model) else ""
+
+    # 組裝表單：已知的欄位直接填入，未知的留空請客戶補充
+    lines = ["為了讓專員能更快速、精確地協助您，再麻煩您核對或補充以下聯絡資訊：", ""]
+    lines.append(f"🔹 聯絡電話：{phone}" if phone else "🔹 聯絡電話：")
+    lines.append(f"🔹 聯絡地址：{address}" if address else "🔹 聯絡地址：")
+    lines.append(f"🔹 設備品牌型號：{device_info}" if device_info else "🔹 設備品牌型號：")
+    lines.append("🔹 安裝日期：")
+    lines.append("")
+    lines.append("如果您手邊有任何照片、截圖或是影片（例如：門鎖的現況、App 錯誤畫面的截圖等），也都非常歡迎您直接傳送上來喔！這能幫助專員更快了解您的情況。")
+    lines.append("")
+    lines.append("感謝您的耐心等候，我們很快就會有專人為您服務！")
+
+    return "\n".join(lines)
 
 
 def set_transfer_message_from_file(prompt_path: str) -> None:

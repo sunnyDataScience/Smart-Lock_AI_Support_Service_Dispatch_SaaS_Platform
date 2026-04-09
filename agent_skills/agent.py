@@ -9,19 +9,20 @@
 from __future__ import annotations
 
 from langgraph.prebuilt import create_react_agent
-from langgraph.checkpoint.memory import MemorySaver
 
 from core.config import AppConfig, load_prompt
 from skills import load_skills
-from skills.tools import load_skill, transfer_to_human, set_skills, set_transfer_message_from_file, build_skills_prompt
+from skills.tools import load_skill, transfer_to_human, set_skills, set_profile_mgr, set_transfer_message_from_file, build_skills_prompt
 
 
-def build_agent(model, cfg: AppConfig):
+def build_agent(model, cfg: AppConfig, checkpointer=None, profile_mgr=None):
     """建立 skill-based ReAct agent。
 
     Args:
         model: LangChain ChatModel instance
         cfg: AppConfig from config.toml
+        checkpointer: LangGraph checkpointer instance（由 memory.get_checkpointer 建立）
+        profile_mgr: ProfileManager instance（用於 transfer_to_human 自動帶入資料）
 
     Returns:
         compiled LangGraph agent
@@ -31,7 +32,11 @@ def build_agent(model, cfg: AppConfig):
     skills = load_skills(skills_dir)
     set_skills(skills)
 
-    # 2. 組裝 system prompt（從 prompts/system.md 模板 + config 變數）
+    # 2. 注入 ProfileManager（轉接真人表單自動帶入）
+    if profile_mgr:
+        set_profile_mgr(profile_mgr)
+
+    # 3. 組裝 system prompt（從 prompts/system.md 模板 + config 變數）
     skills_section = build_skills_prompt(skills)
 
     prompt = load_prompt(
@@ -39,13 +44,11 @@ def build_agent(model, cfg: AppConfig):
         skills_section=skills_section,
     )
 
-    # 3. 載入轉接真人訊息模板
+    # 4. 載入轉接真人訊息模板（fallback，新版 transfer_to_human 已自動組裝）
     transfer_prompt_path = cfg.prompts.get("transfer_human_form", "prompts/transfer_human.md")
     set_transfer_message_from_file(transfer_prompt_path)
 
     # 4. 建立 agent
-    checkpointer = MemorySaver()
-
     agent = create_react_agent(
         model=model,
         tools=[load_skill, transfer_to_human],
