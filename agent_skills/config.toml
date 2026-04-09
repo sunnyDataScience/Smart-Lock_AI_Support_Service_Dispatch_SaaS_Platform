@@ -1,0 +1,42 @@
+# ============================================================
+# Agent Skills — config.toml
+# 所有設定集中管理，零硬編碼
+# ============================================================
+
+# ── 1. 系統設定 ──
+[system]
+domain          = "電子鎖、智慧門鎖相關的產品諮詢、故障排除、安裝派工"
+agent_name      = "smart_lock_agent"
+request_timeout = 30
+
+# ── 2. LLM 設定 ──
+[llm]
+provider        = "vertexai"
+model_name      = "gemini-2.5-flash"
+temperature     = 0.3
+project_id_env  = "VERTEX_PROJECT_ID"
+location_env    = "VERTEX_LOCATION"
+
+# ── 3. LINE Bot 設定 ──
+[line_bot]
+channel_secret_env       = "LINE_CHANNEL_SECRET"
+channel_access_token_env = "LINE_CHANNEL_ACCESS_TOKEN"
+loading_seconds          = 20
+max_reply_length         = 5000
+
+# ── 4. 對話記憶 ──
+[memory]
+type = "memory"   # "memory" (in-process) | "sqlite" | "postgres"
+
+# ── 5. 技能系統 ──
+[skills]
+data_dir = "skills/data"
+
+# ── 6. 提示詞檔案路徑 ──
+[prompts]
+system_prompt       = "prompts/system.md"
+transfer_human_form = "prompts/transfer_human.md"
+
+# ── 7. 安全設定 ──
+[safety]
+dangerous_keywords = ["拆開電路板", "剪斷電線", "破壞鎖芯", "撬開"]

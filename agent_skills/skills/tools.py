@@ -1,13 +1,16 @@
-"""load_skill tool — 讓 agent 按需載入完整技能內容。"""
+"""load_skill + transfer_to_human tools。"""
 
 from __future__ import annotations
 
+import os
+
 from langchain_core.tools import tool
 
-from .  import Skill
+from . import Skill
 
-# 模組層級的技能列表，由 app.py 啟動時注入
+# ── 模組層級狀態（由 app 啟動時注入）──
 _skills: list[Skill] = []
+_transfer_message: str = ""
 
 
 def set_skills(skills: list[Skill]) -> None:
@@ -36,20 +39,6 @@ def load_skill(skill_name: str) -> str:
     return f"找不到技能 '{skill_name}'。可用技能: {available}"
 
 
-TRANSFER_MESSAGE = """\
-為了讓專員能更快速、精確地協助您，再麻煩您核對或補充以下聯絡資訊：
-
-🔹 聯絡電話：
-🔹 聯絡地址：
-🔹 設備品牌型號：
-🔹 安裝日期：
-
-如果您手邊有任何照片、截圖或是影片（例如：門鎖的現況、App 錯誤畫面的截圖等），也都非常歡迎您直接傳送上來喔！這能幫助專員更快了解您的情況。
-
-感謝您的耐心等候，我們很快就會有專人為您服務！\
-"""
-
-
 @tool
 def transfer_to_human(reason: str) -> str:
     """轉接真人客服。當客戶明確要求轉真人、或問題超出 AI 能力範圍時使用。
@@ -62,7 +51,21 @@ def transfer_to_human(reason: str) -> str:
     """
     print(f"[transfer] >>> 轉接真人: {reason}")
     # TODO: 實際串接 LINE 轉接或通知機制
-    return TRANSFER_MESSAGE
+    return _transfer_message
+
+
+def set_transfer_message_from_file(prompt_path: str) -> None:
+    """從提示詞檔案載入轉接真人訊息（agent.py 啟動時呼叫）。"""
+    global _transfer_message
+    _transfer_message = _load_prompt_file(prompt_path)
+
+
+def _load_prompt_file(prompt_path: str) -> str:
+    """讀取提示詞檔案（相對於 agent_skills/）。"""
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    full_path = os.path.join(base_dir, prompt_path)
+    with open(full_path, "r", encoding="utf-8") as f:
+        return f.read().strip()
 
 
 def build_skills_prompt(skills: list[Skill]) -> str:

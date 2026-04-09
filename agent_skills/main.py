@@ -1,6 +1,7 @@
 """CLI 互動測試 — 不需要 LINE Bot 就能測試 agent。
 
-用法：cd agent_v2 && python main.py
+用法：cd agent_skills && python main.py
+所有設定從 config.toml 讀取。
 """
 
 import os
@@ -10,37 +11,56 @@ from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
-from langchain_google_vertexai import ChatVertexAI
+from core.config import load_config
 from agent import build_agent
 
 
 async def main():
-    project = os.getenv("VERTEX_PROJECT_ID", "")
-    if not project:
-        print("Please set VERTEX_PROJECT_ID env var")
+    cfg = load_config()
+    llm_cfg = cfg.llm
+    provider = llm_cfg.get("provider", "vertexai")
+
+    if provider == "vertexai":
+        from langchain_google_vertexai import ChatVertexAI
+        project = os.getenv(llm_cfg.get("project_id_env", "VERTEX_PROJECT_ID"), "")
+        if not project:
+            print(f"Please set {llm_cfg.get('project_id_env')} env var")
+            return
+        model = ChatVertexAI(
+            model_name=llm_cfg.get("model_name", "gemini-2.5-flash"),
+            project=project,
+            location=os.getenv(llm_cfg.get("location_env", "VERTEX_LOCATION"), "") or "us-central1",
+            temperature=llm_cfg.get("temperature", 0.3),
+        )
+    elif provider == "gemini":
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        api_key = os.getenv(llm_cfg.get("api_key_env", "GEMINI_API_KEY"), "")
+        if not api_key:
+            print(f"Please set {llm_cfg.get('api_key_env')} env var")
+            return
+        model = ChatGoogleGenerativeAI(
+            model=llm_cfg.get("model_name", "gemini-2.5-flash"),
+            google_api_key=api_key,
+            temperature=llm_cfg.get("temperature", 0.3),
+        )
+    else:
+        print(f"Unsupported LLM provider: {provider}")
         return
 
-    model = ChatVertexAI(
-        model_name="gemini-2.5-flash",
-        project=project,
-        location=os.getenv("VERTEX_LOCATION", "us-central1"),
-        temperature=0.3,
-    )
-
-    agent = build_agent(model)
+    agent = build_agent(model, cfg)
     thread_id = "cli-test"
     config = {"configurable": {"thread_id": thread_id}}
 
     print("=" * 50)
-    print("🔒 智慧鎖 AI 客服 v2 (Skill-Based)")
-    print("   輸入 'quit' 退出 | 輸入 'reset' 重置對話")
+    print(f"  {cfg.system.get('agent_name', 'Smart Lock')} AI Agent (Skill-Based)")
+    print("  'quit' to exit | 'reset' to clear history")
     print("=" * 50)
 
     while True:
         try:
-            user_input = input("\n👤 客戶: ").strip()
+            user_input = input("\n> ").strip()
         except (EOFError, KeyboardInterrupt):
-            print("\n再見！")
+            print("\nBye!")
             break
 
         if not user_input:
@@ -50,7 +70,7 @@ async def main():
         if user_input.lower() == "reset":
             thread_id = f"cli-test-{id(object())}"
             config = {"configurable": {"thread_id": thread_id}}
-            print("🔄 對話已重置")
+            print("[reset]")
             continue
 
         result = await agent.ainvoke(
@@ -58,16 +78,14 @@ async def main():
             config,
         )
 
-        # 取最後一則 AI 回覆
         messages = result.get("messages", [])
         for msg in reversed(messages):
             if hasattr(msg, "type") and msg.type == "ai" and msg.content:
-                print(f"\n>> {_extract_text(msg.content)}")
+                print(f"\n{_extract_text(msg.content)}")
                 break
 
 
 def _extract_text(content) -> str:
-    """從 AI 回覆中提取純文字（Vertex AI 可能回傳 list[dict]）。"""
     if isinstance(content, str):
         return content
     if isinstance(content, list):
