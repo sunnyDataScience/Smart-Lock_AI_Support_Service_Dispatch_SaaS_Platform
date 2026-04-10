@@ -7,7 +7,7 @@
 import os
 import asyncio
 
-from core.media_storage import get_media_storage, BaseMediaStorage
+from harness.media_storage import get_media_storage, BaseMediaStorage
 
 # 模組層級狀態（由 init() 初始化）
 _config: dict = {}

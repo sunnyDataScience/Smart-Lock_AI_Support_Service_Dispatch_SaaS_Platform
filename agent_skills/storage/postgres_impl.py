@@ -165,25 +165,6 @@ class PostgresAuditStorage:
             },
         )
 
-    async def log_rag_citation(
-        self, user_id: str, agent_name: str, tool_name: str,
-        query: str = "", result_count: int = 0,
-    ):
-        await self.log_event(
-            event_type="rag_citation",
-            actor_id=user_id,
-            actor_role="agent",
-            action=f"rag.retrieve.{tool_name}",
-            target_type="knowledge_source",
-            target_id=tool_name,
-            payload={
-                "query": query[:200],
-                "agent_name": agent_name,
-                "result_count": result_count,
-            },
-        )
-
-
 async def build_postgres_storage(config: dict) -> PostgresAuditStorage:
     global _postgres_conn
     uri = os.getenv(config.get("postgres_uri_env", "POSTGRES_URI"))

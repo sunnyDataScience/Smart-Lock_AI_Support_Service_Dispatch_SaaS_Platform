@@ -118,22 +118,6 @@ class SqliteAuditStorage:
                      "estimated_cost_usd": round(cost_usd, 6)},
         )
 
-    async def log_rag_citation(
-        self, user_id: str, agent_name: str, tool_name: str,
-        query: str = "", result_count: int = 0,
-    ):
-        await self.log_event(
-            event_type="rag_citation",
-            actor_id=user_id,
-            actor_role="agent",
-            action=f"rag.retrieve.{tool_name}",
-            target_type="knowledge_source",
-            target_id=tool_name,
-            payload={"query": query[:200], "agent_name": agent_name,
-                     "result_count": result_count},
-        )
-
-
 async def build_sqlite_storage(config: dict) -> SqliteAuditStorage:
     global _sqlite_conn
     db_path = config.get("sqlite_path", "./data/db/audit_log.db")

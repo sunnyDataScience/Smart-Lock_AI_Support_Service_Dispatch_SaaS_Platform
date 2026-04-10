@@ -48,7 +48,7 @@ async def maybe_compress(agent, thread_id: str) -> str | None:
     Returns:
         摘要文字（若有壓縮），或 None（未觸發）
     """
-    if not _llm:
+    if not _llm or not _config.get("compression_enabled", True):
         return None
 
     threshold = _config.get("max_messages_threshold", 20)

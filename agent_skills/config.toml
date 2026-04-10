@@ -28,7 +28,8 @@ max_reply_length         = 5000
 [memory]
 type                   = "postgres"  # "memory" (in-process) | "sqlite" | "postgres"
 postgres_uri_env       = "POSTGRES_URI"
-max_messages_threshold = 20         # 訊息數超過此值時觸發壓縮
+compression_enabled    = true        # H5 記憶壓縮開關
+max_messages_threshold = 20          # 訊息數超過此值時觸發壓縮
 context_retention_pair = 10          # 壓縮後保留最近 N 輪對話
 
 # ── 5. 技能系統 ──
@@ -42,9 +43,11 @@ transfer_human_form    = "prompts/transfer_human.md"
 summarize_prompt       = "prompts/summarize_messages.md"
 update_profile_prompt  = "prompts/update_profile.md"
 
-# ── 7. 安全設定 ──
+# ── 7. 安全設定 (H6) ──
 [safety]
+enabled            = true
 dangerous_keywords = ["拆開電路板", "剪斷電線", "破壞鎖芯", "撬開"]
+block_response     = "為了您的安全，我無法提供這類操作指導。如需協助，請聯繫專業技術人員。"
 
 # ── 8. 審計日誌 ──
 [storage]
@@ -52,8 +55,9 @@ type             = "postgres"
 postgres_uri_env = "POSTGRES_URI"
 # sqlite_path = "./data/db/audit_log.db"
 
-# ── 9. Debounce 防抖設定 ──
+# ── 9. Debounce 防抖設定 (H3) ──
 [debounce]
+enabled          = true   # 關閉時訊息直接進入 Agent（不合併）
 buffer_wait      = 1.5    # 秒，最後一則訊息後等待時間
 buffer_ttl       = 300    # 秒，緩衝區過期清理
 cleanup_interval = 60     # 秒，清理迴圈間隔

@@ -10,12 +10,14 @@
 
 import time
 import asyncio
+import json
 
 import core.line_bot as line_bot
-import core.memory_manager as memory_manager
-from core.line_ui_factory import build_line_messages
+import harness.memory_manager as memory_manager
+from harness.line_ui_factory import build_line_messages
 from skills.tools import set_current_user_id
-import core.profile_updater as profile_updater
+import harness.profile_updater as profile_updater
+import harness.safety_gate as safety_gate
 
 # 模組層級狀態（由 init() 初始化）
 _agent = None
@@ -91,6 +93,8 @@ async def run_agent(user_id: str, user_text: str) -> str:
 
         print(f"[Agent] 開始思考 user_id: {user_id} 的問題...")
         print(f"[Agent] 送入內容:\n{'─' * 40}\n{message[:500]}{'...(截斷)' if len(message) > 500 else ''}\n{'─' * 40}")
+
+        t0 = time.monotonic()
         try:
             result = await asyncio.wait_for(
                 _agent.ainvoke(
@@ -102,8 +106,13 @@ async def run_agent(user_id: str, user_text: str) -> str:
         except asyncio.TimeoutError:
             print(f"[Agent 超時] {user_id} 的問題處理超過 {request_timeout} 秒")
             return _templates.get("error_timeout", "不好意思，系統處理時間過長，請稍後再試一次。")
+        latency_ms = (time.monotonic() - t0) * 1000
 
         messages = result.get("messages", [])
+
+        # H8: 審計 — 記錄工具呼叫 + 轉接真人 + LLM 互動
+        asyncio.create_task(_audit_agent_result(user_id, messages, latency_ms))
+
         for msg in reversed(messages):
             if hasattr(msg, "type") and msg.type == "ai" and msg.content:
                 return _extract_text(msg.content)
@@ -115,29 +124,76 @@ async def run_agent(user_id: str, user_text: str) -> str:
         return _templates.get("error_system", "不好意思，系統大腦剛剛稍微當機了一下，請稍後再試一次！")
 
 
+async def _audit_agent_result(user_id: str, messages: list, latency_ms: float):
+    """從 agent 結果中解析工具呼叫與轉接事件，寫入審計日誌。"""
+    if not _audit_storage:
+        return
+    try:
+        for msg in messages:
+            # AI message 可能包含 tool_calls
+            if hasattr(msg, "type") and msg.type == "ai" and hasattr(msg, "tool_calls"):
+                for tc in (msg.tool_calls or []):
+                    tool_name = tc.get("name", "")
+                    args_summary = json.dumps(tc.get("args", {}), ensure_ascii=False)[:200]
+                    await _audit_storage.log_tool_invocation(
+                        user_id, "smart_lock_agent", tool_name,
+                        risk_level="read" if tool_name == "load_skill" else "escalate",
+                        args_summary=args_summary,
+                    )
+                    # 轉接真人 → 額外記錄 escalation 事件
+                    if tool_name == "transfer_to_human":
+                        reason = tc.get("args", {}).get("reason", "")
+                        await _audit_storage.log_escalation(user_id, reason)
+
+        # 記錄 LLM 互動（整次 agent 呼叫的延遲）
+        model_name = _config.get("model_name", "gemini-2.5-flash")
+        await _audit_storage.log_llm_interaction(
+            user_id, model_name, "react_agent",
+            latency_ms=latency_ms,
+        )
+    except Exception as e:
+        print(f"[Audit] 記錄 agent 結果失敗: {e}")
+
+
 async def agent_and_reply(user_id: str, reply_token: str, text: str):
     """執行 agent 並回覆使用者。"""
     print(f"\n[開始處理] 準備將訊息送入 Agent...")
 
+    # H8: 記錄使用者訊息
     if _audit_storage:
         try:
             await _audit_storage.log_message(user_id, "user", text)
         except Exception as e:
             print(f"[Audit] 記錄使用者訊息失敗: {e}")
 
+    # H6: 安全閘門 — 攔截危險指令（在進入 Agent 之前）
+    blocked = safety_gate.check(text)
+    if blocked:
+        if _audit_storage:
+            try:
+                await _audit_storage.log_safety_gate(
+                    user_id, "blocked",
+                    [{"keyword_match": True}],
+                )
+            except Exception as e:
+                print(f"[Audit] 記錄安全閘門事件失敗: {e}")
+        await line_bot.send_response(user_id, reply_token, blocked)
+        return
+
     ai_response = await run_agent(user_id, text)
     print(f"[Agent] 思考完畢！準備回傳...")
 
-    # 背景萃取用戶輪廓（不阻塞回覆）
+    # H9: 背景萃取用戶輪廓（不阻塞回覆）
     asyncio.create_task(profile_updater.extract_and_update(user_id, text, ai_response))
 
+    # H8: 記錄 AI 回覆
     if _audit_storage:
         try:
             await _audit_storage.log_message(user_id, "ai", ai_response)
         except Exception as e:
             print(f"[Audit] 記錄 AI 回覆失敗: {e}")
 
-    # 偵測 URL 並轉換為 Flex Message 卡片
+    # H7: 偵測 URL 並轉換為 Flex Message 卡片
     max_len = _config.get("max_reply_length", 5000)
     message_objects = build_line_messages(ai_response[:max_len])
     await line_bot.send_response(user_id, reply_token, ai_response, max_len=max_len, message_objects=message_objects)
@@ -189,6 +245,11 @@ def add_message_to_buffer(
         reply_token: LINE reply token（None 表示不更新 token）。
         replace_media_placeholder: True 時，將 buffer 中的媒體佔位訊息替換為此 text。
     """
+    # 若 debounce 停用，直接處理不緩衝
+    if not _config.get("enabled", True):
+        asyncio.create_task(agent_and_reply(user_id, reply_token or "", text))
+        return
+
     if user_id in user_buffers:
         user_buffers[user_id]["task"].cancel()
 

@@ -32,10 +32,11 @@ from storage import get_storage, close_storage
 from agent import build_agent
 
 import core.line_bot as line_bot
-import core.debounce as debounce
-import core.multimodal as multimodal
-import core.memory_manager as memory_manager
-import core.profile_updater as profile_updater
+import harness.debounce as debounce
+import harness.multimodal as multimodal
+import harness.memory_manager as memory_manager
+import harness.profile_updater as profile_updater
+import harness.safety_gate as safety_gate
 
 app = FastAPI(title="Smart Lock AI Agent — Skill-Based")
 
@@ -98,7 +99,10 @@ async def startup():
     # 初始化審計日誌
     audit_storage = await get_storage(_cfg.storage)
 
-    # 初始化 debounce
+    # 初始化安全閘門 (H6)
+    safety_gate.init(_cfg.safety)
+
+    # 初始化 debounce (H3)
     debounce_config = {
         **_cfg.debounce,
         "request_timeout": _cfg.system.get("request_timeout", 60),
@@ -106,7 +110,7 @@ async def startup():
     }
     debounce.init(agent, debounce_config, _cfg.templates, profile_mgr=profile_mgr, audit_storage=audit_storage)
 
-    # 初始化 multimodal
+    # 初始化 multimodal (H2)
     await multimodal.init(_cfg.multimodal, access_token)
 
     # 啟動背景清理任務
