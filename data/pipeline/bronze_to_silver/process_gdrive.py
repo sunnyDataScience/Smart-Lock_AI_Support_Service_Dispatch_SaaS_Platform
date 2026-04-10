@@ -1,8 +1,8 @@
 """Bronze → Silver pipeline for Google Drive manual index.
 
 Reads JSON files from storage/bronze/gdrive/,
-sends each title to Gemini for metadata inference and HyDE generation,
-and writes LangChain-Document-compatible JSON to storage/silver/gdrive/.
+sends each title to Gemini for metadata inference and content generation,
+and writes structured JSON to storage/silver/gdrive/.
 """
 
 import argparse
@@ -30,7 +30,6 @@ SYSTEM_PROMPT = """\
 
 1. 推斷品牌(brand)和型號(model)，無法確定則填 "general"
 2. 撰寫一句摘要描述這份手冊的內容
-3. 生成 2~3 句客戶可能用來尋找這份手冊的白話文問題
 """
 
 RESPONSE_SCHEMA = {
@@ -44,17 +43,12 @@ RESPONSE_SCHEMA = {
             "type": "string",
             "description": "產品型號，無法確定則填 general",
         },
-        "summary": {
+        "content": {
             "type": "string",
             "description": "一句話摘要描述手冊內容",
         },
-        "questions": {
-            "type": "array",
-            "items": {"type": "string"},
-            "description": "2~3 句客戶可能會問的白話文問題",
-        },
     },
-    "required": ["brand", "model", "summary", "questions"],
+    "required": ["brand", "model", "content"],
 }
 
 log = logging.getLogger(__name__)
@@ -83,27 +77,22 @@ def process_one_file(llm_func: Callable, bronze_data: dict) -> list[dict]:
     if not isinstance(result, dict):
         raise ValueError("LLM response is not an object")
 
-    for field in ("brand", "model", "summary", "questions"):
+    for field in ("brand", "model", "content"):
         if field not in result:
             raise ValueError(f"Missing '{field}' in LLM response")
 
-    # 組合 page_content（疑問句 + 摘要）
-    questions_str = "\n".join(result["questions"])
-    page_content = f"【常見問題】\n{questions_str}\n\n【知識內容】\n{result['summary']}"
-
-    # 建立 metadata
-    metadata = {
+    doc = {
+        "content": f"{result['content']}\n連結：{url}",
         "brand": result["brand"],
         "model": result["model"],
         "category": "manual",
         "source_type": "gdrive",
         "source": file_id,
         "chunk_index": 1,
-        "raw_text": f"{result['summary']}\n連結：{url}",
         "url": url,
     }
 
-    return [{"page_content": page_content, "metadata": metadata}]
+    return [doc]
 
 
 # ── main ─────────────────────────────────────────────────────────────

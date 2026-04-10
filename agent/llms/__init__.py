@@ -11,7 +11,7 @@ LLM_REGISTRY = {
 def get_llm(llm_config: dict):
     provider = llm_config.get("provider", "ollama")
     builder = LLM_REGISTRY.get(provider)
-    
+
     if not builder:
         raise ValueError(f"未知的 LLM 供應商: {provider}，請確認是否已註冊。")
 

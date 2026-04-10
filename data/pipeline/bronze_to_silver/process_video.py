@@ -2,7 +2,7 @@
 
 Reads raw speech-recognition transcripts from storage/bronze/video/,
 sends each to Gemini for correction / structuring, and writes
-LangChain-Document-compatible JSON to storage/silver/video/.
+structured JSON to storage/silver/video/.
 """
 
 import argparse
@@ -53,11 +53,7 @@ SYSTEM_PROMPT = """\
 - 包含該知識點的完整描述，保留所有技術細節
 - 使用正式書面中文
 
-## 4. 模擬疑問句
-為每個知識點生成 2~3 句使用者可能會問的白話文問題。
-例如：「為什麼我的門鎖卡卡的？」、「鎖舌縮不回去怎麼辦？」
-
-## 5. Metadata 推斷
+## 4. Metadata 推斷
 根據檔名和內容推斷以下欄位：
 - brand：品牌名稱（Dormakaba / Chainlock / general）
 - model：型號（如 AI99、A90，無法確定則填 general）
@@ -69,14 +65,9 @@ RESPONSE_SCHEMA = {
     "items": {
         "type": "object",
         "properties": {
-            "summary": {
+            "content": {
                 "type": "string",
-                "description": "結構化重寫後的獨立知識摘要（必須包含品牌與型號等主語）",
-            },
-            "questions": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "2~3 句使用者可能會問的白話文疑問句",
+                "description": "結構化重寫後的獨立知識內容（必須包含品牌與型號等主語）",
             },
             "metadata": {
                 "type": "object",
@@ -88,7 +79,7 @@ RESPONSE_SCHEMA = {
                 "required": ["brand", "model", "category"],
             },
         },
-        "required": ["summary", "questions", "metadata"],
+        "required": ["content", "metadata"],
     },
 }
 
@@ -117,25 +108,18 @@ def process_one_file(llm_func: Callable, filepath: Path) -> list[dict]:
 
     final_documents = []
     for i, item in enumerate(chunks):
-        for field in ("summary", "questions", "metadata"):
+        for field in ("content", "metadata"):
             if field not in item:
                 raise ValueError(f"Chunk {i}: missing '{field}'")
 
-        # 組合 page_content（疑問句 + 摘要）
-        questions_str = "\n".join(item["questions"])
-        page_content = f"【常見問題】\n{questions_str}\n\n【知識內容】\n{item['summary']}"
-
-        # 建立 metadata
-        meta = item["metadata"]
-        meta["source_type"] = "video"
-        meta["source"] = filepath.name
-        meta["chunk_index"] = i + 1
-        meta["raw_text"] = item["summary"]
-
-        final_documents.append({
-            "page_content": page_content,
-            "metadata": meta,
-        })
+        doc = {
+            "content": item["content"],
+            **item["metadata"],
+            "source_type": "video",
+            "source": filepath.name,
+            "chunk_index": i + 1,
+        }
+        final_documents.append(doc)
 
     return final_documents
 

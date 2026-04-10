@@ -1,6 +1,6 @@
 """PostgreSQL audit storage with structured event types.
 
-Event types (from audit-log-spec.md):
+Event types:
   - conversation:      AI agent chat messages (90-day retention)
   - tool_invocation:   Tool call + result summary (90-day retention)
   - safety_gate:       Safety layer gate decisions (1-year retention)
@@ -61,17 +61,6 @@ class PostgresAuditStorage:
         target_id: str = "",
         payload: dict | None = None,
     ):
-        """Log a structured audit event.
-
-        Args:
-            event_type: conversation|tool_invocation|safety_gate|escalation|dispatch_decision|financial_action|admin_action
-            actor_id: user_id or agent_name
-            actor_role: user|ai|system|agent|admin
-            action: domain.verb format (e.g. "tool.invoke", "safety.block")
-            target_type: problem_card|tool|agent|user
-            target_id: target entity ID
-            payload: event-specific data (PII auto-masked)
-        """
         timestamp = datetime.now(timezone.utc).isoformat()
 
         # Mask PII in payload
@@ -103,7 +92,6 @@ class PostgresAuditStorage:
         self, user_id: str, agent_name: str, tool_name: str,
         risk_level: str = "read", args_summary: str = "", result_summary: str = "",
     ):
-        """L3 Governance: log tool invocation with risk level."""
         await self.log_event(
             event_type="tool_invocation",
             actor_id=user_id,
@@ -123,7 +111,6 @@ class PostgresAuditStorage:
         self, user_id: str, decision: str, risks: list[dict],
         sentiment_level: str = "", red_code: bool = False,
     ):
-        """L6 Safety: log gate decision."""
         await self.log_event(
             event_type="safety_gate",
             actor_id=user_id,
@@ -143,7 +130,6 @@ class PostgresAuditStorage:
         self, user_id: str, reason: str, problem_card_id: str = "",
         from_agent: str = "", diagnosis_summary: str = "",
     ):
-        """Log human handoff event."""
         await self.log_event(
             event_type="escalation",
             actor_id=user_id,
@@ -158,13 +144,11 @@ class PostgresAuditStorage:
             },
         )
 
-
     async def log_llm_interaction(
         self, user_id: str, model: str, node_name: str,
         input_tokens: int = 0, output_tokens: int = 0,
         latency_ms: float = 0.0, cost_usd: float = 0.0,
     ):
-        """Log LLM call details for cost tracking."""
         await self.log_event(
             event_type="llm_interaction",
             actor_id=user_id,
@@ -181,32 +165,11 @@ class PostgresAuditStorage:
             },
         )
 
-    async def log_rag_citation(
-        self, user_id: str, agent_name: str, tool_name: str,
-        query: str = "", result_count: int = 0,
-    ):
-        """Log RAG retrieval source attribution."""
-        await self.log_event(
-            event_type="rag_citation",
-            actor_id=user_id,
-            actor_role="agent",
-            action=f"rag.retrieve.{tool_name}",
-            target_type="knowledge_source",
-            target_id=tool_name,
-            payload={
-                "query": query[:200],
-                "agent_name": agent_name,
-                "result_count": result_count,
-            },
-        )
-
-
 async def build_postgres_storage(config: dict) -> PostgresAuditStorage:
     global _postgres_conn
     uri = os.getenv(config.get("postgres_uri_env", "POSTGRES_URI"))
     print(f"[*] 初始化審計日誌模組: 連線至 PostgreSQL")
     conn = await AsyncConnection.connect(uri)
-    # 擴充 audit_log 表（向後相容：新增欄位用 IF NOT EXISTS）
     await conn.execute("""
         CREATE TABLE IF NOT EXISTS audit_log (
             id SERIAL PRIMARY KEY,
@@ -216,7 +179,6 @@ async def build_postgres_storage(config: dict) -> PostgresAuditStorage:
             timestamp TIMESTAMPTZ NOT NULL
         )
     """)
-    # 新增結構化欄位（如果不存在）
     for col_def in [
         "event_type VARCHAR(50) DEFAULT 'conversation'",
         "action VARCHAR(100) DEFAULT ''",
@@ -224,11 +186,10 @@ async def build_postgres_storage(config: dict) -> PostgresAuditStorage:
         "target_id VARCHAR(100) DEFAULT ''",
         "payload JSONB",
     ]:
-        col_name = col_def.split()[0]
         try:
             await conn.execute(f"ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS {col_def}")
         except Exception:
-            pass  # Column already exists or DB doesn't support IF NOT EXISTS
+            pass
     await conn.commit()
     _postgres_conn = conn
     return PostgresAuditStorage(conn)

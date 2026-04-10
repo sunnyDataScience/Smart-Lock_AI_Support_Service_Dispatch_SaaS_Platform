@@ -1,30 +1,18 @@
 # Line Chat 處理流程
 
-LINE 客服對話從原始 CSV 到進入 pgvector 知識庫，經過三個處理階段：
+LINE 客服對話從原始 CSV 到產出 Silver JSON，經過兩個 ETL 階段：
 
 ```
-Raw CSV → Bronze CSV → Silver JSON → Gold (pgvector)
+Raw CSV → Bronze CSV → Silver JSON
 ```
 
 ---
 
 ## 階段一：Raw → Bronze（物理性清洗與時間聚合）
 
-### 1.1 處理策略
+LINE 官方帳號匯出的 CSV 檔案包含了大量零碎、無知識價值的對話（如寒暄、自動回覆、貼圖）。為確保進入 LLM (Silver 層) 的資料具備足夠的上下文且沒有雜訊干擾，在 Bronze 階段進行**物理性清洗與時間聚合**。
 
-LINE 官方帳號匯出的 CSV 檔案包含了大量零碎、無知識價值的對話（如寒暄、自動回覆、貼圖）。為確保進入 LLM (Silver 層) 的資料具備足夠的上下文 (Context) 且沒有雜訊干擾，我們必須在 Bronze 階段進行**物理性清洗與時間聚合**。
-
-**腳本**：`pipeline/raw_to_bronze/process_line.py`
-
-```bash
-# 全量處理
-python pipeline/raw_to_bronze/process_line.py --verbose
-
-# 單檔處理
-python pipeline/raw_to_bronze/process_line.py --file "1001_20240822_20240903_yen-cheng.csv" --verbose
-```
-
-### 1.2 處理流程圖
+### 處理流程圖
 
 ```mermaid
 ---
@@ -69,7 +57,7 @@ graph TD
     style Y fill:#FFCDD2,stroke:#E53935,stroke-width:1px,stroke-dasharray: 5 5
 ```
 
-### 1.3 處理細節
+### 處理細節
 
 #### 雜訊過濾 (Noise Filtering)
 *   **系統訊息**：移除 `傳送者名稱` 為 `自動回應訊息` 或 `傳送者類型` 為 `System` 的列。
@@ -88,7 +76,7 @@ graph TD
 #### 長度過濾 (Length Filter)
 *   **低價值剔除**：聚合完成後的 Session 文本（Transcript），若總字數小於 **20 字**，則判定為無價值的寒暄（如：「謝謝」、「不客氣」），直接丟棄。
 
-### 1.4 輸出規格
+### 輸出規格
 
 產出的 Bronze CSV 位於 `storage/bronze/line_chat/`，每個原始 CSV 對應一個同名 Bronze CSV。
 
@@ -103,21 +91,9 @@ graph TD
 
 ## 階段二：Bronze → Silver（LLM 語意過濾與知識重寫）
 
-### 2.1 處理策略
+Bronze CSV 中的 Session 仍是原始對話格式。此階段透過 LLM 進行 **相關性過濾** 與 **Semantic Pre-chunking**（語意前置切塊）。若對話被判定為相關，LLM 會將對話內容拆分為多個獨立知識點，每個知識點包含結構化重寫後的知識文本。
 
-Bronze CSV 中的 Session 仍是原始對話格式，無法直接用於 RAG 檢索。此階段透過 LLM 進行 **相關性過濾** 與 **Semantic Pre-chunking**（語意前置切塊）。若對話被判定為相關，LLM 會將對話內容拆分為多個獨立知識點，每個知識點包含 **HyDE 格式**（`【常見問題】` + `【知識內容】`）的 `page_content` 與 `raw_text` 純淨摘要。具體任務包含：**相關性過濾**、**語意切分與 HyDE 格式組裝**、**Metadata 推斷**。
-
-**腳本**：`pipeline/bronze_to_silver/process_line.py`
-
-```bash
-# 全量處理
-python pipeline/bronze_to_silver/process_line.py --verbose
-
-# 單檔處理
-python pipeline/bronze_to_silver/process_line.py --file "1001_20240822_20240903_yen-cheng.csv" --verbose
-```
-
-### 2.2 處理流程圖
+### 處理流程圖
 
 ```mermaid
 ---
@@ -136,7 +112,7 @@ graph TD
     C -- false (非電子鎖相關) --> X[跳過 (不輸出)]
     C -- true --> D[2. 語意切分<br/>Semantic Pre-chunking]
 
-    D --> E[3. 模擬疑問句<br/>HyDE 格式組裝]
+    D --> E[3. 結構化重寫]
     E --> F[4. Metadata 推斷<br/>brand / model / category]
 
     F --> G[組合為 JSON Array<br/>每個元素一個知識點]
@@ -148,7 +124,7 @@ graph TD
     style X fill:#FFCDD2,stroke:#E53935,stroke-width:1px,stroke-dasharray: 5 5
 ```
 
-### 2.3 處理細節
+### 處理細節
 
 #### 相關性過濾 (Relevance Filtering)
 
@@ -178,126 +154,29 @@ LLM 根據對話內容推斷以下欄位：
 | `model` | 型號 | `AI99` / `A90` / `AI88` / `general` |
 | `category` | 分類 | `setup` / `troubleshoot` / `knowledge` / `specification` |
 
-### 2.4 LLM 設定
+### 輸出規格
 
-LLM provider 和 model 由 `config.toml` 的 `[pipelines.line_chat]` 區塊控制。LLM 回應使用 JSON Schema 約束（structured output），確保輸出格式一致。API 呼叫間隔 1 秒以避免 rate limit。
-
-### 2.5 輸出規格
-
-產出的 Silver JSON 位於 `storage/silver/line_chat/`，每個有效 Session 對應一個 JSON 檔案，檔名為 `{session_id}.json`。格式為 **JSON Array**（若 `is_relevant` 為 true），每個元素為一個獨立知識點。
+產出的 Silver JSON 位於 `storage/silver/line_chat/`，每個有效 Session 對應一個 JSON 檔案，檔名為 `{session_id}.json`。格式為 **JSON Array**，每個元素為一個獨立知識點。
 
 ```json
 [
   {
-    "page_content": "【常見問題】\n安裝電子鎖前需要提供哪些照片？\n為什麼安裝電子鎖需要門和鎖的照片？\n電子鎖的安裝條件會受到哪些因素影響？\n\n【知識內容】\n電子鎖或輔助鎖的安裝作業，受限於門扇與現有鎖具的特定條件。為評估安裝可行性與潛在限制，客戶需提供清晰的門扇、現有鎖具正面以及開門後鎖舌側面的照片，供技術人員進行初步判斷。",
-    "metadata": {
-      "brand": "general",
-      "model": "general",
-      "category": "setup",
-      "source_type": "line_chat",
-      "source": "1036_20240704_20240810_專專_session_1",
-      "chunk_index": 1,
-      "raw_text": "電子鎖或輔助鎖的安裝作業，受限於門扇與現有鎖具的特定條件。為評估安裝可行性與潛在限制，客戶需提供清晰的門扇、現有鎖具正面以及開門後鎖舌側面的照片，供技術人員進行初步判斷。"
-    }
+    "content": "電子鎖或輔助鎖的安裝作業，受限於門扇與現有鎖具的特定條件。為評估安裝可行性與潛在限制，客戶需提供清晰的門扇、現有鎖具正面以及開門後鎖舌側面的照片，供技術人員進行初步判斷。",
+    "brand": "general",
+    "model": "general",
+    "category": "setup",
+    "source_type": "line_chat",
+    "source": "1036_20240704_20240810_專專_session_1",
+    "chunk_index": 1
   }
 ]
-```
-
-| 欄位 | 說明 | 範例 |
-|------|------|------|
-| `page_content` | HyDE 格式：`【常見問題】` + 模擬疑問句 + `【知識內容】` + 純淨摘要 | `【常見問題】\n安裝電子鎖前需要提供哪些照片？...` |
-| `metadata.brand` | LLM 推斷的品牌 | `general` |
-| `metadata.model` | LLM 推斷的型號 | `general` |
-| `metadata.category` | LLM 推斷的分類 | `setup` |
-| `metadata.source_type` | 固定為 `line_chat` | `line_chat` |
-| `metadata.source` | 對應的 session_id | `1036_20240704_20240810_專專_session_1` |
-| `metadata.chunk_index` | 該知識點在原始文件中的序號 | `1` |
-| `metadata.raw_text` | 純淨知識摘要（供 Agent 回答使用） | `電子鎖或輔助鎖的安裝作業...` |
-
----
-
-## 階段三：Silver → Gold（向量化寫入 pgvector）
-
-### 3.1 處理策略
-
-Silver JSON 已是 LLM 語意前置切塊後的 Document Array，每個元素為一個獨立知識點。此階段直接將 JSON Array 轉為 LangChain Documents，經 Embedding 向量化後寫入 pgvector。
-
-**腳本**：`pipeline/silver_to_gold/seed_pgvector.py`
-
-```bash
-# 單一資料源寫入
-python pipeline/silver_to_gold/seed_pgvector.py --database line_chat --reset --verbose
-
-# 全部資料源一次寫入
-python pipeline/silver_to_gold/seed_pgvector.py --all --reset --verbose
-
-# 單檔驗證
-python pipeline/silver_to_gold/seed_pgvector.py --database line_chat --file "1036_20240704_20240810_專專_session_1.json" --verbose
-```
-
-### 3.2 處理流程圖
-
-```mermaid
----
-config:
-  layout: dagre
-  theme: base
-  themeVariables:
-    primaryColor: '#4A90D9'
-    primaryTextColor: '#1a1a1a'
-    lineColor: '#5A6A7A'
----
-graph TD
-    A[Silver JSON Array<br/>每個元素一個知識點] -->|載入| B[轉為 LangChain Documents]
-    B -->|Vertex AI text-embedding-004| C[向量化 (768 維)]
-    C --> D[寫入 pgvector<br/>collection: kb_line_chat]
-
-    style A fill:#E8F5E9,stroke:#66BB6A,stroke-width:2px
-    style D fill:#E1BEE7,stroke:#AB47BC,stroke-width:3px
-```
-
-### 3.3 處理細節
-
-#### 文件載入
-- 讀取 `storage/silver/line_chat/` 下所有 `.json` 檔案
-- 每個 JSON 為 Array，展開為多個 `langchain_core.documents.Document`，`metadata` 原封不動保留
-
-#### 向量化與寫入
-- Embedding 模型：Vertex AI `text-embedding-004`（768 維）
-- 寫入 pgvector collection：`kb_line_chat`
-- `--reset` 旗標會先清空 collection 再重建
-
-### 3.4 config.toml 設定
-
-```toml
-[databases.line_chat]
-type = "pgvector"
-collection_name = "kb_line_chat"
-source_dir = "line_chat"
-connection_uri_env = "PG_VECTOR_URI"
-embedding_provider = "vertexai"
-embedding_model = "text-embedding-004"
-embedding_dimensions = 768
-```
-
-### 3.5 驗證
-
-```bash
-# 查看 collection 文件數量
-docker exec -it lock_AI psql -U lock -d lock_AI_data \
-  -c "SELECT c.name, count(e.id) FROM langchain_pg_collection c LEFT JOIN langchain_pg_embedding e ON c.uuid = e.collection_id GROUP BY c.name;"
-
-# 預覽寫入內容
-docker exec -it lock_AI psql -U lock -d lock_AI_data \
-  -c "SELECT LEFT(document, 80) AS preview, cmetadata->>'source' AS source FROM langchain_pg_embedding WHERE collection_id = (SELECT uuid FROM langchain_pg_collection WHERE name = 'kb_line_chat') LIMIT 5;"
 ```
 
 ---
 
 ## 全流程摘要
 
-| 階段 | 輸入 | 輸出 | 處理方式 | 腳本 |
-|------|------|------|---------|------|
-| Raw → Bronze | `storage/raw/line_chat/*.csv` | `storage/bronze/line_chat/*.csv` | 規則式清洗 + 時間聚合 | `pipeline/raw_to_bronze/process_line.py` |
-| Bronze → Silver | `storage/bronze/line_chat/*.csv` | `storage/silver/line_chat/*.json` | LLM 過濾 + Semantic Pre-chunking + HyDE | `pipeline/bronze_to_silver/process_line.py` |
-| Silver → Gold | `storage/silver/line_chat/*.json` | pgvector `kb_line_chat` | 直接轉 Documents + Embedding 寫入 | `pipeline/silver_to_gold/seed_pgvector.py` |
+| 階段 | 輸入 | 輸出 | 處理方式 |
+|------|------|------|---------|
+| Raw → Bronze | `storage/raw/line_chat/*.csv` | `storage/bronze/line_chat/*.csv` | 規則式清洗 + 時間聚合 |
+| Bronze → Silver | `storage/bronze/line_chat/*.csv` | `storage/silver/line_chat/*.json` | LLM 過濾 + Semantic Pre-chunking |

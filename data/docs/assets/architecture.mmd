@@ -1,94 +1,123 @@
 ---
 config:
-  layout: dagre
   theme: base
   themeVariables:
-    primaryColor: '#4A90D9'
-    primaryTextColor: '#1a1a1a'
-    lineColor: '#5A6A7A'
-    edgeLabelBackground: '#ffffff'
-    tertiaryTextColor: '#1a1a1a'
+    primaryTextColor: '#1A202C'
+    lineColor: '#A0AEC0'
+    edgeLabelBackground: '#FFFFFF'
     fontSize: 14px
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
 ---
-graph TD
+flowchart LR
+    %% AI 引擎
+    LLM_F[["LLM Factory<br/>(Gemini 2.5 Flash)"]]
+    WHISPER[["Whisper ASR"]]
+
     subgraph RAW ["Raw Layer (原始層)"]
-        direction LR
+        direction TB
         A1["Line Chat<br/>.csv"]
-        A2["Video<br/>.mp4"]
-        A3["Website<br/>.txt"]
+        A2["Video<br/>.mp4 / .MOV"]
+        A3["Website<br/>.html"]
         A4["YouTube<br/>.mp4"]
         A5["GDrive<br/>links.txt"]
     end
 
+    subgraph R2B ["raw_to_bronze/"]
+        direction TB
+        P1("process_line.py<br/>去識別化 + 分段")
+        P2("process_video.py<br/>ASR 語音轉文字")
+        P3("process_website.py<br/>Playwright 爬取")
+        P4("process_youtube.py<br/>Vision 影格解析")
+        P5("process_gdrive.py<br/>Drive API 提取")
+    end
+
     subgraph BRONZE ["Bronze Layer (粗抽取層)"]
-        direction LR
-        B1["Line Chat<br/>.csv"]
-        B2["Video<br/>.txt"]
+        direction TB
+        B1["Line Chat<br/>.csv (sessions)"]
+        B2["Video<br/>.txt (timestamps)"]
         B3["Website<br/>.md"]
-        B4["YouTube<br/>.json"]
+        B4["YouTube<br/>.json (vision)"]
         B5["GDrive<br/>.json"]
     end
 
-    subgraph SILVER ["Silver Layer (結構化中台)"]
-        direction LR
-        C1("process_line.py")
-        C2("process_video.py")
-        C3("process_website.py")
-        C4("process_youtube.py")
-        C5("process_gdrive.py")
-    end
-
-    D["標準化 Document JSON<br/>page_content + metadata"]
-
-    subgraph GOLD ["Gold Layer (向量檢索庫)"]
-        E("seed_pgvector.py")
-        F1[("kb_line_chat")]
-        F2[("kb_video")]
-        F3[("kb_website")]
-        F4[("kb_youtube")]
-        F5[("kb_gdrive")]
-    end
-    A1 -->|"去識別化 / 過濾"| B1
-    A2 -->|"ASR 語音轉文字"| B2
-    A3 -->|"網頁去噪 / 提取"| B3
-    A4 -->|"Vision 逐幀解析"| B4
-    A5 -->|"Drive API 索引"| B5
-
-    B1 -->|"主題聚合 / 結構化"| C1
-    B2 -->|"語音糾錯 / 去冗言"| C2
-    B3 -->|"語意切分 / HyDE"| C3
-    B4 -->|"語意切分 / HyDE"| C4
-    B5 -->|"語意切分 / HyDE"| C5
-
-    C1 & C2 & C3 & C4 & C5 -->|"產出"| D
-
-    D -->|"直接轉換為 Documents"| E
-
-    E -->|"Upsert"| F1 & F2 & F3 & F4 & F5
-    subgraph AI ["AI Services (服務工廠)"]
+    subgraph B2S ["bronze_to_silver/"]
         direction TB
-        LLM_F["LLM Factory<br/><i>Gemini 2.5 Flash</i>"]
-        EMB_F["Embedding Factory<br/><i>text-embedding-004</i>"]
+        Q1("process_line.py<br/>主題聚合")
+        Q2("process_video.py<br/>語音糾錯")
+        Q3("process_website.py<br/>語意切分")
+        Q4("process_youtube.py<br/>語意切分")
+        Q5("process_gdrive.py<br/>語意切分")
     end
 
-    LLM_F -.-> C1 & C2 & C3 & C4 & C5
-    EMB_F -.-> E
-    style RAW fill:#E8F4FD,stroke:#7AB8E0,stroke-width:2px,color:#2C5F7C
-    style BRONZE fill:#FFF3E0,stroke:#FFB74D,stroke-width:2px,color:#7A5A2C
-    style SILVER fill:#E8F5E9,stroke:#81C784,stroke-width:2px,color:#2E6B32
-    style GOLD fill:#FFF8E1,stroke:#FFD54F,stroke-width:2px,color:#7A6A2C
-    style AI fill:#F3E5F5,stroke:#BA68C8,stroke-width:2px,color:#5A2D6A
-    style LLM_F fill:#CE93D8,stroke:#8E24AA,stroke-width:2px,color:#1a1a1a
-    style EMB_F fill:#CE93D8,stroke:#8E24AA,stroke-width:2px,color:#1a1a1a
-    style D fill:#90CAF9,stroke:#1565C0,stroke-width:3px,color:#0D3B66
-    style C1 fill:#A5D6A7,stroke:#388E3C,stroke-width:1px
-    style C2 fill:#A5D6A7,stroke:#388E3C,stroke-width:1px
-    style C3 fill:#A5D6A7,stroke:#388E3C,stroke-width:1px
-    style C4 fill:#A5D6A7,stroke:#388E3C,stroke-width:1px
-    style C5 fill:#A5D6A7,stroke:#388E3C,stroke-width:1px
-    style E fill:#FFE082,stroke:#F9A825,stroke-width:2px
-    style F1 fill:#FFD54F,stroke:#F57F17,stroke-width:3px,color:#4A3700
-    style F2 fill:#FFD54F,stroke:#F57F17,stroke-width:3px,color:#4A3700
-    style F3 fill:#FFD54F,stroke:#F57F17,stroke-width:3px,color:#4A3700
-    style F4 fill:#FFD54F,stroke:#F57F17,stroke-width:3px,color:#4A3700
-    style F5 fill:#FFD54F,stroke:#F57F17,stroke-width:3px,color:#4A3700
+    subgraph SILVER ["Silver Layer (結構化中台)"]
+        direction TB
+        C1["Line Chat<br/>.json"]
+        C2["Video<br/>.json"]
+        C3["Website<br/>.json"]
+        C4["YouTube<br/>.json"]
+        C5["GDrive<br/>.json"]
+    end
+
+    subgraph SKILL ["silver_to_skill/ (技能產出)"]
+        direction TB
+        E1("classify_documents.py<br/>二階分類")
+        E2("generate_drafts.py<br/>LLM 合併/建立")
+        E3("approve_drafts.py<br/>人工審核 + diff")
+        E1 -- "classification.json" --> E2
+        E2 -- "SKILL.md.draft<br/>+ diff.txt" --> E3
+    end
+
+    subgraph OUTPUT ["agent/"]
+        F["skills/data/*/<br/>SKILL.md<br/>(25 skills)"]
+    end
+
+    %% 主要資料流
+    A1 --> P1 --> B1
+    A2 --> P2 --> B2
+    A3 --> P3 --> B3
+    A4 --> P4 --> B4
+    A5 --> P5 --> B5
+
+    B1 --> Q1 --> C1
+    B2 --> Q2 --> C2
+    B3 --> Q3 --> C3
+    B4 --> Q4 --> C4
+    B5 --> Q5 --> C5
+
+    C1 & C2 & C3 & C4 & C5 --> E1
+
+    E3 -- "approve --confirm" --> F
+
+    %% AI 賦能連線
+    WHISPER -.-> P2
+    LLM_F -.-> P4
+    LLM_F -.-> Q1 & Q2 & Q3 & Q4 & Q5
+    LLM_F -.-> E1 & E2
+
+    %% Subgraph Styles
+    style RAW fill:#F0F7FF,stroke:#90CDF4,stroke-width:2px,rx:10,ry:10
+    style R2B fill:#FFF5F5,stroke:#FEB2B2,stroke-width:1px,rx:8,ry:8
+    style BRONZE fill:#FFFAF0,stroke:#FBD38D,stroke-width:2px,rx:10,ry:10
+    style B2S fill:#FFF5F5,stroke:#FEB2B2,stroke-width:1px,rx:8,ry:8
+    style SILVER fill:#F0FFF4,stroke:#9AE6B4,stroke-width:2px,rx:10,ry:10
+    style SKILL fill:#E6FFFA,stroke:#81E6D9,stroke-width:2px,rx:10,ry:10
+    style OUTPUT fill:#EBF8FF,stroke:#63B3ED,stroke-width:2px,rx:10,ry:10
+
+    %% Node Styles
+    classDef rawNode fill:#FFFFFF,stroke:#3182CE,stroke-width:2px,color:#2C5282,rx:6,ry:6
+    classDef processNode fill:#FFF5F5,stroke:#FC8181,stroke-width:1px,color:#9B2C2C
+    classDef bronzeNode fill:#FFFFFF,stroke:#DD6B20,stroke-width:2px,color:#C05621,rx:6,ry:6
+    classDef silverNode fill:#FFFFFF,stroke:#38A169,stroke-width:2px,color:#276749,rx:6,ry:6
+    classDef skillNode fill:#FFFFFF,stroke:#319795,stroke-width:2px,color:#285E61
+    classDef finalNode fill:#319795,stroke:#234E52,stroke-width:2px,color:#FFFFFF,rx:8,ry:8
+    classDef aiNode fill:#FAF5FF,stroke:#805AD5,stroke-width:2px,color:#553C9A,rx:8,ry:8
+
+    %% Apply Classes
+    class A1,A2,A3,A4,A5 rawNode
+    class P1,P2,P3,P4,P5 processNode
+    class B1,B2,B3,B4,B5 bronzeNode
+    class Q1,Q2,Q3,Q4,Q5 processNode
+    class C1,C2,C3,C4,C5 silverNode
+    class E1,E2,E3 skillNode
+    class F finalNode
+    class LLM_F,WHISPER aiNode

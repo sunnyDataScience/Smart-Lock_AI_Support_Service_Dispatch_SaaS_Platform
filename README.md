@@ -38,8 +38,8 @@
 
 ## 目錄結構 (Directory Structure)
 
-- `agent/`：後端核心程式碼空間 (LangGraph 狀態機、API、工具整合)。
-- `data/`：數據處理與 ETL Pipeline (RAG 資料準備)。
+- `agent/`：Skill-based ReAct Agent — LINE Bot AI 客服（LangGraph + 25 個 SKILL.md SOP + Harness 中介層）。
+- `data/`：數據中台 Pipeline — 4 層 Medallion（Raw → Bronze → Silver → Skill），產出 SKILL.md 技能文件。
 - `docs/`：詳盡的專案文件、ADR (架構決策)、PRD 及 BDD 情境。
 - `SQL/`：資料庫 Schema 與初始化腳本。
 

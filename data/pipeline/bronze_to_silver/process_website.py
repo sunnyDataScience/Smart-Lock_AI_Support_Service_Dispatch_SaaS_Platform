@@ -1,8 +1,8 @@
 """Bronze → Silver pipeline for website pages.
 
 Reads Markdown files from storage/bronze/website/,
-sends each to Gemini for semantic chunking and HyDE transformation,
-and writes LangChain-Document-compatible JSON to storage/silver/website/.
+sends each to Gemini for semantic chunking and knowledge extraction,
+and writes structured JSON to storage/silver/website/.
 """
 
 import argparse
@@ -37,17 +37,13 @@ SYSTEM_PROMPT = """\
 - 使用客觀敘述，保留所有具體細節（數字、型號、步驟）
 - 使用正式書面中文
 
-## 3. 模擬疑問句（HyDE）
-為每個知識點生成 2~3 句客戶可能會問的白話文問題。
-例如：「鎖市在哪裡？」、「你們幾點開門？」、「AI-99 怎麼安裝？」
-
-## 4. Metadata 推斷
+## 3. Metadata 推斷
 根據檔名和內容推斷以下欄位：
 - brand：品牌名稱（如 Chatlock、Dormakaba，無法確定則填 general）
 - model：型號（如 AI-99、A90，無法確定則填 general）
 - category：分類，從以下選擇一個：setup / troubleshoot / knowledge / specification
 
-## 5. 空頁處理
+## 4. 空頁處理
 若網頁內容經過濾後無任何有價值的資訊（例如純導覽列或純圖片頁），請回傳空的 chunks 陣列。
 """
 
@@ -59,14 +55,9 @@ RESPONSE_SCHEMA = {
             "items": {
                 "type": "object",
                 "properties": {
-                    "summary": {
+                    "content": {
                         "type": "string",
-                        "description": "客觀重寫後的知識摘要（必須自帶主語「鎖市」或產品名稱）",
-                    },
-                    "questions": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "2~3句客戶可能會問的白話文問題",
+                        "description": "客觀重寫後的知識內容（必須自帶主語「鎖市」或產品名稱）",
                     },
                     "metadata": {
                         "type": "object",
@@ -78,7 +69,7 @@ RESPONSE_SCHEMA = {
                         "required": ["brand", "model", "category"],
                     },
                 },
-                "required": ["summary", "questions", "metadata"],
+                "required": ["content", "metadata"],
             },
             "description": "獨立知識點陣列。若網頁無有價值資訊，則回傳空陣列。",
         }
@@ -118,25 +109,18 @@ def process_one_file(llm_func: Callable, filepath: Path) -> list[dict]:
 
     final_documents = []
     for i, item in enumerate(chunks):
-        for field in ("summary", "questions", "metadata"):
+        for field in ("content", "metadata"):
             if field not in item:
                 raise ValueError(f"Chunk {i}: missing '{field}'")
 
-        # 組合 page_content（疑問句 + 摘要）
-        questions_str = "\n".join(item["questions"])
-        page_content = f"【常見問題】\n{questions_str}\n\n【知識內容】\n{item['summary']}"
-
-        # 建立 metadata
-        meta = item["metadata"]
-        meta["source_type"] = "website"
-        meta["source"] = filepath.name
-        meta["chunk_index"] = i + 1
-        meta["raw_text"] = item["summary"]
-
-        final_documents.append({
-            "page_content": page_content,
-            "metadata": meta,
-        })
+        doc = {
+            "content": item["content"],
+            **item["metadata"],
+            "source_type": "website",
+            "source": filepath.name,
+            "chunk_index": i + 1,
+        }
+        final_documents.append(doc)
 
     return final_documents
 

@@ -1,500 +1,98 @@
-# ==========================================
-# 客服系統 - 核心設定檔 (config.toml)
-# ==========================================
-# 說明：
-# 1. 本檔案定義系統所有可配置的行為，共 14 個區塊。
-# 2. 帶有資安機密性質的資料，請寫在對應的 `_env` 變數中，並由 .env 檔案提供。
-# 3. 若不需要某個功能，將該區塊全數加上 # 註解即可。
-#
-# 區塊索引：
-#   1. [system]          — 系統全局設定
-#   2. [debounce]        — 訊息緩衝設定
-#   3. [line_bot]        — LINE Bot 設定
-#   4. [templates]       — 系統回覆範本
-#   5. [llm]             — 語言模型設定
-#   6. [[databases]]     — 檢索工具定義（支援 chroma / pgvector / api / web_search）
-#   7. [[agents]]        — Agent 定義
-#   8. [[intents]]       — 意圖路由設定
-#   9. [memory]          — 對話記憶與摘要壓縮
-#  10. [required_slots]  — 必填資訊收集
-#  11. [user_profile]    — 使用者輪廓記憶
-#  12. [storage]         — 審計日誌儲存
-#  13. [prompts]         — Prompt 檔案路徑
-# ==========================================
+# ============================================================
+# Agent Skills — config.toml
+# 所有設定集中管理，零硬編碼
+# ============================================================
 
-
-# ==========================================
-# 1. 系統全局設定
-# ==========================================
+# ── 1. 系統設定 ──
 [system]
-domain          = "電子鎖、智慧門鎖相關的產品、安裝、故障排除與售後服務"
-thread_prefix   = "smart_lock_"    # LangGraph thread ID 前綴
-request_timeout = 120              # LangGraph 執行超時秒數
-sensitive_keywords = ["報價", "價格", "多少錢", "費用", "金流", "退款", "匯款", "轉帳", "支付"]
+domain          = "電子鎖、智慧門鎖相關的產品諮詢、故障排除、安裝派工"
+agent_name      = "smart_lock_agent"
+request_timeout = 30
 
-
-# ==========================================
-# 2. 訊息緩衝設定 (Debounce)
-# ==========================================
-[debounce]
-buffer_wait       = 2.0   # 最後一則訊息後等待秒數 (P0 優化: 5.0→2.0，省 3s)
-buffer_ttl        = 300   # 緩衝區存活秒數，超過則強制清理
-cleanup_interval  = 60    # 清理過期緩衝區的間隔秒數
-
-
-# ==========================================
-# 3. LINE Bot 系統設定
-# ==========================================
-[line_bot]
-loading_animation_time = 60   # Loading 動畫顯示時間（秒，必須是 5 的倍數，範圍 5~60）
-
-
-# ==========================================
-# 4. 系統回覆罐頭訊息範本 (Templates)
-# ==========================================
-[templates]
-push_fallback_prefix = "【系統通知】讓您久等了，以下是您的回覆：\n"   # Reply Token 過期時，Push API 的訊息前綴
-error_timeout        = "不好意思，系統處理時間過長，請稍後再試一次。如果問題持續，建議轉接真人客服。"
-error_system         = "不好意思，系統大腦剛剛稍微當機了一下，請稍後再試一次！"
-error_no_reply       = "很抱歉，目前系統無法查詢到相關資訊。如需進一步協助，請撥打客服專線，將有專人為您服務。"
-
-
-# ==========================================
-# 5. 語言模型設定 (LLM)
-# ==========================================
+# ── 2. LLM 設定 ──
 [llm]
-provider    = "vertexai"          # 支援: "ollama" | "gemini" | "vertexai"
-model_name  = "gemini-2.5-flash"  # Ollama: "gemma3:4b" / Gemini & Vertex AI: "gemini-2.5-flash"
-temperature = 0.3                 # 數值越低回答越保守穩定 (0.0 ~ 1.0)
+provider        = "vertexai"
+model_name      = "gemini-2.5-flash"
+temperature     = 0.3
+project_id_env  = "VERTEX_PROJECT_ID"
+location_env    = "VERTEX_LOCATION"
 
-# Gemini 專用
-api_key_env = "GEMINI_API_KEY"    # .env 中的 API Key 變數名稱
+# ── 3. LINE Bot 設定 ──
+[line_bot]
+channel_secret_env       = "LINE_CHANNEL_SECRET"
+channel_access_token_env = "LINE_CHANNEL_ACCESS_TOKEN"
+loading_seconds          = 20
+max_reply_length         = 5000
 
-# Ollama 專用
-base_url     = "http://localhost:11434"
-base_url_env = "OLLAMA_BASE_URL"  # 優先讀取環境變數，若為空則使用上方 base_url
-
-# Vertex AI 專用（需先執行 gcloud auth application-default login）
-project_id_env = "VERTEX_PROJECT_ID"   # .env 中的 GCP 專案 ID
-location_env   = "VERTEX_LOCATION"     # .env 中的 GCP 區域（例: us-central1）
-
-
-# ==========================================
-# 6. 檢索工具定義 (Databases / Retrievers)
-#    Agent 透過 tools 欄位引用對應的資料庫名稱
-# ==========================================
-
-[[databases]]
-name               = "db_video"
-type               = "pgvector"
-description        = "核心技術與維修知識庫：專門用於回答電子鎖「內部構造」、「鎖舌/鎖匣原理」、「硬體故障排除(卡住/反弓)」、「感應機制(防回頭/人臉)」及「安裝評估」等深度技術問題。"
-collection_name    = "kb_video"
-connection_uri_env = "PG_VECTOR_URI"
-top_k              = 10
-score_threshold    = 0.75
-embedding_provider       = "vertexai"
-embedding_model          = "text-embedding-004"
-embedding_project_id_env = "VERTEX_PROJECT_ID"
-embedding_location_env   = "VERTEX_LOCATION"
-embedding_dimensions     = 768
-
-[[databases]]
-name               = "db_line_chat"
-type               = "pgvector"
-description        = "客服實務與報價知識庫：專門用於回答「各項維修/安裝費用」、「到府檢測費」、「代工安裝規範(如小米電子鎖)」、「服務預約流程」及「不同鎖型(葉片/分離/義大利)的選擇建議」。"
-collection_name    = "kb_line_chat"
-connection_uri_env = "PG_VECTOR_URI"
-top_k              = 10
-score_threshold    = 0.75
-embedding_provider       = "vertexai"
-embedding_model          = "text-embedding-004"
-embedding_project_id_env = "VERTEX_PROJECT_ID"
-embedding_location_env   = "VERTEX_LOCATION"
-embedding_dimensions     = 768
-
-[[databases]]
-name               = "db_website"
-type               = "pgvector"
-description        = "營業資訊與產品規格知識庫：專門用於回答「門市地址」、「營業時間」、「聯絡電話」、「服務項目(開鎖/印章/遙控器)」、「電池挑選規範」、「緊急供電方式」及「支援的解鎖方式」。"
-collection_name    = "kb_website"
-connection_uri_env = "PG_VECTOR_URI"
-top_k              = 10
-score_threshold    = 0.75
-embedding_provider       = "vertexai"
-embedding_model          = "text-embedding-004"
-embedding_project_id_env = "VERTEX_PROJECT_ID"
-embedding_location_env   = "VERTEX_LOCATION"
-embedding_dimensions     = 768
-
-[[databases]]
-name               = "db_youtube"
-type               = "pgvector"
-description        = "APP操作與設定教學庫：專門用於回答「Chatlock AI-99 智慧鎖 APP 的操作步驟」，包含「解除綁定」、「邀請家庭成員」、「權限設定(管理員)」及「清理緩存」等軟體設定問題。"
-collection_name    = "kb_youtube"
-connection_uri_env = "PG_VECTOR_URI"
-top_k              = 10
-score_threshold    = 0.75
-ui_type            = "VIDEO_CARD"
-embedding_provider       = "vertexai"
-embedding_model          = "text-embedding-004"
-embedding_project_id_env = "VERTEX_PROJECT_ID"
-embedding_location_env   = "VERTEX_LOCATION"
-embedding_dimensions     = 768
-
-[[databases]]
-name               = "db_manuals"
-type               = "pgvector"
-description        = "各型號電子鎖的 PDF 說明書與下載連結"
-collection_name    = "kb_gdrive"
-connection_uri_env = "PG_VECTOR_URI"
-top_k              = 3
-score_threshold    = 0.75
-ui_type            = "DOWNLOAD_CARD"
-embedding_provider       = "vertexai"
-embedding_model          = "text-embedding-004"
-embedding_project_id_env = "VERTEX_PROJECT_ID"
-embedding_location_env   = "VERTEX_LOCATION"
-embedding_dimensions     = 768
-
-[[databases]]
-name        = "db_order_api"
-type        = "api"
-description = "查詢即時訂單狀態與報修進度"
-endpoint     = "https://api.sunnie-lock.com/v1/status"   # 公開測試網址
-endpoint_env = "ORDER_API_URL"    # （優先）從 .env 讀取真實網址
-token_env    = "ORDER_API_TOKEN"  # （選用）Bearer Token
-method       = "GET"
-timeout      = 5
-query_param  = "keyword"    # 使用者問題放入的 query 參數（例: ?keyword=問題）
-response_key = "message"    # 從 JSON 回傳中擷取的欄位名稱
-
-[[databases]]
-name        = "db_web_search"
-type        = "web_search"
-description = "網際網路搜尋引擎"
-search_engine = "duckduckgo"   # 內建免費、免金鑰的搜尋引擎
-max_results   = 3
-
-
-# ==========================================
-# 7. Agent 定義 (Multi-Agent Architecture)
-#    每個 Agent 擁有獨立的 prompt 與工具集
-# ==========================================
-
-[[agents]]
-name           = "hardware_technician"
-label          = "硬體維修技師"
-description    = "負責回答電子鎖內部構造、鎖舌卡住、硬體故障排除、防回頭機制與安裝評估等深度技術問題"
-tools          = ["db_video", "transfer_to_human"]
-fallback_tools = ["db_line_chat", "db_manuals"]
-prompt_file    = "agents/prompts/hardware_technician.md"
-
-[[agents]]
-name           = "sales_representative"
-label          = "報價與客服專員"
-description    = "負責回答維修與安裝費用、到府檢測費、代工安裝規範與服務預約流程等問題"
-tools          = ["db_line_chat", "transfer_to_human"]
-fallback_tools = ["db_video", "db_website"]
-prompt_file    = "agents/prompts/sales_representative.md"
-
-[[agents]]
-name           = "store_assistant"
-label          = "門市與規格助理"
-description    = "負責回答門市地址、營業時間、聯絡電話、服務項目與電池挑選規範等問題"
-tools          = ["db_website", "transfer_to_human"]
-fallback_tools = ["db_line_chat"]
-prompt_file    = "agents/prompts/store_assistant.md"
-
-[[agents]]
-name           = "app_specialist"
-label          = "APP 設定專家"
-description    = "負責回答 Chatlock AI-99 智慧鎖的使用與設定問題，包含「使用者管理(指紋/密碼/人臉/掌靜脈/NFC卡片的新增與刪除)」、「APP功能(遠端開鎖/視訊監看/家庭成員邀請/裝置解綁/清除緩存)」、「系統設定(雙重認證/常開模式/童鎖/門鈴與語音音量/語言切換)」及「裝置維護(Wi-Fi配對/電池更換)」"
-tools          = ["db_youtube", "transfer_to_human"]
-fallback_tools = ["db_manuals", "db_video"]
-prompt_file    = "agents/prompts/app_specialist.md"
-
-[[agents]]
-name           = "manual_librarian"
-label          = "說明書管理員"
-description    = "負責提供各型號電子鎖的官方說明書 PDF 下載連結"
-tools          = ["db_manuals", "transfer_to_human"]
-fallback_tools = ["db_video"]
-prompt_file    = "agents/prompts/manual_librarian.md"
-
-# -----基本Agent-----
-[[agents]]
-name           = "web_researcher"
-label          = "網路搜尋助手"
-description    = "當內部資料庫不足時，負責搜尋網路資料"
-tools          = ["db_web_search", "transfer_to_human"]
-fallback_tools = []
-prompt_file    = "agents/prompts/web_researcher.md"
-
-[[agents]]
-name        = "receptionist"
-label       = "前台接待專員"
-description = "負責一般問候、感謝、以及接收使用者更新個人資料等不需查閱知識庫的對話"
-tools       = ["transfer_to_human"]
-prompt_file = "agents/prompts/receptionist.md"
-
-# -----未來擴充-----
-# [[agents]]
-# name        = "order_clerk"
-# label       = "訂單查詢專員"
-# description = "負責查詢訂單進度、出貨物流、維修進度"
-# tools       = ["db_order_api", "transfer_to_human"]
-# prompt_file = "agents/prompts/order_clerk.md"
-
-
-# ==========================================
-# 8. 意圖偵測路由設定 (Intent Routing)
-#    Router 用 LLM 分類後，依 target 派發至對應 Agent
-# ==========================================
-
-[[intents]]
-name          = "hardware_tech"
-label         = "硬體維修與技術支援"
-description   = "使用者詢問電子鎖內部構造、鎖舌卡住、硬體故障排除、防回頭機制、或需要評估是否能安裝電子鎖等深度技術問題"
-target        = "hardware_technician"
-require_slots = false
-
-[[intents]]
-name          = "sales_and_service"
-label         = "報價與客服流程"
-description   = "使用者詢問維修或安裝費用、到府檢測費、代工安裝規範、服務預約流程或特定鎖型選擇建議"
-target        = "sales_representative"
-require_slots = false
-
-[[intents]]
-name          = "store_info"
-label         = "門市與一般規格資訊"
-description   = "使用者詢問門市地址、營業時間、聯絡電話、服務項目(開鎖/印章/遙控器)、電池挑選建議、支援的解鎖方式或緊急供電方式"
-target        = "store_assistant"
-require_slots = false
-
-[[intents]]
-name          = "app_support"
-label         = "APP 操作與設定"
-description   = "使用者詢問智慧鎖 APP（如 Chatlock AI-99）的操作步驟、解除綁定、邀請家人、權限設定、或清理緩存等軟體問題"
-target        = "app_specialist"
-require_slots = false
-
-[[intents]]
-name          = "manual_request"
-label         = "索取說明書"
-description   = "使用者要求索取、下載、查看電子鎖的說明書、手冊、PDF 檔案"
-target        = "manual_librarian"
-require_slots = false
-
-# -----基本intents-----
-[[intents]]
-name          = "web_search"
-label         = "網路搜尋"
-description   = "使用者詢問市場趨勢、產品比較、推薦等需要即時網路資訊的問題"
-target        = "web_researcher"
-require_slots = false
-
-[[intents]]
-name          = "general_reception"
-label         = "一般接待與資料更新"
-description   = "使用者提供個人資料（地址/電話）、一般問候、感謝、或與電子鎖相關但無明確專業需求的問題"
-target        = "receptionist"
-require_slots = false
-
-[[intents]]
-name          = "out_of_domain"
-description   = "使用者的問題明顯與電子鎖、智慧門鎖完全無關，例如天氣、股票、美食推薦等"
-target        = "out_of_domain"
-require_slots = false
-
-[[intents]]
-name          = "transfer_human"
-label         = "轉接真人客服"
-description   = "使用者明確且堅持要求轉接真人客服，或涉及任何金錢相關話題（報價、費用、預算、分期、退款、付款方式等）。"
-target        = "receptionist"
-require_slots = false
-
-# -----未來擴充-----
-# [[intents]]
-# name          = "order_status"
-# label         = "查詢訂單或維修進度"
-# description   = "使用者想查詢訂單進度、出貨狀況、物流狀態或維修進度"
-# target        = "order_clerk"
-# require_slots = false
-
-# ==========================================
-# 9. 對話記憶儲存設定 (Memory / Checkpointer)
-#    manage_memory 節點負責語意摘要壓縮
-# ==========================================
+# ── 4. 對話記憶 ──
 [memory]
-type                   = "postgres"           # "memory"（暫存）| "sqlite"（本地持久化）| "postgres"（資料庫）
-postgres_uri_env       = "POSTGRES_URI"       # PostgreSQL 連線字串
-# sqlite_path          = "./data/db/chat_history.db"  # sqlite 專用，回退時取消註解
-max_messages_threshold = 12                   # messages 超過此數量時觸發語意摘要壓縮（約 6 輪對話）
-context_retention_pair = 3                    # 壓縮後保留最近 3 對對話（6 則），舊對話靠 summary 保留
-router_context_pairs   = 3                    # router 派發給 agent 時，只附帶最近 3 輪對話 + 當前問題
+type                   = "postgres"  # "memory" (in-process) | "sqlite" | "postgres"
+postgres_uri_env       = "POSTGRES_URI"
+compression_enabled    = true        # H5 記憶壓縮開關
+max_messages_threshold = 20          # 訊息數超過此值時觸發壓縮
+context_retention_pair = 10          # 壓縮後保留最近 N 輪對話
 
+# ── 5. 技能系統 ──
+[skills]
+data_dir = "skills/data"
 
-# ==========================================
-# 10. 必填資訊收集 (Slot Filling)
-#     故障排除前，Agent 會主動詢問缺少的欄位
-# ==========================================
-[required_slots]
-device_model = "使用者的電子鎖型號。"
-device_brand = "使用者的電子鎖品牌。"
+# ── 6. 提示詞檔案路徑 ──
+[prompts]
+system_prompt          = "prompts/system.md"
+transfer_human_form    = "prompts/transfer_human.md"
+summarize_prompt       = "prompts/summarize_messages.md"
+update_profile_prompt  = "prompts/update_profile.md"
 
+# ── 7. 安全設定 (H6) ──
+[safety]
+enabled            = true
+dangerous_keywords = ["拆開電路板", "剪斷電線", "破壞鎖芯", "撬開"]
+block_response     = "為了您的安全，我無法提供這類操作指導。如需協助，請聯繫專業技術人員。"
 
-# ==========================================
-# 11. 使用者輪廓記憶設定 (User Profile Memory)
-#     跨對話持久化使用者個人資訊
-# ==========================================
-[user_profile]
-enabled                = true
-profile_dir            = "./data/profiles"
-facts_enabled          = true
-facts_postgres_uri_env = "POSTGRES_URI"
-fact_attributes        = ["phone", "address", "device_model", "device_brand"]
-
-[user_profile.extraction]
-phone_regex   = '09\d{2}[\-\s]?\d{3}[\-\s]?\d{3}'
-address_regex = '[\u4e00-\u9fff]*(?:市|縣)[\u4e00-\u9fff]*(?:區|鄉|鎮|市)[\u4e00-\u9fff\d\s\-]*(?:路|街|巷|弄|號|樓)[\u4e00-\u9fff\d\s\-]*'
-
-
-# ==========================================
-# 12. 審計日誌儲存設定 (Audit Log Storage)
-#     持久化原始對話紀錄（user + AI）
-# ==========================================
+# ── 8. 審計日誌 ──
 [storage]
 type             = "postgres"
 postgres_uri_env = "POSTGRES_URI"
-# type           = "sqlite"                           # 回退時取消註解
-# sqlite_path    = "./data/db/audit_log.db"
+# sqlite_path = "./data/db/audit_log.db"
 
+# ── 9. Debounce 防抖設定 (H3) ──
+[debounce]
+enabled          = true   # 關閉時訊息直接進入 Agent（不合併）
+buffer_wait      = 1.5    # 秒，最後一則訊息後等待時間
+buffer_ttl       = 300    # 秒，緩衝區過期清理
+cleanup_interval = 60     # 秒，清理迴圈間隔
+media_extra_wait = 10     # 秒，等待媒體處理完成
 
-# ==========================================
-# 13. Prompt 檔案路徑對照表
-#     集中管理所有 prompt 模板的路徑
-# ==========================================
-[prompts]
-router          = "agents/prompts/router.md"
-summarizer      = "agents/prompts/summarize_messages.md"
-merger          = "agents/prompts/merge_answers.md"
-profile_updater = "agents/prompts/update_profile.md"
-transfer_form   = "agents/prompts/transfer_human_form.md"
-rewriter        = "agents/prompts/rewrite_query.md"
-# Harness layer prompts (Phase 2+)
-task_decomposer  = "harness/task/prompts/decompose_task.md"
-answer_evaluator = "harness/feedback/prompts/evaluate_answer.md"
-sop_generator    = "harness/entropy/prompts/generate_sop.md"
-
-
-# ==========================================
-# 14. Agent Harness Framework Settings
-# ==========================================
-# All layers default to disabled -- existing flow unaffected.
-# Enable incrementally per phase as implementation completes.
-
-[harness]
-enabled = true                           # Master switch for all harness layers
-
-[harness.task]
-# L1: Task Representation — Software 3.0 Diagnostic Reasoning Engine
-decompose_enabled = true                 # Enable task_decompose node
-# No mode switch needed — diagnostic depth determined by knowledge context richness
-problem_card_intents = ["hardware_tech", "app_support"]   # Intents that trigger ProblemCard
-diagnostic_intents = ["hardware_tech"]   # Intents eligible for diagnostic reasoning
-max_subtasks = 3                         # Cap subtask count
-knowledge_base_dir = "harness/task"      # Base dir for taxonomy/ and knowledge/ subdirs
-diagnostic_prompt  = "harness/task/prompts/diagnostic_reasoning.md"  # Software 3.0 prompt
-
-[harness.task.domain_schema]
-# Domain-specific fields stored in ProblemCard.domain_attributes (JSONB).
-# Change these when switching to a different vertical domain.
-# e.g. home appliance: fields = ["appliance_brand", "appliance_model", "purchase_date", "warranty_status"]
-fields = ["device_brand", "device_model", "door_type", "fault_category"]
-
-[harness.context]
-# L2: Context Assembly
-assemble_enabled = false                 # V1.0: disabled for latency (optimization-strategy.md)
-token_budget = 4096                      # Max tokens for assembled context
-freshness_threshold_days = 90            # Sources older than this get low score
-
-[harness.context.last_updated]
-# 知識來源最後更新日期（ISO 格式），用於新鮮度評分。
-# 未列出的來源預設 1.0（最新鮮）。
-# 可由 CI/CD 管線在資料匯入後自動更新。
-# kb_video = "2026-03-15"
-# kb_line_chat = "2026-04-01"
-# kb_website = "2026-03-20"
-# kb_youtube = "2026-04-05"
-# kb_gdrive = "2026-03-10"
-
-[harness.budget]
-# Token 成本斷路器
-enabled = true                           # 啟用 token 追蹤與預算控制
-session_token_limit = 50000              # 單次對話 session 最大 token 數
-warn_threshold = 0.8                     # 預算使用達此比例時印出警告
-
-[harness.governance]
-# L3: Tool Governance
-lazy_loading = false                     # Future: only load tools agent needs
-risk_levels = {transfer_to_human = "escalate", db_video = "read", db_line_chat = "read", db_website = "read", db_youtube = "read", db_manuals = "read", db_order_api = "read", db_web_search = "read"}
-
-[harness.feedback]
-# L5: Feedback & Verification
-verify_enabled = false                   # V1.0: disabled for latency (optimization-strategy.md)
-quality_threshold = 0.6                  # Min score to pass (0.0~1.0)
-max_retry = 1                            # Max feedback retry count
-
-[harness.safety]
-# L6: Safety & Control
-dangerous_instruction_keywords = [
-    "拆開電路板", "電路板拆開", "拆解電路板", "電路板拆解",
-    "拆開鎖體", "鎖體拆開", "拆解鎖體", "鎖體拆解",
-    "剪斷電線", "電線剪斷",
-    "短路",
-    "破壞鎖體",
-    "拆解內部", "拆開內部",
-    "自行拆解", "自己拆",
-]
-audit_enabled = true                     # Enable tool audit trail
-
-[harness.observability]
-# L7: Observability
-trace_enabled = true                     # Enable @traced decorator
-metrics_backend = "postgres"             # "postgres" | "stdout"
-
-[harness.entropy]
-# L8: Entropy Management
-sop_generation_enabled = true            # Enable auto-SOP from novel resolutions
-novel_resolution_threshold = 0.3         # Similarity < this triggers SOP candidate
-staleness_check_interval_hours = 168     # Weekly freshness scan
-
-
-# ==========================================
-# 15. 多模態訊息處理
-# ==========================================
+# ── 9. 多模態處理 ──
 [multimodal]
-enabled = true
-provider = "gemini"                      # 使用 google-genai SDK
-model_name = "gemini-2.5-flash-lite"     # 多模態前處理模型（快速、低成本）
-temperature = 0.2
-api_key_env = "GEMINI_API_KEY"           # 可與 [llm] 共用同一把金鑰
-
-image_prompt = "你是電子鎖客服助手。請描述這張圖片的內容，特別注意：錯誤代碼、螢幕顯示、故障現象、門鎖型號、安裝狀況。用繁體中文簡潔描述。"
-audio_prompt = "你是電子鎖客服助手。請描述這段音檔的內容，特別注意：異常聲音、嗶嗶聲模式、機械噪音、馬達聲。用繁體中文簡潔描述。"
-video_prompt = "你是電子鎖客服助手。請描述這段影片的內容，特別注意：故障現象、操作步驟、門鎖狀態、錯誤顯示。用繁體中文簡潔描述。"
-sticker_reply = "收到您的貼圖了！請問有什麼關於電子鎖的問題我可以幫忙的嗎？"
-
-max_file_size_mb = 20                    # 超過此大小的媒體略過處理
-download_timeout = 10                    # LINE 媒體下載超時秒數
-preprocessing_timeout = 30               # Flash-Lite 呼叫超時秒數
-fallback_text = "抱歉，我無法辨識您傳送的{media_type}。請用文字描述您的問題，或拍攝更清晰的照片重新傳送。"
+enabled               = false
+api_key_env           = "GEMINI_API_KEY"
+model_name            = "gemini-2.5-flash-lite"
+temperature           = 0.2
+download_timeout      = 10
+preprocessing_timeout = 30
+max_file_size_mb      = 20
+image_prompt          = "請描述這張圖片的內容。用繁體中文簡潔描述，著重於電子鎖相關的細節。"
+audio_prompt          = "請將這段音訊轉成文字。用繁體中文。"
+video_prompt          = "請描述這段影片的內容。用繁體中文簡潔描述。"
+sticker_reply         = "收到您的貼圖了！請問有什麼關於電子鎖的問題我可以幫忙的嗎？"
+fallback_text         = "抱歉，我無法辨識您傳送的{media_type}。請用文字描述您的問題。"
 
 [multimodal.storage]
-type = "local"                           # "local" | 未來: "gcs", "s3"
-local_path = "./data/media"              # 本地存儲根目錄
-# 未來雲端設定預留：
-# bucket_name = "smart-lock-media"
-# prefix = "line-uploads/"
-# credentials_env = "GCS_SERVICE_ACCOUNT_KEY"
+type       = "local"
+local_path = "./data/media"
+
+# ── 10. 回覆模板 ──
+[templates]
+push_fallback_prefix = "【系統通知】讓您久等了，以下是您的回覆：\n"
+error_timeout        = "不好意思，系統處理時間過長，請稍後再試一次。"
+error_no_reply       = "抱歉，系統沒有產生回覆。"
+error_system         = "不好意思，系統大腦剛剛稍微當機了一下，請稍後再試一次！"
+
+# ── 11. 用戶畫像 ──
+[user_profile]
+enabled     = true
+profile_dir = "./data/profiles"
+facts_enabled = true
+facts_postgres_uri_env = "POSTGRES_URI"
+fact_attributes = ["phone", "address", "device_model", "device_brand"]

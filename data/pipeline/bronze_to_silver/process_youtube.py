@@ -2,7 +2,7 @@
 
 Reads vision-generated transcripts from storage/bronze/youtube/,
 sends each to Gemini for rewriting / structuring, and writes
-LangChain-Document-compatible JSON to storage/silver/youtube/.
+structured JSON to storage/silver/youtube/.
 """
 
 import argparse
@@ -35,11 +35,7 @@ SYSTEM_PROMPT = """\
 - 包含該知識點的完整描述，保留所有技術細節
 - 使用正式書面中文
 
-## 2. 模擬疑問句
-為每個知識點生成 2~3 句使用者可能會問的白話文問題。
-例如：「Chatlock AI-99 怎麼設定管理員密碼？」、「如何新增指紋到 Chatlock AI-99？」
-
-## 3. Metadata 推斷
+## 2. Metadata 推斷
 根據影片標題和內容推斷以下欄位：
 - brand：品牌名稱（Dormakaba / Chatlock / general）
 - model：型號（如 AI99、A90，無法確定則填 general）
@@ -51,14 +47,9 @@ RESPONSE_SCHEMA = {
     "items": {
         "type": "object",
         "properties": {
-            "summary": {
+            "content": {
                 "type": "string",
-                "description": "結構化重寫後的獨立知識摘要（必須包含時間戳記與明確主語）",
-            },
-            "questions": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "2~3 句使用者可能會問的白話文疑問句",
+                "description": "結構化重寫後的獨立知識內容（必須包含時間戳記與明確主語）",
             },
             "metadata": {
                 "type": "object",
@@ -70,7 +61,7 @@ RESPONSE_SCHEMA = {
                 "required": ["brand", "model", "category"],
             },
         },
-        "required": ["summary", "questions", "metadata"],
+        "required": ["content", "metadata"],
     },
 }
 
@@ -103,26 +94,19 @@ def process_one_file(llm_func: Callable, bronze_data: dict) -> list[dict]:
 
     final_documents = []
     for i, item in enumerate(chunks):
-        for field in ("summary", "questions", "metadata"):
+        for field in ("content", "metadata"):
             if field not in item:
                 raise ValueError(f"Chunk {i}: missing '{field}'")
 
-        # 組合 page_content（疑問句 + 摘要）
-        questions_str = "\n".join(item["questions"])
-        page_content = f"【常見問題】\n{questions_str}\n\n【知識內容】\n{item['summary']}"
-
-        # 建立 metadata
-        meta = item["metadata"]
-        meta["source_type"] = "youtube"
-        meta["source"] = video_id
-        meta["url"] = url
-        meta["chunk_index"] = i + 1
-        meta["raw_text"] = item["summary"]
-
-        final_documents.append({
-            "page_content": page_content,
-            "metadata": meta,
-        })
+        doc = {
+            "content": item["content"],
+            **item["metadata"],
+            "source_type": "youtube",
+            "source": video_id,
+            "url": url,
+            "chunk_index": i + 1,
+        }
+        final_documents.append(doc)
 
     return final_documents
 

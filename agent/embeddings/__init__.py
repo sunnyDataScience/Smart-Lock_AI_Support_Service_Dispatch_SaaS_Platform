@@ -11,8 +11,8 @@ def get_embedding(config: dict):
     provider = config.get("embedding_provider")
     if not provider:
         raise ValueError(
-            f"[[databases]] 缺少 embedding_provider 欄位，"
-            f"請在 config.toml 對應的資料庫區塊中設定"
+            f"缺少 embedding_provider 欄位，"
+            f"請在 config.toml 對應的區塊中設定"
         )
 
     builder = REGISTRY.get(provider)
