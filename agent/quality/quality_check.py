@@ -24,7 +24,8 @@ from dotenv import load_dotenv
 
 load_dotenv(os.path.join(_AGENT_SKILLS_DIR, ".env"))
 
-from langchain_google_vertexai import ChatVertexAI
+from langchain_google_genai import ChatGoogleGenerativeAI
+from core.config import load_config
 from agent import build_agent
 
 # ─────────────────────────────────────────────
@@ -404,11 +405,12 @@ async def main():
             print(f"  ERROR: {json_path} not found. Run without --judge-only first.")
             return
 
-        judge_model = ChatVertexAI(
-            model_name="gemini-2.5-flash",
+        judge_model = ChatGoogleGenerativeAI(
+            model="gemini-2.5-flash",
             project=project,
             location=os.getenv("VERTEX_LOCATION", "us-central1"),
             temperature=0.0,
+            vertexai=True,
         )
 
         print("=" * 60)
@@ -423,23 +425,30 @@ async def main():
     use_judge = not args.no_judge
     mode_label = "Full (Agent + LLM Judge)" if use_judge else "Fast (Agent + Keywords only)"
 
-    model = ChatVertexAI(
-        model_name="gemini-2.5-flash",
+    # 切到 agent/ 目錄，讓 config.toml 和 skills/data 等相對路徑正確
+    os.chdir(_AGENT_SKILLS_DIR)
+
+    cfg = load_config()
+
+    model = ChatGoogleGenerativeAI(
+        model="gemini-2.5-flash",
         project=project,
         location=os.getenv("VERTEX_LOCATION", "us-central1"),
         temperature=0.3,
+        vertexai=True,
     )
 
     judge_model = None
     if use_judge:
-        judge_model = ChatVertexAI(
-            model_name="gemini-2.5-flash",
+        judge_model = ChatGoogleGenerativeAI(
+            model="gemini-2.5-flash",
             project=project,
             location=os.getenv("VERTEX_LOCATION", "us-central1"),
             temperature=0.0,
+            vertexai=True,
         )
 
-    agent = build_agent(model)
+    agent = build_agent(model, cfg)
 
     print("=" * 60)
     print(f"  Quality Check — {mode_label} (50 cases)")
