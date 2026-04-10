@@ -172,7 +172,7 @@ async def line_webhook(request: Request):
             await line_bot.send_response(user_id, reply_token, sticker_reply)
             continue
 
-        # ── 2. 圖片/音訊/影片 → 多模態前處理 → debounce buffer ──
+        # ── 2. 圖片/音訊/影片 → 多模態 passthrough → debounce buffer ──
         if isinstance(event.message, (ImageMessageContent, AudioMessageContent, VideoMessageContent)):
             media_type_map = {
                 ImageMessageContent: "image",
@@ -189,9 +189,9 @@ async def line_webhook(request: Request):
                 media_label = {"image": "圖片", "audio": "音檔", "video": "影片"}.get(media_type, "媒體")
                 debounce.add_message_to_buffer(
                     user_id, reply_token,
-                    f"[使用者正在傳送{media_label}，處理中...]"
+                    {"type": "media_pending", "label": media_label}
                 )
-                # 背景處理：完成後會替換 buffer 中的佔位訊息
+                # 背景處理：下載存檔後替換 buffer 中的佔位
                 asyncio.create_task(
                     _handle_media_message(user_id, message_id, media_type)
                 )
@@ -225,15 +225,17 @@ async def line_webhook(request: Request):
 
 
 async def _handle_media_message(user_id: str, message_id: str, media_type: str):
-    """背景任務：下載媒體 → 存檔 → Flash-Lite 描述 → 注入 debounce buffer。"""
+    """背景任務：下載媒體 → 存檔 → 注入 debounce buffer（passthrough，不做描述）。"""
     media_label = {"image": "圖片", "audio": "音檔", "video": "影片"}.get(media_type, "媒體")
     try:
-        description = await multimodal.process_media_message(message_id, media_type, user_id)
-        enriched_text = f"[使用者傳送了{media_label}，以下是內容描述]\n{description}"
+        media_content = await multimodal.download_and_store_media(message_id, media_type, user_id)
+        debounce.add_message_to_buffer(
+            user_id, None, media_content, replace_media_pending=True
+        )
     except Exception as e:
         print(f"[Media Handler Error] {media_type} 處理異常 (user={user_id}): {e}")
-        enriched_text = f"[使用者傳送了{media_label}，但系統無法辨識內容，請根據對話脈絡盡量協助]"
-
-    debounce.add_message_to_buffer(
-        user_id, None, enriched_text, replace_media_placeholder=True
-    )
+        debounce.add_message_to_buffer(
+            user_id, None,
+            f"[使用者傳送了{media_label}，但系統無法下載內容，請根據對話脈絡盡量協助]",
+            replace_media_pending=True,
+        )

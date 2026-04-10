@@ -63,20 +63,13 @@ buffer_ttl       = 300    # 秒，緩衝區過期清理
 cleanup_interval = 60     # 秒，清理迴圈間隔
 media_extra_wait = 10     # 秒，等待媒體處理完成
 
-# ── 9. 多模態處理 ──
+# ── 9. 多模態處理（passthrough 模式：媒體直接送入 Agent） ──
 [multimodal]
-enabled               = false
-api_key_env           = "GEMINI_API_KEY"
-model_name            = "gemini-2.5-flash-lite"
-temperature           = 0.2
-download_timeout      = 10
-preprocessing_timeout = 30
-max_file_size_mb      = 20
-image_prompt          = "請描述這張圖片的內容。用繁體中文簡潔描述，著重於電子鎖相關的細節。"
-audio_prompt          = "請將這段音訊轉成文字。用繁體中文。"
-video_prompt          = "請描述這段影片的內容。用繁體中文簡潔描述。"
-sticker_reply         = "收到您的貼圖了！請問有什麼關於電子鎖的問題我可以幫忙的嗎？"
-fallback_text         = "抱歉，我無法辨識您傳送的{media_type}。請用文字描述您的問題。"
+enabled          = true
+download_timeout = 10             # 秒，LINE 媒體下載超時
+max_file_size_mb = 10             # MB，超過此大小的媒體不處理
+sticker_reply    = "收到您的貼圖了！請問有什麼關於電子鎖的問題我可以幫忙的嗎？"
+fallback_text    = "抱歉，我無法處理您傳送的{media_type}。請用文字描述您的問題。"
 
 [multimodal.storage]
 type       = "local"
