@@ -60,10 +60,9 @@ def load_skills(skills_dir: str | None = None) -> list[Skill]:
         print(f"[skills] 目錄不存在: {skills_dir}")
         return skills
 
-    for entry in sorted(os.listdir(skills_dir)):
-        skill_file = os.path.join(skills_dir, entry, "SKILL.md")
-        if os.path.isfile(skill_file):
-            skill = _parse_skill_md(skill_file)
+    for root, _dirs, files in sorted(os.walk(skills_dir)):
+        if "SKILL.md" in files:
+            skill = _parse_skill_md(os.path.join(root, "SKILL.md"))
             if skill:
                 skills.append(skill)
                 print(f"[skills] 索引: {skill.name}")

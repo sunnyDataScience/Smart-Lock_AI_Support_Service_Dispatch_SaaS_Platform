@@ -193,8 +193,12 @@ def build_line_messages(answer: str) -> list:
             continue
         seen_ids.add(file_id)
 
-        full_url = match.group(0)
-        title = _extract_context_title(answer, full_url) or "電子鎖說明書"
+        full_url = match.group(0).rstrip(".,;!?]）」】》")
+        # 確保 URL 合法：Google Drive /view 結尾或純 file ID
+        if not full_url.startswith("https://"):
+            full_url = "https://" + full_url.lstrip("http://")
+        print(f"  [UI Factory] GDrive URL: {full_url}")
+        title = _extract_context_title(answer, match.group(0)) or "電子鎖說明書"
         download_bubbles.append(_build_download_bubble(title, full_url))
 
     if download_bubbles:

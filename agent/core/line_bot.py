@@ -71,9 +71,19 @@ async def send_response(
                     push_messages.append(TextMessage(text=fallback_prefix + msg.text))
                 else:
                     push_messages.append(msg)
-            await line_bot_api.push_message(
-                PushMessageRequest(
-                    to=user_id,
-                    messages=push_messages,
+            try:
+                await line_bot_api.push_message(
+                    PushMessageRequest(
+                        to=user_id,
+                        messages=push_messages,
+                    )
                 )
-            )
+            except ApiException as e2:
+                # Flex Message 也失敗 → 降級為純文字
+                print(f"[LINE] Flex Message push 失敗，降級純文字: {e2}")
+                await line_bot_api.push_message(
+                    PushMessageRequest(
+                        to=user_id,
+                        messages=[TextMessage(text=fallback_prefix + message_text[:max_len])],
+                    )
+                )

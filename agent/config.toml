@@ -29,8 +29,8 @@ max_reply_length         = 5000
 type                   = "postgres"  # "memory" (in-process) | "sqlite" | "postgres"
 postgres_uri_env       = "POSTGRES_URI"
 compression_enabled    = true        # H5 記憶壓縮開關
-max_messages_threshold = 20          # 訊息數超過此值時觸發壓縮
-context_retention_pair = 10          # 壓縮後保留最近 N 輪對話
+max_messages_threshold = 12          # 訊息數超過此值時觸發壓縮
+context_retention_pair = 5           # 壓縮後保留最近 N 輪對話
 
 # ── 5. 技能系統 ──
 [skills]
