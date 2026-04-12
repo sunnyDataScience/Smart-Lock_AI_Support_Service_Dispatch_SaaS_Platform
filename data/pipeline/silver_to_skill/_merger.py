@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 import re
+import time
 from typing import Callable
+
+MAX_RETRIES = 3
+RETRY_BACKOFF = [2, 5, 10]
+MAX_CHUNKS_PER_BATCH = 50
 
 from pipeline.silver_to_skill._prompts import (
     MERGE_SKILL_SYSTEM,
@@ -46,17 +51,58 @@ def _validate_skill_md(text: str) -> tuple[bool, str]:
     return True, ""
 
 
+def _merge_once(
+    existing_md: str,
+    docs: list[dict],
+    skill_name: str,
+    generate_json: Callable,
+) -> dict:
+    """單批合併：將 docs 合併到 existing_md。含 retry 邏輯。"""
+    chunks_text = _format_chunks(docs)
+    prompt = MERGE_SKILL_PROMPT.format(
+        existing_skill_content=existing_md,
+        new_knowledge_chunks=chunks_text,
+    )
+
+    for attempt in range(MAX_RETRIES):
+        try:
+            result = generate_json(prompt, MERGE_SKILL_SYSTEM, SKILL_CONTENT_SCHEMA)
+            break
+        except Exception as e:
+            if attempt < MAX_RETRIES - 1:
+                wait = RETRY_BACKOFF[attempt]
+                print(f"  [RETRY {attempt + 1}/{MAX_RETRIES}] {skill_name}: {e} (wait {wait}s)")
+                time.sleep(wait)
+            else:
+                print(f"  [FAILED] {skill_name}: {e}")
+                return {
+                    "skill_md": existing_md,
+                    "has_changes": False,
+                    "changes_summary": f"LLM 呼叫失敗 ({e})，保留原始內容",
+                }
+
+    # 驗證輸出
+    skill_md = result.get("skill_md", "")
+    valid, error = _validate_skill_md(skill_md)
+    if not valid:
+        print(f"  [警告] {skill_name} LLM 輸出格式異常: {error}")
+        result["skill_md"] = existing_md
+        result["has_changes"] = False
+        result["changes_summary"] = f"LLM 輸出驗證失敗 ({error})，保留原始內容"
+
+    return result
+
+
 def merge_skill(
     skill: SkillInfo,
     new_docs: list[dict],
     generate_json: Callable,
 ) -> dict:
-    """合併新知識到既有 SKILL.md。
+    """合併新知識到既有 SKILL.md。超過 MAX_CHUNKS_PER_BATCH 時分批處理。
 
     Returns:
         {skill_md, changes_summary, has_changes} from LLM
     """
-    # 重建完整 SKILL.md（含 frontmatter）
     existing_full = (
         f"---\nname: {skill.name}\n"
         f"description: {skill.description}\n"
@@ -64,26 +110,30 @@ def merge_skill(
         f"---\n\n{skill.content}"
     )
 
-    chunks_text = _format_chunks(new_docs)
+    if len(new_docs) <= MAX_CHUNKS_PER_BATCH:
+        return _merge_once(existing_full, new_docs, skill.name, generate_json)
 
-    prompt = MERGE_SKILL_PROMPT.format(
-        existing_skill_content=existing_full,
-        new_knowledge_chunks=chunks_text,
-    )
+    # 分批處理
+    current_md = existing_full
+    all_summaries = []
+    total_batches = (len(new_docs) + MAX_CHUNKS_PER_BATCH - 1) // MAX_CHUNKS_PER_BATCH
 
-    result = generate_json(prompt, MERGE_SKILL_SYSTEM, SKILL_CONTENT_SCHEMA)
+    for i in range(0, len(new_docs), MAX_CHUNKS_PER_BATCH):
+        batch = new_docs[i:i + MAX_CHUNKS_PER_BATCH]
+        batch_num = i // MAX_CHUNKS_PER_BATCH + 1
+        print(f"    [批次 {batch_num}/{total_batches}] {len(batch)} 個 chunk")
 
-    # 驗證輸出
-    skill_md = result.get("skill_md", "")
-    valid, error = _validate_skill_md(skill_md)
-    if not valid:
-        print(f"  [警告] {skill.name} LLM 輸出格式異常: {error}")
-        # fallback：保留原始內容
-        result["skill_md"] = existing_full
-        result["has_changes"] = False
-        result["changes_summary"] = f"LLM 輸出驗證失敗 ({error})，保留原始內容"
+        result = _merge_once(current_md, batch, skill.name, generate_json)
+        if result["has_changes"]:
+            current_md = result["skill_md"]
+            all_summaries.append(result["changes_summary"])
 
-    return result
+    has_changes = len(all_summaries) > 0
+    return {
+        "skill_md": current_md,
+        "has_changes": has_changes,
+        "changes_summary": " | ".join(all_summaries) if has_changes else "全部重複",
+    }
 
 
 def create_skill(
@@ -113,7 +163,22 @@ def create_skill(
         suggested_name=suggested_name,
     )
 
-    result = generate_json(prompt, CREATE_SKILL_SYSTEM, SKILL_CONTENT_SCHEMA)
+    for attempt in range(MAX_RETRIES):
+        try:
+            result = generate_json(prompt, CREATE_SKILL_SYSTEM, SKILL_CONTENT_SCHEMA)
+            break
+        except Exception as e:
+            if attempt < MAX_RETRIES - 1:
+                wait = RETRY_BACKOFF[attempt]
+                print(f"  [RETRY {attempt + 1}/{MAX_RETRIES}] {suggested_name}: {e} (wait {wait}s)")
+                time.sleep(wait)
+            else:
+                print(f"  [FAILED] {suggested_name}: {e}")
+                return {
+                    "skill_md": "",
+                    "has_changes": False,
+                    "changes_summary": f"LLM 呼叫失敗 ({e})",
+                }
 
     # 驗證輸出
     skill_md = result.get("skill_md", "")

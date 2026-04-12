@@ -1,5 +1,21 @@
 import os
+from pathlib import Path
+
+from google.oauth2 import service_account
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
+
+_SA_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
+
+
+def _load_sa_credentials():
+    """Load Service Account credentials if credentials.json exists."""
+    sa_file = Path("credentials.json")
+    if sa_file.exists():
+        return service_account.Credentials.from_service_account_file(
+            str(sa_file), scopes=_SA_SCOPES
+        )
+    return None
+
 
 def build_vertexai_embedding(config: dict):
     model_name = config.get("embedding_model", "text-embedding-004")
@@ -23,5 +39,9 @@ def build_vertexai_embedding(config: dict):
     kwargs = dict(model=model_name, project=project_id, location=location, vertexai=True)
     if dimensions:
         kwargs["model_kwargs"] = {"output_dimensionality": int(dimensions)}
+
+    creds = _load_sa_credentials()
+    if creds:
+        kwargs["credentials"] = creds
 
     return GoogleGenerativeAIEmbeddings(**kwargs)

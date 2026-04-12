@@ -35,14 +35,14 @@ LINE_CHANNEL_ACCESS_TOKEN=your-channel-access-token
 
 ### GCP 認證
 
-擇一即可：
+擇一即可（優先順序由上至下）：
 
 ```bash
-# 方式 A：本機開發（ADC）
-gcloud auth application-default login
+# 方式 A：Service Account（建議）
+# 將 credentials.json 放在 agent/ 目錄下，程式會自動偵測使用
 
-# 方式 B：Service Account
-export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+# 方式 B：ADC（備用）
+gcloud auth application-default login
 ```
 
 ---

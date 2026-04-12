@@ -36,6 +36,7 @@ MERGE_SKILL_SYSTEM = """\
 5. 保留所有 $ARGUMENTS 佔位符（維持在文件最末尾）
 6. 保留所有 load_skill() 呼叫引用
 7. 輸出必須是完整的 SKILL.md 檔案（含 YAML frontmatter）
+8. 如果知識片段的核心主題與本技能不相關（例如只是順帶提及關鍵字），必須跳過不加入。判斷標準：該知識片段「主要在講什麼」是否與本技能的 name/description 一致
 """
 
 MERGE_SKILL_PROMPT = """\

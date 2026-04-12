@@ -54,7 +54,9 @@ VERTEX_PROJECT_ID=your_gcp_project_id
 VERTEX_LOCATION=us-central1
 ```
 
-認證：`gcloud auth application-default login`
+認證（擇一）：
+1. **Service Account（建議）**：將 `credentials.json` 放在 `data/` 目錄下
+2. **ADC（備用）**：`gcloud auth application-default login`
 
 ### 執行 Pipeline
 

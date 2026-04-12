@@ -1,5 +1,21 @@
 import os
+from pathlib import Path
+
+from google.oauth2 import service_account
 from langchain_google_genai import ChatGoogleGenerativeAI
+
+_SA_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
+
+
+def _load_sa_credentials():
+    """Load Service Account credentials if credentials.json exists."""
+    sa_file = Path("credentials.json")
+    if sa_file.exists():
+        return service_account.Credentials.from_service_account_file(
+            str(sa_file), scopes=_SA_SCOPES
+        )
+    return None
+
 
 def build_vertexai_llm(config: dict):
     model_name = config.get("model_name", "gemini-2.5-flash")
@@ -17,10 +33,15 @@ def build_vertexai_llm(config: dict):
     if not location:
         raise ValueError(f"缺少 GCP 區域！請在 .env 檔案中設定 {location_env}")
 
-    return ChatGoogleGenerativeAI(
+    kwargs = dict(
         model=model_name,
         temperature=temperature,
         project=project_id,
         location=location,
         vertexai=True,
     )
+    creds = _load_sa_credentials()
+    if creds:
+        kwargs["credentials"] = creds
+
+    return ChatGoogleGenerativeAI(**kwargs)

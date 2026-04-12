@@ -20,13 +20,28 @@ from dataclasses import dataclass, asdict
 _AGENT_SKILLS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _AGENT_SKILLS_DIR)
 
+from pathlib import Path
+
 from dotenv import load_dotenv
 
 load_dotenv(os.path.join(_AGENT_SKILLS_DIR, ".env"))
 
+from google.oauth2 import service_account
 from langchain_google_genai import ChatGoogleGenerativeAI
 from core.config import load_config
 from agent import build_agent
+
+_SA_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
+
+
+def _load_sa_credentials():
+    """Load Service Account credentials if credentials.json exists."""
+    sa_file = Path("credentials.json")
+    if sa_file.exists():
+        return service_account.Credentials.from_service_account_file(
+            str(sa_file), scopes=_SA_SCOPES
+        )
+    return None
 
 # ─────────────────────────────────────────────
 # 測試案例定義
@@ -399,19 +414,24 @@ async def main():
     json_path = os.path.join(base_dir, "quality_report.json")
     html_path = os.path.join(base_dir, "quality_report.html")
 
+    sa_creds = _load_sa_credentials()
+
     # ── --judge-only 模式：只重新評分 ──
     if args.judge_only:
         if not os.path.isfile(json_path):
             print(f"  ERROR: {json_path} not found. Run without --judge-only first.")
             return
 
-        judge_model = ChatGoogleGenerativeAI(
+        judge_kwargs = dict(
             model="gemini-2.5-flash",
             project=project,
             location=os.getenv("VERTEX_LOCATION", "us-central1"),
             temperature=0.0,
             vertexai=True,
         )
+        if sa_creds:
+            judge_kwargs["credentials"] = sa_creds
+        judge_model = ChatGoogleGenerativeAI(**judge_kwargs)
 
         print("=" * 60)
         print("  Quality Check — Re-Judge Only")
@@ -430,23 +450,29 @@ async def main():
 
     cfg = load_config()
 
-    model = ChatGoogleGenerativeAI(
+    model_kwargs = dict(
         model="gemini-2.5-flash",
         project=project,
         location=os.getenv("VERTEX_LOCATION", "us-central1"),
         temperature=0.3,
         vertexai=True,
     )
+    if sa_creds:
+        model_kwargs["credentials"] = sa_creds
+    model = ChatGoogleGenerativeAI(**model_kwargs)
 
     judge_model = None
     if use_judge:
-        judge_model = ChatGoogleGenerativeAI(
+        judge_kwargs = dict(
             model="gemini-2.5-flash",
             project=project,
             location=os.getenv("VERTEX_LOCATION", "us-central1"),
             temperature=0.0,
             vertexai=True,
         )
+        if sa_creds:
+            judge_kwargs["credentials"] = sa_creds
+        judge_model = ChatGoogleGenerativeAI(**judge_kwargs)
 
     agent = build_agent(model, cfg)
 

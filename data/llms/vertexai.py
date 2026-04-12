@@ -3,11 +3,36 @@
 import json
 import os
 import sys
+from pathlib import Path
 from typing import Callable
 
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from google.oauth2 import service_account
+
+
+def _build_client() -> genai.Client:
+    """Build a genai Client using Service Account credentials if available,
+    otherwise fall back to ADC."""
+    load_dotenv()
+
+    project = os.getenv("VERTEX_PROJECT_ID")
+    location = os.getenv("VERTEX_LOCATION")
+    if not project or not location:
+        sys.exit("VERTEX_PROJECT_ID / VERTEX_LOCATION not found in environment")
+
+    sa_file = Path("credentials.json")
+    if sa_file.exists():
+        creds = service_account.Credentials.from_service_account_file(
+            str(sa_file),
+            scopes=["https://www.googleapis.com/auth/cloud-platform"],
+        )
+        return genai.Client(
+            vertexai=True, project=project, location=location, credentials=creds
+        )
+
+    return genai.Client(vertexai=True, project=project, location=location)
 
 
 def get_vertexai_llm(model_name: str, **kwargs) -> Callable:
@@ -20,14 +45,7 @@ def get_vertexai_llm(model_name: str, **kwargs) -> Callable:
     **kwargs
         Extra generation parameters (``temperature``, etc.).
     """
-    load_dotenv()
-
-    project = os.getenv("VERTEX_PROJECT_ID")
-    location = os.getenv("VERTEX_LOCATION")
-    if not project or not location:
-        sys.exit("VERTEX_PROJECT_ID / VERTEX_LOCATION not found in environment")
-
-    client = genai.Client(vertexai=True, project=project, location=location)
+    client = _build_client()
     temperature = kwargs.get("temperature", 0.3)
 
     def generate_json(prompt: str, system_prompt: str, schema: dict) -> dict:
@@ -61,14 +79,7 @@ def get_vertexai_vision_llm(model_name: str, **kwargs) -> Callable:
     Callable
         ``generate_from_video(video_path, system_prompt) -> str``
     """
-    load_dotenv()
-
-    project = os.getenv("VERTEX_PROJECT_ID")
-    location = os.getenv("VERTEX_LOCATION")
-    if not project or not location:
-        sys.exit("VERTEX_PROJECT_ID / VERTEX_LOCATION not found in environment")
-
-    client = genai.Client(vertexai=True, project=project, location=location)
+    client = _build_client()
     temperature = kwargs.get("temperature", 0.1)
 
     def generate_from_video(video_path: str, system_prompt: str) -> str:

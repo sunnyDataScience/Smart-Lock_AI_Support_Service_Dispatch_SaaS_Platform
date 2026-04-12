@@ -23,6 +23,8 @@ def load_all_silver(source_filter: str = "") -> list[dict]:
         if not source_dir.exists():
             continue
         for f in sorted(source_dir.glob("*.json")):
+            if f.name.startswith("_"):
+                continue
             try:
                 items = json.loads(f.read_text(encoding="utf-8"))
                 if isinstance(items, list):
@@ -49,6 +51,8 @@ def load_silver_by_file(source_filter: str = "") -> dict[str, list[dict]]:
         if not source_dir.exists():
             continue
         for f in sorted(source_dir.glob("*.json")):
+            if f.name.startswith("_"):
+                continue
             try:
                 items = json.loads(f.read_text(encoding="utf-8"))
                 key = f"{source}/{f.stem}"

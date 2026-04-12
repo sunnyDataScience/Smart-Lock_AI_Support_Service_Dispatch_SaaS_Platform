@@ -8,6 +8,7 @@
 
 import argparse
 import json
+import shutil
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -84,6 +85,12 @@ def main():
     all_docs = load_all_silver()
 
     skill_groups = _group_by_skill(classification)
+
+    # 清除舊草稿（避免殘留過期檔案）
+    if DRAFTS_DIR.exists():
+        for old_dir in DRAFTS_DIR.iterdir():
+            if old_dir.is_dir():
+                shutil.rmtree(old_dir)
 
     # 過濾
     if args.skill:

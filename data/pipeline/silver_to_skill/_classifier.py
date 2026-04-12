@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from typing import Callable
 
 from pipeline.silver_to_skill._prompts import CLASSIFY_SYSTEM, CLASSIFY_PROMPT
 from pipeline.silver_to_skill._schemas import CLASSIFY_SCHEMA
 from pipeline.silver_to_skill._skill_registry import SkillInfo
+
+MAX_RETRIES = 3
+RETRY_BACKOFF = [2, 5, 10]
 
 
 @dataclass
@@ -70,7 +74,10 @@ _APP_KEYWORDS: dict[str, list[str]] = {
 
 
 def _keyword_match(content: str, keyword_map: dict[str, list[str]]) -> tuple[str, float] | None:
-    """嘗試用關鍵字比對，回傳 (skill_name, confidence) 或 None。"""
+    """嘗試用關鍵字比對，回傳 (skill_name, confidence) 或 None。
+
+    要求至少命中 2 個關鍵字才視為有效分類，避免「順帶提及」的 chunk 被誤分類。
+    """
     scores: dict[str, int] = {}
     for skill, keywords in keyword_map.items():
         count = sum(1 for kw in keywords if kw in content)
@@ -81,7 +88,8 @@ def _keyword_match(content: str, keyword_map: dict[str, list[str]]) -> tuple[str
         return None
 
     best = max(scores, key=scores.get)  # type: ignore[arg-type]
-    # 命中越多關鍵字，信心越高
+    if scores[best] < 2:
+        return None
     confidence = min(0.6 + scores[best] * 0.1, 0.95)
     return best, confidence
 
@@ -201,7 +209,25 @@ def classify_tier2(
         document_content=content[:2000],  # 截斷避免 token 過多
     )
 
-    result = generate_json(prompt, CLASSIFY_SYSTEM, CLASSIFY_SCHEMA)
+    for attempt in range(MAX_RETRIES):
+        try:
+            result = generate_json(prompt, CLASSIFY_SYSTEM, CLASSIFY_SCHEMA)
+            break
+        except Exception as e:
+            if attempt < MAX_RETRIES - 1:
+                wait = RETRY_BACKOFF[attempt]
+                print(f"  [RETRY {attempt + 1}/{MAX_RETRIES}] classify: {e} (wait {wait}s)")
+                time.sleep(wait)
+            else:
+                print(f"  [FAILED] classify: {e}")
+                return Classification(
+                    source_file=source_file,
+                    chunk_index=chunk_index,
+                    skill_name="UNCLASSIFIED",
+                    confidence=0.0,
+                    method="llm",
+                    reasoning=f"LLM failed: {e}",
+                )
 
     skill_name = result.get("skill_name", "UNCLASSIFIED")
     confidence = result.get("confidence", 0.0)
