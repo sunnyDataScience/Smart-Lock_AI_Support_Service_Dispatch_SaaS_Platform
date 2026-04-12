@@ -8,7 +8,7 @@ This zone contains all smart lock repair expertise, training data, and domain ru
 
 - **Feeds into:** [[01-design/_MOC]] (architecture shaped by domain rules), [[02-build/_MOC]] (specs reference domain data)
 - **Tracked by:** [[05-gap-analysis/_MOC]] monitors data completeness
-- **Pre-dev planning:** [[wbs-pre-development]] tracks what data must be collected before coding starts
+- **Pre-dev planning:** [[E2x--wbs-pre-development]] tracks what data must be collected before coding starts
 
 ---
 
@@ -23,7 +23,7 @@ This zone contains all smart lock repair expertise, training data, and domain ru
 
 | File | Description |
 |------|-------------|
-| [[wbs-pre-development]] | Pre-development data collection checklist and timeline |
+| [[E2x--wbs-pre-development]] | Pre-development data collection checklist and timeline |
 
 ---
 

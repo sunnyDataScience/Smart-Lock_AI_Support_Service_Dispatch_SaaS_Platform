@@ -16,13 +16,13 @@ This zone contains development guides, coding standards, BDD scenarios, and deta
 
 | Gate | File | Description | Status | MVD |
 |------|------|-------------|--------|-----|
-| TR5 | [[development-workflow-cookbook]] | End-to-end development methodology, phases, documentation requirements | Active | **E6** |
-| TR5 | [[bdd-scenarios]] | BDD principles, Gherkin syntax, V1.0 + V2.0 feature scenarios | Active | **E7** |
-| TR6 | [[module-specification-and-tests]] | Detailed module specs with test cases for core V1.0 components | Draft | ext-E7 |
-| TR5 | [[project-structure-guide]] | Directory structure conventions for Agent, graph, harness, core systems | Active | ext-E6 |
-| TR5 | [[file-dependencies]] | Inter-file dependency map | Active | ext-E6 |
-| TR5 | [[class-relationships]] | Class relationship diagrams | Active | ext-E6 |
-| TR5 | [[code-review-and-refactoring]] | Code quality standards and review checklist | Active | ext-E6 |
+| TR5 | [[E6--development-workflow-cookbook]] | End-to-end development methodology, phases, documentation requirements | Active | **E6** |
+| TR5 | [[E7--bdd-scenarios]] | BDD principles, Gherkin syntax, V1.0 + V2.0 feature scenarios | Active | **E7** |
+| TR6 | [[E7x--module-specification-and-tests]] | Detailed module specs with test cases for core V1.0 components | Draft | ext-E7 |
+| TR5 | [[E6x--project-structure-guide]] | Directory structure conventions for Agent, graph, harness, core systems | Active | ext-E6 |
+| TR5 | [[E6x--file-dependencies]] | Inter-file dependency map | Active | ext-E6 |
+| TR5 | [[E6x--class-relationships]] | Class relationship diagrams | Active | ext-E6 |
+| TR5 | [[E6x--code-review-and-refactoring]] | Code quality standards and review checklist | Active | ext-E6 |
 
 > **E{N}** = Essential at this gate. **ext-E{N}** = Extension. See [[GATE-MAP]] for full framework.
 
@@ -35,9 +35,9 @@ This zone contains development guides, coding standards, BDD scenarios, and deta
 
 ## Reading Order
 
-1. [[development-workflow-cookbook]] -- How we work.
-2. [[project-structure-guide]] -- Where code lives.
-3. [[bdd-scenarios]] -- What the code must do (acceptance criteria).
-4. [[module-specification-and-tests]] -- Detailed specs per module.
+1. [[E6--development-workflow-cookbook]] -- How we work.
+2. [[E6x--project-structure-guide]] -- Where code lives.
+3. [[E7--bdd-scenarios]] -- What the code must do (acceptance criteria).
+4. [[E7x--module-specification-and-tests]] -- Detailed specs per module.
 5. [[specs/_MOC]] -- Feature-specific technical specs.
 6. [[agent-harness/_MOC]] -- AI agent framework deep dive.

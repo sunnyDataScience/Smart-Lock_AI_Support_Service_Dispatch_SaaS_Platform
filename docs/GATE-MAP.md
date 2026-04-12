@@ -88,26 +88,26 @@ Remove any one = a specific class of failure. Add a 10th = redundancy with one o
 
 | Essential | Gate | Current File | Status |
 |-----------|------|-------------|--------|
-| **E1** | TR1 | [[00-vision/project-brief-and-prd]] | Approved |
-| **E2** | TR2 | [[00-vision/statement-of-work]] + [[01-design/adrs/]] | Approved |
-| **E3** | TR3 | [[01-design/architecture-and-design]] | Approved |
-| **E4** | TR3 | [[01-design/diagrams/06_erd]] | Approved |
-| **E5** | TR4 | [[01-design/api-design-specification]] | Approved |
-| **E6** | TR5 | [[02-build/development-workflow-cookbook]] | Active |
-| **E7** | TR5 | [[02-build/bdd-scenarios]] | Active |
-| **E8** | TR8 | [[03-operate/security-and-readiness-checklists]] | In Use |
-| **E9** | TR9 | [[03-operate/deployment-and-operations-guide]] | Draft |
+| **E1** | TR1 | [[00-vision/E1--project-brief-and-prd]] | Approved |
+| **E2** | TR2 | [[00-vision/E2--statement-of-work]] + [[01-design/adrs/]] | Approved |
+| **E3** | TR3 | [[01-design/E3--architecture-and-design]] | Approved |
+| **E4** | TR3 | [[01-design/diagrams/E4--06_erd]] | Approved |
+| **E5** | TR4 | [[01-design/E5--api-design-specification]] | Approved |
+| **E6** | TR5 | [[02-build/E6--development-workflow-cookbook]] | Active |
+| **E7** | TR5 | [[02-build/E7--bdd-scenarios]] | Active |
+| **E8** | TR8 | [[03-operate/E8--security-and-readiness-checklists]] | In Use |
+| **E9** | TR9 | [[03-operate/E9--deployment-and-operations-guide]] | Draft |
 
 ### Extension Documents (grouped by which Essential they extend)
 
 #### Extends E1 -- Problem & Vision
 | Gate | File | Role |
 |------|------|------|
-| TR0 | [[00-vision/user-journey-map]] | Deepens user understanding |
-| TR1 | [[00-vision/moat-system-architecture]] | Competitive positioning |
-| TR1 | [[00-vision/moat-mapping-matrix]] | Investor alignment |
-| TR1 | [[00-vision/executive-architecture-overview]] | Executive communication |
-| TR1 | [[00-vision/presentation-blueprint]] | Pitch structure |
+| TR0 | [[00-vision/E1x--user-journey-map]] | Deepens user understanding |
+| TR1 | [[00-vision/E1x--moat-system-architecture]] | Competitive positioning |
+| TR1 | [[00-vision/E1x--moat-mapping-matrix]] | Investor alignment |
+| TR1 | [[00-vision/E1x--executive-architecture-overview]] | Executive communication |
+| TR1 | [[00-vision/E1x--presentation-blueprint]] | Pitch structure |
 
 #### Extends E2 -- Scope & Decisions
 | Gate | File | Role |
@@ -118,13 +118,13 @@ Remove any one = a specific class of failure. Add a 10th = redundancy with one o
 | TR2 | [[01-design/adrs/adr-004-line-bot-architecture]] | LINE Bot decision |
 | TR2 | [[01-design/adrs/adr-005-frontend-framework-v2]] | Frontend decision |
 | TR2 | [[01-design/adrs/adr-006-llm-model-selection]] | Model decision |
-| TR2 | [[03-operate/wbs-project-schedule]] | Timeline tracking |
-| TR2 | [[04-domain-knowledge/wbs-pre-development]] | Pre-dev data checklist |
+| TR2 | [[03-operate/E2x--wbs-project-schedule]] | Timeline tracking |
+| TR2 | [[04-domain-knowledge/E2x--wbs-pre-development]] | Pre-dev data checklist |
 
 #### Extends E3 -- Architecture
 | Gate | File | Role |
 |------|------|------|
-| TR3 | [[01-design/module-breakdown]] | Module decomposition |
+| TR3 | [[01-design/E3x--module-breakdown]] | Module decomposition |
 | TR3 | [[01-design/diagrams/01_business_process_diagram]] | Business flow |
 | TR3 | [[01-design/diagrams/02_use_case_diagram]] | Use cases |
 | TR3 | [[01-design/diagrams/03_system_context_diagram]] | System context |
@@ -138,10 +138,10 @@ Remove any one = a specific class of failure. Add a 10th = redundancy with one o
 #### Extends E5 -- API & Feature Specs
 | Gate | File | Role |
 |------|------|------|
-| TR4 | [[01-design/work-order-interaction-flows]] | Core business logic |
-| TR4 | [[01-design/work-order-flows-supplement]] | Extended scenarios |
-| TR4 | [[01-design/frontend-architecture]] | Frontend design |
-| TR4 | [[01-design/frontend-information-arch]] | Information architecture |
+| TR4 | [[01-design/E5x--work-order-interaction-flows]] | Core business logic |
+| TR4 | [[01-design/E5x--work-order-flows-supplement]] | Extended scenarios |
+| TR4 | [[01-design/E5x--frontend-architecture]] | Frontend design |
+| TR4 | [[01-design/E5x--frontend-information-arch]] | Information architecture |
 | TR4 | [[02-build/specs/audit-log-spec]] | Feature spec |
 | TR4 | [[02-build/specs/b2b-api-spec]] | Feature spec |
 | TR4 | [[02-build/specs/brand-data-api-spec]] | Feature spec |
@@ -159,15 +159,15 @@ Remove any one = a specific class of failure. Add a 10th = redundancy with one o
 #### Extends E6 -- Dev Workflow
 | Gate | File | Role |
 |------|------|------|
-| TR5 | [[02-build/project-structure-guide]] | Directory conventions |
-| TR5 | [[02-build/code-review-and-refactoring]] | Quality standards |
-| TR5 | [[02-build/file-dependencies]] | Dependency map |
-| TR5 | [[02-build/class-relationships]] | Class diagram |
+| TR5 | [[02-build/E6x--project-structure-guide]] | Directory conventions |
+| TR5 | [[02-build/E6x--code-review-and-refactoring]] | Quality standards |
+| TR5 | [[02-build/E6x--file-dependencies]] | Dependency map |
+| TR5 | [[02-build/E6x--class-relationships]] | Class diagram |
 
 #### Extends E7 -- Test & Acceptance
 | Gate | File | Role |
 |------|------|------|
-| TR5 | [[02-build/module-specification-and-tests]] | Module test cases |
+| TR5 | [[02-build/E7x--module-specification-and-tests]] | Module test cases |
 
 #### Extends E3+E6 -- AI Agent Subsystem
 | Gate | File | Role |
@@ -188,7 +188,7 @@ Remove any one = a specific class of failure. Add a 10th = redundancy with one o
 #### Extends E9 -- Operations
 | Gate | File | Role |
 |------|------|------|
-| TR9 | [[03-operate/documentation-and-maintenance]] | Maintenance SOP |
+| TR9 | [[03-operate/E9x--documentation-and-maintenance]] | Maintenance SOP |
 
 #### Cross-Gate -- Validation & Feedback
 | Gate | File | Role |

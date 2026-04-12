@@ -17,15 +17,15 @@ TR0  TR1       TR2  TR3      TR4  TR5      TR6  TR7      TR8  TR9  TR10
 
 | # | Gate | Essential Document | Status |
 |---|------|--------------------|--------|
-| E1 | TR1 | [[00-vision/project-brief-and-prd]] | Approved |
-| E2 | TR2 | [[00-vision/statement-of-work]] + [[01-design/adrs/_MOC]] | Approved |
-| E3 | TR3 | [[01-design/architecture-and-design]] | Approved |
-| E4 | TR3 | [[01-design/diagrams/06_erd]] | Approved |
-| E5 | TR4 | [[01-design/api-design-specification]] | Approved |
-| E6 | TR5 | [[02-build/development-workflow-cookbook]] | Active |
-| E7 | TR5 | [[02-build/bdd-scenarios]] | Active |
-| E8 | TR8 | [[03-operate/security-and-readiness-checklists]] | In Use |
-| E9 | TR9 | [[03-operate/deployment-and-operations-guide]] | Draft |
+| E1 | TR1 | [[00-vision/E1--project-brief-and-prd]] | Approved |
+| E2 | TR2 | [[00-vision/E2--statement-of-work]] + [[01-design/adrs/_MOC]] | Approved |
+| E3 | TR3 | [[01-design/E3--architecture-and-design]] | Approved |
+| E4 | TR3 | [[01-design/diagrams/E4--06_erd]] | Approved |
+| E5 | TR4 | [[01-design/E5--api-design-specification]] | Approved |
+| E6 | TR5 | [[02-build/E6--development-workflow-cookbook]] | Active |
+| E7 | TR5 | [[02-build/E7--bdd-scenarios]] | Active |
+| E8 | TR8 | [[03-operate/E8--security-and-readiness-checklists]] | In Use |
+| E9 | TR9 | [[03-operate/E9--deployment-and-operations-guide]] | Draft |
 
 ---
 
@@ -65,25 +65,25 @@ Read it in three layers:
 
 ### Path A: New Team Member
 
-1. [[00-vision/project-brief-and-prd]] -- What we are building and why
-2. [[00-vision/user-journey-map]] -- How users interact with the system
-3. [[01-design/architecture-and-design]] -- Technical architecture overview
-4. [[02-build/development-workflow-cookbook]] -- How we work
-5. [[02-build/project-structure-guide]] -- Where code lives
+1. [[00-vision/E1--project-brief-and-prd]] -- What we are building and why
+2. [[00-vision/E1x--user-journey-map]] -- How users interact with the system
+3. [[01-design/E3--architecture-and-design]] -- Technical architecture overview
+4. [[02-build/E6--development-workflow-cookbook]] -- How we work
+5. [[02-build/E6x--project-structure-guide]] -- Where code lives
 
 ### Path B: Investor / Stakeholder
 
-1. [[00-vision/executive-architecture-overview]] -- One-page architecture
-2. [[00-vision/moat-system-architecture]] -- Competitive advantages
-3. [[00-vision/moat-mapping-matrix]] -- Moat mapping to investor expectations
+1. [[00-vision/E1x--executive-architecture-overview]] -- One-page architecture
+2. [[00-vision/E1x--moat-system-architecture]] -- Competitive advantages
+3. [[00-vision/E1x--moat-mapping-matrix]] -- Moat mapping to investor expectations
 4. [[05-gap-analysis/gap-analysis-report]] -- What is still missing
-5. [[03-operate/wbs-project-schedule]] -- Timeline and progress
+5. [[03-operate/E2x--wbs-project-schedule]] -- Timeline and progress
 
 ### Path C: Building a Feature
 
-1. [[02-build/bdd-scenarios]] -- Find your feature's acceptance criteria
+1. [[02-build/E7--bdd-scenarios]] -- Find your feature's acceptance criteria
 2. [[02-build/specs/_MOC]] -- Find the technical spec
-3. [[01-design/api-design-specification]] -- API contracts
+3. [[01-design/E5--api-design-specification]] -- API contracts
 4. [[01-design/diagrams/_MOC]] -- Visual references
 5. [[02-build/agent-harness/_MOC]] -- If working on AI agent features
 
@@ -91,7 +91,7 @@ Read it in three layers:
 
 1. [[04-domain-knowledge/locksmith-checklist/_MOC]] -- All locksmith knowledge
 2. [[04-domain-knowledge/requirements/_MOC]] -- Data collection status
-3. [[04-domain-knowledge/wbs-pre-development]] -- What data is still needed
+3. [[04-domain-knowledge/E2x--wbs-pre-development]] -- What data is still needed
 
 ---
 

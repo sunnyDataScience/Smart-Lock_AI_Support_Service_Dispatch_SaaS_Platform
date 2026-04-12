@@ -7,7 +7,7 @@ C4 model and UML diagrams providing visual representations of the system at diff
 ## Relationship to Other Zones
 
 - **Parent:** [[01-design/_MOC]]
-- **Visualizes:** [[architecture-and-design]], [[module-breakdown]], [[api-design-specification]]
+- **Visualizes:** [[E3--architecture-and-design]], [[E3x--module-breakdown]], [[E5--api-design-specification]]
 
 ---
 
@@ -20,7 +20,7 @@ C4 model and UML diagrams providing visual representations of the system at diff
 | 03 | [[03_system_context_diagram]] | C4 Level 1 | External system integrations (LINE, payment, maps) |
 | 04 | [[04_high_level_architecture_diagram]] | C4 Level 2 | Container-level view (frontend, backend, DB, AI) |
 | 05 | [[05_layered_component_diagram]] | C4 Level 3 | Internal component breakdown per container |
-| 06 | [[06_erd]] | Data | Entity-Relationship Diagram for all database tables |
+| 06 | [[E4--06_erd]] | Data | Entity-Relationship Diagram for all database tables |
 | 07 | [[07_sequence_diagram]] | Interaction | Key interaction sequences between components |
 | 08 | [[08_api_interface_diagram]] | Interface | API endpoint mappings between frontend and backend |
 | 09 | [[09_deployment_diagram]] | Infrastructure | GCP deployment topology and service mesh |

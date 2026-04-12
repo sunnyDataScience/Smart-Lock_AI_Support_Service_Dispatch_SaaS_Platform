@@ -7,7 +7,7 @@ The Agent Harness is the complete operating environment for model-as-agent opera
 ## Relationship to Other Zones
 
 - **Parent:** [[02-build/_MOC]]
-- **Design basis:** [[01-design/architecture-and-design]] (5-layer Agent architecture section)
+- **Design basis:** [[01-design/E3--architecture-and-design]] (5-layer Agent architecture section)
 - **Domain input:** [[04-domain-knowledge/_MOC]] provides the knowledge assets the harness orchestrates
 - **Gap tracking:** [[harness gap-analysis|gap-analysis]] is scoped to this framework only (separate from [[05-gap-analysis/gap-analysis-report]])
 

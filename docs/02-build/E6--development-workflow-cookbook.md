@@ -170,28 +170,28 @@
 
 | 階段 | 文件 | 狀態 | 文件路徑 |
 |:-----|:-----|:-----|:---------|
-| **規劃** | 專案簡報與 PRD | 已批准 | `docs/00-vision/project-brief-and-prd.md` |
-| **規劃** | BDD 情境 | 活躍 | `docs/02-build/bdd-scenarios.md` |
-| **設計** | 架構與設計文檔 | 已批准 | `docs/01-design/architecture-and-design.md` |
+| **規劃** | 專案簡報與 PRD | 已批准 | `docs/00-vision/E1--project-brief-and-prd.md` |
+| **規劃** | BDD 情境 | 活躍 | `docs/02-build/E7--bdd-scenarios.md` |
+| **設計** | 架構與設計文檔 | 已批准 | `docs/01-design/E3--architecture-and-design.md` |
 | **設計** | ADR (6 份) | 已決策 | `docs/01-design/adrs/adr-001 ~ adr-006` |
-| **設計** | API 設計規格 | 已批准 | `docs/01-design/api-design-specification.md` |
+| **設計** | API 設計規格 | 已批准 | `docs/01-design/E5--api-design-specification.md` |
 | **設計** | 資料庫 Schema | 已定義 | `SQL/Schema.sql` |
 | **設計** | 資料庫 Schema V2.0 Extensions | 已定義 | `SQL/Schema_v2_extensions.sql` |
 | **設計** | V2.0 系統設計規格 (14 份) | 活躍 | `docs/02-build/specs/` |
 | **設計** | Agent Harness 重構文件 | 活躍 | `docs/agent-harness-refactor/` |
 | **設計** | 護城河映射矩陣 | 已完成 | `docs/00-vision/moat-mapping-matrix.md` |
-| **開發** | 模組規格與測試 | 草稿 | `docs/02-build/module-specification-and-tests.md` |
+| **開發** | 模組規格與測試 | 草稿 | `docs/02-build/E7x--module-specification-and-tests.md` |
 | **開發** | V2.0 業務服務模組 (16 個) | 活躍 | `agent/services/` |
-| **開發** | 模組依賴關係 | 草稿 | `docs/02-build/file-dependencies.md` |
-| **開發** | 類別關係文檔 | 草稿 | `docs/02-build/class-relationships.md` |
-| **品質** | 品質檢查清單 | 使用中 | `docs/03-operate/security-and-readiness-checklists.md` |
-| **品質** | 部署與運維指南 | 草稿 | `docs/03-operate/deployment-and-operations-guide.md` |
-| **品質** | Code Review 指南 | 草稿 | `docs/02-build/code-review-and-refactoring.md` |
-| **支援** | 專案結構指南 | 活躍 | `docs/02-build/project-structure-guide.md` |
-| **支援** | 前端架構規範 | 草稿 | `docs/01-design/frontend-architecture.md` |
+| **開發** | 模組依賴關係 | 草稿 | `docs/02-build/E6x--file-dependencies.md` |
+| **開發** | 類別關係文檔 | 草稿 | `docs/02-build/E6x--class-relationships.md` |
+| **品質** | 品質檢查清單 | 使用中 | `docs/03-operate/E8--security-and-readiness-checklists.md` |
+| **品質** | 部署與運維指南 | 草稿 | `docs/03-operate/E9--deployment-and-operations-guide.md` |
+| **品質** | Code Review 指南 | 草稿 | `docs/02-build/E6x--code-review-and-refactoring.md` |
+| **支援** | 專案結構指南 | 活躍 | `docs/02-build/E6x--project-structure-guide.md` |
+| **支援** | 前端架構規範 | 草稿 | `docs/01-design/E5x--frontend-architecture.md` |
 | **支援** | 前端信息架構 | 草稿 | `docs/01-design/frontend-information-arch.md` |
-| **支援** | 文檔與維護指南 | 草稿 | `docs/03-operate/documentation-and-maintenance.md` |
+| **支援** | 文檔與維護指南 | 草稿 | `docs/03-operate/E9x--documentation-and-maintenance.md` |
 | **支援** | 系統架構總覽 | 已完成 | `docs/00-vision/executive-architecture-overview.md` |
-| **支援** | WBS 開發計畫 | 已定義 | `docs/03-operate/wbs-project-schedule.md` |
+| **支援** | WBS 開發計畫 | 已定義 | `docs/03-operate/E2x--wbs-project-schedule.md` |
 
 **當前進度**: Phase 0（需求定義與架構設計）已完成。Phase 1（AI 客服 MVP）開發進行中。V2.0 業務服務已完成骨架搭建，16 個服務模組涵蓋 GAP 分析中全部 30 項缺口。14 份 V2.0 系統設計規格與 Agent Harness 重構文件持續演進中。

@@ -5,8 +5,8 @@
 > **狀態**：設計完成，待開發實作
 > **適用範圍**：V2.0 技師派工與工單全生命週期
 > **參考文件**：
-> - `docs/00-vision/project-brief-and-prd.md` — PRD 用戶故事
-> - `docs/01-design/api-design-specification.md` — API 規格
+> - `docs/00-vision/E1--project-brief-and-prd.md` — PRD 用戶故事
+> - `docs/01-design/E5--api-design-specification.md` — API 規格
 > - `SQL/Schema.sql` — 資料庫結構定義
 > - `docs/Locksmith_Preparation_Checklist/14_派工業務規則.md` — 派工規則
 > - `docs/Locksmith_Preparation_Checklist/15_師傅分級標準.md` — 技師分級

@@ -1700,7 +1700,7 @@ jobs:
 | Pricing API | `/api/v2/pricing/*` | `agent/pricing/routes.py` | V2.0 |
 | Accounting API | `/api/v2/accounting/*` | `agent/accounting/routes.py` | V2.0 |
 
-> **注意**：後端為 Modular Monolith（單一 FastAPI 進程），V2.0 的 dispatch/pricing/accounting 為獨立模組但共享同一資料庫。詳見 `docs/02-build/project-structure-guide.md §4.10`。
+> **注意**：後端為 Modular Monolith（單一 FastAPI 進程），V2.0 的 dispatch/pricing/accounting 為獨立模組但共享同一資料庫。詳見 `docs/02-build/E6x--project-structure-guide.md §4.10`。
 
 **TypeScript 型別定義（映射後端 DTO）：**
 

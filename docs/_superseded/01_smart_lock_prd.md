@@ -1,11 +1,11 @@
 ---
 status: superseded
-superseded_by: "[[00-vision/project-brief-and-prd]]"
+superseded_by: "[[00-vision/E1--project-brief-and-prd]]"
 ---
 
 # (Superseded) 產品需求文件 (PRD) - 電子鎖智能客服與派工平台
 
-> **This document has been superseded.** The canonical PRD is now at [[00-vision/project-brief-and-prd]] (v1.1).
+> **This document has been superseded.** The canonical PRD is now at [[00-vision/E1--project-brief-and-prd]] (v1.1).
 > This file is kept for reference only. Do not update it.
 
 ---
@@ -14,7 +14,7 @@ superseded_by: "[[00-vision/project-brief-and-prd]]"
 **日期:** `2026-03-31`
 **專案代號:** `SmartLock-SaaS`
 **狀態:** Superseded
-**SSOT:** [[00-vision/project-brief-and-prd]]
+**SSOT:** [[00-vision/E1--project-brief-and-prd]]
 
 ---
 

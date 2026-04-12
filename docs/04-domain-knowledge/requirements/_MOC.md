@@ -7,8 +7,8 @@
 ## Relationship to Other Zones
 
 - **Parent:** [[04-domain-knowledge/_MOC]]
-- **Feeds:** [[02-build/agent-harness/_MOC]] (knowledge assets), [[02-build/bdd-scenarios]] (test data)
-- **Planning:** [[04-domain-knowledge/wbs-pre-development]] tracks collection timeline
+- **Feeds:** [[02-build/agent-harness/_MOC]] (knowledge assets), [[02-build/E7--bdd-scenarios]] (test data)
+- **Planning:** [[04-domain-knowledge/E2x--wbs-pre-development]] tracks collection timeline
 
 ---
 

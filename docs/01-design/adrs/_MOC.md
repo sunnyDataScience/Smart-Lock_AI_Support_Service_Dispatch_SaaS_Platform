@@ -7,7 +7,7 @@ Records of significant architectural decisions with context, alternatives consid
 ## Relationship to Other Zones
 
 - **Parent:** [[01-design/_MOC]]
-- **Implements:** Requirements from [[00-vision/project-brief-and-prd]] and [[00-vision/statement-of-work]]
+- **Implements:** Requirements from [[00-vision/E1--project-brief-and-prd]] and [[00-vision/E2--statement-of-work]]
 - **Guides:** All implementation in [[02-build/_MOC]]
 
 ---

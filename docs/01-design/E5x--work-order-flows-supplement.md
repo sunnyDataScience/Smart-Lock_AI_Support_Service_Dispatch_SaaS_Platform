@@ -5,12 +5,12 @@
 > **狀態**：設計完成，待合併至主文件
 > **用途**：本文件為 `10_work_order_interaction_flows.md` 之補充，涵蓋 Gap Analysis OP-01 至 OP-21 所識別的缺失項目。合併後應接續原文件 §15 之後、附錄 A 之前。
 > **參考文件**：
-> - `docs/01-design/work-order-interaction-flows.md` — 主文件 (Flow 1-10, §1-§15)
+> - `docs/01-design/E5x--work-order-interaction-flows.md` — 主文件 (Flow 1-10, §1-§15)
 > - `docs/05-gap-analysis/gap-analysis-report.md` — 缺口分析報告
 > - `docs/04-domain-knowledge/requirements/09_pricing_rules/README.md` — 定價規則
 > - `agent/harness/task/knowledge/sop/SOP-DISPATCH-001.json` — 派工 SOP
 > - `agent/harness/task/knowledge/ocap_rules.json` — OCAP 異常監控規則
-> - `docs/01-design/api-design-specification.md` — API 規格
+> - `docs/01-design/E5--api-design-specification.md` — API 規格
 
 ---
 

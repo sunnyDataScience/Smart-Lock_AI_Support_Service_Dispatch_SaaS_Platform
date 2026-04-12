@@ -7,7 +7,7 @@ Cross-cutting validation layer that identifies gaps between current documentatio
 ## Relationship to Other Zones
 
 - **Validates:** All zones -- each gap item traces back to a specific document or missing document
-- **Driven by:** Investor spec reviews and contract requirements from [[00-vision/statement-of-work]]
+- **Driven by:** Investor spec reviews and contract requirements from [[00-vision/E2--statement-of-work]]
 - **Closes gaps via:** New specs in [[02-build/specs/_MOC]]
 
 ---

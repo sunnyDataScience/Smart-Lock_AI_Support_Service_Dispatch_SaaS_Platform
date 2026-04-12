@@ -16,13 +16,13 @@ This zone contains architecture decisions, system design, API contracts, and vis
 
 | Gate | File | Description | Status | MVD |
 |------|------|-------------|--------|-----|
-| TR3 | [[architecture-and-design]] | Integrated architecture: C4 model, DDD strategy, 5-layer Agent architecture | Approved | **E3** |
-| TR3 | [[module-breakdown]] | V1.0 and V2.0 module specifications, cross-module services, MVP scope | Active | ext-E3 |
-| TR4 | [[api-design-specification]] | REST API + WebSocket conventions, endpoint catalog | Approved | **E5** |
-| TR4 | [[frontend-architecture]] | Frontend architecture, dev standards, component system | Draft | ext-E5 |
-| TR4 | [[frontend-information-arch]] | Information architecture for Admin Panel + Technician App | Active | ext-E5 |
-| TR4 | [[work-order-interaction-flows]] | Complete work order and dispatch lifecycle (10 flows) | Design Complete | ext-E5 |
-| TR4 | [[work-order-flows-supplement]] | Extended work order flow scenarios | Design Complete | ext-E5 |
+| TR3 | [[E3--architecture-and-design]] | Integrated architecture: C4 model, DDD strategy, 5-layer Agent architecture | Approved | **E3** |
+| TR3 | [[E3x--module-breakdown]] | V1.0 and V2.0 module specifications, cross-module services, MVP scope | Active | ext-E3 |
+| TR4 | [[E5--api-design-specification]] | REST API + WebSocket conventions, endpoint catalog | Approved | **E5** |
+| TR4 | [[E5x--frontend-architecture]] | Frontend architecture, dev standards, component system | Draft | ext-E5 |
+| TR4 | [[E5x--frontend-information-arch]] | Information architecture for Admin Panel + Technician App | Active | ext-E5 |
+| TR4 | [[E5x--work-order-interaction-flows]] | Complete work order and dispatch lifecycle (10 flows) | Design Complete | ext-E5 |
+| TR4 | [[E5x--work-order-flows-supplement]] | Extended work order flow scenarios | Design Complete | ext-E5 |
 
 > **E{N}** = Essential at this gate. **ext-E{N}** = Extension. See [[GATE-MAP]] for full framework.
 
@@ -35,9 +35,9 @@ This zone contains architecture decisions, system design, API contracts, and vis
 
 ## Reading Order
 
-1. [[architecture-and-design]] -- The big picture.
-2. [[module-breakdown]] -- What modules exist and how they relate.
-3. [[api-design-specification]] -- How modules communicate.
+1. [[E3--architecture-and-design]] -- The big picture.
+2. [[E3x--module-breakdown]] -- What modules exist and how they relate.
+3. [[E5--api-design-specification]] -- How modules communicate.
 4. [[diagrams/_MOC]] -- Visual reference for all of the above.
 5. [[adrs/_MOC]] -- Why we chose specific technologies.
-6. [[work-order-interaction-flows]] -- The core business logic.
+6. [[E5x--work-order-interaction-flows]] -- The core business logic.
