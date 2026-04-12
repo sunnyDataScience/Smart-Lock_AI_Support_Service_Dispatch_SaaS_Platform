@@ -29,24 +29,24 @@ user-invocable: true
 
 | 型號 | 手冊連結 |
 |------|---------|
-| GL220 | https://drive.google.com/file/d/10mP8RipmqMzSGV_Uh_4dNo36L9CZs-eP/view |
-| FA9000 | https://drive.google.com/file/d/1CjWZ2DgpSRNdQ4urSuz1sh_AOhm6LE0D/view |
-| DP850 | https://drive.google.com/file/d/1D4vaLLSFdNAMNysM7OahYyLYfKhATfWd/view |
-| AS701 | https://drive.google.com/file/d/1JKWr7SlJPEHpK957ZZX7fnz0xOFAd9Ir/view |
-| AS901 | https://drive.google.com/file/d/1ev_ljYIQU-pVyo1WCYketF7oQHbRsflv/view |
-| ML550 | https://drive.google.com/file/d/1Y-MFe2cJtCtsIXaugS3O1Av7xNhVAP0-/view |
-| ML660 | https://drive.google.com/file/d/1hrxc409DBOE74aEzXLfnE4lKGjb4vihb/view |
-| ML770 | https://drive.google.com/file/d/1zeYFSb-ucBQWbRd6G9S0uIXqY-PpR5FA/view |
-| MP750 | https://drive.google.com/file/d/1jWTZCMQtxZ9PyxyTjcuwIS09_gLrJpNd/view |
-| RL320 | https://drive.google.com/file/d/1lXckimPvBbNKA7TDtvsT15rG3-2FwfD8/view |
-| RL360 | https://drive.google.com/file/d/1Uk58i4KerNlELEwYpwhnyrxFnLj92-sn/view |
-| RL360V | https://drive.google.com/file/d/1yfPop_5WAP9HQf59MzRgEcOdpanZR2sc/view |
-| RL599 | https://drive.google.com/file/d/1b8P6X8jiEPO4a6_SFaUAmKnoAGsx6lMT/view |
-| FSL800 | https://drive.google.com/file/d/1txrX9j_IBFNv4gKYis91ER9wZ75aaSK9/view |
-| Rose | https://drive.google.com/file/d/1HWi8-2u4sMbUxhvyIkqhbrB0bqwrGwBU/view |
-| WiFi 設定 | https://drive.google.com/file/d/1MW01SxJAl_nMyPFpTX9s-5jWcV_MI8N1/view |
-| Dormakaba APP 遠端操作 | https://drive.google.com/file/d/1XlFF_HobHgwsOLu70ArmvaLAGLzgDNIE/view |
-| Dormakaba APP 操作手冊 | https://drive.google.com/file/d/1z_N6ZEQkofjlFpVpXqj6W1xAYsrjuPjz/view |
+| GL220 | https://drive.google.com/file/d/1ZD-fwviSEWguw1V0ZZ27-CKgZeoamKBr/view |
+| FA9000 | https://drive.google.com/file/d/1L7JZB7pbSgIe71755n07DbwdF7swYw5o/view |
+| DP850 | https://drive.google.com/file/d/1_v4NybcMy4C72hsL-slYW02-jdrYUc2_/view |
+| AS701 | https://drive.google.com/file/d/1khDfWOjNoYEqKq6s-WEaaEFtUpAXCMWO/view |
+| AS901 | https://drive.google.com/file/d/1DiJSJhPSpJhg7lUuizV0ClMYpEgO1skC/view |
+| ML550 | https://drive.google.com/file/d/155gAgxCWZ139sijQKY3CJ8Y_fkacMjrB/view |
+| ML660 | https://drive.google.com/file/d/1d2yqi8WHxQw9kYNsTkQBKHhWjcXJgkOa/view |
+| ML770 | https://drive.google.com/file/d/1oh2CBKJJcWkzYN0gX8zGfU5y_qA4FgJZ/view |
+| MP750 | https://drive.google.com/file/d/1YEQNNNR8OoRk6O_y4x12Ye9gtjaoVQ5r/view |
+| RL320 | https://drive.google.com/file/d/1VovQdEbsz23V97dxtkz6Q0yccUjzm87o/view |
+| RL360 | https://drive.google.com/file/d/18oZhIgJbKLi9DGFqy16Fcn6tohEcPPQH/view |
+| RL360V | https://drive.google.com/file/d/1CJxpazymupuqjSzygGIkjIIWZY8iqalY/view |
+| RL599 | https://drive.google.com/file/d/1ICv9biXDX7jAJPfbnpuhwp8Y8-GaaTCn/view |
+| FSL800 | https://drive.google.com/file/d/1QCnUgdX3gmLULgknkRrFjQPmFdSBNYum/view |
+| Rose | https://drive.google.com/file/d/1UGyxDzGY_O76Xwh2j2EHBESBLASSjc5B/view |
+| WiFi 設定 | https://drive.google.com/file/d/15_WKocOTqfhB1Xt4ppmk_QhTROdWkEfh/view |
+| Dormakaba APP 遠端操作 | https://drive.google.com/file/d/1Ii4vdaz8_kGdUUtc0p_sep5LI8i09RML/view |
+| Dormakaba APP 操作手冊 | https://drive.google.com/file/d/1lSdrdkjE9Jeh-sqXhylQvAvGxDO3S4eV/view |
 
 > 客戶詢問特定型號的操作手冊時，直接提供對應的 Google Drive 連結。
 
