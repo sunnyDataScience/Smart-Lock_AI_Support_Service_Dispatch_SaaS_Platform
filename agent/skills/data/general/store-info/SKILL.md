@@ -29,7 +29,7 @@ user-invocable: true
 | **葉小姐** | 0917-945-946 |
 | **劉先生** | 0935-184-508 |
 | **Email** | scsmtw@gmail.com |
-| **LINE 官方帳號** | @706mrped |
+| **LINE 官方帳號** | @locksmart |
 | **LINE 連結** | lin.ee/niIsSlY |
 
 > 官方 LINE 提供**真人即時回覆**線上客服
