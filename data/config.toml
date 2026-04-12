@@ -42,7 +42,7 @@ llm_model = "gemini-2.5-flash"
 temperature = 0.3
 
 [pipelines.gdrive]
-service_account_file = "credentials.json"
+service_account_file = "../credentials.json"
 scopes = ["https://www.googleapis.com/auth/drive.readonly"]
 
 [pipelines.gdrive_silver]

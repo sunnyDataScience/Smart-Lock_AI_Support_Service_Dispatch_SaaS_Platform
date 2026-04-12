@@ -24,7 +24,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(_AGENT_SKILLS_DIR, ".env"))
+load_dotenv(os.path.join(_AGENT_SKILLS_DIR, "..", ".env"))
 
 from google.oauth2 import service_account
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -36,7 +36,7 @@ _SA_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
 
 def _load_sa_credentials():
     """Load Service Account credentials if credentials.json exists."""
-    sa_file = Path("credentials.json")
+    sa_file = Path(__file__).resolve().parents[2] / "credentials.json"
     if sa_file.exists():
         return service_account.Credentials.from_service_account_file(
             str(sa_file), scopes=_SA_SCOPES

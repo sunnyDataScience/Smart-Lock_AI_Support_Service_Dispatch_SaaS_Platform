@@ -15,14 +15,15 @@ from google.oauth2 import service_account
 def _build_client() -> genai.Client:
     """Build a genai Client using Service Account credentials if available,
     otherwise fall back to ADC."""
-    load_dotenv()
+    _root = Path(__file__).resolve().parents[2]
+    load_dotenv(_root / ".env")
 
     project = os.getenv("VERTEX_PROJECT_ID")
     location = os.getenv("VERTEX_LOCATION")
     if not project or not location:
         sys.exit("VERTEX_PROJECT_ID / VERTEX_LOCATION not found in environment")
 
-    sa_file = Path("credentials.json")
+    sa_file = Path(__file__).resolve().parents[2] / "credentials.json"
     if sa_file.exists():
         creds = service_account.Credentials.from_service_account_file(
             str(sa_file),

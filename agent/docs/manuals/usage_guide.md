@@ -19,30 +19,18 @@ cd agent_skills
 pip install -r requirements.txt
 ```
 
-### 設定 `.env`
+### 環境設定
 
-在 `agent_skills/` 目錄下建立 `.env`：
-
-```env
-# Vertex AI
-VERTEX_PROJECT_ID=your-gcp-project-id
-VERTEX_LOCATION=us-central1
-
-# LINE Bot
-LINE_CHANNEL_SECRET=your-channel-secret
-LINE_CHANNEL_ACCESS_TOKEN=your-channel-access-token
-```
-
-### GCP 認證
-
-擇一即可（優先順序由上至下）：
+所有設定檔統一放在**專案主目錄**：
 
 ```bash
-# 方式 A：Service Account（建議）
-# 將 credentials.json 放在 agent/ 目錄下，程式會自動偵測使用
+# 1. 建立 .env
+cp .env.example .env
+# 編輯 .env 填入實際值（Vertex AI、LINE Bot、PostgreSQL 等）
 
-# 方式 B：ADC（備用）
-gcloud auth application-default login
+# 2. GCP 認證（擇一）
+# 方式 A：Service Account（建議）— 將 credentials.json 放在專案主目錄下
+# 方式 B：ADC（備用）— gcloud auth application-default login
 ```
 
 ---
