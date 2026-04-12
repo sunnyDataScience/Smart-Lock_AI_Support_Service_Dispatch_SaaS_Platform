@@ -1,0 +1,72 @@
+[
+  {
+    "content": "dormakaba RL360 智慧輔助電子鎖在進行管理者密碼註冊時，應先推開電池背蓋，然後按下電池槽上方的「註冊」按鈕。接著，在門鎖正面數字鍵盤上輸入初始密碼「123456」，按下「#」鍵，再按下「0」鍵。最後，輸入新的管理者密碼（6-12位數字），並按下「#」鍵以完成設定。此操作需在開門狀態下進行。[00:06-00:29]",
+    "brand": "dormakaba",
+    "model": "RL360",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "py3YOvm5r7w",
+    "url": "https://www.youtube.com/watch?v=py3YOvm5r7w",
+    "chunk_index": 1
+  },
+  {
+    "content": "dormakaba RL360 智慧輔助電子鎖在註冊使用者密碼時（最多可設定4組），應先按下內門的「註冊」鍵。隨後，輸入管理者密碼並按下「#」鍵，接著按下「1」鍵。最後，輸入新的使用者密碼（4-12位數字），並按下「#」鍵以確認。此操作需在開門狀態下進行。[00:30-00:53]",
+    "brand": "dormakaba",
+    "model": "RL360",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "py3YOvm5r7w",
+    "url": "https://www.youtube.com/watch?v=py3YOvm5r7w",
+    "chunk_index": 2
+  },
+  {
+    "content": "dormakaba RL360 智慧輔助電子鎖在註冊RFID卡片時（最多可設定100組），應先按下內門的「註冊」鍵。隨後，輸入管理者密碼並按下「#」鍵，接著按下「2」鍵。最後，將RFID卡片接觸感應區，並按下「#」鍵以完成註冊。此操作需在開門狀態下進行。[00:54-01:15]",
+    "brand": "dormakaba",
+    "model": "RL360",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "py3YOvm5r7w",
+    "url": "https://www.youtube.com/watch?v=py3YOvm5r7w",
+    "chunk_index": 3
+  },
+  {
+    "content": "dormakaba RL360 智慧輔助電子鎖在註冊指紋時（最多可設定100組），應先按下內門的「註冊」鍵。隨後，輸入管理者密碼並按下「#」鍵，接著按下「3」鍵。最後，將手指放在指紋掃描器上重複掃描三次，每次掃描時會有燈光閃爍提示，然後按下「#」鍵以完成註冊。此操作需在開門狀態下進行。[01:16-01:45]",
+    "brand": "dormakaba",
+    "model": "RL360",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "py3YOvm5r7w",
+    "url": "https://www.youtube.com/watch?v=py3YOvm5r7w",
+    "chunk_index": 4
+  },
+  {
+    "content": "dormakaba RL360 智慧輔助電子鎖在設定一次性密碼時，應先按下內門的「註冊」鍵。隨後，輸入管理者密碼並按下「#」鍵，接著按下「4」鍵。最後，輸入一次性密碼（4-12位數字），並按下「#」鍵以完成設定。此操作需在開門狀態下進行。[01:46-02:03]",
+    "brand": "dormakaba",
+    "model": "RL360",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "py3YOvm5r7w",
+    "url": "https://www.youtube.com/watch?v=py3YOvm5r7w",
+    "chunk_index": 5
+  },
+  {
+    "content": "當dormakaba RL360 智慧輔助電子鎖電力耗盡時，可使用9V電池進行緊急充電。將9V電池連接至門鎖底部的緊急充電孔，待數字鍵盤亮起後，即可輸入密碼並按下「#」鍵以解鎖。[02:04-02:18]",
+    "brand": "dormakaba",
+    "model": "RL360",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "py3YOvm5r7w",
+    "url": "https://www.youtube.com/watch?v=py3YOvm5r7w",
+    "chunk_index": 6
+  },
+  {
+    "content": "dormakaba RL360 智慧輔助電子鎖在進行刪除設定時，應先推開電池背蓋，然後持續按壓電池槽上方的「註冊」按鈕約5秒鐘，直到聽到提示音。接著，輸入管理者密碼並按下「#」鍵。隨後，根據欲刪除的類型選擇對應數字（「1」為刪除密碼，「2」為刪除卡片，「3」為刪除指紋），並按下「#」鍵（若為指紋刪除，則需按住「*」鍵約3秒），直到聽到提示音以完成刪除。所有刪除設定方式均相同，且需在開門狀態下進行。[02:19-02:57]",
+    "brand": "dormakaba",
+    "model": "RL360",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "py3YOvm5r7w",
+    "url": "https://www.youtube.com/watch?v=py3YOvm5r7w",
+    "chunk_index": 7
+  }
+]

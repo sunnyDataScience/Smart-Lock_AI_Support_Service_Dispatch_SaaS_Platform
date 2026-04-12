@@ -1,67 +1,102 @@
 [
   {
-    "page_content": "【常見問題】\nChatlock AI-99 的主畫面有哪些功能？\n我想管理 Chatlock AI-99 的使用者，要點哪個選項？\nChatlock AI-99 支援哪些解鎖方式？\n\n【知識內容】\nChatlock AI-99 電子鎖在主螢幕介面中，提供「用戶管理」、「網路設定」、「系統設定」及「記錄查詢」等主要功能選項。此介面亦展示其支援的解鎖方式，包含3D人臉辨識、AI掌靜脈辨識、半導體指紋辨識、門卡、密碼開鎖、遠端手機解鎖、一次性密碼、時效密碼及NFC手環。若需進行用戶相關操作，使用者應點擊螢幕上的「用戶管理」選項。 [00:00]-[00:01]",
-    "metadata": {
-      "brand": "Chatlock",
-      "model": "AI99",
-      "category": "setup",
-      "source_type": "youtube",
-      "source": "qQNVpU5srHc",
-      "url": "https://www.youtube.com/watch?v=qQNVpU5srHc",
-      "chunk_index": 1,
-      "raw_text": "Chatlock AI-99 電子鎖在主螢幕介面中，提供「用戶管理」、「網路設定」、「系統設定」及「記錄查詢」等主要功能選項。此介面亦展示其支援的解鎖方式，包含3D人臉辨識、AI掌靜脈辨識、半導體指紋辨識、門卡、密碼開鎖、遠端手機解鎖、一次性密碼、時效密碼及NFC手環。若需進行用戶相關操作，使用者應點擊螢幕上的「用戶管理」選項。 [00:00]-[00:01]"
-    }
+    "content": "Chatlock AI-99 電子鎖在影片開頭 [00:00-00:01] 顯示其主選單介面，包含「用戶管理」、「網路設定」、「系統設定」及「記錄查詢」等功能選項。同時，畫面背景板展示了該電子鎖支援的多元解鎖方式，例如3D人臉辨識、AI掌靜脈辨識、半導體指紋辨識、門卡、密碼開鎖、遠端手機解鎖、一次性密碼、時效密碼以及NFC手環。",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "qQNVpU5srHc",
+    "url": "https://www.youtube.com/watch?v=qQNVpU5srHc",
+    "chunk_index": 1
   },
   {
-    "page_content": "【常見問題】\nChatlock AI-99 怎麼新增使用者？\n在 Chatlock AI-99 的用戶管理頁面，如何開始新增用戶？\n\n【知識內容】\nChatlock AI-99 電子鎖進入「用戶管理」介面後，會顯示當前已註冊的用戶列表。若要新增用戶，使用者需點擊介面中的「新增用戶」圖示。 [00:01]-[00:02]",
-    "metadata": {
-      "brand": "Chatlock",
-      "model": "AI99",
-      "category": "setup",
-      "source_type": "youtube",
-      "source": "qQNVpU5srHc",
-      "url": "https://www.youtube.com/watch?v=qQNVpU5srHc",
-      "chunk_index": 2,
-      "raw_text": "Chatlock AI-99 電子鎖進入「用戶管理」介面後，會顯示當前已註冊的用戶列表。若要新增用戶，使用者需點擊介面中的「新增用戶」圖示。 [00:01]-[00:02]"
-    }
+    "content": "Chatlock AI-99 電子鎖使用者 [00:01-00:02] 點擊螢幕上的「用戶管理」選項，進入用戶管理介面，此介面顯示「新增用戶」功能及目前已註冊的用戶列表（例如「爸爸」）。",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "qQNVpU5srHc",
+    "url": "https://www.youtube.com/watch?v=qQNVpU5srHc",
+    "chunk_index": 2
   },
   {
-    "page_content": "【常見問題】\nChatlock AI-99 新增用戶時，怎麼選擇角色？\nChatlock AI-99 怎麼把「媽媽」這個角色新增進去？\n新增 Chatlock AI-99 的用戶需要哪些步驟？\n\n【知識內容】\nChatlock AI-99 電子鎖在「新增用戶」介面中，提供多種預設角色（例如「爸爸」、「媽媽」、「爺爺」等）供選擇，並可設定是否為管理員用戶。使用者應選擇欲新增用戶的角色，例如「媽媽」，然後點擊「確認」按鈕以完成用戶的初步註冊。系統將顯示「註冊成功」訊息。 [00:02]-[00:06]",
-    "metadata": {
-      "brand": "Chatlock",
-      "model": "AI99",
-      "category": "setup",
-      "source_type": "youtube",
-      "source": "qQNVpU5srHc",
-      "url": "https://www.youtube.com/watch?v=qQNVpU5srHc",
-      "chunk_index": 3,
-      "raw_text": "Chatlock AI-99 電子鎖在「新增用戶」介面中，提供多種預設角色（例如「爸爸」、「媽媽」、「爺爺」等）供選擇，並可設定是否為管理員用戶。使用者應選擇欲新增用戶的角色，例如「媽媽」，然後點擊「確認」按鈕以完成用戶的初步註冊。系統將顯示「註冊成功」訊息。 [00:02]-[00:06]"
-    }
+    "content": "Chatlock AI-99 電子鎖使用者 [00:02-00:04] 點擊「新增用戶」選項後，系統會進入新增用戶角色選擇頁面，提供多種預設角色（如「爸爸」、「媽媽」等）供選擇，並可設定是否為管理員用戶。",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "qQNVpU5srHc",
+    "url": "https://www.youtube.com/watch?v=qQNVpU5srHc",
+    "chunk_index": 3
   },
   {
-    "page_content": "【常見問題】\nChatlock AI-99 怎麼幫已註冊的使用者設定掌靜脈？\n我想修改 Chatlock AI-99 某個用戶的設定，要怎麼進去？\n\n【知識內容】\nChatlock AI-99 電子鎖完成用戶註冊後，若需為該用戶設定特定的解鎖方式（如掌靜脈），使用者需再次進入「用戶管理」介面，並點擊欲設定的用戶名稱（例如「媽媽」），以進入其詳細設定頁面。 [00:09]-[00:13]",
-    "metadata": {
-      "brand": "Chatlock",
-      "model": "AI99",
-      "category": "setup",
-      "source_type": "youtube",
-      "source": "qQNVpU5srHc",
-      "url": "https://www.youtube.com/watch?v=qQNVpU5srHc",
-      "chunk_index": 4,
-      "raw_text": "Chatlock AI-99 電子鎖完成用戶註冊後，若需為該用戶設定特定的解鎖方式（如掌靜脈），使用者需再次進入「用戶管理」介面，並點擊欲設定的用戶名稱（例如「媽媽」），以進入其詳細設定頁面。 [00:09]-[00:13]"
-    }
+    "content": "Chatlock AI-99 電子鎖使用者 [00:04-00:06] 選擇「媽媽」作為新用戶角色，並點擊底部「確認」按鈕以完成用戶註冊。",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "qQNVpU5srHc",
+    "url": "https://www.youtube.com/watch?v=qQNVpU5srHc",
+    "chunk_index": 4
   },
   {
-    "page_content": "【常見問題】\nChatlock AI-99 怎麼設定掌靜脈解鎖？\nChatlock AI-99 錄入掌靜脈的時候，手要放多遠？\n如何在 Chatlock AI-99 上為用戶新增掌靜脈辨識？\n\n【知識內容】\nChatlock AI-99 電子鎖在特定用戶的詳細設定頁面中，提供多種生物辨識與解鎖方式的設定選項。若要新增掌靜脈辨識，使用者應點擊「掌靜脈」選項右側的綠色「新增」圖示。系統將提示「請將手掌置於鏡頭正前方」，並建議手掌與鏡頭的距離應保持在15至30公分之間。完成掃描後，系統將顯示「註冊成功」訊息，表示掌靜脈資料已成功錄入。 [00:13]-[00:20]",
-    "metadata": {
-      "brand": "Chatlock",
-      "model": "AI99",
-      "category": "setup",
-      "source_type": "youtube",
-      "source": "qQNVpU5srHc",
-      "url": "https://www.youtube.com/watch?v=qQNVpU5srHc",
-      "chunk_index": 5,
-      "raw_text": "Chatlock AI-99 電子鎖在特定用戶的詳細設定頁面中，提供多種生物辨識與解鎖方式的設定選項。若要新增掌靜脈辨識，使用者應點擊「掌靜脈」選項右側的綠色「新增」圖示。系統將提示「請將手掌置於鏡頭正前方」，並建議手掌與鏡頭的距離應保持在15至30公分之間。完成掃描後，系統將顯示「註冊成功」訊息，表示掌靜脈資料已成功錄入。 [00:13]-[00:20]"
-    }
+    "content": "Chatlock AI-99 電子鎖 [00:06-00:09] 在用戶註冊成功後，螢幕會顯示Chatlock吉祥物及「註冊成功」的提示訊息。",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "qQNVpU5srHc",
+    "url": "https://www.youtube.com/watch?v=qQNVpU5srHc",
+    "chunk_index": 5
+  },
+  {
+    "content": "Chatlock AI-99 電子鎖使用者 [00:09-00:11] 在用戶註冊成功後，系統會返回主選單介面，使用者需再次點擊「用戶管理」選項以進行後續設定。",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "qQNVpU5srHc",
+    "url": "https://www.youtube.com/watch?v=qQNVpU5srHc",
+    "chunk_index": 6
+  },
+  {
+    "content": "Chatlock AI-99 電子鎖使用者 [00:11-00:13] 進入用戶管理介面後，使用者可看到所有已註冊的用戶列表，例如「爸爸」和新建立的「媽媽」。",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "qQNVpU5srHc",
+    "url": "https://www.youtube.com/watch?v=qQNVpU5srHc",
+    "chunk_index": 7
+  },
+  {
+    "content": "Chatlock AI-99 電子鎖使用者 [00:13-00:16] 點擊特定用戶（例如「媽媽」）後，將進入該用戶的詳細設定頁面，此頁面允許管理員為該用戶新增或刪除不同的解鎖方式，包括密碼、指紋、門卡、人臉及掌靜脈。",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "qQNVpU5srHc",
+    "url": "https://www.youtube.com/watch?v=qQNVpU5srHc",
+    "chunk_index": 8
+  },
+  {
+    "content": "Chatlock AI-99 電子鎖使用者 [00:16-00:20] 選擇為指定用戶新增「掌靜脈」辨識功能時，系統會提示使用者將手掌放置於鏡頭正前方，並建議保持15-30公分的距離，以便進行掌靜脈掃描與註冊。",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "qQNVpU5srHc",
+    "url": "https://www.youtube.com/watch?v=qQNVpU5srHc",
+    "chunk_index": 9
+  },
+  {
+    "content": "Chatlock AI-99 電子鎖 [00:20-00:20] 在掌靜脈掃描完成後，螢幕會顯示Chatlock吉祥物及「註冊成功」的提示訊息，表示掌靜脈資料已成功錄入。",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "qQNVpU5srHc",
+    "url": "https://www.youtube.com/watch?v=qQNVpU5srHc",
+    "chunk_index": 10
   }
 ]

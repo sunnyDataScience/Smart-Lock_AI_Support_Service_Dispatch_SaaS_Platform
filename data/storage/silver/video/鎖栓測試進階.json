@@ -1,50 +1,29 @@
 [
   {
-    "page_content": "【常見問題】\n我的Dormakaba電子鎖在開門時，怎麼測試鎖舌有沒有問題？\nDormakaba電子鎖的鎖舌在開門狀態下，要怎麼確認它是否正常運作？\n\n【知識內容】\n在門開啟的狀態下，Dormakaba 電子鎖使用者應按下室內機的關門（上鎖）鍵或開門（解鎖）鍵（通常為黑色或白色按鍵，具體依型號而異），觀察鎖舌是否能正常伸出與縮回。若鎖舌能自由伸出與縮回，表示鎖舌機構本身運作正常。",
-    "metadata": {
-      "brand": "Dormakaba",
-      "model": "general",
-      "category": "troubleshoot",
-      "source_type": "video",
-      "source": "鎖栓測試進階.txt",
-      "chunk_index": 1,
-      "raw_text": "在門開啟的狀態下，Dormakaba 電子鎖使用者應按下室內機的關門（上鎖）鍵或開門（解鎖）鍵（通常為黑色或白色按鍵，具體依型號而異），觀察鎖舌是否能正常伸出與縮回。若鎖舌能自由伸出與縮回，表示鎖舌機構本身運作正常。"
-    }
+    "content": "Dormakaba 電子鎖在開門狀態下，請輕按室內機的關門鍵（Close鍵）或開門鍵（Open鍵），具體按鍵名稱依型號而異，通常是黑色或白色的按鍵。檢查鎖舌是否正常伸出。如果鎖舌能自由伸出，表示此部分運作正常，無論是解鎖或上鎖，鎖舌都能正常伸縮。",
+    "brand": "Dormakaba",
+    "model": "general",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "鎖栓測試進階.txt",
+    "chunk_index": 1
   },
   {
-    "page_content": "【常見問題】\n我的Dormakaba電子鎖關門後無法上鎖怎麼辦？\nDormakaba電子鎖上鎖失敗，是不是受口片有問題？\n為什麼Dormakaba電子鎖關門後會上鎖失敗？\n\n【知識內容】\n若Dormakaba 電子鎖在關門後出現上鎖失敗的情況，應檢查門框上的受口片。可能的原因包括受口片輕微歪斜，或受口片內部有異物阻擋，導致鎖舌無法順利伸入受口片而造成上鎖失敗。",
-    "metadata": {
-      "brand": "Dormakaba",
-      "model": "general",
-      "category": "troubleshoot",
-      "source_type": "video",
-      "source": "鎖栓測試進階.txt",
-      "chunk_index": 2,
-      "raw_text": "若Dormakaba 電子鎖在關門後出現上鎖失敗的情況，應檢查門框上的受口片。可能的原因包括受口片輕微歪斜，或受口片內部有異物阻擋，導致鎖舌無法順利伸入受口片而造成上鎖失敗。"
-    }
+    "content": "若Dormakaba 電子鎖在關門後上鎖失敗，這通常表示鎖舌撞到異物。請檢查門框上的受口片是否歪斜，或內部是否有異物阻擋，導致鎖舌無法順利伸出。建議拍攝受口片以供進一步判斷。",
+    "brand": "Dormakaba",
+    "model": "general",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "鎖栓測試進階.txt",
+    "chunk_index": 2
   },
   {
-    "page_content": "【常見問題】\nDormakaba電子鎖解鎖後鎖舌縮不回去怎麼辦？\n為什麼我的Dormakaba電子鎖會解鎖失敗？\nDormakaba電子鎖的鎖舌卡住了，導致無法解鎖，該怎麼處理？\n\n【知識內容】\nDormakaba 電子鎖若發生解鎖失敗，可能是因為鎖舌卡在受口片或門框中，導致鎖舌無法順利縮回。",
-    "metadata": {
-      "brand": "Dormakaba",
-      "model": "general",
-      "category": "troubleshoot",
-      "source_type": "video",
-      "source": "鎖栓測試進階.txt",
-      "chunk_index": 3,
-      "raw_text": "Dormakaba 電子鎖若發生解鎖失敗，可能是因為鎖舌卡在受口片或門框中，導致鎖舌無法順利縮回。"
-    }
-  },
-  {
-    "page_content": "【常見問題】\nDormakaba電子鎖是怎麼知道門有沒有關好的？\nDormakaba電子鎖的鎖舌感應機制是什麼？\nDormakaba電子鎖有卡榫感應，為什麼鎖舌還是會卡住？\n\n【知識內容】\nDormakaba 電子鎖通常透過感應門框上的卡榫來判斷門的狀態，以避免鎖舌在門未關閉時伸出。儘管如此，仍有極少數情況會遇到鎖舌卡住的問題。",
-    "metadata": {
-      "brand": "Dormakaba",
-      "model": "general",
-      "category": "knowledge",
-      "source_type": "video",
-      "source": "鎖栓測試進階.txt",
-      "chunk_index": 4,
-      "raw_text": "Dormakaba 電子鎖通常透過感應門框上的卡榫來判斷門的狀態，以避免鎖舌在門未關閉時伸出。儘管如此，仍有極少數情況會遇到鎖舌卡住的問題。"
-    }
+    "content": "Dormakaba 電子鎖解鎖失敗，可能是由於鎖舌在伸出時卡在受口片或門框中，導致無法縮回。這是可能發生的情況，雖然Dormakaba 電子鎖通常依賴卡榫機制，但仍有發生過此類情況。",
+    "brand": "Dormakaba",
+    "model": "general",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "鎖栓測試進階.txt",
+    "chunk_index": 3
   }
 ]

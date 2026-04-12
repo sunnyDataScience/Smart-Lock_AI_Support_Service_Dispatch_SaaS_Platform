@@ -108,10 +108,24 @@ def _load_prompt_file(prompt_path: str) -> str:
         return f.read().strip()
 
 
+_SUB_SKILL_PREFIXES = ("ts-", "app-")
+_SUB_SKILL_EXCEPTIONS = {"app-guide"}
+
+
 def build_skills_prompt(skills: list[Skill]) -> str:
-    """產生注入 system prompt 的技能摘要清單。"""
+    """產生注入 system prompt 的技能摘要清單。
+
+    只列出頂層技能。以 ts-* / app-*（除 app-guide）為前綴的子技能
+    透過母技能的 SOP 引導載入，不需列在 system prompt。
+    """
+    top_level = [
+        s for s in skills
+        if s.name in _SUB_SKILL_EXCEPTIONS
+        or not s.name.startswith(_SUB_SKILL_PREFIXES)
+    ]
+
     lines = ["## 可用技能\n"]
-    for s in skills:
+    for s in top_level:
         lines.append(f"- **{s.name}**: {s.description}")
     lines.append(
         "\n當客戶的問題符合某個技能時，請使用 `load_skill` 工具載入該技能的完整 SOP，"

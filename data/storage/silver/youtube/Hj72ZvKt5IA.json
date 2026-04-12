@@ -1,0 +1,52 @@
+[
+  {
+    "content": "智慧門鎖在進入管理員授權登入模式時，使用者應首先按下鍵盤上的「*」鍵，隨後按下「#」鍵，此時門鎖上方的指示燈會由藍色轉變為綠色，提示螢幕將顯示「管理員授權登入」及「按#確認」等訊息。[00:00-00:01]",
+    "brand": "general",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "Hj72ZvKt5IA",
+    "url": "https://www.youtube.com/watch?v=Hj72ZvKt5IA",
+    "chunk_index": 1
+  },
+  {
+    "content": "智慧門鎖在管理員授權登入模式下，使用者需輸入預設或已設定的管理員密碼（例如「123456」），輸入完成後，應按下鍵盤上的「#」鍵進行確認。[00:02-00:06]",
+    "brand": "general",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "Hj72ZvKt5IA",
+    "url": "https://www.youtube.com/watch?v=Hj72ZvKt5IA",
+    "chunk_index": 2
+  },
+  {
+    "content": "智慧門鎖在確認管理員密碼後，螢幕會顯示功能選項，例如「普通用戶請按 1」。若要進行掌靜脈設定，使用者應按下鍵盤上的數字鍵「2」，此時螢幕提示會更新為「新增掌靜脈請按 2」。[00:06-00:08]",
+    "brand": "general",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "Hj72ZvKt5IA",
+    "url": "https://www.youtube.com/watch?v=Hj72ZvKt5IA",
+    "chunk_index": 3
+  },
+  {
+    "content": "智慧門鎖在選擇「新增掌靜脈」功能後，螢幕將提示「請伸出手掌感應」，並建議手掌與感應鏡頭保持 15-30 公分的距離，此時使用者應將手掌伸向門鎖上方的掌靜脈感應區域。[00:08-00:11]",
+    "brand": "general",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "Hj72ZvKt5IA",
+    "url": "https://www.youtube.com/watch?v=Hj72ZvKt5IA",
+    "chunk_index": 4
+  },
+  {
+    "content": "智慧門鎖在感應手掌靜脈資訊時，使用者需保持手掌穩定於感應區域內，直至螢幕顯示「新用戶註冊成功」的提示，表示掌靜脈資料已成功錄入系統。[00:11-00:17]",
+    "brand": "general",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "Hj72ZvKt5IA",
+    "url": "https://www.youtube.com/watch?v=Hj72ZvKt5IA",
+    "chunk_index": 5
+  }
+]

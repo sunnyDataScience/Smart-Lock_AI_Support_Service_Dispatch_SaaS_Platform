@@ -1,106 +1,152 @@
 [
   {
-    "page_content": "【常見問題】\nChatlock AI-99 電子鎖要怎麼進入用戶管理介面？\nAI-99 智慧門鎖的用戶管理功能在哪裡？\n如何從主畫面找到用戶管理選項？\n\n【知識內容】\nChatlock AI-99 電子鎖在進行用戶管理時，使用者需於主選單介面（顯示「選單」字樣）點擊「用戶管理」圖示，以進入用戶管理功能區。此操作發生於影片的 [00:00] 至 [00:01] 時間區間。",
-    "metadata": {
-      "brand": "Chatlock",
-      "model": "AI-99",
-      "category": "setup",
-      "source_type": "youtube",
-      "source": "ZgcTxAIbWMA",
-      "url": "https://www.youtube.com/watch?v=ZgcTxAIbWMA",
-      "chunk_index": 1,
-      "raw_text": "Chatlock AI-99 電子鎖在進行用戶管理時，使用者需於主選單介面（顯示「選單」字樣）點擊「用戶管理」圖示，以進入用戶管理功能區。此操作發生於影片的 [00:00] 至 [00:01] 時間區間。"
-    }
+    "content": "Chatlock AI-99 電子鎖在開機狀態下，其圓形螢幕會顯示主選單，包含「用戶管理」、「網路設定」、「系統設定」及「記錄查詢」等選項，並於螢幕下方顯示頁碼「1/1」。[00:00]",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZgcTxAIbWMA",
+    "url": "https://www.youtube.com/watch?v=ZgcTxAIbWMA",
+    "chunk_index": 1
   },
   {
-    "page_content": "【常見問題】\nChatlock AI-99 電子鎖怎麼新增用戶？\n在 AI-99 的用戶管理頁面，要按哪個選項才能加新用戶？\nAI-99 門鎖如何啟動新增用戶的流程？\n\n【知識內容】\nChatlock AI-99 電子鎖在用戶管理介面中，若要新增用戶，使用者應點擊「新增用戶」選項。此操作發生於影片的 [00:01] 至 [00:04] 時間區間。",
-    "metadata": {
-      "brand": "Chatlock",
-      "model": "AI-99",
-      "category": "setup",
-      "source_type": "youtube",
-      "source": "ZgcTxAIbWMA",
-      "url": "https://www.youtube.com/watch?v=ZgcTxAIbWMA",
-      "chunk_index": 2,
-      "raw_text": "Chatlock AI-99 電子鎖在用戶管理介面中，若要新增用戶，使用者應點擊「新增用戶」選項。此操作發生於影片的 [00:01] 至 [00:04] 時間區間。"
-    }
+    "content": "Chatlock AI-99 電子鎖若需新增用戶，使用者應首先點擊主選單中的「用戶管理」選項。[00:00]",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZgcTxAIbWMA",
+    "url": "https://www.youtube.com/watch?v=ZgcTxAIbWMA",
+    "chunk_index": 2
   },
   {
-    "page_content": "【常見問題】\nChatlock AI-99 電子鎖新增用戶時，名字要怎麼選？\nAI-99 門鎖怎麼幫新用戶設定名字？\n如果我想把新用戶取名為「媽媽」，在 AI-99 上要怎麼操作？\n\n【知識內容】\nChatlock AI-99 電子鎖在新增用戶時，使用者可從預設的姓名清單中選擇一個名稱（例如：「媽媽」），選定後點擊「確定」按鈕以完成用戶名稱的設定。此操作發生於影片的 [00:04] 至 [00:08] 時間區間。",
-    "metadata": {
-      "brand": "Chatlock",
-      "model": "AI-99",
-      "category": "setup",
-      "source_type": "youtube",
-      "source": "ZgcTxAIbWMA",
-      "url": "https://www.youtube.com/watch?v=ZgcTxAIbWMA",
-      "chunk_index": 3,
-      "raw_text": "Chatlock AI-99 電子鎖在新增用戶時，使用者可從預設的姓名清單中選擇一個名稱（例如：「媽媽」），選定後點擊「確定」按鈕以完成用戶名稱的設定。此操作發生於影片的 [00:04] 至 [00:08] 時間區間。"
-    }
+    "content": "Chatlock AI-99 電子鎖在進入「用戶管理」介面後，螢幕會顯示「新增用戶」選項以及已存在的用戶列表（例如「爸爸」），並於螢幕下方顯示頁碼「1/1」。[00:01]",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZgcTxAIbWMA",
+    "url": "https://www.youtube.com/watch?v=ZgcTxAIbWMA",
+    "chunk_index": 3
   },
   {
-    "page_content": "【常見問題】\nChatlock AI-99 電子鎖怎麼知道用戶有沒有新增成功？\nAI-99 門鎖新增用戶成功會顯示什麼？\n用戶註冊成功後，AI-99 螢幕會出現什麼畫面？\n\n【知識內容】\nChatlock AI-99 電子鎖在完成用戶名稱設定後，螢幕將顯示「註冊成功」訊息及卡通柴犬動畫，表示該用戶已成功新增。此操作發生於影片的 [00:08] 至 [00:11] 時間區間。",
-    "metadata": {
-      "brand": "Chatlock",
-      "model": "AI-99",
-      "category": "setup",
-      "source_type": "youtube",
-      "source": "ZgcTxAIbWMA",
-      "url": "https://www.youtube.com/watch?v=ZgcTxAIbWMA",
-      "chunk_index": 4,
-      "raw_text": "Chatlock AI-99 電子鎖在完成用戶名稱設定後，螢幕將顯示「註冊成功」訊息及卡通柴犬動畫，表示該用戶已成功新增。此操作發生於影片的 [00:08] 至 [00:11] 時間區間。"
-    }
+    "content": "Chatlock AI-99 電子鎖若要新增用戶，使用者需在「用戶管理」介面中點擊「新增用戶」選項。[00:01]",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZgcTxAIbWMA",
+    "url": "https://www.youtube.com/watch?v=ZgcTxAIbWMA",
+    "chunk_index": 4
   },
   {
-    "page_content": "【常見問題】\nChatlock AI-99 電子鎖怎麼進入特定用戶的設定頁面？\nAI-99 門鎖要怎麼修改「媽媽」的設定？\n如何找到已新增用戶的詳細設定選項？\n\n【知識內容】\nChatlock AI-99 電子鎖在用戶管理介面中，若要設定特定用戶（例如：「媽媽」）的辨識方式，使用者需點擊該用戶的名稱，進入其個人設定介面。此操作發生於影片的 [00:11] 至 [00:13] 時間區間。",
-    "metadata": {
-      "brand": "Chatlock",
-      "model": "AI-99",
-      "category": "setup",
-      "source_type": "youtube",
-      "source": "ZgcTxAIbWMA",
-      "url": "https://www.youtube.com/watch?v=ZgcTxAIbWMA",
-      "chunk_index": 5,
-      "raw_text": "Chatlock AI-99 電子鎖在用戶管理介面中，若要設定特定用戶（例如：「媽媽」）的辨識方式，使用者需點擊該用戶的名稱，進入其個人設定介面。此操作發生於影片的 [00:11] 至 [00:13] 時間區間。"
-    }
+    "content": "Chatlock AI-99 電子鎖在新增用戶時，會提供預設的姓名選項（如「爸爸」、「媽媽」、「爺爺」、「奶奶」、「外公」、「外婆」、「兒子」、「女兒」），並包含「其他」選項及「管理員用戶」開關按鈕（預設為關閉狀態），使用者需在此介面選擇用戶姓名。[00:04]",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZgcTxAIbWMA",
+    "url": "https://www.youtube.com/watch?v=ZgcTxAIbWMA",
+    "chunk_index": 5
   },
   {
-    "page_content": "【常見問題】\nChatlock AI-99 電子鎖怎麼新增人臉辨識？\nAI-99 門鎖要怎麼幫用戶錄入人臉？\n在用戶設定裡，哪個按鈕是新增人臉的？\n\n【知識內容】\nChatlock AI-99 電子鎖在特定用戶的設定介面中，若要新增人臉辨識資料，使用者應點擊「人臉」選項旁的綠色「+」圖示。此操作發生於影片的 [00:13] 至 [00:15] 時間區間。",
-    "metadata": {
-      "brand": "Chatlock",
-      "model": "AI-99",
-      "category": "setup",
-      "source_type": "youtube",
-      "source": "ZgcTxAIbWMA",
-      "url": "https://www.youtube.com/watch?v=ZgcTxAIbWMA",
-      "chunk_index": 6,
-      "raw_text": "Chatlock AI-99 電子鎖在特定用戶的設定介面中，若要新增人臉辨識資料，使用者應點擊「人臉」選項旁的綠色「+」圖示。此操作發生於影片的 [00:13] 至 [00:15] 時間區間。"
-    }
+    "content": "Chatlock AI-99 電子鎖在新增用戶的姓名選擇介面中，使用者可點擊欲設定的姓名，例如選擇「媽媽」。[00:04]",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZgcTxAIbWMA",
+    "url": "https://www.youtube.com/watch?v=ZgcTxAIbWMA",
+    "chunk_index": 6
   },
   {
-    "page_content": "【常見問題】\nChatlock AI-99 電子鎖錄人臉的時候要站多遠？\nAI-99 門鎖錄人臉時，人要怎麼站才對？\n人臉辨識設定時，AI-99 螢幕會顯示什麼提示？\n\n【知識內容】\nChatlock AI-99 電子鎖在進行人臉辨識註冊時，使用者需站在距離鏡頭約 60 公分處，並位於掃描框正前方，以利電子鎖進行人臉檢測與資料錄入。此操作發生於影片的 [00:15] 至 [00:20] 時間區間。",
-    "metadata": {
-      "brand": "Chatlock",
-      "model": "AI-99",
-      "category": "setup",
-      "source_type": "youtube",
-      "source": "ZgcTxAIbWMA",
-      "url": "https://www.youtube.com/watch?v=ZgcTxAIbWMA",
-      "chunk_index": 7,
-      "raw_text": "Chatlock AI-99 電子鎖在進行人臉辨識註冊時，使用者需站在距離鏡頭約 60 公分處，並位於掃描框正前方，以利電子鎖進行人臉檢測與資料錄入。此操作發生於影片的 [00:15] 至 [00:20] 時間區間。"
-    }
+    "content": "Chatlock AI-99 電子鎖在選擇用戶姓名後，「確定」按鈕會亮起，使用者應點擊此按鈕以確認選擇。[00:07]",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZgcTxAIbWMA",
+    "url": "https://www.youtube.com/watch?v=ZgcTxAIbWMA",
+    "chunk_index": 7
   },
   {
-    "page_content": "【常見問題】\nChatlock AI-99 電子鎖人臉辨識錄入成功會顯示什麼？\nAI-99 門鎖人臉設定成功後，螢幕會出現什麼？\n怎麼確認 AI-99 的人臉辨識已經設定好了？\n\n【知識內容】\nChatlock AI-99 電子鎖在完成人臉辨識資料錄入後，螢幕將顯示「註冊成功」訊息及卡通柴犬動畫，表示人臉資料已成功新增。此操作發生於影片的 [00:20] 至 [00:20] 時間區間。",
-    "metadata": {
-      "brand": "Chatlock",
-      "model": "AI-99",
-      "category": "setup",
-      "source_type": "youtube",
-      "source": "ZgcTxAIbWMA",
-      "url": "https://www.youtube.com/watch?v=ZgcTxAIbWMA",
-      "chunk_index": 8,
-      "raw_text": "Chatlock AI-99 電子鎖在完成人臉辨識資料錄入後，螢幕將顯示「註冊成功」訊息及卡通柴犬動畫，表示人臉資料已成功新增。此操作發生於影片的 [00:20] 至 [00:20] 時間區間。"
-    }
+    "content": "Chatlock AI-99 電子鎖在用戶姓名註冊成功後，螢幕會顯示Chatlock吉祥物柴犬的動畫，並提示「註冊成功」。[00:08]",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZgcTxAIbWMA",
+    "url": "https://www.youtube.com/watch?v=ZgcTxAIbWMA",
+    "chunk_index": 8
+  },
+  {
+    "content": "Chatlock AI-99 電子鎖在完成用戶姓名註冊後，系統會自動返回「用戶管理」介面，此時新註冊的用戶（例如「媽媽」）將會顯示在用戶列表中。[00:11]",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZgcTxAIbWMA",
+    "url": "https://www.youtube.com/watch?v=ZgcTxAIbWMA",
+    "chunk_index": 9
+  },
+  {
+    "content": "Chatlock AI-99 電子鎖若要為特定用戶設定解鎖方式，使用者需在「用戶管理」介面中點擊該用戶的名稱，例如點擊「媽媽」。[00:11]",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZgcTxAIbWMA",
+    "url": "https://www.youtube.com/watch?v=ZgcTxAIbWMA",
+    "chunk_index": 10
+  },
+  {
+    "content": "Chatlock AI-99 電子鎖在進入用戶設定介面後，會顯示該用戶可設定的解鎖方式，包括「密碼」、「指紋」、「門卡」及「人臉」，每種方式旁均有綠色「+」圖示（新增）和紅色垃圾桶圖示（刪除）。[00:13]",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZgcTxAIbWMA",
+    "url": "https://www.youtube.com/watch?v=ZgcTxAIbWMA",
+    "chunk_index": 11
+  },
+  {
+    "content": "Chatlock AI-99 電子鎖若需為用戶設定人臉辨識功能，使用者應在用戶設定介面中，點擊「人臉」選項旁的綠色「+」圖示。[00:13]",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZgcTxAIbWMA",
+    "url": "https://www.youtube.com/watch?v=ZgcTxAIbWMA",
+    "chunk_index": 12
+  },
+  {
+    "content": "Chatlock AI-99 電子鎖在進入「新增人臉」設定介面後，螢幕會顯示人臉辨識掃描框圖示，並提示「正在檢測... 請位於鏡頭正前方」。[00:15]",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZgcTxAIbWMA",
+    "url": "https://www.youtube.com/watch?v=ZgcTxAIbWMA",
+    "chunk_index": 13
+  },
+  {
+    "content": "Chatlock AI-99 電子鎖在進行人臉辨識註冊時，使用者應站在距離鏡頭約60公分處，以確保人臉能被正確檢測。[00:15]",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZgcTxAIbWMA",
+    "url": "https://www.youtube.com/watch?v=ZgcTxAIbWMA",
+    "chunk_index": 14
+  },
+  {
+    "content": "Chatlock AI-99 電子鎖在人臉辨識註冊成功後，螢幕會再次顯示Chatlock吉祥物柴犬的動畫，並提示「註冊成功」。[00:20]",
+    "brand": "Chatlock",
+    "model": "AI-99",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZgcTxAIbWMA",
+    "url": "https://www.youtube.com/watch?v=ZgcTxAIbWMA",
+    "chunk_index": 15
   }
 ]

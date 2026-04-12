@@ -42,16 +42,19 @@ def _parse_skill_md(file_path: str) -> SkillInfo | None:
 
 
 def load_skill_registry(skills_dir: str) -> dict[str, SkillInfo]:
-    """掃描 skills_dir 下所有 */SKILL.md，回傳 {name: SkillInfo}。"""
+    """遞迴掃描 skills_dir 下所有 SKILL.md，回傳 {name: SkillInfo}。
+
+    支援子目錄結構如 app/app-remote/SKILL.md、system/troubleshoot/ts-alarm/SKILL.md。
+    """
     registry: dict[str, SkillInfo] = {}
 
     if not os.path.isdir(skills_dir):
         print(f"[skill_registry] 目錄不存在: {skills_dir}")
         return registry
 
-    for entry in sorted(os.listdir(skills_dir)):
-        skill_file = os.path.join(skills_dir, entry, "SKILL.md")
-        if os.path.isfile(skill_file):
+    for root, _dirs, files in sorted(os.walk(skills_dir)):
+        if "SKILL.md" in files:
+            skill_file = os.path.join(root, "SKILL.md")
             info = _parse_skill_md(skill_file)
             if info:
                 registry[info.name] = info

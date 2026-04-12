@@ -1,26 +1,47 @@
 [
   {
-    "page_content": "【常見問題】\nChainlock 電子鎖怎麼進入設定模式？\n忘記管理者密碼或指紋，還能進入設定嗎？\nChainlock AI99 要怎麼新增使用者？\n\n【知識內容】\nChainlock AI99、A90、AI88等具備觸控螢幕的電子鎖，進入設定選單的步驟為：首先點擊螢幕上的齒輪圖示，系統將要求進行管理者驗證。使用者可從掌靜脈、人臉、密碼、卡片或指紋這五種方式中選擇一種進行驗證。驗證成功後，即可進入用戶管理介面，在此可新增或管理用戶。",
-    "metadata": {
-      "brand": "Chainlock",
-      "model": "general",
-      "category": "setup",
-      "source_type": "video",
-      "source": "Chainlock 設定教學.txt",
-      "chunk_index": 1,
-      "raw_text": "Chainlock AI99、A90、AI88等具備觸控螢幕的電子鎖，進入設定選單的步驟為：首先點擊螢幕上的齒輪圖示，系統將要求進行管理者驗證。使用者可從掌靜脈、人臉、密碼、卡片或指紋這五種方式中選擇一種進行驗證。驗證成功後，即可進入用戶管理介面，在此可新增或管理用戶。"
-    }
+    "content": "Chainlock AI99、A90、AI88 等配備觸控螢幕的電子鎖，其設定入口為螢幕上的齒輪圖示。",
+    "brand": "Chainlock",
+    "model": "general",
+    "category": "setup",
+    "source_type": "video",
+    "source": "Chainlock 設定教學.txt",
+    "chunk_index": 1
   },
   {
-    "page_content": "【常見問題】\nChainlock 電子鎖的Wi-Fi功能為什麼突然不能用？\n我的Chainlock AI99 為什麼手機APP顯示離線？\nChainlock 電子鎖的Wi-Fi模組在哪裡？\n\n【知識內容】\nChainlock AI99、A90、AI88等具備螢幕顯示（例如貓眼螢幕）的電子鎖，其Wi-Fi模組整合於螢幕內部。因此，當螢幕被拔除時，手機應用程式將顯示斷線狀態，設備會處於離線。即使進入設定選單，也將無法找到網路配對選項。為確保Wi-Fi功能正常運作，重新安裝螢幕時，務必確保其完全且正確地連接。",
-    "metadata": {
-      "brand": "Chainlock",
-      "model": "general",
-      "category": "setup",
-      "source_type": "video",
-      "source": "Chainlock 設定教學.txt",
-      "chunk_index": 2,
-      "raw_text": "Chainlock AI99、A90、AI88等具備螢幕顯示（例如貓眼螢幕）的電子鎖，其Wi-Fi模組整合於螢幕內部。因此，當螢幕被拔除時，手機應用程式將顯示斷線狀態，設備會處於離線。即使進入設定選單，也將無法找到網路配對選項。為確保Wi-Fi功能正常運作，重新安裝螢幕時，務必確保其完全且正確地連接。"
-    }
+    "content": "點擊 Chainlock 電子鎖的設定齒輪圖示後，系統將要求進行管理者驗證。使用者可選擇掌靜脈、人臉、密碼、卡片或指紋五種方式之一進行驗證。",
+    "brand": "Chainlock",
+    "model": "general",
+    "category": "setup",
+    "source_type": "video",
+    "source": "Chainlock 設定教學.txt",
+    "chunk_index": 2
+  },
+  {
+    "content": "Chainlock 電子鎖在管理者驗證成功後，即可進入用戶管理介面，在此介面可新增用戶並選擇新增方式。",
+    "brand": "Chainlock",
+    "model": "general",
+    "category": "setup",
+    "source_type": "video",
+    "source": "Chainlock 設定教學.txt",
+    "chunk_index": 3
+  },
+  {
+    "content": "Chainlock AI99、A90、AI88 等配備螢幕或貓眼螢幕的電子鎖，其 Wi-Fi 模組均整合於螢幕內部。",
+    "brand": "Chainlock",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "Chainlock 設定教學.txt",
+    "chunk_index": 4
+  },
+  {
+    "content": "Chainlock 電子鎖的 Wi-Fi 模組整合於螢幕內部，因此當螢幕被拔除時，手機應用程式將顯示斷線狀態，且無法找到網路配對選項。為確保 Wi-Fi 功能正常運作，將螢幕插回時務必確保其完全且穩固地連接。",
+    "brand": "Chainlock",
+    "model": "general",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "Chainlock 設定教學.txt",
+    "chunk_index": 5
   }
 ]

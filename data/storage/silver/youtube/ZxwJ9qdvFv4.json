@@ -1,0 +1,142 @@
+[
+  {
+    "content": "dormakaba FSL800 電子門鎖在設定管理者密碼時，使用者應首先按住電池蓋下方並向上拉開電池蓋，以露出電池槽。隨後，使用針狀物按住電池槽下方的「M」鍵約10秒，直至門鎖發出提示音。接著，在數字鍵盤上輸入一組6至12位數字的自訂密碼，並按下「#」鍵。最後，重複輸入相同的密碼，再次按下「#」鍵，門鎖發出成功提示音後，即完成管理者密碼設定。",
+    "brand": "dormakaba",
+    "model": "FSL800",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZxwJ9qdvFv4",
+    "url": "https://www.youtube.com/watch?v=ZxwJ9qdvFv4",
+    "chunk_index": 1
+  },
+  {
+    "content": "dormakaba FSL800 電子門鎖在設定指紋時，使用者應先掀開指紋辨識器蓋子，露出指紋感應區。接著，輸入管理者密碼並按下「#」鍵，門鎖發出提示音後，再輸入數字「1」並按下「#」鍵。此時，使用者需輸入一個兩位數的指紋編號（範圍為10至79，每個編號對應一個用戶且不可重複），然後按下「#」鍵。最後，將欲註冊的指紋在指紋模組上輸入三次，每次成功辨識後指紋感應區會亮綠燈，門鎖發出成功提示音後，即完成指紋設定。",
+    "brand": "dormakaba",
+    "model": "FSL800",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZxwJ9qdvFv4",
+    "url": "https://www.youtube.com/watch?v=ZxwJ9qdvFv4",
+    "chunk_index": 2
+  },
+  {
+    "content": "dormakaba FSL800 電子門鎖在設定卡片時，使用者應先輸入管理者密碼並按下「#」鍵，門鎖發出提示音後，再輸入數字「2」並按下「#」鍵。此時，使用者需輸入一個兩位數的卡片編號（範圍為10至79，每個編號對應一個用戶且不可重複），然後按下「#」鍵。最後，將RFID卡片靠近門鎖感應區，門鎖發出成功提示音後，即完成卡片設定。",
+    "brand": "dormakaba",
+    "model": "FSL800",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZxwJ9qdvFv4",
+    "url": "https://www.youtube.com/watch?v=ZxwJ9qdvFv4",
+    "chunk_index": 3
+  },
+  {
+    "content": "dormakaba FSL800 電子門鎖在設定用戶密碼時，使用者應先輸入管理者密碼並按下「#」鍵，門鎖發出提示音後，再輸入數字「3」並按下「#」鍵，接著輸入數字「1」並按下「#」鍵。此時，使用者需輸入一個兩位數的密碼編號（範圍為01至07，每個編號對應一個用戶且不可重複），然後按下「#」鍵。隨後，輸入一組6至12位數字的自訂密碼並按下「#」鍵。最後，重複輸入相同的密碼，再次按下「#」鍵，門鎖發出成功提示音後，即完成用戶密碼設定。",
+    "brand": "dormakaba",
+    "model": "FSL800",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZxwJ9qdvFv4",
+    "url": "https://www.youtube.com/watch?v=ZxwJ9qdvFv4",
+    "chunk_index": 4
+  },
+  {
+    "content": "dormakaba FSL800 電子門鎖可透過實體鑰匙進行解鎖。使用者應將鑰匙插入門鎖下方的鑰匙孔，然後向右轉動鑰匙，門鎖發出解鎖聲後即可開啟。",
+    "brand": "dormakaba",
+    "model": "FSL800",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZxwJ9qdvFv4",
+    "url": "https://www.youtube.com/watch?v=ZxwJ9qdvFv4",
+    "chunk_index": 5
+  },
+  {
+    "content": "dormakaba FSL800 電子門鎖在刪除單枚指紋時，使用者應先輸入管理者密碼並按下「#」鍵，門鎖發出提示音後，再依序輸入數字「1」、「#」鍵、數字「2」、「#」鍵。接著，輸入欲刪除的指紋編號並按下「#」鍵，門鎖發出成功提示音後，即完成單枚指紋刪除。",
+    "brand": "dormakaba",
+    "model": "FSL800",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZxwJ9qdvFv4",
+    "url": "https://www.youtube.com/watch?v=ZxwJ9qdvFv4",
+    "chunk_index": 6
+  },
+  {
+    "content": "dormakaba FSL800 電子門鎖在刪除全部指紋時，使用者應先輸入管理者密碼並按下「#」鍵，門鎖發出提示音後，再依序輸入數字「1」、「#」鍵、數字「3」、「#」鍵、數字「1」、「#」鍵。門鎖發出成功提示音後，即完成全部指紋刪除。",
+    "brand": "dormakaba",
+    "model": "FSL800",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZxwJ9qdvFv4",
+    "url": "https://www.youtube.com/watch?v=ZxwJ9qdvFv4",
+    "chunk_index": 7
+  },
+  {
+    "content": "dormakaba FSL800 電子門鎖在刪除單張卡片時，使用者應先輸入管理者密碼並按下「#」鍵，門鎖發出提示音後，再依序輸入數字「2」、「#」鍵、數字「2」、「#」鍵。接著，輸入欲刪除的卡片編號並按下「#」鍵，門鎖發出成功提示音後，即完成單張卡片刪除。",
+    "brand": "dormakaba",
+    "model": "FSL800",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZxwJ9qdvFv4",
+    "url": "https://www.youtube.com/watch?v=ZxwJ9qdvFv4",
+    "chunk_index": 8
+  },
+  {
+    "content": "dormakaba FSL800 電子門鎖在刪除全部卡片時，使用者應先輸入管理者密碼並按下「#」鍵，門鎖發出提示音後，再依序輸入數字「2」、「#」鍵、數字「3」、「#」鍵、數字「1」、「#」鍵。門鎖發出成功提示音後，即完成全部卡片刪除。",
+    "brand": "dormakaba",
+    "model": "FSL800",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZxwJ9qdvFv4",
+    "url": "https://www.youtube.com/watch?v=ZxwJ9qdvFv4",
+    "chunk_index": 9
+  },
+  {
+    "content": "dormakaba FSL800 電子門鎖在刪除單組用戶密碼時，使用者應先輸入管理者密碼並按下「#」鍵，門鎖發出提示音後，再依序輸入數字「3」、「#」鍵、數字「2」、「#」鍵。接著，輸入欲刪除的密碼編號並按下「#」鍵，門鎖發出成功提示音後，即完成單組用戶密碼刪除。",
+    "brand": "dormakaba",
+    "model": "FSL800",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZxwJ9qdvFv4",
+    "url": "https://www.youtube.com/watch?v=ZxwJ9qdvFv4",
+    "chunk_index": 10
+  },
+  {
+    "content": "dormakaba FSL800 電子門鎖在刪除全部用戶密碼時，使用者應先輸入管理者密碼並按下「#」鍵，門鎖發出提示音後，再依序輸入數字「3」、「#」鍵、數字「3」、「#」鍵、數字「1」、「#」鍵。門鎖發出成功提示音後，即完成全部用戶密碼刪除。",
+    "brand": "dormakaba",
+    "model": "FSL800",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZxwJ9qdvFv4",
+    "url": "https://www.youtube.com/watch?v=ZxwJ9qdvFv4",
+    "chunk_index": 11
+  },
+  {
+    "content": "dormakaba FSL800 電子門鎖的室外二段上鎖操作為：將門把向上提起，門鎖的鎖舌會伸出，完成二段上鎖。若要解鎖，使用者可將RFID卡片靠近門鎖感應區，門鎖發出解鎖聲後，下壓門把即可開啟。",
+    "brand": "dormakaba",
+    "model": "FSL800",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZxwJ9qdvFv4",
+    "url": "https://www.youtube.com/watch?v=ZxwJ9qdvFv4",
+    "chunk_index": 12
+  },
+  {
+    "content": "dormakaba FSL800 電子門鎖的室內多段上鎖操作為：首先將門把向上提起，完成二段上鎖。接著，轉動門鎖內側的旋鈕，可使門鎖的第三段鎖舌伸出，完成手動反鎖。若要解鎖，使用者應反方向轉動門鎖內側旋鈕，使第三段鎖舌收回，然後下壓門把即可開啟。",
+    "brand": "dormakaba",
+    "model": "FSL800",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZxwJ9qdvFv4",
+    "url": "https://www.youtube.com/watch?v=ZxwJ9qdvFv4",
+    "chunk_index": 13
+  },
+  {
+    "content": "dormakaba FSL800 電子門鎖在進行電池蓋開關與電池裝卸時，使用者應按住電池蓋下方並向上拉開電池蓋，以露出電池槽。安裝電池時，將八顆AA電池逐一裝入電池槽中。卸下電池時，則將八顆AA電池逐一從電池槽中取出。完成後，將電池蓋從上方蓋回，並向下推緊，確保電池蓋閉合。",
+    "brand": "dormakaba",
+    "model": "FSL800",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "ZxwJ9qdvFv4",
+    "url": "https://www.youtube.com/watch?v=ZxwJ9qdvFv4",
+    "chunk_index": 14
+  }
+]

@@ -157,9 +157,14 @@ def main():
     # ── 執行寫入 ──
     written = 0
     for skill_name, content, is_new in approved:
-        target_dir = skills_dir / skill_name
-        target_dir.mkdir(parents=True, exist_ok=True)
-        target_path = target_dir / "SKILL.md"
+        if skill_name in registry:
+            # 既有 skill：寫回原始路徑（保留子目錄結構）
+            target_path = Path(registry[skill_name].path)
+        else:
+            # 新 skill：放在 skills_dir 根目錄下
+            target_dir = skills_dir / skill_name
+            target_dir.mkdir(parents=True, exist_ok=True)
+            target_path = target_dir / "SKILL.md"
 
         _backup(target_path)
         target_path.write_text(content, encoding="utf-8")

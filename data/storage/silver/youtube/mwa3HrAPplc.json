@@ -1,0 +1,72 @@
+[
+  {
+    "content": "3E小島快鎖F(T7) 支援指紋解鎖功能。使用者將手指放置於門鎖上方的指紋辨識區後，門鎖底部會亮起綠燈，螢幕短暫顯示數字，並發出「開鎖，叮咚，開」的語音提示，完成解鎖動作。[00:03-00:05]",
+    "brand": "3E",
+    "model": "小島F(T7)",
+    "category": "knowledge",
+    "source_type": "youtube",
+    "source": "mwa3HrAPplc",
+    "url": "https://www.youtube.com/watch?v=mwa3HrAPplc",
+    "chunk_index": 1
+  },
+  {
+    "content": "3E小島快鎖F(T7) 支援密碼解鎖功能。使用者需在門鎖的觸控螢幕上輸入預設密碼（例如「123456」），輸入完成後，門鎖底部會亮起綠燈，並發出「開鎖，叮咚，開」的語音提示，完成解鎖動作。[00:08-00:14]",
+    "brand": "3E",
+    "model": "小島F(T7)",
+    "category": "knowledge",
+    "source_type": "youtube",
+    "source": "mwa3HrAPplc",
+    "url": "https://www.youtube.com/watch?v=mwa3HrAPplc",
+    "chunk_index": 2
+  },
+  {
+    "content": "3E小島快鎖F(T7) 支援卡片解鎖功能。使用者將印有「3E」標誌的卡片靠近門鎖中間的「CARD」感應區，門鎖底部會亮起綠燈，螢幕短暫顯示數字，並發出「開鎖，叮咚，開」的語音提示，完成解鎖動作。[00:17-00:21]",
+    "brand": "3E",
+    "model": "小島F(T7)",
+    "category": "knowledge",
+    "source_type": "youtube",
+    "source": "mwa3HrAPplc",
+    "url": "https://www.youtube.com/watch?v=mwa3HrAPplc",
+    "chunk_index": 3
+  },
+  {
+    "content": "3E小島快鎖F(T7) 支援實體鑰匙解鎖功能。使用者需打開門鎖底部的小蓋子，將實體鑰匙插入鑰匙孔並轉動，門鎖會發出機械聲響使鎖舌縮回，隨後發出「開鎖，叮咚，開」的語音提示，完成解鎖動作。[00:23-00:29]",
+    "brand": "3E",
+    "model": "小島F(T7)",
+    "category": "knowledge",
+    "source_type": "youtube",
+    "source": "mwa3HrAPplc",
+    "url": "https://www.youtube.com/watch?v=mwa3HrAPplc",
+    "chunk_index": 4
+  },
+  {
+    "content": "3E小島快鎖F(T7) 支援APP遠端解鎖功能。使用者透過手機APP點擊綠色鎖頭圖示，門鎖會發出提示音並語音提示「正在請求遠程開鎖」。APP隨後會顯示門鎖攝影機的即時畫面，使用者需再次點擊APP上的綠色解鎖按鈕，手機螢幕顯示「開門成功」後，門鎖會發出「開鎖，叮咚，開」的語音提示，完成遠端解鎖。[00:35-00:57]",
+    "brand": "3E",
+    "model": "小島F(T7)",
+    "category": "knowledge",
+    "source_type": "youtube",
+    "source": "mwa3HrAPplc",
+    "url": "https://www.youtube.com/watch?v=mwa3HrAPplc",
+    "chunk_index": 5
+  },
+  {
+    "content": "3E小島快鎖F(T7) 支援室內按鈕解鎖功能。使用者按下門鎖室內側的按鈕，門鎖會發出機械聲響使鎖舌縮回，室內側亮起綠燈，並發出「開鎖」的語音提示，完成室內解鎖動作。[01:00-01:04]",
+    "brand": "3E",
+    "model": "小島F(T7)",
+    "category": "knowledge",
+    "source_type": "youtube",
+    "source": "mwa3HrAPplc",
+    "url": "https://www.youtube.com/watch?v=mwa3HrAPplc",
+    "chunk_index": 6
+  },
+  {
+    "content": "3E小島快鎖F(T7) 支援室內旋鈕解鎖功能。使用者轉動門鎖室內側的旋鈕，門鎖會發出機械聲響使鎖舌縮回，室內側亮起綠燈，並發出「開鎖」的語音提示，完成室內解鎖動作。[01:07-01:09]",
+    "brand": "3E",
+    "model": "小島F(T7)",
+    "category": "knowledge",
+    "source_type": "youtube",
+    "source": "mwa3HrAPplc",
+    "url": "https://www.youtube.com/watch?v=mwa3HrAPplc",
+    "chunk_index": 7
+  }
+]

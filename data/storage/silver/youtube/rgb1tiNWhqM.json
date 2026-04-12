@@ -1,0 +1,62 @@
+[
+  {
+    "content": "Chatlock A90 電子鎖在進入管理員模式時，使用者應首先依序按下 `*` 鍵和 `#` 鍵。此時，門鎖會提示「`* # 開啟 管理員授權登入 按 # 確認 (請輸入您的管理員密碼)`」，圓形指示燈將亮起藍色光。接著，使用者需輸入正確的管理員密碼（例如影片中所示的 `456789` 鍵），成功輸入後，門鎖的圓形指示燈將轉為綠色，表示已成功登入管理員模式。 [00:00-00:06]",
+    "brand": "Chatlock",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "rgb1tiNWhqM",
+    "url": "https://www.youtube.com/watch?v=rgb1tiNWhqM",
+    "chunk_index": 1
+  },
+  {
+    "content": "成功登入 Chatlock A90 電子鎖的管理員模式後，系統會顯示「`刪除用戶 請按 3`」的提示。此時，使用者應按下數字鍵 `3`，以進入刪除用戶的功能介面。 [00:06-00:14]",
+    "brand": "Chatlock",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "rgb1tiNWhqM",
+    "url": "https://www.youtube.com/watch?v=rgb1tiNWhqM",
+    "chunk_index": 2
+  },
+  {
+    "content": "進入 Chatlock A90 電子鎖的刪除用戶介面後，系統會提供多種刪除選項，包含「`編號刪除 請按 1`」、「`手指刪除 請按 2`」、「`密碼刪除 請按 3`」、「`卡片刪除 請按 4`」、「`人臉刪除 請按 5`」以及「`掌靜脈刪除 請按 6`」，供使用者選擇欲刪除的驗證方式。 [00:14-00:28]",
+    "brand": "Chatlock",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "rgb1tiNWhqM",
+    "url": "https://www.youtube.com/watch?v=rgb1tiNWhqM",
+    "chunk_index": 3
+  },
+  {
+    "content": "若欲刪除 Chatlock A90 電子鎖的卡片用戶，使用者應在刪除選項中按下數字鍵 `4`，選擇「卡片刪除」。此時，門鎖的圓形指示燈將持續顯示綠色光，等待使用者感應欲刪除的卡片。 [00:28-00:35]",
+    "brand": "Chatlock",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "rgb1tiNWhqM",
+    "url": "https://www.youtube.com/watch?v=rgb1tiNWhqM",
+    "chunk_index": 4
+  },
+  {
+    "content": "在 Chatlock A90 電子鎖選擇卡片刪除模式後，使用者需將欲刪除的卡片（例如影片中標示「SMART LOCK chatlock」的卡片）靠近門鎖的感應區。門鎖感應成功後，將發出提示音，且圓形指示燈會閃爍綠色光，表示正在執行刪除操作。 [00:35-00:39]",
+    "brand": "Chatlock",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "rgb1tiNWhqM",
+    "url": "https://www.youtube.com/watch?v=rgb1tiNWhqM",
+    "chunk_index": 5
+  },
+  {
+    "content": "當 Chatlock A90 電子鎖完成卡片刪除操作後，螢幕會顯示「`刪除成功`」的文字提示，此時使用者即可將卡片移開，確認該卡片用戶已成功移除。 [00:39]",
+    "brand": "Chatlock",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "rgb1tiNWhqM",
+    "url": "https://www.youtube.com/watch?v=rgb1tiNWhqM",
+    "chunk_index": 6
+  }
+]

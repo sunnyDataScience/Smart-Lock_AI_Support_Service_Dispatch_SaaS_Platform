@@ -1,0 +1,42 @@
+[
+  {
+    "content": "[00:00]-[00:05] A90 電子鎖在進行音量設定前，使用者需先進入管理員模式。操作步驟為：首先按下鍵盤上的「*」鍵，接著按下「#」鍵。此時，門鎖上方的圓形指示燈將從藍色轉為綠色，提示使用者輸入管理員密碼以完成授權登入。",
+    "brand": "general",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "gQcKb1nf1Mw",
+    "url": "https://www.youtube.com/watch?v=gQcKb1nf1Mw",
+    "chunk_index": 1
+  },
+  {
+    "content": "[00:06]-[00:14] 成功進入管理員模式後，A90 電子鎖會提示使用者進行操作。若要進入音量設定選單，請按下數字鍵「4」。",
+    "brand": "general",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "gQcKb1nf1Mw",
+    "url": "https://www.youtube.com/watch?v=gQcKb1nf1Mw",
+    "chunk_index": 2
+  },
+  {
+    "content": "[00:15]-[00:23] 進入音量設定選單後，A90 電子鎖會提供四種音量選項供使用者選擇：按下「1」為高音量，按下「2」為中音量，按下「3」為低音量，按下「4」為靜音。使用者應根據需求選擇對應的數字鍵。",
+    "brand": "general",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "gQcKb1nf1Mw",
+    "url": "https://www.youtube.com/watch?v=gQcKb1nf1Mw",
+    "chunk_index": 3
+  },
+  {
+    "content": "[00:24]-[00:26] 在選擇完所需的音量等級後，A90 電子鎖使用者必須按下「#」鍵以確認設定。門鎖上方的圓形指示燈將再次顯示綠色，並出現「設定成功」的提示，表示音量設定已完成。",
+    "brand": "general",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "gQcKb1nf1Mw",
+    "url": "https://www.youtube.com/watch?v=gQcKb1nf1Mw",
+    "chunk_index": 4
+  }
+]

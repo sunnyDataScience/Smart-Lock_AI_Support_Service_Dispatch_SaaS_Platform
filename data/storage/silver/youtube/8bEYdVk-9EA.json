@@ -1,0 +1,132 @@
+[
+  {
+    "content": "[00:06] 在進行dormakaba電子鎖的APP設定前，使用者應首先掃描影片中提供的QR Code，以下載適用於Android或iOS系統的SmartLocky應用程式。",
+    "brand": "dormakaba",
+    "model": "general",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "8bEYdVk-9EA",
+    "url": "https://www.youtube.com/watch?v=8bEYdVk-9EA",
+    "chunk_index": 1
+  },
+  {
+    "content": "[00:09] SmartLocky應用程式在首次啟動時，會請求使用藍牙功能與手機定位權限。使用者必須點擊「好」以允許這些權限，否則將無法正常使用藍牙功能來尋找並連接dormakaba電子鎖。",
+    "brand": "dormakaba",
+    "model": "general",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "8bEYdVk-9EA",
+    "url": "https://www.youtube.com/watch?v=8bEYdVk-9EA",
+    "chunk_index": 2
+  },
+  {
+    "content": "[00:11] 在SmartLocky應用程式的「用戶配置」頁面，使用者需輸入個人資料，包含姓氏、名字、手機號碼（預設為+886），並選擇語言。同時，使用者必須勾選「我已閱讀並接受服務條款」及「我已閱讀並接受APP隱私政策」兩個選項，方可點擊「下一步」繼續註冊流程。",
+    "brand": "dormakaba",
+    "model": "general",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "8bEYdVk-9EA",
+    "url": "https://www.youtube.com/watch?v=8bEYdVk-9EA",
+    "chunk_index": 3
+  },
+  {
+    "content": "[00:15] SmartLocky應用程式在帳號註冊過程中，會提示使用者設定登錄密碼，以保護應用程式。使用者可選擇「設定密碼」並輸入一組四位數的密碼（例如影片中輸入「1234」），或選擇「稍後設定」。此密碼將用於下次登錄應用程式。",
+    "brand": "dormakaba",
+    "model": "general",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "8bEYdVk-9EA",
+    "url": "https://www.youtube.com/watch?v=8bEYdVk-9EA",
+    "chunk_index": 4
+  },
+  {
+    "content": "[00:22] 在SmartLocky應用程式的帳號註冊階段，使用者會被詢問是否啟用Touch ID（指紋辨識）功能。此功能可讓使用者透過指紋保護應用程式。使用者可選擇「設定 Touch ID」或「稍後設定」，影片中選擇了「稍後設定」。",
+    "brand": "dormakaba",
+    "model": "general",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "8bEYdVk-9EA",
+    "url": "https://www.youtube.com/watch?v=8bEYdVk-9EA",
+    "chunk_index": 5
+  },
+  {
+    "content": "[00:26] 在SmartLocky應用程式的「我的智能門鎖」頁面，若尚未添加任何電子鎖，使用者需點擊「+ 添加智能門鎖」按鈕，以開始綁定dormakaba電子鎖。過程中可能需要開啟手機上其他相關應用程式的權限以完成設定。",
+    "brand": "dormakaba",
+    "model": "general",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "8bEYdVk-9EA",
+    "url": "https://www.youtube.com/watch?v=8bEYdVk-9EA",
+    "chunk_index": 6
+  },
+  {
+    "content": "[00:31] 在SmartLocky應用程式的「添加新鎖」頁面，使用者需輸入dormakaba電子鎖的相關資訊，包括序列號（可透過掃描機器背面的QR Code獲取）、門鎖類型、門鎖名稱（例如「正門」）及設備地址。完成資訊輸入後，點擊「開始配對」按鈕以進行下一步。",
+    "brand": "dormakaba",
+    "model": "general",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "8bEYdVk-9EA",
+    "url": "https://www.youtube.com/watch?v=8bEYdVk-9EA",
+    "chunk_index": 7
+  },
+  {
+    "content": "[00:44] 當SmartLocky應用程式進入「配對配鎖」頁面時，使用者應等待dormakaba電子鎖發出提示音。聽到提示音後，需打開電子鎖的電池蓋，並按下內部標示為「註冊」的按鈕，以完成電子鎖與應用程式的綁定配對。",
+    "brand": "dormakaba",
+    "model": "general",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "8bEYdVk-9EA",
+    "url": "https://www.youtube.com/watch?v=8bEYdVk-9EA",
+    "chunk_index": 8
+  },
+  {
+    "content": "[00:48] 完成dormakaba電子鎖與SmartLocky應用程式的配對後，應用程式將顯示「我的智能門鎖」頁面，並顯示已綁定的門鎖（例如「正門」）及其狀態（例如「已關鎖」），表示設定已完成，使用者可開始使用APP的各項功能。",
+    "brand": "dormakaba",
+    "model": "general",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "8bEYdVk-9EA",
+    "url": "https://www.youtube.com/watch?v=8bEYdVk-9EA",
+    "chunk_index": 9
+  },
+  {
+    "content": "[00:53] SmartLocky應用程式的遠端金鑰功能僅限於第一支綁定dormakaba電子鎖的手機使用。使用者需在應用程式的「普通」頁面中，點擊「共享密鑰」按鈕，以進入金鑰分享介面。",
+    "brand": "dormakaba",
+    "model": "general",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "8bEYdVk-9EA",
+    "url": "https://www.youtube.com/watch?v=8bEYdVk-9EA",
+    "chunk_index": 10
+  },
+  {
+    "content": "[00:58] 在SmartLocky應用程式的「分享密鑰」頁面，若尚未生成任何密鑰，使用者需點擊「創建新密鑰」按鈕，以開始設定新的遠端開鎖密鑰。",
+    "brand": "dormakaba",
+    "model": "general",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "8bEYdVk-9EA",
+    "url": "https://www.youtube.com/watch?v=8bEYdVk-9EA",
+    "chunk_index": 11
+  },
+  {
+    "content": "[01:03] 在SmartLocky應用程式的「創建密鑰」頁面，使用者需設定密鑰的詳細資訊，包括「標籤符」（例如「測試」）、密鑰的「開始時間」（例如「2020-09-17 14:00」），以及「有效期」。有效期可透過下拉選單設定為日、小時、分鐘或單次使用，並可選擇「持續生效」。",
+    "brand": "dormakaba",
+    "model": "general",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "8bEYdVk-9EA",
+    "url": "https://www.youtube.com/watch?v=8bEYdVk-9EA",
+    "chunk_index": 12
+  },
+  {
+    "content": "[01:15] 完成密鑰資訊設定後，使用者需點擊「生成密鑰」按鈕。SmartLocky應用程式將隨即生成一組遠端開鎖密碼（例如「6282 7139 0271 16291 #」），並顯示其開始時間與有效期。使用者可透過「分享密鑰」功能，將此密碼透過訊息、郵件或社群軟體等方式傳送給他人，對方將收到一次性的開門密碼，使用後即失效。同時，應用程式會提示使用者妥善保管密鑰，並在有效時間內使用。",
+    "brand": "dormakaba",
+    "model": "general",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "8bEYdVk-9EA",
+    "url": "https://www.youtube.com/watch?v=8bEYdVk-9EA",
+    "chunk_index": 13
+  }
+]

@@ -16,6 +16,9 @@ from typing import Callable
 
 import pandas as pd
 
+MAX_RETRIES = 3
+RETRY_BACKOFF = [2, 5, 10]  # seconds
+
 # ── paths ────────────────────────────────────────────────────────────
 ROOT_DIR = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT_DIR))
@@ -49,8 +52,8 @@ SYSTEM_PROMPT = """\
 
 ## 3. Metadata 推斷
 根據對話內容推斷以下欄位：
-- brand：品牌名稱（Dormakaba / Chainlock / general，無法確定則填 general）
-- model：型號（如 AI99、A90，無法確定則填 general）
+- brand：品牌名稱（Dormakaba / Chatlock / Kaadas / 3E / Philips / Milre / general）
+- model：型號（如 AI-99、A90、AS701、小島F(T7)、TX，無法確定則填 general）
 - category：分類，從以下選擇一個：setup / troubleshoot / knowledge / specification
 """
 
@@ -147,6 +150,7 @@ def main():
         help="Process a single CSV (filename only, relative to bronze/line_chat/)",
     )
     parser.add_argument("--force", action="store_true", help="Overwrite existing silver files")
+    parser.add_argument("--retry-failed", action="store_true", help="Only retry previously failed files")
     parser.add_argument("--verbose", action="store_true", help="Enable debug logging")
     args = parser.parse_args()
 
@@ -164,6 +168,18 @@ def main():
         temperature=pipeline_cfg.get("temperature", 0.3),
     )
 
+    # Failure log for tracking
+    failures_path = SILVER_DIR / "_failures.json"
+    prev_failures: dict = {}
+    if failures_path.exists():
+        prev_failures = json.loads(failures_path.read_text(encoding="utf-8"))
+
+    # Irrelevant session log (avoid re-calling LLM for known-irrelevant sessions)
+    irrelevant_path = SILVER_DIR / "_irrelevant.json"
+    irrelevant_set: set[str] = set()
+    if irrelevant_path.exists():
+        irrelevant_set = set(json.loads(irrelevant_path.read_text(encoding="utf-8")))
+
     # Determine which files to process
     if args.file:
         files = [BRONZE_DIR / args.file]
@@ -180,6 +196,7 @@ def main():
     skipped = 0
     irrelevant = 0
     failed = 0
+    current_failures: dict = {}
 
     for csv_path in files:
         log.info("讀取 CSV：%s", csv_path.name)
@@ -196,34 +213,72 @@ def main():
             out_path = SILVER_DIR / f"{session_id}.json"
 
             # Idempotency check
-            if out_path.exists() and not args.force:
-                log.info("跳過（已存在）：%s", session_id)
-                skipped += 1
+            if not args.force and not args.retry_failed:
+                if out_path.exists() or session_id in irrelevant_set:
+                    log.debug("跳過（已存在）：%s", session_id)
+                    skipped += 1
+                    continue
+
+            # --retry-failed: skip if not in prev_failures
+            if args.retry_failed and session_id not in prev_failures:
                 continue
 
             log.info("處理中：%s", session_id)
-            try:
-                result = process_one_session(llm_func, session_id, transcript)
 
-                if result is None:
-                    out_path.write_text("[]", encoding="utf-8")
-                    log.info("[不相關 → 寫入空 JSON]：%s", session_id)
-                    irrelevant += 1
-                    continue
+            # Retry loop
+            last_error = None
+            for attempt in range(MAX_RETRIES):
+                try:
+                    result = process_one_session(llm_func, session_id, transcript)
 
-                out_path.write_text(
-                    json.dumps(result, ensure_ascii=False, indent=2),
-                    encoding="utf-8",
-                )
-                log.info("完成 → %s", out_path.name)
-                success += 1
+                    if result is None:
+                        irrelevant_set.add(session_id)
+                        log.info("[不相關]：%s", session_id)
+                        irrelevant += 1
+                    else:
+                        out_path.write_text(
+                            json.dumps(result, ensure_ascii=False, indent=2),
+                            encoding="utf-8",
+                        )
+                        log.info("完成 → %s (attempt %d)", out_path.name, attempt + 1)
+                        success += 1
 
-            except Exception:
-                log.exception("處理失敗：%s", session_id)
+                    prev_failures.pop(session_id, None)
+                    last_error = None
+                    break
+                except Exception as e:
+                    last_error = str(e)
+                    if attempt < MAX_RETRIES - 1:
+                        wait = RETRY_BACKOFF[attempt]
+                        log.warning("RETRY %d/%d for %s (wait %ds): %s", attempt + 1, MAX_RETRIES, session_id, wait, e)
+                        time.sleep(wait)
+
+            if last_error:
+                log.error("FAILED after %d attempts: %s — %s", MAX_RETRIES, session_id, last_error)
+                current_failures[session_id] = last_error
                 failed += 1
 
-            # Rate-limit: 1 second between API calls
+            # Rate-limit between sessions
             time.sleep(1)
+
+    # Update failure log
+    all_failures = {**prev_failures, **current_failures}
+    for f in list(all_failures):
+        if (SILVER_DIR / f"{f}.json").exists():
+            all_failures.pop(f)
+
+    if all_failures:
+        failures_path.write_text(json.dumps(all_failures, ensure_ascii=False, indent=2), encoding="utf-8")
+        log.warning("Failures logged to %s (%d sessions)", failures_path, len(all_failures))
+    elif failures_path.exists():
+        failures_path.unlink()
+
+    # Update irrelevant session log
+    irrelevant_path.write_text(
+        json.dumps(sorted(irrelevant_set), ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    log.info("已記錄 %d 個不相關 session → %s", len(irrelevant_set), irrelevant_path.name)
 
     log.info(
         "完成。成功=%d  跳過=%d  不相關=%d  失敗=%d",

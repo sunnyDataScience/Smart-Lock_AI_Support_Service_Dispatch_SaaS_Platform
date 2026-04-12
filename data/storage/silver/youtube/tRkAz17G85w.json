@@ -1,0 +1,32 @@
+[
+  {
+    "content": "A90 電子鎖在進行功能設定前，使用者需先進入管理員模式。操作步驟為：首先按下鍵盤上的「*#」鍵，接著輸入已設定的管理員密碼（例如：4567），最後按下「#」鍵確認。成功輸入後，門鎖中央的圓形指示燈將由藍色轉為綠色，表示已成功進入管理員模式。[00:00]-[00:05]",
+    "brand": "Kaadas",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "tRkAz17G85w",
+    "url": "https://www.youtube.com/watch?v=tRkAz17G85w",
+    "chunk_index": 1
+  },
+  {
+    "content": "A90 電子鎖在進入管理員模式後，若要進行系統相關設定，使用者應根據語音提示選擇「系統管理」功能。此時，螢幕會顯示「系統管理 請按 4」，使用者需按下數字鍵「4」。選擇成功後，門鎖中央的圓形指示燈將由綠色轉為藍色。[00:06]-[00:07]",
+    "brand": "Kaadas",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "tRkAz17G85w",
+    "url": "https://www.youtube.com/watch?v=tRkAz17G85w",
+    "chunk_index": 2
+  },
+  {
+    "content": "A90 電子鎖在「系統管理」選單中，使用者可以啟用「兒童安全鎖」功能。根據語音提示「兒童安全鎖 請按 5」，使用者需按下數字鍵「5」。啟用成功後，門鎖中央的圓形指示燈將由藍色轉為綠色，隨後會持續在藍綠之間交替閃爍，表示該功能已成功啟用。[00:08]-[00:22]",
+    "brand": "Kaadas",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "tRkAz17G85w",
+    "url": "https://www.youtube.com/watch?v=tRkAz17G85w",
+    "chunk_index": 3
+  }
+]

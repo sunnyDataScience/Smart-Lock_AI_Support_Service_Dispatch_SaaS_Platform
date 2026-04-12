@@ -1,38 +1,65 @@
 [
   {
-    "page_content": "【常見問題】\n鎖市的創辦人是誰？\n鎖市的經營理念是什麼？\n鎖市的技術背景為何？\n\n【知識內容】\n鎖市的創辦人為兩位8年級生，一位來自IT資安產業，另一位來自音樂產業。他們將門鎖安全性與網路資安理念結合，並向資深鎖匠學習開鎖技術，強調安裝的細心與耐心，旨在改變人們對鎖行的認知。",
-    "metadata": {
-      "brand": "鎖市",
-      "model": "general",
-      "category": "knowledge",
-      "source_type": "website",
-      "source": "scsmtw_wixsite_com_locksmartnew_aboutus.md",
-      "chunk_index": 1,
-      "raw_text": "鎖市的創辦人為兩位8年級生，一位來自IT資安產業，另一位來自音樂產業。他們將門鎖安全性與網路資安理念結合，並向資深鎖匠學習開鎖技術，強調安裝的細心與耐心，旨在改變人們對鎖行的認知。"
-    }
+    "content": "鎖市的兩位創辦人為八年級生，一位來自IT資安產業，另一位來自音樂產業。他們認為門鎖的安全性與網路資安理念息息相關，僅是應用於現實與虛擬世界的差異。",
+    "brand": "鎖市",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "website",
+    "source": "scsmtw_wixsite_com_locksmartnew_aboutus.md",
+    "chunk_index": 1
   },
   {
-    "page_content": "【常見問題】\n鎖市的營業時間是什麼時候？\n鎖市週日有營業嗎？\n我該如何確認鎖市週日的營業時間？\n\n【知識內容】\n鎖市的營業時間為週一至週六上午9:30至晚上21:30。週日為不定期休假，建議客戶來電詢問。",
-    "metadata": {
-      "brand": "鎖市",
-      "model": "general",
-      "category": "general",
-      "source_type": "website",
-      "source": "scsmtw_wixsite_com_locksmartnew_aboutus.md",
-      "chunk_index": 2,
-      "raw_text": "鎖市的營業時間為週一至週六上午9:30至晚上21:30。週日為不定期休假，建議客戶來電詢問。"
-    }
+    "content": "鎖市的技術人員曾向擁有三十多年經驗的資深鎖匠學習開鎖技藝，並將音樂人對虛擬空間的想像應用於鎖內世界。鎖市強調安裝門鎖時的細心與耐心。鎖市的團隊結合了傳統技術夥伴、三十年科技應用產業夥伴及十三年新興科技熱愛者，具備國際觀與國際語言溝通能力，旨在改變人們對鎖行的認知。",
+    "brand": "鎖市",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "website",
+    "source": "scsmtw_wixsite_com_locksmartnew_aboutus.md",
+    "chunk_index": 2
   },
   {
-    "page_content": "【常見問題】\n鎖市的地址在哪裡？\n我該如何聯絡鎖市？\n鎖市的電話號碼是多少？\n\n【知識內容】\n鎖市的實體地址位於新北市林口區中山路526號之2。聯絡電話為02-8601-9952，電子郵件信箱為scsmtw@gmail.com。",
-    "metadata": {
-      "brand": "鎖市",
-      "model": "general",
-      "category": "general",
-      "source_type": "website",
-      "source": "scsmtw_wixsite_com_locksmartnew_aboutus.md",
-      "chunk_index": 3,
-      "raw_text": "鎖市的實體地址位於新北市林口區中山路526號之2。聯絡電話為02-8601-9952，電子郵件信箱為scsmtw@gmail.com。"
-    }
+    "content": "鎖市的營業時間為週一至週六上午9:30至晚上9:30。週日為不定期休假，客戶可來電詢問。",
+    "brand": "鎖市",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "website",
+    "source": "scsmtw_wixsite_com_locksmartnew_aboutus.md",
+    "chunk_index": 3
+  },
+  {
+    "content": "鎖市的地址為新北市林口區中山路526號之2。",
+    "brand": "鎖市",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "website",
+    "source": "scsmtw_wixsite_com_locksmartnew_aboutus.md",
+    "chunk_index": 4
+  },
+  {
+    "content": "鎖市的聯絡電話為02-8601-9952。",
+    "brand": "鎖市",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "website",
+    "source": "scsmtw_wixsite_com_locksmartnew_aboutus.md",
+    "chunk_index": 5
+  },
+  {
+    "content": "鎖市的電子郵件信箱為scsmtw@gmail.com。",
+    "brand": "鎖市",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "website",
+    "source": "scsmtw_wixsite_com_locksmartnew_aboutus.md",
+    "chunk_index": 6
+  },
+  {
+    "content": "鎖市提供官方LINE線上客服，可進行真人即時線上回覆。",
+    "brand": "鎖市",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "website",
+    "source": "scsmtw_wixsite_com_locksmartnew_aboutus.md",
+    "chunk_index": 7
   }
 ]

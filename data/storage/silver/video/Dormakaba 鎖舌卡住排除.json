@@ -1,62 +1,56 @@
 [
   {
-    "page_content": "【常見問題】\nDormakaba 電子鎖的鎖舌跟一般鎖有什麼不一樣？\n為什麼我的 Dormakaba 電子鎖有時候會打不開？\n門打不開是不是因為鎖舌卡住了？\n\n【知識內容】\nDormakaba 電子鎖的鎖舌設計與傳統鎖具不同，其鎖舌是前後或左右擺動，而非縮入鎖體。當門無法順利開啟時，通常是因為鎖舌未能正確對準並卡入門框的受口。因此，在嘗試開門前，務必確認門已確實關好。",
-    "metadata": {
-      "brand": "Dormakaba",
-      "model": "general",
-      "category": "knowledge",
-      "source_type": "video",
-      "source": "Dormakaba 鎖舌卡住排除.txt",
-      "chunk_index": 1,
-      "raw_text": "Dormakaba 電子鎖的鎖舌設計與傳統鎖具不同，其鎖舌是前後或左右擺動，而非縮入鎖體。當門無法順利開啟時，通常是因為鎖舌未能正確對準並卡入門框的受口。因此，在嘗試開門前，務必確認門已確實關好。"
-    }
+    "content": "Dormakaba 電子鎖的鎖舌設計與傳統鎖不同。其鎖舌並非縮入式，而是前後或左右擺動的。",
+    "brand": "Dormakaba",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "Dormakaba 鎖舌卡住排除.txt",
+    "chunk_index": 1
   },
   {
-    "page_content": "【常見問題】\n我在家裡拉門開鎖，但門打不開怎麼辦？\nDormakaba 鎖在室內拉不開門，要怎麼處理？\n為什麼我拉把手門還是開不了？\n\n【知識內容】\n當使用者身處室內，且習慣以「拉門」方式開啟 Dormakaba 電子鎖，若遇到門無法打開的情況，應先將門板向內推緊，同時拉動電子鎖把手，門即可順利開啟。",
-    "metadata": {
-      "brand": "Dormakaba",
-      "model": "general",
-      "category": "troubleshoot",
-      "source_type": "video",
-      "source": "Dormakaba 鎖舌卡住排除.txt",
-      "chunk_index": 2,
-      "raw_text": "當使用者身處室內，且習慣以「拉門」方式開啟 Dormakaba 電子鎖，若遇到門無法打開的情況，應先將門板向內推緊，同時拉動電子鎖把手，門即可順利開啟。"
-    }
+    "content": "Dormakaba 電子鎖若遇到門無法開啟的問題，通常是因為鎖舌未正確卡入受口，導致門未完全關好。",
+    "brand": "Dormakaba",
+    "model": "general",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "Dormakaba 鎖舌卡住排除.txt",
+    "chunk_index": 2
   },
   {
-    "page_content": "【常見問題】\n我在家裡推門開鎖，但門打不開怎麼辦？\nDormakaba 鎖在室內推不開門，要怎麼處理？\n門推不開，是不是我操作方式不對？\n\n【知識內容】\n當使用者身處室內，且習慣以「推門」方式開啟 Dormakaba 電子鎖，若遇到門無法打開的情況，應先拉住電子鎖把手，使門板緊閉，然後再用力推動把手，門即可順利開啟。",
-    "metadata": {
-      "brand": "Dormakaba",
-      "model": "general",
-      "category": "troubleshoot",
-      "source_type": "video",
-      "source": "Dormakaba 鎖舌卡住排除.txt",
-      "chunk_index": 3,
-      "raw_text": "當使用者身處室內，且習慣以「推門」方式開啟 Dormakaba 電子鎖，若遇到門無法打開的情況，應先拉住電子鎖把手，使門板緊閉，然後再用力推動把手，門即可順利開啟。"
-    }
+    "content": "當Dormakaba 電子鎖使用者在門內欲以拉門方式開門，但門無法開啟時，應先將門推緊，然後再拉動把手，即可順利開門。",
+    "brand": "Dormakaba",
+    "model": "general",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "Dormakaba 鎖舌卡住排除.txt",
+    "chunk_index": 3
   },
   {
-    "page_content": "【常見問題】\n我在外面推門開鎖，但門打不開怎麼辦？\nDormakaba 鎖在室外推不開門，要怎麼處理？\n門鎖解開了，但門還是推不開怎麼辦？\n\n【知識內容】\n當使用者身處室外，且習慣以「推門」方式開啟 Dormakaba 電子鎖，若遇到門無法打開的情況，應先將電子鎖把手拉緊，使門板緊閉，完成解鎖動作後，立即用力推動把手，門即可順利開啟。此時鎖舌會隨之擺動，完成解鎖。",
-    "metadata": {
-      "brand": "Dormakaba",
-      "model": "general",
-      "category": "troubleshoot",
-      "source_type": "video",
-      "source": "Dormakaba 鎖舌卡住排除.txt",
-      "chunk_index": 4,
-      "raw_text": "當使用者身處室外，且習慣以「推門」方式開啟 Dormakaba 電子鎖，若遇到門無法打開的情況，應先將電子鎖把手拉緊，使門板緊閉，完成解鎖動作後，立即用力推動把手，門即可順利開啟。此時鎖舌會隨之擺動，完成解鎖。"
-    }
+    "content": "當Dormakaba 電子鎖使用者在門內欲以推門方式開門，但門無法開啟時，應先拉住電子鎖門，將門拉緊，然後再用力推動把手，即可順利開門。",
+    "brand": "Dormakaba",
+    "model": "general",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "Dormakaba 鎖舌卡住排除.txt",
+    "chunk_index": 4
   },
   {
-    "page_content": "【常見問題】\n我在外面拉門開鎖，但門打不開怎麼辦？\nDormakaba 鎖在室外拉不開門，要怎麼處理？\n門鎖解開了，但門還是拉不開怎麼辦？\n\n【知識內容】\n當使用者身處室外，且習慣以「拉門」方式開啟 Dormakaba 電子鎖，若遇到門無法打開的情況，應先將門板向內推緊，完成解鎖動作後，再拉動把手，門即可順利開啟。",
-    "metadata": {
-      "brand": "Dormakaba",
-      "model": "general",
-      "category": "troubleshoot",
-      "source_type": "video",
-      "source": "Dormakaba 鎖舌卡住排除.txt",
-      "chunk_index": 5,
-      "raw_text": "當使用者身處室外，且習慣以「拉門」方式開啟 Dormakaba 電子鎖，若遇到門無法打開的情況，應先將門板向內推緊，完成解鎖動作後，再拉動把手，門即可順利開啟。"
-    }
+    "content": "當Dormakaba 電子鎖使用者在門外欲以推門方式開門，但門無法開啟時，應先將電子鎖門拉緊，完成解鎖後，立即用力推動把手，鎖舌便會擺動，即可順利開門。",
+    "brand": "Dormakaba",
+    "model": "general",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "Dormakaba 鎖舌卡住排除.txt",
+    "chunk_index": 5
+  },
+  {
+    "content": "當Dormakaba 電子鎖使用者在門外欲以拉門方式開門，但門無法開啟時，應先將門推緊，完成解鎖後，再拉動把手，即可順利開門。",
+    "brand": "Dormakaba",
+    "model": "general",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "Dormakaba 鎖舌卡住排除.txt",
+    "chunk_index": 6
   }
 ]

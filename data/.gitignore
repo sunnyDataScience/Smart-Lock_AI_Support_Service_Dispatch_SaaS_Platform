@@ -29,6 +29,7 @@ storage/bronze/line_chat/*.csv
 
 # ── Silver layer generated JSON ──────────────────────────────────────
 storage/silver/line_chat/*.json
+!storage/silver/line_chat/_irrelevant.json
 
 # ── Keep .keep files inside ignored directories ──────────────────────
 !**/.keep

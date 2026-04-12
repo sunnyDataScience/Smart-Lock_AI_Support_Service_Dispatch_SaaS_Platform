@@ -1,0 +1,72 @@
+[
+  {
+    "content": "3E TX 電子鎖的用戶在進行APP綁定前，應首先掃描影片中提供的QR Code，從Apple App Store或Google Play商店下載並安裝專屬應用程式。[00:01-00:04]",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "9Decj2mp8Jw",
+    "url": "https://www.youtube.com/watch?v=9Decj2mp8Jw",
+    "chunk_index": 1
+  },
+  {
+    "content": "3E TX 電子鎖用戶欲進入管理員模式，需依序按下鍵盤上的「*」鍵與「#」鍵。隨後，當電子鎖語音提示「請輸入管理員密碼」時，用戶應輸入預設或已設定的管理員密碼，並以「#」鍵確認，直至電子鎖語音提示「成功」為止。[00:05-00:10]",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "9Decj2mp8Jw",
+    "url": "https://www.youtube.com/watch?v=9Decj2mp8Jw",
+    "chunk_index": 2
+  },
+  {
+    "content": "在成功進入管理員模式後，3E TX 電子鎖會提供多個選項。用戶應根據語音提示或影片指示，按下鍵盤上的「5」鍵，再按下「#」鍵，以啟動電子鎖的網路配置模式。此時，電子鎖將語音提示「網路配置中，退出請按井號鍵」。[00:11-00:15]",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "9Decj2mp8Jw",
+    "url": "https://www.youtube.com/watch?v=9Decj2mp8Jw",
+    "chunk_index": 3
+  },
+  {
+    "content": "當 3E TX 電子鎖進入網路配置模式後，用戶需確保手機已連接至Wi-Fi網路並開啟藍牙功能。隨後，在手機應用程式介面中點擊「新增裝置」按鈕，應用程式將自動搜尋設備。當應用程式要求輸入Wi-Fi密碼時，用戶應輸入正確的Wi-Fi密碼，並等待應用程式完成設備連接。[00:16-00:29]",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "9Decj2mp8Jw",
+    "url": "https://www.youtube.com/watch?v=9Decj2mp8Jw",
+    "chunk_index": 4
+  },
+  {
+    "content": "待 3E TX 電子鎖與應用程式完成連接後，電子鎖將發出「設置成功」的語音提示，表示網路綁定程序已順利完成。[00:42-00:43]",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "9Decj2mp8Jw",
+    "url": "https://www.youtube.com/watch?v=9Decj2mp8Jw",
+    "chunk_index": 5
+  },
+  {
+    "content": "完成 3E TX 電子鎖的網路設置後，用戶可按下鍵盤上的「*」鍵，退出當前的配置模式。電子鎖可能會再次提示「新增普通用戶」等選項，表示已返回主選單。[00:48-00:50]",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "9Decj2mp8Jw",
+    "url": "https://www.youtube.com/watch?v=9Decj2mp8Jw",
+    "chunk_index": 6
+  },
+  {
+    "content": "為驗證 3E TX 電子鎖與應用程式的綁定是否成功，用戶可在手機應用程式介面中點擊解鎖圖示。若綁定成功，電子鎖將發出「請開門」的語音提示，並執行解鎖動作，表示應用程式已能遠端控制電子鎖。[00:53-00:55]",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "9Decj2mp8Jw",
+    "url": "https://www.youtube.com/watch?v=9Decj2mp8Jw",
+    "chunk_index": 7
+  }
+]

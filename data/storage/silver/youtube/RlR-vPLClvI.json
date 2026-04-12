@@ -1,0 +1,82 @@
+[
+  {
+    "content": "3E TX小島快鎖在進行任何設定前，使用者需先將手掌靠近門鎖螢幕以喚醒螢幕。隨後，依序按下「*」鍵與「#」鍵，並輸入管理員密碼（例如：123456），最後按下「#」鍵確認，即可成功進入管理員授權模式。 [00:04-00:10]",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "RlR-vPLClvI",
+    "url": "https://www.youtube.com/watch?v=RlR-vPLClvI",
+    "chunk_index": 1
+  },
+  {
+    "content": "在3E TX小島快鎖的管理員模式下，若要新增普通用戶，請按下「1」鍵。接著，若要添加人臉辨識用戶，再次按下「1」鍵。此時，使用者應將臉部對準門鎖上方的鏡頭，並保持約一個手臂的距離，待門鎖螢幕中央顯示綠燈，即表示人臉註冊成功。 [00:15-00:25]",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "RlR-vPLClvI",
+    "url": "https://www.youtube.com/watch?v=RlR-vPLClvI",
+    "chunk_index": 2
+  },
+  {
+    "content": "在3E TX小島快鎖的管理員模式下，若要新增掌靜脈辨識用戶，請按下「2」鍵。隨後，使用者應將手掌對準門鎖上方的鏡頭，保持約15至30公分的距離，待門鎖螢幕中央顯示綠燈，即表示掌靜脈添加成功。 [00:26-00:34]",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "RlR-vPLClvI",
+    "url": "https://www.youtube.com/watch?v=RlR-vPLClvI",
+    "chunk_index": 3
+  },
+  {
+    "content": "在3E TX小島快鎖的管理員模式下，若要新增指紋、卡片或密碼用戶，請按下「3」鍵。接著，若要新增指紋用戶，使用者應將手指放置於門鎖的指紋感應區，並重複抬起與放下的動作，直到門鎖螢幕中央的圓圈亮起綠燈，即表示指紋註冊成功。 [00:35-00:49]",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "RlR-vPLClvI",
+    "url": "https://www.youtube.com/watch?v=RlR-vPLClvI",
+    "chunk_index": 4
+  },
+  {
+    "content": "在3E TX小島快鎖的管理員模式下，若要新增密碼用戶，使用者需輸入一組使用者密碼（例如：456789），然後按下「#」鍵確認。隨後，再次輸入相同的密碼進行確認，並再次按下「#」鍵，待門鎖螢幕中央顯示綠燈，即表示密碼註冊成功。 [00:52-01:06]",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "RlR-vPLClvI",
+    "url": "https://www.youtube.com/watch?v=RlR-vPLClvI",
+    "chunk_index": 5
+  },
+  {
+    "content": "在3E TX小島快鎖的管理員模式下，若要新增卡片用戶，使用者應將欲註冊的卡片放置於門鎖的感應區，待門鎖螢幕中央顯示綠燈，即表示卡片註冊成功。 [01:07-01:12]",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "RlR-vPLClvI",
+    "url": "https://www.youtube.com/watch?v=RlR-vPLClvI",
+    "chunk_index": 6
+  },
+  {
+    "content": "3E TX小島快鎖在刪除用戶時，使用者需先喚醒螢幕，依序按下「*」鍵與「#」鍵，並輸入管理員密碼（例如：123456），最後按下「#」鍵確認以進入管理員模式。接著，按下「3」鍵選擇「刪除用戶」。系統將提供語音提示，使用者可依據提示選擇刪除方式，例如按「1」依編號刪除、按「2」依指紋刪除、按「3」依密碼刪除、按「4」依卡片刪除、按「5」依人臉刪除，或按「6」依掌靜脈刪除。 [01:12-01:27]",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "RlR-vPLClvI",
+    "url": "https://www.youtube.com/watch?v=RlR-vPLClvI",
+    "chunk_index": 7
+  },
+  {
+    "content": "3E TX小島快鎖在進入系統設定時，使用者需先喚醒螢幕，依序按下「*」鍵與「#」鍵，並輸入管理員密碼（例如：123456），最後按下「#」鍵確認以進入管理員模式。接著，按下「4」鍵選擇「系統設置」。系統將提供語音提示，使用者可依據提示選擇設定項目，例如按「1」設定開門功能、按「2」設定防撬檢測、按「3」恢復出廠設定、按「4」調整語音音量、按「5」設定語言，或按「6」設定時間。 [01:28-01:45]",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "RlR-vPLClvI",
+    "url": "https://www.youtube.com/watch?v=RlR-vPLClvI",
+    "chunk_index": 8
+  }
+]

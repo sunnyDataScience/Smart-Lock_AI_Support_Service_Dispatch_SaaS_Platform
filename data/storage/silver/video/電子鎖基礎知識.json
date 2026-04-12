@@ -1,254 +1,380 @@
 [
   {
-    "page_content": "【常見問題】\n電子鎖有哪些不同的開門方式？\n推拉式電子鎖和把手式電子鎖有什麼區別？\n我應該選擇哪種開門方式的電子鎖？\n\n【知識內容】\n電子鎖主要分為兩種基本類型：推拉式電子鎖，解鎖後可直接推拉門；以及把手式電子鎖，解鎖後需下壓把手才能開啟門扇。",
-    "metadata": {
-      "brand": "general",
-      "model": "general",
-      "category": "knowledge",
-      "source_type": "video",
-      "source": "電子鎖基礎知識.txt",
-      "chunk_index": 1,
-      "raw_text": "電子鎖主要分為兩種基本類型：推拉式電子鎖，解鎖後可直接推拉門；以及把手式電子鎖，解鎖後需下壓把手才能開啟門扇。"
-    }
+    "content": "電子鎖大致可分為兩種主要類型：推拉式與把手式。",
+    "brand": "general",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 1
   },
   {
-    "page_content": "【常見問題】\n電子鎖的鎖匣有哪幾種？\n全自動鎖匣和半自動鎖匣有什麼不同？\n暗鎖鎖栓的功能是什麼？\n\n【知識內容】\n電子鎖的內部機械結構稱為鎖匣，主要分為全自動鎖匣和半自動鎖匣。全自動鎖匣配有鎖舌或鎖榫感應器，關門時鎖舌會自動伸出卡入門框，實現自動上鎖。鎖匣下方伸出的長方形或圓柱形部件稱為鎖栓或方舌。鎖栓下方還有一個暗鎖鎖栓，其功能是在上鎖後提供實體防盜，使門從外部無法開啟。",
-    "metadata": {
-      "brand": "general",
-      "model": "general",
-      "category": "knowledge",
-      "source_type": "video",
-      "source": "電子鎖基礎知識.txt",
-      "chunk_index": 2,
-      "raw_text": "電子鎖的內部機械結構稱為鎖匣，主要分為全自動鎖匣和半自動鎖匣。全自動鎖匣配有鎖舌或鎖榫感應器，關門時鎖舌會自動伸出卡入門框，實現自動上鎖。鎖匣下方伸出的長方形或圓柱形部件稱為鎖栓或方舌。鎖栓下方還有一個暗鎖鎖栓，其功能是在上鎖後提供實體防盜，使門從外部無法開啟。"
-    }
+    "content": "推拉式電子鎖解鎖後，可直接推或拉門開啟。",
+    "brand": "general",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 2
   },
   {
-    "page_content": "【常見問題】\n半自動電子鎖要怎麼上鎖？\n為什麼我的半自動電子鎖把手會空轉？\n半自動鎖匣的鎖栓為什麼不會自動伸出來？\n\n【知識內容】\n半自動鎖匣與全自動鎖匣不同，其鎖栓在關門時不會自動伸出上鎖。解鎖後，使用者需手動上提把手，鎖栓才會伸出；下壓把手則可收回鎖舌。半自動鎖匣在關門後約3至5秒會自動上鎖，此時把手會空轉，並可能發出馬達轉動聲，表示門已從外部鎖定。",
-    "metadata": {
-      "brand": "general",
-      "model": "general",
-      "category": "knowledge",
-      "source_type": "video",
-      "source": "電子鎖基礎知識.txt",
-      "chunk_index": 3,
-      "raw_text": "半自動鎖匣與全自動鎖匣不同，其鎖栓在關門時不會自動伸出上鎖。解鎖後，使用者需手動上提把手，鎖栓才會伸出；下壓把手則可收回鎖舌。半自動鎖匣在關門後約3至5秒會自動上鎖，此時把手會空轉，並可能發出馬達轉動聲，表示門已從外部鎖定。"
-    }
+    "content": "把手式電子鎖解鎖後，需下壓把手才能開門。",
+    "brand": "general",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 3
   },
   {
-    "page_content": "【常見問題】\n電子鎖有哪些常見的開鎖方式？\n高階電子鎖比一般電子鎖多了哪些功能？\n有沒有電子鎖可以遠端跟訪客對話？\n\n【知識內容】\n電子鎖的基本開鎖方式包含指紋、密碼、卡片和實體鑰匙，其中大型連體鎖型電子鎖通常都配備鑰匙功能。高階電子鎖則提供更多進階功能，如掌靜脈辨識、人臉辨識、手機遠端開關門、解鎖通知及門鎖記錄查詢。部分日本品牌的高階電子鎖甚至具備雙向對講功能，可透過手機與門外訪客進行通話。",
-    "metadata": {
-      "brand": "general",
-      "model": "general",
-      "category": "knowledge",
-      "source_type": "video",
-      "source": "電子鎖基礎知識.txt",
-      "chunk_index": 4,
-      "raw_text": "電子鎖的基本開鎖方式包含指紋、密碼、卡片和實體鑰匙，其中大型連體鎖型電子鎖通常都配備鑰匙功能。高階電子鎖則提供更多進階功能，如掌靜脈辨識、人臉辨識、手機遠端開關門、解鎖通知及門鎖記錄查詢。部分日本品牌的高階電子鎖甚至具備雙向對講功能，可透過手機與門外訪客進行通話。"
-    }
+    "content": "電子鎖的內部結構中，門邊的整個機構稱為鎖匣，鎖匣分為全自動鎖匣與半自動鎖匣。",
+    "brand": "general",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 4
   },
   {
-    "page_content": "【常見問題】\n為什麼我的電子鎖門關不起來或打不開？\n門鎖卡住時，我該怎麼辦？\n鎖匣和受口片之間需要多少縫隙才正常？\n\n【知識內容】\n電子鎖的鎖匣若因門未完全關閉而卡在門框，可能導致上鎖失敗或門難以開啟。門框上的受口片與鎖匣或鎖栓之間若缺乏約1-2毫米的足夠縫隙，門便會卡死。此外，門未關好也可能導致鎖匣與鎖舌未正確歸位，進而使電子鎖無法開啟。",
-    "metadata": {
-      "brand": "general",
-      "model": "general",
-      "category": "troubleshoot",
-      "source_type": "video",
-      "source": "電子鎖基礎知識.txt",
-      "chunk_index": 5,
-      "raw_text": "電子鎖的鎖匣若因門未完全關閉而卡在門框，可能導致上鎖失敗或門難以開啟。門框上的受口片與鎖匣或鎖栓之間若缺乏約1-2毫米的足夠縫隙，門便會卡死。此外，門未關好也可能導致鎖匣與鎖舌未正確歸位，進而使電子鎖無法開啟。"
-    }
+    "content": "全自動鎖匣通常配備鎖舌感應器，此感應器位於鎖匣上方，用於實現自動上鎖功能。當門關閉時，鎖舌感應器接觸門框，電子鎖會自動上鎖。",
+    "brand": "general",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 5
   },
   {
-    "page_content": "【常見問題】\nDormakaba電子鎖的室內操作有哪些功能？\n為什麼我的電子鎖關門後沒有自動上鎖？\n電子鎖的手動模式和自動模式有什麼差別？\n\n【知識內容】\n部分Dormakaba電子鎖配備可充電鋰電池，並具備螢幕顯示室內外影像功能。室內門把轉動可開門，關門後自動上鎖；若手動上鎖，則需解鎖才能開啟。電子鎖的電動馬達可透過按鈕控制開關門及上鎖。在手動模式下，鎖舌需手動按鈕才能上鎖。電子鎖無法自動上鎖的常見原因有二：一是門未完全關閉，二是誤啟動了手動上鎖模式。",
-    "metadata": {
-      "brand": "Dormakaba",
-      "model": "general",
-      "category": "knowledge",
-      "source_type": "video",
-      "source": "電子鎖基礎知識.txt",
-      "chunk_index": 6,
-      "raw_text": "部分Dormakaba電子鎖配備可充電鋰電池，並具備螢幕顯示室內外影像功能。室內門把轉動可開門，關門後自動上鎖；若手動上鎖，則需解鎖才能開啟。電子鎖的電動馬達可透過按鈕控制開關門及上鎖。在手動模式下，鎖舌需手動按鈕才能上鎖。電子鎖無法自動上鎖的常見原因有二：一是門未完全關閉，二是誤啟動了手動上鎖模式。"
-    }
+    "content": "鎖匣下方會伸出長方形或圓柱形的部件，稱為鎖栓或方舌。",
+    "brand": "general",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 6
   },
   {
-    "page_content": "【常見問題】\n電子鎖的鋰電池可以用手機快充頭充電嗎？\n電子鎖充電器要用什麼規格的？\n電子鎖充電線要用哪種接頭？\n\n【知識內容】\n電子鎖的鋰電池充電時，必須使用5V1A或5V2A規格的充電頭，並避免使用任何快充設備，以保護電池。充電線材應為Type-C轉Type-A的連接線。",
-    "metadata": {
-      "brand": "general",
-      "model": "general",
-      "category": "setup",
-      "source_type": "video",
-      "source": "電子鎖基礎知識.txt",
-      "chunk_index": 7,
-      "raw_text": "電子鎖的鋰電池充電時，必須使用5V1A或5V2A規格的充電頭，並避免使用任何快充設備，以保護電池。充電線材應為Type-C轉Type-A的連接線。"
-    }
+    "content": "鎖栓下方另有一個長方形部件，稱為暗鎖鎖栓。暗鎖鎖栓的功能是，當門上鎖後，外部無法開啟，提供實體防盜作用。",
+    "brand": "general",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 7
   },
   {
-    "page_content": "【常見問題】\nDormakaba AI99/A90電子鎖沒電了怎麼辦？\n電子鎖故障時，如何用鑰匙開門？\n緊急供電的USB孔在哪裡？\n\n【知識內容】\nDormakaba AI99或A90型號電子鎖底部中央設有圓形蓋子，打開後可見鑰匙孔及USB Type-C緊急供電接口。當電子鎖沒電時，可透過USB Type-C接口連接行動電源進行緊急供電以開門。若緊急供電無效或電子鎖故障，則需使用實體鑰匙，將其插入到底後轉動即可開門或上鎖，鑰匙轉動方向會依電子鎖的開門方向設定而異。",
-    "metadata": {
-      "brand": "Dormakaba",
-      "model": "AI99/A90",
-      "category": "troubleshoot",
-      "source_type": "video",
-      "source": "電子鎖基礎知識.txt",
-      "chunk_index": 8,
-      "raw_text": "Dormakaba AI99或A90型號電子鎖底部中央設有圓形蓋子，打開後可見鑰匙孔及USB Type-C緊急供電接口。當電子鎖沒電時，可透過USB Type-C接口連接行動電源進行緊急供電以開門。若緊急供電無效或電子鎖故障，則需使用實體鑰匙，將其插入到底後轉動即可開門或上鎖，鑰匙轉動方向會依電子鎖的開門方向設定而異。"
-    }
+    "content": "半自動鎖匣的鎖栓在關門時不會自動伸出上鎖，而全自動鎖匣的鎖栓會自動伸出。半自動鎖匣的鎖栓在解鎖後，使用者需將把手向上提，鎖栓才會伸出。解鎖後，把手可下壓，鎖舌也會隨之收回。",
+    "brand": "general",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 8
   },
   {
-    "page_content": "【常見問題】\n怎麼判斷我家電子鎖的開門方向？\n什麼是右開門、左開門？\n我的門是向內推還是向外拉，這對電子鎖有影響嗎？\n\n【知識內容】\n電子鎖的開門方向判斷需以人在門外為基準，並由門扇鉸鏈的位置決定：鉸鏈在右側為右開門，在左側為左開門。開門方式則分為向外拉開門或向內推開門。在安裝或客服諮詢時，務必向客戶確認其門是向內推開還是向外拉開。",
-    "metadata": {
-      "brand": "general",
-      "model": "general",
-      "category": "knowledge",
-      "source_type": "video",
-      "source": "電子鎖基礎知識.txt",
-      "chunk_index": 9,
-      "raw_text": "電子鎖的開門方向判斷需以人在門外為基準，並由門扇鉸鏈的位置決定：鉸鏈在右側為右開門，在左側為左開門。開門方式則分為向外拉開門或向內推開門。在安裝或客服諮詢時，務必向客戶確認其門是向內推開還是向外拉開。"
-    }
+    "content": "半自動鎖匣在門關閉後約3至5秒，把手會進入空轉狀態，表示已上鎖，此時門已上鎖，外部無法開啟。然而，半自動鎖匣的鎖栓不會自動伸出，需要手動上提把手才能伸出。半自動鎖匣在門上鎖時，通常會發出馬達轉動的聲音，表示把手已空轉，門已上鎖。",
+    "brand": "general",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 9
   },
   {
-    "page_content": "【常見問題】\n電子鎖門從外面打不開怎麼辦？\n我的門是往外拉的，卡住了怎麼開？\n我的門是往內推的，卡住了怎麼開？\n\n【知識內容】\n當電子鎖門從外部打不開時，應根據門的開門方向進行處理：若門是向外拉開卻卡住，應先將門向內推緊以產生縫隙，然後再嘗試拉開；若門是向內推開卻卡住，則應先將門向外拉緊以產生縫隙，然後再嘗試推開。",
-    "metadata": {
-      "brand": "general",
-      "model": "general",
-      "category": "troubleshoot",
-      "source_type": "video",
-      "source": "電子鎖基礎知識.txt",
-      "chunk_index": 10,
-      "raw_text": "當電子鎖門從外部打不開時，應根據門的開門方向進行處理：若門是向外拉開卻卡住，應先將門向內推緊以產生縫隙，然後再嘗試拉開；若門是向內推開卻卡住，則應先將門向外拉緊以產生縫隙，然後再嘗試推開。"
-    }
+    "content": "電子鎖通常具備指紋、密碼、卡片及鑰匙等解鎖功能。大型連體鎖型電子鎖通常具備鑰匙解鎖功能。",
+    "brand": "general",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 10
   },
   {
-    "page_content": "【常見問題】\n為什麼我的電子鎖門會卡住打不開？\n怎麼知道是門的問題還是鎖的問題？\n門扇下沉會影響電子鎖開關嗎？\n\n【知識內容】\n電子鎖門卡住打不開的常見原因為門縫卡有異物或門扇下沉。電子鎖本身固定於門上，不會自行移動；若鎖體安裝後仍保持垂直，則表示鎖未移動。若門扇緊繃且無晃動縫隙，則很可能是門扇底部或四周有異物卡住，導致門卡死。",
-    "metadata": {
-      "brand": "general",
-      "model": "general",
-      "category": "troubleshoot",
-      "source_type": "video",
-      "source": "電子鎖基礎知識.txt",
-      "chunk_index": 11,
-      "raw_text": "電子鎖門卡住打不開的常見原因為門縫卡有異物或門扇下沉。電子鎖本身固定於門上，不會自行移動；若鎖體安裝後仍保持垂直，則表示鎖未移動。若門扇緊繃且無晃動縫隙，則很可能是門扇底部或四周有異物卡住，導致門卡死。"
-    }
+    "content": "高階電子鎖則額外提供掌靜脈辨識、人臉辨識、手機遠端開關門、解鎖通知及開關門紀錄查詢等功能。部分高階電子鎖甚至支援雙向對講功能，可透過手機與門外訪客對話。",
+    "brand": "general",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 11
   },
   {
-    "page_content": "【常見問題】\n我在家裡，電子鎖門打不開怎麼辦？\n門從裡面卡住了，要怎麼開？\n室內開門卡住的緊急處理方式是什麼？\n\n【知識內容】\n若人在室內遇到電子鎖門打不開的情況：如果門是向外拉開的設計，應先將門向內推緊以產生縫隙，然後再拉動把手開門；如果門是向內推開的設計，則應先將門向外拉緊以產生縫隙，然後再推動把手開門。",
-    "metadata": {
-      "brand": "general",
-      "model": "general",
-      "category": "troubleshoot",
-      "source_type": "video",
-      "source": "電子鎖基礎知識.txt",
-      "chunk_index": 12,
-      "raw_text": "若人在室內遇到電子鎖門打不開的情況：如果門是向外拉開的設計，應先將門向內推緊以產生縫隙，然後再拉動把手開門；如果門是向內推開的設計，則應先將門向外拉緊以產生縫隙，然後再推動把手開門。"
-    }
+    "content": "電子鎖的鎖匣常見問題：當門未完全關閉時，電子鎖可能無法成功上鎖，或導致門難以再次開啟。若鎖匣卡在門框，需將門壓緊以消除縫隙，才能順利開啟。",
+    "brand": "general",
+    "model": "general",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 12
   },
   {
-    "page_content": "【常見問題】\n電子鎖要用什麼牌子的電池比較好？\n為什麼電子鎖不能用金鼎電池？\n電池漏液會對電子鎖造成什麼影響？\n\n【知識內容】\n使用3號或4號鹼性電池的電子鎖，務必選用Panasonic鹼性電池或Panasonic太元素電池。使用其他品牌（如金鼎）的鹼性電池，極易導致電池漏液，進而損壞電子鎖或引發故障。若電子鎖出現開關門速度變慢、鎖栓伸縮異常或電量顯示異常等問題，應優先檢查是否使用了非Panasonic品牌的電池，更換為正確電池後通常能解決問題。",
-    "metadata": {
-      "brand": "general",
-      "model": "general",
-      "category": "troubleshoot",
-      "source_type": "video",
-      "source": "電子鎖基礎知識.txt",
-      "chunk_index": 13,
-      "raw_text": "使用3號或4號鹼性電池的電子鎖，務必選用Panasonic鹼性電池或Panasonic太元素電池。使用其他品牌（如金鼎）的鹼性電池，極易導致電池漏液，進而損壞電子鎖或引發故障。若電子鎖出現開關門速度變慢、鎖栓伸縮異常或電量顯示異常等問題，應優先檢查是否使用了非Panasonic品牌的電池，更換為正確電池後通常能解決問題。"
-    }
+    "content": "門框上與鎖匣對應的鐵片稱為受口片。若鎖匣或鎖栓與受口片之間沒有足夠的縫隙（約1-2毫米），門可能會被卡死，難以開啟。門未關好時，鎖匣與方舌可能未正確對位，導致電子鎖無法開啟。",
+    "brand": "general",
+    "model": "general",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 13
   },
   {
-    "page_content": "【常見問題】\n電子鎖故障了，我該從哪裡開始檢查？\n為什麼我的電子鎖換了新電池還是很快沒電？\n電子鎖感應不靈敏或警報亂響，是不是電池的問題？\n\n【知識內容】\n當電子鎖出現任何異常狀況，例如密碼、指紋、卡片感應不良、警報器誤響、異常耗電，甚至聯網型電子鎖的網路連線或通訊問題，首要排查步驟皆是確認是否安裝了正確品牌與型號的電池。若客戶反映新電池快速耗盡，除了確認電池正確性外，也應考慮電池本身品質不良的可能性，建議更換一組新的Panasonic鹼性或太元素電池。",
-    "metadata": {
-      "brand": "general",
-      "model": "general",
-      "category": "troubleshoot",
-      "source_type": "video",
-      "source": "電子鎖基礎知識.txt",
-      "chunk_index": 14,
-      "raw_text": "當電子鎖出現任何異常狀況，例如密碼、指紋、卡片感應不良、警報器誤響、異常耗電，甚至聯網型電子鎖的網路連線或通訊問題，首要排查步驟皆是確認是否安裝了正確品牌與型號的電池。若客戶反映新電池快速耗盡，除了確認電池正確性外，也應考慮電池本身品質不良的可能性，建議更換一組新的Panasonic鹼性或太元素電池。"
-    }
+    "content": "部分電子鎖的室內機配備可充電鋰電池，可進行充電。室內機螢幕可顯示門外與門內情況。",
+    "brand": "general",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 14
   },
   {
-    "page_content": "【常見問題】\n電子鎖一直耗電，除了電池還有什麼可能原因？\n什麼時候需要請工程師檢查電子鎖耗電問題？\nIC板耗電會導致電子鎖很快沒電嗎？\n\n【知識內容】\n若電子鎖在更換新的正確電池後仍持續快速耗電，則可能需要請專業工程師檢測其內部IC板、網路模組或藍牙模組是否存在異常耗電情況。此類進階檢測方法主要適用於無Wi-Fi或藍牙模組的電子鎖。",
-    "metadata": {
-      "brand": "general",
-      "model": "general",
-      "category": "troubleshoot",
-      "source_type": "video",
-      "source": "電子鎖基礎知識.txt",
-      "chunk_index": 15,
-      "raw_text": "若電子鎖在更換新的正確電池後仍持續快速耗電，則可能需要請專業工程師檢測其內部IC板、網路模組或藍牙模組是否存在異常耗電情況。此類進階檢測方法主要適用於無Wi-Fi或藍牙模組的電子鎖。"
-    }
+    "content": "電子鎖室內門把轉動可開門，關門後自動上鎖。轉動暗鎖可手動上鎖，確保外部無法開啟。一旦暗鎖上鎖，外部必須解鎖才能開啟。電子鎖下方有電動馬達控制開關門，按鈕可解鎖。在手動模式下，再次按下按鈕可使鎖舌上鎖。",
+    "brand": "general",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 15
   },
   {
-    "page_content": "【常見問題】\n為什麼我的聯網電子鎖一直很耗電？\n電子鎖可以連Wi-Fi 6的路由器嗎？\n我的路由器2.4G和5G頻段要怎麼分開？\n\n【知識內容】\n具備Wi-Fi或藍牙模組的電子鎖若出現異常耗電，即使電池正確且已配對網路，也需考量網路連線因素。電子鎖為確保3-6個月的電池續航力，應連接2.4G頻段，且不建議連接Wi-Fi 6/7/8等較新標準的路由器，因其協定可能與電子鎖相容性不佳。在連線配對時，務必確保家中路由器的2.4G和5G頻段是分開設定的，因為電子鎖作為IoT設備僅能單獨連接2.4G頻段。若路由器頻段合併，需進入後台將其分開，否則可能導致異常耗電。",
-    "metadata": {
-      "brand": "general",
-      "model": "general",
-      "category": "troubleshoot",
-      "source_type": "video",
-      "source": "電子鎖基礎知識.txt",
-      "chunk_index": 16,
-      "raw_text": "具備Wi-Fi或藍牙模組的電子鎖若出現異常耗電，即使電池正確且已配對網路，也需考量網路連線因素。電子鎖為確保3-6個月的電池續航力，應連接2.4G頻段，且不建議連接Wi-Fi 6/7/8等較新標準的路由器，因其協定可能與電子鎖相容性不佳。在連線配對時，務必確保家中路由器的2.4G和5G頻段是分開設定的，因為電子鎖作為IoT設備僅能單獨連接2.4G頻段。若路由器頻段合併，需進入後台將其分開，否則可能導致異常耗電。"
-    }
+    "content": "電子鎖無法自動上鎖的常見原因有二：一是門未關好，二是誤觸手動上鎖模式。若為手動模式，需手動切換回自動模式。",
+    "brand": "general",
+    "model": "general",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 16
   },
   {
-    "page_content": "【常見問題】\n我的Wi-Fi 6路由器讓電子鎖很耗電怎麼辦？\n路由器設定改了還是耗電，還有其他辦法嗎？\n有沒有推薦專門給電子鎖用的路由器？\n\n【知識內容】\n若聯網電子鎖在將路由器2.4G和5G頻段分開後仍異常耗電，且路由器為Wi-Fi 6/7以上標準，可能需要進一步調整路由器後台的802.11ax相關設定以提升相容性。若上述方法仍無法解決問題，建議購買一台僅支援2.4G頻段的入門級路由器，專門供電子鎖使用，這通常能有效解決耗電問題。總體而言，電池耗電與電池安裝問題是電子鎖最常見的故障原因。",
-    "metadata": {
-      "brand": "general",
-      "model": "general",
-      "category": "troubleshoot",
-      "source_type": "video",
-      "source": "電子鎖基礎知識.txt",
-      "chunk_index": 17,
-      "raw_text": "若聯網電子鎖在將路由器2.4G和5G頻段分開後仍異常耗電，且路由器為Wi-Fi 6/7以上標準，可能需要進一步調整路由器後台的802.11ax相關設定以提升相容性。若上述方法仍無法解決問題，建議購買一台僅支援2.4G頻段的入門級路由器，專門供電子鎖使用，這通常能有效解決耗電問題。總體而言，電池耗電與電池安裝問題是電子鎖最常見的故障原因。"
-    }
+    "content": "電子鎖的鋰電池不具備智慧充電管理軟體。因此，電子鎖充電時，必須使用5V1A或5V2A規格的充電頭。禁止使用10瓦、15瓦、20瓦等快速充電頭，僅限使用舊款iPhone豆腐頭等低功率充電器。充電線材通常為Type-C接Type-A。",
+    "brand": "general",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 17
   },
   {
-    "page_content": "【常見問題】\n怎麼知道我的電子鎖是不是異常耗電？\n電子鎖多久換一次電池才算正常？\n電子鎖一直提醒電量低是正常的嗎？\n\n【知識內容】\n電子鎖通常會透過語音提醒、燈號閃爍或手機APP通知用戶電量低，提示更換電池。若在更換新電池或鋰電池充飽電後，一個月內再次收到低電量提示，則可判斷為電子鎖存在異常耗電問題。",
-    "metadata": {
-      "brand": "general",
-      "model": "general",
-      "category": "troubleshoot",
-      "source_type": "video",
-      "source": "電子鎖基礎知識.txt",
-      "chunk_index": 18,
-      "raw_text": "電子鎖通常會透過語音提醒、燈號閃爍或手機APP通知用戶電量低，提示更換電池。若在更換新電池或鋰電池充飽電後，一個月內再次收到低電量提示，則可判斷為電子鎖存在異常耗電問題。"
-    }
+    "content": "AI-99或A90型號電子鎖底部中央設有圓形蓋子。開啟蓋子後，輕按圓形底部，上部會翹起，再向旁轉動即可打開。蓋子內部設有鑰匙孔及USB Type-C接口。電子鎖沒電時，可透過USB Type-C接口連接行動電源進行緊急供電，以便開門。",
+    "brand": "general",
+    "model": "AI-99/A90",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 18
   },
   {
-    "page_content": "【常見問題】\n電子鎖的使用者權限有哪幾種？\n管理者和一般使用者有什麼不同？\n我要怎麼新增或刪除電子鎖的使用者？\n\n【知識內容】\n電子鎖的註冊模式用於新增指紋、密碼、卡片、人臉辨識及掌靜脈辨識等使用者資料，並區分為一般使用者和管理者兩種權限。一般使用者僅具備開門權限，而管理者則擁有電子鎖的最高權限。任何需要新增、更改或刪除使用者資料，或進行系統設定的操作，都必須先透過輸入管理者密碼、指紋、卡片、人臉或掌靜脈等方式進行管理者驗證。",
-    "metadata": {
-      "brand": "general",
-      "model": "general",
-      "category": "knowledge",
-      "source_type": "video",
-      "source": "電子鎖基礎知識.txt",
-      "chunk_index": 19,
-      "raw_text": "電子鎖的註冊模式用於新增指紋、密碼、卡片、人臉辨識及掌靜脈辨識等使用者資料，並區分為一般使用者和管理者兩種權限。一般使用者僅具備開門權限，而管理者則擁有電子鎖的最高權限。任何需要新增、更改或刪除使用者資料，或進行系統設定的操作，都必須先透過輸入管理者密碼、指紋、卡片、人臉或掌靜脈等方式進行管理者驗證。"
-    }
+    "content": "若緊急供電仍無法開啟，則需使用實體鑰匙開門。將鑰匙插入到底並轉動即可開門。實體鑰匙也可進行上鎖操作。鑰匙轉動方向（順時針或逆時針）需根據電子鎖的開門方向而定。",
+    "brand": "general",
+    "model": "AI-99/A90",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 19
   },
   {
-    "page_content": "【常見問題】\nDormakaba電子鎖的管理者密碼忘記了怎麼辦？\nDormakaba電子鎖管理者卡片不見了怎麼辦？\n忘記管理者密碼後，電子鎖還能用嗎？\n\n【知識內容】\n不同品牌電子鎖的管理者驗證方式各異。例如，Chainlock品牌支援指紋、密碼、卡片、人臉及掌靜脈辨識進行管理者驗證，而其他品牌可能僅限於管理者密碼或管理者卡片。若Dormakaba品牌電子鎖的管理者密碼或卡片遺失，則必須聯繫技師進行電子鎖初始化，才能重新設定管理者密碼及其他相關設定。",
-    "metadata": {
-      "brand": "Dormakaba",
-      "model": "general",
-      "category": "troubleshoot",
-      "source_type": "video",
-      "source": "電子鎖基礎知識.txt",
-      "chunk_index": 20,
-      "raw_text": "不同品牌電子鎖的管理者驗證方式各異。例如，Chainlock品牌支援指紋、密碼、卡片、人臉及掌靜脈辨識進行管理者驗證，而其他品牌可能僅限於管理者密碼或管理者卡片。若Dormakaba品牌電子鎖的管理者密碼或卡片遺失，則必須聯繫技師進行電子鎖初始化，才能重新設定管理者密碼及其他相關設定。"
-    }
+    "content": "電子鎖開門方向的判斷需觀察門扇的鉸鏈位置。鉸鏈是門扇與門框連接的部件。從門外視角判斷，鉸鏈位於門的哪一側，即為開門方向。若鉸鏈在右側，則為右開門。右開門的電子鎖，通常需用右手操作指紋感應。部分大門是向外拉開的右拉開門，也有向內推開的門。",
+    "brand": "general",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 20
   },
   {
-    "page_content": "【常見問題】\nChainlock電子鎖的管理者可以做什麼？\nChainlock管理者怎麼進入設定模式？\nChainlock電子鎖可以設定哪些東西？\n\n【知識內容】\nChainlock品牌電子鎖的管理者擁有全面的系統管理權限，可透過指紋、密碼、卡片、人臉或掌靜脈辨識等方式進入系統選單，進行音量調整、系統設定、新增或刪除用戶等各項操作。",
-    "metadata": {
-      "brand": "Chainlock",
-      "model": "general",
-      "category": "knowledge",
-      "source_type": "video",
-      "source": "電子鎖基礎知識.txt",
-      "chunk_index": 21,
-      "raw_text": "Chainlock品牌電子鎖的管理者擁有全面的系統管理權限，可透過指紋、密碼、卡片、人臉或掌靜脈辨識等方式進入系統選單，進行音量調整、系統設定、新增或刪除用戶等各項操作。"
-    }
+    "content": "在處理門鎖問題時，需先確認門是向內推開還是向外拉開。當門卡住無法開啟時，需根據開門方向採取不同處理方式。若從門外需拉門開啟，但門卡住無法拉開，應先將門向內推緊以產生縫隙後，再嘗試拉門開啟。若從門外需推門開啟，但門卡住無法推開，應先將門向外拉緊以產生縫隙後，解鎖並推門開啟。",
+    "brand": "general",
+    "model": "general",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 21
+  },
+  {
+    "content": "門卡住無法開啟的常見原因包括門扇四周有異物卡住，或門扇下沉導致底部卡住。電子鎖本身不會自行移動，其位置固定於門扇上。若電子鎖仍保持垂直，表示其本身並未移動。門扇緊繃，晃動時無縫隙，表示有異物卡住。此時需根據門的開關方向（推門或拉門），採取相應的推拉門扇動作以解鎖。",
+    "brand": "general",
+    "model": "general",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 22
+  },
+  {
+    "content": "從室內無法開門的處理方式：若從室內需拉門開啟，但門卡住，應先將門向外推緊以產生縫隙，然後再拉動或下壓把手，將門拉開。若從室內需推門開啟，但門卡住，應先將門向內拉緊以產生縫隙，然後再推動或下壓把手，將門推開。",
+    "brand": "general",
+    "model": "general",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 23
+  },
+  {
+    "content": "電子鎖電池類型：鋰電池與3號/4號鹼性電池。若電子鎖使用3號或4號電池，務必選用Panasonic鹼性電池或Panasonic鈦元素電池。Panasonic鹼性電池通常為金紅色或金藍色包裝。",
+    "brand": "general",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 24
+  },
+  {
+    "content": "使用非Panasonic品牌的鹼性電池（如金鼎）可能導致問題。金鼎等品牌鹼性電池容易發生漏液情況，電池漏液會損壞電子鎖，或導致電子鎖在短時間內（甚至一年兩年內）出現故障。許多電子鎖故障案例在更換為Panasonic鹼性電池後恢復正常。",
+    "brand": "general",
+    "model": "general",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 25
+  },
+  {
+    "content": "若電子鎖出現開關門速度變慢、鎖栓伸出或收回速度變慢、持續顯示低電量或出現其他異常故障，可能是使用了錯誤的電池。務必確認是否使用Panasonic鹼性電池或Panasonic鈦元素電池。",
+    "brand": "general",
+    "model": "general",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 26
+  },
+  {
+    "content": "電子鎖故障排除的首要步驟：當電子鎖出現密碼輸入異常、指紋感應不良、卡片感應問題、不明警報響起、或異常耗電（電池快速耗盡）等狀況，都應首先檢查電池是否正確。任何電子鎖使用異常，客服應首先確認電池類型。聯網型電子鎖若出現網路連線緩慢或通訊問題，也應先檢查電池。",
+    "brand": "general",
+    "model": "general",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 27
+  },
+  {
+    "content": "電子鎖電池快速耗盡的常見問題：首先確認電池類型是否正確。確認電池正確後，可排除電池問題，進一步排查其他原因。若電池類型正確但仍快速耗電，可能是電池本身品質問題，建議更換一組新的Panasonic鹼性或鈦元素電池。",
+    "brand": "general",
+    "model": "general",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 28
+  },
+  {
+    "content": "若更換新電池後仍快速耗電，則需請專業技師檢測電子鎖的IC板、網路模組或藍牙模組是否存在異常耗電。技師會使用電表測試以確認IC板是否異常耗電。上述耗電問題排查主要針對無Wi-Fi或藍牙模組的電子鎖。",
+    "brand": "general",
+    "model": "general",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 29
+  },
+  {
+    "content": "具備Wi-Fi或藍牙模組的電子鎖，其耗電問題排查需額外考量網路設定。若聯網型電子鎖電池正確且已配對APP，但仍異常耗電，應檢查電子鎖是否連接到Wi-Fi 6、Wi-Fi 7或更高版本的路由器。",
+    "brand": "general",
+    "model": "general",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 30
+  },
+  {
+    "content": "電子鎖作為無線產品，設計目標是實現三至六個月以上的電池續航力。電子鎖應連接2.4G頻道的Wi-Fi，且該頻道的協定不應使用Wi-Fi 6或更高版本，因其可能與電子鎖不相容。為確保電池續航，電子鎖需連接2.4G Wi-Fi並限制頻寬使用，避免像手機般需頻繁充電。",
+    "brand": "general",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 31
+  },
+  {
+    "content": "在電子鎖配對網路時，務必確保家中路由器的2.4G和5G Wi-Fi頻道已分開設定。電子鎖作為IoT設備，僅能單獨連接2.4G Wi-Fi。若家中Wi-Fi名稱只有一個，通常表示2.4G、5G（甚至6G）頻道是合併的。此情況下，需進入路由器後台將2.4G和5G頻道分開設定。若不分開頻道，電子鎖通常會異常耗電。",
+    "brand": "general",
+    "model": "general",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 32
+  },
+  {
+    "content": "若分開2.4G頻道後仍異常耗電，另一個原因可能是路由器為Wi-Fi 6或Wi-Fi 7以上版本。此時，可能需要調整路由器後台的特定設定（如802.11協定）。調整路由器設定後，電子鎖應可正常使用。",
+    "brand": "general",
+    "model": "general",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 33
+  },
+  {
+    "content": "若調整路由器設定後仍無效，建議購買一台僅支援2.4G功能的入門級路由器（約500元），將此路由器專門用於電子鎖的配對與連線。此方法可有效解決電子鎖的耗電問題。",
+    "brand": "general",
+    "model": "general",
+    "category": "troubleshoot",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 34
+  },
+  {
+    "content": "電子鎖最常見的問題是異常耗電和電池安裝不當。",
+    "brand": "general",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 35
+  },
+  {
+    "content": "電子鎖異常耗電的判斷標準：若更換新電池或充電後，電子鎖在一個月內再次發出低電量警示、閃爍提示或遠端APP顯示電量低，即為異常耗電。",
+    "brand": "general",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 36
+  },
+  {
+    "content": "電子鎖使用者分為一般使用者和管理者兩種。電子鎖的註冊模式用於新增指紋、密碼、卡片、人臉辨識、掌靜脈辨識等用戶資料。",
+    "brand": "general",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 37
+  },
+  {
+    "content": "一般使用者僅具備開門權限，可透過指紋、密碼、卡片、人臉辨識或掌靜脈辨識開門。",
+    "brand": "general",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 38
+  },
+  {
+    "content": "管理者擁有電子鎖的最高權限。進入電子鎖設定介面通常需要先驗證管理者身份，如輸入管理者密碼、指紋、卡片、人臉或掌靜脈。驗證成功後方可進入設定。",
+    "brand": "general",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 39
+  },
+  {
+    "content": "若忘記管理者密碼或遺失管理者卡片，將無法新增、更改或刪除用戶資料，也無法修改系統設定。",
+    "brand": "general",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 40
+  },
+  {
+    "content": "Chatlock品牌電子鎖支援指紋、密碼、卡片、人臉及掌靜脈等多種管理者驗證方式。Chatlock品牌電子鎖的管理者可使用指紋、密碼、卡片、人臉辨識或掌靜脈辨識進入系統管理介面，進行音量調整、系統設定、新增或刪除用戶等操作。",
+    "brand": "Chatlock",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 41
+  },
+  {
+    "content": "其他品牌電子鎖可能僅支援管理者密碼或管理者卡片驗證。Dormakaba品牌電子鎖若忘記管理者密碼或遺失管理者卡片，需請技師進行初始化，方能重新設定管理者密碼及其他設定。Dormakaba電子鎖進入系統設定、更改設定或刪除用戶，必須透過管理者密碼或管理者卡片驗證。",
+    "brand": "Dormakaba",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "video",
+    "source": "電子鎖基礎知識.txt",
+    "chunk_index": 42
   }
 ]

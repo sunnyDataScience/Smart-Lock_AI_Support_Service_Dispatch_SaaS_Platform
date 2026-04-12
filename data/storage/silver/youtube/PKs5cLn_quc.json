@@ -1,0 +1,62 @@
+[
+  {
+    "content": "dormakaba 電子鎖進行卡片註冊設定時，操作者應在 [00:16-00:19] 按下門鎖背面電池蓋下方的「註冊鍵」，待門鎖正面數字鍵盤亮起並顯示卡片圖示後，於 [00:20-00:22] 輸入管理者密碼或感應管理者卡片以進入設定模式。接著，操作者應在 [00:25-00:27] 按下數字鍵「2」確認，並可連續感應欲註冊的使用者卡片（如悠遊卡、一卡通等）。若未輸入指定位址，系統將依註冊順序自動排序。完成所有卡片感應後，操作者應在 [00:39-00:41] 按下數字鍵「#」以退出並完成設定，門鎖鍵盤將熄滅。",
+    "brand": "dormakaba",
+    "model": "general",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "PKs5cLn_quc",
+    "url": "https://www.youtube.com/watch?v=PKs5cLn_quc",
+    "chunk_index": 1
+  },
+  {
+    "content": "dormakaba 電子鎖進行指定位址卡片設定時，操作者應在 [00:49-00:52] 按下門鎖背面電池蓋下方的「註冊鍵」，待門鎖正面數字鍵盤亮起並顯示卡片圖示後，於 [00:53-00:56] 輸入管理者密碼或感應管理者卡片以進入設定模式。接著，操作者應在 [00:58-01:00] 按下數字鍵「2」確認，並在 [01:01-01:04] 輸入欲設定的指定位址數字（使用者卡片最多可設定100組，已註冊的數字不可重複），隨後按下數字鍵「#」。最後，操作者應在 [01:07-01:10] 感應欲註冊的使用者卡片，並於 [01:11-01:13] 按下數字鍵「#」以退出並完成設定，門鎖鍵盤將熄滅。",
+    "brand": "dormakaba",
+    "model": "general",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "PKs5cLn_quc",
+    "url": "https://www.youtube.com/watch?v=PKs5cLn_quc",
+    "chunk_index": 2
+  },
+  {
+    "content": "dormakaba 電子鎖進行單張卡片刪除設定時，操作者應在 [01:20-01:24] 按下門鎖背面電池蓋下方的「註冊鍵」約5秒不放，直至聽到第二次提示音且正面面板燈光閃爍，待門鎖正面數字鍵盤亮起並顯示卡片圖示後，於 [01:30-01:33] 輸入管理者密碼或感應管理者卡片以進入設定模式。接著，操作者應在 [01:36-01:37] 按下數字鍵「2」確認，並可選擇在 [01:39-01:42] 直接感應欲刪除的使用者卡片，或在 [01:43-01:46] 輸入該卡片對應的註冊順序數字。完成刪除後，操作者應在 [01:47-01:49] 按下數字鍵「*」以退出並完成設定，門鎖鍵盤將熄滅。",
+    "brand": "dormakaba",
+    "model": "general",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "PKs5cLn_quc",
+    "url": "https://www.youtube.com/watch?v=PKs5cLn_quc",
+    "chunk_index": 3
+  },
+  {
+    "content": "dormakaba 電子鎖進行指定位址卡片刪除設定時，操作者應在 [01:56-02:01] 按下門鎖背面電池蓋下方的「註冊鍵」約5秒不放，直至聽到第二次提示音且正面面板燈光閃爍，待門鎖正面數字鍵盤亮起並顯示卡片圖示後，於 [02:07-02:10] 輸入管理者密碼或感應管理者卡片以進入設定模式。接著，操作者應在 [02:12-02:13] 按下數字鍵「2」確認，並在 [02:15-02:17] 輸入欲刪除的使用者卡片指定位址數字。最後，操作者應在 [02:18-02:20] 按下數字鍵「*」以退出並完成設定，門鎖鍵盤將熄滅。",
+    "brand": "dormakaba",
+    "model": "general",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "PKs5cLn_quc",
+    "url": "https://www.youtube.com/watch?v=PKs5cLn_quc",
+    "chunk_index": 4
+  },
+  {
+    "content": "dormakaba 電子鎖的卡片註冊順序說明指出，在 [02:30-02:51] 使用卡片感應註冊時，若先前已有卡片被刪除，後續註冊的卡片將會自動遞補這些空位。而在 [02:52-03:19] 使用指定位址註冊時，操作者需輸入1至100之間的指定位址，且已登錄的位址數字不可重複，其餘位址皆可設定。",
+    "brand": "dormakaba",
+    "model": "general",
+    "category": "knowledge",
+    "source_type": "youtube",
+    "source": "PKs5cLn_quc",
+    "url": "https://www.youtube.com/watch?v=PKs5cLn_quc",
+    "chunk_index": 5
+  },
+  {
+    "content": "dormakaba 電子鎖進行全部卡片刪除設定時，操作者應在 [03:28-03:31] 按下門鎖背面電池蓋下方的「註冊鍵」約5秒不放，直至聽到第二次提示音且正面面板燈光閃爍，待門鎖正面數字鍵盤亮起並顯示卡片圖示後，於 [03:37-03:40] 輸入管理者密碼或感應管理者卡片以進入設定模式。接著，操作者應在 [03:42-03:44] 按下數字鍵「2」確認，並在 [03:45-03:48] 按住數字鍵「#」約3秒，直至門鎖發出提示音且鍵盤熄滅，即表示所有卡片已成功刪除。",
+    "brand": "dormakaba",
+    "model": "general",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "PKs5cLn_quc",
+    "url": "https://www.youtube.com/watch?v=PKs5cLn_quc",
+    "chunk_index": 6
+  }
+]

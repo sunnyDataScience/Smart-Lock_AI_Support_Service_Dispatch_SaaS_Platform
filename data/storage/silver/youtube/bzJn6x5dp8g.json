@@ -1,0 +1,122 @@
+[
+  {
+    "content": "3E 小島TX 智慧門鎖的APP主介面 [00:00] 展示了電池電量、Wi-Fi訊號、時間等狀態資訊，並提供「長按開鎖」功能及「相簿/門鎖紀錄」、「攝影機畫面」、「成員管理」、「臨時密碼」、「智能聯動」、「設定」等功能選項。使用者需點擊「臨時密碼」以進入相關設定。",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "bzJn6x5dp8g",
+    "url": "https://www.youtube.com/watch?v=bzJn6x5dp8g",
+    "chunk_index": 1
+  },
+  {
+    "content": "3E 小島TX 智慧門鎖APP的「臨時密碼」設定頁面 [00:02] 預設為「限時」模式，提供「限時」、「單次」、「清空」三種密碼類型選項。此頁面包含「生效時間」、「失效時間」、「密碼名稱」等輸入欄位，並提示「生效後 24 小時內至少使用一次，否則將失效」。",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "bzJn6x5dp8g",
+    "url": "https://www.youtube.com/watch?v=bzJn6x5dp8g",
+    "chunk_index": 2
+  },
+  {
+    "content": "3E 小島TX 智慧門鎖APP在「單次」密碼設定介面 [00:04] 中，僅提供「密碼名稱」輸入欄位，並提示此類密碼「有效期限為 6 小時，失效前僅能使用一次」。",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "bzJn6x5dp8g",
+    "url": "https://www.youtube.com/watch?v=bzJn6x5dp8g",
+    "chunk_index": 3
+  },
+  {
+    "content": "3E 小島TX 智慧門鎖APP的「清空」密碼設定介面 [00:05] 包含「刪除類型」和「密碼名稱」輸入欄位，其中「刪除類型」預設為「刪除所有限時密碼」。此功能提示「有效期限為 24 小時，在鎖上輸入後，將刪除所有已使用過的限時密碼」。",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "bzJn6x5dp8g",
+    "url": "https://www.youtube.com/watch?v=bzJn6x5dp8g",
+    "chunk_index": 4
+  },
+  {
+    "content": "3E 小島TX 智慧門鎖APP在「限時」密碼設定介面 [00:06] 中，使用者可點擊「生效時間」欄位以設定臨時密碼的生效日期與時間。",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "bzJn6x5dp8g",
+    "url": "https://www.youtube.com/watch?v=bzJn6x5dp8g",
+    "chunk_index": 5
+  },
+  {
+    "content": "3E 小島TX 智慧門鎖APP的「生效時間」選擇器 [00:07] 允許使用者透過滑動調整年、月、日、時，例如將時間從「12」調整為「11」。",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "bzJn6x5dp8g",
+    "url": "https://www.youtube.com/watch?v=bzJn6x5dp8g",
+    "chunk_index": 6
+  },
+  {
+    "content": "3E 小島TX 智慧門鎖APP在設定完「生效時間」後 [00:11]，使用者需點擊「失效時間」欄位以設定臨時密碼的失效日期與時間。",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "bzJn6x5dp8g",
+    "url": "https://www.youtube.com/watch?v=bzJn6x5dp8g",
+    "chunk_index": 7
+  },
+  {
+    "content": "3E 小島TX 智慧門鎖APP的「失效時間」選擇器 [00:12] 允許使用者透過滑動調整年、月、日、時，例如將日期從「23」調整為「24」。",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "bzJn6x5dp8g",
+    "url": "https://www.youtube.com/watch?v=bzJn6x5dp8g",
+    "chunk_index": 8
+  },
+  {
+    "content": "3E 小島TX 智慧門鎖APP在設定完「失效時間」後 [00:17]，使用者可點擊「密碼名稱」欄位為臨時密碼輸入一個識別名稱（選填）。",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "bzJn6x5dp8g",
+    "url": "https://www.youtube.com/watch?v=bzJn6x5dp8g",
+    "chunk_index": 9
+  },
+  {
+    "content": "3E 小島TX 智慧門鎖APP在輸入密碼名稱時 [00:20]，會彈出手機鍵盤供使用者輸入文字，例如輸入「一天的密碼」。",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "bzJn6x5dp8g",
+    "url": "https://www.youtube.com/watch?v=bzJn6x5dp8g",
+    "chunk_index": 10
+  },
+  {
+    "content": "3E 小島TX 智慧門鎖APP成功生成臨時密碼後 [00:26]，會顯示一串數字密碼（例如「7164706984」），並提供「複製」功能。同時，頁面會顯示該密碼的「生效時間」、「失效時間」及「密碼名稱」，並重申「生效後 24 小時內至少使用一次，否則將失效」的提示。",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "bzJn6x5dp8g",
+    "url": "https://www.youtube.com/watch?v=bzJn6x5dp8g",
+    "chunk_index": 11
+  },
+  {
+    "content": "3E 小島TX 智慧門鎖APP在使用者點擊「複製」臨時密碼後 [00:29]，會將密碼複製到剪貼簿，並將頁面底部的按鈕文字從「完成」變更為「密碼已複製」，以確認操作成功。",
+    "brand": "3E",
+    "model": "TX",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "bzJn6x5dp8g",
+    "url": "https://www.youtube.com/watch?v=bzJn6x5dp8g",
+    "chunk_index": 12
+  }
+]

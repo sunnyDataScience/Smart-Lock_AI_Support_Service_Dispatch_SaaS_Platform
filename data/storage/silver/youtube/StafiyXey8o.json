@@ -1,0 +1,32 @@
+[
+  {
+    "content": "A90 電子鎖在進行語言設定前，使用者需先啟動管理員授權登入模式。此操作是透過按下「*」鍵，隨後輸入管理員密碼（例如影片中輸入「85」），並以「#」鍵確認來完成。成功輸入後，圓形指示燈會變為綠色，並發出語音提示，表示已成功進入管理員模式。",
+    "brand": "general",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "StafiyXey8o",
+    "url": "https://www.youtube.com/watch?v=StafiyXey8o",
+    "chunk_index": 1
+  },
+  {
+    "content": "A90 電子鎖成功登入管理員模式後，系統會顯示操作選單，提示「系統管理 請按 4 下一步驟 語言設定 請按 5」。使用者應按下「5」鍵，以進入語言設定功能。",
+    "brand": "general",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "StafiyXey8o",
+    "url": "https://www.youtube.com/watch?v=StafiyXey8o",
+    "chunk_index": 2
+  },
+  {
+    "content": "A90 電子鎖進入語言設定介面後，螢幕會列出可選語言選項，例如「1. 中文 2. 英語 3. 粵語 4. 台語 5. 日語」。使用者可依據需求，按下對應的數字鍵（例如，選擇中文請按下「1」鍵）。完成選擇後，圓形指示燈會短暫亮起藍光，電子鎖將發出所選語言的語音提示（例如「中文」），表示語言設定已成功。",
+    "brand": "general",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "StafiyXey8o",
+    "url": "https://www.youtube.com/watch?v=StafiyXey8o",
+    "chunk_index": 3
+  }
+]

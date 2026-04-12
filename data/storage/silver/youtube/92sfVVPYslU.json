@@ -1,0 +1,62 @@
+[
+  {
+    "content": "A90 電子鎖在進行密碼設定時，使用者需首先透過按下 `*` 鍵，隨後按下 `#` 鍵，以啟動管理員授權登入程序。此時，門鎖的中央圓形指示燈會亮起藍色光，並提示使用者輸入管理員密碼。 [00:00-00:05]",
+    "brand": "general",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "92sfVVPYslU",
+    "url": "https://www.youtube.com/watch?v=92sfVVPYslU",
+    "chunk_index": 1
+  },
+  {
+    "content": "A90 電子鎖在進入管理員授權登入模式後，使用者應輸入預設的管理員密碼，並按下 `#` 鍵進行確認。成功登入後，門鎖的中央圓形指示燈將由藍色轉為綠色，系統會提示選擇功能，此時應按下數字鍵 `1` 以選擇「新增普通用戶」功能。 [00:05-00:09]",
+    "brand": "general",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "92sfVVPYslU",
+    "url": "https://www.youtube.com/watch?v=92sfVVPYslU",
+    "chunk_index": 2
+  },
+  {
+    "content": "A90 電子鎖在選擇新增普通用戶後，中央圓形指示燈會再次亮起藍色光，系統會提示選擇新增密碼、卡片或指紋。此時，使用者應按下數字鍵 `3` 以選擇「新增密碼」功能。 [00:09-00:13]",
+    "brand": "general",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "92sfVVPYslU",
+    "url": "https://www.youtube.com/watch?v=92sfVVPYslU",
+    "chunk_index": 3
+  },
+  {
+    "content": "A90 電子鎖在選擇新增密碼功能後，中央圓形指示燈將保持藍色，系統會提示使用者輸入欲設定的新密碼。使用者應輸入六位數密碼（例如 `123456`），並在輸入完成後按下 `#` 鍵進行確認。 [00:13-00:18]",
+    "brand": "general",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "92sfVVPYslU",
+    "url": "https://www.youtube.com/watch?v=92sfVVPYslU",
+    "chunk_index": 4
+  },
+  {
+    "content": "A90 電子鎖在首次輸入新密碼並確認後，系統會要求使用者再次輸入相同的密碼以進行驗證。使用者應再次輸入相同的六位數密碼（例如 `123456`），並按下 `#` 鍵進行最終確認。 [00:18-00:24]",
+    "brand": "general",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "92sfVVPYslU",
+    "url": "https://www.youtube.com/watch?v=92sfVVPYslU",
+    "chunk_index": 5
+  },
+  {
+    "content": "A90 電子鎖在兩次密碼輸入皆正確無誤後，中央圓形指示燈將從藍色轉為綠色，並發出成功提示音，同時顯示「新用戶註冊成功」訊息，表示新的用戶密碼已成功設定。 [00:24-00:26]",
+    "brand": "general",
+    "model": "A90",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "92sfVVPYslU",
+    "url": "https://www.youtube.com/watch?v=92sfVVPYslU",
+    "chunk_index": 6
+  }
+]

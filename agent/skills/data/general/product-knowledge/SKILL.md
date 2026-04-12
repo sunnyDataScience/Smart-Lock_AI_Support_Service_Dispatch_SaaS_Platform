@@ -45,8 +45,8 @@ user-invocable: true
 | FSL800 | https://drive.google.com/file/d/1txrX9j_IBFNv4gKYis91ER9wZ75aaSK9/view |
 | Rose | https://drive.google.com/file/d/1HWi8-2u4sMbUxhvyIkqhbrB0bqwrGwBU/view |
 | WiFi 設定 | https://drive.google.com/file/d/1MW01SxJAl_nMyPFpTX9s-5jWcV_MI8N1/view |
-| APP 遠端操作 | https://drive.google.com/file/d/1XlFF_HobHgwsOLu70ArmvaLAGLzgDNIE/view |
-| APP 操作手冊 | https://drive.google.com/file/d/1z_N6ZEQkofjlFpVpXqj6W1xAYsrjuPjz/view |
+| Dormakaba APP 遠端操作 | https://drive.google.com/file/d/1XlFF_HobHgwsOLu70ArmvaLAGLzgDNIE/view |
+| Dormakaba APP 操作手冊 | https://drive.google.com/file/d/1z_N6ZEQkofjlFpVpXqj6W1xAYsrjuPjz/view |
 
 > 客戶詢問特定型號的操作手冊時，直接提供對應的 Google Drive 連結。
 

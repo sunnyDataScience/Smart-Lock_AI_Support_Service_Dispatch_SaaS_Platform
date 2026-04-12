@@ -1,0 +1,82 @@
+[
+  {
+    "content": "使用者在綁定 3E 小島快鎖F(T7) 電子鎖至 APP 前，應先透過掃描 QR Code 或前往 App Store/Google Play 商店下載專用 APP。同時，手機必須先連結至家中 2.4G Wi-Fi 網路，此為綁定成功的必要前提。 [00:03-00:04]",
+    "brand": "3E",
+    "model": "小島F(T7)",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "vLfYp9zMIgg",
+    "url": "https://www.youtube.com/watch?v=vLfYp9zMIgg",
+    "chunk_index": 1
+  },
+  {
+    "content": "3E 小島快鎖F(T7) 電子鎖在進行網路綁定設定時，使用者需先喚醒觸控面板，然後依序輸入「8」和「#」鍵。此操作將觸發門鎖進入管理員驗證模式，並發出「請驗證管理員」的語音提示。 [00:05-00:07]",
+    "brand": "3E",
+    "model": "小島F(T7)",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "vLfYp9zMIgg",
+    "url": "https://www.youtube.com/watch?v=vLfYp9zMIgg",
+    "chunk_index": 2
+  },
+  {
+    "content": "在 3E 小島快鎖F(T7) 電子鎖提示驗證管理員後，使用者應透過指紋辨識或其他管理者權限方式進行驗證。成功驗證後，門鎖將發出「操作成功」的語音提示，且底部會亮起綠色燈光，表示已進入網路設定模式。 [00:08-00:10]",
+    "brand": "3E",
+    "model": "小島F(T7)",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "vLfYp9zMIgg",
+    "url": "https://www.youtube.com/watch?v=vLfYp9zMIgg",
+    "chunk_index": 3
+  },
+  {
+    "content": "當 3E 小島快鎖F(T7) 電子鎖進入網路設定模式時，其數字鍵盤上會顯示數字「5」，並隨後發出「正在連網」的語音提示，同時底部藍色燈光會亮起，指示門鎖正在嘗試連線。 [00:13-00:23]",
+    "brand": "3E",
+    "model": "小島F(T7)",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "vLfYp9zMIgg",
+    "url": "https://www.youtube.com/watch?v=vLfYp9zMIgg",
+    "chunk_index": 4
+  },
+  {
+    "content": "使用者在 3E 小島快鎖F(T7) APP 中，需點擊主頁面右上角的「+」號圖示，並從彈出的選單中選擇「新增裝置」，以啟動裝置新增流程。 [00:24-00:25]",
+    "brand": "3E",
+    "model": "小島F(T7)",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "vLfYp9zMIgg",
+    "url": "https://www.youtube.com/watch?v=vLfYp9zMIgg",
+    "chunk_index": 5
+  },
+  {
+    "content": "在 3E 小島快鎖F(T7) APP 的 Wi-Fi 設定頁面，使用者需輸入正確的 Wi-Fi 名稱與密碼。請務必確認輸入無誤，因為 Wi-Fi 資訊輸入錯誤將導致連線失敗。完成輸入後，點擊「下一步」按鈕。 [00:27-00:29]",
+    "brand": "3E",
+    "model": "小島F(T7)",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "vLfYp9zMIgg",
+    "url": "https://www.youtube.com/watch?v=vLfYp9zMIgg",
+    "chunk_index": 6
+  },
+  {
+    "content": "3E 小島快鎖F(T7) APP 在成功找到電子鎖裝置後，會顯示已找到的裝置名稱（例如：「3E-SP7916」），並提示「等待連線中」。此時電子鎖底部的藍色燈光會持續閃爍，表示連線正在進行。 [00:31-00:34]",
+    "brand": "3E",
+    "model": "小島F(T7)",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "vLfYp9zMIgg",
+    "url": "https://www.youtube.com/watch?v=vLfYp9zMIgg",
+    "chunk_index": 7
+  },
+  {
+    "content": "當 3E 小島快鎖F(T7) 電子鎖成功完成網路綁定後，會發出「操作成功」的語音提示，且底部綠色燈光亮起。使用者在 APP 介面點擊「完成」按鈕，即可結束整個綁定流程。門鎖隨後可能會發出「正在連網更新」的語音提示。 [00:41-00:45]",
+    "brand": "3E",
+    "model": "小島F(T7)",
+    "category": "setup",
+    "source_type": "youtube",
+    "source": "vLfYp9zMIgg",
+    "url": "https://www.youtube.com/watch?v=vLfYp9zMIgg",
+    "chunk_index": 8
+  }
+]
