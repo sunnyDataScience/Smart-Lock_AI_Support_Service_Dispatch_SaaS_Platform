@@ -294,6 +294,41 @@ Cloud Run 容器的檔案系統是**可寫但短暫的**（ephemeral）——容
 
 ---
 
+## 資料庫維護
+
+### Cloud SQL 表格清單
+
+| 表名 | 用途 | 必要 |
+|------|------|------|
+| `audit_log` | 對話審計日誌（含 PII masking） | 是 |
+| `checkpoints` | LangGraph 對話記憶 | 是 |
+| `checkpoint_blobs` | LangGraph 對話記憶（二進位資料） | 是 |
+| `checkpoint_writes` | LangGraph 對話記憶（寫入記錄） | 是 |
+| `checkpoint_migrations` | LangGraph schema 版本管理 | 是 |
+| `user_facts` | 用戶硬事實（電話、地址、設備型號，SCD Type 2） | 是 |
+
+> 舊的 RAG 向量表 `langchain_pg_collection` 和 `langchain_pg_embedding` 已於 2026-04-14 移除，目前不使用 RAG。
+
+### 臨時連線 Cloud SQL（維護用）
+
+Cloud SQL 預設不開放外部連線，需臨時授權 IP：
+
+```bash
+# 授權目前 IP
+MY_IP=$(curl -s ifconfig.me)
+gcloud sql instances patch lock-ai --authorized-networks="$MY_IP/32" --quiet
+
+# 用 Docker 內的 psql 連線
+MSYS_NO_PATHCONV=1 docker run --rm \
+  -e PGPASSWORD='<db-password>' \
+  postgres:17 psql -h 35.229.228.13 -p 5432 -U lock-ai -d lock-ai-db
+
+# 完成後務必移除授權
+gcloud sql instances patch lock-ai --clear-authorized-networks --quiet
+```
+
+---
+
 ## 成本估算
 
 | 資源 | 免費額度 | 超出計費 |
