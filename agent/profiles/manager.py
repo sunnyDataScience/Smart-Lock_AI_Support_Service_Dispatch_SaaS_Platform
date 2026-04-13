@@ -19,6 +19,18 @@ async def init_facts_db(config: dict):
         return
     try:
         _facts_conn = await AsyncConnection.connect(uri)
+        await _facts_conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_facts (
+                id SERIAL PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                attr_key VARCHAR(100) NOT NULL,
+                attr_val TEXT NOT NULL,
+                is_current BOOLEAN NOT NULL DEFAULT TRUE,
+                start_date TIMESTAMP DEFAULT NOW(),
+                end_date TIMESTAMP
+            )
+        """)
+        await _facts_conn.commit()
         print("[Facts DB] 已連線至 PostgreSQL（user_facts）")
     except Exception as e:
         print(f"[Facts DB] 連線失敗，降級為停用: {e}")

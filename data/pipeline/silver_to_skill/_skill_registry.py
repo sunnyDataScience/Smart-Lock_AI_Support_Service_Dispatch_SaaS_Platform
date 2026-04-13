@@ -69,3 +69,41 @@ def build_skill_list_prompt(registry: dict[str, SkillInfo]) -> str:
     for name, info in sorted(registry.items()):
         lines.append(f"- {name}: {info.description}")
     return "\n".join(lines)
+
+
+# ── Router（路由技能）與 Sub-skill 的映射 ──
+
+# 子技能前綴 → 對應的 router 技能名稱
+_ROUTER_MAP: dict[str, str] = {
+    "ts-": "troubleshoot",
+    "app-": "app-guide",
+}
+
+# 這些技能名稱雖然以前綴開頭，但本身是 router，不是子技能
+_ROUTER_EXCEPTIONS: set[str] = {"app-guide"}
+
+
+def get_router_for_skill(skill_name: str) -> str | None:
+    """查詢子技能對應的 router 名稱。router 本身回傳 None。"""
+    if skill_name in _ROUTER_EXCEPTIONS:
+        return None
+    for prefix, router in _ROUTER_MAP.items():
+        if skill_name.startswith(prefix):
+            return router
+    return None
+
+
+def get_sub_skills(router_name: str, registry: dict[str, SkillInfo]) -> list[SkillInfo]:
+    """取得某個 router 下所有子技能的 SkillInfo 列表。"""
+    prefix = None
+    for p, r in _ROUTER_MAP.items():
+        if r == router_name:
+            prefix = p
+            break
+    if prefix is None:
+        return []
+
+    return [
+        info for name, info in sorted(registry.items())
+        if name.startswith(prefix) and name not in _ROUTER_EXCEPTIONS
+    ]

@@ -25,16 +25,16 @@ user-invocable: true
 
 | 客戶問題關鍵字 | 對應功能 | 子技能 |
 |--------------|---------|--------|
-| 配對、連線、WiFi | APP 初始配對 | load_skill("app-pairing") |
-| 指紋、人臉、掌靜脈、卡片、密碼、新增用戶、刪除用戶 | 用戶管理 | load_skill("app-user-mgmt") |
-| 遠端開鎖、遠距、不在家開門 | 遠端開鎖 | load_skill("app-remote") |
-| 臨時密碼、暫時密碼、給別人密碼 | 臨時密碼 | load_skill("app-temp-pwd") |
-| 監控、攝影、影像、對講 | 即時影像 | load_skill("app-camera") |
-| 家庭成員、邀請、加人 | 家庭成員管理 | load_skill("app-family") |
-| 解綁、移除裝置、換手機 | 設備解綁 | load_skill("app-unbind") |
-| 音量、語言、童鎖、常開、雙重認證、恢復出廠 | 系統設定 | load_skill("app-settings") |
-| 電池、充電、沒電 | 電池與充電 | load_skill("app-battery") |
-| 語音留言、留言 | 語音留言 | load_skill("app-voice-msg") |
-| 緩存、清理 | 清理緩存 | load_skill("app-cache") |
+| 配對、連線、WiFi、藍牙 | APP 初始配對 | load_skill("app-pairing") |
+| 指紋、人臉、掌靜脈、卡片、NFC、感應卡、密碼、新增用戶、刪除用戶、脅迫警報 | 用戶管理 | load_skill("app-user-mgmt") |
+| 遠端開鎖、遠距、不在家開門、開鎖紀錄、開鎖歷史 | 遠端開鎖與紀錄 | load_skill("app-remote") |
+| 臨時密碼、暫時密碼、給別人密碼、密碼規範 | 臨時密碼 | load_skill("app-temp-pwd") |
+| 監控、攝影、影像、對講、拍照、錄影、鏡頭切換、雙向通話 | 即時影像 | load_skill("app-camera") |
+| 家庭成員、邀請、加人、權限、角色設定 | 家庭成員管理 | load_skill("app-family") |
+| 解綁、移除裝置、換手機、清除數據、轉讓設備 | 設備解綁 | load_skill("app-unbind") |
+| 音量、門鈴音量、語言、童鎖、常開、雙重認證、恢復出廠 | 系統設定 | load_skill("app-settings") |
+| 電池、充電、沒電、電池更換、Type-C、緊急開門、備用鑰匙 | 電池與充電 | load_skill("app-battery") |
+| 語音留言、留言、播放留言、刪除留言、留言管理 | 語音留言 | load_skill("app-voice-msg") |
+| 緩存、清理、APP 異常、APP 很慢 | 清理緩存 | load_skill("app-cache") |
 
 **重要：請根據客戶問題載入對應的子技能，取得完整 SOP 和教學影片連結後再回覆。**

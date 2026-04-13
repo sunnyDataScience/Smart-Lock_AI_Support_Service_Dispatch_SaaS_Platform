@@ -22,8 +22,12 @@ except ModuleNotFoundError:
     import tomli as tomllib  # type: ignore[no-redef]
 
 from pipeline.silver_to_skill._loaders import load_all_silver, DRAFTS_DIR
-from pipeline.silver_to_skill._skill_registry import load_skill_registry
-from pipeline.silver_to_skill._merger import merge_skill, create_skill
+from pipeline.silver_to_skill._skill_registry import (
+    load_skill_registry,
+    get_router_for_skill,
+    get_sub_skills,
+)
+from pipeline.silver_to_skill._merger import merge_skill, create_skill, update_router
 from llms import get_llm
 
 
@@ -166,6 +170,68 @@ def main():
             "changes": result["changes_summary"],
         })
 
+    # ── Router 路由表同步更新 ──
+    # 收集哪些 router 的子技能被更新了
+    affected_routers: set[str] = set()
+    for r in results_summary:
+        if r["status"] in ("updated", "new"):
+            router_name = get_router_for_skill(r["skill"])
+            if router_name:
+                affected_routers.add(router_name)
+
+    if affected_routers:
+        print(f"\n{'─' * 50}")
+        print(f"[Router 同步] 偵測到 {len(affected_routers)} 個 router 需要更新路由表")
+
+        for router_name in sorted(affected_routers):
+            if router_name not in registry:
+                print(f"  [跳過] router '{router_name}' 不在 registry 中")
+                continue
+
+            router_skill = registry[router_name]
+
+            # 取得該 router 下所有子技能（用 registry 的最新版本）
+            # 若子技能剛產生了草稿，用草稿內容覆蓋 registry 版本
+            sub_skills = get_sub_skills(router_name, registry)
+            for i, sub in enumerate(sub_skills):
+                draft_path = DRAFTS_DIR / sub.name / "SKILL.md.draft"
+                if draft_path.exists():
+                    from pipeline.silver_to_skill._skill_registry import _parse_skill_md, SkillInfo
+                    draft_info = _parse_skill_md(str(draft_path))
+                    if draft_info:
+                        sub_skills[i] = draft_info
+
+            print(f"\n  處理 router: {router_name} ({len(sub_skills)} 個子技能)")
+            result = update_router(router_skill, sub_skills, generate_json)
+
+            if not result.get("has_changes", False):
+                print(f"    [無變更] {result.get('changes_summary', '路由表已是最新')}")
+                results_summary.append({"skill": router_name, "status": "no_changes"})
+                continue
+
+            # 寫入 router 草稿
+            draft_dir = DRAFTS_DIR / router_name
+            draft_dir.mkdir(parents=True, exist_ok=True)
+
+            draft_path = draft_dir / "SKILL.md.draft"
+            draft_path.write_text(result["skill_md"], encoding="utf-8")
+
+            existing_full = (
+                f"---\nname: {router_skill.name}\n"
+                f"description: {router_skill.description}\n"
+                f"user-invocable: true\n"
+                f"---\n\n{router_skill.content}"
+            )
+            _write_diff(draft_dir / "diff.txt", existing_full, result["skill_md"], router_name)
+
+            print(f"    [草稿] {draft_path}")
+            print(f"    [變更] {result['changes_summary']}")
+            results_summary.append({
+                "skill": router_name,
+                "status": "router_updated",
+                "changes": result["changes_summary"],
+            })
+
     # 寫入摘要
     summary_path = DRAFTS_DIR / "generation_summary.json"
     summary_path.write_text(
@@ -177,8 +243,9 @@ def main():
     print(f"[完成] 共處理 {len(results_summary)} 個 skill")
     updated = sum(1 for r in results_summary if r["status"] == "updated")
     new = sum(1 for r in results_summary if r["status"] == "new")
+    router_updated = sum(1 for r in results_summary if r["status"] == "router_updated")
     no_changes = sum(1 for r in results_summary if r["status"] == "no_changes")
-    print(f"  更新: {updated} | 新增: {new} | 無變更: {no_changes}")
+    print(f"  更新: {updated} | 新增: {new} | Router 同步: {router_updated} | 無變更: {no_changes}")
     print(f"[輸出] {DRAFTS_DIR}")
 
 
