@@ -35,7 +35,38 @@ Cloud Run (smart-lock-agent)
 
 ## 前置需求
 
-### 1. GCP API 啟用
+### 0. gcloud CLI 登入與專案設定
+
+```bash
+# 登入有專案權限的 Google 帳號
+gcloud auth login
+
+# 設定預設專案
+gcloud config set project cedar-scope-489604-g3
+```
+
+### 1. 操作者帳號 IAM 角色
+
+執行部署的人（如 `sunny@funngo.ai`）需要以下角色，請由專案 Owner 授予：
+
+| 角色 | 用途 |
+|------|------|
+| `roles/artifactregistry.admin` | 建立 repo、推送 image |
+| `roles/run.admin` | 部署 Cloud Run 服務 |
+| `roles/secretmanager.admin` | 建立和管理 secrets |
+| `roles/iam.serviceAccountUser` | Cloud Run 使用 service account |
+| `roles/resourcemanager.projectIamAdmin` | 設定 IAM policy（給 SA 加角色） |
+
+```bash
+DEPLOYER="user:sunny@funngo.ai"
+for ROLE in roles/artifactregistry.admin roles/run.admin roles/secretmanager.admin \
+            roles/iam.serviceAccountUser roles/resourcemanager.projectIamAdmin; do
+  gcloud projects add-iam-policy-binding cedar-scope-489604-g3 \
+    --member="$DEPLOYER" --role="$ROLE"
+done
+```
+
+### 2. GCP API 啟用
 
 ```bash
 gcloud services enable \
@@ -45,7 +76,7 @@ gcloud services enable \
   sqladmin.googleapis.com
 ```
 
-### 2. Service Account 角色
+### 3. Service Account 角色（Cloud Run 執行身份）
 
 Cloud Run 預設使用 Compute Engine default service account，需要以下角色：
 
@@ -53,7 +84,7 @@ Cloud Run 預設使用 Compute Engine default service account，需要以下角�
 |------|------|
 | `roles/cloudsql.client` | 透過 Auth Proxy 連 Cloud SQL |
 | `roles/aiplatform.user` | 呼叫 Vertex AI (Gemini) API |
-| `roles/secretmanager.secretAccessor` | 讀取 Secret Manager 中的 secrets |
+| `roles/secretmanager.secretAccessor` | 讀取 Secret Manager 中的 secrets（建 secret 時逐一授予） |
 
 ```bash
 SA="1083648618124-compute@developer.gserviceaccount.com"
@@ -65,11 +96,20 @@ gcloud projects add-iam-policy-binding cedar-scope-489604-g3 \
   --member="serviceAccount:$SA" --role="roles/aiplatform.user"
 ```
 
-Secret Manager 的存取權是在建立 secret 時逐一授予的（見下方）。
+### 4. 組織政策（Domain Restricted Sharing）
 
-### 3. 組織政策
+如果 GCP 組織啟用了 `iam.allowedPolicyMemberDomains` 約束，會導致無法設定 `allUsers` 公開存取（LINE webhook 需要無認證呼叫）。
 
-如果 GCP 組織啟用了 Domain Restricted Sharing（`iam.allowedPolicyMemberDomains`），需要對此專案豁免，否則無法設定 `allUsers` 公開存取（LINE webhook 需要）。
+**檢查目前狀態：**
+
+```bash
+gcloud resource-manager org-policies describe iam.allowedPolicyMemberDomains \
+  --project=cedar-scope-489604-g3
+```
+
+**若被限制，請組織管理員對此專案豁免：**
+
+在 GCP Console → Organization Policies → `iam.allowedPolicyMemberDomains` → 對 `cedar-scope-489604-g3` 設定 `allValues: ALLOW`。
 
 ---
 
@@ -147,11 +187,18 @@ gcloud run deploy smart-lock-agent \
 ### Step 5：設定公開存取
 
 ```bash
+# 允許所有流量進入
+gcloud run services update smart-lock-agent \
+  --region=asia-east1 --ingress=all
+
+# 允許未認證呼叫（LINE webhook 需要）
 gcloud run services add-iam-policy-binding smart-lock-agent \
   --region=asia-east1 \
   --member=allUsers \
   --role=roles/run.invoker
 ```
+
+> 如果 `add-iam-policy-binding` 失敗並顯示 `FAILED_PRECONDITION`，代表組織政策尚未豁免，請參考前置需求第 4 點。
 
 ### Step 6：設定 LINE Webhook
 
@@ -224,6 +271,26 @@ gcloud run services logs tail smart-lock-agent --region=asia-east1
 | Vertex AI 403 | Service account 缺少 `aiplatform.user` | 加上 IAM 角色 |
 | POSTGRES_URI 連線錯誤 | 密碼特殊字元未 URL encode | 用 Python `urllib.parse.quote()` 編碼密碼 |
 | LINE webhook 無回應 | webhook URL 設定錯誤或 SSL 問題 | 確認 URL 結尾是 `/webhook`，Cloud Run 自帶 SSL |
+
+---
+
+## Cloud Run 檔案系統注意事項
+
+Cloud Run 容器的檔案系統是**可寫但短暫的**（ephemeral）——容器重啟後所有寫入的檔案會消失。
+
+| 功能 | 寫入路徑 | 影響 | 建議 |
+|------|---------|------|------|
+| 用戶軟輪廓 (.md) | `./data/profiles/` | 重啟後消失，但硬事實（電話、地址、設備）存在 PostgreSQL 不受影響 | 可接受；或設 `user_profile.enabled = false` 只用 PostgreSQL facts |
+| 多模態媒體 | `./data/media/` | 檔案只在單次請求中使用（下載→存檔→讀回→送 LLM），重啟不影響 | 目前正常運作；長期可改用 GCS 後端 |
+
+> 如需完全關閉檔案系統寫入，修改 `config.toml`：
+> ```toml
+> [user_profile]
+> enabled = false       # 關閉 .md 輪廓，保留 PostgreSQL facts
+> 
+> [multimodal]
+> enabled = false       # 關閉多模態處理
+> ```
 
 ---
 
