@@ -1,9 +1,10 @@
 """品質檢測腳本 — 50 道測試題目驗證 agent_skills 回答水準。
 
 用法：
-  cd agent_skills && python -m quality.quality_check              # 完整測試（含 LLM-as-Judge）
-  cd agent_skills && python -m quality.quality_check --no-judge   # 只跑 agent 回答 + 關鍵詞
-  cd agent_skills && python -m quality.quality_check --judge-only # 用現有 JSON 重跑 LLM 評分
+  cd agent_skills && python -m quality.quality_check                # 完整測試（含 LLM-as-Judge）
+  cd agent_skills && python -m quality.quality_check --no-judge     # 只跑 agent 回答 + 關鍵詞
+  cd agent_skills && python -m quality.quality_check --judge-only   # 用現有 JSON 重跑 LLM 評分
+  cd agent_skills && python -m quality.quality_check --retry-failed # 只重測上次非 pass 的案例，更新報告
 
 輸出：quality/quality_report.json + quality/quality_report.html
 """
@@ -361,6 +362,7 @@ def _parse_args():
     p = argparse.ArgumentParser(description="Agent Skills Quality Check (50 cases)")
     p.add_argument("--no-judge", action="store_true", help="跳過 LLM-as-Judge，只用關鍵詞評分")
     p.add_argument("--judge-only", action="store_true", help="不呼叫 agent，用現有 JSON 重新跑 LLM 評分")
+    p.add_argument("--retry-failed", action="store_true", help="只重測上次非 pass 的案例，更新報告")
     return p.parse_args()
 
 
@@ -438,6 +440,105 @@ async def main():
         print("=" * 60)
 
         report = await _rejudge(judge_model, json_path)
+        _save_report(report, json_path, html_path)
+        return
+
+    # ── --retry-failed 模式：只重測非 pass 的案例 ──
+    if args.retry_failed:
+        if not os.path.isfile(json_path):
+            print(f"  ERROR: {json_path} not found. Run full test first.")
+            return
+
+        with open(json_path, "r", encoding="utf-8") as f:
+            prev_report = json.load(f)
+        prev_results = {r["id"]: r for r in prev_report.get("results", [])}
+
+        # 找出需要重測的案例
+        retry_ids = {rid for rid, r in prev_results.items() if r["verdict"] != "pass"}
+        retry_cases = [tc for tc in TEST_CASES if tc.id in retry_ids]
+
+        if not retry_cases:
+            print("  All cases passed! Nothing to retry.")
+            return
+
+        use_judge = not args.no_judge
+
+        os.chdir(_AGENT_SKILLS_DIR)
+        cfg = load_config()
+
+        model_kwargs = dict(
+            model="gemini-2.5-flash",
+            project=project,
+            location=os.getenv("VERTEX_LOCATION", "us-central1"),
+            temperature=0.3,
+            vertexai=True,
+        )
+        if sa_creds:
+            model_kwargs["credentials"] = sa_creds
+        model = ChatGoogleGenerativeAI(**model_kwargs)
+
+        judge_model = None
+        if use_judge:
+            judge_kwargs = dict(
+                model="gemini-2.5-flash",
+                project=project,
+                location=os.getenv("VERTEX_LOCATION", "us-central1"),
+                temperature=0.0,
+                vertexai=True,
+            )
+            if sa_creds:
+                judge_kwargs["credentials"] = sa_creds
+            judge_model = ChatGoogleGenerativeAI(**judge_kwargs)
+
+        agent = build_agent(model, cfg)
+
+        print("=" * 60)
+        print(f"  Quality Check — Retry Failed ({len(retry_cases)} cases)")
+        print("=" * 60)
+
+        for i, tc in enumerate(retry_cases):
+            config = {"configurable": {"thread_id": f"qc-retry-{tc.id}"}}
+            prev_verdict = prev_results[tc.id]["verdict"]
+
+            print(f"\n[{i+1:02d}/{len(retry_cases)}] {tc.id} (was {prev_verdict}) | {tc.question[:40]}...", end=" ", flush=True)
+
+            try:
+                r = await run_single(agent, judge_model, tc, config, use_judge=use_judge)
+            except Exception as e:
+                r = {
+                    "id": tc.id, "category": tc.category, "question": tc.question,
+                    "expected": tc.expected, "answer": f"ERROR: {e}",
+                    "skills_loaded": [], "keyword_hits": "0/0",
+                    "verdict": "error", "reason": str(e), "elapsed_sec": 0,
+                }
+
+            icon = {"pass": "O", "partial": "~", "fail": "X", "error": "!"}.get(r["verdict"], "?")
+            changed = " ✦" if r["verdict"] != prev_verdict else ""
+            skills_str = ",".join(r["skills_loaded"]) if r["skills_loaded"] else "-"
+            print(f"[{icon}] {r['elapsed_sec']}s | kw={r['keyword_hits']} | skills={skills_str}{changed}")
+            if r["verdict"] != "pass":
+                print(f"       reason: {r['reason']}")
+
+            # 更新結果
+            prev_results[tc.id] = r
+
+        # 按原始順序重組結果
+        all_ids = [tc.id for tc in TEST_CASES]
+        merged = [prev_results[tid] for tid in all_ids if tid in prev_results]
+
+        # 重新計算統計
+        stats = {"pass": 0, "partial": 0, "fail": 0, "error": 0}
+        category_stats: dict[str, dict] = {}
+        for r in merged:
+            v = r["verdict"]
+            stats[v] = stats.get(v, 0) + 1
+            cat = r["category"]
+            if cat not in category_stats:
+                category_stats[cat] = {"pass": 0, "partial": 0, "fail": 0, "error": 0, "total": 0}
+            category_stats[cat][v] = category_stats[cat].get(v, 0) + 1
+            category_stats[cat]["total"] += 1
+
+        report = {"summary": stats, "category_stats": category_stats, "results": merged}
         _save_report(report, json_path, html_path)
         return
 
