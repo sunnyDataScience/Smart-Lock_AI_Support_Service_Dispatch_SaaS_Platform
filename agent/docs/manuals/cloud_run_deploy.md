@@ -1,0 +1,237 @@
+# GCP Cloud Run 部署手冊
+
+本文件說明如何將 agent 部署到 GCP Cloud Run，連接 Cloud SQL 和 Secret Manager。
+
+---
+
+## 架構概覽
+
+```
+LINE Webhook
+    ↓
+Cloud Run (smart-lock-agent)
+    ├── Vertex AI Gemini (LLM)
+    ├── Cloud SQL PostgreSQL + pgvector (對話記憶 / 審計 / 用戶資料)
+    └── Secret Manager (LINE tokens / DB 密碼)
+```
+
+---
+
+## GCP 資源清單
+
+| 資源 | 名稱 / 值 |
+|------|-----------|
+| 專案 ID | `cedar-scope-489604-g3` |
+| Cloud Run 服務 | `smart-lock-agent` |
+| Cloud Run URL | `https://smart-lock-agent-1083648618124.asia-east1.run.app` |
+| Artifact Registry | `asia-east1-docker.pkg.dev/cedar-scope-489604-g3/lock-ai-repo` |
+| Cloud SQL 連線名稱 | `cedar-scope-489604-g3:asia-east1:lock-ai` |
+| Cloud SQL 公開 IP | `35.229.228.13` |
+| 資料庫 / 使用者 | `lock-ai-db` / `lock-ai` |
+| Secret Manager | `LINE_CHANNEL_SECRET`、`LINE_CHANNEL_ACCESS_TOKEN`、`DB_PASSWORD` |
+| Service Account | `1083648618124-compute@developer.gserviceaccount.com` |
+
+---
+
+## 前置需求
+
+### 1. GCP API 啟用
+
+```bash
+gcloud services enable \
+  artifactregistry.googleapis.com \
+  run.googleapis.com \
+  secretmanager.googleapis.com \
+  sqladmin.googleapis.com
+```
+
+### 2. Service Account 角色
+
+Cloud Run 預設使用 Compute Engine default service account，需要以下角色：
+
+| 角色 | 用途 |
+|------|------|
+| `roles/cloudsql.client` | 透過 Auth Proxy 連 Cloud SQL |
+| `roles/aiplatform.user` | 呼叫 Vertex AI (Gemini) API |
+| `roles/secretmanager.secretAccessor` | 讀取 Secret Manager 中的 secrets |
+
+```bash
+SA="1083648618124-compute@developer.gserviceaccount.com"
+
+gcloud projects add-iam-policy-binding cedar-scope-489604-g3 \
+  --member="serviceAccount:$SA" --role="roles/cloudsql.client"
+
+gcloud projects add-iam-policy-binding cedar-scope-489604-g3 \
+  --member="serviceAccount:$SA" --role="roles/aiplatform.user"
+```
+
+Secret Manager 的存取權是在建立 secret 時逐一授予的（見下方）。
+
+### 3. 組織政策
+
+如果 GCP 組織啟用了 Domain Restricted Sharing（`iam.allowedPolicyMemberDomains`），需要對此專案豁免，否則無法設定 `allUsers` 公開存取（LINE webhook 需要）。
+
+---
+
+## 部署流程
+
+### Step 1：建立 Artifact Registry
+
+```bash
+gcloud artifacts repositories create lock-ai-repo \
+  --repository-format=docker \
+  --location=asia-east1 \
+  --description="Smart Lock AI Agent"
+
+gcloud auth configure-docker asia-east1-docker.pkg.dev --quiet
+```
+
+### Step 2：建立 Secret Manager Secrets
+
+```bash
+# LINE Channel Secret
+echo -n "<your-channel-secret>" | \
+  gcloud secrets create LINE_CHANNEL_SECRET --data-file=-
+
+# LINE Channel Access Token
+echo -n "<your-access-token>" | \
+  gcloud secrets create LINE_CHANNEL_ACCESS_TOKEN --data-file=-
+
+# DB Password
+echo -n "<your-db-password>" | \
+  gcloud secrets create DB_PASSWORD --data-file=-
+
+# 授予 Cloud Run service account 存取權
+SA="1083648618124-compute@developer.gserviceaccount.com"
+for SECRET in LINE_CHANNEL_SECRET LINE_CHANNEL_ACCESS_TOKEN DB_PASSWORD; do
+  gcloud secrets add-iam-policy-binding $SECRET \
+    --member="serviceAccount:$SA" \
+    --role="roles/secretmanager.secretAccessor"
+done
+```
+
+### Step 3：Build & Push Image
+
+```bash
+cd agent
+
+# Build for linux/amd64（Cloud Run 需要）
+docker build --platform linux/amd64 \
+  -t asia-east1-docker.pkg.dev/cedar-scope-489604-g3/lock-ai-repo/smart-lock-agent:latest .
+
+# Push
+docker push asia-east1-docker.pkg.dev/cedar-scope-489604-g3/lock-ai-repo/smart-lock-agent:latest
+```
+
+### Step 4：部署到 Cloud Run
+
+```bash
+gcloud run deploy smart-lock-agent \
+  --image=asia-east1-docker.pkg.dev/cedar-scope-489604-g3/lock-ai-repo/smart-lock-agent:latest \
+  --region=asia-east1 \
+  --platform=managed \
+  --allow-unauthenticated \
+  --port=8080 \
+  --memory=1Gi \
+  --cpu=1 \
+  --min-instances=0 \
+  --max-instances=3 \
+  --timeout=60 \
+  --add-cloudsql-instances=cedar-scope-489604-g3:asia-east1:lock-ai \
+  --set-env-vars="VERTEX_PROJECT_ID=cedar-scope-489604-g3,VERTEX_LOCATION=us-central1,POSTGRES_URI=postgresql://lock-ai:<URL_ENCODED_PASSWORD>@/lock-ai-db?host=/cloudsql/cedar-scope-489604-g3:asia-east1:lock-ai" \
+  --set-secrets="LINE_CHANNEL_SECRET=LINE_CHANNEL_SECRET:latest,LINE_CHANNEL_ACCESS_TOKEN=LINE_CHANNEL_ACCESS_TOKEN:latest"
+```
+
+> **POSTGRES_URI 注意**：密碼中的特殊字元需要 URL encode（`@` → `%40`、`[` → `%5B`、`;` → `%3B`、`+` → `%2B`、`*` → `%2A`）。Cloud SQL Auth Proxy 使用 Unix socket 連線，所以 host 部分用 `?host=/cloudsql/<連線名稱>`。
+
+### Step 5：設定公開存取
+
+```bash
+gcloud run services add-iam-policy-binding smart-lock-agent \
+  --region=asia-east1 \
+  --member=allUsers \
+  --role=roles/run.invoker
+```
+
+### Step 6：設定 LINE Webhook
+
+到 [LINE Developers Console](https://developers.line.biz/) 更新 webhook URL：
+
+```
+https://smart-lock-agent-1083648618124.asia-east1.run.app/webhook
+```
+
+---
+
+## 更新部署（程式碼修改後）
+
+```bash
+cd agent
+
+# 重新 build + push
+docker build --platform linux/amd64 \
+  -t asia-east1-docker.pkg.dev/cedar-scope-489604-g3/lock-ai-repo/smart-lock-agent:latest .
+
+docker push asia-east1-docker.pkg.dev/cedar-scope-489604-g3/lock-ai-repo/smart-lock-agent:latest
+
+# 部署新版本
+gcloud run deploy smart-lock-agent \
+  --image=asia-east1-docker.pkg.dev/cedar-scope-489604-g3/lock-ai-repo/smart-lock-agent:latest \
+  --region=asia-east1
+```
+
+> 環境變數和 secrets 不需要重新設定，Cloud Run 會保留上次的設定。
+
+---
+
+## 驗證
+
+```bash
+# Health check
+curl https://smart-lock-agent-1083648618124.asia-east1.run.app/health
+
+# Chat 測試
+curl "https://smart-lock-agent-1083648618124.asia-east1.run.app/chat?q=門打不開怎麼辦"
+
+# Webhook 測試（應回 Invalid signature）
+curl -X POST https://smart-lock-agent-1083648618124.asia-east1.run.app/webhook \
+  -H "Content-Type: application/json" -d '{}'
+```
+
+---
+
+## 查看日誌
+
+```bash
+# 即時日誌
+gcloud run services logs read smart-lock-agent --region=asia-east1 --limit=50
+
+# 串流日誌
+gcloud run services logs tail smart-lock-agent --region=asia-east1
+```
+
+也可以在 GCP Console → Cloud Run → smart-lock-agent → Logs 頁面查看。
+
+---
+
+## 疑難排解
+
+| 症狀 | 原因 | 解決 |
+|------|------|------|
+| 403 Forbidden | `allUsers` 未授權或組織政策限制 | 檢查 IAM binding 和 `iam.allowedPolicyMemberDomains` 約束 |
+| 容器啟動失敗 | 環境變數缺少或格式錯誤 | `gcloud run services describe` 確認 env vars |
+| DB 連線失敗 | Cloud SQL Auth Proxy 未啟用或 service account 缺 `cloudsql.client` | 確認 `--add-cloudsql-instances` 和 IAM 角色 |
+| Vertex AI 403 | Service account 缺少 `aiplatform.user` | 加上 IAM 角色 |
+| POSTGRES_URI 連線錯誤 | 密碼特殊字元未 URL encode | 用 Python `urllib.parse.quote()` 編碼密碼 |
+| LINE webhook 無回應 | webhook URL 設定錯誤或 SSL 問題 | 確認 URL 結尾是 `/webhook`，Cloud Run 自帶 SSL |
+
+---
+
+## 成本估算
+
+| 資源 | 免費額度 | 超出計費 |
+|------|---------|---------|
+| Cloud Run | 200 萬次請求/月、360,000 vCPU-秒/月 | 按用量 |
+| Cloud SQL (db-f1-micro) | 無免費額度 | ~$10/月 |
+| Secret Manager | 10,000 次存取/月 | $0.06/10,000 次 |
+| Artifact Registry | 0.5 GB | $0.10/GB/月 |
