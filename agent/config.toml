@@ -89,3 +89,7 @@ profile_dir = "./data/profiles"
 facts_enabled = true
 facts_postgres_uri_env = "POSTGRES_URI"
 fact_attributes = ["phone", "address", "device_model", "device_brand"]
+soft_fact_fields = [
+    "door_type", "install_date", "unlock_methods", "living_env",
+    "communication_note"
+]
