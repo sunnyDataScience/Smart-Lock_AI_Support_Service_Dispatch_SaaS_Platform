@@ -149,6 +149,12 @@ async def extract_and_update(user_id: str, question: str, answer: str):
         return
 
     try:
+        # 確保 soft profile .md 檔存在（新用戶以預設值初始化）
+        existing_md = await _profile_mgr.load_profile(user_id)
+        if not existing_md:
+            default_md = _render_soft_profile(_SOFT_DEFAULTS)
+            await _profile_mgr.save_profile(user_id, default_md)
+
         # 載入現有 profile
         existing_profile = await _profile_mgr.load_full_profile(user_id)
 
