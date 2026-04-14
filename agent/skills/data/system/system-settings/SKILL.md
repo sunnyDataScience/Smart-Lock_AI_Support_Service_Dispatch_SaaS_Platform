@@ -6,7 +6,14 @@ user-invocable: true
 
 # 電子鎖系統設定指南
 
-適用品牌：**Chainlock / Chatlock**（AI99、A90、AI88）
+## 品牌分流
+
+- **Chainlock / Chatlock**（AI99、A90、AI88）→ 使用下方各節 SOP
+- **Dormakaba** → **必須呼叫 `load_skill("ss-dormakaba")`**，本技能的 SOP 不適用於 Dormakaba
+
+---
+
+### Chainlock / Chatlock 系統設定
 
 **通用入口：** 觸碰螢幕喚醒 → 齒輪圖示 → 管理者驗證 → 系統設定
 
@@ -100,6 +107,8 @@ user-invocable: true
 
 ## 八、恢復出廠設定
 
+### Chainlock / Chatlock
+
 **路徑：** 系統設定 → 恢復出廠設定 → 確認
 
 > ⚠️ **警告：此操作會清除所有已設定的用戶資料（指紋、密碼、卡片、人臉等）！**
@@ -109,6 +118,10 @@ user-invocable: true
 - 需重新設定管理者和所有使用者
 
 **適用場景：** 轉讓設備給新主人、系統異常需完全重置
+
+### Dormakaba
+
+> ⚠️ **Dormakaba 全系列電子鎖：恢復出廠設定或初始化服務，必須安排技師前往進行，並收取費用。客戶無法自行操作。** → 需派工
 
 ---
 

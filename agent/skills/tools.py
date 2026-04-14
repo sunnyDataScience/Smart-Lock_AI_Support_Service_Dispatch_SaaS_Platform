@@ -108,14 +108,14 @@ def _load_prompt_file(prompt_path: str) -> str:
         return f.read().strip()
 
 
-_SUB_SKILL_PREFIXES = ("ts-", "app-")
+_SUB_SKILL_PREFIXES = ("ts-", "app-", "ss-")
 _SUB_SKILL_EXCEPTIONS = {"app-guide"}
 
 
 def build_skills_prompt(skills: list[Skill]) -> str:
     """產生注入 system prompt 的技能摘要清單。
 
-    只列出頂層技能。以 ts-* / app-*（除 app-guide）為前綴的子技能
+    只列出頂層技能。以 ts-* / app-* / ss-*（除 app-guide）為前綴的子技能
     透過母技能的 SOP 引導載入，不需列在 system prompt。
     """
     top_level = [
