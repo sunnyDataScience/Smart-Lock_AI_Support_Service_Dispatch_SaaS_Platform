@@ -182,6 +182,11 @@ gcloud run deploy smart-lock-agent \
   --set-secrets="LINE_CHANNEL_SECRET=LINE_CHANNEL_SECRET:latest,LINE_CHANNEL_ACCESS_TOKEN=LINE_CHANNEL_ACCESS_TOKEN:latest"
 ```
 
+> **冷啟動說明**：`--min-instances=0` 代表閒置時容器會縮到 0，下次請求需要冷啟動（約 5-10 秒，含 LLM 初始化、PostgreSQL 連線、26 技能索引載入）。測試階段這樣最省錢。正式上線後改為 `--min-instances=1`（約 $15-20/月）可消除冷啟動：
+> ```bash
+> gcloud run services update smart-lock-agent --region=asia-east1 --min-instances=1
+> ```
+
 > **POSTGRES_URI 注意**：密碼中的特殊字元需要 URL encode（`@` → `%40`、`[` → `%5B`、`;` → `%3B`、`+` → `%2B`、`*` → `%2A`）。Cloud SQL Auth Proxy 使用 Unix socket 連線，所以 host 部分用 `?host=/cloudsql/<連線名稱>`。
 
 ### Step 5：設定公開存取
