@@ -19,6 +19,7 @@ import core.line_bot as line_bot
 import harness.memory_manager as memory_manager
 from harness.line_ui_factory import build_line_messages
 from skills.tools import set_current_user_id
+from agent import get_system_prompt
 import harness.profile_updater as profile_updater
 import harness.safety_gate as safety_gate
 
@@ -269,6 +270,10 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         print(f"\n{'═' * 60}")
         print(f"[對話上下文] user={user_id}, thread={thread_id}, 共 {len(messages)} 則訊息")
         print(f"{'═' * 60}")
+        sys_prompt = get_system_prompt()
+        if sys_prompt:
+            print(f"  [📋 System Prompt]\n{sys_prompt}")
+            print(f"{'─' * 60}")
         for i, msg in enumerate(messages):
             role = getattr(msg, "type", "unknown")
             if role == "human":

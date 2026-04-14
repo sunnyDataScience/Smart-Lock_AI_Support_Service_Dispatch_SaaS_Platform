@@ -15,6 +15,14 @@ from skills import load_skills
 from skills.tools import load_skill, transfer_to_human, set_skills, set_profile_mgr, set_transfer_message_from_file, build_skills_prompt
 
 
+_system_prompt: str = ""
+
+
+def get_system_prompt() -> str:
+    """回傳目前使用中的 system prompt（供 debug 印出）。"""
+    return _system_prompt
+
+
 def build_agent(model, cfg: AppConfig, checkpointer=None, profile_mgr=None):
     """建立 skill-based ReAct agent。
 
@@ -39,10 +47,12 @@ def build_agent(model, cfg: AppConfig, checkpointer=None, profile_mgr=None):
     # 3. 組裝 system prompt（從 prompts/system.md 模板 + config 變數）
     skills_section = build_skills_prompt(skills)
 
+    global _system_prompt
     prompt = load_prompt(
         cfg.prompts.get("system_prompt", "prompts/system.md"),
         skills_section=skills_section,
     )
+    _system_prompt = prompt
 
     # 4. 載入轉接真人訊息模板（fallback，新版 transfer_to_human 已自動組裝）
     transfer_prompt_path = cfg.prompts.get("transfer_human_form", "prompts/transfer_human.md")
