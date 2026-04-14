@@ -338,10 +338,24 @@ async def agent_and_reply(user_id: str, reply_token: str, content: str | list, b
     # 提取文字部分（用於審計和安全檢查）
     text_for_audit = content if isinstance(content, str) else _extract_text_from_items(buffer_items or [])
 
-    # H8: 記錄使用者訊息
+    # H8: 記錄使用者訊息（含媒體檔案路徑）
     if _audit_storage:
         try:
-            await _audit_storage.log_message(user_id, "user", text_for_audit)
+            media_paths = [
+                item["file_path"]
+                for item in (buffer_items or [])
+                if isinstance(item, dict) and item.get("type") == "media" and item.get("file_path")
+            ]
+            if media_paths:
+                await _audit_storage.log_event(
+                    event_type="conversation",
+                    actor_id=user_id,
+                    actor_role="user",
+                    action="conversation.message",
+                    payload={"content": text_for_audit, "media_files": media_paths},
+                )
+            else:
+                await _audit_storage.log_message(user_id, "user", text_for_audit)
         except Exception as e:
             print(f"[Audit] 記錄使用者訊息失敗: {e}")
 
