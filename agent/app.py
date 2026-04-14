@@ -94,7 +94,7 @@ async def startup():
         **_cfg.memory,
         "domain": _cfg.system.get("domain", "電子鎖、智慧門鎖"),
         "summarize_prompt": _cfg.prompts.get("summarize_prompt", "prompts/summarize_messages.md"),
-    })
+    }, profile_mgr=profile_mgr)
 
     # 初始化審計日誌
     audit_storage = await get_storage(_cfg.storage)

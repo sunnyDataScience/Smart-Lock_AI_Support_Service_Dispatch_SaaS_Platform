@@ -214,7 +214,7 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         await _strip_stale_multimodal(_agent, config)
 
         # 壓縮過長的對話歷史
-        await memory_manager.maybe_compress(_agent, thread_id)
+        await memory_manager.maybe_compress(_agent, thread_id, user_id=user_id)
 
         # 注入摘要前綴
         summary_prefix = ""
