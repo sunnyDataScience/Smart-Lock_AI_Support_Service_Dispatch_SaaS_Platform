@@ -1,7 +1,7 @@
 """CLI 工具：從 checkpointer 撈出完整 messages 上下文，輸出為 .md 檔。
 
 用法：
-    python scripts/view_context.py <thread_id>
+    cd agent && python scripts/view_context.py <thread_id>
 """
 
 import asyncio
@@ -11,6 +11,10 @@ from datetime import datetime
 
 # 讓 import 能找到專案根目錄
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+from dotenv import load_dotenv
+
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".env"))
 
 TYPE_EMOJI = {
     "system": "🤖",
@@ -38,39 +42,18 @@ def _format_content(content) -> str:
     return str(content)
 
 
-def _build_agent_prompts(user_profile: str) -> dict[str, str]:
-    """重建每個 agent 的 system prompt，回傳 {agent_name: prompt_text}。"""
-    from core.config import AGENTS_CONFIG, SYSTEM_CONFIG
-    from agents import load_prompt_template, _build_slots_section
-
-    domain = SYSTEM_CONFIG.get("domain", "電子鎖")
-    slots_section = _build_slots_section()
-    profile_section = user_profile if user_profile else "新使用者，尚無歷史資料。"
-
-    prompts = {}
-    for agent_config in AGENTS_CONFIG:
-        name = agent_config["name"]
-        prompt_file = agent_config["prompt_file"]
-        try:
-            prompt = load_prompt_template(
-                prompt_file,
-                domain=domain,
-                user_profile=profile_section,
-                slots_section=slots_section,
-            )
-            prompts[name] = prompt
-        except Exception as e:
-            prompts[name] = f"（載入失敗: {e}）"
-    return prompts
-
-
 async def main(thread_id: str):
-    from graph.builder import build_graph
-    from memory import close_checkpointer
+    from core.config import load_config
+    from llms import get_llm
+    from memory import get_checkpointer, close_checkpointer
+    from agent import build_agent, get_system_prompt
 
-    app = await build_graph()
+    cfg = load_config()
+    model = get_llm(cfg.llm)
+    checkpointer = await get_checkpointer(cfg.memory)
+    app = build_agent(model, cfg, checkpointer=checkpointer)
 
-    config = {"configurable": {"thread_id": thread_id, "user_id": thread_id}}
+    config = {"configurable": {"thread_id": thread_id}}
     state_snapshot = await app.aget_state(config)
 
     if not state_snapshot or not state_snapshot.values:
@@ -80,9 +63,6 @@ async def main(thread_id: str):
 
     values = state_snapshot.values
     messages = values.get("messages", [])
-    summary = values.get("summary", "")
-    history = values.get("history", [])
-    user_profile = values.get("user_profile", "")
 
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -93,28 +73,13 @@ async def main(thread_id: str):
     lines.append(f"> 💬 共 {len(messages)} 則 messages\n")
     lines.append("---\n")
 
-    # Summary
-    lines.append("## 📝 摘要 (Summary)\n")
-    if summary:
-        lines.append(f"> {summary}\n")
-    else:
-        lines.append("> (無摘要)\n")
-    lines.append("---\n")
-
-    # History
-    lines.append("## 🗂️ 執行路徑 (History)\n")
-    if history:
-        lines.append("`" + "` → `".join(history) + "`\n")
-    else:
-        lines.append("(無路徑記錄)\n")
-    lines.append("---\n")
-
-    # System Prompt（各 agent）
+    # System Prompt
     lines.append("## 🎯 System Prompt\n")
-    agent_prompts = _build_agent_prompts(user_profile)
-    for agent_name, prompt in agent_prompts.items():
-        lines.append(f"### 🤖 `{agent_name}`\n")
-        lines.append(f"```\n{prompt}\n```\n")
+    system_prompt = get_system_prompt()
+    if system_prompt:
+        lines.append(f"```\n{system_prompt}\n```\n")
+    else:
+        lines.append("> (尚未載入 system prompt)\n")
     lines.append("---\n")
 
     # Checkpoint Messages
@@ -126,7 +91,23 @@ async def main(thread_id: str):
         emoji = TYPE_EMOJI.get(msg_type, "📨")
         content = _format_content(msg.content) if hasattr(msg, "content") else str(msg)
 
-        lines.append(f"### {emoji} [{i}] `{msg_type}`\n")
+        # tool call 資訊
+        tool_calls = getattr(msg, "tool_calls", None)
+        tool_info = ""
+        if tool_calls:
+            calls = [f"`{tc.get('name', '?')}({tc.get('args', {})})`" for tc in tool_calls]
+            tool_info = f"\n> Tool calls: {', '.join(calls)}"
+
+        # tool message 的名稱
+        tool_name = ""
+        if msg_type == "tool":
+            name = getattr(msg, "name", "")
+            if name:
+                tool_name = f" (`{name}`)"
+
+        lines.append(f"### {emoji} [{i}] `{msg_type}`{tool_name}\n")
+        if tool_info:
+            lines.append(f"{tool_info}\n")
         lines.append(f"```\n{content}\n```\n")
 
     # 寫入檔案
