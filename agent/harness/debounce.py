@@ -265,6 +265,31 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
 
         messages = result.get("messages", [])
 
+        # 印出完整對話上下文
+        print(f"\n{'═' * 60}")
+        print(f"[對話上下文] user={user_id}, thread={thread_id}, 共 {len(messages)} 則訊息")
+        print(f"{'═' * 60}")
+        for i, msg in enumerate(messages):
+            role = getattr(msg, "type", "unknown")
+            if role == "human":
+                content = msg.content if isinstance(msg.content, str) else "[多模態內容]"
+                print(f"  [{i}] 👤 Human: {content[:200]}{'...' if isinstance(msg.content, str) and len(msg.content) > 200 else ''}")
+            elif role == "ai":
+                tool_calls = getattr(msg, "tool_calls", None)
+                if tool_calls:
+                    for tc in tool_calls:
+                        print(f"  [{i}] 🤖 AI → tool_call: {tc.get('name', '?')}({json.dumps(tc.get('args', {}), ensure_ascii=False)[:100]})")
+                if msg.content:
+                    text = _extract_text(msg.content)
+                    print(f"  [{i}] 🤖 AI: {text[:200]}{'...' if len(text) > 200 else ''}")
+            elif role == "tool":
+                name = getattr(msg, "name", "?")
+                content = msg.content if isinstance(msg.content, str) else str(msg.content)
+                print(f"  [{i}] 🔧 Tool({name}): {content[:150]}{'...' if len(content) > 150 else ''}")
+            else:
+                print(f"  [{i}] ❓ {role}: {str(getattr(msg, 'content', ''))[:100]}")
+        print(f"{'═' * 60}\n")
+
         # Checkpoint 清理：將多模態 HumanMessage 替換為純文字引用
         if is_multimodal:
             await _cleanup_multimodal_checkpoint(config, messages, buffer_items)
