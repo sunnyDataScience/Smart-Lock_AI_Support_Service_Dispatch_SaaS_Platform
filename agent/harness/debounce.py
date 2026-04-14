@@ -67,6 +67,49 @@ def _extract_text(content) -> str:
     return str(content)
 
 
+async def _print_context(user_id: str, ai_response: str):
+    """印出完整對話上下文（system prompt + checkpoint messages + AI 最終回答）。"""
+    thread_id = f"line_{user_id}"
+    config = {"configurable": {"thread_id": thread_id}}
+    sys_prompt = get_system_prompt()
+
+    # 從 checkpoint 撈出完整 messages
+    messages = []
+    try:
+        state = await _agent.aget_state(config)
+        if state and state.values:
+            messages = state.values.get("messages", [])
+    except Exception as e:
+        print(f"[Debug] 無法讀取 checkpoint: {e}")
+
+    print(f"\n{'═' * 60}")
+    print(f"[對話上下文] user={user_id}, thread={thread_id}, 共 {len(messages)} 則訊息")
+    print(f"{'═' * 60}")
+    if sys_prompt:
+        print(f"  [📋 System Prompt]\n{sys_prompt}")
+        print(f"{'─' * 60}")
+    for i, msg in enumerate(messages):
+        role = getattr(msg, "type", "unknown")
+        if role == "human":
+            content = msg.content if isinstance(msg.content, str) else "[多模態內容]"
+            print(f"  [{i}] 👤 Human: {content[:100]}{'...' if isinstance(msg.content, str) and len(msg.content) > 100 else ''}")
+        elif role == "ai":
+            tool_calls = getattr(msg, "tool_calls", None)
+            if tool_calls:
+                for tc in tool_calls:
+                    print(f"  [{i}] 🤖 AI → tool_call: {tc.get('name', '?')}({json.dumps(tc.get('args', {}), ensure_ascii=False)[:100]})")
+            if msg.content:
+                text = _extract_text(msg.content)
+                print(f"  [{i}] 🤖 AI: {text[:100]}{'...' if len(text) > 100 else ''}")
+        elif role == "tool":
+            name = getattr(msg, "name", "?")
+            content = msg.content if isinstance(msg.content, str) else str(msg.content)
+            print(f"  [{i}] 🔧 Tool({name}): {content[:100]}{'...' if len(content) > 100 else ''}")
+        else:
+            print(f"  [{i}] ❓ {role}: {str(getattr(msg, 'content', ''))[:100]}")
+        print(f"{'─' * 60}")
+
+
 def _extract_text_from_items(items: list) -> str:
     """從 buffer items 中提取純文字部分（用於安全檢查、審計、日誌）。"""
     parts = []
@@ -266,35 +309,6 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
 
         messages = result.get("messages", [])
 
-        # 印出完整對話上下文
-        print(f"\n{'═' * 60}")
-        print(f"[對話上下文] user={user_id}, thread={thread_id}, 共 {len(messages)} 則訊息")
-        print(f"{'═' * 60}")
-        sys_prompt = get_system_prompt()
-        if sys_prompt:
-            print(f"  [📋 System Prompt]\n{sys_prompt}")
-            print(f"{'─' * 60}")
-        for i, msg in enumerate(messages):
-            role = getattr(msg, "type", "unknown")
-            if role == "human":
-                content = msg.content if isinstance(msg.content, str) else "[多模態內容]"
-                print(f"  [{i}] 👤 Human: {content[:200]}{'...' if isinstance(msg.content, str) and len(msg.content) > 200 else ''}")
-            elif role == "ai":
-                tool_calls = getattr(msg, "tool_calls", None)
-                if tool_calls:
-                    for tc in tool_calls:
-                        print(f"  [{i}] 🤖 AI → tool_call: {tc.get('name', '?')}({json.dumps(tc.get('args', {}), ensure_ascii=False)[:100]})")
-                if msg.content:
-                    text = _extract_text(msg.content)
-                    print(f"  [{i}] 🤖 AI: {text[:200]}{'...' if len(text) > 200 else ''}")
-            elif role == "tool":
-                name = getattr(msg, "name", "?")
-                content = msg.content if isinstance(msg.content, str) else str(msg.content)
-                print(f"  [{i}] 🔧 Tool({name}): {content[:150]}{'...' if len(content) > 150 else ''}")
-            else:
-                print(f"  [{i}] ❓ {role}: {str(getattr(msg, 'content', ''))[:100]}")
-        print(f"{'═' * 60}\n")
-
         # Checkpoint 清理：將多模態 HumanMessage 替換為純文字引用
         if is_multimodal:
             await _cleanup_multimodal_checkpoint(config, messages, buffer_items)
@@ -419,6 +433,10 @@ async def agent_and_reply(user_id: str, reply_token: str, content: str | list, b
     # H7: 偵測 URL 並轉換為 Flex Message 卡片
     max_len = _config.get("max_reply_length", 5000)
     message_objects = build_line_messages(ai_response[:max_len])
+
+    # 印出完整對話上下文 + AI 最終回答
+    await _print_context(user_id, ai_response)
+
     await line_bot.send_response(user_id, reply_token, ai_response, max_len=max_len, message_objects=message_objects)
 
 
