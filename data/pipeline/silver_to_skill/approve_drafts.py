@@ -161,8 +161,15 @@ def main():
             # 既有 skill：寫回原始路徑（保留子目錄結構）
             target_path = Path(registry[skill_name].path)
         else:
-            # 新 skill：放在 skills_dir 根目錄下
-            target_dir = skills_dir / skill_name
+            # 新 skill：依前綴放入對應子目錄
+            if skill_name.startswith("ts-"):
+                target_dir = skills_dir / "system" / "troubleshoot" / skill_name
+            elif skill_name.startswith("app-"):
+                target_dir = skills_dir / "app" / skill_name
+            elif skill_name.startswith("ss-"):
+                target_dir = skills_dir / "system" / "system-settings" / skill_name
+            else:
+                target_dir = skills_dir / "general" / skill_name
             target_dir.mkdir(parents=True, exist_ok=True)
             target_path = target_dir / "SKILL.md"
 
