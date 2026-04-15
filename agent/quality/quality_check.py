@@ -56,6 +56,8 @@ class TestCase:
     question: str
     expected: str
     keywords: list[str]  # 回答中應包含的關鍵詞（至少命中一半算 keyword pass）
+    device_brand: str = ""  # 品牌路由測試用：注入 [用戶資料] + [可用技能] 前綴
+    device_model: str = ""  # 型號路由測試用
 
 
 TEST_CASES: list[TestCase] = [
@@ -255,6 +257,32 @@ TEST_CASES: list[TestCase] = [
     TestCase("E-11", "硬體維修", "Chatlock售後是怎麼保固？",
              "Chatlock 產品自安裝完成日起享有原廠保固，保固期依產品型號或購買通路為準",
              ["保固", "安裝", "原廠"]),
+
+    # ── 品牌路由測試：驗證已知品牌用戶是否載入正確的品牌版技能 ──
+    TestCase("B-1", "品牌路由", "門打不開",
+             "Dormakaba 用戶應載入 ts-door-stuck-dormakaba，回答應包含擺動式鎖舌操作",
+             ["擺動", "推緊"],
+             device_brand="Dormakaba"),
+    TestCase("B-2", "品牌路由", "門打不開",
+             "Chatlock 用戶應載入 ts-door-stuck-chatlock，回答應包含 Type-C 緊急供電",
+             ["推緊", "Type-C"],
+             device_brand="Chatlock"),
+    TestCase("B-3", "品牌路由", "電池很快沒電",
+             "Dormakaba 用戶應載入 ts-power-drain-dormakaba，回答應包含 9V 電池或 FA9000 等型號資訊",
+             ["Panasonic", "鹼性"],
+             device_brand="Dormakaba"),
+    TestCase("B-4", "品牌路由", "要按兩次才能開門",
+             "Chatlock 用戶應載入 ts-dual-auth-chatlock，回答應包含齒輪→高級設定的操作路徑",
+             ["齒輪", "高級設定"],
+             device_brand="Chatlock"),
+    TestCase("B-5", "品牌路由", "鎖一直嗶嗶叫",
+             "Dormakaba 用戶應載入 ts-alarm-dormakaba，回答應包含 Dormakaba 信號對照",
+             ["Panasonic", "鹼性"],
+             device_brand="Dormakaba"),
+    TestCase("B-6", "品牌路由", "APP 怎麼配對",
+             "Chatlock AI-99 用戶應載入 app-pairing，回答應包含 WiFi/藍牙配對步驟",
+             ["WiFi", "藍牙"],
+             device_brand="Chatlock", device_model="AI-99"),
 ]
 
 # ─────────────────────────────────────────────
@@ -338,9 +366,26 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
     """執行單一測試並評分。"""
     t0 = time.time()
 
+    # 組裝訊息（品牌路由測試時注入 [可用技能] + [用戶資料] 前綴）
+    if tc.device_brand:
+        from skills.tools import build_dynamic_skills_section
+        skills_section = build_dynamic_skills_section(
+            tc.device_brand, tc.device_model or None
+        )
+        profile_lines = [f"[Verified Fact] device_brand: {tc.device_brand}"]
+        if tc.device_model:
+            profile_lines.append(f"[Verified Fact] device_model: {tc.device_model}")
+        content = (
+            f"[可用技能]\n{skills_section}\n\n"
+            f"[用戶資料]\n" + "\n".join(profile_lines) + "\n\n"
+            f"[用戶訊息]\n{tc.question}"
+        )
+    else:
+        content = tc.question
+
     # 呼叫 agent
     result = await agent.ainvoke(
-        {"messages": [{"role": "user", "content": tc.question}]},
+        {"messages": [{"role": "user", "content": content}]},
         config,
     )
 
@@ -394,7 +439,7 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
 
 
 def _parse_args():
-    p = argparse.ArgumentParser(description="Agent Skills Quality Check (50 cases)")
+    p = argparse.ArgumentParser(description="Agent Skills Quality Check")
     p.add_argument("--no-judge", action="store_true", help="跳過 LLM-as-Judge，只用關鍵詞評分")
     p.add_argument("--judge-only", action="store_true", help="不呼叫 agent，用現有 JSON 重新跑 LLM 評分")
     p.add_argument("--retry-failed", action="store_true", help="只重測上次非 pass 的案例，更新報告")
@@ -613,7 +658,7 @@ async def main():
     agent = build_agent(model, cfg)
 
     print("=" * 60)
-    print(f"  Quality Check — {mode_label} (50 cases)")
+    print(f"  Quality Check — {mode_label} ({len(TEST_CASES)} cases)")
     print("=" * 60)
 
     results = []
@@ -623,7 +668,7 @@ async def main():
     for i, tc in enumerate(TEST_CASES):
         config = {"configurable": {"thread_id": f"qc-{tc.id}"}}
 
-        print(f"\n[{i+1:02d}/50] {tc.id} | {tc.category} | {tc.question[:40]}...", end=" ", flush=True)
+        print(f"\n[{i+1:02d}/{len(TEST_CASES)}] {tc.id} | {tc.category} | {tc.question[:40]}...", end=" ", flush=True)
 
         try:
             r = await run_single(agent, judge_model, tc, config, use_judge=use_judge)
