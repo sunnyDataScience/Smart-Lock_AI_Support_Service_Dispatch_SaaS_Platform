@@ -13,7 +13,7 @@ import time
 import asyncio
 import json
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 import core.line_bot as line_bot
 import harness.memory_manager as memory_manager
@@ -313,8 +313,11 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         if is_multimodal:
             await _cleanup_multimodal_checkpoint(config, messages, buffer_items)
 
-        # H8: 審計 — 記錄工具呼叫 + 轉接真人 + LLM 互動
+        # H8: 審計 — 記錄工具呼叫 + 轉接真人 + LLM 互動（須在 tool cleanup 前，需讀原始 tool_calls）
         asyncio.create_task(_audit_agent_result(user_id, messages, latency_ms))
+
+        # Checkpoint 清理：將 tool call 訊息替換為輕量引用，避免 SOP 內容累積稀釋上下文
+        await _cleanup_tool_checkpoint(config, messages)
 
         for msg in reversed(messages):
             if hasattr(msg, "type") and msg.type == "ai" and msg.content:
@@ -340,6 +343,58 @@ async def _cleanup_multimodal_checkpoint(config: dict, messages: list, buffer_it
                 print(f"[Checkpoint] 已將多模態訊息替換為文字引用 (msg_id={msg.id})")
     except Exception as e:
         print(f"[Checkpoint] 清理多模態訊息失敗: {e}")
+
+
+async def _cleanup_tool_checkpoint(config: dict, messages: list):
+    """將 checkpoint 中的 tool call 訊息替換為輕量引用，避免 SOP 內容佔用上下文。
+
+    每次 run_agent() 完成後呼叫。清理對象：
+    - ToolMessage（load_skill 回傳的完整 SOP）→ [已參考技能: {name}]
+    - 僅含 tool_calls 的中間 AIMessage → [已參考技能: {name}]
+    最終回覆的 AIMessage 不受影響。
+    """
+    try:
+        replaced = 0
+
+        for msg in messages:
+            # ToolMessage: 替換 load_skill 回傳的完整 SOP 內容
+            if hasattr(msg, "type") and msg.type == "tool" and hasattr(msg, "name") and msg.name == "load_skill":
+                content = msg.content if isinstance(msg.content, str) else str(msg.content)
+                # 從 "已載入技能: xxx\n\n..." 提取 skill name
+                if content.startswith("已載入技能:"):
+                    skill_name = content.split("已載入技能:")[1].split("\n")[0].strip()
+                else:
+                    skill_name = "unknown"
+                ref = f"[已參考技能: {skill_name}]"
+                await _agent.aupdate_state(
+                    config,
+                    {"messages": [ToolMessage(content=ref, id=msg.id, tool_call_id=msg.tool_call_id)]},
+                )
+                replaced += 1
+
+            # 中間 AIMessage: 僅含 tool_calls、無實質 content 的訊息
+            elif (
+                hasattr(msg, "type") and msg.type == "ai"
+                and hasattr(msg, "tool_calls") and msg.tool_calls
+                and (not msg.content or not str(msg.content).strip())
+            ):
+                skill_names = [
+                    tc.get("args", {}).get("skill_name", "unknown")
+                    for tc in msg.tool_calls
+                    if tc.get("name") == "load_skill"
+                ]
+                if skill_names:
+                    ref = ", ".join(f"[已參考技能: {n}]" for n in skill_names)
+                    await _agent.aupdate_state(
+                        config,
+                        {"messages": [AIMessage(content=ref, id=msg.id)]},
+                    )
+                    replaced += 1
+
+        if replaced:
+            print(f"[Checkpoint] 已清理 {replaced} 則 tool call 訊息，替換為輕量引用")
+    except Exception as e:
+        print(f"[Checkpoint] 清理 tool call 訊息失敗: {e}")
 
 
 async def _audit_agent_result(user_id: str, messages: list, latency_ms: float):
