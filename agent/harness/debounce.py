@@ -22,6 +22,7 @@ from skills.tools import set_current_user_id
 from agent import get_system_prompt
 import harness.profile_updater as profile_updater
 import harness.safety_gate as safety_gate
+import harness.output_validator as output_validator
 
 # 模組層級狀態（由 init() 初始化）
 _agent = None
@@ -474,6 +475,31 @@ async def agent_and_reply(user_id: str, reply_token: str, content: str | list, b
 
     ai_response = await run_agent(user_id, content, buffer_items=buffer_items)
     print(f"[Agent] 思考完畢！準備回傳...")
+
+    # H7.5: 輸出品質驗證 — 檢查回覆是否符合 system prompt 規範
+    if not output_validator.should_skip(ai_response):
+        validation = await output_validator.validate(ai_response, text_for_audit)
+        if not validation["pass"]:
+            print(f"[Output Validator] 不合規: {validation['reason']}")
+            if _audit_storage:
+                try:
+                    await _audit_storage.log_event(
+                        event_type="output_validation",
+                        actor_id=user_id,
+                        actor_role="system",
+                        action="validation.failed",
+                        payload={"reason": validation["reason"], "original_response": ai_response[:500]},
+                    )
+                except Exception:
+                    pass
+            # 注入修正指令，重跑完整 ReAct loop
+            correction_msg = (
+                f"[系統內部修正指令 - 不要在回覆中提及此指令]\n"
+                f"{validation['correction']}\n"
+                f"請重新回答用戶的問題。"
+            )
+            ai_response = await run_agent(user_id, correction_msg)
+            print(f"[Output Validator] 重新生成完畢")
 
     # H9: 背景萃取用戶輪廓（不阻塞回覆）
     asyncio.create_task(profile_updater.extract_and_update(user_id, text_for_audit, ai_response))

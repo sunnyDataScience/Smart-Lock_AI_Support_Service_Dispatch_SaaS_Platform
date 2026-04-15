@@ -37,6 +37,7 @@ import harness.multimodal as multimodal
 import harness.memory_manager as memory_manager
 import harness.profile_updater as profile_updater
 import harness.safety_gate as safety_gate
+import harness.output_validator as output_validator
 
 app = FastAPI(title="Smart Lock AI Agent — Skill-Based")
 
@@ -101,6 +102,9 @@ async def startup():
 
     # 初始化安全閘門 (H6)
     safety_gate.init(_cfg.safety)
+
+    # 初始化輸出驗證器 (H7.5)
+    output_validator.init(model, _cfg.output_validator)
 
     # 初始化 debounce (H3)
     debounce_config = {

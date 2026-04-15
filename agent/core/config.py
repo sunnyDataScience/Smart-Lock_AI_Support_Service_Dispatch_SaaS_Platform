@@ -33,6 +33,7 @@ class AppConfig:
     multimodal: dict = field(default_factory=dict)
     templates: dict = field(default_factory=dict)
     user_profile: dict = field(default_factory=dict)
+    output_validator: dict = field(default_factory=dict)
 
 
 def load_config(file_path: str | None = None) -> AppConfig:
@@ -62,6 +63,7 @@ def load_config(file_path: str | None = None) -> AppConfig:
         multimodal=data.get("multimodal", {}),
         templates=data.get("templates", {}),
         user_profile=data.get("user_profile", {}),
+        output_validator=data.get("output_validator", {}),
     )
 
 
