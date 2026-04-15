@@ -48,6 +48,17 @@ def load_skill(skill_name: str) -> str:
             print(f"[skill] >>> 載入技能: {s.name}")
             return f"已載入技能: {s.name}\n\n{s.content}"
 
+    # 前綴比對：找出所有以 skill_name 為前綴的品牌子技能
+    prefix_matches = [s for s in _skills if s.name.startswith(skill_name + "-")]
+    if prefix_matches:
+        names = ", ".join(s.name for s in prefix_matches)
+        print(f"[skill] >>> 前綴比對: {skill_name} → {names}")
+        return (
+            f"找不到技能 '{skill_name}'，"
+            f"但有以下相關子技能: {names}。"
+            f"請根據用戶的品牌選擇正確的子技能載入。"
+        )
+
     available = ", ".join(s.name for s in _skills)
     print(f"[skill] >>> 找不到: {skill_name}")
     return f"找不到技能 '{skill_name}'。可用技能: {available}"

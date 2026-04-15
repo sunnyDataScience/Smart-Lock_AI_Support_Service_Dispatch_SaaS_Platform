@@ -1,15 +1,15 @@
 {
   "summary": {
-    "pass": 50,
-    "partial": 3,
-    "fail": 14,
+    "pass": 51,
+    "partial": 7,
+    "fail": 9,
     "error": 0
   },
   "category_stats": {
     "硬體維修": {
-      "pass": 10,
-      "partial": 1,
-      "fail": 10,
+      "pass": 11,
+      "partial": 2,
+      "fail": 8,
       "error": 0,
       "total": 21
     },
@@ -22,8 +22,8 @@
     },
     "門市規格": {
       "pass": 9,
-      "partial": 0,
-      "fail": 1,
+      "partial": 1,
+      "fail": 0,
       "error": 0,
       "total": 10
     },
@@ -50,8 +50,8 @@
     },
     "品牌路由": {
       "pass": 2,
-      "partial": 1,
-      "fail": 3,
+      "partial": 3,
+      "fail": 1,
       "error": 0,
       "total": 6
     }
@@ -118,14 +118,14 @@
       "category": "硬體維修",
       "question": "鎖舌在室內拉不開門的緊急處理？",
       "expected": "指導「先將門推緊，再拉動把手」的緩解動作",
-      "answer": "好的，了解您目前鎖舌卡住，導致門從室內拉不開的狀況。\n\n請問您的電子鎖是什麼品牌和型號呢？這樣我才能提供更精確的緊急處理方式喔！",
+      "answer": "您好，聽起來您的電子鎖遇到鎖舌卡住的問題了。\n\n為了能更精確地協助您，請問您的電子鎖是什麼品牌呢？",
       "skills_loaded": [
         "troubleshoot"
       ],
-      "keyword_hits": "1/3",
+      "keyword_hits": "0/3",
       "verdict": "fail",
-      "reason": "AI沒有提供預期的緩解動作，反而要求更多資訊，未能回答緊急處理問題的核心。",
-      "elapsed_sec": 4.5
+      "reason": "AI回答沒有提供任何緊急處理的緩解動作，而是詢問品牌資訊，未能解決用戶當前的問題。",
+      "elapsed_sec": 4.4
     },
     {
       "id": "H-6",
@@ -162,14 +162,14 @@
       "category": "硬體維修",
       "question": "出現關鎖失敗警報時，使用者可以如何自行初步排查？",
       "expected": "指導在開門狀態下測試鎖栓伸縮是否正常，之後再確認是否為受口位移造成",
-      "answer": "您好！關於關鎖失敗警報，我需要先確認一些基本資訊才能幫您判斷喔。\n\n請問您的電子鎖是什麼品牌呢？",
+      "answer": "您好！聽到您遇到關鎖失敗警報，別擔心，我來協助您。\n\n為了能更精確地幫您排查問題，請問您的電子鎖是什麼品牌呢？",
       "skills_loaded": [
         "troubleshoot"
       ],
-      "keyword_hits": "0/3",
+      "keyword_hits": "1/3",
       "verdict": "fail",
-      "reason": "AI沒有提供任何初步排查步驟，而是反問使用者問題。",
-      "elapsed_sec": 5.7
+      "reason": "AI的回答沒有提供任何初步排查步驟，而是詢問品牌資訊，完全偏離預期方向。",
+      "elapsed_sec": 3.7
     },
     {
       "id": "H-9",
@@ -190,15 +190,14 @@
       "category": "硬體維修",
       "question": "Chatlock貓眼鏡頭旁閃爍紅燈的含義？",
       "expected": "說明鏡頭正在主動啟動人臉或掌靜脈辨識，屬於正常工作狀態",
-      "answer": "您好！關於Chatlock貓眼鏡頭旁閃爍紅燈的含義，這可能是一個警示訊息。\n\n為了更精確地判斷原因，我需要先幫您進行初步的故障排除。請稍等，我會載入相關的診斷流程。",
+      "answer": "您好！Chatlock 電子鎖貓眼鏡頭旁閃爍紅燈，通常是提醒您電子鎖的電量較低囉！\n\n請問您有收到其他低電量通知嗎？例如語音提醒或是手機APP通知？",
       "skills_loaded": [
-        "product-knowledge",
-        "troubleshoot"
+        "product-knowledge"
       ],
       "keyword_hits": "1/3",
       "verdict": "fail",
-      "reason": "AI將正常工作狀態誤判為警示訊息，並啟動故障排除流程，與預期方向完全相反。",
-      "elapsed_sec": 15.5
+      "reason": "AI的回答將閃爍紅燈的含義解釋為低電量，與預期方向（人臉/掌靜脈辨識）完全不符。",
+      "elapsed_sec": 12.1
     },
     {
       "id": "S-1",
@@ -289,14 +288,14 @@
       "category": "報價客服",
       "question": "如果我想更換整組鎖體，建議先準備什麼資料？",
       "expected": "引導使用者提供現有門鎖的照片與門厚資訊，以及需提供欲安裝的品牌及型號",
-      "answer": "您好！如果您想更換整組鎖體，為了能更精確地評估並給您建議，會需要您先準備以下資料：\n\n1.  **現有電子鎖的正面照片**\n2.  **鎖匣部分的特寫照片**\n3.  **側板的寬度與長度**\n\n這些資訊可以幫助我們了解您的門扇狀況，才能提供最適合您的方案喔！",
+      "answer": "您好！如果您想更換整組鎖體，為了幫您評估最適合的方案，會需要您提供一些資料喔。\n\n麻煩您先準備：\n1. 現有電子鎖的正面照片\n2. 鎖匣部分的近照\n3. 側板的寬度與長度\n\n這樣我才能幫您確認門的狀況，並提供更精確的建議喔！",
       "skills_loaded": [
         "dispatch-guide"
       ],
       "keyword_hits": "2/3",
       "verdict": "partial",
-      "reason": "AI回答提供了現有鎖體的照片與尺寸資訊，但遺漏了詢問使用者欲安裝的品牌及型號。",
-      "elapsed_sec": 2.8
+      "reason": "AI回答有引導使用者提供現有門鎖照片，但遺漏了門厚資訊以及欲安裝的品牌及型號。",
+      "elapsed_sec": 2.9
     },
     {
       "id": "S-8",
@@ -387,14 +386,14 @@
       "category": "門市規格",
       "question": "電子鎖完全沒電時，有哪些緊急供電方案？",
       "expected": "指導使用行動電源透過 USB 接孔供電",
-      "answer": "您好！電子鎖完全沒電時，確實需要緊急供電方案才能開門。\n\n請問您的電子鎖是什麼品牌呢？這樣我才能提供最準確的緊急供電方式給您喔！",
+      "answer": "您好！電子鎖完全沒電時，確實會有緊急供電的方案喔。\n\n請問您的電子鎖是什麼品牌呢？這樣我才能提供最精確的緊急供電方式給您。",
       "skills_loaded": [
         "troubleshoot"
       ],
       "keyword_hits": "1/3",
-      "verdict": "fail",
-      "reason": "AI沒有提供任何緊急供電方案，而是反問品牌資訊，未符合預期指導使用行動電源供電的方向。",
-      "elapsed_sec": 5.8
+      "verdict": "partial",
+      "reason": "AI 回答未直接提供緊急供電方案，而是反問品牌資訊，未達到預期指導使用行動電源供電的目的。",
+      "elapsed_sec": 2.9
     },
     {
       "id": "W-5",
@@ -766,85 +765,84 @@
       "category": "硬體維修",
       "question": "換完電池還是會一直無法上鎖",
       "expected": "換錯電池，請使用 Panasonic 鹼性電池",
-      "answer": "您好！想幫您確認一下電子鎖無法上鎖的問題。\n\n請問您的電子鎖是什麼品牌呢？",
+      "answer": "您好，聽起來電子鎖無法上鎖真的很困擾！\n\n為了幫您更快找到問題，請問您的電子鎖是什麼品牌和型號呢？",
       "skills_loaded": [
-        "troubleshoot",
-        "ts-auto-lock"
+        "troubleshoot"
       ],
       "keyword_hits": "0/3",
-      "verdict": "fail",
-      "reason": "AI 回答是通用性提問，完全沒有觸及預期回答中關於電池類型錯誤的核心診斷。",
-      "elapsed_sec": 5.6
+      "verdict": "partial",
+      "reason": "AI 回答是詢問更多資訊，但預期回答是直接指出電池類型問題並提供解決方案，AI 未觸及核心預期方向。",
+      "elapsed_sec": 4.9
     },
     {
       "id": "E-2",
       "category": "硬體維修",
       "question": "螢幕一直閃爍，無法感應任何開鎖方式",
       "expected": "鎖栓可能卡到門框受口片，需先將門拉或推至關好門的位置",
-      "answer": "您好！聽到您的電子鎖螢幕閃爍而且無法感應開鎖方式，這確實很困擾。\n\n為了幫您更快找出問題，想先請教您幾個資訊：\n1. 請問您的電子鎖是什麼品牌和型號呢？\n2. 您目前是在門外還是門內呢？門是開著還是關著的？",
+      "answer": "您好！聽到您的電子鎖螢幕閃爍而且無法感應開鎖，這確實很困擾。\n\n為了幫您更快找出問題，請問您的電子鎖是什麼品牌和型號呢？另外，您目前是在門內還是門外，門是開著還是關著呢？",
       "skills_loaded": [
         "troubleshoot"
       ],
       "keyword_hits": "1/3",
       "verdict": "fail",
-      "reason": "AI回答未提供任何潛在解決方案或診斷，而是詢問更多資訊，與預期方向（提供具體故障排除建議）完全不符。",
-      "elapsed_sec": 4.9
+      "reason": "AI的回答是提問以收集更多資訊，而非提供預期方向中的潛在解決方案或診斷。",
+      "elapsed_sec": 4.7
     },
     {
       "id": "E-3",
       "category": "硬體維修",
       "question": "Chatlock電子鎖網路一直斷線",
       "expected": "檢查室內螢幕是否插好安裝正確（網路模組在螢幕裡），確認 2.4G 與 5G 頻道是否分開，是否為 mesh 或 WiFi 6/7 以上路由器",
-      "answer": "好的，了解您的 Chatlock 電子鎖網路一直斷線的問題。這聽起來確實很困擾！\n\n我會先幫您看看 APP 相關的連線設定。請問您的 Chatlock 型號是 AI99、A90 還是 AI88 呢？",
+      "answer": "您好！關於 Chatlock 電子鎖網路一直斷線的問題，這確實會影響到您使用遠端功能。\n\n我先幫您載入 APP 設定與操作指南，我們一起來看看怎麼處理這個網路連線問題。",
       "skills_loaded": [
-        "troubleshoot",
-        "app-guide"
+        "troubleshoot"
       ],
       "keyword_hits": "0/4",
       "verdict": "fail",
-      "reason": "AI的回答完全偏離預期方向，未提及任何預期中的檢查項目，而是詢問型號並提及APP設定。",
-      "elapsed_sec": 44.5
+      "reason": "AI回答未提及任何預期方向中的具體網路故障排除步驟，而是導向查看APP指南。",
+      "elapsed_sec": 15.3
     },
     {
       "id": "E-4",
       "category": "硬體維修",
       "question": "家中是mesh路由器",
       "expected": "Mesh 路由器可能導致視訊開門卡頓不穩定，建議使用獨立的 2.4GHz 或 IoT Network",
-      "answer": "好的，已幫您記下了！您家中使用的是 Mesh 路由器。請問還有電子鎖相關的問題我可以幫您嗎？",
+      "answer": "好的，已幫您記下了！您家中使用的是 mesh 路由器。請問還有電子鎖相關的問題我可以幫您嗎？",
       "skills_loaded": [
         "update-profile"
       ],
       "keyword_hits": "1/3",
       "verdict": "fail",
-      "reason": "AI僅是確認資訊並詢問其他問題，完全沒有提供預期方向中的問題分析或解決方案。",
-      "elapsed_sec": 2.9
+      "reason": "AI僅是記錄資訊並詢問其他問題，完全沒有針對mesh路由器可能帶來的問題提供預期中的診斷或建議。",
+      "elapsed_sec": 2.6
     },
     {
       "id": "E-5",
       "category": "硬體維修",
       "question": "Chatlock推拉電子鎖轉把手後不會自己彈回正，會卡住",
       "expected": "可能是方型帶動桿過長或螺絲鬆緊問題，需請師傅前往調整，期間可使用把手下方電子按鍵開門",
-      "answer": "您好！了解您的Chatlock推拉電子鎖把手轉動後不會自動彈回且會卡住，這聽起來確實是個困擾。\n\n為了更精確地協助您，請問您的Chatlock電子鎖型號是什麼呢？另外，您目前是在門外還是門內？門是開著還是關著呢？",
+      "answer": "您好！了解您的Chatlock推拉電子鎖把手會卡住，沒辦法彈回正位。\n\n為了幫您判斷是什麼問題，想先請教您兩個問題：\n1. 請問鎖舌是伸不出來、縮不回去，還是會卡在中間呢？\n2. 您目前門是開著還是關著的呢？",
       "skills_loaded": [
-        "troubleshoot"
+        "troubleshoot",
+        "ts-lock-tongue-chatlock"
       ],
       "keyword_hits": "0/3",
       "verdict": "fail",
-      "reason": "AI回答未提供任何預期的診斷方向、解決方案或臨時應急措施，僅詢問更多資訊。",
-      "elapsed_sec": 11.8
+      "reason": "AI回答未提供預期的可能原因、解決方案或臨時應急措施，而是提出診斷性問題。",
+      "elapsed_sec": 11.2
     },
     {
       "id": "E-6",
       "category": "硬體維修",
       "question": "為什麼只有動畫在跑動但是沒有感應人臉辨識？",
       "expected": "確認鏡頭兩旁是否有紅燈亮起，沒有紅燈代表經過的人較多導致感應太多次失敗，先使用其他方式開門",
-      "answer": "好的，我了解您遇到人臉辨識的問題。\n\n為了更精確地協助您，請問您的電子鎖是什麼品牌和型號呢？",
+      "answer": "您好！聽起來您的電子鎖在人臉辨識功能上遇到了一些狀況。\n\n為了能更精確地協助您，請問您的電子鎖是什麼品牌和型號呢？",
       "skills_loaded": [
         "troubleshoot"
       ],
       "keyword_hits": "0/3",
       "verdict": "fail",
-      "reason": "AI 回答未提供任何預期的故障排除或解釋，而是要求提供產品型號，與預期方向完全不符。",
+      "reason": "AI 回答未提供任何預期的故障排除或原因說明，而是詢問品牌型號，與預期方向完全不符。",
       "elapsed_sec": 4.9
     },
     {
@@ -866,27 +864,27 @@
       "category": "硬體維修",
       "question": "我下單了",
       "expected": "請客戶提供訂單編號、型號、購買通路、聯絡人、電話、安裝地址等資訊",
-      "answer": "您好！恭喜您下單成功！\n\n請問您是想查詢訂單進度、預約安裝，還是有其他想了解的呢？",
+      "answer": "您好！請問您是下訂了什麼商品或服務呢？需要我協助您查詢訂單資訊，還是有其他想了解的呢？",
       "skills_loaded": [],
       "keyword_hits": "1/3",
-      "verdict": "fail",
-      "reason": "AI 未要求客戶提供訂單編號、型號等關鍵資訊，而是詢問意圖，不符合預期方向。",
-      "elapsed_sec": 3.7
+      "verdict": "pass",
+      "reason": "AI 回答理解客戶意圖，並主動詢問商品資訊及是否需要查詢訂單，符合引導客戶提供訂單相關資訊的核心目的。",
+      "elapsed_sec": 8.0
     },
     {
       "id": "E-9",
       "category": "硬體維修",
       "question": "為什麼我的APP網路延遲這麼嚴重？",
       "expected": "通常與網路環境不穩定有關，可能受家庭網路設備或網速波動影響，建議檢查 Wi-Fi 訊號強度或路由器連線穩定性",
-      "answer": "哈囉！APP網路延遲可能是因為緩存資料太多造成的喔。您可以試試看清理一下APP的緩存，通常這樣就能改善網路延遲的問題。\n\n您可以這樣操作：\n1. 打開 Chatlock APP\n2. 點選底部「我」→ 右上角的齒輪圖示（設定）\n3. 往下滑找到「清理緩存」並點擊它\n\n這裡也有一個教學影片可以參考喔：https://www.youtube.com/watch?v=Bg3hu2shcVo",
+      "answer": "您好！APP網路延遲嚴重可能是因為緩存資料過多造成的喔。您可以試著清理一下 APP 的緩存，通常這樣就能改善速度了。\n\n您可以參考這個教學影片：https://www.youtube.com/watch?v=Bg3hu2shcVo\n\n操作步驟很簡單：\n1. 打開 Chatlock APP\n2. 點選底部「我」→ 再點右上角的齒輪圖示（設定）\n3. 往下滑找到「清理緩存」並點擊它，這樣就完成囉！\n\n建議您在 APP 運作變慢的時候可以試試看這個方法。",
       "skills_loaded": [
         "app-guide",
         "app-cache"
       ],
       "keyword_hits": "1/3",
       "verdict": "partial",
-      "reason": "AI回答提出的是清理緩存，與預期方向中針對網路環境不穩定的原因和解決方案不同，未能觸及網路層面的問題。",
-      "elapsed_sec": 5.2
+      "reason": "AI回答將網路延遲歸因於緩存，與預期方向中提及的網路環境不穩定、Wi-Fi訊號或路由器連線等核心原因完全不同，屬於明顯偏差。",
+      "elapsed_sec": 5.3
     },
     {
       "id": "E-10",
@@ -921,13 +919,13 @@
       "category": "品牌路由",
       "question": "門打不開",
       "expected": "Dormakaba 用戶應載入 ts-door-stuck-dormakaba，回答應包含擺動式鎖舌操作",
-      "answer": "您好！門打不開確實很困擾，別擔心，我來幫您看看。\n\n請問您的電子鎖型號是什麼呢？\n另外，您目前是在門外還是門內？門是開著還是關著呢？",
+      "answer": "您好！很抱歉聽到您的門打不開。\n\n為了幫您更快找到問題，請問您的 Dormakaba 電子鎖型號是什麼呢？\n另外，您目前是在門外還是門內？門是開著還是關著呢？",
       "skills_loaded": [
         "troubleshoot"
       ],
       "keyword_hits": "0/2",
-      "verdict": "fail",
-      "reason": "AI回答未提及Dormakaba或任何故障排除指南，也未包含擺動式鎖舌操作，與預期方向完全不符。",
+      "verdict": "partial",
+      "reason": "AI回答有詢問Dormakaba型號，但未提及載入特定故障排除指南或擺動式鎖舌操作。",
       "elapsed_sec": 3.2
     },
     {
@@ -935,14 +933,14 @@
       "category": "品牌路由",
       "question": "門打不開",
       "expected": "Chatlock 用戶應載入 ts-door-stuck-chatlock，回答應包含 Type-C 緊急供電",
-      "answer": "您好！門打不開確實很讓人困擾，別擔心，我來幫您看看。\n\n請問您的電子鎖型號是什麼呢？\n另外，您目前是在門內還是門外？門是開著還是關著呢？",
+      "answer": "您好，很抱歉聽到您的門打不開。\n\n為了幫您更快找到解決辦法，想先請問：\n1. 您的電子鎖型號是什麼呢？如果您不確定型號，可以告訴我您的鎖是需要握住把手往下壓才能開門，還是直接推拉就可以呢？\n2. 您目前是在門外還是門內呢？門是開著還是關著？",
       "skills_loaded": [
         "troubleshoot"
       ],
       "keyword_hits": "0/2",
       "verdict": "fail",
-      "reason": "AI回答未提及載入ts-door-stuck-chatlock或Type-C緊急供電，與預期方向完全不符。",
-      "elapsed_sec": 11.4
+      "reason": "AI回答完全沒有提及預期方向中的 'ts-door-stuck-chatlock' 和 'Type-C 緊急供電'。",
+      "elapsed_sec": 4.8
     },
     {
       "id": "B-3",
@@ -964,30 +962,29 @@
       "category": "品牌路由",
       "question": "要按兩次才能開門",
       "expected": "Chatlock 用戶應載入 ts-dual-auth-chatlock，回答應包含齒輪→高級設定的操作路徑",
-      "answer": "您好！了解到您的 Chatlock 電子鎖需要按兩次才能開門，這可能是雙重認證模式被開啟了。\n\n我想先請問您，目前開門需要什麼步驟呢？是先輸入密碼再刷卡，還是先按指紋再輸入密碼呢？\n\n另外，您現在可以進到門鎖的設定選單嗎？",
+      "answer": "您好！聽起來您的電子鎖可能開啟了雙重認證模式，所以需要多一個步驟才能開門。\n\n我想先跟您確認一下，您目前開門需要什麼步驟呢？是先輸入密碼再刷卡，還是先按指紋再輸入密碼呢？\n另外，您現在可以進入門鎖的設定選單嗎？",
       "skills_loaded": [
         "troubleshoot",
         "ts-dual-auth-chatlock"
       ],
       "keyword_hits": "0/2",
       "verdict": "partial",
-      "reason": "AI回答正確判斷了問題可能的原因（雙重認證），但完全遺漏了預期回答中應包含的具體解決方案（載入模組和操作路徑）。",
-      "elapsed_sec": 6.7
+      "reason": "AI正確識別了雙重認證模式，但未提及Chatlock產品或ts-dual-auth-chatlock模組，也未提供具體的操作路徑『齒輪→高級設定』，而是詢問更多資訊。",
+      "elapsed_sec": 5.3
     },
     {
       "id": "B-5",
       "category": "品牌路由",
       "question": "鎖一直嗶嗶叫",
       "expected": "Dormakaba 用戶應載入 ts-alarm-dormakaba，回答應包含 Dormakaba 信號對照",
-      "answer": "您好，Dormakaba 電子鎖一直嗶嗶叫確實讓人困擾！\n\n為了幫您判斷是什麼問題，可以請您先描述一下聲音模式嗎？例如是短嗶三聲、長鳴三秒，還是連續嗶不停呢？\n\n另外，這個聲音大概是什麼時候出現的呢？是關門的時候、開門的時候，還是半夜突然響起來的呢？",
+      "answer": "好的，您的 Dormakaba 電子鎖一直嗶嗶叫，這聽起來像是異常警報。\n\n我需要先幫您確認一下，請問您目前人在門外還是門內呢？門是開著還是關著？",
       "skills_loaded": [
-        "troubleshoot",
-        "ts-alarm-dormakaba"
+        "troubleshoot"
       ],
       "keyword_hits": "0/2",
-      "verdict": "fail",
-      "reason": "AI回答未提及預期方向中指定的 'ts-alarm-dormakaba' 工具，也未包含 Dormakaba 信號對照，而是採取了通用提問方式。",
-      "elapsed_sec": 7.9
+      "verdict": "partial",
+      "reason": "AI回答確認了品牌，但未提供預期的ts-alarm-dormakaba載入指示或Dormakaba信號對照資訊。",
+      "elapsed_sec": 3.8
     },
     {
       "id": "B-6",
