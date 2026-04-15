@@ -79,7 +79,8 @@ TEST_CASES: list[TestCase] = [
              ["推緊", "拉", "把手"]),
     TestCase("H-6", "硬體維修", "Dormakaba 鎖在室外推不開門的緊急處理？",
              "指導先拉緊把手使門閉合，完成解鎖後再用力推動",
-             ["拉緊", "把手", "推"]),
+             ["拉緊", "把手", "推"],
+             device_brand="Dormakaba"),
     TestCase("H-7", "硬體維修", "門扇反弓會對鎖舌造成什麼具體影響？",
              "指出鉸鏈區域擠壓問題會導致鎖舌與受口片卡澀難開，也可能無法開啟。需將門先拉緊或推緊後解鎖，再放開手才能開門",
              ["鉸鏈", "反弓", "受口片", "卡"]),
@@ -88,10 +89,12 @@ TEST_CASES: list[TestCase] = [
              ["受口", "鎖栓", "排查"]),
     TestCase("H-9", "硬體維修", "Dormakaba 雙重認證模式啟動後會有什麼現象？",
              "說明單一指紋或密碼或卡片將無法開門，需兩者同時驗證。如果只有管理者密碼可以開門但其他方式無法開門，就是啟動了雙重驗證模式，需將其解除",
-             ["雙重", "指紋", "密碼", "管理者"]),
+             ["雙重", "指紋", "密碼", "管理者"],
+             device_brand="Dormakaba"),
     TestCase("H-10", "硬體維修", "Chatlock貓眼鏡頭旁閃爍紅燈的含義？",
              "說明鏡頭正在主動啟動人臉或掌靜脈辨識，屬於正常工作狀態",
-             ["紅燈", "辨識", "正常"]),
+             ["紅燈", "辨識", "正常"],
+             device_brand="Chatlock"),
 
     # ── 2. 報價與客服專員 (S-1 ~ S-10) ──
     TestCase("S-1", "報價客服", "預約師傅到府安裝電子鎖的具體流程？",
@@ -152,10 +155,12 @@ TEST_CASES: list[TestCase] = [
              ["GL220", "說明書"]),
     TestCase("W-9", "門市規格", "我想找 FA9000 電子鎖的操作手冊。",
              "提供相關連結或指引",
-             ["FA9000", "手冊"]),
+             ["FA9000", "手冊"],
+             device_brand="Dormakaba", device_model="FA9000"),
     TestCase("W-10", "門市規格", "ML660 的故障排除手冊連結？",
               "提供相關連結或指引",
-              ["ML660", "手冊"]),
+              ["ML660", "手冊"],
+              device_brand="Dormakaba", device_model="ML660"),
 
     # ── 4. APP 設定專家 (Y-1 ~ Y-10) ──
     TestCase("Y-1", "APP設定", "AS701 智慧鎖如何進入密碼登記模式？",
@@ -201,7 +206,8 @@ TEST_CASES: list[TestCase] = [
              ["密碼", "週日"]),
     TestCase("M-4", "多意圖", "FA9000 的說明書在哪？這台可以用手機開門嗎？",
              "提供手冊連結並解釋連網開鎖功能",
-             ["FA9000", "手冊", "手機"]),
+             ["FA9000", "手冊", "手機"],
+             device_brand="Dormakaba", device_model="FA9000"),
     TestCase("M-5", "多意圖", "為什麼指紋一直失敗？老人家要怎麼設定比較好？",
              "解釋失敗原因或追問品牌，並提供老人設定建議（多錄指紋或改用其他方式）",
              ["指紋", "老人"]),
@@ -232,13 +238,15 @@ TEST_CASES: list[TestCase] = [
              ["受口片", "門", "拉"]),
     TestCase("E-3", "硬體維修", "Chatlock電子鎖網路一直斷線",
              "檢查室內螢幕是否插好安裝正確（網路模組在螢幕裡），確認 2.4G 與 5G 頻道是否分開，是否為 mesh 或 WiFi 6/7 以上路由器",
-             ["螢幕", "2.4G", "5G", "mesh"]),
+             ["螢幕", "2.4G", "5G", "mesh"],
+             device_brand="Chatlock"),
     TestCase("E-4", "硬體維修", "家中是mesh路由器",
              "Mesh 路由器可能導致視訊開門卡頓不穩定，建議使用獨立的 2.4GHz 或 IoT Network",
              ["mesh", "2.4G", "卡頓"]),
     TestCase("E-5", "硬體維修", "Chatlock推拉電子鎖轉把手後不會自己彈回正，會卡住",
              "可能是方型帶動桿過長或螺絲鬆緊問題，需請師傅前往調整，期間可使用把手下方電子按鍵開門",
-             ["師傅", "調整", "按鍵"]),
+             ["師傅", "調整", "按鍵"],
+             device_brand="Chatlock"),
     TestCase("E-6", "硬體維修", "為什麼只有動畫在跑動但是沒有感應人臉辨識？",
              "確認鏡頭兩旁是否有紅燈亮起，沒有紅燈代表經過的人較多導致感應太多次失敗，先使用其他方式開門",
              ["紅燈", "感應", "其他方式"]),
@@ -256,7 +264,8 @@ TEST_CASES: list[TestCase] = [
              ["5V1A", "5V2A", "快充"]),
     TestCase("E-11", "硬體維修", "Chatlock售後是怎麼保固？",
              "Chatlock 產品自安裝完成日起享有原廠保固，保固期依產品型號或購買通路為準",
-             ["保固", "安裝", "原廠"]),
+             ["保固", "安裝", "原廠"],
+             device_brand="Chatlock"),
 
     # ── 品牌路由測試：驗證已知品牌用戶是否載入正確的品牌版技能 ──
     TestCase("B-1", "品牌路由", "門打不開",
@@ -366,12 +375,13 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
     """執行單一測試並評分。"""
     t0 = time.time()
 
-    # 組裝訊息（品牌路由測試時注入 [可用技能] + [用戶資料] 前綴）
+    # 組裝訊息：所有測試都注入 [可用技能]，模擬 debounce.run_agent() 的行為
+    from skills.tools import build_dynamic_skills_section
+    brand = tc.device_brand or None
+    model = tc.device_model or None
+    skills_section = build_dynamic_skills_section(brand, model)
+
     if tc.device_brand:
-        from skills.tools import build_dynamic_skills_section
-        skills_section = build_dynamic_skills_section(
-            tc.device_brand, tc.device_model or None
-        )
         profile_lines = [f"[Verified Fact] device_brand: {tc.device_brand}"]
         if tc.device_model:
             profile_lines.append(f"[Verified Fact] device_model: {tc.device_model}")
@@ -381,7 +391,10 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
             f"[用戶訊息]\n{tc.question}"
         )
     else:
-        content = tc.question
+        content = (
+            f"[可用技能]\n{skills_section}\n\n"
+            f"[用戶訊息]\n{tc.question}"
+        )
 
     # 呼叫 agent
     result = await agent.ainvoke(
