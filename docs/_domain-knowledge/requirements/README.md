@@ -24,8 +24,8 @@
 
 | 資料夾 | 對口窗口 | 最晚交付日 | 狀態 |
 | :--- | :--- | :--- | :--- |
-| `01_domain_knowledge/` | 甲方資深技師 | Phase 1 啟動前 2 週 | 待收集 |
-| `02_knowledge_base_seed_data/` | 甲方 + PM | Phase 1 W3 | 待收集 |
+| `01_domain_knowledge/` | 甲方資深技師 | Phase 1 啟動前 2 週 | 部分收集（系統實作資料） |
+| `02_knowledge_base_seed_data/` | 甲方 + PM | Phase 1 W3 | 部分收集（系統實作資料） |
 | `03_resolution_rules/` | 甲方 + PM | Phase 1 W4 | 部分收集（20260411 會議決策） |
 | `04_problem_diagnosis_patterns/` | 甲方資深技師 | Phase 2 W3 | 部分收集（20260411 會議決策） |
 | `05_technician_onboarding/` | 甲方營運 | Phase 2 W3 | 部分收集（20260411 會議決策） |

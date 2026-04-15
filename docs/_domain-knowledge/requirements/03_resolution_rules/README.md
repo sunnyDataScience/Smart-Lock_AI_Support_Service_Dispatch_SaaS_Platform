@@ -178,3 +178,62 @@ AI 每次回覆時都會計算一個信心度分數，決定是否需要人工�
 - 營業時間外的轉人工處理方式（自動回覆？24 小時值班？）
 - WebView 跳轉的具體 URL 與驗證機制
 
+---
+
+## 現行系統已實作內容
+
+> 來源：`agent/skills/data/` 中的技能路由架構
+
+### 已實作的技能路由機制（對應 L1/L2 匹配邏輯）
+
+系統實際採用 **ReAct Agent + SKILL.md SOP** 架構，而非傳統的 L1/L2/L3 分層：
+
+```
+Agent 系統提示詞（僅包含 top-level skill 名稱 + 描述）
+  │
+  ├─ Agent 根據客戶訊息判斷 → 呼叫 load_skill(name) 載入 SOP
+  │   ├─ product-knowledge：產品知識查詢
+  │   ├─ troubleshoot：故障排除總入口 → 8 個子 skill 路由
+  │   ├─ app-guide：APP 操作總入口 → 12 個子 skill 路由
+  │   ├─ system-settings：系統設定指南
+  │   ├─ dispatch-guide：派工判斷
+  │   ├─ store-info：店家資訊
+  │   └─ update-profile：客戶資料更新
+  │
+  └─ Agent 無法處理 → 呼叫 transfer_to_human(reason) 轉人工
+```
+
+### 已實作的子技能路由規則
+
+**故障排除路由**（`troubleshoot` → `ts-*`）：依 8 種症狀關鍵字分流
+
+| 症狀關鍵詞 | 路由目標 |
+|-----------|---------|
+| 門打不開、鎖卡住、被鎖在外面 | `ts-door-stuck` |
+| 關門沒上鎖、不會自動鎖 | `ts-auto-lock` |
+| 一直叫、嗶嗶聲、警報、紅燈閃 | `ts-alarm` |
+| 指紋沒反應、密碼錯誤、感應不到 | `ts-verification` |
+| 鎖舌卡住、受口片對不準 | `ts-lock-tongue` |
+| 門會自己彈開、門歪了、門下沉 | `ts-door-rebound` |
+| 電池很快沒電、一直沒電 | `ts-power-drain` |
+| 要按兩次才能開、雙重認證 | `ts-dual-auth` |
+
+**APP 操作路由**（`app-guide` → `app-*`）：依功能關鍵字分流至 12 個子 skill
+
+### 已實作的 L3 派工觸發條件（來自各 skill SOP）
+
+以下情境在 skill 中明確標註「需派工」，無法電話解決：
+
+| 觸發條件 | 來源 skill | 說明 |
+|---------|-----------|------|
+| 鎖栓無法伸縮（鎖匣故障） | `ts-auto-lock`、`ts-lock-tongue` | 需更換零件 |
+| Dormakaba 紅燈閃 4 次 | `ts-alarm` | 馬達異常 |
+| 門扇反弓 | `ts-door-rebound` | 結構問題需專業調整（所有案例） |
+| 受口片嚴重偏位 | `ts-lock-tongue` | 需專業工具 |
+| Dormakaba 管理者密碼遺失 | `ss-dormakaba` | 需技師初始化，收取費用 |
+| Dormakaba 恢復出廠設定 | `ss-dormakaba` | 需技師前往 |
+| 所有解鎖方式 + 鑰匙都失敗 | `ts-verification`、`ts-door-stuck` | 機械故障 |
+| 電池槽腐蝕 | `ts-power-drain` | 需現場處理 |
+| 門扇下沉需校準 | `ts-door-rebound` | 結構問題 |
+| 建案/保固期報價 | `dispatch-guide` | 禁止 AI 報價，需查建案資料庫 |
+
