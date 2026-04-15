@@ -45,7 +45,11 @@ def init(llm, config: dict):
     prompt_path = config.get("prompt_path", "prompts/validate_output.md")
     if _enabled:
         try:
-            _prompt_template = load_prompt(prompt_path)
+            import os
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            full_path = os.path.join(base_dir, prompt_path)
+            with open(full_path, "r", encoding="utf-8") as f:
+                _prompt_template = f.read()
         except FileNotFoundError:
             print(f"[Output Validator] 找不到 prompt: {prompt_path}，停用驗證器")
             _enabled = False
