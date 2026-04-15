@@ -2,6 +2,8 @@
 name: app-remote
 description: Chatlock AI-99 遠端開鎖與開鎖紀錄查詢教學
 user-invocable: true
+brands:
+  - Chatlock
 ---
 
 # 遠端開鎖（Chatlock AI-99）

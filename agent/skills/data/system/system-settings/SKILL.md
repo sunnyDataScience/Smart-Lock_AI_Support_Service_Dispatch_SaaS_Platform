@@ -2,6 +2,8 @@
 name: system-settings
 description: 電子鎖系統設定指南。客戶詢問音量調整、語言設定、常開模式、兒童鎖、雙重認證、防回頭時間、未關門警報、恢復出廠設定等系統功能時使用
 user-invocable: true
+brands:
+  - Chatlock
 ---
 
 # 電子鎖系統設定指南

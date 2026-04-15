@@ -12,7 +12,7 @@ from langgraph.prebuilt import create_react_agent
 
 from core.config import AppConfig, load_prompt
 from skills import load_skills
-from skills.tools import load_skill, transfer_to_human, set_skills, set_profile_mgr, set_transfer_message_from_file, build_skills_prompt
+from skills.tools import load_skill, transfer_to_human, set_skills, set_profile_mgr, set_transfer_message_from_file
 
 
 _system_prompt: str = ""
@@ -44,13 +44,10 @@ def build_agent(model, cfg: AppConfig, checkpointer=None, profile_mgr=None):
     if profile_mgr:
         set_profile_mgr(profile_mgr)
 
-    # 3. 組裝 system prompt（從 prompts/system.md 模板 + config 變數）
-    skills_section = build_skills_prompt(skills)
-
+    # 3. 組裝 system prompt（技能清單改為動態注入，不再靜態寫入）
     global _system_prompt
     prompt = load_prompt(
         cfg.prompts.get("system_prompt", "prompts/system.md"),
-        skills_section=skills_section,
     )
     _system_prompt = prompt
 

@@ -2,6 +2,10 @@
 name: app-voice-msg
 description: Chatlock AI-99 語音留言功能教學。在門鎖螢幕上錄製和播放留言
 user-invocable: true
+brands:
+  - Chatlock
+models:
+  - AI-99
 ---
 
 # 語音留言（Chatlock AI-99）

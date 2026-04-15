@@ -2,6 +2,10 @@
 name: app-camera
 description: Chatlock AI-99 即時影像監控與語音對講教學（僅AI99有攝影鏡頭）
 user-invocable: true
+brands:
+  - Chatlock
+models:
+  - AI-99
 ---
 
 # 即時影像監控（Chatlock AI-99）

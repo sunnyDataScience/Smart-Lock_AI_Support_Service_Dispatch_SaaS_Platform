@@ -127,9 +127,14 @@ class ProfileManager:
 
     async def load_full_profile(self, user_id: str) -> str:
         """Load facts + .md profile combined. Facts section first (higher priority)."""
+        profile_text, _ = await self.load_full_profile_with_facts(user_id)
+        return profile_text
+
+    async def load_full_profile_with_facts(self, user_id: str) -> tuple[str, dict]:
+        """Load facts + .md profile combined, also return raw facts dict."""
         facts = await self.load_facts(user_id)
         facts_text = self.format_facts(facts)
         md_text = await self.load_profile(user_id)
 
         parts = [p for p in [facts_text, md_text] if p]
-        return "\n\n".join(parts)
+        return "\n\n".join(parts), facts

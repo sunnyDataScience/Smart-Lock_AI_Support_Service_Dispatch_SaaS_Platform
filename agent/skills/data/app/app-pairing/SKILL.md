@@ -2,6 +2,10 @@
 name: app-pairing
 description: Chatlock AI-99 APP初始配對教學。客戶詢問如何配對APP、連接WiFi、藍牙設定時使用
 user-invocable: true
+brands:
+  - Chatlock
+models:
+  - AI-99
 ---
 
 # APP 初始配對（Chatlock AI-99）

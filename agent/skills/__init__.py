@@ -18,6 +18,8 @@ class Skill:
     name: str
     description: str
     content: str
+    brands: list[str] | None = None   # None = 通用（永遠顯示）
+    models: list[str] | None = None   # None = 該品牌全型號
 
 
 def _parse_skill_md(file_path: str) -> Skill | None:
@@ -42,7 +44,11 @@ def _parse_skill_md(file_path: str) -> Skill | None:
     if not name or not description:
         return None
 
-    return Skill(name=name, description=description, content=body)
+    brands = meta.get("brands")  # list or None
+    models = meta.get("models")  # list or None
+
+    return Skill(name=name, description=description, content=body,
+                 brands=brands, models=models)
 
 
 def load_skills(skills_dir: str | None = None) -> list[Skill]:
@@ -69,3 +75,24 @@ def load_skills(skills_dir: str | None = None) -> list[Skill]:
 
     print(f"[skills] 共索引 {len(skills)} 個技能（runtime 按需載入）")
     return skills
+
+
+def filter_skills(
+    skills: list[Skill],
+    brand: str | None = None,
+    model: str | None = None,
+) -> list[Skill]:
+    """依用戶品牌/型號過濾技能清單。品牌未知時回傳全部。"""
+    if not brand:
+        return skills
+
+    result = []
+    for s in skills:
+        if s.brands is None:
+            # 通用技能，永遠顯示
+            result.append(s)
+        elif brand in s.brands:
+            # 品牌匹配；再檢查型號
+            if s.models is None or not model or model in s.models:
+                result.append(s)
+    return result

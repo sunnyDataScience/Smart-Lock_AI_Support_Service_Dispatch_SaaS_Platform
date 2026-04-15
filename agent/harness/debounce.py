@@ -245,12 +245,20 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
     try:
         thread_id = f"line_{user_id}"
 
-        # 載入用戶畫像
+        # 載入用戶畫像 + 品牌/型號
         profile_prefix = ""
+        brand = None
+        model = None
         if _profile_mgr and _profile_mgr.enabled:
-            profile_text = await _profile_mgr.load_full_profile(user_id)
+            profile_text, facts = await _profile_mgr.load_full_profile_with_facts(user_id)
             if profile_text:
                 profile_prefix = f"[用戶資料]\n{profile_text}\n\n"
+            brand = facts.get("device_brand")
+            model = facts.get("device_model")
+
+        # 動態技能清單（依品牌過濾）
+        from skills.tools import build_dynamic_skills_section
+        skills_prefix = f"[可用技能]\n{build_dynamic_skills_section(brand, model)}\n\n"
 
         config = {"configurable": {"thread_id": thread_id}}
 
@@ -269,8 +277,8 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
 
         # 組裝訊息 content
         if is_multimodal:
-            # 多模態：將 profile + summary 插入為第一個 text block
-            prefix = ""
+            # 多模態：將 skills + profile + summary 插入為第一個 text block
+            prefix = skills_prefix
             if profile_prefix:
                 prefix += profile_prefix
             if summary_prefix:
@@ -280,9 +288,7 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
             message_content = [{"type": "text", "text": prefix}] + user_input
         else:
             # 純文字
-            message = user_input
-            if profile_prefix:
-                message = f"{profile_prefix}[用戶訊息]\n{user_input}"
+            message = f"{skills_prefix}{profile_prefix}[用戶訊息]\n{user_input}"
             if summary_prefix:
                 message = summary_prefix + message
             message_content = message

@@ -2,6 +2,8 @@
 name: ss-dormakaba
 description: Dormakaba 全系列電子鎖系統設定與註冊模式操作。進入設定選單、新增使用者（指紋/密碼/卡片/人臉）、管理者密碼與卡片說明、恢復原廠設定時使用
 user-invocable: true
+brands:
+  - Dormakaba
 ---
 
 # Dormakaba 全系列 — 系統設定與註冊模式

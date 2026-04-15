@@ -2,6 +2,8 @@
 name: app-unbind
 description: Chatlock AI-99 設備解除綁定教學。換手機、轉讓裝置時使用
 user-invocable: true
+brands:
+  - Chatlock
 ---
 
 # 設備解除綁定（Chatlock AI-99）

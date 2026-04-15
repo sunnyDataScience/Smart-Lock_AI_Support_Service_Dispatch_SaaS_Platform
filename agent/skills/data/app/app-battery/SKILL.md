@@ -2,6 +2,8 @@
 name: app-battery
 description: Chatlock AI-99 電池更換與緊急充電教學。電子鎖沒電、換電池、Type-C充電時使用
 user-invocable: true
+brands:
+  - Chatlock
 ---
 
 # 電池與充電（Chatlock AI-99）

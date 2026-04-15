@@ -2,6 +2,8 @@
 name: app-temp-pwd
 description: Chatlock AI-99 臨時密碼設定教學。給清潔人員、訪客等暫時使用的密碼
 user-invocable: true
+brands:
+  - Chatlock
 ---
 
 # 臨時密碼（Chatlock AI-99）

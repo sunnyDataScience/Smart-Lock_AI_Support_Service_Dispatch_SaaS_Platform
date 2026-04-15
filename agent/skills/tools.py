@@ -112,19 +112,30 @@ _SUB_SKILL_PREFIXES = ("ts-", "app-", "ss-")
 _SUB_SKILL_EXCEPTIONS = {"app-guide"}
 
 
-def build_skills_prompt(skills: list[Skill]) -> str:
-    """產生注入 system prompt 的技能摘要清單。
+def build_skills_prompt(
+    skills: list[Skill],
+    brand: str | None = None,
+    model: str | None = None,
+) -> str:
+    """產生技能摘要清單（可依品牌/型號過濾）。
 
     只列出頂層技能。以 ts-* / app-* / ss-*（除 app-guide）為前綴的子技能
-    透過母技能的 SOP 引導載入，不需列在 system prompt。
+    透過母技能的 SOP 引導載入，不需列在頂層清單。
     """
+    from . import filter_skills
+
+    filtered = filter_skills(skills, brand, model)
+
     top_level = [
-        s for s in skills
+        s for s in filtered
         if s.name in _SUB_SKILL_EXCEPTIONS
         or not s.name.startswith(_SUB_SKILL_PREFIXES)
     ]
 
     lines = ["## 可用技能\n"]
+    if brand:
+        device_label = f"{brand} {model}" if model else brand
+        lines.append(f"（已依據用戶設備 {device_label} 過濾）\n")
     for s in top_level:
         lines.append(f"- **{s.name}**: {s.description}")
     lines.append(
@@ -132,3 +143,11 @@ def build_skills_prompt(skills: list[Skill]) -> str:
         "然後依照 SOP 步驟引導客戶。"
     )
     return "\n".join(lines)
+
+
+def build_dynamic_skills_section(
+    brand: str | None = None,
+    model: str | None = None,
+) -> str:
+    """產生動態過濾後的技能清單（供 debounce 注入 HumanMessage）。"""
+    return build_skills_prompt(_skills, brand=brand, model=model)

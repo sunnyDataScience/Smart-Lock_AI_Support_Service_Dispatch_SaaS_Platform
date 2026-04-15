@@ -2,6 +2,8 @@
 name: app-cache
 description: Chatlock APP 清理緩存教學。APP 運作緩慢或異常時使用
 user-invocable: true
+brands:
+  - Chatlock
 ---
 
 # 清理緩存（Chatlock APP）

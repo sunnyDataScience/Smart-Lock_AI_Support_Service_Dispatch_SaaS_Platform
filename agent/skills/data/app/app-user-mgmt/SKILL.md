@@ -2,6 +2,8 @@
 name: app-user-mgmt
 description: Chatlock AI-99 用戶管理教學。新增/刪除用戶、設定指紋/人臉/掌靜脈/卡片/密碼等解鎖方式時使用
 user-invocable: true
+brands:
+  - Chatlock
 ---
 
 # 用戶管理（Chatlock AI-99）

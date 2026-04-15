@@ -2,6 +2,8 @@
 name: app-settings
 description: Chatlock AI-99 系統設定教學。音量調整、語言切換、童鎖、常開模式、雙重認證、恢復出廠設定
 user-invocable: true
+brands:
+  - Chatlock
 ---
 
 # 系統設定（Chatlock AI-99）

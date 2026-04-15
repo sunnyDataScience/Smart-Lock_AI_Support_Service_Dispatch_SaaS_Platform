@@ -2,6 +2,8 @@
 name: app-guide
 description: 電子鎖APP設定與操作指南。客戶詢問APP配對、用戶管理(指紋/人臉/掌靜脈/卡片/密碼)、遠端開鎖、臨時密碼、即時影像、家庭成員、設備解綁、開鎖紀錄、語音留言、系統設定等APP相關問題時使用
 user-invocable: true
+brands:
+  - Chatlock
 ---
 
 # 電子鎖 APP 設定與操作指南

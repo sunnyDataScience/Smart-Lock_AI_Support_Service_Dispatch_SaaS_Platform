@@ -2,6 +2,8 @@
 name: app-family
 description: Chatlock AI-99 家庭成員管理教學。邀請家人加入、設定權限角色
 user-invocable: true
+brands:
+  - Chatlock
 ---
 
 # 家庭成員管理（Chatlock AI-99）
