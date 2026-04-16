@@ -1,14 +1,19 @@
-"""Skill loader — 讀取 agent_v2/skills/*/SKILL.md 並解析為技能清單。
+"""Skill loader — 掃描 skills/data/ 下的 SKILL.md 並解析為技能清單。
 
-每個 SKILL.md 包含 YAML frontmatter（name, description）和 markdown body（完整 SOP 內容）。
-Agent 在系統 prompt 中只看到 name + description，需要時透過 load_skill tool 載入完整內容。
+目錄結構即品牌/型號層級：
+  _common/{skill}/SKILL.md          → brands=None（通用）
+  {Brand}/_all-models/{skill}/      → brands=[Brand]
+  {Brand}/{Model}/{skill}/          → brands=[Brand], models=[Model]
+
+Frontmatter 欄位：name, description, trigger_keywords, category, severity
+brands/models 從目錄路徑自動推斷，不需寫在 frontmatter。
 """
 
 from __future__ import annotations
 
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import yaml
 
@@ -18,8 +23,47 @@ class Skill:
     name: str
     description: str
     content: str
-    brands: list[str] | None = None   # None = 通用（永遠顯示）
-    models: list[str] | None = None   # None = 該品牌全型號
+    brands: list[str] | None = None
+    models: list[str] | None = None
+    trigger_keywords: list[str] = field(default_factory=list)
+    category: str = ""        # troubleshoot | teaching | reference | router
+    severity: int = 0         # 1-5（僅 troubleshoot 類）
+
+
+# ── 路徑推斷常數 ──
+
+_COMMON_DIR = "_common"
+_ALL_MODELS_DIR = "_all-models"
+
+
+def _infer_brand_model(file_path: str, skills_dir: str) -> tuple[list[str] | None, list[str] | None]:
+    """從 SKILL.md 的檔案路徑推斷 brands 和 models。
+
+    規則：
+      skills/data/_common/store-info/SKILL.md         → (None, None)
+      skills/data/Dormakaba/_all-models/ts-xxx/SKILL.md → (["Dormakaba"], None)
+      skills/data/Chatlock/AI-99/app-xxx/SKILL.md       → (["Chatlock"], ["AI-99"])
+    """
+    rel = os.path.relpath(os.path.dirname(file_path), skills_dir)
+    parts = rel.replace("\\", "/").split("/")
+
+    if len(parts) < 2:
+        return None, None
+
+    top_dir = parts[0]
+
+    if top_dir == _COMMON_DIR:
+        return None, None
+
+    # top_dir 是品牌名
+    brand = top_dir
+    second = parts[1] if len(parts) > 1 else ""
+
+    if second == _ALL_MODELS_DIR:
+        return [brand], None
+    else:
+        # second 是型號名
+        return [brand], [second]
 
 
 def _parse_skill_md(file_path: str) -> Skill | None:
@@ -27,7 +71,6 @@ def _parse_skill_md(file_path: str) -> Skill | None:
     with open(file_path, "r", encoding="utf-8") as f:
         raw = f.read()
 
-    # 分離 YAML frontmatter 和 body
     match = re.match(r"^---\s*\n(.*?)\n---\s*\n(.*)$", raw, re.DOTALL)
     if not match:
         return None
@@ -44,20 +87,23 @@ def _parse_skill_md(file_path: str) -> Skill | None:
     if not name or not description:
         return None
 
-    brands = meta.get("brands")  # list or None
-    models = meta.get("models")  # list or None
+    trigger_keywords = meta.get("trigger_keywords", []) or []
+    category = meta.get("category", "")
+    severity = meta.get("severity", 0) or 0
 
-    return Skill(name=name, description=description, content=body,
-                 brands=brands, models=models)
+    return Skill(
+        name=name,
+        description=description,
+        content=body,
+        trigger_keywords=trigger_keywords,
+        category=category,
+        severity=severity,
+    )
 
 
 def load_skills(skills_dir: str | None = None) -> list[Skill]:
-    """掃描 skills_dir 下的所有 */SKILL.md，回傳技能清單。
-
-    預設路徑：{project_root}/.claude/skills/
-    """
+    """掃描 skills_dir 下的所有 SKILL.md，從路徑推斷 brands/models，回傳技能清單。"""
     if skills_dir is None:
-        # 預設路徑：agent_v2/skills/data/
         skills_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
     skills: list[Skill] = []
@@ -68,8 +114,13 @@ def load_skills(skills_dir: str | None = None) -> list[Skill]:
 
     for root, _dirs, files in sorted(os.walk(skills_dir)):
         if "SKILL.md" in files:
-            skill = _parse_skill_md(os.path.join(root, "SKILL.md"))
+            file_path = os.path.join(root, "SKILL.md")
+            skill = _parse_skill_md(file_path)
             if skill:
+                # 從路徑推斷 brands/models
+                brands, models = _infer_brand_model(file_path, skills_dir)
+                skill.brands = brands
+                skill.models = models
                 skills.append(skill)
                 print(f"[skills] 索引: {skill.name}")
 
@@ -89,10 +140,8 @@ def filter_skills(
     result = []
     for s in skills:
         if s.brands is None:
-            # 通用技能，永遠顯示
             result.append(s)
         elif brand in s.brands:
-            # 品牌匹配；再檢查型號
             if s.models is None or not model or model in s.models:
                 result.append(s)
     return result

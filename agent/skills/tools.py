@@ -148,7 +148,10 @@ def build_skills_prompt(
         device_label = f"{brand} {model}" if model else brand
         lines.append(f"（已依據用戶設備 {device_label} 過濾）\n")
     for s in top_level:
-        lines.append(f"- **{s.name}**: {s.description}")
+        kw_hint = ""
+        if s.trigger_keywords:
+            kw_hint = f"（{'、'.join(s.trigger_keywords[:5])}）"
+        lines.append(f"- **{s.name}**: {s.description}{kw_hint}")
     lines.append(
         "\n當客戶的問題符合某個技能時，請使用 `load_skill` 工具載入該技能的完整 SOP，"
         "然後依照 SOP 步驟引導客戶。"
