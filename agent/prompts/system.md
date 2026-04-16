@@ -34,6 +34,7 @@
 - 安裝流程、保固 → `dispatch-guide`
 - 沒電、電池、緊急供電、行動電源、鎖卡住、打不開、警報、反弓、鉸鏈、門歪、門下沉等**故障症狀或結構問題** → 先載 `troubleshoot` 進行症狀分流，不要直接去 `product-knowledge`
 - APP 相關操作（配對、連線、遠端開鎖、用戶管理、臨時密碼、開鎖紀錄、影像監控）→ `app-guide`
+- APP 網路延遲、斷線、Wi-Fi 不穩、mesh 路由器 → 先載 `troubleshoot` 進行網路相關排查（屬於耗電/網路問題），不要當成個資更新
 - 特定型號的 APP 功能問題（如「AI-99 臨時密碼規定」「A90 怎麼配對」「AS701 怎麼新增用戶」）→ 先載 `app-guide` 路由到子技能，不要去 `product-knowledge`
 - 系統設定（音量、語言、常開模式、兒童鎖、防回頭、未關門警報）→ `system-settings`（僅限 Chainlock/Chatlock；其他品牌 → `product-knowledge` 查手冊）
 - 型號手冊、產品規格（非故障問題）→ `product-knowledge`

@@ -31,6 +31,7 @@ from google.oauth2 import service_account
 from langchain_google_genai import ChatGoogleGenerativeAI
 from core.config import load_config
 from agent import build_agent
+from langgraph.checkpoint.memory import MemorySaver
 
 _SA_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
 
@@ -58,6 +59,7 @@ class TestCase:
     keywords: list[str]  # 回答中應包含的關鍵詞（至少命中一半算 keyword pass）
     device_brand: str = ""  # 品牌路由測試用：注入 [用戶資料] + [可用技能] 前綴
     device_model: str = ""  # 型號路由測試用
+    auto_reply: str = ""    # 多輪模擬：agent 追問後自動回覆的內容（空=單輪測試）
 
 
 TEST_CASES: list[TestCase] = [
@@ -76,7 +78,9 @@ TEST_CASES: list[TestCase] = [
              ["感應器", "自動", "鎖栓"]),
     TestCase("H-5", "硬體維修", "鎖舌在室內拉不開門的緊急處理？",
              "指導「先將門推緊，再拉動把手」的緩解動作",
-             ["推緊", "拉", "把手"]),
+             ["推緊", "拉", "把手"],
+             device_brand="Chatlock",
+             auto_reply="鎖舌縮不回去，門是關著的"),
     TestCase("H-6", "硬體維修", "Dormakaba 鎖在室外推不開門的緊急處理？",
              "指導先拉緊把手使門閉合，完成解鎖後再用力推動",
              ["拉緊", "把手", "推"],
@@ -86,7 +90,8 @@ TEST_CASES: list[TestCase] = [
              ["鉸鏈", "反弓", "受口片", "卡"]),
     TestCase("H-8", "硬體維修", "出現關鎖失敗警報時，使用者可以如何自行初步排查？",
              "指導在開門狀態下測試鎖栓伸縮是否正常，之後再確認是否為受口位移造成",
-             ["受口", "鎖栓", "排查"]),
+             ["受口", "鎖栓", "排查"],
+             device_brand="Dormakaba"),
     TestCase("H-9", "硬體維修", "Dormakaba 雙重認證模式啟動後會有什麼現象？",
              "說明單一指紋或密碼或卡片將無法開門，需兩者同時驗證。如果只有管理者密碼可以開門但其他方式無法開門，就是啟動了雙重驗證模式，需將其解除",
              ["雙重", "指紋", "密碼", "管理者"],
@@ -140,7 +145,8 @@ TEST_CASES: list[TestCase] = [
              ["印章", "服務"]),
     TestCase("W-4", "門市規格", "電子鎖完全沒電時，有哪些緊急供電方案？",
              "指導使用行動電源透過 USB 接孔供電",
-             ["行動電源", "USB", "供電"]),
+             ["行動電源", "USB", "供電"],
+             device_brand="Chatlock", device_model="AI-99"),
     TestCase("W-5", "門市規格", "為什麼電子鎖不建議混用不同品牌的電池？",
              "解釋不同電壓可能導致漏液風險",
              ["漏液", "電池", "品牌"]),
@@ -232,24 +238,29 @@ TEST_CASES: list[TestCase] = [
     # ── 7. 追加實戰案例 (E-1 ~ E-11) ──
     TestCase("E-1", "硬體維修", "換完電池還是會一直無法上鎖",
              "換錯電池，請使用 Panasonic 鹼性電池",
-             ["Panasonic", "鹼性", "電池"]),
+             ["Panasonic", "鹼性", "電池"],
+             device_brand="Chatlock"),
     TestCase("E-2", "硬體維修", "螢幕一直閃爍，無法感應任何開鎖方式",
              "鎖栓可能卡到門框受口片，需先將門拉或推至關好門的位置",
-             ["受口片", "門", "拉"]),
+             ["受口片", "門", "拉"],
+             device_brand="Chatlock"),
     TestCase("E-3", "硬體維修", "Chatlock電子鎖網路一直斷線",
              "檢查室內螢幕是否插好安裝正確（網路模組在螢幕裡），確認 2.4G 與 5G 頻道是否分開，是否為 mesh 或 WiFi 6/7 以上路由器",
              ["螢幕", "2.4G", "5G", "mesh"],
              device_brand="Chatlock"),
-    TestCase("E-4", "硬體維修", "家中是mesh路由器",
+    TestCase("E-4", "硬體維修", "家中是mesh路由器，電子鎖網路很不穩定",
              "Mesh 路由器可能導致視訊開門卡頓不穩定，建議使用獨立的 2.4GHz 或 IoT Network",
-             ["mesh", "2.4G", "卡頓"]),
+             ["mesh", "2.4G", "卡頓"],
+             device_brand="Chatlock", device_model="AI-99"),
     TestCase("E-5", "硬體維修", "Chatlock推拉電子鎖轉把手後不會自己彈回正，會卡住",
              "可能是方型帶動桿過長或螺絲鬆緊問題，需請師傅前往調整，期間可使用把手下方電子按鍵開門",
              ["師傅", "調整", "按鍵"],
-             device_brand="Chatlock"),
+             device_brand="Chatlock",
+             auto_reply="鎖舌是卡在中間，門是關著的"),
     TestCase("E-6", "硬體維修", "為什麼只有動畫在跑動但是沒有感應人臉辨識？",
              "確認鏡頭兩旁是否有紅燈亮起，沒有紅燈代表經過的人較多導致感應太多次失敗，先使用其他方式開門",
-             ["紅燈", "感應", "其他方式"]),
+             ["紅燈", "感應", "其他方式"],
+             device_brand="Chatlock", device_model="AI-99"),
     TestCase("E-7", "硬體維修", "請問我的門可以安裝嗎？",
              "請客戶提供門的正面、背面、側面、門框位置的照片以進行評估",
              ["照片", "正面", "評估"]),
@@ -258,7 +269,8 @@ TEST_CASES: list[TestCase] = [
              ["訂單", "型號", "地址"]),
     TestCase("E-9", "硬體維修", "為什麼我的APP網路延遲這麼嚴重？",
              "通常與網路環境不穩定有關，可能受家庭網路設備或網速波動影響，建議檢查 Wi-Fi 訊號強度或路由器連線穩定性",
-             ["網路", "Wi-Fi", "路由器"]),
+             ["網路", "Wi-Fi", "路由器"],
+             device_brand="Chatlock", device_model="AI-99"),
     TestCase("E-10", "硬體維修", "鋰電池怎麼充電？",
              "使用 5V1A 或 5V2A 充電頭，紅燈充電中藍燈充飽，請勿使用快充頭以免電池膨脹",
              ["5V1A", "5V2A", "快充"]),
@@ -271,7 +283,8 @@ TEST_CASES: list[TestCase] = [
     TestCase("B-1", "品牌路由", "門打不開",
              "Dormakaba 用戶應載入 ts-door-stuck-dormakaba，回答應包含擺動式鎖舌操作",
              ["擺動", "推緊"],
-             device_brand="Dormakaba"),
+             device_brand="Dormakaba",
+             auto_reply="我在門外，門是關著的，按開鎖有聽到馬達聲"),
     TestCase("B-2", "品牌路由", "門打不開",
              "Chatlock 用戶應載入 ts-door-stuck-chatlock，回答應包含 Type-C 緊急供電",
              ["推緊", "Type-C"],
@@ -283,7 +296,8 @@ TEST_CASES: list[TestCase] = [
     TestCase("B-4", "品牌路由", "要按兩次才能開門",
              "Chatlock 用戶應載入 ts-dual-auth-chatlock，回答應包含齒輪→高級設定的操作路徑",
              ["齒輪", "高級設定"],
-             device_brand="Chatlock"),
+             device_brand="Chatlock",
+             auto_reply="要先按指紋再輸密碼，可以進設定選單"),
     TestCase("B-5", "品牌路由", "鎖一直嗶嗶叫",
              "Dormakaba 用戶應載入 ts-alarm-dormakaba，回答應包含 Dormakaba 信號對照",
              ["Panasonic", "鹼性"],
@@ -396,7 +410,7 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
             f"[用戶訊息]\n{tc.question}"
         )
 
-    # 呼叫 agent
+    # 第一輪：呼叫 agent
     result = await agent.ainvoke(
         {"messages": [{"role": "user", "content": content}]},
         config,
@@ -410,16 +424,42 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
             answer = _extract_text(msg.content)
             break
 
+    # 多輪模擬：若有 auto_reply 且 agent 回覆含追問（？）→ 發送第二輪
+    if tc.auto_reply and "？" in answer:
+        if tc.device_brand:
+            reply_content = (
+                f"[可用技能]\n{skills_section}\n\n"
+                f"[用戶資料]\n" + "\n".join(profile_lines) + "\n\n"
+                f"[用戶訊息]\n{tc.auto_reply}"
+            )
+        else:
+            reply_content = (
+                f"[可用技能]\n{skills_section}\n\n"
+                f"[用戶訊息]\n{tc.auto_reply}"
+            )
+        result = await agent.ainvoke(
+            {"messages": [{"role": "user", "content": reply_content}]},
+            config,  # 同一 thread_id，MemorySaver 保留上下文
+        )
+        # 重新提取最終回答
+        answer = ""
+        messages = result.get("messages", [])
+        for msg in reversed(messages):
+            if hasattr(msg, "type") and msg.type == "ai" and msg.content:
+                answer = _extract_text(msg.content)
+                break
+
     elapsed = round(time.time() - t0, 1)
 
-    # 收集 skill 呼叫紀錄（從 tool messages）
+    # 收集 skill 呼叫紀錄（從 tool messages，包含兩輪）
     skills_loaded = []
     for msg in messages:
         if hasattr(msg, "type") and msg.type == "tool" and hasattr(msg, "content"):
             text = _extract_text(msg.content)
             if text.startswith("已載入技能:"):
                 skill_name = text.split("已載入技能:")[1].split("\n")[0].strip()
-                skills_loaded.append(skill_name)
+                if skill_name not in skills_loaded:
+                    skills_loaded.append(skill_name)
 
     # 關鍵詞命中
     kw_hits, kw_total = keyword_score(tc, answer)
@@ -583,7 +623,7 @@ async def main():
                 judge_kwargs["credentials"] = sa_creds
             judge_model = ChatGoogleGenerativeAI(**judge_kwargs)
 
-        agent = build_agent(model, cfg)
+        agent = build_agent(model, cfg, checkpointer=MemorySaver())
 
         print("=" * 60)
         print(f"  Quality Check — Retry Failed ({len(retry_cases)} cases)")
@@ -668,7 +708,7 @@ async def main():
             judge_kwargs["credentials"] = sa_creds
         judge_model = ChatGoogleGenerativeAI(**judge_kwargs)
 
-    agent = build_agent(model, cfg)
+    agent = build_agent(model, cfg, checkpointer=MemorySaver())
 
     print("=" * 60)
     print(f"  Quality Check — {mode_label} ({len(TEST_CASES)} cases)")
