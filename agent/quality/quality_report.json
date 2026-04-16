@@ -1,29 +1,29 @@
 {
   "summary": {
-    "pass": 56,
-    "partial": 5,
-    "fail": 6,
+    "pass": 59,
+    "partial": 4,
+    "fail": 4,
     "error": 0
   },
   "category_stats": {
     "硬體維修": {
       "pass": 15,
-      "partial": 3,
-      "fail": 3,
+      "partial": 2,
+      "fail": 4,
       "error": 0,
       "total": 21
     },
     "報價客服": {
-      "pass": 8,
-      "partial": 2,
+      "pass": 9,
+      "partial": 1,
       "fail": 0,
       "error": 0,
       "total": 10
     },
     "門市規格": {
-      "pass": 9,
+      "pass": 10,
       "partial": 0,
-      "fail": 1,
+      "fail": 0,
       "error": 0,
       "total": 10
     },
@@ -49,9 +49,9 @@
       "total": 5
     },
     "品牌路由": {
-      "pass": 4,
-      "partial": 0,
-      "fail": 2,
+      "pass": 5,
+      "partial": 1,
+      "fail": 0,
       "error": 0,
       "total": 6
     }
@@ -178,28 +178,28 @@
       "category": "硬體維修",
       "question": "Dormakaba 雙重認證模式啟動後會有什麼現象？",
       "expected": "說明單一指紋或密碼或卡片將無法開門，需兩者同時驗證。如果只有管理者密碼可以開門但其他方式無法開門，就是啟動了雙重驗證模式，需將其解除",
-      "answer": "您好！關於 Dormakaba 電子鎖的雙重認證模式，因為不同型號的操作方式可能會有些差異，為了提供您最準確的資訊，請問您的 Dormakaba 電子鎖型號是什麼呢？",
+      "answer": "您好！關於 Dormakaba 雙重認證模式啟動後的現象，通常在操作手冊中會有詳細說明喔。您可以參考以下 Dormakaba APP 的操作手冊，裡面應該會有相關的資訊：\n\nDormakaba APP 遠端操作：https://drive.google.com/file/d/1Ii4vdaz8_kGdUUtc0p_sep5LI8i09RML/view\nDormakaba APP 操作手冊：https://drive.google.com/file/d/1lSdrdkjE9Jeh-sqXhylQvAvGxDO3S4eV/view\n\n如果您知道您的 Dormakaba 電子鎖具體型號，我可以幫您看看有沒有更精確的手冊連結喔！",
       "skills_loaded": [
         "product-knowledge"
       ],
       "keyword_hits": "1/4",
-      "verdict": "partial",
-      "reason": "keyword 1/4",
-      "elapsed_sec": 5.3
+      "verdict": "fail",
+      "reason": "AI回答完全沒有說明雙重認證模式啟動後的現象，而是導向操作手冊，未提供預期中的核心資訊。",
+      "elapsed_sec": 15.5
     },
     {
       "id": "H-10",
       "category": "硬體維修",
       "question": "Chatlock貓眼鏡頭旁閃爍紅燈的含義？",
       "expected": "說明鏡頭正在主動啟動人臉或掌靜脈辨識，屬於正常工作狀態",
-      "answer": "Chatlock貓眼鏡頭旁閃爍紅燈的含義，通常代表著設備的某種狀態提示，例如電量低、網路連線異常或是系統有其他訊息需要您注意。\n\n由於您提到的是Chatlock品牌，我需要進一步確認您的電子鎖型號，才能提供更精確的說明。請問您的Chatlock電子鎖型號是什麼呢？如果您不確定型號，也可以描述一下電子鎖的外觀或開門方式，我會盡力協助您。",
+      "answer": "您好！關於 Chatlock 電子鎖貓眼鏡頭旁閃爍紅燈的含義，這通常會根據不同的型號有不同的指示。\n\n請問您的 Chatlock 電子鎖型號是什麼呢？這樣我才能幫您查詢最正確的資訊喔！",
       "skills_loaded": [
         "product-knowledge"
       ],
       "keyword_hits": "1/3",
-      "verdict": "partial",
-      "reason": "keyword 1/3",
-      "elapsed_sec": 3.2
+      "verdict": "fail",
+      "reason": "AI沒有直接回答紅燈的含義，而是要求提供型號，與預期方向完全不符。",
+      "elapsed_sec": 5.4
     },
     {
       "id": "S-1",
@@ -248,12 +248,14 @@
       "category": "報價客服",
       "question": "自備鎖請你們代工，如果之後壞了有保固嗎？",
       "expected": "說明代工服務僅針對安裝品質，產品本身故障需洽原購買商",
-      "answer": "為了讓專員能更快速、精確地協助您，再麻煩您核對或補充以下聯絡資訊：\n\n🔹 聯絡電話：\n🔹 聯絡地址：\n🔹 設備品牌型號：\n🔹 安裝日期：\n\n如果您手邊有任何照片、截圖或是影片（例如：門鎖的現況、App 錯誤畫面的截圖等），也都非常歡迎您直接傳送上來喔！這能幫助專員更快了解您的情況。\n\n感謝您的耐心等候，我們很快就會有專人為您服務！",
-      "skills_loaded": [],
-      "keyword_hits": "1/3",
-      "verdict": "partial",
-      "reason": "keyword 1/3",
-      "elapsed_sec": 4.1
+      "answer": "您好！針對您自備鎖請我們代工安裝，之後如果產品本身有故障的話，保固會需要您洽詢原購買廠商喔。我們這邊的代工服務，主要會保障安裝的品質。",
+      "skills_loaded": [
+        "dispatch-guide"
+      ],
+      "keyword_hits": "3/3",
+      "verdict": "pass",
+      "reason": "AI回答完整說明了代工服務僅保障安裝品質，並指出產品故障需洽詢原購買商，完全符合預期方向。",
+      "elapsed_sec": 5.6
     },
     {
       "id": "S-5",
@@ -330,28 +332,28 @@
       "category": "報價客服",
       "question": "有網路連線功能的電子鎖，對生活有哪些具體好處？",
       "expected": "提及可異地遠端開門、即時收到家人到家通知及紀錄查詢",
-      "answer": "您好！有網路連線功能的電子鎖，能為您的生活帶來不少便利喔！\n\n最主要的好處就是您可以透過手機 APP 進行遠端操作，像是：\n1. 不論您身在何處，都可以遠端開關門。\n2. 還能發送限時密碼給訪客或家人，讓他們在特定時間內進出。\n3. 某些型號甚至還有攝影鏡頭功能，讓您可以隨時查看門口狀況，提升居家安全。",
+      "answer": "您好！有網路連線功能的電子鎖，最主要的好處就是可以讓您遠端操控門鎖，即使人不在家也能輕鬆管理。\n\n例如，您可以：\n1. **遠端開關門**：當親友來訪或有清潔人員需要進入時，您可以在任何地方透過手機APP遠端解鎖或上鎖。\n2. **發送限時密碼**：您可以為訪客或特定服務人員設定一次性或有時效性的密碼，方便他們進出，且時間到期後自動失效，非常安全。\n\n這些功能都能讓您的生活更便利、更有彈性喔！",
       "skills_loaded": [
         "product-knowledge"
       ],
       "keyword_hits": "1/3",
       "verdict": "partial",
-      "reason": "keyword 1/3",
-      "elapsed_sec": 3.6
+      "reason": "回答提及遠端開門，但遺漏了即時通知和紀錄查詢這兩個重要面向。",
+      "elapsed_sec": 4.6
     },
     {
       "id": "W-1",
       "category": "門市規格",
       "question": "鎖市林口門市的營業時間為何？",
       "expected": "提供週一至週六 09:30-20:00 等正確資訊",
-      "answer": "鎖市林口門市的營業時間是週一到週六的早上 9:30 到晚上 8:00。週日不定期休假喔！",
+      "answer": "鎖市林口門市的營業時間是週一到週六的 09:30 到 20:00 喔！週日是不定期休假。\n\n門市地址在新北市林口區民富街 83 號 1 樓。",
       "skills_loaded": [
         "store-info"
       ],
-      "keyword_hits": "0/2",
-      "verdict": "fail",
-      "reason": "keyword 0/2",
-      "elapsed_sec": 2.3
+      "keyword_hits": "2/2",
+      "verdict": "pass",
+      "reason": "AI 回答完全符合預期方向，並提供了正確的營業時間資訊，額外資訊也具參考價值。",
+      "elapsed_sec": 2.7
     },
     {
       "id": "W-2",
@@ -766,30 +768,29 @@
       "category": "硬體維修",
       "question": "換完電池還是會一直無法上鎖",
       "expected": "應確認電池品牌是否正確，建議使用 Panasonic 鹼性電池",
-      "answer": "好的，謝謝您提供的資訊。既然是自動上鎖的款式，我們來做個小測試。\n\n請您在門打開的狀態下，找到門側面的倒三角形感應器（通常是一個小小的卡榫），然後用手指壓住它。請問這時候鎖舌會伸出來嗎？\n\n另外，也想再確認一下，門關上後，門跟門框之間是貼合的還是有縫隙呢？關門時有聽到什麼聲音嗎？例如馬達空轉聲、嗶嗶聲，還是完全沒有聲音呢？",
+      "answer": "好的，了解您的鎖是全自動上鎖的類型。\n\n那請您幫我測試一下：在門打開的狀態下，找到門側面的倒三角形感應器（通常是一個小卡榫），然後用手指壓住它。請問這時候鎖舌會伸出來嗎？",
       "skills_loaded": [
         "troubleshoot",
         "ts-auto-lock"
       ],
       "keyword_hits": "0/3",
       "verdict": "fail",
-      "reason": "keyword 0/3",
-      "elapsed_sec": 13.8
+      "reason": "AI回答完全沒有提及電池相關問題，而是直接跳到感應器測試，與預期方向完全不符。",
+      "elapsed_sec": 12.4
     },
     {
       "id": "E-2",
       "category": "硬體維修",
       "question": "螢幕一直閃爍，無法感應任何開鎖方式",
       "expected": "鎖栓可能卡到門框受口片，需先將門拉或推至關好門的位置",
-      "answer": "您好！螢幕閃爍且無法感應開鎖方式，這聽起來像是電力相關的問題。\n\n為了幫您進一步判斷，想先請問幾個問題：\n1. 請問您的電子鎖型號是什麼呢？（例如：AI-99、A90 等）\n2. 目前使用的是什麼牌子的電池？是一般鹼性電池還是充電式的鋰電池呢？",
+      "answer": "您的Chatlock電子鎖螢幕一直閃爍，而且無法感應開鎖方式，這聽起來很困擾！這通常跟電力或內部零件有關。\n\n我先幫您載入相關的故障排除指南，請您稍等一下。",
       "skills_loaded": [
-        "troubleshoot",
-        "ts-power-drain-chatlock"
+        "troubleshoot"
       ],
       "keyword_hits": "0/3",
       "verdict": "fail",
-      "reason": "keyword 0/3",
-      "elapsed_sec": 8.5
+      "reason": "AI回答將問題歸因於電力或內部零件，並表示將載入故障排除指南，完全未提及預期回答中鎖栓卡住的機械問題及相應的處理方式。",
+      "elapsed_sec": 7.4
     },
     {
       "id": "E-3",
@@ -826,15 +827,14 @@
       "category": "硬體維修",
       "question": "Chatlock推拉電子鎖轉把手後不會自己彈回正，會卡住",
       "expected": "判斷為機械問題，建議派工請師傅到場檢修調整",
-      "answer": "好的，我了解鎖舌卡在中間，而且門是關著的。\n\n這樣的話，我還需要請您提供以下資訊，才能更精確地幫您判斷問題：\n1. 請問您的電子鎖型號是什麼呢？（例如：AI-99、A90 等）\n2. 您的門是向外拉開還是向內推開的呢？\n3. 您現在人在門外還是門內呢？\n4. 當您嘗試開鎖時，有聽到馬達運轉的聲音嗎？",
+      "answer": "好的，我了解您的Chatlock推拉電子鎖把手卡住了。這聽起來確實很困擾！\n\n我會先幫您載入相關的故障排除指南，請您稍等一下。",
       "skills_loaded": [
-        "troubleshoot",
-        "ts-door-stuck-chatlock"
+        "troubleshoot"
       ],
       "keyword_hits": "0/2",
-      "verdict": "fail",
-      "reason": "keyword 0/2",
-      "elapsed_sec": 8.1
+      "verdict": "partial",
+      "reason": "AI未判斷為機械問題，也未建議派工，而是提出載入故障排除指南，與預期方向有明顯偏差。",
+      "elapsed_sec": 5.1
     },
     {
       "id": "E-6",
@@ -870,14 +870,12 @@
       "category": "硬體維修",
       "question": "我下單了",
       "expected": "請客戶提供訂單編號、型號、購買通路、聯絡人、電話、安裝地址等資訊",
-      "answer": "好的，已收到您下單的訊息！\n\n請問您是想了解安裝流程，還是有其他關於訂單的問題呢？",
-      "skills_loaded": [
-        "dispatch-guide"
-      ],
-      "keyword_hits": "1/3",
+      "answer": "您好！請問您是下單了電子鎖產品，還是預約了安裝服務呢？方便請您多說明一些，我才能協助您喔！",
+      "skills_loaded": [],
+      "keyword_hits": "0/3",
       "verdict": "partial",
-      "reason": "keyword 1/3",
-      "elapsed_sec": 8.6
+      "reason": "AI回答先詢問訂單類型而非直接索取預期中列出的具體訂單資訊，雖有助於後續處理，但未直接符合預期方向的資訊索取內容。",
+      "elapsed_sec": 3.0
     },
     {
       "id": "E-9",
@@ -942,15 +940,15 @@
       "category": "品牌路由",
       "question": "門打不開",
       "expected": "回答應包含推緊門板法或 Type-C 緊急供電等 Chatlock 門扇卡死的處理方式",
-      "answer": "好的，已幫您記下了！您現在在門外，按開鎖時有聽到馬達聲，這表示鎖體有在運作。\n\n通常這種情況，會需要先讓鎖舌和門框的受口片之間產生一點空間。\n\n請問您的門是向外拉開還是向內推開的呢？另外，也想再確認一下您的電子鎖型號是什麼？這樣我才能給您最精確的建議喔！",
+      "answer": "好的，謝謝您提供的資訊！您在門外，按開鎖有聽到馬達聲，這表示鎖體有在運作。\n\n請問您的門是向外拉開還是向內推開的呢？另外，也麻煩您提供一下電子鎖的型號，這樣我能更精確地協助您。",
       "skills_loaded": [
         "troubleshoot",
         "ts-door-stuck-chatlock"
       ],
       "keyword_hits": "0/2",
-      "verdict": "fail",
-      "reason": "keyword 0/2",
-      "elapsed_sec": 11.4
+      "verdict": "partial",
+      "reason": "AI的回答是合理的診斷步驟，但未包含預期中應提供的具體處理方式（如推緊門板法或Type-C緊急供電），屬於明顯遺漏核心內容。",
+      "elapsed_sec": 12.1
     },
     {
       "id": "B-3",
@@ -986,16 +984,16 @@
       "id": "B-5",
       "category": "品牌路由",
       "question": "鎖一直嗶嗶叫",
-      "expected": "Dormakaba 用戶應載入 ts-alarm-dormakaba，回答應包含 Dormakaba 信號對照",
-      "answer": "您好，Dormakaba 電子鎖一直嗶嗶叫，這可能是不同的警報喔！\n\n為了幫您判斷是什麼問題，可以請您多描述一下嗎？\n1. 聲音大概是怎麼樣的？是短促的嗶嗶聲，還是長鳴呢？大概響幾聲？\n2. 聲音是什麼時候出現的呢？是關門的時候、開門的時候，還是半夜突然響起來的？\n3. 您有注意到面板上有沒有什麼燈號閃爍，或是顯示什麼數字嗎？\n\n如果方便的話，您也可以錄一段聲音或影片傳給我，這樣會更快幫您確認問題喔！",
+      "expected": "Dormakaba 用戶應載入 ts-alarm-dormakaba，回答應包含警報相關診斷或信號說明",
+      "answer": "您好！Dormakaba 電子鎖一直嗶嗶叫，這可能是不同的警報聲喔。\n\n為了幫您判斷是什麼問題，可以請您多描述一下嗎？\n1. 這個聲音大概是怎麼樣的呢？是短促的嗶嗶聲，還是長鳴？大概響幾聲？\n2. 聲音通常是什麼時候出現的呢？是關門的時候、開門的時候，還是半夜突然響起來？\n3. 您有注意到面板上有沒有什麼燈號閃爍，或是顯示什麼數字嗎？",
       "skills_loaded": [
         "troubleshoot",
         "ts-alarm-dormakaba"
       ],
-      "keyword_hits": "0/2",
-      "verdict": "fail",
-      "reason": "keyword 0/2",
-      "elapsed_sec": 6.4
+      "keyword_hits": "2/2",
+      "verdict": "pass",
+      "reason": "AI的回答透過提問來進行警報相關診斷，符合預期方向中『警報相關診斷』的要求，是解決問題的合理第一步。",
+      "elapsed_sec": 5.2
     },
     {
       "id": "B-6",
