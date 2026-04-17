@@ -27,23 +27,11 @@ from dotenv import load_dotenv
 
 load_dotenv(os.path.join(_AGENT_SKILLS_DIR, "..", ".env"))
 
-from google.oauth2 import service_account
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_litellm import ChatLiteLLM
 from core.config import load_config
 from agent import build_agent
 from langgraph.checkpoint.memory import MemorySaver
-
-_SA_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
-
-
-def _load_sa_credentials():
-    """Load Service Account credentials if credentials.json exists."""
-    sa_file = Path(__file__).resolve().parents[2] / "credentials.json"
-    if sa_file.exists():
-        return service_account.Credentials.from_service_account_file(
-            str(sa_file), scopes=_SA_SCOPES
-        )
-    return None
+from llms.litellm_model import _ensure_vertex_credentials
 
 # ─────────────────────────────────────────────
 # 測試案例定義
@@ -542,16 +530,11 @@ async def _rejudge(judge_model, json_path: str) -> dict:
 async def main():
     args = _parse_args()
 
-    project = os.getenv("VERTEX_PROJECT_ID", "")
-    if not project:
-        print("Please set VERTEX_PROJECT_ID")
-        return
-
     base_dir = os.path.dirname(os.path.abspath(__file__))
     json_path = os.path.join(base_dir, "quality_report.json")
     html_path = os.path.join(base_dir, "quality_report.html")
 
-    sa_creds = _load_sa_credentials()
+    _ensure_vertex_credentials()
 
     # ── --judge-only 模式：只重新評分 ──
     if args.judge_only:
@@ -559,16 +542,7 @@ async def main():
             print(f"  ERROR: {json_path} not found. Run without --judge-only first.")
             return
 
-        judge_kwargs = dict(
-            model="gemini-2.5-flash",
-            project=project,
-            location=os.getenv("VERTEX_LOCATION", "us-central1"),
-            temperature=0.0,
-            vertexai=True,
-        )
-        if sa_creds:
-            judge_kwargs["credentials"] = sa_creds
-        judge_model = ChatGoogleGenerativeAI(**judge_kwargs)
+        judge_model = ChatLiteLLM(model="vertex_ai/gemini-2.5-flash", temperature=0.0)
 
         print("=" * 60)
         print("  Quality Check — Re-Judge Only")
@@ -601,29 +575,11 @@ async def main():
         os.chdir(_AGENT_SKILLS_DIR)
         cfg = load_config()
 
-        model_kwargs = dict(
-            model="gemini-2.5-flash",
-            project=project,
-            location=os.getenv("VERTEX_LOCATION", "us-central1"),
-            temperature=0.3,
-            vertexai=True,
-        )
-        if sa_creds:
-            model_kwargs["credentials"] = sa_creds
-        model = ChatGoogleGenerativeAI(**model_kwargs)
+        model = ChatLiteLLM(model="vertex_ai/gemini-2.5-pro", temperature=0.3)
 
         judge_model = None
         if use_judge:
-            judge_kwargs = dict(
-                model="gemini-2.5-flash",
-                project=project,
-                location=os.getenv("VERTEX_LOCATION", "us-central1"),
-                temperature=0.0,
-                vertexai=True,
-            )
-            if sa_creds:
-                judge_kwargs["credentials"] = sa_creds
-            judge_model = ChatGoogleGenerativeAI(**judge_kwargs)
+            judge_model = ChatLiteLLM(model="vertex_ai/gemini-2.5-flash", temperature=0.0)
 
         agent = build_agent(model, cfg, checkpointer=MemorySaver())
 
@@ -686,29 +642,11 @@ async def main():
 
     cfg = load_config()
 
-    model_kwargs = dict(
-        model="gemini-2.5-flash",
-        project=project,
-        location=os.getenv("VERTEX_LOCATION", "us-central1"),
-        temperature=0.3,
-        vertexai=True,
-    )
-    if sa_creds:
-        model_kwargs["credentials"] = sa_creds
-    model = ChatGoogleGenerativeAI(**model_kwargs)
+    model = ChatLiteLLM(model="vertex_ai/gemini-2.5-pro", temperature=0.3)
 
     judge_model = None
     if use_judge:
-        judge_kwargs = dict(
-            model="gemini-2.5-flash",
-            project=project,
-            location=os.getenv("VERTEX_LOCATION", "us-central1"),
-            temperature=0.0,
-            vertexai=True,
-        )
-        if sa_creds:
-            judge_kwargs["credentials"] = sa_creds
-        judge_model = ChatGoogleGenerativeAI(**judge_kwargs)
+        judge_model = ChatLiteLLM(model="vertex_ai/gemini-2.5-flash", temperature=0.0)
 
     agent = build_agent(model, cfg, checkpointer=MemorySaver())
 

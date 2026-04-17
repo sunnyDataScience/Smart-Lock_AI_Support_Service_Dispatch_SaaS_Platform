@@ -1,8 +1,6 @@
 langchain-text-splitters
-langchain_google_genai
-langchain-google-vertexai
-langchain-community
-langchain-ollama
+langchain-litellm
+litellm
 langchain-chroma
 langchain-postgres
 psycopg[binary]

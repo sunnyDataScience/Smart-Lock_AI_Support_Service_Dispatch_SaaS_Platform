@@ -9,13 +9,10 @@ domain          = "電子鎖、智慧門鎖相關的產品諮詢、故障排除�
 agent_name      = "smart_lock_agent"
 request_timeout = 60
 
-# ── 2. LLM 設定 ──
+# ── 2. LLM 設定（LiteLLM 格式）──
 [llm]
-provider        = "vertexai"
-model_name      = "gemini-2.5-pro"
-temperature     = 0.3
-project_id_env  = "VERTEX_PROJECT_ID"
-location_env    = "VERTEX_LOCATION"
+model       = "vertex_ai/gemini-2.5-pro"
+temperature = 0.3
 
 # ── 3. LINE Bot 設定 ──
 [line_bot]
