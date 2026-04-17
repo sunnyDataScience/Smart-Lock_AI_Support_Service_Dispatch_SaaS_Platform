@@ -119,7 +119,8 @@ def _extract_text_from_items(items: list) -> str:
             parts.append(item)
         elif isinstance(item, dict) and item.get("type") == "media":
             label = item.get("label", "媒體")
-            parts.append(f"[使用者傳送了{label}]")
+            file_path = item.get("file_path", "")
+            parts.append(f"[使用者傳送了{label}: {file_path}]")
     return "\n".join(parts)
 
 
