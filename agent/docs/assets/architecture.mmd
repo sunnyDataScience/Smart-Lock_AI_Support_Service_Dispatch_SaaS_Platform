@@ -20,48 +20,45 @@ graph TD
         health["health<br/><small>GET /health<br/>version: 2.0-skills</small>"]
     end
 
-    subgraph invoke_layer ["Agent 呼叫層（app.py _invoke_agent）"]
+    subgraph invoke_layer ["Agent 呼叫層（debounce.py run_agent）"]
         direction TB
-        load_profile["載入用戶畫像<br/><small>ProfileManager.load_full_profile<br/>facts (SCD Type 2) + .md profile<br/>注入 [用戶資料] 前綴</small>"]
+        load_profile["載入用戶畫像 + 品牌過濾<br/><small>ProfileManager.load_full_profile_with_facts<br/>facts → device_brand/model<br/>filter_skills(brand, model)<br/>注入 [可用技能] + [用戶資料] 前綴</small>"]
         agent_invoke["agent.ainvoke<br/><small>傳入 messages + thread_id<br/>Checkpointer 管理對話記憶</small>"]
+        output_validate["H7.5 輸出驗證<br/><small>output_validator.py<br/>禁用語 regex + LLM 語意檢查<br/>不合規 → 重跑 ReAct loop</small>"]
+        skill_cleanup["H10 Checkpoint 清理<br/><small>_cleanup_tool_checkpoint<br/>SOP → [已參考技能: xxx]</small>"]
         extract_reply["提取回覆<br/><small>從 messages 取最後一則 AI 回覆<br/>處理 str / list[dict] 格式</small>"]
         load_profile --> agent_invoke
-        agent_invoke --> extract_reply
+        agent_invoke --> skill_cleanup
+        skill_cleanup --> output_validate
+        output_validate --> extract_reply
     end
 
     subgraph react_agent ["ReAct Agent（LangGraph create_react_agent）"]
         direction TB
-        system_prompt["System Prompt<br/><small>prompts/system.md<br/>14 技能摘要列表<br/>安全規則 + 回覆風格</small>"]
+        system_prompt["System Prompt<br/><small>prompts/system.md<br/>動態 [可用技能] 注入（63 技能）<br/>安全規則 + 回覆風格</small>"]
         llm_reason["LLM 推理<br/><small>讀取 system prompt + messages<br/>決定是否需要載入技能<br/>產生 tool_calls 或直接回覆</small>"]
         tool_exec["Tool 執行<br/><small>執行 load_skill / transfer_to_human<br/>結果回饋給 LLM</small>"]
         llm_reason -->|"tool_calls"| tool_exec
         tool_exec -->|"tool results"| llm_reason
     end
 
-    subgraph skills_layer ["技能系統（skills/）"]
+    subgraph skills_layer ["技能系統（skills/ — 63 個 SKILL.md）"]
         direction TB
-        skill_registry["技能註冊表<br/><small>skills/__init__.py<br/>掃描 skills/data/*/SKILL.md<br/>解析 YAML frontmatter</small>"]
+        skill_registry["技能註冊表<br/><small>skills/__init__.py<br/>掃描品牌目錄結構<br/>路徑推斷 brands/models<br/>filter_skills(brand, model)</small>"]
 
-        subgraph tier1_skills ["Tier-1 通用技能"]
+        subgraph common_skills ["_common 通用技能（7 個）"]
             direction LR
-            sk_troubleshoot["troubleshoot<br/><small>故障排除入口<br/>症狀分析 → 派發子技能</small>"]
-            sk_app["app-guide<br/><small>APP 配對<br/>用戶管理</small>"]
-            sk_settings["system-settings<br/><small>音量/語言<br/>童鎖/雙重認證</small>"]
-            sk_product["product-knowledge<br/><small>品牌/型號/電池<br/>WiFi/鎖種規格</small>"]
-            sk_store["store-info<br/><small>營業時間/地址<br/>服務區域</small>"]
-            sk_dispatch["dispatch-guide<br/><small>報價邏輯<br/>派工條件</small>"]
+            sk_troubleshoot["troubleshoot<br/><small>故障排除路由器</small>"]
+            sk_product["product-knowledge<br/><small>品牌/型號/規格</small>"]
+            sk_store["store-info<br/><small>門市資訊</small>"]
+            sk_dispatch["dispatch-guide<br/><small>派工/安裝</small>"]
         end
 
-        subgraph tier2_skills ["Tier-2 故障排除子技能"]
+        subgraph brand_skills ["品牌專屬技能（56 個 × 8 品牌）"]
             direction LR
-            sk_stuck["ts-door-stuck<br/><small>門打不開<br/>品牌專屬流程</small>"]
-            sk_autolock["ts-auto-lock<br/><small>自動上鎖失效</small>"]
-            sk_tongue["ts-lock-tongue<br/><small>鎖舌/扣板</small>"]
-            sk_verify["ts-verification<br/><small>驗證失敗</small>"]
-            sk_rebound["ts-door-rebound<br/><small>門片變形</small>"]
-            sk_alarm["ts-alarm<br/><small>異常警報</small>"]
-            sk_power["ts-power-drain<br/><small>電量異常</small>"]
-            sk_dual["ts-dual-auth<br/><small>雙重認證</small>"]
+            sk_dorm["Dormakaba<br/><small>7 個 ts-*/ss-*</small>"]
+            sk_chat["Chatlock<br/><small>19 個（含 AI-99）</small>"]
+            sk_others["其他品牌<br/><small>Philips/Kaadas/Milre<br/>AiLock/3E/Waferlock<br/>各 5 個</small>"]
         end
     end
 
@@ -125,7 +122,7 @@ graph TD
 
     subgraph quality_layer ["品質保證（quality/）"]
         direction LR
-        qc_runner["quality_check.py<br/><small>50 測試案例<br/>6 類別 (H/S/W/Y/M/G)</small>"]
+        qc_runner["quality_check.py<br/><small>67 測試案例<br/>7 類別 (H/S/W/Y/M/G/B)<br/>多輪模擬 + 品牌注入</small>"]
         qc_keyword["關鍵字比對<br/><small>≥50% 命中 = 通過</small>"]
         qc_judge["LLM-as-Judge<br/><small>pass / partial / fail</small>"]
         qc_report[("quality_report<br/><small>.json + .html<br/>儀表板 + 篩選表格</small>")]
@@ -142,8 +139,8 @@ graph TD
     tool_exec -->|"load_skill"| tool_load
     tool_exec -->|"transfer_to_human"| tool_transfer
     tool_load --> skill_registry
-    skill_registry --> tier1_skills
-    skill_registry --> tier2_skills
+    skill_registry --> common_skills
+    skill_registry --> brand_skills
 
     %% === Prompt 連線 ===
     prompt_system --- system_prompt
@@ -192,11 +189,11 @@ graph TD
 
     class LINE_USER userNode
     class webhook,chat_test,health entry
-    class load_profile,agent_invoke,extract_reply invoke
+    class load_profile,agent_invoke,output_validate,skill_cleanup,extract_reply invoke
     class system_prompt,llm_reason,tool_exec react
     class skill_registry react
-    class sk_troubleshoot,sk_app,sk_settings,sk_product,sk_store,sk_dispatch skill_tier1
-    class sk_stuck,sk_autolock,sk_tongue,sk_verify,sk_rebound,sk_alarm,sk_power,sk_dual skill_tier2
+    class sk_troubleshoot,sk_product,sk_store,sk_dispatch skill_tier1
+    class sk_dorm,sk_chat,sk_others skill_tier2
     class tool_load,tool_transfer tool_style
     class prompt_system,prompt_transfer_form prompt_style
     class cfg_system,cfg_llm,cfg_line,cfg_memory,cfg_skills,cfg_prompts,cfg_safety,cfg_profile config_style
