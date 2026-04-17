@@ -1,7 +1,4 @@
-import asyncio
 import os
-import re
-from pathlib import Path
 from psycopg import AsyncConnection
 
 
@@ -30,8 +27,15 @@ async def init_facts_db(config: dict):
                 end_date TIMESTAMP
             )
         """)
+        await _facts_conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_soft_profiles (
+                user_id TEXT PRIMARY KEY,
+                content TEXT NOT NULL DEFAULT '',
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
         await _facts_conn.commit()
-        print("[Facts DB] 已連線至 PostgreSQL（user_facts）")
+        print("[Facts DB] 已連線至 PostgreSQL（user_facts + user_soft_profiles）")
     except Exception as e:
         print(f"[Facts DB] 連線失敗，降級為停用: {e}")
         _facts_conn = None
@@ -48,36 +52,36 @@ async def close_facts_db():
 class ProfileManager:
     def __init__(self, config: dict):
         self.enabled = config.get("enabled", False)
-        self.base_dir = Path(config.get("profile_dir", "./data/profiles"))
-        self.base_dir.mkdir(parents=True, exist_ok=True)
         self.facts_enabled = config.get("facts_enabled", False)
         self.fact_attributes = config.get("fact_attributes", [])
 
-    def _get_profile_path(self, user_id: str) -> Path:
-        safe_name = re.sub(r'[^\w\-]', '_', user_id)
-        return self.base_dir / f"{safe_name}.md"
-
     async def load_profile(self, user_id: str) -> str:
-        if not self.enabled:
+        if not self.enabled or _facts_conn is None:
             return ""
-        path = self._get_profile_path(user_id)
-
-        def _read():
-            if path.exists():
-                return path.read_text(encoding="utf-8")
+        try:
+            cursor = await _facts_conn.execute(
+                "SELECT content FROM user_soft_profiles WHERE user_id = %s",
+                (user_id,),
+            )
+            row = await cursor.fetchone()
+            return row[0] if row else ""
+        except Exception as e:
+            print(f"[Profile DB] load_profile 失敗: {e}")
             return ""
-
-        return await asyncio.to_thread(_read)
 
     async def save_profile(self, user_id: str, content: str) -> None:
-        if not self.enabled:
+        if not self.enabled or _facts_conn is None:
             return
-        path = self._get_profile_path(user_id)
-
-        def _write():
-            path.write_text(content, encoding="utf-8")
-
-        await asyncio.to_thread(_write)
+        try:
+            await _facts_conn.execute(
+                "INSERT INTO user_soft_profiles (user_id, content, updated_at) "
+                "VALUES (%s, %s, NOW()) "
+                "ON CONFLICT (user_id) DO UPDATE SET content = EXCLUDED.content, updated_at = NOW()",
+                (user_id, content),
+            )
+            await _facts_conn.commit()
+        except Exception as e:
+            print(f"[Profile DB] save_profile 失敗: {e}")
 
     async def load_facts(self, user_id: str) -> dict:
         """Load current facts from user_facts table."""

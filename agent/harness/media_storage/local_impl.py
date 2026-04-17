@@ -16,6 +16,7 @@ _MIME_EXT_MAP = {
     "image/png": "png",
     "image/gif": "gif",
     "image/webp": "webp",
+    "audio/m4a": "m4a",
     "audio/aac": "aac",
     "audio/mp4": "m4a",
     "audio/x-m4a": "m4a",

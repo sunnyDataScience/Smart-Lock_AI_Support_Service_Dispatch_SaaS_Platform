@@ -81,8 +81,10 @@ sticker_reply    = "收到您的貼圖了！請問有什麼關於電子鎖的問
 fallback_text    = "抱歉，我無法處理您傳送的{media_type}。請用文字描述您的問題。"
 
 [multimodal.storage]
-type       = "local"
-local_path = "./data/media"
+type       = "gcs"         # "local" (本地檔案) | "gcs" (Google Cloud Storage)
+local_path = "./data/media" # local 模式使用
+gcs_bucket = "lock-ai"      # GCS 模式：bucket 名稱（或設環境變數 GCS_MEDIA_BUCKET）
+# gcs_prefix = "media"      # GCS 模式：物件路徑前綴
 
 # ── 10. 回覆模板 ──
 [templates]
@@ -94,7 +96,6 @@ error_system         = "不好意思，系統大腦剛剛稍微當機了一下�
 # ── 11. 用戶畫像 ──
 [user_profile]
 enabled     = true
-profile_dir = "./data/profiles"
 facts_enabled = true
 facts_postgres_uri_env = "POSTGRES_URI"
 fact_attributes = ["phone", "address", "device_model", "device_brand"]

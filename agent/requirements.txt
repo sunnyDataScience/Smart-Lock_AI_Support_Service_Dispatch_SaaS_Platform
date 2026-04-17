@@ -17,3 +17,4 @@ ddgs
 aiosqlite
 google-genai
 aiofiles
+google-cloud-storage

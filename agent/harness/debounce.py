@@ -13,7 +13,7 @@ import time
 import asyncio
 import json
 
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage, ToolMessage
 
 import core.line_bot as line_bot
 import harness.memory_manager as memory_manager
@@ -143,27 +143,27 @@ def _build_message_content(items: list) -> str | list:
         if isinstance(item, str):
             blocks.append({"type": "text", "text": item})
         elif isinstance(item, dict) and item["type"] == "media":
-            file_path = item["file_path"]
             mime_type = item["mime_type"]
-            try:
-                with open(file_path, "rb") as f:
-                    media_bytes = f.read()
-                b64 = base64.b64encode(media_bytes).decode("utf-8")
-
-                # 統一用 "media" 格式，明確傳入 mime_type
-                # （image_url 格式的 data URI 會被 langchain_google_genai 丟棄 MIME type）
-                print(f"[Multimodal] 建構 media block: mime_type={mime_type}, data_len={len(b64)}")
-                blocks.append({
-                    "type": "media",
-                    "mime_type": mime_type,
-                    "data": b64,
-                })
-            except FileNotFoundError:
-                label = item.get("label", "媒體")
-                blocks.append({
-                    "type": "text",
-                    "text": f"[使用者傳送了{label}，但檔案讀取失敗]",
-                })
+            # 優先使用記憶體中的 bytes（GCS / local 皆適用）
+            media_bytes = item.get("media_bytes")
+            if not media_bytes:
+                try:
+                    with open(item["file_path"], "rb") as f:
+                        media_bytes = f.read()
+                except FileNotFoundError:
+                    label = item.get("label", "媒體")
+                    blocks.append({
+                        "type": "text",
+                        "text": f"[使用者傳送了{label}，但檔案讀取失敗]",
+                    })
+                    continue
+            b64 = base64.b64encode(media_bytes).decode("utf-8")
+            data_uri = f"data:{mime_type};base64,{b64}"
+            print(f"[Multimodal] 建構 media block: mime_type={mime_type}, data_len={len(b64)}")
+            blocks.append({
+                "type": "image_url",
+                "image_url": {"url": data_uri},
+            })
     return blocks
 
 
@@ -180,9 +180,12 @@ def _content_to_text_reference(content: list, items: list | None = None) -> str:
         if isinstance(block, dict):
             if block.get("type") == "text":
                 parts.append(block["text"])
-            elif block.get("type") == "media":
+            elif block.get("type") in ("media", "image_url"):
                 file_path = media_items[media_idx]["file_path"] if media_idx < len(media_items) else "unknown"
+                # 從 data URI 或 mime_type 判斷媒體類型
                 mime = block.get("mime_type", "")
+                if not mime and block.get("image_url", {}).get("url", "").startswith("data:"):
+                    mime = block["image_url"]["url"].split(";")[0].replace("data:", "")
                 label = "圖片" if "image" in mime else "音檔" if "audio" in mime else "影片" if "video" in mime else "媒體"
                 parts.append(f"[使用者傳送了{label}: {file_path}]")
                 media_idx += 1
@@ -362,25 +365,12 @@ async def _cleanup_tool_checkpoint(config: dict, messages: list):
     """
     try:
         replaced = 0
+        # 收集被清理的中間 AIMessage 的 tool_call_id，用於刪除對應的 ToolMessage
+        cleaned_tool_call_ids: set[str] = set()
 
         for msg in messages:
-            # ToolMessage: 替換 load_skill 回傳的完整 SOP 內容
-            if hasattr(msg, "type") and msg.type == "tool" and hasattr(msg, "name") and msg.name == "load_skill":
-                content = msg.content if isinstance(msg.content, str) else str(msg.content)
-                # 從 "已載入技能: xxx\n\n..." 提取 skill name
-                if content.startswith("已載入技能:"):
-                    skill_name = content.split("已載入技能:")[1].split("\n")[0].strip()
-                else:
-                    skill_name = "unknown"
-                ref = f"[已參考技能: {skill_name}]"
-                await _agent.aupdate_state(
-                    config,
-                    {"messages": [ToolMessage(content=ref, id=msg.id, tool_call_id=msg.tool_call_id)]},
-                )
-                replaced += 1
-
             # 中間 AIMessage: 僅含 tool_calls、無實質 content 的訊息
-            elif (
+            if (
                 hasattr(msg, "type") and msg.type == "ai"
                 and hasattr(msg, "tool_calls") and msg.tool_calls
                 and (not msg.content or not str(msg.content).strip())
@@ -391,6 +381,10 @@ async def _cleanup_tool_checkpoint(config: dict, messages: list):
                     if tc.get("name") == "load_skill"
                 ]
                 if skill_names:
+                    # 收集此 AIMessage 所有 tool_call id
+                    for tc in msg.tool_calls:
+                        if tc.get("id"):
+                            cleaned_tool_call_ids.add(tc["id"])
                     ref = ", ".join(f"[已參考技能: {n}]" for n in skill_names)
                     await _agent.aupdate_state(
                         config,
@@ -398,8 +392,20 @@ async def _cleanup_tool_checkpoint(config: dict, messages: list):
                     )
                     replaced += 1
 
+        # 刪除對應的 ToolMessage，避免 orphaned tool response
+        for msg in messages:
+            if (
+                hasattr(msg, "type") and msg.type == "tool"
+                and hasattr(msg, "tool_call_id") and msg.tool_call_id in cleaned_tool_call_ids
+            ):
+                await _agent.aupdate_state(
+                    config,
+                    {"messages": [RemoveMessage(id=msg.id)]},
+                )
+                replaced += 1
+
         if replaced:
-            print(f"[Checkpoint] 已清理 {replaced} 則 tool call 訊息，替換為輕量引用")
+            print(f"[Checkpoint] 已清理 {replaced} 則 tool call 訊息")
     except Exception as e:
         print(f"[Checkpoint] 清理 tool call 訊息失敗: {e}")
 

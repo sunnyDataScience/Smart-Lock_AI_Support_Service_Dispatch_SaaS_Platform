@@ -2,14 +2,16 @@
 
 透過 config.toml [multimodal.storage] type 切換實作：
   - "local": 本地檔案系統
-  - 未來: "gcs", "s3"
+  - "gcs": Google Cloud Storage
 """
 
 from .base import BaseMediaStorage
 from .local_impl import LocalMediaStorage
+from .gcs_impl import GCSMediaStorage
 
 MEDIA_STORAGE_REGISTRY: dict[str, type[BaseMediaStorage]] = {
     "local": LocalMediaStorage,
+    "gcs": GCSMediaStorage,
 }
 
 
