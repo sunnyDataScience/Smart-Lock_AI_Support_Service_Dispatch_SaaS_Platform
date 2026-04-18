@@ -17,8 +17,10 @@ from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage, Tool
 
 import core.line_bot as line_bot
 import harness.memory_manager as memory_manager
-from harness.line_ui_factory import build_line_messages
-from skills.tools import set_current_user_id, set_current_brand
+from harness.line_ui_factory import (
+    build_line_messages, match_brand, match_model, get_brand_models, is_quick_reply_enabled,
+)
+from skills.tools import set_current_user_id, set_current_brand, get_current_brand, get_current_model
 from agent import get_system_prompt
 import harness.profile_updater as profile_updater
 import harness.safety_gate as safety_gate
@@ -33,6 +35,9 @@ _audit_storage = None
 
 # 訊息緩衝池：用來記錄每個使用者的狀態
 user_buffers = {}
+
+# Quick Reply 流程暫存：{user_id: {"content": ..., "buffer_items": ..., "reply_token": ...}}
+_pending_messages: dict[str, dict] = {}
 
 
 def init(agent, config: dict, templates: dict, profile_mgr=None, audit_storage=None):
@@ -442,6 +447,119 @@ async def _audit_agent_result(user_id: str, messages: list, latency_ms: float):
         print(f"[Audit] 記錄 agent 結果失敗: {e}")
 
 
+async def _quick_reply_intercept(
+    user_id: str, reply_token: str, content: str | list, buffer_items: list | None = None,
+) -> bool:
+    """Quick Reply 品牌/型號收集攔截。
+
+    流程：
+      1. 用戶首次發問且品牌未知 → 暫存原始訊息，直接回覆追問品牌 + quick reply
+      2. 用戶選品牌 → 更新 fact，若有型號選項則追問型號 + quick reply
+      3. 用戶選型號（或選「其他」/ 直接輸入） → 更新 fact，放行原始訊息進 Agent
+
+    Returns:
+        True = 已攔截處理（caller 不需再跑 agent）
+        False = 未攔截（caller 照常跑 agent）
+    """
+    if not is_quick_reply_enabled() or not _profile_mgr or not _profile_mgr.facts_enabled:
+        return False
+
+    # 取得當前 facts
+    _, facts = await _profile_mgr.load_full_profile_with_facts(user_id)
+    brand = facts.get("device_brand")
+    model = facts.get("device_model")
+    set_current_brand(brand, model)
+
+    text = content if isinstance(content, str) else _extract_text_from_items(buffer_items or [])
+    text_stripped = text.strip()
+
+    # ── 狀態 A：有暫存訊息 → 用戶正在回覆品牌或型號 ──
+    if user_id in _pending_messages:
+        pending = _pending_messages[user_id]
+
+        # A1: 品牌未知 → 嘗試匹配品牌
+        if not brand:
+            matched_brand = match_brand(text_stripped)
+            if matched_brand:
+                await _profile_mgr.update_fact(user_id, "device_brand", matched_brand)
+                brand = matched_brand
+                set_current_brand(brand, model)
+                print(f"[Quick Reply] 品牌已選: {matched_brand}")
+
+                # 該品牌有型號 → 繼續追問型號
+                if get_brand_models(matched_brand):
+                    reply_text = f"收到，{matched_brand}！請問您的電子鎖是什麼型號呢？"
+                    messages = build_line_messages(reply_text, brand=brand, model=None)
+                    await line_bot.send_response(user_id, reply_token, reply_text, message_objects=messages)
+                    return True
+
+                # 無型號選項 → 放行原始訊息
+                original = _pending_messages.pop(user_id)
+                print(f"[Quick Reply] 品牌收集完畢（無型號），放行原始訊息")
+                await agent_and_reply(user_id, reply_token, original["content"], original.get("buffer_items"))
+                return True
+            # 不匹配品牌 → 可能是用戶直接打品牌名（非選單），放行讓 agent 處理
+            original = _pending_messages.pop(user_id)
+            print(f"[Quick Reply] 輸入非品牌選項，放行原始訊息")
+            # 把這次的文字併入原始訊息前面
+            orig_content = original["content"]
+            if isinstance(orig_content, str):
+                combined = f"{text_stripped}\n{orig_content}"
+            else:
+                combined = orig_content
+            await agent_and_reply(user_id, reply_token, combined, original.get("buffer_items"))
+            return True
+
+        # A2: 品牌已知、型號未知 → 嘗試匹配型號
+        if brand and not model:
+            matched_model = match_model(brand, text_stripped)
+            if matched_model:
+                await _profile_mgr.update_fact(user_id, "device_model", matched_model)
+                model = matched_model
+                set_current_brand(brand, model)
+                print(f"[Quick Reply] 型號已選: {matched_model}")
+            elif text_stripped not in ("其他型號，請直接回覆",):
+                # 用戶自行輸入型號（非選單內容）
+                await _profile_mgr.update_fact(user_id, "device_model", text_stripped)
+                model = text_stripped
+                set_current_brand(brand, model)
+                print(f"[Quick Reply] 型號已輸入: {text_stripped}")
+
+            # 放行原始訊息
+            original = _pending_messages.pop(user_id)
+            print(f"[Quick Reply] 品牌型號收集完畢，放行原始訊息")
+            await agent_and_reply(user_id, reply_token, original["content"], original.get("buffer_items"))
+            return True
+
+    # ── 狀態 B：無暫存訊息 → 首次發問，檢查是否需要啟動 quick reply 流程 ──
+    if not brand:
+        # 暫存原始訊息，回覆追問品牌
+        _pending_messages[user_id] = {
+            "content": content,
+            "buffer_items": buffer_items,
+        }
+        reply_text = "請問您的電子鎖是什麼品牌呢？"
+        messages = build_line_messages(reply_text, brand=None, model=None)
+        await line_bot.send_response(user_id, reply_token, reply_text, message_objects=messages)
+        print(f"[Quick Reply] 品牌未知，暫存訊息並追問品牌")
+        return True
+
+    # 品牌已知但型號未知且有型號選項 → 暫存訊息，追問型號
+    if not model and get_brand_models(brand):
+        _pending_messages[user_id] = {
+            "content": content,
+            "buffer_items": buffer_items,
+        }
+        reply_text = f"請問您的 {brand} 電子鎖是什麼型號呢？"
+        messages = build_line_messages(reply_text, brand=brand, model=None)
+        await line_bot.send_response(user_id, reply_token, reply_text, message_objects=messages)
+        print(f"[Quick Reply] 型號未知，暫存訊息並追問型號")
+        return True
+
+    # 品牌型號都已知（或無型號選項）→ 不攔截
+    return False
+
+
 async def agent_and_reply(user_id: str, reply_token: str, content: str | list, buffer_items: list | None = None):
     """執行 agent 並回覆使用者。
 
@@ -487,6 +605,11 @@ async def agent_and_reply(user_id: str, reply_token: str, content: str | list, b
             except Exception as e:
                 print(f"[Audit] 記錄安全閘門事件失敗: {e}")
         await line_bot.send_response(user_id, reply_token, blocked)
+        return
+
+    # H12: Quick Reply 攔截 — 品牌/型號收集完畢再進 Agent
+    intercepted = await _quick_reply_intercept(user_id, reply_token, content, buffer_items)
+    if intercepted:
         return
 
     ai_response = await run_agent(user_id, content, buffer_items=buffer_items)
@@ -560,7 +683,7 @@ async def agent_and_reply(user_id: str, reply_token: str, content: str | list, b
 
     # H7: 偵測 URL 並轉換為 Flex Message 卡片
     max_len = _config.get("max_reply_length", 5000)
-    message_objects = build_line_messages(ai_response[:max_len])
+    message_objects = build_line_messages(ai_response[:max_len], brand=get_current_brand(), model=get_current_model())
 
     # 印出完整對話上下文 + AI 最終回答
     # await _print_context(user_id, ai_response)

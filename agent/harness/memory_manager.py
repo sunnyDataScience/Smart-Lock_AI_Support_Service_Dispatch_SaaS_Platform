@@ -96,8 +96,19 @@ async def maybe_compress(agent, thread_id: str, user_id: str = "") -> str | None
 
     # 計算要壓縮和保留的訊息
     keep_count = retention_pair * 2  # 每輪 = 1 human + 1 ai
-    messages_to_summarize = messages[:-keep_count]
-    # messages_to_keep = messages[-keep_count:]  # 這些會留在 checkpoint
+    cut_index = len(messages) - keep_count
+
+    # 確保切割點不會切斷 tool_call / tool_response 配對：
+    # 往前找到第一個 HumanMessage 作為保留區起點
+    while cut_index < len(messages):
+        if getattr(messages[cut_index], "type", "") == "human":
+            break
+        cut_index += 1
+
+    if cut_index >= len(messages):
+        return None
+
+    messages_to_summarize = messages[:cut_index]
 
     # 格式化對話文字
     dialogue_lines = []

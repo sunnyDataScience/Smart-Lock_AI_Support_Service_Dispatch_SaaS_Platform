@@ -106,6 +106,10 @@ async def startup():
     # 初始化輸出驗證器 (H7.5)
     output_validator.init(model, _cfg.output_validator)
 
+    # 初始化 Quick Reply 快速回覆
+    from harness.line_ui_factory import init_quick_reply
+    init_quick_reply(_cfg.quick_reply)
+
     # 初始化 debounce (H3)
     debounce_config = {
         **_cfg.debounce,

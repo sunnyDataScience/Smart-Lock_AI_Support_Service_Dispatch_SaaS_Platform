@@ -99,6 +99,50 @@ enabled     = true
 facts_enabled = true
 facts_postgres_uri_env = "POSTGRES_URI"
 fact_attributes = ["phone", "address", "device_model", "device_brand"]
+
+# ── 12. Quick Reply 快速回覆 ──
+[quick_reply]
+enabled = true
+
+[[quick_reply.brands]]
+label = "Chatlock"
+text  = "Chatlock"
+models = ["AI-99", "A90", "AI-88"]
+
+[[quick_reply.brands]]
+label = "Dormakaba"
+text  = "Dormakaba"
+models = ["AS701", "AS901", "DP850", "FA9000", "GL220", "ML550", "ML660", "ML770", "MP750", "RL320", "RL360", "RL360V", "RL599", "FSL800", "Rose"]
+
+[[quick_reply.brands]]
+label = "Philips"
+text  = "Philips"
+models = ["7300", "Alpha", "702E", "9200", "9300"]
+
+[[quick_reply.brands]]
+label = "Kaadas"
+text  = "Kaadas"
+models = ["藍寶堅尼3D", "門鈴款"]
+
+[[quick_reply.brands]]
+label = "Milre"
+text  = "Milre"
+models = ["6500F", "6500S", "7150"]
+
+[[quick_reply.brands]]
+label = "AiLock"
+text  = "AiLock"
+models = ["七合一旗艦款"]
+
+[[quick_reply.brands]]
+label = "3E"
+text  = "3E"
+models = ["F(T7)"]
+
+[[quick_reply.brands]]
+label = "Waferlock"
+text  = "Waferlock"
+models = []
 soft_fact_fields = [
     "door_type", "install_date", "unlock_methods", "living_env",
     "communication_note"

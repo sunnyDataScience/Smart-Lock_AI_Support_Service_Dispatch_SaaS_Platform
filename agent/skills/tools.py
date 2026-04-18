@@ -42,6 +42,16 @@ def set_current_brand(brand: str | None, model: str | None = None) -> None:
     _current_model = model
 
 
+def get_current_brand() -> str | None:
+    """取得當前品牌（agent 執行後可能已被 update_user_info 更新）。"""
+    return _current_brand
+
+
+def get_current_model() -> str | None:
+    """取得當前型號（agent 執行後可能已被 update_user_info 更新）。"""
+    return _current_model
+
+
 @tool
 def load_skill(skill_name: str) -> str:
     """載入指定技能的完整 SOP 內容到對話中。
@@ -126,11 +136,27 @@ async def update_user_info(brand: str = "", model: str = "") -> str:
     if model:
         _current_model = model
 
-    # 回傳更新後的可用技��清單
+    # 回傳更新後的可用技能清單
     skills_section = build_skills_prompt(_skills, brand=_current_brand, model=_current_model)
     print(f"[update_user_info] 已更新: {', '.join(updated)}，品牌技能已解鎖")
 
-    return f"已更新用戶資訊：{', '.join(updated)}。\n\n以下是更新後的可用技能：\n{skills_section}"
+    result = f"已更新用戶資訊：{', '.join(updated)}。\n\n以下是更新後的可用技能：\n{skills_section}"
+
+    # 若只更新了品牌（未提供型號），且該品牌有型號專屬技能 → 提示 agent 追問型號
+    if brand and not model and not _current_model:
+        available_models = sorted({
+            m for s in _skills
+            if s.brands and brand in s.brands and s.models
+            for m in s.models
+        })
+        if available_models:
+            models_str = "、".join(available_models)
+            result += (
+                f"\n\n⚠️ {brand} 有型號專屬技能（{models_str}）。"
+                f"請詢問客戶的電子鎖是什麼型號，以便提供更精確的協助。"
+            )
+
+    return result
 
 
 @tool
