@@ -18,7 +18,7 @@ from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage, Tool
 import core.line_bot as line_bot
 import harness.memory_manager as memory_manager
 from harness.line_ui_factory import build_line_messages
-from skills.tools import set_current_user_id
+from skills.tools import set_current_user_id, set_current_brand
 from agent import get_system_prompt
 import harness.profile_updater as profile_updater
 import harness.safety_gate as safety_gate
@@ -260,6 +260,9 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
             brand = facts.get("device_brand")
             model = facts.get("device_model")
 
+        # 注入品牌到 tools 模組（供 load_skill 做品牌檢查）
+        set_current_brand(brand, model)
+
         # 動態技能清單（依品牌過濾）
         from skills.tools import build_dynamic_skills_section
         skills_prefix = f"[可用技能]\n{build_dynamic_skills_section(brand, model)}\n\n"
@@ -491,7 +494,38 @@ async def agent_and_reply(user_id: str, reply_token: str, content: str | list, b
 
     # H7.5: 輸出品質驗證 — 檢查回覆是否符合 system prompt 規範
     if not output_validator.should_skip(ai_response):
-        validation = await output_validator.validate(ai_response, text_for_audit)
+        # 組裝驗證上下文：最近對話 + 用戶資料 + 前情提要
+        validator_context_parts = []
+        thread_id = f"line_{user_id}"
+        config = {"configurable": {"thread_id": thread_id}}
+        try:
+            state = await _agent.aget_state(config)
+            if state and state.values:
+                recent_msgs = state.values.get("messages", [])[-6:]
+                history_lines = []
+                for msg in recent_msgs:
+                    role = getattr(msg, "type", "")
+                    if role == "human":
+                        text = msg.content if isinstance(msg.content, str) else "[多模態]"
+                        history_lines.append(f"用戶: {text[:100]}")
+                    elif role == "ai" and msg.content:
+                        text = _extract_text(msg.content)
+                        if text:
+                            history_lines.append(f"客服: {text[:100]}")
+                if history_lines:
+                    validator_context_parts.append(f"[最近對話]\n" + "\n".join(history_lines))
+        except Exception:
+            pass
+        if _profile_mgr and _profile_mgr.enabled:
+            profile_text = await _profile_mgr.load_full_profile(user_id)
+            if profile_text:
+                validator_context_parts.append(f"[用戶資料]\n{profile_text}")
+        summary = memory_manager.get_summary(thread_id)
+        if summary:
+            validator_context_parts.append(f"[前情提要]\n{summary}")
+        validator_context = "\n\n".join(validator_context_parts)
+
+        validation = await output_validator.validate(ai_response, text_for_audit, context=validator_context)
         if not validation["pass"]:
             print(f"[Output Validator] 不合規: {validation['reason']}")
             if _audit_storage:
@@ -529,7 +563,7 @@ async def agent_and_reply(user_id: str, reply_token: str, content: str | list, b
     message_objects = build_line_messages(ai_response[:max_len])
 
     # 印出完整對話上下文 + AI 最終回答
-    await _print_context(user_id, ai_response)
+    # await _print_context(user_id, ai_response)
 
     await line_bot.send_response(user_id, reply_token, ai_response, max_len=max_len, message_objects=message_objects)
 

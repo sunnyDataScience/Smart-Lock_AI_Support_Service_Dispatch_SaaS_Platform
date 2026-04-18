@@ -76,12 +76,13 @@ def should_skip(ai_response: str) -> bool:
     return any(marker in ai_response for marker in _skip_markers)
 
 
-async def validate(ai_response: str, user_message: str) -> dict:
+async def validate(ai_response: str, user_message: str, context: str = "") -> dict:
     """驗證 AI 回覆是否符合 system prompt 規範。
 
     Args:
         ai_response: Agent 生成的回覆文字
         user_message: 使用者原始訊息（用於多意圖覆蓋檢查）
+        context: 對話上下文（用戶資料、前情提要等，幫助 validator 理解脈絡）
 
     Returns:
         {"pass": True} — 通過
@@ -108,6 +109,7 @@ async def validate(ai_response: str, user_message: str) -> dict:
 
     # LLM 語意驗證
     prompt = _prompt_template.format(
+        context=context or "(無額外上下文)",
         user_message=user_message,
         ai_response=ai_response,
     )

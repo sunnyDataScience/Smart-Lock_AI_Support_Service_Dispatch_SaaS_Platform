@@ -133,9 +133,9 @@ def filter_skills(
     brand: str | None = None,
     model: str | None = None,
 ) -> list[Skill]:
-    """依用戶品牌/型號過濾技能清單。品牌未知時回傳全部。"""
+    """依用戶品牌/型號過濾技能清單。品牌未知時只回傳 _common 技能。"""
     if not brand:
-        return skills
+        return [s for s in skills if s.brands is None]
 
     result = []
     for s in skills:

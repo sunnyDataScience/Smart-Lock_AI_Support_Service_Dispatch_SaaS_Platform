@@ -12,7 +12,7 @@ from langgraph.prebuilt import create_react_agent
 
 from core.config import AppConfig, load_prompt
 from skills import load_skills
-from skills.tools import load_skill, transfer_to_human, set_skills, set_profile_mgr, set_transfer_message_from_file
+from skills.tools import load_skill, update_user_info, transfer_to_human, set_skills, set_profile_mgr, set_transfer_message_from_file
 
 
 _system_prompt: str = ""
@@ -58,7 +58,7 @@ def build_agent(model, cfg: AppConfig, checkpointer=None, profile_mgr=None):
     # 4. 建立 agent
     agent = create_react_agent(
         model=model,
-        tools=[load_skill, transfer_to_human],
+        tools=[load_skill, update_user_info, transfer_to_human],
         prompt=prompt,
         checkpointer=checkpointer,
         name=cfg.system.get("agent_name", "smart_lock_agent"),
