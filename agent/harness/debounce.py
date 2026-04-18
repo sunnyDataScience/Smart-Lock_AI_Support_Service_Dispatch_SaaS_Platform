@@ -36,8 +36,9 @@ _audit_storage = None
 # 訊息緩衝池：用來記錄每個使用者的狀態
 user_buffers = {}
 
-# Quick Reply 流程暫存：{user_id: {"content": ..., "buffer_items": ..., "reply_token": ...}}
+# Quick Reply 流程暫存：{user_id: {"content": ..., "buffer_items": ..., "ts": float}}
 _pending_messages: dict[str, dict] = {}
+_PENDING_TTL = 300  # 秒，Quick Reply 暫存過期時間
 
 
 def init(agent, config: dict, templates: dict, profile_mgr=None, audit_storage=None):
@@ -537,6 +538,7 @@ async def _quick_reply_intercept(
         _pending_messages[user_id] = {
             "content": content,
             "buffer_items": buffer_items,
+            "ts": time.time(),
         }
         reply_text = "請問您的電子鎖是什麼品牌呢？"
         messages = build_line_messages(reply_text, brand=None, model=None)
@@ -549,6 +551,7 @@ async def _quick_reply_intercept(
         _pending_messages[user_id] = {
             "content": content,
             "buffer_items": buffer_items,
+            "ts": time.time(),
         }
         reply_text = f"請問您的 {brand} 電子鎖是什麼型號呢？"
         messages = build_line_messages(reply_text, brand=brand, model=None)
@@ -799,3 +802,13 @@ async def cleanup_stale_buffers():
                 if task and not task.done():
                     task.cancel()
                 print(f"  [Buffer 清理] 移除 {uid} 的過期緩衝")
+
+        # 清理過期的 Quick Reply 暫存
+        now_epoch = time.time()
+        stale_pending = [
+            uid for uid, p in _pending_messages.items()
+            if now_epoch - p.get("ts", 0) > _PENDING_TTL
+        ]
+        for uid in stale_pending:
+            _pending_messages.pop(uid, None)
+            print(f"  [Quick Reply 清理] 移除 {uid} 的過期暫存")

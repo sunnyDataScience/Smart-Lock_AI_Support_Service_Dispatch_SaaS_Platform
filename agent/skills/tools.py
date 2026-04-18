@@ -3,18 +3,21 @@
 from __future__ import annotations
 
 import os
+from contextvars import ContextVar
 
 from langchain_core.tools import tool
 
 from . import Skill
 
-# ── 模組層級狀態（由 app 啟動時注入）──
+# ── 模組層級狀態（由 app 啟動時注入，啟動後不變）──
 _skills: list[Skill] = []
 _transfer_message: str = ""
 _profile_mgr = None
-_current_user_id: str = ""
-_current_brand: str | None = None
-_current_model: str | None = None
+
+# ── 請求層級狀態（用 contextvars 隔離併發請求）──
+_current_user_id: ContextVar[str] = ContextVar("current_user_id", default="")
+_current_brand: ContextVar[str | None] = ContextVar("current_brand", default=None)
+_current_model: ContextVar[str | None] = ContextVar("current_model", default=None)
 
 
 def set_skills(skills: list[Skill]) -> None:
@@ -31,25 +34,23 @@ def set_profile_mgr(profile_mgr) -> None:
 
 def set_current_user_id(user_id: str) -> None:
     """設定當前請求的 user_id（每次 run_agent 前呼叫）。"""
-    global _current_user_id
-    _current_user_id = user_id
+    _current_user_id.set(user_id)
 
 
 def set_current_brand(brand: str | None, model: str | None = None) -> None:
     """設定當前請求的品牌/型號（每次 run_agent 前呼叫）。"""
-    global _current_brand, _current_model
-    _current_brand = brand
-    _current_model = model
+    _current_brand.set(brand)
+    _current_model.set(model)
 
 
 def get_current_brand() -> str | None:
     """取得當前品牌（agent 執行後可能已被 update_user_info 更新）。"""
-    return _current_brand
+    return _current_brand.get()
 
 
 def get_current_model() -> str | None:
     """取得當前型號（agent 執行後可能已被 update_user_info 更新）。"""
-    return _current_model
+    return _current_model.get()
 
 
 @tool
@@ -62,19 +63,20 @@ def load_skill(skill_name: str) -> str:
     Args:
         skill_name: 技能名稱，例如 "troubleshoot"、"ts-door-stuck"、"app-guide"
     """
+    brand = _current_brand.get()
     for s in _skills:
         if s.name == skill_name:
             # 品牌檢查：品牌專屬技能在品牌未知時禁止載入
-            if s.brands is not None and not _current_brand:
+            if s.brands is not None and not brand:
                 print(f"[skill] >>> 拒絕載入品牌技能: {s.name}（用戶品牌未知）")
                 return (
                     f"技能 '{skill_name}' 是品牌專屬技能，但目前尚未確認用戶的電子鎖品牌。"
                     f"請先詢問用戶的電子鎖品牌，確認後再載入對應技能。"
                 )
-            if s.brands is not None and _current_brand not in s.brands:
-                print(f"[skill] >>> 拒絕載入品牌技能: {s.name}（品牌不符: {_current_brand}）")
+            if s.brands is not None and brand not in s.brands:
+                print(f"[skill] >>> 拒絕載入品牌技能: {s.name}（品牌不符: {brand}）")
                 return (
-                    f"技能 '{skill_name}' 不適用於用戶的品牌 {_current_brand}。"
+                    f"技能 '{skill_name}' 不適用於用戶的品牌 {brand}。"
                     f"請載入適合該品牌的技能。"
                 )
             print(f"[skill] >>> 載入技能: {s.name}")
@@ -84,10 +86,10 @@ def load_skill(skill_name: str) -> str:
     prefix_matches = [s for s in _skills if s.name.startswith(skill_name + "-")]
     if prefix_matches:
         # 品牌過濾：只列出符合當前品牌的子技能
-        if _current_brand:
+        if brand:
             brand_matches = [
                 s for s in prefix_matches
-                if s.brands is None or _current_brand in s.brands
+                if s.brands is None or brand in s.brands
             ]
             if brand_matches:
                 prefix_matches = brand_matches
@@ -112,8 +114,6 @@ async def update_user_info(brand: str = "", model: str = "") -> str:
         brand: 電子鎖品牌（如 Chatlock、Dormakaba、Philips、Kaadas、Milre、AiLock、3E、Waferlock）
         model: 電子鎖型號（如 AI-99、A90、AI-88）
     """
-    global _current_brand, _current_model
-
     brand = brand.strip() if brand else ""
     model = model.strip() if model else ""
 
@@ -122,28 +122,32 @@ async def update_user_info(brand: str = "", model: str = "") -> str:
 
     # 立即寫入 DB
     updated = []
-    if _profile_mgr and _profile_mgr.facts_enabled and _current_user_id:
+    user_id = _current_user_id.get()
+    if _profile_mgr and _profile_mgr.facts_enabled and user_id:
         if brand:
-            await _profile_mgr.update_fact(_current_user_id, "device_brand", brand)
+            await _profile_mgr.update_fact(user_id, "device_brand", brand)
             updated.append(f"品牌: {brand}")
         if model:
-            await _profile_mgr.update_fact(_current_user_id, "device_model", model)
+            await _profile_mgr.update_fact(user_id, "device_model", model)
             updated.append(f"型號: {model}")
 
-    # 立即更新 module-level state（解鎖品牌技能）
+    # 立即更新 context state（解鎖品牌技能）
     if brand:
-        _current_brand = brand
+        _current_brand.set(brand)
     if model:
-        _current_model = model
+        _current_model.set(model)
+
+    cur_brand = _current_brand.get()
+    cur_model = _current_model.get()
 
     # 回傳更新後的可用技能清單
-    skills_section = build_skills_prompt(_skills, brand=_current_brand, model=_current_model)
+    skills_section = build_skills_prompt(_skills, brand=cur_brand, model=cur_model)
     print(f"[update_user_info] 已更新: {', '.join(updated)}，品牌技能已解鎖")
 
     result = f"已更新用戶資訊：{', '.join(updated)}。\n\n以下是更新後的可用技能：\n{skills_section}"
 
     # 若只更新了品牌（未提供型號），且該品牌有型號專屬技能 → 提示 agent 追問型號
-    if brand and not model and not _current_model:
+    if brand and not model and not cur_model:
         available_models = sorted({
             m for s in _skills
             if s.brands and brand in s.brands and s.models
@@ -171,12 +175,13 @@ async def transfer_to_human(reason: str) -> str:
     """
     print(f"[transfer] >>> 轉接真人: {reason}")
 
-    # 從模組層級 user_id 查 DB，自動填入已知資料
+    # 從 context var 取 user_id 查 DB，自動填入已知資料
+    user_id = _current_user_id.get()
     facts = {}
-    if _profile_mgr and _profile_mgr.facts_enabled and _current_user_id:
+    if _profile_mgr and _profile_mgr.facts_enabled and user_id:
         try:
-            facts = await _profile_mgr.load_facts(_current_user_id)
-            print(f"[transfer] 已載入 {_current_user_id} 的 facts: {facts}")
+            facts = await _profile_mgr.load_facts(user_id)
+            print(f"[transfer] 已載入 {user_id} 的 facts: {facts}")
         except Exception as e:
             print(f"[transfer] 載入 facts 失敗: {e}")
 
