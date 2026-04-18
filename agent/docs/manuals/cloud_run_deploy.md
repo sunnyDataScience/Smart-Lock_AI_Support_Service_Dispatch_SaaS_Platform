@@ -84,6 +84,7 @@ Cloud Run 預設使用 Compute Engine default service account，需要以下角�
 |------|------|
 | `roles/cloudsql.client` | 透過 Auth Proxy 連 Cloud SQL |
 | `roles/aiplatform.user` | 呼叫 Vertex AI (Gemini) API |
+| `roles/storage.objectAdmin` | 多模態媒體存儲至 GCS（圖片/音訊/影片） |
 | `roles/secretmanager.secretAccessor` | 讀取 Secret Manager 中的 secrets（建 secret 時逐一授予） |
 
 ```bash
@@ -94,6 +95,9 @@ gcloud projects add-iam-policy-binding cedar-scope-489604-g3 \
 
 gcloud projects add-iam-policy-binding cedar-scope-489604-g3 \
   --member="serviceAccount:$SA" --role="roles/aiplatform.user"
+
+gcloud projects add-iam-policy-binding cedar-scope-489604-g3 \
+  --member="serviceAccount:$SA" --role="roles/storage.objectAdmin"
 ```
 
 ### 4. 組織政策（Domain Restricted Sharing）
