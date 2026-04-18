@@ -28,6 +28,7 @@ postgres_uri_env       = "POSTGRES_URI"
 compression_enabled    = true        # H5 記憶壓縮開關
 max_messages_threshold = 12          # 訊息數超過此值時觸發壓縮
 context_retention_pair = 5           # 壓縮後保留最近 N 輪對話
+llm_model              = "vertex_ai/gemini-2.5-flash"  # 壓縮摘要用模型（Flash 加速）
 
 # ── 5. 技能系統 ──
 [skills]
@@ -48,7 +49,7 @@ block_response     = "為了您的安全，我無法提供這類操作指導。�
 
 # ── 7.5. 輸出驗證 (H7.5) ──
 [output_validator]
-enabled            = true
+enabled            = false
 max_retries        = 1
 prompt_path        = "prompts/validate_output.md"
 forbidden_phrases  = [

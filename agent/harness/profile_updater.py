@@ -185,9 +185,13 @@ async def extract_and_update(user_id: str, question: str, answer: str):
             parsed = json.loads(cleaned)
 
             # 寫入 hard_facts（PostgreSQL SCD Type 2）
+            # device_brand / device_model 由 update_user_info 工具專責更新，不在此處寫入
+            _SKIP_HARD_FACTS = {"device_brand", "device_model"}
             hard_facts = parsed.get("hard_facts", {})
             if hard_facts and isinstance(hard_facts, dict):
                 for key, val in hard_facts.items():
+                    if key in _SKIP_HARD_FACTS:
+                        continue
                     if val is not None and str(val).strip():
                         await _profile_mgr.update_fact(user_id, key, str(val).strip())
                         print(f"  [Profile] fact 寫入: {key}={val}")
