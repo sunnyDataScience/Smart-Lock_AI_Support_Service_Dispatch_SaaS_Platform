@@ -78,7 +78,7 @@ gcloud services enable \
 
 ### 3. Service Account 角色（Cloud Run 執行身份）
 
-Cloud Run 預設使用 Compute Engine default service account，需要以下角色：
+Cloud Run 使用自訂 Service Account `lock-ai@cedar-scope-489604-g3.iam.gserviceaccount.com`，需要以下角色：
 
 | 角色 | 用途 |
 |------|------|
@@ -88,7 +88,7 @@ Cloud Run 預設使用 Compute Engine default service account，需要以下角�
 | `roles/secretmanager.secretAccessor` | 讀取 Secret Manager 中的 secrets（建 secret 時逐一授予） |
 
 ```bash
-SA="1083648618124-compute@developer.gserviceaccount.com"
+SA="lock-ai@cedar-scope-489604-g3.iam.gserviceaccount.com"
 
 gcloud projects add-iam-policy-binding cedar-scope-489604-g3 \
   --member="serviceAccount:$SA" --role="roles/cloudsql.client"
@@ -99,6 +99,8 @@ gcloud projects add-iam-policy-binding cedar-scope-489604-g3 \
 gcloud projects add-iam-policy-binding cedar-scope-489604-g3 \
   --member="serviceAccount:$SA" --role="roles/storage.objectAdmin"
 ```
+
+> 部署時需指定 `--service-account=$SA`，見下方部署指令。
 
 ### 4. 組織政策（Domain Restricted Sharing）
 
@@ -175,6 +177,7 @@ gcloud run deploy smart-lock-agent \
   --region=asia-east1 \
   --platform=managed \
   --allow-unauthenticated \
+  --service-account=lock-ai@cedar-scope-489604-g3.iam.gserviceaccount.com \
   --port=8080 \
   --memory=1Gi \
   --cpu=1 \
@@ -186,10 +189,17 @@ gcloud run deploy smart-lock-agent \
   --set-secrets="LINE_CHANNEL_SECRET=LINE_CHANNEL_SECRET:latest,LINE_CHANNEL_ACCESS_TOKEN=LINE_CHANNEL_ACCESS_TOKEN:latest"
 ```
 
-> **冷啟動說明**：`--min-instances=0` 代表閒置時容器會縮到 0，下次請求需要冷啟動（約 5-10 秒，含 LLM 初始化、PostgreSQL 連線、26 技能索引載入）。測試階段這樣最省錢。正式上線後改為 `--min-instances=1`（約 $15-20/月）可消除冷啟動：
+> **冷啟動說明**：`--min-instances=0` 代表閒置時容器會縮到 0，下次請求需要冷啟動（約 5-10 秒，含 LLM 初始化、PostgreSQL 連線、技能索引載入）。
+>
 > ```bash
+> # 開啟常駐（消除冷啟動，約 $15-20/月）
 > gcloud run services update smart-lock-agent --region=asia-east1 --min-instances=1
+>
+> # 關閉常駐（省錢，允許冷啟動）
+> gcloud run services update smart-lock-agent --region=asia-east1 --min-instances=0
 > ```
+>
+> 不需要重新 build/push，update 即時生效。
 
 > **POSTGRES_URI 注意**：密碼中的特殊字元需要 URL encode（`@` → `%40`、`[` → `%5B`、`;` → `%3B`、`+` → `%2B`、`*` → `%2A`）。Cloud SQL Auth Proxy 使用 Unix socket 連線，所以 host 部分用 `?host=/cloudsql/<連線名稱>`。
 
@@ -233,7 +243,8 @@ docker push asia-east1-docker.pkg.dev/cedar-scope-489604-g3/lock-ai-repo/smart-l
 # 部署新版本
 gcloud run deploy smart-lock-agent \
   --image=asia-east1-docker.pkg.dev/cedar-scope-489604-g3/lock-ai-repo/smart-lock-agent:latest \
-  --region=asia-east1
+  --region=asia-east1 \
+  --service-account=lock-ai@cedar-scope-489604-g3.iam.gserviceaccount.com
 ```
 
 > 環境變數和 secrets 不需要重新設定，Cloud Run 會保留上次的設定。
