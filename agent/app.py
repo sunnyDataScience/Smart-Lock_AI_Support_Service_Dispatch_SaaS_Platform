@@ -6,6 +6,15 @@
 
 import os
 import asyncio
+import logging
+import warnings
+
+# 抑制 OPIK 序列化 LangChain Run 物件時的 Pydantic v2 警告
+warnings.filterwarnings(
+    "ignore",
+    message="Pydantic serializer warnings",
+    category=UserWarning,
+)
 
 from dotenv import load_dotenv
 
@@ -129,11 +138,12 @@ async def startup():
                 project_name=project_name,
                 force=True,
             )
-            from opik.integrations.langchain import OpikTracer
-            opik_tracer = OpikTracer(
-                project_name=project_name,
-                tags=tags,
-            )
+            # 抑制 OPIK 非關鍵日誌（必須在 configure 之後，否則會被 OPIK setup 覆蓋）
+            logging.getLogger("opik").setLevel(logging.CRITICAL)
+            opik_tracer = {
+                "project_name": project_name,
+                "tags": tags,
+            }
             print(f"[*] OPIK tracing enabled (project={project_name})")
         except Exception as e:
             print(f"[*] OPIK init failed, tracing disabled: {e}")

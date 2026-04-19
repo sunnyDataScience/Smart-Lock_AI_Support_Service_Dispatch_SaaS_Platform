@@ -277,8 +277,6 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         skills_prefix = f"[可用技能]\n{build_dynamic_skills_section(brand, model)}\n\n"
 
         config = {"configurable": {"thread_id": thread_id}}
-        if _opik_tracer:
-            config["callbacks"] = [_opik_tracer]
 
         # 清理 checkpoint 中殘留的多模態訊息（避免 octet-stream 污染）
         await _strip_stale_multimodal(_agent, config)
@@ -338,18 +336,66 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         # H8: 審計 — 記錄工具呼叫 + 轉接真人 + LLM 互動（須在 tool cleanup 前，需讀原始 tool_calls）
         asyncio.create_task(_audit_agent_result(user_id, messages, latency_ms))
 
+        # 提取最終回覆
+        ai_response = _templates.get("error_no_reply", "抱歉，系統沒有產生回覆。")
+        for msg in reversed(messages):
+            if hasattr(msg, "type") and msg.type == "ai" and msg.content:
+                ai_response = _extract_text(msg.content)
+                break
+
+        # OPIK: 記錄精簡 trace（上下文 → 技能呼叫 → 最終回覆）
+        if _opik_tracer:
+            _log_opik_trace(user_id, display, messages, ai_response, latency_ms)
+
         # Checkpoint 清理：將 tool call 訊息替換為輕量引用，避免 SOP 內容累積稀釋上下文
         await _cleanup_tool_checkpoint(config, messages)
 
-        for msg in reversed(messages):
-            if hasattr(msg, "type") and msg.type == "ai" and msg.content:
-                return _extract_text(msg.content)
-
-        return _templates.get("error_no_reply", "抱歉，系統沒有產生回覆。")
+        return ai_response
 
     except Exception as e:
         print(f"[Agent 執行錯誤] {e}")
         return _templates.get("error_system", "不好意思，系統大腦剛剛稍微當機了一下，請稍後再試一次！")
+
+
+def _log_opik_trace(user_id: str, input_text: str, messages: list, output: str, latency_ms: float):
+    """記錄精簡 OPIK trace：上下文、技能呼叫、最終回覆。"""
+    try:
+        import opik
+
+        # 提取 agent 呼叫的技能（從 tool_calls 中找 load_skill）
+        skills_called = []
+        for msg in messages:
+            if hasattr(msg, "tool_calls") and msg.tool_calls:
+                for tc in msg.tool_calls:
+                    name = tc.get("name", "")
+                    args = tc.get("args", {})
+                    if name == "load_skill":
+                        skills_called.append(args.get("skill_name", ""))
+                    elif name == "transfer_to_human":
+                        skills_called.append(f"transfer_to_human({args.get('reason', '')[:50]})")
+                    elif name == "update_user_info":
+                        info = []
+                        if args.get("brand"):
+                            info.append(f"brand={args['brand']}")
+                        if args.get("model"):
+                            info.append(f"model={args['model']}")
+                        skills_called.append(f"update_user_info({', '.join(info)})")
+
+        client = opik.Opik()
+        client.trace(
+            name="agent_request",
+            input={"user_message": input_text},
+            output={"response": output},
+            metadata={
+                "skills_called": skills_called,
+                "latency_ms": round(latency_ms),
+            },
+            tags=_opik_tracer["tags"] + [user_id],
+            project_name=_opik_tracer["project_name"],
+            thread_id=user_id,
+        )
+    except Exception as e:
+        print(f"[OPIK] trace 記錄失敗: {e}")
 
 
 async def _cleanup_multimodal_checkpoint(config: dict, messages: list, buffer_items: list | None):
@@ -688,7 +734,7 @@ async def agent_and_reply(user_id: str, reply_token: str, content: str | list, b
 
     # H7: 偵測 URL 並轉換為 Flex Message 卡片
     max_len = _config.get("max_reply_length", 5000)
-    message_objects = build_line_messages(ai_response[:max_len], brand=get_current_brand(), model=get_current_model())
+    message_objects = build_line_messages(ai_response[:max_len], skip_quick_reply=True)
 
     # 印出完整對話上下文 + AI 最終回答
     # await _print_context(user_id, ai_response)

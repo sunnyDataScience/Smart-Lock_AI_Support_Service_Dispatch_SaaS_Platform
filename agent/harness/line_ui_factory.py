@@ -257,7 +257,7 @@ def _extract_context_title(text: str, url: str) -> str:
     return ""
 
 
-def build_line_messages(answer: str, brand: str | None = None, model: str | None = None) -> list:
+def build_line_messages(answer: str, brand: str | None = None, model: str | None = None, skip_quick_reply: bool = False) -> list:
     """將 AI 回覆轉換為 LINE Message 物件列表。
 
     偵測回覆中的 URL 並自動轉換：
@@ -353,8 +353,9 @@ def build_line_messages(answer: str, brand: str | None = None, model: str | None
         messages = [TextMessage(text=_strip_markdown(answer))]
 
     # ── 掛上 Quick Reply（品牌/型號追問） ──
-    quick_reply = _build_quick_reply(brand=brand, model=model)
-    if quick_reply and messages:
-        messages[-1].quick_reply = quick_reply
+    if not skip_quick_reply:
+        quick_reply = _build_quick_reply(brand=brand, model=model)
+        if quick_reply and messages:
+            messages[-1].quick_reply = quick_reply
 
     return messages
