@@ -114,13 +114,34 @@ async def startup():
     from harness.line_ui_factory import init_quick_reply
     init_quick_reply(_cfg.quick_reply)
 
+    # 初始化 OPIK tracing
+    opik_tracer = None
+    if _cfg.opik.get("enabled", False):
+        try:
+            import opik
+            api_key = _get_env(_cfg.opik.get("api_key_env", "OPIK_API_KEY"))
+            opik.configure(
+                api_key=api_key,
+                workspace=_cfg.opik.get("workspace", "") or None,
+                project_name=_cfg.opik.get("project_name", "smart-lock-agent"),
+                force=True,
+            )
+            from opik.integrations.langchain import OpikTracer
+            opik_tracer = OpikTracer(
+                project_name=_cfg.opik.get("project_name", "smart-lock-agent"),
+                tags=["production"],
+            )
+            print(f"[*] OPIK tracing enabled (project={_cfg.opik.get('project_name')})")
+        except Exception as e:
+            print(f"[*] OPIK init failed, tracing disabled: {e}")
+
     # 初始化 debounce (H3)
     debounce_config = {
         **_cfg.debounce,
         "request_timeout": _cfg.system.get("request_timeout", 60),
         "max_reply_length": line_cfg.get("max_reply_length", 5000),
     }
-    debounce.init(agent, debounce_config, _cfg.templates, profile_mgr=profile_mgr, audit_storage=audit_storage)
+    debounce.init(agent, debounce_config, _cfg.templates, profile_mgr=profile_mgr, audit_storage=audit_storage, opik_tracer=opik_tracer)
 
     # 初始化 multimodal (H2)
     await multimodal.init(_cfg.multimodal, access_token)

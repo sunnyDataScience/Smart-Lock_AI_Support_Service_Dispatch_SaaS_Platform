@@ -35,6 +35,7 @@ class AppConfig:
     user_profile: dict = field(default_factory=dict)
     output_validator: dict = field(default_factory=dict)
     quick_reply: dict = field(default_factory=dict)
+    opik: dict = field(default_factory=dict)
 
 
 def load_config(file_path: str | None = None) -> AppConfig:
@@ -66,6 +67,7 @@ def load_config(file_path: str | None = None) -> AppConfig:
         user_profile=data.get("user_profile", {}),
         output_validator=data.get("output_validator", {}),
         quick_reply=data.get("quick_reply", {}),
+        opik=data.get("opik", {}),
     )
 
 

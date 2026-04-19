@@ -263,6 +263,12 @@ curl "https://smart-lock-agent-1083648618124.asia-east1.run.app/chat?q=門打不
 # Webhook 測試（應回 Invalid signature）
 curl -X POST https://smart-lock-agent-1083648618124.asia-east1.run.app/webhook \
   -H "Content-Type: application/json" -d '{}'
+
+# 即時日誌（串流，Ctrl+C 停止）
+gcloud alpha run services logs tail smart-lock-agent --region=asia-east1
+
+# 歷史日誌（最近 N 筆）
+gcloud run services logs read smart-lock-agent --region=asia-east1 --limit=100
 ```
 
 ---

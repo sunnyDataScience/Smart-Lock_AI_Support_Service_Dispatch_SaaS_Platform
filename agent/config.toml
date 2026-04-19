@@ -148,3 +148,10 @@ soft_fact_fields = [
     "door_type", "install_date", "unlock_methods", "living_env",
     "communication_note"
 ]
+
+# ── 13. OPIK LLM Observability ──
+[opik]
+enabled      = true
+project_name = "smart-lock-agent"
+api_key_env  = "OPIK_API_KEY"
+workspace    = "sunny-1676"

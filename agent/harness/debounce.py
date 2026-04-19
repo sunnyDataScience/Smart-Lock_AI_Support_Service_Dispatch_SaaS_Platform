@@ -32,6 +32,7 @@ _config: dict = {}
 _templates: dict = {}
 _profile_mgr = None
 _audit_storage = None
+_opik_tracer = None
 
 # 訊息緩衝池：用來記錄每個使用者的狀態
 user_buffers = {}
@@ -41,7 +42,7 @@ _pending_messages: dict[str, dict] = {}
 _PENDING_TTL = 300  # 秒，Quick Reply 暫存過期時間
 
 
-def init(agent, config: dict, templates: dict, profile_mgr=None, audit_storage=None):
+def init(agent, config: dict, templates: dict, profile_mgr=None, audit_storage=None, opik_tracer=None):
     """注入依賴，由 app.py startup 呼叫。
 
     Args:
@@ -50,13 +51,15 @@ def init(agent, config: dict, templates: dict, profile_mgr=None, audit_storage=N
         templates: 回覆模板 config dict
         profile_mgr: ProfileManager instance (optional)
         audit_storage: AuditStorage instance (optional)
+        opik_tracer: OpikTracer instance for LLM observability (optional)
     """
-    global _agent, _config, _templates, _profile_mgr, _audit_storage
+    global _agent, _config, _templates, _profile_mgr, _audit_storage, _opik_tracer
     _agent = agent
     _config = config
     _templates = templates
     _profile_mgr = profile_mgr
     _audit_storage = audit_storage
+    _opik_tracer = opik_tracer
 
 
 def _extract_text(content) -> str:
@@ -274,6 +277,8 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         skills_prefix = f"[可用技能]\n{build_dynamic_skills_section(brand, model)}\n\n"
 
         config = {"configurable": {"thread_id": thread_id}}
+        if _opik_tracer:
+            config["callbacks"] = [_opik_tracer]
 
         # 清理 checkpoint 中殘留的多模態訊息（避免 octet-stream 污染）
         await _strip_stale_multimodal(_agent, config)
@@ -613,7 +618,7 @@ async def agent_and_reply(user_id: str, reply_token: str, content: str | list, b
         return
 
     ai_response = await run_agent(user_id, content, buffer_items=buffer_items)
-    print(f"[Agent] 思考完畢！準備回傳...")
+    print(f"[Agent] 思考完畢！回覆內容:\n{'─' * 40}\n{ai_response[:500]}{'...(截斷)' if len(ai_response) > 500 else ''}\n{'─' * 40}")
 
     # H7.5: 輸出品質驗證 — 檢查回覆是否符合 system prompt 規範
     if not output_validator.should_skip(ai_response):
