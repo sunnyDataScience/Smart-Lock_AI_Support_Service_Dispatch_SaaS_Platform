@@ -28,11 +28,11 @@ category: reference
 
 | 品牌 | 型號 | 特色 |
 |------|------|------|
-| **Chainlock/Chatlock** | AI99、A90、AI88 | 3D人臉辨識、掌靜脈、APP遠端、攝影鏡頭(AI99) |
-| **Dormakaba** | AS901、DP850、ML660 | 擺動式鎖舌設計、歐規品質 |
+| **Chainlock/Chatlock** | AI-99、A90、AI-88 | 3D人臉辨識、掌靜脈、APP遠端、攝影鏡頭(AI-99) |
+| **Dormakaba** | AS701、AS901、DP850、FA9000、FSL800、GL220、ML550、ML660、ML770、MP750、RL320、RL360、RL360V、RL599、Rose | 擺動式鎖舌設計、歐規品質 |
 | **Philips** | 7300、Alpha、702E、9200、9300 | 飛利浦品牌 |
-| **Kaadas 凱迪仕** | 藍寶堅尼3D、門鈴款 | 中高階市場 |
-| **Milre 美樂** | 6500F、6500S、7150 | 韓系品牌 |
+| **Kaadas 凱迪仕** | 藍寶堅尼3D人臉辨識、藍寶堅尼門鈴款 | 中高階市場 |
+| **Milre 美樂** | 6500F、6500S、7150+ | 韓系品牌 |
 | **AiLock** | 七合一旗艦款 | 多合一功能 |
 
 ### 型號操作手冊（Google Drive 連結）

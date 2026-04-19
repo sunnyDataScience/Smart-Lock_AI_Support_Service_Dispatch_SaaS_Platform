@@ -123,12 +123,12 @@ models = ["7300", "Alpha", "702E", "9200", "9300"]
 [[quick_reply.brands]]
 label = "Kaadas"
 text  = "Kaadas"
-models = ["藍寶堅尼3D", "門鈴款"]
+models = ["藍寶堅尼3D人臉辨識", "藍寶堅尼門鈴款"]
 
 [[quick_reply.brands]]
 label = "Milre"
 text  = "Milre"
-models = ["6500F", "6500S", "7150"]
+models = ["6500F", "6500S", "7150+"]
 
 [[quick_reply.brands]]
 label = "AiLock"
