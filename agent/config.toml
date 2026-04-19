@@ -96,7 +96,7 @@ error_system         = "不好意思，系統大腦剛剛稍微當機了一下�
 
 # ── 11. 用戶畫像 ──
 [user_profile]
-enabled     = true
+enabled     = false
 facts_enabled = true
 facts_postgres_uri_env = "POSTGRES_URI"
 fact_attributes = ["phone", "address", "device_model", "device_brand"]
@@ -151,7 +151,8 @@ soft_fact_fields = [
 
 # ── 13. OPIK LLM Observability ──
 [opik]
-enabled      = true
-project_name = "smart-lock-agent"
-api_key_env  = "OPIK_API_KEY"
-workspace    = "sunny-1676"
+enabled       = true
+project_name  = "smart-lock-agent"
+api_key_env   = "OPIK_API_KEY"
+workspace_env = "OPIK_WORKSPACE"
+tags          = ["production"]

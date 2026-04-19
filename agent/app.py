@@ -120,18 +120,21 @@ async def startup():
         try:
             import opik
             api_key = _get_env(_cfg.opik.get("api_key_env", "OPIK_API_KEY"))
+            workspace = _get_env(_cfg.opik.get("workspace_env", "OPIK_WORKSPACE"))
+            project_name = _cfg.opik.get("project_name", "smart-lock-agent")
+            tags = _cfg.opik.get("tags", [])
             opik.configure(
                 api_key=api_key,
-                workspace=_cfg.opik.get("workspace", "") or None,
-                project_name=_cfg.opik.get("project_name", "smart-lock-agent"),
+                workspace=workspace or None,
+                project_name=project_name,
                 force=True,
             )
             from opik.integrations.langchain import OpikTracer
             opik_tracer = OpikTracer(
-                project_name=_cfg.opik.get("project_name", "smart-lock-agent"),
-                tags=["production"],
+                project_name=project_name,
+                tags=tags,
             )
-            print(f"[*] OPIK tracing enabled (project={_cfg.opik.get('project_name')})")
+            print(f"[*] OPIK tracing enabled (project={project_name})")
         except Exception as e:
             print(f"[*] OPIK init failed, tracing disabled: {e}")
 
