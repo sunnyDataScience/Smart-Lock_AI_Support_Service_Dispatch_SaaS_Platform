@@ -28,7 +28,7 @@ Cloud Run (smart-lock-agent)
 | Cloud SQL 連線名稱 | `cedar-scope-489604-g3:asia-east1:lock-ai` |
 | Cloud SQL 公開 IP | `35.229.228.13` |
 | 資料庫 / 使用者 | `lock-ai-db` / `lock-ai` |
-| Secret Manager | `LINE_CHANNEL_SECRET`、`LINE_CHANNEL_ACCESS_TOKEN`、`DB_PASSWORD` |
+| Secret Manager | `LINE_CHANNEL_SECRET`、`LINE_CHANNEL_ACCESS_TOKEN`、`DB_PASSWORD`、`OPIK_API_KEY`、`OPIK_WORKSPACE` |
 | Service Account | `1083648618124-compute@developer.gserviceaccount.com` |
 
 ---
@@ -147,9 +147,17 @@ echo -n "<your-access-token>" | \
 echo -n "<your-db-password>" | \
   gcloud secrets create DB_PASSWORD --data-file=-
 
+# OPIK API Key（LLM Observability）
+echo -n "<your-opik-api-key>" | \
+  gcloud secrets create OPIK_API_KEY --data-file=-
+
+# OPIK Workspace
+echo -n "<your-opik-workspace>" | \
+  gcloud secrets create OPIK_WORKSPACE --data-file=-
+
 # 授予 Cloud Run service account 存取權
 SA="1083648618124-compute@developer.gserviceaccount.com"
-for SECRET in LINE_CHANNEL_SECRET LINE_CHANNEL_ACCESS_TOKEN DB_PASSWORD; do
+for SECRET in LINE_CHANNEL_SECRET LINE_CHANNEL_ACCESS_TOKEN DB_PASSWORD OPIK_API_KEY OPIK_WORKSPACE; do
   gcloud secrets add-iam-policy-binding $SECRET \
     --member="serviceAccount:$SA" \
     --role="roles/secretmanager.secretAccessor"
@@ -186,7 +194,7 @@ gcloud run deploy smart-lock-agent \
   --timeout=60 \
   --add-cloudsql-instances=cedar-scope-489604-g3:asia-east1:lock-ai \
   --set-env-vars="VERTEX_PROJECT_ID=cedar-scope-489604-g3,VERTEX_LOCATION=us-central1,POSTGRES_URI=postgresql://lock-ai:<URL_ENCODED_PASSWORD>@/lock-ai-db?host=/cloudsql/cedar-scope-489604-g3:asia-east1:lock-ai" \
-  --set-secrets="LINE_CHANNEL_SECRET=LINE_CHANNEL_SECRET:latest,LINE_CHANNEL_ACCESS_TOKEN=LINE_CHANNEL_ACCESS_TOKEN:latest"
+  --set-secrets="LINE_CHANNEL_SECRET=LINE_CHANNEL_SECRET:latest,LINE_CHANNEL_ACCESS_TOKEN=LINE_CHANNEL_ACCESS_TOKEN:latest,OPIK_API_KEY=OPIK_API_KEY:latest,OPIK_WORKSPACE=OPIK_WORKSPACE:latest"
 ```
 
 > **冷啟動說明**：`--min-instances=0` 代表閒置時容器會縮到 0，下次請求需要冷啟動（約 5-10 秒，含 LLM 初始化、PostgreSQL 連線、技能索引載入）。
