@@ -278,10 +278,7 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         # 清理 checkpoint 中殘留的多模態訊息（避免 octet-stream 污染）
         await _strip_stale_multimodal(_agent, config)
 
-        # 壓縮過長的對話歷史
-        await memory_manager.maybe_compress(_agent, thread_id, user_id=user_id)
-
-        # 注入摘要前綴
+        # 注入摘要前綴（壓縮已移到回覆後背景執行）
         summary_prefix = ""
         summary = memory_manager.get_summary(thread_id)
         if summary:
@@ -692,6 +689,10 @@ async def agent_and_reply(user_id: str, reply_token: str, content: str | list, b
     # await _print_context(user_id, ai_response)
 
     await line_bot.send_response(user_id, reply_token, ai_response, max_len=max_len, message_objects=message_objects)
+
+    # H5: 壓縮過長的對話歷史（回覆後背景執行，不阻塞用戶）
+    thread_id = f"line_{user_id}"
+    asyncio.create_task(memory_manager.maybe_compress(_agent, thread_id, user_id=user_id))
 
 
 def _has_media_pending(items: list) -> bool:
