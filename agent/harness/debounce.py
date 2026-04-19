@@ -262,12 +262,17 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         profile_prefix = ""
         brand = None
         model = None
-        if _profile_mgr and _profile_mgr.enabled:
-            profile_text, facts = await _profile_mgr.load_full_profile_with_facts(user_id)
-            if profile_text:
-                profile_prefix = f"[用戶資料]\n{profile_text}\n\n"
-            brand = facts.get("device_brand")
-            model = facts.get("device_model")
+        if _profile_mgr:
+            # facts（品牌/型號）獨立於 profile 開關，只看 facts_enabled
+            if _profile_mgr.facts_enabled:
+                _, facts = await _profile_mgr.load_full_profile_with_facts(user_id)
+                brand = facts.get("device_brand")
+                model = facts.get("device_model")
+            # profile 文字注入看 enabled 開關
+            if _profile_mgr.enabled:
+                profile_text = await _profile_mgr.load_full_profile(user_id)
+                if profile_text:
+                    profile_prefix = f"[用戶資料]\n{profile_text}\n\n"
 
         # 注入品牌到 tools 模組（供 load_skill 做品牌檢查）
         set_current_brand(brand, model)
@@ -313,12 +318,18 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         print(f"[Agent] 開始思考 user_id: {user_id} 的問題...")
         print(f"[Agent] 送入內容:\n{'─' * 40}\n{display[:500]}{'...(截斷)' if len(display) > 500 else ''}\n{'─' * 40}")
 
+        # 注入 Opik 追蹤
+        run_config = config.copy()
+        if _opik_tracer:
+            run_config["callbacks"] = [_opik_tracer]
+        run_config.setdefault("metadata", {})["user_id"] = user_id
+
         t0 = time.monotonic()
         try:
             result = await asyncio.wait_for(
                 _agent.ainvoke(
                     {"messages": [{"role": "user", "content": message_content}]},
-                    config,
+                    run_config,
                 ),
                 timeout=request_timeout,
             )
@@ -343,10 +354,6 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
                 ai_response = _extract_text(msg.content)
                 break
 
-        # OPIK: 記錄精簡 trace（上下文 → 技能呼叫 → 最終回覆）
-        if _opik_tracer:
-            _log_opik_trace(user_id, display, messages, ai_response, latency_ms)
-
         # Checkpoint 清理：將 tool call 訊息替換為輕量引用，避免 SOP 內容累積稀釋上下文
         await _cleanup_tool_checkpoint(config, messages)
 
@@ -355,48 +362,6 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
     except Exception as e:
         print(f"[Agent 執行錯誤] {e}")
         return _templates.get("error_system", "不好意思，系統大腦剛剛稍微當機了一下，請稍後再試一次！")
-
-
-def _log_opik_trace(user_id: str, input_text: str, messages: list, output: str, latency_ms: float):
-    """記錄精簡 OPIK trace：上下文、技能呼叫、最終回覆。"""
-    try:
-        import opik
-
-        # 提取 agent 呼叫的技能（從 tool_calls 中找 load_skill）
-        skills_called = []
-        for msg in messages:
-            if hasattr(msg, "tool_calls") and msg.tool_calls:
-                for tc in msg.tool_calls:
-                    name = tc.get("name", "")
-                    args = tc.get("args", {})
-                    if name == "load_skill":
-                        skills_called.append(args.get("skill_name", ""))
-                    elif name == "transfer_to_human":
-                        skills_called.append(f"transfer_to_human({args.get('reason', '')[:50]})")
-                    elif name == "update_user_info":
-                        info = []
-                        if args.get("brand"):
-                            info.append(f"brand={args['brand']}")
-                        if args.get("model"):
-                            info.append(f"model={args['model']}")
-                        skills_called.append(f"update_user_info({', '.join(info)})")
-
-        client = opik.Opik()
-        client.trace(
-            name="agent_request",
-            input={"user_message": input_text},
-            output={"response": output},
-            metadata={
-                "skills_called": skills_called,
-                "latency_ms": round(latency_ms),
-            },
-            tags=_opik_tracer["tags"] + [user_id],
-            project_name=_opik_tracer["project_name"],
-            thread_id=user_id,
-        )
-    except Exception as e:
-        print(f"[OPIK] trace 記錄失敗: {e}")
-
 
 async def _cleanup_multimodal_checkpoint(config: dict, messages: list, buffer_items: list | None):
     """將 checkpoint 中的多模態 HumanMessage 替換為純文字引用，避免存儲 base64 資料。"""
