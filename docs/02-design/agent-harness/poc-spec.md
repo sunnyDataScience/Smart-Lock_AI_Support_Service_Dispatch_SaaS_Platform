@@ -1,5 +1,10 @@
 # 電子鎖匠 POC Specification
 
+> **文件狀態：V2.0 設計文件（尚未實作）**
+> 本文件描述的是未來 V2.0 目標架構，非目前 V1.0 生產環境的實際狀態。
+> V1.0 現行架構請參考 SA/SD 分析文件。
+> 最後審查日期：2026-04-21
+
 > 以電子鎖匠 (Electronic Locksmith) 垂直場景驗證 Agent Harness 8 層架構
 >
 > **Architecture reference**: Software 3.0 診斷推理引擎詳見 [`diagnostic-intelligence-architecture.md`](./diagnostic-intelligence-architecture.md)。

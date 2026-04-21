@@ -1,5 +1,12 @@
 # 軟體需求分析與工作說明書 (SOW) - 電子鎖智能客服與派工平台
 
+> **技術棧更新（2026-04-21）**
+> V1.0 實際技術棧與本文件有以下差異：
+> - LLM 框架：LangChain 0.3+ → **LangGraph + LiteLLM**
+> - 快取：Redis 7+ → **V1.0 未使用 Redis**（改用 PostgreSQL + in-memory）
+> - LLM 模型：Gemini 2.5 Flash → **vertex_ai/gemini-2.5-pro**（透過 LiteLLM）
+> - 部署平台：已確定為 **Google Cloud Run**（Docker 容器）
+
 ---
 
 **文件版本:** `v1.0`

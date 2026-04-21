@@ -1,5 +1,9 @@
 # Agent Harness Gap Analysis
 
+> **文件狀態：需更新** — 部分成熟度估計與實際程式碼不符。
+> 實際 V1.0 使用 `create_react_agent`（非自訂 graph），多數 harness layer 為獨立模組而非 graph node。
+> 最後審查日期：2026-04-21
+
 > 8 層 Harness 框架 vs 現有 Smart Lock AI 客服系統的詳細差距分析
 >
 > **Architecture reference**: 診斷推理引擎採 Software 3.0 設計（LLM prompt reasoning with knowledge injection），

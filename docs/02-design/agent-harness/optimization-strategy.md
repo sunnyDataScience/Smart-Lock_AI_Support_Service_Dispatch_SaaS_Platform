@@ -1,5 +1,10 @@
 # Agent Harness Optimization Strategy
 
+> **文件狀態：需更新（2026-04-21）**
+> - 延遲預算數據已過時：debounce 實際為 1.5s（非 5.0s）
+> - V1.0 啟用策略與實際不符：L1 Task（未啟用）、L3 Governance（未實作）、L7 Observability（部分，無 harness_traces 表）
+> - V1.0 實際啟用：H3 Debounce、H6 Safety Gate（regex）、H9 Profile Updater、H5 Memory Compression、H7 LINE UI Factory、OPIK Tracing
+
 > 以用戶體驗為核心的架構優化策略：什麼該開、什麼不開、為什麼
 
 ---

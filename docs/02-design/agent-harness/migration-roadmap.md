@@ -1,5 +1,11 @@
 # Agent Harness Migration Roadmap
 
+> **文件現況（2026-04-21）**
+> - H-Stage 0（Foundation）：已完成
+> - H-Stage 1-3：部分完成（程式碼骨架存在但未整合至 agent graph）
+> - H-Stage 4-6：未開始
+> - V1.0 實際架構為 `create_react_agent` + harness pipeline，非計劃中的自訂 graph
+
 > H-Stage 0–6 分階段遷移路線圖，含交付物、風險評估、回滾方案
 >
 > **命名規則**：本文件使用「H-Stage」（Harness Stage）編號，與專案交付的「Phase 0–8」為獨立體系。

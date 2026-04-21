@@ -1,5 +1,10 @@
 # 系統架構總覽 - 電子鎖智能客服與派工平台
 
+> **架構更新（2026-04-21）**
+> Layer 3 補充：LLM 供應商抽象層使用 **LiteLLM**（支援 Vertex AI / OpenAI / Ollama 切換）。
+> 部署平台：**Google Cloud Run**（Docker 容器化）。
+> Layer 4 的 dispatch V2.0 / accounting V2.0 尚未實作。
+
 **版本:** v2.0 | **更新日期:** 2026-04-04
 
 ---

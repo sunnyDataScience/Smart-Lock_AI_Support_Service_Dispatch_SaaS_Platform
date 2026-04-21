@@ -1,5 +1,10 @@
 # ProblemCard Specification
 
+> **文件狀態：V2.0 設計文件（尚未實作）**
+> 本文件描述的是未來 V2.0 目標架構，非目前 V1.0 生產環境的實際狀態。
+> V1.0 現行架構請參考 SA/SD 分析文件。
+> 最後審查日期：2026-04-21
+
 > ProblemCard data model, lifecycle, and cross-layer integration
 >
 > **Architecture reference**: ProblemCard 由 Software 3.0 diagnostic reasoning engine 建立和更新，
