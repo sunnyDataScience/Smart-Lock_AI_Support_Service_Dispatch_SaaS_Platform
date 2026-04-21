@@ -29,6 +29,7 @@
 
 - [[specs/_MOC]] -- 13 technical specifications (audit log, B2B API, RBAC, real-time messaging...)
 - [[agent-harness/_MOC]] -- 12 AI agent harness framework documents (architecture, migration, diagnostics...)
+- [[platform-multi-tenant/_MOC]] -- Multi-tenant SaaS platform architecture (IBM/Microsoft enterprise design) + dispatch integration spec
 
 ---
 
