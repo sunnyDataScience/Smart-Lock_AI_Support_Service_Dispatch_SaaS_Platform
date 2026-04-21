@@ -12,6 +12,7 @@
 |------|-------------|--------|
 | [[multi-tenant-architecture]] | 多租戶平台總體架構：隔離策略、Tenant Context、Config 分層、知識庫繼承、RBAC、Event Bus、後台三級 Portal | Design |
 | [[dispatch-integration-spec]] | 工單系統與現有 AI 客服的訊號串接規格：三個接觸點、DB schema、事件流 | Design |
+| [[external-factors-checklist]] | 外部因素分析：LINE 限制、計費、法規、Noisy Neighbor、品牌衝突、技師歸屬、災難復原 | Design |
 
 ---
 
