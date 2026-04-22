@@ -15,6 +15,7 @@
 | TR4 | [[E5x--frontend-information-arch]] | Information architecture for Admin Panel + Technician App | Active | ext-E5 |
 | TR4 | [[E5x--work-order-interaction-flows]] | Complete work order and dispatch lifecycle (10 flows) | Design Complete | ext-E5 |
 | TR4 | [[E5x--work-order-flows-supplement]] | Extended work order flow scenarios | Design Complete | ext-E5 |
+| TR4 | [[E5x--dispatch-operations-supplement]] | 派工營運補充：排班、媒合演算法、薪酬分潤、拒單重派、客戶設備主檔、技能體系、報表 | Design | ext-E5 |
 | TR5 | [[E6--development-workflow-cookbook]] | End-to-end development methodology, phases, documentation requirements | Active | **E6** |
 | TR5 | [[E6x--project-structure-guide]] | Directory structure conventions for Agent, graph, harness, core systems | Active | ext-E6 |
 | TR5 | [[E6x--file-dependencies]] | Inter-file dependency map | Active | ext-E6 |
