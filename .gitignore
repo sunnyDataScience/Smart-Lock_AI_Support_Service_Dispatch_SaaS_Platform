@@ -52,3 +52,8 @@ cloud-sql-proxy
 
 # Web Design Spec Pipeline（本地參考用，不進版控）
 # web_design_spec_prompt_pipeline/
+
+# Claude Code 本機狀態與二進位（個人授權紀錄、執行期 session、跨平台 binary 不進版控）
+.claude/settings.local.json
+.claude/taskmaster-data/
+.claude/statusline-go.exe
