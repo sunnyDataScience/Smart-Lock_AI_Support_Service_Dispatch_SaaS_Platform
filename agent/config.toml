@@ -7,7 +7,7 @@
 [system]
 domain          = "電子鎖、智慧門鎖相關的產品諮詢、故障排除、安裝派工"
 agent_name      = "smart_lock_agent"
-request_timeout = 60
+request_timeout = 180
 
 # ── 2. LLM 設定（LiteLLM 格式）──
 [llm]
