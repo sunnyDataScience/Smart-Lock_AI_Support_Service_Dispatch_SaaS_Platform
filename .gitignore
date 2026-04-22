@@ -49,3 +49,6 @@ data/storage/skill_drafts/
 docs/Locksmith_Preparation_Checklist/01_各品牌電子鎖維修手冊/*.pdf
 docs/Locksmith_Preparation_Checklist/04_歷史客服對話紀錄/*.csv
 cloud-sql-proxy
+
+# Web Design Spec Pipeline（本地參考用，不進版控）
+web_design_spec_prompt_pipeline/
