@@ -32,41 +32,45 @@
    - section_type: collapsible_card
    - section_purpose: 展示 AI 診斷結果摘要（ProblemCard 核心內容）
 
-3. **work_timeline**
+3. **line_media_gallery**
+   - section_type: media_gallery + issue_bundle_accordion
+   - section_purpose: 集中展示客戶透過 LINE 上傳的圖片/影片與 AI 自動彙整的 issue 包（原始診斷證據）
+
+4. **work_timeline**
    - section_type: vertical_timeline
    - section_purpose: 記錄工單完整生命週期的所有狀態變更與事件
 
-4. **conversation_thread**
+5. **conversation_thread**
    - section_type: embedded_chat
    - section_purpose: 顯示原始 LINE 客服對話記錄（唯讀）
 
-5. **completion_report**
+6. **completion_report**
    - section_type: detail_card
    - section_purpose: 完工後的服務報告（照片、零件、測試、簽名、評分）
 
-6. **exception_records**
+7. **exception_records**
    - section_type: accordion_cards
    - section_purpose: 異常事件完整記錄（範圍變更、缺料、投訴、爭議、退款）
 
 ### 右側側邊欄（Right 1/3）
 
-7. **device_status_panel**
+8. **device_status_panel**
    - section_type: device_info_card
    - section_purpose: 鎖具即時狀態與遠端操作（風格 E）
 
-8. **customer_info_card**
+9. **customer_info_card**
    - section_type: info_card
    - section_purpose: 客戶基本資訊與聯繫方式
 
-9. **technician_info_card**
-   - section_type: info_card
-   - section_purpose: 指派技師資訊與即時位置
+10. **technician_info_card**
+    - section_type: info_card
+    - section_purpose: 指派技師資訊與即時位置
 
-10. **quotation_card**
+11. **quotation_card**
     - section_type: pricing_card
     - section_purpose: 報價明細與付款狀態
 
-11. **action_panel**
+12. **action_panel**
     - section_type: contextual_actions
     - section_purpose: 根據當前工單狀態顯示對應操作按鈕
 
@@ -162,6 +166,76 @@
 
 ---
 
+### Section: line_media_gallery
+
+- **layout**: 全寬卡片，白色背景，`radius.lg`，`shadow.sm`，padding `space.6` (24px)
+- **section_purpose**: 集中展示客戶透過 LINE 上傳的所有媒體資料（圖片、影片、檔案、語音）與 AI 自動彙整的 issue 包；作為 ProblemCard 背後的原始診斷證據，供客服/主管溯源
+- **visibility_rule**: 工單關聯 `bundles` 陣列長度 > 0 時顯示；全空則整個 Section 隱藏（不顯示 empty placeholder）
+- **elements**:
+  - section_header: 水平排列，垂直置中：
+    - icon: Images icon，`color.primary`
+    - title: H3 (`text.heading.md` 20px, 600) / 「客戶上傳媒體」
+    - source_badge: Badge sm / 「LINE」/ `color.primary.light` (#DBEAFE) 背景 + Primary 文字 + LINE icon
+    - count_summary: `text.body.sm`，`color.text.secondary` / 「共 {total} 筆（{photo_count} 圖片・{video_count} 影片・{file_count} 檔案）」
+    - filter_tabs: 右側 / Tabs 切換：「全部 / 圖片 / 影片 / Issue 包」/ 預設「全部」
+  - issue_bundles: IssueBundle[] / required / 垂直排列手風琴卡片，gap `space.4` (16px)：
+    - 每個 bundle 代表一次完整的客戶報修事件（觸發訊息 + 附帶媒體 + AI 彙整結果）
+    - 同一工單可能有多個 bundle（例如：初次報修包、補充說明包、AI 追問後的補件包）
+    - bundle_header: 水平排列，可點擊展開/摺疊，Slate 50 (#F8FAFC) 背景，`radius.md`，padding `space.3` (12px)：
+      - bundle_icon: Package icon / `color.primary` / 24px / 左側
+      - bundle_meta: 垂直排列，flex-grow：
+        - trigger_text: `text.body.md` (14px)，font-weight 600，`color.text.primary` / 觸發訊息摘要（客戶首條文字訊息），超出截斷，最多 60 字
+        - submitted_at: `text.caption` (11px)，`color.text.secondary` / 「提交時間 YYYY-MM-DD HH:mm」
+      - media_count_badges: 水平 Badge 群組 / 中右：
+        - photo_badge: 「{n} 張」+ Camera icon / Slate 背景 / 若 n=0 不顯示
+        - video_badge: 「{n} 支」+ Video icon / Slate 背景 / 若 n=0 不顯示
+        - file_badge: 「{n} 檔」+ FileText icon / Slate 背景 / 若 n=0 不顯示
+        - audio_badge: 「{n} 則」+ Mic icon / Slate 背景 / 若 n=0 不顯示
+      - ai_insight_badge: Badge sm / optional / 「AI 已分析」+ Sparkles icon / Emerald 背景 / 表示該包已產生 ProblemCard
+      - chevron: ChevronDown icon（展開時旋轉 180 度），transition 200ms
+    - bundle_body（展開時顯示）:
+      - trigger_full_text: 完整觸發訊息 / `text.body.md`，`color.text.primary`，預留換行；超過 500 字時顯示「顯示全文」切換
+      - media_grid: 縮圖網格 / required / CSS grid，`grid-template-columns: repeat(auto-fill, minmax(128px, 1fr))`，gap `space.2` (8px)：
+        - media_thumbnail: 統一 128x128px，`radius.md`，object-fit cover，position relative，overflow hidden：
+          - **圖片項**: 直接顯示縮圖；hover 時覆蓋半透明黑色遮罩 (rgba(0,0,0,0.3)) + ZoomIn icon（白色，24px）；點擊開啟 Lightbox（與 conversation_thread 共用 lightbox 元件）
+          - **影片項**: 顯示首幀靜態預覽（背景圖）；中央覆蓋 PlayCircle icon（40px，白色 + `shadow.md`）；右下角覆蓋時長 Badge 「MM:SS」黑色半透明 (rgba(0,0,0,0.6)) 背景 + 白字 `text.caption`；點擊開啟內嵌影片播放器 Modal（max-width 960px，元件含 play/pause/seek/音量/倍速 0.5x-2x/下載）
+          - **檔案項**: Slate 100 背景，中央顯示 FileText icon (40px，`color.primary`)；下方小字顯示副檔名（如「PDF」「DOCX」）；點擊觸發下載
+          - **語音項**: Slate 100 背景，中央顯示 Mic icon (40px)；底部 mini 波形條；時長 Badge 於右下角；點擊開啟 audio player 浮層（含 play/pause/seek）
+          - 縮圖左上角：index 序號 Badge（黑色半透明底 + 白字 `text.caption`，如「#1」）
+          - 縮圖右上角：source_tag Badge / `text.caption`：
+            - 「初次報修」(initial): Primary 背景
+            - 「補充說明」(supplementary): Amber 背景
+            - 「AI 追問」(ai_followup): Emerald 背景
+        - 縮圖下方：`text.caption`，`color.text.secondary` / 檔名（含副檔名）；若無則 fallback「{type}_{index}」
+      - ai_analysis_block: optional / 僅在 `ai_analysis` 存在時顯示：
+        - 容器：Emerald 50 背景，left border 3px Emerald (#10B981)，`radius.md`，padding `space.3`
+        - header: Sparkles icon + 「AI 自動分析」/ `text.body.sm`，font-weight 600，Emerald 700
+        - extracted_keywords: Chip 群組 / 從媒體抽取的症狀/部件關鍵字（最多 8 個）/ 白色背景 + Emerald 邊框 + `text.caption`
+        - linked_problem_card: Link / `text.body.sm` / 「→ 關聯 ProblemCard #{id}」/ 點擊頁面平滑捲動至 problem_card_summary 並高亮背景 2s（Primary light 漸淡）
+        - vision_identified_model: `text.body.sm` / optional / 「影像識別：{brand} {model}（信心度 {score}%）」/ 信心度 >= 80% 綠色，60-79% 橙色，< 60% 紅色
+      - bundle_actions: 水平按鈕列 / 右側對齊，gap `space.2`：
+        - download_bundle_button: Button Secondary sm / icon Download / 「下載此包 (.zip)」/ 點擊 → POST 打包 API → Loading → 成功取得 signed URL 觸發瀏覽器下載
+        - forward_to_technician_button: Button Secondary sm / icon Send / 「轉傳給技師」/ 點擊 → 二次確認 Modal「將此 issue 包推送至當前指派技師 {name} 的 LINE？」→ 成功 Toast
+        - copy_link_button: IconButton Ghost / icon Link / tooltip「複製分享連結」/ 點擊 → 複製 signed URL → Toast
+- **states**:
+  - default: 所有 issue 包摺疊（僅顯示 bundle_header）
+  - expanded: 點擊單個 bundle 展開；允許同時多個展開
+  - loading: Skeleton（3 個 bundle_header 灰條，最上一個展開顯示 media_grid 8 格縮圖灰塊）
+  - video_playing: 影片播放器 Modal 開啟，背景頁面灰色 overlay，Escape 可關閉
+  - audio_playing: 語音浮層於縮圖下方展開，不遮擋其他媒體
+  - lightbox_open: Lightbox 開啟，支援左右鍵切換（含同一 bundle 中所有圖片項）；Escape 關閉
+  - download_in_progress: download_bundle_button → Spinner + 「打包中...」Disabled
+  - download_failed: Toast Error「媒體打包失敗：{reason}，請稍後再試」+ 按鈕恢復
+  - forward_in_progress: forward_to_technician_button → Spinner + Disabled
+  - forward_success: Toast Success「已轉傳給技師 {name}」
+  - media_expired: LINE 原始媒體超過 30 天（LINE 官方保存期）且尚未備份至 GCS 時，縮圖覆蓋灰色半透明 + ImageOff icon + tooltip「媒體已過 LINE 保存期，原始檔不可用」；已備份者正常顯示
+  - backed_up_indicator: 已備份至 GCS 的媒體，縮圖右下角小 CloudCheck icon（灰色 12px）
+  - filter_applied: 切換「圖片/影片/Issue 包」tabs 時，非對應類型縮圖隱藏；若過濾後該 bundle 無匹配媒體則 bundle 整體隱藏；全部隱藏則 Section 顯示「目前篩選無資料」灰字
+  - empty: 此 Section 整體隱藏（透過 visibility_rule）
+- **copy_constraints**: 觸發訊息摘要最多 60 字；完整觸發訊息超 500 字顯示「顯示全文」；影片/語音時長格式「MM:SS」（> 1 小時則「HH:MM:SS」）；檔名最多 24 字（超出中間截斷 `filename...ext`）
+
+---
+
 ### Section: work_timeline
 
 - **layout**: 全寬垂直時間軸，白色背景卡片，`radius.lg`，`shadow.sm`，padding `space.6` (24px)
@@ -225,7 +299,10 @@
       - message_content: `text.body.md`，`color.text.primary`
       - timestamp: `text.caption`，`color.text.disabled`，右下角
     - 特殊訊息類型：
-      - 圖片訊息：顯示縮圖（max-width 240px），可點擊放大（Lightbox）
+      - 圖片訊息：顯示縮圖（max-width 240px），可點擊放大（Lightbox）；氣泡右下角附小 Link icon「在客戶媒體區檢視」，點擊捲動至 line_media_gallery 並高亮對應縮圖 2s
+      - 影片訊息：顯示首幀預覽（max-width 240px）+ 中央 PlayCircle icon（40px，白色+陰影）+ 右下角時長 Badge「MM:SS」（黑色半透明底）；點擊開啟內嵌播放器 Modal；同樣提供「在客戶媒體區檢視」跳轉入口
+      - 檔案訊息：File icon + 檔名 + 大小 + 下載按鈕，水平排列於氣泡內
+      - 語音訊息：Mic icon + 播放按鈕 + mini 波形 + 時長；點擊展開 audio player
       - Quick Reply 選擇：顯示為 Chip 群組，已選中的 Chip 高亮
       - Flex Message：簡化渲染（卡片佈局）
       - 系統事件訊息：居中灰色文字（如「對話已轉接人工客服」）
@@ -595,19 +672,32 @@
    - 確認 → API 請求 → 結果 Toast
    - 操作記錄自動記入 work_timeline 與設備稽核日誌
 
-7. **對話記錄瀏覽**：
+7. **瀏覽客戶上傳媒體（LINE Media Gallery）**：
+   - 進入頁面 → 並行請求 GET `/api/v1/work-orders/{id}/media` 取得 issue 包列表
+   - 點擊 bundle_header → 展開媒體縮圖網格（允許同時多個展開）
+   - 切換 filter_tabs（全部/圖片/影片/Issue 包）→ 前端即時過濾縮圖，不重新發送 API
+   - 點擊圖片縮圖 → 開啟 Lightbox（與 conversation_thread 共用元件）；左右鍵切換同 bundle 內其他圖片
+   - 點擊影片縮圖 → 開啟內嵌播放器 Modal（play/pause/seek/音量/倍速 0.5-2x/下載）；Escape 關閉
+   - 點擊檔案/語音縮圖 → 直接下載 / 展開 audio player
+   - 點擊「下載此包」→ POST `/api/v1/work-orders/{id}/media/bundles/{bundle_id}/download` → Server 打包 zip → 回傳 signed URL → 瀏覽器觸發下載
+   - 點擊「轉傳給技師」→ 二次確認 Modal → POST `/api/v1/work-orders/{id}/media/bundles/{bundle_id}/forward` → Toast 成功/失敗
+   - 點擊 ai_analysis_block 的「→ 關聯 ProblemCard」→ 頁面平滑捲動至 problem_card_summary 並背景高亮 2s
+   - 點擊 conversation_thread 圖片/影片氣泡的「在客戶媒體區檢視」→ 捲動至 line_media_gallery 並高亮對應縮圖 2s
+
+8. **對話記錄瀏覽**：
    - 捲動瀏覽 LINE 對話 → 點擊圖片 → Lightbox 放大
    - 「在新視窗開啟」→ 全螢幕對話視窗
 
-8. **異常記錄互動**：
+9. **異常記錄互動**：
    - 點擊手風琴 header → 展開/摺疊詳情
    - 可同時展開多個異常記錄
 
-9. **即時更新（WebSocket）**：
-   - 工單狀態變更 → 全頁面相關區塊即時更新
-   - 新歷程記錄 → timeline 頂部插入新項目（滑入動畫 + 高亮 2s）
-   - 設備狀態變更 → device_status_panel 指標更新
-   - 技師位置變更 → mini_map 位置點移動
+10. **即時更新（WebSocket）**：
+    - 工單狀態變更 → 全頁面相關區塊即時更新
+    - 新歷程記錄 → timeline 頂部插入新項目（滑入動畫 + 高亮 2s）
+    - 設備狀態變更 → device_status_panel 指標更新
+    - 技師位置變更 → mini_map 位置點移動
+    - 客戶於 LINE 新增上傳 → line_media_gallery 對應 bundle 內新增縮圖（滑入 + 高亮 2s）；若為新 bundle 則整張卡片從頂部插入
 
 ### RWD 行為差異
 
@@ -654,6 +744,17 @@
   - GET `/api/v1/work-orders/{id}/conversation` — 取得關聯 LINE 對話記錄
     - Response: `{ messages: ConversationMessage[] }`
     - ConversationMessage: `{ id, sender: { type, name }, content_type, content, timestamp, metadata? }`
+  - GET `/api/v1/work-orders/{id}/media` — 取得工單關聯的客戶上傳媒體與 issue 包
+    - Response: `{ bundles: IssueBundle[] }`
+    - IssueBundle: `{ id, trigger_text, submitted_at, source: 'line', channel_message_ids: string[], media_count: { photo, video, file, audio }, media: MediaItem[], ai_analysis?: AIAnalysis }`
+    - MediaItem: `{ id, type: 'image'|'video'|'file'|'audio', url, thumbnail_url?, file_name, mime_type, duration_sec?, size_bytes, source_tag: 'initial'|'supplementary'|'ai_followup', is_expired, is_backed_up, uploaded_at }`
+    - AIAnalysis: `{ keywords: string[], linked_problem_card_id?: string, vision_model?: { brand: string, model: string, confidence: number } }`
+  - POST `/api/v1/work-orders/{id}/media/bundles/{bundle_id}/download` — 打包下載 issue 包（zip）
+    - Response: `{ download_url: string, expires_at: string, size_bytes: number }`
+    - download_url 為 signed URL，15 分鐘有效
+  - POST `/api/v1/work-orders/{id}/media/bundles/{bundle_id}/forward` — 轉傳 issue 包至指派技師 LINE
+    - Body: `{ target: 'assigned_technician' | technician_id, message?: string }`
+    - Response: `{ success: boolean, pushed_message_id?: string }`
   - GET `/api/v1/work-orders/{id}/completion-report` — 取得完工報告
     - Response: `{ report: CompletionReport }`
   - PATCH `/api/v1/work-orders/{id}/status` — 變更工單狀態
@@ -681,6 +782,7 @@
     - `work_order.exception_created`: `{ exception: ExceptionRecord }`
     - `device.status_updated`: `{ battery_level, connectivity, last_operation_at }`
     - `technician.location_updated`: `{ lat, lng, timestamp }`
+    - `work_order.media_added`: `{ bundle_id, is_new_bundle: boolean, bundle?: IssueBundle, media?: MediaItem }` — 客戶於 LINE 新上傳媒體時即時推送（新 bundle 時帶完整物件，既有 bundle 追加時僅帶單筆 media）
 - **error_cases**:
   - 網路錯誤：頂部 Warning Banner + 使用快取資料
   - API 401 Unauthorized：導向登入頁
@@ -717,6 +819,26 @@
 - [ ] ProblemCard：症狀描述、domain_attributes、resolution_level、diagnostic_chain 正確顯示
 - [ ] ProblemCard：診斷鏈 Symptom→Failure→FailureMode→Defect 流程圖正確
 - [ ] ProblemCard：信心度分數顏色梯度正確
+- [ ] LINE Media Gallery：工單無媒體時整個 Section 隱藏（不顯示 empty placeholder）
+- [ ] LINE Media Gallery：issue 包手風琴展開/摺疊正確（允許同時多個展開）
+- [ ] LINE Media Gallery：bundle_header 的觸發訊息摘要、提交時間、媒體數量 Badge（圖片/影片/檔案/語音）正確
+- [ ] LINE Media Gallery：source_badge「LINE」與 count_summary 顯示正確
+- [ ] LINE Media Gallery：filter_tabs（全部/圖片/影片/Issue 包）切換正確；過濾後全空時顯示提示
+- [ ] LINE Media Gallery：圖片縮圖 hover 遮罩 + ZoomIn icon 正確
+- [ ] LINE Media Gallery：影片縮圖首幀 + PlayCircle + 時長 Badge 正確
+- [ ] LINE Media Gallery：檔案/語音縮圖 icon + 副檔名/波形顯示正確
+- [ ] LINE Media Gallery：source_tag（初次報修/補充說明/AI 追問）配色與位置正確
+- [ ] LINE Media Gallery：點擊圖片開啟 Lightbox（與 conversation_thread 共用），左右鍵切換正確
+- [ ] LINE Media Gallery：點擊影片開啟內嵌播放器 Modal（播放/暫停/seek/音量/倍速 0.5-2x/下載）
+- [ ] LINE Media Gallery：AI 分析區塊顯示關鍵字 Chip 群組正確
+- [ ] LINE Media Gallery：「→ 關聯 ProblemCard」連結點擊後平滑捲動並高亮 2s
+- [ ] LINE Media Gallery：影像識別結果顯示品牌/型號與信心度（色彩梯度正確）
+- [ ] LINE Media Gallery：「下載此包 (.zip)」Loading → signed URL → 下載流程正確
+- [ ] LINE Media Gallery：「轉傳給技師」二次確認 + LINE Push + Toast 正確
+- [ ] LINE Media Gallery：「複製分享連結」複製 signed URL + Toast 正確
+- [ ] LINE Media Gallery：媒體過期狀態（LINE 30 天保存期且未備份）縮圖遮罩 + tooltip 正確
+- [ ] LINE Media Gallery：已備份至 GCS 的媒體顯示 CloudCheck 標記
+- [ ] Conversation：圖片/影片氣泡的「在客戶媒體區檢視」可跳轉至 line_media_gallery 並高亮對應縮圖
 - [ ] Timeline：歷程按時間降序正確排列
 - [ ] Timeline：每個事件的節點顏色、actor_badge、事件標題正確
 - [ ] Timeline：派工記錄顯示 match_score 和 match_factors 明細
@@ -784,6 +906,7 @@
 - [ ] Timeline 即時新增事件（滑入動畫 + 高亮 2s）
 - [ ] 設備狀態即時更新（電量/連線/最近操作）
 - [ ] 技師位置即時更新（mini_map 點移動）
+- [ ] 客戶於 LINE 新上傳媒體即時推送至 line_media_gallery（新 bundle 整張卡片頂部插入 / 既有 bundle 內新增縮圖 + 高亮 2s）
 - [ ] WebSocket 斷線 Warning Banner + 自動重連
 
 ### RWD 驗收
