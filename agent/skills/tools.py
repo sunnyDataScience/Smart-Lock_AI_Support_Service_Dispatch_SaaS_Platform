@@ -7,6 +7,7 @@ from contextvars import ContextVar
 
 from langchain_core.tools import tool
 
+from harness.line_ui_factory import match_brand, match_model, get_brand_models
 from . import Skill
 
 # ── 模組層級狀態（由 app 啟動時注入，啟動後不變）──
@@ -119,6 +120,32 @@ async def update_user_info(brand: str = "", model: str = "") -> str:
 
     if not brand and not model:
         return "請提供品牌或型號資訊。"
+
+    # ── 驗證品牌是否在服務範圍 ──
+    if brand:
+        matched_brand = match_brand(brand)
+        if not matched_brand:
+            return (
+                f"「{brand}」不在本店服務品牌範圍內。"
+                "本店服務品牌：Chatlock、Dormakaba、Philips、Kaadas、Milre、AiLock、3E、Waferlock。"
+                "請再次跟客戶確認品牌。"
+            )
+        brand = matched_brand  # 正規化大小寫
+
+    # ── 驗證型號是否屬於該品牌 ──
+    if model:
+        check_brand = brand or _current_brand.get()
+        if check_brand:
+            matched_model = match_model(check_brand, model)
+            if not matched_model:
+                available = get_brand_models(check_brand)
+                models_str = "、".join(available) if available else "（無型號資料）"
+                return (
+                    f"「{model}」不是 {check_brand} 的已知型號。"
+                    f"{check_brand} 的可用型號：{models_str}。"
+                    "請再次跟客戶確認型號。"
+                )
+            model = matched_model  # 正規化
 
     # 立即寫入 DB
     updated = []
