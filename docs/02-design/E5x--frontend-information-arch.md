@@ -2375,73 +2375,24 @@ graph TB
 
 ### 8.2 TanStack Query 刷新策略
 
-| 數據類型 | staleTime | refetchInterval | 頁面 | 說明 |
-|:---------|:----------|:---------------|:-----|:-----|
-| 儀表板統計 | 30 秒 | 60 秒 | Dashboard | PRD 要求每 5 分鐘更新，實際提升至 60 秒 |
-| 對話列表 | 5 分鐘 | - | Conversations | 手動刷新為主 |
-| 知識庫案例 | 5 分鐘 | - | KB Cases | 低頻變動 |
-| 案件池 | 15 秒 | 15 秒 | Pool (技師端) | 即時性要求高 |
-| 工單列表 | 30 秒 | 30 秒 | Work Orders | 狀態頻繁變動 |
-| 帳務報表 | 5 分鐘 | - | Accounting | 低頻查詢 |
+> **已遷出至** `E5x--frontend-architecture.md §2.3`（狀態管理層 — 伺服器狀態管理）。
+> 頁面層級的刷新需求（staleTime / refetchInterval）由本檔旅程提出，技術實作見架構文件。
 
 ### 8.3 狀態持久化策略
 
-```typescript
-// 狀態持久化對應表
-const stateStrategy = {
-  // 認證狀態 → httpOnly Cookie (由 Next.js Middleware 管理)
-  auth: 'httpOnly Cookie',
-
-  // 租戶上下文 → httpOnly Cookie + JWT payload（V3.0 多租戶）
-  tenant: 'httpOnly Cookie (X-Tenant-ID)',
-
-  // UI 偏好 → localStorage (Zustand persist)
-  uiPreferences: {
-    storage: 'localStorage',
-    key: 'smartlock-ui-preferences',
-    includes: ['sidebarCollapsed', 'theme', 'tablePageSize'],
-  },
-
-  // 篩選狀態 → URL Params (Next.js useSearchParams)
-  filters: 'URL searchParams',
-
-  // 表單草稿 → React Hook Form（記憶體）+ Service Worker IndexedDB（技師離線草稿）
-  formDraft: 'memory + IndexedDB (technician offline queue)',
-
-  // 伺服器數據 → TanStack Query Cache (記憶體，自動重驗證)
-  serverData: 'TanStack Query Cache',
-
-  // 即時事件 → WebSocket subscription 對應的 Zustand 緩衝
-  realtimeEvents: 'Zustand + WebSocket',
-};
-```
+> **已遷出至** `E5x--frontend-architecture.md §2.3`（狀態管理層 — 狀態存儲決策）。
+> 認證 / 租戶 / UI 偏好 / 篩選 / 表單草稿 / 伺服器快取 / 即時事件的儲存媒介決策集中於架構文件。
 
 ### 8.4 即時通訊策略 (WebSocket Channels)
 
-對齊 `specs/realtime-messaging-spec.md`。前端以統一 WebSocket client 訂閱下列頻道，並以 Zustand store 緩衝，必要時觸發 `queryClient.invalidateQueries` 讓 TanStack Query 重新拉取。
-
-| 頻道 | 訂閱者 | 內容 | 驅動畫面 |
-|:-----|:-------|:-----|:---------|
-| `/realtime/work-orders/{id}` | Admin 工單詳情、技師端工單詳情 | 狀態轉換、訊息、指派 | A12, T3 |
-| `/realtime/dispatch-queue` | Admin | 派工嘗試、拒單、逾時 | A28 派工佇列 |
-| `/realtime/pool/{technician_id}` | 技師端 | 新案件進池、案件被搶 | T1 案件池 |
-| `/realtime/refunds` | Admin / Finance | 新退款申請、簽核進度 | A17 退款審批 |
-| `/realtime/disputes` | Admin | 爭議升級、新證據 | A22 爭議仲裁 |
-| `/realtime/sla-alerts` | Admin | SLA 即將/已違規 | A1 儀表板、A29 KPI |
-| `/realtime/rbac` | 所有登入 session | 權限變更即時生效 | 全域 |
-| `/realtime/inventory/low-stock` | Admin | 低庫存事件 | A19 庫存 |
-| `/realtime/diagnostics/{conversation_id}` | Admin | L1/L2/L3 推理進度 | A32 診斷檢視 |
-| `/realtime/notifications/{user_id}` | 所有登入 session | 個人通知（@mention、指派） | 全域 Toast / Bell |
-
-**降級策略：** WebSocket 斷線時自動 fallback 為 TanStack Query polling（對應 §8.2 refetchInterval），恢復後 replay 缺失事件（server-side event log 保留 5 分鐘）。
+> **已遷出至** `E5x--frontend-architecture.md §8.4`（前後端協作契約 — 即時通訊與 WebSocket 頻道）。
+> 本檔僅在 §4 用戶旅程提頻道對應頁面；頻道權威清單與實作規範見架構文件。
+> 另對齊 `docs/02-design/specs/asyncapi.yaml`（機器可讀 SSOT）與 `MAPPING.md §7 / §7.1`（IA ↔ 頻道 ↔ operationId 索引）。
 
 ### 8.5 多租戶資料隔離 (Tenant Isolation)
 
-- **Header：** 所有 API 請求由 Next.js Middleware 注入 `X-Tenant-ID`（源自 JWT payload 的 `tenant_id` claim）。
-- **Query Key：** TanStack Query 的 `queryKey` 必定含 `tenant_id` 前綴（例：`['tenant', tenantId, 'work-orders', filters]`），避免切租戶時快取污染。
-- **切換租戶：** 超管切換時呼叫 `queryClient.clear()` + Zustand `reset()`，強制重載。
-- **RLS 驗證：** 前端對任何回傳資料做 `tenant_id` 檢驗，不符時視為安全事件（自動登出 + 回報）。
-- **租戶品牌：** 登入後由 `/api/v1/tenants/me` 取回 `brand_config`，注入 CSS 變數與 Tailwind runtime theme。
+> **已遷出至** `E5x--frontend-architecture.md §1.4`（多租戶架構與前端隔離三層模型）。
+> Header / Query Key / 切換 / RLS / 品牌注入的實作細節見架構文件。
 
 ---
 
@@ -2693,94 +2644,61 @@ export const config = {
 
 ---
 
-## 10. 實施檢查清單與驗收標準
+## 10. IA 驗收標準（本檔職責）
 
-### 10.1 開發階段檢查清單
+> **重新聚焦（2026-04-23 K-R 階段 1）**：
+> 通用「開發階段檢查清單」、「質量檢查」、「效能指標」、「測試矩陣」、「Go/No-Go 準入」→ 已整合至 `E5x--frontend-architecture.md §10 前端開發檢查清單`。
+> 本章僅保留**資訊架構專屬驗收**：頁面覆蓋、URL 一致性、導航完整性、用戶旅程可走通。
 
-#### Phase 1: V1.0 Admin Panel 核心頁面 (W3-W7)
+### 10.1 頁面覆蓋驗收
 
-| 任務 | 負責人 | 狀態 | 驗收標準 |
-|:-----|:-------|:-----|:---------|
-| **登入頁** | Frontend DEV | ⬜ | - [ ] JWT 認證正常<br/>- [ ] 錯誤提示友善 |
-| **儀表板** | Frontend DEV | ⬜ | - [ ] 4 張統計卡片<br/>- [ ] 3 張圖表<br/>- [ ] 自動刷新 |
-| **對話列表 + 詳情** | Frontend DEV | ⬜ | - [ ] 篩選正常<br/>- [ ] 時間軸顯示<br/>- [ ] 圖片可放大 |
-| **問題卡列表 + 詳情** | Frontend DEV | ⬜ | - [ ] 篩選正常<br/>- [ ] 結構化展示 |
-| **案例庫 CRUD** | Frontend DEV | ⬜ | - [ ] 新增/編輯/刪除<br/>- [ ] CSV 匯入<br/>- [ ] 品牌篩選 |
-| **手冊管理** | Frontend DEV | ⬜ | - [ ] PDF 上傳<br/>- [ ] 處理進度顯示 |
-| **SOP 審核** | Frontend DEV | ⬜ | - [ ] 雙欄對照<br/>- [ ] 核准/退回/刪除 |
+- [ ] IA 52 頁（Admin 38 + Technician 12 + Global 2）全部於 `MAPPING.md §2` 註冊
+- [ ] 每頁對應至少一份 `web_design_spec_prompt_pipeline/pages/*.md` spec
+- [ ] 版本標記一致（V1.0 / V2.0 / V3.0）
+- [ ] 無孤兒 pipeline spec（未對應任何 IA 頁）
 
-#### Phase 2: V2.0 派工與技師端 (W20-W29)
+### 10.2 URL 一致性驗收
 
-| 任務 | 負責人 | 狀態 | 驗收標準 |
-|:-----|:-------|:-----|:---------|
-| **工單看板 + 詳情** | Frontend DEV | ⬜ | - [ ] 四欄看板<br/>- [ ] 狀態時間軸<br/>- [ ] 手動指派 |
-| **技師管理** | Frontend DEV | ⬜ | - [ ] CRUD<br/>- [ ] 技能管理<br/>- [ ] 區域設定 |
-| **帳務管理** | Frontend DEV | ⬜ | - [ ] 月度報表<br/>- [ ] 墊付審核<br/>- [ ] Excel 匯出 |
-| **技師登入** | Frontend DEV | ⬜ | - [ ] 手機號登入<br/>- [ ] Mobile-First |
-| **案件池** | Frontend DEV | ⬜ | - [ ] 15 秒刷新<br/>- [ ] 一鍵接單<br/>- [ ] 無限滾動 |
-| **工單詳情/完工回報** | Frontend DEV | ⬜ | - [ ] 照片上傳<br/>- [ ] 表單驗證<br/>- [ ] 材料清單 |
-| **帳戶中心** | Frontend DEV | ⬜ | - [ ] 收入摘要<br/>- [ ] 月份篩選<br/>- [ ] PDF 匯出 |
+- [ ] 本檔 §9.1 URL 清單與 pipeline spec 的 `route_path` 逐一匹配
+- [ ] URL 命名符合 RESTful 慣例（複數名詞、[id] 占位符）
+- [ ] 保留字（`cursor`/`limit`/`tab`/`filter`/`highlight` 等）對齊 `E5x--frontend-navigation-matrix.md §4`
+- [ ] 深連結頁面清單（§5.1 於 navigation-matrix）已完整，無遺漏
 
-### 10.2 質量檢查清單
+### 10.3 導航完整性驗收
 
-#### 用戶體驗 (UX)
+- [ ] 每 IA 頁都有明確 upstream（除根頁：Dashboard / Login / Pool）
+- [ ] 每 IA 頁的 downstream 在 §5.2 導航連結矩陣列明
+- [ ] `MAPPING.md §7.5 Flow × Page 矩陣`覆蓋全部 23 個 Flow（Flow 1-14 + G1-G4 + MT1-MT5）
+- [ ] 每個 upstream/downstream 對應的 pipeline spec 頂部都有「導航與狀態」章節引用 navigation-matrix
 
-- [ ] Admin Panel 核心流程（登入 → 儀表板 → SOP 審核 → 發布）可在 5 分鐘內完成
-- [ ] Technician App 核心流程（登入 → 瀏覽案件池 → 接單 → 完工回報）操作直覺
-- [ ] 所有導航路徑清晰無歧義
-- [ ] 無死鏈或 404 錯誤
-- [ ] 錯誤提示友好且可操作
-- [ ] 載入狀態明確可見（Skeleton Loading）
-- [ ] 技師端 Mobile-First 體驗流暢
+### 10.4 用戶旅程驗收
 
-#### 技術規範 (Technical)
+對應本檔 §4 所列核心旅程：
 
-- [ ] 所有 URL 符合 RESTful 命名規範
-- [ ] Cursor-based 分頁邏輯正確
-- [ ] JWT Token 存於 httpOnly Cookie，不存於 localStorage
-- [ ] URL 篩選狀態可分享（書籤友好）
-- [ ] API 調用錯誤處理完善（401 自動 refresh → 失敗重導登入）
-- [ ] 無 Console 錯誤或警告
-- [ ] TypeScript 嚴格模式，無 any 類型
+- [ ] **管理員知識庫閉環（V1.0）**：登入 → 儀表板 → SOP 審核 → 案例確認，每步驟有 pipeline spec + Flow 承載
+- [ ] **管理員派工閉環（V2.0）**：儀表板 → 工單列表 → 詳情 → 指派/爭議/退款，涵蓋 Flow 1/6/7/9
+- [ ] **管理員治理閉環（V2.0）**：稽核/RBAC/庫存/爭議，涵蓋 G1-G4
+- [ ] **V3.0 租戶管理閉環**：超管 → 租戶列表 → 品牌/B2B/退場，涵蓋 MT1-MT5
+- [ ] **技師核心旅程（V2.0）**：登入 → 案件池 → 接單 → 完工 → 簽章，涵蓋 Flow 1
+- [ ] **技師異常旅程（V2.0）**：範圍變更/缺料/延遲/門面/改期，涵蓋 Flow 3-5/10/14
 
-#### 性能指標 (Performance)
+### 10.5 IA ↔ 契約 ↔ 流程 三向繫結驗收
 
-- [ ] Admin Panel LCP < 2.0 秒（桌面）
-- [ ] Technician App LCP < 2.5 秒（4G 行動）
-- [ ] INP < 100ms
-- [ ] CLS < 0.1
-- [ ] 首屏 JS < 100 KB (gzipped)
-- [ ] Lighthouse Performance >= 90（Admin 桌面）/ >= 85（技師行動）
+- [ ] 本檔 §9.1 URL 清單可在 `MAPPING.md §8.1` 找到 operationId 對應
+- [ ] WS 頻道（§8.4 指向 architecture §8.4）可在 `MAPPING.md §7.1` 找到 AsyncAPI operationId
+- [ ] 每 IA 頁對應的 Flow 可在 `MAPPING.md §7.5` 矩陣查到
+- [ ] CI 檢查通過（`scripts/check-operationid-orphans.sh` 無孤兒）
 
-#### SEO 與無障礙性 (A11y)
+### 10.6 持續維護
 
-- [ ] 所有頁面有準確的 `<title>`（Next.js metadata API）
-- [ ] 圖片有 alt 屬性
-- [ ] 語義化 HTML
-- [ ] 鍵盤導航支持
-- [ ] WCAG 2.1 AA 合規（文本對比度 >= 4.5:1）
-- [ ] 工單狀態同時使用顏色 + 文字標籤（不以顏色為唯一區分）
+- [ ] 新增 IA 頁時，同步更新本檔 §3.2 頁面總覽、§9.1 URL 清單、`MAPPING.md`
+- [ ] 刪除 IA 頁時，先確認 pipeline spec 與 Flow 引用已清除
+- [ ] 版本遷移（V1.0 → V2.0 → V3.0）時，版本標籤同步所有索引
 
-### 10.3 測試矩陣
+---
 
-| 測試類型 | 測試範圍 | 工具 | 負責人 | 完成標準 |
-|:---------|:---------|:-----|:-------|:---------|
-| **單元測試** | API hooks、工具函數、驗證 Schema | Jest + RTL | DEV | 覆蓋率 > 80% |
-| **組件測試** | 業務功能元件 | Jest + RTL | DEV | 核心元件全覆蓋 |
-| **E2E 測試** | 核心用戶流程 | Playwright | QA | 登入 → 審核 → 接單 → 完工 |
-| **性能測試** | 頁面載入與交互 | Lighthouse CI | DEV | 所有指標達標 |
-| **無障礙測試** | WCAG 2.1 AA | axe DevTools | QA | 無嚴重問題 |
-| **響應式測試** | Mobile / Tablet / Desktop | Chrome DevTools | QA | 三種尺寸正常 |
-
-### 10.4 上線前最終檢查 (Go/No-Go)
-
-#### 準入條件
-
-- [ ] 所有 P0 頁面已完成並測試通過
-- [ ] 無阻斷性 Bug
-- [ ] 效能指標達標（LCP < 2s Admin / < 2.5s Technician）
-- [ ] JWT 認證與角色守衛驗證通過
-- [ ] API 錯誤處理完善
+> **通用開發驗收請見：** `E5x--frontend-architecture.md §10 前端開發檢查清單`
+> 涵蓋：UX / 技術規範 / 效能指標（LCP/CLS/INP）/ SEO A11y / 測試矩陣 / Go/No-Go 準入條件。
 
 #### 角色簽核 (RACI)
 
