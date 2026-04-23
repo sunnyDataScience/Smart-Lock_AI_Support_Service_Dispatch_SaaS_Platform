@@ -834,6 +834,26 @@
 - [ ] 超管紫色（#8B5CF6 / purple-500）僅用於超管專屬元件（Badge / 側欄 / TenantSwitcher），不滲入其他業務 UI
 - [ ] V3.0 feature flag 關閉時，側邊欄入口完全消失，路由 404
 
+---
+
+## [T1.5 §6.26 補漏] A34 租戶設定 — 欄位/區域/Key 細節
+
+**定價分頁具體欄位：**
+- SLA 門檻：`response_sla_minutes` (15-120)、`arrival_sla_hours` (1-24)、`completion_sla_hours` (2-72)
+- 雙簽金額門檻：`refund_dual_sign_threshold_twd`（預設 5,000）、`refund_triple_sign_threshold_twd`（預設 100,000）
+- 退款率上限：`max_refund_rate_monthly_percent`（預設 5）超過告警 `operations_manager`
+- 分潤率：`technician_commission_base_percent`（0-100）+ S 級加成 `level_s_bonus_percent`
+
+**服務區域分頁（新 Tab）：**
+- 區域選擇：行政區（縣市 / 鄉鎮市區）多選 + 地圖視覺化
+- 服務時段：週七天 × 時段矩陣，支援跨日（22:00-02:00）
+- 假日規則：國定假日 toggle（自動抓農曆春節、端午、中秋）+ 自訂休假日
+- 離島 / 山區：獨立勾選欄 + 加成費率
+
+**API 金鑰 Masked Prefix：**
+- 格式：`sk_live_{first4}...{last4}`（例 `sk_live_abcd...9876`）
+- 建立時彈窗顯示完整 Key 一次 + 複製按鈕 + 「我已保存，關閉後無法再顯示」確認 checkbox
+- 管理介面：Masked prefix + 建立時間 + 最後使用 + 狀態（active / rotating / revoked）
 
 ---
 

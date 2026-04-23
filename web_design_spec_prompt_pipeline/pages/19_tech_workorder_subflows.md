@@ -1003,6 +1003,59 @@ Body: { slot_index: int, line_user_id: str, confirmed_at: ISO8601 }
 - [ ] 客戶 reject 後是否改排客服電話主動聯繫？
 - [ ] 技師訊息 120 字是否足夠？
 
+---
+
+## [T1.5 §6.28 / §6.30 / §6.31 補漏]
+
+### §6.28 T6 缺料回報 補強
+
+**「客戶對等待的接受度」欄位：**
+- UI：Slider 0-10 分 + 文字選項「非常急 / 可等幾天 / 完全不急」
+- 送客戶 LINE 時附此評估
+- API body：`customer_urgency_estimate: 0..10`
+
+**「豁免車馬費」後端實現：**
+- `decision=cancel` 時 `POST /work-orders/{id}/material-request/cancel` body 含 `waive_dispatch_fee: true`
+- 後端 `final_amount` 扣車馬費 + Accounting 記 `waiver_reason=material_shortage`
+- A15 / A27 對帳報表顯示 waived 獨立欄
+
+### §6.30 T8 門面檢核 + T9 簽章 補強
+
+**T8 四項必做 checklist（施工前）：**
+1. ☐ 門框完整性：無裂痕、無變形、螺絲齊全
+2. ☐ 鎖芯/鎖體無損：拍攝原鎖狀態
+3. ☐ 周邊無刮傷：門扇正反面 + 門框四邊拍攝
+4. ☐ 附件齊全：鑰匙數量、遙控器、說明書是否與訂單符合
+
+4 項皆勾 + ≥ 4 張照片才啟用「開始施工」按鈕。
+
+**T8 差異影像生成：**
+- 優先：`POST /api/v1/vision/overlay-diff`（後端 Vision 服務）
+- Fallback：Vision 失敗 → 前端 Canvas `globalCompositeOperation="difference"`
+- Fallback 結果標示「本地比對，精度較低」提示
+
+**T9 GPS 可開關 + 稽核：**
+- UI：簽章頁「記錄 GPS 位置」checkbox（預設勾選）
+- 取消勾選 → 稽核欄位 `gps_declined: true` + `gps_decline_reason`（下拉：「隱私考量」/「定位權限未開」/「其他」）
+- 未勾選可提交但稽核保留「GPS 拒絕」事實
+
+### §6.31 T10 技師排班 補強
+
+**月休假額度管制：**
+- 上限：`monthly_leave_quota_hours`（租戶設定，預設 24h）
+- UI：頂部進度條「本月已用 X / Y 小時」，> 80% 警告色，100% 禁申請
+- 跨月申請：超過當月額度的日期轉下月額度
+
+**備勤加班計時：**
+- 基本費率：`standby_hourly_rate_twd`（租戶設定）
+- 實際派工觸發：從「標記備勤開始」到「首個工單接受」計費
+- 未派工：保底 2 小時，超過 2h 按實計
+- 月上限：`standby_monthly_cap_hours`（預設 40h）
+
+**申請審核 SLA：**
+- 休假 / 備勤：管理員 48h 內審核
+- 逾時自動核准 → 觸發 `technician.leave.auto_approved` + 通知 operations_manager
+- 急件（72h 內生效）：SLA 縮至 12h，逾時自動核准 + 告警
 
 ---
 

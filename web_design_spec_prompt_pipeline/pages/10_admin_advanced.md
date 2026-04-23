@@ -443,6 +443,82 @@
 
 ---
 
+## [T1.5 §6 補漏] 既有子頁補強（from Info-Arch §6.13–§6.18）
+
+### §6.13 退款審批 補強（子頁 1）
+
+**雙簽 PIN 驗證流程**：金額超門檻（NT$ 5,000 二簽 / NT$ 100,000 三簽）時：
+1. 簽核者於 Modal 內輸入 6 位 PIN（非密碼，專屬簽章用，於 /settings 設定）
+2. PIN 驗證通過 → Signature Canvas 啟用（觸控/滑鼠手寫）
+3. 簽署後後端記錄：`signer_id`, `signer_role`, `signed_at`, `client_ip`, `signature_hash`（SHA-256）
+4. PIN 連續錯誤 5 次鎖 30 分鐘
+
+**Accounting Voucher 自動建立**：核准成功後：
+- 同 transaction 產出 `accounting_voucher`（voucher_no、金額、分錄對應）
+- 前端 Toast「已核准，傳票號 #V-XXXX」+ 連結至 A15 帳務
+- 失敗時回滾退款狀態，標 `pending_voucher_retry` + 通知會計
+
+### §6.14 RBAC 管理 補強（子頁 6）
+
+**臨時授權面板**（新 Modal：「授予臨時權限」）：
+- 選擇使用者（autocomplete）
+- 選擇額外權限碼（checklist，僅能選目前登入者可授權範圍內）
+- 有效期限：選擇器（小時 / 天數，上限 7 天）
+- 雙簽：需 `admin` + `operations_manager` 皆簽（Signature Canvas × 2）
+- 清單區顯示：已授予 / 待簽核 / 已過期（三 Tab）
+- API：`POST /api/v1/roles/temporary-grants`
+
+**權限差異檢視**：從既有角色複製時：
+- 對比視圖：左欄「來源角色權限」右欄「新角色（可編輯）」
+- 權限變動高亮：新增（綠底）、移除（紅刪除線）、未變（灰）
+- 儲存前強制使用者 review 變動摘要
+
+### §6.16 庫存管理 補強（子頁 2）
+
+**調撥 Modal**（「倉對倉調撥」按鈕）：
+- 來源倉 / 目的地倉（下拉）+ 品項 + 數量 + 調撥原因
+- 簽核：`warehouse_manager` 角色單簽（Canvas + PIN）
+- API：`POST /api/v1/inventory/transfers`
+- 同步寫 `audit_events`（action=`inventory.transfer`, before/after stock）
+
+**報廢 Modal**（每列「報廢」按鈕）：
+- 品項 + 報廢數量 + 報廢原因（下拉：過期/損壞/召回/其他）
+- 報廢金額 > NT$ 5,000 需 `warehouse_manager` + `accountant` 雙簽
+- API：`POST /api/v1/inventory/write-offs`
+
+### §6.17 保固索賠 補強（子頁 3）
+
+**技師責任扣罰雙簽**（在保固審核 Modal 內）：
+- 顯示原施工技師名 + 技師分級 + 歷史客訴數
+- 扣罰金額輸入（含快速選擇：NT$ 500 / 1,000 / 2,000）
+- 雙簽：`operations_manager` + `technician_supervisor`（Signature Canvas × 2）
+- 扣罰後：技師端 App Toast 通知 + 月結算自動扣除
+
+**返工工單自動建立**：
+- 保固核准後，系統自動 `POST /api/v1/work-orders`，body 含 `parent_work_order_id` + `type=rework` + `is_free=true`
+- 原工單 `status=warranty_accepted`，返工單透過 `dispatch_candidates` 強制篩選 S 級技師
+- Toast「返工工單已建立 #WO-XXX」+ 連結
+
+### §6.18 爭議仲裁 補強（子頁 4）
+
+**技師申訴通道**（新 entry point）：
+- 從 A27 技師結算扣罰項或 T4 帳戶中心「申訴」按鈕進入
+- 開啟新爭議 Modal：類型 `technician_dispute`、對應扣罰記錄 ID、申訴理由 + 證據上傳
+- API：`POST /api/v1/disputes`，backlog 進入 `support_agent` 佇列
+
+**後續自動動作觸發邏輯**：裁決提交後依 resolution 自動執行：
+| resolution | 自動動作 |
+|:---|:---|
+| `refund_partial` | 觸發 Flow 6 退款（`POST /refunds`）|
+| `rework_required` | 建返工工單（同 §6.17 邏輯）|
+| `technician_penalty` | 寫技師扣罰 + 月結算 |
+| `customer_rejected` | LINE Flex 最終答覆客戶 |
+| `escalate_external` | 標 `DISPUTE_EXTERNAL_PENDING` 外部調解 |
+
+全部動作包裝在單一 DB transaction，失敗回滾 + 告警 `operations_manager`。
+
+---
+
 ## [INTERACTION & STATE FLOW]
 
 ### 主要互動流程
