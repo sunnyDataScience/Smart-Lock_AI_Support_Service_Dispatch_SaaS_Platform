@@ -54,19 +54,50 @@ docker run --rm -v "$PWD":/work -w /work \
 ### 啟動 Mock Server（前端不必等後端）
 
 ```bash
+# 方式 1：npx（Node 18+）
+./scripts/mock-server.sh
+# 或直接 npx
 npx --yes @stoplight/prism-cli mock docs/02-design/specs/openapi.yaml --port 4010
-# 之後前端 API base URL 指向 http://localhost:4010
+
+# 方式 2：Docker Compose（完整化，含 AsyncAPI profile）
+docker compose -f docker-compose.mock.yml up -d
+curl http://localhost:4010/api/v1/work-orders -H "X-Tenant-ID: 00000000-0000-0000-0000-000000000000"
+docker compose -f docker-compose.mock.yml down
+```
+
+## 生成前端 TypeScript 型別
+
+```bash
+./scripts/generate-api-types.sh           # 生成到 docs/02-design/specs/generated/api.generated.ts
+./scripts/generate-api-types.sh --check   # CI 驗證是否同步（不改檔）
+```
+
+**輸出位置自動決定：** 若 `web/lib/` 存在 → `web/lib/types/api.generated.ts`；否則 `docs/02-design/specs/generated/`。
+
+## 檢查 operationId 雙向對應
+
+```bash
+./scripts/check-operationid-orphans.sh            # 報告（非 strict，視 pending 為 TODO）
+./scripts/check-operationid-orphans.sh --strict   # Week 5+ 啟用，pending 轉為 error
+./scripts/check-operationid-orphans.sh --quiet    # CI 簡潔輸出
 ```
 
 ---
 
-## CI 檢查
+## CI 檢查（Week 4 啟用）
 
-`.github/workflows/spec-lint.yml` 於 PR 變動本目錄時自動觸發 spectral lint。
-後續階段將加入：
-- 前端型別生成校驗（若 client 未重新生成 → 紅燈）
-- 後端 `app.openapi()` 輸出 diff（若實作漂移 → 紅燈）
-- Schemathesis 契約測試
+PR 變動本目錄時自動觸發：
+
+| Workflow | 目的 | 狀態 |
+|:---|:---|:---|
+| `.github/workflows/spec-lint.yml` | Spectral lint OpenAPI + AsyncAPI | ✅ Week 1 |
+| `.github/workflows/orphan-check.yml` | operationId 雙向對應（非 strict；Week 5+ 轉 strict）| ✅ Week 4 |
+| `.github/workflows/api-types-sync.yml` | TypeScript 型別與 openapi.yaml 同步 | ✅ Week 4 |
+| `.github/workflows/mock-smoke.yml` | Prism mock server 可啟動並回應五個核心端點 | ✅ Week 4 |
+
+**後續待接入：**
+- 後端 FastAPI `app.openapi()` diff 校驗（後端實作啟動後）
+- Schemathesis property-based 契約測試（後端實作啟動後）
 
 ---
 
