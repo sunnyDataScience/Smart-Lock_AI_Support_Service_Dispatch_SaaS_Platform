@@ -92,9 +92,9 @@
 | IA # | 路徑 | 頁面名稱 | 版本 | Pipeline 檔 | Section 位置 |
 |:-----|:-----|:---------|:-----|:------------|:-------------|
 | **G1** | `/notifications` | **全域通知中心** | V2.0 ² | `21_global_notifications.md` | 主要 |
-| G2 | `/offline` | 離線狀態頁（保留）| V2.0 | — | 待定 ³ |
+| G2 | `/offline` | 離線狀態頁 | V2.0 ² | `23_global_offline.md` | 主要 |
 
-> ³ G2 為 `frontend-navigation-matrix.md §3.1 offline` 規範所需，spec 檔暫未建立。
+> ³ G2 spec 於 2026-04-23 驗證閘 Stage 3 末期建立（commit `b409c8a`）。
 
 ---
 
@@ -124,8 +124,9 @@
 | **20** | `20_admin_dispatch_manual.md` | **297** | **A37** | 派工人工介入（V1.1 新增） |
 | **21** | `21_global_notifications.md` | **324** | **G1** | 全域通知中心（V1.1 新增） |
 | **22** | `22_reschedule_calendar.md` | **318** | **T11** | 改期日曆（V1.1 新增） |
+| **23** | `23_global_offline.md` | **265** | **G2** | 離線狀態頁（V1.1 新增） |
 
-粗體（14-19）為 2026-04-23 新增；20-22 為 2026-04-23 驗證閘（plan §S）補入。
+粗體（14-19）為 2026-04-23 新增；20-23 為 2026-04-23 驗證閘（plan §S）補入。
 
 粗體為 2026-04-23 新增。
 
@@ -376,7 +377,7 @@
 - [x] WebSocket 頻道清單覆蓋所有即時需求
 - [x] 重複檔（`01_dashboard.md` vs `02_admin_dashboard.md`）已於 commit `f42ee65` 清理
 - [x] Flow × Page 矩陣建立（§7.5，含 Flow 1-14 + G1-G4 + MT1-MT5）
-- [ ] （待辦）G2 `/offline` spec 檔建立（目前規範在 navigation-matrix §3）
+- [x] G2 `/offline` spec 檔（`23_global_offline.md`，驗證閘 Stage 3 完成）
 - [ ] （待辦）若 IA 後續新增頁面，同步更新本檔
 
 ---
