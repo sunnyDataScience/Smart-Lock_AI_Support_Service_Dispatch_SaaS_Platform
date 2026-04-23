@@ -238,35 +238,63 @@
 
 ---
 
-## 6. 共用元件與 Pipeline 對應
+## 6. 共用元件與 Pipeline 對應（業務元件 SSOT）
 
-> 對齊 `E5x--frontend-architecture.md §3.3` 的組件庫清單，標記每個業務元件在哪些 page spec 被引用。
+> 自 2026-04-23（K-R 階段 3）起，本表為**業務元件的單一權威來源**。
+> `E5x--frontend-architecture.md §3.3` 僅保留組織原則與技術約束，具體元件以本表為準。
+>
+> **對比 §3.3：** 基礎 UI 元件（shadcn/ui 的 Button/Input/DataTable/Kanban 等 17 個）由 architecture 持有（技術選型）；本表僅含**業務功能元件**（`components/features/*`）。
 
-| 元件 | 來源檔 | 被引用 pipeline |
-|:-----|:-------|:----------------|
-| `ConversationTimeline` | features/customer_service | 03, 04 |
-| `ProblemCardViewer` | features/customer_service | 04, 07 |
-| `SOPReviewPanel` | features/knowledge_base | 05 |
-| `WorkOrderKanban` | features/dispatch | 06 |
-| `QuotationBuilder` | features/accounting | 07, 09 |
-| `CompletionReportForm` | features/dispatch | 07, 12, 19 |
-| `CasePoolCard` | features/dispatch | 11 |
-| `DispatchAttemptTimeline` | features/dispatch | 17 |
-| `RefundApprovalWorkflow` | features/accounting | 10 |
-| `AuditEventRow` | features/audit | 10 |
-| `PermissionMatrix` | features/rbac | 10 |
-| `InventoryLowStockBanner` | features/inventory | 10 |
-| `DisputeEvidencePanel` | features/dispute | 10 |
-| `DiagnosticTraceViewer` | features/agent-harness | 15 |
-| `SignaturePad` | features/e-signature | 10 (refund), 19 (T9) |
-| `TechnicianScheduleCalendar` | features/dispatch | 16 (A25), 19 (T10) |
-| `SkillCertificationForm` | features/dispatch | 16 (A26) |
-| `SettlementBreakdown` | features/accounting | 16 (A27), 09 |
-| `KPIFunnelChart` | features/reports | 17 (A29) |
-| `TechnicianRankingTable` | features/reports | 17 (A30) |
-| `TenantSwitcher` | features/multi-tenant | 18 (A36 上部全域) |
-| `BrandPreviewSandbox` | features/multi-tenant | 18 (A35) |
-| `OfflineQueueIndicator` | infrastructure | 19 (技師端全域) |
+### 6.1 業務元件完整清單
+
+| 元件 | 所屬 Context | 用途 | 被引用 pipeline |
+|:-----|:------------|:-----|:----------------|
+| `ConversationTimeline` | customer_service | 對話訊息時間軸（含文字、圖片、AI 回覆標記） | 03, 04 |
+| `ProblemCardViewer` | customer_service | 問題卡結構化檢視（品牌、型號、故障、信心分數） | 04, 07 |
+| `KnowledgeSearch` | knowledge_base | 知識庫全文/語意搜尋切換 | 05 |
+| `SOPReviewPanel` | knowledge_base | SOP 草稿審核（雙欄核准/駁回/採納 + 原始對話對照） | 05 |
+| `WorkOrderKanban` | dispatch (V2.0) | 工單看板（5 欄拖放：待派/已派/進行中/已完工/異常） | 06 |
+| `TechnicianMap` | dispatch (V2.0) | 技師地圖標記（Google Maps + 即時狀態） | 08, 11 |
+| `CasePoolCard` | dispatch (V2.0) | 技師端案件卡片（地址/品牌/報酬/一鍵接單 + 滑動手勢） | 11 |
+| `DispatchAttemptTimeline` | dispatch (V2.0) | 派工嘗試記錄（1~3 次 + match score + 拒單原因） | 17 |
+| `DispatchCandidateList` | dispatch (V2.0, V1.1) | 候選技師綜合分排序表（手動派工用） | 20, 07 |
+| `CompletionReportForm` | dispatch (V2.0) | 技師完工報告表單（照片/材料/工時/墊付） | 07, 12, 19 |
+| `TechnicianScheduleCalendar` | dispatch (V2.0) | 技師排班月/週曆（拖放選時段） | 16 (A25), 19 (T10) |
+| `SkillCertificationForm` | dispatch (V2.0) | 技能認證表（證書上傳、到期提醒） | 16 (A26) |
+| `RescheduleCalendarModal` | dispatch (V2.0, V1.1) | 改期日曆 + 客戶可用時段提示 + 衝突警告 | 22, 19 (T1.4) |
+| `QuotationBuilder` | accounting (V2.0) | 報價單建構器（品牌 x 鎖型 x 工項矩陣 + 議價記錄） | 07, 09 |
+| `ReconciliationTable` | accounting (V2.0) | 對帳明細表（技師 x 月份 + 墊付/結算） | 09 |
+| `SettlementBreakdown` | accounting (V2.0) | 結算明細（分潤 + 獎勵 + 扣款 + 墊付） | 16 (A27), 09 |
+| `RefundApprovalWorkflow` | accounting (V2.0) | 退款審批 Modal（含 Dual-sign + PIN + Accounting voucher） | 10 |
+| `SignaturePad` | e-signature (V2.0) | 雙方簽章（技師/客戶、管理員/財務雙簽 + SHA-256） | 10 (refund), 19 (T9) |
+| `AuditEventRow` | audit (V2.0) | 可展開稽核列（before/after JSON diff + PII 遮蔽） | 10 |
+| `PermissionMatrix` | rbac (V2.0) | RBAC 權限矩陣（功能 × CRUD × 資源限定） | 10 |
+| `TemporaryGrantPanel` | rbac (V2.0, V1.1) | 臨時授權面板（7 天上限 + 雙簽） | 10 |
+| `InventoryLowStockBanner` | inventory (V2.0) | 低庫存告警 banner + 一鍵跳轉 | 10, 全域 |
+| `WarrantyClaimModal` | accounting (V2.0, V1.1) | 保固審核 + 技師扣罰雙簽 + 返工工單自動建立 | 10 |
+| `DisputeEvidencePanel` | dispute (V2.0) | 爭議證據時間軸（對話 + 工單狀態 + 客戶送審） | 10 |
+| `ComplaintEscalationIndicator` | customer_service (V1.1) | 客訴升級指示器（anger_level 警示 + SLA 倒數） | 07 |
+| `DiagnosticTraceViewer` | agent-harness (V2.0) | L1/L2/L3 推理鏈視覺化 + 7 信號矩陣 | 15 |
+| `KPIFunnelChart` | reports (V2.0) | 轉換漏斗（對話 → 工單 → 完工） | 17 (A29) |
+| `TechnicianRankingTable` | reports (V2.0) | 技師排行榜（支援下鑽） | 17 (A30) |
+| `ReportScheduleForm` | reports (V2.0, V1.1) | 報表排程設定（cron + 多格式 + 收件人） | 17 |
+| `NotificationInbox` | realtime (V1.1) | 全域通知收件匣（tabs / filter / bulk） | 21 |
+| `NotificationBell` | realtime (V1.1) | header bell icon + 未讀紅點 | 全域 |
+| `TenantSwitcher` | multi-tenant (V3.0) | 超管租戶切換器（下拉 + search + cache clear） | 18 (A36 上部全域) |
+| `BrandPreviewSandbox` | multi-tenant (V3.0) | 品牌客製即時預覽（Admin + LINE Flex 並排） | 18 (A35) |
+| `ApiKeyManager` | multi-tenant (V3.0) | B2B API Key 建立/輪替/撤銷（Masked Prefix） | 18 (A34) |
+| `OfflineQueueIndicator` | infrastructure | Service Worker 離線佇列狀態（技師外勤） | 19 (技師端全域), 23 |
+
+### 6.2 基礎 UI 元件（僅索引）
+
+> 基礎 UI 元件（`components/ui/*`，shadcn/ui 17 項 + 自訂 9 項）見 `E5x--frontend-architecture.md §3.3` — 屬技術選型，不在本表追蹤引用。
+
+### 6.3 治理規則
+
+- **新增業務元件：** PR 必須同步更新本表一列（Context / 用途 / 被引用 pipeline）
+- **刪除業務元件：** PR 必須先確認本表「被引用 pipeline」皆已改用替代方案
+- **重新命名：** 新舊名並列一個 release 後刪除舊名列
+- **跨 Context 重用**：提升至 `components/shared/` 後在本表「所屬 Context」標 `shared`
 
 ---
 
@@ -431,3 +459,4 @@
 | 2026-04-23 | v1.0 | 初版：對應 IA v1.2（48 頁）與 pipeline 19 份 spec 檔；建立 Forward / Reverse / 主題分群 / 使用者旅程 / 元件 / WS / API 多維對照 |
 | 2026-04-23 | v1.1 | 驗證閘（plan §S）補完：註冊 A37 派工人工介入、G1 通知中心、T11 改期日曆；新增 §2.3 Global Pages 類；§7.5 Flow × Page 覆蓋矩陣（Flow 1-14 + G1-G4 + MT1-MT5）；清理 01_dashboard.md；新增 dispatch(manual) / notifications / reschedule API 對應 |
 | 2026-04-23 | v1.2 | Week 3：新增 §7.1 AsyncAPI operationId 反向索引（10 WS 頻道）+ §8.1 OpenAPI operationId 反向索引（抽樣對應）+ webhook (inbound) API context 列 |
+| 2026-04-23 | v1.3 | K-R 階段 3：§6 擴充為**業務元件 SSOT**（加 Context + 用途欄 + V1.1 新元件），接收 Architecture §3.3 業務元件表外遷；Architecture §3.3 僅留組織原則。§3 行數修正（MAPPING §3 本身無重算，跨檔總計不變） |

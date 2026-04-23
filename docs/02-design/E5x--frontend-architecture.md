@@ -371,38 +371,31 @@ export const completionReportSchema = z.object({
 export type CompletionReportInput = z.infer<typeof completionReportSchema>;
 ```
 
-#### 路由設計
+#### 路由設計（Next.js 技術規範）
 
-Next.js App Router 的檔案系統路由直接映射業務領域：
+> **業務 URL 清單請見** `E5x--frontend-information-arch.md §9.1`（52 頁完整 URL 清單，含 V1.0/V2.0/V3.0 版本標記與 Global 類）。
+> 本節僅定義 Next.js App Router 的**技術實作慣例**。
 
-```
-app/
-├── (auth)/                    # 認證路由群組 -- 無側邊欄佈局
-│   ├── login/page.tsx         # 管理員登入
-│   └── forgot-password/page.tsx
-│
-├── (dashboard)/               # Admin Panel 路由群組 -- 側邊欄 + 頂部導航佈局
-│   ├── dashboard/page.tsx     # 儀表板首頁
-│   ├── conversations/         # 對話管理 (customer_service context)
-│   ├── problem-cards/         # 問題卡管理 (customer_service context)
-│   ├── knowledge-base/        # 知識庫管理 (knowledge_base context)
-│   │   ├── cases/             #   案例庫
-│   │   ├── manuals/           #   手冊管理
-│   │   ├── faq/               #   FAQ 管理
-│   │   └── sop-drafts/        #   SOP 草稿審核
-│   ├── work-orders/           # 派工管理 (dispatch context, V2.0)
-│   ├── technicians/           # 技師管理 (dispatch context, V2.0)
-│   ├── accounting/            # 帳務管理 (accounting context, V2.0)
-│   └── settings/              # 系統設定 (user_management context)
-│
-└── (technician)/              # 技師工作台路由群組 -- Mobile-First 佈局
-    ├── tech-login/page.tsx    # 技師登入
-    ├── pool/page.tsx          # 案件池瀏覽
-    ├── my-orders/             # 我的工單
-    │   ├── page.tsx           #   工單列表
-    │   └── [id]/page.tsx      #   工單詳情 / 完工回報
-    └── account/page.tsx       # 帳戶中心（收入、歷史）
-```
+**路由群組策略（App Router Route Groups）：**
+
+| 群組 | 路徑 | 佈局特徵 | 對應 IA |
+|:---|:---|:---|:---|
+| `(auth)` | `app/(auth)/` | 無側邊欄、置中、Mobile-friendly | A0 登入、T0 技師登入、密碼重置 |
+| `(dashboard)` | `app/(dashboard)/` | 側邊欄 + 頂部導航 + 麵包屑 | Admin Panel 全部（A1-A37） |
+| `(technician)` | `app/(technician)/` | Mobile-First、底部導航三 Tab、無側邊欄 | Technician App 全部（T0-T11） |
+| `(global)` | `app/(global)/` | 依需求採用（通知、離線等） | G1 通知、G2 離線 |
+
+**動態段慣例：**
+- 資源 ID：`[id]` 一律使用 UUID 格式（`*id=UUID` 見 Info-Arch §9.1）
+- 巢狀資源：`[resource_id]` 使用具名動態段（如 `[conversation_id]` 強化可讀性）
+- Catch-all（動態深度）：僅限 super admin 管理介面 `app/(dashboard)/admin/super/[...path]/`
+
+**技術約束：**
+- 每個 `page.tsx` 必須 `export const metadata`（SEO + `<title>`）
+- Server Component 優先，Client Component（`"use client"`）僅用於互動式元件
+- 路由層級 `loading.tsx` / `error.tsx` / `not-found.tsx` 標配
+- 私有路由透過 Next.js Middleware（`middleware.ts`）注入 `X-Tenant-ID` + 驗 JWT
+- 路由守衛（RBAC 角色過濾）於 Server Component 使用 `redirect()`；Client 側使用 `<ProtectedRoute>` 包裝
 
 ### 2.3 狀態管理層 (State Management Layer)
 
@@ -877,36 +870,30 @@ export default config;
 | `Stepper` | custom | 多步驟表單 / 工單流程進度 | `steps`, `current` |
 | `DiffViewer` | react-diff-viewer | 稽核 before/after、SOP 差異 | `oldValue`, `newValue` |
 
-#### 業務功能元件 (components/features/)
+#### 業務功能元件 (components/features/) — 設計原則
 
-| 元件 | 所屬 Context | 用途 |
-|:-----|:------------|:-----|
-| `ConversationTimeline` | customer_service | 對話訊息時間軸展示（含文字、圖片、AI 回覆標記） |
-| `ProblemCardViewer` | customer_service | 問題卡結構化檢視（品牌、型號、故障現象、信心分數） |
-| `KnowledgeSearch` | knowledge_base | 知識庫全文搜尋元件 |
-| `SOPReviewPanel` | knowledge_base | SOP 草稿審核面板（核准/駁回/採納，含原始對話對照） |
-| `WorkOrderKanban` | dispatch (V2.0) | 工單看板（待派工 / 已派工 / 維修中 / 已完成 四欄拖放） |
-| `TechnicianMap` | dispatch (V2.0) | 技師地圖標記（Google Maps API，含即時狀態） |
-| `QuotationBuilder` | accounting (V2.0) | 報價單建構器（品牌 x 鎖型 x 工項矩陣選擇） |
-| `ReconciliationTable` | accounting (V2.0) | 對帳明細表（技師 x 月份，含墊付/結算明細） |
-| `CompletionReportForm` | dispatch (V2.0) | 技師完工報告表單（照片上傳、材料清單、工時） |
-| `CasePoolCard` | dispatch (V2.0) | 技師端案件卡片（地址、品牌、報酬、一鍵接單） |
-| `SignaturePad` | e-signature (V2.0) | 雙方簽章（技師/客戶、管理員/財務雙簽） |
-| `DispatchAttemptTimeline` | dispatch (V2.0) | 1~3 次派工嘗試、match score、拒單原因 |
-| `RefundApprovalWorkflow` | accounting (V2.0) | 退款審批 Modal（含 Dual-sign 條件式） |
-| `AuditEventRow` | audit (V2.0) | 可展開的稽核列（before/after JSON diff） |
-| `PermissionMatrix` | rbac (V2.0) | RBAC 權限矩陣（功能 × CRUD × 資源限定） |
-| `InventoryLowStockBanner` | inventory (V2.0) | 低庫存告警 banner + 一鍵跳轉 |
-| `DisputeEvidencePanel` | dispute (V2.0) | 爭議證據時間軸（對話 + 工單狀態 + 客戶送審） |
-| `DiagnosticTraceViewer` | agent-harness (V2.0) | L1/L2/L3 推理鏈視覺化 + 7 信號矩陣 |
-| `TechnicianScheduleCalendar` | dispatch (V2.0) | 技師排班月/週曆（拖放選時段） |
-| `SkillCertificationForm` | dispatch (V2.0) | 技能認證表（證書上傳、到期提醒） |
-| `SettlementBreakdown` | accounting (V2.0) | 結算明細（分潤 + 獎勵 + 扣款 + 墊付） |
-| `KPIFunnelChart` | reports (V2.0) | 轉換漏斗（對話 → 工單 → 完工） |
-| `TechnicianRankingTable` | reports (V2.0) | 技師排行榜（支援下鑽） |
-| `TenantSwitcher` | multi-tenant (V3.0) | 超管租戶切換器（下拉 + search） |
-| `BrandPreviewSandbox` | multi-tenant (V3.0) | 品牌客製化即時預覽（Admin + LINE Flex 並排） |
-| `OfflineQueueIndicator` | infrastructure | Service Worker 離線佇列狀態（技師外勤） |
+> **完整業務元件清單與 pipeline 引用請見** `web_design_spec_prompt_pipeline/pages/MAPPING.md §6`。
+> 本節僅定義**組織原則**，具體元件、所屬 Context、用途、引用 pipeline 以 MAPPING 為 SSOT。
+
+**分層原則：**
+
+1. **按 Bounded Context 分資料夾**（例：`features/customer_service/`、`features/dispatch/`、`features/accounting/`）
+2. **一個元件對應一個業務概念**（不做跨 Context 的巨型元件；跨 Context 合成留給頁面）
+3. **純展示 vs 有狀態**：純展示歸 `features/<context>/components/`；有狀態邏輯（呼叫 API、訂閱 WS）歸 `features/<context>/containers/`
+4. **內部重用**：同 Context 內的 sub-component 放 `features/<context>/components/_internal/`
+5. **跨 Context 重用**（罕見）：提升到 `components/shared/` 並於 MAPPING §6「來源檔」標示
+
+**命名與類型：**
+- 元件名 PascalCase（`WorkOrderKanban`）
+- 對應檔 `*.tsx`，型別檔 `*.types.ts`，測試檔 `*.test.tsx`
+- Context prefix 不在類別名重複（`customer_service/ConversationTimeline.tsx` 而非 `CSConversationTimeline`）
+
+**設計約束：**
+- 每個業務元件必須：
+  - 宣告 TypeScript props interface（禁 `any`）
+  - 提供 Storybook story 或 MDX 文件
+  - 於 MAPPING.md §6 登記「被引用 pipeline」
+- 有寫 API 呼叫的 container 元件必須引用 `openapi.yaml` 的 operationId
 
 ### 3.4 設計令牌 (Design Tokens)
 
@@ -1955,44 +1942,17 @@ export interface Technician {
 }
 ```
 
-**前端頁面與後端 API 端點對應表：**
+**前端頁面與後端 API 端點對應表（已外遷）：**
 
-| 前端頁面路由 | HTTP Method | 後端 API 端點 | 說明 |
-|:------------|:------------|:-------------|:-----|
-| `/login` | POST | `/api/v1/auth/login` | 管理員登入 |
-| `/dashboard` | GET | `/api/v1/dashboard/stats` | 儀表板統計數據 |
-| `/conversations` | GET | `/api/v1/conversations` | 對話列表（cursor 分頁） |
-| `/conversations/[id]` | GET | `/api/v1/conversations/{id}` | 對話詳情 |
-| `/problem-cards` | GET | `/api/v1/problem-cards` | 問題卡列表 |
-| `/knowledge-base/cases` | GET/POST | `/api/v1/knowledge-base/cases` | 案例庫 CRUD |
-| `/knowledge-base/manuals` | POST | `/api/v1/manuals/ingest` | PDF 手冊上傳 |
-| `/knowledge-base/sop-drafts` | GET | `/api/v1/sop-drafts` | SOP 草稿列表 |
-| `/knowledge-base/sop-drafts/[id]` | POST | `/api/v1/sop-drafts/{id}/approve` | SOP 審核 |
-| `/work-orders` (V2.0) | GET | `/api/v1/work-orders` | 工單列表 |
-| `/technicians` (V2.0) | GET | `/api/v1/technicians` | 技師列表 |
-| `/accounting/reconciliations` (V2.0) | GET | `/api/v1/accounting/reconciliations` | 對帳單列表 |
-| `/tech-login` (V2.0) | POST | `/api/v1/technicians/login` | 技師登入 |
-| `/pool` (V2.0) | GET | `/api/v1/work-orders/pool` | 技師案件池 |
-| `/admin/refunds` (V2.0) | GET / POST | `/api/v1/refunds`, `/refunds/{id}/decision`, `/refunds/{id}/signature` | 退款審批 + 雙簽 |
-| `/admin/roles` (V2.0) | GET / POST / PUT | `/api/v1/roles[*]` | RBAC 管理（權限矩陣） |
-| `/admin/audit-events` (V2.0) | GET / POST | `/api/v1/audit-events`, `/audit-events/export` | 稽核查詢 + CSV 匯出 |
-| `/admin/inventory` (V2.0) | GET / POST | `/api/v1/inventory/parts[*]`, `/inventory/low-stock` | 庫存與低庫存告警 |
-| `/admin/warranty-claims` (V2.0) | GET / POST | `/api/v1/warranty-claims[*]` | 保固索賠 |
-| `/admin/disputes` (V2.0) | GET / POST | `/api/v1/disputes[*]` | 爭議仲裁 |
-| `/admin/customers` (V2.0) | GET | `/api/v1/customers[*]` | 客戶主檔 |
-| `/admin/technicians/[id]/schedule` (V2.0) | GET / PUT | `/api/v1/technicians/{id}/schedule` | 技師排班 |
-| `/admin/technicians/[id]/skills` (V2.0) | GET / PUT | `/api/v1/technicians/{id}/skills` | 技師技能 |
-| `/admin/technicians/[id]/settlements` (V2.0) | GET / POST | `/api/v1/technicians/{id}/settlements[*]` | 結算明細 |
-| `/admin/dispatch-queue` (V2.0) | GET | `/api/v1/work-orders/dispatch-queue` + WS | 派工監控 |
-| `/admin/reports/*` (V2.0) | GET | `/api/v1/reports/*` | KPI/排行/營收 |
-| `/admin/diagnostics/[conv_id]` (V2.0) | GET / POST | `/api/v1/diagnostics/{conv_id}[*]` | AI 診斷追溯 |
-| `/admin/settings/tenant` (V3.0) | GET / PUT | `/api/v1/tenants/me[*]` | 租戶設定 |
-| `/admin/super/*` (V3.0) | GET / POST | `/api/v1/super/*` | 超管平台 |
-| `/my-orders/[id]/scope-change` (V2.0) | POST | `/api/v1/work-orders/{id}/scope-change` | 範圍變更 Flow 3 |
-| `/my-orders/[id]/material-request` (V2.0) | POST | `/api/v1/work-orders/{id}/material-request` | 缺料 Flow 4 |
-| `/my-orders/[id]/delay` (V2.0) | POST | `/api/v1/work-orders/{id}/delay` | 延遲 Flow 5 |
-| `/my-orders/[id]/door-check` (V2.0) | POST | `/api/v1/work-orders/{id}/door-check` | 門面 Flow 10 |
-| `/my-orders/[id]/signature` (V2.0) | POST | `/api/v1/work-orders/{id}/signature` | 雙方電子簽章 |
+> **2026-04-23 K-R 階段 3：** 原 33 列頁面→API 對應表已外遷至 `web_design_spec_prompt_pipeline/pages/MAPPING.md §8.1 OpenAPI operationId 反向索引`。
+>
+> **查閱指引：**
+> - 頁面 → operationId 群（抽樣 14 組核心頁面）：`MAPPING.md §8.1`
+> - 完整 URL 清單：`E5x--frontend-information-arch.md §9.1`
+> - operationId → endpoint schema：`docs/02-design/specs/openapi.yaml`
+> - 每份 page spec 內的 API 呼叫明細：`web_design_spec_prompt_pipeline/pages/<N>_*.md` 的 `[DATA & API]` 區段
+>
+> **治理：** 新增前端頁面時，必須同步更新 MAPPING §8.1 + openapi.yaml，不在本檔重複列出。
 
 ### 8.2 錯誤處理策略
 
