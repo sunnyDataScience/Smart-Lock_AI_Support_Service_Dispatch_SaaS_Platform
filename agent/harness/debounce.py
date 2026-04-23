@@ -20,7 +20,7 @@ import harness.memory_manager as memory_manager
 from harness.line_ui_factory import (
     build_line_messages, match_brand, match_model, get_brand_models, is_quick_reply_enabled,
 )
-from skills.tools import set_current_user_id, set_current_brand, get_current_brand, get_current_model
+from skills.tools import set_current_user_id, set_current_brand, get_current_brand, get_current_model, reset_run_state, set_current_user_input
 from agent import get_system_prompt
 import harness.profile_updater as profile_updater
 import harness.safety_gate as safety_gate
@@ -251,6 +251,15 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         buffer_items: 原始 buffer items（用於 checkpoint 清理時取得 file_path）。
     """
     set_current_user_id(user_id)
+    reset_run_state()
+
+    # 設定用戶原始輸入文字（供 transfer_to_human guard 判斷轉接意圖）
+    if isinstance(user_input, str):
+        set_current_user_input(user_input)
+    else:
+        # 多模態：提取 text blocks
+        text_parts = [b["text"] for b in user_input if isinstance(b, dict) and b.get("type") == "text"]
+        set_current_user_input(" ".join(text_parts))
 
     request_timeout = _config.get("request_timeout", 60)
     is_multimodal = isinstance(user_input, list)

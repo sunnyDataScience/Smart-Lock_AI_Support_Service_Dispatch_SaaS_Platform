@@ -19,6 +19,16 @@ _profile_mgr = None
 _current_user_id: ContextVar[str] = ContextVar("current_user_id", default="")
 _current_brand: ContextVar[str | None] = ContextVar("current_brand", default=None)
 _current_model: ContextVar[str | None] = ContextVar("current_model", default=None)
+_skill_loaded_this_run: ContextVar[bool] = ContextVar("skill_loaded_this_run", default=False)
+_current_user_input: ContextVar[str] = ContextVar("current_user_input", default="")
+
+# 明確轉接意圖關鍵字（出現在用戶訊息中時允許跳過 load_skill 直接轉接）
+_TRANSFER_KEYWORDS = [
+    "轉真人", "找專員", "找人工客服", "幫我轉接", "找真人",
+    "不要跟機器人", "讓我跟人說話", "請師傅來", "派師傅",
+    "馬上叫修", "趕快派人", "現在就派",
+    "報價", "費用", "多少錢", "退費", "退款", "發票", "付款", "刷卡", "分期",
+]
 
 
 def set_skills(skills: list[Skill]) -> None:
@@ -36,6 +46,16 @@ def set_profile_mgr(profile_mgr) -> None:
 def set_current_user_id(user_id: str) -> None:
     """設定當前請求的 user_id（每次 run_agent 前呼叫）。"""
     _current_user_id.set(user_id)
+
+
+def reset_run_state() -> None:
+    """重置每次 run_agent 的狀態（技能載入追蹤等）。"""
+    _skill_loaded_this_run.set(False)
+
+
+def set_current_user_input(text: str) -> None:
+    """設定當前請求的用戶原始輸入（供 transfer guard 判斷轉接意圖）。"""
+    _current_user_input.set(text)
 
 
 def set_current_brand(brand: str | None, model: str | None = None) -> None:
@@ -81,6 +101,7 @@ def load_skill(skill_name: str) -> str:
                     f"請載入適合該品牌的技能。"
                 )
             print(f"[skill] >>> 載入技能: {s.name}")
+            _skill_loaded_this_run.set(True)
             return f"已載入技能: {s.name}\n\n{s.content}"
 
     # 前綴比對：找出所有以 skill_name 為前綴的品牌子技能
@@ -201,6 +222,18 @@ async def transfer_to_human(reason: str) -> str:
         reason: 轉接原因摘要
     """
     print(f"[transfer] >>> 轉接真人: {reason}")
+
+    # Guard：未載入任何技能且用戶未明確要求轉接 → 拒絕，要求先 load_skill
+    if not _skill_loaded_this_run.get():
+        user_input = _current_user_input.get()
+        if not any(kw in user_input for kw in _TRANSFER_KEYWORDS):
+            print(f"[transfer] >>> 攔截：尚未載入技能，非明確轉接要求")
+            return (
+                "你尚未載入任何技能 SOP 就要轉接真人。"
+                "請先用 load_skill 載入對應技能（如 app-guide、troubleshoot、product-knowledge 等）"
+                "嘗試回答客戶的問題。只有在技能 SOP 確實無法解決、或客戶明確要求轉真人時，"
+                "才呼叫 transfer_to_human。"
+            )
 
     # 從 context var 取 user_id 查 DB，自動填入已知資料
     user_id = _current_user_id.get()
