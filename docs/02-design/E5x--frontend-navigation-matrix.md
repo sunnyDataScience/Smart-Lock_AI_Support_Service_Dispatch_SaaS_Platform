@@ -477,3 +477,183 @@ channel.addEventListener('message', (e) => {
 | 日期 | 版本 | 變更摘要 |
 |:---|:---|:---|
 | 2026-04-23 | v0.1 | 初稿（Claude 起草）：7 節（導航矩陣/Dirty State/錯誤/QS/深連結/多頁簽/返回）+ 校對清單 |
+| 2026-04-23 | v0.2 | T1.5 完整附錄：21 份 pipeline spec 的 Upstream/Downstream/State/Error 矩陣 |
+
+---
+
+## 附錄 A：21 份 Pipeline Spec 導航與狀態矩陣（T1.5）
+
+> 每份 pipeline page spec 的標準「Upstream Sources / Downstream Targets / State Persistence / Error Navigation / Deep Link / Multi-tab」彙總於本附錄。
+> 各 spec 透過「見 navigation-matrix §附錄 A」一行引用，避免 19 份檔案重複維護。
+
+### 02_admin_dashboard.md — A1 /dashboard
+- **Upstream**: A0 登入後、任一頁 app header home icon
+- **Downstream**: A11 工單、A28 派工、A17 退款、A29 KPI、G1 通知
+- **State Persistence**: widget 折疊狀態 via localStorage；即時指標不持久化
+- **Error Navigation**: 401 → 登入；500 → 顯示 degraded banner
+- **Deep Link**: supported（PWA 首頁）
+- **Multi-tab**: WS `/realtime/sla-alerts` + `/realtime/notifications`
+
+### 03_admin_conversations.md — A2 列表 / A3 詳情
+- **Upstream A2**: A1 side nav、搜尋；**A3**: A2 列表、LINE Push 深連結
+- **Downstream A2**: A3；**A3**: A4/A5 問題卡、A11 新建工單、A37 人工派工
+- **State Persistence**: A2 filter via URL query；A3 對話捲軸位置 via sessionStorage
+- **Error Navigation**: 404 → A2 + toast「對話不存在」；409 併入 diff
+- **Deep Link**: supported（A3 `/conversations/[id]?message=msg_xxx` highlight 單則訊息）
+- **Multi-tab**: WS `/realtime/work-orders/*` 若對話已開工單
+
+### 04_admin_problem_cards.md — A4 列表 / A5 詳情
+- **Upstream**: A3 對話衍生、A2 搜尋、A12 工單詳情反查
+- **Downstream**: A5、A11 / A12、A3 對話
+- **State Persistence**: filter via URL query；草稿 via sessionStorage
+- **Error Navigation**: 404 → A4；409 `PROBLEM_CARD_LOCKED` → 只讀模式
+- **Deep Link**: supported
+- **Multi-tab**: WS 對應對話頻道
+
+### 05_admin_knowledge_base.md — A6/A7/A8/A9/A10
+- **Upstream**: A1 side nav、A3 對話案例衍生、A10 SOP 審核佇列
+- **Downstream**: 案例詳情、手冊預覽、SOP diff、A33 績效
+- **State Persistence**: tab 選擇 via URL（?tab=cases|manuals|sop-drafts）；SOP 草稿編輯 via IndexedDB（長期編輯類）
+- **Error Navigation**: 404 → tab 列表；423 審核中鎖定 → 顯示編輯中提示
+- **Deep Link**: supported（`?case_id=xxx` 深連結案例）
+- **Multi-tab**: WS 無專用頻道；BroadcastChannel 本地同步
+
+### 06_admin_work_orders.md — A11
+- **Upstream**: A1 side nav、全域搜尋、A2/A3 轉工單、外部連結
+- **Downstream**: A12、A37 手動派工、A28 派工佇列
+- **State Persistence**: 列表 filter/sort/page via URL query（含 Kanban vs List 切換）；scroll 位置 via sessionStorage
+- **Error Navigation**: 401 重導、403 禁用按鈕、5xx 錯誤 banner
+- **Deep Link**: supported（filter 可書籤）
+- **Multi-tab**: WS `/realtime/dispatch-queue` + BroadcastChannel
+
+### 07_admin_work_order_detail.md — A12（已於 T1.4 延伸）
+- **Upstream**: A11、A28、搜尋、深連結、LINE Push、A37 指派後
+- **Downstream**: A17 退款、A22 爭議、T5-T9 子流程、A37、客訴升級
+- **State Persistence**: 編輯表單 via IndexedDB（長期編輯）；tab 選擇 via URL
+- **Error Navigation**: 404 → A11；409 `OPTIMISTIC_LOCK_FAILED` → diff 對話框；423 → 只讀
+- **Deep Link**: supported
+- **Multi-tab**: WS `/realtime/work-orders/{id}` + BroadcastChannel
+
+### 08_admin_technicians.md — A13 列表 / A14 詳情
+- **Upstream**: A1 side nav、A12 指派連結、搜尋
+- **Downstream**: A14、A25 排班、A26 技能、A27 結算
+- **State Persistence**: filter/sort via URL
+- **Error Navigation**: 404 → A13；423 熔斷中 → 警告 banner
+- **Deep Link**: supported
+- **Multi-tab**: WS `/realtime/rbac` 權限變更即時生效
+
+### 09_admin_accounting.md — A15
+- **Upstream**: A1 side nav、A17 退款後、A12 工單計費衍生
+- **Downstream**: 發票 PDF 預覽、A20 稽核、A22 爭議
+- **State Persistence**: 期間選擇 via URL；對帳篩選 via URL
+- **Error Navigation**: 5xx 降級為快取；402 `PAYMENT_FAILED` → 行內重試
+- **Deep Link**: supported（期間參數）
+- **Multi-tab**: WS `/realtime/refunds`
+
+### 10_admin_advanced.md — A17/A18/A19/A20/A21/A22
+- **Upstream**: A1 side nav、儀表板告警、G1 通知跳轉
+- **Downstream**: A12（爭議/退款關聯）、A14（稽核行為主體）
+- **State Persistence**: 子頁 tab via URL；列表 filter via URL；草稿 via sessionStorage
+- **Error Navigation**: 409 雙簽 pending、423 已鎖定、403 權限不足（依 RBAC 子權限）
+- **Deep Link**: supported（每子頁獨立 route）
+- **Multi-tab**: WS 依子頁 `/realtime/refunds` `/realtime/disputes` `/realtime/rbac` `/realtime/inventory/low-stock`
+
+### 11_tech_pool.md — T1
+- **Upstream**: T0 登入後、bottom nav、Push notification
+- **Downstream**: T3 工單詳情（接單後）
+- **State Persistence**: 地圖 center/zoom via sessionStorage
+- **Error Navigation**: 離線 → 本地快取顯示；5xx → degraded banner
+- **Deep Link**: supported（PWA 首頁）
+- **Multi-tab**: WS `/realtime/pool/{tech_id}`
+
+### 12_tech_my_orders.md — T2 列表 / T3 詳情
+- **Upstream T2**: T1 接單後、bottom nav、Push；**T3**: T2、LINE Push、PWA 捷徑
+- **Downstream T3**: T5-T9 子流程、T11 改期
+- **State Persistence**: tab via URL；T3 完工報告 via IndexedDB（長期 + offline queue）
+- **Error Navigation**: 離線 queue via SW；409 → refetch；404 → T2
+- **Deep Link**: supported
+- **Multi-tab**: WS `/realtime/work-orders/{id}` + BroadcastChannel
+
+### 13_tech_account.md — T4
+- **Upstream**: bottom nav
+- **Downstream**: T10 排班（`/account/schedule`）、登出
+- **State Persistence**: 個資編輯 via sessionStorage（一次性）
+- **Error Navigation**: 401 → T0
+- **Deep Link**: supported
+- **Multi-tab**: WS `/realtime/rbac`
+
+### 14_auth_and_settings.md — A0 / T0 / A16
+- **Upstream A0/T0**: 直接；**A16**: A1 header settings
+- **Downstream**: A1 / T1（登入後）；A16 登出、租戶切換
+- **State Persistence**: MFA secret via sessionStorage（短暫）；A16 設定 via IndexedDB（長期編輯類，有 dirty warning）
+- **Error Navigation**: 401 `LOGIN_INVALID_CREDENTIALS` 行內紅字；423 `LOGIN_ACCOUNT_LOCKED` 頁面鎖定
+- **Deep Link**: A16 sub tab via URL `?tab=notifications|pricing|rules|integrations`
+- **Multi-tab**: WS `/realtime/rbac`（權限變更即時重繪）
+
+### 15_admin_customers_and_diagnostics.md — A23/A24/A32/A33
+- **Upstream**: A1、A3 對話延伸、A12 工單延伸
+- **Downstream**: A12 相關工單、A22 爭議歷史、SOP 詳情
+- **State Persistence**: 客戶 PII 檢視歷程 via sessionStorage；A32 診斷 reasoning 串流 via React state（不持久）
+- **Error Navigation**: 403 PII 遮蔽降級；410 串流過期
+- **Deep Link**: A24 tabs via URL、A32 `/admin/diagnostics/[conv_id]`
+- **Multi-tab**: WS `/realtime/diagnostics/{conv_id}` SSE（A32）
+
+### 16_admin_technician_detail.md — A25/A26/A27
+- **Upstream**: A14 技師詳情
+- **Downstream**: A12 關聯工單、A15 結算匯出
+- **State Persistence**: 排班編輯 via IndexedDB；技能認證上傳 via SW offline queue
+- **Error Navigation**: 409 排班衝突（對齊 Flow 14）→ 顯示衝突詳情；422 技能過期阻擋
+- **Deep Link**: supported
+- **Multi-tab**: WS `/realtime/dispatch-queue`
+
+### 17_admin_dispatch_queue_and_reports.md — A28/A29/A30/A31
+- **Upstream**: A1 side nav、儀表板告警、A37 返回
+- **Downstream**: A12 工單詳情、A37 手動派工、PDF 匯出
+- **State Persistence**: 過濾器 via URL；報表期間 via URL
+- **Error Navigation**: 413 匯出過大 → 改非同步；410 快取過期 → 重查
+- **Deep Link**: supported（PDF direct link）
+- **Multi-tab**: WS `/realtime/dispatch-queue` + `/realtime/sla-alerts`
+
+### 18_admin_multi_tenant.md — A34/A35/A36
+- **Upstream**: A1 side nav（super_admin）、A16 租戶切換
+- **Downstream**: A35 品牌詳情、A36 子頁、B2B Key 詳情、租戶 Wizard
+- **State Persistence**: 品牌草稿 via IndexedDB；送審後 via server state
+- **Error Navigation**: 403 非 super_admin 重導；422 `BRAND_CONFIG_INVALID` 行內
+- **Deep Link**: supported（子頁 tab via URL）
+- **Multi-tab**: WS `/realtime/rbac`（租戶狀態變更即時生效）
+
+### 19_tech_workorder_subflows.md — T5/T6/T7/T8/T9/T10（含客戶 RSVP）
+- **Upstream**: T3 工單詳情各 action button
+- **Downstream**: T3（完成後返回）；T9 簽章 → 客戶 LINE Flex；T11 改期
+- **State Persistence**: 各子流程草稿 via IndexedDB；離線 queue via SW Background Sync
+- **Error Navigation**: 離線佇列；409 狀態機阻擋；422 表單
+- **Deep Link**: supported
+- **Multi-tab**: WS `/realtime/work-orders/{id}` + BroadcastChannel
+
+### 20_admin_dispatch_manual.md — A37（已於 T1.3 含）
+（已在檔案內「導航與狀態」段定義）
+
+### 21_global_notifications.md — G1（已於 T1.3 含）
+（已在檔案內「導航與狀態」段定義）
+
+### 22_reschedule_calendar.md — T11（已於 T1.3 含）
+（已在檔案內「導航與狀態」段定義）
+
+---
+
+## 附錄 B：T1.5 套用規範
+
+每份 `pages/*.md`（除 20/21/22 已完整外）於檔末追加：
+
+```markdown
+---
+
+## 導航與狀態 (Navigation & State)
+
+完整 Upstream / Downstream / State / Error 規範見
+`docs/02-design/E5x--frontend-navigation-matrix.md §附錄 A`。
+
+本檔覆蓋的頁面：<IA 編號>
+```
+
+採集中維護模式避免 19 份檔案各自手動同步時漂移。未來若個別頁面有特殊規則，可在此引用下方補一行 `本檔特例：...`。

@@ -1052,3 +1052,13 @@ WebSocket 訂閱同既有：`/realtime/work-orders/{id}`；新事件 `complaint.
 - [ ] anger_level 5 的閃爍動畫是否會干擾其他操作？
 - [ ] complaint_escalation_indicator 的倒數計時過 SLA 自動升級 — 是否會與 Flow 9 主流程的升級重複？
 - [ ] dispute badge 與既有 status_badge 位置是否衝突？
+
+
+---
+
+## 導航與狀態 (Navigation & State)
+
+完整 Upstream / Downstream / State Persistence / Error Navigation 規範見
+`docs/02-design/E5x--frontend-navigation-matrix.md §附錄 A`（本檔對應段落）。
+
+本 spec 覆蓋的 IA 頁面依 `MAPPING.md §2` 查找。

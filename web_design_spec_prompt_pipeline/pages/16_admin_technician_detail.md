@@ -733,3 +733,13 @@
 - [ ] 證書縮圖採用 lazy loading
 - [ ] PDF 匯出 < 5 秒完成（後端渲染）
 - [ ] 符合 Design System 視覺規範（Primary #2563EB、Accent #F59E0B、Secondary #1E293B、BG #F8FAFC、Font Inter + Noto Sans TC）
+
+
+---
+
+## 導航與狀態 (Navigation & State)
+
+完整 Upstream / Downstream / State Persistence / Error Navigation 規範見
+`docs/02-design/E5x--frontend-navigation-matrix.md §附錄 A`（本檔對應段落）。
+
+本 spec 覆蓋的 IA 頁面依 `MAPPING.md §2` 查找。

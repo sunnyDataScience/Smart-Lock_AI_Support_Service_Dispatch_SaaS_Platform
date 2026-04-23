@@ -308,3 +308,13 @@
 - [ ] Loading / Error / Empty 三態完備
 - [ ] 緊急工單（emergency）顯示 Red Code 脈衝 Badge
 - [ ] 電話按鈕可觸發系統撥號，導航按鈕開啟 Google Maps
+
+
+---
+
+## 導航與狀態 (Navigation & State)
+
+完整 Upstream / Downstream / State Persistence / Error Navigation 規範見
+`docs/02-design/E5x--frontend-navigation-matrix.md §附錄 A`（本檔對應段落）。
+
+本 spec 覆蓋的 IA 頁面依 `MAPPING.md §2` 查找。

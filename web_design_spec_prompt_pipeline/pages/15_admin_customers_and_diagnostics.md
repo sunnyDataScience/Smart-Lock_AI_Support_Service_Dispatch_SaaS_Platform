@@ -860,3 +860,13 @@
 - [ ] 所有敏感操作（合併、覆寫、下架、風險覆寫、標記需檢視）寫入 `audit-events`
 - [ ] 所有 mutation 附 `Idempotency-Key`（合併、覆寫、標記、下架）
 - [ ] `X-Tenant-ID` header 強制附帶（V3.0）
+
+
+---
+
+## 導航與狀態 (Navigation & State)
+
+完整 Upstream / Downstream / State Persistence / Error Navigation 規範見
+`docs/02-design/E5x--frontend-navigation-matrix.md §附錄 A`（本檔對應段落）。
+
+本 spec 覆蓋的 IA 頁面依 `MAPPING.md §2` 查找。

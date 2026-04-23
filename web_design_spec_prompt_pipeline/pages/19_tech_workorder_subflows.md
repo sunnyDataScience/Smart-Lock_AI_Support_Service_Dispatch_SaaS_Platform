@@ -1002,3 +1002,13 @@ Body: { slot_index: int, line_user_id: str, confirmed_at: ISO8601 }
 - [ ] LINE Flex 3 slot 按鈕 + reject 共 4 個是否超 LINE primary action 上限？
 - [ ] 客戶 reject 後是否改排客服電話主動聯繫？
 - [ ] 技師訊息 120 字是否足夠？
+
+
+---
+
+## 導航與狀態 (Navigation & State)
+
+完整 Upstream / Downstream / State Persistence / Error Navigation 規範見
+`docs/02-design/E5x--frontend-navigation-matrix.md §附錄 A`（本檔對應段落）。
+
+本 spec 覆蓋的 IA 頁面依 `MAPPING.md §2` 查找。
