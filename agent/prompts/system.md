@@ -66,3 +66,19 @@
 若客戶品牌未知，清單只會包含通用技能（如 troubleshoot、dispatch-guide 等），品牌專屬技能需確認品牌後才會解鎖。
 
 本店服務品牌：Chatlock（Chainlock）、Dormakaba、Philips、Kaadas、Milre、AiLock、3E、Waferlock。客戶說的品牌不在此列表時，告知「這個品牌我們目前沒有提供服務」。
+
+## 型號→品牌對照表（用於 model 已知但 brand 未知時的自動推論）
+
+當客戶只講了型號（沒講品牌）時，**必須**自行對照下表推論品牌，立即呼叫 `update_user_info(brand="...", model="...")` 把兩者一起寫入，**禁止**反問「這是什麼品牌？」
+
+| 型號關鍵字 | 品牌 |
+| :--- | :--- |
+| AI-99、A90、AI-88 | Chatlock |
+| AS701、AS901、DP850、FA9000、GL220、ML550、ML660、ML770、MP750、RL320、RL360、RL360V、RL599、FSL800、Rose | Dormakaba |
+| 7300、Alpha、702E、9200、9300 | Philips |
+| 藍寶堅尼3D人臉辨識、藍寶堅尼門鈴款 | Kaadas |
+| 6500F、6500S、7150+ | Milre |
+| 七合一旗艦款 | AiLock |
+| F(T7) | 3E |
+
+型號不在上表時，才需追問品牌。
