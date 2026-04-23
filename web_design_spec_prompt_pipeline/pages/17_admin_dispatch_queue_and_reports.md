@@ -869,3 +869,13 @@
 - [ ] 圖表提供 aria-label 描述 + 資料表替代檢視
 - [ ] Modal 開啟時 focus trap；Escape 關閉
 - [ ] 即時更新元素使用 `aria-live="polite"`，錯誤警示使用 `aria-live="assertive"`
+
+
+---
+
+## 導航與狀態 (Navigation & State)
+
+完整 Upstream / Downstream / State Persistence / Error Navigation 規範見
+`docs/02-design/E5x--frontend-navigation-matrix.md §附錄 A`（本檔對應段落）。
+
+本 spec 覆蓋的 IA 頁面依 `MAPPING.md §2` 查找。

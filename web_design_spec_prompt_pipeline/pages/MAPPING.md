@@ -3,7 +3,7 @@
 > **用途：** 作為 `docs/02-design/E5x--frontend-information-arch.md`（IA 48 頁定義）與本目錄 `web_design_spec_prompt_pipeline/pages/*.md`（19 份 page spec）之間的**雙向對照索引**。
 > **維護原則：** IA 新增/刪除頁面時同步更新本檔；pipeline 新增 spec 檔時新增對應列。
 >
-> **最後更新：** 2026-04-23 · **版本：** v1.0 · **對應 IA 版本：** v1.2 · **對應前端架構版本：** v1.2
+> **最後更新：** 2026-04-23 · **版本：** v1.1 · **對應 IA 版本：** v1.2 · **對應前端架構版本：** v1.2
 
 ---
 
@@ -11,13 +11,14 @@
 
 | 指標 | 數字 |
 |:-----|:----|
-| IA 定義頁面總數 | **48 頁**（Admin 37 + Technician 11） |
-| Pipeline spec 檔數 | **19 份**（`page_template.md` 不計） |
-| 平均每份 spec 覆蓋頁數 | 2.5 頁 |
-| 已覆蓋頁面 | 48 / 48 ✅ |
+| IA 定義頁面總數 | **52 頁**（Admin 38 + Technician 12 + Global 2，V1.1 新增 A37/G1/G2/T11） |
+| Pipeline spec 檔數 | **22 份**（`page_template.md` 不計） |
+| 平均每份 spec 覆蓋頁數 | 2.4 頁 |
+| 已覆蓋頁面 | 52 / 52 ✅ |
 | V1.0 頁面 | 11 頁 / 已覆蓋 11 |
-| V2.0 頁面 | 34 頁 / 已覆蓋 34 |
+| V2.0 頁面 | 37 頁 / 已覆蓋 37（含驗證閘新增 A37/G1/T11）|
 | V3.0 頁面 | 3 頁 / 已覆蓋 3 |
+| V1.1 新增（plan §S 驗證閘）| A37、G1、T11（Global 類另增 G2 保留）|
 
 ---
 
@@ -64,8 +65,10 @@
 | A34 | `/admin/settings/tenant` | 租戶設定 | V3.0 | `18_admin_multi_tenant.md` | A34 子段（5 Tabs） |
 | A35 | `/admin/settings/tenant/brand` | 品牌客製 | V3.0 | `18_admin_multi_tenant.md` | A35 子段 |
 | A36 | `/admin/super/*` | 超管平台 | V3.0 | `18_admin_multi_tenant.md` | A36 子段 |
+| **A37** | `/admin/dispatch-manual` | **派工人工介入** | V2.0 ² | `20_admin_dispatch_manual.md` | 主要 |
 
-> ¹ **注意：** `01_dashboard.md`（Sunny AI Hub Dashboard）與 `02_admin_dashboard.md` 皆指向 `/dashboard`。`02` 為當前採用版本，`01` 屬早期草稿，後續清理時建議保留 `02` 並歸檔 `01`。
+> ¹ **注意：** `01_dashboard.md` 已於 2026-04-23 清理（commit `f42ee65`）。
+> ² **V1.1 新增：** A37 由 plan §S 驗證閘補入，覆蓋 Flow 2 技師 3 次拒單後的人工派工情境。
 
 ### 2.2 Technician Web App（11 頁）
 
@@ -82,6 +85,16 @@
 | T8 | `/my-orders/[id]/door-check` | 門面外觀檢核 | V2.0 | `19_tech_workorder_subflows.md` | T8 子段 |
 | T9 | `/my-orders/[id]/signature` | 雙方電子簽章 | V2.0 | `19_tech_workorder_subflows.md` | T9 子段 |
 | T10 | `/account/schedule` | 我的排班 | V2.0 | `19_tech_workorder_subflows.md` | T10 子段 |
+| **T11** | `/my-orders/[id]/reschedule` | **改期日曆** | V2.0 ² | `22_reschedule_calendar.md` | 主要 |
+
+### 2.3 Global Pages（跨角色，V1.1 新增）
+
+| IA # | 路徑 | 頁面名稱 | 版本 | Pipeline 檔 | Section 位置 |
+|:-----|:-----|:---------|:-----|:------------|:-------------|
+| **G1** | `/notifications` | **全域通知中心** | V2.0 ² | `21_global_notifications.md` | 主要 |
+| G2 | `/offline` | 離線狀態頁 | V2.0 ² | `23_global_offline.md` | 主要 |
+
+> ³ G2 spec 於 2026-04-23 驗證閘 Stage 3 末期建立（commit `b409c8a`）。
 
 ---
 
@@ -89,7 +102,7 @@
 
 | # | Pipeline 檔 | 行數 | 覆蓋 IA 頁 | 主題 |
 |:---|:---|---:|:---|:---|
-| 01 | `01_dashboard.md` | — | A1（舊版，建議歸檔） | Sunny AI Hub Dashboard |
+| ~~01~~ | ~~`01_dashboard.md`~~ | — | — | 已清理（commit `f42ee65`） |
 | 02 | `02_admin_dashboard.md` | — | **A1** | Admin 營運儀表板 |
 | 03 | `03_admin_conversations.md` | — | **A2, A3** | 對話列表 + 詳情 |
 | 04 | `04_admin_problem_cards.md` | — | **A4, A5** | 問題卡列表 + 詳情 |
@@ -107,7 +120,13 @@
 | **16** | `16_admin_technician_detail.md` | **735** | **A25, A26, A27** | 技師詳細管理 |
 | **17** | `17_admin_dispatch_queue_and_reports.md` | **871** | **A28, A29, A30, A31** | 派工監控 + 報表群 |
 | **18** | `18_admin_multi_tenant.md` | **835** | **A34, A35, A36** | 多租戶管理（V3.0） |
-| **19** | `19_tech_workorder_subflows.md` | **926** | **T5, T6, T7, T8, T9, T10** | 工單子流程（6 合 1） |
+| **19** | `19_tech_workorder_subflows.md` | **1,004** | **T5, T6, T7, T8, T9, T10** + Flow 11 客戶 RSVP | 工單子流程 + T1.4 RSVP 補強 |
+| **20** | `20_admin_dispatch_manual.md` | **297** | **A37** | 派工人工介入（V1.1 新增） |
+| **21** | `21_global_notifications.md` | **324** | **G1** | 全域通知中心（V1.1 新增） |
+| **22** | `22_reschedule_calendar.md` | **318** | **T11** | 改期日曆（V1.1 新增） |
+| **23** | `23_global_offline.md` | **265** | **G2** | 離線狀態頁（V1.1 新增） |
+
+粗體（14-19）為 2026-04-23 新增；20-23 為 2026-04-23 驗證閘（plan §S）補入。
 
 粗體為 2026-04-23 新增。
 
@@ -267,7 +286,61 @@
 | `/realtime/rbac` | 全域（所有 session） | 全部 |
 | `/realtime/inventory/low-stock` | A19 | 10 |
 | `/realtime/diagnostics/{conv_id}` (SSE) | A32 | 15 |
-| `/realtime/notifications/{user_id}` | 全域 | 全部 |
+| `/realtime/notifications/{user_id}` | **G1 + 全域 header bell** | **21** + 全部 |
+
+> **新增：** G1 通知中心是 `/realtime/notifications/{user_id}` 的主要消費頁（21_global_notifications.md）。
+
+---
+
+## 7.5 Flow × Page 覆蓋矩陣（2026-04-23 驗證閘新增）
+
+> 對齊 `E5x--work-order-interaction-flows.md` 13 個 Flow + 新增 Flow 14、`flows-admin-governance.md` G1-G4、`flows-multi-tenant.md` MT1-MT5。
+
+### 工單互動 Flow（14 個）
+
+| Flow | 主題 | 涉及頁面（IA） | Pipeline |
+|:---|:---|:---|:---|
+| Flow 1 | Happy Path | T1 → T3 → T9 | 11, 12, 19 |
+| Flow 2 | 拒單重派 | A11, A12, **A37**, T1 | 06, 07, **20**, 11 |
+| Flow 3 | 範圍變更 | T3, T5, A12 | 12, 19, 07 |
+| Flow 4 | 缺料處理 | T3, T6, A12, A19 | 12, 19, 07, 10 |
+| Flow 5 | 延遲通知 | T3, T7, **T11** | 12, 19, **22** |
+| Flow 6 | 退款雙簽 | A17（含雙簽 pad）| 10 |
+| Flow 7 | 保固爭議 | A21, A22, A32 | 10, 15 |
+| Flow 8 | 二次派工 | A12, A13, A28 | 07, 08, 17 |
+| Flow 9 | 客訴生命週期 | A12, A22, **A37 升級** | 07, 10, 20 |
+| Flow 10 | 門面變更 | T3, T8, T9 | 12, 19 |
+| Flow 11 | 客戶不在場 | T3, **T11**, 客戶 LINE Flex RSVP | 12, **22**, **19 T1.4 補強** |
+| Flow 12 | 金流與支付 | A9 帳務、客戶 LINE 支付頁 | 09 |
+| Flow 13 | 帳款異常 EX5 | A9, A20 | 09, 10 |
+| **Flow 14** | **技師排班衝突** | **T10, A25, A28, A37** | **19, 16, 17, 20** |
+
+### 管理員治理 Flow（4 個）
+
+| Flow | 主題 | 涉及頁面（IA） | Pipeline |
+|:---|:---|:---|:---|
+| G1 | RBAC 角色生命週期 | A18 | 10 |
+| G2 | 稽核查詢匯出 | A20 | 10 |
+| G3 | 庫存低警報補貨 | A19, **G1 通知** | 10, **21** |
+| G4 | 爭議仲裁 | A22, A17, A12 | 10, 07 |
+
+### V3.0 多租戶 Flow（5 個）
+
+| Flow | 主題 | 涉及頁面（IA） | Pipeline |
+|:---|:---|:---|:---|
+| MT1 | 租戶開通 | A36 | 18 |
+| MT2 | 品牌客製審核 | A34, A35, A36 | 18 |
+| MT3 | 超管跨租戶 | A36 | 18 |
+| MT4 | B2B API Key | A34 子 Tab | 18 |
+| MT5 | 租戶退場 | A34, A36 | 18 |
+
+### 全站橫切
+
+| 橫切功能 | 涉及所有頁面 | Pipeline |
+|:---|:---|:---|
+| 全域通知 | 任一頁 bell → **G1** | **21** |
+| 全域登入／登出 | A0, T0 | 14 |
+| 全域導航規範 | 48+ 頁 | `E5x--frontend-navigation-matrix.md` 本表外 |
 
 ---
 
@@ -289,18 +362,22 @@
 | `agent-harness` | `/api/v1/diagnostics/*` | 15 |
 | `multi-tenant` | `/api/v1/tenants/*`, `/api/v1/super/*` | 18 |
 | `e-signature` | `/api/v1/signatures/*` | 10 (refund dual-sign), 19 (T9) |
+| `dispatch (manual)` | `/api/v1/dispatch/candidates`, `/work-orders/{id}/assign` | **20, 07** |
+| `notifications` | `/api/v1/notifications/*` | **21** |
+| `reschedule` | `/api/v1/work-orders/{id}/reschedule`, `/technicians/me/availability` | **22, 19 T1.4** |
 
 ---
 
 ## 9. 驗證檢查清單
 
-- [x] 所有 IA 頁面（48）都有對應 pipeline 檔
+- [x] 所有 IA 頁面（52）都有對應 pipeline 檔（含 V1.1 新增 A37/G1/T11；G2 保留）
 - [x] 所有 pipeline 檔都能對應回 IA 頁面
 - [x] V1.0 / V2.0 / V3.0 版本標記一致
 - [x] 每個多檔共用的元件（如 `SignaturePad`）都追溯到源 spec
 - [x] WebSocket 頻道清單覆蓋所有即時需求
-- [x] 重複檔（`01_dashboard.md` vs `02_admin_dashboard.md`）已標記待清理
-- [ ] （待辦）清理 `01_dashboard.md` 或明確區分兩者用途
+- [x] 重複檔（`01_dashboard.md` vs `02_admin_dashboard.md`）已於 commit `f42ee65` 清理
+- [x] Flow × Page 矩陣建立（§7.5，含 Flow 1-14 + G1-G4 + MT1-MT5）
+- [x] G2 `/offline` spec 檔（`23_global_offline.md`，驗證閘 Stage 3 完成）
 - [ ] （待辦）若 IA 後續新增頁面，同步更新本檔
 
 ---
@@ -310,3 +387,4 @@
 | 日期 | 版本 | 變更摘要 |
 |:-----|:-----|:---------|
 | 2026-04-23 | v1.0 | 初版：對應 IA v1.2（48 頁）與 pipeline 19 份 spec 檔；建立 Forward / Reverse / 主題分群 / 使用者旅程 / 元件 / WS / API 多維對照 |
+| 2026-04-23 | v1.1 | 驗證閘（plan §S）補完：註冊 A37 派工人工介入、G1 通知中心、T11 改期日曆；新增 §2.3 Global Pages 類；§7.5 Flow × Page 覆蓋矩陣（Flow 1-14 + G1-G4 + MT1-MT5）；清理 01_dashboard.md；新增 dispatch(manual) / notifications / reschedule API 對應 |

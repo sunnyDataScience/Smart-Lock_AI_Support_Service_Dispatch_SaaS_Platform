@@ -320,3 +320,13 @@
 - [ ] 表單 dirty close 保護機制（未儲存提醒）
 - [ ] 頁面首次載入回應時間 < 2 秒
 - [ ] 符合 Design System 視覺規範（Primary #2563EB、Accent #F59E0B、字體 Inter + Noto Sans TC）
+
+
+---
+
+## 導航與狀態 (Navigation & State)
+
+完整 Upstream / Downstream / State Persistence / Error Navigation 規範見
+`docs/02-design/E5x--frontend-navigation-matrix.md §附錄 A`（本檔對應段落）。
+
+本 spec 覆蓋的 IA 頁面依 `MAPPING.md §2` 查找。

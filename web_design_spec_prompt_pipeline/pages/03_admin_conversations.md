@@ -312,3 +312,13 @@
 - [ ] 首次列表載入 < 2 秒；詳情頁訊息載入 < 3 秒
 - [ ] 符合 Design System 色彩規範（Primary #2563EB / Accent #F59E0B / BG #F8FAFC）
 - [ ] 多租戶隔離正確，僅顯示當前租戶資料
+
+
+---
+
+## 導航與狀態 (Navigation & State)
+
+完整 Upstream / Downstream / State Persistence / Error Navigation 規範見
+`docs/02-design/E5x--frontend-navigation-matrix.md §附錄 A`（本檔對應段落）。
+
+本 spec 覆蓋的 IA 頁面依 `MAPPING.md §2` 查找。
