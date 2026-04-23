@@ -1,0 +1,50 @@
+# Prism Mock Server — 讓前端不必等後端實作即可以契約驅動開發
+#
+# Usage:
+#   docker compose -f docker-compose.mock.yml up -d
+#   curl http://localhost:4010/api/v1/conversations
+#   docker compose -f docker-compose.mock.yml down
+#
+# 或用 npx（無需 Docker）：
+#   npx --yes @stoplight/prism-cli mock docs/02-design/specs/openapi.yaml --port 4010
+
+services:
+  prism-openapi:
+    image: stoplight/prism:5
+    command: >
+      mock
+      -h 0.0.0.0
+      -p 4010
+      --errors
+      /specs/openapi.yaml
+    volumes:
+      - ./docs/02-design/specs:/specs:ro
+    ports:
+      - "4010:4010"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:4010/api/v1/work-orders || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # AsyncAPI mock（實驗性，Prism 對 AsyncAPI 支援仍發展中）
+  # 暫不預設啟動，需要時手動：
+  # docker compose -f docker-compose.mock.yml --profile async up -d
+  prism-asyncapi:
+    profiles: [async]
+    image: stoplight/prism:5
+    command: >
+      mock
+      -h 0.0.0.0
+      -p 4011
+      /specs/asyncapi.yaml
+    volumes:
+      - ./docs/02-design/specs:/specs:ro
+    ports:
+      - "4011:4011"
+    restart: unless-stopped
+
+networks:
+  default:
+    name: sunny-mock-net

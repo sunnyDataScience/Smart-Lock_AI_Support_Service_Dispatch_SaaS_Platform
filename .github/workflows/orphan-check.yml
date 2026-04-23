@@ -1,0 +1,30 @@
+name: OperationId Orphan Check
+
+on:
+  push:
+    paths:
+      - 'docs/02-design/specs/openapi.yaml'
+      - 'docs/02-design/specs/asyncapi.yaml'
+      - 'docs/02-design/**/*.md'
+      - 'web_design_spec_prompt_pipeline/pages/**/*.md'
+      - 'scripts/check-operationid-orphans.sh'
+  pull_request:
+    paths:
+      - 'docs/02-design/specs/openapi.yaml'
+      - 'docs/02-design/specs/asyncapi.yaml'
+      - 'docs/02-design/**/*.md'
+      - 'web_design_spec_prompt_pipeline/pages/**/*.md'
+
+jobs:
+  orphan-check:
+    name: OperationId 雙向對應檢查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 非 strict 模式（目前容忍 TODO pending）
+        run: ./scripts/check-operationid-orphans.sh
+
+      # Week 5+ 啟用（所有 Flow metadata 中的 operationId 都必須在 openapi.yaml 存在）
+      # - name: Strict 模式（CI gate）
+      #   run: ./scripts/check-operationid-orphans.sh --strict --quiet
