@@ -103,32 +103,31 @@
 | # | Pipeline 檔 | 行數 | 覆蓋 IA 頁 | 主題 |
 |:---|:---|---:|:---|:---|
 | ~~01~~ | ~~`01_dashboard.md`~~ | — | — | 已清理（commit `f42ee65`） |
-| 02 | `02_admin_dashboard.md` | — | **A1** | Admin 營運儀表板 |
-| 03 | `03_admin_conversations.md` | — | **A2, A3** | 對話列表 + 詳情 |
-| 04 | `04_admin_problem_cards.md` | — | **A4, A5** | 問題卡列表 + 詳情 |
-| 05 | `05_admin_knowledge_base.md` | — | **A6, A7, A8, A9, A10** | 知識庫 3 Tabs（案例/手冊/SOP） |
-| 06 | `06_admin_work_orders.md` | — | **A11** | 工單列表 + 派工看板 |
-| 07 | `07_admin_work_order_detail.md` | — | **A12** | 工單詳情 |
-| 08 | `08_admin_technicians.md` | — | **A13, A14** | 技師列表 + 詳情 |
-| 09 | `09_admin_accounting.md` | — | **A15** | 帳務管理 |
-| 10 | `10_admin_advanced.md` | 624 | **A17, A18, A19, A20, A21, A22** | 進階管理（6 合 1） |
-| 11 | `11_tech_pool.md` | — | **T1** | 技師案件池 |
-| 12 | `12_tech_my_orders.md` | — | **T2, T3** | 我的工單 |
-| 13 | `13_tech_account.md` | 382 | **T4** | 帳戶中心 |
-| **14** | `14_auth_and_settings.md` | **766** | **A0, T0, A16** | 認證 + 系統設定 |
-| **15** | `15_admin_customers_and_diagnostics.md` | **862** | **A23, A24, A32, A33** | 客戶主檔 + AI 診斷治理 |
-| **16** | `16_admin_technician_detail.md` | **735** | **A25, A26, A27** | 技師詳細管理 |
-| **17** | `17_admin_dispatch_queue_and_reports.md` | **871** | **A28, A29, A30, A31** | 派工監控 + 報表群 |
-| **18** | `18_admin_multi_tenant.md` | **835** | **A34, A35, A36** | 多租戶管理（V3.0） |
-| **19** | `19_tech_workorder_subflows.md` | **1,004** | **T5, T6, T7, T8, T9, T10** + Flow 11 客戶 RSVP | 工單子流程 + T1.4 RSVP 補強 |
+| 02 | `02_admin_dashboard.md` | 265 | **A1** | Admin 營運儀表板 |
+| 03 | `03_admin_conversations.md` | 324 | **A2, A3** | 對話列表 + 詳情 |
+| 04 | `04_admin_problem_cards.md` | 299 | **A4, A5** | 問題卡列表 + 詳情 |
+| 05 | `05_admin_knowledge_base.md` | 332 | **A6, A7, A8, A9, A10** | 知識庫 3 Tabs（案例/手冊/SOP） |
+| 06 | `06_admin_work_orders.md` | 639 | **A11** | 工單列表 + 派工看板 |
+| 07 | `07_admin_work_order_detail.md` | 1,064 | **A12** | 工單詳情 + T1.4 手動派工 + 客訴升級 |
+| 08 | `08_admin_technicians.md` | 446 | **A13, A14** | 技師列表 + 詳情 |
+| 09 | `09_admin_accounting.md` | 428 | **A15** | 帳務管理 |
+| 10 | `10_admin_advanced.md` | 634 | **A17, A18, A19, A20, A21, A22** | 進階管理（6 合 1） |
+| 11 | `11_tech_pool.md` | 320 | **T1** | 技師案件池 |
+| 12 | `12_tech_my_orders.md` | 502 | **T2, T3** | 我的工單 |
+| 13 | `13_tech_account.md` | 392 | **T4** | 帳戶中心 |
+| **14** | `14_auth_and_settings.md` | **776** | **A0, T0, A16** | 認證 + 系統設定 |
+| **15** | `15_admin_customers_and_diagnostics.md` | **872** | **A23, A24, A32, A33** | 客戶主檔 + AI 診斷治理 |
+| **16** | `16_admin_technician_detail.md` | **745** | **A25, A26, A27** | 技師詳細管理 |
+| **17** | `17_admin_dispatch_queue_and_reports.md` | **881** | **A28, A29, A30, A31** | 派工監控 + 報表群 |
+| **18** | `18_admin_multi_tenant.md` | **845** | **A34, A35, A36** | 多租戶管理（V3.0） |
+| **19** | `19_tech_workorder_subflows.md` | **1,014** | **T5, T6, T7, T8, T9, T10** + Flow 11 客戶 RSVP | 工單子流程 + T1.4 RSVP 補強 |
 | **20** | `20_admin_dispatch_manual.md` | **297** | **A37** | 派工人工介入（V1.1 新增） |
 | **21** | `21_global_notifications.md` | **324** | **G1** | 全域通知中心（V1.1 新增） |
 | **22** | `22_reschedule_calendar.md` | **318** | **T11** | 改期日曆（V1.1 新增） |
 | **23** | `23_global_offline.md` | **265** | **G2** | 離線狀態頁（V1.1 新增） |
 
 粗體（14-19）為 2026-04-23 新增；20-23 為 2026-04-23 驗證閘（plan §S）補入。
-
-粗體為 2026-04-23 新增。
+行數為 2026-04-23 T1.5「導航與狀態」標準段追加後的現值（22 份合計 **12,230** 行）。
 
 ---
 

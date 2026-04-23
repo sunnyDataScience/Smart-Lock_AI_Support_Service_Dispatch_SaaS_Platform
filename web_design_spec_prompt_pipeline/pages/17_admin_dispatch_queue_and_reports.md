@@ -870,6 +870,28 @@
 - [ ] Modal 開啟時 focus trap；Escape 關閉
 - [ ] 即時更新元素使用 `aria-live="polite"`，錯誤警示使用 `aria-live="assertive"`
 
+---
+
+## [T1.5 §6.24 補漏] A29 排程與多格式匯出
+
+**匯出格式：** PDF / XLSX / CSV 三選一，對齊 `specs/data-export-spec.md`。
+
+**排程自動發送 API：**
+```
+POST /api/v1/reports/schedule
+Body: {
+  report_type: "kpi_dashboard | technician_ranking | revenue",
+  frequency: "daily | weekly | monthly",
+  cron_expression: "0 9 * * 1",
+  format: "pdf | xlsx | csv",
+  recipients: ["admin@example.com"],
+  filters: { period_from: ISO8601, tenant_id: uuid }
+}
+```
+
+**UI：** A29 新增「排程清單」子區（啟用/停用/改收件人/查發送歷史）；失敗指數退避 3 次全失敗通知建立者。
+
+**多租戶匿名比較（V3.0）：** 指向 `18_admin_multi_tenant.md` A36 超管；A29 本身僅單租戶範圍。
 
 ---
 
