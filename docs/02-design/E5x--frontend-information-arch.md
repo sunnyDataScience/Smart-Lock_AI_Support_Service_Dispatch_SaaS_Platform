@@ -916,6 +916,7 @@ Admin Panel 核心頁面:
 ├── /admin/reports/revenue                    [營收報表] (V2.0)
 ├── /admin/diagnostics/{conversation_id}      [診斷推理] (V2.0) *id=UUID
 ├── /admin/knowledge-base/sop-performance     [SOP 績效] (V2.0)
+├── /admin/dispatch-manual                    [派工人工介入] (V2.0) ← V1.1 A37
 ├── /admin/settings/tenant                    [租戶設定] (V3.0)
 │   ├── /admin/settings/tenant/brand
 │   ├── /admin/settings/tenant/integrations
@@ -923,6 +924,10 @@ Admin Panel 核心頁面:
 └── /admin/super/                             [超管平台] (V3.0, super_admin only)
     ├── /admin/super/dashboard
     └── /admin/super/tenants/{tenant_id}
+
+Global Pages（跨角色，V1.1 新增）:
+├── /notifications                            [全域通知中心] ← G1
+└── /offline                                  [離線狀態頁] ← G2（Service Worker fallback）
 
 Technician Web App 頁面:
 ├── /pool                                     [案件池]
@@ -932,11 +937,12 @@ Technician Web App 頁面:
 │   ├── /my-orders/{id}/material-request      [缺料回報] Flow 4
 │   ├── /my-orders/{id}/delay                 [延遲通知] Flow 5
 │   ├── /my-orders/{id}/door-check            [門面檢核] Flow 10
-│   └── /my-orders/{id}/signature             [雙方簽章]
+│   ├── /my-orders/{id}/signature             [雙方簽章]
+│   └── /my-orders/{id}/reschedule            [改期日曆] ← V1.1 T11 (Flow 5/11/14)
 ├── /account                                  [帳戶中心]
 └── /account/schedule                         [我的排班]
 
-API 端點 (前端呼叫):
+API 端點 (前端呼叫，以下為概覽；權威契約見 `docs/02-design/specs/openapi.yaml`):
 ├── POST   /api/v1/auth/login                 [管理員登入]
 ├── POST   /api/v1/auth/refresh               [Token 刷新]
 ├── POST   /api/v1/technicians/login          [技師登入]
