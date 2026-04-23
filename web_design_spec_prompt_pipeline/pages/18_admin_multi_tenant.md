@@ -833,3 +833,13 @@
 - [ ] 符合 Design System 視覺規範（Primary #2563EB、Accent #F59E0B、Secondary #1E293B、BG #F8FAFC、Font Inter + Noto Sans TC）
 - [ ] 超管紫色（#8B5CF6 / purple-500）僅用於超管專屬元件（Badge / 側欄 / TenantSwitcher），不滲入其他業務 UI
 - [ ] V3.0 feature flag 關閉時，側邊欄入口完全消失，路由 404
+
+
+---
+
+## 導航與狀態 (Navigation & State)
+
+完整 Upstream / Downstream / State Persistence / Error Navigation 規範見
+`docs/02-design/E5x--frontend-navigation-matrix.md §附錄 A`（本檔對應段落）。
+
+本 spec 覆蓋的 IA 頁面依 `MAPPING.md §2` 查找。

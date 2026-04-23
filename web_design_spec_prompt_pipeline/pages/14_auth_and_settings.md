@@ -764,3 +764,13 @@
 - [ ] 符合 Design System：Primary `#2563EB`、Accent `#F59E0B`、Secondary `#1E293B`、BG `#F8FAFC`、Font Inter + Noto Sans TC
 - [ ] WCAG 2.1 AA：對比度 ≥ 4.5:1、鍵盤可達、焦點可見、ARIA 標籤完整
 - [ ] 三斷點（Desktop / Tablet / Mobile）佈局皆通過驗收
+
+
+---
+
+## 導航與狀態 (Navigation & State)
+
+完整 Upstream / Downstream / State Persistence / Error Navigation 規範見
+`docs/02-design/E5x--frontend-navigation-matrix.md §附錄 A`（本檔對應段落）。
+
+本 spec 覆蓋的 IA 頁面依 `MAPPING.md §2` 查找。
