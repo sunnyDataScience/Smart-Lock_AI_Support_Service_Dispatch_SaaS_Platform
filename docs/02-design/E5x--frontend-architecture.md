@@ -2,18 +2,22 @@
 
 ---
 
-**文件版本 (Document Version):** `v1.1`
-**最後更新 (Last Updated):** `2026-04-04`
+**文件版本 (Document Version):** `v1.2`
+**最後更新 (Last Updated):** `2026-04-23`
 **主要作者 (Lead Author):** `前端架構師, 前端技術負責人`
 **審核者 (Reviewers):** `UX 設計師, 後端技術負責人, 架構委員會`
-**狀態 (Status):** `草稿 (Draft)`
+**狀態 (Status):** `Active`
 
 **相關文檔 (Related Documents):**
-- 專案 PRD: `docs/02_project_brief_and_prd.md`
-- 系統架構文檔: `docs/05_architecture_and_design_document.md`
-- API 設計規範: `docs/06_api_design_specification.md`
-- BDD 情境: `docs/03_behavior_driven_development.md`
-- 專案結構指南: `docs/08_project_structure_guide.md`
+- API 設計規範：[`E5--api-design-specification`](E5--api-design-specification.md)
+- 前端信息架構：[`E5x--frontend-information-arch`](E5x--frontend-information-arch.md)
+- 工單互動流程：[`E5x--work-order-interaction-flows`](E5x--work-order-interaction-flows.md)
+- 派工營運補充：[`E5x--dispatch-operations-supplement`](E5x--dispatch-operations-supplement.md)
+- 多租戶架構：[`platform-multi-tenant/multi-tenant-architecture`](platform-multi-tenant/multi-tenant-architecture.md)
+- 派工整合規格：[`platform-multi-tenant/dispatch-integration-spec`](platform-multi-tenant/dispatch-integration-spec.md)
+- Agent Harness 架構：[`agent-harness/harness-architecture`](agent-harness/harness-architecture.md)
+- 診斷智能架構：[`agent-harness/diagnostic-intelligence-architecture`](agent-harness/diagnostic-intelligence-architecture.md)
+- 技術規格集（13 項）：[`specs/_MOC`](specs/_MOC.md) — RBAC 動態、稽核、即時訊息、電子簽章、退款審批、保固爭議、庫存、SLA、資料匯出、視覺處理、品牌 API、B2B API、跨 Agent 訊息
 
 ---
 
@@ -23,6 +27,7 @@
   - [1.1 根本目的：超越介面實現](#11-根本目的超越介面實現)
   - [1.2 前端架構的終極目標](#12-前端架構的終極目標)
   - [1.3 前端決策的因果鏈](#13-前端決策的因果鏈)
+  - [1.4 多租戶架構與前端隔離 (V3.0)](#14-多租戶架構與前端隔離-v30)
 - [第二部分：前端架構的系統化分層](#第二部分前端架構的系統化分層)
   - [2.1 用戶感知層 (Perception Layer)](#21-用戶感知層-perception-layer)
   - [2.2 互動邏輯層 (Interaction Layer)](#22-互動邏輯層-interaction-layer)
@@ -56,7 +61,11 @@
 - [第八部分：前後端協作契約](#第八部分前後端協作契約)
   - [8.1 API 通訊規範](#81-api-通訊規範)
   - [8.2 錯誤處理策略](#82-錯誤處理策略)
-  - [8.3 認證與授權](#83-認證與授權)
+  - [8.3 認證與授權（動態 RBAC）](#83-認證與授權動態-rbac)
+  - [8.4 即時通訊與 WebSocket 頻道](#84-即時通訊與-websocket-頻道)
+  - [8.5 電子簽章與雙簽流程](#85-電子簽章與雙簽流程)
+  - [8.6 AI Agent Harness 整合層](#86-ai-agent-harness-整合層)
+  - [8.7 離線佇列與 Service Worker](#87-離線佇列與-service-worker)
 - [第九部分：監控、日誌與安全](#第九部分監控日誌與安全)
   - [9.1 前端監控策略](#91-前端監控策略)
   - [9.2 錯誤追蹤與報告](#92-錯誤追蹤與報告)
@@ -173,6 +182,61 @@ graph TD
      Optimistic Update 提升操作反饋速度
   |
 業務影響：管理員操作即時反饋、技師接單零延遲感
+```
+
+### 1.4 多租戶架構與前端隔離 (V3.0)
+
+> **架構參考：** `platform-multi-tenant/multi-tenant-architecture.md`、`platform-multi-tenant/dispatch-integration-spec.md`
+
+#### 1.4.1 租戶隔離三層模型
+
+本平台 V3.0 為多租戶 SaaS，前端必須在「每個請求、每個快取鍵、每個畫面」實現租戶隔離：
+
+| 層級 | 機制 | 失效後果 |
+|:-----|:-----|:---------|
+| **傳輸層** | 所有 API 請求帶 `X-Tenant-ID` Header（由 Next.js Middleware 自 `tenant_id` Cookie 注入） | 後端 RLS 拒絕，回 403 |
+| **快取層** | TanStack Query key 一律以 `['tenant', tenantId, ...]` 為前綴 | 切換租戶時殘留他人資料（重大資料洩漏） |
+| **狀態層** | Zustand `useTenantStore` 持有 `currentTenant`，切換時呼叫 `queryClient.clear()` + `reset()` | 租戶主題、權限矩陣錯亂 |
+
+#### 1.4.2 品牌客製化注入
+
+登入後自 `GET /api/v1/tenants/me` 取回 `brand_config`，前端以 CSS 變數 + Tailwind runtime theme 注入：
+
+```typescript
+// lib/tenant/apply-brand.ts
+export function applyBrandConfig(brand: BrandConfig) {
+  const root = document.documentElement;
+  root.style.setProperty('--brand-primary', brand.primary_color);
+  root.style.setProperty('--brand-on-primary', brand.on_primary_color);
+  // Logo、AI 客服暱稱、LINE Flex Message 範本、術語詞彙表等
+}
+```
+
+#### 1.4.3 超級管理員視圖
+
+超管可切換租戶檢視、建立新租戶、看跨租戶 KPI。UI 提供租戶切換器（右上角下拉），切換時：
+
+1. 呼叫 `POST /api/v1/super/switch-context { tenant_id }` 取回短期 token。
+2. `queryClient.clear()`、Zustand reset。
+3. 刷新整個 SPA（或 `router.push('/admin/super/dashboard')`）。
+
+#### 1.4.4 前端租戶安全檢查
+
+前端在收到 API 回應時，對任何帶 `tenant_id` 的資源做「預期租戶」比對：
+
+```typescript
+// lib/api/tenant-guard.ts
+export function assertTenantMatch<T extends { tenant_id?: string }>(
+  data: T,
+  expected: string
+): T {
+  if (data.tenant_id && data.tenant_id !== expected) {
+    // 這是嚴重安全事件：後端 RLS 或 API 錯誤
+    Sentry.captureMessage('tenant-id-mismatch', { level: 'error', extra: { data, expected } });
+    throw new Error('Tenant mismatch — forced logout');
+  }
+  return data;
+}
 ```
 
 ---
@@ -598,11 +662,45 @@ export function useWorkOrderPool() {
 
 #### 即時更新策略
 
-| 場景 | 方案 | 更新頻率 | 說明 |
-|:-----|:-----|:---------|:-----|
-| 技師案件池 | TanStack Query `refetchInterval` | 15 秒 | Polling 方式，簡單可靠 |
-| Admin 儀表板統計 | TanStack Query `refetchInterval` | 60 秒 | 數據 5 分鐘自動更新（PRD US-017） |
-| 工單狀態變更 | WebSocket (未來) | 即時 | V2.0 進階需求，初期以 Polling 替代 |
+對齊 `specs/realtime-messaging-spec.md`。採「WebSocket 優先 + Polling 降級」混合模型：
+
+| 場景 | 優先方案 | 降級方案 | 說明 |
+|:-----|:---------|:---------|:-----|
+| 技師案件池 | WebSocket `/realtime/pool/{tech_id}` | Polling 15s | 新案件入池、案件被搶即時顯示 |
+| 工單狀態變更 | WebSocket `/realtime/work-orders/{id}` | Polling 30s | 跨裝置同步（Admin + 技師同看一單） |
+| 派工佇列監控 | WebSocket `/realtime/dispatch-queue` | Polling 15s | Admin 頁面（拒單、重派、逾時） |
+| 退款/爭議/保固 | WebSocket `/realtime/refunds`、`/realtime/disputes` | Polling 60s | Admin 審批佇列新申請 |
+| SLA 告警 | WebSocket `/realtime/sla-alerts` | - | 即時 Toast + Bell 紅點 |
+| RBAC 權限變更 | WebSocket `/realtime/rbac` | 重登 | 現存 session 無需重登即生效 |
+| 低庫存告警 | WebSocket `/realtime/inventory/low-stock` | Polling 5min | 採購即時收到 |
+| AI 診斷推理 | WebSocket `/realtime/diagnostics/{conv_id}` | SSE | L1/L2/L3 progressive 渲染 |
+| 個人通知（指派/@） | WebSocket `/realtime/notifications/{user_id}` | - | Toast + Bell |
+| Admin 儀表板統計 | TanStack Query `refetchInterval` | - | 60 秒（聚合資料無需即時） |
+
+**WebSocket Client 封裝：**
+
+```typescript
+// lib/realtime/ws-client.ts
+import { useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+
+export function useRealtimeChannel(channel: string, onMessage: (msg: any) => void) {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const ws = new WebSocket(`${process.env.NEXT_PUBLIC_WS_URL}${channel}`);
+    ws.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+      onMessage(msg);
+      // 常見：針對事件 invalidate 對應 query
+      if (msg.invalidate) queryClient.invalidateQueries({ queryKey: msg.invalidate });
+    };
+    // 指數回退重連：1s → 2s → 4s → 8s → 16s max
+    return () => ws.close();
+  }, [channel]);
+}
+```
+
+**斷線容錯：** server-side event log 保留 5 分鐘，client 重連時攜帶 `last_event_id` 要求 replay。
 
 ### 2.5 基礎設施層 (Infrastructure Layer)
 
@@ -770,6 +868,14 @@ export default config;
 | `Toast` | shadcn/ui (Sonner) | 全域通知 | `type` (success/error/info), `message` |
 | `Skeleton` | shadcn/ui | 載入佔位符 | `width`, `height` |
 | `Tabs` | shadcn/ui | 分頁標籤 | `tabs`, `activeTab`, `onChange` |
+| `Timeline` | shadcn/ui + custom | 工單/對話時間軸 | `events`, `orientation` |
+| `Kanban` | custom + React DnD | 工單看板欄式拖放 | `columns`, `onDragEnd` |
+| `DateRangePicker` | react-day-picker + Popover | 日期範圍篩選 | `from`, `to`, `max-range` |
+| `Map` | @react-google-maps/api | 地址/技師位置 | `center`, `markers`, `onClick` |
+| `FileUpload` | react-dropzone + custom | 照片、PDF 上傳 | `accept`, `maxSize`, `onProgress` |
+| `ImageLightbox` | yet-another-react-lightbox | 照片全屏/對比 | `slides`, `plugins` |
+| `Stepper` | custom | 多步驟表單 / 工單流程進度 | `steps`, `current` |
+| `DiffViewer` | react-diff-viewer | 稽核 before/after、SOP 差異 | `oldValue`, `newValue` |
 
 #### 業務功能元件 (components/features/)
 
@@ -785,6 +891,22 @@ export default config;
 | `ReconciliationTable` | accounting (V2.0) | 對帳明細表（技師 x 月份，含墊付/結算明細） |
 | `CompletionReportForm` | dispatch (V2.0) | 技師完工報告表單（照片上傳、材料清單、工時） |
 | `CasePoolCard` | dispatch (V2.0) | 技師端案件卡片（地址、品牌、報酬、一鍵接單） |
+| `SignaturePad` | e-signature (V2.0) | 雙方簽章（技師/客戶、管理員/財務雙簽） |
+| `DispatchAttemptTimeline` | dispatch (V2.0) | 1~3 次派工嘗試、match score、拒單原因 |
+| `RefundApprovalWorkflow` | accounting (V2.0) | 退款審批 Modal（含 Dual-sign 條件式） |
+| `AuditEventRow` | audit (V2.0) | 可展開的稽核列（before/after JSON diff） |
+| `PermissionMatrix` | rbac (V2.0) | RBAC 權限矩陣（功能 × CRUD × 資源限定） |
+| `InventoryLowStockBanner` | inventory (V2.0) | 低庫存告警 banner + 一鍵跳轉 |
+| `DisputeEvidencePanel` | dispute (V2.0) | 爭議證據時間軸（對話 + 工單狀態 + 客戶送審） |
+| `DiagnosticTraceViewer` | agent-harness (V2.0) | L1/L2/L3 推理鏈視覺化 + 7 信號矩陣 |
+| `TechnicianScheduleCalendar` | dispatch (V2.0) | 技師排班月/週曆（拖放選時段） |
+| `SkillCertificationForm` | dispatch (V2.0) | 技能認證表（證書上傳、到期提醒） |
+| `SettlementBreakdown` | accounting (V2.0) | 結算明細（分潤 + 獎勵 + 扣款 + 墊付） |
+| `KPIFunnelChart` | reports (V2.0) | 轉換漏斗（對話 → 工單 → 完工） |
+| `TechnicianRankingTable` | reports (V2.0) | 技師排行榜（支援下鑽） |
+| `TenantSwitcher` | multi-tenant (V3.0) | 超管租戶切換器（下拉 + search） |
+| `BrandPreviewSandbox` | multi-tenant (V3.0) | 品牌客製化即時預覽（Admin + LINE Flex 並排） |
+| `OfflineQueueIndicator` | infrastructure | Service Worker 離線佇列狀態（技師外勤） |
 
 ### 3.4 設計令牌 (Design Tokens)
 
@@ -1690,17 +1812,44 @@ jobs:
 
 **後端 API 來源架構：**
 
-前端所有 API 請求統一由 `agent/app.py` (FastAPI) 提供，分兩個版本路由：
+前端所有 API 請求統一由 `agent/app.py` (FastAPI) 提供，統一在 `/api/v1/*` 下，依 Bounded Context 分組：
 
-| API 群組 | Base URL | 後端來源 | 版本 |
+| API 群組 | Base URL | 後端 Context | 版本 |
 |:---|:---|:---|:---|
-| LINE Webhook | `POST /webhook` | `agent/app.py` (LINE 事件處理) | V1.0 |
-| Admin API | `/api/v1/*` | `agent/app.py` (知識庫、對話、ProblemCard CRUD) | V1.0 |
-| Dispatch API | `/api/v2/work-orders/*` | `agent/dispatch/routes.py` | V2.0 |
-| Pricing API | `/api/v2/pricing/*` | `agent/pricing/routes.py` | V2.0 |
-| Accounting API | `/api/v2/accounting/*` | `agent/accounting/routes.py` | V2.0 |
+| LINE Webhook | `POST /webhook` | LINE 事件入口 | V1.0 |
+| Auth / User | `/api/v1/auth/*`, `/api/v1/users/*` | user_management | V1.0 |
+| Conversations / Problem Cards | `/api/v1/conversations/*`, `/api/v1/problem-cards/*` | customer_service | V1.0 |
+| Knowledge Base | `/api/v1/knowledge-base/*` | knowledge_base | V1.0 |
+| Dispatch / Work Orders | `/api/v1/work-orders/*`, `/api/v1/technicians/*`, `/api/v1/customers/*` | dispatch | V2.0 |
+| Pricing / Accounting | `/api/v1/pricing/*`, `/api/v1/accounting/*`, `/api/v1/refunds/*` | accounting | V2.0 |
+| RBAC / Audit | `/api/v1/roles/*`, `/api/v1/audit-events/*` | user_management / audit | V2.0 |
+| Inventory | `/api/v1/inventory/*` | inventory | V2.0 |
+| Disputes / Warranty | `/api/v1/disputes/*`, `/api/v1/warranty-claims/*` | accounting | V2.0 |
+| Reports | `/api/v1/reports/*` | analytics | V2.0 |
+| Diagnostics | `/api/v1/diagnostics/*` | agent-harness | V2.0 |
+| Tenants (Multi-tenant) | `/api/v1/tenants/*`, `/api/v1/super/*` | platform-multi-tenant | V3.0 |
+| B2B 開放 API | `/api/v1/b2b/*` | b2b | V3.0（對齊 `specs/b2b-api-spec.md`） |
 
-> **注意**：後端為 Modular Monolith（單一 FastAPI 進程），V2.0 的 dispatch/pricing/accounting 為獨立模組但共享同一資料庫。詳見 `docs/02-design/E6x--project-structure-guide.md §4.10`。
+> **注意**：後端為 Modular Monolith（單一 FastAPI 進程）但依 DDD 切分為獨立模組，共享同一資料庫。V3.0 啟用 RLS + tenant_id 欄位實現多租戶隔離。詳見 `docs/02-design/E6x--project-structure-guide.md §4.10` 與 `platform-multi-tenant/multi-tenant-architecture.md`。
+
+**全域請求規範（所有 `/api/v1/*` 共用）：**
+
+| Header | 來源 | 說明 |
+|:-------|:-----|:-----|
+| `Authorization: Bearer <jwt>` | Next.js Middleware 從 httpOnly Cookie 注入 | 認證 |
+| `X-Tenant-ID: <uuid>` | Middleware 從 JWT payload 或 Cookie 注入 | 多租戶隔離（V3.0 必填） |
+| `Idempotency-Key: <uuid>` | Client 產生（寫操作） | 防止重覆提交 — 退款、簽章、完工回報、工單接單強制帶 |
+| `X-Request-ID: <uuid>` | Client 產生 | 分散式追蹤（Correlation ID） |
+| `Accept-Language` | Browser | 回應訊息 i18n |
+
+**寫操作冪等性（Idempotency）：**
+
+對下列操作強制附 `Idempotency-Key`（24h 內重複視為同一請求）：
+- `POST /work-orders/{id}/accept`（防技師雙擊接單）
+- `POST /refunds/{id}/decision`（防重覆審核）
+- `POST /work-orders/{id}/complete`（防完工報告重送）
+- `POST /work-orders/{id}/signature`（簽章不可重複）
+- 任何涉及金流、狀態機轉換、計費的 mutation
 
 **TypeScript 型別定義（映射後端 DTO）：**
 
@@ -1824,6 +1973,26 @@ export interface Technician {
 | `/accounting/reconciliations` (V2.0) | GET | `/api/v1/accounting/reconciliations` | 對帳單列表 |
 | `/tech-login` (V2.0) | POST | `/api/v1/technicians/login` | 技師登入 |
 | `/pool` (V2.0) | GET | `/api/v1/work-orders/pool` | 技師案件池 |
+| `/admin/refunds` (V2.0) | GET / POST | `/api/v1/refunds`, `/refunds/{id}/decision`, `/refunds/{id}/signature` | 退款審批 + 雙簽 |
+| `/admin/roles` (V2.0) | GET / POST / PUT | `/api/v1/roles[*]` | RBAC 管理（權限矩陣） |
+| `/admin/audit-events` (V2.0) | GET / POST | `/api/v1/audit-events`, `/audit-events/export` | 稽核查詢 + CSV 匯出 |
+| `/admin/inventory` (V2.0) | GET / POST | `/api/v1/inventory/parts[*]`, `/inventory/low-stock` | 庫存與低庫存告警 |
+| `/admin/warranty-claims` (V2.0) | GET / POST | `/api/v1/warranty-claims[*]` | 保固索賠 |
+| `/admin/disputes` (V2.0) | GET / POST | `/api/v1/disputes[*]` | 爭議仲裁 |
+| `/admin/customers` (V2.0) | GET | `/api/v1/customers[*]` | 客戶主檔 |
+| `/admin/technicians/[id]/schedule` (V2.0) | GET / PUT | `/api/v1/technicians/{id}/schedule` | 技師排班 |
+| `/admin/technicians/[id]/skills` (V2.0) | GET / PUT | `/api/v1/technicians/{id}/skills` | 技師技能 |
+| `/admin/technicians/[id]/settlements` (V2.0) | GET / POST | `/api/v1/technicians/{id}/settlements[*]` | 結算明細 |
+| `/admin/dispatch-queue` (V2.0) | GET | `/api/v1/work-orders/dispatch-queue` + WS | 派工監控 |
+| `/admin/reports/*` (V2.0) | GET | `/api/v1/reports/*` | KPI/排行/營收 |
+| `/admin/diagnostics/[conv_id]` (V2.0) | GET / POST | `/api/v1/diagnostics/{conv_id}[*]` | AI 診斷追溯 |
+| `/admin/settings/tenant` (V3.0) | GET / PUT | `/api/v1/tenants/me[*]` | 租戶設定 |
+| `/admin/super/*` (V3.0) | GET / POST | `/api/v1/super/*` | 超管平台 |
+| `/my-orders/[id]/scope-change` (V2.0) | POST | `/api/v1/work-orders/{id}/scope-change` | 範圍變更 Flow 3 |
+| `/my-orders/[id]/material-request` (V2.0) | POST | `/api/v1/work-orders/{id}/material-request` | 缺料 Flow 4 |
+| `/my-orders/[id]/delay` (V2.0) | POST | `/api/v1/work-orders/{id}/delay` | 延遲 Flow 5 |
+| `/my-orders/[id]/door-check` (V2.0) | POST | `/api/v1/work-orders/{id}/door-check` | 門面 Flow 10 |
+| `/my-orders/[id]/signature` (V2.0) | POST | `/api/v1/work-orders/{id}/signature` | 雙方電子簽章 |
 
 ### 8.2 錯誤處理策略
 
@@ -1910,7 +2079,7 @@ export function handleApiError(error: unknown): AppError {
 | **資源不存在** | 404 | 顯示 404 頁面 | Next.js `not-found.tsx` |
 | **伺服器錯誤** | 500, 503 | 顯示「服務暫時不可用」+ 重試 | 發送至 Sentry |
 
-### 8.3 認證與授權
+### 8.3 認證與授權（動態 RBAC）
 
 **認證架構決策：JWT Token 存放於 httpOnly Cookie（而非 localStorage）**
 
@@ -1966,13 +2135,218 @@ export const config = {
 };
 ```
 
-**角色型存取控制 (RBAC)：**
+**動態角色與權限（對齊 `specs/rbac-dynamic-spec.md`）：**
 
-| 角色 | 可存取路由 | JWT 載荷 `role` 值 |
-|:-----|:----------|:-----------------|
-| `admin` | `(dashboard)/*` 全部 | `admin` |
-| `reviewer` | `(dashboard)/conversations`, `problem-cards`, `knowledge-base` | `reviewer` |
-| `technician` | `(technician)/*` 全部 | `technician` |
+本系統採動態 RBAC — 租戶管理員可自訂角色與權限矩陣，系統預設角色為「可複製範本 / 不可刪除」：
+
+| 預設角色 | 說明 | JWT `role` 值 |
+|:---------|:-----|:--------------|
+| `super_admin` | 平台超管（跨租戶） | `super_admin` |
+| `tenant_admin` | 租戶管理員 | `tenant_admin` |
+| `reviewer` | 知識庫審核員 | `reviewer` |
+| `dispatcher` | 派工調度員（自訂常見範本） | `dispatcher` |
+| `finance` | 財務審核員 | `finance` |
+| `technician` | 簽約技師 | `technician` |
+
+JWT Payload 同時帶 `permissions: string[]`（扁平化的 `resource.action[.scope]`，例 `work-order.assign.own_team`）。
+
+**前端權限檢查工具：**
+
+```typescript
+// lib/auth/permission.ts
+export function useHasPermission(permission: string): boolean {
+  const { user } = useAuthStore();
+  return user?.permissions?.some(p =>
+    p === permission || p.startsWith(`${permission}.`)  // 前綴匹配
+  ) ?? false;
+}
+
+// 使用示例
+function RefundApprovalButton({ refundId }: Props) {
+  const canApprove = useHasPermission('refund.approve');
+  if (!canApprove) return null;  // 缺權限 → 不渲染
+  return <Button>審核</Button>;
+}
+```
+
+**權限變更即時生效：** 透過 `/realtime/rbac` WebSocket 通道，管理員修改角色後，相關使用者的現有 session 自動更新 `permissions`，無需重登即可看到按鈕顯隱變化。
+
+**關鍵權限字典：**
+
+| 權限碼 | 說明 | 依賴頁面 |
+|:-------|:-----|:---------|
+| `work-order.view` / `create` / `assign` / `cancel` | 工單 CRUD | A11, A12 |
+| `refund.approve` / `sign.primary` / `sign.secondary` | 退款審核與雙簽 | A17 |
+| `role.manage` / `permission.grant` | RBAC 管理 | A18 |
+| `audit.view` / `audit.export` | 稽核查詢 | A20 |
+| `dispute.verdict` | 爭議裁決 | A22 |
+| `tenant.switch` / `tenant.create` | 跨租戶操作 | A34, A36 |
+| `diagnostic.override` / `diagnostic.feedback` | 覆寫 AI 決策 | A32 |
+
+### 8.4 即時通訊與 WebSocket 頻道
+
+**頻道目錄詳見 §2.4 即時更新策略表。** 本節聚焦工程規範：
+
+**訂閱生命週期：**
+
+```typescript
+// app/(dashboard)/admin/dispatch-queue/page.tsx
+export default function DispatchQueuePage() {
+  const queryClient = useQueryClient();
+
+  useRealtimeChannel('/realtime/dispatch-queue', (event) => {
+    switch (event.type) {
+      case 'attempt.rejected':
+      case 'attempt.timeout':
+      case 'order.reassigned':
+        queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'dispatch-queue'] });
+        break;
+      case 'order.stuck':
+        toast.error(`工單 ${event.order_id} 第 3 次派工仍未接，需人工介入`);
+        break;
+    }
+  });
+
+  return <DispatchQueueTable />;
+}
+```
+
+**頻道鑑權：** WS handshake 帶 JWT（URL query 或 Sec-WebSocket-Protocol），後端驗證並回傳可訂閱頻道清單；前端訂閱未授權頻道時立即斷線。
+
+**事件格式：**
+
+```typescript
+interface RealtimeEvent<T = unknown> {
+  type: string;              // e.g. "work-order.status-changed"
+  tenant_id: string;         // V3.0 租戶隔離
+  resource_id: string;       // 目標資源 ID
+  data: T;
+  occurred_at: string;       // ISO 8601
+  event_id: string;          // 供 replay 用
+  invalidate?: string[];     // 建議前端 invalidate 的 queryKey
+}
+```
+
+### 8.5 電子簽章與雙簽流程
+
+對齊 `specs/e-signature-spec.md`。涵蓋：
+- 完工報告（技師 + 客戶簽章）
+- 退款審批（金額 > 門檻時管理員 + 財務雙簽）
+- 保固爭議裁決（裁決金額 > 門檻時雙簽）
+- 發票驗收（客戶確認收到）
+- B2B 合約簽署（V3.0）
+
+**法律等級（由租戶定義）：**
+
+| 等級 | 實作 | 法律效力 |
+|:-----|:-----|:---------|
+| `typed` | 文字簽名（姓名 + PIN） | 基本，內部文件 |
+| `drawn` | 手寫簽名畫布（canvas） | 中，客服紀錄 |
+| `certificate` | 數位憑證 + HSM | 強，退款/保固/B2B 合約 |
+
+**前端簽章元件：**
+
+```tsx
+// components/features/signature/SignaturePad.tsx
+export function SignaturePad({
+  role, onComplete, requirePIN, level = 'drawn'
+}: SignaturePadProps) {
+  // 1. canvas 手寫簽名（react-signature-canvas）
+  // 2. 上傳 data URL 至 /api/v1/signatures
+  // 3. 後端驗證 PIN、儲存原始簽章影像 + 元資料（IP、GPS、裝置指紋、時間戳）
+  // 4. 回傳 signature_id 並由呼叫方關聯業務資源
+}
+```
+
+**雙簽條件判斷：**
+
+```typescript
+// lib/signature/dual-sign-policy.ts
+export function requiresDualSign(
+  context: 'refund' | 'dispute' | 'role-grant',
+  amount: number,
+  tenant: TenantConfig
+): boolean {
+  const thresholds = tenant.dual_sign_thresholds;
+  return amount > (thresholds[context] ?? Infinity);
+}
+```
+
+**稽核：** 所有簽章事件寫入 `audit-events`（事件類型 `CREATE` + entity `signature`），附原始 canvas 資料 hash，可用於爭議舉證。
+
+### 8.6 AI Agent Harness 整合層
+
+對齊 `agent-harness/harness-architecture.md` 與 `diagnostic-intelligence-architecture.md`。
+
+**前端整合點：**
+
+1. **診斷追溯檢視器**（頁面 A32）— 展示 L1/L2/L3 推理鏈、派工信號 7 種、管理員覆寫按鈕。
+2. **問題卡強化表單** — 對話建立 ProblemCard 時，AI 自動萃取欄位帶信心分數；低信心欄位 UI 紅框提示人工校正。
+3. **SOP 績效儀表板**（頁面 A33）— 展示各 SOP 的命中次數、成功率、客戶滿意度；可標記「需檢視」觸發審核流程。
+4. **問題卡與對話的即時串流** — L2 RAG 推論透過 SSE 逐 token 渲染，管理員可中斷。
+5. **跨 Agent 訊息面板**（對齊 `specs/inter-agent-messaging-spec.md`） — 多 agent 協作場景下，顯示 agent 間的訊息往返。
+
+**資料契約：**
+
+```typescript
+// lib/types/diagnostic.ts
+export interface DiagnosticTrace {
+  conversation_id: string;
+  l1: {
+    candidates: Array<{ case_id: string; similarity: number; title: string }>;
+    matched: boolean;
+    confidence: number;
+  };
+  l2: {
+    triggered: boolean;
+    prompt?: string;          // 僅管理員視圖
+    response?: string;
+    confidence?: number;
+    tokens?: number;
+  };
+  l3: {
+    triggered: boolean;
+    reason?: string;
+  };
+  dispatch_signals: {
+    brand_error_code_present: boolean;
+    diagnosis_not_converging: boolean;
+    customer_info_complete: boolean;
+    needs_certified_technician: boolean;
+    remote_fix_possible: boolean;
+    customer_requests_human: boolean;
+    agent_confidence_low: boolean;
+  };
+  decision: 'sop_auto_dispatch' | 'escalate_to_human' | 'continue_ai';
+  overridden_by?: { user_id: string; reason: string; at: string };
+}
+```
+
+**管理員覆寫 UX：** 覆寫是「單案」操作（不影響模型訓練），需填寫原因並提交「訓練反饋」（匿名化後進入 Agent Harness 的 feedback loop）。
+
+### 8.7 離線佇列與 Service Worker
+
+對齊技師外勤場景（弱網、離線、隧道）：
+
+**離線能力清單（Technician App 專用）：**
+
+| 能力 | 方案 |
+|:-----|:-----|
+| 查看已接工單詳情 | Service Worker 快取最近 7 天工單 |
+| 填寫完工報告（含照片） | 草稿儲存至 IndexedDB |
+| 提交完工/簽章/範圍變更 | 離線時入佇列，恢復連線後 replay + 帶 `Idempotency-Key` |
+| 接收工單 | 不支援（需雙向線上） — 離線時顯示提示 |
+
+**Service Worker 策略：**
+
+- 靜態資源：`Cache First`（Next.js build hash）
+- API 讀取：`Network First, Cache Fallback`（最近一次回應）
+- API 寫入：`Background Sync`（queued mutations，指數回退重試）
+
+**UX 指示：**
+
+- 頂部 banner：`已離線 — 3 個動作待同步`（`OfflineQueueIndicator` 元件）
+- 每個佇列動作可點擊查看細節、手動重試、取消
 
 ---
 
@@ -2142,7 +2516,7 @@ const securityHeaders = [
 - [ ] 已審查並理解 PRD 對應的使用者故事與允收標準
 - [ ] 已定義組件層級（ui / layout / features）與複用策略
 - [ ] 已規劃狀態管理方案（Server State via TanStack Query / UI State via Zustand）
-- [ ] 已與後端確認 API 契約（參照 `docs/06_api_design_specification.md`）
+- [ ] 已與後端確認 API 契約（參照 `E5--api-design-specification.md`）
 - [ ] 已確認頁面對應的後端 API 端點可用
 
 **代碼實現：**
@@ -2211,6 +2585,12 @@ const securityHeaders = [
 | ADR-FE-003 | 採用 Tailwind CSS + shadcn/ui 作為樣式與組件庫方案 | 已批准 |
 | ADR-FE-004 | JWT Token 存於 httpOnly Cookie 而非 localStorage | 已批准 |
 | ADR-FE-005 | Admin Panel 與 Technician App 共用同一 Next.js 專案（Route Groups 區隔） | 已批准 |
+| ADR-FE-006 | 多租戶隔離採「Middleware 注入 X-Tenant-ID + Query Key 前綴」雙層策略 | 已批准 (v1.2) |
+| ADR-FE-007 | 即時通訊採「WebSocket 優先 + Polling 降級」混合模型；10 個頻道 | 已批准 (v1.2) |
+| ADR-FE-008 | 動態 RBAC：權限碼扁平化為 `resource.action.scope`，透過 WS 即時生效 | 已批准 (v1.2) |
+| ADR-FE-009 | 寫操作強制附 `Idempotency-Key`（退款/接單/完工/簽章/金流） | 已批准 (v1.2) |
+| ADR-FE-010 | Technician App 採 Service Worker + IndexedDB 實作離線佇列 | 已批准 (v1.2) |
+| ADR-FE-011 | AI 診斷追溯採 SSE 逐 token 串流，管理員可中斷並覆寫 | 已批准 (v1.2) |
 
 ### B. 設計系統資源
 
@@ -2249,9 +2629,10 @@ const securityHeaders = [
 |:-----|:-------|:-----|:-----------------|
 | 2026-02-25 | 前端架構師 | v1.0 | 初稿完成，涵蓋 V1.0 Admin Panel + V2.0 Technician App 完整架構規範 |
 | 2026-04-04 | 前端架構師 | v1.1 | 新增 V2.0 API 模組參照：退款審批、RBAC 管理、庫存儀表板、派工監控 |
+| 2026-04-23 | 前端架構師 | v1.2 | **對齊系統架構全面擴充：** <br/>• 新增 §1.4 多租戶架構與前端隔離三層模型（V3.0）<br/>• 重寫 §2.4 即時更新策略：10 個 WebSocket 頻道 + Polling 降級<br/>• §3.3 組件庫：新增 17 個業務元件（簽章/權限矩陣/診斷追溯/租戶切換等）與 9 個基礎 UI 元件（Timeline/Kanban/Map/Stepper/DiffViewer 等）<br/>• 重寫 §8.1：API 統一在 `/api/v1/*`、強制 `X-Tenant-ID` + `Idempotency-Key`；前端頁面到後端端點映射表擴至 23 條<br/>• 重寫 §8.3 動態 RBAC：權限碼扁平化、WebSocket 即時生效、6 種預設角色 + 自訂角色<br/>• 新增 §8.4 WebSocket 工程規範（訂閱生命週期、鑑權、事件格式）<br/>• 新增 §8.5 電子簽章與雙簽流程（法律等級、門檻判斷、稽核）<br/>• 新增 §8.6 AI Agent Harness 整合層（診斷追溯契約、覆寫 UX）<br/>• 新增 §8.7 離線佇列與 Service Worker（技師外勤）<br/>• 新增 6 個 ADR（ADR-FE-006 ~ 011）<br/>• 對齊 `E5--api-design-specification`、`E5x--work-order-interaction-flows` 10 個流程、`E5x--dispatch-operations-supplement`、13 項 `specs/`、`platform-multi-tenant/*`、`agent-harness/*` |
 
 ---
 
-**最後更新：** 2026-04-04
+**最後更新：** 2026-04-23
 **維護者：** 前端架構團隊
 **問題回報：** GitHub Issues

@@ -2,12 +2,21 @@
 
 ---
 
-**文件版本 (Document Version):** `v1.1`
-**最後更新 (Last Updated):** `2026-04-04`
+**文件版本 (Document Version):** `v1.2`
+**最後更新 (Last Updated):** `2026-04-22`
 **主要作者 (Lead Author):** `前端架構師, UX 設計師`
 **審核者 (Reviewers):** `PM, 技術負責人, 後端技術負責人`
-**狀態 (Status):** `草稿 (Draft)`
-**相關文檔:** [`PRD`](../docs/02_project_brief_and_prd.md), [`Frontend Architecture`](../docs/12_frontend_architecture_specification.md), [`API Design`](../docs/06_api_design_specification.md), [`Architecture`](../docs/05_architecture_and_design_document.md)
+**狀態 (Status):** `Active`
+**相關文檔:**
+- API 設計規範：[`E5--api-design-specification`](E5--api-design-specification.md)
+- 前端架構規範：[`E5x--frontend-architecture`](E5x--frontend-architecture.md)
+- 工單互動流程：[`E5x--work-order-interaction-flows`](E5x--work-order-interaction-flows.md)
+- 工單流程補充：[`E5x--work-order-flows-supplement`](E5x--work-order-flows-supplement.md)
+- 派工營運補充：[`E5x--dispatch-operations-supplement`](E5x--dispatch-operations-supplement.md)
+- 多租戶架構：[`platform-multi-tenant/multi-tenant-architecture`](platform-multi-tenant/multi-tenant-architecture.md)
+- 派工整合規格：[`platform-multi-tenant/dispatch-integration-spec`](platform-multi-tenant/dispatch-integration-spec.md)
+- Agent Harness 診斷架構：[`agent-harness/diagnostic-intelligence-architecture`](agent-harness/diagnostic-intelligence-architecture.md)
+- 技術規格集：[`specs/_MOC`](specs/_MOC.md)（RBAC / 稽核 / 即時訊息 / 電子簽章 / 退款 / 保固 / 庫存 / 資料匯出）
 
 ---
 
@@ -44,7 +53,7 @@
 | 適用範圍 | 說明 |
 |:---|:---|
 | **包含 (In Scope)** | - Admin Panel 所有頁面的信息架構（V1.0 + V2.0）<br/>- Technician Web App 所有頁面的信息架構（V2.0）<br/>- 用戶旅程與導航設計<br/>- URL 結構與路由規範<br/>- 頁面間數據傳遞與狀態策略<br/>- 頁面級 KPIs 與驗收標準 |
-| **不包含 (Out of Scope)** | - LINE Bot 消費者端互動流程（透過 LINE Messaging API，無 Web UI）<br/>- 視覺設計細節（參考 UI/UX Spec）<br/>- 組件級別實現細節（參考 `docs/12_frontend_architecture_specification.md`）<br/>- 後端 API 實作（參考 `docs/06_api_design_specification.md`） |
+| **不包含 (Out of Scope)** | - LINE Bot 消費者端互動流程（透過 LINE Messaging API，無 Web UI）<br/>- 視覺設計細節（參考 UI/UX Spec）<br/>- 組件級別實現細節（參考 `E5x--frontend-architecture.md`）<br/>- 後端 API 實作（參考 `E5--api-design-specification.md`） |
 
 ### 1.3 角色與職責 (RACI)
 
@@ -200,6 +209,20 @@ graph TB
 | A20 | `/admin/audit-events` | 稽核日誌頁 | 7 種事件類型可篩選查詢 | 稽核系統操作記錄 | Level 2 | V2.0 |
 | A21 | `/admin/warranty-claims` | 保固索賠頁 | 保固驗證與核准流程 | 處理保固索賠 | Level 2 | V2.0 |
 | A22 | `/admin/disputes` | 爭議仲裁頁 | 證據包檢視與裁決 | 仲裁服務爭議 | Level 2 | V2.0 |
+| A23 | `/admin/customers` | 客戶主檔 | 客戶 CRM、設備歷史 | 維護客戶與設備關聯資料 | Level 2 | V2.0 |
+| A24 | `/admin/customers/[id]` | 客戶詳情 | 單一客戶完整紀錄 | 追蹤回頭客與高風險戶 | Level 3 | V2.0 |
+| A25 | `/admin/technicians/[id]/schedule` | 技師排班 | 可服務時段、休假、備勤 | 維護派工可用性 | Level 3 | V2.0 |
+| A26 | `/admin/technicians/[id]/skills` | 技師技能認證 | 品牌授權、等級、到期 | 確保派工技能匹配 | Level 3 | V2.0 |
+| A27 | `/admin/technicians/[id]/settlements` | 技師結算明細 | 分潤、獎懲、墊付 | 月結 & 匯款對帳 | Level 3 | V2.0 |
+| A28 | `/admin/dispatch-queue` | 派工佇列監控 | 重派嘗試、拒單紀錄、逾時 | 人工介入困難派工 | Level 2 | V2.0 |
+| A29 | `/admin/reports/kpi` | KPI 儀表板 | 轉換漏斗、SLA、滿意度 | 即時營運指標檢視 | Level 2 | V2.0 |
+| A30 | `/admin/reports/technician-ranking` | 技師排行榜 | 完工率、評分、週轉 | 績效管理 | Level 2 | V2.0 |
+| A31 | `/admin/reports/revenue` | 營收報表 | 按期間/技師/品牌 | 財務與業務分析 | Level 2 | V2.0 |
+| A32 | `/admin/diagnostics/[conversation_id]` | 診斷推理檢視 | L1/L2/L3 推理鏈、信心分數 | 審視/覆寫 AI 決策 | Level 3 | V2.0 |
+| A33 | `/admin/knowledge-base/sop-performance` | SOP 績效儀表板 | SOP 使用率、成功率、滿意度 | 知識資產評估 | Level 3 | V2.0 |
+| A34 | `/admin/settings/tenant` | 租戶設定 | 品牌色、LINE 綁定、價目 | 租戶層級客製 | Level 2 | V3.0 |
+| A35 | `/admin/settings/tenant/brand` | 品牌客製 | Logo、色票、語氣範本 | 白牌化設定 | Level 3 | V3.0 |
+| A36 | `/admin/super/tenants` | 超級管理租戶 | 租戶 CRUD、訂閱、使用量 | 平台營運 | Level 2 | V3.0 |
 
 #### Technician Web App 頁面
 
@@ -210,8 +233,16 @@ graph TB
 | T2 | `/my-orders` | 我的工單 | 瀏覽已接案件 | 管理進行中的工作 | Level 2 | V2.0 |
 | T3 | `/my-orders/[id]` | 工單詳情/完工回報 | 查看詳情與提交回報 | 查看工作內容/提交完工 | Level 3 | V2.0 |
 | T4 | `/account` | 帳戶中心 | 收入統計與歷史 | 掌握財務狀況 | Level 2 | V2.0 |
+| T5 | `/my-orders/[id]/scope-change` | 範圍變更申請 | 現場追加工項、報價更新 | 送出追加報價待客戶核准 | Level 4 | V2.0 |
+| T6 | `/my-orders/[id]/material-request` | 缺料回報 | 缺件清單、替代方案 | 進入缺料等待 / 部分完工 | Level 4 | V2.0 |
+| T7 | `/my-orders/[id]/delay` | 延遲通知 | 新 ETA、事由、客戶通知 | 合規延遲不罰款 | Level 4 | V2.0 |
+| T8 | `/my-orders/[id]/door-check` | 門面外觀檢核 | 抵達前後對比照 | 保障雙方、避免爭議 | Level 4 | V2.0 |
+| T9 | `/my-orders/[id]/signature` | 雙方簽名 | 完工/交付電子簽章 | 提升可追溯性 | Level 4 | V2.0 |
+| T10 | `/account/schedule` | 我的排班 | 查看/申請休假 | 自主管理可服務時段 | Level 3 | V2.0 |
 
-**總計：** Admin Panel 23 頁 + Technician App 5 頁 = **28 頁**
+**總計：** Admin Panel 37 頁（含 V3.0 多租戶 3 頁）+ Technician App 11 頁 = **48 頁**
+
+> **備註：** A17–A22 為 V2.0 營運閉環必要頁（退款/RBAC/庫存/稽核/保固/爭議），補 A23–A33 係對齊 `E5x--dispatch-operations-supplement` 與 13 項 `specs/`；A34–A36 對齊 V3.0 多租戶架構；T5–T10 對齊 `E5x--work-order-interaction-flows` 10 個流程中的非 Happy Path 分支。
 
 ---
 
@@ -410,32 +441,107 @@ Smart Lock Platform (/)
 │  │  ├─ #vouchers (錨點：記帳憑證)
 │  │  └─ [匯出 Excel/PDF 功能]
 │  │
-│  └─ 17. /settings                          [系統設定]
-│     ├─ #profile (錨點：個人資料)
-│     ├─ #security (錨點：安全設定)
-│     ├─ #pricing-rules (錨點：報價規則, V2.0)
-│     └─ #surcharge-rules (錨點：加價規則, V2.0)
+│  ├─ 17. /settings                          [系統設定]
+│  │  ├─ #profile (錨點：個人資料)
+│  │  ├─ #security (錨點：安全設定)
+│  │  ├─ #pricing-rules (錨點：報價規則, V2.0)
+│  │  └─ #surcharge-rules (錨點：加價規則, V2.0)
+│  │
+│  ├─ 18. /admin/refunds                     [退款審批, V2.0]   ← refund-approval-spec
+│  │  ├─ Query: ?status={pending|approved|rejected|completed}
+│  │  └─ → [雙簽 Modal：管理員簽名 + 財務簽名]
+│  │
+│  ├─ 19. /admin/roles                       [RBAC 管理, V2.0]  ← rbac-dynamic-spec
+│  │  ├─ → /admin/roles/new (新增自訂角色)
+│  │  └─ → /admin/roles/{id}/audit (檢視角色變更稽核)
+│  │
+│  ├─ 20. /admin/inventory                   [庫存管理, V2.0]   ← inventory-management-spec
+│  │  ├─ #parts (錨點：零件主檔)
+│  │  ├─ #low-stock (錨點：低庫存告警)
+│  │  └─ #usage-history (錨點：技師耗料紀錄)
+│  │
+│  ├─ 21. /admin/audit-events                [稽核日誌, V2.0]   ← audit-log-spec
+│  │  ├─ Query: ?event_type={LOGIN|CREATE|UPDATE|DELETE|EXPORT|APPROVE_REFUND|ESCALATE_DISPUTE}
+│  │  └─ [每筆可展開 before/after diff]
+│  │
+│  ├─ 22. /admin/warranty-claims             [保固索賠, V2.0]   ← warranty-dispute-spec
+│  │  └─ → /admin/warranty-claims/{id}
+│  │
+│  ├─ 23. /admin/disputes                    [爭議仲裁, V2.0]   ← warranty-dispute-spec §3
+│  │  └─ → /admin/disputes/{id}
+│  │
+│  ├─ 24. /admin/customers                   [客戶主檔, V2.0]   ← dispatch-operations §5
+│  │  ├─ Query: ?risk_level={high|medium|low}
+│  │  └─ → /admin/customers/{id}
+│  │
+│  ├─ 25. /admin/customers/{id}              [客戶詳情, V2.0]
+│  │  ├─ #devices (錨點：名下設備)
+│  │  ├─ #history (錨點：服務歷史)
+│  │  └─ #notes (錨點：備註/風險標記)
+│  │
+│  ├─ 26. /admin/technicians/{id}/schedule   [技師排班, V2.0]   ← dispatch-operations §1
+│  ├─ 27. /admin/technicians/{id}/skills     [技師技能, V2.0]   ← dispatch-operations §6
+│  ├─ 28. /admin/technicians/{id}/settlements [技師結算, V2.0]  ← dispatch-operations §3
+│  │
+│  ├─ 29. /admin/dispatch-queue              [派工佇列監控, V2.0] ← dispatch-operations §4 拒單重派
+│  │  └─ [每筆工單的 1~3 次派工嘗試、match score、拒單原因]
+│  │
+│  ├─ 30. /admin/reports/kpi                 [KPI 儀表板, V2.0] ← dispatch-operations §7
+│  │  ├─ #funnel (錨點：轉換漏斗)
+│  │  ├─ #sla (錨點：SLA 達成率)
+│  │  └─ #satisfaction (錨點：客戶滿意度)
+│  │
+│  ├─ 31. /admin/reports/technician-ranking  [技師排行, V2.0]
+│  ├─ 32. /admin/reports/revenue             [營收報表, V2.0]
+│  │
+│  ├─ 33. /admin/diagnostics/{conversation_id} [診斷推理, V2.0] ← agent-harness
+│  │  ├─ #l1-vector (錨點：L1 向量搜尋結果)
+│  │  ├─ #l2-rag (錨點：L2 RAG 推論)
+│  │  ├─ #l3-escalation (錨點：L3 升級判定)
+│  │  ├─ #dispatch-signals (錨點：派工信號 7 種)
+│  │  └─ [管理員覆寫 / 反饋提交]
+│  │
+│  ├─ 34. /admin/knowledge-base/sop-performance [SOP 績效, V2.0]
+│  │
+│  ├─ 35. /admin/settings/tenant             [租戶設定, V3.0]   ← multi-tenant-architecture
+│  │  ├─ /admin/settings/tenant/brand        [品牌客製]
+│  │  ├─ /admin/settings/tenant/integrations [LINE / 金流綁定]
+│  │  └─ /admin/settings/tenant/pricing      [租戶定價策略]
+│  │
+│  └─ 36. /admin/super/tenants               [超管租戶, V3.0]
+│     ├─ /admin/super/tenants/{tenant_id}/usage
+│     ├─ /admin/super/tenants/{tenant_id}/billing
+│     └─ /admin/super/dashboard              [平台彙總 KPI]
 │
 └─ (technician) 技師工作台路由群組 ── Mobile-First 底部導航佈局
-   ├─ 18. /tech-login                        [技師登入]
+   ├─ 37. /tech-login                        [技師登入]
    │
-   ├─ 19. /pool                              [案件池]
+   ├─ 38. /pool                              [案件池]
    │  ├─ Query: ?sort_by={distance|reward|urgency}
    │  └─ → [案件詳情 Modal / 一鍵接單]
    │
-   ├─ 20. /my-orders                         [我的工單]
-   │  ├─ Query: ?status={accepted|in_progress|completed}
+   ├─ 39. /my-orders                         [我的工單]
+   │  ├─ Query: ?status={accepted|in_progress|material_pending|scope_changed|completed}
    │  └─ → /my-orders/{id} (點擊查看)
    │
-   ├─ 21. /my-orders/{id}                    [工單詳情 / 完工回報]
+   ├─ 40. /my-orders/{id}                    [工單詳情 / 完工回報]
    │  ├─ #info (錨點：案件資訊)
    │  ├─ #completion-form (錨點：完工回報表單)
+   │  ├─ → /my-orders/{id}/scope-change     [範圍變更申請, Flow 3]
+   │  ├─ → /my-orders/{id}/material-request [缺料回報, Flow 4]
+   │  ├─ → /my-orders/{id}/delay            [延遲通知, Flow 5]
+   │  ├─ → /my-orders/{id}/door-check       [門面外觀檢核, Flow 10]
+   │  ├─ → /my-orders/{id}/signature        [雙方電子簽章, e-signature-spec]
    │  └─ ← /my-orders (返回列表)
    │
-   └─ 22. /account                           [帳戶中心]
-      ├─ #summary (錨點：本月收入摘要)
-      ├─ #history (錨點：歷史明細)
-      └─ [匯出 PDF 功能]
+   ├─ 41. /account                           [帳戶中心]
+   │  ├─ #summary (錨點：本月收入摘要)
+   │  ├─ #history (錨點：歷史明細)
+   │  └─ [匯出 PDF 功能]
+   │
+   └─ 42. /account/schedule                  [我的排班] ← dispatch-operations §1
+      ├─ #calendar (錨點：月視圖可服務時段)
+      └─ [申請休假 / 備勤]
 ```
 
 ### 5.2 導航連結矩陣
@@ -1211,6 +1317,812 @@ Smart Lock Platform (/)
 
 ---
 
+### 6.13 退款審批頁 (Refund Approval) - V2.0
+
+#### 基本信息
+
+| 屬性 | 值 |
+|:-----|:---|
+| **路徑** | `/admin/refunds` |
+| **URL 參數** | `status` (pending/approved/rejected/completed) |
+| **頁面類型** | 審批工作流（佇列 + 雙簽 Modal） |
+| **導航深度** | Level 2 |
+| **對齊規格** | `specs/refund-approval-spec.md`, `specs/e-signature-spec.md` |
+| **適用角色** | Admin（審核）、Finance（放款） |
+
+#### 職責與目標
+
+| 項目 | 內容 |
+|:-----|:-----|
+| **主要任務** | 審核客戶退款申請、金額 > 門檻啟動雙簽 |
+| **用戶目標** | 在 48 小時內核准或駁回退款 |
+| **合規目標** | 所有簽章記錄至稽核日誌（audit-log）供事後追溯 |
+
+#### 關鍵組件結構
+
+```html
+<page-structure>
+  <header class="page-header">
+    <title>退款審批</title>
+    <tabs>
+      <tab active>待審核 <badge>{pending_count}</badge></tab>
+      <tab>已核准</tab>
+      <tab>已駁回</tab>
+      <tab>已結案</tab>
+    </tabs>
+  </header>
+
+  <section class="refund-queue">
+    <table columns="申請編號, 工單, 申請人, 金額, 原因, 申請日期, SLA, 操作">
+      <!-- SLA 欄位：剩餘處理時間 badge (綠/黃/紅) -->
+    </table>
+  </section>
+</page-structure>
+```
+
+#### 審批 Modal（含雙簽）
+
+```html
+<modal title="退款申請審批" size="lg">
+  <section class="work-order-summary">
+    <!-- 工單摘要：報價/完工日期/客戶評分 -->
+  </section>
+
+  <section class="refund-request">
+    <!-- 申請金額、理由、證據附件 -->
+  </section>
+
+  <section class="approval-form">
+    <radio-group name="decision">
+      <radio value="approve">全額核准</radio>
+      <radio value="partial">部分核准 <input type="number" placeholder="核准金額" /></radio>
+      <radio value="reject">駁回 <textarea placeholder="駁回原因" /></radio>
+    </radio-group>
+
+    <alert variant="info" condition="amount > refund_dual_sign_threshold">
+      金額超過 NT${threshold}，需要財務主管雙簽。
+    </alert>
+
+    <section class="dual-signature">
+      <SignaturePad role="admin" />
+      <SignaturePad role="finance" condition="needsDualSign" />
+      <!-- 每個簽章需輸入 PIN 確認 -->
+    </section>
+  </section>
+</modal>
+```
+
+#### 驗收標準
+
+- [ ] 佇列預設顯示「待審核」，按 SLA 剩餘時間排序
+- [ ] 金額超過租戶定義門檻（`refund_dual_sign_threshold`）時啟動雙簽
+- [ ] 簽章需 PIN 二次驗證，記錄 `signer_id`/`signed_at`/`ip`
+- [ ] 核准後自動觸發 LINE 通知客戶 + 建立 Accounting voucher
+- [ ] 駁回後客戶可透過 LINE 申訴（進入 `/admin/disputes`）
+- [ ] 所有動作寫入 `audit-events`（事件類型 `APPROVE_REFUND`）
+- [ ] 支援儲存草稿（暫緩決策，稍後繼續）
+
+---
+
+### 6.14 RBAC 管理頁 (Roles & Permissions) - V2.0
+
+#### 基本信息
+
+| 屬性 | 值 |
+|:-----|:---|
+| **路徑** | `/admin/roles` |
+| **頁面類型** | 配置管理頁 |
+| **導航深度** | Level 2 |
+| **對齊規格** | `specs/rbac-dynamic-spec.md`, `specs/audit-log-spec.md` |
+| **適用角色** | Admin only |
+
+#### 關鍵組件結構
+
+```html
+<page-structure>
+  <header class="page-header">
+    <title>角色與權限</title>
+    <actions>
+      <button variant="primary">+ 新增自訂角色</button>
+    </actions>
+  </header>
+
+  <section class="role-list">
+    <table columns="角色, 類型, 使用者數, 權限數, 最後修改, 操作">
+      <!-- 系統預設角色：Admin / Reviewer / Technician — 不可刪除 -->
+      <!-- 自訂角色：Service Manager / Dispatcher / Finance / QA Auditor 等 -->
+    </table>
+  </section>
+</page-structure>
+```
+
+#### 角色編輯 Modal：權限矩陣
+
+```
+功能模組 × CRUD 動作 × 資源限定（all / own / team）
+
+維度示例：
+- 工單：檢視 / 建立 / 指派 / 取消 / 匯出
+- 退款：檢視 / 審核 / 雙簽 / 強制結案
+- RBAC：檢視 / 建立角色 / 修改權限
+- 客戶：檢視 / 匯出 / 合併 / 風險標記
+- 稽核：檢視 / 匯出
+- 多租戶（V3.0）：切換租戶 / 建立租戶
+```
+
+#### 驗收標準
+
+- [ ] 系統預設角色 Admin / Reviewer / Technician 可複製為範本、不可刪除
+- [ ] 權限矩陣支援「資源限定」（`all` / `own_tenant` / `own_team` / `self`）
+- [ ] 角色修改後透過 WebSocket `/realtime/rbac` 廣播，持線上 session 即時生效（避免需重登）
+- [ ] 刪除角色前檢查關聯使用者，列出受影響帳號
+- [ ] 所有異動寫入 `audit-events`（事件類型 `UPDATE` + entity `role`）
+- [ ] 提供「權限差異檢視」：複製自既有角色時顯示差異高亮
+- [ ] 支援「臨時授權」：為特定使用者在限定時間內授予額外權限（需雙簽）
+
+---
+
+### 6.15 稽核日誌頁 (Audit Events) - V2.0
+
+#### 基本信息
+
+| 屬性 | 值 |
+|:-----|:---|
+| **路徑** | `/admin/audit-events` |
+| **URL 參數** | `event_type`, `actor_id`, `entity_type`, `date_from`, `date_to`, `cursor` |
+| **頁面類型** | 稽核查詢頁（唯讀） |
+| **導航深度** | Level 2 |
+| **對齊規格** | `specs/audit-log-spec.md` |
+| **適用角色** | Admin、Auditor（自訂角色） |
+
+#### 事件類型（7 種）
+
+| 代碼 | 說明 | 觸發來源 |
+|:-----|:-----|:---------|
+| `LOGIN` | 登入/登出/失敗嘗試 | user_management |
+| `CREATE` | 建立資源 | 所有 context |
+| `UPDATE` | 修改資源 | 所有 context |
+| `DELETE` | 刪除資源 | 所有 context |
+| `EXPORT` | 匯出報表/資料 | data-export |
+| `APPROVE_REFUND` | 退款核准/駁回/雙簽 | refund-approval |
+| `ESCALATE_DISPUTE` | 爭議升級 | warranty-dispute |
+
+#### 關鍵組件結構
+
+```html
+<page-structure>
+  <header class="page-header">
+    <title>稽核日誌</title>
+    <filters>
+      <multi-select name="event_type" options="{seven event types}" />
+      <input name="actor" placeholder="操作者 email / IP" />
+      <input name="entity_id" placeholder="資源 ID" />
+      <date-range from="date_from" to="date_to" max-range="90d" />
+    </filters>
+    <actions>
+      <button>匯出 CSV（依 `data-export-spec`）</button>
+    </actions>
+  </header>
+
+  <section class="audit-table">
+    <table columns="時間, 事件, 操作者, 租戶, 資源類型, 資源 ID, IP, 摘要, 結果">
+      <!-- 每列可展開：顯示 before/after JSON diff -->
+    </table>
+  </section>
+</page-structure>
+```
+
+#### 驗收標準
+
+- [ ] 7 種事件類型可複選篩選
+- [ ] 支援日期範圍篩選（最長 90 天，超過需匯出）
+- [ ] 展開行顯示 `before` / `after` JSON diff（敏感欄位自動遮罩）
+- [ ] 支援匯出 CSV（限 Admin 且 EXPORT 動作本身寫回稽核）
+- [ ] 多租戶環境下：非超管使用者僅見自身租戶事件（RLS 強制）
+- [ ] 稽核紀錄保留 ≥ 7 年（後端保障），前端提示「僅顯示近 90 天，更早請匯出」
+
+---
+
+### 6.16 庫存管理頁 (Inventory) - V2.0
+
+#### 基本信息
+
+| 屬性 | 值 |
+|:-----|:---|
+| **路徑** | `/admin/inventory` |
+| **頁面類型** | 資源管理 + 告警 |
+| **導航深度** | Level 2 |
+| **對齊規格** | `specs/inventory-management-spec.md`, 工單 Flow 4（缺料） |
+
+#### 關鍵組件結構
+
+```html
+<page-structure>
+  <tabs>
+    <tab active>零件主檔</tab>
+    <tab>低庫存告警 <badge variant="danger">{count}</badge></tab>
+    <tab>耗料紀錄</tab>
+    <tab>調撥 / 報廢</tab>
+  </tabs>
+
+  <section class="parts-master">
+    <table columns="品牌, 型號, 現有庫存, 安全水位, 成本單價, 供應商, 狀態, 操作">
+      <!-- 低於安全水位時整列紅底 -->
+    </table>
+  </section>
+</page-structure>
+```
+
+#### 驗收標準
+
+- [ ] 零件以「品牌 × 型號」為主鍵，符合 `brand_model_list.md`
+- [ ] 低庫存時自動派發給採購負責人（email + 推播）
+- [ ] 技師完工報告填寫的耗材自動扣帳（對應 Flow 1/8/10 完工回報）
+- [ ] Flow 4 缺料事件 → 自動建立「待補貨」紀錄並關聯工單
+- [ ] 支援調撥（倉對倉）與報廢，每筆需管理員簽核
+- [ ] 報表可按月 / 按品牌匯出（資料匯出限制同 audit）
+
+---
+
+### 6.17 保固索賠頁 (Warranty Claims) - V2.0
+
+#### 基本信息
+
+| 屬性 | 值 |
+|:-----|:---|
+| **路徑** | `/admin/warranty-claims` |
+| **頁面類型** | 審核工作流 |
+| **導航深度** | Level 2 |
+| **對齊規格** | `specs/warranty-dispute-spec.md`, 工單 Flow 7/8 |
+
+#### 關鍵組件結構
+
+```html
+<page-structure>
+  <header>
+    <title>保固索賠</title>
+    <filters>
+      <select name="claim_type">施工不良 / 零件瑕疵 / 範圍外</select>
+      <date-range />
+    </filters>
+  </header>
+
+  <section class="claims-queue">
+    <table columns="索賠編號, 工單, 品牌型號, 類型, 金額, 保固剩餘, 狀態, 操作" />
+  </section>
+</page-structure>
+```
+
+#### 索賠詳情頁（`/admin/warranty-claims/[id]`）
+
+- **證據檢視器：** 原工單完工前/後照片、客戶送審照片對比（supports zoom/lightbox）
+- **保固驗證面板：** 顯示設備購買日期、保固期限、原施工技師、原使用零件（庫存條碼）
+- **決策按鈕：** 核准保固（免費派工）/ 部分核准（折價）/ 駁回（走付費派工）
+- **關聯工單：** 核准後自動建立返工工單，關聯原工單（`parent_work_order_id`）
+- **技師責任判定：** 若判定為「施工不良」，自動扣罰原技師（寫入結算 A27）
+
+#### 驗收標準
+
+- [ ] 支援 3 類索賠類型分流與 SLA 時鐘
+- [ ] 自動比對保固期限（由工單完工日 + 保固週期計算）
+- [ ] 決策紀錄寫入 `audit-events`（`ESCALATE_DISPUTE` 或 `UPDATE`）
+- [ ] 駁回時客戶可升級至 `/admin/disputes`（爭議仲裁）
+- [ ] 技師責任扣罰需經技師主管雙簽
+
+---
+
+### 6.18 爭議仲裁頁 (Disputes) - V2.0
+
+#### 基本信息
+
+| 屬性 | 值 |
+|:-----|:---|
+| **路徑** | `/admin/disputes` |
+| **頁面類型** | 仲裁工作流 |
+| **導航深度** | Level 2 |
+| **對齊規格** | `specs/warranty-dispute-spec.md` §3, 工單 Flow 9（客訴） |
+
+#### 關鍵組件結構
+
+爭議類型分流：**服務品質 / 價格爭議 / 保固爭議 / 他項**
+
+```html
+<page-structure>
+  <tabs>
+    <tab>待調查</tab>
+    <tab>調查中</tab>
+    <tab>已裁決</tab>
+    <tab>已結案</tab>
+  </tabs>
+
+  <section class="disputes-queue">
+    <table columns="爭議編號, 類型, 客戶, 金額, 事發日, SLA, 嚴重度, 負責人, 操作" />
+  </section>
+</page-structure>
+```
+
+#### 爭議詳情頁（`/admin/disputes/[id]`）
+
+- **證據時間軸：** 完整對話（/conversations）+ 工單狀態變更（/work-orders）+ 客戶額外送審
+- **多方陳述：** 客戶陳述 / 技師陳述 / 管理員評估 — 三欄平行
+- **裁決表單：** 全賠 / 部分賠 / 不賠 / 需實地重驗
+- **雙簽：** 裁決金額 > 租戶門檻時觸發（流程同退款 6.13）
+- **後續動作：** 自動觸發退款（A17）、返工工單、技師扣罰、或 LINE 通知
+- **媒體庫：** 對齊「客戶 LINE 媒體庫規格」，匯集所有對話附圖/錄音/影片
+
+#### 驗收標準
+
+- [ ] 4 類爭議分流、SLA 時鐘可視化
+- [ ] 證據時間軸可匯出 PDF（附錄 1，含律師可用的完整追溯）
+- [ ] 所有裁決寫入 `audit-events`（`ESCALATE_DISPUTE`）
+- [ ] 裁決後可直接一鍵開立退款單 / 返工單
+- [ ] 技師申訴通道：技師可對扣罰提出異議（開啟新爭議）
+
+---
+
+### 6.19 客戶主檔 (Customers Master) - V2.0
+
+#### 基本信息
+
+| 屬性 | 值 |
+|:-----|:---|
+| **路徑** | `/admin/customers` |
+| **頁面類型** | CRM 列表 + 詳情 |
+| **導航深度** | Level 2 |
+| **對齊規格** | `E5x--dispatch-operations-supplement` §5 客戶設備主檔 |
+
+#### 欄位
+
+- 基本：姓名、電話、地址、LINE user_id
+- 設備：名下鎖具清單（品牌、型號、購入日、保固期）
+- 行為：歷史工單數、退款次數、爭議次數、滿意度均值
+- 風險：`risk_level` (`high`/`medium`/`low`)、黑名單原因
+- 偏好：指定技師（blocked / preferred）、聯絡時段、付款方式
+
+#### 關鍵組件：客戶詳情 `/admin/customers/[id]`
+
+```html
+<tabs>
+  <tab>基本資料</tab>
+  <tab>名下設備 <badge>{count}</badge></tab>
+  <tab>服務歷史</tab>
+  <tab>財務紀錄</tab>
+  <tab>備註/風險</tab>
+</tabs>
+```
+
+#### 驗收標準
+
+- [ ] 支援電話/LINE ID 去重（避免重複建檔）
+- [ ] 風險等級自動評估：近 90 天爭議 ≥ 2 次 → `high`
+- [ ] 多租戶環境下 RLS 強制僅見自租戶客戶
+- [ ] 支援客戶合併（兩筆重複資料合一），所有歷史工單跟隨遷移
+- [ ] 設備保固到期前 30 天自動提醒（發 LINE 關心續保）
+
+---
+
+### 6.20 技師排班頁 (Technician Schedule) - V2.0
+
+#### 基本信息
+
+| 屬性 | 值 |
+|:-----|:---|
+| **路徑** | `/admin/technicians/[id]/schedule`（技師端對應 `/account/schedule`） |
+| **頁面類型** | 日曆管理 |
+| **導航深度** | Level 3 |
+| **對齊規格** | `E5x--dispatch-operations-supplement` §1 排班 |
+
+#### 關鍵元件
+
+- **月視圖：** 每日可服務時段、休假、備勤標記
+- **週視圖：** 7×24 時段格，拖放批次選取
+- **規則：** 定期規則（每週六休）、一次性規則（國定假日）
+- **衝突檢查：** 排班與既有工單衝突時警示
+
+#### 驗收標準
+
+- [ ] 管理員可批次修改；技師僅能申請休假（送審）
+- [ ] 排班異動推播給派工引擎（即時生效，避免派工衝突）
+- [ ] 支援最大連續工時限制（>10 小時跳警示）
+- [ ] 匯出月班表 PDF 供技師對帳
+
+---
+
+### 6.21 技師技能與認證 (Technician Skills) - V2.0
+
+#### 基本信息
+
+| 屬性 | 值 |
+|:-----|:---|
+| **路徑** | `/admin/technicians/[id]/skills` |
+| **頁面類型** | 配置管理 |
+| **對齊規格** | `E5x--dispatch-operations-supplement` §6 技能體系 |
+
+#### 欄位
+
+| 欄位 | 說明 |
+|:-----|:-----|
+| `brand` | 品牌授權（Dormakaba / Yale / Hafele …） |
+| `model_scope` | 型號範圍（全線 / 特定系列） |
+| `proficiency_level` | L1 一般維修 / L2 電子鎖 / L3 保險箱/門禁整合 |
+| `certification_id` | 證書編號 |
+| `issued_at` / `expires_at` | 取得 / 到期 |
+| `training_completed` | 平台內訓完成度（%） |
+
+#### 驗收標準
+
+- [ ] 派工演算法以技能為硬性過濾條件（非匹配技師案件池不顯示）
+- [ ] 認證到期前 30 天 email 提醒管理員與技師
+- [ ] 證書附件（PDF / JPG）上傳，顯示縮圖
+- [ ] 稽核：所有技能變更寫入 `audit-events`
+
+---
+
+### 6.22 技師結算明細 (Technician Settlements) - V2.0
+
+#### 基本信息
+
+| 屬性 | 值 |
+|:-----|:---|
+| **路徑** | `/admin/technicians/[id]/settlements` |
+| **頁面類型** | 財務報表 |
+| **對齊規格** | `E5x--dispatch-operations-supplement` §3 薪酬分潤 |
+
+#### 結算月摘要
+
+```
+工單分潤    : NT$37,800
+獎勵加總    : +NT$200   (詳：高評分 ×2)
+扣款加總    : -NT$500   (詳：返工 ×1)
+墊付結算    : +NT$300
+--------------------------
+實發金額    : NT$37,800
+```
+
+#### 驗收標準
+
+- [ ] 分潤率由租戶層級設定（`tenants.pricing_rules`）
+- [ ] 獎懲對照明細 — 每條獎懲可追溯到單一工單
+- [ ] 簽核流程：管理員確認 → 財務放款，每步稽核
+- [ ] 匯出 PDF 結算單（含技師簽名欄位）
+- [ ] 技師端（T4 帳戶）顯示同資料但只讀
+
+---
+
+### 6.23 派工佇列監控頁 (Dispatch Queue) - V2.0
+
+#### 基本信息
+
+| 屬性 | 值 |
+|:-----|:---|
+| **路徑** | `/admin/dispatch-queue` |
+| **頁面類型** | 即時監控 |
+| **對齊規格** | `E5x--dispatch-operations-supplement` §4 拒單重派, 工單 Flow 2 |
+
+#### 目的
+
+讓管理員即時監看困難派工 — 多次拒單、逾時未接、演算法信心低者。
+
+#### 關鍵組件
+
+```html
+<page-structure>
+  <header>
+    <stat-card label="卡關工單" value="{stuck_count}" color="danger" />
+    <stat-card label="第 2 次派工" value="{retry_2_count}" />
+    <stat-card label="第 3 次派工（需手動介入）" value="{retry_3_count}" />
+    <stat-card label="逾時未接" value="{timeout_count}" />
+  </header>
+
+  <section class="dispatch-attempts">
+    <table columns="工單, 攻擊次數, 候選技師, 最佳分數, 拒單原因, 剩餘時間, 操作">
+      <!-- 每列可展開：顯示 1~3 次派工 attempt 詳情 + 技師回應時間 -->
+    </table>
+  </section>
+</page-structure>
+```
+
+#### 驗收標準
+
+- [ ] WebSocket 即時更新（channel `/realtime/dispatch-queue`）
+- [ ] 超過 2 次拒單自動標黃，3 次標紅並通知管理員
+- [ ] 管理員可：手動指派、放寬匹配條件（例如取消距離限制）、提高佣金、取消工單
+- [ ] 派工演算法信心分數（match score）可視化（0–100）
+- [ ] 拒單原因統計供月報分析（同 A29 KPI）
+
+---
+
+### 6.24 KPI 儀表板 (KPI Dashboard) - V2.0
+
+#### 基本信息
+
+| 屬性 | 值 |
+|:-----|:---|
+| **路徑** | `/admin/reports/kpi` |
+| **頁面類型** | 營運儀表板（唯讀） |
+| **對齊規格** | `E5x--dispatch-operations-supplement` §7 報表, `specs/sla-availability-spec.md` |
+
+#### 區塊
+
+1. **轉換漏斗：** 對話建立 → ProblemCard → 工單 → 派出 → 完工 → 滿意
+2. **SLA 達成率：** 接單 SLA、到場 SLA、完工 SLA、回覆 SLA；按技師/品牌切片
+3. **滿意度：** 平均星等、NPS、差評率
+4. **爭議率：** 退款率、保固索賠率、爭議升級率
+5. **技師效率：** 平均處理時長、一次修好率（First Time Fix Rate）
+
+#### 驗收標準
+
+- [ ] 資料延遲 < 5 分鐘（建議使用 Materialized View）
+- [ ] 支援時間粒度切換：日/週/月/季
+- [ ] 每區塊支援下鑽（點擊 → 明細表）
+- [ ] 匯出 PDF / Excel 月報（排程可由 `data-export-spec` 自動發送）
+- [ ] V3.0 多租戶：超管視圖可跨租戶比較（匿名）
+
+---
+
+### 6.25 AI 診斷推理檢視頁 (Diagnostic Intelligence Viewer) - V2.0
+
+#### 基本信息
+
+| 屬性 | 值 |
+|:-----|:---|
+| **路徑** | `/admin/diagnostics/[conversation_id]` |
+| **頁面類型** | 診斷審核 / 覆寫 |
+| **對齊規格** | `agent-harness/diagnostic-intelligence-architecture.md`, `diagnostic-state-machine-spec.md` |
+| **適用角色** | Admin、Reviewer |
+
+#### 目的
+
+可視化 AI 客服三層診斷（L1 向量搜尋 / L2 RAG / L3 人工升級）的決策鏈，支援管理員覆寫與提交訓練反饋。
+
+#### 關鍵組件
+
+```html
+<page-structure>
+  <!-- 1. 診斷流程圖 -->
+  <section id="l1-vector">
+    <title>L1 向量搜尋</title>
+    <table columns="排名, 案例庫 ID, 相似度, 命中欄位">
+      <!-- Top 5 candidates，cosine similarity -->
+    </table>
+    <badge>決策：命中 / 未命中</badge>
+  </section>
+
+  <section id="l2-rag">
+    <title>L2 RAG 生成</title>
+    <prompt>{llm_prompt}</prompt>
+    <response>{llm_response}</response>
+    <confidence>{confidence_score}</confidence>
+    <tokens-used>{token_count}</tokens-used>
+  </section>
+
+  <section id="l3-escalation">
+    <title>L3 升級判定</title>
+    <rule-trace>
+      <!-- state machine 狀態轉移序列 -->
+    </rule-trace>
+  </section>
+
+  <!-- 2. 派工決策信號（7 種，對齊 diagnostic-state-machine-spec） -->
+  <section id="dispatch-signals">
+    <signal name="brand_error_code_present" triggered="false" />
+    <signal name="diagnosis_not_converging" triggered="false" />
+    <signal name="customer_info_complete" triggered="true" />
+    <signal name="needs_certified_technician" triggered="true" />
+    <signal name="remote_fix_possible" triggered="false" />
+    <signal name="customer_requests_human" triggered="false" />
+    <signal name="agent_confidence_low" triggered="false" />
+  </section>
+
+  <!-- 3. 管理員介入 -->
+  <section class="admin-override">
+    <button>覆寫派工決策</button>
+    <button>提交診斷反饋（用於改善模型）</button>
+    <textarea placeholder="覆寫原因 / 反饋內容" />
+  </section>
+</page-structure>
+```
+
+#### 驗收標準
+
+- [ ] 完整呈現 L1/L2/L3 推理鏈與信心分數
+- [ ] 派工 7 種信號明確顯示（對齊 `diagnostic-state-machine-spec.md`）
+- [ ] 管理員可覆寫：重新派工、改變 SOP、升級人工、關閉工單
+- [ ] 覆寫需填原因，寫入 `audit-events` + Agent Harness 反饋通道（`inter-agent-messaging`）
+- [ ] 支援匯出診斷追溯 PDF（用於訓練集 / 爭議證據）
+
+---
+
+### 6.26 租戶設定頁 (Tenant Settings) - V3.0
+
+#### 基本信息
+
+| 屬性 | 值 |
+|:-----|:---|
+| **路徑** | `/admin/settings/tenant` |
+| **頁面類型** | 配置管理 |
+| **對齊規格** | `platform-multi-tenant/multi-tenant-architecture.md`, `specs/brand-data-api-spec.md` |
+| **適用角色** | Tenant Admin |
+
+#### 分頁結構
+
+```
+/admin/settings/tenant
+├─ /brand         — Logo、色票、AI 客服人設、LINE Flex Message 範本
+├─ /integrations  — LINE OA、金流、Email SMTP、Webhook URL
+├─ /pricing       — 價目表、分潤率、SLA 門檻、雙簽金額門檻
+├─ /service-regions — 營業區域、服務時段
+└─ /api-keys      — B2B API 金鑰（對齊 b2b-api-spec.md）
+```
+
+#### 驗收標準
+
+- [ ] 品牌設定即時預覽（iframe 模擬 Admin Panel + LINE Flex）
+- [ ] 所有設定寫入 `tenants.brand_config` / `tenants.pricing_rules`
+- [ ] API 金鑰顯示僅一次（建立時），之後只顯示 masked prefix
+- [ ] 所有異動寫入 `audit-events`
+- [ ] V3.0 租戶自助開通流程整合入此頁
+
+---
+
+### 6.27 工單範圍變更頁 (Scope Change Request) - T5
+
+#### 基本信息
+
+| 屬性 | 值 |
+|:-----|:---|
+| **路徑** | `/my-orders/[id]/scope-change` |
+| **頁面類型** | 技師端現場表單 |
+| **對齊規格** | `E5x--work-order-interaction-flows` Flow 3 |
+
+#### 關鍵元件
+
+```html
+<form>
+  <field name="reason" required placeholder="現場發現 ..." />
+  <field name="new_items" required>
+    <!-- 動態表格：項目名、單價、數量 -->
+  </field>
+  <field name="new_photos" type="file" multiple accept="image/*" />
+  <field name="new_price" type="number" computed="sum(new_items)" editable />
+
+  <alert condition="new_price > original_price * threshold">
+    超過 {threshold}× 原報價，將進入主管審核流程。
+  </alert>
+
+  <button type="submit">送出範圍變更申請</button>
+</form>
+```
+
+#### 後續流程
+
+1. 工單狀態 → `scope_changed`
+2. 客戶端（LINE Flex）收到：原價 vs 新價、照片、核准/拒絕按鈕
+3. 客戶核准 → 工單回到 `in_progress`；拒絕 → 三選項（原範圍 / 取消 / 協商）
+4. 24h 未回應 → 管理員介入
+
+#### 驗收標準
+
+- [ ] 新報價自動計算並可人工微調
+- [ ] 照片支援離線暫存（Service Worker，對齊前端 arch §9）
+- [ ] 送出後即時推播 LINE，客戶回應後 WebSocket 通知技師
+- [ ] 拒絕時技師可選擇「僅完成原範圍」走部分完工
+
+---
+
+### 6.28 缺料回報頁 (Material Request) - T6
+
+#### 基本信息
+
+| 屬性 | 值 |
+|:-----|:---|
+| **路徑** | `/my-orders/[id]/material-request` |
+| **頁面類型** | 技師端現場表單 |
+| **對齊規格** | 工單 Flow 4, `specs/inventory-management-spec.md` |
+
+#### 關鍵元件
+
+- 缺件名稱（支援從 `/admin/inventory` 零件主檔選）
+- 型號/規格
+- 需求數量
+- 是否可用替代品（選是 → 填替代品）
+- 現場情況：可否部分完工？
+- 客戶對等待的接受度
+
+#### 狀態轉換
+
+`in_progress` → `material_pending` → (管理員查 ETA) → 部分完工（建關聯工單）或 完全等待 或 取消
+
+#### 驗收標準
+
+- [ ] 缺件清單直接關聯庫存系統，顯示即時庫存與 ETA
+- [ ] 部分完工 → 自動建立關聯工單（`linked_work_order_id`）
+- [ ] 取消 → 豁免車馬費（對齊派工營運 §3）
+- [ ] LINE 通知客戶，含 ETA 與選擇按鈕
+
+---
+
+### 6.29 延遲通知頁 (Delay Notification) - T7
+
+#### 基本信息
+
+| 屬性 | 值 |
+|:-----|:---|
+| **路徑** | `/my-orders/[id]/delay` |
+| **頁面類型** | 技師端表單 |
+| **對齊規格** | 工單 Flow 5, `specs/sla-availability-spec.md` |
+
+#### 欄位
+
+- 延遲事由（必選：塞車 / 前案超時 / 設備問題 / 其他）
+- 新 ETA（datetime picker）
+- 說明（選填）
+
+#### 驗收標準
+
+- [ ] SLA 時鐘立即重置為新 ETA
+- [ ] LINE 通知客戶並提供「接受新時間 / 改期 / 取消」選項
+- [ ] 超出合理延遲範圍（> 2h）自動通知管理員
+- [ ] 延遲紀錄納入技師 KPI（影響結算獎懲）
+
+---
+
+### 6.30 門面外觀檢核 / 雙方簽章 - T8 / T9
+
+#### 基本資訊
+
+| 屬性 | 值 |
+|:-----|:---|
+| **路徑** | `/my-orders/[id]/door-check`、`/my-orders/[id]/signature` |
+| **對齊規格** | 工單 Flow 10（門面驗收）、`specs/e-signature-spec.md` |
+
+#### 門面檢核重點（T8）
+
+- 抵達時拍「現況照」（含門框、鎖、周邊）
+- 完工後拍「完工照」並自動重疊比對
+- 客戶現場按讚（或文字備註）確認無損壞
+
+#### 電子簽章（T9）
+
+- 技師簽章 + 客戶簽章（分上下區）
+- 法律等級：`typed` / `drawn` / `certificate`（租戶設定決定）
+- 時間戳、GPS 座標（可開關）、裝置指紋一併記錄
+- 簽章完成後 PDF 自動生成，客戶 LINE 收到副本
+
+#### 驗收標準
+
+- [ ] 完工前必須完成雙方簽章才能送出完工報告
+- [ ] PDF 內含原始簽章影像 + 稽核元資料
+- [ ] 簽章事件寫入 `audit-events`（事件類型 `CREATE` + entity `signature`）
+- [ ] 若客戶拒簽，自動升級至管理員處理（走爭議 A22）
+
+---
+
+### 6.31 我的排班 (Technician Self-Schedule) - T10
+
+#### 基本資訊
+
+| 屬性 | 值 |
+|:-----|:---|
+| **路徑** | `/account/schedule` |
+| **對齊規格** | 技師排班 A25 的技師端檢視 |
+
+#### 能力
+
+- 檢視本月班表（唯讀）
+- 申請休假（送審）
+- 申請備勤加班（送審）
+- 關閉本日接單（1 小時內無工單時可立即生效，有工單需完成後）
+
+#### 驗收標準
+
+- [ ] 所有變更需管理員審核
+- [ ] 與派工引擎同步（即時生效，避免派工衝突）
+- [ ] 本月休假額度用量顯示
+- [ ] 技師端為 Mobile-First，大按鈕 >= 44px
+
+---
+
 ## 7. 組件連結與導航系統
 
 ### 7.1 數據傳遞鏈 - 技師接單流程
@@ -1307,6 +2219,10 @@ export const adminNavigation = [
     icon: 'Truck',
     href: '/work-orders',
     version: 'v2',
+    children: [
+      { label: '工單列表', href: '/work-orders' },
+      { label: '派工佇列監控', href: '/admin/dispatch-queue', badge: 'stuck_count' },
+    ],
   },
   {
     label: '技師管理',
@@ -1315,16 +2231,69 @@ export const adminNavigation = [
     version: 'v2',
   },
   {
-    label: '帳務管理',
+    label: '客戶主檔',
+    icon: 'UserCircle',
+    href: '/admin/customers',
+    version: 'v2',
+  },
+  {
+    label: '帳務與結算',
     icon: 'Receipt',
     href: '/accounting',
     version: 'v2',
+    children: [
+      { label: '月結算總覽', href: '/accounting' },
+      { label: '退款審批', href: '/admin/refunds', badge: 'pending_refunds' },
+      { label: '保固索賠', href: '/admin/warranty-claims', badge: 'pending_claims' },
+      { label: '爭議仲裁', href: '/admin/disputes', badge: 'open_disputes' },
+    ],
+  },
+  {
+    label: '庫存',
+    icon: 'Package',
+    href: '/admin/inventory',
+    version: 'v2',
+    badge: 'low_stock_count',
+  },
+  {
+    label: '報表中心',
+    icon: 'BarChart3',
+    href: '/admin/reports/kpi',
+    version: 'v2',
+    children: [
+      { label: 'KPI 儀表板', href: '/admin/reports/kpi' },
+      { label: '技師排行', href: '/admin/reports/technician-ranking' },
+      { label: '營收報表', href: '/admin/reports/revenue' },
+      { label: 'SOP 績效', href: '/admin/knowledge-base/sop-performance' },
+    ],
+  },
+  {
+    label: '稽核與權限',
+    icon: 'ShieldCheck',
+    href: '/admin/audit-events',
+    version: 'v2',
+    children: [
+      { label: 'RBAC 管理', href: '/admin/roles' },
+      { label: '稽核日誌', href: '/admin/audit-events' },
+    ],
   },
   {
     label: '系統設定',
     icon: 'Settings',
     href: '/settings',
     version: 'v1',
+    children: [
+      { label: '個人 / 安全', href: '/settings' },
+      { label: '租戶設定 (V3.0)', href: '/admin/settings/tenant', version: 'v3' },
+    ],
+  },
+  // V3.0 超管：只有 super_admin 角色可見
+  {
+    label: '平台超管',
+    icon: 'Building2',
+    href: '/admin/super/dashboard',
+    version: 'v3',
+    roleGuard: 'super_admin',
   },
 ];
 ```
@@ -1423,6 +2392,9 @@ const stateStrategy = {
   // 認證狀態 → httpOnly Cookie (由 Next.js Middleware 管理)
   auth: 'httpOnly Cookie',
 
+  // 租戶上下文 → httpOnly Cookie + JWT payload（V3.0 多租戶）
+  tenant: 'httpOnly Cookie (X-Tenant-ID)',
+
   // UI 偏好 → localStorage (Zustand persist)
   uiPreferences: {
     storage: 'localStorage',
@@ -1433,13 +2405,43 @@ const stateStrategy = {
   // 篩選狀態 → URL Params (Next.js useSearchParams)
   filters: 'URL searchParams',
 
-  // 表單草稿 → React Hook Form (記憶體，不持久化)
-  formDraft: 'memory',
+  // 表單草稿 → React Hook Form（記憶體）+ Service Worker IndexedDB（技師離線草稿）
+  formDraft: 'memory + IndexedDB (technician offline queue)',
 
   // 伺服器數據 → TanStack Query Cache (記憶體，自動重驗證)
   serverData: 'TanStack Query Cache',
+
+  // 即時事件 → WebSocket subscription 對應的 Zustand 緩衝
+  realtimeEvents: 'Zustand + WebSocket',
 };
 ```
+
+### 8.4 即時通訊策略 (WebSocket Channels)
+
+對齊 `specs/realtime-messaging-spec.md`。前端以統一 WebSocket client 訂閱下列頻道，並以 Zustand store 緩衝，必要時觸發 `queryClient.invalidateQueries` 讓 TanStack Query 重新拉取。
+
+| 頻道 | 訂閱者 | 內容 | 驅動畫面 |
+|:-----|:-------|:-----|:---------|
+| `/realtime/work-orders/{id}` | Admin 工單詳情、技師端工單詳情 | 狀態轉換、訊息、指派 | A12, T3 |
+| `/realtime/dispatch-queue` | Admin | 派工嘗試、拒單、逾時 | A28 派工佇列 |
+| `/realtime/pool/{technician_id}` | 技師端 | 新案件進池、案件被搶 | T1 案件池 |
+| `/realtime/refunds` | Admin / Finance | 新退款申請、簽核進度 | A17 退款審批 |
+| `/realtime/disputes` | Admin | 爭議升級、新證據 | A22 爭議仲裁 |
+| `/realtime/sla-alerts` | Admin | SLA 即將/已違規 | A1 儀表板、A29 KPI |
+| `/realtime/rbac` | 所有登入 session | 權限變更即時生效 | 全域 |
+| `/realtime/inventory/low-stock` | Admin | 低庫存事件 | A19 庫存 |
+| `/realtime/diagnostics/{conversation_id}` | Admin | L1/L2/L3 推理進度 | A32 診斷檢視 |
+| `/realtime/notifications/{user_id}` | 所有登入 session | 個人通知（@mention、指派） | 全域 Toast / Bell |
+
+**降級策略：** WebSocket 斷線時自動 fallback 為 TanStack Query polling（對應 §8.2 refetchInterval），恢復後 replay 缺失事件（server-side event log 保留 5 分鐘）。
+
+### 8.5 多租戶資料隔離 (Tenant Isolation)
+
+- **Header：** 所有 API 請求由 Next.js Middleware 注入 `X-Tenant-ID`（源自 JWT payload 的 `tenant_id` claim）。
+- **Query Key：** TanStack Query 的 `queryKey` 必定含 `tenant_id` 前綴（例：`['tenant', tenantId, 'work-orders', filters]`），避免切租戶時快取污染。
+- **切換租戶：** 超管切換時呼叫 `queryClient.clear()` + Zustand `reset()`，強制重載。
+- **RLS 驗證：** 前端對任何回傳資料做 `tenant_id` 檢驗，不符時視為安全事件（自動登出 + 回報）。
+- **租戶品牌：** 登入後由 `/api/v1/tenants/me` 取回 `brand_config`，注入 CSS 變數與 Tailwind runtime theme。
 
 ---
 
@@ -1472,13 +2474,47 @@ Admin Panel 核心頁面:
 ├── /technicians                              [技師管理] (V2.0)
 │   └── /technicians/{id}                     [技師詳情] (V2.0) *id=UUID
 ├── /accounting                               [帳務管理] (V2.0)
-└── /settings                                 [系統設定]
+├── /settings                                 [系統設定]
+│
+├── /admin/refunds                            [退款審批] (V2.0)
+├── /admin/roles                              [RBAC 管理] (V2.0)
+│   └── /admin/roles/{id}                     [角色編輯] (V2.0) *id=UUID
+├── /admin/inventory                          [庫存管理] (V2.0)
+├── /admin/audit-events                       [稽核日誌] (V2.0)
+├── /admin/warranty-claims                    [保固索賠] (V2.0)
+│   └── /admin/warranty-claims/{id}           [保固索賠詳情] (V2.0) *id=UUID
+├── /admin/disputes                           [爭議仲裁] (V2.0)
+│   └── /admin/disputes/{id}                  [爭議詳情] (V2.0) *id=UUID
+├── /admin/customers                          [客戶主檔] (V2.0)
+│   └── /admin/customers/{id}                 [客戶詳情] (V2.0) *id=UUID
+├── /admin/technicians/{id}/schedule          [技師排班] (V2.0) *id=UUID
+├── /admin/technicians/{id}/skills            [技師技能] (V2.0) *id=UUID
+├── /admin/technicians/{id}/settlements       [技師結算] (V2.0) *id=UUID
+├── /admin/dispatch-queue                     [派工佇列監控] (V2.0)
+├── /admin/reports/kpi                        [KPI 儀表板] (V2.0)
+├── /admin/reports/technician-ranking         [技師排行] (V2.0)
+├── /admin/reports/revenue                    [營收報表] (V2.0)
+├── /admin/diagnostics/{conversation_id}      [診斷推理] (V2.0) *id=UUID
+├── /admin/knowledge-base/sop-performance     [SOP 績效] (V2.0)
+├── /admin/settings/tenant                    [租戶設定] (V3.0)
+│   ├── /admin/settings/tenant/brand
+│   ├── /admin/settings/tenant/integrations
+│   └── /admin/settings/tenant/pricing
+└── /admin/super/                             [超管平台] (V3.0, super_admin only)
+    ├── /admin/super/dashboard
+    └── /admin/super/tenants/{tenant_id}
 
 Technician Web App 頁面:
 ├── /pool                                     [案件池]
 ├── /my-orders                                [我的工單]
-│   └── /my-orders/{id}                       [工單詳情/完工回報] *id=UUID
-└── /account                                  [帳戶中心]
+│   ├── /my-orders/{id}                       [工單詳情/完工回報] *id=UUID
+│   ├── /my-orders/{id}/scope-change          [範圍變更申請] Flow 3
+│   ├── /my-orders/{id}/material-request      [缺料回報] Flow 4
+│   ├── /my-orders/{id}/delay                 [延遲通知] Flow 5
+│   ├── /my-orders/{id}/door-check            [門面檢核] Flow 10
+│   └── /my-orders/{id}/signature             [雙方簽章]
+├── /account                                  [帳戶中心]
+└── /account/schedule                         [我的排班]
 
 API 端點 (前端呼叫):
 ├── POST   /api/v1/auth/login                 [管理員登入]
@@ -1503,7 +2539,75 @@ API 端點 (前端呼叫):
 ├── POST   /api/v1/work-orders/{id}/complete   [完工回報] (V2.0)
 ├── GET    /api/v1/technicians                 [技師列表] (V2.0)
 ├── GET    /api/v1/technicians/me              [技師自身資料] (V2.0)
-└── GET    /api/v1/accounting/reports          [帳務報表] (V2.0)
+├── GET    /api/v1/technicians/{id}/schedule   [技師排班] (V2.0)
+├── PUT    /api/v1/technicians/{id}/schedule   [更新排班] (V2.0)
+├── GET    /api/v1/technicians/{id}/skills     [技師技能] (V2.0)
+├── PUT    /api/v1/technicians/{id}/skills     [更新技能] (V2.0)
+├── GET    /api/v1/technicians/{id}/settlements [結算明細] (V2.0)
+├── POST   /api/v1/technicians/{id}/settlements/{month}/confirm [確認結算] (V2.0)
+├── GET    /api/v1/accounting/reports          [帳務報表] (V2.0)
+│
+# 退款 / 保固 / 爭議
+├── GET    /api/v1/refunds                     [退款申請列表] (V2.0)
+├── POST   /api/v1/refunds/{id}/decision       [核准/駁回/部分核准] (V2.0)
+├── POST   /api/v1/refunds/{id}/signature      [雙簽簽章] (V2.0)
+├── GET    /api/v1/warranty-claims             [保固索賠列表] (V2.0)
+├── POST   /api/v1/warranty-claims/{id}/decision
+├── GET    /api/v1/disputes                    [爭議列表] (V2.0)
+├── POST   /api/v1/disputes/{id}/verdict       [裁決] (V2.0)
+│
+# RBAC / 稽核
+├── GET    /api/v1/roles                       [角色列表] (V2.0)
+├── POST   /api/v1/roles                       [建立自訂角色] (V2.0)
+├── PUT    /api/v1/roles/{id}                  [修改權限矩陣] (V2.0)
+├── GET    /api/v1/audit-events                [稽核日誌查詢] (V2.0)
+├── POST   /api/v1/audit-events/export         [匯出 CSV] (V2.0)
+│
+# 庫存 / 客戶主檔
+├── GET    /api/v1/inventory/parts             [零件主檔] (V2.0)
+├── POST   /api/v1/inventory/parts/{id}/adjust [庫存調整] (V2.0)
+├── GET    /api/v1/inventory/low-stock         [低庫存] (V2.0)
+├── GET    /api/v1/customers                   [客戶列表] (V2.0)
+├── GET    /api/v1/customers/{id}              [客戶詳情] (V2.0)
+│
+# 報表
+├── GET    /api/v1/reports/kpi                 [KPI 儀表板] (V2.0)
+├── GET    /api/v1/reports/technician-ranking  [技師排行] (V2.0)
+├── GET    /api/v1/reports/revenue             [營收報表] (V2.0)
+├── POST   /api/v1/reports/export              [匯出報表] (V2.0)
+│
+# 診斷 / Agent Harness
+├── GET    /api/v1/diagnostics/{conversation_id} [診斷推理追溯] (V2.0)
+├── POST   /api/v1/diagnostics/{conversation_id}/override [管理員覆寫] (V2.0)
+├── POST   /api/v1/diagnostics/{conversation_id}/feedback [訓練反饋] (V2.0)
+│
+# 工單子流程（Flow 2~10）
+├── POST   /api/v1/work-orders/{id}/reject      [技師拒單] Flow 2
+├── POST   /api/v1/work-orders/{id}/scope-change [範圍變更] Flow 3
+├── POST   /api/v1/work-orders/{id}/material-request [缺料回報] Flow 4
+├── POST   /api/v1/work-orders/{id}/delay       [延遲通知] Flow 5
+├── POST   /api/v1/work-orders/{id}/door-check  [門面檢核] Flow 10
+├── POST   /api/v1/work-orders/{id}/signature   [雙方電子簽章]
+│
+# 多租戶 (V3.0)
+├── GET    /api/v1/tenants/me                   [當前租戶設定] (V3.0)
+├── PUT    /api/v1/tenants/me/brand             [更新品牌] (V3.0)
+├── PUT    /api/v1/tenants/me/pricing           [更新定價] (V3.0)
+├── GET    /api/v1/super/tenants                [超管：租戶列表] (V3.0)
+└── POST   /api/v1/super/tenants                [超管：建立租戶] (V3.0)
+
+# WebSocket（對齊 §8.4）
+wss://app.smartlock-saas.com/ws
+  ├── /realtime/work-orders/{id}
+  ├── /realtime/dispatch-queue
+  ├── /realtime/pool/{technician_id}
+  ├── /realtime/refunds
+  ├── /realtime/disputes
+  ├── /realtime/sla-alerts
+  ├── /realtime/rbac
+  ├── /realtime/inventory/low-stock
+  ├── /realtime/diagnostics/{conversation_id}
+  └── /realtime/notifications/{user_id}
 ```
 
 ### 9.2 URL 查詢參數規範
@@ -1530,16 +2634,30 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get('access_token');
 
   // Admin Panel 路由守衛
-  if (pathname.startsWith('/dashboard') ||
-      pathname.startsWith('/conversations') ||
-      pathname.startsWith('/problem-cards') ||
-      pathname.startsWith('/knowledge-base') ||
-      pathname.startsWith('/work-orders') ||
-      pathname.startsWith('/technicians') ||
-      pathname.startsWith('/accounting') ||
-      pathname.startsWith('/settings')) {
+  const adminPrefixes = [
+    '/dashboard', '/conversations', '/problem-cards', '/knowledge-base',
+    '/work-orders', '/technicians', '/accounting', '/settings',
+    '/admin', // 所有 V2.0+/V3.0 admin 頁面
+  ];
+  if (adminPrefixes.some(p => pathname.startsWith(p))) {
     if (!token) {
       return NextResponse.redirect(new URL('/login', request.url));
+    }
+    // 注入租戶 Header（V3.0 多租戶）
+    const tenantId = request.cookies.get('tenant_id')?.value;
+    if (tenantId) {
+      const res = NextResponse.next();
+      res.headers.set('X-Tenant-ID', tenantId);
+      return res;
+    }
+  }
+
+  // V3.0 超管守衛
+  if (pathname.startsWith('/admin/super')) {
+    // 檢查 JWT role claim — 缺少 super_admin 角色則 403
+    const role = request.cookies.get('user_role')?.value;
+    if (role !== 'super_admin') {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
     }
   }
 
@@ -1565,6 +2683,7 @@ export const config = {
     '/technicians/:path*',
     '/accounting/:path*',
     '/settings/:path*',
+    '/admin/:path*',
     '/pool/:path*',
     '/my-orders/:path*',
     '/account/:path*',
@@ -1693,12 +2812,16 @@ export const config = {
 
 | 文檔類型 | 檔名 | 路徑 |
 |:---------|:-----|:-----|
-| **PRD** | 02_project_brief_and_prd.md | `docs/02_project_brief_and_prd.md` |
-| **架構設計** | 05_architecture_and_design_document.md | `docs/05_architecture_and_design_document.md` |
-| **API 設計規範** | 06_api_design_specification.md | `docs/06_api_design_specification.md` |
-| **前端架構規範** | 12_frontend_architecture_specification.md | `docs/12_frontend_architecture_specification.md` |
-| **BDD 情境** | 03_behavior_driven_development.md | `docs/03_behavior_driven_development.md` |
-| **專案結構指南** | 08_project_structure_guide.md | `docs/08_project_structure_guide.md` |
+| **API 設計規範** | E5--api-design-specification.md | `docs/02-design/E5--api-design-specification.md` |
+| **前端架構規範** | E5x--frontend-architecture.md | `docs/02-design/E5x--frontend-architecture.md` |
+| **工單互動流程** | E5x--work-order-interaction-flows.md | `docs/02-design/E5x--work-order-interaction-flows.md` |
+| **工單流程補充** | E5x--work-order-flows-supplement.md | `docs/02-design/E5x--work-order-flows-supplement.md` |
+| **派工營運補充** | E5x--dispatch-operations-supplement.md | `docs/02-design/E5x--dispatch-operations-supplement.md` |
+| **多租戶架構** | multi-tenant-architecture.md | `docs/02-design/platform-multi-tenant/multi-tenant-architecture.md` |
+| **派工整合規格** | dispatch-integration-spec.md | `docs/02-design/platform-multi-tenant/dispatch-integration-spec.md` |
+| **Agent Harness 架構** | harness-architecture.md | `docs/02-design/agent-harness/harness-architecture.md` |
+| **診斷智能架構** | diagnostic-intelligence-architecture.md | `docs/02-design/agent-harness/diagnostic-intelligence-architecture.md` |
+| **技術規格集** | specs/_MOC.md | `docs/02-design/specs/_MOC.md` |
 
 ### 11.3 變更記錄
 
@@ -1706,6 +2829,7 @@ export const config = {
 |:-----|:-----|:-----|:---------|
 | 2026-02-26 | v1.0 | 前端架構師 | 初版發布：涵蓋 V1.0 Admin Panel + V2.0 Technician App 完整 IA |
 | 2026-04-04 | v1.1 | 前端架構師 | 新增 V2.0 Admin Panel 6 頁：退款審批、RBAC、庫存、稽核、保固索賠、爭議仲裁 |
+| 2026-04-23 | v1.2 | 前端架構師 | **對齊系統架構全面擴充：** <br/>• 新增 A23–A33 Admin 頁面（客戶主檔、技師排班/技能/結算、派工佇列、KPI/排行/營收、診斷推理、SOP 績效）<br/>• 新增 V3.0 A34–A36 多租戶頁面（租戶設定、品牌客製、超管控制台）<br/>• 新增 T5–T10 技師端子流程頁（範圍變更、缺料、延遲、門面檢核、簽章、排班）<br/>• 擴充 §6.13–6.31 共 19 個缺失的頁面詳細規格<br/>• 新增 §8.4 WebSocket 頻道目錄（10 個頻道）與 §8.5 多租戶資料隔離策略<br/>• 更新路由守衛支援 `/admin/*` 與 V3.0 超管檢查<br/>• 對齊 `E5x--work-order-interaction-flows` 10 個流程、`E5x--dispatch-operations-supplement` 7 類營運、13 項 `specs/` 技術規格與 `agent-harness` AI 診斷架構 |
 
 ### 11.4 審核記錄
 
