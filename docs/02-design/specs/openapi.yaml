@@ -344,30 +344,388 @@ paths:
                 $ref: '#/components/schemas/ApiResponseGeneric'
 
   # -----------------------------
-  # TODO（Week 2-4 補完）—— 以下端點骨架列表，實作時逐一展開
+  # dispatch — 手動介入與候選（Week 2 from validation-gate A37）
   # -----------------------------
-  # /api/v1/dashboard/stats                      GET  — 儀表板統計
+  /api/v1/dispatch/candidates:
+    get:
+      tags: [dispatch]
+      summary: 查詢候選技師（A37 派工人工介入）
+      description: 依 work_order_id 計算綜合分（0.4 匹配 + 0.3 距離 + 0.3 評分）排序的候選清單
+      operationId: listDispatchCandidates
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - in: query
+          name: work_order_id
+          required: true
+          schema: { type: string, format: uuid }
+        - in: query
+          name: skills
+          schema: { type: array, items: { type: string } }
+        - in: query
+          name: areas
+          schema: { type: array, items: { type: string } }
+        - in: query
+          name: levels
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/TechnicianLevel' }
+        - in: query
+          name: exclude_circuit
+          schema: { type: boolean, default: true }
+        - in: query
+          name: rating_min
+          schema: { type: number, format: float, minimum: 0, maximum: 5 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  candidates:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        technician: { $ref: '#/components/schemas/Technician' }
+                        score:
+                          type: number
+                          format: float
+                          minimum: 0
+                          maximum: 100
+                        distance_km: { type: number, format: float }
+                        skill_match:
+                          type: number
+                          format: float
+                          minimum: 0
+                          maximum: 1
+                        availability_eta_minutes: { type: integer }
+                  total: { type: integer }
+                  auto_dispatch_attempts:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        technician_id: { type: string, format: uuid }
+                        attempted_at: { type: string, format: date-time }
+                        outcome: { type: string, enum: [accepted, declined, timeout] }
+
+  /api/v1/work-orders/{id}/assign:
+    post:
+      tags: [dispatch]
+      summary: 手動指派技師（強制 Idempotency-Key + decision reason）
+      operationId: assignWorkOrder
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [technician_id, reason_code]
+              properties:
+                technician_id: { type: string, format: uuid }
+                reason_code:
+                  type: string
+                  enum: [auto_dispatch_exhausted, customer_requested_specific_tech, skill_shortage_override, sla_rescue, other]
+                reason_text: { type: string, maxLength: 500 }
+                override_flags:
+                  type: object
+                  properties:
+                    allow_circuit: { type: boolean, default: false }
+                    allow_cross_area: { type: boolean, default: false }
+      responses:
+        '200':
+          description: 指派成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderEnvelope'
+        '409':
+          description: 衝突（含 DISPATCH_OVERRIDE_REQUIRED / WORK_ORDER_CONFLICT / TECHNICIAN_CIRCUIT_BREAKER_OPEN）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/v1/work-orders/{id}/escalate:
+    post:
+      tags: [dispatch]
+      summary: 升級工單至更高層級
+      operationId: escalateWorkOrder
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [level, reason]
+              properties:
+                level:
+                  type: string
+                  enum: [operations_manager, tenant_admin]
+                reason: { type: string, maxLength: 500 }
+      responses:
+        '200':
+          description: 已升級
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderEnvelope'
+
+  # -----------------------------
+  # 改期日曆（Week 2 from T11）
+  # -----------------------------
+  /api/v1/technicians/me/availability:
+    get:
+      tags: [dispatch]
+      summary: 查詢技師自己某日可用時段
+      operationId: getTechnicianAvailability
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - in: query
+          name: work_order_id
+          schema: { type: string, format: uuid }
+        - in: query
+          name: date
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  slots:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        start: { type: string, format: date-time }
+                        end: { type: string, format: date-time }
+                        status:
+                          type: string
+                          enum: [available, soft_conflict, hard_conflict]
+                        conflict_reason:
+                          type: [string, "null"]
+                          enum: [buffer_insufficient, another_order, customer_dnd, holiday, null]
+                  customer_preferences:
+                    type: object
+                    properties:
+                      preferred_hours: { type: array, items: { type: string } }
+                      dnd_hours: { type: array, items: { type: string } }
+                  past_reschedule_count: { type: integer }
+
+  /api/v1/work-orders/{id}/reschedule:
+    post:
+      tags: [dispatch]
+      summary: 送出改期請求給客戶（T11）
+      description: 技師提交 1-3 個備選時段，系統 LINE Flex push 給客戶 RSVP（24h TTL）
+      operationId: proposeReschedule
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [proposed_slots, message_to_customer]
+              properties:
+                proposed_slots:
+                  type: array
+                  minItems: 1
+                  maxItems: 3
+                  items:
+                    type: object
+                    required: [start, end]
+                    properties:
+                      start: { type: string, format: date-time }
+                      end: { type: string, format: date-time }
+                message_to_customer: { type: string, maxLength: 120 }
+                warning_acknowledged_at: { type: [string, "null"], format: date-time }
+                send_via:
+                  type: string
+                  enum: [line, line_and_sms]
+                  default: line
+      responses:
+        '200':
+          description: 改期請求已發送
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderEnvelope'
+        '409':
+          description: RESCHEDULE_SLOT_TAKEN / WORK_ORDER_CONFLICT
+        '422':
+          description: RESCHEDULE_LIMIT_EXCEEDED（24h 內已 3 次）
+
+  # -----------------------------
+  # 通知中心（Week 2 from G1）
+  # -----------------------------
+  /api/v1/notifications:
+    get:
+      tags: [realtime]
+      summary: 通知列表（G1 通知中心）
+      operationId: listNotifications
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [unread, read, archived, all]
+        - in: query
+          name: type
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [work_order, refund, dispute, rbac, inventory, sla, system, mention]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+                  next_cursor: { type: [string, "null"] }
+                  has_more: { type: boolean }
+                  unread_count: { type: integer }
+
+  /api/v1/notifications/{id}:
+    patch:
+      tags: [realtime]
+      summary: 標記通知狀態
+      operationId: updateNotification
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                read_at: { type: [string, "null"], format: date-time }
+                archived_at: { type: [string, "null"], format: date-time }
+      responses:
+        '200':
+          description: OK
+
+  /api/v1/notifications/bulk:
+    post:
+      tags: [realtime]
+      summary: 批量處理通知
+      operationId: bulkUpdateNotifications
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids, action]
+              properties:
+                ids:
+                  type: array
+                  maxItems: 1000
+                  items: { type: string, format: uuid }
+                action:
+                  type: string
+                  enum: [mark_read, mark_unread, archive, delete]
+      responses:
+        '200':
+          description: OK
+        '422':
+          description: NOTIFICATION_BULK_LIMIT_EXCEEDED
+
+  /api/v1/notifications/mark-all-read:
+    post:
+      tags: [realtime]
+      summary: 全部標為已讀（Critical 類除外）
+      operationId: markAllNotificationsRead
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                filter:
+                  type: object
+                  properties:
+                    type:
+                      type: array
+                      items: { type: string }
+      responses:
+        '200':
+          description: OK
+
+  # -----------------------------
+  # TODO（Week 3-4 補完）—— 剩餘端點骨架
+  # -----------------------------
+  # /api/v1/dashboard/stats                      GET
   # /api/v1/knowledge-base/cases                 GET/POST
-  # /api/v1/manuals/ingest                       POST — PDF 手冊上傳
+  # /api/v1/manuals/ingest                       POST
   # /api/v1/sop-drafts                           GET
   # /api/v1/sop-drafts/{id}/approve              POST
   # /api/v1/technicians                          GET
   # /api/v1/technicians/{id}/schedule            GET/PUT
   # /api/v1/technicians/{id}/skills              GET/PUT
   # /api/v1/technicians/{id}/settlements         GET/POST
+  # /api/v1/technicians/me/time-off              POST
   # /api/v1/accounting/reconciliations           GET
-  # /api/v1/roles                                GET/POST/PUT
-  # /api/v1/audit-events                         GET
-  # /api/v1/audit-events/export                  POST
-  # /api/v1/inventory/parts                      GET/POST
-  # /api/v1/inventory/low-stock                  GET
+  # /api/v1/roles                                GET/POST/PUT/DELETE — G1 RBAC
+  # /api/v1/audit-events                         GET — G2
+  # /api/v1/audit-events/export                  POST — G2
+  # /api/v1/inventory/parts                      GET/POST — G3
+  # /api/v1/inventory/low-stock                  GET — G3
+  # /api/v1/inventory/purchase-orders            POST — G3
   # /api/v1/warranty-claims                      GET/POST
-  # /api/v1/disputes                             GET/POST
+  # /api/v1/disputes                             GET/POST — G4
+  # /api/v1/disputes/{id}/escalate               POST — G4
+  # /api/v1/disputes/{id}/resolve                POST — G4
   # /api/v1/customers                            GET
   # /api/v1/reports/kpi|ranking|revenue          GET
   # /api/v1/diagnostics/{conv_id}                GET/POST (SSE)
+  # /api/v1/tenants/applications                 POST — MT1
   # /api/v1/tenants/me                           GET/PUT
-  # /api/v1/super/*                              V3.0
+  # /api/v1/tenants/me/brand/draft               POST — MT2
+  # /api/v1/tenants/me/offboard                  POST — MT5
+  # /api/v1/super/applications                   GET — MT1
+  # /api/v1/super/applications/{id}/approve      POST — MT1
+  # /api/v1/super/tenants/{id}/suspend           POST — MT3
+  # /api/v1/super/brand-reviews                  GET/POST — MT2
+  # /api/v1/super/metrics                        GET — MT3
+  # /api/v1/b2b/api-keys                         POST/DELETE — MT4
+  # /api/v1/b2b/api-keys/{id}/rotate             POST — MT4
+  # /api/v1/b2b/usage                            GET — MT4
   # /api/v1/work-orders/{id}/scope-change        POST  — Flow 3
   # /api/v1/work-orders/{id}/material-request    POST  — Flow 4
   # /api/v1/work-orders/{id}/delay               POST  — Flow 5
@@ -532,7 +890,52 @@ components:
         error_code:
           type: string
           description: 統一錯誤碼（見 `docs/02-design/error-codes.md`）
-          examples: [VALIDATION_ERROR, NOT_FOUND, WORK_ORDER_CONFLICT, QUOTE_EXPIRED]
+          examples:
+            - VALIDATION_ERROR
+            - UNAUTHORIZED
+            - FORBIDDEN
+            - NOT_FOUND
+            - CONFLICT
+            - OPTIMISTIC_LOCK_FAILED
+            - RATE_LIMITED
+            - IDEMPOTENCY_KEY_REUSED
+            - TENANT_MISMATCH
+            - INTERNAL_ERROR
+            - SERVICE_UNAVAILABLE
+            - WORK_ORDER_CONFLICT
+            - WORK_ORDER_STATUS_INVALID
+            - QUOTE_EXPIRED
+            - TECHNICIAN_CIRCUIT_BREAKER_OPEN
+            - TECHNICIAN_SCHEDULE_CONFLICT
+            - DISPATCH_NO_TECHNICIAN_AVAILABLE
+            - DISPATCH_OVERRIDE_REQUIRED
+            - DISPATCH_REASON_MISSING
+            - SIGNATURE_ALREADY_SIGNED
+            - APPEARANCE_CHANGE_SIGNATURE_REJECTED
+            - APPEARANCE_CHANGE_EVIDENCE_INCOMPLETE
+            - REFUND_DUAL_SIGN_REQUIRED
+            - REFUND_DECISION_LOCKED
+            - COMPLAINT_ALREADY_IN_DISPUTE
+            - DISPUTE_MERGE_FAILED
+            - DISPUTE_EXTERNAL_PENDING
+            - DISPUTE_SLA_OVERDUE
+            - INVENTORY_INSUFFICIENT
+            - INVENTORY_PART_NOT_FOUND
+            - ROLE_IN_USE
+            - PERMISSION_CODE_INVALID
+            - AUDIT_EXPORT_TOO_LARGE
+            - DIAGNOSTIC_STREAM_CLOSED
+            - TENANT_SUSPENDED
+            - TENANT_LINE_BINDING_FAILED
+            - TENANT_NOT_FOUND
+            - BRAND_CONFIG_INVALID
+            - BRAND_REVIEW_PENDING
+            - TENANT_QUOTA_EXCEEDED
+            - NOTIFICATION_NOT_FOUND
+            - NOTIFICATION_BULK_LIMIT_EXCEEDED
+            - RESCHEDULE_LIMIT_EXCEEDED
+            - RESCHEDULE_RSVP_EXPIRED
+            - RESCHEDULE_SLOT_TAKEN
         message:
           type: string
           description: 使用者可見訊息（依 Accept-Language i18n）
@@ -822,10 +1225,298 @@ components:
           type: integer
           description: 2 小時內可能逾期的工單數
 
-    # --------- TODO（Week 2） ---------
-    # Quote          — 報價區間、有效期、議價歷史
-    # Exception      — 異常返回階段、熔斷規則觸發紀錄
-    # Invoice        — 發票號、金額、開立狀態、重開歷史
-    # Technician     — 技師主檔（skills、service_areas、availability）
-    # AuditEvent     — 稽核事件（actor、action、target、before/after）
-    # DomainEvent    — 統一 domain event 信封（移至 asyncapi.yaml）
+    # --------- Quote（Week 2 完整化） ---------
+    QuoteStatus:
+      type: string
+      enum: [draft, sent, negotiating, accepted, rejected, expired]
+
+    Quote:
+      type: object
+      description: |
+        工單報價（對齊 E5x--work-order-flows-supplement.md §17）。
+        採區間制：min/max 為當前報價區間，客戶 accept 後 scalar 欄位為最終金額。
+      required: [id, work_order_id, status, min_amount, max_amount, currency, valid_until, version, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        work_order_id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/QuoteStatus' }
+        min_amount:
+          type: string
+          pattern: '^-?\d+(\.\d{1,2})?$'
+          description: Decimal(10,2) 字串，對應區間下限
+        max_amount:
+          type: string
+          pattern: '^-?\d+(\.\d{1,2})?$'
+        currency:
+          type: string
+          enum: [TWD]
+          default: TWD
+        final_amount:
+          type: [string, "null"]
+          pattern: '^-?\d+(\.\d{1,2})?$'
+          description: 客戶 accept 後的最終金額
+        breakdown:
+          type: array
+          description: 報價明細項
+          items:
+            type: object
+            required: [item_type, description, amount]
+            properties:
+              item_type:
+                type: string
+                enum: [labor, parts, travel, holiday_surcharge, appearance_change, other]
+              description: { type: string, maxLength: 200 }
+              amount: { type: string, pattern: '^-?\d+(\.\d{1,2})?$' }
+        valid_until:
+          type: string
+          format: date-time
+          description: 有效期（預設 48h）
+        negotiation_history:
+          type: array
+          description: 議價輪次記錄
+          items:
+            type: object
+            properties:
+              round: { type: integer, minimum: 1 }
+              proposed_by: { type: string, enum: [system, customer, technician, admin] }
+              proposed_amount: { type: string, pattern: '^-?\d+(\.\d{1,2})?$' }
+              proposed_at: { type: string, format: date-time }
+              outcome: { type: string, enum: [pending, accepted, rejected, counter_offered] }
+        version:
+          type: integer
+          description: 樂觀鎖
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    QuoteEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseGeneric'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Quote'
+
+    # --------- Exception（Week 2 完整化） ---------
+    ExceptionType:
+      type: string
+      enum:
+        - no_show                       # 技師未到
+        - customer_absent               # 客戶不在場
+        - scope_change_rejected         # 客戶拒絕範圍變更
+        - material_shortage             # 缺料
+        - delay_severe                  # 嚴重延遲
+        - appearance_refused            # 拒簽外觀變更
+        - payment_failed                # 付款失敗
+        - quality_complaint             # 品質不合格
+        - schedule_conflict             # 排班衝突（Flow 14）
+        - other
+
+    ExceptionStatus:
+      type: string
+      enum: [open, investigating, resolved, escalated, closed]
+
+    Exception:
+      type: object
+      description: |
+        工單異常記錄（對齊 work-order-flows-supplement §22 異常返回節點 + 熔斷規則）
+      required: [id, work_order_id, exception_type, status, severity, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        work_order_id: { type: string, format: uuid }
+        exception_type: { $ref: '#/components/schemas/ExceptionType' }
+        status: { $ref: '#/components/schemas/ExceptionStatus' }
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+        description: { type: string, maxLength: 2000 }
+        return_to_stage:
+          type: [string, "null"]
+          description: 異常處理後工單應返回的 WorkOrder 狀態
+        triggers_circuit_breaker:
+          type: boolean
+          description: 是否觸發技師熔斷計數（24hr 3 次或 12 月 3 次放鴿子）
+        actor:
+          type: object
+          properties:
+            actor_type: { type: string, enum: [customer, technician, system, admin] }
+            actor_id: { type: string }
+        resolution:
+          type: [string, "null"]
+          description: 處理結果描述
+        resolved_at: { type: [string, "null"], format: date-time }
+        resolved_by: { type: [string, "null"], format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    ExceptionEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseGeneric'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Exception'
+
+    ExceptionPage:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Exception'
+
+    # --------- Invoice（Week 2 完整化） ---------
+    InvoiceStatus:
+      type: string
+      enum: [pending, issued, allowance_pending, voided, reopened]
+
+    Invoice:
+      type: object
+      description: |
+        電子發票（對齊 work-order-flows-supplement §21 EX5）
+      required: [id, work_order_id, invoice_number, amount, status, issued_at, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        work_order_id: { type: string, format: uuid }
+        invoice_number:
+          type: string
+          pattern: '^[A-Z]{2}\d{8}$'
+          description: 台灣電子發票號碼（如 AB12345678）
+        tax_id:
+          type: [string, "null"]
+          pattern: '^\d{8}$'
+          description: 買方統編（選填）
+        amount:
+          type: string
+          pattern: '^-?\d+(\.\d{1,2})?$'
+        tax_type:
+          type: string
+          enum: [taxable, zero_rated, exempt]
+          default: taxable
+        status: { $ref: '#/components/schemas/InvoiceStatus' }
+        issued_at: { type: string, format: date-time }
+        voided_at: { type: [string, "null"], format: date-time }
+        void_reason: { type: [string, "null"] }
+        allowance_amount:
+          type: [string, "null"]
+          pattern: '^-?\d+(\.\d{1,2})?$'
+          description: 折讓金額（退款時部分折讓）
+        category:
+          type: string
+          enum: [service_fee, travel_fee, parts, other]
+          description: 稅務分類 — 車馬費獨立開立，不與工單合併
+        reopened_from:
+          type: [string, "null"]
+          format: uuid
+          description: 重開發票的原發票 ID
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    InvoiceEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseGeneric'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Invoice'
+
+    InvoicePage:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Invoice'
+
+    # --------- Technician（Week 2） ---------
+    TechnicianLevel:
+      type: string
+      enum: [S, A, B, C]
+
+    TechnicianAvailability:
+      type: string
+      enum: [available, busy, offline, on_leave, circuit_breaker_open]
+
+    Technician:
+      type: object
+      required: [id, name, phone, level, availability, skills, service_areas, rating, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        phone: { type: string, pattern: '^09\d{8}$' }
+        level: { $ref: '#/components/schemas/TechnicianLevel' }
+        availability: { $ref: '#/components/schemas/TechnicianAvailability' }
+        skills:
+          type: array
+          items: { type: string }
+          description: 可服務品牌 / 技能碼清單
+        service_areas:
+          type: array
+          items: { type: string }
+          description: 服務區域代碼（行政區）
+        rating:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 5
+        completed_orders_count: { type: integer, minimum: 0 }
+        circuit_breaker_until: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+
+    TechnicianEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseGeneric'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Technician'
+
+    # --------- Notification（Week 2 from G1） ---------
+    NotificationType:
+      type: string
+      enum: [work_order, refund, dispute, rbac, inventory, sla, system, mention]
+
+    NotificationSeverity:
+      type: string
+      enum: [info, warning, critical]
+
+    Notification:
+      type: object
+      required: [id, type, severity, title, body, source, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/NotificationType' }
+        severity: { $ref: '#/components/schemas/NotificationSeverity' }
+        title: { type: string, maxLength: 200 }
+        body: { type: string, maxLength: 1000 }
+        source:
+          type: string
+          enum: [websocket, line_push, system, email_fallback]
+        created_at: { type: string, format: date-time }
+        read_at: { type: [string, "null"], format: date-time }
+        archived_at: { type: [string, "null"], format: date-time }
+        related_entity:
+          type: [object, "null"]
+          properties:
+            type: { type: string }
+            id: { type: string, format: uuid }
+            url: { type: string, format: uri }
+        actions:
+          type: array
+          items:
+            type: object
+            properties:
+              label: { type: string }
+              endpoint: { type: string }
+              method: { type: string, enum: [GET, POST, PUT, PATCH, DELETE] }
+        raw_event_id:
+          type: [string, "null"]
+          format: uuid
+          description: 對應 domain event，除錯用
+
+    # --------- AuditEvent / DomainEvent 保留 ---------
+    # AuditEvent — 隨 /api/v1/audit-events 端點 Week 3 補完
+    # DomainEvent — 見 asyncapi.yaml DomainEventEnvelope

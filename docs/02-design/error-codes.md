@@ -144,6 +144,47 @@
 | `TENANT_SUSPENDED` | 423 | 租戶已停用 | 顯示聯絡管理員 |
 | `BRAND_CONFIG_INVALID` | 422 | 品牌客製設定不合規（配色對比度等） | 顯示 accessibility 提示 |
 | `TENANT_QUOTA_EXCEEDED` | 402 | 功能用量超方案上限 | 顯示升級 CTA |
+| `TENANT_LINE_BINDING_FAILED` | 422 | LINE channel secret / access token 驗證失敗（MT1 onboarding）| 租戶 admin 需重綁，附 LINE Developers Console 連結 |
+| `TENANT_NOT_FOUND` | 404 | 租戶不存在或已 terminated | 重導至平台首頁或 super admin 列表 |
+| `BRAND_REVIEW_PENDING` | 409 | 品牌識別級變更審核中，不可重複送審 | 顯示當前審核狀態與預計完成時間 |
+
+### 4.9 派工人工介入（dispatch, Week 2 新增）
+
+| error_code | HTTP | 說明 | 前端建議 UX |
+|:---|:---|:---|:---|
+| `TECHNICIAN_SCHEDULE_CONFLICT` | 409 | 技師排班與既有工單或休假衝突（Flow 14）| 對話框列衝突詳情 + 候選解決策略 |
+| `DISPATCH_OVERRIDE_REQUIRED` | 409 | 覆寫熔斷/跨區派工需 `operations_manager` 雙簽 | 觸發 decision_reason_modal 的 dual_sign 分支 |
+| `DISPATCH_REASON_MISSING` | 422 | 手動派工未提供 `reason_code` + `reason_text` | 表單紅框聚焦 reason 欄 |
+
+### 4.10 門外觀變更與簽章（e_signature, Week 2 新增）
+
+| error_code | HTTP | 說明 | 前端建議 UX |
+|:---|:---|:---|:---|
+| `APPEARANCE_CHANGE_SIGNATURE_REJECTED` | 409 | 客戶拒簽告知書（Flow 10）→ 進入費用結算 | 顯示替代方案卡片 + 車馬費預覽 |
+| `APPEARANCE_CHANGE_EVIDENCE_INCOMPLETE` | 422 | 必拍照片少於 4 張（全貌/側板/切割區/現有孔位）| 拍攝引導 UI，缺哪張顯示該 icon 紅框 |
+
+### 4.11 客訴與爭議銜接（customer_service, Week 2 新增）
+
+| error_code | HTTP | 說明 | 前端建議 UX |
+|:---|:---|:---|:---|
+| `COMPLAINT_ALREADY_IN_DISPUTE` | 409 | 工單已有 active 爭議（Flow 9 §27.2）→ 客訴併入 | Toast「已併入 #DSP-xxx」+ 自動跳 A22 |
+| `DISPUTE_MERGE_FAILED` | 500 | 客訴併入爭議失敗（需人工介入）| 通用錯誤 + `X-Request-ID`，客服工單自動建立 |
+| `DISPUTE_EXTERNAL_PENDING` | 423 | 第三方調解中（消保會/公會）阻擋內部結案（G4 §5.6 R8）| 顯示「外部調解中」不可裁決 |
+
+### 4.12 通知（Week 2 新增）
+
+| error_code | HTTP | 說明 | 前端建議 UX |
+|:---|:---|:---|:---|
+| `NOTIFICATION_NOT_FOUND` | 404 | 通知 ID 不存在或已硬刪除 | 列表移除該項 + Toast |
+| `NOTIFICATION_BULK_LIMIT_EXCEEDED` | 422 | 批量動作超過上限（1000 筆）| 提示縮小範圍 |
+
+### 4.13 改期（Week 2 新增）
+
+| error_code | HTTP | 說明 | 前端建議 UX |
+|:---|:---|:---|:---|
+| `RESCHEDULE_LIMIT_EXCEEDED` | 429 | 單工單 24h 內改期次數 >= 3 | 提示「請聯繫客服」 |
+| `RESCHEDULE_RSVP_EXPIRED` | 410 | 客戶 RSVP 24h TTL 逾期 | 技師端需重發備選時段 |
+| `RESCHEDULE_SLOT_TAKEN` | 409 | 所選時段剛被他工單佔用（Flow 14）| 自動刷新可用時段並 Toast |
 
 ---
 
@@ -183,3 +224,4 @@
 | 日期 | 版本 | 變更摘要 |
 |:---|:---|:---|
 | 2026-04-23 | v0.1 | 初版：通用錯誤 + 五大領域核心碼；Week 2-4 隨端點補完 |
+| 2026-04-23 | v0.2 | Week 2：補 validation-gate 衍生新碼 13 項（§4.8 租戶新增 3、§4.9 派工 3、§4.10 簽章 2、§4.11 爭議 3、§4.12 通知 2、§4.13 改期 3）|

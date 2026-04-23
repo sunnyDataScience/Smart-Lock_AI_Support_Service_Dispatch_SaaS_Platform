@@ -229,6 +229,13 @@ SLA 計時器觸發
 
 ## 4. Flow 1：正常路徑 (Happy Path)
 
+> **Endpoints:** `openapi#operationId=listConversations`, `getConversation`, `listProblemCards`, `listWorkOrderPool`, `acceptWorkOrder`, `getWorkOrder`, `completeWorkOrder`, `submitWorkOrderSignature`
+> **Events In:** `work_order.available`（WS `/realtime/pool/{tech_id}`）, `work_order.assigned`
+> **Events Out:** `work_order.status.changed` (pending → assigned → accepted → in_progress → completed → confirmed), `work_order.completed`
+> **Idempotency:** Required on `acceptWorkOrder`, `completeWorkOrder`, `submitWorkOrderSignature`（Step 5/11/14）
+> **Error codes:** `WORK_ORDER_CONFLICT`（接單競爭）, `WORK_ORDER_STATUS_INVALID`, `SIGNATURE_ALREADY_SIGNED`
+> **Related pages:** T1（11_tech_pool）→ T3（12_tech_my_orders）→ T9（19 簽章段）
+
 ### 4.1 觸發條件
 
 工單建立有三種觸發路徑：
@@ -843,6 +850,14 @@ sequenceDiagram
 ---
 
 ## 9. Flow 6：退款審批與大額雙簽
+
+> **Endpoints:** `openapi#operationId=submitRefundDecision`（Idempotency 必填）；待補：`listRefunds`, `getRefund`, `submitRefundSignature`（Week 3）
+> **Events In:** `refund.requested`（客戶發起）
+> **Events Out:** `refund.decision.made` (`/realtime/refunds`)，含 `dual_sign_pending=true`；完成後 `refund.completed`
+> **Idempotency:** Required on `submitRefundDecision`（避免重覆審核）及第二簽核（Step 7-9）
+> **Error codes:** `REFUND_DUAL_SIGN_REQUIRED`（金額 > 5000 或 100,000）, `REFUND_DECISION_LOCKED`
+> **Dual-sign thresholds:** NT$ 5,000（第二簽核 `accountant`）; NT$ 100,000（升級 `tenant_admin`）
+> **Related pages:** A17（10_admin_advanced 退款子頁）→ G4 爭議銜接
 
 ### 9.1 觸發條件
 
@@ -2242,6 +2257,15 @@ sequenceDiagram
 ## 20. Flow 12：金流與支付
 
 > **Gap ID**：OP-01 — 原文件完全缺少付款階段，只有「帳務結清」一句帶過
+>
+> **Endpoints:** 待補（Week 3）：`createPayment`, `getPayment`, `issueInvoice`, `voidInvoice`；對應 schema `Invoice`（openapi.yaml#/components/schemas/Invoice）
+> **Webhook（inbound）:** LINE Pay / 信用卡 / 現金（技師確認）— 帶 `X-Signature` + `Idempotency-Key`；失敗指數退避 1min → 24hr
+> **Events In:** `work_order.billed`
+> **Events Out:** `payment.confirmed`, `payment.failed`, `invoice.issued`, `invoice.voided`
+> **Idempotency:** 所有金流 webhook 與 `createPayment` 強制 Idempotency-Key（24h 窗）
+> **Error codes:** `PAYMENT_FAILED`, `PAYMENT_ALREADY_PROCESSED`, `INVOICE_ISSUE_FAILED`, `INVOICE_ALLOWANCE_INVALID`
+> **Related pages:** A9（09_admin_accounting）+ 客戶 LINE 支付 Flex
+> **SSOT schema:** `Invoice`（invoice_number 遵循 `^[A-Z]{2}\d{8}$` 格式、`category=service_fee|travel_fee|parts|other`、`status=pending|issued|allowance_pending|voided|reopened`）
 
 ### 20.1 觸發條件
 
