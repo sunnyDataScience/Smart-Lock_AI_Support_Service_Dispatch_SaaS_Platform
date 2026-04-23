@@ -387,6 +387,13 @@ sequenceDiagram
 
 ## 5. Flow 2：拒單與逾時重派
 
+> **Endpoints:** `listDispatchCandidates`, `assignWorkOrder`（強制 Idempotency + reason_code）, `escalateWorkOrder`
+> **Events Out:** `work_order.status.changed`（assigned → reassigning → assigned）、`work_order.available`（回池）
+> **Idempotency:** Required on `assignWorkOrder`（手動派工）與 `escalateWorkOrder`
+> **Error codes:** `DISPATCH_NO_TECHNICIAN_AVAILABLE`, `DISPATCH_OVERRIDE_REQUIRED`（熔斷覆寫雙簽）, `DISPATCH_REASON_MISSING`
+> **Related pages:** A11 → A28 → **A37 派工人工介入**（3 次拒單後）
+
+
 ### 5.1 觸發條件
 
 - 技師在收到工單後 15 分鐘內未回應 (逾時)
@@ -508,6 +515,13 @@ sequenceDiagram
 
 ## 6. Flow 3：範圍變更
 
+> **Endpoints（Week 4 補完）：** `createScopeChangeRequest`（`POST /work-orders/{id}/scope-change`）, `approveScopeChange`, `rejectScopeChange`
+> **Events Out:** `work_order.scope.change_requested`, `work_order.scope.change_approved|rejected`
+> **Idempotency:** Required on 新增 scope change（避免雙送報價）
+> **Error codes:** `SCOPE_CHANGE_REJECTED`, `WORK_ORDER_STATUS_INVALID`（非 `in_progress` 不能改）
+> **Related pages:** T5（19 範圍變更）→ A12 管理員審核 → 客戶 LINE Flex 確認
+
+
 ### 6.1 觸發條件
 
 - 技師到場後發現現場狀況與 ProblemCard 描述不符
@@ -615,6 +629,13 @@ sequenceDiagram
 ---
 
 ## 7. Flow 4：缺料處理
+
+> **Endpoints（Week 4 補完）：** `createMaterialRequest`（`POST /work-orders/{id}/material-request`）, `getInventoryAvailability`
+> **Events Out:** `work_order.material.requested`, `inventory.low_stock.alert`（若觸發閾值，走 G3）
+> **Idempotency:** Required on 缺料申請
+> **Error codes:** `MATERIAL_REQUEST_PENDING`, `INVENTORY_INSUFFICIENT`, `INVENTORY_PART_NOT_FOUND`
+> **Related pages:** T6（19 缺料）→ A12 / A19 庫存 → G3 補貨流程（flows-admin-governance）
+
 
 ### 7.1 觸發條件
 
@@ -726,6 +747,13 @@ sequenceDiagram
 ---
 
 ## 8. Flow 5：延遲通知與改期
+
+> **Endpoints:** `postDelayNotification`（Week 4）, `getTechnicianAvailability`, `proposeReschedule`（T11）
+> **Events Out:** `work_order.delay.notified`, `work_order.reschedule.proposed`, `work_order.reschedule.confirmed_by_customer`
+> **Idempotency:** Required on 延遲通知 + 改期提案
+> **Error codes:** `DELAY_NOTIFICATION_LIMIT_EXCEEDED`, `RESCHEDULE_LIMIT_EXCEEDED`, `RESCHEDULE_SLOT_TAKEN`, `RESCHEDULE_RSVP_EXPIRED`
+> **Related pages:** T7（19 延遲）→ **T11 改期日曆** → 客戶 LINE Flex RSVP（19 T1.4 補強）
+
 
 ### 8.1 觸發條件
 
@@ -1015,6 +1043,14 @@ sequenceDiagram
 
 ## 10. Flow 7：保固爭議
 
+> **Endpoints（Week 4 補完）：** `createWarrantyClaim`, `verifyWarrantyPeriod`, `proposeDiscountCompromise`
+> **Events Out:** `warranty.claim.created`, `warranty.claim.resolved`, `warranty.out_of_period.declined`
+> **Idempotency:** Required on 建立索賠
+> **Error codes:** `WARRANTY_OUT_OF_PERIOD`, `DISPUTE_SLA_OVERDUE`
+> **Related pages:** A21 保固索賠 → A22 爭議（升級）→ G4 爭議仲裁（flows-admin-governance §5）
+> **Note:** 與 G4 分界 — 本 Flow 處理「保固認定 + 修復」；G4 處理「金額賠償裁決」
+
+
 ### 10.1 觸發條件
 
 - 客戶宣稱產品在保固期內故障
@@ -1146,6 +1182,13 @@ sequenceDiagram
 
 ## 11. Flow 8：品質不合格與二次派工
 
+> **Endpoints:** `createReworkOrder`（Week 4）, `listDispatchCandidates`（篩選 S 級）, `assignWorkOrder`
+> **Events Out:** `work_order.rework.required`, `work_order.status.changed`
+> **Idempotency:** Required on 建立二次工單
+> **Error codes:** `WORK_ORDER_CONFLICT`（原工單已結案）, `DISPATCH_OVERRIDE_REQUIRED`（強制 S 級可能需 override）
+> **Related pages:** A12 → **A37 派工人工介入**（S 級快篩）→ 原技師扣分（A20 稽核）
+
+
 ### 11.1 觸發條件
 
 - 客戶在完工後 7 天內反映相同故障症狀 (「修了又壞」)
@@ -1269,6 +1312,15 @@ sequenceDiagram
 ---
 
 ## 12. Flow 9：客訴處理完整生命週期
+
+> **Endpoints（Week 4 補完）：** `createComplaint`, `classifyComplaint`, `proposeResolution`, `escalateComplaint`, `acknowledgeComplaint`
+> **Events In:** LINE webhook `message.text`（含 anger_level 分析）
+> **Events Out:** `complaint.created`, `complaint.escalated`, `complaint.resolved`, `complaint.reopened`
+> **Idempotency:** Required on 升級 / resolve / acknowledge
+> **Error codes:** `COMPLAINT_ALREADY_IN_DISPUTE`, `DISPUTE_MERGE_FAILED`
+> **Related pages:** A12 客訴升級 indicator + A22 爭議（§27.2 併入規則） + G4 爭議仲裁
+> **Note:** 與 G4 銜接規則見 §27（Flow 9 補遺）
+
 
 ### 12.1 觸發條件
 
@@ -1471,6 +1523,13 @@ sequenceDiagram
 ---
 
 ## 13. Flow 10：門外觀變更確認
+
+> **Endpoints（Week 4 補完）：** `submitAppearanceNotice`（POST /work-orders/{id}/door-check）, `uploadEvidencePhotos`, `acknowledgeAppearanceNotice`
+> **Events Out:** `work_order.appearance.notice_issued`, `work_order.appearance.signed|rejected`
+> **Idempotency:** Required on 提交告知書與簽署
+> **Error codes:** `APPEARANCE_CHANGE_EVIDENCE_INCOMPLETE`（少於 4 張照片）, `APPEARANCE_CHANGE_SIGNATURE_REJECTED`（拒簽 → 費用結算 §26）
+> **Related pages:** T8（19 門面）→ T9 雙簽 → 拒簽則走 §26 費用結算
+
 
 ### 13.1 觸發條件
 
@@ -2121,6 +2180,13 @@ stateDiagram-v2
 
 ## 19. Flow 11：客戶不在場
 
+> **Endpoints:** `reportCustomerAbsent`（Week 4）, `proposeReschedule`（T11）
+> **Events Out:** `customer.absent.reported`, `work_order.reschedule.proposed`
+> **Idempotency:** Required on 回報不在場與改期
+> **Error codes:** `RESCHEDULE_RSVP_EXPIRED`, `RESCHEDULE_LIMIT_EXCEEDED`
+> **Related pages:** T3 → **T11 改期日曆** + 客戶 LINE Flex RSVP（19 T1.4 閉環）
+
+
 > **Gap ID**：OP-03 — 技師到場但客戶不在家的處理流程
 
 ### 19.1 觸發條件
@@ -2412,6 +2478,14 @@ sequenceDiagram
 ---
 
 ## 21. Flow 13：帳款異常 EX5
+
+> **Endpoints（Week 4 補完）：** `flagBillingException`, `reopenInvoice`, `issueAllowance`, `retryPayment`
+> **Webhook（inbound）:** 金流三平台 `payment.failed` / `payment.refund.failed`
+> **Events Out:** `invoice.voided`, `invoice.allowance.issued`, `billing.exception.flagged`
+> **Idempotency:** Required on 發票重開 / 折讓 / 重試付款
+> **Error codes:** `INVOICE_VOID_WINDOW_EXPIRED`, `INVOICE_DUPLICATE_NUMBER`, `WEBHOOK_AMOUNT_MISMATCH`, `PAYMENT_ALREADY_PROCESSED`
+> **Related pages:** A9 帳務 / A20 稽核 + webhook-spec §4 發票規範
+
 
 > **Gap ID**：OP-02 — 原文件缺少付款失敗、金額不符、發票錯誤的處理流程
 
@@ -3091,6 +3165,14 @@ sequenceDiagram
 > 與既有 §12 Flow 9、§13 Flow 10 互為補充；§25 為全新 Flow。
 
 ## 25. Flow 14：技師排班衝突解決
+
+> **Endpoints:** `getTechnicianAvailability`（衝突偵測核心）, `submitTimeOffRequest`（Week 4）, `listDispatchCandidates`（重派）, `assignWorkOrder`（重派落地）, `proposeReschedule`（T11）
+> **Events Out:** `technician.schedule.conflict.detected`, `technician.time_off.requested`, `work_order.reassigned`
+> **Idempotency:** Required on 時段編輯、請假申請、重派
+> **Error codes:** `TECHNICIAN_SCHEDULE_CONFLICT`, `DISPATCH_NO_TECHNICIAN_AVAILABLE`, `TECHNICIAN_CIRCUIT_BREAKER_OPEN`
+> **Related pages:** T10 排班 / A25 管理員排班 / A28 派工佇列 / **A37 派工人工介入** / **T11 改期日曆**
+> **Note:** 與 Flow 5 延遲、Flow 11 不在場的銜接見 §25.9 / §25.10
+
 
 ### 25.1 觸發條件
 

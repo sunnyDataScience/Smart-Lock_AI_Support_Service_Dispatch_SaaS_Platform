@@ -186,6 +186,22 @@
 | `RESCHEDULE_RSVP_EXPIRED` | 410 | 客戶 RSVP 24h TTL 逾期 | 技師端需重發備選時段 |
 | `RESCHEDULE_SLOT_TAKEN` | 409 | 所選時段剛被他工單佔用（Flow 14）| 自動刷新可用時段並 Toast |
 
+### 4.14 Webhook（Week 3 新增，入站第三方通知）
+
+| error_code | HTTP | 說明 | 前端建議 UX |
+|:---|:---|:---|:---|
+| `WEBHOOK_SIGNATURE_INVALID` | 401 | HMAC/平台特規簽名驗證失敗 | 無前端 UX（伺服器拒絕），但稽核必寫 |
+| `WEBHOOK_IDEMPOTENCY_REPLAY` | 200 ¹ | 重複事件已處理，回 ack 不重跑 | 警告類，非錯誤 |
+| `WEBHOOK_WORK_ORDER_NOT_FOUND` | 404 | external_order_id 對應工單不存在 | 後端告警給 `accountant` |
+| `WEBHOOK_AMOUNT_MISMATCH` | 422 | 金額與工單記錄不符（疑似偽造或錯誤） | 後端告警 + 凍結該筆交易 |
+| `WEBHOOK_PAYMENT_ALREADY_FINAL` | 409 | 付款已終態，不可改寫 | 回 200 但不執行 |
+| `INVOICE_NUMBER_INVALID` | 422 | 號碼不符 `^[A-Z]{2}\d{8}$` 台灣電子發票格式 | 後端告警 |
+| `INVOICE_CATEGORY_MISMATCH` | 422 | 稅務分類與工單類型不符 | 後端告警 |
+| `INVOICE_VOID_WINDOW_EXPIRED` | 410 | 超過作廢期限（當月 25 日），須改折讓 | 自動轉折讓單 API |
+| `INVOICE_DUPLICATE_NUMBER` | 409 | 發票號重複（平台錯誤） | 人工客服工單 |
+
+¹ 200 並非錯誤，本表僅記錄 `error_code` 字串供稽核查詢。
+
 ---
 
 ## 5. 錯誤分類表（前端錯誤處理 routing）
@@ -225,3 +241,4 @@
 |:---|:---|:---|
 | 2026-04-23 | v0.1 | 初版：通用錯誤 + 五大領域核心碼；Week 2-4 隨端點補完 |
 | 2026-04-23 | v0.2 | Week 2：補 validation-gate 衍生新碼 13 項（§4.8 租戶新增 3、§4.9 派工 3、§4.10 簽章 2、§4.11 爭議 3、§4.12 通知 2、§4.13 改期 3）|
+| 2026-04-23 | v0.3 | Week 3：§4.14 Webhook 9 碼（對齊 `specs/webhook-spec.md` LINE / 金流 / 電子發票三件套） |

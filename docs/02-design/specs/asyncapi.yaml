@@ -449,18 +449,97 @@ components:
                 $ref: '#/components/schemas/UserNotificationData'
 
 #####################################################################
-# Webhook 契約（LINE / 金流 / 發票 三件套）
+# Delivery / Ordering / Replay 規範（Week 3）
 #####################################################################
-# TODO（Week 3 補完）：
-# - LINE Messaging API webhook：inbound message、postback、follow/unfollow
-#   簽名驗證：`X-Line-Signature`（HMAC-SHA256 + channel secret）
-# - 金流 webhook（ECPay / 綠界 / 藍新 等視接入）：
-#   * `payment_confirmed`、`payment_failed`、`refund_processed`
-#   * 強制帶 `Idempotency-Key`、`X-Signature`、支援 `Retry-After`
-# - 電子發票 webhook：`invoice_issued`、`invoice_voided`、`invoice_allowance`
 #
-# 通用 Webhook 規範：
-# - 超時 10s、指數退避重試（1min / 5min / 30min / 2hr / 24hr 上限 5 次）
-# - 簽名驗證 header：`X-Signature: sha256=<hmac>`
-# - 冪等 header：`Idempotency-Key: <uuid>`（消費端 24h 窗）
-# - 回應 2xx 視為成功消費；4xx 停止重試；5xx 或超時觸發重試
+# 本 section 定義所有 WebSocket / SSE 頻道的共通交付語義。
+# 詳細規則請搭配 `E5x--frontend-architecture.md §8.4` 與 `webhook-spec.md`。
+#
+# ── 交付語義 ──
+# 預設：at-least-once（可能重複）
+#   - 消費端必須以 event_id 做冪等去重（24h 窗口記憶體 / Redis SET）
+#   - 寫 DB 的關鍵事件採 UPSERT by event_id
+# 例外：exactly-once 不提供（分散式系統不可實現 + 成本過高）
+#
+# ── 事件順序 ──
+# 保證：同 tenant_id + 同 aggregate_id（如 work_order_id）→ 順序保留
+#   - 後端採 Kafka-like log，按 aggregate_id 路由到同 partition
+# 不保證：跨 aggregate（例：WO-42 的事件 vs WO-43 的事件）
+#   - 前端不應假設跨 work_order 事件順序
+#
+# ── 連線生命週期 ──
+# 訂閱建立：Client 送 Authorization: Bearer <jwt> + X-Tenant-ID + channel_path
+# 訂閱確認：Server 回 SUBSCRIBED { channel, cursor, replay_available }
+# 心跳：30 秒雙向 PING/PONG；連續 3 次未回 → 斷線重連
+# 重連：Client 帶上次收到的 event_id 作為 cursor → Server replay 漏收事件（上限 100 筆 / 5 分鐘內）
+# 權限變更：伺服器主動下推 rbac.permission.changed → Client 若失權限 → Server 斷該訂閱
+#
+# ── Replay 規範 ──
+# 預設保留：每個頻道最近 5 分鐘或最近 100 筆，視先達者
+# Replay 請求：Client 於重連時帶 last_event_id；超出保留範圍 → Server 回 REPLAY_UNAVAILABLE，
+#              Client 需走 REST 拉最新狀態（/api/v1/<resource>/{id}）
+#
+# ── Backpressure ──
+# 慢消費者：Server 持有 outbound queue 上限 500 筆，超過 → 斷線並記錄 audit.slow_consumer
+# 客戶端應避免在 WS message handler 內做耗時操作（建議 postMessage 至 Web Worker）
+
+#####################################################################
+# Webhook 契約（inbound）
+#####################################################################
+#
+# Webhook 是「第三方系統 → 本平台」的入站通知。
+# 本區塊記錄事件拓樸與 domain event 對應，詳細規格見 `webhook-spec.md`。
+#
+# ── LINE Messaging API Webhook ──
+# Endpoint: POST /webhook
+# Signature: X-Line-Signature (base64 HMAC-SHA256, channel_secret)
+# Event 映射至 domain events：
+#   message.text          → conversation.message.received
+#   message.image|audio   → conversation.media.received
+#   postback              → 依 data.action 映射（rsvp / dispatch_accept / complaint_ack）
+#   follow / unfollow     → customer.relationship.changed
+#
+# ── 金流 Webhook ──
+# Endpoints:
+#   POST /webhook/payments/line-pay   (X-LinePay-Signature)
+#   POST /webhook/payments/ecpay      (CheckMacValue, 特殊演算法)
+#   POST /webhook/payments/newebpay   (TradeSha, AES+SHA256)
+# 統一內部格式 payment_webhook_normalized（見 webhook-spec §3.4）
+# Domain events:
+#   payment.confirmed
+#   payment.failed
+#   payment.refund.processed
+#   payment.refund.failed
+#   payment.chargeback
+#
+# ── 電子發票 Webhook ──
+# Endpoint: POST /webhook/invoice (X-MOF-Signature 或加值中心簽名)
+# 台灣電子發票平台：number 格式 ^[A-Z]{2}\d{8}$，作廢期限當月 25 日
+# Domain events:
+#   invoice.issued
+#   invoice.voided
+#   invoice.allowance.issued
+#   invoice.allowance.voided
+#   invoice.winning
+#
+# ── 三件套通用規範 ──
+# 1) 簽名（X-Signature / X-Line-Signature / CheckMacValue 等平台特規）：
+#    HMAC-SHA256，raw body 輸入，租戶或平台專屬 secret。驗證失敗 → 401
+#    + error_code=WEBHOOK_SIGNATURE_INVALID
+# 2) 重試（Retry-After）：指數退避 1min → 5min → 30min → 2hr → 24hr，
+#    上限 5 次。5xx / 423 回應可帶 Retry-After header 指示何時重試。
+#    5 次都失敗 → 熔斷並通知 tenant_admin。
+# 3) 冪等（Idempotency-Key）：24h 窗，相同 key + 相同 body hash → 回首次
+#    結果不重複執行副作用。不同 body 但同 key → 409 IDEMPOTENCY_KEY_REUSED。
+#    金流 / 發票強制帶；LINE 以 webhookEventId 替代。
+#
+# 新增錯誤碼（需同步 error-codes.md）：
+#   WEBHOOK_SIGNATURE_INVALID          401
+#   WEBHOOK_IDEMPOTENCY_REPLAY         200 (警告類)
+#   WEBHOOK_WORK_ORDER_NOT_FOUND       404
+#   WEBHOOK_AMOUNT_MISMATCH            422
+#   WEBHOOK_PAYMENT_ALREADY_FINAL      409
+#   INVOICE_NUMBER_INVALID             422
+#   INVOICE_CATEGORY_MISMATCH          422
+#   INVOICE_VOID_WINDOW_EXPIRED        410
+#   INVOICE_DUPLICATE_NUMBER           409

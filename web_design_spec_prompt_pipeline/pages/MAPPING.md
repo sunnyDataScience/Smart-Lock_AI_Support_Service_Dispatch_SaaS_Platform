@@ -290,6 +290,25 @@
 
 > **新增：** G1 通知中心是 `/realtime/notifications/{user_id}` 的主要消費頁（21_global_notifications.md）。
 
+### 7.1 AsyncAPI operationId 反向索引（Week 3 新增）
+
+每個 WebSocket 頻道對應 `specs/asyncapi.yaml` 中的 `operationId`：
+
+| 頻道 | AsyncAPI operationId | 觸發事件（event_type） |
+|:-----|:---------------------|:-----------------------|
+| `/realtime/work-orders/{id}` | `subscribeWorkOrderUpdates` | `work_order.status.changed`, `work_order.assigned`, `work_order.completed` |
+| `/realtime/dispatch-queue` | `subscribeDispatchQueue` | `dispatch.queue.snapshot` |
+| `/realtime/pool/{tech_id}` | `subscribeTechnicianPool` | `work_order.available` |
+| `/realtime/refunds` | `subscribeRefundEvents` | `refund.decision.made` |
+| `/realtime/disputes` | `subscribeDisputeEvents` | `dispute.created` |
+| `/realtime/sla-alerts` | `subscribeSlaAlerts` | `sla.alert` |
+| `/realtime/rbac` | `subscribeRbacUpdates` | `rbac.permission.changed` |
+| `/realtime/inventory/low-stock` | `subscribeLowStockAlerts` | `inventory.low_stock.alert` |
+| `/realtime/diagnostics/{conv_id}` (SSE) | `subscribeDiagnosticStream` | `diagnostic.reasoning.step` |
+| `/realtime/notifications/{user_id}` | `subscribeUserNotifications` | `user.notification` |
+
+**交付語義：** 全部 at-least-once + event_id 冪等（見 asyncapi.yaml Delivery/Ordering/Replay 規範）。
+
 ---
 
 ## 7.5 Flow × Page 覆蓋矩陣（2026-04-23 驗證閘新增）
@@ -365,6 +384,30 @@
 | `dispatch (manual)` | `/api/v1/dispatch/candidates`, `/work-orders/{id}/assign` | **20, 07** |
 | `notifications` | `/api/v1/notifications/*` | **21** |
 | `reschedule` | `/api/v1/work-orders/{id}/reschedule`, `/technicians/me/availability` | **22, 19 T1.4** |
+| `webhook (inbound)` | `/webhook`, `/webhook/payments/*`, `/webhook/invoice` | 後端內部（見 `specs/webhook-spec.md`） |
+
+### 8.1 OpenAPI operationId 反向索引（Week 3 新增）
+
+前端頁面 → 具體 operationId 對應（抽樣；完整清單見 `specs/openapi.yaml`）：
+
+| 前端頁面 | 主要 operationId 群 |
+|:---|:---|
+| A0 `/login` | `loginAdmin` |
+| A2/A3 對話 | `listConversations`, `getConversation` |
+| A4 問題卡 | `listProblemCards` |
+| A11 工單列表 | `listWorkOrders` |
+| A12 工單詳情 | `getWorkOrder`, `getWorkOrderCandidates`（sidebar） |
+| A17 退款 | `submitRefundDecision` |
+| A28 派工佇列 | `getDispatchQueue` |
+| **A37 派工人工介入** | **`listDispatchCandidates`, `assignWorkOrder`, `escalateWorkOrder`** |
+| **G1 通知中心** | **`listNotifications`, `updateNotification`, `bulkUpdateNotifications`, `markAllNotificationsRead`** |
+| T0 技師登入 | `loginTechnician` |
+| T1 案件池 | `listWorkOrderPool` |
+| T3 工單詳情 | `getWorkOrder`, `completeWorkOrder` |
+| T9 雙簽 | `submitWorkOrderSignature` |
+| **T11 改期日曆** | **`getTechnicianAvailability`, `proposeReschedule`** |
+
+**契約治理：** 每當 openapi.yaml 新增端點，此表需同步更新；CI 檢查孤兒 operationId（未被任何 page spec 引用的警告）。
 
 ---
 
@@ -388,3 +431,4 @@
 |:-----|:-----|:---------|
 | 2026-04-23 | v1.0 | 初版：對應 IA v1.2（48 頁）與 pipeline 19 份 spec 檔；建立 Forward / Reverse / 主題分群 / 使用者旅程 / 元件 / WS / API 多維對照 |
 | 2026-04-23 | v1.1 | 驗證閘（plan §S）補完：註冊 A37 派工人工介入、G1 通知中心、T11 改期日曆；新增 §2.3 Global Pages 類；§7.5 Flow × Page 覆蓋矩陣（Flow 1-14 + G1-G4 + MT1-MT5）；清理 01_dashboard.md；新增 dispatch(manual) / notifications / reschedule API 對應 |
+| 2026-04-23 | v1.2 | Week 3：新增 §7.1 AsyncAPI operationId 反向索引（10 WS 頻道）+ §8.1 OpenAPI operationId 反向索引（抽樣對應）+ webhook (inbound) API context 列 |
