@@ -182,9 +182,12 @@ async def health():
 
 
 @app.get("/chat")
-async def chat_test(q: str = "你好"):
-    """GET /chat?q=門打不開 — 快速測試用（不經 debounce）。"""
-    answer = await debounce.run_agent("test-cli", q)
+async def chat_test(q: str = "你好", user_id: str = "test-cli"):
+    """GET /chat?q=門打不開&user_id=xxx — 快速測試用（不經 debounce）。
+
+    `user_id` 可覆蓋（eval/批次測試需要每題獨立 thread 以避免 checkpointer 串線）。
+    """
+    answer = await debounce.run_agent(user_id, q)
     return {"answer": answer}
 
 

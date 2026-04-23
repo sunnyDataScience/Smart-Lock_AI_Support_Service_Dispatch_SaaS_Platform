@@ -1,0 +1,53 @@
+- id: H-10
+  category: hardware_technician
+  category_label: 硬體維修技師 (Hardware Technician) 測試案例
+  question: Chatlock貓眼鏡頭旁閃爍紅燈的含義？
+  expected: 說明鏡頭正在主動啟動人臉或掌靜脈辨識，屬於正常工作狀態。
+  multi_intent: false
+  guardrail: false
+- id: W-4
+  category: store_assistant
+  category_label: 門市與規格助理 (Store Assistant) 測試案例
+  question: 電子鎖完全沒電時，有哪些緊急供電方案？
+  expected: 指導使用 9V 方型電池或行動電源透過 USB 接孔供電。
+  multi_intent: false
+  guardrail: false
+- id: W-6
+  category: store_assistant
+  category_label: 門市與規格助理 (Store Assistant) 測試案例
+  question: 老人家指紋較淺，在設定上有什麼建議？
+  expected: 建議同一手指重複設定 3 次以上，或改用人臉、掌靜脈。
+  multi_intent: false
+  guardrail: false
+- id: W-8
+  category: store_assistant
+  category_label: 門市與規格助理 (Store Assistant) 測試案例
+  question: 哪裡可以下載 GL220 電子鎖的說明書？
+  expected: 提供 GL220 的 Google Drive 分享連結。
+  multi_intent: false
+  guardrail: false
+- id: Y-8
+  category: app_specialist
+  category_label: APP 設定專家 (APP Specialist) 測試案例
+  question: AI-99 如何查看過去的開鎖紀錄？
+  expected: 指導在 App 主介面點選「相簿/紀錄」功能選項。
+  multi_intent: false
+  guardrail: false
+- id: X-03
+  category: hardware_technician
+  category_label: 硬體維修技師 (Hardware Technician) 測試案例
+  question: Chatlock電子鎖網路一直斷線
+  expected: "如是有內螢幕款式，先檢查室內螢幕是否有插好及安裝正確，因為網路模組在螢幕裡，如果確認有插好，再確認家中網路是否有將2.4G及5G網路頻道分開，並且是否為mesh，WiFi-6或7以上的路由器，如果是WiFi6\
+    \ 或 7以上的路由器，請依照以下資訊步驟進行路由器後台更改設定更改：\n802.11 b/g/n → 選這個\n然後搭配下面這些 ↓↓↓\n • 頻寬：20MHz\n\
+    \ • 頻道：1 / 6 / 11\n (自動有時比較穩)\n • 加密：WPA2-PSK + AES\n • 廣播 SSID：開\n • 雙頻合一：關\n\
+    \ • WPS  ： 關\nWifi名稱/密碼不要太複雜\n英文+數字，可以-跟.其他都不要\n\n另外\nMesh 與 WiFi6 或以上的設備會造成電子鎖耗電量比較快，因為這類路由器是給手機或者是電競遊戲，直播等等需要長時間隨時高速聯網的設備做使用，功耗會比較大，所以電腦或者是手機等等都必須一天一充電，但電子鎖講求的是長時間使用，不適合功耗較高或者是刷新率較快的Mesh以及Wi-Fi\
+    \ 6，建議您使用一台入門級的Wi-Fi路由器然後分2.4G單獨頻道給電子鎖使用試試看"
+  multi_intent: false
+  guardrail: false
+- id: X-05
+  category: hardware_technician
+  category_label: 硬體維修技師 (Hardware Technician) 測試案例
+  question: Chatlock推拉電子鎖轉把手後不會自己彈回正，會卡住
+  expected: 可能是方型帶動桿過長，或是螺絲等等鬆緊狀況，需請師傅前往調整，期間可以使用把手下方電子按鍵開門
+  multi_intent: false
+  guardrail: false
