@@ -1,0 +1,185 @@
+# API 錯誤碼目錄 (Error Code Catalog)
+
+> **用途：** `/api/v1/*` 所有端點回傳 `ApiErrorResponse` 時，`error_code` 必須取自本檔列舉。
+> 前後端以此為唯一參考：後端決定何時丟出、前端決定如何處理與 UI 呈現。
+>
+> **對應規格：** `specs/openapi.yaml#/components/schemas/ApiErrorResponse`
+>
+> **狀態：** 骨架階段，涵蓋五大領域核心錯誤；Week 2-4 隨端點補完擴充。
+> **版本：** v0.1（2026-04-23）
+
+---
+
+## 1. 錯誤回應結構（回顧）
+
+```json
+{
+  "error_code": "WORK_ORDER_CONFLICT",
+  "message": "工單已被其他技師接單",
+  "details": [
+    { "field": "technician_id", "message": "此工單已於 2026-04-23T10:05 分派給 TECH-0042" }
+  ]
+}
+```
+
+| 欄位 | 規則 |
+|:---|:---|
+| `error_code` | 必填。大寫蛇形命名。跨 locale 穩定，前端用來判斷分支。 |
+| `message` | 必填。依 `Accept-Language` i18n 的使用者可見文字。**不可被前端拿來做邏輯判斷。** |
+| `details` | 選填。欄位級錯誤列表（主要給表單驗證）。 |
+
+---
+
+## 2. 命名慣例
+
+- 格式：`<DOMAIN>_<CONDITION>` 或 `<DOMAIN>_<ENTITY>_<CONDITION>`
+- 禁止碼在文字 `message` 中出現（避免日後 rename 漂移）
+- 新增時：後端 PR 同步更新本檔 + `openapi.yaml` `ApiErrorResponse.error_code.examples`
+
+---
+
+## 3. 通用錯誤（跨領域）
+
+| error_code | HTTP | 重試語義 | 說明 | 前端建議 UX |
+|:---|:---|:---|:---|:---|
+| `VALIDATION_ERROR` | 422 | ❌ | 請求欄位不符 schema / 業務規則 | 表單欄位紅框，顯示 `details` |
+| `UNAUTHORIZED` | 401 | ❌ | Token 缺失/失效 | 跳登入頁、清 Cookie |
+| `FORBIDDEN` | 403 | ❌ | 權限不足 / 跨租戶存取 | 顯示「您沒有權限」，不暴露資源存在性 |
+| `NOT_FOUND` | 404 | ❌ | 資源不存在 | 顯示 404 頁或「此項目已刪除」 |
+| `METHOD_NOT_ALLOWED` | 405 | ❌ | 路由不支援此 method | 開發期錯誤，不應到生產 |
+| `CONFLICT` | 409 | ⚠️ 視情況 | 通用狀態衝突，優先使用更精確子碼 | 需配合領域判斷 |
+| `OPTIMISTIC_LOCK_FAILED` | 409 | ✅ 重讀後重試 | `version` 欄位不符，資料已被他人修改 | 提示「資料已更新，請重新載入」 |
+| `RATE_LIMITED` | 429 | ✅ 遵循 `Retry-After` | 超過速率限制 | Toast 提示，暫停 UI |
+| `IDEMPOTENCY_KEY_REUSED` | 409 | ❌ | 24h 內重複 Key 搭配不同 body | 開發期錯誤，表示 client 未正確生成 UUID |
+| `TENANT_MISMATCH` | 403 | ❌ | `X-Tenant-ID` 與 JWT payload 不一致 | 強制登出 |
+| `INTERNAL_ERROR` | 500 | ✅ 後端自動重試失敗 | 未預期錯誤 | 通用錯誤頁 + 附 `X-Request-ID` 供客服追蹤 |
+| `SERVICE_UNAVAILABLE` | 503 | ✅ 遵循 `Retry-After` | 外部依賴暫時不可用 | 顯示「系統忙碌中」+ 自動重試 |
+| `GATEWAY_TIMEOUT` | 504 | ✅ 退避重試 | 上游超時 | 同上 |
+
+---
+
+## 4. 領域錯誤
+
+### 4.1 認證 / 使用者（auth, user_management）
+
+| error_code | HTTP | 說明 | 前端建議 UX |
+|:---|:---|:---|:---|
+| `LOGIN_INVALID_CREDENTIALS` | 401 | 帳號或密碼錯誤 | 統一提示（不洩漏是帳號還是密碼錯） |
+| `LOGIN_ACCOUNT_LOCKED` | 423 | 連續失敗達閾值 | 顯示鎖定時間與聯絡方式 |
+| `PASSWORD_EXPIRED` | 401 | 密碼已過期需更新 | 強制導向改密頁 |
+| `MFA_REQUIRED` | 401 | 需要二次驗證 | 展示 OTP 輸入 |
+| `TOKEN_EXPIRED` | 401 | JWT 過期 | 用 refresh token 無感續期，失敗才跳登入 |
+| `ROLE_REVOKED` | 403 | 角色被撤銷（RBAC 即時生效） | 刷新頁面或強制登出 |
+
+### 4.2 對話 / 問題卡（customer_service）
+
+| error_code | HTTP | 說明 | 前端建議 UX |
+|:---|:---|:---|:---|
+| `CONVERSATION_CLOSED` | 409 | 對話已結案，不能再加訊息 | 禁用輸入欄 |
+| `PROBLEM_CARD_LOCKED` | 409 | 問題卡已鎖定為確認狀態 | 禁用編輯按鈕 |
+| `PROBLEM_CARD_BRAND_INVALID` | 422 | 品牌/型號不在白名單 | 顯示品牌下拉清單 |
+| `PROBLEM_CARD_CONFIDENCE_LOW` | 200¹ | 信心分數 < 0.6，需人工覆核（非錯誤，標記用） | 顯示「待人工確認」提示 |
+
+¹ `PROBLEM_CARD_CONFIDENCE_LOW` 實為業務狀態而非錯誤，放在此處是為了前端分支邏輯一致。後端回 200 + `warnings: [{code, message}]` 格式；**若 Week 2 實作時改為分開設計，本項應搬離**。
+
+### 4.3 工單 / 派工（dispatch）
+
+| error_code | HTTP | 重試 | 說明 | 前端建議 UX |
+|:---|:---|:---|:---|:---|
+| `WORK_ORDER_NOT_FOUND` | 404 | ❌ | 工單 ID 不存在 | 404 頁 |
+| `WORK_ORDER_CONFLICT` | 409 | ❌ | 接單競爭失敗（已被他人接） | Toast「工單已被他人接單」+ 返回案件池 |
+| `WORK_ORDER_STATUS_INVALID` | 409 | ❌ | 狀態機不允許此轉換（如 `closed` → `in_progress`） | 顯示當前可執行動作 |
+| `WORK_ORDER_SLA_LOCKED` | 423 | ❌ | SLA 已鎖定，無法修改 | 只讀模式 |
+| `DISPATCH_NO_TECHNICIAN_AVAILABLE` | 503 | ✅ | 派工引擎找不到可用技師 | 顯示「候補中」並訂閱 WS |
+| `TECHNICIAN_CIRCUIT_BREAKER_OPEN` | 423 | ❌ | 技師 24hr 異常熔斷（§22 規則） | 顯示熔斷原因與解除時間 |
+| `QUOTE_EXPIRED` | 410 | ❌ | 報價逾 48h 失效 | 顯示重新報價 CTA |
+| `QUOTE_NEGOTIATION_CLOSED` | 409 | ❌ | 議價輪次已結束 | 禁用出價按鈕 |
+| `SCOPE_CHANGE_REJECTED` | 409 | ❌ | 客戶拒絕範圍變更（Flow 3） | 技師需重新報價或放棄 |
+| `MATERIAL_REQUEST_PENDING` | 409 | ❌ | 已有未結案缺料申請 | 禁用再次申請 |
+| `DELAY_NOTIFICATION_LIMIT_EXCEEDED` | 429 | ❌ | 單次工單延遲通知超過上限 | 顯示既有延遲紀錄 |
+| `DOOR_CHECK_MISMATCH` | 409 | ❌ | 門面外觀與原單位不符（Flow 10） | 顯示差異對比 UI |
+
+### 4.4 簽章 / 退款 / 爭議 / 保固（e_signature, accounting）
+
+| error_code | HTTP | 說明 | 前端建議 UX |
+|:---|:---|:---|:---|
+| `SIGNATURE_ALREADY_SIGNED` | 409 | 已簽過，不可重送 | 顯示既有簽章影像 |
+| `SIGNATURE_GPS_OUT_OF_RANGE` | 422 | 簽章 GPS 與工單地址超出容忍距離 | 提示確認位置 |
+| `REFUND_DUAL_SIGN_REQUIRED` | 409 | 金額超門檻需第二簽核者 | 顯示「等待第二簽核」狀態 |
+| `REFUND_DECISION_LOCKED` | 409 | 決策已鎖定，不可重覆審批 | 顯示最終決議 |
+| `DISPUTE_SLA_OVERDUE` | 410 | 爭議處理超 SLA 自動升級 | 顯示升級管道 |
+| `WARRANTY_OUT_OF_PERIOD` | 410 | 超過保固期限 | 提示付費選項 |
+| `PAYMENT_FAILED` | 402 | 金流平台回報失敗 | 提供重試與其他支付 |
+| `PAYMENT_ALREADY_PROCESSED` | 409 | 已付款（冪等保護） | 顯示「已完成付款」 |
+| `INVOICE_ISSUE_FAILED` | 502 | 電子發票開立失敗 | 後台重試，用戶看到暫時掛起狀態 |
+| `INVOICE_ALLOWANCE_INVALID` | 422 | 折讓單不合規 | 顯示修正指示 |
+
+### 4.5 庫存（inventory）
+
+| error_code | HTTP | 說明 | 前端建議 UX |
+|:---|:---|:---|:---|
+| `INVENTORY_INSUFFICIENT` | 409 | 零件庫存不足 | 顯示缺料回報 CTA |
+| `INVENTORY_PART_NOT_FOUND` | 404 | 零件編號不存在 | 零件下拉重刷 |
+| `INVENTORY_BELOW_THRESHOLD` | 200¹ | 低庫存警告（非錯誤，警告碼） | 顯示補貨告警 banner |
+
+### 4.6 RBAC / 稽核（user_management, audit）
+
+| error_code | HTTP | 說明 | 前端建議 UX |
+|:---|:---|:---|:---|
+| `ROLE_IN_USE` | 409 | 角色有使用者仍在掛，不可刪 | 顯示影響的使用者數 |
+| `PERMISSION_CODE_INVALID` | 422 | 權限碼不符 `resource.action.scope` 格式 | 表單驗證 |
+| `AUDIT_EXPORT_TOO_LARGE` | 413 | 匯出筆數超上限 | 提示縮小篩選範圍或背景匯出 |
+
+### 4.7 AI Agent Harness（agent_harness）
+
+| error_code | HTTP | 說明 | 前端建議 UX |
+|:---|:---|:---|:---|
+| `DIAGNOSTIC_STREAM_CLOSED` | 410 | SSE 串流已關閉（模型完成或被中斷） | 取消 loading 狀態 |
+| `DIAGNOSTIC_OVERRIDE_CONFLICT` | 409 | 管理員覆寫時模型已產新結論 | 顯示 diff 讓管理員選擇 |
+
+### 4.8 多租戶（multi_tenant, V3.0）
+
+| error_code | HTTP | 說明 | 前端建議 UX |
+|:---|:---|:---|:---|
+| `TENANT_SUSPENDED` | 423 | 租戶已停用 | 顯示聯絡管理員 |
+| `BRAND_CONFIG_INVALID` | 422 | 品牌客製設定不合規（配色對比度等） | 顯示 accessibility 提示 |
+| `TENANT_QUOTA_EXCEEDED` | 402 | 功能用量超方案上限 | 顯示升級 CTA |
+
+---
+
+## 5. 錯誤分類表（前端錯誤處理 routing）
+
+| 類別 | HTTP 範圍 | 使用者處置 | 前端通用 UX |
+|:---|:---|:---|:---|
+| 使用者可修正 | 400, 422 | 改輸入後重試 | 表單行內錯誤 |
+| 認證/授權 | 401, 403 | 登入或申請權限 | 登入頁或 Toast |
+| 資源不存在 | 404, 410 | 重新導航 | 404/歷史紀錄頁 |
+| 狀態衝突 | 409, 423 | 重讀 / 放棄操作 | 對話框說明 |
+| 限流 | 429 | 稍後重試 | Toast + 自動退避 |
+| 系統錯誤 | 5xx | 重試 / 聯絡客服 | 錯誤頁 + `X-Request-ID` |
+
+---
+
+## 6. 治理規則（新增 / 變更 / 棄用）
+
+### 新增錯誤碼
+1. 後端 PR 同時更新 `error-codes.md` 與 `openapi.yaml`
+2. CI 檢查 `openapi.yaml` 中 `ApiErrorResponse.error_code.examples` 是否涵蓋新碼
+3. 至少一個整合測試觸發該碼（避免夭折）
+
+### 變更語義
+- 不可修改：`error_code` 字串本身（rename → 新增新碼、舊碼標 deprecated）
+- 可修改：`message` 文案（視為 i18n 資源）、`details` 欄位
+- 破壞性變更（HTTP status 改變、拋出條件改變）→ 新增新碼並標舊碼 deprecated，至少一個 release 後移除
+
+### 棄用
+- 碼標 `⚠️ Deprecated`，註明棄用時間與替代碼
+- 前端先處理新舊兩碼，後端再停用舊碼
+
+---
+
+## 7. 變更記錄
+
+| 日期 | 版本 | 變更摘要 |
+|:---|:---|:---|
+| 2026-04-23 | v0.1 | 初版：通用錯誤 + 五大領域核心碼；Week 2-4 隨端點補完 |

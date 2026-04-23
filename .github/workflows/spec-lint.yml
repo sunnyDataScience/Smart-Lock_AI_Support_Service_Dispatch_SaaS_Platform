@@ -1,0 +1,33 @@
+name: API Spec Lint
+
+on:
+  push:
+    paths:
+      - 'docs/02-design/specs/openapi.yaml'
+      - 'docs/02-design/specs/asyncapi.yaml'
+      - '.spectral.yaml'
+      - '.github/workflows/spec-lint.yml'
+  pull_request:
+    paths:
+      - 'docs/02-design/specs/openapi.yaml'
+      - 'docs/02-design/specs/asyncapi.yaml'
+      - '.spectral.yaml'
+
+jobs:
+  lint:
+    name: Spectral Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint OpenAPI
+        uses: stoplightio/spectral-action@v0.8.13
+        with:
+          file_glob: 'docs/02-design/specs/openapi.yaml'
+          spectral_ruleset: '.spectral.yaml'
+
+      - name: Lint AsyncAPI
+        uses: stoplightio/spectral-action@v0.8.13
+        with:
+          file_glob: 'docs/02-design/specs/asyncapi.yaml'
+          spectral_ruleset: '.spectral.yaml'

@@ -1,0 +1,831 @@
+openapi: 3.1.0
+
+info:
+  title: Smart Lock AI Support & Service Dispatch Platform API
+  version: 0.1.0-draft
+  summary: 前後端分離開發的 API 單一事實來源（SSOT）骨架
+  description: |
+    本檔案是 `/api/v1/*` 所有 REST 端點的機器可讀契約。與 Markdown 敘述文件並行：
+
+    - 敘述（narrative）：`E5--api-design-specification.md`、`E5x--frontend-architecture.md §8`
+    - 契約（machine-readable）：本檔 + `asyncapi.yaml` + `error-codes.md`
+
+    **使用方式：**
+    - 後端 FastAPI 應 `assert app.openapi() == load(openapi.yaml)`（或以此生成 Pydantic）
+    - 前端以 `openapi-typescript` 產生 `web/lib/types/api.generated.ts`
+    - CI 以 `spectral lint` 把關、`schemathesis` 做契約測試
+
+    **狀態：** 骨架階段 — 含全域規範、核心 DTO、代表性端點。剩餘端點依 Week 2-4 計畫補完。
+  contact:
+    name: 前後端協作組
+    url: https://github.com/Zenobia0000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform
+    email: api-contract@sunnydata.example.com
+  license:
+    name: Proprietary
+    url: https://github.com/Zenobia0000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform
+
+servers:
+  - url: https://api.sunnydata.example.com
+    description: Production
+  - url: https://api-staging.sunnydata.example.com
+    description: Staging
+  - url: http://localhost:8000
+    description: Local development
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: auth
+    description: 認證與登入 (user_management)
+  - name: user_management
+    description: 使用者與角色 (user_management)
+  - name: customer_service
+    description: 對話與問題卡 (customer_service)
+  - name: knowledge_base
+    description: 知識庫（案例、手冊、SOP）
+  - name: dispatch
+    description: 派工 / 工單 / 技師 / 客戶
+  - name: accounting
+    description: 帳務 / 退款 / 爭議 / 保固
+  - name: inventory
+    description: 庫存與零件
+  - name: audit
+    description: 稽核日誌
+  - name: reports
+    description: 報表（KPI / 排行 / 營收）
+  - name: agent_harness
+    description: AI 診斷推理追溯
+  - name: multi_tenant
+    description: 多租戶 / 超管（V3.0）
+  - name: e_signature
+    description: 電子簽章與雙簽
+  - name: realtime
+    description: WebSocket / SSE 端點說明（實際契約見 asyncapi.yaml）
+
+#####################################################################
+# Paths — 骨架：每個 Bounded Context 至少一個代表性 endpoint
+#####################################################################
+paths:
+
+  # -----------------------------
+  # auth
+  # -----------------------------
+  /api/v1/auth/login:
+    post:
+      tags: [auth]
+      summary: 管理員登入
+      operationId: loginAdmin
+      security: []  # 登入本身無需 Bearer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/LoginSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/technicians/login:
+    post:
+      tags: [auth]
+      summary: 技師登入
+      operationId: loginTechnician
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/LoginSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # -----------------------------
+  # customer_service
+  # -----------------------------
+  /api/v1/conversations:
+    get:
+      tags: [customer_service]
+      summary: 對話列表（cursor 分頁）
+      operationId: listConversations
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/SortBy'
+        - $ref: '#/components/parameters/SortOrder'
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/ConversationStatus'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationPage'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/v1/conversations/{id}:
+    get:
+      tags: [customer_service]
+      summary: 對話詳情
+      operationId: getConversation
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationEnvelope'
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/problem-cards:
+    get:
+      tags: [customer_service]
+      summary: 問題卡列表
+      operationId: listProblemCards
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemCardPage'
+
+  # -----------------------------
+  # dispatch — work orders
+  # -----------------------------
+  /api/v1/work-orders:
+    get:
+      tags: [dispatch]
+      summary: 工單列表
+      operationId: listWorkOrders
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/WorkOrderStatus'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderPage'
+
+  /api/v1/work-orders/{id}:
+    get:
+      tags: [dispatch]
+      summary: 工單詳情
+      operationId: getWorkOrder
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderEnvelope'
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/work-orders/{id}/accept:
+    post:
+      tags: [dispatch]
+      summary: 技師接單（強制 Idempotency-Key）
+      description: 防技師雙擊接單。Idempotency-Key 於 24h 內重複視為同一請求。
+      operationId: acceptWorkOrder
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: 接單成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderEnvelope'
+        '409':
+          description: 狀態衝突（工單已被他人接單 / 狀態不允許）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/v1/work-orders/{id}/complete:
+    post:
+      tags: [dispatch]
+      summary: 完工回報（強制 Idempotency-Key）
+      operationId: completeWorkOrder
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompletionReport'
+      responses:
+        '200':
+          description: 完工回報已受理
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderEnvelope'
+
+  /api/v1/work-orders/pool:
+    get:
+      tags: [dispatch]
+      summary: 技師案件池（可接工單列表）
+      operationId: listWorkOrderPool
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderPage'
+
+  /api/v1/work-orders/dispatch-queue:
+    get:
+      tags: [dispatch]
+      summary: 派工佇列監控
+      description: 管理員派工監控主介面，搭配 WS `/realtime/dispatch-queue`。
+      operationId: getDispatchQueue
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DispatchQueueSnapshot'
+
+  # -----------------------------
+  # accounting — refunds / disputes / warranty
+  # -----------------------------
+  /api/v1/refunds/{id}/decision:
+    post:
+      tags: [accounting]
+      summary: 退款審批決策（強制 Idempotency-Key + 雙簽流程起點）
+      operationId: submitRefundDecision
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundDecision'
+      responses:
+        '200':
+          description: 決策已記錄
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundEnvelope'
+
+  # -----------------------------
+  # e_signature
+  # -----------------------------
+  /api/v1/work-orders/{id}/signature:
+    post:
+      tags: [e_signature]
+      summary: 雙方電子簽章（強制 Idempotency-Key）
+      description: T9 客戶+技師雙方簽章，簽署後不可重複。
+      operationId: submitWorkOrderSignature
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignaturePayload'
+      responses:
+        '200':
+          description: 簽章完成
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseGeneric'
+
+  # -----------------------------
+  # TODO（Week 2-4 補完）—— 以下端點骨架列表，實作時逐一展開
+  # -----------------------------
+  # /api/v1/dashboard/stats                      GET  — 儀表板統計
+  # /api/v1/knowledge-base/cases                 GET/POST
+  # /api/v1/manuals/ingest                       POST — PDF 手冊上傳
+  # /api/v1/sop-drafts                           GET
+  # /api/v1/sop-drafts/{id}/approve              POST
+  # /api/v1/technicians                          GET
+  # /api/v1/technicians/{id}/schedule            GET/PUT
+  # /api/v1/technicians/{id}/skills              GET/PUT
+  # /api/v1/technicians/{id}/settlements         GET/POST
+  # /api/v1/accounting/reconciliations           GET
+  # /api/v1/roles                                GET/POST/PUT
+  # /api/v1/audit-events                         GET
+  # /api/v1/audit-events/export                  POST
+  # /api/v1/inventory/parts                      GET/POST
+  # /api/v1/inventory/low-stock                  GET
+  # /api/v1/warranty-claims                      GET/POST
+  # /api/v1/disputes                             GET/POST
+  # /api/v1/customers                            GET
+  # /api/v1/reports/kpi|ranking|revenue          GET
+  # /api/v1/diagnostics/{conv_id}                GET/POST (SSE)
+  # /api/v1/tenants/me                           GET/PUT
+  # /api/v1/super/*                              V3.0
+  # /api/v1/work-orders/{id}/scope-change        POST  — Flow 3
+  # /api/v1/work-orders/{id}/material-request    POST  — Flow 4
+  # /api/v1/work-orders/{id}/delay               POST  — Flow 5
+  # /api/v1/work-orders/{id}/door-check          POST  — Flow 10
+
+#####################################################################
+# Components
+#####################################################################
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT Bearer token，由 `POST /api/v1/auth/login` 或 `POST /api/v1/technicians/login` 發出。
+        前端實作：Next.js Middleware 從 httpOnly Cookie 注入至 Authorization Header。
+
+  #####################################################################
+  # 全域參數（Global Parameters）
+  #####################################################################
+  parameters:
+
+    XTenantId:
+      name: X-Tenant-ID
+      in: header
+      required: true
+      description: 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。
+      schema:
+        type: string
+        format: uuid
+
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: |
+        寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+        強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+      schema:
+        type: string
+        format: uuid
+
+    XRequestId:
+      name: X-Request-ID
+      in: header
+      required: false
+      description: 分散式追蹤 Correlation ID，若無則後端自動生成。
+      schema:
+        type: string
+        format: uuid
+
+    PathId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Cursor-based 分頁游標，首頁省略。
+      schema:
+        type: string
+
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    SortBy:
+      name: sort_by
+      in: query
+      required: false
+      schema:
+        type: string
+
+    SortOrder:
+      name: sort_order
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: desc
+
+  #####################################################################
+  # 通用回應（Shared Responses）
+  #####################################################################
+  responses:
+
+    LoginSuccess:
+      description: 登入成功
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/LoginResponse'
+
+    Unauthorized:
+      description: 未認證
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+
+    Forbidden:
+      description: 權限不足
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+
+    NotFound:
+      description: 資源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+
+    Conflict:
+      description: 狀態衝突（樂觀鎖、重複操作、狀態機不允許）
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+
+    ValidationError:
+      description: 輸入驗證失敗（欄位級錯誤見 details）
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+
+  #####################################################################
+  # Schemas
+  #####################################################################
+  schemas:
+
+    # --------- 通用信封 ---------
+    ApiResponseGeneric:
+      type: object
+      required: [data]
+      properties:
+        data:
+          description: 實際載荷，由各 endpoint 具體化
+        message:
+          type: string
+
+    ApiErrorResponse:
+      type: object
+      required: [error_code, message]
+      properties:
+        error_code:
+          type: string
+          description: 統一錯誤碼（見 `docs/02-design/error-codes.md`）
+          examples: [VALIDATION_ERROR, NOT_FOUND, WORK_ORDER_CONFLICT, QUOTE_EXPIRED]
+        message:
+          type: string
+          description: 使用者可見訊息（依 Accept-Language i18n）
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApiFieldError'
+
+    ApiFieldError:
+      type: object
+      required: [field, message]
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+
+    CursorPage:
+      type: object
+      required: [items, has_more]
+      properties:
+        items:
+          type: array
+          items: {}
+        next_cursor:
+          type: [string, "null"]
+        has_more:
+          type: boolean
+        total_count:
+          type: integer
+
+    # --------- 認證 ---------
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 8
+
+    LoginResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseGeneric'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [access_token, expires_in]
+              properties:
+                access_token:
+                  type: string
+                expires_in:
+                  type: integer
+                  description: 秒數
+
+    # --------- 對話 / 問題卡 ---------
+    ConversationStatus:
+      type: string
+      enum: [active, waiting_human, closed]
+
+    Conversation:
+      type: object
+      required: [id, line_user_id, display_name, status, message_count, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        line_user_id: { type: string }
+        display_name: { type: string }
+        status: { $ref: '#/components/schemas/ConversationStatus' }
+        resolution_layer:
+          type: [string, "null"]
+          enum: [case_library, rag, human, null]
+        message_count: { type: integer, minimum: 0 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    ConversationEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseGeneric'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Conversation'
+
+    ConversationPage:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Conversation'
+
+    ProblemCardStatus:
+      type: string
+      enum: [draft, confirmed, resolved]
+
+    Urgency:
+      type: string
+      enum: [low, medium, high]
+
+    ProblemCard:
+      type: object
+      required: [id, conversation_id, brand, model, symptom, category, urgency, status, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        conversation_id: { type: string, format: uuid }
+        brand: { type: string, maxLength: 50 }
+        model: { type: string, maxLength: 100 }
+        symptom: { type: string, maxLength: 1000 }
+        category: { type: string }
+        urgency: { $ref: '#/components/schemas/Urgency' }
+        confidence_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: AI 分類信心分數（閾值 0.6 以下觸發人工覆核）
+        status: { $ref: '#/components/schemas/ProblemCardStatus' }
+        media_urls:
+          type: array
+          items:
+            type: string
+            format: uri
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    ProblemCardPage:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ProblemCard'
+
+    # --------- 工單 ---------
+    WorkOrderStatus:
+      type: string
+      description: |
+        16 狀態工單狀態機（見 `E5x--work-order-flows-supplement.md §18.3`）
+      enum:
+        - inquiring
+        - qualified
+        - quoted
+        - negotiating
+        - accepted
+        - scheduled
+        - dispatching
+        - assigned
+        - en_route
+        - arrived
+        - in_progress
+        - completed
+        - billed
+        - paid
+        - closed
+        - cancelled
+
+    WorkOrder:
+      type: object
+      required: [id, problem_card_id, status, district, address, brand, model, urgency, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        problem_card_id: { type: string, format: uuid }
+        technician_id:
+          type: [string, "null"]
+          format: uuid
+        status: { $ref: '#/components/schemas/WorkOrderStatus' }
+        district: { type: string }
+        address: { type: string }
+        brand: { type: string }
+        model: { type: string }
+        urgency: { $ref: '#/components/schemas/Urgency' }
+        estimated_reward:
+          type: string
+          description: Decimal(10,2) 序列化為字串以避免 JS 浮點誤差
+          pattern: '^-?\d+(\.\d{1,2})?$'
+        scheduled_time: { type: [string, "null"], format: date-time }
+        actual_arrival: { type: [string, "null"], format: date-time }
+        completion_time: { type: [string, "null"], format: date-time }
+        version:
+          type: integer
+          description: 樂觀鎖版本號，更新時 server 比對
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    WorkOrderEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseGeneric'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/WorkOrder'
+
+    WorkOrderPage:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/WorkOrder'
+
+    CompletionReport:
+      type: object
+      required: [summary, photos_before, photos_after]
+      properties:
+        summary:
+          type: string
+          maxLength: 2000
+        photos_before:
+          type: array
+          items: { type: string, format: uri }
+          minItems: 1
+        photos_after:
+          type: array
+          items: { type: string, format: uri }
+          minItems: 1
+        parts_used:
+          type: array
+          items:
+            type: object
+            required: [part_id, quantity]
+            properties:
+              part_id: { type: string, format: uuid }
+              quantity: { type: integer, minimum: 1 }
+        actual_amount:
+          type: string
+          pattern: '^-?\d+(\.\d{1,2})?$'
+
+    # --------- 退款（雙簽流程） ---------
+    RefundDecision:
+      type: object
+      required: [decision, reason]
+      properties:
+        decision:
+          type: string
+          enum: [approve, reject, escalate]
+        reason:
+          type: string
+          maxLength: 500
+        dual_sign_required:
+          type: boolean
+          description: 金額門檻以上需第二簽核者
+
+    RefundEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseGeneric'
+
+    # --------- 簽章 ---------
+    SignaturePayload:
+      type: object
+      required: [customer_signature, technician_signature]
+      properties:
+        customer_signature:
+          type: string
+          description: Base64 編碼的簽章影像或 SVG Path
+        technician_signature:
+          type: string
+        gps_lat:
+          type: number
+        gps_lng:
+          type: number
+        signed_at:
+          type: string
+          format: date-time
+
+    # --------- 派工佇列 ---------
+    DispatchQueueSnapshot:
+      type: object
+      required: [pending, assigning, assigned]
+      properties:
+        pending:
+          type: integer
+        assigning:
+          type: integer
+        assigned:
+          type: integer
+        sla_at_risk:
+          type: integer
+          description: 2 小時內可能逾期的工單數
+
+    # --------- TODO（Week 2） ---------
+    # Quote          — 報價區間、有效期、議價歷史
+    # Exception      — 異常返回階段、熔斷規則觸發紀錄
+    # Invoice        — 發票號、金額、開立狀態、重開歷史
+    # Technician     — 技師主檔（skills、service_areas、availability）
+    # AuditEvent     — 稽核事件（actor、action、target、before/after）
+    # DomainEvent    — 統一 domain event 信封（移至 asyncapi.yaml）
