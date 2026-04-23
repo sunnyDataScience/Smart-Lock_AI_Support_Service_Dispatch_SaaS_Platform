@@ -924,3 +924,81 @@
 - [ ] 最小支援寬度 375px
 - [ ] Mobile-First 單欄堆疊，底部固定 CTA
 - [ ] 所有狀態（default / disabled / loading / error / submitted / offline）視覺明確
+
+---
+
+## T1.4 補強：客戶 LINE Flex RSVP 端（Flow 11 閉環）
+
+> 補 Flow 11 客戶不在場 / Flow 5 延遲改期時「客戶側確認新時段」UI 缺口。雖非 Web 頁，但屬完整互動流程必要組件。
+
+### [FLEX MESSAGE SPEC] reschedule_rsvp
+
+觸發：技師經 T11 改期日曆送出 1-3 個備選時段後，後端 push LINE Flex 給客戶。
+
+**Hero**：工單地址 map thumbnail + 技師姓名/照片
+
+**Body**：
+- title「很抱歉需要調整服務時間」
+- work_order_line「工單 #WO-042」
+- reason_line 技師自填訊息（120 字上限，後端 escape XSS）
+- slot_count_hint「請從以下 N 個時段選擇您方便的」
+
+**Slot 按鈕區（1-3 個）**：
+- 每鈕顯示 `2026-04-25（四）14:00-16:00`
+- `postback` action with `data=rsvp&wo_id=xxx&slot_index=N`
+- 點過後其他鈕 disabled + 該鈕標「已選擇」
+
+**Footer**：
+- reject_btn「都不方便，請客服聯繫」→ postback rsvp_reject
+- expires_at「請於 2026-04-24 23:59 前回覆」（24h TTL）
+
+### 後端處理（對齊 Flow 11）
+
+```
+LINE Webhook 收到 postback
+ → 解析 wo_id + slot_index
+ → 驗證 RSVP 未逾期 + 工單仍為 awaiting_customer_reschedule_confirm
+ → UPDATE work_orders.scheduled_time
+ → 回覆 LINE 新 Flex「已確認」
+ → WS 推給技師（/realtime/work-orders/{id}）
+ → 技師端 T11 頁面自動關閉
+```
+
+### 例外處理
+
+| 情境 | 客戶看到 | 後端行為 |
+|:---|:---|:---|
+| RSVP 逾期（24h 未回）| 按鈕全 disabled + 「已過期」 | 工單 → `reschedule_expired`，通知技師 |
+| 時段被他單搶先 | Toast「此時段剛被使用」+ 自動重發 Flex | 技師端重走 T11 |
+| 客戶選 reject | LINE 自動進人工對話 | 工單保持、`support_agent` 跟進 |
+
+### [DATA & API] T1.4 補
+
+客戶端 RSVP 走 LINE Webhook：
+```
+POST /webhook (LINE Messaging API)
+Body: { events: [{ type: postback, data: "rsvp&wo_id=...&slot_index=0" }] }
+```
+
+內部處理端點：
+```
+POST /internal/work-orders/{id}/reschedule/rsvp
+Body: { slot_index: int, line_user_id: str, confirmed_at: ISO8601 }
+```
+
+### [ACCEPTANCE CRITERIA] T1.4
+
+- [ ] LINE Flex 正確生成（1-3 個時段按鈕）
+- [ ] 24h TTL 到期按鈕 disabled
+- [ ] 客戶選擇後 scheduled_time 立即更新
+- [ ] 技師 T11 接收 WS 自動關閉
+- [ ] 時段被搶先偵測 → 自動重發 Flex
+- [ ] reject 路徑進客服佇列
+- [ ] 稽核 `work_order.reschedule_confirmed_by_customer` 正確產出
+
+### 校對檢核表（T1.4）
+
+- [ ] 24h TTL 是否合理？緊急工單需更短？
+- [ ] LINE Flex 3 slot 按鈕 + reject 共 4 個是否超 LINE primary action 上限？
+- [ ] 客戶 reject 後是否改排客服電話主動聯繫？
+- [ ] 技師訊息 120 字是否足夠？
