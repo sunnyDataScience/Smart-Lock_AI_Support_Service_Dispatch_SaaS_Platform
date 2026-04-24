@@ -47,6 +47,7 @@ import harness.memory_manager as memory_manager
 import harness.profile_updater as profile_updater
 import harness.safety_gate as safety_gate
 import harness.output_validator as output_validator
+import harness.data_correction as data_correction
 
 app = FastAPI(title="Smart Lock AI Agent — Skill-Based")
 
@@ -123,6 +124,9 @@ async def startup():
     from harness.line_ui_factory import init_quick_reply
     init_quick_reply(_cfg.quick_reply)
 
+    # 初始化資料修正攔截
+    await data_correction.init_db(_cfg.data_correction)
+
     # 初始化 OPIK tracing
     opik_tracer = None
     if _cfg.opik.get("enabled", False):
@@ -173,6 +177,7 @@ async def shutdown():
     await close_storage()
     await close_checkpointer()
     await close_facts_db()
+    await data_correction.close_db()
     print("[*] Connections closed")
 
 

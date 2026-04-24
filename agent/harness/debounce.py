@@ -25,6 +25,7 @@ from agent import get_system_prompt
 import harness.profile_updater as profile_updater
 import harness.safety_gate as safety_gate
 import harness.output_validator as output_validator
+import harness.data_correction as data_correction
 
 # 模組層級狀態（由 init() 初始化）
 _agent = None
@@ -646,6 +647,14 @@ async def agent_and_reply(user_id: str, reply_token: str, content: str | list, b
             except Exception as e:
                 print(f"[Audit] 記錄安全閘門事件失敗: {e}")
         await line_bot.send_response(user_id, reply_token, blocked)
+        return
+
+    # 資料修正攔截 — #資料修正 指令寫入 DB，不進 Agent
+    correction_reply = await data_correction.check_and_save(
+        user_id, text_for_audit, _agent, _profile_mgr,
+    )
+    if correction_reply:
+        await line_bot.send_response(user_id, reply_token, correction_reply)
         return
 
     # H12: Quick Reply 攔截 — 品牌/型號收集完畢再進 Agent

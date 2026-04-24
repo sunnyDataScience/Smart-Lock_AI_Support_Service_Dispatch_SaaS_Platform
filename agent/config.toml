@@ -149,7 +149,14 @@ soft_fact_fields = [
     "communication_note"
 ]
 
-# ── 13. OPIK LLM Observability ──
+# ── 13. 資料修正攔截 ──
+[data_correction]
+enabled          = true
+keyword          = "#資料修正"
+reply            = "已收到您的回報，我們會盡快處理，謝謝您！"
+postgres_uri_env = "POSTGRES_URI"
+
+# ── 14. OPIK LLM Observability ──
 [opik]
 enabled       = true
 project_name  = "smart-lock-agent"
