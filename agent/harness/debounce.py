@@ -538,10 +538,34 @@ async def _quick_reply_intercept(
                 print(f"[Quick Reply] 品牌收集完畢（無型號），放行原始訊息")
                 await agent_and_reply(user_id, reply_token, original["content"], original.get("buffer_items"))
                 return True
-            # 不匹配品牌 → 可能是用戶直接打品牌名（非選單），放行讓 agent 處理
+            # 完全匹配失敗 → 嘗試模糊匹配（從文字中掃描品牌/型號名）
+            from harness.line_ui_factory import infer_brand_from_text
+            inferred_brand, inferred_model = infer_brand_from_text(text_stripped)
+            if inferred_brand:
+                await _profile_mgr.update_fact(user_id, "device_brand", inferred_brand)
+                brand = inferred_brand
+                if inferred_model:
+                    await _profile_mgr.update_fact(user_id, "device_model", inferred_model)
+                    model = inferred_model
+                set_current_brand(brand, model)
+                print(f"[Quick Reply] 模糊匹配品牌: {brand} {model or ''}")
+
+                # 品牌已知但型號未知且有型號選項 → 追問型號
+                if not model and get_brand_models(brand):
+                    reply_text = f"收到，{brand}！請問您的電子鎖是什麼型號呢？"
+                    messages = build_line_messages(reply_text, brand=brand, model=None)
+                    await line_bot.send_response(user_id, reply_token, reply_text, message_objects=messages)
+                    return True
+
+                # 放行原始訊息
+                original = _pending_messages.pop(user_id)
+                print(f"[Quick Reply] 模糊匹配完畢，放行原始訊息")
+                await agent_and_reply(user_id, reply_token, original["content"], original.get("buffer_items"))
+                return True
+
+            # 完全無法辨識品牌 → 放行，把這次的文字併入原始訊息
             original = _pending_messages.pop(user_id)
-            print(f"[Quick Reply] 輸入非品牌選項，放行原始訊息")
-            # 把這次的文字併入原始訊息前面
+            print(f"[Quick Reply] 無法辨識品牌，放行原始訊息")
             orig_content = original["content"]
             if isinstance(orig_content, str):
                 combined = f"{text_stripped}\n{orig_content}"
@@ -558,7 +582,13 @@ async def _quick_reply_intercept(
                 model = matched_model
                 set_current_brand(brand, model)
                 print(f"[Quick Reply] 型號已選: {matched_model}")
-            elif text_stripped not in ("其他型號，請直接回覆",):
+            elif text_stripped in ("其他型號，請直接回覆",):
+                # 用戶選「其他型號」→ 設為「其他」避免重複追問
+                await _profile_mgr.update_fact(user_id, "device_model", "其他")
+                model = "其他"
+                set_current_brand(brand, model)
+                print(f"[Quick Reply] 用戶選擇其他型號，跳過型號收集")
+            else:
                 # 用戶自行輸入型號（非選單內容）
                 await _profile_mgr.update_fact(user_id, "device_model", text_stripped)
                 model = text_stripped
