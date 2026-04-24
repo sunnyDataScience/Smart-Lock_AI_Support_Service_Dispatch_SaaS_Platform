@@ -531,7 +531,7 @@ export interface components {
             items?: components["schemas"]["ProblemCard"][];
         };
         /**
-         * @description 16 狀態工單狀態機（見 `E5x--work-order-flows-supplement.md §18.3`）
+         * @description 16 狀態工單狀態機（見 `E5x--work-order-interaction-flows.md §18.3`）
          * @enum {string}
          */
         WorkOrderStatus: "inquiring" | "qualified" | "quoted" | "negotiating" | "accepted" | "scheduled" | "dispatching" | "assigned" | "en_route" | "arrived" | "in_progress" | "completed" | "billed" | "paid" | "closed" | "cancelled";
@@ -607,7 +607,7 @@ export interface components {
         /** @enum {string} */
         QuoteStatus: "draft" | "sent" | "negotiating" | "accepted" | "rejected" | "expired";
         /**
-         * @description 工單報價（對齊 E5x--work-order-flows-supplement.md §17）。
+         * @description 工單報價（對齊 E5x--work-order-interaction-flows.md §17）。
          *     採區間制：min/max 為當前報價區間，客戶 accept 後 scalar 欄位為最終金額。
          */
         Quote: {
@@ -663,7 +663,7 @@ export interface components {
         ExceptionType: "no_show" | "customer_absent" | "scope_change_rejected" | "material_shortage" | "delay_severe" | "appearance_refused" | "payment_failed" | "quality_complaint" | "schedule_conflict" | "other";
         /** @enum {string} */
         ExceptionStatus: "open" | "investigating" | "resolved" | "escalated" | "closed";
-        /** @description 工單異常記錄（對齊 work-order-flows-supplement §22 異常返回節點 + 熔斷規則） */
+        /** @description 工單異常記錄（對齊 E5x--work-order-interaction-flows §22 異常返回節點 + 熔斷規則） */
         Exception: {
             /** Format: uuid */
             id: string;
@@ -702,7 +702,7 @@ export interface components {
         };
         /** @enum {string} */
         InvoiceStatus: "pending" | "issued" | "allowance_pending" | "voided" | "reopened";
-        /** @description 電子發票（對齊 work-order-flows-supplement §21 EX5） */
+        /** @description 電子發票（對齊 E5x--work-order-interaction-flows §21 EX5） */
         Invoice: {
             /** Format: uuid */
             id: string;

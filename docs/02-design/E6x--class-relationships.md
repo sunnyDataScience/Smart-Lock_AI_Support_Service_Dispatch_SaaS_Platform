@@ -36,6 +36,18 @@
 
 ## 1. 概述 (Overview)
 
+### 1.0 模組與本文件的對應關係
+
+> 本文件描述類別的**靜態結構**（UML 關係圖）。各模組的**行為契約**（函式簽名、前後條件、測試情境）見 `E7x--module-specification-and-tests.md`。
+
+| 模組 | 行為契約（E7x） | 類別結構（本文件） |
+|:---|:---|:---|
+| ConversationManager | E7x §1 | §2.1 / §3.1 |
+| ProblemCardEngine | E7x §2 | §2.1 / §3.2 |
+| ThreeLayerResolver | E7x §3 | §2.1 / §3.3 |
+| KnowledgeBaseManager | E7x §4 | §2.1 / §3.4 |
+| SOPGenerator | E7x §5 | §2.1 / §3.5 |
+
 ### 1.1 文檔目的 (Document Purpose)
 
 本文檔旨在通過 UML 類別圖（以 Mermaid 語法呈現）和詳細描述，清晰地呈現「電子鎖智能客服與派工 SaaS 平台」中主要類別、組件和接口之間的靜態結構關係。本文檔覆蓋 V1.0（AI 智能客服）與 V2.0（技師派工與帳務）兩個階段的完整領域模型，作為開發團隊理解和維護系統結構的關鍵參考。

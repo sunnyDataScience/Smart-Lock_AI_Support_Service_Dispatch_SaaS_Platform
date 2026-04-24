@@ -1081,7 +1081,7 @@ components:
     WorkOrderStatus:
       type: string
       description: |
-        16 狀態工單狀態機（見 `E5x--work-order-flows-supplement.md §18.3`）
+        16 狀態工單狀態機（見 `E5x--work-order-interaction-flows.md §18.3`）
       enum:
         - inquiring
         - qualified
@@ -1233,7 +1233,7 @@ components:
     Quote:
       type: object
       description: |
-        工單報價（對齊 E5x--work-order-flows-supplement.md §17）。
+        工單報價（對齊 E5x--work-order-interaction-flows.md §17）。
         採區間制：min/max 為當前報價區間，客戶 accept 後 scalar 欄位為最終金額。
       required: [id, work_order_id, status, min_amount, max_amount, currency, valid_until, version, created_at, updated_at]
       properties:
@@ -1318,7 +1318,7 @@ components:
     Exception:
       type: object
       description: |
-        工單異常記錄（對齊 work-order-flows-supplement §22 異常返回節點 + 熔斷規則）
+        工單異常記錄（對齊 E5x--work-order-interaction-flows.md §22 異常返回節點 + 熔斷規則）
       required: [id, work_order_id, exception_type, status, severity, created_at]
       properties:
         id: { type: string, format: uuid }
@@ -1374,7 +1374,7 @@ components:
     Invoice:
       type: object
       description: |
-        電子發票（對齊 work-order-flows-supplement §21 EX5）
+        電子發票（對齊 E5x--work-order-interaction-flows.md §21 EX5）
       required: [id, work_order_id, invoice_number, amount, status, issued_at, created_at]
       properties:
         id: { type: string, format: uuid }

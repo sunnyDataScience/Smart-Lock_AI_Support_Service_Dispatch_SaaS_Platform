@@ -1,9 +1,9 @@
-# E5x — Dispatch Operations Supplement
+# E5x — Dispatch Operations
 
-> **文件狀態：設計文件（V2.0 派工模組補充規格）**
-> 補齊工單系統 7 項關鍵缺失：技師排班、媒合演算法、薪酬分潤、拒單重派、客戶設備主檔、技能體系、報表 API。
+> **文件狀態：設計文件（V2.0 派工營運基礎設施規格）**
+> 工單派工系統 7 項營運模組：技師排班、媒合演算法、薪酬分潤、拒單重派、客戶設備主檔、技能體系、報表 API。
 > 建立日期：2026-04-22
-> 前置文件：[[E5x--work-order-interaction-flows]]、[[E5x--work-order-flows-supplement]]
+> 前置文件：[[E5x--work-order-interaction-flows]]
 
 ---
 

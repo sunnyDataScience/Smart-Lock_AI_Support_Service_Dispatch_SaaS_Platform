@@ -146,6 +146,9 @@ stateDiagram-v2
 
 ## 2. 角色定義
 
+> **權威角色清單：** 全系統角色定義與權限矩陣見 `specs/rbac-dynamic-spec.md §2`。
+> 本節僅列出工單流程直接參與的 6 個業務角色。
+
 ### 2.1 角色職責矩陣
 
 | 角色 | 識別碼 | 介面 | 核心職責 | 系統權限 |
@@ -3310,7 +3313,7 @@ sequenceDiagram
 - **R4**：連續請假 > 7 天 → 觸發 `operations_manager` 審批 + 考勤記錄
 - **R5**：重派時客戶有「拒絕換人」權利 → 可強制原技師處理（技師申請休假視為放棄，與客戶協商）
 - **R6**：改派到比原派距離更遠的技師 → 公司承擔增加的車馬費差額
-- **R7**：12 個月內主動放鴿子（causing hard_conflict）>= 3 次 → 觸發熔斷（對齊 `work-order-flows-supplement.md §22`）
+- **R7**：12 個月內主動放鴿子（causing hard_conflict）>= 3 次 → 觸發熔斷（對齊本文件 §22 異常返回節點機制）
 - **R8**：衝突解決的 SLA：hard_conflict 發現後 2 小時內必須有動作，24 小時內必須有結論
 
 ### 25.8 Error Path
@@ -3365,7 +3368,7 @@ Flow 5 延遲通知 → 預估新完工時間 ETC
 | 客戶拒絕 → 取消安裝 | **僅收車馬費** | 不收 | 不收 | 僅車馬費發票 |
 | 技師提案不合理（客戶投訴後確認）| 不收 | 不收 | 不收 | 不開立 + 道歉 |
 
-### 26.2 車馬費標準（對齊 `E5x--dispatch-operations-supplement.md`）
+### 26.2 車馬費標準（對齊 `E5x--dispatch-operations.md`）
 
 待使用者校對具體金額：
 - 市區：NT$ 300（< 10km）
@@ -3460,7 +3463,7 @@ DISPUTE_MERGE_FAILED            500  客訴併入爭議失敗（需人工介入�
 - [ ] §25.3 衝突五分類是否完整？`buffer_insufficient` 閾值（30 分移動時間）是否合理？
 - [ ] §25.7 R3 緊急請假門檻（24h）是否合理？
 - [ ] §25.7 R6 公司承擔車馬費差額是否符合既有派工財務規則？
-- [ ] §25.7 R7 熔斷閾值（12 個月 3 次放鴿子）是否與 `flows-admin-governance.md §5.6 R4`、`flows-supplement.md §22` 一致？
+- [ ] §25.7 R7 熔斷閾值（12 個月 3 次放鴿子）是否與 `flows-admin-governance.md §5.6 R4`、本文件 §22 一致？
 - [ ] §25.8 error_code 是否需要新增 `TECHNICIAN_SCHEDULE_CONFLICT` 取代複用 `WORK_ORDER_CONFLICT`？
 - [ ] §26.2 車馬費標準金額是否符合實際成本？
 - [ ] §26.5 R4「30 天再下單不收車馬費」是否為新規則？

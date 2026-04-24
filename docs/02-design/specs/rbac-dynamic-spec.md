@@ -14,15 +14,24 @@
 
 ## 2. Role Hierarchy (角色階層)
 
-| 角色 name | 顯示名稱 | 說明 | 系統內建 |
-|---|---|---|---|
-| `super_admin` | 超級管理員 | 完整系統存取權，平台擁有者 | 是 |
-| `admin` | 管理員 | 管理使用者、工單、財務 | 是 |
-| `reviewer` | 審查員 | SOP 審查、品質稽核 | 是 |
-| `technician` | 技師 | 操作自身工單、提交報告 | 是 |
-| `brand_oem` | 品牌商 | 檢視保固統計、上傳資料；平台資料僅限唯讀 | 是 |
-| `distributor` | 經銷商 | 檢視區域報表、管理子帳號 | 是 |
-| `line_user` | LINE 使用者 | 自身對話、個人資料 (預設角色) | 是 |
+> **本節為全系統角色的權威來源。** 其他文件中的角色定義應引用本表：
+> - 工單流程角色（6 個業務角色）：`E5x--work-order-interaction-flows.md §2`
+> - 治理流程角色（7 個治理角色）：`E5x--flows-admin-governance.md §1`
+> - 多租戶平台角色（5 個平台角色）：`platform-multi-tenant/E5x--flows-multi-tenant.md §1`
+
+### 2.1 角色總覽（全版本）
+
+| 角色 name | 顯示名稱 | 版本 | 說明 | 系統內建 | 對應業務角色 |
+|---|---|---|---|---|---|
+| `super_admin` | 超級管理員 | V3.0 | 完整系統存取權，平台擁有者 | 是 | — |
+| `admin` | 管理員 | V1.0 | 管理使用者、工單、財務 | 是 | Admin（工單）、operations_manager（治理） |
+| `reviewer` | 審查員 | V1.0 | SOP 審查、品質稽核 | 是 | — |
+| `technician` | 技師 | V1.0 | 操作自身工單、提交報告 | 是 | Technician（工單） |
+| `brand_oem` | 品牌商 | V2.0 | 檢視保固統計、上傳資料；平台資料僅限唯讀 | 是 | — |
+| `distributor` | 經銷商 | V2.0 | 檢視區域報表、管理子帳號 | 是 | — |
+| `line_user` | LINE 使用者 | V1.0 | 自身對話、個人資料 (預設角色) | 是 | Customer（工單） |
+| `finance` | 財務人員 | V2.0 | 帳務結算、退款執行、月結對帳 | 是 | Finance（工單） |
+| `tenant_admin` | 租戶管理員 | V3.0 | 管理該租戶的品牌設定、使用者、資料 | 是 | — |
 
 - `super_admin` 擁有所有權限，不受 permission matrix 限制。
 - 系統內建角色 (`is_system=true`) 不可刪除，但可調整其 permissions。

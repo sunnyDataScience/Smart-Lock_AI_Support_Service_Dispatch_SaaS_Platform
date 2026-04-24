@@ -38,7 +38,9 @@
 
 ### 1.1 角色（本檔登場，V3.0 擴充）
 
-對齊 `multi-tenant-architecture.md §9` 三級 Portal：
+> **權威角色清單：** 全系統角色定義與權限矩陣見 `specs/rbac-dynamic-spec.md §2`。
+> 本節僅列出多租戶流程涉及的 5 個平台級角色。
+> 對齊 `multi-tenant-architecture.md §9` 三級 Portal：
 
 | 角色 | 層級 | 說明 |
 |:---|:---|:---|
