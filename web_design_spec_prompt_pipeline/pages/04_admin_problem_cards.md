@@ -9,6 +9,9 @@
 - **page_name**: Problem Cards Management
 - **route_path**: `/problem-cards`（列表）、`/problem-cards/[id]`（詳情）
 - **page_type**: list + detail
+- **ia_pages**: A4, A5
+- **openapi_ops**: listProblemCards
+- **asyncapi_ops**: none
 - **primary_goal**: 讓管理員瀏覽、篩選、管理 AI 對話產生的問題卡片，追蹤診斷與解決進度
 - **secondary_goal**: 快速識別需人工介入的高熵卡片，適時升級至 L3 派工
 - **target_users**:
@@ -287,3 +290,13 @@
 - [ ] 樂觀更新機制正常運作，失敗時回滾並提示
 - [ ] 頁面首次載入回應時間 < 2 秒
 - [ ] 符合 Design System 視覺規範（Primary #2563EB、Accent #F59E0B、字體 Inter + Noto Sans TC）
+
+
+---
+
+## 導航與狀態 (Navigation & State)
+
+完整 Upstream / Downstream / State Persistence / Error Navigation 規範見
+`docs/02-design/E5x--frontend-navigation-matrix.md §附錄 A`（本檔對應段落）。
+
+本 spec 覆蓋的 IA 頁面依 `MAPPING.md §2` 查找。

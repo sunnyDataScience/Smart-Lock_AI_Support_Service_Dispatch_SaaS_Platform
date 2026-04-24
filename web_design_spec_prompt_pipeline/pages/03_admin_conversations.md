@@ -9,6 +9,9 @@
 - **page_name**: Admin Conversations
 - **route_path**: `/conversations`（列表）、`/conversations/[id]`（詳情）
 - **page_type**: list + detail（雙視圖）
+- **ia_pages**: A2, A3
+- **openapi_ops**: listConversations, getConversation
+- **asyncapi_ops**: none
 - **primary_goal**: 讓管理者瀏覽與監控所有客戶對話，快速掌握對話狀態、AI 回覆品質，並在必要時介入處理
 - **secondary_goal**: 透過 AI 回覆標記功能建立回饋循環，持續優化 AI 診斷品質
 - **target_users**:
@@ -312,3 +315,13 @@
 - [ ] 首次列表載入 < 2 秒；詳情頁訊息載入 < 3 秒
 - [ ] 符合 Design System 色彩規範（Primary #2563EB / Accent #F59E0B / BG #F8FAFC）
 - [ ] 多租戶隔離正確，僅顯示當前租戶資料
+
+
+---
+
+## 導航與狀態 (Navigation & State)
+
+完整 Upstream / Downstream / State Persistence / Error Navigation 規範見
+`docs/02-design/E5x--frontend-navigation-matrix.md §附錄 A`（本檔對應段落）。
+
+本 spec 覆蓋的 IA 頁面依 `MAPPING.md §2` 查找。

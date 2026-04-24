@@ -9,6 +9,9 @@
 - **page_name**: Knowledge Base Management
 - **route_path**: `/knowledge-base/cases`（案例庫）、`/knowledge-base/manuals`（手冊管理）、`/knowledge-base/sop-drafts`（SOP 草稿）
 - **page_type**: tabbed_list + form + review
+- **ia_pages**: A6, A7, A8, A9, A10
+- **openapi_ops**: none
+- **asyncapi_ops**: none
 - **primary_goal**: 統一管理品牌知識資產，包含歷史案例、產品手冊、AI 自動產生的 SOP 草稿
 - **secondary_goal**: 確保知識庫內容經過人工審核後才進入正式索引，維護知識品質
 - **target_users**:
@@ -320,3 +323,13 @@
 - [ ] 表單 dirty close 保護機制（未儲存提醒）
 - [ ] 頁面首次載入回應時間 < 2 秒
 - [ ] 符合 Design System 視覺規範（Primary #2563EB、Accent #F59E0B、字體 Inter + Noto Sans TC）
+
+
+---
+
+## 導航與狀態 (Navigation & State)
+
+完整 Upstream / Downstream / State Persistence / Error Navigation 規範見
+`docs/02-design/E5x--frontend-navigation-matrix.md §附錄 A`（本檔對應段落）。
+
+本 spec 覆蓋的 IA 頁面依 `MAPPING.md §2` 查找。

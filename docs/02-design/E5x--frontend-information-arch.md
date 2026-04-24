@@ -2,12 +2,20 @@
 
 ---
 
-**文件版本 (Document Version):** `v1.1`
-**最後更新 (Last Updated):** `2026-04-04`
+**文件版本 (Document Version):** `v1.3`
+**最後更新 (Last Updated):** `2026-04-24`
 **主要作者 (Lead Author):** `前端架構師, UX 設計師`
 **審核者 (Reviewers):** `PM, 技術負責人, 後端技術負責人`
-**狀態 (Status):** `草稿 (Draft)`
-**相關文檔:** [`PRD`](../docs/02_project_brief_and_prd.md), [`Frontend Architecture`](../docs/12_frontend_architecture_specification.md), [`API Design`](../docs/06_api_design_specification.md), [`Architecture`](../docs/05_architecture_and_design_document.md)
+**狀態 (Status):** `Active`
+**相關文檔:**
+- API 設計規範：[`E5--api-design-specification`](E5--api-design-specification.md)
+- 前端架構規範：[`E5x--frontend-architecture`](E5x--frontend-architecture.md)
+- 工單互動流程：[`E5x--work-order-interaction-flows`](E5x--work-order-interaction-flows.md)
+- 派工營運規格：[`E5x--dispatch-operations`](E5x--dispatch-operations.md)
+- 多租戶架構：[`platform-multi-tenant/multi-tenant-architecture`](platform-multi-tenant/multi-tenant-architecture.md)
+- 派工整合規格：[`platform-multi-tenant/dispatch-integration-spec`](platform-multi-tenant/dispatch-integration-spec.md)
+- Agent Harness 診斷架構：[`agent-harness/diagnostic-intelligence-architecture`](agent-harness/diagnostic-intelligence-architecture.md)
+- 技術規格集：[`specs/_MOC`](specs/_MOC.md)（RBAC / 稽核 / 即時訊息 / 電子簽章 / 退款 / 保固 / 庫存 / 資料匯出）
 
 ---
 
@@ -23,7 +31,8 @@
 - [8. 數據流與狀態管理](#8-數據流與狀態管理)
 - [9. URL 結構與路由規範](#9-url-結構與路由規範)
 - [10. 實施檢查清單與驗收標準](#10-實施檢查清單與驗收標準)
-- [11. 附錄](#11-附錄)
+- [11. 頁面導航矩陣與狀態規範](#11-頁面導航矩陣與狀態規範)
+- [12. 附錄](#12-附錄)
 
 ---
 
@@ -44,7 +53,7 @@
 | 適用範圍 | 說明 |
 |:---|:---|
 | **包含 (In Scope)** | - Admin Panel 所有頁面的信息架構（V1.0 + V2.0）<br/>- Technician Web App 所有頁面的信息架構（V2.0）<br/>- 用戶旅程與導航設計<br/>- URL 結構與路由規範<br/>- 頁面間數據傳遞與狀態策略<br/>- 頁面級 KPIs 與驗收標準 |
-| **不包含 (Out of Scope)** | - LINE Bot 消費者端互動流程（透過 LINE Messaging API，無 Web UI）<br/>- 視覺設計細節（參考 UI/UX Spec）<br/>- 組件級別實現細節（參考 `docs/12_frontend_architecture_specification.md`）<br/>- 後端 API 實作（參考 `docs/06_api_design_specification.md`） |
+| **不包含 (Out of Scope)** | - LINE Bot 消費者端互動流程（透過 LINE Messaging API，無 Web UI）<br/>- 視覺設計細節（參考 UI/UX Spec）<br/>- 組件級別實現細節（參考 `E5x--frontend-architecture.md`）<br/>- 後端 API 實作（參考 `E5--api-design-specification.md`） |
 
 ### 1.3 角色與職責 (RACI)
 
@@ -200,6 +209,20 @@ graph TB
 | A20 | `/admin/audit-events` | 稽核日誌頁 | 7 種事件類型可篩選查詢 | 稽核系統操作記錄 | Level 2 | V2.0 |
 | A21 | `/admin/warranty-claims` | 保固索賠頁 | 保固驗證與核准流程 | 處理保固索賠 | Level 2 | V2.0 |
 | A22 | `/admin/disputes` | 爭議仲裁頁 | 證據包檢視與裁決 | 仲裁服務爭議 | Level 2 | V2.0 |
+| A23 | `/admin/customers` | 客戶主檔 | 客戶 CRM、設備歷史 | 維護客戶與設備關聯資料 | Level 2 | V2.0 |
+| A24 | `/admin/customers/[id]` | 客戶詳情 | 單一客戶完整紀錄 | 追蹤回頭客與高風險戶 | Level 3 | V2.0 |
+| A25 | `/admin/technicians/[id]/schedule` | 技師排班 | 可服務時段、休假、備勤 | 維護派工可用性 | Level 3 | V2.0 |
+| A26 | `/admin/technicians/[id]/skills` | 技師技能認證 | 品牌授權、等級、到期 | 確保派工技能匹配 | Level 3 | V2.0 |
+| A27 | `/admin/technicians/[id]/settlements` | 技師結算明細 | 分潤、獎懲、墊付 | 月結 & 匯款對帳 | Level 3 | V2.0 |
+| A28 | `/admin/dispatch-queue` | 派工佇列監控 | 重派嘗試、拒單紀錄、逾時 | 人工介入困難派工 | Level 2 | V2.0 |
+| A29 | `/admin/reports/kpi` | KPI 儀表板 | 轉換漏斗、SLA、滿意度 | 即時營運指標檢視 | Level 2 | V2.0 |
+| A30 | `/admin/reports/technician-ranking` | 技師排行榜 | 完工率、評分、週轉 | 績效管理 | Level 2 | V2.0 |
+| A31 | `/admin/reports/revenue` | 營收報表 | 按期間/技師/品牌 | 財務與業務分析 | Level 2 | V2.0 |
+| A32 | `/admin/diagnostics/[conversation_id]` | 診斷推理檢視 | L1/L2/L3 推理鏈、信心分數 | 審視/覆寫 AI 決策 | Level 3 | V2.0 |
+| A33 | `/admin/knowledge-base/sop-performance` | SOP 績效儀表板 | SOP 使用率、成功率、滿意度 | 知識資產評估 | Level 3 | V2.0 |
+| A34 | `/admin/settings/tenant` | 租戶設定 | 品牌色、LINE 綁定、價目 | 租戶層級客製 | Level 2 | V3.0 |
+| A35 | `/admin/settings/tenant/brand` | 品牌客製 | Logo、色票、語氣範本 | 白牌化設定 | Level 3 | V3.0 |
+| A36 | `/admin/super/tenants` | 超級管理租戶 | 租戶 CRUD、訂閱、使用量 | 平台營運 | Level 2 | V3.0 |
 
 #### Technician Web App 頁面
 
@@ -210,8 +233,16 @@ graph TB
 | T2 | `/my-orders` | 我的工單 | 瀏覽已接案件 | 管理進行中的工作 | Level 2 | V2.0 |
 | T3 | `/my-orders/[id]` | 工單詳情/完工回報 | 查看詳情與提交回報 | 查看工作內容/提交完工 | Level 3 | V2.0 |
 | T4 | `/account` | 帳戶中心 | 收入統計與歷史 | 掌握財務狀況 | Level 2 | V2.0 |
+| T5 | `/my-orders/[id]/scope-change` | 範圍變更申請 | 現場追加工項、報價更新 | 送出追加報價待客戶核准 | Level 4 | V2.0 |
+| T6 | `/my-orders/[id]/material-request` | 缺料回報 | 缺件清單、替代方案 | 進入缺料等待 / 部分完工 | Level 4 | V2.0 |
+| T7 | `/my-orders/[id]/delay` | 延遲通知 | 新 ETA、事由、客戶通知 | 合規延遲不罰款 | Level 4 | V2.0 |
+| T8 | `/my-orders/[id]/door-check` | 門面外觀檢核 | 抵達前後對比照 | 保障雙方、避免爭議 | Level 4 | V2.0 |
+| T9 | `/my-orders/[id]/signature` | 雙方簽名 | 完工/交付電子簽章 | 提升可追溯性 | Level 4 | V2.0 |
+| T10 | `/account/schedule` | 我的排班 | 查看/申請休假 | 自主管理可服務時段 | Level 3 | V2.0 |
 
-**總計：** Admin Panel 23 頁 + Technician App 5 頁 = **28 頁**
+**總計：** Admin Panel 37 頁（含 V3.0 多租戶 3 頁）+ Technician App 11 頁 = **48 頁**
+
+> **備註：** A17–A22 為 V2.0 營運閉環必要頁（退款/RBAC/庫存/稽核/保固/爭議），補 A23–A33 係對齊 `E5x--dispatch-operations` 與 13 項 `specs/`；A34–A36 對齊 V3.0 多租戶架構；T5–T10 對齊 `E5x--work-order-interaction-flows` 10 個流程中的非 Happy Path 分支。
 
 ---
 
@@ -410,32 +441,107 @@ Smart Lock Platform (/)
 │  │  ├─ #vouchers (錨點：記帳憑證)
 │  │  └─ [匯出 Excel/PDF 功能]
 │  │
-│  └─ 17. /settings                          [系統設定]
-│     ├─ #profile (錨點：個人資料)
-│     ├─ #security (錨點：安全設定)
-│     ├─ #pricing-rules (錨點：報價規則, V2.0)
-│     └─ #surcharge-rules (錨點：加價規則, V2.0)
+│  ├─ 17. /settings                          [系統設定]
+│  │  ├─ #profile (錨點：個人資料)
+│  │  ├─ #security (錨點：安全設定)
+│  │  ├─ #pricing-rules (錨點：報價規則, V2.0)
+│  │  └─ #surcharge-rules (錨點：加價規則, V2.0)
+│  │
+│  ├─ 18. /admin/refunds                     [退款審批, V2.0]   ← refund-approval-spec
+│  │  ├─ Query: ?status={pending|approved|rejected|completed}
+│  │  └─ → [雙簽 Modal：管理員簽名 + 財務簽名]
+│  │
+│  ├─ 19. /admin/roles                       [RBAC 管理, V2.0]  ← rbac-dynamic-spec
+│  │  ├─ → /admin/roles/new (新增自訂角色)
+│  │  └─ → /admin/roles/{id}/audit (檢視角色變更稽核)
+│  │
+│  ├─ 20. /admin/inventory                   [庫存管理, V2.0]   ← inventory-management-spec
+│  │  ├─ #parts (錨點：零件主檔)
+│  │  ├─ #low-stock (錨點：低庫存告警)
+│  │  └─ #usage-history (錨點：技師耗料紀錄)
+│  │
+│  ├─ 21. /admin/audit-events                [稽核日誌, V2.0]   ← audit-log-spec
+│  │  ├─ Query: ?event_type={LOGIN|CREATE|UPDATE|DELETE|EXPORT|APPROVE_REFUND|ESCALATE_DISPUTE}
+│  │  └─ [每筆可展開 before/after diff]
+│  │
+│  ├─ 22. /admin/warranty-claims             [保固索賠, V2.0]   ← warranty-dispute-spec
+│  │  └─ → /admin/warranty-claims/{id}
+│  │
+│  ├─ 23. /admin/disputes                    [爭議仲裁, V2.0]   ← warranty-dispute-spec §3
+│  │  └─ → /admin/disputes/{id}
+│  │
+│  ├─ 24. /admin/customers                   [客戶主檔, V2.0]   ← dispatch-operations §5
+│  │  ├─ Query: ?risk_level={high|medium|low}
+│  │  └─ → /admin/customers/{id}
+│  │
+│  ├─ 25. /admin/customers/{id}              [客戶詳情, V2.0]
+│  │  ├─ #devices (錨點：名下設備)
+│  │  ├─ #history (錨點：服務歷史)
+│  │  └─ #notes (錨點：備註/風險標記)
+│  │
+│  ├─ 26. /admin/technicians/{id}/schedule   [技師排班, V2.0]   ← dispatch-operations §1
+│  ├─ 27. /admin/technicians/{id}/skills     [技師技能, V2.0]   ← dispatch-operations §6
+│  ├─ 28. /admin/technicians/{id}/settlements [技師結算, V2.0]  ← dispatch-operations §3
+│  │
+│  ├─ 29. /admin/dispatch-queue              [派工佇列監控, V2.0] ← dispatch-operations §4 拒單重派
+│  │  └─ [每筆工單的 1~3 次派工嘗試、match score、拒單原因]
+│  │
+│  ├─ 30. /admin/reports/kpi                 [KPI 儀表板, V2.0] ← dispatch-operations §7
+│  │  ├─ #funnel (錨點：轉換漏斗)
+│  │  ├─ #sla (錨點：SLA 達成率)
+│  │  └─ #satisfaction (錨點：客戶滿意度)
+│  │
+│  ├─ 31. /admin/reports/technician-ranking  [技師排行, V2.0]
+│  ├─ 32. /admin/reports/revenue             [營收報表, V2.0]
+│  │
+│  ├─ 33. /admin/diagnostics/{conversation_id} [診斷推理, V2.0] ← agent-harness
+│  │  ├─ #l1-vector (錨點：L1 向量搜尋結果)
+│  │  ├─ #l2-rag (錨點：L2 RAG 推論)
+│  │  ├─ #l3-escalation (錨點：L3 升級判定)
+│  │  ├─ #dispatch-signals (錨點：派工信號 7 種)
+│  │  └─ [管理員覆寫 / 反饋提交]
+│  │
+│  ├─ 34. /admin/knowledge-base/sop-performance [SOP 績效, V2.0]
+│  │
+│  ├─ 35. /admin/settings/tenant             [租戶設定, V3.0]   ← multi-tenant-architecture
+│  │  ├─ /admin/settings/tenant/brand        [品牌客製]
+│  │  ├─ /admin/settings/tenant/integrations [LINE / 金流綁定]
+│  │  └─ /admin/settings/tenant/pricing      [租戶定價策略]
+│  │
+│  └─ 36. /admin/super/tenants               [超管租戶, V3.0]
+│     ├─ /admin/super/tenants/{tenant_id}/usage
+│     ├─ /admin/super/tenants/{tenant_id}/billing
+│     └─ /admin/super/dashboard              [平台彙總 KPI]
 │
 └─ (technician) 技師工作台路由群組 ── Mobile-First 底部導航佈局
-   ├─ 18. /tech-login                        [技師登入]
+   ├─ 37. /tech-login                        [技師登入]
    │
-   ├─ 19. /pool                              [案件池]
+   ├─ 38. /pool                              [案件池]
    │  ├─ Query: ?sort_by={distance|reward|urgency}
    │  └─ → [案件詳情 Modal / 一鍵接單]
    │
-   ├─ 20. /my-orders                         [我的工單]
-   │  ├─ Query: ?status={accepted|in_progress|completed}
+   ├─ 39. /my-orders                         [我的工單]
+   │  ├─ Query: ?status={accepted|in_progress|material_pending|scope_changed|completed}
    │  └─ → /my-orders/{id} (點擊查看)
    │
-   ├─ 21. /my-orders/{id}                    [工單詳情 / 完工回報]
+   ├─ 40. /my-orders/{id}                    [工單詳情 / 完工回報]
    │  ├─ #info (錨點：案件資訊)
    │  ├─ #completion-form (錨點：完工回報表單)
+   │  ├─ → /my-orders/{id}/scope-change     [範圍變更申請, Flow 3]
+   │  ├─ → /my-orders/{id}/material-request [缺料回報, Flow 4]
+   │  ├─ → /my-orders/{id}/delay            [延遲通知, Flow 5]
+   │  ├─ → /my-orders/{id}/door-check       [門面外觀檢核, Flow 10]
+   │  ├─ → /my-orders/{id}/signature        [雙方電子簽章, e-signature-spec]
    │  └─ ← /my-orders (返回列表)
    │
-   └─ 22. /account                           [帳戶中心]
-      ├─ #summary (錨點：本月收入摘要)
-      ├─ #history (錨點：歷史明細)
-      └─ [匯出 PDF 功能]
+   ├─ 41. /account                           [帳戶中心]
+   │  ├─ #summary (錨點：本月收入摘要)
+   │  ├─ #history (錨點：歷史明細)
+   │  └─ [匯出 PDF 功能]
+   │
+   └─ 42. /account/schedule                  [我的排班] ← dispatch-operations §1
+      ├─ #calendar (錨點：月視圖可服務時段)
+      └─ [申請休假 / 備勤]
 ```
 
 ### 5.2 導航連結矩陣
@@ -468,746 +574,21 @@ Smart Lock Platform (/)
 
 ---
 
-## 6. 頁面詳細規格
-
-### 6.1 管理員登入頁 (Admin Login)
-
-#### 基本信息
-
-| 屬性 | 值 |
-|:-----|:---|
-| **路徑** | `/login` |
-| **頁面類型** | 認證頁（無側邊欄佈局） |
-| **導航深度** | Level 0 |
-
-#### 職責與目標
-
-| 項目 | 內容 |
-|:-----|:-----|
-| **主要任務** | 管理員身分驗證 |
-| **用戶目標** | 安全登入系統 |
-| **轉換目標** | 登入成功率 >= 95% |
-
-#### 關鍵組件結構
-
-```html
-<page-structure>
-  <!-- 1. 品牌標識 -->
-  <header class="auth-header">
-    <logo>Smart Lock 平台 Logo</logo>
-    <title>管理後台</title>
-  </header>
-
-  <!-- 2. 登入表單 -->
-  <section class="login-form">
-    <form-group>
-      <label>電子郵件</label>
-      <input type="email" required />
-    </form-group>
-    <form-group>
-      <label>密碼</label>
-      <input type="password" required />
-    </form-group>
-    <button class="btn-primary">登入</button>
-    <link href="/forgot-password">忘記密碼？</link>
-  </section>
-</page-structure>
-```
-
-#### 導航出口
-
-```javascript
-{
-  primary: '/dashboard',        // 登入成功
-  forgot: '/forgot-password'    // 忘記密碼
-}
-```
-
-#### 驗收標準
-
-- [ ] 支援 email + password 登入
-- [ ] 登入失敗顯示友善錯誤訊息
-- [ ] 連續 5 次失敗鎖定帳號 15 分鐘
-- [ ] JWT Token 存於 httpOnly Cookie
-- [ ] 登入成功導向 `/dashboard`
-
----
-
-### 6.2 營運儀表板 (Dashboard)
-
-#### 基本信息
-
-| 屬性 | 值 |
-|:-----|:---|
-| **路徑** | `/dashboard` |
-| **頁面類型** | 儀表板頁 |
-| **導航深度** | Level 1 |
-
-#### 職責與目標
-
-| 項目 | 內容 |
-|:-----|:-----|
-| **主要任務** | 展示 AI 客服營運關鍵指標 (V1.0)；展示派工系統即時狀態 (V2.0) |
-| **用戶目標** | 快速掌握系統運行狀態與服務品質 |
-| **轉換目標** | 管理員在 30 秒內識別需要關注的異常 |
-
-#### 關鍵組件結構
-
-```html
-<page-structure>
-  <!-- 1. 統計卡片列 (V1.0) -->
-  <section class="stats-cards">
-    <card>今日對話數</card>
-    <card>自助解決率</card>
-    <card>平均回應時間</card>
-    <card>待審核 SOP 數</card>
-  </section>
-
-  <!-- 2. 統計卡片列 (V2.0 新增) -->
-  <section class="dispatch-stats-cards">
-    <card>今日待派案件</card>
-    <card>已派案件</card>
-    <card>完成案件</card>
-    <card>平均派工到完工時間</card>
-  </section>
-
-  <!-- 3. 圖表區域 -->
-  <section class="charts-grid">
-    <chart type="pie">問題類別分布</chart>
-    <chart type="line">每日對話量趨勢 (近30天)</chart>
-    <chart type="bar">各品牌報修數量排行</chart>
-  </section>
-
-  <!-- 4. 異常告警列 (V2.0) -->
-  <section class="alerts">
-    <alert-list>超過 2 小時未接單案件</alert-list>
-  </section>
-
-  <!-- 5. 技師分布地圖 (V2.0) -->
-  <section class="technician-map">
-    <google-map>技師位置 + 案件位置</google-map>
-  </section>
-</page-structure>
-```
-
-#### 導航出口
-
-```javascript
-{
-  conversations: '/conversations',
-  problemCards: '/problem-cards',
-  sopDrafts: '/knowledge-base/sop-drafts',
-  workOrders: '/work-orders',       // V2.0
-  alerts: '/work-orders?status=pending&overdue=true'  // V2.0
-}
-```
-
-#### 關鍵指標 (KPIs)
-
-| 指標 | 目標值 | 衡量方式 |
-|:-----|:-------|:---------|
-| **頁面載入時間** | < 2 秒 | Lighthouse LCP |
-| **數據更新頻率** | 每 60 秒 | TanStack Query refetchInterval |
-| **管理員識別異常時間** | < 30 秒 | 用戶測試 |
-
-#### 驗收標準
-
-- [ ] 統計卡片正確顯示今日數據（PRD US-017）
-- [ ] 圓餅圖正確顯示問題類別分布
-- [ ] 折線圖正確顯示近 30 天對話量趨勢
-- [ ] 品牌排行正確顯示各品牌報修數量
-- [ ] 資料每 60 秒自動更新或支援手動刷新
-- [ ] V2.0: 地圖正確顯示技師分布（Google Maps API）
-- [ ] V2.0: 超過 2 小時未接單案件標紅告警
-
----
-
-### 6.3 對話列表頁 (Conversations)
-
-#### 基本信息
-
-| 屬性 | 值 |
-|:-----|:---|
-| **路徑** | `/conversations` |
-| **URL 參數** | `status` (active/resolved/escalated, 可選), `cursor` (可選), `sort_by` (可選) |
-| **頁面類型** | 數據列表頁 |
-| **導航深度** | Level 2 |
-
-#### 職責與目標
-
-| 項目 | 內容 |
-|:-----|:-----|
-| **主要任務** | 展示所有消費者與 AI 客服的對話記錄 |
-| **用戶目標** | 監控 AI 回答品質、發現改善機會 |
-| **轉換目標** | 管理員在 1 分鐘內找到目標對話 |
-
-#### 關鍵組件結構
-
-```html
-<page-structure>
-  <!-- 1. 頁面標題與操作列 -->
-  <header class="page-header">
-    <title>對話記錄</title>
-    <actions>
-      <button>匯出 CSV</button>
-    </actions>
-  </header>
-
-  <!-- 2. 篩選列 -->
-  <section class="filters">
-    <select name="status">狀態篩選</select>
-    <date-picker>日期範圍</date-picker>
-    <search-input>搜尋消費者</search-input>
-  </section>
-
-  <!-- 3. 數據表格 -->
-  <section class="data-table">
-    <table columns="時間, LINE 用戶, 狀態, 訊息數, 解決途徑, 操作">
-      <!-- DataTable + cursor-based pagination -->
-    </table>
-  </section>
-</page-structure>
-```
-
-#### 導航出口
-
-```javascript
-{
-  detail: '/conversations/{id}',  // 點擊行
-  export: '觸發 CSV 下載'
-}
-```
-
-#### 驗收標準
-
-- [ ] 列表按時間倒序排列（PRD US-016）
-- [ ] 支援按日期、狀態、消費者篩選
-- [ ] 每筆對話標示解決途徑（案例庫命中/RAG/人工/未解決）
-- [ ] 支援匯出對話記錄 (CSV)
-- [ ] Cursor-based 分頁正常運作，單頁 20 筆
-- [ ] Server Component 渲染，首屏 < 2 秒
-
----
-
-### 6.4 對話詳情頁 (Conversation Detail)
-
-#### 基本信息
-
-| 屬性 | 值 |
-|:-----|:---|
-| **路徑** | `/conversations/[id]` |
-| **頁面類型** | 詳情頁 |
-| **導航深度** | Level 3 |
-
-#### 關鍵組件結構
-
-```html
-<page-structure>
-  <!-- 1. 麵包屑與返回 -->
-  <nav class="breadcrumb">
-    對話記錄 > 對話 #{id}
-  </nav>
-
-  <!-- 2. 對話時間軸 -->
-  <section class="conversation-timeline">
-    <ConversationTimeline messages={messages} />
-    <!-- 含文字、圖片、AI 回覆標記、ProblemCard 展示 -->
-  </section>
-
-  <!-- 3. 側邊面板：問題卡摘要 -->
-  <aside class="problem-card-panel">
-    <ProblemCardViewer card={problemCard} />
-    <link href="/problem-cards/{pc_id}">查看完整問題卡</link>
-  </aside>
-
-  <!-- 4. 對話元資訊 -->
-  <section class="metadata">
-    <item>解決途徑: {resolution_level}</item>
-    <item>總訊息數: {message_count}</item>
-    <item>開始時間: {started_at}</item>
-    <item>解決時間: {resolved_at}</item>
-  </section>
-</page-structure>
-```
-
-#### 導航出口
-
-```javascript
-{
-  back: '/conversations',
-  problemCard: '/problem-cards/{problem_card_id}',
-  workOrder: '/work-orders/{work_order_id}'  // V2.0, 若有關聯工單
-}
-```
-
-#### 驗收標準
-
-- [ ] 完整顯示對話內容（文字、圖片、ProblemCard）
-- [ ] 訊息時間軸清晰標示 user/assistant 角色
-- [ ] 圖片可點擊放大查看
-- [ ] 側邊面板顯示關聯問題卡摘要
-- [ ] 頁面載入 < 2 秒
-
----
-
-### 6.5 案例庫列表頁 (Knowledge Base Cases)
-
-#### 基本信息
-
-| 屬性 | 值 |
-|:-----|:---|
-| **路徑** | `/knowledge-base/cases` |
-| **URL 參數** | `brand` (可選), `verified` (true/false, 可選), `cursor` (可選) |
-| **頁面類型** | CRUD 列表頁 |
-| **導航深度** | Level 2 |
-
-#### 關鍵組件結構
-
-```html
-<page-structure>
-  <!-- 1. 頁面標題與操作 -->
-  <header class="page-header">
-    <title>案例庫</title>
-    <actions>
-      <button variant="primary">新增案例</button>
-      <button variant="outline">匯入 CSV</button>
-    </actions>
-  </header>
-
-  <!-- 2. 篩選 -->
-  <section class="filters">
-    <select name="brand">品牌篩選</select>
-    <select name="verified">驗證狀態</select>
-    <search-input>搜尋關鍵字</search-input>
-  </section>
-
-  <!-- 3. 案例表格 -->
-  <section class="data-table">
-    <table columns="標題, 品牌, 型號, 標籤, 驗證狀態, 建立時間, 操作">
-      <!-- 支援行內編輯、刪除 -->
-    </table>
-  </section>
-</page-structure>
-```
-
-#### 驗收標準
-
-- [ ] 支援新增/編輯/刪除案例（PRD US-015）
-- [ ] 支援按品牌、型號分類管理
-- [ ] 支援匯入歷史案例 (CSV)
-- [ ] 新增案例後系統自動計算 Embedding
-- [ ] 刪除前彈出確認對話框
-
----
-
-### 6.6 SOP 審核面板 (SOP Review Panel)
-
-#### 基本信息
-
-| 屬性 | 值 |
-|:-----|:---|
-| **路徑** | `/knowledge-base/sop-drafts/[id]` |
-| **頁面類型** | 審核操作頁 |
-| **導航深度** | Level 3 |
-
-#### 關鍵組件結構
-
-```html
-<page-structure>
-  <!-- 1. 麵包屑 -->
-  <nav class="breadcrumb">
-    知識庫 > SOP 審核 > #{id}
-  </nav>
-
-  <!-- 2. 雙欄佈局 -->
-  <section class="review-layout two-column">
-    <!-- 左欄：SOP 內容 -->
-    <div class="sop-content">
-      <h2>SOP 草稿內容</h2>
-      <field>適用條件: {applicable_conditions}</field>
-      <field>問題描述: {problem_description}</field>
-      <field>解決步驟: {solution_steps}</field>
-      <field>注意事項: {precautions}</field>
-    </div>
-
-    <!-- 右欄：原始對話 -->
-    <div class="original-conversation">
-      <h2>原始對話記錄</h2>
-      <ConversationTimeline messages={original_messages} />
-      <ProblemCardViewer card={original_problem_card} />
-    </div>
-  </section>
-
-  <!-- 3. 審核操作 -->
-  <section class="review-actions">
-    <button variant="success">核准並發布</button>
-    <button variant="warning">退回修改</button>
-    <button variant="danger">刪除</button>
-    <textarea placeholder="審核意見（選填）" />
-  </section>
-</page-structure>
-```
-
-#### 導航出口
-
-```javascript
-{
-  back: '/knowledge-base/sop-drafts',
-  approve: '/knowledge-base/cases',  // 核准後導向案例庫確認
-}
-```
-
-#### 驗收標準
-
-- [ ] 左右雙欄對照顯示 SOP 內容與原始對話（PRD US-013）
-- [ ] 「核准」後 SOP 自動向量化並索引至案例庫，60 秒內生效（PRD US-014）
-- [ ] 「退回」需填寫退回原因
-- [ ] 「刪除」彈出確認對話框
-- [ ] 審核操作有 Optimistic UI 即時反饋
-
----
-
-### 6.7 工單列表頁 (Work Orders) - V2.0
-
-#### 基本信息
-
-| 屬性 | 值 |
-|:-----|:---|
-| **路徑** | `/work-orders` |
-| **URL 參數** | `status` (pending/assigned/in_progress/completed, 可選), `cursor` (可選) |
-| **頁面類型** | 看板/列表頁 |
-| **導航深度** | Level 2 |
-
-#### 關鍵組件結構
-
-```html
-<page-structure>
-  <!-- 1. 頁面標題 -->
-  <header class="page-header">
-    <title>派工管理</title>
-    <toggle>看板視圖 / 列表視圖</toggle>
-  </header>
-
-  <!-- 2. 看板視圖 (預設) -->
-  <section class="kanban-view">
-    <WorkOrderKanban>
-      <column status="pending">待派工</column>
-      <column status="assigned">已派工</column>
-      <column status="in_progress">維修中</column>
-      <column status="completed">已完成</column>
-    </WorkOrderKanban>
-  </section>
-
-  <!-- 3. 列表視圖 (備選) -->
-  <section class="list-view" hidden>
-    <table columns="案件編號, 品牌型號, 區域, 技師, 狀態, 報價, 建立時間">
-    </table>
-  </section>
-</page-structure>
-```
-
-#### 驗收標準
-
-- [ ] 看板四欄拖放切換工單狀態
-- [ ] 支援列表/看板視圖切換
-- [ ] 異常案件（超過 2 小時未接單）標紅（PRD US-034）
-- [ ] 支援按狀態篩選
-- [ ] 案件搜尋支援：案件編號、消費者電話、技師姓名、地址關鍵字（PRD US-035）
-
----
-
-### 6.8 工單詳情頁 (Work Order Detail) - V2.0
-
-#### 基本信息
-
-| 屬性 | 值 |
-|:-----|:---|
-| **路徑** | `/work-orders/[id]` |
-| **頁面類型** | 詳情頁（含狀態時間軸） |
-| **導航深度** | Level 3 |
-
-#### 關鍵組件結構
-
-```html
-<page-structure>
-  <!-- 1. 麵包屑與狀態 Badge -->
-  <header>
-    <breadcrumb>派工管理 > 工單 #{id}</breadcrumb>
-    <badge variant="status">{current_status}</badge>
-  </header>
-
-  <!-- 2. 狀態時間軸 -->
-  <section class="timeline">
-    <timeline-node>報修 → AI 診斷 → 派工 → 接單 → 到場 → 完工 → 結算</timeline-node>
-    <!-- 每個節點記錄：時間、操作者、備註 (PRD US-035) -->
-  </section>
-
-  <!-- 3. 關聯問題卡 -->
-  <section class="problem-card">
-    <ProblemCardViewer card={problem_card} />
-  </section>
-
-  <!-- 4. 報價明細 -->
-  <section class="quotation">
-    <QuotationBuilder quotation={quotation} readonly />
-  </section>
-
-  <!-- 5. 技師資訊 -->
-  <section class="technician-info">
-    <avatar /><name /><phone /><rating />
-    <link href="/technicians/{tech_id}">查看技師詳情</link>
-  </section>
-
-  <!-- 6. 完工報告 (已完工時顯示) -->
-  <section class="completion-report">
-    <photos>維修前/後照片</photos>
-    <materials>使用材料清單</materials>
-    <hours>實際工時</hours>
-    <advance-payment>墊付金額</advance-payment>
-  </section>
-
-  <!-- 7. 操作區 -->
-  <section class="actions">
-    <button variant="primary">手動指派技師</button>
-    <button variant="outline">取消工單</button>
-  </section>
-</page-structure>
-```
-
-#### 驗收標準
-
-- [ ] 完整狀態時間軸，每個節點含時間、操作者、備註（PRD US-035）
-- [ ] 可查看關聯問題卡與報價明細
-- [ ] 「手動指派」彈出技師選擇 Modal，顯示符合條件的技師列表（PRD US-026）
-- [ ] 已完工案件顯示完工報告（照片、材料、工時）
-- [ ] 頁面載入 < 2 秒
-
----
-
-### 6.9 技師登入頁 (Tech Login)
-
-#### 基本信息
-
-| 屬性 | 值 |
-|:-----|:---|
-| **路徑** | `/tech-login` |
-| **頁面類型** | 認證頁（Mobile-First） |
-| **導航深度** | Level 0 |
-
-#### 關鍵組件結構
-
-```html
-<page-structure>
-  <header class="auth-header">
-    <logo>Smart Lock 技師工作台</logo>
-  </header>
-
-  <section class="login-form">
-    <form-group>
-      <label>手機號碼</label>
-      <input type="tel" required />
-    </form-group>
-    <form-group>
-      <label>密碼</label>
-      <input type="password" required />
-    </form-group>
-    <button class="btn-primary w-full h-12 text-lg">登入</button>
-  </section>
-</page-structure>
-```
-
-#### 驗收標準
-
-- [ ] 支援手機號碼 + 密碼登入
-- [ ] 登入按鈕尺寸 >= 44x44px（觸控友善）
-- [ ] 登入成功導向 `/pool`
-- [ ] Mobile-First 佈局，適配 375px 以上螢幕
-
----
-
-### 6.10 案件池頁 (Case Pool) - V2.0
-
-#### 基本信息
-
-| 屬性 | 值 |
-|:-----|:---|
-| **路徑** | `/pool` |
-| **URL 參數** | `sort_by` (distance/reward/urgency, 可選) |
-| **頁面類型** | 即時更新列表頁（Mobile-First） |
-| **導航深度** | Level 1 |
-
-#### 職責與目標
-
-| 項目 | 內容 |
-|:-----|:-----|
-| **主要任務** | 展示符合技師技能與區域的待派案件 |
-| **用戶目標** | 快速找到適合自己的案件並接單 |
-| **轉換目標** | 接單響應時間 < 30 秒 |
-
-#### 關鍵組件結構
-
-```html
-<page-structure>
-  <!-- 1. 頁面標題與排序 -->
-  <header class="sticky-header">
-    <title>可接案件</title>
-    <sort-selector>距離 / 報酬 / 緊急程度</sort-selector>
-  </header>
-
-  <!-- 2. 案件卡片列表（無限滾動） -->
-  <section class="card-list infinite-scroll">
-    <CasePoolCard v-for="order in orders">
-      <district>{order.district}</district>
-      <brand-model>{order.brand} {order.model}</brand-model>
-      <problem-summary>{order.problem_summary}</problem-summary>
-      <urgency-badge>{order.urgency}</urgency-badge>
-      <reward class="text-xl font-bold">${order.estimated_reward}</reward>
-      <button class="w-full h-12 text-lg font-semibold">一鍵接單</button>
-    </CasePoolCard>
-  </section>
-
-  <!-- 3. 底部導航 -->
-  <nav class="bottom-nav">
-    <tab active>案件池</tab>
-    <tab>我的工單</tab>
-    <tab>帳戶</tab>
-  </nav>
-</page-structure>
-```
-
-#### 導航出口
-
-```javascript
-{
-  accept: '/my-orders/{id}',    // 接單成功後
-  myOrders: '/my-orders',       // 底部導航
-  account: '/account'           // 底部導航
-}
-```
-
-#### 關鍵指標 (KPIs)
-
-| 指標 | 目標值 | 衡量方式 |
-|:-----|:-------|:---------|
-| **案件池刷新頻率** | 每 15 秒 | TanStack Query refetchInterval |
-| **接單響應時間** | < 30 秒 | 從查看到接單的操作時間 |
-| **首屏載入** | < 2.5 秒 | Lighthouse LCP (4G) |
-
-#### 驗收標準
-
-- [ ] 僅顯示符合技師「服務區域」與「品牌技能」的案件（PRD US-021）
-- [ ] 每筆案件顯示：地址區域、品牌型號、問題摘要、緊急程度、預估報酬
-- [ ] 案件池每 15 秒自動刷新（TanStack Query refetchInterval）
-- [ ] 支援按距離、報酬、緊急程度排序
-- [ ] 一鍵接單，接單後案件從池中移除（PRD US-022）
-- [ ] 接單後消費者自動收到 LINE 通知
-- [ ] 無限滾動分頁，使用 useInfiniteQuery + cursor-based pagination
-- [ ] 觸控友善：接單按鈕 >= 44x44px
-
----
-
-### 6.11 工單詳情/完工回報 (Order Detail / Completion) - V2.0
-
-#### 基本信息
-
-| 屬性 | 值 |
-|:-----|:---|
-| **路徑** | `/my-orders/[id]` |
-| **頁面類型** | 詳情 + 表單頁（Mobile-First） |
-| **導航深度** | Level 3 |
-
-#### 關鍵組件結構
-
-```html
-<page-structure>
-  <!-- 1. 案件資訊摘要 -->
-  <section class="order-info">
-    <badge>{status}</badge>
-    <address>{client_address}</address>
-    <brand-model>{brand} {model}</brand-model>
-    <problem-summary>{problem_summary}</problem-summary>
-    <quotation-summary>{estimated_price}</quotation-summary>
-  </section>
-
-  <!-- 2. 狀態操作按鈕（根據當前狀態顯示） -->
-  <section class="status-actions">
-    <!-- status=accepted → 顯示「開始維修」 -->
-    <button class="h-12 w-full">開始維修</button>
-    <!-- status=in_progress → 顯示「完工回報」區塊 -->
-  </section>
-
-  <!-- 3. 完工回報表單 (status=in_progress 時顯示) -->
-  <section class="completion-form">
-    <CompletionReportForm>
-      <photo-upload label="維修前照片" required min="1" />
-      <photo-upload label="維修後照片" required min="1" />
-      <textarea label="施工內容" required minLength="10" />
-      <materials-list label="使用材料" />
-      <number-input label="實際工時" />
-      <number-input label="墊付金額" />
-      <photo-upload label="墊付發票照片" />
-      <button class="h-12 w-full" variant="success">提交完工報告</button>
-    </CompletionReportForm>
-  </section>
-</page-structure>
-```
-
-#### 驗收標準
-
-- [ ] 完工報告含維修前/後照片（必填）、施工內容、材料清單、工時（PRD US-023）
-- [ ] 照片上傳支援壓縮，單張 < 5MB
-- [ ] 提交後案件狀態變更為「待確認」
-- [ ] 消費者自動收到 LINE 通知（完工摘要與費用明細）
-- [ ] 表單驗證使用 React Hook Form + Zod Schema
-- [ ] 所有按鈕觸控友善 (>= 44x44px)
-
----
-
-### 6.12 帳戶中心 (Account) - V2.0
-
-#### 基本信息
-
-| 屬性 | 值 |
-|:-----|:---|
-| **路徑** | `/account` |
-| **頁面類型** | 統計摘要頁（Mobile-First） |
-| **導航深度** | Level 2 |
-
-#### 關鍵組件結構
-
-```html
-<page-structure>
-  <!-- 1. 本月收入摘要 -->
-  <section class="income-summary">
-    <card>本月已完成案件: {count}</card>
-    <card>本月累計收入: ${total_income}</card>
-    <card>待結算金額: ${pending_amount}</card>
-    <card>已結算金額: ${settled_amount}</card>
-  </section>
-
-  <!-- 2. 月份切換與歷史明細 -->
-  <section class="history">
-    <month-selector>{year}-{month}</month-selector>
-    <order-list>
-      <order-item v-for="order in history">
-        <date /><brand-model /><amount /><status-badge />
-      </order-item>
-    </order-list>
-  </section>
-
-  <!-- 3. 匯出 -->
-  <section class="export">
-    <button>匯出收入摘要 (PDF)</button>
-  </section>
-</page-structure>
-```
-
-#### 驗收標準
-
-- [ ] 顯示本月已完成案件數、累計收入、待結算、已結算金額（PRD US-024）
-- [ ] 歷史案件列表支援按月份篩選
-- [ ] 每筆案件可查看完整費用明細
-- [ ] 收入摘要支援匯出 PDF
+## 6. 頁面詳細規格（已外遷）
+
+> **2026-04-23 K-R 階段 2 重構：** 原 §6.1–§6.31（31 小節，1,550 行）已遷移至
+> `web_design_spec_prompt_pipeline/pages/*.md` 的 22 份 page spec（每份含 PAGE META /
+> STRUCTURE / COMPONENT SPEC / INTERACTION / DATA&API / EXCEPTION / ACCEPTANCE / 導航與狀態）。
+>
+> **查閱指引：**
+> - IA 編號 → pipeline spec：見 `../../../web_design_spec_prompt_pipeline/pages/MAPPING.md §2`
+> - pipeline spec 列表（22 份）：見 `MAPPING.md §3`
+> - 導航與狀態統一規範：見本文件 §11 及 §12.5 附錄 B
+>
+> **遷移審計結論：** 22/31 子節由 pipeline 完全覆蓋且更詳細；9 個子節的獨有細節
+> 已補漏至對應 pipeline（退款雙簽 PIN、RBAC 臨時授權、庫存調撥報廢、保固扣罰、
+> 爭議自動動作、KPI 排程匯出、租戶定價欄位、缺料客戶接受度、T8 四項 checklist、
+> T10 休假額度等）。詳見 commit log。
 
 ---
 
@@ -1307,6 +688,10 @@ export const adminNavigation = [
     icon: 'Truck',
     href: '/work-orders',
     version: 'v2',
+    children: [
+      { label: '工單列表', href: '/work-orders' },
+      { label: '派工佇列監控', href: '/admin/dispatch-queue', badge: 'stuck_count' },
+    ],
   },
   {
     label: '技師管理',
@@ -1315,16 +700,69 @@ export const adminNavigation = [
     version: 'v2',
   },
   {
-    label: '帳務管理',
+    label: '客戶主檔',
+    icon: 'UserCircle',
+    href: '/admin/customers',
+    version: 'v2',
+  },
+  {
+    label: '帳務與結算',
     icon: 'Receipt',
     href: '/accounting',
     version: 'v2',
+    children: [
+      { label: '月結算總覽', href: '/accounting' },
+      { label: '退款審批', href: '/admin/refunds', badge: 'pending_refunds' },
+      { label: '保固索賠', href: '/admin/warranty-claims', badge: 'pending_claims' },
+      { label: '爭議仲裁', href: '/admin/disputes', badge: 'open_disputes' },
+    ],
+  },
+  {
+    label: '庫存',
+    icon: 'Package',
+    href: '/admin/inventory',
+    version: 'v2',
+    badge: 'low_stock_count',
+  },
+  {
+    label: '報表中心',
+    icon: 'BarChart3',
+    href: '/admin/reports/kpi',
+    version: 'v2',
+    children: [
+      { label: 'KPI 儀表板', href: '/admin/reports/kpi' },
+      { label: '技師排行', href: '/admin/reports/technician-ranking' },
+      { label: '營收報表', href: '/admin/reports/revenue' },
+      { label: 'SOP 績效', href: '/admin/knowledge-base/sop-performance' },
+    ],
+  },
+  {
+    label: '稽核與權限',
+    icon: 'ShieldCheck',
+    href: '/admin/audit-events',
+    version: 'v2',
+    children: [
+      { label: 'RBAC 管理', href: '/admin/roles' },
+      { label: '稽核日誌', href: '/admin/audit-events' },
+    ],
   },
   {
     label: '系統設定',
     icon: 'Settings',
     href: '/settings',
     version: 'v1',
+    children: [
+      { label: '個人 / 安全', href: '/settings' },
+      { label: '租戶設定 (V3.0)', href: '/admin/settings/tenant', version: 'v3' },
+    ],
+  },
+  // V3.0 超管：只有 super_admin 角色可見
+  {
+    label: '平台超管',
+    icon: 'Building2',
+    href: '/admin/super/dashboard',
+    version: 'v3',
+    roleGuard: 'super_admin',
   },
 ];
 ```
@@ -1406,40 +844,24 @@ graph TB
 
 ### 8.2 TanStack Query 刷新策略
 
-| 數據類型 | staleTime | refetchInterval | 頁面 | 說明 |
-|:---------|:----------|:---------------|:-----|:-----|
-| 儀表板統計 | 30 秒 | 60 秒 | Dashboard | PRD 要求每 5 分鐘更新，實際提升至 60 秒 |
-| 對話列表 | 5 分鐘 | - | Conversations | 手動刷新為主 |
-| 知識庫案例 | 5 分鐘 | - | KB Cases | 低頻變動 |
-| 案件池 | 15 秒 | 15 秒 | Pool (技師端) | 即時性要求高 |
-| 工單列表 | 30 秒 | 30 秒 | Work Orders | 狀態頻繁變動 |
-| 帳務報表 | 5 分鐘 | - | Accounting | 低頻查詢 |
+> **已遷出至** `E5x--frontend-architecture.md §2.3`（狀態管理層 — 伺服器狀態管理）。
+> 頁面層級的刷新需求（staleTime / refetchInterval）由本檔旅程提出，技術實作見架構文件。
 
 ### 8.3 狀態持久化策略
 
-```typescript
-// 狀態持久化對應表
-const stateStrategy = {
-  // 認證狀態 → httpOnly Cookie (由 Next.js Middleware 管理)
-  auth: 'httpOnly Cookie',
+> **已遷出至** `E5x--frontend-architecture.md §2.3`（狀態管理層 — 狀態存儲決策）。
+> 認證 / 租戶 / UI 偏好 / 篩選 / 表單草稿 / 伺服器快取 / 即時事件的儲存媒介決策集中於架構文件。
 
-  // UI 偏好 → localStorage (Zustand persist)
-  uiPreferences: {
-    storage: 'localStorage',
-    key: 'smartlock-ui-preferences',
-    includes: ['sidebarCollapsed', 'theme', 'tablePageSize'],
-  },
+### 8.4 即時通訊策略 (WebSocket Channels)
 
-  // 篩選狀態 → URL Params (Next.js useSearchParams)
-  filters: 'URL searchParams',
+> **已遷出至** `E5x--frontend-architecture.md §8.4`（前後端協作契約 — 即時通訊與 WebSocket 頻道）。
+> 本檔僅在 §4 用戶旅程提頻道對應頁面；頻道權威清單與實作規範見架構文件。
+> 另對齊 `docs/02-design/specs/asyncapi.yaml`（機器可讀 SSOT）與 `MAPPING.md §7 / §7.1`（IA ↔ 頻道 ↔ operationId 索引）。
 
-  // 表單草稿 → React Hook Form (記憶體，不持久化)
-  formDraft: 'memory',
+### 8.5 多租戶資料隔離 (Tenant Isolation)
 
-  // 伺服器數據 → TanStack Query Cache (記憶體，自動重驗證)
-  serverData: 'TanStack Query Cache',
-};
-```
+> **已遷出至** `E5x--frontend-architecture.md §1.4`（多租戶架構與前端隔離三層模型）。
+> Header / Query Key / 切換 / RLS / 品牌注入的實作細節見架構文件。
 
 ---
 
@@ -1472,15 +894,55 @@ Admin Panel 核心頁面:
 ├── /technicians                              [技師管理] (V2.0)
 │   └── /technicians/{id}                     [技師詳情] (V2.0) *id=UUID
 ├── /accounting                               [帳務管理] (V2.0)
-└── /settings                                 [系統設定]
+├── /settings                                 [系統設定]
+│
+├── /admin/refunds                            [退款審批] (V2.0)
+├── /admin/roles                              [RBAC 管理] (V2.0)
+│   └── /admin/roles/{id}                     [角色編輯] (V2.0) *id=UUID
+├── /admin/inventory                          [庫存管理] (V2.0)
+├── /admin/audit-events                       [稽核日誌] (V2.0)
+├── /admin/warranty-claims                    [保固索賠] (V2.0)
+│   └── /admin/warranty-claims/{id}           [保固索賠詳情] (V2.0) *id=UUID
+├── /admin/disputes                           [爭議仲裁] (V2.0)
+│   └── /admin/disputes/{id}                  [爭議詳情] (V2.0) *id=UUID
+├── /admin/customers                          [客戶主檔] (V2.0)
+│   └── /admin/customers/{id}                 [客戶詳情] (V2.0) *id=UUID
+├── /admin/technicians/{id}/schedule          [技師排班] (V2.0) *id=UUID
+├── /admin/technicians/{id}/skills            [技師技能] (V2.0) *id=UUID
+├── /admin/technicians/{id}/settlements       [技師結算] (V2.0) *id=UUID
+├── /admin/dispatch-queue                     [派工佇列監控] (V2.0)
+├── /admin/reports/kpi                        [KPI 儀表板] (V2.0)
+├── /admin/reports/technician-ranking         [技師排行] (V2.0)
+├── /admin/reports/revenue                    [營收報表] (V2.0)
+├── /admin/diagnostics/{conversation_id}      [診斷推理] (V2.0) *id=UUID
+├── /admin/knowledge-base/sop-performance     [SOP 績效] (V2.0)
+├── /admin/dispatch-manual                    [派工人工介入] (V2.0) ← V1.1 A37
+├── /admin/settings/tenant                    [租戶設定] (V3.0)
+│   ├── /admin/settings/tenant/brand
+│   ├── /admin/settings/tenant/integrations
+│   └── /admin/settings/tenant/pricing
+└── /admin/super/                             [超管平台] (V3.0, super_admin only)
+    ├── /admin/super/dashboard
+    └── /admin/super/tenants/{tenant_id}
+
+Global Pages（跨角色，V1.1 新增）:
+├── /notifications                            [全域通知中心] ← G1
+└── /offline                                  [離線狀態頁] ← G2（Service Worker fallback）
 
 Technician Web App 頁面:
 ├── /pool                                     [案件池]
 ├── /my-orders                                [我的工單]
-│   └── /my-orders/{id}                       [工單詳情/完工回報] *id=UUID
-└── /account                                  [帳戶中心]
+│   ├── /my-orders/{id}                       [工單詳情/完工回報] *id=UUID
+│   ├── /my-orders/{id}/scope-change          [範圍變更申請] Flow 3
+│   ├── /my-orders/{id}/material-request      [缺料回報] Flow 4
+│   ├── /my-orders/{id}/delay                 [延遲通知] Flow 5
+│   ├── /my-orders/{id}/door-check            [門面檢核] Flow 10
+│   ├── /my-orders/{id}/signature             [雙方簽章]
+│   └── /my-orders/{id}/reschedule            [改期日曆] ← V1.1 T11 (Flow 5/11/14)
+├── /account                                  [帳戶中心]
+└── /account/schedule                         [我的排班]
 
-API 端點 (前端呼叫):
+API 端點 (前端呼叫，以下為概覽；權威契約見 `docs/02-design/specs/openapi.yaml`):
 ├── POST   /api/v1/auth/login                 [管理員登入]
 ├── POST   /api/v1/auth/refresh               [Token 刷新]
 ├── POST   /api/v1/technicians/login          [技師登入]
@@ -1503,7 +965,75 @@ API 端點 (前端呼叫):
 ├── POST   /api/v1/work-orders/{id}/complete   [完工回報] (V2.0)
 ├── GET    /api/v1/technicians                 [技師列表] (V2.0)
 ├── GET    /api/v1/technicians/me              [技師自身資料] (V2.0)
-└── GET    /api/v1/accounting/reports          [帳務報表] (V2.0)
+├── GET    /api/v1/technicians/{id}/schedule   [技師排班] (V2.0)
+├── PUT    /api/v1/technicians/{id}/schedule   [更新排班] (V2.0)
+├── GET    /api/v1/technicians/{id}/skills     [技師技能] (V2.0)
+├── PUT    /api/v1/technicians/{id}/skills     [更新技能] (V2.0)
+├── GET    /api/v1/technicians/{id}/settlements [結算明細] (V2.0)
+├── POST   /api/v1/technicians/{id}/settlements/{month}/confirm [確認結算] (V2.0)
+├── GET    /api/v1/accounting/reports          [帳務報表] (V2.0)
+│
+# 退款 / 保固 / 爭議
+├── GET    /api/v1/refunds                     [退款申請列表] (V2.0)
+├── POST   /api/v1/refunds/{id}/decision       [核准/駁回/部分核准] (V2.0)
+├── POST   /api/v1/refunds/{id}/signature      [雙簽簽章] (V2.0)
+├── GET    /api/v1/warranty-claims             [保固索賠列表] (V2.0)
+├── POST   /api/v1/warranty-claims/{id}/decision
+├── GET    /api/v1/disputes                    [爭議列表] (V2.0)
+├── POST   /api/v1/disputes/{id}/verdict       [裁決] (V2.0)
+│
+# RBAC / 稽核
+├── GET    /api/v1/roles                       [角色列表] (V2.0)
+├── POST   /api/v1/roles                       [建立自訂角色] (V2.0)
+├── PUT    /api/v1/roles/{id}                  [修改權限矩陣] (V2.0)
+├── GET    /api/v1/audit-events                [稽核日誌查詢] (V2.0)
+├── POST   /api/v1/audit-events/export         [匯出 CSV] (V2.0)
+│
+# 庫存 / 客戶主檔
+├── GET    /api/v1/inventory/parts             [零件主檔] (V2.0)
+├── POST   /api/v1/inventory/parts/{id}/adjust [庫存調整] (V2.0)
+├── GET    /api/v1/inventory/low-stock         [低庫存] (V2.0)
+├── GET    /api/v1/customers                   [客戶列表] (V2.0)
+├── GET    /api/v1/customers/{id}              [客戶詳情] (V2.0)
+│
+# 報表
+├── GET    /api/v1/reports/kpi                 [KPI 儀表板] (V2.0)
+├── GET    /api/v1/reports/technician-ranking  [技師排行] (V2.0)
+├── GET    /api/v1/reports/revenue             [營收報表] (V2.0)
+├── POST   /api/v1/reports/export              [匯出報表] (V2.0)
+│
+# 診斷 / Agent Harness
+├── GET    /api/v1/diagnostics/{conversation_id} [診斷推理追溯] (V2.0)
+├── POST   /api/v1/diagnostics/{conversation_id}/override [管理員覆寫] (V2.0)
+├── POST   /api/v1/diagnostics/{conversation_id}/feedback [訓練反饋] (V2.0)
+│
+# 工單子流程（Flow 2~10）
+├── POST   /api/v1/work-orders/{id}/reject      [技師拒單] Flow 2
+├── POST   /api/v1/work-orders/{id}/scope-change [範圍變更] Flow 3
+├── POST   /api/v1/work-orders/{id}/material-request [缺料回報] Flow 4
+├── POST   /api/v1/work-orders/{id}/delay       [延遲通知] Flow 5
+├── POST   /api/v1/work-orders/{id}/door-check  [門面檢核] Flow 10
+├── POST   /api/v1/work-orders/{id}/signature   [雙方電子簽章]
+│
+# 多租戶 (V3.0)
+├── GET    /api/v1/tenants/me                   [當前租戶設定] (V3.0)
+├── PUT    /api/v1/tenants/me/brand             [更新品牌] (V3.0)
+├── PUT    /api/v1/tenants/me/pricing           [更新定價] (V3.0)
+├── GET    /api/v1/super/tenants                [超管：租戶列表] (V3.0)
+└── POST   /api/v1/super/tenants                [超管：建立租戶] (V3.0)
+
+# WebSocket（對齊 §8.4）
+wss://app.smartlock-saas.com/ws
+  ├── /realtime/work-orders/{id}
+  ├── /realtime/dispatch-queue
+  ├── /realtime/pool/{technician_id}
+  ├── /realtime/refunds
+  ├── /realtime/disputes
+  ├── /realtime/sla-alerts
+  ├── /realtime/rbac
+  ├── /realtime/inventory/low-stock
+  ├── /realtime/diagnostics/{conversation_id}
+  └── /realtime/notifications/{user_id}
 ```
 
 ### 9.2 URL 查詢參數規範
@@ -1530,16 +1060,30 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get('access_token');
 
   // Admin Panel 路由守衛
-  if (pathname.startsWith('/dashboard') ||
-      pathname.startsWith('/conversations') ||
-      pathname.startsWith('/problem-cards') ||
-      pathname.startsWith('/knowledge-base') ||
-      pathname.startsWith('/work-orders') ||
-      pathname.startsWith('/technicians') ||
-      pathname.startsWith('/accounting') ||
-      pathname.startsWith('/settings')) {
+  const adminPrefixes = [
+    '/dashboard', '/conversations', '/problem-cards', '/knowledge-base',
+    '/work-orders', '/technicians', '/accounting', '/settings',
+    '/admin', // 所有 V2.0+/V3.0 admin 頁面
+  ];
+  if (adminPrefixes.some(p => pathname.startsWith(p))) {
     if (!token) {
       return NextResponse.redirect(new URL('/login', request.url));
+    }
+    // 注入租戶 Header（V3.0 多租戶）
+    const tenantId = request.cookies.get('tenant_id')?.value;
+    if (tenantId) {
+      const res = NextResponse.next();
+      res.headers.set('X-Tenant-ID', tenantId);
+      return res;
+    }
+  }
+
+  // V3.0 超管守衛
+  if (pathname.startsWith('/admin/super')) {
+    // 檢查 JWT role claim — 缺少 super_admin 角色則 403
+    const role = request.cookies.get('user_role')?.value;
+    if (role !== 'super_admin') {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
     }
   }
 
@@ -1565,6 +1109,7 @@ export const config = {
     '/technicians/:path*',
     '/accounting/:path*',
     '/settings/:path*',
+    '/admin/:path*',
     '/pool/:path*',
     '/my-orders/:path*',
     '/account/:path*',
@@ -1574,94 +1119,61 @@ export const config = {
 
 ---
 
-## 10. 實施檢查清單與驗收標準
+## 10. IA 驗收標準（本檔職責）
 
-### 10.1 開發階段檢查清單
+> **重新聚焦（2026-04-23 K-R 階段 1）**：
+> 通用「開發階段檢查清單」、「質量檢查」、「效能指標」、「測試矩陣」、「Go/No-Go 準入」→ 已整合至 `E5x--frontend-architecture.md §10 前端開發檢查清單`。
+> 本章僅保留**資訊架構專屬驗收**：頁面覆蓋、URL 一致性、導航完整性、用戶旅程可走通。
 
-#### Phase 1: V1.0 Admin Panel 核心頁面 (W3-W7)
+### 10.1 頁面覆蓋驗收
 
-| 任務 | 負責人 | 狀態 | 驗收標準 |
-|:-----|:-------|:-----|:---------|
-| **登入頁** | Frontend DEV | ⬜ | - [ ] JWT 認證正常<br/>- [ ] 錯誤提示友善 |
-| **儀表板** | Frontend DEV | ⬜ | - [ ] 4 張統計卡片<br/>- [ ] 3 張圖表<br/>- [ ] 自動刷新 |
-| **對話列表 + 詳情** | Frontend DEV | ⬜ | - [ ] 篩選正常<br/>- [ ] 時間軸顯示<br/>- [ ] 圖片可放大 |
-| **問題卡列表 + 詳情** | Frontend DEV | ⬜ | - [ ] 篩選正常<br/>- [ ] 結構化展示 |
-| **案例庫 CRUD** | Frontend DEV | ⬜ | - [ ] 新增/編輯/刪除<br/>- [ ] CSV 匯入<br/>- [ ] 品牌篩選 |
-| **手冊管理** | Frontend DEV | ⬜ | - [ ] PDF 上傳<br/>- [ ] 處理進度顯示 |
-| **SOP 審核** | Frontend DEV | ⬜ | - [ ] 雙欄對照<br/>- [ ] 核准/退回/刪除 |
+- [ ] IA 52 頁（Admin 38 + Technician 12 + Global 2）全部於 `MAPPING.md §2` 註冊
+- [ ] 每頁對應至少一份 `web_design_spec_prompt_pipeline/pages/*.md` spec
+- [ ] 版本標記一致（V1.0 / V2.0 / V3.0）
+- [ ] 無孤兒 pipeline spec（未對應任何 IA 頁）
 
-#### Phase 2: V2.0 派工與技師端 (W20-W29)
+### 10.2 URL 一致性驗收
 
-| 任務 | 負責人 | 狀態 | 驗收標準 |
-|:-----|:-------|:-----|:---------|
-| **工單看板 + 詳情** | Frontend DEV | ⬜ | - [ ] 四欄看板<br/>- [ ] 狀態時間軸<br/>- [ ] 手動指派 |
-| **技師管理** | Frontend DEV | ⬜ | - [ ] CRUD<br/>- [ ] 技能管理<br/>- [ ] 區域設定 |
-| **帳務管理** | Frontend DEV | ⬜ | - [ ] 月度報表<br/>- [ ] 墊付審核<br/>- [ ] Excel 匯出 |
-| **技師登入** | Frontend DEV | ⬜ | - [ ] 手機號登入<br/>- [ ] Mobile-First |
-| **案件池** | Frontend DEV | ⬜ | - [ ] 15 秒刷新<br/>- [ ] 一鍵接單<br/>- [ ] 無限滾動 |
-| **工單詳情/完工回報** | Frontend DEV | ⬜ | - [ ] 照片上傳<br/>- [ ] 表單驗證<br/>- [ ] 材料清單 |
-| **帳戶中心** | Frontend DEV | ⬜ | - [ ] 收入摘要<br/>- [ ] 月份篩選<br/>- [ ] PDF 匯出 |
+- [ ] 本檔 §9.1 URL 清單與 pipeline spec 的 `route_path` 逐一匹配
+- [ ] URL 命名符合 RESTful 慣例（複數名詞、[id] 占位符）
+- [ ] 保留字（`cursor`/`limit`/`tab`/`filter`/`highlight` 等）對齊本文件 §11.7
+- [ ] 深連結頁面清單（§11.8）已完整，無遺漏
 
-### 10.2 質量檢查清單
+### 10.3 導航完整性驗收
 
-#### 用戶體驗 (UX)
+- [ ] 每 IA 頁都有明確 upstream（除根頁：Dashboard / Login / Pool）
+- [ ] 每 IA 頁的 downstream 在 §5.2 導航連結矩陣列明
+- [ ] `MAPPING.md §7.5 Flow × Page 矩陣`覆蓋全部 23 個 Flow（Flow 1-14 + G1-G4 + MT1-MT5）
+- [ ] 每個 upstream/downstream 對應的 pipeline spec 頂部都有「導航與狀態」章節引用本文件 §12.5
 
-- [ ] Admin Panel 核心流程（登入 → 儀表板 → SOP 審核 → 發布）可在 5 分鐘內完成
-- [ ] Technician App 核心流程（登入 → 瀏覽案件池 → 接單 → 完工回報）操作直覺
-- [ ] 所有導航路徑清晰無歧義
-- [ ] 無死鏈或 404 錯誤
-- [ ] 錯誤提示友好且可操作
-- [ ] 載入狀態明確可見（Skeleton Loading）
-- [ ] 技師端 Mobile-First 體驗流暢
+### 10.4 用戶旅程驗收
 
-#### 技術規範 (Technical)
+對應本檔 §4 所列核心旅程：
 
-- [ ] 所有 URL 符合 RESTful 命名規範
-- [ ] Cursor-based 分頁邏輯正確
-- [ ] JWT Token 存於 httpOnly Cookie，不存於 localStorage
-- [ ] URL 篩選狀態可分享（書籤友好）
-- [ ] API 調用錯誤處理完善（401 自動 refresh → 失敗重導登入）
-- [ ] 無 Console 錯誤或警告
-- [ ] TypeScript 嚴格模式，無 any 類型
+- [ ] **管理員知識庫閉環（V1.0）**：登入 → 儀表板 → SOP 審核 → 案例確認，每步驟有 pipeline spec + Flow 承載
+- [ ] **管理員派工閉環（V2.0）**：儀表板 → 工單列表 → 詳情 → 指派/爭議/退款，涵蓋 Flow 1/6/7/9
+- [ ] **管理員治理閉環（V2.0）**：稽核/RBAC/庫存/爭議，涵蓋 G1-G4
+- [ ] **V3.0 租戶管理閉環**：超管 → 租戶列表 → 品牌/B2B/退場，涵蓋 MT1-MT5
+- [ ] **技師核心旅程（V2.0）**：登入 → 案件池 → 接單 → 完工 → 簽章，涵蓋 Flow 1
+- [ ] **技師異常旅程（V2.0）**：範圍變更/缺料/延遲/門面/改期，涵蓋 Flow 3-5/10/14
 
-#### 性能指標 (Performance)
+### 10.5 IA ↔ 契約 ↔ 流程 三向繫結驗收
 
-- [ ] Admin Panel LCP < 2.0 秒（桌面）
-- [ ] Technician App LCP < 2.5 秒（4G 行動）
-- [ ] INP < 100ms
-- [ ] CLS < 0.1
-- [ ] 首屏 JS < 100 KB (gzipped)
-- [ ] Lighthouse Performance >= 90（Admin 桌面）/ >= 85（技師行動）
+- [ ] 本檔 §9.1 URL 清單可在 `MAPPING.md §8.1` 找到 operationId 對應
+- [ ] WS 頻道（§8.4 指向 architecture §8.4）可在 `MAPPING.md §7.1` 找到 AsyncAPI operationId
+- [ ] 每 IA 頁對應的 Flow 可在 `MAPPING.md §7.5` 矩陣查到
+- [ ] CI 檢查通過（`scripts/check-operationid-orphans.sh` 無孤兒）
 
-#### SEO 與無障礙性 (A11y)
+### 10.6 持續維護
 
-- [ ] 所有頁面有準確的 `<title>`（Next.js metadata API）
-- [ ] 圖片有 alt 屬性
-- [ ] 語義化 HTML
-- [ ] 鍵盤導航支持
-- [ ] WCAG 2.1 AA 合規（文本對比度 >= 4.5:1）
-- [ ] 工單狀態同時使用顏色 + 文字標籤（不以顏色為唯一區分）
+- [ ] 新增 IA 頁時，同步更新本檔 §3.2 頁面總覽、§9.1 URL 清單、`MAPPING.md`
+- [ ] 刪除 IA 頁時，先確認 pipeline spec 與 Flow 引用已清除
+- [ ] 版本遷移（V1.0 → V2.0 → V3.0）時，版本標籤同步所有索引
 
-### 10.3 測試矩陣
+---
 
-| 測試類型 | 測試範圍 | 工具 | 負責人 | 完成標準 |
-|:---------|:---------|:-----|:-------|:---------|
-| **單元測試** | API hooks、工具函數、驗證 Schema | Jest + RTL | DEV | 覆蓋率 > 80% |
-| **組件測試** | 業務功能元件 | Jest + RTL | DEV | 核心元件全覆蓋 |
-| **E2E 測試** | 核心用戶流程 | Playwright | QA | 登入 → 審核 → 接單 → 完工 |
-| **性能測試** | 頁面載入與交互 | Lighthouse CI | DEV | 所有指標達標 |
-| **無障礙測試** | WCAG 2.1 AA | axe DevTools | QA | 無嚴重問題 |
-| **響應式測試** | Mobile / Tablet / Desktop | Chrome DevTools | QA | 三種尺寸正常 |
-
-### 10.4 上線前最終檢查 (Go/No-Go)
-
-#### 準入條件
-
-- [ ] 所有 P0 頁面已完成並測試通過
-- [ ] 無阻斷性 Bug
-- [ ] 效能指標達標（LCP < 2s Admin / < 2.5s Technician）
-- [ ] JWT 認證與角色守衛驗證通過
-- [ ] API 錯誤處理完善
+> **通用開發驗收請見：** `E5x--frontend-architecture.md §10 前端開發檢查清單`
+> 涵蓋：UX / 技術規範 / 效能指標（LCP/CLS/INP）/ SEO A11y / 測試矩陣 / Go/No-Go 準入條件。
 
 #### 角色簽核 (RACI)
 
@@ -1674,9 +1186,245 @@ export const config = {
 
 ---
 
-## 11. 附錄
+## 11. 頁面導航矩陣與狀態規範
 
-### 11.1 術語表
+> 本節整合自 `E5x--frontend-navigation-matrix.md`（v0.2），補足頁面間的上下游關係、
+> Dirty State 策略、錯誤狀態行為、Query String 規範、深連結、多頁簽同步等規範。
+
+### 11.1 導航矩陣設計原則
+
+- **每頁至少有一個明確的 upstream** — 除了根（dashboard、登入）
+- **每頁宣告 downstream targets** — 列表頁通常導向詳情；詳情頁通常導向編輯
+- **反向索引 = 導航矩陣** — 前端可據此生成 breadcrumb、back button 行為
+- **State Persistence 對齊頁面邏輯** — 列表頁的 filter 要回跳時保留、表單頁的 input 要重進時恢復
+
+### 11.2 標準 `page_metadata` 區塊
+
+每份 `web_design_spec_prompt_pipeline/pages/*.md` 需於頂部加入此結構化區塊：
+
+```yaml
+---
+ia_id: A12  # 對應 MAPPING.md
+route: /work-orders/[id]
+role_required: [admin, operations_manager]
+upstream:
+  - page: A11 /work-orders          # 從列表進
+    trigger: click row
+    pass: work_order_id
+  - page: A28 /admin/dispatch-queue # 從派工監控進
+    trigger: click work order card
+    pass: work_order_id, highlight
+downstream:
+  - page: T5 /my-orders/[id]/scope-change
+    trigger: 範圍變更按鈕
+    pass: work_order_id
+  - page: T9 /my-orders/[id]/signature
+    trigger: 完工回報完成後
+    pass: work_order_id
+  - page: A17 /admin/refunds/[id]
+    trigger: 建立退款後
+    pass: work_order_id, refund_id
+state_persistence:
+  query_string: [tab, highlight]    # 需保留在 URL
+  session_storage: []
+  indexed_db: []
+  discard_on_leave: true           # 離開不保留未送草稿
+  dirty_state: prompt              # 離開前 prompt
+error_navigation:
+  "404": redirect:/work-orders + toast
+  "403": downgrade:readonly
+  "409": refetch + toast
+  offline: banner:/offline-indicator
+deep_link: supported              # PWA 開啟可直達
+multi_tab: sync_via_ws           # 同資源多頁簽同步
+---
+```
+
+### 11.3 核心頁面導航矩陣
+
+完整矩陣見附錄 B（21 份 Pipeline Spec 導航與狀態矩陣）。此處列核心樣本：
+
+| IA | 頁面 | Upstream | Downstream |
+|:---|:---|:---|:---|
+| A0 | `/login` | — | A1 dashboard |
+| A1 | `/dashboard` | A0 登入後 | A11 工單、A28 派工、A17 退款、A29 KPI |
+| A2 | `/conversations` | A1 側邊選單 | A3 對話詳情 |
+| A3 | `/conversations/[id]` | A2 列表、LINE Push 深連結 | A4 問題卡、A11 開新工單 |
+| A11 | `/work-orders` | A1 側邊選單、搜尋 | A12 工單詳情、A37 手動派工 |
+| A12 | `/work-orders/[id]` | A11、A28、搜尋、深連結、LINE Push | A17 退款、A22 爭議、T5-T9 子流程、客訴升級 |
+| A17 | `/admin/refunds` | A1、A12、深連結 | A17/[id] 詳情 |
+| A22 | `/admin/disputes` | A1、A12、A17 | A22/[id] 仲裁 |
+| A28 | `/admin/dispatch-queue` | A1、側邊選單 | A12、A37 |
+| A37 | `/admin/dispatch-manual` | A28、A2 Flow 2 告警 | A12 |
+| T0 | `/tech-login` | — | T1 |
+| T1 | `/pool` | T0、下拉刷新 | T2 接單後、T3 詳情 |
+| T2 | `/my-orders` | T1 接單、bottom nav | T3 |
+| T3 | `/my-orders/[id]` | T2、LINE Push、PWA 深連結 | T5-T9 子流程、T11 改期 |
+| T5-T9 | 子流程 | T3 | T3（完成後返回）|
+| T10 | `/account/schedule` | T4 帳戶 | — |
+| T11 | `/my-orders/[id]/reschedule` | T3 延遲按鈕、客戶不在場 Flow | T3 |
+| G1 | `/notifications` | 任何頁面 bell icon | 依通知跳回來源頁 |
+| A34 | `/admin/settings/tenant` | A1、side nav | A35 品牌、B2B Tab、Offboarding Tab |
+
+### 11.4 Breadcrumb 生成規則
+
+前端依 upstream metadata 自動生成：
+
+```
+A1 > A11 > A12 > A17
+(dashboard > 工單 > #WO-042 > 退款)
+```
+
+規則：
+- 若當前頁多個 upstream，依「最近一次進入路徑」決定（存 sessionStorage）
+- 若無 referrer（深連結）→ 以 metadata 第一個 upstream 為預設
+- 最多顯示 4 層，中間用 `…` 折疊
+- 點擊 breadcrumb 回跳時清掉 downstream 的 state
+
+### 11.5 Dirty State 策略
+
+| 類別 | 典型頁面 | 策略 |
+|:---|:---|:---|
+| **一次性表單**（提交後不需回改） | 退款申請、爭議提出 | `sessionStorage` + 離開 prompt |
+| **長期編輯**（草稿可多次回來） | 完工回報、SOP 草稿、品牌設定 | `IndexedDB` + 明確「儲存草稿」按鈕 |
+| **列表篩選** | 工單列表、技師列表 | URL query string |
+| **離線佇列** | 技師 T5-T9 子流程 | `IndexedDB` + Service Worker Background Sync |
+| **即時編輯** | 對話輸入框 | 記憶體（組件 state），不需持久化 |
+
+#### 一次性表單（`sessionStorage` + prompt）
+
+```typescript
+// 儲存 key: "draft:{route}:{user_id}"
+onFormChange: throttle(() => {
+  sessionStorage.setItem(key, JSON.stringify(formData))
+}, 500)
+onRouteLeave: (nextUrl) => {
+  if (isDirty) {
+    if (!confirm('有未儲存變更，確定離開？')) return false
+  }
+  sessionStorage.removeItem(key)
+}
+onPageLoad: () => {
+  const draft = sessionStorage.getItem(key)
+  if (draft) restoreForm(JSON.parse(draft))
+}
+```
+
+#### 長期編輯（`IndexedDB` + 明確儲存）
+
+- 使用 `idb` 或 `Dexie.js`
+- DB 名：`sunny-drafts`，store 名對應資源類型
+- 主鍵：`{resource_id}:{user_id}`
+- **明確「儲存草稿」按鈕**，與「提交」不同 — 草稿只存 IndexedDB，提交才呼叫 API
+
+#### 離線佇列（IndexedDB + SW）
+
+對齊 `frontend-architecture.md §8.7`：技師 T5-T9 子流程必須支援離線，失敗請求排入 IndexedDB queue，重連後 Background Sync 重送。
+
+#### Dirty State Prompt 統一文案
+
+| 情境 | 文案 |
+|:---|:---|
+| 未儲存變更離開 | 「有未儲存變更，確定離開？」 |
+| 提交前最後確認（關鍵操作） | 「確認送出？送出後不可修改」 |
+| 草稿自動儲存成功 | Toast「草稿已儲存」（右下 3 秒） |
+| 草稿衝突（IndexedDB 已有更新）| 「偵測到另一個 tab 的變更，要使用哪一份？」 |
+
+### 11.6 錯誤狀態頁面行為
+
+| HTTP | error_code 範例 | 頁面行為 | UX 要素 |
+|:---|:---|:---|:---|
+| **401** | `UNAUTHORIZED`, `TOKEN_EXPIRED` | Refresh 失敗 → 跳登入；retainParams | 登入後自動回到原頁 |
+| **403** | `FORBIDDEN`, `TENANT_MISMATCH` | 頁面降級為只讀；顯示 Banner | 「您沒有權限修改此資料」 |
+| **404** | `NOT_FOUND` | 導向列表或 404 頁 | 「此項目已刪除或不存在」 |
+| **409** | `OPTIMISTIC_LOCK_FAILED` | 自動 refetch + 顯示 Diff 對話框 | 「資料已被修改，請選擇」|
+| **410** | `QUOTE_EXPIRED` | 顯示「已過期」狀態，提供新流程 CTA | 報價過期 → 重新報價按鈕 |
+| **422** | `VALIDATION_ERROR` | 表單行內錯誤；聚焦第一個錯誤欄位 | 紅框 + 錯誤文案 |
+| **423** | `LOGIN_ACCOUNT_LOCKED` | 完整頁面訊息（非 toast） | 顯示鎖定時間與聯繫方式 |
+| **429** | `RATE_LIMITED` | Toast + 遵循 Retry-After 倒數 | 「請求過於頻繁，X 秒後重試」 |
+| **500-504** | `INTERNAL_ERROR` | 錯誤頁 + 顯示 X-Request-ID | 「系統異常，請聯繫客服並提供：`req_xxx`」 |
+| **離線** | — | 全站 Banner + OfflineQueueIndicator | 「已離線，N 個動作待同步」 |
+
+**403 只讀降級 vs 完整拒絕：**
+- 頁面主資料可讀但無寫權限 → 隱藏/禁用寫按鈕 + Banner
+- 頁面主資料完全不可讀（跨租戶）→ 404（避免暴露資源存在性）
+- 權限剛被撤銷（透過 WS）→ Toast + 3 秒後 reload
+
+**409 衝突處理（以工單詳情為例）：**
+1. catch error → 不丟表單資料
+2. GET /work-orders/{id}（取得最新）
+3. 顯示 DiffDialog：「您的編輯」vs「最新版本」
+4. 使用者選擇：保留我的 / 使用最新 / 手動合併
+
+### 11.7 Query String 保留字規範
+
+| 保留字 | 用途 | 範例 |
+|:---|:---|:---|
+| `cursor` | Cursor 分頁 | `?cursor=eyJpZCI6NDJ9` |
+| `limit` | 分頁大小 | `?limit=50` |
+| `sort_by` | 排序欄位 | `?sort_by=created_at` |
+| `sort_order` | 排序方向 | `?sort_order=desc` |
+| `tab` | 多 Tab 頁面當前 Tab | `?tab=pricing` |
+| `q` | 搜尋關鍵字 | `?q=LINE+Pay+失敗` |
+| `filter` | 複合篩選 | `?filter=status:active,brand:LOCKLY` |
+| `highlight` | 跳入後標亮某項 | `?highlight=dispute-42` |
+| `redirect` | 登入後返回目標 | `?redirect=/work-orders/42` |
+| `from` | 來源頁標記 | `?from=dispatch-queue` |
+| `modal` | 開啟指定 modal | `?modal=edit-pricing` |
+| `date_from` / `date_to` | 日期範圍 | `?date_from=2026-04-01` |
+
+**業務參數命名：** `snake_case`；布林 `true`/`false`；日期 ISO 8601；多值採重複 key（對齊 OpenAPI `explode: true`）。
+
+**長 URL 處理：** 單一 URL > 2048 字元 → 改用 `POST /queries` 儲存後回 `?query_id=xxx`。
+
+### 11.8 深連結與 PWA 頁面棧
+
+**深連結支援清單：**
+
+| IA | 路由 | 深連結情境 |
+|:---|:---|:---|
+| A3 | `/conversations/[id]` | LINE Push 對話提醒 |
+| A12 | `/work-orders/[id]` | LINE Push 工單變更 |
+| A17 | `/admin/refunds/[id]` | Email 審批請求 |
+| A22 | `/admin/disputes/[id]` | Email 爭議升級 |
+| T3 | `/my-orders/[id]` | LINE Push 派工 / PWA |
+| T1 | `/pool` | PWA 捷徑 |
+| T11 | `/my-orders/[id]/reschedule` | LINE Push 客戶改期請求 |
+
+**初始化規則：** 驗證登入 → 驗證權限 → 驗證資源存在 → 初始化 breadcrumb → 清除無關 state。
+
+**PWA：** 離線時仍可開 T1-T3（預快取）；技師 PWA 預設 `/pool`；管理員 `/dashboard`。
+
+### 11.9 多頁簽同步
+
+採雙層策略：
+
+| 層級 | 實作 | 覆蓋情境 |
+|:---|:---|:---|
+| **層 1：WebSocket 廣播** | 訂閱頻道，收到事件 → refetch | 跨 tab + 跨使用者 |
+| **層 2：BroadcastChannel** | 寫操作後 postMessage | 同裝置同 origin 即時同步 |
+
+**衝突處理：** 本 tab 正在編輯時收到變更 → 不自動覆蓋使用者輸入，顯示 Toast 提示 + 以 409 optimistic lock 防護。
+
+### 11.10 跨子頁面返回策略
+
+| 來源 → 目標 | 返回方式 | 保留內容 |
+|:---|:---|:---|
+| 列表 → 詳情 → 返回 | `router.back()` | 列表的 filter、sort、page、scroll position |
+| 詳情 → 子頁 → 返回 | `router.back()` | 詳情頁的 tab、scroll |
+| 深連結 → 詳情 → 返回 | 走 metadata upstream 預設 | — |
+| 多步驟流程（Wizard）| Stepper 上一步按鈕 | 每步填寫內容 |
+| 錯誤頁 → 返回 | `router.back()`，若無 history → 回儀表板 | — |
+
+**`highlight` 參數：** 從子頁回主頁標亮剛才的項目，如 `/work-orders/42?highlight=dispute-17&from=dispute-resolve`，處理完成後 `router.replace` 移除。
+
+**Scroll Position Restoration：** Next.js 14 App Router 預設支援；帶 filter 的列表需手動存 `sessionStorage`。
+
+---
+
+## 12. 附錄
+
+### 12.1 術語表
 
 | 術語 | 英文 | 定義 |
 |:-----|:-----|:-----|
@@ -1689,25 +1437,30 @@ export const config = {
 | **Optimistic UI** | Optimistic UI | 先更新 UI 再等待 API 確認的互動模式 |
 | **Bounded Context** | 限界上下文 | DDD 中按業務領域劃分的模組邊界 |
 
-### 11.2 相關文檔連結
+### 12.2 相關文檔連結
 
 | 文檔類型 | 檔名 | 路徑 |
 |:---------|:-----|:-----|
-| **PRD** | 02_project_brief_and_prd.md | `docs/02_project_brief_and_prd.md` |
-| **架構設計** | 05_architecture_and_design_document.md | `docs/05_architecture_and_design_document.md` |
-| **API 設計規範** | 06_api_design_specification.md | `docs/06_api_design_specification.md` |
-| **前端架構規範** | 12_frontend_architecture_specification.md | `docs/12_frontend_architecture_specification.md` |
-| **BDD 情境** | 03_behavior_driven_development.md | `docs/03_behavior_driven_development.md` |
-| **專案結構指南** | 08_project_structure_guide.md | `docs/08_project_structure_guide.md` |
+| **API 設計規範** | E5--api-design-specification.md | `docs/02-design/E5--api-design-specification.md` |
+| **前端架構規範** | E5x--frontend-architecture.md | `docs/02-design/E5x--frontend-architecture.md` |
+| **工單互動流程** | E5x--work-order-interaction-flows.md | `docs/02-design/E5x--work-order-interaction-flows.md` |
+| **派工營運規格** | E5x--dispatch-operations.md | `docs/02-design/E5x--dispatch-operations.md` |
+| **多租戶架構** | multi-tenant-architecture.md | `docs/02-design/platform-multi-tenant/multi-tenant-architecture.md` |
+| **派工整合規格** | dispatch-integration-spec.md | `docs/02-design/platform-multi-tenant/dispatch-integration-spec.md` |
+| **Agent Harness 架構** | harness-architecture.md | `docs/02-design/agent-harness/harness-architecture.md` |
+| **診斷智能架構** | diagnostic-intelligence-architecture.md | `docs/02-design/agent-harness/diagnostic-intelligence-architecture.md` |
+| **技術規格集** | specs/_MOC.md | `docs/02-design/specs/_MOC.md` |
 
-### 11.3 變更記錄
+### 12.3 變更記錄
 
 | 日期 | 版本 | 作者 | 變更摘要 |
 |:-----|:-----|:-----|:---------|
 | 2026-02-26 | v1.0 | 前端架構師 | 初版發布：涵蓋 V1.0 Admin Panel + V2.0 Technician App 完整 IA |
 | 2026-04-04 | v1.1 | 前端架構師 | 新增 V2.0 Admin Panel 6 頁：退款審批、RBAC、庫存、稽核、保固索賠、爭議仲裁 |
+| 2026-04-23 | v1.2 | 前端架構師 | **對齊系統架構全面擴充：** <br/>• 新增 A23–A33 Admin 頁面（客戶主檔、技師排班/技能/結算、派工佇列、KPI/排行/營收、診斷推理、SOP 績效）<br/>• 新增 V3.0 A34–A36 多租戶頁面（租戶設定、品牌客製、超管控制台）<br/>• 新增 T5–T10 技師端子流程頁（範圍變更、缺料、延遲、門面檢核、簽章、排班）<br/>• 擴充 §6.13–6.31 共 19 個缺失的頁面詳細規格<br/>• 新增 §8.4 WebSocket 頻道目錄（10 個頻道）與 §8.5 多租戶資料隔離策略<br/>• 更新路由守衛支援 `/admin/*` 與 V3.0 超管檢查<br/>• 對齊 `E5x--work-order-interaction-flows` 10 個流程、`E5x--dispatch-operations` 7 類營運、13 項 `specs/` 技術規格與 `agent-harness` AI 診斷架構 |
+| 2026-04-24 | v1.3 | 文件整併 | **合併 `E5x--frontend-navigation-matrix.md`：** <br/>• 新增 §11 頁面導航矩陣與狀態規範（導航矩陣、Dirty State、錯誤狀態、Query String、深連結、多頁簽同步、跨頁返回）<br/>• 附錄重新編號為 §12<br/>• 新增附錄 B：21 份 Pipeline Spec 導航與狀態矩陣 |
 
-### 11.4 審核記錄
+### 12.4 審核記錄
 
 | 角色 | 姓名 | 日期 | 簽名/狀態 |
 |:-----|:-----|:-----|:---------|
@@ -1715,3 +1468,139 @@ export const config = {
 | **Frontend Lead** | | | ⬜ |
 | **UX Designer** | | | ⬜ |
 | **Backend Lead** | | | ⬜ |
+
+---
+
+### 12.5 附錄 B：21 份 Pipeline Spec 導航與狀態矩陣
+
+> 每份 pipeline page spec 的標準 Upstream / Downstream / State / Error 規範彙總。
+> 各 spec 透過「見本文件 §12.5」一行引用，避免 19 份檔案重複維護。
+
+**02_admin_dashboard.md — A1 /dashboard**
+- **Upstream**: A0 登入後、任一頁 app header home icon
+- **Downstream**: A11 工單、A28 派工、A17 退款、A29 KPI、G1 通知
+- **State Persistence**: widget 折疊狀態 via localStorage；即時指標不持久化
+- **Error Navigation**: 401 → 登入；500 → degraded banner
+- **Deep Link**: supported（PWA 首頁） | **Multi-tab**: WS `/realtime/sla-alerts` + `/realtime/notifications`
+
+**03_admin_conversations.md — A2 列表 / A3 詳情**
+- **Upstream A2**: A1 side nav、搜尋；**A3**: A2 列表、LINE Push 深連結
+- **Downstream A2**: A3；**A3**: A4/A5 問題卡、A11 新建工單、A37 人工派工
+- **State Persistence**: A2 filter via URL query；A3 對話捲軸位置 via sessionStorage
+- **Error Navigation**: 404 → A2 + toast；409 併入 diff
+- **Deep Link**: supported | **Multi-tab**: WS `/realtime/work-orders/*`
+
+**04_admin_problem_cards.md — A4 列表 / A5 詳情**
+- **Upstream**: A3 對話衍生、A2 搜尋、A12 工單詳情反查
+- **Downstream**: A5、A11/A12、A3 對話
+- **State Persistence**: filter via URL；草稿 via sessionStorage
+- **Error Navigation**: 404 → A4；409 `PROBLEM_CARD_LOCKED` → 只讀
+- **Deep Link**: supported | **Multi-tab**: WS 對應對話頻道
+
+**05_admin_knowledge_base.md — A6/A7/A8/A9/A10**
+- **Upstream**: A1 side nav、A3 對話案例衍生、A10 SOP 審核佇列
+- **Downstream**: 案例詳情、手冊預覽、SOP diff、A33 績效
+- **State Persistence**: tab via URL；SOP 草稿 via IndexedDB（長期編輯類）
+- **Error Navigation**: 404 → tab 列表；423 審核中鎖定
+- **Deep Link**: supported | **Multi-tab**: BroadcastChannel 本地同步
+
+**06_admin_work_orders.md — A11**
+- **Upstream**: A1 side nav、全域搜尋、A2/A3 轉工單、外部連結
+- **Downstream**: A12、A37 手動派工、A28 派工佇列
+- **State Persistence**: filter/sort/page via URL；scroll via sessionStorage
+- **Error Navigation**: 401 重導、403 禁用按鈕、5xx 錯誤 banner
+- **Deep Link**: supported | **Multi-tab**: WS `/realtime/dispatch-queue` + BroadcastChannel
+
+**07_admin_work_order_detail.md — A12**
+- **Upstream**: A11、A28、搜尋、深連結、LINE Push、A37 指派後
+- **Downstream**: A17 退款、A22 爭議、T5-T9 子流程、A37、客訴升級
+- **State Persistence**: 編輯表單 via IndexedDB（長期編輯）；tab via URL
+- **Error Navigation**: 404 → A11；409 → diff 對話框；423 → 只讀
+- **Deep Link**: supported | **Multi-tab**: WS `/realtime/work-orders/{id}` + BroadcastChannel
+
+**08_admin_technicians.md — A13 列表 / A14 詳情**
+- **Upstream**: A1 side nav、A12 指派連結、搜尋
+- **Downstream**: A14、A25 排班、A26 技能、A27 結算
+- **State Persistence**: filter/sort via URL
+- **Error Navigation**: 404 → A13；423 熔斷中 → 警告 banner
+- **Deep Link**: supported | **Multi-tab**: WS `/realtime/rbac`
+
+**09_admin_accounting.md — A15**
+- **Upstream**: A1 side nav、A17 退款後、A12 工單計費衍生
+- **Downstream**: 發票 PDF 預覽、A20 稽核、A22 爭議
+- **State Persistence**: 期間/對帳篩選 via URL
+- **Error Navigation**: 5xx 降級為快取；402 → 行內重試
+- **Deep Link**: supported | **Multi-tab**: WS `/realtime/refunds`
+
+**10_admin_advanced.md — A17/A18/A19/A20/A21/A22**
+- **Upstream**: A1 side nav、儀表板告警、G1 通知跳轉
+- **Downstream**: A12（爭議/退款關聯）、A14（稽核行為主體）
+- **State Persistence**: 子頁 tab via URL；列表 filter via URL；草稿 via sessionStorage
+- **Error Navigation**: 409 雙簽 pending、423 已鎖定、403 權限不足
+- **Deep Link**: supported | **Multi-tab**: WS `/realtime/refunds` `/realtime/disputes` `/realtime/rbac` `/realtime/inventory/low-stock`
+
+**11_tech_pool.md — T1**
+- **Upstream**: T0 登入後、bottom nav、Push notification
+- **Downstream**: T3 工單詳情（接單後）
+- **State Persistence**: 地圖 center/zoom via sessionStorage
+- **Error Navigation**: 離線 → 本地快取顯示；5xx → degraded banner
+- **Deep Link**: supported（PWA 首頁） | **Multi-tab**: WS `/realtime/pool/{tech_id}`
+
+**12_tech_my_orders.md — T2 列表 / T3 詳情**
+- **Upstream T2**: T1 接單後、bottom nav、Push；**T3**: T2、LINE Push、PWA 捷徑
+- **Downstream T3**: T5-T9 子流程、T11 改期
+- **State Persistence**: tab via URL；T3 完工報告 via IndexedDB（長期 + offline queue）
+- **Error Navigation**: 離線 queue via SW；409 → refetch；404 → T2
+- **Deep Link**: supported | **Multi-tab**: WS `/realtime/work-orders/{id}` + BroadcastChannel
+
+**13_tech_account.md — T4**
+- **Upstream**: bottom nav
+- **Downstream**: T10 排班、登出
+- **State Persistence**: 個資編輯 via sessionStorage
+- **Error Navigation**: 401 → T0
+- **Deep Link**: supported | **Multi-tab**: WS `/realtime/rbac`
+
+**14_auth_and_settings.md — A0 / T0 / A16**
+- **Upstream A0/T0**: 直接；**A16**: A1 header settings
+- **Downstream**: A1/T1（登入後）；A16 登出、租戶切換
+- **State Persistence**: MFA secret via sessionStorage（短暫）；A16 設定 via IndexedDB
+- **Error Navigation**: 401 行內紅字；423 頁面鎖定
+- **Deep Link**: A16 sub tab via URL | **Multi-tab**: WS `/realtime/rbac`
+
+**15_admin_customers_and_diagnostics.md — A23/A24/A32/A33**
+- **Upstream**: A1、A3 對話延伸、A12 工單延伸
+- **Downstream**: A12 相關工單、A22 爭議歷史、SOP 詳情
+- **State Persistence**: PII 檢視歷程 via sessionStorage；A32 診斷 reasoning 串流 via React state
+- **Error Navigation**: 403 PII 遮蔽降級；410 串流過期
+- **Deep Link**: A24 tabs via URL | **Multi-tab**: WS `/realtime/diagnostics/{conv_id}` SSE
+
+**16_admin_technician_detail.md — A25/A26/A27**
+- **Upstream**: A14 技師詳情
+- **Downstream**: A12 關聯工單、A15 結算匯出
+- **State Persistence**: 排班 via IndexedDB；技能認證上傳 via SW offline queue
+- **Error Navigation**: 409 排班衝突 → 衝突詳情；422 技能過期阻擋
+- **Deep Link**: supported | **Multi-tab**: WS `/realtime/dispatch-queue`
+
+**17_admin_dispatch_queue_and_reports.md — A28/A29/A30/A31**
+- **Upstream**: A1 side nav、儀表板告警、A37 返回
+- **Downstream**: A12 工單詳情、A37 手動派工、PDF 匯出
+- **State Persistence**: 過濾器/報表期間 via URL
+- **Error Navigation**: 413 匯出過大 → 改非同步；410 快取過期 → 重查
+- **Deep Link**: supported | **Multi-tab**: WS `/realtime/dispatch-queue` + `/realtime/sla-alerts`
+
+**18_admin_multi_tenant.md — A34/A35/A36**
+- **Upstream**: A1 side nav（super_admin）、A16 租戶切換
+- **Downstream**: A35 品牌詳情、A36 子頁、B2B Key 詳情、租戶 Wizard
+- **State Persistence**: 品牌草稿 via IndexedDB；送審後 via server state
+- **Error Navigation**: 403 非 super_admin 重導；422 `BRAND_CONFIG_INVALID` 行內
+- **Deep Link**: supported | **Multi-tab**: WS `/realtime/rbac`
+
+**19_tech_workorder_subflows.md — T5/T6/T7/T8/T9/T10**
+- **Upstream**: T3 工單詳情各 action button
+- **Downstream**: T3（完成後返回）；T9 簽章 → 客戶 LINE Flex；T11 改期
+- **State Persistence**: 各子流程草稿 via IndexedDB；離線 queue via SW
+- **Error Navigation**: 離線佇列；409 狀態機阻擋；422 表單
+- **Deep Link**: supported | **Multi-tab**: WS `/realtime/work-orders/{id}` + BroadcastChannel
+
+**20/21/22 — A37/G1/T11**
+（已在各自檔案內「導航與狀態」段定義）

@@ -10,6 +10,9 @@
 - **page_name**: 工單詳情 (Work Order Detail)
 - **route_path**: `/work-orders/[id]`
 - **page_type**: detail (左右雙欄)
+- **ia_pages**: A12
+- **openapi_ops**: getWorkOrder, assignWorkOrder, listDispatchCandidates
+- **asyncapi_ops**: subscribeWorkOrderUpdates
 - **primary_goal**: 讓管理員完整掌握單一工單的所有資訊，並執行對應的狀態操作（指派、催促、確認、仲裁等）
 - **secondary_goal**: 整合設備即時狀態，支援遠端操作（開鎖、重置密碼）；回溯完整服務歷程供稽核使用
 - **target_users**:
@@ -933,3 +936,132 @@
 - [ ] 色彩對比度達 WCAG 2.1 AA
 - [ ] Modal focus trap 正確；Escape 關閉
 - [ ] 設備操作按鈕 Disabled 時有 aria-disabled + tooltip 說明
+
+---
+
+## T1.4 補強：候選技師手動排序 UI + 客訴升級指示器
+
+> 補 Flow 2 拒單重派、Flow 9 客訴升級在工單詳情頁的 UI 顯示缺口。
+
+### [SECTION] manual_dispatch_candidate_list
+
+**觸發**：當工單狀態為 `assigning` 或 `reassign_required`，且管理員角色具 `dispatch.manual.override` 權限，在 sidebar 展開此區塊。
+
+#### 位置與樣式
+
+- 位置：右側 sidebar 第三張卡（位於派工紀錄卡之後）
+- 高度：最多 480px（超過內滾）
+- 標題：「候選技師（手動介入）」+「進階排序」IconButton（開啟 A37 完整頁）
+
+#### 元件
+
+- **candidate_row**（最多顯示前 5 位，其餘「查看更多」跳 A37）
+  - avatar + name + online dot
+  - score_bar: 綜合分數水平進度條（0-100%）
+  - quick_stats: 距離 / 評分 / 技能匹配 chips
+  - quick_assign_btn: 「指派」Primary（點擊開啟 decision_reason_modal）
+
+- **sort_switcher**（下拉）
+  - 綜合分數（預設）
+  - 距離
+  - 評分
+  - 可用性（立即 → 1 小時）
+
+- **drag_sort_mode**（進階）
+  - 開關啟用後：每列出現 drag handle，可手動拖曳排序
+  - 儲存自訂順序到本 session（不跨工單）
+  - 送出指派時自動帶入使用者手動順序作為決策理由的一部分
+
+- **deep_link_to_a37_btn**：「進入完整介入頁 →」跳 A37 派工人工介入面板
+
+#### 狀態
+
+- `auto_dispatch_trying`: 顯示「自動派工進行中...（2/3 次）」，候選清單半透明
+- `manual_mode_active`: 候選完全可用，行色 highlight
+- `all_rejected_3x`: 紅色 banner「已連續 3 次拒單，建議立即指派或升級」+ 強制顯示
+
+### [SECTION] complaint_escalation_indicator
+
+**觸發**：工單關聯的客訴（complaint）中有 `anger_level >= 4` 或 `status in (escalated, reopened)` 時。
+
+#### 位置與樣式
+
+- 位置：工單 header 正下方 alert banner（全寬）
+- 顏色：anger 4 → warning 橙；anger 5 或 reopened → critical 紅閃爍
+- 高度：64px，可折疊為 24px 單行
+
+#### 元件
+
+- **severity_icon**：⚠ warning / 🔥 critical
+- **complaint_ref**: 「客訴 #CMP-017 已升級」連結到 A22 / 客訴專屬視圖
+- **anger_label**: 「憤怒等級 4/5」
+- **elapsed_label**: 「升級已 2h 05min」（即時計時）
+- **sla_countdown**: 依 Flow 9 §12.7 表計時（高 anger → 15min-4h）
+- **quick_actions**:
+  - 「聯絡客戶」→ 開 LINE 對話 + 記錄
+  - 「升主管」→ 觸發 Flow 9 escalate
+  - 「進入客訴詳情」→ A22 或專屬視圖
+
+#### 狀態
+
+- default: 顯示
+- dismissed: 收合（僅顯示單行；重啟需重進頁）
+- resolved: 變綠色「已結案」+ 3 秒後自動隱藏
+
+### [SECTION] dispute_link_badge
+
+**觸發**：工單關聯有 active dispute（G4 爭議）時。
+
+- 位置：header 區域 next to status_badge
+- 樣式：`⚖ 爭議處理中` 紅 Chip，點擊跳 A22 爭議詳情
+- 若同時有 complaint + dispute（符合 Flow 9 補遺 §27.2）→ 兩 badge 並列，且 complaint 標記 `merged_into_dispute` 灰字
+
+### [INTERACTION] T1.4 補
+
+- `manual_dispatch_candidate_list` 手動拖曳排序後送出指派 → 順序進入 audit_event.metadata（透明化決策）
+- `complaint_escalation_indicator` 的倒數計時過 SLA → 自動觸發 Flow 9 下一升級層級
+- 爭議 / 客訴 indicator 呼叫的 quick_actions 皆須有 `Idempotency-Key`
+
+### [DATA & API] T1.4 補
+
+```
+GET /api/v1/work-orders/{id}/candidates?limit=5
+  → 同 A37 candidate API（共用）
+
+GET /api/v1/work-orders/{id}/complaint-summary
+  → { has_active_complaint, anger_level, complaint_id, escalation_level, sla_deadline }
+
+GET /api/v1/work-orders/{id}/dispute-summary
+  → { has_active_dispute, dispute_id, stage, dual_sign_pending }
+```
+
+WebSocket 訂閱同既有：`/realtime/work-orders/{id}`；新事件 `complaint.sla_warning` 可觸發 banner 閃爍。
+
+### [ACCEPTANCE CRITERIA] T1.4
+
+- [ ] `assigning` 狀態下 candidate_list 自動顯示 top 5
+- [ ] 3 次拒單達成後紅色強制 banner
+- [ ] 手動拖曳排序儲存至 session 並進入 audit_event
+- [ ] anger_level >= 4 時 indicator 自動顯示
+- [ ] SLA 倒數即時更新（WS 推播）
+- [ ] anger 5 或 reopened 紅色閃爍動畫
+- [ ] 同時存在 complaint + dispute 時兩 badge 並列顯示
+- [ ] quick_actions 全部有 Idempotency-Key
+
+### 校對檢核表（T1.4）
+
+- [ ] sidebar 候選清單 5 位是否足夠？
+- [ ] 自動 vs 手動派工切換的權限門檻（`dispatch.manual.override` 是否為新增權限碼）？
+- [ ] anger_level 5 的閃爍動畫是否會干擾其他操作？
+- [ ] complaint_escalation_indicator 的倒數計時過 SLA 自動升級 — 是否會與 Flow 9 主流程的升級重複？
+- [ ] dispute badge 與既有 status_badge 位置是否衝突？
+
+
+---
+
+## 導航與狀態 (Navigation & State)
+
+完整 Upstream / Downstream / State Persistence / Error Navigation 規範見
+`docs/02-design/E5x--frontend-navigation-matrix.md §附錄 A`（本檔對應段落）。
+
+本 spec 覆蓋的 IA 頁面依 `MAPPING.md §2` 查找。

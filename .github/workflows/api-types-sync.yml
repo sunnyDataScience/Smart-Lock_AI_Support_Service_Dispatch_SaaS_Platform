@@ -1,0 +1,33 @@
+name: API Types Sync Check
+
+on:
+  push:
+    paths:
+      - 'docs/02-design/specs/openapi.yaml'
+      - 'docs/02-design/specs/generated/api.generated.ts'
+      - 'scripts/generate-api-types.sh'
+  pull_request:
+    paths:
+      - 'docs/02-design/specs/openapi.yaml'
+      - 'docs/02-design/specs/generated/api.generated.ts'
+
+jobs:
+  types-sync:
+    name: 檢查 TypeScript 型別是否與 OpenAPI 同步
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run generate-api-types --check
+        run: ./scripts/generate-api-types.sh --check
+
+      # 若 --check fail，提示如何修復
+      - name: Failure hint
+        if: failure()
+        run: |
+          echo "::error::TypeScript 型別檔與 openapi.yaml 不同步。"
+          echo "::error::請在本地執行：./scripts/generate-api-types.sh 並 commit 結果"

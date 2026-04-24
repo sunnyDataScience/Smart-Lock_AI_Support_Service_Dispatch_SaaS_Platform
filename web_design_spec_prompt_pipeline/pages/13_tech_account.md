@@ -9,6 +9,9 @@
 - **page_name**: 帳戶中心 Account Center
 - **route_path**: `/account`
 - **page_type**: dashboard + profile (hybrid)
+- **ia_pages**: T4
+- **openapi_ops**: getTechnicianAvailability
+- **asyncapi_ops**: none
 - **primary_goal**: 讓技師掌握收入狀況與績效表現
 - **secondary_goal**: 管理個人排班、勤務狀態與通知偏好
 - **target_users**:
@@ -380,3 +383,13 @@
 - [ ] Loading / Error / Empty 三態完備
 - [ ] BottomNav 正確顯示，帳戶 Tab active
 - [ ] 頁面可垂直捲動，底部預留 BottomNav 空間
+
+
+---
+
+## 導航與狀態 (Navigation & State)
+
+完整 Upstream / Downstream / State Persistence / Error Navigation 規範見
+`docs/02-design/E5x--frontend-navigation-matrix.md §附錄 A`（本檔對應段落）。
+
+本 spec 覆蓋的 IA 頁面依 `MAPPING.md §2` 查找。

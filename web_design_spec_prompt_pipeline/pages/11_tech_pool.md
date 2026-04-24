@@ -9,6 +9,9 @@
 - **page_name**: 案件池 Case Pool
 - **route_path**: `/pool`
 - **page_type**: map + list (hybrid)
+- **ia_pages**: T1
+- **openapi_ops**: listWorkOrderPool, acceptWorkOrder
+- **asyncapi_ops**: subscribeWorkOrderUpdates, subscribeTechnicianPool
 - **primary_goal**: 讓技師快速瀏覽附近可接工單，並一鍵搶單
 - **secondary_goal**: 透過地圖直覺理解工單地理分佈，優化路線規劃
 - **target_users**:
@@ -308,3 +311,13 @@
 - [ ] Loading / Error / Empty 三態完備
 - [ ] 緊急工單（emergency）顯示 Red Code 脈衝 Badge
 - [ ] 電話按鈕可觸發系統撥號，導航按鈕開啟 Google Maps
+
+
+---
+
+## 導航與狀態 (Navigation & State)
+
+完整 Upstream / Downstream / State Persistence / Error Navigation 規範見
+`docs/02-design/E5x--frontend-navigation-matrix.md §附錄 A`（本檔對應段落）。
+
+本 spec 覆蓋的 IA 頁面依 `MAPPING.md §2` 查找。

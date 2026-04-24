@@ -9,6 +9,9 @@
 - **page_name**: Admin Dashboard
 - **route_path**: `/dashboard`
 - **page_type**: dashboard
+- **ia_pages**: A1
+- **openapi_ops**: listWorkOrders
+- **asyncapi_ops**: subscribeSlaAlerts
 - **primary_goal**: 以 Style A（KPI Card Dashboard）即時呈現工單量、完工率、逾時工單、在線技師等營運關鍵指標，讓管理者一眼掌握系統運作狀態
 - **secondary_goal**: 透過趨勢圖表與最近工單列表，快速發現異常並跳轉至細節頁面處理
 - **target_users**:
@@ -253,3 +256,13 @@
 - [ ] 首次載入完成時間 < 2 秒（含 API 回應）
 - [ ] 符合 Design System 色彩規範（Primary #2563EB / Accent #F59E0B / BG #F8FAFC）
 - [ ] 多租戶隔離正確，僅顯示當前租戶資料
+
+
+---
+
+## 導航與狀態 (Navigation & State)
+
+完整 Upstream / Downstream / State Persistence / Error Navigation 規範見
+`docs/02-design/E5x--frontend-navigation-matrix.md §附錄 A`（本檔對應段落）。
+
+本 spec 覆蓋的 IA 頁面依 `MAPPING.md §2` 查找。

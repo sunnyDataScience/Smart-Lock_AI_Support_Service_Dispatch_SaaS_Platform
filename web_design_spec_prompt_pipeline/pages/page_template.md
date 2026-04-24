@@ -10,6 +10,9 @@
 - **page_name**: {頁面名稱}
 - **route_path**: /{path}
 - **page_type**: {dashboard / list / detail / form / landing / ...}
+- **ia_pages**: {IA 編號，如 A1, A2。對應 MAPPING.md}
+- **openapi_ops**: {此頁面依賴的 OpenAPI operationId，逗號分隔。無則填 none。CI 驗證}
+- **asyncapi_ops**: {此頁面訂閱的 AsyncAPI operationId，逗號分隔。無則填 none。CI 驗證}
 - **primary_goal**: {這個頁面的主要目的是什麼？}
 - **secondary_goal**: {次要目的（選填）}
 - **target_users**:

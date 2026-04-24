@@ -9,6 +9,9 @@
 - **page_name**: 我的工單 My Orders
 - **route_path**: `/my-orders`（列表）、`/my-orders/[id]`（詳情 + 完工報告）
 - **page_type**: list + detail + form (multi-view)
+- **ia_pages**: T2, T3
+- **openapi_ops**: listWorkOrders, getWorkOrder, completeWorkOrder, submitWorkOrderSignature
+- **asyncapi_ops**: subscribeWorkOrderUpdates
 - **primary_goal**: 管理進行中工單，完成現場作業流程並提交完工報告
 - **secondary_goal**: 查看歷史工單紀錄與完工資料
 - **target_users**:
@@ -490,3 +493,13 @@
 - [ ] 所有可點擊元素 touch target ≥ 44×44px
 - [ ] 操作按鈕高度 ≥ 48px，主要 CTA ≥ 56px
 - [ ] BottomNav 正確顯示，我的工單 Tab active
+
+
+---
+
+## 導航與狀態 (Navigation & State)
+
+完整 Upstream / Downstream / State Persistence / Error Navigation 規範見
+`docs/02-design/E5x--frontend-navigation-matrix.md §附錄 A`（本檔對應段落）。
+
+本 spec 覆蓋的 IA 頁面依 `MAPPING.md §2` 查找。
