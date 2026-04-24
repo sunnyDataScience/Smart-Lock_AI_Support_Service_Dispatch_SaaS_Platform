@@ -114,6 +114,9 @@ python scripts/view_corrections.py --export
 
 # 匯出至指定檔案
 python scripts/view_corrections.py --export corrections_20260424.json
+
+# 清空全部紀錄（會要求確認）
+python scripts/view_corrections.py --clear
 ```
 
 ### 輸出範例

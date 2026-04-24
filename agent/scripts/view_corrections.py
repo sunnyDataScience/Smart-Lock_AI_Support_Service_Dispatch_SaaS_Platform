@@ -6,6 +6,7 @@
     python scripts/view_corrections.py --user {user_id}    # 查看特定使用者
     python scripts/view_corrections.py --export            # 匯出為 JSON
     python scripts/view_corrections.py --export out.json   # 匯出至指定檔案
+    python scripts/view_corrections.py --clear             # 清空全部紀錄（需確認）
 """
 
 import os
@@ -158,10 +159,47 @@ async def view_corrections(user_id=None, show_all=False, export_path=None):
             print(f"\n[錯誤] 發生意外：{e}")
 
 
+async def clear_corrections():
+    """清空 data_corrections 表中的所有紀錄。"""
+    pg_uri = os.getenv("POSTGRES_URI")
+    if not pg_uri:
+        print("\n[錯誤] 環境變數 POSTGRES_URI 未設定。")
+        return
+
+    try:
+        from psycopg import AsyncConnection
+
+        conn = await AsyncConnection.connect(pg_uri)
+
+        # 先查筆數
+        cursor = await conn.execute("SELECT COUNT(*) FROM data_corrections")
+        count = (await cursor.fetchone())[0]
+
+        if count == 0:
+            print("\n[!] 表中沒有任何紀錄，無需清空。")
+            await conn.close()
+            return
+
+        confirm = input(f"\n⚠️  確定要刪除全部 {count} 筆資料修正紀錄嗎？此操作無法復原。(y/N): ")
+        if confirm.strip().lower() != "y":
+            print("已取消。")
+            await conn.close()
+            return
+
+        await conn.execute("DELETE FROM data_corrections")
+        await conn.commit()
+        await conn.close()
+        print(f"\n[OK] 已清空 {count} 筆紀錄。")
+
+    except Exception as e:
+        print(f"\n[錯誤] 發生意外：{e}")
+
+
 if __name__ == "__main__":
     target_user = None
     show_all = False
     export_path = None
+    do_clear = False
 
     args = sys.argv[1:]
     i = 0
@@ -179,7 +217,13 @@ if __name__ == "__main__":
             else:
                 export_path = ""
                 i += 1
+        elif args[i] == "--clear":
+            do_clear = True
+            i += 1
         else:
             i += 1
 
-    asyncio.run(view_corrections(user_id=target_user, show_all=show_all, export_path=export_path))
+    if do_clear:
+        asyncio.run(clear_corrections())
+    else:
+        asyncio.run(view_corrections(user_id=target_user, show_all=show_all, export_path=export_path))
