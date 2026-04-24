@@ -663,7 +663,7 @@ export interface components {
         ExceptionType: "no_show" | "customer_absent" | "scope_change_rejected" | "material_shortage" | "delay_severe" | "appearance_refused" | "payment_failed" | "quality_complaint" | "schedule_conflict" | "other";
         /** @enum {string} */
         ExceptionStatus: "open" | "investigating" | "resolved" | "escalated" | "closed";
-        /** @description 工單異常記錄（對齊 E5x--work-order-interaction-flows §22 異常返回節點 + 熔斷規則） */
+        /** @description 工單異常記錄（對齊 E5x--work-order-interaction-flows.md §22 異常返回節點 + 熔斷規則） */
         Exception: {
             /** Format: uuid */
             id: string;
@@ -702,7 +702,7 @@ export interface components {
         };
         /** @enum {string} */
         InvoiceStatus: "pending" | "issued" | "allowance_pending" | "voided" | "reopened";
-        /** @description 電子發票（對齊 E5x--work-order-interaction-flows §21 EX5） */
+        /** @description 電子發票（對齊 E5x--work-order-interaction-flows.md §21 EX5） */
         Invoice: {
             /** Format: uuid */
             id: string;
