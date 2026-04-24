@@ -31,8 +31,10 @@ category: router
 | 客戶問題關鍵字 | 對應功能 | 子技能 |
 |--------------|---------|--------|
 | 配對、連線、WiFi、藍牙 | APP 初始配對 | load_skill("app-pairing") |
-| 指紋、人臉、掌靜脈、卡片、NFC、感應卡、密碼、新增用戶、刪除用戶、脅迫警報 | 用戶管理 | load_skill("app-user-mgmt") |
-| 遠端開鎖、遠距、不在家開門、開鎖紀錄、開鎖歷史 | 遠端開鎖與紀錄 | load_skill("app-remote") |
+| 指紋、人臉、卡片、NFC、感應卡、密碼、新增用戶、刪除用戶、脅迫警報 | 用戶管理 | load_skill("app-user-mgmt") |
+| 掌靜脈、掌靜脈錄入、掌靜脈設定、手掌感應 | 掌靜脈錄入 | load_skill("app-palm-vein")（僅 A90） |
+| 遠端開鎖、遠距、不在家開門 | 遠端開鎖 | load_skill("app-remote") |
+| 開鎖紀錄、開鎖歷史、誰開過門、查看紀錄、相簿 | 開鎖紀錄與相簿 | load_skill("app-history")（僅 AI-99） |
 | 臨時密碼、暫時密碼、給別人密碼、密碼規範 | 臨時密碼 | load_skill("app-temp-pwd") |
 | 監控、攝影、影像、對講、拍照、錄影、鏡頭切換、雙向通話 | 即時影像 | load_skill("app-camera") |
 | 家庭成員、邀請、加人、權限、角色設定 | 家庭成員管理 | load_skill("app-family") |

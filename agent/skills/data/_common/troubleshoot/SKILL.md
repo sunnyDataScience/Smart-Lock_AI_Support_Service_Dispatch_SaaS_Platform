@@ -74,10 +74,10 @@ category: router
 | 門打不開、鎖卡住、推不動、拉不開、被鎖在外面 | 門扇卡死 | 依品牌載入：Chatlock → `load_skill("ts-door-stuck-chatlock")`、Dormakaba → `load_skill("ts-door-stuck-dormakaba")`、其他 → `load_skill("ts-door-stuck-other")` |
 | 關門沒上鎖、不會自動鎖、馬達空轉、門不會完全關上、隔音條卡住 | 自動上鎖失效 | `load_skill("ts-auto-lock")` |
 | 一直叫、嗶嗶聲、警報、響不停、防盜鎖定、馬達異常、低電量警告 | 異常警報 | 依品牌載入：Chatlock → `load_skill("ts-alarm-chatlock")`、Dormakaba → `load_skill("ts-alarm-dormakaba")`、AiLock → `load_skill("ts-alarm-ailock")`、Kaadas → `load_skill("ts-alarm-kaadas")`、Milre → `load_skill("ts-alarm-milre")`、Philips → `load_skill("ts-alarm-philips")` |
-| 指紋沒反應、密碼錯誤、感應不到、閃6、人臉辨識失敗、掌靜脈沒反應、卡片感應不到、防盜鎖定、紅燈閃、紅燈 | 驗證失敗 | 依品牌載入：Chatlock → `load_skill("ts-verification-chatlock")`、Dormakaba → `load_skill("ts-verification-dormakaba")`、Waferlock → `load_skill("ts-verification-waferlock")`、其他 → `load_skill("ts-verification-other")` |
+| 指紋沒反應、密碼錯誤、感應不到、閃6、人臉辨識失敗、掌靜脈沒反應、卡片感應不到、防盜鎖定、紅燈閃、紅燈、貓眼紅燈、紅燈含義、動畫在跑但沒感應、人臉不啟動 | 驗證失敗 | 依品牌載入：Chatlock → `load_skill("ts-verification-chatlock")`、Dormakaba → `load_skill("ts-verification-dormakaba")`、Waferlock → `load_skill("ts-verification-waferlock")`、其他 → `load_skill("ts-verification-other")` |
 | 鎖舌卡住、對不準、受口片、隔音條、氣密條、卡澀、手動上鎖關不掉 | 鎖舌問題 | 依品牌載入：Chatlock → `load_skill("ts-lock-tongue-chatlock")`、Dormakaba → `load_skill("ts-lock-tongue-dormakaba")`、其他 → `load_skill("ts-lock-tongue-other")` |
 | 門會自己彈開、門關不緊、門歪了、門下沉、鉸鏈磨損、開關門困難 | 門扇反弓 | `load_skill("ts-door-rebound")` |
-| 電池很快沒電、一直沒電、鎖會漏電、沒電了、行動電源、緊急供電、Type-C、9V電池、Wi-Fi耗電、馬達變慢、換完電池仍故障、網路斷線、Wi-Fi不穩、mesh路由器 | 異常耗電/電力/網路 | 依品牌載入：Chatlock → `load_skill("ts-power-drain-chatlock")`、Dormakaba → `load_skill("ts-power-drain-dormakaba")`、3E → `load_skill("ts-power-drain-3e")`、AiLock → `load_skill("ts-power-drain-ailock")`、其他 → `load_skill("ts-power-drain-other")` |
+| 電池很快沒電、一直沒電、鎖會漏電、沒電了、行動電源、緊急供電、Type-C、9V電池、Wi-Fi耗電、馬達變慢、換完電池仍故障、網路斷線、網路一直斷線、Wi-Fi不穩、Wi-Fi連不上、mesh路由器、路由器設定 | 異常耗電/電力/網路 | 依品牌載入：Chatlock → `load_skill("ts-power-drain-chatlock")`、Dormakaba → `load_skill("ts-power-drain-dormakaba")`、3E → `load_skill("ts-power-drain-3e")`、AiLock → `load_skill("ts-power-drain-ailock")`、其他 → `load_skill("ts-power-drain-other")` |
 | 要按兩次才能開、要先輸密碼再刷卡、誤觸雙重認證、管理者密碼忘了 | 雙重認證誤觸 | 依品牌載入：Chatlock → `load_skill("ts-dual-auth-chatlock")`、Dormakaba → `load_skill("ts-dual-auth-dormakaba")` |
 
 > **重要：確認症狀後，你必須在 `[可用技能]` 清單中找到對應的子技能名稱，呼叫 `load_skill` 載入該技能 SOP，不要只根據這張表回覆。**
