@@ -103,6 +103,19 @@ def get_brand_models(brand: str) -> list[str]:
     return _brand_models.get(brand, [])
 
 
+def infer_brand_from_text(text: str) -> tuple[str | None, str | None]:
+    """從自由文字中掃描已知型號，反向推論品牌。
+
+    Returns:
+        (brand, model) 或 (None, None)
+    """
+    for brand, models in _brand_models.items():
+        for m in models:
+            if m in text:
+                return brand, m
+    return None, None
+
+
 def is_quick_reply_enabled() -> bool:
     """Quick Reply 是否啟用。"""
     return _quick_reply_config.get("enabled", False)

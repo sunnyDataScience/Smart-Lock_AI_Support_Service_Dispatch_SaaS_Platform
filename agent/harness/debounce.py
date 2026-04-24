@@ -277,6 +277,22 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
                 _, facts = await _profile_mgr.load_full_profile_with_facts(user_id)
                 brand = facts.get("device_brand")
                 model = facts.get("device_model")
+
+        # 品牌未知時，從用戶輸入文字自動推論品牌
+        if not brand and _profile_mgr and _profile_mgr.facts_enabled:
+            input_text = user_input if isinstance(user_input, str) else " ".join(
+                b.get("text", "") for b in user_input if isinstance(b, dict)
+            )
+            from harness.line_ui_factory import infer_brand_from_text
+            inferred_brand, inferred_model = infer_brand_from_text(input_text)
+            if inferred_brand:
+                brand = inferred_brand
+                if inferred_model and not model:
+                    model = inferred_model
+                await _profile_mgr.update_fact(user_id, "device_brand", brand)
+                if model:
+                    await _profile_mgr.update_fact(user_id, "device_model", model)
+                print(f"[Agent] 自動推論品牌: {brand} {model or ''}（從用戶輸入）")
             # profile 文字注入看 enabled 開關
             if _profile_mgr.enabled:
                 profile_text = await _profile_mgr.load_full_profile(user_id)
