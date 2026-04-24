@@ -153,7 +153,9 @@ START → pre_process → manage_memory → rewrite_query
 ```
 LINE Webhook → H1 路由 → H2 多模態（可選）→ H3 防抖合併
   → H8 記錄使用者訊息 → H6 安全閘門
-  → H4 用戶畫像 + 品牌感知技能過濾 → H5 記憶壓縮
+  → H_DC 資料修正攔截（#資料修正 → 寫 DB → 跳過 Agent）
+  → H_QR Quick Reply 品牌/型號收集（含模糊匹配）
+  → H4 用戶畫像 + 品牌自動推論 + 品牌感知技能過濾 → H5 記憶壓縮
   → [可用技能] + [用戶資料] 注入 → Agent ainvoke()
   → H10 Skill Checkpoint 清理
   → H8 記錄工具呼叫/轉接/LLM 延遲
@@ -165,7 +167,8 @@ LINE Webhook → H1 路由 → H2 多模態（可選）→ H3 防抖合併
 - 線性流程，H7.5 可觸發一次重試
 - debounce.py 作為 orchestrator，串接所有 harness
 - 背景非阻塞任務（H9 輪廓萃取、H8 audit）
-- 品牌感知：依用戶 device_brand 動態過濾 63 個技能
+- 品牌感知：依用戶 device_brand 動態過濾 67 個技能
+- 品牌自動推論：`infer_brand_from_text()` 從型號/品牌名反向推論
 
 ---
 

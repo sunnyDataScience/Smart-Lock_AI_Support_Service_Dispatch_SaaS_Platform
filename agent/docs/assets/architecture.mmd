@@ -20,10 +20,12 @@ graph TD
         health["health<br/><small>GET /health<br/>version: 2.0-skills</small>"]
     end
 
-    subgraph invoke_layer ["Agent 呼叫層（debounce.py run_agent）"]
+    subgraph invoke_layer ["Agent 呼叫層（debounce.py agent_and_reply + run_agent）"]
         direction TB
-        load_profile["載入用戶畫像 + 品牌過濾<br/><small>ProfileManager.load_full_profile_with_facts<br/>facts → device_brand/model<br/>filter_skills(brand, model)<br/>注入 [可用技能] + [用戶資料] 前綴</small>"]
+        safety_gate_node["H6 安全閘門 + H_DC 資料修正<br/><small>safety_gate.check() 攔截危險指令<br/>data_correction.check_and_save() 攔截 #資料修正<br/>Quick Reply 品牌/型號收集（含模糊匹配）</small>"]
+        load_profile["載入用戶畫像 + 品牌自動推論<br/><small>ProfileManager.load_full_profile_with_facts<br/>infer_brand_from_text() 自動推論品牌<br/>filter_skills(brand, model)<br/>注入 [可用技能] + [用戶資料] 前綴</small>"]
         agent_invoke["agent.ainvoke<br/><small>傳入 messages + thread_id<br/>Checkpointer 管理對話記憶</small>"]
+        safety_gate_node --> load_profile
         output_validate["H7.5 輸出驗證<br/><small>output_validator.py<br/>禁用語 regex + LLM 語意檢查<br/>不合規 → 重跑 ReAct loop</small>"]
         skill_cleanup["H10 Checkpoint 清理<br/><small>_cleanup_tool_checkpoint<br/>SOP → [已參考技能: xxx]</small>"]
         extract_reply["提取回覆<br/><small>從 messages 取最後一則 AI 回覆<br/>處理 str / list[dict] 格式</small>"]
@@ -42,7 +44,7 @@ graph TD
         tool_exec -->|"tool results"| llm_reason
     end
 
-    subgraph skills_layer ["技能系統（skills/ — 63 個 SKILL.md）"]
+    subgraph skills_layer ["技能系統（skills/ — 67 個 SKILL.md）"]
         direction TB
         skill_registry["技能註冊表<br/><small>skills/__init__.py<br/>掃描品牌目錄結構<br/>路徑推斷 brands/models<br/>filter_skills(brand, model)</small>"]
 
@@ -74,7 +76,7 @@ graph TD
         prompt_transfer_form[("transfer_human.md<br/><small>轉接真人表單模板</small>")]
     end
 
-    subgraph config_layer ["設定驅動（config.toml — 8 sections）"]
+    subgraph config_layer ["設定驅動（config.toml — 14 sections）"]
         direction LR
         cfg_system[("system<br/><small>domain / agent_name<br/>request_timeout</small>")]
         cfg_llm[("llm<br/><small>provider / model_name<br/>temperature</small>")]
@@ -130,7 +132,7 @@ graph TD
 
     %% === 主流程連線 ===
     LINE_USER -->|"傳送訊息"| webhook
-    webhook -->|"文字訊息"| load_profile
+    webhook -->|"文字訊息"| safety_gate_node
     chat_test -->|"測試訊息"| agent_invoke
     extract_reply -->|"Reply / Push API"| LINE_USER
 
@@ -189,7 +191,7 @@ graph TD
 
     class LINE_USER userNode
     class webhook,chat_test,health entry
-    class load_profile,agent_invoke,output_validate,skill_cleanup,extract_reply invoke
+    class safety_gate_node,load_profile,agent_invoke,output_validate,skill_cleanup,extract_reply invoke
     class system_prompt,llm_reason,tool_exec react
     class skill_registry react
     class sk_troubleshoot,sk_product,sk_store,sk_dispatch skill_tier1

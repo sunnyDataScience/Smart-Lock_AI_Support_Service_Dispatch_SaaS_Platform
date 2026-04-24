@@ -128,13 +128,13 @@ skills/data/
 | `{Brand}/_all-models/{skill}/` | 該品牌全型號 |
 | `{Brand}/{Model}/{skill}/` | 該品牌特定型號 |
 
-### 技能總數：63 個
+### 技能總數：67 個
 
 | 分類 | 數量 | 說明 |
 |------|------|------|
 | _common | 7 | 通用技能（store-info, dispatch-guide 等） |
 | Dormakaba | 7 | 故障排除 + 系統設定 |
-| Chatlock | 19 | 故障排除 + APP + 系統設定 |
+| Chatlock | 23 | 故障排除 + APP + 系統設定（含 WiFi/人臉子技能） |
 | 其他品牌 | 30 | Philips/Kaadas/Milre/AiLock/3E/Waferlock 各 5 |
 
 ### SKILL.md 格式
@@ -176,7 +176,18 @@ severity: 5                   # 1-5（僅 troubleshoot 類）
 | 工具名稱 | 說明 |
 |----------|------|
 | `load_skill` | 載入指定技能的完整 SOP 內容（支援前綴比對） |
+| `update_user_info` | 更新用戶品牌/型號，驗證後寫入 DB 並刷新技能清單 |
 | `transfer_to_human` | 轉接真人客服，自動帶入已知用戶資料 |
+
+### 特殊關鍵字攔截
+
+| 關鍵字 | 行為 | 設定 |
+|--------|------|------|
+| `#資料修正` | 跳過 Agent，將當前對話上下文（對話歷史 + 用戶資料）寫入 `data_corrections` 表，回覆確認訊息 | `config.toml [data_correction]` |
+
+- 支援前綴匹配：`#資料修正 品牌應該是Dormakaba` → `note` 欄位存入「品牌應該是Dormakaba」
+- 不影響對話上下文：訊息不進入 checkpoint，用戶可繼續正常對話
+- 僅在 LINE webhook 路徑觸發（`/chat` 測試端點不觸發）
 
 ---
 
