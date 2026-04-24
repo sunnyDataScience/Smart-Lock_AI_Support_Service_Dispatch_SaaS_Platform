@@ -9,6 +9,9 @@
 - **page_name**: 我的工單 My Orders
 - **route_path**: `/my-orders`（列表）、`/my-orders/[id]`（詳情 + 完工報告）
 - **page_type**: list + detail + form (multi-view)
+- **ia_pages**: T2, T3
+- **openapi_ops**: listWorkOrders, getWorkOrder, completeWorkOrder, submitWorkOrderSignature
+- **asyncapi_ops**: subscribeWorkOrderUpdates
 - **primary_goal**: 管理進行中工單，完成現場作業流程並提交完工報告
 - **secondary_goal**: 查看歷史工單紀錄與完工資料
 - **target_users**:

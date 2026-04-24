@@ -9,6 +9,9 @@
 - **page_name**: 帳戶中心 Account Center
 - **route_path**: `/account`
 - **page_type**: dashboard + profile (hybrid)
+- **ia_pages**: T4
+- **openapi_ops**: getTechnicianAvailability
+- **asyncapi_ops**: none
 - **primary_goal**: 讓技師掌握收入狀況與績效表現
 - **secondary_goal**: 管理個人排班、勤務狀態與通知偏好
 - **target_users**:

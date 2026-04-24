@@ -10,6 +10,9 @@
 - **page_name**: 進階管理 Advanced Admin
 - **route_path**: `/admin/refunds` | `/admin/inventory` | `/admin/warranty-claims` | `/admin/disputes` | `/admin/audit-events` | `/admin/roles`
 - **page_type**: tabbed_multi_page（側邊子導覽 + 各子頁面內容）
+- **ia_pages**: A17, A18, A19, A20, A21, A22
+- **openapi_ops**: submitRefundDecision
+- **asyncapi_ops**: subscribeRefundEvents, subscribeDisputeEvents, subscribeLowStockAlerts, subscribeRbacUpdates
 - **primary_goal**: 提供平台進階治理功能，涵蓋退款審核、庫存控管、保固追蹤、爭議仲裁、稽核紀錄與角色權限管理
 - **secondary_goal**: 確保平台合規、資金安全與營運透明度
 - **target_users**:

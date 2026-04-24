@@ -9,6 +9,9 @@
 - **page_name**: Admin Dashboard
 - **route_path**: `/dashboard`
 - **page_type**: dashboard
+- **ia_pages**: A1
+- **openapi_ops**: listWorkOrders
+- **asyncapi_ops**: subscribeSlaAlerts
 - **primary_goal**: 以 Style A（KPI Card Dashboard）即時呈現工單量、完工率、逾時工單、在線技師等營運關鍵指標，讓管理者一眼掌握系統運作狀態
 - **secondary_goal**: 透過趨勢圖表與最近工單列表，快速發現異常並跳轉至細節頁面處理
 - **target_users**:

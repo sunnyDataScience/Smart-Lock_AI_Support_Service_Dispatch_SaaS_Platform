@@ -9,6 +9,9 @@
 - **page_name**: 派工人工介入 Dispatch Manual Intervention
 - **route_path**: `/admin/dispatch-manual` 或 `/admin/dispatch-manual?work_order_id=...`
 - **page_type**: action-focused workspace
+- **ia_pages**: A37
+- **openapi_ops**: listDispatchCandidates, assignWorkOrder, escalateWorkOrder, getWorkOrder
+- **asyncapi_ops**: subscribeDispatchQueue, subscribeWorkOrderUpdates
 - **primary_goal**: 讓 dispatch_officer 在自動派工失敗情境下，快速人工指派最適技師
 - **secondary_goal**: 保留完整決策紀錄（選擇理由、候選排序、審批鏈）供稽核
 - **target_users**:

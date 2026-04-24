@@ -10,6 +10,9 @@
 - **page_name**: 技師詳細管理 Technician Detail Management
 - **route_path**: `/admin/technicians/[id]/schedule` | `/admin/technicians/[id]/skills` | `/admin/technicians/[id]/settlements`
 - **page_type**: tabbed_multi_page（技師詳情 Header + Tab 子導覽 + 各子頁面內容）
+- **ia_pages**: A25, A26, A27
+- **openapi_ops**: getTechnicianAvailability
+- **asyncapi_ops**: none
 - **primary_goal**: 提供單一技師的深度管理介面，涵蓋可用時段編排、技能認證維護、薪酬結算簽核，是派工引擎之可用性、硬性過濾、分潤計算三大核心資料的唯一真實來源
 - **secondary_goal**: 確保認證到期預警、排班衝突偵測、結算雙簽流程之合規性與稽核追溯
 - **target_users**:

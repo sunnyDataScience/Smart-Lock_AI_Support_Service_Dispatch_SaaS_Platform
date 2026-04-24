@@ -16,6 +16,9 @@
   - `/my-orders/[id]/signature`（T9 雙方電子簽章）
   - `/account/schedule`（T10 我的排班）
 - **page_type**: mobile-first form set + read-only calendar（6 個路由共用設計語彙）
+- **ia_pages**: T5, T6, T7, T8, T9, T10
+- **openapi_ops**: getWorkOrder, submitWorkOrderSignature, getTechnicianAvailability, proposeReschedule
+- **asyncapi_ops**: subscribeWorkOrderUpdates
 - **primary_goal**: 技師在現場遇到非 Happy Path 例外時（範圍追加、缺料、延遲、外觀變更、收尾簽章），能以單手操作快速提交結構化資料，保障雙方權益並維持 SLA 與合規
 - **secondary_goal**: 讓技師自主管理可服務時段（T10），減少管理員介入派工排程
 - **target_users**:

@@ -9,6 +9,9 @@
 - **page_name**: Admin Conversations
 - **route_path**: `/conversations`（列表）、`/conversations/[id]`（詳情）
 - **page_type**: list + detail（雙視圖）
+- **ia_pages**: A2, A3
+- **openapi_ops**: listConversations, getConversation
+- **asyncapi_ops**: none
 - **primary_goal**: 讓管理者瀏覽與監控所有客戶對話，快速掌握對話狀態、AI 回覆品質，並在必要時介入處理
 - **secondary_goal**: 透過 AI 回覆標記功能建立回饋循環，持續優化 AI 診斷品質
 - **target_users**:

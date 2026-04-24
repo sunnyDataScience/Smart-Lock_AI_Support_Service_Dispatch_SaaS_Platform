@@ -9,6 +9,9 @@
 - **page_name**: Problem Cards Management
 - **route_path**: `/problem-cards`（列表）、`/problem-cards/[id]`（詳情）
 - **page_type**: list + detail
+- **ia_pages**: A4, A5
+- **openapi_ops**: listProblemCards
+- **asyncapi_ops**: none
 - **primary_goal**: 讓管理員瀏覽、篩選、管理 AI 對話產生的問題卡片，追蹤診斷與解決進度
 - **secondary_goal**: 快速識別需人工介入的高熵卡片，適時升級至 L3 派工
 - **target_users**:

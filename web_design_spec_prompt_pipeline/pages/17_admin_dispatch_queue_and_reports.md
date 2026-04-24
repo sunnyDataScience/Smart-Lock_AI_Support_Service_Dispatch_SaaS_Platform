@@ -11,6 +11,9 @@
 - **page_name**: 派工佇列監控 + 報表群 (Dispatch Queue & Reports)
 - **route_path**: `/admin/dispatch-queue` | `/admin/reports/kpi` | `/admin/reports/technician-ranking` | `/admin/reports/revenue`
 - **page_type**: realtime_monitor + dashboard + analytics（即時監控 + 多維度報表分析）
+- **ia_pages**: A28, A29, A30, A31
+- **openapi_ops**: getDispatchQueue, listDispatchCandidates, assignWorkOrder
+- **asyncapi_ops**: subscribeDispatchQueue, subscribeSlaAlerts
 - **primary_goal**: 提供即時派工決策介入介面與多維度營運分析報表，讓管理員能：(1) 即時介入困難派工；(2) 追蹤轉換漏斗、SLA、滿意度、爭議率、FTFR；(3) 管理技師績效；(4) 分析營收結構
 - **secondary_goal**: 支援 CSV/Excel/PDF 匯出與排程週報、月報推送；拒單原因統計為月度優化決策提供數據依據
 - **target_users**:
