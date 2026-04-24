@@ -9,6 +9,9 @@
 - **page_name**: 改期日曆 Reschedule Calendar
 - **route_path**: `/my-orders/[id]/reschedule`（技師端） / 客戶走 LINE Flex RSVP（見 Flow 11）
 - **page_type**: modal-style workflow
+- **ia_pages**: T11
+- **openapi_ops**: proposeReschedule, getTechnicianAvailability
+- **asyncapi_ops**: subscribeWorkOrderUpdates
 - **primary_goal**: 讓技師快速選擇新的工單時段，並觸發客戶確認流程
 - **secondary_goal**: 顯示可用時段避免衝突、預覽客戶工作時間偏好
 - **target_users**:

@@ -10,6 +10,9 @@
 - **page_name**: 工單管理與派工板 (Work Orders & Dispatch Board)
 - **route_path**: `/work-orders`（列表視圖）、`/work-orders/dispatch`（看板/地圖派工板）
 - **page_type**: list + kanban + map (三視圖切換)
+- **ia_pages**: A11
+- **openapi_ops**: listWorkOrders, assignWorkOrder, listDispatchCandidates
+- **asyncapi_ops**: subscribeWorkOrderUpdates
 - **primary_goal**: 讓管理員即時掌握所有工單狀態，並高效完成派工、狀態變更、批次操作
 - **secondary_goal**: 透過地圖視圖優化派工地理決策；透過看板視圖視覺化工單流程瓶頸
 - **target_users**:

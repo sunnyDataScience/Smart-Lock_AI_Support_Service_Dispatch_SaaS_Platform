@@ -9,6 +9,9 @@
 - **page_name**: Knowledge Base Management
 - **route_path**: `/knowledge-base/cases`（案例庫）、`/knowledge-base/manuals`（手冊管理）、`/knowledge-base/sop-drafts`（SOP 草稿）
 - **page_type**: tabbed_list + form + review
+- **ia_pages**: A6, A7, A8, A9, A10
+- **openapi_ops**: none
+- **asyncapi_ops**: none
 - **primary_goal**: 統一管理品牌知識資產，包含歷史案例、產品手冊、AI 自動產生的 SOP 草稿
 - **secondary_goal**: 確保知識庫內容經過人工審核後才進入正式索引，維護知識品質
 - **target_users**:

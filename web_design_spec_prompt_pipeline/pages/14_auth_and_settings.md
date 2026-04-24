@@ -9,6 +9,9 @@
 
 ### 共用屬性（三頁一致）
 
+- **ia_pages**: A0, T0, A16
+- **openapi_ops**: loginAdmin, loginTechnician
+- **asyncapi_ops**: none
 - **design_system**: Primary `#2563EB`、Accent `#F59E0B`、Secondary `#1E293B`、BG `#F8FAFC`、Font `Inter + Noto Sans TC`
 - **framework**: Next.js 14+ App Router + shadcn/ui + Tailwind CSS + React Hook Form + Zod
 - **auth_storage**: JWT 存於 httpOnly Cookie（`access_token` + `refresh_token`），`Secure` + `SameSite=Strict`

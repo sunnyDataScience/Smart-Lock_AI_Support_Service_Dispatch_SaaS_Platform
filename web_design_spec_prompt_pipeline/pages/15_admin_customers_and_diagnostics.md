@@ -10,6 +10,9 @@
 - **page_name**: 客戶主檔與 AI 診斷治理 Customers & Diagnostics
 - **route_path**: `/admin/customers` | `/admin/customers/[id]` | `/admin/diagnostics/[conversation_id]` | `/admin/knowledge-base/sop-performance`
 - **page_type**: multi_page_bundle（各子頁面獨立佈局，共享同一 Admin Shell）
+- **ia_pages**: A23, A24, A32, A33
+- **openapi_ops**: getConversation, listProblemCards
+- **asyncapi_ops**: subscribeDiagnosticStream
 - **primary_goal**:
   - 維護客戶與名下設備主檔，支援去重、合併、風險等級自動評估與保固提醒
   - 讓管理員可審視、覆寫 AI 三層診斷（L1 向量 / L2 RAG / L3 升級）推理鏈，提交訓練反饋

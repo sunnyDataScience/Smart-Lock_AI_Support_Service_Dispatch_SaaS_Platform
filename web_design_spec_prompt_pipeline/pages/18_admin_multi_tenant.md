@@ -11,6 +11,9 @@
 - **page_name**: 多租戶管理 Multi-Tenant Admin (V3.0)
 - **route_path**: `/admin/settings/tenant` | `/admin/settings/tenant/brand` | `/admin/super/*`
 - **page_type**: tabbed_multi_page（A34 分頁式 Tabs / A35 編輯器 + 即時預覽 / A36 超管控制台）
+- **ia_pages**: A34, A35, A36
+- **openapi_ops**: none
+- **asyncapi_ops**: none
 - **primary_goal**: 提供 V3.0 多租戶 SaaS 的租戶自助設定、品牌白牌化客製，以及超級管理員跨租戶運營控制台
 - **secondary_goal**: 落實前端租戶隔離三層模型（傳輸層 / 快取層 / 狀態層），確保切租戶時零快取污染；敏感操作全部寫入 `audit-events`
 - **target_users**:

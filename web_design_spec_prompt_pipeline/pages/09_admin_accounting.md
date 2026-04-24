@@ -10,6 +10,9 @@
 - **page_name**: 財務結算管理 Accounting & Settlement
 - **route_path**: `/accounting`
 - **page_type**: tabbed_dashboard (list + charts)
+- **ia_pages**: A15
+- **openapi_ops**: none
+- **asyncapi_ops**: none
 - **primary_goal**: 管理技師結算流程、追蹤發票付款狀態、呈現營收數據分析
 - **secondary_goal**: 提供匯出功能支援財務報表與稅務申報
 - **target_users**:

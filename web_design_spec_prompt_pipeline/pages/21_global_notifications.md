@@ -9,6 +9,9 @@
 - **page_name**: 通知中心 Notification Center
 - **route_path**: `/notifications`（全路徑；Admin + Technician 共用）
 - **page_type**: inbox
+- **ia_pages**: G1
+- **openapi_ops**: listNotifications, updateNotification, bulkUpdateNotifications, markAllNotificationsRead
+- **asyncapi_ops**: subscribeUserNotifications
 - **primary_goal**: 讓使用者集中管理所有類型通知（未讀 / 已讀 / 全部），點擊深連結回來源頁
 - **secondary_goal**: 提供過濾與搜尋，避免通知淹沒
 - **target_users**:

@@ -9,6 +9,9 @@
 - **page_name**: 離線狀態頁 Offline Fallback
 - **route_path**: `/offline`（Service Worker 靜態快取）
 - **page_type**: full-screen status page
+- **ia_pages**: G2
+- **openapi_ops**: none
+- **asyncapi_ops**: none
 - **primary_goal**: 當使用者完全無網路時提供清晰狀態 + 可離線執行的動作清單
 - **secondary_goal**: 展示離線佇列內容，讓使用者安心「未送出的操作不會丟」
 - **target_users**:

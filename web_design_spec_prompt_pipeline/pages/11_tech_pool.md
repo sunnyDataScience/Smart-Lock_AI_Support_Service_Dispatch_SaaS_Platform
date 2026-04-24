@@ -9,6 +9,9 @@
 - **page_name**: 案件池 Case Pool
 - **route_path**: `/pool`
 - **page_type**: map + list (hybrid)
+- **ia_pages**: T1
+- **openapi_ops**: listWorkOrderPool, acceptWorkOrder
+- **asyncapi_ops**: subscribeWorkOrderUpdates, subscribeTechnicianPool
 - **primary_goal**: 讓技師快速瀏覽附近可接工單，並一鍵搶單
 - **secondary_goal**: 透過地圖直覺理解工單地理分佈，優化路線規劃
 - **target_users**:

@@ -6,12 +6,16 @@
 #   1) OpenAPI operationId 必須被至少一個 flow 文件或 page spec 引用
 #   2) flow 文件與 page spec 中引用的 operationId 必須在 OpenAPI 中存在
 #   3) AsyncAPI operationId 同樣檢查
+#   4) [PAGE META] openapi_ops 宣告必須在 OpenAPI 中存在（always strict）
+#   5) [PAGE META] asyncapi_ops 宣告必須在 AsyncAPI 中存在（always strict）
+#   6) spec body 中 /api/v1/ path 必須在 OpenAPI paths 中存在（advisory / strict）
 #
 # 輸出：孤兒 / 斷鏈清單，exit code 1 表示有問題
 #
 # Usage:
 #   ./scripts/check-operationid-orphans.sh
 #   ./scripts/check-operationid-orphans.sh --quiet   # 僅顯示結果摘要
+#   ./scripts/check-operationid-orphans.sh --strict  # body path 也視為 error
 
 set -uo pipefail
 # 不用 -e：本腳本大量使用 comm/grep 正常情況下會 exit 非 0
@@ -158,6 +162,127 @@ if [[ -f "$ASYNCAPI" ]]; then
 fi
 
 # ----------------------------------------------------------------------
+# 6. Check 3: [PAGE META] openapi_ops 宣告驗證（always strict）
+# ----------------------------------------------------------------------
+log ""
+log "=== Check 3: [PAGE META] openapi_ops 宣告驗證 ==="
+meta_openapi_errors=0
+
+for spec_file in "$PAGES_DIR"/*.md; do
+  [[ "$(basename "$spec_file")" == "MAPPING.md" ]] && continue
+  [[ "$(basename "$spec_file")" == "page_template.md" ]] && continue
+
+  # 擷取 openapi_ops 行
+  ops_line=$(grep -E '^\- \*\*openapi_ops\*\*:' "$spec_file" 2>/dev/null || true)
+  [[ -z "$ops_line" ]] && continue
+
+  # 取值：去掉前綴、分割逗號
+  ops_value=$(echo "$ops_line" | sed -E 's/^- \*\*openapi_ops\*\*:\s*//')
+  [[ "$ops_value" == "none" ]] && continue
+
+  IFS=',' read -ra ops_arr <<< "$ops_value"
+  for op in "${ops_arr[@]}"; do
+    op=$(echo "$op" | tr -d ' ')
+    [[ -z "$op" ]] && continue
+    if ! echo "$openapi_ops" | grep -qx "$op"; then
+      log "❌ $(basename "$spec_file"): openapi_ops 宣告 '$op' 不存在於 openapi.yaml"
+      meta_openapi_errors=$((meta_openapi_errors + 1))
+    fi
+  done
+done
+
+if [[ $meta_openapi_errors -gt 0 ]]; then
+  errors=$((errors + meta_openapi_errors))
+  log "   共 $meta_openapi_errors 個 [PAGE META] openapi_ops 錯誤"
+else
+  log "✅ 所有 [PAGE META] openapi_ops 宣告合法"
+fi
+
+# ----------------------------------------------------------------------
+# 7. Check 4: [PAGE META] asyncapi_ops 宣告驗證（always strict）
+# ----------------------------------------------------------------------
+if [[ -f "$ASYNCAPI" ]]; then
+  log ""
+  log "=== Check 4: [PAGE META] asyncapi_ops 宣告驗證 ==="
+  meta_async_errors=0
+
+  for spec_file in "$PAGES_DIR"/*.md; do
+    [[ "$(basename "$spec_file")" == "MAPPING.md" ]] && continue
+    [[ "$(basename "$spec_file")" == "page_template.md" ]] && continue
+
+    ops_line=$(grep -E '^\- \*\*asyncapi_ops\*\*:' "$spec_file" 2>/dev/null || true)
+    [[ -z "$ops_line" ]] && continue
+
+    ops_value=$(echo "$ops_line" | sed -E 's/^- \*\*asyncapi_ops\*\*:\s*//')
+    [[ "$ops_value" == "none" ]] && continue
+
+    IFS=',' read -ra ops_arr <<< "$ops_value"
+    for op in "${ops_arr[@]}"; do
+      op=$(echo "$op" | tr -d ' ')
+      [[ -z "$op" ]] && continue
+      if ! echo "$async_ops" | grep -qx "$op"; then
+        log "❌ $(basename "$spec_file"): asyncapi_ops 宣告 '$op' 不存在於 asyncapi.yaml"
+        meta_async_errors=$((meta_async_errors + 1))
+      fi
+    done
+  done
+
+  if [[ $meta_async_errors -gt 0 ]]; then
+    errors=$((errors + meta_async_errors))
+    log "   共 $meta_async_errors 個 [PAGE META] asyncapi_ops 錯誤"
+  else
+    log "✅ 所有 [PAGE META] asyncapi_ops 宣告合法"
+  fi
+fi
+
+# ----------------------------------------------------------------------
+# 8. Check 5: spec body /api/v1/ path 驗證（advisory / --strict）
+# ----------------------------------------------------------------------
+log ""
+log "=== Check 5: spec body /api/v1/ path 驗證 ==="
+
+# 收集 openapi.yaml 中定義的所有 path（正規化：去掉參數名）
+openapi_paths=$(grep -E '^\s+/api/' "$OPENAPI" 2>/dev/null \
+  | sed -E 's/^\s+//; s/:\s*$//' \
+  | sed -E 's/\{[^}]+\}/{_}/g' \
+  | sort -u || true)
+
+body_path_warnings=0
+for spec_file in "$PAGES_DIR"/*.md; do
+  [[ "$(basename "$spec_file")" == "MAPPING.md" ]] && continue
+  [[ "$(basename "$spec_file")" == "page_template.md" ]] && continue
+
+  # 擷取 body 中的 /api/v1/ path（從 backtick 或裸文）
+  body_paths=$(grep -oE '/api/v[0-9]+/[a-zA-Z0-9/_{}.-]+' "$spec_file" 2>/dev/null \
+    | sed -E 's/\{[^}]+\}/{_}/g' \
+    | sort -u || true)
+  [[ -z "$body_paths" ]] && continue
+
+  while IFS= read -r bpath; do
+    if ! echo "$openapi_paths" | grep -qx "$bpath"; then
+      if [[ $STRICT -eq 1 ]]; then
+        log "❌ $(basename "$spec_file"): path '$bpath' 不存在於 openapi.yaml"
+        body_path_warnings=$((body_path_warnings + 1))
+      else
+        log "⚠️  $(basename "$spec_file"): path '$bpath' 不存在於 openapi.yaml（planned?）"
+        body_path_warnings=$((body_path_warnings + 1))
+      fi
+    fi
+  done <<< "$body_paths"
+done
+
+if [[ $body_path_warnings -gt 0 ]]; then
+  if [[ $STRICT -eq 1 ]]; then
+    errors=$((errors + body_path_warnings))
+    log "   共 $body_path_warnings 個 body path 錯誤（strict 模式）"
+  else
+    log "   共 $body_path_warnings 個 body path 警告（啟用 --strict 轉為 error）"
+  fi
+else
+  log "✅ 所有 spec body /api/ path 已定義於 openapi.yaml"
+fi
+
+# ----------------------------------------------------------------------
 # 總結
 # ----------------------------------------------------------------------
 log ""
@@ -165,10 +290,12 @@ log "=== Summary ==="
 log "  OpenAPI operationIds:  $openapi_count"
 log "  Referenced in docs:    $ref_count"
 log "  Orphans (warning):     $(echo "$orphans" | grep -c . || echo 0)"
-log "  Dangling (error):      $(echo "$dangling" | grep -c . || echo 0)"
+log "  Dangling (warning):    $(echo "$dangling" | grep -c . || echo 0)"
+log "  META ops errors:       $((meta_openapi_errors + ${meta_async_errors:-0}))"
+log "  Body path issues:      $body_path_warnings"
 
 if [[ $errors -gt 0 ]]; then
-  [[ $QUIET -eq 1 ]] && echo "FAIL: $errors dangling reference(s)"
+  [[ $QUIET -eq 1 ]] && echo "FAIL: $errors error(s)"
   exit 1
 fi
 

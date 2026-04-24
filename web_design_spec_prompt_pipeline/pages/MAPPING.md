@@ -317,9 +317,9 @@
 
 > **新增：** G1 通知中心是 `/realtime/notifications/{user_id}` 的主要消費頁（21_global_notifications.md）。
 
-### 7.1 AsyncAPI operationId 反向索引（Week 3 新增）
+### 7.1 AsyncAPI operationId 反向索引
 
-每個 WebSocket 頻道對應 `specs/asyncapi.yaml` 中的 `operationId`：
+<!-- BEGIN AUTO:asyncapi-ops -->
 
 | 頻道 | AsyncAPI operationId | 觸發事件（event_type） |
 |:-----|:---------------------|:-----------------------|
@@ -333,6 +333,23 @@
 | `/realtime/inventory/low-stock` | `subscribeLowStockAlerts` | `inventory.low_stock.alert` |
 | `/realtime/diagnostics/{conv_id}` (SSE) | `subscribeDiagnosticStream` | `diagnostic.reasoning.step` |
 | `/realtime/notifications/{user_id}` | `subscribeUserNotifications` | `user.notification` |
+
+**訂閱頁面（自動從 [PAGE META] asyncapi_ops 推導）：**
+
+| operationId | 訂閱頁面 |
+|:------------|:---------|
+| `subscribeDiagnosticStream` | 15 (A23, A24, A32, A33) |
+| `subscribeDispatchQueue` | 17 (A28, A29, A30, A31), 20 (A37) |
+| `subscribeDisputeEvents` | 10 (A17, A18, A19, A20, A21, A22) |
+| `subscribeLowStockAlerts` | 10 (A17, A18, A19, A20, A21, A22) |
+| `subscribeRbacUpdates` | 10 (A17, A18, A19, A20, A21, A22) |
+| `subscribeRefundEvents` | 10 (A17, A18, A19, A20, A21, A22) |
+| `subscribeSlaAlerts` | 02 (A1), 17 (A28, A29, A30, A31) |
+| `subscribeTechnicianPool` | 11 (T1) |
+| `subscribeUserNotifications` | 21 (G1) |
+| `subscribeWorkOrderUpdates` | 06 (A11), 07 (A12), 11 (T1), 12 (T2, T3), 19 (T5-T10), 20 (A37), 22 (T11) |
+
+<!-- END AUTO:asyncapi-ops -->
 
 **交付語義：** 全部 at-least-once + event_id 冪等（見 asyncapi.yaml Delivery/Ordering/Replay 規範）。
 
@@ -413,28 +430,40 @@
 | `reschedule` | `/api/v1/work-orders/{id}/reschedule`, `/technicians/me/availability` | **22, 19 T1.4** |
 | `webhook (inbound)` | `/webhook`, `/webhook/payments/*`, `/webhook/invoice` | 後端內部（見 `specs/webhook-spec.md`） |
 
-### 8.1 OpenAPI operationId 反向索引（Week 3 新增）
+### 8.1 OpenAPI operationId 反向索引
 
-前端頁面 → 具體 operationId 對應（抽樣；完整清單見 `specs/openapi.yaml`）：
+<!-- BEGIN AUTO:openapi-ops -->
 
-| 前端頁面 | 主要 operationId 群 |
-|:---|:---|
-| A0 `/login` | `loginAdmin` |
-| A2/A3 對話 | `listConversations`, `getConversation` |
-| A4 問題卡 | `listProblemCards` |
-| A11 工單列表 | `listWorkOrders` |
-| A12 工單詳情 | `getWorkOrder`, `getWorkOrderCandidates`（sidebar） |
-| A17 退款 | `submitRefundDecision` |
-| A28 派工佇列 | `getDispatchQueue` |
-| **A37 派工人工介入** | **`listDispatchCandidates`, `assignWorkOrder`, `escalateWorkOrder`** |
-| **G1 通知中心** | **`listNotifications`, `updateNotification`, `bulkUpdateNotifications`, `markAllNotificationsRead`** |
-| T0 技師登入 | `loginTechnician` |
-| T1 案件池 | `listWorkOrderPool` |
-| T3 工單詳情 | `getWorkOrder`, `completeWorkOrder` |
-| T9 雙簽 | `submitWorkOrderSignature` |
-| **T11 改期日曆** | **`getTechnicianAvailability`, `proposeReschedule`** |
+> 自動從各 page spec [PAGE META] openapi_ops 推導。手動編輯無效，執行 `scripts/generate-mapping-api-index.sh` 重新產出。
 
-**契約治理：** 每當 openapi.yaml 新增端點，此表需同步更新；CI 檢查孤兒 operationId（未被任何 page spec 引用的警告）。
+| Pipeline | IA 頁面 | openapi_ops |
+|:---------|:--------|:------------|
+| 02 | A1 | `listWorkOrders` |
+| 03 | A2, A3 | `listConversations`, `getConversation` |
+| 04 | A4, A5 | `listProblemCards` |
+| 05 | A6-A10 | none |
+| 06 | A11 | `listWorkOrders`, `assignWorkOrder`, `listDispatchCandidates` |
+| 07 | A12 | `getWorkOrder`, `assignWorkOrder`, `listDispatchCandidates` |
+| 08 | A13, A14 | none |
+| 09 | A15 | none |
+| 10 | A17-A22 | `submitRefundDecision` |
+| 11 | T1 | `listWorkOrderPool`, `acceptWorkOrder` |
+| 12 | T2, T3 | `listWorkOrders`, `getWorkOrder`, `completeWorkOrder`, `submitWorkOrderSignature` |
+| 13 | T4 | `getTechnicianAvailability` |
+| 14 | A0, T0, A16 | `loginAdmin`, `loginTechnician` |
+| 15 | A23, A24, A32, A33 | `getConversation`, `listProblemCards` |
+| 16 | A25-A27 | `getTechnicianAvailability` |
+| 17 | A28-A31 | `getDispatchQueue`, `listDispatchCandidates`, `assignWorkOrder` |
+| 18 | A34-A36 | none |
+| 19 | T5-T10 | `getWorkOrder`, `submitWorkOrderSignature`, `getTechnicianAvailability`, `proposeReschedule` |
+| 20 | A37 | `listDispatchCandidates`, `assignWorkOrder`, `escalateWorkOrder`, `getWorkOrder` |
+| 21 | G1 | `listNotifications`, `updateNotification`, `bulkUpdateNotifications`, `markAllNotificationsRead` |
+| 22 | T11 | `proposeReschedule`, `getTechnicianAvailability` |
+| 23 | G2 | none |
+
+<!-- END AUTO:openapi-ops -->
+
+**契約治理：** [PAGE META] 宣告的 operationId 由 CI 驗證（`check-operationid-orphans.sh` Check 3/4），此表自動同步。
 
 ---
 

@@ -10,6 +10,9 @@
 - **page_name**: 技師管理 Technician Management
 - **route_path**: `/technicians`（列表）、`/technicians/[id]`（詳情）
 - **page_type**: list + detail
+- **ia_pages**: A13, A14
+- **openapi_ops**: none
+- **asyncapi_ops**: none
 - **primary_goal**: 管理所有技師資料、技能認證、排班與績效，確保派工引擎有正確的技師資訊
 - **secondary_goal**: 即時掌握技師可用狀態，支援手動調度與佣金結算
 - **target_users**:
