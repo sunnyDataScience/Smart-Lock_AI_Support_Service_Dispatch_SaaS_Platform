@@ -122,6 +122,15 @@ async def check_and_save(
     return _reply
 
 
+def _strip_prefix(content: str) -> str:
+    """移除注入的 [可用技能] / [用戶資料] 前綴，只保留 [用戶訊息] 之後的實際內容。"""
+    marker = "[用戶訊息]\n"
+    idx = content.find(marker)
+    if idx != -1:
+        return content[idx + len(marker):]
+    return content
+
+
 async def _extract_conversation(agent, user_id: str) -> str:
     """從 checkpoint 擷取對話歷史，格式化為純文字。"""
     if not agent:
@@ -141,7 +150,7 @@ async def _extract_conversation(agent, user_id: str) -> str:
             role = getattr(msg, "type", "")
             if role == "human":
                 content = msg.content if isinstance(msg.content, str) else "[多模態]"
-                lines.append(f"用戶: {content}")
+                lines.append(f"用戶: {_strip_prefix(content)}")
             elif role == "ai" and msg.content:
                 content = msg.content if isinstance(msg.content, str) else str(msg.content)
                 lines.append(f"客服: {content}")
