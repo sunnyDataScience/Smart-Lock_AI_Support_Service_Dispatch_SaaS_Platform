@@ -12,7 +12,7 @@
 - API 設計規範：[`E5--api-design-specification`](E5--api-design-specification.md)
 - 前端信息架構：[`E5x--frontend-information-arch`](E5x--frontend-information-arch.md)
 - 工單互動流程：[`E5x--work-order-interaction-flows`](E5x--work-order-interaction-flows.md)
-- 派工營運補充：[`E5x--dispatch-operations-supplement`](E5x--dispatch-operations-supplement.md)
+- 派工營運規格：[`E5x--dispatch-operations`](E5x--dispatch-operations.md)
 - 多租戶架構：[`platform-multi-tenant/multi-tenant-architecture`](platform-multi-tenant/multi-tenant-architecture.md)
 - 派工整合規格：[`platform-multi-tenant/dispatch-integration-spec`](platform-multi-tenant/dispatch-integration-spec.md)
 - Agent Harness 架構：[`agent-harness/harness-architecture`](agent-harness/harness-architecture.md)
@@ -2589,7 +2589,7 @@ const securityHeaders = [
 |:-----|:-------|:-----|:-----------------|
 | 2026-02-25 | 前端架構師 | v1.0 | 初稿完成，涵蓋 V1.0 Admin Panel + V2.0 Technician App 完整架構規範 |
 | 2026-04-04 | 前端架構師 | v1.1 | 新增 V2.0 API 模組參照：退款審批、RBAC 管理、庫存儀表板、派工監控 |
-| 2026-04-23 | 前端架構師 | v1.2 | **對齊系統架構全面擴充：** <br/>• 新增 §1.4 多租戶架構與前端隔離三層模型（V3.0）<br/>• 重寫 §2.4 即時更新策略：10 個 WebSocket 頻道 + Polling 降級<br/>• §3.3 組件庫：新增 17 個業務元件（簽章/權限矩陣/診斷追溯/租戶切換等）與 9 個基礎 UI 元件（Timeline/Kanban/Map/Stepper/DiffViewer 等）<br/>• 重寫 §8.1：API 統一在 `/api/v1/*`、強制 `X-Tenant-ID` + `Idempotency-Key`；前端頁面到後端端點映射表擴至 23 條<br/>• 重寫 §8.3 動態 RBAC：權限碼扁平化、WebSocket 即時生效、6 種預設角色 + 自訂角色<br/>• 新增 §8.4 WebSocket 工程規範（訂閱生命週期、鑑權、事件格式）<br/>• 新增 §8.5 電子簽章與雙簽流程（法律等級、門檻判斷、稽核）<br/>• 新增 §8.6 AI Agent Harness 整合層（診斷追溯契約、覆寫 UX）<br/>• 新增 §8.7 離線佇列與 Service Worker（技師外勤）<br/>• 新增 6 個 ADR（ADR-FE-006 ~ 011）<br/>• 對齊 `E5--api-design-specification`、`E5x--work-order-interaction-flows` 10 個流程、`E5x--dispatch-operations-supplement`、13 項 `specs/`、`platform-multi-tenant/*`、`agent-harness/*` |
+| 2026-04-23 | 前端架構師 | v1.2 | **對齊系統架構全面擴充：** <br/>• 新增 §1.4 多租戶架構與前端隔離三層模型（V3.0）<br/>• 重寫 §2.4 即時更新策略：10 個 WebSocket 頻道 + Polling 降級<br/>• §3.3 組件庫：新增 17 個業務元件（簽章/權限矩陣/診斷追溯/租戶切換等）與 9 個基礎 UI 元件（Timeline/Kanban/Map/Stepper/DiffViewer 等）<br/>• 重寫 §8.1：API 統一在 `/api/v1/*`、強制 `X-Tenant-ID` + `Idempotency-Key`；前端頁面到後端端點映射表擴至 23 條<br/>• 重寫 §8.3 動態 RBAC：權限碼扁平化、WebSocket 即時生效、6 種預設角色 + 自訂角色<br/>• 新增 §8.4 WebSocket 工程規範（訂閱生命週期、鑑權、事件格式）<br/>• 新增 §8.5 電子簽章與雙簽流程（法律等級、門檻判斷、稽核）<br/>• 新增 §8.6 AI Agent Harness 整合層（診斷追溯契約、覆寫 UX）<br/>• 新增 §8.7 離線佇列與 Service Worker（技師外勤）<br/>• 新增 6 個 ADR（ADR-FE-006 ~ 011）<br/>• 對齊 `E5--api-design-specification`、`E5x--work-order-interaction-flows` 10 個流程、`E5x--dispatch-operations`、13 項 `specs/`、`platform-multi-tenant/*`、`agent-harness/*` |
 
 ---
 

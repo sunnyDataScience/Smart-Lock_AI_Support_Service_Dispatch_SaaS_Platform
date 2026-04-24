@@ -17,7 +17,7 @@
 > **與其他 Flow 文件的關係**：
 > - `work-order-interaction-flows.md`：工單生命週期（技師為中心）
 > - **本檔**：後台治理（管理員為中心）
-> - `flows-multi-tenant.md`：V3.0 多租戶（待建）
+> - `platform-multi-tenant/E5x--flows-multi-tenant.md`：V3.0 多租戶（待建）
 
 ---
 
@@ -35,6 +35,9 @@
 ## 1. 共通定義
 
 ### 1.1 角色（本檔登場）
+
+> **權威角色清單：** 全系統角色定義與權限矩陣見 `specs/rbac-dynamic-spec.md §2`。
+> 本節僅列出治理流程涉及的 7 個角色。
 
 | 角色 | 說明 | 關鍵權限 |
 |:---|:---|:---|
@@ -541,7 +544,7 @@ sequenceDiagram
 - **R1**：爭議建立時工單狀態必須為 `completed` 或 `confirmed`，否則 422
 - **R2**：同一工單同時只能有一個 `active` 爭議（重複提出 → 409 `CONFLICT`）
 - **R3**：爭議期間該工單的支付凍結（不論 pending 還是已付），結案後才釋放
-- **R4**：技師 12 個月內累計被裁決失敗 3 次 → 觸發熔斷（對齊 `work-order-flows-supplement.md §22`）
+- **R4**：技師 12 個月內累計被裁決失敗 3 次 → 觸發熔斷（對齊 `E5x--work-order-interaction-flows.md §22`）
 - **R5**：裁決書必填：事實認定、法規/規則引用、賠償金額、責任歸屬比例
 - **R6**：爭議 PDF 歸檔 3 年（金流類保留 7 年與此不同，以長者為準）
 - **R7**：保固爭議（Flow 7）與本流程分離：保固爭議是「責任判定 + 修復」、本流程是「金額賠償裁決」
@@ -594,10 +597,10 @@ G4 爭議裁決 ──→ LINE Push（客戶）
             ──→ 若需退款 ──→ Flow 6 退款審批流
 ```
 
-### 6.3 與 multi-tenant 的關係（待 `flows-multi-tenant.md` 建立後對齊）
+### 6.3 與 multi-tenant 的關係（待 `platform-multi-tenant/E5x--flows-multi-tenant.md` 建立後對齊）
 
-- `super_admin` 跨租戶稽核查詢 → 指向 `flows-multi-tenant.md` G_MT_3 超管查詢
-- 租戶設定變更（角色預設、閾值）→ 指向 `flows-multi-tenant.md` G_MT_1 租戶設定
+- `super_admin` 跨租戶稽核查詢 → 指向 `platform-multi-tenant/E5x--flows-multi-tenant.md` G_MT_3 超管查詢
+- 租戶設定變更（角色預設、閾值）→ 指向 `platform-multi-tenant/E5x--flows-multi-tenant.md` G_MT_1 租戶設定
 
 ---
 
@@ -613,7 +616,7 @@ G4 爭議裁決 ──→ LINE Push（客戶）
 - [ ] §3.6 PII 遮蔽規則細節（特別是超管層級的開放度）
 - [ ] §4.6 R2 金額門檻（5 萬 / 20 萬）是否與 Flow 6 退款門檻一致？
 - [ ] §5.6 R9 爭議雙簽門檻（5000）是否與 Flow 6 退款雙簽門檻（§9.1 可能的 10000/100000）統一？
-- [ ] §5.6 R4 技師熔斷閾值（12 個月 3 次）是否為新規則？還是已在 `work-order-flows-supplement.md §22` 有等價規則？
+- [ ] §5.6 R4 技師熔斷閾值（12 個月 3 次）是否為新規則？還是已在 `E5x--work-order-interaction-flows.md §22` 有等價規則？
 - [ ] §5.6 R7 保固爭議 vs 金額爭議的分界是否清楚？
 - [ ] §5.7 新錯誤碼 `DISPUTE_EXTERNAL_PENDING` 的命名
 - [ ] §6.1 議題分界是否準確？

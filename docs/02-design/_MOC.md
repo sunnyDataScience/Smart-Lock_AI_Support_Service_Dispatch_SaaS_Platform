@@ -14,8 +14,8 @@
 | TR4 | [[E5x--frontend-architecture]] | Frontend architecture, dev standards, component system | Draft | ext-E5 |
 | TR4 | [[E5x--frontend-information-arch]] | Information architecture for Admin Panel + Technician App | Active | ext-E5 |
 | TR4 | [[E5x--work-order-interaction-flows]] | Complete work order and dispatch lifecycle (10 flows) | Design Complete | ext-E5 |
-| TR4 | [[E5x--work-order-flows-supplement]] | Extended work order flow scenarios | Design Complete | ext-E5 |
-| TR4 | [[E5x--dispatch-operations-supplement]] | 派工營運補充：排班、媒合演算法、薪酬分潤、拒單重派、客戶設備主檔、技能體系、報表 | Design | ext-E5 |
+| TR4 | [[E5x--dispatch-operations]] | 派工營運規格：排班、媒合演算法、薪酬分潤、拒單重派、客戶設備主檔、技能體系、報表 | Design | ext-E5 |
+| TR4 | [[E5x--flows-admin-governance]] | 後台治理流程：RBAC 角色生命週期、稽核日誌、庫存告警、爭議仲裁 | Draft | ext-E5 |
 | TR5 | [[E6--development-workflow-cookbook]] | End-to-end development methodology, phases, documentation requirements | Active | **E6** |
 | TR5 | [[E6x--project-structure-guide]] | Directory structure conventions for Agent, graph, harness, core systems | Active | ext-E6 |
 | TR5 | [[E6x--file-dependencies]] | Inter-file dependency map | Active | ext-E6 |
@@ -30,7 +30,7 @@
 
 - [[specs/_MOC]] -- 13 technical specifications (audit log, B2B API, RBAC, real-time messaging...)
 - [[agent-harness/_MOC]] -- 12 AI agent harness framework documents (architecture, migration, diagnostics...)
-- [[platform-multi-tenant/_MOC]] -- Multi-tenant SaaS platform architecture (IBM/Microsoft enterprise design) + dispatch integration spec
+- [[platform-multi-tenant/_MOC]] -- Multi-tenant SaaS platform architecture (IBM/Microsoft enterprise design) + dispatch integration spec + multi-tenant governance flows
 
 ---
 

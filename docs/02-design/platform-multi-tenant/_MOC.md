@@ -14,6 +14,7 @@
 | [[dispatch-integration-spec]] | 工單系統與現有 AI 客服的訊號串接規格：三個接觸點、DB schema、事件流 | Design |
 | [[external-factors-checklist]] | 外部因素分析：LINE 限制、計費、法規、Noisy Neighbor、品牌衝突、技師歸屬、災難復原 | Design |
 | [[business-model-strategy]] | 商業模式策略：SaaS vs 賣斷 vs Hybrid、市場案例（ServiceTitan/Zendesk/91APP）、階段性建議、定價模型 | Strategy |
+| [[E5x--flows-multi-tenant]] | 多租戶 SaaS 治理流程（MT1-MT5）：租戶上線、品牌客製、跨租戶查詢、B2B API、租戶退場 | Draft |
 
 ---
 
