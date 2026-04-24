@@ -32,12 +32,9 @@ ENV_VARS="VERTEX_PROJECT_ID=${PROJECT_ID},VERTEX_LOCATION=us-central1"
 # ── Secrets（Secret Manager → 環境變數）──
 SECRETS="LINE_CHANNEL_SECRET=LINE_CHANNEL_SECRET:latest"
 SECRETS="${SECRETS},LINE_CHANNEL_ACCESS_TOKEN=LINE_CHANNEL_ACCESS_TOKEN:latest"
+SECRETS="${SECRETS},POSTGRES_URI=POSTGRES_URI:latest"
 SECRETS="${SECRETS},OPIK_API_KEY=OPIK_API_KEY:latest"
 SECRETS="${SECRETS},OPIK_WORKSPACE=OPIK_WORKSPACE:latest"
-
-# ── POSTGRES_URI（含 Cloud SQL Unix socket）──
-# DB_PASSWORD 從 Secret Manager 取得，部署時組合成完整 URI
-POSTGRES_URI="postgresql://lock-ai:\${DB_PASSWORD}@/lock-ai-db?host=/cloudsql/${CLOUDSQL_INSTANCE}"
 
 # ── 切到 agent 目錄（Dockerfile 所在位置）──
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -76,10 +73,6 @@ if $DEPLOY; then
     echo " Deploying to Cloud Run: ${SERVICE_NAME}"
     echo "=========================================="
 
-    # 先取得 DB_PASSWORD
-    DB_PASSWORD=$(gcloud secrets versions access latest --secret=DB_PASSWORD --project="${PROJECT_ID}")
-    FULL_POSTGRES_URI="postgresql://lock-ai:${DB_PASSWORD}@/lock-ai-db?host=/cloudsql/${CLOUDSQL_INSTANCE}"
-
     gcloud run deploy "${SERVICE_NAME}" \
         --image="${IMAGE}" \
         --region="${REGION}" \
@@ -93,7 +86,7 @@ if $DEPLOY; then
         --max-instances="${MAX_INSTANCES}" \
         --timeout="${TIMEOUT}" \
         --add-cloudsql-instances="${CLOUDSQL_INSTANCE}" \
-        --set-env-vars="${ENV_VARS},POSTGRES_URI=${FULL_POSTGRES_URI}" \
+        --set-env-vars="${ENV_VARS}" \
         --set-secrets="${SECRETS}"
 
     echo ""

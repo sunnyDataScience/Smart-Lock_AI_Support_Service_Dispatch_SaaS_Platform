@@ -137,6 +137,18 @@ python scripts/view_corrections.py --clear
   ──────────────────────────────────
 ```
 
+### 查詢 Cloud SQL 資料
+
+本機 `view_corrections.py` 預設讀 `.env` 的 `POSTGRES_URI`（本機 DB）。若要查 Cloud Run 上的資料，需透過 Cloud SQL Proxy：
+
+```bash
+# Terminal 1: 啟動 Cloud SQL Proxy
+cloud-sql-proxy cedar-scope-489604-g3:asia-east1:lock-ai --port 5433
+
+# Terminal 2: 查詢（.env 的 POSTGRES_URI 需指向 localhost:5433）
+python scripts/view_corrections.py
+```
+
 ### 手動更新狀態
 
 處理完畢後，可透過 SQL 將狀態改為 `resolved`：
