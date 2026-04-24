@@ -43,7 +43,13 @@ python data/pipeline/silver_to_skill/approve_drafts.py --confirm
 cd agent && python scripts/view_context.py <user_id>   # Inspect checkpoint state
 cd agent && python scripts/view_facts.py <user_id>     # Inspect user facts (brand, model, phone, address)
 cd agent && python scripts/view_logs.py                 # Query audit logs
+cd agent && python scripts/view_corrections.py          # View #資料修正 records (--all / --export / --clear)
 cd agent && python scripts/clean_data.py                # DB cleanup
+
+# API contract tooling (run from project root)
+./scripts/generate-api-types.sh            # Generate TypeScript types from OpenAPI
+./scripts/mock-server.sh                   # Start Prism mock server on port 4010
+./scripts/check-operationid-orphans.sh     # Validate spec ↔ docs bidirectionality
 
 # Deployment (Cloud Run)
 chmod +x agent/scripts/deploy.sh
@@ -67,10 +73,12 @@ No automated unit test suite exists. Testing is via `quality_check` (LLM-as-Judg
 
 ## Architecture
 
-### Two Major Modules
+### Major Modules
 
 1. **`agent/`** — Skill-based ReAct Agent (LINE Bot AI customer service)
 2. **`data/`** — Medallion ETL Pipeline producing SKILL.md knowledge files
+3. **`docs/02-design/specs/`** — API Contract SSOT (OpenAPI + AsyncAPI + CI validation)
+4. **`web_design_spec_prompt_pipeline/`** — AI-assisted web design prompt pipeline
 
 ### Request Processing Flow
 
@@ -215,7 +223,42 @@ All config centralized in `agent/config.toml`. Key sections: `[system]` (domain,
 
 - **Dockerfile** at `agent/Dockerfile` — Python 3.11-slim, uvicorn on port 8080
 - **Cloud Run** deployment via `agent/scripts/deploy.sh` — builds amd64 image, pushes to Artifact Registry, deploys with Secret Manager integration and Cloud SQL Unix socket
-- Secrets managed via GCP Secret Manager: `LINE_CHANNEL_SECRET`, `LINE_CHANNEL_ACCESS_TOKEN`, `DB_PASSWORD`, `OPIK_API_KEY`, `OPIK_WORKSPACE`
+- Secrets managed via GCP Secret Manager: `LINE_CHANNEL_SECRET`, `LINE_CHANNEL_ACCESS_TOKEN`, `POSTGRES_URI`, `OPIK_API_KEY`, `OPIK_WORKSPACE`
+
+### API Contract System (`docs/02-design/specs/`)
+
+Machine-readable API contracts as single source of truth for frontend development:
+
+- `openapi.yaml` — REST API 3.1 specification
+- `asyncapi.yaml` — WebSocket/SSE/Webhook/Domain Events spec
+- `generated/api.generated.ts` — Auto-generated TypeScript types
+
+```bash
+# Lint specs
+npx @stoplight/spectral-cli lint docs/02-design/specs/openapi.yaml
+
+# Generate TypeScript types
+./scripts/generate-api-types.sh
+
+# Start mock server (Prism on port 4010)
+./scripts/mock-server.sh
+
+# Validate operationId bidirectionality (specs ↔ docs)
+./scripts/check-operationid-orphans.sh
+```
+
+CI workflows (`.github/workflows/`): `spec-lint.yml`, `api-types-sync.yml`, `orphan-check.yml`, `mock-smoke.yml` — all gate on spec file changes.
+
+### Web Design Spec Pipeline (`web_design_spec_prompt_pipeline/`)
+
+AI-assisted web development prompt pipeline — converts requirements into structured AI-executable prompts:
+
+- `guides/` — Implementation strategies and QA checklists
+- `global/` — Design tokens and brand system templates
+- `pages/` — 23 page specs with `MAPPING.md` cross-reference index
+- `modules/` — 8 reusable UI module types
+- `assembly/` — Pipeline orchestrator for prompt composition
+- `design-system-specs/` — Industrial design system (foundations, components, patterns) with Penpot assets
 
 ## Documentation
 
