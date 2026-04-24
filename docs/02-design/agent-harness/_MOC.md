@@ -1,5 +1,13 @@
 # Agent Harness -- AI Agent Framework
 
+> **重要說明**
+> 本目錄下的文件分為兩類：
+> - **V1.0 現行架構**：`gap-analysis.md`、`optimization-strategy.md`、`migration-roadmap.md`、`wbs-harness-development.md`（含現況追蹤）
+> - **V2.0 設計藍圖**（尚未實作）：`harness-architecture.md`、`graph-flow-redesign.md`、`poc-spec.md`、`diagnostic-*`、`problem-card-spec.md`、`config-evolution.md`、`knowledge-asset-review-checklist.md`
+>
+> V1.0 實際架構：FastAPI + LangGraph ReAct Agent（3 tools）+ Harness Pipeline（H1-H12）
+> 最後審查日期：2026-04-21
+
 The Agent Harness is the complete operating environment for model-as-agent operations. This sub-zone documents the 8-layer harness framework (L0-L7), its migration from the current implementation, and diagnostic intelligence architecture.
 
 ---

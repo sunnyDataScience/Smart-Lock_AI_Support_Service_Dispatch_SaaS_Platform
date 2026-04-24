@@ -13,14 +13,18 @@ import time
 import asyncio
 import json
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage, ToolMessage
 
 import core.line_bot as line_bot
 import harness.memory_manager as memory_manager
-from harness.line_ui_factory import build_line_messages
-from skills.tools import set_current_user_id
+from harness.line_ui_factory import (
+    build_line_messages, match_brand, match_model, get_brand_models, is_quick_reply_enabled,
+)
+from skills.tools import set_current_user_id, set_current_brand, get_current_brand, get_current_model
+from agent import get_system_prompt
 import harness.profile_updater as profile_updater
 import harness.safety_gate as safety_gate
+import harness.output_validator as output_validator
 
 # 模組層級狀態（由 init() 初始化）
 _agent = None
@@ -28,12 +32,17 @@ _config: dict = {}
 _templates: dict = {}
 _profile_mgr = None
 _audit_storage = None
+_opik_tracer = None
 
 # 訊息緩衝池：用來記錄每個使用者的狀態
 user_buffers = {}
 
+# Quick Reply 流程暫存：{user_id: {"content": ..., "buffer_items": ..., "ts": float}}
+_pending_messages: dict[str, dict] = {}
+_PENDING_TTL = 300  # 秒，Quick Reply 暫存過期時間
 
-def init(agent, config: dict, templates: dict, profile_mgr=None, audit_storage=None):
+
+def init(agent, config: dict, templates: dict, profile_mgr=None, audit_storage=None, opik_tracer=None):
     """注入依賴，由 app.py startup 呼叫。
 
     Args:
@@ -42,13 +51,15 @@ def init(agent, config: dict, templates: dict, profile_mgr=None, audit_storage=N
         templates: 回覆模板 config dict
         profile_mgr: ProfileManager instance (optional)
         audit_storage: AuditStorage instance (optional)
+        opik_tracer: OpikTracer instance for LLM observability (optional)
     """
-    global _agent, _config, _templates, _profile_mgr, _audit_storage
+    global _agent, _config, _templates, _profile_mgr, _audit_storage, _opik_tracer
     _agent = agent
     _config = config
     _templates = templates
     _profile_mgr = profile_mgr
     _audit_storage = audit_storage
+    _opik_tracer = opik_tracer
 
 
 def _extract_text(content) -> str:
@@ -66,6 +77,49 @@ def _extract_text(content) -> str:
     return str(content)
 
 
+async def _print_context(user_id: str, ai_response: str):
+    """印出完整對話上下文（system prompt + checkpoint messages + AI 最終回答）。"""
+    thread_id = f"line_{user_id}"
+    config = {"configurable": {"thread_id": thread_id}}
+    sys_prompt = get_system_prompt()
+
+    # 從 checkpoint 撈出完整 messages
+    messages = []
+    try:
+        state = await _agent.aget_state(config)
+        if state and state.values:
+            messages = state.values.get("messages", [])
+    except Exception as e:
+        print(f"[Debug] 無法讀取 checkpoint: {e}")
+
+    print(f"\n{'═' * 60}")
+    print(f"[對話上下文] user={user_id}, thread={thread_id}, 共 {len(messages)} 則訊息")
+    print(f"{'═' * 60}")
+    if sys_prompt:
+        print(f"  [📋 System Prompt]\n{sys_prompt}")
+        print(f"{'─' * 60}")
+    for i, msg in enumerate(messages):
+        role = getattr(msg, "type", "unknown")
+        if role == "human":
+            content = msg.content if isinstance(msg.content, str) else "[多模態內容]"
+            print(f"  [{i}] 👤 Human: {content[:100]}{'...' if isinstance(msg.content, str) and len(msg.content) > 100 else ''}")
+        elif role == "ai":
+            tool_calls = getattr(msg, "tool_calls", None)
+            if tool_calls:
+                for tc in tool_calls:
+                    print(f"  [{i}] 🤖 AI → tool_call: {tc.get('name', '?')}({json.dumps(tc.get('args', {}), ensure_ascii=False)[:100]})")
+            if msg.content:
+                text = _extract_text(msg.content)
+                print(f"  [{i}] 🤖 AI: {text[:100]}{'...' if len(text) > 100 else ''}")
+        elif role == "tool":
+            name = getattr(msg, "name", "?")
+            content = msg.content if isinstance(msg.content, str) else str(msg.content)
+            print(f"  [{i}] 🔧 Tool({name}): {content[:100]}{'...' if len(content) > 100 else ''}")
+        else:
+            print(f"  [{i}] ❓ {role}: {str(getattr(msg, 'content', ''))[:100]}")
+        print(f"{'─' * 60}")
+
+
 def _extract_text_from_items(items: list) -> str:
     """從 buffer items 中提取純文字部分（用於安全檢查、審計、日誌）。"""
     parts = []
@@ -74,7 +128,8 @@ def _extract_text_from_items(items: list) -> str:
             parts.append(item)
         elif isinstance(item, dict) and item.get("type") == "media":
             label = item.get("label", "媒體")
-            parts.append(f"[使用者傳送了{label}]")
+            file_path = item.get("file_path", "")
+            parts.append(f"[使用者傳送了{label}: {file_path}]")
     return "\n".join(parts)
 
 
@@ -98,27 +153,27 @@ def _build_message_content(items: list) -> str | list:
         if isinstance(item, str):
             blocks.append({"type": "text", "text": item})
         elif isinstance(item, dict) and item["type"] == "media":
-            file_path = item["file_path"]
             mime_type = item["mime_type"]
-            try:
-                with open(file_path, "rb") as f:
-                    media_bytes = f.read()
-                b64 = base64.b64encode(media_bytes).decode("utf-8")
-
-                # 統一用 "media" 格式，明確傳入 mime_type
-                # （image_url 格式的 data URI 會被 langchain_google_genai 丟棄 MIME type）
-                print(f"[Multimodal] 建構 media block: mime_type={mime_type}, data_len={len(b64)}")
-                blocks.append({
-                    "type": "media",
-                    "mime_type": mime_type,
-                    "data": b64,
-                })
-            except FileNotFoundError:
-                label = item.get("label", "媒體")
-                blocks.append({
-                    "type": "text",
-                    "text": f"[使用者傳送了{label}，但檔案讀取失敗]",
-                })
+            # 優先使用記憶體中的 bytes（GCS / local 皆適用）
+            media_bytes = item.get("media_bytes")
+            if not media_bytes:
+                try:
+                    with open(item["file_path"], "rb") as f:
+                        media_bytes = f.read()
+                except FileNotFoundError:
+                    label = item.get("label", "媒體")
+                    blocks.append({
+                        "type": "text",
+                        "text": f"[使用者傳送了{label}，但檔案讀取失敗]",
+                    })
+                    continue
+            b64 = base64.b64encode(media_bytes).decode("utf-8")
+            data_uri = f"data:{mime_type};base64,{b64}"
+            print(f"[Multimodal] 建構 media block: mime_type={mime_type}, data_len={len(b64)}")
+            blocks.append({
+                "type": "image_url",
+                "image_url": {"url": data_uri},
+            })
     return blocks
 
 
@@ -135,9 +190,12 @@ def _content_to_text_reference(content: list, items: list | None = None) -> str:
         if isinstance(block, dict):
             if block.get("type") == "text":
                 parts.append(block["text"])
-            elif block.get("type") == "media":
+            elif block.get("type") in ("media", "image_url"):
                 file_path = media_items[media_idx]["file_path"] if media_idx < len(media_items) else "unknown"
+                # 從 data URI 或 mime_type 判斷媒體類型
                 mime = block.get("mime_type", "")
+                if not mime and block.get("image_url", {}).get("url", "").startswith("data:"):
+                    mime = block["image_url"]["url"].split(";")[0].replace("data:", "")
                 label = "圖片" if "image" in mime else "音檔" if "audio" in mime else "影片" if "video" in mime else "媒體"
                 parts.append(f"[使用者傳送了{label}: {file_path}]")
                 media_idx += 1
@@ -200,22 +258,35 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
     try:
         thread_id = f"line_{user_id}"
 
-        # 載入用戶畫像
+        # 載入用戶畫像 + 品牌/型號
         profile_prefix = ""
-        if _profile_mgr and _profile_mgr.enabled:
-            profile_text = await _profile_mgr.load_full_profile(user_id)
-            if profile_text:
-                profile_prefix = f"[用戶資料]\n{profile_text}\n\n"
+        brand = None
+        model = None
+        if _profile_mgr:
+            # facts（品牌/型號）獨立於 profile 開關，只看 facts_enabled
+            if _profile_mgr.facts_enabled:
+                _, facts = await _profile_mgr.load_full_profile_with_facts(user_id)
+                brand = facts.get("device_brand")
+                model = facts.get("device_model")
+            # profile 文字注入看 enabled 開關
+            if _profile_mgr.enabled:
+                profile_text = await _profile_mgr.load_full_profile(user_id)
+                if profile_text:
+                    profile_prefix = f"[用戶資料]\n{profile_text}\n\n"
+
+        # 注入品牌到 tools 模組（供 load_skill 做品牌檢查）
+        set_current_brand(brand, model)
+
+        # 動態技能清單（依品牌過濾）
+        from skills.tools import build_dynamic_skills_section
+        skills_prefix = f"[可用技能]\n{build_dynamic_skills_section(brand, model)}\n\n"
 
         config = {"configurable": {"thread_id": thread_id}}
 
         # 清理 checkpoint 中殘留的多模態訊息（避免 octet-stream 污染）
         await _strip_stale_multimodal(_agent, config)
 
-        # 壓縮過長的對話歷史
-        await memory_manager.maybe_compress(_agent, thread_id)
-
-        # 注入摘要前綴
+        # 注入摘要前綴（壓縮已移到回覆後背景執行）
         summary_prefix = ""
         summary = memory_manager.get_summary(thread_id)
         if summary:
@@ -224,8 +295,8 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
 
         # 組裝訊息 content
         if is_multimodal:
-            # 多模態：將 profile + summary 插入為第一個 text block
-            prefix = ""
+            # 多模態：將 skills + profile + summary 插入為第一個 text block
+            prefix = skills_prefix
             if profile_prefix:
                 prefix += profile_prefix
             if summary_prefix:
@@ -235,9 +306,7 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
             message_content = [{"type": "text", "text": prefix}] + user_input
         else:
             # 純文字
-            message = user_input
-            if profile_prefix:
-                message = f"{profile_prefix}[用戶訊息]\n{user_input}"
+            message = f"{skills_prefix}{profile_prefix}[用戶訊息]\n{user_input}"
             if summary_prefix:
                 message = summary_prefix + message
             message_content = message
@@ -249,12 +318,18 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         print(f"[Agent] 開始思考 user_id: {user_id} 的問題...")
         print(f"[Agent] 送入內容:\n{'─' * 40}\n{display[:500]}{'...(截斷)' if len(display) > 500 else ''}\n{'─' * 40}")
 
+        # 注入 Opik 追蹤
+        run_config = config.copy()
+        if _opik_tracer:
+            run_config["callbacks"] = [_opik_tracer]
+        run_config.setdefault("metadata", {})["user_id"] = user_id
+
         t0 = time.monotonic()
         try:
             result = await asyncio.wait_for(
                 _agent.ainvoke(
                     {"messages": [{"role": "user", "content": message_content}]},
-                    config,
+                    run_config,
                 ),
                 timeout=request_timeout,
             )
@@ -269,19 +344,24 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         if is_multimodal:
             await _cleanup_multimodal_checkpoint(config, messages, buffer_items)
 
-        # H8: 審計 — 記錄工具呼叫 + 轉接真人 + LLM 互動
+        # H8: 審計 — 記錄工具呼叫 + 轉接真人 + LLM 互動（須在 tool cleanup 前，需讀原始 tool_calls）
         asyncio.create_task(_audit_agent_result(user_id, messages, latency_ms))
 
+        # 提取最終回覆
+        ai_response = _templates.get("error_no_reply", "抱歉，系統沒有產生回覆。")
         for msg in reversed(messages):
             if hasattr(msg, "type") and msg.type == "ai" and msg.content:
-                return _extract_text(msg.content)
+                ai_response = _extract_text(msg.content)
+                break
 
-        return _templates.get("error_no_reply", "抱歉，系統沒有產生回覆。")
+        # Checkpoint 清理：將 tool call 訊息替換為輕量引用，避免 SOP 內容累積稀釋上下文
+        await _cleanup_tool_checkpoint(config, messages)
+
+        return ai_response
 
     except Exception as e:
         print(f"[Agent 執行錯誤] {e}")
         return _templates.get("error_system", "不好意思，系統大腦剛剛稍微當機了一下，請稍後再試一次！")
-
 
 async def _cleanup_multimodal_checkpoint(config: dict, messages: list, buffer_items: list | None):
     """將 checkpoint 中的多模態 HumanMessage 替換為純文字引用，避免存儲 base64 資料。"""
@@ -296,6 +376,61 @@ async def _cleanup_multimodal_checkpoint(config: dict, messages: list, buffer_it
                 print(f"[Checkpoint] 已將多模態訊息替換為文字引用 (msg_id={msg.id})")
     except Exception as e:
         print(f"[Checkpoint] 清理多模態訊息失敗: {e}")
+
+
+async def _cleanup_tool_checkpoint(config: dict, messages: list):
+    """將 checkpoint 中的 tool call 訊息替換為輕量引用，避免 SOP 內容佔用上下文。
+
+    每次 run_agent() 完成後呼叫。清理對象：
+    - ToolMessage（load_skill 回傳的完整 SOP）→ [已參考技能: {name}]
+    - 僅含 tool_calls 的中間 AIMessage → [已參考技能: {name}]
+    最終回覆的 AIMessage 不受影響。
+    """
+    try:
+        replaced = 0
+        # 收集被清理的中間 AIMessage 的 tool_call_id，用於刪除對應的 ToolMessage
+        cleaned_tool_call_ids: set[str] = set()
+
+        for msg in messages:
+            # 中間 AIMessage: 僅含 tool_calls、無實質 content 的訊息
+            if (
+                hasattr(msg, "type") and msg.type == "ai"
+                and hasattr(msg, "tool_calls") and msg.tool_calls
+                and (not msg.content or not str(msg.content).strip())
+            ):
+                skill_names = [
+                    tc.get("args", {}).get("skill_name", "unknown")
+                    for tc in msg.tool_calls
+                    if tc.get("name") == "load_skill"
+                ]
+                if skill_names:
+                    # 收集此 AIMessage 所有 tool_call id
+                    for tc in msg.tool_calls:
+                        if tc.get("id"):
+                            cleaned_tool_call_ids.add(tc["id"])
+                    ref = ", ".join(f"[已參考技能: {n}]" for n in skill_names)
+                    await _agent.aupdate_state(
+                        config,
+                        {"messages": [AIMessage(content=ref, id=msg.id)]},
+                    )
+                    replaced += 1
+
+        # 刪除對應的 ToolMessage，避免 orphaned tool response
+        for msg in messages:
+            if (
+                hasattr(msg, "type") and msg.type == "tool"
+                and hasattr(msg, "tool_call_id") and msg.tool_call_id in cleaned_tool_call_ids
+            ):
+                await _agent.aupdate_state(
+                    config,
+                    {"messages": [RemoveMessage(id=msg.id)]},
+                )
+                replaced += 1
+
+        if replaced:
+            print(f"[Checkpoint] 已清理 {replaced} 則 tool call 訊息")
+    except Exception as e:
+        print(f"[Checkpoint] 清理 tool call 訊息失敗: {e}")
 
 
 async def _audit_agent_result(user_id: str, messages: list, latency_ms: float):
@@ -326,6 +461,121 @@ async def _audit_agent_result(user_id: str, messages: list, latency_ms: float):
         print(f"[Audit] 記錄 agent 結果失敗: {e}")
 
 
+async def _quick_reply_intercept(
+    user_id: str, reply_token: str, content: str | list, buffer_items: list | None = None,
+) -> bool:
+    """Quick Reply 品牌/型號收集攔截。
+
+    流程：
+      1. 用戶首次發問且品牌未知 → 暫存原始訊息，直接回覆追問品牌 + quick reply
+      2. 用戶選品牌 → 更新 fact，若有型號選項則追問型號 + quick reply
+      3. 用戶選型號（或選「其他」/ 直接輸入） → 更新 fact，放行原始訊息進 Agent
+
+    Returns:
+        True = 已攔截處理（caller 不需再跑 agent）
+        False = 未攔截（caller 照常跑 agent）
+    """
+    if not is_quick_reply_enabled() or not _profile_mgr or not _profile_mgr.facts_enabled:
+        return False
+
+    # 取得當前 facts
+    _, facts = await _profile_mgr.load_full_profile_with_facts(user_id)
+    brand = facts.get("device_brand")
+    model = facts.get("device_model")
+    set_current_brand(brand, model)
+
+    text = content if isinstance(content, str) else _extract_text_from_items(buffer_items or [])
+    text_stripped = text.strip()
+
+    # ── 狀態 A：有暫存訊息 → 用戶正在回覆品牌或型號 ──
+    if user_id in _pending_messages:
+        pending = _pending_messages[user_id]
+
+        # A1: 品牌未知 → 嘗試匹配品牌
+        if not brand:
+            matched_brand = match_brand(text_stripped)
+            if matched_brand:
+                await _profile_mgr.update_fact(user_id, "device_brand", matched_brand)
+                brand = matched_brand
+                set_current_brand(brand, model)
+                print(f"[Quick Reply] 品牌已選: {matched_brand}")
+
+                # 該品牌有型號 → 繼續追問型號
+                if get_brand_models(matched_brand):
+                    reply_text = f"收到，{matched_brand}！請問您的電子鎖是什麼型號呢？"
+                    messages = build_line_messages(reply_text, brand=brand, model=None)
+                    await line_bot.send_response(user_id, reply_token, reply_text, message_objects=messages)
+                    return True
+
+                # 無型號選項 → 放行原始訊息
+                original = _pending_messages.pop(user_id)
+                print(f"[Quick Reply] 品牌收集完畢（無型號），放行原始訊息")
+                await agent_and_reply(user_id, reply_token, original["content"], original.get("buffer_items"))
+                return True
+            # 不匹配品牌 → 可能是用戶直接打品牌名（非選單），放行讓 agent 處理
+            original = _pending_messages.pop(user_id)
+            print(f"[Quick Reply] 輸入非品牌選項，放行原始訊息")
+            # 把這次的文字併入原始訊息前面
+            orig_content = original["content"]
+            if isinstance(orig_content, str):
+                combined = f"{text_stripped}\n{orig_content}"
+            else:
+                combined = orig_content
+            await agent_and_reply(user_id, reply_token, combined, original.get("buffer_items"))
+            return True
+
+        # A2: 品牌已知、型號未知 → 嘗試匹配型號
+        if brand and not model:
+            matched_model = match_model(brand, text_stripped)
+            if matched_model:
+                await _profile_mgr.update_fact(user_id, "device_model", matched_model)
+                model = matched_model
+                set_current_brand(brand, model)
+                print(f"[Quick Reply] 型號已選: {matched_model}")
+            elif text_stripped not in ("其他型號，請直接回覆",):
+                # 用戶自行輸入型號（非選單內容）
+                await _profile_mgr.update_fact(user_id, "device_model", text_stripped)
+                model = text_stripped
+                set_current_brand(brand, model)
+                print(f"[Quick Reply] 型號已輸入: {text_stripped}")
+
+            # 放行原始訊息
+            original = _pending_messages.pop(user_id)
+            print(f"[Quick Reply] 品牌型號收集完畢，放行原始訊息")
+            await agent_and_reply(user_id, reply_token, original["content"], original.get("buffer_items"))
+            return True
+
+    # ── 狀態 B：無暫存訊息 → 首次發問，檢查是否需要啟動 quick reply 流程 ──
+    if not brand:
+        # 暫存原始訊息，回覆追問品牌
+        _pending_messages[user_id] = {
+            "content": content,
+            "buffer_items": buffer_items,
+            "ts": time.time(),
+        }
+        reply_text = "請問您的電子鎖是什麼品牌呢？"
+        messages = build_line_messages(reply_text, brand=None, model=None)
+        await line_bot.send_response(user_id, reply_token, reply_text, message_objects=messages)
+        print(f"[Quick Reply] 品牌未知，暫存訊息並追問品牌")
+        return True
+
+    # 品牌已知但型號未知且有型號選項 → 暫存訊息，追問型號
+    if not model and get_brand_models(brand):
+        _pending_messages[user_id] = {
+            "content": content,
+            "buffer_items": buffer_items,
+            "ts": time.time(),
+        }
+        reply_text = f"請問您的 {brand} 電子鎖是什麼型號呢？"
+        messages = build_line_messages(reply_text, brand=brand, model=None)
+        await line_bot.send_response(user_id, reply_token, reply_text, message_objects=messages)
+        print(f"[Quick Reply] 型號未知，暫存訊息並追問型號")
+        return True
+
+    # 品牌型號都已知（或無型號選項）→ 不攔截
+    return False
+
+
 async def agent_and_reply(user_id: str, reply_token: str, content: str | list, buffer_items: list | None = None):
     """執行 agent 並回覆使用者。
 
@@ -338,10 +588,24 @@ async def agent_and_reply(user_id: str, reply_token: str, content: str | list, b
     # 提取文字部分（用於審計和安全檢查）
     text_for_audit = content if isinstance(content, str) else _extract_text_from_items(buffer_items or [])
 
-    # H8: 記錄使用者訊息
+    # H8: 記錄使用者訊息（含媒體檔案路徑）
     if _audit_storage:
         try:
-            await _audit_storage.log_message(user_id, "user", text_for_audit)
+            media_paths = [
+                item["file_path"]
+                for item in (buffer_items or [])
+                if isinstance(item, dict) and item.get("type") == "media" and item.get("file_path")
+            ]
+            if media_paths:
+                await _audit_storage.log_event(
+                    event_type="conversation",
+                    actor_id=user_id,
+                    actor_role="user",
+                    action="conversation.message",
+                    payload={"content": text_for_audit, "media_files": media_paths},
+                )
+            else:
+                await _audit_storage.log_message(user_id, "user", text_for_audit)
         except Exception as e:
             print(f"[Audit] 記錄使用者訊息失敗: {e}")
 
@@ -359,8 +623,69 @@ async def agent_and_reply(user_id: str, reply_token: str, content: str | list, b
         await line_bot.send_response(user_id, reply_token, blocked)
         return
 
+    # H12: Quick Reply 攔截 — 品牌/型號收集完畢再進 Agent
+    intercepted = await _quick_reply_intercept(user_id, reply_token, content, buffer_items)
+    if intercepted:
+        return
+
     ai_response = await run_agent(user_id, content, buffer_items=buffer_items)
-    print(f"[Agent] 思考完畢！準備回傳...")
+    print(f"[Agent] 思考完畢！回覆內容:\n{'─' * 40}\n{ai_response[:500]}{'...(截斷)' if len(ai_response) > 500 else ''}\n{'─' * 40}")
+
+    # H7.5: 輸出品質驗證 — 檢查回覆是否符合 system prompt 規範
+    if not output_validator.should_skip(ai_response):
+        # 組裝驗證上下文：最近對話 + 用戶資料 + 前情提要
+        validator_context_parts = []
+        thread_id = f"line_{user_id}"
+        config = {"configurable": {"thread_id": thread_id}}
+        try:
+            state = await _agent.aget_state(config)
+            if state and state.values:
+                recent_msgs = state.values.get("messages", [])[-6:]
+                history_lines = []
+                for msg in recent_msgs:
+                    role = getattr(msg, "type", "")
+                    if role == "human":
+                        text = msg.content if isinstance(msg.content, str) else "[多模態]"
+                        history_lines.append(f"用戶: {text[:100]}")
+                    elif role == "ai" and msg.content:
+                        text = _extract_text(msg.content)
+                        if text:
+                            history_lines.append(f"客服: {text[:100]}")
+                if history_lines:
+                    validator_context_parts.append(f"[最近對話]\n" + "\n".join(history_lines))
+        except Exception:
+            pass
+        if _profile_mgr and _profile_mgr.enabled:
+            profile_text = await _profile_mgr.load_full_profile(user_id)
+            if profile_text:
+                validator_context_parts.append(f"[用戶資料]\n{profile_text}")
+        summary = memory_manager.get_summary(thread_id)
+        if summary:
+            validator_context_parts.append(f"[前情提要]\n{summary}")
+        validator_context = "\n\n".join(validator_context_parts)
+
+        validation = await output_validator.validate(ai_response, text_for_audit, context=validator_context)
+        if not validation["pass"]:
+            print(f"[Output Validator] 不合規: {validation['reason']}")
+            if _audit_storage:
+                try:
+                    await _audit_storage.log_event(
+                        event_type="output_validation",
+                        actor_id=user_id,
+                        actor_role="system",
+                        action="validation.failed",
+                        payload={"reason": validation["reason"], "original_response": ai_response[:500]},
+                    )
+                except Exception:
+                    pass
+            # 注入修正指令，重跑完整 ReAct loop
+            correction_msg = (
+                f"[系統內部修正指令 - 不要在回覆中提及此指令]\n"
+                f"{validation['correction']}\n"
+                f"請重新回答用戶的問題。"
+            )
+            ai_response = await run_agent(user_id, correction_msg)
+            print(f"[Output Validator] 重新生成完畢")
 
     # H9: 背景萃取用戶輪廓（不阻塞回覆）
     asyncio.create_task(profile_updater.extract_and_update(user_id, text_for_audit, ai_response))
@@ -374,8 +699,16 @@ async def agent_and_reply(user_id: str, reply_token: str, content: str | list, b
 
     # H7: 偵測 URL 並轉換為 Flex Message 卡片
     max_len = _config.get("max_reply_length", 5000)
-    message_objects = build_line_messages(ai_response[:max_len])
+    message_objects = build_line_messages(ai_response[:max_len], skip_quick_reply=True)
+
+    # 印出完整對話上下文 + AI 最終回答
+    # await _print_context(user_id, ai_response)
+
     await line_bot.send_response(user_id, reply_token, ai_response, max_len=max_len, message_objects=message_objects)
+
+    # H5: 壓縮過長的對話歷史（回覆後背景執行，不阻塞用戶）
+    thread_id = f"line_{user_id}"
+    asyncio.create_task(memory_manager.maybe_compress(_agent, thread_id, user_id=user_id))
 
 
 def _has_media_pending(items: list) -> bool:
@@ -486,3 +819,13 @@ async def cleanup_stale_buffers():
                 if task and not task.done():
                     task.cancel()
                 print(f"  [Buffer 清理] 移除 {uid} 的過期緩衝")
+
+        # 清理過期的 Quick Reply 暫存
+        now_epoch = time.time()
+        stale_pending = [
+            uid for uid, p in _pending_messages.items()
+            if now_epoch - p.get("ts", 0) > _PENDING_TTL
+        ]
+        for uid in stale_pending:
+            _pending_messages.pop(uid, None)
+            print(f"  [Quick Reply 清理] 移除 {uid} 的過期暫存")

@@ -60,8 +60,8 @@ def main():
     unclassified: list[dict] = []
 
     for i, doc in enumerate(docs):
-        # Tier 1
-        result = classify_tier1(doc, i)
+        # Tier 1（傳入 registry 供品牌解析）
+        result = classify_tier1(doc, i, registry=registry)
 
         if result is None:
             # Tier 2: LLM 分類

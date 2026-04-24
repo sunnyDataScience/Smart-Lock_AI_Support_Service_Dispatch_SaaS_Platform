@@ -1,4 +1,4 @@
-# Agent Skills 使用手冊
+# Agent 使用手冊
 
 ## 目錄
 
@@ -15,7 +15,7 @@
 ### 安裝依賴
 
 ```bash
-cd agent_skills
+cd agent
 pip install -r requirements.txt
 ```
 
@@ -40,7 +40,7 @@ cp .env.example .env
 ### CLI 互動測試（不需要 LINE Bot）
 
 ```bash
-cd agent_skills
+cd agent
 python main.py
 ```
 
@@ -52,7 +52,7 @@ python main.py
 ### LINE Webhook 伺服器
 
 ```bash
-cd agent_skills
+cd agent
 uvicorn app:app --reload --port 8000
 ```
 
@@ -63,11 +63,9 @@ uvicorn app:app --reload --port 8000
 | `/chat?q=門打不開` | GET | HTTP 快速測試 |
 | `/webhook` | POST | LINE Webhook（設定在 LINE Developers Console） |
 
-### 生產部署
+### Docker 部署
 
-```bash
-gunicorn -k uvicorn.workers.UvicornWorker -w 4 -b 0.0.0.0:8000 app:app
-```
+參考 `docs/manuals/docker_guide.md` 和 `docs/manuals/cloud_run_deploy.md`。
 
 ---
 
@@ -78,93 +76,156 @@ gunicorn -k uvicorn.workers.UvicornWorker -w 4 -b 0.0.0.0:8000 app:app
 ```
 用戶訊息
   ↓
-create_react_agent（system prompt 含 14 個技能摘要）
+debounce.run_agent()
   ↓
-LLM 判斷需要哪個技能
+載入用戶 facts → 推斷 device_brand / device_model
   ↓
-呼叫 load_skill("troubleshoot")    ← 大類別
+filter_skills(brand, model) → 動態過濾技能清單
   ↓
-SOP 指示呼叫 load_skill("ts-door-stuck")  ← 子技能
+注入 [可用技能] + [用戶資料] + [用戶訊息] 前綴
   ↓
-依完整 SOP 步驟回覆 / 追問
+create_react_agent（system prompt 指示從 [可用技能] 中選擇）
+  ↓
+LLM 呼叫 load_skill("troubleshoot") → 路由到品牌版子技能
+  ↓
+LLM 呼叫 load_skill("ts-door-stuck-dormakaba") → 依 SOP 回覆
 ```
 
-### 技能清單
+### 品牌感知目錄結構
 
-#### 大類別（6 個）
+技能按品牌→型號→功能組織，brands/models 從目錄路徑自動推斷：
 
-| 技能名稱 | 說明 |
-|----------|------|
-| `troubleshoot` | 故障排除總入口，依症狀分流到子技能 |
-| `app-guide` | APP 配對、用戶管理、遠端開鎖、臨時密碼等 |
-| `system-settings` | 音量、語言、常開模式、兒童鎖、雙重認證等 |
-| `product-knowledge` | 品牌型號、電池規範、Wi-Fi、鎖匣類型等 |
-| `store-info` | 營業時間、地址、電話、服務項目 |
-| `dispatch-guide` | 派工判斷、安裝評估、報價邏輯 |
+```
+skills/data/
+├── _common/                    # 通用技能（不分品牌，永遠顯示）
+│   ├── store-info/
+│   ├── dispatch-guide/
+│   ├── product-knowledge/
+│   ├── update-profile/
+│   ├── troubleshoot/           # 故障排除路由器
+│   ├── ts-auto-lock/
+│   └── ts-door-rebound/
+├── Dormakaba/
+│   └── _all-models/
+│       ├── ts-door-stuck-dormakaba/
+│       ├── ts-alarm-dormakaba/
+│       └── ...（7 個品牌專屬技能）
+├── Chatlock/
+│   ├── _all-models/            # Chatlock 全型號通用（9 個）
+│   └── AI-99/                  # AI-99 專屬（10 個）
+├── Philips/
+├── Kaadas/
+├── Milre/
+├── AiLock/
+├── 3E/
+└── Waferlock/
+```
 
-#### 故障排除子技能（8 個）
+**路徑推斷規則**：
+| 路徑 | 推斷結果 |
+|------|---------|
+| `_common/{skill}/` | 通用（永遠顯示） |
+| `{Brand}/_all-models/{skill}/` | 該品牌全型號 |
+| `{Brand}/{Model}/{skill}/` | 該品牌特定型號 |
 
-| 技能名稱 | 症狀 | 嚴重度 |
-|----------|------|--------|
-| `ts-door-stuck` | 門扇卡死無法開啟 | 5（最高） |
-| `ts-auto-lock` | 自動上鎖失效 | 4 |
-| `ts-alarm` | 異常警報聲響 | 3 |
-| `ts-verification` | 驗證失敗與錯誤碼 | 3 |
-| `ts-lock-tongue` | 鎖舌 / 受口片問題 | 4 |
-| `ts-door-rebound` | 門扇反弓 | 3 |
-| `ts-power-drain` | 異常耗電 | 2 |
-| `ts-dual-auth` | 雙重認證誤觸 | 2 |
+### 技能總數：63 個
+
+| 分類 | 數量 | 說明 |
+|------|------|------|
+| _common | 7 | 通用技能（store-info, dispatch-guide 等） |
+| Dormakaba | 7 | 故障排除 + 系統設定 |
+| Chatlock | 19 | 故障排除 + APP + 系統設定 |
+| 其他品牌 | 30 | Philips/Kaadas/Milre/AiLock/3E/Waferlock 各 5 |
+
+### SKILL.md 格式
+
+```yaml
+---
+name: ts-door-stuck-dormakaba
+description: "Dormakaba 門扇卡死無法開啟的故障排除SOP"
+trigger_keywords:
+  - "門打不開"
+  - "鎖卡住"
+category: troubleshoot        # troubleshoot | teaching | reference | router
+severity: 5                   # 1-5（僅 troubleshoot 類）
+---
+
+# 標題
+
+## 必須收集的資訊
+...
+## SOP 步驟
+...
+## 需派工的條件
+...
+```
+
+**Frontmatter 欄位**：
+| 欄位 | 必填 | 說明 |
+|------|------|------|
+| `name` | ✅ | 技能唯一識別名 |
+| `description` | ✅ | Agent 選技能的主要依據 |
+| `trigger_keywords` | ✅ | 觸發關鍵詞（顯示在 [可用技能] 清單） |
+| `category` | ✅ | troubleshoot / teaching / reference / router |
+| `severity` | 選填 | 1-5（僅 troubleshoot 類） |
+
+**注意**：`brands` 和 `models` 從目錄路徑自動推斷，不需寫在 frontmatter。
 
 ### 工具
 
 | 工具名稱 | 說明 |
 |----------|------|
-| `load_skill` | 載入指定技能的完整 SOP 內容 |
-| `transfer_to_human` | 轉接真人客服，回覆固定的聯絡資訊表單 |
+| `load_skill` | 載入指定技能的完整 SOP 內容（支援前綴比對） |
+| `transfer_to_human` | 轉接真人客服，自動帶入已知用戶資料 |
 
 ---
 
 ## 4. 品質檢測
 
-### 測試腳本
+### 測試案例
 
-基於 `data/docs/manuals/測試手冊.md` 的 50 道題目，分 6 大類驗證回答品質。
+67 道測試題目，分 7 大類驗證回答品質：
+
+| 類別 | 數量 | 說明 |
+|------|------|------|
+| 硬體維修 (H/E) | 21 | 故障排除場景 |
+| 報價客服 (S) | 10 | 安裝/保固/派工流程 |
+| 門市規格 (W) | 10 | 店家資訊/規格查詢 |
+| APP 設定 (Y) | 10 | APP 操作教學 |
+| 多意圖 (M) | 5 | 一次問多個問題 |
+| 圍籬測試 (G) | 5 | 領域外問題拒絕 |
+| 品牌路由 (B) | 6 | 驗證品牌過濾是否正確載入對應技能 |
 
 ### 執行方式
 
 ```bash
-cd agent_skills
+cd agent
 
 # 完整測試（Agent 回答 + LLM-as-Judge 評分）
 python -m quality.quality_check
 
-# 快速測試（Agent 回答 + 僅關鍵詞評分，省一半 API 費用）
+# 快速測試（Agent 回答 + 僅關鍵詞評分）
 python -m quality.quality_check --no-judge
 
 # 重新評分（不呼叫 Agent，用上次的回答重跑 LLM Judge）
 python -m quality.quality_check --judge-only
+
+# 只重測上次非 pass 的案例，合併結果
+python -m quality.quality_check --retry-failed
 ```
+
+### 測試特性
+
+- **品牌注入**：TestCase 可設 `device_brand` / `device_model`，自動注入 `[可用技能]` + `[用戶資料]` 前綴
+- **多輪模擬**：TestCase 可設 `auto_reply`，agent 追問後自動回覆第二輪（需 MemorySaver）
+- **LLM**：Agent 使用 `gemini-2.5-pro`，Judge 使用 `gemini-2.5-flash`
 
 ### 輸出檔案
 
 | 檔案 | 說明 |
 |------|------|
 | `quality/quality_report.json` | 原始數據（每題回答、評分、skill 呼叫紀錄） |
-| `quality/quality_report.html` | 視覺化報告，雙擊即可開啟 |
-
-### 評分機制
-
-| 層級 | 說明 |
-|------|------|
-| 關鍵詞命中 | 每題定義核心關鍵詞，統計命中數 |
-| LLM-as-Judge | Gemini 判定 pass / partial / fail |
-| Skill 追蹤 | 記錄每題載入了哪些 skill |
-
-### 報告內容
-
-- **Summary Cards** — Pass / Partial / Fail / Error 數量
-- **Category Bar Chart** — 6 大分類通過率
-- **Results Table** — 50 題明細，可按 verdict 篩選
+| `quality/quality_report.html` | 視覺化報告 |
 
 ---
 
@@ -172,10 +233,17 @@ python -m quality.quality_check --judge-only
 
 ### 步驟
 
-1. 在 `skills/data/` 下建立新目錄：
+1. 決定技能的品牌歸屬，在對應目錄下建立：
 
 ```bash
-mkdir skills/data/my-new-skill
+# 通用技能
+mkdir skills/data/_common/my-new-skill
+
+# 品牌專屬技能
+mkdir skills/data/Dormakaba/_all-models/my-new-skill
+
+# 型號專屬技能
+mkdir skills/data/Chatlock/AI-99/my-new-skill
 ```
 
 2. 建立 `SKILL.md`：
@@ -183,8 +251,12 @@ mkdir skills/data/my-new-skill
 ```markdown
 ---
 name: my-new-skill
-description: 一句話描述此技能的用途和觸發場景
-user-invocable: true
+description: "一句話描述此技能的用途和觸發場景"
+trigger_keywords:
+  - "關鍵詞1"
+  - "關鍵詞2"
+category: troubleshoot
+severity: 3
 ---
 
 # 技能標題
@@ -193,7 +265,7 @@ user-invocable: true
 
 | 欄位 | 追問話術 | 必要性 |
 |------|---------|--------|
-| 品牌 | 「請問您的電子鎖是什麼品牌？」 | 必要 |
+| 品牌 | 「請問您的電子鎖是什麼品牌？」 | ✅ 必要 |
 
 ## SOP 步驟
 
@@ -202,49 +274,23 @@ user-invocable: true
 
 ## 需派工的條件
 
-- ...
+- ❌ ...
 ```
 
-3. 重啟 agent，新技能自動載入。
+3. 重啟 agent，新技能自動載入（brands/models 從目錄路徑推斷）。
 
-### SKILL.md 格式規範
+### Body 模板（依 category）
 
-- **frontmatter**（YAML）：`name`（技能名稱）、`description`（摘要，會注入 system prompt）
-- **body**（Markdown）：完整 SOP，agent 呼叫 `load_skill` 時載入
+| category | 結構 |
+|----------|------|
+| troubleshoot | 資訊收集表 → SOP 步驟 → 派工條件 |
+| teaching | 前置條件 → 操作步驟 → 常見問題 |
+| reference | 查詢指引 → 主題區塊 |
+| router | 路由表 |
 
 ### 撰寫要點
 
 - `description` 要包含觸發關鍵詞，讓 LLM 能判斷何時該載入
-- 每個 SOP 步驟要有明確的分支判斷（成功 → 下一步、失敗 → 另一路徑）
-- 資訊不足時寫明追問話術，讓 agent 知道該問什麼
+- `trigger_keywords` 會顯示在 `[可用技能]` 清單中輔助 Agent 匹配
+- 每個 SOP 步驟要有明確的分支判斷
 - 跨技能引用用 `load_skill("skill-name")` 格式
-
----
-
-## 檔案結構
-
-```
-agent_skills/
-├── .env                    # 環境變數（不進版控）
-├── app.py                  # FastAPI LINE Webhook
-├── agent.py                # create_react_agent + system prompt
-├── main.py                 # CLI 互動測試
-├── requirements.txt        # Python 依賴
-├── quality/
-│   ├── quality_check.py    # 50 題品質檢測
-│   ├── quality_report.json # 檢測結果（自動生成）
-│   └── quality_report.html # 視覺化報告（自動生成）
-├── skills/
-│   ├── __init__.py         # SKILL.md 解析器
-│   ├── tools.py            # load_skill + transfer_to_human
-│   └── data/               # 14 個 SKILL.md
-│       ├── troubleshoot/
-│       ├── ts-door-stuck/
-│       ├── ...
-│       ├── app-guide/
-│       ├── store-info/
-│       └── dispatch-guide/
-└── docs/
-    └── manuals/
-        └── usage_guide.md  # 本文件
-```

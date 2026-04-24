@@ -6,6 +6,15 @@
 
 import os
 import asyncio
+import logging
+import warnings
+
+# 抑制 OPIK 序列化 LangChain Run 物件時的 Pydantic v2 警告
+warnings.filterwarnings(
+    "ignore",
+    message="Pydantic serializer warnings",
+    category=UserWarning,
+)
 
 from dotenv import load_dotenv
 
@@ -37,6 +46,7 @@ import harness.multimodal as multimodal
 import harness.memory_manager as memory_manager
 import harness.profile_updater as profile_updater
 import harness.safety_gate as safety_gate
+import harness.output_validator as output_validator
 
 app = FastAPI(title="Smart Lock AI Agent — Skill-Based")
 
@@ -89,12 +99,16 @@ async def startup():
         "push_fallback_prefix": _cfg.templates.get("push_fallback_prefix", ""),
     })
 
-    # 初始化記憶壓縮
-    memory_manager.init(model, {
+    # 初始化記憶壓縮（使用 Flash 模型加速摘要）
+    memory_llm = get_llm({
+        "model": _cfg.memory.get("llm_model", "vertex_ai/gemini-2.5-flash"),
+        "temperature": 0.2,
+    })
+    memory_manager.init(memory_llm, {
         **_cfg.memory,
         "domain": _cfg.system.get("domain", "電子鎖、智慧門鎖"),
         "summarize_prompt": _cfg.prompts.get("summarize_prompt", "prompts/summarize_messages.md"),
-    })
+    }, profile_mgr=profile_mgr)
 
     # 初始化審計日誌
     audit_storage = await get_storage(_cfg.storage)
@@ -102,13 +116,47 @@ async def startup():
     # 初始化安全閘門 (H6)
     safety_gate.init(_cfg.safety)
 
+    # 初始化輸出驗證器 (H7.5)
+    output_validator.init(model, _cfg.output_validator)
+
+    # 初始化 Quick Reply 快速回覆
+    from harness.line_ui_factory import init_quick_reply
+    init_quick_reply(_cfg.quick_reply)
+
+    # 初始化 OPIK tracing
+    opik_tracer = None
+    if _cfg.opik.get("enabled", False):
+        try:
+            import opik
+            api_key = _get_env(_cfg.opik.get("api_key_env", "OPIK_API_KEY"))
+            workspace = _get_env(_cfg.opik.get("workspace_env", "OPIK_WORKSPACE"))
+            project_name = _cfg.opik.get("project_name", "smart-lock-agent")
+            tags = _cfg.opik.get("tags", [])
+            opik.configure(
+                api_key=api_key,
+                workspace=workspace or None,
+                project_name=project_name,
+                force=True,
+            )
+            # 抑制 OPIK 非關鍵日誌（必須在 configure 之後，否則會被 OPIK setup 覆蓋）
+            logging.getLogger("opik").setLevel(logging.CRITICAL)
+
+            from opik.integrations.langchain import OpikTracer
+            opik_tracer = OpikTracer(
+                project_name=project_name,
+                tags=tags,
+            )
+            print(f"[*] OPIK tracing enabled (project={project_name})")
+        except Exception as e:
+            print(f"[*] OPIK init failed, tracing disabled: {e}")
+
     # 初始化 debounce (H3)
     debounce_config = {
         **_cfg.debounce,
         "request_timeout": _cfg.system.get("request_timeout", 60),
         "max_reply_length": line_cfg.get("max_reply_length", 5000),
     }
-    debounce.init(agent, debounce_config, _cfg.templates, profile_mgr=profile_mgr, audit_storage=audit_storage)
+    debounce.init(agent, debounce_config, _cfg.templates, profile_mgr=profile_mgr, audit_storage=audit_storage, opik_tracer=opik_tracer)
 
     # 初始化 multimodal (H2)
     await multimodal.init(_cfg.multimodal, access_token)

@@ -129,6 +129,7 @@ async def download_and_store_media(
         "type": "media",
         "file_path": file_path,
         "mime_type": content_type,
+        "media_bytes": media_bytes,
         "label": media_label,
     }
 

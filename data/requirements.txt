@@ -1,4 +1,4 @@
-google-genai>=1.0.0
+litellm
 python-dotenv>=1.0.0
 pandas
 yt-dlp
@@ -7,3 +7,9 @@ beautifulsoup4
 markdownify
 google-api-python-client
 pyyaml
+langchain-core>=0.3.0
+
+# 可選 LLM provider（按需安裝）
+# pip install langchain-openai      # OpenAI
+# pip install langchain-anthropic   # Anthropic
+# pip install langchain-ollama      # Ollama

@@ -1,7 +1,4 @@
-import asyncio
 import os
-import re
-from pathlib import Path
 from psycopg import AsyncConnection
 
 
@@ -19,7 +16,26 @@ async def init_facts_db(config: dict):
         return
     try:
         _facts_conn = await AsyncConnection.connect(uri)
-        print("[Facts DB] 已連線至 PostgreSQL（user_facts）")
+        await _facts_conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_facts (
+                id SERIAL PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                attr_key VARCHAR(100) NOT NULL,
+                attr_val TEXT NOT NULL,
+                is_current BOOLEAN NOT NULL DEFAULT TRUE,
+                start_date TIMESTAMP DEFAULT NOW(),
+                end_date TIMESTAMP
+            )
+        """)
+        await _facts_conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_soft_profiles (
+                user_id TEXT PRIMARY KEY,
+                content TEXT NOT NULL DEFAULT '',
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        await _facts_conn.commit()
+        print("[Facts DB] 已連線至 PostgreSQL（user_facts + user_soft_profiles）")
     except Exception as e:
         print(f"[Facts DB] 連線失敗，降級為停用: {e}")
         _facts_conn = None
@@ -36,36 +52,36 @@ async def close_facts_db():
 class ProfileManager:
     def __init__(self, config: dict):
         self.enabled = config.get("enabled", False)
-        self.base_dir = Path(config.get("profile_dir", "./data/profiles"))
-        self.base_dir.mkdir(parents=True, exist_ok=True)
         self.facts_enabled = config.get("facts_enabled", False)
         self.fact_attributes = config.get("fact_attributes", [])
 
-    def _get_profile_path(self, user_id: str) -> Path:
-        safe_name = re.sub(r'[^\w\-]', '_', user_id)
-        return self.base_dir / f"{safe_name}.md"
-
     async def load_profile(self, user_id: str) -> str:
-        if not self.enabled:
+        if not self.enabled or _facts_conn is None:
             return ""
-        path = self._get_profile_path(user_id)
-
-        def _read():
-            if path.exists():
-                return path.read_text(encoding="utf-8")
+        try:
+            cursor = await _facts_conn.execute(
+                "SELECT content FROM user_soft_profiles WHERE user_id = %s",
+                (user_id,),
+            )
+            row = await cursor.fetchone()
+            return row[0] if row else ""
+        except Exception as e:
+            print(f"[Profile DB] load_profile 失敗: {e}")
             return ""
-
-        return await asyncio.to_thread(_read)
 
     async def save_profile(self, user_id: str, content: str) -> None:
-        if not self.enabled:
+        if not self.enabled or _facts_conn is None:
             return
-        path = self._get_profile_path(user_id)
-
-        def _write():
-            path.write_text(content, encoding="utf-8")
-
-        await asyncio.to_thread(_write)
+        try:
+            await _facts_conn.execute(
+                "INSERT INTO user_soft_profiles (user_id, content, updated_at) "
+                "VALUES (%s, %s, NOW()) "
+                "ON CONFLICT (user_id) DO UPDATE SET content = EXCLUDED.content, updated_at = NOW()",
+                (user_id, content),
+            )
+            await _facts_conn.commit()
+        except Exception as e:
+            print(f"[Profile DB] save_profile 失敗: {e}")
 
     async def load_facts(self, user_id: str) -> dict:
         """Load current facts from user_facts table."""
@@ -115,9 +131,14 @@ class ProfileManager:
 
     async def load_full_profile(self, user_id: str) -> str:
         """Load facts + .md profile combined. Facts section first (higher priority)."""
+        profile_text, _ = await self.load_full_profile_with_facts(user_id)
+        return profile_text
+
+    async def load_full_profile_with_facts(self, user_id: str) -> tuple[str, dict]:
+        """Load facts + .md profile combined, also return raw facts dict."""
         facts = await self.load_facts(user_id)
         facts_text = self.format_facts(facts)
         md_text = await self.load_profile(user_id)
 
         parts = [p for p in [facts_text, md_text] if p]
-        return "\n\n".join(parts)
+        return "\n\n".join(parts), facts

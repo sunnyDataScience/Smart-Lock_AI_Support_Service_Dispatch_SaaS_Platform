@@ -15,6 +15,8 @@ from pipeline.silver_to_skill._prompts import (
     MERGE_SKILL_PROMPT,
     CREATE_SKILL_SYSTEM,
     CREATE_SKILL_PROMPT,
+    UPDATE_ROUTER_SYSTEM,
+    UPDATE_ROUTER_PROMPT,
 )
 from pipeline.silver_to_skill._schemas import SKILL_CONTENT_SCHEMA
 from pipeline.silver_to_skill._skill_registry import SkillInfo
@@ -187,5 +189,74 @@ def create_skill(
         print(f"  [警告] 新技能 {suggested_name} LLM 輸出格式異常: {error}")
         result["has_changes"] = False
         result["changes_summary"] = f"LLM 輸出驗證失敗 ({error})"
+
+    return result
+
+
+def update_router(
+    router: SkillInfo,
+    sub_skills: list[SkillInfo],
+    generate_json: Callable,
+) -> dict:
+    """根據子技能的最新內容，更新 Router 技能的路由表關鍵字。
+
+    Args:
+        router: Router 技能的 SkillInfo（如 troubleshoot、app-guide）
+        sub_skills: 該 router 下所有子技能的 SkillInfo 列表
+        generate_json: LLM 呼叫函式
+
+    Returns:
+        {skill_md, changes_summary, has_changes}
+    """
+    router_full = (
+        f"---\nname: {router.name}\n"
+        f"description: {router.description}\n"
+        f"user-invocable: true\n"
+        f"---\n\n{router.content}"
+    )
+
+    # 組裝子技能摘要（含完整內容，但截斷過長的）
+    MAX_CONTENT_PER_SKILL = 3000
+    summaries = []
+    for s in sub_skills:
+        content = s.content[:MAX_CONTENT_PER_SKILL]
+        if len(s.content) > MAX_CONTENT_PER_SKILL:
+            content += "\n... (內容已截斷)"
+        summaries.append(
+            f"### {s.name}\n"
+            f"**description:** {s.description}\n\n"
+            f"{content}"
+        )
+    sub_skills_text = "\n\n---\n\n".join(summaries)
+
+    prompt = UPDATE_ROUTER_PROMPT.format(
+        router_content=router_full,
+        sub_skills_summary=sub_skills_text,
+    )
+
+    for attempt in range(MAX_RETRIES):
+        try:
+            result = generate_json(prompt, UPDATE_ROUTER_SYSTEM, SKILL_CONTENT_SCHEMA)
+            break
+        except Exception as e:
+            if attempt < MAX_RETRIES - 1:
+                wait = RETRY_BACKOFF[attempt]
+                print(f"  [RETRY {attempt + 1}/{MAX_RETRIES}] router {router.name}: {e} (wait {wait}s)")
+                time.sleep(wait)
+            else:
+                print(f"  [FAILED] router {router.name}: {e}")
+                return {
+                    "skill_md": router_full,
+                    "has_changes": False,
+                    "changes_summary": f"LLM 呼叫失敗 ({e})，保留原始內容",
+                }
+
+    skill_md = result.get("skill_md", "")
+    valid, error = _validate_skill_md(skill_md)
+    if not valid:
+        print(f"  [警告] router {router.name} LLM 輸出格式異常: {error}")
+        result["skill_md"] = router_full
+        result["has_changes"] = False
+        result["changes_summary"] = f"LLM 輸出驗證失敗 ({error})，保留原始內容"
 
     return result

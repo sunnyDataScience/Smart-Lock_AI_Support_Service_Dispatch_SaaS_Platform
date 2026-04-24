@@ -66,7 +66,7 @@
 | **功能** | LLM 4 維度評分（完整性/準確性/安全性/可操作性）、低分重試（→ L2 重新組裝上下文） | — |
 | **設定** | `[harness.feedback] verify_enabled = false` | — |
 | **狀態** | V1.0 已停用（latency ×2） | — |
-| **agent_skills 不移植原因** | 每次回答多一次 LLM = latency ×2、cost ×2。`quality/quality_check.py` 離線 50 題測試已覆蓋品質保障 |
+| **agent_skills 替代方案** | H7.5 Output Validator（線上即時品檢）+ `quality/quality_check.py` 離線 67 題測試。H7.5 只在不合規時重跑，正常路徑無額外延遲 |
 
 ### L6 / H6 — 安全閘門
 
@@ -88,6 +88,26 @@
 | **功能** | 格式化最終回覆 | URL 偵測 → Flex Message 卡片（GDrive PDF / YouTube）+ Markdown 清理 |
 | **特色** | — | DOWNLOAD_CARD（品牌型號自動提取）、VIDEO_CARD（縮圖預覽） |
 | **設定** | — | 無開關（始終啟用） |
+
+### H7.5 — 輸出品質驗證
+
+| | `agent/` | `agent_skills/` H7.5 Output Validator |
+|--|----------|----------------------------------------|
+| **檔案** | L5 Feedback Loop（已停用） | `harness/output_validator.py` (~130 LOC) |
+| **功能** | — | 禁用語 regex 快篩 + LLM 語意檢查（多意圖覆蓋、語言風格、領域守護） |
+| **觸發** | — | 每次 agent 回覆後、LINE 回覆前 |
+| **處理** | — | 不合規 → 生成修正指令 → 重跑 ReAct loop |
+| **設定** | — | `[output_validator] enabled, max_retries, forbidden_phrases, skip_markers` |
+| **策略** | — | Fail-open：LLM 檢查失敗時原始回覆直接通過 |
+
+### H10 — Skill Checkpoint 清理
+
+| | `agent/` | `agent_skills/` H10 |
+|--|----------|----------------------|
+| **檔案** | — | `harness/debounce.py` `_cleanup_tool_checkpoint()` |
+| **功能** | — | 每輪結束後將 checkpoint 中的 tool call AIMessage + ToolMessage 替換為 `[已參考技能: xxx]` 輕量引用 |
+| **目的** | — | 避免 SOP 內容累積稀釋 system prompt 注意力 |
+| **時機** | — | `_audit_agent_result()` 之後、return 之前 |
 
 ### L7 / H8 — 可觀測性 vs 審計日誌
 
@@ -133,15 +153,19 @@ START → pre_process → manage_memory → rewrite_query
 ```
 LINE Webhook → H1 路由 → H2 多模態（可選）→ H3 防抖合併
   → H8 記錄使用者訊息 → H6 安全閘門
-  → H4 用戶畫像注入 → H5 記憶壓縮 → Agent ainvoke()
+  → H4 用戶畫像 + 品牌感知技能過濾 → H5 記憶壓縮
+  → [可用技能] + [用戶資料] 注入 → Agent ainvoke()
+  → H10 Skill Checkpoint 清理
   → H8 記錄工具呼叫/轉接/LLM 延遲
+  → H7.5 輸出品質驗證（禁用語 + LLM 語意）→ 不合規則重跑
   → H9 背景輪廓萃取 → H8 記錄 AI 回覆
   → H7 URL→Flex 卡片 → LINE 回覆
 ```
 
-- 純線性流程，無分支、無重試
+- 線性流程，H7.5 可觸發一次重試
 - debounce.py 作為 orchestrator，串接所有 harness
 - 背景非阻塞任務（H9 輪廓萃取、H8 audit）
+- 品牌感知：依用戶 device_brand 動態過濾 63 個技能
 
 ---
 

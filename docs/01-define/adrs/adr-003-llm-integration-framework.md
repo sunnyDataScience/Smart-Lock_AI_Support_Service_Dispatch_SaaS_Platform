@@ -1,5 +1,10 @@
 # ADR-003: 選擇 LangChain 作為 LLM 整合框架
 
+> **ADR 狀態更新（2026-04-21）**
+> 實際 V1.0 實作已從 LangChain chains 演進為 **LangGraph `create_react_agent`** + **LiteLLM**（多 LLM provider 抽象層）。
+> 核心差異：不使用 LangChain LCEL chains，改用 LangGraph 圖狀態機 + ReAct 迴圈。
+> LLM 供應商透過 LiteLLM 統一介面切換（目前使用 `vertex_ai/gemini-2.5-pro`）。
+
 **狀態:** 已接受 (Accepted)
 **決策者:** 技術負責人, 開發團隊
 **日期:** 2026-02-17

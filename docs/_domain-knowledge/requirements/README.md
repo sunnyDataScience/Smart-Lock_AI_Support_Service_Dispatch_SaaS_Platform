@@ -24,15 +24,15 @@
 
 | 資料夾 | 對口窗口 | 最晚交付日 | 狀態 |
 | :--- | :--- | :--- | :--- |
-| `01_domain_knowledge/` | 甲方資深技師 | Phase 1 啟動前 2 週 | 待收集 |
-| `02_knowledge_base_seed_data/` | 甲方 + PM | Phase 1 W3 | 待收集 |
-| `03_resolution_rules/` | 甲方 + PM | Phase 1 W4 | 待收集 |
-| `04_problem_diagnosis_patterns/` | 甲方資深技師 | Phase 2 W3 | 待收集 |
-| `05_technician_onboarding/` | 甲方營運 | Phase 2 W3 | 待收集 |
-| `06_line_bot_templates/` | IT / 開發團隊 | Phase 1 W4 | 待收集 |
-| `07_platform_accounts/` | IT / 開發團隊 | Phase 1 W4 | 待收集 |
-| `08_business_metrics/` | 甲方營運 | Phase 2 W3 | 待收集 |
-| `09_pricing_rules/` | 甲方 + PM | Phase 5 W19 | 待收集 |
+| `01_domain_knowledge/` | 甲方資深技師 | Phase 1 啟動前 2 週 | 部分收集（系統實作資料） |
+| `02_knowledge_base_seed_data/` | 甲方 + PM | Phase 1 W3 | 部分收集（系統實作資料） |
+| `03_resolution_rules/` | 甲方 + PM | Phase 1 W4 | 部分收集（20260411 會議決策） |
+| `04_problem_diagnosis_patterns/` | 甲方資深技師 | Phase 2 W3 | 部分收集（20260411 會議決策） |
+| `05_technician_onboarding/` | 甲方營運 | Phase 2 W3 | 部分收集（20260411 會議決策） |
+| `06_line_bot_templates/` | IT / 開發團隊 | Phase 1 W4 | 部分收集（20260411 會議決策） |
+| `07_platform_accounts/` | IT / 開發團隊 | Phase 1 W4 | 已完成（GCP + LINE OA 已部署） |
+| `08_business_metrics/` | 甲方營運 | Phase 2 W3 | 部分收集（20260411 會議決策） |
+| `09_pricing_rules/` | 甲方 + PM | Phase 5 W19 | 部分收集（20260411 會議決策） |
 
 ---
 

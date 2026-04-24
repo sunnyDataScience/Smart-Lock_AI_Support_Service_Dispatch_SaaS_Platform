@@ -1,5 +1,10 @@
 # ADR-004: LINE Bot 對話架構設計
 
+> **ADR 狀態更新（2026-04-21）**
+> V1.0 實作未使用 Redis。Session 管理改由 LangGraph AsyncPostgresSaver checkpoint 處理。
+> 對話狀態持久化於 PostgreSQL，per-user thread 隔離（`thread_id = "line_{user_id}"`）。
+> Redis 規劃保留給 V2.0 作為快取層使用。
+
 **狀態:** 已接受 (Accepted)
 **決策者:** 技術負責人, 開發團隊
 **日期:** 2026-02-17

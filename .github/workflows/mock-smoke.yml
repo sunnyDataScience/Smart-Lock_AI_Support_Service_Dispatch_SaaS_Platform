@@ -1,0 +1,59 @@
+name: Mock Server Smoke Test
+
+on:
+  push:
+    paths:
+      - 'docs/02-design/specs/openapi.yaml'
+      - 'docker-compose.mock.yml'
+      - 'scripts/mock-server.sh'
+  pull_request:
+    paths:
+      - 'docs/02-design/specs/openapi.yaml'
+      - 'docker-compose.mock.yml'
+
+jobs:
+  mock-smoke:
+    name: Prism 可啟動並正確回應
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 啟動 Prism mock
+        run: |
+          docker compose -f docker-compose.mock.yml up -d prism-openapi
+          # 等待啟動
+          for i in {1..20}; do
+            if curl -fsS "http://localhost:4010/api/v1/work-orders" \
+                -H "X-Tenant-ID: 00000000-0000-0000-0000-000000000000" \
+                -H "Authorization: Bearer ci-smoke-test" \
+                > /dev/null 2>&1; then
+              echo "✅ Prism ready on attempt $i"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "❌ Prism 啟動超時"
+          docker compose -f docker-compose.mock.yml logs prism-openapi
+          exit 1
+
+      - name: 抽樣契約端點回應
+        run: |
+          set -e
+          for path in \
+            /api/v1/work-orders \
+            /api/v1/conversations \
+            /api/v1/problem-cards \
+            /api/v1/notifications \
+            /api/v1/work-orders/pool
+          do
+            echo "== GET $path =="
+            curl -fsS "http://localhost:4010$path" \
+              -H "X-Tenant-ID: 00000000-0000-0000-0000-000000000000" \
+              -H "Authorization: Bearer ci-smoke-test" \
+              | head -c 200
+            echo ""
+          done
+
+      - name: 清理
+        if: always()
+        run: docker compose -f docker-compose.mock.yml down

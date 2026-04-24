@@ -1,0 +1,34 @@
+name: OperationId Orphan Check
+
+on:
+  push:
+    paths:
+      - 'docs/02-design/specs/openapi.yaml'
+      - 'docs/02-design/specs/asyncapi.yaml'
+      - 'docs/02-design/**/*.md'
+      - 'web_design_spec_prompt_pipeline/pages/**/*.md'
+      - 'scripts/check-operationid-orphans.sh'
+      - 'scripts/generate-mapping-api-index.sh'
+  pull_request:
+    paths:
+      - 'docs/02-design/specs/openapi.yaml'
+      - 'docs/02-design/specs/asyncapi.yaml'
+      - 'docs/02-design/**/*.md'
+      - 'web_design_spec_prompt_pipeline/pages/**/*.md'
+
+jobs:
+  orphan-check:
+    name: OperationId 雙向對應檢查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: OperationId 雙向 + [PAGE META] 宣告驗證
+        run: ./scripts/check-operationid-orphans.sh
+
+      - name: MAPPING.md §8.1 同步檢查
+        run: ./scripts/generate-mapping-api-index.sh --check
+
+      # Week 5+ 啟用（body path 也視為 error）
+      # - name: Strict 模式（CI gate）
+      #   run: ./scripts/check-operationid-orphans.sh --strict --quiet

@@ -146,6 +146,9 @@ stateDiagram-v2
 
 ## 2. 角色定義
 
+> **權威角色清單：** 全系統角色定義與權限矩陣見 `specs/rbac-dynamic-spec.md §2`。
+> 本節僅列出工單流程直接參與的 6 個業務角色。
+
 ### 2.1 角色職責矩陣
 
 | 角色 | 識別碼 | 介面 | 核心職責 | 系統權限 |
@@ -228,6 +231,13 @@ SLA 計時器觸發
 ---
 
 ## 4. Flow 1：正常路徑 (Happy Path)
+
+> **Endpoints:** `openapi#operationId=listConversations`, `getConversation`, `listProblemCards`, `listWorkOrderPool`, `acceptWorkOrder`, `getWorkOrder`, `completeWorkOrder`, `submitWorkOrderSignature`
+> **Events In:** `work_order.available`（WS `/realtime/pool/{tech_id}`）, `work_order.assigned`
+> **Events Out:** `work_order.status.changed` (pending → assigned → accepted → in_progress → completed → confirmed), `work_order.completed`
+> **Idempotency:** Required on `acceptWorkOrder`, `completeWorkOrder`, `submitWorkOrderSignature`（Step 5/11/14）
+> **Error codes:** `WORK_ORDER_CONFLICT`（接單競爭）, `WORK_ORDER_STATUS_INVALID`, `SIGNATURE_ALREADY_SIGNED`
+> **Related pages:** T1（11_tech_pool）→ T3（12_tech_my_orders）→ T9（19 簽章段）
 
 ### 4.1 觸發條件
 
@@ -380,6 +390,13 @@ sequenceDiagram
 
 ## 5. Flow 2：拒單與逾時重派
 
+> **Endpoints:** `listDispatchCandidates`, `assignWorkOrder`（強制 Idempotency + reason_code）, `escalateWorkOrder`
+> **Events Out:** `work_order.status.changed`（assigned → reassigning → assigned）、`work_order.available`（回池）
+> **Idempotency:** Required on `assignWorkOrder`（手動派工）與 `escalateWorkOrder`
+> **Error codes:** `DISPATCH_NO_TECHNICIAN_AVAILABLE`, `DISPATCH_OVERRIDE_REQUIRED`（熔斷覆寫雙簽）, `DISPATCH_REASON_MISSING`
+> **Related pages:** A11 → A28 → **A37 派工人工介入**（3 次拒單後）
+
+
 ### 5.1 觸發條件
 
 - 技師在收到工單後 15 分鐘內未回應 (逾時)
@@ -501,6 +518,13 @@ sequenceDiagram
 
 ## 6. Flow 3：範圍變更
 
+> **Endpoints（Week 4 補完）：** `createScopeChangeRequest`（`POST /work-orders/{id}/scope-change`）, `approveScopeChange`, `rejectScopeChange`
+> **Events Out:** `work_order.scope.change_requested`, `work_order.scope.change_approved|rejected`
+> **Idempotency:** Required on 新增 scope change（避免雙送報價）
+> **Error codes:** `SCOPE_CHANGE_REJECTED`, `WORK_ORDER_STATUS_INVALID`（非 `in_progress` 不能改）
+> **Related pages:** T5（19 範圍變更）→ A12 管理員審核 → 客戶 LINE Flex 確認
+
+
 ### 6.1 觸發條件
 
 - 技師到場後發現現場狀況與 ProblemCard 描述不符
@@ -608,6 +632,13 @@ sequenceDiagram
 ---
 
 ## 7. Flow 4：缺料處理
+
+> **Endpoints（Week 4 補完）：** `createMaterialRequest`（`POST /work-orders/{id}/material-request`）, `getInventoryAvailability`
+> **Events Out:** `work_order.material.requested`, `inventory.low_stock.alert`（若觸發閾值，走 G3）
+> **Idempotency:** Required on 缺料申請
+> **Error codes:** `MATERIAL_REQUEST_PENDING`, `INVENTORY_INSUFFICIENT`, `INVENTORY_PART_NOT_FOUND`
+> **Related pages:** T6（19 缺料）→ A12 / A19 庫存 → G3 補貨流程（flows-admin-governance）
+
 
 ### 7.1 觸發條件
 
@@ -719,6 +750,13 @@ sequenceDiagram
 ---
 
 ## 8. Flow 5：延遲通知與改期
+
+> **Endpoints:** `postDelayNotification`（Week 4）, `getTechnicianAvailability`, `proposeReschedule`（T11）
+> **Events Out:** `work_order.delay.notified`, `work_order.reschedule.proposed`, `work_order.reschedule.confirmed_by_customer`
+> **Idempotency:** Required on 延遲通知 + 改期提案
+> **Error codes:** `DELAY_NOTIFICATION_LIMIT_EXCEEDED`, `RESCHEDULE_LIMIT_EXCEEDED`, `RESCHEDULE_SLOT_TAKEN`, `RESCHEDULE_RSVP_EXPIRED`
+> **Related pages:** T7（19 延遲）→ **T11 改期日曆** → 客戶 LINE Flex RSVP（19 T1.4 補強）
+
 
 ### 8.1 觸發條件
 
@@ -843,6 +881,14 @@ sequenceDiagram
 ---
 
 ## 9. Flow 6：退款審批與大額雙簽
+
+> **Endpoints:** `openapi#operationId=submitRefundDecision`（Idempotency 必填）；待補：`listRefunds`, `getRefund`, `submitRefundSignature`（Week 3）
+> **Events In:** `refund.requested`（客戶發起）
+> **Events Out:** `refund.decision.made` (`/realtime/refunds`)，含 `dual_sign_pending=true`；完成後 `refund.completed`
+> **Idempotency:** Required on `submitRefundDecision`（避免重覆審核）及第二簽核（Step 7-9）
+> **Error codes:** `REFUND_DUAL_SIGN_REQUIRED`（金額 > 5000 或 100,000）, `REFUND_DECISION_LOCKED`
+> **Dual-sign thresholds:** NT$ 5,000（第二簽核 `accountant`）; NT$ 100,000（升級 `tenant_admin`）
+> **Related pages:** A17（10_admin_advanced 退款子頁）→ G4 爭議銜接
 
 ### 9.1 觸發條件
 
@@ -1000,6 +1046,14 @@ sequenceDiagram
 
 ## 10. Flow 7：保固爭議
 
+> **Endpoints（Week 4 補完）：** `createWarrantyClaim`, `verifyWarrantyPeriod`, `proposeDiscountCompromise`
+> **Events Out:** `warranty.claim.created`, `warranty.claim.resolved`, `warranty.out_of_period.declined`
+> **Idempotency:** Required on 建立索賠
+> **Error codes:** `WARRANTY_OUT_OF_PERIOD`, `DISPUTE_SLA_OVERDUE`
+> **Related pages:** A21 保固索賠 → A22 爭議（升級）→ G4 爭議仲裁（flows-admin-governance §5）
+> **Note:** 與 G4 分界 — 本 Flow 處理「保固認定 + 修復」；G4 處理「金額賠償裁決」
+
+
 ### 10.1 觸發條件
 
 - 客戶宣稱產品在保固期內故障
@@ -1131,6 +1185,13 @@ sequenceDiagram
 
 ## 11. Flow 8：品質不合格與二次派工
 
+> **Endpoints:** `createReworkOrder`（Week 4）, `listDispatchCandidates`（篩選 S 級）, `assignWorkOrder`
+> **Events Out:** `work_order.rework.required`, `work_order.status.changed`
+> **Idempotency:** Required on 建立二次工單
+> **Error codes:** `WORK_ORDER_CONFLICT`（原工單已結案）, `DISPATCH_OVERRIDE_REQUIRED`（強制 S 級可能需 override）
+> **Related pages:** A12 → **A37 派工人工介入**（S 級快篩）→ 原技師扣分（A20 稽核）
+
+
 ### 11.1 觸發條件
 
 - 客戶在完工後 7 天內反映相同故障症狀 (「修了又壞」)
@@ -1254,6 +1315,15 @@ sequenceDiagram
 ---
 
 ## 12. Flow 9：客訴處理完整生命週期
+
+> **Endpoints（Week 4 補完）：** `createComplaint`, `classifyComplaint`, `proposeResolution`, `escalateComplaint`, `acknowledgeComplaint`
+> **Events In:** LINE webhook `message.text`（含 anger_level 分析）
+> **Events Out:** `complaint.created`, `complaint.escalated`, `complaint.resolved`, `complaint.reopened`
+> **Idempotency:** Required on 升級 / resolve / acknowledge
+> **Error codes:** `COMPLAINT_ALREADY_IN_DISPUTE`, `DISPUTE_MERGE_FAILED`
+> **Related pages:** A12 客訴升級 indicator + A22 爭議（§27.2 併入規則） + G4 爭議仲裁
+> **Note:** 與 G4 銜接規則見 §27（Flow 9 補遺）
+
 
 ### 12.1 觸發條件
 
@@ -1456,6 +1526,13 @@ sequenceDiagram
 ---
 
 ## 13. Flow 10：門外觀變更確認
+
+> **Endpoints（Week 4 補完）：** `submitAppearanceNotice`（POST /work-orders/{id}/door-check）, `uploadEvidencePhotos`, `acknowledgeAppearanceNotice`
+> **Events Out:** `work_order.appearance.notice_issued`, `work_order.appearance.signed|rejected`
+> **Idempotency:** Required on 提交告知書與簽署
+> **Error codes:** `APPEARANCE_CHANGE_EVIDENCE_INCOMPLETE`（少於 4 張照片）, `APPEARANCE_CHANGE_SIGNATURE_REJECTED`（拒簽 → 費用結算 §26）
+> **Related pages:** T8（19 門面）→ T9 雙簽 → 拒簽則走 §26 費用結算
+
 
 ### 13.1 觸發條件
 
@@ -2106,6 +2183,13 @@ stateDiagram-v2
 
 ## 19. Flow 11：客戶不在場
 
+> **Endpoints:** `reportCustomerAbsent`（Week 4）, `proposeReschedule`（T11）
+> **Events Out:** `customer.absent.reported`, `work_order.reschedule.proposed`
+> **Idempotency:** Required on 回報不在場與改期
+> **Error codes:** `RESCHEDULE_RSVP_EXPIRED`, `RESCHEDULE_LIMIT_EXCEEDED`
+> **Related pages:** T3 → **T11 改期日曆** + 客戶 LINE Flex RSVP（19 T1.4 閉環）
+
+
 > **Gap ID**：OP-03 — 技師到場但客戶不在家的處理流程
 
 ### 19.1 觸發條件
@@ -2242,6 +2326,15 @@ sequenceDiagram
 ## 20. Flow 12：金流與支付
 
 > **Gap ID**：OP-01 — 原文件完全缺少付款階段，只有「帳務結清」一句帶過
+>
+> **Endpoints:** 待補（Week 3）：`createPayment`, `getPayment`, `issueInvoice`, `voidInvoice`；對應 schema `Invoice`（openapi.yaml#/components/schemas/Invoice）
+> **Webhook（inbound）:** LINE Pay / 信用卡 / 現金（技師確認）— 帶 `X-Signature` + `Idempotency-Key`；失敗指數退避 1min → 24hr
+> **Events In:** `work_order.billed`
+> **Events Out:** `payment.confirmed`, `payment.failed`, `invoice.issued`, `invoice.voided`
+> **Idempotency:** 所有金流 webhook 與 `createPayment` 強制 Idempotency-Key（24h 窗）
+> **Error codes:** `PAYMENT_FAILED`, `PAYMENT_ALREADY_PROCESSED`, `INVOICE_ISSUE_FAILED`, `INVOICE_ALLOWANCE_INVALID`
+> **Related pages:** A9（09_admin_accounting）+ 客戶 LINE 支付 Flex
+> **SSOT schema:** `Invoice`（invoice_number 遵循 `^[A-Z]{2}\d{8}$` 格式、`category=service_fee|travel_fee|parts|other`、`status=pending|issued|allowance_pending|voided|reopened`）
 
 ### 20.1 觸發條件
 
@@ -2388,6 +2481,14 @@ sequenceDiagram
 ---
 
 ## 21. Flow 13：帳款異常 EX5
+
+> **Endpoints（Week 4 補完）：** `flagBillingException`, `reopenInvoice`, `issueAllowance`, `retryPayment`
+> **Webhook（inbound）:** 金流三平台 `payment.failed` / `payment.refund.failed`
+> **Events Out:** `invoice.voided`, `invoice.allowance.issued`, `billing.exception.flagged`
+> **Idempotency:** Required on 發票重開 / 折讓 / 重試付款
+> **Error codes:** `INVOICE_VOID_WINDOW_EXPIRED`, `INVOICE_DUPLICATE_NUMBER`, `WEBHOOK_AMOUNT_MISMATCH`, `PAYMENT_ALREADY_PROCESSED`
+> **Related pages:** A9 帳務 / A20 稽核 + webhook-spec §4 發票規範
+
 
 > **Gap ID**：OP-02 — 原文件缺少付款失敗、金額不符、發票錯誤的處理流程
 
@@ -3061,4 +3162,315 @@ sequenceDiagram
 
 ---
 
-> **文件結束** — 本文件定義了工單全生命週期 10 個互動流程，涵蓋正常路徑與全部 9 個異常路徑。每個流程包含 Mermaid 循序圖、狀態轉換表、通知清單與業務規則。後續開發應嚴格遵循本文件定義的狀態機與 SLA 規範。
+# T1.2 補強（2026-04-23，plan §S 驗證閘）
+
+> 以下三章為 pre-Week-2 驗證閘針對既有 Flow 9/10 與新 Flow 14 的補完。
+> 與既有 §12 Flow 9、§13 Flow 10 互為補充；§25 為全新 Flow。
+
+## 25. Flow 14：技師排班衝突解決
+
+> **Endpoints:** `getTechnicianAvailability`（衝突偵測核心）, `submitTimeOffRequest`（Week 4）, `listDispatchCandidates`（重派）, `assignWorkOrder`（重派落地）, `proposeReschedule`（T11）
+> **Events Out:** `technician.schedule.conflict.detected`, `technician.time_off.requested`, `work_order.reassigned`
+> **Idempotency:** Required on 時段編輯、請假申請、重派
+> **Error codes:** `TECHNICIAN_SCHEDULE_CONFLICT`, `DISPATCH_NO_TECHNICIAN_AVAILABLE`, `TECHNICIAN_CIRCUIT_BREAKER_OPEN`
+> **Related pages:** T10 排班 / A25 管理員排班 / A28 派工佇列 / **A37 派工人工介入** / **T11 改期日曆**
+> **Note:** 與 Flow 5 延遲、Flow 11 不在場的銜接見 §25.9 / §25.10
+
+
+### 25.1 觸發條件
+
+- **25.a 自我衝突**：技師自助排班時設定的時段與既有已接工單重疊
+- **25.b 派工衝突**：派工引擎指派新工單 → 偵測到與該技師已排程衝突
+- **25.c 臨時改期**：客戶 / 技師延遲改期（Flow 5、Flow 11）造成後續時段重疊
+- **25.d 主動請假**：技師申請休假 → 需處理已掛在該時段的工單
+- **25.e 管理員介入**：`dispatch_officer` 手動派工跳過衝突檢查，需後置解決
+
+### 25.2 參與角色
+
+| Actor | 職責 |
+|:---|:---|
+| 技師 | 設定排班、回應衝突選項 |
+| 派工引擎 | 偵測衝突、計算重派候選 |
+| `dispatch_officer` | 手動介入（衝突無法自動解決時） |
+| `operations_manager` | 多工單重派的二次核准 |
+| 客戶（受影響工單）| 被動接收改派通知 |
+
+### 25.3 衝突分類
+
+| 類型 | 原因 | 自動 vs 人工 |
+|:---|:---|:---|
+| `hard_conflict` | 同一時段兩張 `accepted` 工單 | **必須人工介入** |
+| `soft_conflict` | 預估完工時間可能延誤次張工單 | 自動提示技師、可延後 |
+| `buffer_insufficient` | 兩工單間距 < 移動時間門檻（預設 30 分） | 自動提示、可接受 |
+| `off_duty_overlap` | 已接工單落在新申請的休假時段 | 必須人工處理（重派或撤休） |
+| `skill_mismatch` | 原派工技師改期後無適任者可接 | 升級給 `operations_manager` |
+
+### 25.4 流程圖
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Tech as 技師
+    participant FE as Tech App / Admin UI
+    participant API
+    participant Engine as 派工引擎
+    participant DB
+    actor DO as dispatch_officer
+    actor OM as operations_manager
+    actor Cust as 受影響客戶
+    participant LINE
+
+    Note over Tech,API: 25.a 自我衝突偵測
+
+    Tech->>FE: T10 /account/schedule 設定時段
+    FE->>API: POST /technicians/me/schedule { slot, available }
+    API->>Engine: detect_conflicts(tech_id, new_slot)
+    Engine->>DB: SELECT work_orders WHERE tech=? AND overlaps(new_slot)
+    alt 有 hard_conflict
+        Engine-->>API: { type: hard_conflict, orders: [...] }
+        API-->>FE: 409 CONFLICT + conflict_details
+        FE->>Tech: 顯示「您新設時段與 2 張已接工單衝突」<br/>選項：A.放棄新設 B.申請重派受影響工單
+    else 僅 soft_conflict
+        Engine-->>API: { type: soft_conflict, warning }
+        API-->>FE: 200 OK + warnings
+        FE->>Tech: 顯示警示 banner 但允許儲存
+    else 無衝突
+        API->>DB: UPDATE technician_schedule
+        API-->>FE: 200 OK
+    end
+
+    Note over Tech,DO: 25.d 技師申請休假與 off_duty_overlap
+
+    Tech->>FE: 申請請假（start_date, end_date, reason）
+    FE->>API: POST /technicians/me/time-off
+    API->>Engine: detect_off_duty_conflicts
+    alt 期間有 accepted 工單
+        API->>DB: INSERT time_off_request (status=pending_conflict_resolution)
+        API->>DO: 通知派工員處理衝突
+        DO->>FE: 進入衝突清單
+        FE->>API: GET /dispatch/conflicts?type=time_off
+    else 無衝突
+        API->>DB: INSERT time_off_request (status=approved)
+        API-->>FE: 200 OK
+    end
+
+    Note over DO,OM: 衝突解決分派
+
+    DO->>FE: 選擇受影響工單
+    FE->>Engine: POST /dispatch/conflicts/{id}/resolve<br/>{ strategy }
+    Engine->>Engine: 依 strategy 計算候選：<br/>a) 重派其他技師<br/>b) 改期<br/>c) 拆單<br/>d) 回退案件池
+    alt strategy=reassign
+        Engine->>Engine: 找同區 + 同技能 + 可用時段技師
+        alt 找到候選
+            Engine->>API: PATCH /work-orders/{id} tech_id=new
+            API->>LINE: 通知原技師「已解除指派」
+            API->>LINE: 通知新技師「收到派工請求」
+            API->>Cust: LINE Flex「技師變更通知」（簡述原因）
+        else 無候選
+            Engine-->>FE: 409 DISPATCH_NO_TECHNICIAN_AVAILABLE
+            DO->>OM: 升級為營運主管
+            OM->>FE: 決定：延後 / 人工電聯 / 補償
+        end
+    else strategy=reschedule
+        Engine->>Cust: LINE Flex「改期選項」（走 T11 改期日曆）
+        Cust->>LINE: 選擇新時段
+        LINE->>API: 確認改期
+    else strategy=cancel_and_refund
+        API->>DB: UPDATE work_order SET status=cancelled (由公司取消)
+        API->>API: 觸發全額退款 + 補償（車馬費折扣碼）
+    end
+
+    API->>DB: INSERT audit_event (dispatch.conflict.resolved, strategy)
+```
+
+### 25.5 狀態轉換表（time_off_request）
+
+| 事件 | Before | After |
+|:---|:---|:---|
+| 申請（無衝突） | — | `approved` |
+| 申請（有衝突） | — | `pending_conflict_resolution` |
+| 衝突解決 | `pending_conflict_resolution` | `approved` |
+| 衝突無解 | `pending_conflict_resolution` | `rejected_by_ops` |
+| 撤回申請 | `pending_*` | `withdrawn` |
+
+### 25.6 通知清單
+
+| 事件 | 對象 | 通道 |
+|:---|:---|:---|
+| 自助排班衝突 | 該技師 | Tech App 同步回應（409）+ 對話框 |
+| 申請休假衝突 | 該技師 | LINE Push + App 通知 |
+| 衝突清單更新 | `dispatch_officer` | WebSocket `/realtime/dispatch-queue` |
+| 工單被重派 | 原技師 | LINE Push + App |
+| 工單被重派 | 新技師 | LINE Push + App |
+| 客戶受影響 | 客戶 | LINE Flex（含替代方案選項）|
+| 升級營運主管 | `operations_manager` | WebSocket + Email |
+
+### 25.7 業務規則
+
+- **R1**：自助排班預設**不允許 hard_conflict 儲存**（必須先處理）
+- **R2**：soft_conflict 可儲存但標記 `warning_acknowledged_at`（法律上技師已知悉）
+- **R3**：請假 start_date 與提交時間的距離 < 24h → 視為「緊急請假」，需 `dispatch_officer` 人工核准
+- **R4**：連續請假 > 7 天 → 觸發 `operations_manager` 審批 + 考勤記錄
+- **R5**：重派時客戶有「拒絕換人」權利 → 可強制原技師處理（技師申請休假視為放棄，與客戶協商）
+- **R6**：改派到比原派距離更遠的技師 → 公司承擔增加的車馬費差額
+- **R7**：12 個月內主動放鴿子（causing hard_conflict）>= 3 次 → 觸發熔斷（對齊本文件 §22 異常返回節點機制）
+- **R8**：衝突解決的 SLA：hard_conflict 發現後 2 小時內必須有動作，24 小時內必須有結論
+
+### 25.8 Error Path
+
+| 情境 | error_code | HTTP |
+|:---|:---|:---|
+| 新排班造成 hard_conflict | `WORK_ORDER_CONFLICT` | 409 |
+| 請假衝突且無重派方案 | `DISPATCH_NO_TECHNICIAN_AVAILABLE` | 503 |
+| 跨租戶排班嘗試 | `TENANT_MISMATCH` | 403 |
+| 技師熔斷中嘗試設排班 | `TECHNICIAN_CIRCUIT_BREAKER_OPEN` | 423 |
+| 請假時段超過合約上限 | `VALIDATION_ERROR` | 422 |
+
+### 25.9 與 Flow 11 客戶不在場的銜接
+
+客戶不在場（Flow 11）導致工單改期後，新時段可能觸發本 Flow：
+```
+Flow 11 客戶不在場 → 技師被退回案件池 → 15min 後客戶重新預約
+  ↓
+  新時段可能與技師既有排程衝突
+  ↓
+  觸發 Flow 14 自動衝突檢測
+  ↓
+  soft_conflict → 技師確認接受
+  hard_conflict → dispatch_officer 介入重派
+```
+
+### 25.10 與 Flow 5 延遲通知的銜接
+
+Flow 5 技師延遲超過 1 小時 → 次張工單可能受影響：
+```
+Flow 5 延遲通知 → 預估新完工時間 ETC
+  ↓
+  Flow 14 soft_conflict 偵測：ETC + 移動時間 > 次工單開始時間
+  ↓
+  主動通知：「您下一工單可能遲到 X 分」
+  ↓
+  技師選項：A.主動連絡客戶延後 B.申請重派次工單
+```
+
+---
+
+## 26. Flow 10 補遺：費用結算細則
+
+> 補既有 §13（Flow 10 門外觀變更）的費用結算空白。
+
+### 26.1 四種結束情境與費用計算
+
+| 情境 | 車馬費 | 工資 | 零件費 | 發票處理 |
+|:---|:---|:---|:---|:---|
+| 客戶簽同意 → 正常完工 | 依原報價 | 依原報價 | 實支 | 完整開立 |
+| 客戶拒絕 → 選替代方案 → 完工 | 依原報價 | 依新方案重新報價 | 新方案實支 | 依新總額 |
+| 客戶拒絕 → 取消安裝 | **僅收車馬費** | 不收 | 不收 | 僅車馬費發票 |
+| 技師提案不合理（客戶投訴後確認）| 不收 | 不收 | 不收 | 不開立 + 道歉 |
+
+### 26.2 車馬費標準（對齊 `E5x--dispatch-operations.md`）
+
+待使用者校對具體金額：
+- 市區：NT$ 300（< 10km）
+- 郊區：NT$ 500（10-20km）
+- 遠距：NT$ 800（> 20km）
+- 離島 / 山區：依實際成本（另議）
+
+### 26.3 取消結算的資金流
+
+```mermaid
+flowchart LR
+    A[客戶拒絕簽署] --> B[技師記錄取消]
+    B --> C{客戶是否已預付}
+    C -->|未預付| D[開立車馬費發票 + 當場收款<br/>現金 / LINE Pay]
+    C -->|已預付全額| E[扣除車馬費後退還差額<br/>走 Flow 6 退款流程]
+    C -->|已預付訂金| F{訂金是否 >= 車馬費}
+    F -->|是| G[扣除後退差額]
+    F -->|否| H[補收不足部分]
+```
+
+### 26.4 新錯誤碼需求
+
+```
+APPEARANCE_CHANGE_SIGNATURE_REJECTED   409  客戶拒簽 → 進入費用結算分支
+APPEARANCE_CHANGE_EVIDENCE_INCOMPLETE  422  必拍照片未齊（少於 4 張）
+```
+
+### 26.5 業務規則
+
+- **R1**：拒簽但已預付全額的退款金額 = 預付 − 車馬費
+- **R2**：車馬費發票須獨立開立（稅務分類：服務費），不得與原工單發票合併
+- **R3**：若技師私自進行外觀變更未取得簽署 → 公司承擔全部修復賠償（對齊既有 §13 業務規則）
+- **R4**：取消後 30 天內客戶再下單 → **不再收車馬費**（視為原趟延續）
+- **R5**：原始狀態照片、拒簽電子筆跡、GPS 紀錄 → 永久保存（對齊 §13.6）
+
+---
+
+## 27. Flow 9 補遺：與爭議仲裁（G4）的銜接
+
+> 補既有 §12（Flow 9）與 `flows-admin-governance.md §5 Flow G4` 的互動。
+
+### 27.1 Flow 9 → G4 爭議的升級條件
+
+| Flow 9 狀態 | G4 啟動條件 | 升級時的攜帶資料 |
+|:---|:---|:---|
+| `resolution_rejected`（二次拒絕） | anger_level >= 4 + 客訴類型為 pricing / quality | complaint_id、證據鏈、CSR 對話紀錄 |
+| `escalated`（客服主管無法解決） | `operations_manager` 判斷需金額裁決 | 同上 + 主管決策紀錄 |
+| `reopened`（30 天內重複投訴） | 自動直通 G4 | 歷史客訴 ID 鏈、同類事件統計 |
+
+### 27.2 禁止雙開
+
+若同一工單已存在 active 爭議（G4）：
+- Flow 9 的新客訴併入該爭議案件（不重開）
+- 客訴內容追加為爭議補充證據
+- 狀態：既有爭議 `under_review` + 客訴標 `merged_into_dispute`
+
+### 27.3 爭議結案後的客訴處理
+
+| 爭議結果 | 原客訴處理 |
+|:---|:---|
+| `resolved_by_settlement` | 客訴自動 `closed`（continued settlement） |
+| `resolved_by_arbitration` + 客戶接受 | 客訴 `closed` + 執行補償 |
+| `resolved_by_arbitration` + 客戶拒絕 → `final_arbitration` | 客訴保持 `escalated` 等終審 |
+| `closed_final` | 客訴 `closed`（含終審決議）|
+
+### 27.4 稽核事件銜接
+
+```
+Flow 9 升級 → 產出 audit_event (complaint.escalated_to_dispute)
+            → G4 受理 → 產出 audit_event (dispute.created)
+            → 兩事件以 correlation_id 關聯
+G4 結案 → 產出 audit_event (dispute.resolved)
+        → 回寫 Flow 9 complaint.resolved_via_dispute
+```
+
+### 27.5 UI 呈現（A12 工單詳情 / A22 爭議頁）
+
+- A12 工單詳情若有 active 客訴 + active 爭議 → 顯示兩個 badge，彼此連結
+- A22 爭議詳情顯示來源客訴（若有）+ 完整 Flow 9 timeline
+
+### 27.6 新錯誤碼需求
+
+```
+COMPLAINT_ALREADY_IN_DISPUTE    409  嘗試建立客訴時已有 active 爭議
+DISPUTE_MERGE_FAILED            500  客訴併入爭議失敗（需人工介入）
+```
+
+---
+
+## 28. T1.2 校對檢核表
+
+- [ ] §25.3 衝突五分類是否完整？`buffer_insufficient` 閾值（30 分移動時間）是否合理？
+- [ ] §25.7 R3 緊急請假門檻（24h）是否合理？
+- [ ] §25.7 R6 公司承擔車馬費差額是否符合既有派工財務規則？
+- [ ] §25.7 R7 熔斷閾值（12 個月 3 次放鴿子）是否與 `flows-admin-governance.md §5.6 R4`、本文件 §22 一致？
+- [ ] §25.8 error_code 是否需要新增 `TECHNICIAN_SCHEDULE_CONFLICT` 取代複用 `WORK_ORDER_CONFLICT`？
+- [ ] §26.2 車馬費標準金額是否符合實際成本？
+- [ ] §26.5 R4「30 天再下單不收車馬費」是否為新規則？
+- [ ] §27.2 禁止雙開的客訴併入爭議的邏輯是否符合營運預期？
+- [ ] §27.3 「爭議終審前客訴保持 escalated」狀態持續可能超 30 天，是否影響 SLA？
+- [ ] §26.4 / §27.6 新錯誤碼需同步更新 `error-codes.md`
+
+---
+
+> **文件結束** — 本文件定義了工單全生命週期 10 個核心互動流程 + 補遺章節（§25 Flow 14 技師排班衝突、§26 Flow 10 費用結算、§27 Flow 9 爭議銜接）。後續開發應嚴格遵循本文件定義的狀態機與 SLA 規範。

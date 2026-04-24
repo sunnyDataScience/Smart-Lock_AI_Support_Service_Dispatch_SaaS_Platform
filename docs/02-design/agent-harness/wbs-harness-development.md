@@ -1,5 +1,10 @@
 # Agent Harness Development WBS
 
+> **文件狀態：需更新** — 完成度百分比與實際程式碼有顯著落差。
+> 多項宣稱「已完成」的功能（如 task_decompose wired into graph、registry.py、16 service modules）在目前程式碼中找不到對應實作。
+> V1.0 實際架構為 `create_react_agent` + harness pipeline，非自訂 graph builder。
+> 最後審查日期：2026-04-21
+
 > Work Breakdown Structure — 基於 optimization-strategy.md 的啟用策略與 diagnostic-intelligence-architecture.md 的 Software 3.0 設計
 
 ---

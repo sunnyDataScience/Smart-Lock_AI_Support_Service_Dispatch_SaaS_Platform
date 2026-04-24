@@ -2,6 +2,13 @@
 
 # Deployment and Operations Guide - Smart Lock AI Support & Service Dispatch SaaS Platform
 
+> **部署現況更新（2026-04-21）**
+> - 部署平台已確定：**Google Cloud Run**（GCP, Docker 容器化）
+> - V1.0 拓撲：FastAPI (port 8080) + PostgreSQL + GCS，**無 Next.js 前端**
+> - V1.0 未使用 Redis（對話狀態由 PostgreSQL checkpoint 管理）
+> - LLM 觀測：**OPIK**（已整合至 agent）
+> - 本文件中的 Next.js、多 Worker 拓撲為 V2.0 規劃
+
 ---
 
 **文件版本 (Document Version):** `v1.1`

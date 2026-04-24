@@ -161,8 +161,18 @@ def main():
             # 既有 skill：寫回原始路徑（保留子目錄結構）
             target_path = Path(registry[skill_name].path)
         else:
-            # 新 skill：放在 skills_dir 根目錄下
-            target_dir = skills_dir / skill_name
+            # 新 skill：依品牌目錄結構放置
+            # 從 classification 結果推斷品牌（透過 skill_name 的品牌後綴）
+            from pipeline.silver_to_skill._classifier import _BRAND_SUFFIX
+            brand_dir = None
+            for brand_name, suffix in _BRAND_SUFFIX.items():
+                if skill_name.endswith(f"-{suffix}"):
+                    brand_dir = brand_name
+                    break
+            if brand_dir:
+                target_dir = skills_dir / brand_dir / "_all-models" / skill_name
+            else:
+                target_dir = skills_dir / "_common" / skill_name
             target_dir.mkdir(parents=True, exist_ok=True)
             target_path = target_dir / "SKILL.md"
 

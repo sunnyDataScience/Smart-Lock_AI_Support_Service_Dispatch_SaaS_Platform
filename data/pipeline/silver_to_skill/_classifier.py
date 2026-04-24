@@ -1,4 +1,8 @@
-"""兩層分類器：metadata 快篩 + LLM 語意分類。"""
+"""兩層分類器：metadata 快篩 + LLM 語意分類。
+
+品牌感知：Tier 1 分類後，依據 silver doc 的 brand 欄位
+將基礎技能名（如 ts-alarm）解析為品牌版技能名（如 ts-alarm-dormakaba）。
+"""
 
 from __future__ import annotations
 
@@ -22,6 +26,86 @@ class Classification:
     confidence: float
     method: str  # "keyword" | "llm"
     reasoning: str
+
+
+# ── 品牌正規化 ──
+
+_BRAND_ALIASES: dict[str, str] = {
+    "chainlock": "Chatlock",
+    "chatlock": "Chatlock",
+    "dormakaba": "Dormakaba",
+    "多瑪": "Dormakaba",
+    "philips": "Philips",
+    "飛利浦": "Philips",
+    "kaadas": "Kaadas",
+    "凱迪仕": "Kaadas",
+    "milre": "Milre",
+    "美樂": "Milre",
+    "ailock": "AiLock",
+    "3e": "3E",
+    "小島": "3E",
+    "waferlock": "Waferlock",
+}
+
+# 品牌 → 技能名後綴
+_BRAND_SUFFIX: dict[str, str] = {
+    "Chatlock": "chatlock",
+    "Dormakaba": "dormakaba",
+    "Philips": "philips",
+    "Kaadas": "kaadas",
+    "Milre": "milre",
+    "AiLock": "ailock",
+    "3E": "3e",
+    "Waferlock": "waferlock",
+}
+
+# 需要品牌解析的基礎技能（有品牌版本的 ts-* 技能）
+_BRAND_SPLIT_SKILLS: set[str] = {
+    "ts-alarm", "ts-door-stuck", "ts-dual-auth",
+    "ts-lock-tongue", "ts-power-drain", "ts-verification",
+}
+
+
+def _normalize_brand(brand: str | None) -> str | None:
+    """將 silver doc 的 brand 欄位正規化為標準品牌名。"""
+    if not brand or brand.lower() in ("general", "unknown", ""):
+        return None
+    return _BRAND_ALIASES.get(brand.lower(), brand)
+
+
+def _resolve_brand_skill(
+    base_skill: str,
+    brand: str | None,
+    registry: dict[str, SkillInfo] | None,
+) -> str:
+    """將基礎技能名 + 品牌解析為品牌版技能名。
+
+    邏輯：
+    1. 若基礎技能不在 _BRAND_SPLIT_SKILLS → 直接回傳（如 ts-auto-lock）
+    2. 嘗試 {base}-{brand_suffix} → 若在 registry 中則採用
+    3. 嘗試 {base}-other → 若在 registry 中則採用
+    4. 回退到基礎技能名
+    """
+    if base_skill not in _BRAND_SPLIT_SKILLS:
+        return base_skill
+
+    if registry is None:
+        return base_skill
+
+    # 有品牌 → 嘗試品牌版
+    if brand:
+        suffix = _BRAND_SUFFIX.get(brand)
+        if suffix:
+            brand_skill = f"{base_skill}-{suffix}"
+            if brand_skill in registry:
+                return brand_skill
+
+    # 無品牌或品牌版不存在 → 嘗試 -other
+    other_skill = f"{base_skill}-other"
+    if other_skill in registry:
+        return other_skill
+
+    return base_skill
 
 
 # ── Tier 1：metadata + 關鍵字快篩 ──
@@ -94,11 +178,20 @@ def _keyword_match(content: str, keyword_map: dict[str, list[str]]) -> tuple[str
     return best, confidence
 
 
-def classify_tier1(doc: dict, chunk_index: int) -> Classification | None:
-    """Tier 1 分類：metadata + 關鍵字，快速且免 LLM。"""
+def classify_tier1(
+    doc: dict,
+    chunk_index: int,
+    registry: dict[str, SkillInfo] | None = None,
+) -> Classification | None:
+    """Tier 1 分類：metadata + 關鍵字，快速且免 LLM。
+
+    品牌感知：分類完成後，依據 doc['brand'] 將 ts-* 基礎技能
+    解析為品牌版技能名（如 ts-alarm → ts-alarm-dormakaba）。
+    """
     content = doc.get("content", "")
     source_file = doc.get("_source_file", doc.get("source", "unknown"))
     category = doc.get("category", "")
+    brand = _normalize_brand(doc.get("brand"))
 
     # 直接 category 對應
     if category in _CATEGORY_MAP:
@@ -115,13 +208,14 @@ def classify_tier1(doc: dict, chunk_index: int) -> Classification | None:
     if category == "troubleshoot":
         result = _keyword_match(content, _TS_KEYWORDS)
         if result:
+            resolved = _resolve_brand_skill(result[0], brand, registry)
             return Classification(
                 source_file=source_file,
                 chunk_index=chunk_index,
-                skill_name=result[0],
+                skill_name=resolved,
                 confidence=result[1],
                 method="keyword",
-                reasoning=f"category=troubleshoot, keyword match",
+                reasoning=f"category=troubleshoot, keyword match, brand={brand or 'unknown'}",
             )
         # 有 category 但無法細分 → 歸到 troubleshoot 母技能
         return Classification(
@@ -159,13 +253,14 @@ def classify_tier1(doc: dict, chunk_index: int) -> Classification | None:
     all_keywords = {**_TS_KEYWORDS, **_APP_KEYWORDS}
     result = _keyword_match(content, all_keywords)
     if result and result[1] >= 0.7:
+        resolved = _resolve_brand_skill(result[0], brand, registry)
         return Classification(
             source_file=source_file,
             chunk_index=chunk_index,
-            skill_name=result[0],
+            skill_name=resolved,
             confidence=result[1] - 0.1,  # 沒有 category 佐證，降低信心
             method="keyword",
-            reasoning="no category, keyword match only",
+            reasoning=f"no category, keyword match only, brand={brand or 'unknown'}",
         )
 
     # dispatch / store 特殊關鍵字

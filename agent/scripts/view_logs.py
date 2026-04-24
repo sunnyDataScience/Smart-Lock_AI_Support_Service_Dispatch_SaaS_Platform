@@ -86,18 +86,14 @@ async def view_logs(limit=30, user_id=None):
             rid, uid, role, content, ts = row
 
             # 根據角色選擇圖標
-            if role == "user_raw":
-                role_icon = "📩 [RAW] "
-                color_start = "\033[90m"  # 灰色
-            elif role == "user":
+            if role == "user":
                 role_icon = "👤 [USER]"
                 color_start = "\033[94m"  # 藍色
             elif role == "ai":
                 role_icon = "🤖 [AI]  "
                 color_start = "\033[92m"  # 綠色
             else:
-                role_icon = f"❓ [{role}]"
-                color_start = ""
+                continue
 
             color_end = "\033[0m"
 

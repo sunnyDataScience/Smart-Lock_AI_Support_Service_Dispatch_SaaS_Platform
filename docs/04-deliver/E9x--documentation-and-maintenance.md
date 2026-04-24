@@ -2,6 +2,11 @@
 
 # Documentation and Maintenance Guide - Smart Lock AI Support & Service Dispatch SaaS Platform
 
+> **文件現況（2026-04-21）**
+> 本文件為草稿，涵蓋 V1.0 + V2.0 維運文件規劃。
+> V1.0 重點維運範圍：LINE Bot Agent、Skills (SKILL.md)、Audit Log、Memory Compression、Safety Gate。
+> V2.0 相關的 14 個 spec 文件為未來規劃。
+
 ---
 
 **文件版本 (Document Version):** `v1.1`

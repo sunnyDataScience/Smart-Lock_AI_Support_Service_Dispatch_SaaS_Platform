@@ -1,21 +1,15 @@
-from .ollama_model import build_ollama_llm
-from .gemini_model import build_gemini_llm
-from .vertexai_model import build_vertexai_llm
+"""LLM 統一接口 — 透過 LiteLLM 支援所有 provider。
 
-LLM_REGISTRY = {
-    "ollama": build_ollama_llm,
-    "gemini": build_gemini_llm,
-    "vertexai": build_vertexai_llm,
-}
+Usage:
+    from llms import get_llm
+    model = get_llm(cfg.llm)  # cfg.llm = {"model": "vertex_ai/gemini-2.5-pro", "temperature": 0.3}
+"""
+
+from .litellm_model import build_litellm
+
 
 def get_llm(llm_config: dict):
-    provider = llm_config.get("provider", "ollama")
-    builder = LLM_REGISTRY.get(provider)
-
-    if not builder:
-        raise ValueError(f"未知的 LLM 供應商: {provider}，請確認是否已註冊。")
-
-    model_name = llm_config.get("model_name", "未指定")
-    print(f"[*] 初始化 LLM: 載入 {provider} (模型: {model_name})")
-
-    return builder(llm_config)
+    """依 config.toml [llm] 設定建立 LLM 實例。"""
+    model = llm_config.get("model", "vertex_ai/gemini-2.5-pro")
+    print(f"[*] 初始化 LLM: {model}")
+    return build_litellm(llm_config)

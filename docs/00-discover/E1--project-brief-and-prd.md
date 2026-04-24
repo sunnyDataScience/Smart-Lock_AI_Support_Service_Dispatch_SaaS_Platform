@@ -1,5 +1,11 @@
 # 專案簡報與產品需求文件 (Project Brief & PRD) - 電子鎖智能客服與派工平台
 
+> **文件現況（2026-04-21）**
+> - **V1.0（已上線）**：LINE Bot AI 客服（Epic 1-4, 6）— Skill-based ReAct Agent + Harness Pipeline
+> - **V2.0（尚未開始）**：派工系統、帳務平台、Admin Portal（Epic 7-12）— 尚未實作
+> - 技術棧差異：LLM 框架已從 LangChain 演進為 **LangGraph + LiteLLM**；V1.0 未使用 Redis
+> - 部署平台：**Google Cloud Run**（Docker）
+
 ---
 
 **文件版本 (Document Version):** `v1.1`

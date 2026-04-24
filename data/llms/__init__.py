@@ -3,9 +3,15 @@
 from typing import Callable
 
 from llms.vertexai import get_vertexai_llm, get_vertexai_vision_llm
+from llms.openai_llm import get_openai_llm
+from llms.anthropic_llm import get_anthropic_llm
+from llms.ollama_llm import get_ollama_llm
 
 LLM_REGISTRY: dict[str, Callable] = {
     "vertexai": get_vertexai_llm,
+    "openai": get_openai_llm,
+    "anthropic": get_anthropic_llm,
+    "ollama": get_ollama_llm,
 }
 
 VISION_REGISTRY: dict[str, Callable] = {

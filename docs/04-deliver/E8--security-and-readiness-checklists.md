@@ -1,5 +1,11 @@
 # 綜合品質檢查清單 (Unified Quality Checklist) - 電子鎖智能客服與派工平台
 
+> **文件現況（2026-04-21）**
+> 本文件涵蓋 V1.0 + V2.0 安全檢查項目。
+> - **V1.0 範圍**：LINE Bot、AI Agent、user_facts、audit_log、conversation checkpoint
+> - **V2.0 範圍**（尚未實作）：technicians、work_orders、invoices、Admin Portal、dispatch
+> - 審查時請區分 V1.0（已上線）與 V2.0（規劃中）的檢查項目
+
 ---
 
 **文件版本 (Document Version):** `v1.1`

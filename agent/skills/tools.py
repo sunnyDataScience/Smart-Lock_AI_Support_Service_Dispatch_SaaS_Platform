@@ -3,16 +3,22 @@
 from __future__ import annotations
 
 import os
+from contextvars import ContextVar
 
 from langchain_core.tools import tool
 
+from harness.line_ui_factory import match_brand, match_model, get_brand_models
 from . import Skill
 
-# ── 模組層級狀態（由 app 啟動時注入）──
+# ── 模組層級狀態（由 app 啟動時注入，啟動後不變）──
 _skills: list[Skill] = []
 _transfer_message: str = ""
 _profile_mgr = None
-_current_user_id: str = ""
+
+# ── 請求層級狀態（用 contextvars 隔離併發請求）──
+_current_user_id: ContextVar[str] = ContextVar("current_user_id", default="")
+_current_brand: ContextVar[str | None] = ContextVar("current_brand", default=None)
+_current_model: ContextVar[str | None] = ContextVar("current_model", default=None)
 
 
 def set_skills(skills: list[Skill]) -> None:
@@ -29,8 +35,23 @@ def set_profile_mgr(profile_mgr) -> None:
 
 def set_current_user_id(user_id: str) -> None:
     """設定當前請求的 user_id（每次 run_agent 前呼叫）。"""
-    global _current_user_id
-    _current_user_id = user_id
+    _current_user_id.set(user_id)
+
+
+def set_current_brand(brand: str | None, model: str | None = None) -> None:
+    """設定當前請求的品牌/型號（每次 run_agent 前呼叫）。"""
+    _current_brand.set(brand)
+    _current_model.set(model)
+
+
+def get_current_brand() -> str | None:
+    """取得當前品牌（agent 執行後可能已被 update_user_info 更新）。"""
+    return _current_brand.get()
+
+
+def get_current_model() -> str | None:
+    """取得當前型號（agent 執行後可能已被 update_user_info 更新）。"""
+    return _current_model.get()
 
 
 @tool
@@ -43,14 +64,130 @@ def load_skill(skill_name: str) -> str:
     Args:
         skill_name: 技能名稱，例如 "troubleshoot"、"ts-door-stuck"、"app-guide"
     """
+    brand = _current_brand.get()
     for s in _skills:
         if s.name == skill_name:
+            # 品牌檢查：品牌專屬技能在品牌未知時禁止載入
+            if s.brands is not None and not brand:
+                print(f"[skill] >>> 拒絕載入品牌技能: {s.name}（用戶品牌未知）")
+                return (
+                    f"技能 '{skill_name}' 是品牌專屬技能，但目前尚未確認用戶的電子鎖品牌。"
+                    f"請先詢問用戶的電子鎖品牌，確認後再載入對應技能。"
+                )
+            if s.brands is not None and brand not in s.brands:
+                print(f"[skill] >>> 拒絕載入品牌技能: {s.name}（品牌不符: {brand}）")
+                return (
+                    f"技能 '{skill_name}' 不適用於用戶的品牌 {brand}。"
+                    f"請載入適合該品牌的技能。"
+                )
             print(f"[skill] >>> 載入技能: {s.name}")
             return f"已載入技能: {s.name}\n\n{s.content}"
+
+    # 前綴比對：找出所有以 skill_name 為前綴的品牌子技能
+    prefix_matches = [s for s in _skills if s.name.startswith(skill_name + "-")]
+    if prefix_matches:
+        # 品牌過濾：只列出符合當前品牌的子技能
+        if brand:
+            brand_matches = [
+                s for s in prefix_matches
+                if s.brands is None or brand in s.brands
+            ]
+            if brand_matches:
+                prefix_matches = brand_matches
+        names = ", ".join(s.name for s in prefix_matches)
+        print(f"[skill] >>> 前綴比對: {skill_name} → {names}")
+        return (
+            f"找不到技能 '{skill_name}'，"
+            f"但有以下相關子技能: {names}。"
+            f"請根據用戶的品牌選擇正確的子技能載入。"
+        )
 
     available = ", ".join(s.name for s in _skills)
     print(f"[skill] >>> 找不到: {skill_name}")
     return f"找不到技能 '{skill_name}'。可用技能: {available}"
+
+
+@tool
+async def update_user_info(brand: str = "", model: str = "") -> str:
+    """更新用戶的設備品牌與型號���當客戶告知品牌或型��時呼叫此工具，系統會立即解鎖對應品牌的技能���
+
+    Args:
+        brand: 電子鎖品牌（如 Chatlock、Dormakaba、Philips、Kaadas、Milre、AiLock、3E、Waferlock）
+        model: 電子鎖型號（如 AI-99、A90、AI-88）
+    """
+    brand = brand.strip() if brand else ""
+    model = model.strip() if model else ""
+
+    if not brand and not model:
+        return "請提供品牌或型號資訊。"
+
+    # ── 驗證品牌是否在服務範圍 ──
+    if brand:
+        matched_brand = match_brand(brand)
+        if not matched_brand:
+            return (
+                f"「{brand}」不在本店服務品牌範圍內。"
+                "本店服務品牌：Chatlock、Dormakaba、Philips、Kaadas、Milre、AiLock、3E、Waferlock。"
+                "請再次跟客戶確認品牌。"
+            )
+        brand = matched_brand  # 正規化大小寫
+
+    # ── 驗證型號是否屬於該品牌 ──
+    if model:
+        check_brand = brand or _current_brand.get()
+        if check_brand:
+            matched_model = match_model(check_brand, model)
+            if not matched_model:
+                available = get_brand_models(check_brand)
+                models_str = "、".join(available) if available else "（無型號資料）"
+                return (
+                    f"「{model}」不是 {check_brand} 的已知型號。"
+                    f"{check_brand} 的可用型號：{models_str}。"
+                    "請再次跟客戶確認型號。"
+                )
+            model = matched_model  # 正規化
+
+    # 立即寫入 DB
+    updated = []
+    user_id = _current_user_id.get()
+    if _profile_mgr and _profile_mgr.facts_enabled and user_id:
+        if brand:
+            await _profile_mgr.update_fact(user_id, "device_brand", brand)
+            updated.append(f"品牌: {brand}")
+        if model:
+            await _profile_mgr.update_fact(user_id, "device_model", model)
+            updated.append(f"型號: {model}")
+
+    # 立即更新 context state（解鎖品牌技能）
+    if brand:
+        _current_brand.set(brand)
+    if model:
+        _current_model.set(model)
+
+    cur_brand = _current_brand.get()
+    cur_model = _current_model.get()
+
+    # 回傳更新後的可用技能清單
+    skills_section = build_skills_prompt(_skills, brand=cur_brand, model=cur_model)
+    print(f"[update_user_info] 已更新: {', '.join(updated)}，品牌技能已解鎖")
+
+    result = f"已更新用戶資訊：{', '.join(updated)}。\n\n以下是更新後的可用技能：\n{skills_section}"
+
+    # 若只更新了品牌（未提供型號），且該品牌有型號專屬技能 → 提示 agent 追問型號
+    if brand and not model and not cur_model:
+        available_models = sorted({
+            m for s in _skills
+            if s.brands and brand in s.brands and s.models
+            for m in s.models
+        })
+        if available_models:
+            models_str = "、".join(available_models)
+            result += (
+                f"\n\n⚠️ {brand} 有型號專屬技能（{models_str}）。"
+                f"請詢問客戶的電子鎖是什麼型號，以便提供更精確的協助。"
+            )
+
+    return result
 
 
 @tool
@@ -65,12 +202,13 @@ async def transfer_to_human(reason: str) -> str:
     """
     print(f"[transfer] >>> 轉接真人: {reason}")
 
-    # 從模組層級 user_id 查 DB，自動填入已知資料
+    # 從 context var 取 user_id 查 DB，自動填入已知資料
+    user_id = _current_user_id.get()
     facts = {}
-    if _profile_mgr and _profile_mgr.facts_enabled and _current_user_id:
+    if _profile_mgr and _profile_mgr.facts_enabled and user_id:
         try:
-            facts = await _profile_mgr.load_facts(_current_user_id)
-            print(f"[transfer] 已載入 {_current_user_id} 的 facts: {facts}")
+            facts = await _profile_mgr.load_facts(user_id)
+            print(f"[transfer] 已載入 {user_id} 的 facts: {facts}")
         except Exception as e:
             print(f"[transfer] 載入 facts 失敗: {e}")
 
@@ -108,27 +246,49 @@ def _load_prompt_file(prompt_path: str) -> str:
         return f.read().strip()
 
 
-_SUB_SKILL_PREFIXES = ("ts-", "app-")
-_SUB_SKILL_EXCEPTIONS = {"app-guide"}
+_SUB_SKILL_PREFIXES = ("ts-", "app-", "ss-")
+_SUB_SKILL_EXCEPTIONS = {"app-guide", "ss-dormakaba"}
 
 
-def build_skills_prompt(skills: list[Skill]) -> str:
-    """產生注入 system prompt 的技能摘要清單。
+def build_skills_prompt(
+    skills: list[Skill],
+    brand: str | None = None,
+    model: str | None = None,
+) -> str:
+    """產生技能摘要清單（可依品牌/型號過濾）。
 
-    只列出頂層技能。以 ts-* / app-*（除 app-guide）為前綴的子技能
-    透過母技能的 SOP 引導載入，不需列在 system prompt。
+    只列出頂層技能。以 ts-* / app-* / ss-*（除 app-guide）為前綴的子技能
+    透過母技能的 SOP 引導載入，不需列在頂層清單。
     """
+    from . import filter_skills
+
+    filtered = filter_skills(skills, brand, model)
+
     top_level = [
-        s for s in skills
+        s for s in filtered
         if s.name in _SUB_SKILL_EXCEPTIONS
         or not s.name.startswith(_SUB_SKILL_PREFIXES)
     ]
 
     lines = ["## 可用技能\n"]
+    if brand:
+        device_label = f"{brand} {model}" if model else brand
+        lines.append(f"（已依據用戶設備 {device_label} 過濾）\n")
     for s in top_level:
-        lines.append(f"- **{s.name}**: {s.description}")
+        kw_hint = ""
+        if s.trigger_keywords:
+            kw_hint = f"（{'、'.join(s.trigger_keywords[:5])}）"
+        lines.append(f"- **{s.name}**: {s.description}{kw_hint}")
     lines.append(
         "\n當客戶的問題符合某個技能時，請使用 `load_skill` 工具載入該技能的完整 SOP，"
         "然後依照 SOP 步驟引導客戶。"
     )
     return "\n".join(lines)
+
+
+def build_dynamic_skills_section(
+    brand: str | None = None,
+    model: str | None = None,
+) -> str:
+    """產生動態過濾後的技能清單（供 debounce 注入 HumanMessage）。"""
+    return build_skills_prompt(_skills, brand=brand, model=model)

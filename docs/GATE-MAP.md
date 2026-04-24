@@ -155,7 +155,7 @@ TR10:     [GR10] GA Readiness Review
 | Gate | File | Role |
 |------|------|------|
 | TR4 | [[02-design/E5x--work-order-interaction-flows]] | Core business logic |
-| TR4 | [[02-design/E5x--work-order-flows-supplement]] | Extended scenarios |
+| TR4 | [[02-design/E5x--dispatch-operations]] | 派工營運基礎設施規格 |
 | TR4 | [[02-design/E5x--frontend-architecture]] | Frontend design |
 | TR4 | [[02-design/E5x--frontend-information-arch]] | Information architecture |
 | TR4 | [[02-design/specs/audit-log-spec]] | Feature spec |

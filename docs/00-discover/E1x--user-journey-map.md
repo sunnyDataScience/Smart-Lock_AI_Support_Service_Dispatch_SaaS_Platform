@@ -1,5 +1,9 @@
 # 電子鎖智能客服與派工平台 — 使用者旅程地圖
 
+> **文件現況（2026-04-21）**
+> - **消費者旅程**：V1.0 已上線（LINE Bot AI 客服 → 故障排除 → 轉接真人）
+> - **技術師傅 / 管理者 / 客服主管旅程**：V2.0 尚未實作，為未來規劃
+
 > **版本:** v1.0 | **日期:** 2026-03-31
 > **關聯文件:** `02_project_brief_and_prd.md`, `05_architecture_and_design_document.md`, `executive_architecture_overview.md`
 

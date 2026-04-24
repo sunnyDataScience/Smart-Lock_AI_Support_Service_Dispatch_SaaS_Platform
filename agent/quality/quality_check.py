@@ -1,9 +1,10 @@
-"""品質檢測腳本 — 50 道測試題目驗證 agent_skills 回答水準。
+"""品質檢測腳本 — 61 道測試題目驗證 agent_skills 回答水準。
 
 用法：
-  cd agent_skills && python -m quality.quality_check              # 完整測試（含 LLM-as-Judge）
-  cd agent_skills && python -m quality.quality_check --no-judge   # 只跑 agent 回答 + 關鍵詞
-  cd agent_skills && python -m quality.quality_check --judge-only # 用現有 JSON 重跑 LLM 評分
+  cd agent_skills && python -m quality.quality_check                # 完整測試（含 LLM-as-Judge）
+  cd agent_skills && python -m quality.quality_check --no-judge     # 只跑 agent 回答 + 關鍵詞
+  cd agent_skills && python -m quality.quality_check --judge-only   # 用現有 JSON 重跑 LLM 評分
+  cd agent_skills && python -m quality.quality_check --retry-failed # 只重測上次非 pass 的案例，更新報告
 
 輸出：quality/quality_report.json + quality/quality_report.html
 """
@@ -26,22 +27,11 @@ from dotenv import load_dotenv
 
 load_dotenv(os.path.join(_AGENT_SKILLS_DIR, "..", ".env"))
 
-from google.oauth2 import service_account
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_litellm import ChatLiteLLM
 from core.config import load_config
 from agent import build_agent
-
-_SA_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
-
-
-def _load_sa_credentials():
-    """Load Service Account credentials if credentials.json exists."""
-    sa_file = Path(__file__).resolve().parents[2] / "credentials.json"
-    if sa_file.exists():
-        return service_account.Credentials.from_service_account_file(
-            str(sa_file), scopes=_SA_SCOPES
-        )
-    return None
+from langgraph.checkpoint.memory import MemorySaver
+from llms.litellm_model import _ensure_vertex_credentials
 
 # ─────────────────────────────────────────────
 # 測試案例定義
@@ -55,6 +45,9 @@ class TestCase:
     question: str
     expected: str
     keywords: list[str]  # 回答中應包含的關鍵詞（至少命中一半算 keyword pass）
+    device_brand: str = ""  # 品牌路由測試用：注入 [用戶資料] + [可用技能] 前綴
+    device_model: str = ""  # 型號路由測試用
+    auto_reply: str = ""    # 多輪模擬：agent 追問後自動回覆的內容（空=單輪測試）
 
 
 TEST_CASES: list[TestCase] = [
@@ -69,30 +62,36 @@ TEST_CASES: list[TestCase] = [
              "解釋推拉式為直接進門，把手式則需下壓把手",
              ["推拉", "把手", "下壓"]),
     TestCase("H-4", "硬體維修", "全自動鎖匣的鎖舌感應機制是什麼？",
-             "解釋其具備感應器，當門關閉後會自動驅動鎖舌上鎖",
-             ["感應器", "自動", "鎖舌"]),
-    TestCase("H-5", "硬體維修", "Dormakaba 鎖舌在室內拉不開門的緊急處理？",
-             "直接提供操作步驟（推緊門板再拉把手），或先確認開門方向再給步驟皆可",
-             ["推緊", "拉", "Dormakaba"]),
+             "解釋其具備感應器，當門關閉後會自動驅動鎖栓伸出上鎖",
+             ["感應器", "自動", "鎖栓"]),
+    TestCase("H-5", "硬體維修", "鎖舌在室內拉不開門的緊急處理？",
+             "指導「先將門推緊，再拉動把手」的緩解動作",
+             ["推緊", "拉", "把手"],
+             device_brand="Chatlock",
+             auto_reply="鎖舌縮不回去，門是關著的"),
     TestCase("H-6", "硬體維修", "Dormakaba 鎖在室外推不開門的緊急處理？",
              "指導先拉緊把手使門閉合，完成解鎖後再用力推動",
-             ["拉緊", "把手", "推"]),
+             ["拉緊", "把手", "推"],
+             device_brand="Dormakaba"),
     TestCase("H-7", "硬體維修", "門扇反弓會對鎖舌造成什麼具體影響？",
-             "指出鉸鏈區域擠壓問題會導致鎖舌與受口片卡澀難開",
+             "指出鉸鏈區域擠壓問題會導致鎖舌與受口片卡澀難開，也可能無法開啟。需將門先拉緊或推緊後解鎖，再放開手才能開門",
              ["鉸鏈", "反弓", "受口片", "卡"]),
     TestCase("H-8", "硬體維修", "出現關鎖失敗警報時，使用者可以如何自行初步排查？",
-             "提供初步排查建議（如檢查受口片、測試鎖栓），或先追問品牌以提供更精確指引皆可",
-             ["受口", "品牌", "排查"]),
+             "指導在開門狀態下測試鎖栓伸縮是否正常，之後再確認是否為受口位移造成",
+             ["受口", "鎖栓", "排查"],
+             device_brand="Dormakaba"),
     TestCase("H-9", "硬體維修", "Dormakaba 雙重認證模式啟動後會有什麼現象？",
-             "說明單一指紋或密碼將無法開門，需兩者同時驗證",
-             ["雙重", "指紋", "密碼", "兩"]),
-    TestCase("H-10", "硬體維修", "人臉辨識模組亮紅燈的含義？",
-             "說明紅燈為辨識中的正常狀態，或先追問品牌以提供更精確說明皆可",
-             ["紅燈", "辨識"]),
+             "說明單一指紋或密碼或卡片將無法開門，需兩者同時驗證。如果只有管理者密碼可以開門但其他方式無法開門，就是啟動了雙重驗證模式，需將其解除",
+             ["雙重", "指紋", "密碼", "管理者"],
+             device_brand="Dormakaba"),
+    TestCase("H-10", "硬體維修", "Chatlock貓眼鏡頭旁閃爍紅燈的含義？",
+             "說明鏡頭正在主動啟動人臉或掌靜脈辨識，屬於正常工作狀態",
+             ["紅燈", "辨識", "正常"],
+             device_brand="Chatlock"),
 
     # ── 2. 報價與客服專員 (S-1 ~ S-10) ──
     TestCase("S-1", "報價客服", "預約師傅到府安裝電子鎖的具體流程？",
-             "說明諮詢、照片評估、選型、支付訂金、排期安裝及教學",
+             "說明諮詢、照片評估、選型、支付全額，將鎖寄出給客戶，排期安裝日期及教學",
              ["諮詢", "評估", "安裝", "教學"]),
     TestCase("S-2", "報價客服", "小米電子鎖代工安裝為什麼一定要看門扇照片？",
              "解釋是為了確認現場環境是否符合安裝標準",
@@ -107,11 +106,11 @@ TEST_CASES: list[TestCase] = [
              "告知安裝服務可跨區，或引導聯繫門市確認皆可",
              ["安裝", "服務", "聯繫"]),
     TestCase("S-6", "報價客服", "遺失實體鑰匙導致無法進門，這在保固範圍內嗎？",
-             "告知鑰匙遺失不在保固範圍，或先回答保固問題再引導後續處理皆可",
-             ["保固", "鑰匙"]),
+             "明確告知鑰匙遺失屬於人為因素，不包含在免費保固中。需將鎖破壞掉才能進入",
+             ["保固", "鑰匙", "人為"]),
     TestCase("S-7", "報價客服", "如果我想更換整組鎖體，建議先準備什麼資料？",
-             "引導使用者提供現有門鎖的照片與門厚資訊",
-             ["照片", "門"]),
+             "引導使用者提供現有門鎖的照片與側板尺寸等資訊以供評估",
+             ["照片", "側板", "評估"]),
     TestCase("S-8", "報價客服", "電子鎖更換完成後，舊的傳統鎖會如何處理？",
              "說明技師通常會將舊鎖交還客戶保存",
              ["舊鎖", "交還", "客戶"]),
@@ -124,17 +123,18 @@ TEST_CASES: list[TestCase] = [
 
     # ── 3. 門市與規格助理 (W-1 ~ W-10) ──
     TestCase("W-1", "門市規格", "鎖市林口門市的營業時間為何？",
-             "提供週一至週六 09:30-21:30",
-             ["09:30", "21:30"]),
-    TestCase("W-2", "門市規格", "新北市林口區中山路的門市地址？",
-             "提供正確現址（民富街 83 號），或說明中山路為舊址已搬遷皆可",
-             ["林口", "民富"]),
+             "提供週一至週六 09:30-20:00 等正確資訊",
+             ["9:30", "週"]),
+    TestCase("W-2", "門市規格", "林口鎖市地址為何？",
+             "新北市林口區民富街 83 號 1 樓",
+             ["林口", "民富", "83"]),
     TestCase("W-3", "門市規格", "門市除了電子鎖還有提供印章服務嗎？",
              "告知門市有提供印章服務，引導聯繫門市",
              ["印章", "服務"]),
     TestCase("W-4", "門市規格", "電子鎖完全沒電時，有哪些緊急供電方案？",
              "指導使用行動電源透過 USB 接孔供電",
-             ["行動電源", "USB", "供電"]),
+             ["行動電源", "USB", "供電"],
+             device_brand="Chatlock", device_model="AI-99"),
     TestCase("W-5", "門市規格", "為什麼電子鎖不建議混用不同品牌的電池？",
              "解釋不同電壓可能導致漏液風險",
              ["漏液", "電池", "品牌"]),
@@ -149,10 +149,12 @@ TEST_CASES: list[TestCase] = [
              ["GL220", "說明書"]),
     TestCase("W-9", "門市規格", "我想找 FA9000 電子鎖的操作手冊。",
              "提供相關連結或指引",
-             ["FA9000", "手冊"]),
+             ["FA9000", "手冊"],
+             device_brand="Dormakaba", device_model="FA9000"),
     TestCase("W-10", "門市規格", "ML660 的故障排除手冊連結？",
               "提供相關連結或指引",
-              ["ML660", "手冊"]),
+              ["ML660", "手冊"],
+              device_brand="Dormakaba", device_model="ML660"),
 
     # ── 4. APP 設定專家 (Y-1 ~ Y-10) ──
     TestCase("Y-1", "APP設定", "AS701 智慧鎖如何進入密碼登記模式？",
@@ -164,9 +166,9 @@ TEST_CASES: list[TestCase] = [
     TestCase("Y-3", "APP設定", "A90 電子鎖完全沒電，如何用行動電源喚醒？",
              "按壓底部圓蓋右轉取出，使用 Type-C 線連接供電",
              ["底部", "Type-C", "行動電源"]),
-    TestCase("Y-4", "APP設定", "Philips Alpha 怎麼設定遠端金鑰？",
-             "引導參考 APP 遠端操作手冊步驟",
-             ["遠端", "APP"]),
+    TestCase("Y-4", "APP設定", "Dormakaba APP 怎麼設定遠端金鑰？",
+             "引導參考 GDrive 上的 APP 遠端操作手冊步驟",
+             ["遠端", "APP", "手冊"]),
     TestCase("Y-5", "APP設定", "如何設定 AS701 的遙控器功能？",
              "提供操作步驟，或引導參考 AS701 手冊連結皆可",
              ["遙控器", "AS701"]),
@@ -198,7 +200,8 @@ TEST_CASES: list[TestCase] = [
              ["密碼", "週日"]),
     TestCase("M-4", "多意圖", "FA9000 的說明書在哪？這台可以用手機開門嗎？",
              "提供手冊連結並解釋連網開鎖功能",
-             ["FA9000", "手冊", "手機"]),
+             ["FA9000", "手冊", "手機"],
+             device_brand="Dormakaba", device_model="FA9000"),
     TestCase("M-5", "多意圖", "為什麼指紋一直失敗？老人家要怎麼設定比較好？",
              "解釋失敗原因或追問品牌，並提供老人設定建議（多錄指紋或改用其他方式）",
              ["指紋", "老人"]),
@@ -219,6 +222,80 @@ TEST_CASES: list[TestCase] = [
     TestCase("G-5", "圍籬測試", "牛肉麵要怎麼煮才好吃？",
              "告知無法提供食譜，引導回歸電子鎖話題",
              ["電子鎖", "無法"]),
+
+    # ── 7. 追加實戰案例 (E-1 ~ E-11) ──
+    TestCase("E-1", "硬體維修", "換完電池還是會一直無法上鎖",
+             "應確認電池品牌是否正確，建議使用 Panasonic 鹼性電池",
+             ["Panasonic", "鹼性", "電池"],
+             device_brand="Chatlock",
+             auto_reply="用的是金鼎電池，關門後是自動上鎖的"),
+    TestCase("E-2", "硬體維修", "螢幕一直閃爍，無法感應任何開鎖方式",
+             "鎖栓可能卡到門框受口片，需先將門拉或推至關好門的位置",
+             ["受口片", "門", "拉"],
+             device_brand="Chatlock"),
+    TestCase("E-3", "硬體維修", "Chatlock電子鎖網路一直斷線",
+             "檢查室內螢幕是否插好安裝正確（網路模組在螢幕裡），確認 2.4G 與 5G 頻道是否分開，是否為 mesh 或 WiFi 6/7 以上路由器",
+             ["螢幕", "2.4G", "5G", "mesh"],
+             device_brand="Chatlock"),
+    TestCase("E-4", "硬體維修", "家中是mesh路由器，電子鎖網路很不穩定",
+             "Mesh 路由器可能導致視訊開門卡頓不穩定，建議使用獨立的 2.4GHz 或 IoT Network",
+             ["mesh", "2.4G", "卡頓"],
+             device_brand="Chatlock", device_model="AI-99"),
+    TestCase("E-5", "硬體維修", "Chatlock推拉電子鎖轉把手後不會自己彈回正，會卡住",
+             "判斷為機械問題，建議派工請師傅到場檢修調整",
+             ["師傅", "派工"],
+             device_brand="Chatlock",
+             auto_reply="鎖舌是卡在中間，門是關著的"),
+    TestCase("E-6", "硬體維修", "為什麼只有動畫在跑動但是沒有感應人臉辨識？",
+             "確認鏡頭兩旁是否有紅燈亮起，沒有紅燈代表經過的人較多導致感應太多次失敗，先使用其他方式開門",
+             ["紅燈", "感應", "其他方式"],
+             device_brand="Chatlock", device_model="AI-99"),
+    TestCase("E-7", "硬體維修", "請問我的門可以安裝嗎？",
+             "請客戶提供門的正面、背面、側面、門框位置的照片以進行評估",
+             ["照片", "正面", "評估"]),
+    TestCase("E-8", "硬體維修", "我下單了",
+             "請客戶提供訂單編號、型號、購買通路、聯絡人、電話、安裝地址等資訊",
+             ["訂單", "型號", "地址"]),
+    TestCase("E-9", "硬體維修", "為什麼我的APP網路延遲這麼嚴重？",
+             "通常與網路環境不穩定有關，可能受家庭網路設備或網速波動影響，建議檢查 Wi-Fi 訊號強度或路由器連線穩定性",
+             ["網路", "Wi-Fi", "路由器"],
+             device_brand="Chatlock", device_model="AI-99"),
+    TestCase("E-10", "硬體維修", "鋰電池怎麼充電？",
+             "使用 5V1A 或 5V2A 充電頭，紅燈充電中藍燈充飽，請勿使用快充頭以免電池膨脹",
+             ["5V1A", "5V2A", "快充"]),
+    TestCase("E-11", "硬體維修", "Chatlock售後是怎麼保固？",
+             "Chatlock 產品自安裝完成日起享有原廠保固，保固期依產品型號或購買通路為準",
+             ["保固", "安裝", "原廠"],
+             device_brand="Chatlock"),
+
+    # ── 品牌路由測試：驗證已知品牌用戶是否載入正確的品牌版技能 ──
+    TestCase("B-1", "品牌路由", "門打不開",
+             "Dormakaba 用戶應載入 ts-door-stuck-dormakaba，回答應包含擺動式鎖舌操作",
+             ["擺動", "推緊"],
+             device_brand="Dormakaba",
+             auto_reply="我在門外，門是關著的，按開鎖有聽到馬達聲"),
+    TestCase("B-2", "品牌路由", "門打不開",
+             "回答應包含推緊門板法或 Type-C 緊急供電等 Chatlock 門扇卡死的處理方式",
+             ["推緊", "Type-C"],
+             device_brand="Chatlock",
+             auto_reply="我在門外，門是關著的，按開鎖有聽到馬達聲"),
+    TestCase("B-3", "品牌路由", "電池很快沒電",
+             "Dormakaba 用戶應載入 ts-power-drain-dormakaba，回答應包含 9V 電池或 FA9000 等型號資訊",
+             ["Panasonic", "鹼性"],
+             device_brand="Dormakaba"),
+    TestCase("B-4", "品牌路由", "要按兩次才能開門",
+             "回答應包含關閉雙重認證的操作路徑：齒輪→高級設定→雙重認證→關閉",
+             ["齒輪", "高級設定"],
+             device_brand="Chatlock",
+             auto_reply="要先按指紋再輸密碼，可以進設定選單"),
+    TestCase("B-5", "品牌路由", "鎖一直嗶嗶叫",
+             "Dormakaba 用戶應載入 ts-alarm-dormakaba，回答應包含警報相關診斷或信號說明",
+             ["Dormakaba", "警報"],
+             device_brand="Dormakaba"),
+    TestCase("B-6", "品牌路由", "APP 怎麼配對",
+             "Chatlock AI-99 用戶應載入 app-pairing，回答應包含 WiFi/藍牙配對步驟",
+             ["WiFi", "藍牙"],
+             device_brand="Chatlock", device_model="AI-99"),
 ]
 
 # ─────────────────────────────────────────────
@@ -302,9 +379,30 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
     """執行單一測試並評分。"""
     t0 = time.time()
 
-    # 呼叫 agent
+    # 組裝訊息：所有測試都注入 [可用技能]，模擬 debounce.run_agent() 的行為
+    from skills.tools import build_dynamic_skills_section
+    brand = tc.device_brand or None
+    model = tc.device_model or None
+    skills_section = build_dynamic_skills_section(brand, model)
+
+    if tc.device_brand:
+        profile_lines = [f"[Verified Fact] device_brand: {tc.device_brand}"]
+        if tc.device_model:
+            profile_lines.append(f"[Verified Fact] device_model: {tc.device_model}")
+        content = (
+            f"[可用技能]\n{skills_section}\n\n"
+            f"[用戶資料]\n" + "\n".join(profile_lines) + "\n\n"
+            f"[用戶訊息]\n{tc.question}"
+        )
+    else:
+        content = (
+            f"[可用技能]\n{skills_section}\n\n"
+            f"[用戶訊息]\n{tc.question}"
+        )
+
+    # 第一輪：呼叫 agent
     result = await agent.ainvoke(
-        {"messages": [{"role": "user", "content": tc.question}]},
+        {"messages": [{"role": "user", "content": content}]},
         config,
     )
 
@@ -316,16 +414,42 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
             answer = _extract_text(msg.content)
             break
 
+    # 多輪模擬：若有 auto_reply 且 agent 回覆含追問（？）→ 發送第二輪
+    if tc.auto_reply and "？" in answer:
+        if tc.device_brand:
+            reply_content = (
+                f"[可用技能]\n{skills_section}\n\n"
+                f"[用戶資料]\n" + "\n".join(profile_lines) + "\n\n"
+                f"[用戶訊息]\n{tc.auto_reply}"
+            )
+        else:
+            reply_content = (
+                f"[可用技能]\n{skills_section}\n\n"
+                f"[用戶訊息]\n{tc.auto_reply}"
+            )
+        result = await agent.ainvoke(
+            {"messages": [{"role": "user", "content": reply_content}]},
+            config,  # 同一 thread_id，MemorySaver 保留上下文
+        )
+        # 重新提取最終回答
+        answer = ""
+        messages = result.get("messages", [])
+        for msg in reversed(messages):
+            if hasattr(msg, "type") and msg.type == "ai" and msg.content:
+                answer = _extract_text(msg.content)
+                break
+
     elapsed = round(time.time() - t0, 1)
 
-    # 收集 skill 呼叫紀錄（從 tool messages）
+    # 收集 skill 呼叫紀錄（從 tool messages，包含兩輪）
     skills_loaded = []
     for msg in messages:
         if hasattr(msg, "type") and msg.type == "tool" and hasattr(msg, "content"):
             text = _extract_text(msg.content)
             if text.startswith("已載入技能:"):
                 skill_name = text.split("已載入技能:")[1].split("\n")[0].strip()
-                skills_loaded.append(skill_name)
+                if skill_name not in skills_loaded:
+                    skills_loaded.append(skill_name)
 
     # 關鍵詞命中
     kw_hits, kw_total = keyword_score(tc, answer)
@@ -358,9 +482,10 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
 
 
 def _parse_args():
-    p = argparse.ArgumentParser(description="Agent Skills Quality Check (50 cases)")
+    p = argparse.ArgumentParser(description="Agent Skills Quality Check")
     p.add_argument("--no-judge", action="store_true", help="跳過 LLM-as-Judge，只用關鍵詞評分")
     p.add_argument("--judge-only", action="store_true", help="不呼叫 agent，用現有 JSON 重新跑 LLM 評分")
+    p.add_argument("--retry-failed", action="store_true", help="只重測上次非 pass 的案例，更新報告")
     return p.parse_args()
 
 
@@ -405,16 +530,11 @@ async def _rejudge(judge_model, json_path: str) -> dict:
 async def main():
     args = _parse_args()
 
-    project = os.getenv("VERTEX_PROJECT_ID", "")
-    if not project:
-        print("Please set VERTEX_PROJECT_ID")
-        return
-
     base_dir = os.path.dirname(os.path.abspath(__file__))
     json_path = os.path.join(base_dir, "quality_report.json")
     html_path = os.path.join(base_dir, "quality_report.html")
 
-    sa_creds = _load_sa_credentials()
+    _ensure_vertex_credentials()
 
     # ── --judge-only 模式：只重新評分 ──
     if args.judge_only:
@@ -422,22 +542,94 @@ async def main():
             print(f"  ERROR: {json_path} not found. Run without --judge-only first.")
             return
 
-        judge_kwargs = dict(
-            model="gemini-2.5-flash",
-            project=project,
-            location=os.getenv("VERTEX_LOCATION", "us-central1"),
-            temperature=0.0,
-            vertexai=True,
-        )
-        if sa_creds:
-            judge_kwargs["credentials"] = sa_creds
-        judge_model = ChatGoogleGenerativeAI(**judge_kwargs)
+        judge_model = ChatLiteLLM(model="vertex_ai/gemini-2.5-flash", temperature=0.0)
 
         print("=" * 60)
         print("  Quality Check — Re-Judge Only")
         print("=" * 60)
 
         report = await _rejudge(judge_model, json_path)
+        _save_report(report, json_path, html_path)
+        return
+
+    # ── --retry-failed 模式：只重測非 pass 的案例 ──
+    if args.retry_failed:
+        if not os.path.isfile(json_path):
+            print(f"  ERROR: {json_path} not found. Run full test first.")
+            return
+
+        with open(json_path, "r", encoding="utf-8") as f:
+            prev_report = json.load(f)
+        prev_results = {r["id"]: r for r in prev_report.get("results", [])}
+
+        # 找出需要重測的案例
+        retry_ids = {rid for rid, r in prev_results.items() if r["verdict"] != "pass"}
+        retry_cases = [tc for tc in TEST_CASES if tc.id in retry_ids]
+
+        if not retry_cases:
+            print("  All cases passed! Nothing to retry.")
+            return
+
+        use_judge = not args.no_judge
+
+        os.chdir(_AGENT_SKILLS_DIR)
+        cfg = load_config()
+
+        model = ChatLiteLLM(model="vertex_ai/gemini-2.5-pro", temperature=0.3)
+
+        judge_model = None
+        if use_judge:
+            judge_model = ChatLiteLLM(model="vertex_ai/gemini-2.5-flash", temperature=0.0)
+
+        agent = build_agent(model, cfg, checkpointer=MemorySaver())
+
+        print("=" * 60)
+        print(f"  Quality Check — Retry Failed ({len(retry_cases)} cases)")
+        print("=" * 60)
+
+        for i, tc in enumerate(retry_cases):
+            config = {"configurable": {"thread_id": f"qc-retry-{tc.id}"}}
+            prev_verdict = prev_results[tc.id]["verdict"]
+
+            print(f"\n[{i+1:02d}/{len(retry_cases)}] {tc.id} (was {prev_verdict}) | {tc.question[:40]}...", end=" ", flush=True)
+
+            try:
+                r = await run_single(agent, judge_model, tc, config, use_judge=use_judge)
+            except Exception as e:
+                r = {
+                    "id": tc.id, "category": tc.category, "question": tc.question,
+                    "expected": tc.expected, "answer": f"ERROR: {e}",
+                    "skills_loaded": [], "keyword_hits": "0/0",
+                    "verdict": "error", "reason": str(e), "elapsed_sec": 0,
+                }
+
+            icon = {"pass": "O", "partial": "~", "fail": "X", "error": "!"}.get(r["verdict"], "?")
+            changed = " ✦" if r["verdict"] != prev_verdict else ""
+            skills_str = ",".join(r["skills_loaded"]) if r["skills_loaded"] else "-"
+            print(f"[{icon}] {r['elapsed_sec']}s | kw={r['keyword_hits']} | skills={skills_str}{changed}")
+            if r["verdict"] != "pass":
+                print(f"       reason: {r['reason']}")
+
+            # 更新結果
+            prev_results[tc.id] = r
+
+        # 按原始順序重組結果
+        all_ids = [tc.id for tc in TEST_CASES]
+        merged = [prev_results[tid] for tid in all_ids if tid in prev_results]
+
+        # 重新計算統計
+        stats = {"pass": 0, "partial": 0, "fail": 0, "error": 0}
+        category_stats: dict[str, dict] = {}
+        for r in merged:
+            v = r["verdict"]
+            stats[v] = stats.get(v, 0) + 1
+            cat = r["category"]
+            if cat not in category_stats:
+                category_stats[cat] = {"pass": 0, "partial": 0, "fail": 0, "error": 0, "total": 0}
+            category_stats[cat][v] = category_stats[cat].get(v, 0) + 1
+            category_stats[cat]["total"] += 1
+
+        report = {"summary": stats, "category_stats": category_stats, "results": merged}
         _save_report(report, json_path, html_path)
         return
 
@@ -450,34 +642,16 @@ async def main():
 
     cfg = load_config()
 
-    model_kwargs = dict(
-        model="gemini-2.5-flash",
-        project=project,
-        location=os.getenv("VERTEX_LOCATION", "us-central1"),
-        temperature=0.3,
-        vertexai=True,
-    )
-    if sa_creds:
-        model_kwargs["credentials"] = sa_creds
-    model = ChatGoogleGenerativeAI(**model_kwargs)
+    model = ChatLiteLLM(model="vertex_ai/gemini-2.5-pro", temperature=0.3)
 
     judge_model = None
     if use_judge:
-        judge_kwargs = dict(
-            model="gemini-2.5-flash",
-            project=project,
-            location=os.getenv("VERTEX_LOCATION", "us-central1"),
-            temperature=0.0,
-            vertexai=True,
-        )
-        if sa_creds:
-            judge_kwargs["credentials"] = sa_creds
-        judge_model = ChatGoogleGenerativeAI(**judge_kwargs)
+        judge_model = ChatLiteLLM(model="vertex_ai/gemini-2.5-flash", temperature=0.0)
 
-    agent = build_agent(model, cfg)
+    agent = build_agent(model, cfg, checkpointer=MemorySaver())
 
     print("=" * 60)
-    print(f"  Quality Check — {mode_label} (50 cases)")
+    print(f"  Quality Check — {mode_label} ({len(TEST_CASES)} cases)")
     print("=" * 60)
 
     results = []
@@ -487,7 +661,7 @@ async def main():
     for i, tc in enumerate(TEST_CASES):
         config = {"configurable": {"thread_id": f"qc-{tc.id}"}}
 
-        print(f"\n[{i+1:02d}/50] {tc.id} | {tc.category} | {tc.question[:40]}...", end=" ", flush=True)
+        print(f"\n[{i+1:02d}/{len(TEST_CASES)}] {tc.id} | {tc.category} | {tc.question[:40]}...", end=" ", flush=True)
 
         try:
             r = await run_single(agent, judge_model, tc, config, use_judge=use_judge)

@@ -1,0 +1,36 @@
+extends:
+  - "spectral:oas"
+  - "spectral:asyncapi"
+
+documentationUrl: https://github.com/stoplightio/spectral
+
+rules:
+  # --- 關閉：骨架階段過嚴會阻塞，待 Week 2 端點補完再開 ---
+  operation-tag-defined: warn
+  operation-description: warn
+  operation-success-response: warn
+  oas3-api-servers: warn
+
+  # --- 加嚴：我們的協作契約要求 ---
+  contact-properties: error
+  info-description: error
+  info-contact: error
+
+  # 自訂：所有寫操作 operationId 應是 camelCase 動詞開頭
+  operation-operationId-camelCase:
+    description: operationId must be camelCase starting with a verb
+    given: "$.paths.*.*.operationId"
+    severity: warn
+    then:
+      function: pattern
+      functionOptions:
+        match: "^[a-z][a-zA-Z0-9]*$"
+
+  # 自訂：寫操作必須註明 Idempotency-Key（若適用）— 目前 warn，Week 4 升 error
+  write-operations-idempotency-key:
+    description: POST/PUT/PATCH/DELETE should reference Idempotency-Key parameter when mutating state
+    given: "$.paths.*[post,put,patch,delete]"
+    severity: hint
+    then:
+      field: parameters
+      function: truthy

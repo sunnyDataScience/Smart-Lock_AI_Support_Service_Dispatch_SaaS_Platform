@@ -7,7 +7,10 @@
 
 import re
 
-from linebot.v3.messaging import FlexMessage, TextMessage
+from linebot.v3.messaging import (
+    FlexMessage, TextMessage,
+    QuickReply, QuickReplyItem, MessageAction,
+)
 
 
 # ── URL 偵測正則 ──
@@ -21,6 +24,89 @@ _YOUTUBE_PATTERN = re.compile(
 )
 
 _URL_PATTERN = re.compile(r'https?://[^\s)\]]+')
+
+
+# ── Quick Reply 快速回覆 ──
+
+_quick_reply_config: dict = {}
+_brand_items: list[dict] = []
+_brand_models: dict[str, list[str]] = {}
+
+
+def init_quick_reply(config: dict) -> None:
+    """初始化 Quick Reply — 從 config 讀取品牌與型號清單。"""
+    global _quick_reply_config, _brand_items, _brand_models
+
+    _quick_reply_config = config
+    _brand_items = config.get("brands", [])
+    _brand_models = {
+        b["text"]: b["models"]
+        for b in _brand_items
+        if b.get("models")
+    }
+    print(f"[Quick Reply] 品牌: {[b['text'] for b in _brand_items]}, 型號: {_brand_models}")
+
+
+def _build_quick_reply(brand: str | None = None, model: str | None = None) -> QuickReply | None:
+    """依用戶 fact 狀態決定是否掛上品牌或型號快速回覆按鈕。
+
+    - 品牌未知 → 品牌按鈕
+    - 品牌已知、型號未知、且該品牌有型號專屬技能 → 型號按鈕
+    """
+    if not _quick_reply_config.get("enabled", False):
+        return None
+
+    # 品牌未知 → 品牌按鈕
+    if not brand and _brand_items:
+        items = [
+            QuickReplyItem(action=MessageAction(label=b["label"], text=b["text"]))
+            for b in _brand_items[:13]
+        ]
+        return QuickReply(items=items)
+
+    # 品牌已知、型號未知、該品牌有特定型號 → 型號按鈕（最多 12 個 + 「其他型號」）
+    if brand and not model and brand in _brand_models:
+        models = _brand_models[brand][:12]
+        items = [
+            QuickReplyItem(action=MessageAction(label=m, text=m))
+            for m in models
+        ]
+        items.append(
+            QuickReplyItem(action=MessageAction(label="其他型號", text="其他型號，請直接回覆"))
+        )
+        return QuickReply(items=items)
+
+    return None
+
+
+def match_brand(text: str) -> str | None:
+    """檢查文字是否完全匹配某個品牌名（不區分大小寫）。"""
+    text_lower = text.strip().lower()
+    for b in _brand_items:
+        if text_lower == b["text"].lower():
+            return b["text"]
+    return None
+
+
+def match_model(brand: str, text: str) -> str | None:
+    """檢查文字是否完全匹配某個品牌的型號名。"""
+    models = _brand_models.get(brand, [])
+    text_stripped = text.strip()
+    for m in models:
+        if text_stripped == m:
+            return m
+    return None
+
+
+def get_brand_models(brand: str) -> list[str]:
+    """取得指定品牌的型號清單。"""
+    return _brand_models.get(brand, [])
+
+
+def is_quick_reply_enabled() -> bool:
+    """Quick Reply 是否啟用。"""
+    return _quick_reply_config.get("enabled", False)
+
 
 def _strip_markdown(text: str) -> str:
     """移除常見 Markdown 標記，保留換行與純文字。"""
@@ -171,7 +257,7 @@ def _extract_context_title(text: str, url: str) -> str:
     return ""
 
 
-def build_line_messages(answer: str) -> list:
+def build_line_messages(answer: str, brand: str | None = None, model: str | None = None, skip_quick_reply: bool = False) -> list:
     """將 AI 回覆轉換為 LINE Message 物件列表。
 
     偵測回覆中的 URL 並自動轉換：
@@ -179,9 +265,16 @@ def build_line_messages(answer: str) -> list:
     - YouTube 連結 → VIDEO_CARD
     - 其他 → 純文字
 
+    Args:
+        answer: AI 回覆文字
+        brand: 當前用戶品牌（用於判斷是否掛上 Quick Reply）
+        model: 當前用戶型號（用於判斷是否掛上型號 Quick Reply）
+
     Returns:
         LINE Message 物件列表（TextMessage + 可選的 FlexMessage）
     """
+    messages = None
+
     # ── 偵測 Google Drive 下載連結 ──
     gdrive_matches = _GDRIVE_PATTERN.finditer(answer)
     download_bubbles = []
@@ -218,43 +311,51 @@ def build_line_messages(answer: str) -> list:
         messages = [flex_msg]
         if clean_text:
             messages.insert(0, TextMessage(text=clean_text))
-        return messages
 
     # ── 偵測 YouTube 連結 ──
-    youtube_matches = _YOUTUBE_PATTERN.finditer(answer)
-    video_bubbles = []
-    seen_ids = set()
+    if messages is None:
+        youtube_matches = _YOUTUBE_PATTERN.finditer(answer)
+        video_bubbles = []
+        seen_ids = set()
 
-    for match in youtube_matches:
-        video_id = match.group(1)
-        if video_id in seen_ids:
-            continue
-        seen_ids.add(video_id)
+        for match in youtube_matches:
+            video_id = match.group(1)
+            if video_id in seen_ids:
+                continue
+            seen_ids.add(video_id)
 
-        full_url = f"https://www.youtube.com/watch?v={video_id}"
-        thumbnail = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
-        title = _extract_context_title(answer, match.group(0)) or "教學影片"
-        video_bubbles.append(_build_video_bubble(title, full_url, thumbnail))
+            full_url = f"https://www.youtube.com/watch?v={video_id}"
+            thumbnail = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+            title = _extract_context_title(answer, match.group(0)) or "教學影片"
+            video_bubbles.append(_build_video_bubble(title, full_url, thumbnail))
 
-    if video_bubbles:
-        video_bubbles = video_bubbles[:10]
-        clean_text = _YOUTUBE_PATTERN.sub("", answer)
-        clean_text = _URL_PATTERN.sub("", clean_text)
-        clean_text = _clean_after_url_removal(clean_text)
-        clean_text = _strip_markdown(clean_text)
+        if video_bubbles:
+            video_bubbles = video_bubbles[:10]
+            clean_text = _YOUTUBE_PATTERN.sub("", answer)
+            clean_text = _URL_PATTERN.sub("", clean_text)
+            clean_text = _clean_after_url_removal(clean_text)
+            clean_text = _strip_markdown(clean_text)
 
-        contents = video_bubbles[0] if len(video_bubbles) == 1 else {"type": "carousel", "contents": video_bubbles}
-        flex_msg = FlexMessage.from_dict({
-            "type": "flex",
-            "altText": "教學影片推薦",
-            "contents": contents,
-        })
-        print(f"  [UI Factory] VIDEO_CARD（{len(video_bubbles)} 張卡片）")
-        messages = [flex_msg]
-        if clean_text:
-            messages.insert(0, TextMessage(text=clean_text))
-        return messages
+            contents = video_bubbles[0] if len(video_bubbles) == 1 else {"type": "carousel", "contents": video_bubbles}
+            flex_msg = FlexMessage.from_dict({
+                "type": "flex",
+                "altText": "教學影片推薦",
+                "contents": contents,
+            })
+            print(f"  [UI Factory] VIDEO_CARD（{len(video_bubbles)} 張卡片）")
+            messages = [flex_msg]
+            if clean_text:
+                messages.insert(0, TextMessage(text=clean_text))
 
     # ── 純文字 ──
-    print("  [UI Factory] TEXT（純文字）")
-    return [TextMessage(text=_strip_markdown(answer))]
+    if messages is None:
+        print("  [UI Factory] TEXT（純文字）")
+        messages = [TextMessage(text=_strip_markdown(answer))]
+
+    # ── 掛上 Quick Reply（品牌/型號追問） ──
+    if not skip_quick_reply:
+        quick_reply = _build_quick_reply(brand=brand, model=model)
+        if quick_reply and messages:
+            messages[-1].quick_reply = quick_reply
+
+    return messages
