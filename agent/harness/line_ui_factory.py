@@ -104,15 +104,23 @@ def get_brand_models(brand: str) -> list[str]:
 
 
 def infer_brand_from_text(text: str) -> tuple[str | None, str | None]:
-    """從自由文字中掃描已知型號，反向推論品牌。
+    """從自由文字中掃描已知型號或品牌名，反向推論品牌。
+
+    優先匹配型號（更精確），其次匹配品牌名。
 
     Returns:
         (brand, model) 或 (None, None)
     """
+    # 優先：型號匹配（同時得到品牌+型號）
     for brand, models in _brand_models.items():
         for m in models:
             if m in text:
                 return brand, m
+    # 其次：品牌名匹配（只得到品牌）
+    text_lower = text.lower()
+    for b in _brand_items:
+        if b["text"].lower() in text_lower:
+            return b["text"], None
     return None, None
 
 
