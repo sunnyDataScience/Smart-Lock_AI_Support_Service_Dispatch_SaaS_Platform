@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+:root {
+  /* Brand */
+  --primary: #2563EB;
+  --primary-hover: #1D4ED8;
+  --primary-light: #DBEAFE;
+  --secondary: #1E293B;
+  --secondary-hover: #334155;
+  --accent: #F59E0B;
+  --accent-hover: #D97706;
+
+  /* Backgrounds */
+  --bg-page: #F8FAFC;
+  --bg-sidebar: #1E293B;
+  --bg-surface: #FFFFFF;
+
+  /* Borders */
+  --border: #E2E8F0;
+  --border-focus: #2563EB;
+
+  /* Text */
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --text-disabled: #94A3B8;
+  --text-inverse: #FFFFFF;
+
+  /* Status */
+  --status-success: #10B981;
+  --status-warning: #F59E0B;
+  --status-danger: #EF4444;
+  --status-active: #3B82F6;
+  --status-assigned: #8B5CF6;
+  --status-pending: #6366F1;
+
+  /* System */
+  --success: #10B981;
+  --warning: #F59E0B;
+  --error: #EF4444;
+  --info: #3B82F6;
+}
+
+@layer base {
+  html, body {
+    height: 100%;
+  }
+
+  .font-primary {
+    font-family: "Inter", "Noto Sans TC", sans-serif;
+  }
+
+  .font-secondary {
+    font-family: "Inter", "Noto Sans TC", sans-serif;
+  }
+}

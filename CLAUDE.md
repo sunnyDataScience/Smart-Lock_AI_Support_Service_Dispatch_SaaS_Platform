@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Smart Lock AI Support & Service Dispatch SaaS Platform — a LINE Bot-based AI customer service agent for smart lock troubleshooting. Built with a skill-based ReAct agent (LangGraph) and a Medallion data pipeline that produces SKILL.md knowledge files.
+Smart Lock AI Support & Service Dispatch SaaS Platform — a LINE Bot-based AI customer service agent for smart lock troubleshooting, with a Next.js admin dashboard for operations monitoring. Built with a skill-based ReAct agent (LangGraph) and a Medallion data pipeline that produces SKILL.md knowledge files.
 
 Primary language: **Chinese (Traditional)** for all user-facing text, comments, and documentation. Code identifiers and git messages may mix English and Chinese.
 
@@ -15,6 +15,7 @@ Primary language: **Chinese (Traditional)** for all user-facing text, comments, 
 conda create -n smart-lock python=3.11 && conda activate smart-lock
 pip install -r agent/requirements.txt    # Agent dependencies
 pip install -r data/requirements.txt     # Data pipeline dependencies
+cd web && npm install                    # Web dashboard dependencies
 
 # Run agent (CLI interactive mode — verifies LLM connectivity, no LINE Bot needed)
 cd agent && python main.py
@@ -28,6 +29,11 @@ curl "http://localhost:8000/chat?q=門打不開&user_id=test-user-1"  # custom t
 
 # Health check
 curl http://localhost:8000/health
+
+# Web admin dashboard
+cd web && npm run dev                    # Dev server (http://localhost:3000)
+cd web && npm run build                  # Production build
+cd web && npm run lint                   # ESLint
 
 # Quality testing (LLM-as-Judge eval pipeline)
 cd agent && python -m quality.quality_check              # Full: agent + keyword + LLM judge
@@ -77,8 +83,9 @@ No automated unit test suite exists. Testing is via `quality_check` (LLM-as-Judg
 
 1. **`agent/`** — Skill-based ReAct Agent (LINE Bot AI customer service)
 2. **`data/`** — Medallion ETL Pipeline producing SKILL.md knowledge files
-3. **`docs/02-design/specs/`** — API Contract SSOT (OpenAPI + AsyncAPI + CI validation)
-4. **`web_design_spec_prompt_pipeline/`** — AI-assisted web design prompt pipeline
+3. **`web/`** — Next.js Admin Dashboard (operations monitoring & conversation review)
+4. **`docs/02-design/specs/`** — API Contract SSOT (OpenAPI + AsyncAPI + CI validation)
+5. **`web_design_spec_prompt_pipeline/`** — AI-assisted web design prompt pipeline
 
 ### Request Processing Flow
 
@@ -224,6 +231,31 @@ All config centralized in `agent/config.toml`. Key sections: `[system]` (domain,
 - **Dockerfile** at `agent/Dockerfile` — Python 3.11-slim, uvicorn on port 8080
 - **Cloud Run** deployment via `agent/scripts/deploy.sh` — builds amd64 image, pushes to Artifact Registry, deploys with Secret Manager integration and Cloud SQL Unix socket
 - Secrets managed via GCP Secret Manager: `LINE_CHANNEL_SECRET`, `LINE_CHANNEL_ACCESS_TOKEN`, `POSTGRES_URI`, `OPIK_API_KEY`, `OPIK_WORKSPACE`
+
+### Web Admin Dashboard (`web/`)
+
+Next.js 15 + React 19 + TypeScript admin dashboard for operations teams.
+
+**Tech stack:** Next.js 15 (App Router), React 19, Tailwind CSS 4, Recharts (charts), Lucide (icons). Path alias `@/*` → `./src/*`.
+
+**Implemented pages:**
+
+| Route | Purpose |
+|-------|---------|
+| `/` | Redirects to `/dashboard` |
+| `/dashboard` | KPI cards, work order trend chart, technician status pie chart |
+| `/conversations` | Customer conversation list with search/filter |
+| `/conversations/[id]` | Chat timeline (AI/customer bubbles), customer info sidebar |
+| `/problem-cards` | Problem card list with status/resolution level |
+| `/problem-cards/[id]` | FMEA diagnosis chain, L1/L2/L3 resolution timeline, linked conversation |
+
+**Planned (nav defined, pages not implemented):** `/work-orders`, `/technicians`, `/knowledge-base`, `/settings`
+
+**Component organization:** `src/components/{domain}/` — `layout/` (Sidebar, Header), `dashboard/` (KpiCard, charts), `conversations/` (ChatTimeline, ConversationsTable), `problem-cards/` (FmeaDiagnosisCard, ResolutionTimeline), `ui/` (StatusBadge, SolidBadge).
+
+**Design tokens:** CSS custom properties in `globals.css` — primary `#2563EB`, accent `#F59E0B`. Fonts: Inter + Noto Sans TC. Dark sidebar (`#1E293B`) + light content (`#F8FAFC`).
+
+**Current state:** Frontend-only with mock data. No API integration with agent backend yet. API contracts defined in `docs/02-design/specs/` will drive future integration.
 
 ### API Contract System (`docs/02-design/specs/`)
 
