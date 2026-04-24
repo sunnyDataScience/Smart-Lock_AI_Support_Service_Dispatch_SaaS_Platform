@@ -25,6 +25,7 @@ jobs:
           for i in {1..20}; do
             if curl -fsS "http://localhost:4010/api/v1/work-orders" \
                 -H "X-Tenant-ID: 00000000-0000-0000-0000-000000000000" \
+                -H "Authorization: Bearer ci-smoke-test" \
                 > /dev/null 2>&1; then
               echo "✅ Prism ready on attempt $i"
               exit 0
@@ -38,7 +39,6 @@ jobs:
       - name: 抽樣契約端點回應
         run: |
           set -e
-          HDR='-H X-Tenant-ID:00000000-0000-0000-0000-000000000000'
           for path in \
             /api/v1/work-orders \
             /api/v1/conversations \
@@ -47,7 +47,10 @@ jobs:
             /api/v1/work-orders/pool
           do
             echo "== GET $path =="
-            curl -fsS "http://localhost:4010$path" $HDR | head -c 200
+            curl -fsS "http://localhost:4010$path" \
+              -H "X-Tenant-ID: 00000000-0000-0000-0000-000000000000" \
+              -H "Authorization: Bearer ci-smoke-test" \
+              | head -c 200
             echo ""
           done
 
