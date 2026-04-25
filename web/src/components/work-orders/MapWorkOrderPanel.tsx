@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowUpDown } from "lucide-react";
+import Link from "next/link";
 
 interface PanelItem {
   id: string;
@@ -101,9 +102,12 @@ export default function MapWorkOrderPanel({ onAssign }: MapWorkOrderPanelProps) 
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="font-mono text-[12px] font-medium text-[var(--primary)]">
+              <Link
+                href={`/work-orders/${item.id}`}
+                className="font-mono text-[12px] font-medium text-[var(--primary)] hover:underline"
+              >
                 {item.id}
-              </span>
+              </Link>
               <span
                 className="rounded-full px-2 text-[11px] font-medium leading-5 text-white"
                 style={{ backgroundColor: item.badge.bg }}

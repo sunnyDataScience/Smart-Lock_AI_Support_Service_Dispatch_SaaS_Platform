@@ -9,6 +9,7 @@ import {
   X,
   UserPlus,
 } from "lucide-react";
+import Link from "next/link";
 
 interface MapPin {
   icon: React.ElementType;
@@ -137,9 +138,12 @@ export default function MapView({ onAssign }: MapViewProps) {
               指派技師
             </span>
           </button>
-          <span className="text-[13px] font-medium text-[var(--primary)]">
+          <Link
+            href="/work-orders/WO-20260422-0001"
+            className="text-[13px] font-medium text-[var(--primary)] hover:underline"
+          >
             查看詳情 →
-          </span>
+          </Link>
         </div>
       </div>
     </div>

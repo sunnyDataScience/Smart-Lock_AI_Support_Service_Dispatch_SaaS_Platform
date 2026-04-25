@@ -1,6 +1,7 @@
 "use client";
 
 import { Timer, CircleX, AlertTriangle } from "lucide-react";
+import Link from "next/link";
 
 interface KanbanCard {
   id: string;
@@ -197,8 +198,9 @@ function SlaIndicator({ sla }: { sla: KanbanCard["sla"] }) {
 
 function CardItem({ card, columnColor }: { card: KanbanCard; columnColor: string }) {
   return (
-    <div
-      className="flex flex-col gap-[10px] rounded-lg bg-white p-4 shadow-sm"
+    <Link
+      href={`/work-orders/${card.id}`}
+      className="flex flex-col gap-[10px] rounded-lg bg-white p-4 shadow-sm hover:shadow-md transition-shadow"
       style={{ borderLeft: `3px solid ${columnColor}` }}
     >
       {/* Top row */}
@@ -254,7 +256,7 @@ function CardItem({ card, columnColor }: { card: KanbanCard; columnColor: string
         </div>
         <SlaIndicator sla={card.sla} />
       </div>
-    </div>
+    </Link>
   );
 }
 

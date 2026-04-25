@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 interface WorkOrder {
   id: string;
   customer: string;
@@ -156,9 +158,12 @@ export default function WorkOrdersTable() {
 
             {/* 工單編號 */}
             <div className="flex w-[160px] items-center">
-              <span className="font-mono text-[12px] font-medium text-[var(--primary)]">
+              <Link
+                href={`/work-orders/${order.id}`}
+                className="font-mono text-[12px] font-medium text-[var(--primary)] hover:underline"
+              >
                 {order.id}
-              </span>
+              </Link>
             </div>
 
             {/* 客戶姓名 */}
