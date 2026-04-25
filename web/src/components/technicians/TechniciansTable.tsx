@@ -146,7 +146,7 @@ const technicians: Technician[] = [
 const columns = [
   { label: "", width: "w-[52px]" },
   { label: "技師", width: "w-[200px]" },
-  { label: "專長品牌", width: "w-[140px]" },
+  { label: "專長品牌", width: "w-[180px]" },
   { label: "服務區域", width: "w-[120px]" },
   { label: "評分", width: "w-[80px]" },
   { label: "狀態", width: "w-[80px]" },
@@ -202,7 +202,7 @@ export default function TechniciansTable() {
           </div>
 
           {/* Brands */}
-          <div className="flex w-[140px] items-center gap-1">
+          <div className="flex w-[180px] items-center gap-1">
             {t.brands.map((b) => (
               <span
                 key={b.name}
