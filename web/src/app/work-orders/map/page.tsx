@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Search,
   ChevronDown,
@@ -11,33 +12,31 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
-import WorkOrdersTable from "@/components/work-orders/WorkOrdersTable";
+import MapWorkOrderPanel from "@/components/work-orders/MapWorkOrderPanel";
+import MapView from "@/components/work-orders/MapView";
+import AssignTechnicianModal from "@/components/work-orders/AssignTechnicianModal";
 
 const filterDropdowns = [
-  {
-    label: "狀態",
-    icon: null,
-    hasChevron: true,
-  },
-  {
-    label: "最近7天",
-    icon: Calendar,
-    hasChevron: true,
-  },
-  {
-    label: "品牌",
-    icon: null,
-    hasChevron: true,
-  },
+  { label: "狀態", icon: null },
+  { label: "最近7天", icon: Calendar },
+  { label: "品牌", icon: null },
 ];
 
 const viewTabs = [
-  { label: "列表", icon: List, active: true, href: "/work-orders" },
+  { label: "列表", icon: List, active: false, href: "/work-orders" },
   { label: "看板", icon: Columns3, active: false, href: "/work-orders/kanban" },
-  { label: "地圖", icon: Map, active: false, href: "/work-orders/map" },
+  { label: "地圖", icon: Map, active: true, href: "/work-orders/map" },
 ];
 
-export default function WorkOrdersPage() {
+export default function WorkOrdersMapPage() {
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [selectedWorkOrderId, setSelectedWorkOrderId] = useState("");
+
+  const handleAssign = (workOrderId: string) => {
+    setSelectedWorkOrderId(workOrderId);
+    setAssignModalOpen(true);
+  };
+
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
       <Sidebar />
@@ -46,7 +45,7 @@ export default function WorkOrdersPage() {
         {/* Page Header */}
         <div className="flex flex-col gap-1 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-4">
           <span className="text-[13px] text-[var(--text-secondary)]">
-            首頁 &gt; 工單管理 &gt; 工單列表
+            首頁 &gt; 工單管理 &gt; 派工板
           </span>
           <div className="flex items-center justify-between">
             <h1 className="text-[24px] font-bold text-[#0F172A]">工單管理</h1>
@@ -72,7 +71,6 @@ export default function WorkOrdersPage() {
 
         {/* Toolbar */}
         <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-3">
-          {/* Search */}
           <div className="flex h-9 w-[280px] items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-3">
             <Search className="h-4 w-4 text-[var(--text-secondary)]" />
             <input
@@ -82,7 +80,6 @@ export default function WorkOrdersPage() {
             />
           </div>
 
-          {/* Filter Dropdowns */}
           {filterDropdowns.map((dd) => (
             <button
               key={dd.label}
@@ -94,16 +91,12 @@ export default function WorkOrdersPage() {
               <span className="text-[13px] text-[var(--text-primary)]">
                 {dd.label}
               </span>
-              {dd.hasChevron && (
-                <ChevronDown className="h-[14px] w-[14px] text-[var(--text-secondary)]" />
-              )}
+              <ChevronDown className="h-[14px] w-[14px] text-[var(--text-secondary)]" />
             </button>
           ))}
 
-          {/* Spacer */}
           <div className="flex-1" />
 
-          {/* View Toggle */}
           <div className="flex h-9 items-center rounded-md border border-[var(--border)] bg-[var(--bg-surface)]">
             {viewTabs.map((tab) => (
               <Link
@@ -116,51 +109,33 @@ export default function WorkOrdersPage() {
                 }`}
               >
                 <tab.icon className="h-4 w-4" />
-                <span className={`text-[13px] ${tab.active ? "font-medium" : ""}`}>
+                <span
+                  className={`text-[13px] ${tab.active ? "font-medium" : ""}`}
+                >
                   {tab.label}
                 </span>
               </Link>
             ))}
           </div>
 
-          {/* Add Button */}
           <button className="flex h-9 items-center gap-[6px] rounded-md bg-[var(--primary)] px-4">
             <Plus className="h-4 w-4 text-white" />
             <span className="text-[13px] font-medium text-white">新增工單</span>
           </button>
         </div>
 
-        {/* Table Area */}
-        <main className="flex flex-1 flex-col gap-4 overflow-auto px-8 py-5">
-          <WorkOrdersTable />
-
-          {/* Batch Action Bar */}
-          <div className="flex items-center justify-between rounded-lg bg-[#1E293B] px-5 py-3">
-            <div className="flex items-center gap-4">
-              <span className="text-[13px] font-medium text-white">
-                已選取 1 筆工單
-              </span>
-              <div className="flex gap-2">
-                <button className="flex h-8 items-center justify-center rounded-md bg-[var(--primary)] px-[14px]">
-                  <span className="text-[12px] font-medium text-white">
-                    批次指派
-                  </span>
-                </button>
-                <button className="flex h-8 items-center justify-center rounded-md bg-[#EF4444] px-[14px]">
-                  <span className="text-[12px] font-medium text-white">
-                    批次取消
-                  </span>
-                </button>
-              </div>
-            </div>
-            <button className="flex h-8 items-center justify-center rounded-md border border-[#64748B] px-[14px]">
-              <span className="text-[12px] font-medium text-white">
-                取消選取
-              </span>
-            </button>
-          </div>
-        </main>
+        {/* Map Body */}
+        <div className="flex flex-1 overflow-hidden">
+          <MapWorkOrderPanel onAssign={handleAssign} />
+          <MapView onAssign={handleAssign} />
+        </div>
       </div>
+
+      <AssignTechnicianModal
+        isOpen={assignModalOpen}
+        onClose={() => setAssignModalOpen(false)}
+        workOrderId={selectedWorkOrderId}
+      />
     </div>
   );
 }
