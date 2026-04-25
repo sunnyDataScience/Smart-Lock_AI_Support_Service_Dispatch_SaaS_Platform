@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Eye, RefreshCw, TriangleAlert, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Invoice {
@@ -101,9 +102,12 @@ export default function InvoicesTable() {
 
             {/* Work Order */}
             <div className="flex w-[100px] items-center px-2">
-              <span className="text-[13px] font-medium text-[var(--primary)]">
+              <Link
+                href={`/work-orders/${inv.workOrder}`}
+                className="text-[13px] font-medium text-[var(--primary)] hover:underline"
+              >
                 {inv.workOrder}
-              </span>
+              </Link>
             </div>
 
             {/* Customer */}

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { X, Trophy, TriangleAlert, Printer, CircleCheck } from "lucide-react";
 
 interface OrderRow {
@@ -60,8 +61,14 @@ export default function SettlementDetailModal({ open, onClose }: SettlementDetai
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="flex max-h-[90vh] w-[720px] flex-col overflow-hidden rounded-xl bg-[var(--bg-surface)]">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={onClose}
+    >
+      <div
+        className="flex max-h-[90vh] w-[720px] flex-col overflow-hidden rounded-xl bg-[var(--bg-surface)]"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-5">
           <div className="flex flex-col gap-1">
@@ -126,7 +133,12 @@ export default function SettlementDetailModal({ open, onClose }: SettlementDetai
                   className="flex h-[40px] items-center border-b border-[var(--border)] px-[14px] last:border-b-0"
                 >
                   <div className="w-[110px]">
-                    <span className="text-xs text-[var(--primary)]">{order.id}</span>
+                    <Link
+                      href={`/work-orders/${order.id}`}
+                      className="text-xs text-[var(--primary)] hover:underline"
+                    >
+                      {order.id}
+                    </Link>
                   </div>
                   <div className="w-[100px]">
                     <span
@@ -228,7 +240,10 @@ export default function SettlementDetailModal({ open, onClose }: SettlementDetai
               <CircleCheck className="h-4 w-4 text-white" />
               <span className="text-sm font-semibold text-white">確認結算</span>
             </button>
-            <button className="rounded-lg border border-[var(--border)] px-5 py-[10px]">
+            <button
+              onClick={onClose}
+              className="rounded-lg border border-[var(--border)] px-5 py-[10px]"
+            >
               <span className="text-sm text-[var(--text-secondary)]">關閉</span>
             </button>
           </div>
