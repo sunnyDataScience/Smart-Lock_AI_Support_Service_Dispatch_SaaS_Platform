@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { RefreshCw, Wallet, FileText, BarChart3, Calendar, ChevronDown } from "lucide-react";
+import { RefreshCw, Wallet, FileText, BarChart3, Search, ChevronDown, Calendar } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
-import SettlementTable from "@/components/accounting/SettlementTable";
+import InvoicesTable from "@/components/accounting/InvoicesTable";
 
 const tabs = [
   {
@@ -27,13 +27,12 @@ const tabs = [
   },
 ];
 
-const segments = [
-  { label: "月結(5號)", active: true },
-  { label: "雙週結", active: false },
-  { label: "週結", active: false },
+const filterDropdowns = [
+  { label: "全部狀態", hasChevron: true },
+  { label: "付款方式", hasChevron: true },
 ];
 
-export default function AccountingPage() {
+export default function InvoicesPage() {
   const pathname = usePathname();
 
   return (
@@ -105,50 +104,59 @@ export default function AccountingPage() {
           </div>
         </div>
 
-        {/* Settlement Period Selector */}
-        <div className="flex items-center gap-4 px-8 py-4">
-          {/* Month Dropdown */}
-          <button className="flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-[14px] py-2">
-            <Calendar className="h-4 w-4 text-[var(--text-secondary)]" />
-            <span className="text-sm font-medium text-[var(--text-primary)]">
-              2026年04月
-            </span>
-            <ChevronDown className="h-4 w-4 text-[var(--text-secondary)]" />
-          </button>
-
-          {/* Segmented Control */}
-          <div className="flex rounded-md bg-[#F1F5F9] p-[3px]">
-            {segments.map((seg) => (
-              <button
-                key={seg.label}
-                className={`rounded px-[14px] py-[6px] text-[13px] ${
-                  seg.active
-                    ? "bg-[var(--bg-surface)] font-semibold text-[var(--text-primary)] shadow-sm"
-                    : "font-medium text-[var(--text-secondary)]"
-                }`}
-              >
-                {seg.label}
-              </button>
-            ))}
+        {/* Filter Toolbar */}
+        <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-3">
+          {/* Search */}
+          <div className="flex h-[38px] w-[320px] items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3">
+            <Search className="h-4 w-4 text-[var(--text-secondary)]" />
+            <input
+              type="text"
+              placeholder="搜尋發票編號、客戶名稱..."
+              className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-[var(--text-disabled)]"
+            />
           </div>
 
-          {/* Period Text */}
-          <span className="text-[13px] text-[var(--text-secondary)]">
-            結算期間：2026/04/01 - 2026/04/30
-          </span>
+          {/* Filter Dropdowns */}
+          {filterDropdowns.map((dd) => (
+            <button
+              key={dd.label}
+              className="flex h-[38px] items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3"
+            >
+              <span className="text-[13px] text-[var(--text-primary)]">
+                {dd.label}
+              </span>
+              {dd.hasChevron && (
+                <ChevronDown className="h-[14px] w-[14px] text-[var(--text-secondary)]" />
+              )}
+            </button>
+          ))}
+
+          {/* Date Range */}
+          <button className="flex h-[38px] items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3">
+            <Calendar className="h-4 w-4 text-[var(--text-secondary)]" />
+            <span className="text-[13px] text-[var(--text-primary)]">
+              日期範圍
+            </span>
+            <ChevronDown className="h-[14px] w-[14px] text-[var(--text-secondary)]" />
+          </button>
 
           {/* Spacer */}
           <div className="flex-1" />
 
-          {/* Total Badge */}
-          <div className="rounded-lg bg-[var(--primary)] px-5 py-[10px]">
-            <span className="text-lg font-bold text-white">NT$ 892,400</span>
-          </div>
+          {/* Overdue Toggle */}
+          <label className="flex items-center gap-2">
+            <div className="flex h-5 w-9 items-center rounded-full bg-[var(--border)] px-[2px]">
+              <div className="h-4 w-4 rounded-full bg-white shadow-sm" />
+            </div>
+            <span className="text-[13px] text-[var(--text-secondary)]">
+              僅顯示逾期
+            </span>
+          </label>
         </div>
 
-        {/* Settlement Table */}
+        {/* Invoices Table */}
         <div className="flex flex-1 flex-col overflow-auto">
-          <SettlementTable />
+          <InvoicesTable />
         </div>
       </div>
     </div>
