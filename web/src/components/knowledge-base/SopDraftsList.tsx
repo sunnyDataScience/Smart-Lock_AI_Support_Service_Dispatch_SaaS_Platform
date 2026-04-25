@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
 type SopStatus = "draft" | "pending_review" | "approved" | "rejected";
@@ -131,8 +132,9 @@ export default function SopDraftsList() {
       {/* Queue List */}
       <div className="flex-1 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
         {drafts.map((item, idx) => (
-          <div
+          <Link
             key={item.id}
+            href={`/knowledge-base/sop-drafts/${item.id}`}
             className={`flex items-start justify-between px-5 py-4 hover:bg-[var(--bg-page)] ${
               idx < drafts.length - 1
                 ? "border-b border-[var(--border)]"
@@ -158,7 +160,7 @@ export default function SopDraftsList() {
                 </span>
               )}
             </div>
-          </div>
+          </Link>
         ))}
       </div>
 
