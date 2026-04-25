@@ -22,7 +22,7 @@ const tabs = [
   {
     icon: BarChart3,
     label: "營收報表",
-    href: undefined as string | undefined,
+    href: "/accounting/revenue" as string | undefined,
     dot: false,
   },
 ];
