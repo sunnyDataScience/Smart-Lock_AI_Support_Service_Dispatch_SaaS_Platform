@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { Eye, Pencil } from "lucide-react";
+import SettlementDetailModal from "@/components/accounting/SettlementDetailModal";
 
 interface Settlement {
   name: string;
@@ -42,8 +44,11 @@ const columns = [
 ];
 
 export default function SettlementTable() {
+  const [modalOpen, setModalOpen] = useState(false);
+
   return (
     <div className="flex flex-1 flex-col bg-[var(--bg-surface)]">
+      <SettlementDetailModal open={modalOpen} onClose={() => setModalOpen(false)} />
       {/* Batch Action Bar */}
       <div className="flex items-center gap-3 border-b border-[var(--border)] px-8 py-3">
         <div className="h-4 w-4 rounded border-[1.5px] border-[var(--border)]" />
@@ -140,7 +145,9 @@ export default function SettlementTable() {
 
             {/* Actions */}
             <div className="flex flex-1 items-center gap-1 px-2">
-              <Eye className="h-4 w-4 text-[var(--text-secondary)]" />
+              <button onClick={() => setModalOpen(true)}>
+                <Eye className="h-4 w-4 text-[var(--text-secondary)]" />
+              </button>
               <Pencil className="h-4 w-4 text-[var(--text-secondary)]" />
             </div>
           </div>
