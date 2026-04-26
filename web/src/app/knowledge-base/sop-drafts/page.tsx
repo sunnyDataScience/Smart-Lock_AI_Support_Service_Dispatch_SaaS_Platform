@@ -6,7 +6,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import SopDraftsList from "@/components/knowledge-base/SopDraftsList";
 
 const tabs = [
-  { label: "案例庫", count: 128, href: "/knowledge-base" },
+  { label: "案例庫", count: 128, href: "/knowledge-base/cases" },
   { label: "產品手冊", count: 23, href: "/knowledge-base/manuals" },
   { label: "SOP 草稿", count: 7, href: "/knowledge-base/sop-drafts" },
 ];
