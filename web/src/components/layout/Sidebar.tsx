@@ -37,7 +37,7 @@ const navItems: NavItem[] = [
   {
     icon: BookOpen,
     label: "知識庫",
-    href: "/knowledge-base",
+    href: "/knowledge-base/cases",
     children: [
       { label: "案例庫", href: "/knowledge-base/cases" },
       { label: "手冊管理", href: "/knowledge-base/manuals" },
