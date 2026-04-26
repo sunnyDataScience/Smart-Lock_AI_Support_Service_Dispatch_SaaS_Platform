@@ -236,7 +236,7 @@ All config centralized in `agent/config.toml`. Key sections: `[system]` (domain,
 
 Next.js 15 + React 19 + TypeScript admin dashboard for operations teams.
 
-**Tech stack:** Next.js 15 (App Router), React 19, Tailwind CSS 4, Recharts (charts), Lucide (icons). Path alias `@/*` → `./src/*`.
+**Tech stack:** Next.js 15 (App Router), React 19, Tailwind CSS 4, Recharts (charts), Lucide (icons). Path alias `@/*` → `./src/*`. No UI component library — all custom components with Tailwind CSS.
 
 **Implemented pages:**
 
@@ -248,10 +248,37 @@ Next.js 15 + React 19 + TypeScript admin dashboard for operations teams.
 | `/conversations/[id]` | Chat timeline (AI/customer bubbles), customer info sidebar |
 | `/problem-cards` | Problem card list with status/resolution level |
 | `/problem-cards/[id]` | FMEA diagnosis chain, L1/L2/L3 resolution timeline, linked conversation |
+| `/work-orders` | Work order list with filters |
+| `/work-orders/[id]` | Work order detail with sidebar |
+| `/work-orders/kanban` | Kanban board view |
+| `/work-orders/map` | Map view with work order panel |
+| `/technicians` | Technician list with table |
+| `/technicians/[id]` | Technician detail with sidebar |
+| `/accounting` | Settlement dashboard with tables |
+| `/accounting/invoices` | Invoice management table |
+| `/accounting/revenue` | Revenue charts (brand breakdown, service type) |
+| `/knowledge-base` | Redirects to `/knowledge-base/cases` |
+| `/knowledge-base/cases` | Case library with card grid |
+| `/knowledge-base/manuals` | Manuals table |
+| `/knowledge-base/sop-drafts` | SOP draft list |
+| `/knowledge-base/sop-drafts/[id]` | SOP draft review detail |
+| `/admin/dispatch-queue` | Dispatch queue monitoring (stuck/retry/timeout stats) |
+| `/admin/refunds` | Refund review queue with SLA countdown |
+| `/admin/warranty-claims` | Warranty claims with status/remaining days |
+| `/admin/disputes` | Dispute resolution with dual evidence panel |
+| `/admin/inventory` | Inventory management with stock alerts |
+| `/admin/reports/kpi` | KPI dashboard (funnel, SLA rings, NPS, scatter plot) |
+| `/admin/reports/revenue` | Revenue report with trend chart and pivot table |
+| `/admin/reports/technician-ranking` | Technician leaderboard with podium |
+| `/admin/knowledge-base/sop-performance` | SOP performance (placeholder) |
+| `/admin/audit-events` | Audit log with expandable JSON detail |
+| `/admin/roles` | RBAC role cards + permission matrix |
 
-**Planned (nav defined, pages not implemented):** `/work-orders`, `/technicians`, `/knowledge-base`, `/settings`
+**Not yet implemented:** `/settings` (系統設定), `/admin/customers` (客戶主檔)
 
-**Component organization:** `src/components/{domain}/` — `layout/` (Sidebar, Header), `dashboard/` (KpiCard, charts), `conversations/` (ChatTimeline, ConversationsTable), `problem-cards/` (FmeaDiagnosisCard, ResolutionTimeline), `ui/` (StatusBadge, SolidBadge).
+**Component organization:** `src/components/{domain}/` — `layout/` (Sidebar, Header), `dashboard/` (KpiCard, charts), `conversations/` (ChatTimeline, ConversationsTable), `problem-cards/` (FmeaDiagnosisCard, ResolutionTimeline), `work-orders/` (KanbanBoard, MapView, WorkOrdersTable), `technicians/` (TechniciansTable, TechnicianDetailSidebar), `accounting/` (SettlementTable, InvoicesTable, revenue charts), `knowledge-base/` (CaseCardGrid, ManualsTable, SopDraftsList), `dispatch-queue/` (DispatchQueueTable), `admin/` (RefundReviewTable, WarrantyClaimsTable, InventoryTable), `ui/` (StatusBadge, SolidBadge).
+
+**Sidebar navigation:** Nested nav with `NavItem[]` supporting `children?: NavChild[]`. Groups: 派工管理 (2), 帳務與結算 (4), 知識庫 (3), 報表中心 (4), 稽核與權限 (2). Active parent auto-expands children.
 
 **Design tokens:** CSS custom properties in `globals.css` — primary `#2563EB`, accent `#F59E0B`. Fonts: Inter + Noto Sans TC. Dark sidebar (`#1E293B`) + light content (`#F8FAFC`).
 
