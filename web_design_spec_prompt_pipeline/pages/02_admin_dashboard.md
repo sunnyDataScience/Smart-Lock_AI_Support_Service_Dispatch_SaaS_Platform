@@ -61,7 +61,19 @@
 - **layout**: 固定左側欄，寬度 240px，背景色 #1E293B（Secondary），高度 100vh，sticky 定位
 - **elements**:
   - brand_logo: Image / required / 平台 Logo，高度 40px，上方 padding 24px
-  - nav_items: NavItem[] / required / 圖標 + 文字，項目包含：儀表板、對話管理、工單管理、技師管理、知識庫、設定
+  - nav_items: NavItem[] / required / 圖標 + 文字，完整項目清單依 `E5x--frontend-information-arch.md` 7.3 節 `adminNavigation` 定義：
+    1. 儀表板 (LayoutDashboard) [V1]
+    2. 對話管理 (MessageSquare) [V1]
+    3. 問題卡 (ClipboardList) [V1]
+    4. 知識庫 (BookOpen) [V1] → 子項：案例庫、手冊管理、SOP 審核 (badge: pending_count)
+    5. 派工管理 (Truck) [V2] → 子項：工單列表、派工佇列監控 (badge: stuck_count)
+    6. 技師管理 (Users) [V2]
+    7. 客戶主檔 (UserCircle) [V2]
+    8. 帳務與結算 (Receipt) [V2] → 子項：月結算總覽、退款審批 (badge)、保固索賠 (badge)、爭議仲裁 (badge)
+    9. 庫存 (Package) [V2] (badge: low_stock_count)
+    10. 報表中心 (BarChart3) [V2] → 子項：KPI 儀表板、技師排行、營收報表、SOP 績效
+    11. 稽核與權限 (ShieldCheck) [V2] → 子項：RBAC 管理、稽核日誌
+    12. 系統設定 (Settings) [V1] → 子項：個人/安全、租戶設定 (V3)
   - active_indicator: LeftBorder / required / 當前頁面左側 3px #2563EB 指示條
   - user_avatar: Avatar / required / 底部顯示登入者頭像 + 名稱 + 角色
   - collapse_toggle: IconButton / optional / 收合側邊欄為 64px 純圖標模式

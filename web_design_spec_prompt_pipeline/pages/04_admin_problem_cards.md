@@ -17,7 +17,7 @@
 - **target_users**:
   - 主要：品牌管理員（每日巡查問題卡片狀態）
   - 次要：技術主管（檢視 L2/L3 升級案件）
-- **entry_point**: 左側導覽列「問題卡片」選項 / Dashboard 統計卡片點擊 / 工單頁面反向連結
+- **entry_point**: 左側導覽列「問題卡��選項（導覽標籤依 E5x 7.3 節 `adminNavigation` 為準）/ Dashboard 統計卡片點擊 / 工單頁面反向連結
 - **expected_time_on_page**: 列表頁 1-3 分鐘（篩選瀏覽）；詳情頁 3-8 分鐘（深入診斷審閱）
 
 ---

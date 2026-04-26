@@ -18,7 +18,7 @@
 - **target_users**:
   - 主要：平台財務管理員（每日使用）
   - 次要：平台管理員（每週檢視營收報表）
-- **entry_point**: 左側導覽列「財務管理」/ Dashboard 營收 KPI 卡片點擊
+- **entry_point**: 左側導覽列「帳務與結算」→「月結算總覽」/ Dashboard 營收 KPI 卡片點擊（導覽標籤依 E5x 7.3 節 `adminNavigation` 為準）
 - **expected_time_on_page**: 5-15 分鐘（結算作業）、2-5 分鐘（報表檢視）
 
 ---
@@ -32,6 +32,7 @@
 2. **tab_navigation**
    - section_type: tabs
    - section_purpose: 切換三大功能區塊（結算管理 / 發票管理 / 營收報表）
+   - **⚠️ E5x 結構差異**: E5x 7.3 節將「營收報表」歸入「報表中心」子項 (`/admin/reports/revenue`)，而非本頁 Tab。目前設計保留為帳務 Tab 3，待確認是否需拆分至獨立報表頁面。
 
 ### Tab 1 — 結算管理
 

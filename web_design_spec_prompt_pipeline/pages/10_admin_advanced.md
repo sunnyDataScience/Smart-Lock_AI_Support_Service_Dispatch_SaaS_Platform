@@ -18,7 +18,7 @@
 - **target_users**:
   - 主要：平台管理員、財務主管、客服主管（依功能分權）
   - 次要：審計人員（稽核日誌）、技術主管（庫存管理）
-- **entry_point**: 左側主導覽列「進階管理」/ Dashboard 告警卡片 / 工單詳情頁關聯連結
+- **entry_point**: 依 E5x 7.3 節 `adminNavigation` 分屬三個導覽項目入口：「帳務與結算」（退款審核、保固索賠、爭議仲裁）、「庫存」（庫存管理）、「稽核與權限」（稽核日誌、角色權限）/ Dashboard 告警卡片 / 工單詳情頁關聯連結
 - **expected_time_on_page**: 依子頁面 3-15 分鐘不等
 
 ---
@@ -34,6 +34,10 @@
 2. **sub_navigation**
    - section_type: sidebar_nav
    - section_purpose: 六個子頁面切換導覽
+   - **⚠️ E5x 導覽映射**: 本頁 6 個子頁面在 `E5x--frontend-information-arch.md` 7.3 節中分屬 3 個頂級導覽：
+     - 「帳務與結算」→ 退款審核 (`/admin/refunds`)、保固索賠 (`/admin/warranty-claims`)、爭議仲裁 (`/admin/disputes`)
+     - 「庫存」→ 庫存管理 (`/admin/inventory`)
+     - 「稽核與權限」→ 稽核日誌 (`/admin/audit-events`)、角色權限 (`/admin/roles`)
 
 ### 子頁面 1 — 退款審核 `/admin/refunds`
 
