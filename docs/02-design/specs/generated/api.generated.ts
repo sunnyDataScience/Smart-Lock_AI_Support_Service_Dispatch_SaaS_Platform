@@ -82,7 +82,8 @@ export interface paths {
         /** 問題卡列表 */
         get: operations["listProblemCards"];
         put?: never;
-        post?: never;
+        /** 建立問題卡 */
+        post: operations["createProblemCard"];
         delete?: never;
         options?: never;
         head?: never;
@@ -387,6 +388,681 @@ export interface paths {
         put?: never;
         /** 全部標為已讀（Critical 類除外） */
         post: operations["markAllNotificationsRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 換發 access token */
+        post: operations["refreshToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 登出（撤銷 refresh token） */
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 對話訊息列表（cursor 分頁） */
+        get: operations["listConversationMessages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/problem-cards/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 取得問題卡詳情 */
+        get: operations["getProblemCard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 更新問題卡（部分欄位） */
+        patch: operations["updateProblemCard"];
+        trace?: never;
+    };
+    "/api/v1/problem-cards/{id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 匯出問題卡（PDF/JSON/CSV） */
+        get: operations["exportProblemCard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge-base/cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 案例列表（cursor 分頁） */
+        get: operations["listCases"];
+        put?: never;
+        /** 建立案例 */
+        post: operations["createCase"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge-base/cases/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 取得案例詳情 */
+        get: operations["getCase"];
+        /** 更新案例（整體取代） */
+        put: operations["updateCase"];
+        post?: never;
+        /** 刪除案例 */
+        delete: operations["deleteCase"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge-base/cases/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 案例語意搜尋（向量檢索） */
+        post: operations["searchCases"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge-base/manuals/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 上傳產品手冊（multipart） */
+        post: operations["uploadManual"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge-base/manuals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 手冊列表 */
+        get: operations["listManuals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge-base/manuals/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** 刪除手冊 */
+        delete: operations["deleteManual"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge-base/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 啟動向量索引匯出（非同步） */
+        post: operations["startKbExport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge-base/export/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 查詢匯出任務狀態 */
+        get: operations["getKbExport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sop-drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** SOP 草稿列表 */
+        get: operations["listSopDrafts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sop-drafts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 取得 SOP 草稿詳情 */
+        get: operations["getSopDraft"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sop-drafts/{id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 管理員初審 SOP 草稿 */
+        patch: operations["reviewSopDraft"];
+        trace?: never;
+    };
+    "/api/v1/sop-drafts/{id}/adopt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 採納 SOP 草稿（家族覆核通過後入庫） */
+        post: operations["adoptSopDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 觸發解決方案引擎（FAQ/RAG/LLM/Escalation） */
+        post: operations["resolveProblem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 儀表板統計（KPI/熱門主題/Token 用量） */
+        get: operations["getDashboardStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 取得系統設定 */
+        get: operations["getSystemConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 更新系統設定（部分更新） */
+        patch: operations["updateSystemConfig"];
+        trace?: never;
+    };
+    "/api/v1/audit-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 審計日誌查詢 */
+        get: operations["listAuditLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sentiment/alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 負面情緒告警列表 */
+        get: operations["listSentimentAlerts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sentiment/alerts/{alert_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 處理情緒告警 */
+        patch: operations["updateSentimentAlert"];
+        trace?: never;
+    };
+    "/api/v1/family-reviews/pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 待家族覆核的 SOP 清單 */
+        get: operations["listPendingFamilyReviews"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/family-reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 家族覆核歷史 */
+        get: operations["listFamilyReviews"];
+        put?: never;
+        /** 提交家族覆核結果 */
+        post: operations["createFamilyReview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/technicians/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 技師註冊 */
+        post: operations["registerTechnician"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/technicians/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 取得目前登入技師個人資料 */
+        get: operations["getMyProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 更新個人資料 */
+        patch: operations["updateMyProfile"];
+        trace?: never;
+    };
+    "/api/v1/work-orders/{id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 客戶確認工單完工並評價 */
+        post: operations["confirmWorkOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dispatch/auto-match": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 自動媒合候選技師 */
+        post: operations["autoMatchDispatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dispatch/assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 將工單指派給技師（body 帶 work_order_id 之版本）
+         * @description 與 `POST /api/v1/work-orders/{id}/assign` 等價，差別在 work_order_id 透過 body 傳遞，
+         *     適用於從候選列表批次派發或外部系統整合。
+         */
+        post: operations["assignDispatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pricing/calculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 計算報價（依 brand/lock_type/difficulty + 加成） */
+        post: operations["calculatePricing"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pricing/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 計價規則列表 */
+        get: operations["listPricingRules"];
+        put?: never;
+        /** 建立計價規則 */
+        post: operations["createPricingRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pricing/rules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** 更新計價規則 */
+        put: operations["updatePricingRule"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting/reconciliations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 對帳記錄列表 */
+        get: operations["listReconciliations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting/reconciliations/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 核准對帳（觸發結算） */
+        post: operations["approveReconciliation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting/settlements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 結算記錄列表 */
+        get: operations["listSettlements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting/vouchers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 會計傳票列表 */
+        get: operations["listVouchers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting/vouchers/{id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 匯出傳票（PDF） */
+        get: operations["exportVoucher"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/push": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 主動推播通知（後台/系統觸發） */
+        post: operations["pushNotification"];
         delete?: never;
         options?: never;
         head?: never;
@@ -811,6 +1487,604 @@ export interface components {
              */
             raw_event_id?: string | null;
         };
+        /** @enum {string} */
+        MessageRole: "user" | "assistant" | "system";
+        /** @enum {string} */
+        MessageType: "text" | "image" | "audio" | "video" | "sticker";
+        Message: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            conversation_id: string;
+            role: components["schemas"]["MessageRole"];
+            type: components["schemas"]["MessageType"];
+            content: string;
+            /** Format: uri */
+            media_url?: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        MessagePage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["Message"][];
+        };
+        ProblemCardCreateRequest: {
+            /** Format: uuid */
+            conversation_id: string;
+            brand: string;
+            model: string;
+            symptom: string;
+            category?: string;
+            urgency: components["schemas"]["Urgency"];
+            location?: string;
+            /** @enum {string} */
+            door_status?: "locked_out" | "partially_functional" | "normal";
+            /** @enum {string} */
+            network_status?: "online" | "offline" | "unknown";
+            symptoms?: string[];
+            /** @enum {string} */
+            intent?: "unlock_request" | "repair_request" | "installation" | "inquiry";
+            media_urls?: string[];
+        };
+        ProblemCardUpdateRequest: {
+            brand?: string;
+            model?: string;
+            symptom?: string;
+            category?: string;
+            urgency?: components["schemas"]["Urgency"];
+            status?: components["schemas"]["ProblemCardStatus"];
+            media_urls?: string[];
+        };
+        ProblemCardEnvelope: components["schemas"]["ApiResponseGeneric"] & {
+            data?: components["schemas"]["ProblemCard"];
+        };
+        ProblemCardExport: {
+            /** @enum {string} */
+            format: "pdf" | "json" | "csv";
+            /** @description Base64 編碼內容或下載 URL（依 format 決定） */
+            content: string;
+            /** Format: uri */
+            download_url?: string | null;
+        };
+        /** @enum {string} */
+        CaseEntryEmbeddingStatus: "processing" | "ready" | "failed";
+        CaseEntry: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            problem_description: string;
+            solution: string;
+            brand: string;
+            model?: string;
+            tags?: string[];
+            verified: boolean;
+            embedding_status: components["schemas"]["CaseEntryEmbeddingStatus"];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        CaseEntryCreateRequest: {
+            title: string;
+            problem_description: string;
+            solution: string;
+            brand: string;
+            model?: string;
+            tags?: string[];
+        };
+        CaseEntryUpdateRequest: {
+            title?: string;
+            problem_description?: string;
+            solution?: string;
+            brand?: string;
+            model?: string;
+            tags?: string[];
+            verified?: boolean;
+        };
+        CaseEntryEnvelope: components["schemas"]["ApiResponseGeneric"] & {
+            data?: components["schemas"]["CaseEntry"];
+        };
+        CaseEntryPage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["CaseEntry"][];
+        };
+        CaseSearchRequest: {
+            query: string;
+            brand?: string;
+            model?: string;
+            /** @default 5 */
+            limit: number;
+            /**
+             * Format: float
+             * @default 0.75
+             */
+            similarity_threshold: number;
+        };
+        CaseSearchHit: {
+            case: components["schemas"]["CaseEntry"];
+            /** Format: float */
+            score: number;
+        };
+        CaseSearchResponse: {
+            hits: components["schemas"]["CaseSearchHit"][];
+        };
+        /** @enum {string} */
+        ManualStatus: "processing" | "ready" | "failed";
+        Manual: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            brand: string;
+            model?: string;
+            file_name: string;
+            file_size_bytes: number;
+            status: components["schemas"]["ManualStatus"];
+            chunk_count?: number | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        ManualEnvelope: components["schemas"]["ApiResponseGeneric"] & {
+            data?: components["schemas"]["Manual"];
+        };
+        ManualPage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["Manual"][];
+        };
+        /** @enum {string} */
+        SopDraftStatus: "draft" | "under_review" | "approved" | "rejected";
+        SopDraftStep: {
+            order: number;
+            title: string;
+            description: string;
+        };
+        SopDraft: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            case_event_id?: string | null;
+            /** Format: uuid */
+            problem_card_id?: string | null;
+            title: string;
+            steps: components["schemas"]["SopDraftStep"][];
+            status: components["schemas"]["SopDraftStatus"];
+            /** Format: uuid */
+            reviewer_id?: string | null;
+            /** Format: date-time */
+            reviewed_at?: string | null;
+            review_comment?: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        SopDraftEnvelope: components["schemas"]["ApiResponseGeneric"] & {
+            data?: components["schemas"]["SopDraft"];
+        };
+        SopDraftPage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["SopDraft"][];
+        };
+        SopDraftReviewRequest: {
+            /** @enum {string} */
+            decision: "approve" | "reject";
+            comment?: string;
+        };
+        SopDraftAdoptRequest: {
+            /**
+             * Format: uuid
+             * @description 採納為現有案例的更新；省略則建立新案例
+             */
+            target_case_id?: string | null;
+        };
+        ResolveRequest: {
+            /** Format: uuid */
+            problem_card_id: string;
+        };
+        ResolveResponse: {
+            /** @enum {string} */
+            layer: "faq_match" | "knowledge_base_rag" | "llm_generation" | "escalation";
+            answer: string;
+            sources?: {
+                /** @enum {string} */
+                type?: "case" | "manual";
+                /** Format: uuid */
+                id?: string;
+                snippet?: string;
+                /** Format: float */
+                score?: number;
+            }[];
+            /** Format: float */
+            confidence?: number;
+        };
+        AuthRefreshRequest: {
+            refresh_token: string;
+        };
+        AuthLogoutRequest: {
+            refresh_token?: string | null;
+        };
+        /** @enum {string} */
+        DashboardPeriod: "today" | "7d" | "30d" | "90d";
+        DashboardStats: {
+            period: components["schemas"]["DashboardPeriod"];
+            conversations: {
+                total: number;
+                active: number;
+                resolved: number;
+                escalated: number;
+            };
+            resolution: {
+                /** Format: float */
+                ai_resolution_rate?: number;
+                avg_resolution_time_seconds?: number;
+                by_layer?: {
+                    [key: string]: number;
+                };
+            };
+            hot_topics?: {
+                topic?: string;
+                count?: number;
+            }[];
+            token_usage?: {
+                total_tokens?: number;
+                prompt_tokens?: number;
+                completion_tokens?: number;
+                /** Format: float */
+                estimated_cost_usd?: number;
+            };
+            top_brands?: {
+                brand?: string;
+                count?: number;
+            }[];
+        };
+        /** @description 系統設定（部分更新）。各區塊允許獨立 PATCH，未指定的子鍵不變動。 */
+        SystemConfig: {
+            rag?: {
+                /** Format: float */
+                similarity_threshold?: number;
+                max_results?: number;
+                chunk_size?: number;
+                chunk_overlap?: number;
+            };
+            llm?: {
+                model?: string;
+                /** Format: float */
+                temperature?: number;
+                max_tokens?: number;
+                system_prompt_version?: string;
+            };
+            resolution?: {
+                /** Format: float */
+                faq_confidence_threshold?: number;
+                /** Format: float */
+                rag_confidence_threshold?: number;
+                auto_escalation_enabled?: boolean;
+            };
+            line_bot?: {
+                greeting_message_enabled?: boolean;
+                max_conversation_turns?: number;
+            };
+        };
+        /** @enum {string} */
+        AuditLogType: "api_call" | "llm_interaction" | "rag_retrieval" | "admin_action" | "agent_message";
+        AuditLogEntry: {
+            /** Format: uuid */
+            id: string;
+            log_type: components["schemas"]["AuditLogType"];
+            /** Format: uuid */
+            actor_id?: string | null;
+            action: string;
+            details?: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            created_at: string;
+        };
+        AuditLogPage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["AuditLogEntry"][];
+        };
+        /** @enum {string} */
+        SentimentAlertStatus: "pending" | "acknowledged" | "resolved";
+        SentimentAlert: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            conversation_id: string;
+            consumer_message?: string;
+            /** @enum {string} */
+            sentiment_label: "negative" | "very_negative" | "neutral" | "positive";
+            /** Format: float */
+            confidence: number;
+            detected_keywords?: string[];
+            /** Format: uuid */
+            problem_card_id?: string | null;
+            status: components["schemas"]["SentimentAlertStatus"];
+            notified_admin_ids?: string[];
+            admin_note?: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        SentimentAlertUpdateRequest: {
+            status: components["schemas"]["SentimentAlertStatus"];
+            admin_note?: string;
+        };
+        SentimentAlertPage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["SentimentAlert"][];
+        };
+        /** @enum {string} */
+        FamilyReviewAction: "approved" | "rejected";
+        FamilyReviewPendingItem: {
+            /** Format: uuid */
+            sop_draft_id: string;
+            title: string;
+            admin_reviewer?: string;
+            /** Format: date-time */
+            admin_approved_at?: string;
+            /** Format: date-time */
+            awaiting_family_review_since: string;
+        };
+        FamilyReviewPendingResponse: {
+            data: components["schemas"]["FamilyReviewPendingItem"][];
+        };
+        FamilyReviewCreateRequest: {
+            /** Format: uuid */
+            sop_draft_id: string;
+            action: components["schemas"]["FamilyReviewAction"];
+            comment?: string;
+        };
+        FamilyReview: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            sop_draft_id: string;
+            action: components["schemas"]["FamilyReviewAction"];
+            /** Format: uuid */
+            reviewer_id: string;
+            comment?: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        FamilyReviewPage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["FamilyReview"][];
+        };
+        /** @enum {string} */
+        KbExportStatus: "queued" | "running" | "completed" | "failed";
+        KbExportRequest: {
+            /**
+             * @default all
+             * @enum {string}
+             */
+            scope: "all" | "cases_only" | "manuals_only";
+            brand?: string;
+        };
+        KbExportJob: {
+            /** Format: uuid */
+            job_id: string;
+            status: components["schemas"]["KbExportStatus"];
+            /** Format: uri */
+            download_url?: string | null;
+            item_count?: number | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            completed_at?: string | null;
+        };
+        TechnicianRegisterRequest: {
+            name: string;
+            phone: string;
+            /** Format: email */
+            email: string;
+            /** Format: password */
+            password: string;
+            capabilities: string[];
+            regions: string[];
+        };
+        TechnicianProfile: components["schemas"]["Technician"] & {
+            /** Format: email */
+            email?: string;
+        };
+        TechnicianProfileEnvelope: components["schemas"]["ApiResponseGeneric"] & {
+            data?: components["schemas"]["TechnicianProfile"];
+        };
+        TechnicianUpdateRequest: {
+            name?: string;
+            phone?: string;
+            /** Format: email */
+            email?: string;
+            capabilities?: string[];
+            regions?: string[];
+        };
+        WorkOrderConfirmRequest: {
+            rating: number;
+            feedback?: string;
+        };
+        DispatchAutoMatchRequest: {
+            /** Format: uuid */
+            problem_card_id: string;
+            /**
+             * @default normal
+             * @enum {string}
+             */
+            urgency: "normal" | "emergency";
+            /** @default 3 */
+            max_candidates: number;
+        };
+        DispatchCandidate: {
+            /** Format: uuid */
+            technician_id: string;
+            technician_name?: string;
+            /** Format: float */
+            score: number;
+            /** Format: float */
+            distance_km?: number;
+            eta_minutes?: number;
+            /** Format: float */
+            rating?: number;
+        };
+        DispatchAutoMatchResponse: {
+            candidates: components["schemas"]["DispatchCandidate"][];
+        };
+        /**
+         * @description E5 §8.3：批次或顯式指派工單。`work_order_id` + `technician_id` 必填；
+         *     與 `/api/v1/work-orders/{id}/assign` 之差異：本端點接受 body 中傳遞工單 id，
+         *     適用於從候選列表批次派發。
+         */
+        DispatchAssignRequest: {
+            /** Format: uuid */
+            work_order_id: string;
+            /** Format: uuid */
+            technician_id: string;
+            override_reason?: string;
+        };
+        /** @enum {string} */
+        LockType: "digital_deadbolt" | "smart_lock" | "padlock" | "other";
+        /** @enum {string} */
+        DifficultyLevel: "simple" | "moderate" | "complex";
+        PricingCalculateRequest: {
+            brand: string;
+            model?: string;
+            lock_type: components["schemas"]["LockType"];
+            difficulty: components["schemas"]["DifficultyLevel"];
+            /** @default false */
+            is_emergency: boolean;
+            /** @default false */
+            is_night_service: boolean;
+            additional_items?: string[];
+        };
+        PricingSurcharge: {
+            name: string;
+            condition?: string;
+            amount: string;
+        };
+        PricingCalculateResponse: {
+            base_price: string;
+            surcharges?: components["schemas"]["PricingSurcharge"][];
+            total: string;
+            /**
+             * @default TWD
+             * @enum {string}
+             */
+            currency: "TWD";
+        };
+        PricingRule: {
+            /** Format: uuid */
+            id: string;
+            brand: string;
+            lock_type: components["schemas"]["LockType"];
+            difficulty: components["schemas"]["DifficultyLevel"];
+            base_price: string;
+            surcharges?: components["schemas"]["PricingSurcharge"][];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        PricingRuleCreateRequest: {
+            brand: string;
+            lock_type: components["schemas"]["LockType"];
+            difficulty: components["schemas"]["DifficultyLevel"];
+            base_price: string;
+            surcharges?: components["schemas"]["PricingSurcharge"][];
+        };
+        PricingRuleUpdateRequest: {
+            base_price?: string;
+            surcharges?: components["schemas"]["PricingSurcharge"][];
+        };
+        PricingRuleEnvelope: components["schemas"]["ApiResponseGeneric"] & {
+            data?: components["schemas"]["PricingRule"];
+        };
+        PricingRulePage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["PricingRule"][];
+        };
+        /** @enum {string} */
+        ReconciliationStatus: "pending" | "approved" | "disputed";
+        Reconciliation: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            technician_id: string;
+            technician_name?: string;
+            /** Format: date-time */
+            period_start: string;
+            /** Format: date-time */
+            period_end: string;
+            total_orders: number;
+            total_revenue: string;
+            platform_fee?: string;
+            technician_payout: string;
+            status: components["schemas"]["ReconciliationStatus"];
+            /** Format: uuid */
+            approved_by?: string | null;
+            /** Format: date-time */
+            approved_at?: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        ReconciliationApproveRequest: {
+            note?: string;
+        };
+        ReconciliationPage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["Reconciliation"][];
+        };
+        /** @enum {string} */
+        SettlementStatus: "pending" | "paid" | "failed";
+        Settlement: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            reconciliation_id: string;
+            /** Format: uuid */
+            technician_id: string;
+            technician_name?: string;
+            amount: string;
+            /**
+             * @default TWD
+             * @enum {string}
+             */
+            currency: "TWD";
+            status: components["schemas"]["SettlementStatus"];
+            /** @enum {string} */
+            payment_method?: "bank_transfer" | "other";
+            /** Format: date-time */
+            paid_at?: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        SettlementPage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["Settlement"][];
+        };
+        /** @description 會計憑證（傳票），對應一筆對帳/結算/退款的雙分錄記錄。 */
+        Voucher: {
+            /** Format: uuid */
+            id: string;
+            voucher_number: string;
+            /** @enum {string} */
+            related_entity_type?: "reconciliation" | "settlement" | "refund" | "invoice";
+            /** Format: uuid */
+            related_entity_id?: string | null;
+            debit_account: string;
+            credit_account: string;
+            amount: string;
+            /**
+             * @default TWD
+             * @enum {string}
+             */
+            currency: "TWD";
+            /** Format: date */
+            posting_date: string;
+            memo?: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        VoucherPage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["Voucher"][];
+        };
+        NotificationPushRequest: {
+            /** @enum {string} */
+            target_type: "technician" | "admin" | "customer";
+            /** Format: uuid */
+            target_id: string;
+            type: components["schemas"]["NotificationType"];
+            title: string;
+            body: string;
+            data?: {
+                [key: string]: unknown;
+            } | null;
+            channels?: ("push" | "sms" | "line" | "email")[];
+        };
     };
     responses: {
         /** @description 登入成功 */
@@ -1009,6 +2283,37 @@ export interface operations {
                     "application/json": components["schemas"]["ProblemCardPage"];
                 };
             };
+        };
+    };
+    createProblemCard: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProblemCardCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description 已建立 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemCardEnvelope"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
         };
     };
     listWorkOrders: {
@@ -1639,6 +2944,1264 @@ export interface operations {
                 };
                 content?: never;
             };
+        };
+    };
+    refreshToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthRefreshRequest"];
+            };
+        };
+        responses: {
+            200: components["responses"]["LoginSuccess"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AuthLogoutRequest"];
+            };
+        };
+        responses: {
+            /** @description 已登出 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    listConversationMessages: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessagePage"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getProblemCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemCardEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateProblemCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProblemCardUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description 已更新 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemCardEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    exportProblemCard: {
+        parameters: {
+            query?: {
+                format?: "pdf" | "json" | "csv";
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 匯出結果 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemCardExport"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listCases: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                brand?: string;
+                verified?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseEntryPage"];
+                };
+            };
+        };
+    };
+    createCase: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaseEntryCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description 已建立 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseEntryEnvelope"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getCase: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseEntryEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateCase: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaseEntryUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description 已更新 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseEntryEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteCase: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 已刪除 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    searchCases: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaseSearchRequest"];
+            };
+        };
+        responses: {
+            /** @description 搜尋結果（依分數排序） */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseSearchResponse"];
+                };
+            };
+        };
+    };
+    uploadManual: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                    brand: string;
+                    model?: string;
+                    title: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 已接收，背景處理中 */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManualEnvelope"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    listManuals: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                brand?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManualPage"];
+                };
+            };
+        };
+    };
+    deleteManual: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 已刪除 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    startKbExport: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["KbExportRequest"];
+            };
+        };
+        responses: {
+            /** @description 已建立匯出任務 */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KbExportJob"];
+                };
+            };
+        };
+    };
+    getKbExport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KbExportJob"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listSopDrafts: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                status?: components["schemas"]["SopDraftStatus"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SopDraftPage"];
+                };
+            };
+        };
+    };
+    getSopDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SopDraftEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    reviewSopDraft: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SopDraftReviewRequest"];
+            };
+        };
+        responses: {
+            /** @description 審核結果已記錄 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SopDraftEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    adoptSopDraft: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SopDraftAdoptRequest"];
+            };
+        };
+        responses: {
+            /** @description 已採納 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseEntryEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    resolveProblem: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveRequest"];
+            };
+        };
+        responses: {
+            /** @description 解決方案 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResolveResponse"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getDashboardStats: {
+        parameters: {
+            query?: {
+                period?: components["schemas"]["DashboardPeriod"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardStats"];
+                };
+            };
+        };
+    };
+    getSystemConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemConfig"];
+                };
+            };
+        };
+    };
+    updateSystemConfig: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SystemConfig"];
+            };
+        };
+        responses: {
+            /** @description 已更新 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemConfig"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    listAuditLogs: {
+        parameters: {
+            query?: {
+                log_type?: components["schemas"]["AuditLogType"];
+                start_time?: string;
+                end_time?: string;
+                actor_id?: string;
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogPage"];
+                };
+            };
+        };
+    };
+    listSentimentAlerts: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["SentimentAlertStatus"];
+                start_time?: string;
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SentimentAlertPage"];
+                };
+            };
+        };
+    };
+    updateSentimentAlert: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                alert_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SentimentAlertUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description 已更新 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SentimentAlert"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPendingFamilyReviews: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FamilyReviewPendingResponse"];
+                };
+            };
+        };
+    };
+    listFamilyReviews: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                action?: components["schemas"]["FamilyReviewAction"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FamilyReviewPage"];
+                };
+            };
+        };
+    };
+    createFamilyReview: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FamilyReviewCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description 已建立 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FamilyReview"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    registerTechnician: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TechnicianRegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description 已建立（待審核） */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TechnicianProfileEnvelope"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getMyProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TechnicianProfileEnvelope"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    updateMyProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TechnicianUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description 已更新 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TechnicianProfileEnvelope"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    confirmWorkOrder: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkOrderConfirmRequest"];
+            };
+        };
+        responses: {
+            /** @description 已確認 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkOrderEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    autoMatchDispatch: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DispatchAutoMatchRequest"];
+            };
+        };
+        responses: {
+            /** @description 候選列表 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DispatchAutoMatchResponse"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    assignDispatch: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DispatchAssignRequest"];
+            };
+        };
+        responses: {
+            /** @description 已指派 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkOrderEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    calculatePricing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PricingCalculateRequest"];
+            };
+        };
+        responses: {
+            /** @description 報價結果 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingCalculateResponse"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    listPricingRules: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                brand?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingRulePage"];
+                };
+            };
+        };
+    };
+    createPricingRule: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PricingRuleCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description 已建立 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingRuleEnvelope"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    updatePricingRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PricingRuleUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description 已更新 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingRuleEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listReconciliations: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                status?: components["schemas"]["ReconciliationStatus"];
+                technician_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciliationPage"];
+                };
+            };
+        };
+    };
+    approveReconciliation: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ReconciliationApproveRequest"];
+            };
+        };
+        responses: {
+            /** @description 已核准 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        reconciliation?: components["schemas"]["Reconciliation"];
+                        settlement?: components["schemas"]["Settlement"];
+                    };
+                };
+            };
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listSettlements: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                status?: components["schemas"]["SettlementStatus"];
+                technician_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettlementPage"];
+                };
+            };
+        };
+    };
+    listVouchers: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                posting_date_start?: string;
+                posting_date_end?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoucherPage"];
+                };
+            };
+        };
+    };
+    exportVoucher: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PDF 二進位 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    pushNotification: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationPushRequest"];
+            };
+        };
+        responses: {
+            /** @description 已排入推送佇列 */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notification"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
         };
     };
 }
