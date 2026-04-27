@@ -16,11 +16,35 @@ _conn: AsyncConnection | None = None
 _enabled: bool = False
 _keyword: str = "#資料修正"
 _reply: str = "已收到您的回報，我們會盡快處理，謝謝您！"
+_uri_env: str = ""
+
+
+async def _ensure_conn() -> bool:
+    """檢查連線健康度，必要時自動重連。"""
+    global _conn
+    if _conn is not None and not _conn.closed and not _conn.broken:
+        return True
+    uri = os.getenv(_uri_env)
+    if not uri:
+        return False
+    try:
+        if _conn is not None:
+            try:
+                await _conn.close()
+            except Exception:
+                pass
+        _conn = await AsyncConnection.connect(uri, autocommit=True)
+        print("[Data Correction] 重新連線成功")
+        return True
+    except Exception as e:
+        print(f"[Data Correction] 重新連線失敗: {e}")
+        _conn = None
+        return False
 
 
 async def init_db(config: dict):
     """初始化資料修正模組 — 建立 DB 連線與 table。"""
-    global _conn, _enabled, _keyword, _reply
+    global _conn, _enabled, _keyword, _reply, _uri_env
 
     _enabled = config.get("enabled", False)
     if not _enabled:
@@ -30,15 +54,15 @@ async def init_db(config: dict):
     _keyword = config.get("keyword", "#資料修正")
     _reply = config.get("reply", _reply)
 
-    uri_env = config.get("postgres_uri_env", "POSTGRES_URI")
-    uri = os.getenv(uri_env)
+    _uri_env = config.get("postgres_uri_env", "POSTGRES_URI")
+    uri = os.getenv(_uri_env)
     if not uri:
-        print(f"[Data Correction] 警告：環境變數 {uri_env} 未設定，功能降級為停用")
+        print(f"[Data Correction] 警告：環境變數 {_uri_env} 未設定，功能降級為停用")
         _enabled = False
         return
 
     try:
-        _conn = await AsyncConnection.connect(uri)
+        _conn = await AsyncConnection.connect(uri, autocommit=True)
         await _conn.execute("""
             CREATE TABLE IF NOT EXISTS data_corrections (
                 id BIGSERIAL PRIMARY KEY,
@@ -56,7 +80,6 @@ async def init_db(config: dict):
         await _conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_dc_status ON data_corrections (status)"
         )
-        await _conn.commit()
         print(f"[Data Correction] 已啟用（關鍵字: {_keyword}）")
     except Exception as e:
         print(f"[Data Correction] DB 連線失敗，降級為停用: {e}")
@@ -89,11 +112,14 @@ async def check_and_save(
     Returns:
         回覆文字（已攔截）或 None（未攔截）
     """
-    if not _enabled or not _conn:
+    if not _enabled:
         return None
 
     stripped = text.strip()
     if not stripped.startswith(_keyword):
+        return None
+
+    if not await _ensure_conn():
         return None
 
     # 截取補充說明
@@ -114,7 +140,6 @@ async def check_and_save(
             "VALUES (%s, %s, %s, %s)",
             (user_id, note, conversation_context, json.dumps(facts, ensure_ascii=False)),
         )
-        await _conn.commit()
         print(f"[Data Correction] 已寫入 DB (user={user_id[:8]}...)")
     except Exception as e:
         print(f"[Data Correction] DB 寫入失敗: {e}")

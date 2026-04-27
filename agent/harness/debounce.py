@@ -536,7 +536,7 @@ async def _quick_reply_intercept(
                 # 無型號選項 → 放行原始訊息
                 original = _pending_messages.pop(user_id)
                 print(f"[Quick Reply] 品牌收集完畢（無型號），放行原始訊息")
-                await agent_and_reply(user_id, reply_token, original["content"], original.get("buffer_items"))
+                await agent_and_reply(user_id, reply_token, original["content"], original.get("buffer_items"), skip_quick_reply=True)
                 return True
             # 完全匹配失敗 → 嘗試模糊匹配（從文字中掃描品牌/型號名）
             from harness.line_ui_factory import infer_brand_from_text
@@ -560,7 +560,7 @@ async def _quick_reply_intercept(
                 # 放行原始訊息
                 original = _pending_messages.pop(user_id)
                 print(f"[Quick Reply] 模糊匹配完畢，放行原始訊息")
-                await agent_and_reply(user_id, reply_token, original["content"], original.get("buffer_items"))
+                await agent_and_reply(user_id, reply_token, original["content"], original.get("buffer_items"), skip_quick_reply=True)
                 return True
 
             # 完全無法辨識品牌 → 放行，把這次的文字併入原始訊息
@@ -571,7 +571,7 @@ async def _quick_reply_intercept(
                 combined = f"{text_stripped}\n{orig_content}"
             else:
                 combined = orig_content
-            await agent_and_reply(user_id, reply_token, combined, original.get("buffer_items"))
+            await agent_and_reply(user_id, reply_token, combined, original.get("buffer_items"), skip_quick_reply=True)
             return True
 
         # A2: 品牌已知、型號未知 → 嘗試匹配型號
@@ -598,7 +598,7 @@ async def _quick_reply_intercept(
             # 放行原始訊息
             original = _pending_messages.pop(user_id)
             print(f"[Quick Reply] 品牌型號收集完畢，放行原始訊息")
-            await agent_and_reply(user_id, reply_token, original["content"], original.get("buffer_items"))
+            await agent_and_reply(user_id, reply_token, original["content"], original.get("buffer_items"), skip_quick_reply=True)
             return True
 
     # ── 狀態 B：無暫存訊息 → 首次發問，檢查是否需要啟動 quick reply 流程 ──
@@ -632,12 +632,16 @@ async def _quick_reply_intercept(
     return False
 
 
-async def agent_and_reply(user_id: str, reply_token: str, content: str | list, buffer_items: list | None = None):
+async def agent_and_reply(
+    user_id: str, reply_token: str, content: str | list,
+    buffer_items: list | None = None, *, skip_quick_reply: bool = False,
+):
     """執行 agent 並回覆使用者。
 
     Args:
         content: 純文字 str 或多模態 content blocks list。
         buffer_items: 原始 buffer items（傳遞給 run_agent 用於 checkpoint 清理）。
+        skip_quick_reply: True 時跳過 Quick Reply 攔截（由 _quick_reply_intercept 放行時使用）。
     """
     print(f"\n[開始處理] 準備將訊息送入 Agent...")
 
@@ -688,9 +692,10 @@ async def agent_and_reply(user_id: str, reply_token: str, content: str | list, b
         return
 
     # H12: Quick Reply 攔截 — 品牌/型號收集完畢再進 Agent
-    intercepted = await _quick_reply_intercept(user_id, reply_token, content, buffer_items)
-    if intercepted:
-        return
+    if not skip_quick_reply:
+        intercepted = await _quick_reply_intercept(user_id, reply_token, content, buffer_items)
+        if intercepted:
+            return
 
     ai_response = await run_agent(user_id, content, buffer_items=buffer_items)
     print(f"[Agent] 思考完畢！回覆內容:\n{'─' * 40}\n{ai_response[:500]}{'...(截斷)' if len(ai_response) > 500 else ''}\n{'─' * 40}")

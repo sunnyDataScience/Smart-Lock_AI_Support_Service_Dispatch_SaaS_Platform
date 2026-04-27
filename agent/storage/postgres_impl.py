@@ -16,7 +16,8 @@ import re
 from datetime import datetime, timezone
 from psycopg import AsyncConnection
 
-_postgres_conn = None
+_postgres_conn: AsyncConnection | None = None
+_postgres_uri_env: str = ""
 
 # PII masking patterns
 _PII_PATTERNS = [
@@ -33,9 +34,30 @@ def _mask_pii(text: str) -> str:
     return text
 
 
+async def _ensure_conn() -> bool:
+    """檢查連線健康度，必要時自動重連。"""
+    global _postgres_conn
+    if _postgres_conn is not None and not _postgres_conn.closed and not _postgres_conn.broken:
+        return True
+    uri = os.getenv(_postgres_uri_env)
+    if not uri:
+        return False
+    try:
+        if _postgres_conn is not None:
+            try:
+                await _postgres_conn.close()
+            except Exception:
+                pass
+        _postgres_conn = await AsyncConnection.connect(uri, autocommit=True)
+        print("[Audit DB] 重新連線成功")
+        return True
+    except Exception as e:
+        print(f"[Audit DB] 重新連線失敗: {e}")
+        _postgres_conn = None
+        return False
+
+
 class PostgresAuditStorage:
-    def __init__(self, conn: AsyncConnection):
-        self._conn = conn
 
     # --- Legacy API (backward compatible) ---
 
@@ -61,6 +83,8 @@ class PostgresAuditStorage:
         target_id: str = "",
         payload: dict | None = None,
     ):
+        if not await _ensure_conn():
+            return
         timestamp = datetime.now(timezone.utc).isoformat()
 
         # Mask PII in payload
@@ -68,23 +92,25 @@ class PostgresAuditStorage:
         if payload:
             masked_payload = _mask_pii(json.dumps(payload, ensure_ascii=False, default=str))
 
-        await self._conn.execute(
-            """INSERT INTO audit_log
-               (user_id, role, content, timestamp, event_type, action, target_type, target_id, payload)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-            (
-                actor_id,
-                actor_role,
-                payload.get("content", "") if payload else "",
-                timestamp,
-                event_type,
-                action,
-                target_type,
-                target_id,
-                masked_payload,
-            ),
-        )
-        await self._conn.commit()
+        try:
+            await _postgres_conn.execute(
+                """INSERT INTO audit_log
+                   (user_id, role, content, timestamp, event_type, action, target_type, target_id, payload)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                (
+                    actor_id,
+                    actor_role,
+                    payload.get("content", "") if payload else "",
+                    timestamp,
+                    event_type,
+                    action,
+                    target_type,
+                    target_id,
+                    masked_payload,
+                ),
+            )
+        except Exception as e:
+            print(f"[Audit DB] log_event 失敗: {e}")
 
     # --- Convenience methods for common events ---
 
@@ -101,10 +127,11 @@ class PostgresAuditStorage:
         pass
 
 async def build_postgres_storage(config: dict) -> PostgresAuditStorage:
-    global _postgres_conn
-    uri = os.getenv(config.get("postgres_uri_env", "POSTGRES_URI"))
+    global _postgres_conn, _postgres_uri_env
+    _postgres_uri_env = config.get("postgres_uri_env", "POSTGRES_URI")
+    uri = os.getenv(_postgres_uri_env)
     print(f"[*] 初始化審計日誌模組: 連線至 PostgreSQL")
-    conn = await AsyncConnection.connect(uri)
+    conn = await AsyncConnection.connect(uri, autocommit=True)
     await conn.execute("""
         CREATE TABLE IF NOT EXISTS audit_log (
             id SERIAL PRIMARY KEY,
@@ -125,9 +152,8 @@ async def build_postgres_storage(config: dict) -> PostgresAuditStorage:
             await conn.execute(f"ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS {col_def}")
         except Exception:
             pass
-    await conn.commit()
     _postgres_conn = conn
-    return PostgresAuditStorage(conn)
+    return PostgresAuditStorage()
 
 
 async def close_postgres_storage():

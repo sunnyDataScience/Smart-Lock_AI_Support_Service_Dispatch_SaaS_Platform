@@ -183,7 +183,26 @@ async def shutdown():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "version": "2.0-skills"}
+    """Health check — 驗證核心 DB 連線是否存活。"""
+    import profiles.manager as pm
+    import storage.postgres_impl as audit
+
+    checks = {}
+
+    # Facts DB
+    fc = pm._facts_conn
+    checks["facts_db"] = "ok" if (fc is not None and not fc.closed and not fc.broken) else "disconnected"
+
+    # Audit DB
+    ac = audit._postgres_conn
+    checks["audit_db"] = "ok" if (ac is not None and not ac.closed and not ac.broken) else "disconnected"
+
+    all_ok = all(v == "ok" for v in checks.values())
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=200 if all_ok else 503,
+        content={"status": "ok" if all_ok else "degraded", "version": "2.0-skills", "checks": checks},
+    )
 
 
 @app.get("/chat")

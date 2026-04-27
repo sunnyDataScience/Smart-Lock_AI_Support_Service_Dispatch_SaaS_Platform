@@ -59,9 +59,10 @@ cd agent && python scripts/clean_data.py                # DB cleanup
 
 # Deployment (Cloud Run)
 chmod +x agent/scripts/deploy.sh
-./agent/scripts/deploy.sh              # Full: build + push + deploy
-./agent/scripts/deploy.sh --build-only # Docker image only
-./agent/scripts/deploy.sh --deploy-only # Deploy existing image
+./agent/scripts/deploy.sh                # Full: pre-flight → build → push → deploy → health check
+./agent/scripts/deploy.sh --build-only   # Docker image only
+./agent/scripts/deploy.sh --deploy-only  # Deploy existing image
+./agent/scripts/deploy.sh --update-db-uri # Rebuild POSTGRES_URI from DB_PASSWORD (auto URL encode)
 ```
 
 No automated unit test suite exists. Testing is via `quality_check` (LLM-as-Judge), CLI (`python main.py`), or the `/chat` endpoint.
@@ -222,6 +223,8 @@ PostgreSQL 16 with pgvector extension. Schemas in `SQL/`:
 
 Two connection string patterns: `POSTGRES_URI` (standard psycopg) for checkpointer/facts/audit, `PG_VECTOR_URI` (psycopg + pgvector) for embeddings.
 
+All DB modules share the same `POSTGRES_URI` but maintain independent `AsyncConnection` instances with `autocommit=True`. Each module has `_ensure_conn()` for automatic reconnection on CloudSQL idle disconnections.
+
 ### Configuration Flow
 
 All config centralized in `agent/config.toml`. Key sections: `[system]` (domain, timeout), `[llm]` (model string), `[line_bot]`, `[memory]` (compression settings + Flash model for summaries), `[skills]`, `[prompts]`, `[safety]`, `[output_validator]`, `[debounce]`, `[multimodal]`, `[user_profile]` (facts_enabled), `[quick_reply]` (brand/model lists — single source of truth for validation), `[data_correction]` (keyword intercept + DB logging), `[opik]`.
@@ -229,8 +232,11 @@ All config centralized in `agent/config.toml`. Key sections: `[system]` (domain,
 ### Deployment
 
 - **Dockerfile** at `agent/Dockerfile` — Python 3.11-slim, uvicorn on port 8080
-- **Cloud Run** deployment via `agent/scripts/deploy.sh` — builds amd64 image, pushes to Artifact Registry, deploys with Secret Manager integration and Cloud SQL Unix socket
-- Secrets managed via GCP Secret Manager: `LINE_CHANNEL_SECRET`, `LINE_CHANNEL_ACCESS_TOKEN`, `POSTGRES_URI`, `OPIK_API_KEY`, `OPIK_WORKSPACE`
+- **Cloud Run** deployment via `agent/scripts/deploy.sh` — pre-flight checks, builds amd64 image with `{git-sha}-{timestamp}` tag (supports rollback), pushes to Artifact Registry, deploys with Secret Manager + Cloud SQL Unix socket, health check with retry
+- **DB URI management**: `deploy.sh --update-db-uri` reads `DB_PASSWORD` from Secret Manager, auto URL-encodes, constructs `POSTGRES_URI` with round-trip validation. Never manually construct POSTGRES_URI.
+- Secrets managed via GCP Secret Manager: `LINE_CHANNEL_SECRET`, `LINE_CHANNEL_ACCESS_TOKEN`, `DB_PASSWORD`, `POSTGRES_URI`, `OPIK_API_KEY`, `OPIK_WORKSPACE`
+- **Health endpoint** (`/health`): checks facts_db + audit_db connectivity. Returns 200 (ok) or 503 (degraded) with `checks` detail.
+- **DB resilience**: All 4 DB modules use `autocommit=True` + `_ensure_conn()` auto-reconnect. CloudSQL idle disconnections are handled transparently.
 
 ### Web Admin Dashboard (`web/`)
 
@@ -273,8 +279,10 @@ Next.js 15 + React 19 + TypeScript admin dashboard for operations teams.
 | `/admin/knowledge-base/sop-performance` | SOP performance (placeholder) |
 | `/admin/audit-events` | Audit log with expandable JSON detail |
 | `/admin/roles` | RBAC role cards + permission matrix |
+| `/admin/customers` | Customer master file with risk and warranty indicators |
+| `/settings` | System settings with 4-tab layout |
 
-**Not yet implemented:** `/settings` (系統設定), `/admin/customers` (客戶主檔)
+All 33 pages implemented. Frontend-only with mock data — no API integration with agent backend yet.
 
 **Component organization:** `src/components/{domain}/` — `layout/` (Sidebar, Header), `dashboard/` (KpiCard, charts), `conversations/` (ChatTimeline, ConversationsTable), `problem-cards/` (FmeaDiagnosisCard, ResolutionTimeline), `work-orders/` (KanbanBoard, MapView, WorkOrdersTable), `technicians/` (TechniciansTable, TechnicianDetailSidebar), `accounting/` (SettlementTable, InvoicesTable, revenue charts), `knowledge-base/` (CaseCardGrid, ManualsTable, SopDraftsList), `dispatch-queue/` (DispatchQueueTable), `admin/` (RefundReviewTable, WarrantyClaimsTable, InventoryTable), `ui/` (StatusBadge, SolidBadge).
 

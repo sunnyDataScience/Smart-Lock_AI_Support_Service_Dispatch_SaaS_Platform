@@ -28,7 +28,7 @@ Cloud Run (smart-lock-agent)
 | Cloud SQL 連線名稱 | `cedar-scope-489604-g3:asia-east1:lock-ai` |
 | Cloud SQL 公開 IP | `35.229.228.13` |
 | 資料庫 / 使用者 | `lock-ai-db` / `lock-ai` |
-| Secret Manager | `LINE_CHANNEL_SECRET`、`LINE_CHANNEL_ACCESS_TOKEN`、`DB_PASSWORD`、`OPIK_API_KEY`、`OPIK_WORKSPACE` |
+| Secret Manager | `LINE_CHANNEL_SECRET`、`LINE_CHANNEL_ACCESS_TOKEN`、`DB_PASSWORD`、`POSTGRES_URI`、`OPIK_API_KEY`、`OPIK_WORKSPACE` |
 | Service Account | `1083648618124-compute@developer.gserviceaccount.com` |
 
 ---
@@ -143,7 +143,7 @@ echo -n "<your-channel-secret>" | \
 echo -n "<your-access-token>" | \
   gcloud secrets create LINE_CHANNEL_ACCESS_TOKEN --data-file=-
 
-# DB Password
+# DB Password（存原始密碼，不需要 URL encode）
 echo -n "<your-db-password>" | \
   gcloud secrets create DB_PASSWORD --data-file=-
 
@@ -157,59 +157,86 @@ echo -n "<your-opik-workspace>" | \
 
 # 授予 Cloud Run service account 存取權
 SA="1083648618124-compute@developer.gserviceaccount.com"
-for SECRET in LINE_CHANNEL_SECRET LINE_CHANNEL_ACCESS_TOKEN DB_PASSWORD OPIK_API_KEY OPIK_WORKSPACE; do
+for SECRET in LINE_CHANNEL_SECRET LINE_CHANNEL_ACCESS_TOKEN DB_PASSWORD POSTGRES_URI OPIK_API_KEY OPIK_WORKSPACE; do
   gcloud secrets add-iam-policy-binding $SECRET \
     --member="serviceAccount:$SA" \
     --role="roles/secretmanager.secretAccessor"
 done
 ```
 
-### Step 3：Build & Push Image
+### Step 2.5：建立 POSTGRES_URI Secret（自動 URL encode）
+
+> **重要**：不要手動拼接 POSTGRES_URI。密碼中的特殊字元（`@`, `+`, `*`, `[`, `;` 等）需要 URL encode，手動處理極易出錯導致連線失敗。
+
+```bash
+# 從 DB_PASSWORD 自動拼接 POSTGRES_URI（Python URL encode + round-trip 驗證）
+cd agent && ./scripts/deploy.sh --update-db-uri
+```
+
+腳本會自動：
+1. 從 Secret Manager 讀取 `DB_PASSWORD`（原始密碼）
+2. 用 Python `urllib.parse.quote()` URL encode
+3. 拼接完整 URI：`postgresql://lock-ai:{encoded}@/lock-ai-db?host=/cloudsql/...`
+4. Round-trip 驗證（encode → decode → 比對原始密碼）
+5. 寫入 `POSTGRES_URI` secret
+
+**更新密碼時**也用同樣流程：
+```bash
+# 更新 DB_PASSWORD
+echo -n "<new-password>" | gcloud secrets versions add DB_PASSWORD --data-file=-
+
+# 重建 POSTGRES_URI
+cd agent && ./scripts/deploy.sh --update-db-uri
+```
+
+### Step 3 & 4：Build, Push & Deploy（一鍵完成）
+
+> 推薦使用 `deploy.sh` 一鍵完成，包含 pre-flight 檢查、image 版本標記、health check 重試。
 
 ```bash
 cd agent
 
-# Build for linux/amd64（Cloud Run 需要）
-docker build --platform linux/amd64 \
-  -t asia-east1-docker.pkg.dev/cedar-scope-489604-g3/lock-ai-repo/smart-lock-agent:latest .
+# 完整部署（pre-flight → build → push → deploy → health check）
+./scripts/deploy.sh
 
-# Push
-docker push asia-east1-docker.pkg.dev/cedar-scope-489604-g3/lock-ai-repo/smart-lock-agent:latest
+# 只 build image 不部署
+./scripts/deploy.sh --build-only
+
+# 只部署（用已存在的 latest image）
+./scripts/deploy.sh --deploy-only
 ```
 
-### Step 4：部署到 Cloud Run
+**deploy.sh 自動執行：**
+1. **Pre-flight 檢查**：gcloud 登入、專案、Docker、5 個 secret 存在性、POSTGRES_URI 格式驗證
+2. **Build & Push**：image 標記為 `{git-sha}-{timestamp}`（支援 rollback）+ latest
+3. **Deploy**：Cloud Run 部署含 Cloud SQL Auth Proxy、Secret Manager、環境變數
+4. **Health check**：6 次重試 x 10s，辨識 200（正常）/ 503（DB 降級）
+
+**Image 版本管理**：每次 build 產生唯一 tag（如 `abc1234-20260427-0930`），同時更新 `:latest`。需要 rollback 時：
 
 ```bash
-gcloud run deploy smart-lock-agent \
-  --image=asia-east1-docker.pkg.dev/cedar-scope-489604-g3/lock-ai-repo/smart-lock-agent:latest \
-  --region=asia-east1 \
-  --platform=managed \
-  --allow-unauthenticated \
-  --service-account=lock-ai@cedar-scope-489604-g3.iam.gserviceaccount.com \
-  --port=8080 \
-  --memory=1Gi \
-  --cpu=1 \
-  --min-instances=0 \
-  --max-instances=3 \
-  --timeout=60 \
-  --add-cloudsql-instances=cedar-scope-489604-g3:asia-east1:lock-ai \
-  --set-env-vars="VERTEX_PROJECT_ID=cedar-scope-489604-g3,VERTEX_LOCATION=us-central1,POSTGRES_URI=postgresql://lock-ai:<URL_ENCODED_PASSWORD>@/lock-ai-db?host=/cloudsql/cedar-scope-489604-g3:asia-east1:lock-ai" \
-  --set-secrets="LINE_CHANNEL_SECRET=LINE_CHANNEL_SECRET:latest,LINE_CHANNEL_ACCESS_TOKEN=LINE_CHANNEL_ACCESS_TOKEN:latest,OPIK_API_KEY=OPIK_API_KEY:latest,OPIK_WORKSPACE=OPIK_WORKSPACE:latest"
+# 列出歷史 image
+gcloud artifacts docker images list \
+  asia-east1-docker.pkg.dev/cedar-scope-489604-g3/lock-ai-repo/smart-lock-agent
+
+# 部署指定版本
+gcloud run deploy smart-lock-agent --region=asia-east1 \
+  --image=asia-east1-docker.pkg.dev/cedar-scope-489604-g3/lock-ai-repo/smart-lock-agent:<tag>
 ```
 
-> **冷啟動說明**：`--min-instances=0` 代表閒置時容器會縮到 0，下次請求需要冷啟動（約 5-10 秒，含 LLM 初始化、PostgreSQL 連線、技能索引載入）。
+> **冷啟動說明**：目前設定 `--min-instances=1`（常駐，約 $15-20/月）。
 >
 > ```bash
-> # 開啟常駐（消除冷啟動，約 $15-20/月）
-> gcloud run services update smart-lock-agent --region=asia-east1 --min-instances=1
->
-> # 關閉常駐（省錢，允許冷啟動）
+> # 關閉常駐（省錢，允許冷啟動約 5-10 秒）
 > gcloud run services update smart-lock-agent --region=asia-east1 --min-instances=0
+>
+> # 開啟常駐
+> gcloud run services update smart-lock-agent --region=asia-east1 --min-instances=1
 > ```
 >
 > 不需要重新 build/push，update 即時生效。
 
-> **POSTGRES_URI 注意**：密碼中的特殊字元需要 URL encode（`@` → `%40`、`[` → `%5B`、`;` → `%3B`、`+` → `%2B`、`*` → `%2A`）。Cloud SQL Auth Proxy 使用 Unix socket 連線，所以 host 部分用 `?host=/cloudsql/<連線名稱>`。
+> **POSTGRES_URI 注意**：不要手動拼接。請使用 `./scripts/deploy.sh --update-db-uri` 自動從 `DB_PASSWORD` 建立（含 URL encode + round-trip 驗證）。詳見 Step 2.5。
 
 ### Step 5：設定公開存取
 
@@ -242,38 +269,36 @@ https://smart-lock-agent-1083648618124.asia-east1.run.app/webhook
 ```bash
 cd agent
 
-# 重新 build + push
-docker build --platform linux/amd64 \
-  -t asia-east1-docker.pkg.dev/cedar-scope-489604-g3/lock-ai-repo/smart-lock-agent:latest .
-
-docker push asia-east1-docker.pkg.dev/cedar-scope-489604-g3/lock-ai-repo/smart-lock-agent:latest
-
-# 部署新版本
-gcloud run deploy smart-lock-agent \
-  --image=asia-east1-docker.pkg.dev/cedar-scope-489604-g3/lock-ai-repo/smart-lock-agent:latest \
-  --region=asia-east1 \
-  --service-account=lock-ai@cedar-scope-489604-g3.iam.gserviceaccount.com
+# 一鍵完成（build + push + deploy + health check）
+./scripts/deploy.sh
 ```
 
 > 環境變數和 secrets 不需要重新設定，Cloud Run 會保留上次的設定。
+> deploy.sh 會自動產生含 git SHA + 時間戳的 image tag，支援 rollback。
 
 ---
 
 ## 驗證
 
 ```bash
-# Health check
-curl https://smart-lock-agent-1083648618124.asia-east1.run.app/health
+# 取得服務 URL
+SERVICE_URL=$(gcloud run services describe smart-lock-agent \
+  --region=asia-east1 --format='value(status.url)')
+
+# Health check（200=正常，503=DB 降級）
+curl "${SERVICE_URL}/health"
+# 正常回應: {"status":"ok","version":"2.0-skills","checks":{"facts_db":"ok","audit_db":"ok"}}
+# 降級回應: {"status":"degraded","version":"2.0-skills","checks":{"facts_db":"disconnected","audit_db":"ok"}}
 
 # Chat 測試
-curl "https://smart-lock-agent-1083648618124.asia-east1.run.app/chat?q=門打不開怎麼辦"
+curl "${SERVICE_URL}/chat?q=門打不開怎麼辦"
 
 # Webhook 測試（應回 Invalid signature）
-curl -X POST https://smart-lock-agent-1083648618124.asia-east1.run.app/webhook \
+curl -X POST "${SERVICE_URL}/webhook" \
   -H "Content-Type: application/json" -d '{}'
 
 # 即時日誌（串流，Ctrl+C 停止）
-gcloud alpha run services logs tail smart-lock-agent --region=asia-east1
+gcloud run services logs tail smart-lock-agent --region=asia-east1
 
 # 歷史日誌（最近 N 筆）
 gcloud run services logs read smart-lock-agent --region=asia-east1 --limit=100
@@ -302,8 +327,10 @@ gcloud run services logs tail smart-lock-agent --region=asia-east1
 | 403 Forbidden | `allUsers` 未授權或組織政策限制 | 檢查 IAM binding 和 `iam.allowedPolicyMemberDomains` 約束 |
 | 容器啟動失敗 | 環境變數缺少或格式錯誤 | `gcloud run services describe` 確認 env vars |
 | DB 連線失敗 | Cloud SQL Auth Proxy 未啟用或 service account 缺 `cloudsql.client` | 確認 `--add-cloudsql-instances` 和 IAM 角色 |
+| `/health` 回 503 | DB 連線異常（POSTGRES_URI 錯誤或連線中斷） | 執行 `./scripts/deploy.sh --update-db-uri` 重建 URI，檢查 health 回應中的 `checks` 欄位 |
 | Vertex AI 403 | Service account 缺少 `aiplatform.user` | 加上 IAM 角色 |
-| POSTGRES_URI 連線錯誤 | 密碼特殊字元未 URL encode | 用 Python `urllib.parse.quote()` 編碼密碼 |
+| POSTGRES_URI 連線錯誤 | 密碼特殊字元未 URL encode | 執行 `./scripts/deploy.sh --update-db-uri`（自動 encode） |
+| Quick Reply 重複詢問品牌 | DB 連線中斷後 `load_facts` 返回空值 | 所有 DB 模組已內建 `_ensure_conn()` 自動重連機制，應自動恢復；若持續發生檢查 `/health` |
 | LINE webhook 無回應 | webhook URL 設定錯誤或 SSL 問題 | 確認 URL 結尾是 `/webhook`，Cloud Run 自帶 SSL |
 
 ---
@@ -328,6 +355,36 @@ Cloud Run 容器的檔案系統是**可寫但短暫的**（ephemeral）——容
 
 ---
 
+## 資料庫連線韌性
+
+所有 DB 模組均使用 `autocommit=True` 並內建自動重連機制，防止 CloudSQL 閒置斷線（idle transaction timeout）導致功能異常。
+
+### 連線模式
+
+| 模組 | 檔案 | autocommit | 自動重連 |
+|------|------|-----------|----------|
+| Checkpointer | `memory/postgres_saver.py` | `True` | 由 LangGraph 管理 |
+| User Facts | `profiles/manager.py` | `True` | `_ensure_conn()` |
+| Audit Storage | `storage/postgres_impl.py` | `True` | `_ensure_conn()` |
+| Data Correction | `harness/data_correction.py` | `True` | `_ensure_conn()` |
+
+### 斷線防護鏈
+
+```
+CloudSQL 連線中斷（idle timeout / 網路問題 / 重啟）
+  → _ensure_conn() 偵測 closed / broken
+  → 自動重連（autocommit=True，無殘留 transaction）
+  → 成功 → 繼續操作
+  → 失敗 → 優雅降級（返回空值/跳過寫入），不阻斷用戶對話
+  → /health 回 503 + checks 細節，方便監控
+```
+
+### 為什麼用 autocommit=True
+
+psycopg3 預設 `autocommit=False`，每個 `execute()` 自動開啟 implicit transaction。若程式碼沒有 `commit()` 或 `rollback()`，transaction 會一直開著。CloudSQL 會在 idle transaction 超時後強制關閉連線，導致後續所有操作靜默失敗。`autocommit=True` 讓每個 SQL 語句獨立完成，不留殘留 transaction。
+
+---
+
 ## 資料庫維護
 
 ### Cloud SQL 表格清單
@@ -340,6 +397,8 @@ Cloud Run 容器的檔案系統是**可寫但短暫的**（ephemeral）——容
 | `checkpoint_writes` | LangGraph 對話記憶（寫入記錄） | 是 |
 | `checkpoint_migrations` | LangGraph schema 版本管理 | 是 |
 | `user_facts` | 用戶硬事實（電話、地址、設備型號，SCD Type 2） | 是 |
+| `user_soft_profiles` | 用戶軟輪廓（品牌特定欄位） | 是 |
+| `data_corrections` | #資料修正 回報記錄 | 是 |
 
 > 舊的 RAG 向量表 `langchain_pg_collection` 和 `langchain_pg_embedding` 已於 2026-04-14 移除，目前不使用 RAG。
 
