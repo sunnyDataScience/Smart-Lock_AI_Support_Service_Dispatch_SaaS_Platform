@@ -85,6 +85,7 @@ def load_skill(skill_name: str) -> str:
         skill_name: 技能名稱，例如 "troubleshoot"、"ts-door-stuck"、"app-guide"
     """
     brand = _current_brand.get()
+    model = _current_model.get()
     for s in _skills:
         if s.name == skill_name:
             # 品牌檢查：品牌專屬技能在品牌未知時禁止載入
@@ -99,6 +100,22 @@ def load_skill(skill_name: str) -> str:
                 return (
                     f"技能 '{skill_name}' 不適用於用戶的品牌 {brand}。"
                     f"請載入適合該品牌的技能。"
+                )
+            # 型號檢查：型號專屬技能在型號不符時禁止載入（避免跨型號內容錯置）
+            if s.models is not None and model and model not in s.models:
+                allowed = "、".join(s.models)
+                print(f"[skill] >>> 拒絕載入型號技能: {s.name}（型號不符: {model}，僅適用 {allowed}）")
+                return (
+                    f"技能 '{skill_name}' 僅適用於 {brand} 的 {allowed}，"
+                    f"不適用於用戶目前的型號 {model}。"
+                    f"請改載入該品牌共用技能（如 product-knowledge）取得手冊連結。"
+                )
+            if s.models is not None and not model:
+                allowed = "、".join(s.models)
+                print(f"[skill] >>> 拒絕載入型號技能: {s.name}（型號未知，僅適用 {allowed}）")
+                return (
+                    f"技能 '{skill_name}' 是型號專屬技能（僅適用 {allowed}），"
+                    f"但目前尚未確認用戶的電子鎖型號。請先詢問型號後再載入。"
                 )
             print(f"[skill] >>> 載入技能: {s.name}")
             _skill_loaded_this_run.set(True)
