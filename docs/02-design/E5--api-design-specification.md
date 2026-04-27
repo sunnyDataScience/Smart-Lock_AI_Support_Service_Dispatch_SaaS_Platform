@@ -12,6 +12,10 @@
 
 **相關文檔:** `docs/05_architecture_and_design_document.md`
 
+> **SSOT 提醒：** 機器可讀契約以 `docs/02-design/specs/openapi.yaml` 為單一事實來源（SSOT，v0.2.0 起）。
+> 本檔為導讀與設計理由說明；當欄位、路徑、回應格式與 OpenAPI YAML 不一致時，**以 YAML 為準**。
+> 任何 API 變更應先進 YAML（並通過 `spectral lint`），再回頭同步更新本檔的敘述。
+
 ---
 
 ## 目錄

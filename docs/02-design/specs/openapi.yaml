@@ -2,20 +2,25 @@ openapi: 3.1.0
 
 info:
   title: Smart Lock AI Support & Service Dispatch Platform API
-  version: 0.1.0-draft
-  summary: 前後端分離開發的 API 單一事實來源（SSOT）骨架
+  version: 0.2.0
+  summary: 前後端分離開發的 API 單一事實來源（SSOT）
   description: |
-    本檔案是 `/api/v1/*` 所有 REST 端點的機器可讀契約。與 Markdown 敘述文件並行：
+    本檔案是 `/api/v1/*` 所有 REST 端點的機器可讀契約，**並為唯一事實來源（SSOT）**。
+    與 Markdown 敘述文件並行：
 
     - 敘述（narrative）：`E5--api-design-specification.md`、`E5x--frontend-architecture.md §8`
-    - 契約（machine-readable）：本檔 + `asyncapi.yaml` + `error-codes.md`
+    - 契約（machine-readable）：**本檔（SSOT）** + `asyncapi.yaml` + `error-codes.md`
+
+    **衝突處理：** 當 YAML 與 E5 敘述文件不一致時，**以本檔為準**。
+    E5 為導讀與設計理由說明，後續變更應先進 YAML，再回頭更新 E5。
 
     **使用方式：**
     - 後端 FastAPI 應 `assert app.openapi() == load(openapi.yaml)`（或以此生成 Pydantic）
-    - 前端以 `openapi-typescript` 產生 `web/lib/types/api.generated.ts`
+    - 前端以 `openapi-typescript` 產生 `docs/02-design/specs/generated/api.generated.ts`
     - CI 以 `spectral lint` 把關、`schemathesis` 做契約測試
+    - 本機 mock：`./scripts/mock-server.sh` 啟動 Prism on port 4010
 
-    **狀態：** 骨架階段 — 含全域規範、核心 DTO、代表性端點。剩餘端點依 Week 2-4 計畫補完。
+    **狀態：** SSOT — 已對齊 E5--api-design-specification.md v1.1 全部 V1.0 端點。
   contact:
     name: 前後端協作組
     url: https://github.com/Zenobia0000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform
@@ -170,6 +175,27 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemCardPage'
+    post:
+      tags: [customer_service]
+      summary: 建立問題卡
+      operationId: createProblemCard
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProblemCardCreateRequest'
+      responses:
+        '201':
+          description: 已建立
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemCardEnvelope'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
   # -----------------------------
   # dispatch — work orders
@@ -687,49 +713,1052 @@ paths:
         '200':
           description: OK
 
+  # =====================================================================
+  # E5 對齊端點 — Auth / Conversations / KB / SOP / Resolution / Dashboard
+  # =====================================================================
+
   # -----------------------------
-  # TODO（Week 3-4 補完）—— 剩餘端點骨架
+  # auth 補充
   # -----------------------------
-  # /api/v1/dashboard/stats                      GET
-  # /api/v1/knowledge-base/cases                 GET/POST
-  # /api/v1/manuals/ingest                       POST
-  # /api/v1/sop-drafts                           GET
-  # /api/v1/sop-drafts/{id}/approve              POST
-  # /api/v1/technicians                          GET
-  # /api/v1/technicians/{id}/schedule            GET/PUT
-  # /api/v1/technicians/{id}/skills              GET/PUT
-  # /api/v1/technicians/{id}/settlements         GET/POST
-  # /api/v1/technicians/me/time-off              POST
-  # /api/v1/accounting/reconciliations           GET
-  # /api/v1/roles                                GET/POST/PUT/DELETE — G1 RBAC
-  # /api/v1/audit-events                         GET — G2
-  # /api/v1/audit-events/export                  POST — G2
-  # /api/v1/inventory/parts                      GET/POST — G3
-  # /api/v1/inventory/low-stock                  GET — G3
-  # /api/v1/inventory/purchase-orders            POST — G3
-  # /api/v1/warranty-claims                      GET/POST
-  # /api/v1/disputes                             GET/POST — G4
-  # /api/v1/disputes/{id}/escalate               POST — G4
-  # /api/v1/disputes/{id}/resolve                POST — G4
-  # /api/v1/customers                            GET
-  # /api/v1/reports/kpi|ranking|revenue          GET
-  # /api/v1/diagnostics/{conv_id}                GET/POST (SSE)
-  # /api/v1/tenants/applications                 POST — MT1
-  # /api/v1/tenants/me                           GET/PUT
-  # /api/v1/tenants/me/brand/draft               POST — MT2
-  # /api/v1/tenants/me/offboard                  POST — MT5
-  # /api/v1/super/applications                   GET — MT1
-  # /api/v1/super/applications/{id}/approve      POST — MT1
-  # /api/v1/super/tenants/{id}/suspend           POST — MT3
-  # /api/v1/super/brand-reviews                  GET/POST — MT2
-  # /api/v1/super/metrics                        GET — MT3
-  # /api/v1/b2b/api-keys                         POST/DELETE — MT4
-  # /api/v1/b2b/api-keys/{id}/rotate             POST — MT4
-  # /api/v1/b2b/usage                            GET — MT4
-  # /api/v1/work-orders/{id}/scope-change        POST  — Flow 3
-  # /api/v1/work-orders/{id}/material-request    POST  — Flow 4
-  # /api/v1/work-orders/{id}/delay               POST  — Flow 5
-  # /api/v1/work-orders/{id}/door-check          POST  — Flow 10
+  /api/v1/auth/refresh:
+    post:
+      tags: [auth]
+      summary: 換發 access token
+      operationId: refreshToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRefreshRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/LoginSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/auth/logout:
+    post:
+      tags: [auth]
+      summary: 登出（撤銷 refresh token）
+      operationId: logout
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthLogoutRequest'
+      responses:
+        '204':
+          description: 已登出
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # -----------------------------
+  # conversations / problem-cards 補充
+  # -----------------------------
+  /api/v1/conversations/{id}/messages:
+    get:
+      tags: [customer_service]
+      summary: 對話訊息列表（cursor 分頁）
+      operationId: listConversationMessages
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessagePage'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/problem-cards/{id}:
+    get:
+      tags: [customer_service]
+      summary: 取得問題卡詳情
+      operationId: getProblemCard
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemCardEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [customer_service]
+      summary: 更新問題卡（部分欄位）
+      operationId: updateProblemCard
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProblemCardUpdateRequest'
+      responses:
+        '200':
+          description: 已更新
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemCardEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/problem-cards/{id}/export:
+    get:
+      tags: [customer_service]
+      summary: 匯出問題卡（PDF/JSON/CSV）
+      operationId: exportProblemCard
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pdf, json, csv]
+            default: pdf
+      responses:
+        '200':
+          description: 匯出結果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemCardExport'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # -----------------------------
+  # knowledge_base — cases
+  # -----------------------------
+  /api/v1/knowledge-base/cases:
+    get:
+      tags: [knowledge_base]
+      summary: 案例列表（cursor 分頁）
+      operationId: listCases
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: brand
+          in: query
+          required: false
+          schema: { type: string }
+        - name: verified
+          in: query
+          required: false
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseEntryPage'
+    post:
+      tags: [knowledge_base]
+      summary: 建立案例
+      operationId: createCase
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseEntryCreateRequest'
+      responses:
+        '201':
+          description: 已建立
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseEntryEnvelope'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/knowledge-base/cases/{id}:
+    get:
+      tags: [knowledge_base]
+      summary: 取得案例詳情
+      operationId: getCase
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseEntryEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [knowledge_base]
+      summary: 更新案例（整體取代）
+      operationId: updateCase
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseEntryUpdateRequest'
+      responses:
+        '200':
+          description: 已更新
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseEntryEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [knowledge_base]
+      summary: 刪除案例
+      operationId: deleteCase
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '204':
+          description: 已刪除
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/knowledge-base/cases/search:
+    post:
+      tags: [knowledge_base]
+      summary: 案例語意搜尋（向量檢索）
+      operationId: searchCases
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseSearchRequest'
+      responses:
+        '200':
+          description: 搜尋結果（依分數排序）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseSearchResponse'
+
+  # -----------------------------
+  # knowledge_base — manuals
+  # -----------------------------
+  /api/v1/knowledge-base/manuals/upload:
+    post:
+      tags: [knowledge_base]
+      summary: 上傳產品手冊（multipart）
+      operationId: uploadManual
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, brand, title]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                brand: { type: string }
+                model: { type: string }
+                title: { type: string }
+      responses:
+        '202':
+          description: 已接收，背景處理中
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManualEnvelope'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/knowledge-base/manuals:
+    get:
+      tags: [knowledge_base]
+      summary: 手冊列表
+      operationId: listManuals
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: brand
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManualPage'
+
+  /api/v1/knowledge-base/manuals/{id}:
+    delete:
+      tags: [knowledge_base]
+      summary: 刪除手冊
+      operationId: deleteManual
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '204':
+          description: 已刪除
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/knowledge-base/export:
+    post:
+      tags: [knowledge_base]
+      summary: 啟動向量索引匯出（非同步）
+      operationId: startKbExport
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KbExportRequest'
+      responses:
+        '202':
+          description: 已建立匯出任務
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KbExportJob'
+
+  /api/v1/knowledge-base/export/{job_id}:
+    get:
+      tags: [knowledge_base]
+      summary: 查詢匯出任務狀態
+      operationId: getKbExport
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KbExportJob'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # -----------------------------
+  # knowledge_base — sop drafts
+  # -----------------------------
+  /api/v1/sop-drafts:
+    get:
+      tags: [knowledge_base]
+      summary: SOP 草稿列表
+      operationId: listSopDrafts
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/SopDraftStatus'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SopDraftPage'
+
+  /api/v1/sop-drafts/{id}:
+    get:
+      tags: [knowledge_base]
+      summary: 取得 SOP 草稿詳情
+      operationId: getSopDraft
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SopDraftEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/sop-drafts/{id}/review:
+    patch:
+      tags: [knowledge_base]
+      summary: 管理員初審 SOP 草稿
+      operationId: reviewSopDraft
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SopDraftReviewRequest'
+      responses:
+        '200':
+          description: 審核結果已記錄
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SopDraftEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/sop-drafts/{id}/adopt:
+    post:
+      tags: [knowledge_base]
+      summary: 採納 SOP 草稿（家族覆核通過後入庫）
+      operationId: adoptSopDraft
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SopDraftAdoptRequest'
+      responses:
+        '200':
+          description: 已採納
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseEntryEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  # -----------------------------
+  # resolution engine
+  # -----------------------------
+  /api/v1/resolve:
+    post:
+      tags: [customer_service]
+      summary: 觸發解決方案引擎（FAQ/RAG/LLM/Escalation）
+      operationId: resolveProblem
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveRequest'
+      responses:
+        '200':
+          description: 解決方案
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolveResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # -----------------------------
+  # dashboard / config
+  # -----------------------------
+  /api/v1/dashboard/stats:
+    get:
+      tags: [reports]
+      summary: 儀表板統計（KPI/熱門主題/Token 用量）
+      operationId: getDashboardStats
+      parameters:
+        - name: period
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/DashboardPeriod'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardStats'
+
+  /api/v1/config:
+    get:
+      tags: [user_management]
+      summary: 取得系統設定
+      operationId: getSystemConfig
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemConfig'
+    patch:
+      tags: [user_management]
+      summary: 更新系統設定（部分更新）
+      operationId: updateSystemConfig
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SystemConfig'
+      responses:
+        '200':
+          description: 已更新
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemConfig'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  # -----------------------------
+  # audit / sentiment / family review
+  # -----------------------------
+  /api/v1/audit-logs:
+    get:
+      tags: [audit]
+      summary: 審計日誌查詢
+      operationId: listAuditLogs
+      parameters:
+        - name: log_type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/AuditLogType'
+        - name: start_time
+          in: query
+          required: false
+          schema: { type: string, format: date-time }
+        - name: end_time
+          in: query
+          required: false
+          schema: { type: string, format: date-time }
+        - name: actor_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLogPage'
+
+  /api/v1/sentiment/alerts:
+    get:
+      tags: [customer_service]
+      summary: 負面情緒告警列表
+      operationId: listSentimentAlerts
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/SentimentAlertStatus'
+        - name: start_time
+          in: query
+          required: false
+          schema: { type: string, format: date-time }
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SentimentAlertPage'
+
+  /api/v1/sentiment/alerts/{alert_id}:
+    patch:
+      tags: [customer_service]
+      summary: 處理情緒告警
+      operationId: updateSentimentAlert
+      parameters:
+        - name: alert_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SentimentAlertUpdateRequest'
+      responses:
+        '200':
+          description: 已更新
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SentimentAlert'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/family-reviews/pending:
+    get:
+      tags: [knowledge_base]
+      summary: 待家族覆核的 SOP 清單
+      operationId: listPendingFamilyReviews
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FamilyReviewPendingResponse'
+
+  /api/v1/family-reviews:
+    get:
+      tags: [knowledge_base]
+      summary: 家族覆核歷史
+      operationId: listFamilyReviews
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: action
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/FamilyReviewAction'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FamilyReviewPage'
+    post:
+      tags: [knowledge_base]
+      summary: 提交家族覆核結果
+      operationId: createFamilyReview
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FamilyReviewCreateRequest'
+      responses:
+        '201':
+          description: 已建立
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FamilyReview'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  # =====================================================================
+  # E5 對齊端點 — Technicians / Work Orders / Dispatch / Pricing / Accounting
+  # =====================================================================
+
+  /api/v1/technicians/register:
+    post:
+      tags: [auth]
+      summary: 技師註冊
+      operationId: registerTechnician
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TechnicianRegisterRequest'
+      responses:
+        '201':
+          description: 已建立（待審核）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicianProfileEnvelope'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/technicians/me:
+    get:
+      tags: [dispatch]
+      summary: 取得目前登入技師個人資料
+      operationId: getMyProfile
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicianProfileEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    patch:
+      tags: [dispatch]
+      summary: 更新個人資料
+      operationId: updateMyProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TechnicianUpdateRequest'
+      responses:
+        '200':
+          description: 已更新
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicianProfileEnvelope'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/work-orders/{id}/confirm:
+    post:
+      tags: [dispatch]
+      summary: 客戶確認工單完工並評價
+      operationId: confirmWorkOrder
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkOrderConfirmRequest'
+      responses:
+        '200':
+          description: 已確認
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/dispatch/auto-match:
+    post:
+      tags: [dispatch]
+      summary: 自動媒合候選技師
+      operationId: autoMatchDispatch
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DispatchAutoMatchRequest'
+      responses:
+        '200':
+          description: 候選列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DispatchAutoMatchResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/dispatch/assign:
+    post:
+      tags: [dispatch]
+      summary: 將工單指派給技師（body 帶 work_order_id 之版本）
+      operationId: assignDispatch
+      description: |
+        與 `POST /api/v1/work-orders/{id}/assign` 等價，差別在 work_order_id 透過 body 傳遞，
+        適用於從候選列表批次派發或外部系統整合。
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DispatchAssignRequest'
+      responses:
+        '200':
+          description: 已指派
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  # -----------------------------
+  # pricing
+  # -----------------------------
+  /api/v1/pricing/calculate:
+    post:
+      tags: [accounting]
+      summary: 計算報價（依 brand/lock_type/difficulty + 加成）
+      operationId: calculatePricing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PricingCalculateRequest'
+      responses:
+        '200':
+          description: 報價結果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PricingCalculateResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/pricing/rules:
+    get:
+      tags: [accounting]
+      summary: 計價規則列表
+      operationId: listPricingRules
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: brand
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PricingRulePage'
+    post:
+      tags: [accounting]
+      summary: 建立計價規則
+      operationId: createPricingRule
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PricingRuleCreateRequest'
+      responses:
+        '201':
+          description: 已建立
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PricingRuleEnvelope'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/pricing/rules/{id}:
+    put:
+      tags: [accounting]
+      summary: 更新計價規則
+      operationId: updatePricingRule
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PricingRuleUpdateRequest'
+      responses:
+        '200':
+          description: 已更新
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PricingRuleEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # -----------------------------
+  # accounting
+  # -----------------------------
+  /api/v1/accounting/reconciliations:
+    get:
+      tags: [accounting]
+      summary: 對帳記錄列表
+      operationId: listReconciliations
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ReconciliationStatus'
+        - name: technician_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconciliationPage'
+
+  /api/v1/accounting/reconciliations/{id}/approve:
+    post:
+      tags: [accounting]
+      summary: 核准對帳（觸發結算）
+      operationId: approveReconciliation
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReconciliationApproveRequest'
+      responses:
+        '200':
+          description: 已核准
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reconciliation:
+                    $ref: '#/components/schemas/Reconciliation'
+                  settlement:
+                    $ref: '#/components/schemas/Settlement'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/accounting/settlements:
+    get:
+      tags: [accounting]
+      summary: 結算記錄列表
+      operationId: listSettlements
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/SettlementStatus'
+        - name: technician_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettlementPage'
+
+  /api/v1/accounting/vouchers:
+    get:
+      tags: [accounting]
+      summary: 會計傳票列表
+      operationId: listVouchers
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: posting_date_start
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: posting_date_end
+          in: query
+          required: false
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoucherPage'
+
+  /api/v1/accounting/vouchers/{id}/export:
+    get:
+      tags: [accounting]
+      summary: 匯出傳票（PDF）
+      operationId: exportVoucher
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: PDF 二進位
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # -----------------------------
+  # notifications 推送
+  # -----------------------------
+  /api/v1/notifications/push:
+    post:
+      tags: [realtime]
+      summary: 主動推播通知（後台/系統觸發）
+      operationId: pushNotification
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationPushRequest'
+      responses:
+        '202':
+          description: 已排入推送佇列
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
 #####################################################################
 # Components
@@ -1516,6 +2545,922 @@ components:
           type: [string, "null"]
           format: uuid
           description: 對應 domain event，除錯用
+
+    # --------- 訊息（對話內訊息） ---------
+    MessageRole:
+      type: string
+      enum: [user, assistant, system]
+
+    MessageType:
+      type: string
+      enum: [text, image, audio, video, sticker]
+
+    Message:
+      type: object
+      required: [id, conversation_id, role, type, content, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        conversation_id: { type: string, format: uuid }
+        role: { $ref: '#/components/schemas/MessageRole' }
+        type: { $ref: '#/components/schemas/MessageType' }
+        content: { type: string }
+        media_url: { type: [string, "null"], format: uri }
+        created_at: { type: string, format: date-time }
+
+    MessagePage:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Message'
+
+    # --------- 問題卡（Create/Update 與 Export） ---------
+    ProblemCardCreateRequest:
+      type: object
+      required: [conversation_id, brand, model, symptom, urgency]
+      properties:
+        conversation_id: { type: string, format: uuid }
+        brand: { type: string, maxLength: 50 }
+        model: { type: string, maxLength: 100 }
+        symptom: { type: string, maxLength: 1000 }
+        category: { type: string }
+        urgency: { $ref: '#/components/schemas/Urgency' }
+        location: { type: string }
+        door_status:
+          type: string
+          enum: [locked_out, partially_functional, normal]
+        network_status:
+          type: string
+          enum: [online, offline, unknown]
+        symptoms:
+          type: array
+          items: { type: string }
+        intent:
+          type: string
+          enum: [unlock_request, repair_request, installation, inquiry]
+        media_urls:
+          type: array
+          items: { type: string, format: uri }
+
+    ProblemCardUpdateRequest:
+      type: object
+      properties:
+        brand: { type: string }
+        model: { type: string }
+        symptom: { type: string }
+        category: { type: string }
+        urgency: { $ref: '#/components/schemas/Urgency' }
+        status: { $ref: '#/components/schemas/ProblemCardStatus' }
+        media_urls:
+          type: array
+          items: { type: string, format: uri }
+
+    ProblemCardEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseGeneric'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/ProblemCard'
+
+    ProblemCardExport:
+      type: object
+      required: [format, content]
+      properties:
+        format:
+          type: string
+          enum: [pdf, json, csv]
+        content:
+          type: string
+          description: Base64 編碼內容或下載 URL（依 format 決定）
+        download_url: { type: [string, "null"], format: uri }
+
+    # --------- 知識庫案例 ---------
+    CaseEntryEmbeddingStatus:
+      type: string
+      enum: [processing, ready, failed]
+
+    CaseEntry:
+      type: object
+      required: [id, title, problem_description, solution, brand, verified, embedding_status, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string, maxLength: 200 }
+        problem_description: { type: string, maxLength: 2000 }
+        solution: { type: string, maxLength: 5000 }
+        brand: { type: string, maxLength: 50 }
+        model: { type: string, maxLength: 100 }
+        tags:
+          type: array
+          items: { type: string }
+        verified: { type: boolean }
+        embedding_status: { $ref: '#/components/schemas/CaseEntryEmbeddingStatus' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CaseEntryCreateRequest:
+      type: object
+      required: [title, problem_description, solution, brand]
+      properties:
+        title: { type: string, maxLength: 200 }
+        problem_description: { type: string, maxLength: 2000 }
+        solution: { type: string, maxLength: 5000 }
+        brand: { type: string, maxLength: 50 }
+        model: { type: string, maxLength: 100 }
+        tags:
+          type: array
+          items: { type: string }
+
+    CaseEntryUpdateRequest:
+      type: object
+      properties:
+        title: { type: string }
+        problem_description: { type: string }
+        solution: { type: string }
+        brand: { type: string }
+        model: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+        verified: { type: boolean }
+
+    CaseEntryEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseGeneric'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/CaseEntry'
+
+    CaseEntryPage:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/CaseEntry'
+
+    CaseSearchRequest:
+      type: object
+      required: [query]
+      properties:
+        query: { type: string, maxLength: 500 }
+        brand: { type: string }
+        model: { type: string }
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 20
+          default: 5
+        similarity_threshold:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          default: 0.75
+
+    CaseSearchHit:
+      type: object
+      required: [case, score]
+      properties:
+        case: { $ref: '#/components/schemas/CaseEntry' }
+        score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+
+    CaseSearchResponse:
+      type: object
+      required: [hits]
+      properties:
+        hits:
+          type: array
+          items: { $ref: '#/components/schemas/CaseSearchHit' }
+
+    # --------- 知識庫手冊 ---------
+    ManualStatus:
+      type: string
+      enum: [processing, ready, failed]
+
+    Manual:
+      type: object
+      required: [id, title, brand, file_name, file_size_bytes, status, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string, maxLength: 200 }
+        brand: { type: string }
+        model: { type: string }
+        file_name: { type: string }
+        file_size_bytes: { type: integer, minimum: 0 }
+        status: { $ref: '#/components/schemas/ManualStatus' }
+        chunk_count: { type: [integer, "null"], minimum: 0 }
+        created_at: { type: string, format: date-time }
+
+    ManualEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseGeneric'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Manual'
+
+    ManualPage:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Manual'
+
+    # --------- SOP Drafts ---------
+    SopDraftStatus:
+      type: string
+      enum: [draft, under_review, approved, rejected]
+
+    SopDraftStep:
+      type: object
+      required: [order, title, description]
+      properties:
+        order: { type: integer, minimum: 1 }
+        title: { type: string, maxLength: 200 }
+        description: { type: string, maxLength: 2000 }
+
+    SopDraft:
+      type: object
+      required: [id, title, steps, status, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        case_event_id: { type: [string, "null"], format: uuid }
+        problem_card_id: { type: [string, "null"], format: uuid }
+        title: { type: string, maxLength: 200 }
+        steps:
+          type: array
+          items: { $ref: '#/components/schemas/SopDraftStep' }
+        status: { $ref: '#/components/schemas/SopDraftStatus' }
+        reviewer_id: { type: [string, "null"], format: uuid }
+        reviewed_at: { type: [string, "null"], format: date-time }
+        review_comment: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+
+    SopDraftEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseGeneric'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/SopDraft'
+
+    SopDraftPage:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/SopDraft'
+
+    SopDraftReviewRequest:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [approve, reject]
+        comment: { type: string, maxLength: 1000 }
+
+    SopDraftAdoptRequest:
+      type: object
+      properties:
+        target_case_id: { type: [string, "null"], format: uuid, description: 採納為現有案例的更新；省略則建立新案例 }
+
+    # --------- Resolution Engine ---------
+    ResolveRequest:
+      type: object
+      required: [problem_card_id]
+      properties:
+        problem_card_id: { type: string, format: uuid }
+
+    ResolveResponse:
+      type: object
+      required: [layer, answer]
+      properties:
+        layer:
+          type: string
+          enum: [faq_match, knowledge_base_rag, llm_generation, escalation]
+        answer: { type: string }
+        sources:
+          type: array
+          items:
+            type: object
+            properties:
+              type: { type: string, enum: [case, manual] }
+              id: { type: string, format: uuid }
+              snippet: { type: string }
+              score: { type: number, format: float }
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+
+    # --------- Auth 補充 ---------
+    AuthRefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token: { type: string }
+
+    AuthLogoutRequest:
+      type: object
+      properties:
+        refresh_token: { type: [string, "null"] }
+
+    # --------- Dashboard ---------
+    DashboardPeriod:
+      type: string
+      enum: [today, "7d", "30d", "90d"]
+
+    DashboardStats:
+      type: object
+      required: [period, conversations, resolution]
+      properties:
+        period: { $ref: '#/components/schemas/DashboardPeriod' }
+        conversations:
+          type: object
+          required: [total, active, resolved, escalated]
+          properties:
+            total: { type: integer, minimum: 0 }
+            active: { type: integer, minimum: 0 }
+            resolved: { type: integer, minimum: 0 }
+            escalated: { type: integer, minimum: 0 }
+        resolution:
+          type: object
+          properties:
+            ai_resolution_rate: { type: number, format: float, minimum: 0, maximum: 1 }
+            avg_resolution_time_seconds: { type: integer, minimum: 0 }
+            by_layer:
+              type: object
+              additionalProperties:
+                type: integer
+        hot_topics:
+          type: array
+          items:
+            type: object
+            properties:
+              topic: { type: string }
+              count: { type: integer, minimum: 0 }
+        token_usage:
+          type: object
+          properties:
+            total_tokens: { type: integer }
+            prompt_tokens: { type: integer }
+            completion_tokens: { type: integer }
+            estimated_cost_usd: { type: number, format: float }
+        top_brands:
+          type: array
+          items:
+            type: object
+            properties:
+              brand: { type: string }
+              count: { type: integer, minimum: 0 }
+
+    # --------- System Config ---------
+    SystemConfig:
+      type: object
+      description: |
+        系統設定（部分更新）。各區塊允許獨立 PATCH，未指定的子鍵不變動。
+      properties:
+        rag:
+          type: object
+          properties:
+            similarity_threshold: { type: number, format: float, minimum: 0, maximum: 1 }
+            max_results: { type: integer, minimum: 1 }
+            chunk_size: { type: integer, minimum: 1 }
+            chunk_overlap: { type: integer, minimum: 0 }
+        llm:
+          type: object
+          properties:
+            model: { type: string }
+            temperature: { type: number, format: float, minimum: 0, maximum: 2 }
+            max_tokens: { type: integer, minimum: 1 }
+            system_prompt_version: { type: string }
+        resolution:
+          type: object
+          properties:
+            faq_confidence_threshold: { type: number, format: float, minimum: 0, maximum: 1 }
+            rag_confidence_threshold: { type: number, format: float, minimum: 0, maximum: 1 }
+            auto_escalation_enabled: { type: boolean }
+        line_bot:
+          type: object
+          properties:
+            greeting_message_enabled: { type: boolean }
+            max_conversation_turns: { type: integer, minimum: 1 }
+
+    # --------- Audit Logs ---------
+    AuditLogType:
+      type: string
+      enum: [api_call, llm_interaction, rag_retrieval, admin_action, agent_message]
+
+    AuditLogEntry:
+      type: object
+      required: [id, log_type, action, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        log_type: { $ref: '#/components/schemas/AuditLogType' }
+        actor_id: { type: [string, "null"], format: uuid }
+        action: { type: string, maxLength: 200 }
+        details:
+          type: object
+          additionalProperties: true
+        created_at: { type: string, format: date-time }
+
+    AuditLogPage:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/AuditLogEntry'
+
+    # --------- Sentiment Alerts ---------
+    SentimentAlertStatus:
+      type: string
+      enum: [pending, acknowledged, resolved]
+
+    SentimentAlert:
+      type: object
+      required: [id, conversation_id, sentiment_label, confidence, status, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        conversation_id: { type: string, format: uuid }
+        consumer_message: { type: string, maxLength: 2000 }
+        sentiment_label:
+          type: string
+          enum: [negative, very_negative, neutral, positive]
+        confidence: { type: number, format: float, minimum: 0, maximum: 1 }
+        detected_keywords:
+          type: array
+          items: { type: string }
+        problem_card_id: { type: [string, "null"], format: uuid }
+        status: { $ref: '#/components/schemas/SentimentAlertStatus' }
+        notified_admin_ids:
+          type: array
+          items: { type: string, format: uuid }
+        admin_note: { type: [string, "null"], maxLength: 1000 }
+        created_at: { type: string, format: date-time }
+
+    SentimentAlertUpdateRequest:
+      type: object
+      required: [status]
+      properties:
+        status: { $ref: '#/components/schemas/SentimentAlertStatus' }
+        admin_note: { type: string, maxLength: 1000 }
+
+    SentimentAlertPage:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/SentimentAlert'
+
+    # --------- Family Reviews ---------
+    FamilyReviewAction:
+      type: string
+      enum: [approved, rejected]
+
+    FamilyReviewPendingItem:
+      type: object
+      required: [sop_draft_id, title, awaiting_family_review_since]
+      properties:
+        sop_draft_id: { type: string, format: uuid }
+        title: { type: string }
+        admin_reviewer: { type: string }
+        admin_approved_at: { type: string, format: date-time }
+        awaiting_family_review_since: { type: string, format: date-time }
+
+    FamilyReviewPendingResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/FamilyReviewPendingItem' }
+
+    FamilyReviewCreateRequest:
+      type: object
+      required: [sop_draft_id, action]
+      properties:
+        sop_draft_id: { type: string, format: uuid }
+        action: { $ref: '#/components/schemas/FamilyReviewAction' }
+        comment: { type: string, maxLength: 1000 }
+
+    FamilyReview:
+      type: object
+      required: [id, sop_draft_id, action, reviewer_id, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        sop_draft_id: { type: string, format: uuid }
+        action: { $ref: '#/components/schemas/FamilyReviewAction' }
+        reviewer_id: { type: string, format: uuid }
+        comment: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+
+    FamilyReviewPage:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/FamilyReview'
+
+    # --------- KB Vector Export ---------
+    KbExportStatus:
+      type: string
+      enum: [queued, running, completed, failed]
+
+    KbExportRequest:
+      type: object
+      properties:
+        scope:
+          type: string
+          enum: [all, cases_only, manuals_only]
+          default: all
+        brand: { type: string }
+
+    KbExportJob:
+      type: object
+      required: [job_id, status, created_at]
+      properties:
+        job_id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/KbExportStatus' }
+        download_url: { type: [string, "null"], format: uri }
+        item_count: { type: [integer, "null"], minimum: 0 }
+        created_at: { type: string, format: date-time }
+        completed_at: { type: [string, "null"], format: date-time }
+
+    # --------- Technicians 補充 ---------
+    TechnicianRegisterRequest:
+      type: object
+      required: [name, phone, email, password, capabilities, regions]
+      properties:
+        name: { type: string }
+        phone: { type: string, pattern: '^09\d{8}$' }
+        email: { type: string, format: email }
+        password: { type: string, format: password, minLength: 8 }
+        capabilities:
+          type: array
+          items: { type: string }
+        regions:
+          type: array
+          items: { type: string }
+
+    TechnicianProfile:
+      allOf:
+        - $ref: '#/components/schemas/Technician'
+        - type: object
+          properties:
+            email: { type: string, format: email }
+
+    TechnicianProfileEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseGeneric'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/TechnicianProfile'
+
+    TechnicianUpdateRequest:
+      type: object
+      properties:
+        name: { type: string }
+        phone: { type: string, pattern: '^09\d{8}$' }
+        email: { type: string, format: email }
+        capabilities:
+          type: array
+          items: { type: string }
+        regions:
+          type: array
+          items: { type: string }
+
+    # --------- Work Order Confirm（客戶評價） ---------
+    WorkOrderConfirmRequest:
+      type: object
+      required: [rating]
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        feedback: { type: string, maxLength: 1000 }
+
+    # --------- Dispatch ---------
+    DispatchAutoMatchRequest:
+      type: object
+      required: [problem_card_id]
+      properties:
+        problem_card_id: { type: string, format: uuid }
+        urgency:
+          type: string
+          enum: [normal, emergency]
+          default: normal
+        max_candidates:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 3
+
+    DispatchCandidate:
+      type: object
+      required: [technician_id, score]
+      properties:
+        technician_id: { type: string, format: uuid }
+        technician_name: { type: string }
+        score: { type: number, format: float, minimum: 0, maximum: 1 }
+        distance_km: { type: number, format: float }
+        eta_minutes: { type: integer, minimum: 0 }
+        rating: { type: number, format: float, minimum: 0, maximum: 5 }
+
+    DispatchAutoMatchResponse:
+      type: object
+      required: [candidates]
+      properties:
+        candidates:
+          type: array
+          items: { $ref: '#/components/schemas/DispatchCandidate' }
+
+    DispatchAssignRequest:
+      type: object
+      description: |
+        E5 §8.3：批次或顯式指派工單。`work_order_id` + `technician_id` 必填；
+        與 `/api/v1/work-orders/{id}/assign` 之差異：本端點接受 body 中傳遞工單 id，
+        適用於從候選列表批次派發。
+      required: [work_order_id, technician_id]
+      properties:
+        work_order_id: { type: string, format: uuid }
+        technician_id: { type: string, format: uuid }
+        override_reason: { type: string, maxLength: 500 }
+
+    # --------- Pricing ---------
+    LockType:
+      type: string
+      enum: [digital_deadbolt, smart_lock, padlock, other]
+
+    DifficultyLevel:
+      type: string
+      enum: [simple, moderate, complex]
+
+    PricingCalculateRequest:
+      type: object
+      required: [brand, lock_type, difficulty]
+      properties:
+        brand: { type: string }
+        model: { type: string }
+        lock_type: { $ref: '#/components/schemas/LockType' }
+        difficulty: { $ref: '#/components/schemas/DifficultyLevel' }
+        is_emergency: { type: boolean, default: false }
+        is_night_service: { type: boolean, default: false }
+        additional_items:
+          type: array
+          items: { type: string }
+
+    PricingSurcharge:
+      type: object
+      required: [name, amount]
+      properties:
+        name: { type: string }
+        condition: { type: string }
+        amount:
+          type: string
+          pattern: '^-?\d+(\.\d{1,2})?$'
+
+    PricingCalculateResponse:
+      type: object
+      required: [base_price, total]
+      properties:
+        base_price:
+          type: string
+          pattern: '^-?\d+(\.\d{1,2})?$'
+        surcharges:
+          type: array
+          items: { $ref: '#/components/schemas/PricingSurcharge' }
+        total:
+          type: string
+          pattern: '^-?\d+(\.\d{1,2})?$'
+        currency:
+          type: string
+          enum: [TWD]
+          default: TWD
+
+    PricingRule:
+      type: object
+      required: [id, brand, lock_type, difficulty, base_price, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        brand: { type: string }
+        lock_type: { $ref: '#/components/schemas/LockType' }
+        difficulty: { $ref: '#/components/schemas/DifficultyLevel' }
+        base_price:
+          type: string
+          pattern: '^-?\d+(\.\d{1,2})?$'
+        surcharges:
+          type: array
+          items: { $ref: '#/components/schemas/PricingSurcharge' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    PricingRuleCreateRequest:
+      type: object
+      required: [brand, lock_type, difficulty, base_price]
+      properties:
+        brand: { type: string }
+        lock_type: { $ref: '#/components/schemas/LockType' }
+        difficulty: { $ref: '#/components/schemas/DifficultyLevel' }
+        base_price:
+          type: string
+          pattern: '^-?\d+(\.\d{1,2})?$'
+        surcharges:
+          type: array
+          items: { $ref: '#/components/schemas/PricingSurcharge' }
+
+    PricingRuleUpdateRequest:
+      type: object
+      properties:
+        base_price:
+          type: string
+          pattern: '^-?\d+(\.\d{1,2})?$'
+        surcharges:
+          type: array
+          items: { $ref: '#/components/schemas/PricingSurcharge' }
+
+    PricingRuleEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseGeneric'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/PricingRule'
+
+    PricingRulePage:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/PricingRule'
+
+    # --------- Accounting ---------
+    ReconciliationStatus:
+      type: string
+      enum: [pending, approved, disputed]
+
+    Reconciliation:
+      type: object
+      required: [id, technician_id, period_start, period_end, total_orders, total_revenue, technician_payout, status, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        technician_id: { type: string, format: uuid }
+        technician_name: { type: string }
+        period_start: { type: string, format: date-time }
+        period_end: { type: string, format: date-time }
+        total_orders: { type: integer, minimum: 0 }
+        total_revenue:
+          type: string
+          pattern: '^-?\d+(\.\d{1,2})?$'
+        platform_fee:
+          type: string
+          pattern: '^-?\d+(\.\d{1,2})?$'
+        technician_payout:
+          type: string
+          pattern: '^-?\d+(\.\d{1,2})?$'
+        status: { $ref: '#/components/schemas/ReconciliationStatus' }
+        approved_by: { type: [string, "null"], format: uuid }
+        approved_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+
+    ReconciliationApproveRequest:
+      type: object
+      properties:
+        note: { type: string, maxLength: 500 }
+
+    ReconciliationPage:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Reconciliation'
+
+    SettlementStatus:
+      type: string
+      enum: [pending, paid, failed]
+
+    Settlement:
+      type: object
+      required: [id, reconciliation_id, technician_id, amount, currency, status, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        reconciliation_id: { type: string, format: uuid }
+        technician_id: { type: string, format: uuid }
+        technician_name: { type: string }
+        amount:
+          type: string
+          pattern: '^-?\d+(\.\d{1,2})?$'
+        currency:
+          type: string
+          enum: [TWD]
+          default: TWD
+        status: { $ref: '#/components/schemas/SettlementStatus' }
+        payment_method:
+          type: string
+          enum: [bank_transfer, other]
+        paid_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+
+    SettlementPage:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Settlement'
+
+    Voucher:
+      type: object
+      description: |
+        會計憑證（傳票），對應一筆對帳/結算/退款的雙分錄記錄。
+      required: [id, voucher_number, debit_account, credit_account, amount, currency, posting_date, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        voucher_number: { type: string }
+        related_entity_type:
+          type: string
+          enum: [reconciliation, settlement, refund, invoice]
+        related_entity_id: { type: [string, "null"], format: uuid }
+        debit_account: { type: string }
+        credit_account: { type: string }
+        amount:
+          type: string
+          pattern: '^-?\d+(\.\d{1,2})?$'
+        currency:
+          type: string
+          enum: [TWD]
+          default: TWD
+        posting_date: { type: string, format: date }
+        memo: { type: string }
+        created_at: { type: string, format: date-time }
+
+    VoucherPage:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Voucher'
+
+    # --------- Notification 推送 ---------
+    NotificationPushRequest:
+      type: object
+      required: [target_type, target_id, type, title, body]
+      properties:
+        target_type:
+          type: string
+          enum: [technician, admin, customer]
+        target_id: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/NotificationType' }
+        title: { type: string, maxLength: 200 }
+        body: { type: string, maxLength: 1000 }
+        data:
+          type: [object, "null"]
+          additionalProperties: true
+        channels:
+          type: array
+          items:
+            type: string
+            enum: [push, sms, line, email]
 
     # --------- AuditEvent / DomainEvent 保留 ---------
     # AuditEvent — 隨 /api/v1/audit-events 端點 Week 3 補完
