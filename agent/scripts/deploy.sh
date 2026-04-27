@@ -27,11 +27,11 @@ IMAGE="${IMAGE_BASE}:${IMAGE_TAG}"
 SERVICE_ACCOUNT="lock-ai@${PROJECT_ID}.iam.gserviceaccount.com"
 CLOUDSQL_INSTANCE="${PROJECT_ID}:${REGION}:lock-ai"
 PORT=8080
-MEMORY="1Gi"
-CPU=1
+MEMORY="2Gi"
+CPU=2
 MIN_INSTANCES=1
 MAX_INSTANCES=3
-TIMEOUT=180
+TIMEOUT=300
 
 # ── Cloud SQL 連線元件（用於自動拼接 POSTGRES_URI）──
 DB_USER="lock-ai"
@@ -39,7 +39,7 @@ DB_NAME="lock-ai-db"
 DB_SOCKET="/cloudsql/${CLOUDSQL_INSTANCE}"
 
 # ── 環境變數 ──
-ENV_VARS="VERTEX_PROJECT_ID=${PROJECT_ID},VERTEX_LOCATION=us-central1"
+ENV_VARS="VERTEX_PROJECT_ID=${PROJECT_ID},VERTEX_LOCATION=asia-northeast1"
 
 # ── Secrets（Secret Manager → 環境變數）──
 SECRETS="LINE_CHANNEL_SECRET=LINE_CHANNEL_SECRET:latest"
@@ -294,6 +294,8 @@ if $DEPLOY; then
         --port="${PORT}" \
         --memory="${MEMORY}" \
         --cpu="${CPU}" \
+        --cpu-boost \
+        --execution-environment=gen2 \
         --min-instances="${MIN_INSTANCES}" \
         --max-instances="${MAX_INSTANCES}" \
         --timeout="${TIMEOUT}" \

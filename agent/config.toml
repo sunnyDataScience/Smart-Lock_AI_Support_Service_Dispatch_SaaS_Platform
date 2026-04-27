@@ -7,12 +7,13 @@
 [system]
 domain          = "電子鎖、智慧門鎖相關的產品諮詢、故障排除、安裝派工"
 agent_name      = "smart_lock_agent"
-request_timeout = 180
+request_timeout = 240
 
 # ── 2. LLM 設定（LiteLLM 格式）──
 [llm]
-model       = "vertex_ai/gemini-2.5-pro"
-temperature = 0.3
+model           = "vertex_ai/gemini-2.5-pro"
+temperature     = 0.3
+thinking_budget = 2048   # tokens，封頂 Gemini 2.5 思考預算（None / 註解掉 = 無上限）
 
 # ── 3. LINE Bot 設定 ──
 [line_bot]
@@ -68,7 +69,7 @@ postgres_uri_env = "POSTGRES_URI"
 # ── 9. Debounce 防抖設定 (H3) ──
 [debounce]
 enabled          = true   # 關閉時訊息直接進入 Agent（不合併）
-buffer_wait      = 1.5    # 秒，最後一則訊息後等待時間
+buffer_wait      = 1.0    # 秒，最後一則訊息後等待時間
 buffer_ttl       = 300    # 秒，緩衝區過期清理
 cleanup_interval = 60     # 秒，清理迴圈間隔
 media_extra_wait = 10     # 秒，等待媒體處理完成
