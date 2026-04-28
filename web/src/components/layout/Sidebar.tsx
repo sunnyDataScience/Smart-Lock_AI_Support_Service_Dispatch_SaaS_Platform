@@ -14,9 +14,12 @@ import {
   BarChart3,
   ShieldCheck,
   Settings,
+  LogOut,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
+import { logout } from "@/lib/api";
 
 interface NavChild {
   label: string;
@@ -103,6 +106,18 @@ function isChildActive(child: NavChild, pathname: string): boolean {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  async function onLogout() {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await logout();
+    } finally {
+      router.replace("/login");
+    }
+  }
 
   return (
     <aside className="flex w-[240px] flex-col bg-[var(--bg-sidebar)]">
@@ -162,12 +177,22 @@ export default function Sidebar() {
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--primary)] text-sm font-semibold text-white">
           王
         </div>
-        <div className="flex flex-col gap-[2px]">
+        <div className="flex flex-1 flex-col gap-[2px]">
           <span className="text-sm font-medium text-white">王小明</span>
           <span className="text-xs text-[var(--text-disabled)]">
             主管理員
           </span>
         </div>
+        <button
+          type="button"
+          onClick={onLogout}
+          disabled={loggingOut}
+          title="登出"
+          aria-label="登出"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--text-disabled)] transition hover:bg-[#334155] hover:text-white disabled:opacity-50"
+        >
+          <LogOut className="h-4 w-4" />
+        </button>
       </div>
     </aside>
   );
