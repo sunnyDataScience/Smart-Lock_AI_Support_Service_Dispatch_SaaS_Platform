@@ -10,6 +10,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
+import PricingForm from "@/components/settings/PricingForm";
 
 type TabId = "profile" | "security" | "pricing" | "surcharge";
 
@@ -156,101 +157,6 @@ function SecurityForm() {
         </button>
         <button className="rounded-lg bg-[var(--primary)] px-5 py-[10px]">
           <span className="text-sm font-medium text-white">更新密碼</span>
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function PricingForm() {
-  return (
-    <div className="flex flex-1 flex-col gap-6 overflow-auto rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
-      <div className="flex items-center justify-between">
-        <span className="text-xl font-bold text-[var(--text-primary)]">
-          報價規則 V2.0
-        </span>
-        <span className="text-[13px] text-[var(--text-secondary)]">
-          管理服務項目基礎報價
-        </span>
-      </div>
-
-      <div className="h-px w-full bg-[var(--border)]" />
-
-      <div className="overflow-hidden rounded-lg border border-[var(--border)]">
-        {/* Table Header */}
-        <div className="flex items-center bg-[#F8FAFC] px-4 py-3">
-          <div className="w-[200px]">
-            <span className="text-xs font-semibold text-[var(--text-secondary)]">
-              服務項目
-            </span>
-          </div>
-          <div className="flex flex-1 justify-center">
-            <span className="text-xs font-semibold text-[var(--text-secondary)]">
-              基礎價格
-            </span>
-          </div>
-          <div className="flex flex-1 justify-center">
-            <span className="text-xs font-semibold text-[var(--text-secondary)]">
-              單位
-            </span>
-          </div>
-          <div className="flex flex-1 justify-center">
-            <span className="text-xs font-semibold text-[var(--text-secondary)]">
-              狀態
-            </span>
-          </div>
-        </div>
-        {/* Table Rows */}
-        {[
-          { item: "到府安裝", price: "NT$ 1,200", unit: "次", active: true },
-          { item: "故障維修", price: "NT$ 800", unit: "次", active: true },
-          { item: "電池更換", price: "NT$ 350", unit: "組", active: true },
-          { item: "系統升級", price: "NT$ 500", unit: "次", active: false },
-        ].map((row) => (
-          <div
-            key={row.item}
-            className="flex items-center border-t border-[var(--border)] px-4 py-3"
-          >
-            <div className="w-[200px]">
-              <span className="text-[13px] font-medium text-[var(--text-primary)]">
-                {row.item}
-              </span>
-            </div>
-            <div className="flex flex-1 justify-center">
-              <span className="font-['IBM_Plex_Mono'] text-[13px] text-[var(--text-primary)]">
-                {row.price}
-              </span>
-            </div>
-            <div className="flex flex-1 justify-center">
-              <span className="text-[13px] text-[var(--text-secondary)]">
-                {row.unit}
-              </span>
-            </div>
-            <div className="flex flex-1 justify-center">
-              <span
-                className={`rounded-md px-2 py-1 text-xs font-semibold ${
-                  row.active
-                    ? "bg-[#DCFCE7] text-[#16A34A]"
-                    : "bg-[#F1F5F9] text-[var(--text-secondary)]"
-                }`}
-              >
-                {row.active ? "啟用" : "停用"}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="h-px w-full bg-[var(--border)]" />
-
-      <div className="flex justify-end gap-3">
-        <button className="rounded-lg border border-[var(--border)] px-5 py-[10px]">
-          <span className="text-sm font-medium text-[var(--text-secondary)]">
-            重置為預設
-          </span>
-        </button>
-        <button className="rounded-lg bg-[var(--primary)] px-5 py-[10px]">
-          <span className="text-sm font-medium text-white">儲存規則</span>
         </button>
       </div>
     </div>
