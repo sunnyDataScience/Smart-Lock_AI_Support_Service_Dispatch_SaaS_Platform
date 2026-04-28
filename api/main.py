@@ -26,6 +26,7 @@ from routers import notifications as notifications_router
 from routers import system_config as system_config_router
 from routers import kb_cases as kb_cases_router
 from routers import kb_manuals as kb_manuals_router
+from routers import sop_drafts as sop_drafts_router
 from routers import audit_logs as audit_logs_router
 from routers import conversations as conversations_router
 from routers import dashboard as dashboard_router
@@ -74,6 +75,7 @@ app.include_router(notifications_router.router, prefix="/api/v1", tags=["realtim
 app.include_router(system_config_router.router, prefix="/api/v1", tags=["user_management"])
 app.include_router(kb_cases_router.router, prefix="/api/v1", tags=["knowledge_base"])
 app.include_router(kb_manuals_router.router, prefix="/api/v1", tags=["knowledge_base"])
+app.include_router(sop_drafts_router.router, prefix="/api/v1", tags=["knowledge_base"])
 app.include_router(audit_logs_router.router, prefix="/api/v1", tags=["observability"])
 app.include_router(conversations_router.router, prefix="/api/v1", tags=["customer_service"])
 app.include_router(dashboard_router.router, prefix="/api/v1", tags=["reports"])

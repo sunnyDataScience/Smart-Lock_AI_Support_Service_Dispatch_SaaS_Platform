@@ -171,3 +171,18 @@ CREATE INDEX IF NOT EXISTS idx_manuals_tenant ON manuals(tenant_id, created_at D
 
 COMMENT ON COLUMN manuals.tenant_id IS '所屬租戶 ID（多租戶隔離鍵）';
 COMMENT ON COLUMN manuals.title IS '展示用標題；NULL 時 service 層 fallback 用 filename 去除副檔名';
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- [9] sop_drafts 補欄位（listSopDrafts 需 tenant 隔離）
+-- ─────────────────────────────────────────────────────────────────────────
+ALTER TABLE sop_drafts ADD COLUMN IF NOT EXISTS tenant_id UUID;
+
+UPDATE sop_drafts SET tenant_id = '00000000-0000-0000-0000-000000000001'::uuid WHERE tenant_id IS NULL;
+
+ALTER TABLE sop_drafts ALTER COLUMN tenant_id SET NOT NULL;
+ALTER TABLE sop_drafts ALTER COLUMN tenant_id SET DEFAULT '00000000-0000-0000-0000-000000000001'::uuid;
+
+CREATE INDEX IF NOT EXISTS idx_sop_drafts_tenant ON sop_drafts(tenant_id, created_at DESC);
+
+COMMENT ON COLUMN sop_drafts.tenant_id IS '所屬租戶 ID（多租戶隔離鍵）';
