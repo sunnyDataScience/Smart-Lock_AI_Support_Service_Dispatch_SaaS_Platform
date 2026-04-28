@@ -1,9 +1,7 @@
-"""SOP Drafts router — listSopDrafts + getSopDraft (read-only)。
+"""SOP Drafts router — read + 寫入路徑（review / adopt）。
 
 operationId 對齊 openapi.yaml：
-  listSopDrafts, getSopDraft
-
-不含 reviewSopDraft / adoptSopDraft — 等審核 + 家族覆核 pipeline 接入再開放。
+  listSopDrafts, getSopDraft, reviewSopDraft, adoptSopDraft
 """
 
 from __future__ import annotations
@@ -11,10 +9,15 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Path, Query
 
 from core.deps import CurrentUser, require_tenant
+from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
+    CaseEntry,
+    CaseEntryEnvelope,
     SopDraft,
+    SopDraftAdoptRequest,
     SopDraftEnvelope,
     SopDraftPage,
+    SopDraftReviewRequest,
     SopDraftStatus,
 )
 from services import sop_draft_service
@@ -61,3 +64,55 @@ async def get_sop_draft(
         tenant_id=user.tenant_id, draft_id=id,
     )
     return {"data": SopDraft(**draft).model_dump(mode="json")}
+
+
+@router.patch(
+    "/sop-drafts/{id}/review",
+    operation_id="reviewSopDraft",
+    summary="管理員初審 SOP 草稿（approve / reject）",
+    response_model=SopDraftEnvelope,
+)
+async def review_sop_draft(
+    body: SopDraftReviewRequest,
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    draft = await sop_draft_service.review_draft(
+        tenant_id=user.tenant_id,
+        draft_id=id,
+        decision=body.decision.value,
+        comment=body.comment,
+        reviewer_id=user.user_id,
+    )
+    payload = {"data": SopDraft(**draft).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload
+
+
+@router.post(
+    "/sop-drafts/{id}/adopt",
+    operation_id="adoptSopDraft",
+    summary="採納 SOP 草稿（核准後入庫成為案例）",
+    response_model=CaseEntryEnvelope,
+)
+async def adopt_sop_draft(
+    body: SopDraftAdoptRequest | None = None,
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    target_case_id = None
+    if body is not None and body.target_case_id is not None:
+        target_case_id = str(body.target_case_id)
+    case = await sop_draft_service.adopt_draft(
+        tenant_id=user.tenant_id,
+        draft_id=id,
+        target_case_id=target_case_id,
+        approver_id=user.user_id,
+    )
+    payload = {"data": CaseEntry(**case).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload

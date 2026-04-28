@@ -1,7 +1,7 @@
-"""SOP Drafts 業務邏輯（Phase 1.11 read-only）。
+"""SOP Drafts 業務邏輯（Phase 1.11 read-only + Phase 1.15 寫入路徑）。
 
-範圍：listSopDrafts（cursor + limit + status 篩選）+ getSopDraft。
-不含：reviewSopDraft / adoptSopDraft（寫入路徑等審核 + 家族覆核 pipeline）。
+範圍：listSopDrafts、getSopDraft、reviewSopDraft、adoptSopDraft。
+不含：草稿生成 pipeline（由家族覆核引擎背景產出）。
 
 DB↔OpenAPI 欄位對齊：
   - source_problem_card_id (DB) → problem_card_id (API)
@@ -15,12 +15,19 @@ DB↔OpenAPI 欄位對齊：
       published      → approved   （已發布視為已核准的終態）
   - steps (JSONB) 由 service 層 coerce 為 list[{order,title,description}]，
     缺欄位則 best-effort 補齊（保證 API schema required 不違反）。
+
+寫入路徑狀態機（review / adopt）：
+  pending_review --review(approve)--> approved
+  pending_review --review(reject)---> rejected
+  approved -------adopt-------------> published（同時建立 case_entries 一筆）
+其他轉換一律 409 Conflict。已 published 不可再 adopt（一次性入庫）。
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import uuid
 
 import core.db as db_module
 from core.db import _ensure_conn
@@ -178,3 +185,186 @@ async def get_draft(*, tenant_id: str, draft_id: str) -> dict:
     if not row:
         raise ApiError("NOT_FOUND", "SOP draft not found", 404)
     return _row_to_dict(row)
+
+
+async def review_draft(
+    *,
+    tenant_id: str,
+    draft_id: str,
+    decision: str,
+    comment: str | None,
+    reviewer_id: str | None,
+) -> dict:
+    """初審決策：approve / reject。
+
+    僅允許 pending_review → approved / rejected。
+    其他狀態回 409 Conflict（含已 approved / rejected / published）。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    if decision not in ("approve", "reject"):
+        raise ApiError("VALIDATION_ERROR", "decision must be approve or reject", 422)
+
+    cur = await db_module._conn.execute(
+        "SELECT status FROM sop_drafts "
+        "WHERE id = %s::uuid AND tenant_id = %s::uuid",
+        (draft_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "SOP draft not found", 404)
+
+    current = (row[0] or "").lower()
+    if current != "pending_review":
+        raise ApiError(
+            "CONFLICT",
+            f"Cannot review draft in status '{current}'; only 'pending_review' is allowed",
+            409,
+        )
+
+    next_status = "approved" if decision == "approve" else "rejected"
+    cur = await db_module._conn.execute(
+        f"UPDATE sop_drafts "
+        f"SET status = %s, "
+        f"    reviewed_by = %s::uuid, "
+        f"    review_comment = %s, "
+        f"    reviewed_at = NOW() "
+        f"WHERE id = %s::uuid AND tenant_id = %s::uuid AND status = 'pending_review' "
+        f"RETURNING {_SELECT_COLUMNS}",
+        (next_status, reviewer_id, comment, draft_id, tenant_id),
+    )
+    updated = await cur.fetchone()
+    if not updated:
+        # 競態：其他請求剛把 status 移走 → 視為 409
+        raise ApiError(
+            "CONFLICT",
+            "SOP draft was modified concurrently; please retry",
+            409,
+        )
+    return _row_to_dict(updated)
+
+
+async def adopt_draft(
+    *,
+    tenant_id: str,
+    draft_id: str,
+    target_case_id: str | None,
+    approver_id: str | None,
+) -> dict:
+    """採納 approved 草稿 → 入庫成為 case_entries 一筆，並把 sop_drafts 狀態推進為 published。
+
+    回傳值為新建（或更新）的 case_entry，shape 對齊 CaseEntryEnvelope.data。
+    僅允許 approved → published。其他狀態回 409。
+
+    target_case_id 暫不支援（更新既有案例的 pipeline 尚未開放）；
+    若呼叫方提供，回 422，避免靜默忽略造成意外覆蓋。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    if target_case_id is not None:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "target_case_id is not supported in this phase; only fresh adoption is allowed",
+            422,
+        )
+
+    cur = await db_module._conn.execute(
+        "SELECT status, title, COALESCE(applicable_conditions, ''), steps, "
+        "       COALESCE(notes, '') "
+        "FROM sop_drafts "
+        "WHERE id = %s::uuid AND tenant_id = %s::uuid",
+        (draft_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "SOP draft not found", 404)
+
+    current_status = (row[0] or "").lower()
+    if current_status != "approved":
+        raise ApiError(
+            "CONFLICT",
+            f"Cannot adopt draft in status '{current_status}'; only 'approved' is allowed",
+            409,
+        )
+
+    title: str = row[1] or ""
+    conditions: str = row[2] or ""
+    raw_steps = row[3]
+    notes: str = row[4] or ""
+
+    # 把 steps + conditions + notes 攤平成 case_entries.solution（純文字），
+    # 後續編輯人員可在 KB 案例頁微調。
+    coerced = _coerce_steps(raw_steps)
+    bullets = "\n".join(
+        f"{s['order']}. {s['title']}：{s['description']}".rstrip("：") for s in coerced
+    ) or "（無步驟）"
+    solution_parts = [bullets]
+    if notes:
+        solution_parts.append(f"\n注意事項：{notes}")
+    solution = "\n".join(solution_parts).strip()
+    problem_description = conditions or title
+
+    new_case_id = str(uuid.uuid4())
+    # CaseEntry.brand 在 OpenAPI 上是必填字串；SOP 草稿目前無 brand 欄位 →
+    # 採納時填入「未指定」placeholder，提示管理員後續至案例庫編輯補齊。
+    cur = await db_module._conn.execute(
+        "INSERT INTO case_entries "
+        "(id, tenant_id, title, problem_description, solution, "
+        " brand, model, tags, verified, embedding_status, "
+        " source, approved_by, is_active) "
+        "VALUES (%s::uuid, %s::uuid, %s, %s, %s, "
+        "        %s, NULL, ARRAY[]::TEXT[], TRUE, 'processing', "
+        "        'sop_approved', %s::uuid, TRUE) "
+        "RETURNING id, title, problem_description, solution, brand, model, "
+        "          COALESCE(tags, ARRAY[]::TEXT[]) AS tags, "
+        "          COALESCE(verified, FALSE) AS verified, "
+        "          COALESCE(embedding_status, 'processing') AS embedding_status, "
+        "          created_at, updated_at",
+        (
+            new_case_id,
+            tenant_id,
+            title,
+            problem_description,
+            solution,
+            "未指定",
+            approver_id,
+        ),
+    )
+    case_row = await cur.fetchone()
+    if not case_row:
+        raise ApiError("DB_ERROR", "Failed to insert case_entry", 500)
+
+    # 標記 sop_draft 已發布並掛上 case_entry_id（含再次的 status guard 防競態）
+    upd = await db_module._conn.execute(
+        "UPDATE sop_drafts "
+        "SET status = 'published', "
+        "    published_as_case_entry_id = %s::uuid, "
+        "    reviewed_at = COALESCE(reviewed_at, NOW()) "
+        "WHERE id = %s::uuid AND tenant_id = %s::uuid AND status = 'approved'",
+        (new_case_id, draft_id, tenant_id),
+    )
+    if upd.rowcount == 0:
+        # 草稿在 INSERT case_entry 之間被別的人改走 → 回 409
+        # 注：autocommit 模式下 case_entry 已成立；對使用者而言，最安全的訊號是
+        # 拒絕本次 adopt 並請其手動覆核新建立的 case_entry。
+        raise ApiError(
+            "CONFLICT",
+            "SOP draft status changed during adoption; manual reconciliation needed",
+            409,
+        )
+
+    return {
+        "id": str(case_row[0]),
+        "title": case_row[1],
+        "problem_description": case_row[2],
+        "solution": case_row[3],
+        "brand": case_row[4],
+        "model": case_row[5],
+        "tags": list(case_row[6] or []),
+        "verified": bool(case_row[7]),
+        "embedding_status": case_row[8] or "processing",
+        "created_at": case_row[9].isoformat() if case_row[9] else None,
+        "updated_at": case_row[10].isoformat() if case_row[10] else None,
+    }
