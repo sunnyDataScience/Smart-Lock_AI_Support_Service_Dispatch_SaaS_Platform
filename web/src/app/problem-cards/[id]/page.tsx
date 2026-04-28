@@ -185,7 +185,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
               )}
             </div>
 
-            <LinkedConversationCard />
+            <LinkedConversationCard conversationId={card?.conversation_id} />
             <ResolutionTimeline />
           </div>
 
