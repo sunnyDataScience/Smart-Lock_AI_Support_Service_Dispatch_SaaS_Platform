@@ -186,3 +186,18 @@ ALTER TABLE sop_drafts ALTER COLUMN tenant_id SET DEFAULT '00000000-0000-0000-00
 CREATE INDEX IF NOT EXISTS idx_sop_drafts_tenant ON sop_drafts(tenant_id, created_at DESC);
 
 COMMENT ON COLUMN sop_drafts.tenant_id IS '所屬租戶 ID（多租戶隔離鍵）';
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- [10] price_rules 補欄位（listPricingRules 需 tenant 隔離）
+-- ─────────────────────────────────────────────────────────────────────────
+ALTER TABLE price_rules ADD COLUMN IF NOT EXISTS tenant_id UUID;
+
+UPDATE price_rules SET tenant_id = '00000000-0000-0000-0000-000000000001'::uuid WHERE tenant_id IS NULL;
+
+ALTER TABLE price_rules ALTER COLUMN tenant_id SET NOT NULL;
+ALTER TABLE price_rules ALTER COLUMN tenant_id SET DEFAULT '00000000-0000-0000-0000-000000000001'::uuid;
+
+CREATE INDEX IF NOT EXISTS idx_price_rules_tenant ON price_rules(tenant_id, is_active, created_at DESC);
+
+COMMENT ON COLUMN price_rules.tenant_id IS '所屬租戶 ID（多租戶隔離鍵）';
