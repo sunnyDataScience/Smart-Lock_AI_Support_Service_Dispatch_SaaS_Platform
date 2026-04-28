@@ -25,6 +25,7 @@ from routers import auth as auth_router
 from routers import notifications as notifications_router
 from routers import system_config as system_config_router
 from routers import kb_cases as kb_cases_router
+from routers import audit_logs as audit_logs_router
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -66,6 +67,7 @@ app.include_router(auth_router.router, prefix="/api/v1", tags=["auth"])
 app.include_router(notifications_router.router, prefix="/api/v1", tags=["realtime"])
 app.include_router(system_config_router.router, prefix="/api/v1", tags=["user_management"])
 app.include_router(kb_cases_router.router, prefix="/api/v1", tags=["knowledge_base"])
+app.include_router(audit_logs_router.router, prefix="/api/v1", tags=["observability"])
 
 
 @app.get("/health")
