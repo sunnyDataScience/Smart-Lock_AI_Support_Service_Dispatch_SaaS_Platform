@@ -152,3 +152,22 @@ UPDATE technicians SET tenant_id = '00000000-0000-0000-0000-000000000001'::uuid 
 ALTER TABLE technicians ALTER COLUMN tenant_id SET NOT NULL;
 ALTER TABLE technicians ALTER COLUMN tenant_id SET DEFAULT '00000000-0000-0000-0000-000000000001'::uuid;
 CREATE INDEX IF NOT EXISTS idx_technicians_tenant ON technicians(tenant_id);
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- [8] manuals 補欄位（listManuals 需 tenant 隔離；title 對齊 OpenAPI Manual schema）
+-- ─────────────────────────────────────────────────────────────────────────
+-- title：OpenAPI Manual.title 為 required，但 DB 既有只有 filename；
+--        補欄位後若為 NULL 則由 service 層 fallback 用 filename 去除副檔名。
+ALTER TABLE manuals ADD COLUMN IF NOT EXISTS tenant_id UUID;
+ALTER TABLE manuals ADD COLUMN IF NOT EXISTS title VARCHAR(200);
+
+UPDATE manuals SET tenant_id = '00000000-0000-0000-0000-000000000001'::uuid WHERE tenant_id IS NULL;
+
+ALTER TABLE manuals ALTER COLUMN tenant_id SET NOT NULL;
+ALTER TABLE manuals ALTER COLUMN tenant_id SET DEFAULT '00000000-0000-0000-0000-000000000001'::uuid;
+
+CREATE INDEX IF NOT EXISTS idx_manuals_tenant ON manuals(tenant_id, created_at DESC);
+
+COMMENT ON COLUMN manuals.tenant_id IS '所屬租戶 ID（多租戶隔離鍵）';
+COMMENT ON COLUMN manuals.title IS '展示用標題；NULL 時 service 層 fallback 用 filename 去除副檔名';
