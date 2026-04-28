@@ -361,6 +361,52 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/v1/warranty-claims:
+    get:
+      tags: [accounting]
+      summary: 保固申請列表
+      operationId: listWarrantyClaims
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/WarrantyClaimStatus'
+        - name: customer_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: work_order_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarrantyClaimPage'
+
+  /api/v1/warranty-claims/{id}:
+    get:
+      tags: [accounting]
+      summary: 保固申請詳情
+      operationId: getWarrantyClaim
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarrantyClaimEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /api/v1/refunds/{id}/decision:
     post:
       tags: [accounting]
@@ -2357,6 +2403,69 @@ components:
         actual_amount:
           type: string
           pattern: '^-?\d+(\.\d{1,2})?$'
+
+    # --------- 保固申請（list/get） ---------
+    WarrantyClaimStatus:
+      type: string
+      enum: [filed, approved, rejected, in_progress, closed]
+
+    WarrantyClaim:
+      type: object
+      description: 保固申請（read-only）
+      required:
+        - id
+        - customer_id
+        - device_brand
+        - device_model
+        - warranty_start_date
+        - warranty_end_date
+        - claim_date
+        - is_within_warranty
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id: { type: string, format: uuid }
+        work_order_id: { type: [string, "null"], format: uuid }
+        customer_id: { type: string, format: uuid }
+        device_brand: { type: string }
+        device_model: { type: string }
+        purchase_date: { type: [string, "null"], format: date }
+        warranty_start_date:
+          type: string
+          format: date
+          description: 保固起始日（以「交屋日期」為準）
+        warranty_end_date: { type: string, format: date }
+        claim_date: { type: string, format: date }
+        is_within_warranty: { type: boolean }
+        status: { $ref: '#/components/schemas/WarrantyClaimStatus' }
+        dispute_reason: { type: [string, "null"] }
+        verification_source: { type: [string, "null"] }
+        resolution: { type: [string, "null"] }
+        discount_offered:
+          type: [string, "null"]
+          pattern: '^-?\d+(\.\d{1,2})?$'
+          description: 折讓金額（無保固但提供折讓時）
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    WarrantyClaimEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseGeneric'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/WarrantyClaim'
+
+    WarrantyClaimPage:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/WarrantyClaim'
 
     # --------- 退款申請（list/get） ---------
     RefundRequestStatus:

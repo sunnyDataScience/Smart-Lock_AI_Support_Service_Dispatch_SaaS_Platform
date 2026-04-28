@@ -36,6 +36,7 @@ from routers import technicians as technicians_router
 from routers import settlements as settlements_router
 from routers import invoices as invoices_router
 from routers import refunds as refunds_router
+from routers import warranty_claims as warranty_claims_router
 from routers import revenue as revenue_router
 from routers import pricing_rules as pricing_rules_router
 
@@ -90,6 +91,7 @@ app.include_router(technicians_router.router, prefix="/api/v1", tags=["dispatch"
 app.include_router(settlements_router.router, prefix="/api/v1", tags=["accounting"])
 app.include_router(invoices_router.router, prefix="/api/v1", tags=["accounting"])
 app.include_router(refunds_router.router, prefix="/api/v1", tags=["accounting"])
+app.include_router(warranty_claims_router.router, prefix="/api/v1", tags=["accounting"])
 app.include_router(revenue_router.router, prefix="/api/v1", tags=["reports"])
 app.include_router(pricing_rules_router.router, prefix="/api/v1", tags=["accounting"])
 

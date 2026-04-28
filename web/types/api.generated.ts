@@ -232,6 +232,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/warranty-claims": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 保固申請列表 */
+        get: operations["listWarrantyClaims"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/warranty-claims/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 保固申請詳情 */
+        get: operations["getWarrantyClaim"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/refunds/{id}/decision": {
         parameters: {
             query?: never;
@@ -1381,6 +1415,47 @@ export interface components {
                 quantity: number;
             }[];
             actual_amount?: string;
+        };
+        /** @enum {string} */
+        WarrantyClaimStatus: "filed" | "approved" | "rejected" | "in_progress" | "closed";
+        /** @description 保固申請（read-only） */
+        WarrantyClaim: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            work_order_id?: string | null;
+            /** Format: uuid */
+            customer_id: string;
+            device_brand: string;
+            device_model: string;
+            /** Format: date */
+            purchase_date?: string | null;
+            /**
+             * Format: date
+             * @description 保固起始日（以「交屋日期」為準）
+             */
+            warranty_start_date: string;
+            /** Format: date */
+            warranty_end_date: string;
+            /** Format: date */
+            claim_date: string;
+            is_within_warranty: boolean;
+            status: components["schemas"]["WarrantyClaimStatus"];
+            dispute_reason?: string | null;
+            verification_source?: string | null;
+            resolution?: string | null;
+            /** @description 折讓金額（無保固但提供折讓時） */
+            discount_offered?: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        WarrantyClaimEnvelope: components["schemas"]["ApiResponseGeneric"] & {
+            data?: components["schemas"]["WarrantyClaim"];
+        };
+        WarrantyClaimPage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["WarrantyClaim"][];
         };
         /** @enum {string} */
         RefundRequestStatus: "pending" | "approved" | "rejected" | "escalated" | "executed" | "cancelled";
@@ -2757,6 +2832,56 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RefundRequestEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listWarrantyClaims: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                status?: components["schemas"]["WarrantyClaimStatus"];
+                customer_id?: string;
+                work_order_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WarrantyClaimPage"];
+                };
+            };
+        };
+    };
+    getWarrantyClaim: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WarrantyClaimEnvelope"];
                 };
             };
             404: components["responses"]["NotFound"];

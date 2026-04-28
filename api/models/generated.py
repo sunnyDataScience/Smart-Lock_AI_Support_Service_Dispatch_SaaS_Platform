@@ -206,6 +206,55 @@ class CompletionReport(BaseModel):
     actual_amount: str | None = Field(None, pattern='^-?\\d+(\\.\\d{1,2})?$')
 
 
+class WarrantyClaimStatus(StrEnum):
+    filed = 'filed'
+    approved = 'approved'
+    rejected = 'rejected'
+    in_progress = 'in_progress'
+    closed = 'closed'
+
+
+class WarrantyClaim(BaseModel):
+    """
+    保固申請（read-only）
+    """
+
+    id: UUID
+    work_order_id: UUID | None = None
+    customer_id: UUID
+    device_brand: str
+    device_model: str
+    purchase_date: date | None = None
+    warranty_start_date: date
+    """
+    保固起始日（以「交屋日期」為準）
+    """
+    warranty_end_date: date
+    claim_date: date
+    is_within_warranty: bool
+    status: WarrantyClaimStatus
+    dispute_reason: str | None = None
+    verification_source: str | None = None
+    resolution: str | None = None
+    discount_offered: str | None = Field(None, pattern='^-?\\d+(\\.\\d{1,2})?$')
+    """
+    折讓金額（無保固但提供折讓時）
+    """
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
+
+
+class WarrantyClaimEnvelope(ApiResponseGeneric):
+    data: WarrantyClaim | None = None
+    """
+    實際載荷，由各 endpoint 具體化
+    """
+
+
+class WarrantyClaimPage(CursorPage):
+    items: list[WarrantyClaim] | None = None
+
+
 class RefundRequestStatus(StrEnum):
     pending = 'pending'
     approved = 'approved'
