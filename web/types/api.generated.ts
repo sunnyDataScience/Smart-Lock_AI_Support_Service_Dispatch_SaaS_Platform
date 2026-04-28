@@ -198,6 +198,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dispatch-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 派工歷程列表
+         * @description 管理員派工監控明細表格資料源；以 (work_order_id, created_at) 排序。
+         */
+        get: operations["listDispatchLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/refunds": {
         parameters: {
             query?: never;
@@ -1594,6 +1614,37 @@ export interface components {
             /** Format: date-time */
             signed_at?: string;
         };
+        /**
+         * @description 派工事件類型（assign 指派 / accept 接受 / reject 拒絕 / timeout 超時 / reassign 重派 / cancel 取消）
+         * @enum {string}
+         */
+        DispatchAction: "assign" | "accept" | "reject" | "timeout" | "reassign" | "cancel";
+        /** @description 派工歷程紀錄（read-only；單一工單可有多筆代表派工嘗試序列） */
+        DispatchLog: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            work_order_id: string;
+            action: components["schemas"]["DispatchAction"];
+            /** Format: uuid */
+            technician_id?: string | null;
+            /** @description 由 technicians 表 JOIN 取得方便前端顯示 */
+            technician_name?: string | null;
+            /** @description AI 媒合分數（0-100） */
+            match_score?: number | null;
+            /** @description 媒合因子（jsonb；通常為 distance/skill/availability 加權結構） */
+            match_factors?: {
+                [key: string]: unknown;
+            } | null;
+            rejection_reason?: string | null;
+            timeout_seconds?: number | null;
+            notes?: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        DispatchLogPage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["DispatchLog"][];
+        };
         DispatchQueueSnapshot: {
             pending: number;
             assigning: number;
@@ -2869,6 +2920,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DispatchQueueSnapshot"];
+                };
+            };
+        };
+    };
+    listDispatchLogs: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                work_order_id?: string;
+                action?: components["schemas"]["DispatchAction"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DispatchLogPage"];
                 };
             };
         };

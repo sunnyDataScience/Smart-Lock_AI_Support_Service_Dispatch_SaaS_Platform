@@ -16,6 +16,8 @@ import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
 type DispatchQueueSnapshot = components["schemas"]["DispatchQueueSnapshot"];
+type DispatchLog = components["schemas"]["DispatchLog"];
+type DispatchLogPage = components["schemas"]["DispatchLogPage"];
 
 interface CardConfig {
   key: keyof DispatchQueueSnapshot;
@@ -68,18 +70,24 @@ function formatTime(d: Date): string {
 export default function DispatchQueuePage() {
   const [urgentOnly, setUrgentOnly] = useState(false);
   const [snapshot, setSnapshot] = useState<DispatchQueueSnapshot | null>(null);
+  const [logs, setLogs] = useState<DispatchLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
-  const fetchSnapshot = async () => {
+  const fetchAll = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<DispatchQueueSnapshot>(
-        "/api/v1/work-orders/dispatch-queue",
-      );
-      setSnapshot(res);
+      const [snap, page] = await Promise.all([
+        api.get<DispatchQueueSnapshot>("/api/v1/work-orders/dispatch-queue"),
+        api.get<DispatchLogPage>("/api/v1/dispatch-logs", {
+          query: { limit: 50 },
+        }),
+      ]);
+      setSnapshot(snap);
+      const items: DispatchLog[] = page.items ?? [];
+      setLogs(items);
       setUpdatedAt(new Date());
     } catch (e) {
       setError(
@@ -95,7 +103,7 @@ export default function DispatchQueuePage() {
   };
 
   useEffect(() => {
-    fetchSnapshot();
+    fetchAll();
   }, []);
 
   return (
@@ -135,7 +143,7 @@ export default function DispatchQueuePage() {
                   : "尚未載入"}
               </span>
               <button
-                onClick={fetchSnapshot}
+                onClick={fetchAll}
                 disabled={loading}
                 className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
                 title="重新整理"
@@ -247,13 +255,13 @@ export default function DispatchQueuePage() {
 
         <div className="flex flex-col gap-4 px-8 py-5">
           <div className="rounded-lg border border-[var(--border)] bg-[#FFFBEB] px-4 py-3 text-[13px] leading-relaxed text-[#92400E]">
-            佇列明細表格目前為示意資料。即時 WebSocket
-            (/realtime/dispatch-queue) 與 listDispatchCandidates / assignDispatch
-            等寫入 endpoints 待派工 AI 推薦引擎接入後同步上線；上方四張卡為
-            getDispatchQueue 即時聚合的真實數字。
+            上方四張卡為 getDispatchQueue 即時聚合，下方表格由 listDispatchLogs
+            聚合最近派工歷程；即時 WebSocket (/realtime/dispatch-queue) 與
+            listDispatchCandidates / assignDispatch
+            等寫入路徑待派工 AI 推薦引擎接入後再上線。
           </div>
           <div className="flex-1 overflow-auto">
-            <DispatchQueueTable />
+            <DispatchQueueTable items={logs} loading={loading} />
           </div>
         </div>
       </div>
