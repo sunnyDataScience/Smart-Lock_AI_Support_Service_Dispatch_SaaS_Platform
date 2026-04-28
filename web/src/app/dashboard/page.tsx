@@ -199,19 +199,22 @@ export default function DashboardPage() {
                 iconBgColor="#FEF2F2"
                 icon={TriangleAlert}
               />
-              <div className="flex-1">
-                <div className="mb-1 flex items-center text-[12px] text-[#71717A]">
-                  <PendingBadge />
-                </div>
-                <KpiCard
-                  title="在線技師"
-                  value="8 / 12"
-                  subtitle="可派遣 5 人"
-                  accentColor="#F59E0B"
-                  iconBgColor="#FFFBEB"
-                  icon={Users}
-                />
-              </div>
+              <KpiCard
+                title="在線技師"
+                value={
+                  stats?.technicians
+                    ? `${stats.technicians.online_count ?? 0} / ${stats.technicians.total_count ?? 0}`
+                    : "—"
+                }
+                subtitle={
+                  stats?.technicians?.dispatchable_count != null
+                    ? `可派遣 ${stats.technicians.dispatchable_count} 人`
+                    : "—"
+                }
+                accentColor="#F59E0B"
+                iconBgColor="#FFFBEB"
+                icon={Users}
+              />
             </div>
             <div className="mt-4 flex gap-6">
               <div className="flex-1">
