@@ -20,6 +20,19 @@ const tabs = [
 
 const PAGE_SIZE = 20;
 
+const BRAND_OPTIONS = [
+  "Chatlock",
+  "Dormakaba",
+  "Philips",
+  "Kaadas",
+  "Milre",
+  "AiLock",
+  "3E",
+  "Waferlock",
+];
+
+type VerifiedFilter = "" | "true" | "false";
+
 export default function CasesPage() {
   const pathname = usePathname();
   const [items, setItems] = useState<CaseEntry[]>([]);
@@ -28,20 +41,29 @@ export default function CasesPage() {
   const [totalCount, setTotalCount] = useState<number | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [brand, setBrand] = useState<string>("");
+  const [verified, setVerified] = useState<VerifiedFilter>("");
 
   const fetchPage = useCallback(
-    async (afterCursor: string | null, append: boolean) => {
+    async (
+      afterCursor: string | null,
+      append: boolean,
+      filters: { brand: string; verified: VerifiedFilter },
+    ) => {
       setLoading(true);
       setError(null);
       try {
-        const query: Record<string, string | number> = { limit: PAGE_SIZE };
+        const query: Record<string, string | number | boolean> = { limit: PAGE_SIZE };
         if (afterCursor) query.cursor = afterCursor;
+        if (filters.brand) query.brand = filters.brand;
+        if (filters.verified !== "") query.verified = filters.verified === "true";
         const res = await api.get<CaseEntryPage>("/api/v1/knowledge-base/cases", { query });
         const newItems = res.items ?? [];
         setItems((prev) => (append ? [...prev, ...newItems] : newItems));
         setCursor(res.next_cursor ?? null);
         setHasMore(!!res.has_more);
         if (typeof res.total_count === "number") setTotalCount(res.total_count);
+        else if (!append) setTotalCount(undefined);
       } catch (e) {
         setError(
           e instanceof ApiError
@@ -58,8 +80,10 @@ export default function CasesPage() {
   );
 
   useEffect(() => {
-    fetchPage(null, false);
-  }, [fetchPage]);
+    fetchPage(null, false, { brand, verified });
+  }, [fetchPage, brand, verified]);
+
+  const hasFilters = brand !== "" || verified !== "";
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -106,6 +130,43 @@ export default function CasesPage() {
             />
           </div>
 
+          <select
+            value={brand}
+            onChange={(e) => setBrand(e.target.value)}
+            className="h-10 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)]"
+            aria-label="品牌篩選"
+          >
+            <option value="">全部品牌</option>
+            {BRAND_OPTIONS.map((b) => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={verified}
+            onChange={(e) => setVerified(e.target.value as VerifiedFilter)}
+            className="h-10 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)]"
+            aria-label="驗證狀態篩選"
+          >
+            <option value="">全部狀態</option>
+            <option value="true">已驗證</option>
+            <option value="false">未驗證</option>
+          </select>
+
+          {hasFilters && (
+            <button
+              onClick={() => {
+                setBrand("");
+                setVerified("");
+              }}
+              className="h-10 rounded-lg px-3 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
+            >
+              清除篩選
+            </button>
+          )}
+
           <Link
             href="/knowledge-base/cases/new"
             className="flex h-10 items-center gap-2 rounded-lg bg-[var(--primary)] px-5 text-sm font-semibold text-white hover:bg-[var(--primary-hover)]"
@@ -127,7 +188,7 @@ export default function CasesPage() {
             loading={loading}
             hasMore={hasMore}
             totalCount={totalCount}
-            onLoadMore={() => fetchPage(cursor, true)}
+            onLoadMore={() => fetchPage(cursor, true, { brand, verified })}
           />
         </div>
       </div>
