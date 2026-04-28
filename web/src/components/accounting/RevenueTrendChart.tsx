@@ -1,44 +1,50 @@
 "use client";
 
 import {
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
+  Bar,
   Line,
   ComposedChart,
 } from "recharts";
+import type { components } from "@/types/api.generated";
 
-const data = [
-  { month: "1月", revenue: 1300000, orders: 280 },
-  { month: "2月", revenue: 1550000, orders: 320 },
-  { month: "3月", revenue: 1200000, orders: 260 },
-  { month: "4月", revenue: 1750000, orders: 380 },
-  { month: "5月", revenue: 950000, orders: 210 },
-  { month: "6月", revenue: 1400000, orders: 310 },
-  { month: "7月", revenue: 1600000, orders: 350 },
-  { month: "8月", revenue: 1850000, orders: 410 },
-  { month: "9月", revenue: 1450000, orders: 320 },
-  { month: "10月", revenue: 1700000, orders: 370 },
-  { month: "11月", revenue: 1950000, orders: 430 },
-  { month: "12月", revenue: 2100000, orders: 470 },
-];
+type RevenueTrendPoint = components["schemas"]["RevenueTrendPoint"];
+
+interface Props {
+  items: RevenueTrendPoint[];
+  loading?: boolean;
+}
 
 const formatRevenue = (value: number) => {
   if (value === 0) return "0";
-  return `${value / 10000}萬`;
+  if (value >= 10000) return `${Math.round(value / 1000) / 10}萬`;
+  return `${value}`;
 };
 
-export default function RevenueTrendChart() {
+function periodLabel(period: string): string {
+  const m = /^\d{4}-(\d{2})$/.exec(period);
+  return m ? `${parseInt(m[1], 10)}月` : period;
+}
+
+export default function RevenueTrendChart({ items, loading }: Props) {
+  const data = items.map((p) => ({
+    month: periodLabel(p.period),
+    revenue: Number(p.revenue),
+    orders: p.order_count,
+  }));
+
+  const maxRevenue = data.reduce((acc, d) => Math.max(acc, d.revenue), 0);
+  const yMax = maxRevenue > 0 ? Math.ceil((maxRevenue * 1.2) / 10000) * 10000 : 100000;
+
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
-      {/* Chart Header */}
       <div className="flex items-center justify-between">
         <span className="text-base font-semibold text-[var(--text-primary)]">
-          營收趨勢
+          營收趨勢（近 12 個月）
         </span>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-[6px]">
@@ -47,65 +53,72 @@ export default function RevenueTrendChart() {
           </div>
           <div className="flex items-center gap-[6px]">
             <div className="h-3 w-3 rounded-[3px] bg-[#F59E0B]" />
-            <span className="text-xs text-[var(--text-secondary)]">工單數量</span>
+            <span className="text-xs text-[var(--text-secondary)]">發票數量</span>
           </div>
         </div>
       </div>
 
-      {/* Chart Body */}
       <div className="h-[260px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} margin={{ top: 0, right: 50, left: 10, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="0" stroke="#F1F5F9" vertical={false} />
-            <XAxis
-              dataKey="month"
-              tick={{ fontSize: 11, fill: "#64748B" }}
-              axisLine={{ stroke: "#E2E8F0" }}
-              tickLine={false}
-            />
-            <YAxis
-              yAxisId="left"
-              tick={{ fontSize: 11, fill: "#64748B" }}
-              axisLine={false}
-              tickLine={false}
-              tickFormatter={formatRevenue}
-              domain={[0, 2000000]}
-              ticks={[0, 500000, 1000000, 1500000, 2000000]}
-            />
-            <YAxis
-              yAxisId="right"
-              orientation="right"
-              tick={{ fontSize: 11, fill: "#F59E0B" }}
-              axisLine={false}
-              tickLine={false}
-              domain={[0, 500]}
-              ticks={[100, 200, 300, 400, 500]}
-            />
-            <Tooltip
-              formatter={(value: number, name: string) => {
-                if (name === "revenue") return [`NT$ ${value.toLocaleString()}`, "營收金額"];
-                return [value, "工單數量"];
-              }}
-            />
-            <Bar
-              yAxisId="left"
-              dataKey="revenue"
-              fill="#2563EB"
-              radius={[4, 4, 0, 0]}
-              barSize={40}
-            />
-            <Line
-              yAxisId="right"
-              type="monotone"
-              dataKey="orders"
-              stroke="#F59E0B"
-              strokeWidth={3}
-              dot={false}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
+        {loading && data.length === 0 ? (
+          <div className="flex h-full items-center justify-center text-sm text-[var(--text-secondary)]">
+            載入中…
+          </div>
+        ) : data.length === 0 ? (
+          <div className="flex h-full items-center justify-center text-sm text-[var(--text-secondary)]">
+            尚無營收資料
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={data} margin={{ top: 0, right: 50, left: 10, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="0" stroke="#F1F5F9" vertical={false} />
+              <XAxis
+                dataKey="month"
+                tick={{ fontSize: 11, fill: "#64748B" }}
+                axisLine={{ stroke: "#E2E8F0" }}
+                tickLine={false}
+              />
+              <YAxis
+                yAxisId="left"
+                tick={{ fontSize: 11, fill: "#64748B" }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={formatRevenue}
+                domain={[0, yMax]}
+              />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                tick={{ fontSize: 11, fill: "#F59E0B" }}
+                axisLine={false}
+                tickLine={false}
+                allowDecimals={false}
+              />
+              <Tooltip
+                formatter={(value: number, name: string) => {
+                  if (name === "revenue") return [`NT$ ${value.toLocaleString()}`, "營收金額"];
+                  return [value, "發票數量"];
+                }}
+              />
+              <Bar
+                yAxisId="left"
+                dataKey="revenue"
+                fill="#2563EB"
+                radius={[4, 4, 0, 0]}
+                barSize={40}
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="orders"
+                stroke="#F59E0B"
+                strokeWidth={3}
+                dot={false}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        )}
       </div>
     </div>
   );

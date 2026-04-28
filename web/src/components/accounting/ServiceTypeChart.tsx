@@ -10,9 +10,14 @@ const data = [
 export default function ServiceTypeChart() {
   return (
     <div className="flex flex-1 flex-col gap-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
-      <span className="text-base font-semibold text-[var(--text-primary)]">
-        服務類型營收分佈
-      </span>
+      <div className="flex items-center gap-2">
+        <span className="text-base font-semibold text-[var(--text-primary)]">
+          服務類型營收分佈
+        </span>
+        <span className="rounded bg-[#F1F5F9] px-2 py-[2px] text-[11px] text-[var(--text-secondary)]">
+          示意（待 invoice category 欄位上線）
+        </span>
+      </div>
 
       <div className="flex flex-1 flex-col justify-center gap-[14px]">
         {data.map((row) => (
