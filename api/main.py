@@ -29,6 +29,7 @@ from routers import audit_logs as audit_logs_router
 from routers import conversations as conversations_router
 from routers import dashboard as dashboard_router
 from routers import problem_cards as problem_cards_router
+from routers import work_orders as work_orders_router
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -74,6 +75,7 @@ app.include_router(audit_logs_router.router, prefix="/api/v1", tags=["observabil
 app.include_router(conversations_router.router, prefix="/api/v1", tags=["customer_service"])
 app.include_router(dashboard_router.router, prefix="/api/v1", tags=["reports"])
 app.include_router(problem_cards_router.router, prefix="/api/v1", tags=["customer_service"])
+app.include_router(work_orders_router.router, prefix="/api/v1", tags=["dispatch"])
 
 
 @app.get("/health")

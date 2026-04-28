@@ -1736,6 +1736,18 @@ export interface components {
                 brand?: string;
                 count?: number;
             }[];
+            /** @description 派工今日 KPI（today_count / completion_rate / overdue_count）。 */
+            work_orders?: {
+                /** @description 今日新建工單數 */
+                today_count?: number;
+                /**
+                 * Format: float
+                 * @description 今日完工率 = 今日完工 / 今日新建（today_count == 0 時為 null）
+                 */
+                completion_rate?: number | null;
+                /** @description 排程時間已過且未結案（status NOT IN completed/closed/cancelled） */
+                overdue_count?: number;
+            };
         };
         /** @description 系統設定（部分更新）。各區塊允許獨立 PATCH，未指定的子鍵不變動。 */
         SystemConfig: {

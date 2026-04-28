@@ -22,6 +22,7 @@ from services.conversation_service import (
     _DB_RESOLUTION_TO_API,
     _DB_STATUS_TO_API,
 )
+from services import work_order_service
 
 logger = logging.getLogger("api.dashboard_service")
 
@@ -144,6 +145,9 @@ async def get_stats(*, tenant_id: str, period: str) -> dict:
     completion_tokens = int(trow[2] or 0) if trow else 0
     estimated_cost = round(total_tokens * _TOKEN_COST_USD, 6)
 
+    # 5) Work-order today KPIs（period 無關，固定取今日）
+    work_orders_stats = await work_order_service.get_today_stats(tenant_id=tenant_id)
+
     return {
         "period": period,
         "conversations": counts,
@@ -160,4 +164,5 @@ async def get_stats(*, tenant_id: str, period: str) -> dict:
             "estimated_cost_usd": estimated_cost,
         },
         "top_brands": top_brands,
+        "work_orders": work_orders_stats,
     }

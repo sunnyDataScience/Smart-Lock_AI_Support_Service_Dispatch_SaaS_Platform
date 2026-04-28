@@ -922,6 +922,25 @@ class TopBrand(BaseModel):
     count: int | None = Field(None, ge=0)
 
 
+class WorkOrders(BaseModel):
+    """
+    派工今日 KPI（today_count / completion_rate / overdue_count）。
+    """
+
+    today_count: int | None = Field(None, ge=0)
+    """
+    今日新建工單數
+    """
+    completion_rate: float | None = Field(None, ge=0.0, le=1.0)
+    """
+    今日完工率 = 今日完工 / 今日新建（today_count == 0 時為 null）
+    """
+    overdue_count: int | None = Field(None, ge=0)
+    """
+    排程時間已過且未結案（status NOT IN completed/closed/cancelled）
+    """
+
+
 class DashboardStats(BaseModel):
     period: DashboardPeriod
     conversations: Conversations
@@ -929,6 +948,10 @@ class DashboardStats(BaseModel):
     hot_topics: list[HotTopic] | None = None
     token_usage: TokenUsage | None = None
     top_brands: list[TopBrand] | None = None
+    work_orders: WorkOrders | None = None
+    """
+    派工今日 KPI（today_count / completion_rate / overdue_count）。
+    """
 
 
 class Rag(BaseModel):
