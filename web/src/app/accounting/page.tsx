@@ -1,10 +1,23 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { RefreshCw, Wallet, FileText, BarChart3, Calendar, ChevronDown } from "lucide-react";
+import {
+  RefreshCw,
+  Wallet,
+  FileText,
+  BarChart3,
+  Calendar,
+  ChevronDown,
+} from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import SettlementTable from "@/components/accounting/SettlementTable";
+import { ApiError, api } from "@/lib/api";
+import type { components } from "@/types/api.generated";
+
+type Settlement = components["schemas"]["Settlement"];
+type SettlementPage = components["schemas"]["SettlementPage"];
 
 const tabs = [
   {
@@ -33,8 +46,42 @@ const segments = [
   { label: "週結", active: false },
 ];
 
+function formatTime(d: Date): string {
+  return d.toLocaleTimeString("zh-TW", { hour12: false });
+}
+
 export default function AccountingPage() {
   const pathname = usePathname();
+  const [items, setItems] = useState<Settlement[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+
+  const fetchSettlements = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.get<SettlementPage>(
+        "/api/v1/accounting/settlements?limit=50",
+      );
+      setItems(res.items ?? []);
+      setUpdatedAt(new Date());
+    } catch (e) {
+      setError(
+        e instanceof ApiError
+          ? `${e.errorCode} (${e.status})：${e.message}`
+          : e instanceof Error
+            ? e.message
+            : String(e),
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSettlements();
+  }, []);
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -49,9 +96,33 @@ export default function AccountingPage() {
               <h1 className="text-2xl font-bold text-[var(--text-primary)]">
                 財務結算管理
               </h1>
-              <RefreshCw className="h-5 w-5 text-[var(--text-secondary)]" />
+              <button
+                onClick={fetchSettlements}
+                disabled={loading}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
+                title="重新整理"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 text-[var(--text-secondary)] ${loading ? "animate-spin" : ""}`}
+                />
+              </button>
               <span className="text-[13px] text-[var(--text-secondary)]">
-                最後更新：2026/04/22 14:30
+                {updatedAt
+                  ? `最後更新：${formatTime(updatedAt)}`
+                  : "尚未載入"}
+              </span>
+              <span
+                className="flex items-center gap-[6px] rounded-full px-3 py-1 text-xs font-medium"
+                style={{
+                  backgroundColor: error ? "#FEE2E2" : "#DCFCE7",
+                  color: error ? "#B91C1C" : "#15803D",
+                }}
+              >
+                <span
+                  className="h-[6px] w-[6px] rounded-full"
+                  style={{ backgroundColor: error ? "#DC2626" : "#22C55E" }}
+                />
+                {error ? "連線失敗" : "已連線"}
               </span>
             </div>
           </div>
@@ -105,26 +176,35 @@ export default function AccountingPage() {
           </div>
         </div>
 
-        {/* Settlement Period Selector */}
+        {/* Settlement Period Selector — disabled until period filter API lands */}
         <div className="flex items-center gap-4 px-8 py-4">
-          {/* Month Dropdown */}
-          <button className="flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-[14px] py-2">
-            <Calendar className="h-4 w-4 text-[var(--text-secondary)]" />
-            <span className="text-sm font-medium text-[var(--text-primary)]">
-              2026年04月
+          {/* Month Dropdown — disabled */}
+          <button
+            disabled
+            title="即將推出"
+            className="flex cursor-not-allowed items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-[14px] py-2 opacity-60"
+          >
+            <Calendar className="h-4 w-4 text-[var(--text-disabled)]" />
+            <span className="text-sm font-medium text-[var(--text-disabled)]">
+              所有期間
             </span>
-            <ChevronDown className="h-4 w-4 text-[var(--text-secondary)]" />
+            <ChevronDown className="h-4 w-4 text-[var(--text-disabled)]" />
           </button>
 
-          {/* Segmented Control */}
-          <div className="flex rounded-md bg-[#F1F5F9] p-[3px]">
+          {/* Segmented Control — disabled */}
+          <div
+            className="flex rounded-md bg-[#F1F5F9] p-[3px] opacity-60"
+            title="即將推出"
+          >
             {segments.map((seg) => (
               <button
                 key={seg.label}
-                className={`rounded px-[14px] py-[6px] text-[13px] ${
+                disabled
+                title="即將推出"
+                className={`cursor-not-allowed rounded px-[14px] py-[6px] text-[13px] ${
                   seg.active
-                    ? "bg-[var(--bg-surface)] font-semibold text-[var(--text-primary)] shadow-sm"
-                    : "font-medium text-[var(--text-secondary)]"
+                    ? "bg-[var(--bg-surface)] font-semibold text-[var(--text-disabled)] shadow-sm"
+                    : "font-medium text-[var(--text-disabled)]"
                 }`}
               >
                 {seg.label}
@@ -132,23 +212,33 @@ export default function AccountingPage() {
             ))}
           </div>
 
-          {/* Period Text */}
-          <span className="text-[13px] text-[var(--text-secondary)]">
-            結算期間：2026/04/01 - 2026/04/30
-          </span>
-
           {/* Spacer */}
           <div className="flex-1" />
 
-          {/* Total Badge */}
+          {/* Total Badge — real count from API */}
           <div className="rounded-lg bg-[var(--primary)] px-5 py-[10px]">
-            <span className="text-lg font-bold text-white">NT$ 892,400</span>
+            <span className="text-lg font-bold text-white">
+              共 {items.length} 筆
+            </span>
           </div>
+        </div>
+
+        {/* Error Banner */}
+        {error && (
+          <div className="mx-8 mb-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        {/* Mock Data Notice */}
+        <div className="mx-8 mb-2 rounded-lg border border-[var(--border)] bg-[#FFFBEB] px-4 py-3 text-[13px] leading-relaxed text-[#92400E]">
+          列表為 listSettlements 即時資料。期間選擇器、批次確認/標記已付、結算詳情
+          modal 待 reconciliation 期間查詢與結算寫入 endpoints 接入後同步上線。
         </div>
 
         {/* Settlement Table */}
         <div className="flex flex-1 flex-col overflow-auto">
-          <SettlementTable />
+          <SettlementTable items={items} loading={loading} />
         </div>
       </div>
     </div>
