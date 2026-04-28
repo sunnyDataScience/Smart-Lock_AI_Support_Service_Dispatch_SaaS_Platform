@@ -11,7 +11,12 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Path, Query
 
 from core.deps import CurrentUser, require_tenant
-from models.generated import WorkOrder, WorkOrderEnvelope, WorkOrderPage
+from models.generated import (
+    DispatchQueueSnapshot,
+    WorkOrder,
+    WorkOrderEnvelope,
+    WorkOrderPage,
+)
 from services import work_order_service
 
 router = APIRouter()
@@ -38,6 +43,21 @@ async def list_work_orders(
         "next_cursor": page["next_cursor"],
         "has_more": page["has_more"],
     }
+
+
+@router.get(
+    "/work-orders/dispatch-queue",
+    operation_id="getDispatchQueue",
+    summary="派工佇列快照（即時聚合）",
+    response_model=DispatchQueueSnapshot,
+)
+async def get_dispatch_queue(
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    """必須註冊在 /work-orders/{id} 之前，否則 'dispatch-queue' 會被當成 id。"""
+    return await work_order_service.get_dispatch_queue_snapshot(
+        tenant_id=user.tenant_id,
+    )
 
 
 @router.get(

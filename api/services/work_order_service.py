@@ -163,6 +163,42 @@ async def get_order(*, tenant_id: str, wo_id: str) -> dict:
     return _wo_row_to_dict(row)
 
 
+async def get_dispatch_queue_snapshot(*, tenant_id: str) -> dict:
+    """派工佇列快照：pending / assigning / assigned + sla_at_risk。
+
+    OpenAPI 語義 → DB status mapping：
+      - pending   = 'created'   工單剛建立、尚未派工
+      - assigning = 'assigned'  系統已指派、等技師回應
+      - assigned  = 'accepted'  技師已接受（已派工確認）
+    in_progress / completed / confirmed / cancelled 均不計入派工佇列。
+
+    sla_at_risk：尚未結案且預定時間落在「現在起 2 小時內」（含已過期），
+    用一個 SQL FILTER 子句一次算完，不分窗。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    sql = (
+        f"SELECT "
+        f"  COUNT(*) FILTER (WHERE wo.status = 'created')  AS pending, "
+        f"  COUNT(*) FILTER (WHERE wo.status = 'assigned') AS assigning, "
+        f"  COUNT(*) FILTER (WHERE wo.status = 'accepted') AS assigned, "
+        f"  COUNT(*) FILTER (WHERE wo.status NOT IN ('completed','confirmed','cancelled') "
+        f"                     AND wo.scheduled_at IS NOT NULL "
+        f"                     AND wo.scheduled_at < NOW() + INTERVAL '2 hours') AS sla_at_risk "
+        f"{_WO_JOIN} "
+        f"WHERE u.tenant_id = %s::uuid"
+    )
+    cur = await db_module._conn.execute(sql, (tenant_id,))
+    row = await cur.fetchone()
+    return {
+        "pending": int(row[0] or 0) if row else 0,
+        "assigning": int(row[1] or 0) if row else 0,
+        "assigned": int(row[2] or 0) if row else 0,
+        "sla_at_risk": int(row[3] or 0) if row else 0,
+    }
+
+
 async def get_today_stats(*, tenant_id: str) -> dict:
     """Dashboard 派工 KPI：今日工單數 + 完工率 + 逾時工單。"""
     if not await _ensure_conn():
