@@ -316,6 +316,32 @@ paths:
               schema:
                 $ref: '#/components/schemas/DispatchQueueSnapshot'
 
+  /api/v1/dispatch-logs:
+    get:
+      tags: [dispatch]
+      summary: 派工歷程列表
+      description: 管理員派工監控明細表格資料源；以 (work_order_id, created_at) 排序。
+      operationId: listDispatchLogs
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: work_order_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: action
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/DispatchAction'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DispatchLogPage'
+
   # -----------------------------
   # accounting — refunds / disputes / warranty
   # -----------------------------
@@ -2670,6 +2696,43 @@ components:
           format: date-time
 
     # --------- 派工佇列 ---------
+    DispatchAction:
+      type: string
+      description: 派工事件類型（assign 指派 / accept 接受 / reject 拒絕 / timeout 超時 / reassign 重派 / cancel 取消）
+      enum: [assign, accept, reject, timeout, reassign, cancel]
+
+    DispatchLog:
+      type: object
+      description: 派工歷程紀錄（read-only；單一工單可有多筆代表派工嘗試序列）
+      required: [id, work_order_id, action, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        work_order_id: { type: string, format: uuid }
+        action: { $ref: '#/components/schemas/DispatchAction' }
+        technician_id: { type: [string, "null"], format: uuid }
+        technician_name: { type: [string, "null"], description: 由 technicians 表 JOIN 取得方便前端顯示 }
+        match_score: { type: [number, "null"], description: AI 媒合分數（0-100） }
+        match_factors:
+          description: 媒合因子（jsonb；通常為 distance/skill/availability 加權結構）
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: "null"
+        rejection_reason: { type: [string, "null"] }
+        timeout_seconds: { type: [integer, "null"] }
+        notes: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+
+    DispatchLogPage:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/DispatchLog'
+
     DispatchQueueSnapshot:
       type: object
       required: [pending, assigning, assigned]

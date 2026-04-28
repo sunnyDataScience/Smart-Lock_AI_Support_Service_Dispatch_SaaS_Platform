@@ -392,6 +392,50 @@ class SignaturePayload(BaseModel):
     signed_at: AwareDatetime | None = None
 
 
+class DispatchAction(StrEnum):
+    """
+    派工事件類型（assign 指派 / accept 接受 / reject 拒絕 / timeout 超時 / reassign 重派 / cancel 取消）
+    """
+
+    assign = 'assign'
+    accept = 'accept'
+    reject = 'reject'
+    timeout = 'timeout'
+    reassign = 'reassign'
+    cancel = 'cancel'
+
+
+class DispatchLog(BaseModel):
+    """
+    派工歷程紀錄（read-only；單一工單可有多筆代表派工嘗試序列）
+    """
+
+    id: UUID
+    work_order_id: UUID
+    action: DispatchAction
+    technician_id: UUID | None = None
+    technician_name: str | None = None
+    """
+    由 technicians 表 JOIN 取得方便前端顯示
+    """
+    match_score: float | None = None
+    """
+    AI 媒合分數（0-100）
+    """
+    match_factors: dict[str, Any] | None = None
+    """
+    媒合因子（jsonb；通常為 distance/skill/availability 加權結構）
+    """
+    rejection_reason: str | None = None
+    timeout_seconds: int | None = None
+    notes: str | None = None
+    created_at: AwareDatetime
+
+
+class DispatchLogPage(CursorPage):
+    items: list[DispatchLog] | None = None
+
+
 class DispatchQueueSnapshot(BaseModel):
     pending: int
     assigning: int
