@@ -35,6 +35,7 @@ from routers import work_orders as work_orders_router
 from routers import technicians as technicians_router
 from routers import settlements as settlements_router
 from routers import invoices as invoices_router
+from routers import revenue as revenue_router
 from routers import pricing_rules as pricing_rules_router
 
 logger = logging.getLogger("api")
@@ -87,6 +88,7 @@ app.include_router(work_orders_router.router, prefix="/api/v1", tags=["dispatch"
 app.include_router(technicians_router.router, prefix="/api/v1", tags=["dispatch"])
 app.include_router(settlements_router.router, prefix="/api/v1", tags=["accounting"])
 app.include_router(invoices_router.router, prefix="/api/v1", tags=["accounting"])
+app.include_router(revenue_router.router, prefix="/api/v1", tags=["reports"])
 app.include_router(pricing_rules_router.router, prefix="/api/v1", tags=["accounting"])
 
 

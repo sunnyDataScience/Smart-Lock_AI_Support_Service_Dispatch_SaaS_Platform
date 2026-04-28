@@ -1206,6 +1206,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/DashboardStats'
 
+  /api/v1/reports/revenue:
+    get:
+      tags: [reports]
+      summary: 營收彙整（KPI + 月度趨勢 + 品牌占比）
+      operationId: getRevenueSummary
+      parameters:
+        - name: granularity
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [day, week, month]
+            default: month
+          description: 趨勢資料粒度（目前後端僅實作 month）
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RevenueSummary'
+
   /api/v1/config:
     get:
       tags: [user_management]
@@ -3069,6 +3091,84 @@ components:
               type: integer
               minimum: 0
               description: 已上線且可立即指派（保留欄位，目前等同 online_count）
+
+    # --------- Revenue Reports ---------
+    RevenueKpis:
+      type: object
+      required: [month_revenue, average_invoice_amount, paid_rate, outstanding_amount, outstanding_count]
+      properties:
+        month_revenue:
+          type: string
+          pattern: '^-?\d+(\.\d{1,2})?$'
+          description: 本月營收（已開立 invoice issued + paid 加總，TWD 字串）
+        average_invoice_amount:
+          type: string
+          pattern: '^-?\d+(\.\d{1,2})?$'
+          description: 平均 invoice 金額
+        paid_rate:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          nullable: true
+          description: 付款成功率 = paid / (issued + paid + cancelled)；無發票時為 null
+        outstanding_amount:
+          type: string
+          pattern: '^-?\d+(\.\d{1,2})?$'
+          description: 未收帳款金額（DB status='draft' 加總）
+        outstanding_count:
+          type: integer
+          minimum: 0
+          description: 未收帳款筆數
+
+    RevenueTrendPoint:
+      type: object
+      required: [period, revenue, order_count]
+      properties:
+        period:
+          type: string
+          description: 期間標籤（例 2026-04）
+        revenue:
+          type: string
+          pattern: '^-?\d+(\.\d{1,2})?$'
+          description: 期間內已開立 invoice 金額（TWD 字串）
+        order_count:
+          type: integer
+          minimum: 0
+          description: 期間內 invoice 筆數
+
+    RevenueByBrandPoint:
+      type: object
+      required: [brand, revenue, share]
+      properties:
+        brand: { type: string }
+        revenue:
+          type: string
+          pattern: '^-?\d+(\.\d{1,2})?$'
+        share:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: 占總營收比例
+
+    RevenueSummary:
+      type: object
+      required: [granularity, kpis, trend, by_brand]
+      properties:
+        granularity:
+          type: string
+          enum: [day, week, month]
+        kpis:
+          $ref: '#/components/schemas/RevenueKpis'
+        trend:
+          type: array
+          items:
+            $ref: '#/components/schemas/RevenueTrendPoint'
+        by_brand:
+          type: array
+          items:
+            $ref: '#/components/schemas/RevenueByBrandPoint'
 
     # --------- System Config ---------
     SystemConfig:

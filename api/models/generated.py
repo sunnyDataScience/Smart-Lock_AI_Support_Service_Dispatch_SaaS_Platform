@@ -981,6 +981,66 @@ class DashboardStats(BaseModel):
     """
 
 
+class RevenueKpis(BaseModel):
+    month_revenue: str = Field(..., pattern='^-?\\d+(\\.\\d{1,2})?$')
+    """
+    本月營收（已開立 invoice issued + paid 加總，TWD 字串）
+    """
+    average_invoice_amount: str = Field(..., pattern='^-?\\d+(\\.\\d{1,2})?$')
+    """
+    平均 invoice 金額
+    """
+    paid_rate: float = Field(..., ge=0.0, le=1.0)
+    """
+    付款成功率 = paid / (issued + paid + cancelled)；無發票時為 null
+    """
+    outstanding_amount: str = Field(..., pattern='^-?\\d+(\\.\\d{1,2})?$')
+    """
+    未收帳款金額（DB status='draft' 加總）
+    """
+    outstanding_count: int = Field(..., ge=0)
+    """
+    未收帳款筆數
+    """
+
+
+class RevenueTrendPoint(BaseModel):
+    period: str
+    """
+    期間標籤（例 2026-04）
+    """
+    revenue: str = Field(..., pattern='^-?\\d+(\\.\\d{1,2})?$')
+    """
+    期間內已開立 invoice 金額（TWD 字串）
+    """
+    order_count: int = Field(..., ge=0)
+    """
+    期間內 invoice 筆數
+    """
+
+
+class RevenueByBrandPoint(BaseModel):
+    brand: str
+    revenue: str = Field(..., pattern='^-?\\d+(\\.\\d{1,2})?$')
+    share: float = Field(..., ge=0.0, le=1.0)
+    """
+    占總營收比例
+    """
+
+
+class Granularity(StrEnum):
+    day = 'day'
+    week = 'week'
+    month = 'month'
+
+
+class RevenueSummary(BaseModel):
+    granularity: Granularity
+    kpis: RevenueKpis
+    trend: list[RevenueTrendPoint]
+    by_brand: list[RevenueByBrandPoint]
+
+
 class Rag(BaseModel):
     similarity_threshold: float | None = Field(None, ge=0.0, le=1.0)
     max_results: int | None = Field(None, ge=1)

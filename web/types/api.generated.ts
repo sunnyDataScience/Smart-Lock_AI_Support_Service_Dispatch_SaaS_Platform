@@ -721,6 +721,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/revenue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 營收彙整（KPI + 月度趨勢 + 品牌占比） */
+        get: operations["getRevenueSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/config": {
         parameters: {
             query?: never;
@@ -1828,6 +1845,45 @@ export interface components {
                 /** @description 已上線且可立即指派（保留欄位，目前等同 online_count） */
                 dispatchable_count?: number;
             };
+        };
+        RevenueKpis: {
+            /** @description 本月營收（已開立 invoice issued + paid 加總，TWD 字串） */
+            month_revenue: string;
+            /** @description 平均 invoice 金額 */
+            average_invoice_amount: string;
+            /**
+             * Format: float
+             * @description 付款成功率 = paid / (issued + paid + cancelled)；無發票時為 null
+             */
+            paid_rate: number | null;
+            /** @description 未收帳款金額（DB status='draft' 加總） */
+            outstanding_amount: string;
+            /** @description 未收帳款筆數 */
+            outstanding_count: number;
+        };
+        RevenueTrendPoint: {
+            /** @description 期間標籤（例 2026-04） */
+            period: string;
+            /** @description 期間內已開立 invoice 金額（TWD 字串） */
+            revenue: string;
+            /** @description 期間內 invoice 筆數 */
+            order_count: number;
+        };
+        RevenueByBrandPoint: {
+            brand: string;
+            revenue: string;
+            /**
+             * Format: float
+             * @description 占總營收比例
+             */
+            share: number;
+        };
+        RevenueSummary: {
+            /** @enum {string} */
+            granularity: "day" | "week" | "month";
+            kpis: components["schemas"]["RevenueKpis"];
+            trend: components["schemas"]["RevenueTrendPoint"][];
+            by_brand: components["schemas"]["RevenueByBrandPoint"][];
         };
         /** @description 系統設定（部分更新）。各區塊允許獨立 PATCH，未指定的子鍵不變動。 */
         SystemConfig: {
@@ -3641,6 +3697,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DashboardStats"];
+                };
+            };
+        };
+    };
+    getRevenueSummary: {
+        parameters: {
+            query?: {
+                /** @description 趨勢資料粒度（目前後端僅實作 month） */
+                granularity?: "day" | "week" | "month";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevenueSummary"];
                 };
             };
         };
