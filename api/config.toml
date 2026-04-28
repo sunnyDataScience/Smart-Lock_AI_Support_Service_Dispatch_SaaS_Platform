@@ -1,0 +1,34 @@
+# Smart Lock AI — Admin REST API config
+#
+# 變數命名慣例：值若為 env var 名稱，欄位名以 *_env 結尾
+# 實際值由 .env 提供
+
+[system]
+service_name = "smart-lock-api"
+port = 8001
+request_timeout = 30  # seconds
+cors_origins = ["http://localhost:3000", "http://localhost:3001"]
+
+[database]
+postgres_uri_env = "POSTGRES_URI"
+
+[auth]
+jwt_secret_env = "API_JWT_SECRET_KEY"
+jwt_algorithm = "HS256"
+access_token_ttl_minutes = 60
+refresh_token_ttl_days = 30
+bcrypt_rounds = 12
+
+[idempotency]
+ttl_hours = 24
+# 適用 method
+applies_to = ["POST", "PATCH", "PUT", "DELETE"]
+
+[pagination]
+default_limit = 20
+max_limit = 100
+
+[rate_limit]
+# in-memory token bucket（先簡化，僅回 header 不真擋）
+enabled = false
+requests_per_minute = 120
