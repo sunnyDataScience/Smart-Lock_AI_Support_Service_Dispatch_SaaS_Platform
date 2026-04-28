@@ -1151,7 +1151,14 @@ export interface components {
         LoginResponse: components["schemas"]["ApiResponseGeneric"] & {
             data?: {
                 access_token: string;
-                /** @description 秒數 */
+                /** @description 用於 /auth/refresh 換發 access token */
+                refresh_token: string;
+                /**
+                 * @default Bearer
+                 * @enum {string}
+                 */
+                token_type: "Bearer";
+                /** @description access_token 有效秒數 */
                 expires_in: number;
             };
         };
