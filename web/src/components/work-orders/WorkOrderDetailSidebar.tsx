@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   LockOpen,
   Key,
@@ -10,15 +11,24 @@ import {
   Star,
   Info,
 } from "lucide-react";
+import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
+type Technician = components["schemas"]["Technician"];
+type TechnicianEnvelope = components["schemas"]["TechnicianEnvelope"];
 
 interface Props {
   workOrder?: WorkOrder;
 }
 
-const skills = ["電子鎖安裝", "指紋模組", "Yale", "Gateman", "+2"];
+const AVATAR_PALETTE = ["#DBEAFE", "#FEF3C7", "#FCE7F3", "#E0E7FF", "#D1FAE5", "#FEE2E2", "#F3E8FF", "#FFEDD5"];
+
+function avatarColor(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
+}
 
 function formatPrice(value?: string | null): string {
   if (!value) return "—";
@@ -31,6 +41,42 @@ export default function WorkOrderDetailSidebar({ workOrder }: Props) {
   const brandModel = workOrder
     ? `${workOrder.brand || "—"} ${workOrder.model || ""}`.trim()
     : "—";
+
+  const technicianId = workOrder?.technician_id ?? null;
+  const [technician, setTechnician] = useState<Technician | null>(null);
+  const [techError, setTechError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!technicianId) {
+      setTechnician(null);
+      setTechError(null);
+      return;
+    }
+    let cancelled = false;
+    setTechError(null);
+    (async () => {
+      try {
+        const res = await api.get<TechnicianEnvelope>(
+          `/api/v1/technicians/${encodeURIComponent(technicianId)}`,
+        );
+        if (!cancelled) setTechnician(res.data ?? null);
+      } catch (e) {
+        if (cancelled) return;
+        setTechError(
+          e instanceof ApiError
+            ? `${e.errorCode} (${e.status})`
+            : e instanceof Error
+              ? e.message
+              : String(e),
+        );
+        setTechnician(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [technicianId]);
+
   return (
     <div className="flex w-[380px] flex-shrink-0 flex-col gap-4 overflow-auto bg-[#F1F5F9] p-5">
       {/* Device Panel — brand/model 真實，其他示意 */}
@@ -128,41 +174,12 @@ export default function WorkOrderDetailSidebar({ workOrder }: Props) {
         </div>
       </div>
 
-      {/* Technician (示意) */}
-      <div className="flex flex-col gap-[10px] rounded-lg bg-[var(--bg-surface)] p-4 shadow-sm opacity-80">
-        <div className="flex items-center justify-between">
-          <span className="text-[16px] font-semibold text-[var(--text-primary)]">
-            指派技師
-          </span>
-          <span className="rounded bg-[#F1F5F9] px-2 py-[2px] text-[11px] text-[var(--text-secondary)]">
-            示意
-          </span>
-        </div>
-        <div className="flex items-center gap-[10px]">
-          <div className="h-10 w-10 flex-shrink-0 rounded-full bg-[#CBD5E1]" />
-          <div className="flex flex-col gap-[2px]">
-            <span className="text-[14px] font-semibold text-[var(--text-disabled)]">
-              {workOrder?.technician_id ? `#${workOrder.technician_id.slice(0, 8)}` : "尚未指派"}
-            </span>
-            <div className="flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <Star key={i} className="h-[14px] w-[14px] text-[#E2E8F0]" />
-              ))}
-              <span className="text-[12px] text-[var(--text-disabled)]">—</span>
-            </div>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-[6px]">
-          {skills.map((s) => (
-            <span
-              key={s}
-              className="rounded bg-[#F1F5F9] px-2 py-[2px] text-[12px] text-[var(--text-disabled)]"
-            >
-              {s}
-            </span>
-          ))}
-        </div>
-      </div>
+      {/* Technician — 真實 fetch（若 technician_id 存在） */}
+      <TechnicianPanel
+        technicianId={technicianId}
+        technician={technician}
+        error={techError}
+      />
 
       {/* Action Panel (disabled) */}
       <div className="flex flex-col gap-2 rounded-lg border-t-2 border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
@@ -178,6 +195,113 @@ export default function WorkOrderDetailSidebar({ workOrder }: Props) {
           派工模組接入後可執行操作
         </span>
       </div>
+    </div>
+  );
+}
+
+function TechnicianPanel({
+  technicianId,
+  technician,
+  error,
+}: {
+  technicianId: string | null;
+  technician: Technician | null;
+  error: string | null;
+}) {
+  const ratingFloor = technician ? Math.floor(technician.rating) : 0;
+
+  if (!technicianId) {
+    return (
+      <div className="flex flex-col gap-[10px] rounded-lg bg-[var(--bg-surface)] p-4 shadow-sm">
+        <span className="text-[16px] font-semibold text-[var(--text-primary)]">
+          指派技師
+        </span>
+        <span className="text-[14px] text-[var(--text-disabled)]">尚未指派</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col gap-[10px] rounded-lg bg-[var(--bg-surface)] p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-[16px] font-semibold text-[var(--text-primary)]">
+            指派技師
+          </span>
+          <span className="rounded bg-[#FEE2E2] px-2 py-[2px] text-[11px] text-[#991B1B]">
+            載入失敗
+          </span>
+        </div>
+        <span className="font-['IBM_Plex_Mono'] text-[13px] text-[var(--text-secondary)]">
+          #{technicianId.slice(0, 8)}
+        </span>
+        <span className="text-[12px] text-[var(--text-disabled)]">{error}</span>
+      </div>
+    );
+  }
+
+  if (!technician) {
+    return (
+      <div className="flex flex-col gap-[10px] rounded-lg bg-[var(--bg-surface)] p-4 shadow-sm">
+        <span className="text-[16px] font-semibold text-[var(--text-primary)]">
+          指派技師
+        </span>
+        <span className="text-[13px] text-[var(--text-secondary)]">載入中…</span>
+      </div>
+    );
+  }
+
+  const skills = (technician.skills ?? []).slice(0, 5);
+
+  return (
+    <div className="flex flex-col gap-[10px] rounded-lg bg-[var(--bg-surface)] p-4 shadow-sm">
+      <span className="text-[16px] font-semibold text-[var(--text-primary)]">
+        指派技師
+      </span>
+      <div className="flex items-center gap-[10px]">
+        <div
+          className="h-10 w-10 flex-shrink-0 rounded-full"
+          style={{ backgroundColor: avatarColor(technician.id) }}
+        />
+        <div className="flex flex-col gap-[2px]">
+          <span className="text-[14px] font-semibold text-[var(--text-primary)]">
+            {technician.name}
+          </span>
+          <div className="flex items-center gap-1">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Star
+                key={i}
+                className={
+                  i <= ratingFloor
+                    ? "h-[14px] w-[14px] fill-[var(--accent)] text-[var(--accent)]"
+                    : "h-[14px] w-[14px] text-[#E2E8F0]"
+                }
+              />
+            ))}
+            <span className="text-[12px] font-medium text-[var(--text-secondary)]">
+              {technician.rating.toFixed(1)}
+            </span>
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-[6px]">
+        <Phone className="h-[14px] w-[14px] text-[var(--text-secondary)]" />
+        <span className="font-['IBM_Plex_Mono'] text-[13px] text-[var(--text-primary)]">
+          {technician.phone}
+        </span>
+      </div>
+      {skills.length > 0 && (
+        <div className="flex flex-wrap gap-[6px]">
+          {skills.map((s) => (
+            <span
+              key={s}
+              className="rounded bg-[#F1F5F9] px-2 py-[2px] text-[12px] text-[var(--text-primary)]"
+            >
+              {s}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
