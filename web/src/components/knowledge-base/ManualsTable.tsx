@@ -1,90 +1,48 @@
 "use client";
 
-import { Download, Trash2, Loader } from "lucide-react";
+import { Download, Trash2, Loader, AlertCircle } from "lucide-react";
+import type { components } from "@/types/api.generated";
+import { formatRelative } from "@/lib/format";
 
-interface ManualItem {
-  id: string;
-  fileName: string;
-  brand: string;
-  pages: number;
-  chunks: number | null;
-  uploadedAt: string;
-  status: "completed" | "processing";
+type Manual = components["schemas"]["Manual"];
+
+interface Props {
+  items: Manual[];
+  loading?: boolean;
 }
-
-const manuals: ManualItem[] = [
-  {
-    id: "m-001",
-    fileName: "Yale_YDM-4109_安裝手冊.pdf",
-    brand: "Yale",
-    pages: 48,
-    chunks: 156,
-    uploadedAt: "2天前",
-    status: "completed",
-  },
-  {
-    id: "m-002",
-    fileName: "Samsung_SHP-DP609_維修指南.pdf",
-    brand: "Samsung",
-    pages: 72,
-    chunks: 234,
-    uploadedAt: "3天前",
-    status: "completed",
-  },
-  {
-    id: "m-003",
-    fileName: "Gateman_F300_用戶手冊.pdf",
-    brand: "Gateman",
-    pages: 32,
-    chunks: 98,
-    uploadedAt: "1週前",
-    status: "completed",
-  },
-  {
-    id: "m-004",
-    fileName: "美樂_ENTR_技術規格.pdf",
-    brand: "美樂",
-    pages: 24,
-    chunks: null,
-    uploadedAt: "1小時前",
-    status: "processing",
-  },
-  {
-    id: "m-005",
-    fileName: "Philips_9300_安裝指南.pdf",
-    brand: "Philips",
-    pages: 56,
-    chunks: 178,
-    uploadedAt: "2週前",
-    status: "completed",
-  },
-  {
-    id: "m-006",
-    fileName: "Yale_YDR-323_電子鎖快速指南.pdf",
-    brand: "Yale",
-    pages: 16,
-    chunks: 45,
-    uploadedAt: "1個月前",
-    status: "completed",
-  },
-];
 
 const columns = [
   { label: "檔案名稱", width: "flex-1", align: "text-left" },
-  { label: "品牌", width: "w-[80px]", align: "text-left" },
-  { label: "頁數", width: "w-[60px]", align: "text-right" },
-  { label: "切片數", width: "w-[70px]", align: "text-right" },
-  { label: "上傳日期", width: "w-[80px]", align: "text-left" },
-  { label: "處理狀態", width: "w-[90px]", align: "text-center" },
+  { label: "品牌 / 型號", width: "w-[140px]", align: "text-left" },
+  { label: "檔案大小", width: "w-[90px]", align: "text-right" },
+  { label: "切片數", width: "w-[80px]", align: "text-right" },
+  { label: "上傳日期", width: "w-[100px]", align: "text-left" },
+  { label: "處理狀態", width: "w-[100px]", align: "text-center" },
   { label: "操作", width: "w-[60px]", align: "text-center" },
 ];
 
-function StatusBadge({ status }: { status: ManualItem["status"] }) {
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${kb.toFixed(1)} KB`;
+  const mb = kb / 1024;
+  return `${mb.toFixed(1)} MB`;
+}
+
+function StatusBadge({ status }: { status: Manual["status"] }) {
   if (status === "processing") {
     return (
       <span className="inline-flex items-center justify-center gap-[6px] rounded-full bg-[#DBEAFE] px-3 py-0 text-xs font-medium text-[var(--primary)]">
         <Loader className="h-3 w-3 animate-spin" />
         處理中
+      </span>
+    );
+  }
+  if (status === "failed") {
+    return (
+      <span className="inline-flex items-center justify-center gap-[6px] rounded-full bg-[#FEE2E2] px-3 py-0 text-xs font-medium text-[var(--status-danger)]">
+        <AlertCircle className="h-3 w-3" />
+        失敗
       </span>
     );
   }
@@ -95,7 +53,7 @@ function StatusBadge({ status }: { status: ManualItem["status"] }) {
   );
 }
 
-export default function ManualsTable() {
+export default function ManualsTable({ items, loading }: Props) {
   return (
     <div className="overflow-hidden rounded-lg border border-[var(--border)]">
       {/* Header */}
@@ -110,46 +68,69 @@ export default function ManualsTable() {
         ))}
       </div>
 
-      {/* Rows */}
-      {manuals.map((item) => (
-        <div
-          key={item.id}
-          className="flex h-12 items-center border-t border-[var(--border)] px-4"
-        >
-          <span className="flex-1 truncate text-[13px] text-[var(--text-primary)]">
-            {item.fileName}
-          </span>
-          <span className="w-[80px] text-[13px] text-[var(--text-primary)]">
-            {item.brand}
-          </span>
-          <span className="w-[60px] text-right text-[13px] text-[var(--text-secondary)]">
-            {item.pages}頁
-          </span>
-          <span className="w-[70px] text-right text-[13px] text-[var(--text-secondary)]">
-            {item.chunks !== null ? `${item.chunks}切片` : "-"}
-          </span>
-          <span className="w-[80px] text-[13px] text-[var(--text-secondary)]">
-            {item.uploadedAt}
-          </span>
-          <span className="flex w-[90px] justify-center">
-            <StatusBadge status={item.status} />
-          </span>
-          <span className="flex w-[60px] items-center justify-center gap-3">
-            <button>
-              <Download
-                className={`h-4 w-4 ${
-                  item.status === "processing"
-                    ? "text-[var(--text-disabled)]"
-                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                }`}
-              />
-            </button>
-            <button>
-              <Trash2 className="h-4 w-4 text-[var(--text-secondary)] hover:text-[var(--status-danger)]" />
-            </button>
-          </span>
+      {/* Empty state */}
+      {!loading && items.length === 0 && (
+        <div className="flex h-24 items-center justify-center border-t border-[var(--border)] text-sm text-[var(--text-secondary)]">
+          目前沒有手冊
         </div>
-      ))}
+      )}
+
+      {/* Loading skeleton */}
+      {loading && items.length === 0 && (
+        <div className="flex h-24 items-center justify-center border-t border-[var(--border)] text-sm text-[var(--text-secondary)]">
+          載入中…
+        </div>
+      )}
+
+      {/* Rows */}
+      {items.map((item) => {
+        const isReady = item.status === "ready";
+        const brandModel = item.model ? `${item.brand} / ${item.model}` : item.brand;
+        return (
+          <div
+            key={item.id}
+            className="flex h-12 items-center border-t border-[var(--border)] px-4"
+          >
+            <span
+              className="flex-1 truncate text-[13px] text-[var(--text-primary)]"
+              title={item.title}
+            >
+              {item.title}
+            </span>
+            <span className="w-[140px] truncate text-[13px] text-[var(--text-primary)]">
+              {brandModel}
+            </span>
+            <span className="w-[90px] text-right text-[13px] text-[var(--text-secondary)]">
+              {formatBytes(item.file_size_bytes)}
+            </span>
+            <span className="w-[80px] text-right text-[13px] text-[var(--text-secondary)]">
+              {item.chunk_count != null ? `${item.chunk_count} 段` : "—"}
+            </span>
+            <span className="w-[100px] text-[13px] text-[var(--text-secondary)]">
+              {formatRelative(item.created_at)}
+            </span>
+            <span className="flex w-[100px] justify-center">
+              <StatusBadge status={item.status} />
+            </span>
+            <span className="flex w-[60px] items-center justify-center gap-3">
+              <button
+                disabled
+                title="即將推出"
+                className="cursor-not-allowed"
+              >
+                <Download
+                  className={`h-4 w-4 ${
+                    isReady ? "text-[var(--text-secondary)]" : "text-[var(--text-disabled)]"
+                  }`}
+                />
+              </button>
+              <button disabled title="即將推出" className="cursor-not-allowed">
+                <Trash2 className="h-4 w-4 text-[var(--text-disabled)]" />
+              </button>
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
