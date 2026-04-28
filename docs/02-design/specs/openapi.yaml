@@ -1735,6 +1735,48 @@ paths:
               schema:
                 $ref: '#/components/schemas/SettlementPage'
 
+  /api/v1/accounting/invoices:
+    get:
+      tags: [accounting]
+      summary: 發票列表
+      operationId: listInvoices
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/InvoiceStatus'
+        - name: work_order_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoicePage'
+
+  /api/v1/accounting/invoices/{id}:
+    get:
+      tags: [accounting]
+      summary: 發票詳情
+      operationId: getInvoice
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /api/v1/accounting/vouchers:
     get:
       tags: [accounting]

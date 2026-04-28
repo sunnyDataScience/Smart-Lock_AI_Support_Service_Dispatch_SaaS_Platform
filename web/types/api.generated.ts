@@ -1052,6 +1052,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/accounting/invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 發票列表 */
+        get: operations["listInvoices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting/invoices/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 發票詳情 */
+        get: operations["getInvoice"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/accounting/vouchers": {
         parameters: {
             query?: never;
@@ -4236,6 +4270,55 @@ export interface operations {
                     "application/json": components["schemas"]["SettlementPage"];
                 };
             };
+        };
+    };
+    listInvoices: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                status?: components["schemas"]["InvoiceStatus"];
+                work_order_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoicePage"];
+                };
+            };
+        };
+    };
+    getInvoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoiceEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
     };
     listVouchers: {
