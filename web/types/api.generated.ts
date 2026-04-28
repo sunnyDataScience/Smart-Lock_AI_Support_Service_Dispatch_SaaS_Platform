@@ -232,6 +232,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/disputes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 爭議案件列表 */
+        get: operations["listDisputes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/disputes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 爭議案件詳情 */
+        get: operations["getDispute"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/warranty-claims": {
         parameters: {
             query?: never;
@@ -1491,6 +1525,57 @@ export interface components {
         };
         RefundRequestPage: components["schemas"]["CursorPage"] & {
             items?: components["schemas"]["RefundRequest"][];
+        };
+        /**
+         * @description 爭議類型（pricing 價格 / quality 品質 / warranty 保固 / cancellation_fee 取消費 / settlement 結算）
+         * @enum {string}
+         */
+        DisputeType: "pricing" | "quality" | "warranty" | "cancellation_fee" | "settlement";
+        /**
+         * @description 爭議狀態（filed 待處理 / in_review 調解中 / resolved 已結案 / rejected 已駁回 / closed 已關閉）
+         * @enum {string}
+         */
+        DisputeStatus: "filed" | "in_review" | "resolved" | "rejected" | "closed";
+        /** @description 爭議案件（read-only；調解動作待 submitDisputeResolution 上線後接入） */
+        Dispute: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            work_order_id?: string | null;
+            /** Format: uuid */
+            invoice_id?: string | null;
+            /** Format: uuid */
+            filed_by: string;
+            dispute_type: components["schemas"]["DisputeType"];
+            status: components["schemas"]["DisputeStatus"];
+            description: string;
+            /** @description 雙方證據（jsonb；通常為 customer/technician 兩段結構） */
+            evidence?: {
+                [key: string]: unknown;
+            } | {
+                [key: string]: unknown;
+            }[] | null;
+            resolution?: string | null;
+            /** @description 調解金額（部分退款 / 全額退款時填寫） */
+            resolution_amount?: string | null;
+            /** Format: uuid */
+            resolved_by?: string | null;
+            /** Format: date-time */
+            filed_at: string;
+            /** Format: date-time */
+            resolved_at?: string | null;
+            /** Format: date-time */
+            sla_deadline?: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        DisputeEnvelope: components["schemas"]["ApiResponseGeneric"] & {
+            data?: components["schemas"]["Dispute"];
+        };
+        DisputePage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["Dispute"][];
         };
         RefundDecision: {
             /** @enum {string} */
@@ -2832,6 +2917,56 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RefundRequestEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listDisputes: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                status?: components["schemas"]["DisputeStatus"];
+                dispute_type?: components["schemas"]["DisputeType"];
+                work_order_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisputePage"];
+                };
+            };
+        };
+    };
+    getDispute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisputeEnvelope"];
                 };
             };
             404: components["responses"]["NotFound"];

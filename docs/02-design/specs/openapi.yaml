@@ -361,6 +361,53 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/v1/disputes:
+    get:
+      tags: [accounting]
+      summary: 爭議案件列表
+      operationId: listDisputes
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/DisputeStatus'
+        - name: dispute_type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/DisputeType'
+        - name: work_order_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisputePage'
+
+  /api/v1/disputes/{id}:
+    get:
+      tags: [accounting]
+      summary: 爭議案件詳情
+      operationId: getDispute
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisputeEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /api/v1/warranty-claims:
     get:
       tags: [accounting]
@@ -2515,6 +2562,75 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/RefundRequest'
+
+    # --------- 爭議案件（list/get） ---------
+    DisputeType:
+      type: string
+      description: 爭議類型（pricing 價格 / quality 品質 / warranty 保固 / cancellation_fee 取消費 / settlement 結算）
+      enum: [pricing, quality, warranty, cancellation_fee, settlement]
+
+    DisputeStatus:
+      type: string
+      description: 爭議狀態（filed 待處理 / in_review 調解中 / resolved 已結案 / rejected 已駁回 / closed 已關閉）
+      enum: [filed, in_review, resolved, rejected, closed]
+
+    Dispute:
+      type: object
+      description: 爭議案件（read-only；調解動作待 submitDisputeResolution 上線後接入）
+      required:
+        - id
+        - filed_by
+        - dispute_type
+        - status
+        - description
+        - filed_at
+        - created_at
+        - updated_at
+      properties:
+        id: { type: string, format: uuid }
+        work_order_id: { type: [string, "null"], format: uuid }
+        invoice_id: { type: [string, "null"], format: uuid }
+        filed_by: { type: string, format: uuid }
+        dispute_type: { $ref: '#/components/schemas/DisputeType' }
+        status: { $ref: '#/components/schemas/DisputeStatus' }
+        description: { type: string }
+        evidence:
+          description: 雙方證據（jsonb；通常為 customer/technician 兩段結構）
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: array
+              items: { type: object, additionalProperties: true }
+            - type: "null"
+        resolution: { type: [string, "null"] }
+        resolution_amount:
+          type: [string, "null"]
+          pattern: '^-?\d+(\.\d{1,2})?$'
+          description: 調解金額（部分退款 / 全額退款時填寫）
+        resolved_by: { type: [string, "null"], format: uuid }
+        filed_at: { type: string, format: date-time }
+        resolved_at: { type: [string, "null"], format: date-time }
+        sla_deadline: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    DisputeEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseGeneric'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Dispute'
+
+    DisputePage:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Dispute'
 
     # --------- 退款（雙簽流程） ---------
     RefundDecision:

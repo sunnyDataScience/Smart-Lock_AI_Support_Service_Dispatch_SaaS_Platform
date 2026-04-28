@@ -298,6 +298,70 @@ class RefundRequestPage(CursorPage):
     items: list[RefundRequest] | None = None
 
 
+class DisputeType(StrEnum):
+    """
+    爭議類型（pricing 價格 / quality 品質 / warranty 保固 / cancellation_fee 取消費 / settlement 結算）
+    """
+
+    pricing = 'pricing'
+    quality = 'quality'
+    warranty = 'warranty'
+    cancellation_fee = 'cancellation_fee'
+    settlement = 'settlement'
+
+
+class DisputeStatus(StrEnum):
+    """
+    爭議狀態（filed 待處理 / in_review 調解中 / resolved 已結案 / rejected 已駁回 / closed 已關閉）
+    """
+
+    filed = 'filed'
+    in_review = 'in_review'
+    resolved = 'resolved'
+    rejected = 'rejected'
+    closed = 'closed'
+
+
+class Dispute(BaseModel):
+    """
+    爭議案件（read-only；調解動作待 submitDisputeResolution 上線後接入）
+    """
+
+    id: UUID
+    work_order_id: UUID | None = None
+    invoice_id: UUID | None = None
+    filed_by: UUID
+    dispute_type: DisputeType
+    status: DisputeStatus
+    description: str
+    evidence: dict[str, Any] | list[dict[str, Any]] | None = None
+    """
+    雙方證據（jsonb；通常為 customer/technician 兩段結構）
+    """
+    resolution: str | None = None
+    resolution_amount: str | None = Field(None, pattern='^-?\\d+(\\.\\d{1,2})?$')
+    """
+    調解金額（部分退款 / 全額退款時填寫）
+    """
+    resolved_by: UUID | None = None
+    filed_at: AwareDatetime
+    resolved_at: AwareDatetime | None = None
+    sla_deadline: AwareDatetime | None = None
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
+
+
+class DisputeEnvelope(ApiResponseGeneric):
+    data: Dispute | None = None
+    """
+    實際載荷，由各 endpoint 具體化
+    """
+
+
+class DisputePage(CursorPage):
+    items: list[Dispute] | None = None
+
+
 class Decision(StrEnum):
     approve = 'approve'
     reject = 'reject'
