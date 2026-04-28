@@ -1,69 +1,65 @@
 "use client";
 
-interface CaseCardProps {
-  id: string;
-  title: string;
-  brand: string;
-  model?: string;
-  accuracy: number;
-  usageCount: number;
-  updatedAt: string;
-}
+import Link from "next/link";
+import type { components } from "@/types/api.generated";
+import { formatRelative } from "@/lib/format";
 
-function getProgressColor(accuracy: number): string {
-  if (accuracy >= 80) return "var(--status-success)";
-  if (accuracy >= 50) return "var(--accent)";
-  return "var(--status-danger)";
-}
+type CaseEntry = components["schemas"]["CaseEntry"];
+type EmbeddingStatus = CaseEntry["embedding_status"];
 
-export default function CaseCard({
-  title,
-  brand,
-  model,
-  accuracy,
-  usageCount,
-  updatedAt,
-}: CaseCardProps) {
+const EMBEDDING_LABEL: Record<EmbeddingStatus, { text: string; bg: string; color: string }> = {
+  processing: { text: "索引中", bg: "#FEF3C7", color: "#92400E" },
+  ready: { text: "已索引", bg: "#D1FAE5", color: "#065F46" },
+  failed: { text: "索引失敗", bg: "#FEE2E2", color: "#991B1B" },
+};
+
+export default function CaseCard({ entry }: { entry: CaseEntry }) {
+  const status = EMBEDDING_LABEL[entry.embedding_status];
+
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-5 shadow-sm">
-      <h3 className="text-[15px] font-bold leading-snug text-[var(--text-primary)]">
-        {title}
+    <Link
+      href={`/knowledge-base/cases/${entry.id}`}
+      className="flex flex-col gap-3 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-5 shadow-sm transition hover:border-[var(--primary)] hover:shadow-md"
+    >
+      <h3 className="line-clamp-2 text-[15px] font-bold leading-snug text-[var(--text-primary)]">
+        {entry.title}
       </h3>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <span className="rounded bg-[#EFF6FF] px-[10px] py-1 text-xs font-medium text-[var(--primary)]">
-          {brand}
+          {entry.brand}
         </span>
-        {model && (
+        {entry.model && (
           <span className="rounded bg-[#EFF6FF] px-[10px] py-1 text-xs font-medium text-[var(--primary)]">
-            {model}
+            {entry.model}
+          </span>
+        )}
+        {entry.verified ? (
+          <span className="rounded bg-[#D1FAE5] px-[10px] py-1 text-xs font-medium text-[#065F46]">
+            ✓ 已驗證
+          </span>
+        ) : (
+          <span className="rounded bg-[#F1F5F9] px-[10px] py-1 text-xs font-medium text-[var(--text-secondary)]">
+            未驗證
           </span>
         )}
       </div>
 
-      <div className="flex items-center gap-[10px]">
-        <div className="h-2 flex-1 overflow-hidden rounded bg-[var(--border)]">
-          <div
-            className="h-full rounded"
-            style={{
-              width: `${accuracy}%`,
-              backgroundColor: getProgressColor(accuracy),
-            }}
-          />
-        </div>
-        <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-          {accuracy}%
-        </span>
-      </div>
+      <p className="line-clamp-2 text-[13px] text-[var(--text-secondary)]">
+        {entry.problem_description}
+      </p>
 
-      <div className="flex items-center justify-between gap-[10px]">
-        <span className="rounded bg-[var(--secondary)] px-[10px] py-1 text-[11px] font-medium text-white">
-          已使用 {usageCount} 次
+      <div className="flex items-center justify-between gap-2">
+        <span
+          className="rounded px-[10px] py-1 text-[11px] font-medium"
+          style={{ backgroundColor: status.bg, color: status.color }}
+        >
+          {status.text}
         </span>
         <span className="text-xs text-[var(--text-secondary)]">
-          更新於 {updatedAt}
+          更新於 {formatRelative(entry.updated_at)}
         </span>
       </div>
-    </div>
+    </Link>
   );
 }
