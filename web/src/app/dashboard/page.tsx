@@ -162,56 +162,72 @@ export default function DashboardPage() {
 
           <div>
             <div className="mb-2 flex items-center text-[13px] text-[#71717A]">
-              派工管理指標 <PendingBadge />
+              派工管理指標
             </div>
             <div className="flex gap-6">
               <KpiCard
                 title="今日工單數"
-                value="47"
-                subtitle="vs 昨日 +12%"
-                subtitleColor="#10B981"
+                value={
+                  stats?.work_orders?.today_count != null
+                    ? String(stats.work_orders.today_count)
+                    : "—"
+                }
+                subtitle="今日新建立"
                 accentColor="#2563EB"
                 iconBgColor="#EFF6FF"
                 icon={ClipboardList}
               />
               <KpiCard
                 title="完工率"
-                value="86%"
+                value={formatPercent(stats?.work_orders?.completion_rate)}
                 valueColor="#F59E0B"
-                subtitle="vs 昨日 +3%"
-                subtitleColor="#10B981"
+                subtitle="今日完工 / 今日新建"
                 accentColor="#10B981"
                 iconBgColor="#ECFDF5"
                 icon={CircleCheckBig}
               />
               <KpiCard
                 title="逾時工單"
-                value="3"
+                value={
+                  stats?.work_orders?.overdue_count != null
+                    ? String(stats.work_orders.overdue_count)
+                    : "—"
+                }
                 valueColor="#EF4444"
-                subtitle="佔總工單 6.4%"
+                subtitle="排程時間已過且未結案"
                 accentColor="#EF4444"
                 iconBgColor="#FEF2F2"
                 icon={TriangleAlert}
               />
-              <KpiCard
-                title="在線技師"
-                value="8 / 12"
-                subtitle="可派遣 5 人"
-                accentColor="#F59E0B"
-                iconBgColor="#FFFBEB"
-                icon={Users}
-              />
+              <div className="flex-1">
+                <div className="mb-1 flex items-center text-[12px] text-[#71717A]">
+                  <PendingBadge />
+                </div>
+                <KpiCard
+                  title="在線技師"
+                  value="8 / 12"
+                  subtitle="可派遣 5 人"
+                  accentColor="#F59E0B"
+                  iconBgColor="#FFFBEB"
+                  icon={Users}
+                />
+              </div>
             </div>
             <div className="mt-4 flex gap-6">
-              <KpiCard
-                title="SLA 達標率"
-                value="88%"
-                subtitle="本月目標 95%"
-                accentColor="#2563EB"
-                iconBgColor="#EFF6FF"
-                icon={Shield}
-                progressBar={{ value: 88, color: "#2563EB" }}
-              />
+              <div className="flex-1">
+                <div className="mb-1 flex items-center text-[12px] text-[#71717A]">
+                  <PendingBadge />
+                </div>
+                <KpiCard
+                  title="SLA 達標率"
+                  value="88%"
+                  subtitle="本月目標 95%"
+                  accentColor="#2563EB"
+                  iconBgColor="#EFF6FF"
+                  icon={Shield}
+                  progressBar={{ value: 88, color: "#2563EB" }}
+                />
+              </div>
             </div>
           </div>
 
