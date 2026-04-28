@@ -1748,6 +1748,15 @@ export interface components {
                 /** @description 排程時間已過且未結案（status NOT IN completed/closed/cancelled） */
                 overdue_count?: number;
             };
+            /** @description 技師概況 KPI（total_count / online_count / dispatchable_count）。 */
+            technicians?: {
+                /** @description 此租戶啟用中（status='active'）的技師總數 */
+                total_count?: number;
+                /** @description 目前可派遣的技師數（active 且不在執行中工單） */
+                online_count?: number;
+                /** @description 已上線且可立即指派（保留欄位，目前等同 online_count） */
+                dispatchable_count?: number;
+            };
         };
         /** @description 系統設定（部分更新）。各區塊允許獨立 PATCH，未指定的子鍵不變動。 */
         SystemConfig: {
