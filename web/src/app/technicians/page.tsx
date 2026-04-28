@@ -1,8 +1,16 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import { Search, ChevronDown, Wrench, Plus } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import TechniciansTable from "@/components/technicians/TechniciansTable";
+import { ApiError, api } from "@/lib/api";
+import type { components } from "@/types/api.generated";
+
+type Technician = components["schemas"]["Technician"];
+type TechnicianPage = components["schemas"]["TechnicianPage"];
+
+const PAGE_SIZE = 20;
 
 const filterDropdowns = [
   { label: "狀態", hasChevron: true },
@@ -12,6 +20,40 @@ const filterDropdowns = [
 ];
 
 export default function TechniciansPage() {
+  const [items, setItems] = useState<Technician[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchPage = useCallback(async (afterCursor: string | null, append: boolean) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const query: Record<string, string | number> = { limit: PAGE_SIZE };
+      if (afterCursor) query.cursor = afterCursor;
+      const res = await api.get<TechnicianPage>("/api/v1/technicians", { query });
+      const newItems = res.items ?? [];
+      setItems((prev) => (append ? [...prev, ...newItems] : newItems));
+      setCursor(res.next_cursor ?? null);
+      setHasMore(!!res.has_more);
+    } catch (e) {
+      setError(
+        e instanceof ApiError
+          ? `${e.errorCode} (${e.status})：${e.message}`
+          : e instanceof Error
+            ? e.message
+            : String(e),
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPage(null, false);
+  }, [fetchPage]);
+
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
       <Sidebar />
@@ -27,11 +69,17 @@ export default function TechniciansPage() {
               </h1>
             </div>
             <span className="ml-1 flex items-center rounded-xl bg-[#DBEAFE] px-3 py-1 text-xs font-semibold text-[var(--primary)]">
-              48 位技師
+              {loading && items.length === 0
+                ? "載入中"
+                : `${items.length}${hasMore ? "+" : ""} 位技師`}
             </span>
           </div>
 
-          <button className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-5 py-[10px]">
+          <button
+            disabled
+            title="即將推出"
+            className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-5 py-[10px] opacity-60 cursor-not-allowed"
+          >
             <Plus className="h-4 w-4 text-white" />
             <span className="text-sm font-semibold text-white">新增技師</span>
           </button>
@@ -39,21 +87,24 @@ export default function TechniciansPage() {
 
         {/* Filter Toolbar */}
         <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-3">
-          {/* Search */}
-          <div className="flex h-[38px] w-[280px] items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3">
-            <Search className="h-4 w-4 text-[var(--text-secondary)]" />
+          {/* Search disabled */}
+          <div className="flex h-[38px] w-[280px] items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60">
+            <Search className="h-4 w-4 text-[var(--text-disabled)]" />
             <input
               type="text"
-              placeholder="搜尋技師姓名、電話..."
-              className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-[var(--text-disabled)]"
+              placeholder="搜尋功能即將推出"
+              disabled
+              className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-[var(--text-disabled)] cursor-not-allowed"
             />
           </div>
 
-          {/* Filter Dropdowns */}
+          {/* Filter Dropdowns disabled */}
           {filterDropdowns.map((dd) => (
             <button
               key={dd.label}
-              className="flex h-[38px] items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3"
+              disabled
+              title="即將推出"
+              className="flex h-[38px] items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60 cursor-not-allowed"
             >
               <span className="text-[13px] text-[var(--text-primary)]">
                 {dd.label}
@@ -66,8 +117,26 @@ export default function TechniciansPage() {
         </div>
 
         {/* Table Area */}
-        <main className="flex flex-1 flex-col overflow-auto">
-          <TechniciansTable />
+        <main className="flex flex-1 flex-col gap-4 overflow-auto bg-[var(--bg-page)]">
+          {error && (
+            <div className="mx-8 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              載入技師失敗：{error}
+            </div>
+          )}
+
+          <TechniciansTable items={items} loading={loading} />
+
+          {hasMore && items.length > 0 && (
+            <div className="flex justify-center pb-6">
+              <button
+                disabled={loading}
+                onClick={() => fetchPage(cursor, true)}
+                className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-6 py-2 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
+              >
+                {loading ? "載入中…" : "載入更多"}
+              </button>
+            </div>
+          )}
         </main>
       </div>
     </div>
