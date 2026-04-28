@@ -319,6 +319,48 @@ paths:
   # -----------------------------
   # accounting — refunds / disputes / warranty
   # -----------------------------
+  /api/v1/refunds:
+    get:
+      tags: [accounting]
+      summary: 退款申請列表
+      operationId: listRefundRequests
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/RefundRequestStatus'
+        - name: work_order_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundRequestPage'
+
+  /api/v1/refunds/{id}:
+    get:
+      tags: [accounting]
+      summary: 退款申請詳情
+      operationId: getRefundRequest
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundRequestEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /api/v1/refunds/{id}/decision:
     post:
       tags: [accounting]
@@ -2315,6 +2357,55 @@ components:
         actual_amount:
           type: string
           pattern: '^-?\d+(\.\d{1,2})?$'
+
+    # --------- 退款申請（list/get） ---------
+    RefundRequestStatus:
+      type: string
+      enum: [pending, approved, rejected, escalated, executed, cancelled]
+
+    RefundRequest:
+      type: object
+      description: 退款申請（read-only；雙簽流程經 submitRefundDecision 推進）
+      required: [id, work_order_id, requested_by, amount, reason, status, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        work_order_id: { type: string, format: uuid }
+        invoice_id: { type: [string, "null"], format: uuid }
+        complaint_id: { type: [string, "null"], format: uuid }
+        requested_by: { type: string, format: uuid }
+        amount:
+          type: string
+          pattern: '^-?\d+(\.\d{1,2})?$'
+        reason: { type: string }
+        status: { $ref: '#/components/schemas/RefundRequestStatus' }
+        requires_dual_sign: { type: boolean }
+        approval_chain:
+          type: array
+          description: 審批鏈（已記錄的決策步驟，順序由舊到新）
+          items:
+            type: object
+            additionalProperties: true
+        executed_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    RefundRequestEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseGeneric'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/RefundRequest'
+
+    RefundRequestPage:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/RefundRequest'
 
     # --------- 退款（雙簽流程） ---------
     RefundDecision:

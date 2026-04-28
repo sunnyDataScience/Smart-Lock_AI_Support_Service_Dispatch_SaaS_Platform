@@ -206,6 +206,49 @@ class CompletionReport(BaseModel):
     actual_amount: str | None = Field(None, pattern='^-?\\d+(\\.\\d{1,2})?$')
 
 
+class RefundRequestStatus(StrEnum):
+    pending = 'pending'
+    approved = 'approved'
+    rejected = 'rejected'
+    escalated = 'escalated'
+    executed = 'executed'
+    cancelled = 'cancelled'
+
+
+class RefundRequest(BaseModel):
+    """
+    退款申請（read-only；雙簽流程經 submitRefundDecision 推進）
+    """
+
+    id: UUID
+    work_order_id: UUID
+    invoice_id: UUID | None = None
+    complaint_id: UUID | None = None
+    requested_by: UUID
+    amount: str = Field(..., pattern='^-?\\d+(\\.\\d{1,2})?$')
+    reason: str
+    status: RefundRequestStatus
+    requires_dual_sign: bool | None = None
+    approval_chain: list[dict[str, Any]] | None = None
+    """
+    審批鏈（已記錄的決策步驟，順序由舊到新）
+    """
+    executed_at: AwareDatetime | None = None
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
+
+
+class RefundRequestEnvelope(ApiResponseGeneric):
+    data: RefundRequest | None = None
+    """
+    實際載荷，由各 endpoint 具體化
+    """
+
+
+class RefundRequestPage(CursorPage):
+    items: list[RefundRequest] | None = None
+
+
 class Decision(StrEnum):
     approve = 'approve'
     reject = 'reject'

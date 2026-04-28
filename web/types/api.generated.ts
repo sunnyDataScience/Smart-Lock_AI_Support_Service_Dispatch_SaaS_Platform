@@ -198,6 +198,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/refunds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 退款申請列表 */
+        get: operations["listRefundRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/refunds/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 退款申請詳情 */
+        get: operations["getRefundRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/refunds/{id}/decision": {
         parameters: {
             query?: never;
@@ -1347,6 +1381,41 @@ export interface components {
                 quantity: number;
             }[];
             actual_amount?: string;
+        };
+        /** @enum {string} */
+        RefundRequestStatus: "pending" | "approved" | "rejected" | "escalated" | "executed" | "cancelled";
+        /** @description 退款申請（read-only；雙簽流程經 submitRefundDecision 推進） */
+        RefundRequest: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            work_order_id: string;
+            /** Format: uuid */
+            invoice_id?: string | null;
+            /** Format: uuid */
+            complaint_id?: string | null;
+            /** Format: uuid */
+            requested_by: string;
+            amount: string;
+            reason: string;
+            status: components["schemas"]["RefundRequestStatus"];
+            requires_dual_sign?: boolean;
+            /** @description 審批鏈（已記錄的決策步驟，順序由舊到新） */
+            approval_chain?: {
+                [key: string]: unknown;
+            }[];
+            /** Format: date-time */
+            executed_at?: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        RefundRequestEnvelope: components["schemas"]["ApiResponseGeneric"] & {
+            data?: components["schemas"]["RefundRequest"];
+        };
+        RefundRequestPage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["RefundRequest"][];
         };
         RefundDecision: {
             /** @enum {string} */
@@ -2642,6 +2711,55 @@ export interface operations {
                     "application/json": components["schemas"]["DispatchQueueSnapshot"];
                 };
             };
+        };
+    };
+    listRefundRequests: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                status?: components["schemas"]["RefundRequestStatus"];
+                work_order_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefundRequestPage"];
+                };
+            };
+        };
+    };
+    getRefundRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefundRequestEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
     };
     submitRefundDecision: {
