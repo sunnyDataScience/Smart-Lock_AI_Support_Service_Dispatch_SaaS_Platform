@@ -1443,6 +1443,49 @@ paths:
         '422':
           $ref: '#/components/responses/ValidationError'
 
+  /api/v1/technicians:
+    get:
+      tags: [dispatch]
+      summary: 技師列表（管理員視角，cursor 分頁）
+      operationId: listTechnicians
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: availability
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/TechnicianAvailability'
+        - name: level
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/TechnicianLevel'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicianPage'
+
+  /api/v1/technicians/{id}:
+    get:
+      tags: [dispatch]
+      summary: 技師詳情（管理員視角）
+      operationId: getTechnician
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicianEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /api/v1/work-orders/{id}/confirm:
     post:
       tags: [dispatch]
@@ -2509,6 +2552,16 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/Technician'
+
+    TechnicianPage:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Technician'
 
     # --------- Notification（Week 2 from G1） ---------
     NotificationType:

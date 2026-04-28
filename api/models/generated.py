@@ -541,6 +541,10 @@ class TechnicianEnvelope(ApiResponseGeneric):
     """
 
 
+class TechnicianPage(CursorPage):
+    items: list[Technician] | None = None
+
+
 class NotificationType(StrEnum):
     work_order = 'work_order'
     refund = 'refund'

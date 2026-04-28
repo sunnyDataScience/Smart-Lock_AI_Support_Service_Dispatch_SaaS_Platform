@@ -1,18 +1,27 @@
-"""Technicians router — 3 endpoints (me read/patch + availability)。
+"""Technicians router — 5 endpoints。
 
 operationId 對齊 openapi.yaml：
-  getMyProfile, updateMyProfile, getTechnicianAvailability
+  - getMyProfile / updateMyProfile / getTechnicianAvailability（登入技師自身）
+  - listTechnicians（管理員：tenant 內 cursor 分頁）
+  - getTechnician（管理員：單筆查詢）
 
-只允許登入技師讀寫自己的 profile；availability 為當日 09:00–18:00 每小時 slot 的
-read-only 估算（撞期工單標 hard_conflict）。
+只允許登入技師讀寫自己的 profile；admin list/get 僅需 tenant 隔離。availability
+為當日 09:00–18:00 每小時 slot 的 read-only 估算（撞期工單標 hard_conflict）。
+
+路由順序：me / me/availability 必須在 {id} 之前，否則 FastAPI 會以 id="me" 命中。
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Path, Query
 
-from core.deps import CurrentUser, role_required
+from core.deps import CurrentUser, require_tenant, role_required
 from models.generated import (
+    Technician,
+    TechnicianAvailability,
+    TechnicianEnvelope,
+    TechnicianLevel,
+    TechnicianPage,
     TechnicianProfile,
     TechnicianProfileEnvelope,
     TechnicianUpdateRequest,
@@ -70,3 +79,46 @@ async def get_my_availability(
         date_str=date,
         work_order_id=work_order_id,
     )
+
+
+@router.get(
+    "/technicians",
+    operation_id="listTechnicians",
+    summary="技師列表（管理員視角，cursor 分頁）",
+    response_model=TechnicianPage,
+)
+async def list_technicians(
+    cursor: str | None = Query(default=None),
+    limit: int = Query(default=20, ge=1, le=100),
+    availability: TechnicianAvailability | None = Query(default=None),
+    level: TechnicianLevel | None = Query(default=None),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    page = await technician_service.list_technicians(
+        tenant_id=user.tenant_id,
+        cursor=cursor,
+        limit=limit,
+        availability=availability.value if availability else None,
+        level=level.value if level else None,
+    )
+    return {
+        "items": [Technician(**t).model_dump(mode="json") for t in page["items"]],
+        "next_cursor": page["next_cursor"],
+        "has_more": page["has_more"],
+    }
+
+
+@router.get(
+    "/technicians/{id}",
+    operation_id="getTechnician",
+    summary="技師詳情（管理員視角）",
+    response_model=TechnicianEnvelope,
+)
+async def get_technician(
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    technician = await technician_service.get_technician(
+        tenant_id=user.tenant_id, technician_id=id,
+    )
+    return {"data": Technician(**technician).model_dump(mode="json")}

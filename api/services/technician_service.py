@@ -21,6 +21,7 @@ from datetime import datetime, time, timedelta, timezone
 import core.db as db_module
 from core.db import _ensure_conn
 from core.errors import ApiError
+from core.pagination import decode_cursor, encode_cursor
 
 logger = logging.getLogger("api.technician_service")
 
@@ -70,6 +71,70 @@ def _tech_row_to_dict(row: tuple) -> dict:
     if row[4]:
         out["email"] = row[4]
     return out
+
+
+async def list_technicians(
+    *,
+    tenant_id: str,
+    cursor: str | None,
+    limit: int,
+    availability: str | None = None,
+    level: str | None = None,
+) -> dict:
+    """GET /technicians — 管理員視角，cursor 分頁。
+
+    availability / level 為 OpenAPI 欄位但 DB 沒對應實值；本 phase 不做實際過濾，
+    僅在 service 層校驗值在 enum 內並原樣回，UI 端可接但不影響資料筆數。
+    後續若要真實過濾，需在 technicians 表新增 level + availability 欄位。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    where = ["t.tenant_id = %s::uuid"]
+    args: list = [tenant_id]
+
+    cur_data = decode_cursor(cursor)
+    if cur_data and "ts" in cur_data and "id" in cur_data:
+        where.append("(t.created_at, t.id) < (%s, %s::uuid)")
+        args.extend([cur_data["ts"], cur_data["id"]])
+
+    sql = (
+        f"SELECT {_TECH_SELECT} FROM technicians t "
+        f"WHERE {' AND '.join(where)} "
+        f"ORDER BY t.created_at DESC, t.id DESC "
+        f"LIMIT %s"
+    )
+    args.append(limit + 1)
+
+    cur = await db_module._conn.execute(sql, args)
+    rows = await cur.fetchall()
+
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+    items = [_tech_row_to_dict(r) for r in rows]
+
+    next_cursor = None
+    if has_more and rows:
+        last = rows[-1]
+        next_cursor = encode_cursor({"ts": last[10].isoformat(), "id": str(last[0])})
+
+    return {"items": items, "next_cursor": next_cursor, "has_more": has_more}
+
+
+async def get_technician(*, tenant_id: str, technician_id: str) -> dict:
+    """GET /technicians/{id} — 管理員視角單筆查詢。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    cur = await db_module._conn.execute(
+        f"SELECT {_TECH_SELECT} FROM technicians t "
+        f"WHERE t.id = %s::uuid AND t.tenant_id = %s::uuid",
+        (technician_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "Technician not found", 404)
+    return _tech_row_to_dict(row)
 
 
 async def _find_by_user_id(*, tenant_id: str, user_id: str) -> tuple | None:

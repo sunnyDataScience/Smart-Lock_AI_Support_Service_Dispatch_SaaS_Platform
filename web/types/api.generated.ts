@@ -860,6 +860,40 @@ export interface paths {
         patch: operations["updateMyProfile"];
         trace?: never;
     };
+    "/api/v1/technicians": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 技師列表（管理員視角，cursor 分頁） */
+        get: operations["listTechnicians"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/technicians/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 技師詳情（管理員視角） */
+        get: operations["getTechnician"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/work-orders/{id}/confirm": {
         parameters: {
             query?: never;
@@ -1455,6 +1489,9 @@ export interface components {
         };
         TechnicianEnvelope: components["schemas"]["ApiResponseGeneric"] & {
             data?: components["schemas"]["Technician"];
+        };
+        TechnicianPage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["Technician"][];
         };
         /** @enum {string} */
         NotificationType: "work_order" | "refund" | "dispute" | "rbac" | "inventory" | "sla" | "system" | "mention";
@@ -3856,6 +3893,55 @@ export interface operations {
                 };
             };
             422: components["responses"]["ValidationError"];
+        };
+    };
+    listTechnicians: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                availability?: components["schemas"]["TechnicianAvailability"];
+                level?: components["schemas"]["TechnicianLevel"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TechnicianPage"];
+                };
+            };
+        };
+    };
+    getTechnician: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TechnicianEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
     };
     confirmWorkOrder: {
