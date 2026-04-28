@@ -5,14 +5,15 @@ import {
   User,
   Shield,
   Calculator,
-  TrendingUp,
+  Settings as SettingsIcon,
   Upload,
   ChevronDown,
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import PricingForm from "@/components/settings/PricingForm";
+import SystemConfigForm from "@/components/settings/SystemConfigForm";
 
-type TabId = "profile" | "security" | "pricing" | "surcharge";
+type TabId = "profile" | "security" | "pricing" | "system";
 
 interface Tab {
   id: TabId;
@@ -21,10 +22,10 @@ interface Tab {
 }
 
 const tabs: Tab[] = [
+  { id: "system", label: "系統設定", icon: SettingsIcon },
+  { id: "pricing", label: "報價規則", icon: Calculator },
   { id: "profile", label: "個人資料", icon: User },
   { id: "security", label: "帳戶安全", icon: Shield },
-  { id: "pricing", label: "報價規則 V2.0", icon: Calculator },
-  { id: "surcharge", label: "加價規則 V2.0", icon: TrendingUp },
 ];
 
 function ProfileForm() {
@@ -32,9 +33,14 @@ function ProfileForm() {
     <div className="flex flex-1 flex-col gap-6 overflow-auto rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <span className="text-xl font-bold text-[var(--text-primary)]">
-          個人資料
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xl font-bold text-[var(--text-primary)]">
+            個人資料
+          </span>
+          <span className="rounded bg-[#F1F5F9] px-2 py-[2px] text-[11px] text-[var(--text-secondary)]">
+            示意（待 /users/me endpoint 上線）
+          </span>
+        </div>
         <span className="text-[13px] text-[var(--text-secondary)]">
           管理您的個人資訊與偏好設定
         </span>
@@ -105,9 +111,14 @@ function SecurityForm() {
   return (
     <div className="flex flex-1 flex-col gap-6 overflow-auto rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
       <div className="flex items-center justify-between">
-        <span className="text-xl font-bold text-[var(--text-primary)]">
-          帳戶安全
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xl font-bold text-[var(--text-primary)]">
+            帳戶安全
+          </span>
+          <span className="rounded bg-[#F1F5F9] px-2 py-[2px] text-[11px] text-[var(--text-secondary)]">
+            示意（待密碼變更 / 2FA endpoint 上線）
+          </span>
+        </div>
         <span className="text-[13px] text-[var(--text-secondary)]">
           管理密碼與登入安全設定
         </span>
@@ -163,99 +174,6 @@ function SecurityForm() {
   );
 }
 
-function SurchargeForm() {
-  return (
-    <div className="flex flex-1 flex-col gap-6 overflow-auto rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
-      <div className="flex items-center justify-between">
-        <span className="text-xl font-bold text-[var(--text-primary)]">
-          加價規則 V2.0
-        </span>
-        <span className="text-[13px] text-[var(--text-secondary)]">
-          管理特殊時段與條件加價
-        </span>
-      </div>
-
-      <div className="h-px w-full bg-[var(--border)]" />
-
-      <div className="overflow-hidden rounded-lg border border-[var(--border)]">
-        <div className="flex items-center bg-[#F8FAFC] px-4 py-3">
-          <div className="w-[200px]">
-            <span className="text-xs font-semibold text-[var(--text-secondary)]">
-              加價條件
-            </span>
-          </div>
-          <div className="flex flex-1 justify-center">
-            <span className="text-xs font-semibold text-[var(--text-secondary)]">
-              加價比例
-            </span>
-          </div>
-          <div className="flex flex-1 justify-center">
-            <span className="text-xs font-semibold text-[var(--text-secondary)]">
-              適用時段
-            </span>
-          </div>
-          <div className="flex flex-1 justify-center">
-            <span className="text-xs font-semibold text-[var(--text-secondary)]">
-              狀態
-            </span>
-          </div>
-        </div>
-        {[
-          { condition: "夜間服務", rate: "+50%", time: "22:00 - 06:00", active: true },
-          { condition: "假日服務", rate: "+30%", time: "週六、日及國定假日", active: true },
-          { condition: "緊急派工", rate: "+80%", time: "2 小時內到場", active: true },
-          { condition: "偏遠地區", rate: "+20%", time: "距離 > 30km", active: false },
-        ].map((row) => (
-          <div
-            key={row.condition}
-            className="flex items-center border-t border-[var(--border)] px-4 py-3"
-          >
-            <div className="w-[200px]">
-              <span className="text-[13px] font-medium text-[var(--text-primary)]">
-                {row.condition}
-              </span>
-            </div>
-            <div className="flex flex-1 justify-center">
-              <span className="font-['IBM_Plex_Mono'] text-[13px] font-semibold text-[var(--primary)]">
-                {row.rate}
-              </span>
-            </div>
-            <div className="flex flex-1 justify-center">
-              <span className="text-[13px] text-[var(--text-secondary)]">
-                {row.time}
-              </span>
-            </div>
-            <div className="flex flex-1 justify-center">
-              <span
-                className={`rounded-md px-2 py-1 text-xs font-semibold ${
-                  row.active
-                    ? "bg-[#DCFCE7] text-[#16A34A]"
-                    : "bg-[#F1F5F9] text-[var(--text-secondary)]"
-                }`}
-              >
-                {row.active ? "啟用" : "停用"}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="h-px w-full bg-[var(--border)]" />
-
-      <div className="flex justify-end gap-3">
-        <button className="rounded-lg border border-[var(--border)] px-5 py-[10px]">
-          <span className="text-sm font-medium text-[var(--text-secondary)]">
-            重置為預設
-          </span>
-        </button>
-        <button className="rounded-lg bg-[var(--primary)] px-5 py-[10px]">
-          <span className="text-sm font-medium text-white">儲存規則</span>
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function FormField({
   label,
   value,
@@ -304,14 +222,14 @@ function SelectField({ label, value }: { label: string; value: string }) {
 }
 
 const tabContent: Record<TabId, React.ComponentType> = {
+  system: SystemConfigForm,
+  pricing: PricingForm,
   profile: ProfileForm,
   security: SecurityForm,
-  pricing: PricingForm,
-  surcharge: SurchargeForm,
 };
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<TabId>("profile");
+  const [activeTab, setActiveTab] = useState<TabId>("system");
 
   const ActiveContent = tabContent[activeTab];
 
