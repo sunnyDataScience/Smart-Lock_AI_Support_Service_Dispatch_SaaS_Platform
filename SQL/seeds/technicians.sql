@@ -13,8 +13,9 @@
 --
 -- 期望效果：
 --   - GET /technicians/me（需登入 demo-tech@example.com / techpass123）→ 200
---   - dashboard.technicians = { total_count: 1, online_count: 0, dispatchable_count: 0 }
---     （技師雖 active，但有 in_progress 工單，故 online_count = 0；待 WO2 結案後重算為 1）
+--   - GET /technicians（admin 視角）→ 5 筆（1 名登入示範 + 4 名展示用）
+--   - dashboard.technicians = { total_count: 5, online_count: 4, dispatchable_count: 4 }
+--     （5 名 active；其中 demo-tech 有 in_progress 工單，故 online_count = 4）
 -- ============================================================================
 
 BEGIN;
@@ -72,6 +73,81 @@ UPDATE work_orders
 SET technician_id = '77777777-aaaa-4aaa-aaaa-aaaaaaaaaa01'::uuid,
     updated_at = NOW()
 WHERE id = '55555555-aaaa-4aaa-aaaa-aaaaaaaaaa02'::uuid;
+
+-- 4) 額外 4 名展示用技師（無 user account；管理員列表/詳情用）。
+--    密碼 hash 用 placeholder（password='disabled-not-loginable'），不會通過登入。
+INSERT INTO users (id, tenant_id, email, password_hash, display_name, phone, role, is_active)
+VALUES
+    ('66666666-aaaa-4aaa-aaaa-aaaaaaaaaa02'::uuid,
+     '00000000-0000-0000-0000-000000000001'::uuid,
+     'tech-chen@example.com', '$2b$12$disabled.not.loginable.placeholder.hash.value.no.login',
+     '陳師傅', '0922334455', 'technician', TRUE),
+    ('66666666-aaaa-4aaa-aaaa-aaaaaaaaaa03'::uuid,
+     '00000000-0000-0000-0000-000000000001'::uuid,
+     'tech-huang@example.com', '$2b$12$disabled.not.loginable.placeholder.hash.value.no.login',
+     '黃師傅', '0933445566', 'technician', TRUE),
+    ('66666666-aaaa-4aaa-aaaa-aaaaaaaaaa04'::uuid,
+     '00000000-0000-0000-0000-000000000001'::uuid,
+     'tech-wu@example.com', '$2b$12$disabled.not.loginable.placeholder.hash.value.no.login',
+     '吳師傅', '0944556677', 'technician', TRUE),
+    ('66666666-aaaa-4aaa-aaaa-aaaaaaaaaa05'::uuid,
+     '00000000-0000-0000-0000-000000000001'::uuid,
+     'tech-zhang@example.com', '$2b$12$disabled.not.loginable.placeholder.hash.value.no.login',
+     '張師傅', '0955667788', 'technician', TRUE)
+ON CONFLICT (id) DO UPDATE SET
+    email = EXCLUDED.email,
+    display_name = EXCLUDED.display_name,
+    phone = EXCLUDED.phone,
+    is_active = EXCLUDED.is_active;
+
+INSERT INTO technicians (
+    id, tenant_id, user_id, name, phone, email,
+    capabilities, service_regions,
+    rating, completed_orders, status,
+    created_at, updated_at
+)
+VALUES
+    ('77777777-aaaa-4aaa-aaaa-aaaaaaaaaa02'::uuid,
+     '00000000-0000-0000-0000-000000000001'::uuid,
+     '66666666-aaaa-4aaa-aaaa-aaaaaaaaaa02'::uuid,
+     '陳師傅', '0922334455', 'tech-chen@example.com',
+     '["Yale", "Mi-La"]'::jsonb,
+     '["新北市新莊區", "新北市三重區"]'::jsonb,
+     4.5, 47, 'active',
+     NOW() - INTERVAL '120 days', NOW()),
+    ('77777777-aaaa-4aaa-aaaa-aaaaaaaaaa03'::uuid,
+     '00000000-0000-0000-0000-000000000001'::uuid,
+     '66666666-aaaa-4aaa-aaaa-aaaaaaaaaa03'::uuid,
+     '黃師傅', '0933445566', 'tech-huang@example.com',
+     '["Chatlock", "Dormakaba"]'::jsonb,
+     '["台北市大安區", "台北市信義區", "台北市中山區"]'::jsonb,
+     4.9, 89, 'active',
+     NOW() - INTERVAL '60 days', NOW()),
+    ('77777777-aaaa-4aaa-aaaa-aaaaaaaaaa04'::uuid,
+     '00000000-0000-0000-0000-000000000001'::uuid,
+     '66666666-aaaa-4aaa-aaaa-aaaaaaaaaa04'::uuid,
+     '吳師傅', '0944556677', 'tech-wu@example.com',
+     '["美樂", "Yale"]'::jsonb,
+     '["桃園市桃園區", "桃園市中壢區"]'::jsonb,
+     4.2, 12, 'active',
+     NOW() - INTERVAL '30 days', NOW()),
+    ('77777777-aaaa-4aaa-aaaa-aaaaaaaaaa05'::uuid,
+     '00000000-0000-0000-0000-000000000001'::uuid,
+     '66666666-aaaa-4aaa-aaaa-aaaaaaaaaa05'::uuid,
+     '張師傅', '0955667788', 'tech-zhang@example.com',
+     '["Chatlock", "Yale", "美樂", "Dormakaba"]'::jsonb,
+     '["新北市板橋區", "新北市中和區", "新北市永和區"]'::jsonb,
+     4.6, 65, 'active',
+     NOW() - INTERVAL '180 days', NOW())
+ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name,
+    phone = EXCLUDED.phone,
+    email = EXCLUDED.email,
+    capabilities = EXCLUDED.capabilities,
+    service_regions = EXCLUDED.service_regions,
+    rating = EXCLUDED.rating,
+    completed_orders = EXCLUDED.completed_orders,
+    status = EXCLUDED.status;
 
 COMMIT;
 
