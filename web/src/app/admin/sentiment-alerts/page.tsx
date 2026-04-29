@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, X } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { ApiError, api } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
@@ -49,12 +49,30 @@ const columns = [
   { label: "情緒", width: "w-[100px]" },
   { label: "信心", width: "w-[80px]" },
   { label: "客戶訊息片段", width: "flex-1" },
-  { label: "關鍵字", width: "w-[200px]" },
-  { label: "對話", width: "w-[100px]" },
+  { label: "關鍵字", width: "w-[180px]" },
+  { label: "對話", width: "w-[80px]" },
+  { label: "處置", width: "w-[160px]" },
 ];
+
+const NEXT_STATUS_OPTIONS: Record<SentimentAlertStatus, SentimentAlertStatus[]> = {
+  pending: ["acknowledged", "resolved"],
+  acknowledged: ["resolved"],
+  resolved: [],
+};
+
+const ACTION_LABEL: Record<SentimentAlertStatus, string> = {
+  pending: "—",
+  acknowledged: "確認",
+  resolved: "結案",
+};
 
 function formatConfidence(c: number): string {
   return `${Math.round(c * 100)}%`;
+}
+
+interface ActionTarget {
+  alertId: string;
+  toStatus: SentimentAlertStatus;
 }
 
 export default function SentimentAlertsPage() {
@@ -64,6 +82,12 @@ export default function SentimentAlertsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<SentimentAlertStatus | "">("");
+  const [actionTarget, setActionTarget] = useState<ActionTarget | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
+
+  const handleUpdated = (updated: SentimentAlert) => {
+    setItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
+  };
 
   const fetchPage = useCallback(
     async (afterCursor: string | null, append: boolean, filter: SentimentAlertStatus | "") => {
@@ -112,8 +136,8 @@ export default function SentimentAlertsPage() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            目前僅支援列表瀏覽。「處理 / 結案」按鈕（updateSentimentAlert）將於下一個 phase 接入。
+          <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+            狀態流向：未處理 → 已確認 → 已結案。確認 / 結案後會寫入備註並記錄到後端，已結案無法回退。
           </div>
 
           <div className="flex items-center gap-3">
@@ -224,7 +248,7 @@ export default function SentimentAlertsPage() {
                     </span>
                   </div>
 
-                  <div className="flex h-full w-[200px] flex-wrap items-center gap-1 py-2">
+                  <div className="flex h-full w-[180px] flex-wrap items-center gap-1 py-2">
                     {keywords.length === 0 ? (
                       <span className="text-xs text-[var(--text-disabled)]">—</span>
                     ) : (
@@ -239,13 +263,36 @@ export default function SentimentAlertsPage() {
                     )}
                   </div>
 
-                  <div className="flex h-full w-[100px] items-center">
+                  <div className="flex h-full w-[80px] items-center">
                     <Link
                       href={`/conversations/${row.conversation_id}`}
                       className="font-['IBM_Plex_Mono'] text-xs text-[var(--primary)] hover:underline"
                     >
                       {row.conversation_id.slice(0, 8)}
                     </Link>
+                  </div>
+
+                  <div className="flex h-full w-[160px] flex-wrap items-center gap-2">
+                    {NEXT_STATUS_OPTIONS[status].length === 0 ? (
+                      <span className="text-xs text-[var(--text-disabled)]">已結案</span>
+                    ) : (
+                      NEXT_STATUS_OPTIONS[status].map((next) => (
+                        <button
+                          key={next}
+                          disabled={savingId === row.id}
+                          onClick={() =>
+                            setActionTarget({ alertId: row.id, toStatus: next })
+                          }
+                          className={`rounded-md border px-3 py-1 text-xs font-medium transition disabled:opacity-50 ${
+                            next === "resolved"
+                              ? "border-green-300 bg-green-50 text-green-700 hover:bg-green-100"
+                              : "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                          }`}
+                        >
+                          {ACTION_LABEL[next]}
+                        </button>
+                      ))
+                    )}
                   </div>
                 </div>
               );
@@ -263,6 +310,121 @@ export default function SentimentAlertsPage() {
               </button>
             </div>
           )}
+        </div>
+      </div>
+
+      {actionTarget && (
+        <UpdateAlertModal
+          target={actionTarget}
+          saving={savingId === actionTarget.alertId}
+          onClose={() => setActionTarget(null)}
+          onSubmit={async (note) => {
+            setSavingId(actionTarget.alertId);
+            try {
+              const updated = await api.patch<SentimentAlert>(
+                `/api/v1/sentiment/alerts/${actionTarget.alertId}`,
+                { status: actionTarget.toStatus, admin_note: note ?? undefined },
+              );
+              handleUpdated(updated);
+              setActionTarget(null);
+            } catch (e) {
+              setError(
+                e instanceof ApiError
+                  ? `${e.errorCode} (${e.status})：${e.message}`
+                  : e instanceof Error
+                    ? e.message
+                    : String(e),
+              );
+            } finally {
+              setSavingId(null);
+            }
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+interface UpdateAlertModalProps {
+  target: ActionTarget;
+  saving: boolean;
+  onClose: () => void;
+  onSubmit: (note: string) => Promise<void>;
+}
+
+function UpdateAlertModal({ target, saving, onClose, onSubmit }: UpdateAlertModalProps) {
+  const [note, setNote] = useState("");
+  const trimmed = note.trim();
+  const tooLong = trimmed.length > 1000;
+  const noteRequired = target.toStatus === "resolved";
+  const canSubmit = !saving && !tooLong && (!noteRequired || trimmed.length > 0);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+      onClick={onClose}
+    >
+      <div
+        className="flex w-full max-w-md flex-col gap-4 rounded-lg bg-white p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+            {target.toStatus === "resolved" ? "結案告警" : "確認告警"}
+          </h2>
+          <button
+            onClick={onClose}
+            className="rounded p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
+            aria-label="關閉"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium text-[var(--text-primary)]">
+            管理員備註{noteRequired && <span className="ml-1 text-red-500">*</span>}
+          </label>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder={
+              target.toStatus === "resolved"
+                ? "結案時請填寫處置摘要（如：已退費 / 主管已親洽）"
+                : "（選填）填寫已聯繫紀錄、預計處理時間等"
+            }
+            rows={4}
+            className="rounded-md border border-[var(--border)] px-3 py-2 text-sm focus:border-[var(--primary)] focus:outline-none"
+          />
+          <div className="flex justify-between text-xs text-[var(--text-secondary)]">
+            <span className={tooLong ? "text-red-600" : ""}>
+              {tooLong ? "超過 1000 字上限" : `${trimmed.length} / 1000`}
+            </span>
+            {noteRequired && trimmed.length === 0 && (
+              <span className="text-red-500">必填</span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            disabled={saving}
+            className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
+          >
+            取消
+          </button>
+          <button
+            onClick={() => onSubmit(trimmed)}
+            disabled={!canSubmit}
+            className={`rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50 ${
+              target.toStatus === "resolved"
+                ? "bg-green-600 hover:bg-green-700"
+                : "bg-amber-600 hover:bg-amber-700"
+            }`}
+          >
+            {saving ? "送出中…" : target.toStatus === "resolved" ? "確認結案" : "確認"}
+          </button>
         </div>
       </div>
     </div>
