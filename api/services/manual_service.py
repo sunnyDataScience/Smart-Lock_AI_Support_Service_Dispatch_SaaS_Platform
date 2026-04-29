@@ -1,7 +1,7 @@
-"""Knowledge Base Manuals 業務邏輯（Phase 1.10 read-only）。
+"""Knowledge Base Manuals 業務邏輯。
 
-範圍：listManuals（cursor + limit + brand 篩選）。
-不含：upload / delete / chunk 內容查詢（待 PDF 解析模組接入）。
+範圍：listManuals（cursor + limit + brand 篩選）+ deleteManual。
+不含：upload / chunk 內容查詢（待 PDF 解析模組接入）。
 
 DB↔OpenAPI 欄位對齊：
   - filename (DB)        → file_name (API)
@@ -110,3 +110,21 @@ async def list_manuals(
         next_cursor = encode_cursor({"ts": last[8].isoformat(), "id": str(last[0])})
 
     return {"items": items, "next_cursor": next_cursor, "has_more": has_more}
+
+
+async def delete_manual(*, tenant_id: str, manual_id: str) -> None:
+    """刪除手冊（含 manual_chunks 透過 FK ON DELETE CASCADE 同步清除）。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    cur = await db_module._conn.execute(
+        "SELECT id FROM manuals WHERE id = %s::uuid AND tenant_id = %s::uuid",
+        (manual_id, tenant_id),
+    )
+    if not await cur.fetchone():
+        raise ApiError("NOT_FOUND", f"Manual {manual_id} not found", 404)
+
+    await db_module._conn.execute(
+        "DELETE FROM manuals WHERE id = %s::uuid",
+        (manual_id,),
+    )
