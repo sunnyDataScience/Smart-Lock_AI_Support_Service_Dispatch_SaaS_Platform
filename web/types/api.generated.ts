@@ -622,6 +622,40 @@ export interface paths {
         patch: operations["updateProblemCard"];
         trace?: never;
     };
+    "/api/v1/problem-cards/{id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 確認問題卡（draft → confirmed） */
+        post: operations["confirmProblemCard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/problem-cards/{id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 結案問題卡（confirmed → resolved） */
+        post: operations["resolveProblemCard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/problem-cards/{id}/export": {
         parameters: {
             query?: never;
@@ -2135,6 +2169,14 @@ export interface components {
             urgency?: components["schemas"]["Urgency"];
             status?: components["schemas"]["ProblemCardStatus"];
             media_urls?: string[];
+        };
+        /** @description 問題卡結案。resolution_layer 必填，記錄最終由哪一層解決。 */
+        ProblemCardResolveRequest: {
+            /**
+             * @description L1=AI 直接回覆、L2=技師遠端指導、L3=現場派工。
+             * @enum {string}
+             */
+            resolution_layer: "L1" | "L2" | "L3";
         };
         ProblemCardEnvelope: components["schemas"]["ApiResponseGeneric"] & {
             data?: components["schemas"]["ProblemCard"];
@@ -4008,6 +4050,90 @@ export interface operations {
             };
             404: components["responses"]["NotFound"];
             422: components["responses"]["ValidationError"];
+        };
+    };
+    confirmProblemCard: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 已確認 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemCardEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description 狀態衝突（非 draft 不可確認） */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    resolveProblemCard: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProblemCardResolveRequest"];
+            };
+        };
+        responses: {
+            /** @description 已結案 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemCardEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description 狀態衝突（非 confirmed 不可結案） */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
         };
     };
     exportProblemCard: {
