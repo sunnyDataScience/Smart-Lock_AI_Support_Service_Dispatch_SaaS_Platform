@@ -213,6 +213,40 @@ function newIdempotencyKey(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+async function uploadMultipart<T>(
+  path: string,
+  formData: FormData,
+  opts?: { idempotencyKey?: string },
+): Promise<T> {
+  const headers: Record<string, string> = {};
+  const token = auth.getAccessToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  headers["X-Tenant-ID"] = auth.getTenantId();
+  headers["Idempotency-Key"] = opts?.idempotencyKey ?? newIdempotencyKey();
+  // 不設 Content-Type — 讓瀏覽器自動帶 boundary
+
+  let res = await fetch(buildUrl(path), { method: "POST", headers, body: formData });
+
+  if (res.status === 401) {
+    const ok = await refreshAccessToken();
+    if (ok) {
+      const newToken = auth.getAccessToken();
+      if (newToken) headers["Authorization"] = `Bearer ${newToken}`;
+      res = await fetch(buildUrl(path), { method: "POST", headers, body: formData });
+    }
+  }
+
+  const contentType = res.headers.get("content-type") ?? "";
+  const payload = contentType.includes("application/json") ? await res.json() : await res.text();
+
+  if (!res.ok) {
+    const body = (typeof payload === "object" && payload) as ApiErrorResponse;
+    throw new ApiError(res.status, body ?? { error_code: "UNKNOWN", message: String(payload) });
+  }
+
+  return payload as T;
+}
+
 export const api = {
   get: <T = unknown>(path: string, opts?: Omit<RequestOptions, "body" | "idempotencyKey">) =>
     request<T>("GET", path, opts),
@@ -224,6 +258,7 @@ export const api = {
     request<T>("PATCH", path, { ...opts, body, idempotencyKey: opts?.idempotencyKey ?? newIdempotencyKey() }),
   delete: <T = unknown>(path: string, opts?: Omit<RequestOptions, "body">) =>
     request<T>("DELETE", path, { ...opts, idempotencyKey: opts?.idempotencyKey ?? newIdempotencyKey() }),
+  upload: uploadMultipart,
   raw: request,
 };
 

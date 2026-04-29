@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CloudUpload, Trash2 } from "lucide-react";
+import { CloudUpload, Trash2, X } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import ManualsTable from "@/components/knowledge-base/ManualsTable";
 import { ApiError, api } from "@/lib/api";
@@ -11,6 +11,16 @@ import type { components } from "@/types/api.generated";
 
 type Manual = components["schemas"]["Manual"];
 type ManualPage = components["schemas"]["ManualPage"];
+type ManualEnvelope = components["schemas"]["ManualEnvelope"];
+
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+const ACCEPTED_EXTENSION = ".pdf";
+
+function formatErr(e: unknown): string {
+  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
+  if (e instanceof Error) return e.message;
+  return String(e);
+}
 
 const PAGE_SIZE = 20;
 
@@ -34,6 +44,7 @@ export default function ManualsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -50,16 +61,16 @@ export default function ManualsPage() {
       setConfirmTarget(null);
       setToast(`已刪除「${manual.title}」`);
     } catch (e) {
-      setDeleteError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
-      );
+      setDeleteError(formatErr(e));
     } finally {
       setDeletingId(null);
     }
+  };
+
+  const handleUploaded = (manual: Manual) => {
+    setItems((prev) => [manual, ...prev.filter((m) => m.id !== manual.id)]);
+    setUploadOpen(false);
+    setToast(`已上傳「${manual.title}」（背景處理中）`);
   };
 
   const fetchPage = useCallback(
@@ -79,13 +90,7 @@ export default function ManualsPage() {
         setCursor(res.next_cursor ?? null);
         setHasMore(!!res.has_more);
       } catch (e) {
-        setError(
-          e instanceof ApiError
-            ? `${e.errorCode} (${e.status})：${e.message}`
-            : e instanceof Error
-              ? e.message
-              : String(e),
-        );
+        setError(formatErr(e));
       } finally {
         setLoading(false);
       }
@@ -168,21 +173,22 @@ export default function ManualsPage() {
             </div>
           )}
 
-          {/* Upload Dropzone (disabled — pending backend pipeline) */}
-          <div
-            className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-[var(--border)] bg-[var(--bg-page)] px-10 py-10 opacity-60"
-            title="即將推出"
+          {/* Upload Dropzone */}
+          <button
+            onClick={() => setUploadOpen(true)}
+            className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-[var(--border)] bg-[var(--bg-page)] px-10 py-10 transition hover:border-[var(--primary)] hover:bg-white"
           >
-            <CloudUpload className="h-12 w-12 text-[var(--text-secondary)]" />
+            <CloudUpload className="h-12 w-12 text-[var(--primary)]" />
             <div className="flex items-center gap-1">
-              <span className="text-sm text-[var(--text-secondary)]">
-                上傳功能即將推出（PDF 解析 pipeline 接入後啟用）
+              <span className="text-sm font-semibold text-[var(--text-primary)]">
+                點擊上傳產品手冊（PDF）
               </span>
             </div>
             <span className="text-xs text-[var(--text-disabled)]">
-              支援格式：PDF，單檔上限 50MB
+              建立後狀態為 processing，待 PDF 解析 pipeline 完成後自動轉 ready
+              · 單檔上限 50MB
             </span>
-          </div>
+          </button>
 
           {/* File Table */}
           <ManualsTable
@@ -225,6 +231,14 @@ export default function ManualsPage() {
             setDeleteError(null);
           }}
           onConfirm={() => handleDelete(confirmTarget)}
+        />
+      )}
+
+      {uploadOpen && (
+        <UploadManualModal
+          brandOptions={BRAND_OPTIONS}
+          onCancel={() => setUploadOpen(false)}
+          onUploaded={handleUploaded}
         />
       )}
 
@@ -293,6 +307,202 @@ function ConfirmDeleteModal({
             className="rounded-md bg-[var(--status-danger)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? "刪除中…" : "確認刪除"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UploadManualModal({
+  brandOptions,
+  onCancel,
+  onUploaded,
+}: {
+  brandOptions: string[];
+  onCancel: () => void;
+  onUploaded: (manual: Manual) => void;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const [brand, setBrand] = useState<string>(brandOptions[0] ?? "");
+  const [model, setModel] = useState<string>("");
+  const [title, setTitle] = useState<string>("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const fileInvalid =
+    file != null &&
+    (file.size > MAX_UPLOAD_BYTES ||
+      !file.name.toLowerCase().endsWith(ACCEPTED_EXTENSION));
+  const valid =
+    !!file &&
+    !fileInvalid &&
+    brand.trim().length > 0 &&
+    title.trim().length > 0 &&
+    title.trim().length <= 200 &&
+    !pending;
+
+  const handleSelectFile = (f: File | null) => {
+    setError(null);
+    setFile(f);
+    if (f && !title.trim()) {
+      const auto = f.name.replace(/\.[^.]+$/, "");
+      setTitle(auto.slice(0, 200));
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!file) return;
+    setPending(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("brand", brand.trim());
+      fd.append("title", title.trim());
+      if (model.trim()) fd.append("model", model.trim());
+      const res = await api.upload<ManualEnvelope>(
+        "/api/v1/knowledge-base/manuals/upload",
+        fd,
+      );
+      if (res.data) onUploaded(res.data);
+      else setError("伺服器未回傳手冊資料");
+    } catch (e) {
+      setError(formatErr(e));
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4"
+      onClick={() => !pending && onCancel()}
+    >
+      <div
+        className="w-full max-w-[520px] rounded-xl bg-white p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CloudUpload className="h-5 w-5 text-[var(--primary)]" />
+            <span className="text-[18px] font-semibold text-[var(--text-primary)]">
+              上傳產品手冊
+            </span>
+          </div>
+          <button
+            onClick={() => !pending && onCancel()}
+            className="rounded p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          {/* File */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[12px] font-medium text-[var(--text-secondary)]">
+              PDF 檔案（必填，上限 50MB）
+            </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPTED_EXTENSION}
+              onChange={(e) => handleSelectFile(e.target.files?.[0] ?? null)}
+              disabled={pending}
+              className="block w-full text-[13px] file:mr-3 file:rounded-md file:border-0 file:bg-[var(--primary)] file:px-3 file:py-2 file:text-white file:hover:opacity-90"
+            />
+            {file && (
+              <span
+                className={`text-[11px] ${
+                  fileInvalid ? "text-[var(--error)]" : "text-[var(--text-disabled)]"
+                }`}
+              >
+                {file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB
+                {fileInvalid && "（不符合 PDF 或超過 50MB 上限）"}
+              </span>
+            )}
+          </div>
+
+          {/* Brand */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[12px] font-medium text-[var(--text-secondary)]">
+              品牌（必填）
+            </label>
+            <select
+              value={brand}
+              onChange={(e) => setBrand(e.target.value)}
+              disabled={pending}
+              className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
+            >
+              {brandOptions.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Model */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[12px] font-medium text-[var(--text-secondary)]">
+              型號（選填，留空表示品牌通用手冊）
+            </label>
+            <input
+              type="text"
+              value={model}
+              onChange={(e) => setModel(e.target.value.slice(0, 100))}
+              disabled={pending}
+              placeholder="例：AI-99"
+              className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
+            />
+          </div>
+
+          {/* Title */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[12px] font-medium text-[var(--text-secondary)]">
+              手冊標題（必填，最多 200 字）
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value.slice(0, 200))}
+              disabled={pending}
+              placeholder="例：Chatlock AI-99 使用手冊 v2.3"
+              className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
+            />
+            <span className="text-[11px] text-[var(--text-disabled)]">
+              {title.trim().length} / 200
+            </span>
+          </div>
+
+          {error && (
+            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+              {error}
+            </div>
+          )}
+
+          <p className="rounded-md bg-[#F0F9FF] px-3 py-2 text-[12px] leading-[1.6] text-[#0C4A6E]">
+            送出後狀態為 processing，等 PDF 解析 pipeline 完成後自動轉 ready；
+            背景處理期間檔案仍會出現在列表中。
+          </p>
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            disabled={pending}
+            className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
+          >
+            返回
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!valid}
+            className="rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? "上傳中…" : "送出上傳"}
           </button>
         </div>
       </div>
