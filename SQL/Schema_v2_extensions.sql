@@ -291,3 +291,38 @@ COMMENT ON COLUMN sentiment_alerts.detected_keywords IS '命中關鍵字快照�
 CREATE INDEX IF NOT EXISTS idx_sentiment_alerts_status_created ON sentiment_alerts (status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_sentiment_alerts_conversation  ON sentiment_alerts (conversation_id);
 CREATE INDEX IF NOT EXISTS idx_sentiment_alerts_created_desc  ON sentiment_alerts (created_at DESC, id DESC);
+
+-- ----------------------------------------------------------------------------
+-- 10. 會計傳票（vouchers）— accounting 模組
+-- ----------------------------------------------------------------------------
+-- 雙分錄會計憑證：每筆對帳 / 結算 / 退款 / 發票會落在一筆 Voucher。
+-- 對應 OpenAPI: Voucher / listVouchers / exportVoucher。
+-- 設計：related_entity_type + related_entity_id 弱關聯（不下 FK）以保留
+--       帳本即使來源紀錄被刪也仍可審計；amount 採 NUMERIC(14,2) 避免浮點誤差。
+CREATE TABLE IF NOT EXISTS vouchers (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id           UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001'::uuid,
+    voucher_number      VARCHAR(50) NOT NULL,                                 -- 帳本流水號 e.g. V20260429-0001
+    related_entity_type VARCHAR(20),                                          -- reconciliation/settlement/refund/invoice
+    related_entity_id   UUID,
+    debit_account       VARCHAR(50) NOT NULL,                                 -- 借方科目編號（e.g. 1101 銀行存款）
+    credit_account      VARCHAR(50) NOT NULL,                                 -- 貸方科目編號（e.g. 4001 服務收入）
+    amount              NUMERIC(14,2) NOT NULL,
+    currency            VARCHAR(8) NOT NULL DEFAULT 'TWD',
+    posting_date        DATE NOT NULL,                                        -- 入帳日（會計期間維度）
+    memo                TEXT,
+    created_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_voucher_entity_type CHECK (
+        related_entity_type IS NULL OR
+        related_entity_type IN ('reconciliation','settlement','refund','invoice')
+    ),
+    CONSTRAINT uniq_voucher_number_tenant UNIQUE (tenant_id, voucher_number)
+);
+
+COMMENT ON TABLE  vouchers IS '會計傳票（雙分錄）：對應對帳 / 結算 / 退款 / 發票事件，匯出 PDF 用於外部會計系統對接';
+COMMENT ON COLUMN vouchers.related_entity_type IS '關聯實體類型，使用弱關聯（不下 FK）以保留審計追溯性';
+COMMENT ON COLUMN vouchers.amount IS '金額；NUMERIC(14,2) 避免浮點誤差，支援負數做沖銷';
+
+CREATE INDEX IF NOT EXISTS idx_vouchers_tenant_posting   ON vouchers (tenant_id, posting_date DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_vouchers_related_entity   ON vouchers (related_entity_type, related_entity_id);
+CREATE INDEX IF NOT EXISTS idx_vouchers_voucher_number   ON vouchers (voucher_number);
