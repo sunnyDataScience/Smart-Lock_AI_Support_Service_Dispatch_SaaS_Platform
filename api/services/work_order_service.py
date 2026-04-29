@@ -210,6 +210,10 @@ _ESCALATE_FROM = {"created", "assigned", "accepted", "in_progress"}
 _ESCALATE_LEVELS = {"operations_manager", "tenant_admin"}
 # 客戶確認結案：只能從技師完工後的 completed 狀態進入 confirmed
 _CONFIRM_FROM = {"completed"}
+# 改期可從技師接單後 / 執行中觸發；created 階段尚未排程不需改期
+_RESCHEDULE_FROM = {"assigned", "accepted", "in_progress"}
+# 24h 內改期次數上限（業務規則：避免技師連續推遲）
+_RESCHEDULE_LIMIT_24H = 3
 
 
 async def _fetch_status_for_update(wo_id: str, tenant_id: str) -> str:
@@ -459,6 +463,128 @@ async def confirm_order(
         "  updated_at = NOW() "
         "WHERE id = %s::uuid",
         (rating, feedback_clean, wo_id),
+    )
+    return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+
+
+async def propose_reschedule(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    proposed_slots: list[dict],
+    message_to_customer: str,
+    send_via: str = "line",
+    warning_acknowledged_at: str | None = None,
+) -> dict:
+    """送出改期請求 — 取首選時段為新 scheduled_at，並把 1-3 個備選寫入稽核軌跡。
+
+    MVP 範圍：
+      - 不真的呼叫 LINE/SMS push（SOP 由派工通知模組接管）
+      - 不建獨立 reschedule_slots 表（24h 內 3 次上限以 service_report 內 [RESCHEDULE] 標記計算）
+      - state machine：assigned | accepted | in_progress 才允許改期
+      - 首個 slot 的 start 寫入 scheduled_at 作為「假定接受」基準；客戶 RSVP 後再修正
+
+    錯誤：
+      - 422 RESCHEDULE_LIMIT_EXCEEDED：24h 內已 3 次
+      - 409 STATE_CONFLICT：工單已結案 / 已取消
+      - 409 RESCHEDULE_SLOT_TAKEN：首選 slot start 與其他工單衝突（同技師同時段）
+    """
+    if not proposed_slots or not isinstance(proposed_slots, list):
+        raise ApiError("VALIDATION_ERROR", "proposed_slots is required", 422)
+    if len(proposed_slots) > 3:
+        raise ApiError("VALIDATION_ERROR", "proposed_slots accepts at most 3 items", 422)
+    if not message_to_customer or not message_to_customer.strip():
+        raise ApiError("VALIDATION_ERROR", "message_to_customer is required", 422)
+    if len(message_to_customer) > 120:
+        raise ApiError("VALIDATION_ERROR", "message_to_customer must be at most 120 chars", 422)
+    if send_via not in {"line", "line_and_sms"}:
+        raise ApiError("VALIDATION_ERROR", "send_via must be 'line' or 'line_and_sms'", 422)
+
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    current = await _fetch_status_for_update(wo_id, tenant_id)
+    if current not in _RESCHEDULE_FROM:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot reschedule work order in status '{current}'; expected one of {sorted(_RESCHEDULE_FROM)}",
+            409,
+        )
+
+    # 24h 內改期次數 — 從 service_report 計 [RESCHEDULE] 標記出現次數
+    cur = await db_module._conn.execute(
+        "SELECT service_report, technician_id FROM work_orders WHERE id = %s::uuid",
+        (wo_id,),
+    )
+    row = await cur.fetchone()
+    report_text = row[0] or "" if row else ""
+    technician_id = row[1] if row else None
+    # 簡單計數 — service_report 是 append-only，[RESCHEDULE@<iso>] 標記每次寫一筆
+    import datetime as _dt
+    cutoff = _dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(hours=24)
+    recent_count = 0
+    for line in report_text.splitlines():
+        if "[RESCHEDULE@" not in line:
+            continue
+        # 解 [RESCHEDULE@<iso>] 取時間戳
+        try:
+            iso = line.split("[RESCHEDULE@", 1)[1].split("]", 1)[0]
+            ts = _dt.datetime.fromisoformat(iso.replace("Z", "+00:00"))
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=_dt.timezone.utc)
+            if ts >= cutoff:
+                recent_count += 1
+        except (ValueError, IndexError):
+            continue
+    if recent_count >= _RESCHEDULE_LIMIT_24H:
+        raise ApiError(
+            "RESCHEDULE_LIMIT_EXCEEDED",
+            f"Reschedule limit exceeded: {recent_count} times in last 24h",
+            422,
+        )
+
+    # 首選 slot 的 start 作為新 scheduled_at
+    first_slot = proposed_slots[0]
+    new_start = first_slot.get("start")
+    if not new_start:
+        raise ApiError("VALIDATION_ERROR", "first proposed slot is missing 'start'", 422)
+
+    # 同技師同時段衝突檢查（best-effort — 同 technician_id 在同 start 時間已有別張未結案工單）
+    if technician_id:
+        cur = await db_module._conn.execute(
+            "SELECT 1 FROM work_orders "
+            "WHERE technician_id = %s::uuid "
+            "  AND id <> %s::uuid "
+            "  AND status NOT IN ('completed','confirmed','cancelled') "
+            "  AND scheduled_at = %s::timestamptz "
+            "LIMIT 1",
+            (str(technician_id), wo_id, new_start),
+        )
+        if await cur.fetchone():
+            raise ApiError(
+                "RESCHEDULE_SLOT_TAKEN",
+                "First proposed slot conflicts with another work order assigned to the same technician",
+                409,
+            )
+
+    now_iso = _dt.datetime.now(_dt.timezone.utc).isoformat()
+    slots_summary = "; ".join(
+        f"{s.get('start','?')}~{s.get('end','?')}" for s in proposed_slots
+    )
+    note = (
+        f"[RESCHEDULE@{now_iso}] via={send_via} slots={slots_summary} "
+        f"msg={message_to_customer.strip()[:120]}"
+    )
+    if warning_acknowledged_at:
+        note += f" ack={warning_acknowledged_at}"
+
+    await db_module._conn.execute(
+        "UPDATE work_orders SET "
+        "  scheduled_at = %s::timestamptz, "
+        "  service_report = COALESCE(service_report, '') || E'\\n' || %s, "
+        "  updated_at = NOW() "
+        "WHERE id = %s::uuid",
+        (new_start, note, wo_id),
     )
     return await get_order(tenant_id=tenant_id, wo_id=wo_id)
 

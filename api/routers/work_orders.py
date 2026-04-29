@@ -1,17 +1,19 @@
-"""WorkOrders router — read endpoints + 7 state-machine writes。
+"""WorkOrders router — read endpoints + 8 state-machine writes。
 
 operationId 對齊 openapi.yaml：
   listWorkOrders, getWorkOrder, getDispatchQueue, listWorkOrderPool,
   acceptWorkOrder, assignWorkOrder, escalateWorkOrder,
   completeWorkOrder, cancelWorkOrder, confirmWorkOrder,
-  submitWorkOrderSignature
-
-未實作：proposeReschedule（依賴 LINE/SMS 推播 + RSVP 表，待後續 phase）。
+  submitWorkOrderSignature, proposeReschedule
 """
 
 from __future__ import annotations
 
+from datetime import datetime
+from typing import Literal
+
 from fastapi import APIRouter, Depends, Path, Query
+from pydantic import BaseModel, Field
 
 from core.deps import CurrentUser, require_tenant
 from core.idempotency import IdempotencyContext, idempotency_guard
@@ -29,6 +31,20 @@ from models.generated import (
     WorkOrderPage,
 )
 from services import signature_service, work_order_service
+
+
+class _RescheduleSlot(BaseModel):
+    start: datetime
+    end: datetime
+
+
+class _ProposeRescheduleRequest(BaseModel):
+    """Inline schema — openapi.yaml /work-orders/{id}/reschedule body。"""
+
+    proposed_slots: list[_RescheduleSlot] = Field(..., min_length=1, max_length=3)
+    message_to_customer: str = Field(..., max_length=120)
+    warning_acknowledged_at: datetime | None = None
+    send_via: Literal["line", "line_and_sms"] = "line"
 
 router = APIRouter()
 
@@ -276,3 +292,35 @@ async def submit_work_order_signature(
     if idem is not None:
         await idem.save(200, result)
     return result
+
+
+@router.post(
+    "/work-orders/{id}/reschedule",
+    operation_id="proposeReschedule",
+    summary="送出改期請求（assigned | accepted | in_progress → 更新 scheduled_at）",
+    response_model=WorkOrderEnvelope,
+)
+async def propose_reschedule(
+    body: _ProposeRescheduleRequest,
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    slots = [
+        {"start": s.start.isoformat(), "end": s.end.isoformat()}
+        for s in body.proposed_slots
+    ]
+    order = await work_order_service.propose_reschedule(
+        tenant_id=user.tenant_id,
+        wo_id=id,
+        proposed_slots=slots,
+        message_to_customer=body.message_to_customer,
+        send_via=body.send_via,
+        warning_acknowledged_at=body.warning_acknowledged_at.isoformat()
+        if body.warning_acknowledged_at
+        else None,
+    )
+    payload = {"data": WorkOrder(**order).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload
