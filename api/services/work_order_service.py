@@ -158,6 +158,34 @@ async def list_orders(
     return {"items": items, "next_cursor": next_cursor, "has_more": has_more}
 
 
+async def list_work_order_pool(*, tenant_id: str) -> dict:
+    """技師案件池：尚未進入「執行中／結案」終態的可接工單。
+
+    含：created（未派工）、assigned（已派但尚未接受）。
+    優先序：urgency=high > medium > low；同等級依 created_at ASC 列出
+    （越早建立越優先）。預設不分頁，上限 100 筆。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    sql = (
+        f"SELECT {_WO_SELECT} {_WO_JOIN} "
+        f"WHERE u.tenant_id = %s::uuid "
+        f"  AND wo.status IN ('created', 'assigned') "
+        f"ORDER BY "
+        f"  CASE wo.priority "
+        f"    WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 "
+        f"    WHEN 'normal' THEN 2 WHEN 'low' THEN 3 ELSE 4 "
+        f"  END ASC, "
+        f"  wo.created_at ASC, wo.id ASC "
+        f"LIMIT 100"
+    )
+    cur = await db_module._conn.execute(sql, (tenant_id,))
+    rows = await cur.fetchall()
+    items = [_wo_row_to_dict(r) for r in rows]
+    return {"items": items, "next_cursor": None, "has_more": False}
+
+
 async def get_order(*, tenant_id: str, wo_id: str) -> dict:
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)

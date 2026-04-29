@@ -1,7 +1,7 @@
 """WorkOrders router — read endpoints + 6 state-machine writes。
 
 operationId 對齊 openapi.yaml：
-  listWorkOrders, getWorkOrder, getDispatchQueue,
+  listWorkOrders, getWorkOrder, getDispatchQueue, listWorkOrderPool,
   acceptWorkOrder, assignWorkOrder, escalateWorkOrder,
   completeWorkOrder, cancelWorkOrder, confirmWorkOrder
 
@@ -71,6 +71,26 @@ async def get_dispatch_queue(
     return await work_order_service.get_dispatch_queue_snapshot(
         tenant_id=user.tenant_id,
     )
+
+
+@router.get(
+    "/work-orders/pool",
+    operation_id="listWorkOrderPool",
+    summary="技師案件池（可接工單，依 urgency + 建立時間排序）",
+    response_model=WorkOrderPage,
+)
+async def list_work_order_pool(
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    """必須註冊在 /work-orders/{id} 之前，否則 'pool' 會被當成 id。"""
+    page = await work_order_service.list_work_order_pool(
+        tenant_id=user.tenant_id,
+    )
+    return {
+        "items": [WorkOrder(**w).model_dump(mode="json") for w in page["items"]],
+        "next_cursor": page["next_cursor"],
+        "has_more": page["has_more"],
+    }
 
 
 @router.get(
