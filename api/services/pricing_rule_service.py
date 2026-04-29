@@ -1,7 +1,11 @@
-"""Pricing Rules 業務邏輯（Phase 1.14 read-only）。
+"""Pricing Rules 業務邏輯。
 
-範圍：listPricingRules（cursor + limit + brand 篩選）。
-不含：createPricingRule / updatePricingRule / calculatePricing 等寫入路徑。
+範圍：
+  - listPricingRules（cursor + limit + brand 篩選）
+  - createPricingRule（POST，產生新計價規則）
+  - updatePricingRule（PUT，修改 base_price / surcharges；其餘欄位 immutable）
+
+不含：calculatePricing（依賴 LockType + difficulty 推算結果價格的線上引擎）。
 
 OpenAPI PricingRule schema：
     id, brand, lock_type (LockType), difficulty (DifficultyLevel),
@@ -9,16 +13,18 @@ OpenAPI PricingRule schema：
 
 DB ↔ API 對齊：
   - price_rules.brand / lock_type → 直通（seed 寫入時即用 OpenAPI enum 值，故無需 mapping）
-  - price_rules.difficulty (easy/medium/hard) → API enum (simple/moderate/complex)
-  - price_rules.base_price (FLOAT) → API base_price: decimal string with 2 decimals
-  - price_rules.modifiers (JSONB array) → API surcharges (PricingSurcharge[])
+  - price_rules.difficulty (easy/medium/hard) ↔ API enum (simple/moderate/complex)
+  - price_rules.base_price (FLOAT) ↔ API base_price: decimal string with 2 decimals
+  - price_rules.modifiers (JSONB array) ↔ API surcharges (PricingSurcharge[])
   - price_rules.is_active = FALSE → 過濾不回傳
+  - price_rules.labor_cost (NOT NULL) → API 沒對應欄位，create 時預設 0.0；update 不動
 
 租戶隔離：price_rules.tenant_id（Schema_api_phase1.sql 補上）。
 """
 
 from __future__ import annotations
 
+import json
 import logging
 
 import core.db as db_module
@@ -34,6 +40,10 @@ _DB_DIFFICULTY_TO_API = {
     "medium": "moderate",
     "hard": "complex",
 }
+
+_API_DIFFICULTY_TO_DB = {v: k for k, v in _DB_DIFFICULTY_TO_API.items()}
+
+_VALID_LOCK_TYPES = {"digital_deadbolt", "smart_lock", "padlock", "other"}
 
 
 def _coerce_decimal(amount) -> str:
@@ -156,3 +166,159 @@ async def list_pricing_rules(
         next_cursor = encode_cursor({"ts": last[6].isoformat(), "id": str(last[0])})
 
     return {"items": items, "next_cursor": next_cursor, "has_more": has_more}
+
+
+def _validate_decimal_str(value, field: str) -> float:
+    """API 輸入 decimal string → DB FLOAT，過程中驗證格式。"""
+    if value is None:
+        raise ApiError("VALIDATION_ERROR", f"{field} is required", 422)
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"{field} must be a decimal string (e.g. '1200.00')",
+            422,
+        )
+    if f < 0:
+        raise ApiError("VALIDATION_ERROR", f"{field} must be non-negative", 422)
+    return f
+
+
+def _normalize_surcharges_input(surcharges) -> list[dict]:
+    """API PricingSurcharge[] → DB modifiers JSONB（List[dict] 形式）。
+
+    輸入每筆需有 name + amount(decimal string)；condition 選填。
+    """
+    if surcharges is None:
+        return []
+    if not isinstance(surcharges, list):
+        raise ApiError("VALIDATION_ERROR", "surcharges must be an array", 422)
+
+    out: list[dict] = []
+    for idx, item in enumerate(surcharges):
+        if not isinstance(item, dict):
+            raise ApiError(
+                "VALIDATION_ERROR",
+                f"surcharges[{idx}] must be an object",
+                422,
+            )
+        name = item.get("name")
+        amount = item.get("amount")
+        if not name or not isinstance(name, str):
+            raise ApiError(
+                "VALIDATION_ERROR",
+                f"surcharges[{idx}].name is required",
+                422,
+            )
+        amt_f = _validate_decimal_str(amount, f"surcharges[{idx}].amount")
+        entry: dict = {"name": name.strip()[:100], "amount": amt_f}
+        cond = item.get("condition")
+        if cond:
+            entry["condition"] = str(cond).strip()[:200]
+        out.append(entry)
+    return out
+
+
+async def create_pricing_rule(
+    *,
+    tenant_id: str,
+    brand: str,
+    lock_type: str,
+    difficulty: str,
+    base_price: str,
+    surcharges: list | None = None,
+) -> dict:
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    if not brand or not brand.strip():
+        raise ApiError("VALIDATION_ERROR", "brand is required", 422)
+    if lock_type not in _VALID_LOCK_TYPES:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"Invalid lock_type: {lock_type}",
+            422,
+        )
+    if difficulty not in _API_DIFFICULTY_TO_DB:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"Invalid difficulty: {difficulty}",
+            422,
+        )
+
+    base_f = _validate_decimal_str(base_price, "base_price")
+    modifiers = _normalize_surcharges_input(surcharges)
+    db_difficulty = _API_DIFFICULTY_TO_DB[difficulty]
+
+    cur = await db_module._conn.execute(
+        f"INSERT INTO price_rules "
+        f"  (tenant_id, brand, lock_type, difficulty, base_price, "
+        f"   labor_cost, modifiers, is_active) "
+        f"VALUES (%s::uuid, %s, %s, %s, %s, %s, %s::jsonb, TRUE) "
+        f"RETURNING {_SELECT}",
+        (
+            tenant_id,
+            brand.strip()[:100],
+            lock_type,
+            db_difficulty,
+            base_f,
+            0.0,
+            json.dumps(modifiers),
+        ),
+    )
+    row = await cur.fetchone()
+    return _row_to_dict(row)
+
+
+async def update_pricing_rule(
+    *,
+    tenant_id: str,
+    rule_id: str,
+    base_price: str | None = None,
+    surcharges: list | None = None,
+) -> dict:
+    """更新 base_price / surcharges。brand/lock_type/difficulty immutable。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    cur = await db_module._conn.execute(
+        "SELECT id FROM price_rules "
+        "WHERE id = %s::uuid AND tenant_id = %s::uuid AND is_active = TRUE",
+        (rule_id, tenant_id),
+    )
+    if not await cur.fetchone():
+        raise ApiError("NOT_FOUND", f"Pricing rule {rule_id} not found", 404)
+
+    sets: list[str] = []
+    args: list = []
+
+    if base_price is not None:
+        sets.append("base_price = %s")
+        args.append(_validate_decimal_str(base_price, "base_price"))
+
+    if surcharges is not None:
+        modifiers = _normalize_surcharges_input(surcharges)
+        sets.append("modifiers = %s::jsonb")
+        args.append(json.dumps(modifiers))
+
+    if not sets:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "At least one of base_price or surcharges must be provided",
+            422,
+        )
+
+    sets.append("updated_at = NOW()")
+    args.extend([rule_id, tenant_id])
+
+    cur = await db_module._conn.execute(
+        f"UPDATE price_rules SET {', '.join(sets)} "
+        f"WHERE id = %s::uuid AND tenant_id = %s::uuid "
+        f"RETURNING {_SELECT}",
+        tuple(args),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", f"Pricing rule {rule_id} not found", 404)
+    return _row_to_dict(row)

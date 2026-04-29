@@ -1,18 +1,22 @@
-"""Pricing Rules router — listPricingRules (read-only)。
+"""Pricing Rules router — listPricingRules + createPricingRule + updatePricingRule。
 
-operationId 對齊 openapi.yaml：listPricingRules
+operationId 對齊 openapi.yaml：
+  listPricingRules, createPricingRule, updatePricingRule
 
-不含 createPricingRule / updatePricingRule / calculatePricing 等寫入路徑。
+不含 calculatePricing（線上引擎）等其他寫入路徑。
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Path, Query
 
 from core.deps import CurrentUser, require_tenant
+from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
     PricingRule,
+    PricingRuleCreateRequest,
     PricingRulePage,
+    PricingRuleUpdateRequest,
 )
 from services import pricing_rule_service
 
@@ -42,3 +46,57 @@ async def list_pricing_rules(
         "next_cursor": page["next_cursor"],
         "has_more": page["has_more"],
     }
+
+
+@router.post(
+    "/pricing/rules",
+    operation_id="createPricingRule",
+    summary="建立計價規則",
+    status_code=201,
+)
+async def create_pricing_rule(
+    body: PricingRuleCreateRequest,
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    surcharges_payload = (
+        [s.model_dump(mode="json") for s in body.surcharges]
+        if body.surcharges
+        else None
+    )
+    rule = await pricing_rule_service.create_pricing_rule(
+        tenant_id=user.tenant_id,
+        brand=body.brand,
+        lock_type=body.lock_type.value,
+        difficulty=body.difficulty.value,
+        base_price=body.base_price,
+        surcharges=surcharges_payload,
+    )
+    payload = {"data": PricingRule(**rule).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(201, payload)
+    return payload
+
+
+@router.put(
+    "/pricing/rules/{id}",
+    operation_id="updatePricingRule",
+    summary="更新計價規則（base_price / surcharges）",
+)
+async def update_pricing_rule(
+    body: PricingRuleUpdateRequest,
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    surcharges_payload = (
+        [s.model_dump(mode="json") for s in body.surcharges]
+        if body.surcharges is not None
+        else None
+    )
+    rule = await pricing_rule_service.update_pricing_rule(
+        tenant_id=user.tenant_id,
+        rule_id=id,
+        base_price=body.base_price,
+        surcharges=surcharges_payload,
+    )
+    return {"data": PricingRule(**rule).model_dump(mode="json")}
