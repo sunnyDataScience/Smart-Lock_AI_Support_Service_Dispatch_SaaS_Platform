@@ -18,6 +18,7 @@ import {
   X,
   UserPlus,
   Flag,
+  Star,
 } from "lucide-react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
@@ -37,6 +38,7 @@ type WorkOrderAssignRequest = components["schemas"]["WorkOrderAssignRequest"];
 type AssignReasonCode = WorkOrderAssignRequest["reason_code"];
 type WorkOrderEscalateRequest = components["schemas"]["WorkOrderEscalateRequest"];
 type EscalateLevel = WorkOrderEscalateRequest["level"];
+type WorkOrderConfirmRequest = components["schemas"]["WorkOrderConfirmRequest"];
 type ProblemCard = components["schemas"]["ProblemCard"];
 type ProblemCardEnvelope = components["schemas"]["ProblemCardEnvelope"];
 type ProblemCardStatus = components["schemas"]["ProblemCardStatus"];
@@ -74,6 +76,7 @@ const ESCALATE_FROM: ReadonlySet<WorkOrderStatus> = new Set([
   "arrived",
   "in_progress",
 ]);
+const CONFIRM_FROM: ReadonlySet<WorkOrderStatus> = new Set(["completed"]);
 
 const ESCALATE_LEVEL_OPTIONS: { value: EscalateLevel; label: string; hint: string }[] = [
   {
@@ -690,8 +693,15 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-type ActionMode = "complete" | "cancel" | "assign" | "escalate" | null;
-type ActionPending = "accept" | "complete" | "cancel" | "assign" | "escalate" | null;
+type ActionMode = "complete" | "cancel" | "assign" | "escalate" | "confirm" | null;
+type ActionPending =
+  | "accept"
+  | "complete"
+  | "cancel"
+  | "assign"
+  | "escalate"
+  | "confirm"
+  | null;
 
 export default function WorkOrderDetailPage({ params }: PageProps) {
   const { id } = use(params);
@@ -820,6 +830,26 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
     }
   };
 
+  const handleConfirm = async (rating: number, feedback: string) => {
+    setActionPending("confirm");
+    setActionError(null);
+    try {
+      const body: WorkOrderConfirmRequest = { rating };
+      if (feedback) body.feedback = feedback;
+      const res = await api.post<WorkOrderEnvelope>(
+        `/api/v1/work-orders/${encodeURIComponent(id)}/confirm`,
+        body,
+      );
+      setOrder(res.data ?? null);
+      setActionMode(null);
+      setActionToast("客戶已確認結案");
+    } catch (e) {
+      setActionError(formatActionError(e));
+    } finally {
+      setActionPending(null);
+    }
+  };
+
   const handleEscalate = async (level: EscalateLevel, reason: string) => {
     setActionPending("escalate");
     setActionError(null);
@@ -862,7 +892,9 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
   const canComplete = order ? COMPLETE_FROM.has(order.status) : false;
   const canCancel = order ? CANCEL_FROM.has(order.status) : false;
   const canEscalate = order ? ESCALATE_FROM.has(order.status) : false;
-  const anyAction = canAccept || canAssign || canComplete || canCancel || canEscalate;
+  const canConfirm = order ? CONFIRM_FROM.has(order.status) : false;
+  const anyAction =
+    canAccept || canAssign || canComplete || canCancel || canEscalate || canConfirm;
   const assignLabel = order?.technician_id ? "重新指派" : "指派技師";
 
   return (
@@ -981,6 +1013,19 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
                     取消工單
                   </button>
                 )}
+                {canConfirm && (
+                  <button
+                    onClick={() => {
+                      setActionError(null);
+                      setActionMode("confirm");
+                    }}
+                    disabled={actionPending !== null}
+                    className="inline-flex items-center gap-2 rounded-md bg-[#0EA5E9] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Star className="h-4 w-4" />
+                    確認結案
+                  </button>
+                )}
                 {canEscalate && (
                   <button
                     onClick={() => {
@@ -1070,6 +1115,14 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
           pending={actionPending === "escalate"}
           onCancel={() => setActionMode(null)}
           onSubmit={handleEscalate}
+        />
+      )}
+
+      {actionMode === "confirm" && (
+        <ConfirmModal
+          pending={actionPending === "confirm"}
+          onCancel={() => setActionMode(null)}
+          onSubmit={handleConfirm}
         />
       )}
 
@@ -1381,6 +1434,119 @@ function CancelModal({
             className="rounded-md bg-[var(--error)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? "送出中…" : "確認取消"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmModal({
+  pending,
+  onCancel,
+  onSubmit,
+}: {
+  pending: boolean;
+  onCancel: () => void;
+  onSubmit: (rating: number, feedback: string) => Promise<void>;
+}) {
+  const [rating, setRating] = useState<number>(5);
+  const [hover, setHover] = useState<number>(0);
+  const [feedback, setFeedback] = useState("");
+  const trimmed = feedback.trim();
+  const valid = rating >= 1 && rating <= 5 && trimmed.length <= 1000;
+  const display = hover > 0 ? hover : rating;
+  const ratingHints: Record<number, string> = {
+    1: "極不滿意",
+    2: "不滿意",
+    3: "普通",
+    4: "滿意",
+    5: "非常滿意",
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4"
+      onClick={onCancel}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-[480px] rounded-xl bg-white p-6 shadow-xl"
+      >
+        <div className="mb-4 flex items-center gap-2">
+          <Star className="h-5 w-5 text-[#0EA5E9]" />
+          <span className="text-[18px] font-semibold text-[var(--text-primary)]">
+            客戶確認結案
+          </span>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <label className="text-[12px] font-medium text-[var(--text-secondary)]">
+              滿意度評分 <span className="text-[var(--error)]">*</span>
+            </label>
+            <div className="flex items-center gap-2">
+              {[1, 2, 3, 4, 5].map((n) => {
+                const filled = n <= display;
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setRating(n)}
+                    onMouseEnter={() => setHover(n)}
+                    onMouseLeave={() => setHover(0)}
+                    className="p-1 transition"
+                    aria-label={`給 ${n} 星`}
+                  >
+                    <Star
+                      className={`h-7 w-7 ${
+                        filled ? "fill-[#F59E0B] text-[#F59E0B]" : "text-[#CBD5E1]"
+                      }`}
+                    />
+                  </button>
+                );
+              })}
+              <span className="ml-2 text-[13px] font-medium text-[var(--text-secondary)]">
+                {ratingHints[display] ?? ""}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-[12px] font-medium text-[var(--text-secondary)]">
+              客戶意見（可留空，最多 1000 字）
+            </label>
+            <textarea
+              value={feedback}
+              onChange={(e) => setFeedback(e.target.value.slice(0, 1000))}
+              rows={4}
+              placeholder="例如：技師準時到場、解說清楚，鎖具運作正常"
+              className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[#0EA5E9] focus:outline-none"
+            />
+            <span className="text-[11px] text-[var(--text-disabled)]">
+              {trimmed.length} / 1000
+            </span>
+          </div>
+        </div>
+
+        <p className="mt-3 rounded-md bg-[#E0F2FE] px-3 py-2 text-[12px] leading-[1.6] text-[#075985]">
+          確認結案為終局狀態 — 一旦送出無法再切回 in_progress / completed。
+        </p>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            disabled={pending}
+            className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
+          >
+            返回
+          </button>
+          <button
+            onClick={() => onSubmit(rating, trimmed)}
+            disabled={pending || !valid}
+            className="rounded-md bg-[#0EA5E9] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? "送出中…" : "確認結案"}
           </button>
         </div>
       </div>
