@@ -46,6 +46,7 @@ const navItems: NavItem[] = [
       { label: "案例庫", href: "/knowledge-base/cases" },
       { label: "手冊管理", href: "/knowledge-base/manuals" },
       { label: "SOP 審核", href: "/knowledge-base/sop-drafts" },
+      { label: "家族覆核", href: "/knowledge-base/family-reviews" },
     ],
   },
   {
