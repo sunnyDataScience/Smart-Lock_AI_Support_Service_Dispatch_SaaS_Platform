@@ -49,7 +49,6 @@ type ProblemCardStatus = components["schemas"]["ProblemCardStatus"];
 type Message = components["schemas"]["Message"];
 type MessagePage = components["schemas"]["MessagePage"];
 type Technician = components["schemas"]["Technician"];
-type TechnicianPage = components["schemas"]["TechnicianPage"];
 
 const ACCEPT_FROM: ReadonlySet<WorkOrderStatus> = new Set(["assigned"]);
 const ASSIGN_FROM: ReadonlySet<WorkOrderStatus> = new Set(["inquiring", "assigned"]);
@@ -1175,6 +1174,7 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
       {actionMode === "assign" && (
         <AssignModal
           pending={actionPending === "assign"}
+          workOrderId={id}
           currentTechnicianId={order?.technician_id ?? null}
           onCancel={() => setActionMode(null)}
           onSubmit={handleAssign}
@@ -1301,13 +1301,29 @@ function CompleteModal({
   );
 }
 
+interface CandidateItem {
+  technician: Technician;
+  score: number;
+  distance_km?: number | null;
+  skill_match?: number | null;
+  availability_eta_minutes?: number | null;
+}
+
+interface CandidatesResponse {
+  candidates: CandidateItem[];
+  total: number;
+  auto_dispatch_attempts?: unknown[];
+}
+
 function AssignModal({
   pending,
+  workOrderId,
   currentTechnicianId,
   onCancel,
   onSubmit,
 }: {
   pending: boolean;
+  workOrderId: string;
   currentTechnicianId: string | null;
   onCancel: () => void;
   onSubmit: (
@@ -1316,7 +1332,7 @@ function AssignModal({
     reasonText: string,
   ) => Promise<void>;
 }) {
-  const [techs, setTechs] = useState<Technician[]>([]);
+  const [candidates, setCandidates] = useState<CandidateItem[]>([]);
   const [techsLoading, setTechsLoading] = useState(true);
   const [techsError, setTechsError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string>("");
@@ -1329,15 +1345,15 @@ function AssignModal({
     let cancelled = false;
     (async () => {
       try {
-        const res = await api.get<TechnicianPage>(
-          "/api/v1/technicians",
-          { query: { limit: 100, status: "active" } },
+        const res = await api.get<CandidatesResponse>(
+          "/api/v1/dispatch/candidates",
+          { query: { work_order_id: workOrderId } },
         );
         if (cancelled) return;
-        const items = (res.items ?? []) as Technician[];
-        setTechs(items);
-        const initial = items.find((t) => t.id !== currentTechnicianId);
-        if (initial) setSelected(initial.id);
+        const items = res.candidates ?? [];
+        setCandidates(items);
+        const initial = items.find((c) => c.technician.id !== currentTechnicianId);
+        if (initial) setSelected(initial.technician.id);
       } catch (e) {
         if (cancelled) return;
         setTechsError(
@@ -1354,55 +1370,105 @@ function AssignModal({
     return () => {
       cancelled = true;
     };
-  }, [currentTechnicianId]);
+  }, [workOrderId, currentTechnicianId]);
 
   const canSubmit = selected !== "" && !pending;
 
+  const scoreColor = (score: number) =>
+    score >= 70 ? "#10B981" : score >= 40 ? "#F59E0B" : "#94A3B8";
+  const formatDistance = (km: number | null | undefined): string => {
+    if (km == null) return "—";
+    if (km === 0) return "區內";
+    return `≈ ${km} km`;
+  };
+  const formatEta = (min: number | null | undefined): string =>
+    min == null ? "—" : `${min} 分鐘可達`;
+
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-[520px] rounded-xl bg-white p-6 shadow-xl">
+      <div className="w-full max-w-[640px] rounded-xl bg-white p-6 shadow-xl">
         <div className="mb-4 flex items-center gap-2">
           <UserPlus className="h-5 w-5 text-[var(--primary)]" />
           <span className="text-[18px] font-semibold text-[var(--text-primary)]">
             {currentTechnicianId ? "重新指派技師" : "指派技師"}
+          </span>
+          <span className="ml-auto text-[11px] text-[var(--text-disabled)]">
+            綜合分 = 0.4 技能 + 0.3 距離 + 0.3 評分
           </span>
         </div>
 
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-[12px] font-medium text-[var(--text-secondary)]">
-              選擇技師 <span className="text-[var(--error)]">*</span>
+              候選技師（依綜合分排序） <span className="text-[var(--error)]">*</span>
             </label>
             {techsLoading ? (
               <div className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] text-[var(--text-disabled)]">
-                載入技師清單中…
+                計算候選技師中…
               </div>
             ) : techsError ? (
               <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
                 載入失敗：{techsError}
               </div>
-            ) : techs.length === 0 ? (
+            ) : candidates.length === 0 ? (
               <div className="rounded-md border border-dashed border-[var(--border)] px-3 py-2 text-[13px] text-[var(--text-disabled)]">
-                目前無 active 技師可指派
+                目前無可派候選技師（已排除歇業 / 熔斷狀態）
               </div>
             ) : (
-              <select
-                value={selected}
-                onChange={(e) => setSelected(e.target.value)}
-                className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
-              >
-                <option value="" disabled>
-                  請選擇…
-                </option>
-                {techs.map((t) => {
+              <div className="flex max-h-[320px] flex-col gap-2 overflow-y-auto pr-1">
+                {candidates.map((c) => {
+                  const t = c.technician;
+                  const active = selected === t.id;
                   const isCurrent = t.id === currentTechnicianId;
                   return (
-                    <option key={t.id} value={t.id}>
-                      {t.name}（{t.phone}）{isCurrent ? " · 目前已指派" : ""}
-                    </option>
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setSelected(t.id)}
+                      className={`flex flex-col gap-1 rounded-lg border px-3 py-2 text-left transition ${
+                        active
+                          ? "border-[var(--primary)] bg-[var(--primary-light)]"
+                          : "border-[var(--border)] bg-white hover:bg-[var(--bg-page)]"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-[14px] font-semibold text-[var(--text-primary)]">
+                          {t.name}
+                        </span>
+                        <span className="text-[11px] text-[var(--text-secondary)]">
+                          {t.phone}
+                        </span>
+                        {isCurrent && (
+                          <span className="rounded bg-[#FEF3C7] px-2 py-[1px] text-[10px] font-medium text-[#92400E]">
+                            目前已指派
+                          </span>
+                        )}
+                        <span
+                          className="ml-auto rounded px-2 py-[2px] text-[12px] font-bold text-white"
+                          style={{ backgroundColor: scoreColor(c.score) }}
+                          title="綜合分（0~100）"
+                        >
+                          {c.score.toFixed(1)}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--text-secondary)]">
+                        <span>
+                          技能 {((c.skill_match ?? 0) * 100).toFixed(0)}%
+                        </span>
+                        <span>距離 {formatDistance(c.distance_km)}</span>
+                        <span>評分 {t.rating.toFixed(1)} / 5</span>
+                        <span>{formatEta(c.availability_eta_minutes)}</span>
+                        {t.skills.length > 0 && (
+                          <span title={t.skills.join(", ")}>
+                            專長 {t.skills.slice(0, 2).join("、")}
+                            {t.skills.length > 2 ? "…" : ""}
+                          </span>
+                        )}
+                      </div>
+                    </button>
                   );
                 })}
-              </select>
+              </div>
             )}
           </div>
 
