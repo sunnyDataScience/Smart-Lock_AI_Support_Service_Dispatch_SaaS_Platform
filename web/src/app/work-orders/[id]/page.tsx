@@ -31,6 +31,18 @@ import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 type WorkOrderEnvelope = components["schemas"]["WorkOrderEnvelope"];
+type ProblemCard = components["schemas"]["ProblemCard"];
+type ProblemCardEnvelope = components["schemas"]["ProblemCardEnvelope"];
+type ProblemCardStatus = components["schemas"]["ProblemCardStatus"];
+
+const PC_STATUS_STYLE: Record<
+  ProblemCardStatus,
+  { label: string; color: string; bg: string }
+> = {
+  draft: { label: "草稿", color: "#6366F1", bg: "#EEF2FF" },
+  confirmed: { label: "已確認", color: "#3B82F6", bg: "#DBEAFE" },
+  resolved: { label: "已解決", color: "#10B981", bg: "#D1FAE5" },
+};
 
 /* ── SLA Timeline (mock) ─────────────────────────── */
 
@@ -79,44 +91,156 @@ function SlaTimeline() {
   );
 }
 
-/* ── Problem Card Summary (mock) ─────────────────── */
+/* ── Problem Card Summary ─────────────────────────── */
 
-const diagChain = [
-  { label: "症狀", value: "指紋無法解鎖" },
-  { label: "故障", value: "指紋模組失效" },
-  { label: "失效模式", value: "感測器磨損" },
-  { label: "缺陷", value: "模組老化" },
-];
+function ProblemCardSummary({ pcId }: { pcId?: string }) {
+  const [card, setCard] = useState<ProblemCard | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-function ProblemCardSummary() {
+  useEffect(() => {
+    if (!pcId) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setCard(null);
+    (async () => {
+      try {
+        const res = await api.get<ProblemCardEnvelope>(
+          `/api/v1/problem-cards/${encodeURIComponent(pcId)}`,
+        );
+        if (!cancelled) setCard(res.data ?? null);
+      } catch (e) {
+        if (cancelled) return;
+        setError(
+          e instanceof ApiError
+            ? `${e.errorCode} (${e.status})：${e.message}`
+            : e instanceof Error
+              ? e.message
+              : String(e),
+        );
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pcId]);
+
+  const pcStatus = card ? PC_STATUS_STYLE[card.status] : null;
+  const pcUrgency = card ? URGENCY_STYLE[card.urgency] : null;
+
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-8 py-5">
       <div className="flex items-center gap-3">
         <FileText className="h-5 w-5 text-[var(--primary)]" />
         <span className="text-[20px] font-semibold text-[var(--text-primary)]">
-          問題診斷摘要（示意）
+          問題診斷摘要
         </span>
         <span className="rounded bg-[var(--primary-light)] px-2 py-1 text-[12px] text-[var(--primary)]">
           ProblemCard
         </span>
+        {pcId && (
+          <Link
+            href={`/problem-cards/${pcId}`}
+            className="ml-auto font-mono text-[12px] font-medium text-[var(--primary)] hover:underline"
+            title={pcId}
+          >
+            {pcId.slice(0, 8)} →
+          </Link>
+        )}
       </div>
-      <div className="flex items-center gap-2">
-        {diagChain.map((n, i) => (
-          <div key={n.label} className="contents">
-            <div className="flex flex-1 flex-col gap-1 rounded-lg bg-[#F1F5F9] p-3">
-              <span className="text-[11px] text-[var(--text-secondary)]">
-                {n.label}
+
+      {!pcId && (
+        <span className="text-[13px] text-[var(--text-disabled)]">
+          此工單未關聯問題卡
+        </span>
+      )}
+      {error && (
+        <span className="text-[13px] text-red-600">載入失敗：{error}</span>
+      )}
+      {loading && !card && (
+        <span className="text-[13px] text-[var(--text-disabled)]">
+          載入問題卡中…
+        </span>
+      )}
+
+      {card && (
+        <>
+          <div className="flex items-center gap-2">
+            {pcStatus && (
+              <span
+                className="rounded-full px-3 py-1 text-[12px] font-semibold"
+                style={{ color: pcStatus.color, backgroundColor: pcStatus.bg }}
+              >
+                {pcStatus.label}
               </span>
-              <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-                {n.value}
+            )}
+            {pcUrgency && (
+              <span
+                className="rounded px-2 py-1 text-[11px] font-medium"
+                style={{ color: pcUrgency.color, backgroundColor: pcUrgency.bg }}
+              >
+                緊急度 {pcUrgency.label}
               </span>
-            </div>
-            {i < diagChain.length - 1 && (
-              <ArrowRight className="h-4 w-4 flex-shrink-0 text-[var(--text-disabled)]" />
+            )}
+            {card.confidence_score != null && (
+              <span className="text-[12px] text-[var(--text-secondary)]">
+                AI 信心 {(card.confidence_score * 100).toFixed(0)}%
+              </span>
             )}
           </div>
-        ))}
-      </div>
+
+          <div className="grid grid-cols-4 gap-2">
+            <div className="flex flex-col gap-1 rounded-lg bg-[#F1F5F9] p-3">
+              <span className="text-[11px] text-[var(--text-secondary)]">
+                品牌
+              </span>
+              <span className="text-[13px] font-semibold text-[var(--text-primary)]">
+                {card.brand || "—"}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1 rounded-lg bg-[#F1F5F9] p-3">
+              <span className="text-[11px] text-[var(--text-secondary)]">
+                型號
+              </span>
+              <span className="text-[13px] font-semibold text-[var(--text-primary)]">
+                {card.model || "—"}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1 rounded-lg bg-[#F1F5F9] p-3">
+              <span className="text-[11px] text-[var(--text-secondary)]">
+                類別
+              </span>
+              <span className="text-[13px] font-semibold text-[var(--text-primary)]">
+                {card.category || "—"}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1 rounded-lg bg-[#F1F5F9] p-3">
+              <span className="text-[11px] text-[var(--text-secondary)]">
+                關聯對話
+              </span>
+              <Link
+                href={`/conversations/${card.conversation_id}`}
+                className="font-mono text-[13px] font-semibold text-[var(--primary)] hover:underline"
+                title={card.conversation_id}
+              >
+                {card.conversation_id.slice(0, 8)}
+              </Link>
+            </div>
+          </div>
+
+          <div className="rounded-lg bg-[#F8FAFC] p-3">
+            <span className="block text-[11px] text-[var(--text-secondary)]">
+              症狀描述
+            </span>
+            <p className="mt-1 text-[13px] leading-[1.6] text-[var(--text-primary)]">
+              {card.symptom || "—"}
+            </p>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -488,11 +612,11 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
           <div className="mx-8 my-4 flex items-start gap-2 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3">
             <Info className="mt-[2px] h-4 w-4 flex-shrink-0 text-[#64748B]" />
             <span className="text-[13px] leading-[1.6] text-[#475569]">
-              以下 SLA 時間軸、問題診斷摘要、媒體、工單歷程、對話記錄、完工報告與異常為示意，待派工模組接入後將顯示真實資料。
+              以下 SLA 時間軸、媒體、工單歷程、對話記錄、完工報告與異常為示意，待派工模組接入後將顯示真實資料；問題診斷摘要為即時資料。
             </span>
           </div>
 
-          <ProblemCardSummary />
+          <ProblemCardSummary pcId={order?.problem_card_id} />
           <LineMediaGallery />
           <WorkTimeline />
           <ConversationThread />
