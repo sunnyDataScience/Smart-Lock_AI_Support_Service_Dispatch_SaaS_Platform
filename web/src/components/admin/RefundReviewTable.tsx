@@ -6,10 +6,13 @@ import { formatRelative } from "@/lib/format";
 
 type RefundRequest = components["schemas"]["RefundRequest"];
 type RefundRequestStatus = components["schemas"]["RefundRequestStatus"];
+type Decision = "approve" | "reject" | "escalate";
 
 interface Props {
   items: RefundRequest[];
   loading?: boolean;
+  onDecide?: (refund: RefundRequest, decision: Decision) => void;
+  pendingId?: string | null;
 }
 
 const statusConfig: Record<RefundRequestStatus, { label: string; textColor: string; bgColor: string }> = {
@@ -43,7 +46,7 @@ function isUrgentStatus(status: RefundRequestStatus): boolean {
   return status === "escalated" || status === "pending";
 }
 
-export default function RefundReviewTable({ items, loading }: Props) {
+export default function RefundReviewTable({ items, loading, onDecide, pendingId }: Props) {
   return (
     <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
       <div className="flex h-[44px] items-center rounded-t-lg bg-[#F1F5F9]">
@@ -142,27 +145,37 @@ export default function RefundReviewTable({ items, loading }: Props) {
             </div>
 
             <div className="flex w-[160px] items-center justify-center gap-[6px] px-[6px]">
-              {isClosed ? (
+              {isClosed || row.status === "approved" ? (
                 <span className="rounded-md bg-[#E2E8F0] px-3 py-1 text-[11px] font-medium text-[var(--text-secondary)]">
-                  {row.status === "executed" ? "已完款" : row.status === "rejected" ? "已拒絕" : "已取消"}
+                  {row.status === "executed"
+                    ? "已完款"
+                    : row.status === "approved"
+                      ? "已核准"
+                      : row.status === "rejected"
+                        ? "已拒絕"
+                        : "已取消"}
                 </span>
-              ) : (
+              ) : row.status === "pending" ? (
                 <>
                   <button
-                    disabled
-                    title="即將推出"
-                    className="cursor-not-allowed rounded-md bg-[var(--primary)] px-3 py-1 text-[11px] font-medium text-white opacity-60"
+                    onClick={() => onDecide?.(row, "approve")}
+                    disabled={!onDecide || pendingId === row.id}
+                    className="rounded-md bg-[var(--primary)] px-3 py-1 text-[11px] font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     核准
                   </button>
                   <button
-                    disabled
-                    title="即將推出"
-                    className="cursor-not-allowed rounded-md bg-[#EF4444] px-3 py-1 text-[11px] font-medium text-white opacity-60"
+                    onClick={() => onDecide?.(row, "reject")}
+                    disabled={!onDecide || pendingId === row.id}
+                    className="rounded-md bg-[#EF4444] px-3 py-1 text-[11px] font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     拒絕
                   </button>
                 </>
+              ) : (
+                <span className="rounded-md bg-[#DBEAFE] px-3 py-1 text-[11px] font-medium text-[#1E40AF]">
+                  已升級
+                </span>
               )}
             </div>
           </div>
