@@ -660,19 +660,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [technician_id, reason_code]
-              properties:
-                technician_id: { type: string, format: uuid }
-                reason_code:
-                  type: string
-                  enum: [auto_dispatch_exhausted, customer_requested_specific_tech, skill_shortage_override, sla_rescue, other]
-                reason_text: { type: string, maxLength: 500 }
-                override_flags:
-                  type: object
-                  properties:
-                    allow_circuit: { type: boolean, default: false }
-                    allow_cross_area: { type: boolean, default: false }
+              $ref: '#/components/schemas/WorkOrderAssignRequest'
       responses:
         '200':
           description: 指派成功
@@ -2629,6 +2617,22 @@ components:
         reason:
           type: string
           maxLength: 500
+
+    WorkOrderAssignRequest:
+      type: object
+      description: 手動指派技師（admin override）。technician_id + reason_code 必填；override_flags 預留 circuit-breaker / cross-area，MVP 一律 false。
+      required: [technician_id, reason_code]
+      properties:
+        technician_id: { type: string, format: uuid }
+        reason_code:
+          type: string
+          enum: [auto_dispatch_exhausted, customer_requested_specific_tech, skill_shortage_override, sla_rescue, other]
+        reason_text: { type: string, maxLength: 500 }
+        override_flags:
+          type: object
+          properties:
+            allow_circuit: { type: boolean, default: false }
+            allow_cross_area: { type: boolean, default: false }
 
     # --------- 保固申請（list/get） ---------
     WarrantyClaimStatus:

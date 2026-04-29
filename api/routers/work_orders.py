@@ -1,12 +1,11 @@
-"""WorkOrders router — read endpoints + 3 state-machine writes。
+"""WorkOrders router — read endpoints + 4 state-machine writes。
 
 operationId 對齊 openapi.yaml：
   listWorkOrders, getWorkOrder, getDispatchQueue,
-  acceptWorkOrder, completeWorkOrder, cancelWorkOrder
+  acceptWorkOrder, assignWorkOrder, completeWorkOrder, cancelWorkOrder
 
-未實作：assignWorkOrder / escalateWorkOrder / proposeReschedule /
-submitWorkOrderSignature / confirmWorkOrder（依賴技師 AI 推薦、SLA 模組
-或上傳服務，待後續 phase）。
+未實作：escalateWorkOrder / proposeReschedule / submitWorkOrderSignature /
+confirmWorkOrder（依賴 SLA 模組或上傳服務，待後續 phase）。
 """
 
 from __future__ import annotations
@@ -19,6 +18,7 @@ from models.generated import (
     CompletionReport,
     DispatchQueueSnapshot,
     WorkOrder,
+    WorkOrderAssignRequest,
     WorkOrderCancelRequest,
     WorkOrderEnvelope,
     WorkOrderPage,
@@ -99,6 +99,31 @@ async def accept_work_order(
 ) -> dict:
     order = await work_order_service.accept_order(
         tenant_id=user.tenant_id, wo_id=id,
+    )
+    payload = {"data": WorkOrder(**order).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload
+
+
+@router.post(
+    "/work-orders/{id}/assign",
+    operation_id="assignWorkOrder",
+    summary="手動指派技師（created | assigned → assigned）",
+    response_model=WorkOrderEnvelope,
+)
+async def assign_work_order(
+    body: WorkOrderAssignRequest,
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    order = await work_order_service.assign_order(
+        tenant_id=user.tenant_id,
+        wo_id=id,
+        technician_id=str(body.technician_id),
+        reason_code=body.reason_code.value if hasattr(body.reason_code, "value") else str(body.reason_code),
+        reason_text=body.reason_text,
     )
     payload = {"data": WorkOrder(**order).model_dump(mode="json")}
     if idem is not None:

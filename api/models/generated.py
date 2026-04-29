@@ -220,6 +220,30 @@ class WorkOrderCancelRequest(BaseModel):
     reason: str | None = Field(None, max_length=500)
 
 
+class ReasonCode(StrEnum):
+    auto_dispatch_exhausted = 'auto_dispatch_exhausted'
+    customer_requested_specific_tech = 'customer_requested_specific_tech'
+    skill_shortage_override = 'skill_shortage_override'
+    sla_rescue = 'sla_rescue'
+    other = 'other'
+
+
+class OverrideFlags(BaseModel):
+    allow_circuit: bool | None = False
+    allow_cross_area: bool | None = False
+
+
+class WorkOrderAssignRequest(BaseModel):
+    """
+    手動指派技師（admin override）。technician_id + reason_code 必填；override_flags 預留 circuit-breaker / cross-area，MVP 一律 false。
+    """
+
+    technician_id: UUID
+    reason_code: ReasonCode
+    reason_text: str | None = Field(None, max_length=500)
+    override_flags: OverrideFlags | None = None
+
+
 class WarrantyClaimStatus(StrEnum):
     filed = 'filed'
     approved = 'approved'

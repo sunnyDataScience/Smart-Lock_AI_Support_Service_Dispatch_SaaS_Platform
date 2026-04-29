@@ -176,6 +176,7 @@ async def get_order(*, tenant_id: str, wo_id: str) -> dict:
 _ACCEPT_FROM = {"assigned"}
 _COMPLETE_FROM = {"accepted", "in_progress"}
 _CANCEL_FROM = {"created", "assigned", "accepted", "in_progress"}
+_ASSIGN_FROM = {"created", "assigned"}  # 允許重派（assigned → assigned 換人）
 
 
 async def _fetch_status_for_update(wo_id: str, tenant_id: str) -> str:
@@ -278,6 +279,63 @@ async def cancel_order(
             "WHERE id = %s::uuid",
             (wo_id,),
         )
+    return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+
+
+async def assign_order(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    technician_id: str,
+    reason_code: str,
+    reason_text: str | None = None,
+) -> dict:
+    """created | assigned → assigned。
+
+    驗證技師同租戶且 status='active'；附加 [ASSIGNED] 註記到 service_report。
+    MVP 不執行 circuit-breaker / cross-area / skill-shortage 規則檢查（OpenAPI
+    override_flags 接受但忽略），留待派工引擎模組接入後啟用。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    current = await _fetch_status_for_update(wo_id, tenant_id)
+    if current not in _ASSIGN_FROM:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot assign work order in status '{current}'; expected one of {sorted(_ASSIGN_FROM)}",
+            409,
+        )
+
+    # Verify technician exists, same tenant, active
+    cur = await db_module._conn.execute(
+        "SELECT id, status FROM technicians "
+        "WHERE id = %s::uuid AND tenant_id = %s::uuid",
+        (technician_id, tenant_id),
+    )
+    tech_row = await cur.fetchone()
+    if not tech_row:
+        raise ApiError("TECHNICIAN_NOT_FOUND", "Technician not found in this tenant", 404)
+    if tech_row[1] != "active":
+        raise ApiError(
+            "TECHNICIAN_NOT_AVAILABLE",
+            f"Technician status is '{tech_row[1]}'; only 'active' technicians can accept assignments",
+            409,
+        )
+
+    note = f"[ASSIGNED:{reason_code}]"
+    if reason_text:
+        note += f" {reason_text}"
+
+    await db_module._conn.execute(
+        "UPDATE work_orders SET "
+        "  technician_id = %s::uuid, "
+        "  status = 'assigned', "
+        "  service_report = COALESCE(service_report, '') || E'\\n' || %s, "
+        "  updated_at = NOW() "
+        "WHERE id = %s::uuid",
+        (technician_id, note, wo_id),
+    )
     return await get_order(tenant_id=tenant_id, wo_id=wo_id)
 
 
