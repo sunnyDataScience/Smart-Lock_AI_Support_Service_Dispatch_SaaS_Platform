@@ -112,6 +112,96 @@ async def list_manuals(
     return {"items": items, "next_cursor": next_cursor, "has_more": has_more}
 
 
+_ALLOWED_CONTENT_TYPES = {
+    "application/pdf",
+    "application/octet-stream",  # 部分瀏覽器/curl 不帶正確 mime
+}
+_MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB；對齊一般 PDF 手冊上限
+
+
+async def upload_manual(
+    *,
+    tenant_id: str,
+    uploader_user_id: str | None,
+    filename: str,
+    content_type: str | None,
+    file_bytes: bytes,
+    brand: str,
+    title: str,
+    model: str | None = None,
+) -> dict:
+    """uploadManual — 收檔後 INSERT manuals 一筆並回 202。
+
+    範圍（MVP）：
+      - 不真的解析 PDF / 不切 chunks / 不算 vector embedding（pipeline 模組 ownership）
+      - 僅做 size + content-type + 必填驗證 → INSERT manuals (status='processing')
+      - file 內容暫不持久化（本 phase 不引入 GCS / 檔案系統依賴），實際解析由
+        pipeline 從外部存儲讀取；本端點只負責建立 metadata 並回 manual_id
+      - 後續 pipeline 完成後會 UPDATE manuals SET status='completed', total_chunks=N
+    """
+    # ── 必填驗證 ──
+    if not brand or not brand.strip():
+        raise ApiError("VALIDATION_ERROR", "brand is required", 422)
+    if not title or not title.strip():
+        raise ApiError("VALIDATION_ERROR", "title is required", 422)
+    if not filename:
+        raise ApiError("VALIDATION_ERROR", "file is required", 422)
+
+    if len(title) > 200:
+        raise ApiError("VALIDATION_ERROR", "title must be at most 200 chars", 422)
+    if len(brand) > 100:
+        raise ApiError("VALIDATION_ERROR", "brand must be at most 100 chars", 422)
+    if model is not None and len(model) > 100:
+        raise ApiError("VALIDATION_ERROR", "model must be at most 100 chars", 422)
+
+    # ── 檔案驗證 ──
+    size = len(file_bytes)
+    if size == 0:
+        raise ApiError("VALIDATION_ERROR", "file is empty", 422)
+    if size > _MAX_UPLOAD_BYTES:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"file too large: {size} bytes > {_MAX_UPLOAD_BYTES} bytes",
+            422,
+        )
+    ct = (content_type or "").lower()
+    # 檔名 .pdf 結尾或 mime 命中皆放行（瀏覽器 mime 不一致時退一步用副檔名）
+    if not (
+        ct in _ALLOWED_CONTENT_TYPES
+        or filename.lower().endswith(".pdf")
+    ):
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"unsupported content_type '{content_type}'; expected application/pdf",
+            422,
+        )
+
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    # ── INSERT manuals ──
+    cur = await db_module._conn.execute(
+        "INSERT INTO manuals "
+        "  (tenant_id, filename, brand, model, file_size_bytes, "
+        "   total_chunks, status, uploaded_by, title) "
+        "VALUES (%s::uuid, %s, %s, %s, %s, 0, 'processing', %s, %s) "
+        f"RETURNING {_SELECT_COLUMNS}",
+        (
+            tenant_id,
+            filename[:255],
+            brand.strip()[:100],
+            (model.strip() if model else None),
+            size,
+            uploader_user_id,
+            title.strip()[:200],
+        ),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("DB_ERROR", "Failed to create manual record", 500)
+    return _row_to_dict(row)
+
+
 async def delete_manual(*, tenant_id: str, manual_id: str) -> None:
     """刪除手冊（含 manual_chunks 透過 FK ON DELETE CASCADE 同步清除）。"""
     if not await _ensure_conn():
