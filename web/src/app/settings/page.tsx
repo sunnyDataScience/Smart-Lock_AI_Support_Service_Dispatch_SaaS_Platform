@@ -12,7 +12,7 @@ import {
 import Sidebar from "@/components/layout/Sidebar";
 import PricingForm from "@/components/settings/PricingForm";
 import SystemConfigForm from "@/components/settings/SystemConfigForm";
-import { getCurrentSession, type CurrentSession } from "@/lib/api";
+import { ApiError, api, getCurrentSession, type CurrentSession } from "@/lib/api";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "系統管理員",
@@ -161,6 +161,68 @@ function ProfileForm() {
 }
 
 function SecurityForm() {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  function reset() {
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setError(null);
+    setSuccess(null);
+  }
+
+  function validate(): string | null {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return "請填寫所有密碼欄位";
+    }
+    if (newPassword.length < 8 || newPassword.length > 72) {
+      return "新密碼長度須介於 8–72 字元";
+    }
+    if (newPassword !== confirmPassword) {
+      return "兩次輸入的新密碼不一致";
+    }
+    if (currentPassword === newPassword) {
+      return "新密碼不可與目前密碼相同";
+    }
+    return null;
+  }
+
+  async function handleSubmit() {
+    setError(null);
+    setSuccess(null);
+    const v = validate();
+    if (v) {
+      setError(v);
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await api.post<unknown>("/api/v1/auth/change-password", {
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      setSuccess("密碼已更新");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (e) {
+      setError(
+        e instanceof ApiError
+          ? `${e.errorCode} (${e.status})：${e.message}`
+          : e instanceof Error
+            ? e.message
+            : String(e),
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <div className="flex flex-1 flex-col gap-6 overflow-auto rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
       <div className="flex items-center justify-between">
@@ -169,7 +231,7 @@ function SecurityForm() {
             帳戶安全
           </span>
           <span className="rounded bg-[#F1F5F9] px-2 py-[2px] text-[11px] text-[var(--text-secondary)]">
-            示意（待密碼變更 / 2FA endpoint 上線）
+            密碼變更已上線；2FA / 登入裝置管理待後續模組
           </span>
         </div>
         <span className="text-[13px] text-[var(--text-secondary)]">
@@ -179,34 +241,68 @@ function SecurityForm() {
 
       <div className="h-px w-full bg-[var(--border)]" />
 
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+          {success}
+        </div>
+      )}
+
       <div className="flex flex-col gap-5">
         <div className="flex gap-5">
-          <FormField label="目前密碼" value="••••••••" type="password" />
+          <PasswordInput
+            label="目前密碼"
+            value={currentPassword}
+            onChange={setCurrentPassword}
+            placeholder="輸入目前密碼"
+            disabled={submitting}
+          />
           <div className="flex-1" />
         </div>
         <div className="flex gap-5">
-          <FormField label="新密碼" value="" placeholder="輸入新密碼" type="password" />
-          <FormField label="確認新密碼" value="" placeholder="再次輸入新密碼" type="password" />
+          <PasswordInput
+            label="新密碼"
+            value={newPassword}
+            onChange={setNewPassword}
+            placeholder="輸入新密碼（8–72 字元）"
+            disabled={submitting}
+          />
+          <PasswordInput
+            label="確認新密碼"
+            value={confirmPassword}
+            onChange={setConfirmPassword}
+            placeholder="再次輸入新密碼"
+            disabled={submitting}
+          />
         </div>
       </div>
 
       <div className="h-px w-full bg-[var(--border)]" />
 
       <div className="flex flex-col gap-4">
-        <span className="text-base font-semibold text-[var(--text-primary)]">
-          雙重驗證（2FA）
-        </span>
-        <div className="flex items-center justify-between rounded-lg border border-[var(--border)] p-4">
+        <div className="flex items-center gap-2">
+          <span className="text-base font-semibold text-[var(--text-primary)]">
+            雙重驗證（2FA）
+          </span>
+          <span className="rounded-md bg-[#FEF3C7] px-2 py-[2px] text-[10px] font-semibold text-[#92400E]">
+            待接入
+          </span>
+        </div>
+        <div className="flex items-center justify-between rounded-lg border border-dashed border-[var(--border)] bg-[#F8FAFC] p-4">
           <div className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-[var(--text-primary)]">
+            <span className="text-sm font-medium text-[var(--text-secondary)]">
               Authenticator App
             </span>
             <span className="text-[13px] text-[var(--text-secondary)]">
-              使用 Google Authenticator 或類似應用程式
+              需後端 TOTP enrol / verify endpoint；本期暫未提供
             </span>
           </div>
-          <span className="rounded-md bg-[#DCFCE7] px-2 py-1 text-xs font-semibold text-[#16A34A]">
-            已啟用
+          <span className="rounded-md bg-[#F1F5F9] px-2 py-1 text-xs font-semibold text-[var(--text-secondary)]">
+            未啟用
           </span>
         </div>
       </div>
@@ -214,15 +310,58 @@ function SecurityForm() {
       <div className="h-px w-full bg-[var(--border)]" />
 
       <div className="flex justify-end gap-3">
-        <button className="rounded-lg border border-[var(--border)] px-5 py-[10px]">
+        <button
+          type="button"
+          onClick={reset}
+          disabled={submitting}
+          className="rounded-lg border border-[var(--border)] px-5 py-[10px] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-60"
+        >
           <span className="text-sm font-medium text-[var(--text-secondary)]">
             取消
           </span>
         </button>
-        <button className="rounded-lg bg-[var(--primary)] px-5 py-[10px]">
-          <span className="text-sm font-medium text-white">更新密碼</span>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={submitting}
+          className="rounded-lg bg-[var(--primary)] px-5 py-[10px] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <span className="text-sm font-medium text-white">
+            {submitting ? "更新中…" : "更新密碼"}
+          </span>
         </button>
       </div>
+    </div>
+  );
+}
+
+function PasswordInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex flex-1 flex-col gap-[6px]">
+      <span className="text-[13px] font-semibold text-[var(--text-primary)]">
+        {label}
+      </span>
+      <input
+        type="password"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        disabled={disabled}
+        autoComplete="new-password"
+        className="h-10 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-60 placeholder:text-[var(--text-disabled)]"
+      />
     </div>
   );
 }
