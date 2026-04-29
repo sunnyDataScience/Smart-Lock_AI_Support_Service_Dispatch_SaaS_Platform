@@ -1583,6 +1583,20 @@ export interface components {
         WorkOrderCancelRequest: {
             reason?: string;
         };
+        /** @description 手動指派技師（admin override）。technician_id + reason_code 必填；override_flags 預留 circuit-breaker / cross-area，MVP 一律 false。 */
+        WorkOrderAssignRequest: {
+            /** Format: uuid */
+            technician_id: string;
+            /** @enum {string} */
+            reason_code: "auto_dispatch_exhausted" | "customer_requested_specific_tech" | "skill_shortage_override" | "sla_rescue" | "other";
+            reason_text?: string;
+            override_flags?: {
+                /** @default false */
+                allow_circuit: boolean;
+                /** @default false */
+                allow_cross_area: boolean;
+            };
+        };
         /** @enum {string} */
         WarrantyClaimStatus: "filed" | "approved" | "rejected" | "in_progress" | "closed";
         /** @description 保固申請（read-only） */
@@ -3546,19 +3560,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    /** Format: uuid */
-                    technician_id: string;
-                    /** @enum {string} */
-                    reason_code: "auto_dispatch_exhausted" | "customer_requested_specific_tech" | "skill_shortage_override" | "sla_rescue" | "other";
-                    reason_text?: string;
-                    override_flags?: {
-                        /** @default false */
-                        allow_circuit?: boolean;
-                        /** @default false */
-                        allow_cross_area?: boolean;
-                    };
-                };
+                "application/json": components["schemas"]["WorkOrderAssignRequest"];
             };
         };
         responses: {

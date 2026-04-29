@@ -16,6 +16,7 @@ import {
   Info,
   CheckCircle2,
   X,
+  UserPlus,
 } from "lucide-react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
@@ -31,13 +32,18 @@ import type { components } from "@/types/api.generated";
 type WorkOrder = components["schemas"]["WorkOrder"];
 type WorkOrderEnvelope = components["schemas"]["WorkOrderEnvelope"];
 type WorkOrderStatus = components["schemas"]["WorkOrderStatus"];
+type WorkOrderAssignRequest = components["schemas"]["WorkOrderAssignRequest"];
+type AssignReasonCode = WorkOrderAssignRequest["reason_code"];
 type ProblemCard = components["schemas"]["ProblemCard"];
 type ProblemCardEnvelope = components["schemas"]["ProblemCardEnvelope"];
 type ProblemCardStatus = components["schemas"]["ProblemCardStatus"];
 type Message = components["schemas"]["Message"];
 type MessagePage = components["schemas"]["MessagePage"];
+type Technician = components["schemas"]["Technician"];
+type TechnicianPage = components["schemas"]["TechnicianPage"];
 
 const ACCEPT_FROM: ReadonlySet<WorkOrderStatus> = new Set(["assigned"]);
+const ASSIGN_FROM: ReadonlySet<WorkOrderStatus> = new Set(["inquiring", "assigned"]);
 const COMPLETE_FROM: ReadonlySet<WorkOrderStatus> = new Set(["accepted", "in_progress"]);
 const CANCEL_FROM: ReadonlySet<WorkOrderStatus> = new Set([
   "inquiring",
@@ -52,6 +58,14 @@ const CANCEL_FROM: ReadonlySet<WorkOrderStatus> = new Set([
   "arrived",
   "in_progress",
 ]);
+
+const ASSIGN_REASON_OPTIONS: { value: AssignReasonCode; label: string }[] = [
+  { value: "auto_dispatch_exhausted", label: "自動派工已耗盡候選" },
+  { value: "customer_requested_specific_tech", label: "客戶指定技師" },
+  { value: "skill_shortage_override", label: "技能不足但人手吃緊" },
+  { value: "sla_rescue", label: "SLA 救援" },
+  { value: "other", label: "其他" },
+];
 
 const PC_STATUS_STYLE: Record<
   ProblemCardStatus,
@@ -647,7 +661,8 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-type ActionMode = "complete" | "cancel" | null;
+type ActionMode = "complete" | "cancel" | "assign" | null;
+type ActionPending = "accept" | "complete" | "cancel" | "assign" | null;
 
 export default function WorkOrderDetailPage({ params }: PageProps) {
   const { id } = use(params);
@@ -656,7 +671,7 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
   const [error, setError] = useState<string | null>(null);
   const [problemCard, setProblemCard] = useState<ProblemCard | null>(null);
   const [actionMode, setActionMode] = useState<ActionMode>(null);
-  const [actionPending, setActionPending] = useState<"accept" | "complete" | "cancel" | null>(null);
+  const [actionPending, setActionPending] = useState<ActionPending>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionToast, setActionToast] = useState<string | null>(null);
 
@@ -749,6 +764,33 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
     }
   };
 
+  const handleAssign = async (
+    technicianId: string,
+    reasonCode: AssignReasonCode,
+    reasonText: string,
+  ) => {
+    setActionPending("assign");
+    setActionError(null);
+    try {
+      const body: Record<string, unknown> = {
+        technician_id: technicianId,
+        reason_code: reasonCode,
+      };
+      if (reasonText) body.reason_text = reasonText;
+      const res = await api.post<WorkOrderEnvelope>(
+        `/api/v1/work-orders/${encodeURIComponent(id)}/assign`,
+        body,
+      );
+      setOrder(res.data ?? null);
+      setActionMode(null);
+      setActionToast("已指派技師");
+    } catch (e) {
+      setActionError(formatActionError(e));
+    } finally {
+      setActionPending(null);
+    }
+  };
+
   useEffect(() => {
     if (!actionToast) return;
     const t = setTimeout(() => setActionToast(null), 2400);
@@ -766,9 +808,11 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
     : "—";
 
   const canAccept = order ? ACCEPT_FROM.has(order.status) : false;
+  const canAssign = order ? ASSIGN_FROM.has(order.status) : false;
   const canComplete = order ? COMPLETE_FROM.has(order.status) : false;
   const canCancel = order ? CANCEL_FROM.has(order.status) : false;
-  const anyAction = canAccept || canComplete || canCancel;
+  const anyAction = canAccept || canAssign || canComplete || canCancel;
+  const assignLabel = order?.technician_id ? "重新指派" : "指派技師";
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -845,6 +889,19 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
                   >
                     <CheckCircle2 className="h-4 w-4" />
                     {actionPending === "accept" ? "處理中…" : "接受派工"}
+                  </button>
+                )}
+                {canAssign && (
+                  <button
+                    onClick={() => {
+                      setActionError(null);
+                      setActionMode("assign");
+                    }}
+                    disabled={actionPending !== null}
+                    className="inline-flex items-center gap-2 rounded-md border border-[var(--primary)] bg-white px-4 py-2 text-[13px] font-semibold text-[var(--primary)] transition hover:bg-[var(--primary-light)] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    {assignLabel}
                   </button>
                 )}
                 {canComplete && (
@@ -932,6 +989,15 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
           pending={actionPending === "cancel"}
           onCancel={() => setActionMode(null)}
           onSubmit={handleCancel}
+        />
+      )}
+
+      {actionMode === "assign" && (
+        <AssignModal
+          pending={actionPending === "assign"}
+          currentTechnicianId={order?.technician_id ?? null}
+          onCancel={() => setActionMode(null)}
+          onSubmit={handleAssign}
         />
       )}
 
@@ -1024,6 +1090,167 @@ function CompleteModal({
             className="rounded-md bg-[var(--success)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? "送出中…" : "確認完工"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AssignModal({
+  pending,
+  currentTechnicianId,
+  onCancel,
+  onSubmit,
+}: {
+  pending: boolean;
+  currentTechnicianId: string | null;
+  onCancel: () => void;
+  onSubmit: (
+    technicianId: string,
+    reasonCode: AssignReasonCode,
+    reasonText: string,
+  ) => Promise<void>;
+}) {
+  const [techs, setTechs] = useState<Technician[]>([]);
+  const [techsLoading, setTechsLoading] = useState(true);
+  const [techsError, setTechsError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string>("");
+  const [reasonCode, setReasonCode] = useState<AssignReasonCode>(
+    "auto_dispatch_exhausted",
+  );
+  const [reasonText, setReasonText] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get<TechnicianPage>(
+          "/api/v1/technicians",
+          { query: { limit: 100, status: "active" } },
+        );
+        if (cancelled) return;
+        const items = (res.items ?? []) as Technician[];
+        setTechs(items);
+        const initial = items.find((t) => t.id !== currentTechnicianId);
+        if (initial) setSelected(initial.id);
+      } catch (e) {
+        if (cancelled) return;
+        setTechsError(
+          e instanceof ApiError
+            ? `${e.errorCode} (${e.status})：${e.message}`
+            : e instanceof Error
+              ? e.message
+              : String(e),
+        );
+      } finally {
+        if (!cancelled) setTechsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentTechnicianId]);
+
+  const canSubmit = selected !== "" && !pending;
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-[520px] rounded-xl bg-white p-6 shadow-xl">
+        <div className="mb-4 flex items-center gap-2">
+          <UserPlus className="h-5 w-5 text-[var(--primary)]" />
+          <span className="text-[18px] font-semibold text-[var(--text-primary)]">
+            {currentTechnicianId ? "重新指派技師" : "指派技師"}
+          </span>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[12px] font-medium text-[var(--text-secondary)]">
+              選擇技師 <span className="text-[var(--error)]">*</span>
+            </label>
+            {techsLoading ? (
+              <div className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] text-[var(--text-disabled)]">
+                載入技師清單中…
+              </div>
+            ) : techsError ? (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+                載入失敗：{techsError}
+              </div>
+            ) : techs.length === 0 ? (
+              <div className="rounded-md border border-dashed border-[var(--border)] px-3 py-2 text-[13px] text-[var(--text-disabled)]">
+                目前無 active 技師可指派
+              </div>
+            ) : (
+              <select
+                value={selected}
+                onChange={(e) => setSelected(e.target.value)}
+                className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+              >
+                <option value="" disabled>
+                  請選擇…
+                </option>
+                {techs.map((t) => {
+                  const isCurrent = t.id === currentTechnicianId;
+                  return (
+                    <option key={t.id} value={t.id}>
+                      {t.name}（{t.phone}）{isCurrent ? " · 目前已指派" : ""}
+                    </option>
+                  );
+                })}
+              </select>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-[12px] font-medium text-[var(--text-secondary)]">
+              指派原因 <span className="text-[var(--error)]">*</span>
+            </label>
+            <select
+              value={reasonCode}
+              onChange={(e) => setReasonCode(e.target.value as AssignReasonCode)}
+              className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+            >
+              {ASSIGN_REASON_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-[12px] font-medium text-[var(--text-secondary)]">
+              補充說明（可留空）
+            </label>
+            <textarea
+              value={reasonText}
+              onChange={(e) => setReasonText(e.target.value)}
+              rows={3}
+              maxLength={500}
+              placeholder="例如：客戶指名張師傅、附近僅此技師具備該品牌維修經驗"
+              className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+            />
+            <span className="text-[11px] text-[var(--text-disabled)]">
+              {reasonText.trim().length} / 500
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            disabled={pending}
+            className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
+          >
+            取消
+          </button>
+          <button
+            onClick={() => onSubmit(selected, reasonCode, reasonText.trim())}
+            disabled={!canSubmit}
+            className="rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? "送出中…" : "確認指派"}
           </button>
         </div>
       </div>
