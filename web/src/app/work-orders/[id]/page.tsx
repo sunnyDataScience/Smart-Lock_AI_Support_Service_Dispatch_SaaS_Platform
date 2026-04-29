@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   X,
   UserPlus,
+  Flag,
 } from "lucide-react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
@@ -34,6 +35,8 @@ type WorkOrderEnvelope = components["schemas"]["WorkOrderEnvelope"];
 type WorkOrderStatus = components["schemas"]["WorkOrderStatus"];
 type WorkOrderAssignRequest = components["schemas"]["WorkOrderAssignRequest"];
 type AssignReasonCode = WorkOrderAssignRequest["reason_code"];
+type WorkOrderEscalateRequest = components["schemas"]["WorkOrderEscalateRequest"];
+type EscalateLevel = WorkOrderEscalateRequest["level"];
 type ProblemCard = components["schemas"]["ProblemCard"];
 type ProblemCardEnvelope = components["schemas"]["ProblemCardEnvelope"];
 type ProblemCardStatus = components["schemas"]["ProblemCardStatus"];
@@ -58,6 +61,32 @@ const CANCEL_FROM: ReadonlySet<WorkOrderStatus> = new Set([
   "arrived",
   "in_progress",
 ]);
+const ESCALATE_FROM: ReadonlySet<WorkOrderStatus> = new Set([
+  "inquiring",
+  "qualified",
+  "quoted",
+  "negotiating",
+  "accepted",
+  "scheduled",
+  "dispatching",
+  "assigned",
+  "en_route",
+  "arrived",
+  "in_progress",
+]);
+
+const ESCALATE_LEVEL_OPTIONS: { value: EscalateLevel; label: string; hint: string }[] = [
+  {
+    value: "operations_manager",
+    label: "升級至營運主管",
+    hint: "技師回報無法處理 / SLA 即將逾時 / 客訴需要更高層介入時。",
+  },
+  {
+    value: "tenant_admin",
+    label: "升級至租戶管理員",
+    hint: "金額爭議 / 流程例外 / 跨部門協調，需要租戶最高權限拍板。",
+  },
+];
 
 const ASSIGN_REASON_OPTIONS: { value: AssignReasonCode; label: string }[] = [
   { value: "auto_dispatch_exhausted", label: "自動派工已耗盡候選" },
@@ -661,8 +690,8 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-type ActionMode = "complete" | "cancel" | "assign" | null;
-type ActionPending = "accept" | "complete" | "cancel" | "assign" | null;
+type ActionMode = "complete" | "cancel" | "assign" | "escalate" | null;
+type ActionPending = "accept" | "complete" | "cancel" | "assign" | "escalate" | null;
 
 export default function WorkOrderDetailPage({ params }: PageProps) {
   const { id } = use(params);
@@ -791,6 +820,27 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
     }
   };
 
+  const handleEscalate = async (level: EscalateLevel, reason: string) => {
+    setActionPending("escalate");
+    setActionError(null);
+    try {
+      const body: WorkOrderEscalateRequest = { level, reason };
+      const res = await api.post<WorkOrderEnvelope>(
+        `/api/v1/work-orders/${encodeURIComponent(id)}/escalate`,
+        body,
+      );
+      setOrder(res.data ?? null);
+      setActionMode(null);
+      const tone =
+        level === "operations_manager" ? "已升級至營運主管" : "已升級至租戶管理員";
+      setActionToast(tone);
+    } catch (e) {
+      setActionError(formatActionError(e));
+    } finally {
+      setActionPending(null);
+    }
+  };
+
   useEffect(() => {
     if (!actionToast) return;
     const t = setTimeout(() => setActionToast(null), 2400);
@@ -811,7 +861,8 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
   const canAssign = order ? ASSIGN_FROM.has(order.status) : false;
   const canComplete = order ? COMPLETE_FROM.has(order.status) : false;
   const canCancel = order ? CANCEL_FROM.has(order.status) : false;
-  const anyAction = canAccept || canAssign || canComplete || canCancel;
+  const canEscalate = order ? ESCALATE_FROM.has(order.status) : false;
+  const anyAction = canAccept || canAssign || canComplete || canCancel || canEscalate;
   const assignLabel = order?.technician_id ? "重新指派" : "指派技師";
 
   return (
@@ -930,6 +981,19 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
                     取消工單
                   </button>
                 )}
+                {canEscalate && (
+                  <button
+                    onClick={() => {
+                      setActionError(null);
+                      setActionMode("escalate");
+                    }}
+                    disabled={actionPending !== null}
+                    className="inline-flex items-center gap-2 rounded-md border border-[#F59E0B] bg-white px-4 py-2 text-[13px] font-semibold text-[#B45309] transition hover:bg-[#FEF3C7] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Flag className="h-4 w-4" />
+                    升級工單
+                  </button>
+                )}
               </div>
             )}
 
@@ -998,6 +1062,14 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
           currentTechnicianId={order?.technician_id ?? null}
           onCancel={() => setActionMode(null)}
           onSubmit={handleAssign}
+        />
+      )}
+
+      {actionMode === "escalate" && (
+        <EscalateModal
+          pending={actionPending === "escalate"}
+          onCancel={() => setActionMode(null)}
+          onSubmit={handleEscalate}
         />
       )}
 
@@ -1309,6 +1381,106 @@ function CancelModal({
             className="rounded-md bg-[var(--error)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? "送出中…" : "確認取消"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EscalateModal({
+  pending,
+  onCancel,
+  onSubmit,
+}: {
+  pending: boolean;
+  onCancel: () => void;
+  onSubmit: (level: EscalateLevel, reason: string) => Promise<void>;
+}) {
+  const [level, setLevel] = useState<EscalateLevel>("operations_manager");
+  const [reason, setReason] = useState("");
+  const trimmed = reason.trim();
+  const valid = trimmed.length > 0 && trimmed.length <= 500;
+  const activeOption = ESCALATE_LEVEL_OPTIONS.find((o) => o.value === level);
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4"
+      onClick={onCancel}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-[520px] rounded-xl bg-white p-6 shadow-xl"
+      >
+        <div className="mb-4 flex items-center gap-2">
+          <Flag className="h-5 w-5 text-[#B45309]" />
+          <span className="text-[18px] font-semibold text-[var(--text-primary)]">
+            升級工單
+          </span>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          {ESCALATE_LEVEL_OPTIONS.map((opt) => {
+            const active = opt.value === level;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => setLevel(opt.value)}
+                className={`rounded-lg border px-3 py-3 text-left transition ${
+                  active
+                    ? "border-[#B45309] bg-[#FEF3C7]"
+                    : "border-[var(--border)] hover:bg-[var(--bg-page)]"
+                }`}
+              >
+                <div className="text-[13px] font-semibold text-[var(--text-primary)]">
+                  {opt.label}
+                </div>
+                <div className="mt-1 text-[12px] leading-[1.5] text-[var(--text-secondary)]">
+                  {opt.hint}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-4 flex flex-col gap-1">
+          <label className="text-[12px] font-medium text-[var(--text-secondary)]">
+            升級原因（必填，最多 500 字）
+          </label>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value.slice(0, 500))}
+            rows={4}
+            placeholder={
+              activeOption
+                ? `說明為何需要 ${activeOption.label}（將寫入 service_report 稽核軌跡）`
+                : "請填寫升級原因"
+            }
+            className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[#B45309] focus:outline-none"
+          />
+          <span className="text-[11px] text-[var(--text-disabled)]">
+            {trimmed.length} / 500
+          </span>
+        </div>
+
+        <p className="mt-3 rounded-md bg-[#FEF3C7] px-3 py-2 text-[12px] leading-[1.6] text-[#92400E]">
+          升級後 priority 會推進到 urgent，工單仍維持當前狀態以等候上層覆審。
+        </p>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            disabled={pending}
+            className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
+          >
+            返回
+          </button>
+          <button
+            onClick={() => onSubmit(level, trimmed)}
+            disabled={pending || !valid}
+            className="rounded-md bg-[#B45309] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? "送出中…" : "確認升級"}
           </button>
         </div>
       </div>

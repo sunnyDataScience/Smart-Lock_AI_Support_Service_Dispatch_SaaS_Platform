@@ -1631,6 +1631,12 @@ export interface components {
                 allow_cross_area: boolean;
             };
         };
+        /** @description 工單升級至上層覆審。level 指定接收者；reason 必填留稽核軌跡。MVP 不切狀態，僅將 priority 推進到 urgent 並記入 service_report；上層 escalation_logs 表上線後再正規化。 */
+        WorkOrderEscalateRequest: {
+            /** @enum {string} */
+            level: "operations_manager" | "tenant_admin";
+            reason: string;
+        };
         /** @enum {string} */
         WarrantyClaimStatus: "filed" | "approved" | "rejected" | "in_progress" | "closed";
         /** @description 保固申請（read-only） */
@@ -3645,11 +3651,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    /** @enum {string} */
-                    level: "operations_manager" | "tenant_admin";
-                    reason: string;
-                };
+                "application/json": components["schemas"]["WorkOrderEscalateRequest"];
             };
         };
         responses: {
