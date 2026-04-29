@@ -21,6 +21,7 @@ import {
   Star,
   PenLine,
   Upload,
+  CalendarClock,
 } from "lucide-react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
@@ -89,6 +90,16 @@ const SIGNATURE_FROM: ReadonlySet<WorkOrderStatus> = new Set([
   "arrived",
   "in_progress",
   "completed",
+]);
+// 改期：對齊後端 _RESCHEDULE_FROM（assigned | accepted | in_progress）
+const RESCHEDULE_FROM: ReadonlySet<WorkOrderStatus> = new Set([
+  "assigned",
+  "scheduled",
+  "dispatching",
+  "en_route",
+  "arrived",
+  "accepted",
+  "in_progress",
 ]);
 
 const ESCALATE_LEVEL_OPTIONS: { value: EscalateLevel; label: string; hint: string }[] = [
@@ -713,6 +724,7 @@ type ActionMode =
   | "escalate"
   | "confirm"
   | "signature"
+  | "reschedule"
   | null;
 type ActionPending =
   | "accept"
@@ -722,6 +734,7 @@ type ActionPending =
   | "escalate"
   | "confirm"
   | "signature"
+  | "reschedule"
   | null;
 
 export default function WorkOrderDetailPage({ params }: PageProps) {
@@ -921,6 +934,32 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
     }
   };
 
+  const handleReschedule = async (
+    slots: Array<{ start: string; end: string }>,
+    message: string,
+    sendVia: "line" | "line_and_sms",
+  ) => {
+    setActionPending("reschedule");
+    setActionError(null);
+    try {
+      const res = await api.post<WorkOrderEnvelope>(
+        `/api/v1/work-orders/${encodeURIComponent(id)}/reschedule`,
+        {
+          proposed_slots: slots,
+          message_to_customer: message,
+          send_via: sendVia,
+        },
+      );
+      setOrder(res.data ?? null);
+      setActionMode(null);
+      setActionToast(`改期請求已送出（${slots.length} 個備選時段）`);
+    } catch (e) {
+      setActionError(formatActionError(e));
+    } finally {
+      setActionPending(null);
+    }
+  };
+
   useEffect(() => {
     if (!actionToast) return;
     const t = setTimeout(() => setActionToast(null), 2400);
@@ -944,6 +983,7 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
   const canEscalate = order ? ESCALATE_FROM.has(order.status) : false;
   const canConfirm = order ? CONFIRM_FROM.has(order.status) : false;
   const canSignature = order ? SIGNATURE_FROM.has(order.status) : false;
+  const canReschedule = order ? RESCHEDULE_FROM.has(order.status) : false;
   const anyAction =
     canAccept ||
     canAssign ||
@@ -951,7 +991,8 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
     canCancel ||
     canEscalate ||
     canConfirm ||
-    canSignature;
+    canSignature ||
+    canReschedule;
   const assignLabel = order?.technician_id ? "重新指派" : "指派技師";
 
   return (
@@ -1109,6 +1150,19 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
                     電子簽章
                   </button>
                 )}
+                {canReschedule && (
+                  <button
+                    onClick={() => {
+                      setActionError(null);
+                      setActionMode("reschedule");
+                    }}
+                    disabled={actionPending !== null}
+                    className="inline-flex items-center gap-2 rounded-md border border-[#0EA5E9] bg-white px-4 py-2 text-[13px] font-semibold text-[#0369A1] transition hover:bg-[#F0F9FF] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <CalendarClock className="h-4 w-4" />
+                    送出改期
+                  </button>
+                )}
               </div>
             )}
 
@@ -1202,6 +1256,15 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
           pending={actionPending === "signature"}
           onCancel={() => setActionMode(null)}
           onSubmit={handleSignature}
+        />
+      )}
+
+      {actionMode === "reschedule" && (
+        <RescheduleModal
+          pending={actionPending === "reschedule"}
+          currentScheduled={order?.scheduled_time ?? null}
+          onCancel={() => setActionMode(null)}
+          onSubmit={handleReschedule}
         />
       )}
 
@@ -2008,6 +2071,218 @@ function EscalateModal({
             className="rounded-md bg-[#B45309] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? "送出中…" : "確認升級"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Reschedule Modal ─────────────────────────────── */
+
+type RescheduleSlotInput = { start: string; end: string };
+
+function isoToLocalInput(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function localInputToIso(local: string): string {
+  if (!local) return "";
+  const d = new Date(local);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toISOString();
+}
+
+function RescheduleModal({
+  pending,
+  currentScheduled,
+  onCancel,
+  onSubmit,
+}: {
+  pending: boolean;
+  currentScheduled: string | null;
+  onCancel: () => void;
+  onSubmit: (
+    slots: RescheduleSlotInput[],
+    message: string,
+    sendVia: "line" | "line_and_sms",
+  ) => Promise<void>;
+}) {
+  const baseStart = isoToLocalInput(currentScheduled);
+  const [slots, setSlots] = useState<Array<{ start: string; end: string }>>([
+    { start: baseStart, end: "" },
+  ]);
+  const [message, setMessage] = useState("");
+  const [sendVia, setSendVia] = useState<"line" | "line_and_sms">("line");
+
+  const addSlot = () => {
+    if (slots.length >= 3) return;
+    setSlots([...slots, { start: "", end: "" }]);
+  };
+  const removeSlot = (idx: number) => {
+    if (slots.length <= 1) return;
+    setSlots(slots.filter((_, i) => i !== idx));
+  };
+  const updateSlot = (idx: number, field: "start" | "end", v: string) => {
+    setSlots(slots.map((s, i) => (i === idx ? { ...s, [field]: v } : s)));
+  };
+
+  const trimmedMessage = message.trim();
+  const slotsValid = slots.every((s) => {
+    if (!s.start || !s.end) return false;
+    const a = new Date(s.start).getTime();
+    const b = new Date(s.end).getTime();
+    return Number.isFinite(a) && Number.isFinite(b) && b > a;
+  });
+  const valid =
+    slotsValid &&
+    trimmedMessage.length > 0 &&
+    trimmedMessage.length <= 120 &&
+    !pending;
+
+  const handleSubmit = () => {
+    const isoSlots = slots.map((s) => ({
+      start: localInputToIso(s.start),
+      end: localInputToIso(s.end),
+    }));
+    onSubmit(isoSlots, trimmedMessage, sendVia);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4"
+      onClick={onCancel}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-[560px] rounded-xl bg-white p-6 shadow-xl"
+      >
+        <div className="mb-4 flex items-center gap-2">
+          <CalendarClock className="h-5 w-5 text-[#0369A1]" />
+          <span className="text-[18px] font-semibold text-[var(--text-primary)]">
+            送出改期請求
+          </span>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          {slots.map((s, idx) => (
+            <div
+              key={idx}
+              className="rounded-lg border border-[var(--border)] bg-[var(--bg-page)] p-3"
+            >
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[12px] font-semibold text-[var(--text-primary)]">
+                  備選時段 {idx + 1}
+                </span>
+                {slots.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeSlot(idx)}
+                    disabled={pending}
+                    className="text-[11px] text-[var(--text-secondary)] hover:text-[var(--error)] disabled:opacity-50"
+                  >
+                    移除
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] text-[var(--text-secondary)]">
+                    開始時間
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={s.start}
+                    onChange={(e) => updateSlot(idx, "start", e.target.value)}
+                    disabled={pending}
+                    className="rounded-md border border-[var(--border)] bg-white px-2 py-[6px] text-[13px] focus:border-[#0EA5E9] focus:outline-none disabled:opacity-50"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] text-[var(--text-secondary)]">
+                    結束時間
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={s.end}
+                    onChange={(e) => updateSlot(idx, "end", e.target.value)}
+                    disabled={pending}
+                    className="rounded-md border border-[var(--border)] bg-white px-2 py-[6px] text-[13px] focus:border-[#0EA5E9] focus:outline-none disabled:opacity-50"
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {slots.length < 3 && (
+            <button
+              type="button"
+              onClick={addSlot}
+              disabled={pending}
+              className="rounded-md border border-dashed border-[var(--border)] bg-white px-3 py-2 text-[12px] text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
+            >
+              + 新增備選時段（{slots.length}/3）
+            </button>
+          )}
+        </div>
+
+        <div className="mt-4 flex flex-col gap-1">
+          <label className="text-[12px] font-medium text-[var(--text-secondary)]">
+            告知客戶訊息（必填，最多 120 字）
+          </label>
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value.slice(0, 120))}
+            rows={3}
+            placeholder="技師臨時被叫去處理鄰居緊急事件，請選一個方便的備選時段"
+            disabled={pending}
+            className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[#0EA5E9] focus:outline-none disabled:opacity-50"
+          />
+          <span className="text-[11px] text-[var(--text-disabled)]">
+            {trimmedMessage.length} / 120
+          </span>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-1">
+          <label className="text-[12px] font-medium text-[var(--text-secondary)]">
+            通知管道
+          </label>
+          <select
+            value={sendVia}
+            onChange={(e) =>
+              setSendVia(e.target.value as "line" | "line_and_sms")
+            }
+            disabled={pending}
+            className="rounded-md border border-[var(--border)] bg-white px-2 py-[6px] text-[13px] focus:border-[#0EA5E9] focus:outline-none disabled:opacity-50"
+          >
+            <option value="line">LINE</option>
+            <option value="line_and_sms">LINE + SMS</option>
+          </select>
+        </div>
+
+        <p className="mt-3 rounded-md bg-[#F0F9FF] px-3 py-2 text-[12px] leading-[1.6] text-[#0C4A6E]">
+          MVP 版本不會真的推播 LINE/SMS，但首選時段會立即更新到 scheduled_at；
+          24 小時內最多可改期 3 次，超過將回 RESCHEDULE_LIMIT_EXCEEDED。
+        </p>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            disabled={pending}
+            className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
+          >
+            返回
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!valid}
+            className="rounded-md bg-[#0EA5E9] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? "送出中…" : "送出改期"}
           </button>
         </div>
       </div>
