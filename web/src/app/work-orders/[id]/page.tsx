@@ -5,11 +5,8 @@ import {
   ChevronLeft,
   Copy,
   FileText,
-  ChevronUp,
   ChevronDown,
-  ArrowRight,
   Images,
-  Package,
   ExternalLink,
   Lock,
   ClipboardCheck,
@@ -34,6 +31,8 @@ type WorkOrderEnvelope = components["schemas"]["WorkOrderEnvelope"];
 type ProblemCard = components["schemas"]["ProblemCard"];
 type ProblemCardEnvelope = components["schemas"]["ProblemCardEnvelope"];
 type ProblemCardStatus = components["schemas"]["ProblemCardStatus"];
+type Message = components["schemas"]["Message"];
+type MessagePage = components["schemas"]["MessagePage"];
 
 const PC_STATUS_STYLE: Record<
   ProblemCardStatus,
@@ -93,13 +92,22 @@ function SlaTimeline() {
 
 /* ── Problem Card Summary ─────────────────────────── */
 
-function ProblemCardSummary({ pcId }: { pcId?: string }) {
+function ProblemCardSummary({
+  pcId,
+  onLoaded,
+}: {
+  pcId?: string;
+  onLoaded?: (card: ProblemCard | null) => void;
+}) {
   const [card, setCard] = useState<ProblemCard | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!pcId) return;
+    if (!pcId) {
+      onLoaded?.(null);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -109,7 +117,10 @@ function ProblemCardSummary({ pcId }: { pcId?: string }) {
         const res = await api.get<ProblemCardEnvelope>(
           `/api/v1/problem-cards/${encodeURIComponent(pcId)}`,
         );
-        if (!cancelled) setCard(res.data ?? null);
+        if (cancelled) return;
+        const data = res.data ?? null;
+        setCard(data);
+        onLoaded?.(data);
       } catch (e) {
         if (cancelled) return;
         setError(
@@ -126,7 +137,7 @@ function ProblemCardSummary({ pcId }: { pcId?: string }) {
     return () => {
       cancelled = true;
     };
-  }, [pcId]);
+  }, [pcId, onLoaded]);
 
   const pcStatus = card ? PC_STATUS_STYLE[card.status] : null;
   const pcUrgency = card ? URGENCY_STYLE[card.urgency] : null;
@@ -245,100 +256,223 @@ function ProblemCardSummary({ pcId }: { pcId?: string }) {
   );
 }
 
-/* ── LINE Media Gallery (mock) ───────────────────── */
+/* ── LINE Media Gallery (real) ───────────────────── */
 
-const mediaTabs = [
-  { label: "全部", active: true },
-  { label: "圖片", active: false },
-  { label: "影片", active: false },
-  { label: "Issue 包", active: false },
-];
+function formatDateTime(iso?: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${yyyy}/${mm}/${dd} ${hh}:${mi}`;
+}
 
-function LineMediaGallery() {
+function LineMediaGallery({ conversationId }: { conversationId?: string }) {
+  const [items, setItems] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!conversationId) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setItems([]);
+    (async () => {
+      try {
+        const res = await api.get<MessagePage>(
+          `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages`,
+          { query: { limit: 100 } },
+        );
+        if (cancelled) return;
+        const all = (res.items ?? []) as Message[];
+        const media = all.filter(
+          (m) => !!m.media_url && (m.type === "image" || m.type === "video"),
+        );
+        setItems(media);
+      } catch (e) {
+        if (cancelled) return;
+        setError(
+          e instanceof ApiError
+            ? `${e.errorCode} (${e.status})：${e.message}`
+            : e instanceof Error
+              ? e.message
+              : String(e),
+        );
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [conversationId]);
+
   return (
     <div className="flex flex-col gap-4 bg-[var(--bg-surface)] px-8 py-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Images className="h-5 w-5 text-[var(--primary)]" />
           <span className="text-[20px] font-semibold text-[var(--text-primary)]">
-            客戶上傳媒體（示意）
+            客戶上傳媒體
           </span>
           <span className="rounded bg-[var(--primary-light)] px-2 py-1 text-[11px] font-semibold text-[var(--primary)]">
             LINE
           </span>
-        </div>
-        <div className="flex gap-1">
-          {mediaTabs.map((t) => (
-            <span
-              key={t.label}
-              className={`rounded px-3 py-1 text-[12px] font-medium ${t.active ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-page)] text-[var(--text-secondary)]"}`}
-            >
-              {t.label}
+          {items.length > 0 && (
+            <span className="text-[12px] text-[var(--text-secondary)]">
+              共 {items.length} 則
             </span>
+          )}
+        </div>
+      </div>
+
+      {!conversationId && (
+        <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--bg-page)] px-4 py-6 text-center text-[13px] text-[var(--text-disabled)]">
+          此工單未關聯對話，無媒體可顯示
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+          載入媒體失敗：{error}
+        </div>
+      )}
+
+      {conversationId && loading && items.length === 0 && (
+        <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--bg-page)] px-4 py-6 text-center text-[13px] text-[var(--text-disabled)]">
+          載入媒體中…
+        </div>
+      )}
+
+      {conversationId && !loading && items.length === 0 && !error && (
+        <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--bg-page)] px-4 py-6 text-center text-[13px] text-[var(--text-disabled)]">
+          客戶尚未上傳任何媒體
+        </div>
+      )}
+
+      {items.length > 0 && (
+        <div className="flex flex-wrap gap-3">
+          {items.map((m) => (
+            <a
+              key={m.id}
+              href={m.media_url ?? undefined}
+              target="_blank"
+              rel="noreferrer"
+              className="group flex flex-col gap-1"
+              title={`提交時間：${formatDateTime(m.created_at)}`}
+            >
+              <div className="relative h-[128px] w-[128px] overflow-hidden rounded-lg border border-[var(--border)] bg-[#F1F5F9]">
+                {m.type === "image" ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={m.media_url ?? ""}
+                    alt="客戶上傳"
+                    className="h-full w-full object-cover transition-transform group-hover:scale-[1.03]"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-[12px] text-[var(--text-secondary)]">
+                    🎬 影片
+                  </div>
+                )}
+              </div>
+              <span className="text-[11px] text-[var(--text-disabled)]">
+                {formatDateTime(m.created_at)}
+              </span>
+            </a>
           ))}
         </div>
-      </div>
-      <div className="flex flex-col rounded-lg border border-[var(--border)]">
-        <div className="flex items-center gap-3 rounded-t-lg bg-[#F8FAFC] p-3">
-          <Package className="h-5 w-5 text-[var(--primary)]" />
-          <div className="flex flex-1 flex-col gap-[2px]">
-            <span className="text-[14px] font-semibold text-[var(--text-primary)]">
-              示意：客戶於 LINE 上傳的媒體將集結於此
-            </span>
-            <span className="text-[11px] text-[var(--text-secondary)]">
-              提交時間 —
-            </span>
-          </div>
-          <ChevronUp className="h-4 w-4 text-[var(--text-secondary)]" />
-        </div>
-        <div className="flex flex-col gap-4 p-4">
-          <div className="flex gap-2">
-            {[1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                className={`h-[128px] w-[128px] flex-shrink-0 rounded-lg ${i % 2 === 0 ? "bg-[#CBD5E1]" : "bg-[#E2E8F0]"}`}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
 
-/* ── Work Timeline (mock) ────────────────────────── */
+/* ── Work Timeline (real, from WorkOrder timestamps) ─── */
 
 interface TimelineEvent {
   color: string;
   badge: { text: string; textColor: string; bg: string };
   title: string;
   detail?: string;
-  time: string;
+  time: string | null | undefined;
 }
 
-const events: TimelineEvent[] = [
-  {
-    color: "#3B82F6",
-    badge: { text: "技師", textColor: "#1E40AF", bg: "#DBEAFE" },
-    title: "示意：狀態變更會記錄在此",
-    detail: "派工模組接入後將顯示真實時間軸",
-    time: "—",
-  },
-  {
-    color: "#94A3B8",
-    badge: { text: "系統", textColor: "#64748B", bg: "#F1F5F9" },
-    title: "示意：工單自動建立",
-    detail: "由 LINE 對話自動觸發",
-    time: "—",
-  },
-];
+const SYS_BADGE = { text: "系統", textColor: "#64748B", bg: "#F1F5F9" };
+const TECH_BADGE = { text: "技師", textColor: "#1E40AF", bg: "#DBEAFE" };
+const SCHED_BADGE = { text: "排程", textColor: "#9F1239", bg: "#FFE4E6" };
+const COMPLETE_BADGE = { text: "完工", textColor: "#065F46", bg: "#D1FAE5" };
 
-function WorkTimeline() {
+function buildEvents(order: WorkOrder | null): TimelineEvent[] {
+  if (!order) return [];
+  const list: TimelineEvent[] = [];
+
+  list.push({
+    color: "#94A3B8",
+    badge: SYS_BADGE,
+    title: "工單建立",
+    detail: order.problem_card_id
+      ? `由問題卡 ${order.problem_card_id.slice(0, 8)} 衍生`
+      : undefined,
+    time: order.created_at,
+  });
+
+  if (order.scheduled_time) {
+    list.push({
+      color: "#F43F5E",
+      badge: SCHED_BADGE,
+      title: "預計到場時間",
+      detail: order.technician_id
+        ? `技師 ${order.technician_id.slice(0, 8)} 已排程`
+        : "尚未指派技師",
+      time: order.scheduled_time,
+    });
+  }
+
+  if (order.actual_arrival) {
+    list.push({
+      color: "#3B82F6",
+      badge: TECH_BADGE,
+      title: "技師抵達現場",
+      time: order.actual_arrival,
+    });
+  }
+
+  if (order.completion_time) {
+    list.push({
+      color: "#10B981",
+      badge: COMPLETE_BADGE,
+      title: "工單完工",
+      time: order.completion_time,
+    });
+  }
+
+  if (order.updated_at && order.updated_at !== order.created_at) {
+    list.push({
+      color: "#94A3B8",
+      badge: SYS_BADGE,
+      title: "最後更新",
+      detail: `目前狀態：${order.status}`,
+      time: order.updated_at,
+    });
+  }
+
+  return list.sort((a, b) => {
+    const ta = a.time ? new Date(a.time).getTime() : 0;
+    const tb = b.time ? new Date(b.time).getTime() : 0;
+    return tb - ta;
+  });
+}
+
+function WorkTimeline({ order }: { order: WorkOrder | null }) {
+  const events = buildEvents(order);
   return (
     <div className="flex flex-col gap-4 bg-[var(--bg-surface)] px-8 py-6">
       <div className="flex items-center justify-between">
         <span className="text-[20px] font-semibold text-[var(--text-primary)]">
-          工單歷程（示意）
+          工單歷程
         </span>
         <button
           disabled
@@ -349,38 +483,45 @@ function WorkTimeline() {
           <ChevronDown className="h-[14px] w-[14px] text-[var(--text-secondary)]" />
         </button>
       </div>
-      <div className="relative">
-        <div className="absolute bottom-0 left-[5px] top-[6px] w-[2px] bg-[var(--border)]" />
-        <div className="flex flex-col gap-5">
-          {events.map((ev, i) => (
-            <div key={i} className="flex gap-4 pt-[2px]">
-              <div
-                className="relative z-10 mt-[2px] h-3 w-3 flex-shrink-0 rounded-full"
-                style={{ backgroundColor: ev.color }}
-              />
-              <div className="flex flex-col gap-1">
-                <span
-                  className="inline-flex w-fit rounded px-2 py-[2px] text-[11px]"
-                  style={{ color: ev.badge.textColor, backgroundColor: ev.badge.bg }}
-                >
-                  {ev.badge.text}
-                </span>
-                <span className="text-[14px] font-semibold text-[var(--text-primary)]">
-                  {ev.title}
-                </span>
-                {ev.detail && (
-                  <span className="text-[12px] text-[var(--text-secondary)]">
-                    {ev.detail}
-                  </span>
-                )}
-                <span className="text-[11px] text-[var(--text-disabled)]">
-                  {ev.time}
-                </span>
-              </div>
-            </div>
-          ))}
+
+      {events.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--bg-page)] px-4 py-6 text-center text-[13px] text-[var(--text-disabled)]">
+          尚無歷程資料
         </div>
-      </div>
+      ) : (
+        <div className="relative">
+          <div className="absolute bottom-0 left-[5px] top-[6px] w-[2px] bg-[var(--border)]" />
+          <div className="flex flex-col gap-5">
+            {events.map((ev, i) => (
+              <div key={i} className="flex gap-4 pt-[2px]">
+                <div
+                  className="relative z-10 mt-[2px] h-3 w-3 flex-shrink-0 rounded-full"
+                  style={{ backgroundColor: ev.color }}
+                />
+                <div className="flex flex-col gap-1">
+                  <span
+                    className="inline-flex w-fit rounded px-2 py-[2px] text-[11px]"
+                    style={{ color: ev.badge.textColor, backgroundColor: ev.badge.bg }}
+                  >
+                    {ev.badge.text}
+                  </span>
+                  <span className="text-[14px] font-semibold text-[var(--text-primary)]">
+                    {ev.title}
+                  </span>
+                  {ev.detail && (
+                    <span className="text-[12px] text-[var(--text-secondary)]">
+                      {ev.detail}
+                    </span>
+                  )}
+                  <span className="text-[11px] text-[var(--text-disabled)]">
+                    {formatDateTime(ev.time)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -492,6 +633,7 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
   const [order, setOrder] = useState<WorkOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [problemCard, setProblemCard] = useState<ProblemCard | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -612,13 +754,16 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
           <div className="mx-8 my-4 flex items-start gap-2 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3">
             <Info className="mt-[2px] h-4 w-4 flex-shrink-0 text-[#64748B]" />
             <span className="text-[13px] leading-[1.6] text-[#475569]">
-              以下 SLA 時間軸、媒體、工單歷程、對話記錄、完工報告與異常為示意，待派工模組接入後將顯示真實資料；問題診斷摘要為即時資料。
+              問題診斷摘要、客戶上傳媒體、工單歷程為即時資料；SLA 時間軸、對話內容、完工報告與異常為示意，待 SLA / 完工報告模組接入後將顯示真實資料。
             </span>
           </div>
 
-          <ProblemCardSummary pcId={order?.problem_card_id} />
-          <LineMediaGallery />
-          <WorkTimeline />
+          <ProblemCardSummary
+            pcId={order?.problem_card_id}
+            onLoaded={setProblemCard}
+          />
+          <LineMediaGallery conversationId={problemCard?.conversation_id} />
+          <WorkTimeline order={order} />
           <ConversationThread />
           <CompletionReport />
           <ExceptionRecords />
