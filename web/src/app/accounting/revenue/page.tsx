@@ -8,6 +8,7 @@ import {
   Wallet,
   FileText,
   BarChart3,
+  BookText,
   Clock3,
   DollarSign,
   Calculator,
@@ -28,6 +29,7 @@ type RevenueSummary = components["schemas"]["RevenueSummary"];
 const tabs = [
   { icon: Wallet, label: "結算管理", href: "/accounting", dot: false },
   { icon: FileText, label: "發票管理", href: "/accounting/invoices", dot: true },
+  { icon: BookText, label: "會計傳票", href: "/accounting/vouchers", dot: false },
   { icon: BarChart3, label: "營收報表", href: "/accounting/revenue", dot: false },
 ];
 

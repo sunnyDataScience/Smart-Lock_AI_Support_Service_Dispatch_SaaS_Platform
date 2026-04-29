@@ -8,6 +8,7 @@ import {
   Wallet,
   FileText,
   BarChart3,
+  BookText,
   Calendar,
   ChevronDown,
   CheckCircle2,
@@ -47,6 +48,12 @@ const tabs = [
     label: "發票管理",
     href: "/accounting/invoices" as string | undefined,
     dot: true,
+  },
+  {
+    icon: BookText,
+    label: "會計傳票",
+    href: "/accounting/vouchers" as string | undefined,
+    dot: false,
   },
   {
     icon: BarChart3,

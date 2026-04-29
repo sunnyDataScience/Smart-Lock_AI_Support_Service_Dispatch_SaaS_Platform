@@ -65,6 +65,7 @@ const navItems: NavItem[] = [
     href: "/accounting",
     children: [
       { label: "月結算總覽", href: "/accounting" },
+      { label: "會計傳票", href: "/accounting/vouchers" },
       { label: "退款審批", href: "/admin/refunds" },
       { label: "保固索賠", href: "/admin/warranty-claims" },
       { label: "爭議仲裁", href: "/admin/disputes" },
