@@ -1367,6 +1367,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/DashboardStats'
 
+  /api/v1/reports/kpi:
+    get:
+      tags: [reports]
+      summary: KPI 儀表板（轉換漏斗 + 異常率 + 技師效率；read-only）
+      operationId: getKpiReport
+      parameters:
+        - name: period
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/DashboardPeriod'
+          description: 統計時間區間（預設 30d）
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KpiReport'
+
   /api/v1/reports/revenue:
     get:
       tags: [reports]
@@ -3811,6 +3831,68 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/RevenueByBrandPoint'
+
+    # --------- KPI Report ---------
+    KpiFunnel:
+      type: object
+      required: [conversations, problem_cards, work_orders, dispatched, completed]
+      description: |
+        轉換漏斗（值為計數，過濾條件以 created_at 落在 period 區間內）。
+        - dispatched：work_orders.status IN (assigned, in_progress, completed, confirmed)
+        - completed：work_orders.status IN (completed, confirmed)
+      properties:
+        conversations: { type: integer, minimum: 0 }
+        problem_cards: { type: integer, minimum: 0 }
+        work_orders: { type: integer, minimum: 0 }
+        dispatched: { type: integer, minimum: 0 }
+        completed: { type: integer, minimum: 0 }
+
+    KpiDisputeRates:
+      type: object
+      description: |
+        異常率（分母為 period 區間內 work_orders 總數，分母為 0 時欄位為 null）。
+      properties:
+        refund_rate:
+          type: [string, "null"]
+          pattern: '^-?\d+(\.\d{1,4})?$'
+          description: 退款率（refund_requests 數 / work_orders 總數）
+        warranty_claim_rate:
+          type: [string, "null"]
+          pattern: '^-?\d+(\.\d{1,4})?$'
+          description: 保固索賠率（warranty_claims 數 / work_orders 總數）
+        dispute_rate:
+          type: [string, "null"]
+          pattern: '^-?\d+(\.\d{1,4})?$'
+          description: 爭議升級率（disputes 數 / work_orders 總數）
+
+    KpiTechnicianEfficiency:
+      type: object
+      description: |
+        技師效率指標。avg_handle_minutes 取 period 區間內所有 status='completed/confirmed'
+        且具備 started_at + completed_at 工單的平均值。
+      properties:
+        avg_handle_minutes:
+          type: [number, "null"]
+          minimum: 0
+          description: 平均處理時長（分鐘）；無樣本時 null
+        completed_count:
+          type: integer
+          minimum: 0
+
+    KpiReport:
+      type: object
+      required: [period, generated_at, funnel, dispute_rates, technician_efficiency]
+      properties:
+        period: { $ref: '#/components/schemas/DashboardPeriod' }
+        generated_at: { type: string, format: date-time }
+        funnel: { $ref: '#/components/schemas/KpiFunnel' }
+        dispute_rates: { $ref: '#/components/schemas/KpiDisputeRates' }
+        technician_efficiency:
+          $ref: '#/components/schemas/KpiTechnicianEfficiency'
+        notes:
+          type: array
+          description: 暫不可計算的指標（SLA / NPS / 滿意度 / FTFR / 差評率）說明
+          items: { type: string }
 
     # --------- System Config ---------
     SystemConfig:

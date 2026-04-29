@@ -843,6 +843,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/kpi": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** KPI 儀表板（轉換漏斗 + 異常率 + 技師效率；read-only） */
+        get: operations["getKpiReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reports/revenue": {
         parameters: {
             query?: never;
@@ -2315,6 +2332,46 @@ export interface components {
             kpis: components["schemas"]["RevenueKpis"];
             trend: components["schemas"]["RevenueTrendPoint"][];
             by_brand: components["schemas"]["RevenueByBrandPoint"][];
+        };
+        /**
+         * @description 轉換漏斗（值為計數，過濾條件以 created_at 落在 period 區間內）。
+         *     - dispatched：work_orders.status IN (assigned, in_progress, completed, confirmed)
+         *     - completed：work_orders.status IN (completed, confirmed)
+         */
+        KpiFunnel: {
+            conversations: number;
+            problem_cards: number;
+            work_orders: number;
+            dispatched: number;
+            completed: number;
+        };
+        /** @description 異常率（分母為 period 區間內 work_orders 總數，分母為 0 時欄位為 null）。 */
+        KpiDisputeRates: {
+            /** @description 退款率（refund_requests 數 / work_orders 總數） */
+            refund_rate?: string | null;
+            /** @description 保固索賠率（warranty_claims 數 / work_orders 總數） */
+            warranty_claim_rate?: string | null;
+            /** @description 爭議升級率（disputes 數 / work_orders 總數） */
+            dispute_rate?: string | null;
+        };
+        /**
+         * @description 技師效率指標。avg_handle_minutes 取 period 區間內所有 status='completed/confirmed'
+         *     且具備 started_at + completed_at 工單的平均值。
+         */
+        KpiTechnicianEfficiency: {
+            /** @description 平均處理時長（分鐘）；無樣本時 null */
+            avg_handle_minutes?: number | null;
+            completed_count?: number;
+        };
+        KpiReport: {
+            period: components["schemas"]["DashboardPeriod"];
+            /** Format: date-time */
+            generated_at: string;
+            funnel: components["schemas"]["KpiFunnel"];
+            dispute_rates: components["schemas"]["KpiDisputeRates"];
+            technician_efficiency: components["schemas"]["KpiTechnicianEfficiency"];
+            /** @description 暫不可計算的指標（SLA / NPS / 滿意度 / FTFR / 差評率）說明 */
+            notes?: string[];
         };
         /** @description 系統設定（部分更新）。各區塊允許獨立 PATCH，未指定的子鍵不變動。 */
         SystemConfig: {
@@ -4303,6 +4360,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DashboardStats"];
+                };
+            };
+        };
+    };
+    getKpiReport: {
+        parameters: {
+            query?: {
+                /** @description 統計時間區間（預設 30d） */
+                period?: components["schemas"]["DashboardPeriod"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KpiReport"];
                 };
             };
         };
