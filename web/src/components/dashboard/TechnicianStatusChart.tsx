@@ -1,17 +1,94 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { ApiError, api } from "@/lib/api";
+import type { components } from "@/types/api.generated";
 
-const data = [
-  { name: "在線空閒", value: 3, color: "#10B981" },
-  { name: "執行中", value: 5, color: "#2563EB" },
-  { name: "離線", value: 2, color: "#A1A1AA" },
-  { name: "請假", value: 2, color: "#F59E0B" },
+type Technician = components["schemas"]["Technician"];
+type TechnicianPage = components["schemas"]["TechnicianPage"];
+type Availability = Technician["availability"];
+
+const STATUS_ORDER: Availability[] = [
+  "available",
+  "busy",
+  "offline",
+  "on_leave",
+  "circuit_breaker_open",
 ];
 
-const total = data.reduce((sum, d) => sum + d.value, 0);
+const STATUS_META: Record<Availability, { name: string; color: string }> = {
+  available: { name: "可用", color: "#10B981" },
+  busy: { name: "外出中", color: "#2563EB" },
+  offline: { name: "離線", color: "#A1A1AA" },
+  on_leave: { name: "休假中", color: "#F59E0B" },
+  circuit_breaker_open: { name: "熔斷中", color: "#EF4444" },
+};
+
+interface Slice {
+  key: Availability;
+  name: string;
+  value: number;
+  color: string;
+}
+
+function bucketByAvailability(items: Technician[]): Slice[] {
+  const counts: Record<Availability, number> = {
+    available: 0,
+    busy: 0,
+    offline: 0,
+    on_leave: 0,
+    circuit_breaker_open: 0,
+  };
+  for (const t of items) {
+    counts[t.availability] = (counts[t.availability] ?? 0) + 1;
+  }
+  return STATUS_ORDER.map((key) => ({
+    key,
+    name: STATUS_META[key].name,
+    value: counts[key] ?? 0,
+    color: STATUS_META[key].color,
+  }));
+}
 
 export default function TechnicianStatusChart() {
+  const [items, setItems] = useState<Technician[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    (async () => {
+      try {
+        const res = await api.get<TechnicianPage>("/api/v1/technicians", {
+          query: { limit: 100 },
+        });
+        if (!cancelled) setItems(res.items ?? []);
+      } catch (e) {
+        if (cancelled) return;
+        setError(
+          e instanceof ApiError
+            ? `${e.errorCode} (${e.status})：${e.message}`
+            : e instanceof Error
+              ? e.message
+              : String(e),
+        );
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const slices = bucketByAvailability(items);
+  const total = slices.reduce((sum, d) => sum + d.value, 0);
+  const visibleSlices = slices.filter((s) => s.value > 0);
+  const chartData = visibleSlices.length > 0 ? visibleSlices : [{ name: "—", value: 1, color: "#E4E4E7", key: "available" as Availability }];
+
   return (
     <div className="flex w-[371px] flex-col gap-4 rounded-lg border-[1.5px] border-[#E4E4E7] bg-[var(--bg-surface)] p-6">
       <h3 className="text-[20px] font-semibold text-[#18181B]">技師狀態分佈</h3>
@@ -20,7 +97,7 @@ export default function TechnicianStatusChart() {
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
-              data={data}
+              data={chartData}
               cx="50%"
               cy="50%"
               innerRadius={40}
@@ -31,7 +108,7 @@ export default function TechnicianStatusChart() {
               dataKey="value"
               stroke="none"
             >
-              {data.map((entry) => (
+              {chartData.map((entry) => (
                 <Cell key={entry.name} fill={entry.color} />
               ))}
             </Pie>
@@ -39,15 +116,21 @@ export default function TechnicianStatusChart() {
         </ResponsiveContainer>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-[32px] font-bold leading-none text-[#18181B]">
-            {total}
+            {loading && total === 0 ? "—" : total}
           </span>
           <span className="text-[12px] font-medium text-[#A1A1AA]">總人數</span>
         </div>
       </div>
 
+      {error && (
+        <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+          載入失敗：{error}
+        </div>
+      )}
+
       <div className="flex flex-col gap-[10px]">
-        {data.map((item) => (
-          <div key={item.name} className="flex items-center gap-2">
+        {slices.map((item) => (
+          <div key={item.key} className="flex items-center gap-2">
             <div
               className="h-2 w-2 rounded-full"
               style={{ backgroundColor: item.color }}
