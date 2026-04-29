@@ -161,6 +161,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/work-orders/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 取消工單（強制 Idempotency-Key）
+         * @description 將工單從非結案狀態（created/assigned/accepted/in_progress）轉為 cancelled。
+         */
+        post: operations["cancelWorkOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/work-orders/pool": {
         parameters: {
             query?: never;
@@ -1544,16 +1564,24 @@ export interface components {
         WorkOrderPage: components["schemas"]["CursorPage"] & {
             items?: components["schemas"]["WorkOrder"][];
         };
+        /**
+         * @description 完工回報。`photos_before` / `photos_after` 暫時為 optional（`minItems: 0`），
+         *     待媒體上傳模組接入後再上修為必填。
+         */
         CompletionReport: {
             summary: string;
-            photos_before: string[];
-            photos_after: string[];
+            photos_before?: string[];
+            photos_after?: string[];
             parts_used?: {
                 /** Format: uuid */
                 part_id: string;
                 quantity: number;
             }[];
             actual_amount?: string;
+        };
+        /** @description 工單取消理由（管理員或上層流程觸發）。 */
+        WorkOrderCancelRequest: {
+            reason?: string;
         };
         /** @enum {string} */
         WarrantyClaimStatus: "filed" | "approved" | "rejected" | "in_progress" | "closed";
@@ -3113,6 +3141,49 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkOrderEnvelope"];
+                };
+            };
+        };
+    };
+    cancelWorkOrder: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["WorkOrderCancelRequest"];
+            };
+        };
+        responses: {
+            /** @description 取消成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkOrderEnvelope"];
+                };
+            };
+            /** @description 狀態衝突（工單已結案無法取消） */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
                 };
             };
         };

@@ -14,6 +14,8 @@ import {
   CircleX,
   TriangleAlert,
   Info,
+  CheckCircle2,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
@@ -28,11 +30,28 @@ import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 type WorkOrderEnvelope = components["schemas"]["WorkOrderEnvelope"];
+type WorkOrderStatus = components["schemas"]["WorkOrderStatus"];
 type ProblemCard = components["schemas"]["ProblemCard"];
 type ProblemCardEnvelope = components["schemas"]["ProblemCardEnvelope"];
 type ProblemCardStatus = components["schemas"]["ProblemCardStatus"];
 type Message = components["schemas"]["Message"];
 type MessagePage = components["schemas"]["MessagePage"];
+
+const ACCEPT_FROM: ReadonlySet<WorkOrderStatus> = new Set(["assigned"]);
+const COMPLETE_FROM: ReadonlySet<WorkOrderStatus> = new Set(["accepted", "in_progress"]);
+const CANCEL_FROM: ReadonlySet<WorkOrderStatus> = new Set([
+  "inquiring",
+  "qualified",
+  "quoted",
+  "negotiating",
+  "accepted",
+  "scheduled",
+  "dispatching",
+  "assigned",
+  "en_route",
+  "arrived",
+  "in_progress",
+]);
 
 const PC_STATUS_STYLE: Record<
   ProblemCardStatus,
@@ -628,12 +647,18 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
+type ActionMode = "complete" | "cancel" | null;
+
 export default function WorkOrderDetailPage({ params }: PageProps) {
   const { id } = use(params);
   const [order, setOrder] = useState<WorkOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [problemCard, setProblemCard] = useState<ProblemCard | null>(null);
+  const [actionMode, setActionMode] = useState<ActionMode>(null);
+  const [actionPending, setActionPending] = useState<"accept" | "complete" | "cancel" | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionToast, setActionToast] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -663,6 +688,73 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
     };
   }, [id]);
 
+  const formatActionError = (e: unknown): string =>
+    e instanceof ApiError
+      ? `${e.errorCode} (${e.status})：${e.message}`
+      : e instanceof Error
+        ? e.message
+        : String(e);
+
+  const handleAccept = async () => {
+    setActionPending("accept");
+    setActionError(null);
+    try {
+      const res = await api.post<WorkOrderEnvelope>(
+        `/api/v1/work-orders/${encodeURIComponent(id)}/accept`,
+      );
+      setOrder(res.data ?? null);
+      setActionToast("已接受派工");
+    } catch (e) {
+      setActionError(formatActionError(e));
+    } finally {
+      setActionPending(null);
+    }
+  };
+
+  const handleComplete = async (summary: string, actualAmount: string | null) => {
+    setActionPending("complete");
+    setActionError(null);
+    try {
+      const body: Record<string, unknown> = { summary, photos_before: [], photos_after: [] };
+      if (actualAmount) body.actual_amount = actualAmount;
+      const res = await api.post<WorkOrderEnvelope>(
+        `/api/v1/work-orders/${encodeURIComponent(id)}/complete`,
+        body,
+      );
+      setOrder(res.data ?? null);
+      setActionMode(null);
+      setActionToast("工單已標記完工");
+    } catch (e) {
+      setActionError(formatActionError(e));
+    } finally {
+      setActionPending(null);
+    }
+  };
+
+  const handleCancel = async (reason: string) => {
+    setActionPending("cancel");
+    setActionError(null);
+    try {
+      const res = await api.post<WorkOrderEnvelope>(
+        `/api/v1/work-orders/${encodeURIComponent(id)}/cancel`,
+        reason ? { reason } : {},
+      );
+      setOrder(res.data ?? null);
+      setActionMode(null);
+      setActionToast("工單已取消");
+    } catch (e) {
+      setActionError(formatActionError(e));
+    } finally {
+      setActionPending(null);
+    }
+  };
+
+  useEffect(() => {
+    if (!actionToast) return;
+    const t = setTimeout(() => setActionToast(null), 2400);
+    return () => clearTimeout(t);
+  }, [actionToast]);
+
   const shortId = id.slice(0, 8);
   const statusGroup = order ? STATUS_GROUP_MAP[order.status] : null;
   const statusStyle = statusGroup ? STATUS_GROUP_STYLE[statusGroup] : null;
@@ -672,6 +764,11 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
       ? `${order.district} · ${order.address}`
       : order.address || "—"
     : "—";
+
+  const canAccept = order ? ACCEPT_FROM.has(order.status) : false;
+  const canComplete = order ? COMPLETE_FROM.has(order.status) : false;
+  const canCancel = order ? CANCEL_FROM.has(order.status) : false;
+  const anyAction = canAccept || canComplete || canCancel;
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -737,6 +834,53 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
               </div>
             )}
             <SlaTimeline />
+
+            {anyAction && (
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {canAccept && (
+                  <button
+                    onClick={handleAccept}
+                    disabled={actionPending !== null}
+                    className="inline-flex items-center gap-2 rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    {actionPending === "accept" ? "處理中…" : "接受派工"}
+                  </button>
+                )}
+                {canComplete && (
+                  <button
+                    onClick={() => {
+                      setActionError(null);
+                      setActionMode("complete");
+                    }}
+                    disabled={actionPending !== null}
+                    className="inline-flex items-center gap-2 rounded-md bg-[var(--success)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <ClipboardCheck className="h-4 w-4" />
+                    標記完工
+                  </button>
+                )}
+                {canCancel && (
+                  <button
+                    onClick={() => {
+                      setActionError(null);
+                      setActionMode("cancel");
+                    }}
+                    disabled={actionPending !== null}
+                    className="inline-flex items-center gap-2 rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-semibold text-[var(--error)] transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <X className="h-4 w-4" />
+                    取消工單
+                  </button>
+                )}
+              </div>
+            )}
+
+            {actionError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+                操作失敗：{actionError}
+              </div>
+            )}
           </div>
 
           {error && (
@@ -773,6 +917,173 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
           workOrder={order ?? undefined}
           conversationId={problemCard?.conversation_id ?? undefined}
         />
+      </div>
+
+      {actionMode === "complete" && (
+        <CompleteModal
+          pending={actionPending === "complete"}
+          onCancel={() => setActionMode(null)}
+          onSubmit={handleComplete}
+        />
+      )}
+
+      {actionMode === "cancel" && (
+        <CancelModal
+          pending={actionPending === "cancel"}
+          onCancel={() => setActionMode(null)}
+          onSubmit={handleCancel}
+        />
+      )}
+
+      {actionToast && (
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-[var(--success)] px-4 py-2 text-[13px] font-semibold text-white shadow-lg">
+          {actionToast}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Action Modals ───────────────────────────────── */
+
+function CompleteModal({
+  pending,
+  onCancel,
+  onSubmit,
+}: {
+  pending: boolean;
+  onCancel: () => void;
+  onSubmit: (summary: string, actualAmount: string | null) => Promise<void>;
+}) {
+  const [summary, setSummary] = useState("");
+  const [actualAmount, setActualAmount] = useState("");
+  const trimmed = summary.trim();
+  const amountValid = actualAmount === "" || /^-?\d+(\.\d{1,2})?$/.test(actualAmount.trim());
+  const canSubmit = trimmed.length > 0 && amountValid && !pending;
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-[480px] rounded-xl bg-white p-6 shadow-xl">
+        <div className="mb-4 flex items-center gap-2">
+          <ClipboardCheck className="h-5 w-5 text-[var(--success)]" />
+          <span className="text-[18px] font-semibold text-[var(--text-primary)]">
+            標記完工
+          </span>
+        </div>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[12px] font-medium text-[var(--text-secondary)]">
+              完工摘要 <span className="text-[var(--error)]">*</span>
+            </label>
+            <textarea
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+              rows={4}
+              maxLength={2000}
+              placeholder="例如：更換主板、測試指紋與密碼解鎖正常"
+              className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+            />
+            <span className="text-[11px] text-[var(--text-disabled)]">
+              {trimmed.length} / 2000
+            </span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[12px] font-medium text-[var(--text-secondary)]">
+              實收金額（NT$，可留空）
+            </label>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={actualAmount}
+              onChange={(e) => setActualAmount(e.target.value)}
+              placeholder="例如：3500.00"
+              className={`rounded-md border px-3 py-2 text-[13px] focus:outline-none ${
+                amountValid
+                  ? "border-[var(--border)] focus:border-[var(--primary)]"
+                  : "border-red-300 focus:border-red-400"
+              }`}
+            />
+            {!amountValid && (
+              <span className="text-[11px] text-red-600">
+                金額格式應為小數兩位內的數字
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            disabled={pending}
+            className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
+          >
+            取消
+          </button>
+          <button
+            onClick={() => onSubmit(trimmed, actualAmount.trim() || null)}
+            disabled={!canSubmit}
+            className="rounded-md bg-[var(--success)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? "送出中…" : "確認完工"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CancelModal({
+  pending,
+  onCancel,
+  onSubmit,
+}: {
+  pending: boolean;
+  onCancel: () => void;
+  onSubmit: (reason: string) => Promise<void>;
+}) {
+  const [reason, setReason] = useState("");
+  const trimmed = reason.trim();
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-[480px] rounded-xl bg-white p-6 shadow-xl">
+        <div className="mb-4 flex items-center gap-2">
+          <X className="h-5 w-5 text-[var(--error)]" />
+          <span className="text-[18px] font-semibold text-[var(--text-primary)]">
+            取消工單
+          </span>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-[12px] font-medium text-[var(--text-secondary)]">
+            取消原因（可留空）
+          </label>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={4}
+            maxLength={500}
+            placeholder="例如：客戶改約、重複建立工單"
+            className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+          />
+          <span className="text-[11px] text-[var(--text-disabled)]">
+            {trimmed.length} / 500
+          </span>
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            disabled={pending}
+            className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
+          >
+            返回
+          </button>
+          <button
+            onClick={() => onSubmit(trimmed)}
+            disabled={pending}
+            className="rounded-md bg-[var(--error)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? "送出中…" : "確認取消"}
+          </button>
+        </div>
       </div>
     </div>
   );
