@@ -1,16 +1,32 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { TrendingUp, TrendingDown } from "lucide-react";
+import { ApiError, api } from "@/lib/api";
+import { formatRelative } from "@/lib/format";
+import {
+  STATUS_GROUP_MAP,
+  STATUS_GROUP_STYLE,
+} from "@/components/work-orders/WorkOrdersTable";
+import type { components } from "@/types/api.generated";
 
-interface OrderItem {
-  id: string;
-  status: string;
-  statusBg: string;
-  statusText: string;
-  customer: string;
-  description: string;
-  elapsed: string;
+type WorkOrder = components["schemas"]["WorkOrder"];
+type WorkOrderPage = components["schemas"]["WorkOrderPage"];
+type WorkOrderStatus = components["schemas"]["WorkOrderStatus"];
+
+const ACTIVE_STATUSES: ReadonlySet<WorkOrderStatus> = new Set([
+  "accepted",
+  "scheduled",
+  "dispatching",
+  "assigned",
+  "en_route",
+  "arrived",
+  "in_progress",
+]);
+
+interface Props {
+  technicianId?: string;
 }
 
 interface CommissionRow {
@@ -26,27 +42,6 @@ interface LogEntry {
   date: string;
   amount: string;
 }
-
-const activeOrders: OrderItem[] = [
-  {
-    id: "WO-20260422-0001",
-    status: "進行中",
-    statusBg: "#DBEAFE",
-    statusText: "#1E40AF",
-    customer: "陳小姐",
-    description: "指紋模組更換",
-    elapsed: "已進行 1 小時 30 分鐘",
-  },
-  {
-    id: "WO-20260422-0003",
-    status: "已派工",
-    statusBg: "#FEF3C7",
-    statusText: "#92400E",
-    customer: "王先生",
-    description: "密碼鎖安裝",
-    elapsed: "已進行 25 分鐘",
-  },
-];
 
 const commissionRows: CommissionRow[] = [
   { label: "一般維修佣金 (70%)", value: "NT$ 28,000" },
@@ -68,11 +63,11 @@ const logEntries: LogEntry[] = [
   { type: "bonus", title: "客戶推薦獎金", date: "2026-04-15", amount: "+NT$ 500" },
 ];
 
-export default function TechnicianDetailSidebar() {
+export default function TechnicianDetailSidebar({ technicianId }: Props) {
   return (
     <aside className="w-[360px] flex-shrink-0 flex flex-col gap-4 bg-[#F1F5F9] p-4 overflow-y-auto h-full">
       <AvailabilityCard />
-      <ActiveOrdersCard />
+      <ActiveOrdersCard technicianId={technicianId} />
       <CommissionSummaryCard />
       <PenaltyBonusLog />
     </aside>
@@ -105,10 +100,25 @@ function CardTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
+function MockBadge() {
+  return (
+    <span
+      className="text-[10px] font-medium rounded px-1.5 py-0.5"
+      style={{ backgroundColor: "#F1F5F9", color: "var(--text-disabled)" }}
+      title="示意資料，待相關模組接入後顯示真實內容"
+    >
+      示意
+    </span>
+  );
+}
+
 function AvailabilityCard() {
   return (
     <CardWrapper>
-      <CardTitle>可用狀態</CardTitle>
+      <div className="flex items-center gap-2">
+        <CardTitle>可用狀態</CardTitle>
+        <MockBadge />
+      </div>
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center gap-2.5">
           <span
@@ -136,58 +146,122 @@ function AvailabilityCard() {
   );
 }
 
-function ActiveOrdersCard() {
+function ActiveOrdersCard({ technicianId }: { technicianId?: string }) {
+  const [orders, setOrders] = useState<WorkOrder[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!technicianId) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setOrders([]);
+    (async () => {
+      try {
+        const res = await api.get<WorkOrderPage>("/api/v1/work-orders", {
+          query: { technician_id: technicianId, limit: 20 },
+        });
+        if (cancelled) return;
+        const items = (res.items ?? []) as WorkOrder[];
+        setOrders(items.filter((o) => ACTIVE_STATUSES.has(o.status)));
+      } catch (e) {
+        if (cancelled) return;
+        setError(
+          e instanceof ApiError
+            ? `${e.errorCode} (${e.status})：${e.message}`
+            : e instanceof Error
+              ? e.message
+              : String(e),
+        );
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [technicianId]);
+
   return (
     <CardWrapper>
       <div className="flex items-center gap-2">
         <CardTitle>進行中工單</CardTitle>
-        <span
-          className="text-xs font-semibold rounded-full px-2 py-0.5 text-white"
-          style={{ backgroundColor: "var(--primary)" }}
-        >
-          {activeOrders.length}
-        </span>
-      </div>
-      <div className="flex flex-col gap-2 w-full">
-        {activeOrders.map((order) => (
-          <div
-            key={order.id}
-            className="w-full rounded-lg p-3 flex flex-col gap-1.5"
-            style={{ border: "1px solid var(--border)" }}
+        {orders.length > 0 && (
+          <span
+            className="text-xs font-semibold rounded-full px-2 py-0.5 text-white"
+            style={{ backgroundColor: "var(--primary)" }}
           >
-            <div className="flex items-center justify-between">
-              <Link
-                href={`/work-orders/${order.id}`}
-                className="text-xs font-semibold"
-                style={{ color: "var(--primary)" }}
-              >
-                {order.id}
-              </Link>
-              <span
-                className="text-[11px] font-medium rounded px-1.5 py-0.5"
-                style={{
-                  backgroundColor: order.statusBg,
-                  color: order.statusText,
-                }}
-              >
-                {order.status}
-              </span>
-            </div>
-            <p
-              className="text-[13px]"
-              style={{ color: "var(--text-primary)" }}
-            >
-              {order.customer} — {order.description}
-            </p>
-            <p
-              className="text-[11px]"
-              style={{ color: "var(--text-disabled)" }}
-            >
-              {order.elapsed}
-            </p>
-          </div>
-        ))}
+            {orders.length}
+          </span>
+        )}
       </div>
+
+      {error && (
+        <span className="text-[12px]" style={{ color: "var(--error)" }}>
+          載入失敗：{error}
+        </span>
+      )}
+
+      {!error && loading && orders.length === 0 && (
+        <span className="text-xs" style={{ color: "var(--text-disabled)" }}>
+          查詢中…
+        </span>
+      )}
+
+      {!error && !loading && orders.length === 0 && (
+        <span className="text-xs" style={{ color: "var(--text-disabled)" }}>
+          目前無進行中工單
+        </span>
+      )}
+
+      {orders.length > 0 && (
+        <div className="flex flex-col gap-2 w-full">
+          {orders.map((order) => {
+            const group = STATUS_GROUP_MAP[order.status];
+            const style = STATUS_GROUP_STYLE[group];
+            const shortId = order.id.slice(0, 8);
+            const device = [order.brand, order.model].filter(Boolean).join(" ") || "—";
+            const location = order.district || order.address || "—";
+            return (
+              <div
+                key={order.id}
+                className="w-full rounded-lg p-3 flex flex-col gap-1.5"
+                style={{ border: "1px solid var(--border)" }}
+              >
+                <div className="flex items-center justify-between">
+                  <Link
+                    href={`/work-orders/${order.id}`}
+                    className="font-mono text-xs font-semibold hover:underline"
+                    style={{ color: "var(--primary)" }}
+                    title={order.id}
+                  >
+                    {shortId}
+                  </Link>
+                  <span
+                    className="text-[11px] font-medium rounded px-1.5 py-0.5"
+                    style={{ backgroundColor: style.bg, color: style.color }}
+                  >
+                    {style.label}
+                  </span>
+                </div>
+                <p
+                  className="text-[13px]"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  {device} — {location}
+                </p>
+                <p
+                  className="text-[11px]"
+                  style={{ color: "var(--text-disabled)" }}
+                >
+                  建立於 {formatRelative(order.created_at)}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </CardWrapper>
   );
 }
@@ -195,7 +269,10 @@ function ActiveOrdersCard() {
 function CommissionSummaryCard() {
   return (
     <CardWrapper>
-      <CardTitle>佣金摘要</CardTitle>
+      <div className="flex items-center gap-2">
+        <CardTitle>佣金摘要</CardTitle>
+        <MockBadge />
+      </div>
       <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
         2026年4月
       </p>
@@ -259,7 +336,10 @@ function CommissionSummaryCard() {
 function PenaltyBonusLog() {
   return (
     <CardWrapper>
-      <CardTitle>獎懲紀錄</CardTitle>
+      <div className="flex items-center gap-2">
+        <CardTitle>獎懲紀錄</CardTitle>
+        <MockBadge />
+      </div>
       <div className="flex flex-col gap-2.5 w-full">
         {logEntries.map((entry, i) => {
           const isBonus = entry.type === "bonus";

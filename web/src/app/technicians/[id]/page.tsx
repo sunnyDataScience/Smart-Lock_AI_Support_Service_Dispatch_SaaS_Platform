@@ -250,7 +250,7 @@ function MockBanner() {
     <div className="mx-8 mt-4 flex items-start gap-2 rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] px-4 py-3">
       <Info className="mt-[2px] h-4 w-4 flex-shrink-0 text-[var(--text-secondary)]" />
       <span className="text-[12px] text-[var(--text-secondary)]">
-        以下「技能認證矩陣」、「本週排班」、「績效數據」與右側部分區塊為示意，待認證/排班/績效模組接入後將顯示真實資料。
+        以下「技能認證矩陣」、「本週排班」與右側「可用狀態 / 佣金摘要 / 獎懲紀錄」為示意，待認證/排班/結算模組接入後將顯示真實資料；右側「進行中工單」已連線真實資料。
       </span>
     </div>
   );
@@ -379,7 +379,7 @@ export default function TechnicianDetailPage({ params }: PageProps) {
           )}
         </div>
 
-        <TechnicianDetailSidebar />
+        <TechnicianDetailSidebar technicianId={id} />
       </div>
     </div>
   );
