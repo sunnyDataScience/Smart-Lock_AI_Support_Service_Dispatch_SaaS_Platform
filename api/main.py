@@ -46,6 +46,7 @@ from routers import customers as customers_router
 from routers import roles as roles_router
 from routers import inventory as inventory_router
 from routers import reports_kpi as reports_kpi_router
+from routers import resolution as resolution_router
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -108,6 +109,7 @@ app.include_router(customers_router.router, prefix="/api/v1", tags=["customer_se
 app.include_router(roles_router.router, prefix="/api/v1", tags=["user_management"])
 app.include_router(inventory_router.router, prefix="/api/v1", tags=["inventory"])
 app.include_router(reports_kpi_router.router, prefix="/api/v1", tags=["reports"])
+app.include_router(resolution_router.router, prefix="/api/v1", tags=["customer_service"])
 
 
 @app.get("/health")
