@@ -3,15 +3,24 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, Download } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import CaseCardGrid from "@/components/knowledge-base/CaseCardGrid";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, auth } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
 type CaseEntry = components["schemas"]["CaseEntry"];
 type CaseEntryPage = components["schemas"]["CaseEntryPage"];
 type CaseSearchResponse = components["schemas"]["CaseSearchResponse"];
+type KbExportRequest = components["schemas"]["KbExportRequest"];
+type KbExportJob = components["schemas"]["KbExportJob"];
+type KbExportScope = NonNullable<KbExportRequest["scope"]>;
+
+const EXPORT_SCOPES: { value: KbExportScope; label: string; hint: string }[] = [
+  { value: "all", label: "全部", hint: "案例 + 手冊" },
+  { value: "cases_only", label: "僅案例", hint: "case_entries" },
+  { value: "manuals_only", label: "僅手冊", hint: "manuals" },
+];
 
 const tabs = [
   { label: "案例庫", href: "/knowledge-base/cases", dynamic: true },
@@ -51,6 +60,10 @@ export default function CasesPage() {
   >(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [exportPending, setExportPending] = useState(false);
+  const [exportToast, setExportToast] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const fetchPage = useCallback(
     async (
@@ -140,6 +153,61 @@ export default function CasesPage() {
       cancelled = true;
     };
   }, [searchQuery, brand]);
+
+  useEffect(() => {
+    if (!exportToast) return;
+    const t = setTimeout(() => setExportToast(null), 2400);
+    return () => clearTimeout(t);
+  }, [exportToast]);
+
+  const handleExport = async (scope: KbExportScope) => {
+    setExportPending(true);
+    setExportError(null);
+    setExportMenuOpen(false);
+    try {
+      const body: KbExportRequest = { scope };
+      if (brand) body.brand = brand;
+      const job = await api.post<KbExportJob>(
+        "/api/v1/knowledge-base/export",
+        body,
+      );
+      if (!job.download_url) {
+        throw new Error("匯出任務未提供下載連結");
+      }
+      const token = auth.getAccessToken();
+      const tenantId = auth.getTenantId();
+      const res = await fetch(job.download_url, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "X-Tenant-ID": tenantId,
+        },
+      });
+      if (!res.ok) {
+        throw new Error(`下載失敗（HTTP ${res.status}）`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `kb-export-${job.job_id.slice(0, 8)}.jsonl`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      const scopeLabel = EXPORT_SCOPES.find((s) => s.value === scope)?.label ?? scope;
+      setExportToast(`已匯出 ${job.item_count ?? 0} 筆（${scopeLabel}）`);
+    } catch (e) {
+      setExportError(
+        e instanceof ApiError
+          ? `${e.errorCode} (${e.status})：${e.message}`
+          : e instanceof Error
+            ? e.message
+            : String(e),
+      );
+    } finally {
+      setExportPending(false);
+    }
+  };
 
   const hasFilters = brand !== "" || verified !== "";
   const inSearchMode = searchQuery !== "";
@@ -240,6 +308,39 @@ export default function CasesPage() {
             </button>
           )}
 
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setExportMenuOpen((v) => !v)}
+              disabled={exportPending}
+              className="flex h-10 items-center gap-2 rounded-lg border border-[var(--border)] bg-white px-4 text-sm font-semibold text-[var(--text-primary)] transition hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
+              title={brand ? `將以品牌「${brand}」過濾匯出` : "匯出全租戶知識庫"}
+            >
+              <Download className="h-4 w-4" />
+              {exportPending ? "匯出中…" : "匯出索引"}
+            </button>
+            {exportMenuOpen && (
+              <div className="absolute right-0 top-full z-30 mt-1 w-48 overflow-hidden rounded-md border border-[var(--border)] bg-white shadow-lg">
+                {EXPORT_SCOPES.map((s) => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    onClick={() => handleExport(s.value)}
+                    className="flex w-full flex-col items-start gap-[2px] px-3 py-2 text-left transition hover:bg-[var(--bg-page)]"
+                  >
+                    <span className="text-[13px] font-semibold text-[var(--text-primary)]">
+                      {s.label}
+                    </span>
+                    <span className="text-[11px] text-[var(--text-secondary)]">
+                      {s.hint}
+                      {brand ? ` · 限 ${brand}` : ""}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <Link
             href="/knowledge-base/cases/new"
             className="flex h-10 items-center gap-2 rounded-lg bg-[var(--primary)] px-5 text-sm font-semibold text-white hover:bg-[var(--primary-hover)]"
@@ -248,6 +349,18 @@ export default function CasesPage() {
             新增案例
           </Link>
         </div>
+
+        {exportError && (
+          <div className="mx-8 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            匯出失敗：{exportError}
+          </div>
+        )}
+
+        {exportToast && (
+          <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-[var(--success)] px-4 py-2 text-[13px] font-semibold text-white shadow-lg">
+            {exportToast}
+          </div>
+        )}
 
         {(error || searchError) && (
           <div className="mx-8 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
