@@ -1,8 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { Crown, ChevronDown, Download } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Crown, ChevronDown, Download, RefreshCw } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
+import { ApiError, api } from "@/lib/api";
+import type { components } from "@/types/api.generated";
+
+type Technician = components["schemas"]["Technician"];
+type TechnicianPage = components["schemas"]["TechnicianPage"];
 
 const segments = [
   { label: "本週", active: false },
@@ -11,109 +16,126 @@ const segments = [
   { label: "本年", active: false },
 ];
 
-interface PodiumCard {
-  rank: number;
-  name: string;
-  score: number;
-  scoreColor: string;
-  borderColor: string;
-  avatarBg: string;
-  completionRate: string;
-  rating: string;
-  turnaround: string;
-  hasCrown: boolean;
-}
-
-const podium: PodiumCard[] = [
-  {
-    rank: 1,
-    name: "陳大明",
-    score: 96.5,
-    scoreColor: "#FBBF24",
-    borderColor: "#FBBF24",
-    avatarBg: "#DBEAFE",
-    completionRate: "98%",
-    rating: "4.9",
-    turnaround: "1.8hr",
-    hasCrown: true,
-  },
-  {
-    rank: 2,
-    name: "林美玲",
-    score: 94.2,
-    scoreColor: "#64748B",
-    borderColor: "#94A3B8",
-    avatarBg: "#DBEAFE",
-    completionRate: "96%",
-    rating: "4.8",
-    turnaround: "2.1hr",
-    hasCrown: false,
-  },
-  {
-    rank: 3,
-    name: "張志豪",
-    score: 91.8,
-    scoreColor: "#D97706",
-    borderColor: "#D97706",
-    avatarBg: "#DBEAFE",
-    completionRate: "94%",
-    rating: "4.7",
-    turnaround: "2.3hr",
-    hasCrown: false,
-  },
+const AVATAR_PALETTE = [
+  "#DBEAFE",
+  "#E0E7FF",
+  "#FEF3C7",
+  "#FCE7F3",
+  "#D1FAE5",
+  "#FEE2E2",
+  "#EDE9FE",
+  "#CFFAFE",
 ];
 
-interface RankingRow {
-  rank: number;
-  name: string;
-  avatarBg: string;
-  orders: number;
-  completionRate: number;
-  rating: string;
-  turnaround: string;
-  rejectionRate: string;
-  rejectionColor: string;
-  revenue: string;
+function avatarBg(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash * 31 + name.charCodeAt(i)) & 0xffffffff;
+  }
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
 }
 
-const rows: RankingRow[] = [
-  { rank: 1, name: "陳大明", avatarBg: "#DBEAFE", orders: 87, completionRate: 98, rating: "4.9 ★", turnaround: "1.8hr", rejectionRate: "1.2%", rejectionColor: "var(--status-success)", revenue: "$128K" },
-  { rank: 2, name: "林美玲", avatarBg: "#E0E7FF", orders: 82, completionRate: 96, rating: "4.8 ★", turnaround: "2.1hr", rejectionRate: "2.1%", rejectionColor: "var(--status-success)", revenue: "$119K" },
-  { rank: 3, name: "張志豪", avatarBg: "#FEF3C7", orders: 79, completionRate: 94, rating: "4.7 ★", turnaround: "2.3hr", rejectionRate: "2.8%", rejectionColor: "var(--status-success)", revenue: "$112K" },
-  { rank: 4, name: "王建華", avatarBg: "#FCE7F3", orders: 75, completionRate: 91, rating: "4.6 ★", turnaround: "2.5hr", rejectionRate: "3.2%", rejectionColor: "var(--text-secondary)", revenue: "$105K" },
-  { rank: 5, name: "李佳穎", avatarBg: "#D1FAE5", orders: 71, completionRate: 89, rating: "4.5 ★", turnaround: "2.7hr", rejectionRate: "3.5%", rejectionColor: "var(--text-secondary)", revenue: "$98K" },
-  { rank: 6, name: "黃明德", avatarBg: "#FEE2E2", orders: 68, completionRate: 87, rating: "4.4 ★", turnaround: "2.9hr", rejectionRate: "4.1%", rejectionColor: "var(--status-warning)", revenue: "$92K" },
-  { rank: 7, name: "吳雅琪", avatarBg: "#EDE9FE", orders: 64, completionRate: 84, rating: "4.3 ★", turnaround: "3.2hr", rejectionRate: "4.8%", rejectionColor: "var(--status-warning)", revenue: "$85K" },
-  { rank: 8, name: "蔡宗翰", avatarBg: "#CFFAFE", orders: 60, completionRate: 80, rating: "4.1 ★", turnaround: "3.5hr", rejectionRate: "5.2%", rejectionColor: "var(--status-danger)", revenue: "$78K" },
-];
+function compositeScore(t: Technician): number {
+  return Math.round((t.rating ?? 0) * 20 * 10) / 10;
+}
+
+function sortTechnicians(items: Technician[]): Technician[] {
+  return [...items].sort((a, b) => {
+    const ra = a.rating ?? 0;
+    const rb = b.rating ?? 0;
+    if (rb !== ra) return rb - ra;
+    return (b.completed_orders_count ?? 0) - (a.completed_orders_count ?? 0);
+  });
+}
+
+const availabilityLabel: Record<Technician["availability"], { label: string; color: string; bg: string }> = {
+  available: { label: "可派工", color: "#15803D", bg: "#DCFCE7" },
+  busy: { label: "執行中", color: "#1D4ED8", bg: "#DBEAFE" },
+  offline: { label: "離線", color: "#475569", bg: "#E2E8F0" },
+  on_leave: { label: "請假", color: "#92400E", bg: "#FEF3C7" },
+  circuit_breaker_open: { label: "熔斷中", color: "#B91C1C", bg: "#FEE2E2" },
+};
+
+const levelLabel: Record<string, { label: string; color: string; bg: string }> = {
+  A: { label: "A 級", color: "#1D4ED8", bg: "#DBEAFE" },
+  B: { label: "B 級", color: "#15803D", bg: "#DCFCE7" },
+  C: { label: "C 級", color: "#92400E", bg: "#FEF3C7" },
+};
 
 const columns = [
-  { label: "排名", width: "w-[50px]" },
-  { label: "技師", width: "w-[140px]" },
-  { label: "完工工單", width: "w-[80px]" },
-  { label: "完工率", width: "w-[160px]" },
+  { label: "排名", width: "w-[60px]" },
+  { label: "技師", width: "w-[180px]" },
+  { label: "等級", width: "w-[80px]" },
+  { label: "可用狀態", width: "w-[100px]" },
+  { label: "完工工單", width: "w-[90px]" },
   { label: "平均星等", width: "w-[100px]" },
-  { label: "週轉時間", width: "w-[80px]" },
-  { label: "拒單率", width: "w-[70px]" },
-  { label: "營收貢獻", width: "w-[90px]" },
+  { label: "綜合評分", width: "w-[120px]" },
+  { label: "服務區域", width: "flex-1" },
 ];
 
-function PodiumBadge({ rank, borderColor }: { rank: number; borderColor: string }) {
+function PodiumBadge({ rank, color }: { rank: number; color: string }) {
   const bgMap: Record<number, string> = { 2: "#F1F5F9", 3: "#FFF7ED" };
   return (
     <div
       className="rounded-xl px-3 py-1"
       style={{ backgroundColor: bgMap[rank] }}
     >
-      <span className="text-xs font-semibold" style={{ color: borderColor }}>
+      <span className="text-xs font-semibold" style={{ color }}>
         #{rank}
       </span>
     </div>
   );
 }
 
+interface PodiumDecor {
+  scoreColor: string;
+  borderColor: string;
+}
+
+const podiumDecor: Record<number, PodiumDecor> = {
+  1: { scoreColor: "#FBBF24", borderColor: "#FBBF24" },
+  2: { scoreColor: "#64748B", borderColor: "#94A3B8" },
+  3: { scoreColor: "#D97706", borderColor: "#D97706" },
+};
+
 export default function TechnicianRankingPage() {
-  const [activeSegment, setActiveSegment] = useState("本月");
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+
+  const fetchTechnicians = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.get<TechnicianPage>(
+        "/api/v1/technicians",
+        { query: { limit: 100 } },
+      );
+      const items: Technician[] = res.items ?? [];
+      setTechnicians(sortTechnicians(items));
+      setUpdatedAt(new Date());
+    } catch (e) {
+      setError(
+        e instanceof ApiError
+          ? `${e.errorCode} (${e.status})：${e.message}`
+          : e instanceof Error
+            ? e.message
+            : String(e),
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTechnicians();
+  }, []);
+
+  const podium = technicians.slice(0, 3);
+  const updatedLabel = updatedAt
+    ? `資料更新於 ${updatedAt.toLocaleTimeString("zh-TW", { hour12: false })}`
+    : "尚未載入";
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -121,27 +143,57 @@ export default function TechnicianRankingPage() {
 
       <div className="flex flex-1 flex-col overflow-hidden">
         <div className="flex flex-1 flex-col gap-6 overflow-auto px-8 py-6">
-          {/* Header */}
           <div className="flex flex-col gap-2">
             <span className="text-[13px] text-[var(--text-secondary)]">
               首頁 &gt; 報表 &gt; 技師排行
             </span>
-            <h1 className="text-2xl font-semibold text-[var(--text-primary)]">
-              技師排行榜
-            </h1>
+            <div className="flex items-center justify-between">
+              <h1 className="text-2xl font-semibold text-[var(--text-primary)]">
+                技師排行榜
+              </h1>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-[var(--text-secondary)]">
+                  {updatedLabel}
+                </span>
+                <button
+                  onClick={fetchTechnicians}
+                  disabled={loading}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
+                  title="重新整理"
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 text-[var(--text-secondary)] ${loading ? "animate-spin" : ""}`}
+                  />
+                </button>
+              </div>
+            </div>
           </div>
 
-          {/* Toolbar */}
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              載入技師列表失敗：{error}
+            </div>
+          )}
+
+          <div className="rounded-lg border border-[var(--border)] bg-[#FFFBEB] px-4 py-3 text-[13px] leading-relaxed text-[#92400E]">
+            排名依 listTechnicians 即時資料計算（綜合評分 = 平均星等 × 20，
+            tiebreak 為累積完工工單數）。本週 / 本季 / 本年 期間切片、
+            排序選單、區域過濾、匯出 CSV、分頁
+            等待相關 metrics endpoint 上線；完工率、週轉時間、拒單率、
+            營收貢獻 等指標需對應派工/結算 metrics 接入後再顯示。
+          </div>
+
           <div className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3">
-            <div className="flex rounded-lg bg-[#F1F5F9]">
+            <div className="flex rounded-lg bg-[#F1F5F9] p-[3px]">
               {segments.map((seg) => (
                 <button
                   key={seg.label}
-                  onClick={() => setActiveSegment(seg.label)}
-                  className={`rounded-lg px-[14px] py-2 text-[13px] ${
-                    activeSegment === seg.label
+                  disabled={!seg.active}
+                  title={seg.active ? "" : "即將推出"}
+                  className={`rounded-md px-[14px] py-[6px] text-[13px] ${
+                    seg.active
                       ? "bg-[var(--primary)] font-semibold text-white"
-                      : "font-medium text-[var(--text-secondary)]"
+                      : "cursor-not-allowed font-medium text-[var(--text-disabled)] opacity-60"
                   }`}
                 >
                   {seg.label}
@@ -149,97 +201,125 @@ export default function TechnicianRankingPage() {
               ))}
             </div>
 
-            <button className="flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2">
-              <span className="text-[13px] text-[var(--text-primary)]">
+            <button
+              disabled
+              title="即將推出"
+              className="flex cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2 opacity-60"
+            >
+              <span className="text-[13px] text-[var(--text-disabled)]">
                 排序：綜合評分
               </span>
-              <ChevronDown className="h-4 w-4 text-[var(--text-secondary)]" />
+              <ChevronDown className="h-4 w-4 text-[var(--text-disabled)]" />
             </button>
 
-            <button className="flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2">
-              <span className="text-[13px] text-[var(--text-primary)]">
+            <button
+              disabled
+              title="即將推出"
+              className="flex cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2 opacity-60"
+            >
+              <span className="text-[13px] text-[var(--text-disabled)]">
                 全部區域
               </span>
-              <ChevronDown className="h-4 w-4 text-[var(--text-secondary)]" />
+              <ChevronDown className="h-4 w-4 text-[var(--text-disabled)]" />
             </button>
 
             <div className="flex-1" />
 
-            <button className="flex items-center gap-[6px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2">
-              <Download className="h-4 w-4 text-[var(--text-secondary)]" />
-              <span className="text-[13px] text-[var(--text-primary)]">
+            <button
+              disabled
+              title="即將推出"
+              className="flex cursor-not-allowed items-center gap-[6px] rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-4 py-2 opacity-60"
+            >
+              <Download className="h-4 w-4 text-[var(--text-disabled)]" />
+              <span className="text-[13px] text-[var(--text-disabled)]">
                 匯出 CSV
               </span>
             </button>
           </div>
 
-          {/* Podium Section */}
           <div className="flex gap-4">
-            {podium.map((card) => (
-              <div
-                key={card.rank}
-                className="flex flex-1 flex-col items-center gap-3 rounded-xl bg-[var(--bg-surface)] p-6"
-                style={{ border: `2px solid ${card.borderColor}` }}
-              >
-                {card.hasCrown && (
-                  <Crown className="h-7 w-7 text-[#FBBF24]" />
-                )}
-                {!card.hasCrown && <PodiumBadge rank={card.rank} borderColor={card.borderColor} />}
-
-                <div
-                  className="h-20 w-20 rounded-full"
-                  style={{ backgroundColor: card.avatarBg }}
-                />
-
-                <span className="text-base font-semibold text-[var(--text-primary)]">
-                  {card.name}
-                </span>
-
-                <span
-                  className="text-[32px] font-bold"
-                  style={{ color: card.scoreColor }}
-                >
-                  {card.score}
-                </span>
-                <span className="text-xs text-[var(--text-secondary)]">
-                  綜合評分
-                </span>
-
-                <div className="flex w-full items-center justify-around">
-                  <div className="flex flex-col items-center gap-[2px]">
-                    <span className="text-sm font-semibold text-[var(--status-success)]">
-                      {card.completionRate}
-                    </span>
-                    <span className="text-[11px] text-[var(--text-secondary)]">
-                      完工率
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center gap-[2px]">
-                    <span className="text-sm font-semibold text-[#F59E0B]">
-                      {card.rating}
-                    </span>
-                    <span className="text-[11px] text-[var(--text-secondary)]">
-                      評分
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center gap-[2px]">
-                    <span className="text-sm font-semibold text-[#3B82F6]">
-                      {card.turnaround}
-                    </span>
-                    <span className="text-[11px] text-[var(--text-secondary)]">
-                      週轉
-                    </span>
-                  </div>
-                </div>
+            {loading && podium.length === 0 ? (
+              <div className="flex h-[260px] flex-1 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] text-sm text-[var(--text-secondary)]">
+                載入中…
               </div>
-            ))}
+            ) : podium.length === 0 ? (
+              <div className="flex h-[260px] flex-1 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] text-sm text-[var(--text-secondary)]">
+                目前沒有技師資料
+              </div>
+            ) : (
+              podium.map((t, idx) => {
+                const rank = idx + 1;
+                const decor = podiumDecor[rank];
+                const score = compositeScore(t);
+                return (
+                  <div
+                    key={t.id}
+                    className="flex flex-1 flex-col items-center gap-3 rounded-xl bg-[var(--bg-surface)] p-6"
+                    style={{ border: `2px solid ${decor.borderColor}` }}
+                  >
+                    {rank === 1 ? (
+                      <Crown className="h-7 w-7 text-[#FBBF24]" />
+                    ) : (
+                      <PodiumBadge rank={rank} color={decor.borderColor} />
+                    )}
+
+                    <div
+                      className="flex h-20 w-20 items-center justify-center rounded-full text-2xl font-bold text-[var(--text-primary)]"
+                      style={{ backgroundColor: avatarBg(t.name) }}
+                    >
+                      {t.name[0] ?? "?"}
+                    </div>
+
+                    <span className="text-base font-semibold text-[var(--text-primary)]">
+                      {t.name}
+                    </span>
+
+                    <span
+                      className="text-[32px] font-bold leading-none"
+                      style={{ color: decor.scoreColor }}
+                    >
+                      {score.toFixed(1)}
+                    </span>
+                    <span className="text-xs text-[var(--text-secondary)]">
+                      綜合評分（rating × 20）
+                    </span>
+
+                    <div className="flex w-full items-center justify-around">
+                      <div className="flex flex-col items-center gap-[2px]">
+                        <span className="text-sm font-semibold text-[#3B82F6]">
+                          {t.completed_orders_count ?? 0}
+                        </span>
+                        <span className="text-[11px] text-[var(--text-secondary)]">
+                          完工工單
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-center gap-[2px]">
+                        <span className="text-sm font-semibold text-[#F59E0B]">
+                          {t.rating?.toFixed(1) ?? "—"} ★
+                        </span>
+                        <span className="text-[11px] text-[var(--text-secondary)]">
+                          評分
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-center gap-[2px]">
+                        <span className="text-sm font-semibold text-[var(--text-primary)]">
+                          {t.level}
+                        </span>
+                        <span className="text-[11px] text-[var(--text-secondary)]">
+                          等級
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
 
-          {/* Ranking Table */}
           <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]">
             <div className="flex items-center rounded-t-xl bg-[#F8FAFC] px-4 py-3">
               {columns.map((col) => (
-                <div key={col.label} className={`${col.width}`}>
+                <div key={col.label} className={`${col.width} shrink-0`}>
                   <span className="text-xs font-semibold text-[var(--text-secondary)]">
                     {col.label}
                   </span>
@@ -247,90 +327,124 @@ export default function TechnicianRankingPage() {
               ))}
             </div>
 
-            {rows.map((row) => (
-              <div
-                key={row.rank}
-                className="flex items-center border-b border-[var(--border)] px-4 py-[10px] last:border-b-0"
-              >
-                <div className="w-[50px]">
-                  <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-                    {row.rank}
-                  </span>
-                </div>
-
-                <div className="flex w-[140px] items-center gap-2">
-                  <div
-                    className="h-7 w-7 shrink-0 rounded-full"
-                    style={{ backgroundColor: row.avatarBg }}
-                  />
-                  <span className="text-[13px] text-[var(--text-primary)]">
-                    {row.name}
-                  </span>
-                </div>
-
-                <div className="w-[80px]">
-                  <span className="text-[13px] text-[var(--text-primary)]">
-                    {row.orders}
-                  </span>
-                </div>
-
-                <div className="flex w-[160px] items-center gap-2">
-                  <div className="h-2 w-[100px] rounded bg-[#F1F5F9]">
-                    <div
-                      className="h-2 rounded bg-[var(--status-success)]"
-                      style={{ width: `${row.completionRate}%` }}
-                    />
-                  </div>
-                  <span className="text-xs text-[var(--status-success)]">
-                    {row.completionRate}%
-                  </span>
-                </div>
-
-                <div className="w-[100px]">
-                  <span className="text-[13px] text-[#F59E0B]">
-                    {row.rating}
-                  </span>
-                </div>
-
-                <div className="w-[80px]">
-                  <span className="text-[13px] text-[var(--text-primary)]">
-                    {row.turnaround}
-                  </span>
-                </div>
-
-                <div className="w-[70px]">
-                  <span
-                    className="text-[13px]"
-                    style={{ color: row.rejectionColor }}
-                  >
-                    {row.rejectionRate}
-                  </span>
-                </div>
-
-                <div className="w-[90px]">
-                  <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-                    {row.revenue}
-                  </span>
-                </div>
+            {loading && technicians.length === 0 && (
+              <div className="flex h-[120px] items-center justify-center text-sm text-[var(--text-secondary)]">
+                載入中…
               </div>
-            ))}
+            )}
+            {!loading && technicians.length === 0 && (
+              <div className="flex h-[120px] items-center justify-center text-sm text-[var(--text-secondary)]">
+                目前沒有技師資料
+              </div>
+            )}
 
-            {/* Pagination */}
+            {technicians.map((t, idx) => {
+              const rank = idx + 1;
+              const score = compositeScore(t);
+              const avail = availabilityLabel[t.availability] ?? availabilityLabel.offline;
+              const lvl = levelLabel[t.level] ?? { label: t.level, color: "#475569", bg: "#F1F5F9" };
+              const areas = (t.service_areas ?? []).join("、") || "—";
+
+              return (
+                <div
+                  key={t.id}
+                  className="flex items-center border-b border-[var(--border)] px-4 py-[10px] last:border-b-0"
+                >
+                  <div className="w-[60px] shrink-0">
+                    <span className="text-[13px] font-semibold text-[var(--text-primary)]">
+                      {rank}
+                    </span>
+                  </div>
+
+                  <div className="flex w-[180px] shrink-0 items-center gap-2">
+                    <div
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-[var(--text-primary)]"
+                      style={{ backgroundColor: avatarBg(t.name) }}
+                    >
+                      {t.name[0] ?? "?"}
+                    </div>
+                    <span className="truncate text-[13px] text-[var(--text-primary)]">
+                      {t.name}
+                    </span>
+                  </div>
+
+                  <div className="w-[80px] shrink-0">
+                    <span
+                      className="rounded-md px-2 py-[2px] text-[11px] font-semibold"
+                      style={{ backgroundColor: lvl.bg, color: lvl.color }}
+                    >
+                      {lvl.label}
+                    </span>
+                  </div>
+
+                  <div className="w-[100px] shrink-0">
+                    <span
+                      className="rounded-md px-2 py-[2px] text-[11px] font-semibold"
+                      style={{ backgroundColor: avail.bg, color: avail.color }}
+                    >
+                      {avail.label}
+                    </span>
+                  </div>
+
+                  <div className="w-[90px] shrink-0">
+                    <span className="text-[13px] text-[var(--text-primary)]">
+                      {t.completed_orders_count ?? 0}
+                    </span>
+                  </div>
+
+                  <div className="w-[100px] shrink-0">
+                    <span className="text-[13px] text-[#F59E0B]">
+                      {t.rating?.toFixed(1) ?? "—"} ★
+                    </span>
+                  </div>
+
+                  <div className="flex w-[120px] shrink-0 items-center gap-2">
+                    <div className="h-2 w-[60px] rounded bg-[#F1F5F9]">
+                      <div
+                        className="h-2 rounded bg-[#2563EB]"
+                        style={{ width: `${Math.min(100, score)}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-semibold text-[var(--text-primary)]">
+                      {score.toFixed(1)}
+                    </span>
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <span
+                      className="truncate text-[13px] text-[var(--text-secondary)]"
+                      title={areas}
+                    >
+                      {areas}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+
             <div className="flex items-center justify-between px-4 py-3">
               <span className="text-[13px] text-[var(--text-secondary)]">
-                顯示 1-25，共 48 筆
+                顯示 {technicians.length} 位技師
               </span>
               <div className="flex gap-1">
-                <button className="rounded-md border border-[var(--border)] px-[10px] py-[6px] text-xs text-[var(--text-secondary)]">
+                <button
+                  disabled
+                  title="即將推出"
+                  className="cursor-not-allowed rounded-md border border-[var(--border)] px-[10px] py-[6px] text-xs text-[var(--text-disabled)] opacity-60"
+                >
                   上一頁
                 </button>
-                <button className="rounded-md bg-[var(--primary)] px-[10px] py-[6px] text-xs font-semibold text-white">
+                <button
+                  disabled
+                  className="cursor-not-allowed rounded-md bg-[var(--primary)] px-[10px] py-[6px] text-xs font-semibold text-white opacity-80"
+                >
                   1
                 </button>
-                <button className="rounded-md border border-[var(--border)] px-[10px] py-[6px] text-xs text-[var(--text-primary)]">
-                  2
-                </button>
-                <button className="rounded-md border border-[var(--border)] px-[10px] py-[6px] text-xs text-[var(--text-primary)]">
+                <button
+                  disabled
+                  title="即將推出"
+                  className="cursor-not-allowed rounded-md border border-[var(--border)] px-[10px] py-[6px] text-xs text-[var(--text-disabled)] opacity-60"
+                >
                   下一頁
                 </button>
               </div>
