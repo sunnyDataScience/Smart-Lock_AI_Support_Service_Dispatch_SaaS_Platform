@@ -1,7 +1,16 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { CheckCircle2, Download, Flag, Info, Pencil, Sparkles, X } from "lucide-react";
+import {
+  CheckCircle2,
+  Download,
+  Flag,
+  Info,
+  Pencil,
+  Sparkles,
+  UserSearch,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import FmeaDiagnosisCard from "@/components/problem-cards/FmeaDiagnosisCard";
@@ -22,6 +31,10 @@ type ResolveResponse = components["schemas"]["ResolveResponse"];
 type ResolveLayer = ResolveResponse["layer"];
 type ProblemCardExport = components["schemas"]["ProblemCardExport"];
 type ExportFormat = NonNullable<ProblemCardExport["format"]>;
+type DispatchAutoMatchResponse = components["schemas"]["DispatchAutoMatchResponse"];
+type DispatchCandidate = components["schemas"]["DispatchCandidate"];
+type DispatchAutoMatchRequest = components["schemas"]["DispatchAutoMatchRequest"];
+type AutoMatchUrgency = NonNullable<DispatchAutoMatchRequest["urgency"]>;
 
 const EXPORT_FORMATS: { value: ExportFormat; label: string; mime: string; ext: string }[] = [
   { value: "pdf", label: "PDF", mime: "application/pdf", ext: "pdf" },
@@ -63,13 +76,17 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
   const [card, setCard] = useState<ProblemCard | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [actionPending, setActionPending] = useState<"confirm" | "resolve" | "update" | "auto" | "export" | null>(null);
+  const [actionPending, setActionPending] = useState<
+    "confirm" | "resolve" | "update" | "auto" | "export" | "match" | null
+  >(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionToast, setActionToast] = useState<string | null>(null);
   const [resolveModalOpen, setResolveModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [autoResolveResult, setAutoResolveResult] = useState<ResolveResponse | null>(null);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [matchResult, setMatchResult] = useState<DispatchCandidate[] | null>(null);
+  const [matchUrgency, setMatchUrgency] = useState<AutoMatchUrgency>("normal");
 
   useEffect(() => {
     let cancelled = false;
@@ -170,6 +187,33 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       setActionToast(`已下載 ${meta.label}`);
+    } catch (e) {
+      setActionError(formatActionError(e));
+    } finally {
+      setActionPending(null);
+    }
+  };
+
+  const handleAutoMatch = async () => {
+    if (!card) return;
+    setActionPending("match");
+    setActionError(null);
+    try {
+      const body: DispatchAutoMatchRequest = {
+        problem_card_id: card.id,
+        urgency: matchUrgency,
+        max_candidates: 5,
+      };
+      const res = await api.post<DispatchAutoMatchResponse>(
+        "/api/v1/dispatch/auto-match",
+        body,
+      );
+      setMatchResult(res.candidates ?? []);
+      setActionToast(
+        `已匹配 ${res.candidates?.length ?? 0} 位候選技師（${
+          matchUrgency === "emergency" ? "緊急" : "一般"
+        }）`,
+      );
     } catch (e) {
       setActionError(formatActionError(e));
     } finally {
@@ -296,6 +340,28 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
                   {actionPending === "auto" ? "查詢中…" : "嘗試自動解決"}
                 </button>
               )}
+              {card && (
+                <div className="inline-flex items-center gap-1 rounded-md border border-[#0EA5E9] bg-white p-[2px]">
+                  <select
+                    value={matchUrgency}
+                    onChange={(e) => setMatchUrgency(e.target.value as AutoMatchUrgency)}
+                    disabled={actionPending !== null}
+                    className="rounded-l-md bg-transparent px-2 py-[6px] text-[12px] text-[#0369A1] focus:outline-none"
+                    title="自動匹配緊急程度（emergency 會將分數加成 5%）"
+                  >
+                    <option value="normal">一般</option>
+                    <option value="emergency">緊急</option>
+                  </select>
+                  <button
+                    onClick={handleAutoMatch}
+                    disabled={actionPending !== null}
+                    className="inline-flex items-center gap-2 rounded-r-md bg-[#0EA5E9] px-3 py-[6px] text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <UserSearch className="h-4 w-4" />
+                    {actionPending === "match" ? "匹配中…" : "推薦技師"}
+                  </button>
+                </div>
+              )}
               {canEdit && (
                 <button
                   onClick={() => {
@@ -361,6 +427,13 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
               <AutoResolvePanel
                 result={autoResolveResult}
                 onClose={() => setAutoResolveResult(null)}
+              />
+            )}
+
+            {matchResult && (
+              <MatchResultPanel
+                candidates={matchResult}
+                onClose={() => setMatchResult(null)}
               />
             )}
 
@@ -539,6 +612,108 @@ function AutoResolvePanel({
           </ul>
         </div>
       )}
+    </div>
+  );
+}
+
+function MatchResultPanel({
+  candidates,
+  onClose,
+}: {
+  candidates: DispatchCandidate[];
+  onClose: () => void;
+}) {
+  return (
+    <div className="rounded-lg border border-[#BAE6FD] bg-[#F0F9FF] p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <UserSearch className="h-5 w-5 text-[#0369A1]" />
+          <span className="text-[16px] font-semibold text-[var(--text-primary)]">
+            自動匹配候選技師
+          </span>
+          <span className="text-[12px] text-[var(--text-secondary)]">
+            共 {candidates.length} 位
+          </span>
+        </div>
+        <button
+          onClick={onClose}
+          className="rounded p-1 text-[var(--text-secondary)] transition hover:bg-white"
+          title="關閉"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      {candidates.length === 0 ? (
+        <p className="mt-3 rounded-md border border-[#E0F2FE] bg-white px-4 py-3 text-[13px] text-[var(--text-secondary)]">
+          目前找不到符合條件的候選技師，請手動於工單頁指派或調整匹配參數。
+        </p>
+      ) : (
+        <ul className="mt-3 flex flex-col gap-2">
+          {candidates.map((c, idx) => {
+            const score = typeof c.score === "number" ? c.score : 0;
+            const scorePct = (score * 100).toFixed(1);
+            const scoreColor =
+              score >= 0.7
+                ? "bg-[#DCFCE7] text-[#15803D]"
+                : score >= 0.4
+                ? "bg-[#FEF3C7] text-[#B45309]"
+                : "bg-[#F1F5F9] text-[var(--text-secondary)]";
+            return (
+              <li
+                key={`${c.technician_id ?? "tech"}-${idx}`}
+                className="rounded-md border border-[#E0F2FE] bg-white px-4 py-3"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-col gap-[2px]">
+                    <span className="text-[14px] font-semibold text-[var(--text-primary)]">
+                      {c.technician_name || "（未命名技師）"}
+                    </span>
+                    <span className="text-[11px] font-mono text-[var(--text-secondary)]">
+                      {c.technician_id ? c.technician_id.slice(0, 8) : "—"}
+                    </span>
+                  </div>
+                  <span
+                    className={`rounded-full px-2 py-[2px] text-[11px] font-semibold ${scoreColor}`}
+                  >
+                    {scorePct}
+                  </span>
+                </div>
+                <div className="mt-2 grid grid-cols-3 gap-2 text-[12px] text-[var(--text-secondary)]">
+                  <div className="flex flex-col">
+                    <span className="text-[11px]">距離</span>
+                    <span className="font-medium text-[var(--text-primary)]">
+                      {typeof c.distance_km === "number"
+                        ? `${c.distance_km.toFixed(1)} km`
+                        : "—"}
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[11px]">預估抵達</span>
+                    <span className="font-medium text-[var(--text-primary)]">
+                      {typeof c.eta_minutes === "number"
+                        ? `${c.eta_minutes} 分鐘`
+                        : "—"}
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[11px]">評分</span>
+                    <span className="font-medium text-[var(--text-primary)]">
+                      {typeof c.rating === "number"
+                        ? c.rating.toFixed(1)
+                        : "—"}
+                    </span>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <p className="mt-3 text-[11px] leading-[1.6] text-[var(--text-secondary)]">
+        分數綜合「品牌技能 × 0.4 + 距離 × 0.3 + 評分 × 0.3」並依緊急程度加成；實際指派請於工單頁完成。
+      </p>
     </div>
   );
 }
