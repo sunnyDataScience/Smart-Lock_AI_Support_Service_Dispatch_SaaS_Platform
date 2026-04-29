@@ -1,12 +1,12 @@
-"""WorkOrders router — read endpoints + 6 state-machine writes。
+"""WorkOrders router — read endpoints + 7 state-machine writes。
 
 operationId 對齊 openapi.yaml：
   listWorkOrders, getWorkOrder, getDispatchQueue, listWorkOrderPool,
   acceptWorkOrder, assignWorkOrder, escalateWorkOrder,
-  completeWorkOrder, cancelWorkOrder, confirmWorkOrder
+  completeWorkOrder, cancelWorkOrder, confirmWorkOrder,
+  submitWorkOrderSignature
 
-未實作：proposeReschedule / submitWorkOrderSignature
-（依賴 SLA 模組或上傳服務，待後續 phase）。
+未實作：proposeReschedule（依賴 LINE/SMS 推播 + RSVP 表，待後續 phase）。
 """
 
 from __future__ import annotations
@@ -16,8 +16,10 @@ from fastapi import APIRouter, Depends, Path, Query
 from core.deps import CurrentUser, require_tenant
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
+    ApiResponseGeneric,
     CompletionReport,
     DispatchQueueSnapshot,
+    SignaturePayload,
     WorkOrder,
     WorkOrderAssignRequest,
     WorkOrderCancelRequest,
@@ -26,7 +28,7 @@ from models.generated import (
     WorkOrderEscalateRequest,
     WorkOrderPage,
 )
-from services import work_order_service
+from services import signature_service, work_order_service
 
 router = APIRouter()
 
@@ -248,3 +250,29 @@ async def escalate_work_order(
     if idem is not None:
         await idem.save(200, payload)
     return payload
+
+
+@router.post(
+    "/work-orders/{id}/signature",
+    operation_id="submitWorkOrderSignature",
+    summary="雙方電子簽章（強制 Idempotency-Key）",
+    response_model=ApiResponseGeneric,
+)
+async def submit_work_order_signature(
+    body: SignaturePayload,
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    result = await signature_service.submit_work_order_signature(
+        tenant_id=user.tenant_id,
+        wo_id=id,
+        customer_signature=body.customer_signature,
+        technician_signature=body.technician_signature,
+        gps_lat=body.gps_lat,
+        gps_lng=body.gps_lng,
+        signed_at=body.signed_at.isoformat() if body.signed_at else None,
+    )
+    if idem is not None:
+        await idem.save(200, result)
+    return result
