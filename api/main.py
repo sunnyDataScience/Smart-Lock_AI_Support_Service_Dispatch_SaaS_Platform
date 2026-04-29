@@ -43,6 +43,7 @@ from routers import revenue as revenue_router
 from routers import pricing_rules as pricing_rules_router
 from routers import customers as customers_router
 from routers import roles as roles_router
+from routers import inventory as inventory_router
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -102,6 +103,7 @@ app.include_router(revenue_router.router, prefix="/api/v1", tags=["reports"])
 app.include_router(pricing_rules_router.router, prefix="/api/v1", tags=["accounting"])
 app.include_router(customers_router.router, prefix="/api/v1", tags=["customer_service"])
 app.include_router(roles_router.router, prefix="/api/v1", tags=["user_management"])
+app.include_router(inventory_router.router, prefix="/api/v1", tags=["inventory"])
 
 
 @app.get("/health")

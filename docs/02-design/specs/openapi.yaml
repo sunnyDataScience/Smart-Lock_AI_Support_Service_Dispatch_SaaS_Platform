@@ -1698,6 +1698,32 @@ paths:
               schema:
                 $ref: '#/components/schemas/RolesEnvelope'
 
+  /api/v1/inventory/items:
+    get:
+      tags: [inventory]
+      summary: 庫存品項清單（read-only；cursor 分頁 + 庫存狀態 / 類別過濾）
+      operationId: listInventoryItems
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - in: query
+          name: stock_status
+          schema:
+            $ref: '#/components/schemas/InventoryStockStatus'
+          description: 庫存狀態過濾；out_of_stock=quantity_on_hand=0；low_stock=quantity_on_hand<=reorder_point 且 >0；in_stock=quantity_on_hand>reorder_point
+        - in: query
+          name: category
+          schema:
+            type: string
+          description: 類別過濾（精確匹配，例如 battery / lock_body / circuit_board）
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItemPage'
+
   /api/v1/work-orders/{id}/confirm:
     post:
       tags: [dispatch]
@@ -3168,6 +3194,80 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/Role'
+
+    # --------- Inventory ---------
+    InventoryStockStatus:
+      type: string
+      enum: [in_stock, low_stock, out_of_stock]
+      description: 庫存狀態（衍生自 quantity_on_hand 與 reorder_point 比較）
+
+    InventoryItem:
+      type: object
+      required:
+        - id
+        - part_number
+        - name
+        - category
+        - quantity_on_hand
+        - reorder_point
+        - stock_status
+        - is_active
+        - created_at
+        - updated_at
+      properties:
+        id: { type: string, format: uuid }
+        part_number:
+          type: string
+          description: 料號（unique；例：BAT-AA-001）
+        name: { type: string }
+        category:
+          type: string
+          description: 類別（battery / lock_body / circuit_board / screw / side_panel / other）
+        brand_compatibility:
+          type: [array, "null"]
+          items:
+            type: string
+          description: 適用品牌清單
+        unit_cost:
+          type: [string, "null"]
+          pattern: '^-?\d+(\.\d{1,2})?$'
+          description: 單位成本（TWD，decimal 字串；NULL 表示未設定）
+        quantity_on_hand:
+          type: integer
+          minimum: 0
+        reorder_point:
+          type: integer
+          minimum: 0
+          description: 安全庫存量；quantity_on_hand <= reorder_point 觸發補貨警示
+        stock_status:
+          $ref: '#/components/schemas/InventoryStockStatus'
+        supplier:
+          type: [string, "null"]
+        is_active: { type: boolean }
+        last_restocked_at:
+          type: [string, "null"]
+          format: date-time
+          description: 最近一次入庫時間（衍生自 inventory_transactions purchase 紀錄；NULL 表示尚未補貨過）
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    InventoryItemPage:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/InventoryItem'
+
+    InventoryItemEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseGeneric'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/InventoryItem'
 
     # --------- Notification（Week 2 from G1） ---------
     NotificationType:

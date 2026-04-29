@@ -1067,6 +1067,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/inventory/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 庫存品項清單（read-only；cursor 分頁 + 庫存狀態 / 類別過濾） */
+        get: operations["listInventoryItems"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/work-orders/{id}/confirm": {
         parameters: {
             query?: never;
@@ -1918,6 +1935,45 @@ export interface components {
         };
         RolesEnvelope: components["schemas"]["ApiResponseGeneric"] & {
             data?: components["schemas"]["Role"][];
+        };
+        /**
+         * @description 庫存狀態（衍生自 quantity_on_hand 與 reorder_point 比較）
+         * @enum {string}
+         */
+        InventoryStockStatus: "in_stock" | "low_stock" | "out_of_stock";
+        InventoryItem: {
+            /** Format: uuid */
+            id: string;
+            /** @description 料號（unique；例：BAT-AA-001） */
+            part_number: string;
+            name: string;
+            /** @description 類別（battery / lock_body / circuit_board / screw / side_panel / other） */
+            category: string;
+            /** @description 適用品牌清單 */
+            brand_compatibility?: string[] | null;
+            /** @description 單位成本（TWD，decimal 字串；NULL 表示未設定） */
+            unit_cost?: string | null;
+            quantity_on_hand: number;
+            /** @description 安全庫存量；quantity_on_hand <= reorder_point 觸發補貨警示 */
+            reorder_point: number;
+            stock_status: components["schemas"]["InventoryStockStatus"];
+            supplier?: string | null;
+            is_active: boolean;
+            /**
+             * Format: date-time
+             * @description 最近一次入庫時間（衍生自 inventory_transactions purchase 紀錄；NULL 表示尚未補貨過）
+             */
+            last_restocked_at?: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        InventoryItemPage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["InventoryItem"][];
+        };
+        InventoryItemEnvelope: components["schemas"]["ApiResponseGeneric"] & {
+            data?: components["schemas"]["InventoryItem"];
         };
         /** @enum {string} */
         NotificationType: "work_order" | "refund" | "dispute" | "rbac" | "inventory" | "sla" | "system" | "mention";
@@ -4647,6 +4703,34 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RolesEnvelope"];
+                };
+            };
+        };
+    };
+    listInventoryItems: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                /** @description 庫存狀態過濾；out_of_stock=quantity_on_hand=0；low_stock=quantity_on_hand<=reorder_point 且 >0；in_stock=quantity_on_hand>reorder_point */
+                stock_status?: components["schemas"]["InventoryStockStatus"];
+                /** @description 類別過濾（精確匹配，例如 battery / lock_body / circuit_board） */
+                category?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InventoryItemPage"];
                 };
             };
         };
