@@ -100,12 +100,17 @@ async def list_cards(
     tenant_id: str,
     cursor: str | None,
     limit: int,
+    conversation_id: str | None = None,
 ) -> dict:
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
     where = ["u.tenant_id = %s::uuid"]
     args: list = [tenant_id]
+
+    if conversation_id:
+        where.append("pc.conversation_id = %s::uuid")
+        args.append(conversation_id)
 
     cur_data = decode_cursor(cursor)
     if cur_data and "ts" in cur_data and "id" in cur_data:

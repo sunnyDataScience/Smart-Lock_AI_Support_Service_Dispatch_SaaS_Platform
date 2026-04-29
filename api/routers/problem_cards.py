@@ -26,12 +26,14 @@ router = APIRouter()
 async def list_problem_cards(
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
+    conversation_id: str | None = Query(default=None, description="過濾特定對話下的問題卡"),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
     page = await problem_card_service.list_cards(
         tenant_id=user.tenant_id,
         cursor=cursor,
         limit=limit,
+        conversation_id=conversation_id,
     )
     return {
         "items": [ProblemCard(**c).model_dump(mode="json") for c in page["items"]],

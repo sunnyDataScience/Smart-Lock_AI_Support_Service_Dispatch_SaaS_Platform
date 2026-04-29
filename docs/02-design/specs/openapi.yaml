@@ -168,6 +168,12 @@ paths:
         - $ref: '#/components/parameters/XTenantId'
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
+        - in: query
+          name: conversation_id
+          schema:
+            type: string
+            format: uuid
+          description: 過濾特定對話下的問題卡
       responses:
         '200':
           description: OK

@@ -2932,6 +2932,8 @@ export interface operations {
                 /** @description Cursor-based 分頁游標，首頁省略。 */
                 cursor?: components["parameters"]["Cursor"];
                 limit?: components["parameters"]["Limit"];
+                /** @description 過濾特定對話下的問題卡 */
+                conversation_id?: string;
             };
             header: {
                 /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
