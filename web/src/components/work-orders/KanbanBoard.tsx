@@ -1,191 +1,120 @@
 "use client";
 
-import { Timer, CircleX, AlertTriangle } from "lucide-react";
+import { Timer, AlertTriangle, CircleX } from "lucide-react";
 import Link from "next/link";
+import type { components } from "@/types/api.generated";
+import {
+  STATUS_GROUP_MAP,
+  STATUS_GROUP_STYLE,
+  URGENCY_STYLE,
+} from "@/components/work-orders/WorkOrdersTable";
 
-interface KanbanCard {
-  id: string;
-  status: { label: string; color: string; bg: string };
-  customer: string;
-  address: string;
-  brand: string;
-  technician: { name: string; color: string } | null;
-  sla: { text: string; color?: string; bold?: boolean; icon?: "timer" | "warning" | "overdue" | "none" };
+type WorkOrder = components["schemas"]["WorkOrder"];
+
+interface Props {
+  items: WorkOrder[];
+  loading?: boolean;
 }
 
-interface KanbanColumn {
-  title: string;
-  color: string;
-  count: string;
-  cards: KanbanCard[];
-}
+type StatusGroup = "pending" | "dispatched" | "in_progress" | "done" | "cancelled";
 
-const columns: KanbanColumn[] = [
-  {
-    title: "待指派",
-    color: "#6366F1",
-    count: "5",
-    cards: [
-      {
-        id: "WO-20260422-0001",
-        status: { label: "待指派", color: "#6366F1", bg: "#EEF2FF" },
-        customer: "陳小姐",
-        address: "台北市大安區...",
-        brand: "Yale YDM-4109",
-        technician: null,
-        sla: { text: "剩餘 02:45", icon: "timer" },
-      },
-      {
-        id: "WO-20260422-0004",
-        status: { label: "待指派", color: "#6366F1", bg: "#EEF2FF" },
-        customer: "謬志強",
-        address: "新北市永和區...",
-        brand: "Samsung P718",
-        technician: null,
-        sla: { text: "剩餘 05:10", icon: "timer" },
-      },
-      {
-        id: "WO-20260422-0006",
-        status: { label: "待指派", color: "#6366F1", bg: "#EEF2FF" },
-        customer: "張雅雯",
-        address: "台中市北區...",
-        brand: "Philips 9300",
-        technician: null,
-        sla: { text: "剩餘 03:30", icon: "timer" },
-      },
-    ],
-  },
-  {
-    title: "已派工",
-    color: "#8B5CF6",
-    count: "3",
-    cards: [
-      {
-        id: "WO-20260422-0002",
-        status: { label: "已派工", color: "#8B5CF6", bg: "#F5F3FF" },
-        customer: "王大明",
-        address: "新北市板橋區...",
-        brand: "Samsung DP609",
-        technician: { name: "李技師", color: "#C4B5FD" },
-        sla: { text: "剩餘 01:30", icon: "timer" },
-      },
-      {
-        id: "WO-20260422-0005",
-        status: { label: "已派工", color: "#8B5CF6", bg: "#F5F3FF" },
-        customer: "林志明",
-        address: "桃園市中壢...",
-        brand: "Yale YDR-323",
-        technician: { name: "張師傅", color: "#C4B5FD" },
-        sla: { text: "剩餘 04:00", icon: "timer" },
-      },
-    ],
-  },
-  {
-    title: "進行中",
-    color: "#3B82F6",
-    count: "4",
-    cards: [
-      {
-        id: "WO-20260422-0003",
-        status: { label: "進行中", color: "#3B82F6", bg: "#DBEAFE" },
-        customer: "林美華",
-        address: "台中市西屯...",
-        brand: "Gateman F300",
-        technician: { name: "張師傅", color: "#93C5FD" },
-        sla: { text: "剩餘 04:20", icon: "timer" },
-      },
-      {
-        id: "WO-20260421-0018",
-        status: { label: "進行中", color: "#3B82F6", bg: "#DBEAFE" },
-        customer: "黃志明",
-        address: "高雄市左營...",
-        brand: "美樂 ENTR",
-        technician: { name: "謬師傅", color: "#93C5FD" },
-        sla: { text: "剩餘 00:25", color: "#F59E0B", bold: true, icon: "warning" },
-      },
-      {
-        id: "WO-20260421-0012",
-        status: { label: "進行中", color: "#3B82F6", bg: "#DBEAFE" },
-        customer: "劉家豪",
-        address: "台北市信義...",
-        brand: "Philips 9300",
-        technician: { name: "吴技師", color: "#93C5FD" },
-        sla: { text: "逾時 01:15", color: "#EF4444", bold: true, icon: "overdue" },
-      },
-    ],
-  },
-  {
-    title: "已完工",
-    color: "#10B981",
-    count: "6",
-    cards: [
-      {
-        id: "WO-20260420-0008",
-        status: { label: "已完工", color: "#10B981", bg: "#D1FAE5" },
-        customer: "趙雅婷",
-        address: "桃園市中壢...",
-        brand: "Yale YDR-323",
-        technician: { name: "陳師傅", color: "#6EE7B7" },
-        sla: { text: "--", color: "var(--text-disabled)", icon: "none" },
-      },
-      {
-        id: "WO-20260420-0003",
-        status: { label: "已完工", color: "#10B981", bg: "#D1FAE5" },
-        customer: "周建國",
-        address: "新竹市東區...",
-        brand: "Samsung DR708",
-        technician: { name: "李技師", color: "#6EE7B7" },
-        sla: { text: "--", color: "var(--text-disabled)", icon: "none" },
-      },
-    ],
-  },
-  {
-    title: "異常",
-    color: "#EF4444",
-    count: "2",
-    cards: [
-      {
-        id: "WO-20260421-0015",
-        status: { label: "delayed", color: "#D97706", bg: "#FEF3C7" },
-        customer: "黃志明",
-        address: "高雄市左營...",
-        brand: "美樂 ENTR",
-        technician: { name: "謬師傅", color: "#FCA5A5" },
-        sla: { text: "剩餘 00:25", color: "#F59E0B", bold: true, icon: "warning" },
-      },
-      {
-        id: "WO-20260420-0005",
-        status: { label: "rework", color: "#EF4444", bg: "#FEE2E2" },
-        customer: "周建國",
-        address: "新竹市東區...",
-        brand: "Samsung DR708",
-        technician: { name: "李技師", color: "#FCA5A5" },
-        sla: { text: "剩餘 03:00", icon: "timer" },
-      },
-    ],
-  },
+const COLUMN_ORDER: StatusGroup[] = [
+  "pending",
+  "dispatched",
+  "in_progress",
+  "done",
+  "cancelled",
 ];
 
-function SlaIndicator({ sla }: { sla: KanbanCard["sla"] }) {
-  const color = sla.color || "var(--text-secondary)";
+const COLUMN_LABEL: Record<StatusGroup, string> = {
+  pending: "待指派",
+  dispatched: "已派工",
+  in_progress: "進行中",
+  done: "已完工",
+  cancelled: "已取消",
+};
 
+function shortId(id: string): string {
+  return id.slice(0, 8);
+}
+
+function formatRelativeRemaining(scheduled?: string | null): {
+  text: string;
+  color?: string;
+  bold?: boolean;
+  icon: "timer" | "warning" | "overdue" | "none";
+} {
+  if (!scheduled) return { text: "未排程", icon: "none" };
+  const target = new Date(scheduled).getTime();
+  const diff = target - Date.now();
+  if (diff <= 0) {
+    const overdueMin = Math.round(-diff / 60000);
+    return {
+      text: `逾時 ${overdueMin}min`,
+      color: "#EF4444",
+      bold: true,
+      icon: "overdue",
+    };
+  }
+  const totalSec = Math.floor(diff / 1000);
+  const hh = Math.floor(totalSec / 3600);
+  const mm = Math.floor((totalSec % 3600) / 60);
+  const text = `剩餘 ${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+  if (totalSec <= 1800) return { text, color: "#F59E0B", bold: true, icon: "warning" };
+  return { text, icon: "timer" };
+}
+
+function technicianTag(technicianId: string | null | undefined): string | null {
+  if (!technicianId) return null;
+  return `技師 ${technicianId.slice(0, 4)}`;
+}
+
+function groupByStatus(items: WorkOrder[]): Record<StatusGroup, WorkOrder[]> {
+  const acc: Record<StatusGroup, WorkOrder[]> = {
+    pending: [],
+    dispatched: [],
+    in_progress: [],
+    done: [],
+    cancelled: [],
+  };
+  for (const item of items) {
+    const group = STATUS_GROUP_MAP[item.status];
+    if (!group) continue;
+    acc[group].push(item);
+  }
+  for (const k of Object.keys(acc) as StatusGroup[]) {
+    acc[k].sort((a, b) =>
+      (b.created_at ?? "").localeCompare(a.created_at ?? ""),
+    );
+  }
+  return acc;
+}
+
+function SlaIndicator({
+  sla,
+}: {
+  sla: ReturnType<typeof formatRelativeRemaining>;
+}) {
   if (sla.icon === "none") {
     return (
-      <span className="text-[11px] font-medium" style={{ color }}>
+      <span
+        className="text-[11px] font-medium"
+        style={{ color: sla.color ?? "var(--text-disabled)" }}
+      >
         {sla.text}
       </span>
     );
   }
-
+  const Icon =
+    sla.icon === "overdue"
+      ? CircleX
+      : sla.icon === "warning"
+        ? AlertTriangle
+        : Timer;
+  const color = sla.color ?? "var(--text-secondary)";
   return (
     <div className="flex items-center gap-1">
-      {sla.icon === "overdue" ? (
-        <CircleX className="h-[14px] w-[14px]" style={{ color }} />
-      ) : sla.icon === "warning" ? (
-        <AlertTriangle className="h-[14px] w-[14px]" style={{ color }} />
-      ) : (
-        <Timer className="h-[14px] w-[14px]" style={{ color }} />
-      )}
+      <Icon className="h-[14px] w-[14px]" style={{ color }} />
       <span
         className={`text-[11px] font-medium ${sla.bold ? "font-bold" : ""}`}
         style={{ color }}
@@ -196,100 +125,135 @@ function SlaIndicator({ sla }: { sla: KanbanCard["sla"] }) {
   );
 }
 
-function CardItem({ card, columnColor }: { card: KanbanCard; columnColor: string }) {
+function CardItem({
+  card,
+  columnColor,
+}: {
+  card: WorkOrder;
+  columnColor: string;
+}) {
+  const tech = technicianTag(card.technician_id);
+  const sla = formatRelativeRemaining(card.scheduled_time);
+  const urgency = URGENCY_STYLE[card.urgency];
+  const districtAddr = card.district || card.address || "—";
+
   return (
     <Link
       href={`/work-orders/${card.id}`}
-      className="flex flex-col gap-[10px] rounded-lg bg-white p-4 shadow-sm hover:shadow-md transition-shadow"
+      className="flex flex-col gap-[10px] rounded-lg bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
       style={{ borderLeft: `3px solid ${columnColor}` }}
     >
-      {/* Top row */}
       <div className="flex items-center justify-between">
-        <span className="font-mono text-[11px] font-medium text-[var(--text-secondary)]">
-          {card.id}
+        <span
+          className="font-mono text-[11px] font-medium text-[var(--text-secondary)]"
+          title={card.id}
+        >
+          {shortId(card.id)}
         </span>
         <span
           className="rounded px-2 py-[2px] text-[11px] font-semibold"
-          style={{ color: card.status.color, backgroundColor: card.status.bg }}
+          style={{ color: urgency.color, backgroundColor: urgency.bg }}
         >
-          {card.status.label}
+          緊急度 {urgency.label}
         </span>
       </div>
 
-      {/* Mid section */}
       <div className="flex flex-col gap-1">
-        <span className="text-[14px] font-semibold text-[var(--text-primary)]">
-          {card.customer}
+        <span className="text-[13px] font-semibold text-[var(--text-primary)]">
+          {card.brand || "—"} {card.model || ""}
         </span>
-        <span className="text-[12px] text-[var(--text-secondary)]">
-          {card.address}
-        </span>
-        <span className="text-[12px] text-[var(--text-secondary)]">
-          {card.brand}
+        <span
+          className="truncate text-[12px] text-[var(--text-secondary)]"
+          title={card.address}
+        >
+          {districtAddr}
         </span>
       </div>
 
-      {/* Divider */}
       <div className="h-px w-full bg-[var(--border)]" />
 
-      {/* Bottom row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-[6px]">
-          {card.technician ? (
-            <>
-              <div
-                className="h-5 w-5 flex-shrink-0 rounded-full"
-                style={{ backgroundColor: card.technician.color }}
-              />
-              <span className="text-[12px] font-medium text-[var(--text-primary)]">
-                {card.technician.name}
-              </span>
-            </>
+          <div
+            className={`h-5 w-5 flex-shrink-0 rounded-full ${
+              tech ? "bg-[#C4B5FD]" : "bg-[#E2E8F0]"
+            }`}
+          />
+          {tech ? (
+            <span
+              className="font-mono text-[11px] font-medium text-[var(--text-primary)]"
+              title={card.technician_id ?? ""}
+            >
+              {tech}
+            </span>
           ) : (
-            <>
-              <div className="h-5 w-5 flex-shrink-0 rounded-full bg-[#E2E8F0]" />
-              <span className="text-[12px] italic text-[var(--text-disabled)]">
-                未指派
-              </span>
-            </>
+            <span className="text-[11px] italic text-[var(--text-disabled)]">
+              未指派
+            </span>
           )}
         </div>
-        <SlaIndicator sla={card.sla} />
+        <SlaIndicator sla={sla} />
       </div>
     </Link>
   );
 }
 
-export default function KanbanBoard() {
+export default function KanbanBoard({ items, loading }: Props) {
+  const grouped = groupByStatus(items);
+
+  if (loading && items.length === 0) {
+    return (
+      <div className="flex h-[300px] items-center justify-center text-sm text-[var(--text-secondary)]">
+        載入中…
+      </div>
+    );
+  }
+
+  if (!loading && items.length === 0) {
+    return (
+      <div className="flex h-[300px] items-center justify-center text-sm text-[var(--text-secondary)]">
+        目前沒有工單
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full gap-4 p-4">
-      {columns.map((col) => (
-        <div
-          key={col.title}
-          className="flex flex-1 flex-col rounded-lg bg-[#F8FAFC]"
-          style={{ borderTop: `3px solid ${col.color}` }}
-        >
-          {/* Column Header */}
-          <div className="flex h-12 items-center justify-between px-3">
-            <span className="text-[14px] font-semibold text-[var(--text-primary)]">
-              {col.title}
-            </span>
-            <span
-              className="rounded-[10px] px-2 py-[2px] text-[12px] font-semibold text-white"
-              style={{ backgroundColor: col.color }}
-            >
-              {col.count}
-            </span>
-          </div>
+      {COLUMN_ORDER.map((group) => {
+        const style = STATUS_GROUP_STYLE[group];
+        const cards = grouped[group];
+        return (
+          <div
+            key={group}
+            className="flex flex-1 flex-col rounded-lg bg-[#F8FAFC]"
+            style={{ borderTop: `3px solid ${style.color}` }}
+          >
+            <div className="flex h-12 items-center justify-between px-3">
+              <span className="text-[14px] font-semibold text-[var(--text-primary)]">
+                {COLUMN_LABEL[group]}
+              </span>
+              <span
+                className="rounded-[10px] px-2 py-[2px] text-[12px] font-semibold text-white"
+                style={{ backgroundColor: style.color }}
+              >
+                {cards.length}
+              </span>
+            </div>
 
-          {/* Column Body */}
-          <div className="flex flex-1 flex-col gap-3 overflow-auto px-3 pb-3">
-            {col.cards.map((card) => (
-              <CardItem key={card.id} card={card} columnColor={col.color} />
-            ))}
+            <div className="flex flex-1 flex-col gap-3 overflow-auto px-3 pb-3">
+              {cards.length === 0 ? (
+                <span className="px-1 py-2 text-[11px] text-[var(--text-disabled)]">
+                  此欄位暫無工單
+                </span>
+              ) : (
+                cards.map((card) => (
+                  <CardItem key={card.id} card={card} columnColor={style.color} />
+                ))
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

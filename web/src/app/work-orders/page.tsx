@@ -9,6 +9,7 @@ import {
   Columns3,
   Map,
 } from "lucide-react";
+import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import WorkOrdersTable from "@/components/work-orders/WorkOrdersTable";
 import { ApiError, api } from "@/lib/api";
@@ -26,9 +27,9 @@ const filterDropdowns = [
 ];
 
 const viewTabs = [
-  { label: "列表", icon: List, active: true, disabled: false },
-  { label: "看板", icon: Columns3, active: false, disabled: true },
-  { label: "地圖", icon: Map, active: false, disabled: true },
+  { label: "列表", icon: List, active: true, href: "/work-orders" },
+  { label: "看板", icon: Columns3, active: false, href: "/work-orders/kanban" },
+  { label: "地圖", icon: Map, active: false, href: "/work-orders/map" },
 ];
 
 export default function WorkOrdersPage() {
@@ -124,23 +125,20 @@ export default function WorkOrdersPage() {
           {/* View Toggle */}
           <div className="flex h-9 items-center rounded-md border border-[var(--border)] bg-[var(--bg-surface)]">
             {viewTabs.map((tab) => (
-              <button
+              <Link
                 key={tab.label}
-                disabled={tab.disabled}
-                title={tab.disabled ? "即將推出" : undefined}
+                href={tab.href}
                 className={`flex h-9 items-center justify-center gap-[6px] rounded-md px-3 ${
                   tab.active
                     ? "bg-[var(--primary)] text-white"
-                    : tab.disabled
-                      ? "text-[var(--text-disabled)] cursor-not-allowed opacity-60"
-                      : "text-[var(--text-secondary)]"
+                    : "text-[var(--text-secondary)]"
                 }`}
               >
                 <tab.icon className="h-4 w-4" />
                 <span className={`text-[13px] ${tab.active ? "font-medium" : ""}`}>
                   {tab.label}
                 </span>
-              </button>
+              </Link>
             ))}
           </div>
         </div>
