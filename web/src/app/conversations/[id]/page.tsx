@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Plus } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import ChatTimeline from "@/components/conversations/ChatTimeline";
 import { ApiError, api } from "@/lib/api";
@@ -17,6 +17,15 @@ type ConversationStatus = components["schemas"]["ConversationStatus"];
 type ProblemCard = components["schemas"]["ProblemCard"];
 type ProblemCardPage = components["schemas"]["ProblemCardPage"];
 type ProblemCardStatus = components["schemas"]["ProblemCardStatus"];
+type ProblemCardEnvelope = components["schemas"]["ProblemCardEnvelope"];
+type ProblemCardCreateRequest = components["schemas"]["ProblemCardCreateRequest"];
+type Urgency = components["schemas"]["Urgency"];
+
+const URGENCY_OPTIONS: { value: Urgency; label: string }[] = [
+  { value: "low", label: "低（一般諮詢）" },
+  { value: "medium", label: "中（標準報修）" },
+  { value: "high", label: "高（緊急）" },
+];
 
 const PC_STATUS_LABEL: Record<ProblemCardStatus, { label: string; bg: string; color: string }> = {
   draft: { label: "草稿", bg: "#EEF2FF", color: "#6366F1" },
@@ -56,6 +65,43 @@ export default function ConversationDetailPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [showCreatePc, setShowCreatePc] = useState(false);
+  const [creatingPc, setCreatingPc] = useState(false);
+  const [createPcError, setCreatePcError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2400);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const handleCreatePc = async (req: ProblemCardCreateRequest) => {
+    setCreatingPc(true);
+    setCreatePcError(null);
+    try {
+      const res = await api.post<ProblemCardEnvelope>(
+        "/api/v1/problem-cards",
+        req,
+      );
+      const created = res.data;
+      if (created) {
+        setProblemCards((prev) => [created, ...prev]);
+        setToast(`已建立問題卡 ${created.id.slice(0, 8)}`);
+      }
+      setShowCreatePc(false);
+    } catch (e) {
+      setCreatePcError(
+        e instanceof ApiError
+          ? `${e.errorCode} (${e.status})：${e.message}`
+          : e instanceof Error
+            ? e.message
+            : String(e),
+      );
+    } finally {
+      setCreatingPc(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -256,7 +302,21 @@ export default function ConversationDetailPage({
                 )}
 
                 {!pcLoading && problemCards.length === 0 && !pcError && (
-                  <span className="text-[12px] text-[#A1A1AA]">尚未建立問題卡</span>
+                  <div className="flex flex-col items-start gap-2">
+                    <span className="text-[12px] text-[#A1A1AA]">
+                      尚未建立問題卡
+                    </span>
+                    <button
+                      onClick={() => {
+                        setCreatePcError(null);
+                        setShowCreatePc(true);
+                      }}
+                      className="flex items-center gap-1 rounded-md bg-[var(--primary)] px-3 py-[6px] text-[12px] font-semibold text-white transition hover:opacity-90"
+                    >
+                      <Plus className="h-3 w-3" />
+                      建立問題卡
+                    </button>
+                  </div>
                 )}
 
                 {problemCards.map((pc) => {
@@ -292,6 +352,219 @@ export default function ConversationDetailPage({
           </div>
         )}
       </div>
+
+      {showCreatePc && (
+        <CreateProblemCardModal
+          conversationId={id}
+          pending={creatingPc}
+          error={createPcError}
+          onCancel={() => {
+            if (creatingPc) return;
+            setShowCreatePc(false);
+            setCreatePcError(null);
+          }}
+          onSubmit={handleCreatePc}
+        />
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-[var(--success)] px-4 py-2 text-[13px] font-semibold text-white shadow-lg">
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CreateProblemCardModal({
+  conversationId,
+  pending,
+  error,
+  onCancel,
+  onSubmit,
+}: {
+  conversationId: string;
+  pending: boolean;
+  error: string | null;
+  onCancel: () => void;
+  onSubmit: (req: ProblemCardCreateRequest) => void;
+}) {
+  const [brand, setBrand] = useState("");
+  const [model, setModel] = useState("");
+  const [symptom, setSymptom] = useState("");
+  const [urgency, setUrgency] = useState<Urgency>("medium");
+  const [category, setCategory] = useState("");
+  const [location, setLocation] = useState("");
+
+  const handleSubmit = () => {
+    if (!brand.trim()) {
+      alert("請填寫品牌");
+      return;
+    }
+    if (!model.trim()) {
+      alert("請填寫型號");
+      return;
+    }
+    if (!symptom.trim()) {
+      alert("請填寫症狀描述");
+      return;
+    }
+    const req: ProblemCardCreateRequest = {
+      conversation_id: conversationId,
+      brand: brand.trim(),
+      model: model.trim(),
+      symptom: symptom.trim(),
+      urgency,
+    };
+    if (category.trim()) req.category = category.trim();
+    if (location.trim()) req.location = location.trim();
+    onSubmit(req);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4"
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-[480px] max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center gap-2">
+          <Plus className="h-5 w-5 text-[var(--primary)]" />
+          <span className="text-[18px] font-semibold text-[var(--text-primary)]">
+            建立問題卡
+          </span>
+        </div>
+
+        <p className="mb-4 text-[12px] text-[var(--text-secondary)]">
+          將此對話手動建立為問題卡（每個對話最多一張，狀態起始為「草稿」）。
+        </p>
+
+        <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-2 gap-3">
+            <FieldLabel label="品牌" required>
+              <input
+                type="text"
+                value={brand}
+                onChange={(e) => setBrand(e.target.value)}
+                disabled={pending}
+                maxLength={50}
+                placeholder="例：Yale"
+                className="w-full rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none disabled:opacity-70"
+              />
+            </FieldLabel>
+            <FieldLabel label="型號" required>
+              <input
+                type="text"
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                disabled={pending}
+                maxLength={100}
+                placeholder="例：YDM-4109"
+                className="w-full rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none disabled:opacity-70"
+              />
+            </FieldLabel>
+          </div>
+
+          <FieldLabel label="症狀描述" required>
+            <textarea
+              value={symptom}
+              onChange={(e) => setSymptom(e.target.value)}
+              disabled={pending}
+              maxLength={1000}
+              rows={3}
+              placeholder="例：電池電量低、無法解鎖（多項以「、」分隔）"
+              className="w-full resize-none rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none disabled:opacity-70"
+            />
+          </FieldLabel>
+
+          <FieldLabel label="緊急度" required>
+            <select
+              value={urgency}
+              onChange={(e) => setUrgency(e.target.value as Urgency)}
+              disabled={pending}
+              className="w-full rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none disabled:opacity-70"
+            >
+              {URGENCY_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </FieldLabel>
+
+          <div className="grid grid-cols-2 gap-3">
+            <FieldLabel label="類別（選填）">
+              <input
+                type="text"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                disabled={pending}
+                maxLength={100}
+                placeholder="例：電池 / WiFi / 密碼"
+                className="w-full rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none disabled:opacity-70"
+              />
+            </FieldLabel>
+            <FieldLabel label="地點（選填）">
+              <input
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                disabled={pending}
+                maxLength={255}
+                placeholder="例：台北市中山區"
+                className="w-full rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none disabled:opacity-70"
+              />
+            </FieldLabel>
+          </div>
+        </div>
+
+        {error && (
+          <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+            {error}
+          </div>
+        )}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            disabled={pending}
+            type="button"
+            className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
+          >
+            取消
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={pending}
+            type="button"
+            className="rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? "建立中…" : "確認建立"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FieldLabel({
+  label,
+  required,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[12px] font-medium text-[var(--text-secondary)]">
+        {label}
+        {required && <span className="ml-[2px] text-[var(--status-danger)]">*</span>}
+      </span>
+      {children}
     </div>
   );
 }
