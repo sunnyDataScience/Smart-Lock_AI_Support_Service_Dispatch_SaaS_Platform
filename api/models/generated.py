@@ -1067,6 +1067,27 @@ class ProblemCardUpdateRequest(BaseModel):
     media_urls: list[AnyUrl] | None = None
 
 
+class ResolutionLayer1(StrEnum):
+    """
+    L1=AI 直接回覆、L2=技師遠端指導、L3=現場派工。
+    """
+
+    L1 = 'L1'
+    L2 = 'L2'
+    L3 = 'L3'
+
+
+class ProblemCardResolveRequest(BaseModel):
+    """
+    問題卡結案。resolution_layer 必填，記錄最終由哪一層解決。
+    """
+
+    resolution_layer: ResolutionLayer1
+    """
+    L1=AI 直接回覆、L2=技師遠端指導、L3=現場派工。
+    """
+
+
 class ProblemCardEnvelope(ApiResponseGeneric):
     data: ProblemCard | None = None
     """

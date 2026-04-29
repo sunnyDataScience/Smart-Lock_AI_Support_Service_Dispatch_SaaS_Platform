@@ -1,9 +1,10 @@
-"""ProblemCards router — 2 endpoints (read-only)。
+"""ProblemCards router — 2 read + 2 state-machine writes。
 
 operationId 對齊 openapi.yaml：
-  listProblemCards, getProblemCard
+  listProblemCards, getProblemCard, confirmProblemCard, resolveProblemCard
 
-寫入路徑（create/update/export）暫不實作，待寫入需求明確再開。
+未實作：createProblemCard / updateProblemCard / exportProblemCard
+（建立路徑由 agent 自動寫入；patch/export 待需求明確再開）。
 """
 
 from __future__ import annotations
@@ -11,7 +12,13 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Path, Query
 
 from core.deps import CurrentUser, require_tenant
-from models.generated import ProblemCard, ProblemCardEnvelope, ProblemCardPage
+from core.idempotency import IdempotencyContext, idempotency_guard
+from models.generated import (
+    ProblemCard,
+    ProblemCardEnvelope,
+    ProblemCardPage,
+    ProblemCardResolveRequest,
+)
 from services import problem_card_service
 
 router = APIRouter()
@@ -56,3 +63,48 @@ async def get_problem_card(
         tenant_id=user.tenant_id, pc_id=id,
     )
     return {"data": ProblemCard(**card).model_dump(mode="json")}
+
+
+@router.post(
+    "/problem-cards/{id}/confirm",
+    operation_id="confirmProblemCard",
+    summary="確認問題卡（draft → confirmed）",
+    response_model=ProblemCardEnvelope,
+)
+async def confirm_problem_card(
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    card = await problem_card_service.confirm_card(
+        tenant_id=user.tenant_id, pc_id=id,
+    )
+    payload = {"data": ProblemCard(**card).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload
+
+
+@router.post(
+    "/problem-cards/{id}/resolve",
+    operation_id="resolveProblemCard",
+    summary="結案問題卡（confirmed → resolved）",
+    response_model=ProblemCardEnvelope,
+)
+async def resolve_problem_card(
+    body: ProblemCardResolveRequest,
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    layer = body.resolution_layer
+    layer_str = layer.value if hasattr(layer, "value") else str(layer)
+    card = await problem_card_service.resolve_card(
+        tenant_id=user.tenant_id,
+        pc_id=id,
+        resolution_layer=layer_str,
+    )
+    payload = {"data": ProblemCard(**card).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload

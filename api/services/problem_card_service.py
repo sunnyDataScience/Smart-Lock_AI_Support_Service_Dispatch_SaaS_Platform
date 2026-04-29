@@ -158,3 +158,71 @@ async def get_card(*, tenant_id: str, pc_id: str) -> dict:
     if not row:
         raise ApiError("NOT_FOUND", "Problem card not found", 404)
     return _pc_row_to_dict(row)
+
+
+_CONFIRM_FROM = {"incomplete"}
+_RESOLVE_FROM = {"confirmed"}
+
+
+async def _fetch_status_for_update(pc_id: str, tenant_id: str) -> str:
+    cur = await db_module._conn.execute(
+        "SELECT pc.status "
+        "FROM problem_cards pc "
+        "JOIN conversations c ON pc.conversation_id = c.id "
+        "JOIN users u ON c.user_id = u.id "
+        "WHERE pc.id = %s::uuid AND u.tenant_id = %s::uuid",
+        (pc_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "Problem card not found", 404)
+    return row[0]
+
+
+async def confirm_card(*, tenant_id: str, pc_id: str) -> dict:
+    """incomplete → confirmed。對齊 OpenAPI draft → confirmed。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    current = await _fetch_status_for_update(pc_id, tenant_id)
+    if current not in _CONFIRM_FROM:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot confirm problem card in status '{current}'; expected 'incomplete'",
+            409,
+        )
+    await db_module._conn.execute(
+        "UPDATE problem_cards SET status = 'confirmed', updated_at = NOW() "
+        "WHERE id = %s::uuid",
+        (pc_id,),
+    )
+    return await get_card(tenant_id=tenant_id, pc_id=pc_id)
+
+
+async def resolve_card(
+    *, tenant_id: str, pc_id: str, resolution_layer: str,
+) -> dict:
+    """confirmed → resolved，記錄 resolution_layer (L1/L2/L3)。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    if resolution_layer not in {"L1", "L2", "L3"}:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "resolution_layer must be one of L1, L2, L3",
+            422,
+        )
+    current = await _fetch_status_for_update(pc_id, tenant_id)
+    if current not in _RESOLVE_FROM:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot resolve problem card in status '{current}'; expected 'confirmed'",
+            409,
+        )
+    await db_module._conn.execute(
+        "UPDATE problem_cards SET "
+        "  status = 'resolved', "
+        "  resolution_layer = %s, "
+        "  updated_at = NOW() "
+        "WHERE id = %s::uuid",
+        (resolution_layer, pc_id),
+    )
+    return await get_card(tenant_id=tenant_id, pc_id=pc_id)

@@ -1033,6 +1033,62 @@ paths:
         '422':
           $ref: '#/components/responses/ValidationError'
 
+  /api/v1/problem-cards/{id}/confirm:
+    post:
+      tags: [customer_service]
+      summary: 確認問題卡（draft → confirmed）
+      operationId: confirmProblemCard
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: 已確認
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemCardEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 狀態衝突（非 draft 不可確認）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/v1/problem-cards/{id}/resolve:
+    post:
+      tags: [customer_service]
+      summary: 結案問題卡（confirmed → resolved）
+      operationId: resolveProblemCard
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProblemCardResolveRequest'
+      responses:
+        '200':
+          description: 已結案
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemCardEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 狀態衝突（非 confirmed 不可結案）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
   /api/v1/problem-cards/{id}/export:
     get:
       tags: [customer_service]
@@ -3485,6 +3541,16 @@ components:
         media_urls:
           type: array
           items: { type: string, format: uri }
+
+    ProblemCardResolveRequest:
+      type: object
+      description: 問題卡結案。resolution_layer 必填，記錄最終由哪一層解決。
+      required: [resolution_layer]
+      properties:
+        resolution_layer:
+          type: string
+          enum: [L1, L2, L3]
+          description: L1=AI 直接回覆、L2=技師遠端指導、L3=現場派工。
 
     ProblemCardEnvelope:
       allOf:
