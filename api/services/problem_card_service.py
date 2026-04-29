@@ -14,6 +14,9 @@
 
 from __future__ import annotations
 
+import base64
+import csv
+import io
 import json
 import logging
 
@@ -373,6 +376,111 @@ async def create_card(
     row = await cur.fetchone()
     new_id = str(row[0])
     return await get_card(tenant_id=tenant_id, pc_id=new_id)
+
+
+_EXPORT_FIELDS = (
+    "id", "conversation_id", "brand", "model", "symptom", "category",
+    "urgency", "status", "media_urls", "created_at", "updated_at",
+)
+
+
+def _format_card_json(card: dict) -> bytes:
+    return json.dumps(card, ensure_ascii=False, indent=2).encode("utf-8")
+
+
+def _format_card_csv(card: dict) -> bytes:
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(_EXPORT_FIELDS)
+    writer.writerow([
+        "" if (v := card.get(f)) is None
+        else "; ".join(str(x) for x in v) if isinstance(v, list)
+        else str(v)
+        for f in _EXPORT_FIELDS
+    ])
+    return buf.getvalue().encode("utf-8")
+
+
+def _format_card_pdf(card: dict) -> bytes:
+    """簡易純文字 PDF — 不引入 reportlab 依賴；以最小 PDF 1.4 結構嵌入卡片明細。"""
+    lines: list[str] = ["Problem Card Export", ""]
+    for f in _EXPORT_FIELDS:
+        v = card.get(f)
+        if v is None:
+            v_str = "-"
+        elif isinstance(v, list):
+            v_str = "; ".join(str(x) for x in v) if v else "-"
+        else:
+            v_str = str(v)
+        # PDF 字串需脫逸括號與反斜線
+        safe = v_str.replace("\\", r"\\").replace("(", r"\(").replace(")", r"\)")
+        lines.append(f"{f}: {safe}")
+
+    text_ops = "\n".join(
+        f"({line}) Tj T*" if line else "() Tj T*"
+        for line in lines
+    )
+    content = (
+        "BT\n"
+        "/F1 11 Tf\n"
+        "40 800 Td\n"
+        "14 TL\n"
+        f"{text_ops}\n"
+        "ET"
+    )
+    content_bytes = content.encode("latin-1", errors="replace")
+
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+        b"/Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+        f"<< /Length {len(content_bytes)} >>\nstream\n".encode("latin-1")
+        + content_bytes + b"\nendstream",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+
+    out = bytearray()
+    out += b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n"
+    offsets = [0]
+    for idx, body in enumerate(objects, start=1):
+        offsets.append(len(out))
+        out += f"{idx} 0 obj\n".encode("latin-1") + body + b"\nendobj\n"
+    xref_pos = len(out)
+    out += f"xref\n0 {len(objects) + 1}\n".encode("latin-1")
+    out += b"0000000000 65535 f \n"
+    for off in offsets[1:]:
+        out += f"{off:010d} 00000 n \n".encode("latin-1")
+    out += (
+        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n"
+        f"startxref\n{xref_pos}\n%%EOF"
+    ).encode("latin-1")
+    return bytes(out)
+
+
+async def export_card(*, tenant_id: str, pc_id: str, fmt: str) -> dict:
+    """匯出問題卡為 json / csv / pdf；content 以 base64 編碼回傳。"""
+    if fmt not in ("json", "csv", "pdf"):
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "format must be one of json, csv, pdf",
+            422,
+        )
+
+    card = await get_card(tenant_id=tenant_id, pc_id=pc_id)
+
+    if fmt == "json":
+        raw = _format_card_json(card)
+    elif fmt == "csv":
+        raw = _format_card_csv(card)
+    else:
+        raw = _format_card_pdf(card)
+
+    return {
+        "format": fmt,
+        "content": base64.b64encode(raw).decode("ascii"),
+        "download_url": None,
+    }
 
 
 async def update_card(

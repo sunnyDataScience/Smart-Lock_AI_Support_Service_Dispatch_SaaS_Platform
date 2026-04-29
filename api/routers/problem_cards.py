@@ -1,10 +1,8 @@
-"""ProblemCards router — 2 read + 4 writes。
+"""ProblemCards router — 2 read + 4 writes + 1 export。
 
 operationId 對齊 openapi.yaml：
   listProblemCards, getProblemCard, createProblemCard, updateProblemCard,
-  confirmProblemCard, resolveProblemCard
-
-未實作：exportProblemCard（待匯出格式需求明確再開）。
+  confirmProblemCard, resolveProblemCard, exportProblemCard
 """
 
 from __future__ import annotations
@@ -17,6 +15,7 @@ from models.generated import (
     ProblemCard,
     ProblemCardCreateRequest,
     ProblemCardEnvelope,
+    ProblemCardExport,
     ProblemCardPage,
     ProblemCardResolveRequest,
     ProblemCardUpdateRequest,
@@ -121,6 +120,22 @@ async def create_problem_card(
     if idem is not None:
         await idem.save(201, payload)
     return payload
+
+
+@router.get(
+    "/problem-cards/{id}/export",
+    operation_id="exportProblemCard",
+    summary="匯出問題卡（json / csv / pdf；content 為 base64 編碼）",
+    response_model=ProblemCardExport,
+)
+async def export_problem_card(
+    id: str = Path(),
+    format: str = Query(default="pdf", pattern="^(pdf|json|csv)$"),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    return await problem_card_service.export_card(
+        tenant_id=user.tenant_id, pc_id=id, fmt=format,
+    )
 
 
 @router.patch(
