@@ -49,6 +49,7 @@ from routers import inventory as inventory_router
 from routers import reports_kpi as reports_kpi_router
 from routers import resolution as resolution_router
 from routers import kb_export as kb_export_router
+from routers import sentiment_alerts as sentiment_alerts_router
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -94,6 +95,7 @@ app.include_router(kb_manuals_router.router, prefix="/api/v1", tags=["knowledge_
 app.include_router(sop_drafts_router.router, prefix="/api/v1", tags=["knowledge_base"])
 app.include_router(audit_logs_router.router, prefix="/api/v1", tags=["observability"])
 app.include_router(conversations_router.router, prefix="/api/v1", tags=["customer_service"])
+app.include_router(sentiment_alerts_router.router, prefix="/api/v1", tags=["customer_service"])
 app.include_router(dashboard_router.router, prefix="/api/v1", tags=["reports"])
 app.include_router(problem_cards_router.router, prefix="/api/v1", tags=["customer_service"])
 app.include_router(work_orders_router.router, prefix="/api/v1", tags=["dispatch"])

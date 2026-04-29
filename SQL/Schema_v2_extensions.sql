@@ -260,3 +260,34 @@ CREATE INDEX IF NOT EXISTS idx_audit_target ON audit_events (target_type, target
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_events (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_expires ON audit_events (expires_at)
     WHERE expires_at IS NOT NULL;
+
+-- ----------------------------------------------------------------------------
+-- 9. 負面情緒告警（sentiment_alerts）— customer_service 模組
+-- ----------------------------------------------------------------------------
+-- AI 在對話中偵測到 negative / very_negative 後寫入；後台監看頁逐筆處理（acknowledged/resolved）。
+-- 對應 OpenAPI: SentimentAlert / listSentimentAlerts / updateSentimentAlert。
+CREATE TABLE IF NOT EXISTS sentiment_alerts (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    conversation_id     UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    consumer_message    TEXT,                                                       -- 觸發本次告警的客戶訊息片段
+    sentiment_label     VARCHAR(20) NOT NULL,                                       -- negative / very_negative / neutral / positive
+    confidence          NUMERIC(4,3) NOT NULL CHECK (confidence >= 0 AND confidence <= 1),
+    detected_keywords   TEXT[],                                                     -- 命中的關鍵字陣列
+    problem_card_id     UUID REFERENCES problem_cards(id) ON DELETE SET NULL,
+    status              VARCHAR(20) NOT NULL DEFAULT 'pending',                     -- pending / acknowledged / resolved
+    notified_admin_ids  UUID[],                                                     -- 已被通知的管理員清單
+    admin_note          VARCHAR(1000),
+    created_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_sentiment_label CHECK (sentiment_label IN ('negative','very_negative','neutral','positive')),
+    CONSTRAINT chk_sentiment_status CHECK (status IN ('pending','acknowledged','resolved'))
+);
+
+COMMENT ON TABLE  sentiment_alerts IS '負面情緒告警：AI 偵測 → 後台逐筆處理 (pending → acknowledged → resolved)';
+COMMENT ON COLUMN sentiment_alerts.consumer_message IS '觸發本次告警的客戶訊息（為避免複製整段對話，存擷取片段即可）';
+COMMENT ON COLUMN sentiment_alerts.detected_keywords IS '命中關鍵字快照，供後台快速分流（如「退費」「投訴」「律師」）';
+
+-- Indexes — 後台多按 status + created_at DESC 翻頁
+CREATE INDEX IF NOT EXISTS idx_sentiment_alerts_status_created ON sentiment_alerts (status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_sentiment_alerts_conversation  ON sentiment_alerts (conversation_id);
+CREATE INDEX IF NOT EXISTS idx_sentiment_alerts_created_desc  ON sentiment_alerts (created_at DESC, id DESC);
