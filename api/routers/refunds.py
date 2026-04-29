@@ -1,16 +1,20 @@
-"""Refunds router — listRefundRequests + getRefundRequest (read-only)。
+"""Refunds router — list/get + submitRefundDecision。
 
-operationId 對齊 openapi.yaml：listRefundRequests, getRefundRequest
+operationId 對齊 openapi.yaml：listRefundRequests, getRefundRequest, submitRefundDecision
 
-不含 submitRefundDecision（雙簽寫入路徑，需 Idempotency-Key + 雙簽流程，不在本 phase）。
+雙簽流程簡化：MVP 不分 csm/ops 兩段，approve 一律單步推進到 'approved'。
+詳見 services/refund_service.py 模組註解。
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Path, Query
 
 from core.deps import CurrentUser, require_tenant
+from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
+    RefundDecision,
+    RefundEnvelope,
     RefundRequest,
     RefundRequestEnvelope,
     RefundRequestPage,
@@ -60,3 +64,31 @@ async def get_refund_request(
 ) -> dict:
     refund = await refund_service.get_refund_request(tenant_id=user.tenant_id, refund_id=id)
     return {"data": RefundRequest(**refund).model_dump(mode="json")}
+
+
+@router.post(
+    "/refunds/{id}/decision",
+    operation_id="submitRefundDecision",
+    summary="退款審批決策（pending → approved/rejected/escalated）",
+    response_model=RefundEnvelope,
+)
+async def submit_refund_decision(
+    body: RefundDecision,
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    decision_str = (
+        body.decision.value if hasattr(body.decision, "value") else str(body.decision)
+    )
+    refund = await refund_service.submit_decision(
+        tenant_id=user.tenant_id,
+        refund_id=id,
+        decision=decision_str,
+        reason=body.reason,
+        decided_by_user_id=user.user_id,
+    )
+    payload = {"data": RefundRequest(**refund).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload

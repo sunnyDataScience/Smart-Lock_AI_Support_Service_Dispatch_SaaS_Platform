@@ -1,7 +1,9 @@
-"""Refund Requests 業務邏輯（Phase 1.23 read-only）。
+"""Refund Requests 業務邏輯。
 
-範圍：listRefundRequests（cursor + limit + status + work_order_id）、getRefundRequest。
-不含：submitRefundDecision（write，已存在於 refunds router 寫入路徑，不在本 phase 動）。
+範圍：
+- listRefundRequests（cursor + limit + status + work_order_id）
+- getRefundRequest
+- submitRefundDecision（pending → approved/rejected/escalated；append approval_chain）
 
 OpenAPI RefundRequest schema：
     id, work_order_id, requested_by, amount (decimal str), reason, status (6 enum),
@@ -19,12 +21,18 @@ DB ↔ API 對齊：
 租戶隔離：refund_requests 沒 tenant_id，透過
     JOIN work_orders → problem_cards → conversations → users
 延伸 4 層 JOIN 取 users.tenant_id 過濾（與 invoice_service 同 pattern）。
+
+雙簽限制（MVP 簡化）：
+  本 phase 不實作多步雙簽流程（DB 仍有 csm_approved/ops_approved/dual_signed 狀態，
+  但 OpenAPI 沒對應 enum）。approve 一律單步推進到 'approved'，不再經 csm/ops 兩段。
+  approval_chain 仍會 append 決策紀錄供稽核。後續若要拉雙簽，讀此檔對應 mapping。
 """
 
 from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timezone
 
 import core.db as db_module
 from core.db import _ensure_conn
@@ -175,3 +183,70 @@ async def get_refund_request(*, tenant_id: str, refund_id: str) -> dict:
     if not row:
         raise ApiError("NOT_FOUND", f"Refund request {refund_id} not found", 404)
     return _row_to_dict(row)
+
+
+_DECISION_FROM = {"pending"}
+_DECISION_TO_STATUS = {
+    "approve": "approved",
+    "reject": "rejected",
+    "escalate": "escalated",
+}
+
+
+async def submit_decision(
+    *,
+    tenant_id: str,
+    refund_id: str,
+    decision: str,
+    reason: str,
+    decided_by_user_id: str,
+) -> dict:
+    """pending → approved / rejected / escalated；append approval_chain。"""
+    if decision not in _DECISION_TO_STATUS:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "decision must be one of approve, reject, escalate",
+            422,
+        )
+    if not reason or not reason.strip():
+        raise ApiError("VALIDATION_ERROR", "reason is required", 422)
+
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    cur = await db_module._conn.execute(
+        f"SELECT r.id, r.status, r.approval_chain "
+        f"{_TENANT_JOIN} "
+        f"WHERE r.id = %s::uuid AND u.tenant_id = %s::uuid "
+        f"LIMIT 1",
+        (refund_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", f"Refund request {refund_id} not found", 404)
+    current = row[1]
+    if current not in _DECISION_FROM:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot decide refund in status '{current}'; expected 'pending'",
+            409,
+        )
+
+    chain = _coerce_chain(row[2])
+    chain.append(
+        {
+            "user_id": decided_by_user_id,
+            "decision": decision,
+            "reason": reason.strip()[:500],
+            "decided_at": datetime.now(timezone.utc).isoformat(),
+        },
+    )
+
+    new_status = _DECISION_TO_STATUS[decision]
+    await db_module._conn.execute(
+        "UPDATE refund_requests "
+        "SET status = %s, approval_chain = %s::jsonb, updated_at = NOW() "
+        "WHERE id = %s::uuid",
+        (new_status, json.dumps(chain), refund_id),
+    )
+    return await get_refund_request(tenant_id=tenant_id, refund_id=refund_id)
