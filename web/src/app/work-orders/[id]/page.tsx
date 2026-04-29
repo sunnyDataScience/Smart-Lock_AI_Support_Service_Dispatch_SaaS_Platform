@@ -19,6 +19,8 @@ import {
   UserPlus,
   Flag,
   Star,
+  PenLine,
+  Upload,
 } from "lucide-react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
@@ -39,6 +41,8 @@ type AssignReasonCode = WorkOrderAssignRequest["reason_code"];
 type WorkOrderEscalateRequest = components["schemas"]["WorkOrderEscalateRequest"];
 type EscalateLevel = WorkOrderEscalateRequest["level"];
 type WorkOrderConfirmRequest = components["schemas"]["WorkOrderConfirmRequest"];
+type SignaturePayload = components["schemas"]["SignaturePayload"];
+type ApiResponseGeneric = components["schemas"]["ApiResponseGeneric"];
 type ProblemCard = components["schemas"]["ProblemCard"];
 type ProblemCardEnvelope = components["schemas"]["ProblemCardEnvelope"];
 type ProblemCardStatus = components["schemas"]["ProblemCardStatus"];
@@ -77,6 +81,16 @@ const ESCALATE_FROM: ReadonlySet<WorkOrderStatus> = new Set([
   "in_progress",
 ]);
 const CONFIRM_FROM: ReadonlySet<WorkOrderStatus> = new Set(["completed"]);
+const SIGNATURE_FROM: ReadonlySet<WorkOrderStatus> = new Set([
+  "accepted",
+  "scheduled",
+  "dispatching",
+  "assigned",
+  "en_route",
+  "arrived",
+  "in_progress",
+  "completed",
+]);
 
 const ESCALATE_LEVEL_OPTIONS: { value: EscalateLevel; label: string; hint: string }[] = [
   {
@@ -693,7 +707,14 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-type ActionMode = "complete" | "cancel" | "assign" | "escalate" | "confirm" | null;
+type ActionMode =
+  | "complete"
+  | "cancel"
+  | "assign"
+  | "escalate"
+  | "confirm"
+  | "signature"
+  | null;
 type ActionPending =
   | "accept"
   | "complete"
@@ -701,6 +722,7 @@ type ActionPending =
   | "assign"
   | "escalate"
   | "confirm"
+  | "signature"
   | null;
 
 export default function WorkOrderDetailPage({ params }: PageProps) {
@@ -850,6 +872,35 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
     }
   };
 
+  const handleSignature = async (
+    customerSignature: string,
+    technicianSignature: string,
+    gpsLat: number | null,
+    gpsLng: number | null,
+  ) => {
+    setActionPending("signature");
+    setActionError(null);
+    try {
+      const body: SignaturePayload = {
+        customer_signature: customerSignature,
+        technician_signature: technicianSignature,
+        signed_at: new Date().toISOString(),
+      };
+      if (gpsLat != null) body.gps_lat = gpsLat;
+      if (gpsLng != null) body.gps_lng = gpsLng;
+      const res = await api.post<ApiResponseGeneric>(
+        `/api/v1/work-orders/${encodeURIComponent(id)}/signature`,
+        body,
+      );
+      setActionMode(null);
+      setActionToast(res.message || "雙方簽章完成");
+    } catch (e) {
+      setActionError(formatActionError(e));
+    } finally {
+      setActionPending(null);
+    }
+  };
+
   const handleEscalate = async (level: EscalateLevel, reason: string) => {
     setActionPending("escalate");
     setActionError(null);
@@ -893,8 +944,15 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
   const canCancel = order ? CANCEL_FROM.has(order.status) : false;
   const canEscalate = order ? ESCALATE_FROM.has(order.status) : false;
   const canConfirm = order ? CONFIRM_FROM.has(order.status) : false;
+  const canSignature = order ? SIGNATURE_FROM.has(order.status) : false;
   const anyAction =
-    canAccept || canAssign || canComplete || canCancel || canEscalate || canConfirm;
+    canAccept ||
+    canAssign ||
+    canComplete ||
+    canCancel ||
+    canEscalate ||
+    canConfirm ||
+    canSignature;
   const assignLabel = order?.technician_id ? "重新指派" : "指派技師";
 
   return (
@@ -1039,6 +1097,19 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
                     升級工單
                   </button>
                 )}
+                {canSignature && (
+                  <button
+                    onClick={() => {
+                      setActionError(null);
+                      setActionMode("signature");
+                    }}
+                    disabled={actionPending !== null}
+                    className="inline-flex items-center gap-2 rounded-md border border-[#7C3AED] bg-white px-4 py-2 text-[13px] font-semibold text-[#7C3AED] transition hover:bg-[#F5F3FF] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <PenLine className="h-4 w-4" />
+                    電子簽章
+                  </button>
+                )}
               </div>
             )}
 
@@ -1123,6 +1194,14 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
           pending={actionPending === "confirm"}
           onCancel={() => setActionMode(null)}
           onSubmit={handleConfirm}
+        />
+      )}
+
+      {actionMode === "signature" && (
+        <SignatureModal
+          pending={actionPending === "signature"}
+          onCancel={() => setActionMode(null)}
+          onSubmit={handleSignature}
         />
       )}
 
@@ -1547,6 +1626,222 @@ function ConfirmModal({
             className="rounded-md bg-[#0EA5E9] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? "送出中…" : "確認結案"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SignaturePadField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string | null;
+  onChange: (b64: string | null) => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFile = async (file: File) => {
+    setError(null);
+    if (!file.type.startsWith("image/")) {
+      setError("請選擇圖片檔（PNG / JPEG / SVG）");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setError("檔案過大，請小於 2 MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== "string") return;
+      const comma = result.indexOf(",");
+      const b64 = comma >= 0 ? result.slice(comma + 1) : result;
+      onChange(b64);
+    };
+    reader.onerror = () => setError("檔案讀取失敗");
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-[var(--border)] bg-[#F8FAFC] p-3">
+      <span className="text-[12px] font-medium text-[var(--text-secondary)]">{label}</span>
+      {value ? (
+        <div className="flex items-center gap-3">
+          <div className="flex h-[64px] w-[64px] items-center justify-center rounded border border-[var(--border)] bg-white text-[10px] text-[var(--text-disabled)]">
+            base64
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[12px] font-medium text-[var(--text-primary)]">
+              已上傳（{value.length.toLocaleString()} 字元）
+            </span>
+            <button
+              type="button"
+              onClick={() => onChange(null)}
+              className="mt-1 self-start text-[11px] text-[var(--error)] hover:underline"
+            >
+              清除重傳
+            </button>
+          </div>
+        </div>
+      ) : (
+        <label className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-[var(--border)] bg-white px-3 py-2 text-[12px] text-[var(--text-secondary)] hover:bg-[var(--bg-page)]">
+          <Upload className="h-4 w-4" />
+          選擇簽章圖片（PNG / JPEG / SVG，{"<"}2 MB）
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/svg+xml"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handleFile(f);
+              e.target.value = "";
+            }}
+          />
+        </label>
+      )}
+      {error && <span className="text-[11px] text-[var(--error)]">{error}</span>}
+    </div>
+  );
+}
+
+function SignatureModal({
+  pending,
+  onCancel,
+  onSubmit,
+}: {
+  pending: boolean;
+  onCancel: () => void;
+  onSubmit: (
+    customer: string,
+    technician: string,
+    gpsLat: number | null,
+    gpsLng: number | null,
+  ) => Promise<void>;
+}) {
+  const [customer, setCustomer] = useState<string | null>(null);
+  const [technician, setTechnician] = useState<string | null>(null);
+  const [gpsLat, setGpsLat] = useState<string>("");
+  const [gpsLng, setGpsLng] = useState<string>("");
+  const [gpsError, setGpsError] = useState<string | null>(null);
+
+  const valid = !!customer && !!technician;
+
+  const captureGps = () => {
+    if (!navigator.geolocation) {
+      setGpsError("此裝置不支援定位");
+      return;
+    }
+    setGpsError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGpsLat(pos.coords.latitude.toFixed(6));
+        setGpsLng(pos.coords.longitude.toFixed(6));
+      },
+      (err) => setGpsError(err.message || "定位失敗"),
+      { timeout: 8000 },
+    );
+  };
+
+  const submit = () => {
+    if (!customer || !technician) return;
+    const lat = gpsLat.trim() ? Number(gpsLat) : null;
+    const lng = gpsLng.trim() ? Number(gpsLng) : null;
+    if ((lat != null && Number.isNaN(lat)) || (lng != null && Number.isNaN(lng))) {
+      setGpsError("經緯度需為數字");
+      return;
+    }
+    onSubmit(customer, technician, lat, lng);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4"
+      onClick={onCancel}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-[560px] rounded-xl bg-white p-6 shadow-xl"
+      >
+        <div className="mb-4 flex items-center gap-2">
+          <PenLine className="h-5 w-5 text-[#7C3AED]" />
+          <span className="text-[18px] font-semibold text-[var(--text-primary)]">
+            雙方電子簽章
+          </span>
+        </div>
+
+        <p className="mb-3 rounded-md bg-[#F5F3FF] px-3 py-2 text-[12px] leading-[1.6] text-[#5B21B6]">
+          客戶與技師雙方簽章將寫入 digital_signatures，並以 SHA-256 產生整合性雜湊。
+          已簽章的角色不會被覆寫；雙方均完成後此工單無法再次簽章。
+        </p>
+
+        <div className="flex flex-col gap-3">
+          <SignaturePadField
+            label="客戶簽章 *"
+            value={customer}
+            onChange={setCustomer}
+          />
+          <SignaturePadField
+            label="技師簽章 *"
+            value={technician}
+            onChange={setTechnician}
+          />
+
+          <div className="rounded-lg border border-[var(--border)] bg-[#F8FAFC] p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[12px] font-medium text-[var(--text-secondary)]">
+                GPS 位置（可選，作為簽章地點佐證）
+              </span>
+              <button
+                type="button"
+                onClick={captureGps}
+                disabled={pending}
+                className="rounded-md border border-[var(--border)] bg-white px-2 py-1 text-[11px] font-medium text-[var(--primary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
+              >
+                取得目前位置
+              </button>
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <input
+                type="text"
+                value={gpsLat}
+                onChange={(e) => setGpsLat(e.target.value)}
+                placeholder="緯度（lat）"
+                className="rounded-md border border-[var(--border)] px-3 py-2 text-[12px] focus:border-[#7C3AED] focus:outline-none"
+              />
+              <input
+                type="text"
+                value={gpsLng}
+                onChange={(e) => setGpsLng(e.target.value)}
+                placeholder="經度（lng）"
+                className="rounded-md border border-[var(--border)] px-3 py-2 text-[12px] focus:border-[#7C3AED] focus:outline-none"
+              />
+            </div>
+            {gpsError && (
+              <span className="mt-1 block text-[11px] text-[var(--error)]">
+                {gpsError}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            disabled={pending}
+            className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
+          >
+            返回
+          </button>
+          <button
+            onClick={submit}
+            disabled={pending || !valid}
+            className="rounded-md bg-[#7C3AED] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? "送出中…" : "確認簽章"}
           </button>
         </div>
       </div>
