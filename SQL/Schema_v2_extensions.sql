@@ -326,3 +326,30 @@ COMMENT ON COLUMN vouchers.amount IS '金額；NUMERIC(14,2) 避免浮點誤差�
 CREATE INDEX IF NOT EXISTS idx_vouchers_tenant_posting   ON vouchers (tenant_id, posting_date DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_vouchers_related_entity   ON vouchers (related_entity_type, related_entity_id);
 CREATE INDEX IF NOT EXISTS idx_vouchers_voucher_number   ON vouchers (voucher_number);
+
+
+-- ============================================================================
+-- [Phase 1.78] family_reviews — SOP 草稿家族覆核
+-- ============================================================================
+-- 對應 OpenAPI: FamilyReview / createFamilyReview / listFamilyReviews / listPendingFamilyReviews。
+-- 設計：sop_drafts.status='approved'（管理員初審通過）後進入待家族覆核佇列；
+--       一筆 sop_draft 僅能對應一筆 family_review（unique），重複提交回 409。
+--       action 二元：approved / rejected；rejected 不退回 sop_drafts.status，僅留覆核紀錄。
+CREATE TABLE IF NOT EXISTS family_reviews (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id       UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001'::uuid,
+    sop_draft_id    UUID NOT NULL REFERENCES sop_drafts(id) ON DELETE CASCADE,
+    action          VARCHAR(20) NOT NULL,
+    reviewer_id     UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    comment         TEXT,
+    created_at      TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_family_review_action CHECK (action IN ('approved','rejected')),
+    CONSTRAINT uniq_family_review_draft UNIQUE (sop_draft_id)
+);
+
+COMMENT ON TABLE  family_reviews IS '家族覆核紀錄：管理員初審通過的 SOP 草稿由家族（代理商/品牌端）二級覆核';
+COMMENT ON COLUMN family_reviews.sop_draft_id IS '一筆草稿僅一筆覆核（uniq），重複提交視為衝突';
+COMMENT ON COLUMN family_reviews.action IS '覆核結果：approved（通過） | rejected（退回）';
+
+CREATE INDEX IF NOT EXISTS idx_family_reviews_tenant_created ON family_reviews (tenant_id, created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_family_reviews_action         ON family_reviews (tenant_id, action, created_at DESC);
