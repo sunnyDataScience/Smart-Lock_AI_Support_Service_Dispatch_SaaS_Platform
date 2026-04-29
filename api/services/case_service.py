@@ -1,6 +1,6 @@
 """Knowledge Base Cases 業務邏輯。
 
-範圍：CRUD（不含向量搜尋；searchCases 屬 Phase 2）。
+範圍：CRUD + searchCases（先以關鍵字加權打分；embedding 寫入後可改 vector）。
 embedding 欄位 Phase 1 不寫入；embedding_status 預設 'processing'，
 未來由背景 worker 補齊。
 """
@@ -8,6 +8,7 @@ embedding 欄位 Phase 1 不寫入；embedding_status 預設 'processing'，
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 from datetime import datetime
 
@@ -193,3 +194,128 @@ async def delete_case(*, tenant_id: str, case_id: str) -> None:
     )
     if cur.rowcount == 0:
         raise ApiError("NOT_FOUND", "Case not found", 404)
+
+
+_CJK_RE = re.compile(r"[\u4e00-\u9fff]+")
+_NON_CJK_TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
+
+
+def _tokenize(query: str) -> list[str]:
+    """切詞：英數連續字串 + 中文 bigram（連續中文長度 < 2 時退化為單字）。"""
+    if not query:
+        return []
+    tokens: list[str] = []
+    seen: set[str] = set()
+    for m in _NON_CJK_TOKEN_RE.findall(query):
+        t = m.lower()
+        if t and t not in seen:
+            seen.add(t)
+            tokens.append(t)
+    for m in _CJK_RE.findall(query):
+        if len(m) <= 1:
+            if m and m not in seen:
+                seen.add(m)
+                tokens.append(m)
+            continue
+        for i in range(len(m) - 1):
+            bg = m[i : i + 2]
+            if bg not in seen:
+                seen.add(bg)
+                tokens.append(bg)
+    return tokens
+
+
+def _score_case(
+    *,
+    case: dict,
+    tokens: list[str],
+    brand_filter: str | None,
+    model_filter: str | None,
+) -> float:
+    """逐 token 累加加權命中度，最終正規化到 [0, 1]。
+
+    權重：title 0.55、problem_description 0.30、solution 0.15。
+    brand 完全相符額外 +0.10，model +0.05；總分以 1.0 為上限。
+    """
+    if not tokens:
+        return 0.0
+    title = (case.get("title") or "").lower()
+    problem = (case.get("problem_description") or "").lower()
+    solution = (case.get("solution") or "").lower()
+
+    per_token_max = 0.55
+    raw = 0.0
+    for tok in tokens:
+        if tok in title:
+            raw += 0.55
+        elif tok in problem:
+            raw += 0.30
+        elif tok in solution:
+            raw += 0.15
+
+    base = raw / (len(tokens) * per_token_max)
+
+    if brand_filter and case.get("brand") and brand_filter.lower() == case["brand"].lower():
+        base = min(1.0, base + 0.10)
+    if model_filter and case.get("model") and model_filter.lower() == case["model"].lower():
+        base = min(1.0, base + 0.05)
+
+    return min(1.0, max(0.0, base))
+
+
+async def search_cases(
+    *,
+    tenant_id: str,
+    query: str,
+    brand: str | None = None,
+    model: str | None = None,
+    limit: int = 5,
+    similarity_threshold: float = 0.75,
+) -> dict:
+    """關鍵字加權打分：先以 brand/model + tenant 過濾，於記憶體中對 title /
+    problem_description / solution 做 token 命中加權，回傳分數高於門檻的 hits。
+
+    embedding 與 vector cosine 走 Phase 2；本實作確保契約端點可上線。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    if not query or not query.strip():
+        raise ApiError("VALIDATION_ERROR", "query is required", 422)
+
+    tokens = _tokenize(query)
+    if not tokens:
+        return {"hits": []}
+
+    where = ["tenant_id = %s::uuid", "is_active = TRUE"]
+    args: list = [tenant_id]
+    if brand:
+        where.append("LOWER(brand) = LOWER(%s)")
+        args.append(brand)
+    if model:
+        where.append("LOWER(model) = LOWER(%s)")
+        args.append(model)
+
+    sql = (
+        f"SELECT {_SELECT_COLUMNS} FROM case_entries "
+        f"WHERE {' AND '.join(where)} "
+        f"ORDER BY updated_at DESC "
+        f"LIMIT 500"
+    )
+    cur = await db_module._conn.execute(sql, args)
+    rows = await cur.fetchall()
+
+    hits: list[dict] = []
+    for r in rows:
+        case = _row_to_dict(r)
+        score = _score_case(
+            case=case,
+            tokens=tokens,
+            brand_filter=brand,
+            model_filter=model,
+        )
+        if score >= similarity_threshold:
+            hits.append({"case": case, "score": round(score, 4)})
+
+    hits.sort(key=lambda h: h["score"], reverse=True)
+    return {"hits": hits[:limit]}

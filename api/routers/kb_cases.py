@@ -1,7 +1,7 @@
-"""Knowledge Base Cases router — 5 endpoints (CRUD)。
+"""Knowledge Base Cases router — 5 CRUD + searchCases。
 
 operationId 對齊 openapi.yaml：
-  listCases, createCase, getCase, updateCase, deleteCase
+  listCases, createCase, getCase, updateCase, deleteCase, searchCases
 """
 
 from __future__ import annotations
@@ -16,6 +16,9 @@ from models.generated import (
     CaseEntryEnvelope,
     CaseEntryPage,
     CaseEntryUpdateRequest,
+    CaseSearchHit,
+    CaseSearchRequest,
+    CaseSearchResponse,
 )
 from services import case_service
 
@@ -128,3 +131,35 @@ async def delete_case(
     if idem is not None:
         await idem.save(204, {})
     return Response(status_code=204)
+
+
+@router.post(
+    "/knowledge-base/cases/search",
+    operation_id="searchCases",
+    summary="案例語意搜尋（Phase 1：關鍵字加權）",
+    response_model=CaseSearchResponse,
+)
+async def search_cases(
+    body: CaseSearchRequest,
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    result = await case_service.search_cases(
+        tenant_id=user.tenant_id,
+        query=body.query,
+        brand=body.brand,
+        model=body.model,
+        limit=body.limit if body.limit is not None else 5,
+        similarity_threshold=(
+            body.similarity_threshold
+            if body.similarity_threshold is not None
+            else 0.75
+        ),
+    )
+    hits = [
+        CaseSearchHit(
+            case=CaseEntry(**h["case"]),
+            score=h["score"],
+        ).model_dump(mode="json")
+        for h in result["hits"]
+    ]
+    return {"hits": hits}
