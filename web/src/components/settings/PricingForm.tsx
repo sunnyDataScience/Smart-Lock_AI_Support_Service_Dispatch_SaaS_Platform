@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Calculator, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
@@ -11,6 +11,8 @@ type PricingSurcharge = components["schemas"]["PricingSurcharge"];
 type PricingRuleEnvelope = components["schemas"]["PricingRuleEnvelope"];
 type PricingRuleCreateRequest = components["schemas"]["PricingRuleCreateRequest"];
 type PricingRuleUpdateRequest = components["schemas"]["PricingRuleUpdateRequest"];
+type PricingCalculateRequest = components["schemas"]["PricingCalculateRequest"];
+type PricingCalculateResponse = components["schemas"]["PricingCalculateResponse"];
 type LockType = PricingRule["lock_type"];
 type Difficulty = PricingRule["difficulty"];
 
@@ -62,6 +64,7 @@ export default function PricingForm() {
   const [editorRule, setEditorRule] = useState<PricingRule | null>(null);
   const [editorPending, setEditorPending] = useState(false);
   const [editorError, setEditorError] = useState<string | null>(null);
+  const [calcOpen, setCalcOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
@@ -226,13 +229,22 @@ export default function PricingForm() {
         <span className="text-[13px] text-[var(--text-secondary)]">
           列表為 listPricingRules 即時資料（已過濾停用規則），可即時新增與編輯。
         </span>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90"
-        >
-          <Plus className="h-4 w-4" />
-          新增規則
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCalcOpen(true)}
+            className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2 text-[13px] font-semibold text-[var(--text-primary)] transition hover:bg-[var(--bg-page)]"
+          >
+            <Calculator className="h-4 w-4" />
+            試算報價
+          </button>
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90"
+          >
+            <Plus className="h-4 w-4" />
+            新增規則
+          </button>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-lg border border-[var(--border)]">
@@ -352,10 +364,6 @@ export default function PricingForm() {
         })}
       </div>
 
-      <div className="rounded-lg border border-[var(--border)] bg-[#FFFBEB] px-4 py-3 text-[12px] leading-relaxed text-[#92400E]">
-        「重置為預設」按鈕需 calculatePricing 引擎與規則回滾儲存接入後上線。
-      </div>
-
       {editorMode && (
         <PricingRuleEditor
           mode={editorMode}
@@ -365,6 +373,13 @@ export default function PricingForm() {
           onCancel={closeEditor}
           onSubmitCreate={handleCreate}
           onSubmitUpdate={(req) => editorRule && handleUpdate(editorRule, req)}
+        />
+      )}
+
+      {calcOpen && (
+        <PricingCalculator
+          rules={items}
+          onClose={() => setCalcOpen(false)}
         />
       )}
 
@@ -695,6 +710,227 @@ function Field({
         {required && <span className="ml-[2px] text-[var(--status-danger)]">*</span>}
       </span>
       {children}
+    </div>
+  );
+}
+
+function PricingCalculator({
+  rules,
+  onClose,
+}: {
+  rules: PricingRule[];
+  onClose: () => void;
+}) {
+  const brandSuggestions = Array.from(
+    new Set(rules.map((r) => r.brand).filter(Boolean)),
+  );
+  const [brand, setBrand] = useState<string>(brandSuggestions[0] ?? "");
+  const [lockType, setLockType] = useState<LockType>("digital_deadbolt");
+  const [difficulty, setDifficulty] = useState<Difficulty>("simple");
+  const [isEmergency, setIsEmergency] = useState(false);
+  const [isNight, setIsNight] = useState(false);
+  const [additionalText, setAdditionalText] = useState("");
+
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<PricingCalculateResponse | null>(null);
+
+  const calculate = async () => {
+    if (!brand.trim()) {
+      setError("請填寫品牌");
+      return;
+    }
+    const items = additionalText
+      .split(/[,，、\n]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const req: PricingCalculateRequest = {
+      brand: brand.trim(),
+      lock_type: lockType,
+      difficulty,
+      is_emergency: isEmergency,
+      is_night_service: isNight,
+      additional_items: items.length > 0 ? items : undefined,
+    };
+    setPending(true);
+    setError(null);
+    setResult(null);
+    try {
+      const res = await api.post<PricingCalculateResponse>(
+        "/api/v1/pricing/calculate",
+        req,
+      );
+      setResult(res);
+    } catch (e) {
+      setError(
+        e instanceof ApiError
+          ? `${e.errorCode} (${e.status})：${e.message}`
+          : e instanceof Error
+            ? e.message
+            : String(e),
+      );
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+      onClick={onClose}
+    >
+      <div
+        className="flex w-full max-w-[560px] flex-col gap-4 rounded-xl bg-[var(--bg-surface)] p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-lg font-bold text-[var(--text-primary)]">
+            試算報價
+          </span>
+          <button
+            onClick={onClose}
+            className="text-[13px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          >
+            關閉
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="品牌" required>
+            <input
+              list="pricing-calc-brand-list"
+              value={brand}
+              onChange={(e) => setBrand(e.target.value)}
+              className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] text-[var(--text-primary)]"
+              placeholder="輸入品牌"
+            />
+            <datalist id="pricing-calc-brand-list">
+              {brandSuggestions.map((b) => (
+                <option key={b} value={b} />
+              ))}
+            </datalist>
+          </Field>
+          <Field label="鎖型" required>
+            <select
+              value={lockType}
+              onChange={(e) => setLockType(e.target.value as LockType)}
+              className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] text-[var(--text-primary)]"
+            >
+              {LOCK_TYPE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="難度" required>
+            <select
+              value={difficulty}
+              onChange={(e) => setDifficulty(e.target.value as Difficulty)}
+              className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] text-[var(--text-primary)]"
+            >
+              {DIFFICULTY_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <div className="flex flex-col justify-center gap-2">
+            <label className="flex items-center gap-2 text-[13px] text-[var(--text-primary)]">
+              <input
+                type="checkbox"
+                checked={isEmergency}
+                onChange={(e) => setIsEmergency(e.target.checked)}
+              />
+              緊急加成
+            </label>
+            <label className="flex items-center gap-2 text-[13px] text-[var(--text-primary)]">
+              <input
+                type="checkbox"
+                checked={isNight}
+                onChange={(e) => setIsNight(e.target.checked)}
+              />
+              夜間服務
+            </label>
+          </div>
+        </div>
+
+        <Field label="額外項目（用逗號或換行分隔，例：陽台, 二樓）">
+          <textarea
+            value={additionalText}
+            onChange={(e) => setAdditionalText(e.target.value)}
+            rows={2}
+            className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] text-[var(--text-primary)]"
+            placeholder="陽台, 二樓"
+          />
+        </Field>
+
+        {error && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+            {error}
+          </div>
+        )}
+
+        {result && (
+          <div className="flex flex-col gap-2 rounded-lg border border-[var(--border)] bg-[#F8FAFC] p-4">
+            <div className="flex items-center justify-between text-[13px]">
+              <span className="text-[var(--text-secondary)]">基礎價</span>
+              <span className="font-['IBM_Plex_Mono'] font-semibold text-[var(--text-primary)]">
+                {formatTwd(result.base_price)}
+              </span>
+            </div>
+            {(result.surcharges ?? []).map((s, idx) => (
+              <div
+                key={`calc-sur-${idx}`}
+                className="flex items-center justify-between text-[13px]"
+              >
+                <span className="text-[var(--text-secondary)]">
+                  + {s.name}
+                  {s.condition && (
+                    <span className="text-[var(--text-disabled)]">
+                      （{s.condition}）
+                    </span>
+                  )}
+                </span>
+                <span className="font-['IBM_Plex_Mono'] font-semibold text-[var(--primary)]">
+                  +{formatTwd(s.amount)}
+                </span>
+              </div>
+            ))}
+            {(result.surcharges ?? []).length === 0 && (
+              <div className="text-[12px] text-[var(--text-disabled)]">
+                無套用任何加成
+              </div>
+            )}
+            <div className="mt-1 flex items-center justify-between border-t border-[var(--border)] pt-2 text-[14px]">
+              <span className="font-semibold text-[var(--text-primary)]">
+                總額（{result.currency ?? "TWD"}）
+              </span>
+              <span className="font-['IBM_Plex_Mono'] text-lg font-bold text-[var(--primary)]">
+                {formatTwd(result.total)}
+              </span>
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center justify-end gap-2">
+          <button
+            onClick={onClose}
+            disabled={pending}
+            className="rounded-lg border border-[var(--border)] px-4 py-2 text-[13px] font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
+          >
+            關閉
+          </button>
+          <button
+            onClick={calculate}
+            disabled={pending}
+            className="rounded-lg bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white hover:opacity-90 disabled:opacity-50"
+          >
+            {pending ? "計算中…" : "試算"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
