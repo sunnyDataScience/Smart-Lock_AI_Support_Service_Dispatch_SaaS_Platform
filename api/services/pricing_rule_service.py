@@ -4,8 +4,8 @@
   - listPricingRules（cursor + limit + brand 篩選）
   - createPricingRule（POST，產生新計價規則）
   - updatePricingRule（PUT，修改 base_price / surcharges；其餘欄位 immutable）
-
-不含：calculatePricing（依賴 LockType + difficulty 推算結果價格的線上引擎）。
+  - calculate_pricing（依 brand + lock_type + difficulty 找到規則，套用 emergency /
+    night / additional_items 加成回傳總額）
 
 OpenAPI PricingRule schema：
     id, brand, lock_type (LockType), difficulty (DifficultyLevel),
@@ -322,3 +322,106 @@ async def update_pricing_rule(
     if not row:
         raise ApiError("NOT_FOUND", f"Pricing rule {rule_id} not found", 404)
     return _row_to_dict(row)
+
+
+_EMERGENCY_KEYWORDS = ("emergency", "緊急", "急件")
+_NIGHT_KEYWORDS = ("night", "夜")
+
+
+def _surcharge_matches(
+    surcharge: dict,
+    *,
+    is_emergency: bool,
+    is_night_service: bool,
+    additional_items: list[str],
+) -> bool:
+    """判斷 surcharge 是否套用：
+
+    - 沒有 condition 欄位 → 永遠套用（rule 內固定加成）
+    - condition 含 emergency/緊急/急件 字眼 + is_emergency=True → 套用
+    - condition 含 night/夜 字眼 + is_night_service=True → 套用
+    - condition 含任何 additional_items 字串（不分大小寫）→ 套用
+    - 其餘 → 不套用
+    """
+    cond = (surcharge.get("condition") or "").strip()
+    if not cond:
+        return True
+    cond_lower = cond.lower()
+    if is_emergency and any(k in cond_lower for k in _EMERGENCY_KEYWORDS):
+        return True
+    if is_night_service and any(k in cond_lower for k in _NIGHT_KEYWORDS):
+        return True
+    for item in additional_items:
+        if item and item.strip().lower() in cond_lower:
+            return True
+    return False
+
+
+async def calculate_pricing(
+    *,
+    tenant_id: str,
+    brand: str,
+    lock_type: str,
+    difficulty: str,
+    is_emergency: bool = False,
+    is_night_service: bool = False,
+    additional_items: list[str] | None = None,
+) -> dict:
+    """依 brand + lock_type + difficulty 找到第一筆啟用規則並計算總額。
+
+    匹配策略：tenant 範圍內、is_active=TRUE、brand 大小寫不敏感比對；
+    若同時有多筆，取 created_at 最新者。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    if not brand or not brand.strip():
+        raise ApiError("VALIDATION_ERROR", "brand is required", 422)
+    if lock_type not in _VALID_LOCK_TYPES:
+        raise ApiError(
+            "VALIDATION_ERROR", f"Invalid lock_type: {lock_type}", 422,
+        )
+    if difficulty not in _API_DIFFICULTY_TO_DB:
+        raise ApiError(
+            "VALIDATION_ERROR", f"Invalid difficulty: {difficulty}", 422,
+        )
+    db_difficulty = _API_DIFFICULTY_TO_DB[difficulty]
+
+    cur = await db_module._conn.execute(
+        f"SELECT {_SELECT} FROM price_rules "
+        f"WHERE tenant_id = %s::uuid AND is_active = TRUE "
+        f"  AND LOWER(brand) = LOWER(%s) "
+        f"  AND lock_type = %s AND difficulty = %s "
+        f"ORDER BY created_at DESC LIMIT 1",
+        (tenant_id, brand.strip(), lock_type, db_difficulty),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"No pricing rule matched for {brand}/{lock_type}/{difficulty}",
+            422,
+        )
+
+    rule = _row_to_dict(row)
+    base_f = float(rule["base_price"])
+
+    items = additional_items or []
+    matched: list[dict] = []
+    total = base_f
+    for sur in rule["surcharges"]:
+        if _surcharge_matches(
+            sur,
+            is_emergency=is_emergency,
+            is_night_service=is_night_service,
+            additional_items=items,
+        ):
+            matched.append(sur)
+            total += float(sur["amount"])
+
+    return {
+        "base_price": _coerce_decimal(base_f),
+        "surcharges": matched,
+        "total": _coerce_decimal(total),
+        "currency": "TWD",
+    }

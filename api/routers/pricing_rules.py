@@ -1,9 +1,7 @@
-"""Pricing Rules router — listPricingRules + createPricingRule + updatePricingRule。
+"""Pricing Rules router — list / create / update / calculate。
 
 operationId 對齊 openapi.yaml：
-  listPricingRules, createPricingRule, updatePricingRule
-
-不含 calculatePricing（線上引擎）等其他寫入路徑。
+  listPricingRules, createPricingRule, updatePricingRule, calculatePricing
 """
 
 from __future__ import annotations
@@ -13,6 +11,8 @@ from fastapi import APIRouter, Depends, Path, Query
 from core.deps import CurrentUser, require_tenant
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
+    PricingCalculateRequest,
+    PricingCalculateResponse,
     PricingRule,
     PricingRuleCreateRequest,
     PricingRulePage,
@@ -100,3 +100,27 @@ async def update_pricing_rule(
         surcharges=surcharges_payload,
     )
     return {"data": PricingRule(**rule).model_dump(mode="json")}
+
+
+@router.post(
+    "/pricing/calculate",
+    operation_id="calculatePricing",
+    summary="計算報價（依 brand/lock_type/difficulty + 加成）",
+    response_model=PricingCalculateResponse,
+)
+async def calculate_pricing(
+    body: PricingCalculateRequest,
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    result = await pricing_rule_service.calculate_pricing(
+        tenant_id=user.tenant_id,
+        brand=body.brand,
+        lock_type=body.lock_type.value,
+        difficulty=body.difficulty.value,
+        is_emergency=bool(body.is_emergency),
+        is_night_service=bool(body.is_night_service),
+        additional_items=list(body.additional_items)
+        if body.additional_items
+        else None,
+    )
+    return PricingCalculateResponse(**result).model_dump(mode="json")
