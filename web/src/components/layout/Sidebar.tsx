@@ -89,6 +89,7 @@ const navItems: NavItem[] = [
     children: [
       { label: "RBAC 管理", href: "/admin/roles" },
       { label: "稽核日誌", href: "/admin/audit-events" },
+      { label: "情緒告警", href: "/admin/sentiment-alerts" },
     ],
   },
   { icon: Settings, label: "系統設定", href: "/settings" },
