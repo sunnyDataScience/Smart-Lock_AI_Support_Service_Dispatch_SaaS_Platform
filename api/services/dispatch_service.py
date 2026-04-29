@@ -87,6 +87,57 @@ def _is_excluded_by_circuit(status: str | None) -> bool:
     return status in {"inactive", "on_leave", "circuit_breaker_open"}
 
 
+async def _fetch_tenant_technicians(tenant_id: str) -> list[tuple]:
+    cur = await db_module._conn.execute(
+        f"SELECT {_TECH_SELECT} FROM technicians t "
+        f"WHERE t.tenant_id = %s::uuid",
+        (tenant_id,),
+    )
+    return await cur.fetchall()
+
+
+def _score_rows(
+    rows: list[tuple],
+    *,
+    brand: str | None,
+    district: str | None,
+    skills_filter: list[str] | None = None,
+    areas_filter: list[str] | None = None,
+    rating_min: float | None = None,
+    exclude_circuit: bool = True,
+) -> list[dict]:
+    """共用評分邏輯：技師 row → 含 score / distance / skill_match / eta 的 dict 列表。"""
+    out: list[dict] = []
+    for r in rows:
+        status = r[9]  # 對齊 _TECH_SELECT
+        if exclude_circuit and _is_excluded_by_circuit(status):
+            continue
+        tech = _tech_row_to_dict(r)
+        if skills_filter and not _intersect_lower(tech["skills"], skills_filter):
+            continue
+        if areas_filter and not _intersect_lower(tech["service_areas"], areas_filter):
+            continue
+        if rating_min is not None and tech["rating"] < float(rating_min):
+            continue
+
+        skill = _skill_score(tech["skills"], brand)
+        dist_factor, dist_km = _distance_factor_and_km(tech["service_areas"], district)
+        rating_f = _rating_factor(tech["rating"])
+        score = round(
+            (_W_SKILL * skill + _W_DISTANCE * dist_factor + _W_RATING * rating_f) * 100,
+            2,
+        )
+        out.append({
+            "technician": tech,
+            "score": score,
+            "distance_km": dist_km,
+            "skill_match": round(skill, 2),
+            "availability_eta_minutes": _availability_eta(status),
+        })
+    out.sort(key=lambda c: c["score"], reverse=True)
+    return out
+
+
 async def list_dispatch_candidates(
     *,
     tenant_id: str,
@@ -116,56 +167,104 @@ async def list_dispatch_candidates(
     wo_brand = wo_row[0]
     wo_address = wo_row[1] or ""
 
-    # district 解析重用 work_order_service 邏輯
     from services.work_order_service import _parse_district
     wo_district = _parse_district(wo_address)
 
-    # 取 tenant 內候選技師
-    cur = await db_module._conn.execute(
-        f"SELECT {_TECH_SELECT} FROM technicians t "
-        f"WHERE t.tenant_id = %s::uuid",
-        (tenant_id,),
+    rows = await _fetch_tenant_technicians(tenant_id)
+    candidates = _score_rows(
+        rows,
+        brand=wo_brand,
+        district=wo_district,
+        skills_filter=skills_filter,
+        areas_filter=areas_filter,
+        rating_min=rating_min,
+        exclude_circuit=exclude_circuit,
     )
-    rows = await cur.fetchall()
-
-    candidates: list[dict] = []
-    for r in rows:
-        # row[9] = status (見 _TECH_SELECT 順序)
-        status = r[9]
-        if exclude_circuit and _is_excluded_by_circuit(status):
-            continue
-        tech = _tech_row_to_dict(r)
-
-        # 使用者 filter
-        if skills_filter and not _intersect_lower(tech["skills"], skills_filter):
-            continue
-        if areas_filter and not _intersect_lower(tech["service_areas"], areas_filter):
-            continue
-        if rating_min is not None and tech["rating"] < float(rating_min):
-            continue
-        # levels filter — DB 無 level 欄；本 phase 不過濾，僅在 levels_filter 非空時不誤剔
-
-        skill = _skill_score(tech["skills"], wo_brand)
-        dist_factor, dist_km = _distance_factor_and_km(tech["service_areas"], wo_district)
-        rating_f = _rating_factor(tech["rating"])
-
-        score = round(
-            (_W_SKILL * skill + _W_DISTANCE * dist_factor + _W_RATING * rating_f) * 100,
-            2,
-        )
-
-        candidates.append({
-            "technician": tech,
-            "score": score,
-            "distance_km": dist_km,
-            "skill_match": round(skill, 2),
-            "availability_eta_minutes": _availability_eta(status),
-        })
-
-    candidates.sort(key=lambda c: c["score"], reverse=True)
-
     return {
         "candidates": candidates,
         "total": len(candidates),
         "auto_dispatch_attempts": [],
     }
+
+
+async def auto_match_dispatch(
+    *,
+    tenant_id: str,
+    problem_card_id: str,
+    urgency: str = "normal",
+    max_candidates: int = 3,
+) -> dict:
+    """autoMatchDispatch — 依 problem_card 的 brand 與最新 WO 地址計算候選。
+
+    回傳 DispatchAutoMatchResponse schema（DispatchCandidate.score 介於 0~1）。
+    無關聯 WO 時 district 為空，僅以 skill + rating 評分；
+    urgency='emergency' 時將 score 提升 5%（至多 1.0）以便重排。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    cur = await db_module._conn.execute(
+        "SELECT pc.brand "
+        "FROM problem_cards pc "
+        "JOIN conversations c ON pc.conversation_id = c.id "
+        "JOIN users u ON c.user_id = u.id "
+        "WHERE pc.id = %s::uuid AND u.tenant_id = %s::uuid",
+        (problem_card_id, tenant_id),
+    )
+    pc_row = await cur.fetchone()
+    if not pc_row:
+        raise ApiError("NOT_FOUND", "Problem card not found", 404)
+    pc_brand = pc_row[0]
+
+    # 取此 PC 最新 WO 的地址（若有）
+    cur = await db_module._conn.execute(
+        "SELECT customer_address FROM work_orders "
+        "WHERE problem_card_id = %s::uuid "
+        "ORDER BY created_at DESC LIMIT 1",
+        (problem_card_id,),
+    )
+    wo_row = await cur.fetchone()
+    wo_address = (wo_row[0] if wo_row else "") or ""
+
+    from services.work_order_service import _parse_district
+    pc_district = _parse_district(wo_address)
+
+    rows = await _fetch_tenant_technicians(tenant_id)
+    scored = _score_rows(rows, brand=pc_brand, district=pc_district)
+
+    boost = 1.05 if urgency == "emergency" else 1.0
+    candidates: list[dict] = []
+    for c in scored[:max_candidates]:
+        s_norm = min(1.0, (c["score"] / 100.0) * boost)
+        t = c["technician"]
+        candidates.append({
+            "technician_id": t["id"],
+            "technician_name": t.get("name") or None,
+            "score": round(s_norm, 4),
+            "distance_km": c.get("distance_km"),
+            "eta_minutes": c.get("availability_eta_minutes"),
+            "rating": t.get("rating"),
+        })
+    return {"candidates": candidates}
+
+
+async def assign_dispatch(
+    *,
+    tenant_id: str,
+    work_order_id: str,
+    technician_id: str,
+    override_reason: str | None = None,
+) -> dict:
+    """assignDispatch — body 版本的指派；複用 work_order_service.assign_order。
+
+    語義對齊 /work-orders/{id}/assign，差別僅在工單 id 來源。
+    """
+    from services.work_order_service import assign_order
+
+    return await assign_order(
+        tenant_id=tenant_id,
+        wo_id=work_order_id,
+        technician_id=technician_id,
+        reason_code="other",
+        reason_text=override_reason,
+    )
