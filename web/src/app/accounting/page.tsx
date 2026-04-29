@@ -337,12 +337,6 @@ export default function AccountingPage() {
           </div>
         )}
 
-        {/* Mock Data Notice */}
-        <div className="mx-8 mb-2 rounded-lg border border-[var(--border)] bg-[#FFFBEB] px-4 py-3 text-[13px] leading-relaxed text-[#92400E]">
-          對帳列表來自 listReconciliations、結算列表來自 listSettlements 即時資料；核准對帳同時建立對應結算。期間選擇器、批次確認/標記已付、結算詳情
-          modal 待後續 endpoints 接入後上線。
-        </div>
-
         {/* Body */}
         <div className="flex flex-1 flex-col gap-6 overflow-auto px-8 py-2">
           {/* Reconciliations Section */}

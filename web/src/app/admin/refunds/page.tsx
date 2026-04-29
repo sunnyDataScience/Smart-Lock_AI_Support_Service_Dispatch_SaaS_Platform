@@ -203,11 +203,6 @@ export default function RefundReviewPage() {
             </div>
           )}
 
-          <div className="rounded-lg border border-[var(--border)] bg-[#FFFBEB] px-4 py-3 text-[13px] leading-relaxed text-[#92400E]">
-            列表為 listRefundRequests 即時資料；SLA 分群以「申請建立至今經過時間」估算（2h / 8h / &gt;8h）。
-            核准 / 拒絕 / 升級已接 submitRefundDecision；雙簽流程於 MVP 簡化為單步推進，多步簽核流程待後續排入。
-          </div>
-
           {actionError && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {actionError}

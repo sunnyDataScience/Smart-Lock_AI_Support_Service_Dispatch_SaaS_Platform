@@ -134,12 +134,6 @@ export default function InventoryPage() {
             </div>
           )}
 
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] leading-relaxed text-amber-800">
-            目前僅展示 read-only 庫存清單（最近 {PAGE_LIMIT} 筆）；
-            inventory_items 為全公司共用倉庫表（無 tenant_id），所有租戶共享庫存視角。
-            補貨 / 編輯 / 異動紀錄等寫入流程需 inventory_transactions 端點接入後再上線。
-          </div>
-
           <div className="flex gap-4">
             {summaryCards.map((card) => (
               <div

@@ -266,13 +266,6 @@ export default function DispatchQueuePage() {
         </div>
 
         <div className="flex flex-col gap-4 px-8 py-5">
-          <div className="rounded-lg border border-[var(--border)] bg-[#FFFBEB] px-4 py-3 text-[13px] leading-relaxed text-[#92400E]">
-            上方四張卡為 getDispatchQueue 即時聚合，下方表格由 listDispatchLogs
-            聚合最近派工歷程；即時 WebSocket (/realtime/dispatch-queue) 與
-            listDispatchCandidates / assignDispatch
-            等寫入路徑待派工 AI 推薦引擎接入後再上線。
-          </div>
-
           <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]">
             <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
               <span className="text-sm font-semibold text-[var(--text-primary)]">

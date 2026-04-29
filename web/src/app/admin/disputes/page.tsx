@@ -145,12 +145,6 @@ export default function DisputesPage() {
             </div>
           )}
 
-          <div className="rounded-lg border border-[var(--border)] bg-[#FFFBEB] px-4 py-3 text-[13px] leading-relaxed text-[#92400E]">
-            列表為 listDisputes 即時資料；類型 chips 為視覺索引（尚未連動 dispute_type filter）。
-            雙方證據面板與調解處理表單為示意 UI，待 submitDisputeResolution 寫入 endpoint
-            與證據檔案上傳路徑上線後接入；證據縮圖暫不渲染。
-          </div>
-
           {/* Filter Row */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">

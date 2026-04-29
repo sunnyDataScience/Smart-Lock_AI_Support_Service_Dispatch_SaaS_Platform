@@ -175,14 +175,6 @@ export default function TechnicianRankingPage() {
             </div>
           )}
 
-          <div className="rounded-lg border border-[var(--border)] bg-[#FFFBEB] px-4 py-3 text-[13px] leading-relaxed text-[#92400E]">
-            排名依 listTechnicians 即時資料計算（綜合評分 = 平均星等 × 20，
-            tiebreak 為累積完工工單數）。本週 / 本季 / 本年 期間切片、
-            排序選單、區域過濾、匯出 CSV、分頁
-            等待相關 metrics endpoint 上線；完工率、週轉時間、拒單率、
-            營收貢獻 等指標需對應派工/結算 metrics 接入後再顯示。
-          </div>
-
           <div className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3">
             <div className="flex rounded-lg bg-[#F1F5F9] p-[3px]">
               {segments.map((seg) => (

@@ -163,12 +163,6 @@ export default function RevenueReportPage() {
             </div>
           )}
 
-          <div className="rounded-lg border border-[var(--border)] bg-[#FFFBEB] px-4 py-3 text-[13px] leading-relaxed text-[#92400E]">
-            KPI、月度趨勢、品牌占比皆由 getRevenueSummary 即時聚合（issued + paid 計入）。
-            日 / 週 / 季 切片、自訂期間、按品牌 / 服務類型樞紐切換、與上期比較、匯出與排程發送
-            等功能待後端 granularity 擴充與 export 路徑接入後上線。
-          </div>
-
           <div className="flex items-center gap-3">
             <div className="flex rounded-lg bg-[#E2E8F0] p-[3px]">
               {segments.map((seg) => (

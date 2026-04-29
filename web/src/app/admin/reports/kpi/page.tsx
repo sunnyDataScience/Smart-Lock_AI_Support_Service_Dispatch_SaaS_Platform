@@ -139,11 +139,6 @@ export default function KpiDashboardPage() {
             </div>
           )}
 
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] leading-relaxed text-amber-800">
-            目前僅展示可從現有資料表計算的 KPI（轉換漏斗 / 異常率 / 平均處理時長）；
-            SLA 達成率 / 客戶滿意度 / NPS / 差評率 / FTFR 等指標需各自獨立模組接入後再上線。
-          </div>
-
           {/* Toolbar */}
           <div className="flex items-center gap-3">
             <div className="flex rounded-lg bg-[#F1F5F9] p-[3px]">

@@ -180,13 +180,6 @@ export default function WarrantyClaimsPage() {
             </span>
           </div>
 
-          <div className="rounded-lg border border-[var(--border)] bg-[#FFFBEB] px-4 py-3 text-[13px] leading-relaxed text-[#92400E]">
-            列表為 listWarrantyClaims 即時資料；保固期狀態（有效 / 寬限期 / 已過期）由前端依
-            warranty_end_date 與 is_within_warranty 即時計算。審批決策已上線（filed /
-            in_progress 可下 approve / reject / start_review）；檢視詳情與證據縮圖待 warranty
-            詳情頁與上傳路徑上線後接入。
-          </div>
-
           {actionError && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               審批失敗：{actionError}

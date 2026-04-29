@@ -170,12 +170,6 @@ export default function CustomersPage() {
             </div>
           )}
 
-          {/* Banner */}
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] leading-relaxed text-amber-800">
-            目前 listCustomers 僅回 LINE 使用者主檔（顯示名稱、電話、地址、累積對話 / 工單數、最近服務時間）；
-            風險等級、滿意度、偏好技師、保固狀態、設備數等需獨立資料來源，待後續模組接入。
-          </div>
-
           {/* Summary Stats — mock with banner */}
           <div className="grid grid-cols-4 gap-4">
             <div className="flex items-center gap-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">

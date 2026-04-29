@@ -215,10 +215,6 @@ export default function VouchersPage() {
           </div>
         )}
 
-        <div className="mx-8 mt-4 rounded-lg border border-[var(--border)] bg-[#FFFBEB] px-4 py-3 text-[13px] leading-relaxed text-[#92400E]">
-          表格為 listVouchers 即時資料。匯出 PDF（exportVoucher）將於下一個 phase 接入。
-        </div>
-
         {/* Filter Toolbar */}
         <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-3">
           <Calendar className="h-4 w-4 text-[var(--text-secondary)]" />
