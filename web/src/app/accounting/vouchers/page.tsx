@@ -10,6 +10,7 @@ import {
   BarChart3,
   BookText,
   Calendar,
+  Download,
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { ApiError, api } from "@/lib/api";
@@ -70,6 +71,28 @@ export default function VouchersPage() {
   const [hasMore, setHasMore] = useState(false);
   const [startDate, setStartDate] = useState<string>(isoDaysAgo(30));
   const [endDate, setEndDate] = useState<string>(todayIso());
+  const [exporting, setExporting] = useState<string | null>(null);
+
+  const handleExport = async (voucher: Voucher) => {
+    if (exporting) return;
+    setExporting(voucher.id);
+    try {
+      await api.download(
+        `/api/v1/accounting/vouchers/${voucher.id}/export`,
+        { filename: `voucher_${voucher.voucher_number}.pdf` },
+      );
+    } catch (e) {
+      setError(
+        e instanceof ApiError
+          ? `${e.errorCode} (${e.status})：${e.message}`
+          : e instanceof Error
+            ? e.message
+            : String(e),
+      );
+    } finally {
+      setExporting(null);
+    }
+  };
 
   const fetchVouchers = async (opts?: { append?: boolean; cursor?: string | null }) => {
     setLoading(true);
@@ -254,6 +277,9 @@ export default function VouchersPage() {
               <div className="flex-1 pl-6 text-xs font-semibold text-[var(--text-secondary)]">
                 摘要
               </div>
+              <div className="w-[110px] text-right text-xs font-semibold text-[var(--text-secondary)]">
+                動作
+              </div>
             </div>
 
             {items.length === 0 && !loading && (
@@ -307,6 +333,17 @@ export default function VouchersPage() {
                   </div>
                   <div className="flex-1 pl-6 text-[13px] text-[var(--text-secondary)]">
                     {row.memo || "—"}
+                  </div>
+                  <div className="w-[110px] text-right">
+                    <button
+                      onClick={() => handleExport(row)}
+                      disabled={exporting === row.id}
+                      className="inline-flex items-center gap-[6px] rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-[10px] py-[6px] text-[12px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
+                      title="匯出 PDF"
+                    >
+                      <Download className="h-[12px] w-[12px]" />
+                      {exporting === row.id ? "匯出中…" : "PDF"}
+                    </button>
                   </div>
                 </div>
               );

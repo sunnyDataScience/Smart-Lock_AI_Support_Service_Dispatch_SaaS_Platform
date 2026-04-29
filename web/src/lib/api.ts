@@ -247,6 +247,48 @@ async function uploadMultipart<T>(
   return payload as T;
 }
 
+async function downloadBlob(
+  path: string,
+  opts?: { query?: RequestOptions["query"]; filename?: string },
+): Promise<void> {
+  const headers: Record<string, string> = {};
+  const token = auth.getAccessToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  headers["X-Tenant-ID"] = auth.getTenantId();
+
+  let res = await fetch(buildUrl(path, opts?.query), { method: "GET", headers });
+
+  if (res.status === 401) {
+    const ok = await refreshAccessToken();
+    if (ok) {
+      const newToken = auth.getAccessToken();
+      if (newToken) headers["Authorization"] = `Bearer ${newToken}`;
+      res = await fetch(buildUrl(path, opts?.query), { method: "GET", headers });
+    }
+  }
+
+  if (!res.ok) {
+    const contentType = res.headers.get("content-type") ?? "";
+    const payload = contentType.includes("application/json")
+      ? ((await res.json()) as ApiErrorResponse)
+      : { error_code: "UNKNOWN", message: await res.text() };
+    throw new ApiError(res.status, payload);
+  }
+
+  const blob = await res.blob();
+  const cd = res.headers.get("content-disposition") ?? "";
+  const match = /filename="?([^";]+)"?/.exec(cd);
+  const filename = opts?.filename ?? match?.[1] ?? "download";
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export const api = {
   get: <T = unknown>(path: string, opts?: Omit<RequestOptions, "body" | "idempotencyKey">) =>
     request<T>("GET", path, opts),
@@ -259,6 +301,7 @@ export const api = {
   delete: <T = unknown>(path: string, opts?: Omit<RequestOptions, "body">) =>
     request<T>("DELETE", path, { ...opts, idempotencyKey: opts?.idempotencyKey ?? newIdempotencyKey() }),
   upload: uploadMultipart,
+  download: downloadBlob,
   raw: request,
 };
 
