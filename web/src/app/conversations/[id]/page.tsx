@@ -14,6 +14,15 @@ type ConversationEnvelope = components["schemas"]["ConversationEnvelope"];
 type Message = components["schemas"]["Message"];
 type MessagePage = components["schemas"]["MessagePage"];
 type ConversationStatus = components["schemas"]["ConversationStatus"];
+type ProblemCard = components["schemas"]["ProblemCard"];
+type ProblemCardPage = components["schemas"]["ProblemCardPage"];
+type ProblemCardStatus = components["schemas"]["ProblemCardStatus"];
+
+const PC_STATUS_LABEL: Record<ProblemCardStatus, { label: string; bg: string; color: string }> = {
+  draft: { label: "草稿", bg: "#EEF2FF", color: "#6366F1" },
+  confirmed: { label: "已確認", bg: "#DBEAFE", color: "#3B82F6" },
+  resolved: { label: "已解決", bg: "#D1FAE5", color: "#10B981" },
+};
 
 const STATUS_LABEL: Record<ConversationStatus, string> = {
   active: "進行中",
@@ -41,6 +50,9 @@ export default function ConversationDetailPage({
   const { id } = use(params);
   const [conv, setConv] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [problemCards, setProblemCards] = useState<ProblemCard[]>([]);
+  const [pcLoading, setPcLoading] = useState(false);
+  const [pcError, setPcError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -51,16 +63,35 @@ export default function ConversationDetailPage({
       setLoading(true);
       setError(null);
       setNotFound(false);
+      setPcLoading(true);
+      setPcError(null);
+      setProblemCards([]);
       try {
-        const [envelope, page] = await Promise.all([
+        const [envelope, page, pcPage] = await Promise.all([
           api.get<ConversationEnvelope>(`/api/v1/conversations/${id}`),
           api.get<MessagePage>(`/api/v1/conversations/${id}/messages`, {
             query: { limit: 100 },
           }),
+          api
+            .get<ProblemCardPage>(`/api/v1/problem-cards`, {
+              query: { conversation_id: id, limit: 10 },
+            })
+            .catch((e: unknown): ProblemCardPage | null => {
+              if (cancelled) return null;
+              setPcError(
+                e instanceof ApiError
+                  ? `${e.errorCode} (${e.status})`
+                  : e instanceof Error
+                    ? e.message
+                    : String(e),
+              );
+              return null;
+            }),
         ]);
         if (cancelled) return;
         setConv(envelope.data ?? null);
         setMessages(page.items ?? []);
+        setProblemCards((pcPage?.items ?? []) as ProblemCard[]);
       } catch (e) {
         if (cancelled) return;
         if (e instanceof ApiError && e.status === 404) {
@@ -75,7 +106,10 @@ export default function ConversationDetailPage({
           );
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setPcLoading(false);
+        }
       }
     })();
     return () => {
@@ -199,6 +233,60 @@ export default function ConversationDetailPage({
                     </span>
                   </div>
                 </div>
+              </div>
+
+              <div className="flex flex-col gap-3 rounded-lg border-[1.5px] border-[#E4E4E7] bg-[var(--bg-surface)] p-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[14px] font-semibold text-[#18181B]">關聯問題卡</h3>
+                  {problemCards.length > 0 && (
+                    <span className="text-[12px] text-[#A1A1AA]">
+                      {problemCards.length} 張
+                    </span>
+                  )}
+                </div>
+
+                {pcError && (
+                  <div className="rounded border border-red-200 bg-red-50 px-2 py-1 text-[11px] text-red-700">
+                    載入失敗：{pcError}
+                  </div>
+                )}
+
+                {pcLoading && problemCards.length === 0 && !pcError && (
+                  <span className="text-[12px] text-[#A1A1AA]">載入中…</span>
+                )}
+
+                {!pcLoading && problemCards.length === 0 && !pcError && (
+                  <span className="text-[12px] text-[#A1A1AA]">尚未建立問題卡</span>
+                )}
+
+                {problemCards.map((pc) => {
+                  const style = PC_STATUS_LABEL[pc.status];
+                  return (
+                    <Link
+                      key={pc.id}
+                      href={`/problem-cards/${pc.id}`}
+                      className="flex flex-col gap-1 rounded-md border border-[var(--border)] px-3 py-2 hover:bg-[#F8FAFC]"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-[12px] font-semibold text-[var(--primary)]" title={pc.id}>
+                          {pc.id.slice(0, 8)}
+                        </span>
+                        <span
+                          className="rounded-full px-2 py-[1px] text-[11px] font-semibold"
+                          style={{ color: style.color, backgroundColor: style.bg }}
+                        >
+                          {style.label}
+                        </span>
+                      </div>
+                      <span className="text-[12px] text-[#18181B]">
+                        {pc.brand || "—"} {pc.model || ""}
+                      </span>
+                      <span className="line-clamp-2 text-[11px] text-[#71717A]">
+                        {pc.symptom || "（無症狀描述）"}
+                      </span>
+                    </Link>
+                  );
+                })}
               </div>
             </aside>
           </div>
