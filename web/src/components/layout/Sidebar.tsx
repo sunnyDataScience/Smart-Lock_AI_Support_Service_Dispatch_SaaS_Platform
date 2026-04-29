@@ -20,6 +20,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getCurrentSession, logout, type CurrentSession } from "@/lib/api";
+import NotificationBell from "./NotificationBell";
 
 interface NavChild {
   label: string;
@@ -223,6 +224,7 @@ export default function Sidebar() {
             {roleLabel(session)}
           </span>
         </div>
+        <NotificationBell variant="dark" />
         <button
           type="button"
           onClick={onLogout}
