@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { CheckCircle2, Flag, Info, Pencil } from "lucide-react";
+import { CheckCircle2, Flag, Info, Pencil, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import FmeaDiagnosisCard from "@/components/problem-cards/FmeaDiagnosisCard";
@@ -18,6 +18,15 @@ type Urgency = components["schemas"]["Urgency"];
 type ProblemCardResolveRequest = components["schemas"]["ProblemCardResolveRequest"];
 type ResolutionLayer = ProblemCardResolveRequest["resolution_layer"];
 type ProblemCardUpdateRequest = components["schemas"]["ProblemCardUpdateRequest"];
+type ResolveResponse = components["schemas"]["ResolveResponse"];
+type ResolveLayer = ResolveResponse["layer"];
+
+const RESOLVE_LAYER_BADGE: Record<ResolveLayer, { label: string; bg: string; text: string }> = {
+  faq_match: { label: "L1 FAQ 命中", bg: "#DCFCE7", text: "#15803D" },
+  knowledge_base_rag: { label: "L2 知識庫 RAG", bg: "#DBEAFE", text: "#1D4ED8" },
+  llm_generation: { label: "L3 LLM 生成", bg: "#FEF3C7", text: "#B45309" },
+  escalation: { label: "需人工介入", bg: "#FEE2E2", text: "#B91C1C" },
+};
 
 const statusLabel: Record<ProblemCardStatus, string> = {
   draft: "待確認",
@@ -46,11 +55,12 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
   const [card, setCard] = useState<ProblemCard | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [actionPending, setActionPending] = useState<"confirm" | "resolve" | "update" | null>(null);
+  const [actionPending, setActionPending] = useState<"confirm" | "resolve" | "update" | "auto" | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionToast, setActionToast] = useState<string | null>(null);
   const [resolveModalOpen, setResolveModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [autoResolveResult, setAutoResolveResult] = useState<ResolveResponse | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -127,6 +137,23 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
     }
   };
 
+  const handleAutoResolve = async () => {
+    if (!card) return;
+    setActionPending("auto");
+    setActionError(null);
+    try {
+      const res = await api.post<ResolveResponse>("/api/v1/resolve", {
+        problem_card_id: card.id,
+      });
+      setAutoResolveResult(res);
+      setActionToast(`自動解決：${RESOLVE_LAYER_BADGE[res.layer].label}`);
+    } catch (e) {
+      setActionError(formatActionError(e));
+    } finally {
+      setActionPending(null);
+    }
+  };
+
   const handleResolve = async (layer: ResolutionLayer) => {
     setActionPending("resolve");
     setActionError(null);
@@ -148,6 +175,10 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
   const canConfirm = card?.status === "draft";
   const canResolve = card?.status === "confirmed";
   const canEdit = card?.status === "draft" || card?.status === "confirmed";
+  const canAutoResolve =
+    card != null &&
+    card.status !== "resolved" &&
+    Boolean((card.brand || card.model || card.symptom || "").trim());
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -187,8 +218,18 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
             )}
           </div>
 
-          {(canConfirm || canResolve || canEdit) && (
+          {(canConfirm || canResolve || canEdit || canAutoResolve) && (
             <div className="flex flex-wrap items-center gap-2">
+              {canAutoResolve && (
+                <button
+                  onClick={handleAutoResolve}
+                  disabled={actionPending !== null}
+                  className="inline-flex items-center gap-2 rounded-md border border-[#7C3AED] bg-[#F5F3FF] px-4 py-2 text-[13px] font-semibold text-[#6D28D9] transition hover:bg-[#EDE9FE] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  {actionPending === "auto" ? "查詢中…" : "嘗試自動解決"}
+                </button>
+              )}
               {canEdit && (
                 <button
                   onClick={() => {
@@ -249,6 +290,13 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
                 以下 FMEA 診斷鏈、解決時間軸與關聯對話為示意，待診斷引擎模組接入後將顯示真實資料。
               </span>
             </div>
+
+            {autoResolveResult && (
+              <AutoResolvePanel
+                result={autoResolveResult}
+                onClose={() => setAutoResolveResult(null)}
+              />
+            )}
 
             <FmeaDiagnosisCard />
 
@@ -343,6 +391,86 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
       {actionToast && (
         <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-[var(--success)] px-4 py-2 text-[13px] font-semibold text-white shadow-lg">
           {actionToast}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AutoResolvePanel({
+  result,
+  onClose,
+}: {
+  result: ResolveResponse;
+  onClose: () => void;
+}) {
+  const badge = RESOLVE_LAYER_BADGE[result.layer];
+  const confidencePct =
+    typeof result.confidence === "number"
+      ? `${(result.confidence * 100).toFixed(0)}%`
+      : "—";
+
+  return (
+    <div className="rounded-lg border border-[#DDD6FE] bg-[#FAF5FF] p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-[#7C3AED]" />
+          <span className="text-[16px] font-semibold text-[var(--text-primary)]">
+            自動解決結果
+          </span>
+          <span
+            className="rounded-full px-2 py-[2px] text-[11px] font-semibold"
+            style={{ backgroundColor: badge.bg, color: badge.text }}
+          >
+            {badge.label}
+          </span>
+          <span className="text-[12px] text-[var(--text-secondary)]">
+            信心度 {confidencePct}
+          </span>
+        </div>
+        <button
+          onClick={onClose}
+          className="rounded p-1 text-[var(--text-secondary)] transition hover:bg-white"
+          title="關閉"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <pre className="mt-3 whitespace-pre-wrap break-words rounded-md border border-[#E9D5FF] bg-white px-4 py-3 font-sans text-[13px] leading-[1.7] text-[var(--text-primary)]">
+        {result.answer || "（無回答內容）"}
+      </pre>
+
+      {result.sources && result.sources.length > 0 && (
+        <div className="mt-3 flex flex-col gap-2">
+          <span className="text-[12px] font-medium text-[var(--text-secondary)]">
+            參考來源（{result.sources.length}）
+          </span>
+          <ul className="flex flex-col gap-2">
+            {result.sources.map((src, idx) => (
+              <li
+                key={`${src.id ?? "src"}-${idx}`}
+                className="rounded-md border border-[var(--border)] bg-white px-3 py-2"
+              >
+                <div className="flex items-center justify-between text-[12px] text-[var(--text-secondary)]">
+                  <span>
+                    {src.type === "manual" ? "手冊" : "案例"}
+                    {src.id ? ` · ${src.id.slice(0, 8)}` : ""}
+                  </span>
+                  {typeof src.score === "number" && (
+                    <span className="font-mono">
+                      {src.score.toFixed(2)}
+                    </span>
+                  )}
+                </div>
+                {src.snippet && (
+                  <p className="mt-1 text-[13px] leading-[1.6] text-[var(--text-primary)]">
+                    {src.snippet}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
