@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   CircleDashed,
   Send,
@@ -18,6 +19,14 @@ import type { components } from "@/types/api.generated";
 type DispatchQueueSnapshot = components["schemas"]["DispatchQueueSnapshot"];
 type DispatchLog = components["schemas"]["DispatchLog"];
 type DispatchLogPage = components["schemas"]["DispatchLogPage"];
+type WorkOrder = components["schemas"]["WorkOrder"];
+type WorkOrderPage = components["schemas"]["WorkOrderPage"];
+
+const URGENCY_COLOR: Record<NonNullable<WorkOrder["urgency"]>, { bg: string; text: string; label: string }> = {
+  high: { bg: "#FEE2E2", text: "#B91C1C", label: "高" },
+  medium: { bg: "#FEF3C7", text: "#B45309", label: "中" },
+  low: { bg: "#DCFCE7", text: "#15803D", label: "低" },
+};
 
 interface CardConfig {
   key: keyof DispatchQueueSnapshot;
@@ -71,6 +80,7 @@ export default function DispatchQueuePage() {
   const [urgentOnly, setUrgentOnly] = useState(false);
   const [snapshot, setSnapshot] = useState<DispatchQueueSnapshot | null>(null);
   const [logs, setLogs] = useState<DispatchLog[]>([]);
+  const [pool, setPool] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
@@ -79,15 +89,17 @@ export default function DispatchQueuePage() {
     setLoading(true);
     setError(null);
     try {
-      const [snap, page] = await Promise.all([
+      const [snap, page, poolPage] = await Promise.all([
         api.get<DispatchQueueSnapshot>("/api/v1/work-orders/dispatch-queue"),
         api.get<DispatchLogPage>("/api/v1/dispatch-logs", {
           query: { limit: 50 },
         }),
+        api.get<WorkOrderPage>("/api/v1/work-orders/pool"),
       ]);
       setSnapshot(snap);
       const items: DispatchLog[] = page.items ?? [];
       setLogs(items);
+      setPool(poolPage.items ?? []);
       setUpdatedAt(new Date());
     } catch (e) {
       setError(
@@ -260,6 +272,67 @@ export default function DispatchQueuePage() {
             listDispatchCandidates / assignDispatch
             等寫入路徑待派工 AI 推薦引擎接入後再上線。
           </div>
+
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]">
+            <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
+              <span className="text-sm font-semibold text-[var(--text-primary)]">
+                可接案件池（listWorkOrderPool）
+              </span>
+              <span className="text-xs text-[var(--text-secondary)]">
+                共 {pool.length} 筆 · 依緊急度 + 建立時間排序
+              </span>
+            </div>
+            {pool.length === 0 ? (
+              <div className="flex h-20 items-center justify-center text-sm text-[var(--text-secondary)]">
+                目前沒有待接工單
+              </div>
+            ) : (
+              <div className="divide-y divide-[var(--border)]">
+                {pool.slice(0, 10).map((wo) => {
+                  const urgency = wo.urgency ?? "low";
+                  const color = URGENCY_COLOR[urgency];
+                  return (
+                    <Link
+                      key={wo.id}
+                      href={`/work-orders/${wo.id}`}
+                      className="flex items-center gap-4 px-4 py-3 transition hover:bg-[var(--bg-page)]"
+                    >
+                      <span className="font-['IBM_Plex_Mono'] text-xs text-[var(--text-secondary)]">
+                        #{wo.id.slice(0, 8)}
+                      </span>
+                      <span
+                        className="rounded-md px-2 py-[2px] text-[11px] font-semibold"
+                        style={{ backgroundColor: color.bg, color: color.text }}
+                      >
+                        {color.label}
+                      </span>
+                      <span className="text-[13px] font-medium text-[var(--text-primary)]">
+                        {wo.brand}
+                        {wo.model ? ` / ${wo.model}` : ""}
+                      </span>
+                      <span className="flex-1 truncate text-[12px] text-[var(--text-secondary)]">
+                        {wo.district}
+                        {wo.address ? ` · ${wo.address}` : ""}
+                      </span>
+                      <span className="text-[11px] text-[var(--text-disabled)]">
+                        {wo.created_at
+                          ? new Date(wo.created_at).toLocaleString("zh-TW", {
+                              hour12: false,
+                            })
+                          : "—"}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+            {pool.length > 10 && (
+              <div className="border-t border-[var(--border)] px-4 py-2 text-center text-[12px] text-[var(--text-secondary)]">
+                還有 {pool.length - 10} 筆未顯示，請至 /work-orders 列表處理。
+              </div>
+            )}
+          </div>
+
           <div className="flex-1 overflow-auto">
             <DispatchQueueTable items={logs} loading={loading} />
           </div>
