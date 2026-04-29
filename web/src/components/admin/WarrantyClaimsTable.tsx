@@ -8,6 +8,8 @@ type WarrantyClaimStatus = components["schemas"]["WarrantyClaimStatus"];
 interface Props {
   items: WarrantyClaim[];
   loading?: boolean;
+  onDecide?: (claim: WarrantyClaim) => void;
+  pendingId?: string | null;
 }
 
 const statusConfig: Record<WarrantyClaimStatus, { label: string; textColor: string; bgColor: string }> = {
@@ -67,7 +69,12 @@ function formatTwd(amount: string | null | undefined): string {
   return `NT$ ${n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
-export default function WarrantyClaimsTable({ items, loading }: Props) {
+export default function WarrantyClaimsTable({
+  items,
+  loading,
+  onDecide,
+  pendingId,
+}: Props) {
   return (
     <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
       <div className="flex h-[44px] items-center bg-[#F8FAFC] border-b border-[var(--border)]">
@@ -172,13 +179,13 @@ export default function WarrantyClaimsTable({ items, loading }: Props) {
               >
                 檢視詳情
               </button>
-              {row.status === "filed" || row.status === "in_progress" ? (
+              {(row.status === "filed" || row.status === "in_progress") && onDecide ? (
                 <button
-                  disabled
-                  title="即將推出"
-                  className="cursor-not-allowed rounded-md bg-[var(--primary)] px-2 py-1 text-[11px] font-medium text-white opacity-60"
+                  onClick={() => onDecide(row)}
+                  disabled={pendingId !== null && pendingId !== undefined}
+                  className="rounded-md bg-[var(--primary)] px-2 py-1 text-[11px] font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  核准保固
+                  {pendingId === row.id ? "處理中…" : "審批決策"}
                 </button>
               ) : null}
             </div>
