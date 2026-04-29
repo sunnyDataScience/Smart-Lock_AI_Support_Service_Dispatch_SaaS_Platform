@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -10,14 +10,30 @@ import {
   BarChart3,
   Calendar,
   ChevronDown,
+  CheckCircle2,
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import SettlementTable from "@/components/accounting/SettlementTable";
+import ReconciliationsTable from "@/components/accounting/ReconciliationsTable";
 import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
 type Settlement = components["schemas"]["Settlement"];
 type SettlementPage = components["schemas"]["SettlementPage"];
+type Reconciliation = components["schemas"]["Reconciliation"];
+type ReconciliationPage = components["schemas"]["ReconciliationPage"];
+type ReconciliationStatus = components["schemas"]["ReconciliationStatus"];
+type ReconciliationApproveResponse = {
+  reconciliation: Reconciliation;
+  settlement: Settlement;
+};
+
+const RECON_STATUS_FILTERS: { value: ReconciliationStatus | ""; label: string }[] = [
+  { value: "pending", label: "待核准" },
+  { value: "approved", label: "已核准" },
+  { value: "disputed", label: "爭議中" },
+  { value: "", label: "全部" },
+];
 
 const tabs = [
   {
@@ -57,7 +73,26 @@ export default function AccountingPage() {
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
-  const fetchSettlements = async () => {
+  const [recons, setRecons] = useState<Reconciliation[]>([]);
+  const [reconsLoading, setReconsLoading] = useState(true);
+  const [reconsError, setReconsError] = useState<string | null>(null);
+  const [reconStatus, setReconStatus] = useState<ReconciliationStatus | "">(
+    "pending",
+  );
+  const [approveTarget, setApproveTarget] = useState<Reconciliation | null>(
+    null,
+  );
+  const [approving, setApproving] = useState(false);
+  const [approveError, setApproveError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2400);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const fetchSettlements = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -77,11 +112,76 @@ export default function AccountingPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const fetchReconciliations = useCallback(
+    async (statusFilter: ReconciliationStatus | "") => {
+      setReconsLoading(true);
+      setReconsError(null);
+      try {
+        const query: Record<string, string | number> = { limit: 50 };
+        if (statusFilter) query.status = statusFilter;
+        const res = await api.get<ReconciliationPage>(
+          "/api/v1/accounting/reconciliations",
+          { query },
+        );
+        setRecons(res.items ?? []);
+      } catch (e) {
+        setReconsError(
+          e instanceof ApiError
+            ? `${e.errorCode} (${e.status})：${e.message}`
+            : e instanceof Error
+              ? e.message
+              : String(e),
+        );
+      } finally {
+        setReconsLoading(false);
+      }
+    },
+    [],
+  );
+
+  const refreshAll = useCallback(() => {
+    fetchSettlements();
+    fetchReconciliations(reconStatus);
+  }, [fetchSettlements, fetchReconciliations, reconStatus]);
 
   useEffect(() => {
     fetchSettlements();
-  }, []);
+  }, [fetchSettlements]);
+
+  useEffect(() => {
+    fetchReconciliations(reconStatus);
+  }, [fetchReconciliations, reconStatus]);
+
+  const handleApprove = async (recon: Reconciliation, note: string) => {
+    setApproving(true);
+    setApproveError(null);
+    try {
+      const trimmed = note.trim();
+      const body = trimmed ? { note: trimmed } : {};
+      await api.post<ReconciliationApproveResponse>(
+        `/api/v1/accounting/reconciliations/${encodeURIComponent(recon.id)}/approve`,
+        body,
+      );
+      setApproveTarget(null);
+      setToast(
+        `已核准對帳 ${recon.id.slice(0, 8)}（已建立 ${recon.technician_payout} 結算）`,
+      );
+      fetchReconciliations(reconStatus);
+      fetchSettlements();
+    } catch (e) {
+      setApproveError(
+        e instanceof ApiError
+          ? `${e.errorCode} (${e.status})：${e.message}`
+          : e instanceof Error
+            ? e.message
+            : String(e),
+      );
+    } finally {
+      setApproving(false);
+    }
+  };
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -97,13 +197,13 @@ export default function AccountingPage() {
                 財務結算管理
               </h1>
               <button
-                onClick={fetchSettlements}
-                disabled={loading}
+                onClick={refreshAll}
+                disabled={loading || reconsLoading}
                 className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
                 title="重新整理"
               >
                 <RefreshCw
-                  className={`h-4 w-4 text-[var(--text-secondary)] ${loading ? "animate-spin" : ""}`}
+                  className={`h-4 w-4 text-[var(--text-secondary)] ${loading || reconsLoading ? "animate-spin" : ""}`}
                 />
               </button>
               <span className="text-[13px] text-[var(--text-secondary)]">
@@ -232,13 +332,182 @@ export default function AccountingPage() {
 
         {/* Mock Data Notice */}
         <div className="mx-8 mb-2 rounded-lg border border-[var(--border)] bg-[#FFFBEB] px-4 py-3 text-[13px] leading-relaxed text-[#92400E]">
-          列表為 listSettlements 即時資料。期間選擇器、批次確認/標記已付、結算詳情
-          modal 待 reconciliation 期間查詢與結算寫入 endpoints 接入後同步上線。
+          對帳列表來自 listReconciliations、結算列表來自 listSettlements 即時資料；核准對帳同時建立對應結算。期間選擇器、批次確認/標記已付、結算詳情
+          modal 待後續 endpoints 接入後上線。
         </div>
 
-        {/* Settlement Table */}
-        <div className="flex flex-1 flex-col overflow-auto">
-          <SettlementTable items={items} loading={loading} />
+        {/* Body */}
+        <div className="flex flex-1 flex-col gap-6 overflow-auto px-8 py-2">
+          {/* Reconciliations Section */}
+          <section className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+                  對帳記錄
+                </h2>
+                <span className="text-[13px] text-[var(--text-secondary)]">
+                  共 {recons.length} 筆
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                {RECON_STATUS_FILTERS.map((opt) => {
+                  const isActive = opt.value === reconStatus;
+                  return (
+                    <button
+                      key={opt.label}
+                      onClick={() => setReconStatus(opt.value)}
+                      className={`rounded-md px-3 py-[6px] text-[13px] font-medium transition ${
+                        isActive
+                          ? "bg-[var(--primary)] text-white"
+                          : "border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {reconsError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {reconsError}
+              </div>
+            )}
+
+            <ReconciliationsTable
+              items={recons}
+              loading={reconsLoading}
+              onApprove={(recon) => {
+                setApproveError(null);
+                setApproveTarget(recon);
+              }}
+              pendingApproveId={approving ? approveTarget?.id ?? null : null}
+            />
+          </section>
+
+          {/* Settlements Section */}
+          <section className="flex flex-col gap-3 pb-4">
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+                結算記錄
+              </h2>
+              <span className="text-[13px] text-[var(--text-secondary)]">
+                共 {items.length} 筆
+              </span>
+            </div>
+            <SettlementTable items={items} loading={loading} />
+          </section>
+        </div>
+      </div>
+
+      {approveTarget && (
+        <ApproveReconciliationModal
+          recon={approveTarget}
+          pending={approving}
+          error={approveError}
+          onCancel={() => {
+            if (approving) return;
+            setApproveTarget(null);
+            setApproveError(null);
+          }}
+          onConfirm={(note) => handleApprove(approveTarget, note)}
+        />
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-lg bg-[var(--success)] px-4 py-2 text-[13px] font-semibold text-white shadow-lg">
+          <CheckCircle2 className="h-4 w-4" />
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ApproveReconciliationModal({
+  recon,
+  pending,
+  error,
+  onCancel,
+  onConfirm,
+}: {
+  recon: Reconciliation;
+  pending: boolean;
+  error: string | null;
+  onCancel: () => void;
+  onConfirm: (note: string) => void;
+}) {
+  const [note, setNote] = useState("");
+  return (
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4"
+      onClick={() => !pending && onCancel()}
+    >
+      <div
+        className="w-full max-w-[480px] rounded-xl bg-white p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center gap-2">
+          <CheckCircle2 className="h-5 w-5 text-[var(--success)]" />
+          <span className="text-[18px] font-semibold text-[var(--text-primary)]">
+            核准對帳
+          </span>
+        </div>
+        <div className="mb-4 space-y-1 rounded-lg bg-[var(--bg-page)] p-3 text-[13px]">
+          <div className="flex justify-between">
+            <span className="text-[var(--text-secondary)]">對帳 ID</span>
+            <span className="font-mono text-[var(--text-primary)]">
+              {recon.id.slice(0, 8)}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-[var(--text-secondary)]">技師</span>
+            <span className="text-[var(--text-primary)]">
+              {recon.technician_name ?? recon.technician_id.slice(0, 8)}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-[var(--text-secondary)]">技師應領</span>
+            <span className="font-mono font-semibold text-[var(--text-primary)]">
+              NT$ {Number(recon.technician_payout).toLocaleString("en-US")}
+            </span>
+          </div>
+        </div>
+        <p className="mb-3 text-[13px] leading-[1.6] text-[var(--text-secondary)]">
+          核准後將建立對應結算（status=pending），無法復原。可選填稽核備註：
+        </p>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          maxLength={500}
+          disabled={pending}
+          rows={3}
+          placeholder="備註（選填，最多 500 字）"
+          className="w-full resize-none rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] text-[var(--text-primary)] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
+        />
+
+        {error && (
+          <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+            {error}
+          </div>
+        )}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            disabled={pending}
+            className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
+          >
+            取消
+          </button>
+          <button
+            onClick={() => onConfirm(note)}
+            disabled={pending}
+            className="rounded-md bg-[var(--success)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? "核准中…" : "確認核准"}
+          </button>
         </div>
       </div>
     </div>
