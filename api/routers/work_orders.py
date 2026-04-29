@@ -1,12 +1,12 @@
-"""WorkOrders router — read endpoints + 5 state-machine writes。
+"""WorkOrders router — read endpoints + 6 state-machine writes。
 
 operationId 對齊 openapi.yaml：
   listWorkOrders, getWorkOrder, getDispatchQueue,
   acceptWorkOrder, assignWorkOrder, escalateWorkOrder,
-  completeWorkOrder, cancelWorkOrder
+  completeWorkOrder, cancelWorkOrder, confirmWorkOrder
 
-未實作：proposeReschedule / submitWorkOrderSignature /
-confirmWorkOrder（依賴 SLA 模組或上傳服務，待後續 phase）。
+未實作：proposeReschedule / submitWorkOrderSignature
+（依賴 SLA 模組或上傳服務，待後續 phase）。
 """
 
 from __future__ import annotations
@@ -21,6 +21,7 @@ from models.generated import (
     WorkOrder,
     WorkOrderAssignRequest,
     WorkOrderCancelRequest,
+    WorkOrderConfirmRequest,
     WorkOrderEnvelope,
     WorkOrderEscalateRequest,
     WorkOrderPage,
@@ -173,6 +174,30 @@ async def cancel_work_order(
         tenant_id=user.tenant_id,
         wo_id=id,
         reason=body.reason if body else None,
+    )
+    payload = {"data": WorkOrder(**order).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload
+
+
+@router.post(
+    "/work-orders/{id}/confirm",
+    operation_id="confirmWorkOrder",
+    summary="客戶確認結案（completed → confirmed），寫入評分與意見",
+    response_model=WorkOrderEnvelope,
+)
+async def confirm_work_order(
+    body: WorkOrderConfirmRequest,
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    order = await work_order_service.confirm_order(
+        tenant_id=user.tenant_id,
+        wo_id=id,
+        rating=int(body.rating),
+        feedback=body.feedback,
     )
     payload = {"data": WorkOrder(**order).model_dump(mode="json")}
     if idem is not None:

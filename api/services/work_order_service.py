@@ -180,6 +180,8 @@ _ASSIGN_FROM = {"created", "assigned"}  # 允許重派（assigned → assigned �
 # 升級可從任何「未結案」狀態觸發；completed/confirmed/cancelled 視為終局不可升級
 _ESCALATE_FROM = {"created", "assigned", "accepted", "in_progress"}
 _ESCALATE_LEVELS = {"operations_manager", "tenant_admin"}
+# 客戶確認結案：只能從技師完工後的 completed 狀態進入 confirmed
+_CONFIRM_FROM = {"completed"}
 
 
 async def _fetch_status_for_update(wo_id: str, tenant_id: str) -> str:
@@ -386,6 +388,49 @@ async def escalate_order(
         "  updated_at = NOW() "
         "WHERE id = %s::uuid",
         (note, wo_id),
+    )
+    return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+
+
+async def confirm_order(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    rating: int,
+    feedback: str | None = None,
+) -> dict:
+    """completed → confirmed，寫入客戶評分與意見，set confirmed_at = NOW()。
+
+    rating 1-5 必填，feedback 可留空（最多 1000 字）。終局狀態 — 一旦 confirmed
+    不再允許其他寫入動作（與 cancelled 並列為兩個結案形式）。
+    """
+    if not isinstance(rating, int) or rating < 1 or rating > 5:
+        raise ApiError("VALIDATION_ERROR", "rating must be an integer between 1 and 5", 422)
+
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    current = await _fetch_status_for_update(wo_id, tenant_id)
+    if current not in _CONFIRM_FROM:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot confirm work order in status '{current}'; expected one of {sorted(_CONFIRM_FROM)}",
+            409,
+        )
+
+    feedback_clean: str | None = None
+    if feedback and feedback.strip():
+        feedback_clean = feedback.strip()[:1000]
+
+    await db_module._conn.execute(
+        "UPDATE work_orders SET "
+        "  status = 'confirmed', "
+        "  confirmed_at = NOW(), "
+        "  rating = %s, "
+        "  feedback = COALESCE(%s, feedback), "
+        "  updated_at = NOW() "
+        "WHERE id = %s::uuid",
+        (rating, feedback_clean, wo_id),
     )
     return await get_order(tenant_id=tenant_id, wo_id=wo_id)
 
