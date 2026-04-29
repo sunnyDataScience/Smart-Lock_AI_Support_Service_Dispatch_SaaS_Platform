@@ -1,11 +1,10 @@
-"""ProblemCards router — 2 read + 3 writes（PATCH + 2 state-machine writes）。
+"""ProblemCards router — 2 read + 4 writes。
 
 operationId 對齊 openapi.yaml：
-  listProblemCards, getProblemCard, updateProblemCard,
+  listProblemCards, getProblemCard, createProblemCard, updateProblemCard,
   confirmProblemCard, resolveProblemCard
 
-未實作：createProblemCard / exportProblemCard
-（建立路徑由 agent 自動寫入；export 待格式需求明確再開）。
+未實作：exportProblemCard（待匯出格式需求明確再開）。
 """
 
 from __future__ import annotations
@@ -16,6 +15,7 @@ from core.deps import CurrentUser, require_tenant
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
     ProblemCard,
+    ProblemCardCreateRequest,
     ProblemCardEnvelope,
     ProblemCardPage,
     ProblemCardResolveRequest,
@@ -65,6 +65,62 @@ async def get_problem_card(
         tenant_id=user.tenant_id, pc_id=id,
     )
     return {"data": ProblemCard(**card).model_dump(mode="json")}
+
+
+@router.post(
+    "/problem-cards",
+    operation_id="createProblemCard",
+    summary="建立問題卡（每個對話最多一張）",
+    status_code=201,
+    response_model=ProblemCardEnvelope,
+)
+async def create_problem_card(
+    body: ProblemCardCreateRequest,
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    urgency = (
+        body.urgency.value
+        if body.urgency and hasattr(body.urgency, "value")
+        else body.urgency
+    )
+    door_status = (
+        body.door_status.value
+        if body.door_status and hasattr(body.door_status, "value")
+        else body.door_status
+    )
+    network_status = (
+        body.network_status.value
+        if body.network_status and hasattr(body.network_status, "value")
+        else body.network_status
+    )
+    intent = (
+        body.intent.value
+        if body.intent and hasattr(body.intent, "value")
+        else body.intent
+    )
+    media_urls = (
+        [str(u) for u in body.media_urls] if body.media_urls is not None else None
+    )
+    card = await problem_card_service.create_card(
+        tenant_id=user.tenant_id,
+        conversation_id=str(body.conversation_id),
+        brand=body.brand,
+        model=body.model,
+        symptom=body.symptom,
+        urgency=urgency,
+        category=body.category,
+        location=body.location,
+        door_status=door_status,
+        network_status=network_status,
+        symptoms=list(body.symptoms) if body.symptoms is not None else None,
+        intent=intent,
+        media_urls=media_urls,
+    )
+    payload = {"data": ProblemCard(**card).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(201, payload)
+    return payload
 
 
 @router.patch(

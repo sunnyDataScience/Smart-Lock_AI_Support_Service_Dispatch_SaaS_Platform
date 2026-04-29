@@ -236,6 +236,145 @@ _API_STATUS_TO_DB = {"draft": "incomplete", "confirmed": "confirmed", "resolved"
 _VALID_API_STATUS = set(_API_STATUS_TO_DB)
 
 
+_VALID_DOOR_STATUS = {"locked_out", "partially_functional", "normal"}
+_VALID_NETWORK_STATUS = {"online", "offline", "unknown"}
+
+# OpenAPI intent enum → DB intent vocabulary（DB 存 inquiry/repair/complaint/other）
+_API_INTENT_TO_DB = {
+    "unlock_request": "repair",
+    "repair_request": "repair",
+    "installation": "other",
+    "inquiry": "inquiry",
+}
+
+
+async def create_card(
+    *,
+    tenant_id: str,
+    conversation_id: str,
+    brand: str,
+    model: str,
+    symptom: str,
+    urgency: str,
+    category: str | None = None,
+    location: str | None = None,
+    door_status: str | None = None,
+    network_status: str | None = None,
+    symptoms: list[str] | None = None,
+    intent: str | None = None,
+    media_urls: list[str] | None = None,
+) -> dict:
+    """建立 ProblemCard。conversation 必須屬同租戶且尚未掛 PC（DB UNIQUE 約束）。
+
+    Mapping：
+      - urgency (low/medium/high) → DB low/normal/high
+      - symptom (string) ＋ symptoms (string[]) 合併後存入 symptoms JSONB；
+        若未提供 symptoms，以「、」拆 symptom 字串
+      - intent (unlock_request/repair_request/installation/inquiry) → DB
+        repair/repair/other/inquiry
+      - status 一律設 'incomplete'（建立時尚未確認，後續走 /confirm 流程）
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    if not brand or not brand.strip():
+        raise ApiError("VALIDATION_ERROR", "brand is required", 422)
+    if not model or not model.strip():
+        raise ApiError("VALIDATION_ERROR", "model is required", 422)
+    if not symptom or not symptom.strip():
+        raise ApiError("VALIDATION_ERROR", "symptom is required", 422)
+    if urgency not in _VALID_API_URGENCY:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"urgency must be one of {sorted(_VALID_API_URGENCY)}",
+            422,
+        )
+    if door_status is not None and door_status not in _VALID_DOOR_STATUS:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"door_status must be one of {sorted(_VALID_DOOR_STATUS)}",
+            422,
+        )
+    if network_status is not None and network_status not in _VALID_NETWORK_STATUS:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"network_status must be one of {sorted(_VALID_NETWORK_STATUS)}",
+            422,
+        )
+    if intent is not None and intent not in _API_INTENT_TO_DB:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"intent must be one of {sorted(_API_INTENT_TO_DB)}",
+            422,
+        )
+
+    # tenant guard via conversations.user.tenant_id
+    cur = await db_module._conn.execute(
+        "SELECT c.id FROM conversations c "
+        "JOIN users u ON c.user_id = u.id "
+        "WHERE c.id = %s::uuid AND u.tenant_id = %s::uuid",
+        (conversation_id, tenant_id),
+    )
+    if not await cur.fetchone():
+        raise ApiError(
+            "NOT_FOUND",
+            f"Conversation {conversation_id} not found",
+            404,
+        )
+
+    # PC 表 conversation_id 為 UNIQUE：若已存在 PC，回 409
+    cur = await db_module._conn.execute(
+        "SELECT id FROM problem_cards WHERE conversation_id = %s::uuid",
+        (conversation_id,),
+    )
+    if await cur.fetchone():
+        raise ApiError(
+            "STATE_CONFLICT",
+            "Problem card already exists for this conversation",
+            409,
+        )
+
+    # 合併 symptom 字串與 symptoms 陣列
+    merged_symptoms: list[str] = []
+    if symptoms:
+        merged_symptoms.extend(s.strip() for s in symptoms if s and s.strip())
+    parsed = [s.strip() for s in symptom.split("、") if s.strip()]
+    for p in parsed:
+        if p not in merged_symptoms:
+            merged_symptoms.append(p)
+    if not merged_symptoms:
+        merged_symptoms = [symptom.strip()]
+
+    db_urgency = _API_URGENCY_TO_DB[urgency]
+    db_intent = _API_INTENT_TO_DB[intent] if intent else None
+    media = media_urls if media_urls else None
+
+    cur = await db_module._conn.execute(
+        f"INSERT INTO problem_cards "
+        f"  (conversation_id, brand, model, category, location, "
+        f"   door_status, network_status, symptoms, urgency, intent, "
+        f"   media_urls, status) "
+        f"VALUES (%s::uuid, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s::jsonb, 'incomplete') "
+        f"RETURNING id",
+        (
+            conversation_id,
+            brand.strip()[:100],
+            model.strip()[:100],
+            (category or "").strip()[:100] or None,
+            (location or "").strip()[:255] or None,
+            door_status,
+            network_status,
+            json.dumps(merged_symptoms),
+            db_urgency,
+            db_intent,
+            json.dumps(media) if media else None,
+        ),
+    )
+    row = await cur.fetchone()
+    new_id = str(row[0])
+    return await get_card(tenant_id=tenant_id, pc_id=new_id)
+
+
 async def update_card(
     *,
     tenant_id: str,
