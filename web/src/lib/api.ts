@@ -20,6 +20,7 @@ const STORAGE_KEYS = {
   access: "smartlock.access_token",
   refresh: "smartlock.refresh_token",
   tenant: "smartlock.tenant_id",
+  email: "smartlock.email",
 } as const;
 
 export interface ApiErrorResponse {
@@ -79,6 +80,7 @@ export const auth = {
   getRefreshToken: () => readToken(STORAGE_KEYS.refresh),
   getTenantId: () =>
     readToken(STORAGE_KEYS.tenant) ?? "00000000-0000-0000-0000-000000000001",
+  getEmail: () => readToken(STORAGE_KEYS.email),
   setTokens(access: string, refresh: string) {
     writeToken(STORAGE_KEYS.access, access);
     writeToken(STORAGE_KEYS.refresh, refresh);
@@ -86,11 +88,47 @@ export const auth = {
   setTenantId(tenantId: string) {
     writeToken(STORAGE_KEYS.tenant, tenantId);
   },
+  setEmail(email: string) {
+    writeToken(STORAGE_KEYS.email, email);
+  },
   clear() {
     writeToken(STORAGE_KEYS.access, null);
     writeToken(STORAGE_KEYS.refresh, null);
+    writeToken(STORAGE_KEYS.email, null);
   },
 };
+
+export interface CurrentSession {
+  userId: string | null;
+  role: string | null;
+  tenantId: string | null;
+  email: string | null;
+}
+
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  try {
+    const padded = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padding = "=".repeat((4 - (padded.length % 4)) % 4);
+    const json = atob(padded + padding);
+    return JSON.parse(json) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+export function getCurrentSession(): CurrentSession | null {
+  const token = auth.getAccessToken();
+  if (!token) return null;
+  const payload = decodeJwtPayload(token);
+  if (!payload) return null;
+  const sub = typeof payload.sub === "string" ? payload.sub : null;
+  const role = typeof payload.role === "string" ? payload.role : null;
+  const tenantId =
+    typeof payload.tenant_id === "string" ? payload.tenant_id : null;
+  return { userId: sub, role, tenantId, email: auth.getEmail() };
+}
 
 let refreshInFlight: Promise<boolean> | null = null;
 
@@ -205,6 +243,7 @@ export async function login(email: string, password: string): Promise<LoginRespo
     skipAuth: true,
   });
   auth.setTokens(res.data.access_token, res.data.refresh_token);
+  auth.setEmail(email);
   return res;
 }
 

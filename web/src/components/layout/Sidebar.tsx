@@ -18,8 +18,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
-import { logout } from "@/lib/api";
+import { useEffect, useState } from "react";
+import { getCurrentSession, logout, type CurrentSession } from "@/lib/api";
 
 interface NavChild {
   label: string;
@@ -104,10 +104,45 @@ function isChildActive(child: NavChild, pathname: string): boolean {
   return pathname === child.href || pathname.startsWith(child.href + "/");
 }
 
+const ROLE_LABELS: Record<string, string> = {
+  admin: "系統管理員",
+  reviewer: "審核員",
+  technician: "技師",
+  brand_oem: "品牌 OEM",
+  line_user: "LINE 使用者",
+};
+
+function displayName(session: CurrentSession | null): string {
+  if (!session) return "—";
+  if (session.email) {
+    const at = session.email.indexOf("@");
+    return at > 0 ? session.email.slice(0, at) : session.email;
+  }
+  if (session.userId) return `User ${session.userId.slice(0, 6)}`;
+  return "—";
+}
+
+function avatarChar(session: CurrentSession | null): string {
+  if (!session) return "?";
+  if (session.email) return session.email[0].toUpperCase();
+  if (session.userId) return session.userId[0].toUpperCase();
+  return "?";
+}
+
+function roleLabel(session: CurrentSession | null): string {
+  if (!session?.role) return "—";
+  return ROLE_LABELS[session.role] ?? session.role;
+}
+
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [session, setSession] = useState<CurrentSession | null>(null);
+
+  useEffect(() => {
+    setSession(getCurrentSession());
+  }, []);
 
   async function onLogout() {
     if (loggingOut) return;
@@ -175,12 +210,17 @@ export default function Sidebar() {
 
       <div className="flex items-center gap-3 border-t border-[#334155] px-5 py-4">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--primary)] text-sm font-semibold text-white">
-          王
+          {avatarChar(session)}
         </div>
-        <div className="flex flex-1 flex-col gap-[2px]">
-          <span className="text-sm font-medium text-white">王小明</span>
+        <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
+          <span
+            className="truncate text-sm font-medium text-white"
+            title={session?.email ?? session?.userId ?? "未登入"}
+          >
+            {displayName(session)}
+          </span>
           <span className="text-xs text-[var(--text-disabled)]">
-            主管理員
+            {roleLabel(session)}
           </span>
         </div>
         <button
