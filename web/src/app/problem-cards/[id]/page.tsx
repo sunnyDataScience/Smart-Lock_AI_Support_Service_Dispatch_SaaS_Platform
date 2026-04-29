@@ -189,7 +189,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
             <ResolutionTimeline />
           </div>
 
-          <ProblemCardDetailSidebar />
+          <ProblemCardDetailSidebar card={card} loading={loading} />
         </div>
       </div>
     </div>
