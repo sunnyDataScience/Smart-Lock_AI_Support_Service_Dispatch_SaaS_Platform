@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   User,
   Shield,
@@ -12,6 +12,31 @@ import {
 import Sidebar from "@/components/layout/Sidebar";
 import PricingForm from "@/components/settings/PricingForm";
 import SystemConfigForm from "@/components/settings/SystemConfigForm";
+import { getCurrentSession, type CurrentSession } from "@/lib/api";
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: "系統管理員",
+  reviewer: "審核員",
+  technician: "技師",
+  brand_oem: "品牌 OEM",
+  line_user: "LINE 使用者",
+};
+
+function deriveName(email: string | null, userId: string | null): string {
+  if (email) {
+    const at = email.indexOf("@");
+    return at > 0 ? email.slice(0, at) : email;
+  }
+  if (userId) return `User ${userId.slice(0, 6)}`;
+  return "—";
+}
+
+function avatarChar(session: CurrentSession | null): string {
+  if (!session) return "?";
+  if (session.email) return session.email[0].toUpperCase();
+  if (session.userId) return session.userId[0].toUpperCase();
+  return "?";
+}
 
 type TabId = "profile" | "security" | "pricing" | "system";
 
@@ -29,6 +54,20 @@ const tabs: Tab[] = [
 ];
 
 function ProfileForm() {
+  const [session, setSession] = useState<CurrentSession | null>(null);
+
+  useEffect(() => {
+    setSession(getCurrentSession());
+  }, []);
+
+  const name = deriveName(session?.email ?? null, session?.userId ?? null);
+  const email = session?.email ?? "—";
+  const role = session?.role
+    ? (ROLE_LABELS[session.role] ?? session.role)
+    : "—";
+  const userId = session?.userId ?? "—";
+  const tenantId = session?.tenantId ?? "—";
+
   return (
     <div className="flex flex-1 flex-col gap-6 overflow-auto rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
       {/* Header */}
@@ -38,11 +77,11 @@ function ProfileForm() {
             個人資料
           </span>
           <span className="rounded bg-[#F1F5F9] px-2 py-[2px] text-[11px] text-[var(--text-secondary)]">
-            示意（待 /users/me endpoint 上線）
+            來自 JWT；待 /users/me endpoint 上線後補齊姓名 / 電話 / 偏好
           </span>
         </div>
         <span className="text-[13px] text-[var(--text-secondary)]">
-          管理您的個人資訊與偏好設定
+          目前登入身分由 access token 解碼
         </span>
       </div>
 
@@ -50,17 +89,21 @@ function ProfileForm() {
 
       {/* Avatar */}
       <div className="flex items-center gap-5">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#E2E8F0]">
-          <User className="h-8 w-8 text-[var(--text-secondary)]" />
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[var(--primary)] text-2xl font-semibold text-white">
+          {avatarChar(session)}
         </div>
         <div className="flex flex-col gap-2">
           <span className="text-base font-semibold text-[var(--text-primary)]">
-            王小明
+            {name}
           </span>
           <span className="text-[13px] text-[var(--text-secondary)]">
-            系統管理員
+            {role}
           </span>
-          <button className="flex items-center gap-[6px] rounded-lg border border-[var(--border)] px-[14px] py-[6px]">
+          <button
+            disabled
+            title="即將推出"
+            className="flex cursor-not-allowed items-center gap-[6px] rounded-lg border border-[var(--border)] px-[14px] py-[6px] opacity-60"
+          >
             <Upload className="h-[14px] w-[14px] text-[var(--text-secondary)]" />
             <span className="text-[13px] font-medium text-[var(--text-secondary)]">
               上傳頭像
@@ -71,22 +114,24 @@ function ProfileForm() {
 
       {/* Form Fields */}
       <div className="flex flex-col gap-5">
-        {/* Row 1: Name & Email */}
         <div className="flex gap-5">
-          <FormField label="姓名" value="王小明" />
-          <FormField label="電子郵件" value="wang.xiaoming@smartlock.com" />
+          <FormField label="顯示名稱" value={name} />
+          <FormField label="電子郵件" value={email} />
         </div>
 
-        {/* Row 2: Phone & Timezone */}
         <div className="flex gap-5">
-          <FormField label="聯絡電話" value="0912-345-678" mono />
-          <SelectField label="時區" value="(UTC+8) 台北" />
+          <FormField label="使用者 ID" value={userId} mono />
+          <FormField label="角色" value={role} />
         </div>
 
-        {/* Row 3: Language */}
         <div className="flex gap-5">
-          <SelectField label="語言" value="繁體中文" />
-          <div className="flex-1" />
+          <FormField label="租戶 ID" value={tenantId} mono />
+          <SelectField label="時區" value="(UTC+8) 台北" disabled />
+        </div>
+
+        <div className="flex gap-5">
+          <SelectField label="語言" value="繁體中文" disabled />
+          <FormField label="聯絡電話" value="—" placeholder="待 /users/me 上線" />
         </div>
       </div>
 
@@ -94,12 +139,20 @@ function ProfileForm() {
 
       {/* Action Buttons */}
       <div className="flex justify-end gap-3">
-        <button className="rounded-lg border border-[var(--border)] px-5 py-[10px]">
+        <button
+          disabled
+          title="即將推出"
+          className="cursor-not-allowed rounded-lg border border-[var(--border)] px-5 py-[10px] opacity-60"
+        >
           <span className="text-sm font-medium text-[var(--text-secondary)]">
             取消
           </span>
         </button>
-        <button className="rounded-lg bg-[var(--primary)] px-5 py-[10px]">
+        <button
+          disabled
+          title="即將推出"
+          className="cursor-not-allowed rounded-lg bg-[var(--primary)] px-5 py-[10px] opacity-60"
+        >
           <span className="text-sm font-medium text-white">儲存變更</span>
         </button>
       </div>
@@ -207,13 +260,26 @@ function FormField({
   );
 }
 
-function SelectField({ label, value }: { label: string; value: string }) {
+function SelectField({
+  label,
+  value,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  disabled?: boolean;
+}) {
   return (
     <div className="flex flex-1 flex-col gap-[6px]">
       <span className="text-[13px] font-semibold text-[var(--text-primary)]">
         {label}
       </span>
-      <div className="flex h-10 items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3">
+      <div
+        className={`flex h-10 items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 ${
+          disabled ? "cursor-not-allowed opacity-60" : ""
+        }`}
+        title={disabled ? "即將推出" : undefined}
+      >
         <span className="text-sm text-[var(--text-primary)]">{value}</span>
         <ChevronDown className="h-4 w-4 text-[var(--text-secondary)]" />
       </div>
