@@ -1033,6 +1033,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 客戶主檔列表（管理員視角，cursor 分頁） */
+        get: operations["listCustomers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/work-orders/{id}/confirm": {
         parameters: {
             query?: never;
@@ -1823,6 +1840,37 @@ export interface components {
         };
         TechnicianPage: components["schemas"]["CursorPage"] & {
             items?: components["schemas"]["Technician"][];
+        };
+        Customer: {
+            /** Format: uuid */
+            id: string;
+            /** @description 顯示名稱（LINE 名稱或從電話 / userId 推導） */
+            display_name: string;
+            /** @description LINE Platform User ID（U + 32 hex），可能為空（非 LINE 來源） */
+            line_user_id?: string | null;
+            phone?: string | null;
+            address?: string | null;
+            /**
+             * Format: date-time
+             * @description 最近一次互動時間（users.last_active_at）
+             */
+            last_active_at?: string | null;
+            total_conversations: number;
+            /** @description 此客戶累積工單數（穿越 conversations → problem_cards → work_orders） */
+            total_orders: number;
+            /**
+             * Format: date-time
+             * @description 最近一次工單完工時間
+             */
+            last_service_at?: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        CustomerEnvelope: components["schemas"]["ApiResponseGeneric"] & {
+            data?: components["schemas"]["Customer"];
+        };
+        CustomerPage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["Customer"][];
         };
         /** @enum {string} */
         NotificationType: "work_order" | "refund" | "dispute" | "rbac" | "inventory" | "sla" | "system" | "mention";
@@ -4510,6 +4558,30 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+        };
+    };
+    listCustomers: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerPage"];
+                };
+            };
         };
     };
     confirmWorkOrder: {

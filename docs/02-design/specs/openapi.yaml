@@ -1669,6 +1669,22 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/v1/customers:
+    get:
+      tags: [customer_service]
+      summary: 客戶主檔列表（管理員視角，cursor 分頁）
+      operationId: listCustomers
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerPage'
+
   /api/v1/work-orders/{id}/confirm:
     post:
       tags: [dispatch]
@@ -3005,6 +3021,66 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/Technician'
+
+    # --------- Customer（read-only 客戶主檔） ---------
+    Customer:
+      type: object
+      required:
+        - id
+        - display_name
+        - total_conversations
+        - total_orders
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+          description: 顯示名稱（LINE 名稱或從電話 / userId 推導）
+        line_user_id:
+          type: [string, "null"]
+          description: LINE Platform User ID（U + 32 hex），可能為空（非 LINE 來源）
+        phone:
+          type: [string, "null"]
+        address:
+          type: [string, "null"]
+        last_active_at:
+          type: [string, "null"]
+          format: date-time
+          description: 最近一次互動時間（users.last_active_at）
+        total_conversations:
+          type: integer
+          minimum: 0
+        total_orders:
+          type: integer
+          minimum: 0
+          description: 此客戶累積工單數（穿越 conversations → problem_cards → work_orders）
+        last_service_at:
+          type: [string, "null"]
+          format: date-time
+          description: 最近一次工單完工時間
+        created_at:
+          type: string
+          format: date-time
+
+    CustomerEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseGeneric'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Customer'
+
+    CustomerPage:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Customer'
 
     # --------- Notification（Week 2 from G1） ---------
     NotificationType:

@@ -41,6 +41,7 @@ from routers import warranty_claims as warranty_claims_router
 from routers import disputes as disputes_router
 from routers import revenue as revenue_router
 from routers import pricing_rules as pricing_rules_router
+from routers import customers as customers_router
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -98,6 +99,7 @@ app.include_router(warranty_claims_router.router, prefix="/api/v1", tags=["accou
 app.include_router(disputes_router.router, prefix="/api/v1", tags=["accounting"])
 app.include_router(revenue_router.router, prefix="/api/v1", tags=["reports"])
 app.include_router(pricing_rules_router.router, prefix="/api/v1", tags=["accounting"])
+app.include_router(customers_router.router, prefix="/api/v1", tags=["customer_service"])
 
 
 @app.get("/health")
