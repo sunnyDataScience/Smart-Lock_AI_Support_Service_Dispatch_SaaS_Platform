@@ -1050,6 +1050,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 角色與權限矩陣（read-only；含本租戶各角色使用者數） */
+        get: operations["listRoles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/work-orders/{id}/confirm": {
         parameters: {
             query?: never;
@@ -1871,6 +1888,36 @@ export interface components {
         };
         CustomerPage: components["schemas"]["CursorPage"] & {
             items?: components["schemas"]["Customer"][];
+        };
+        /**
+         * @description 系統定義的權限資源類別
+         * @enum {string}
+         */
+        RoleResource: "work_orders" | "technicians" | "customers" | "accounting" | "invoices" | "refunds" | "inventory" | "warranty" | "disputes" | "audit_logs" | "roles" | "system_settings";
+        RolePermission: {
+            resource: components["schemas"]["RoleResource"];
+            read: boolean;
+            write: boolean;
+            delete: boolean;
+            /**
+             * @description 是否為系統強制鎖定的權限（不可被自訂角色覆寫）
+             * @default false
+             */
+            locked: boolean;
+        };
+        Role: {
+            /** @description 角色 ID（system roles 為固定字串：admin / reviewer / technician / brand_oem / line_user） */
+            id: string;
+            name: string;
+            description: string;
+            /** @description 本租戶內擁有此角色的使用者數 */
+            user_count: number;
+            /** @description 是否為系統內建角色（不可刪除） */
+            is_system: boolean;
+            permissions: components["schemas"]["RolePermission"][];
+        };
+        RolesEnvelope: components["schemas"]["ApiResponseGeneric"] & {
+            data?: components["schemas"]["Role"][];
         };
         /** @enum {string} */
         NotificationType: "work_order" | "refund" | "dispute" | "rbac" | "inventory" | "sla" | "system" | "mention";
@@ -4580,6 +4627,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CustomerPage"];
+                };
+            };
+        };
+    };
+    listRoles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RolesEnvelope"];
                 };
             };
         };

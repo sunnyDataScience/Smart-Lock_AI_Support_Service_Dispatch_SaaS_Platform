@@ -1685,6 +1685,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/CustomerPage'
 
+  /api/v1/roles:
+    get:
+      tags: [user_management]
+      summary: 角色與權限矩陣（read-only；含本租戶各角色使用者數）
+      operationId: listRoles
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RolesEnvelope'
+
   /api/v1/work-orders/{id}/confirm:
     post:
       tags: [dispatch]
@@ -3081,6 +3094,80 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/Customer'
+
+    # --------- Role / RBAC（read-only 權限矩陣） ---------
+    RoleResource:
+      type: string
+      description: 系統定義的權限資源類別
+      enum:
+        - work_orders
+        - technicians
+        - customers
+        - accounting
+        - invoices
+        - refunds
+        - inventory
+        - warranty
+        - disputes
+        - audit_logs
+        - roles
+        - system_settings
+
+    RolePermission:
+      type: object
+      required: [resource, read, write, delete]
+      properties:
+        resource:
+          $ref: '#/components/schemas/RoleResource'
+        read:
+          type: boolean
+        write:
+          type: boolean
+        delete:
+          type: boolean
+        locked:
+          type: boolean
+          description: 是否為系統強制鎖定的權限（不可被自訂角色覆寫）
+          default: false
+
+    Role:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - user_count
+        - is_system
+        - permissions
+      properties:
+        id:
+          type: string
+          description: 角色 ID（system roles 為固定字串：admin / reviewer / technician / brand_oem / line_user）
+        name:
+          type: string
+        description:
+          type: string
+        user_count:
+          type: integer
+          minimum: 0
+          description: 本租戶內擁有此角色的使用者數
+        is_system:
+          type: boolean
+          description: 是否為系統內建角色（不可刪除）
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/RolePermission'
+
+    RolesEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseGeneric'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Role'
 
     # --------- Notification（Week 2 from G1） ---------
     NotificationType:
