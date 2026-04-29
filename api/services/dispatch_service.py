@@ -1,0 +1,171 @@
+"""Dispatch candidates — listDispatchCandidates。
+
+operationId 對齊 openapi.yaml：listDispatchCandidates
+
+設計：
+  - 依工單 brand / district 對候選技師排序
+  - 綜合分（0~100）= 0.4 × skill_match + 0.3 × distance_factor + 0.3 × rating_factor
+      skill_match     ∈ [0,1]：brand 命中 +1.0；無 brand 資訊 fallback 0.5
+      distance_factor ∈ [0,1]：district 命中 1.0；服務區域命中該縣市 0.6；無交集 0.2
+      rating_factor   ∈ [0,1]：rating / 5
+  - distance_km 為示意值（依 district / 服務區交集回 0 / 5 / 15 / 30）
+      待 GIS 模組接入後改為 ST_Distance 真實計算
+  - availability_eta_minutes：available=15, busy=60, 其他 None
+  - exclude_circuit (default true)：本 phase technicians 表無 circuit_breaker_until 欄
+      故只能用 status='inactive' / 'on_leave' 過濾，不會誤剔
+  - filters：skills（任一命中）、areas（任一命中）、levels（DB 暫無 level → 不過濾）、rating_min
+  - auto_dispatch_attempts：暫回 [] — 待 dispatch_logs 表完整接入
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Iterable
+
+import core.db as db_module
+from core.db import _ensure_conn
+from core.errors import ApiError
+from services.technician_service import _TECH_SELECT, _tech_row_to_dict
+
+logger = logging.getLogger("api.dispatch_service")
+
+
+_W_SKILL = 0.4
+_W_DISTANCE = 0.3
+_W_RATING = 0.3
+
+
+def _intersect_lower(a: Iterable[str], b: Iterable[str]) -> bool:
+    """case-insensitive 交集判斷，避免 brand/area 大小寫差異漏配。"""
+    sa = {str(x).strip().lower() for x in a if x}
+    sb = {str(x).strip().lower() for x in b if x}
+    return bool(sa & sb)
+
+
+def _skill_score(tech_skills: list[str], wo_brand: str | None) -> float:
+    if not wo_brand:
+        return 0.5
+    return 1.0 if _intersect_lower(tech_skills, [wo_brand]) else 0.0
+
+
+def _distance_factor_and_km(
+    tech_areas: list[str], wo_district: str | None
+) -> tuple[float, float]:
+    """district 完全命中 → (1.0, 0); 同縣市命中 → (0.6, 5);
+    服務區域非空但無交集 → (0.2, 15); 候選技師無服務區資料 → (0.4, 30)。"""
+    if not wo_district:
+        return (0.4, 30.0)
+    if not tech_areas:
+        return (0.4, 30.0)
+    if _intersect_lower(tech_areas, [wo_district]):
+        return (1.0, 0.0)
+    # 同縣市（前 2-3 字）命中
+    wo_prefix = wo_district[:3].lower()
+    for a in tech_areas:
+        if a and a[:3].lower() == wo_prefix:
+            return (0.6, 5.0)
+    return (0.2, 15.0)
+
+
+def _rating_factor(rating: float | None) -> float:
+    if rating is None:
+        return 0.0
+    r = max(0.0, min(5.0, float(rating)))
+    return r / 5.0
+
+
+def _availability_eta(status: str | None) -> int | None:
+    if status == "active":
+        return 15
+    if status == "busy":
+        return 60
+    return None
+
+
+def _is_excluded_by_circuit(status: str | None) -> bool:
+    """暫無 circuit_breaker_until 欄；以 status 排除明顯不可派的狀態。"""
+    return status in {"inactive", "on_leave", "circuit_breaker_open"}
+
+
+async def list_dispatch_candidates(
+    *,
+    tenant_id: str,
+    work_order_id: str,
+    skills_filter: list[str] | None = None,
+    areas_filter: list[str] | None = None,
+    levels_filter: list[str] | None = None,
+    exclude_circuit: bool = True,
+    rating_min: float | None = None,
+) -> dict:
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    # 取工單的 brand / district 作為匹配依據
+    cur = await db_module._conn.execute(
+        "SELECT pc.brand, wo.customer_address "
+        "FROM work_orders wo "
+        "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
+        "JOIN conversations c ON pc.conversation_id = c.id "
+        "JOIN users u ON c.user_id = u.id "
+        "WHERE wo.id = %s::uuid AND u.tenant_id = %s::uuid",
+        (work_order_id, tenant_id),
+    )
+    wo_row = await cur.fetchone()
+    if not wo_row:
+        raise ApiError("NOT_FOUND", "Work order not found", 404)
+    wo_brand = wo_row[0]
+    wo_address = wo_row[1] or ""
+
+    # district 解析重用 work_order_service 邏輯
+    from services.work_order_service import _parse_district
+    wo_district = _parse_district(wo_address)
+
+    # 取 tenant 內候選技師
+    cur = await db_module._conn.execute(
+        f"SELECT {_TECH_SELECT} FROM technicians t "
+        f"WHERE t.tenant_id = %s::uuid",
+        (tenant_id,),
+    )
+    rows = await cur.fetchall()
+
+    candidates: list[dict] = []
+    for r in rows:
+        # row[9] = status (見 _TECH_SELECT 順序)
+        status = r[9]
+        if exclude_circuit and _is_excluded_by_circuit(status):
+            continue
+        tech = _tech_row_to_dict(r)
+
+        # 使用者 filter
+        if skills_filter and not _intersect_lower(tech["skills"], skills_filter):
+            continue
+        if areas_filter and not _intersect_lower(tech["service_areas"], areas_filter):
+            continue
+        if rating_min is not None and tech["rating"] < float(rating_min):
+            continue
+        # levels filter — DB 無 level 欄；本 phase 不過濾，僅在 levels_filter 非空時不誤剔
+
+        skill = _skill_score(tech["skills"], wo_brand)
+        dist_factor, dist_km = _distance_factor_and_km(tech["service_areas"], wo_district)
+        rating_f = _rating_factor(tech["rating"])
+
+        score = round(
+            (_W_SKILL * skill + _W_DISTANCE * dist_factor + _W_RATING * rating_f) * 100,
+            2,
+        )
+
+        candidates.append({
+            "technician": tech,
+            "score": score,
+            "distance_km": dist_km,
+            "skill_match": round(skill, 2),
+            "availability_eta_minutes": _availability_eta(status),
+        })
+
+    candidates.sort(key=lambda c: c["score"], reverse=True)
+
+    return {
+        "candidates": candidates,
+        "total": len(candidates),
+        "auto_dispatch_attempts": [],
+    }
