@@ -62,12 +62,11 @@ export default function ProblemCardDetailSidebar({ card, loading }: Props) {
     (async () => {
       try {
         const res = await api.get<WorkOrderPage>("/api/v1/work-orders", {
-          query: { limit: 100 },
+          query: { problem_card_id: card.id, limit: 1 },
         });
         if (cancelled) return;
-        const items: WorkOrder[] = res.items ?? [];
-        const match = items.find((wo) => wo.problem_card_id === card.id);
-        setLinked(match ?? null);
+        const items = (res.items ?? []) as WorkOrder[];
+        setLinked(items[0] ?? null);
       } catch (e) {
         if (cancelled) return;
         setLinkedError(
