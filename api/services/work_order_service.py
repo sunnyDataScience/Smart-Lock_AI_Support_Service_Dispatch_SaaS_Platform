@@ -114,12 +114,22 @@ async def list_orders(
     tenant_id: str,
     cursor: str | None,
     limit: int,
+    problem_card_id: str | None = None,
+    technician_id: str | None = None,
 ) -> dict:
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
     where = ["u.tenant_id = %s::uuid"]
     args: list = [tenant_id]
+
+    if problem_card_id:
+        where.append("wo.problem_card_id = %s::uuid")
+        args.append(problem_card_id)
+
+    if technician_id:
+        where.append("wo.technician_id = %s::uuid")
+        args.append(technician_id)
 
     cur_data = decode_cursor(cursor)
     if cur_data and "ts" in cur_data and "id" in cur_data:

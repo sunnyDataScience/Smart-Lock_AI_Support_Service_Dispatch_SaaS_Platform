@@ -31,12 +31,16 @@ router = APIRouter()
 async def list_work_orders(
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
+    problem_card_id: str | None = Query(default=None, description="過濾特定問題卡的工單"),
+    technician_id: str | None = Query(default=None, description="過濾特定技師的工單"),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
     page = await work_order_service.list_orders(
         tenant_id=user.tenant_id,
         cursor=cursor,
         limit=limit,
+        problem_card_id=problem_card_id,
+        technician_id=technician_id,
     )
     return {
         "items": [WorkOrder(**w).model_dump(mode="json") for w in page["items"]],

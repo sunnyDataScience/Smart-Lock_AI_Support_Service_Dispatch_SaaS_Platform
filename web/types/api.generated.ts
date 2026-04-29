@@ -2993,6 +2993,10 @@ export interface operations {
                 cursor?: components["parameters"]["Cursor"];
                 limit?: components["parameters"]["Limit"];
                 status?: components["schemas"]["WorkOrderStatus"];
+                /** @description 過濾特定問題卡的工單 */
+                problem_card_id?: string;
+                /** @description 過濾指派給特定技師的工單 */
+                technician_id?: string;
             };
             header: {
                 /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */

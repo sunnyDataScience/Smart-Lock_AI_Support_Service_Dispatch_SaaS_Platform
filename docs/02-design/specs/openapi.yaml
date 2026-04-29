@@ -219,6 +219,18 @@ paths:
           name: status
           schema:
             $ref: '#/components/schemas/WorkOrderStatus'
+        - in: query
+          name: problem_card_id
+          schema:
+            type: string
+            format: uuid
+          description: 過濾特定問題卡的工單
+        - in: query
+          name: technician_id
+          schema:
+            type: string
+            format: uuid
+          description: 過濾指派給特定技師的工單
       responses:
         '200':
           description: OK
