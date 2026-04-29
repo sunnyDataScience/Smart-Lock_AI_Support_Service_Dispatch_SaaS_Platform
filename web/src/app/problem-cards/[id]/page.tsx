@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { CheckCircle2, Flag, Info } from "lucide-react";
+import { CheckCircle2, Flag, Info, Pencil } from "lucide-react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import FmeaDiagnosisCard from "@/components/problem-cards/FmeaDiagnosisCard";
@@ -17,6 +17,7 @@ type ProblemCardStatus = components["schemas"]["ProblemCardStatus"];
 type Urgency = components["schemas"]["Urgency"];
 type ProblemCardResolveRequest = components["schemas"]["ProblemCardResolveRequest"];
 type ResolutionLayer = ProblemCardResolveRequest["resolution_layer"];
+type ProblemCardUpdateRequest = components["schemas"]["ProblemCardUpdateRequest"];
 
 const statusLabel: Record<ProblemCardStatus, string> = {
   draft: "待確認",
@@ -45,10 +46,11 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
   const [card, setCard] = useState<ProblemCard | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [actionPending, setActionPending] = useState<"confirm" | "resolve" | null>(null);
+  const [actionPending, setActionPending] = useState<"confirm" | "resolve" | "update" | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionToast, setActionToast] = useState<string | null>(null);
   const [resolveModalOpen, setResolveModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,6 +109,24 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
     }
   };
 
+  const handleUpdate = async (patch: ProblemCardUpdateRequest) => {
+    setActionPending("update");
+    setActionError(null);
+    try {
+      const res = await api.patch<ProblemCardEnvelope>(
+        `/api/v1/problem-cards/${encodeURIComponent(id)}`,
+        patch,
+      );
+      setCard(res.data ?? null);
+      setEditModalOpen(false);
+      setActionToast("問題卡已更新");
+    } catch (e) {
+      setActionError(formatActionError(e));
+    } finally {
+      setActionPending(null);
+    }
+  };
+
   const handleResolve = async (layer: ResolutionLayer) => {
     setActionPending("resolve");
     setActionError(null);
@@ -127,6 +147,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
 
   const canConfirm = card?.status === "draft";
   const canResolve = card?.status === "confirmed";
+  const canEdit = card?.status === "draft" || card?.status === "confirmed";
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -166,8 +187,21 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
             )}
           </div>
 
-          {(canConfirm || canResolve) && (
+          {(canConfirm || canResolve || canEdit) && (
             <div className="flex flex-wrap items-center gap-2">
+              {canEdit && (
+                <button
+                  onClick={() => {
+                    setActionError(null);
+                    setEditModalOpen(true);
+                  }}
+                  disabled={actionPending !== null}
+                  className="inline-flex items-center gap-2 rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-semibold text-[var(--text-primary)] transition hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Pencil className="h-4 w-4" />
+                  編輯問題卡
+                </button>
+              )}
               {canConfirm && (
                 <button
                   onClick={handleConfirm}
@@ -297,6 +331,15 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
         />
       )}
 
+      {editModalOpen && card && (
+        <EditModal
+          initial={card}
+          pending={actionPending === "update"}
+          onCancel={() => setEditModalOpen(false)}
+          onSubmit={handleUpdate}
+        />
+      )}
+
       {actionToast && (
         <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-[var(--success)] px-4 py-2 text-[13px] font-semibold text-white shadow-lg">
           {actionToast}
@@ -372,6 +415,150 @@ function ResolveModal({
             className="rounded-md bg-[var(--success)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? "送出中…" : "確認結案"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const URGENCY_OPTIONS: { value: Urgency; label: string }[] = [
+  { value: "low", label: "低" },
+  { value: "medium", label: "中" },
+  { value: "high", label: "高" },
+];
+
+function EditModal({
+  initial,
+  pending,
+  onCancel,
+  onSubmit,
+}: {
+  initial: ProblemCard;
+  pending: boolean;
+  onCancel: () => void;
+  onSubmit: (patch: ProblemCardUpdateRequest) => Promise<void>;
+}) {
+  const [brand, setBrand] = useState(initial.brand);
+  const [model, setModel] = useState(initial.model);
+  const [symptom, setSymptom] = useState(initial.symptom);
+  const [category, setCategory] = useState(initial.category ?? "");
+  const [urgency, setUrgency] = useState<Urgency>(initial.urgency);
+
+  const buildPatch = (): ProblemCardUpdateRequest => {
+    const patch: ProblemCardUpdateRequest = {};
+    if (brand !== initial.brand) patch.brand = brand;
+    if (model !== initial.model) patch.model = model;
+    if (symptom !== initial.symptom) patch.symptom = symptom;
+    if (category !== (initial.category ?? "")) patch.category = category;
+    if (urgency !== initial.urgency) patch.urgency = urgency;
+    return patch;
+  };
+
+  const patch = buildPatch();
+  const dirty = Object.keys(patch).length > 0;
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4"
+      onClick={() => !pending && onCancel()}
+    >
+      <div
+        className="w-full max-w-[520px] rounded-xl bg-white p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center gap-2">
+          <Pencil className="h-5 w-5 text-[var(--text-primary)]" />
+          <span className="text-[18px] font-semibold text-[var(--text-primary)]">
+            編輯問題卡
+          </span>
+        </div>
+        <p className="mb-4 text-[13px] text-[var(--text-secondary)]">
+          修改基本欄位；狀態變更請使用「確認」或「結案」按鈕。症狀以「、」分隔多個關鍵字。
+        </p>
+
+        <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-2 gap-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-[12px] font-medium text-[var(--text-secondary)]">品牌</span>
+              <input
+                value={brand}
+                onChange={(e) => setBrand(e.target.value)}
+                disabled={pending}
+                maxLength={50}
+                className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] text-[var(--text-primary)] focus:border-[var(--primary)] focus:outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[12px] font-medium text-[var(--text-secondary)]">型號</span>
+              <input
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                disabled={pending}
+                maxLength={100}
+                className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] text-[var(--text-primary)] focus:border-[var(--primary)] focus:outline-none"
+              />
+            </label>
+          </div>
+
+          <label className="flex flex-col gap-1">
+            <span className="text-[12px] font-medium text-[var(--text-secondary)]">
+              症狀（多個以「、」分隔）
+            </span>
+            <textarea
+              value={symptom}
+              onChange={(e) => setSymptom(e.target.value)}
+              disabled={pending}
+              rows={3}
+              maxLength={1000}
+              className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] text-[var(--text-primary)] focus:border-[var(--primary)] focus:outline-none"
+            />
+          </label>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-[12px] font-medium text-[var(--text-secondary)]">類別</span>
+              <input
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                disabled={pending}
+                placeholder="例：電池、WiFi、安裝"
+                maxLength={100}
+                className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] text-[var(--text-primary)] focus:border-[var(--primary)] focus:outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[12px] font-medium text-[var(--text-secondary)]">緊急度</span>
+              <select
+                value={urgency}
+                onChange={(e) => setUrgency(e.target.value as Urgency)}
+                disabled={pending}
+                className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] text-[var(--text-primary)] focus:border-[var(--primary)] focus:outline-none"
+              >
+                {URGENCY_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            disabled={pending}
+            className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
+          >
+            取消
+          </button>
+          <button
+            onClick={() => onSubmit(patch)}
+            disabled={pending || !dirty}
+            className="rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? "送出中…" : dirty ? "儲存變更" : "無變更"}
           </button>
         </div>
       </div>
