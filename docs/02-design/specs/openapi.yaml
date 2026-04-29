@@ -303,6 +303,36 @@ paths:
               schema:
                 $ref: '#/components/schemas/WorkOrderEnvelope'
 
+  /api/v1/work-orders/{id}/cancel:
+    post:
+      tags: [dispatch]
+      summary: 取消工單（強制 Idempotency-Key）
+      description: 將工單從非結案狀態（created/assigned/accepted/in_progress）轉為 cancelled。
+      operationId: cancelWorkOrder
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkOrderCancelRequest'
+      responses:
+        '200':
+          description: 取消成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderEnvelope'
+        '409':
+          description: 狀態衝突（工單已結案無法取消）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
   /api/v1/work-orders/pool:
     get:
       tags: [dispatch]
@@ -2564,7 +2594,10 @@ components:
 
     CompletionReport:
       type: object
-      required: [summary, photos_before, photos_after]
+      required: [summary]
+      description: |
+        完工回報。`photos_before` / `photos_after` 暫時為 optional（`minItems: 0`），
+        待媒體上傳模組接入後再上修為必填。
       properties:
         summary:
           type: string
@@ -2572,11 +2605,11 @@ components:
         photos_before:
           type: array
           items: { type: string, format: uri }
-          minItems: 1
+          minItems: 0
         photos_after:
           type: array
           items: { type: string, format: uri }
-          minItems: 1
+          minItems: 0
         parts_used:
           type: array
           items:
@@ -2588,6 +2621,14 @@ components:
         actual_amount:
           type: string
           pattern: '^-?\d+(\.\d{1,2})?$'
+
+    WorkOrderCancelRequest:
+      type: object
+      description: 工單取消理由（管理員或上層流程觸發）。
+      properties:
+        reason:
+          type: string
+          maxLength: 500
 
     # --------- 保固申請（list/get） ---------
     WarrantyClaimStatus:

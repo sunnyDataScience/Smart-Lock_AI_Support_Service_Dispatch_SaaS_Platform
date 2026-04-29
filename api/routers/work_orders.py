@@ -1,9 +1,12 @@
-"""WorkOrders router — 2 endpoints (read-only)。
+"""WorkOrders router — read endpoints + 3 state-machine writes。
 
 operationId 對齊 openapi.yaml：
-  listWorkOrders, getWorkOrder
+  listWorkOrders, getWorkOrder, getDispatchQueue,
+  acceptWorkOrder, completeWorkOrder, cancelWorkOrder
 
-寫入路徑（accept/complete/escalate/assign/reschedule）暫不實作，待寫入需求明確再開。
+未實作：assignWorkOrder / escalateWorkOrder / proposeReschedule /
+submitWorkOrderSignature / confirmWorkOrder（依賴技師 AI 推薦、SLA 模組
+或上傳服務，待後續 phase）。
 """
 
 from __future__ import annotations
@@ -11,9 +14,12 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Path, Query
 
 from core.deps import CurrentUser, require_tenant
+from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
+    CompletionReport,
     DispatchQueueSnapshot,
     WorkOrder,
+    WorkOrderCancelRequest,
     WorkOrderEnvelope,
     WorkOrderPage,
 )
@@ -78,3 +84,70 @@ async def get_work_order(
         tenant_id=user.tenant_id, wo_id=id,
     )
     return {"data": WorkOrder(**order).model_dump(mode="json")}
+
+
+@router.post(
+    "/work-orders/{id}/accept",
+    operation_id="acceptWorkOrder",
+    summary="技師接單（assigned → accepted）",
+    response_model=WorkOrderEnvelope,
+)
+async def accept_work_order(
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    order = await work_order_service.accept_order(
+        tenant_id=user.tenant_id, wo_id=id,
+    )
+    payload = {"data": WorkOrder(**order).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload
+
+
+@router.post(
+    "/work-orders/{id}/complete",
+    operation_id="completeWorkOrder",
+    summary="完工回報（accepted | in_progress → completed）",
+    response_model=WorkOrderEnvelope,
+)
+async def complete_work_order(
+    body: CompletionReport,
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    order = await work_order_service.complete_order(
+        tenant_id=user.tenant_id,
+        wo_id=id,
+        summary=body.summary,
+        actual_amount=body.actual_amount,
+    )
+    payload = {"data": WorkOrder(**order).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload
+
+
+@router.post(
+    "/work-orders/{id}/cancel",
+    operation_id="cancelWorkOrder",
+    summary="取消工單（非結案 → cancelled）",
+    response_model=WorkOrderEnvelope,
+)
+async def cancel_work_order(
+    id: str = Path(),
+    body: WorkOrderCancelRequest | None = None,
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    order = await work_order_service.cancel_order(
+        tenant_id=user.tenant_id,
+        wo_id=id,
+        reason=body.reason if body else None,
+    )
+    payload = {"data": WorkOrder(**order).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload

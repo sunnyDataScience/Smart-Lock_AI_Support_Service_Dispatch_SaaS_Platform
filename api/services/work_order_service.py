@@ -173,6 +173,114 @@ async def get_order(*, tenant_id: str, wo_id: str) -> dict:
     return _wo_row_to_dict(row)
 
 
+_ACCEPT_FROM = {"assigned"}
+_COMPLETE_FROM = {"accepted", "in_progress"}
+_CANCEL_FROM = {"created", "assigned", "accepted", "in_progress"}
+
+
+async def _fetch_status_for_update(wo_id: str, tenant_id: str) -> str:
+    """Fetch current DB status with tenant guard. Raises NOT_FOUND if missing."""
+    cur = await db_module._conn.execute(
+        f"SELECT wo.status {_WO_JOIN} "
+        f"WHERE wo.id = %s::uuid AND u.tenant_id = %s::uuid",
+        (wo_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "Work order not found", 404)
+    return row[0]
+
+
+async def accept_order(*, tenant_id: str, wo_id: str) -> dict:
+    """assigned → accepted, set accepted_at = NOW."""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    current = await _fetch_status_for_update(wo_id, tenant_id)
+    if current not in _ACCEPT_FROM:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot accept work order in status '{current}'; expected one of {sorted(_ACCEPT_FROM)}",
+            409,
+        )
+    await db_module._conn.execute(
+        "UPDATE work_orders SET status = 'accepted', accepted_at = NOW(), updated_at = NOW() "
+        "WHERE id = %s::uuid",
+        (wo_id,),
+    )
+    return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+
+
+async def complete_order(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    summary: str,
+    actual_amount: str | None = None,
+) -> dict:
+    """accepted | in_progress → completed, set completed_at = NOW (auto-fill started_at)."""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    current = await _fetch_status_for_update(wo_id, tenant_id)
+    if current not in _COMPLETE_FROM:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot complete work order in status '{current}'; expected one of {sorted(_COMPLETE_FROM)}",
+            409,
+        )
+    final_price: float | None = None
+    if actual_amount is not None:
+        try:
+            final_price = float(actual_amount)
+        except ValueError as e:
+            raise ApiError("VALIDATION_ERROR", "actual_amount is not a valid decimal", 422) from e
+    await db_module._conn.execute(
+        "UPDATE work_orders SET "
+        "  status = 'completed', "
+        "  completed_at = NOW(), "
+        "  started_at = COALESCE(started_at, NOW()), "
+        "  service_report = %s, "
+        "  final_price = COALESCE(%s, final_price), "
+        "  updated_at = NOW() "
+        "WHERE id = %s::uuid",
+        (summary, final_price, wo_id),
+    )
+    return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+
+
+async def cancel_order(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    reason: str | None = None,
+) -> dict:
+    """created | assigned | accepted | in_progress → cancelled."""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    current = await _fetch_status_for_update(wo_id, tenant_id)
+    if current not in _CANCEL_FROM:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot cancel work order in status '{current}'; expected non-terminal",
+            409,
+        )
+    if reason:
+        await db_module._conn.execute(
+            "UPDATE work_orders SET "
+            "  status = 'cancelled', "
+            "  service_report = COALESCE(service_report, '') || E'\\n[CANCELLED] ' || %s, "
+            "  updated_at = NOW() "
+            "WHERE id = %s::uuid",
+            (reason, wo_id),
+        )
+    else:
+        await db_module._conn.execute(
+            "UPDATE work_orders SET status = 'cancelled', updated_at = NOW() "
+            "WHERE id = %s::uuid",
+            (wo_id,),
+        )
+    return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+
+
 async def get_dispatch_queue_snapshot(*, tenant_id: str) -> dict:
     """派工佇列快照：pending / assigning / assigned + sla_at_risk。
 
