@@ -1,7 +1,8 @@
-"""Vouchers router — listVouchers endpoint。
+"""Vouchers router — listVouchers + exportVoucher。
 
-operationId 對齊 openapi.yaml：listVouchers
-exportVoucher 留待 PDF 渲染模組接入。
+operationId 對齊 openapi.yaml：
+  - listVouchers       GET /accounting/vouchers
+  - exportVoucher      GET /accounting/vouchers/{id}/export → PDF
 """
 
 from __future__ import annotations
@@ -9,6 +10,7 @@ from __future__ import annotations
 from datetime import date
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import Response
 
 from core.deps import CurrentUser, require_tenant
 from models.generated import Voucher, VoucherPage
@@ -42,3 +44,35 @@ async def list_vouchers(
         "next_cursor": page["next_cursor"],
         "has_more": page["has_more"],
     }
+
+
+@router.get(
+    "/accounting/vouchers/{voucher_id}/export",
+    operation_id="exportVoucher",
+    summary="匯出傳票 PDF（A4）",
+    responses={
+        200: {
+            "description": "PDF 二進位",
+            "content": {"application/pdf": {}},
+        },
+        404: {"description": "Voucher not found"},
+    },
+)
+async def export_voucher(
+    voucher_id: str,
+    user: CurrentUser = Depends(require_tenant),
+) -> Response:
+    voucher = await voucher_service.get_voucher(
+        tenant_id=user.tenant_id,
+        voucher_id=voucher_id,
+    )
+    pdf_bytes = voucher_service.render_voucher_pdf(voucher)
+    filename = f"voucher_{voucher.get('voucher_number') or voucher_id}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Length": str(len(pdf_bytes)),
+        },
+    )
