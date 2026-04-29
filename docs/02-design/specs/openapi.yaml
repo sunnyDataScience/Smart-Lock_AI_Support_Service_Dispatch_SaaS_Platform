@@ -528,6 +528,39 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/v1/warranty-claims/{id}/decision:
+    post:
+      tags: [accounting]
+      summary: 保固審批決策（強制 Idempotency-Key）
+      description: |
+        管理員 / 客服經理對 filed / in_progress 的保固申請做決策。
+        decision = approve / reject / start_review 三選一，
+        approve 時可附 discount_offered（保固外折讓）。
+      operationId: submitWarrantyDecision
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WarrantyDecision'
+      responses:
+        '200':
+          description: 決策已記錄
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarrantyClaimEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: STATE_CONFLICT — 申請非 filed / in_progress
+        '422':
+          description: VALIDATION_ERROR — decision 不在白名單或 resolution 缺失
+
   /api/v1/refunds/{id}/decision:
     post:
       tags: [accounting]
@@ -2758,6 +2791,27 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/WarrantyClaim'
+
+    WarrantyDecision:
+      type: object
+      description: |
+        保固審批決策。approve / reject 為終局狀態；start_review 進入 in_progress 由
+        客服繼續調查（蒐證、聯繫客戶）後可再下 approve / reject。resolution 為審
+        批意見，approve / reject 時必填以利稽核；discount_offered 僅 approve 時
+        有意義（保固外折讓金額，2 位小數字串）。
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [approve, reject, start_review]
+        resolution:
+          type: string
+          maxLength: 500
+          description: 處理結果描述（approve / reject 必填）
+        discount_offered:
+          type: [string, "null"]
+          pattern: '^-?\d+(\.\d{1,2})?$'
+          description: 折讓金額（百分比或金額，由業務語意自行解讀；僅 approve 時生效）
 
     # --------- 退款申請（list/get） ---------
     RefundRequestStatus:

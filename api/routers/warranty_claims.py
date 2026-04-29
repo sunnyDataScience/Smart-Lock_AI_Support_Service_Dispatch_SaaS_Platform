@@ -1,20 +1,23 @@
-"""Warranty Claims router — listWarrantyClaims + getWarrantyClaim (read-only)。
+"""Warranty Claims router — list + get + submitWarrantyDecision。
 
-operationId 對齊 openapi.yaml：listWarrantyClaims, getWarrantyClaim
+operationId 對齊 openapi.yaml：
+  listWarrantyClaims, getWarrantyClaim, submitWarrantyDecision
 
-不含 createWarrantyClaim / approveWarrantyClaim / submitEvidence 等寫入路徑。
+不含 createWarrantyClaim / submitEvidence 等寫入路徑。
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Path, Query
 
 from core.deps import CurrentUser, require_tenant
+from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
     WarrantyClaim,
     WarrantyClaimEnvelope,
     WarrantyClaimPage,
     WarrantyClaimStatus,
+    WarrantyDecision,
 )
 from services import warranty_service
 
@@ -62,3 +65,31 @@ async def get_warranty_claim(
 ) -> dict:
     claim = await warranty_service.get_warranty_claim(tenant_id=user.tenant_id, claim_id=id)
     return {"data": WarrantyClaim(**claim).model_dump(mode="json")}
+
+
+@router.post(
+    "/warranty-claims/{id}/decision",
+    operation_id="submitWarrantyDecision",
+    summary="保固審批決策（filed | in_progress → approved / rejected / in_progress）",
+    response_model=WarrantyClaimEnvelope,
+)
+async def submit_warranty_decision(
+    body: WarrantyDecision,
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    decision_str = (
+        body.decision.value if hasattr(body.decision, "value") else str(body.decision)
+    )
+    claim = await warranty_service.submit_decision(
+        tenant_id=user.tenant_id,
+        claim_id=id,
+        decision=decision_str,
+        resolution=body.resolution,
+        discount_offered=body.discount_offered,
+    )
+    payload = {"data": WarrantyClaim(**claim).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload

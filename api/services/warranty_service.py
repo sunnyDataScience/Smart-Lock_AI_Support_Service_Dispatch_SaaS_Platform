@@ -1,8 +1,9 @@
-"""Warranty Claims 業務邏輯（Phase 1.24 read-only）。
+"""Warranty Claims 業務邏輯。
 
 範圍：listWarrantyClaims（cursor + limit + status + customer_id + work_order_id）、
-      getWarrantyClaim。
-不含：createWarrantyClaim / approveWarrantyClaim / submitEvidence 等寫入路徑。
+      getWarrantyClaim、submitWarrantyDecision（filed | in_progress → approved /
+      rejected / in_progress 三選一）。
+不含：createWarrantyClaim / submitEvidence 等其他寫入路徑。
 
 OpenAPI WarrantyClaim schema：
     id, customer_id, device_brand, device_model, warranty_start_date,
@@ -158,3 +159,89 @@ async def get_warranty_claim(*, tenant_id: str, claim_id: str) -> dict:
     if not row:
         raise ApiError("NOT_FOUND", f"Warranty claim {claim_id} not found", 404)
     return _row_to_dict(row)
+
+
+# 決策狀態機：只有 filed / in_progress 可下決策；approved / rejected / closed 為終局
+_DECISION_FROM = {"filed", "in_progress"}
+_DECISION_TO_STATUS = {
+    "approve": "approved",
+    "reject": "rejected",
+    "start_review": "in_progress",
+}
+
+
+async def submit_decision(
+    *,
+    tenant_id: str,
+    claim_id: str,
+    decision: str,
+    resolution: str | None,
+    discount_offered: str | None,
+) -> dict:
+    """filed | in_progress → approved / rejected / in_progress。
+
+    - approve / reject 必填 resolution（500 字內）作為審批意見稽核軌跡
+    - approve 時可帶 discount_offered（保固外折讓金額，2 位小數字串）
+    - start_review 將狀態推到 in_progress 由客服繼續調查；resolution 可選
+    """
+    if decision not in _DECISION_TO_STATUS:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"decision must be one of {sorted(_DECISION_TO_STATUS)}",
+            422,
+        )
+
+    resolution_clean: str | None = None
+    if resolution and resolution.strip():
+        resolution_clean = resolution.strip()[:500]
+
+    if decision in ("approve", "reject") and not resolution_clean:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "resolution is required for approve / reject decisions",
+            422,
+        )
+
+    discount_value: float | None = None
+    if discount_offered is not None and decision == "approve":
+        try:
+            discount_value = float(discount_offered)
+        except ValueError as e:
+            raise ApiError(
+                "VALIDATION_ERROR",
+                "discount_offered is not a valid decimal",
+                422,
+            ) from e
+
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    cur = await db_module._conn.execute(
+        f"SELECT w.status {_TENANT_JOIN} "
+        f"WHERE w.id = %s::uuid AND u.tenant_id = %s::uuid",
+        (claim_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", f"Warranty claim {claim_id} not found", 404)
+
+    current = row[0]
+    if current not in _DECISION_FROM:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot decide warranty claim in status '{current}'; expected one of {sorted(_DECISION_FROM)}",
+            409,
+        )
+
+    new_status = _DECISION_TO_STATUS[decision]
+
+    await db_module._conn.execute(
+        "UPDATE warranty_claims SET "
+        "  status = %s, "
+        "  resolution = COALESCE(%s, resolution), "
+        "  discount_offered = COALESCE(%s, discount_offered), "
+        "  updated_at = NOW() "
+        "WHERE id = %s::uuid",
+        (new_status, resolution_clean, discount_value, claim_id),
+    )
+    return await get_warranty_claim(tenant_id=tenant_id, claim_id=claim_id)

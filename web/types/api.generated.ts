@@ -340,6 +340,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/warranty-claims/{id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 保固審批決策（強制 Idempotency-Key）
+         * @description 管理員 / 客服經理對 filed / in_progress 的保固申請做決策。
+         *     decision = approve / reject / start_review 三選一，
+         *     approve 時可附 discount_offered（保固外折讓）。
+         */
+        post: operations["submitWarrantyDecision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/refunds/{id}/decision": {
         parameters: {
             query?: never;
@@ -1677,6 +1699,20 @@ export interface components {
         };
         WarrantyClaimPage: components["schemas"]["CursorPage"] & {
             items?: components["schemas"]["WarrantyClaim"][];
+        };
+        /**
+         * @description 保固審批決策。approve / reject 為終局狀態；start_review 進入 in_progress 由
+         *     客服繼續調查（蒐證、聯繫客戶）後可再下 approve / reject。resolution 為審
+         *     批意見，approve / reject 時必填以利稽核；discount_offered 僅 approve 時
+         *     有意義（保固外折讓金額，2 位小數字串）。
+         */
+        WarrantyDecision: {
+            /** @enum {string} */
+            decision: "approve" | "reject" | "start_review";
+            /** @description 處理結果描述（approve / reject 必填） */
+            resolution?: string;
+            /** @description 折讓金額（百分比或金額，由業務語意自行解讀；僅 approve 時生效） */
+            discount_offered?: string | null;
         };
         /** @enum {string} */
         RefundRequestStatus: "pending" | "approved" | "rejected" | "escalated" | "executed" | "cancelled";
@@ -3469,6 +3505,55 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+        };
+    };
+    submitWarrantyDecision: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WarrantyDecision"];
+            };
+        };
+        responses: {
+            /** @description 決策已記錄 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WarrantyClaimEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description STATE_CONFLICT — 申請非 filed / in_progress */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description VALIDATION_ERROR — decision 不在白名單或 resolution 缺失 */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     submitRefundDecision: {

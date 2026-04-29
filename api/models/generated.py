@@ -307,6 +307,32 @@ class WarrantyClaimPage(CursorPage):
     items: list[WarrantyClaim] | None = None
 
 
+class Decision(StrEnum):
+    approve = 'approve'
+    reject = 'reject'
+    start_review = 'start_review'
+
+
+class WarrantyDecision(BaseModel):
+    """
+    保固審批決策。approve / reject 為終局狀態；start_review 進入 in_progress 由
+    客服繼續調查（蒐證、聯繫客戶）後可再下 approve / reject。resolution 為審
+    批意見，approve / reject 時必填以利稽核；discount_offered 僅 approve 時
+    有意義（保固外折讓金額，2 位小數字串）。
+
+    """
+
+    decision: Decision
+    resolution: str | None = Field(None, max_length=500)
+    """
+    處理結果描述（approve / reject 必填）
+    """
+    discount_offered: str | None = Field(None, pattern='^-?\\d+(\\.\\d{1,2})?$')
+    """
+    折讓金額（百分比或金額，由業務語意自行解讀；僅 approve 時生效）
+    """
+
+
 class RefundRequestStatus(StrEnum):
     pending = 'pending'
     approved = 'approved'
@@ -414,14 +440,14 @@ class DisputePage(CursorPage):
     items: list[Dispute] | None = None
 
 
-class Decision(StrEnum):
+class Decision1(StrEnum):
     approve = 'approve'
     reject = 'reject'
     escalate = 'escalate'
 
 
 class RefundDecision(BaseModel):
-    decision: Decision
+    decision: Decision1
     reason: str = Field(..., max_length=500)
     dual_sign_required: bool | None = None
     """
@@ -1257,13 +1283,13 @@ class SopDraftPage(CursorPage):
     items: list[SopDraft] | None = None
 
 
-class Decision1(StrEnum):
+class Decision2(StrEnum):
     approve = 'approve'
     reject = 'reject'
 
 
 class SopDraftReviewRequest(BaseModel):
-    decision: Decision1
+    decision: Decision2
     comment: str | None = Field(None, max_length=1000)
 
 
