@@ -9,6 +9,8 @@ type Manual = components["schemas"]["Manual"];
 interface Props {
   items: Manual[];
   loading?: boolean;
+  onDelete?: (manual: Manual) => void;
+  pendingDeleteId?: string | null;
 }
 
 const columns = [
@@ -53,7 +55,7 @@ function StatusBadge({ status }: { status: Manual["status"] }) {
   );
 }
 
-export default function ManualsTable({ items, loading }: Props) {
+export default function ManualsTable({ items, loading, onDelete, pendingDeleteId }: Props) {
   return (
     <div className="overflow-hidden rounded-lg border border-[var(--border)]">
       {/* Header */}
@@ -124,9 +126,20 @@ export default function ManualsTable({ items, loading }: Props) {
                   }`}
                 />
               </button>
-              <button disabled title="即將推出" className="cursor-not-allowed">
-                <Trash2 className="h-4 w-4 text-[var(--text-disabled)]" />
-              </button>
+              {onDelete ? (
+                <button
+                  onClick={() => onDelete(item)}
+                  disabled={pendingDeleteId === item.id}
+                  title="刪除手冊"
+                  className="rounded p-[2px] text-[var(--text-secondary)] transition hover:bg-red-50 hover:text-[var(--status-danger)] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              ) : (
+                <button disabled title="即將推出" className="cursor-not-allowed">
+                  <Trash2 className="h-4 w-4 text-[var(--text-disabled)]" />
+                </button>
+              )}
             </span>
           </div>
         );
