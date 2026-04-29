@@ -916,6 +916,25 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /api/v1/auth/change-password:
+    post:
+      tags: [auth]
+      summary: 變更密碼（需要當前密碼驗證）
+      operationId: changePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '204':
+          description: 密碼已更新
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
   # -----------------------------
   # conversations / problem-cards 補充
   # -----------------------------
@@ -3669,6 +3688,22 @@ components:
       type: object
       properties:
         refresh_token: { type: [string, "null"] }
+
+    ChangePasswordRequest:
+      type: object
+      required: [current_password, new_password]
+      description: |
+        變更密碼。new_password 至少 8 字元（與 bcrypt 72 byte 上限一致），
+        且不可與 current_password 相同。
+      properties:
+        current_password:
+          type: string
+          minLength: 8
+          maxLength: 72
+        new_password:
+          type: string
+          minLength: 8
+          maxLength: 72
 
     # --------- Dashboard ---------
     DashboardPeriod:

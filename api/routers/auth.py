@@ -28,6 +28,11 @@ class LogoutBody(BaseModel):
     refresh_token: str | None = None
 
 
+class ChangePasswordBody(BaseModel):
+    current_password: str = Field(min_length=8, max_length=72)
+    new_password: str = Field(min_length=8, max_length=72)
+
+
 class TechnicianRegisterBody(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     phone: str = Field(pattern=r"^09\d{8}$")
@@ -86,6 +91,24 @@ async def logout(
         access_user_id=user.user_id,
         access_exp_iso=None,
         refresh_token=(body.refresh_token if body else None),
+    )
+    return Response(status_code=204)
+
+
+@router.post(
+    "/auth/change-password",
+    operation_id="changePassword",
+    summary="變更密碼（需要當前密碼驗證）",
+    status_code=204,
+)
+async def change_password(
+    body: ChangePasswordBody,
+    user: CurrentUser = Depends(get_current_user),
+) -> Response:
+    await auth_service.change_password(
+        user_id=user.user_id,
+        current_password=body.current_password,
+        new_password=body.new_password,
     )
     return Response(status_code=204)
 

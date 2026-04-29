@@ -135,6 +135,41 @@ async def logout(*, access_jti: str, access_user_id: str, access_exp_iso: str | 
             pass
 
 
+async def change_password(*, user_id: str, current_password: str, new_password: str) -> None:
+    """變更密碼：驗證 current → 寫入新 hash。
+
+    驗證規則：
+      - current_password 必須與 DB hash 相符
+      - new_password 不可與 current_password 完全相同
+      - 帳戶 is_active=TRUE
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    if current_password == new_password:
+        raise ApiError("VALIDATION_ERROR", "New password must differ from current password", 422)
+
+    cur = await db_module._conn.execute(
+        "SELECT password_hash, is_active FROM users WHERE id = %s::uuid LIMIT 1",
+        (user_id,),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("UNAUTHENTICATED", "User not found", 401)
+
+    pw_hash, is_active = row[0], row[1]
+    if not is_active:
+        raise ApiError("ACCOUNT_DISABLED", "Account is disabled", 403)
+    if not pw_hash or not verify_password(current_password, pw_hash):
+        raise ApiError("INVALID_CURRENT_PASSWORD", "Current password is incorrect", 401)
+
+    new_hash = hash_password(new_password)
+    await db_module._conn.execute(
+        "UPDATE users SET password_hash = %s, updated_at = NOW() WHERE id = %s::uuid",
+        (new_hash, user_id),
+    )
+
+
 async def register_technician(req: dict) -> dict:
     """建立 users(role='technician') + technicians 兩列。"""
     if not await _ensure_conn():

@@ -550,6 +550,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/change-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 變更密碼（需要當前密碼驗證） */
+        post: operations["changePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/conversations/{id}/messages": {
         parameters: {
             query?: never;
@@ -2239,6 +2256,14 @@ export interface components {
         AuthLogoutRequest: {
             refresh_token?: string | null;
         };
+        /**
+         * @description 變更密碼。new_password 至少 8 字元（與 bcrypt 72 byte 上限一致），
+         *     且不可與 current_password 相同。
+         */
+        ChangePasswordRequest: {
+            current_password: string;
+            new_password: string;
+        };
         /** @enum {string} */
         DashboardPeriod: "today" | "7d" | "30d" | "90d";
         DashboardStats: {
@@ -3802,6 +3827,30 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    changePassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangePasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description 密碼已更新 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
         };
     };
     listConversationMessages: {
