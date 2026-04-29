@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   RefreshCw,
   Calendar,
@@ -9,121 +9,96 @@ import {
   Timer,
   Info,
   ArrowRight,
-  Star,
-  StarHalf,
-  ThumbsDown,
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
+import { ApiError, api } from "@/lib/api";
+import type { components } from "@/types/api.generated";
 
-const segments = [
-  { label: "日", active: false },
-  { label: "週", active: false },
-  { label: "月", active: true },
-  { label: "季", active: false },
+type KpiReport = components["schemas"]["KpiReport"];
+type Period = components["schemas"]["DashboardPeriod"];
+
+const SEGMENTS: { label: string; value: Period }[] = [
+  { label: "今日", value: "today" },
+  { label: "7 天", value: "7d" },
+  { label: "30 天", value: "30d" },
+  { label: "90 天", value: "90d" },
 ];
 
-interface FunnelRow {
-  label: string;
-  value: string;
-  color: string;
-  widthPercent: number;
+function formatPercent(rateStr: string | null | undefined): string {
+  if (rateStr === null || rateStr === undefined) return "—";
+  const v = Number(rateStr);
+  if (!Number.isFinite(v)) return "—";
+  return `${(v * 100).toFixed(1)}%`;
 }
 
-const funnelRows: FunnelRow[] = [
-  { label: "對話建立", value: "1,245（100%）", color: "#1E40AF", widthPercent: 100 },
-  { label: "ProblemCard 產出", value: "892（71.6%）", color: "#2563EB", widthPercent: 72 },
-  { label: "工單建立", value: "634（51%）", color: "#3B82F6", widthPercent: 51 },
-  { label: "派出/接受", value: "589（47.3%）", color: "#06B6D4", widthPercent: 47 },
-  { label: "完工", value: "523（42%）", color: "#10B981", widthPercent: 42 },
-  { label: "滿意評價", value: "489（39.3%）", color: "#047857", widthPercent: 39 },
-];
+function formatGeneratedAt(iso: string | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
 
-const conversionRates = ["71.6%", "71.1%", "92.9%", "88.8%", "93.5%"];
-const conversionColors = ["#2563EB", "#2563EB", "#10B981", "#2563EB", "#10B981"];
-
-interface SlaDonut {
+interface FunnelStage {
   label: string;
-  value: string;
-  target: string;
-  sweepAngle: number;
+  value: number;
   color: string;
 }
 
-const slaData: SlaDonut[] = [
-  { label: "接單 SLA", value: "96.2%", target: "目標 95%", sweepAngle: 96.2, color: "var(--status-success)" },
-  { label: "到場 SLA", value: "91.8%", target: "目標 90%", sweepAngle: 91.8, color: "var(--status-success)" },
-  { label: "完工 SLA", value: "88.5%", target: "目標 85%", sweepAngle: 88.5, color: "var(--status-success)" },
-  { label: "回覆 SLA", value: "98.1%", target: "目標 98%", sweepAngle: 98.1, color: "var(--status-warning)" },
-];
-
-interface SlaBar {
-  name: string;
-  value: string;
-  percent: number;
-  color: string;
+function buildFunnel(report: KpiReport | null): FunnelStage[] {
+  const f = report?.funnel;
+  if (!f) return [];
+  return [
+    { label: "對話建立", value: f.conversations, color: "#1E40AF" },
+    { label: "ProblemCard 產出", value: f.problem_cards, color: "#2563EB" },
+    { label: "工單建立", value: f.work_orders, color: "#3B82F6" },
+    { label: "派出/接受", value: f.dispatched, color: "#06B6D4" },
+    { label: "完工", value: f.completed, color: "#10B981" },
+  ];
 }
 
-const slaBars: SlaBar[] = [
-  { name: "王大明", value: "98.5%", percent: 98.5, color: "var(--status-success)" },
-  { name: "李小華", value: "97.1%", percent: 97.1, color: "var(--status-success)" },
-  { name: "張志偉", value: "95.3%", percent: 95.3, color: "var(--status-success)" },
-  { name: "陳美玲", value: "93.8%", percent: 93.8, color: "var(--status-warning)" },
-  { name: "林建宏", value: "92.4%", percent: 92.4, color: "var(--status-warning)" },
-];
-
-interface DisputeMetric {
-  label: string;
-  value: string;
-  valueColor: string;
-  barWidth: number;
-  barColor: string;
-}
-
-const disputeLeft: DisputeMetric[] = [
-  { label: "退款率", value: "2.8%", valueColor: "var(--status-warning)", barWidth: 28, barColor: "var(--status-warning)" },
-  { label: "保固索賠率", value: "1.5%", valueColor: "var(--status-info)", barWidth: 15, barColor: "var(--status-info)" },
-  { label: "爭議升級率", value: "0.8%", valueColor: "var(--status-success)", barWidth: 8, barColor: "var(--status-success)" },
-];
-
-const disputeRight: DisputeMetric[] = [
-  { label: "返工率", value: "2.1%", valueColor: "var(--status-warning)", barWidth: 21, barColor: "var(--status-warning)" },
-  { label: "FTFR 一次修好率", value: "94.2%", valueColor: "var(--status-success)", barWidth: 94, barColor: "var(--status-success)" },
-];
-
-function SlaRing({ item }: { item: SlaDonut }) {
-  const radius = 40;
-  const circumference = 2 * Math.PI * radius;
-  const progress = (item.sweepAngle / 100) * circumference;
-
+function PendingTag({ note }: { note: string }) {
   return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="relative h-[90px] w-[90px]">
-        <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100">
-          <circle
-            cx="50" cy="50" r={radius}
-            fill="none" stroke="#E2E8F0" strokeWidth="11"
-          />
-          <circle
-            cx="50" cy="50" r={radius}
-            fill="none" stroke={item.color} strokeWidth="11"
-            strokeDasharray={`${progress} ${circumference}`}
-            strokeLinecap="round"
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-sm font-bold text-[var(--text-primary)]">
-            {item.value}
-          </span>
-        </div>
-      </div>
-      <span className="text-xs text-[var(--text-primary)]">{item.label}</span>
-      <span className="text-[11px] text-[var(--text-secondary)]">{item.target}</span>
-    </div>
+    <span
+      className="ml-2 rounded-md bg-[#FEF3C7] px-2 py-[2px] text-[10px] font-semibold text-[#92400E]"
+      title={note}
+    >
+      待接入
+    </span>
   );
 }
 
 export default function KpiDashboardPage() {
-  const [activeSegment, setActiveSegment] = useState("月");
+  const [period, setPeriod] = useState<Period>("30d");
+  const [report, setReport] = useState<KpiReport | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  async function fetchReport(p: Period) {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.get<KpiReport>(
+        `/api/v1/reports/kpi?period=${p}`,
+      );
+      setReport(res);
+    } catch (e) {
+      setError(
+        e instanceof ApiError
+          ? `${e.errorCode} (${e.status})：${e.message}`
+          : e instanceof Error
+            ? e.message
+            : String(e),
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchReport(period);
+  }, [period]);
+
+  const funnel = buildFunnel(report);
+  const baseValue = funnel[0]?.value ?? 0;
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -140,24 +115,44 @@ export default function KpiDashboardPage() {
               <h1 className="text-2xl font-semibold text-[var(--text-primary)]">
                 KPI 儀表板
               </h1>
-              <button className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
-                <RefreshCw className="h-4 w-4 text-[var(--text-secondary)]" />
+              <button
+                onClick={() => fetchReport(period)}
+                disabled={loading}
+                title="重新整理"
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 text-[var(--text-secondary)] ${
+                    loading ? "animate-spin" : ""
+                  }`}
+                />
               </button>
             </div>
             <span className="text-[13px] text-[var(--text-secondary)]">
-              資料截至 2026-04-25 14:30（延遲 &lt; 5 分鐘）
+              資料截至 {formatGeneratedAt(report?.generated_at)}
             </span>
+          </div>
+
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] leading-relaxed text-amber-800">
+            目前僅展示可從現有資料表計算的 KPI（轉換漏斗 / 異常率 / 平均處理時長）；
+            SLA 達成率 / 客戶滿意度 / NPS / 差評率 / FTFR 等指標需各自獨立模組接入後再上線。
           </div>
 
           {/* Toolbar */}
           <div className="flex items-center gap-3">
             <div className="flex rounded-lg bg-[#F1F5F9] p-[3px]">
-              {segments.map((seg) => (
+              {SEGMENTS.map((seg) => (
                 <button
-                  key={seg.label}
-                  onClick={() => setActiveSegment(seg.label)}
+                  key={seg.value}
+                  onClick={() => setPeriod(seg.value)}
                   className={`rounded-md px-[14px] py-[6px] text-[13px] ${
-                    activeSegment === seg.label
+                    period === seg.value
                       ? "bg-[var(--primary)] font-medium text-white"
                       : "font-medium text-[var(--text-secondary)]"
                   }`}
@@ -167,33 +162,42 @@ export default function KpiDashboardPage() {
               ))}
             </div>
 
-            <button className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-[7px]">
+            <button
+              disabled
+              title="即將推出（自訂日期區間）"
+              className="flex cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-[7px] opacity-50"
+            >
               <Calendar className="h-4 w-4 text-[var(--text-secondary)]" />
               <span className="text-[13px] text-[var(--text-primary)]">
-                2025-05 ~ 2026-04
+                自訂日期區間
               </span>
             </button>
 
-            <button className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-[7px]">
+            <button
+              disabled
+              title="即將推出（品牌 / 區域切片）"
+              className="flex cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-[7px] opacity-50"
+            >
               <span className="text-[13px] text-[var(--text-primary)]">切片：全部</span>
               <ChevronDown className="h-4 w-4 text-[var(--text-secondary)]" />
             </button>
 
-            <div className="flex items-center gap-2">
-              <div className="relative h-5 w-9 rounded-full bg-[var(--primary)]">
-                <div className="absolute right-[2px] top-[2px] h-4 w-4 rounded-full bg-white" />
-              </div>
-              <span className="text-[13px] text-[var(--text-primary)]">與上期比較</span>
-            </div>
-
             <div className="flex-1" />
 
-            <button className="flex items-center gap-[6px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-[14px] py-[7px]">
+            <button
+              disabled
+              title="即將推出"
+              className="flex cursor-not-allowed items-center gap-[6px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-[14px] py-[7px] opacity-50"
+            >
               <Download className="h-4 w-4 text-[var(--text-secondary)]" />
               <span className="text-[13px] text-[var(--text-primary)]">匯出報告</span>
             </button>
 
-            <button className="flex items-center gap-[6px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-[14px] py-[7px]">
+            <button
+              disabled
+              title="即將推出（排程週/月報）"
+              className="flex cursor-not-allowed items-center gap-[6px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-[14px] py-[7px] opacity-50"
+            >
               <Timer className="h-4 w-4 text-[var(--text-secondary)]" />
               <span className="text-[13px] text-[var(--text-primary)]">排程週/月報</span>
             </button>
@@ -208,177 +212,103 @@ export default function KpiDashboardPage() {
               <Info className="h-4 w-4 text-[var(--text-disabled)]" />
             </div>
 
-            <div className="flex flex-col gap-2">
-              {funnelRows.map((row) => (
-                <div
-                  key={row.label}
-                  className="flex h-9 items-center justify-between rounded-md px-3"
-                  style={{
-                    backgroundColor: row.color,
-                    width: `${row.widthPercent}%`,
-                  }}
-                >
-                  <span className="text-xs font-semibold text-white">{row.label}</span>
-                  <span className="text-xs font-semibold text-white">{row.value}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex items-center justify-center gap-[6px] pt-2">
-              {conversionRates.map((rate, i) => (
-                <div key={i} className="flex items-center gap-[6px]">
-                  {i > 0 && <ArrowRight className="h-[14px] w-[14px] text-[var(--text-disabled)]" />}
-                  <span
-                    className="text-[11px] font-semibold"
-                    style={{ color: conversionColors[i] }}
-                  >
-                    {rate}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <span className="text-center text-[11px] text-[var(--text-secondary)]">
-              各階段轉換率
-            </span>
-          </div>
-
-          {/* SLA Achievement Card */}
-          <div className="flex flex-col gap-5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
-            <span className="text-base font-semibold text-[var(--text-primary)]">
-              SLA 達成率
-            </span>
-
-            <div className="flex gap-6">
-              <div className="flex flex-1 items-center justify-around">
-                {slaData.map((item) => (
-                  <SlaRing key={item.label} item={item} />
-                ))}
+            {loading && !report ? (
+              <div className="flex h-32 items-center justify-center text-[13px] text-[var(--text-secondary)]">
+                載入中…
               </div>
-
-              <div className="flex flex-1 flex-col gap-3">
-                <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-                  Top 5 技師 SLA 達成率
-                </span>
-                {slaBars.map((bar) => (
-                  <div key={bar.name} className="flex items-center gap-2">
-                    <span className="w-14 text-xs text-[var(--text-primary)]">
-                      {bar.name}
-                    </span>
-                    <div className="h-5 flex-1 rounded bg-[#E2E8F0]">
+            ) : baseValue === 0 ? (
+              <div className="flex h-32 items-center justify-center text-[13px] text-[var(--text-secondary)]">
+                此期間尚無對話資料
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-col gap-2">
+                  {funnel.map((row) => {
+                    const widthPercent =
+                      baseValue > 0
+                        ? Math.max(15, (row.value / baseValue) * 100)
+                        : 100;
+                    const ratio =
+                      baseValue > 0
+                        ? `${((row.value / baseValue) * 100).toFixed(1)}%`
+                        : "—";
+                    return (
                       <div
-                        className="h-5 rounded"
+                        key={row.label}
+                        className="flex h-9 items-center justify-between rounded-md px-3"
                         style={{
-                          width: `${bar.percent}%`,
-                          backgroundColor: bar.color,
+                          backgroundColor: row.color,
+                          width: `${widthPercent}%`,
                         }}
-                      />
-                    </div>
-                    <span
-                      className="text-xs font-semibold"
-                      style={{ color: bar.color }}
-                    >
-                      {bar.value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Customer Satisfaction Card */}
-          <div className="flex flex-col gap-5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
-            <span className="text-base font-semibold text-[var(--text-primary)]">
-              客戶滿意度
-            </span>
-
-            <div className="flex gap-4">
-              {/* Star Rating */}
-              <div className="flex flex-1 flex-col items-center gap-3 rounded-[10px] border border-[var(--border)] bg-[#F8FAFC] p-5">
-                <span className="text-[13px] text-[var(--text-secondary)]">平均星等</span>
-                <span className="text-[28px] font-bold text-[var(--text-primary)]">
-                  4.6 / 5.0
-                </span>
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4].map((i) => (
-                    <Star key={i} className="h-5 w-5 fill-[#F59E0B] text-[#F59E0B]" />
-                  ))}
-                  <StarHalf className="h-5 w-5 fill-[#F59E0B] text-[#F59E0B]" />
+                      >
+                        <span className="text-xs font-semibold text-white">
+                          {row.label}
+                        </span>
+                        <span className="text-xs font-semibold text-white">
+                          {row.value.toLocaleString()}（{ratio}）
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
 
-              {/* NPS */}
-              <div className="flex flex-1 flex-col items-center gap-3 rounded-[10px] border border-[var(--border)] bg-[#F8FAFC] p-5">
-                <span className="text-[13px] text-[var(--text-secondary)]">NPS 淨推薦值</span>
-                <span className="text-[28px] font-bold text-[var(--status-success)]">
-                  +62
-                </span>
-                <div className="flex h-5 w-full overflow-hidden rounded">
-                  <div className="bg-[var(--status-success)]" style={{ width: "64%" }} />
-                  <div className="bg-[var(--status-warning)]" style={{ width: "24%" }} />
-                  <div className="bg-[var(--status-danger)]" style={{ width: "12%" }} />
+                {/* Stage-to-stage rate */}
+                <div className="flex items-center justify-center gap-[6px] pt-2">
+                  {funnel.slice(1).map((row, i) => {
+                    const prev = funnel[i].value;
+                    const rate =
+                      prev > 0
+                        ? `${((row.value / prev) * 100).toFixed(1)}%`
+                        : "—";
+                    const color = prev > 0 && row.value / prev >= 0.9
+                      ? "#10B981"
+                      : "#2563EB";
+                    return (
+                      <div key={i} className="flex items-center gap-[6px]">
+                        {i > 0 && (
+                          <ArrowRight className="h-[14px] w-[14px] text-[var(--text-disabled)]" />
+                        )}
+                        <span
+                          className="text-[11px] font-semibold"
+                          style={{ color }}
+                        >
+                          {rate}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="flex gap-3">
-                  <span className="text-[10px] text-[var(--status-success)]">● 推薦者 64%</span>
-                  <span className="text-[10px] text-[var(--status-warning)]">● 被動者 24%</span>
-                  <span className="text-[10px] text-[var(--status-danger)]">● 貶損者 12%</span>
-                </div>
-              </div>
-
-              {/* Bad Review */}
-              <div className="flex flex-1 flex-col items-center gap-3 rounded-[10px] border border-[var(--border)] bg-[#F8FAFC] p-5">
-                <span className="text-[13px] text-[var(--text-secondary)]">差評率</span>
-                <span className="text-[28px] font-bold text-[var(--status-success)]">
-                  3.2%
+                <span className="text-center text-[11px] text-[var(--text-secondary)]">
+                  各階段轉換率
                 </span>
-                <span className="text-xs text-[var(--text-secondary)]">共 17 則差評</span>
-                <ThumbsDown className="h-6 w-6 text-[var(--text-disabled)]" />
-              </div>
-            </div>
+              </>
+            )}
           </div>
 
           {/* Dispute & Anomaly Card */}
           <div className="flex flex-col gap-5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
             <span className="text-base font-semibold text-[var(--text-primary)]">
-              爭議與異常率
+              異常率
             </span>
             <div className="flex gap-4">
-              <div className="flex flex-1 flex-col gap-4 rounded-[10px] border border-[var(--border)] bg-[#F8FAFC] p-5">
-                {disputeLeft.map((m) => (
-                  <div key={m.label} className="flex flex-col gap-[6px]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[13px] text-[var(--text-primary)]">{m.label}</span>
-                      <span className="text-[13px] font-semibold" style={{ color: m.valueColor }}>
-                        {m.value}
-                      </span>
-                    </div>
-                    <div className="h-2 w-full rounded bg-[#E2E8F0]">
-                      <div
-                        className="h-2 rounded"
-                        style={{ width: `${m.barWidth}%`, backgroundColor: m.barColor }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex flex-1 flex-col gap-4 rounded-[10px] border border-[var(--border)] bg-[#F8FAFC] p-5">
-                {disputeRight.map((m) => (
-                  <div key={m.label} className="flex flex-col gap-[6px]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[13px] text-[var(--text-primary)]">{m.label}</span>
-                      <span className="text-[13px] font-semibold" style={{ color: m.valueColor }}>
-                        {m.value}
-                      </span>
-                    </div>
-                    <div className="h-2 w-full rounded bg-[#E2E8F0]">
-                      <div
-                        className="h-2 rounded"
-                        style={{ width: `${m.barWidth}%`, backgroundColor: m.barColor }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <DisputeRow
+                label="退款率"
+                rate={report?.dispute_rates?.refund_rate}
+                target={0.05}
+                hint="refund_requests / work_orders"
+              />
+              <DisputeRow
+                label="保固索賠率"
+                rate={report?.dispute_rates?.warranty_claim_rate}
+                target={0.05}
+                hint="warranty_claims / work_orders"
+              />
+              <DisputeRow
+                label="爭議升級率"
+                rate={report?.dispute_rates?.dispute_rate}
+                target={0.02}
+                hint="disputes / work_orders"
+              />
             </div>
           </div>
 
@@ -390,81 +320,91 @@ export default function KpiDashboardPage() {
 
             <div className="flex gap-4">
               <div className="flex flex-1 flex-col items-center gap-2 rounded-[10px] border border-[var(--border)] bg-[#F8FAFC] p-5">
-                <span className="text-[13px] text-[var(--text-secondary)]">平均處理時長</span>
-                <span className="text-2xl font-bold text-[var(--text-primary)]">
-                  2.4 小時
+                <span className="text-[13px] text-[var(--text-secondary)]">
+                  平均處理時長
                 </span>
-                <span className="text-[11px] text-[var(--status-success)]">
-                  ▼ 12% vs 上期
+                <span className="text-2xl font-bold text-[var(--text-primary)]">
+                  {report?.technician_efficiency?.avg_handle_minutes != null
+                    ? `${report.technician_efficiency.avg_handle_minutes} 分`
+                    : "—"}
+                </span>
+                <span className="text-[11px] text-[var(--text-secondary)]">
+                  樣本：{report?.technician_efficiency?.completed_count ?? 0} 筆完工
                 </span>
               </div>
               <div className="flex flex-1 flex-col items-center gap-2 rounded-[10px] border border-[var(--border)] bg-[#F8FAFC] p-5">
-                <span className="text-[13px] text-[var(--text-secondary)]">
+                <div className="flex items-center text-[13px] text-[var(--text-secondary)]">
                   一次修好率（FTFR）
-                </span>
-                <span className="text-2xl font-bold text-[var(--status-success)]">
-                  94.2%
-                </span>
-                <span className="text-[11px] text-[var(--status-success)]">
-                  ▲ 3.1% vs 上期
-                </span>
+                  <PendingTag note="需 rework_of_id 業務邏輯確認" />
+                </div>
+                <span className="text-2xl font-bold text-[var(--text-disabled)]">—</span>
+                <span className="text-[11px] text-[var(--text-secondary)]">尚未接入</span>
               </div>
             </div>
+          </div>
 
-            {/* Scatter Plot */}
-            <div className="relative h-[280px] rounded-[10px] border border-[var(--border)] bg-[#F8FAFC]">
-              <span className="absolute left-2 top-[120px] -rotate-90 text-[10px] text-[var(--text-secondary)]">
-                FTFR（%）
+          {/* SLA placeholder */}
+          <div className="flex flex-col gap-3 rounded-xl border border-dashed border-[var(--border)] bg-[#F8FAFC] p-6">
+            <div className="flex items-center">
+              <span className="text-base font-semibold text-[var(--text-secondary)]">
+                SLA 達成率 / 客戶滿意度 / NPS / 差評率
               </span>
-              <span className="absolute bottom-4 right-[calc(50%-60px)] text-[10px] text-[var(--text-secondary)]">
-                平均處理時長（小時）
-              </span>
-
-              {/* Cross lines */}
-              <div className="absolute left-[50px] top-[140px] h-px w-[calc(100%-60px)] bg-[#CBD5E1]" />
-              <div className="absolute left-[50%] top-5 h-[240px] w-px bg-[#CBD5E1]" />
-
-              {/* Quadrant labels */}
-              <span className="absolute left-[60px] top-7 text-[11px] font-semibold text-[var(--status-success)]">
-                ⭐ 高效高質
-              </span>
-              <span className="absolute right-[60px] top-7 text-[11px] font-semibold text-[var(--status-warning)]">
-                需加速
-              </span>
-              <span className="absolute bottom-7 right-[60px] text-[11px] font-semibold text-[var(--status-danger)]">
-                需關注
-              </span>
-              <span className="absolute bottom-7 left-[60px] text-[11px] font-semibold text-[#3B82F6]">
-                快但需提質
-              </span>
-
-              {/* Dots */}
-              {[
-                { x: "13%", y: "21%", color: "var(--status-success)" },
-                { x: "20%", y: "27%", color: "var(--status-success)" },
-                { x: "27%", y: "18%", color: "var(--status-success)" },
-                { x: "33%", y: "32%", color: "var(--status-success)" },
-                { x: "38%", y: "39%", color: "var(--status-success)" },
-                { x: "16%", y: "64%", color: "#3B82F6" },
-                { x: "24%", y: "71%", color: "#3B82F6" },
-                { x: "65%", y: "25%", color: "var(--status-warning)" },
-                { x: "74%", y: "36%", color: "var(--status-warning)" },
-                { x: "71%", y: "68%", color: "var(--status-danger)" },
-              ].map((dot, i) => (
-                <div
-                  key={i}
-                  className="absolute h-3 w-3 rounded-full"
-                  style={{
-                    left: dot.x,
-                    top: dot.y,
-                    backgroundColor: dot.color,
-                  }}
-                />
-              ))}
+              <PendingTag note="需 SLA 規則表 + 評價回傳機制" />
             </div>
+            <span className="text-[13px] leading-relaxed text-[var(--text-secondary)]">
+              {report?.notes?.length
+                ? report.notes.join("；")
+                : "需各自獨立模組接入後再上線。"}
+            </span>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function DisputeRow({
+  label,
+  rate,
+  target,
+  hint,
+}: {
+  label: string;
+  rate: string | null | undefined;
+  target: number;
+  hint: string;
+}) {
+  const v = rate ? Number(rate) : null;
+  const pct = v !== null && Number.isFinite(v) ? v * 100 : null;
+  const color =
+    pct === null
+      ? "#94A3B8"
+      : v! > target
+        ? "var(--status-warning)"
+        : "var(--status-success)";
+  const barWidth = pct === null ? 0 : Math.min(100, pct * 5);
+
+  return (
+    <div className="flex flex-1 flex-col gap-3 rounded-[10px] border border-[var(--border)] bg-[#F8FAFC] p-5">
+      <div className="flex items-center justify-between">
+        <span className="text-[13px] text-[var(--text-primary)]">{label}</span>
+        <span
+          className="text-[13px] font-semibold"
+          style={{ color }}
+        >
+          {formatPercent(rate)}
+        </span>
+      </div>
+      <div className="h-2 w-full rounded bg-[#E2E8F0]">
+        <div
+          className="h-2 rounded transition-all"
+          style={{
+            width: `${barWidth}%`,
+            backgroundColor: color,
+          }}
+        />
+      </div>
+      <span className="text-[11px] text-[var(--text-secondary)]">{hint}</span>
     </div>
   );
 }
