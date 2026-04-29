@@ -769,7 +769,10 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
           <ExceptionRecords />
         </div>
 
-        <WorkOrderDetailSidebar workOrder={order ?? undefined} />
+        <WorkOrderDetailSidebar
+          workOrder={order ?? undefined}
+          conversationId={problemCard?.conversation_id ?? undefined}
+        />
       </div>
     </div>
   );

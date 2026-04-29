@@ -17,9 +17,12 @@ import type { components } from "@/types/api.generated";
 type WorkOrder = components["schemas"]["WorkOrder"];
 type Technician = components["schemas"]["Technician"];
 type TechnicianEnvelope = components["schemas"]["TechnicianEnvelope"];
+type Conversation = components["schemas"]["Conversation"];
+type ConversationEnvelope = components["schemas"]["ConversationEnvelope"];
 
 interface Props {
   workOrder?: WorkOrder;
+  conversationId?: string;
 }
 
 const AVATAR_PALETTE = ["#DBEAFE", "#FEF3C7", "#FCE7F3", "#E0E7FF", "#D1FAE5", "#FEE2E2", "#F3E8FF", "#FFEDD5"];
@@ -37,7 +40,7 @@ function formatPrice(value?: string | null): string {
   return `NT$ ${n.toLocaleString("zh-TW", { maximumFractionDigits: 0 })}`;
 }
 
-export default function WorkOrderDetailSidebar({ workOrder }: Props) {
+export default function WorkOrderDetailSidebar({ workOrder, conversationId }: Props) {
   const brandModel = workOrder
     ? `${workOrder.brand || "—"} ${workOrder.model || ""}`.trim()
     : "—";
@@ -45,6 +48,8 @@ export default function WorkOrderDetailSidebar({ workOrder }: Props) {
   const technicianId = workOrder?.technician_id ?? null;
   const [technician, setTechnician] = useState<Technician | null>(null);
   const [techError, setTechError] = useState<string | null>(null);
+  const [conversation, setConversation] = useState<Conversation | null>(null);
+  const [convError, setConvError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!technicianId) {
@@ -76,6 +81,37 @@ export default function WorkOrderDetailSidebar({ workOrder }: Props) {
       cancelled = true;
     };
   }, [technicianId]);
+
+  useEffect(() => {
+    if (!conversationId) {
+      setConversation(null);
+      setConvError(null);
+      return;
+    }
+    let cancelled = false;
+    setConvError(null);
+    (async () => {
+      try {
+        const res = await api.get<ConversationEnvelope>(
+          `/api/v1/conversations/${encodeURIComponent(conversationId)}`,
+        );
+        if (!cancelled) setConversation(res.data ?? null);
+      } catch (e) {
+        if (cancelled) return;
+        setConvError(
+          e instanceof ApiError
+            ? `${e.errorCode} (${e.status})`
+            : e instanceof Error
+              ? e.message
+              : String(e),
+        );
+        setConversation(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [conversationId]);
 
   return (
     <div className="flex w-[380px] flex-shrink-0 flex-col gap-4 overflow-auto bg-[#F1F5F9] p-5">
@@ -153,26 +189,13 @@ export default function WorkOrderDetailSidebar({ workOrder }: Props) {
         </div>
       </div>
 
-      {/* Customer Info (示意) */}
-      <div className="flex flex-col gap-[10px] rounded-lg bg-[var(--bg-surface)] p-4 shadow-sm opacity-80">
-        <div className="flex items-center justify-between">
-          <span className="text-[16px] font-semibold text-[var(--text-primary)]">
-            客戶資訊
-          </span>
-          <span className="rounded bg-[#F1F5F9] px-2 py-[2px] text-[11px] text-[var(--text-secondary)]">
-            示意
-          </span>
-        </div>
-        <span className="text-[14px] font-semibold text-[var(--text-disabled)]">—</span>
-        <div className="flex items-center gap-[6px]">
-          <Phone className="h-[14px] w-[14px] text-[var(--text-disabled)]" />
-          <span className="text-[14px] text-[var(--text-disabled)]">—</span>
-        </div>
-        <div className="flex gap-[6px]">
-          <MapPin className="mt-[2px] h-[14px] w-[14px] flex-shrink-0 text-[var(--text-disabled)]" />
-          <span className="text-[13px] text-[var(--text-disabled)]">—</span>
-        </div>
-      </div>
+      {/* Customer Info — display_name + line_user_id 真實，phone 待 facts 模組 */}
+      <CustomerInfoPanel
+        conversation={conversation}
+        conversationId={conversationId ?? null}
+        address={workOrder?.address ?? ""}
+        error={convError}
+      />
 
       {/* Technician — 真實 fetch（若 technician_id 存在） */}
       <TechnicianPanel
@@ -195,6 +218,83 @@ export default function WorkOrderDetailSidebar({ workOrder }: Props) {
           派工模組接入後可執行操作
         </span>
       </div>
+    </div>
+  );
+}
+
+function CustomerInfoPanel({
+  conversation,
+  conversationId,
+  address,
+  error,
+}: {
+  conversation: Conversation | null;
+  conversationId: string | null;
+  address: string;
+  error: string | null;
+}) {
+  const hasConversation = !!conversationId;
+  const linePrefix = conversation?.line_user_id
+    ? conversation.line_user_id.slice(0, 12) + "…"
+    : null;
+
+  return (
+    <div className="flex flex-col gap-[10px] rounded-lg bg-[var(--bg-surface)] p-4 shadow-sm">
+      <div className="flex items-center justify-between">
+        <span className="text-[16px] font-semibold text-[var(--text-primary)]">
+          客戶資訊
+        </span>
+        {error && (
+          <span className="rounded bg-[#FEE2E2] px-2 py-[2px] text-[11px] text-[#991B1B]">
+            載入失敗
+          </span>
+        )}
+      </div>
+
+      {!hasConversation ? (
+        <span className="text-[13px] text-[var(--text-disabled)]">
+          無關聯對話
+        </span>
+      ) : error ? (
+        <span className="text-[12px] text-[var(--text-disabled)]">{error}</span>
+      ) : !conversation ? (
+        <span className="text-[13px] text-[var(--text-secondary)]">載入中…</span>
+      ) : (
+        <>
+          <span className="text-[14px] font-semibold text-[var(--text-primary)]">
+            {conversation.display_name || "—"}
+          </span>
+          {linePrefix && (
+            <div className="flex items-center gap-[6px]">
+              <Phone className="h-[14px] w-[14px] text-[var(--text-secondary)]" />
+              <span
+                className="font-mono text-[12px] text-[var(--text-secondary)]"
+                title={conversation.line_user_id ?? ""}
+              >
+                {linePrefix}
+              </span>
+            </div>
+          )}
+        </>
+      )}
+
+      {address && (
+        <div className="flex gap-[6px]">
+          <MapPin className="mt-[2px] h-[14px] w-[14px] flex-shrink-0 text-[var(--text-secondary)]" />
+          <span className="text-[13px] text-[var(--text-primary)]">
+            {address}
+          </span>
+        </div>
+      )}
+
+      {hasConversation && conversation && (
+        <a
+          href={`/conversations/${conversation.id}`}
+          className="text-[12px] font-medium text-[var(--primary)] hover:underline"
+        >
+          查看完整對話 →
+        </a>
+      )}
     </div>
   );
 }
