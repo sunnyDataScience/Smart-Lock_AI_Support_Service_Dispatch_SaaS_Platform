@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 
 import core.db as db_module
@@ -225,4 +226,90 @@ async def resolve_card(
         "WHERE id = %s::uuid",
         (resolution_layer, pc_id),
     )
+    return await get_card(tenant_id=tenant_id, pc_id=pc_id)
+
+
+# PATCH 不允許改 status；狀態請走 /confirm 或 /resolve（避免 state machine 被旁路）
+_API_URGENCY_TO_DB = {"low": "low", "medium": "normal", "high": "high"}
+_VALID_API_URGENCY = set(_API_URGENCY_TO_DB)
+_API_STATUS_TO_DB = {"draft": "incomplete", "confirmed": "confirmed", "resolved": "resolved"}
+_VALID_API_STATUS = set(_API_STATUS_TO_DB)
+
+
+async def update_card(
+    *,
+    tenant_id: str,
+    pc_id: str,
+    brand: str | None = None,
+    model: str | None = None,
+    symptom: str | None = None,
+    category: str | None = None,
+    urgency: str | None = None,
+    status: str | None = None,
+    media_urls: list[str] | None = None,
+) -> dict:
+    """部分更新問題卡欄位。status 變更走 /confirm 或 /resolve，PATCH 拒收 status。
+
+    - brand/model/category 直通並 trim 至 schema 上限（DB 欄位 100 字）
+    - symptom (string) 以「、」拆回 JSONB 陣列存入 symptoms 欄位
+    - urgency (low/medium/high) 反向 mapping 為 DB low/normal/high
+    - media_urls list[str] → JSONB array
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    if status is not None:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "status changes must go through /confirm or /resolve endpoints",
+            422,
+        )
+
+    cur = await db_module._conn.execute(
+        "SELECT pc.id "
+        "FROM problem_cards pc "
+        "JOIN conversations c ON pc.conversation_id = c.id "
+        "JOIN users u ON c.user_id = u.id "
+        "WHERE pc.id = %s::uuid AND u.tenant_id = %s::uuid",
+        (pc_id, tenant_id),
+    )
+    if not await cur.fetchone():
+        raise ApiError("NOT_FOUND", "Problem card not found", 404)
+
+    sets: list[str] = []
+    args: list = []
+
+    if brand is not None:
+        sets.append("brand = %s")
+        args.append(brand[:100])
+    if model is not None:
+        sets.append("model = %s")
+        args.append(model[:100])
+    if symptom is not None:
+        symptoms_list = [s.strip() for s in symptom.split("、") if s.strip()]
+        sets.append("symptoms = %s::jsonb")
+        args.append(json.dumps(symptoms_list))
+    if category is not None:
+        sets.append("category = %s")
+        args.append(category[:100])
+    if urgency is not None:
+        if urgency not in _VALID_API_URGENCY:
+            raise ApiError(
+                "VALIDATION_ERROR",
+                f"urgency must be one of {sorted(_VALID_API_URGENCY)}",
+                422,
+            )
+        sets.append("urgency = %s")
+        args.append(_API_URGENCY_TO_DB[urgency])
+    if media_urls is not None:
+        sets.append("media_urls = %s::jsonb")
+        args.append(json.dumps(media_urls))
+
+    if not sets:
+        return await get_card(tenant_id=tenant_id, pc_id=pc_id)
+
+    sets.append("updated_at = NOW()")
+    sql = f"UPDATE problem_cards SET {', '.join(sets)} WHERE id = %s::uuid"
+    args.append(pc_id)
+    await db_module._conn.execute(sql, args)
     return await get_card(tenant_id=tenant_id, pc_id=pc_id)

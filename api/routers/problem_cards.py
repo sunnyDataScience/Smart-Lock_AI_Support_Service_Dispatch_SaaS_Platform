@@ -1,10 +1,11 @@
-"""ProblemCards router — 2 read + 2 state-machine writes。
+"""ProblemCards router — 2 read + 3 writes（PATCH + 2 state-machine writes）。
 
 operationId 對齊 openapi.yaml：
-  listProblemCards, getProblemCard, confirmProblemCard, resolveProblemCard
+  listProblemCards, getProblemCard, updateProblemCard,
+  confirmProblemCard, resolveProblemCard
 
-未實作：createProblemCard / updateProblemCard / exportProblemCard
-（建立路徑由 agent 自動寫入；patch/export 待需求明確再開）。
+未實作：createProblemCard / exportProblemCard
+（建立路徑由 agent 自動寫入；export 待格式需求明確再開）。
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from models.generated import (
     ProblemCardEnvelope,
     ProblemCardPage,
     ProblemCardResolveRequest,
+    ProblemCardUpdateRequest,
 )
 from services import problem_card_service
 
@@ -61,6 +63,36 @@ async def get_problem_card(
 ) -> dict:
     card = await problem_card_service.get_card(
         tenant_id=user.tenant_id, pc_id=id,
+    )
+    return {"data": ProblemCard(**card).model_dump(mode="json")}
+
+
+@router.patch(
+    "/problem-cards/{id}",
+    operation_id="updateProblemCard",
+    summary="部分更新問題卡（status 變更請走 /confirm 或 /resolve）",
+    response_model=ProblemCardEnvelope,
+)
+async def update_problem_card(
+    body: ProblemCardUpdateRequest,
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    urgency = body.urgency.value if body.urgency and hasattr(body.urgency, "value") else body.urgency
+    status = body.status.value if body.status and hasattr(body.status, "value") else body.status
+    media_urls = (
+        [str(u) for u in body.media_urls] if body.media_urls is not None else None
+    )
+    card = await problem_card_service.update_card(
+        tenant_id=user.tenant_id,
+        pc_id=id,
+        brand=body.brand,
+        model=body.model,
+        symptom=body.symptom,
+        category=body.category,
+        urgency=urgency,
+        status=status,
+        media_urls=media_urls,
     )
     return {"data": ProblemCard(**card).model_dump(mode="json")}
 
