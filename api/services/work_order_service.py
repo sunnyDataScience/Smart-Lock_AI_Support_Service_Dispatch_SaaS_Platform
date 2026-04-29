@@ -177,6 +177,9 @@ _ACCEPT_FROM = {"assigned"}
 _COMPLETE_FROM = {"accepted", "in_progress"}
 _CANCEL_FROM = {"created", "assigned", "accepted", "in_progress"}
 _ASSIGN_FROM = {"created", "assigned"}  # 允許重派（assigned → assigned 換人）
+# 升級可從任何「未結案」狀態觸發；completed/confirmed/cancelled 視為終局不可升級
+_ESCALATE_FROM = {"created", "assigned", "accepted", "in_progress"}
+_ESCALATE_LEVELS = {"operations_manager", "tenant_admin"}
 
 
 async def _fetch_status_for_update(wo_id: str, tenant_id: str) -> str:
@@ -335,6 +338,54 @@ async def assign_order(
         "  updated_at = NOW() "
         "WHERE id = %s::uuid",
         (technician_id, note, wo_id),
+    )
+    return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+
+
+async def escalate_order(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    level: str,
+    reason: str,
+) -> dict:
+    """升級工單至 operations_manager / tenant_admin。
+
+    DB 沒有專屬升級欄位。本實作：
+      - service_report append `[ESCALATED:{level}] {reason}` 留稽核軌跡
+      - priority 推進到 'urgent'（若原本不是 urgent）
+      - 不改 status — 升級為「上層覆審」流程，原狀態維持
+    後續若上層加開 escalation_logs 表，把寫入點接過去即可。
+    """
+    if level not in _ESCALATE_LEVELS:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"level must be one of {sorted(_ESCALATE_LEVELS)}",
+            422,
+        )
+    if not reason or not reason.strip():
+        raise ApiError("VALIDATION_ERROR", "reason is required", 422)
+
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    current = await _fetch_status_for_update(wo_id, tenant_id)
+    if current not in _ESCALATE_FROM:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot escalate work order in status '{current}'; "
+            f"expected one of {sorted(_ESCALATE_FROM)}",
+            409,
+        )
+
+    note = f"[ESCALATED:{level}] {reason.strip()[:500]}"
+    await db_module._conn.execute(
+        "UPDATE work_orders SET "
+        "  priority = CASE WHEN priority = 'urgent' THEN priority ELSE 'urgent' END, "
+        "  service_report = COALESCE(service_report, '') || E'\\n' || %s, "
+        "  updated_at = NOW() "
+        "WHERE id = %s::uuid",
+        (note, wo_id),
     )
     return await get_order(tenant_id=tenant_id, wo_id=wo_id)
 

@@ -244,6 +244,20 @@ class WorkOrderAssignRequest(BaseModel):
     override_flags: OverrideFlags | None = None
 
 
+class Level(StrEnum):
+    operations_manager = 'operations_manager'
+    tenant_admin = 'tenant_admin'
+
+
+class WorkOrderEscalateRequest(BaseModel):
+    """
+    工單升級至上層覆審。level 指定接收者；reason 必填留稽核軌跡。MVP 不切狀態，僅將 priority 推進到 urgent 並記入 service_report；上層 escalation_logs 表上線後再正規化。
+    """
+
+    level: Level
+    reason: str = Field(..., max_length=500)
+
+
 class WarrantyClaimStatus(StrEnum):
     filed = 'filed'
     approved = 'approved'

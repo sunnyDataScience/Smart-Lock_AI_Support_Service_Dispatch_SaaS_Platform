@@ -689,13 +689,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [level, reason]
-              properties:
-                level:
-                  type: string
-                  enum: [operations_manager, tenant_admin]
-                reason: { type: string, maxLength: 500 }
+              $ref: '#/components/schemas/WorkOrderEscalateRequest'
       responses:
         '200':
           description: 已升級
@@ -2689,6 +2683,18 @@ components:
           properties:
             allow_circuit: { type: boolean, default: false }
             allow_cross_area: { type: boolean, default: false }
+
+    WorkOrderEscalateRequest:
+      type: object
+      description: 工單升級至上層覆審。level 指定接收者；reason 必填留稽核軌跡。MVP 不切狀態，僅將 priority 推進到 urgent 並記入 service_report；上層 escalation_logs 表上線後再正規化。
+      required: [level, reason]
+      properties:
+        level:
+          type: string
+          enum: [operations_manager, tenant_admin]
+        reason:
+          type: string
+          maxLength: 500
 
     # --------- 保固申請（list/get） ---------
     WarrantyClaimStatus:

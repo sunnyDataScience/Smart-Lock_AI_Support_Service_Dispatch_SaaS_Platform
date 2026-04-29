@@ -1,10 +1,11 @@
-"""WorkOrders router — read endpoints + 4 state-machine writes。
+"""WorkOrders router — read endpoints + 5 state-machine writes。
 
 operationId 對齊 openapi.yaml：
   listWorkOrders, getWorkOrder, getDispatchQueue,
-  acceptWorkOrder, assignWorkOrder, completeWorkOrder, cancelWorkOrder
+  acceptWorkOrder, assignWorkOrder, escalateWorkOrder,
+  completeWorkOrder, cancelWorkOrder
 
-未實作：escalateWorkOrder / proposeReschedule / submitWorkOrderSignature /
+未實作：proposeReschedule / submitWorkOrderSignature /
 confirmWorkOrder（依賴 SLA 模組或上傳服務，待後續 phase）。
 """
 
@@ -21,6 +22,7 @@ from models.generated import (
     WorkOrderAssignRequest,
     WorkOrderCancelRequest,
     WorkOrderEnvelope,
+    WorkOrderEscalateRequest,
     WorkOrderPage,
 )
 from services import work_order_service
@@ -171,6 +173,31 @@ async def cancel_work_order(
         tenant_id=user.tenant_id,
         wo_id=id,
         reason=body.reason if body else None,
+    )
+    payload = {"data": WorkOrder(**order).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload
+
+
+@router.post(
+    "/work-orders/{id}/escalate",
+    operation_id="escalateWorkOrder",
+    summary="升級工單至 operations_manager / tenant_admin（不切狀態）",
+    response_model=WorkOrderEnvelope,
+)
+async def escalate_work_order(
+    body: WorkOrderEscalateRequest,
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    level_str = body.level.value if hasattr(body.level, "value") else str(body.level)
+    order = await work_order_service.escalate_order(
+        tenant_id=user.tenant_id,
+        wo_id=id,
+        level=level_str,
+        reason=body.reason,
     )
     payload = {"data": WorkOrder(**order).model_dump(mode="json")}
     if idem is not None:
