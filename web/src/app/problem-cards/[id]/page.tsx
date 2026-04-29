@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { CheckCircle2, Flag, Info, Pencil, Sparkles, X } from "lucide-react";
+import { CheckCircle2, Download, Flag, Info, Pencil, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import FmeaDiagnosisCard from "@/components/problem-cards/FmeaDiagnosisCard";
@@ -20,6 +20,14 @@ type ResolutionLayer = ProblemCardResolveRequest["resolution_layer"];
 type ProblemCardUpdateRequest = components["schemas"]["ProblemCardUpdateRequest"];
 type ResolveResponse = components["schemas"]["ResolveResponse"];
 type ResolveLayer = ResolveResponse["layer"];
+type ProblemCardExport = components["schemas"]["ProblemCardExport"];
+type ExportFormat = NonNullable<ProblemCardExport["format"]>;
+
+const EXPORT_FORMATS: { value: ExportFormat; label: string; mime: string; ext: string }[] = [
+  { value: "pdf", label: "PDF", mime: "application/pdf", ext: "pdf" },
+  { value: "json", label: "JSON", mime: "application/json", ext: "json" },
+  { value: "csv", label: "CSV", mime: "text/csv;charset=utf-8", ext: "csv" },
+];
 
 const RESOLVE_LAYER_BADGE: Record<ResolveLayer, { label: string; bg: string; text: string }> = {
   faq_match: { label: "L1 FAQ 命中", bg: "#DCFCE7", text: "#15803D" },
@@ -55,12 +63,13 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
   const [card, setCard] = useState<ProblemCard | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [actionPending, setActionPending] = useState<"confirm" | "resolve" | "update" | "auto" | null>(null);
+  const [actionPending, setActionPending] = useState<"confirm" | "resolve" | "update" | "auto" | "export" | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionToast, setActionToast] = useState<string | null>(null);
   const [resolveModalOpen, setResolveModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [autoResolveResult, setAutoResolveResult] = useState<ResolveResponse | null>(null);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -130,6 +139,37 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
       setCard(res.data ?? null);
       setEditModalOpen(false);
       setActionToast("問題卡已更新");
+    } catch (e) {
+      setActionError(formatActionError(e));
+    } finally {
+      setActionPending(null);
+    }
+  };
+
+  const handleExport = async (fmt: ExportFormat) => {
+    if (!card) return;
+    setActionPending("export");
+    setActionError(null);
+    setExportMenuOpen(false);
+    try {
+      const res = await api.get<ProblemCardExport>(
+        `/api/v1/problem-cards/${encodeURIComponent(card.id)}/export`,
+        { query: { format: fmt } },
+      );
+      const meta = EXPORT_FORMATS.find((f) => f.value === fmt)!;
+      const bin = atob(res.content);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const blob = new Blob([bytes], { type: meta.mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `problem-card-${card.id.slice(0, 8)}.${meta.ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setActionToast(`已下載 ${meta.label}`);
     } catch (e) {
       setActionError(formatActionError(e));
     } finally {
@@ -218,8 +258,34 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
             )}
           </div>
 
-          {(canConfirm || canResolve || canEdit || canAutoResolve) && (
+          {(canConfirm || canResolve || canEdit || canAutoResolve || card) && (
             <div className="flex flex-wrap items-center gap-2">
+              {card && (
+                <div className="relative">
+                  <button
+                    onClick={() => setExportMenuOpen((v) => !v)}
+                    disabled={actionPending !== null}
+                    className="inline-flex items-center gap-2 rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-semibold text-[var(--text-primary)] transition hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Download className="h-4 w-4" />
+                    {actionPending === "export" ? "匯出中…" : "匯出"}
+                  </button>
+                  {exportMenuOpen && (
+                    <div className="absolute right-0 top-full z-30 mt-1 w-32 overflow-hidden rounded-md border border-[var(--border)] bg-white shadow-lg">
+                      {EXPORT_FORMATS.map((f) => (
+                        <button
+                          key={f.value}
+                          onClick={() => handleExport(f.value)}
+                          className="flex w-full items-center justify-between px-3 py-2 text-[13px] text-[var(--text-primary)] transition hover:bg-[var(--bg-page)]"
+                        >
+                          <span>{f.label}</span>
+                          <span className="text-[11px] text-[var(--text-secondary)]">.{f.ext}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               {canAutoResolve && (
                 <button
                   onClick={handleAutoResolve}
