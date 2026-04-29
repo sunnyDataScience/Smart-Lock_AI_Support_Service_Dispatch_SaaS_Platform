@@ -35,6 +35,7 @@ from routers import work_orders as work_orders_router
 from routers import technicians as technicians_router
 from routers import dispatch_logs as dispatch_logs_router
 from routers import settlements as settlements_router
+from routers import reconciliations as reconciliations_router
 from routers import invoices as invoices_router
 from routers import refunds as refunds_router
 from routers import warranty_claims as warranty_claims_router
@@ -96,6 +97,7 @@ app.include_router(work_orders_router.router, prefix="/api/v1", tags=["dispatch"
 app.include_router(technicians_router.router, prefix="/api/v1", tags=["dispatch"])
 app.include_router(dispatch_logs_router.router, prefix="/api/v1", tags=["dispatch"])
 app.include_router(settlements_router.router, prefix="/api/v1", tags=["accounting"])
+app.include_router(reconciliations_router.router, prefix="/api/v1", tags=["accounting"])
 app.include_router(invoices_router.router, prefix="/api/v1", tags=["accounting"])
 app.include_router(refunds_router.router, prefix="/api/v1", tags=["accounting"])
 app.include_router(warranty_claims_router.router, prefix="/api/v1", tags=["accounting"])
