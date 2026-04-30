@@ -161,7 +161,7 @@ postgres_uri_env = "POSTGRES_URI"
 
 # ── 14. OPIK LLM Observability ──
 [opik]
-enabled       = true
+enabled       = false  # Phase 0 診斷：暫關以 A/B 排除 callback hang 嫌疑
 project_name  = "smart-lock-agent"
 api_key_env   = "OPIK_API_KEY"
 workspace_env = "OPIK_WORKSPACE"
