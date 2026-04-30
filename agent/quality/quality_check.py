@@ -430,8 +430,16 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
         set_current_brand,
         set_current_user_input,
     )
+    from harness.line_ui_factory import infer_brand_from_text
     brand = tc.device_brand or None
     model = tc.device_model or None
+    # 品牌未知時，從問題文字自動推論（同生產路徑 debounce.py:289）
+    if not brand:
+        inferred_brand, inferred_model = infer_brand_from_text(tc.question)
+        if inferred_brand:
+            brand = inferred_brand
+            if inferred_model and not model:
+                model = inferred_model
     # 同步生產路徑：ContextVar 注入 user_id / brand / model / user_input
     # 否則 load_skill 會以「品牌未知」拒絕載入品牌專屬技能
     set_current_user_id(f"qc-{tc.id}")
@@ -439,10 +447,13 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
     set_current_user_input(tc.question)
     skills_section = build_dynamic_skills_section(brand, model)
 
-    if tc.device_brand:
-        profile_lines = [f"[Verified Fact] device_brand: {tc.device_brand}"]
-        if tc.device_model:
-            profile_lines.append(f"[Verified Fact] device_model: {tc.device_model}")
+    # 用 brand/model（含 infer 後值）建構 [用戶資料] 區塊，與生產路徑一致
+    profile_lines = []
+    if brand:
+        profile_lines.append(f"[Verified Fact] device_brand: {brand}")
+    if model:
+        profile_lines.append(f"[Verified Fact] device_model: {model}")
+    if profile_lines:
         content = (
             f"[可用技能]\n{skills_section}\n\n"
             f"[用戶資料]\n" + "\n".join(profile_lines) + "\n\n"
@@ -470,7 +481,7 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
 
     # 多輪模擬：若有 auto_reply 且 agent 回覆含追問（？）→ 發送第二輪
     if tc.auto_reply and "？" in answer:
-        if tc.device_brand:
+        if profile_lines:
             reply_content = (
                 f"[可用技能]\n{skills_section}\n\n"
                 f"[用戶資料]\n" + "\n".join(profile_lines) + "\n\n"
