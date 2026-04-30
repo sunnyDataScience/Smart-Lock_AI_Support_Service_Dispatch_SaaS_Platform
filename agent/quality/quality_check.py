@@ -32,7 +32,7 @@ from core.config import load_config
 from agent import build_agent
 from langgraph.checkpoint.memory import MemorySaver
 from llms import get_llm
-from llms.litellm_model import _ensure_vertex_credentials
+from llms.litellm_model import _ensure_vertex_credentials, build_litellm
 
 # ─────────────────────────────────────────────
 # 繁體中文檢測（無外部依賴）
@@ -690,14 +690,14 @@ async def main():
 
     cfg = load_config()
 
-    # 主模型走 config.toml 的 [llm] 設定（含 reasoning_effort、vertex_location 等）
+    # 主模型走 config.toml 的 [llm] 設定（含 thinking_budget 等）
     # 如此 quality_check 才能驗證實際生產環境的模型表現
     model = get_llm(cfg.llm)
-    print(f"[Quality Check] Using model: {cfg.llm.get('model')} (reasoning={cfg.llm.get('reasoning_effort', 'N/A')}, location={cfg.llm.get('vertex_location', 'N/A')})")
+    print(f"[Quality Check] Using model: {cfg.llm.get('model')} (thinking={cfg.llm.get('thinking_budget', 'N/A')})")
 
     judge_model = None
     if use_judge:
-        # judge 是裁判，與被測模型解耦，固定用 2.5-flash
+        # judge 用 Gemini 2.5 Flash GA（與被測模型解耦；GA 配額充裕，避免 preview 限速）
         judge_model = ChatLiteLLM(model="vertex_ai/gemini-2.5-flash", temperature=0.0)
 
     agent = build_agent(model, cfg, checkpointer=MemorySaver())
