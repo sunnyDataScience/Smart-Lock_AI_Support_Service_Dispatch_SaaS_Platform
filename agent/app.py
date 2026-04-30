@@ -100,10 +100,12 @@ async def startup():
         "push_fallback_prefix": _cfg.templates.get("push_fallback_prefix", ""),
     })
 
-    # 初始化記憶壓縮（使用 Flash 模型加速摘要）
+    # 初始化記憶壓縮（摘要任務不需深度推理 → reasoning_effort=minimal）
     memory_llm = get_llm({
-        "model": _cfg.memory.get("llm_model", "vertex_ai/gemini-2.5-flash"),
+        "model": _cfg.memory.get("llm_model", "vertex_ai/gemini-3-flash-preview"),
         "temperature": 0.2,
+        "reasoning_effort": "minimal",
+        "vertex_location": _cfg.llm.get("vertex_location"),
     })
     memory_manager.init(memory_llm, {
         **_cfg.memory,

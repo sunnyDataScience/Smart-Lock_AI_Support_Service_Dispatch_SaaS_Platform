@@ -269,17 +269,17 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         thread_id = f"line_{user_id}"
 
         # 載入用戶畫像 + 品牌/型號
+        # 一次呼叫同時拿到 profile_text 與 facts，避免重複 DB query
         profile_prefix = ""
         brand = None
         model = None
-        if _profile_mgr:
-            # facts（品牌/型號）獨立於 profile 開關，只看 facts_enabled
-            if _profile_mgr.facts_enabled:
-                _, facts = await _profile_mgr.load_full_profile_with_facts(user_id)
-                brand = facts.get("device_brand")
-                model = facts.get("device_model")
+        profile_text = ""
+        if _profile_mgr and _profile_mgr.facts_enabled:
+            profile_text, facts = await _profile_mgr.load_full_profile_with_facts(user_id)
+            brand = facts.get("device_brand")
+            model = facts.get("device_model")
 
-        # 品牌未知時，從用戶輸入文字自動推論品牌
+        # 品牌未知時，從用戶輸入文字自動推論品牌（純文字運算，不需 await）
         if not brand and _profile_mgr and _profile_mgr.facts_enabled:
             input_text = user_input if isinstance(user_input, str) else " ".join(
                 b.get("text", "") for b in user_input if isinstance(b, dict)
@@ -290,15 +290,15 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
                 brand = inferred_brand
                 if inferred_model and not model:
                     model = inferred_model
-                await _profile_mgr.update_fact(user_id, "device_brand", brand)
+                # update_fact 寫入不阻塞回覆路徑（背景 fire-and-forget）
+                asyncio.create_task(_profile_mgr.update_fact(user_id, "device_brand", brand))
                 if model:
-                    await _profile_mgr.update_fact(user_id, "device_model", model)
+                    asyncio.create_task(_profile_mgr.update_fact(user_id, "device_model", model))
                 print(f"[Agent] 自動推論品牌: {brand} {model or ''}（從用戶輸入）")
-            # profile 文字注入看 enabled 開關
-            if _profile_mgr.enabled:
-                profile_text = await _profile_mgr.load_full_profile(user_id)
-                if profile_text:
-                    profile_prefix = f"[用戶資料]\n{profile_text}\n\n"
+
+        # profile 文字注入看 enabled 開關（資料已在上方一併載入）
+        if _profile_mgr and _profile_mgr.enabled and profile_text:
+            profile_prefix = f"[用戶資料]\n{profile_text}\n\n"
 
         # 注入品牌到 tools 模組（供 load_skill 做品牌檢查）
         set_current_brand(brand, model)

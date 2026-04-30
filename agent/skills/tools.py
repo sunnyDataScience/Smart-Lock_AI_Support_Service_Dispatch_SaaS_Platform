@@ -15,6 +15,9 @@ _skills: list[Skill] = []
 _transfer_message: str = ""
 _profile_mgr = None
 
+# (brand, model) → 已渲染的技能清單字串。skills 啟動後不變，安全 cache。
+_skills_section_cache: dict[tuple[str | None, str | None], str] = {}
+
 # ── 請求層級狀態（用 contextvars 隔離併發請求）──
 _current_user_id: ContextVar[str] = ContextVar("current_user_id", default="")
 _current_brand: ContextVar[str | None] = ContextVar("current_brand", default=None)
@@ -32,9 +35,10 @@ _TRANSFER_KEYWORDS = [
 
 
 def set_skills(skills: list[Skill]) -> None:
-    """注入技能清單（app 啟動時呼叫）。"""
+    """注入技能清單（app 啟動時呼叫）。重新注入時清除依賴 skills 的 cache。"""
     global _skills
     _skills = skills
+    _skills_section_cache.clear()
 
 
 def set_profile_mgr(profile_mgr) -> None:
@@ -340,5 +344,14 @@ def build_dynamic_skills_section(
     brand: str | None = None,
     model: str | None = None,
 ) -> str:
-    """產生動態過濾後的技能清單（供 debounce 注入 HumanMessage）。"""
-    return build_skills_prompt(_skills, brand=brand, model=model)
+    """產生動態過濾後的技能清單（供 debounce 注入 HumanMessage）。
+
+    結果以 (brand, model) 為 key 快取；skills 啟動後不變，故安全。
+    """
+    key = (brand, model)
+    cached = _skills_section_cache.get(key)
+    if cached is not None:
+        return cached
+    rendered = build_skills_prompt(_skills, brand=brand, model=model)
+    _skills_section_cache[key] = rendered
+    return rendered

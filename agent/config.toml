@@ -7,13 +7,16 @@
 [system]
 domain          = "電子鎖、智慧門鎖相關的產品諮詢、故障排除、安裝派工"
 agent_name      = "smart_lock_agent"
-request_timeout = 240
+request_timeout = 60     # 秒，需與 [line_bot].loading_seconds 對齊（LINE 動畫上限）
 
 # ── 2. LLM 設定（LiteLLM 格式）──
+# Gemini 3 Flash：比 2.5 Pro 快 3x、token 用量少 30%、內建 context caching
+# 思考量改用 reasoning_effort（minimal | low | medium | high），不再支援 thinking_budget
 [llm]
-model           = "vertex_ai/gemini-2.5-pro"
-temperature     = 0.3
-thinking_budget = 2048   # tokens，封頂 Gemini 2.5 思考預算（None / 註解掉 = 無上限）
+model            = "vertex_ai/gemini-3-flash-preview"
+temperature      = 0.3
+reasoning_effort = "minimal"   # 客服場景以 SOP 引導為主，不需深度推理
+vertex_location  = "global"    # Gemini 3 Flash preview 僅在 global endpoint 提供
 
 # ── 3. LINE Bot 設定 ──
 [line_bot]
@@ -29,7 +32,7 @@ postgres_uri_env       = "POSTGRES_URI"
 compression_enabled    = true        # H5 記憶壓縮開關
 max_messages_threshold = 12          # 訊息數超過此值時觸發壓縮
 context_retention_pair = 5           # 壓縮後保留最近 N 輪對話
-llm_model              = "vertex_ai/gemini-2.5-flash"  # 壓縮摘要用模型（Flash 加速）
+llm_model              = "vertex_ai/gemini-3-flash-preview"  # 壓縮摘要用模型
 
 # ── 5. 技能系統 ──
 [skills]
