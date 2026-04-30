@@ -424,9 +424,19 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
     t0 = time.time()
 
     # 組裝訊息：所有測試都注入 [可用技能]，模擬 debounce.run_agent() 的行為
-    from skills.tools import build_dynamic_skills_section
+    from skills.tools import (
+        build_dynamic_skills_section,
+        set_current_user_id,
+        set_current_brand,
+        set_current_user_input,
+    )
     brand = tc.device_brand or None
     model = tc.device_model or None
+    # 同步生產路徑：ContextVar 注入 user_id / brand / model / user_input
+    # 否則 load_skill 會以「品牌未知」拒絕載入品牌專屬技能
+    set_current_user_id(f"qc-{tc.id}")
+    set_current_brand(brand, model)
+    set_current_user_input(tc.question)
     skills_section = build_dynamic_skills_section(brand, model)
 
     if tc.device_brand:
@@ -715,15 +725,27 @@ async def main():
 
         print(f"\n[{i+1:02d}/{len(TEST_CASES)}] {tc.id} | {tc.category} | {tc.question[:40]}...", end=" ", flush=True)
 
-        try:
-            r = await run_single(agent, judge_model, tc, config, use_judge=use_judge)
-        except Exception as e:
-            r = {
-                "id": tc.id, "category": tc.category, "question": tc.question,
-                "expected": tc.expected, "answer": f"ERROR: {e}",
-                "skills_loaded": [], "keyword_hits": "0/0",
-                "verdict": "error", "reason": str(e), "elapsed_sec": 0,
-            }
+        # 429 retry with exponential backoff (Vertex AI Flash 突發 RPM 保護)
+        r = None
+        for attempt in range(4):
+            try:
+                r = await run_single(agent, judge_model, tc, config, use_judge=use_judge)
+                break
+            except Exception as e:
+                msg = str(e)
+                is_429 = "RESOURCE_EXHAUSTED" in msg or "429" in msg or "RateLimitError" in msg
+                if is_429 and attempt < 3:
+                    backoff = 15 * (2 ** attempt)  # 15s, 30s, 60s
+                    print(f"\n       [429] retry in {backoff}s (attempt {attempt+1}/3)...", flush=True)
+                    await asyncio.sleep(backoff)
+                    continue
+                r = {
+                    "id": tc.id, "category": tc.category, "question": tc.question,
+                    "expected": tc.expected, "answer": f"ERROR: {e}",
+                    "skills_loaded": [], "keyword_hits": "0/0",
+                    "verdict": "error", "reason": str(e), "elapsed_sec": 0,
+                }
+                break
 
         results.append(r)
         verdict = r["verdict"]
@@ -740,6 +762,9 @@ async def main():
         print(f"[{icon}] {r['elapsed_sec']}s | kw={r['keyword_hits']} | skills={skills_str}")
         if verdict != "pass":
             print(f"       reason: {r['reason']}")
+
+        # Throttle: 避免 Vertex AI Flash 突發 RPM 上限
+        await asyncio.sleep(1.5)
 
     report = {"summary": stats, "category_stats": category_stats, "results": results}
     _save_report(report, json_path, html_path)
