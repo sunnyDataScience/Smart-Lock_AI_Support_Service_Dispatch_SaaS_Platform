@@ -265,6 +265,7 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
     request_timeout = _config.get("request_timeout", 60)
     is_multimodal = isinstance(user_input, list)
 
+    t_phase_start = time.monotonic()
     try:
         thread_id = f"line_{user_id}"
 
@@ -309,6 +310,7 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
 
         config = {"configurable": {"thread_id": thread_id}}
 
+        t_pre_strip = time.monotonic()
         # 清理 checkpoint 中殘留的多模態訊息（避免 octet-stream 污染）
         await _strip_stale_multimodal(_agent, config)
 
@@ -351,6 +353,8 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         run_config.setdefault("metadata", {})["user_id"] = user_id
 
         t0 = time.monotonic()
+        pre_setup_s = t_pre_strip - t_phase_start
+        strip_s = t0 - t_pre_strip
         try:
             result = await asyncio.wait_for(
                 _agent.ainvoke(
@@ -360,9 +364,12 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
                 timeout=request_timeout,
             )
         except asyncio.TimeoutError:
+            ainvoke_s = time.monotonic() - t0
             print(f"[Agent 超時] {user_id} 的問題處理超過 {request_timeout} 秒")
+            print(f"[Timing-TIMEOUT] pre={pre_setup_s:.2f}s strip={strip_s:.2f}s ainvoke=>{ainvoke_s:.2f}s")
             return _templates.get("error_timeout", "不好意思，系統處理時間過長，請稍後再試一次。")
-        latency_ms = (time.monotonic() - t0) * 1000
+        t_invoke_done = time.monotonic()
+        latency_ms = (t_invoke_done - t0) * 1000
 
         messages = result.get("messages", [])
 
@@ -382,6 +389,11 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
 
         # Checkpoint 清理：將 tool call 訊息替換為輕量引用，避免 SOP 內容累積稀釋上下文
         await _cleanup_tool_checkpoint(config, messages)
+        t_cleanup_done = time.monotonic()
+        cleanup_s = t_cleanup_done - t_invoke_done
+        total_s = t_cleanup_done - t_phase_start
+        ainvoke_s = (t_invoke_done - t0)
+        print(f"[Timing] pre={pre_setup_s:.2f}s strip={strip_s:.2f}s ainvoke={ainvoke_s:.2f}s cleanup={cleanup_s:.2f}s total={total_s:.2f}s")
 
         return ai_response
 

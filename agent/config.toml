@@ -7,7 +7,7 @@
 [system]
 domain          = "電子鎖、智慧門鎖相關的產品諮詢、故障排除、安裝派工"
 agent_name      = "smart_lock_agent"
-request_timeout = 60     # 秒，需與 [line_bot].loading_seconds 對齊（LINE 動畫上限）
+request_timeout = 120    # 秒，Phase 0 暫時拉長以止血；Phase 2 完成後再砍回 60-90s
 
 # ── 2. LLM 設定（LiteLLM 格式）──
 # Gemini 2.5 Flash GA：穩定 quota（~1000 RPM、4M TPM）、SLA 有保障
