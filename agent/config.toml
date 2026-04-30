@@ -15,7 +15,7 @@ request_timeout = 120    # 秒，Phase 0 暫時拉長以止血；Phase 2 完成�
 [llm]
 model            = "vertex_ai/gemini-2.5-flash"
 temperature      = 0.3
-thinking_budget  = 512    # 客服場景以 SOP 引導為主，不需深度推理
+thinking_budget  = 0      # Phase 2 試刀：客服 SOP 走 prompt 工程，不依賴 thinking
 
 # ── 3. LINE Bot 設定 ──
 [line_bot]
