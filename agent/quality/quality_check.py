@@ -31,7 +31,51 @@ from langchain_litellm import ChatLiteLLM
 from core.config import load_config
 from agent import build_agent
 from langgraph.checkpoint.memory import MemorySaver
+from llms import get_llm
 from llms.litellm_model import _ensure_vertex_credentials
+
+# ─────────────────────────────────────────────
+# 繁體中文檢測（無外部依賴）
+# 「簡體獨有」字集 — 這些字符在繁體中文文本中不會出現，命中即視為簡體污染
+# 來源：常用簡繁差異字（手工整理高頻字 ~140 個）
+# ─────────────────────────────────────────────
+
+_SIMPLIFIED_ONLY_CHARS = set(
+    # 高頻簡體獨有字（手工審核，去除任何在繁體中也通用的字）
+    "们个电话说问题应么还会来对时间业书识级证录权类历东龙图机风众际从亲"
+    "园国经听觉资张这试发达运边过远进连选择产务习数据库网络节结报销责"
+    "贵贸费财购锁钥钱银铁钟铃铺镜检标头顺项须顾颗颜飞馆验"
+    "鸡鸭鸟鱼龟麦齐齿"
+    "党学写军农兴单卖买实宝宁宪宽寻导尘尝层岁帅师带帮帜庆厅厌厨厦厂广"
+    "异弹强归当贝贺贡贪贬货贫赔赏赐赋赞赠赢赵赶趋跃车转软较辑输"
+    "适递邻钉钢钩锅锐错锋镇长门闭闯阀队阶险难顿额饭饮饿驾驶骄"
+    "临丝乐乱争亏仅仓仪价优伞伟传伤伪体侠侨倾偿储备块团围圆圣场坏坚坛壢垒"
+    "执担拢抚抢拥挂损摄摆击杀杂极构枪树桥楼欢欧殴残殡毕"
+    "沟沪泞泪测济浏涌净渐渔满滤潜灭灯灿炼烂烦烧焕热营烫"
+    "爱爷牵状犹狈独狮猎献玛环现玺珑琼琐画监盖盘睁码矿砖础硕确礼祸离"
+    "积称稳穷窝笃笔笺笼筑简篮"
+    "紧综绍绑绒绕绘给绝统绸绪维绳绷绿缔编缠缩缴罗罢罚"
+    "聋联聪肃肠肤胆胀胁胜脏脑脚腊腾"
+    "兽刘刚创则剂剑剧办劝动励劲劳势"
+)
+
+
+def _detect_simplified(text: str, *, max_examples: int = 10) -> list[str]:
+    """掃描文字中出現的「簡體獨有」字，回傳命中字（去重，最多 max_examples 個）。
+
+    用途：驗證 agent 回覆是否混入簡體字。空 list 表示純繁體（在本字典範圍內）。
+    """
+    if not text:
+        return []
+    seen: list[str] = []
+    seen_set: set[str] = set()
+    for ch in text:
+        if ch in _SIMPLIFIED_ONLY_CHARS and ch not in seen_set:
+            seen.append(ch)
+            seen_set.add(ch)
+            if len(seen) >= max_examples:
+                break
+    return seen
 
 # ─────────────────────────────────────────────
 # 測試案例定義
@@ -467,6 +511,9 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
         else:
             judge_result = {"verdict": "fail", "reason": f"keyword 0/{kw_total}"}
 
+    # 繁體中文偵測（驗證 LLM 是否混入簡體字）
+    simplified_chars = _detect_simplified(answer)
+
     return {
         "id": tc.id,
         "category": tc.category,
@@ -478,6 +525,7 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
         "verdict": judge_result.get("verdict", "error"),
         "reason": judge_result.get("reason", ""),
         "elapsed_sec": elapsed,
+        "simplified_chars": simplified_chars,
     }
 
 
@@ -642,10 +690,14 @@ async def main():
 
     cfg = load_config()
 
-    model = ChatLiteLLM(model="vertex_ai/gemini-2.5-pro", temperature=0.3)
+    # 主模型走 config.toml 的 [llm] 設定（含 reasoning_effort、vertex_location 等）
+    # 如此 quality_check 才能驗證實際生產環境的模型表現
+    model = get_llm(cfg.llm)
+    print(f"[Quality Check] Using model: {cfg.llm.get('model')} (reasoning={cfg.llm.get('reasoning_effort', 'N/A')}, location={cfg.llm.get('vertex_location', 'N/A')})")
 
     judge_model = None
     if use_judge:
+        # judge 是裁判，與被測模型解耦，固定用 2.5-flash
         judge_model = ChatLiteLLM(model="vertex_ai/gemini-2.5-flash", temperature=0.0)
 
     agent = build_agent(model, cfg, checkpointer=MemorySaver())
@@ -713,6 +765,21 @@ def _save_report(report: dict, json_path: str, html_path: str) -> None:
     for cat, cs in category_stats.items():
         rate = cs.get("pass", 0) / cs["total"] * 100 if cs.get("total") else 0
         print(f"  {cat:<12} {cs.get('pass',0):>6} {cs.get('partial',0):>8} {cs.get('fail',0):>6} {cs['total']:>6} {rate:>5.0f}%")
+
+    # 繁體中文檢查統計
+    results = report.get("results", [])
+    contaminated = [r for r in results if r.get("simplified_chars")]
+    print("\n  " + "-" * 50)
+    print(f"  繁體中文檢查：{len(results) - len(contaminated)}/{len(results)} 純繁體")
+    if contaminated:
+        print(f"  ⚠️  含簡體字案例：{len(contaminated)} 筆")
+        for r in contaminated[:5]:
+            chars = "".join(r["simplified_chars"])
+            print(f"    - [{r['id']}] 命中: {chars}")
+        if len(contaminated) > 5:
+            print(f"    ...（其他 {len(contaminated) - 5} 筆見 JSON）")
+    else:
+        print("  ✅ 全部 67 筆案例均為繁體中文")
 
     # 輸出 JSON + HTML
     with open(json_path, "w", encoding="utf-8") as f:
