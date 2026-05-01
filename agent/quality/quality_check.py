@@ -711,6 +711,11 @@ async def main():
 
     cfg = load_config()
 
+    # 初始化 Quick Reply / 品牌字典（生產 app.py:126 會做）
+    # 沒做 → infer_brand_from_text 永遠返回 (None, None)，品牌路由失準
+    from harness.line_ui_factory import init_quick_reply
+    init_quick_reply(cfg.quick_reply)
+
     # 主模型走 config.toml 的 [llm] 設定（含 thinking_budget 等）
     # 如此 quality_check 才能驗證實際生產環境的模型表現
     model = get_llm(cfg.llm)
