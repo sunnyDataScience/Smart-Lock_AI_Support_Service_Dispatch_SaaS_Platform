@@ -316,3 +316,60 @@ Docs in `docs/` using a 5D framework (DISCOVER → DEFINE → DESIGN → DEVELOP
 - `docs/05_architecture_and_design_document.md` — System architecture
 - `docs/01_development_workflow_cookbook.md` — Dev workflow
 - `docs/HOME.md` — Documentation hub
+
+## Post-Commit Progress Report (MANDATORY)
+
+每次 `git commit` 完成後，**必須**立即撰寫一份進度報告，存放於對應功能模組底下的 `docs/report/` 子資料夾，並標注版本號。
+
+### 規則
+
+1. **觸發時機**：每完成一次 `git commit` 後立即寫入（不可跳過、不可合併到下次 commit 才補）。
+2. **存放位置**：報告必須放在「該 commit 主要影響的功能模組」底下的 `docs/report/` 資料夾。
+   - 影響 `agent/quality/` → 寫入 `agent/quality/docs/report/`
+   - 影響 `agent/harness/` → 寫入 `agent/harness/docs/report/`
+   - 影響 `agent/skills/` → 寫入 `agent/skills/docs/report/`
+   - 影響 `web/src/components/work-orders/` → 寫入 `web/src/components/work-orders/docs/report/`
+   - 影響 `data/pipeline/silver_to_skill/` → 寫入 `data/pipeline/silver_to_skill/docs/report/`
+   - 跨模組變更 → 寫到「主要受影響模組」的 `docs/report/`，並在報告內列出其他受影響模組
+   - 若 `docs/report/` 不存在，直接建立。
+3. **版本號規則 (Semantic Versioning)**：每個 `docs/report/` 資料夾各自獨立維護版本序號，格式 `vMAJOR.MINOR.PATCH`：
+   - **MAJOR**：破壞性變更（API 變動、移除功能、格式不相容）
+   - **MINOR**：新增功能、不破壞相容性的擴充
+   - **PATCH**：bug 修復、文件/註解調整、refactor、perf 優化
+   - 第一份報告一律從 `v1.0.0` 起算
+   - 寫入前先查看該資料夾既有報告，取最新版號 +1 對應段
+   - 同一 commit 只壓一個版本號
+4. **檔名格式**：`v{MAJOR.MINOR.PATCH}.md`
+   - 首份報告：`v1.0.0.md`
+   - 詳細日期、commit SHA、主題等資訊寫在報告內文，不放檔名
+5. **內容範本**：
+
+   ```markdown
+   # 進度報告 v{MAJOR.MINOR.PATCH}：{一句話標題}
+
+   - **版本**: v{MAJOR.MINOR.PATCH}（前版：v{previous} → 本版升級類型：MAJOR/MINOR/PATCH）
+   - **Commit**: `{sha7}` ({YYYY-MM-DD HH:mm})
+   - **分支**: {branch-name}
+   - **作者**: {git user.name}
+   - **影響模組**: {主要模組}（+ 其他受影響模組，若有）
+
+   ## 變更摘要 (WHAT)
+   {1–3 條條列：這次 commit 改了什麼}
+
+   ## 背景與動機 (WHY)
+   {為什麼做這個變更，解決什麼問題}
+
+   ## 影響評估 (IMPACT)
+   - 破壞性變更：{有/無，若有具體說明}
+   - 後續動作：{需要 migration、重跑測試、更新文檔等}
+
+   ## 驗證方式
+   {如何確認這次變更正確：跑了什麼測試、人工驗證步驟}
+
+   ## 下一步 (NEXT)
+   {接下來要做什麼，或本次未完成項目}
+   ```
+
+6. **語言**：使用繁體中文撰寫。
+7. **長度**：精簡為主，建議 30–80 行；單純 typo/格式修正可縮至 10 行內。
+8. **不寫入的例外**：純機械變更（如 `.gitignore`、lock file 自動更新、commit 訊息修正）可跳過，**不消耗版本號**，但需在下一次正式 commit 的報告內以一行附註說明。

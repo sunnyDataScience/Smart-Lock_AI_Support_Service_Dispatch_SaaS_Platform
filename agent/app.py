@@ -115,6 +115,10 @@ async def startup():
     # 初始化審計日誌
     audit_storage = await get_storage(_cfg.storage)
 
+    # 注入 LLM 用量紀錄共用 storage（取代 Opik 的 token + latency 紀錄角色）
+    from harness import llm_metrics
+    llm_metrics.set_storage(audit_storage)
+
     # 初始化安全閘門 (H6)
     safety_gate.init(_cfg.safety)
 

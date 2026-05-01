@@ -10,10 +10,12 @@ from __future__ import annotations
 
 import json
 import re
+import time
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from core.config import load_prompt
+from harness.llm_metrics import log_simple
 
 # ── 模組層級狀態（由 init() 初始化）──
 _llm = None
@@ -76,7 +78,7 @@ def should_skip(ai_response: str) -> bool:
     return any(marker in ai_response for marker in _skip_markers)
 
 
-async def validate(ai_response: str, user_message: str, context: str = "") -> dict:
+async def validate(ai_response: str, user_message: str, context: str = "", user_id: str = "") -> dict:
     """驗證 AI 回覆是否符合 system prompt 規範。
 
     Args:
@@ -114,8 +116,17 @@ async def validate(ai_response: str, user_message: str, context: str = "") -> di
         ai_response=ai_response,
     )
 
+    model_name = _config.get("model_name") or _config.get("validator_model") or "unknown"
+    t0 = time.monotonic()
     try:
         resp = await _llm.ainvoke([HumanMessage(content=prompt)])
+        log_simple(
+            user_id=user_id or "unknown",
+            call_site="output_validator",
+            model=model_name,
+            response=resp,
+            latency_ms=int((time.monotonic() - t0) * 1000),
+        )
         content = resp.content
         if isinstance(content, list):
             content = "".join(
@@ -138,6 +149,14 @@ async def validate(ai_response: str, user_message: str, context: str = "") -> di
                 "correction": result.get("correction", "請重新回答，確保符合客服規範。"),
             }
     except Exception as e:
+        log_simple(
+            user_id=user_id or "unknown",
+            call_site="output_validator",
+            model=model_name,
+            latency_ms=int((time.monotonic() - t0) * 1000),
+            success=False,
+            error_type=type(e).__name__,
+        )
         # 驗證器失敗 → fail-open，放行原始回覆
         print(f"[Output Validator] LLM 驗證失敗，放行: {e}")
         return {"pass": True}

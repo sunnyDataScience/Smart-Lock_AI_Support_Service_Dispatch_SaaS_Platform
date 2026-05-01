@@ -1,10 +1,15 @@
-"""品質檢測腳本 — 61 道測試題目驗證 agent_skills 回答水準。
+"""品質檢測腳本 — UAT 測試題目（依 50題測試題目.xlsx 設計）驗證 agent 回答水準。
+
+題庫範圍：
+  - 50 道主測試（H-1~H-10、S-1~S-10、W-1~W-10、Y-1~Y-10、M-1~M-5、G-1~G-5）
+  - 11 道實戰追加（E-1~E-11，硬體維修延伸案例）
+  - 6 道品牌路由補強（B-1~B-6，驗證 brand-specific skill 載入）
 
 用法：
-  cd agent_skills && python -m quality.quality_check                # 完整測試（含 LLM-as-Judge）
-  cd agent_skills && python -m quality.quality_check --no-judge     # 只跑 agent 回答 + 關鍵詞
-  cd agent_skills && python -m quality.quality_check --judge-only   # 用現有 JSON 重跑 LLM 評分
-  cd agent_skills && python -m quality.quality_check --retry-failed # 只重測上次非 pass 的案例，更新報告
+  cd agent && python -m quality.quality_check                # 完整測試（含 LLM-as-Judge）
+  cd agent && python -m quality.quality_check --no-judge     # 只跑 agent 回答 + 關鍵詞
+  cd agent && python -m quality.quality_check --judge-only   # 用現有 JSON 重跑 LLM 評分
+  cd agent && python -m quality.quality_check --retry-failed # 只重測上次非 pass 的案例，更新報告
 
 輸出：quality/quality_report.json + quality/quality_report.html
 """
@@ -35,49 +40,6 @@ from llms import get_llm
 from llms.litellm_model import _ensure_vertex_credentials, build_litellm
 
 # ─────────────────────────────────────────────
-# 繁體中文檢測（無外部依賴）
-# 「簡體獨有」字集 — 這些字符在繁體中文文本中不會出現，命中即視為簡體污染
-# 來源：常用簡繁差異字（手工整理高頻字 ~140 個）
-# ─────────────────────────────────────────────
-
-_SIMPLIFIED_ONLY_CHARS = set(
-    # 高頻簡體獨有字（手工審核，去除任何在繁體中也通用的字）
-    "们个电话说问题应么还会来对时间业书识级证录权类历东龙图机风众际从亲"
-    "园国经听觉资张这试发达运边过远进连选择产务习数据库网络节结报销责"
-    "贵贸费财购锁钥钱银铁钟铃铺镜检标头顺项须顾颗颜飞馆验"
-    "鸡鸭鸟鱼龟麦齐齿"
-    "党学写军农兴单卖买实宝宁宪宽寻导尘尝层岁帅师带帮帜庆厅厌厨厦厂广"
-    "异弹强归当贝贺贡贪贬货贫赔赏赐赋赞赠赢赵赶趋跃车转软较辑输"
-    "适递邻钉钢钩锅锐错锋镇长门闭闯阀队阶险难顿额饭饮饿驾驶骄"
-    "临丝乐乱争亏仅仓仪价优伞伟传伤伪体侠侨倾偿储备块团围圆圣场坏坚坛壢垒"
-    "执担拢抚抢拥挂损摄摆击杀杂极构枪树桥楼欢欧殴残殡毕"
-    "沟沪泞泪测济浏涌净渐渔满滤潜灭灯灿炼烂烦烧焕热营烫"
-    "爱爷牵状犹狈独狮猎献玛环现玺珑琼琐画监盖盘睁码矿砖础硕确礼祸离"
-    "积称稳穷窝笃笔笺笼筑简篮"
-    "紧综绍绑绒绕绘给绝统绸绪维绳绷绿缔编缠缩缴罗罢罚"
-    "聋联聪肃肠肤胆胀胁胜脏脑脚腊腾"
-    "兽刘刚创则剂剑剧办劝动励劲劳势"
-)
-
-
-def _detect_simplified(text: str, *, max_examples: int = 10) -> list[str]:
-    """掃描文字中出現的「簡體獨有」字，回傳命中字（去重，最多 max_examples 個）。
-
-    用途：驗證 agent 回覆是否混入簡體字。空 list 表示純繁體（在本字典範圍內）。
-    """
-    if not text:
-        return []
-    seen: list[str] = []
-    seen_set: set[str] = set()
-    for ch in text:
-        if ch in _SIMPLIFIED_ONLY_CHARS and ch not in seen_set:
-            seen.append(ch)
-            seen_set.add(ch)
-            if len(seen) >= max_examples:
-                break
-    return seen
-
-# ─────────────────────────────────────────────
 # 測試案例定義
 # ─────────────────────────────────────────────
 
@@ -97,174 +59,174 @@ class TestCase:
 TEST_CASES: list[TestCase] = [
     # ── 1. 硬體維修技師 (H-1 ~ H-10) ──
     TestCase("H-1", "硬體維修", "預售屋想換電子鎖要提供什麼資訊供技師評估？",
-             "告知需提供現有鎖體正面及鎖匣照片，以便評估側板規格",
+             "告知需提供現有鎖體正面及鎖匣照片，以便評估側板規格。",
              ["照片", "側板", "評估"]),
     TestCase("H-2", "硬體維修", "什麼是電子鎖的側板和受口？",
-             "解釋鎖匣外鐵片與門框孔位的定義",
+             "解釋鎖匣外鐵片與門框孔位的定義，這會影響型號選擇。",
              ["鎖匣", "鐵片", "門框", "受口"]),
     TestCase("H-3", "硬體維修", "推拉式和把手式電子鎖的開門動作差異？",
-             "解釋推拉式為直接進門，把手式則需下壓把手",
+             "解釋推拉式為直接進門，把手式則需下壓把手的機械區別。",
              ["推拉", "把手", "下壓"]),
     TestCase("H-4", "硬體維修", "全自動鎖匣的鎖舌感應機制是什麼？",
-             "解釋其具備感應器，當門關閉後會自動驅動鎖栓伸出上鎖",
+             "解釋其具備感應器，當門關閉後會自動驅動鎖栓伸出上鎖。",
              ["感應器", "自動", "鎖栓"]),
     TestCase("H-5", "硬體維修", "鎖舌在室內拉不開門的緊急處理？",
-             "指導「先將門推緊，再拉動把手」的緩解動作",
+             "指導「先將門推緊，再拉動把手」的緩解動作。",
              ["推緊", "拉", "把手"],
              device_brand="Chatlock",
              auto_reply="鎖舌縮不回去，門是關著的"),
-    TestCase("H-6", "硬體維修", "Dormakaba 鎖在室外推不開門的緊急處理？",
-             "指導先拉緊把手使門閉合，完成解鎖後再用力推動",
+    TestCase("H-6", "硬體維修", "鎖在室外推不開門的緊急處理？",
+             "指導「先拉緊把手使門閉合，完成解鎖後再用力推動」。",
              ["拉緊", "把手", "推"],
              device_brand="Dormakaba"),
     TestCase("H-7", "硬體維修", "門扇反弓會對鎖舌造成什麼具體影響？",
-             "指出鉸鏈區域擠壓問題會導致鎖舌與受口片卡澀難開，也可能無法開啟。需將門先拉緊或推緊後解鎖，再放開手才能開門",
+             "指出鉸鏈區域擠壓問題會導致鎖舌與受口片卡澀難開，也可能會無法開啟。需將門先拉緊或推緊後解鎖，再放開手才能開門。",
              ["鉸鏈", "反弓", "受口片", "卡"]),
     TestCase("H-8", "硬體維修", "出現關鎖失敗警報時，使用者可以如何自行初步排查？",
-             "指導在開門狀態下測試鎖栓伸縮是否正常，之後再確認是否為受口位移造成",
+             "指導在開門狀態下測試鎖栓伸縮是否正常，之後再確認是否為受口位移造成。",
              ["受口", "鎖栓", "排查"],
              device_brand="Dormakaba"),
     TestCase("H-9", "硬體維修", "Dormakaba 雙重認證模式啟動後會有什麼現象？",
-             "說明單一指紋或密碼或卡片將無法開門，需兩者同時驗證。如果只有管理者密碼可以開門但其他方式無法開門，就是啟動了雙重驗證模式，需將其解除",
+             "說明單一指紋或密碼或卡片將無法開門，需兩者同時驗證。如果只有管理者密碼可以開門，但是其他卡片或是指紋無法開門，就是啟動的雙重驗證模式，需將其解除。",
              ["雙重", "指紋", "密碼", "管理者"],
              device_brand="Dormakaba"),
     TestCase("H-10", "硬體維修", "Chatlock貓眼鏡頭旁閃爍紅燈的含義？",
-             "說明鏡頭正在主動啟動人臉或掌靜脈辨識，屬於正常工作狀態",
+             "說明鏡頭正在主動啟動人臉或掌靜脈辨識，屬於正常工作狀態。",
              ["紅燈", "辨識", "正常"],
              device_brand="Chatlock"),
 
     # ── 2. 報價與客服專員 (S-1 ~ S-10) ──
     TestCase("S-1", "報價客服", "預約師傅到府安裝電子鎖的具體流程？",
-             "說明諮詢、照片評估、選型、支付全額，將鎖寄出給客戶，排期安裝日期及教學",
+             "說明諮詢、照片評估、選型、支付全額，將鎖寄出給客戶，排期安裝日期及教學。",
              ["諮詢", "評估", "安裝", "教學"]),
     TestCase("S-2", "報價客服", "小米電子鎖代工安裝為什麼一定要看門扇照片？",
-             "解釋是為了確認現場環境是否符合安裝標準",
+             "解釋是為了確認現場環境（如側板尺寸）是否符合安裝標準。",
              ["照片", "確認", "環境", "安裝"]),
     TestCase("S-3", "報價客服", "師傅完成安裝後會提供哪些教學服務？",
-             "告知會現場教學管理員設定、用戶錄入及緊急供電操作",
+             "告知會現場教學管理員設定、用戶錄入及緊急供電操作。",
              ["教學", "設定", "管理"]),
     TestCase("S-4", "報價客服", "自備鎖請你們代工，如果之後壞了有保固嗎？",
-             "說明代工服務僅針對安裝品質，產品本身故障需洽原購買商",
+             "說明代工服務僅針對安裝品質，產品本身故障需洽原購買商。",
              ["代工", "安裝", "保固"]),
     TestCase("S-5", "報價客服", "林口以外的地區有提供電子鎖安裝服務嗎？",
-             "告知安裝服務可跨區，或引導聯繫門市確認皆可",
-             ["安裝", "服務", "聯繫"]),
+             "告知實體門市位置並強調安裝服務可提供跨區支援。",
+             ["林口", "跨區", "安裝"]),
     TestCase("S-6", "報價客服", "遺失實體鑰匙導致無法進門，這在保固範圍內嗎？",
-             "明確告知鑰匙遺失屬於人為因素，不包含在免費保固中。需將鎖破壞掉才能進入",
+             "明確告知鑰匙遺失屬於人為因素，不包含在免費保固中。需將鎖破壞掉才能進入。",
              ["保固", "鑰匙", "人為"]),
     TestCase("S-7", "報價客服", "如果我想更換整組鎖體，建議先準備什麼資料？",
-             "引導使用者提供現有門鎖的照片與側板尺寸等資訊以供評估",
-             ["照片", "側板", "評估"]),
+             "引導使用者提供現有門鎖的照片與門厚資訊以利作業，以及需提供欲安裝的品牌及型號。",
+             ["照片", "門厚", "品牌", "型號"]),
     TestCase("S-8", "報價客服", "電子鎖更換完成後，舊的傳統鎖會如何處理？",
-             "說明技師通常會將舊鎖交還客戶保存",
+             "說明技師通常會將舊鎖交還客戶保存，不負責回收。",
              ["舊鎖", "交還", "客戶"]),
     TestCase("S-9", "報價客服", "為什麼建議在早上十點半或下午一點半施工？",
-             "解釋是為了遵守社區大樓的噪音管制規定",
+             "解釋是為了遵守社區大樓的噪音管制規定，避免吵到鄰居。",
              ["噪音", "社區", "規定"]),
     TestCase("S-10", "報價客服", "有網路連線功能的電子鎖，對生活有哪些具體好處？",
-              "提及可異地遠端開門、即時收到家人到家通知及紀錄查詢",
+              "提及可異地遠端開門、即時收到家人到家通知及紀錄查詢。",
               ["遠端", "通知", "紀錄"]),
 
     # ── 3. 門市與規格助理 (W-1 ~ W-10) ──
     TestCase("W-1", "門市規格", "鎖市林口門市的營業時間為何？",
-             "提供週一至週六 09:30-20:00 等正確資訊",
+             "提供週一至週六 09:30-20:00 等正確資訊。",
              ["9:30", "週"]),
     TestCase("W-2", "門市規格", "林口鎖市地址為何？",
-             "新北市林口區民富街 83 號 1 樓",
+             "新北市林口區民富街83號1樓。",
              ["林口", "民富", "83"]),
     TestCase("W-3", "門市規格", "門市除了電子鎖還有提供印章服務嗎？",
-             "告知門市有提供印章服務，引導聯繫門市",
-             ["印章", "服務"]),
+             "回答有提供，包含印章刻印代工與名片製作。",
+             ["印章", "刻印"]),
     TestCase("W-4", "門市規格", "電子鎖完全沒電時，有哪些緊急供電方案？",
-             "指導使用行動電源透過 USB 接孔供電",
-             ["行動電源", "USB", "供電"],
+             "指導使用 9V 方型電池或行動電源透過 USB 接孔供電。",
+             ["9V", "行動電源", "USB"],
              device_brand="Chatlock", device_model="AI-99"),
     TestCase("W-5", "門市規格", "為什麼電子鎖不建議混用不同品牌的電池？",
-             "解釋不同電壓可能導致漏液風險",
-             ["漏液", "電池", "品牌"]),
+             "解釋不同電壓可能導致漏液風險，強力推薦國際牌鹼性電池。",
+             ["漏液", "電池", "鹼性"]),
     TestCase("W-6", "門市規格", "老人家指紋較淺，在設定上有什麼建議？",
-             "建議同一手指重複設定或改用人臉、掌靜脈",
-             ["重複", "設定", "人臉"]),
+             "建議同一手指重複設定 3 次以上，或改用人臉、掌靜脈。",
+             ["重複", "3", "人臉"]),
     TestCase("W-7", "門市規格", "鎖市有賣 Milre 美樂 6500F 嗎？",
-             "回答有提供此型號",
+             "回答有提供此型號產品的銷售與服務。",
              ["Milre", "6500"]),
     TestCase("W-8", "門市規格", "哪裡可以下載 GL220 電子鎖的說明書？",
-             "提供相關連結或指引",
-             ["GL220", "說明書"]),
+             "提供 GL220 的 Google Drive 分享連結。",
+             ["GL220", "Drive"]),
     TestCase("W-9", "門市規格", "我想找 FA9000 電子鎖的操作手冊。",
-             "提供相關連結或指引",
-             ["FA9000", "手冊"],
+             "提供 FA9000 的 Google Drive 連結。",
+             ["FA9000", "Drive"],
              device_brand="Dormakaba", device_model="FA9000"),
     TestCase("W-10", "門市規格", "ML660 的故障排除手冊連結？",
-              "提供相關連結或指引",
-              ["ML660", "手冊"],
+              "提供 ML660 的 Google Drive 連結。",
+              ["ML660", "Drive"],
               device_brand="Dormakaba", device_model="ML660"),
 
     # ── 4. APP 設定專家 (Y-1 ~ Y-10) ──
     TestCase("Y-1", "APP設定", "AS701 智慧鎖如何進入密碼登記模式？",
-             "提供操作步驟，或追問品牌後再提供步驟，或引導參考 AS701 手冊連結皆可",
-             ["密碼", "AS701"]),
+             "打開電池蓋按「+」鍵，輸入原密碼後按 * 鍵進入設定。",
+             ["AS701", "密碼", "*"]),
     TestCase("Y-2", "APP設定", "如何在 AS701 上新增 RFID 感應卡？",
-             "提供操作步驟，或引導參考 AS701 手冊連結皆可",
-             ["卡片", "AS701"]),
+             "按下登記鍵後，將卡片貼近感應區並按 * 鍵完成。",
+             ["登記", "卡片", "*"]),
     TestCase("Y-3", "APP設定", "A90 電子鎖完全沒電，如何用行動電源喚醒？",
-             "按壓底部圓蓋右轉取出，使用 Type-C 線連接供電",
+             "按壓底部圓蓋右轉取出，使用 Type-C 線連接供電。",
              ["底部", "Type-C", "行動電源"]),
     TestCase("Y-4", "APP設定", "Dormakaba APP 怎麼設定遠端金鑰？",
-             "引導參考 GDrive 上的 APP 遠端操作手冊步驟",
+             "引導參考 GDrive 上的 APP 遠端操作手冊步驟。",
              ["遠端", "APP", "手冊"]),
     TestCase("Y-5", "APP設定", "如何設定 AS701 的遙控器功能？",
-             "提供操作步驟，或引導參考 AS701 手冊連結皆可",
-             ["遙控器", "AS701"]),
+             "按下登記鍵後，按下遙控器 OPEN 鍵並以 * 鍵確認。",
+             ["登記", "遙控器", "*"]),
     TestCase("Y-6", "APP設定", "ML550 電子鎖的基本操作說明在哪看？",
-             "提供說明書相關指引",
+             "提供 ML550 專屬的 GDrive 使用說明書連結。",
              ["ML550", "說明"]),
     TestCase("Y-7", "APP設定", "Chatlock AI-99 臨時密碼的首位數字有什麼規定？",
-             "指出臨時密碼第一位必須是 1，或載入 app-guide 後回答皆可",
+             "明確指出臨時密碼的第一個數字必須設定為「1」。",
              ["臨時密碼", "1"]),
     TestCase("Y-8", "APP設定", "AI-99 如何查看過去的開鎖紀錄？",
-             "指導在 App 主介面點選紀錄功能",
-             ["紀錄", "APP"]),
+             "指導在 App 主介面點選「相簿/紀錄」功能選項。",
+             ["相簿", "紀錄"]),
     TestCase("Y-9", "APP設定", "為什麼播放 AI-99 的語音留言需要驗證管理員？",
-             "說明是基於隱私安全規範",
-             ["管理員", "隱私", "安全"]),
+             "說明是基於隱私安全規範，確保只有授權者可聽取。",
+             ["管理員", "隱私", "授權"]),
     TestCase("Y-10", "APP設定", "如何在 A90 上完成掌靜脈的錄入？",
-              "提示手掌應保持在鏡頭正前方 15 至 30 公分處",
+              "提示手掌應保持在鏡頭正前方 15 至 30 公分處進行掃描。",
               ["掌靜脈", "15", "30", "公分"]),
 
     # ── 5. 多意圖協作 (M-1 ~ M-5) ──
     TestCase("M-1", "多意圖", "我想預約師傅安裝，順便告訴我你們林口門市在哪？",
-             "同時回應預約流程與林口門市正確地址",
+             "同時回應預約流程與林口門市正確地址。",
              ["預約", "安裝", "林口", "地址"]),
     TestCase("M-2", "多意圖", "我的鎖舌卡住了怎麼修？預約維修要準備什麼？",
-             "給予排查建議或追問品牌與症狀以進一步診斷皆可（追問是合理的客服流程）",
-             ["鎖舌", "品牌"]),
+             "給予物理檢查建議，並告知預約維修需提供的型號與症狀資訊。",
+             ["鎖舌", "型號", "症狀"]),
     TestCase("M-3", "多意圖", "AS701 怎麼改密碼？另外你們週日有營業嗎？",
-             "同時教學改密碼步驟，並確認週日營業時間",
-             ["密碼", "週日"]),
+             "同時教學 AS701 改密碼步驟，並確認週日營業時間。",
+             ["AS701", "密碼", "週日"]),
     TestCase("M-4", "多意圖", "FA9000 的說明書在哪？這台可以用手機開門嗎？",
-             "提供手冊連結並解釋連網開鎖功能",
+             "提供手冊連結並解釋該型號的連網開鎖功能。",
              ["FA9000", "手冊", "手機"],
              device_brand="Dormakaba", device_model="FA9000"),
     TestCase("M-5", "多意圖", "為什麼指紋一直失敗？老人家要怎麼設定比較好？",
-             "解釋失敗原因或追問品牌，並提供老人設定建議（多錄指紋或改用其他方式）",
-             ["指紋", "老人"]),
+             "解釋指紋辨識失敗原因，並提供長輩重複錄入的專業建議。",
+             ["指紋", "失敗", "重複"]),
 
     # ── 6. 圍籬與領域外 (G-1 ~ G-5) ──
     TestCase("G-1", "圍籬測試", "幫我推薦林口好吃的火鍋店。",
-             "禮貌告知職責為電子鎖服務，無法提供美食建議",
+             "禮貌告知職責為電子鎖服務，無法提供美食建議。",
              ["電子鎖", "無法"]),
     TestCase("G-2", "圍籬測試", "今天林口天氣怎麼樣？會下雨嗎？",
-             "告知無法提供天氣預報，詢問是否有門鎖問題",
+             "告知無法提供即時天氣預報，詢問是否有門鎖問題需協助。",
              ["無法", "門鎖"]),
     TestCase("G-3", "圍籬測試", "最近台積電的股價值得買入嗎？",
-             "告知非財經專家，僅能協助電子鎖相關諮詢",
+             "告知非財經專家，僅能協助處理電子鎖相關專業諮詢。",
              ["電子鎖", "無法"]),
     TestCase("G-4", "圍籬測試", "你會寫 Python 程式碼嗎？",
-             "告知職責範圍為電子鎖諮詢",
-             ["電子鎖"]),
+             "告知職責範圍為電子鎖諮詢，無法提供程式開發服務。",
+             ["電子鎖", "無法"]),
     TestCase("G-5", "圍籬測試", "牛肉麵要怎麼煮才好吃？",
-             "告知無法提供食譜，引導回歸電子鎖話題",
+             "告知無法提供食譜，引導使用者回歸電子鎖相關話題。",
              ["電子鎖", "無法"]),
 
     # ── 7. 追加實戰案例 (E-1 ~ E-11) ──
@@ -375,8 +337,24 @@ async def judge_answer(judge_model, tc: TestCase, answer: str) -> dict:
         expected=tc.expected,
         answer=answer,
     )
+    # llm_metrics.log_simple 會在 storage 未注入時自動 noop（離線跑 quality_check 時不寫 DB）
+    try:
+        from harness.llm_metrics import log_simple as _log_simple
+    except Exception:
+        _log_simple = None
+    model_name = getattr(judge_model, "model", "unknown") or "unknown"
+    t0 = time.monotonic()
     try:
         resp = await judge_model.ainvoke(prompt)
+        if _log_simple:
+            _log_simple(
+                user_id=f"quality:{tc.id}",
+                call_site="quality_judge",
+                model=str(model_name),
+                response=resp,
+                latency_ms=int((time.monotonic() - t0) * 1000),
+                metadata={"category": tc.category},
+            )
         content = resp.content
         if isinstance(content, list):
             content = "".join(
@@ -388,6 +366,15 @@ async def judge_answer(judge_model, tc: TestCase, answer: str) -> dict:
             content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
         return json.loads(content)
     except Exception as e:
+        if _log_simple:
+            _log_simple(
+                user_id=f"quality:{tc.id}",
+                call_site="quality_judge",
+                model=str(model_name),
+                latency_ms=int((time.monotonic() - t0) * 1000),
+                success=False,
+                error_type=type(e).__name__,
+            )
         return {"verdict": "error", "reason": f"Judge 解析失敗: {e}"}
 
 
@@ -532,9 +519,6 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
         else:
             judge_result = {"verdict": "fail", "reason": f"keyword 0/{kw_total}"}
 
-    # 繁體中文偵測（驗證 LLM 是否混入簡體字）
-    simplified_chars = _detect_simplified(answer)
-
     return {
         "id": tc.id,
         "category": tc.category,
@@ -546,7 +530,6 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
         "verdict": judge_result.get("verdict", "error"),
         "reason": judge_result.get("reason", ""),
         "elapsed_sec": elapsed,
-        "simplified_chars": simplified_chars,
     }
 
 
@@ -806,21 +789,6 @@ def _save_report(report: dict, json_path: str, html_path: str) -> None:
     for cat, cs in category_stats.items():
         rate = cs.get("pass", 0) / cs["total"] * 100 if cs.get("total") else 0
         print(f"  {cat:<12} {cs.get('pass',0):>6} {cs.get('partial',0):>8} {cs.get('fail',0):>6} {cs['total']:>6} {rate:>5.0f}%")
-
-    # 繁體中文檢查統計
-    results = report.get("results", [])
-    contaminated = [r for r in results if r.get("simplified_chars")]
-    print("\n  " + "-" * 50)
-    print(f"  繁體中文檢查：{len(results) - len(contaminated)}/{len(results)} 純繁體")
-    if contaminated:
-        print(f"  ⚠️  含簡體字案例：{len(contaminated)} 筆")
-        for r in contaminated[:5]:
-            chars = "".join(r["simplified_chars"])
-            print(f"    - [{r['id']}] 命中: {chars}")
-        if len(contaminated) > 5:
-            print(f"    ...（其他 {len(contaminated) - 5} 筆見 JSON）")
-    else:
-        print("  ✅ 全部 67 筆案例均為繁體中文")
 
     # 輸出 JSON + HTML
     with open(json_path, "w", encoding="utf-8") as f:

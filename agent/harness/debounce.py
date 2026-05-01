@@ -12,11 +12,13 @@ import base64
 import time
 import asyncio
 import json
+import uuid
 
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage, ToolMessage
 
 import core.line_bot as line_bot
 import harness.memory_manager as memory_manager
+from harness.llm_metrics import extract_usage_from_messages, schedule_log
 from harness.line_ui_factory import (
     build_line_messages, match_brand, match_model, get_brand_models, is_quick_reply_enabled,
 )
@@ -378,7 +380,8 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
             await _cleanup_multimodal_checkpoint(config, messages, buffer_items)
 
         # H8: 審計 — 記錄工具呼叫 + 轉接真人 + LLM 互動（須在 tool cleanup 前，需讀原始 tool_calls）
-        asyncio.create_task(_audit_agent_result(user_id, messages, latency_ms))
+        turn_id = uuid.uuid4().hex[:16]
+        asyncio.create_task(_audit_agent_result(user_id, messages, latency_ms, turn_id))
 
         # 提取最終回覆
         ai_response = _templates.get("error_no_reply", "抱歉，系統沒有產生回覆。")
@@ -471,11 +474,18 @@ async def _cleanup_tool_checkpoint(config: dict, messages: list):
         print(f"[Checkpoint] 清理 tool call 訊息失敗: {e}")
 
 
-async def _audit_agent_result(user_id: str, messages: list, latency_ms: float):
-    """從 agent 結果中解析工具呼叫與轉接事件，寫入審計日誌。"""
+async def _audit_agent_result(user_id: str, messages: list, latency_ms: float, turn_id: str | None = None):
+    """從 agent 結果中解析工具呼叫與轉接事件，寫入審計日誌與 LLM 用量紀錄。
+
+    LLM 用量紀錄：對 result.messages 中每個 AIMessage 寫一筆 llm_usage_log
+    （ReAct agent 一次 ainvoke 內部可能多次呼叫 LLM）。
+    總 latency_ms 記在「最後一個 AIMessage」那筆，中間步驟 latency_ms 留 NULL，
+    metadata 標 step_index + 是否 tool call。
+    """
     if not _audit_storage:
         return
     try:
+        # --- 既有審計（工具呼叫 + 轉接） ---
         for msg in messages:
             if hasattr(msg, "type") and msg.type == "ai" and hasattr(msg, "tool_calls"):
                 for tc in (msg.tool_calls or []):
@@ -490,11 +500,45 @@ async def _audit_agent_result(user_id: str, messages: list, latency_ms: float):
                         reason = tc.get("args", {}).get("reason", "")
                         await _audit_storage.log_escalation(user_id, reason)
 
+        # --- LLM 用量紀錄（每個 AIMessage 一筆） ---
         model_name = _config.get("model_name", "gemini-2.5-flash")
-        await _audit_storage.log_llm_interaction(
-            user_id, model_name, "react_agent",
-            latency_ms=latency_ms,
-        )
+        ai_steps = extract_usage_from_messages(messages)
+        last_index = len(ai_steps) - 1
+        for step in ai_steps:
+            usage = step["usage"] or {}
+            ai_msg = step["message"]
+            is_last = step["step_index"] == last_index
+            tool_names = [tc.get("name") for tc in (getattr(ai_msg, "tool_calls", None) or [])]
+            schedule_log(
+                _audit_storage,
+                user_id=user_id,
+                call_site="react_agent_step",
+                model=model_name,
+                input_tokens=usage.get("input_tokens"),
+                output_tokens=usage.get("output_tokens"),
+                total_tokens=usage.get("total_tokens"),
+                # 只在最後一步紀錄整體 ainvoke 耗時，避免重複加總時膨脹
+                latency_ms=int(latency_ms) if is_last else None,
+                success=True,
+                turn_id=turn_id,
+                metadata={
+                    "step_index": step["step_index"],
+                    "is_final": is_last,
+                    "tool_calls": tool_names or None,
+                },
+            )
+        # 若整次 ainvoke 沒有任何 AIMessage（極端情況），仍記一筆方便查 latency
+        if not ai_steps:
+            schedule_log(
+                _audit_storage,
+                user_id=user_id,
+                call_site="react_agent_step",
+                model=model_name,
+                latency_ms=int(latency_ms),
+                success=False,
+                error_type="no_ai_message",
+                turn_id=turn_id,
+            )
     except Exception as e:
         print(f"[Audit] 記錄 agent 結果失敗: {e}")
 
@@ -745,7 +789,7 @@ async def agent_and_reply(
             validator_context_parts.append(f"[前情提要]\n{summary}")
         validator_context = "\n\n".join(validator_context_parts)
 
-        validation = await output_validator.validate(ai_response, text_for_audit, context=validator_context)
+        validation = await output_validator.validate(ai_response, text_for_audit, context=validator_context, user_id=user_id)
         if not validation["pass"]:
             print(f"[Output Validator] 不合規: {validation['reason']}")
             if _audit_storage:
