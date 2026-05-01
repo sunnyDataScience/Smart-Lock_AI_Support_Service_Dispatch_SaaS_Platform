@@ -628,6 +628,11 @@ async def main():
         os.chdir(_AGENT_SKILLS_DIR)
         cfg = load_config()
 
+        # 初始化 Quick Reply / 品牌字典（與正常模式同步）
+        # 沒做 → infer_brand_from_text 永遠返回 (None, None)，未寫死 device_brand 的 case 會被 brand gate 拒絕
+        from harness.line_ui_factory import init_quick_reply
+        init_quick_reply(cfg.quick_reply)
+
         model = ChatLiteLLM(model="vertex_ai/gemini-2.5-pro", temperature=0.3)
 
         judge_model = None
