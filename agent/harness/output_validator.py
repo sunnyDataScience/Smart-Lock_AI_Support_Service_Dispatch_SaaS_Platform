@@ -126,6 +126,7 @@ async def validate(ai_response: str, user_message: str, context: str = "", user_
             model=model_name,
             response=resp,
             latency_ms=int((time.monotonic() - t0) * 1000),
+            user_question=prompt,
         )
         content = resp.content
         if isinstance(content, list):
@@ -156,6 +157,7 @@ async def validate(ai_response: str, user_message: str, context: str = "", user_
             latency_ms=int((time.monotonic() - t0) * 1000),
             success=False,
             error_type=type(e).__name__,
+            user_question=prompt,
         )
         # 驗證器失敗 → fail-open，放行原始回覆
         print(f"[Output Validator] LLM 驗證失敗，放行: {e}")

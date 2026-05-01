@@ -80,19 +80,26 @@ def log_simple(
     error_type: str | None = None,
     metadata: dict | None = None,
     turn_id: str | None = None,
+    user_question: str | None = None,
+    ai_reply: str | None = None,
 ) -> None:
     """便利包裝：從 response 抽 usage，背景寫入 llm_usage_log。
+
+    user_question / ai_reply 由呼叫端傳入；若 ai_reply 為 None 但 response 有 .content
+    且 success=True，會自動取 response.content 當 ai_reply（避免每個呼叫端都要重複拿）。
 
     呼叫端只需：
         t0 = time.monotonic()
         try:
             resp = await llm.ainvoke([...])
             log_simple(user_id, "memory_compression", model, resp,
-                       int((time.monotonic()-t0)*1000))
+                       int((time.monotonic()-t0)*1000),
+                       user_question=dialogue_text)
         except Exception as e:
             log_simple(user_id, "memory_compression", model,
                        latency_ms=int((time.monotonic()-t0)*1000),
-                       success=False, error_type=type(e).__name__)
+                       success=False, error_type=type(e).__name__,
+                       user_question=dialogue_text)
             raise
     """
     storage = _storage
@@ -100,6 +107,15 @@ def log_simple(
         return
     usage = extract_usage(response) if response is not None else {}
     usage = usage or {}
+    # 若呼叫端沒傳 ai_reply 但 response 有內容，自動帶入
+    if ai_reply is None and response is not None and success:
+        content = getattr(response, "content", None)
+        if isinstance(content, str):
+            ai_reply = content
+        elif isinstance(content, list):
+            ai_reply = "".join(
+                b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text"
+            ) or None
     schedule_log(
         storage,
         user_id=user_id,
@@ -112,6 +128,8 @@ def log_simple(
         success=success,
         error_type=error_type,
         turn_id=turn_id,
+        user_question=user_question,
+        ai_reply=ai_reply,
         metadata=metadata,
     )
 

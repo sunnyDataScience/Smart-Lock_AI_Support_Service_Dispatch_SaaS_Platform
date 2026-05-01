@@ -353,6 +353,7 @@ async def judge_answer(judge_model, tc: TestCase, answer: str) -> dict:
                 model=str(model_name),
                 response=resp,
                 latency_ms=int((time.monotonic() - t0) * 1000),
+                user_question=prompt,
                 metadata={"category": tc.category},
             )
         content = resp.content
@@ -374,6 +375,7 @@ async def judge_answer(judge_model, tc: TestCase, answer: str) -> dict:
                 latency_ms=int((time.monotonic() - t0) * 1000),
                 success=False,
                 error_type=type(e).__name__,
+                user_question=prompt,
             )
         return {"verdict": "error", "reason": f"Judge 解析失敗: {e}"}
 

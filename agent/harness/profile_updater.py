@@ -179,9 +179,10 @@ async def extract_and_update(user_id: str, question: str, answer: str):
         model_name = _config.get("model_name") or _config.get("extractor_model") or "unknown"
         t0 = time.monotonic()
         try:
+            user_question_text = f"使用者: {question}\n客服: {answer}"
             response = await _llm.ainvoke([
                 SystemMessage(content=prompt),
-                HumanMessage(content=f"使用者: {question}\n客服: {answer}"),
+                HumanMessage(content=user_question_text),
             ])
             log_simple(
                 user_id=user_id,
@@ -189,6 +190,7 @@ async def extract_and_update(user_id: str, question: str, answer: str):
                 model=model_name,
                 response=response,
                 latency_ms=int((time.monotonic() - t0) * 1000),
+                user_question=user_question_text,
             )
         except Exception as e:
             log_simple(
@@ -198,6 +200,7 @@ async def extract_and_update(user_id: str, question: str, answer: str):
                 latency_ms=int((time.monotonic() - t0) * 1000),
                 success=False,
                 error_type=type(e).__name__,
+                user_question=f"使用者: {question}\n客服: {answer}",
             )
             raise
         raw_text = response.content.strip()

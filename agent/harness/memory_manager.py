@@ -165,6 +165,7 @@ async def maybe_compress(agent, thread_id: str, user_id: str = "") -> str | None
             model=model_name,
             response=response,
             latency_ms=latency_ms,
+            user_question=dialogue_text,
             metadata={"thread_id": thread_id, "summarized_messages": len(messages_to_summarize)},
         )
         new_summary = response.content.strip()
@@ -176,6 +177,7 @@ async def maybe_compress(agent, thread_id: str, user_id: str = "") -> str | None
             latency_ms=int((time.monotonic() - t0) * 1000),
             success=False,
             error_type=type(e).__name__,
+            user_question=dialogue_text,
         )
         print(f"[Memory] 摘要生成失敗: {e}")
         return None

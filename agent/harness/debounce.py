@@ -381,7 +381,7 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
 
         # H8: 審計 — 記錄工具呼叫 + 轉接真人 + LLM 互動（須在 tool cleanup 前，需讀原始 tool_calls）
         turn_id = uuid.uuid4().hex[:16]
-        asyncio.create_task(_audit_agent_result(user_id, messages, latency_ms, turn_id))
+        asyncio.create_task(_audit_agent_result(user_id, messages, latency_ms, turn_id, display))
 
         # 提取最終回覆
         ai_response = _templates.get("error_no_reply", "抱歉，系統沒有產生回覆。")
@@ -474,13 +474,15 @@ async def _cleanup_tool_checkpoint(config: dict, messages: list):
         print(f"[Checkpoint] 清理 tool call 訊息失敗: {e}")
 
 
-async def _audit_agent_result(user_id: str, messages: list, latency_ms: float, turn_id: str | None = None):
+async def _audit_agent_result(user_id: str, messages: list, latency_ms: float, turn_id: str | None = None, user_question: str | None = None):
     """從 agent 結果中解析工具呼叫與轉接事件，寫入審計日誌與 LLM 用量紀錄。
 
     LLM 用量紀錄：對 result.messages 中每個 AIMessage 寫一筆 llm_usage_log
     （ReAct agent 一次 ainvoke 內部可能多次呼叫 LLM）。
     總 latency_ms 記在「最後一個 AIMessage」那筆，中間步驟 latency_ms 留 NULL，
     metadata 標 step_index + 是否 tool call。
+    user_question 在所有 step 重複塞同一份（當輪使用者文字）。
+    ai_reply 取每筆 AIMessage 的 content（含中間 tool-call step 的 reasoning 文字）。
     """
     if not _audit_storage:
         return
@@ -509,6 +511,11 @@ async def _audit_agent_result(user_id: str, messages: list, latency_ms: float, t
             ai_msg = step["message"]
             is_last = step["step_index"] == last_index
             tool_names = [tc.get("name") for tc in (getattr(ai_msg, "tool_calls", None) or [])]
+            ai_content = getattr(ai_msg, "content", None)
+            if isinstance(ai_content, list):
+                ai_content = "".join(
+                    b.get("text", "") for b in ai_content if isinstance(b, dict) and b.get("type") == "text"
+                )
             schedule_log(
                 _audit_storage,
                 user_id=user_id,
@@ -521,6 +528,8 @@ async def _audit_agent_result(user_id: str, messages: list, latency_ms: float, t
                 latency_ms=int(latency_ms) if is_last else None,
                 success=True,
                 turn_id=turn_id,
+                user_question=user_question,
+                ai_reply=ai_content if isinstance(ai_content, str) else None,
                 metadata={
                     "step_index": step["step_index"],
                     "is_final": is_last,
@@ -538,6 +547,7 @@ async def _audit_agent_result(user_id: str, messages: list, latency_ms: float, t
                 success=False,
                 error_type="no_ai_message",
                 turn_id=turn_id,
+                user_question=user_question,
             )
     except Exception as e:
         print(f"[Audit] 記錄 agent 結果失敗: {e}")
