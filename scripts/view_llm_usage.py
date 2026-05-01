@@ -11,7 +11,7 @@
     python scripts/view_llm_usage.py --user-id <uid>            # 單一用戶
     python scripts/view_llm_usage.py --by-day                   # 按日聚合（成本趨勢）
     python scripts/view_llm_usage.py --limit 50                 # 明細顯示筆數
-    python scripts/view_llm_usage.py --show-content             # 明細附帶 user_question / ai_reply 摘要
+    python scripts/view_llm_usage.py --no-content               # 明細關閉 user_question / ai_reply 摘要（預設打開）
 """
 
 from __future__ import annotations
@@ -170,7 +170,7 @@ async def slow_calls(conn, since_interval: str, threshold_ms: int, limit: int):
         )
 
 
-async def recent_detail(conn, since_interval: str, user_id: str | None, limit: int, show_content: bool = False):
+async def recent_detail(conn, since_interval: str, user_id: str | None, limit: int, show_content: bool = True):
     where = ["timestamp >= NOW() - %s::interval"]
     params: list = [since_interval]
     if user_id:
@@ -214,7 +214,7 @@ async def main():
     parser.add_argument("--slow", action="store_true", help="顯示慢呼叫")
     parser.add_argument("--threshold", type=int, default=5000, help="慢呼叫門檻 ms（預設 5000）")
     parser.add_argument("--limit", type=int, default=30, help="明細 / slow 顯示筆數")
-    parser.add_argument("--show-content", action="store_true", help="明細附帶 user_question / ai_reply 摘要")
+    parser.add_argument("--no-content", action="store_true", help="關閉 user_question / ai_reply 摘要顯示（預設開啟）")
     args = parser.parse_args()
 
     pg_uri = os.getenv("POSTGRES_URI")
@@ -269,7 +269,7 @@ async def main():
         elif args.slow:
             await slow_calls(conn, since_interval, args.threshold, args.limit)
         else:
-            await recent_detail(conn, since_interval, args.user_id, args.limit, args.show_content)
+            await recent_detail(conn, since_interval, args.user_id, args.limit, not args.no_content)
     finally:
         await conn.close()
 
