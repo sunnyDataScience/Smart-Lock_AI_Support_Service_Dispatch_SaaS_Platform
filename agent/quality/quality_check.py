@@ -585,7 +585,7 @@ async def main():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     json_path = os.path.join(base_dir, "quality_report.json")
     html_path = os.path.join(base_dir, "quality_report.html")
-    md_path = os.path.join(base_dir, "quality_report.md")
+    md_dir = os.path.join(base_dir, "reports")
 
     _ensure_vertex_credentials()
 
@@ -602,7 +602,7 @@ async def main():
         print("=" * 60)
 
         report = await _rejudge(judge_model, json_path)
-        _save_report(report, json_path, html_path, md_path)
+        _save_report(report, json_path, html_path, md_dir)
         return
 
     # ── --retry-failed 模式：只重測非 pass 的案例 ──
@@ -683,7 +683,7 @@ async def main():
             category_stats[cat]["total"] += 1
 
         report = {"summary": stats, "category_stats": category_stats, "results": merged}
-        _save_report(report, json_path, html_path, md_path)
+        _save_report(report, json_path, html_path, md_dir)
         return
 
     # ── 正常模式 / --no-judge 模式 ──
@@ -767,10 +767,10 @@ async def main():
         await asyncio.sleep(1.5)
 
     report = {"summary": stats, "category_stats": category_stats, "results": results}
-    _save_report(report, json_path, html_path, md_path)
+    _save_report(report, json_path, html_path, md_dir)
 
 
-def _save_report(report: dict, json_path: str, html_path: str, md_path: str | None = None) -> None:
+def _save_report(report: dict, json_path: str, html_path: str, md_dir: str | None = None) -> None:
     """輸出 JSON + HTML（+ Markdown）報告並印出摘要。"""
     stats = report["summary"]
     category_stats = report["category_stats"]
@@ -799,14 +799,18 @@ def _save_report(report: dict, json_path: str, html_path: str, md_path: str | No
     _generate_html(report, html_path)
     print(f"  HTML saved: {html_path}")
 
-    if md_path:
-        _generate_md(report, md_path)
+    if md_dir:
+        md_path = _generate_md(report, md_dir)
         print(f"  MD saved:   {md_path}")
 
 
-def _generate_md(report: dict, path: str) -> None:
-    """輸出 Markdown 摘要報告（適合貼進 PR / Slack / docs）。"""
+def _generate_md(report: dict, out_dir: str) -> str:
+    """輸出 Markdown 摘要報告（適合貼進 PR / Slack / docs），檔名壓時間戳避免覆蓋。"""
     from datetime import datetime
+
+    os.makedirs(out_dir, exist_ok=True)
+    now = datetime.now()
+    path = os.path.join(out_dir, f"quality_report_{now.strftime('%Y-%m-%d_%H%M')}.md")
 
     stats = report.get("summary", {})
     category_stats = report.get("category_stats", {})
@@ -819,7 +823,7 @@ def _generate_md(report: dict, path: str) -> None:
     pass_rate = pass_n / total * 100
 
     lines: list[str] = []
-    lines.append(f"# Quality Report — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    lines.append(f"# Quality Report — {now.strftime('%Y-%m-%d %H:%M')}")
     lines.append("")
     lines.append(f"- **總案例數**: {total}")
     lines.append(f"- **通過率**: {pass_rate:.0f}% ({pass_n}/{total})")
@@ -881,6 +885,7 @@ def _generate_md(report: dict, path: str) -> None:
 
     with open(path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
+    return path
 
 
 def _generate_html(report: dict, path: str) -> None:
