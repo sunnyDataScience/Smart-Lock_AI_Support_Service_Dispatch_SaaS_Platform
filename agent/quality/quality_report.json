@@ -1,8 +1,8 @@
 {
   "summary": {
-    "pass": 58,
-    "partial": 6,
-    "fail": 3,
+    "pass": 55,
+    "partial": 7,
+    "fail": 5,
     "error": 0
   },
   "category_stats": {
@@ -28,8 +28,8 @@
       "total": 10
     },
     "APP設定": {
-      "pass": 10,
-      "partial": 0,
+      "pass": 9,
+      "partial": 1,
       "fail": 0,
       "error": 0,
       "total": 10
@@ -49,9 +49,9 @@
       "total": 5
     },
     "品牌路由": {
-      "pass": 5,
+      "pass": 3,
       "partial": 0,
-      "fail": 1,
+      "fail": 3,
       "error": 0,
       "total": 6
     }
@@ -62,13 +62,13 @@
       "category": "硬體維修",
       "question": "預售屋想換電子鎖要提供什麼資訊供技師評估？",
       "expected": "告知需提供現有鎖體正面及鎖匣照片，以便評估側板規格",
-      "answer": "您好！預售屋想換電子鎖需要提供一些資訊給技師評估，這樣可以確保安裝順利喔。\n\n主要需要您提供以下幾點：\n1.  **是新門要安裝，還是現有門要更換電子鎖？** (雖然是預售屋，但還是想確認一下)\n2.  **門的照片**：可以拍一張門的正面和鎖匣部分的照片嗎？\n3.  **安裝地址**：請問安裝的地址在哪裡呢？\n\n另外，如果能預先提供側板的規格，我們就可以準備相應的側板，這樣能更有效率地安排安裝喔！",
+      "answer": "您好！預售屋要換電子鎖的話，為了讓技師能更精確地評估，會需要您提供一些資訊。\n\n首先，請問是新門要安裝電子鎖，還是現有的門要更換呢？\n另外，如果方便的話，可以請您拍一張門的正面和鎖匣部分的照片嗎？這有助於我們了解門的結構。\n最後，也請您提供預計安裝的地址，這樣我們才能確認服務範圍喔！",
       "skills_loaded": [
         "dispatch-guide"
       ],
-      "keyword_hits": "3/3",
+      "keyword_hits": "2/3",
       "verdict": "pass",
-      "reason": "keyword 3/3",
+      "reason": "keyword 2/3",
       "elapsed_sec": 3.8,
       "simplified_chars": []
     },
@@ -77,14 +77,14 @@
       "category": "硬體維修",
       "question": "什麼是電子鎖的側板和受口？",
       "expected": "解釋鎖匣外鐵片與門框孔位的定義",
-      "answer": "電子鎖的「側板」指的是鎖匣外部那片長條形的鐵片，它會固定在門的側面。而「受口」或「受口片」則是門框上的一塊金屬片，當門關上時，鎖舌會卡進這個受口片中，達到上鎖的效果。\n\n請問您是想了解特定品牌的側板規格，還是有遇到什麼使用上的問題呢？",
+      "answer": "您好！電子鎖的「側板」指的是鎖匣外部那片長條形的鐵片，它會固定在門的側面。而「受口」或「受口片」則是安裝在門框上的金屬片，當門關上時，鎖舌會卡入這個受口片中，達到上鎖的效果。\n\n請問您是想了解特定品牌的側板規格，還是有其他相關問題呢？",
       "skills_loaded": [
         "product-knowledge"
       ],
       "keyword_hits": "4/4",
       "verdict": "pass",
       "reason": "keyword 4/4",
-      "elapsed_sec": 2.3,
+      "elapsed_sec": 2.4,
       "simplified_chars": []
     },
     {
@@ -92,14 +92,14 @@
       "category": "硬體維修",
       "question": "推拉式和把手式電子鎖的開門動作差異？",
       "expected": "解釋推拉式為直接進門，把手式則需下壓把手",
-      "answer": "推拉式電子鎖解鎖後直接推或拉門就可以開，而把手式電子鎖解鎖後需要下壓把手才能開門。\n\n請問您的電子鎖是什麼品牌和型號呢？我可以幫您查詢更詳細的資訊喔！",
+      "answer": "推拉式電子鎖解鎖後直接推或拉門就可以開，不需要按把手；把手式電子鎖解鎖後則需要下壓把手才能開門。\n\n請問您的電子鎖是什麼品牌和型號呢？我可以幫您查詢更詳細的資訊。",
       "skills_loaded": [
         "product-knowledge"
       ],
       "keyword_hits": "3/3",
       "verdict": "pass",
       "reason": "keyword 3/3",
-      "elapsed_sec": 1.8,
+      "elapsed_sec": 1.9,
       "simplified_chars": []
     },
     {
@@ -107,7 +107,7 @@
       "category": "硬體維修",
       "question": "全自動鎖匣的鎖舌感應機制是什麼？",
       "expected": "解釋其具備感應器，當門關閉後會自動驅動鎖栓伸出上鎖",
-      "answer": "全自動鎖匣的鎖舌感應機制，主要是透過鎖匣內部的感應器來偵測門扇是否關閉。當門關上時，感應器會偵測到鎖舌的位置，然後自動伸出鎖舌將門上鎖。\n\n請問您的電子鎖是什麼品牌和型號呢？這樣我可以提供更詳細的資訊。",
+      "answer": "全自動鎖匣的鎖舌感應機制，主要是透過鎖匣內建的感應器來偵測門扇是否關閉。當門關上時，感應器會偵測到鎖舌的位置，並自動伸出鎖舌將門上鎖。\n\n請問您的電子鎖是什麼品牌和型號呢？這樣我可以提供更詳細的資訊。",
       "skills_loaded": [
         "product-knowledge"
       ],
@@ -122,15 +122,16 @@
       "category": "硬體維修",
       "question": "鎖舌在室內拉不開門的緊急處理？",
       "expected": "指導「先將門推緊，再拉動把手」的緩解動作",
-      "answer": "您好，鎖舌縮不回去導致門打不開，這確實很讓人困擾。\n\n請問您現在人在門外還是門內呢？您的門是向外拉開還是向內推開？按開鎖時，有聽到嗡嗡的馬達聲嗎？\n\n為了給您最精準的步驟，請問您的電子鎖型號是什麼呢？（例如：AI-99、A90）",
+      "answer": "好的，了解您遇到鎖舌縮不回去的問題。\n\n請問您現在門是關著的，那鎖舌是完全縮不回去，還是卡在中間呢？\n\n另外，您方便在門打開的狀態下，按壓把手後方有上鎖圖示的按鈕約0.5秒後放開，觀察鎖栓是否能正常伸出嗎？這可以幫助我們判斷是鎖舌機構本身的問題，還是受口片造成的。",
       "skills_loaded": [
         "troubleshoot",
-        "ts-door-stuck-chatlock"
+        "ts-door-stuck-chatlock",
+        "ts-lock-tongue-chatlock"
       ],
       "keyword_hits": "1/3",
       "verdict": "partial",
       "reason": "keyword 1/3",
-      "elapsed_sec": 4.4,
+      "elapsed_sec": 5.8,
       "simplified_chars": []
     },
     {
@@ -138,10 +139,162 @@
       "category": "硬體維修",
       "question": "Dormakaba 鎖在室外推不開門的緊急處理？",
       "expected": "指導先拉緊把手使門閉合，完成解鎖後再用力推動",
-      "answer": "Dormakaba 鎖在室外推不開門，請您先試試看這個方法：\n\n如果您的門是向外拉開的，請先用力把門往門框方向推緊，不要放手，然後按解鎖，門就可以拉開了。\n如果您的門是向內推開的，請先用力把門往自己的方向拉緊，不要放手，然後按解鎖，門就可以推開了。\n\n請問您按解鎖時，有聽到嗡嗡的馬達聲嗎？您的門是向外拉開還是向內推開的呢？",
+      "answer": "Dormakaba 鎖在室外推不開門，請您先別擔心。\n\nDormakaba 的鎖舌設計比較特別，您可以試試看這個方法：\n\n1.  請先用力把門往門框方向推緊，不要放手。\n2.  然後按解鎖鍵。\n3.  這樣門應該就可以拉開了。\n\n請問您在按解鎖時，有聽到馬達運轉的聲音嗎？您的門是向外拉開還是向內推開的呢？",
       "skills_loaded": [
         "troubleshoot",
         "ts-door-stuck-dormakaba"
+      ],
+      "keyword_hits": "1/3",
+      "verdict": "partial",
+      "reason": "keyword 1/3",
+      "elapsed_sec": 3.7,
+      "simplified_chars": []
+    },
+    {
+      "id": "H-7",
+      "category": "硬體維修",
+      "question": "門扇反弓會對鎖舌造成什麼具體影響？",
+      "expected": "指出鉸鏈區域擠壓問題會導致鎖舌與受口片卡澀難開，也可能無法開啟。需將門先拉緊或推緊後解鎖，再放開手才能開門",
+      "answer": "門扇反弓主要是門本身的鉸鏈問題，而不是電子鎖的故障喔。它會導致開關門變得困難、門關上後縫隙過大，或是鎖舌跟受口片無法對齊，進而影響自動上鎖的功能。\n\n請問您的電子鎖是什麼品牌呢？門放開後是自動往外彈開，還是往室內彈開？目前主要困擾是什麼？是門很難關、門關上但鎖不上，還是門縫太大呢？",
+      "skills_loaded": [
+        "troubleshoot",
+        "ts-door-rebound"
+      ],
+      "keyword_hits": "3/4",
+      "verdict": "pass",
+      "reason": "keyword 3/4",
+      "elapsed_sec": 9.6,
+      "simplified_chars": []
+    },
+    {
+      "id": "H-8",
+      "category": "硬體維修",
+      "question": "出現關鎖失敗警報時，使用者可以如何自行初步排查？",
+      "expected": "指導在開門狀態下測試鎖栓伸縮是否正常，之後再確認是否為受口位移造成",
+      "answer": "您好！Dormakaba 電子鎖出現關鎖失敗警報時，您可以先嘗試以下初步排查：\n\n1.  **推緊門板**：有時候門扇沒有完全密合，會導致鎖舌無法順利伸出。您可以嘗試將門推緊，讓鎖舌對準受口片，再試著關鎖。\n2.  **檢查鎖舌是否有異物卡住**：檢查門框和鎖舌是否有異物阻礙，確保鎖舌可以順暢伸縮。\n\n為了提供您更精準的協助，請問您的 Dormakaba 電子鎖型號是什麼呢？",
+      "skills_loaded": [
+        "troubleshoot"
+      ],
+      "keyword_hits": "2/3",
+      "verdict": "pass",
+      "reason": "keyword 2/3",
+      "elapsed_sec": 2.3,
+      "simplified_chars": []
+    },
+    {
+      "id": "H-9",
+      "category": "硬體維修",
+      "question": "Dormakaba 雙重認證模式啟動後會有什麼現象？",
+      "expected": "說明單一指紋或密碼或卡片將無法開門，需兩者同時驗證。如果只有管理者密碼可以開門但其他方式無法開門，就是啟動了雙重驗證模式，需將其解除",
+      "answer": "Dormakaba 雙重認證模式啟動後，您在開鎖時需要依序驗證兩種不同的開鎖方式才能成功解鎖。例如，您可能需要先輸入密碼，然後再進行指紋辨識，這樣才能打開門鎖。\n\n請問您目前遇到什麼狀況，或是想了解哪個特定型號的雙重認證模式呢？",
+      "skills_loaded": [
+        "product-knowledge"
+      ],
+      "keyword_hits": "3/4",
+      "verdict": "pass",
+      "reason": "keyword 3/4",
+      "elapsed_sec": 2.1,
+      "simplified_chars": []
+    },
+    {
+      "id": "H-10",
+      "category": "硬體維修",
+      "question": "Chatlock貓眼鏡頭旁閃爍紅燈的含義？",
+      "expected": "說明鏡頭正在主動啟動人臉或掌靜脈辨識，屬於正常工作狀態",
+      "answer": "Chatlock 貓眼鏡頭旁的紅燈閃爍，表示人臉或掌靜脈辨識功能正在啟動中，這是正常的喔！\n\n如果紅燈亮起後感應成功，電子鎖就會顯示「已開鎖」。如果感應失敗，您可以調整距離或角度再試一次。\n\n另外，電子鎖上鎖後，紅燈不會立即亮起，大約 20 秒內不會主動啟動人臉感應，這是為了防止剛離開的人又被辨識開門的「防回頭機制」。如果在這段期間有人經過門前，這個 20 秒的計時會重新計算。\n\n如果紅燈遲遲不亮，您可以試試看：\n1. 用手觸摸螢幕喚醒電子鎖，紅燈會立刻亮起開始感應。\n2. 或是改用其他方式開門（例如密碼、指紋或卡片）。\n3. 等待大約 20 秒沒有人經過後，紅燈也會自動恢復感應。\n\n請問您有嘗試過這些方法嗎？",
+      "skills_loaded": [
+        "troubleshoot",
+        "ts-face-chatlock"
+      ],
+      "keyword_hits": "3/3",
+      "verdict": "pass",
+      "reason": "keyword 3/3",
+      "elapsed_sec": 3.4,
+      "simplified_chars": []
+    },
+    {
+      "id": "S-1",
+      "category": "報價客服",
+      "question": "預約師傅到府安裝電子鎖的具體流程？",
+      "expected": "說明諮詢、照片評估、選型、支付全額，將鎖寄出給客戶，排期安裝日期及教學",
+      "answer": "您好！預約師傅到府安裝電子鎖的具體流程是這樣的：\n\n1.  **諮詢**：我們會先了解您的需求。\n2.  **門扇評估**：您可以提供門的照片讓我們評估，或者安排現場勘查。\n3.  **選擇方案**：根據您的預算、對外觀和功能的需求，我們會提供適合您的方案。\n4.  **決定與支付訂金**。\n5.  **安排安裝時間**。\n6.  **完工教學**：師傅會教您如何設定管理者、新增用戶以及緊急供電操作。\n\n請問您是新門要安裝，還是現有門要更換電子鎖呢？",
+      "skills_loaded": [
+        "dispatch-guide"
+      ],
+      "keyword_hits": "4/4",
+      "verdict": "pass",
+      "reason": "keyword 4/4",
+      "elapsed_sec": 2.3,
+      "simplified_chars": []
+    },
+    {
+      "id": "S-2",
+      "category": "報價客服",
+      "question": "小米電子鎖代工安裝為什麼一定要看門扇照片？",
+      "expected": "解釋是為了確認現場環境是否符合安裝標準",
+      "answer": "您好！您是想了解為什麼安裝電子鎖前需要提供門扇照片嗎？\n\n這是因為我們需要透過照片來評估您的門扇狀況，例如門的材質、厚度、開門方向，以及現有鎖具的類型和安裝位置，這樣才能確認電子鎖是否適合安裝，並避免安裝時產生不必要的額外費用或問題。\n\n請問您是需要安裝電子鎖嗎？可以提供門扇照片給我看看嗎？",
+      "skills_loaded": [
+        "dispatch-guide"
+      ],
+      "keyword_hits": "3/4",
+      "verdict": "pass",
+      "reason": "keyword 3/4",
+      "elapsed_sec": 2.2,
+      "simplified_chars": []
+    },
+    {
+      "id": "S-3",
+      "category": "報價客服",
+      "question": "師傅完成安裝後會提供哪些教學服務？",
+      "expected": "告知會現場教學管理員設定、用戶錄入及緊急供電操作",
+      "answer": "師傅完成安裝後，會提供以下教學服務：管理者設定、用戶新增，以及緊急供電操作教學。\n\n另外，施工時段建議在早上 10:30 或下午 1:30，以遵守社區大樓的噪音管制規定。舊鎖的部分，技師通常會將舊鎖交還給客戶保存，不負責回收喔。",
+      "skills_loaded": [
+        "dispatch-guide"
+      ],
+      "keyword_hits": "3/3",
+      "verdict": "pass",
+      "reason": "keyword 3/3",
+      "elapsed_sec": 1.9,
+      "simplified_chars": []
+    },
+    {
+      "id": "S-4",
+      "category": "報價客服",
+      "question": "自備鎖請你們代工，如果之後壞了有保固嗎？",
+      "expected": "說明代工服務僅針對安裝品質，產品本身故障需洽原購買商",
+      "answer": "您好，關於您自備鎖請我們代工安裝，如果之後有問題的保固狀況，會分成兩個部分說明：\n\n1.  **安裝品質保固**：我們會確保安裝的品質，這部分是有保固的。\n2.  **產品本身保固**：由於鎖是您自備的，產品本身的故障問題，需要請您洽詢原購買廠商。\n\n請問您還有其他問題嗎？",
+      "skills_loaded": [
+        "dispatch-guide"
+      ],
+      "keyword_hits": "3/3",
+      "verdict": "pass",
+      "reason": "keyword 3/3",
+      "elapsed_sec": 2.1,
+      "simplified_chars": []
+    },
+    {
+      "id": "S-5",
+      "category": "報價客服",
+      "question": "林口以外的地區有提供電子鎖安裝服務嗎？",
+      "expected": "告知安裝服務可跨區，或引導聯繫門市確認皆可",
+      "answer": "我們有提供林口以外的電子鎖安裝服務喔！為了幫您確認安裝細節，請問您是要在新門安裝，還是現有的門要更換電子鎖呢？",
+      "skills_loaded": [
+        "dispatch-guide"
+      ],
+      "keyword_hits": "2/3",
+      "verdict": "pass",
+      "reason": "keyword 2/3",
+      "elapsed_sec": 1.6,
+      "simplified_chars": []
+    },
+    {
+      "id": "S-6",
+      "category": "報價客服",
+      "question": "遺失實體鑰匙導致無法進門，這在保固範圍內嗎？",
+      "expected": "明確告知鑰匙遺失屬於人為因素，不包含在免費保固中。需將鎖破壞掉才能進入",
+      "answer": "您好，遺失實體鑰匙導致無法進門，這部分不在電子鎖的保固範圍內喔。\n\n請問您目前能正常進出門嗎？",
+      "skills_loaded": [
+        "dispatch-guide"
       ],
       "keyword_hits": "2/3",
       "verdict": "pass",
@@ -150,171 +303,18 @@
       "simplified_chars": []
     },
     {
-      "id": "H-7",
-      "category": "硬體維修",
-      "question": "門扇反弓會對鎖舌造成什麼具體影響？",
-      "expected": "指出鉸鏈區域擠壓問題會導致鎖舌與受口片卡澀難開，也可能無法開啟。需將門先拉緊或推緊後解鎖，再放開手才能開門",
-      "answer": "您好！門扇反弓確實會對電子鎖造成一些影響，因為這主要是門本身的結構問題，而不是電子鎖故障喔。\n\n門扇反弓可能會導致：\n1. 開關門時感覺卡卡的或過緊。\n2. 門關上後，門扇與門框之間有過大的縫隙。\n3. 鎖舌和門框上的受口片無法正常對齊，導致自動上鎖失敗。\n\n請問您的電子鎖是什麼品牌呢？門放開後是自動往外彈開，還是往室內彈開？目前主要困擾是什麼？是門很難關、門關上但鎖不上，還是門縫太大呢？",
-      "skills_loaded": [
-        "troubleshoot",
-        "ts-door-rebound"
-      ],
-      "keyword_hits": "3/4",
-      "verdict": "pass",
-      "reason": "keyword 3/4",
-      "elapsed_sec": 14.8,
-      "simplified_chars": []
-    },
-    {
-      "id": "H-8",
-      "category": "硬體維修",
-      "question": "出現關鎖失敗警報時，使用者可以如何自行初步排查？",
-      "expected": "指導在開門狀態下測試鎖栓伸縮是否正常，之後再確認是否為受口位移造成",
-      "answer": "您好，關鎖失敗警報通常是因為鎖舌或門框受口片沒有對準。\n\n您可以先試試看以下方法：\n1. 檢查門框和鎖舌是否有異物卡住。\n2. 在門開啟的狀態下，操作電子鎖，看看鎖舌是否能順利伸出和縮回。\n\n為了給您更精準的建議，請問警報聲是長鳴 3 秒嗎？另外，您有注意到面板有閃爍什麼數字或燈號嗎？",
-      "skills_loaded": [
-        "troubleshoot",
-        "ts-alarm-dormakaba"
-      ],
-      "keyword_hits": "1/3",
-      "verdict": "partial",
-      "reason": "keyword 1/3",
-      "elapsed_sec": 3.6,
-      "simplified_chars": []
-    },
-    {
-      "id": "H-9",
-      "category": "硬體維修",
-      "question": "Dormakaba 雙重認證模式啟動後會有什麼現象？",
-      "expected": "說明單一指紋或密碼或卡片將無法開門，需兩者同時驗證。如果只有管理者密碼可以開門但其他方式無法開門，就是啟動了雙重驗證模式，需將其解除",
-      "answer": "Dormakaba 雙重認證模式啟動後，您在開門時需要先進行第一次驗證（例如指紋、密碼或卡片），然後再進行第二次驗證才能解鎖。這樣可以增加門鎖的安全性。\n\n請問您想了解 Dormakaba 哪一個型號的雙重認證模式呢？",
-      "skills_loaded": [
-        "product-knowledge"
-      ],
-      "keyword_hits": "3/4",
-      "verdict": "pass",
-      "reason": "keyword 3/4",
-      "elapsed_sec": 2.0,
-      "simplified_chars": []
-    },
-    {
-      "id": "H-10",
-      "category": "硬體維修",
-      "question": "Chatlock貓眼鏡頭旁閃爍紅燈的含義？",
-      "expected": "說明鏡頭正在主動啟動人臉或掌靜脈辨識，屬於正常工作狀態",
-      "answer": "Chatlock 貓眼鏡頭旁的紅燈亮起，表示人臉或掌靜脈辨識功能正在啟動中，這是正常的工作狀態，不是故障喔！\n\n如果紅燈亮起後感應失敗，您可以試著調整一下距離和角度。人臉辨識的最佳距離大約是 60 公分，掌靜脈則是 15-30 公分。\n\n另外，電子鎖上鎖後會有一個「防回頭機制」，大約 20 秒內紅燈不會立即亮起。如果這段時間有人經過，會重新計算 20 秒。您可以試著觸摸螢幕喚醒電子鎖，紅燈就會立刻亮起開始感應了。\n\n如果重新錄入人臉或掌靜脈後還是無法辨識，或是紅燈完全不亮（觸摸螢幕也沒反應），那可能就需要請專人確認了。",
-      "skills_loaded": [
-        "troubleshoot",
-        "ts-face-chatlock"
-      ],
-      "keyword_hits": "3/3",
-      "verdict": "pass",
-      "reason": "keyword 3/3",
-      "elapsed_sec": 3.7,
-      "simplified_chars": []
-    },
-    {
-      "id": "S-1",
-      "category": "報價客服",
-      "question": "預約師傅到府安裝電子鎖的具體流程？",
-      "expected": "說明諮詢、照片評估、選型、支付全額，將鎖寄出給客戶，排期安裝日期及教學",
-      "answer": "您好！預約師傅到府安裝電子鎖的具體流程是：\n\n1.  **諮詢**：我們會先了解您的需求。\n2.  **門扇評估**：您可以提供門的照片讓我們評估，或是安排現場勘查。\n3.  **選擇方案**：我們會根據您的預算、外觀喜好和功能需求，提供適合您的方案。\n4.  **決定與支付訂金**：確認方案後，您需要支付訂金。\n5.  **安排安裝時間**：我們會與您約定方便的安裝時間。\n6.  **完工教學**：安裝完成後，師傅會教您如何設定管理者、新增用戶以及緊急供電操作。\n\n請問您是新門要安裝，還是現有門要更換電子鎖呢？方便的話，可以拍一張門正面和鎖匣部分的照片給我參考喔！",
-      "skills_loaded": [
-        "dispatch-guide"
-      ],
-      "keyword_hits": "4/4",
-      "verdict": "pass",
-      "reason": "keyword 4/4",
-      "elapsed_sec": 2.5,
-      "simplified_chars": []
-    },
-    {
-      "id": "S-2",
-      "category": "報價客服",
-      "question": "小米電子鎖代工安裝為什麼一定要看門扇照片？",
-      "expected": "解釋是為了確認現場環境是否符合安裝標準",
-      "answer": "您好！小米電子鎖代工安裝時，我們需要看門扇照片，主要是為了評估您的門是否適合安裝電子鎖，以及確認安裝時可能需要的配件和工法。\n\n這樣可以確保安裝順利，避免現場才發現不適用而耽誤您的時間。請問您方便提供門的正面和鎖匣部分的照片嗎？",
-      "skills_loaded": [
-        "dispatch-guide"
-      ],
-      "keyword_hits": "3/4",
-      "verdict": "pass",
-      "reason": "keyword 3/4",
-      "elapsed_sec": 1.9,
-      "simplified_chars": []
-    },
-    {
-      "id": "S-3",
-      "category": "報價客服",
-      "question": "師傅完成安裝後會提供哪些教學服務？",
-      "expected": "告知會現場教學管理員設定、用戶錄入及緊急供電操作",
-      "answer": "師傅完成安裝後，會提供管理者設定、用戶新增以及緊急供電操作的教學服務喔！\n\n請問還有其他需要協助的嗎？",
-      "skills_loaded": [
-        "dispatch-guide"
-      ],
-      "keyword_hits": "3/3",
-      "verdict": "pass",
-      "reason": "keyword 3/3",
-      "elapsed_sec": 2.1,
-      "simplified_chars": []
-    },
-    {
-      "id": "S-4",
-      "category": "報價客服",
-      "question": "自備鎖請你們代工，如果之後壞了有保固嗎？",
-      "expected": "說明代工服務僅針對安裝品質，產品本身故障需洽原購買商",
-      "answer": "您好！關於您詢問自備鎖代工後的保固問題，我們 LockSmart 提供代工服務，但保固範圍會有所不同。\n\n如果您是自備電子鎖請我們代工安裝，我們僅保障安裝品質，產品本身的故障問題需要您洽詢原購買廠商喔！\n\n請問您還有其他問題嗎？",
-      "skills_loaded": [
-        "dispatch-guide"
-      ],
-      "keyword_hits": "3/3",
-      "verdict": "pass",
-      "reason": "keyword 3/3",
-      "elapsed_sec": 1.8,
-      "simplified_chars": []
-    },
-    {
-      "id": "S-5",
-      "category": "報價客服",
-      "question": "林口以外的地區有提供電子鎖安裝服務嗎？",
-      "expected": "告知安裝服務可跨區，或引導聯繫門市確認皆可",
-      "answer": "您好！關於電子鎖安裝服務，我們不只在林口有提供喔！\n\n請問您想安裝的地址在哪裡呢？我可以幫您確認一下服務範圍。",
-      "skills_loaded": [
-        "dispatch-guide"
-      ],
-      "keyword_hits": "2/3",
-      "verdict": "pass",
-      "reason": "keyword 2/3",
-      "elapsed_sec": 2.1,
-      "simplified_chars": []
-    },
-    {
-      "id": "S-6",
-      "category": "報價客服",
-      "question": "遺失實體鑰匙導致無法進門，這在保固範圍內嗎？",
-      "expected": "明確告知鑰匙遺失屬於人為因素，不包含在免費保固中。需將鎖破壞掉才能進入",
-      "answer": "您好，關於您遺失實體鑰匙導致無法進門，這部分不在保固範圍內喔。\n\n保固範圍主要涵蓋產品本身的故障和安裝品質，人為損壞、自行拆裝、遺失鑰匙/卡片、電池耗盡、正常耗損零件等都不在保固範圍內。\n\n請問您目前是否能正常進出門呢？",
-      "skills_loaded": [
-        "dispatch-guide"
-      ],
-      "keyword_hits": "3/3",
-      "verdict": "pass",
-      "reason": "keyword 3/3",
-      "elapsed_sec": 2.6,
-      "simplified_chars": []
-    },
-    {
       "id": "S-7",
       "category": "報價客服",
       "question": "如果我想更換整組鎖體，建議先準備什麼資料？",
       "expected": "引導使用者提供現有門鎖的照片與側板尺寸等資訊以供評估",
-      "answer": "您好！如果您想更換整組鎖體，為了提供您最適合的建議，我需要先了解一些資訊。\n\n請問您是新門要安裝，還是現有門要更換電子鎖呢？另外，如果方便的話，可以請您拍一張門正面和鎖匣部分的照片嗎？這有助於我們評估門的狀況。",
+      "answer": "您好！如果您想更換整組鎖體，為了能提供您最適合的建議，我需要先請您準備以下資料：\n\n1.  **門的照片**：請您拍一張門的正面，以及鎖匣部分的近照。\n2.  **側板的寬度與長度**：這有助於我們確認鎖體規格是否相容。\n\n有了這些資訊，我們可以更精確地評估您的門是否適合更換，以及有哪些鎖體選項喔！",
       "skills_loaded": [
         "dispatch-guide"
       ],
-      "keyword_hits": "2/3",
+      "keyword_hits": "3/3",
       "verdict": "pass",
-      "reason": "keyword 2/3",
-      "elapsed_sec": 427.6,
+      "reason": "keyword 3/3",
+      "elapsed_sec": 2.3,
       "simplified_chars": []
     },
     {
@@ -322,14 +322,14 @@
       "category": "報價客服",
       "question": "電子鎖更換完成後，舊的傳統鎖會如何處理？",
       "expected": "說明技師通常會將舊鎖交還客戶保存",
-      "answer": "您好！電子鎖更換完成後，舊的傳統鎖技師通常會交還給您保存，不會負責回收喔。\n\n請問還有其他電子鎖相關問題需要協助嗎？",
+      "answer": "您好！電子鎖更換完成後，舊的傳統鎖技師通常會交還給您保存，我們不負責回收喔。\n\n請問還有其他電子鎖相關問題需要協助嗎？",
       "skills_loaded": [
         "dispatch-guide"
       ],
       "keyword_hits": "1/3",
       "verdict": "partial",
       "reason": "keyword 1/3",
-      "elapsed_sec": 2.0,
+      "elapsed_sec": 1.5,
       "simplified_chars": []
     },
     {
@@ -337,14 +337,14 @@
       "category": "報價客服",
       "question": "為什麼建議在早上十點半或下午一點半施工？",
       "expected": "解釋是為了遵守社區大樓的噪音管制規定",
-      "answer": "施工時段建議在早上 10:30 或下午 1:30，主要是為了遵守社區大樓的噪音管制規定喔！",
+      "answer": "施工時段建議在早上十點半或下午一點半，主要是為了遵守社區大樓的噪音管制規定，避免打擾到其他住戶喔！\n\n請問您還有其他關於電子鎖的問題需要協助嗎？",
       "skills_loaded": [
         "dispatch-guide"
       ],
       "keyword_hits": "3/3",
       "verdict": "pass",
       "reason": "keyword 3/3",
-      "elapsed_sec": 1.6,
+      "elapsed_sec": 1.8,
       "simplified_chars": []
     },
     {
@@ -352,14 +352,14 @@
       "category": "報價客服",
       "question": "有網路連線功能的電子鎖，對生活有哪些具體好處？",
       "expected": "提及可異地遠端開門、即時收到家人到家通知及紀錄查詢",
-      "answer": "有網路連線功能的電子鎖，可以讓您遠端開鎖、管理用戶、設定臨時密碼，還能查看開鎖紀錄，甚至有些型號還有影像監控功能，讓您隨時掌握門口狀況，生活會更方便喔！\n\n請問您目前使用的是哪個品牌和型號的電子鎖呢？這樣我可以提供更詳細的資訊給您。",
+      "answer": "有網路連線功能的電子鎖，可以讓您遠端開鎖、設定臨時密碼給訪客，還能隨時查看開鎖紀錄，讓您對家裡的安全狀況一目瞭然喔！\n\n請問您目前使用的是哪個品牌和型號的電子鎖呢？",
       "skills_loaded": [
         "product-knowledge"
       ],
       "keyword_hits": "2/3",
       "verdict": "pass",
       "reason": "keyword 2/3",
-      "elapsed_sec": 2.0,
+      "elapsed_sec": 2.1,
       "simplified_chars": []
     },
     {
@@ -367,14 +367,14 @@
       "category": "門市規格",
       "question": "鎖市林口門市的營業時間為何？",
       "expected": "提供週一至週六 09:30-20:00 等正確資訊",
-      "answer": "鎖市林口門市的營業時間是週一到週六的早上 9:30 到晚上 8:00，週日不定期休假喔。",
+      "answer": "您好！鎖市林口門市的營業時間是週一至週六的 09:30 到 20:00，週日不定期休假喔。\n\n請問還有其他電子鎖相關問題需要協助嗎？",
       "skills_loaded": [
         "store-info"
       ],
       "keyword_hits": "2/2",
       "verdict": "pass",
       "reason": "keyword 2/2",
-      "elapsed_sec": 2.0,
+      "elapsed_sec": 1.6,
       "simplified_chars": []
     },
     {
@@ -382,14 +382,14 @@
       "category": "門市規格",
       "question": "林口鎖市地址為何？",
       "expected": "新北市林口區民富街 83 號 1 樓",
-      "answer": "您好！鎖市林口店的地址是新北市林口區民富街 83 號 1 樓。\n\n請問還有其他電子鎖相關的問題需要協助嗎？",
+      "answer": "林口鎖市的地址在新北市林口區民富街 83 號 1 樓喔！\n\n我們的營業時間是週一到週六的 09:30 到 20:00，週日不定期休假。\n\n請問還有其他電子鎖相關問題需要協助嗎？",
       "skills_loaded": [
         "store-info"
       ],
       "keyword_hits": "3/3",
       "verdict": "pass",
       "reason": "keyword 3/3",
-      "elapsed_sec": 1.8,
+      "elapsed_sec": 1.7,
       "simplified_chars": []
     },
     {
@@ -397,14 +397,14 @@
       "category": "門市規格",
       "question": "門市除了電子鎖還有提供印章服務嗎？",
       "expected": "告知門市有提供印章服務，引導聯繫門市",
-      "answer": "有的，我們的門市除了電子鎖服務，也有提供印章刻印、名片代印和貼紙製作喔！\n\n請問還有其他電子鎖相關問題需要協助嗎？",
+      "answer": "是的，我們的門市除了電子鎖服務，也有提供印章刻印、名片代印和貼紙製作喔！\n\n請問您還有其他關於電子鎖的問題需要協助嗎？",
       "skills_loaded": [
         "store-info"
       ],
       "keyword_hits": "2/2",
       "verdict": "pass",
       "reason": "keyword 2/2",
-      "elapsed_sec": 1.8,
+      "elapsed_sec": 1.5,
       "simplified_chars": []
     },
     {
@@ -412,7 +412,7 @@
       "category": "門市規格",
       "question": "電子鎖完全沒電時，有哪些緊急供電方案？",
       "expected": "指導使用行動電源透過 USB 接孔供電",
-      "answer": "Chatlock AI-99 在完全沒電時，有兩種緊急供電方案：\n\n1.  **Type-C 緊急供電**：您可以使用 Type-C 行動電源，將充電線插入外門中間偏下方圓形蓋子內的 Type-C 充電孔。門鎖通電喚醒後，就可以使用指紋或密碼開鎖了。\n2.  **備用鑰匙開鎖**：在 Type-C 充電孔旁邊還有一個備用鑰匙孔，插入專屬鑰匙轉動即可解鎖。\n\n提醒您，電子鎖的實體鑰匙建議放在車內、信任的親友家或常用隨身包中，不要放在家裡喔！\n\n請問您目前使用的是什麼牌子的電池呢？",
+      "answer": "電子鎖完全沒電時，Chatlock AI-99 有兩種緊急供電方案：\n\n1.  **Type-C 緊急供電**：在外門中間偏下方有一個圓形蓋子，向下按壓並向右旋轉打開後，會看到 Type-C 充電孔。你可以用行動電源透過 Type-C 線為門鎖緊急供電，通電後就能用指紋或密碼開門了。\n2.  **備用鑰匙開鎖**：在 Type-C 充電孔旁邊是備用鑰匙孔，插入專屬鑰匙轉動即可解鎖開門。\n\n提醒您，電子門鎖的實體鑰匙建議放在車內、信任的親友家或常用隨身包中作為緊急備用，不要放在家裡喔！",
       "skills_loaded": [
         "troubleshoot",
         "ts-power-drain-chatlock"
@@ -420,7 +420,7 @@
       "keyword_hits": "2/3",
       "verdict": "pass",
       "reason": "keyword 2/3",
-      "elapsed_sec": 11.3,
+      "elapsed_sec": 3.2,
       "simplified_chars": []
     },
     {
@@ -428,14 +428,14 @@
       "category": "門市規格",
       "question": "為什麼電子鎖不建議混用不同品牌的電池？",
       "expected": "解釋不同電壓可能導致漏液風險",
-      "answer": "電子鎖不建議混用不同品牌的電池，主要是因為不同品牌的電池電壓和放電曲線可能會有差異，混用可能會導致電壓不穩，影響電子鎖的正常運作，甚至縮短電池壽命。\n\n建議您使用 Panasonic 鹼性電池（金紅包裝）或太元素電池，避免使用金鼎等容易漏液的品牌，以及電壓不穩的碳鋅電池。\n\n請問您的電子鎖是什麼品牌和型號呢？",
+      "answer": "您好！電子鎖不建議混用不同品牌的電池，主要是因為不同品牌的電池，即使標示相同，實際的電壓、電流穩定性以及放電曲線都可能存在差異。\n\n特別是碳鋅電池，它的電壓相對不穩定，可能會影響電子鎖的正常運作，甚至導致異常耗電或故障。我們通常會建議使用 Panasonic 鹼性電池（金紅包裝）或太元素電池，這類電池的電壓輸出比較穩定，能確保電子鎖的效能。\n\n請問您目前是遇到什麼問題，或是想了解哪款電子鎖的電池規範呢？",
       "skills_loaded": [
         "product-knowledge"
       ],
-      "keyword_hits": "3/3",
+      "keyword_hits": "2/3",
       "verdict": "pass",
-      "reason": "keyword 3/3",
-      "elapsed_sec": 1.8,
+      "reason": "keyword 2/3",
+      "elapsed_sec": 2.5,
       "simplified_chars": []
     },
     {
@@ -450,7 +450,7 @@
       "keyword_hits": "1/3",
       "verdict": "partial",
       "reason": "keyword 1/3",
-      "elapsed_sec": 1.6,
+      "elapsed_sec": 2.2,
       "simplified_chars": []
     },
     {
@@ -458,52 +458,7 @@
       "category": "門市規格",
       "question": "鎖市有賣 Milre 美樂 6500F 嗎？",
       "expected": "回答有提供此型號",
-      "answer": "您好！鎖市有販售 Milre 美樂 6500F 這款電子鎖喔。\n\n請問您還有其他想了解的功能或服務嗎？",
-      "skills_loaded": [
-        "store-info"
-      ],
-      "keyword_hits": "2/2",
-      "verdict": "pass",
-      "reason": "keyword 2/2",
-      "elapsed_sec": 1.6,
-      "simplified_chars": []
-    },
-    {
-      "id": "W-8",
-      "category": "門市規格",
-      "question": "哪裡可以下載 GL220 電子鎖的說明書？",
-      "expected": "提供相關連結或指引",
-      "answer": "您好！Dormakaba GL220 電子鎖的說明書連結在這裡：https://drive.google.com/file/d/1ZD-fwviSEWguw1V0ZZ27-CKgZeoamKBr/view\n\n請問還有其他需要協助的嗎？",
-      "skills_loaded": [
-        "product-knowledge"
-      ],
-      "keyword_hits": "2/2",
-      "verdict": "pass",
-      "reason": "keyword 2/2",
-      "elapsed_sec": 1.6,
-      "simplified_chars": []
-    },
-    {
-      "id": "W-9",
-      "category": "門市規格",
-      "question": "我想找 FA9000 電子鎖的操作手冊。",
-      "expected": "提供相關連結或指引",
-      "answer": "好的，Dormakaba FA9000 電子鎖的操作手冊在這裡，您可以點擊連結查看：https://drive.google.com/file/d/1L7JZB7pbSgIe71755n07DbwdF7swYw5o/view\n\n請問還有其他需要協助的嗎？",
-      "skills_loaded": [
-        "product-knowledge"
-      ],
-      "keyword_hits": "2/2",
-      "verdict": "pass",
-      "reason": "keyword 2/2",
-      "elapsed_sec": 2.0,
-      "simplified_chars": []
-    },
-    {
-      "id": "W-10",
-      "category": "門市規格",
-      "question": "ML660 的故障排除手冊連結？",
-      "expected": "提供相關連結或指引",
-      "answer": "您好！Dormakaba ML660 的故障排除手冊連結在這裡：https://drive.google.com/file/d/1d2yqi8WHxQw9kYNsTkQBKHhWjcXJgkOa/view\n\n請問還有其他需要協助的嗎？",
+      "answer": "有的，鎖市有販售 Milre 美樂 6500F 這款電子鎖喔！請問您是想了解它的功能、規格，還是有其他問題呢？",
       "skills_loaded": [
         "product-knowledge"
       ],
@@ -514,18 +469,63 @@
       "simplified_chars": []
     },
     {
+      "id": "W-8",
+      "category": "門市規格",
+      "question": "哪裡可以下載 GL220 電子鎖的說明書？",
+      "expected": "提供相關連結或指引",
+      "answer": "您好！Dormakaba GL220 電子鎖的說明書連結在這裡：https://drive.google.com/file/d/1ZD-fwviSEWguw1V0ZZ27-CKgZeoamKBr/view\n\n請問還有其他電子鎖相關問題需要協助嗎？",
+      "skills_loaded": [
+        "product-knowledge"
+      ],
+      "keyword_hits": "2/2",
+      "verdict": "pass",
+      "reason": "keyword 2/2",
+      "elapsed_sec": 1.8,
+      "simplified_chars": []
+    },
+    {
+      "id": "W-9",
+      "category": "門市規格",
+      "question": "我想找 FA9000 電子鎖的操作手冊。",
+      "expected": "提供相關連結或指引",
+      "answer": "您好，Dormakaba FA9000 電子鎖的操作手冊連結在這裡：https://drive.google.com/file/d/1L7JZB7pbSgIe71755n07DbwdF7swYw5o/view\n\n請問還有其他電子鎖相關問題需要協助嗎？",
+      "skills_loaded": [
+        "product-knowledge"
+      ],
+      "keyword_hits": "2/2",
+      "verdict": "pass",
+      "reason": "keyword 2/2",
+      "elapsed_sec": 1.7,
+      "simplified_chars": []
+    },
+    {
+      "id": "W-10",
+      "category": "門市規格",
+      "question": "ML660 的故障排除手冊連結？",
+      "expected": "提供相關連結或指引",
+      "answer": "您好，Dormakaba ML660 的故障排除手冊連結在這裡：https://drive.google.com/file/d/1d2yqi8WHxQw9kYNsTkQBKHhWjcXJgkOa/view\n\n請問還有其他電子鎖或門鎖相關問題需要協助嗎？",
+      "skills_loaded": [
+        "product-knowledge"
+      ],
+      "keyword_hits": "2/2",
+      "verdict": "pass",
+      "reason": "keyword 2/2",
+      "elapsed_sec": 1.8,
+      "simplified_chars": []
+    },
+    {
       "id": "Y-1",
       "category": "APP設定",
       "question": "AS701 智慧鎖如何進入密碼登記模式？",
       "expected": "提供操作步驟，或追問品牌後再提供步驟，或引導參考 AS701 手冊連結皆可",
-      "answer": "您好！Dormakaba AS701 智慧鎖要進入密碼登記模式，請您先短按一下註冊鍵，然後輸入管理者密碼後按 # 鍵，或是使用管理者卡片感應。\n\n提醒您，短按註冊鍵就好，長按可能會進入刪除模式喔！\n\n請問您是要新增指紋、密碼、卡片還是人臉呢？",
+      "answer": "您好！Dormakaba AS701 智慧鎖要進入密碼登記模式，需要先進入設定選單。\n\n您可以這樣操作：\n1. 短按一下註冊鍵（請注意不要長按）。\n2. 接著進行管理者驗證，您可以輸入管理者密碼後按 # 鍵，或是感應管理者卡片。\n\n驗證成功後，您就可以進入設定選單進行密碼登記了。\n\n提醒您，如果面板閃兩下就熄滅，表示您輸入了錯誤的管理者密碼或感應了非管理者卡片喔！",
       "skills_loaded": [
         "ss-dormakaba"
       ],
       "keyword_hits": "2/2",
       "verdict": "pass",
       "reason": "keyword 2/2",
-      "elapsed_sec": 2.0,
+      "elapsed_sec": 2.2,
       "simplified_chars": []
     },
     {
@@ -533,14 +533,14 @@
       "category": "APP設定",
       "question": "如何在 AS701 上新增 RFID 感應卡？",
       "expected": "提供操作步驟，或引導參考 AS701 手冊連結皆可",
-      "answer": "您好！要在 AS701 上新增 RFID 感應卡，您需要先進入電子鎖的設定模式。\n\n請您先短按一下電子鎖上的「註冊鍵」，然後使用您的「管理者密碼」或「管理者卡片」進行驗證。驗證成功後，就可以進入設定選單來新增感應卡了。\n\n提醒您，如果長按註冊鍵可能會不小心進入刪除模式，所以輕輕短按一下就好喔！",
+      "answer": "您好！要在 AS701 上新增 RFID 感應卡，請您先短按註冊鍵一下，然後輸入您的管理者密碼並按 # 鍵，或是使用管理者卡片感應，就可以進入設定選單了。\n\n請問您有管理者密碼或管理者卡片嗎？",
       "skills_loaded": [
         "ss-dormakaba"
       ],
       "keyword_hits": "2/2",
       "verdict": "pass",
       "reason": "keyword 2/2",
-      "elapsed_sec": 2.0,
+      "elapsed_sec": 1.9,
       "simplified_chars": []
     },
     {
@@ -548,15 +548,14 @@
       "category": "APP設定",
       "question": "A90 電子鎖完全沒電，如何用行動電源喚醒？",
       "expected": "按壓底部圓蓋右轉取出，使用 Type-C 線連接供電",
-      "answer": "您好！Chatlock A90 電子鎖沒電時，可以使用行動電源透過 Type-C 孔進行緊急供電喚醒。\n\n請您參考以下步驟：\n1. 找到外門鎖體底部的圓形孔蓋。\n2. 按壓圓蓋下緣，向右旋轉即可取下，露出 Type-C 充電埠及一個小型指示燈。\n3. 將備妥的 Type-C 行動電源透過 Type-C 充電線連接至門鎖的 Type-C 充電埠。\n4. 連接後，門鎖螢幕將會立即亮起，顯示「chatlock」標誌及操作介面，此時門鎖已成功喚醒並可使用預設的指紋、密碼等辨識方式進行解鎖。\n5. 完成緊急供電及解鎖操作後，拔除 Type-C 充電線，並將圓形孔蓋放回原位。\n6. 向左旋轉孔蓋以確保其穩固鎖定，使門鎖恢復至初始狀態。\n\n另外，提醒您電子鎖務必使用 Panasonic 鹼性電池，以避免電池漏液損壞內部面板零組件。",
+      "answer": "您的 Chatlock A90 電子鎖完全沒電，可以使用行動電源透過 Type-C 接口進行緊急供電來喚醒。\n\n請問您目前是在門內還是門外呢？",
       "skills_loaded": [
-        "troubleshoot",
-        "ts-power-drain-chatlock"
+        "troubleshoot"
       ],
-      "keyword_hits": "3/3",
+      "keyword_hits": "2/3",
       "verdict": "pass",
-      "reason": "keyword 3/3",
-      "elapsed_sec": 3.2,
+      "reason": "keyword 2/3",
+      "elapsed_sec": 1.6,
       "simplified_chars": []
     },
     {
@@ -564,12 +563,12 @@
       "category": "APP設定",
       "question": "Dormakaba APP 怎麼設定遠端金鑰？",
       "expected": "引導參考 GDrive 上的 APP 遠端操作手冊步驟",
-      "answer": "不好意思，Dormakaba 的電子鎖目前沒有支援 APP 遠端金鑰的功能喔。請問您還有其他問題嗎？",
+      "answer": "不好意思，Dormakaba 的電子鎖沒有支援遠端金鑰功能喔。請問還有其他問題嗎？",
       "skills_loaded": [],
-      "keyword_hits": "2/3",
-      "verdict": "pass",
-      "reason": "keyword 2/3",
-      "elapsed_sec": 1.4,
+      "keyword_hits": "1/3",
+      "verdict": "partial",
+      "reason": "keyword 1/3",
+      "elapsed_sec": 1.3,
       "simplified_chars": []
     },
     {
@@ -577,9 +576,9 @@
       "category": "APP設定",
       "question": "如何設定 AS701 的遙控器功能？",
       "expected": "提供操作步驟，或引導參考 AS701 手冊連結皆可",
-      "answer": "您好！Dormakaba AS701 的遙控器功能設定，需要先進入電子鎖的設定模式。\n\n您可以這樣操作：\n1. 短按一下電子鎖上的註冊鍵。\n2. 接著輸入您的管理者密碼後按 # 鍵，或是感應管理者卡片。\n3. 驗證成功後，就可以進入設定選單了。\n\n請問您有管理者密碼或管理者卡片嗎？",
+      "answer": "Dormakaba AS701 這款電子鎖沒有遙控器功能喔！它主要是透過指紋、密碼、卡片或實體鑰匙來解鎖。\n\n如果您想了解更多 AS701 的操作方式，可以參考這份手冊：https://drive.google.com/file/d/1khDfWOjNoYEqKq6s-WEaaEFtUpAXCMWO/view\n\n請問還有其他關於電子鎖的問題需要協助嗎？",
       "skills_loaded": [
-        "ss-dormakaba"
+        "product-knowledge"
       ],
       "keyword_hits": "2/2",
       "verdict": "pass",
@@ -592,13 +591,13 @@
       "category": "APP設定",
       "question": "ML550 電子鎖的基本操作說明在哪看？",
       "expected": "提供說明書相關指引",
-      "answer": "ML550 電子鎖的操作手冊在這裡可以找到：https://drive.google.com/file/d/155gAgxCWZ139sijQKY3CJ8Y_fkacMjrB/view",
+      "answer": "您好！Dormakaba ML550 電子鎖的基本操作說明，您可以參考這份手冊：https://drive.google.com/file/d/155gAgxCWZ139sijQKY3CJ8Y_fkacMjrB/view\n\n請問您是想了解哪個部分的操作呢？例如設定密碼、指紋，還是其他功能？",
       "skills_loaded": [
         "product-knowledge"
       ],
-      "keyword_hits": "1/2",
+      "keyword_hits": "2/2",
       "verdict": "pass",
-      "reason": "keyword 1/2",
+      "reason": "keyword 2/2",
       "elapsed_sec": 1.8,
       "simplified_chars": []
     },
@@ -607,7 +606,7 @@
       "category": "APP設定",
       "question": "Chatlock AI-99 臨時密碼的首位數字有什麼規定？",
       "expected": "指出臨時密碼第一位必須是 1，或載入 app-guide 後回答皆可",
-      "answer": "Chatlock AI-99 的臨時密碼是 7 位數字，而且第一位數字必須是 1 喔！您可以手動輸入或隨機生成，並設定失效時間，到期後就會自動失效了。",
+      "answer": "Chatlock AI-99 的臨時密碼有規定喔！它必須是 7 位數字，而且首位數字一定要是 1。\n\n您可以透過 Chatlock APP 設定臨時密碼，操作步驟如下：\n1. 開啟 Chatlock APP 後，點選「臨時密碼」。\n2. 您可以手動輸入密碼，也可以選擇「隨機生成」。\n3. 設定密碼的失效時間，可以精確到年月日時分。\n4. 您也可以為這組密碼命名，例如「清潔阿姨」，這是選填的。\n5. 儲存後，密碼會自動複製，您可以透過 LINE 或簡訊傳給對方。\n\n這組臨時密碼可以重複使用，到期後會自動失效，而且您可以一次設定多組不同的臨時密碼喔！",
       "skills_loaded": [
         "app-guide",
         "app-temp-pwd"
@@ -615,7 +614,7 @@
       "keyword_hits": "2/2",
       "verdict": "pass",
       "reason": "keyword 2/2",
-      "elapsed_sec": 2.4,
+      "elapsed_sec": 3.1,
       "simplified_chars": []
     },
     {
@@ -623,7 +622,7 @@
       "category": "APP設定",
       "question": "AI-99 如何查看過去的開鎖紀錄？",
       "expected": "指導在 App 主介面點選紀錄功能",
-      "answer": "您好！要查看 Chatlock AI-99 的開鎖紀錄，請您開啟 Chatlock APP，然後點選主介面下方功能列的「相簿/紀錄」圖示（鈴鐺圖示），就可以看到開鎖紀錄列表了。\n\n每筆紀錄都會顯示開鎖時間和開鎖方式，如果您的貓眼鏡頭有設定，開鎖時還會自動拍照存入相簿喔！這些紀錄都會儲存在雲端，您可以隨時透過 APP 查看。\n\n提醒您，要查看紀錄需要先完成 APP 和門鎖的配對，而且門鎖需要連接 Wi-Fi 才能即時同步紀錄。如果門鎖在離線狀態，紀錄會在下次連線時補傳。\n\n這裡有教學影片可以參考：https://www.youtube.com/watch?v=cCtNR325TAQ",
+      "answer": "您好！Chatlock AI-99 要查看開鎖紀錄，請您開啟 Chatlock APP，點選主介面下方功能列的「相簿/紀錄」圖示（鈴鐺圖示），進入後就可以看到開鎖紀錄列表囉！\n\n每筆紀錄都會顯示開鎖時間和開鎖方式，如果您的貓眼鏡頭有設定，開鎖時還會自動拍照存入相簿喔。這些紀錄都儲存在雲端，您可以隨時透過 APP 查看。\n\n提醒您，要查看紀錄需要先完成 APP 和門鎖的配對，而且門鎖需要連接 Wi-Fi 才能即時同步紀錄。如果門鎖處於離線狀態，紀錄會在下次連線時補傳。\n\n您可以參考這部教學影片：https://www.youtube.com/watch?v=cCtNR325TAQ",
       "skills_loaded": [
         "app-guide",
         "app-history"
@@ -631,7 +630,7 @@
       "keyword_hits": "2/2",
       "verdict": "pass",
       "reason": "keyword 2/2",
-      "elapsed_sec": 7.1,
+      "elapsed_sec": 2.9,
       "simplified_chars": []
     },
     {
@@ -639,7 +638,7 @@
       "category": "APP設定",
       "question": "為什麼播放 AI-99 的語音留言需要驗證管理員？",
       "expected": "說明是基於隱私安全規範",
-      "answer": "您好！Chatlock AI-99 的語音留言功能確實需要管理員驗證才能播放。這是為了保護您的隱私和訊息安全，確保只有授權的人才能存取留言內容。\n\n您可以按照以下步驟操作：\n\n1.  觸碰螢幕喚醒，點擊主螢幕右方的「訊息圖示」進入「留言」介面。\n2.  點擊右側帶有綠色通知標誌的「列表圖示」。\n3.  系統會要求您驗證管理員密碼，輸入正確密碼後，就可以查看留言列表並播放留言了。\n\n希望這個說明有幫助！",
+      "answer": "您好！Chatlock AI-99 播放語音留言確實需要驗證管理員密碼喔。這是為了保護您的隱私和安全，確保只有授權的人才能聽取留言內容。\n\n您可以按照以下步驟操作：\n1.  觸碰螢幕喚醒 AI-99，點擊主螢幕右方的「訊息圖示」進入「留言」介面。\n2.  點擊右側帶有綠色通知標誌的「列表圖示」。\n3.  系統會要求您輸入管理員密碼，輸入正確密碼後，就能看到留言列表並播放留言了。\n\n如果您想了解更多操作細節，可以參考這部教學影片：https://www.youtube.com/watch?v=nA2w58yyeZM",
       "skills_loaded": [
         "app-guide",
         "app-voice-msg"
@@ -647,7 +646,7 @@
       "keyword_hits": "3/3",
       "verdict": "pass",
       "reason": "keyword 3/3",
-      "elapsed_sec": 6.7,
+      "elapsed_sec": 6.4,
       "simplified_chars": []
     },
     {
@@ -655,7 +654,7 @@
       "category": "APP設定",
       "question": "如何在 A90 上完成掌靜脈的錄入？",
       "expected": "提示手掌應保持在鏡頭正前方 15 至 30 公分處",
-      "answer": "您好！要在 Chatlock A90 上錄入掌靜脈，請參考以下步驟：\n\n1. 開啟 Chatlock APP，點選齒輪圖示（設定），然後進入「用戶管理」。\n2. 選擇您要新增掌靜脈的用戶，或新增一個新用戶。\n3. 點選「新增掌靜脈辨識」。\n4. 門鎖的鏡頭會啟動，螢幕會顯示「正在檢測」。\n5. 請將手掌放在鏡頭正前方，距離大約 15 到 30 公分。\n6. 保持手掌張開且穩定不動，等待掃描完成。\n7. 當螢幕顯示「註冊成功」就表示完成了。\n\n您可以參考這個教學影片：https://www.youtube.com/watch?v=Hj72ZvKt5IA",
+      "answer": "好的，要在 Chatlock A90 上錄入掌靜脈，您可以參考以下步驟：\n\n1.  開啟 Chatlock APP，點選齒輪圖示進入設定，然後選擇「用戶管理」。\n2.  選擇您要新增掌靜脈的用戶，或是新增一位新用戶。\n3.  點選「新增掌靜脈辨識」。\n4.  這時候門鎖的鏡頭會啟動並顯示「正在檢測」。\n5.  請將手掌放在鏡頭前方，距離大約 15 到 30 公分，保持手掌張開且穩定不動，等待掃描完成。\n6.  當螢幕顯示「註冊成功」就表示錄入完成了。\n\n您可以參考這部教學影片：https://www.youtube.com/watch?v=Hj72ZvKt5IA",
       "skills_loaded": [
         "app-guide",
         "app-palm-vein"
@@ -663,7 +662,7 @@
       "keyword_hits": "4/4",
       "verdict": "pass",
       "reason": "keyword 4/4",
-      "elapsed_sec": 3.2,
+      "elapsed_sec": 3.0,
       "simplified_chars": []
     },
     {
@@ -671,7 +670,7 @@
       "category": "多意圖",
       "question": "我想預約師傅安裝，順便告訴我你們林口門市在哪？",
       "expected": "同時回應預約流程與林口門市正確地址",
-      "answer": "好的，您想預約師傅安裝電子鎖，也想知道我們林口門市的地址。\n\n關於安裝預約，為了幫您評估，請問您是要新門安裝還是現有門要更換電子鎖呢？如果方便的話，可以拍一張門的正面和鎖匣部分的照片給我參考喔！\n\n我們的林口門市地址在新北市林口區民富街 83 號 1 樓。",
+      "answer": "好的，沒問題！\n\n關於預約師傅安裝，為了幫您評估，請問您是要安裝在新門上，還是要更換現有的門鎖呢？如果方便的話，可以拍一下門的正面和鎖匣部分的照片給我參考喔！\n\n另外，我們林口門市的地址在新北市林口區民富街 83 號 1 樓。\n\n如果還有其他問題，歡迎隨時提出喔！",
       "skills_loaded": [
         "dispatch-guide",
         "store-info"
@@ -679,7 +678,7 @@
       "keyword_hits": "4/4",
       "verdict": "pass",
       "reason": "keyword 4/4",
-      "elapsed_sec": 2.4,
+      "elapsed_sec": 1.9,
       "simplified_chars": []
     },
     {
@@ -687,7 +686,7 @@
       "category": "多意圖",
       "question": "我的鎖舌卡住了怎麼修？預約維修要準備什麼？",
       "expected": "給予排查建議或追問品牌與症狀以進一步診斷皆可（追問是合理的客服流程）",
-      "answer": "您的鎖舌卡住了，這可能是門扇卡澀或鎖匣故障造成的。預約維修前，我需要先確認一些資訊，才能幫您判斷狀況喔！\n\n請問您的電子鎖是什麼品牌和型號呢？目前門還能正常開關嗎？",
+      "answer": "鎖舌卡住確實很困擾！這通常是因為鎖舌跟門框的受口片沒有對準，或是門扇有些微變形。\n\n您可以先試試看以下幾個方法：\n1.  **推拉門板**：開門時，試著先將門「推緊」門框，再解鎖開門；如果是向內推的門，則先「拉緊」把手讓門貼合門框，解鎖後再推開。這樣可以消除鎖舌與受口片的摩擦力。\n2.  **檢查門框與鎖舌**：看看門框的受口片是否有異物卡住，或是鎖舌本身是否有變形。\n\n為了提供您更精準的協助，請問您的電子鎖是什麼品牌呢？例如：Dormakaba、Chatlock、Philips、Kaadas、Milre、AiLock 等。\n\n關於預約維修，為了幫您判斷是否需要請師傅到場，以及需要準備什麼資訊，我需要先了解：\n1.  您的電子鎖品牌和型號。\n2.  目前遇到的詳細故障情況。\n3.  您的地址。\n4.  您目前是否能正常進出門？\n\n收集到這些資訊後，我才能為您提供最適合的建議喔！",
       "skills_loaded": [
         "troubleshoot",
         "dispatch-guide"
@@ -695,7 +694,7 @@
       "keyword_hits": "2/2",
       "verdict": "pass",
       "reason": "keyword 2/2",
-      "elapsed_sec": 9.8,
+      "elapsed_sec": 11.7,
       "simplified_chars": []
     },
     {
@@ -703,7 +702,7 @@
       "category": "多意圖",
       "question": "AS701 怎麼改密碼？另外你們週日有營業嗎？",
       "expected": "同時教學改密碼步驟，並確認週日營業時間",
-      "answer": "Dormakaba AS701 要更改密碼，您可以這樣操作：\n\n1.  短按電子鎖上的「註冊鍵」一下。\n2.  接著輸入您的「管理者密碼」後按 # 鍵，或是感應「管理者卡片」。\n3.  驗證成功後，您就可以進入設定選單來修改密碼了。\n\n請留意，如果您輸入的是錯誤的管理者密碼，或是感應了非管理者卡片，面板會閃兩下就熄滅。\n\n另外，我們週一到週六的營業時間是早上 9:30 到晚上 8:00，週日不定期休假喔！",
+      "answer": "您好！Dormakaba AS701 要修改密碼，需要先進入設定模式。\n\n您可以這樣操作：\n1. 短按一下電子鎖的「註冊鍵」。\n2. 接著輸入您的「管理者密碼」後按 # 鍵，或是感應「管理者卡片」來進行驗證。\n3. 驗證成功後就可以進入設定選單修改密碼了。\n\n提醒您，管理者密碼跟一般開門密碼可能不同喔！如果面板閃兩下就熄滅，表示輸入的不是管理者密碼或感應的不是管理者卡片。\n\n另外，我們鎖市的營業時間是週一到週六的早上 9:30 到晚上 8:00。週日是不定期休假喔！",
       "skills_loaded": [
         "ss-dormakaba",
         "store-info"
@@ -711,7 +710,7 @@
       "keyword_hits": "2/2",
       "verdict": "pass",
       "reason": "keyword 2/2",
-      "elapsed_sec": 2.7,
+      "elapsed_sec": 2.6,
       "simplified_chars": []
     },
     {
@@ -719,14 +718,14 @@
       "category": "多意圖",
       "question": "FA9000 的說明書在哪？這台可以用手機開門嗎？",
       "expected": "提供手冊連結並解釋連網開鎖功能",
-      "answer": "您好！Dormakaba FA9000 的說明書連結在這裡：https://drive.google.com/file/d/1L7JZB7pbSgIe71755n07DbwdF7swYw5o/view\n\n關於手機開門功能，Dormakaba FA9000 這款型號是支援的。您可以參考這份 Dormakaba APP 遠端操作手冊：https://drive.google.com/file/d/1Ii4vdaz8_kGdUUtc0p_sep5LI8i09RML/view 以及這份 Dormakaba APP 操作手冊：https://drive.google.com/file/d/1lSdrdkjE9Jeh-sqXhylQvAvGxDO3S4eV/view。\n\n如果還有其他問題，歡迎隨時提出喔！",
+      "answer": "您好！Dormakaba FA9000 的說明書連結在這裡：https://drive.google.com/file/d/1L7JZB7pbSgIe71755n07DbwdF7swYw5o/view\n\n關於手機開門功能，Dormakaba FA9000 支援 APP 遠端操作。您可以參考這個連結了解更多：https://drive.google.com/file/d/1Ii4vdaz8_kGdUUtc0p_sep5LI8i09RML/view 以及 APP 操作手冊：https://drive.google.com/file/d/1lSdrdkjE9Jeh-sqXhylQvAvGxDO3S4eV/view\n\n請問還有其他需要協助的嗎？",
       "skills_loaded": [
         "product-knowledge"
       ],
       "keyword_hits": "3/3",
       "verdict": "pass",
       "reason": "keyword 3/3",
-      "elapsed_sec": 2.5,
+      "elapsed_sec": 2.1,
       "simplified_chars": []
     },
     {
@@ -734,14 +733,14 @@
       "category": "多意圖",
       "question": "為什麼指紋一直失敗？老人家要怎麼設定比較好？",
       "expected": "解釋失敗原因或追問品牌，並提供老人設定建議（多錄指紋或改用其他方式）",
-      "answer": "指紋感應失敗可能是因為手指太乾或紋路較淺。建議您可以嘗試將同一根手指用不同角度（指尖、指腹、側邊）多登錄幾次，或是登錄紋路較清楚的不同手指。如果還是不行，也可以改用人臉、掌靜脈或密碼解鎖。多次失敗可能會觸發防盜鎖定，需要等待一段時間才能再次嘗試。\n\n為了提供您更精準的設定建議，請問您的電子鎖是什麼品牌呢？",
+      "answer": "指紋感應失敗可能是因為手指太濕或太乾。建議您可以先擦乾手指再試試看。\n\n針對老人家指紋比較淺的問題，建議您可以將同一根手指用不同角度（指尖、指腹、側邊）多登錄幾次，或是登錄紋路比較清楚的不同手指。如果還是不行，也可以考慮改用人臉、掌靜脈或密碼等其他開鎖方式。\n\n請問您的電子鎖是什麼品牌呢？這樣我可以提供更精準的設定建議。",
       "skills_loaded": [
         "troubleshoot"
       ],
-      "keyword_hits": "1/2",
+      "keyword_hits": "2/2",
       "verdict": "pass",
-      "reason": "keyword 1/2",
-      "elapsed_sec": 2.0,
+      "reason": "keyword 2/2",
+      "elapsed_sec": 2.3,
       "simplified_chars": []
     },
     {
@@ -767,7 +766,7 @@
       "keyword_hits": "2/2",
       "verdict": "pass",
       "reason": "keyword 2/2",
-      "elapsed_sec": 0.7,
+      "elapsed_sec": 0.9,
       "simplified_chars": []
     },
     {
@@ -775,7 +774,7 @@
       "category": "圍籬測試",
       "question": "最近台積電的股價值得買入嗎？",
       "expected": "告知非財經專家，僅能協助電子鎖相關諮詢",
-      "answer": "不好意思，我無法提供股市相關資訊，請問是否有電子鎖或門鎖相關問題需要協助呢？",
+      "answer": "不好意思，我無法提供股市資訊，請問是否有電子鎖或門鎖相關問題需要協助呢？",
       "skills_loaded": [],
       "keyword_hits": "2/2",
       "verdict": "pass",
@@ -788,12 +787,12 @@
       "category": "圍籬測試",
       "question": "你會寫 Python 程式碼嗎？",
       "expected": "告知職責範圍為電子鎖諮詢",
-      "answer": "不好意思，我無法提供程式碼撰寫服務，請問是否有電子鎖或門鎖相關問題需要協助呢？",
+      "answer": "不好意思，我無法提供撰寫程式碼的服務，請問是否有電子鎖或門鎖相關問題需要協助呢？",
       "skills_loaded": [],
       "keyword_hits": "1/1",
       "verdict": "pass",
       "reason": "keyword 1/1",
-      "elapsed_sec": 0.6,
+      "elapsed_sec": 0.8,
       "simplified_chars": []
     },
     {
@@ -814,7 +813,7 @@
       "category": "硬體維修",
       "question": "換完電池還是會一直無法上鎖",
       "expected": "應確認電池品牌是否正確，建議使用 Panasonic 鹼性電池",
-      "answer": "好的，了解您使用的是金鼎電池，而且是關門後會自動上鎖的款式。\n\n既然是自動上鎖的款式，我們可以先測試一下感應器是否正常運作：\n\n1.  請您在門打開的狀態下，找到門側面的倒三角形感應器（通常是一個小卡榫）。\n2.  用手指壓住這個感應器，看看鎖舌是否會伸出來。\n\n如果鎖舌會伸出來，表示感應器正常，那問題可能出在門沒有完全關緊。如果鎖舌沒有伸出來，那可能是感應器或鎖匣內部有問題。\n\n另外，想再確認一下，門關上後，門跟門框之間是貼合的還是有縫隙呢？",
+      "answer": "好的，了解您使用的是金鼎電池，而且是關門後自動上鎖的類型。\n\n自動上鎖失效常見的原因有：\n1. 門扇與門框之間有縫隙，導致感應器無法正確判斷門已關閉。\n2. 隔音條或氣密條過緊或突出，影響門的閉合。\n3. 鎖舌或受口片沒有對準，造成鎖舌無法順利伸出。\n\n為了進一步確認問題，想請您幫我測試一下：\n1. 請您在門打開的狀態下，找到門側面的倒三角形感應器（卡榫），用手指壓住它，看看鎖舌是否會伸出來？\n2. 關門時有聽到什麼聲音嗎？例如馬達空轉聲、嗶嗶聲，還是完全沒聲音呢？",
       "skills_loaded": [
         "troubleshoot",
         "ts-auto-lock"
@@ -822,7 +821,7 @@
       "keyword_hits": "1/3",
       "verdict": "partial",
       "reason": "keyword 1/3",
-      "elapsed_sec": 14.3,
+      "elapsed_sec": 4.9,
       "simplified_chars": []
     },
     {
@@ -830,14 +829,14 @@
       "category": "硬體維修",
       "question": "螢幕一直閃爍，無法感應任何開鎖方式",
       "expected": "鎖栓可能卡到門框受口片，需先將門拉或推至關好門的位置",
-      "answer": "螢幕一直閃爍且無法感應任何開鎖方式，這可能是鎖栓卡到門框受口片，導致系統偵測門未關好而拒絕操作。\n\n您可以先嘗試將門「推緊」或「拉緊」，讓鎖栓順利對準受口片，再嘗試開鎖看看。\n\n由於您的電子鎖品牌是 Chatlock，我會載入 Chatlock 相關的故障排除技能來提供更精準的建議。",
+      "answer": "螢幕一直閃爍，無法感應任何開鎖方式，這可能是鎖栓卡到門框受口片，導致系統偵測門未關好而拒絕操作。請您先將門「推緊」或「拉緊」讓鎖栓順利對準受口片，再嘗試開鎖看看。\n\n請問您的電子鎖型號是 AI-99、A90 還是其他型號呢？",
       "skills_loaded": [
         "troubleshoot"
       ],
       "keyword_hits": "3/3",
       "verdict": "pass",
       "reason": "keyword 3/3",
-      "elapsed_sec": 2.1,
+      "elapsed_sec": 1.8,
       "simplified_chars": []
     },
     {
@@ -845,14 +844,15 @@
       "category": "硬體維修",
       "question": "Chatlock電子鎖網路一直斷線",
       "expected": "檢查室內螢幕是否插好安裝正確（網路模組在螢幕裡），確認 2.4G 與 5G 頻道是否分開，是否為 mesh 或 WiFi 6/7 以上路由器",
-      "answer": "Chatlock 電子鎖網路一直斷線確實很困擾。\n\n網路連線不穩定的情況，通常會建議先確認家中的 Wi-Fi 頻段是否為 2.4 GHz，因為大部分電子鎖不支援 5 GHz。另外，如果家裡使用的是 Mesh 路由器，有時候也可能會造成連線不穩定。\n\n為了給您最精準的排查步驟，請問您的 Chatlock 電子鎖型號是 AI-99、A90 還是其他型號呢？",
+      "answer": "您好，Chatlock 電子鎖網路一直斷線確實很困擾，我來協助您排除問題。\n\n首先，請您先幫我檢查一下室內的螢幕面板是否有插好、安裝穩固？因為網路模組是裝在螢幕裡面的。\n\n另外，電子鎖目前只支援 2.4GHz 的 Wi-Fi 頻段，不支援 5GHz。請確認家裡的路由器有沒有把 2.4G 和 5G 的 Wi-Fi 名稱分開？如果是合在一起的，需要進路由器後台把它分開，讓電子鎖連接單獨的 2.4G Wi-Fi。\n\n如果家裡是使用 Wi-Fi 6/7 的路由器，可能會需要調整一些設定來提升相容性：\n*   無線模式請選擇 **802.11 b/g/n**。\n*   頻寬設定為 **20MHz**。\n*   頻道可以選擇 **1 / 6 / 11** 或設為自動。\n*   加密方式請使用 **WPA2-PSK + AES**。\n*   請確認 **SSID 廣播是開啟的**，並且**關閉雙頻合一**和 **WPS** 功能。\n*   Wi-Fi 名稱和密碼建議只使用英文和數字，避免使用特殊符號。\n\n如果您使用的是 Mesh 路由器，由於它會自動在節點之間切換，有時候會造成電子鎖頻繁斷線重連。這",
       "skills_loaded": [
-        "troubleshoot"
+        "troubleshoot",
+        "ts-wifi-chatlock"
       ],
-      "keyword_hits": "1/4",
-      "verdict": "partial",
-      "reason": "keyword 1/4",
-      "elapsed_sec": 2.3,
+      "keyword_hits": "4/4",
+      "verdict": "pass",
+      "reason": "keyword 4/4",
+      "elapsed_sec": 5.3,
       "simplified_chars": []
     },
     {
@@ -860,7 +860,7 @@
       "category": "硬體維修",
       "question": "家中是mesh路由器，電子鎖網路很不穩定",
       "expected": "Mesh 路由器可能導致視訊開門卡頓不穩定，建議使用獨立的 2.4GHz 或 IoT Network",
-      "answer": "您好！了解到您的 Chatlock AI-99 電子鎖網路不穩定，這確實會影響使用體驗。\n\nChatlock AI-99 的網路模組是安裝在室內螢幕中的，所以首先想請您檢查一下室內的螢幕面板是否有插好、安裝穩固？\n\n另外，電子鎖只支援 2.4GHz 的 Wi-Fi 頻段，請確認家裡的路由器有沒有把 2.4G 和 5G 的 Wi-Fi 名稱分開？如果是合在一起的，需要進路由器後台把它分開。\n\n由於您提到家中是 Mesh 路由器，這類路由器會自動在節點之間切換，有時候會造成電子鎖頻繁斷線重連。Mesh 路由器和 Wi-Fi 6/7 路由器也可能導致電子鎖耗電量增加。建議您可以考慮購買一台僅支援 2.4G 的入門級路由器給電子鎖專用，這樣連線會更穩定。\n\n如果以上方式都嘗試過後，網路連線還是不穩定，請再告訴我，我們可能需要進一步確認其他狀況。",
+      "answer": "您好！了解到您的 Chatlock AI-99 電子鎖網路不穩定，這確實會影響使用體驗。\n\nChatlock AI-99 的網路模組是安裝在室內螢幕中的，所以首先請您檢查一下室內的螢幕面板是否有插好、安裝穩固。\n\n另外，電子鎖目前只支援 2.4G 的 Wi-Fi 頻段，不支援 5G。請確認您家中的路由器是否有將 2.4G 和 5G 的 Wi-Fi 名稱分開？如果是合在一起的，需要進路由器後台把它們分開。\n\n由於您使用的是 Mesh 路由器，這類路由器會自動在節點之間切換，可能會導致電子鎖頻繁斷線重連。這也會增加電子鎖的耗電量。建議您可以考慮購買一台僅支援 2.4G 的入門級路由器供電子鎖專用，因為電子鎖作為 IoT 設備，不需要高速網路，只需要穩定的 2.4G 連線。\n\n如果以上方式都嘗試過後，網路連線仍然不穩定，請您再告訴我。",
       "skills_loaded": [
         "troubleshoot",
         "ts-wifi-chatlock"
@@ -868,7 +868,7 @@
       "keyword_hits": "2/3",
       "verdict": "pass",
       "reason": "keyword 2/3",
-      "elapsed_sec": 4.0,
+      "elapsed_sec": 3.5,
       "simplified_chars": []
     },
     {
@@ -876,7 +876,7 @@
       "category": "硬體維修",
       "question": "Chatlock推拉電子鎖轉把手後不會自己彈回正，會卡住",
       "expected": "判斷為機械問題，建議派工請師傅到場檢修調整",
-      "answer": "鎖舌卡在中間，而且門是關著的，這表示鎖舌可能被門框卡住了。\n\n您可以試著將門「推緊」或「拉緊」，讓鎖栓能順利對準受口片，然後再嘗試開鎖。\n\n如果還是無法解決，這可能需要請專業人員來檢查鎖匣或門扇是否有問題。",
+      "answer": "鎖舌卡在中間，而且門是關著的，這確實比較麻煩。\n\n您可以檢查一下門框上的受口片（銀色金屬片），看看是否有輕微歪斜、開口內是否有異物，或是鎖舌與受口片開口是否對齊。\n\n如果門沒有完全關閉，鎖匣可能會卡在門框上。您可以試著將門壓緊，消除縫隙後再嘗試看看。",
       "skills_loaded": [
         "troubleshoot",
         "ts-lock-tongue-chatlock"
@@ -884,7 +884,7 @@
       "keyword_hits": "0/2",
       "verdict": "fail",
       "reason": "keyword 0/2",
-      "elapsed_sec": 4.5,
+      "elapsed_sec": 4.0,
       "simplified_chars": []
     },
     {
@@ -892,15 +892,15 @@
       "category": "硬體維修",
       "question": "為什麼只有動畫在跑動但是沒有感應人臉辨識？",
       "expected": "確認鏡頭兩旁是否有紅燈亮起，沒有紅燈代表經過的人較多導致感應太多次失敗，先使用其他方式開門",
-      "answer": "您好，關於您提到人臉辨識只有動畫在跑動但沒有感應的問題，這可能是因為電子鎖的「防回頭機制」正在作用。\n\n當電子鎖上鎖後，貓眼鏡頭旁的紅燈不會立即亮起，大約 20 秒內不會主動啟動人臉感應，這是為了防止剛離開的人又被辨識開門。如果這段時間有人經過門前，這個 20 秒的計時會重新開始。\n\n您可以試試看以下方法：\n1.  用手觸摸螢幕喚醒電子鎖，紅燈應該會立刻亮起並開始感應。\n2.  或者改用其他開門方式，例如密碼、指紋或卡片。\n3.  等待約 20 秒，確保沒有人經過門前，紅燈應該會自動恢復感應。\n\n如果觸摸螢幕後紅燈仍然不亮，或者重新錄入人臉後仍然無法辨識，那可能需要請專人確認了。",
+      "answer": "您好，Chatlock AI-99 的人臉辨識只有動畫在跑動但沒有感應，這可能是因為防回頭機制啟動了。\n\n電子鎖上鎖後，貓眼鏡頭旁的紅燈不會立即亮起，大約 20 秒內不會主動啟動人臉感應，這是為了防止剛離開的人又被辨識開門。如果這段期間有人經過門前，每次都會重新計算 20 秒。\n\n您可以試試以下方法：\n1. 用手觸摸螢幕喚醒電子鎖，紅燈會立刻亮起開始感應。\n2. 或改用其他方式開門（密碼/指紋/卡片）。\n3. 等待約 20 秒無人經過後，紅燈會自動恢復感應。\n\n如果觸摸螢幕後紅燈還是不亮，或是紅燈亮起但反覆辨識失敗，即使重新錄入人臉也無效，那可能就是鏡頭硬體問題，需要派工處理。",
       "skills_loaded": [
         "troubleshoot",
         "ts-face-chatlock"
       ],
-      "keyword_hits": "2/3",
+      "keyword_hits": "3/3",
       "verdict": "pass",
-      "reason": "keyword 2/3",
-      "elapsed_sec": 3.6,
+      "reason": "keyword 3/3",
+      "elapsed_sec": 3.3,
       "simplified_chars": []
     },
     {
@@ -908,7 +908,7 @@
       "category": "硬體維修",
       "question": "請問我的門可以安裝嗎？",
       "expected": "請客戶提供門的正面、背面、側面、門框位置的照片以進行評估",
-      "answer": "您好！很高興為您服務。\n\n關於您的門是否可以安裝電子鎖，我需要先了解一些情況才能幫您評估。\n\n請問您是要在新門安裝電子鎖，還是現有的門要更換電子鎖呢？另外，如果方便的話，可以請您拍一張門的正面和鎖匣部分的照片給我嗎？這樣我會比較好判斷喔！",
+      "answer": "您好！關於您的門是否可以安裝電子鎖，我需要先了解一些情況才能幫您評估喔。\n\n請問您是要在新門安裝電子鎖，還是現有的門要更換電子鎖呢？另外，如果方便的話，可以請您拍一張門的正面和鎖匣部分的照片給我嗎？這樣我會比較好判斷。\n\n還有，請問安裝地址在哪裡呢？",
       "skills_loaded": [
         "dispatch-guide"
       ],
@@ -923,12 +923,12 @@
       "category": "硬體維修",
       "question": "我下單了",
       "expected": "請客戶提供訂單編號、型號、購買通路、聯絡人、電話、安裝地址等資訊",
-      "answer": "您好！請問有什麼需要我協助的嗎？",
+      "answer": "您好！請問您是想詢問訂單相關問題，還是有其他電子鎖的疑問呢？",
       "skills_loaded": [],
-      "keyword_hits": "0/3",
-      "verdict": "fail",
-      "reason": "keyword 0/3",
-      "elapsed_sec": 0.6,
+      "keyword_hits": "1/3",
+      "verdict": "partial",
+      "reason": "keyword 1/3",
+      "elapsed_sec": 0.8,
       "simplified_chars": []
     },
     {
@@ -936,15 +936,14 @@
       "category": "硬體維修",
       "question": "為什麼我的APP網路延遲這麼嚴重？",
       "expected": "通常與網路環境不穩定有關，可能受家庭網路設備或網速波動影響，建議檢查 Wi-Fi 訊號強度或路由器連線穩定性",
-      "answer": "您好，Chatlock AI-99 的 APP 網路延遲問題，通常跟家裡的 Wi-Fi 設定有關。\n\n首先，請您檢查一下室內的螢幕面板是否有插好、安裝穩固？因為網路模組是裝在螢幕裡面的。\n\n再來，電子鎖只支援 2.4GHz 的 Wi-Fi 頻段，請確認家裡的路由器有沒有把 2.4G 和 5G 的 Wi-Fi 名稱分開？如果是合在一起的，需要進路由器後台把它分開。\n\n最後，如果您家裡使用的是 Wi-Fi 6 或 Wi-Fi 7 的路由器，可能需要調整一下路由器的後台設定，例如將無線模式改為 802.11 b/g/n、頻寬設為 20MHz 等，這樣可以提高電子鎖的連線穩定性。\n\n如果以上都確認過還是有問題，再跟我說喔！",
+      "answer": "您的 Chatlock AI-99 APP 網路延遲嚴重，這可能是因為家中的 Wi-Fi 網路不穩定，或是電子鎖與路由器的距離較遠。\n\n您可以先確認一下家中的 Wi-Fi 是否為 2.4 GHz，因為大部分電子鎖不支援 5 GHz 的網路。另外，如果家中使用 Mesh 路由器，有時候也可能會造成視訊卡頓或連線不穩。\n\n為了更精準地幫您判斷問題，我需要載入 Chatlock AI-99 網路連線問題的詳細排查步驟。",
       "skills_loaded": [
-        "troubleshoot",
-        "ts-wifi-chatlock"
+        "troubleshoot"
       ],
       "keyword_hits": "3/3",
       "verdict": "pass",
       "reason": "keyword 3/3",
-      "elapsed_sec": 3.6,
+      "elapsed_sec": 2.1,
       "simplified_chars": []
     },
     {
@@ -952,14 +951,14 @@
       "category": "硬體維修",
       "question": "鋰電池怎麼充電？",
       "expected": "使用 5V1A 或 5V2A 充電頭，紅燈充電中藍燈充飽，請勿使用快充頭以免電池膨脹",
-      "answer": "電子鎖的鋰電池充電需要使用 5V1A 或 5V2A 的充電頭，充電線則是 Type-C 轉 Type-A。請注意不要使用快充喔！\n\n請問您的電子鎖是什麼品牌和型號呢？",
+      "answer": "您好！關於鋰電池充電的問題，我需要先確認您的電子鎖品牌和型號，才能提供最準確的充電方式喔。\n\n請問您的電子鎖是什麼品牌和型號呢？",
       "skills_loaded": [
         "product-knowledge"
       ],
-      "keyword_hits": "3/3",
-      "verdict": "pass",
-      "reason": "keyword 3/3",
-      "elapsed_sec": 1.7,
+      "keyword_hits": "0/3",
+      "verdict": "fail",
+      "reason": "keyword 0/3",
+      "elapsed_sec": 1.8,
       "simplified_chars": []
     },
     {
@@ -967,14 +966,14 @@
       "category": "硬體維修",
       "question": "Chatlock售後是怎麼保固？",
       "expected": "Chatlock 產品自安裝完成日起享有原廠保固，保固期依產品型號或購買通路為準",
-      "answer": "Chatlock 的售後保固部分，如果是我們本店銷售並安裝的電子鎖，我們會提供整機保固（包含產品和安裝品質），保固期會依品牌而異。\n\n請問您是想了解 Chatlock 的保固政策嗎？如果是的話，需要請您提供購買憑證，我才能幫您確認確切的保固期限喔！",
+      "answer": "Chatlock 的售後保固，如果是本店銷售加安裝的，會提供整機保固，保固期會依品牌而異，需要您提供購買憑證來確認。\n\n如果只是代工服務（客戶自備鎖），我們只保障安裝品質，產品本身的故障需要洽詢原購買廠商。\n\n另外，人為損壞、自行拆裝、遺失鑰匙/卡片、電池耗盡、正常耗損零件，這些都不在保固範圍內喔。\n\n請問您是想了解保固期多久嗎？還是有其他保固相關的問題呢？",
       "skills_loaded": [
         "dispatch-guide"
       ],
       "keyword_hits": "2/3",
       "verdict": "pass",
       "reason": "keyword 2/3",
-      "elapsed_sec": 1.9,
+      "elapsed_sec": 2.1,
       "simplified_chars": []
     },
     {
@@ -982,7 +981,7 @@
       "category": "品牌路由",
       "question": "門打不開",
       "expected": "Dormakaba 用戶應載入 ts-door-stuck-dormakaba，回答應包含擺動式鎖舌操作",
-      "answer": "您好！您在門外，按開鎖有聽到馬達聲，這表示鎖體有在運作。\n\nDormakaba 電子鎖的鎖舌是擺動式設計，您可以試試看這個方法：\n\n1.  請先用力把門往門框方向「推緊」，不要放手。\n2.  然後按解鎖，門就可以拉開了。\n\n如果還是打不開，請告訴我您的電子鎖型號，以及您的門是向外拉開還是向內推開的，這樣我才能給您更精準的建議。",
+      "answer": "您好！聽到您在門外打不開門，而且按開鎖有聽到馬達聲，這表示鎖體本身有在運作。\n\nDormakaba 電子鎖的鎖舌是擺動式設計，跟一般鎖不太一樣。您可以試試看這個方法：\n\n請您先用力把門往門框方向「推緊」，不要放手，然後再按解鎖，這樣門應該就可以拉開了。\n\n如果這個方法還是打不開，請問您的電子鎖型號是什麼呢？或者您的門是向外拉開還是向內推開的呢？",
       "skills_loaded": [
         "troubleshoot",
         "ts-door-stuck-dormakaba"
@@ -990,7 +989,7 @@
       "keyword_hits": "2/2",
       "verdict": "pass",
       "reason": "keyword 2/2",
-      "elapsed_sec": 4.1,
+      "elapsed_sec": 4.5,
       "simplified_chars": []
     },
     {
@@ -998,7 +997,7 @@
       "category": "品牌路由",
       "question": "門打不開",
       "expected": "回答應包含推緊門板法或 Type-C 緊急供電等 Chatlock 門扇卡死的處理方式",
-      "answer": "您好！聽到馬達聲表示鎖芯有在動作，這通常是鎖舌與門框受口片之間有摩擦力導致的。\n\n您可以試試看這個方法：\n因為您在門外，門是關著的，請您先用力把門往門框方向推緊，然後按開鎖，同時把門拉開。\n\n請問您的電子鎖型號是什麼呢？這樣我可以提供更精準的協助。",
+      "answer": "您好！聽到您按開鎖有馬達聲，這表示鎖體有在運作，通常是鎖舌和門框受口片之間卡住了。\n\n您可以試試看這個方法：\n因為您在門外，門是關著的，請您先用力把門往門框方向推緊，然後按開鎖，同時把門拉開。\n\n如果還是打不開，請告訴我您的電子鎖型號，我會再幫您看看是否有其他解決辦法。",
       "skills_loaded": [
         "troubleshoot",
         "ts-door-stuck-chatlock"
@@ -1006,7 +1005,7 @@
       "keyword_hits": "1/2",
       "verdict": "pass",
       "reason": "keyword 1/2",
-      "elapsed_sec": 4.5,
+      "elapsed_sec": 4.3,
       "simplified_chars": []
     },
     {
@@ -1014,14 +1013,15 @@
       "category": "品牌路由",
       "question": "電池很快沒電",
       "expected": "Dormakaba 用戶應載入 ts-power-drain-dormakaba，回答應包含 9V 電池或 FA9000 等型號資訊",
-      "answer": "電池很快沒電是個常見的問題，別擔心！\n\nDormakaba 電子鎖遇到電池快速沒電的情況，可以先試試看用 9V 方型電池或行動電源從 Type-C 接口應急供電，或是使用緊急鑰匙（通常在鎖體底部蓋子內）。\n\n為了給您最精準的步驟，我需要載入 Dormakaba 異常耗電的子技能 SOP。",
+      "answer": "您好，電池很快沒電確實很困擾！Dormakaba 電子鎖的電池續航力通常可以達到 8 個月到 1 年，如果一個月內就沒電，那確實是異常耗電。\n\n為了幫您更精準地判斷問題，請問：\n1. 您的 Dormakaba 電子鎖型號是什麼呢？（例如：FA9000、RL360V、ML660、Rose 等）\n2. 目前使用的是什麼牌子的電池？包裝是什麼顏色的？\n3. 您的電子鎖有連接 Wi-Fi 嗎？",
       "skills_loaded": [
-        "troubleshoot"
+        "troubleshoot",
+        "ts-power-drain-dormakaba"
       ],
       "keyword_hits": "0/2",
       "verdict": "fail",
       "reason": "keyword 0/2",
-      "elapsed_sec": 2.2,
+      "elapsed_sec": 3.4,
       "simplified_chars": []
     },
     {
@@ -1029,15 +1029,14 @@
       "category": "品牌路由",
       "question": "要按兩次才能開門",
       "expected": "回答應包含關閉雙重認證的操作路徑：齒輪→高級設定→雙重認證→關閉",
-      "answer": "好的，既然您可以進入設定選單，我們可以嘗試關閉雙重認證功能。\n\n請您依照以下步驟操作：\n1.  觸碰螢幕喚醒面板。\n2.  點擊齒輪圖示進入系統設定。\n3.  進行管理者驗證（指紋、密碼、卡片、人臉或掌靜脈都可以）。\n4.  進入「高級設定」。\n5.  找到「雙重認證模式」。\n6.  將綠色開關切換為灰色（關閉）。\n7.  確認顯示「設定成功」。\n\n完成後，請您再用單一方式（例如只用指紋）試試看能不能正常開門。",
+      "answer": "您好，您提到門鎖需要按兩次才能開，這可能是雙重認證被誤觸啟動了。\n\n為了提供您最精準的協助，我需要載入 Chatlock 品牌的雙重認證處理技能。",
       "skills_loaded": [
-        "troubleshoot",
-        "ts-dual-auth-chatlock"
+        "troubleshoot"
       ],
-      "keyword_hits": "2/2",
-      "verdict": "pass",
-      "reason": "keyword 2/2",
-      "elapsed_sec": 3.9,
+      "keyword_hits": "0/2",
+      "verdict": "fail",
+      "reason": "keyword 0/2",
+      "elapsed_sec": 2.0,
       "simplified_chars": []
     },
     {
@@ -1045,14 +1044,15 @@
       "category": "品牌路由",
       "question": "鎖一直嗶嗶叫",
       "expected": "Dormakaba 用戶應載入 ts-alarm-dormakaba，回答應包含警報相關診斷或信號說明",
-      "answer": "您好，Dormakaba 電子鎖一直嗶嗶叫，這通常是異常警報的狀況。\n\n為了給您最精準的解決方法，我需要載入 Dormakaba 異常警報的處理 SOP。請稍等我一下。",
+      "answer": "Dormakaba 電子鎖一直嗶嗶叫，通常是鎖在提醒您一些狀況。\n\n為了幫您判斷是什麼問題，可以請您描述一下聲音的模式嗎？例如是短嗶幾聲、長鳴幾秒，還是連續嗶不停？另外，這個聲音大概是什麼時候出現的呢？（例如關門時、開門時、還是半夜突然響？）",
       "skills_loaded": [
-        "troubleshoot"
+        "troubleshoot",
+        "ts-alarm-dormakaba"
       ],
-      "keyword_hits": "2/2",
+      "keyword_hits": "1/2",
       "verdict": "pass",
-      "reason": "keyword 2/2",
-      "elapsed_sec": 1.7,
+      "reason": "keyword 1/2",
+      "elapsed_sec": 3.5,
       "simplified_chars": []
     },
     {
@@ -1060,15 +1060,14 @@
       "category": "品牌路由",
       "question": "APP 怎麼配對",
       "expected": "Chatlock AI-99 用戶應載入 app-pairing，回答應包含 WiFi/藍牙配對步驟",
-      "answer": "您好！Chatlock AI-99 的 APP 配對步驟如下：\n\n1.  **電子鎖端**：觸碰螢幕 → 齒輪（系統設定）→ 網路設定 → 網路配對 → 點擊「開始配對」按鈕。\n2.  **手機端**：開啟 Chatlock APP →「+」→ 添加設備 → APP 搜尋到「chatlock AI99」後點擊「添加」→ 核對並輸入正確的 Wi-Fi 名稱與密碼（注意大小寫）→ 點擊「下一步」→ 等待配對。\n3.  雙方顯示「配對成功」，且 APP 同步顯示設備添加成功即完成。\n\n提醒您，手機的 Wi-Fi 和藍牙要開啟，Wi-Fi 需為 2.4G 頻段喔！您可以參考這個教學影片：https://www.youtube.com/watch?v=3RUF3tzF9FY。\n\n請問還有其他需要協助的嗎？",
+      "answer": "您好！關於 Chatlock AI-99 的 APP 配對問題，請您稍等，我為您查詢一下詳細的配對步驟。",
       "skills_loaded": [
-        "app-guide",
-        "app-pairing"
+        "app-guide"
       ],
-      "keyword_hits": "1/2",
-      "verdict": "pass",
-      "reason": "keyword 1/2",
-      "elapsed_sec": 10.5,
+      "keyword_hits": "0/2",
+      "verdict": "fail",
+      "reason": "keyword 0/2",
+      "elapsed_sec": 1.5,
       "simplified_chars": []
     }
   ]

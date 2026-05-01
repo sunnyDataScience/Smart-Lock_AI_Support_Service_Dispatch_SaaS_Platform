@@ -71,7 +71,7 @@ postgres_uri_env = "POSTGRES_URI"
 # ── 9. Debounce 防抖設定 (H3) ──
 [debounce]
 enabled          = true   # 關閉時訊息直接進入 Agent（不合併）
-buffer_wait      = 1.0    # 秒，最後一則訊息後等待時間
+buffer_wait      = 0.5    # 秒，最後一則訊息後等待時間（P1 #7：1.0→0.5 省 500ms）
 buffer_ttl       = 300    # 秒，緩衝區過期清理
 cleanup_interval = 60     # 秒，清理迴圈間隔
 media_extra_wait = 10     # 秒，等待媒體處理完成

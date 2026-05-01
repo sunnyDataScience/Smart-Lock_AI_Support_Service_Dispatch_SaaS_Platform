@@ -387,13 +387,13 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
                 ai_response = _extract_text(msg.content)
                 break
 
-        # Checkpoint 清理：將 tool call 訊息替換為輕量引用，避免 SOP 內容累積稀釋上下文
-        await _cleanup_tool_checkpoint(config, messages)
-        t_cleanup_done = time.monotonic()
-        cleanup_s = t_cleanup_done - t_invoke_done
-        total_s = t_cleanup_done - t_phase_start
+        # Checkpoint 清理：背景化（P1 #8）— 使用者已能拿到 ai_response，cleanup 不阻塞回覆
+        # 風險可控：若下一則訊息 < cleanup 完成時間到達，_strip_stale_multimodal 會兜底；
+        # 多筆 aupdate_state 仍序列執行，但已從關鍵路徑移除
+        asyncio.create_task(_cleanup_tool_checkpoint(config, messages))
+        total_s = time.monotonic() - t_phase_start
         ainvoke_s = (t_invoke_done - t0)
-        print(f"[Timing] pre={pre_setup_s:.2f}s strip={strip_s:.2f}s ainvoke={ainvoke_s:.2f}s cleanup={cleanup_s:.2f}s total={total_s:.2f}s")
+        print(f"[Timing] pre={pre_setup_s:.2f}s strip={strip_s:.2f}s ainvoke={ainvoke_s:.2f}s cleanup=bg total={total_s:.2f}s")
 
         return ai_response
 
