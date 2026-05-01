@@ -11,6 +11,7 @@
     python scripts/view_llm_usage.py --user-id <uid>            # 單一用戶
     python scripts/view_llm_usage.py --by-day                   # 按日聚合（成本趨勢）
     python scripts/view_llm_usage.py --limit 50                 # 明細顯示筆數
+    python scripts/view_llm_usage.py --show-content             # 明細附帶 user_question / ai_reply 摘要
 """
 
 from __future__ import annotations
@@ -169,7 +170,7 @@ async def slow_calls(conn, since_interval: str, threshold_ms: int, limit: int):
         )
 
 
-async def recent_detail(conn, since_interval: str, user_id: str | None, limit: int):
+async def recent_detail(conn, since_interval: str, user_id: str | None, limit: int, show_content: bool = False):
     where = ["timestamp >= NOW() - %s::interval"]
     params: list = [since_interval]
     if user_id:
@@ -182,7 +183,7 @@ async def recent_detail(conn, since_interval: str, user_id: str | None, limit: i
         await cur.execute(
             f"""SELECT timestamp, user_id, call_site, model,
                        input_tokens, output_tokens, total_tokens, latency_ms,
-                       success, error_type
+                       success, error_type, user_question, ai_reply
                 FROM llm_usage_log WHERE {where_sql}
                 ORDER BY timestamp DESC LIMIT %s""",
             (*params, limit),
@@ -191,12 +192,17 @@ async def recent_detail(conn, since_interval: str, user_id: str | None, limit: i
     if not rows:
         print("  (無資料)")
         return
-    for ts, uid, site, model, ti, to, tt, lat, ok, err in rows:
+    for ts, uid, site, model, ti, to, tt, lat, ok, err, q, a in rows:
         status = "OK" if ok else f"FAIL({err})"
         print(
             f"  {fmt_ts(ts)} | {site:<22} | in={fmt_int(ti):>6} out={fmt_int(to):>6} "
             f"tot={fmt_int(tt):>6} lat={fmt_int(lat) + 'ms':>8} | {status:<14} | {(uid or '')[:24]}"
         )
+        if show_content:
+            q_snip = (q or "").replace("\n", " ")[:120]
+            a_snip = (a or "").replace("\n", " ")[:120]
+            print(f"    Q> {q_snip}")
+            print(f"    A> {a_snip}")
 
 
 async def main():
@@ -208,6 +214,7 @@ async def main():
     parser.add_argument("--slow", action="store_true", help="顯示慢呼叫")
     parser.add_argument("--threshold", type=int, default=5000, help="慢呼叫門檻 ms（預設 5000）")
     parser.add_argument("--limit", type=int, default=30, help="明細 / slow 顯示筆數")
+    parser.add_argument("--show-content", action="store_true", help="明細附帶 user_question / ai_reply 摘要")
     args = parser.parse_args()
 
     pg_uri = os.getenv("POSTGRES_URI")
@@ -240,9 +247,17 @@ async def main():
                 latency_ms INTEGER,
                 success BOOLEAN NOT NULL DEFAULT TRUE,
                 error_type VARCHAR(50),
+                user_question TEXT,
+                ai_reply TEXT,
                 metadata JSONB
             )
         """)
+        # 既有資料表升級
+        for col in ("user_question TEXT", "ai_reply TEXT"):
+            try:
+                await conn.execute(f"ALTER TABLE llm_usage_log ADD COLUMN IF NOT EXISTS {col}")
+            except Exception:
+                pass
         await conn.commit()
 
         await overview(conn, since_interval, args.user_id)
@@ -254,7 +269,7 @@ async def main():
         elif args.slow:
             await slow_calls(conn, since_interval, args.threshold, args.limit)
         else:
-            await recent_detail(conn, since_interval, args.user_id, args.limit)
+            await recent_detail(conn, since_interval, args.user_id, args.limit, args.show_content)
     finally:
         await conn.close()
 
