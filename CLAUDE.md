@@ -319,29 +319,23 @@ Docs in `docs/` using a 5D framework (DISCOVER → DEFINE → DESIGN → DEVELOP
 
 ## Post-Commit Progress Report (MANDATORY)
 
-每次 `git commit` 完成後，**必須**立即撰寫一份進度報告，存放於對應功能模組底下的 `docs/report/` 子資料夾，並標注版本號。
+每次 `git commit` 完成後，**必須**立即撰寫一份進度報告，集中**平放**於專案根目錄的 `report/` 資料夾，使用**全專案統一遞增的版本號**命名。
 
 ### 規則
 
 1. **觸發時機**：每完成一次 `git commit` 後立即寫入（不可跳過、不可合併到下次 commit 才補）。
-2. **存放位置**：報告必須放在「該 commit 主要影響的功能模組」底下的 `docs/report/` 資料夾。
-   - 影響 `agent/quality/` → 寫入 `agent/quality/docs/report/`
-   - 影響 `agent/harness/` → 寫入 `agent/harness/docs/report/`
-   - 影響 `agent/skills/` → 寫入 `agent/skills/docs/report/`
-   - 影響 `web/src/components/work-orders/` → 寫入 `web/src/components/work-orders/docs/report/`
-   - 影響 `data/pipeline/silver_to_skill/` → 寫入 `data/pipeline/silver_to_skill/docs/report/`
-   - 跨模組變更 → 寫到「主要受影響模組」的 `docs/report/`，並在報告內列出其他受影響模組
-   - 若 `docs/report/` 不存在，直接建立。
-3. **版本號規則 (Semantic Versioning)**：每個 `docs/report/` 資料夾各自獨立維護版本序號，格式 `vMAJOR.MINOR.PATCH`：
+2. **存放位置**：所有報告**全部直接放在專案根目錄 `report/` 底下**，**禁止**建立任何子資料夾、**禁止**在檔名加上模組前綴。
+   - 影響哪個模組（`agent/quality/`、`agent/skills/`、`web/...`、`data/...` 等）僅在報告內文 `**影響模組**` 欄位註明
+   - 跨模組變更 → 在內文列出全部受影響模組
+3. **版本號規則 (Semantic Versioning)**：**全專案共用一條版本序號**，每次新增報告 +1，格式 `vMAJOR.MINOR.PATCH`：
    - **MAJOR**：破壞性變更（API 變動、移除功能、格式不相容）
    - **MINOR**：新增功能、不破壞相容性的擴充
    - **PATCH**：bug 修復、文件/註解調整、refactor、perf 優化
-   - 第一份報告一律從 `v1.0.0` 起算
-   - 寫入前先查看該資料夾既有報告，取最新版號 +1 對應段
+   - 寫入前先 `ls report/v*.md` 取**整個 `report/` 資料夾**最新版號 +1 對應段
    - 同一 commit 只壓一個版本號
 4. **檔名格式**：`v{MAJOR.MINOR.PATCH}.md`
    - 首份報告：`v1.0.0.md`
-   - 詳細日期、commit SHA、主題等資訊寫在報告內文，不放檔名
+   - 不加模組名、日期、commit SHA、主題；這些一律寫在報告內文
 5. **內容範本**：
 
    ```markdown
