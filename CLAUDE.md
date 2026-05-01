@@ -50,6 +50,7 @@ cd agent && python scripts/view_context.py <user_id>   # Inspect checkpoint stat
 cd agent && python scripts/view_facts.py <user_id>     # Inspect user facts (brand, model, phone, address)
 cd agent && python scripts/view_logs.py                 # Query audit logs
 cd agent && python scripts/view_corrections.py          # View #資料修正 records (--all / --export / --clear)
+cd agent && python scripts/view_llm_usage.py            # Query llm_usage_log (token / latency / Q&A)
 cd agent && python scripts/clean_data.py                # DB cleanup
 
 # API contract tooling (run from project root)
