@@ -585,6 +585,7 @@ async def main():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     json_path = os.path.join(base_dir, "quality_report.json")
     html_path = os.path.join(base_dir, "quality_report.html")
+    md_path = os.path.join(base_dir, "quality_report.md")
 
     _ensure_vertex_credentials()
 
@@ -601,7 +602,7 @@ async def main():
         print("=" * 60)
 
         report = await _rejudge(judge_model, json_path)
-        _save_report(report, json_path, html_path)
+        _save_report(report, json_path, html_path, md_path)
         return
 
     # ── --retry-failed 模式：只重測非 pass 的案例 ──
@@ -682,7 +683,7 @@ async def main():
             category_stats[cat]["total"] += 1
 
         report = {"summary": stats, "category_stats": category_stats, "results": merged}
-        _save_report(report, json_path, html_path)
+        _save_report(report, json_path, html_path, md_path)
         return
 
     # ── 正常模式 / --no-judge 模式 ──
@@ -766,11 +767,11 @@ async def main():
         await asyncio.sleep(1.5)
 
     report = {"summary": stats, "category_stats": category_stats, "results": results}
-    _save_report(report, json_path, html_path)
+    _save_report(report, json_path, html_path, md_path)
 
 
-def _save_report(report: dict, json_path: str, html_path: str) -> None:
-    """輸出 JSON + HTML 報告並印出摘要。"""
+def _save_report(report: dict, json_path: str, html_path: str, md_path: str | None = None) -> None:
+    """輸出 JSON + HTML（+ Markdown）報告並印出摘要。"""
     stats = report["summary"]
     category_stats = report["category_stats"]
     total = sum(stats.values())
@@ -797,6 +798,89 @@ def _save_report(report: dict, json_path: str, html_path: str) -> None:
 
     _generate_html(report, html_path)
     print(f"  HTML saved: {html_path}")
+
+    if md_path:
+        _generate_md(report, md_path)
+        print(f"  MD saved:   {md_path}")
+
+
+def _generate_md(report: dict, path: str) -> None:
+    """輸出 Markdown 摘要報告（適合貼進 PR / Slack / docs）。"""
+    from datetime import datetime
+
+    stats = report.get("summary", {})
+    category_stats = report.get("category_stats", {})
+    results = report.get("results", [])
+    total = sum(stats.values()) or 1
+    pass_n = stats.get("pass", 0)
+    partial_n = stats.get("partial", 0)
+    fail_n = stats.get("fail", 0)
+    error_n = stats.get("error", 0)
+    pass_rate = pass_n / total * 100
+
+    lines: list[str] = []
+    lines.append(f"# Quality Report — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    lines.append("")
+    lines.append(f"- **總案例數**: {total}")
+    lines.append(f"- **通過率**: {pass_rate:.0f}% ({pass_n}/{total})")
+    lines.append("")
+    lines.append("## 摘要")
+    lines.append("")
+    lines.append("| Verdict | Count | Ratio |")
+    lines.append("| :--- | ---: | ---: |")
+    for label, n in (("Pass", pass_n), ("Partial", partial_n), ("Fail", fail_n), ("Error", error_n)):
+        lines.append(f"| {label} | {n} | {n / total * 100:.0f}% |")
+    lines.append("")
+
+    if category_stats:
+        lines.append("## 分類表現")
+        lines.append("")
+        lines.append("| Category | Pass | Partial | Fail | Error | Total | Pass Rate |")
+        lines.append("| :--- | ---: | ---: | ---: | ---: | ---: | ---: |")
+        for cat, cs in category_stats.items():
+            t = cs.get("total", 0) or 1
+            rate = cs.get("pass", 0) / t * 100
+            lines.append(
+                f"| {cat} | {cs.get('pass', 0)} | {cs.get('partial', 0)} | "
+                f"{cs.get('fail', 0)} | {cs.get('error', 0)} | {cs.get('total', 0)} | {rate:.0f}% |"
+            )
+        lines.append("")
+
+    non_pass = [r for r in results if r.get("verdict") != "pass"]
+    if non_pass:
+        lines.append(f"## 未通過案例（{len(non_pass)} 筆）")
+        lines.append("")
+        icon = {"partial": "WARN", "fail": "FAIL", "error": "ERR"}
+        for r in non_pass:
+            v = r.get("verdict", "?")
+            lines.append(f"### [{icon.get(v, v.upper())}] {r.get('id', '?')} — {r.get('category', '?')}")
+            lines.append("")
+            lines.append(f"- **Question**: {r.get('question', '')}")
+            lines.append(f"- **Expected**: {r.get('expected', '')}")
+            lines.append(f"- **Keywords**: {r.get('keyword_hits', '-')}")
+            skills = r.get("skills_loaded") or []
+            lines.append(f"- **Skills**: {', '.join(skills) if skills else '-'}")
+            lines.append(f"- **Elapsed**: {r.get('elapsed_sec', 0)}s")
+            reason = (r.get("reason") or "").strip()
+            if reason:
+                lines.append(f"- **Reason**: {reason}")
+            answer = (r.get("answer") or "").strip()
+            if answer:
+                lines.append("- **Answer**:")
+                lines.append("")
+                lines.append("  ```")
+                for ln in answer.splitlines() or [answer]:
+                    lines.append(f"  {ln}")
+                lines.append("  ```")
+            lines.append("")
+    else:
+        lines.append("## 未通過案例")
+        lines.append("")
+        lines.append("全部通過 ✅")
+        lines.append("")
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
 
 
 def _generate_html(report: dict, path: str) -> None:
