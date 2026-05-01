@@ -116,7 +116,7 @@ models = ["AI-99", "A90", "AI-88"]
 [[quick_reply.brands]]
 label = "Dormakaba"
 text  = "Dormakaba"
-models = ["AS701", "AS901", "DP850", "FA9000", "GL220", "ML550", "ML660", "ML770", "MP750", "RL320", "RL360", "RL360V", "RL599", "FSL800", "Rose"]
+models = ["AS701", "AS850", "AS901", "DP850", "FA9000", "GL220", "ML550", "ML660", "ML770", "MP750", "RL320", "RL360", "RL360V", "RL599", "FSL800", "Rose"]
 
 [[quick_reply.brands]]
 label = "Philips"
@@ -141,7 +141,7 @@ models = ["七合一旗艦款"]
 [[quick_reply.brands]]
 label = "3E"
 text  = "3E"
-models = ["F(T7)"]
+models = ["F(T7)", "TX"]
 
 [[quick_reply.brands]]
 label = "Waferlock"
