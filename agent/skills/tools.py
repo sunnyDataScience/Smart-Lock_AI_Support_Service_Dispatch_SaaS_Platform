@@ -170,6 +170,14 @@ async def update_user_info(brand: str = "", model: str = "") -> str:
     if not brand and not model:
         return "請提供品牌或型號資訊。"
 
+    # ── 僅提供型號 → 從型號反推品牌（避免 agent 漏給 brand 導致品牌仍未知）──
+    if model and not brand:
+        from harness.line_ui_factory import infer_brand_from_text
+        inferred_brand, _ = infer_brand_from_text(model)
+        if inferred_brand:
+            brand = inferred_brand
+            print(f"[update_user_info] 從型號 {model} 反推品牌: {brand}")
+
     # ── 驗證品牌是否在服務範圍 ──
     if brand:
         matched_brand = match_brand(brand)

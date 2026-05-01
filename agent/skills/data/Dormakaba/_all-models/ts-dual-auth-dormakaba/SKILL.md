@@ -1,10 +1,16 @@
 ---
 name: ts-dual-auth-dormakaba
-description: "Dormakaba 雙重認證誤觸的故障排除SOP。客戶說要按兩次才能開、要先輸密碼再刷卡、單一方式開不了門時使用"
+description: "Dormakaba 雙重認證/雙重驗證/雙因子模式的診斷與關閉SOP。客戶說要按兩次才能開、要先輸密碼再刷卡、單一方式開不了門、詢問雙重認證/雙重驗證會有什麼現象/啟動後會怎樣時使用"
 trigger_keywords:
   - "按兩次"
   - "雙重認證"
+  - "雙重驗證"
+  - "雙因子"
   - "先輸密碼再刷卡"
+  - "啟動後"
+  - "會怎樣"
+  - "什麼現象"
+  - "只有管理者密碼"
 category: troubleshoot
 severity: 2
 ---
