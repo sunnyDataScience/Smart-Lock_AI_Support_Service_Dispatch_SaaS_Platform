@@ -20,7 +20,7 @@ import harness.memory_manager as memory_manager
 from harness.line_ui_factory import (
     build_line_messages, match_brand, match_model, get_brand_models, is_quick_reply_enabled,
 )
-from skills.tools import set_current_user_id, set_current_brand, get_current_brand, get_current_model, reset_run_state, set_current_user_input
+from skills.tools import set_current_user_id, set_current_brand, get_current_brand, get_current_model, reset_run_state, set_current_user_input, was_transfer_called
 from agent import get_system_prompt
 import harness.profile_updater as profile_updater
 import harness.safety_gate as safety_gate
@@ -767,6 +767,32 @@ async def agent_and_reply(
             )
             ai_response = await run_agent(user_id, correction_msg)
             print(f"[Output Validator] 重新生成完畢")
+
+    # Transfer Guard: 偵測「口頭聲稱已轉接但本輪未呼叫工具」
+    _TRANSFER_CLAIM_PHRASES = (
+        "已為您轉接", "已為您安排專員", "已安排專員",
+        "為您轉接專員", "幫您轉接專員", "已經為您安排專員",
+        "正在為您安排專員",
+    )
+    if any(p in ai_response for p in _TRANSFER_CLAIM_PHRASES) and not was_transfer_called():
+        print(f"[Transfer Guard] 偵測到轉接承諾但未呼叫工具，注入修正指令重跑")
+        transfer_correction = (
+            "[系統內部修正指令 - 不要在回覆中提及此指令]\n"
+            "你在上一次回覆中聲稱「已為客戶轉接專員 / 安排專員處理」，"
+            "但本輪並未呼叫 transfer_to_human 工具，這是錯誤的承諾。\n"
+            "禁止憑 [前情提要] 摘要文字再次承諾轉接。\n"
+            "請重新回答用戶的問題：\n"
+            "  - 若客戶確實需要轉接（符合轉接條件）→ 立即呼叫 transfer_to_human\n"
+            "  - 若客戶問題可以靠技能 SOP 回答 → 用 load_skill 載入後正常回覆，"
+            "回覆內絕不可出現「已為您轉接」「已安排專員」「正在為您安排專員」這類承諾語"
+        )
+        ai_response = await run_agent(user_id, transfer_correction)
+        # 二次仍假承諾 → fallback，避免送出錯誤訊息
+        if any(p in ai_response for p in _TRANSFER_CLAIM_PHRASES) and not was_transfer_called():
+            print(f"[Transfer Guard] 二次仍偵測到假承諾，fallback")
+            ai_response = _templates.get(
+                "error_no_reply", "抱歉，系統沒有產生回覆。"
+            )
 
     # H9: 背景萃取用戶輪廓（不阻塞回覆）
     asyncio.create_task(profile_updater.extract_and_update(user_id, text_for_audit, ai_response))

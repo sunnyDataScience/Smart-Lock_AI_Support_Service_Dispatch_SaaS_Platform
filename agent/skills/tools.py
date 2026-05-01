@@ -23,6 +23,7 @@ _current_user_id: ContextVar[str] = ContextVar("current_user_id", default="")
 _current_brand: ContextVar[str | None] = ContextVar("current_brand", default=None)
 _current_model: ContextVar[str | None] = ContextVar("current_model", default=None)
 _skill_loaded_this_run: ContextVar[bool] = ContextVar("skill_loaded_this_run", default=False)
+_transfer_called_this_run: ContextVar[bool] = ContextVar("transfer_called_this_run", default=False)
 _current_user_input: ContextVar[str] = ContextVar("current_user_input", default="")
 
 # 明確轉接意圖關鍵字（出現在用戶訊息中時允許跳過 load_skill 直接轉接）
@@ -55,6 +56,12 @@ def set_current_user_id(user_id: str) -> None:
 def reset_run_state() -> None:
     """重置每次 run_agent 的狀態（技能載入追蹤等）。"""
     _skill_loaded_this_run.set(False)
+    _transfer_called_this_run.set(False)
+
+
+def was_transfer_called() -> bool:
+    """本輪 run_agent 內是否實際呼叫過 transfer_to_human 工具。"""
+    return _transfer_called_this_run.get()
 
 
 def set_current_user_input(text: str) -> None:
@@ -255,6 +262,9 @@ async def transfer_to_human(reason: str) -> str:
                 "嘗試回答客戶的問題。只有在技能 SOP 確實無法解決、或客戶明確要求轉真人時，"
                 "才呼叫 transfer_to_human。"
             )
+
+    # 通過守門 → 標記本輪實際呼叫了轉接工具（供 debounce 在送出前驗證口頭承諾）
+    _transfer_called_this_run.set(True)
 
     # 從 context var 取 user_id 查 DB，自動填入已知資料
     user_id = _current_user_id.get()
