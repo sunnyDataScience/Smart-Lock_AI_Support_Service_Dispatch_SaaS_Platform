@@ -23,7 +23,8 @@
 | RL360V | YouTube + GDrive 手冊 | 2 |
 | RL599 | YouTube + GDrive 手冊 | 3 |
 | Rose | YouTube + GDrive 手冊 | 2 |
-| 跨型號 | YouTube（卡片設定/APP/電池）+ GDrive（WiFi/APP）+ Video（鎖舌卡住/雙重認證） | 8 |
+| 跨型號（YouTube/GDrive） | YouTube（卡片設定/APP/電池）+ GDrive（WiFi/APP） | 6 |
+| 跨型號（Video） | 鎖舌卡住排除、雙重認證排除、鎖栓測試進階 | 3 |
 
 ## Chatlock
 
@@ -32,7 +33,7 @@
 | AI-99 | YouTube | 24 |
 | A90 | YouTube | 15 |
 | AI-88 | — | 0 |
-| 跨型號 | Video（Chainlock 設定教學） | 1 |
+| 跨型號（Video） | 設定教學、人臉辨識與防回頭機制、關鎖失敗警報 | 3 |
 
 ## 3E
 
@@ -82,8 +83,10 @@
 
 | 來源 | 內容 | 數量 |
 |---|---|:-:|
-| Video | 門扇反弓、關鎖失敗警報、電子鎖構造、鎖栓測試、側板規格、客服 SOP、人臉辨識機制、基礎知識 | 8 |
+| Video | 門扇反弓、電子鎖構造解說、安裝評估（側板規格）、客服問診 SOP 核心、電子鎖基礎知識 | 5 |
 | Website | 店家自家網站（首頁、關於、聯絡、鎖匠服務、智慧鎖服務） | 5 |
+
+> Video 來源檔案位於 `data/storage/bronze/video/`（11 份 .txt：Dormakaba 3 / Chatlock 3 / 通用 5）。
 
 ## 備註
 
