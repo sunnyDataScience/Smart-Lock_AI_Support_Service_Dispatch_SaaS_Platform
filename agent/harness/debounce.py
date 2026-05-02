@@ -306,26 +306,40 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         # 注入品牌到 tools 模組（供 load_skill 做品牌檢查）
         set_current_brand(brand, model)
 
-        # 知識來源清單：依品牌走新版 product_info 或舊版 skills
-        from skills.tools import build_dynamic_skills_section
+        # 知識來源清單：全品牌統一走 product_info（v1.2.0 全品牌覆蓋驗證階段，load_skill 暫停用）
         from product_info import has_brand as has_product_brand, filter_loadable as filter_product_loadable
 
-        if brand and has_product_brand(brand):
-            # 新流程：列出可用 product_info 文件
+        if brand and has_product_brand(brand) and model:
+            # 路徑 A：品牌+型號齊備，列出該型號文件 + _common
             docs = filter_product_loadable(brand, model)
-            if model:
-                header = f"[可用產品資料]\n（用戶為 {brand} {model}，使用 load_product_info 載入）\n"
-            else:
-                header = (
-                    "[可用產品資料]\n"
-                    "⚠️ 型號未確認，僅能載入 _common/* 通用資訊。回覆時請聲明：\n"
-                    "「以下為通用建議，您的型號實際操作可能略有差異。」\n"
-                )
-            doc_lines = "\n".join(f"- {d.name}: {d.description}" for d in docs)
-            skills_prefix = f"{header}{doc_lines}\n\n"
+            header = f"[可用產品資料]\n（用戶為 {brand} {model}，使用 load_product_info 載入）\n"
+        elif brand and has_product_brand(brand):
+            # 路徑 B：品牌已知、型號未知（如 Dormakaba 用戶尚未提供型號）
+            docs = filter_product_loadable(None, None)  # 只有 _common
+            header = (
+                f"[可用產品資料]\n"
+                f"⚠️ {brand} 型號未確認，僅能載入 _common/* 通用資訊。回覆時請聲明：\n"
+                f"「以下為通用建議，您的型號實際操作可能略有差異，建議補充型號取得精準步驟。」\n"
+            )
+        elif brand:
+            # 路徑 C：品牌已知但 product_info 無此品牌（如 Waferlock）
+            docs = filter_product_loadable(None, None)
+            header = (
+                f"[可用產品資料]\n"
+                f"⚠️ 目前無 {brand} 詳細產品資料，僅能提供通用建議。回覆時請聲明：\n"
+                f"「我這邊沒有 {brand} 的詳細資料，建議您查看說明書，或我幫您安排專員協助。」\n"
+            )
         else:
-            # 舊流程：其他品牌仍使用 skill-based 動態清單
-            skills_prefix = f"[可用技能]\n{build_dynamic_skills_section(brand, model)}\n\n"
+            # 路徑 D：品牌完全未知 → 只能 _common + 收品牌
+            docs = filter_product_loadable(None, None)
+            header = (
+                "[可用產品資料]\n"
+                "⚠️ 品牌或型號未確認，僅能載入 _common/* 通用資訊。回覆時請聲明：\n"
+                "「以下為通用建議，您的型號實際操作可能略有差異。」\n"
+                "**請呼叫 update_user_info 確認用戶品牌。**\n"
+            )
+        doc_lines = "\n".join(f"- {d.name}: {d.description}" for d in docs)
+        skills_prefix = f"{header}{doc_lines}\n\n"
 
         config = {"configurable": {"thread_id": thread_id}}
 

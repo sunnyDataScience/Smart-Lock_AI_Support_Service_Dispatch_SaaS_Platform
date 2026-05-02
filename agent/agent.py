@@ -65,7 +65,9 @@ def build_agent(model, cfg: AppConfig, checkpointer=None, profile_mgr=None):
     # 4. 建立 agent
     agent = create_react_agent(
         model=model,
-        tools=[load_skill, load_product_info, update_user_info, transfer_to_human],
+        # 暫時停用 load_skill，全品牌統一走 load_product_info（v1.2.0 全品牌覆蓋驗證階段）
+        # 若需回退舊流程，將下行改回 [load_skill, load_product_info, update_user_info, transfer_to_human]
+        tools=[load_product_info, update_user_info, transfer_to_human],
         prompt=prompt,
         checkpointer=checkpointer,
         name=cfg.system.get("agent_name", "smart_lock_agent"),
