@@ -86,6 +86,47 @@ def get_current_model() -> str | None:
 
 
 @tool
+def load_product_info(name: str) -> str:
+    """載入指定的產品資訊文件（mega-doc）。
+
+    用於品牌已遷移到 product_info 架構的用戶（如 Dormakaba）。
+    載入範圍受用戶 profile 嚴格限制：
+    - 品牌+型號齊備：僅能載入 {brand}/{model} 與 _common/*
+    - 品牌或型號未知：僅能載入 _common/*
+
+    Args:
+        name: 文件名稱，例如 "Dormakaba/AS701"、"_common/troubleshoot"
+    """
+    from product_info import filter_loadable, get_doc
+
+    brand = _current_brand.get()
+    model = _current_model.get()
+    allowed = filter_loadable(brand, model)
+    allowed_names = {d.name for d in allowed}
+
+    if name not in allowed_names:
+        if brand and model:
+            print(f"[product_info] >>> 拒絕載入: {name}（profile={brand}/{model}）")
+            return (
+                f"❌ 不可載入 {name}。當前用戶為 {brand} {model}，"
+                f"僅能載入 {brand}/{model} 與 _common/*。"
+            )
+        print(f"[product_info] >>> 拒絕載入: {name}（profile 不完整 brand={brand}, model={model}）")
+        return (
+            f"❌ 用戶品牌或型號未知，僅能載入 _common/*。"
+            f"請先用 update_user_info 確認品牌型號，或載入 _common 中的通用資訊"
+            f"並提醒客戶為通用建議。"
+        )
+
+    doc = get_doc(name)
+    if doc is None:
+        return f"找不到文件 {name}。"
+    print(f"[product_info] >>> 載入: {name}")
+    _skill_loaded_this_run.set(True)
+    return f"已載入產品資料: {name}\n\n{doc.body}"
+
+
+@tool
 def load_skill(skill_name: str) -> str:
     """載入指定技能的完整 SOP 內容到對話中。
 

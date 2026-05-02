@@ -306,9 +306,26 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         # 注入品牌到 tools 模組（供 load_skill 做品牌檢查）
         set_current_brand(brand, model)
 
-        # 動態技能清單（依品牌過濾）
+        # 知識來源清單：依品牌走新版 product_info 或舊版 skills
         from skills.tools import build_dynamic_skills_section
-        skills_prefix = f"[可用技能]\n{build_dynamic_skills_section(brand, model)}\n\n"
+        from product_info import has_brand as has_product_brand, filter_loadable as filter_product_loadable
+
+        if brand and has_product_brand(brand):
+            # 新流程：列出可用 product_info 文件
+            docs = filter_product_loadable(brand, model)
+            if model:
+                header = f"[可用產品資料]\n（用戶為 {brand} {model}，使用 load_product_info 載入）\n"
+            else:
+                header = (
+                    "[可用產品資料]\n"
+                    "⚠️ 型號未確認，僅能載入 _common/* 通用資訊。回覆時請聲明：\n"
+                    "「以下為通用建議，您的型號實際操作可能略有差異。」\n"
+                )
+            doc_lines = "\n".join(f"- {d.name}: {d.description}" for d in docs)
+            skills_prefix = f"{header}{doc_lines}\n\n"
+        else:
+            # 舊流程：其他品牌仍使用 skill-based 動態清單
+            skills_prefix = f"[可用技能]\n{build_dynamic_skills_section(brand, model)}\n\n"
 
         config = {"configurable": {"thread_id": thread_id}}
 
@@ -439,17 +456,18 @@ async def _cleanup_tool_checkpoint(config: dict, messages: list):
                 and hasattr(msg, "tool_calls") and msg.tool_calls
                 and (not msg.content or not str(msg.content).strip())
             ):
-                skill_names = [
-                    tc.get("args", {}).get("skill_name", "unknown")
-                    for tc in msg.tool_calls
-                    if tc.get("name") == "load_skill"
-                ]
+                skill_names: list[str] = []
+                for tc in msg.tool_calls:
+                    if tc.get("name") == "load_skill":
+                        skill_names.append(tc.get("args", {}).get("skill_name", "unknown"))
+                    elif tc.get("name") == "load_product_info":
+                        skill_names.append(tc.get("args", {}).get("name", "unknown"))
                 if skill_names:
                     # 收集此 AIMessage 所有 tool_call id
                     for tc in msg.tool_calls:
                         if tc.get("id"):
                             cleaned_tool_call_ids.add(tc["id"])
-                    ref = ", ".join(f"[已參考技能: {n}]" for n in skill_names)
+                    ref = ", ".join(f"[已參考: {n}]" for n in skill_names)
                     await _agent.aupdate_state(
                         config,
                         {"messages": [AIMessage(content=ref, id=msg.id)]},
@@ -495,7 +513,7 @@ async def _audit_agent_result(user_id: str, messages: list, latency_ms: float, t
                     args_summary = json.dumps(tc.get("args", {}), ensure_ascii=False)[:200]
                     await _audit_storage.log_tool_invocation(
                         user_id, "smart_lock_agent", tool_name,
-                        risk_level="read" if tool_name == "load_skill" else "escalate",
+                        risk_level="read" if tool_name in ("load_skill", "load_product_info") else "escalate",
                         args_summary=args_summary,
                     )
                     if tool_name == "transfer_to_human":

@@ -12,7 +12,8 @@ from langgraph.prebuilt import create_react_agent
 
 from core.config import AppConfig, load_prompt
 from skills import load_skills
-from skills.tools import load_skill, update_user_info, transfer_to_human, set_skills, set_profile_mgr, set_transfer_message_from_file
+from skills.tools import load_skill, load_product_info, update_user_info, transfer_to_human, set_skills, set_profile_mgr, set_transfer_message_from_file
+from product_info import load_all_docs as load_product_docs
 
 
 _system_prompt: str = ""
@@ -40,6 +41,12 @@ def build_agent(model, cfg: AppConfig, checkpointer=None, profile_mgr=None):
     skills = load_skills(skills_dir)
     set_skills(skills)
 
+    # 1b. 載入產品資訊（mega-doc 架構）
+    from pathlib import Path
+    product_info_dir = Path(__file__).parent / "product_info"
+    product_docs = load_product_docs(product_info_dir)
+    print(f"[agent] 載入 {len(product_docs)} 份產品資訊文件")
+
     # 2. 注入 ProfileManager（轉接真人表單自動帶入）
     if profile_mgr:
         set_profile_mgr(profile_mgr)
@@ -58,7 +65,7 @@ def build_agent(model, cfg: AppConfig, checkpointer=None, profile_mgr=None):
     # 4. 建立 agent
     agent = create_react_agent(
         model=model,
-        tools=[load_skill, update_user_info, transfer_to_human],
+        tools=[load_skill, load_product_info, update_user_info, transfer_to_human],
         prompt=prompt,
         checkpointer=checkpointer,
         name=cfg.system.get("agent_name", "smart_lock_agent"),
