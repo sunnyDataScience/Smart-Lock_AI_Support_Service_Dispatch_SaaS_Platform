@@ -36,10 +36,12 @@ def build_agent(model, cfg: AppConfig, checkpointer=None, profile_mgr=None):
     Returns:
         compiled LangGraph agent
     """
-    # 1. 載入技能
-    skills_dir = cfg.skills.get("data_dir")
-    skills = load_skills(skills_dir)
-    set_skills(skills)
+    # 1. 載入技能（v1.2.1 起 load_skill 已停用，此段暫停以避免 67 行噪音 log）
+    # 若需恢復雙工具流程，取消下面註解並把 load_skill 加回 tools=[...]
+    # skills_dir = cfg.skills.get("data_dir")
+    # skills = load_skills(skills_dir)
+    # set_skills(skills)
+    set_skills([])  # 確保 tools.py 內 _skills 為空，load_skill 即使被誤呼叫也會回 "找不到技能"
 
     # 1b. 載入產品資訊（mega-doc 架構）
     from pathlib import Path
