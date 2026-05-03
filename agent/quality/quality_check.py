@@ -17,10 +17,26 @@
 import os
 import sys
 import json
+import re
 import asyncio
 import time
 import argparse
 from dataclasses import dataclass, asdict
+
+# 與 production debounce.py 一致：剝除 LLM 可能誤抄的 [已參考: ...] / [已參考技能: ...]
+_REF_MARKER_RE = re.compile(r"\s*\[已參考(?:技能)?:[^\]]*\][\s,，]*")
+
+
+def _strip_ref_markers(text: str) -> str:
+    return _REF_MARKER_RE.sub("", text).strip()
+
+
+# Quick Reply 模擬：production 在 brand 未知時會透過 LINE Quick Reply 強制收集品牌，
+# 用戶點選後才進 agent。test 環境沒有 LINE，當 device_brand 未設且
+# infer_brand_from_text 失敗時，模擬「用戶透過 Quick Reply 選了預設品牌」。
+# 預設選 Chatlock —— 這是有完整 mega-doc 且最常見的品牌，對大多數 brand-agnostic
+# 問題（店家資訊、安裝流程、保固等）影響中性，因為 LLM 仍會載入 _common/*。
+QUICK_REPLY_DEFAULT_BRAND = "Chatlock"
 
 # 將 agent_skills/ 加入 sys.path，讓 agent, skills 可被 import
 _AGENT_SKILLS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -99,9 +115,9 @@ TEST_CASES: list[TestCase] = [
     TestCase("S-1", "報價客服", "預約師傅到府安裝電子鎖的具體流程？",
              "說明諮詢、照片評估、選型、支付全額，將鎖寄出給客戶，排期安裝日期及教學。",
              ["諮詢", "評估", "安裝", "教學"]),
-    TestCase("S-2", "報價客服", "小米電子鎖代工安裝為什麼一定要看門扇照片？",
-             "解釋是為了確認現場環境（如側板尺寸）是否符合安裝標準。",
-             ["照片", "確認", "環境", "安裝"]),
+    TestCase("S-2", "報價客服", "我想知道安裝報價，可以直接告訴我嗎？",
+             "報價、費用一律轉接真人專員處理，不在 AI 客服範圍內。",
+             ["報價", "真人", "轉接"]),
     TestCase("S-3", "報價客服", "師傅完成安裝後會提供哪些教學服務？",
              "告知會現場教學管理員設定、用戶錄入及緊急供電操作。",
              ["教學", "設定", "管理"]),
@@ -117,20 +133,20 @@ TEST_CASES: list[TestCase] = [
     TestCase("S-7", "報價客服", "如果我想更換整組鎖體，建議先準備什麼資料？",
              "引導使用者提供現有門鎖的照片與門厚資訊以利作業，以及需提供欲安裝的品牌及型號。",
              ["照片", "門厚", "品牌", "型號"]),
-    TestCase("S-8", "報價客服", "電子鎖更換完成後，舊的傳統鎖會如何處理？",
-             "說明技師通常會將舊鎖交還客戶保存，不負責回收。",
-             ["舊鎖", "交還", "客戶"]),
-    TestCase("S-9", "報價客服", "為什麼建議在早上十點半或下午一點半施工？",
-             "解釋是為了遵守社區大樓的噪音管制規定，避免吵到鄰居。",
-             ["噪音", "社區", "規定"]),
+    TestCase("S-8", "報價客服", "你們有提供鑰匙複製服務嗎？",
+             "回答有提供，包含一般鑰匙、車輛遙控器與社區門禁磁扣／卡片複製。",
+             ["鑰匙複製", "服務"]),
+    TestCase("S-9", "報價客服", "請問汽機車開鎖你們也有提供嗎？",
+             "說明鎖市除了電子鎖外也有提供汽機車開鎖服務。",
+             ["汽機車", "開鎖"]),
     TestCase("S-10", "報價客服", "有網路連線功能的電子鎖，對生活有哪些具體好處？",
               "提及可異地遠端開門、即時收到家人到家通知及紀錄查詢。",
               ["遠端", "通知", "紀錄"]),
 
     # ── 3. 門市與規格助理 (W-1 ~ W-10) ──
-    TestCase("W-1", "門市規格", "鎖市林口門市的營業時間為何？",
-             "提供週一至週六 09:30-20:00 等正確資訊。",
-             ["9:30", "週"]),
+    TestCase("W-1", "門市規格", "鎖市的店內聯絡電話是多少？",
+             "提供店內電話 02-8601-9952。",
+             ["02", "8601", "9952"]),
     TestCase("W-2", "門市規格", "林口鎖市地址為何？",
              "新北市林口區民富街83號1樓。",
              ["林口", "民富", "83"]),
@@ -145,11 +161,11 @@ TEST_CASES: list[TestCase] = [
              "解釋不同電壓可能導致漏液風險，強力推薦國際牌鹼性電池。",
              ["漏液", "電池", "鹼性"]),
     TestCase("W-6", "門市規格", "老人家指紋較淺，在設定上有什麼建議？",
-             "建議同一手指重複設定 3 次以上，或改用人臉、掌靜脈。",
-             ["重複", "3", "人臉"]),
+             "建議同一根手指用不同角度（指尖／指腹／側邊）多登錄幾次，或登錄紋路較清楚的不同手指。",
+             ["角度", "登錄", "手指"]),
     TestCase("W-7", "門市規格", "鎖市有賣 Milre 美樂 6500F 嗎？",
-             "回答有提供此型號產品的銷售與服務。",
-             ["Milre", "6500"]),
+             "本店各品牌電子鎖皆可協助安裝/販售；Milre 6500F 詳細規格與報價請聯繫真人專員確認。",
+             ["Milre", "提供"]),
     TestCase("W-8", "門市規格", "哪裡可以下載 GL220 電子鎖的說明書？",
              "提供 GL220 的 Google Drive 分享連結。",
              ["GL220", "Drive"]),
@@ -164,8 +180,8 @@ TEST_CASES: list[TestCase] = [
 
     # ── 4. APP 設定專家 (Y-1 ~ Y-10) ──
     TestCase("Y-1", "APP設定", "AS701 智慧鎖如何進入密碼登記模式？",
-             "打開電池蓋按「+」鍵，輸入原密碼後按 * 鍵進入設定。",
-             ["AS701", "密碼", "*"]),
+             "按背面【註冊】鍵 → 輸入管理者密碼 → 按【#】鍵 → 按【1】進入新增使用者密碼 → 輸入新密碼後按【#】完成。",
+             ["註冊", "管理者密碼", "#"]),
     TestCase("Y-2", "APP設定", "如何在 AS701 上新增 RFID 感應卡？",
              "按下登記鍵後，將卡片貼近感應區並按 * 鍵完成。",
              ["登記", "卡片", "*"]),
@@ -175,9 +191,9 @@ TEST_CASES: list[TestCase] = [
     TestCase("Y-4", "APP設定", "Dormakaba APP 怎麼設定遠端金鑰？",
              "引導參考 GDrive 上的 APP 遠端操作手冊步驟。",
              ["遠端", "APP", "手冊"]),
-    TestCase("Y-5", "APP設定", "如何設定 AS701 的遙控器功能？",
-             "按下登記鍵後，按下遙控器 OPEN 鍵並以 * 鍵確認。",
-             ["登記", "遙控器", "*"]),
+    TestCase("Y-5", "APP設定", "AS701 如何刪除單張感應卡片？",
+             "長按背面註冊鍵約 5 秒（面板閃爍） → 輸入管理者密碼 → 按【2】 → 感應欲刪除的卡片或輸入順序數字 → 按【*】退出。",
+             ["註冊", "管理者密碼", "*"]),
     TestCase("Y-6", "APP設定", "ML550 電子鎖的基本操作說明在哪看？",
              "提供 ML550 專屬的 GDrive 使用說明書連結。",
              ["ML550", "說明"]),
@@ -185,8 +201,8 @@ TEST_CASES: list[TestCase] = [
              "明確指出臨時密碼的第一個數字必須設定為「1」。",
              ["臨時密碼", "1"]),
     TestCase("Y-8", "APP設定", "AI-99 如何查看過去的開鎖紀錄？",
-             "指導在 App 主介面點選「相簿/紀錄」功能選項。",
-             ["相簿", "紀錄"]),
+             "在 AI-99 內側觸控螢幕的【選單】中點選【記錄查詢】查看開鎖紀錄。",
+             ["選單", "記錄"]),
     TestCase("Y-9", "APP設定", "為什麼播放 AI-99 的語音留言需要驗證管理員？",
              "說明是基於隱私安全規範，確保只有授權者可聽取。",
              ["管理員", "隱私", "授權"]),
@@ -236,8 +252,8 @@ TEST_CASES: list[TestCase] = [
              device_brand="Chatlock",
              auto_reply="用的是金鼎電池，關門後是自動上鎖的"),
     TestCase("E-2", "硬體維修", "螢幕一直閃爍，無法感應任何開鎖方式",
-             "鎖栓可能卡到門框受口片，需先將門拉或推至關好門的位置",
-             ["受口片", "門", "拉"],
+             "Chatlock AI99/A90：先確認電池為 Panasonic 鹼性電池並更換全新一組；若仍無反應，使用 5V1A/5V2A 行動電源從底部 Type-C 孔位緊急供電",
+             ["電池", "行動電源", "Type-C"],
              device_brand="Chatlock"),
     TestCase("E-3", "硬體維修", "Chatlock電子鎖網路一直斷線",
              "檢查室內螢幕是否插好安裝正確（網路模組在螢幕裡），確認 2.4G 與 5G 頻道是否分開，是否為 mesh 或 WiFi 6/7 以上路由器",
@@ -247,11 +263,11 @@ TEST_CASES: list[TestCase] = [
              "Mesh 路由器可能導致視訊開門卡頓不穩定，建議使用獨立的 2.4GHz 或 IoT Network",
              ["mesh", "2.4G", "卡頓"],
              device_brand="Chatlock", device_model="AI-99"),
-    TestCase("E-5", "硬體維修", "Chatlock推拉電子鎖轉把手後不會自己彈回正，會卡住",
-             "判斷為機械問題，建議派工請師傅到場檢修調整",
-             ["師傅", "派工"],
-             device_brand="Chatlock",
-             auto_reply="鎖舌是卡在中間，門是關著的"),
+    TestCase("E-5", "硬體維修", "Chatlock 鎖栓伸不出來、卡頓不順怎麼辦？",
+             "鎖栓動作開著門就異常（伸不出、縮不回、卡頓）屬機械問題，建議派工請師傅檢查。",
+             ["鎖栓", "派工"],
+             device_brand="Chatlock", device_model="AI-99",
+             auto_reply="開著門按開鎖也不會動"),
     TestCase("E-6", "硬體維修", "為什麼只有動畫在跑動但是沒有感應人臉辨識？",
              "確認鏡頭兩旁是否有紅燈亮起，沒有紅燈代表經過的人較多導致感應太多次失敗，先使用其他方式開門",
              ["紅燈", "感應", "其他方式"],
@@ -259,12 +275,12 @@ TEST_CASES: list[TestCase] = [
     TestCase("E-7", "硬體維修", "請問我的門可以安裝嗎？",
              "請客戶提供門的正面、背面、側面、門框位置的照片以進行評估",
              ["照片", "正面", "評估"]),
-    TestCase("E-8", "硬體維修", "我下單了",
-             "請客戶提供訂單編號、型號、購買通路、聯絡人、電話、安裝地址等資訊",
-             ["訂單", "型號", "地址"]),
+    TestCase("E-8", "硬體維修", "我想預約你們的安裝服務，要怎麼開始？",
+             "說明安裝預約需確認服務區域（林口、新莊為主）、門鎖類型，並引導留聯絡方式或撥打店家電話／LINE 線上客服。",
+             ["林口", "電話", "LINE"]),
     TestCase("E-9", "硬體維修", "為什麼我的APP網路延遲這麼嚴重？",
-             "通常與網路環境不穩定有關，可能受家庭網路設備或網速波動影響，建議檢查 Wi-Fi 訊號強度或路由器連線穩定性",
-             ["網路", "Wi-Fi", "路由器"],
+             "Chatlock AI-99 常見原因為內側觸控螢幕沒插好導致 Wi-Fi 模組斷線；可重新確認螢幕安裝、清理 APP 緩存，或檢查家用 2.4G Wi-Fi 是否分開設定。",
+             ["螢幕", "Wi-Fi", "緩存"],
              device_brand="Chatlock", device_model="AI-99"),
     TestCase("E-10", "硬體維修", "鋰電池怎麼充電？",
              "使用 5V1A 或 5V2A 充電頭，紅燈充電中藍燈充飽，請勿使用快充頭以免電池膨脹",
@@ -290,17 +306,17 @@ TEST_CASES: list[TestCase] = [
              ["Panasonic", "鹼性"],
              device_brand="Dormakaba"),
     TestCase("B-4", "品牌路由", "要按兩次才能開門",
-             "回答應包含關閉雙重認證的操作路徑：齒輪→高級設定→雙重認證→關閉",
-             ["齒輪", "高級設定"],
-             device_brand="Chatlock",
+             "Chatlock AI-99：在【選單】→【系統設定】→【高級設定】→【雙重認證模式】關閉開關",
+             ["系統設定", "高級設定", "雙重認證"],
+             device_brand="Chatlock", device_model="AI-99",
              auto_reply="要先按指紋再輸密碼，可以進設定選單"),
     TestCase("B-5", "品牌路由", "鎖一直嗶嗶叫",
              "Dormakaba 用戶應載入 ts-alarm-dormakaba，回答應包含警報相關診斷或信號說明",
              ["Dormakaba", "警報"],
              device_brand="Dormakaba"),
     TestCase("B-6", "品牌路由", "APP 怎麼配對",
-             "Chatlock AI-99 用戶應載入 app-pairing，回答應包含 WiFi/藍牙配對步驟",
-             ["WiFi", "藍牙"],
+             "Chatlock AI-99：在【選單】→【網路設定】→【網路配對】→【開始配對】，門鎖顯示「連網中」後等待配對成功",
+             ["網路設定", "配對"],
              device_brand="Chatlock", device_model="AI-99"),
 ]
 
@@ -412,13 +428,13 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
     """執行單一測試並評分。"""
     t0 = time.time()
 
-    # 組裝訊息：所有測試都注入 [可用技能]，模擬 debounce.run_agent() 的行為
+    # 組裝訊息：注入 [可用產品資料] 模擬 debounce.run_agent() 的新架構行為
     from skills.tools import (
-        build_dynamic_skills_section,
         set_current_user_id,
         set_current_brand,
         set_current_user_input,
     )
+    from product_info import has_brand as has_product_brand, filter_loadable as filter_product_loadable
     from harness.line_ui_factory import infer_brand_from_text
     brand = tc.device_brand or None
     model = tc.device_model or None
@@ -429,12 +445,49 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
             brand = inferred_brand
             if inferred_model and not model:
                 model = inferred_model
+    # Quick Reply 模擬：仍未取得品牌 → 套用預設（mimic production Quick Reply 強制收集後的狀態）
+    quick_reply_used = False
+    if not brand:
+        brand = QUICK_REPLY_DEFAULT_BRAND
+        quick_reply_used = True
     # 同步生產路徑：ContextVar 注入 user_id / brand / model / user_input
-    # 否則 load_skill 會以「品牌未知」拒絕載入品牌專屬技能
+    # load_product_info 會用 ContextVar 做 profile gating
     set_current_user_id(f"qc-{tc.id}")
     set_current_brand(brand, model)
     set_current_user_input(tc.question)
-    skills_section = build_dynamic_skills_section(brand, model)
+
+    # 構建 [可用產品資料] 前綴 — 對齊 debounce.py 4 條路徑
+    if brand and has_product_brand(brand) and model:
+        # A) brand+model 齊備
+        docs = filter_product_loadable(brand, model)
+        info_header = f"[可用產品資料]\n（用戶為 {brand} {model}，使用 load_product_info 載入）\n"
+    elif brand and has_product_brand(brand):
+        # B) brand 已知、model 未知
+        docs = filter_product_loadable(None, None)
+        info_header = (
+            f"[可用產品資料]\n"
+            f"⚠️ {brand} 型號未確認，僅能載入 _common/* 通用資訊。回覆時請聲明：\n"
+            f"「以下為通用建議，您的型號實際操作可能略有差異，建議補充型號取得精準步驟。」\n"
+        )
+    elif brand:
+        # C) brand 已知但 product_info 無此品牌（如 Waferlock）
+        docs = filter_product_loadable(None, None)
+        info_header = (
+            f"[可用產品資料]\n"
+            f"⚠️ 目前無 {brand} 詳細產品資料，僅能提供通用建議。回覆時請聲明：\n"
+            f"「我這邊沒有 {brand} 的詳細資料，建議您查看說明書，或我幫您安排專員協助。」\n"
+        )
+    else:
+        # D) 全未知
+        docs = filter_product_loadable(None, None)
+        info_header = (
+            "[可用產品資料]\n"
+            "⚠️ 品牌或型號未確認，僅能載入 _common/* 通用資訊。回覆時請聲明：\n"
+            "「以下為通用建議，您的型號實際操作可能略有差異。」\n"
+            "**請呼叫 update_user_info 確認用戶品牌。**\n"
+        )
+    doc_lines = "\n".join(f"- {d.name}: {d.description}" for d in docs)
+    skills_prefix = f"{info_header}{doc_lines}\n\n"
 
     # 用 brand/model（含 infer 後值）建構 [用戶資料] 區塊，與生產路徑一致
     profile_lines = []
@@ -444,13 +497,13 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
         profile_lines.append(f"[Verified Fact] device_model: {model}")
     if profile_lines:
         content = (
-            f"[可用技能]\n{skills_section}\n\n"
+            f"{skills_prefix}"
             f"[用戶資料]\n" + "\n".join(profile_lines) + "\n\n"
             f"[用戶訊息]\n{tc.question}"
         )
     else:
         content = (
-            f"[可用技能]\n{skills_section}\n\n"
+            f"{skills_prefix}"
             f"[用戶訊息]\n{tc.question}"
         )
 
@@ -460,50 +513,66 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
         config,
     )
 
-    # 提取回答
+    # 提取回答（與 production 一致剝除 [已參考: ...] 引用標記）
     answer = ""
     messages = result.get("messages", [])
     for msg in reversed(messages):
         if hasattr(msg, "type") and msg.type == "ai" and msg.content:
-            answer = _extract_text(msg.content)
+            answer = _strip_ref_markers(_extract_text(msg.content))
             break
 
     # 多輪模擬：若有 auto_reply 且 agent 回覆含追問（？）→ 發送第二輪
     if tc.auto_reply and "？" in answer:
+        # 對齊 production：第二輪前先跑 checkpoint cleanup（替換 ToolMessage / 中間 AIMessage）
+        try:
+            from harness.debounce import _cleanup_tool_checkpoint
+            # quality_check 的 agent 沒注入到 debounce 模組，臨時 patch _agent 全域
+            import harness.debounce as _dbnc
+            _orig_agent = getattr(_dbnc, "_agent", None)
+            _dbnc._agent = agent
+            try:
+                await _cleanup_tool_checkpoint(config, messages)
+            finally:
+                _dbnc._agent = _orig_agent
+        except Exception as e:
+            print(f"\n       [cleanup warn] {e}", end="")
+
         if profile_lines:
             reply_content = (
-                f"[可用技能]\n{skills_section}\n\n"
+                f"{skills_prefix}"
                 f"[用戶資料]\n" + "\n".join(profile_lines) + "\n\n"
                 f"[用戶訊息]\n{tc.auto_reply}"
             )
         else:
             reply_content = (
-                f"[可用技能]\n{skills_section}\n\n"
+                f"{skills_prefix}"
                 f"[用戶訊息]\n{tc.auto_reply}"
             )
         result = await agent.ainvoke(
             {"messages": [{"role": "user", "content": reply_content}]},
             config,  # 同一 thread_id，MemorySaver 保留上下文
         )
-        # 重新提取最終回答
+        # 重新提取最終回答（同樣剝除引用標記）
         answer = ""
         messages = result.get("messages", [])
         for msg in reversed(messages):
             if hasattr(msg, "type") and msg.type == "ai" and msg.content:
-                answer = _extract_text(msg.content)
+                answer = _strip_ref_markers(_extract_text(msg.content))
                 break
 
     elapsed = round(time.time() - t0, 1)
 
-    # 收集 skill 呼叫紀錄（從 tool messages，包含兩輪）
+    # 收集 skill / product_info 呼叫紀錄（從 tool messages，包含兩輪）
     skills_loaded = []
     for msg in messages:
         if hasattr(msg, "type") and msg.type == "tool" and hasattr(msg, "content"):
             text = _extract_text(msg.content)
-            if text.startswith("已載入技能:"):
-                skill_name = text.split("已載入技能:")[1].split("\n")[0].strip()
-                if skill_name not in skills_loaded:
-                    skills_loaded.append(skill_name)
+            for marker in ("已載入產品資料:", "已載入技能:"):
+                if text.startswith(marker):
+                    name = text.split(marker)[1].split("\n")[0].strip()
+                    if name not in skills_loaded:
+                        skills_loaded.append(name)
+                    break
 
     # 關鍵詞命中
     kw_hits, kw_total = keyword_score(tc, answer)
@@ -532,6 +601,9 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
         "verdict": judge_result.get("verdict", "error"),
         "reason": judge_result.get("reason", ""),
         "elapsed_sec": elapsed,
+        "brand_resolved": brand or "",
+        "model_resolved": model or "",
+        "quick_reply_used": quick_reply_used,
     }
 
 
