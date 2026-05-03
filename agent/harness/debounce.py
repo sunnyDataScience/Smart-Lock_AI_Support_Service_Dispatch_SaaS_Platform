@@ -9,6 +9,7 @@
 """
 
 import base64
+import re
 import time
 import asyncio
 import json
@@ -420,6 +421,10 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
             if hasattr(msg, "type") and msg.type == "ai" and msg.content:
                 ai_response = _extract_text(msg.content)
                 break
+
+        # 移除 LLM 可能誤抄的內部引用標記（cleanup 留下的 [已參考: ...] / [已參考技能: ...]）
+        # 含周圍空白與分隔符（半形/全形逗號）一併剝除，避免殘留 ", " 或 "，"
+        ai_response = re.sub(r"\s*\[已參考(?:技能)?:[^\]]*\][\s,，]*", "", ai_response).strip()
 
         # Checkpoint 清理：背景化（P1 #8）— 使用者已能拿到 ai_response，cleanup 不阻塞回覆
         # 風險可控：若下一則訊息 < cleanup 完成時間到達，_strip_stale_multimodal 會兜底；
