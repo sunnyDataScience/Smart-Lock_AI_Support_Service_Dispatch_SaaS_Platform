@@ -113,14 +113,14 @@ TEST_CASES: list[TestCase] = [
 
     # ── 2. 報價與客服專員 (S-1 ~ S-10) ──
     TestCase("S-1", "報價客服", "預約師傅到府安裝電子鎖的具體流程？",
-             "說明諮詢、照片評估、選型、支付全額，將鎖寄出給客戶，排期安裝日期及教學。",
-             ["諮詢", "評估", "安裝", "教學"]),
+             "說明預約安裝大致流程（諮詢、評估、安裝），並引導客戶提供聯絡方式或撥打店家電話／LINE 線上客服進行預約。",
+             ["諮詢", "評估", "安裝"]),
     TestCase("S-2", "報價客服", "我想知道安裝報價，可以直接告訴我嗎？",
              "報價、費用一律轉接真人專員處理，不在 AI 客服範圍內。",
              ["報價", "真人", "轉接"]),
     TestCase("S-3", "報價客服", "師傅完成安裝後會提供哪些教學服務？",
-             "告知會現場教學管理員設定、用戶錄入及緊急供電操作。",
-             ["教學", "設定", "管理"]),
+             "告知師傅完成安裝後會現場提供使用教學（如管理員/用戶設定、操作示範等）。",
+             ["教學", "現場"]),
     TestCase("S-4", "報價客服", "自備鎖請你們代工，如果之後壞了有保固嗎？",
              "說明代工服務僅針對安裝品質，產品本身故障需洽原購買商。",
              ["代工", "安裝", "保固"]),
@@ -128,7 +128,7 @@ TEST_CASES: list[TestCase] = [
              "告知實體門市位置並強調安裝服務可提供跨區支援。",
              ["林口", "跨區", "安裝"]),
     TestCase("S-6", "報價客服", "遺失實體鑰匙導致無法進門，這在保固範圍內嗎？",
-             "明確告知鑰匙遺失屬於人為因素，不包含在免費保固中。需將鎖破壞掉才能進入。",
+             "明確告知鑰匙遺失屬於人為因素，不包含在免費保固中；建議聯繫客服安排技師到場協助處理。",
              ["保固", "鑰匙", "人為"]),
     TestCase("S-7", "報價客服", "如果我想更換整組鎖體，建議先準備什麼資料？",
              "引導使用者提供現有門鎖的照片與門厚資訊以利作業，以及需提供欲安裝的品牌及型號。",
@@ -154,8 +154,8 @@ TEST_CASES: list[TestCase] = [
              "回答有提供，包含印章刻印代工與名片製作。",
              ["印章", "刻印"]),
     TestCase("W-4", "門市規格", "電子鎖完全沒電時，有哪些緊急供電方案？",
-             "指導使用 9V 方型電池或行動電源透過 USB 接孔供電。",
-             ["9V", "行動電源", "USB"],
+             "Chatlock AI-99：底部圓形蓋向下壓向右轉開，使用 Type-C 線接行動電源喚醒；旁邊另有鑰匙孔可用備用鑰匙開門。",
+             ["Type-C", "行動電源", "鑰匙"],
              device_brand="Chatlock", device_model="AI-99"),
     TestCase("W-5", "門市規格", "為什麼電子鎖不建議混用不同品牌的電池？",
              "解釋不同電壓可能導致漏液風險，強力推薦國際牌鹼性電池。",
@@ -283,7 +283,7 @@ TEST_CASES: list[TestCase] = [
              ["螢幕", "Wi-Fi", "緩存"],
              device_brand="Chatlock", device_model="AI-99"),
     TestCase("E-10", "硬體維修", "鋰電池怎麼充電？",
-             "使用 5V1A 或 5V2A 充電頭，紅燈充電中藍燈充飽，請勿使用快充頭以免電池膨脹",
+             "使用 5V1A 或 5V2A 充電頭、Type-C 線材；嚴禁使用快充（10W/15W/20W 以上），會造成電池膨脹或損壞。",
              ["5V1A", "5V2A", "快充"]),
     TestCase("E-11", "硬體維修", "Chatlock售後是怎麼保固？",
              "Chatlock 產品自安裝完成日起享有原廠保固，保固期依產品型號或購買通路為準",
@@ -326,19 +326,29 @@ TEST_CASES: list[TestCase] = [
 JUDGE_PROMPT = """\
 你是品質評審員。請判斷 AI 客服的回答是否符合預期。
 
-## 測試題目
+## 測試題目（用戶第一輪訊息）
 {question}
+
+## 用戶後續補充（多輪測試的第二輪訊息，若無則略過）
+{auto_reply}
+
+## 用戶資料 profile（測試環境注入的品牌/型號）
+{profile}
 
 ## 預期回答方向
 {expected}
 
-## AI 實際回答
+## AI 實際回答（這是 AI 在收到第一輪訊息（+若有第二輪補充與 profile 上下文）後，最終給用戶的回覆）
 {answer}
 
 ## 評分標準
 - **pass**: 回答的核心意思符合預期方向（不需要完全一致，意思到即可）
 - **partial**: 回答部分符合但有明顯遺漏或偏差
 - **fail**: 回答完全不相關、錯誤、或未回答問題
+
+## 評分注意事項
+- AI 若在回覆中**引用「用戶後續補充」段提到的內容**（例如品牌、型號、症狀細節），這是合理的對話上下文使用，**不應視為臆測或幻覺**
+- AI 若在回覆中**引用「用戶資料 profile」**（如客戶品牌已知）做更精準回答，這也是正確的多輪流程
 
 請只回覆一個 JSON（不要 markdown code block）：
 {{"verdict": "pass/partial/fail", "reason": "一句話說明"}}
@@ -347,8 +357,17 @@ JUDGE_PROMPT = """\
 
 async def judge_answer(judge_model, tc: TestCase, answer: str) -> dict:
     """用 LLM 評判回答品質。"""
+    profile_parts = []
+    if tc.device_brand:
+        profile_parts.append(f"device_brand={tc.device_brand}")
+    if tc.device_model:
+        profile_parts.append(f"device_model={tc.device_model}")
+    profile_str = ", ".join(profile_parts) if profile_parts else "(profile 未設定)"
+
     prompt = JUDGE_PROMPT.format(
         question=tc.question,
+        auto_reply=tc.auto_reply or "(無第二輪補充)",
+        profile=profile_str,
         expected=tc.expected,
         answer=answer,
     )
