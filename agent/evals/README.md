@@ -97,7 +97,7 @@ python -m unittest agent.evals.tests.test_smoke -v
 
 1. 跑 baseline → 看通過率
 2. 看 `report.md` 的「失敗案例」區，挑 2–3 個同類問題
-3. 改 `agent/skills/data/**/SKILL.md`（不動程式碼）
+3. 改 `agent/product_info/{Brand}/{Model}.md` 或 `agent/product_info/_common/*.md`（不動程式碼）
 4. 重啟 agent，**只重跑 runner**（judge 不變），比對通過率是否改善
 5. 目標通過率達到共識門檻（如 90%）再上線
 

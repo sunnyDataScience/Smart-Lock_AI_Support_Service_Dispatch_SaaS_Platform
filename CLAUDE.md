@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Smart Lock AI Support & Service Dispatch SaaS Platform — a LINE Bot-based AI customer service agent for smart lock troubleshooting, with a Next.js admin dashboard for operations monitoring. Built with a skill-based ReAct agent (LangGraph) and a Medallion data pipeline that produces SKILL.md knowledge files.
+Smart Lock AI Support & Service Dispatch SaaS Platform — a LINE Bot-based AI customer service agent for smart lock troubleshooting, with a Next.js admin dashboard for operations monitoring. Built with a ReAct agent (LangGraph) backed by a `product_info/` mega-doc knowledge base (one self-contained mega-doc per brand+model, sourced strictly from `data/storage/bronze/`), plus a Medallion data pipeline.
 
 Primary language: **Chinese (Traditional)** for all user-facing text, comments, and documentation. Code identifiers and git messages may mix English and Chinese.
 
@@ -114,7 +114,7 @@ Debounce buffer (harness/debounce.py)
           ├─ Inject [可用技能] + [用戶資料] + [前情提要] prefixes
           ├─ Strip stale multimodal from checkpoint
           ├─ agent.ainvoke() with request_timeout (180s)
-          │   └─ LLM + tools: load_skill, update_user_info, transfer_to_human
+          │   └─ LLM + tools: load_product_info, update_user_info, transfer_to_human
           ├─ Output validator: check forbidden phrases (H7.5)
           ├─ Checkpoint cleanup: replace multimodal + tool_calls with text refs
           ├─ Audit log (H8, background)
@@ -134,9 +134,9 @@ Post-reply (background, non-blocking):
 - `main.py` — CLI mode (verifies LLM connectivity only, no harness layers)
 
 **Agent construction** (`agent.py`):
-- Uses `langgraph.prebuilt.create_react_agent` with 3 tools: `load_skill`, `update_user_info`, `transfer_to_human`
-- System prompt loaded from `prompts/system.md`; skill list injected dynamically per-request (not in static prompt)
-- Skills loaded once at startup from disk, filtered per-request by user's brand/model
+- Uses `langgraph.prebuilt.create_react_agent` with 3 tools: `load_product_info`, `update_user_info`, `transfer_to_human`
+- System prompt loaded from `prompts/system.md`; product info catalog injected dynamically per-request (not in static prompt)
+- Mega-docs loaded once at startup from disk, filtered per-request by user's brand/model
 - LLM model string lives in `agent/config.toml` `[llm]` — quality_check and evals read this same config (parity with prod)
 
 **Module map:**
@@ -145,7 +145,8 @@ Post-reply (background, non-blocking):
 - `memory/` — Checkpointer registry (in-process / SQLite / PostgreSQL)
 - `storage/` — Audit log storage registry
 - `harness/` — Middleware layers (see table below)
-- `skills/` — Skill loader, tools, registry; SKILL.md files under `skills/data/`
+- `agent_tools/` — Agent tools: `load_product_info`, `update_user_info`, `transfer_to_human` + ContextVar helpers
+- `product_info/` — Brand-keyed mega-doc knowledge base (`{Brand}/{Model}.md` + `_common/*.md`)
 - `profiles/` — User facts (hard + soft) extraction and storage
 - `prompts/` — System prompt and templates
 - `quality/` — `quality_check` LLM-as-Judge eval (HTML + JSON reports)
@@ -170,41 +171,48 @@ Post-reply (background, non-blocking):
 - Multimodal HumanMessage content (base64 data) is replaced with `[使用者曾傳送圖片]` references
 - This prevents context bloat in long conversations. Use `scripts/view_context.py` to inspect state.
 
-### Skills System (`agent/skills/`)
+### Product Info Knowledge Base (`agent/product_info/`)
 
 **Two-stage loading:**
-1. **Startup**: `load_skills()` scans `skills/data/` for SKILL.md files, parses frontmatter, infers brands/models from directory path
-2. **Per-request**: `filter_skills(brand, model)` narrows to applicable skills → injected as `[可用技能]` prefix in user message
+1. **Startup**: `load_all_docs()` scans `product_info/` for `.md` files, parses YAML frontmatter (`brand`, `model`, `description`), builds in-memory index
+2. **Per-request**: `filter_loadable(brand, model)` decides what's loadable → catalog injected as `[可用產品資料]` prefix in user message
 
-**Brand-based hierarchy:**
+**Directory layout (one mega-doc per brand+model, plus `_common/*`):**
 
 ```
-skills/data/
-├── _common/           # brands=None (universal) — troubleshoot, dispatch-guide, store-info
+agent/product_info/
+├── _common/                # brand=_common, model=None
+│   ├── troubleshoot.md     # 通用症狀分流路由
+│   ├── dispatch.md         # 派工 SOP / 安裝預約 / 保固政策
+│   ├── general-knowledge.md # 電子鎖通用知識（電池/Wi-Fi/門框等）
+│   └── store-info.md       # 店家資訊 / 服務區域 / 服務項目
 ├── Chatlock/
-│   ├── _all-models/   # brands=["Chatlock"] — ts-*-chatlock, app-guide, system-settings
-│   └── AI-99/         # brands=["Chatlock"], models=["AI-99"] — app-battery, app-camera
-├── Dormakaba/_all-models/
-└── ...
+│   ├── A90.md              # brand=Chatlock, model=A90
+│   ├── AI-88.md
+│   └── AI-99.md
+├── Dormakaba/              # 16 mega-docs：AS701/AS850/AS901/DP850/...
+└── {Philips,Kaadas,Milre,AiLock,3E}/
 ```
+
+**Sourcing rule (CRITICAL — bronze-only):**
+- All mega-doc content must be derived strictly from `data/storage/bronze/`（YouTube 字幕、website、video transcript）
+- **PDF (GDrive) is treated as untrustworthy**：mega-doc only embeds PDF URLs in「相關手冊」section, never quotes PDF content as authoritative steps
+- This is a hard rule — adding content from sources outside bronze is a regression
 
 **Key concepts:**
-- **Path-based metadata** (`skills/__init__.py`): `_common/` = universal; `{Brand}/_all-models/` = brand-wide; `{Brand}/{Model}/` = model-specific. Never hardcoded in frontmatter.
-- **Skill filtering** (`filter_skills()`): Brand unknown → only `_common` skills returned. Brand known → `_common` + matching brand skills. Brand + model known → `_common` + brand-wide + model-specific.
-- **Sub-skill routing**: Router skills (e.g., `troubleshoot`) direct the agent to load brand-specific sub-skills. Sub-skills with prefixes `ts-*`, `app-*`, `ss-*` are hidden from the top-level skill list (exceptions: `app-guide`, `ss-dormakaba`).
-- **Prefix matching fallback** (`tools.py`): `load_skill("ts-door-stuck")` with no exact match → returns list of `ts-door-stuck-*` sub-skills for agent to choose from.
-- **Brand gate**: `load_skill()` blocks loading brand-specific skills when user brand is unknown or mismatched.
-- **SKILL.md format**: YAML frontmatter (`name`, `description`, `trigger_keywords`, `category`, `severity`) + Markdown SOP body.
+- **Strict profile gating** (`product_info/__init__.py:filter_loadable`): brand+model 齊備 → 可載入 `{Brand}/{Model}` + 全部 `_common/*`；否則只能載 `_common/*`
+- **Loader exposes** `all_docs()`、`filter_loadable()`、`get_doc(name)`、`has_brand(brand)`
+- **Frontmatter format**: `brand`, `model` (or `_common` + null), `description` — `description` 用於 dynamic catalog 的條列說明
 
-### Tools (`agent/skills/tools.py`)
+### Agent Tools (`agent/agent_tools/tools.py`)
 
 Three agent tools, all use `ContextVar` for per-request isolation in async:
 
 | Tool | Purpose | Key behavior |
 |------|---------|--------------|
-| `load_skill` | Load SOP content | Brand gate + prefix matching fallback |
-| `update_user_info` | Set brand/model | Validates against `config.toml` brands via `match_brand()`/`match_model()`, normalizes casing, writes to DB, updates ContextVar, returns refreshed skill list |
-| `transfer_to_human` | Escalate to human | Auto-fills known facts (phone, address, device) into form template |
+| `load_product_info` | Load mega-doc | Strict profile gate — rejects loads outside `{brand}/{model} + _common/*` |
+| `update_user_info` | Set brand/model | Validates via `match_brand()`/`match_model()`, normalizes casing, writes to DB (SCD Type 2), updates ContextVar, returns refreshed product info catalog |
+| `transfer_to_human` | Escalate to human | Auto-fills known facts (phone, address, device) into form template; gated by `_doc_loaded_this_run` to prevent premature escalation |
 
 ### Profile & Facts System (`agent/profiles/`)
 
@@ -219,7 +227,7 @@ Three agent tools, all use `ContextVar` for per-request isolation in async:
 1. `source_to_raw/` — Download content (YouTube via yt-dlp, websites via Playwright, Google Drive)
 2. `raw_to_bronze/` — Extract and convert (Whisper ASR, Vision LLM for images)
 3. `bronze_to_silver/` — Semantic chunking via LLM
-4. `silver_to_skill/` — Classify, draft, and approve SKILL.md files → output to `agent/skills/data/`
+4. `silver_to_skill/` — Classify and draft skill candidates (legacy artifact; agent runtime no longer reads `agent/skills/data/`, use `agent/product_info/` directly per the bronze-only rule)
 
 **Skill approval** (`approve_drafts.py`): New skills placed by brand suffix detection (e.g., name ending in `-dormakaba` → `Dormakaba/_all-models/`; no brand suffix → `_common/`). Pipeline config: `data/config.toml`.
 
@@ -326,7 +334,7 @@ Docs in `docs/` using a 5D framework (DISCOVER → DEFINE → DESIGN → DEVELOP
 
 1. **觸發時機**：每完成一次 `git commit` 後立即寫入（不可跳過、不可合併到下次 commit 才補）。
 2. **存放位置**：所有報告**全部直接放在專案根目錄 `report/` 底下**，**禁止**建立任何子資料夾、**禁止**在檔名加上模組前綴。
-   - 影響哪個模組（`agent/quality/`、`agent/skills/`、`web/...`、`data/...` 等）僅在報告內文 `**影響模組**` 欄位註明
+   - 影響哪個模組（`agent/quality/`、`agent/agent_tools/`、`agent/product_info/`、`web/...`、`data/...` 等）僅在報告內文 `**影響模組**` 欄位註明
    - 跨模組變更 → 在內文列出全部受影響模組
 3. **版本號規則 (Semantic Versioning)**：**全專案共用一條版本序號**，每次新增報告 +1，格式 `vMAJOR.MINOR.PATCH`：
    - **MAJOR**：破壞性變更（API 變動、移除功能、格式不相容）

@@ -1,6 +1,8 @@
 # Harness 框架比較報告：agent/ vs agent_skills/
 
 > 撰寫日期：2026-04-10
+>
+> **歷史名詞對照**（v1.3.6 後）：本文中「agent_skills/」指本專案（路徑為 `Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/agent/`），對照組「agent/」指另一個 enterprise harness 參考專案。本專案內已將 `agent/skills/` 重命名為 `agent/agent_tools/`，且 `load_skill` tool 與 SKILL.md 架構於 v1.3.4–v1.3.5 全面退場，知識庫改用 `agent/product_info/` 的 mega-doc 架構。下方比較表中提到的「2 個工具（load_skill + transfer_to_human）」現實為「3 個工具（load_product_info + update_user_info + transfer_to_human）」。
 
 ---
 
