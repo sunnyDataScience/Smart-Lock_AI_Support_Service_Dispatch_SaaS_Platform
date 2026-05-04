@@ -137,7 +137,13 @@ def load_product_info(name: str) -> str:
             print(f"[product_info] >>> 拒絕載入: {name}（profile={brand}/{model}）")
             return (
                 f"❌ 不可載入 {name}。當前用戶為 {brand} {model}，"
-                f"僅能載入 {brand}/{model} 與 _common/*。"
+                f"僅能載入 {brand}/{model}、{brand}/_brand（若有）與 _common/*。"
+            )
+        if brand:
+            print(f"[product_info] >>> 拒絕載入: {name}（profile 部分完整 brand={brand}, model 未知）")
+            return (
+                f"❌ 不可載入 {name}。當前已知品牌為 {brand} 但型號未確認，"
+                f"僅能載入 {brand}/_brand（若有）與 _common/*。"
             )
         print(f"[product_info] >>> 拒絕載入: {name}（profile 不完整 brand={brand}, model={model}）")
         return (

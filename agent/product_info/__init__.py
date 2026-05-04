@@ -6,12 +6,15 @@
 目錄結構：
     product_info/
         {Brand}/{Model}.md   — 型號 mega-doc
+        {Brand}/_brand.md    — 品牌通用文件（已知品牌、型號未確認時可載入）
         _common/{topic}.md   — 跨品牌通用文件（troubleshoot / dispatch / ...）
+
+凡 `{Brand}/` 下檔名以 `_` 開頭者視為品牌通用文件，model 欄位即為檔名（如 `_brand`）。
 
 每份文件以 YAML frontmatter 開頭：
     ---
     brand: Dormakaba   # 或 _common
-    model: AS701       # _common 可省略
+    model: AS701       # _common 可省略；品牌通用文件填 _brand
     description: "..."  # 一行摘要，會出現在 [可用產品資料] 清單
     ---
 """
@@ -104,15 +107,26 @@ def all_docs() -> list[ProductDoc]:
     return list(_docs)
 
 
+def _is_brand_common(d: ProductDoc) -> bool:
+    """品牌通用文件：brand=具體品牌、model 以 `_` 開頭（如 `_brand`）。"""
+    return d.brand != "_common" and d.model is not None and d.model.startswith("_")
+
+
 def filter_loadable(brand: str | None, model: str | None) -> list[ProductDoc]:
     """依 profile 計算可載入清單。
 
-    - 品牌+型號齊備：{brand}/{model} + 全部 _common/*
-    - 否則：只有 _common/*
+    - 品牌+型號齊備：{brand}/{model} + {brand}/_brand（若有） + 全部 _common/*
+    - 只知品牌：{brand}/_brand（若有） + 全部 _common/*
+    - 都不知：只有 _common/*
     """
     if brand and model:
         target = f"{brand}/{model}"
-        return [d for d in _docs if d.name == target or d.brand == "_common"]
+        return [d for d in _docs if d.name == target
+                or (d.brand == brand and _is_brand_common(d))
+                or d.brand == "_common"]
+    if brand:
+        return [d for d in _docs if (d.brand == brand and _is_brand_common(d))
+                or d.brand == "_common"]
     return [d for d in _docs if d.brand == "_common"]
 
 
