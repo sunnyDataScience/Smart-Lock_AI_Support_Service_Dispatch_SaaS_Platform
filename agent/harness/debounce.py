@@ -462,13 +462,31 @@ async def _cleanup_tool_checkpoint(config: dict, messages: list):
     - ToolMessage（load_skill 回傳的完整 SOP）→ [已參考技能: {name}]
     - 僅含 tool_calls 的中間 AIMessage → [已參考技能: {name}]
     最終回覆的 AIMessage 不受影響。
+
+    保留策略：**最新一輪的 ToolMessage 與對應的中間 AIMessage 完整保留**，
+    讓下一輪 LLM 仍有最近一次工具呼叫的完整脈絡可參考（避免多輪對話因
+    cleanup 過於激進導致 LLM 失去上下文、漏載關鍵資訊）。
     """
     try:
         replaced = 0
         # 收集被清理的中間 AIMessage 的 tool_call_id，用於刪除對應的 ToolMessage
         cleaned_tool_call_ids: set[str] = set()
 
+        # 找出最新一輪的中間 AIMessage（含 tool_calls 但無 content）作為保留對象
+        latest_intermediate_ai_id: str | None = None
+        for msg in reversed(messages):
+            if (
+                hasattr(msg, "type") and msg.type == "ai"
+                and hasattr(msg, "tool_calls") and msg.tool_calls
+                and (not msg.content or not str(msg.content).strip())
+            ):
+                latest_intermediate_ai_id = msg.id
+                break
+
         for msg in messages:
+            # 跳過最新一輪：保留完整脈絡供下一輪使用
+            if msg.id == latest_intermediate_ai_id:
+                continue
             # 中間 AIMessage: 僅含 tool_calls、無實質 content 的訊息
             if (
                 hasattr(msg, "type") and msg.type == "ai"
