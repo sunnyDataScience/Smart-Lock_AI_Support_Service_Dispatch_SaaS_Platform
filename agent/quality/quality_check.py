@@ -38,15 +38,15 @@ def _strip_ref_markers(text: str) -> str:
 # 問題（店家資訊、安裝流程、保固等）影響中性，因為 LLM 仍會載入 _common/*。
 QUICK_REPLY_DEFAULT_BRAND = "Chatlock"
 
-# 將 agent_skills/ 加入 sys.path，讓 agent, skills 可被 import
-_AGENT_SKILLS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, _AGENT_SKILLS_DIR)
+# 將 agent/ 加入 sys.path，讓 agent_tools / harness / product_info 等模組可 import
+_AGENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _AGENT_DIR)
 
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(_AGENT_SKILLS_DIR, "..", ".env"))
+load_dotenv(os.path.join(_AGENT_DIR, "..", ".env"))
 
 from langchain_litellm import ChatLiteLLM
 from core.config import load_config
@@ -447,7 +447,7 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
     t0 = time.time()
 
     # 組裝訊息：注入 [可用產品資料] 模擬 debounce.run_agent() 的新架構行為
-    from skills.tools import (
+    from agent_tools.tools import (
         set_current_user_id,
         set_current_brand,
         set_current_user_input,
@@ -717,7 +717,7 @@ async def main():
 
         use_judge = not args.no_judge
 
-        os.chdir(_AGENT_SKILLS_DIR)
+        os.chdir(_AGENT_DIR)
         cfg = load_config()
 
         # 初始化 Quick Reply / 品牌字典（與正常模式同步）
@@ -787,8 +787,8 @@ async def main():
     use_judge = not args.no_judge
     mode_label = "Full (Agent + LLM Judge)" if use_judge else "Fast (Agent + Keywords only)"
 
-    # 切到 agent/ 目錄，讓 config.toml 和 skills/data 等相對路徑正確
-    os.chdir(_AGENT_SKILLS_DIR)
+    # 切到 agent/ 目錄，讓 config.toml 等相對路徑正確
+    os.chdir(_AGENT_DIR)
 
     cfg = load_config()
 

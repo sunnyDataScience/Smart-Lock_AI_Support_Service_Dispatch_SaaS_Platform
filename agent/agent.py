@@ -12,7 +12,7 @@ from __future__ import annotations
 from langgraph.prebuilt import create_react_agent
 
 from core.config import AppConfig, load_prompt
-from skills.tools import load_product_info, update_user_info, transfer_to_human, set_profile_mgr, set_transfer_message_from_file
+from agent_tools.tools import load_product_info, update_user_info, transfer_to_human, set_profile_mgr, set_transfer_message_from_file
 from product_info import load_all_docs as load_product_docs
 
 

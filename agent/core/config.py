@@ -25,7 +25,6 @@ class AppConfig:
     llm: dict = field(default_factory=dict)
     line_bot: dict = field(default_factory=dict)
     memory: dict = field(default_factory=dict)
-    skills: dict = field(default_factory=dict)
     prompts: dict = field(default_factory=dict)
     safety: dict = field(default_factory=dict)
     storage: dict = field(default_factory=dict)
@@ -42,7 +41,7 @@ class AppConfig:
 def load_config(file_path: str | None = None) -> AppConfig:
     """載入 config.toml 並回傳 AppConfig。
 
-    預設路徑：agent_skills/config.toml
+    預設路徑：agent/config.toml
     """
     if file_path is None:
         file_path = os.path.join(
@@ -58,7 +57,6 @@ def load_config(file_path: str | None = None) -> AppConfig:
         llm=data.get("llm", {}),
         line_bot=data.get("line_bot", {}),
         memory=data.get("memory", {}),
-        skills=data.get("skills", {}),
         prompts=data.get("prompts", {}),
         safety=data.get("safety", {}),
         storage=data.get("storage", {}),
@@ -77,7 +75,7 @@ def load_prompt(prompt_path: str, **kwargs) -> str:
     """讀取 .md 提示詞模板並填入變數。
 
     Args:
-        prompt_path: 相對於 agent_skills/ 的路徑（如 "prompts/system.md"）
+        prompt_path: 相對於 agent/ 的路徑（如 "prompts/system.md"）
         **kwargs: 模板變數
     """
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

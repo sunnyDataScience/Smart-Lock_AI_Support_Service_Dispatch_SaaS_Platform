@@ -1,6 +1,6 @@
 """Product info 架構自檢腳本 — 不打 LLM/DB，純驗證 mega-doc 載入與 profile gating。
 
-此腳本為清掉舊 skills/data 後的 smoke test：
+此腳本為 product_info 架構的 smoke test：
   1. product_info loader 能讀完所有 mega-doc
   2. filter_loadable() 在 4 種 profile 組合下回傳正確清單
   3. 抽查 studio_results 真實案例的關鍵字是否落在對應 mega-doc 內
@@ -114,14 +114,18 @@ def main() -> int:
             fail(f"{case_id} → {doc_name} 缺關鍵字 {missing_kw}")
             failed += 1
 
-    # 5. 確認舊 skills/data 已清空
-    section("5. 舊 skills/data 已清空")
-    skills_data = Path(__file__).parent / "skills" / "data"
-    if skills_data.exists():
-        fail(f"{skills_data} 仍存在")
+    # 5. 確認舊 skills/ 已重命名為 agent_tools/
+    section("5. skills/ → agent_tools/ 命名重構")
+    old_skills = Path(__file__).parent / "skills"
+    new_tools = Path(__file__).parent / "agent_tools" / "tools.py"
+    if old_skills.exists():
+        fail(f"舊 {old_skills} 仍存在")
+        failed += 1
+    elif not new_tools.exists():
+        fail(f"新 {new_tools} 不存在")
         failed += 1
     else:
-        ok("agent/skills/data 已刪除")
+        ok("agent/skills/ 已重命名為 agent/agent_tools/")
 
     # 6. agent build 不出錯
     section("6. build_agent() 仍可建構")
