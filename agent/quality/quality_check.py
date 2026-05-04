@@ -258,7 +258,7 @@ TEST_CASES: list[TestCase] = [
     TestCase("E-3", "硬體維修", "Chatlock電子鎖網路一直斷線",
              "Chatlock AI-99/A90/AI-88 系列 Wi-Fi 模組整合在內側螢幕內，多數情況是內側螢幕未插好導致 Wi-Fi 模組斷線；建議重新確認內側螢幕插入到底並完整蓋上，並嘗試 APP【清理緩存】或【解除綁定】後重新配對。",
              ["螢幕", "Wi-Fi", "緩存"],
-             device_brand="Chatlock"),
+             device_brand="Chatlock", device_model="AI-99"),
     TestCase("E-4", "硬體維修", "電子鎖配對網路時要注意什麼？",
              "電子鎖只能連 2.4GHz 頻段；家用路由器 2.4G 與 5G 必須分開設定（合併會 IoT 異常耗電與連線不穩）；不建議 Wi-Fi 6/7/8 路由器（協定相容性差）。",
              ["2.4G", "5G", "分開"],
