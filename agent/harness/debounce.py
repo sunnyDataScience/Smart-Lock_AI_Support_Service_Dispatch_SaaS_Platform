@@ -283,17 +283,21 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
             brand = facts.get("device_brand")
             model = facts.get("device_model")
 
-        # 品牌未知時，從用戶輸入文字自動推論品牌（純文字運算，不需 await）
-        if not brand and _profile_mgr and _profile_mgr.facts_enabled:
+        # 從用戶輸入文字掃描品牌/型號關鍵字（純文字運算，不需 await）
+        mentioned_brand: str | None = None
+        mentioned_model: str | None = None
+        if _profile_mgr and _profile_mgr.facts_enabled:
             input_text = user_input if isinstance(user_input, str) else " ".join(
                 b.get("text", "") for b in user_input if isinstance(b, dict)
             )
             from harness.line_ui_factory import infer_brand_from_text
-            inferred_brand, inferred_model = infer_brand_from_text(input_text)
-            if inferred_brand:
-                brand = inferred_brand
-                if inferred_model and not model:
-                    model = inferred_model
+            mentioned_brand, mentioned_model = infer_brand_from_text(input_text)
+
+            # 場景 1：尚未記錄品牌 → 自動寫入推論結果
+            if mentioned_brand and not brand:
+                brand = mentioned_brand
+                if mentioned_model and not model:
+                    model = mentioned_model
                 # update_fact 寫入不阻塞回覆路徑（背景 fire-and-forget）
                 asyncio.create_task(_profile_mgr.update_fact(user_id, "device_brand", brand))
                 if model:
@@ -327,8 +331,9 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
             docs = filter_product_loadable(None, None)
             header = (
                 f"[可用產品資料]\n"
-                f"⚠️ 目前無 {brand} 詳細產品資料，僅能提供通用建議。回覆時請聲明：\n"
-                f"「我這邊沒有 {brand} 的詳細資料，建議您查看說明書，或我幫您安排專員協助。」\n"
+                f"⚠️ 目前無 {brand} 詳細產品資料，僅能提供 _common/* 通用建議。\n"
+                f"禁止說「我這邊沒有 {brand} 的詳細資料」「建議您查看說明書」這類話術；\n"
+                f"優先載入 _common/* 給通用建議，若客戶問題需要型號專屬步驟就呼叫 transfer_to_human 安排專員協助。\n"
             )
         else:
             # 路徑 D：品牌完全未知 → 只能 _common + 收品牌
@@ -339,6 +344,30 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
                 "「以下為通用建議，您的型號實際操作可能略有差異。」\n"
                 "**請呼叫 update_user_info 確認用戶品牌。**\n"
             )
+        # 場景 2：客戶在訊息中提到的品牌/型號 ≠ 已記錄 → 強提示 LLM 切換上下文
+        # （不自動寫 DB，避免「我朋友的 X 鎖如何」這類非主動聲明被誤更新）
+        if mentioned_brand and brand and mentioned_brand != brand:
+            switch_hint_lines = [
+                "",
+                f"⚠️ 切換產品上下文：客戶在本輪訊息中提到「{mentioned_brand}",
+            ]
+            if mentioned_model:
+                switch_hint_lines[-1] += f" {mentioned_model}"
+            switch_hint_lines[-1] += f"」，與紀錄中的 {brand}"
+            if model:
+                switch_hint_lines[-1] += f" {model}"
+            switch_hint_lines[-1] += " 不同。"
+            switch_hint_lines.append(
+                f"請先呼叫 update_user_info(brand=\"{mentioned_brand}\""
+                + (f", model=\"{mentioned_model}\"" if mentioned_model else "")
+                + ") 切換產品上下文，"
+                "再 load_product_info 載入對應文件回答客戶原問題。"
+            )
+            switch_hint_lines.append(
+                "禁止用「客戶設備型號跟紀錄不符」當拒答理由，也禁止叫客戶查說明書。"
+            )
+            header += "\n".join(switch_hint_lines) + "\n"
+
         doc_lines = "\n".join(f"- {d.name}: {d.description}" for d in docs)
         skills_prefix = f"{header}{doc_lines}\n\n"
 

@@ -21,11 +21,17 @@ _profile_mgr = None
 
 # ── 請求層級狀態（用 contextvars 隔離併發請求）──
 _current_user_id: ContextVar[str] = ContextVar("current_user_id", default="")
-_current_brand: ContextVar[str | None] = ContextVar("current_brand", default=None)
-_current_model: ContextVar[str | None] = ContextVar("current_model", default=None)
 _doc_loaded_this_run: ContextVar[bool] = ContextVar("doc_loaded_this_run", default=False)
 _transfer_called_this_run: ContextVar[bool] = ContextVar("transfer_called_this_run", default=False)
 _current_user_input: ContextVar[str] = ContextVar("current_user_input", default="")
+
+# ── 品牌/型號狀態（module-level dict，keyed by user_id）──
+# 為何不用 ContextVar：LangGraph ToolNode 在獨立 asyncio task 內執行每個 tool，
+# ContextVar.set() 只影響該 task 自身的 context，update_user_info 的修改不會
+# 傳給後續其他 tool 的 task。改用 module dict 跨 task 共享，user_id 透過
+# ContextVar 從 debounce 入口傳進來（單次 set，子 task 複製 parent 即可拿到）。
+_brand_by_user: dict[str, str | None] = {}
+_model_by_user: dict[str, str | None] = {}
 
 # 明確轉接意圖關鍵字（出現在用戶訊息中時允許跳過 load_product_info 直接轉接）
 _TRANSFER_KEYWORDS = [
@@ -64,19 +70,30 @@ def set_current_user_input(text: str) -> None:
 
 
 def set_current_brand(brand: str | None, model: str | None = None) -> None:
-    """設定當前請求的品牌/型號（每次 run_agent 前呼叫）。"""
-    _current_brand.set(brand)
-    _current_model.set(model)
+    """設定當前請求的品牌/型號（每次 run_agent 前呼叫）。
+
+    寫入 module dict（keyed by user_id），讓後續 tool 跨 task 也能讀到最新值。
+    """
+    user_id = _current_user_id.get()
+    if user_id:
+        _brand_by_user[user_id] = brand
+        _model_by_user[user_id] = model
 
 
 def get_current_brand() -> str | None:
     """取得當前品牌（agent 執行後可能已被 update_user_info 更新）。"""
-    return _current_brand.get()
+    user_id = _current_user_id.get()
+    if user_id:
+        return _brand_by_user.get(user_id)
+    return None
 
 
 def get_current_model() -> str | None:
     """取得當前型號（agent 執行後可能已被 update_user_info 更新）。"""
-    return _current_model.get()
+    user_id = _current_user_id.get()
+    if user_id:
+        return _model_by_user.get(user_id)
+    return None
 
 
 def _build_product_docs_section(brand: str | None, model: str | None) -> str:
@@ -110,8 +127,8 @@ def load_product_info(name: str) -> str:
     """
     from product_info import filter_loadable, get_doc
 
-    brand = _current_brand.get()
-    model = _current_model.get()
+    brand = get_current_brand()
+    model = get_current_model()
     allowed = filter_loadable(brand, model)
     allowed_names = {d.name for d in allowed}
 
@@ -172,7 +189,7 @@ async def update_user_info(brand: str = "", model: str = "") -> str:
 
     # ── 驗證型號是否屬於該品牌 ──
     if model:
-        check_brand = brand or _current_brand.get()
+        check_brand = brand or get_current_brand()
         if check_brand:
             matched_model = match_model(check_brand, model)
             if not matched_model:
@@ -196,14 +213,14 @@ async def update_user_info(brand: str = "", model: str = "") -> str:
             await _profile_mgr.update_fact(user_id, "device_model", model)
             updated.append(f"型號: {model}")
 
-    # 立即更新 context state（解鎖品牌產品資料）
-    if brand:
-        _current_brand.set(brand)
-    if model:
-        _current_model.set(model)
+    # 立即更新 module dict（解鎖品牌產品資料；跨 task 共享，下個 tool call 看得到）
+    if brand and user_id:
+        _brand_by_user[user_id] = brand
+    if model and user_id:
+        _model_by_user[user_id] = model
 
-    cur_brand = _current_brand.get()
-    cur_model = _current_model.get()
+    cur_brand = get_current_brand()
+    cur_model = get_current_model()
 
     # 回傳更新後的可用產品資料清單
     docs_section = _build_product_docs_section(cur_brand, cur_model)

@@ -98,15 +98,38 @@ async def validate(ai_response: str, user_message: str, context: str = "", user_
         match = _forbidden_pattern.search(ai_response)
         if match:
             phrase = match.group()
-            return {
-                "pass": False,
-                "reason": f"包含禁用語: {phrase}",
-                "correction": (
+            # 依命中片段語意分流 correction 指引
+            manual_markers = ("說明書",)
+            mismatch_markers = ("設備型號是",)
+            if any(m in phrase for m in manual_markers):
+                correction = (
+                    f"你的回覆包含了「{phrase}」這類話術。"
+                    "禁止把客戶推回去看說明書。"
+                    "若客戶在訊息中提到的品牌/型號與 [用戶資料] 不同，"
+                    "請先呼叫 update_user_info 把品牌/型號切到客戶現在問的這台，"
+                    "然後 load_product_info 載入對應 {Brand}/{Model} 文件並依文件作答；"
+                    "若該品牌/型號真的沒有產品資料，直接 transfer_to_human 安排專員，"
+                    "不要叫客戶查說明書。"
+                )
+            elif any(m in phrase for m in mismatch_markers):
+                correction = (
+                    f"你的回覆包含了「{phrase}」這類話術——"
+                    "你不可以用「客戶設備型號跟紀錄不符」當拒答理由。"
+                    "客戶這句話本身就是新的設備宣告："
+                    "請先呼叫 update_user_info(brand=..., model=...) 切換到客戶現在問的這台，"
+                    "再 load_product_info 載入對應 {Brand}/{Model} 文件並回答原問題。"
+                )
+            else:
+                correction = (
                     f"你的回覆包含了「{phrase}」這類內部機制用語。"
                     "對客戶而言你就是直接知道答案的客服人員，"
                     "不需要提到任何查詢、載入、搜尋等動作。"
                     "請重新回答，直接提供答案。"
-                ),
+                )
+            return {
+                "pass": False,
+                "reason": f"包含禁用語: {phrase}",
+                "correction": correction,
             }
 
     # LLM 語意驗證
