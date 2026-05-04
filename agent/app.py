@@ -49,7 +49,7 @@ import harness.safety_gate as safety_gate
 import harness.output_validator as output_validator
 import harness.data_correction as data_correction
 
-app = FastAPI(title="Smart Lock AI Agent — Skill-Based")
+app = FastAPI(title="Smart Lock AI Agent — Product Info")
 
 # ── Global state ──
 _cfg = None

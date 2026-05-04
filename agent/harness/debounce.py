@@ -304,10 +304,10 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         if _profile_mgr and _profile_mgr.enabled and profile_text:
             profile_prefix = f"[用戶資料]\n{profile_text}\n\n"
 
-        # 注入品牌到 tools 模組（供 load_skill 做品牌檢查）
+        # 注入品牌到 tools 模組（供 load_product_info 做品牌檢查）
         set_current_brand(brand, model)
 
-        # 知識來源清單：全品牌統一走 product_info（v1.2.0 全品牌覆蓋驗證階段，load_skill 暫停用）
+        # 知識來源清單：全品牌統一走 product_info
         from product_info import has_brand as has_product_brand, filter_loadable as filter_product_loadable
 
         if brand and has_product_brand(brand) and model:
@@ -459,8 +459,8 @@ async def _cleanup_tool_checkpoint(config: dict, messages: list):
     """將 checkpoint 中的 tool call 訊息替換為輕量引用，避免 SOP 內容佔用上下文。
 
     每次 run_agent() 完成後呼叫。清理對象：
-    - ToolMessage（load_skill 回傳的完整 SOP）→ [已參考技能: {name}]
-    - 僅含 tool_calls 的中間 AIMessage → [已參考技能: {name}]
+    - ToolMessage（load_product_info 回傳的完整 mega-doc）→ [已參考: {name}]
+    - 僅含 tool_calls 的中間 AIMessage → [已參考: {name}]
     最終回覆的 AIMessage 不受影響。
 
     保留策略：**最新一輪的 ToolMessage 與對應的中間 AIMessage 完整保留**，
@@ -493,18 +493,16 @@ async def _cleanup_tool_checkpoint(config: dict, messages: list):
                 and hasattr(msg, "tool_calls") and msg.tool_calls
                 and (not msg.content or not str(msg.content).strip())
             ):
-                skill_names: list[str] = []
+                doc_names: list[str] = []
                 for tc in msg.tool_calls:
-                    if tc.get("name") == "load_skill":
-                        skill_names.append(tc.get("args", {}).get("skill_name", "unknown"))
-                    elif tc.get("name") == "load_product_info":
-                        skill_names.append(tc.get("args", {}).get("name", "unknown"))
-                if skill_names:
+                    if tc.get("name") == "load_product_info":
+                        doc_names.append(tc.get("args", {}).get("name", "unknown"))
+                if doc_names:
                     # 收集此 AIMessage 所有 tool_call id
                     for tc in msg.tool_calls:
                         if tc.get("id"):
                             cleaned_tool_call_ids.add(tc["id"])
-                    ref = ", ".join(f"[已參考: {n}]" for n in skill_names)
+                    ref = ", ".join(f"[已參考: {n}]" for n in doc_names)
                     await _agent.aupdate_state(
                         config,
                         {"messages": [AIMessage(content=ref, id=msg.id)]},
@@ -550,7 +548,7 @@ async def _audit_agent_result(user_id: str, messages: list, latency_ms: float, t
                     args_summary = json.dumps(tc.get("args", {}), ensure_ascii=False)[:200]
                     await _audit_storage.log_tool_invocation(
                         user_id, "smart_lock_agent", tool_name,
-                        risk_level="read" if tool_name in ("load_skill", "load_product_info") else "escalate",
+                        risk_level="read" if tool_name == "load_product_info" else "escalate",
                         args_summary=args_summary,
                     )
                     if tool_name == "transfer_to_human":
@@ -892,7 +890,7 @@ async def agent_and_reply(
             "禁止憑 [前情提要] 摘要文字再次承諾轉接。\n"
             "請重新回答用戶的問題：\n"
             "  - 若客戶確實需要轉接（符合轉接條件）→ 立即呼叫 transfer_to_human\n"
-            "  - 若客戶問題可以靠技能 SOP 回答 → 用 load_skill 載入後正常回覆，"
+            "  - 若客戶問題可以靠產品資料回答 → 用 load_product_info 載入後正常回覆，"
             "回覆內絕不可出現「已為您轉接」「已安排專員」「正在為您安排專員」這類承諾語"
         )
         ai_response = await run_agent(user_id, transfer_correction)
