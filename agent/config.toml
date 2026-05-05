@@ -7,13 +7,15 @@
 [system]
 domain          = "電子鎖、智慧門鎖相關的產品諮詢、故障排除、安裝派工"
 agent_name      = "smart_lock_agent"
-request_timeout = 240
+request_timeout = 120    # 秒，Phase 0 暫時拉長以止血；Phase 2 完成後再砍回 60-90s
 
 # ── 2. LLM 設定（LiteLLM 格式）──
+# Gemini 2.5 Flash GA：穩定 quota（~1000 RPM、4M TPM）、SLA 有保障
+# Gemini 3 Flash 待 GA 後再切（preview quota 嚴格，會在生產環境踩 rate limit）
 [llm]
-model           = "vertex_ai/gemini-2.5-pro"
-temperature     = 0.3
-thinking_budget = 2048   # tokens，封頂 Gemini 2.5 思考預算（None / 註解掉 = 無上限）
+model            = "vertex_ai/gemini-2.5-flash"
+temperature      = 0.3
+thinking_budget  = 0      # Phase 2 試刀：客服 SOP 走 prompt 工程，不依賴 thinking
 
 # ── 3. LINE Bot 設定 ──
 [line_bot]
@@ -29,13 +31,9 @@ postgres_uri_env       = "POSTGRES_URI"
 compression_enabled    = true        # H5 記憶壓縮開關
 max_messages_threshold = 12          # 訊息數超過此值時觸發壓縮
 context_retention_pair = 5           # 壓縮後保留最近 N 輪對話
-llm_model              = "vertex_ai/gemini-2.5-flash"  # 壓縮摘要用模型（Flash 加速）
+llm_model              = "vertex_ai/gemini-2.5-flash"  # 壓縮摘要用模型
 
-# ── 5. 技能系統 ──
-[skills]
-data_dir = "skills/data"
-
-# ── 6. 提示詞檔案路徑 ──
+# ── 5. 提示詞檔案路徑 ──
 [prompts]
 system_prompt          = "prompts/system.md"
 transfer_human_form    = "prompts/transfer_human.md"
@@ -57,6 +55,11 @@ forbidden_phrases  = [
     "載入技能", "查詢資料", "幫您搜尋", "讓我查一下",
     "我需要查詢手冊", "請稍等我載入技能", "工具呼叫",
     "tool call", "load_skill", "系統正在處理",
+    # 跨品牌詢問時不准把客戶推回說明書 / 不准用「型號跟紀錄不符」當拒答理由
+    "建議您查看說明書", "建議您可以參考該產品的說明書",
+    "請參考該產品的說明書", "查看該產品的說明書",
+    "因為您目前的設備型號是", "因為您的設備型號是",
+    "目前的設備型號是",
 ]
 skip_markers       = ["📋", "已為您轉接", "轉接表單"]
 
@@ -69,7 +72,7 @@ postgres_uri_env = "POSTGRES_URI"
 # ── 9. Debounce 防抖設定 (H3) ──
 [debounce]
 enabled          = true   # 關閉時訊息直接進入 Agent（不合併）
-buffer_wait      = 1.0    # 秒，最後一則訊息後等待時間
+buffer_wait      = 0.5    # 秒，最後一則訊息後等待時間（P1 #7：1.0→0.5 省 500ms）
 buffer_ttl       = 300    # 秒，緩衝區過期清理
 cleanup_interval = 60     # 秒，清理迴圈間隔
 media_extra_wait = 10     # 秒，等待媒體處理完成
@@ -97,7 +100,7 @@ error_system         = "不好意思，系統大腦剛剛稍微當機了一下�
 
 # ── 11. 用戶畫像 ──
 [user_profile]
-enabled     = false
+enabled     = true
 facts_enabled = true
 facts_postgres_uri_env = "POSTGRES_URI"
 fact_attributes = ["phone", "address", "device_model", "device_brand"]
@@ -114,7 +117,7 @@ models = ["AI-99", "A90", "AI-88"]
 [[quick_reply.brands]]
 label = "Dormakaba"
 text  = "Dormakaba"
-models = ["AS701", "AS901", "DP850", "FA9000", "GL220", "ML550", "ML660", "ML770", "MP750", "RL320", "RL360", "RL360V", "RL599", "FSL800", "Rose"]
+models = ["AS701", "AS850", "AS901", "DP850", "FA9000", "GL220", "ML550", "ML660", "ML770", "MP750", "RL320", "RL360", "RL360V", "RL599", "FSL800", "Rose"]
 
 [[quick_reply.brands]]
 label = "Philips"
@@ -139,7 +142,7 @@ models = ["七合一旗艦款"]
 [[quick_reply.brands]]
 label = "3E"
 text  = "3E"
-models = ["F(T7)"]
+models = ["F(T7)", "TX"]
 
 [[quick_reply.brands]]
 label = "Waferlock"
@@ -159,7 +162,7 @@ postgres_uri_env = "POSTGRES_URI"
 
 # ── 14. OPIK LLM Observability ──
 [opik]
-enabled       = true
+enabled       = false  # Phase 0 診斷：暫關以 A/B 排除 callback hang 嫌疑
 project_name  = "smart-lock-agent"
 api_key_env   = "OPIK_API_KEY"
 workspace_env = "OPIK_WORKSPACE"

@@ -64,8 +64,54 @@ class SqliteAuditStorage:
     async def log_escalation(self, *args, **kwargs):
         pass
 
-    async def log_llm_interaction(self, *args, **kwargs):
-        pass
+    async def log_llm_interaction(self, user_id: str, model: str, call_site: str = "react_agent", latency_ms: float | int | None = None, **kwargs):
+        await self.log_llm_call(
+            user_id=user_id,
+            call_site=call_site,
+            model=model,
+            latency_ms=int(latency_ms) if latency_ms is not None else None,
+            **kwargs,
+        )
+
+    async def log_llm_call(
+        self,
+        user_id: str,
+        call_site: str,
+        model: str,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
+        total_tokens: int | None = None,
+        latency_ms: int | None = None,
+        success: bool = True,
+        error_type: str | None = None,
+        turn_id: str | None = None,
+        metadata: dict | None = None,
+    ):
+        timestamp = datetime.now(timezone.utc).isoformat()
+        try:
+            await self._conn.execute(
+                """INSERT INTO llm_usage_log
+                   (timestamp, user_id, turn_id, call_site, model, input_tokens, output_tokens,
+                    total_tokens, latency_ms, success, error_type, metadata)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    timestamp,
+                    user_id,
+                    turn_id,
+                    call_site,
+                    model,
+                    input_tokens,
+                    output_tokens,
+                    total_tokens,
+                    latency_ms,
+                    1 if success else 0,
+                    error_type,
+                    json.dumps(metadata, ensure_ascii=False, default=str) if metadata else None,
+                ),
+            )
+            await self._conn.commit()
+        except Exception as e:
+            print(f"[LLM Usage DB] log_llm_call 失敗: {e}")
 
 async def build_sqlite_storage(config: dict) -> SqliteAuditStorage:
     global _sqlite_conn
@@ -86,6 +132,32 @@ async def build_sqlite_storage(config: dict) -> SqliteAuditStorage:
             payload TEXT
         )"""
     )
+    await conn.execute(
+        """CREATE TABLE IF NOT EXISTS llm_usage_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            turn_id TEXT,
+            call_site TEXT NOT NULL,
+            model TEXT NOT NULL,
+            input_tokens INTEGER,
+            output_tokens INTEGER,
+            total_tokens INTEGER,
+            latency_ms INTEGER,
+            success INTEGER NOT NULL DEFAULT 1,
+            error_type TEXT,
+            metadata TEXT
+        )"""
+    )
+    for idx_sql in [
+        "CREATE INDEX IF NOT EXISTS idx_llm_usage_timestamp ON llm_usage_log(timestamp DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_llm_usage_user_id ON llm_usage_log(user_id, timestamp DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_llm_usage_call_site ON llm_usage_log(call_site, timestamp DESC)",
+    ]:
+        try:
+            await conn.execute(idx_sql)
+        except Exception:
+            pass
     await conn.commit()
     _sqlite_conn = conn
     return SqliteAuditStorage(conn)

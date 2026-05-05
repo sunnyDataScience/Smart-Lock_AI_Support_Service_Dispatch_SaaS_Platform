@@ -1,6 +1,6 @@
 langchain-text-splitters
-langchain-litellm
-litellm
+langchain-litellm>=0.6.0
+litellm>=1.80.5
 langchain-chroma
 langchain-postgres
 psycopg[binary]

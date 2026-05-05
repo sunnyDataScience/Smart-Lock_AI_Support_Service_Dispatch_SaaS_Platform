@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Smart Lock AI Support & Service Dispatch SaaS Platform — a LINE Bot-based AI customer service agent for smart lock troubleshooting, with a Next.js admin dashboard for operations monitoring. Built with a skill-based ReAct agent (LangGraph) and a Medallion data pipeline that produces SKILL.md knowledge files.
+Smart Lock AI Support & Service Dispatch SaaS Platform — a LINE Bot-based AI customer service agent for smart lock troubleshooting, with a Next.js admin dashboard for operations monitoring. Built with a ReAct agent (LangGraph) backed by a `product_info/` mega-doc knowledge base (one self-contained mega-doc per brand+model, sourced strictly from `data/storage/bronze/`), plus a Medallion data pipeline.
 
 Primary language: **Chinese (Traditional)** for all user-facing text, comments, and documentation. Code identifiers and git messages may mix English and Chinese.
 
@@ -50,6 +50,7 @@ cd agent && python scripts/view_context.py <user_id>   # Inspect checkpoint stat
 cd agent && python scripts/view_facts.py <user_id>     # Inspect user facts (brand, model, phone, address)
 cd agent && python scripts/view_logs.py                 # Query audit logs
 cd agent && python scripts/view_corrections.py          # View #資料修正 records (--all / --export / --clear)
+cd agent && python scripts/view_llm_usage.py            # Query llm_usage_log (token / latency / Q&A)
 cd agent && python scripts/clean_data.py                # DB cleanup
 
 # API contract tooling (run from project root)
@@ -113,7 +114,7 @@ Debounce buffer (harness/debounce.py)
           ├─ Inject [可用技能] + [用戶資料] + [前情提要] prefixes
           ├─ Strip stale multimodal from checkpoint
           ├─ agent.ainvoke() with request_timeout (180s)
-          │   └─ LLM + tools: load_skill, update_user_info, transfer_to_human
+          │   └─ LLM + tools: load_product_info, update_user_info, transfer_to_human
           ├─ Output validator: check forbidden phrases (H7.5)
           ├─ Checkpoint cleanup: replace multimodal + tool_calls with text refs
           ├─ Audit log (H8, background)
@@ -133,14 +134,23 @@ Post-reply (background, non-blocking):
 - `main.py` — CLI mode (verifies LLM connectivity only, no harness layers)
 
 **Agent construction** (`agent.py`):
-- Uses `langgraph.prebuilt.create_react_agent` with 3 tools: `load_skill`, `update_user_info`, `transfer_to_human`
-- System prompt loaded from `prompts/system.md`; skill list injected dynamically per-request (not in static prompt)
-- Skills loaded once at startup from disk, filtered per-request by user's brand/model
+- Uses `langgraph.prebuilt.create_react_agent` with 3 tools: `load_product_info`, `update_user_info`, `transfer_to_human`
+- System prompt loaded from `prompts/system.md`; product info catalog injected dynamically per-request (not in static prompt)
+- Mega-docs loaded once at startup from disk, filtered per-request by user's brand/model
+- LLM model string lives in `agent/config.toml` `[llm]` — quality_check and evals read this same config (parity with prod)
 
-**Registry pattern** — LLM, memory, storage, and embeddings are selected via config, not hardcoded:
-- `llms/` — Unified LLM via LiteLLM; supports any provider with `"vertex_ai/gemini-2.5-pro"` style strings
-- `memory/__init__.py` — Checkpointer registry (in-process / SQLite / PostgreSQL)
-- `storage/__init__.py` — Audit log storage registry
+**Module map:**
+- `core/` — Cross-cutting infrastructure: `config.py` (TOML loader), `line_bot.py` (LINE SDK wrapper)
+- `llms/` — Unified LLM via LiteLLM; supports any provider with `"vertex_ai/gemini-..."` style strings
+- `memory/` — Checkpointer registry (in-process / SQLite / PostgreSQL)
+- `storage/` — Audit log storage registry
+- `harness/` — Middleware layers (see table below)
+- `agent_tools/` — Agent tools: `load_product_info`, `update_user_info`, `transfer_to_human` + ContextVar helpers
+- `product_info/` — Brand-keyed mega-doc knowledge base (`{Brand}/{Model}.md` + `_common/*.md`)
+- `profiles/` — User facts (hard + soft) extraction and storage
+- `prompts/` — System prompt and templates
+- `quality/` — `quality_check` LLM-as-Judge eval (HTML + JSON reports)
+- `evals/` — Golden-set regression pipeline (`runner` → `judge` → `reporter`); see `agent/evals/README.md`
 
 **Harness middleware layers** in `harness/`:
 
@@ -161,41 +171,48 @@ Post-reply (background, non-blocking):
 - Multimodal HumanMessage content (base64 data) is replaced with `[使用者曾傳送圖片]` references
 - This prevents context bloat in long conversations. Use `scripts/view_context.py` to inspect state.
 
-### Skills System (`agent/skills/`)
+### Product Info Knowledge Base (`agent/product_info/`)
 
 **Two-stage loading:**
-1. **Startup**: `load_skills()` scans `skills/data/` for SKILL.md files, parses frontmatter, infers brands/models from directory path
-2. **Per-request**: `filter_skills(brand, model)` narrows to applicable skills → injected as `[可用技能]` prefix in user message
+1. **Startup**: `load_all_docs()` scans `product_info/` for `.md` files, parses YAML frontmatter (`brand`, `model`, `description`), builds in-memory index
+2. **Per-request**: `filter_loadable(brand, model)` decides what's loadable → catalog injected as `[可用產品資料]` prefix in user message
 
-**Brand-based hierarchy:**
+**Directory layout (one mega-doc per brand+model, plus `_common/*`):**
 
 ```
-skills/data/
-├── _common/           # brands=None (universal) — troubleshoot, dispatch-guide, store-info
+agent/product_info/
+├── _common/                # brand=_common, model=None
+│   ├── troubleshoot.md     # 通用症狀分流路由
+│   ├── dispatch.md         # 派工 SOP / 安裝預約 / 保固政策
+│   ├── general-knowledge.md # 電子鎖通用知識（電池/Wi-Fi/門框等）
+│   └── store-info.md       # 店家資訊 / 服務區域 / 服務項目
 ├── Chatlock/
-│   ├── _all-models/   # brands=["Chatlock"] — ts-*-chatlock, app-guide, system-settings
-│   └── AI-99/         # brands=["Chatlock"], models=["AI-99"] — app-battery, app-camera
-├── Dormakaba/_all-models/
-└── ...
+│   ├── A90.md              # brand=Chatlock, model=A90
+│   ├── AI-88.md
+│   └── AI-99.md
+├── Dormakaba/              # 16 mega-docs：AS701/AS850/AS901/DP850/...
+└── {Philips,Kaadas,Milre,AiLock,3E}/
 ```
+
+**Sourcing rule (CRITICAL — bronze-only):**
+- All mega-doc content must be derived strictly from `data/storage/bronze/`（YouTube 字幕、website、video transcript）
+- **PDF (GDrive) is treated as untrustworthy**：mega-doc only embeds PDF URLs in「相關手冊」section, never quotes PDF content as authoritative steps
+- This is a hard rule — adding content from sources outside bronze is a regression
 
 **Key concepts:**
-- **Path-based metadata** (`skills/__init__.py`): `_common/` = universal; `{Brand}/_all-models/` = brand-wide; `{Brand}/{Model}/` = model-specific. Never hardcoded in frontmatter.
-- **Skill filtering** (`filter_skills()`): Brand unknown → only `_common` skills returned. Brand known → `_common` + matching brand skills. Brand + model known → `_common` + brand-wide + model-specific.
-- **Sub-skill routing**: Router skills (e.g., `troubleshoot`) direct the agent to load brand-specific sub-skills. Sub-skills with prefixes `ts-*`, `app-*`, `ss-*` are hidden from the top-level skill list (exceptions: `app-guide`, `ss-dormakaba`).
-- **Prefix matching fallback** (`tools.py`): `load_skill("ts-door-stuck")` with no exact match → returns list of `ts-door-stuck-*` sub-skills for agent to choose from.
-- **Brand gate**: `load_skill()` blocks loading brand-specific skills when user brand is unknown or mismatched.
-- **SKILL.md format**: YAML frontmatter (`name`, `description`, `trigger_keywords`, `category`, `severity`) + Markdown SOP body.
+- **Strict profile gating** (`product_info/__init__.py:filter_loadable`): brand+model 齊備 → 可載入 `{Brand}/{Model}` + 全部 `_common/*`；否則只能載 `_common/*`
+- **Loader exposes** `all_docs()`、`filter_loadable()`、`get_doc(name)`、`has_brand(brand)`
+- **Frontmatter format**: `brand`, `model` (or `_common` + null), `description` — `description` 用於 dynamic catalog 的條列說明
 
-### Tools (`agent/skills/tools.py`)
+### Agent Tools (`agent/agent_tools/tools.py`)
 
 Three agent tools, all use `ContextVar` for per-request isolation in async:
 
 | Tool | Purpose | Key behavior |
 |------|---------|--------------|
-| `load_skill` | Load SOP content | Brand gate + prefix matching fallback |
-| `update_user_info` | Set brand/model | Validates against `config.toml` brands via `match_brand()`/`match_model()`, normalizes casing, writes to DB, updates ContextVar, returns refreshed skill list |
-| `transfer_to_human` | Escalate to human | Auto-fills known facts (phone, address, device) into form template |
+| `load_product_info` | Load mega-doc | Strict profile gate — rejects loads outside `{brand}/{model} + _common/*` |
+| `update_user_info` | Set brand/model | Validates via `match_brand()`/`match_model()`, normalizes casing, writes to DB (SCD Type 2), updates ContextVar, returns refreshed product info catalog |
+| `transfer_to_human` | Escalate to human | Auto-fills known facts (phone, address, device) into form template; gated by `_doc_loaded_this_run` to prevent premature escalation |
 
 ### Profile & Facts System (`agent/profiles/`)
 
@@ -210,7 +227,7 @@ Three agent tools, all use `ContextVar` for per-request isolation in async:
 1. `source_to_raw/` — Download content (YouTube via yt-dlp, websites via Playwright, Google Drive)
 2. `raw_to_bronze/` — Extract and convert (Whisper ASR, Vision LLM for images)
 3. `bronze_to_silver/` — Semantic chunking via LLM
-4. `silver_to_skill/` — Classify, draft, and approve SKILL.md files → output to `agent/skills/data/`
+4. `silver_to_skill/` — Classify and draft skill candidates (legacy artifact; agent runtime no longer reads `agent/skills/data/`, use `agent/product_info/` directly per the bronze-only rule)
 
 **Skill approval** (`approve_drafts.py`): New skills placed by brand suffix detection (e.g., name ending in `-dormakaba` → `Dormakaba/_all-models/`; no brand suffix → `_common/`). Pipeline config: `data/config.toml`.
 
@@ -244,53 +261,28 @@ Next.js 15 + React 19 + TypeScript admin dashboard for operations teams.
 
 **Tech stack:** Next.js 15 (App Router), React 19, Tailwind CSS 4, Recharts (charts), Lucide (icons). Path alias `@/*` → `./src/*`. No UI component library — all custom components with Tailwind CSS.
 
-**Implemented pages:**
+**Page groups** (41 page.tsx files, including root redirect):
 
-| Route | Purpose |
-|-------|---------|
-| `/` | Redirects to `/dashboard` |
-| `/dashboard` | KPI cards, work order trend chart, technician status pie chart |
-| `/conversations` | Customer conversation list with search/filter |
-| `/conversations/[id]` | Chat timeline (AI/customer bubbles), customer info sidebar |
-| `/problem-cards` | Problem card list with status/resolution level |
-| `/problem-cards/[id]` | FMEA diagnosis chain, L1/L2/L3 resolution timeline, linked conversation |
-| `/work-orders` | Work order list with filters |
-| `/work-orders/[id]` | Work order detail with sidebar |
-| `/work-orders/kanban` | Kanban board view |
-| `/work-orders/map` | Map view with work order panel |
-| `/technicians` | Technician list with table |
-| `/technicians/[id]` | Technician detail with sidebar |
-| `/accounting` | Settlement dashboard with tables |
-| `/accounting/invoices` | Invoice management table |
-| `/accounting/revenue` | Revenue charts (brand breakdown, service type) |
-| `/knowledge-base` | Redirects to `/knowledge-base/cases` |
-| `/knowledge-base/cases` | Case library with card grid |
-| `/knowledge-base/manuals` | Manuals table |
-| `/knowledge-base/sop-drafts` | SOP draft list |
-| `/knowledge-base/sop-drafts/[id]` | SOP draft review detail |
-| `/admin/dispatch-queue` | Dispatch queue monitoring (stuck/retry/timeout stats) |
-| `/admin/refunds` | Refund review queue with SLA countdown |
-| `/admin/warranty-claims` | Warranty claims with status/remaining days |
-| `/admin/disputes` | Dispute resolution with dual evidence panel |
-| `/admin/inventory` | Inventory management with stock alerts |
-| `/admin/reports/kpi` | KPI dashboard (funnel, SLA rings, NPS, scatter plot) |
-| `/admin/reports/revenue` | Revenue report with trend chart and pivot table |
-| `/admin/reports/technician-ranking` | Technician leaderboard with podium |
-| `/admin/knowledge-base/sop-performance` | SOP performance (placeholder) |
-| `/admin/audit-events` | Audit log with expandable JSON detail |
-| `/admin/roles` | RBAC role cards + permission matrix |
-| `/admin/customers` | Customer master file with risk and warranty indicators |
-| `/settings` | System settings with 4-tab layout |
+| Group | Routes |
+|-------|--------|
+| Root / Auth | `/` (→ `/dashboard`), `/login`, `/dashboard`, `/settings` |
+| Conversations | `/conversations`, `/conversations/[id]` |
+| Problem Cards | `/problem-cards`, `/problem-cards/[id]` |
+| Work Orders | `/work-orders`, `/work-orders/[id]`, `/work-orders/kanban`, `/work-orders/map` |
+| Technicians | `/technicians`, `/technicians/[id]` |
+| Accounting | `/accounting`, `/accounting/invoices`, `/accounting/vouchers`, `/accounting/revenue` |
+| Knowledge Base | `/knowledge-base`, `/knowledge-base/cases` (+ `/new`, `/[id]`, `/[id]/edit`), `/knowledge-base/manuals`, `/knowledge-base/sop-drafts` (+ `/[id]`), `/knowledge-base/family-reviews` |
+| Admin — Operations | `/admin/dispatch-queue`, `/admin/refunds`, `/admin/warranty-claims`, `/admin/disputes`, `/admin/inventory`, `/admin/sentiment-alerts`, `/admin/customers` |
+| Admin — Reports | `/admin/reports/kpi`, `/admin/reports/revenue`, `/admin/reports/technician-ranking` |
+| Admin — System | `/admin/audit-events`, `/admin/roles`, `/admin/api-status`, `/admin/knowledge-base/sop-performance` |
 
-All 33 pages implemented. Frontend-only with mock data — no API integration with agent backend yet.
+**API integration status:** Active migration from mock data to live API. Many admin/knowledge-base/accounting pages now call generated typed clients (see commits `feat(web): /xxx 串接 ...`). Pages still on mock data are flagged in their components. Treat the OpenAPI spec at `docs/02-design/specs/openapi.yaml` as source of truth — regenerate types via `./scripts/generate-api-types.sh` after any spec change.
 
-**Component organization:** `src/components/{domain}/` — `layout/` (Sidebar, Header), `dashboard/` (KpiCard, charts), `conversations/` (ChatTimeline, ConversationsTable), `problem-cards/` (FmeaDiagnosisCard, ResolutionTimeline), `work-orders/` (KanbanBoard, MapView, WorkOrdersTable), `technicians/` (TechniciansTable, TechnicianDetailSidebar), `accounting/` (SettlementTable, InvoicesTable, revenue charts), `knowledge-base/` (CaseCardGrid, ManualsTable, SopDraftsList), `dispatch-queue/` (DispatchQueueTable), `admin/` (RefundReviewTable, WarrantyClaimsTable, InventoryTable), `ui/` (StatusBadge, SolidBadge).
+**Component organization:** `src/components/{domain}/` — `layout/`, `dashboard/`, `conversations/`, `problem-cards/`, `work-orders/`, `technicians/`, `accounting/`, `knowledge-base/`, `dispatch-queue/`, `admin/`, `ui/`. Generated API types live in `docs/02-design/specs/generated/api.generated.ts` and are imported by domain hooks/clients.
 
-**Sidebar navigation:** Nested nav with `NavItem[]` supporting `children?: NavChild[]`. Groups: 派工管理 (2), 帳務與結算 (4), 知識庫 (3), 報表中心 (4), 稽核與權限 (2). Active parent auto-expands children.
+**Sidebar navigation:** Nested nav with `NavItem[]` supporting `children?: NavChild[]`. Active parent auto-expands children.
 
 **Design tokens:** CSS custom properties in `globals.css` — primary `#2563EB`, accent `#F59E0B`. Fonts: Inter + Noto Sans TC. Dark sidebar (`#1E293B`) + light content (`#F8FAFC`).
-
-**Current state:** Frontend-only with mock data. No API integration with agent backend yet. API contracts defined in `docs/02-design/specs/` will drive future integration.
 
 ### API Contract System (`docs/02-design/specs/`)
 
@@ -333,3 +325,54 @@ Docs in `docs/` using a 5D framework (DISCOVER → DEFINE → DESIGN → DEVELOP
 - `docs/05_architecture_and_design_document.md` — System architecture
 - `docs/01_development_workflow_cookbook.md` — Dev workflow
 - `docs/HOME.md` — Documentation hub
+
+## Post-Commit Progress Report (MANDATORY)
+
+每次 `git commit` 完成後，**必須**立即撰寫一份進度報告，集中**平放**於專案根目錄的 `report/` 資料夾，使用**全專案統一遞增的版本號**命名。
+
+### 規則
+
+1. **觸發時機**：每完成一次 `git commit` 後立即寫入（不可跳過、不可合併到下次 commit 才補）。
+2. **存放位置**：所有報告**全部直接放在專案根目錄 `report/` 底下**，**禁止**建立任何子資料夾、**禁止**在檔名加上模組前綴。
+   - 影響哪個模組（`agent/quality/`、`agent/agent_tools/`、`agent/product_info/`、`web/...`、`data/...` 等）僅在報告內文 `**影響模組**` 欄位註明
+   - 跨模組變更 → 在內文列出全部受影響模組
+3. **版本號規則 (Semantic Versioning)**：**全專案共用一條版本序號**，每次新增報告 +1，格式 `vMAJOR.MINOR.PATCH`：
+   - **MAJOR**：破壞性變更（API 變動、移除功能、格式不相容）
+   - **MINOR**：新增功能、不破壞相容性的擴充
+   - **PATCH**：bug 修復、文件/註解調整、refactor、perf 優化
+   - 寫入前先 `ls report/v*.md` 取**整個 `report/` 資料夾**最新版號 +1 對應段
+   - 同一 commit 只壓一個版本號
+4. **檔名格式**：`v{MAJOR.MINOR.PATCH}.md`
+   - 首份報告：`v1.0.0.md`
+   - 不加模組名、日期、commit SHA、主題；這些一律寫在報告內文
+5. **內容範本**：
+
+   ```markdown
+   # 進度報告 v{MAJOR.MINOR.PATCH}：{一句話標題}
+
+   - **版本**: v{MAJOR.MINOR.PATCH}（前版：v{previous} → 本版升級類型：MAJOR/MINOR/PATCH）
+   - **Commit**: `{sha7}` ({YYYY-MM-DD HH:mm})
+   - **分支**: {branch-name}
+   - **作者**: {git user.name}
+   - **影響模組**: {主要模組}（+ 其他受影響模組，若有）
+
+   ## 變更摘要 (WHAT)
+   {1–3 條條列：這次 commit 改了什麼}
+
+   ## 背景與動機 (WHY)
+   {為什麼做這個變更，解決什麼問題}
+
+   ## 影響評估 (IMPACT)
+   - 破壞性變更：{有/無，若有具體說明}
+   - 後續動作：{需要 migration、重跑測試、更新文檔等}
+
+   ## 驗證方式
+   {如何確認這次變更正確：跑了什麼測試、人工驗證步驟}
+
+   ## 下一步 (NEXT)
+   {接下來要做什麼，或本次未完成項目}
+   ```
+
+6. **語言**：使用繁體中文撰寫。
+7. **長度**：精簡為主，建議 30–80 行；單純 typo/格式修正可縮至 10 行內。
+8. **不寫入的例外**：純機械變更（如 `.gitignore`、lock file 自動更新、commit 訊息修正）可跳過，**不消耗版本號**，但需在下一次正式 commit 的報告內以一行附註說明。

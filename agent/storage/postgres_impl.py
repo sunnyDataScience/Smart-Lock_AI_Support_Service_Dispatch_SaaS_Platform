@@ -123,8 +123,65 @@ class PostgresAuditStorage:
     async def log_escalation(self, *args, **kwargs):
         pass
 
-    async def log_llm_interaction(self, *args, **kwargs):
-        pass
+    async def log_llm_interaction(self, user_id: str, model: str, call_site: str = "react_agent", latency_ms: float | int | None = None, **kwargs):
+        """Backward-compatible wrapper — forwards to log_llm_call."""
+        await self.log_llm_call(
+            user_id=user_id,
+            call_site=call_site,
+            model=model,
+            latency_ms=int(latency_ms) if latency_ms is not None else None,
+            **kwargs,
+        )
+
+    async def log_llm_call(
+        self,
+        user_id: str,
+        call_site: str,
+        model: str,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
+        total_tokens: int | None = None,
+        latency_ms: int | None = None,
+        success: bool = True,
+        error_type: str | None = None,
+        turn_id: str | None = None,
+        user_question: str | None = None,
+        ai_reply: str | None = None,
+        metadata: dict | None = None,
+    ):
+        """記錄單次 LLM 呼叫的 token 使用量、延遲、與輸入/輸出原文（不阻塞回覆關鍵路徑）。
+
+        - 寫入失敗只印 log，不 raise（呼叫端應已用 asyncio.create_task 火放即忘）
+        - user_question / ai_reply 存原文不截斷、不遮罩（對齊 audit_log.content 規則）
+        - metadata 僅存結構化欄位（step_index、tool_name、model_temperature 等），禁存訊息原文
+        """
+        if not await _ensure_conn():
+            return
+        try:
+            await _postgres_conn.execute(
+                """INSERT INTO llm_usage_log
+                   (user_id, turn_id, call_site, model, input_tokens, output_tokens,
+                    total_tokens, latency_ms, success, error_type,
+                    user_question, ai_reply, metadata)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                (
+                    user_id,
+                    turn_id,
+                    call_site,
+                    model,
+                    input_tokens,
+                    output_tokens,
+                    total_tokens,
+                    latency_ms,
+                    success,
+                    error_type,
+                    user_question,
+                    ai_reply,
+                    json.dumps(metadata, ensure_ascii=False, default=str) if metadata else None,
+                ),
+            )
+        except Exception as e:
+            print(f"[LLM Usage DB] log_llm_call 失敗: {e}")
 
 async def build_postgres_storage(config: dict) -> PostgresAuditStorage:
     global _postgres_conn, _postgres_uri_env
@@ -152,6 +209,43 @@ async def build_postgres_storage(config: dict) -> PostgresAuditStorage:
             await conn.execute(f"ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS {col_def}")
         except Exception:
             pass
+
+    # llm_usage_log: token 使用量 + 延遲度量 + 輸入/輸出原文（取代 Opik 角色）
+    await conn.execute("""
+        CREATE TABLE IF NOT EXISTS llm_usage_log (
+            id BIGSERIAL PRIMARY KEY,
+            timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            user_id TEXT NOT NULL,
+            turn_id TEXT,
+            call_site VARCHAR(50) NOT NULL,
+            model VARCHAR(100) NOT NULL,
+            input_tokens INTEGER,
+            output_tokens INTEGER,
+            total_tokens INTEGER,
+            latency_ms INTEGER,
+            success BOOLEAN NOT NULL DEFAULT TRUE,
+            error_type VARCHAR(50),
+            user_question TEXT,
+            ai_reply TEXT,
+            metadata JSONB
+        )
+    """)
+    # 既有資料表升級：補上 user_question / ai_reply 欄位
+    for col_def in ["user_question TEXT", "ai_reply TEXT"]:
+        try:
+            await conn.execute(f"ALTER TABLE llm_usage_log ADD COLUMN IF NOT EXISTS {col_def}")
+        except Exception as e:
+            print(f"[Audit DB] llm_usage_log 升級欄位失敗（已忽略）: {e}")
+    for idx_sql in [
+        "CREATE INDEX IF NOT EXISTS idx_llm_usage_timestamp ON llm_usage_log(timestamp DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_llm_usage_user_id ON llm_usage_log(user_id, timestamp DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_llm_usage_call_site ON llm_usage_log(call_site, timestamp DESC)",
+    ]:
+        try:
+            await conn.execute(idx_sql)
+        except Exception as e:
+            print(f"[Audit DB] 建立 llm_usage_log 索引失敗（已忽略）: {e}")
+
     _postgres_conn = conn
     return PostgresAuditStorage()
 

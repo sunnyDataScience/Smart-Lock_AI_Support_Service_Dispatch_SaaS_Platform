@@ -11,10 +11,12 @@ from __future__ import annotations
 
 import json
 import re
+import time
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from core.config import load_prompt
+from harness.llm_metrics import log_simple
 
 # 模組層級狀態（由 init() 初始化）
 _llm = None
@@ -145,18 +147,21 @@ def _validate_soft_facts(facts: dict) -> dict:
 
 async def extract_and_update(user_id: str, question: str, answer: str):
     """從對話中萃取個資並更新 user profile。"""
-    if not _llm or not _profile_mgr or not _profile_mgr.enabled:
+    if not _llm or not _profile_mgr:
+        return
+    if not _profile_mgr.enabled and not _profile_mgr.facts_enabled:
         return
 
     try:
-        # 確保 soft profile .md 檔存在（新用戶以預設值初始化）
-        existing_md = await _profile_mgr.load_profile(user_id)
-        if not existing_md:
-            default_md = _render_soft_profile(_SOFT_DEFAULTS)
-            await _profile_mgr.save_profile(user_id, default_md)
-
-        # 載入現有 profile
-        existing_profile = await _profile_mgr.load_full_profile(user_id)
+        # 軟輪廓 init/load（僅在 enabled=true 時）
+        if _profile_mgr.enabled:
+            existing_md = await _profile_mgr.load_profile(user_id)
+            if not existing_md:
+                default_md = _render_soft_profile(_SOFT_DEFAULTS)
+                await _profile_mgr.save_profile(user_id, default_md)
+            existing_profile = await _profile_mgr.load_full_profile(user_id)
+        else:
+            existing_profile = "(empty - new user)"
 
         domain = _config.get("domain", "電子鎖、智慧門鎖")
         fact_attrs = ", ".join(_config.get("fact_attributes", ["phone", "address", "device_model", "device_brand"]))
@@ -171,10 +176,33 @@ async def extract_and_update(user_id: str, question: str, answer: str):
             fact_attributes=fact_attrs,
         )
 
-        response = await _llm.ainvoke([
-            SystemMessage(content=prompt),
-            HumanMessage(content=f"使用者: {question}\n客服: {answer}"),
-        ])
+        model_name = _config.get("model_name") or _config.get("extractor_model") or "unknown"
+        t0 = time.monotonic()
+        try:
+            user_question_text = f"使用者: {question}\n客服: {answer}"
+            response = await _llm.ainvoke([
+                SystemMessage(content=prompt),
+                HumanMessage(content=user_question_text),
+            ])
+            log_simple(
+                user_id=user_id,
+                call_site="profile_extraction",
+                model=model_name,
+                response=response,
+                latency_ms=int((time.monotonic() - t0) * 1000),
+                user_question=user_question_text,
+            )
+        except Exception as e:
+            log_simple(
+                user_id=user_id,
+                call_site="profile_extraction",
+                model=model_name,
+                latency_ms=int((time.monotonic() - t0) * 1000),
+                success=False,
+                error_type=type(e).__name__,
+                user_question=f"使用者: {question}\n客服: {answer}",
+            )
+            raise
         raw_text = response.content.strip()
 
         # 清除 code fence
@@ -186,27 +214,29 @@ async def extract_and_update(user_id: str, question: str, answer: str):
 
             # 寫入 hard_facts（PostgreSQL SCD Type 2）
             # device_brand / device_model 由 update_user_info 工具專責更新，不在此處寫入
-            _SKIP_HARD_FACTS = {"device_brand", "device_model"}
-            hard_facts = parsed.get("hard_facts", {})
-            if hard_facts and isinstance(hard_facts, dict):
-                for key, val in hard_facts.items():
-                    if key in _SKIP_HARD_FACTS:
-                        continue
-                    if val is not None and str(val).strip():
-                        await _profile_mgr.update_fact(user_id, key, str(val).strip())
-                        print(f"  [Profile] fact 寫入: {key}={val}")
+            if _profile_mgr.facts_enabled:
+                _SKIP_HARD_FACTS = {"device_brand", "device_model"}
+                hard_facts = parsed.get("hard_facts", {})
+                if hard_facts and isinstance(hard_facts, dict):
+                    for key, val in hard_facts.items():
+                        if key in _SKIP_HARD_FACTS:
+                            continue
+                        if val is not None and str(val).strip():
+                            await _profile_mgr.update_fact(user_id, key, str(val).strip())
+                            print(f"  [Profile] fact 寫入: {key}={val}")
 
             # 寫入 soft_profile（制式化 MD 檔案）
-            soft_profile = parsed.get("soft_profile", {})
-            if soft_profile and isinstance(soft_profile, dict):
-                validated = _validate_soft_facts(soft_profile)
-                if validated:
-                    existing_md = await _profile_mgr.load_profile(user_id)
-                    existing_fields = _parse_soft_profile(existing_md)
-                    merged = _merge_soft_profile(existing_fields, validated)
-                    rendered = _render_soft_profile(merged)
-                    await _profile_mgr.save_profile(user_id, rendered)
-                    print(f"  [Profile] 已更新 {user_id} 的軟輪廓: {list(validated.keys())}")
+            if _profile_mgr.enabled:
+                soft_profile = parsed.get("soft_profile", {})
+                if soft_profile and isinstance(soft_profile, dict):
+                    validated = _validate_soft_facts(soft_profile)
+                    if validated:
+                        existing_md = await _profile_mgr.load_profile(user_id)
+                        existing_fields = _parse_soft_profile(existing_md)
+                        merged = _merge_soft_profile(existing_fields, validated)
+                        rendered = _render_soft_profile(merged)
+                        await _profile_mgr.save_profile(user_id, rendered)
+                        print(f"  [Profile] 已更新 {user_id} 的軟輪廓: {list(validated.keys())}")
 
         except json.JSONDecodeError:
             print("  [Profile] JSON 解析失敗，跳過")

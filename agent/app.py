@@ -49,7 +49,7 @@ import harness.safety_gate as safety_gate
 import harness.output_validator as output_validator
 import harness.data_correction as data_correction
 
-app = FastAPI(title="Smart Lock AI Agent — Skill-Based")
+app = FastAPI(title="Smart Lock AI Agent — Product Info")
 
 # ── Global state ──
 _cfg = None
@@ -100,10 +100,11 @@ async def startup():
         "push_fallback_prefix": _cfg.templates.get("push_fallback_prefix", ""),
     })
 
-    # 初始化記憶壓縮（使用 Flash 模型加速摘要）
+    # 初始化記憶壓縮（摘要任務不需深度推理 → 低 thinking_budget）
     memory_llm = get_llm({
         "model": _cfg.memory.get("llm_model", "vertex_ai/gemini-2.5-flash"),
         "temperature": 0.2,
+        "thinking_budget": 256,
     })
     memory_manager.init(memory_llm, {
         **_cfg.memory,
@@ -113,6 +114,10 @@ async def startup():
 
     # 初始化審計日誌
     audit_storage = await get_storage(_cfg.storage)
+
+    # 注入 LLM 用量紀錄共用 storage（取代 Opik 的 token + latency 紀錄角色）
+    from harness import llm_metrics
+    llm_metrics.set_storage(audit_storage)
 
     # 初始化安全閘門 (H6)
     safety_gate.init(_cfg.safety)

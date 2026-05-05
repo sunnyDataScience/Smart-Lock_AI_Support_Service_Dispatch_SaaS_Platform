@@ -11,9 +11,12 @@
 
 from __future__ import annotations
 
+import time
+
 from langchain_core.messages import HumanMessage, SystemMessage, RemoveMessage
 
 from core.config import load_prompt
+from harness.llm_metrics import log_simple
 
 
 def _extract_text_from_content(content) -> str:
@@ -148,13 +151,34 @@ async def maybe_compress(agent, thread_id: str, user_id: str = "") -> str | None
         user_profile=user_profile or "(無用戶輪廓)",
     )
 
+    model_name = _config.get("model_name") or _config.get("compression_model") or "unknown"
+    t0 = time.monotonic()
     try:
         response = await _llm.ainvoke([
             SystemMessage(content=summarize_prompt),
             HumanMessage(content=dialogue_text),
         ])
+        latency_ms = int((time.monotonic() - t0) * 1000)
+        log_simple(
+            user_id=user_id or thread_id,
+            call_site="memory_compression",
+            model=model_name,
+            response=response,
+            latency_ms=latency_ms,
+            user_question=dialogue_text,
+            metadata={"thread_id": thread_id, "summarized_messages": len(messages_to_summarize)},
+        )
         new_summary = response.content.strip()
     except Exception as e:
+        log_simple(
+            user_id=user_id or thread_id,
+            call_site="memory_compression",
+            model=model_name,
+            latency_ms=int((time.monotonic() - t0) * 1000),
+            success=False,
+            error_type=type(e).__name__,
+            user_question=dialogue_text,
+        )
         print(f"[Memory] 摘要生成失敗: {e}")
         return None
 

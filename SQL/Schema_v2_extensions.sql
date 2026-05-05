@@ -353,3 +353,48 @@ COMMENT ON COLUMN family_reviews.action IS '覆核結果：approved（通過） 
 
 CREATE INDEX IF NOT EXISTS idx_family_reviews_tenant_created ON family_reviews (tenant_id, created_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_family_reviews_action         ON family_reviews (tenant_id, action, created_at DESC);
+
+
+-- ============================================================================
+-- llm_usage_log (取代 Opik 角色：token 使用量 + 回覆延遲度量)
+-- ============================================================================
+--
+-- 每筆紀錄對應一次 LLM 呼叫；ReAct agent 一次 ainvoke 內部多次 LLM 呼叫會逐筆寫入。
+-- DDL 同步於 agent/storage/postgres_impl.py:build_postgres_storage()，啟動時會以
+-- CREATE TABLE IF NOT EXISTS 自動建立。
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS llm_usage_log (
+    id              BIGSERIAL PRIMARY KEY,
+    timestamp       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    user_id         TEXT NOT NULL,
+    turn_id         TEXT,                                       -- 同一 user turn 多次 LLM 呼叫共用 uuid
+    call_site       VARCHAR(50) NOT NULL,                       -- react_agent_step | memory_compression |
+                                                                 -- output_validator | profile_extraction | quality_judge
+    model           VARCHAR(100) NOT NULL,
+    input_tokens    INTEGER,
+    output_tokens   INTEGER,
+    total_tokens    INTEGER,
+    latency_ms      INTEGER,
+    success         BOOLEAN NOT NULL DEFAULT TRUE,
+    error_type      VARCHAR(50),                                -- timeout | api_error | <ExceptionClass>
+    user_question   TEXT,                                       -- 使用者問題原文（react_agent 為當輪 user message；
+                                                                 -- 其他 call_site 為餵給 LLM 的提示主文）
+    ai_reply        TEXT,                                       -- AI 回覆原文（AIMessage.content / judge verdict JSON）
+    metadata        JSONB                                       -- step_index、tool_calls、thread_id 等結構化欄位
+);
+
+-- 既有資料表升級
+ALTER TABLE llm_usage_log ADD COLUMN IF NOT EXISTS user_question TEXT;
+ALTER TABLE llm_usage_log ADD COLUMN IF NOT EXISTS ai_reply      TEXT;
+
+COMMENT ON TABLE  llm_usage_log IS 'LLM 呼叫度量資料（取代 Opik token + latency 紀錄角色）';
+COMMENT ON COLUMN llm_usage_log.turn_id IS '同一 user turn 內多次 LLM 呼叫的關聯鍵（例如 ReAct 多 step）';
+COMMENT ON COLUMN llm_usage_log.call_site IS '呼叫情境，用於分桶聚合成本';
+COMMENT ON COLUMN llm_usage_log.user_question IS '使用者問題原文，不截斷不遮罩（與 audit_log.content 一致）';
+COMMENT ON COLUMN llm_usage_log.ai_reply IS 'AI 回覆原文，不截斷不遮罩；對外展示前再呼叫 _mask_pii()';
+COMMENT ON COLUMN llm_usage_log.metadata IS '結構化擴充欄位；禁止寫入訊息原文以避免 PII 洩漏';
+
+CREATE INDEX IF NOT EXISTS idx_llm_usage_timestamp ON llm_usage_log (timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_llm_usage_user_id   ON llm_usage_log (user_id, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_llm_usage_call_site ON llm_usage_log (call_site, timestamp DESC);
