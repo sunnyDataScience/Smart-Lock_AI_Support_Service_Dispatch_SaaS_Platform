@@ -16,8 +16,10 @@ import {
   X,
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
-import { ApiError, api } from "@/lib/api";
+import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
+import { ApiError, api, getCurrentSession } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
+import { useRealtimeChannel } from "@/lib/useRealtimeChannel";
 import type { components } from "@/types/api.generated";
 
 type Notification = components["schemas"]["Notification"];
@@ -158,6 +160,27 @@ export default function NotificationsPage() {
     setSelectedIds(new Set());
   }, [fetchItems]);
 
+  // 即時推送：新通知插入列表頂端、增加未讀計數
+  const userId = useMemo(() => getCurrentSession()?.userId ?? null, []);
+  const { status: rtStatus } = useRealtimeChannel<Notification>({
+    channelPath: userId ? `/realtime/notifications/${userId}` : "",
+    enabled: !!userId,
+    onMessage: (msg) => {
+      const incoming = (msg.payload ?? msg) as Notification | undefined;
+      if (!incoming?.id) return;
+      // 依 tab/type 過濾，不符合直接忽略
+      if (typeFilter !== "all" && incoming.type !== typeFilter) return;
+      const isUnread = !incoming.read_at;
+      if (tab === "unread" && !isUnread) return;
+      if (tab === "read" && isUnread) return;
+      setItems((prev) => {
+        if (prev.some((x) => x.id === incoming.id)) return prev;
+        return [incoming, ...prev];
+      });
+      if (isUnread) setUnreadCount((c) => c + 1);
+    },
+  });
+
   const selectedItem = useMemo(
     () => items.find((n) => n.id === selectedId) ?? null,
     [items, selectedId],
@@ -279,6 +302,7 @@ export default function NotificationsPage() {
                   未讀 {unreadCount}
                 </span>
               )}
+              <RealtimeIndicator status={rtStatus} />
             </div>
             <div className="flex items-center gap-2">
               <button

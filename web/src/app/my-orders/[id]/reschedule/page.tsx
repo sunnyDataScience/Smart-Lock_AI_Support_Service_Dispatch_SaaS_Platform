@@ -12,7 +12,9 @@ import {
   Send,
 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
+import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
 import { ApiError, api } from "@/lib/api";
+import { useRealtimeChannel } from "@/lib/useRealtimeChannel";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
@@ -167,6 +169,27 @@ export default function ReschedulePage() {
     fetchAvailability(selectedDate);
   }, [fetchAvailability, selectedDate]);
 
+  // 訂閱該工單即時事件：客戶 RSVP 後關閉此頁
+  const { status: rtStatus } = useRealtimeChannel<{
+    event?: string;
+    work_order?: WorkOrder;
+  }>({
+    channelPath: id ? `/realtime/work-orders/${id}` : "",
+    enabled: !!id && !submitOk,
+    onMessage: (msg) => {
+      const data = (msg.payload ?? msg) as {
+        event?: string;
+        work_order?: WorkOrder;
+      };
+      if (data.event === "reschedule_confirmed_by_customer") {
+        setSubmitOk(true);
+        setTimeout(() => router.push(`/my-orders/${id}`), 1200);
+      } else if (data.event === "reschedule_rejected_by_customer") {
+        setSubmitError("客戶已拒絕改期，請重新選擇時段");
+      }
+    },
+  });
+
   const sevenDays = useMemo(() => buildSevenDays(weekStart), [weekStart]);
 
   function shiftWeek(direction: -1 | 1) {
@@ -254,9 +277,12 @@ export default function ReschedulePage() {
           <span className="text-[11px] text-[var(--text-disabled)]">
             #{id.slice(0, 8)}
           </span>
-          <span className="text-[15px] font-semibold text-[var(--text-primary)]">
-            改期日曆
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[15px] font-semibold text-[var(--text-primary)]">
+              改期日曆
+            </span>
+            <RealtimeIndicator status={rtStatus} compact />
+          </div>
           {wo && (
             <span className="text-[12px] text-[var(--text-secondary)] line-clamp-1">
               {wo.address}

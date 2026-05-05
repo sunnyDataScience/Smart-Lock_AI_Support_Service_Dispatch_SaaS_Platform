@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Clock, MapPin, RefreshCw } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import UrgencyBadge from "@/components/tech/UrgencyBadge";
-import { ApiError, api } from "@/lib/api";
+import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
+import { ApiError, api, getCurrentSession } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
+import { useRealtimeChannel } from "@/lib/useRealtimeChannel";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
@@ -46,6 +48,37 @@ export default function PoolPage() {
     fetchPool();
   }, [fetchPool]);
 
+  const techId = useMemo(() => getCurrentSession()?.userId ?? null, []);
+
+  // 訂閱單一工單變化：他人接走時從列表移除
+  const { status: poolStatus } = useRealtimeChannel<{
+    work_order_id?: string;
+    event?: "added" | "taken" | "cancelled";
+    work_order?: WorkOrder;
+  }>({
+    channelPath: techId ? `/realtime/pool/${techId}` : "",
+    enabled: !!techId,
+    onMessage: (msg) => {
+      const data = (msg.payload ?? msg) as {
+        work_order_id?: string;
+        event?: "added" | "taken" | "cancelled";
+        work_order?: WorkOrder;
+      };
+      if (data.event === "added" && data.work_order) {
+        setItems((prev) =>
+          prev.some((x) => x.id === data.work_order!.id)
+            ? prev
+            : [data.work_order!, ...prev],
+        );
+      } else if (
+        (data.event === "taken" || data.event === "cancelled") &&
+        data.work_order_id
+      ) {
+        setItems((prev) => prev.filter((x) => x.id !== data.work_order_id));
+      }
+    },
+  });
+
   async function acceptOrder(wo: WorkOrder) {
     if (accepting) return;
     setAccepting(wo.id);
@@ -78,7 +111,10 @@ export default function PoolPage() {
       {/* Page Header */}
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border)] bg-white px-4 py-3">
         <div>
-          <h1 className="text-[18px] font-semibold text-[#1E293B]">案件池</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-[18px] font-semibold text-[#1E293B]">案件池</h1>
+            <RealtimeIndicator status={poolStatus} compact />
+          </div>
           <p className="text-[12px] text-[var(--text-secondary)]">
             {loading ? "載入中…" : `${items.length} 件可接工單`}
           </p>

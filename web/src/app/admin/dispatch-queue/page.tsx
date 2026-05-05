@@ -13,7 +13,9 @@ import {
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import DispatchQueueTable from "@/components/dispatch-queue/DispatchQueueTable";
+import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
 import { ApiError, api } from "@/lib/api";
+import { useRealtimeChannel } from "@/lib/useRealtimeChannel";
 import type { components } from "@/types/api.generated";
 
 type DispatchQueueSnapshot = components["schemas"]["DispatchQueueSnapshot"];
@@ -118,6 +120,14 @@ export default function DispatchQueuePage() {
     fetchAll();
   }, []);
 
+  // 派工佇列即時更新：收到任何事件就重抓 snapshot（最簡實作；後續可改為 patch state）
+  const { status: rtStatus } = useRealtimeChannel({
+    channelPath: "/realtime/dispatch-queue",
+    onMessage: () => {
+      fetchAll();
+    },
+  });
+
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
       <Sidebar />
@@ -146,6 +156,7 @@ export default function DispatchQueuePage() {
                   />
                   {error ? "連線失敗" : "已連線"}
                 </span>
+                <RealtimeIndicator status={rtStatus} />
               </div>
             </div>
             <div className="flex items-center gap-3">
