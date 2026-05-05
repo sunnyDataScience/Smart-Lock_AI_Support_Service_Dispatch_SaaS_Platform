@@ -216,6 +216,37 @@ _RESCHEDULE_FROM = {"assigned", "accepted", "in_progress"}
 _RESCHEDULE_LIMIT_24H = 3
 
 
+async def _publish_and_return(
+    *, tenant_id: str, wo_id: str, event_type: str
+) -> dict:
+    """共用：fetch 最新 order → 推 work-orders/{id} 事件 + dispatch-queue 變化通知 → 回傳。"""
+    order = await get_order(tenant_id=tenant_id, wo_id=wo_id)
+    try:
+        from realtime.ws_hub import hub  # 延遲 import 避免循環
+
+        await hub.publish(
+            f"/realtime/work-orders/{wo_id}",
+            {
+                "type": event_type,
+                "payload": {"event": event_type, "work_order": order},
+            },
+        )
+        await hub.publish(
+            "/realtime/dispatch-queue",
+            {
+                "type": "work_order.state_change",
+                "payload": {
+                    "work_order_id": wo_id,
+                    "event": event_type,
+                    "status": order.get("status"),
+                },
+            },
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("ws publish work_order state failed (non-fatal)")
+    return order
+
+
 async def _fetch_status_for_update(wo_id: str, tenant_id: str) -> str:
     """Fetch current DB status with tenant guard. Raises NOT_FOUND if missing."""
     cur = await db_module._conn.execute(
@@ -245,7 +276,9 @@ async def accept_order(*, tenant_id: str, wo_id: str) -> dict:
         "WHERE id = %s::uuid",
         (wo_id,),
     )
-    return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+    return await _publish_and_return(
+        tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.accepted"
+    )
 
 
 async def complete_order(
@@ -282,7 +315,9 @@ async def complete_order(
         "WHERE id = %s::uuid",
         (summary, final_price, wo_id),
     )
-    return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+    return await _publish_and_return(
+        tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.completed"
+    )
 
 
 async def cancel_order(
@@ -316,7 +351,9 @@ async def cancel_order(
             "WHERE id = %s::uuid",
             (wo_id,),
         )
-    return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+    return await _publish_and_return(
+        tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.cancelled"
+    )
 
 
 async def assign_order(
@@ -373,7 +410,9 @@ async def assign_order(
         "WHERE id = %s::uuid",
         (technician_id, note, wo_id),
     )
-    return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+    return await _publish_and_return(
+        tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.assigned"
+    )
 
 
 async def escalate_order(
@@ -421,7 +460,9 @@ async def escalate_order(
         "WHERE id = %s::uuid",
         (note, wo_id),
     )
-    return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+    return await _publish_and_return(
+        tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.escalated"
+    )
 
 
 async def confirm_order(
@@ -464,7 +505,9 @@ async def confirm_order(
         "WHERE id = %s::uuid",
         (rating, feedback_clean, wo_id),
     )
-    return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+    return await _publish_and_return(
+        tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.confirmed"
+    )
 
 
 async def propose_reschedule(
@@ -586,7 +629,9 @@ async def propose_reschedule(
         "WHERE id = %s::uuid",
         (new_start, note, wo_id),
     )
-    return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+    return await _publish_and_return(
+        tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.rescheduled"
+    )
 
 
 async def get_dispatch_queue_snapshot(*, tenant_id: str) -> dict:
@@ -703,7 +748,11 @@ async def _append_subflow_event(
         "WHERE id = %s::uuid",
         (line, wo_id),
     )
-    return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+    return await _publish_and_return(
+        tenant_id=tenant_id,
+        wo_id=wo_id,
+        event_type=f"work_order.subflow.{tag.lower()}",
+    )
 
 
 async def record_scope_change(
