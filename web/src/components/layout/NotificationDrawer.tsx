@@ -337,6 +337,17 @@ export default function NotificationDrawer({
             </div>
           )}
         </div>
+
+        <div className="border-t border-[var(--border)] px-5 py-3">
+          <Link
+            href="/notifications"
+            onClick={onClose}
+            className="flex items-center justify-center gap-1 rounded-md py-2 text-[13px] font-medium text-[var(--primary)] hover:bg-[#EFF6FF]"
+          >
+            查看全部通知
+            <ExternalLink className="h-[14px] w-[14px]" />
+          </Link>
+        </div>
       </aside>
     </>
   );
