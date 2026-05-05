@@ -4,12 +4,12 @@ import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Camera,
-  AlertCircle,
   CheckCircle2,
   Image as ImageIcon,
 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import SubflowHeader from "@/components/tech/SubflowHeader";
+import { ApiError, api } from "@/lib/api";
 
 const CHECKLIST = [
   { key: "frame_intact", label: "門框完整無變形" },
@@ -30,6 +30,7 @@ export default function DoorCheckPage() {
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitOk, setSubmitOk] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   function toggleCheck(key: string) {
     setChecked((prev) => {
@@ -58,12 +59,38 @@ export default function DoorCheckPage() {
   async function submit() {
     if (!canSubmit) return;
     setSubmitting(true);
+    setSubmitError(null);
     try {
-      // 後端 API 待補：POST /api/v1/work-orders/{id}/door-check
-      // body: { checklist, photos_before, photos_after, notes }
-      await new Promise((r) => setTimeout(r, 1000));
+      const checklistObj = CHECKLIST.reduce<Record<string, boolean>>(
+        (acc, item) => {
+          acc[item.key] = checked.has(item.key);
+          return acc;
+        },
+        {},
+      );
+      await api.post(
+        `/api/v1/work-orders/${encodeURIComponent(id)}/door-check`,
+        {
+          checklist: checklistObj,
+          photos_before: photos
+            .filter((p) => p.section === "before")
+            .map((p) => p.name),
+          photos_after: photos
+            .filter((p) => p.section === "after")
+            .map((p) => p.name),
+          notes: notes.trim() || undefined,
+        },
+      );
       setSubmitOk(true);
       setTimeout(() => router.push(`/my-orders/${id}/signature`), 1500);
+    } catch (e) {
+      setSubmitError(
+        e instanceof ApiError
+          ? `${e.errorCode} (${e.status})：${e.message}`
+          : e instanceof Error
+            ? e.message
+            : String(e),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -80,9 +107,13 @@ export default function DoorCheckPage() {
         </div>
       )}
 
-      <div className="m-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
-        <AlertCircle className="mr-1 inline h-3 w-3" />
-        後端 `/door-check` API 與媒體上傳待補（目前只記錄檔名 placeholder）
+      {submitError && (
+        <div className="m-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+          {submitError}
+        </div>
+      )}
+      <div className="mx-4 mt-4 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
+        備註：媒體上傳 endpoint 尚未上線，photos 欄位目前傳遞檔名字串 placeholder
       </div>
 
       <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">

@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { CalendarClock, ArrowRight, AlertCircle, CheckCircle2 } from "lucide-react";
+import { CalendarClock, ArrowRight, CheckCircle2 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import SubflowHeader from "@/components/tech/SubflowHeader";
+import { ApiError, api } from "@/lib/api";
 
 const DELAY_OPTIONS = [
   { value: 15, label: "+15 分鐘" },
@@ -35,16 +36,29 @@ export default function DelayPage() {
   );
   const [submitting, setSubmitting] = useState(false);
   const [submitOk, setSubmitOk] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   async function submit() {
     if (submitting) return;
     setSubmitting(true);
+    setSubmitError(null);
     try {
-      // 後端 API 待補：POST /api/v1/work-orders/{id}/delay
-      // body: { delay_minutes, reason, reason_text, notify }
-      await new Promise((r) => setTimeout(r, 800));
+      await api.post(`/api/v1/work-orders/${encodeURIComponent(id)}/delay`, {
+        delay_minutes: delayMinutes,
+        reason,
+        reason_text: reason === "其他" ? reasonText.trim() : undefined,
+        notify,
+      });
       setSubmitOk(true);
       setTimeout(() => router.push(`/my-orders/${id}`), 1500);
+    } catch (e) {
+      setSubmitError(
+        e instanceof ApiError
+          ? `${e.errorCode} (${e.status})：${e.message}`
+          : e instanceof Error
+            ? e.message
+            : String(e),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -61,10 +75,11 @@ export default function DelayPage() {
         </div>
       )}
 
-      <div className="m-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
-        <AlertCircle className="mr-1 inline h-3 w-3" />
-        後端 `/delay` API 待補。若需重新預約時段請改用「改期」流程。
-      </div>
+      {submitError && (
+        <div className="m-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+          {submitError}
+        </div>
+      )}
 
       <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">

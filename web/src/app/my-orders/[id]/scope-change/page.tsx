@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Plus, Trash2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, CheckCircle2 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import SubflowHeader from "@/components/tech/SubflowHeader";
+import { ApiError, api } from "@/lib/api";
 
 interface ScopeItem {
   id: string;
@@ -64,14 +65,28 @@ export default function ScopeChangePage() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      // 後端 API 待補：POST /api/v1/work-orders/{id}/scope-change
-      // body: { reason, items: [{ name, unit_price, quantity }], total_estimate }
-      // MVP：模擬 1.2 秒延遲後成功
-      await new Promise((r) => setTimeout(r, 1200));
+      await api.post(
+        `/api/v1/work-orders/${encodeURIComponent(id)}/scope-change`,
+        {
+          reason: reason.trim(),
+          items: items.map((it) => ({
+            name: it.name.trim(),
+            unit_price: it.unit_price.trim(),
+            quantity: it.quantity,
+          })),
+          total_estimate: total > 0 ? total.toFixed(2) : undefined,
+        },
+      );
       setSubmitOk(true);
       setTimeout(() => router.push(`/my-orders/${id}`), 1500);
     } catch (e) {
-      setSubmitError(e instanceof Error ? e.message : String(e));
+      setSubmitError(
+        e instanceof ApiError
+          ? `${e.errorCode} (${e.status})：${e.message}`
+          : e instanceof Error
+            ? e.message
+            : String(e),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -87,11 +102,6 @@ export default function ScopeChangePage() {
           範圍變更已送出，等候客戶核准
         </div>
       )}
-
-      <div className="m-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
-        <AlertCircle className="mr-1 inline h-3 w-3" />
-        後端 `/scope-change` API 待補，目前為前端表單預覽
-      </div>
 
       <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">

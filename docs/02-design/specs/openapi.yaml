@@ -333,6 +333,171 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApiErrorResponse'
 
+  /api/v1/work-orders/{id}/scope-change:
+    post:
+      tags: [dispatch]
+      summary: 範圍變更申請（T5；技師作業中→記錄事件）
+      description: 技師現場發現需追加工項時記錄申請。MVP 僅 prepend 到 service_report，等待客戶核准的流程後續迭代。
+      operationId: recordScopeChange
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason, items]
+              properties:
+                reason:
+                  type: string
+                  minLength: 10
+                  maxLength: 500
+                items:
+                  type: array
+                  minItems: 1
+                  maxItems: 20
+                  items:
+                    type: object
+                    required: [name, unit_price, quantity]
+                    properties:
+                      name: { type: string, minLength: 1, maxLength: 80 }
+                      unit_price: { type: string, maxLength: 20 }
+                      quantity: { type: integer, minimum: 1, maximum: 999 }
+                total_estimate: { type: string, maxLength: 20, nullable: true }
+      responses:
+        '200':
+          description: 範圍變更已記錄
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderEnvelope'
+        '409':
+          description: 狀態不允許（須為 assigned/accepted/in_progress）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/v1/work-orders/{id}/material-request:
+    post:
+      tags: [dispatch]
+      summary: 缺料回報（T6；等待調度員協調補料）
+      operationId: recordMaterialRequest
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items, urgency]
+              properties:
+                items:
+                  type: array
+                  minItems: 1
+                  maxItems: 20
+                  items:
+                    type: object
+                    required: [brand, model, quantity]
+                    properties:
+                      brand: { type: string, minLength: 1, maxLength: 40 }
+                      model: { type: string, minLength: 1, maxLength: 80 }
+                      quantity: { type: integer, minimum: 1, maximum: 999 }
+                urgency:
+                  type: string
+                  enum: [now, today, tomorrow]
+                  default: today
+                note: { type: string, maxLength: 500, nullable: true }
+      responses:
+        '200':
+          description: 缺料回報已記錄
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderEnvelope'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/work-orders/{id}/delay:
+    post:
+      tags: [dispatch]
+      summary: 延遲通知（T7；技師作業中→延遲時長與通知對象）
+      operationId: recordDelay
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [delay_minutes, reason]
+              properties:
+                delay_minutes: { type: integer, minimum: 5, maximum: 300 }
+                reason: { type: string, minLength: 1, maxLength: 80 }
+                reason_text: { type: string, maxLength: 500, nullable: true }
+                notify:
+                  type: string
+                  enum: [customer_only, customer_and_staff]
+                  default: customer_only
+      responses:
+        '200':
+          description: 延遲通知已記錄
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderEnvelope'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/work-orders/{id}/door-check:
+    post:
+      tags: [dispatch]
+      summary: 門面外觀檢核（T8；作業前後拍照 + checklist）
+      description: 技師現場拍前後照、勾完 checklist 後提交。photos 為媒體 URL（後續 v2 改為媒體 endpoint upload 後傳 URL）。
+      operationId: recordDoorCheck
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                checklist:
+                  type: object
+                  description: 任意 key→bool 的檢核項目集合
+                  additionalProperties: { type: boolean }
+                photos_before:
+                  type: array
+                  maxItems: 10
+                  items: { type: string }
+                photos_after:
+                  type: array
+                  maxItems: 10
+                  items: { type: string }
+                notes: { type: string, maxLength: 500, nullable: true }
+      responses:
+        '200':
+          description: 檢核已記錄
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderEnvelope'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
   /api/v1/work-orders/pool:
     get:
       tags: [dispatch]
