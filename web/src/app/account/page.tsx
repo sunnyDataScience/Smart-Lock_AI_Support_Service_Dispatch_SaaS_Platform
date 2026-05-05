@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Bell,
+  CalendarDays,
   ChevronRight,
   CircleUser,
   LogOut,
@@ -241,6 +243,19 @@ export default function AccountPage() {
 
       {/* settings_section */}
       <section className="mx-4 mt-4 mb-6 overflow-hidden rounded-xl border border-[var(--border)] bg-white shadow-sm">
+        <Link
+          href="/account/schedule"
+          className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[var(--bg-page)]"
+        >
+          <div className="flex items-center gap-3">
+            <CalendarDays className="h-4 w-4 text-[var(--text-secondary)]" />
+            <span className="text-[14px] font-medium text-[var(--text-primary)]">
+              我的排班
+            </span>
+          </div>
+          <ChevronRight className="h-4 w-4 text-[var(--text-disabled)]" />
+        </Link>
+        <div className="border-t border-[var(--border)]" />
         <button
           type="button"
           disabled
