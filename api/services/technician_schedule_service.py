@@ -371,13 +371,13 @@ async def resolve_schedule_request(
         "  resolved_at = NOW(), "
         "  updated_at = NOW() "
         "WHERE id = %s::uuid "
-        "RETURNING id, type, start_date, end_date, reason, status, created_at, resolved_at",
+        "RETURNING id, type, start_date, end_date, reason, status, created_at, resolved_at, technician_user_id",
         (decision, resolver_user_id, note, request_id),
     )
     r = await cur.fetchone()
     if not r:
         raise ApiError("INTERNAL", "Failed to update request", 500)
-    return {
+    result = {
         "id": str(r[0]),
         "type": r[1],
         "start_date": r[2].isoformat(),
@@ -390,3 +390,74 @@ async def resolve_schedule_request(
         ),
         "resolution_note": note,
     }
+    technician_user_id = str(r[8])
+
+    # 寫 notifications 表（持久化）+ 透過 WS hub 即時推給技師（best-effort）
+    try:
+        await _notify_schedule_resolved(
+            tenant_id=tenant_id,
+            technician_user_id=technician_user_id,
+            request=result,
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("notify_schedule_resolved failed (non-fatal)")
+
+    return result
+
+
+async def _notify_schedule_resolved(
+    *, tenant_id: str, technician_user_id: str, request: dict
+) -> None:
+    """approve/reject 後通知該技師。寫 notifications 表 + WS hub 即時推送。"""
+    type_label = "休假" if request["type"] == "leave" else "備勤"
+    decision_label = "已核准" if request["status"] == "approved" else "已拒絕"
+    severity = "info" if request["status"] == "approved" else "warning"
+    title = f"{type_label}申請{decision_label}"
+    body = (
+        f"{request['start_date']} ~ {request['end_date']} 的{type_label}申請"
+        f"{decision_label}"
+    )
+    if request.get("resolution_note"):
+        body += f"。備註：{request['resolution_note']}"
+
+    # 寫入 notifications 表（fallback：前端 polling 也能拿到）
+    notif_id = None
+    try:
+        import uuid as _uuid
+
+        notif_id = str(_uuid.uuid4())
+        await db_module._conn.execute(
+            "INSERT INTO notifications "
+            "  (id, tenant_id, user_id, type, severity, title, body, source) "
+            "VALUES (%s::uuid, %s::uuid, %s::uuid, 'system', %s, %s, %s, 'system')",
+            (notif_id, tenant_id, technician_user_id, severity, title, body),
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("insert notification row failed (non-fatal)")
+
+    # 即時推送到該技師的 WS channel
+    try:
+        from realtime.ws_hub import hub
+
+        await hub.publish(
+            f"/realtime/notifications/{technician_user_id}",
+            {
+                "type": "notification",
+                "payload": {
+                    "id": notif_id,
+                    "type": "system",
+                    "severity": severity,
+                    "title": title,
+                    "body": body,
+                    "source": "system",
+                    "created_at": datetime.now().isoformat(),
+                    "related_entity": {
+                        "type": "schedule_request",
+                        "id": request["id"],
+                        "url": "/account/schedule",
+                    },
+                },
+            },
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("ws publish failed (non-fatal)")

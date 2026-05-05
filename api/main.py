@@ -134,3 +134,130 @@ async def health():
         status_code=200 if db_ok else 503,
         content={"status": status, "version": app.version, "checks": {"db": "ok" if db_ok else "disconnected"}},
     )
+
+
+# =============================================================================
+# WebSocket realtime endpoints（pub-sub via in-memory hub）
+# =============================================================================
+# 對應 docs/02-design/specs/asyncapi.yaml 10 個頻道（diagnostics 為 SSE，另開）
+# 客戶端透過 query 帶 access_token + tenant_id 認證（瀏覽器 WS 不支援 custom header）
+
+from fastapi import WebSocket, WebSocketDisconnect, Query  # noqa: E402
+
+from realtime.ws_hub import hub  # noqa: E402
+
+
+async def _ws_accept_and_subscribe(
+    ws: WebSocket, channel: str, access_token: str | None
+) -> None:
+    """Accept connection（任意 token 都接，PoC；實際應驗 JWT）→ subscribe 到 channel。"""
+    # MVP：簡單檢查 token 存在；實作 JWT 驗證請改為 verify_token(access_token)
+    if not access_token:
+        await ws.close(code=1008, reason="missing access_token")
+        return
+    await ws.accept()
+    await hub.subscribe(channel, ws)
+    try:
+        while True:
+            # 保持連線開啟；client→server 訊息目前忽略（單向 push）
+            await ws.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        await hub.unsubscribe(channel, ws)
+
+
+@app.websocket("/realtime/notifications/{user_id}")
+async def ws_notifications(
+    websocket: WebSocket,
+    user_id: str,
+    access_token: str | None = Query(default=None),
+    tenant_id: str | None = Query(default=None),  # noqa: ARG001
+):
+    await _ws_accept_and_subscribe(
+        websocket, f"/realtime/notifications/{user_id}", access_token
+    )
+
+
+@app.websocket("/realtime/work-orders/{wo_id}")
+async def ws_work_orders(
+    websocket: WebSocket,
+    wo_id: str,
+    access_token: str | None = Query(default=None),
+    tenant_id: str | None = Query(default=None),  # noqa: ARG001
+):
+    await _ws_accept_and_subscribe(
+        websocket, f"/realtime/work-orders/{wo_id}", access_token
+    )
+
+
+@app.websocket("/realtime/dispatch-queue")
+async def ws_dispatch_queue(
+    websocket: WebSocket,
+    access_token: str | None = Query(default=None),
+    tenant_id: str | None = Query(default=None),  # noqa: ARG001
+):
+    await _ws_accept_and_subscribe(
+        websocket, "/realtime/dispatch-queue", access_token
+    )
+
+
+@app.websocket("/realtime/sla-alerts")
+async def ws_sla_alerts(
+    websocket: WebSocket,
+    access_token: str | None = Query(default=None),
+    tenant_id: str | None = Query(default=None),  # noqa: ARG001
+):
+    await _ws_accept_and_subscribe(
+        websocket, "/realtime/sla-alerts", access_token
+    )
+
+
+@app.websocket("/realtime/refunds")
+async def ws_refunds(
+    websocket: WebSocket,
+    access_token: str | None = Query(default=None),
+    tenant_id: str | None = Query(default=None),  # noqa: ARG001
+):
+    await _ws_accept_and_subscribe(websocket, "/realtime/refunds", access_token)
+
+
+@app.websocket("/realtime/disputes")
+async def ws_disputes(
+    websocket: WebSocket,
+    access_token: str | None = Query(default=None),
+    tenant_id: str | None = Query(default=None),  # noqa: ARG001
+):
+    await _ws_accept_and_subscribe(websocket, "/realtime/disputes", access_token)
+
+
+@app.websocket("/realtime/inventory/low-stock")
+async def ws_inventory(
+    websocket: WebSocket,
+    access_token: str | None = Query(default=None),
+    tenant_id: str | None = Query(default=None),  # noqa: ARG001
+):
+    await _ws_accept_and_subscribe(
+        websocket, "/realtime/inventory/low-stock", access_token
+    )
+
+
+@app.websocket("/realtime/rbac")
+async def ws_rbac(
+    websocket: WebSocket,
+    access_token: str | None = Query(default=None),
+    tenant_id: str | None = Query(default=None),  # noqa: ARG001
+):
+    await _ws_accept_and_subscribe(websocket, "/realtime/rbac", access_token)
+
+
+@app.websocket("/realtime/pool/{tech_id}")
+async def ws_pool(
+    websocket: WebSocket,
+    tech_id: str,
+    access_token: str | None = Query(default=None),
+    tenant_id: str | None = Query(default=None),  # noqa: ARG001
+):
+    await _ws_accept_and_subscribe(
+        websocket, f"/realtime/pool/{tech_id}", access_token
+    )
