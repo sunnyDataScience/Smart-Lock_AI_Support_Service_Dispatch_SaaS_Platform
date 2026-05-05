@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronLeft, Plus } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import ChatTimeline from "@/components/conversations/ChatTimeline";
+import DiagnosticReasoningPanel from "@/components/conversations/DiagnosticReasoningPanel";
 import { ApiError, api } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import type { components } from "@/types/api.generated";
@@ -225,6 +226,8 @@ export default function ConversationDetailPage({
             <ChatTimeline messages={messages} loading={loading} />
 
             <aside className="flex w-[380px] flex-col gap-4 overflow-auto border-l border-[var(--border)] bg-[var(--bg-surface)] p-6">
+              <DiagnosticReasoningPanel conversationId={id} />
+
               <div className="flex flex-col gap-3 rounded-lg border-[1.5px] border-[#E4E4E7] bg-[var(--bg-surface)] p-4">
                 <h3 className="text-[14px] font-semibold text-[#18181B]">客戶資訊</h3>
                 <div className="flex flex-col gap-2">
