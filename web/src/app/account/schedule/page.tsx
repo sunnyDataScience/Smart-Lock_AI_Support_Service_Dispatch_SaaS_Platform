@@ -1,39 +1,45 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Plus,
   Trash2,
-  AlertCircle,
   CheckCircle2,
   Clock,
   X,
 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
-
-type DayMeta = {
-  date: string; // YYYY-MM-DD
-  work_orders?: number;
-  leave?: boolean;
-  standby?: boolean;
-};
+import { ApiError, api } from "@/lib/api";
 
 type RequestItem = {
   id: string;
   type: "leave" | "standby";
-  start: string;
-  end: string;
+  start_date: string;
+  end_date: string;
   reason: string;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "cancelled";
   created_at: string;
 };
 
-const MOCK_DAY_META: Record<string, Partial<DayMeta>> = {};
+interface ScheduleResponse {
+  month: string;
+  work_orders_per_day: Record<string, number>;
+  leave_days: string[];
+  standby_days: string[];
+  pending_requests: RequestItem[];
+}
+
+function formatErr(e: unknown): string {
+  return e instanceof ApiError
+    ? `${e.errorCode} (${e.status})：${e.message}`
+    : e instanceof Error
+      ? e.message
+      : String(e);
+}
 
 function toDateKey(d: Date): string {
   const y = d.getFullYear();
@@ -74,9 +80,15 @@ export default function SchedulePage() {
     month: today.getMonth(),
   });
 
-  const [dayMeta] = useState<Record<string, Partial<DayMeta>>>(MOCK_DAY_META);
+  const [workOrdersPerDay, setWorkOrdersPerDay] = useState<
+    Record<string, number>
+  >({});
+  const [leaveDays, setLeaveDays] = useState<Set<string>>(new Set());
+  const [standbyDays, setStandbyDays] = useState<Set<string>>(new Set());
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [closeToday, setCloseToday] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [modalType, setModalType] = useState<"leave" | "standby" | null>(null);
   const [formStart, setFormStart] = useState("");
@@ -89,6 +101,31 @@ export default function SchedulePage() {
     () => buildMonthGrid(cursor.year, cursor.month),
     [cursor],
   );
+
+  const monthQuery = `${cursor.year}-${String(cursor.month + 1).padStart(2, "0")}`;
+
+  const fetchSchedule = useCallback(async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const res = await api.get<ScheduleResponse>(
+        "/api/v1/technicians/me/schedule",
+        { query: { month: monthQuery } },
+      );
+      setWorkOrdersPerDay(res.work_orders_per_day ?? {});
+      setLeaveDays(new Set(res.leave_days ?? []));
+      setStandbyDays(new Set(res.standby_days ?? []));
+      setRequests(res.pending_requests ?? []);
+    } catch (e) {
+      setErrorMsg(formatErr(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [monthQuery]);
+
+  useEffect(() => {
+    fetchSchedule();
+  }, [fetchSchedule]);
 
   function shiftMonth(direction: -1 | 1) {
     setCursor((prev) => {
@@ -106,51 +143,58 @@ export default function SchedulePage() {
 
   async function submitRequest() {
     if (submitting) return;
-    if (!formStart || !formEnd || formReason.trim().length < 5) return;
+    if (!formStart || !formEnd || formReason.trim().length < 5 || !modalType)
+      return;
     setSubmitting(true);
     try {
-      // 後端 API 待補：
-      // POST /api/v1/technicians/me/schedule/leave-request
-      // POST /api/v1/technicians/me/schedule/standby-request
-      await new Promise((r) => setTimeout(r, 800));
-      setRequests((prev) => [
-        {
-          id: `req-${Date.now()}`,
-          type: modalType!,
-          start: formStart,
-          end: formEnd,
-          reason: formReason.trim(),
-          status: "pending",
-          created_at: new Date().toISOString(),
-        },
-        ...prev,
-      ]);
+      const path =
+        modalType === "leave"
+          ? "/api/v1/technicians/me/schedule/leave-request"
+          : "/api/v1/technicians/me/schedule/standby-request";
+      const created = await api.post<RequestItem>(path, {
+        start_date: formStart,
+        end_date: formEnd,
+        reason: formReason.trim(),
+      });
+      setRequests((prev) => [created, ...prev]);
       setModalType(null);
       setActionMsg(
         `${modalType === "leave" ? "休假" : "備勤"}申請已送出，等候管理員審核`,
       );
       setTimeout(() => setActionMsg(null), 3000);
+    } catch (e) {
+      setErrorMsg(formatErr(e));
     } finally {
       setSubmitting(false);
     }
   }
 
-  function cancelRequest(id: string) {
+  async function cancelRequest(id: string) {
     if (!window.confirm("確定取消此申請？")) return;
-    // 後端 API 待補：DELETE /api/v1/technicians/me/schedule/request/{id}
-    setRequests((prev) => prev.filter((r) => r.id !== id));
-    setActionMsg("已取消申請");
-    setTimeout(() => setActionMsg(null), 2000);
+    try {
+      await api.delete(
+        `/api/v1/technicians/me/schedule/request/${encodeURIComponent(id)}`,
+      );
+      setRequests((prev) => prev.filter((r) => r.id !== id));
+      setActionMsg("已取消申請");
+      setTimeout(() => setActionMsg(null), 2000);
+    } catch (e) {
+      setErrorMsg(formatErr(e));
+    }
   }
 
-  function toggleCloseToday() {
-    setCloseToday((v) => !v);
-    setActionMsg(
-      !closeToday
-        ? "本日接單已關閉（後端 API 待補）"
-        : "本日接單已恢復",
-    );
-    setTimeout(() => setActionMsg(null), 2000);
+  async function toggleCloseToday() {
+    const newState = !closeToday;
+    try {
+      await api.patch("/api/v1/technicians/me/availability", {
+        online_state: newState ? "offline" : "available",
+      });
+      setCloseToday(newState);
+      setActionMsg(newState ? "本日接單已關閉" : "本日接單已恢復");
+      setTimeout(() => setActionMsg(null), 2000);
+    } catch (e) {
+      setErrorMsg(formatErr(e));
+    }
   }
 
   const monthLabel = `${cursor.year} 年 ${cursor.month + 1} 月`;
@@ -186,11 +230,11 @@ export default function SchedulePage() {
         </div>
       )}
 
-      <div className="m-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
-        <AlertCircle className="mr-1 inline h-3 w-3" />
-        後端排班 API（schedule / leave-request / standby-request）待補，
-        目前資料為前端 mock。
-      </div>
+      {errorMsg && (
+        <div className="m-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+          {errorMsg}
+        </div>
+      )}
 
       {/* 月份切換 + 配額摘要 */}
       <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
@@ -234,8 +278,8 @@ export default function SchedulePage() {
               本月工單
             </span>
             <span className="text-[16px] font-bold text-[var(--text-primary)]">
-              {Object.values(dayMeta).reduce(
-                (sum, m) => sum + (m.work_orders ?? 0),
+              {Object.values(workOrdersPerDay).reduce(
+                (sum, n) => sum + (n ?? 0),
                 0,
               )}
             </span>
@@ -256,7 +300,9 @@ export default function SchedulePage() {
           ))}
           {grid.map((d) => {
             const key = toDateKey(d);
-            const meta = dayMeta[key];
+            const isLeave = leaveDays.has(key);
+            const isStandby = standbyDays.has(key);
+            const woCount = workOrdersPerDay[key];
             const isCurrentMonth = d.getMonth() === cursor.month;
             const isToday = key === todayKey;
             return (
@@ -269,17 +315,17 @@ export default function SchedulePage() {
                       ? "border border-[var(--primary)] font-bold text-[var(--primary)]"
                       : "text-[var(--text-primary)]"
                 } ${
-                  meta?.leave
+                  isLeave
                     ? "bg-[#FEF3C7]"
-                    : meta?.standby
+                    : isStandby
                       ? "bg-[#DBEAFE]"
                       : ""
                 }`}
               >
                 <span>{d.getDate()}</span>
-                {meta?.work_orders ? (
+                {woCount ? (
                   <span className="absolute right-[2px] top-[2px] rounded-full bg-[var(--primary)] px-[3px] text-[8px] font-bold text-white">
-                    {meta.work_orders}
+                    {woCount}
                   </span>
                 ) : null}
               </div>
@@ -382,7 +428,7 @@ export default function SchedulePage() {
                       {r.type === "leave" ? "休假" : "備勤"}
                     </span>
                     <span className="text-[12px] text-[var(--text-secondary)]">
-                      {r.start} ～ {r.end}
+                      {r.start_date} ～ {r.end_date}
                     </span>
                   </div>
                   <span className="text-[12px] text-[var(--text-primary)]">

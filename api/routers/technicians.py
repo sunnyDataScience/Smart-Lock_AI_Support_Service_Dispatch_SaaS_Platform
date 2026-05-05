@@ -122,3 +122,114 @@ async def get_technician(
         tenant_id=user.tenant_id, technician_id=id,
     )
     return {"data": Technician(**technician).model_dump(mode="json")}
+
+
+# =============================================================================
+# T10 排班 + PATCH availability
+# =============================================================================
+
+from typing import Literal as _Literal  # noqa: E402
+
+from fastapi import Body  # noqa: E402
+from pydantic import BaseModel as _BaseModel, Field as _Field  # noqa: E402
+
+from services import technician_schedule_service  # noqa: E402
+
+
+class _AvailabilityPatchRequest(_BaseModel):
+    online_state: _Literal[
+        "available", "busy", "offline", "on_leave", "circuit_breaker_open"
+    ]
+
+
+class _ScheduleRequestBody(_BaseModel):
+    start_date: str = _Field(..., description="YYYY-MM-DD")
+    end_date: str = _Field(..., description="YYYY-MM-DD")
+    reason: str = _Field(..., min_length=5, max_length=500)
+
+
+@router.patch(
+    "/technicians/me/availability",
+    operation_id="updateMyAvailability",
+    summary="切換在線狀態（available / busy / offline / on_leave / circuit_breaker_open）",
+)
+async def update_my_availability(
+    body: _AvailabilityPatchRequest,
+    user: CurrentUser = Depends(_technician_only),
+) -> dict:
+    result = await technician_schedule_service.update_my_online_state(
+        tenant_id=user.tenant_id,
+        user_id=user.user_id,
+        online_state=body.online_state,
+    )
+    return {"data": result}
+
+
+@router.get(
+    "/technicians/me/schedule",
+    operation_id="getMySchedule",
+    summary="取得當月排班（每日工單數 + 休假/備勤標記 + 待審核申請）",
+)
+async def get_my_schedule(
+    month: str = Query(..., description="YYYY-MM"),
+    user: CurrentUser = Depends(_technician_only),
+) -> dict:
+    return await technician_schedule_service.get_my_schedule(
+        tenant_id=user.tenant_id,
+        user_id=user.user_id,
+        month_str=month,
+    )
+
+
+@router.post(
+    "/technicians/me/schedule/leave-request",
+    operation_id="createLeaveRequest",
+    summary="申請休假",
+)
+async def create_leave_request(
+    body: _ScheduleRequestBody,
+    user: CurrentUser = Depends(_technician_only),
+) -> dict:
+    return await technician_schedule_service.create_schedule_request(
+        tenant_id=user.tenant_id,
+        user_id=user.user_id,
+        request_type="leave",
+        start_date_str=body.start_date,
+        end_date_str=body.end_date,
+        reason=body.reason,
+    )
+
+
+@router.post(
+    "/technicians/me/schedule/standby-request",
+    operation_id="createStandbyRequest",
+    summary="申請備勤",
+)
+async def create_standby_request(
+    body: _ScheduleRequestBody,
+    user: CurrentUser = Depends(_technician_only),
+) -> dict:
+    return await technician_schedule_service.create_schedule_request(
+        tenant_id=user.tenant_id,
+        user_id=user.user_id,
+        request_type="standby",
+        start_date_str=body.start_date,
+        end_date_str=body.end_date,
+        reason=body.reason,
+    )
+
+
+@router.delete(
+    "/technicians/me/schedule/request/{request_id}",
+    operation_id="cancelScheduleRequest",
+    summary="取消待審核申請",
+)
+async def cancel_schedule_request(
+    request_id: str = Path(),
+    user: CurrentUser = Depends(_technician_only),
+) -> dict:
+    return await technician_schedule_service.cancel_schedule_request(
+        tenant_id=user.tenant_id,
+        user_id=user.user_id,
+        request_id=request_id,
+    )

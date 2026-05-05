@@ -541,6 +541,75 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
+        /** 切換在線狀態（available/busy/offline/on_leave/circuit_breaker_open） */
+        patch: operations["updateMyAvailability"];
+        trace?: never;
+    };
+    "/api/v1/technicians/me/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 取得當月排班（每日工單數 + 休假/備勤標記 + 待審核申請） */
+        get: operations["getMySchedule"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/technicians/me/schedule/leave-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 申請休假 */
+        post: operations["createLeaveRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/technicians/me/schedule/standby-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 申請備勤 */
+        post: operations["createStandbyRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/technicians/me/schedule/request/{request_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** 取消待審核申請 */
+        delete: operations["cancelScheduleRequest"];
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -2100,6 +2169,28 @@ export interface components {
         };
         TechnicianPage: components["schemas"]["CursorPage"] & {
             items?: components["schemas"]["Technician"][];
+        };
+        ScheduleRequestBody: {
+            /** Format: date */
+            start_date: string;
+            /** Format: date */
+            end_date: string;
+            reason: string;
+        };
+        ScheduleRequest: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            type: "leave" | "standby";
+            /** Format: date */
+            start_date: string;
+            /** Format: date */
+            end_date: string;
+            reason: string;
+            /** @enum {string} */
+            status: "pending" | "approved" | "rejected" | "cancelled";
+            /** Format: date-time */
+            created_at: string;
         };
         Customer: {
             /** Format: uuid */
@@ -4050,6 +4141,166 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    updateMyAvailability: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    online_state: "available" | "busy" | "offline" | "on_leave" | "circuit_breaker_open";
+                };
+            };
+        };
+        responses: {
+            /** @description 更新成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: {
+                            /** Format: uuid */
+                            id?: string;
+                            name?: string;
+                            /** @enum {string} */
+                            online_state?: "available" | "busy" | "offline" | "on_leave" | "circuit_breaker_open";
+                        };
+                    };
+                };
+            };
+        };
+    };
+    getMySchedule: {
+        parameters: {
+            query: {
+                /** @description YYYY-MM */
+                month: string;
+            };
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        month?: string;
+                        /** @description key=YYYY-MM-DD, value=工單數 */
+                        work_orders_per_day?: {
+                            [key: string]: number;
+                        };
+                        leave_days?: string[];
+                        standby_days?: string[];
+                        pending_requests?: components["schemas"]["ScheduleRequest"][];
+                    };
+                };
+            };
+        };
+    };
+    createLeaveRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduleRequestBody"];
+            };
+        };
+        responses: {
+            /** @description 申請已送出 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleRequest"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    createStandbyRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduleRequestBody"];
+            };
+        };
+        responses: {
+            /** @description 申請已送出 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleRequest"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    cancelScheduleRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+            };
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 已取消 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id?: string;
+                        /** @enum {string} */
+                        status?: "cancelled";
+                    };
+                };
+            };
+            409: components["responses"]["Conflict"];
         };
     };
     proposeReschedule: {
