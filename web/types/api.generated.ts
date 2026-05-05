@@ -380,6 +380,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/disputes/{id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 提交爭議仲裁決定（filed/under_review/mediation → resolved/escalated） */
+        post: operations["submitDisputeDecision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/warranty-claims": {
         parameters: {
             query?: never;
@@ -3864,6 +3881,56 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+        };
+    };
+    submitDisputeDecision: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    decision: "resolve" | "escalate" | "reject";
+                    resolution: string;
+                    /** @description 調整金額（正=補償客戶，負=扣款） */
+                    resolution_amount?: number | null;
+                };
+            };
+        };
+        responses: {
+            /** @description 決定已送出 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisputeEnvelope"];
+                };
+            };
+            /** @description 狀態衝突（必須為 filed/under_review/mediation） */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
         };
     };
     listWarrantyClaims: {

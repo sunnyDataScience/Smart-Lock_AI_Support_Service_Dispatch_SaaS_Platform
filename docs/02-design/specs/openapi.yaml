@@ -647,6 +647,46 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/v1/disputes/{id}/decision:
+    post:
+      tags: [accounting]
+      summary: 提交爭議仲裁決定（filed/under_review/mediation → resolved/escalated）
+      operationId: submitDisputeDecision
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision, resolution]
+              properties:
+                decision:
+                  type: string
+                  enum: [resolve, escalate, reject]
+                resolution: { type: string, minLength: 5, maxLength: 2000 }
+                resolution_amount:
+                  type: [number, "null"]
+                  description: 調整金額（正=補償客戶，負=扣款）
+      responses:
+        '200':
+          description: 決定已送出
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisputeEnvelope'
+        '409':
+          description: 狀態衝突（必須為 filed/under_review/mediation）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
   /api/v1/warranty-claims:
     get:
       tags: [accounting]
