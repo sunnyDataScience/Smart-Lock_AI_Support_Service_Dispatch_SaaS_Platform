@@ -282,12 +282,46 @@ export default function MyOrderDetailPage() {
               >
                 完工回報
               </button>
-              <Link
-                href={`/my-orders/${wo.id}/reschedule`}
-                className="flex h-11 items-center justify-center rounded-lg border border-[var(--border)] bg-white text-[14px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
-              >
-                改期
-              </Link>
+
+              {/* Subflow CTAs */}
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  href={`/my-orders/${wo.id}/reschedule`}
+                  className="flex h-11 items-center justify-center rounded-lg border border-[var(--border)] bg-white text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
+                >
+                  改期
+                </Link>
+                <Link
+                  href={`/my-orders/${wo.id}/delay`}
+                  className="flex h-11 items-center justify-center rounded-lg border border-[var(--border)] bg-white text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
+                >
+                  延遲通知
+                </Link>
+                <Link
+                  href={`/my-orders/${wo.id}/scope-change`}
+                  className="flex h-11 items-center justify-center rounded-lg border border-[var(--border)] bg-white text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
+                >
+                  範圍變更
+                </Link>
+                <Link
+                  href={`/my-orders/${wo.id}/material-request`}
+                  className="flex h-11 items-center justify-center rounded-lg border border-[var(--border)] bg-white text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
+                >
+                  缺料回報
+                </Link>
+                <Link
+                  href={`/my-orders/${wo.id}/door-check`}
+                  className="flex h-11 items-center justify-center rounded-lg border border-[var(--border)] bg-white text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
+                >
+                  門面檢核
+                </Link>
+                <Link
+                  href={`/my-orders/${wo.id}/signature`}
+                  className="flex h-11 items-center justify-center rounded-lg border border-[var(--border)] bg-white text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
+                >
+                  電子簽章
+                </Link>
+              </div>
             </div>
           )}
 

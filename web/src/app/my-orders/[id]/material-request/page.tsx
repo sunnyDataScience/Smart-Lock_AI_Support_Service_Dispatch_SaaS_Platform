@@ -1,0 +1,216 @@
+"use client";
+
+import { useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { Plus, Trash2, AlertCircle, CheckCircle2, Package } from "lucide-react";
+import TechShell from "@/components/tech/TechShell";
+import SubflowHeader from "@/components/tech/SubflowHeader";
+
+interface MissingItem {
+  id: string;
+  brand: string;
+  model: string;
+  quantity: number;
+}
+
+function newItem(): MissingItem {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    brand: "",
+    model: "",
+    quantity: 1,
+  };
+}
+
+const URGENCIES = [
+  { value: "now", label: "立即（中斷作業）" },
+  { value: "today", label: "今日內" },
+  { value: "tomorrow", label: "明日可" },
+] as const;
+
+export default function MaterialRequestPage() {
+  const params = useParams<{ id: string }>();
+  const id = params?.id ?? "";
+  const router = useRouter();
+
+  const [items, setItems] = useState<MissingItem[]>([newItem()]);
+  const [urgency, setUrgency] = useState<typeof URGENCIES[number]["value"]>("today");
+  const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitOk, setSubmitOk] = useState(false);
+
+  function updateItem(idx: number, patch: Partial<MissingItem>) {
+    setItems((prev) =>
+      prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)),
+    );
+  }
+
+  const canSubmit =
+    items.length > 0 &&
+    items.every(
+      (it) =>
+        it.brand.trim() && it.model.trim() && it.quantity > 0,
+    ) &&
+    !submitting;
+
+  async function submit() {
+    if (!canSubmit) return;
+    setSubmitting(true);
+    try {
+      // 後端 API 待補：POST /api/v1/work-orders/{id}/material-request
+      // body: { items, urgency, note }
+      await new Promise((r) => setTimeout(r, 1000));
+      setSubmitOk(true);
+      setTimeout(() => router.push(`/my-orders/${id}`), 1500);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <TechShell>
+      <SubflowHeader workOrderId={id} title="缺料回報" />
+
+      {submitOk && (
+        <div className="m-4 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-[13px] text-green-700">
+          <CheckCircle2 className="h-4 w-4" />
+          缺料申請已送出，調度員將協調補料
+        </div>
+      )}
+
+      <div className="m-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
+        <AlertCircle className="mr-1 inline h-3 w-3" />
+        後端 `/material-request` API 待補，目前為前端表單預覽
+      </div>
+
+      <section className="mx-4 mt-4 flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-[13px] font-semibold text-[var(--text-primary)]">
+            缺件清單
+          </span>
+          <button
+            type="button"
+            onClick={() => setItems((prev) => [...prev, newItem()])}
+            className="flex items-center gap-1 rounded-md border border-[var(--border)] px-2 py-1 text-[12px] text-[var(--primary)] hover:bg-[#EFF6FF]"
+          >
+            <Plus className="h-3 w-3" />
+            新增
+          </button>
+        </div>
+
+        {items.map((it, idx) => (
+          <div
+            key={it.id}
+            className="flex flex-col gap-2 rounded-lg border border-[var(--border)] bg-[#F8FAFC] p-3"
+          >
+            <div className="flex items-start gap-2">
+              <Package className="mt-2 h-4 w-4 flex-shrink-0 text-[var(--text-secondary)]" />
+              <div className="flex flex-1 flex-col gap-2">
+                <input
+                  type="text"
+                  value={it.brand}
+                  onChange={(e) =>
+                    updateItem(idx, { brand: e.target.value })
+                  }
+                  placeholder="品牌（例：Yale）"
+                  className="rounded-md border border-[var(--border)] bg-white px-2 py-1 text-[13px]"
+                />
+                <input
+                  type="text"
+                  value={it.model}
+                  onChange={(e) =>
+                    updateItem(idx, { model: e.target.value })
+                  }
+                  placeholder="型號（例：YDM-7116）"
+                  className="rounded-md border border-[var(--border)] bg-white px-2 py-1 text-[13px]"
+                />
+                <label className="flex items-center gap-1 text-[12px]">
+                  <span className="text-[var(--text-secondary)]">數量</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={it.quantity}
+                    onChange={(e) =>
+                      updateItem(idx, {
+                        quantity: parseInt(e.target.value) || 0,
+                      })
+                    }
+                    className="w-20 rounded-md border border-[var(--border)] bg-white px-2 py-1"
+                  />
+                </label>
+              </div>
+              {items.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setItems((prev) => prev.filter((_, i) => i !== idx))
+                  }
+                  className="flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
+        <span className="text-[11px] font-medium text-[var(--text-secondary)]">
+          急迫程度
+        </span>
+        <div className="flex flex-col gap-2">
+          {URGENCIES.map((u) => (
+            <label
+              key={u.value}
+              className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-[13px] ${
+                urgency === u.value
+                  ? "border-[var(--primary)] bg-[#EFF6FF]"
+                  : "border-[var(--border)] bg-white"
+              }`}
+            >
+              <input
+                type="radio"
+                checked={urgency === u.value}
+                onChange={() => setUrgency(u.value)}
+                className="h-4 w-4 accent-[var(--primary)]"
+              />
+              {u.label}
+            </label>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
+        <span className="text-[11px] font-medium text-[var(--text-secondary)]">
+          備註
+        </span>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={2}
+          placeholder="例：客戶要求今晚 8 點前到貨..."
+          className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+        />
+      </section>
+
+      <div className="mt-4 flex gap-2 px-4 pb-4">
+        <button
+          type="button"
+          onClick={() => router.push(`/my-orders/${id}`)}
+          className="h-12 flex-1 rounded-lg border border-[var(--border)] text-[14px] font-medium text-[var(--text-primary)]"
+        >
+          取消
+        </button>
+        <button
+          type="button"
+          onClick={submit}
+          disabled={!canSubmit}
+          className="h-12 flex-[2] rounded-lg bg-[var(--primary)] text-[14px] font-semibold text-white disabled:opacity-60"
+        >
+          {submitting ? "送出中…" : "送出缺料申請"}
+        </button>
+      </div>
+    </TechShell>
+  );
+}
