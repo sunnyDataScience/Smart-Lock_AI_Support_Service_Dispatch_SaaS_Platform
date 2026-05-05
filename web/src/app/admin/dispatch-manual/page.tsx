@@ -641,6 +641,15 @@ export default function DispatchManualPage() {
               <ArrowUpCircle className="h-4 w-4" />
               升級主管
             </button>
+            {wo && (
+              <Link
+                href={`/my-orders/${wo.id}/reschedule?from=staff_assist`}
+                className="flex items-center gap-1 rounded-md border border-blue-200 bg-white px-3 py-2 text-[13px] font-medium text-blue-700 hover:bg-blue-50"
+              >
+                <ArrowUpCircle className="h-4 w-4 rotate-90" />
+                改期 + 通知客戶
+              </Link>
+            )}
             <button
               type="button"
               onClick={() => setReasonModalOpen(true)}

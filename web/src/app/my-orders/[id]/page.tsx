@@ -274,13 +274,21 @@ export default function MyOrderDetailPage() {
 
           {/* action_section */}
           {canComplete && !showForm && (
-            <button
-              type="button"
-              onClick={() => setShowForm(true)}
-              className="h-12 rounded-lg bg-[var(--primary)] text-[15px] font-semibold text-white hover:bg-[#1D4ED8]"
-            >
-              完工回報
-            </button>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => setShowForm(true)}
+                className="h-12 rounded-lg bg-[var(--primary)] text-[15px] font-semibold text-white hover:bg-[#1D4ED8]"
+              >
+                完工回報
+              </button>
+              <Link
+                href={`/my-orders/${wo.id}/reschedule`}
+                className="flex h-11 items-center justify-center rounded-lg border border-[var(--border)] bg-white text-[14px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
+              >
+                改期
+              </Link>
+            </div>
           )}
 
           {showForm && (
