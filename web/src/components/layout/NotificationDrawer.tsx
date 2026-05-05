@@ -13,6 +13,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { ApiError, api } from "@/lib/api";
+import {
+  BROADCAST_CHANNELS,
+  NotificationBroadcastEvent,
+  useBroadcast,
+} from "@/lib/useBroadcast";
 import { formatRelative } from "@/lib/format";
 import type { components } from "@/types/api.generated";
 
@@ -123,6 +128,38 @@ export default function NotificationDrawer({
     fetchItems(tab);
   }, [open, tab, fetchItems]);
 
+  // 跨 tab 同步：其他 tab 操作時，drawer 開啟時即時刷新本地列表
+  const broadcast = useBroadcast<NotificationBroadcastEvent>(
+    BROADCAST_CHANNELS.notifications,
+    (event) => {
+      if (!open) return;
+      if (event.type === "marked_read") {
+        const now = new Date().toISOString();
+        setItems((prev) =>
+          prev.map((x) =>
+            x.id === event.id && !x.read_at ? { ...x, read_at: now } : x,
+          ),
+        );
+        if (tab === "unread") {
+          setItems((prev) => prev.filter((x) => x.id !== event.id));
+        }
+      } else if (event.type === "archived") {
+        setItems((prev) => prev.filter((x) => x.id !== event.id));
+      } else if (event.type === "all_read") {
+        if (tab === "unread") setItems([]);
+        else {
+          const now = new Date().toISOString();
+          setItems((prev) =>
+            prev.map((x) => (x.read_at ? x : { ...x, read_at: now })),
+          );
+        }
+        onUnreadCountChange?.(0, false);
+      } else if (event.type === "new_received") {
+        fetchItems(tab);
+      }
+    },
+  );
+
   async function markOneRead(n: Notification) {
     if (n.read_at || marking) return;
     setMarking(n.id);
@@ -146,6 +183,7 @@ export default function NotificationDrawer({
         ).length;
         onUnreadCountChange(remaining, hasMore);
       }
+      broadcast.post({ type: "marked_read", id: n.id });
     } catch (e) {
       setError(formatErr(e));
     } finally {
@@ -168,6 +206,7 @@ export default function NotificationDrawer({
         );
       }
       onUnreadCountChange?.(0, false);
+      broadcast.post({ type: "all_read" });
     } catch (e) {
       setError(formatErr(e));
     } finally {

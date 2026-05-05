@@ -20,6 +20,11 @@ import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
 import { ApiError, api, getCurrentSession } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import { useRealtimeChannel } from "@/lib/useRealtimeChannel";
+import {
+  BROADCAST_CHANNELS,
+  NotificationBroadcastEvent,
+  useBroadcast,
+} from "@/lib/useBroadcast";
 import type { components } from "@/types/api.generated";
 
 type Notification = components["schemas"]["Notification"];
@@ -160,6 +165,37 @@ export default function NotificationsPage() {
     setSelectedIds(new Set());
   }, [fetchItems]);
 
+  // 跨 tab 同步：同 user 開多 tab 時，標記已讀/全部已讀/封存等動作互相同步
+  const broadcast = useBroadcast<NotificationBroadcastEvent>(
+    BROADCAST_CHANNELS.notifications,
+    (event) => {
+      if (event.type === "marked_read") {
+        const now = new Date().toISOString();
+        setItems((prev) =>
+          prev.map((x) =>
+            x.id === event.id && !x.read_at ? { ...x, read_at: now } : x,
+          ),
+        );
+        setUnreadCount((c) => Math.max(0, c - 1));
+        if (tab === "unread") {
+          setItems((prev) => prev.filter((x) => x.id !== event.id));
+        }
+      } else if (event.type === "archived") {
+        setItems((prev) => prev.filter((x) => x.id !== event.id));
+      } else if (event.type === "all_read") {
+        const now = new Date().toISOString();
+        setItems((prev) =>
+          prev.map((x) => (x.read_at ? x : { ...x, read_at: now })),
+        );
+        setUnreadCount(0);
+        if (tab === "unread") setItems([]);
+      } else if (event.type === "new_received") {
+        // 其他 tab 透過 WS 收到新通知，本 tab 重抓以拿到完整資料
+        fetchItems();
+      }
+    },
+  );
+
   // 即時推送：新通知插入列表頂端、增加未讀計數
   const userId = useMemo(() => getCurrentSession()?.userId ?? null, []);
   const { status: rtStatus } = useRealtimeChannel<Notification>({
@@ -178,6 +214,7 @@ export default function NotificationsPage() {
         return [incoming, ...prev];
       });
       if (isUnread) setUnreadCount((c) => c + 1);
+      broadcast.post({ type: "new_received", id: incoming.id });
     },
   });
 
@@ -198,6 +235,7 @@ export default function NotificationsPage() {
         prev.map((x) => (x.id === n.id ? { ...x, read_at: now } : x)),
       );
       setUnreadCount((c) => Math.max(0, c - 1));
+      broadcast.post({ type: "marked_read", id: n.id });
     } catch (e) {
       setError(formatErr(e));
     } finally {
@@ -213,6 +251,7 @@ export default function NotificationsPage() {
       });
       setItems((prev) => prev.filter((x) => x.id !== n.id));
       if (selectedId === n.id) setSelectedId(null);
+      broadcast.post({ type: "archived", id: n.id });
     } catch (e) {
       setError(formatErr(e));
     } finally {
@@ -234,6 +273,7 @@ export default function NotificationsPage() {
       );
       setUnreadCount(0);
       if (tab === "unread") setItems([]);
+      broadcast.post({ type: "all_read" });
     } catch (e) {
       setError(formatErr(e));
     } finally {

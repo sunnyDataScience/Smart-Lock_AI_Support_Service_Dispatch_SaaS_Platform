@@ -15,6 +15,11 @@ import TechShell from "@/components/tech/TechShell";
 import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
 import { ApiError, api } from "@/lib/api";
 import { useRealtimeChannel } from "@/lib/useRealtimeChannel";
+import {
+  BROADCAST_CHANNELS,
+  WorkOrderBroadcastEvent,
+  useBroadcast,
+} from "@/lib/useBroadcast";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
@@ -169,6 +174,21 @@ export default function ReschedulePage() {
     fetchAvailability(selectedDate);
   }, [fetchAvailability, selectedDate]);
 
+  // 跨 tab 同步：同工單在其他 tab 已送出/客戶已確認時自動關閉本 tab
+  const broadcast = useBroadcast<WorkOrderBroadcastEvent>(
+    BROADCAST_CHANNELS.workOrder(id || "_"),
+    (event) => {
+      if (
+        event.workOrderId === id &&
+        (event.type === "reschedule_submitted" ||
+          event.type === "reschedule_confirmed")
+      ) {
+        setSubmitOk(true);
+        setTimeout(() => router.push(`/my-orders/${id}`), 1200);
+      }
+    },
+  );
+
   // 訂閱該工單即時事件：客戶 RSVP 後關閉此頁
   const { status: rtStatus } = useRealtimeChannel<{
     event?: string;
@@ -183,6 +203,7 @@ export default function ReschedulePage() {
       };
       if (data.event === "reschedule_confirmed_by_customer") {
         setSubmitOk(true);
+        broadcast.post({ type: "reschedule_confirmed", workOrderId: id });
         setTimeout(() => router.push(`/my-orders/${id}`), 1200);
       } else if (data.event === "reschedule_rejected_by_customer") {
         setSubmitError("客戶已拒絕改期，請重新選擇時段");
@@ -243,6 +264,7 @@ export default function ReschedulePage() {
         body,
       );
       setSubmitOk(true);
+      broadcast.post({ type: "reschedule_submitted", workOrderId: wo.id });
       setTimeout(() => router.push(`/my-orders/${wo.id}`), 1500);
     } catch (e) {
       if (e instanceof ApiError) {
