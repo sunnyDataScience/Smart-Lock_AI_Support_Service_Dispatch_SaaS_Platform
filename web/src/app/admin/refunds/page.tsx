@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { RefreshCw, X } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import RefundReviewTable from "@/components/admin/RefundReviewTable";
+import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
 import { ApiError, api } from "@/lib/api";
+import { useRealtimeChannel } from "@/lib/useRealtimeChannel";
 import type { components } from "@/types/api.generated";
 
 type RefundRequest = components["schemas"]["RefundRequest"];
@@ -74,6 +76,14 @@ export default function RefundReviewPage() {
   useEffect(() => {
     fetchRefunds();
   }, []);
+
+  // 訂閱退款決策事件，收到後重抓列表
+  const { status: rtStatus } = useRealtimeChannel({
+    channelPath: "/realtime/refunds",
+    onMessage: () => {
+      fetchRefunds();
+    },
+  });
 
   useEffect(() => {
     if (!actionToast) return;
@@ -163,6 +173,7 @@ export default function RefundReviewPage() {
             <h1 className="text-2xl font-bold text-[var(--text-primary)]">
               退款審核佇列
             </h1>
+            <RealtimeIndicator status={rtStatus} />
             <button
               onClick={() => fetchRefunds()}
               disabled={loading}

@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, Search, ChevronDown, RefreshCw } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import InventoryTable from "@/components/admin/InventoryTable";
+import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
 import { ApiError, api } from "@/lib/api";
+import { useRealtimeChannel } from "@/lib/useRealtimeChannel";
 import type { components } from "@/types/api.generated";
 
 type InventoryItem = components["schemas"]["InventoryItem"];
@@ -53,6 +55,30 @@ export default function InventoryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 訂閱低庫存告警，收到後重抓列表
+  const [lowStockToast, setLowStockToast] = useState<string | null>(null);
+  const { status: rtStatus } = useRealtimeChannel<{
+    part_id?: string;
+    current_stock?: number;
+    threshold?: number;
+  }>({
+    channelPath: "/realtime/inventory/low-stock",
+    onMessage: (msg) => {
+      const data = (msg.payload ?? msg) as {
+        part_id?: string;
+        current_stock?: number;
+        threshold?: number;
+      };
+      if (data.part_id) {
+        setLowStockToast(
+          `低庫存告警：part #${data.part_id.slice(0, 8)}（${data.current_stock ?? "—"} / 閾值 ${data.threshold ?? "—"}）`,
+        );
+        setTimeout(() => setLowStockToast(null), 4000);
+      }
+      fetchItems();
+    },
+  });
+
   const filtered = useMemo(() => {
     if (!keyword.trim()) return items;
     const q = keyword.trim().toLowerCase();
@@ -100,10 +126,18 @@ export default function InventoryPage() {
 
       <div className="flex flex-1 flex-col overflow-hidden">
         <div className="flex flex-1 flex-col gap-5 overflow-auto px-8 py-6">
+          {lowStockToast && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
+              {lowStockToast}
+            </div>
+          )}
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-              物料庫存管理
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-[var(--text-primary)]">
+                物料庫存管理
+              </h1>
+              <RealtimeIndicator status={rtStatus} />
+            </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={fetchItems}

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { auth } from "@/lib/api";
+import RbacChangedBanner from "@/components/realtime/RbacChangedBanner";
 
 const PUBLIC_PATHS = new Set(["/login", "/tech-login"]);
 
@@ -52,5 +53,10 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (isPublic) return <>{children}</>;
   if (!checked) return null;
-  return <>{children}</>;
+  return (
+    <>
+      <RbacChangedBanner />
+      {children}
+    </>
+  );
 }
