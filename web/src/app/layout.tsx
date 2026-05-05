@@ -1,10 +1,27 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import AuthGuard from "@/components/layout/AuthGuard";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SmartLock Admin",
-  description: "Smart Lock AI Support & Service Dispatch Platform",
+  title: "SmartLock 智慧派工平台",
+  description: "Smart Lock AI Support & Service Dispatch Platform — Admin 後台 + 技師端 PWA",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/apple-touch-icon.svg", sizes: "180x180" }],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Smart Lock Tech",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#2563EB",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

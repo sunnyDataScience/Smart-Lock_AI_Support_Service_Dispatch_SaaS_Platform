@@ -4,6 +4,7 @@ import { Wrench } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import DesktopMobileGuard from "@/components/tech/DesktopMobileGuard";
 import { ApiError, loginTechnician } from "@/lib/api";
 
 export default function TechLoginPage() {
@@ -33,6 +34,7 @@ export default function TechLoginPage() {
   }
 
   return (
+    <DesktopMobileGuard>
     <div
       className="flex min-h-screen w-full justify-center"
       style={{
@@ -128,5 +130,6 @@ export default function TechLoginPage() {
         </footer>
       </div>
     </div>
+    </DesktopMobileGuard>
   );
 }

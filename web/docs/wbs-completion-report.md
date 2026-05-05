@@ -2,9 +2,11 @@
 
 對應主 WBS：[`docs/01-define/E2x--wbs-project-schedule.md`](../../docs/01-define/E2x--wbs-project-schedule.md)（v2.0 / 2026-04-04）
 
-報告日期：2026-04-29
-報告基準：`dev` branch（91/91 OpenAPI operationId 已實作）
+報告日期：**2026-05-05**（更新）
+報告基準：`feat/web-tech-app` branch（91/91 OpenAPI operationId + 師傅端 12 頁 + 10 realtime 頻道）
 本報告範圍：**工單系統相關 WBS**（Phase 5–8 的 V2.0 派工/會計平台）
+
+> **05-05 更新**：本週（04-30 ~ 05-05）99 commits、12 個版本（v1.4.0 → v1.15.2），完成師傅端 PWA 12 頁與 realtime 10 頻道整合；詳見 [progress-report-2026-05-05.md](./progress-report-2026-05-05.md)
 
 ---
 
@@ -43,12 +45,12 @@
 
 ## 完成度總覽
 
-| Phase | WBS 標示 | 實際 | 主要差距 |
-| :--- | :---: | :---: | :--- |
-| Phase 5（W18–W19）V2.0 設計 | ~30% | **~85%** | 師傅工作台 Wireframe ⬜ |
-| Phase 6（W20–W24）派工 MVP | ~20% | **~50%** | 師傅端 Web App 全段未動 |
-| Phase 7（W25–W29）會計+整合 | ~15% | **~70%** | 整合測試 / 壓測未啟動 |
-| Phase 8（W30–W31）UAT 上線 | 0% | 0% | 全段未啟動 |
+| Phase | WBS 標示 | 04-29 實際 | **05-05 實際** | 主要差距 |
+| :--- | :---: | :---: | :---: | :--- |
+| Phase 5（W18–W19）V2.0 設計 | ~30% | ~85% | **~95%** | 師傅工作台 spec / wireframe 已隨實作補完 |
+| Phase 6（W20–W24）派工 MVP | ~20% | ~50% | **~85%** | 師傅端 12 頁 + A37 派工介入完成；後端 5 組 endpoints 待補 |
+| Phase 7（W25–W29）會計+整合 | ~15% | ~70% | **~80%** | Realtime 10 頻道前端打通；整合測試仍未啟動 |
+| Phase 8（W30–W31）UAT 上線 | 0% | 0% | **0%** | 計畫期程未到 |
 
 > 「實際」百分比依交付物完成情況、可驗證 endpoint 與頁面數估算，未經 PM 正式校準。
 
