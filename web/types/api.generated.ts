@@ -613,6 +613,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/schedule-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 列出 tenant 內所有排班申請（admin / operations_manager） */
+        get: operations["listScheduleRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/schedule-requests/{request_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 核准排班申請（pending → approved） */
+        post: operations["approveScheduleRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/schedule-requests/{request_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 拒絕排班申請（pending → rejected） */
+        post: operations["rejectScheduleRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/work-orders/{id}/reschedule": {
         parameters: {
             query?: never;
@@ -2191,6 +2242,14 @@ export interface components {
             status: "pending" | "approved" | "rejected" | "cancelled";
             /** Format: date-time */
             created_at: string;
+            /** Format: date-time */
+            resolved_at?: string | null;
+            resolution_note?: string | null;
+        };
+        AdminScheduleRequest: components["schemas"]["ScheduleRequest"] & {
+            /** Format: uuid */
+            technician_user_id: string;
+            technician_name?: string | null;
         };
         Customer: {
             /** Format: uuid */
@@ -4298,6 +4357,99 @@ export interface operations {
                         /** @enum {string} */
                         status?: "cancelled";
                     };
+                };
+            };
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listScheduleRequests: {
+        parameters: {
+            query?: {
+                status?: "pending" | "approved" | "rejected" | "cancelled";
+                type?: "leave" | "standby";
+                limit?: number;
+            };
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items?: components["schemas"]["AdminScheduleRequest"][];
+                    };
+                };
+            };
+        };
+    };
+    approveScheduleRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+            };
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    note?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description 已核准 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleRequest"];
+                };
+            };
+            409: components["responses"]["Conflict"];
+        };
+    };
+    rejectScheduleRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+            };
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    note?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description 已拒絕 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleRequest"];
                 };
             };
             409: components["responses"]["Conflict"];

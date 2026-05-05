@@ -269,3 +269,124 @@ async def cancel_schedule_request(
         (request_id,),
     )
     return {"id": request_id, "status": "cancelled"}
+
+
+# =============================================================================
+# Admin endpoints (list pending / approve / reject)
+# =============================================================================
+
+
+_RESOLVABLE_STATUSES = {"pending"}
+
+
+async def list_schedule_requests(
+    *,
+    tenant_id: str,
+    status: str | None = None,
+    type_filter: str | None = None,
+    limit: int = 50,
+) -> dict:
+    """admin 列表所有 tenant 內排班申請（可依 status/type 過濾）。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    where = ["sr.tenant_id = %s::uuid"]
+    params: list = [tenant_id]
+    if status:
+        where.append("sr.status = %s")
+        params.append(status)
+    if type_filter:
+        where.append("sr.type = %s")
+        params.append(type_filter)
+    params.append(limit)
+    sql = (
+        "SELECT sr.id, sr.type, sr.start_date, sr.end_date, sr.reason, "
+        "       sr.status, sr.created_at, sr.resolved_at, sr.resolution_note, "
+        "       sr.technician_user_id, t.name "
+        "FROM technician_schedule_requests sr "
+        "LEFT JOIN technicians t ON t.user_id = sr.technician_user_id "
+        f"WHERE {' AND '.join(where)} "
+        "ORDER BY sr.created_at DESC LIMIT %s"
+    )
+    cur = await db_module._conn.execute(sql, tuple(params))
+    rows = await cur.fetchall()
+    items = [
+        {
+            "id": str(r[0]),
+            "type": r[1],
+            "start_date": r[2].isoformat(),
+            "end_date": r[3].isoformat(),
+            "reason": r[4],
+            "status": r[5],
+            "created_at": (
+                r[6].isoformat() if isinstance(r[6], datetime) else str(r[6])
+            ),
+            "resolved_at": (
+                r[7].isoformat() if isinstance(r[7], datetime) else None
+            ),
+            "resolution_note": r[8],
+            "technician_user_id": str(r[9]),
+            "technician_name": r[10],
+        }
+        for r in rows
+    ]
+    return {"items": items}
+
+
+async def resolve_schedule_request(
+    *,
+    tenant_id: str,
+    resolver_user_id: str,
+    request_id: str,
+    decision: Literal["approved", "rejected"],
+    note: str | None = None,
+) -> dict:
+    """approve / reject pending request。"""
+    if decision not in {"approved", "rejected"}:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "decision must be 'approved' or 'rejected'",
+            422,
+        )
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    cur = await db_module._conn.execute(
+        "SELECT status FROM technician_schedule_requests "
+        "WHERE id = %s::uuid AND tenant_id = %s::uuid",
+        (request_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "Schedule request not found", 404)
+    if row[0] not in _RESOLVABLE_STATUSES:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot resolve request in status '{row[0]}'; only 'pending' allowed",
+            409,
+        )
+    cur = await db_module._conn.execute(
+        "UPDATE technician_schedule_requests SET "
+        "  status = %s, "
+        "  resolver_user_id = %s::uuid, "
+        "  resolution_note = %s, "
+        "  resolved_at = NOW(), "
+        "  updated_at = NOW() "
+        "WHERE id = %s::uuid "
+        "RETURNING id, type, start_date, end_date, reason, status, created_at, resolved_at",
+        (decision, resolver_user_id, note, request_id),
+    )
+    r = await cur.fetchone()
+    if not r:
+        raise ApiError("INTERNAL", "Failed to update request", 500)
+    return {
+        "id": str(r[0]),
+        "type": r[1],
+        "start_date": r[2].isoformat(),
+        "end_date": r[3].isoformat(),
+        "reason": r[4],
+        "status": r[5],
+        "created_at": r[6].isoformat() if isinstance(r[6], datetime) else str(r[6]),
+        "resolved_at": (
+            r[7].isoformat() if isinstance(r[7], datetime) else None
+        ),
+        "resolution_note": note,
+    }

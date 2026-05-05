@@ -1080,6 +1080,96 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
 
+  # ----- Admin 端：審核排班申請 -----
+  /api/v1/admin/schedule-requests:
+    get:
+      tags: [dispatch]
+      summary: 列出 tenant 內所有排班申請（admin / operations_manager）
+      operationId: listScheduleRequests
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, approved, rejected, cancelled]
+        - in: query
+          name: type
+          schema: { type: string, enum: [leave, standby] }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminScheduleRequest'
+
+  /api/v1/admin/schedule-requests/{request_id}/approve:
+    post:
+      tags: [dispatch]
+      summary: 核准排班申請（pending → approved）
+      operationId: approveScheduleRequest
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - in: path
+          name: request_id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note: { type: string, maxLength: 500, nullable: true }
+      responses:
+        '200':
+          description: 已核准
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/admin/schedule-requests/{request_id}/reject:
+    post:
+      tags: [dispatch]
+      summary: 拒絕排班申請（pending → rejected）
+      operationId: rejectScheduleRequest
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - in: path
+          name: request_id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note: { type: string, maxLength: 500, nullable: true }
+      responses:
+        '200':
+          description: 已拒絕
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
   /api/v1/work-orders/{id}/reschedule:
     post:
       tags: [dispatch]
@@ -3605,6 +3695,20 @@ components:
           type: string
           enum: [pending, approved, rejected, cancelled]
         created_at: { type: string, format: date-time }
+        resolved_at:
+          type: [string, "null"]
+          format: date-time
+        resolution_note:
+          type: [string, "null"]
+
+    AdminScheduleRequest:
+      allOf:
+        - $ref: '#/components/schemas/ScheduleRequest'
+        - type: object
+          required: [technician_user_id]
+          properties:
+            technician_user_id: { type: string, format: uuid }
+            technician_name: { type: [string, "null"] }
 
     # --------- Customer（read-only 客戶主檔） ---------
     Customer:

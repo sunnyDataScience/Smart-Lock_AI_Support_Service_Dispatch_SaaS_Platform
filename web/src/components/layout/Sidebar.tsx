@@ -56,6 +56,7 @@ const navItems: NavItem[] = [
     children: [
       { label: "工單列表", href: "/work-orders" },
       { label: "派工佇列監控", href: "/admin/dispatch-queue" },
+      { label: "排班申請審核", href: "/admin/schedule-requests" },
     ],
   },
   { icon: Users, label: "技師管理", href: "/technicians" },
