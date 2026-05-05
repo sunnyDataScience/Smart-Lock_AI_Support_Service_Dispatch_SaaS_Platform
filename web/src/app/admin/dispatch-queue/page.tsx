@@ -285,36 +285,47 @@ export default function DispatchQueuePage() {
                   const urgency = wo.urgency ?? "low";
                   const color = URGENCY_COLOR[urgency];
                   return (
-                    <Link
+                    <div
                       key={wo.id}
-                      href={`/work-orders/${wo.id}`}
                       className="flex items-center gap-4 px-4 py-3 transition hover:bg-[var(--bg-page)]"
                     >
-                      <span className="font-['IBM_Plex_Mono'] text-xs text-[var(--text-secondary)]">
-                        #{wo.id.slice(0, 8)}
-                      </span>
-                      <span
-                        className="rounded-md px-2 py-[2px] text-[11px] font-semibold"
-                        style={{ backgroundColor: color.bg, color: color.text }}
+                      <Link
+                        href={`/work-orders/${wo.id}`}
+                        className="flex flex-1 items-center gap-4"
                       >
-                        {color.label}
-                      </span>
-                      <span className="text-[13px] font-medium text-[var(--text-primary)]">
-                        {wo.brand}
-                        {wo.model ? ` / ${wo.model}` : ""}
-                      </span>
-                      <span className="flex-1 truncate text-[12px] text-[var(--text-secondary)]">
-                        {wo.district}
-                        {wo.address ? ` · ${wo.address}` : ""}
-                      </span>
-                      <span className="text-[11px] text-[var(--text-disabled)]">
-                        {wo.created_at
-                          ? new Date(wo.created_at).toLocaleString("zh-TW", {
-                              hour12: false,
-                            })
-                          : "—"}
-                      </span>
-                    </Link>
+                        <span className="font-['IBM_Plex_Mono'] text-xs text-[var(--text-secondary)]">
+                          #{wo.id.slice(0, 8)}
+                        </span>
+                        <span
+                          className="rounded-md px-2 py-[2px] text-[11px] font-semibold"
+                          style={{ backgroundColor: color.bg, color: color.text }}
+                        >
+                          {color.label}
+                        </span>
+                        <span className="text-[13px] font-medium text-[var(--text-primary)]">
+                          {wo.brand}
+                          {wo.model ? ` / ${wo.model}` : ""}
+                        </span>
+                        <span className="flex-1 truncate text-[12px] text-[var(--text-secondary)]">
+                          {wo.district}
+                          {wo.address ? ` · ${wo.address}` : ""}
+                        </span>
+                        <span className="text-[11px] text-[var(--text-disabled)]">
+                          {wo.created_at
+                            ? new Date(wo.created_at).toLocaleString("zh-TW", {
+                                hour12: false,
+                              })
+                            : "—"}
+                        </span>
+                      </Link>
+                      <Link
+                        href={`/admin/dispatch-manual?work_order_id=${wo.id}`}
+                        className="rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700 hover:bg-amber-100"
+                        title="人工介入派工"
+                      >
+                        人工介入
+                      </Link>
+                    </div>
                   );
                 })}
               </div>
