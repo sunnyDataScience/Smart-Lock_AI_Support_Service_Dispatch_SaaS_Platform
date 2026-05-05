@@ -325,6 +325,23 @@ export async function login(email: string, password: string): Promise<LoginRespo
   return res;
 }
 
+export async function loginTechnician(
+  identifier: string,
+  password: string,
+): Promise<LoginResponse> {
+  const res = await request<LoginResponse>(
+    "POST",
+    "/api/v1/technicians/login",
+    {
+      body: { email: identifier, password },
+      skipAuth: true,
+    },
+  );
+  auth.setTokens(res.data.access_token, res.data.refresh_token);
+  auth.setEmail(identifier);
+  return res;
+}
+
 export async function logout(): Promise<void> {
   const refresh = auth.getRefreshToken();
   try {

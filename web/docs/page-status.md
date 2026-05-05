@@ -2,8 +2,10 @@
 
 本文件彙整各頁面**目前已上線的真實功能**與**待後端模組接入的功能**，避免逐頁在 UI 上顯示「待接入」黃條，影響展示體驗。
 
-更新日期：2026-04-29
-對應 commit：dev branch（91/91 operationId 已實作）
+更新日期：2026-05-05
+對應 commit：`feat/web-tech-app` branch（v1.4.0 → v1.15.2，46 條對外路由）
+
+> **05-05 更新重點**：新增師傅端 12 頁、A37 派工人工介入、10 個 realtime 頻道整合、跨 tab 同步。
 
 ---
 
@@ -21,9 +23,25 @@
 | :--- | :--- | :--- |
 | 上方四張統計卡（待派工 / 重試中 / 卡住 / 平均派工時長） | ✅ | `getDispatchQueue` 即時聚合 |
 | 下方派工歷程表 | ✅ | `listDispatchLogs` 聚合最近派工歷程 |
-| 即時推播（WebSocket `/realtime/dispatch-queue`） | ⏳ | 待派工 AI 推薦引擎接入 |
-| 候選技師清單（`listDispatchCandidates`） | ⏳ | 同上 |
-| 一鍵指派（`assignDispatch`） | ⏳ | 同上 |
+| 即時推播（WebSocket `/realtime/dispatch-queue`） | ✅ 前端 | 訂閱層 + patch state（v1.15.1）；後端 server 待啟用 |
+| 候選技師清單（`listDispatchCandidates`） | ✅ | 已串接於 A37 派工人工介入 |
+| 一鍵指派（`assignDispatch` / `assignWorkOrder`） | ✅ | A37 頁面已可指派 + 5 種 reason_code |
+| 「人工介入」CTA | ✅ | 每筆工單列右側橘色按鈕 → `/admin/dispatch-manual?work_order_id=...` |
+
+---
+
+## 1B. 派工人工介入 `/admin/dispatch-manual`（**05-05 新增**）
+
+| 區塊 | 狀態 | 資料來源 |
+| :--- | :--- | :--- |
+| context_panel 工單摘要 | ✅ | `getWorkOrder` |
+| 自動派工嘗試紀錄 | ✅ | `listDispatchCandidates` 回傳 |
+| 候選技師表格（綜合分 / 距離 / 評分 / 技能匹配） | ✅ | `listDispatchCandidates` |
+| filter sidebar（分級 / 評分 / 排除熔斷 / 排序） | ✅ | client-side filter |
+| 指派 + 5 種 reason_code modal | ✅ | `assignWorkOrder` |
+| 升級主管 / 取消工單 | ✅ | `escalateWorkOrder` / `cancelWorkOrder` |
+| 候選詳情 drawer（排班熱力圖 / 30 日表現） | 🟡 | spec 已定義，drawer 待實作 |
+| 雙簽流程（CIRCUIT_BREAKER override） | 🟡 | 後端 412 已有錯誤碼，UI 提示「待補」 |
 
 ---
 
@@ -161,11 +179,102 @@
 
 ---
 
+## 18. 通知中心 `/notifications`（**05-05 新增**）
+
+| 區塊 | 狀態 | 資料來源 |
+| :--- | :--- | :--- |
+| header_bar（標題 + 未讀計數 + 全部已讀 + 偏好設定 shortcut） | ✅ | `listNotifications` 聚合 |
+| tab_group（未讀 / 全部 / 已讀 / 已存檔） | ✅ | `?status=` query 過濾 |
+| filter_chips（8 種類型） | ✅ | `?type=` query 過濾 |
+| notification_list + bulk select | ✅ | `bulkUpdateNotifications` |
+| detail_preview 側欄 | ✅ | client-side render |
+| 即時推送（WS `/realtime/notifications/{user_id}`） | ✅ 前端 | 訂閱層 + 跨 tab BroadcastChannel |
+| Critical 不可全部已讀規則 | 🟡 | spec 規定，後端強制 |
+| 通知偏好設定（A16 連結） | 🟡 | shortcut 連結，A16 偏好分頁未實作 |
+
+---
+
+## 19. 師傅端 PWA（T0–T11，**05-05 新增 12 頁**）
+
+> Mobile-first，全部包在 `TechShell`（max-w-480px 置中）+ 底部 3-Tab 導航。
+
+### 19.1 入口與帳戶
+
+| 頁面 | 路由 | 狀態 | 說明 |
+| :--- | :--- | :--- | :--- |
+| 技師登入 (T0) | `/tech-login` | ✅ | `loginTechnician`，成功跳 `/pool` |
+| 帳戶中心 (T4) | `/account` | ✅ | `getMyProfile` + 績效卡 + 登出 |
+| 在線 toggle | `/account` | 🟡 | 後端 PATCH `/availability` 待補（前端 local-only） |
+| 收入概覽 / 結算紀錄 | `/account` | ⏳ | 後端結算 API 待補（V1.1 範圍） |
+
+### 19.2 工單流程
+
+| 頁面 | 路由 | 狀態 | 說明 |
+| :--- | :--- | :--- | :--- |
+| 案件池 (T1) | `/pool` | ✅ | `listWorkOrderPool` + `acceptWorkOrder`（含 409 衝突） |
+| 我的工單 (T2) | `/my-orders` | ✅ | `listWorkOrders?technician_id=me`，三 Tab 分流 |
+| 工單詳情 (T3) | `/my-orders/[id]` | ✅ | `getWorkOrder` + 完工回報 + 6 格 subflow CTA |
+| 即時推送（WS `/realtime/pool/{tech_id}`） | — | ✅ 前端 | 訂閱層 |
+
+### 19.3 Subflow（T5–T9）
+
+| 頁面 | 路由 | 狀態 | 說明 |
+| :--- | :--- | :--- | :--- |
+| 範圍變更 (T5) | `/my-orders/[id]/scope-change` | 🟡 | 表單完整，後端 endpoint 待補 |
+| 缺料回報 (T6) | `/my-orders/[id]/material-request` | 🟡 | 表單完整，後端 endpoint 待補 |
+| 延遲通知 (T7) | `/my-orders/[id]/delay` | 🟡 | 表單完整，後端 endpoint 待補；含改期連結 |
+| 門面檢核 (T8) | `/my-orders/[id]/door-check` | 🟡 | UI 完整，照片上傳為 placeholder |
+| **電子簽章 (T9)** | `/my-orders/[id]/signature` | ✅ | Canvas + GPS + 真實 `submitWorkOrderSignature` |
+
+### 19.4 排班與改期
+
+| 頁面 | 路由 | 狀態 | 說明 |
+| :--- | :--- | :--- | :--- |
+| 我的排班 (T10) | `/account/schedule` | 🟡 | 月曆 + 申請 modal，5 個後端 endpoints 待補 |
+| 改期日曆 (T11) | `/my-orders/[id]/reschedule` | ✅ | `getTechnicianAvailability` + `proposeReschedule`（422/409 分流） |
+
+---
+
+## 20. 即時通訊（10 個 realtime 頻道，**05-05 全部整合**）
+
+| 頻道 | 協議 | 整合處 | 前端 | 後端 server |
+| :--- | :---: | :--- | :---: | :---: |
+| notifications | WS | `/notifications` + Bell + Drawer | ✅ | ⏳ |
+| pool | WS | `/pool` | ✅ | ⏳ |
+| dispatch-queue | WS | `/admin/dispatch-queue`（patch state） | ✅ | ⏳ |
+| work-orders/{id} | WS | `/my-orders/[id]/reschedule` | ✅ | ⏳ |
+| **diagnostics** | **SSE** | `/conversations/[id]` | ✅ | ⏳ |
+| sla-alerts | WS | `/dashboard` | ✅ | ⏳ |
+| refunds | WS | `/admin/refunds` | ✅ | ⏳ |
+| disputes | WS | `/admin/disputes` | ✅ | ⏳ |
+| inventory/low-stock | WS | `/admin/inventory` | ✅ | ⏳ |
+| rbac | WS | 全域（AuthGuard） | ✅ | ⏳ |
+
+> 設環境變數 `NEXT_PUBLIC_REALTIME_BASE_URL` 啟用；未設時 silent disabled，所有頁面行為與之前完全相同。
+
+---
+
+## 21. 跨 Tab 同步（BroadcastChannel，**05-05 新增**）
+
+| 場景 | 行為 | 整合處 |
+| :--- | :--- | :--- |
+| 通知標記已讀 | 跨 tab 紅點 -1 | `/notifications` + Bell + Drawer |
+| 全部已讀 | 跨 tab 列表清空 | 同上 |
+| 收新通知（WS） | 跨 tab 列表插入 | 同上 |
+| 工單 reschedule 送出 | 同工單其他 tab 自動關閉 | `/my-orders/[id]/reschedule` |
+| 客戶 RSVP（WS） | 同上 | 同上 |
+
+---
+
 ## 後續路線（不在當前範圍）
 
-1. **派工 AI 推薦引擎** — 解鎖 `/admin/dispatch-queue` 即時推播 + 候選技師清單 + 一鍵指派
-2. **滿意度 / NPS 模組** — 解鎖 `/admin/customers` 風險指標、`/admin/reports/kpi` 多項客戶體驗指標
-3. **保固詳情頁 + 證據上傳** — 解鎖 `/admin/warranty-claims` 詳情、`/admin/disputes` 雙方證據
-4. **inventory_transactions 寫入路徑** — 解鎖 `/admin/inventory` 補貨 / 編輯 / 異動紀錄
-5. **Reports metrics endpoint 擴充** — 解鎖 `/admin/reports/*` 期間切片、排序、匯出
-6. **批次 / 多步審批流程** — 解鎖 `/accounting` 批次標記、`/admin/refunds` 雙簽
+1. **後端 5 組新 endpoints**（subflow + 排班）— 解鎖 T5/T6/T7/T8/T10 完整提交流程
+2. **WebSocket / SSE server 啟用** — 解鎖 10 個 realtime 頻道實際推播
+3. **媒體上傳 endpoint** — 解鎖 T8 photos / 完工照片 / 雙方證據上傳
+4. **派工 AI 推薦引擎** — 強化 A37 候選排序與權重
+5. **滿意度 / NPS 模組** — 解鎖 `/admin/customers` 風險指標、`/admin/reports/kpi` 多項客戶體驗指標
+6. **保固詳情頁 + 證據上傳** — 解鎖 `/admin/warranty-claims` 詳情、`/admin/disputes` 雙方證據
+7. **inventory_transactions 寫入路徑** — 解鎖 `/admin/inventory` 補貨 / 編輯 / 異動紀錄
+8. **Reports metrics endpoint 擴充** — 解鎖 `/admin/reports/*` 期間切片、排序、匯出
+9. **批次 / 多步審批流程** — 解鎖 `/accounting` 批次標記、`/admin/refunds` 雙簽、A37 雙簽
+10. **PWA Service Worker + 離線快取** — T8 photos 離線拍照、Background Sync

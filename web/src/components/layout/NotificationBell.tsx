@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Bell } from "lucide-react";
 import { ApiError, api } from "@/lib/api";
+import {
+  BROADCAST_CHANNELS,
+  NotificationBroadcastEvent,
+  useBroadcast,
+} from "@/lib/useBroadcast";
 import type { components } from "@/types/api.generated";
 import NotificationDrawer from "./NotificationDrawer";
 
@@ -67,6 +72,24 @@ export default function NotificationBell({ variant = "light" }: Props) {
       cancelled = true;
     };
   }, [refreshBadge]);
+
+  // 跨 tab 同步：其他 tab 標記已讀/全部已讀/封存/收新通知時，更新 bell 紅點
+  useBroadcast<NotificationBroadcastEvent>(
+    BROADCAST_CHANNELS.notifications,
+    (event) => {
+      if (event.type === "marked_read") {
+        setUnreadCount((c) => (c == null ? c : Math.max(0, c - 1)));
+      } else if (event.type === "all_read") {
+        setUnreadCount(0);
+        setHasMore(false);
+      } else if (event.type === "new_received") {
+        setUnreadCount((c) => (c == null ? 1 : c + 1));
+      } else if (event.type === "archived") {
+        // 封存若為未讀也減少 badge（保守不減，等 refresh 校正）
+        refreshBadge();
+      }
+    },
+  );
 
   const iconColor =
     variant === "dark"

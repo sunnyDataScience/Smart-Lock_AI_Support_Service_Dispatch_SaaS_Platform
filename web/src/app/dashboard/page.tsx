@@ -21,6 +21,7 @@ import WorkOrderTrendChart from "@/components/dashboard/WorkOrderTrendChart";
 import TechnicianStatusChart from "@/components/dashboard/TechnicianStatusChart";
 import RecentWorkOrders from "@/components/dashboard/RecentWorkOrders";
 import HotTopicsCard from "@/components/dashboard/HotTopicsCard";
+import SlaAlertBanner from "@/components/dashboard/SlaAlertBanner";
 import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
@@ -97,6 +98,8 @@ export default function DashboardPage() {
               載入儀表板失敗：{error}
             </div>
           )}
+
+          <SlaAlertBanner />
 
           <div className="flex gap-6">
             <KpiCard

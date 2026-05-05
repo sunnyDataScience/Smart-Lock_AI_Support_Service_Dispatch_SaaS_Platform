@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Image as ImageIcon, ChevronDown, RefreshCw } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import DisputesTable from "@/components/admin/DisputesTable";
+import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
 import { ApiError, api } from "@/lib/api";
+import { useRealtimeChannel } from "@/lib/useRealtimeChannel";
 import type { components } from "@/types/api.generated";
 
 type Dispute = components["schemas"]["Dispute"];
@@ -90,6 +92,14 @@ export default function DisputesPage() {
     fetchDisputes(activeTab);
   }, [activeTab]);
 
+  // 訂閱爭議事件，收到後重抓當前 tab
+  const { status: rtStatus } = useRealtimeChannel({
+    channelPath: "/realtime/disputes",
+    onMessage: () => {
+      fetchDisputes(activeTab);
+    },
+  });
+
   const selected = useMemo(
     () => items.find((i) => i.id === selectedId) ?? null,
     [items, selectedId],
@@ -105,6 +115,7 @@ export default function DisputesPage() {
             <h1 className="text-[22px] font-bold text-[var(--text-primary)]">
               爭議案件處理
             </h1>
+            <RealtimeIndicator status={rtStatus} />
             <button
               onClick={() => fetchDisputes(activeTab)}
               disabled={loading}

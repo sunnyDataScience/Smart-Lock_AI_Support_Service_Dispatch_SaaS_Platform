@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   CircleDashed,
@@ -13,7 +13,9 @@ import {
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import DispatchQueueTable from "@/components/dispatch-queue/DispatchQueueTable";
+import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
 import { ApiError, api } from "@/lib/api";
+import { useRealtimeChannel } from "@/lib/useRealtimeChannel";
 import type { components } from "@/types/api.generated";
 
 type DispatchQueueSnapshot = components["schemas"]["DispatchQueueSnapshot"];
@@ -85,38 +87,162 @@ export default function DispatchQueuePage() {
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
-  const fetchAll = async () => {
+  // Debounce 控制：相同類型 fetch 在 5 秒內最多一次（避免高頻 WS 引爆 N+1 請求）
+  const lastFetchAt = useRef<{ snapshot: number; logs: number; pool: number }>({
+    snapshot: 0,
+    logs: 0,
+    pool: 0,
+  });
+  const FETCH_DEBOUNCE_MS = 5000;
+
+  const formatErr = (e: unknown): string =>
+    e instanceof ApiError
+      ? `${e.errorCode} (${e.status})：${e.message}`
+      : e instanceof Error
+        ? e.message
+        : String(e);
+
+  const fetchSnapshot = useCallback(
+    async (force = false) => {
+      const now = Date.now();
+      if (!force && now - lastFetchAt.current.snapshot < FETCH_DEBOUNCE_MS) {
+        return;
+      }
+      lastFetchAt.current.snapshot = now;
+      try {
+        const snap = await api.get<DispatchQueueSnapshot>(
+          "/api/v1/work-orders/dispatch-queue",
+        );
+        setSnapshot(snap);
+        setUpdatedAt(new Date());
+      } catch (e) {
+        setError(formatErr(e));
+      }
+    },
+    [],
+  );
+
+  const fetchLogs = useCallback(async (force = false) => {
+    const now = Date.now();
+    if (!force && now - lastFetchAt.current.logs < FETCH_DEBOUNCE_MS) {
+      return;
+    }
+    lastFetchAt.current.logs = now;
+    try {
+      const page = await api.get<DispatchLogPage>("/api/v1/dispatch-logs", {
+        query: { limit: 50 },
+      });
+      setLogs(page.items ?? []);
+    } catch (e) {
+      setError(formatErr(e));
+    }
+  }, []);
+
+  const fetchPool = useCallback(async (force = false) => {
+    const now = Date.now();
+    if (!force && now - lastFetchAt.current.pool < FETCH_DEBOUNCE_MS) {
+      return;
+    }
+    lastFetchAt.current.pool = now;
+    try {
+      const poolPage = await api.get<WorkOrderPage>(
+        "/api/v1/work-orders/pool",
+      );
+      setPool(poolPage.items ?? []);
+    } catch (e) {
+      setError(formatErr(e));
+    }
+  }, []);
+
+  const fetchAll = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [snap, page, poolPage] = await Promise.all([
-        api.get<DispatchQueueSnapshot>("/api/v1/work-orders/dispatch-queue"),
-        api.get<DispatchLogPage>("/api/v1/dispatch-logs", {
-          query: { limit: 50 },
-        }),
-        api.get<WorkOrderPage>("/api/v1/work-orders/pool"),
+      await Promise.all([
+        fetchSnapshot(true),
+        fetchLogs(true),
+        fetchPool(true),
       ]);
-      setSnapshot(snap);
-      const items: DispatchLog[] = page.items ?? [];
-      setLogs(items);
-      setPool(poolPage.items ?? []);
-      setUpdatedAt(new Date());
-    } catch (e) {
-      setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
-      );
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchSnapshot, fetchLogs, fetchPool]);
 
   useEffect(() => {
     fetchAll();
-  }, []);
+  }, [fetchAll]);
+
+  // 派工佇列即時更新：依事件 shape 決定 patch 哪個 state，
+  // 未知 shape 走 debounced fetchAll 兜底（5 秒內最多一次）
+  const { status: rtStatus } = useRealtimeChannel<{
+    pending?: number;
+    assigning?: number;
+    assigned?: number;
+    sla_at_risk?: number;
+    dispatch_log?: DispatchLog;
+    work_order?: WorkOrder;
+    event?: string;
+  }>({
+    channelPath: "/realtime/dispatch-queue",
+    onMessage: (msg) => {
+      const data = (msg.payload ?? msg) as {
+        pending?: number;
+        assigning?: number;
+        assigned?: number;
+        sla_at_risk?: number;
+        dispatch_log?: DispatchLog;
+        work_order?: WorkOrder;
+        event?: string;
+      };
+
+      // Case 1: dispatch.queue.snapshot — 直接 patch 數字
+      if (
+        typeof data.pending === "number" ||
+        typeof data.assigning === "number" ||
+        typeof data.assigned === "number" ||
+        typeof data.sla_at_risk === "number"
+      ) {
+        setSnapshot((prev) => ({
+          pending: data.pending ?? prev?.pending ?? 0,
+          assigning: data.assigning ?? prev?.assigning ?? 0,
+          assigned: data.assigned ?? prev?.assigned ?? 0,
+          sla_at_risk: data.sla_at_risk ?? prev?.sla_at_risk ?? 0,
+        }));
+        setUpdatedAt(new Date());
+        return;
+      }
+
+      // Case 2: dispatch_log entry — prepend（保留 50 筆）
+      if (data.dispatch_log) {
+        const entry = data.dispatch_log;
+        setLogs((prev) => {
+          if (prev.some((x) => x.id === entry.id)) return prev;
+          return [entry, ...prev].slice(0, 50);
+        });
+        setUpdatedAt(new Date());
+        return;
+      }
+
+      // Case 3: pool 增減（add / removed / cancelled）
+      if (data.work_order) {
+        if (data.event === "removed" || data.event === "cancelled") {
+          setPool((prev) => prev.filter((x) => x.id !== data.work_order!.id));
+        } else {
+          setPool((prev) =>
+            prev.some((x) => x.id === data.work_order!.id)
+              ? prev
+              : [data.work_order!, ...prev],
+          );
+        }
+        return;
+      }
+
+      // 兜底：未知 shape，走 debounced fetch
+      fetchSnapshot();
+      fetchLogs();
+      fetchPool();
+    },
+  });
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -146,6 +272,7 @@ export default function DispatchQueuePage() {
                   />
                   {error ? "連線失敗" : "已連線"}
                 </span>
+                <RealtimeIndicator status={rtStatus} />
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -285,36 +412,47 @@ export default function DispatchQueuePage() {
                   const urgency = wo.urgency ?? "low";
                   const color = URGENCY_COLOR[urgency];
                   return (
-                    <Link
+                    <div
                       key={wo.id}
-                      href={`/work-orders/${wo.id}`}
                       className="flex items-center gap-4 px-4 py-3 transition hover:bg-[var(--bg-page)]"
                     >
-                      <span className="font-['IBM_Plex_Mono'] text-xs text-[var(--text-secondary)]">
-                        #{wo.id.slice(0, 8)}
-                      </span>
-                      <span
-                        className="rounded-md px-2 py-[2px] text-[11px] font-semibold"
-                        style={{ backgroundColor: color.bg, color: color.text }}
+                      <Link
+                        href={`/work-orders/${wo.id}`}
+                        className="flex flex-1 items-center gap-4"
                       >
-                        {color.label}
-                      </span>
-                      <span className="text-[13px] font-medium text-[var(--text-primary)]">
-                        {wo.brand}
-                        {wo.model ? ` / ${wo.model}` : ""}
-                      </span>
-                      <span className="flex-1 truncate text-[12px] text-[var(--text-secondary)]">
-                        {wo.district}
-                        {wo.address ? ` · ${wo.address}` : ""}
-                      </span>
-                      <span className="text-[11px] text-[var(--text-disabled)]">
-                        {wo.created_at
-                          ? new Date(wo.created_at).toLocaleString("zh-TW", {
-                              hour12: false,
-                            })
-                          : "—"}
-                      </span>
-                    </Link>
+                        <span className="font-['IBM_Plex_Mono'] text-xs text-[var(--text-secondary)]">
+                          #{wo.id.slice(0, 8)}
+                        </span>
+                        <span
+                          className="rounded-md px-2 py-[2px] text-[11px] font-semibold"
+                          style={{ backgroundColor: color.bg, color: color.text }}
+                        >
+                          {color.label}
+                        </span>
+                        <span className="text-[13px] font-medium text-[var(--text-primary)]">
+                          {wo.brand}
+                          {wo.model ? ` / ${wo.model}` : ""}
+                        </span>
+                        <span className="flex-1 truncate text-[12px] text-[var(--text-secondary)]">
+                          {wo.district}
+                          {wo.address ? ` · ${wo.address}` : ""}
+                        </span>
+                        <span className="text-[11px] text-[var(--text-disabled)]">
+                          {wo.created_at
+                            ? new Date(wo.created_at).toLocaleString("zh-TW", {
+                                hour12: false,
+                              })
+                            : "—"}
+                        </span>
+                      </Link>
+                      <Link
+                        href={`/admin/dispatch-manual?work_order_id=${wo.id}`}
+                        className="rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700 hover:bg-amber-100"
+                        title="人工介入派工"
+                      >
+                        人工介入
+                      </Link>
+                    </div>
                   );
                 })}
               </div>

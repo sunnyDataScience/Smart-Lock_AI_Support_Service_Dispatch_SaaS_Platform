@@ -3,8 +3,18 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { auth } from "@/lib/api";
+import RbacChangedBanner from "@/components/realtime/RbacChangedBanner";
 
-const PUBLIC_PATHS = new Set(["/login"]);
+const PUBLIC_PATHS = new Set(["/login", "/tech-login"]);
+
+// 技師端路由：未登入時導向 /tech-login，已登入時 /tech-login → /pool
+const TECH_ROUTE_PREFIXES = ["/pool", "/my-orders", "/account", "/tech-login"];
+
+function isTechRoute(pathname: string): boolean {
+  return TECH_ROUTE_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(p + "/"),
+  );
+}
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -14,17 +24,18 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const token = auth.getAccessToken();
+    const tech = isTechRoute(pathname);
 
     if (!token && !isPublic) {
-      router.replace("/login");
+      router.replace(tech ? "/tech-login" : "/login");
       return;
     }
     if (token && isPublic) {
-      router.replace("/dashboard");
+      router.replace(pathname === "/tech-login" ? "/pool" : "/dashboard");
       return;
     }
     setChecked(true);
-  }, [isPublic, router]);
+  }, [isPublic, pathname, router]);
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
@@ -33,7 +44,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         !e.newValue &&
         !PUBLIC_PATHS.has(pathname)
       ) {
-        router.replace("/login");
+        router.replace(isTechRoute(pathname) ? "/tech-login" : "/login");
       }
     };
     window.addEventListener("storage", onStorage);
@@ -42,5 +53,10 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (isPublic) return <>{children}</>;
   if (!checked) return null;
-  return <>{children}</>;
+  return (
+    <>
+      <RbacChangedBanner />
+      {children}
+    </>
+  );
 }
