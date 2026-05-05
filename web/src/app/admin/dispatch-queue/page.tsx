@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   CircleDashed,
@@ -87,44 +87,160 @@ export default function DispatchQueuePage() {
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
-  const fetchAll = async () => {
+  // Debounce 控制：相同類型 fetch 在 5 秒內最多一次（避免高頻 WS 引爆 N+1 請求）
+  const lastFetchAt = useRef<{ snapshot: number; logs: number; pool: number }>({
+    snapshot: 0,
+    logs: 0,
+    pool: 0,
+  });
+  const FETCH_DEBOUNCE_MS = 5000;
+
+  const formatErr = (e: unknown): string =>
+    e instanceof ApiError
+      ? `${e.errorCode} (${e.status})：${e.message}`
+      : e instanceof Error
+        ? e.message
+        : String(e);
+
+  const fetchSnapshot = useCallback(
+    async (force = false) => {
+      const now = Date.now();
+      if (!force && now - lastFetchAt.current.snapshot < FETCH_DEBOUNCE_MS) {
+        return;
+      }
+      lastFetchAt.current.snapshot = now;
+      try {
+        const snap = await api.get<DispatchQueueSnapshot>(
+          "/api/v1/work-orders/dispatch-queue",
+        );
+        setSnapshot(snap);
+        setUpdatedAt(new Date());
+      } catch (e) {
+        setError(formatErr(e));
+      }
+    },
+    [],
+  );
+
+  const fetchLogs = useCallback(async (force = false) => {
+    const now = Date.now();
+    if (!force && now - lastFetchAt.current.logs < FETCH_DEBOUNCE_MS) {
+      return;
+    }
+    lastFetchAt.current.logs = now;
+    try {
+      const page = await api.get<DispatchLogPage>("/api/v1/dispatch-logs", {
+        query: { limit: 50 },
+      });
+      setLogs(page.items ?? []);
+    } catch (e) {
+      setError(formatErr(e));
+    }
+  }, []);
+
+  const fetchPool = useCallback(async (force = false) => {
+    const now = Date.now();
+    if (!force && now - lastFetchAt.current.pool < FETCH_DEBOUNCE_MS) {
+      return;
+    }
+    lastFetchAt.current.pool = now;
+    try {
+      const poolPage = await api.get<WorkOrderPage>(
+        "/api/v1/work-orders/pool",
+      );
+      setPool(poolPage.items ?? []);
+    } catch (e) {
+      setError(formatErr(e));
+    }
+  }, []);
+
+  const fetchAll = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [snap, page, poolPage] = await Promise.all([
-        api.get<DispatchQueueSnapshot>("/api/v1/work-orders/dispatch-queue"),
-        api.get<DispatchLogPage>("/api/v1/dispatch-logs", {
-          query: { limit: 50 },
-        }),
-        api.get<WorkOrderPage>("/api/v1/work-orders/pool"),
+      await Promise.all([
+        fetchSnapshot(true),
+        fetchLogs(true),
+        fetchPool(true),
       ]);
-      setSnapshot(snap);
-      const items: DispatchLog[] = page.items ?? [];
-      setLogs(items);
-      setPool(poolPage.items ?? []);
-      setUpdatedAt(new Date());
-    } catch (e) {
-      setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
-      );
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchSnapshot, fetchLogs, fetchPool]);
 
   useEffect(() => {
     fetchAll();
-  }, []);
+  }, [fetchAll]);
 
-  // 派工佇列即時更新：收到任何事件就重抓 snapshot（最簡實作；後續可改為 patch state）
-  const { status: rtStatus } = useRealtimeChannel({
+  // 派工佇列即時更新：依事件 shape 決定 patch 哪個 state，
+  // 未知 shape 走 debounced fetchAll 兜底（5 秒內最多一次）
+  const { status: rtStatus } = useRealtimeChannel<{
+    pending?: number;
+    assigning?: number;
+    assigned?: number;
+    sla_at_risk?: number;
+    dispatch_log?: DispatchLog;
+    work_order?: WorkOrder;
+    event?: string;
+  }>({
     channelPath: "/realtime/dispatch-queue",
-    onMessage: () => {
-      fetchAll();
+    onMessage: (msg) => {
+      const data = (msg.payload ?? msg) as {
+        pending?: number;
+        assigning?: number;
+        assigned?: number;
+        sla_at_risk?: number;
+        dispatch_log?: DispatchLog;
+        work_order?: WorkOrder;
+        event?: string;
+      };
+
+      // Case 1: dispatch.queue.snapshot — 直接 patch 數字
+      if (
+        typeof data.pending === "number" ||
+        typeof data.assigning === "number" ||
+        typeof data.assigned === "number" ||
+        typeof data.sla_at_risk === "number"
+      ) {
+        setSnapshot((prev) => ({
+          pending: data.pending ?? prev?.pending ?? 0,
+          assigning: data.assigning ?? prev?.assigning ?? 0,
+          assigned: data.assigned ?? prev?.assigned ?? 0,
+          sla_at_risk: data.sla_at_risk ?? prev?.sla_at_risk ?? 0,
+        }));
+        setUpdatedAt(new Date());
+        return;
+      }
+
+      // Case 2: dispatch_log entry — prepend（保留 50 筆）
+      if (data.dispatch_log) {
+        const entry = data.dispatch_log;
+        setLogs((prev) => {
+          if (prev.some((x) => x.id === entry.id)) return prev;
+          return [entry, ...prev].slice(0, 50);
+        });
+        setUpdatedAt(new Date());
+        return;
+      }
+
+      // Case 3: pool 增減（add / removed / cancelled）
+      if (data.work_order) {
+        if (data.event === "removed" || data.event === "cancelled") {
+          setPool((prev) => prev.filter((x) => x.id !== data.work_order!.id));
+        } else {
+          setPool((prev) =>
+            prev.some((x) => x.id === data.work_order!.id)
+              ? prev
+              : [data.work_order!, ...prev],
+          );
+        }
+        return;
+      }
+
+      // 兜底：未知 shape，走 debounced fetch
+      fetchSnapshot();
+      fetchLogs();
+      fetchPool();
     },
   });
 
