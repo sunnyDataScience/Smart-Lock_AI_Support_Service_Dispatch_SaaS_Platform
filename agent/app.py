@@ -188,25 +188,44 @@ async def shutdown():
 
 @app.get("/health")
 async def health():
-    """Health check — 驗證核心 DB 連線是否存活。"""
+    """Health check — 驗證核心 DB pool 是否存活。
+
+    對每個 pool 執行 SELECT 1，驗證的不是「曾經連上過」而是「現在拿得到一條活的連線」，
+    這是上一輪事件（checkpointer 死掉但 health 仍回 200）的修復點。
+    """
+    from fastapi.responses import JSONResponse
     import profiles.manager as pm
     import storage.postgres_impl as audit
+    import memory.postgres_saver as ckpt
+    import harness.data_correction as dc
 
-    checks = {}
+    pools = {
+        "checkpointer": ckpt.get_pool(),
+        "facts_db": pm.get_pool(),
+        "audit_db": audit.get_pool(),
+        "data_correction_db": dc.get_pool(),
+    }
 
-    # Facts DB
-    fc = pm._facts_conn
-    checks["facts_db"] = "ok" if (fc is not None and not fc.closed and not fc.broken) else "disconnected"
+    checks: dict[str, str] = {}
+    for name, pool in pools.items():
+        if pool is None:
+            checks[name] = "disabled"
+            continue
+        if pool.closed:
+            checks[name] = "closed"
+            continue
+        try:
+            async with pool.connection() as conn:
+                await conn.execute("SELECT 1")
+            checks[name] = "ok"
+        except Exception as e:
+            checks[name] = f"error: {type(e).__name__}"
 
-    # Audit DB
-    ac = audit._postgres_conn
-    checks["audit_db"] = "ok" if (ac is not None and not ac.closed and not ac.broken) else "disconnected"
-
-    all_ok = all(v == "ok" for v in checks.values())
-    from fastapi.responses import JSONResponse
+    # disabled 視為 ok（功能本來就關閉）；只有 closed / error 算 degraded
+    degraded = any(v not in ("ok", "disabled") for v in checks.values())
     return JSONResponse(
-        status_code=200 if all_ok else 503,
-        content={"status": "ok" if all_ok else "degraded", "version": "2.0-skills", "checks": checks},
+        status_code=503 if degraded else 200,
+        content={"status": "degraded" if degraded else "ok", "version": "2.0-skills", "checks": checks},
     )
 
 

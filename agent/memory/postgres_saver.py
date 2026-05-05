@@ -6,6 +6,11 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 _postgres_pool: AsyncConnectionPool | None = None
 
 
+def get_pool() -> AsyncConnectionPool | None:
+    """供 /health 等模組讀取 pool 健康狀態。"""
+    return _postgres_pool
+
+
 async def build_postgres_saver(config: dict):
     """建立 checkpointer。
 
