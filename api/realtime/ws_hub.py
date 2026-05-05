@@ -21,11 +21,75 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 from fastapi import WebSocket
 
+from core.auth import decode_token, is_jti_revoked
+
 logger = logging.getLogger("api.ws_hub")
+
+
+@dataclass
+class WSAuth:
+    """WS 連線通過驗證後的身份資訊。"""
+
+    user_id: str
+    role: str
+    tenant_id: str
+    jti: str
+
+
+class WSAuthError(Exception):
+    """WS 認證失敗（送 close code + reason 給 client）。"""
+
+    def __init__(self, code: int, reason: str) -> None:
+        super().__init__(reason)
+        self.code = code
+        self.reason = reason
+
+
+async def verify_ws_token(
+    *, access_token: str | None, tenant_id_query: str | None
+) -> WSAuth:
+    """驗 access_token + tenant_id 一致性。失敗丟 WSAuthError（含 close code）。"""
+    if not access_token:
+        raise WSAuthError(1008, "missing access_token")
+    try:
+        payload = decode_token(access_token)
+    except Exception as e:  # noqa: BLE001
+        raise WSAuthError(1008, "invalid_token") from e
+    if payload.get("type") != "access":
+        raise WSAuthError(1008, "wrong_token_type")
+    jti = payload.get("jti", "")
+    if jti and await is_jti_revoked(jti):
+        raise WSAuthError(1008, "token_revoked")
+    user_tenant = payload.get("tenant_id", "")
+    if tenant_id_query and user_tenant and tenant_id_query != user_tenant:
+        raise WSAuthError(1008, "tenant_mismatch")
+    return WSAuth(
+        user_id=payload["sub"],
+        role=payload.get("role", ""),
+        tenant_id=user_tenant,
+        jti=jti,
+    )
+
+
+def authorize_channel(*, channel: str, auth: WSAuth, path_user_id: str | None = None, path_tech_id: str | None = None, allowed_roles: set[str] | None = None) -> None:
+    """檢查連線使用者對該 channel 是否有授權。失敗丟 WSAuthError(1008)。
+
+    - path_user_id：若 channel 含 {user_id}，須等於 token sub
+    - path_tech_id：若 channel 含 {tech_id}，須等於 token sub（技師訂閱自己的 pool）
+                    或 admin role 可訂閱任何技師（管理員監控用）
+    - allowed_roles：若給定，token role 必須在集合內
+    """
+    if path_user_id and path_user_id != auth.user_id:
+        raise WSAuthError(1008, "user_id_mismatch")
+    if path_tech_id and path_tech_id != auth.user_id and auth.role not in {"admin", "operations_manager"}:
+        raise WSAuthError(1008, "tech_id_mismatch")
+    if allowed_roles is not None and auth.role not in allowed_roles:
+        raise WSAuthError(1008, f"role_not_allowed:{auth.role}")
 
 
 class WSHub:

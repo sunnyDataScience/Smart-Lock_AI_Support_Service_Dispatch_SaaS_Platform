@@ -144,23 +144,45 @@ async def health():
 
 from fastapi import WebSocket, WebSocketDisconnect, Query  # noqa: E402
 
-from realtime.ws_hub import hub  # noqa: E402
+from realtime.ws_hub import hub, verify_ws_token, authorize_channel, WSAuthError  # noqa: E402
 
 
-async def _ws_accept_and_subscribe(
-    ws: WebSocket, channel: str, access_token: str | None
+# admin 類頻道允許的角色（依需求調整）
+_ADMIN_ROLES = {"admin", "operations_manager", "tenant_admin"}
+_ADMIN_OR_FINANCE = {"admin", "operations_manager", "accountant"}
+_ADMIN_OR_SUPPORT = {"admin", "operations_manager", "support_agent"}
+
+
+async def _ws_authorized_subscribe(
+    ws: WebSocket,
+    channel: str,
+    access_token: str | None,
+    tenant_id_query: str | None,
+    *,
+    path_user_id: str | None = None,
+    path_tech_id: str | None = None,
+    allowed_roles: set[str] | None = None,
 ) -> None:
-    """Accept connection（任意 token 都接，PoC；實際應驗 JWT）→ subscribe 到 channel。"""
-    # MVP：簡單檢查 token 存在；實作 JWT 驗證請改為 verify_token(access_token)
-    if not access_token:
-        await ws.close(code=1008, reason="missing access_token")
+    """驗 token + 通道授權 → accept → subscribe → 等待 disconnect → unsubscribe。"""
+    try:
+        auth = await verify_ws_token(
+            access_token=access_token, tenant_id_query=tenant_id_query
+        )
+        authorize_channel(
+            channel=channel,
+            auth=auth,
+            path_user_id=path_user_id,
+            path_tech_id=path_tech_id,
+            allowed_roles=allowed_roles,
+        )
+    except WSAuthError as e:
+        await ws.close(code=e.code, reason=e.reason)
         return
     await ws.accept()
     await hub.subscribe(channel, ws)
     try:
         while True:
-            # 保持連線開啟；client→server 訊息目前忽略（單向 push）
-            await ws.receive_text()
+            await ws.receive_text()  # 單向 push，client→server 訊息忽略
     except WebSocketDisconnect:
         pass
     finally:
@@ -172,10 +194,15 @@ async def ws_notifications(
     websocket: WebSocket,
     user_id: str,
     access_token: str | None = Query(default=None),
-    tenant_id: str | None = Query(default=None),  # noqa: ARG001
+    tenant_id: str | None = Query(default=None),
 ):
-    await _ws_accept_and_subscribe(
-        websocket, f"/realtime/notifications/{user_id}", access_token
+    # 任何登入者都可以訂閱自己的通知頻道（user_id 必須等於 token sub）
+    await _ws_authorized_subscribe(
+        websocket,
+        f"/realtime/notifications/{user_id}",
+        access_token,
+        tenant_id,
+        path_user_id=user_id,
     )
 
 
@@ -184,10 +211,14 @@ async def ws_work_orders(
     websocket: WebSocket,
     wo_id: str,
     access_token: str | None = Query(default=None),
-    tenant_id: str | None = Query(default=None),  # noqa: ARG001
+    tenant_id: str | None = Query(default=None),
 ):
-    await _ws_accept_and_subscribe(
-        websocket, f"/realtime/work-orders/{wo_id}", access_token
+    # tenant 內任何登入者都可訂閱該工單事件（後續若需精細 ACL 再擴充）
+    await _ws_authorized_subscribe(
+        websocket,
+        f"/realtime/work-orders/{wo_id}",
+        access_token,
+        tenant_id,
     )
 
 
@@ -195,10 +226,14 @@ async def ws_work_orders(
 async def ws_dispatch_queue(
     websocket: WebSocket,
     access_token: str | None = Query(default=None),
-    tenant_id: str | None = Query(default=None),  # noqa: ARG001
+    tenant_id: str | None = Query(default=None),
 ):
-    await _ws_accept_and_subscribe(
-        websocket, "/realtime/dispatch-queue", access_token
+    await _ws_authorized_subscribe(
+        websocket,
+        "/realtime/dispatch-queue",
+        access_token,
+        tenant_id,
+        allowed_roles=_ADMIN_ROLES,
     )
 
 
@@ -206,10 +241,14 @@ async def ws_dispatch_queue(
 async def ws_sla_alerts(
     websocket: WebSocket,
     access_token: str | None = Query(default=None),
-    tenant_id: str | None = Query(default=None),  # noqa: ARG001
+    tenant_id: str | None = Query(default=None),
 ):
-    await _ws_accept_and_subscribe(
-        websocket, "/realtime/sla-alerts", access_token
+    await _ws_authorized_subscribe(
+        websocket,
+        "/realtime/sla-alerts",
+        access_token,
+        tenant_id,
+        allowed_roles=_ADMIN_ROLES,
     )
 
 
@@ -217,28 +256,44 @@ async def ws_sla_alerts(
 async def ws_refunds(
     websocket: WebSocket,
     access_token: str | None = Query(default=None),
-    tenant_id: str | None = Query(default=None),  # noqa: ARG001
+    tenant_id: str | None = Query(default=None),
 ):
-    await _ws_accept_and_subscribe(websocket, "/realtime/refunds", access_token)
+    await _ws_authorized_subscribe(
+        websocket,
+        "/realtime/refunds",
+        access_token,
+        tenant_id,
+        allowed_roles=_ADMIN_OR_FINANCE,
+    )
 
 
 @app.websocket("/realtime/disputes")
 async def ws_disputes(
     websocket: WebSocket,
     access_token: str | None = Query(default=None),
-    tenant_id: str | None = Query(default=None),  # noqa: ARG001
+    tenant_id: str | None = Query(default=None),
 ):
-    await _ws_accept_and_subscribe(websocket, "/realtime/disputes", access_token)
+    await _ws_authorized_subscribe(
+        websocket,
+        "/realtime/disputes",
+        access_token,
+        tenant_id,
+        allowed_roles=_ADMIN_OR_SUPPORT,
+    )
 
 
 @app.websocket("/realtime/inventory/low-stock")
 async def ws_inventory(
     websocket: WebSocket,
     access_token: str | None = Query(default=None),
-    tenant_id: str | None = Query(default=None),  # noqa: ARG001
+    tenant_id: str | None = Query(default=None),
 ):
-    await _ws_accept_and_subscribe(
-        websocket, "/realtime/inventory/low-stock", access_token
+    await _ws_authorized_subscribe(
+        websocket,
+        "/realtime/inventory/low-stock",
+        access_token,
+        tenant_id,
+        allowed_roles=_ADMIN_ROLES,
     )
 
 
@@ -246,9 +301,12 @@ async def ws_inventory(
 async def ws_rbac(
     websocket: WebSocket,
     access_token: str | None = Query(default=None),
-    tenant_id: str | None = Query(default=None),  # noqa: ARG001
+    tenant_id: str | None = Query(default=None),
 ):
-    await _ws_accept_and_subscribe(websocket, "/realtime/rbac", access_token)
+    # 任何登入者都應收到 RBAC 變更（觸發頁面 reload 重新拉權限）
+    await _ws_authorized_subscribe(
+        websocket, "/realtime/rbac", access_token, tenant_id
+    )
 
 
 @app.websocket("/realtime/pool/{tech_id}")
@@ -256,8 +314,13 @@ async def ws_pool(
     websocket: WebSocket,
     tech_id: str,
     access_token: str | None = Query(default=None),
-    tenant_id: str | None = Query(default=None),  # noqa: ARG001
+    tenant_id: str | None = Query(default=None),
 ):
-    await _ws_accept_and_subscribe(
-        websocket, f"/realtime/pool/{tech_id}", access_token
+    # 技師訂閱自己的 pool；admin/operations_manager 可訂閱任何技師（監控）
+    await _ws_authorized_subscribe(
+        websocket,
+        f"/realtime/pool/{tech_id}",
+        access_token,
+        tenant_id,
+        path_tech_id=tech_id,
     )
