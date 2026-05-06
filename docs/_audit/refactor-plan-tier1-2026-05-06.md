@@ -5,6 +5,9 @@
 - **核心原則**: 業務驅動、契約先行、漸進演進；**未啟動前不寫 code**
 - **配套文件**:
   - 短期重構計畫：[refactor-plan-phase1-2-2026-05-06.md](./refactor-plan-phase1-2-2026-05-06.md)
+  - 源頭脈絡（audit）：
+    - [code-architecture-review-2026-05-06-1521.md](./code-architecture-review-2026-05-06-1521.md) — D1 LLM registry 雙輸（對應 Phase A3 + ADR-007）
+    - [consistency-matrix-2026-05-06-1521.md](./consistency-matrix-2026-05-06-1521.md) — 議長原則與判決框架
   - 多租戶設計藍本：[../02-design/platform-multi-tenant/multi-tenant-architecture.md](../02-design/platform-multi-tenant/multi-tenant-architecture.md)
   - B2B API 規格：[../02-design/specs/b2b-api-spec.md](../02-design/specs/b2b-api-spec.md)
   - Brand OEM 上傳：[../02-design/specs/brand-data-api-spec.md](../02-design/specs/brand-data-api-spec.md)
