@@ -24,9 +24,8 @@ import harness.memory_manager as memory_manager
 from harness.llm_metrics import extract_usage_from_messages, schedule_log
 
 log = get_logger(__name__)
-from harness.line_ui_factory import (
-    build_line_messages, match_brand, match_model, get_brand_models, is_quick_reply_enabled,
-)
+from core.brand_match import match_brand, match_model, get_brand_models
+from harness.line_ui_factory import build_line_messages, is_quick_reply_enabled
 from skills.tools import set_current_user_id, set_current_brand, get_current_brand, get_current_model, reset_run_state, set_current_user_input, was_transfer_called
 from agent import get_system_prompt
 import harness.profile_updater as profile_updater
