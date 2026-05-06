@@ -1162,7 +1162,9 @@ export const config = {
 - [ ] 本檔 §9.1 URL 清單可在 `MAPPING.md §8.1` 找到 operationId 對應
 - [ ] WS 頻道（§8.4 指向 architecture §8.4）可在 `MAPPING.md §7.1` 找到 AsyncAPI operationId
 - [ ] 每 IA 頁對應的 Flow 可在 `MAPPING.md §7.5` 矩陣查到
-- [ ] CI 檢查通過（`scripts/check-operationid-orphans.sh` 無孤兒）
+- [ ] CI 檢查通過（`scripts/ci/check-operationid-orphans.sh` 無孤兒；
+  搭配 `scripts/ci/generate-api-types.sh --check`、`scripts/ci/mock-server.sh`、
+  `scripts/ci/generate-mapping-api-index.sh`（PAGE META → MAPPING.md 雙向繫結）共四道閘）
 
 ### 10.6 持續維護
 

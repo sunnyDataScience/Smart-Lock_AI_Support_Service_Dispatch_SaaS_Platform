@@ -62,4 +62,12 @@ cloud-sql-proxy
 .claude/settings.local.json
 .claude/taskmaster-data/
 .claude/statusline-go.exe
+.claude/skills/
 .dev-logs/
+
+# Playwright MCP local cache（瀏覽器自動化工具的本地暫存）
+.playwright-mcp/
+
+# Debug screenshots（根目錄除錯截圖，不入庫）
+/dashboard-*.png
+/work-orders-*.png

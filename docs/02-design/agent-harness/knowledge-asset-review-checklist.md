@@ -112,10 +112,10 @@
 
 ## Validation Script
 
-每次知識資產變更後，執行交叉引用驗證：
+每次知識資產變更後，執行交叉引用驗證（從專案根執行，由 `pyproject.toml` 管理 `agent` 的 `tomli` 等依賴）：
 
 ```bash
-cd agent && python3 -c "
+uv run python -c "
 import json, sys
 from pathlib import Path
 try:
@@ -123,7 +123,7 @@ try:
 except ModuleNotFoundError:
     import tomli as tomllib
 
-base = Path('harness/task')
+base = Path('agent/harness/task')
 # ... (validation script from previous session)
 # Checks: symptom IDs, failure IDs, FM IDs, component IDs all cross-reference correctly
 "

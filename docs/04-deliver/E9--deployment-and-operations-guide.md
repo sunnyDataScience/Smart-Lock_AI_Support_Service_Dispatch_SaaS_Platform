@@ -11,6 +11,30 @@
 
 ---
 
+> ## 遷移備註：uv workspace（2026-05）
+>
+> 本指南已從 conda + pip + requirements.txt 遷移到 **uv workspace**，並把實際生產部署統一到 **Cloud Run + `scripts/deploy/*.sh`**：
+>
+> | 場景 | 舊指令 | 新指令 |
+> |------|--------|--------|
+> | 安裝依賴 | `pip install -r agent/requirements.txt` | `uv sync` |
+> | Agent CLI | `cd agent && python main.py` | `cd agent && uv run python main.py` |
+> | API 啟動 | `cd api && uvicorn main:app --reload --port 8001` | `cd api && uv run uvicorn main:app --reload --port 8001` |
+> | 部署（V1.0 生產） | `./scripts/deploy.sh`（已不存在） | `./scripts/deploy/agent.sh` 或 `./scripts/deploy/api.sh` |
+> | 本機 DB 切換 | （無集中位置） | `./scripts/env/use-local.sh` / `./scripts/env/use-gcp.sh` |
+> | 開發環境啟動 | `./scripts/dev-up.sh` | `./scripts/dev/dev-up.sh` |
+>
+> **本文件章節定位**：
+> - 第 1 部分（拓撲）、第 7 部分（docker-compose / nginx）、第 9 部分中以 `docker compose ...` 起始的指令：**僅供 local dev 多服務一鍵起、或自行架設 self-hosted VPS 時參考**。生產環境一律走 Cloud Run。
+> - 第 2 部分（CI/CD）已更新為 `astral-sh/setup-uv@v3` + `uv sync --frozen`；deploy 流水線改為呼叫 `scripts/deploy/agent.sh` / `scripts/deploy/api.sh`。
+> - 第 9 部分中提到的 `alembic` 指令：本專案目前未啟用 Alembic（schema 演進透過 `SQL/*.sql` 手動套用），僅作為日後啟用 migration 框架時的參考模板。
+>
+> **回滾路徑**：若需回到 pip，移除根目錄 `pyproject.toml` / `uv.lock`、恢復各模組 `requirements.txt`。但本專案 CI/CD 已釘 uv，回滾代價高。
+>
+> 完整新舊對照見專案根 `CLAUDE.md` 的 Common Commands 段。
+
+---
+
 **文件版本 (Document Version):** `v1.1`
 **最後更新 (Last Updated):** `2026-04-04`
 **主要作者 (Lead Author):** `DevOps / 技術負責人`
@@ -23,7 +47,7 @@
 
 - [第 1 部分：部署架構總覽](#第-1-部分部署架構總覽)
   - [1.1 環境策略](#11-環境策略)
-  - [1.2 部署拓撲圖 (Docker Compose)](#12-部署拓撲圖-docker-compose)
+  - [1.2 部署拓撲圖](#12-部署拓撲圖)
   - [1.3 容器服務清單](#13-容器服務清單)
   - [1.4 網路與端口規劃](#14-網路與端口規劃)
 - [第 2 部分：CI/CD 流水線](#第-2-部分cicd-流水線)
@@ -100,9 +124,9 @@ Development (localhost)  →  Staging (VPS)  →  Production (VPS/Cloud)
 
 | 環境 | 用途 | 基礎設施 | 資料 | 外部服務 |
 | :--- | :--- | :--- | :--- | :--- |
-| **Development** | 本地開發與除錯 | Docker Compose (local) | SQLite / PostgreSQL (local)，Mock 資料 | LINE Bot: 使用 ngrok 暫時隧道。Google AI: 開發帳號（設定用量上限） |
-| **Staging** | 整合測試、UAT 驗收 | Docker Compose (VPS) | PostgreSQL (staging)，匿名化生產資料副本 | LINE Bot: 獨立的 Staging Channel。Google AI: 開發帳號 |
-| **Production** | 正式運行環境 | Docker Compose (VPS/Cloud) | PostgreSQL (production)，每日備份（保留 30 天） | LINE Bot: 正式 Channel。Google AI: 正式帳號 |
+| **Development** | 本地開發與除錯 | `scripts/dev/dev-up.sh`（uvicorn + Docker PostgreSQL + ngrok） | 本機 PostgreSQL 16 + pgvector（Docker），可選擇透過 `cloud-sql-proxy` 連 GCP Staging DB（`./scripts/env/use-gcp.sh`） | LINE Bot: ngrok 暫時隧道。Google AI: 開發帳號（設定用量上限） |
+| **Staging** | 整合測試、UAT 驗收 | Cloud Run（獨立 service：`agent-staging` / `api-staging`） | Cloud SQL (staging)，匿名化生產資料副本 | LINE Bot: 獨立的 Staging Channel。Google AI: 開發帳號 |
+| **Production** | 正式運行環境 | Cloud Run（`agent` / `api`） | Cloud SQL (production)，自動備份（PITR + 每日 dump 保留 30 天） | LINE Bot: 正式 Channel。Google AI: 正式帳號 |
 
 **環境隔離原則：**
 - 每個環境使用獨立的 `.env` 檔案，絕不共享密鑰
@@ -110,9 +134,58 @@ Development (localhost)  →  Staging (VPS)  →  Production (VPS/Cloud)
 - 生產 API Key 僅存在於生產環境的密鑰管理中
 - 開發環境使用 Google AI 帳號的用量上限 (usage cap) 防止誤用
 
-### 1.2 部署拓撲圖 (Docker Compose)
+### 1.2 部署拓撲圖
 
-以下為生產環境的 Docker Compose 部署拓撲：
+#### 1.2.1 生產拓撲（Cloud Run，V1.0 實際部署）
+
+```mermaid
+graph TB
+    subgraph "External"
+        LINE_USER["LINE Users"]
+        LINE_SRV["LINE Messaging API"]
+        ADMIN["Admin Web (V2.0)"]
+        GOOGLE_AI["Google Vertex AI<br/>(Gemini)"]
+        OPIK["Opik<br/>(LLM observability)"]
+    end
+
+    subgraph "GCP Project"
+        subgraph "Cloud Run Services"
+            AGENT["agent service<br/>---<br/>FastAPI + LangGraph<br/>Port 8080<br/>Image: agent/Dockerfile"]
+            API["api service<br/>---<br/>FastAPI backend<br/>Port 8080<br/>Image: api/Dockerfile"]
+        end
+
+        subgraph "Cloud SQL"
+            PG["PostgreSQL 16 + pgvector<br/>---<br/>checkpoints / facts / audit / vectors<br/>連線：Unix socket（生產） / cloud-sql-proxy（local dev）"]
+        end
+
+        subgraph "Secret Manager"
+            SECRETS["LINE_CHANNEL_SECRET<br/>LINE_CHANNEL_ACCESS_TOKEN<br/>DB_PASSWORD<br/>POSTGRES_URI<br/>OPIK_API_KEY"]
+        end
+
+        AR["Artifact Registry<br/>(agent + api images)"]
+    end
+
+    LINE_USER -- "HTTPS message" --> LINE_SRV
+    LINE_SRV -- "Webhook POST /webhook" --> AGENT
+    ADMIN -- "REST /api/v1/*" --> API
+    AGENT -- "Cloud SQL (Unix socket)" --> PG
+    API -- "Cloud SQL (Unix socket)" --> PG
+    AGENT -- "secrets injected at deploy" -.- SECRETS
+    API -- "secrets injected at deploy" -.- SECRETS
+    AGENT -- "Vertex SDK" --> GOOGLE_AI
+    AGENT -- "trace export" --> OPIK
+    AR -. "image pull" .-> AGENT
+    AR -. "image pull" .-> API
+```
+
+**特點：**
+- 兩個獨立 Cloud Run service（`agent` / `api`），分別由 `scripts/deploy/agent.sh` / `scripts/deploy/api.sh` 部署
+- DB 連線走 **Cloud SQL Unix socket**（無需開放公網 IP），本機開發時改走 `cloud-sql-proxy`（見 `scripts/dev/proxy-up.sh`）
+- 無 nginx / 無 Redis / 無 docker-compose — 邊緣代理為 GCP Load Balancer + Cloud Run 內建 HTTPS
+
+#### 1.2.2 Local Dev 拓撲（Docker Compose 多服務一鍵起，僅參考）
+
+下圖描述早期單機 self-host 的 docker-compose 拓撲，**目前僅作為自架 VPS 場景的參考**，生產環境已遷至 Cloud Run。本機開發推薦走 `scripts/dev/dev-up.sh`（uvicorn + Docker PostgreSQL + ngrok），不需要起整個 docker-compose stack。
 
 ```mermaid
 graph TB
@@ -167,7 +240,9 @@ graph TB
     BACKUP -- "pg_dump :5432" --> PG
 ```
 
-### 1.3 容器服務清單
+### 1.3 容器服務清單（self-host 參考；生產走 Cloud Run）
+
+> 以下表格描述 self-host docker-compose 拓撲下的容器組成。**生產實際只有兩個 Cloud Run service（`agent` / `api`）**，無 nginx / 無 Redis，DB 由 Cloud SQL 託管。
 
 | 服務名稱 | Image | 端口 | 環境變數 | Volume | 備註 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -178,7 +253,9 @@ graph TB
 | `redis` | redis:7-alpine | 6379 (internal) | - | `redis_data` | 持久化 appendonly |
 | `backup` | postgres:16-alpine | - | - | `backup_data` | cron 排程 pg_dump，每日執行 |
 
-### 1.4 網路與端口規劃
+### 1.4 網路與端口規劃（self-host 參考）
+
+> 生產 Cloud Run 沒有「Docker network」概念 — 兩個 service 各自有獨立 HTTPS endpoint（`https://agent-xxx.a.run.app`），透過 Cloud SQL Unix socket 連 DB，不暴露任何 PostgreSQL / Redis 端口至公網。下表描述 self-host 拓撲。
 
 **Docker Network:** `smartlock-net` (bridge mode)
 
@@ -215,23 +292,24 @@ graph LR
 
         subgraph "Main Pipeline (deploy.yml)"
             TAG["Step 4: Tag<br/>---<br/>Semantic Version<br/>Git Tag"]
-            PUSH["Step 5: Push Image<br/>---<br/>Push to<br/>Container Registry"]
-            DEPLOY["Step 6: Deploy<br/>---<br/>SSH + docker-compose pull<br/>Rolling restart"]
-            SMOKE["Step 7: Smoke Test<br/>---<br/>Health check<br/>API validation"]
+            DEPLOY_AGENT["Step 5: Deploy Agent<br/>---<br/>scripts/deploy/agent.sh<br/>build + push + Cloud Run"]
+            DEPLOY_API["Step 6: Deploy API<br/>---<br/>scripts/deploy/api.sh<br/>build + push + Cloud Run"]
+            SMOKE["Step 7: Smoke Test<br/>---<br/>Health check<br/>tests/smoke/api.sh"]
         end
     end
 
-    subgraph "Production"
-        PROD["Production Server<br/>docker-compose up"]
+    subgraph "Production (GCP)"
+        PROD["Cloud Run<br/>(agent + api services)"]
     end
 
     DEV --> LINT
     LINT -->|pass| TEST
     TEST -->|pass| BUILD
     BUILD -->|merge to main| TAG
-    TAG --> PUSH
-    PUSH --> DEPLOY
-    DEPLOY --> SMOKE
+    TAG --> DEPLOY_AGENT
+    TAG --> DEPLOY_API
+    DEPLOY_AGENT --> SMOKE
+    DEPLOY_API --> SMOKE
     SMOKE --> PROD
 ```
 
@@ -254,26 +332,23 @@ env:
   NODE_VERSION: "20"
 
 jobs:
-  # ----- 後端 Lint -----
+  # ----- 後端 Lint（uv workspace 統一執行）-----
   lint-backend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
 
-      - name: Install dependencies
-        run: uv sync --group dev    # 含 ruff / mypy / pytest
+      - run: uv sync --frozen
 
-      - name: Run ruff check
-        run: uv run ruff check agent/ api/ data/
+      - run: uv run ruff check .
 
-      - name: Run ruff format check
-        run: ruff format --check backend/src/
+      - run: uv run ruff format --check .
 
-      - name: Run mypy type check
-        run: mypy backend/src/ --config-file backend/pyproject.toml
+      - run: uv run mypy agent api data
 
   # ----- 後端 Test -----
   test-backend:
@@ -293,53 +368,50 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
 
-      - name: Install dependencies
-        run: uv sync --group dev    # 含 dev 工具與三個 module 的 deps
+      - run: uv sync --frozen
 
       - name: Run pytest with coverage
         env:
-          DATABASE_URL: postgresql+asyncpg://test_user:test_password@localhost:5432/smart_lock_test
-          REDIS_URL: redis://localhost:6379/0
+          POSTGRES_URI: postgresql://test_user:test_password@localhost:5432/smart_lock_test
           APP_ENV: testing
         run: |
-          cd backend
-          pytest tests/ -v --cov=src --cov-report=xml --cov-fail-under=70
+          uv run pytest tests/ -v --cov=agent --cov=api --cov=data --cov-report=xml --cov-fail-under=70
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: backend/coverage.xml
+          path: coverage.xml
 
-  # ----- 後端 Build -----
+  # ----- 後端 Build（驗證 Docker image 可成功建置）-----
   build-backend:
     runs-on: ubuntu-latest
     needs: test-backend
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Docker image
-        run: docker build -t smartlock-api:ci-${{ github.sha }} ./backend
+      - name: Build agent Docker image
+        run: docker build -f agent/Dockerfile -t smartlock-agent:ci-${{ github.sha }} .
 
-      - name: Verify image
+      - name: Build api Docker image
+        run: docker build -f api/Dockerfile -t smartlock-api:ci-${{ github.sha }} .
+
+      - name: Verify agent image starts
         run: |
-          docker run --rm smartlock-api:ci-${{ github.sha }} python -c "import smart_lock; print('OK')"
+          docker run --rm -d --name agent-smoke -p 8080:8080 \
+            -e POSTGRES_URI="postgresql://x:y@dummy:5432/dummy" \
+            smartlock-agent:ci-${{ github.sha }}
+          sleep 5
+          docker logs agent-smoke
+          docker stop agent-smoke || true
 
   # ----- 前端 Lint (V2.0) -----
   lint-frontend:
@@ -386,9 +458,11 @@ jobs:
         run: cd frontend && npm test -- --coverage --watchAll=false
 ```
 
-### 2.3 deploy.yml - 持續部署
+### 2.3 deploy.yml - 持續部署（Cloud Run）
 
 **觸發條件：** merge 到 `main` 分支
+
+部署改由 `scripts/deploy/agent.sh` 與 `scripts/deploy/api.sh` 執行（兩者各自處理 LINE Bot agent 與 FastAPI backend 兩個 Cloud Run 服務）。CI 端僅負責 checkout、認證 GCP、呼叫腳本。
 
 ```yaml
 # .github/workflows/deploy.yml
@@ -399,8 +473,8 @@ on:
     branches: [main]
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_PREFIX: ${{ github.repository }}
+  GCP_PROJECT: ${{ secrets.GCP_PROJECT }}
+  GCP_REGION: asia-east1
 
 jobs:
   # ----- 版本標記 -----
@@ -421,100 +495,74 @@ jobs:
           DEFAULT_BUMP: patch
           WITH_V: true
 
-  # ----- 建置並推送映像檔 -----
-  build-and-push:
+  # ----- 部署 LINE Bot Agent 至 Cloud Run -----
+  deploy-agent:
     runs-on: ubuntu-latest
     needs: tag-version
     permissions:
       contents: read
-      packages: write
+      id-token: write    # for Workload Identity Federation
     steps:
       - uses: actions/checkout@v4
 
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
+      - id: auth
+        uses: google-github-actions/auth@v2
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SA }}
 
-      - name: Build and push backend image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/api:${{ needs.tag-version.outputs.version }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/api:latest
+      - uses: google-github-actions/setup-gcloud@v2
 
-      - name: Build and push frontend image (V2.0)
-        if: ${{ hashFiles('frontend/Dockerfile') != '' }}
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/web:${{ needs.tag-version.outputs.version }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/web:latest
+      - name: Deploy agent (build + push + deploy + health check)
+        run: ./scripts/deploy/agent.sh
+        env:
+          GIT_SHA: ${{ github.sha }}
 
-  # ----- 資料庫遷移 -----
-  run-migrations:
+  # ----- 部署 FastAPI Backend 至 Cloud Run -----
+  deploy-api:
     runs-on: ubuntu-latest
-    needs: build-and-push
+    needs: tag-version
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - name: Run Alembic migrations via SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: |
-            cd /opt/smartlock
-            docker compose run --rm api alembic upgrade head
+      - uses: actions/checkout@v4
 
-  # ----- 部署到生產環境 -----
-  deploy-production:
-    runs-on: ubuntu-latest
-    needs: run-migrations
-    steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
+      - id: auth
+        uses: google-github-actions/auth@v2
         with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: |
-            cd /opt/smartlock
-            # 拉取最新映像檔
-            docker compose -f docker-compose.prod.yml pull
-            # 滾動重啟服務
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
-            # 清理舊映像檔
-            docker image prune -f
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy api (build + push + deploy + health check)
+        run: ./scripts/deploy/api.sh
+        env:
+          GIT_SHA: ${{ github.sha }}
 
   # ----- Smoke Test -----
   smoke-test:
     runs-on: ubuntu-latest
-    needs: deploy-production
+    needs: [deploy-agent, deploy-api]
     steps:
-      - name: Wait for services to stabilize
-        run: sleep 30
+      - uses: actions/checkout@v4
 
-      - name: Health check
+      - name: Health check (agent)
         run: |
           HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            https://${{ secrets.DEPLOY_HOST }}/health)
+            ${{ secrets.AGENT_CLOUD_RUN_URL }}/health)
           if [ "$HTTP_STATUS" != "200" ]; then
-            echo "Health check failed with status $HTTP_STATUS"
+            echo "Agent health check failed with status $HTTP_STATUS"
             exit 1
           fi
-          echo "Health check passed: $HTTP_STATUS"
 
-      - name: API validation
-        run: |
-          RESPONSE=$(curl -s https://${{ secrets.DEPLOY_HOST }}/api/v1/health)
-          echo "API Response: $RESPONSE"
-          echo "$RESPONSE" | jq -e '.status == "healthy"' || exit 1
+      - name: API smoke test
+        env:
+          ADMIN_EMAIL: ${{ secrets.SMOKE_ADMIN_EMAIL }}
+          ADMIN_PASSWORD: ${{ secrets.SMOKE_ADMIN_PASSWORD }}
+          API_BASE_URL: ${{ secrets.API_CLOUD_RUN_URL }}
+        run: ./tests/smoke/api.sh
 
       - name: Notify deployment result
         if: always()
@@ -526,18 +574,52 @@ jobs:
           fi
 ```
 
+#### 2.3.1 部署腳本三大旗標（`scripts/deploy/agent.sh` / `scripts/deploy/api.sh`）
+
+兩個腳本流程一致：pre-flight 檢查 → build amd64 image → push 至 Artifact Registry → `gcloud run deploy` → health check 重試。透過旗標可分離各階段：
+
+| 旗標 | 用途 | 適用場景 |
+| :--- | :--- | :--- |
+| `--build-only` | 只 build Docker image，**不** push、**不** deploy | 本機驗證 Dockerfile 變更、CI build job |
+| `--deploy-only` | 用既有 image（已在 Artifact Registry）重新 deploy，**不** rebuild | 純配置變更（環境變數、scaling、Secret 輪替）、回滾至特定 image tag |
+| `--update-db-uri`（agent 專用）| 從 Secret Manager 讀取 `DB_PASSWORD`，自動 URL encode 後重建 `POSTGRES_URI` 並推回 Secret Manager；附 round-trip 驗證 | DB 密碼輪替後同步 `POSTGRES_URI`；**永遠不要手動構造 POSTGRES_URI**（容易忘記 URL encode 特殊字元） |
+
+**範例：**
+
+```bash
+# 完整流程：build → push → deploy → health check
+./scripts/deploy/agent.sh
+
+# 只 build（CI build-stage 使用）
+./scripts/deploy/agent.sh --build-only
+
+# 用既有 image 重 deploy（如：只改了 env vars / scaling）
+./scripts/deploy/agent.sh --deploy-only
+
+# DB 密碼輪替後同步
+./scripts/deploy/agent.sh --update-db-uri
+
+# API 服務同理
+./scripts/deploy/api.sh
+./scripts/deploy/api.sh --build-only
+./scripts/deploy/api.sh --deploy-only
+```
+
+**Image tagging 策略：** 兩腳本都以 `{git-sha}-{timestamp}` 命名 image tag，支援精確回滾（`--deploy-only` + 指定 tag）。
+
 ### 2.4 CI/CD 步驟詳細說明
 
 | 步驟 | 觸發條件 | 工具 | 動作 | 失敗處理 |
 | :--- | :--- | :--- | :--- | :--- |
-| **Lint** | PR opened / push | `ruff`, `mypy` | 程式碼風格檢查、型別檢查 | 阻擋 PR merge |
-| **Test** | PR opened / push | `pytest`, `pytest-cov` | 單元測試 + 整合測試，覆蓋率門檻 70% | 阻擋 PR merge |
-| **Build** | PR opened / push | `docker build` | 驗證 Docker Image 可成功建置 | 阻擋 PR merge |
+| **Lint** | PR opened / push | `uv run ruff`, `uv run mypy` | 程式碼風格檢查、型別檢查（`uv sync --frozen` 確保依賴版本鎖定） | 阻擋 PR merge |
+| **Test** | PR opened / push | `uv run pytest`, `pytest-cov` | 單元測試 + 整合測試，覆蓋率門檻 70% | 阻擋 PR merge |
+| **Build** | PR opened / push | `docker build`（`agent/Dockerfile` + `api/Dockerfile`，皆為 multi-stage uv build） | 驗證兩個 service 的 Docker Image 可成功建置 | 阻擋 PR merge |
 | **Tag** | merge to main | GitHub Actions | 自動生成語義化版本 Tag (SemVer) | 手動介入 |
-| **Push Image** | tag created | Container Registry | 推送帶版本 Tag 的 Image | 重試 3 次 |
-| **Migrations** | image pushed | Alembic via SSH | 執行 `alembic upgrade head` | 手動介入，不繼續部署 |
-| **Deploy** | migrations done | SSH + docker-compose | `docker compose pull && docker compose up -d` | 回滾至前一版本 |
-| **Smoke Test** | deploy completed | curl + custom script | 健康檢查端點、關鍵 API 驗證 | 自動回滾 + 告警通知 |
+| **Deploy Agent** | tag created | `scripts/deploy/agent.sh` | build amd64 image → push 至 Artifact Registry → `gcloud run deploy` → health check | 重試 3 次後標示失敗，不影響 API 部署 |
+| **Deploy API** | tag created | `scripts/deploy/api.sh` | 同上，部署 FastAPI backend 至獨立 Cloud Run service | 重試 3 次後標示失敗 |
+| **Smoke Test** | deploy completed | `curl /health` + `tests/smoke/api.sh` | 健康檢查端點、關鍵 API 驗證 | 觸發 Cloud Run revision 回滾（`gcloud run services update-traffic`） + 告警通知 |
+
+**備註：** 本專案目前未啟用 Alembic — schema 演進透過 `SQL/Schema*.sql` 手動於 Cloud SQL 套用，不在 CI/CD 流水線中。日後若引入 migration 框架，會新增 `migrate` job 於 deploy 之前。
 
 ---
 
@@ -591,7 +673,72 @@ jobs:
 
 ## 第 4 部分：部署策略
 
-### 4.1 Blue-Green 部署 (生產環境)
+### 4.0 Cloud Run 部署（V1.0 實際採用）
+
+V1.0 生產部署透過 `scripts/deploy/agent.sh` 與 `scripts/deploy/api.sh` 完成。Cloud Run 內建 **revision-based traffic splitting**，原生支援 zero-downtime 部署與快速回滾，不需要應用層的 Blue-Green 切換腳本。
+
+#### 4.0.1 標準部署流程（每次發版）
+
+```bash
+# === Agent 服務 ===
+# 完整流程：pre-flight → amd64 build → push → deploy → health check
+./scripts/deploy/agent.sh
+
+# 只 build Docker image（不 push、不 deploy） — 適合本機 Dockerfile 變更驗證
+./scripts/deploy/agent.sh --build-only
+
+# 只 deploy（image 已存在於 Artifact Registry） — 適合純配置變更
+./scripts/deploy/agent.sh --deploy-only
+
+# DB 密碼輪替後同步：從 Secret Manager 讀 DB_PASSWORD，URL encode 後重建 POSTGRES_URI
+./scripts/deploy/agent.sh --update-db-uri
+
+# === API 服務 ===
+./scripts/deploy/api.sh
+./scripts/deploy/api.sh --build-only
+./scripts/deploy/api.sh --deploy-only
+```
+
+#### 4.0.2 Cloud Run 原生回滾
+
+每次 `gcloud run deploy` 都會建立新 revision；舊 revision 保留可立即切流。回滾不需要重 build 或 image pull：
+
+```bash
+# 列出近期 revisions
+gcloud run revisions list --service=agent --region=asia-east1
+
+# 一鍵回滾至前一 revision（流量 100% 導回）
+gcloud run services update-traffic agent \
+  --to-revisions=agent-00042-abc=100 \
+  --region=asia-east1
+
+# 漸進式：先導 10% 流量到新版測試
+gcloud run services update-traffic agent \
+  --to-revisions=agent-00043-def=10,agent-00042-abc=90 \
+  --region=asia-east1
+```
+
+#### 4.0.3 Cloud SQL 連線
+
+| 場景 | 連線方式 | 說明 |
+| :--- | :--- | :--- |
+| **生產（Cloud Run）** | Cloud SQL Unix socket | 透過 `--add-cloudsql-instances` 旗標掛載；應用以 `host=/cloudsql/PROJECT:REGION:INSTANCE` 連線。**無需開放公網 IP**。 |
+| **本機開發** | `cloud-sql-proxy`（TCP localhost:5432） | 透過 `./scripts/dev/proxy-up.sh` 啟動，背景跑；以 `./scripts/dev/proxy-down.sh` 停止 |
+| **CI / 自動化測試** | GitHub Actions 內的 `services: postgres:` 容器 | 純測試 DB，不連 Cloud SQL |
+
+**切換本機 .env 目標 DB：**
+
+```bash
+./scripts/env/use-local.sh           # → .env.local（本機 Docker PostgreSQL）
+./scripts/env/use-gcp.sh             # → .env.gcp（GCP Cloud SQL via cloud-sql-proxy）
+./scripts/env/use-gcp.sh --fetch     # 重新從 Secret Manager 拉 .env.gcp
+```
+
+---
+
+### 4.1 Blue-Green 部署 (生產環境，self-host 參考)
+
+> 以下流程為早期 self-host VPS 的部署設計。**生產環境已遷至 Cloud Run，由 revision-based traffic splitting 取代**（見 §4.0.2）。本節保留作為 self-host 場景的參考。
 
 生產環境採用 Blue-Green 部署策略，確保零停機時間與快速回滾能力。
 
@@ -678,9 +825,11 @@ echo "${NEW_ENV}" > ${DEPLOY_DIR}/.current-env
 echo "=== 部署完成: ${NEW_ENV} 已上線 ==="
 ```
 
-### 4.2 滾動部署 (Staging 環境)
+### 4.2 滾動部署 (Staging 環境，self-host 參考)
 
-Staging 環境採用簡化的滾動部署：
+> 生產 Staging 走 Cloud Run（`agent-staging` / `api-staging` service），由 `./scripts/deploy/agent.sh` 部署到 staging 專案即可，不需要應用層 rolling 腳本。本節保留作為 self-host 參考。
+
+Staging 環境（self-host 模式）採用簡化的滾動部署：
 
 ```bash
 #!/bin/bash
@@ -715,7 +864,17 @@ echo "Staging 部署完成"
 
 ### 4.3 首次部署流程
 
-首次部署需要額外的初始化步驟：
+> **Cloud Run 首次部署**：
+> 1. 在 GCP 建立 Artifact Registry repository、Cloud SQL instance、Secret Manager secrets
+> 2. 設定 GitHub Actions Workload Identity Federation（避免 long-lived service account key）
+> 3. 執行 `./scripts/deploy/agent.sh` 與 `./scripts/deploy/api.sh` 各一次完整部署
+> 4. 在 LINE Developers Console 設定 Webhook URL 為 agent service URL + `/webhook`
+>
+> 詳細 GCP 資源建立指令見 `docs/02-design/specs/`（API 規格）與專案 README。
+>
+> 以下流程為 self-host VPS 首次部署參考：
+
+首次部署（self-host 模式）需要額外的初始化步驟：
 
 ```bash
 #!/bin/bash
@@ -1043,23 +1202,43 @@ echo "=== 回滾完成 ==="
 
 ### 6.3 資料庫回滾
 
-**Alembic Migration 回滾：**
+> **本專案目前未啟用 Alembic** — 生產 schema 變更採手動 SQL（見 §9.1.1）。資料庫回滾僅靠 Cloud SQL backup 還原（見下方）。Alembic 段落保留作日後啟用 migration 框架時的參考。
+
+**Alembic Migration 回滾（日後啟用時參考）：**
 
 ```bash
 # 回滾最近一次 migration
-docker compose exec api alembic downgrade -1
+uv run alembic downgrade -1
 
 # 回滾到指定版本
-docker compose exec api alembic downgrade <revision_id>
+uv run alembic downgrade <revision_id>
 
 # 查看 migration 歷史
-docker compose exec api alembic history --verbose
+uv run alembic history --verbose
 
 # 查看當前版本
-docker compose exec api alembic current
+uv run alembic current
 ```
 
-**從備份還原資料庫（最後手段）：**
+**從 Cloud SQL backup 還原（生產實際採用）：**
+
+```bash
+# 列出可用 backup
+gcloud sql backups list --instance=smartlock-prod \
+  --filter="status=SUCCESSFUL" --sort-by=~startTime --limit=10
+
+# 還原至同一 instance（覆蓋）
+gcloud sql backups restore <BACKUP_ID> \
+  --restore-instance=smartlock-prod \
+  --backup-instance=smartlock-prod
+
+# 或：還原至新 instance（安全方式，可比對資料後切換 POSTGRES_URI）
+gcloud sql backups restore <BACKUP_ID> \
+  --restore-instance=smartlock-prod-restored \
+  --backup-instance=smartlock-prod
+```
+
+**從備份還原資料庫（self-host 模式，最後手段）：**
 
 ```bash
 #!/bin/bash
@@ -1114,7 +1293,12 @@ curl -f https://your-domain.com/health && echo "還原成功" || echo "還原後
 
 ## 第 7 部分：基礎設施即程式碼
 
-### 7.1 Docker Compose 配置
+> **本節範圍**：
+> - **§7.1 / §7.2** Docker Compose、nginx 配置：**僅供 local dev 多服務一鍵起、或自行架設 self-hosted VPS 時參考**。生產環境走 Cloud Run，邊緣代理為 GCP Load Balancer。
+> - **§7.3** Dockerfile：**生產實際使用**。`agent/Dockerfile` 與 `api/Dockerfile` 採 multi-stage uv build，被 `scripts/deploy/*.sh` 引用。
+> - 部署實際指令見第 4 部分（部署策略）與 §2.3（CI/CD）。
+
+### 7.1 Docker Compose 配置（local dev / self-host 參考）
 
 #### 開發環境 (docker-compose.yml)
 
@@ -1380,7 +1564,7 @@ networks:
     name: smartlock-net
 ```
 
-### 7.2 Nginx 反向代理配置
+### 7.2 Nginx 反向代理配置（self-host 參考；生產走 GCP Load Balancer）
 
 #### 主配置 (nginx/nginx.conf)
 
@@ -1578,77 +1762,104 @@ server {
 }
 ```
 
-### 7.3 Dockerfile 配置
+### 7.3 Dockerfile 配置（生產實際使用）
 
-#### 後端 Dockerfile (backend/Dockerfile)
+兩個後端服務各自有獨立的 Dockerfile，皆採 **multi-stage uv build**：
+
+- `agent/Dockerfile` — LINE Bot agent 服務
+- `api/Dockerfile` — FastAPI backend 服務
+
+兩者共用 root 的 `pyproject.toml` + `uv.lock` + `.python-version`，透過 `uv sync --frozen --package <name>` 在 build stage 釘版安裝對應 workspace package 的依賴。runtime stage 只 copy `.venv`，不帶 build cache，最終 image 約 200-300MB。
+
+#### Agent Dockerfile (`agent/Dockerfile`)
 
 ```dockerfile
-# backend/Dockerfile
+# agent/Dockerfile
 
-# ----- Stage 1: Base -----
-FROM python:3.11-slim as base
+# ----- Stage 1: Builder -----
+FROM python:3.11-slim AS builder
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+# 從 Astral 官方 image COPY uv binary（避開 build-essential，加快 build）
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
-
-# 從 Astral 官方 image COPY uv binary（無 build-essential）
-COPY --from=ghcr.io/astral-sh/uv:0.11 /uv /uvx /usr/local/bin/
 
 ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
     UV_PYTHON_DOWNLOADS=never
 
-# ----- Stage 2: Dependencies -----
-FROM base as dependencies
-
 # Cache-friendly：先 copy 鎖定檔，避免改原始碼觸發重 sync
 COPY pyproject.toml uv.lock .python-version ./
-COPY agent/pyproject.toml ./agent/pyproject.toml
-COPY api/pyproject.toml ./api/pyproject.toml
-COPY data/pyproject.toml ./data/pyproject.toml
+COPY agent/pyproject.toml agent/
+COPY api/pyproject.toml api/
+COPY data/pyproject.toml data/
 
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --package smart-lock-agent
+RUN uv sync --frozen --no-dev --package agent
 
-# ----- Stage 3: Development -----
-FROM dependencies as development
+# ----- Stage 2: Runtime -----
+FROM python:3.11-slim AS runtime
 
-# 開發 image 多裝 dev 工具（ruff / pytest 等）
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --group dev --package smart-lock-agent
+# 只 copy 已建好的 venv，不帶 build cache
+COPY --from=builder /app/.venv /app/.venv
+ENV PATH="/app/.venv/bin:${PATH}"
 
-COPY agent/ ./agent/
+# Copy agent 原始碼（runtime 不需要 api/data 模組）
+COPY agent /app/agent
 
-ENV PATH="/app/.venv/bin:$PATH"
 WORKDIR /app/agent
-EXPOSE 8000
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+EXPOSE 8080
 
-# ----- Stage 4: Production -----
-FROM dependencies as production
-
-# 建立非 root 使用者
-RUN groupadd -r appuser && useradd -r -g appuser appuser
-
-COPY src/ /app/src/
-COPY alembic/ /app/alembic/
-COPY alembic.ini /app/alembic.ini
-COPY configs/ /app/configs/
-
-# 設定目錄權限
-RUN mkdir -p /app/uploads && chown -R appuser:appuser /app
-
-USER appuser
-
-EXPOSE 8000
-HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
-CMD ["uvicorn", "smart_lock.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+# Cloud Run 自動處理健康檢查（透過 startup probe），不需 HEALTHCHECK 指令
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
 ```
+
+#### API Dockerfile (`api/Dockerfile`)
+
+```dockerfile
+# api/Dockerfile
+
+# ----- Stage 1: Builder -----
+FROM python:3.11-slim AS builder
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+WORKDIR /app
+
+ENV UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    UV_PYTHON_DOWNLOADS=never
+
+COPY pyproject.toml uv.lock .python-version ./
+COPY agent/pyproject.toml agent/
+COPY api/pyproject.toml api/
+COPY data/pyproject.toml data/
+
+RUN uv sync --frozen --no-dev --package api
+
+# ----- Stage 2: Runtime -----
+FROM python:3.11-slim AS runtime
+
+COPY --from=builder /app/.venv /app/.venv
+ENV PATH="/app/.venv/bin:${PATH}"
+
+COPY api /app/api
+
+WORKDIR /app/api
+EXPOSE 8080
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+```
+
+#### Build / Push / Deploy 不直接使用 `docker build`
+
+正式部署應該透過 `scripts/deploy/agent.sh` / `scripts/deploy/api.sh`，內含：
+- amd64 build（避免 Apple Silicon 開發機 build 出 arm64 image）
+- 自動標記 `{git-sha}-{timestamp}` tag（可回滾）
+- push 至 Artifact Registry
+- `gcloud run deploy --image ...` 並注入 Secret Manager 變數
+- health check 重試
+
+只有純 image 驗證（CI build job 或本機測試 Dockerfile 修改）才用 `docker build -f agent/Dockerfile .`。
 
 #### 前端 Dockerfile (frontend/Dockerfile) — V2.0
 
@@ -1786,47 +1997,91 @@ sudo ufw deny 22/tcp
 
 **場景：** 部署新版本時需要更新資料庫 Schema
 
+> **本專案目前未啟用 Alembic** — schema 演進透過 `SQL/Schema*.sql` 手動於 Cloud SQL 套用。下方流程：
+> - **9.1.1**：實際採用方式（手動 SQL 套用）
+> - **9.1.2**：日後若引入 Alembic 的參考模板（保留歷史內容）
+
+#### 9.1.1 手動 SQL 套用（實際流程）
+
 ```bash
-# === 資料庫遷移標準流程 ===
+# === 生產 schema 變更標準流程 ===
 
-# Step 1: 確認當前 migration 版本
-docker compose exec api alembic current
+# Step 1: 備份 Cloud SQL 資料庫
+gcloud sql backups create --instance=smartlock-prod --description="pre-schema-change"
 
-# Step 2: 查看待執行的 migration
-docker compose exec api alembic history --verbose
+# Step 2: 在 Staging 先行驗證
+# 透過 cloud-sql-proxy 連 Staging DB
+./scripts/env/use-gcp.sh                 # 切到 .env.gcp（指向 Staging）
+./scripts/dev/proxy-up.sh                # 啟動 proxy
+psql "$POSTGRES_URI" -f SQL/Schema_v2_extensions.sql
 
-# Step 3: 備份資料庫（執行 migration 前必做）
-./scripts/backup.sh
+# Step 3: 在 Production 執行
+# 用 gcloud sql connect 或 cloud-sql-proxy + psql
+gcloud sql connect smartlock-prod --user=smartlock --database=smart_lock
+\i SQL/Schema_v2_extensions.sql
 
-# Step 4: 在 Staging 先行驗證
-# (在 staging 環境中)
-docker compose exec api alembic upgrade head
-# 驗證功能正常後繼續
+# Step 4: 驗證結果
+\dt                                       # 列出 tables
+\d+ user_facts                            # 檢查特定 table 結構
 
-# Step 5: 在 Production 執行 migration
-docker compose exec api alembic upgrade head
-
-# Step 6: 驗證結果
-docker compose exec api alembic current
-docker compose exec postgres psql -U smartlock -d smart_lock -c "\dt"
-
-# Step 7: 如需回滾
-docker compose exec api alembic downgrade -1
+# Step 5: 如需回滾 — 只能從備份還原（手動 SQL 沒有自動 downgrade）
+gcloud sql backups restore <BACKUP_ID> --restore-instance=smartlock-prod
 ```
 
 **注意事項：**
-- 生產環境執行 migration 前必須先備份資料庫
-- 避免在高流量時段執行包含 ALTER TABLE 的 migration
-- 大型 migration（如新增索引）建議使用 `CREATE INDEX CONCURRENTLY`
+- 生產執行 schema 變更前**必須**先建立 Cloud SQL backup
+- 避免在高流量時段執行包含 `ALTER TABLE` 的變更
+- 大型 schema 變更（如新增索引）建議使用 `CREATE INDEX CONCURRENTLY`
 - pgvector HNSW 索引的建立可能耗時較長，建議安排在低流量時段
+- 若 schema 變更涉及不可逆操作（如 `DROP COLUMN`），務必先確認 application code 已部署相容版本
+
+#### 9.1.2 Alembic 模板（日後啟用 migration 框架時參考）
+
+```bash
+# 確認當前 migration 版本
+uv run alembic current
+
+# 查看 migration 歷史
+uv run alembic history --verbose
+
+# 套用所有待執行 migration
+uv run alembic upgrade head
+
+# 回滾最近一次 migration
+uv run alembic downgrade -1
+
+# 回滾到指定版本
+uv run alembic downgrade <revision_id>
+```
+
+> 啟用 Alembic 後，CI/CD 流水線需新增 `migrate` job 於 `deploy-agent` / `deploy-api` 之前；migration 失敗應**中止部署**（手動介入）。
 
 ### 9.2 手動備份
 
 **場景：** 排程外的緊急備份，或部署前的安全備份
 
+#### 9.2.1 Cloud SQL 手動備份（生產實際採用）
+
+```bash
+# 立即觸發 on-demand backup
+gcloud sql backups create \
+  --instance=smartlock-prod \
+  --description="manual-pre-deploy-$(date +%Y%m%d-%H%M%S)"
+
+# 列出近期 backup
+gcloud sql backups list --instance=smartlock-prod --limit=10
+
+# Cloud SQL 自動備份策略（已啟用）：
+#   - 每日凌晨 03:00 自動備份
+#   - PITR（point-in-time-recovery）保留 7 天
+#   - 自動備份保留 30 天
+```
+
+#### 9.2.2 Self-host pg_dump 備份（參考用）
+
 ```bash
 #!/bin/bash
-# scripts/backup.sh
+# scripts/backup.sh — self-host 模式
 # 用法: ./scripts/backup.sh [backup_name]
 
 set -e
@@ -1877,139 +2132,202 @@ echo "=== 備份流程結束 ==="
 
 **場景：** 服務異常需要重啟
 
+#### 9.3.1 Cloud Run（生產實際採用）
+
+Cloud Run 沒有「重啟」的概念 — 觸發新 revision 即可，舊 revision 會被自動取代：
+
+```bash
+# === 強制建立新 revision（不變更 image，僅重起所有容器實例）===
+gcloud run services update agent --region=asia-east1 --no-traffic
+gcloud run services update-traffic agent --to-latest --region=asia-east1
+
+# 或：純配置變更後 redeploy（不 rebuild）
+./scripts/deploy/agent.sh --deploy-only
+
+# === 查看服務狀態 ===
+gcloud run services describe agent --region=asia-east1
+gcloud run revisions list --service=agent --region=asia-east1
+
+# === 即時 logs ===
+gcloud run services logs tail agent --region=asia-east1
+gcloud run services logs read agent --region=asia-east1 --limit=100
+```
+
+**Cloud SQL 重啟（僅在資料庫端有問題時）：**
+
+```bash
+gcloud sql instances restart smartlock-prod
+```
+
+> Cloud SQL 重啟期間 agent / api 連線會短暫中斷；應用層會透過 `_ensure_conn()` 自動重連（見 architecture 文件）。
+
+#### 9.3.2 Self-host (Docker Compose) — 參考用
+
 ```bash
 # === 重啟單一服務 ===
-
-# 重啟 FastAPI 後端
 docker compose restart backend
-
-# 重啟 Nginx
 docker compose restart nginx
-
-# 重啟 Redis（注意：會清除非持久化的快取資料）
-docker compose restart redis
+docker compose restart redis    # 注意：會清除非持久化的快取資料
 
 # === 重啟全部服務 ===
-
-# 優雅重啟（推薦）
 docker compose down && docker compose -f docker-compose.prod.yml up -d
-
-# 僅重啟應用服務（不重啟資料庫）
 docker compose restart backend nginx
 
 # === 強制重建容器 ===
-# 當容器狀態異常，restart 無效時使用
 docker compose up -d --force-recreate backend
 
 # === 查看服務狀態 ===
 docker compose ps
-docker compose logs --tail=50 backend
-docker compose logs --tail=50 -f backend  # 持續追蹤日誌
+docker compose logs --tail=50 -f backend
 ```
 
 ### 9.4 水平擴展
 
 **場景：** 流量增加，需要擴展後端 Worker 數量
 
+#### 9.4.1 Cloud Run autoscaling（生產實際採用）
+
+Cloud Run 是 serverless，依請求量自動擴縮容（每個 instance 處理 `--concurrency` 個並發請求）：
+
 ```bash
-# === 方法 1: Docker Compose scale（推薦） ===
+# === 設定 autoscaling 上下限 ===
+gcloud run services update agent \
+  --region=asia-east1 \
+  --min-instances=1 \
+  --max-instances=10 \
+  --concurrency=80
 
-# 擴展 backend 至 3 個 replica
-docker compose -f docker-compose.prod.yml up -d --scale backend=3
+# === 調整 CPU / Memory ===
+gcloud run services update agent \
+  --region=asia-east1 \
+  --cpu=1 \
+  --memory=1Gi
 
-# 確認擴展結果
-docker compose ps
-
-# 縮減回 2 個 replica
-docker compose -f docker-compose.prod.yml up -d --scale backend=2
-
-# === 方法 2: 調整 Uvicorn workers ===
-# 修改 docker-compose.prod.yml 中的 command
-# command: uvicorn smart_lock.main:app --host 0.0.0.0 --port 8000 --workers 4
-
-# === 方法 3: 調整 PostgreSQL 連線池 ===
-# 修改 .env 中的連線池設定
-# DATABASE_POOL_SIZE=30        # 預設 20
-# DATABASE_MAX_OVERFLOW=15     # 預設 10
+# === Cloud SQL 連線池 ===
+# 應用層（agent/api）以 autocommit AsyncConnection 連線，每個 Cloud Run instance 維護獨立連線
+# 若連線數逼近 Cloud SQL 上限，調高 Cloud SQL tier 或設定 max-instances 上限
 ```
 
-**擴展注意事項：**
-- V1.0 目標並發數：>= 50 users。Docker Compose + 2 workers 足夠
-- V2.0 目標並發數：>= 100 users。可擴展至 3-4 workers
-- 擴展 backend 後，確認 PostgreSQL 連線池大小足夠（每個 worker 佔用 pool_size 個連線）
-- Redis 為單線程，通常不需要水平擴展，但需監控記憶體使用率
+**Cloud Run 擴展注意事項：**
+- V1.0 並發目標 >= 50 users → `min-instances=1, max-instances=5, concurrency=80` 足夠
+- V2.0 並發目標 >= 100 users → 適度提高 `max-instances` 或 `concurrency`
+- 每個 Cloud Run instance 會佔用 Cloud SQL 連線；instance 數 × 連線數 不可超過 Cloud SQL `max_connections`
+- LangGraph checkpointer 與 facts/audit DB 共用 `POSTGRES_URI`，連線管理由 `_ensure_conn()` 自動處理（見 architecture 文件 H8 章）
+
+#### 9.4.2 Self-host (Docker Compose) — 參考用
+
+```bash
+# === Docker Compose scale ===
+docker compose -f docker-compose.prod.yml up -d --scale backend=3
+docker compose ps
+docker compose -f docker-compose.prod.yml up -d --scale backend=2
+
+# === 調整 uvicorn workers（每個 container）===
+# command: uvicorn agent.app:app --host 0.0.0.0 --port 8080 --workers 4
+```
 
 ### 9.5 日誌查詢
 
 **場景：** 排查問題時需要查詢日誌
 
+#### 9.5.1 Cloud Logging（生產實際採用）
+
 ```bash
-# === 查看即時日誌 ===
+# === 即時 tail ===
+gcloud run services logs tail agent --region=asia-east1
+gcloud run services logs tail api --region=asia-east1
 
-# 追蹤所有服務日誌
-docker compose logs -f
+# === 查最近 N 行 ===
+gcloud run services logs read agent --region=asia-east1 --limit=100
 
-# 追蹤特定服務日誌
-docker compose logs -f backend
+# === 進階篩選（gcloud logging）===
 
-# 查看最近 100 行日誌
-docker compose logs --tail=100 backend
-
-# === 搜尋特定內容 ===
-
-# 搜尋錯誤日誌
-docker compose logs backend 2>&1 | grep -i "error"
+# 搜尋錯誤
+gcloud logging read \
+  'resource.type=cloud_run_revision AND resource.labels.service_name=agent AND severity>=ERROR' \
+  --limit=50 --format=json
 
 # 搜尋特定 request_id
-docker compose logs backend 2>&1 | grep "req_abc123"
+gcloud logging read \
+  'resource.type=cloud_run_revision AND jsonPayload.request_id="req_abc123"' \
+  --limit=50
 
-# 搜尋特定用戶的對話記錄
-docker compose logs backend 2>&1 | grep "U1234567890"
+# 搜尋特定用戶
+gcloud logging read \
+  'resource.type=cloud_run_revision AND jsonPayload.user_id="U1234567890"' \
+  --limit=50
 
-# 搜尋 LLM 呼叫相關日誌
-docker compose logs backend 2>&1 | grep "llm_call\|llm_token\|resolution_level"
+# 搜尋 LLM 呼叫相關
+gcloud logging read \
+  'resource.type=cloud_run_revision AND (jsonPayload.event=~"llm_call|llm_token|resolution_level")' \
+  --limit=100
 
-# === 日誌匯出 ===
+# === 匯出特定時間範圍 ===
+gcloud logging read \
+  'resource.type=cloud_run_revision AND resource.labels.service_name=agent AND timestamp>="2026-02-25T00:00:00Z" AND timestamp<="2026-02-25T23:59:59Z"' \
+  > /tmp/agent-logs-20260225.json
+```
 
-# 匯出特定時間範圍的日誌
-docker compose logs --since="2026-02-25T00:00:00" --until="2026-02-25T23:59:59" backend > /tmp/backend-logs-20260225.txt
+**Cloud SQL 慢查詢：**
 
-# === PostgreSQL 慢查詢日誌 ===
-docker compose exec db psql -U smartlock -d smart_lock -c "SELECT * FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 10;"
+```bash
+# 連線到 Cloud SQL 後執行
+gcloud sql connect smartlock-prod --user=smartlock --database=smart_lock
+SELECT * FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 10;
+```
+
+#### 9.5.2 Self-host (Docker Compose) — 參考用
+
+```bash
+docker compose logs -f                              # 全部服務即時日誌
+docker compose logs -f backend                      # 特定服務
+docker compose logs --tail=100 backend              # 最近 100 行
+docker compose logs backend 2>&1 | grep -i "error" # 搜尋錯誤
+docker compose logs --since="2026-02-25T00:00:00" backend > /tmp/logs.txt
 ```
 
 ### 9.6 SSL 憑證更新
 
-**場景：** Let's Encrypt 憑證到期前更新
+#### 9.6.1 Cloud Run 自動管理（生產）
+
+Cloud Run service 自帶 `*.run.app` HTTPS 憑證，由 Google 自動續期，**運維端無動作**。
+
+若使用自訂域名（如 `bot.example.com`）：
+
+```bash
+# 綁定自訂域名（一次性）
+gcloud run domain-mappings create \
+  --service=agent \
+  --domain=bot.example.com \
+  --region=asia-east1
+
+# Cloud Run 會自動申請與續期 Google-Managed Certificate（基於 Let's Encrypt）
+# 查看狀態
+gcloud run domain-mappings describe \
+  --domain=bot.example.com \
+  --region=asia-east1
+```
+
+**運維責任**：在 Cloud DNS 加 CNAME 記錄指向 `ghs.googlehosted.com`，其餘 SSL 流程由 Google 處理。
+
+#### 9.6.2 Self-host (Let's Encrypt + nginx) — 參考用
 
 ```bash
 #!/bin/bash
-# scripts/renew-ssl.sh
-
+# scripts/renew-ssl.sh — self-host 環境用
 set -e
 
 DEPLOY_DIR="/opt/smartlock"
 DOMAIN="your-domain.com"
 
-echo "=== 更新 SSL 憑證 ==="
-
-# Step 1: 使用 certbot 更新憑證
 certbot renew --quiet
-
-# Step 2: 複製新憑證至 Nginx 目錄
 cp /etc/letsencrypt/live/${DOMAIN}/fullchain.pem ${DEPLOY_DIR}/certs/
 cp /etc/letsencrypt/live/${DOMAIN}/privkey.pem ${DEPLOY_DIR}/certs/
-
-# Step 3: 重新載入 Nginx
 docker compose exec nginx nginx -s reload
-
-echo "SSL 憑證更新完成"
 ```
 
-**建議設定自動更新 CronJob：**
-
 ```bash
-# 每月 1 日凌晨 2 點自動更新 SSL 憑證
+# 每月 1 日凌晨 2 點自動更新（cron）
 0 2 1 * * /opt/smartlock/scripts/renew-ssl.sh >> /opt/smartlock/logs/ssl-renew.log 2>&1
 ```
 
@@ -2017,107 +2335,159 @@ echo "SSL 憑證更新完成"
 
 **場景：** 定期輪替 API Key 與密碼
 
+#### 9.7.1 Cloud Run + Secret Manager（生產實際採用）
+
+所有敏感變數存於 GCP Secret Manager（`LINE_CHANNEL_SECRET` / `LINE_CHANNEL_ACCESS_TOKEN` / `DB_PASSWORD` / `POSTGRES_URI` / `OPIK_API_KEY` / `OPIK_WORKSPACE`）。Cloud Run 在 deploy 時注入。
+
+**通用 Secret 輪替流程：**
+
 ```bash
-# === JWT Secret 輪替 ===
+# Step 1: 寫入新版本（不影響當前運行）
+echo -n "NEW_VALUE" | gcloud secrets versions add LINE_CHANNEL_SECRET --data-file=-
 
-# Step 1: 生成新的 JWT Secret
+# Step 2: 觸發 Cloud Run 載入新 secret 版本（建立新 revision）
+./scripts/deploy/agent.sh --deploy-only
+
+# Step 3: 確認服務健康
+curl https://<agent-cloud-run-url>/health
+
+# Step 4: 撤銷舊版本（可選，建議保留 1-2 個版本緩衝）
+gcloud secrets versions disable <OLD_VERSION> --secret=LINE_CHANNEL_SECRET
+```
+
+**DB 密碼輪替（agent 專用快速通道）：**
+
+```bash
+# Step 1: 在 Cloud SQL 改密碼
+gcloud sql users set-password smartlock --instance=smartlock-prod --password=NEW_PASSWORD
+
+# Step 2: 推新密碼到 Secret Manager DB_PASSWORD
+echo -n "NEW_PASSWORD" | gcloud secrets versions add DB_PASSWORD --data-file=-
+
+# Step 3: 用 --update-db-uri 旗標自動重建 POSTGRES_URI
+#   讀 DB_PASSWORD → URL encode → 組合 POSTGRES_URI → 寫回 Secret Manager → round-trip 驗證
+./scripts/deploy/agent.sh --update-db-uri
+
+# Step 4: redeploy 兩個服務套用新 POSTGRES_URI
+./scripts/deploy/agent.sh --deploy-only
+./scripts/deploy/api.sh --deploy-only
+```
+
+> **永遠不要手動構造 POSTGRES_URI** — 密碼若含特殊字元（`@`、`:`、`/`、`?`）必須 URL encode，手動容易出錯。`--update-db-uri` 旗標已內建 round-trip 驗證。
+
+**Google AI / Vertex 認證輪替：**
+
+V1.0 使用 GCP Service Account（透過 Workload Identity 自動認證），無 API Key 需要輪替。若使用 `credentials.json` 方式：
+
+```bash
+# Step 1: 在 IAM 建立新的 Service Account Key
+# Step 2: 推到 Secret Manager
+gcloud secrets versions add VERTEX_CREDENTIALS --data-file=new-key.json
+
+# Step 3: redeploy
+./scripts/deploy/agent.sh --deploy-only
+
+# Step 4: 在 IAM 撤銷舊 Key
+```
+
+#### 9.7.2 Self-host — 參考用
+
+```bash
+# JWT Secret 輪替（self-host 模式）
 NEW_SECRET=$(openssl rand -hex 32)
-
-# Step 2: 更新 .env 檔案
 # 編輯 .env 中的 JWT_SECRET_KEY
-
-# Step 3: 重啟後端服務（已發行的 Token 將失效）
 docker compose restart backend
-
-# === 資料庫密碼輪替 ===
-
-# Step 1: 更新 PostgreSQL 密碼
-docker compose exec db psql -U smartlock -c "ALTER USER smartlock WITH PASSWORD 'new_password';"
-
-# Step 2: 更新 .env 中的 DATABASE_URL 和 POSTGRES_PASSWORD
-
-# Step 3: 重啟後端服務
-docker compose restart backend
-
-# === Google API Key 輪替 ===
-
-# Step 1: 在 Google Cloud Console 建立新的 API Key
-# Step 2: 更新 .env 中的 GOOGLE_API_KEY
-# Step 3: 重啟後端服務
-docker compose restart backend
-# Step 4: 確認服務正常後，在 Google Cloud Console 撤銷舊 Key
 ```
 
 ### 9.8 災難復原
 
-**場景：** 主機故障或資料損毀，需要從零恢復
+**場景：** GCP 區域故障 / 整個服務需從備份重建
+
+#### 9.8.1 Cloud Run + Cloud SQL（生產實際採用）
 
 ```bash
 #!/bin/bash
-# scripts/disaster-recovery.sh
-# 在新主機上執行完整恢復
-
+# Cloud Run + Cloud SQL 災難復原
 set -e
 
-echo "=== 災難復原流程 ==="
+PROJECT=${GCP_PROJECT}
+REGION=asia-east1
+DR_REGION=asia-northeast1   # 切換用副區域
 
-# Step 1: 安裝必要軟體
-echo "--- Step 1: 安裝 Docker ---"
+echo "=== Cloud DR 流程 ==="
+
+# Step 1: 從 Cloud SQL backup 還原至新 instance（或副區域）
+echo "--- Step 1: 還原 Cloud SQL ---"
+LATEST_BACKUP=$(gcloud sql backups list --instance=smartlock-prod \
+  --filter="status=SUCCESSFUL" --sort-by=~startTime --limit=1 --format="value(id)")
+gcloud sql backups restore "${LATEST_BACKUP}" \
+  --restore-instance=smartlock-prod-dr \
+  --backup-instance=smartlock-prod
+
+# Step 2: 確認 Secret Manager 中所有 secret 仍然有效
+echo "--- Step 2: 驗證 Secrets ---"
+for SECRET in LINE_CHANNEL_SECRET LINE_CHANNEL_ACCESS_TOKEN POSTGRES_URI OPIK_API_KEY; do
+  gcloud secrets versions access latest --secret="${SECRET}" > /dev/null
+  echo "  ✓ ${SECRET}"
+done
+
+# Step 3: 若 POSTGRES_URI 指向舊 instance，更新為 DR instance
+echo "--- Step 3: 更新 POSTGRES_URI ---"
+./scripts/deploy/agent.sh --update-db-uri    # 自動讀 DB_PASSWORD + 重組 POSTGRES_URI
+
+# Step 4: 重新部署兩個 service
+echo "--- Step 4: 重新部署 ---"
+./scripts/deploy/agent.sh
+./scripts/deploy/api.sh
+
+# Step 5: 驗證 health
+echo "--- Step 5: 驗證 ---"
+AGENT_URL=$(gcloud run services describe agent --region=${REGION} --format="value(status.url)")
+curl -f "${AGENT_URL}/health" && echo "agent 健康"
+
+API_URL=$(gcloud run services describe api --region=${REGION} --format="value(status.url)")
+curl -f "${API_URL}/health" && echo "api 健康"
+
+# Step 6: 更新 LINE Developers Console 的 Webhook URL（若 Cloud Run URL 變更）
+echo "若 Cloud Run service URL 變更，請至 LINE Developers Console 更新 Webhook URL"
+
+echo "=== Cloud DR 完成 ==="
+```
+
+#### 9.8.2 Self-host 災難復原 — 參考用
+
+```bash
+#!/bin/bash
+# scripts/disaster-recovery.sh — self-host 環境用
+# 在新主機上執行完整恢復
+set -e
+
 curl -fsSL https://get.docker.com | sh
 apt-get install -y docker-compose-plugin certbot
 
-# Step 2: 建立目錄結構
 DEPLOY_DIR="/opt/smartlock"
 mkdir -p ${DEPLOY_DIR}/{nginx/conf.d,certs,backups,uploads,logs,scripts}
 
-# Step 3: 從備份儲存中取回設定檔與最新備份
-echo "--- Step 3: 取回設定檔與備份 ---"
-# 從安全儲存複製 docker-compose.prod.yml, .env, nginx/ 等設定
-# 從異地備份複製最新的資料庫備份檔案
+# 從備份儲存取回設定檔與資料庫 dump
 # (具體指令視備份儲存方式而定)
 
-# Step 4: 設定 SSL 憑證
-echo "--- Step 4: 設定 SSL ---"
 certbot certonly --standalone -d your-domain.com
 cp /etc/letsencrypt/live/your-domain.com/fullchain.pem ${DEPLOY_DIR}/certs/
 cp /etc/letsencrypt/live/your-domain.com/privkey.pem ${DEPLOY_DIR}/certs/
 
-# Step 5: 啟動基礎服務
-echo "--- Step 5: 啟動基礎服務 ---"
 cd ${DEPLOY_DIR}
-docker compose -f docker-compose.prod.yml up -d db redis
+docker compose -f docker-compose.prod.yml up -d db
 
-# Step 6: 等待 PostgreSQL 就緒
-echo "--- Step 6: 等待 PostgreSQL 就緒 ---"
-sleep 15
-docker compose exec db pg_isready -U smartlock
-
-# Step 7: 還原資料庫
-echo "--- Step 7: 還原資料庫 ---"
 LATEST_BACKUP=$(ls -t ${DEPLOY_DIR}/backups/*.sql.gz | head -1)
-echo "使用備份: ${LATEST_BACKUP}"
 gunzip -c ${LATEST_BACKUP} | docker compose exec -T db psql -U smartlock -d smart_lock
 
-# Step 8: 執行 pending migrations
-echo "--- Step 8: 執行 migrations ---"
-docker compose run --rm api alembic upgrade head
+# 若引入 Alembic 的 self-host 設置，於此執行：uv run alembic upgrade head
 
-# Step 9: 啟動全部服務
-echo "--- Step 9: 啟動全部服務 ---"
 docker compose -f docker-compose.prod.yml up -d
 
-# Step 10: 驗證
-echo "--- Step 10: 驗證 ---"
-sleep 15
-curl -f https://your-domain.com/health && echo "災難復原完成" || echo "驗證失敗，請手動排查"
+curl -f https://your-domain.com/health && echo "災難復原完成"
 
-# Step 11: 更新 DNS 記錄（如 IP 變更）
-echo "如主機 IP 變更，請更新 DNS A Record 與 LINE Webhook URL"
-
-# Step 12: 設定自動備份與監控
 (crontab -l 2>/dev/null; echo "0 3 * * * cd ${DEPLOY_DIR} && ./scripts/backup.sh >> ${DEPLOY_DIR}/logs/backup.log 2>&1") | crontab -
-
-echo "=== 災難復原流程結束 ==="
 ```
 
 **RPO / RTO 目標：**
@@ -2136,37 +2506,49 @@ echo "=== 災難復原流程結束 ==="
 **用途：** 本地功能開發、單元測試、除錯
 
 ```bash
-# 啟動開發環境
-docker compose up -d
+# 啟動完整開發環境（uvicorn + Docker PostgreSQL + ngrok）
+./scripts/dev/dev-up.sh
 
-# 啟動含前端的完整環境 (V2.0)
-docker compose --profile v2 up -d
+# 切換 .env 目標 DB
+./scripts/env/use-local.sh                 # 本機 Docker PostgreSQL
+./scripts/env/use-gcp.sh                   # GCP Cloud SQL via cloud-sql-proxy
+./scripts/env/use-gcp.sh --fetch           # 重新從 Secret Manager 拉 .env.gcp
 
-# 查看日誌
-docker compose logs -f backend
+# 連 GCP DB 模式時，需另外起 cloud-sql-proxy
+./scripts/dev/proxy-up.sh
+./scripts/dev/proxy-down.sh
 
-# 停止環境
-docker compose down
+# 停止開發環境（保留 PostgreSQL container 不刪）
+./scripts/dev/dev-down.sh
+```
+
+**直接跑 agent / api（不透過 dev-up.sh）：**
+
+```bash
+# Agent（LINE Bot）
+cd agent && uv run uvicorn app:app --reload --port 8000
+
+# Agent CLI 連線測試
+cd agent && uv run python main.py
+
+# API backend
+cd api && uv run uvicorn main:app --reload --port 8001
+
+# 快速測試 /chat 端點
+curl "http://localhost:8000/chat?q=門打不開"
 ```
 
 **開發環境特性：**
-- Backend 啟用 `--reload` (Hot Reload)
-- Frontend 啟用 `npm run dev` (HMR)
-- Source code 透過 Volume 掛載至容器內
-- PostgreSQL / Redis 端口對外暴露（方便本地工具連線）
-- 使用 `.env` 的開發配置
-- LINE Bot 使用 ngrok 建立暫時公開 URL
-- FastAPI 自動產生的 `/docs` 可存取
+- 應用透過 `uv run` 啟動，享有 hot reload
+- PostgreSQL 跑在本機 Docker container，端口 `localhost:5432` 對外暴露
+- 使用 `.env`（由 `use-local.sh` / `use-gcp.sh` 切換來源）
+- LINE Bot 使用 ngrok 建立暫時公開 URL（`dev-up.sh` 會自動啟動 ngrok 並印出 URL）
+- FastAPI 自動產生的 `/docs` 端點可存取
 
-**ngrok 設定（LINE Webhook 開發用）：**
+**ngrok 手動模式（如果不用 dev-up.sh 的整合啟動）：**
 
 ```bash
-# 安裝 ngrok
-brew install ngrok  # macOS
-
-# 啟動 ngrok tunnel
 ngrok http 8000
-
 # 取得公開 URL 後，至 LINE Developers Console 設定 Webhook URL
 # https://xxxx.ngrok-free.app/webhook
 ```
@@ -2175,107 +2557,104 @@ ngrok http 8000
 
 **用途：** 整合測試、UAT 驗收、部署前最後驗證
 
+**部署方式：** Cloud Run 獨立 service（`agent-staging` / `api-staging`），透過 `./scripts/deploy/agent.sh`（指向 staging GCP project / region）部署。
+
 **與 Production 的差異：**
 
 | 項目 | Staging | Production |
 | :--- | :--- | :--- |
+| GCP Project | staging project | production project |
 | LINE Channel | 獨立的 Staging Channel | 正式 Channel |
 | Google AI | 開發帳號（低用量上限） | 正式帳號 |
 | 資料 | 匿名化的生產資料副本 | 真實資料 |
-| 備份 | 每週備份 | 每日備份（保留 30 天） |
+| Cloud SQL 備份 | 每週備份 | 每日備份 + PITR（保留 30 天） |
 | 日誌等級 | INFO | INFO |
 | API 文件 | `/docs` 可存取 | `/docs` 關閉 |
-| SSL | 自簽憑證或 Let's Encrypt | Let's Encrypt |
-| Replicas | 1 | 2 |
+| Cloud Run min-instances | 0（冷啟動可接受） | 1+（避免冷啟動）|
+| Cloud Run max-instances | 3 | 10 |
+| SSL | Cloud Run 自帶 `*.run.app` | 自訂域名 + Google-Managed Cert |
 
 ### 10.3 Production 環境
 
 **用途：** 正式對外服務環境
 
 **生產環境特別注意事項：**
-- 所有敏感端口不對外暴露
+- DB 連線走 Cloud SQL Unix socket（無公網 IP），由 `--add-cloudsql-instances` 旗標掛載
 - FastAPI Debug 模式關閉（`APP_DEBUG=false`）
 - `/docs` 與 `/openapi.json` 端點建議關閉或限制存取
-- 所有容器設定 `restart: always`
-- 容器資源設定上限（CPU, Memory）
-- 結構化 JSON 日誌 + log rotation
-- 每日自動備份，保留 30 天
-- SSL/TLS 強制（HTTP 301 至 HTTPS）
-- Rate Limiting 啟用
-- 健康檢查啟用
+- Cloud Run 設定 `min-instances=1` 避免冷啟動延遲
+- Cloud Run 設定 `cpu` / `memory` 上限以控制成本
+- 結構化 JSON 日誌（自動進 Cloud Logging，無需 log rotation）
+- Cloud SQL 自動每日備份 + PITR，保留 30 天
+- HTTPS 由 Cloud Run 強制（HTTP 自動 301）
+- Rate Limiting 由 Cloud Armor / 應用層 token bucket 處理
+- Health check：Cloud Run startup probe + `/health` endpoint（facts_db + audit_db）
 
 ### 10.4 環境變數完整清單
 
 ```bash
 # =================================================================
 # .env.example - 環境變數範本
-# 複製此檔案為 .env 並填入實際值
-# .env 不得提交至版本控制
+# 複製此檔案為 .env 並填入實際值（或用 ./scripts/env/use-local.sh / use-gcp.sh 切換）
+# .env / .env.local / .env.gcp 一律不得提交至版本控制
+# 生產環境改由 GCP Secret Manager 注入（透過 scripts/deploy/*.sh）
 # =================================================================
 
 # === Application ===
 APP_ENV=development                     # development / staging / production
-APP_DEBUG=true                          # true (dev) / false (staging, prod)
-APP_SECRET_KEY=your-secret-key-here
 
-# === Database ===
+# === Vertex AI / Gemini ===
+VERTEX_PROJECT_ID=your-gcp-project
+VERTEX_LOCATION=asia-east1
+
+# === Database (PostgreSQL 16 + pgvector) ===
 # V2.0 Schema 擴展: SQL/Schema_v2_extensions.sql (RBAC, inventory, signatures, audit)
-DATABASE_URL=postgresql+asyncpg://user:password@db:5432/smart_lock
-DATABASE_POOL_SIZE=20                   # dev: 5 / staging: 10 / prod: 20
-DATABASE_MAX_OVERFLOW=10                # dev: 5 / staging: 5 / prod: 10
+# 標準連線（checkpointer / facts / audit），psycopg autocommit
+POSTGRES_URI=postgresql://user:password@host:5432/smart_lock
+# pgvector 連線（embedding queries）
+PG_VECTOR_URI=postgresql://user:password@host:5432/smart_lock
 
-# === Redis ===
-REDIS_URL=redis://redis:6379/0
-SESSION_TTL_SECONDS=3600                # 對話 Session 超時：1 小時
-
-# === LINE Messaging API ===
+# === LINE Messaging API（agent 必需，CLI / /chat 端點不需）===
 LINE_CHANNEL_SECRET=your-channel-secret
 LINE_CHANNEL_ACCESS_TOKEN=your-access-token
 
-# === Google AI ===
-GOOGLE_API_KEY=your-api-key
-GOOGLE_MODEL=gemini-3-pro
-GOOGLE_EMBEDDING_MODEL=text-embedding-004
+# === LLM Observability (Opik，可選) ===
+OPIK_API_KEY=your-opik-api-key
+OPIK_WORKSPACE=your-workspace
 
-# === Auth ===
-JWT_SECRET_KEY=your-jwt-secret
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60      # Admin: 60 (1h) / Technician: 480 (8h)
-JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
+# === GCP Auth（本機開發用 service account JSON；Cloud Run 走 Workload Identity）===
+GOOGLE_APPLICATION_CREDENTIALS=./credentials.json
 
 # === AI Engine ===
 CASE_LIBRARY_CONFIDENCE_THRESHOLD=0.85  # L1 向量搜尋相似度閾值
 RAG_CONFIDENCE_THRESHOLD=0.70           # L2 RAG 信心度閾值
 VECTOR_SEARCH_TOP_K=5                   # 向量搜尋回傳筆數
 
-# === PostgreSQL (docker-compose) ===
+# === PostgreSQL (local Docker 模式) ===
+# 僅當使用 ./scripts/dev/dev-up.sh 啟動本機 docker PostgreSQL 時相關
 POSTGRES_DB=smart_lock
 POSTGRES_USER=smartlock
 POSTGRES_PASSWORD=your-db-password
 
-# === Google Maps API (V2.0) ===
-GOOGLE_MAPS_API_KEY=your-maps-api-key
-
 # === Logging ===
 LOG_LEVEL=DEBUG                         # DEBUG (dev) / INFO (staging, prod)
 LOG_FORMAT=json                         # json (all environments)
-
-# === Container Registry (CI/CD) ===
-REGISTRY=ghcr.io
-IMAGE_PREFIX=your-org/smartlock
-IMAGE_TAG=latest
 ```
+
+> **生產環境注意**：以上變數在 Cloud Run 由 Secret Manager 注入，**不要**將 `.env` 上傳至 GCP。`scripts/deploy/agent.sh` 在 `gcloud run deploy` 時加上 `--update-secrets` 旗標自動掛載。
 
 **各環境變數差異速查表：**
 
 | 變數 | Development | Staging | Production |
 | :--- | :--- | :--- | :--- |
 | `APP_ENV` | development | staging | production |
-| `APP_DEBUG` | true | false | false |
-| `DATABASE_POOL_SIZE` | 5 | 10 | 20 |
-| `DATABASE_MAX_OVERFLOW` | 5 | 5 | 10 |
 | `LOG_LEVEL` | DEBUG | INFO | INFO |
+| `POSTGRES_URI` | 本機 docker DB（5432） / cloud-sql-proxy | Cloud SQL Unix socket（staging instance） | Cloud SQL Unix socket（prod instance） |
 | `LINE_CHANNEL_*` | 開發 Channel | Staging Channel | 正式 Channel |
-| `GOOGLE_API_KEY` | 開發帳號 (低上限) | 開發帳號 | 正式帳號 |
+| `VERTEX_PROJECT_ID` | dev project | staging project | prod project |
+| Secret 來源 | `.env` 檔案 | Secret Manager（staging） | Secret Manager（prod） |
+| Cloud Run min-instances | N/A（本機） | 0 | 1+ |
+| Cloud Run max-instances | N/A | 3 | 10 |
 
 ---
 

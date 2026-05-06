@@ -306,38 +306,42 @@ graph LR
 | Dispatch -> CustomerService | Anti-Corruption Layer | 派工上下文透過防腐層轉譯客服上下文的 ProblemCard，避免領域模型耦合 |
 | 所有上下文 -> UserManagement | Conformist | 所有上下文遵循 UserManagement 定義的身分與權限模型 |
 
-### 1.3 五層 Agent 架構分層
+### 1.3 Agent 架構分層
 
-V1.0 實際採用 **LangGraph 多 Agent 架構**（`agent/` 目錄），以 config-driven composition 取代傳統 Clean Architecture。依賴方向由外而內：Interface → Graph → Agent → Harness → Infrastructure。
+#### 1.3.1 Current Implementation：Single ReAct Agent + Harness 中介層（V1.0 上線版本）
+
+V1.0 實際採用 **LangGraph `prebuilt.create_react_agent`** 構建單一 ReAct agent，配 3 個工具，並以 **Harness 中介層**（8 個扁平模組檔）封裝橫切關注（debounce、safety、profile、memory、validation、audit）。依賴方向：Interface → Harness → Agent → Infrastructure。
 
 ```
 ┌─────────────────────────────────────────────────┐
 │  1. Interface Layer                              │
 │     app.py (FastAPI webhook)  main.py (CLI)     │
 ├─────────────────────────────────────────────────┤
-│  2. Graph Layer                                  │
-│     graph/state.py   graph/builder.py            │
-│     graph/nodes.py   (StateGraph orchestration)  │
+│  2. Harness Layer (8 個扁平模組檔)              │
+│     harness/multimodal.py        (H2)           │
+│     harness/debounce.py          (H3)           │
+│     harness/data_correction.py   (H_DC)         │
+│     harness/line_ui_factory.py   (H_QR)         │
+│     harness/profile_updater.py   (H4)           │
+│     harness/memory_manager.py    (H5)           │
+│     harness/safety_gate.py       (H6)           │
+│     harness/output_validator.py  (H7.5)         │
 ├─────────────────────────────────────────────────┤
-│  3. Agent Layer                                  │
-│     agents/__init__.py  (7 agent subgraphs)      │
-│     agents/prompts/     (13 prompt templates)    │
+│  3. Agent Layer (Single ReAct + 3 Tools)        │
+│     agent.py                                    │
+│       └─ create_react_agent(llm, tools=[...])  │
+│     prompts/system.md                           │
+│     skills/tools.py                             │
+│       ├─ load_skill         (load SOP content) │
+│       ├─ update_user_info   (write user_facts) │
+│       └─ transfer_to_human  (escalate)         │
 ├─────────────────────────────────────────────────┤
-│  4. Harness Layer  (Phase 0 — all disabled)      │
-│     harness/task/       L1 Task Representation   │
-│     harness/context/    L2 Context Assembly      │
-│     harness/governance/ L3 Tool Governance       │
-│     harness/feedback/   L5 Feedback Loop         │
-│     harness/safety/     L6 Safety Gate           │
-│     harness/observability/ L7 Tracing            │
-│     harness/entropy/    L8 Entropy Management    │
-├─────────────────────────────────────────────────┤
-│  5. Infrastructure Layer                         │
-│     tools/  llms/  embeddings/  memory/          │
-│     profiles/  storage/  core/                   │
+│  4. Infrastructure Layer                         │
+│     llms/   memory/   storage/   embeddings/    │
+│     profiles/   skills/data/   core/            │
 └─────────────────────────────────────────────────┘
 
-依賴方向：Interface → Graph → Agent → Harness → Infrastructure
+依賴方向：Interface → Harness → Agent → Infrastructure
           （外層可依賴內層，反向禁止）
 ```
 
@@ -345,11 +349,26 @@ V1.0 實際採用 **LangGraph 多 Agent 架構**（`agent/` 目錄），以 conf
 
 | 層 (Layer) | 職責 | 關鍵檔案 | 依賴規則 |
 | :--- | :--- | :--- | :--- |
-| **Interface** | 接收外部請求（LINE Webhook / CLI），啟動 Graph 執行 | `app.py`, `main.py` | 僅呼叫 Graph Layer |
-| **Graph** | StateGraph 工作流編排，定義節點順序與條件路由 | `graph/builder.py`, `graph/state.py`, `graph/nodes.py` | 依賴 Agent + Infrastructure |
-| **Agent** | 7 個專業 Agent 子圖，各自持有 prompt + tools 組合 | `agents/__init__.py`, `agents/prompts/` | 依賴 Infrastructure（tools, llms） |
-| **Harness** | 8 層運行時框架：任務拆解、上下文裝配、安全閘門、品質驗證、熵管理 | `harness/` 各子目錄 | 依賴 Infrastructure |
-| **Infrastructure** | LLM 供應商、向量檢索、記憶體、使用者輪廓、審計日誌、設定載入 | `tools/`, `llms/`, `embeddings/`, `memory/`, `profiles/`, `storage/`, `core/` | 最內層，不依賴其他層 |
+| **Interface** | 接收外部請求（LINE Webhook / CLI），交由 Harness orchestrate | `agent/app.py`, `agent/main.py` | 僅呼叫 Harness |
+| **Harness** | 8 個扁平模組（每個檔案約 200-600 行）：去抖緩衝、多模態下載、資料修正攔截、Quick Reply、profile 抽取、記憶壓縮、安全閘、輸出驗證 | `agent/harness/*.py`（8 檔扁平） | 依賴 Agent + Infrastructure |
+| **Agent** | 單一 ReAct agent + 3 個工具；ReAct 迴圈由 LLM 自行決定何時 tool call、何時回覆 | `agent/agent.py`, `agent/prompts/system.md`, `agent/skills/tools.py` | 依賴 Infrastructure（llms, skills, profiles） |
+| **Infrastructure** | LLM provider、checkpointer、稽核儲存、embedding、profile 寫入、skill 知識檔 | `agent/llms/`, `agent/memory/`, `agent/storage/`, `agent/embeddings/`, `agent/profiles/`, `agent/skills/data/`, `agent/core/` | 最內層，不依賴其他層 |
+
+**ReAct 迴圈本質**：LLM 收到使用者訊息 → 決定要不要呼叫 `load_skill` 載入 SOP → 讀完 SOP 再決定要不要呼叫 `update_user_info` 寫入 user_facts → 最終決定 `transfer_to_human` 或直接回覆。`transfer_to_human` 必須先有 `load_skill` 紀錄為前置（強制多輪 reasoning），形成「思考→行動→再思考」循環。
+
+#### 1.3.2 Vision：Multi-Agent Sub-graph（規劃中，尚未實作）
+
+> ⚠️ **Vision (not yet implemented)**: 多 sub-agent 編排為長期架構願景。
+>
+> 以下 7 sub-graph + 8-Layer Harness 框架（§1.4 / §3.3 / §3.4 圖示）為理想分工，但目前由 single ReAct + 3 tools 已能支撐當前需求。任何擴展需先評估 sub-agent 邊界、跨 agent 通訊機制（messaging / shared state）、以及對 debounce buffer 與 checkpoint cleanup 的影響。
+
+下表為願景版本對應的層次設計（**僅供未來重構參考，現有 code 不對應此結構**）：
+
+| 層 (Layer) | 願景職責 | 預期檔案 | 狀態 |
+| :--- | :--- | :--- | :--- |
+| **Graph (Vision)** | LangGraph StateGraph 編排，head nodes（pre_process / router / merge_answers / post_process）+ Harness nodes | `agent/graph/*.py` | 規劃中 |
+| **Multi-Agent (Vision)** | 7 個專業 sub-agent（hardware_technician / sales_representative / store_assistant / app_specialist / manual_librarian / web_researcher / receptionist），各自持有 prompt + tools 組合 | `agent/agents/__init__.py`, `agent/agents/prompts/`（13 模板） | 規劃中 |
+| **8-Layer Harness Framework (Vision)** | L1 Task / L2 Context / L3 Governance / L5 Feedback / L6 Safety / L7 Observability / L8 Entropy | `agent/harness/{task,context,governance,feedback,safety,observability,entropy}/`（願景子目錄） | 規劃中 |
 
 ### 1.4 Software 3.0 設計哲學
 
@@ -375,49 +394,76 @@ LLM 推理取代傳統 if/else 規則引擎。Python 程式碼不做業務判斷
 2. **流程編排** -- LangGraph StateGraph 定義節點順序與條件路由
 3. **格式轉換** -- Pydantic 模型驗證、Flex Message 模板渲染
 
-#### 8-Layer Harness Framework
+#### Harness 中介層 (Current — V1.0 上線版本)
 
-Harness 層為 Agent 執行提供運行時保障，每層可獨立啟用/停用：
+V1.0 實際 Harness 為 **8 個扁平模組檔**，封裝橫切關注：
 
-| Layer | 名稱 | V1.0 啟用狀態 | 職責 |
+| 層 | 檔案 | 觸發時機 | 阻塞？ |
 | :--- | :--- | :--- | :--- |
-| L1 | Task Representation | Enabled (Phase 2) | task_decompose: 將自然語言轉為結構化 ProblemCard |
-| L2 | Context Assembly | Disabled | Token 預算管理、上下文新鮮度評分、來源組裝 |
-| L3 | Tool Governance | Enabled (Phase 3) | ToolRegistry 白名單、工具呼叫權限控制 |
+| H2 | `agent/harness/multimodal.py` | 收到 image/audio/video 訊息 | 背景下載，buffer placeholder 同步替換 |
+| H3 | `agent/harness/debounce.py` | 所有訊息 | 同步 — 合併連發訊息、編排 agent |
+| H_DC | `agent/harness/data_correction.py` | `#資料修正` 關鍵字觸發 | 同步 — 寫入 conversation context，跳過 agent |
+| H_QR | `agent/harness/line_ui_factory.py` | brand 未知時 | 同步 — 用 Quick Reply 蒐集 brand/model |
+| H4 | `agent/harness/profile_updater.py` | agent 回覆後 | 背景 — LLM 抽取 phone/address 寫入 user_facts |
+| H5 | `agent/harness/memory_manager.py` | agent 前後 | 同步檢查 + 背景壓縮 |
+| H6 | `agent/harness/safety_gate.py` | LLM 呼叫前 | 同步 — 阻擋危險關鍵字 |
+| H7.5 | `agent/harness/output_validator.py` | LLM 回覆後 | 同步 — 阻擋洩漏內部機制的字串 |
+
+H8（稽核）為 `harness/debounce.py` 中的 audit log 寫入步驟，背景執行。
+
+#### 8-Layer Harness Framework (Vision — 規劃中)
+
+> ⚠️ **Vision (not yet implemented)**: 下表為 8-Layer Harness 願景設計，由 ADR-009 定義。實際 V1.0 採用上述 8 個扁平模組檔；以下分層描述供未來重構參考。
+
+每層在願景中可獨立啟用/停用：
+
+| Layer | 名稱 | 願景啟用 Phase | 願景職責 |
+| :--- | :--- | :--- | :--- |
+| L1 | Task Representation | Phase 2 | task_decompose: 將自然語言轉為結構化 ProblemCard |
+| L2 | Context Assembly | Phase 4 | Token 預算管理、上下文新鮮度評分、來源組裝 |
+| L3 | Tool Governance | Phase 3 | ToolRegistry 白名單、工具呼叫權限控制 |
 | L4 | (Reserved) | - | 保留供未來擴展 |
-| L5 | Feedback Loop | Disabled | verify_answer 品質驗證、retry conditional edge |
-| L6 | Safety Gate | Enabled (Phase 3) | Regex 安全閘門 (<50ms, zero LLM)、PII 過濾 |
-| L7 | Observability | Enabled (Phase 1) | @traced decorator、harness_traces table、LLM 呼叫追蹤 |
-| L8 | Entropy Management | Disabled | SOP 自動生成、知識庫新鮮度掃描、熵值監控 |
+| L5 | Feedback Loop | Phase 5 | verify_answer 品質驗證、retry conditional edge |
+| L6 | Safety Gate | Phase 3 | Regex 安全閘門 (<50ms, zero LLM)、PII 過濾 |
+| L7 | Observability | Phase 1 | @traced decorator、harness_traces table、LLM 呼叫追蹤 |
+| L8 | Entropy Management | Phase 6 | SOP 自動生成、知識庫新鮮度掃描、熵值監控 |
 
-#### 三重機制堆疊 (Three-Mechanism Stacking)
+#### 品質保證機制
 
-系統透過三重機制確保回覆品質：
+V1.0 透過以下機制確保回覆品質（**現狀**）：
 
-1. **Multi-Agent Fan-out** -- Router 將任務分派至多個專業 Agent 並行執行，merge_answers 節點匯總結果
-2. **Three-Layer Cascade** -- L1 知識庫精確匹配 -> L2 RAG + LLM 推理 -> L3 轉人工/建工單
-3. **Harness L5 Verify** -- (啟用後) verify_answer 節點對最終回覆進行品質驗證，不合格則重試
+1. **ReAct Tool Loop** -- LLM 自主決定何時 `load_skill` 載入 SOP、何時 `update_user_info` 寫入 facts、何時 `transfer_to_human`
+2. **Skill Filtering** -- 依使用者 brand/model 動態注入相關 SKILL.md，限制 LLM 知識邊界
+3. **Output Validator (H7.5)** -- 後處理檢查阻擋洩漏內部機制的字串
 
-#### Router 演進：從 LLM 到 Config-only
+> ⚠️ **Vision (not yet implemented)**: 三重機制堆疊（Multi-Agent Fan-out / Three-Layer Cascade / Harness L5 Verify）為願景設計，需待 multi-agent sub-graph 實作後啟用。
+
+#### Router 演進：從 LLM 到 Config-only (Vision)
+
+> ⚠️ **Vision (not yet implemented)**: 以下 Router 演進規劃對應 multi-agent sub-graph 願景；V1.0 single ReAct 不需要 Router，由 LLM 自身決定 tool call 順序。
 
 | 版本 | Router 實作 | LLM 呼叫數 | 延遲 |
 | :--- | :--- | :--- | :--- |
 | V0 (舊) | LLM-based task_decompose 同時做分類 + 診斷 | 1 次 LLM | 2-4s |
-| V1 (現行) | task_decompose 做分類 + 診斷 (single LLM call)，Router 改為 config-only 查表 | 0 次 LLM (Router) | <10ms (Router) |
+| V1 (Vision) | task_decompose 做分類 + 診斷 (single LLM call)，Router 改為 config-only 查表 | 0 次 LLM (Router) | <10ms (Router) |
 
-Router 零 LLM 設計：根據 task_decompose 輸出的 intent 欄位，直接查詢 `config.toml` 中的 agent 映射表，不再額外呼叫 LLM 做路由決策。
+Router 零 LLM 設計（願景）：根據 task_decompose 輸出的 intent 欄位，直接查詢 `agent/config.toml` 中的 agent 映射表，不再額外呼叫 LLM 做路由決策。
 
 #### Latency Budget
 
-| Layer | Budget | 說明 |
+V1.0 Single ReAct 實際 budget：
+
+| 階段 | Budget | 說明 |
 | :--- | :--- | :--- |
 | LINE Webhook -> FastAPI | <200ms | 網路傳輸 |
-| Safety Gate (L6) | <50ms | Regex 比對，zero LLM |
-| task_decompose (L1) | 2-4s | Single LLM call (分類 + 診斷) |
-| Router | <10ms | Config 查表，zero LLM |
-| Agent RAG (L1+L2) | 2-5s | pgvector 搜尋 + LLM 生成 |
-| Response format | <500ms | Template 渲染 |
+| Debounce buffer (H3) | 1.5s | 等待後續訊息合併 |
+| Safety Gate (H6) | <50ms | Regex 比對，zero LLM |
+| ReAct iteration (LLM + tool call) | 2-5s × N | LLM 自主決定 tool call 數量 |
+| Output validator (H7.5) | <50ms | Regex 比對 |
+| Response format | <500ms | LINE Flex Message 組裝 |
 | **Total** | **<8s** | 目標：簡單查詢 <5s |
+
+> ⚠️ **Vision Latency Budget**（multi-agent sub-graph 啟用後）會新增 task_decompose (2-4s)、Router (<10ms)、Agent RAG (2-5s)、merge_answers 等階段，總 budget 需重新評估。
 
 ### 1.5 技術選型與決策
 
@@ -520,16 +566,18 @@ Router 零 LLM 設計：根據 task_decompose 輸出的 intent 欄位，直接�
 
 ### 3.1 架構模式
 
-V1.0 採用四種架構模式的組合：
+V1.0 採用以下架構模式的組合：
 
 | 模式 | 實作方式 | 選擇理由 |
 | :--- | :--- | :--- |
-| **Modular Monolith** | `config.toml` 14 個 section 驅動組合，所有模組共享同一 Python process | 小型團隊（1-3 人），Docker Compose 單機部署，模組透過設定檔 enable/disable |
-| **Event-Driven** | LangGraph `StateGraph` + Debounce buffer（`[debounce] buffer_wait=5s`） | LINE 訊息非同步處理，多則訊息自動合併後再觸發 Graph 執行 |
-| **ReAct Pattern** | Agent 子圖內 `agent_llm ↔ tool_node` 迴圈，直到 LLM 不再呼叫工具為止 | 每個 Agent 自主決定何時查詢知識庫、何時直接回答 |
-| **Fan-out / Fan-in** | `Send()` 平行派發至多個 Agent 子圖，`merge_answers` 節點匯流 | Router 可能同時派發 2+ Agent（如硬體問題同時需要技術 + 說明書） |
+| **Modular Monolith** | `agent/config.toml` 多個 section 驅動組合，所有模組共享同一 Python process | 小型團隊（1-3 人），Cloud Run 單服務部署，模組透過設定檔 enable/disable |
+| **Event-Driven (Debounce)** | LINE webhook + Debounce buffer（`[debounce] buffer_wait=1.5s`） | LINE 訊息非同步處理，連發訊息自動合併後再觸發 ReAct agent |
+| **ReAct Pattern** | `langgraph.prebuilt.create_react_agent` 構建 single agent，LLM 與 3 個工具（load_skill / update_user_info / transfer_to_human）形成迴圈 | LLM 自主決定何時載入 SOP、何時寫 facts、何時轉人工 |
+| **Skill Filtering** | 啟動時掃描 `agent/skills/data/` 載入所有 SKILL.md；per-request 依 brand/model 過濾後注入 `[可用技能]` prefix | 限制 LLM 知識邊界，避免品牌混淆 |
 
-**Config-driven 組合策略：** 新增 Agent 僅需 (1) 新增 prompt `.md` 檔、(2) 在 `config.toml` 新增 `[[agents]]` + `[[intents]]` 項目，無需修改核心程式碼。
+**Skill 擴展策略：** 新增 skill 僅需在 `agent/skills/data/{Brand}/{Model}/` 放入 SKILL.md（含 frontmatter + Markdown SOP），下次重啟自動載入。新品牌只需在 `agent/config.toml` 的 `[quick_reply]` 新增條目以驅動 brand/model Quick Reply 蒐集。
+
+> ⚠️ **Vision (not yet implemented)**: **Fan-out / Fan-in** 模式（`Send()` 平行派發至多個 Agent 子圖、`merge_answers` 節點匯流）為 multi-agent 願景，現有 single ReAct 不採用此模式。
 
 ### 3.2 系統上下文圖
 
@@ -537,7 +585,81 @@ V1.0 採用四種架構模式的組合：
 
 ### 3.3 系統組件圖
 
-以下展示 V1.0 LangGraph 架構的實際組件互動：
+#### 3.3.1 Current — Single ReAct Agent（V1.0 上線版本）
+
+V1.0 實際組件互動為 single ReAct agent + 3 工具 + 8 個 Harness 模組：
+
+```mermaid
+graph TB
+    subgraph "User Interfaces"
+        LINE_APP["LINE App<br/>(一般用戶)"]
+        CLI["main.py CLI<br/>(開發測試)"]
+    end
+
+    subgraph "External Services"
+        LINE_API["LINE Messaging API"]
+        VERTEX["Vertex AI<br/>(Gemini 2.5 Pro/Flash)"]
+    end
+
+    subgraph "agent/ (FastAPI + ReAct)"
+        direction TB
+        APP["app.py<br/>LINE Webhook"]
+
+        subgraph "Harness Layer (8 flat modules)"
+            H2["multimodal.py (H2)"]
+            H3["debounce.py (H3)"]
+            H_DC["data_correction.py (H_DC)"]
+            H_QR["line_ui_factory.py (H_QR)"]
+            H4["profile_updater.py (H4)"]
+            H5["memory_manager.py (H5)"]
+            H6["safety_gate.py (H6)"]
+            H75["output_validator.py (H7.5)"]
+        end
+
+        subgraph "Agent Layer (Single ReAct)"
+            REACT["agent.py<br/>create_react_agent(llm, tools)"]
+            TOOL1["load_skill"]
+            TOOL2["update_user_info"]
+            TOOL3["transfer_to_human"]
+            REACT --- TOOL1
+            REACT --- TOOL2
+            REACT --- TOOL3
+        end
+
+        subgraph "Infrastructure"
+            SKILLS["skills/data/<br/>SKILL.md files"]
+            FACTS["profiles/<br/>user_facts SCD2"]
+            CKPT["memory/<br/>checkpointer"]
+        end
+    end
+
+    subgraph "Data Stores"
+        PG["PostgreSQL 16<br/>+ pgvector"]
+    end
+
+    LINE_APP --> LINE_API
+    LINE_API -- "Webhook" --> APP
+    CLI --> REACT
+
+    APP --> H3
+    H3 --> H6 --> H_DC --> H_QR --> REACT
+    REACT --> H75 --> APP
+    REACT --> H4 -.background.-> FACTS
+    REACT --> H5 -.background.-> CKPT
+    REACT --> H2 -.background.-> CKPT
+
+    TOOL1 --> SKILLS
+    TOOL2 --> FACTS
+    REACT --> VERTEX
+    APP --> LINE_API
+
+    FACTS --> PG
+    CKPT --> PG
+```
+
+#### 3.3.2 Vision — Multi-Agent StateGraph（規劃中，尚未實作）
+
+> ⚠️ **Vision (not yet implemented)**: 以下圖示為 multi-agent sub-graph 願景。V1.0 已能以 single ReAct 支撐當前需求；此圖僅供未來重構參考。
 
 ```mermaid
 graph TB
@@ -622,30 +744,47 @@ graph TB
 
 ### 3.4 主要組件職責表
 
-#### Head Nodes（graph/nodes.py）
+#### 3.4.1 Current — V1.0 實際組件
 
-| 節點 | 檔案 | 核心職責 |
+**Harness 層（8 flat modules）：** 詳見 §1.4 Harness 中介層表。
+
+**Agent 層（Single ReAct + 3 Tools）：**
+
+| 組件 | 檔案 | 核心職責 |
 | :--- | :--- | :--- |
-| **pre_process** | `graph/nodes.py` | 訊息前處理：解析 LINE 事件、注入 user_profile、初始化 GraphState |
-| **manage_memory** | `graph/nodes.py` | 對話記憶管理：當 messages 超過閾值（50 則）觸發語意摘要壓縮，保留最近 20 對 |
-| **router** | `graph/nodes.py` | LLM 意圖分類：根據 `[[intents]]` 配置判斷 `next_agents` 清單，附帶最近 3 輪上下文濃縮問題 |
-| **merge_answers** | `graph/nodes.py` | 多 Agent 回覆匯流：合併 `ui_hints`，LLM 綜合多個 Agent 回答為單一連貫回覆 |
-| **update_profile** | `graph/nodes.py` | 使用者輪廓更新：從回覆中提取 phone/address/device_model 等 facts，寫入 ProfileManager |
-| **post_process** | `graph/nodes.py` | 回覆後處理：組裝 LINE Flex Message / 影片卡片 / 下載卡片，寫入審計日誌 |
+| **ReAct agent** | `agent/agent.py` | `create_react_agent(llm, tools)` 構建 single agent；system prompt 從 `prompts/system.md` 載入，skill list per-request 動態注入 |
+| **load_skill** | `agent/skills/tools.py` | 載入 SOP 內容；含 brand gate（品牌不符拒絕載入）+ prefix matching fallback（`ts-door-stuck` 匹配 `ts-door-stuck-*` 系列） |
+| **update_user_info** | `agent/skills/tools.py` | 寫入 user_facts（SCD Type 2）；用 `match_brand` / `match_model` 對 `agent/config.toml` 中的清單做標準化驗證 |
+| **transfer_to_human** | `agent/skills/tools.py` | 轉接人工客服；自動填入已知 facts（phone, address, device）至表單模板 |
 
-#### Harness Nodes（Phase 0 骨架，全部 disabled）
+#### 3.4.2 Vision — Multi-Agent Components（規劃中）
 
-| 節點 | 檔案 | 核心職責 | 啟用階段 |
+> ⚠️ **Vision (not yet implemented)**: 以下表格為 multi-agent sub-graph 願景設計，**現有 V1.0 不對應這些檔案**。
+
+**Head Nodes (Vision)：**
+
+| 節點 | 預期檔案 | 願景職責 |
+| :--- | :--- | :--- |
+| **pre_process** | `agent/graph/nodes.py` | 訊息前處理：解析 LINE 事件、注入 user_profile、初始化 GraphState |
+| **manage_memory** | `agent/graph/nodes.py` | 對話記憶管理：當 messages 超過閾值（50 則）觸發語意摘要壓縮，保留最近 20 對 |
+| **router** | `agent/graph/nodes.py` | LLM 意圖分類：根據 `[[intents]]` 配置判斷 `next_agents` 清單，附帶最近 3 輪上下文濃縮問題 |
+| **merge_answers** | `agent/graph/nodes.py` | 多 Agent 回覆匯流：合併 `ui_hints`，LLM 綜合多個 Agent 回答為單一連貫回覆 |
+| **update_profile** | `agent/graph/nodes.py` | 使用者輪廓更新：從回覆中提取 phone/address/device_model 等 facts，寫入 ProfileManager |
+| **post_process** | `agent/graph/nodes.py` | 回覆後處理：組裝 LINE Flex Message / 影片卡片 / 下載卡片，寫入審計日誌 |
+
+**Harness Nodes (Vision)：**
+
+| 節點 | 預期檔案 | 願景職責 | 啟用階段 |
 | :--- | :--- | :--- | :--- |
-| **task_decompose** | `harness/task/decomposer.py` | L1：將複雜問題拆解為子任務，建立 ProblemCard | Phase 2 |
-| **context_assemble** | `harness/context/assembler.py` | L2：token budget 控制，source freshness 評分 | Phase 4 |
-| **safety_gate** | `harness/safety/gate.py` | L6：攔截危險指令（拆電路板、剪電線等） | Phase 3 |
-| **verify_answer** | `harness/feedback/verifier.py` | L5：回覆品質驗證，低於 0.6 分觸發 retry | Phase 5 |
-| **entropy_check** | `harness/entropy/checker.py` | L8：偵測新型解法，觸發 SOP 自動生成 | Phase 6 |
+| **task_decompose** | `agent/harness/task/decomposer.py` | L1：將複雜問題拆解為子任務，建立 ProblemCard | Phase 2 |
+| **context_assemble** | `agent/harness/context/assembler.py` | L2：token budget 控制，source freshness 評分 | Phase 4 |
+| **safety_gate** | `agent/harness/safety/gate.py` | L6：攔截危險指令（拆電路板、剪電線等） | Phase 3 |
+| **verify_answer** | `agent/harness/feedback/verifier.py` | L5：回覆品質驗證，低於 0.6 分觸發 retry | Phase 5 |
+| **entropy_check** | `agent/harness/entropy/checker.py` | L8：偵測新型解法，觸發 SOP 自動生成 | Phase 6 |
 
-#### Agent Subgraphs（agents/__init__.py）
+**Agent Sub-graphs (Vision)：**
 
-| Agent | Label | 工具 | 知識庫 |
+| Agent | Label | 預期工具 | 預期知識庫 |
 | :--- | :--- | :--- | :--- |
 | **hardware_technician** | 硬體維修技師 | db_video, transfer_to_human | kb_video (pgvector) |
 | **sales_representative** | 報價與客服專員 | db_line_chat, transfer_to_human | kb_line_chat (pgvector) |
@@ -655,13 +794,15 @@ graph TB
 | **web_researcher** | 網路搜尋助手 | db_web_search, transfer_to_human | DuckDuckGo (即時搜尋) |
 | **receptionist** | 前台接待專員 | transfer_to_human | 無（純對話） |
 
-每個 Agent 子圖內部結構相同：`START → agent_llm → [tool_calls? → tools → agent_llm] → END`（ReAct loop）。
+願景中每個 Agent 子圖內部結構相同：`START → agent_llm → [tool_calls? → tools → agent_llm] → END`（ReAct loop）。
 
 ### 3.5 關鍵用戶旅程
 
-#### GraphState 資料結構（14 欄位）
+#### GraphState 資料結構（14 欄位） — Vision (not yet implemented)
 
-GraphState 是貫穿整個工作流的共享狀態物件，定義於 `graph/state.py`：
+> ⚠️ **Vision (not yet implemented)**: 下表 GraphState 為 multi-agent sub-graph 願景的共享狀態物件設計。V1.0 single ReAct 直接使用 LangGraph checkpointer 的 messages list，無需此複雜 state schema。
+
+GraphState 是貫穿整個工作流的共享狀態物件，定義於（未來的）`agent/graph/state.py`：
 
 | 欄位 | 型別 | Reducer | 用途 |
 | :--- | :--- | :--- | :--- |
@@ -688,19 +829,24 @@ GraphState 是貫穿整個工作流的共享狀態物件，定義於 `graph/stat
 
 ```
 1. 用戶在 LINE 發送：「我家的門鎖打不開了」
-2. LINE Webhook POST → app.py → Debounce buffer（等待 5 秒合併後續訊息）
-3. pre_process：解析訊息、載入 user_profile
-4. manage_memory：檢查 messages 數量，必要時觸發語意摘要壓縮
-5. router：LLM 意圖分類 → next_agents = ["hardware_technician"]
-6. Send() fan-out → hardware_technician 子圖執行：
-   a. agent_llm：注入 system prompt + user_profile，首次強制呼叫 db_video 工具
-   b. tools：向 pgvector kb_video 集合執行向量搜尋
-   c. agent_llm：根據檢索結果生成回答（若需要更多資訊，再次呼叫工具）
-   d. 迴圈直到 LLM 不再發出 tool_calls → END
-7. merge_answers：合併 Agent 回覆 + ui_hints
-8. update_profile：提取 device_model 等 facts 寫入 ProfileManager
-9. post_process：組裝 LINE Flex Message，透過 Reply/Push API 回覆用戶
+2. LINE Webhook POST → agent/app.py → Debounce buffer (1.5s 合併後續訊息)
+3. Safety Gate (H6): regex 阻擋危險關鍵字
+4. Data Correction (H_DC): 若含 #資料修正 → 寫 DB 跳過 agent
+5. Quick Reply (H_QR): 若 brand 未知 → Quick Reply 蒐集 brand/model
+6. Run agent (single ReAct):
+   a. 載入 user facts (brand/model) 從 DB
+   b. infer_brand_from_text 自動推論 brand
+   c. 注入 [可用技能] + [用戶資料] + [前情提要] prefix 到 user message
+   d. ReAct loop: LLM 自主決定 load_skill / update_user_info / transfer_to_human
+   e. Tool 呼叫產生 ToolMessage，LLM 讀完繼續推理或產生最終 AIMessage
+   f. 迴圈直到 LLM 不再發 tool_calls → 產生最終回覆
+7. Output validator (H7.5): 阻擋洩漏內部機制的字串
+8. Checkpoint cleanup: ToolMessage 內容換為 [已參考技能: {name}]、多模態換為 [使用者曾傳送圖片]
+9. 背景: profile_updater (H4) LLM 抽取 phone/address；memory_manager (H5) 觸發壓縮；audit log (H8)
+10. 透過 LINE Reply/Push API 回覆用戶
 ```
+
+> ⚠️ **Vision flow**（multi-agent sub-graph 啟用後）：pre_process → manage_memory → router → Send() fan-out → 7 sub-agents → merge_answers → update_profile → post_process。
 
 #### 場景 2：技師接收與完成派工單（V2.0 派工流程）
 
@@ -713,7 +859,9 @@ GraphState 是貫穿整個工作流的共享狀態物件，定義於 `graph/stat
 6. Accounting Module 產生 Invoice → 管理員審核 → Closed
 ```
 
-#### 場景 3：知識庫自演化（V1.1+ Harness 啟用後）
+#### 場景 3：知識庫自演化 — Vision (not yet implemented)
+
+> ⚠️ **Vision (not yet implemented)**: 此流程依賴 Harness L8 (Entropy Management) 啟用，目前未實作。實際 V1.0 知識庫更新由 `data/` 目錄 Medallion ETL pipeline 從外部來源（YouTube / Website / Google Drive）人工 + 半自動產出 SKILL.md，經 `data/pipeline/silver_to_skill/approve_drafts.py` 審核後寫入 `agent/skills/data/`。
 
 ```
 1. entropy_check 偵測到新型解法（similarity < 0.3）
@@ -1206,7 +1354,27 @@ L1 解決機制的向量搜尋流程：
 
 ### 6.1 部署視圖
 
-系統使用 Docker Compose 進行容器化部署。以下展示生產環境的部署拓撲：
+V1.0 生產環境部署於 **GCP Cloud Run**（managed serverless container），透過 `scripts/deploy/agent.sh` 與 `scripts/deploy/api.sh` 驅動。Container build 採用 **multi-stage Dockerfile + uv** 確保可重現 build；image tag 為 `{git-sha}-{timestamp}` 格式以支援回滾。完整部署流程與 Dockerfile 範本詳見 [E9 部署運維指南](../04-deliver/E9--deployment-and-runbooks.md)。
+
+**Dockerfile 設計原則（V1.0 上線版本）：**
+
+- 使用 **multi-stage build**：builder 階段（含 build deps）與 runtime 階段（僅 `.venv` 與必要 source）分離
+- 利用 `uv.lock` 釘版做可重現 build：runtime 執行 `uv sync --frozen --no-dev` 確保不帶 dev deps（如 `ruff` / `pytest`）
+- 使用官方 `astral-sh/uv` Docker layer，避免下載未驗證的安裝腳本
+- 容器以非 root 使用者執行
+- 不使用 `latest` tag，明確鎖定基底 image 版本
+
+**環境變數三層 SSOT：**
+
+| 檔案 | 用途 | DB 連線 |
+| :--- | :--- | :--- |
+| `.env.example` | 通用範本（入版本控制） | placeholder |
+| `.env.local.example` | 本機開發（docker DB on port 5433） | `postgresql://...@localhost:5433/...` |
+| `.env.gcp.example` | GCP Cloud SQL via cloud-sql-proxy（port 5432） | 從 Secret Manager 取，自動 URL encode |
+
+實際 `.env*` 為 SSOT，本文件不重述其值；切換邏輯由 `scripts/env/use-local.sh` / `scripts/env/use-gcp.sh` 管理（詳見 E9）。
+
+> ⚠️ **Legacy / Vision deployment topology**: 以下 Docker Compose + Nginx 拓撲為早期 VPS 部署設計，**現已遷移至 Cloud Run**。保留此圖供未來 self-host 部署參考。
 
 ```mermaid
 graph TB
@@ -1271,6 +1439,10 @@ graph TB
 | `backup` | postgres:16-alpine | - | - | `backup_data` | cron 排程 pg_dump |
 
 ### 6.2 CI/CD 流程
+
+> 📌 **CI/CD 詳細範本**：詳見 [E9 部署運維指南](../04-deliver/E9--deployment-and-runbooks.md)。CI workflow 採用 `astral-sh/setup-uv@v3` + `uv sync --frozen` 對齊 Dockerfile 的 uv 釘版策略。
+
+下圖為高層次流程示意：
 
 ```mermaid
 graph LR
@@ -1481,9 +1653,9 @@ gantt
     axisFormat  %Y-%m
 
     section V1.0 AI 客服 (M1: W1-W17)
-    LangGraph 7-Agent + LINE Bot               :done, v10, 2026-01, 2026-04
-    5 pgvector 知識庫上線                        :done, v10kb, 2026-02, 2026-04
-    Harness Phase 0 骨架                         :done, h0, 2026-03, 2026-04
+    Single ReAct Agent + LINE Bot               :done, v10, 2026-01, 2026-04
+    SKILL.md 知識庫上線                          :done, v10kb, 2026-02, 2026-04
+    Harness 8 flat modules                       :done, h0, 2026-03, 2026-04
 
     section V1.1 Harness 啟用 (M1 後半)
     Phase 1: L7 Observability                    :h1, 2026-04, 2026-05
@@ -1507,17 +1679,20 @@ gantt
 
 ### V1.0 — 現況 (2026-04)
 
-LangGraph 7-Agent 客服系統已上線運作。
+Single ReAct AI 客服系統已上線運作。
 
 | 項目 | 狀態 | 說明 |
 | :--- | :--- | :--- |
-| LangGraph StateGraph | **上線** | 7 head nodes + 7 agent subgraphs，Send() fan-out/fan-in |
-| 5 pgvector 知識庫 | **上線** | kb_video / kb_line_chat / kb_website / kb_youtube / kb_gdrive |
-| LINE Bot + Debounce | **上線** | FastAPI webhook + 5 秒訊息合併緩衝 |
-| User Profile (SCD Type 2) | **上線** | hard_facts (PostgreSQL) + soft_profile (.md) |
-| Harness Phase 0 | **骨架完成** | 8 層模組目錄 + GraphState 5 個 sub-dict + config.toml `[harness]` sections，全部 `enabled = false` |
+| LangGraph ReAct Agent | **上線** | `prebuilt.create_react_agent` + 3 tools（load_skill / update_user_info / transfer_to_human） |
+| SKILL.md 知識庫 | **上線** | `agent/skills/data/{Brand}/{Model}/SKILL.md` 路徑階層分類；啟動掃描 + per-request brand/model filtering |
+| LINE Bot + Debounce | **上線** | FastAPI webhook + 1.5 秒訊息合併緩衝 |
+| User Profile (SCD Type 2) | **上線** | hard_facts (PostgreSQL `user_facts` 表) + 透過 `update_user_info` tool 與 H4 LLM 抽取雙路徑寫入 |
+| Harness 中介層 | **上線** | 8 個扁平模組檔（multimodal / debounce / data_correction / line_ui_factory / profile_updater / memory_manager / safety_gate / output_validator） |
+| Medallion ETL Pipeline | **上線** | `data/` 目錄 source → raw → bronze → silver → SKILL，產出 SKILL.md 草稿 |
 
 **護城河對齊 (M1)**：AI 客服上線、ProblemCard 結構定義完成（Moat A 種子數據開始累積）、知識庫運作（Moat F 數據飛輪種子）。
+
+> ⚠️ **Vision (not yet implemented)**: 8-Layer Harness Framework（L1-L8）、Multi-Agent sub-graph、GraphState、Send() fan-out/fan-in 為 V1.1+ 願景，需 multi-agent 架構重構後才能啟用。
 
 ### V1.1 — Harness 啟用 (Phase 1-3)
 
@@ -1556,28 +1731,37 @@ START → pre_process → manage_memory → task_decompose → context_assemble
 | **Accounting Module** | Python + PostgreSQL | Invoice/Voucher CRUD，月度報表匯出 |
 | **Admin Panel 遷移** | Next.js (取代 Jinja2+HTMX) | 統一前端技術棧 |
 
-**V2.0 架構方針：Modular Monolith**
+**V2.0 架構方針：物理分離 monorepo（agent / api / data / web）**
 
-V2.0 在 `agent/` 同一 FastAPI 進程內新增 3 個 bounded context（dispatch / pricing / accounting），共享 PostgreSQL + Redis，透過模組邊界而非網路邊界隔離。
+實際 V2.0 採取 **物理分離 monorepo**：`agent/`（LINE Bot + ReAct）、`api/`（FastAPI backend for dispatch / pricing / accounting）、`data/`（Medallion ETL）、`web/`（Next.js admin dashboard）四個獨立 workspace，由根目錄 `pyproject.toml` + `uv.lock` 統一管理。詳見 [E6x 結構指南](./E6x--project-structure.md)。
 
 ```
-agent/
-├── graph/                   # V1.0 LangGraph (不動)
-├── agents/                  # V1.0 7 Agents (不動)
-├── harness/                 # V1.0 Harness (不動)
-├── dispatch/                # V2.0 NEW: 派工引擎
-│   ├── engine.py            #   技師匹配算法
-│   ├── models.py            #   WorkOrder, Assignment dataclass
-│   └── notifications.py     #   Push notification (LINE + WebSocket)
-├── pricing/                 # V2.0 NEW: 計價引擎
-│   ├── engine.py            #   PriceRule 查詢 + 加成計算
-│   └── models.py            #   PriceRule, Quotation dataclass
-├── accounting/              # V2.0 NEW: 帳務模組
-│   ├── invoicing.py         #   Invoice CRUD
-│   ├── settlement.py        #   月結對帳
-│   └── models.py            #   Invoice, Reconciliation dataclass
-└── app.py                   # FastAPI: 新增 V2 REST routers
+專案根/
+├── agent/                   # V1.0 LINE Bot + Single ReAct (上線)
+│   ├── agent.py
+│   ├── app.py
+│   ├── harness/             # 8 flat modules
+│   ├── skills/              # SKILL.md tools + data
+│   ├── llms/ memory/ storage/ embeddings/ profiles/ core/
+│   └── pyproject.toml
+├── api/                     # V2.0 NEW: FastAPI Backend
+│   ├── main.py
+│   ├── dispatch/            # 派工引擎
+│   ├── pricing/             # 計價引擎
+│   ├── accounting/          # 帳務模組
+│   └── pyproject.toml
+├── data/                    # Medallion ETL Pipeline (上線)
+│   ├── pipeline/{source_to_raw,raw_to_bronze,bronze_to_silver,silver_to_skill}/
+│   └── pyproject.toml
+├── web/                     # V2.0 NEW: Next.js Admin Dashboard
+│   ├── src/
+│   ├── package.json
+│   └── ...
+├── pyproject.toml           # uv workspace root
+└── uv.lock
 ```
+
+> ⚠️ **Vision (not yet implemented)**: 早期版本規劃將 V2.0 模組（dispatch / pricing / accounting）放入 `agent/` 進程內共用 LangGraph。實際決定走物理分離（`api/` 獨立 service），透過 PostgreSQL 共享而非進程內呼叫。
 
 **V1→V2 整合點**：`transfer_to_human` 工具觸發 L3 escalation → `dispatch/engine.py` 建立 WorkOrder（詳見 §3.6）。
 
@@ -1603,13 +1787,19 @@ agent/
 
 ### 技術適配保證 (24 個月)
 
-| 機制 | 說明 |
-| :--- | :--- |
-| **LLM Registry** | 支援 3+ provider（Ollama / Gemini / Vertex AI），config-driven 切換 |
-| **Embedding Registry** | 支援 2+ provider，維度變更透過 config 管理 |
-| **Prompt 外部化** | 所有 Prompt 存放於 `agents/prompts/`，非硬編碼 |
-| **Config-driven Agent Composition** | 新增 Agent 僅需 prompt + config.toml，零核心程式碼修改 |
-| **Harness 層層開關** | 每個 Harness 功能獨立 enable/disable，風險可控 |
+`agent/` 透過三種不同形式的 config-driven composition 支撐 provider 切換：
+
+| 機制 | 形式 | 實際 code 路徑 | 說明 |
+| :--- | :--- | :--- | :--- |
+| **Memory Backend** | dict registry | `agent/memory/__init__.py` | dict 註冊 in-process / sqlite / postgres 三種 checkpointer，由 `config.toml` 字串 key 選擇 |
+| **Storage Backend** | dict registry | `agent/storage/__init__.py` | dict 註冊 in-process / sqlite / postgres 三種 audit log storage，由 `config.toml` 字串 key 選擇 |
+| **LLM Provider** | LiteLLM 字串前綴路由 | `agent/llms/` | 不是 dict registry，而是 LiteLLM 統一介面：`config.toml` 給字串如 `"vertex_ai/gemini-2.5-pro"` 或 `"anthropic/claude-3-5-sonnet"`，LiteLLM 內部解析前綴自動路由到對應 provider |
+| **Embedding Provider** | 直接 build 函式 | `agent/embeddings/` | 小規模直接 build（無 registry），未來可視需求補 dict registry |
+| **Prompt 外部化** | 檔案載入 | `agent/prompts/system.md` | 所有 Prompt 存放於 markdown 檔，非硬編碼 |
+| **Skill 擴展** | 檔案掃描 | `agent/skills/data/` | 新增 SKILL.md 即新增技能；新品牌只需在 `agent/config.toml` 的 `[quick_reply]` 新增條目 |
+| **Harness 層層開關** | (vision) | - | 每個 Harness 功能獨立 enable/disable 為願景設計，現有 8 flat modules 為固定載入 |
+
+> ⚠️ **D1 待決議**：LLM provider 形式（LiteLLM 字串路由）與 memory/storage（dict registry）不對稱。是否補 dict registry 以統一形式，列入後續 ADR 評估。
 
 ---
 
@@ -1617,8 +1807,10 @@ agent/
 
 ### 附錄 A：專案目錄結構
 
+> ⚠️ **Vision structure**: 以下為 Clean Architecture / DDD 風格的單一 `src/smartlock/` 結構，**現有 V1.0 不採用此結構**。實際 V1.0 結構為四個物理分離的 workspace（`agent/` / `api/` / `data/` / `web/`），詳見 [E6x 結構指南](./E6x--project-structure.md)。
+
 ```
-Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/
+Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/   # Vision (not implemented)
 ├── docs/                           # 專案文檔
 │   ├── 05_architecture_and_design_document.md   # 本文件
 │   └── adrs/                       # 架構決策記錄
@@ -1775,3 +1967,4 @@ Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/
 | 2026-04-01 | AI 架構助理 | v1.1 | 新增附錄 E：實際 LangGraph 架構 + 8 層 Agent Harness 框架 |
 | 2026-04-01 | AI 架構助理 | v2.0 | 重寫 §1.3/§3/§9 對齊實際 LangGraph 架構，移除附錄 E（內容已整合至主文） |
 | 2026-04-04 | AI 架構助理 | v2.1 | 新增 §1.4 Software 3.0 設計哲學 + Latency Budget；Gemini 3 Pro -> 2.5 Flash；新增 4 個 Bounded Context (DisputeResolution, Warranty, Inventory, BrandManagement)；Schema_v2_extensions.sql 6 表；ADR-009/010/011 |
+| 2026-05-06 | Doc Agent C | v2.2 | Wave 2 同步：U14（7 sub-graph 改為 Current=Single ReAct + Vision 雙段）、U15（Harness L1-L8 子目錄改為 8 flat modules）、U17（Registry 描述精確化為 dict registry / LiteLLM 字串路由 / 直接 build）；§6 部署視圖標示 Cloud Run，docker-compose 拓撲標為 Legacy；§9 V2.0 目錄結構改為四 workspace 物理分離 |

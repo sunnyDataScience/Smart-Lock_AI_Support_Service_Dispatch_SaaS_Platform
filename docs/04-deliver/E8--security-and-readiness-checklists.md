@@ -35,7 +35,9 @@
 
 ## 目的
 
-**目的**: 本檢查清單旨在為「電子鎖智能客服與派工 SaaS 平台 (SmartLock-SaaS)」提供一個統一的框架，用於在專案的關鍵階段（V1.0 AI 客服上線、V2.0 派工帳務上線）進行全面的安全、隱私和生產準備就緒評估。所有檢查項目均依據專案實際的技術棧（FastAPI + PostgreSQL + pgvector + Redis + Google Gemini 3 Pro + LINE Bot SDK）與業務需求（LINE Bot AI 客服、ProblemCard 診斷、三層解決機制、技師派工、報價帳務）進行具體化填寫。
+**目的**: 本檢查清單旨在為「電子鎖智能客服與派工 SaaS 平台 (SmartLock-SaaS)」提供一個統一的框架，用於在專案的關鍵階段（V1.0 AI 客服上線、V2.0 派工帳務上線）進行全面的安全、隱私和生產準備就緒評估。所有檢查項目均依據專案實際的技術棧（FastAPI + PostgreSQL + pgvector + Vertex AI Gemini + LINE Bot SDK + GCP Cloud Run）與業務需求（LINE Bot AI 客服、ProblemCard 診斷、三層解決機制、技師派工、報價帳務）進行具體化填寫。
+
+> ℹ️ **部署架構說明（V1.0 上線版本）**: 生產環境部署於 **GCP Cloud Run**，HTTPS 終止 / 負載均衡 / DDoS 基礎防護由 Google Front End 自動處理；Cloud SQL 透過 Cloud Run sidecar Unix socket 連線。本文件中提到「Nginx 反向代理 / Docker Compose / VPS 防火牆」之描述為 **self-host fallback**（早期 VPS 部署設計），保留供未來自主部署參考。實際生產走 Cloud Run 等價控制，請對應參閱 [E9 部署運維指南](./E9--deployment-and-runbooks.md)。
 
 ---
 
@@ -163,11 +165,11 @@
     - V2.0+ 規劃：遷移至 HashiCorp Vault 或雲端 Secrets Manager 進行集中化密鑰管理。
 
 *   `[x]` **數據備份安全:**
-    - 每日 01:00 AM (UTC+8) 執行 `pg_dump` 全量備份，備份檔案使用 `gpg` 加密。
-    - 備份檔案保留 30 天（PRD 需求），超過自動清理。
-    - 備份儲存於獨立的備份目錄或 S3 bucket，與主資料庫隔離。
-    - 備份存取權限限定僅 `admin` 角色帳號可下載/恢復。
-    - 每月執行一次備份恢復驗證（還原至 staging 環境驗證數據完整性）。
+    - **生產環境（Cloud SQL）**：啟用 GCP Cloud SQL automated backup，每日自動備份保留 30 天，並啟用 Point-in-Time Recovery（PITR），可恢復至過去 7 天內任一時點。
+    - 備份位於 GCP 託管儲存（GCS），預設 server-side encryption（CMEK 可選）。
+    - 備份存取權限限定僅 `roles/cloudsql.admin` 與專案 owner 帳號可下載/恢復。
+    - 每月執行一次備份恢復驗證（還原至 staging Cloud SQL instance 驗證數據完整性）。
+    - **本機開發**：使用 `pg_dump` / `pg_restore` 手動備份，備份檔案使用 `gpg` 加密後存放於獨立目錄。
 
 ### B.4 數據使用與處理 (Data Usage & Processing)
 
@@ -393,52 +395,82 @@
 ### D.2 機密管理 (Secrets Management)
 
 *   `[x]` **安全儲存:**
-    - 所有機密資訊（API Keys, Channel Secrets, JWT Secrets, 資料庫密碼）儲存於 `.env` 檔案中，透過 Docker Compose `env_file` 指令注入容器環境變數。
-    - `.env` 檔案列入 `.gitignore`，嚴禁提交至版本控制。
-    - 提供 `.env.example` 範本檔案（僅含 key 名稱，value 為空或範例值）供新開發者參考。
-    - 程式碼中嚴禁硬編碼任何密鑰（CI/CD Pipeline 加入 `detect-secrets` 或 `gitleaks` 掃描）。
-    - 環境變數清單：
+    - **生產環境（GCP）**: 所有機密儲存於 **GCP Secret Manager**，Cloud Run 在啟動時透過 `--set-secrets` 注入容器環境變數。應用層永不接觸 raw secret value 檔案。
+    - **本機開發**: 使用三層 `.env` SSOT 結構：
 
-      | 變數名稱 | 敏感等級 | 說明 |
+      | 檔案 | 用途 | 入版本控制？ |
       |:---|:---|:---|
-      | `DATABASE_URL` | 高 | PostgreSQL 連線字串（含帳密） |
-      | `REDIS_URL` | 中 | Redis 連線字串 |
-      | `GOOGLE_API_KEY` | 高 | Google Gemini 3 Pro API 金鑰 |
-      | `LINE_CHANNEL_SECRET` | 高 | LINE Webhook 簽章驗證密鑰 |
-      | `LINE_CHANNEL_ACCESS_TOKEN` | 高 | LINE Messaging API 存取權杖 |
-      | `JWT_SECRET` | 高 | JWT Token 簽名密鑰 |
+      | `.env.example` | 通用範本（僅 key 名稱與範例值） | 是 |
+      | `.env.local.example` | 本機開發 + docker DB（port 5433） | 是 |
+      | `.env.gcp.example` | GCP Cloud SQL via cloud-sql-proxy（port 5432） | 是 |
+      | `.env`、`.env.local`、`.env.gcp` | 實際密鑰 | **否（`.gitignore`）** |
+
+    - 切換邏輯由 `scripts/env/use-local.sh`（→ `.env.local`）與 `scripts/env/use-gcp.sh`（→ `.env.gcp`，可加 `--fetch` 從 Secret Manager 重新拉取）管理。
+    - `.env.gcp` 由 `scripts/env/use-gcp.sh --fetch` 自動從 Secret Manager 同步，**禁止手動編輯**。
+    - 程式碼中嚴禁硬編碼任何密鑰（CI/CD Pipeline 加入 `detect-secrets` 或 `gitleaks` 掃描）。
+    - 環境變數清單（生產環境名稱）：
+
+      | 變數名稱 | 敏感等級 | 來源 | 說明 |
+      |:---|:---|:---|:---|
+      | `POSTGRES_URI` | 高 | Secret Manager | PostgreSQL 連線字串（含帳密，由 `--update-db-uri` 自動 URL encode 構造） |
+      | `DB_PASSWORD` | 高 | Secret Manager | DB 密碼（原始值，供 `--update-db-uri` 使用） |
+      | `LINE_CHANNEL_SECRET` | 高 | Secret Manager | LINE Webhook 簽章驗證密鑰 |
+      | `LINE_CHANNEL_ACCESS_TOKEN` | 高 | Secret Manager | LINE Messaging API 存取權杖 |
+      | `VERTEX_PROJECT_ID` | 中 | env / Secret Manager | Vertex AI 專案 ID |
+      | `VERTEX_LOCATION` | 中 | env | Vertex AI region |
+      | `OPIK_API_KEY` | 中 | Secret Manager | Opik observability（可選） |
+      | `OPIK_WORKSPACE` | 中 | Secret Manager | Opik workspace（可選） |
 
 *   `[x]` **權限與輪換:**
-    - `.env` 檔案的 Linux 檔案權限設定為 `600`（僅擁有者可讀寫）。
-    - 密鑰輪替策略：每季度輪替 `JWT_SECRET`, `GOOGLE_API_KEY`, 資料庫密碼。LINE 相關密鑰按需輪替。
+    - 本機 `.env*` 檔案的 Linux 檔案權限設定為 `600`（僅擁有者可讀寫）。
+    - 密鑰輪替策略：每季度輪替 `DB_PASSWORD`、`VERTEX` service account credentials；`LINE` 相關密鑰按需輪替。
+    - **DB 密碼輪替流程（強制使用腳本）：**
+      1. 在 Cloud SQL Console 或 `gcloud sql users set-password` 更新 DB password
+      2. 在 Secret Manager 更新 `DB_PASSWORD` 版本
+      3. 執行 `scripts/deploy/agent.sh --update-db-uri` 與 `scripts/deploy/api.sh --update-db-uri`：腳本會自動讀取新 `DB_PASSWORD`、URL encode、構造 `POSTGRES_URI`、做 round-trip 驗證、寫回 Secret Manager
+      4. **禁止手動構造 `POSTGRES_URI`**：特殊字元（如 `@`, `#`, `&`, `!`）若未正確 URL encode 會破壞連線字串
+      5. 驗證 `/health` 端點 `facts_db` + `audit_db` 連線正常
     - 密鑰輪替時須同步更新所有使用該密鑰的環境（staging/production），並驗證服務正常運作。
-    - 密鑰洩露應急流程：立即撤銷洩露的密鑰 -> 產生新密鑰 -> 更新所有環境 -> 檢查審計日誌是否有異常存取。
+    - 密鑰洩露應急流程：立即在 Secret Manager 撤銷洩露的密鑰版本 → 產生新密鑰 → 更新所有環境 → 檢查 audit log 是否有異常存取。
 
 ### D.3 Docker/容器安全 (Container Security)
 
+> 📌 完整 Dockerfile 範本與多階段 uv build 細節詳見 [E3 §6.1 部署視圖](../01-define/E3--architecture-and-design.md#61-部署視圖) 與 [E9 部署運維指南](./E9--deployment-and-runbooks.md)。
+
 *   `[x]` **最小化基礎鏡像:**
-    - FastAPI 應用使用 `python:3.11-slim` 作為基礎鏡像（非 full image），減少攻擊面。
-    - PostgreSQL 使用 `postgres:16-alpine`。
-    - Redis 使用 `redis:7-alpine`。
-    - Nginx 使用 `nginx:alpine`。
-    - Next.js (V2.0) 使用 multi-stage build：`node:20-alpine` 建置 -> `node:20-alpine` 運行。
+    - `agent/` 與 `api/` 服務使用 `python:3.11-slim` 作為基礎鏡像（非 full image），減少攻擊面。
+    - PostgreSQL（Cloud SQL 實際由 GCP 託管；本機開發用 `postgres:16-alpine`）。
+    - Web admin dashboard 使用 multi-stage build：`node:20-alpine` 建置 -> `node:20-alpine` 運行。
     - 禁止使用 `latest` tag，明確鎖定版本號。
 
+*   `[x]` **Multi-stage build + uv 釘版（V1.0 上線版本）:**
+    - Dockerfile 採用 **multi-stage build**：builder 階段（含 build deps：`gcc`、headers）與 runtime 階段（僅 `.venv` 與必要 source）分離，確保 runtime image 不帶 build deps，攻擊面與 image size 雙重縮減。
+    - 使用 `uv.lock` 釘版做可重現 build：runtime 階段執行 `uv sync --frozen --no-dev`，確保不帶 dev deps（如 `ruff` / `pytest` / `pytest-cov`）。
+    - 使用官方 `astral-sh/uv` Docker layer（如 `ghcr.io/astral-sh/uv:0.5.x`）作為 uv 安裝來源，避免下載未驗證的 install script。
+    - Build 時 `COPY --from=builder /app/.venv /app/.venv` 而非整個 builder 階段，確保 runtime 純淨。
+    - **檢查清單：**
+      - [x] 使用 multi-stage build（runtime image 不帶 builder 層的 build deps）
+      - [x] `uv.lock` 入庫並用 `uv sync --frozen --no-dev` 確保可重現
+      - [x] runtime 不帶 dev deps（如 ruff / pytest）
+      - [x] 使用官方 `astral-sh/uv` Docker layer，避免下載未驗證的安裝腳本
+      - [x] 不使用 `latest` tag，明確鎖定基底 image 版本
+      - [x] runtime image size 控制在 < 500MB（slim base + 純 venv）
+
 *   `[x]` **非 Root 用戶運行:**
-    - FastAPI Dockerfile 中建立專用用戶並切換：
+    - `agent/` 與 `api/` Dockerfile 中建立專用用戶並切換：
       ```dockerfile
       RUN adduser --disabled-password --gecos '' appuser
       USER appuser
       ```
-    - PostgreSQL 容器預設以 `postgres` 用戶運行（非 root）。
-    - Redis 容器以 `redis` 用戶運行。
-    - Nginx 容器的 worker process 以 `nginx` 用戶運行。
-    - Docker Compose 中不使用 `--privileged` 旗標。
+    - PostgreSQL 容器（本機開發）預設以 `postgres` 用戶運行（非 root）。
+    - 容器執行時不使用 `--privileged` 旗標。
+    - Cloud Run runtime 已預設啟用非 root 沙箱，無 host 資源存取權限。
 
 *   `[x]` **鏡像掃描:**
-    - CI/CD Pipeline 中加入 Docker 鏡像漏洞掃描（使用 `trivy` 或 `docker scout`）。
-    - 阻擋含有 Critical / High 等級漏洞的鏡像推送至 Container Registry。
-    - 定期（每週）重新建置並掃描鏡像，即使程式碼未變更（基礎鏡像可能有新漏洞）。
+    - CI/CD Pipeline 中加入 Docker 鏡像漏洞掃描（使用 `trivy` 或 GCP Artifact Registry 內建 vulnerability scanning）。
+    - 阻擋含有 Critical / High 等級漏洞的鏡像推送至 Artifact Registry。
+    - 定期（每週）重新建置並掃描鏡像，即使程式碼未變更（基底 image 可能有新漏洞）。
+    - Build 出的 image tag 採 `{git-sha}-{timestamp}` 格式（由 `scripts/deploy/agent.sh` 與 `scripts/deploy/api.sh` 自動產生），確保每次部署可追溯且可回滾。
 
 ### D.4 日誌與監控 (Logging & Monitoring)
 
@@ -697,10 +729,11 @@
     - pgvector 向量索引記憶體預估：20K 筆 768 維向量約 120 MB。
 
 *   `[x]` **水平擴展 (Horizontal Scaling):**
-    - FastAPI 應用設計為無狀態（Session 存 Redis、數據存 PostgreSQL），可透過 `docker-compose --scale api=N` 水平擴展 Worker 數量。
-    - Nginx 自動負載均衡至多個 FastAPI Worker。
-    - V2.0 Next.js 前端同樣無狀態，可水平擴展。
-    - 對話狀態存儲於 Redis（非 Worker 本地記憶體），任何 Worker 均可處理同一用戶的後續請求。
+    - `agent/` 與 `api/` 服務設計為無狀態（checkpointer + audit + facts 全部 PostgreSQL，無 worker-local state），由 Cloud Run 自動水平擴展（`--min-instances` / `--max-instances`）。
+    - Cloud Run 由 Google Front End 自動負載均衡至多個 instance。
+    - V2.0 Next.js admin dashboard 同樣無狀態，可獨立部署於 Cloud Run 或 Vercel 水平擴展。
+    - 對話 checkpoint 存儲於 PostgreSQL（非 instance local memory），任何 Cloud Run instance 均可處理同一用戶的後續請求。
+    - Cloud SQL 連線透過 Unix socket（Cloud Run sidecar），避免 connection pooling overhead。
 
 *   `[x]` **依賴擴展性:**
     - **PostgreSQL:** V1.0 單節點足以應付預估負載（500-2000 筆 CaseEntry, 5K-20K ManualChunk）。V2.0+ 可透過 read replica 分擔讀取負載。pgvector HNSW 索引在此規模下查詢延遲 < 10ms。
@@ -711,40 +744,51 @@
 ### G.4 可維護性與文檔 (Maintainability & Documentation)
 
 *   `[x]` **部署文檔/腳本 (Runbook/Playbook):**
+    - 完整部署 / 回滾 / DB URI 管理 runbook 詳見 [E9 部署運維指南](./E9--deployment-and-runbooks.md)。
     - 維護以下 Runbook 文檔：
 
-      | Runbook | 內容 |
-      |:---|:---|
-      | **部署 Runbook** | Docker Compose 部署步驟、環境變數配置、SSL 證書設定、Nginx 配置 |
-      | **回滾 Runbook** | 如何回滾至前一版本（`docker-compose pull` 指定版本 tag, `docker-compose up -d`） |
-      | **備份恢復 Runbook** | PostgreSQL 備份恢復完整步驟（含解密、恢復、驗證） |
-      | **故障排查 Runbook** | 常見故障場景診斷步驟：API 500 錯誤、LLM 不可達、Redis 連線失敗、資料庫連線耗盡 |
-      | **密鑰輪替 Runbook** | 各項密鑰的輪替步驟與驗證方法 |
-      | **安全事件應急 Runbook** | 資料外洩、API Key 洩露、DDoS 攻擊的應急回應流程 |
+      | Runbook | 內容 | 對應腳本 |
+      |:---|:---|:---|
+      | **部署 Runbook (agent)** | LINE Bot ReAct agent 完整部署流程：pre-flight → build (multi-stage uv) → push → Cloud Run deploy → health check | `scripts/deploy/agent.sh` |
+      | **部署 Runbook (api)** | FastAPI backend 完整部署流程 | `scripts/deploy/api.sh` |
+      | **回滾 Runbook** | 用 image tag `{git-sha}-{timestamp}` 找到舊版本，`scripts/deploy/agent.sh --deploy-only` 指定舊 tag 重新 deploy；**禁止手動構造 POSTGRES_URI** | `scripts/deploy/*.sh --deploy-only` |
+      | **DB URI 管理 Runbook** | 必經 `--update-db-uri` 從 Secret Manager 讀 `DB_PASSWORD`，自動 URL encode，構造 `POSTGRES_URI`，round-trip 驗證後寫回 Secret Manager。**絕不手動構造 connection string** | `scripts/deploy/agent.sh --update-db-uri` |
+      | **備份恢復 Runbook** | Cloud SQL automated backup + point-in-time recovery (PITR)；本機開發用 `pg_dump`/`pg_restore` 驗證流程 | （Cloud SQL Console + `tests/tools/clean_data.py`） |
+      | **故障排查 Runbook** | 常見故障場景診斷步驟：API 500 錯誤、LLM 不可達、CloudSQL 連線失敗、Cloud Run cold start、debounce buffer stuck | E9 troubleshooting 章節 |
+      | **密鑰輪替 Runbook** | Secret Manager 密鑰輪替（GCP Console），輪替後執行 `--update-db-uri` 同步 POSTGRES_URI | E9 secret rotation 章節 |
+      | **安全事件應急 Runbook** | 資料外洩、API Key 洩露、DDoS 攻擊的應急回應流程 | E9 incident response 章節 |
 
-    - 所有 Runbook 存放於 `docs/runbooks/` 目錄，與程式碼一同版本控制。
+    - 所有 Runbook 存放於 `docs/04-deliver/E9--deployment-and-runbooks.md`，與程式碼一同版本控制。
+
+    - **回滾流程關鍵原則：**
+      - Image tag 採 `{git-sha}-{timestamp}` 格式（由 deploy 腳本自動產生）→ 任何時刻可指定舊 tag 重新 deploy
+      - DB URI 變更必經 `--update-db-uri`：腳本從 Secret Manager 讀 `DB_PASSWORD`、自動 URL encode、構造 `POSTGRES_URI`、做 round-trip 驗證（解析回 password 比對原始值），確保特殊字元不會破壞連線字串
+      - 嚴禁手動 export `POSTGRES_URI` 或在文件中貼出含密碼的 connection string
 
 *   `[x]` **CI/CD:**
-    - 已建立 GitHub Actions CI/CD Pipeline：
+    - 已建立 GitHub Actions CI/CD Pipeline；完整 workflow 範本詳見 [E9 部署運維指南](./E9--deployment-and-runbooks.md)。
 
       | 階段 | 觸發條件 | 執行內容 | 失敗處理 |
       |:---|:---|:---|:---|
-      | **Lint** | PR / Push | `ruff check`, `mypy` 型別檢查 | 阻擋 PR merge |
-      | **Security Scan** | PR / Push | `pip-audit`, `gitleaks`, `trivy` | 阻擋 PR merge |
-      | **Test** | PR / Push | `pytest` 單元/整合測試，覆蓋率 >= 70% | 阻擋 PR merge |
-      | **Build** | PR / Push | `docker build` 驗證 | 阻擋 PR merge |
-      | **Tag** | Merge to main | Semantic Version Git Tag | 手動介入 |
-      | **Push Image** | Tag created | 推送至 Container Registry | 重試 3 次 |
-      | **Deploy** | Image pushed | `docker-compose pull && docker-compose up -d` | 回滾至前一版本 |
-      | **Smoke Test** | Deploy completed | `/health` 端點驗證 + 關鍵 API 驗證 | 自動回滾 + 告警 |
+      | **Setup uv** | PR / Push | `astral-sh/setup-uv@v3` + `uv sync --frozen` 還原 lock 鎖定的依賴 | 阻擋 PR merge |
+      | **Lint** | PR / Push | `uv run ruff check`, `uv run mypy` 型別檢查 | 阻擋 PR merge |
+      | **Security Scan** | PR / Push | `uv run pip-audit`, `gitleaks`, `trivy` 鏡像掃描 | 阻擋 PR merge |
+      | **Test** | PR / Push | `uv run pytest` 單元/整合測試，覆蓋率 >= 70% | 阻擋 PR merge |
+      | **API Spec Lint** | PR / Push（specs 變更時） | `spec-lint.yml`、`api-types-sync.yml`、`orphan-check.yml`、`mock-smoke.yml` | 阻擋 PR merge |
+      | **Build** | PR / Push | `docker build` 驗證 multi-stage uv build；image tag 為 `{git-sha}-{timestamp}` | 阻擋 PR merge |
+      | **Push Image** | Merge to main | 推送至 GCP Artifact Registry | 重試 3 次 |
+      | **Deploy** | Image pushed | `scripts/deploy/agent.sh` 或 `scripts/deploy/api.sh` 部署至 Cloud Run | 回滾：指定舊 tag 重 deploy |
+      | **Smoke Test** | Deploy completed | `/health` 端點驗證 + `tests/smoke/api.sh` 關鍵 API 驗證 | 自動回滾 + 告警 |
+
+    - **CI workflow 與 Dockerfile 對齊**：CI build 與 Dockerfile build 都採用 `uv sync --frozen --no-dev`，確保 CI 通過 = production runtime 通過。
 
 *   `[x]` **配置管理 (Configuration Management):**
-    - 所有服務配置透過環境變數管理（Docker Compose `env_file` 注入），不硬編碼於程式碼或鏡像中。
-    - 環境變數清單定義於 `docs/05_architecture_and_design_document.md` 附錄 C。
-    - 每個環境（dev/staging/prod）使用獨立的 `.env` 檔案。
-    - 提供 `.env.example` 範本供開發者參考。
-    - 應用層配置（如 `VECTOR_SIMILARITY_THRESHOLD`, `SESSION_TTL_SECONDS`, `MAX_CONVERSATION_TURNS`）可透過環境變數調整，無需重新建置鏡像。
-    - LLM System Prompt Templates 存放於 `configs/prompts/` 目錄，可獨立於程式碼更新。
+    - **生產環境**：透過 Cloud Run `--set-secrets` 從 Secret Manager 注入環境變數，並用 `--set-env-vars` 注入非敏感設定。應用層永不接觸 raw secret value 檔案。
+    - **本機開發**：三層 `.env*` SSOT（`.env.example` / `.env.local.example` / `.env.gcp.example`）；`scripts/env/use-local.sh` 與 `scripts/env/use-gcp.sh` 切換目標環境。
+    - 環境變數清單定義於 [E3 §6.1 部署視圖](../01-define/E3--architecture-and-design.md#61-部署視圖) 與 [E9 部署運維指南](./E9--deployment-and-runbooks.md)。
+    - 每個環境（local / gcp staging / gcp production）使用獨立的 `.env*` / Secret Manager namespace。
+    - 應用層配置透過 `agent/config.toml` 與 `data/config.toml` 管理（TOML 中存 env var **名稱**，實際值由 env 注入）。
+    - System Prompt 存放於 `agent/prompts/system.md`，SKILL.md 存放於 `agent/skills/data/`，皆可獨立於程式碼更新。
 
 *   `[x]` **功能開關 (Feature Flags):**
     - 為以下有風險的功能設計功能開關（環境變數 or Redis key）：
@@ -770,3 +814,4 @@
 | :--- | :--- | :--- | :--- |
 | 2026-02-25 | 技術架構師 | v1.0 | 初稿完成，涵蓋 V1.0 + V2.0 全面安全與生產準備就緒檢查清單 |
 | 2026-04-04 | 技術架構師 | v1.1 | 新增 PII 遮罩、退款雙簽、電子簽收、RBAC 權限矩陣等 V2.0 安全項目 |
+| 2026-05-06 | Doc Agent C | v1.2 | Wave 2 同步：D.3 新增 multi-stage build + uv 釘版檢查清單（U12）；D.2 機密管理改為 GCP Secret Manager + 三層 `.env*` SSOT；G.4 Runbook/CI 對齊 Cloud Run + `scripts/deploy/{agent,api}.sh`、image tag `{git-sha}-{timestamp}`、`--update-db-uri` 強制流程；新增與 E3 / E9 的交叉引用 |
