@@ -35,6 +35,11 @@ export default function RootLayout({
       className={`h-full ${inter.variable} ${notoSansTC.variable}`}
     >
       <body className="h-full font-primary antialiased">
+        {/* WCAG 2.4.1 Bypass Blocks：第一個可 tab 元素是 skip-link，按 Enter
+         * 跳到 #main-content；視覺上預設隱藏（translateY(-200%)），:focus 才滑入 */}
+        <a href="#main-content" className="skip-link">
+          跳到主要內容
+        </a>
         <AuthGuard>{children}</AuthGuard>
       </body>
     </html>

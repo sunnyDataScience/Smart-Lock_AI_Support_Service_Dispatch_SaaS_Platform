@@ -106,30 +106,32 @@ function WorkOrderRow({
   return (
     <Link
       href={`/work-orders/${order.id}`}
+      role="row"
+      aria-rowindex={idx + 2}  /* +1 表頭、+1 to be 1-indexed */
       style={style}
       className={`flex h-12 items-center border-b border-[var(--border)] px-4 hover:bg-[#EFF6FF] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 focus-visible:ring-inset ${
         idx % 2 === 0 ? "bg-white" : "bg-[var(--bg-page)]"
       }`}
     >
-      <div className="w-[120px]">
+      <div role="cell" className="w-[120px]">
         <span className="font-mono text-[12px] text-[var(--primary)]" title={order.id}>
           {shortId(order.id)}
         </span>
       </div>
-      <div className="flex-1 truncate pr-4">
+      <div role="cell" className="flex-1 truncate pr-4">
         <span className="text-[13px] text-[var(--text-primary)]">{districtAddr}</span>
       </div>
-      <div className="w-[90px]">
+      <div role="cell" className="w-[90px]">
         <span className="text-[13px] text-[var(--text-primary)]">
           {order.brand || "—"}
         </span>
       </div>
-      <div className="w-[110px]">
+      <div role="cell" className="w-[110px]">
         <span className="text-[13px] text-[var(--text-primary)]">
           {order.model || "—"}
         </span>
       </div>
-      <div className="w-[80px]">
+      <div role="cell" className="w-[80px]">
         <span
           className="rounded-full px-[10px] py-1 text-[11px] font-medium"
           style={{ color: statusStyle.color, backgroundColor: statusStyle.bg }}
@@ -137,7 +139,7 @@ function WorkOrderRow({
           {statusStyle.label}
         </span>
       </div>
-      <div className="w-[70px]">
+      <div role="cell" className="w-[70px]">
         <span
           className="rounded px-2 py-1 text-[11px] font-medium"
           style={{ color: urgencyStyle.color, backgroundColor: urgencyStyle.bg }}
@@ -145,12 +147,12 @@ function WorkOrderRow({
           {urgencyStyle.label}
         </span>
       </div>
-      <div className="w-[100px]">
+      <div role="cell" className="w-[100px]">
         <span className="text-[13px] text-[var(--text-primary)]">
           {formatPrice(order.estimated_reward)}
         </span>
       </div>
-      <div className="w-[90px]">
+      <div role="cell" className="w-[90px]">
         <span className="text-[12px] text-[var(--text-secondary)]">
           {formatRelative(order.created_at)}
         </span>
@@ -161,9 +163,14 @@ function WorkOrderRow({
 
 function TableHeader() {
   return (
-    <div className="flex h-[44px] items-center bg-[var(--bg-page)] px-4">
+    <div role="row" className="flex h-[44px] items-center bg-[var(--bg-page)] px-4">
       {columns.map((col) => (
-        <div key={col.label} className={`${col.width} px-0`}>
+        <div
+          key={col.label}
+          role="columnheader"
+          aria-sort="none"  /* 之後加排序時改 ascending/descending */
+          className={`${col.width} px-0`}
+        >
           <span className="text-[12px] font-semibold text-[var(--text-secondary)]">
             {col.label}
           </span>
@@ -225,12 +232,20 @@ export default function WorkOrdersTable({ items, loading }: Props) {
   const useVirtual = items.length >= VIRTUALIZE_THRESHOLD;
 
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
+    <div
+      role="table"
+      aria-label="工單列表"
+      aria-rowcount={items.length + 1}  /* 含表頭 */
+      aria-colcount={columns.length}
+      className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]"
+    >
       <TableHeader />
 
       {items.length === 0 && !loading && (
-        <div className="flex h-24 items-center justify-center">
-          <span className="text-[13px] text-[var(--text-secondary)]">目前無資料</span>
+        <div role="row" className="flex h-24 items-center justify-center">
+          <div role="cell" aria-colspan={columns.length}>
+            <span className="text-[13px] text-[var(--text-secondary)]">目前無資料</span>
+          </div>
         </div>
       )}
 

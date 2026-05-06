@@ -95,7 +95,11 @@ export default function ConversationsPage() {
           </div>
         </div>
 
-        <main className="flex-1 overflow-auto px-8 py-6">
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="flex-1 overflow-auto px-8 py-6"
+        >
           {error && (
             <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}

@@ -460,6 +460,8 @@ function LineMediaGallery({ conversationId }: { conversationId?: string }) {
                   <img
                     src={m.media_url ?? ""}
                     alt="客戶上傳"
+                    loading="lazy"
+                    decoding="async"
                     className="h-full w-full object-cover transition-transform group-hover:scale-[1.03]"
                   />
                 ) : (

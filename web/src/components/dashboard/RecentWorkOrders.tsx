@@ -38,21 +38,39 @@ function technicianTag(technicianId: string | null | undefined): string | null {
 
 export default function RecentWorkOrders({ items, loading, error }: Props) {
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
+    <section
+      aria-labelledby="recent-work-orders-heading"
+      className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]"
+    >
       <div className="flex items-center justify-between px-5 py-4">
-        <h3 className="text-[18px] font-bold text-[#18181B]">最近工單</h3>
+        <h3
+          id="recent-work-orders-heading"
+          className="text-[18px] font-bold text-[#18181B]"
+        >
+          最近工單
+        </h3>
         <Link
           href="/work-orders"
-          className="text-[14px] font-medium text-[var(--primary)] hover:underline"
+          className="text-[14px] font-medium text-[var(--primary)] hover:underline focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 rounded"
         >
           查看全部 →
         </Link>
       </div>
 
-      <div className="flex bg-[#F1F5F9] px-5 py-[10px]">
+      <div
+        role="table"
+        aria-labelledby="recent-work-orders-heading"
+        aria-rowcount={items.length + 1}
+      >
+      <div role="row" className="flex bg-[#F1F5F9] px-5 py-[10px]">
         {columns.map((col) => (
-          <div key={col.key} className={col.width}>
-            <span className="text-[12px] font-semibold uppercase tracking-wider text-[#71717A]">
+          <div
+            key={col.key}
+            role="columnheader"
+            aria-sort="none"
+            className={col.width}
+          >
+            <span className="text-[12px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
               {col.label}
             </span>
           </div>
@@ -87,11 +105,13 @@ export default function RecentWorkOrders({ items, loading, error }: Props) {
           <div key={order.id}>
             <Link
               href={`/work-orders/${order.id}`}
-              className={`flex items-center px-5 py-3 hover:bg-[#EFF6FF] ${
+              role="row"
+              aria-rowindex={idx + 2}
+              className={`flex items-center px-5 py-3 hover:bg-[#EFF6FF] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-inset ${
                 idx % 2 === 1 ? "bg-[var(--bg-page)]" : "bg-white"
               }`}
             >
-              <div className="w-[110px]">
+              <div role="cell" className="w-[110px]">
                 <span
                   className="font-mono text-[13px] font-medium text-[var(--primary)]"
                   title={order.id}
@@ -99,7 +119,7 @@ export default function RecentWorkOrders({ items, loading, error }: Props) {
                   {shortId(order.id)}
                 </span>
               </div>
-              <div className="flex-1 truncate pr-3">
+              <div role="cell" className="flex-1 truncate pr-3">
                 <span
                   className="text-[13px] text-[#18181B]"
                   title={order.address}
@@ -107,12 +127,12 @@ export default function RecentWorkOrders({ items, loading, error }: Props) {
                   {districtAddr}
                 </span>
               </div>
-              <div className="w-[160px] truncate pr-3">
+              <div role="cell" className="w-[160px] truncate pr-3">
                 <span className="text-[13px] text-[#18181B]">
                   {order.brand || "—"} {order.model || ""}
                 </span>
               </div>
-              <div className="w-[90px]">
+              <div role="cell" className="w-[90px]">
                 <span
                   className="rounded-full px-[10px] py-[2px] text-[11px] font-medium"
                   style={{ color: status.color, backgroundColor: status.bg }}
@@ -120,7 +140,7 @@ export default function RecentWorkOrders({ items, loading, error }: Props) {
                   {status.label}
                 </span>
               </div>
-              <div className="w-[70px]">
+              <div role="cell" className="w-[70px]">
                 <span
                   className="rounded px-2 py-[2px] text-[11px] font-medium"
                   style={{ color: urgency.color, backgroundColor: urgency.bg }}
@@ -128,14 +148,14 @@ export default function RecentWorkOrders({ items, loading, error }: Props) {
                   {urgency.label}
                 </span>
               </div>
-              <div className="w-[100px]">
-                <span className="text-[12px] text-[#71717A]">
+              <div role="cell" className="w-[100px]">
+                <span className="text-[12px] text-[var(--text-tertiary)]">
                   {formatRelative(order.created_at)}
                 </span>
               </div>
-              <div className="w-[110px]">
+              <div role="cell" className="w-[110px]">
                 <span className="text-[13px] text-[#18181B]">
-                  {tech ?? <span className="text-[#A1A1AA]">未指派</span>}
+                  {tech ?? <span className="text-[var(--text-disabled)]">未指派</span>}
                 </span>
               </div>
             </Link>
@@ -143,17 +163,18 @@ export default function RecentWorkOrders({ items, loading, error }: Props) {
           </div>
         );
       })}
+      </div>{/* /role="table" */}
 
       {items.length > 0 && (
         <>
           <div className="h-px bg-[#E4E4E7]" />
           <div className="flex justify-center px-5 py-3">
-            <span className="text-[12px] text-[#A1A1AA]">
+            <span className="text-[12px] text-[var(--text-disabled)]">
               顯示最近 {items.length} 筆
             </span>
           </div>
         </>
       )}
-    </div>
+    </section>
   );
 }

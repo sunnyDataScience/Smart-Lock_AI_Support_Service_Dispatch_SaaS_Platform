@@ -174,11 +174,16 @@ export default function Sidebar() {
       >
         {navItems.map((item) => {
           const active = isParentActive(item, pathname);
+          const hasChildren = !!item.children;
+          const submenuId = hasChildren ? `submenu-${item.href.replace(/\//g, "-")}` : undefined;
           return (
             <div key={item.href + item.label}>
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
+                aria-haspopup={hasChildren ? "menu" : undefined}
+                aria-expanded={hasChildren ? active : undefined}
+                aria-controls={hasChildren && active ? submenuId : undefined}
                 className={`flex items-center gap-3 rounded-lg py-[10px] text-sm focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-sidebar)] ${
                   active
                     ? "border-l-[3px] border-[var(--primary)] bg-[#1E3A5F] pl-[9px] pr-3 font-semibold"
@@ -195,26 +200,33 @@ export default function Sidebar() {
                   {item.label}
                 </span>
               </Link>
-              {active && item.children && (
-                <div className="flex flex-col gap-[2px] py-1 pl-[44px]">
-                  {item.children.map((child) => {
+              {active && hasChildren && (
+                <ul
+                  id={submenuId}
+                  role="menu"
+                  aria-label={`${item.label} 子選單`}
+                  className="flex flex-col gap-[2px] py-1 pl-[44px]"
+                >
+                  {item.children!.map((child) => {
                     const childActive = isChildActive(child, pathname);
                     return (
-                      <Link
-                        key={child.href}
-                        href={child.href}
-                        aria-current={childActive ? "page" : undefined}
-                        className={`rounded-[6px] px-3 py-[6px] text-sm focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-sidebar)] ${
-                          childActive
-                            ? "bg-[#1E3A5F] font-semibold text-[#93C5FD]"
-                            : "font-normal text-[var(--text-disabled)]"
-                        }`}
-                      >
-                        {child.label}
-                      </Link>
+                      <li key={child.href} role="none">
+                        <Link
+                          href={child.href}
+                          role="menuitem"
+                          aria-current={childActive ? "page" : undefined}
+                          className={`block rounded-[6px] px-3 py-[6px] text-sm focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-sidebar)] ${
+                            childActive
+                              ? "bg-[#1E3A5F] font-semibold text-[#93C5FD]"
+                              : "font-normal text-[var(--text-disabled)]"
+                          }`}
+                        >
+                          {child.label}
+                        </Link>
+                      </li>
                     );
                   })}
-                </div>
+                </ul>
               )}
             </div>
           );
@@ -244,7 +256,7 @@ export default function Sidebar() {
           title="登出"
           aria-label={loggingOut ? "正在登出" : "登出"}
           aria-busy={loggingOut}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--text-disabled)] transition hover:bg-[#334155] hover:text-white focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-sidebar)] disabled:opacity-50"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-[var(--text-disabled)] transition hover:bg-[#334155] hover:text-white focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-sidebar)] disabled:opacity-50"
         >
           <LogOut className="h-4 w-4" aria-hidden="true" />
         </button>
