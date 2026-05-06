@@ -10,16 +10,49 @@
 
 ---
 
-## 進度儀表板（Updated: 2026-05-06）
+## 進度儀表板（Updated: 2026-05-06 19:50）
 
 | 區段 | 工作量 | 狀態 | 完成度 | 觸發時機 |
 |------|------|------|------|---------|
-| RP1.C 內部品質 | 5-7 PD | ⬜ | 0/6 | **可立即啟動**（與前端並行） |
-| RP1.D 觀測基建 | 4-5 PD | ⬜ | 0/5 | **可立即啟動**（與前端並行） |
+| RP1.C 內部品質 | 5-7 PD | ✅ | **6/6 merged** | — |
+| RP1.D 觀測基建 | 4-5 PD | 🟡 | **3/5 merged + 2/5 PR open** | — |
 | RP2 V1 後重構 | 14-19 PD | 🔴 blocked | 0/6 | 等 V1 上線 + E2E ≥ 80% |
 
-**Phase 1 預估月曆時間**：2 週（並行）
+**Phase 1 實際月曆時間**：1 天（多 agent 平行）— 遠快於原估 2 週
 **Phase 2 預估月曆時間**：4-5 週（V1 後）
+
+### Phase 1 完成總覽
+- ✅ **9 個 PR 已 merged 到 dev**：#2 #3 #4 #5 #6 #7 #8 #9 #10
+- 🟡 **2 個 PR 待 merge**：#11（OTel）#12（Opik per-skill）
+
+### PR 索引（依任務）
+
+| WBS | PR | 標題 | 狀態 |
+|-----|-----|------|------|
+| RP1.C.1 | [#3](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/3) | fix: silent except 7 處加 log（實際 8 處） | ✅ merged |
+| RP1.C.2 | [#8](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/8) | refactor(core): 抽 pg_pool.py（連帶清第 4 處 data_correction） | ✅ merged |
+| RP1.C.3 | [#4](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/4) | refactor(core): 抽 content_utils.py（3 份等價合併 + 1 保留） | ✅ merged |
+| RP1.C.4 | [#6](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/6) | refactor(profiles,sql): user_facts schema → SQL 檔 | ✅ merged |
+| RP1.C.5 | [#7](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/7) | refactor(memory): 統一走 dict registry | ✅ merged |
+| RP1.C.6 | [#2](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/2) | refactor(skills): Skill 物件 immutable 化 | ✅ merged |
+| RP1.D.1 | [#9](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/9) | chore(logging): structlog 結構化日誌配置 | ✅ merged |
+| RP1.D.2 | [#11](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/11) | chore(observability): OpenTelemetry tracing middleware | 🟡 PR open |
+| RP1.D.3 | [#12](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/12) | chore(observability): Opik per-skill cost attribution | 🟡 PR open |
+| RP1.D.4 | [#5](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/5) | docs(deploy): E9 §7.3 Dockerfile 範本對齊 production | ✅ merged |
+| RP1.D.5 | [#10](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/10) | feat(health): /health 擴充 6 項檢查 | ✅ merged |
+
+### 重大發現與超出範圍交付
+
+| 任務 | 額外交付 |
+|------|---------|
+| RP1.C.1 | WBS 標稱 7 處，實際發現並修了 **8 處**（postgres_impl.py 有 2 處） |
+| RP1.C.2 | 順手清第 4 處 `_ensure_conn` 重複（`harness/data_correction.py`），未來不再被審計到 |
+| RP1.C.3 | 識別「3 份等價 + 1 份不同抽象層」(`_extract_text_from_items` 處理 buffer media placeholder)，後者按計畫保留；新增 16 個單測（含新舊行為等價驗證） |
+| RP1.C.5 | 順手修了原 `close_checkpointer` 的無害 bug（`else` 分支對 `"memory"` type 誤呼叫 `close_sqlite_conn()`） |
+| RP1.D.1 | 發現 Python module/package 陷阱：建 `agent/__init__.py` 會 shadow `agent.py`，改用 `core/logging_config.py` module 載入時自動觸發 |
+| RP1.D.2 | OTel exporter 自動回退（OTLP 套件沒裝時 fallback Console 不 crash）；FastAPI auto-instrumentation 自動帶 `http.method`/`route`/`status` 等 attrs 不必手動加 |
+| RP1.D.3 | 發現 LangChain `tool.invoke()` 會 `copy_context()` 隔離 ContextVar；採**雙軌寫入**（ContextVar + `opik_context.update_current_trace`）解決 |
+| RP1.D.4 | production Dockerfile 早已升級且**比範本更成熟**（uv 釘版 0.11、`UV_NO_PROGRESS=1`、兩階段 layer COPY、cache mount）；本 PR 改為反向操作 — 把 docs E9 §7.3 範本對齊 production |
 
 ---
 
@@ -60,75 +93,70 @@ RP 重構計畫（Phase 1-2）
 
 ### RP1.C — Track C：後端內部品質
 
-| WBS ID | 任務 | 工作量 | 依賴 | 風險 | 分支 | 狀態 |
-|--------|------|------|------|------|------|------|
-| **RP1.C.1** | **Silent except 修復（7 處）** | 1-2 PD | — | 低 | — | ⬜ |
-| RP1.C.1.1 | `harness/debounce.py:737-738`、`760-761` 加 log | 0.25 PD | — | 低 | `fix/silent-except-debounce` | ⬜ |
-| RP1.C.1.2 | `harness/data_correction.py:34-35` 加 log | 0.1 PD | — | 低 | `fix/silent-except-data-correction` | ⬜ |
-| RP1.C.1.3 | `storage/postgres_impl.py:49-50, 153-154` 加 log | 0.25 PD | — | 低 | `fix/silent-except-storage` | ⬜ |
-| RP1.C.1.4 | `profiles/manager.py:22-23` 加 log | 0.1 PD | — | 低 | `fix/silent-except-profiles` | ⬜ |
-| RP1.C.1.5 | `memory/sqlite_saver.py:22-23` 加 log | 0.1 PD | — | 低 | `fix/silent-except-memory` | ⬜ |
-| RP1.C.1.6 | `api/core/db.py:33-34` 加 log | 0.1 PD | — | 低 | `fix/silent-except-api-db` | ⬜ |
-| RP1.C.1.7 | 驗證：`rg 'except.*:\s*pass$' agent/ api/` 應為 0 | 0.1 PD | RP1.C.1.1-6 | 低 | — | ⬜ |
-| **RP1.C.2** | **抽 agent/core/pg_pool.py** | 1-2 PD | — | 中 | `refactor/pg-pool-extraction` | ⬜ |
-| RP1.C.2.1 | 建 `agent/core/pg_pool.py` + 單元測試 | 0.5 PD | — | 中 | — | ⬜ |
-| RP1.C.2.2 | `profiles/manager.py` 改用 `get_async_conn()` | 0.25 PD | RP1.C.2.1 | 中 | — | ⬜ |
-| RP1.C.2.3 | `storage/postgres_impl.py` 改用 helper | 0.25 PD | RP1.C.2.1 | 中 | — | ⬜ |
-| RP1.C.2.4 | `memory/postgres_saver.py` 改用 helper | 0.25 PD | RP1.C.2.1 | 中 | — | ⬜ |
-| RP1.C.2.5 | 驗證：CloudSQL 連線重試演練、`/health` 不退步 | 0.25 PD | RP1.C.2.2-4 | 中 | — | ⬜ |
-| **RP1.C.3** | **抽 agent/core/content_utils.py** | 0.5 PD | — | 低 | `refactor/content-utils-extraction` | ⬜ |
-| RP1.C.3.1 | 建 `extract_text(content) -> str` + 單測 | 0.25 PD | — | 低 | — | ⬜ |
-| RP1.C.3.2 | 4 處呼叫點 import 替換 | 0.25 PD | RP1.C.3.1 | 低 | — | ⬜ |
-| **RP1.C.4** | **user_facts schema → SQL 檔** | 0.5 PD | — | 低 | `refactor/user-facts-schema-to-sql` | ⬜ |
-| RP1.C.4.1 | `SQL/Schema_harness_migration.sql` 加 CREATE TABLE | 0.25 PD | — | 低 | — | ⬜ |
-| RP1.C.4.2 | `profiles/manager.py:43-53` 移除 dynamic CREATE | 0.1 PD | RP1.C.4.1 | 低 | — | ⬜ |
-| RP1.C.4.3 | 乾淨 docker DB migration 演練 | 0.15 PD | RP1.C.4.1-2 | 低 | — | ⬜ |
-| **RP1.C.5** | **memory dict registry 統一** | 0.5 PD | — | 低 | `refactor/memory-registry-unification` | ⬜ |
-| RP1.C.5.1 | `build_memory_saver()` 包成 builder + 註冊 | 0.25 PD | — | 低 | — | ⬜ |
-| RP1.C.5.2 | 移除 if/else fast-path | 0.15 PD | RP1.C.5.1 | 低 | — | ⬜ |
-| RP1.C.5.3 | quality_check 不退步驗證 | 0.1 PD | RP1.C.5.2 | 低 | — | ⬜ |
-| **RP1.C.6** | **Skill immutable 化** | 0.15 PD | — | 極低 | `refactor/skill-immutable` | ⬜ |
-| RP1.C.6.1 | `Skill(...)` 建構時傳入 brands/models | 0.1 PD | — | 極低 | — | ⬜ |
-| RP1.C.6.2 | quality_check 驗證 | 0.05 PD | RP1.C.6.1 | 極低 | — | ⬜ |
+| WBS ID | 任務 | 工作量 | 依賴 | 風險 | 分支（實際） | PR | 狀態 |
+|--------|------|------|------|------|------|-----|------|
+| **RP1.C.1** | **Silent except 修復（實際 8 處）** | 1-2 PD | — | 低 | `fix/silent-except-cleanup` | [#3](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/3) | ✅ |
+| RP1.C.1.1-7 | 6 個檔案 7+ 處統一加 logger.warning + exc_info=True | — | — | 低 | — | — | ✅ |
+| **RP1.C.2** | **抽 agent/core/pg_pool.py + 連帶清第 4 處 data_correction** | 1-2 PD | — | 中 | `refactor/pg-pool-extraction` | [#8](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/8) | ✅ |
+| RP1.C.2.1 | 建 `agent/core/pg_pool.py` + 9 個單測 | 0.5 PD | — | 中 | — | — | ✅ |
+| RP1.C.2.2 | `profiles/manager.py` 改用 helper（+ data_correction.py 同形清理） | 0.25 PD | RP1.C.2.1 | 中 | — | — | ✅ |
+| RP1.C.2.3 | `storage/postgres_impl.py` 改用 helper | 0.25 PD | RP1.C.2.1 | 中 | — | — | ✅ |
+| RP1.C.2.4 | `memory/postgres_saver.py` **刻意不接入**（AsyncPostgresSaver 連線特殊） | — | — | — | — | — | ⏸️ defer |
+| RP1.C.2.5 | 驗證：25/25 全 unit suite 全綠 | 0.25 PD | RP1.C.2.2-4 | 中 | — | — | ✅ |
+| **RP1.C.3** | **抽 agent/core/content_utils.py** | 0.5 PD | — | 低 | `refactor/content-utils-extraction` | [#4](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/4) | ✅ |
+| RP1.C.3.1 | 建 `extract_text(content) -> str` + 16 單測（含新舊行為等價驗證） | 0.25 PD | — | 低 | — | — | ✅ |
+| RP1.C.3.2 | 3 處等價合併（debounce ×2 / memory_manager / quality_check）；`_extract_text_from_items` 保留（不同抽象層） | 0.25 PD | RP1.C.3.1 | 低 | — | — | ✅ |
+| **RP1.C.4** | **user_facts schema → SQL 檔** | 0.5 PD | — | 低 | `refactor/user-facts-schema-to-sql` | [#6](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/6) | ✅ |
+| RP1.C.4.1 | `SQL/Schema_harness_migration.sql` 加 CREATE TABLE user_facts | 0.25 PD | — | 低 | — | — | ✅ |
+| RP1.C.4.2 | `profiles/manager.py` 移除 dynamic CREATE（user_soft_profiles 仍 runtime 建表，列 follow-up） | 0.1 PD | RP1.C.4.1 | 低 | — | — | ✅ |
+| RP1.C.4.3 | 部署備註：新環境必須先跑 SQL 檔（既有部署不影響） | 0.15 PD | RP1.C.4.1-2 | 低 | — | — | ✅ |
+| **RP1.C.5** | **memory dict registry 統一** | 0.5 PD | — | 低 | `refactor/memory-registry-unification` | [#7](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/7) | ✅ |
+| RP1.C.5.1 | `build_in_memory_saver()` builder + 註冊 MEMORY_REGISTRY | 0.25 PD | — | 低 | — | — | ✅ |
+| RP1.C.5.2 | 移除 if/else fast-path + 順手修 close_checkpointer 無害 bug | 0.15 PD | RP1.C.5.1 | 低 | — | — | ✅ |
+| RP1.C.5.3 | 驗證：unknown backend 拋 ValueError、行為等價 | 0.1 PD | RP1.C.5.2 | 低 | — | — | ✅ |
+| **RP1.C.6** | **Skill immutable 化** | 0.15 PD | — | 極低 | `refactor/skill-immutable` | [#2](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/2) | ✅ |
+| RP1.C.6.1 | `_parse_skill_md()` 擴充參數，建構時傳入 brands/models | 0.1 PD | — | 極低 | — | — | ✅ |
+| RP1.C.6.2 | 驗證：load_skills() 載入 67 skills（一致） | 0.05 PD | RP1.C.6.1 | 極低 | — | — | ✅ |
 
 **RP1.C 小計**：5-7 PD
 
 ### RP1.D — Track D：觀測 + 基建
 
-| WBS ID | 任務 | 工作量 | 依賴 | 風險 | 狀態 |
-|--------|------|------|------|------|------|
-| **RP1.D.1** | **結構化日誌（structlog）** | 1-2 PD | — | 低 | ⬜ |
-| RP1.D.1.1 | 加 `structlog` 依賴 + logger config | 0.25 PD | — | 低 | ⬜ |
-| RP1.D.1.2 | `app.py` 替換 logger（含 user_id / request_id context） | 0.5 PD | RP1.D.1.1 | 低 | ⬜ |
-| RP1.D.1.3 | `harness/debounce.py` 替換 logger | 0.5 PD | RP1.D.1.1 | 低 | ⬜ |
-| RP1.D.1.4 | 其餘 harness 漸進替換 | 0.5 PD | RP1.D.1.1 | 低 | ⬜ |
-| **RP1.D.2** | **OpenTelemetry middleware（先 collect 不送出）** | 0.5 PD | — | 低 | ⬜ |
-| RP1.D.2.1 | 加 `opentelemetry-instrumentation-fastapi` | 0.25 PD | — | 低 | ⬜ |
-| RP1.D.2.2 | ConsoleSpanExporter + tag http.method/route/user_id | 0.25 PD | RP1.D.2.1 | 低 | ⬜ |
-| **RP1.D.3** | **Opik cost attribution per-skill** | 0.5 PD | — | 低 | ⬜ |
-| RP1.D.3.1 | `skills/tools.py:load_skill` 加 Opik tag | 0.25 PD | — | 低 | ⬜ |
-| RP1.D.3.2 | Opik dashboard 確認可分桶 | 0.25 PD | RP1.D.3.1 | 低 | ⬜ |
-| **RP1.D.4** | **Dockerfile multi-stage uv build** | 0.5 PD | — | 低 | ⬜ |
-| RP1.D.4.1 | `agent/Dockerfile` 改為 multi-stage（範本見 E9 §7.3） | 0.25 PD | — | 低 | ⬜ |
-| RP1.D.4.2 | `api/Dockerfile` 同步改 | 0.15 PD | — | 低 | ⬜ |
-| RP1.D.4.3 | staging 部署演練 + image size 量測 | 0.1 PD | RP1.D.4.1-2 | 低 | ⬜ |
-| **RP1.D.5** | **Health endpoint 擴充** | 0.5 PD | — | 低 | ⬜ |
-| RP1.D.5.1 | 補 LLM ping check | 0.25 PD | — | 低 | ⬜ |
-| RP1.D.5.2 | 補 checkpoint backend ping + media storage ping | 0.25 PD | — | 低 | ⬜ |
+| WBS ID | 任務 | 工作量 | 依賴 | 風險 | PR | 狀態 |
+|--------|------|------|------|------|-----|------|
+| **RP1.D.1** | **結構化日誌（structlog）基礎建設** | 1-2 PD | — | 低 | [#9](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/9) | ✅ |
+| RP1.D.1.1 | 加 `structlog>=24.4` 依賴 + `agent/core/logging_config.py` | 0.25 PD | — | 低 | — | ✅ |
+| RP1.D.1.2 | `app.py` 全面替換（**留給後續 PR**，避免與 D.5 衝突） | 0.5 PD | RP1.D.1.1 | 低 | — | ⏸️ defer |
+| RP1.D.1.3 | `harness/debounce.py` 部分替換（7 處結構化事件示範） | 0.5 PD | RP1.D.1.1 | 低 | — | ✅ |
+| RP1.D.1.4 | 其餘 harness 漸進替換 | 0.5 PD | RP1.D.1.1 | 低 | — | ⏸️ defer |
+| **RP1.D.2** | **OpenTelemetry middleware（ConsoleSpanExporter）** | 0.5 PD | — | 低 | [#11](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/11) | 🟡 |
+| RP1.D.2.1 | 加 OTel SDK + instrumentation-fastapi 依賴 | 0.25 PD | — | 低 | — | 🟡 |
+| RP1.D.2.2 | `agent/core/tracing.py` + auto-instrumentation + line_user_id span | 0.25 PD | RP1.D.2.1 | 低 | — | 🟡 |
+| **RP1.D.3** | **Opik cost attribution per-skill** | 0.5 PD | — | 低 | [#12](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/12) | 🟡 |
+| RP1.D.3.1 | `skills/tools.py:load_skill` 加 ContextVar + opik_context | 0.25 PD | — | 低 | — | 🟡 |
+| RP1.D.3.2 | `harness/debounce.py` 注入 invoke metadata；正式環境驗證 dashboard 分桶 | 0.25 PD | RP1.D.3.1 | 低 | — | 🟡 |
+| **RP1.D.4** | **Dockerfile multi-stage uv build（含 docs 範本對齊）** | 0.5 PD | — | 低 | [#5](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/5) | ✅ |
+| RP1.D.4.1 | production Dockerfile 早已升級（commit `84be0f5`，比範本更成熟） | 0.25 PD | — | 低 | — | ✅ |
+| RP1.D.4.2 | `docs/04-deliver/E9--... §7.3` 範本對齊 production 實作 | 0.15 PD | — | 低 | — | ✅ |
+| RP1.D.4.3 | 本地 build 驗證：agent 792 MB / api 245 MB / `/docs` 200 OK | 0.1 PD | RP1.D.4.1-2 | 低 | — | ✅ |
+| **RP1.D.5** | **Health endpoint 擴充（6 項檢查）** | 0.5 PD | — | 低 | [#10](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/10) | ✅ |
+| RP1.D.5.1 | `_timed_check` helper（asyncio.wait_for + try/except + latency） | 0.25 PD | — | 低 | — | ✅ |
+| RP1.D.5.2 | facts_db / audit_db / memory_db / llm（不發實際請求）/ media_storage / skill_registry | 0.25 PD | — | 低 | — | ✅ |
 
 **RP1.D 小計**：4-5 PD
 
 ### RP1 完工驗收（Definition of Done）
 
-- [ ] `rg 'except.*:\s*pass$' agent/ api/` 回傳 0 行
-- [ ] `agent/core/pg_pool.py`、`content_utils.py` 兩個模組存在 + 有單測
-- [ ] `SQL/Schema_harness_migration.sql` 含 user_facts 完整 schema
-- [ ] `memory/__init__.py` 無 if/else fast-path
-- [ ] structlog 在 app.py + debounce.py 可見
-- [ ] OpenTelemetry middleware 啟用（ConsoleExporter）
-- [ ] Dockerfile multi-stage uv build 上 staging 通過
-- [ ] `/health` 回傳所有 backend 狀態
-- [ ] quality_check baseline 不退步
+- [x] `rg 'except.*:\s*pass$' agent/ api/` 回傳 0 行（PR #3）
+- [x] `agent/core/pg_pool.py`、`content_utils.py` 兩個模組存在 + 有單測（25/25 全綠）
+- [x] `SQL/Schema_harness_migration.sql` 含 user_facts 完整 schema（PR #6）
+- [x] `memory/__init__.py` 無 if/else fast-path（PR #7）
+- [x] structlog 在 debounce.py 可見（PR #9，app.py 替換 defer 至下一 PR）
+- [ ] OpenTelemetry middleware 啟用（ConsoleExporter）— PR #11 待 merge
+- [x] Dockerfile multi-stage uv build 上 staging 通過（PR #5，本地 build OK）
+- [x] `/health` 回傳所有 backend 狀態（PR #10，6 項檢查）
+- [ ] Opik per-skill 成本分桶 — PR #12 待 merge
+- [x] quality_check baseline 不退步（pg_pool / content_utils 25 單測 + skill 67 載入一致）
 
 ---
 
