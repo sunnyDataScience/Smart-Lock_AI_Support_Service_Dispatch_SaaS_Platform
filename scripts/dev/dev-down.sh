@@ -43,6 +43,10 @@ log()  { printf '\033[36m[dev-down]\033[0m %s\n' "$*"; }
 warn() { printf '\033[33m[dev-down]\033[0m %s\n' "$*"; }
 
 # 共用函式：依 PID file + port 雙保險停 process
+# 注意 next dev 會 spawn 子 process（next-server worker），主 PID 死了
+# 子 process 仍可能綁住 port。靠兩個層次補刀：
+#   1. lsof -ti :PORT（IPv4 listener）
+#   2. fuser -k -n tcp PORT（更可靠，IPv4/IPv6 都抓得到）
 stop_by_pid_and_port() {
   local pidfile="$1" port="$2" label="$3"
   local pid_killed=0
@@ -61,14 +65,30 @@ stop_by_pid_and_port() {
     rm -f "$pidfile"
   fi
 
-  # 再用 port 補刀（防 PID file 過期但 port 還被綁）
-  if pids=$(lsof -ti :"$port" 2>/dev/null); then
-    log "  also clearing $label by port $port (pids: $pids)"
-    echo "$pids" | xargs -r kill 2>/dev/null || true
+  # 第二刀：lsof（抓 IPv4 listener）
+  local lsof_pids=""
+  lsof_pids=$(lsof -ti :"$port" 2>/dev/null || true)
+  if [ -n "$lsof_pids" ]; then
+    log "  clearing $label by lsof on port $port (pids: $lsof_pids)"
+    echo "$lsof_pids" | xargs -r kill 2>/dev/null || true
     sleep 1
-    echo "$pids" | xargs -r kill -9 2>/dev/null || true
-  elif [ "$pid_killed" -eq 0 ]; then
-    log "  no $label process found"
+    echo "$lsof_pids" | xargs -r kill -9 2>/dev/null || true
+  fi
+
+  # 第三刀：fuser sledgehammer（抓 IPv6 / 子 process）
+  if command -v fuser >/dev/null 2>&1; then
+    if fuser -n tcp "$port" >/dev/null 2>&1; then
+      log "  clearing $label by fuser on port $port (next-server child / IPv6)"
+      fuser -k -n tcp "$port" >/dev/null 2>&1 || true
+      sleep 1
+    fi
+  fi
+
+  # 最終確認
+  if [ "$pid_killed" -eq 0 ] && [ -z "$lsof_pids" ]; then
+    if ! command -v fuser >/dev/null 2>&1 || ! fuser -n tcp "$port" >/dev/null 2>&1; then
+      log "  no $label process found"
+    fi
   fi
 }
 
