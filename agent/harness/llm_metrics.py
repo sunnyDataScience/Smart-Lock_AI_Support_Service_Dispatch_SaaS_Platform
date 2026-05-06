@@ -16,6 +16,7 @@ import asyncio
 from typing import Any, Iterable
 
 from core.logging_config import get_logger
+import psycopg
 
 log = get_logger(__name__)
 
@@ -99,7 +100,7 @@ def log_simple(
             log_simple(user_id, "memory_compression", model, resp,
                        int((time.monotonic()-t0)*1000),
                        user_question=dialogue_text)
-        except Exception as e:
+        except (psycopg.Error, OSError, RuntimeError) as e:
             log_simple(user_id, "memory_compression", model,
                        latency_ms=int((time.monotonic()-t0)*1000),
                        success=False, error_type=type(e).__name__,
@@ -150,7 +151,7 @@ def schedule_log(storage, **kwargs) -> None:
     async def _runner():
         try:
             await storage.log_llm_call(**kwargs)
-        except Exception as e:
+        except (psycopg.Error, OSError, RuntimeError) as e:
             log.warning("llm_metrics_log_failed", error=str(e), exc_info=True)
 
     try:
@@ -160,5 +161,5 @@ def schedule_log(storage, **kwargs) -> None:
         try:
             loop = asyncio.get_event_loop()
             loop.create_task(_runner())
-        except Exception as e:
+        except (psycopg.Error, OSError, RuntimeError) as e:
             log.warning("llm_metrics_schedule_failed", error=str(e), exc_info=True)

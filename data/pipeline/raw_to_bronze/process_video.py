@@ -109,7 +109,7 @@ def main() -> None:
 
             logger.info(f"輸出 → {output_path}")
             processed += 1
-        except Exception:
+        except (OSError, RuntimeError, ValueError, TimeoutError, ConnectionError):
             logger.exception(f"處理失敗 — {filepath.name}")
             failed += 1
 

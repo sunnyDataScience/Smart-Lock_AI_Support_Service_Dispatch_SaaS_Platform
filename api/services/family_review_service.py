@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import logging
 
+import psycopg
+
 import core.db as db_module
 from core.db import _ensure_conn
 from core.errors import ApiError
@@ -186,7 +188,7 @@ async def create_review(
             (tenant_id, sop_draft_id, action, reviewer_id, comment),
         )
         inserted = await cur.fetchone()
-    except Exception as e:
+    except psycopg.Error as e:
         msg = str(e).lower()
         if "uniq_family_review_draft" in msg or "unique" in msg:
             raise ApiError(

@@ -198,7 +198,7 @@ def main():
                 prev_failures.pop(filepath.name, None)
                 last_error = None
                 break
-            except Exception as e:
+            except (OSError, RuntimeError, ValueError, TimeoutError, ConnectionError) as e:
                 last_error = str(e)
                 if attempt < MAX_RETRIES - 1:
                     wait = RETRY_BACKOFF[attempt]

@@ -167,7 +167,7 @@ async def maybe_compress(agent, thread_id: str, user_id: str = "") -> str | None
             metadata={"thread_id": thread_id, "summarized_messages": len(messages_to_summarize)},
         )
         new_summary = response.content.strip()
-    except Exception as e:
+    except (RuntimeError, ValueError, TimeoutError, ConnectionError) as e:
         log_simple(
             user_id=user_id or thread_id,
             call_site="memory_compression",

@@ -7,6 +7,8 @@ import logging
 import uuid
 from datetime import datetime, timezone
 
+from jose import JWTError
+
 import core.db as db_module
 from core.auth import (
     create_token,
@@ -88,7 +90,7 @@ async def login(email: str, password: str, *, allowed_roles: list[str]) -> dict:
 async def refresh(refresh_token: str) -> dict:
     try:
         payload = decode_token(refresh_token)
-    except Exception:
+    except JWTError:
         raise ApiError("UNAUTHENTICATED", "Invalid refresh token", 401)
 
     if payload.get("type") != "refresh":
@@ -119,7 +121,7 @@ async def logout(*, access_jti: str, access_user_id: str, access_exp_iso: str | 
         # 若不知 exp，預設 1h 後過期清除
         try:
             exp = datetime.fromisoformat(access_exp_iso) if access_exp_iso else datetime.now(timezone.utc) + timedelta(hours=1)
-        except Exception:
+        except (ValueError, TypeError):
             exp = datetime.now(timezone.utc) + timedelta(hours=1)
         await revoke_jti(access_jti, access_user_id, exp)
 
@@ -130,8 +132,8 @@ async def logout(*, access_jti: str, access_user_id: str, access_exp_iso: str | 
             if jti and payload.get("type") == "refresh":
                 exp = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
                 await revoke_jti(jti, payload["sub"], exp)
-        except Exception:
-            # refresh decode 失敗就忽略（只撤 access）
+        except (JWTError, KeyError, ValueError, TypeError):
+            # refresh decode / payload 缺欄位 / timestamp 解析失敗 → 忽略（只撤 access）
             pass
 
 

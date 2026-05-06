@@ -70,7 +70,7 @@ def _merge_once(
         try:
             result = generate_json(prompt, MERGE_SKILL_SYSTEM, SKILL_CONTENT_SCHEMA)
             break
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError, TimeoutError, ConnectionError) as e:
             if attempt < MAX_RETRIES - 1:
                 wait = RETRY_BACKOFF[attempt]
                 print(f"  [RETRY {attempt + 1}/{MAX_RETRIES}] {skill_name}: {e} (wait {wait}s)")
@@ -169,7 +169,7 @@ def create_skill(
         try:
             result = generate_json(prompt, CREATE_SKILL_SYSTEM, SKILL_CONTENT_SCHEMA)
             break
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError, TimeoutError, ConnectionError) as e:
             if attempt < MAX_RETRIES - 1:
                 wait = RETRY_BACKOFF[attempt]
                 print(f"  [RETRY {attempt + 1}/{MAX_RETRIES}] {suggested_name}: {e} (wait {wait}s)")
@@ -238,7 +238,7 @@ def update_router(
         try:
             result = generate_json(prompt, UPDATE_ROUTER_SYSTEM, SKILL_CONTENT_SCHEMA)
             break
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError, TimeoutError, ConnectionError) as e:
             if attempt < MAX_RETRIES - 1:
                 wait = RETRY_BACKOFF[attempt]
                 print(f"  [RETRY {attempt + 1}/{MAX_RETRIES}] router {router.name}: {e} (wait {wait}s)")
