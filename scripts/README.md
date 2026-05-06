@@ -12,11 +12,15 @@
 
 ```
 scripts/
-├── dev/      啟動 / 收尾本機開發環境
+├── dev/      啟動 / 收尾本機開發環境（含狀態查詢與前置檢查）
 ├── env/      .env 模式切換（本機 docker ↔ GCP Cloud SQL）
 ├── ci/       API 契約相關 CI 工具（OpenAPI / mock / 一致性檢查）
 └── deploy/   GCP Cloud Run 部署
 ```
+
+> **單一入口**：日常開發、查狀態、前置檢查全部走 `scripts/dev/`。歷史版本曾有
+> `scripts/setup/`（v1.37.x，pip-based），現已併入 `scripts/dev/`（uv-based，
+> 與 `pyproject.toml` workspace 對齊）。
 
 > 額外位置：`tests/smoke/`（happy-path smoke test）、`tests/tools/`（除錯工具
 > 如 view_facts / view_logs / clean_data 等）、`api/scripts/generate_models.sh`
@@ -71,6 +75,12 @@ cp .env.local.example .env.local
 ### 本地驗證
 
 ```bash
+# 前置工具檢查（首次拉 repo 跑一次即可）
+./scripts/dev/check-prereqs.sh
+
+# 查看當前服務狀態（DB / Agent / API / Web / Proxy）
+./scripts/dev/status.sh
+
 # uvicorn 起來後快速測 LLM 連線
 curl "http://localhost:8000/chat?q=門打不開"
 
