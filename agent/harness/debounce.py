@@ -28,7 +28,6 @@ from harness.line_ui_factory import (
     build_line_messages, match_brand, match_model, get_brand_models, is_quick_reply_enabled,
 )
 from skills.tools import set_current_user_id, set_current_brand, get_current_brand, get_current_model, reset_run_state, set_current_user_input, was_transfer_called
-from agent import get_system_prompt
 import harness.profile_updater as profile_updater
 import harness.safety_gate as safety_gate
 import harness.output_validator as output_validator
@@ -41,6 +40,9 @@ _templates: dict = {}
 _profile_mgr = None
 _audit_storage = None
 _opik_tracer = None
+# RP2.3 — getter callable injected by app.py to avoid harness→agent reverse
+# import. Returns the current system prompt string for debug rendering.
+_get_system_prompt = lambda: ""
 
 # 訊息緩衝池：用來記錄每個使用者的狀態
 user_buffers = {}
@@ -50,7 +52,15 @@ _pending_messages: dict[str, dict] = {}
 _PENDING_TTL = 300  # 秒，Quick Reply 暫存過期時間
 
 
-def init(agent, config: dict, templates: dict, profile_mgr=None, audit_storage=None, opik_tracer=None):
+def init(
+    agent,
+    config: dict,
+    templates: dict,
+    profile_mgr=None,
+    audit_storage=None,
+    opik_tracer=None,
+    system_prompt_getter=None,
+):
     """注入依賴，由 app.py startup 呼叫。
 
     Args:
@@ -60,14 +70,19 @@ def init(agent, config: dict, templates: dict, profile_mgr=None, audit_storage=N
         profile_mgr: ProfileManager instance (optional)
         audit_storage: AuditStorage instance (optional)
         opik_tracer: OpikTracer instance for LLM observability (optional)
+        system_prompt_getter: callable returning the current system prompt
+            string (for debug print). RP2.3 — injected to avoid the reverse
+            import ``harness.debounce → agent``.
     """
-    global _agent, _config, _templates, _profile_mgr, _audit_storage, _opik_tracer
+    global _agent, _config, _templates, _profile_mgr, _audit_storage, _opik_tracer, _get_system_prompt
     _agent = agent
     _config = config
     _templates = templates
     _profile_mgr = profile_mgr
     _audit_storage = audit_storage
     _opik_tracer = opik_tracer
+    if system_prompt_getter is not None:
+        _get_system_prompt = system_prompt_getter
 
 
 # Note: previously this module owned a private `_extract_text` near-duplicate
@@ -79,7 +94,7 @@ async def _print_context(user_id: str, ai_response: str):
     """印出完整對話上下文（system prompt + checkpoint messages + AI 最終回答）。"""
     thread_id = f"line_{user_id}"
     config = {"configurable": {"thread_id": thread_id}}
-    sys_prompt = get_system_prompt()
+    sys_prompt = _get_system_prompt()
 
     # 從 checkpoint 撈出完整 messages
     messages = []
