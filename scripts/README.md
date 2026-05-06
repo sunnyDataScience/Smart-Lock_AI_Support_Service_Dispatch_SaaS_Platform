@@ -2,6 +2,14 @@
 
 依用途分為四類：開發 / 環境切換 / CI / 部署。所有腳本都從**專案根目錄**執行。
 
+> **Python 環境前提**：本專案用 [uv workspace](https://docs.astral.sh/uv/concepts/workspaces/)
+> 統一管理 `agent/` `api/` `data/` 三個 module 的依賴。首次拉 repo 後跑：
+> ```bash
+> uv sync          # 自動下載 Python 3.11 + 裝齊三個 module 的所有 deps
+> ```
+> 後續執行 Python 腳本一律用 `uv run python X.py`，
+> 或啟動 venv：`source .venv/bin/activate`（POSIX）/ `.venv\Scripts\activate`（Windows）
+
 ```
 scripts/
 ├── dev/      啟動 / 收尾本機開發環境
@@ -140,23 +148,24 @@ cd agent && uvicorn app:app --reload --port 8000
 ## 除錯與資料工具（tests/tools/）
 
 從**專案根目錄**執行（腳本內已自行把 `agent/` 加入 `sys.path`）。
-6 支 Python 工具皆有 `#!/usr/bin/env python3` shebang 且為可執行：
-
-| 平台 | 推薦寫法 | 備註 |
-| :--- | :--- | :--- |
-| Linux / macOS | `./tests/tools/view_facts.py` | 透過 shebang 直接執行 |
-| Linux + pyenv | `python3 tests/tools/view_facts.py` | 避開 `python` shim 攔截 |
-| Windows (cmd / PowerShell) | `python tests\tools\view_facts.py` | 或 `py tests\tools\view_facts.py` |
-| Windows (Git Bash / WSL) | `./tests/tools/view_facts.py` | 同 Linux |
+推薦用 `uv run`，自動解析 .venv：
 
 ```bash
-./tests/tools/view_context.py <user_id>      # 看 checkpoint 對話狀態
-./tests/tools/view_facts.py [--user <id>]    # 看 user_facts (SCD2)
-./tests/tools/view_logs.py [N]               # 看 audit logs
-./tests/tools/view_corrections.py [--all|--export|--clear]
-./tests/tools/clean_data.py [--pg|--sqlite|--profile]
-./tests/tools/simulate_e2e.py                # debounce / Quick Reply / 多模態 模擬
+uv run tests/tools/view_context.py <user_id>      # 看 checkpoint 對話狀態
+uv run tests/tools/view_facts.py [--user <id>]    # 看 user_facts (SCD2)
+uv run tests/tools/view_logs.py [N]               # 看 audit logs
+uv run tests/tools/view_corrections.py [--all|--export|--clear]
+uv run tests/tools/clean_data.py [--pg|--sqlite|--profile]
+uv run tests/tools/simulate_e2e.py                # debounce / Quick Reply / 多模態 模擬
 ```
+
+若已啟動 venv（`source .venv/bin/activate`），可省 `uv run`：
+
+| 平台 | 寫法 | 備註 |
+| :--- | :--- | :--- |
+| Linux / macOS | `./tests/tools/view_facts.py` | 透過 shebang |
+| Windows (cmd / PowerShell) | `python tests\tools\view_facts.py` | 或 `py tests\tools\view_facts.py` |
+| Windows (Git Bash / WSL) | `./tests/tools/view_facts.py` | 同 Linux |
 
 ---
 

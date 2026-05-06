@@ -11,17 +11,28 @@ Primary language: **Chinese (Traditional)** for all user-facing text, comments, 
 ## Common Commands
 
 ```bash
-# Setup
-conda create -n smart-lock python=3.11 && conda activate smart-lock
-pip install -r agent/requirements.txt    # Agent dependencies
-pip install -r data/requirements.txt     # Data pipeline dependencies
-cd web && npm install                    # Web dashboard dependencies
+# Setup — uv workspace (Python 3.11)
+# uv 安裝（任一方式）：
+#   pip install --user uv
+#   pipx install uv
+# 一行裝齊三個 module 的所有 deps + dev tools：
+uv sync
+# 後續任何時候只要 pyproject.toml 改了就重跑 uv sync
+
+# Web dashboard (Node 環境，與 uv 無關)
+cd web && npm install
 
 # Run agent (CLI interactive mode — verifies LLM connectivity, no LINE Bot needed)
-cd agent && python main.py
+cd agent && uv run python main.py
 
-# Run FastAPI server (LINE webhook mode)
-cd agent && uvicorn app:app --reload --port 8000
+# Run FastAPI agent server (LINE webhook mode)
+cd agent && uv run uvicorn app:app --reload --port 8000
+
+# 或一鍵起本地開發環境（DB + ngrok + uvicorn，內部會用 uv run）
+./scripts/dev/dev-up.sh
+
+# Run REST API backend
+cd api && uv run uvicorn main:app --reload --port 8001
 
 # Quick test endpoint (server must be running, bypasses debounce)
 curl "http://localhost:8000/chat?q=門打不開"
@@ -36,26 +47,27 @@ cd web && npm run build                  # Production build
 cd web && npm run lint                   # ESLint
 
 # Quality testing (LLM-as-Judge eval pipeline)
-cd agent && python -m quality.quality_check              # Full: agent + keyword + LLM judge
-cd agent && python -m quality.quality_check --no-judge   # Agent answers + keyword match only
-cd agent && python -m quality.quality_check --judge-only # Re-score existing quality_report.json
-cd agent && python -m quality.quality_check --retry-failed # Retest non-pass cases only
+cd agent && uv run python -m quality.quality_check              # Full: agent + keyword + LLM judge
+cd agent && uv run python -m quality.quality_check --no-judge   # Agent answers + keyword match only
+cd agent && uv run python -m quality.quality_check --judge-only # Re-score existing quality_report.json
+cd agent && uv run python -m quality.quality_check --retry-failed # Retest non-pass cases only
 
 # Skill approval (data pipeline → agent)
-python data/pipeline/silver_to_skill/approve_drafts.py --dry-run
-python data/pipeline/silver_to_skill/approve_drafts.py --confirm
+uv run python data/pipeline/silver_to_skill/approve_drafts.py --dry-run
+uv run python data/pipeline/silver_to_skill/approve_drafts.py --confirm
 
 # Debugging scripts (run from project root — tools auto-add agent/ to sys.path)
-# Cross-platform invocation:
-#   Linux/macOS  : ./tests/tools/view_facts.py     (shebang: #!/usr/bin/env python3)
-#   pyenv users  : python3 tests/tools/view_facts.py    (avoid `python` shim)
-#   Windows      : python tests\tools\view_facts.py     OR  py tests\tools\view_facts.py
-./tests/tools/view_context.py <user_id>   # Inspect checkpoint state
-./tests/tools/view_facts.py <user_id>     # Inspect user facts (brand, model, phone, address)
-./tests/tools/view_logs.py                 # Query audit logs
-./tests/tools/view_corrections.py          # View #資料修正 records (--all / --export / --clear)
-./tests/tools/clean_data.py                # DB cleanup
-./tests/tools/simulate_e2e.py              # E2E simulation (debounce / Quick Reply / multimodal)
+# 推薦用 `uv run` 確保 venv 解析正確（不需手動 source .venv/bin/activate）
+uv run tests/tools/view_context.py <user_id>   # Inspect checkpoint state
+uv run tests/tools/view_facts.py <user_id>     # Inspect user facts
+uv run tests/tools/view_logs.py                # Query audit logs
+uv run tests/tools/view_corrections.py         # View #資料修正 records
+uv run tests/tools/clean_data.py               # DB cleanup
+uv run tests/tools/simulate_e2e.py             # E2E simulation
+
+# 若已 activate venv（source .venv/bin/activate）也可直接執行：
+# Linux/macOS: ./tests/tools/view_facts.py        (透過 shebang)
+# Windows    : python tests\tools\view_facts.py
 
 # Local dev environment (Docker DB + ngrok + uvicorn)
 ./scripts/dev/dev-up.sh                  # Start everything
