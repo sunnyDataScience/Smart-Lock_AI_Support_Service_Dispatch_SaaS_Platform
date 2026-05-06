@@ -1,0 +1,46 @@
+name: uv Lock Check
+
+# 驗證 uv.lock 與 pyproject.toml 是否同步：
+#   開發者改了 pyproject.toml 但忘記 `uv lock` 時，CI 會擋下 PR
+#   防止 lockfile 漂移失準導致 deploy 與本地環境不一致
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'pyproject.toml'
+      - 'agent/pyproject.toml'
+      - 'api/pyproject.toml'
+      - 'data/pyproject.toml'
+      - 'uv.lock'
+      - '.python-version'
+      - '.github/workflows/uv-lock-check.yml'
+  pull_request:
+    paths:
+      - 'pyproject.toml'
+      - 'agent/pyproject.toml'
+      - 'api/pyproject.toml'
+      - 'data/pyproject.toml'
+      - 'uv.lock'
+      - '.python-version'
+
+jobs:
+  lock-check:
+    name: uv lock --check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: '0.11.10'
+
+      - name: Verify lockfile is up-to-date
+        # --check 模式：若 pyproject.toml 改動需要 re-lock，CI 直接 fail
+        # 開發者修：本機跑 `uv lock` 並把 uv.lock 一起 commit
+        run: uv lock --check
+
+      - name: Verify uv sync runs cleanly
+        # 確保所有 deps 在 lockfile 中可解析（避免 lockfile 引用消失的 package）
+        run: uv sync --frozen --no-install-workspace

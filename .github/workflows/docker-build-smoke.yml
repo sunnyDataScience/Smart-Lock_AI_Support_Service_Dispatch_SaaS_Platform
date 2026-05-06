@@ -1,0 +1,81 @@
+name: Docker Build Smoke Test
+
+# 確保 agent / api Dockerfile 能 build 成功，預防 Dockerfile 退化：
+#   - 改 pyproject.toml / 新增 Python 套件不會破壞 image build
+#   - .dockerignore 規則改動不會誤刪 build 必要檔案
+#   - 不 push image，只驗證 build + 一個 import 健康檢查
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'agent/**'
+      - 'api/**'
+      - 'data/pyproject.toml'      # workspace member 改動會影響 lock
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.dockerignore'
+      - '.python-version'
+      - '.github/workflows/docker-build-smoke.yml'
+  pull_request:
+    paths:
+      - 'agent/Dockerfile'
+      - 'api/Dockerfile'
+      - 'agent/pyproject.toml'
+      - 'api/pyproject.toml'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.dockerignore'
+
+jobs:
+  build:
+    name: ${{ matrix.module }} image build
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [agent, api]
+        include:
+          - module: agent
+            healthcheck: |
+              import psycopg, langchain_core, langgraph, fastapi, litellm, linebot
+              import importlib.metadata as md
+              print(f'litellm={md.version("litellm")} langgraph={md.version("langgraph")}')
+          - module: api
+            healthcheck: |
+              import fastapi, psycopg, jose, passlib, reportlab
+              import importlib.metadata as md
+              # 確認 agent 的 deps 沒被誤裝（--package 隔離應該排除）
+              try:
+                  import langchain_core
+                  raise SystemExit('FAIL: langchain_core leaked into api image')
+              except ImportError:
+                  pass
+              print(f'fastapi={fastapi.__version__} reportlab={md.version("reportlab")}')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build ${{ matrix.module }} image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.module }}/Dockerfile
+          platforms: linux/amd64
+          push: false
+          load: true     # 載入到本地 daemon 讓下一步 docker run 用
+          tags: smart-lock-${{ matrix.module }}:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke-test ${{ matrix.module }} image
+        run: |
+          docker run --rm --entrypoint python smart-lock-${{ matrix.module }}:ci \
+            -c '${{ matrix.healthcheck }}'
+
+      - name: Print image size
+        run: docker images smart-lock-${{ matrix.module }}:ci --format '{{.Size}}'
