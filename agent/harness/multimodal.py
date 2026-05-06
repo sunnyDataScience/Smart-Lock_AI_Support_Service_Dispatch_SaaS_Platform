@@ -9,6 +9,10 @@ import asyncio
 
 from harness.media_storage import get_media_storage, BaseMediaStorage
 
+from core.logging_config import get_logger
+
+log = get_logger(__name__)
+
 # LINE 經常回傳 application/octet-stream，直接根據訊息類型硬編碼 MIME type
 _MIME_BY_MEDIA_TYPE = {
     "image": "image/jpeg",
@@ -28,7 +32,7 @@ async def init(config: dict, line_access_token: str):
     _config = config
 
     if not config.get("enabled", False):
-        print("[Multimodal] 多模態處理已停用 (enabled = false)")
+        log.info("multimodal_disabled")
         return
 
     _line_access_token = line_access_token
@@ -37,7 +41,7 @@ async def init(config: dict, line_access_token: str):
     storage_config = config.get("storage", {"type": "local"})
     _media_storage = await get_media_storage(storage_config)
 
-    print("[Multimodal] 已啟用 (passthrough 模式，媒體直接送入 Agent)")
+    log.info("multimodal_enabled", mode="passthrough")
 
 
 def is_enabled() -> bool:
@@ -104,9 +108,11 @@ async def download_and_store_media(
     media_bytes, raw_content_type = await download_media(message_id)
     # LINE 常回傳 application/octet-stream，直接用 media_type 決定 MIME
     content_type = _MIME_BY_MEDIA_TYPE.get(media_type, raw_content_type)
-    print(
-        f"[Multimodal] 已下載 {media_type}: {len(media_bytes)} bytes, "
-        f"mime={content_type}"
+    log.info(
+        "multimodal_downloaded",
+        media_type=media_type,
+        bytes=len(media_bytes),
+        mime=content_type,
     )
 
     # 2. 檢查檔案大小
@@ -123,7 +129,7 @@ async def download_and_store_media(
         file_path = await _media_storage.save(
             user_id, message_id, media_type, media_bytes, content_type
         )
-        print(f"[Multimodal] 媒體已存儲: {file_path}")
+        log.info("multimodal_stored", file_path=file_path)
 
     return {
         "type": "media",

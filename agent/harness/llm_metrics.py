@@ -15,6 +15,10 @@ from __future__ import annotations
 import asyncio
 from typing import Any, Iterable
 
+from core.logging_config import get_logger
+
+log = get_logger(__name__)
+
 # 模組層級 storage 單例，由 app.py 啟動時注入；harness 各模組共用
 _storage = None
 
@@ -147,7 +151,7 @@ def schedule_log(storage, **kwargs) -> None:
         try:
             await storage.log_llm_call(**kwargs)
         except Exception as e:
-            print(f"[LLM Metrics] schedule_log 寫入失敗: {e}")
+            log.warning("llm_metrics_log_failed", error=str(e), exc_info=True)
 
     try:
         asyncio.create_task(_runner())
@@ -157,4 +161,4 @@ def schedule_log(storage, **kwargs) -> None:
             loop = asyncio.get_event_loop()
             loop.create_task(_runner())
         except Exception as e:
-            print(f"[LLM Metrics] 無法排程紀錄任務: {e}")
+            log.warning("llm_metrics_schedule_failed", error=str(e), exc_info=True)

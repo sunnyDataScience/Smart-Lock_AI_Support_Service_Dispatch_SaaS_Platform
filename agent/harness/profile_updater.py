@@ -18,6 +18,10 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from core.config import load_prompt
 from harness.llm_metrics import log_simple
 
+from core.logging_config import get_logger
+
+log = get_logger(__name__)
+
 # 模組層級狀態（由 init() 初始化）
 _llm = None
 _config: dict = {}
@@ -223,7 +227,7 @@ async def extract_and_update(user_id: str, question: str, answer: str):
                             continue
                         if val is not None and str(val).strip():
                             await _profile_mgr.update_fact(user_id, key, str(val).strip())
-                            print(f"  [Profile] fact 寫入: {key}={val}")
+                            log.debug("profile_fact_written", key=key, value=str(val))
 
             # 寫入 soft_profile（制式化 MD 檔案）
             if _profile_mgr.enabled:
@@ -236,10 +240,10 @@ async def extract_and_update(user_id: str, question: str, answer: str):
                         merged = _merge_soft_profile(existing_fields, validated)
                         rendered = _render_soft_profile(merged)
                         await _profile_mgr.save_profile(user_id, rendered)
-                        print(f"  [Profile] 已更新 {user_id} 的軟輪廓: {list(validated.keys())}")
+                        log.info("profile_soft_updated", user_id=user_id, fields=list(validated.keys()))
 
         except json.JSONDecodeError:
-            print("  [Profile] JSON 解析失敗，跳過")
+            log.warning("profile_json_parse_failed")
 
     except Exception as e:
-        print(f"  [Profile] 更新輪廓失敗: {e}")
+        log.warning("profile_update_failed", error=str(e), exc_info=True)

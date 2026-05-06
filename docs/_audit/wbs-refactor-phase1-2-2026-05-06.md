@@ -130,7 +130,7 @@ RP 重構計畫（Phase 1-2）
 | RP1.C.2.1 | 建 `agent/core/pg_pool.py` + 9 個單測 | 0.5 PD | — | 中 | — | — | ✅ |
 | RP1.C.2.2 | `profiles/manager.py` 改用 helper（+ data_correction.py 同形清理） | 0.25 PD | RP1.C.2.1 | 中 | — | — | ✅ |
 | RP1.C.2.3 | `storage/postgres_impl.py` 改用 helper | 0.25 PD | RP1.C.2.1 | 中 | — | — | ✅ |
-| RP1.C.2.4 | `memory/postgres_saver.py` **刻意不接入**（AsyncPostgresSaver 連線特殊） | — | — | — | — | — | ⏸️ defer |
+| RP1.C.2.4 | `memory/postgres_saver.py` **N/A**（已用 `AsyncConnectionPool` — lint rule 推薦的 pool 模式比 pg_pool helper 的單連線+cache 更優；defer 原因消失） | — | — | — | — | — | ✅ N/A |
 | RP1.C.2.5 | 驗證：25/25 全 unit suite 全綠 | 0.25 PD | RP1.C.2.2-4 | 中 | — | — | ✅ |
 | **RP1.C.3** | **抽 agent/core/content_utils.py** | 0.5 PD | — | 低 | `refactor/content-utils-extraction` | [#4](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/4) | ✅ |
 | RP1.C.3.1 | 建 `extract_text(content) -> str` + 16 單測（含新舊行為等價驗證） | 0.25 PD | — | 低 | — | — | ✅ |
@@ -155,9 +155,9 @@ RP 重構計畫（Phase 1-2）
 |--------|------|------|------|------|-----|------|
 | **RP1.D.1** | **結構化日誌（structlog）基礎建設** | 1-2 PD | — | 低 | [#9](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/9) | ✅ |
 | RP1.D.1.1 | 加 `structlog>=24.4` 依賴 + `agent/core/logging_config.py` | 0.25 PD | — | 低 | — | ✅ |
-| RP1.D.1.2 | `app.py` 全面替換（**留給後續 PR**，避免與 D.5 衝突） | 0.5 PD | RP1.D.1.1 | 低 | — | ⏸️ defer |
+| RP1.D.1.2 | `app.py` 全面替換 9 處 print → structlog（PR #22 — defer 解除） | 0.5 PD | RP1.D.1.1 | 低 | — | ✅ |
 | RP1.D.1.3 | `harness/debounce.py` 部分替換（7 處結構化事件示範） | 0.5 PD | RP1.D.1.1 | 低 | — | ✅ |
-| RP1.D.1.4 | 其餘 harness 漸進替換 | 0.5 PD | RP1.D.1.1 | 低 | — | ⏸️ defer |
+| RP1.D.1.4 | 其餘 harness 漸進替換（PR #22：97 → 14 prints，86% 替換；剩 14 為 debounce.py 多行 pretty-printer，刻意保留） | 0.5 PD | RP1.D.1.1 | 低 | — | ✅ |
 | **RP1.D.2** | **OpenTelemetry middleware（ConsoleSpanExporter）** | 0.5 PD | — | 低 | [#11](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/11) | ✅ |
 | RP1.D.2.1 | 加 OTel SDK + instrumentation-fastapi 依賴 | 0.25 PD | — | 低 | — | ✅ |
 | RP1.D.2.2 | `agent/core/tracing.py` + auto-instrumentation + line_user_id span | 0.25 PD | RP1.D.2.1 | 低 | — | ✅ |

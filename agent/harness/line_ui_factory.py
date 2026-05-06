@@ -12,6 +12,10 @@ from linebot.v3.messaging import (
     QuickReply, QuickReplyItem, MessageAction,
 )
 
+from core.logging_config import get_logger
+
+log = get_logger(__name__)
+
 
 # ── URL 偵測正則 ──
 
@@ -44,7 +48,7 @@ def init_quick_reply(config: dict) -> None:
         for b in _brand_items
         if b.get("models")
     }
-    print(f"[Quick Reply] 品牌: {[b['text'] for b in _brand_items]}, 型號: {_brand_models}")
+    log.info("quick_reply_init", brands=[b["text"] for b in _brand_items])
 
 
 def _build_quick_reply(brand: str | None = None, model: str | None = None) -> QuickReply | None:
@@ -316,7 +320,7 @@ def build_line_messages(answer: str, brand: str | None = None, model: str | None
         # 確保 URL 合法：Google Drive /view 結尾或純 file ID
         if not full_url.startswith("https://"):
             full_url = "https://" + full_url.lstrip("http://")
-        print(f"  [UI Factory] GDrive URL: {full_url}")
+        log.debug("ui_factory_gdrive_url", url=full_url)
         title = _extract_context_title(answer, match.group(0)) or "電子鎖說明書"
         download_bubbles.append(_build_download_bubble(title, full_url))
 
@@ -333,7 +337,7 @@ def build_line_messages(answer: str, brand: str | None = None, model: str | None
             "altText": "說明書下載連結",
             "contents": contents,
         })
-        print(f"  [UI Factory] DOWNLOAD_CARD（{len(download_bubbles)} 張卡片）")
+        log.debug("ui_factory_download_card", count=len(download_bubbles))
         messages = [flex_msg]
         if clean_text:
             messages.insert(0, TextMessage(text=clean_text))
@@ -368,14 +372,14 @@ def build_line_messages(answer: str, brand: str | None = None, model: str | None
                 "altText": "教學影片推薦",
                 "contents": contents,
             })
-            print(f"  [UI Factory] VIDEO_CARD（{len(video_bubbles)} 張卡片）")
+            log.debug("ui_factory_video_card", count=len(video_bubbles))
             messages = [flex_msg]
             if clean_text:
                 messages.insert(0, TextMessage(text=clean_text))
 
     # ── 純文字 ──
     if messages is None:
-        print("  [UI Factory] TEXT（純文字）")
+        log.debug("ui_factory_text_only")
         messages = [TextMessage(text=_strip_markdown(answer))]
 
     # ── 掛上 Quick Reply（品牌/型號追問） ──
