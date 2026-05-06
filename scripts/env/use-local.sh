@@ -27,9 +27,11 @@ if [[ ! -f "$LOCAL_ENV" ]]; then
 fi
 
 # 備份目前 .env（如果跟 .env.local 不同）
+# 只保留單一 .env.bak（覆蓋上次），避免長期累積含 secret 的歷史檔案
 if [[ -f "$TARGET_ENV" ]] && ! cmp -s "$LOCAL_ENV" "$TARGET_ENV"; then
-  cp "$TARGET_ENV" "$TARGET_ENV.bak.$(date +%Y%m%d-%H%M%S)"
-  echo "[use-local] 已備份原 .env 為 .env.bak.*"
+  cp "$TARGET_ENV" "$TARGET_ENV.bak"
+  chmod 600 "$TARGET_ENV.bak"
+  echo "[use-local] 已備份原 .env 為 .env.bak（覆蓋上次）"
 fi
 
 cp "$LOCAL_ENV" "$TARGET_ENV"
