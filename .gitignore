@@ -1,7 +1,10 @@
 # Environment
+# 規則：所有實際 .env 都不入庫；只允許 *.example 範本入庫。
 .env
 .env.*
 !.env.example
+!.env.local.example
+!.env.gcp.example
 credentials.json
 
 # Python
