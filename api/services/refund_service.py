@@ -44,6 +44,7 @@ logger = logging.getLogger("api.refund_service")
 
 _VALID_API_STATUS = {
     "pending",
+    "csm_approved",  # v1.29.0：雙簽中介態
     "approved",
     "rejected",
     "escalated",

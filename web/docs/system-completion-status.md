@@ -3,9 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow 的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 `report/v*.md` 細粒度紀錄同步。
 
-**最後更新：** 2026-05-06（EventTimeline UI 上線）
+**最後更新：** 2026-05-06（pytest 整合測試套件 16 項）
 **對應分支：** `feat/api-media-upload`（pending merge to dev）
-**對應 reports：** v1.0.0 → v1.31.0
+**對應 reports：** v1.0.0 → v1.32.0
 
 ---
 
@@ -116,7 +116,7 @@
 | ~~P1~~ | ~~Refund 雙簽流程~~ | ✅ **完成 v1.29.0**（2026-05-06）|
 | ~~P1~~ | ~~work_order_events 表（取代 service_report append）~~ | ✅ **完成 v1.30.0**（2026-05-06）|
 | ~~P1~~ | ~~前端 EventTimeline UI（admin 工單詳情）~~ | ✅ **完成 v1.31.0**（2026-05-06）|
-| **P0** | 整合測試 / E2E（合約 1.2.7.3）| 1–2 週 |
+| 🟡 P0 | 整合測試 / E2E（合約 1.2.7.3）| **MVP 完成 v1.32.0**（pytest 16 項通過：health/auth/media/refund 雙簽）；E2E Playwright 待補 |
 | **P0** | UAT（合約 1.2.8）| 計畫期程 |
 | P1 | Inventory low-stock 背景偵測 job | 半天 |
 | P1 | SLA 引擎（quote_expiring / dispatch_delay / response_overdue 自動推送）| 1 週 |
