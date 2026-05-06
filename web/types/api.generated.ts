@@ -289,6 +289,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/work-orders/{id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 列出該工單的結構化事件（subflow timeline）
+         * @description 取代舊有 service_report append 模式。每筆 subflow 動作（scope_change /
+         *     material_request / delay / door_check 等）會產生獨立 work_order_events 列。
+         */
+        get: operations["listWorkOrderEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/work-orders/{id}/media": {
         parameters: {
             query?: never;
@@ -2346,6 +2367,20 @@ export interface components {
             technician_user_id: string;
             technician_name?: string | null;
         };
+        WorkOrderEvent: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            event_type: "scope_change" | "material_request" | "delay" | "door_check" | "signature_submitted" | "reschedule_proposed" | "other";
+            /** @description 事件型別專屬 payload */
+            payload: {
+                [key: string]: unknown;
+            };
+            /** Format: uuid */
+            actor_user_id?: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
         MediaFile: {
             /** Format: uuid */
             id: string;
@@ -3869,6 +3904,36 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+        };
+    };
+    listWorkOrderEvents: {
+        parameters: {
+            query?: {
+                event_type?: "scope_change" | "material_request" | "delay" | "door_check" | "signature_submitted" | "reschedule_proposed" | "other";
+                limit?: number;
+            };
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items?: components["schemas"]["WorkOrderEvent"][];
+                    };
+                };
+            };
         };
     };
     listMediaForWorkOrder: {

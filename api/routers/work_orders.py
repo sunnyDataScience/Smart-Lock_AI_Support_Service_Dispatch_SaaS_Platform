@@ -477,3 +477,31 @@ async def record_door_check(
     if idem is not None:
         await idem.save(200, payload)
     return payload
+
+
+@router.get(
+    "/work-orders/{id}/events",
+    operation_id="listWorkOrderEvents",
+    summary="列出該工單的結構化事件（subflow timeline）",
+)
+async def list_work_order_events(
+    id: str = Path(),
+    event_type: Literal[
+        "scope_change",
+        "material_request",
+        "delay",
+        "door_check",
+        "signature_submitted",
+        "reschedule_proposed",
+        "other",
+    ]
+    | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    return await work_order_service.list_work_order_events(
+        tenant_id=user.tenant_id,
+        wo_id=id,
+        event_type=event_type,
+        limit=limit,
+    )

@@ -562,6 +562,38 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/v1/work-orders/{id}/events:
+    get:
+      tags: [dispatch]
+      summary: 列出該工單的結構化事件（subflow timeline）
+      description: |
+        取代舊有 service_report append 模式。每筆 subflow 動作（scope_change /
+        material_request / delay / door_check 等）會產生獨立 work_order_events 列。
+      operationId: listWorkOrderEvents
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/PathId'
+        - in: query
+          name: event_type
+          schema:
+            type: string
+            enum: [scope_change, material_request, delay, door_check, signature_submitted, reschedule_proposed, other]
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WorkOrderEvent'
+
   /api/v1/work-orders/{id}/media:
     get:
       tags: [media]
@@ -3864,6 +3896,24 @@ components:
           properties:
             technician_user_id: { type: string, format: uuid }
             technician_name: { type: [string, "null"] }
+
+    # --------- Work order event（subflow timeline；取代 service_report append） ---------
+    WorkOrderEvent:
+      type: object
+      required: [id, event_type, payload, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        event_type:
+          type: string
+          enum: [scope_change, material_request, delay, door_check, signature_submitted, reschedule_proposed, other]
+        payload:
+          type: object
+          additionalProperties: true
+          description: 事件型別專屬 payload
+        actor_user_id:
+          type: [string, "null"]
+          format: uuid
+        created_at: { type: string, format: date-time }
 
     # --------- Media file（T8 photos / 完工照片 / dispute evidence） ---------
     MediaFile:

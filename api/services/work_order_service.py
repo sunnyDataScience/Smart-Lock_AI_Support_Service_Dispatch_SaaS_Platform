@@ -723,14 +723,27 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
+_TAG_TO_EVENT_TYPE = {
+    "SCOPE_CHANGE": "scope_change",
+    "MATERIAL_REQUEST": "material_request",
+    "DELAY": "delay",
+    "DOOR_CHECK": "door_check",
+}
+
+
 async def _append_subflow_event(
     *,
     tenant_id: str,
     wo_id: str,
     tag: str,
     payload: dict,
+    actor_user_id: str | None = None,
 ) -> dict:
-    """共用：驗 status → prepend 標籤到 service_report → 回傳更新後 work order。"""
+    """驗 status → INSERT 一筆 work_order_events → bump updated_at → 推 WS → 回傳。
+
+    v1.30.0 重構：從 service_report 文字 append 改為結構化事件表寫入，
+    便於後續 timeline / 統計 / 稽核查詢。service_report 不再被 subflow 修改。
+    """
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
     current = await _fetch_status_for_update(wo_id, tenant_id)
@@ -740,18 +753,28 @@ async def _append_subflow_event(
             f"Cannot record {tag} in status '{current}'; expected one of {sorted(_SUBFLOW_FROM)}",
             409,
         )
-    line = f"[{tag} {_now_iso()}] {json.dumps(payload, ensure_ascii=False, separators=(',', ':'))}"
+    event_type = _TAG_TO_EVENT_TYPE.get(tag, "other")
     await db_module._conn.execute(
-        "UPDATE work_orders SET "
-        "  service_report = COALESCE(service_report, '') || E'\\n' || %s, "
-        "  updated_at = NOW() "
-        "WHERE id = %s::uuid",
-        (line, wo_id),
+        "INSERT INTO work_order_events "
+        "  (work_order_id, tenant_id, actor_user_id, event_type, payload) "
+        "VALUES (%s::uuid, %s::uuid, %s, %s, %s::jsonb)",
+        (
+            wo_id,
+            tenant_id,
+            actor_user_id,
+            event_type,
+            json.dumps(payload, ensure_ascii=False),
+        ),
+    )
+    # 仍 bump updated_at 讓既有 list 排序對齊
+    await db_module._conn.execute(
+        "UPDATE work_orders SET updated_at = NOW() WHERE id = %s::uuid",
+        (wo_id,),
     )
     return await _publish_and_return(
         tenant_id=tenant_id,
         wo_id=wo_id,
-        event_type=f"work_order.subflow.{tag.lower()}",
+        event_type=f"work_order.subflow.{event_type}",
     )
 
 
@@ -841,3 +864,42 @@ async def record_door_check(
         tag="DOOR_CHECK",
         payload=payload,
     )
+
+
+async def list_work_order_events(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    event_type: str | None = None,
+    limit: int = 100,
+) -> dict:
+    """列出某工單的事件（依時間倒序）。可依 event_type 過濾。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    # 先確認工單存在 + tenant 隔離
+    await _fetch_status_for_update(wo_id, tenant_id)
+    where = ["work_order_id = %s::uuid", "tenant_id = %s::uuid"]
+    params: list = [wo_id, tenant_id]
+    if event_type:
+        where.append("event_type = %s")
+        params.append(event_type)
+    params.append(limit)
+    sql = (
+        "SELECT id, event_type, payload, actor_user_id, created_at "
+        "FROM work_order_events "
+        f"WHERE {' AND '.join(where)} "
+        "ORDER BY created_at DESC LIMIT %s"
+    )
+    cur = await db_module._conn.execute(sql, tuple(params))
+    rows = await cur.fetchall()
+    items = [
+        {
+            "id": str(r[0]),
+            "event_type": r[1],
+            "payload": r[2] if isinstance(r[2], dict) else (json.loads(r[2]) if r[2] else {}),
+            "actor_user_id": str(r[3]) if r[3] else None,
+            "created_at": r[4].isoformat() if hasattr(r[4], "isoformat") else str(r[4]),
+        }
+        for r in rows
+    ]
+    return {"items": items}
