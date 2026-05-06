@@ -14,26 +14,7 @@ from __future__ import annotations
 from langchain_core.messages import HumanMessage, SystemMessage, RemoveMessage
 
 from core.config import load_prompt
-
-
-def _extract_text_from_content(content) -> str:
-    """從訊息 content 安全提取文字，處理 str 和 list[dict] 格式。"""
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        parts = []
-        for block in content:
-            if isinstance(block, dict):
-                if block.get("type") == "text":
-                    parts.append(block["text"])
-                elif block.get("type") in ("image_url", "media"):
-                    mime = block.get("mime_type", "image")
-                    label = "圖片" if "image" in str(mime) else "音檔" if "audio" in str(mime) else "影片"
-                    parts.append(f"[傳送了{label}]")
-            elif isinstance(block, str):
-                parts.append(block)
-        return "\n".join(parts) if parts else ""
-    return str(content)
+from core.content_utils import extract_text
 
 
 # 模組層級狀態（由 init() 初始化）
@@ -117,7 +98,11 @@ async def maybe_compress(agent, thread_id: str, user_id: str = "") -> str | None
         raw_content = getattr(msg, "content", "")
         if not raw_content or role == "tool":
             continue
-        content = _extract_text_from_content(raw_content)
+        content = extract_text(
+            raw_content,
+            include_media_placeholder=True,
+            fallback_to_repr=False,
+        )
         if not content:
             continue
         if role == "human":
