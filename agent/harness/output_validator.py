@@ -32,6 +32,16 @@ _brand_canonical_lower: dict[str, str] = {}   # lower → 原始 brand
 _model_canonical_lower: dict[str, str] = {}   # lower → 原始 model
 _model_to_brand: dict[str, str] = {}          # 原始 model → 原始 brand
 
+# 用戶表達「不知道型號」的關鍵字（與 _ASK_MODEL_REPLY_PATTERN 同時命中才觸發）
+_UNKNOWN_MODEL_KEYWORDS = (
+    "不知道", "不曉得", "找不到", "不清楚", "沒有型號", "沒型號"
+)
+
+# AI 回覆「再追問型號」的正則
+_ASK_MODEL_REPLY_PATTERN = re.compile(
+    r"(?:什麼型號|哪[一個]?(?:款|個)?[^\s。，]{0,5}型號|型號(?:是什麼|呢|嗎|為何|為什麼)|提供.{0,5}型號|告訴.{0,8}型號)"
+)
+
 
 def init(llm, config: dict):
     """初始化輸出驗證器。由 app.py startup() 呼叫。
@@ -160,6 +170,27 @@ async def validate(ai_response: str, user_message: str, context: str = "", user_
     """
     if not _enabled or not _llm:
         return {"pass": True}
+
+    # 快速路徑 0a：用戶說「不知道型號」時，AI 不准再追問型號（0ms，免 LLM）
+    if (
+        any(kw in user_message for kw in _UNKNOWN_MODEL_KEYWORDS)
+        and _ASK_MODEL_REPLY_PATTERN.search(ai_response)
+    ):
+        correction = (
+            "客戶剛剛已明確表示「不知道型號」。**禁止重複追問型號**，必須依規範按兩段流程處理：\n"
+            "(1) 客戶第一次說「不知道」→ 只回答型號通常標示在這三個地方："
+            "說明書或保固卡 / 電池蓋內側貼紙 / 購買單據或安裝紀錄。回覆到此結束，不要附加追問。\n"
+            "(2) 客戶第二次仍說「不知道」→ 載入該品牌通用流程文件（{Brand}/_brand 若有，"
+            "否則 _common/troubleshoot 或 _common/general-knowledge），直接給通用步驟，"
+            "**開頭聲明**「以下是該品牌多數型號的通用步驟，實際按鍵位置可能因型號略有差異；"
+            "操作不順可以再幫您安排專員到府確認」。\n"
+            "請依當前對話進度（看 [前情提要] 與 history 中已說過幾次「不知道」）選正確分支重寫。"
+        )
+        return {
+            "pass": False,
+            "reason": "客戶已說不知道型號，AI 仍重複追問",
+            "correction": correction,
+        }
 
     # 快速路徑 0：品牌 × 型號錯配檢查（0ms，免 LLM）
     mismatch = _check_brand_model_mismatch(ai_response)
