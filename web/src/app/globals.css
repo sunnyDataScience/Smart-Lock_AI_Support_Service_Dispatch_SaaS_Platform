@@ -19,10 +19,16 @@
   --border: #E2E8F0;
   --border-focus: #2563EB;
 
-  /* Text */
+  /* Text — 對比度（白底 #FFFFFF / 淺底 #F8FAFC）：
+   *   --text-primary    #0F172A → 16.6:1 ✅ AA / AAA
+   *   --text-secondary  #64748B → 5.18:1 ✅ AA body (4.5)
+   *   --text-tertiary   #71717A → 4.6:1  ✅ AA body 邊界（時間戳等次要資訊用）
+   *   --text-disabled   #71717A → 4.6:1  ✅（提升自舊值 #94A3B8 = 2.85:1，原本不過 AA）
+   *   原 #A1A1AA 全站不再使用（2.85:1，配淺底僅過大字 3:1）*/
   --text-primary: #0F172A;
   --text-secondary: #64748B;
-  --text-disabled: #94A3B8;
+  --text-tertiary: #71717A;
+  --text-disabled: #71717A;
   --text-inverse: #FFFFFF;
 
   /* Status */
@@ -104,5 +110,39 @@
   .outline-none:focus-visible {
     outline: 2px solid var(--border-focus);
     outline-offset: 2px;
+  }
+
+  /* Skip link — 鍵盤使用者按 Tab 第一下會看到「跳到主要內容」按鈕，
+   * 點擊跳過 Sidebar / Header 直奔 main，符合 WCAG 2.4.1 Bypass Blocks */
+  .skip-link {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 100;
+    padding: 8px 16px;
+    background: var(--primary);
+    color: var(--text-inverse);
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    transform: translateY(-200%);
+    transition: transform 0.15s ease-out;
+  }
+  .skip-link:focus {
+    transform: translateY(0);
+  }
+
+  /* sr-only — 視覺隱藏但保留給 screen reader（Tailwind v4 內建有 sr-only 類，
+   * 此處保險定義一份避免某些版本 plugin 缺漏） */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
   }
 }

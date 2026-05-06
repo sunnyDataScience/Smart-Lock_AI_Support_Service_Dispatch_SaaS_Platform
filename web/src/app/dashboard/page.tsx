@@ -21,6 +21,7 @@ import WorkOrderTrendChart from "@/components/dashboard/WorkOrderTrendChart";
 import TechnicianStatusChart from "@/components/dashboard/TechnicianStatusChart";
 import RecentWorkOrders from "@/components/dashboard/RecentWorkOrders";
 import HotTopicsCard from "@/components/dashboard/HotTopicsCard";
+import LiveRegion from "@/components/ui/LiveRegion";
 import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
@@ -150,9 +151,25 @@ export default function DashboardPage() {
       <div className="flex flex-1 flex-col">
         <Header title="儀表板" subtitle="近 7 日營運概況" />
 
-        <main className="flex flex-1 flex-col gap-6 overflow-auto px-8 py-6">
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="flex flex-1 flex-col gap-6 overflow-auto px-8 py-6"
+        >
+          {/* 動態狀態 — 給 screen reader 知道 fetch 進度（視覺隱藏） */}
+          <LiveRegion politeness="polite">
+            {workOrdersLoading || techniciansLoading
+              ? "正在載入儀表板資料"
+              : error || workOrdersError || techniciansError
+                ? "資料載入失敗"
+                : `儀表板已載入，工單 ${workOrders.length} 筆、技師 ${technicians.length} 位`}
+          </LiveRegion>
+
           {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div
+              role="alert"
+              className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+            >
               載入儀表板失敗：{error}
             </div>
           )}
