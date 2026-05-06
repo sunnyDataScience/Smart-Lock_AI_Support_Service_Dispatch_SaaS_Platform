@@ -3,23 +3,23 @@
 > 跨前端 / 後端 / Realtime / Workflow 的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 `report/v*.md` 細粒度紀錄同步。
 
-**最後更新：** 2026-05-06（dispute evidence 上傳 UI）
+**最後更新：** 2026-05-06（inventory low-stock 背景偵測）
 **對應分支：** `feat/api-media-upload`（pending merge to dev）
-**對應 reports：** v1.0.0 → v1.27.0
+**對應 reports：** v1.0.0 → v1.28.0
 
 ---
 
-## 總體：**約 92%**
+## 總體：**約 93%**
 
 ```
-███████████████████████████░░  92%
+███████████████████████████░░  93%
 ```
 
 | Phase | 04-29 | 05-06 早 | **05-06 晚** | 變化 |
 |:---|:---:|:---:|:---:|:---:|
 | Phase 5 V2.0 設計（W18–W19）| 85% | 97% | **97%** | — |
 | Phase 6 派工 MVP（W20–W24）| 50% | 92% | **97%** | +5%（完工 photos + admin 媒體瀏覽）|
-| Phase 7 會計+整合（W25–W29）| 70% | 85% | **91%** | +6%（媒體流 + 爭議證據端到端）|
+| Phase 7 會計+整合（W25–W29）| 70% | 85% | **93%** | +8%（媒體流 + 爭議證據 + inventory 即時告警）|
 | Phase 8 UAT 上線（W30–W31）| 0% | 0% | 0% | — |
 
 > Phase 5–7 平均完成度：**約 95%**；含 Phase 8（未啟動）的 V2.0 上線總進度：**約 92%**。
@@ -49,8 +49,8 @@
 | Refund decision | **100%**（雙簽流程未做）|
 | 認證（JWT、tenant、RBAC）| **100%** |
 | WebSocket server + ACL（JWT/tenant/RBAC）| **100%** |
-| **媒體上傳 endpoint**（upload/get/list-by-wo + media_files 表）| **100%** ✅ |
-| Inventory low-stock 背景偵測 | **0%** |
+| **媒體上傳 endpoint**（upload/get/list-by-wo + list-by-dispute + media_files 表）| **100%** ✅ |
+| **Inventory low-stock 背景偵測 job** | **100%** ✅（v1.28.0）|
 | SLA 引擎 | **0%** |
 
 ---
@@ -67,7 +67,7 @@
 | `/realtime/sla-alerts` | ✅ | ✅ | ⏳（待 SLA 引擎）|
 | `/realtime/refunds` | ✅ | ✅ | ✅ |
 | `/realtime/disputes` | ✅ | ✅ | ✅ |
-| `/realtime/inventory/low-stock` | ✅ | ✅ | ⏳（待背景 job）|
+| `/realtime/inventory/low-stock` | ✅ | ✅ | ✅（v1.28.0 背景偵測 job）|
 | `/realtime/rbac` | ✅ | ✅ | ⏳（待權限變更觸發）|
 
 ---
@@ -112,6 +112,7 @@
 | ~~P1~~ | ~~完工 photos 上傳 UI~~ | ✅ **完成 v1.26.0**（2026-05-06）|
 | ~~P1~~ | ~~Admin 工單詳情瀏覽 media 縮圖~~ | ✅ **完成 v1.26.0**（2026-05-06）|
 | ~~P1~~ | ~~Dispute evidence 上傳 UI~~ | ✅ **完成 v1.27.0**（2026-05-06）|
+| ~~P1~~ | ~~Inventory low-stock 背景偵測 job~~ | ✅ **完成 v1.28.0**（2026-05-06）|
 | **P0** | 整合測試 / E2E（合約 1.2.7.3）| 1–2 週 |
 | **P0** | UAT（合約 1.2.8）| 計畫期程 |
 | P1 | Inventory low-stock 背景偵測 job | 半天 |
