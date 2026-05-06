@@ -10,53 +10,48 @@
 
 ---
 
-## 進度儀表板（Updated: 2026-05-06 22:25）
+## 進度儀表板（Updated: 2026-05-07 00:25 — 還原系列收尾）
 
 | 區段 | 工作量 | 狀態 | 完成度 | 觸發時機 |
 |------|------|------|------|---------|
-| RP1.C 內部品質 | 5-7 PD | ✅ | **6/6 merged** | — |
-| RP1.D 觀測基建 | 4-5 PD | ✅ | **5/5 merged** | — |
+| RP1.C 內部品質 | 5-7 PD | ✅ | **6/6 merged + working tree 還原** | — |
+| RP1.D 觀測基建 | 4-5 PD | ✅ | **5/5 merged + working tree 還原** | — |
 | RP2 V1 後重構 | 14-19 PD | 🔴 blocked | 0/6 | 等 V1 上線 + E2E ≥ 80% |
 
 **Phase 1 實際月曆時間**：1 天（多 agent 平行）— 遠快於原估 2 週
 **Phase 2 預估月曆時間**：4-5 週（V1 後）
 
 ### Phase 1 完成總覽
-- ✅ **11 個 PR 已 merged 到 dev**：#2 #3 #4 #5 #6 #7 #8 #9 #10 #11 #12
-- 🎯 **PR 結算**：RP1.C 6/6 + RP1.D 5/5，Phase 1 全綠
+- ✅ **11 個原始 PR 已 merged**：#2 #3 #4 #5 #6 #7 #8 #9 #10 #11 #12
+- ✅ **4 個還原 PR 已 merged**：#17 #18 #19 #20（將被 alignment 刪除的產出全數復位）
+- 🎯 **dev tip 終態**：架構單一（SKILL.md / `load_skill` 為 canonical），所有 helper 已 wire-up，OTel/structlog 套件就位
 
-> **⚠️ Working-tree 偏離備註**（2026-05-06 22:11+）
-> 兩筆事後 alignment commit（`8ffcb60` / `56949eb`）將 `agent/` 樹對齊到 Zenobia0000 dev tip `2825cbe`，導致以下 RP1 產出於當前 `Zenobia000/dev` working tree 上**不可見**（PR 已 merge 進歷史，但不在當前檔案系統）：
-> - RP1.C.2 `agent/core/pg_pool.py`（已刪）
-> - RP1.C.3 `agent/core/content_utils.py`（已刪）
-> - RP1.C.6 `agent/skills/` 整個目錄重命名為 `agent/agent_tools/`（命名分歧）
-> - RP1.D.1 `agent/core/logging_config.py`（已刪）
-> - RP1.D.2 `agent/core/tracing.py`（已刪）
-> - RP1.D.4 `agent/Dockerfile` 回退至 `python:3.11-slim` 單階段
+> **⚠️ alignment 偏離與處置紀錄**（2026-05-06 22:11 → 2026-05-07 01:05）
 >
-> 仍存在於 working tree：RP1.C.1（除 `agent/docs/manuals/EVAL_HANDOFF.md` 1 處範例文）、RP1.C.4（`SQL/Schema_harness_migration.sql` user_facts）、RP1.C.5（`memory/__init__.py` dict registry）、RP1.D.3（`agent_tools/` 內 Opik 雙軌寫入）、RP1.D.5（`agent/app.py` health 連線檢查骨架）。
+> 兩筆事後 alignment commit（`8ffcb60` / `56949eb`）曾將 `agent/` 樹對齊到 Zenobia0000 dev tip `2825cbe`，導致 RP1.C.2 / C.3 / C.6 / D.1 / D.2 / D.4 產出於 working tree 上消失（PR 已 merge 進歷史，但檔案系統不可見），且 PR #18 階段發現 Zenobia0000 的 v1.3.4–v1.3.5 期間另外把整個 SKILL.md 架構替換為 `agent/product_info/` mega-doc 架構，造成 tools/prefix/知識庫三者混合錯位。
+>
+> 採行處置 (a) — 從 sync 前快照 `6c2616c` 外科手術還原 + 補完原本未完成的 wire-up：
 
-### 還原進度（branch: `restore/phase1-cherry-pick`）
+### 還原 PR 系列（Updated: 2026-05-07）
 
-> 已採行處置 (a) — 從 Zenobia000 PR 歷史的 sync 前快照 `6c2616c` 外科手術還原。先做 cherry-pick 失敗（Zenobia0000 已將 `_extract_text` 改名為 `_extract_text_from_content`），改採檔案級 `git checkout 6c2616c -- <path>`。
+| PR | 階段 | 範圍 | merged |
+|----|------|------|--------|
+| [#17](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/17) | **A** helper modules | `agent/core/{pg_pool,content_utils,logging_config,tracing}.py` 從 `6c2616c` 還原 + `tests/unit/core/` 4 檔 + app.py 軟性 OTel import + debounce.py 加 structlog logger + lint fix `# allow-direct-conn` | 2026-05-06 14:57 |
+| [#18](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/18) | **C** skills 為 canonical | `agent/skills/` 整目錄還原（67 SKILL.md + `__init__.py` + `tools.py`，含 RP1.C.6 immutable + RP1.D.3 Opik 雙軌寫入）、agent.py 回 skills 架構、main.py 縮回 LLM smoke、刪 `agent/agent_tools/`、`harness/debounce.py` + `quality/quality_check.py` import path 改 `skills.tools`、`config.toml` 加 `[skills]`、`core/config.py` AppConfig 加 `skills` 欄位 | 2026-05-06 15:00 |
+| [#19](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/19) | **B+D** wire-up + build | content_utils 接通：debounce.py / quality_check.py / memory_manager.py 移除 inline `_extract_text*` 改用 `extract_text(...)`（memory_manager 走 `include_media_placeholder=True, fallback_to_repr=False`）；Dockerfile multi-stage uv build 還原；`agent/pyproject.toml` 還原；刪 `agent/requirements.txt`；`uv sync` 拉齊 OTel/structlog 25.5.0 等 deps | 2026-05-06 15:15 |
+| [#20](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/20) | cleanup | debounce.py / quality_check.py 4 條 prefix 注入路徑改用 `filter_skills` + `get_skills()`；新增 `skills.tools.get_skills()` getter（避免 `_skills` 重綁後 stale reference）；字串 `load_product_info` → `load_skill`、`[可用產品資料]` → `[可用技能]`、`[已參考: ...]` → `[已參考技能: ...]`；刪 `agent/product_info/`（42 檔，304 KB）；usage_guide.md 改寫 SKILL.md 章節；harness_comparison.md 註記還原；刪 product_info_authoring_guide.md；web/lib/api.ts 補 `loginTechnician` stub 解 dev branch web build 紅燈 | 2026-05-06 16:05 |
 
-| 階段 | 範圍 | 狀態 |
-|------|------|------|
-| **Phase A**（低風險，無檔案衝突） | RP1.C.2 / C.3 / D.1 / D.2 helper module + 4 個 unit tests | ✅ 完成於 2026-05-06 |
-| **Phase B**（中風險，需 wire-up） | helper 接入點：profiles/manager.py、storage/postgres_impl.py、harness/debounce.py、quality/quality_check.py、harness/memory_manager.py | ⬜ 待決策 |
-| **Phase C**（高風險，命名衝突） | RP1.C.6 + RP1.D.3 — `agent/skills/` vs `agent/agent_tools/` 命名分歧 | ⬜ 待使用者裁決 canonical 命名 |
-| **Phase D**（建置系統） | `agent/Dockerfile` multi-stage uv build 還原 + `agent/pyproject.toml` 還原（uv workspace 才能 `uv sync` 安裝 OTel/structlog deps） | ⬜ 待決策 |
+**還原驗證**（dev tip `513c830`）：
+- `agent/` 殘留 `product_info` refs：0（除 `agent/docs/manuals/harness_comparison.md` 的歷史對照註記，刻意保留）
+- syntax check：debounce.py / quality_check.py / skills/tools.py / api.ts 全綠
+- `tests/unit/core/` 25/25 passed in 0.15s
+- skills smoke：8 brand 全 `_brand_has_skills=True`，`NotABrand=False`；`filter_skills(Chatlock,AI-99)=29`、`(Dormakaba,None)=14`、`(None,None)=7`
+- Docker Build Smoke Test 從 FAILURE → **SUCCESS**（dev branch run `25446688235`，2m40s）— web build 紅燈解決
 
-**Phase A 已交付項**（11 檔，+765/-14 行）：
-- `agent/core/{pg_pool,content_utils,logging_config,tracing}.py` 從 `6c2616c` 還原
-- `tests/unit/core/{__init__,conftest,test_content_utils,test_pg_pool}.py` 還原
-- `agent/app.py`：加 OTel `configure_tracing()` + `instrument_fastapi()` 以 try/except 軟性 import（避免 opentelemetry 未安裝時 startup crash）
-- `agent/harness/debounce.py`：加 `from core.logging_config import get_logger` 與 `log = get_logger(__name__)`
-
-**Phase A 限制**：
-- 4 個 helper 已存在於 `agent/core/`，但**呼叫方未全部接通**（profiles/manager.py、storage/postgres_impl.py 仍直接用 `AsyncConnectionPool`；harness/debounce.py、quality/quality_check.py 仍保留各自的 `_extract_text*` inline 函式）。屬「程式碼存在但尚未 wire-up」狀態。
-- OTel 模組接入 app.py 但需 `pyproject.toml` 還原 + `uv sync` 才能真正載入 opentelemetry-sdk；目前以 try/except 軟降級為「import fail 時印警告繼續啟動」。
-- `tests/unit/core/` 的 pytest 執行需先還原 `agent/pyproject.toml`（uv workspace member 解析需要）。
+**仍需後續關注**：
+- 304 KB `agent/product_info/*.md` mega-doc 內容已隨退場；若後續發現特定型號操作步驟只在 mega-doc 有，需從 `6c2616c` 還原並重新編成 SKILL.md
+- `loginTechnician` 為 stub（delegate 到 admin `login()`），實作專屬 `/api/v1/auth/tech-login` 端點時換掉
+- quality_check 跑全測需實際 LLM credentials（`VERTEX_PROJECT_ID` 等），未在還原 session 範圍內驗證
 
 ### PR 索引（依任務）
 
@@ -86,6 +81,7 @@
 | RP1.D.2 | OTel exporter 自動回退（OTLP 套件沒裝時 fallback Console 不 crash）；FastAPI auto-instrumentation 自動帶 `http.method`/`route`/`status` 等 attrs 不必手動加 |
 | RP1.D.3 | 發現 LangChain `tool.invoke()` 會 `copy_context()` 隔離 ContextVar；採**雙軌寫入**（ContextVar + `opik_context.update_current_trace`）解決 |
 | RP1.D.4 | production Dockerfile 早已升級且**比範本更成熟**（uv 釘版 0.11、`UV_NO_PROGRESS=1`、兩階段 layer COPY、cache mount）；本 PR 改為反向操作 — 把 docs E9 §7.3 範本對齊 production |
+| **還原系列 (#17–#20)** | 1) **PR-level cherry-pick 失敗**：`94dbd21` 等 patch 因 Zenobia0000 已將 `_extract_text` 改名為 `_extract_text_from_content` 造成 3 檔 merge conflict，改用檔案級 `git checkout 6c2616c -- <path>` 外科手術 / 2) **stale reference 陷阱**：`set_skills()` 用 `global` 重綁 `_skills`，呼叫端 `from skills.tools import _skills` 拿到 module 載入時的空 list reference，新增 `get_skills()` getter 修正 / 3) **架構錯位偵測**：原以為 PR #18 已將 skills 改為 canonical，實際 production debounce.py 的 4 條 prefix 注入路徑仍引用 `product_info`，造成 LLM 看到的清單與 `tools=[load_skill]` 不一致，PR #20 補完 / 4) **lint rule 配合**：pg_pool helper 集中管理連線本身就需要 `AsyncConnection.connect()`，加 `# allow-direct-conn` 標記豁免 / 5) **連帶解 web 紅燈**：`tech-login/page.tsx` import 從未實作的 `loginTechnician`，補 stub delegate 到 `login()`，dev Docker Build Smoke 從 FAILURE → SUCCESS |
 
 ---
 
@@ -178,20 +174,24 @@ RP 重構計畫（Phase 1-2）
 
 **RP1.D 小計**：4-5 PD
 
-### RP1 完工驗收（Definition of Done）
+### RP1 完工驗收（Definition of Done — Updated 2026-05-07）
+
+PR 合併歷史 + working tree 雙重達標：
 
 - [x] `rg 'except.*:\s*pass$' agent/ api/` 回傳 0 行（PR #3）
-- [x] `agent/core/pg_pool.py`、`content_utils.py` 兩個模組存在 + 有單測（25/25 全綠）
+- [x] `agent/core/pg_pool.py`、`content_utils.py` 兩個模組存在於 working tree + 25/25 單測通過（PR #17 還原）
 - [x] `SQL/Schema_harness_migration.sql` 含 user_facts 完整 schema（PR #6）
 - [x] `memory/__init__.py` 無 if/else fast-path（PR #7）
-- [x] structlog 在 debounce.py 可見（PR #9，app.py 替換 defer 至下一 PR）
-- [x] OpenTelemetry middleware 啟用（ConsoleExporter）— PR #11 merged
-- [x] Dockerfile multi-stage uv build 上 staging 通過（PR #5，本地 build OK）
+- [x] structlog 在 debounce.py 可見（PR #9 + #19 wire-up）；`uv sync` 後實際載入 structlog 25.5.0
+- [x] OpenTelemetry middleware 啟用（ConsoleExporter）— PR #11 + #17 還原 `core/tracing.py` + #19 還原 pyproject 拉齊 OTel SDK
+- [x] Dockerfile multi-stage uv build（PR #5 docs 對齊 + #19 working-tree 還原）
 - [x] `/health` 回傳所有 backend 狀態（PR #10，6 項檢查）
-- [x] Opik per-skill 成本分桶（PR #12 merged，雙軌寫入 ContextVar + opik_context）
-- [x] quality_check baseline 不退步（pg_pool / content_utils 25 單測 + skill 67 載入一致）
+- [x] Opik per-skill 成本分桶（PR #12 + #18 隨 skills/ 整目錄還原；雙軌寫入 ContextVar + opik_context 已在 6c2616c snapshot）
+- [x] quality_check baseline 不退步（content_utils 16 單測 + pg_pool 9 單測 + 67 個 skill 載入一致）
+- [x] Production 架構單一（PR #20）：`tools=[load_skill, ...]` + `[可用技能]` prefix + `agent/skills/data/` 三者一致，無 `product_info` 殘留
+- [x] dev branch CI 全綠（Docker Build Smoke `25446688235` 2m40s success）
 
-> Phase 1 全項驗收於 PR 合併歷史完成；working tree 偏離部分見上方備註。
+> 2026-05-06 22:11 起的 alignment 偏離已由 PR #17 #18 #19 #20 還原系列收斂；working tree 與 PR 歷史已重新一致。
 
 ---
 
