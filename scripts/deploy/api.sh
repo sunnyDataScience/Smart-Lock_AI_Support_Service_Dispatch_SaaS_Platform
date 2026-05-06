@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # ============================================================
-# api/scripts/deploy.sh — Build, push, and deploy api/ to Cloud Run
+# scripts/deploy/api.sh — Build, push, and deploy api/ to Cloud Run
 #
 # Usage:
-#   ./api/scripts/deploy.sh              # 完整部署（build + push + deploy）
-#   ./api/scripts/deploy.sh --build-only # 只建立 image 不部署
-#   ./api/scripts/deploy.sh --deploy-only # 只部署（用已存在的 image）
+#   ./scripts/deploy/api.sh              # 完整部署（build + push + deploy）
+#   ./scripts/deploy/api.sh --build-only # 只建立 image 不部署
+#   ./scripts/deploy/api.sh --deploy-only # 只部署（用已存在的 image）
 #
 # Prereq:
 #   gcloud secrets create API_JWT_SECRET_KEY --data-file=- <<< "$(openssl rand -hex 32)"
@@ -43,8 +43,10 @@ SECRETS="POSTGRES_URI=POSTGRES_URI:latest"
 SECRETS="${SECRETS},JWT_SECRET_KEY=API_JWT_SECRET_KEY:latest"
 
 # ── 切到 api 目錄（Dockerfile 所在位置）──
+# 此腳本位於 scripts/deploy/api.sh，PROJECT_ROOT 在 ../..
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "${SCRIPT_DIR}/.."
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+cd "${PROJECT_ROOT}/api"
 
 # ── 解析參數 ──
 BUILD=true

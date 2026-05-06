@@ -1,11 +1,12 @@
+#!/usr/bin/env python3
 """
 清除所有測試資料，確保每次測試從乾淨狀態開始。
 
 用法:
-    python scripts/clean_data.py          # 清除全部
-    python scripts/clean_data.py --pg     # 只清 PostgreSQL
-    python scripts/clean_data.py --sqlite # 只清 SQLite
-    python scripts/clean_data.py --profile # 只清 user profiles
+    python tests/tools/clean_data.py          # 清除全部
+    python tests/tools/clean_data.py --pg     # 只清 PostgreSQL
+    python tests/tools/clean_data.py --sqlite # 只清 SQLite
+    python tests/tools/clean_data.py --profile # 只清 user profiles
 """
 
 import os
@@ -13,7 +14,7 @@ import sys
 import glob
 import asyncio
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "agent"))
 
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".env"))

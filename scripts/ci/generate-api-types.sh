@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# generate-api-types.sh — 從 OpenAPI spec 生成 TypeScript 型別
+# scripts/ci/generate-api-types.sh — 從 OpenAPI spec 生成 TypeScript 型別
 #
 # 輸出位置：
 #   - 若存在 web/lib/types/，直接寫入 api.generated.ts
@@ -9,11 +9,11 @@
 # 依賴：npx（Node 18+）+ openapi-typescript 套件
 #
 # Usage:
-#   ./scripts/generate-api-types.sh           # 正常生成
-#   ./scripts/generate-api-types.sh --check   # 僅檢查是否需重新生成（CI 用，不改檔）
+#   ./scripts/ci/generate-api-types.sh           # 正常生成
+#   ./scripts/ci/generate-api-types.sh --check   # 僅檢查是否需重新生成（CI 用，不改檔）
 set -uo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
 SPEC="docs/02-design/specs/openapi.yaml"
@@ -62,7 +62,7 @@ if [[ $CHECK_ONLY -eq 1 ]]; then
     echo "✅ 型別檔已是最新（與 spec 一致）"
     exit 0
   else
-    echo "❌ 型別檔與 spec 不同步，請執行：./scripts/generate-api-types.sh"
+    echo "❌ 型別檔與 spec 不同步，請執行：./scripts/ci/generate-api-types.sh"
     exit 1
   fi
 fi

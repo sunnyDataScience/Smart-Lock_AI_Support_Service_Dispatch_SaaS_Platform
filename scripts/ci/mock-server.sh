@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 #
-# mock-server.sh — 快速啟動 Prism mock server（OpenAPI）
+# scripts/ci/mock-server.sh — 快速啟動 Prism mock server（OpenAPI）
 #
 # 預設用 npx（需 Node 18+），無 Node 時自動 fallback 到 Docker。
 #
 # Usage:
-#   ./scripts/mock-server.sh           # 啟動在 4010
-#   ./scripts/mock-server.sh 4011      # 自訂 port
-#   ./scripts/mock-server.sh 4010 --errors  # 產生錯誤範例回應
+#   ./scripts/ci/mock-server.sh           # 啟動在 4010
+#   ./scripts/ci/mock-server.sh 4011      # 自訂 port
+#   ./scripts/ci/mock-server.sh 4010 --errors  # 產生錯誤範例回應
 set -uo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PORT="${1:-4010}"
 shift || true
 EXTRA_ARGS="$*"

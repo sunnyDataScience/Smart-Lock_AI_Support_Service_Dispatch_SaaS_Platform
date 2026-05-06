@@ -430,8 +430,8 @@ docker exec -it lock_AI psql -U lock -d lock_AI_data
 
 - **LINE Bot agent**（`agent/`）— 需要 LINE Channel 金鑰、Vertex AI、Cloud SQL，僅在開發 LINE 對話流程時才用
 - **資料管線**（`data/`）— 需要 Vertex AI / Whisper / yt-dlp，僅在補知識庫時才用
-- **Cloud Run 部署**（`api/scripts/deploy.sh`）— 需要 GCP 權限與 Secret Manager
-- **API 契約變更**（`docs/02-design/specs/openapi.yaml`）— 改完要跑 `./scripts/generate-api-types.sh`
+- **Cloud Run 部署**（`scripts/deploy/api.sh`）— 需要 GCP 權限與 Secret Manager
+- **API 契約變更**（`docs/02-design/specs/openapi.yaml`）— 改完要跑 `./scripts/ci/generate-api-types.sh`
 
 只要做 Admin Dashboard 的功能開發，**第 1–6 節就夠了**。
 

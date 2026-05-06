@@ -1,12 +1,13 @@
+#!/usr/bin/env python3
 """查看 data_corrections 表中使用者提出的資料修正紀錄。
 
 用法：
-    python scripts/view_corrections.py                     # 顯示最近 20 筆 pending
-    python scripts/view_corrections.py --all               # 顯示全部（含已處理）
-    python scripts/view_corrections.py --user {user_id}    # 查看特定使用者
-    python scripts/view_corrections.py --export            # 匯出為 JSON
-    python scripts/view_corrections.py --export out.json   # 匯出至指定檔案
-    python scripts/view_corrections.py --clear             # 清空全部紀錄（需確認）
+    python tests/tools/view_corrections.py                     # 顯示最近 20 筆 pending
+    python tests/tools/view_corrections.py --all               # 顯示全部（含已處理）
+    python tests/tools/view_corrections.py --user {user_id}    # 查看特定使用者
+    python tests/tools/view_corrections.py --export            # 匯出為 JSON
+    python tests/tools/view_corrections.py --export out.json   # 匯出至指定檔案
+    python tests/tools/view_corrections.py --clear             # 清空全部紀錄（需確認）
 """
 
 import os

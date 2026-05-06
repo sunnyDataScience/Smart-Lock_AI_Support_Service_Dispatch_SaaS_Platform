@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Smart Lock AI Agent - 專業級 E2E 模擬測試工具
 支援多場景模擬：Debounce, Quick Reply, 多模態, 上下文記憶, 安全閘門。
@@ -14,8 +15,8 @@ import time
 import argparse
 from unittest.mock import MagicMock, patch, AsyncMock
 
-# 將專案根目錄加入路徑
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# 將 agent/ 加入路徑（此檔案位於 tests/tools/，agent/ 在 ../../agent）
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "agent"))
 
 from fastapi.testclient import TestClient
 from app import app

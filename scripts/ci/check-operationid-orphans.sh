@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# check-operationid-orphans.sh
+# scripts/ci/check-operationid-orphans.sh
 # --------------------------------
 # 檢查 SSOT 契約與文件之間的 operationId 一致性：
 #   1) OpenAPI operationId 必須被至少一個 flow 文件或 page spec 引用
@@ -13,14 +13,14 @@
 # 輸出：孤兒 / 斷鏈清單，exit code 1 表示有問題
 #
 # Usage:
-#   ./scripts/check-operationid-orphans.sh
-#   ./scripts/check-operationid-orphans.sh --quiet   # 僅顯示結果摘要
-#   ./scripts/check-operationid-orphans.sh --strict  # body path 也視為 error
+#   ./scripts/ci/check-operationid-orphans.sh
+#   ./scripts/ci/check-operationid-orphans.sh --quiet   # 僅顯示結果摘要
+#   ./scripts/ci/check-operationid-orphans.sh --strict  # body path 也視為 error
 
 set -uo pipefail
 # 不用 -e：本腳本大量使用 comm/grep 正常情況下會 exit 非 0
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
 OPENAPI="docs/02-design/specs/openapi.yaml"

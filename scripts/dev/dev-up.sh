@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# dev-up.sh — Local development startup orchestrator
+# scripts/dev/dev-up.sh — Local development startup orchestrator
 #
 # 一鍵啟動本地開發環境：
 #   1. PostgreSQL 容器 (pgvector/pg17) — 冪等 (run / start / no-op)
@@ -10,14 +10,14 @@
 # Ctrl+C 後會自動清理 ngrok；DB 容器保留 (手動 docker stop lock_AI)。
 #
 # Usage:
-#   ./scripts/dev-up.sh              # 預設：起 DB + ngrok + uvicorn
-#   ./scripts/dev-up.sh --no-ngrok   # 跳過 ngrok (純本地測試)
-#   ./scripts/dev-up.sh --db-only    # 只起 DB，不跑 uvicorn / ngrok
+#   ./scripts/dev/dev-up.sh              # 預設：起 DB + ngrok + uvicorn
+#   ./scripts/dev/dev-up.sh --no-ngrok   # 跳過 ngrok (純本地測試)
+#   ./scripts/dev/dev-up.sh --db-only    # 只起 DB，不跑 uvicorn / ngrok
 
 set -euo pipefail
 
 # ── Constants ──────────────────────────────────────────────────────────────
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 AGENT_DIR="$PROJECT_ROOT/agent"
 LOG_DIR="$PROJECT_ROOT/.dev-logs"
 

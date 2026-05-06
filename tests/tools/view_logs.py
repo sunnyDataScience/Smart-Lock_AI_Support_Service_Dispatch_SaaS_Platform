@@ -1,9 +1,10 @@
+#!/usr/bin/env python3
 """查看 audit_log 表中的對話紀錄。
 
 用法：
-    python scripts/view_logs.py              # 顯示最近 30 則紀錄
-    python scripts/view_logs.py 50           # 顯示最近 50 則紀錄
-    python scripts/view_logs.py --user {id}  # 查看特定使用者
+    python tests/tools/view_logs.py              # 顯示最近 30 則紀錄
+    python tests/tools/view_logs.py 50           # 顯示最近 50 則紀錄
+    python tests/tools/view_logs.py --user {id}  # 查看特定使用者
 """
 
 import os
