@@ -29,6 +29,7 @@ load_dotenv(os.path.join(_AGENT_SKILLS_DIR, "..", ".env"))
 
 from langchain_litellm import ChatLiteLLM
 from core.config import load_config
+from core.content_utils import extract_text
 from agent import build_agent
 from langgraph.checkpoint.memory import MemorySaver
 from llms import get_llm
@@ -398,24 +399,6 @@ def keyword_score(tc: TestCase, answer: str) -> tuple[int, int]:
 
 
 # ─────────────────────────────────────────────
-# 回答提取（同 main.py）
-# ─────────────────────────────────────────────
-
-def _extract_text(content) -> str:
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        parts = []
-        for block in content:
-            if isinstance(block, dict) and block.get("type") == "text":
-                parts.append(block["text"])
-            elif isinstance(block, str):
-                parts.append(block)
-        return "\n".join(parts) if parts else str(content)
-    return str(content)
-
-
-# ─────────────────────────────────────────────
 # 主流程
 # ─────────────────────────────────────────────
 
@@ -476,7 +459,7 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
     messages = result.get("messages", [])
     for msg in reversed(messages):
         if hasattr(msg, "type") and msg.type == "ai" and msg.content:
-            answer = _extract_text(msg.content)
+            answer = extract_text(msg.content)
             break
 
     # 多輪模擬：若有 auto_reply 且 agent 回覆含追問（？）→ 發送第二輪
@@ -501,7 +484,7 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
         messages = result.get("messages", [])
         for msg in reversed(messages):
             if hasattr(msg, "type") and msg.type == "ai" and msg.content:
-                answer = _extract_text(msg.content)
+                answer = extract_text(msg.content)
                 break
 
     elapsed = round(time.time() - t0, 1)
@@ -510,7 +493,7 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
     skills_loaded = []
     for msg in messages:
         if hasattr(msg, "type") and msg.type == "tool" and hasattr(msg, "content"):
-            text = _extract_text(msg.content)
+            text = extract_text(msg.content)
             if text.startswith("已載入技能:"):
                 skill_name = text.split("已載入技能:")[1].split("\n")[0].strip()
                 if skill_name not in skills_loaded:
