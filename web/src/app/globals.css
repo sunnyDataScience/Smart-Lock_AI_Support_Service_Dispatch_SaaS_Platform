@@ -56,4 +56,25 @@
     font-family: var(--font-inter), var(--font-noto-sans-tc),
       ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
+
+  /* WCAG 2.4.7 — 全域焦點指示器
+   *
+   * 鎖定 :focus-visible（鍵盤 / 程式焦點），不影響滑鼠 click 後的元素
+   * 仍然 outline 出現的問題。
+   *
+   * 為什麼放這：專案散落 30+ 個 outline:none / outline-none，鍵盤
+   * 使用者全部看不到焦點。這條 base-layer 規則做最後一道保險：
+   * 即使元件忘了加 focus-visible:ring，至少 native outline 還在。
+   * 元件層級若想要更好看的環，再用 focus-visible:ring-2 覆寫。 */
+  :focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
+  }
+
+  /* outline-none 後仍要保證 :focus-visible 看得到（unset Tailwind reset） */
+  :focus-visible.outline-none,
+  .outline-none:focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
+  }
 }
