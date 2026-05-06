@@ -5,6 +5,7 @@
  *   - 注入 Authorization / X-Tenant-ID / Idempotency-Key headers
  *   - 處理 401 自動 refresh token（once）
  *   - 統一錯誤格式（後端回 ApiErrorResponse）→ 前端 throw ApiError
+ *   - GET 共享 in-flight promise + 30s staleTime cache（避免重複 fetch）
  *
  * 型別來源：docs/02-design/specs/generated/api.generated.ts（SSOT）
  *
@@ -12,7 +13,13 @@
  *   import { api } from "@/lib/api";
  *   const cfg = await api.get("/api/v1/config");
  *   await api.patch("/api/v1/config", { rag: { max_results: 5 } });
+ *
+ *   // mutate 後清相關 GET cache：
+ *   import { cacheInvalidate } from "@/lib/cache";
+ *   cacheInvalidate("GET:/api/v1/work-orders");
  */
+
+import { cacheGet, cacheClear } from "./cache";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8001";
 
@@ -159,7 +166,7 @@ async function refreshAccessToken(): Promise<boolean> {
   return refreshInFlight;
 }
 
-async function request<T>(
+async function rawRequest<T>(
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   path: string,
   options: RequestOptions = {},
@@ -206,6 +213,27 @@ async function request<T>(
   }
 
   return payload as T;
+}
+
+/**
+ * request — 對外 API。GET 走 cache（共享 in-flight + 30s staleTime），
+ * 其他 method 直接打。signal / skipAuth 任一存在時 bypass cache。
+ */
+async function request<T>(
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
+  path: string,
+  options: RequestOptions = {},
+): Promise<T> {
+  const isCacheable =
+    method === "GET" && !options.signal && !options.skipAuth;
+  if (!isCacheable) {
+    return rawRequest<T>(method, path, options);
+  }
+
+  const tenant = auth.getTenantId();
+  const fullUrl = buildUrl(path, options.query);
+  const key = `GET:${fullUrl}:${tenant}`;
+  return cacheGet<T>(key, () => rawRequest<T>(method, path, options));
 }
 
 function newIdempotencyKey(): string {
@@ -335,5 +363,7 @@ export async function logout(): Promise<void> {
     // ignore — clear local state regardless
   } finally {
     auth.clear();
+    // 清掉所有 GET cache，避免下次登入讀到上一個帳號的資料
+    cacheClear();
   }
 }
