@@ -67,7 +67,9 @@ async def get_async_conn(name: str, uri: str) -> "AsyncConnection":
                 "pg_pool: close stale conn %s failed: %s", name, e, exc_info=True
             )
 
-    new_conn = await AsyncConnection.connect(uri, autocommit=True)
+    # pg_pool helper owns connection lifecycle on behalf of callers; the lint
+    # rule (DB connection pattern lint) targets ad-hoc connect() in feature code.
+    new_conn = await AsyncConnection.connect(uri, autocommit=True)  # allow-direct-conn
     _CONN_CACHE[name] = new_conn
     return new_conn
 
