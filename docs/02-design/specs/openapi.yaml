@@ -583,6 +583,27 @@ paths:
                     items:
                       $ref: '#/components/schemas/MediaFile'
 
+  /api/v1/disputes/{id}/media:
+    get:
+      tags: [media]
+      summary: 列出該爭議所有相關證據（含雙方上傳）
+      operationId: listMediaForDispute
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MediaFile'
+
   /api/v1/work-orders/pool:
     get:
       tags: [dispatch]

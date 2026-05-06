@@ -89,3 +89,17 @@ async def list_media_for_work_order(
     return await media_service.list_media_for_work_order(
         tenant_id=user.tenant_id, work_order_id=id
     )
+
+
+@router.get(
+    "/disputes/{id}/media",
+    operation_id="listMediaForDispute",
+    summary="列出該爭議所有相關證據（含雙方上傳）",
+)
+async def list_media_for_dispute(
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    return await media_service.list_media_for_dispute(
+        tenant_id=user.tenant_id, dispute_id=id
+    )

@@ -134,24 +134,39 @@ function MediaThumb({ item, onClick }: ThumbProps) {
 }
 
 interface Props {
-  workOrderId: string;
-  /** 傳入 disputeId 則改顯示該 dispute 的證據 */
+  /** 工單模式：load /work-orders/{id}/media */
+  workOrderId?: string;
+  /** 爭議模式：load /disputes/{id}/media */
   disputeId?: string;
+  /** 自動刷新版本號變更時重新拉取（外部上傳成功後 +1）*/
+  refreshKey?: number;
+  /** 自訂標題（預設「相關媒體」）*/
+  title?: string;
 }
 
-export default function MediaGallery({ workOrderId }: Props) {
+export default function MediaGallery({
+  workOrderId,
+  disputeId,
+  refreshKey = 0,
+  title = "相關媒體",
+}: Props) {
   const [items, setItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewItem, setPreviewItem] = useState<MediaItem | null>(null);
 
+  const fetchPath = workOrderId
+    ? `/api/v1/work-orders/${encodeURIComponent(workOrderId)}/media`
+    : disputeId
+      ? `/api/v1/disputes/${encodeURIComponent(disputeId)}/media`
+      : "";
+
   const fetchItems = useCallback(async () => {
+    if (!fetchPath) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<{ items: MediaItem[] }>(
-        `/api/v1/work-orders/${encodeURIComponent(workOrderId)}/media`,
-      );
+      const res = await api.get<{ items: MediaItem[] }>(fetchPath);
       setItems(res.items ?? []);
     } catch (e) {
       setError(
@@ -164,11 +179,11 @@ export default function MediaGallery({ workOrderId }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [workOrderId]);
+  }, [fetchPath]);
 
   useEffect(() => {
-    if (workOrderId) fetchItems();
-  }, [workOrderId, fetchItems]);
+    fetchItems();
+  }, [fetchItems, refreshKey]);
 
   // 按 purpose 分組
   const grouped = items.reduce<Record<string, MediaItem[]>>((acc, it) => {
@@ -182,7 +197,7 @@ export default function MediaGallery({ workOrderId }: Props) {
         <div className="flex items-center gap-2">
           <ImageIcon className="h-4 w-4 text-[var(--text-secondary)]" />
           <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">
-            相關媒體
+            {title}
           </h3>
           <span className="rounded bg-[#F1F5F9] px-2 py-[1px] text-[11px] text-[var(--text-secondary)]">
             {items.length} 張

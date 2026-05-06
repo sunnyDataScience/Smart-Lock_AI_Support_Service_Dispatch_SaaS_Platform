@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Image as ImageIcon, ChevronDown, RefreshCw } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Image as ImageIcon, ChevronDown, RefreshCw, Upload } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import DisputesTable from "@/components/admin/DisputesTable";
+import MediaGallery from "@/components/work-orders/MediaGallery";
 import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
 import { ApiError, api } from "@/lib/api";
 import { useRealtimeChannel } from "@/lib/useRealtimeChannel";
@@ -46,6 +47,107 @@ function ImagePlaceholder() {
   return (
     <div className="flex h-[90px] w-[120px] items-center justify-center rounded-md bg-[#E2E8F0]">
       <ImageIcon className="h-6 w-6 text-[var(--text-disabled)]" />
+    </div>
+  );
+}
+
+/**
+ * 爭議證據面板：上傳（雙方）+ MediaGallery 縮圖瀏覽
+ */
+function DisputeEvidencePanel({ disputeId }: { disputeId: string }) {
+  const [uploading, setUploading] = useState<"customer" | "technician" | null>(
+    null,
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const customerInputRef = useRef<HTMLInputElement>(null);
+  const technicianInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleUpload(
+    side: "customer" | "technician",
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(side);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append(
+        "purpose",
+        side === "customer"
+          ? "dispute_evidence_customer"
+          : "dispute_evidence_technician",
+      );
+      fd.append("dispute_id", disputeId);
+      await api.upload("/api/v1/media", fd);
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? `${err.errorCode} (${err.status})：${err.message}`
+          : err instanceof Error
+            ? err.message
+            : String(err),
+      );
+    } finally {
+      setUploading(null);
+      e.target.value = "";
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-5">
+      <div className="flex items-center justify-between">
+        <span className="text-[15px] font-semibold text-[var(--text-primary)]">
+          爭議證據
+        </span>
+        <div className="flex items-center gap-2">
+          <input
+            ref={customerInputRef}
+            type="file"
+            accept="image/*,application/pdf"
+            className="hidden"
+            onChange={(e) => handleUpload("customer", e)}
+          />
+          <input
+            ref={technicianInputRef}
+            type="file"
+            accept="image/*,application/pdf"
+            className="hidden"
+            onChange={(e) => handleUpload("technician", e)}
+          />
+          <button
+            type="button"
+            onClick={() => customerInputRef.current?.click()}
+            disabled={uploading !== null}
+            className="flex items-center gap-1 rounded-md border border-blue-300 bg-blue-50 px-3 py-1 text-[12px] font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+          >
+            <Upload className="h-3 w-3" />
+            {uploading === "customer" ? "上傳中…" : "+ 客戶證據"}
+          </button>
+          <button
+            type="button"
+            onClick={() => technicianInputRef.current?.click()}
+            disabled={uploading !== null}
+            className="flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-3 py-1 text-[12px] font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+          >
+            <Upload className="h-3 w-3" />
+            {uploading === "technician" ? "上傳中…" : "+ 技師證據"}
+          </button>
+        </div>
+      </div>
+      {error && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+          {error}
+        </div>
+      )}
+      <MediaGallery
+        disputeId={disputeId}
+        refreshKey={refreshKey}
+        title="已上傳證據"
+      />
     </div>
   );
 }
@@ -286,46 +388,10 @@ export default function DisputesPage() {
             </div>
           )}
 
-          {/* Evidence Panel — UI 示意（待證據上傳路徑上線） */}
-          <div className="flex overflow-hidden rounded-lg border-l-4 border-l-[#BFDBFE] bg-[var(--bg-surface)] opacity-90">
-            <div className="flex flex-1 flex-col gap-3 p-5">
-              <div className="flex items-center justify-between">
-                <span className="text-[15px] font-semibold text-[#2563EB]">
-                  客戶方證據
-                </span>
-                <span className="text-[11px] text-[var(--text-disabled)]">
-                  {selected ? `${evidenceItems(selected.evidence, "customer").length} 件（縮圖即將推出）` : "—"}
-                </span>
-              </div>
-              <div className="flex gap-[10px]">
-                <ImagePlaceholder />
-                <ImagePlaceholder />
-              </div>
-              <p className="text-[13px] leading-[1.5] text-[var(--text-disabled)]">
-                證據縮圖渲染待媒體上傳路徑上線後接入。
-              </p>
-            </div>
-
-            <div className="w-px bg-[var(--border)]" />
-
-            <div className="flex flex-1 flex-col gap-3 p-5">
-              <div className="flex items-center justify-between">
-                <span className="text-[15px] font-semibold text-[#D97706]">
-                  技師方證據
-                </span>
-                <span className="text-[11px] text-[var(--text-disabled)]">
-                  {selected ? `${evidenceItems(selected.evidence, "technician").length} 件（縮圖即將推出）` : "—"}
-                </span>
-              </div>
-              <div className="flex gap-[10px]">
-                <ImagePlaceholder />
-                <ImagePlaceholder />
-              </div>
-              <p className="text-[13px] leading-[1.5] text-[var(--text-disabled)]">
-                證據縮圖渲染待媒體上傳路徑上線後接入。
-              </p>
-            </div>
-          </div>
+          {/* Evidence — 上傳 + MediaGallery 雙方並列 */}
+          {selected && (
+            <DisputeEvidencePanel disputeId={selected.id} />
+          )}
 
           {/* Resolution Form — disabled until submitDisputeResolution */}
           <div className="flex flex-col gap-4 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-5">

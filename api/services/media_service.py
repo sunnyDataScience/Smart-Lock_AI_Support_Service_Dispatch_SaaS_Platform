@@ -211,3 +211,33 @@ async def list_media_for_work_order(
         for r in rows
     ]
     return {"items": items}
+
+
+async def list_media_for_dispute(
+    *, tenant_id: str, dispute_id: str
+) -> dict:
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    cur = await db_module._conn.execute(
+        "SELECT id, purpose, filename, content_type, size_bytes, created_at "
+        "FROM media_files "
+        "WHERE dispute_id = %s::uuid AND tenant_id = %s::uuid "
+        "ORDER BY created_at DESC",
+        (dispute_id, tenant_id),
+    )
+    rows = await cur.fetchall()
+    items = [
+        {
+            "id": str(r[0]),
+            "url": f"/api/v1/media/{r[0]}",
+            "purpose": r[1],
+            "filename": r[2],
+            "content_type": r[3],
+            "size_bytes": r[4],
+            "created_at": (
+                r[5].isoformat() if isinstance(r[5], datetime) else str(r[5])
+            ),
+        }
+        for r in rows
+    ]
+    return {"items": items}

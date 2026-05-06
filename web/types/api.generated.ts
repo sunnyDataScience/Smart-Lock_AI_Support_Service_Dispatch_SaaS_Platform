@@ -306,6 +306,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/disputes/{id}/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 列出該爭議所有相關證據（含雙方上傳） */
+        get: operations["listMediaForDispute"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/work-orders/pool": {
         parameters: {
             query?: never;
@@ -3845,6 +3862,33 @@ export interface operations {
         };
     };
     listMediaForWorkOrder: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items?: components["schemas"]["MediaFile"][];
+                    };
+                };
+            };
+        };
+    };
+    listMediaForDispute: {
         parameters: {
             query?: never;
             header: {
