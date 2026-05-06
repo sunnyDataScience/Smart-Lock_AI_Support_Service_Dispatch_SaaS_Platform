@@ -2415,6 +2415,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/CustomerPage'
 
+  /api/v1/customers/{id}:
+    get:
+      tags: [customer_service]
+      summary: 客戶單筆詳情 + 聚合歷史（工單統計 / 平均評分 / 投訴 / 退款 / 最近紀錄）
+      operationId: getCustomer
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /api/v1/roles:
     get:
       tags: [user_management]
@@ -3993,6 +4011,63 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/Customer'
+
+    CustomerDetail:
+      allOf:
+        - $ref: '#/components/schemas/Customer'
+        - type: object
+          required: [history]
+          properties:
+            history:
+              type: object
+              required:
+                - work_order_status_breakdown
+                - dispute_count
+                - refund_count
+                - refund_total
+                - recent_orders
+                - recent_conversations
+              properties:
+                work_order_status_breakdown:
+                  type: object
+                  additionalProperties: { type: integer }
+                  description: key=DB status, value=工單數
+                avg_completion_minutes:
+                  type: [number, "null"]
+                avg_rating:
+                  type: [number, "null"]
+                rated_count:
+                  type: integer
+                dispute_count:
+                  type: integer
+                refund_count:
+                  type: integer
+                refund_total:
+                  type: number
+                recent_orders:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      status: { type: string }
+                      address: { type: [string, "null"] }
+                      brand: { type: [string, "null"] }
+                      model: { type: [string, "null"] }
+                      priority: { type: [string, "null"] }
+                      estimated_price: { type: [number, "null"] }
+                      created_at: { type: [string, "null"], format: date-time }
+                      completed_at: { type: [string, "null"], format: date-time }
+                recent_conversations:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      status: { type: string }
+                      channel: { type: [string, "null"] }
+                      created_at: { type: [string, "null"], format: date-time }
+                      updated_at: { type: [string, "null"], format: date-time }
 
     CustomerPage:
       allOf:

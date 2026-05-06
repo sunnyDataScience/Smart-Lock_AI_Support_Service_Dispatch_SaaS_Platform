@@ -1460,6 +1460,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/customers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 客戶單筆詳情 + 聚合歷史（工單統計 / 平均評分 / 投訴 / 退款 / 最近紀錄） */
+        get: operations["getCustomer"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/roles": {
         parameters: {
             query?: never;
@@ -2426,6 +2443,44 @@ export interface components {
         };
         CustomerEnvelope: components["schemas"]["ApiResponseGeneric"] & {
             data?: components["schemas"]["Customer"];
+        };
+        CustomerDetail: components["schemas"]["Customer"] & {
+            history: {
+                /** @description key=DB status, value=工單數 */
+                work_order_status_breakdown: {
+                    [key: string]: number;
+                };
+                avg_completion_minutes?: number | null;
+                avg_rating?: number | null;
+                rated_count?: number;
+                dispute_count: number;
+                refund_count: number;
+                refund_total: number;
+                recent_orders: {
+                    /** Format: uuid */
+                    id?: string;
+                    status?: string;
+                    address?: string | null;
+                    brand?: string | null;
+                    model?: string | null;
+                    priority?: string | null;
+                    estimated_price?: number | null;
+                    /** Format: date-time */
+                    created_at?: string | null;
+                    /** Format: date-time */
+                    completed_at?: string | null;
+                }[];
+                recent_conversations: {
+                    /** Format: uuid */
+                    id?: string;
+                    status?: string;
+                    channel?: string | null;
+                    /** Format: date-time */
+                    created_at?: string | null;
+                    /** Format: date-time */
+                    updated_at?: string | null;
+                }[];
+            };
         };
         CustomerPage: components["schemas"]["CursorPage"] & {
             items?: components["schemas"]["Customer"][];
@@ -6113,6 +6168,32 @@ export interface operations {
                     "application/json": components["schemas"]["CustomerPage"];
                 };
             };
+        };
+    };
+    getCustomer: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerDetail"];
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
     };
     listRoles: {
