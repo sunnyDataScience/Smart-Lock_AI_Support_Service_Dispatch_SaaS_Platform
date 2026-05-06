@@ -22,7 +22,7 @@ Skill (技能文件產出)
 ```
 data/
 ├── config.toml          # 所有 pipeline 設定（LLM 模型、參數、路徑）
-├── requirements.txt     # Python 依賴
+├── pyproject.toml       # Python 依賴（uv workspace member）
 ├── llms/                # LLM 工廠（Vertex AI / Gemini）
 ├── pipeline/
 │   ├── source_to_raw/   # 下載原始資料
@@ -44,8 +44,12 @@ data/
 ### 環境設定
 
 ```bash
-pip install -r requirements.txt
-playwright install chromium  # Website 爬取需要
+# 從專案根目錄一次裝齊三個 module 的 deps（uv workspace）
+cd ..
+uv sync
+# 回到 data/，補裝 playwright 瀏覽器引擎
+cd data
+uv run playwright install chromium    # Website 爬取需要
 ```
 
 環境設定（統一放在專案主目錄）：

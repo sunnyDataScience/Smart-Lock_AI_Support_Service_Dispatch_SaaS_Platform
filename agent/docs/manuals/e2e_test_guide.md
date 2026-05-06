@@ -34,7 +34,8 @@
 ### 前置需求
 確保已安裝依賴並設定好 `.env`（雖然腳本會 mock LINE Token，但仍需 LLM API Key）：
 ```bash
-pip install -r requirements.txt
+# 從專案根目錄
+uv sync
 ```
 
 ### 執行測試

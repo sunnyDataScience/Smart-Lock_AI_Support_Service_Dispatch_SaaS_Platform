@@ -91,6 +91,18 @@ preflight_checks() {
         echo "  OK: Docker daemon 運行中"
     fi
 
+    # 檢查 uv 與 lockfile 一致性（避免 lock 漂移導致 prod 與本地不同步）
+    if ! command -v uv &>/dev/null; then
+        echo "  FAIL: 找不到 uv（pip install --user uv 或 pipx install uv）"
+        failed=1
+    elif ! (cd "${PROJECT_ROOT}" && uv lock --check &>/dev/null); then
+        echo "  FAIL: uv.lock 與 pyproject.toml 不同步"
+        echo "        修復：cd ${PROJECT_ROOT} && uv lock，把 uv.lock 一起 commit"
+        failed=1
+    else
+        echo "  OK: uv.lock 與 pyproject.toml 同步"
+    fi
+
     local required_secrets=("POSTGRES_URI" "API_JWT_SECRET_KEY")
     for secret in "${required_secrets[@]}"; do
         if gcloud secrets describe "${secret}" &>/dev/null; then

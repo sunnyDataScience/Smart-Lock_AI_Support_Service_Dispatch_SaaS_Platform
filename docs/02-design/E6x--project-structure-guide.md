@@ -153,7 +153,7 @@ Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/
 │   ├── embeddings/           # Embedding providers (ETL)
 │   ├── llms/                 # LLM providers (ETL)
 │   ├── config.toml           # ETL pipeline config
-│   └── requirements.txt      # Data pipeline dependencies
+│   └── pyproject.toml        # uv workspace member（依賴從這裡讀，鎖在根 uv.lock）
 │
 ├── docs/                     # Project Documentation
 │   ├── adrs/                 # 6 Architecture Decision Records
@@ -480,7 +480,7 @@ data/
 ├── embeddings/                         # Embedding providers (ETL)
 ├── llms/                               # LLM providers (ETL)
 ├── config.toml                         # ETL pipeline config
-└── requirements.txt                    # Data pipeline dependencies
+└── pyproject.toml                      # uv workspace member
 ```
 
 採用 **Medallion Architecture**（Raw -> Bronze -> Silver -> Gold）：
