@@ -313,38 +313,48 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         if _profile_mgr and _profile_mgr.enabled and profile_text:
             profile_prefix = f"[用戶資料]\n{profile_text}\n\n"
 
-        # 注入品牌到 tools 模組（供 load_product_info 做品牌檢查）
+        # 注入品牌到 tools 模組（供 load_skill 做品牌檢查）
         set_current_brand(brand, model)
 
-        # 知識來源清單：全品牌統一走 product_info
-        from product_info import has_brand as has_product_brand, filter_loadable as filter_product_loadable
+        # 知識來源清單：全品牌統一走 skills（SKILL.md 架構）
+        from skills import filter_skills
+        from skills.tools import get_skills
 
-        if brand and has_product_brand(brand) and model:
-            # 路徑 A：品牌+型號齊備，列出該型號文件 + _common
-            docs = filter_product_loadable(brand, model)
-            header = f"[可用產品資料]\n（用戶為 {brand} {model}，使用 load_product_info 載入）\n"
-        elif brand and has_product_brand(brand):
-            # 路徑 B：品牌已知、型號未知（如 Dormakaba 用戶尚未提供型號）
-            docs = filter_product_loadable(None, None)  # 只有 _common
+        _registered_skills = get_skills()
+
+        def _brand_has_skills(b: str) -> bool:
+            return any(s.brands and b in s.brands for s in _registered_skills)
+
+        # 子技能（ts-* / app-* / ss-*，除 app-guide / ss-dormakaba）由母技能引導載入，不列頂層
+        _SUB_PFX = ("ts-", "app-", "ss-")
+        _SUB_EXC = {"app-guide", "ss-dormakaba"}
+
+        if brand and _brand_has_skills(brand) and model:
+            # 路徑 A：品牌+型號齊備
+            skill_list = filter_skills(_registered_skills, brand, model)
+            header = f"[可用技能]\n（用戶為 {brand} {model}，使用 load_skill 載入）\n"
+        elif brand and _brand_has_skills(brand):
+            # 路徑 B：品牌已知、型號未知 → _common + 品牌通用
+            skill_list = filter_skills(_registered_skills, brand, None)
             header = (
-                f"[可用產品資料]\n"
-                f"⚠️ {brand} 型號未確認，僅能載入 _common/* 通用資訊。回覆時請聲明：\n"
+                f"[可用技能]\n"
+                f"⚠️ {brand} 型號未確認，僅能載入 _common/* 與品牌通用技能。回覆時請聲明：\n"
                 f"「以下為通用建議，您的型號實際操作可能略有差異，建議補充型號取得精準步驟。」\n"
             )
         elif brand:
-            # 路徑 C：品牌已知但 product_info 無此品牌（如 Waferlock）
-            docs = filter_product_loadable(None, None)
+            # 路徑 C：品牌已知但 skills 無此品牌資料 → 只能 _common
+            skill_list = filter_skills(_registered_skills, None, None)
             header = (
-                f"[可用產品資料]\n"
-                f"⚠️ 目前無 {brand} 詳細產品資料，僅能提供 _common/* 通用建議。\n"
+                f"[可用技能]\n"
+                f"⚠️ 目前無 {brand} 詳細技能資料，僅能提供 _common/* 通用建議。\n"
                 f"禁止說「我這邊沒有 {brand} 的詳細資料」「建議您查看說明書」這類話術；\n"
                 f"優先載入 _common/* 給通用建議，若客戶問題需要型號專屬步驟就呼叫 transfer_to_human 安排專員協助。\n"
             )
         else:
             # 路徑 D：品牌完全未知 → 只能 _common + 收品牌
-            docs = filter_product_loadable(None, None)
+            skill_list = filter_skills(_registered_skills, None, None)
             header = (
-                "[可用產品資料]\n"
+                "[可用技能]\n"
                 "⚠️ 品牌或型號未確認，僅能載入 _common/* 通用資訊。回覆時請聲明：\n"
                 "「以下為通用建議，您的型號實際操作可能略有差異。」\n"
                 "**請呼叫 update_user_info 確認用戶品牌。**\n"
@@ -366,14 +376,18 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
                 f"請先呼叫 update_user_info(brand=\"{mentioned_brand}\""
                 + (f", model=\"{mentioned_model}\"" if mentioned_model else "")
                 + ") 切換產品上下文，"
-                "再 load_product_info 載入對應文件回答客戶原問題。"
+                "再 load_skill 載入對應技能回答客戶原問題。"
             )
             switch_hint_lines.append(
                 "禁止用「客戶設備型號跟紀錄不符」當拒答理由，也禁止叫客戶查說明書。"
             )
             header += "\n".join(switch_hint_lines) + "\n"
 
-        doc_lines = "\n".join(f"- {d.name}: {d.description}" for d in docs)
+        top_level = [
+            s for s in skill_list
+            if s.name in _SUB_EXC or not s.name.startswith(_SUB_PFX)
+        ]
+        doc_lines = "\n".join(f"- {s.name}: {s.description}" for s in top_level)
         skills_prefix = f"{header}{doc_lines}\n\n"
 
         config = {"configurable": {"thread_id": thread_id}}
@@ -493,8 +507,8 @@ async def _cleanup_tool_checkpoint(config: dict, messages: list):
     """將 checkpoint 中的 tool call 訊息替換為輕量引用，避免 SOP 內容佔用上下文。
 
     每次 run_agent() 完成後呼叫。清理對象：
-    - ToolMessage（load_product_info 回傳的完整 mega-doc）→ [已參考: {name}]
-    - 僅含 tool_calls 的中間 AIMessage → [已參考: {name}]
+    - ToolMessage（load_skill 回傳的完整 SOP）→ [已參考技能: {name}]
+    - 僅含 tool_calls 的中間 AIMessage → [已參考技能: {name}]
     最終回覆的 AIMessage 不受影響。
 
     保留策略：**最新一輪的 ToolMessage 與對應的中間 AIMessage 完整保留**，
@@ -527,16 +541,16 @@ async def _cleanup_tool_checkpoint(config: dict, messages: list):
                 and hasattr(msg, "tool_calls") and msg.tool_calls
                 and (not msg.content or not str(msg.content).strip())
             ):
-                doc_names: list[str] = []
+                skill_names: list[str] = []
                 for tc in msg.tool_calls:
-                    if tc.get("name") == "load_product_info":
-                        doc_names.append(tc.get("args", {}).get("name", "unknown"))
-                if doc_names:
+                    if tc.get("name") == "load_skill":
+                        skill_names.append(tc.get("args", {}).get("name", "unknown"))
+                if skill_names:
                     # 收集此 AIMessage 所有 tool_call id
                     for tc in msg.tool_calls:
                         if tc.get("id"):
                             cleaned_tool_call_ids.add(tc["id"])
-                    ref = ", ".join(f"[已參考: {n}]" for n in doc_names)
+                    ref = ", ".join(f"[已參考技能: {n}]" for n in skill_names)
                     await _agent.aupdate_state(
                         config,
                         {"messages": [AIMessage(content=ref, id=msg.id)]},
@@ -582,7 +596,7 @@ async def _audit_agent_result(user_id: str, messages: list, latency_ms: float, t
                     args_summary = json.dumps(tc.get("args", {}), ensure_ascii=False)[:200]
                     await _audit_storage.log_tool_invocation(
                         user_id, "smart_lock_agent", tool_name,
-                        risk_level="read" if tool_name == "load_product_info" else "escalate",
+                        risk_level="read" if tool_name == "load_skill" else "escalate",
                         args_summary=args_summary,
                     )
                     if tool_name == "transfer_to_human":
@@ -939,7 +953,7 @@ async def agent_and_reply(
             "禁止憑 [前情提要] 摘要文字再次承諾轉接。\n"
             "請重新回答用戶的問題：\n"
             "  - 若客戶確實需要轉接（符合轉接條件）→ 立即呼叫 transfer_to_human\n"
-            "  - 若客戶問題可以靠產品資料回答 → 用 load_product_info 載入後正常回覆，"
+            "  - 若客戶問題可以靠技能 SOP 回答 → 用 load_skill 載入後正常回覆，"
             "回覆內絕不可出現「已為您轉接」「已安排專員」「正在為您安排專員」這類承諾語"
         )
         ai_response = await run_agent(user_id, transfer_correction)

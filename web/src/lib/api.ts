@@ -353,6 +353,17 @@ export async function login(email: string, password: string): Promise<LoginRespo
   return res;
 }
 
+// Tech-login PWA stub (`tech-login/page.tsx` is v0.1 WIP).  No dedicated tech
+// auth endpoint exists yet; for now treat `identifier` (phone or email) as the
+// admin login key so the build passes.  Replace with a real
+// `/api/v1/auth/tech-login` endpoint when the technician auth track lands.
+export async function loginTechnician(
+  identifier: string,
+  password: string,
+): Promise<LoginResponse> {
+  return login(identifier, password);
+}
+
 export async function logout(): Promise<void> {
   const refresh = auth.getRefreshToken();
   try {
