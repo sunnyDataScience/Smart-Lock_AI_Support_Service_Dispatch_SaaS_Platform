@@ -11,10 +11,32 @@
 
 from __future__ import annotations
 
+import time
+
 from langchain_core.messages import HumanMessage, SystemMessage, RemoveMessage
 
 from core.config import load_prompt
-from core.content_utils import extract_text
+from harness.llm_metrics import log_simple
+
+
+def _extract_text_from_content(content) -> str:
+    """從訊息 content 安全提取文字，處理 str 和 list[dict] 格式。"""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, dict):
+                if block.get("type") == "text":
+                    parts.append(block["text"])
+                elif block.get("type") in ("image_url", "media"):
+                    mime = block.get("mime_type", "image")
+                    label = "圖片" if "image" in str(mime) else "音檔" if "audio" in str(mime) else "影片"
+                    parts.append(f"[傳送了{label}]")
+            elif isinstance(block, str):
+                parts.append(block)
+        return "\n".join(parts) if parts else ""
+    return str(content)
 
 
 # 模組層級狀態（由 init() 初始化）
@@ -98,11 +120,7 @@ async def maybe_compress(agent, thread_id: str, user_id: str = "") -> str | None
         raw_content = getattr(msg, "content", "")
         if not raw_content or role == "tool":
             continue
-        content = extract_text(
-            raw_content,
-            include_media_placeholder=True,
-            fallback_to_repr=False,
-        )
+        content = _extract_text_from_content(raw_content)
         if not content:
             continue
         if role == "human":
@@ -133,13 +151,34 @@ async def maybe_compress(agent, thread_id: str, user_id: str = "") -> str | None
         user_profile=user_profile or "(無用戶輪廓)",
     )
 
+    model_name = _config.get("model_name") or _config.get("compression_model") or "unknown"
+    t0 = time.monotonic()
     try:
         response = await _llm.ainvoke([
             SystemMessage(content=summarize_prompt),
             HumanMessage(content=dialogue_text),
         ])
+        latency_ms = int((time.monotonic() - t0) * 1000)
+        log_simple(
+            user_id=user_id or thread_id,
+            call_site="memory_compression",
+            model=model_name,
+            response=response,
+            latency_ms=latency_ms,
+            user_question=dialogue_text,
+            metadata={"thread_id": thread_id, "summarized_messages": len(messages_to_summarize)},
+        )
         new_summary = response.content.strip()
     except Exception as e:
+        log_simple(
+            user_id=user_id or thread_id,
+            call_site="memory_compression",
+            model=model_name,
+            latency_ms=int((time.monotonic() - t0) * 1000),
+            success=False,
+            error_type=type(e).__name__,
+            user_question=dialogue_text,
+        )
         print(f"[Memory] 摘要生成失敗: {e}")
         return None
 

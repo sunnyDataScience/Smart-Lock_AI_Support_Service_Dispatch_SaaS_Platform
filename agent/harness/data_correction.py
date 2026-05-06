@@ -4,52 +4,30 @@
 對話 checkpoint 不受影響，使用者可繼續正常對話。
 """
 
-import json
-import logging
 import os
+import json
 
-from psycopg import AsyncConnection
-
-from core.pg_pool import get_async_conn, set_cached
-
-logger = logging.getLogger(__name__)
+from psycopg_pool import AsyncConnectionPool
 
 
 # ── Module-level state ──
+# Pool 取代單一 conn — checkout 時自動驗證並回收壞掉的連線（同 checkpointer 修法）。
 
-_conn: AsyncConnection | None = None
+_pool: AsyncConnectionPool | None = None
 _enabled: bool = False
 _keyword: str = "#資料修正"
 _reply: str = "已收到您的回報，我們會盡快處理，謝謝您！"
 _uri_env: str = ""
 
-_POOL_NAME = "data_correction"
 
-
-async def _ensure_conn() -> bool:
-    """檢查連線健康度，必要時自動重連。
-
-    委派至 `core.pg_pool.get_async_conn` — reconnect 邏輯集中。
-    """
-    global _conn
-    uri = os.getenv(_uri_env)
-    if not uri:
-        _conn = None
-        set_cached(_POOL_NAME, None)
-        return False
-    try:
-        _conn = await get_async_conn(_POOL_NAME, uri)
-        return True
-    except Exception as e:
-        print(f"[Data Correction] 重新連線失敗: {e}")
-        _conn = None
-        set_cached(_POOL_NAME, None)
-        return False
+def get_pool() -> AsyncConnectionPool | None:
+    """供 /health 等模組讀取 pool 健康狀態。"""
+    return _pool
 
 
 async def init_db(config: dict):
-    """初始化資料修正模組 — 建立 DB 連線與 table。"""
-    global _conn, _enabled, _keyword, _reply, _uri_env
+    """初始化資料修正模組 — 建立 DB pool 與 table。"""
+    global _pool, _enabled, _keyword, _reply, _uri_env
 
     _enabled = config.get("enabled", False)
     if not _enabled:
@@ -67,39 +45,50 @@ async def init_db(config: dict):
         return
 
     try:
-        _conn = await get_async_conn(_POOL_NAME, uri)
-        await _conn.execute("""
-            CREATE TABLE IF NOT EXISTS data_corrections (
-                id BIGSERIAL PRIMARY KEY,
-                user_id TEXT NOT NULL,
-                note TEXT DEFAULT '',
-                conversation_context TEXT NOT NULL,
-                user_facts JSONB,
-                status VARCHAR(20) NOT NULL DEFAULT 'pending',
-                created_at TIMESTAMP DEFAULT NOW()
+        pool = AsyncConnectionPool(
+            conninfo=uri,
+            min_size=1,
+            max_size=int(config.get("pool_max_size", 5)),
+            max_idle=float(config.get("pool_max_idle_seconds", 240)),
+            timeout=float(config.get("pool_checkout_timeout", 30)),
+            kwargs={"autocommit": True},
+            open=False,
+            check=AsyncConnectionPool.check_connection,
+        )
+        await pool.open(wait=True)
+
+        async with pool.connection() as conn:
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS data_corrections (
+                    id BIGSERIAL PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    note TEXT DEFAULT '',
+                    conversation_context TEXT NOT NULL,
+                    user_facts JSONB,
+                    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_dc_user_id ON data_corrections (user_id)"
             )
-        """)
-        await _conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_dc_user_id ON data_corrections (user_id)"
-        )
-        await _conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_dc_status ON data_corrections (status)"
-        )
-        print(f"[Data Correction] 已啟用（關鍵字: {_keyword}）")
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_dc_status ON data_corrections (status)"
+            )
+        _pool = pool
+        print(f"[Data Correction] 已啟用（關鍵字: {_keyword}, pool）")
     except Exception as e:
         print(f"[Data Correction] DB 連線失敗，降級為停用: {e}")
         _enabled = False
-        _conn = None
-        set_cached(_POOL_NAME, None)
+        _pool = None
 
 
 async def close_db():
-    """關閉 DB 連線。"""
-    global _conn
-    if _conn is not None:
-        await _conn.close()
-        _conn = None
-        set_cached(_POOL_NAME, None)
+    """關閉 DB pool。"""
+    global _pool
+    if _pool is not None:
+        await _pool.close()
+        _pool = None
 
 
 async def check_and_save(
@@ -119,14 +108,11 @@ async def check_and_save(
     Returns:
         回覆文字（已攔截）或 None（未攔截）
     """
-    if not _enabled:
+    if not _enabled or _pool is None:
         return None
 
     stripped = text.strip()
     if not stripped.startswith(_keyword):
-        return None
-
-    if not await _ensure_conn():
         return None
 
     # 截取補充說明
@@ -142,11 +128,12 @@ async def check_and_save(
 
     # 寫入 DB
     try:
-        await _conn.execute(
-            "INSERT INTO data_corrections (user_id, note, conversation_context, user_facts) "
-            "VALUES (%s, %s, %s, %s)",
-            (user_id, note, conversation_context, json.dumps(facts, ensure_ascii=False)),
-        )
+        async with _pool.connection() as conn:
+            await conn.execute(
+                "INSERT INTO data_corrections (user_id, note, conversation_context, user_facts) "
+                "VALUES (%s, %s, %s, %s)",
+                (user_id, note, conversation_context, json.dumps(facts, ensure_ascii=False)),
+            )
         print(f"[Data Correction] 已寫入 DB (user={user_id[:8]}...)")
     except Exception as e:
         print(f"[Data Correction] DB 寫入失敗: {e}")

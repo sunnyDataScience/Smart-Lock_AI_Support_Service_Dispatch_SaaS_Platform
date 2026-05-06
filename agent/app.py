@@ -26,6 +26,7 @@ from linebot.v3 import WebhookParser
 from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.webhooks import (
     MessageEvent,
+    PostbackEvent,
     TextMessageContent,
     ImageMessageContent,
     AudioMessageContent,
@@ -34,7 +35,6 @@ from linebot.v3.webhooks import (
 )
 
 from core.config import load_config
-from core.tracing import configure_tracing, instrument_fastapi
 from llms import get_llm
 from memory import get_checkpointer, close_checkpointer
 from profiles import ProfileManager, init_facts_db, close_facts_db
@@ -50,12 +50,7 @@ import harness.safety_gate as safety_gate
 import harness.output_validator as output_validator
 import harness.data_correction as data_correction
 
-app = FastAPI(title="Smart Lock AI Agent — Skill-Based")
-
-# ── OpenTelemetry：須在 FastAPI 建立後、first request 前 instrument ──
-# 預設 ConsoleSpanExporter（本機 stdout）；設 OTEL_EXPORTER_OTLP_ENDPOINT 即切 OTLP
-configure_tracing(service_name="smart-lock-agent")
-instrument_fastapi(app)
+app = FastAPI(title="Smart Lock AI Agent — Product Info")
 
 # ── Global state ──
 _cfg = None
@@ -121,15 +116,19 @@ async def startup():
     # 初始化審計日誌
     audit_storage = await get_storage(_cfg.storage)
 
+    # 注入 LLM 用量紀錄共用 storage（取代 Opik 的 token + latency 紀錄角色）
+    from harness import llm_metrics
+    llm_metrics.set_storage(audit_storage)
+
     # 初始化安全閘門 (H6)
     safety_gate.init(_cfg.safety)
 
-    # 初始化輸出驗證器 (H7.5)
-    output_validator.init(model, _cfg.output_validator)
-
-    # 初始化 Quick Reply 快速回覆
+    # 初始化 Quick Reply 快速回覆（須在 output_validator 之前，因驗證器會取品牌/型號清單）
     from harness.line_ui_factory import init_quick_reply
     init_quick_reply(_cfg.quick_reply)
+
+    # 初始化輸出驗證器 (H7.5)
+    output_validator.init(model, _cfg.output_validator)
 
     # 初始化資料修正攔截
     await data_correction.init_db(_cfg.data_correction)
@@ -188,156 +187,47 @@ async def shutdown():
     print("[*] Connections closed")
 
 
-# ── /health helpers ──
-
-import time
-from fastapi.responses import JSONResponse
-
-
-async def _timed_check(coro, timeout: float = 3.0) -> dict:
-    """Run a check coroutine with timeout, return {status, latency_ms} on success
-    or {status, error} on failure. Never raises — every error is captured.
-    """
-    start = time.perf_counter()
-    try:
-        result = await asyncio.wait_for(coro, timeout=timeout)
-    except asyncio.TimeoutError:
-        latency = (time.perf_counter() - start) * 1000
-        return {"status": "timeout", "latency_ms": round(latency, 1),
-                "error": f"exceeded {timeout}s"}
-    except Exception as e:
-        latency = (time.perf_counter() - start) * 1000
-        # Trim long stack messages and avoid leaking internals
-        msg = str(e).splitlines()[0][:200] if str(e) else type(e).__name__
-        return {"status": "error", "latency_ms": round(latency, 1), "error": msg}
-
-    latency = (time.perf_counter() - start) * 1000
-    payload = {"status": "ok", "latency_ms": round(latency, 1)}
-    if isinstance(result, dict):
-        # Allow checks to return extra metadata (e.g. skill count)
-        payload.update(result)
-    return payload
-
-
-async def _check_facts_db() -> dict:
-    """Ping facts DB via SELECT 1 — sync auto-reconnect through _ensure_conn()."""
-    import profiles.manager as pm
-    if not await pm._ensure_conn():
-        raise RuntimeError("facts DB connection unavailable")
-    await pm._facts_conn.execute("SELECT 1")
-    return {}
-
-
-async def _check_audit_db() -> dict:
-    """Ping audit DB via SELECT 1."""
-    import storage.postgres_impl as audit
-    if not await audit._ensure_conn():
-        raise RuntimeError("audit DB connection unavailable")
-    await audit._postgres_conn.execute("SELECT 1")
-    return {}
-
-
-async def _check_memory_db() -> dict:
-    """Ping memory backend (only meaningful for postgres / sqlite)."""
-    if _cfg is None:
-        raise RuntimeError("config not loaded")
-    mem_type = _cfg.memory.get("type", "memory")
-
-    if mem_type == "postgres":
-        from memory import postgres_saver as ps
-        conn = ps._postgres_conn
-        if conn is None or conn.closed or conn.broken:
-            raise RuntimeError("memory postgres connection broken")
-        await conn.execute("SELECT 1")
-        return {"backend": "postgres"}
-
-    if mem_type == "sqlite":
-        from memory import sqlite_saver as ss
-        if ss._sqlite_conn is None:
-            raise RuntimeError("memory sqlite connection not initialised")
-        async with ss._sqlite_conn.execute("SELECT 1") as cur:
-            await cur.fetchone()
-        return {"backend": "sqlite"}
-
-    # In-process MemorySaver — nothing to ping, always ok
-    return {"backend": mem_type}
-
-
-async def _check_llm() -> dict:
-    """Verify LLM client is constructed and config is valid.
-
-    NOTE: We deliberately do NOT issue a real LLM request here — that would
-    cost tokens, add latency, and risk false alarms from quota throttling.
-    Instead we check the static configuration that startup() validated.
-    """
-    if _cfg is None:
-        raise RuntimeError("config not loaded")
-    model = _cfg.llm.get("model")
-    if not model:
-        raise RuntimeError("llm.model not configured")
-    return {"model": model}
-
-
-async def _check_media_storage() -> dict:
-    """Verify media storage backend was initialised by startup()."""
-    import harness.multimodal as mm
-    if mm._media_storage is None:
-        # multimodal disabled is a valid state — surface as ok with detail
-        if not mm.is_enabled():
-            return {"backend": "disabled"}
-        raise RuntimeError("media storage not initialised but multimodal enabled")
-    backend_cls = type(mm._media_storage).__name__
-    return {"backend": backend_cls}
-
-
-async def _check_skill_registry() -> dict:
-    """Re-scan skills directory and report count.
-
-    This catches deployment misconfigs (missing data/, broken frontmatter, etc.).
-    """
-    if _cfg is None:
-        raise RuntimeError("config not loaded")
-    from skills import load_skills
-    skills_dir = _cfg.skills.get("data_dir", "skills/data")
-    skills = load_skills(skills_dir)
-    if not skills:
-        raise RuntimeError(f"no skills loaded from {skills_dir}")
-    return {"count": len(skills)}
-
-
 @app.get("/health")
 async def health():
-    """Health check — pings DB / LLM config / media storage / skill registry.
+    """Health check — 驗證核心 DB pool 是否存活。
 
-    Returns 200 + {status: "ok"} when every check passes, 503 + {status: "degraded"}
-    if any check fails. Individual check failures are isolated (one failure does
-    not crash the endpoint).
+    對每個 pool 執行 SELECT 1，驗證的不是「曾經連上過」而是「現在拿得到一條活的連線」，
+    這是上一輪事件（checkpointer 死掉但 health 仍回 200）的修復點。
     """
-    facts_db, audit_db, memory_db, llm, media_storage, skill_registry = await asyncio.gather(
-        _timed_check(_check_facts_db(), timeout=3.0),
-        _timed_check(_check_audit_db(), timeout=3.0),
-        _timed_check(_check_memory_db(), timeout=3.0),
-        _timed_check(_check_llm(), timeout=2.0),
-        _timed_check(_check_media_storage(), timeout=2.0),
-        _timed_check(_check_skill_registry(), timeout=5.0),
+    from fastapi.responses import JSONResponse
+    import profiles.manager as pm
+    import storage.postgres_impl as audit
+    import memory.postgres_saver as ckpt
+    import harness.data_correction as dc
+
+    pools = {
+        "checkpointer": ckpt.get_pool(),
+        "facts_db": pm.get_pool(),
+        "audit_db": audit.get_pool(),
+        "data_correction_db": dc.get_pool(),
+    }
+
+    checks: dict[str, str] = {}
+    for name, pool in pools.items():
+        if pool is None:
+            checks[name] = "disabled"
+            continue
+        if pool.closed:
+            checks[name] = "closed"
+            continue
+        try:
+            async with pool.connection() as conn:
+                await conn.execute("SELECT 1")
+            checks[name] = "ok"
+        except Exception as e:
+            checks[name] = f"error: {type(e).__name__}"
+
+    # disabled 視為 ok（功能本來就關閉）；只有 closed / error 算 degraded
+    degraded = any(v not in ("ok", "disabled") for v in checks.values())
+    return JSONResponse(
+        status_code=503 if degraded else 200,
+        content={"status": "degraded" if degraded else "ok", "version": "2.0-skills", "checks": checks},
     )
-
-    checks = {
-        "facts_db": facts_db,
-        "audit_db": audit_db,
-        "memory_db": memory_db,
-        "llm": llm,
-        "media_storage": media_storage,
-        "skill_registry": skill_registry,
-    }
-
-    all_ok = all(c["status"] == "ok" for c in checks.values())
-    body = {
-        "status": "ok" if all_ok else "degraded",
-        "version": "2.0-skills",
-        "checks": checks,
-    }
-    return JSONResponse(status_code=200 if all_ok else 503, content=body)
 
 
 @app.get("/chat")
@@ -346,15 +236,93 @@ async def chat_test(q: str = "你好", user_id: str = "test-cli"):
 
     `user_id` 可覆蓋（eval/批次測試需要每題獨立 thread 以避免 checkpointer 串線）。
     """
-    # OTel: tag the current HTTP span with user_id for trace filtering
-    from opentelemetry import trace as _otel_trace
-
-    span = _otel_trace.get_current_span()
-    if span and span.is_recording():
-        span.set_attribute("app.user_id", user_id)
-
     answer = await debounce.run_agent(user_id, q)
     return {"answer": answer}
+
+
+# ── F2 客戶改期 RSVP postback handler ──
+
+
+async def _handle_reschedule_postback(event):
+    """處理 LINE Flex 改期 postback（Flow 11 客戶端 RSVP）。
+
+    解析 postback data → 呼叫內部 api endpoint 確認/拒絕 → 回覆客戶確認訊息。
+    """
+    import os
+    import uuid as _uuid
+
+    import httpx
+
+    from harness.reschedule_flex import parse_postback_data
+
+    logger = logging.getLogger("agent.reschedule_postback")
+    raw_data = getattr(event.postback, "data", "") if event.postback else ""
+    parsed = parse_postback_data(raw_data)
+    if not parsed:
+        return  # 非本模組事件
+
+    api_base = os.environ.get(
+        "INTERNAL_API_BASE_URL", "http://localhost:8001"
+    )
+    tenant_id = os.environ.get(
+        "INTERNAL_API_TENANT_ID", "00000000-0000-0000-0000-000000000001"
+    )
+    api_token = os.environ.get("INTERNAL_API_BEARER", "")
+
+    headers = {
+        "Authorization": f"Bearer {api_token}",
+        "X-Tenant-ID": tenant_id,
+        "Idempotency-Key": str(_uuid.uuid4()),
+        "Content-Type": "application/json",
+    }
+
+    wo_id = parsed.get("wo")
+    if not wo_id:
+        return
+
+    reply_text: str
+    async with httpx.AsyncClient(timeout=10) as client:
+        if parsed["action"] == "reschedule_select":
+            res = await client.post(
+                f"{api_base}/api/v1/work-orders/{wo_id}/reschedule/customer-confirm",
+                json={
+                    "selected_start": parsed.get("start", ""),
+                    "selected_end": parsed.get("end", ""),
+                },
+                headers=headers,
+            )
+            if res.status_code == 200:
+                reply_text = (
+                    f"已收到您選擇的時段，我們會通知技師。如需調整請來訊告知。"
+                )
+            else:
+                logger.warning(
+                    "customer-confirm failed: %s %s",
+                    res.status_code,
+                    res.text[:200],
+                )
+                reply_text = "確認時段失敗，請稍後再試或來訊與我們聯繫。"
+        elif parsed["action"] == "reschedule_reject":
+            await client.post(
+                f"{api_base}/api/v1/work-orders/{wo_id}/reschedule/customer-reject",
+                headers=headers,
+            )
+            reply_text = "已通知技師您不便這幾個時段，我們會儘速重新安排。"
+        else:
+            return
+
+    # 回覆客戶
+    try:
+        from core import line_bot
+        from linebot.v3.messaging import TextMessage
+
+        await line_bot.send_response(
+            event.source.user_id,
+            event.reply_token,
+            [TextMessage(text=reply_text)],
+        )
+    except Exception:
+        logger.exception("failed to send reschedule reply")
 
 
 # ── LINE Webhook ──
@@ -376,19 +344,20 @@ async def line_webhook(request: Request):
     except InvalidSignatureError:
         raise HTTPException(status_code=403, detail="Invalid signature")
 
-    # OTel: tag the webhook span with line_user_id of the first event for trace filtering
-    from opentelemetry import trace as _otel_trace
-
     for event in events:
+        # ── PostbackEvent：F2 LINE Flex RSVP（Flow 11 客戶改期確認）──
+        if isinstance(event, PostbackEvent):
+            try:
+                await _handle_reschedule_postback(event)
+            except Exception:
+                logger.exception("postback handler failed")
+            continue
+
         if not isinstance(event, MessageEvent):
             continue
 
         user_id = event.source.user_id
         reply_token = event.reply_token
-
-        _span = _otel_trace.get_current_span()
-        if _span and _span.is_recording():
-            _span.set_attribute("app.line_user_id", user_id)
 
         # ── 1. 貼圖 → 友善回覆 ──
         if isinstance(event.message, StickerMessageContent):

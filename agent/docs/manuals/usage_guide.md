@@ -12,11 +12,11 @@
 
 ## 1. 環境設定
 
-### 安裝依賴（uv workspace）
+### 安裝依賴
 
 ```bash
-# 從專案根目錄安裝；自動下載 Python 3.11 並裝齊三個 module 的 deps
-uv sync
+cd agent
+pip install -r requirements.txt
 ```
 
 ### 環境設定
@@ -80,104 +80,100 @@ debounce.run_agent()
   ↓
 載入用戶 facts → 推斷 device_brand / device_model
   ↓
-filter_skills(brand, model) → 動態過濾技能清單
+filter_loadable(brand, model) → 動態決定可載入的 mega-doc 清單
   ↓
-注入 [可用技能] + [用戶資料] + [用戶訊息] 前綴
+注入 [可用產品資料] + [用戶資料] + [用戶訊息] 前綴
   ↓
-create_react_agent（system prompt 指示從 [可用技能] 中選擇）
+create_react_agent（system prompt 指示從 [可用產品資料] 中選擇）
   ↓
-LLM 呼叫 load_skill("troubleshoot") → 路由到品牌版子技能
+LLM 呼叫 load_product_info("_common/troubleshoot") → 取得症狀分流路由
   ↓
-LLM 呼叫 load_skill("ts-door-stuck-dormakaba") → 依 SOP 回覆
+LLM 呼叫 load_product_info("Dormakaba/AS850") → 依 mega-doc 內容回覆
 ```
 
 ### 品牌感知目錄結構
 
-技能按品牌→型號→功能組織，brands/models 從目錄路徑自動推斷：
+每個（品牌, 型號）一份 self-contained mega-doc。`brand` / `model` 來自檔案 frontmatter（不從路徑推斷）。
 
 ```
-skills/data/
-├── _common/                    # 通用技能（不分品牌，永遠顯示）
-│   ├── store-info/
-│   ├── dispatch-guide/
-│   ├── product-knowledge/
-│   ├── update-profile/
-│   ├── troubleshoot/           # 故障排除路由器
-│   ├── ts-auto-lock/
-│   └── ts-door-rebound/
-├── Dormakaba/
-│   └── _all-models/
-│       ├── ts-door-stuck-dormakaba/
-│       ├── ts-alarm-dormakaba/
-│       └── ...（7 個品牌專屬技能）
+agent/product_info/
+├── _common/
+│   ├── troubleshoot.md          # 通用症狀分流路由
+│   ├── dispatch.md              # 派工 SOP / 安裝預約 / 保固政策
+│   ├── general-knowledge.md     # 電子鎖通用知識（電池/Wi-Fi/門框等）
+│   └── store-info.md            # 店家資訊 / 服務區域 / 服務項目
 ├── Chatlock/
-│   ├── _all-models/            # Chatlock 全型號通用（9 個）
-│   └── AI-99/                  # AI-99 專屬（10 個）
+│   ├── A90.md                   # brand=Chatlock, model=A90
+│   ├── AI-88.md
+│   └── AI-99.md
+├── Dormakaba/                   # 16 mega-docs：AS701/AS850/.../Rose
 ├── Philips/
 ├── Kaadas/
 ├── Milre/
 ├── AiLock/
-├── 3E/
-└── Waferlock/
+└── 3E/
 ```
 
-**路徑推斷規則**：
-| 路徑 | 推斷結果 |
+**Profile 載入規則**（`product_info/__init__.py:filter_loadable`）：
+| Profile 狀態 | 可載入清單 |
 |------|---------|
-| `_common/{skill}/` | 通用（永遠顯示） |
-| `{Brand}/_all-models/{skill}/` | 該品牌全型號 |
-| `{Brand}/{Model}/{skill}/` | 該品牌特定型號 |
+| brand+model 齊備 | `{Brand}/{Model}` + 全部 `_common/*` |
+| brand 只齊備 model 缺 | 只 `_common/*`（回覆需附「通用建議」免責聲明）|
+| 全未知 | 只 `_common/*` + Quick Reply 收品牌 |
 
-### 技能總數：67 個
+### Mega-doc 總數：36 份
 
 | 分類 | 數量 | 說明 |
 |------|------|------|
-| _common | 7 | 通用技能（store-info, dispatch-guide 等） |
-| Dormakaba | 7 | 故障排除 + 系統設定 |
-| Chatlock | 23 | 故障排除 + APP + 系統設定（含 WiFi/人臉子技能） |
-| 其他品牌 | 30 | Philips/Kaadas/Milre/AiLock/3E/Waferlock 各 5 |
+| _common | 4 | troubleshoot / dispatch / general-knowledge / store-info |
+| Chatlock | 3 | A90 / AI-88 / AI-99 |
+| Dormakaba | 16 | AS701/AS850/AS901/DP850/FA9000/FSL800/GL220/ML550/ML660/ML770/MP750/RL320/RL360/RL360V/RL599/Rose |
+| 其他品牌 | 13 | Philips/Kaadas/Milre/AiLock/3E |
 
-### SKILL.md 格式
+### Mega-doc 格式
 
 ```yaml
 ---
-name: ts-door-stuck-dormakaba
-description: "Dormakaba 門扇卡死無法開啟的故障排除SOP"
-trigger_keywords:
-  - "門打不開"
-  - "鎖卡住"
-category: troubleshoot        # troubleshoot | teaching | reference | router
-severity: 5                   # 1-5（僅 troubleshoot 類）
+brand: Dormakaba                  # 或 _common
+model: AS850                      # _common 文件設為 null
+description: "Dormakaba AS850 推拉式四合一智慧電子鎖（密碼／卡片／指紋／鑰匙）操作與故障排除"
 ---
 
-# 標題
+# Dormakaba AS850
 
-## 必須收集的資訊
+## 產品概述
 ...
-## SOP 步驟
+
+## 操作步驟
 ...
-## 需派工的條件
+
+## 故障排除
 ...
+
+## 相關手冊
+- WiFi 設定說明書: https://drive.google.com/file/d/...
+- ...
+
+## 相關影片
+- ...
 ```
 
 **Frontmatter 欄位**：
 | 欄位 | 必填 | 說明 |
 |------|------|------|
-| `name` | ✅ | 技能唯一識別名 |
-| `description` | ✅ | Agent 選技能的主要依據 |
-| `trigger_keywords` | ✅ | 觸發關鍵詞（顯示在 [可用技能] 清單） |
-| `category` | ✅ | troubleshoot / teaching / reference / router |
-| `severity` | 選填 | 1-5（僅 troubleshoot 類） |
+| `brand` | ✅ | 品牌名（或 `_common`）|
+| `model` | ✅ | 型號名（`_common` 文件設為 null）|
+| `description` | ✅ | Agent 選文件的主要依據（[可用產品資料] 條列說明）|
 
-**注意**：`brands` 和 `models` 從目錄路徑自動推斷，不需寫在 frontmatter。
+**Bronze-only 強制規則**：mega-doc 內容**只能**整理自 `data/storage/bronze/`（YouTube 字幕、website、video transcript）。GDrive PDF **不可信**，僅在「相關手冊」段以**連結**形式收錄，不引用 PDF 內容當操作步驟。
 
 ### 工具
 
 | 工具名稱 | 說明 |
 |----------|------|
-| `load_skill` | 載入指定技能的完整 SOP 內容（支援前綴比對） |
-| `update_user_info` | 更新用戶品牌/型號，驗證後寫入 DB 並刷新技能清單 |
-| `transfer_to_human` | 轉接真人客服，自動帶入已知用戶資料 |
+| `load_product_info` | 載入指定 mega-doc（嚴格 profile gating，不可跨品牌載入）|
+| `update_user_info` | 更新用戶品牌/型號，驗證後寫入 DB 並刷新可用產品資料清單 |
+| `transfer_to_human` | 轉接真人客服，自動帶入已知用戶資料（守門：未載入產品資料且非明確轉接意圖時阻擋）|
 
 ### 特殊關鍵字攔截
 
@@ -240,68 +236,69 @@ python -m quality.quality_check --retry-failed
 
 ---
 
-## 5. 新增技能
+## 5. 新增 Mega-Doc
 
 ### 步驟
 
-1. 決定技能的品牌歸屬，在對應目錄下建立：
+1. 決定 mega-doc 的歸屬：
 
 ```bash
-# 通用技能
-mkdir skills/data/_common/my-new-skill
+# 通用文件（_common）
+touch agent/product_info/_common/my-new-doc.md
 
-# 品牌專屬技能
-mkdir skills/data/Dormakaba/_all-models/my-new-skill
-
-# 型號專屬技能
-mkdir skills/data/Chatlock/AI-99/my-new-skill
+# 品牌+型號 mega-doc
+touch agent/product_info/Chatlock/AI-77.md
+touch agent/product_info/Dormakaba/AS999.md
 ```
 
-2. 建立 `SKILL.md`：
+2. 從 `data/storage/bronze/` 整理內容（嚴禁從舊 SKILL.md 二次處理、嚴禁引用 PDF 內容）：
 
 ```markdown
 ---
-name: my-new-skill
-description: "一句話描述此技能的用途和觸發場景"
-trigger_keywords:
-  - "關鍵詞1"
-  - "關鍵詞2"
-category: troubleshoot
-severity: 3
+brand: Dormakaba
+model: AS999
+description: "Dormakaba AS999 ... 一句話描述產品定位與主要功能"
 ---
 
-# 技能標題
+# Dormakaba AS999
 
-## 必須收集的資訊
+## 產品概述
+（從 bronze/website/ 或 YouTube 字幕整理產品定位、外觀、解鎖方式等）
 
-| 欄位 | 追問話術 | 必要性 |
-|------|---------|--------|
-| 品牌 | 「請問您的電子鎖是什麼品牌？」 | ✅ 必要 |
+## 操作步驟
+### 管理者密碼設定
+（從 YouTube 字幕逐字整理，不可臆測）
 
-## SOP 步驟
+### 卡片設定
+...
 
-### Step 1：...
-### Step 2：...
+## 故障排除
+（從 bronze/video/ 跨型號通用排查，或品牌專屬影片字幕）
 
-## 需派工的條件
+## 相關手冊
+- 完整說明書: https://drive.google.com/file/d/...
+（PDF 連結 only，禁止引用 PDF 內容當操作步驟依據）
 
-- ❌ ...
+## 相關影片
+- 操作示範: https://www.youtube.com/watch?v=...
 ```
 
-3. 重啟 agent，新技能自動載入（brands/models 從目錄路徑推斷）。
+3. 同步更新型號清單：
+   - `docs/brand_model_list.md` 加入新型號
+   - `agent/config.toml` 的 `[quick_reply]` 區段新增 LINE Quick Reply 按鈕
 
-### Body 模板（依 category）
+4. 重啟 agent，新 mega-doc 自動載入。`python main.py` 跑 smoke test 確認 loader 找到新文件、`filter_loadable()` gating 正確。
 
-| category | 結構 |
-|----------|------|
-| troubleshoot | 資訊收集表 → SOP 步驟 → 派工條件 |
-| teaching | 前置條件 → 操作步驟 → 常見問題 |
-| reference | 查詢指引 → 主題區塊 |
-| router | 路由表 |
+### Bronze-only 鐵律
+
+- ✅ 來源：`data/storage/bronze/youtube/*.json`、`bronze/video/*.txt`、`bronze/website/*.md`
+- ❌ 禁止：`data/storage/bronze/gdrive/*.pdf` 內容（PDF 業主判定不可信）
+- ❌ 禁止：從舊 `agent/skills/data/` 或既有 mega-doc 抄錄非 bronze 的內容
+- ❌ 禁止：憑常識編造「應該是這樣」的步驟
 
 ### 撰寫要點
 
-- `description` 要包含觸發關鍵詞，讓 LLM 能判斷何時該載入
-- `trigger_keywords` 會顯示在 `[可用技能]` 清單中輔助 Agent 匹配
-- 每個 SOP 步驟要有明確的分支判斷
-- 跨技能引用用 `load_skill("skill-name")` 格式
+- `description` 要點出產品差異化（如「無觸控螢幕、語音引導」），協助 LLM 從多份 mega-doc 中選對
+- 操作步驟逐字記錄按鍵與語音提示（如「按【1】（新增普通用戶）」），不省略次序與按鍵
+- 故障排除段先寫**通用**再寫**品牌專屬**（先列「先確認電池」這類大原則，再列具體型號排查）
+- 「相關手冊」段：DDL App 對應的 PDF 連結與 SmartLocky App 對應的不同，需逐型號核對 App 版本（避免錯連結）

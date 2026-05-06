@@ -11,22 +11,14 @@ Event types:
 """
 
 import json
-import logging
 import os
 import re
 from datetime import datetime, timezone
-from psycopg import AsyncConnection
+from psycopg_pool import AsyncConnectionPool
 
-from core.pg_pool import get_async_conn, set_cached
-
-logger = logging.getLogger(__name__)
-
-# Kept module-level for backward compat (health check reads `audit._postgres_conn`).
-# Stays in sync with pg_pool's "audit" entry.
-_postgres_conn: AsyncConnection | None = None
+# Pool 取代單一 conn — checkout 時自動驗證並回收壞掉的連線，避免 CloudSQL idle 斷線後整個模組失效。
+_postgres_pool: AsyncConnectionPool | None = None
 _postgres_uri_env: str = ""
-
-_POOL_NAME = "audit"
 
 # PII masking patterns
 _PII_PATTERNS = [
@@ -43,26 +35,9 @@ def _mask_pii(text: str) -> str:
     return text
 
 
-async def _ensure_conn() -> bool:
-    """檢查連線健康度，必要時自動重連。
-
-    內部委派至 `core.pg_pool.get_async_conn` — reconnect 邏輯集中
-    於 helper，本函式只做 URI 解析與 module-level 變數同步。
-    """
-    global _postgres_conn
-    uri = os.getenv(_postgres_uri_env)
-    if not uri:
-        _postgres_conn = None
-        set_cached(_POOL_NAME, None)
-        return False
-    try:
-        _postgres_conn = await get_async_conn(_POOL_NAME, uri)
-        return True
-    except Exception as e:
-        print(f"[Audit DB] 重新連線失敗: {e}")
-        _postgres_conn = None
-        set_cached(_POOL_NAME, None)
-        return False
+def get_pool() -> AsyncConnectionPool | None:
+    """供 /health 等模組讀取 pool 健康狀態（不需要進行實際連線）。"""
+    return _postgres_pool
 
 
 class PostgresAuditStorage:
@@ -91,7 +66,7 @@ class PostgresAuditStorage:
         target_id: str = "",
         payload: dict | None = None,
     ):
-        if not await _ensure_conn():
+        if _postgres_pool is None:
             return
         timestamp = datetime.now(timezone.utc).isoformat()
 
@@ -101,22 +76,23 @@ class PostgresAuditStorage:
             masked_payload = _mask_pii(json.dumps(payload, ensure_ascii=False, default=str))
 
         try:
-            await _postgres_conn.execute(
-                """INSERT INTO audit_log
-                   (user_id, role, content, timestamp, event_type, action, target_type, target_id, payload)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-                (
-                    actor_id,
-                    actor_role,
-                    payload.get("content", "") if payload else "",
-                    timestamp,
-                    event_type,
-                    action,
-                    target_type,
-                    target_id,
-                    masked_payload,
-                ),
-            )
+            async with _postgres_pool.connection() as conn:
+                await conn.execute(
+                    """INSERT INTO audit_log
+                       (user_id, role, content, timestamp, event_type, action, target_type, target_id, payload)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                    (
+                        actor_id,
+                        actor_role,
+                        payload.get("content", "") if payload else "",
+                        timestamp,
+                        event_type,
+                        action,
+                        target_type,
+                        target_id,
+                        masked_payload,
+                    ),
+                )
         except Exception as e:
             print(f"[Audit DB] log_event 失敗: {e}")
 
@@ -131,42 +107,149 @@ class PostgresAuditStorage:
     async def log_escalation(self, *args, **kwargs):
         pass
 
-    async def log_llm_interaction(self, *args, **kwargs):
-        pass
+    async def log_llm_interaction(self, user_id: str, model: str, call_site: str = "react_agent", latency_ms: float | int | None = None, **kwargs):
+        """Backward-compatible wrapper — forwards to log_llm_call."""
+        await self.log_llm_call(
+            user_id=user_id,
+            call_site=call_site,
+            model=model,
+            latency_ms=int(latency_ms) if latency_ms is not None else None,
+            **kwargs,
+        )
+
+    async def log_llm_call(
+        self,
+        user_id: str,
+        call_site: str,
+        model: str,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
+        total_tokens: int | None = None,
+        latency_ms: int | None = None,
+        success: bool = True,
+        error_type: str | None = None,
+        turn_id: str | None = None,
+        user_question: str | None = None,
+        ai_reply: str | None = None,
+        metadata: dict | None = None,
+    ):
+        """記錄單次 LLM 呼叫的 token 使用量、延遲、與輸入/輸出原文（不阻塞回覆關鍵路徑）。
+
+        - 寫入失敗只印 log，不 raise（呼叫端應已用 asyncio.create_task 火放即忘）
+        - user_question / ai_reply 存原文不截斷、不遮罩（對齊 audit_log.content 規則）
+        - metadata 僅存結構化欄位（step_index、tool_name、model_temperature 等），禁存訊息原文
+        """
+        if _postgres_pool is None:
+            return
+        try:
+            async with _postgres_pool.connection() as conn:
+                await conn.execute(
+                    """INSERT INTO llm_usage_log
+                       (user_id, turn_id, call_site, model, input_tokens, output_tokens,
+                        total_tokens, latency_ms, success, error_type,
+                        user_question, ai_reply, metadata)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                    (
+                        user_id,
+                        turn_id,
+                        call_site,
+                        model,
+                        input_tokens,
+                        output_tokens,
+                        total_tokens,
+                        latency_ms,
+                        success,
+                        error_type,
+                        user_question,
+                        ai_reply,
+                        json.dumps(metadata, ensure_ascii=False, default=str) if metadata else None,
+                    ),
+                )
+        except Exception as e:
+            print(f"[LLM Usage DB] log_llm_call 失敗: {e}")
 
 async def build_postgres_storage(config: dict) -> PostgresAuditStorage:
-    global _postgres_conn, _postgres_uri_env
+    global _postgres_pool, _postgres_uri_env
     _postgres_uri_env = config.get("postgres_uri_env", "POSTGRES_URI")
     uri = os.getenv(_postgres_uri_env)
-    print(f"[*] 初始化審計日誌模組: 連線至 PostgreSQL")
-    conn = await get_async_conn(_POOL_NAME, uri)
-    await conn.execute("""
-        CREATE TABLE IF NOT EXISTS audit_log (
-            id SERIAL PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            role TEXT NOT NULL,
-            content TEXT NOT NULL,
-            timestamp TIMESTAMPTZ NOT NULL
-        )
-    """)
-    for col_def in [
-        "event_type VARCHAR(50) DEFAULT 'conversation'",
-        "action VARCHAR(100) DEFAULT ''",
-        "target_type VARCHAR(50) DEFAULT ''",
-        "target_id VARCHAR(100) DEFAULT ''",
-        "payload JSONB",
-    ]:
-        try:
-            await conn.execute(f"ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS {col_def}")
-        except Exception as e:
-            logger.warning("[Audit DB] ALTER TABLE 失敗（欄位可能已存在或權限不足）col=%s: %s", col_def, e, exc_info=True)
-    _postgres_conn = conn
+    print(f"[*] 初始化審計日誌模組: 連線至 PostgreSQL（pool）")
+
+    pool = AsyncConnectionPool(
+        conninfo=uri,
+        min_size=1,
+        max_size=int(config.get("pool_max_size", 10)),
+        max_idle=float(config.get("pool_max_idle_seconds", 240)),
+        timeout=float(config.get("pool_checkout_timeout", 30)),
+        kwargs={"autocommit": True},
+        open=False,
+        check=AsyncConnectionPool.check_connection,
+    )
+    await pool.open(wait=True)
+
+    async with pool.connection() as conn:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS audit_log (
+                id SERIAL PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                timestamp TIMESTAMPTZ NOT NULL
+            )
+        """)
+        for col_def in [
+            "event_type VARCHAR(50) DEFAULT 'conversation'",
+            "action VARCHAR(100) DEFAULT ''",
+            "target_type VARCHAR(50) DEFAULT ''",
+            "target_id VARCHAR(100) DEFAULT ''",
+            "payload JSONB",
+        ]:
+            try:
+                await conn.execute(f"ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS {col_def}")
+            except Exception:
+                pass
+
+        # llm_usage_log: token 使用量 + 延遲度量 + 輸入/輸出原文（取代 Opik 角色）
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS llm_usage_log (
+                id BIGSERIAL PRIMARY KEY,
+                timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                user_id TEXT NOT NULL,
+                turn_id TEXT,
+                call_site VARCHAR(50) NOT NULL,
+                model VARCHAR(100) NOT NULL,
+                input_tokens INTEGER,
+                output_tokens INTEGER,
+                total_tokens INTEGER,
+                latency_ms INTEGER,
+                success BOOLEAN NOT NULL DEFAULT TRUE,
+                error_type VARCHAR(50),
+                user_question TEXT,
+                ai_reply TEXT,
+                metadata JSONB
+            )
+        """)
+        # 既有資料表升級：補上 user_question / ai_reply 欄位
+        for col_def in ["user_question TEXT", "ai_reply TEXT"]:
+            try:
+                await conn.execute(f"ALTER TABLE llm_usage_log ADD COLUMN IF NOT EXISTS {col_def}")
+            except Exception as e:
+                print(f"[Audit DB] llm_usage_log 升級欄位失敗（已忽略）: {e}")
+        for idx_sql in [
+            "CREATE INDEX IF NOT EXISTS idx_llm_usage_timestamp ON llm_usage_log(timestamp DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_llm_usage_user_id ON llm_usage_log(user_id, timestamp DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_llm_usage_call_site ON llm_usage_log(call_site, timestamp DESC)",
+        ]:
+            try:
+                await conn.execute(idx_sql)
+            except Exception as e:
+                print(f"[Audit DB] 建立 llm_usage_log 索引失敗（已忽略）: {e}")
+
+    _postgres_pool = pool
     return PostgresAuditStorage()
 
 
 async def close_postgres_storage():
-    global _postgres_conn
-    if _postgres_conn is not None:
-        await _postgres_conn.close()
-        _postgres_conn = None
-        set_cached(_POOL_NAME, None)
+    global _postgres_pool
+    if _postgres_pool is not None:
+        await _postgres_pool.close()
+        _postgres_pool = None

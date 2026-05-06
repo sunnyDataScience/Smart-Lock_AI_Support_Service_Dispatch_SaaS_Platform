@@ -8,24 +8,22 @@
 由 app.py startup 呼叫 init() 注入依賴。
 """
 
-import asyncio
 import base64
-import json
+import re
 import time
+import asyncio
+import json
+import uuid
 
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage, ToolMessage
 
-from core.logging_config import get_logger
-
-log = get_logger(__name__)
-
 import core.line_bot as line_bot
-from core.content_utils import extract_text
 import harness.memory_manager as memory_manager
+from harness.llm_metrics import extract_usage_from_messages, schedule_log
 from harness.line_ui_factory import (
     build_line_messages, match_brand, match_model, get_brand_models, is_quick_reply_enabled,
 )
-from skills.tools import set_current_user_id, set_current_brand, get_current_brand, get_current_model, reset_run_state, set_current_user_input, was_transfer_called, get_current_skill
+from agent_tools.tools import set_current_user_id, set_current_brand, get_current_brand, get_current_model, reset_run_state, set_current_user_input, was_transfer_called
 from agent import get_system_prompt
 import harness.profile_updater as profile_updater
 import harness.safety_gate as safety_gate
@@ -68,6 +66,21 @@ def init(agent, config: dict, templates: dict, profile_mgr=None, audit_storage=N
     _opik_tracer = opik_tracer
 
 
+def _extract_text(content) -> str:
+    """從 AI 回覆中提取純文字（Vertex AI 可能回傳 list[dict]）。"""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, dict) and block.get("type") == "text":
+                parts.append(block["text"])
+            elif isinstance(block, str):
+                parts.append(block)
+        return "\n".join(parts) if parts else str(content)
+    return str(content)
+
+
 async def _print_context(user_id: str, ai_response: str):
     """印出完整對話上下文（system prompt + checkpoint messages + AI 最終回答）。"""
     thread_id = f"line_{user_id}"
@@ -100,7 +113,7 @@ async def _print_context(user_id: str, ai_response: str):
                 for tc in tool_calls:
                     print(f"  [{i}] 🤖 AI → tool_call: {tc.get('name', '?')}({json.dumps(tc.get('args', {}), ensure_ascii=False)[:100]})")
             if msg.content:
-                text = extract_text(msg.content)
+                text = _extract_text(msg.content)
                 print(f"  [{i}] 🤖 AI: {text[:100]}{'...' if len(text) > 100 else ''}")
         elif role == "tool":
             name = getattr(msg, "name", "?")
@@ -270,33 +283,104 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
             brand = facts.get("device_brand")
             model = facts.get("device_model")
 
-        # 品牌未知時，從用戶輸入文字自動推論品牌（純文字運算，不需 await）
-        if not brand and _profile_mgr and _profile_mgr.facts_enabled:
+        # 從用戶輸入文字掃描品牌/型號關鍵字（純文字運算，不需 await）
+        mentioned_brand: str | None = None
+        mentioned_model: str | None = None
+        if _profile_mgr and _profile_mgr.facts_enabled:
             input_text = user_input if isinstance(user_input, str) else " ".join(
                 b.get("text", "") for b in user_input if isinstance(b, dict)
             )
             from harness.line_ui_factory import infer_brand_from_text
-            inferred_brand, inferred_model = infer_brand_from_text(input_text)
-            if inferred_brand:
-                brand = inferred_brand
-                if inferred_model and not model:
-                    model = inferred_model
-                # update_fact 寫入不阻塞回覆路徑（背景 fire-and-forget）
+            mentioned_brand, mentioned_model = infer_brand_from_text(input_text)
+
+            # 場景：自動寫入或切換品牌/型號
+            # - 尚未記錄品牌 → 寫入推論結果
+            # - 已記錄品牌但用戶提到別的品牌 → 切換品牌（並清掉舊型號，因為舊型號屬於舊品牌）
+            # - 同品牌、用戶提到新型號 → 更新型號
+            if mentioned_brand and mentioned_brand != brand:
+                old_brand, old_model = brand, model
+                brand = mentioned_brand
+                model = mentioned_model  # 可能為 None
                 asyncio.create_task(_profile_mgr.update_fact(user_id, "device_brand", brand))
                 if model:
                     asyncio.create_task(_profile_mgr.update_fact(user_id, "device_model", model))
-                print(f"[Agent] 自動推論品牌: {brand} {model or ''}（從用戶輸入）")
+                elif old_model and old_brand and old_brand != brand:
+                    # 切換品牌但用戶沒給新型號 → 清掉舊型號（避免跨品牌型號污染 gating）
+                    asyncio.create_task(_profile_mgr.clear_fact(user_id, "device_model"))
+                print(f"[Agent] 品牌切換: {old_brand or '(空)'}/{old_model or '(空)'} → {brand}/{model or '(待補)'}")
+            elif mentioned_brand == brand and mentioned_model and mentioned_model != model:
+                # 同品牌新型號（例如用戶從 A90 切到 AI-99）
+                old_model = model
+                model = mentioned_model
+                asyncio.create_task(_profile_mgr.update_fact(user_id, "device_model", model))
+                print(f"[Agent] 型號切換: {brand}/{old_model or '(空)'} → {brand}/{model}")
 
         # profile 文字注入看 enabled 開關（資料已在上方一併載入）
         if _profile_mgr and _profile_mgr.enabled and profile_text:
             profile_prefix = f"[用戶資料]\n{profile_text}\n\n"
 
-        # 注入品牌到 tools 模組（供 load_skill 做品牌檢查）
+        # 注入品牌到 tools 模組（供 load_product_info 做品牌檢查）
         set_current_brand(brand, model)
 
-        # 動態技能清單（依品牌過濾）
-        from skills.tools import build_dynamic_skills_section
-        skills_prefix = f"[可用技能]\n{build_dynamic_skills_section(brand, model)}\n\n"
+        # 知識來源清單：全品牌統一走 product_info
+        from product_info import has_brand as has_product_brand, filter_loadable as filter_product_loadable
+
+        if brand and has_product_brand(brand) and model:
+            # 路徑 A：品牌+型號齊備，列出該型號文件 + _common
+            docs = filter_product_loadable(brand, model)
+            header = f"[可用產品資料]\n（用戶為 {brand} {model}，使用 load_product_info 載入）\n"
+        elif brand and has_product_brand(brand):
+            # 路徑 B：品牌已知、型號未知（如 Dormakaba 用戶尚未提供型號）
+            docs = filter_product_loadable(None, None)  # 只有 _common
+            header = (
+                f"[可用產品資料]\n"
+                f"⚠️ {brand} 型號未確認，僅能載入 _common/* 通用資訊。回覆時請聲明：\n"
+                f"「以下為通用建議，您的型號實際操作可能略有差異，建議補充型號取得精準步驟。」\n"
+            )
+        elif brand:
+            # 路徑 C：品牌已知但 product_info 無此品牌（如 Waferlock）
+            docs = filter_product_loadable(None, None)
+            header = (
+                f"[可用產品資料]\n"
+                f"⚠️ 目前無 {brand} 詳細產品資料，僅能提供 _common/* 通用建議。\n"
+                f"禁止說「我這邊沒有 {brand} 的詳細資料」「建議您查看說明書」這類話術；\n"
+                f"優先載入 _common/* 給通用建議，若客戶問題需要型號專屬步驟就呼叫 transfer_to_human 安排專員協助。\n"
+            )
+        else:
+            # 路徑 D：品牌完全未知 → 只能 _common + 收品牌
+            docs = filter_product_loadable(None, None)
+            header = (
+                "[可用產品資料]\n"
+                "⚠️ 品牌或型號未確認，僅能載入 _common/* 通用資訊。回覆時請聲明：\n"
+                "「以下為通用建議，您的型號實際操作可能略有差異。」\n"
+                "**請呼叫 update_user_info 確認用戶品牌。**\n"
+            )
+        # 場景 2：客戶在訊息中提到的品牌/型號 ≠ 已記錄 → 強提示 LLM 切換上下文
+        # （不自動寫 DB，避免「我朋友的 X 鎖如何」這類非主動聲明被誤更新）
+        if mentioned_brand and brand and mentioned_brand != brand:
+            switch_hint_lines = [
+                "",
+                f"⚠️ 切換產品上下文：客戶在本輪訊息中提到「{mentioned_brand}",
+            ]
+            if mentioned_model:
+                switch_hint_lines[-1] += f" {mentioned_model}"
+            switch_hint_lines[-1] += f"」，與紀錄中的 {brand}"
+            if model:
+                switch_hint_lines[-1] += f" {model}"
+            switch_hint_lines[-1] += " 不同。"
+            switch_hint_lines.append(
+                f"請先呼叫 update_user_info(brand=\"{mentioned_brand}\""
+                + (f", model=\"{mentioned_model}\"" if mentioned_model else "")
+                + ") 切換產品上下文，"
+                "再 load_product_info 載入對應文件回答客戶原問題。"
+            )
+            switch_hint_lines.append(
+                "禁止用「客戶設備型號跟紀錄不符」當拒答理由，也禁止叫客戶查說明書。"
+            )
+            header += "\n".join(switch_hint_lines) + "\n"
+
+        doc_lines = "\n".join(f"- {d.name}: {d.description}" for d in docs)
+        skills_prefix = f"{header}{doc_lines}\n\n"
 
         config = {"configurable": {"thread_id": thread_id}}
 
@@ -331,26 +415,16 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
 
         # 日誌
         display = _extract_text_from_items(buffer_items) if buffer_items else (
-            extract_text(message_content) if isinstance(message_content, str) else "[多模態訊息]"
+            _extract_text(message_content) if isinstance(message_content, str) else "[多模態訊息]"
         )
-        log.info(
-            "agent_thinking_started",
-            module="debounce",
-            user_id=user_id,
-            input_preview=display[:500],
-            input_len=len(display),
-            multimodal=is_multimodal,
-        )
+        print(f"[Agent] 開始思考 user_id: {user_id} 的問題...")
+        print(f"[Agent] 送入內容:\n{'─' * 40}\n{display[:500]}{'...(截斷)' if len(display) > 500 else ''}\n{'─' * 40}")
 
         # 注入 Opik 追蹤
         run_config = config.copy()
         if _opik_tracer:
             run_config["callbacks"] = [_opik_tracer]
         run_config.setdefault("metadata", {})["user_id"] = user_id
-        # RP1.D.3：本輪初始 current_skill（reset_run_state 已置為 None） →
-        # Opik trace metadata 帶 "no_skill"，待 load_skill 觸發後更新為實際 skill 名稱。
-        # invoke 結束後再次寫入 final skill 給 audit log（見下方 _audit_agent_result）。
-        run_config["metadata"]["current_skill"] = get_current_skill() or "no_skill"
 
         t0 = time.monotonic()
         pre_setup_s = t_pre_strip - t_phase_start
@@ -365,15 +439,8 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
             )
         except asyncio.TimeoutError:
             ainvoke_s = time.monotonic() - t0
-            log.warning(
-                "agent_timeout",
-                module="debounce",
-                user_id=user_id,
-                timeout_s=request_timeout,
-                pre_setup_s=round(pre_setup_s, 3),
-                strip_s=round(strip_s, 3),
-                ainvoke_s=round(ainvoke_s, 3),
-            )
+            print(f"[Agent 超時] {user_id} 的問題處理超過 {request_timeout} 秒")
+            print(f"[Timing-TIMEOUT] pre={pre_setup_s:.2f}s strip={strip_s:.2f}s ainvoke=>{ainvoke_s:.2f}s")
             return _templates.get("error_timeout", "不好意思，系統處理時間過長，請稍後再試一次。")
         t_invoke_done = time.monotonic()
         latency_ms = (t_invoke_done - t0) * 1000
@@ -385,14 +452,19 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
             await _cleanup_multimodal_checkpoint(config, messages, buffer_items)
 
         # H8: 審計 — 記錄工具呼叫 + 轉接真人 + LLM 互動（須在 tool cleanup 前，需讀原始 tool_calls）
-        asyncio.create_task(_audit_agent_result(user_id, messages, latency_ms))
+        turn_id = uuid.uuid4().hex[:16]
+        asyncio.create_task(_audit_agent_result(user_id, messages, latency_ms, turn_id, display))
 
         # 提取最終回覆
         ai_response = _templates.get("error_no_reply", "抱歉，系統沒有產生回覆。")
         for msg in reversed(messages):
             if hasattr(msg, "type") and msg.type == "ai" and msg.content:
-                ai_response = extract_text(msg.content)
+                ai_response = _extract_text(msg.content)
                 break
+
+        # 移除 LLM 可能誤抄的內部引用標記（cleanup 留下的 [已參考: ...] / [已參考技能: ...]）
+        # 含周圍空白與分隔符（半形/全形逗號）一併剝除，避免殘留 ", " 或 "，"
+        ai_response = re.sub(r"\s*\[已參考(?:技能)?:[^\]]*\][\s,，]*", "", ai_response).strip()
 
         # Checkpoint 清理：背景化（P1 #8）— 使用者已能拿到 ai_response，cleanup 不阻塞回覆
         # 風險可控：若下一則訊息 < cleanup 完成時間到達，_strip_stale_multimodal 會兜底；
@@ -400,27 +472,12 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         asyncio.create_task(_cleanup_tool_checkpoint(config, messages))
         total_s = time.monotonic() - t_phase_start
         ainvoke_s = (t_invoke_done - t0)
-        log.info(
-            "agent_timing",
-            module="debounce",
-            user_id=user_id,
-            pre_setup_s=round(pre_setup_s, 3),
-            strip_s=round(strip_s, 3),
-            ainvoke_s=round(ainvoke_s, 3),
-            total_s=round(total_s, 3),
-            cleanup="bg",
-        )
+        print(f"[Timing] pre={pre_setup_s:.2f}s strip={strip_s:.2f}s ainvoke={ainvoke_s:.2f}s cleanup=bg total={total_s:.2f}s")
 
         return ai_response
 
     except Exception as e:
-        log.error(
-            "agent_execution_error",
-            module="debounce",
-            user_id=user_id,
-            error=str(e),
-            exc_info=True,
-        )
+        print(f"[Agent 執行錯誤] {e}")
         return _templates.get("error_system", "不好意思，系統大腦剛剛稍微當機了一下，請稍後再試一次！")
 
 async def _cleanup_multimodal_checkpoint(config: dict, messages: list, buffer_items: list | None):
@@ -442,33 +499,50 @@ async def _cleanup_tool_checkpoint(config: dict, messages: list):
     """將 checkpoint 中的 tool call 訊息替換為輕量引用，避免 SOP 內容佔用上下文。
 
     每次 run_agent() 完成後呼叫。清理對象：
-    - ToolMessage（load_skill 回傳的完整 SOP）→ [已參考技能: {name}]
-    - 僅含 tool_calls 的中間 AIMessage → [已參考技能: {name}]
+    - ToolMessage（load_product_info 回傳的完整 mega-doc）→ [已參考: {name}]
+    - 僅含 tool_calls 的中間 AIMessage → [已參考: {name}]
     最終回覆的 AIMessage 不受影響。
+
+    保留策略：**最新一輪的 ToolMessage 與對應的中間 AIMessage 完整保留**，
+    讓下一輪 LLM 仍有最近一次工具呼叫的完整脈絡可參考（避免多輪對話因
+    cleanup 過於激進導致 LLM 失去上下文、漏載關鍵資訊）。
     """
     try:
         replaced = 0
         # 收集被清理的中間 AIMessage 的 tool_call_id，用於刪除對應的 ToolMessage
         cleaned_tool_call_ids: set[str] = set()
 
+        # 找出最新一輪的中間 AIMessage（含 tool_calls 但無 content）作為保留對象
+        latest_intermediate_ai_id: str | None = None
+        for msg in reversed(messages):
+            if (
+                hasattr(msg, "type") and msg.type == "ai"
+                and hasattr(msg, "tool_calls") and msg.tool_calls
+                and (not msg.content or not str(msg.content).strip())
+            ):
+                latest_intermediate_ai_id = msg.id
+                break
+
         for msg in messages:
+            # 跳過最新一輪：保留完整脈絡供下一輪使用
+            if msg.id == latest_intermediate_ai_id:
+                continue
             # 中間 AIMessage: 僅含 tool_calls、無實質 content 的訊息
             if (
                 hasattr(msg, "type") and msg.type == "ai"
                 and hasattr(msg, "tool_calls") and msg.tool_calls
                 and (not msg.content or not str(msg.content).strip())
             ):
-                skill_names = [
-                    tc.get("args", {}).get("skill_name", "unknown")
-                    for tc in msg.tool_calls
-                    if tc.get("name") == "load_skill"
-                ]
-                if skill_names:
+                doc_names: list[str] = []
+                for tc in msg.tool_calls:
+                    if tc.get("name") == "load_product_info":
+                        doc_names.append(tc.get("args", {}).get("name", "unknown"))
+                if doc_names:
                     # 收集此 AIMessage 所有 tool_call id
                     for tc in msg.tool_calls:
                         if tc.get("id"):
                             cleaned_tool_call_ids.add(tc["id"])
-                    ref = ", ".join(f"[已參考技能: {n}]" for n in skill_names)
+                    ref = ", ".join(f"[已參考: {n}]" for n in doc_names)
                     await _agent.aupdate_state(
                         config,
                         {"messages": [AIMessage(content=ref, id=msg.id)]},
@@ -493,11 +567,20 @@ async def _cleanup_tool_checkpoint(config: dict, messages: list):
         print(f"[Checkpoint] 清理 tool call 訊息失敗: {e}")
 
 
-async def _audit_agent_result(user_id: str, messages: list, latency_ms: float):
-    """從 agent 結果中解析工具呼叫與轉接事件，寫入審計日誌。"""
+async def _audit_agent_result(user_id: str, messages: list, latency_ms: float, turn_id: str | None = None, user_question: str | None = None):
+    """從 agent 結果中解析工具呼叫與轉接事件，寫入審計日誌與 LLM 用量紀錄。
+
+    LLM 用量紀錄：對 result.messages 中每個 AIMessage 寫一筆 llm_usage_log
+    （ReAct agent 一次 ainvoke 內部可能多次呼叫 LLM）。
+    總 latency_ms 記在「最後一個 AIMessage」那筆，中間步驟 latency_ms 留 NULL，
+    metadata 標 step_index + 是否 tool call。
+    user_question 在所有 step 重複塞同一份（當輪使用者文字）。
+    ai_reply 取每筆 AIMessage 的 content（含中間 tool-call step 的 reasoning 文字）。
+    """
     if not _audit_storage:
         return
     try:
+        # --- 既有審計（工具呼叫 + 轉接） ---
         for msg in messages:
             if hasattr(msg, "type") and msg.type == "ai" and hasattr(msg, "tool_calls"):
                 for tc in (msg.tool_calls or []):
@@ -505,27 +588,62 @@ async def _audit_agent_result(user_id: str, messages: list, latency_ms: float):
                     args_summary = json.dumps(tc.get("args", {}), ensure_ascii=False)[:200]
                     await _audit_storage.log_tool_invocation(
                         user_id, "smart_lock_agent", tool_name,
-                        risk_level="read" if tool_name == "load_skill" else "escalate",
+                        risk_level="read" if tool_name == "load_product_info" else "escalate",
                         args_summary=args_summary,
                     )
                     if tool_name == "transfer_to_human":
                         reason = tc.get("args", {}).get("reason", "")
                         await _audit_storage.log_escalation(user_id, reason)
 
+        # --- LLM 用量紀錄（每個 AIMessage 一筆） ---
         model_name = _config.get("model_name", "gemini-2.5-flash")
-        await _audit_storage.log_llm_interaction(
-            user_id, model_name, "react_agent",
-            latency_ms=latency_ms,
-        )
+        ai_steps = extract_usage_from_messages(messages)
+        last_index = len(ai_steps) - 1
+        for step in ai_steps:
+            usage = step["usage"] or {}
+            ai_msg = step["message"]
+            is_last = step["step_index"] == last_index
+            tool_names = [tc.get("name") for tc in (getattr(ai_msg, "tool_calls", None) or [])]
+            ai_content = getattr(ai_msg, "content", None)
+            if isinstance(ai_content, list):
+                ai_content = "".join(
+                    b.get("text", "") for b in ai_content if isinstance(b, dict) and b.get("type") == "text"
+                )
+            schedule_log(
+                _audit_storage,
+                user_id=user_id,
+                call_site="react_agent_step",
+                model=model_name,
+                input_tokens=usage.get("input_tokens"),
+                output_tokens=usage.get("output_tokens"),
+                total_tokens=usage.get("total_tokens"),
+                # 只在最後一步紀錄整體 ainvoke 耗時，避免重複加總時膨脹
+                latency_ms=int(latency_ms) if is_last else None,
+                success=True,
+                turn_id=turn_id,
+                user_question=user_question,
+                ai_reply=ai_content if isinstance(ai_content, str) else None,
+                metadata={
+                    "step_index": step["step_index"],
+                    "is_final": is_last,
+                    "tool_calls": tool_names or None,
+                },
+            )
+        # 若整次 ainvoke 沒有任何 AIMessage（極端情況），仍記一筆方便查 latency
+        if not ai_steps:
+            schedule_log(
+                _audit_storage,
+                user_id=user_id,
+                call_site="react_agent_step",
+                model=model_name,
+                latency_ms=int(latency_ms),
+                success=False,
+                error_type="no_ai_message",
+                turn_id=turn_id,
+                user_question=user_question,
+            )
     except Exception as e:
-        log.warning(
-            "audit_log_write_failed",
-            module="debounce",
-            event_type="agent_result",
-            user_id=user_id,
-            error=str(e),
-            exc_info=True,
-        )
+        print(f"[Audit] 記錄 agent 結果失敗: {e}")
 
 
 async def _quick_reply_intercept(
@@ -643,6 +761,21 @@ async def _quick_reply_intercept(
             return True
 
     # ── 狀態 B：無暫存訊息 → 首次發問，檢查是否需要啟動 quick reply 流程 ──
+    # B0：先從原始文字推論品牌/型號，避免「客戶首訊已含品牌型號還被追問」
+    if not brand or not model:
+        from harness.line_ui_factory import infer_brand_from_text
+        inferred_brand, inferred_model = infer_brand_from_text(text_stripped)
+        if inferred_brand and not brand:
+            await _profile_mgr.update_fact(user_id, "device_brand", inferred_brand)
+            brand = inferred_brand
+            print(f"[Quick Reply] 首訊推論品牌: {brand}")
+        if inferred_model and not model:
+            await _profile_mgr.update_fact(user_id, "device_model", inferred_model)
+            model = inferred_model
+            print(f"[Quick Reply] 首訊推論型號: {model}")
+        if brand or model:
+            set_current_brand(brand, model)
+
     if not brand:
         # 暫存原始訊息，回覆追問品牌
         _pending_messages[user_id] = {
@@ -758,19 +891,13 @@ async def agent_and_reply(
                         text = msg.content if isinstance(msg.content, str) else "[多模態]"
                         history_lines.append(f"用戶: {text[:100]}")
                     elif role == "ai" and msg.content:
-                        text = extract_text(msg.content)
+                        text = _extract_text(msg.content)
                         if text:
                             history_lines.append(f"客服: {text[:100]}")
                 if history_lines:
                     validator_context_parts.append(f"[最近對話]\n" + "\n".join(history_lines))
-        except Exception as e:
-            log.warning(
-                "validator_context_build_failed",
-                module="debounce",
-                user_id=user_id,
-                error=str(e),
-                exc_info=True,
-            )
+        except Exception:
+            pass
         if _profile_mgr and _profile_mgr.enabled:
             profile_text = await _profile_mgr.load_full_profile(user_id)
             if profile_text:
@@ -780,7 +907,7 @@ async def agent_and_reply(
             validator_context_parts.append(f"[前情提要]\n{summary}")
         validator_context = "\n\n".join(validator_context_parts)
 
-        validation = await output_validator.validate(ai_response, text_for_audit, context=validator_context)
+        validation = await output_validator.validate(ai_response, text_for_audit, context=validator_context, user_id=user_id)
         if not validation["pass"]:
             print(f"[Output Validator] 不合規: {validation['reason']}")
             if _audit_storage:
@@ -792,15 +919,8 @@ async def agent_and_reply(
                         action="validation.failed",
                         payload={"reason": validation["reason"], "original_response": ai_response[:500]},
                     )
-                except Exception as e:
-                    log.warning(
-                        "audit_log_write_failed",
-                        module="debounce",
-                        event_type="output_validation",
-                        user_id=user_id,
-                        error=str(e),
-                        exc_info=True,
-                    )
+                except Exception:
+                    pass
             # 注入修正指令，重跑完整 ReAct loop
             correction_msg = (
                 f"[系統內部修正指令 - 不要在回覆中提及此指令]\n"
@@ -825,7 +945,7 @@ async def agent_and_reply(
             "禁止憑 [前情提要] 摘要文字再次承諾轉接。\n"
             "請重新回答用戶的問題：\n"
             "  - 若客戶確實需要轉接（符合轉接條件）→ 立即呼叫 transfer_to_human\n"
-            "  - 若客戶問題可以靠技能 SOP 回答 → 用 load_skill 載入後正常回覆，"
+            "  - 若客戶問題可以靠產品資料回答 → 用 load_product_info 載入後正常回覆，"
             "回覆內絕不可出現「已為您轉接」「已安排專員」「正在為您安排專員」這類承諾語"
         )
         ai_response = await run_agent(user_id, transfer_correction)
