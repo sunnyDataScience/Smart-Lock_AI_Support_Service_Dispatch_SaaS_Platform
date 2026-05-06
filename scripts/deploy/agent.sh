@@ -164,6 +164,18 @@ preflight_checks() {
         echo "  OK: Docker daemon 運行中"
     fi
 
+    # 檢查 uv 與 lockfile 一致性（避免 lock 漂移導致 prod 與本地不同步）
+    if ! command -v uv &>/dev/null; then
+        echo "  FAIL: 找不到 uv（pip install --user uv 或 pipx install uv）"
+        failed=1
+    elif ! (cd "${PROJECT_ROOT}" && uv lock --check &>/dev/null); then
+        echo "  FAIL: uv.lock 與 pyproject.toml 不同步"
+        echo "        修復：cd ${PROJECT_ROOT} && uv lock，把 uv.lock 一起 commit"
+        failed=1
+    else
+        echo "  OK: uv.lock 與 pyproject.toml 同步"
+    fi
+
     # 檢查必要 secrets 存在
     local required_secrets=("LINE_CHANNEL_SECRET" "LINE_CHANNEL_ACCESS_TOKEN" "POSTGRES_URI" "OPIK_API_KEY" "OPIK_WORKSPACE")
     for secret in "${required_secrets[@]}"; do
