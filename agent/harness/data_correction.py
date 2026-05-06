@@ -10,6 +10,7 @@ import json
 from psycopg_pool import AsyncConnectionPool
 
 from core.logging_config import get_logger
+import psycopg
 
 log = get_logger(__name__)
 
@@ -81,7 +82,7 @@ async def init_db(config: dict):
             )
         _pool = pool
         log.info("data_correction_enabled", keyword=_keyword, mode="pool")
-    except Exception as e:
+    except (psycopg.Error, OSError, RuntimeError) as e:
         log.warning("data_correction_db_failed", error=str(e), exc_info=True)
         _enabled = False
         _pool = None
@@ -139,7 +140,7 @@ async def check_and_save(
                 (user_id, note, conversation_context, json.dumps(facts, ensure_ascii=False)),
             )
         log.info("data_correction_persisted", user_id=user_id)
-    except Exception as e:
+    except (psycopg.Error, OSError, RuntimeError) as e:
         log.warning("data_correction_persist_failed", user_id=user_id, error=str(e), exc_info=True)
 
     return _reply
@@ -179,7 +180,7 @@ async def _extract_conversation(agent, user_id: str) -> str:
                 lines.append(f"客服: {content}")
         return "\n".join(lines)
 
-    except Exception as e:
+    except (psycopg.Error, OSError, RuntimeError) as e:
         log.warning("data_correction_history_fetch_failed", user_id=user_id, error=str(e), exc_info=True)
         return ""
 
@@ -192,6 +193,6 @@ async def _extract_facts(profile_mgr, user_id: str) -> dict:
     try:
         _, facts = await profile_mgr.load_full_profile_with_facts(user_id)
         return facts
-    except Exception as e:
+    except (psycopg.Error, OSError, RuntimeError) as e:
         log.warning("data_correction_profile_fetch_failed", user_id=user_id, error=str(e), exc_info=True)
         return {}

@@ -154,7 +154,7 @@ def main() -> None:
 
         try:
             process_file(csv_path, output_path, auto_reply_patterns)
-        except Exception:
+        except (OSError, RuntimeError, ValueError, TimeoutError, ConnectionError):
             logger.exception(f"處理失敗 — {csv_path.name}")
 
 

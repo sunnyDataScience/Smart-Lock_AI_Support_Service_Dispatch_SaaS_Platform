@@ -147,7 +147,7 @@ def main() -> None:
                 )
                 logger.info("輸出 → %s (title: %s)", output_path.name, title)
                 success += 1
-        except Exception:
+        except (OSError, RuntimeError, ValueError, TimeoutError, ConnectionError):
             logger.exception("處理失敗 — %s", url)
             failed += 1
 

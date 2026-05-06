@@ -196,7 +196,7 @@ async def extract_and_update(user_id: str, question: str, answer: str):
                 latency_ms=int((time.monotonic() - t0) * 1000),
                 user_question=user_question_text,
             )
-        except Exception as e:
+        except (RuntimeError, ValueError, TimeoutError, ConnectionError) as e:
             log_simple(
                 user_id=user_id,
                 call_site="profile_extraction",
@@ -245,5 +245,5 @@ async def extract_and_update(user_id: str, question: str, answer: str):
         except json.JSONDecodeError:
             log.warning("profile_json_parse_failed")
 
-    except Exception as e:
+    except (RuntimeError, ValueError, TimeoutError, ConnectionError) as e:
         log.warning("profile_update_failed", error=str(e), exc_info=True)

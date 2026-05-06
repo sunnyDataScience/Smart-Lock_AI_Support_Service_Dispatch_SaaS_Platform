@@ -202,7 +202,7 @@ def main():
         log.info("讀取 CSV：%s", csv_path.name)
         try:
             df = pd.read_csv(csv_path)
-        except Exception:
+        except (OSError, RuntimeError, ValueError, TimeoutError, ConnectionError):
             log.exception("讀取 CSV 失敗：%s", csv_path.name)
             failed += 1
             continue
@@ -246,7 +246,7 @@ def main():
                     prev_failures.pop(session_id, None)
                     last_error = None
                     break
-                except Exception as e:
+                except (OSError, RuntimeError, ValueError, TimeoutError, ConnectionError) as e:
                     last_error = str(e)
                     if attempt < MAX_RETRIES - 1:
                         wait = RETRY_BACKOFF[attempt]

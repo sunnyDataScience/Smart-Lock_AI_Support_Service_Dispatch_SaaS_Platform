@@ -12,6 +12,7 @@ import base64
 import re
 import time
 import asyncio
+import psycopg
 import json
 import uuid
 
@@ -87,7 +88,7 @@ async def _print_context(user_id: str, ai_response: str):
         state = await _agent.aget_state(config)
         if state and state.values:
             messages = state.values.get("messages", [])
-    except Exception as e:
+    except (psycopg.Error, OSError, RuntimeError, ValueError, TimeoutError, ConnectionError, AttributeError) as e:
         print(f"[Debug] 無法讀取 checkpoint: {e}")
 
     print(f"\n{'═' * 60}")
@@ -237,7 +238,7 @@ async def _strip_stale_multimodal(agent, config: dict):
                 replaced += 1
         if replaced:
             log.info("checkpoint_multimodal_cleaned", count=replaced)
-    except Exception as e:
+    except (psycopg.Error, OSError, RuntimeError, ValueError, TimeoutError, ConnectionError, AttributeError) as e:
         log.warning("checkpoint_multimodal_cleanup_failed", error=str(e), exc_info=True)
 
 
@@ -498,7 +499,7 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
 
         return ai_response
 
-    except Exception as e:
+    except (psycopg.Error, OSError, RuntimeError, ValueError, TimeoutError, ConnectionError, AttributeError) as e:
         log.error("agent_run_failed", user_id=user_id, error=str(e), exc_info=True)
         return _templates.get("error_system", "不好意思，系統大腦剛剛稍微當機了一下，請稍後再試一次！")
 
@@ -513,7 +514,7 @@ async def _cleanup_multimodal_checkpoint(config: dict, messages: list, buffer_it
                     {"messages": [HumanMessage(content=text_ref, id=msg.id)]},
                 )
                 log.debug("checkpoint_multimodal_replaced", msg_id=msg.id)
-    except Exception as e:
+    except (psycopg.Error, OSError, RuntimeError, ValueError, TimeoutError, ConnectionError, AttributeError) as e:
         log.warning("checkpoint_multimodal_replace_failed", error=str(e), exc_info=True)
 
 
@@ -585,7 +586,7 @@ async def _cleanup_tool_checkpoint(config: dict, messages: list):
 
         if replaced:
             log.info("checkpoint_tool_calls_cleaned", count=replaced)
-    except Exception as e:
+    except (psycopg.Error, OSError, RuntimeError, ValueError, TimeoutError, ConnectionError, AttributeError) as e:
         log.warning("checkpoint_tool_cleanup_failed", error=str(e), exc_info=True)
 
 
@@ -664,7 +665,7 @@ async def _audit_agent_result(user_id: str, messages: list, latency_ms: float, t
                 turn_id=turn_id,
                 user_question=user_question,
             )
-    except Exception as e:
+    except (psycopg.Error, OSError, RuntimeError, ValueError, TimeoutError, ConnectionError, AttributeError) as e:
         log.warning("audit_agent_result_failed", error=str(e), exc_info=True)
 
 
@@ -862,7 +863,7 @@ async def agent_and_reply(
                 )
             else:
                 await _audit_storage.log_message(user_id, "user", text_for_audit)
-        except Exception as e:
+        except (psycopg.Error, OSError, RuntimeError, ValueError, TimeoutError, ConnectionError, AttributeError) as e:
             log.warning("audit_user_message_failed", user_id=user_id, error=str(e), exc_info=True)
 
     # H6: 安全閘門 — 攔截危險指令（在進入 Agent 之前）
@@ -874,7 +875,7 @@ async def agent_and_reply(
                     user_id, "blocked",
                     [{"keyword_match": True}],
                 )
-            except Exception as e:
+            except (psycopg.Error, OSError, RuntimeError, ValueError, TimeoutError, ConnectionError, AttributeError) as e:
                 log.warning("audit_safety_gate_failed", user_id=user_id, error=str(e), exc_info=True)
         await line_bot.send_response(user_id, reply_token, blocked)
         return
@@ -918,7 +919,7 @@ async def agent_and_reply(
                             history_lines.append(f"客服: {text[:100]}")
                 if history_lines:
                     validator_context_parts.append(f"[最近對話]\n" + "\n".join(history_lines))
-        except Exception:
+        except (psycopg.Error, OSError, RuntimeError, ValueError, TimeoutError, ConnectionError, AttributeError):
             pass
         if _profile_mgr and _profile_mgr.enabled:
             profile_text = await _profile_mgr.load_full_profile(user_id)
@@ -941,7 +942,7 @@ async def agent_and_reply(
                         action="validation.failed",
                         payload={"reason": validation["reason"], "original_response": ai_response[:500]},
                     )
-                except Exception:
+                except (psycopg.Error, OSError, RuntimeError, ValueError, TimeoutError, ConnectionError, AttributeError):
                     pass
             # 注入修正指令，重跑完整 ReAct loop
             correction_msg = (
@@ -985,7 +986,7 @@ async def agent_and_reply(
     if _audit_storage:
         try:
             await _audit_storage.log_message(user_id, "ai", ai_response)
-        except Exception as e:
+        except (psycopg.Error, OSError, RuntimeError, ValueError, TimeoutError, ConnectionError, AttributeError) as e:
             log.warning("audit_ai_reply_failed", user_id=user_id, error=str(e), exc_info=True)
 
     # H7: 偵測 URL 並轉換為 Flex Message 卡片

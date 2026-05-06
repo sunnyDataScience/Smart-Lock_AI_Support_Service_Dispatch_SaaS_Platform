@@ -112,7 +112,7 @@ def main() -> None:
                 downloaded += 1
             else:
                 skipped += 1
-        except Exception:
+        except (OSError, RuntimeError, ValueError, TimeoutError, ConnectionError):
             logger.exception(f"下載失敗 — {entry['video_id']}")
             failed += 1
 

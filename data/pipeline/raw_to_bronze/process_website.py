@@ -134,7 +134,7 @@ def main() -> None:
                 output_path.write_text(md_content, encoding="utf-8")
                 logger.info(f"輸出 → {output_path}")
                 processed += 1
-            except Exception:
+            except (OSError, RuntimeError, ValueError, TimeoutError, ConnectionError):
                 logger.exception(f"處理失敗 — {url}")
                 failed += 1
 

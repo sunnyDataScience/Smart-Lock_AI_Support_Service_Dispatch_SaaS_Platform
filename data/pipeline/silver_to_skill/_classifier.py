@@ -308,7 +308,7 @@ def classify_tier2(
         try:
             result = generate_json(prompt, CLASSIFY_SYSTEM, CLASSIFY_SCHEMA)
             break
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError, TimeoutError, ConnectionError) as e:
             if attempt < MAX_RETRIES - 1:
                 wait = RETRY_BACKOFF[attempt]
                 print(f"  [RETRY {attempt + 1}/{MAX_RETRIES}] classify: {e} (wait {wait}s)")

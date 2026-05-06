@@ -292,7 +292,7 @@ async def validate(ai_response: str, user_message: str, context: str = "", user_
                 "reason": result.get("reason", "未知原因"),
                 "correction": result.get("correction", "請重新回答，確保符合客服規範。"),
             }
-    except Exception as e:
+    except (RuntimeError, ValueError, TimeoutError, ConnectionError) as e:
         log_simple(
             user_id=user_id or "unknown",
             call_site="output_validator",

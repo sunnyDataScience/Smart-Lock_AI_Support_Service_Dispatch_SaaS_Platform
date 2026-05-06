@@ -375,7 +375,7 @@ async def judge_answer(judge_model, tc: TestCase, answer: str) -> dict:
     # llm_metrics.log_simple 會在 storage 未注入時自動 noop（離線跑 quality_check 時不寫 DB）
     try:
         from harness.llm_metrics import log_simple as _log_simple
-    except Exception:
+    except ImportError:
         _log_simple = None
     model_name = getattr(judge_model, "model", "unknown") or "unknown"
     t0 = time.monotonic()
@@ -401,7 +401,7 @@ async def judge_answer(judge_model, tc: TestCase, answer: str) -> dict:
         if content.startswith("```"):
             content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
         return json.loads(content)
-    except Exception as e:
+    except (json.JSONDecodeError, ValueError, TypeError) as e:
         if _log_simple:
             _log_simple(
                 user_id=f"quality:{tc.id}",
@@ -552,7 +552,7 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
                 await _cleanup_tool_checkpoint(config, messages)
             finally:
                 _dbnc._agent = _orig_agent
-        except Exception as e:
+        except (AttributeError, RuntimeError) as e:
             print(f"\n       [cleanup warn] {e}", end="")
 
         if profile_lines:
@@ -745,7 +745,7 @@ async def main():
 
             try:
                 r = await run_single(agent, judge_model, tc, config, use_judge=use_judge)
-            except Exception as e:
+            except (RuntimeError, ValueError, TimeoutError, ConnectionError, AttributeError) as e:
                 r = {
                     "id": tc.id, "category": tc.category, "question": tc.question,
                     "expected": tc.expected, "answer": f"ERROR: {e}",
@@ -828,7 +828,7 @@ async def main():
             try:
                 r = await run_single(agent, judge_model, tc, config, use_judge=use_judge)
                 break
-            except Exception as e:
+            except (RuntimeError, ValueError, TimeoutError, ConnectionError) as e:
                 msg = str(e)
                 is_429 = "RESOURCE_EXHAUSTED" in msg or "429" in msg or "RateLimitError" in msg
                 if is_429 and attempt < 3:
