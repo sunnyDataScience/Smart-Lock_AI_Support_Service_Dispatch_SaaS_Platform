@@ -99,9 +99,15 @@ log "step 1: 切 .env 到 GCP 模式"
 if [ "$FETCH" -eq 1 ]; then
   "$PROJECT_ROOT/scripts/env/use-gcp.sh" --fetch
 else
-  if [ ! -f "$PROJECT_ROOT/.env.gcp" ] || grep -q "<PASSWORD>" "$PROJECT_ROOT/.env.gcp" 2>/dev/null; then
-    err ".env.gcp 不存在或密碼仍是 <PASSWORD> placeholder"
+  if [ ! -f "$PROJECT_ROOT/.env.gcp" ]; then
+    err ".env.gcp 不存在"
     err "請執行: $0 --fetch"
+    exit 1
+  fi
+  # 只在 POSTGRES_URI / PG_VECTOR_URI 兩行檢查 placeholder（避免誤判註解）
+  if grep -E "^(POSTGRES_URI|PG_VECTOR_URI)=" "$PROJECT_ROOT/.env.gcp" | grep -q "<PASSWORD>"; then
+    err ".env.gcp 的 POSTGRES_URI / PG_VECTOR_URI 仍含 <PASSWORD> placeholder"
+    err "請執行: $0 --fetch（從 Secret Manager 拉真實密碼）"
     exit 1
   fi
   "$PROJECT_ROOT/scripts/env/use-gcp.sh"
