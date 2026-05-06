@@ -14,7 +14,7 @@ description: "鎖市（LockSmart）店家資訊：地址、電話、營業聯繫
   - 葉小姐：0917-945-946
   - 劉先生：0935-184-508
 - **Email**：scsmtw@gmail.com
-- **LINE 官方帳號**：@706mrped（或點 https://lin.ee/niIsSlY）
+- **LINE 官方帳號**：@locksmart（或點 https://lin.ee/niIsSlY）
 - **網站**：scsmtw.wixsite.com/locksmartnew
 
 ## 服務範圍
@@ -54,7 +54,7 @@ description: "鎖市（LockSmart）店家資訊：地址、電話、營業聯繫
 | 「你們在哪？」 | 林口區民富街 83 號 1 樓 |
 | 「可以打電話嗎？」 | 店內 02-8601-9952，業務 0917-945-946（葉）／ 0935-184-508（劉） |
 | 「服務範圍多遠？」 | 林口、新莊為主；電子鎖跨區可安裝；印章可郵寄 |
-| 「有沒有 LINE？」 | LINE 官方 @706mrped 或 https://lin.ee/niIsSlY |
+| 「有沒有 LINE？」 | LINE 官方 @locksmart 或 https://lin.ee/niIsSlY |
 | 「印章可以做嗎？」 | 各種材質皆可，可郵寄收貨 |
 | 「鑰匙複製多少錢？」 | 報價需轉真人確認 |
 | 「有提供哪些電子鎖品牌？」 | 各品牌皆有，請客戶說明需求由業務報價 |

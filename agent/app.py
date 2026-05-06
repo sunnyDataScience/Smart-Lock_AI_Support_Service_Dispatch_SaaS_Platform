@@ -122,12 +122,12 @@ async def startup():
     # 初始化安全閘門 (H6)
     safety_gate.init(_cfg.safety)
 
-    # 初始化輸出驗證器 (H7.5)
-    output_validator.init(model, _cfg.output_validator)
-
-    # 初始化 Quick Reply 快速回覆
+    # 初始化 Quick Reply 快速回覆（須在 output_validator 之前，因驗證器會取品牌/型號清單）
     from harness.line_ui_factory import init_quick_reply
     init_quick_reply(_cfg.quick_reply)
+
+    # 初始化輸出驗證器 (H7.5)
+    output_validator.init(model, _cfg.output_validator)
 
     # 初始化資料修正攔截
     await data_correction.init_db(_cfg.data_correction)

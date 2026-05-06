@@ -293,16 +293,27 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
             from harness.line_ui_factory import infer_brand_from_text
             mentioned_brand, mentioned_model = infer_brand_from_text(input_text)
 
-            # 場景 1：尚未記錄品牌 → 自動寫入推論結果
-            if mentioned_brand and not brand:
+            # 場景：自動寫入或切換品牌/型號
+            # - 尚未記錄品牌 → 寫入推論結果
+            # - 已記錄品牌但用戶提到別的品牌 → 切換品牌（並清掉舊型號，因為舊型號屬於舊品牌）
+            # - 同品牌、用戶提到新型號 → 更新型號
+            if mentioned_brand and mentioned_brand != brand:
+                old_brand, old_model = brand, model
                 brand = mentioned_brand
-                if mentioned_model and not model:
-                    model = mentioned_model
-                # update_fact 寫入不阻塞回覆路徑（背景 fire-and-forget）
+                model = mentioned_model  # 可能為 None
                 asyncio.create_task(_profile_mgr.update_fact(user_id, "device_brand", brand))
                 if model:
                     asyncio.create_task(_profile_mgr.update_fact(user_id, "device_model", model))
-                print(f"[Agent] 自動推論品牌: {brand} {model or ''}（從用戶輸入）")
+                elif old_model and old_brand and old_brand != brand:
+                    # 切換品牌但用戶沒給新型號 → 清掉舊型號（避免跨品牌型號污染 gating）
+                    asyncio.create_task(_profile_mgr.clear_fact(user_id, "device_model"))
+                print(f"[Agent] 品牌切換: {old_brand or '(空)'}/{old_model or '(空)'} → {brand}/{model or '(待補)'}")
+            elif mentioned_brand == brand and mentioned_model and mentioned_model != model:
+                # 同品牌新型號（例如用戶從 A90 切到 AI-99）
+                old_model = model
+                model = mentioned_model
+                asyncio.create_task(_profile_mgr.update_fact(user_id, "device_model", model))
+                print(f"[Agent] 型號切換: {brand}/{old_model or '(空)'} → {brand}/{model}")
 
         # profile 文字注入看 enabled 開關（資料已在上方一併載入）
         if _profile_mgr and _profile_mgr.enabled and profile_text:

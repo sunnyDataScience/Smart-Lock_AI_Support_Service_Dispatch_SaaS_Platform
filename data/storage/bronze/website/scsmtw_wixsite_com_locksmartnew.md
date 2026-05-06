@@ -74,7 +74,7 @@ top of page
 
 > “加入LINE官方帳號”
 
-@706mrped
+@locksmart
 
 [![鎖市LOCKsMART官方LINE.jpg](https://static.wixstatic.com/media/c70411_6aff9d28150744a0944ab70c77234a0e~mv2.jpg/v1/fill/w_148,h_148,al_c,q_80,usm_0.66_1.00_0.01,enc_avif,quality_auto/%E9%8E%96%E5%B8%82LOCKsMART%E5%AE%98%E6%96%B9LINE.jpg)](https://lin.ee/niIsSlY)
 
