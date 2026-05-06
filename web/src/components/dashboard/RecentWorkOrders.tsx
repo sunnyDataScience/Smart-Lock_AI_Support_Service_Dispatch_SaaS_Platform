@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ApiError, api } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import {
   STATUS_GROUP_MAP,
@@ -12,9 +10,12 @@ import {
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
-type WorkOrderPage = components["schemas"]["WorkOrderPage"];
 
-const PAGE_SIZE = 5;
+interface Props {
+  items: WorkOrder[];
+  loading?: boolean;
+  error?: string | null;
+}
 
 const columns = [
   { key: "id", label: "工單 ID", width: "w-[110px]" },
@@ -35,39 +36,7 @@ function technicianTag(technicianId: string | null | undefined): string | null {
   return `技師 ${technicianId.slice(0, 4)}`;
 }
 
-export default function RecentWorkOrders() {
-  const [items, setItems] = useState<WorkOrder[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    (async () => {
-      try {
-        const res = await api.get<WorkOrderPage>("/api/v1/work-orders", {
-          query: { limit: PAGE_SIZE },
-        });
-        if (!cancelled) setItems(res.items ?? []);
-      } catch (e) {
-        if (cancelled) return;
-        setError(
-          e instanceof ApiError
-            ? `${e.errorCode} (${e.status})：${e.message}`
-            : e instanceof Error
-              ? e.message
-              : String(e),
-        );
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
+export default function RecentWorkOrders({ items, loading, error }: Props) {
   return (
     <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
       <div className="flex items-center justify-between px-5 py-4">

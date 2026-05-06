@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   XAxis,
   YAxis,
@@ -31,14 +32,20 @@ function periodLabel(period: string): string {
 }
 
 export default function RevenueTrendChart({ items, loading }: Props) {
-  const data = items.map((p) => ({
-    month: periodLabel(p.period),
-    revenue: Number(p.revenue),
-    orders: p.order_count,
-  }));
+  const data = useMemo(
+    () =>
+      items.map((p) => ({
+        month: periodLabel(p.period),
+        revenue: Number(p.revenue),
+        orders: p.order_count,
+      })),
+    [items],
+  );
 
-  const maxRevenue = data.reduce((acc, d) => Math.max(acc, d.revenue), 0);
-  const yMax = maxRevenue > 0 ? Math.ceil((maxRevenue * 1.2) / 10000) * 10000 : 100000;
+  const yMax = useMemo(() => {
+    const maxRevenue = data.reduce((acc, d) => Math.max(acc, d.revenue), 0);
+    return maxRevenue > 0 ? Math.ceil((maxRevenue * 1.2) / 10000) * 10000 : 100000;
+  }, [data]);
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
