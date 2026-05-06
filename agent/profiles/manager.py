@@ -51,17 +51,9 @@ async def init_facts_db(config: dict):
         return
     try:
         _facts_conn = await get_async_conn(_POOL_NAME, uri)
-        await _facts_conn.execute("""
-            CREATE TABLE IF NOT EXISTS user_facts (
-                id SERIAL PRIMARY KEY,
-                user_id TEXT NOT NULL,
-                attr_key VARCHAR(100) NOT NULL,
-                attr_val TEXT NOT NULL,
-                is_current BOOLEAN NOT NULL DEFAULT TRUE,
-                start_date TIMESTAMP DEFAULT NOW(),
-                end_date TIMESTAMP
-            )
-        """)
+        # NOTE: user_facts schema 自 RP1.C.4 起由 SQL/Schema_harness_migration.sql 統一管理，
+        # 不再 runtime 動態建立。新環境部署前必須先跑該 SQL 檔。
+        # user_soft_profiles 仍 runtime 建表（後續可比照搬遷）。
         await _facts_conn.execute("""
             CREATE TABLE IF NOT EXISTS user_soft_profiles (
                 user_id TEXT PRIMARY KEY,
@@ -69,7 +61,7 @@ async def init_facts_db(config: dict):
                 updated_at TIMESTAMP DEFAULT NOW()
             )
         """)
-        print("[Facts DB] 已連線至 PostgreSQL（user_facts + user_soft_profiles, autocommit=True）")
+        print("[Facts DB] 已連線至 PostgreSQL（user_soft_profiles ensured, autocommit=True）")
     except Exception as e:
         print(f"[Facts DB] 連線失敗，降級為停用: {e}")
         _facts_conn = None
