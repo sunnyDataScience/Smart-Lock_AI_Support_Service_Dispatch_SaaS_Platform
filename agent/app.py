@@ -34,6 +34,7 @@ from linebot.v3.webhooks import (
 )
 
 from core.config import load_config
+from core.tracing import configure_tracing, instrument_fastapi
 from llms import get_llm
 from memory import get_checkpointer, close_checkpointer
 from profiles import ProfileManager, init_facts_db, close_facts_db
@@ -50,6 +51,11 @@ import harness.output_validator as output_validator
 import harness.data_correction as data_correction
 
 app = FastAPI(title="Smart Lock AI Agent — Skill-Based")
+
+# ── OpenTelemetry：須在 FastAPI 建立後、first request 前 instrument ──
+# 預設 ConsoleSpanExporter（本機 stdout）；設 OTEL_EXPORTER_OTLP_ENDPOINT 即切 OTLP
+configure_tracing(service_name="smart-lock-agent")
+instrument_fastapi(app)
 
 # ── Global state ──
 _cfg = None
@@ -340,6 +346,13 @@ async def chat_test(q: str = "你好", user_id: str = "test-cli"):
 
     `user_id` 可覆蓋（eval/批次測試需要每題獨立 thread 以避免 checkpointer 串線）。
     """
+    # OTel: tag the current HTTP span with user_id for trace filtering
+    from opentelemetry import trace as _otel_trace
+
+    span = _otel_trace.get_current_span()
+    if span and span.is_recording():
+        span.set_attribute("app.user_id", user_id)
+
     answer = await debounce.run_agent(user_id, q)
     return {"answer": answer}
 
@@ -363,12 +376,19 @@ async def line_webhook(request: Request):
     except InvalidSignatureError:
         raise HTTPException(status_code=403, detail="Invalid signature")
 
+    # OTel: tag the webhook span with line_user_id of the first event for trace filtering
+    from opentelemetry import trace as _otel_trace
+
     for event in events:
         if not isinstance(event, MessageEvent):
             continue
 
         user_id = event.source.user_id
         reply_token = event.reply_token
+
+        _span = _otel_trace.get_current_span()
+        if _span and _span.is_recording():
+            _span.set_attribute("app.line_user_id", user_id)
 
         # ── 1. 貼圖 → 友善回覆 ──
         if isinstance(event.message, StickerMessageContent):

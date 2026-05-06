@@ -32,6 +32,10 @@ dependencies = [
     # === Observability ===
     "opik",
     "structlog>=24.4",
+    "opentelemetry-api>=1.27",
+    "opentelemetry-sdk>=1.27",
+    "opentelemetry-instrumentation-fastapi>=0.48b0",
+    "opentelemetry-instrumentation-logging>=0.48b0",
 ]
 
 # 不打包成 wheel（agent 是 application，不是 library）
