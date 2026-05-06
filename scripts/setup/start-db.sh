@@ -63,26 +63,19 @@ else
   log_ok "Schema 建立完成"
 fi
 
-# 4. 檢查 seed 是否已灌（看 admin 帳號）
-HAS_ADMIN=$(docker exec "$DB_CONTAINER" psql -U lock -d lock_AI_data -tAc \
-  "SELECT COUNT(*) FROM users WHERE email='admin@example.com';" 2>/dev/null || echo "0")
-
-if [[ "$HAS_ADMIN" -gt 0 ]]; then
-  log_ok "Seed 已灌（admin@example.com 存在）"
+# 4. 灌 Seeds — 永遠跑（所有 seed 都是 ON CONFLICT DO NOTHING，重跑安全且補新增的 seed 檔）
+log_step "灌 Seeds（依字母順序，_admin_user.sql 因 _ 前綴最先跑；ON CONFLICT 保護，重跑安全）"
+if ls SQL/seeds/*.sql >/dev/null 2>&1; then
+  for f in $(ls SQL/seeds/*.sql | sort); do
+    log_info "  ↳ $(basename "$f")"
+    docker cp "$f" "$DB_CONTAINER:/tmp/seed.sql"
+    docker exec "$DB_CONTAINER" psql -U lock -d lock_AI_data -q -f /tmp/seed.sql >/dev/null 2>&1 || {
+      log_warn "  $(basename "$f") 部分失敗（看 docker logs；多為 ON CONFLICT 預期跳過）"
+    }
+  done
+  log_ok "Seeds 灌完（已覆蓋全部 $(ls SQL/seeds/*.sql | wc -l | tr -d ' ') 個檔案）"
 else
-  log_step "灌 Seeds（依字母順序，_admin_user.sql 因 _ 前綴最先跑）"
-  if ls SQL/seeds/*.sql >/dev/null 2>&1; then
-    for f in $(ls SQL/seeds/*.sql | sort); do
-      log_info "  ↳ $(basename "$f")"
-      docker cp "$f" "$DB_CONTAINER:/tmp/seed.sql"
-      docker exec "$DB_CONTAINER" psql -U lock -d lock_AI_data -q -f /tmp/seed.sql >/dev/null 2>&1 || {
-        log_warn "  $(basename "$f") 部分失敗（重複 INSERT 會跳過，通常不影響）"
-      }
-    done
-    log_ok "Seeds 灌完"
-  else
-    log_warn "找不到 SQL/seeds/，前端列表頁會空白"
-  fi
+  log_warn "找不到 SQL/seeds/，前端列表頁會空白"
 fi
 
 # 5. 摘要

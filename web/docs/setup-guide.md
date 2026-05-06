@@ -81,6 +81,7 @@ cd Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform
 | `Agent 啟動失敗` + 提示 VERTEX_PROJECT_ID | 編輯 `.env` 填入後重跑 `./scripts/setup/start-agent.sh` |
 | `health 回 db: degraded` | `./scripts/setup/start-db.sh` 重跑（idempotent） |
 | Web 編譯超時 | `tail -f .runtime/web.log` 看實際錯誤 |
+| **前端噴 `UNKNOWN (404): HTTP 404`** | API image 是舊的，跑 **`REBUILD_API=1 ./scripts/setup/start-api.sh`** 強制重 build |
 
 如果一鍵腳本仍失敗、或想了解每個步驟在做什麼，請繼續往下讀**第 1–6 節的手動步驟**。
 
@@ -327,7 +328,12 @@ Ctrl+C 只是離開 follow，container 仍在跑。
 | `health` 回 `db: degraded` | DB container 沒起，或 `--link` 沒設 | `docker ps` 確認 lock_AI 在跑；重跑 4.2 加 `--link` |
 | `relation "users" does not exist` | Schema 沒灌 | 回 3.2 跑 Schema.sql |
 | port 8001 already in use | 已有舊 container | `docker rm -f smart-lock-api` 後重跑 |
-| 改了 api/ 程式碼沒生效 | image 是舊的 | `cd api && docker build -t smart-lock-api:local . && docker rm -f smart-lock-api` 後重跑 |
+| 改了 api/ 程式碼沒生效 | image 是舊的 | `REBUILD_API=1 ./scripts/setup/start-api.sh`（推薦）或手動 `cd api && docker build -t smart-lock-api:local . && docker rm -f smart-lock-api` 後重跑 |
+| **前端噴 `UNKNOWN (404): HTTP 404`** | **API container 是舊 image，缺新 endpoints**（OpenAPI 改了卻沒重 build）| **`REBUILD_API=1 ./scripts/setup/start-api.sh`** — 強制重 build；驗證 `curl :8001/openapi.json \| jq '.paths \| length'` 路由數對得上 |
+| 前端某頁噴 401 但別頁 ok | token 過期或 tenant_id 不對 | DevTools → Application → Local Storage 看 `smartlock.access_token`；重新登入 |
+| API 啟動數秒後自己掛掉 | 舊 image 對新 schema 不相容（migration 走完 image 還停在舊 model）| 同上：強制重 build image |
+
+> **黃金法則**：每次 `git pull` 拉到 api/ 變更或自己改了 api/ 程式碼，第一件事就是 `REBUILD_API=1 ./scripts/setup/start-api.sh`。不重 build 一定會踩 404。
 
 ---
 
@@ -549,10 +555,18 @@ docker exec -it lock_AI psql -U lock -d lock_AI_data
 | `/dashboard` 一直跳回 `/login` | Application → Local Storage → 確認 `smartlock.access_token` 有值 |
 | `curl :8001/health` 不通 | `docker ps` 看 smart-lock-api 是否在跑；`docker logs smart-lock-api` 看錯誤 |
 | `health` 回 db degraded | `docker ps` 看 lock_AI 是否在跑；4.2 重啟 API container 加 `--link` |
-| 改 api/ 程式碼沒效果 | 4.4 表格最後一列：rebuild + 重起 container |
+| **前端噴 `UNKNOWN (404): HTTP 404`** | **API container 是舊 image 缺新 endpoints**（最常見！）跑 `REBUILD_API=1 ./scripts/setup/start-api.sh`；驗證 `curl :8001/openapi.json \| python3 -c "import sys,json; print(len(json.load(sys.stdin)['paths']))"` 路由數 ≥ 100 |
+| 改 api/ 程式碼沒效果 | 同上：image 是舊的，`REBUILD_API=1 ./scripts/setup/start-api.sh` |
 | 改 web/src/ 程式碼沒效果 | dev server 預設熱更新；偶爾要 `rm -rf web/.next` 後重啟 `npm run dev` |
 | `npm install` 報 peer dep | Node 版本太舊；切到 v20+ |
 | Cannot find module 'next' | 沒跑 `npm install`，或 `node_modules` 損壞，刪掉重裝 |
+| Agent 啟動 fail VERTEX | `.env` 填 VERTEX_PROJECT_ID + `gcloud auth application-default login` |
+
+### 10.1 「為什麼會有 UNKNOWN (404): HTTP 404 這種訊息？」
+
+這是 `web/src/lib/api.ts` 的 fallback 格式：當後端回 404 但 response body 沒有正確 envelope（缺 `error_code` 與 `message` 欄位）時，前端就 fallback 到 `"UNKNOWN"` + `"HTTP 404"`。
+
+純 FastAPI 預設的 `{"detail":"Not Found"}` 不符合 envelope，所以**只要 endpoint 不存在**就會這樣顯示。99% 是 API container 是舊 image 沒重 build，剩下 1% 才是路徑真的拼錯。**先 rebuild，再查路徑**。
 
 ---
 
