@@ -25,7 +25,11 @@ const SLA_TIER_2H_MS = 2 * 60 * 60 * 1000;
 const SLA_TIER_8H_MS = 8 * 60 * 60 * 1000;
 
 function isOpenForReview(status: RefundRequest["status"]): boolean {
-  return status === "pending" || status === "escalated";
+  return (
+    status === "pending" ||
+    status === "csm_approved" ||
+    status === "escalated"
+  );
 }
 
 function formatActionError(e: unknown): string {

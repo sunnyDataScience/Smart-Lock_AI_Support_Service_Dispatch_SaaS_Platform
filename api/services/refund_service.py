@@ -185,12 +185,14 @@ async def get_refund_request(*, tenant_id: str, refund_id: str) -> dict:
     return _row_to_dict(row)
 
 
-_DECISION_FROM = {"pending"}
-_DECISION_TO_STATUS = {
-    "approve": "approved",
-    "reject": "rejected",
-    "escalate": "escalated",
-}
+# 決策可從哪些狀態觸發
+# - pending：尚未審核
+# - csm_approved：已第一階段核准（雙簽中），等候第二人
+_DECISION_FROM = {"pending", "csm_approved"}
+_FIRST_SIGN_STATUS = "csm_approved"  # 雙簽：第一簽後的狀態
+_FINAL_APPROVED_STATUS = "approved"
+_REJECTED_STATUS = "rejected"
+_ESCALATED_STATUS = "escalated"
 
 
 async def submit_decision(
@@ -201,8 +203,20 @@ async def submit_decision(
     reason: str,
     decided_by_user_id: str,
 ) -> dict:
-    """pending → approved / rejected / escalated；append approval_chain。"""
-    if decision not in _DECISION_TO_STATUS:
+    """提交退款決策，含雙簽流程。
+
+    狀態機：
+      pending → approve（!requires_dual_sign）→ approved
+      pending → approve（requires_dual_sign）→ csm_approved（等第二簽）
+      csm_approved → approve（不同 user）→ approved
+      pending|csm_approved → reject → rejected
+      pending → escalate → escalated
+
+    雙簽規則：
+      - 同一 user 不可在 chain 中出現第二次
+      - csm_approved 階段必須有第二位（不同 user）按 approve 才會 final
+    """
+    if decision not in {"approve", "reject", "escalate"}:
         raise ApiError(
             "VALIDATION_ERROR",
             "decision must be one of approve, reject, escalate",
@@ -215,7 +229,7 @@ async def submit_decision(
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
     cur = await db_module._conn.execute(
-        f"SELECT r.id, r.status, r.approval_chain "
+        "SELECT r.id, r.status, r.approval_chain, r.requires_dual_sign "
         f"{_TENANT_JOIN} "
         f"WHERE r.id = %s::uuid AND u.tenant_id = %s::uuid "
         f"LIMIT 1",
@@ -225,24 +239,61 @@ async def submit_decision(
     if not row:
         raise ApiError("NOT_FOUND", f"Refund request {refund_id} not found", 404)
     current = row[1]
+    requires_dual_sign = bool(row[3]) if row[3] is not None else False
     if current not in _DECISION_FROM:
         raise ApiError(
             "STATE_CONFLICT",
-            f"Cannot decide refund in status '{current}'; expected 'pending'",
+            f"Cannot decide refund in status '{current}'; expected one of {sorted(_DECISION_FROM)}",
             409,
         )
 
     chain = _coerce_chain(row[2])
+
+    # 同一 user 不可重複簽
+    prior_signers = {entry.get("user_id") for entry in chain if isinstance(entry, dict)}
+    if decided_by_user_id in prior_signers:
+        raise ApiError(
+            "DUAL_SIGN_SAME_USER",
+            "Same user cannot sign twice on the same refund",
+            409,
+        )
+
+    # escalate 只允許 pending 階段（已雙簽中要 escalate 應走另一路徑）
+    if decision == "escalate" and current != "pending":
+        raise ApiError(
+            "STATE_CONFLICT",
+            "escalate is only allowed at 'pending' stage",
+            409,
+        )
+
+    # 計算新狀態
+    if decision == "reject":
+        new_status = _REJECTED_STATUS
+    elif decision == "escalate":
+        new_status = _ESCALATED_STATUS
+    else:  # approve
+        if current == "csm_approved":
+            # 第二簽完成 → final approved
+            new_status = _FINAL_APPROVED_STATUS
+        elif requires_dual_sign:
+            # 第一簽完成 → 等第二簽
+            new_status = _FIRST_SIGN_STATUS
+        else:
+            # 不需雙簽，直接 final
+            new_status = _FINAL_APPROVED_STATUS
+
     chain.append(
         {
             "user_id": decided_by_user_id,
             "decision": decision,
             "reason": reason.strip()[:500],
             "decided_at": datetime.now(timezone.utc).isoformat(),
+            "stage": "first_sign"
+            if new_status == _FIRST_SIGN_STATUS
+            else "final",
         },
     )
 
-    new_status = _DECISION_TO_STATUS[decision]
     await db_module._conn.execute(
         "UPDATE refund_requests "
         "SET status = %s, approval_chain = %s::jsonb, updated_at = NOW() "
@@ -264,6 +315,8 @@ async def submit_decision(
                     "decision": decision,
                     "status": new_status,
                     "decided_by_user_id": decided_by_user_id,
+                    "requires_dual_sign": requires_dual_sign,
+                    "awaiting_second_sign": new_status == _FIRST_SIGN_STATUS,
                 },
             },
         )

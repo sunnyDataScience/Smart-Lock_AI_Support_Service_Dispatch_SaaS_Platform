@@ -3356,7 +3356,16 @@ components:
     # --------- 退款申請（list/get） ---------
     RefundRequestStatus:
       type: string
-      enum: [pending, approved, rejected, escalated, executed, cancelled]
+      description: |
+        退款狀態機（含雙簽中介態 csm_approved）：
+        - pending: 待審核（首位人員可 approve / reject / escalate）
+        - csm_approved: 雙簽進行中（已第一簽，等候第二位不同 user 的 approve / reject）
+        - approved: 最終核准（含雙簽完成 + 不需雙簽的單次核准）
+        - rejected: 被拒絕（任何階段皆可）
+        - escalated: 已升級（pending 階段觸發）
+        - executed: 已執行退款（approved 後的後續會計動作）
+        - cancelled: 申請者撤回
+      enum: [pending, csm_approved, approved, rejected, escalated, executed, cancelled]
 
     RefundRequest:
       type: object

@@ -17,6 +17,7 @@ interface Props {
 
 const statusConfig: Record<RefundRequestStatus, { label: string; textColor: string; bgColor: string }> = {
   pending: { label: "待審核", textColor: "#92400E", bgColor: "#FEF3C7" },
+  csm_approved: { label: "等候第二簽", textColor: "#7C2D12", bgColor: "#FED7AA" },
   approved: { label: "已核准", textColor: "#065F46", bgColor: "#D1FAE5" },
   rejected: { label: "已拒絕", textColor: "#991B1B", bgColor: "#FEE2E2" },
   escalated: { label: "已升級", textColor: "#1E40AF", bgColor: "#DBEAFE" },
@@ -43,7 +44,11 @@ function formatTwd(amount: string): string {
 }
 
 function isUrgentStatus(status: RefundRequestStatus): boolean {
-  return status === "escalated" || status === "pending";
+  return (
+    status === "escalated" ||
+    status === "pending" ||
+    status === "csm_approved"
+  );
 }
 
 export default function RefundReviewTable({ items, loading, onDecide, pendingId }: Props) {
@@ -155,14 +160,21 @@ export default function RefundReviewTable({ items, loading, onDecide, pendingId 
                         ? "已拒絕"
                         : "已取消"}
                 </span>
-              ) : row.status === "pending" ? (
+              ) : row.status === "pending" || row.status === "csm_approved" ? (
                 <>
                   <button
                     onClick={() => onDecide?.(row, "approve")}
                     disabled={!onDecide || pendingId === row.id}
                     className="rounded-md bg-[var(--primary)] px-3 py-1 text-[11px] font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                    title={
+                      row.status === "csm_approved"
+                        ? "第二簽核准（必須是不同 user）"
+                        : row.requires_dual_sign
+                          ? "首次核准（之後須第二簽）"
+                          : "核准"
+                    }
                   >
-                    核准
+                    {row.status === "csm_approved" ? "第二簽" : "核准"}
                   </button>
                   <button
                     onClick={() => onDecide?.(row, "reject")}

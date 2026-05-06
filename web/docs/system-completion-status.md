@@ -3,16 +3,16 @@
 > 跨前端 / 後端 / Realtime / Workflow 的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 `report/v*.md` 細粒度紀錄同步。
 
-**最後更新：** 2026-05-06（inventory low-stock 背景偵測）
+**最後更新：** 2026-05-06（refund 雙簽流程）
 **對應分支：** `feat/api-media-upload`（pending merge to dev）
-**對應 reports：** v1.0.0 → v1.28.0
+**對應 reports：** v1.0.0 → v1.29.0
 
 ---
 
-## 總體：**約 93%**
+## 總體：**約 94%**
 
 ```
-███████████████████████████░░  93%
+████████████████████████████░  94%
 ```
 
 | Phase | 04-29 | 05-06 早 | **05-06 晚** | 變化 |
@@ -46,7 +46,7 @@
 | 4 個 subflow endpoints（T5–T8：scope-change/material-request/delay/door-check）| **100%** |
 | 5 個排班 endpoints（T10）+ admin 審核 3 個 | **100%** |
 | Dispute decision | **100%** |
-| Refund decision | **100%**（雙簽流程未做）|
+| Refund decision + 雙簽流程 | **100%**（v1.29.0）|
 | 認證（JWT、tenant、RBAC）| **100%** |
 | WebSocket server + ACL（JWT/tenant/RBAC）| **100%** |
 | **媒體上傳 endpoint**（upload/get/list-by-wo + list-by-dispute + media_files 表）| **100%** ✅ |
@@ -81,7 +81,7 @@
 | Flow 3 範圍變更 | **80%** | 客戶核准流程簡化 |
 | Flow 4 缺料 | **80%** | 調度員補料 UI |
 | Flow 5 延遲通知 | **85%** | LINE Push 實際路徑 |
-| Flow 6 退款雙簽 | **50%** | 雙簽流程 |
+| Flow 6 退款雙簽 | **100%** | csm_approved 中介態 + 同 user 不可雙簽 + WS 推送 |
 | Flow 7 爭議 | **100%** | 雙方證據上傳 + 縮圖瀏覽 + 仲裁決定全鏈路 |
 | Flow 8 二次派工 | **70%** | 連環銜接 |
 | Flow 9 客訴升級 | **75%** | SLA 自動觸發 |
@@ -113,6 +113,7 @@
 | ~~P1~~ | ~~Admin 工單詳情瀏覽 media 縮圖~~ | ✅ **完成 v1.26.0**（2026-05-06）|
 | ~~P1~~ | ~~Dispute evidence 上傳 UI~~ | ✅ **完成 v1.27.0**（2026-05-06）|
 | ~~P1~~ | ~~Inventory low-stock 背景偵測 job~~ | ✅ **完成 v1.28.0**（2026-05-06）|
+| ~~P1~~ | ~~Refund 雙簽流程~~ | ✅ **完成 v1.29.0**（2026-05-06）|
 | **P0** | 整合測試 / E2E（合約 1.2.7.3）| 1–2 週 |
 | **P0** | UAT（合約 1.2.8）| 計畫期程 |
 | P1 | Inventory low-stock 背景偵測 job | 半天 |

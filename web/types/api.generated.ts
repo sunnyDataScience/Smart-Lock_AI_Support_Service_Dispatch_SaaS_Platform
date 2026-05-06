@@ -1993,8 +1993,18 @@ export interface components {
             /** @description 折讓金額（百分比或金額，由業務語意自行解讀；僅 approve 時生效） */
             discount_offered?: string | null;
         };
-        /** @enum {string} */
-        RefundRequestStatus: "pending" | "approved" | "rejected" | "escalated" | "executed" | "cancelled";
+        /**
+         * @description 退款狀態機（含雙簽中介態 csm_approved）：
+         *     - pending: 待審核（首位人員可 approve / reject / escalate）
+         *     - csm_approved: 雙簽進行中（已第一簽，等候第二位不同 user 的 approve / reject）
+         *     - approved: 最終核准（含雙簽完成 + 不需雙簽的單次核准）
+         *     - rejected: 被拒絕（任何階段皆可）
+         *     - escalated: 已升級（pending 階段觸發）
+         *     - executed: 已執行退款（approved 後的後續會計動作）
+         *     - cancelled: 申請者撤回
+         * @enum {string}
+         */
+        RefundRequestStatus: "pending" | "csm_approved" | "approved" | "rejected" | "escalated" | "executed" | "cancelled";
         /** @description 退款申請（read-only；雙簽流程經 submitRefundDecision 推進） */
         RefundRequest: {
             /** Format: uuid */
