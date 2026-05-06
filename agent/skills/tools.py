@@ -25,6 +25,9 @@ _current_model: ContextVar[str | None] = ContextVar("current_model", default=Non
 _skill_loaded_this_run: ContextVar[bool] = ContextVar("skill_loaded_this_run", default=False)
 _transfer_called_this_run: ContextVar[bool] = ContextVar("transfer_called_this_run", default=False)
 _current_user_input: ContextVar[str] = ContextVar("current_user_input", default="")
+# RP1.D.3：標記本輪最後載入的 skill 名稱，供 Opik trace metadata 做 per-skill 成本分桶。
+# default=None 代表本輪尚未載入任何 skill；observability 觀測點可填 "no_skill" fallback。
+_current_skill: ContextVar[str | None] = ContextVar("current_skill", default=None)
 
 # 明確轉接意圖關鍵字（出現在用戶訊息中時允許跳過 load_skill 直接轉接）
 _TRANSFER_KEYWORDS = [
@@ -57,6 +60,35 @@ def reset_run_state() -> None:
     """重置每次 run_agent 的狀態（技能載入追蹤等）。"""
     _skill_loaded_this_run.set(False)
     _transfer_called_this_run.set(False)
+    # RP1.D.3：每輪重置 current_skill，避免上一輪殘留汙染本輪 Opik metadata
+    _current_skill.set(None)
+
+
+def get_current_skill() -> str | None:
+    """取得本輪最後載入的 skill 名稱（供 Opik metadata / audit 分桶用）。
+
+    None 代表本輪尚未呼叫 load_skill；observability 注入點可自行 fallback 為 "no_skill"。
+    """
+    return _current_skill.get()
+
+
+def _opik_tag_skill(skill_name: str) -> None:
+    """RP1.D.3：將 skill_name 寫入當前 Opik trace metadata，讓 dashboard 按 skill 分桶。
+
+    使用 opik_context.update_current_trace 而非依賴 ContextVar 是因為：
+    LangChain tool.invoke() 會 copy_context 隔離工具內的 ContextVar 變更，
+    outer 觀測點讀不到。Opik trace context 由 OpikTracer callback 建立，
+    在 tool 執行期間是活的，可以直接更新 trace 級 metadata。
+
+    失敗靜默忽略：Opik 未啟用 / 未在 trace context / SDK 異常都不應影響業務邏輯。
+    """
+    try:
+        from opik import opik_context
+
+        opik_context.update_current_trace(metadata={"current_skill": skill_name})
+    except Exception:
+        # Opik 可選；任何失敗都不應影響 load_skill 的正常回應
+        pass
 
 
 def was_transfer_called() -> bool:
@@ -130,6 +162,13 @@ def load_skill(skill_name: str) -> str:
                 )
             print(f"[skill] >>> 載入技能: {s.name}")
             _skill_loaded_this_run.set(True)
+            # RP1.D.3：標記本輪最後載入的 skill。
+            # ContextVar 供同 task 內 audit / observability 觀測點共讀；
+            # 注意 LangChain tool.invoke() 會 copy_context 隔離，故 outer ctx 看不到變更。
+            _current_skill.set(s.name)
+            # 同步寫入 Opik 當前 trace metadata，讓 dashboard 可按 skill 分桶看 token / cost。
+            # 失敗不影響工具回應（Opik 未啟用、未在 trace context 內等情境靜默 noop）。
+            _opik_tag_skill(s.name)
             return f"已載入技能: {s.name}\n\n{s.content}"
 
     # 前綴比對：找出所有以 skill_name 為前綴的品牌子技能

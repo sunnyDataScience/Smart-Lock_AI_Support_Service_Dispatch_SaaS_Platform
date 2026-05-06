@@ -25,7 +25,7 @@ import harness.memory_manager as memory_manager
 from harness.line_ui_factory import (
     build_line_messages, match_brand, match_model, get_brand_models, is_quick_reply_enabled,
 )
-from skills.tools import set_current_user_id, set_current_brand, get_current_brand, get_current_model, reset_run_state, set_current_user_input, was_transfer_called
+from skills.tools import set_current_user_id, set_current_brand, get_current_brand, get_current_model, reset_run_state, set_current_user_input, was_transfer_called, get_current_skill
 from agent import get_system_prompt
 import harness.profile_updater as profile_updater
 import harness.safety_gate as safety_gate
@@ -347,6 +347,10 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         if _opik_tracer:
             run_config["callbacks"] = [_opik_tracer]
         run_config.setdefault("metadata", {})["user_id"] = user_id
+        # RP1.D.3：本輪初始 current_skill（reset_run_state 已置為 None） →
+        # Opik trace metadata 帶 "no_skill"，待 load_skill 觸發後更新為實際 skill 名稱。
+        # invoke 結束後再次寫入 final skill 給 audit log（見下方 _audit_agent_result）。
+        run_config["metadata"]["current_skill"] = get_current_skill() or "no_skill"
 
         t0 = time.monotonic()
         pre_setup_s = t_pre_strip - t_phase_start
