@@ -1,15 +1,51 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Camera,
   CheckCircle2,
   Image as ImageIcon,
+  X,
 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import SubflowHeader from "@/components/tech/SubflowHeader";
 import { ApiError, api } from "@/lib/api";
+
+interface UploadedPhoto {
+  section: "before" | "after";
+  id: string;
+  url: string;
+  filename: string;
+}
+
+/** 縮圖元件：用 fetch + blob URL 處理 Bearer Token 認證下載 */
+function PhotoThumb({
+  photo,
+  onRemove,
+}: {
+  photo: UploadedPhoto;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="relative h-20 overflow-hidden rounded-md border border-[var(--border)]">
+      <span className="flex h-full w-full items-center justify-center bg-[#F1F5F9] text-[10px] text-[var(--text-secondary)]">
+        <ImageIcon className="mr-1 h-3 w-3" />
+        {photo.filename.length > 12
+          ? photo.filename.slice(0, 10) + "…"
+          : photo.filename}
+      </span>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="absolute right-[2px] top-[2px] flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black"
+        aria-label="移除"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </div>
+  );
+}
 
 const CHECKLIST = [
   { key: "frame_intact", label: "門框完整無變形" },
@@ -26,11 +62,14 @@ export default function DoorCheckPage() {
   const router = useRouter();
 
   const [checked, setChecked] = useState<Set<string>>(new Set());
-  const [photos, setPhotos] = useState<{ section: "before" | "after"; name: string }[]>([]);
+  const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
+  const [uploading, setUploading] = useState<"before" | "after" | null>(null);
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitOk, setSubmitOk] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const fileInputBeforeRef = useRef<HTMLInputElement>(null);
+  const fileInputAfterRef = useRef<HTMLInputElement>(null);
 
   function toggleCheck(key: string) {
     setChecked((prev) => {
@@ -41,14 +80,53 @@ export default function DoorCheckPage() {
     });
   }
 
-  function addPhoto(section: "before" | "after") {
-    setPhotos((prev) => [
-      ...prev,
-      {
-        section,
-        name: `${section}-${prev.filter((p) => p.section === section).length + 1}.jpg`,
-      },
-    ]);
+  async function handleFileChange(
+    section: "before" | "after",
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(section);
+    setSubmitError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append(
+        "purpose",
+        section === "before" ? "door_check_before" : "door_check_after",
+      );
+      fd.append("work_order_id", id);
+      const res = await api.upload<{
+        id: string;
+        url: string;
+        filename: string;
+      }>("/api/v1/media", fd);
+      setPhotos((prev) => [
+        ...prev,
+        {
+          section,
+          id: res.id,
+          url: res.url,
+          filename: res.filename,
+        },
+      ]);
+    } catch (err) {
+      setSubmitError(
+        err instanceof ApiError
+          ? `${err.errorCode} (${err.status})：${err.message}`
+          : err instanceof Error
+            ? err.message
+            : String(err),
+      );
+    } finally {
+      setUploading(null);
+      // 重置 input value 以便同一張圖片可以重新選
+      e.target.value = "";
+    }
+  }
+
+  function removePhoto(photoId: string) {
+    setPhotos((prev) => prev.filter((p) => p.id !== photoId));
   }
 
   const allChecked = checked.size === CHECKLIST.length;
@@ -74,10 +152,10 @@ export default function DoorCheckPage() {
           checklist: checklistObj,
           photos_before: photos
             .filter((p) => p.section === "before")
-            .map((p) => p.name),
+            .map((p) => p.url),
           photos_after: photos
             .filter((p) => p.section === "after")
-            .map((p) => p.name),
+            .map((p) => p.url),
           notes: notes.trim() || undefined,
         },
       );
@@ -112,9 +190,22 @@ export default function DoorCheckPage() {
           {submitError}
         </div>
       )}
-      <div className="mx-4 mt-4 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
-        備註：媒體上傳 endpoint 尚未上線，photos 欄位目前傳遞檔名字串 placeholder
-      </div>
+      <input
+        ref={fileInputBeforeRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => handleFileChange("before", e)}
+      />
+      <input
+        ref={fileInputAfterRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => handleFileChange("after", e)}
+      />
 
       <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
@@ -122,24 +213,23 @@ export default function DoorCheckPage() {
         </span>
         <button
           type="button"
-          onClick={() => addPhoto("before")}
-          className="flex h-24 items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[var(--border)] text-[13px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:bg-[#EFF6FF]"
+          onClick={() => fileInputBeforeRef.current?.click()}
+          disabled={uploading === "before"}
+          className="flex h-24 items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[var(--border)] text-[13px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:bg-[#EFF6FF] disabled:opacity-60"
         >
           <Camera className="h-5 w-5" />
-          拍照 / 選擇圖片
+          {uploading === "before" ? "上傳中…" : "拍照 / 選擇圖片"}
         </button>
         {photos.filter((p) => p.section === "before").length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
+          <div className="mt-2 grid grid-cols-3 gap-2">
             {photos
               .filter((p) => p.section === "before")
-              .map((p, i) => (
-                <span
-                  key={i}
-                  className="inline-flex items-center gap-1 rounded bg-[#F1F5F9] px-2 py-1 text-[11px] text-[var(--text-secondary)]"
-                >
-                  <ImageIcon className="h-3 w-3" />
-                  {p.name}
-                </span>
+              .map((p) => (
+                <PhotoThumb
+                  key={p.id}
+                  photo={p}
+                  onRemove={() => removePhoto(p.id)}
+                />
               ))}
           </div>
         )}
@@ -151,24 +241,23 @@ export default function DoorCheckPage() {
         </span>
         <button
           type="button"
-          onClick={() => addPhoto("after")}
-          className="flex h-24 items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[var(--border)] text-[13px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:bg-[#EFF6FF]"
+          onClick={() => fileInputAfterRef.current?.click()}
+          disabled={uploading === "after"}
+          className="flex h-24 items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[var(--border)] text-[13px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:bg-[#EFF6FF] disabled:opacity-60"
         >
           <Camera className="h-5 w-5" />
-          拍照 / 選擇圖片
+          {uploading === "after" ? "上傳中…" : "拍照 / 選擇圖片"}
         </button>
         {photos.filter((p) => p.section === "after").length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
+          <div className="mt-2 grid grid-cols-3 gap-2">
             {photos
               .filter((p) => p.section === "after")
-              .map((p, i) => (
-                <span
-                  key={i}
-                  className="inline-flex items-center gap-1 rounded bg-[#F1F5F9] px-2 py-1 text-[11px] text-[var(--text-secondary)]"
-                >
-                  <ImageIcon className="h-3 w-3" />
-                  {p.name}
-                </span>
+              .map((p) => (
+                <PhotoThumb
+                  key={p.id}
+                  photo={p}
+                  onRemove={() => removePhoto(p.id)}
+                />
               ))}
           </div>
         )}

@@ -3,26 +3,26 @@
 > 跨前端 / 後端 / Realtime / Workflow 的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 `report/v*.md` 細粒度紀錄同步。
 
-**最後更新：** 2026-05-06
-**對應分支：** `dev`（merged: feat/api-subflow-endpoints + fix/brand-switch-and-output-validation）
-**對應 reports：** v1.0.0 → v1.24.3
+**最後更新：** 2026-05-06（媒體上傳 endpoint）
+**對應分支：** `feat/api-media-upload`（pending merge to dev）
+**對應 reports：** v1.0.0 → v1.25.0
 
 ---
 
-## 總體：**約 88%**
+## 總體：**約 90%**
 
 ```
-█████████████████████████░░░░  88%
+██████████████████████████░░░  90%
 ```
 
-| Phase | 04-29 | **05-06** | 變化 |
-|:---|:---:|:---:|:---:|
-| Phase 5 V2.0 設計（W18–W19）| 85% | **97%** | +12% |
-| Phase 6 派工 MVP（W20–W24）| 50% | **92%** | +42%（師傅端 0→100%）|
-| Phase 7 會計+整合（W25–W29）| 70% | **85%** | +15%（即時通訊全打通）|
-| Phase 8 UAT 上線（W30–W31）| 0% | 0% | — |
+| Phase | 04-29 | 05-06 早 | **05-06 晚** | 變化 |
+|:---|:---:|:---:|:---:|:---:|
+| Phase 5 V2.0 設計（W18–W19）| 85% | 97% | **97%** | — |
+| Phase 6 派工 MVP（W20–W24）| 50% | 92% | **96%** | +4%（媒體上傳 + door-check 真實上傳）|
+| Phase 7 會計+整合（W25–W29）| 70% | 85% | **88%** | +3%（dispute evidence 路徑解鎖）|
+| Phase 8 UAT 上線（W30–W31）| 0% | 0% | 0% | — |
 
-> Phase 5–7 平均完成度：**約 91%**；含 Phase 8（未啟動）的 V2.0 上線總進度：**約 88%**。
+> Phase 5–7 平均完成度：**約 94%**；含 Phase 8（未啟動）的 V2.0 上線總進度：**約 90%**。
 
 ---
 
@@ -38,7 +38,7 @@
 
 ---
 
-## 2. 後端 API（103 REST + 9 WS）
+## 2. 後端 API（107 REST + 9 WS）
 
 | 模組 | 完成度 |
 |:---|:---:|
@@ -49,7 +49,7 @@
 | Refund decision | **100%**（雙簽流程未做）|
 | 認證（JWT、tenant、RBAC）| **100%** |
 | WebSocket server + ACL（JWT/tenant/RBAC）| **100%** |
-| 媒體上傳 endpoint | **0%** |
+| **媒體上傳 endpoint**（upload/get/list-by-wo + media_files 表）| **100%** ✅ |
 | Inventory low-stock 背景偵測 | **0%** |
 | SLA 引擎 | **0%** |
 
@@ -82,10 +82,10 @@
 | Flow 4 缺料 | **80%** | 調度員補料 UI |
 | Flow 5 延遲通知 | **85%** | LINE Push 實際路徑 |
 | Flow 6 退款雙簽 | **50%** | 雙簽流程 |
-| Flow 7 爭議 | **90%** | 證據上傳 |
+| Flow 7 爭議 | **95%** | 前端 dispute 證據上傳 UI（後端 endpoint 已備）|
 | Flow 8 二次派工 | **70%** | 連環銜接 |
 | Flow 9 客訴升級 | **75%** | SLA 自動觸發 |
-| Flow 10 門面檢核 | **80%** | 媒體上傳 |
+| Flow 10 門面檢核 | **95%** | T8 真實上傳已串接，剩 admin 端檢核照片瀏覽 |
 | Flow 11 客戶不在場 | **75%** | LINE Flex RSVP |
 | Flow 12–14 | **60–80%** | — |
 
@@ -104,13 +104,16 @@
 
 ---
 
-## 主要尚未完成（剩 ~12%）
+## 主要尚未完成（剩 ~10%）
 
 | 優先級 | 項目 | 工時 |
 |:---:|:---|:---|
-| **P0** | 媒體上傳 endpoint（dispute evidence + T8 photos + 完工照片）| 1 天 |
+| ~~**P0**~~ | ~~媒體上傳 endpoint~~ | ✅ **完成 v1.25.0**（2026-05-06）|
 | **P0** | 整合測試 / E2E（合約 1.2.7.3）| 1–2 週 |
 | **P0** | UAT（合約 1.2.8）| 計畫期程 |
+| P1 | 完工 photos 上傳 UI（前端 completion form）| 半天 |
+| P1 | Dispute evidence 上傳 UI（前端 admin disputes）| 半天 |
+| P1 | Admin 工單詳情瀏覽 media 縮圖 | 半天 |
 | P1 | Inventory low-stock 背景偵測 job | 半天 |
 | P1 | SLA 引擎（quote_expiring / dispatch_delay / response_overdue 自動推送）| 1 週 |
 | P1 | Refund 雙簽流程 | 半天 |

@@ -34,6 +34,7 @@ from routers import problem_cards as problem_cards_router
 from routers import work_orders as work_orders_router
 from routers import technicians as technicians_router
 from routers import admin_schedule as admin_schedule_router
+from routers import media as media_router
 from routers import dispatch_logs as dispatch_logs_router
 from routers import dispatch as dispatch_router
 from routers import settlements as settlements_router
@@ -105,6 +106,7 @@ app.include_router(problem_cards_router.router, prefix="/api/v1", tags=["custome
 app.include_router(work_orders_router.router, prefix="/api/v1", tags=["dispatch"])
 app.include_router(technicians_router.router, prefix="/api/v1", tags=["dispatch"])
 app.include_router(admin_schedule_router.router, prefix="/api/v1", tags=["dispatch"])
+app.include_router(media_router.router, prefix="/api/v1", tags=["media"])
 app.include_router(dispatch_logs_router.router, prefix="/api/v1", tags=["dispatch"])
 app.include_router(dispatch_router.router, prefix="/api/v1", tags=["dispatch"])
 app.include_router(settlements_router.router, prefix="/api/v1", tags=["accounting"])

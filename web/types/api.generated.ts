@@ -255,6 +255,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 上傳檔案（multipart）— 回傳 media_id 與 url */
+        post: operations["uploadMedia"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/media/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 下載媒體檔案（含 tenant 隔離） */
+        get: operations["getMedia"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/work-orders/{id}/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 列出該工單所有相關媒體（依用途與時間排序） */
+        get: operations["listMediaForWorkOrder"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/work-orders/pool": {
         parameters: {
             query?: never;
@@ -2268,6 +2319,24 @@ export interface components {
             technician_user_id: string;
             technician_name?: string | null;
         };
+        MediaFile: {
+            /** Format: uuid */
+            id: string;
+            /** @description 相對路徑 /api/v1/media/{id} */
+            url: string;
+            filename: string;
+            content_type: string;
+            size_bytes: number;
+            /** @enum {string} */
+            purpose: "door_check_before" | "door_check_after" | "completion_before" | "completion_after" | "dispute_evidence_customer" | "dispute_evidence_technician" | "other";
+            /** Format: uuid */
+            work_order_id?: string | null;
+            /** Format: uuid */
+            dispute_id?: string | null;
+            sha256?: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
         Customer: {
             /** Format: uuid */
             id: string;
@@ -3710,6 +3779,96 @@ export interface operations {
                 };
             };
             409: components["responses"]["Conflict"];
+        };
+    };
+    uploadMedia: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                    /** @enum {string} */
+                    purpose: "door_check_before" | "door_check_after" | "completion_before" | "completion_after" | "dispute_evidence_customer" | "dispute_evidence_technician" | "other";
+                    /** Format: uuid */
+                    work_order_id?: string | null;
+                    /** Format: uuid */
+                    dispute_id?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description 已上傳 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaFile"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getMedia: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 檔案內容（content-type 依 metadata） */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listMediaForWorkOrder: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items?: components["schemas"]["MediaFile"][];
+                    };
+                };
+            };
         };
     };
     listWorkOrderPool: {

@@ -498,6 +498,91 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
 
+  # ----- 媒體上傳（door check / completion / dispute evidence） -----
+  /api/v1/media:
+    post:
+      tags: [media]
+      summary: 上傳檔案（multipart）— 回傳 media_id 與 url
+      operationId: uploadMedia
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, purpose]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                purpose:
+                  type: string
+                  enum:
+                    - door_check_before
+                    - door_check_after
+                    - completion_before
+                    - completion_after
+                    - dispute_evidence_customer
+                    - dispute_evidence_technician
+                    - other
+                work_order_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                dispute_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+      responses:
+        '200':
+          description: 已上傳
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaFile'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/media/{id}:
+    get:
+      tags: [media]
+      summary: 下載媒體檔案（含 tenant 隔離）
+      operationId: getMedia
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: 檔案內容（content-type 依 metadata）
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/work-orders/{id}/media:
+    get:
+      tags: [media]
+      summary: 列出該工單所有相關媒體（依用途與時間排序）
+      operationId: listMediaForWorkOrder
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MediaFile'
+
   /api/v1/work-orders/pool:
     get:
       tags: [dispatch]
@@ -3749,6 +3834,35 @@ components:
           properties:
             technician_user_id: { type: string, format: uuid }
             technician_name: { type: [string, "null"] }
+
+    # --------- Media file（T8 photos / 完工照片 / dispute evidence） ---------
+    MediaFile:
+      type: object
+      required: [id, url, filename, content_type, size_bytes, purpose, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string, description: '相對路徑 /api/v1/media/{id}' }
+        filename: { type: string }
+        content_type: { type: string }
+        size_bytes: { type: integer }
+        purpose:
+          type: string
+          enum:
+            - door_check_before
+            - door_check_after
+            - completion_before
+            - completion_after
+            - dispute_evidence_customer
+            - dispute_evidence_technician
+            - other
+        work_order_id:
+          type: [string, "null"]
+          format: uuid
+        dispute_id:
+          type: [string, "null"]
+          format: uuid
+        sha256: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
 
     # --------- Customer（read-only 客戶主檔） ---------
     Customer:
