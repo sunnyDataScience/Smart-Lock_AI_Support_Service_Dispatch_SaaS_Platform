@@ -139,15 +139,54 @@ cd agent && uvicorn app:app --reload --port 8000
 
 ## 除錯與資料工具（tests/tools/）
 
+從**專案根目錄**執行（腳本內已自行把 `agent/` 加入 `sys.path`）。
+6 支 Python 工具皆有 `#!/usr/bin/env python3` shebang 且為可執行：
+
+| 平台 | 推薦寫法 | 備註 |
+| :--- | :--- | :--- |
+| Linux / macOS | `./tests/tools/view_facts.py` | 透過 shebang 直接執行 |
+| Linux + pyenv | `python3 tests/tools/view_facts.py` | 避開 `python` shim 攔截 |
+| Windows (cmd / PowerShell) | `python tests\tools\view_facts.py` | 或 `py tests\tools\view_facts.py` |
+| Windows (Git Bash / WSL) | `./tests/tools/view_facts.py` | 同 Linux |
+
 ```bash
-# 從專案根目錄執行（腳本內已自行把 agent/ 加入 sys.path）
-python tests/tools/view_context.py <user_id>      # 看 checkpoint 對話狀態
-python tests/tools/view_facts.py [--user <id>]    # 看 user_facts (SCD2)
-python tests/tools/view_logs.py [N]               # 看 audit logs
-python tests/tools/view_corrections.py [--all|--export|--clear]
-python tests/tools/clean_data.py [--pg|--sqlite|--profile]
-python tests/tools/simulate_e2e.py                # debounce / Quick Reply / 多模態 模擬
+./tests/tools/view_context.py <user_id>      # 看 checkpoint 對話狀態
+./tests/tools/view_facts.py [--user <id>]    # 看 user_facts (SCD2)
+./tests/tools/view_logs.py [N]               # 看 audit logs
+./tests/tools/view_corrections.py [--all|--export|--clear]
+./tests/tools/clean_data.py [--pg|--sqlite|--profile]
+./tests/tools/simulate_e2e.py                # debounce / Quick Reply / 多模態 模擬
 ```
+
+---
+
+## 跨平台注意事項
+
+### Bash 腳本（`scripts/**/*.sh`、`tests/smoke/*.sh`）
+
+| 平台 | 支援度 | 說明 |
+| :--- | :--- | :--- |
+| Linux | ✅ 原生 | 無前置 |
+| macOS | ✅ 原生 | bash 3.2 即可（避免使用 bash 4+ 專屬語法） |
+| Windows + WSL2 | ✅ | 把專案放在 WSL filesystem，避免 `/mnt/c` 慢碟 |
+| Windows + Git Bash | ✅ 大致可 | 注意 ngrok / docker 行為差異 |
+| Windows 原生 cmd / PowerShell | ❌ | 不支援，請改用 WSL 或 Git Bash |
+
+### Python 工具（`tests/tools/**/*.py`）
+
+依靠 `#!/usr/bin/env python3` shebang，需 `python3` 在 `PATH` 中。
+特殊情況：
+
+- **Linux + pyenv**：`pyenv` 預設只設 `python3`，`python` 會被 shim 攔截
+  → 用 `python3 tests/tools/X.py` 或在 pyenv 全域版本啟用 `python` 別名
+- **macOS 14+**：系統 Python 可能只剩 `python3`，與 Linux + pyenv 同
+- **Windows**：建議裝 [Python launcher (`py`)](https://docs.python.org/3/using/windows.html#python-launcher-for-windows)
+  → `py tests\tools\X.py` 自動解析最新 3.x
+
+### 路徑分隔符
+
+文件示例皆用 Unix 格式 `tests/tools/X.py`。Windows cmd / PowerShell 改成
+`tests\tools\X.py` 即可（Git Bash / WSL 沿用 Unix 寫法）。
 
 ---
 

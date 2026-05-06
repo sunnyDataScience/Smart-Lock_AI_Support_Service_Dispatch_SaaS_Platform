@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """查看 user_facts 表中的使用者硬事實記錄。
 
 用法：

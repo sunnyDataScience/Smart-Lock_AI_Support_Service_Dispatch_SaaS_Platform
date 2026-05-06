@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Smart Lock AI Agent - 專業級 E2E 模擬測試工具
 支援多場景模擬：Debounce, Quick Reply, 多模態, 上下文記憶, 安全閘門。

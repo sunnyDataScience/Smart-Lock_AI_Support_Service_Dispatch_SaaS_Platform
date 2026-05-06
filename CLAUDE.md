@@ -46,12 +46,16 @@ python data/pipeline/silver_to_skill/approve_drafts.py --dry-run
 python data/pipeline/silver_to_skill/approve_drafts.py --confirm
 
 # Debugging scripts (run from project root — tools auto-add agent/ to sys.path)
-python tests/tools/view_context.py <user_id>   # Inspect checkpoint state
-python tests/tools/view_facts.py <user_id>     # Inspect user facts (brand, model, phone, address)
-python tests/tools/view_logs.py                 # Query audit logs
-python tests/tools/view_corrections.py          # View #資料修正 records (--all / --export / --clear)
-python tests/tools/clean_data.py                # DB cleanup
-python tests/tools/simulate_e2e.py              # E2E simulation (debounce / Quick Reply / multimodal)
+# Cross-platform invocation:
+#   Linux/macOS  : ./tests/tools/view_facts.py     (shebang: #!/usr/bin/env python3)
+#   pyenv users  : python3 tests/tools/view_facts.py    (avoid `python` shim)
+#   Windows      : python tests\tools\view_facts.py     OR  py tests\tools\view_facts.py
+./tests/tools/view_context.py <user_id>   # Inspect checkpoint state
+./tests/tools/view_facts.py <user_id>     # Inspect user facts (brand, model, phone, address)
+./tests/tools/view_logs.py                 # Query audit logs
+./tests/tools/view_corrections.py          # View #資料修正 records (--all / --export / --clear)
+./tests/tools/clean_data.py                # DB cleanup
+./tests/tools/simulate_e2e.py              # E2E simulation (debounce / Quick Reply / multimodal)
 
 # Local dev environment (Docker DB + ngrok + uvicorn)
 ./scripts/dev/dev-up.sh                  # Start everything

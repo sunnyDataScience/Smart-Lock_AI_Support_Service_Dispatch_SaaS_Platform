@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """查看 data_corrections 表中使用者提出的資料修正紀錄。
 
 用法：

@@ -6,6 +6,14 @@
 
 set -euo pipefail
 
+# CLI 參數處理
+for arg in "$@"; do
+  case "$arg" in
+    -h|--help) sed -n '2,6p' "$0"; exit 0 ;;
+    *) echo "[proxy] 未知參數: $arg"; echo "  用 -h 看說明"; exit 1 ;;
+  esac
+done
+
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PID_FILE="$PROJECT_ROOT/.dev-logs/cloud-sql-proxy.pid"
 

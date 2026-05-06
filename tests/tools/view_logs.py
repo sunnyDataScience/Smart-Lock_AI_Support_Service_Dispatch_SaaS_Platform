@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """查看 audit_log 表中的對話紀錄。
 
 用法：

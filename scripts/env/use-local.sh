@@ -8,6 +8,14 @@
 
 set -euo pipefail
 
+# CLI 參數處理
+for arg in "$@"; do
+  case "$arg" in
+    -h|--help) sed -n '2,8p' "$0"; exit 0 ;;
+    *) echo "[use-local] 未知參數: $arg"; echo "  用 -h 看說明"; exit 1 ;;
+  esac
+done
+
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 LOCAL_ENV="$PROJECT_ROOT/.env.local"
 TARGET_ENV="$PROJECT_ROOT/.env"

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """CLI 工具：從 checkpointer 撈出完整 messages 上下文，輸出為 .md 檔。
 
 用法：
