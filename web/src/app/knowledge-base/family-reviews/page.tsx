@@ -175,7 +175,7 @@ export default function FamilyReviewsPage() {
           </div>
         )}
 
-        <div className="flex flex-1 flex-col gap-6 overflow-auto px-8 py-6">
+        <div className="flex flex-1 flex-col gap-6 overflow-auto pl-14 pr-4 py-6 md:px-8">
           {/* Pending Section */}
           <section className="flex flex-col gap-3">
             <h2 className="text-base font-semibold text-[var(--text-primary)]">

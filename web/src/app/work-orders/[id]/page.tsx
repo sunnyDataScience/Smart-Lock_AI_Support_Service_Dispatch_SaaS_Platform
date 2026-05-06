@@ -1004,7 +1004,7 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
       <div className="flex flex-1 overflow-hidden">
         <div className="flex flex-1 flex-col overflow-auto">
           {/* Detail Header */}
-          <div className="flex flex-col gap-4 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-5">
+          <div className="flex flex-col gap-4 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-5">
             <span className="text-[11px] text-[var(--text-secondary)]">
               首頁 &gt; 工單管理 &gt; 工單列表 &gt; {shortId}
             </span>

@@ -142,7 +142,7 @@ export default function TechnicianRankingPage() {
       <Sidebar />
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex flex-1 flex-col gap-6 overflow-auto px-8 py-6">
+        <div className="flex flex-1 flex-col gap-6 overflow-auto pl-14 pr-4 py-6 md:px-8">
           <div className="flex flex-col gap-2">
             <span className="text-[13px] text-[var(--text-secondary)]">
               首頁 &gt; 報表 &gt; 技師排行

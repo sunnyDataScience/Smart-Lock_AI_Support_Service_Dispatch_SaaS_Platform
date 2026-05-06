@@ -216,7 +216,7 @@ export default function VouchersPage() {
         )}
 
         {/* Filter Toolbar */}
-        <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-3">
+        <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-3">
           <Calendar className="h-4 w-4 text-[var(--text-secondary)]" />
           <div className="flex items-center gap-2">
             <input

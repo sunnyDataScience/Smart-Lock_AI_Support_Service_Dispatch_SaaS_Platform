@@ -170,7 +170,7 @@ export default function InvoicesPage() {
         </div>
 
         {/* Filter Toolbar */}
-        <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-3">
+        <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-3">
           {/* Search */}
           <div
             className="flex h-[38px] w-[320px] items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60"

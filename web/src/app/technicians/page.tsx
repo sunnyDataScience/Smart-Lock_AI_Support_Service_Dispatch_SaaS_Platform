@@ -60,7 +60,7 @@ export default function TechniciansPage() {
 
       <div className="flex flex-1 flex-col">
         {/* Page Header */}
-        <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-5">
+        <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-5">
           <div className="flex items-center gap-3">
             <Wrench className="h-6 w-6 text-[var(--primary)]" />
             <div className="flex flex-col gap-[2px]">
@@ -86,7 +86,7 @@ export default function TechniciansPage() {
         </div>
 
         {/* Filter Toolbar */}
-        <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-3">
+        <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-3">
           {/* Search disabled */}
           <div className="flex h-[38px] w-[280px] items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60">
             <Search className="h-4 w-4 text-[var(--text-disabled)]" />

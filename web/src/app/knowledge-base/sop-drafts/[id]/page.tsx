@@ -163,7 +163,7 @@ export default function SopReviewPage({
 
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Review Header */}
-        <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-4">
+        <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-4">
           <div className="flex items-center gap-4">
             <Link
               href="/knowledge-base/sop-drafts"

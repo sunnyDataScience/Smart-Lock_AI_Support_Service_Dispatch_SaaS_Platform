@@ -54,7 +54,7 @@ export default function ProblemCardsPage() {
       <Sidebar />
 
       <div className="flex flex-1 flex-col">
-        <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-5">
+        <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-5">
           <div className="flex flex-col gap-1">
             <span className="text-[13px] text-[var(--text-secondary)]">
               首頁 &gt; 問題卡片
@@ -75,7 +75,7 @@ export default function ProblemCardsPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-4">
+        <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-4">
           {filters.map((label) => (
             <button
               key={label}

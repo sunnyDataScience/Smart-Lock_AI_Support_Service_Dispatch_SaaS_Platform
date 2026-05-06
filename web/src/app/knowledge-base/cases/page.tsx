@@ -221,7 +221,7 @@ export default function CasesPage() {
       <Sidebar />
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex flex-col gap-4 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 pt-5">
+        <div className="flex flex-col gap-4 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 pt-5">
           <span className="text-[13px] text-[var(--text-secondary)]">
             首頁 &gt; 知識庫 &gt; 案例庫
           </span>
@@ -250,7 +250,7 @@ export default function CasesPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-4">
+        <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-4">
           <div className="flex flex-1 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 focus-within:border-[var(--primary)]">
             <Search className="h-[18px] w-[18px] text-[var(--text-secondary)]" />
             <input

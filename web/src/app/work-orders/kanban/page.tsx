@@ -69,7 +69,7 @@ export default function WorkOrdersKanbanPage() {
       <Sidebar />
 
       <div className="flex flex-1 flex-col">
-        <div className="flex flex-col gap-1 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-4">
+        <div className="flex flex-col gap-1 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-4">
           <span className="text-[13px] text-[var(--text-secondary)]">
             首頁 &gt; 工單管理 &gt; 派工板
           </span>
@@ -89,7 +89,7 @@ export default function WorkOrdersKanbanPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-3">
+        <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-3">
           <div className="flex h-9 w-[280px] items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60">
             <Search className="h-4 w-4 text-[var(--text-disabled)]" />
             <input

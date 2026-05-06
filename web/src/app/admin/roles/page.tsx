@@ -113,7 +113,7 @@ export default function RolesPage() {
       <Sidebar />
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex flex-1 flex-col gap-5 overflow-auto px-8 py-6">
+        <div className="flex flex-1 flex-col gap-5 overflow-auto pl-14 pr-4 py-6 md:px-8">
           {/* Header */}
           <div className="flex items-center justify-between">
             <h1 className="text-[22px] font-bold text-[var(--text-primary)]">

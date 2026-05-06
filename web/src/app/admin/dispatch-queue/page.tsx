@@ -123,7 +123,7 @@ export default function DispatchQueuePage() {
       <Sidebar />
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex flex-col gap-6 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-5">
+        <div className="flex flex-col gap-6 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-5">
           <div className="flex items-center justify-between">
             <div className="flex flex-col gap-1">
               <span className="text-[13px] text-[var(--text-secondary)]">
@@ -212,7 +212,7 @@ export default function DispatchQueuePage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-3">
+        <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-3">
           <div className="flex flex-1 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60">
             <Search className="h-[18px] w-[18px] text-[var(--text-disabled)]" />
             <input

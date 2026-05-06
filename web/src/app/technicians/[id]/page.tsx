@@ -308,7 +308,7 @@ export default function TechnicianDetailPage({ params }: PageProps) {
       <div className="flex flex-1 overflow-hidden">
         <div className="flex flex-1 flex-col overflow-y-auto">
           {/* Header */}
-          <div className="flex flex-col gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-4">
+          <div className="flex flex-col gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-4">
             <div className="flex items-center gap-[6px]">
               <Link href="/technicians" className="text-[13px] text-[var(--primary)] hover:underline">
                 技師管理

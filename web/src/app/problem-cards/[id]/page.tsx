@@ -269,7 +269,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
       <Sidebar />
 
       <div className="flex flex-1 flex-col">
-        <div className="flex flex-col gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-5">
+        <div className="flex flex-col gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-5">
           <Link
             href="/problem-cards"
             className="text-[14px] font-medium text-[#2563EB]"

@@ -105,7 +105,7 @@ export default function KpiDashboardPage() {
       <Sidebar />
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex flex-1 flex-col gap-6 overflow-auto px-8 py-6">
+        <div className="flex flex-1 flex-col gap-6 overflow-auto pl-14 pr-4 py-6 md:px-8">
           {/* Page Header */}
           <div className="flex flex-col gap-1">
             <span className="text-[13px] text-[var(--text-secondary)]">

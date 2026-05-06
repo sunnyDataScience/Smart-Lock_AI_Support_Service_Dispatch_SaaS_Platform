@@ -110,7 +110,7 @@ export default function ManualsPage() {
 
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Page Header */}
-        <div className="flex flex-col gap-4 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 pt-5">
+        <div className="flex flex-col gap-4 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 pt-5">
           <span className="text-[13px] text-[var(--text-secondary)]">
             首頁 &gt; 知識庫 &gt; 產品手冊
           </span>
@@ -141,7 +141,7 @@ export default function ManualsPage() {
         </div>
 
         {/* Filter row */}
-        <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-4">
+        <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-4">
           <select
             value={brand}
             onChange={(e) => setBrand(e.target.value)}
@@ -166,7 +166,7 @@ export default function ManualsPage() {
         </div>
 
         {/* Body */}
-        <div className="flex flex-1 flex-col gap-6 overflow-auto px-8 py-6">
+        <div className="flex flex-1 flex-col gap-6 overflow-auto pl-14 pr-4 py-6 md:px-8">
           {error && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}

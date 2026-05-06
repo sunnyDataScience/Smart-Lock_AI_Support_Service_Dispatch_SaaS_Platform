@@ -158,7 +158,7 @@ export default function RefundReviewPage() {
       <Sidebar />
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex flex-1 flex-col gap-5 overflow-auto px-8 py-6">
+        <div className="flex flex-1 flex-col gap-5 overflow-auto pl-14 pr-4 py-6 md:px-8">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-[var(--text-primary)]">
               退款審核佇列

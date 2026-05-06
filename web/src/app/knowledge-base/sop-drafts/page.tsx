@@ -73,7 +73,7 @@ export default function SopDraftsPage() {
 
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Page Header */}
-        <div className="flex flex-col gap-4 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 pt-5">
+        <div className="flex flex-col gap-4 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 pt-5">
           <span className="text-[13px] text-[var(--text-secondary)]">
             首頁 &gt; 知識庫 &gt; SOP 草稿
           </span>
