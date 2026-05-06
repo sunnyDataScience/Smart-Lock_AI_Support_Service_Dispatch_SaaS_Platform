@@ -551,18 +551,19 @@ agent/services/
 
 ---
 
-### 4.10 scripts/ -- Admin CLI Utilities
+### 4.10 tests/tools/ -- 除錯與資料檢視工具
+
+> 已從 `agent/scripts/` 移至專案根目錄 `tests/tools/`，從專案根目錄執行
+> 即可（不需 `cd agent`）。Python 腳本內已自行把 `agent/` 加入 `sys.path`。
 
 ```plaintext
-agent/scripts/
-├── test_build.py                       # Verify graph build integrity
-├── seed_db.py                          # Initialize / rebuild knowledge base
-├── view_logs.py                        # View audit logs
-├── view_context.py                     # View conversation context
-├── view_facts.py                       # View user hard_facts
-├── debug_db.py                         # Database debugging tool
-├── clean_data.py                       # Clean temp data
-└── mock_api.py                         # Mock API server (testing)
+tests/tools/
+├── view_logs.py                        # 審計日誌查詢
+├── view_context.py                     # checkpointer 對話狀態檢視
+├── view_facts.py                       # user_facts 表（SCD Type 2）
+├── view_corrections.py                 # #資料修正 紀錄
+├── clean_data.py                       # DB 清理（測試重置）
+└── simulate_e2e.py                     # E2E 模擬（debounce / Quick Reply / 多模態）
 ```
 
 ---

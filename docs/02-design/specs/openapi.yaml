@@ -18,7 +18,7 @@ info:
     - 後端 FastAPI 應 `assert app.openapi() == load(openapi.yaml)`（或以此生成 Pydantic）
     - 前端以 `openapi-typescript` 產生 `docs/02-design/specs/generated/api.generated.ts`
     - CI 以 `spectral lint` 把關、`schemathesis` 做契約測試
-    - 本機 mock：`./scripts/mock-server.sh` 啟動 Prism on port 4010
+    - 本機 mock：`./scripts/ci/mock-server.sh` 啟動 Prism on port 4010
 
     **狀態：** SSOT — 已對齊 E5--api-design-specification.md v1.1 全部 V1.0 端點。
   contact:

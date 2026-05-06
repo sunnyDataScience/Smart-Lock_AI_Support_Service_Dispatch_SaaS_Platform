@@ -45,24 +45,44 @@ cd agent && python -m quality.quality_check --retry-failed # Retest non-pass cas
 python data/pipeline/silver_to_skill/approve_drafts.py --dry-run
 python data/pipeline/silver_to_skill/approve_drafts.py --confirm
 
-# Debugging scripts (run from agent/)
-cd agent && python scripts/view_context.py <user_id>   # Inspect checkpoint state
-cd agent && python scripts/view_facts.py <user_id>     # Inspect user facts (brand, model, phone, address)
-cd agent && python scripts/view_logs.py                 # Query audit logs
-cd agent && python scripts/view_corrections.py          # View #資料修正 records (--all / --export / --clear)
-cd agent && python scripts/clean_data.py                # DB cleanup
+# Debugging scripts (run from project root — tools auto-add agent/ to sys.path)
+python tests/tools/view_context.py <user_id>   # Inspect checkpoint state
+python tests/tools/view_facts.py <user_id>     # Inspect user facts (brand, model, phone, address)
+python tests/tools/view_logs.py                 # Query audit logs
+python tests/tools/view_corrections.py          # View #資料修正 records (--all / --export / --clear)
+python tests/tools/clean_data.py                # DB cleanup
+python tests/tools/simulate_e2e.py              # E2E simulation (debounce / Quick Reply / multimodal)
+
+# Local dev environment (Docker DB + ngrok + uvicorn)
+./scripts/dev/dev-up.sh                  # Start everything
+./scripts/dev/dev-down.sh                # Tear down (DB container preserved)
+
+# Switch DB target (.env management)
+./scripts/env/use-local.sh               # → .env.local (本機 docker)
+./scripts/env/use-gcp.sh                 # → .env.gcp (GCP Cloud SQL via proxy)
+./scripts/env/use-gcp.sh --fetch         # Refresh .env.gcp from Secret Manager
+./scripts/dev/proxy-up.sh                # Start cloud-sql-proxy (for GCP mode)
+./scripts/dev/proxy-down.sh              # Stop cloud-sql-proxy
+
+# API smoke test (after uvicorn is up)
+ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=changeme123 ./tests/smoke/api.sh
 
 # API contract tooling (run from project root)
-./scripts/generate-api-types.sh            # Generate TypeScript types from OpenAPI
-./scripts/mock-server.sh                   # Start Prism mock server on port 4010
-./scripts/check-operationid-orphans.sh     # Validate spec ↔ docs bidirectionality
+./scripts/ci/generate-api-types.sh            # Generate TypeScript types from OpenAPI
+./scripts/ci/mock-server.sh                   # Start Prism mock server on port 4010
+./scripts/ci/check-operationid-orphans.sh     # Validate spec ↔ docs bidirectionality
 
 # Deployment (Cloud Run)
-chmod +x agent/scripts/deploy.sh
-./agent/scripts/deploy.sh                # Full: pre-flight → build → push → deploy → health check
-./agent/scripts/deploy.sh --build-only   # Docker image only
-./agent/scripts/deploy.sh --deploy-only  # Deploy existing image
-./agent/scripts/deploy.sh --update-db-uri # Rebuild POSTGRES_URI from DB_PASSWORD (auto URL encode)
+# Deploy LINE Bot agent
+./scripts/deploy/agent.sh                # Full: pre-flight → build → push → deploy → health check
+./scripts/deploy/agent.sh --build-only   # Docker image only
+./scripts/deploy/agent.sh --deploy-only  # Deploy existing image
+./scripts/deploy/agent.sh --update-db-uri # Rebuild POSTGRES_URI from DB_PASSWORD (auto URL encode)
+
+# Deploy FastAPI backend
+./scripts/deploy/api.sh                  # Full deploy
+./scripts/deploy/api.sh --build-only
+./scripts/deploy/api.sh --deploy-only
 ```
 
 No automated unit test suite exists. Testing is via `quality_check` (LLM-as-Judge), CLI (`python main.py`), or the `/chat` endpoint.
@@ -232,7 +252,7 @@ All config centralized in `agent/config.toml`. Key sections: `[system]` (domain,
 ### Deployment
 
 - **Dockerfile** at `agent/Dockerfile` — Python 3.11-slim, uvicorn on port 8080
-- **Cloud Run** deployment via `agent/scripts/deploy.sh` — pre-flight checks, builds amd64 image with `{git-sha}-{timestamp}` tag (supports rollback), pushes to Artifact Registry, deploys with Secret Manager + Cloud SQL Unix socket, health check with retry
+- **Cloud Run** deployment via `scripts/deploy/agent.sh` — pre-flight checks, builds amd64 image with `{git-sha}-{timestamp}` tag (supports rollback), pushes to Artifact Registry, deploys with Secret Manager + Cloud SQL Unix socket, health check with retry
 - **DB URI management**: `deploy.sh --update-db-uri` reads `DB_PASSWORD` from Secret Manager, auto URL-encodes, constructs `POSTGRES_URI` with round-trip validation. Never manually construct POSTGRES_URI.
 - Secrets managed via GCP Secret Manager: `LINE_CHANNEL_SECRET`, `LINE_CHANNEL_ACCESS_TOKEN`, `DB_PASSWORD`, `POSTGRES_URI`, `OPIK_API_KEY`, `OPIK_WORKSPACE`
 - **Health endpoint** (`/health`): checks facts_db + audit_db connectivity. Returns 200 (ok) or 503 (degraded) with `checks` detail.
@@ -305,13 +325,13 @@ Machine-readable API contracts as single source of truth for frontend developmen
 npx @stoplight/spectral-cli lint docs/02-design/specs/openapi.yaml
 
 # Generate TypeScript types
-./scripts/generate-api-types.sh
+./scripts/ci/generate-api-types.sh
 
 # Start mock server (Prism on port 4010)
-./scripts/mock-server.sh
+./scripts/ci/mock-server.sh
 
 # Validate operationId bidirectionality (specs ↔ docs)
-./scripts/check-operationid-orphans.sh
+./scripts/ci/check-operationid-orphans.sh
 ```
 
 CI workflows (`.github/workflows/`): `spec-lint.yml`, `api-types-sync.yml`, `orphan-check.yml`, `mock-smoke.yml` — all gate on spec file changes.

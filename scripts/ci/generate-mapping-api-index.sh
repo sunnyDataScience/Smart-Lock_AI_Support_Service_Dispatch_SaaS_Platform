@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 #
-# generate-mapping-api-index.sh
+# scripts/ci/generate-mapping-api-index.sh
 # --------------------------------
 # 從 page spec [PAGE META] 的 openapi_ops / asyncapi_ops 宣告，
 # 自動產出 MAPPING.md §7.1 + §8.1 的 AUTO-GEN 區塊。
 #
 # Usage:
-#   ./scripts/generate-mapping-api-index.sh           # 更新 MAPPING.md
-#   ./scripts/generate-mapping-api-index.sh --check   # 檢查是否同步（CI 用）
+#   ./scripts/ci/generate-mapping-api-index.sh           # 更新 MAPPING.md
+#   ./scripts/ci/generate-mapping-api-index.sh --check   # 檢查是否同步（CI 用）
 
 set -uo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
 PAGES_DIR="web_design_spec_prompt_pipeline/pages"
@@ -118,7 +118,7 @@ if [[ $CHECK_MODE -eq 1 ]]; then
     echo "OK: MAPPING.md §8.1 in sync"
     exit 0
   else
-    echo "FAIL: MAPPING.md §8.1 out of sync. Run: ./scripts/generate-mapping-api-index.sh"
+    echo "FAIL: MAPPING.md §8.1 out of sync. Run: ./scripts/ci/generate-mapping-api-index.sh"
     exit 1
   fi
 else

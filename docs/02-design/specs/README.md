@@ -55,7 +55,7 @@ docker run --rm -v "$PWD":/work -w /work \
 
 ```bash
 # 方式 1：npx（Node 18+）
-./scripts/mock-server.sh
+./scripts/ci/mock-server.sh
 # 或直接 npx
 npx --yes @stoplight/prism-cli mock docs/02-design/specs/openapi.yaml --port 4010
 
@@ -68,8 +68,8 @@ docker compose -f docker-compose.mock.yml down
 ## 生成前端 TypeScript 型別
 
 ```bash
-./scripts/generate-api-types.sh           # 生成到 docs/02-design/specs/generated/api.generated.ts
-./scripts/generate-api-types.sh --check   # CI 驗證是否同步（不改檔）
+./scripts/ci/generate-api-types.sh           # 生成到 docs/02-design/specs/generated/api.generated.ts
+./scripts/ci/generate-api-types.sh --check   # CI 驗證是否同步（不改檔）
 ```
 
 **輸出位置自動決定：** 若 `web/lib/` 存在 → `web/lib/types/api.generated.ts`；否則 `docs/02-design/specs/generated/`。
@@ -77,9 +77,9 @@ docker compose -f docker-compose.mock.yml down
 ## 檢查 operationId 雙向對應
 
 ```bash
-./scripts/check-operationid-orphans.sh            # 報告（非 strict，視 pending 為 TODO）
-./scripts/check-operationid-orphans.sh --strict   # Week 5+ 啟用，pending 轉為 error
-./scripts/check-operationid-orphans.sh --quiet    # CI 簡潔輸出
+./scripts/ci/check-operationid-orphans.sh            # 報告（非 strict，視 pending 為 TODO）
+./scripts/ci/check-operationid-orphans.sh --strict   # Week 5+ 啟用，pending 轉為 error
+./scripts/ci/check-operationid-orphans.sh --quiet    # CI 簡潔輸出
 ```
 
 ---
