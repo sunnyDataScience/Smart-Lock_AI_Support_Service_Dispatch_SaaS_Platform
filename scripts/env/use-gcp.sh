@@ -74,7 +74,9 @@ print(f'postgresql://{user_pass}@127.0.0.1:5432/{db}')
 
   echo "[use-gcp] 寫入 .env.gcp（透過 proxy 走 127.0.0.1:5432） ..."
   if [[ -f "$GCP_ENV" ]]; then
-    cp "$GCP_ENV" "$GCP_ENV.bak.$(date +%Y%m%d-%H%M%S)"
+    # 只保留單一 .env.gcp.bak（覆蓋上次），避免累積含 secret 的歷史備份
+    cp "$GCP_ENV" "$GCP_ENV.bak"
+    chmod 600 "$GCP_ENV.bak"
   fi
 
   if [[ ! -f "$GCP_TEMPLATE" ]]; then
@@ -98,10 +100,11 @@ if [[ ! -f "$GCP_ENV" ]]; then
   exit 1
 fi
 
-# 備份目前 .env
+# 備份目前 .env（只保留單一 .env.bak，覆蓋上次）
 if [[ -f "$TARGET_ENV" ]] && ! cmp -s "$GCP_ENV" "$TARGET_ENV"; then
-  cp "$TARGET_ENV" "$TARGET_ENV.bak.$(date +%Y%m%d-%H%M%S)"
-  echo "[use-gcp] 已備份原 .env 為 .env.bak.*"
+  cp "$TARGET_ENV" "$TARGET_ENV.bak"
+  chmod 600 "$TARGET_ENV.bak"
+  echo "[use-gcp] 已備份原 .env 為 .env.bak（覆蓋上次）"
 fi
 
 cp "$GCP_ENV" "$TARGET_ENV"
