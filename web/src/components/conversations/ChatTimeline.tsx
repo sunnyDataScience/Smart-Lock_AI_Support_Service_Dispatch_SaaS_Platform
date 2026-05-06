@@ -13,10 +13,18 @@ function CustomerMessage({ msg }: { msg: Message }) {
         <div className="max-w-[522px] rounded-[16px_4px_16px_16px] bg-[var(--primary)] px-4 py-3 text-white">
           {msg.media_url && (
             <div className="mb-2">
+              {/*
+                媒體 URL 為 LINE / GCS 動態簽名 URL，尺寸不固定，
+                不適合 next/image（會浪費 image optimization service quota）。
+                用原生 img + lazy load + async decode：免阻塞主執行緒、
+                可視範圍外不下載。
+              */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={msg.media_url}
                 alt="使用者上傳的媒體"
+                loading="lazy"
+                decoding="async"
                 className="max-h-[240px] rounded-md"
               />
             </div>
