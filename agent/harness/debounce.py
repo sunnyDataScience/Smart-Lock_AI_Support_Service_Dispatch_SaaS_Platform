@@ -761,6 +761,21 @@ async def _quick_reply_intercept(
             return True
 
     # ── 狀態 B：無暫存訊息 → 首次發問，檢查是否需要啟動 quick reply 流程 ──
+    # B0：先從原始文字推論品牌/型號，避免「客戶首訊已含品牌型號還被追問」
+    if not brand or not model:
+        from harness.line_ui_factory import infer_brand_from_text
+        inferred_brand, inferred_model = infer_brand_from_text(text_stripped)
+        if inferred_brand and not brand:
+            await _profile_mgr.update_fact(user_id, "device_brand", inferred_brand)
+            brand = inferred_brand
+            print(f"[Quick Reply] 首訊推論品牌: {brand}")
+        if inferred_model and not model:
+            await _profile_mgr.update_fact(user_id, "device_model", inferred_model)
+            model = inferred_model
+            print(f"[Quick Reply] 首訊推論型號: {model}")
+        if brand or model:
+            set_current_brand(brand, model)
+
     if not brand:
         # 暫存原始訊息，回覆追問品牌
         _pending_messages[user_id] = {
