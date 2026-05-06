@@ -18,6 +18,7 @@ import uuid
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage, ToolMessage
 
 import core.line_bot as line_bot
+from core.content_utils import extract_text
 from core.logging_config import get_logger
 import harness.memory_manager as memory_manager
 from harness.llm_metrics import extract_usage_from_messages, schedule_log
@@ -69,19 +70,9 @@ def init(agent, config: dict, templates: dict, profile_mgr=None, audit_storage=N
     _opik_tracer = opik_tracer
 
 
-def _extract_text(content) -> str:
-    """從 AI 回覆中提取純文字（Vertex AI 可能回傳 list[dict]）。"""
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        parts = []
-        for block in content:
-            if isinstance(block, dict) and block.get("type") == "text":
-                parts.append(block["text"])
-            elif isinstance(block, str):
-                parts.append(block)
-        return "\n".join(parts) if parts else str(content)
-    return str(content)
+# Note: previously this module owned a private `_extract_text` near-duplicate
+# of the same routine in `harness/memory_manager.py` and `quality/quality_check.py`.
+# Replaced by the shared `core.content_utils.extract_text` helper (RP1.C.3).
 
 
 async def _print_context(user_id: str, ai_response: str):
@@ -116,7 +107,7 @@ async def _print_context(user_id: str, ai_response: str):
                 for tc in tool_calls:
                     print(f"  [{i}] 🤖 AI → tool_call: {tc.get('name', '?')}({json.dumps(tc.get('args', {}), ensure_ascii=False)[:100]})")
             if msg.content:
-                text = _extract_text(msg.content)
+                text = extract_text(msg.content)
                 print(f"  [{i}] 🤖 AI: {text[:100]}{'...' if len(text) > 100 else ''}")
         elif role == "tool":
             name = getattr(msg, "name", "?")
@@ -418,7 +409,7 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
 
         # 日誌
         display = _extract_text_from_items(buffer_items) if buffer_items else (
-            _extract_text(message_content) if isinstance(message_content, str) else "[多模態訊息]"
+            extract_text(message_content) if isinstance(message_content, str) else "[多模態訊息]"
         )
         print(f"[Agent] 開始思考 user_id: {user_id} 的問題...")
         print(f"[Agent] 送入內容:\n{'─' * 40}\n{display[:500]}{'...(截斷)' if len(display) > 500 else ''}\n{'─' * 40}")
@@ -462,7 +453,7 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         ai_response = _templates.get("error_no_reply", "抱歉，系統沒有產生回覆。")
         for msg in reversed(messages):
             if hasattr(msg, "type") and msg.type == "ai" and msg.content:
-                ai_response = _extract_text(msg.content)
+                ai_response = extract_text(msg.content)
                 break
 
         # 移除 LLM 可能誤抄的內部引用標記（cleanup 留下的 [已參考: ...] / [已參考技能: ...]）
@@ -894,7 +885,7 @@ async def agent_and_reply(
                         text = msg.content if isinstance(msg.content, str) else "[多模態]"
                         history_lines.append(f"用戶: {text[:100]}")
                     elif role == "ai" and msg.content:
-                        text = _extract_text(msg.content)
+                        text = extract_text(msg.content)
                         if text:
                             history_lines.append(f"客服: {text[:100]}")
                 if history_lines:
