@@ -30,8 +30,8 @@ async def _ensure_conn() -> bool:
         if _conn is not None:
             try:
                 await _conn.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("[DB] close 既有連線失敗（將以新連線取代）: %s", e, exc_info=True)
         _conn = await AsyncConnection.connect(uri, autocommit=True)
         logger.info("[DB] 已連線（autocommit=True, env=%s）", _uri_env)
         return True

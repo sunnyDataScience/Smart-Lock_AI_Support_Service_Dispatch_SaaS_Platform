@@ -4,10 +4,13 @@
 對話 checkpoint 不受影響，使用者可繼續正常對話。
 """
 
-import os
 import json
+import logging
+import os
 
 from psycopg import AsyncConnection
+
+logger = logging.getLogger(__name__)
 
 
 # ── Module-level state ──
@@ -31,8 +34,8 @@ async def _ensure_conn() -> bool:
         if _conn is not None:
             try:
                 await _conn.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("[Data Correction] close 既有連線失敗（將以新連線取代）: %s", e, exc_info=True)
         _conn = await AsyncConnection.connect(uri, autocommit=True)
         print("[Data Correction] 重新連線成功")
         return True

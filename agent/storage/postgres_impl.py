@@ -11,10 +11,13 @@ Event types:
 """
 
 import json
+import logging
 import os
 import re
 from datetime import datetime, timezone
 from psycopg import AsyncConnection
+
+logger = logging.getLogger(__name__)
 
 _postgres_conn: AsyncConnection | None = None
 _postgres_uri_env: str = ""
@@ -46,8 +49,8 @@ async def _ensure_conn() -> bool:
         if _postgres_conn is not None:
             try:
                 await _postgres_conn.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("[Audit DB] close 既有連線失敗（將以新連線取代）: %s", e, exc_info=True)
         _postgres_conn = await AsyncConnection.connect(uri, autocommit=True)
         print("[Audit DB] 重新連線成功")
         return True
@@ -150,8 +153,8 @@ async def build_postgres_storage(config: dict) -> PostgresAuditStorage:
     ]:
         try:
             await conn.execute(f"ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS {col_def}")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("[Audit DB] ALTER TABLE 失敗（欄位可能已存在或權限不足）col=%s: %s", col_def, e, exc_info=True)
     _postgres_conn = conn
     return PostgresAuditStorage()
 
