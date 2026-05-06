@@ -1404,6 +1404,58 @@ paths:
         '422':
           description: RESCHEDULE_LIMIT_EXCEEDED（24h 內已 3 次）
 
+  /api/v1/work-orders/{id}/reschedule/customer-confirm:
+    post:
+      tags: [dispatch]
+      summary: 客戶 LINE Flex 選定改期時段（Flow 11）
+      description: agent webhook 收到 LINE postback 後呼叫；寫入 wo.scheduled_at + 推 WS 給技師
+      operationId: confirmCustomerReschedule
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [selected_start, selected_end]
+              properties:
+                selected_start: { type: string, format: date-time }
+                selected_end: { type: string, format: date-time }
+      responses:
+        '200':
+          description: 改期已確認
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderEnvelope'
+        '404':
+          description: 工單不存在
+        '409':
+          description: 工單目前狀態不可改期
+
+  /api/v1/work-orders/{id}/reschedule/customer-reject:
+    post:
+      tags: [dispatch]
+      summary: 客戶 LINE Flex 點「都不方便」（Flow 11）
+      description: agent webhook 收到 LINE postback 後呼叫；推 WS 給技師重選備選時段
+      operationId: rejectCustomerReschedule
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: 客戶已拒絕全部備選時段
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderEnvelope'
+        '404':
+          description: 工單不存在
+
   # -----------------------------
   # 通知中心（Week 2 from G1）
   # -----------------------------

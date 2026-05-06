@@ -26,6 +26,7 @@ from linebot.v3 import WebhookParser
 from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.webhooks import (
     MessageEvent,
+    PostbackEvent,
     TextMessageContent,
     ImageMessageContent,
     AudioMessageContent,
@@ -239,6 +240,91 @@ async def chat_test(q: str = "你好", user_id: str = "test-cli"):
     return {"answer": answer}
 
 
+# ── F2 客戶改期 RSVP postback handler ──
+
+
+async def _handle_reschedule_postback(event):
+    """處理 LINE Flex 改期 postback（Flow 11 客戶端 RSVP）。
+
+    解析 postback data → 呼叫內部 api endpoint 確認/拒絕 → 回覆客戶確認訊息。
+    """
+    import os
+    import uuid as _uuid
+
+    import httpx
+
+    from harness.reschedule_flex import parse_postback_data
+
+    logger = logging.getLogger("agent.reschedule_postback")
+    raw_data = getattr(event.postback, "data", "") if event.postback else ""
+    parsed = parse_postback_data(raw_data)
+    if not parsed:
+        return  # 非本模組事件
+
+    api_base = os.environ.get(
+        "INTERNAL_API_BASE_URL", "http://localhost:8001"
+    )
+    tenant_id = os.environ.get(
+        "INTERNAL_API_TENANT_ID", "00000000-0000-0000-0000-000000000001"
+    )
+    api_token = os.environ.get("INTERNAL_API_BEARER", "")
+
+    headers = {
+        "Authorization": f"Bearer {api_token}",
+        "X-Tenant-ID": tenant_id,
+        "Idempotency-Key": str(_uuid.uuid4()),
+        "Content-Type": "application/json",
+    }
+
+    wo_id = parsed.get("wo")
+    if not wo_id:
+        return
+
+    reply_text: str
+    async with httpx.AsyncClient(timeout=10) as client:
+        if parsed["action"] == "reschedule_select":
+            res = await client.post(
+                f"{api_base}/api/v1/work-orders/{wo_id}/reschedule/customer-confirm",
+                json={
+                    "selected_start": parsed.get("start", ""),
+                    "selected_end": parsed.get("end", ""),
+                },
+                headers=headers,
+            )
+            if res.status_code == 200:
+                reply_text = (
+                    f"已收到您選擇的時段，我們會通知技師。如需調整請來訊告知。"
+                )
+            else:
+                logger.warning(
+                    "customer-confirm failed: %s %s",
+                    res.status_code,
+                    res.text[:200],
+                )
+                reply_text = "確認時段失敗，請稍後再試或來訊與我們聯繫。"
+        elif parsed["action"] == "reschedule_reject":
+            await client.post(
+                f"{api_base}/api/v1/work-orders/{wo_id}/reschedule/customer-reject",
+                headers=headers,
+            )
+            reply_text = "已通知技師您不便這幾個時段，我們會儘速重新安排。"
+        else:
+            return
+
+    # 回覆客戶
+    try:
+        from core import line_bot
+        from linebot.v3.messaging import TextMessage
+
+        await line_bot.send_response(
+            event.source.user_id,
+            event.reply_token,
+            [TextMessage(text=reply_text)],
+        )
+    except Exception:
+        logger.exception("failed to send reschedule reply")
+
+
 # ── LINE Webhook ──
 
 
@@ -259,6 +345,14 @@ async def line_webhook(request: Request):
         raise HTTPException(status_code=403, detail="Invalid signature")
 
     for event in events:
+        # ── PostbackEvent：F2 LINE Flex RSVP（Flow 11 客戶改期確認）──
+        if isinstance(event, PostbackEvent):
+            try:
+                await _handle_reschedule_postback(event)
+            except Exception:
+                logger.exception("postback handler failed")
+            continue
+
         if not isinstance(event, MessageEvent):
             continue
 

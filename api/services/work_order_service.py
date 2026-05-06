@@ -903,3 +903,130 @@ async def list_work_order_events(
         for r in rows
     ]
     return {"items": items}
+
+
+async def confirm_reschedule_by_customer(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    selected_start: str,
+    selected_end: str,
+) -> dict:
+    """客戶於 LINE Flex 選定改期時段 → 寫入 wo.scheduled_at + 紀錄事件 + 推 WS。
+
+    對齊 Flow 11（v1.7.0 frontend 已監聽 reschedule_confirmed_by_customer 事件）。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    try:
+        start_dt = datetime.fromisoformat(selected_start.replace("Z", "+00:00"))
+        end_dt = datetime.fromisoformat(selected_end.replace("Z", "+00:00"))
+    except ValueError as e:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "selected_start / selected_end 必須為 ISO 8601 格式",
+            422,
+        ) from e
+    if end_dt <= start_dt:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "selected_end must be after selected_start",
+            422,
+        )
+
+    current = await _fetch_status_for_update(wo_id, tenant_id)
+    if current not in _RESCHEDULE_FROM:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot confirm reschedule in status '{current}'",
+            409,
+        )
+
+    note = (
+        f"[CUSTOMER_RESCHEDULE_CONFIRMED {_now_iso()}] "
+        f"customer chose {start_dt.isoformat()}~{end_dt.isoformat()}"
+    )
+    await db_module._conn.execute(
+        "UPDATE work_orders SET "
+        "  scheduled_at = %s::timestamptz, "
+        "  service_report = COALESCE(service_report, '') || E'\\n' || %s, "
+        "  updated_at = NOW() "
+        "WHERE id = %s::uuid",
+        (start_dt, note, wo_id),
+    )
+    # 同時寫入結構化事件（v1.30.0 work_order_events）
+    await db_module._conn.execute(
+        "INSERT INTO work_order_events "
+        "  (work_order_id, tenant_id, event_type, payload) "
+        "VALUES (%s::uuid, %s::uuid, 'reschedule_proposed', %s::jsonb)",
+        (
+            wo_id,
+            tenant_id,
+            json.dumps(
+                {
+                    "confirmed_by": "customer",
+                    "selected_start": start_dt.isoformat(),
+                    "selected_end": end_dt.isoformat(),
+                },
+                ensure_ascii=False,
+            ),
+        ),
+    )
+
+    # 推 WS — 前端 v1.13.0 監聽 reschedule_confirmed_by_customer
+    try:
+        from realtime.ws_hub import hub
+
+        await hub.publish(
+            f"/realtime/work-orders/{wo_id}",
+            {
+                "type": "reschedule_confirmed_by_customer",
+                "payload": {
+                    "event": "reschedule_confirmed_by_customer",
+                    "work_order_id": wo_id,
+                    "selected_start": start_dt.isoformat(),
+                    "selected_end": end_dt.isoformat(),
+                },
+            },
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("ws publish reschedule_confirmed failed (non-fatal)")
+
+    return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+
+
+async def reject_reschedule_by_customer(
+    *, tenant_id: str, wo_id: str
+) -> dict:
+    """客戶 LINE Flex 點「都不方便」→ 推 WS 給技師端，wo 狀態不變。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    # 寫事件留下記錄
+    await db_module._conn.execute(
+        "INSERT INTO work_order_events "
+        "  (work_order_id, tenant_id, event_type, payload) "
+        "VALUES (%s::uuid, %s::uuid, 'reschedule_proposed', %s::jsonb)",
+        (
+            wo_id,
+            tenant_id,
+            json.dumps({"rejected_by": "customer"}, ensure_ascii=False),
+        ),
+    )
+    try:
+        from realtime.ws_hub import hub
+
+        await hub.publish(
+            f"/realtime/work-orders/{wo_id}",
+            {
+                "type": "reschedule_rejected_by_customer",
+                "payload": {
+                    "event": "reschedule_rejected_by_customer",
+                    "work_order_id": wo_id,
+                },
+            },
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("ws publish reschedule_rejected failed (non-fatal)")
+
+    return await get_order(tenant_id=tenant_id, wo_id=wo_id)

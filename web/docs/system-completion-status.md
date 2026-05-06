@@ -3,16 +3,16 @@
 > 跨前端 / 後端 / Realtime / Workflow 的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 `report/v*.md` 細粒度紀錄同步。
 
-**最後更新：** 2026-05-06（A37 推薦解釋化）
+**最後更新：** 2026-05-06（F2 LINE Flex RSVP — Flow 11 客戶端改期）
 **對應分支：** `feat/api-media-upload`（pending merge to dev）
-**對應 reports：** v1.0.0 → v1.35.0
+**對應 reports：** v1.0.0 → v1.36.0
 
 ---
 
-## 總體：**約 97%**
+## 總體：**約 98%**
 
 ```
-█████████████████████████████░  97%
+██████████████████████████████  98%
 ```
 
 | Phase | 04-29 | 05-06 早 | **05-06 晚** | 變化 |
@@ -86,7 +86,7 @@
 | Flow 8 二次派工 | **70%** | 連環銜接 |
 | Flow 9 客訴升級 | **75%** | SLA 自動觸發 |
 | Flow 10 門面檢核 | **100%** | T8 + admin 縮圖瀏覽完成端到端 |
-| Flow 11 客戶不在場 | **75%** | LINE Flex RSVP |
+| Flow 11 客戶不在場 | **100%** | T11 提案 + LINE Flex RSVP + customer-confirm/reject endpoints + WS 推回技師 |
 | Flow 12–14 | **60–80%** | — |
 
 ---
@@ -125,7 +125,7 @@
 | P1 | work_order_events 表（取代 service_report append）| 半天 |
 | P1 | RBAC 權限變更後端推送（前端 banner 已備）| 半天 |
 | P1 | Pool 即時推播觸發（前端訂閱已備）| 半天 |
-| P2 | LINE Flex RSVP（Flow 11 客戶端）| 1–2 天 |
+| ~~P2~~ | ~~LINE Flex RSVP（Flow 11 客戶端）~~ | ✅ **完成 v1.36.0**（2026-05-06）|
 | P2 | 計價引擎 GUI / SOP 績效真實化 / 報表 metrics 擴充 | 數天 |
 
 ---
