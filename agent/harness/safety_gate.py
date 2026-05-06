@@ -6,6 +6,10 @@ dangerous_keywords，命中時直接回傳拒絕訊息，跳過 LLM 處理。
 
 import re
 
+from core.logging_config import get_logger
+
+log = get_logger(__name__)
+
 _pattern: re.Pattern | None = None
 _block_response: str = ""
 _enabled: bool = False
@@ -23,7 +27,7 @@ def init(config: dict):
         "為了您的安全，我無法提供這類操作指導。如需協助，請聯繫專業技術人員。",
     )
     kw_count = len(keywords) if keywords else 0
-    print(f"[*] 初始化安全閘門: enabled={_enabled}, keywords={kw_count}")
+    log.info("safety_gate_init", enabled=_enabled, keywords=kw_count)
 
 
 def check(text: str) -> str | None:
@@ -36,6 +40,6 @@ def check(text: str) -> str | None:
         return None
     match = _pattern.search(text)
     if match:
-        print(f"  [Safety Gate] 攔截危險關鍵字: {match.group()}")
+        log.warning("safety_gate_blocked", keyword=match.group())
         return _block_response
     return None

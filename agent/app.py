@@ -35,6 +35,7 @@ from linebot.v3.webhooks import (
 )
 
 from core.config import load_config
+from core.logging_config import get_logger
 from llms import get_llm
 from memory import get_checkpointer, close_checkpointer
 from profiles import ProfileManager, init_facts_db, close_facts_db
@@ -50,6 +51,8 @@ import harness.safety_gate as safety_gate
 import harness.output_validator as output_validator
 import harness.data_correction as data_correction
 
+log = get_logger(__name__)
+
 # OpenTelemetry tracing — soft import so missing opentelemetry-sdk on the
 # host (e.g. before `uv sync` after pyproject restore) does not break startup.
 try:
@@ -57,7 +60,7 @@ try:
     configure_tracing(service_name="smart-lock-agent")
     _OTEL_READY = True
 except ImportError as _otel_err:
-    print(f"[!] OTel disabled: {_otel_err}")
+    log.warning("otel_disabled", error=str(_otel_err))
     _OTEL_READY = False
 
 app = FastAPI(title="Smart Lock AI Agent — Product Info")
@@ -82,7 +85,7 @@ async def startup():
 
     # 載入設定
     _cfg = load_config()
-    print(f"[*] config loaded: domain={_cfg.system.get('domain', '')[:30]}...")
+    log.info("config_loaded", domain=_cfg.system.get("domain", "")[:30])
 
     # 建立 LLM（透過 registry）
     model = get_llm(_cfg.llm)
@@ -168,9 +171,9 @@ async def startup():
                 project_name=project_name,
                 tags=tags,
             )
-            print(f"[*] OPIK tracing enabled (project={project_name})")
+            log.info("opik_enabled", project=project_name)
         except Exception as e:
-            print(f"[*] OPIK init failed, tracing disabled: {e}")
+            log.warning("opik_init_failed", error=str(e), exc_info=True)
 
     # 初始化 debounce (H3)
     debounce_config = {
@@ -186,7 +189,7 @@ async def startup():
     # 啟動背景清理任務
     asyncio.create_task(debounce.cleanup_stale_buffers())
 
-    print("[*] Agent ready (skill-based + debounce + multimodal + audit)")
+    log.info("agent_ready", layers=["skill", "debounce", "multimodal", "audit"])
 
 
 @app.on_event("shutdown")
@@ -196,7 +199,7 @@ async def shutdown():
     await close_checkpointer()
     await close_facts_db()
     await data_correction.close_db()
-    print("[*] Connections closed")
+    log.info("connections_closed")
 
 
 @app.get("/health")
@@ -388,7 +391,7 @@ async def line_webhook(request: Request):
             message_id = event.message.id
 
             if multimodal.is_enabled():
-                print(f"[收到{media_type}訊息] user={user_id}, msg_id={message_id}")
+                log.info("media_received", media_type=media_type, user_id=user_id, msg_id=message_id)
                 await line_bot.show_loading(user_id)
                 # 先佔位，防止先前的文字 debounce 先觸發
                 media_label = {"image": "圖片", "audio": "音檔", "video": "影片"}.get(media_type, "媒體")
@@ -415,7 +418,7 @@ async def line_webhook(request: Request):
             if not text:
                 continue
 
-            print(f"[LINE] user={user_id[:8]}... text={text[:50]}")
+            log.info("text_received", user_id=user_id, text_preview=text[:50])
             await line_bot.show_loading(user_id)
             debounce.add_message_to_buffer(user_id, reply_token, text)
             continue
@@ -438,7 +441,7 @@ async def _handle_media_message(user_id: str, message_id: str, media_type: str):
             user_id, None, media_content, replace_media_pending=True
         )
     except Exception as e:
-        print(f"[Media Handler Error] {media_type} 處理異常 (user={user_id}): {e}")
+        log.error("media_handler_error", media_type=media_type, user_id=user_id, error=str(e), exc_info=True)
         debounce.add_message_to_buffer(
             user_id, None,
             f"[使用者傳送了{media_label}，但系統無法下載內容，請根據對話脈絡盡量協助]",

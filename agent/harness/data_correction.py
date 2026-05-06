@@ -9,6 +9,10 @@ import json
 
 from psycopg_pool import AsyncConnectionPool
 
+from core.logging_config import get_logger
+
+log = get_logger(__name__)
+
 
 # ── Module-level state ──
 # Pool 取代單一 conn — checkout 時自動驗證並回收壞掉的連線（同 checkpointer 修法）。
@@ -31,7 +35,7 @@ async def init_db(config: dict):
 
     _enabled = config.get("enabled", False)
     if not _enabled:
-        print("[Data Correction] 未啟用")
+        log.info("data_correction_disabled")
         return
 
     _keyword = config.get("keyword", "#資料修正")
@@ -40,7 +44,7 @@ async def init_db(config: dict):
     _uri_env = config.get("postgres_uri_env", "POSTGRES_URI")
     uri = os.getenv(_uri_env)
     if not uri:
-        print(f"[Data Correction] 警告：環境變數 {_uri_env} 未設定，功能降級為停用")
+        log.warning("data_correction_uri_missing", env=_uri_env)
         _enabled = False
         return
 
@@ -76,9 +80,9 @@ async def init_db(config: dict):
                 "CREATE INDEX IF NOT EXISTS idx_dc_status ON data_corrections (status)"
             )
         _pool = pool
-        print(f"[Data Correction] 已啟用（關鍵字: {_keyword}, pool）")
+        log.info("data_correction_enabled", keyword=_keyword, mode="pool")
     except Exception as e:
-        print(f"[Data Correction] DB 連線失敗，降級為停用: {e}")
+        log.warning("data_correction_db_failed", error=str(e), exc_info=True)
         _enabled = False
         _pool = None
 
@@ -118,7 +122,7 @@ async def check_and_save(
     # 截取補充說明
     note = stripped[len(_keyword):].strip()
 
-    print(f"[Data Correction] 攔截: user={user_id[:8]}... note={note[:50]}")
+    log.info("data_correction_intercepted", user_id=user_id, note_preview=note[:50])
 
     # 擷取對話歷史
     conversation_context = await _extract_conversation(agent, user_id)
@@ -134,9 +138,9 @@ async def check_and_save(
                 "VALUES (%s, %s, %s, %s)",
                 (user_id, note, conversation_context, json.dumps(facts, ensure_ascii=False)),
             )
-        print(f"[Data Correction] 已寫入 DB (user={user_id[:8]}...)")
+        log.info("data_correction_persisted", user_id=user_id)
     except Exception as e:
-        print(f"[Data Correction] DB 寫入失敗: {e}")
+        log.warning("data_correction_persist_failed", user_id=user_id, error=str(e), exc_info=True)
 
     return _reply
 
@@ -176,7 +180,7 @@ async def _extract_conversation(agent, user_id: str) -> str:
         return "\n".join(lines)
 
     except Exception as e:
-        print(f"[Data Correction] 擷取對話歷史失敗: {e}")
+        log.warning("data_correction_history_fetch_failed", user_id=user_id, error=str(e), exc_info=True)
         return ""
 
 
@@ -189,5 +193,5 @@ async def _extract_facts(profile_mgr, user_id: str) -> dict:
         _, facts = await profile_mgr.load_full_profile_with_facts(user_id)
         return facts
     except Exception as e:
-        print(f"[Data Correction] 擷取用戶資料失敗: {e}")
+        log.warning("data_correction_profile_fetch_failed", user_id=user_id, error=str(e), exc_info=True)
         return {}

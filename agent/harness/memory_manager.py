@@ -19,6 +19,10 @@ from core.config import load_prompt
 from core.content_utils import extract_text
 from harness.llm_metrics import log_simple
 
+from core.logging_config import get_logger
+
+log = get_logger(__name__)
+
 
 def _extract_text_from_content(content) -> str:
     """Backward-compatible wrapper around `core.content_utils.extract_text`.
@@ -84,12 +88,12 @@ async def maybe_compress(agent, thread_id: str, user_id: str = "") -> str | None
         return None
 
     messages = state.values.get("messages", [])
-    print(f"[Memory] 當前訊息數: {len(messages)} / 閾值: {threshold}")
+    log.debug("memory_check", count=len(messages), threshold=threshold)
     if len(messages) <= threshold:
-        print(f"[Memory] 未超過閾值，跳過壓縮")
+        log.debug("memory_compression_skipped")
         return None
 
-    print(f"[Memory] 訊息數 {len(messages)} > {threshold}，觸發壓縮...")
+    log.info("memory_compression_triggered", count=len(messages), threshold=threshold)
 
     # 計算要壓縮和保留的訊息
     keep_count = retention_pair * 2  # 每輪 = 1 human + 1 ai
@@ -173,7 +177,7 @@ async def maybe_compress(agent, thread_id: str, user_id: str = "") -> str | None
             error_type=type(e).__name__,
             user_question=dialogue_text,
         )
-        print(f"[Memory] 摘要生成失敗: {e}")
+        log.warning("memory_summary_failed", error=str(e), exc_info=True)
         return None
 
     # 刪除舊訊息（透過 RemoveMessage）
@@ -187,7 +191,7 @@ async def maybe_compress(agent, thread_id: str, user_id: str = "") -> str | None
 
     # 儲存摘要
     _summaries[thread_id] = new_summary
-    print(f"[Memory] 壓縮完成：刪除 {len(remove_messages)} 則舊訊息，摘要 {len(new_summary)} 字")
+    log.info("memory_compression_done", removed=len(remove_messages), summary_length=len(new_summary))
 
     return new_summary
 

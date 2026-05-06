@@ -17,6 +17,10 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from core.config import load_prompt
 from harness.llm_metrics import log_simple
 
+from core.logging_config import get_logger
+
+log = get_logger(__name__)
+
 # ── 模組層級狀態（由 init() 初始化）──
 _llm = None
 _config: dict = {}
@@ -69,7 +73,7 @@ def init(llm, config: dict):
             with open(full_path, "r", encoding="utf-8") as f:
                 _prompt_template = f.read()
         except FileNotFoundError:
-            print(f"[Output Validator] 找不到 prompt: {prompt_path}，停用驗證器")
+            log.warning("output_validator_prompt_missing", prompt_path=prompt_path)
             _enabled = False
             return
 
@@ -83,7 +87,7 @@ def init(llm, config: dict):
 
     kw_count = len(forbidden)
     has_mismatch = "yes" if _mismatch_pattern else "no"
-    print(f"[*] 初始化輸出驗證器: enabled={_enabled}, max_retries={_max_retries}, forbidden_phrases={kw_count}, brand_model_check={has_mismatch}")
+    log.info("output_validator_init", enabled=_enabled, max_retries=_max_retries, forbidden_phrases=kw_count, brand_model_check=has_mismatch)
 
 
 def _build_mismatch_pattern() -> None:
@@ -299,5 +303,5 @@ async def validate(ai_response: str, user_message: str, context: str = "", user_
             user_question=prompt,
         )
         # 驗證器失敗 → fail-open，放行原始回覆
-        print(f"[Output Validator] LLM 驗證失敗，放行: {e}")
+        log.warning("output_validator_llm_failed", error=str(e), exc_info=True)
         return {"pass": True}

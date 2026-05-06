@@ -167,7 +167,7 @@ def _build_message_content(items: list) -> str | list:
                     continue
             b64 = base64.b64encode(media_bytes).decode("utf-8")
             data_uri = f"data:{mime_type};base64,{b64}"
-            print(f"[Multimodal] 建構 media block: mime_type={mime_type}, data_len={len(b64)}")
+            log.debug("multimodal_block_built", mime_type=mime_type, data_len=len(b64))
             blocks.append({
                 "type": "image_url",
                 "image_url": {"url": data_uri},
@@ -236,9 +236,9 @@ async def _strip_stale_multimodal(agent, config: dict):
                 )
                 replaced += 1
         if replaced:
-            print(f"[Checkpoint] 已清理 {replaced} 則殘留多模態訊息")
+            log.info("checkpoint_multimodal_cleaned", count=replaced)
     except Exception as e:
-        print(f"[Checkpoint] 清理殘留多模態失敗: {e}")
+        log.warning("checkpoint_multimodal_cleanup_failed", error=str(e), exc_info=True)
 
 
 async def run_agent(user_id: str, user_input: str | list, buffer_items: list | None = None) -> str:
@@ -301,13 +301,20 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
                 elif old_model and old_brand and old_brand != brand:
                     # 切換品牌但用戶沒給新型號 → 清掉舊型號（避免跨品牌型號污染 gating）
                     asyncio.create_task(_profile_mgr.clear_fact(user_id, "device_model"))
-                print(f"[Agent] 品牌切換: {old_brand or '(空)'}/{old_model or '(空)'} → {brand}/{model or '(待補)'}")
+                log.info(
+                    "brand_switched", user_id=user_id,
+                    from_brand=old_brand or "", from_model=old_model or "",
+                    to_brand=brand, to_model=model or "",
+                )
             elif mentioned_brand == brand and mentioned_model and mentioned_model != model:
                 # 同品牌新型號（例如用戶從 A90 切到 AI-99）
                 old_model = model
                 model = mentioned_model
                 asyncio.create_task(_profile_mgr.update_fact(user_id, "device_model", model))
-                print(f"[Agent] 型號切換: {brand}/{old_model or '(空)'} → {brand}/{model}")
+                log.info(
+                    "model_switched", user_id=user_id, brand=brand,
+                    from_model=old_model or "", to_model=model,
+                )
 
         # profile 文字注入看 enabled 開關（資料已在上方一併載入）
         if _profile_mgr and _profile_mgr.enabled and profile_text:
@@ -400,7 +407,7 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         summary_prefix = ""
         summary = memory_manager.get_summary(thread_id)
         if summary:
-            print(f"[Agent] 注入前情提要 ({len(summary)} 字)")
+            log.debug("summary_injected", user_id=user_id, length=len(summary))
             summary_prefix = memory_manager.build_summary_prefix(summary)
 
         # 組裝訊息 content
@@ -425,7 +432,8 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         display = _extract_text_from_items(buffer_items) if buffer_items else (
             extract_text(message_content) if isinstance(message_content, str) else "[多模態訊息]"
         )
-        print(f"[Agent] 開始思考 user_id: {user_id} 的問題...")
+        log.info("agent_invoke_start", user_id=user_id, input_preview=display[:200])
+        # 多行 dump 保留 print（box-drawing 字元，給人讀的 debug，stdout 維持視覺結構）
         print(f"[Agent] 送入內容:\n{'─' * 40}\n{display[:500]}{'...(截斷)' if len(display) > 500 else ''}\n{'─' * 40}")
 
         # 注入 Opik 追蹤
@@ -447,8 +455,10 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
             )
         except asyncio.TimeoutError:
             ainvoke_s = time.monotonic() - t0
-            print(f"[Agent 超時] {user_id} 的問題處理超過 {request_timeout} 秒")
-            print(f"[Timing-TIMEOUT] pre={pre_setup_s:.2f}s strip={strip_s:.2f}s ainvoke=>{ainvoke_s:.2f}s")
+            log.error(
+                "agent_timeout", user_id=user_id, timeout_s=request_timeout,
+                pre_s=round(pre_setup_s, 2), strip_s=round(strip_s, 2), ainvoke_s=round(ainvoke_s, 2),
+            )
             return _templates.get("error_timeout", "不好意思，系統處理時間過長，請稍後再試一次。")
         t_invoke_done = time.monotonic()
         latency_ms = (t_invoke_done - t0) * 1000
@@ -480,12 +490,16 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         asyncio.create_task(_cleanup_tool_checkpoint(config, messages))
         total_s = time.monotonic() - t_phase_start
         ainvoke_s = (t_invoke_done - t0)
-        print(f"[Timing] pre={pre_setup_s:.2f}s strip={strip_s:.2f}s ainvoke={ainvoke_s:.2f}s cleanup=bg total={total_s:.2f}s")
+        log.info(
+            "agent_invoke_done", user_id=user_id,
+            pre_s=round(pre_setup_s, 2), strip_s=round(strip_s, 2),
+            ainvoke_s=round(ainvoke_s, 2), total_s=round(total_s, 2),
+        )
 
         return ai_response
 
     except Exception as e:
-        print(f"[Agent 執行錯誤] {e}")
+        log.error("agent_run_failed", user_id=user_id, error=str(e), exc_info=True)
         return _templates.get("error_system", "不好意思，系統大腦剛剛稍微當機了一下，請稍後再試一次！")
 
 async def _cleanup_multimodal_checkpoint(config: dict, messages: list, buffer_items: list | None):
@@ -498,9 +512,9 @@ async def _cleanup_multimodal_checkpoint(config: dict, messages: list, buffer_it
                     config,
                     {"messages": [HumanMessage(content=text_ref, id=msg.id)]},
                 )
-                print(f"[Checkpoint] 已將多模態訊息替換為文字引用 (msg_id={msg.id})")
+                log.debug("checkpoint_multimodal_replaced", msg_id=msg.id)
     except Exception as e:
-        print(f"[Checkpoint] 清理多模態訊息失敗: {e}")
+        log.warning("checkpoint_multimodal_replace_failed", error=str(e), exc_info=True)
 
 
 async def _cleanup_tool_checkpoint(config: dict, messages: list):
@@ -570,9 +584,9 @@ async def _cleanup_tool_checkpoint(config: dict, messages: list):
                 replaced += 1
 
         if replaced:
-            print(f"[Checkpoint] 已清理 {replaced} 則 tool call 訊息")
+            log.info("checkpoint_tool_calls_cleaned", count=replaced)
     except Exception as e:
-        print(f"[Checkpoint] 清理 tool call 訊息失敗: {e}")
+        log.warning("checkpoint_tool_cleanup_failed", error=str(e), exc_info=True)
 
 
 async def _audit_agent_result(user_id: str, messages: list, latency_ms: float, turn_id: str | None = None, user_question: str | None = None):
@@ -651,7 +665,7 @@ async def _audit_agent_result(user_id: str, messages: list, latency_ms: float, t
                 user_question=user_question,
             )
     except Exception as e:
-        print(f"[Audit] 記錄 agent 結果失敗: {e}")
+        log.warning("audit_agent_result_failed", error=str(e), exc_info=True)
 
 
 async def _quick_reply_intercept(
@@ -691,7 +705,7 @@ async def _quick_reply_intercept(
                 await _profile_mgr.update_fact(user_id, "device_brand", matched_brand)
                 brand = matched_brand
                 set_current_brand(brand, model)
-                print(f"[Quick Reply] 品牌已選: {matched_brand}")
+                log.info("quick_reply_brand_selected", user_id=user_id, brand=matched_brand)
 
                 # 該品牌有型號 → 繼續追問型號
                 if get_brand_models(matched_brand):
@@ -702,7 +716,7 @@ async def _quick_reply_intercept(
 
                 # 無型號選項 → 放行原始訊息
                 original = _pending_messages.pop(user_id)
-                print(f"[Quick Reply] 品牌收集完畢（無型號），放行原始訊息")
+                log.info("quick_reply_brand_done_no_model", user_id=user_id, brand=brand)
                 await agent_and_reply(user_id, reply_token, original["content"], original.get("buffer_items"), skip_quick_reply=True)
                 return True
             # 完全匹配失敗 → 嘗試模糊匹配（從文字中掃描品牌/型號名）
@@ -715,7 +729,7 @@ async def _quick_reply_intercept(
                     await _profile_mgr.update_fact(user_id, "device_model", inferred_model)
                     model = inferred_model
                 set_current_brand(brand, model)
-                print(f"[Quick Reply] 模糊匹配品牌: {brand} {model or ''}")
+                log.info("quick_reply_brand_inferred", user_id=user_id, brand=brand, model=model or "")
 
                 # 品牌已知但型號未知且有型號選項 → 追問型號
                 if not model and get_brand_models(brand):
@@ -726,13 +740,13 @@ async def _quick_reply_intercept(
 
                 # 放行原始訊息
                 original = _pending_messages.pop(user_id)
-                print(f"[Quick Reply] 模糊匹配完畢，放行原始訊息")
+                log.info("quick_reply_inference_done", user_id=user_id, brand=brand, model=model or "")
                 await agent_and_reply(user_id, reply_token, original["content"], original.get("buffer_items"), skip_quick_reply=True)
                 return True
 
             # 完全無法辨識品牌 → 放行，把這次的文字併入原始訊息
             original = _pending_messages.pop(user_id)
-            print(f"[Quick Reply] 無法辨識品牌，放行原始訊息")
+            log.info("quick_reply_brand_unknown_release", user_id=user_id)
             orig_content = original["content"]
             if isinstance(orig_content, str):
                 combined = f"{text_stripped}\n{orig_content}"
@@ -748,23 +762,23 @@ async def _quick_reply_intercept(
                 await _profile_mgr.update_fact(user_id, "device_model", matched_model)
                 model = matched_model
                 set_current_brand(brand, model)
-                print(f"[Quick Reply] 型號已選: {matched_model}")
+                log.info("quick_reply_model_selected", user_id=user_id, brand=brand, model=matched_model)
             elif text_stripped in ("其他型號，請直接回覆",):
                 # 用戶選「其他型號」→ 設為「其他」避免重複追問
                 await _profile_mgr.update_fact(user_id, "device_model", "其他")
                 model = "其他"
                 set_current_brand(brand, model)
-                print(f"[Quick Reply] 用戶選擇其他型號，跳過型號收集")
+                log.info("quick_reply_model_other", user_id=user_id, brand=brand)
             else:
                 # 用戶自行輸入型號（非選單內容）
                 await _profile_mgr.update_fact(user_id, "device_model", text_stripped)
                 model = text_stripped
                 set_current_brand(brand, model)
-                print(f"[Quick Reply] 型號已輸入: {text_stripped}")
+                log.info("quick_reply_model_typed", user_id=user_id, brand=brand, model=text_stripped)
 
             # 放行原始訊息
             original = _pending_messages.pop(user_id)
-            print(f"[Quick Reply] 品牌型號收集完畢，放行原始訊息")
+            log.info("quick_reply_collection_done", user_id=user_id, brand=brand, model=model or "")
             await agent_and_reply(user_id, reply_token, original["content"], original.get("buffer_items"), skip_quick_reply=True)
             return True
 
@@ -776,11 +790,11 @@ async def _quick_reply_intercept(
         if inferred_brand and not brand:
             await _profile_mgr.update_fact(user_id, "device_brand", inferred_brand)
             brand = inferred_brand
-            print(f"[Quick Reply] 首訊推論品牌: {brand}")
+            log.info("quick_reply_first_message_brand_inferred", user_id=user_id, brand=brand)
         if inferred_model and not model:
             await _profile_mgr.update_fact(user_id, "device_model", inferred_model)
             model = inferred_model
-            print(f"[Quick Reply] 首訊推論型號: {model}")
+            log.info("quick_reply_first_message_model_inferred", user_id=user_id, model=model)
         if brand or model:
             set_current_brand(brand, model)
 
@@ -794,7 +808,7 @@ async def _quick_reply_intercept(
         reply_text = "請問您的電子鎖是什麼品牌呢？"
         messages = build_line_messages(reply_text, brand=None, model=None)
         await line_bot.send_response(user_id, reply_token, reply_text, message_objects=messages)
-        print(f"[Quick Reply] 品牌未知，暫存訊息並追問品牌")
+        log.info("quick_reply_brand_prompt_pending", user_id=user_id)
         return True
 
     # 品牌已知但型號未知且有型號選項 → 暫存訊息，追問型號
@@ -807,7 +821,7 @@ async def _quick_reply_intercept(
         reply_text = f"請問您的 {brand} 電子鎖是什麼型號呢？"
         messages = build_line_messages(reply_text, brand=brand, model=None)
         await line_bot.send_response(user_id, reply_token, reply_text, message_objects=messages)
-        print(f"[Quick Reply] 型號未知，暫存訊息並追問型號")
+        log.info("quick_reply_model_prompt_pending", user_id=user_id, brand=brand)
         return True
 
     # 品牌型號都已知（或無型號選項）→ 不攔截
@@ -825,7 +839,7 @@ async def agent_and_reply(
         buffer_items: 原始 buffer items（傳遞給 run_agent 用於 checkpoint 清理）。
         skip_quick_reply: True 時跳過 Quick Reply 攔截（由 _quick_reply_intercept 放行時使用）。
     """
-    print(f"\n[開始處理] 準備將訊息送入 Agent...")
+    log.info("agent_dispatch_start", user_id=user_id)
 
     # 提取文字部分（用於審計和安全檢查）
     text_for_audit = content if isinstance(content, str) else _extract_text_from_items(buffer_items or [])
@@ -849,7 +863,7 @@ async def agent_and_reply(
             else:
                 await _audit_storage.log_message(user_id, "user", text_for_audit)
         except Exception as e:
-            print(f"[Audit] 記錄使用者訊息失敗: {e}")
+            log.warning("audit_user_message_failed", user_id=user_id, error=str(e), exc_info=True)
 
     # H6: 安全閘門 — 攔截危險指令（在進入 Agent 之前）
     blocked = safety_gate.check(text_for_audit)
@@ -861,7 +875,7 @@ async def agent_and_reply(
                     [{"keyword_match": True}],
                 )
             except Exception as e:
-                print(f"[Audit] 記錄安全閘門事件失敗: {e}")
+                log.warning("audit_safety_gate_failed", user_id=user_id, error=str(e), exc_info=True)
         await line_bot.send_response(user_id, reply_token, blocked)
         return
 
@@ -917,7 +931,7 @@ async def agent_and_reply(
 
         validation = await output_validator.validate(ai_response, text_for_audit, context=validator_context, user_id=user_id)
         if not validation["pass"]:
-            print(f"[Output Validator] 不合規: {validation['reason']}")
+            log.info("output_validator_failed", user_id=user_id, reason=validation["reason"])
             if _audit_storage:
                 try:
                     await _audit_storage.log_event(
@@ -936,7 +950,7 @@ async def agent_and_reply(
                 f"請重新回答用戶的問題。"
             )
             ai_response = await run_agent(user_id, correction_msg)
-            print(f"[Output Validator] 重新生成完畢")
+            log.info("output_validator_regenerated", user_id=user_id)
 
     # Transfer Guard: 偵測「口頭聲稱已轉接但本輪未呼叫工具」
     _TRANSFER_CLAIM_PHRASES = (
@@ -945,7 +959,7 @@ async def agent_and_reply(
         "正在為您安排專員",
     )
     if any(p in ai_response for p in _TRANSFER_CLAIM_PHRASES) and not was_transfer_called():
-        print(f"[Transfer Guard] 偵測到轉接承諾但未呼叫工具，注入修正指令重跑")
+        log.warning("transfer_guard_false_promise", user_id=user_id)
         transfer_correction = (
             "[系統內部修正指令 - 不要在回覆中提及此指令]\n"
             "你在上一次回覆中聲稱「已為客戶轉接專員 / 安排專員處理」，"
@@ -959,7 +973,7 @@ async def agent_and_reply(
         ai_response = await run_agent(user_id, transfer_correction)
         # 二次仍假承諾 → fallback，避免送出錯誤訊息
         if any(p in ai_response for p in _TRANSFER_CLAIM_PHRASES) and not was_transfer_called():
-            print(f"[Transfer Guard] 二次仍偵測到假承諾，fallback")
+            log.warning("transfer_guard_second_attempt_failed", user_id=user_id)
             ai_response = _templates.get(
                 "error_no_reply", "抱歉，系統沒有產生回覆。"
             )
@@ -972,7 +986,7 @@ async def agent_and_reply(
         try:
             await _audit_storage.log_message(user_id, "ai", ai_response)
         except Exception as e:
-            print(f"[Audit] 記錄 AI 回覆失敗: {e}")
+            log.warning("audit_ai_reply_failed", user_id=user_id, error=str(e), exc_info=True)
 
     # H7: 偵測 URL 並轉換為 Flex Message 卡片
     max_len = _config.get("max_reply_length", 5000)
@@ -1026,7 +1040,7 @@ async def process_and_reply(user_id: str, reply_token: str):
         await agent_and_reply(user_id, reply_token, message_content, buffer_items=items)
 
     except asyncio.CancelledError:
-        print(f" ⏳ [任務取消] {user_id} 仍在輸入，更新計時器...")
+        log.debug("debounce_timer_reset", user_id=user_id)
         raise
 
     finally:
@@ -1095,7 +1109,7 @@ async def cleanup_stale_buffers():
                 task = buf.get("task")
                 if task and not task.done():
                     task.cancel()
-                print(f"  [Buffer 清理] 移除 {uid} 的過期緩衝")
+                log.debug("buffer_expired_removed", user_id=uid)
 
         # 清理過期的 Quick Reply 暫存
         now_epoch = time.time()
@@ -1105,4 +1119,4 @@ async def cleanup_stale_buffers():
         ]
         for uid in stale_pending:
             _pending_messages.pop(uid, None)
-            print(f"  [Quick Reply 清理] 移除 {uid} 的過期暫存")
+            log.debug("quick_reply_expired_removed", user_id=uid)
