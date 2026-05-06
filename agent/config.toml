@@ -33,7 +33,11 @@ max_messages_threshold = 12          # 訊息數超過此值時觸發壓縮
 context_retention_pair = 5           # 壓縮後保留最近 N 輪對話
 llm_model              = "vertex_ai/gemini-2.5-flash"  # 壓縮摘要用模型
 
-# ── 5. 提示詞檔案路徑 ──
+# ── 5. Skills 知識庫 ──
+[skills]
+data_dir = "skills/data"
+
+# ── 6. 提示詞檔案路徑 ──
 [prompts]
 system_prompt          = "prompts/system.md"
 transfer_human_form    = "prompts/transfer_human.md"

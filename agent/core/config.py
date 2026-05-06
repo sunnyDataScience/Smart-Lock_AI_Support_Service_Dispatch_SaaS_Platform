@@ -36,6 +36,7 @@ class AppConfig:
     quick_reply: dict = field(default_factory=dict)
     data_correction: dict = field(default_factory=dict)
     opik: dict = field(default_factory=dict)
+    skills: dict = field(default_factory=dict)
 
 
 def load_config(file_path: str | None = None) -> AppConfig:
@@ -68,6 +69,7 @@ def load_config(file_path: str | None = None) -> AppConfig:
         quick_reply=data.get("quick_reply", {}),
         data_correction=data.get("data_correction", {}),
         opik=data.get("opik", {}),
+        skills=data.get("skills", {}),
     )
 
 

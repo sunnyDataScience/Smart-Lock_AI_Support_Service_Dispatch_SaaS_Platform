@@ -38,7 +38,7 @@ def _strip_ref_markers(text: str) -> str:
 # 問題（店家資訊、安裝流程、保固等）影響中性，因為 LLM 仍會載入 _common/*。
 QUICK_REPLY_DEFAULT_BRAND = "Chatlock"
 
-# 將 agent/ 加入 sys.path，讓 agent_tools / harness / product_info 等模組可 import
+# 將 agent/ 加入 sys.path，讓 skills / harness 等模組可 import
 _AGENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _AGENT_DIR)
 
@@ -447,7 +447,7 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
     t0 = time.time()
 
     # 組裝訊息：注入 [可用產品資料] 模擬 debounce.run_agent() 的新架構行為
-    from agent_tools.tools import (
+    from skills.tools import (
         set_current_user_id,
         set_current_brand,
         set_current_user_input,
