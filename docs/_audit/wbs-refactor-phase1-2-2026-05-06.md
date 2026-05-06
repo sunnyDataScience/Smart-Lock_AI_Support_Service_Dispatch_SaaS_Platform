@@ -10,20 +10,53 @@
 
 ---
 
-## 進度儀表板（Updated: 2026-05-06 19:50）
+## 進度儀表板（Updated: 2026-05-06 22:25）
 
 | 區段 | 工作量 | 狀態 | 完成度 | 觸發時機 |
 |------|------|------|------|---------|
 | RP1.C 內部品質 | 5-7 PD | ✅ | **6/6 merged** | — |
-| RP1.D 觀測基建 | 4-5 PD | 🟡 | **3/5 merged + 2/5 PR open** | — |
+| RP1.D 觀測基建 | 4-5 PD | ✅ | **5/5 merged** | — |
 | RP2 V1 後重構 | 14-19 PD | 🔴 blocked | 0/6 | 等 V1 上線 + E2E ≥ 80% |
 
 **Phase 1 實際月曆時間**：1 天（多 agent 平行）— 遠快於原估 2 週
 **Phase 2 預估月曆時間**：4-5 週（V1 後）
 
 ### Phase 1 完成總覽
-- ✅ **9 個 PR 已 merged 到 dev**：#2 #3 #4 #5 #6 #7 #8 #9 #10
-- 🟡 **2 個 PR 待 merge**：#11（OTel）#12（Opik per-skill）
+- ✅ **11 個 PR 已 merged 到 dev**：#2 #3 #4 #5 #6 #7 #8 #9 #10 #11 #12
+- 🎯 **PR 結算**：RP1.C 6/6 + RP1.D 5/5，Phase 1 全綠
+
+> **⚠️ Working-tree 偏離備註**（2026-05-06 22:11+）
+> 兩筆事後 alignment commit（`8ffcb60` / `56949eb`）將 `agent/` 樹對齊到 Zenobia0000 dev tip `2825cbe`，導致以下 RP1 產出於當前 `Zenobia000/dev` working tree 上**不可見**（PR 已 merge 進歷史，但不在當前檔案系統）：
+> - RP1.C.2 `agent/core/pg_pool.py`（已刪）
+> - RP1.C.3 `agent/core/content_utils.py`（已刪）
+> - RP1.C.6 `agent/skills/` 整個目錄重命名為 `agent/agent_tools/`（命名分歧）
+> - RP1.D.1 `agent/core/logging_config.py`（已刪）
+> - RP1.D.2 `agent/core/tracing.py`（已刪）
+> - RP1.D.4 `agent/Dockerfile` 回退至 `python:3.11-slim` 單階段
+>
+> 仍存在於 working tree：RP1.C.1（除 `agent/docs/manuals/EVAL_HANDOFF.md` 1 處範例文）、RP1.C.4（`SQL/Schema_harness_migration.sql` user_facts）、RP1.C.5（`memory/__init__.py` dict registry）、RP1.D.3（`agent_tools/` 內 Opik 雙軌寫入）、RP1.D.5（`agent/app.py` health 連線檢查骨架）。
+
+### 還原進度（branch: `restore/phase1-cherry-pick`）
+
+> 已採行處置 (a) — 從 Zenobia000 PR 歷史的 sync 前快照 `6c2616c` 外科手術還原。先做 cherry-pick 失敗（Zenobia0000 已將 `_extract_text` 改名為 `_extract_text_from_content`），改採檔案級 `git checkout 6c2616c -- <path>`。
+
+| 階段 | 範圍 | 狀態 |
+|------|------|------|
+| **Phase A**（低風險，無檔案衝突） | RP1.C.2 / C.3 / D.1 / D.2 helper module + 4 個 unit tests | ✅ 完成於 2026-05-06 |
+| **Phase B**（中風險，需 wire-up） | helper 接入點：profiles/manager.py、storage/postgres_impl.py、harness/debounce.py、quality/quality_check.py、harness/memory_manager.py | ⬜ 待決策 |
+| **Phase C**（高風險，命名衝突） | RP1.C.6 + RP1.D.3 — `agent/skills/` vs `agent/agent_tools/` 命名分歧 | ⬜ 待使用者裁決 canonical 命名 |
+| **Phase D**（建置系統） | `agent/Dockerfile` multi-stage uv build 還原 + `agent/pyproject.toml` 還原（uv workspace 才能 `uv sync` 安裝 OTel/structlog deps） | ⬜ 待決策 |
+
+**Phase A 已交付項**（11 檔，+765/-14 行）：
+- `agent/core/{pg_pool,content_utils,logging_config,tracing}.py` 從 `6c2616c` 還原
+- `tests/unit/core/{__init__,conftest,test_content_utils,test_pg_pool}.py` 還原
+- `agent/app.py`：加 OTel `configure_tracing()` + `instrument_fastapi()` 以 try/except 軟性 import（避免 opentelemetry 未安裝時 startup crash）
+- `agent/harness/debounce.py`：加 `from core.logging_config import get_logger` 與 `log = get_logger(__name__)`
+
+**Phase A 限制**：
+- 4 個 helper 已存在於 `agent/core/`，但**呼叫方未全部接通**（profiles/manager.py、storage/postgres_impl.py 仍直接用 `AsyncConnectionPool`；harness/debounce.py、quality/quality_check.py 仍保留各自的 `_extract_text*` inline 函式）。屬「程式碼存在但尚未 wire-up」狀態。
+- OTel 模組接入 app.py 但需 `pyproject.toml` 還原 + `uv sync` 才能真正載入 opentelemetry-sdk；目前以 try/except 軟降級為「import fail 時印警告繼續啟動」。
+- `tests/unit/core/` 的 pytest 執行需先還原 `agent/pyproject.toml`（uv workspace member 解析需要）。
 
 ### PR 索引（依任務）
 
@@ -36,8 +69,8 @@
 | RP1.C.5 | [#7](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/7) | refactor(memory): 統一走 dict registry | ✅ merged |
 | RP1.C.6 | [#2](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/2) | refactor(skills): Skill 物件 immutable 化 | ✅ merged |
 | RP1.D.1 | [#9](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/9) | chore(logging): structlog 結構化日誌配置 | ✅ merged |
-| RP1.D.2 | [#11](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/11) | chore(observability): OpenTelemetry tracing middleware | 🟡 PR open |
-| RP1.D.3 | [#12](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/12) | chore(observability): Opik per-skill cost attribution | 🟡 PR open |
+| RP1.D.2 | [#11](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/11) | chore(observability): OpenTelemetry tracing middleware | ✅ merged |
+| RP1.D.3 | [#12](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/12) | chore(observability): Opik per-skill cost attribution | ✅ merged |
 | RP1.D.4 | [#5](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/5) | docs(deploy): E9 §7.3 Dockerfile 範本對齊 production | ✅ merged |
 | RP1.D.5 | [#10](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/10) | feat(health): /health 擴充 6 項檢查 | ✅ merged |
 
@@ -129,12 +162,12 @@ RP 重構計畫（Phase 1-2）
 | RP1.D.1.2 | `app.py` 全面替換（**留給後續 PR**，避免與 D.5 衝突） | 0.5 PD | RP1.D.1.1 | 低 | — | ⏸️ defer |
 | RP1.D.1.3 | `harness/debounce.py` 部分替換（7 處結構化事件示範） | 0.5 PD | RP1.D.1.1 | 低 | — | ✅ |
 | RP1.D.1.4 | 其餘 harness 漸進替換 | 0.5 PD | RP1.D.1.1 | 低 | — | ⏸️ defer |
-| **RP1.D.2** | **OpenTelemetry middleware（ConsoleSpanExporter）** | 0.5 PD | — | 低 | [#11](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/11) | 🟡 |
-| RP1.D.2.1 | 加 OTel SDK + instrumentation-fastapi 依賴 | 0.25 PD | — | 低 | — | 🟡 |
-| RP1.D.2.2 | `agent/core/tracing.py` + auto-instrumentation + line_user_id span | 0.25 PD | RP1.D.2.1 | 低 | — | 🟡 |
-| **RP1.D.3** | **Opik cost attribution per-skill** | 0.5 PD | — | 低 | [#12](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/12) | 🟡 |
-| RP1.D.3.1 | `skills/tools.py:load_skill` 加 ContextVar + opik_context | 0.25 PD | — | 低 | — | 🟡 |
-| RP1.D.3.2 | `harness/debounce.py` 注入 invoke metadata；正式環境驗證 dashboard 分桶 | 0.25 PD | RP1.D.3.1 | 低 | — | 🟡 |
+| **RP1.D.2** | **OpenTelemetry middleware（ConsoleSpanExporter）** | 0.5 PD | — | 低 | [#11](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/11) | ✅ |
+| RP1.D.2.1 | 加 OTel SDK + instrumentation-fastapi 依賴 | 0.25 PD | — | 低 | — | ✅ |
+| RP1.D.2.2 | `agent/core/tracing.py` + auto-instrumentation + line_user_id span | 0.25 PD | RP1.D.2.1 | 低 | — | ✅ |
+| **RP1.D.3** | **Opik cost attribution per-skill** | 0.5 PD | — | 低 | [#12](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/12) | ✅ |
+| RP1.D.3.1 | `skills/tools.py:load_skill` 加 ContextVar + opik_context | 0.25 PD | — | 低 | — | ✅ |
+| RP1.D.3.2 | `harness/debounce.py` 注入 invoke metadata；正式環境驗證 dashboard 分桶 | 0.25 PD | RP1.D.3.1 | 低 | — | ✅ |
 | **RP1.D.4** | **Dockerfile multi-stage uv build（含 docs 範本對齊）** | 0.5 PD | — | 低 | [#5](https://github.com/Zenobia000/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/pull/5) | ✅ |
 | RP1.D.4.1 | production Dockerfile 早已升級（commit `84be0f5`，比範本更成熟） | 0.25 PD | — | 低 | — | ✅ |
 | RP1.D.4.2 | `docs/04-deliver/E9--... §7.3` 範本對齊 production 實作 | 0.15 PD | — | 低 | — | ✅ |
@@ -152,11 +185,13 @@ RP 重構計畫（Phase 1-2）
 - [x] `SQL/Schema_harness_migration.sql` 含 user_facts 完整 schema（PR #6）
 - [x] `memory/__init__.py` 無 if/else fast-path（PR #7）
 - [x] structlog 在 debounce.py 可見（PR #9，app.py 替換 defer 至下一 PR）
-- [ ] OpenTelemetry middleware 啟用（ConsoleExporter）— PR #11 待 merge
+- [x] OpenTelemetry middleware 啟用（ConsoleExporter）— PR #11 merged
 - [x] Dockerfile multi-stage uv build 上 staging 通過（PR #5，本地 build OK）
 - [x] `/health` 回傳所有 backend 狀態（PR #10，6 項檢查）
-- [ ] Opik per-skill 成本分桶 — PR #12 待 merge
+- [x] Opik per-skill 成本分桶（PR #12 merged，雙軌寫入 ContextVar + opik_context）
 - [x] quality_check baseline 不退步（pg_pool / content_utils 25 單測 + skill 67 載入一致）
+
+> Phase 1 全項驗收於 PR 合併歷史完成；working tree 偏離部分見上方備註。
 
 ---
 

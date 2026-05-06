@@ -50,7 +50,19 @@ import harness.safety_gate as safety_gate
 import harness.output_validator as output_validator
 import harness.data_correction as data_correction
 
+# OpenTelemetry tracing — soft import so missing opentelemetry-sdk on the
+# host (e.g. before `uv sync` after pyproject restore) does not break startup.
+try:
+    from core.tracing import configure_tracing, instrument_fastapi
+    configure_tracing(service_name="smart-lock-agent")
+    _OTEL_READY = True
+except ImportError as _otel_err:
+    print(f"[!] OTel disabled: {_otel_err}")
+    _OTEL_READY = False
+
 app = FastAPI(title="Smart Lock AI Agent — Product Info")
+if _OTEL_READY:
+    instrument_fastapi(app)
 
 # ── Global state ──
 _cfg = None
