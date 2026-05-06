@@ -8,7 +8,7 @@
 -- bcrypt:   $2b$12$Hdfo2ixXxQXkAIYXaDz23.HSP8MD1TrkD3CvpwtdSqvDWSq.BAui6
 -- Tenant:   00000000-0000-0000-0000-000000000001（系統預設租戶）
 --
--- idempotent：ON CONFLICT (email) DO NOTHING
+-- idempotent：ON CONFLICT (id) DO NOTHING
 -- ============================================================================
 
 INSERT INTO users (
@@ -33,4 +33,4 @@ VALUES (
     NOW(),
     NOW()
 )
-ON CONFLICT (email) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
