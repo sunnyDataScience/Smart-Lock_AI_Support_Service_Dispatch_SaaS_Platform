@@ -66,8 +66,16 @@ def _infer_brand_model(file_path: str, skills_dir: str) -> tuple[list[str] | Non
         return [brand], [second]
 
 
-def _parse_skill_md(file_path: str) -> Skill | None:
-    """解析單一 SKILL.md 檔案，回傳 Skill 或 None（解析失敗時）。"""
+def _parse_skill_md(
+    file_path: str,
+    brands: list[str] | None = None,
+    models: list[str] | None = None,
+) -> Skill | None:
+    """解析單一 SKILL.md 檔案，回傳 Skill 或 None（解析失敗時）。
+
+    brands/models 由呼叫端從目錄路徑推斷後傳入，建構時直接寫入 Skill，
+    避免事後 mutation。
+    """
     with open(file_path, "r", encoding="utf-8") as f:
         raw = f.read()
 
@@ -95,6 +103,8 @@ def _parse_skill_md(file_path: str) -> Skill | None:
         name=name,
         description=description,
         content=body,
+        brands=brands,
+        models=models,
         trigger_keywords=trigger_keywords,
         category=category,
         severity=severity,
@@ -115,12 +125,10 @@ def load_skills(skills_dir: str | None = None) -> list[Skill]:
     for root, _dirs, files in sorted(os.walk(skills_dir)):
         if "SKILL.md" in files:
             file_path = os.path.join(root, "SKILL.md")
-            skill = _parse_skill_md(file_path)
+            # 先從路徑推斷 brands/models，再建構 Skill（不再事後 mutate）
+            brands, models = _infer_brand_model(file_path, skills_dir)
+            skill = _parse_skill_md(file_path, brands=brands, models=models)
             if skill:
-                # 從路徑推斷 brands/models
-                brands, models = _infer_brand_model(file_path, skills_dir)
-                skill.brands = brands
-                skill.models = models
                 skills.append(skill)
                 print(f"[skills] 索引: {skill.name}")
 
