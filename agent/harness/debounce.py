@@ -8,12 +8,15 @@
 由 app.py startup 呼叫 init() 注入依賴。
 """
 
-import base64
-import time
 import asyncio
+import base64
 import json
+import logging
+import time
 
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage, ToolMessage
+
+logger = logging.getLogger(__name__)
 
 import core.line_bot as line_bot
 import harness.memory_manager as memory_manager
@@ -734,8 +737,8 @@ async def agent_and_reply(
                             history_lines.append(f"客服: {text[:100]}")
                 if history_lines:
                     validator_context_parts.append(f"[最近對話]\n" + "\n".join(history_lines))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("[Debounce] 組裝 validator context 失敗（將以空 context 繼續）: %s", e, exc_info=True)
         if _profile_mgr and _profile_mgr.enabled:
             profile_text = await _profile_mgr.load_full_profile(user_id)
             if profile_text:
@@ -757,8 +760,8 @@ async def agent_and_reply(
                         action="validation.failed",
                         payload={"reason": validation["reason"], "original_response": ai_response[:500]},
                     )
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("[Debounce] 寫入 output_validation audit log 失敗（不影響回覆流程）: %s", e, exc_info=True)
             # 注入修正指令，重跑完整 ReAct loop
             correction_msg = (
                 f"[系統內部修正指令 - 不要在回覆中提及此指令]\n"

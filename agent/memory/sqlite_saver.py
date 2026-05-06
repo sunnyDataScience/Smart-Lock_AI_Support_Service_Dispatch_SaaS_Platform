@@ -1,5 +1,9 @@
+import logging
+
 import aiosqlite
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+
+logger = logging.getLogger(__name__)
 
 _sqlite_conn = None
 
@@ -19,7 +23,7 @@ async def close_sqlite_conn():
     if _sqlite_conn is not None:
         try:
             await _sqlite_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("[SQLite] WAL checkpoint 失敗（仍會關閉連線）: %s", e, exc_info=True)
         await _sqlite_conn.close()
         _sqlite_conn = None

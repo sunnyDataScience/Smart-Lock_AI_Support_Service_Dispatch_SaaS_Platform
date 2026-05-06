@@ -1,5 +1,9 @@
+import logging
 import os
+
 from psycopg import AsyncConnection
+
+logger = logging.getLogger(__name__)
 
 
 # ── Module-level facts DB connection (global conn pattern) ──
@@ -19,8 +23,8 @@ async def _ensure_conn() -> bool:
         if _facts_conn is not None:
             try:
                 await _facts_conn.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("[Facts DB] close 既有連線失敗（將以新連線取代）: %s", e, exc_info=True)
         _facts_conn = await AsyncConnection.connect(uri, autocommit=True)
         print("[Facts DB] 重新連線成功")
         return True
