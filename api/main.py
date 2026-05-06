@@ -65,12 +65,15 @@ cfg = load_config()
 async def lifespan(app: FastAPI):
     """Application lifecycle: 連線 DB → 啟動 monitors → 關閉。"""
     await init_db(cfg.database)
-    # 啟動 inventory low-stock 背景偵測（單機 in-memory；多 worker 須改 distributed scheduler）
+    # 啟動背景監測（單機 in-memory；多 worker 須改 distributed scheduler）
     from realtime.inventory_monitor import monitor as inventory_monitor
+    from realtime.sla_monitor import monitor as sla_monitor
 
     inventory_monitor.start()
+    sla_monitor.start()
     logger.info("API service ready (port=%s)", cfg.system["port"])
     yield
+    await sla_monitor.stop()
     await inventory_monitor.stop()
     await close_db()
     logger.info("API service stopped")

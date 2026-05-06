@@ -3,16 +3,16 @@
 > 跨前端 / 後端 / Realtime / Workflow 的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 `report/v*.md` 細粒度紀錄同步。
 
-**最後更新：** 2026-05-06（pytest 整合測試套件 16 項）
+**最後更新：** 2026-05-06（SLA 引擎完成 — Realtime 全鏈路最終一塊）
 **對應分支：** `feat/api-media-upload`（pending merge to dev）
-**對應 reports：** v1.0.0 → v1.32.0
+**對應 reports：** v1.0.0 → v1.33.0
 
 ---
 
-## 總體：**約 95%**
+## 總體：**約 97%**
 
 ```
-████████████████████████████▌  95%
+█████████████████████████████░  97%
 ```
 
 | Phase | 04-29 | 05-06 早 | **05-06 晚** | 變化 |
@@ -51,7 +51,7 @@
 | WebSocket server + ACL（JWT/tenant/RBAC）| **100%** |
 | **媒體上傳 endpoint**（upload/get/list-by-wo + list-by-dispute + media_files 表）| **100%** ✅ |
 | **Inventory low-stock 背景偵測 job** | **100%** ✅（v1.28.0）|
-| SLA 引擎 | **0%** |
+| **SLA 引擎**（quote_expiring / dispatch_delay / response_overdue 自動偵測 + WS 推播）| **100%** ✅（v1.33.0）|
 
 ---
 
@@ -64,7 +64,7 @@
 | `/realtime/dispatch-queue` | ✅ | ✅ | ✅（8 個 wo events）|
 | `/realtime/work-orders/{id}` | ✅ | ✅ | ✅（同上）|
 | `/realtime/diagnostics/{conv_id}`（SSE）| ✅ | ⏳ | ⏳ |
-| `/realtime/sla-alerts` | ✅ | ✅ | ⏳（待 SLA 引擎）|
+| `/realtime/sla-alerts` | ✅ | ✅ | ✅（v1.33.0 SLAMonitor 背景偵測）|
 | `/realtime/refunds` | ✅ | ✅ | ✅ |
 | `/realtime/disputes` | ✅ | ✅ | ✅ |
 | `/realtime/inventory/low-stock` | ✅ | ✅ | ✅（v1.28.0 背景偵測 job）|
@@ -119,7 +119,7 @@
 | 🟡 P0 | 整合測試 / E2E（合約 1.2.7.3）| **MVP 完成 v1.32.0**（pytest 16 項通過：health/auth/media/refund 雙簽）；E2E Playwright 待補 |
 | **P0** | UAT（合約 1.2.8）| 計畫期程 |
 | P1 | Inventory low-stock 背景偵測 job | 半天 |
-| P1 | SLA 引擎（quote_expiring / dispatch_delay / response_overdue 自動推送）| 1 週 |
+| ~~P1~~ | ~~SLA 引擎~~ | ✅ **完成 v1.33.0**（2026-05-06）|
 | P1 | Refund 雙簽流程 | 半天 |
 | P1 | A37 candidate detail drawer（排班熱力圖）| 半天 |
 | P1 | work_order_events 表（取代 service_report append）| 半天 |
