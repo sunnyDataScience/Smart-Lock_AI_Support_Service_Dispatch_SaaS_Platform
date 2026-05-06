@@ -16,27 +16,21 @@ import time
 from langchain_core.messages import HumanMessage, SystemMessage, RemoveMessage
 
 from core.config import load_prompt
+from core.content_utils import extract_text
 from harness.llm_metrics import log_simple
 
 
 def _extract_text_from_content(content) -> str:
-    """從訊息 content 安全提取文字，處理 str 和 list[dict] 格式。"""
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        parts = []
-        for block in content:
-            if isinstance(block, dict):
-                if block.get("type") == "text":
-                    parts.append(block["text"])
-                elif block.get("type") in ("image_url", "media"):
-                    mime = block.get("mime_type", "image")
-                    label = "圖片" if "image" in str(mime) else "音檔" if "audio" in str(mime) else "影片"
-                    parts.append(f"[傳送了{label}]")
-            elif isinstance(block, str):
-                parts.append(block)
-        return "\n".join(parts) if parts else ""
-    return str(content)
+    """Backward-compatible wrapper around `core.content_utils.extract_text`.
+
+    Preserves the legacy semantics of the original inline routine:
+      * media blocks rendered as [傳送了圖片/音檔/影片] placeholders
+      * empty fallback ("" instead of repr(content))
+    Kept as a thin alias so existing call sites do not change.  RP1.C.3.
+    """
+    return extract_text(
+        content, include_media_placeholder=True, fallback_to_repr=False
+    )
 
 
 # 模組層級狀態（由 init() 初始化）

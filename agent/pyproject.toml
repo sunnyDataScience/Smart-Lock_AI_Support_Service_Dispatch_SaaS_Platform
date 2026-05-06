@@ -1,0 +1,43 @@
+[project]
+name = "smart-lock-agent"
+version = "0.1.0"
+description = "Smart Lock LINE Bot ReAct Agent (LangGraph + LiteLLM + Vertex AI)"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    # === LangChain / LangGraph 生態 ===
+    "langchain-text-splitters",
+    "langchain-litellm>=0.6.0",
+    "langchain-chroma",
+    "langchain-postgres",
+    "langgraph",
+    "langgraph-checkpoint-sqlite",
+    "langgraph-checkpoint-postgres",
+    # === LLM Provider ===
+    "litellm>=1.80.5",
+    "google-genai",
+    # === Web 框架 ===
+    "fastapi",
+    "uvicorn",
+    "line-bot-sdk",
+    # === DB / Storage ===
+    "psycopg[binary]",
+    "aiosqlite",
+    "google-cloud-storage",
+    # === 雜項 ===
+    "python-dotenv",
+    "duckduckgo-search",
+    "ddgs",
+    "requests",
+    "aiofiles",
+    # === Observability ===
+    "opik",
+    "structlog>=24.4",
+    "opentelemetry-api>=1.27",
+    "opentelemetry-sdk>=1.27",
+    "opentelemetry-instrumentation-fastapi>=0.48b0",
+    "opentelemetry-instrumentation-logging>=0.48b0",
+]
+
+# 不打包成 wheel（agent 是 application，不是 library）
+[tool.uv]
+package = false
