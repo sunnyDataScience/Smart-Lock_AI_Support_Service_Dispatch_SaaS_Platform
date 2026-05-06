@@ -80,7 +80,7 @@ export default function NotificationBell({ variant = "light" }: Props) {
       <button
         type="button"
         onClick={() => setDrawerOpen(true)}
-        className={`relative flex h-10 w-10 items-center justify-center rounded-lg ${hoverBg}`}
+        className={`relative flex h-10 w-10 items-center justify-center rounded-lg focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 ${hoverBg}`}
         title={
           error
             ? `通知載入失敗：${error}`
@@ -88,11 +88,24 @@ export default function NotificationBell({ variant = "light" }: Props) {
               ? "載入中…"
               : `${unreadCount} 則未讀通知`
         }
-        aria-label="開啟通知中心"
+        aria-label={
+          error
+            ? `通知載入失敗：${error}`
+            : unreadCount === null
+              ? "通知中心，載入中"
+              : unreadCount > 0
+                ? `通知中心，${unreadCount} 則未讀`
+                : "通知中心，無未讀"
+        }
+        aria-haspopup="dialog"
+        aria-expanded={drawerOpen}
       >
-        <Bell className={`h-5 w-5 ${iconColor}`} />
+        <Bell className={`h-5 w-5 ${iconColor}`} aria-hidden="true" />
         {unreadCount !== null && unreadCount > 0 && (
-          <span className="absolute right-1 top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--error)] px-1 text-[11px] font-semibold text-white">
+          <span
+            className="absolute right-1 top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--error)] px-1 text-[11px] font-semibold text-white"
+            aria-hidden="true"
+          >
             {formatBadge(unreadCount, hasMore)}
           </span>
         )}

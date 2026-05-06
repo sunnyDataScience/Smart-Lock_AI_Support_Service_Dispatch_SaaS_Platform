@@ -38,6 +38,34 @@
   --warning: #F59E0B;
   --error: #EF4444;
   --info: #3B82F6;
+
+  /* Semantic badge / pill tokens
+   * 給 StatusBadge / KpiCard / 表格行狀態 / urgency / pending banner 等用
+   * 命名規範：--{用途}-{調性}-{bg|fg}
+   * 調性對應：
+   *   warn   → 黃（in-progress / 待派工 / urgent）
+   *   info   → 藍（assigned / 已派工）
+   *   success→ 綠（completed / 完成）
+   *   danger → 紅（overdue / 緊急 / error）
+   *   muted  → 灰（pending / normal / default）
+   */
+  --badge-warn-bg: #FEF3C7;
+  --badge-warn-fg: #B45309;
+  --badge-info-bg: #DBEAFE;
+  --badge-info-fg: #1D4ED8;
+  --badge-success-bg: #D1FAE5;
+  --badge-success-fg: #065F46;
+  --badge-danger-bg: #FEE2E2;
+  --badge-danger-fg: #DC2626;
+  --badge-muted-bg: #F1F5F9;
+  --badge-muted-fg: #64748B;
+
+  /* Surface tokens — 給卡片、區塊用 */
+  --surface-elevated: #FFFFFF;
+  --surface-subtle: #F8FAFC;
+  --surface-strong: #F1F5F9;
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
+  --shadow-popover: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
 }
 
 @layer base {
@@ -45,11 +73,36 @@
     height: 100%;
   }
 
+  /* next/font 在 layout.tsx 將 Inter / Noto Sans TC 注入為 CSS variable
+   * 沒載到（SSR fallback）時退到 system font 以避免 layout shift */
   .font-primary {
-    font-family: "Inter", "Noto Sans TC", sans-serif;
+    font-family: var(--font-inter), var(--font-noto-sans-tc),
+      ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
 
   .font-secondary {
-    font-family: "Inter", "Noto Sans TC", sans-serif;
+    font-family: var(--font-inter), var(--font-noto-sans-tc),
+      ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+
+  /* WCAG 2.4.7 — 全域焦點指示器
+   *
+   * 鎖定 :focus-visible（鍵盤 / 程式焦點），不影響滑鼠 click 後的元素
+   * 仍然 outline 出現的問題。
+   *
+   * 為什麼放這：專案散落 30+ 個 outline:none / outline-none，鍵盤
+   * 使用者全部看不到焦點。這條 base-layer 規則做最後一道保險：
+   * 即使元件忘了加 focus-visible:ring，至少 native outline 還在。
+   * 元件層級若想要更好看的環，再用 focus-visible:ring-2 覆寫。 */
+  :focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
+  }
+
+  /* outline-none 後仍要保證 :focus-visible 看得到（unset Tailwind reset） */
+  :focus-visible.outline-none,
+  .outline-none:focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
   }
 }

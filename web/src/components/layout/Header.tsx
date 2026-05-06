@@ -23,14 +23,23 @@ export default function Header({ title, subtitle }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="flex w-[320px] items-center gap-2 rounded-xl border border-[#E4E4E7] px-3 py-0">
-          <Search className="h-[18px] w-[18px] text-[#A1A1AA]" />
+        <label
+          htmlFor="header-global-search"
+          className="flex w-[320px] items-center gap-2 rounded-xl border border-[#E4E4E7] px-3 py-0 focus-within:border-[var(--border-focus)] focus-within:ring-2 focus-within:ring-[var(--border-focus)] focus-within:ring-offset-1"
+        >
+          <Search
+            className="h-[18px] w-[18px] text-[#A1A1AA]"
+            aria-hidden="true"
+          />
+          <span className="sr-only">搜尋工單、技師、客戶</span>
           <input
-            type="text"
+            id="header-global-search"
+            type="search"
             placeholder="搜尋工單、技師、客戶..."
+            aria-label="全域搜尋"
             className="h-10 flex-1 bg-transparent text-[14px] text-[#18181B] outline-none placeholder:text-[#A1A1AA]"
           />
-        </div>
+        </label>
 
         <NotificationBell />
       </div>

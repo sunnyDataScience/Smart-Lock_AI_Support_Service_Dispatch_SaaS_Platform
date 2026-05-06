@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ClipboardList,
   CircleCheckBig,
@@ -25,8 +25,17 @@ import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
 type DashboardStats = components["schemas"]["DashboardStats"];
+type WorkOrder = components["schemas"]["WorkOrder"];
+type WorkOrderPage = components["schemas"]["WorkOrderPage"];
+type Technician = components["schemas"]["Technician"];
+type TechnicianPage = components["schemas"]["TechnicianPage"];
 
 const PERIOD: components["schemas"]["DashboardPeriod"] = "7d";
+
+// 統一在 page 層 fetch 工單與技師，避免子元件各自重複 fetch
+const WORK_ORDERS_LIMIT = 100;  // /work-orders pydantic le=100
+const RECENT_WO_DISPLAY = 5;    // RecentWorkOrders 只顯示前 5 筆
+const TECHNICIANS_LIMIT = 100;
 
 function formatDuration(seconds: number | undefined | null): string {
   if (seconds == null) return "—";
@@ -45,18 +54,37 @@ function formatPercent(rate: number | undefined | null): string {
 
 function PendingBadge() {
   return (
-    <span className="ml-2 inline-block rounded bg-[#FEF3C7] px-1.5 py-[1px] text-[10px] font-medium text-[#B45309]">
+    <span className="ml-2 inline-block rounded bg-[var(--badge-warn-bg)] px-1.5 py-[1px] text-[10px] font-medium text-[var(--badge-warn-fg)]">
       待派工模組接入
     </span>
   );
+}
+
+function describeError(e: unknown): string {
+  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
+  if (e instanceof Error) return e.message;
+  return String(e);
 }
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // 工單樣本（給 WorkOrderTrendChart 算趨勢 + RecentWorkOrders 顯示前 5）
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [workOrdersHasMore, setWorkOrdersHasMore] = useState(false);
+  const [workOrdersLoading, setWorkOrdersLoading] = useState(true);
+  const [workOrdersError, setWorkOrdersError] = useState<string | null>(null);
+
+  // 技師樣本（給 TechnicianStatusChart 算分佈）
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const [techniciansLoading, setTechniciansLoading] = useState(true);
+  const [techniciansError, setTechniciansError] = useState<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
+
+    // 三個並行 fetch（dashboard stats / work-orders / technicians）
     (async () => {
       setError(null);
       try {
@@ -66,16 +94,43 @@ export default function DashboardPage() {
         );
         if (!cancelled) setStats(data);
       } catch (e) {
-        if (cancelled) return;
-        setError(
-          e instanceof ApiError
-            ? `${e.errorCode} (${e.status})：${e.message}`
-            : e instanceof Error
-              ? e.message
-              : String(e),
-        );
+        if (!cancelled) setError(describeError(e));
       }
     })();
+
+    (async () => {
+      setWorkOrdersLoading(true);
+      setWorkOrdersError(null);
+      try {
+        const res = await api.get<WorkOrderPage>("/api/v1/work-orders", {
+          query: { limit: WORK_ORDERS_LIMIT },
+        });
+        if (cancelled) return;
+        setWorkOrders(res.items ?? []);
+        setWorkOrdersHasMore(!!res.has_more);
+      } catch (e) {
+        if (!cancelled) setWorkOrdersError(describeError(e));
+      } finally {
+        if (!cancelled) setWorkOrdersLoading(false);
+      }
+    })();
+
+    (async () => {
+      setTechniciansLoading(true);
+      setTechniciansError(null);
+      try {
+        const res = await api.get<TechnicianPage>("/api/v1/technicians", {
+          query: { limit: TECHNICIANS_LIMIT },
+        });
+        if (cancelled) return;
+        setTechnicians(res.items ?? []);
+      } catch (e) {
+        if (!cancelled) setTechniciansError(describeError(e));
+      } finally {
+        if (!cancelled) setTechniciansLoading(false);
+      }
+    })();
+
     return () => {
       cancelled = true;
     };
@@ -83,6 +138,10 @@ export default function DashboardPage() {
 
   const conv = stats?.conversations;
   const res = stats?.resolution;
+  const recentWorkOrders = useMemo(
+    () => workOrders.slice(0, RECENT_WO_DISPLAY),
+    [workOrders],
+  );
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -235,11 +294,25 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex gap-6">
-            <WorkOrderTrendChart />
-            <TechnicianStatusChart />
+            <WorkOrderTrendChart
+              items={workOrders}
+              hasMore={workOrdersHasMore}
+              loading={workOrdersLoading}
+              error={workOrdersError}
+              sampleLimit={WORK_ORDERS_LIMIT}
+            />
+            <TechnicianStatusChart
+              items={technicians}
+              loading={techniciansLoading}
+              error={techniciansError}
+            />
           </div>
 
-          <RecentWorkOrders />
+          <RecentWorkOrders
+            items={recentWorkOrders}
+            loading={workOrdersLoading}
+            error={workOrdersError}
+          />
         </main>
       </div>
     </div>

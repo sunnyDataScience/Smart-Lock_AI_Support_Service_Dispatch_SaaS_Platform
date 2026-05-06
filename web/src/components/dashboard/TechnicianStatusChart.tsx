@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
 type Technician = components["schemas"]["Technician"];
-type TechnicianPage = components["schemas"]["TechnicianPage"];
 type Availability = Technician["availability"];
 
 const STATUS_ORDER: Availability[] = [
@@ -32,6 +30,12 @@ interface Slice {
   color: string;
 }
 
+interface Props {
+  items: Technician[];
+  loading?: boolean;
+  error?: string | null;
+}
+
 function bucketByAvailability(items: Technician[]): Slice[] {
   const counts: Record<Availability, number> = {
     available: 0,
@@ -51,43 +55,25 @@ function bucketByAvailability(items: Technician[]): Slice[] {
   }));
 }
 
-export default function TechnicianStatusChart() {
-  const [items, setItems] = useState<Technician[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    (async () => {
-      try {
-        const res = await api.get<TechnicianPage>("/api/v1/technicians", {
-          query: { limit: 100 },
-        });
-        if (!cancelled) setItems(res.items ?? []);
-      } catch (e) {
-        if (cancelled) return;
-        setError(
-          e instanceof ApiError
-            ? `${e.errorCode} (${e.status})：${e.message}`
-            : e instanceof Error
-              ? e.message
-              : String(e),
-        );
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const slices = bucketByAvailability(items);
-  const total = slices.reduce((sum, d) => sum + d.value, 0);
-  const visibleSlices = slices.filter((s) => s.value > 0);
-  const chartData = visibleSlices.length > 0 ? visibleSlices : [{ name: "—", value: 1, color: "#E4E4E7", key: "available" as Availability }];
+export default function TechnicianStatusChart({ items, loading, error }: Props) {
+  const slices = useMemo(() => bucketByAvailability(items), [items]);
+  const total = useMemo(
+    () => slices.reduce((sum, d) => sum + d.value, 0),
+    [slices],
+  );
+  const chartData = useMemo(() => {
+    const visible = slices.filter((s) => s.value > 0);
+    return visible.length > 0
+      ? visible
+      : [
+          {
+            name: "—",
+            value: 1,
+            color: "#E4E4E7",
+            key: "available" as Availability,
+          },
+        ];
+  }, [slices]);
 
   return (
     <div className="flex w-[371px] flex-col gap-4 rounded-lg border-[1.5px] border-[#E4E4E7] bg-[var(--bg-surface)] p-6">

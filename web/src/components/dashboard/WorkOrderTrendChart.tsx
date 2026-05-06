@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AreaChart,
   Area,
@@ -10,11 +10,9 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
-import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
-type WorkOrderPage = components["schemas"]["WorkOrderPage"];
 
 const RANGES = [
   { label: "7天", days: 7 },
@@ -24,13 +22,19 @@ const RANGES = [
 
 type RangeLabel = (typeof RANGES)[number]["label"];
 
-// API 上限為 100（pydantic Field(le=100)），超過會 422
-const FETCH_LIMIT = 100;
-
 interface BucketRow {
   date: string;
   created: number;
   completed: number;
+}
+
+interface Props {
+  items: WorkOrder[];
+  hasMore: boolean;
+  loading?: boolean;
+  error?: string | null;
+  /** 樣本上限提示（顯示「取樣 N 筆」徽章用） */
+  sampleLimit: number;
 }
 
 function dayKey(iso: string): string {
@@ -74,42 +78,14 @@ function buildSeries(items: WorkOrder[], days: number): BucketRow[] {
   return Object.values(buckets);
 }
 
-export default function WorkOrderTrendChart() {
+export default function WorkOrderTrendChart({
+  items,
+  hasMore,
+  loading,
+  error,
+  sampleLimit,
+}: Props) {
   const [activeRange, setActiveRange] = useState<RangeLabel>("14天");
-  const [items, setItems] = useState<WorkOrder[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    (async () => {
-      try {
-        const res = await api.get<WorkOrderPage>("/api/v1/work-orders", {
-          query: { limit: FETCH_LIMIT },
-        });
-        if (cancelled) return;
-        setItems(res.items ?? []);
-        setHasMore(!!res.has_more);
-      } catch (e) {
-        if (cancelled) return;
-        setError(
-          e instanceof ApiError
-            ? `${e.errorCode} (${e.status})：${e.message}`
-            : e instanceof Error
-              ? e.message
-              : String(e),
-        );
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const days = RANGES.find((r) => r.label === activeRange)?.days ?? 14;
   const data = useMemo(() => buildSeries(items, days), [items, days]);
@@ -117,8 +93,14 @@ export default function WorkOrderTrendChart() {
     () => data.reduce((m, d) => Math.max(m, d.created, d.completed), 0),
     [data],
   );
-  const yMax = Math.max(5, Math.ceil((maxValue + 1) / 5) * 5);
-  const yTicks = [0, yMax / 5, (yMax / 5) * 2, (yMax / 5) * 3, (yMax / 5) * 4, yMax];
+  const yMax = useMemo(
+    () => Math.max(5, Math.ceil((maxValue + 1) / 5) * 5),
+    [maxValue],
+  );
+  const yTicks = useMemo(
+    () => [0, yMax / 5, (yMax / 5) * 2, (yMax / 5) * 3, (yMax / 5) * 4, yMax],
+    [yMax],
+  );
 
   return (
     <div className="flex w-[741px] flex-col gap-4 rounded-lg border-[1.5px] border-[#E4E4E7] bg-[var(--bg-surface)] p-6">
@@ -127,10 +109,10 @@ export default function WorkOrderTrendChart() {
           <h3 className="text-[20px] font-semibold text-[#18181B]">工單趨勢</h3>
           {hasMore && (
             <span
-              className="rounded bg-[#FEF3C7] px-2 py-[2px] text-[10px] font-medium text-[#B45309]"
-              title={`只取最近 ${FETCH_LIMIT} 筆工單；資料量超過時較舊區段可能偏低`}
+              className="rounded bg-[var(--badge-warn-bg)] px-2 py-[2px] text-[10px] font-medium text-[var(--badge-warn-fg)]"
+              title={`只取最近 ${sampleLimit} 筆工單；資料量超過時較舊區段可能偏低`}
             >
-              取樣 {FETCH_LIMIT} 筆
+              取樣 {sampleLimit} 筆
             </span>
           )}
         </div>
