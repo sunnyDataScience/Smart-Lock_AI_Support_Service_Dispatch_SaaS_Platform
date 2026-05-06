@@ -16,7 +16,7 @@
 |------|------|------|------|---------|
 | RP1.C 內部品質 | 5-7 PD | ✅ | **6/6 merged + working tree 還原** | — |
 | RP1.D 觀測基建 | 4-5 PD | ✅ | **5/5 merged + working tree 還原** | — |
-| RP2 V1 後重構 | 14-19 PD | 🔴 blocked | 0/6 | 等 V1 上線 + E2E ≥ 80% |
+| RP2 V1 後重構 | 14-19 PD | 🟡 部分先行 | **3/6 子項先行（worktree 並行）**：RP2.2 / 2.3 / 2.6 ✅；RP2.1 / 2.4 / 2.5 待 V1 + E2E ≥ 80% | 等 V1 上線 + E2E ≥ 80% |
 
 **Phase 1 實際月曆時間**：1 天（多 agent 平行）— 遠快於原估 2 週
 **Phase 2 預估月曆時間**：4-5 週（V1 後）
@@ -202,10 +202,12 @@ PR 合併歷史 + working tree 雙重達標：
 | 前置條件 | 狀態 | 備註 |
 |---------|------|------|
 | V1 上線且穩定運行 ≥ 2 週 | ⬜ | — |
-| Phase 1（RP1.C + RP1.D）全部完成 | ⬜ | — |
+| Phase 1（RP1.C + RP1.D）全部完成 | ✅ | PR #2-#22 + alignment 還原系列收斂於 dev tip `7d3b515` |
 | Playwright E2E 主路徑覆蓋率 ≥ 80% | ⬜ | Track A 交付 |
 | LINE flow E2E（debounce / multimodal / Quick Reply）有自動化測試 | ⬜ | — |
 | 真實流量 baseline 量測（QPS、p50/p95 latency） | ⬜ | — |
+
+**先行啟動的獨立子項**（2026-05-07，worktree 並行）：RP2.2 / RP2.3 / RP2.6 為「無共享檔案衝突 + 與 RP2.1 拆分無依賴」的解耦/收斂任務，作為 RP2.1 的前置障礙清除提前執行。詳見下方狀態表 + `report/v1.38.0.md`。
 
 ### RP2 任務表
 
@@ -217,14 +219,14 @@ PR 合併歷史 + working tree 雙重達標：
 | RP2.1.3 | 抽 `harness/orchestrator.py`（agent_and_reply 編排） | 1.5-2 PD | RP2.1.2 | 高 | — | 🔴 |
 | RP2.1.4 | debounce.py 縮減為純 timer 合併（≤ 200 行） | 0.5-1 PD | RP2.1.3 | 中 | — | 🔴 |
 | RP2.1.5 | 每 PR 驗證：E2E + quality_check + 灰度（5%→100%） | 全程 | — | 高 | — | 🔴 |
-| **RP2.2** | **Skill→harness 反向耦合修復** | 1 PD | RP2.1 | 中 | `refactor/skill-harness-decoupling` | 🔴 |
-| RP2.2.1 | 抽 `agent/core/brand_match.py`（含 match_brand/match_model） | 0.5 PD | — | 中 | — | 🔴 |
-| RP2.2.2 | `skills/tools.py:10` 改從 core import | 0.25 PD | RP2.2.1 | 中 | — | 🔴 |
-| RP2.2.3 | `harness/line_ui_factory.py` 同步改用 core | 0.25 PD | RP2.2.1 | 中 | — | 🔴 |
-| **RP2.3** | **Harness→agent 反向耦合修復** | 1 PD | RP2.1 | 中 | `refactor/harness-agent-decoupling` | 🔴 |
-| RP2.3.1 | `app.py` init() 注入 `get_system_prompt` 給 harness | 0.5 PD | — | 中 | — | 🔴 |
-| RP2.3.2 | `harness/debounce.py:24` 移除直接 import | 0.25 PD | RP2.3.1 | 中 | — | 🔴 |
-| RP2.3.3 | `pydeps` 圖驗證無反向 | 0.25 PD | RP2.3.2 | 中 | — | 🔴 |
+| **RP2.2** | **Skill→harness 反向耦合修復**（PR #23 worktree 平行） | 1 PD | — | 中 | `refactor/rp22-skill-harness-decoupling` | ✅ |
+| RP2.2.1 | 抽 `agent/core/brand_match.py`（含 match_brand/match_model + infer_brand_from_text） | 0.5 PD | — | 中 | — | ✅ |
+| RP2.2.2 | `skills/tools.py:10` 改從 core import | 0.25 PD | RP2.2.1 | 中 | — | ✅ |
+| RP2.2.3 | `harness/line_ui_factory.py` 同步改用 core（保留 re-export 向下相容） | 0.25 PD | RP2.2.1 | 中 | — | ✅ |
+| **RP2.3** | **Harness→agent 反向耦合修復**（PR #24 worktree 平行） | 1 PD | — | 中 | `refactor/rp23-harness-agent-decoupling` | ✅ |
+| RP2.3.1 | `app.py` init() 注入 `system_prompt_getter` 給 harness | 0.5 PD | — | 中 | — | ✅ |
+| RP2.3.2 | `harness/debounce.py` 移除 `from agent import` 直接 import | 0.25 PD | RP2.3.1 | 中 | — | ✅ |
+| RP2.3.3 | 驗證 `rg "from agent" agent/harness/` 0 行 | 0.25 PD | RP2.3.2 | 中 | — | ✅ |
 | **RP2.4** | **11 elif → dispatch table** | 1-2 PD | RP2.1 | 中 | `refactor/quick-reply-state-machine` | 🔴 |
 | RP2.4.1 | 建 `BrandModelState` enum + dispatch table | 0.5 PD | — | 中 | — | 🔴 |
 | RP2.4.2 | `_quick_reply_intercept` 改用 dispatch | 0.5-1 PD | RP2.4.1 | 中 | — | 🔴 |
@@ -233,11 +235,12 @@ PR 合併歷史 + working tree 雙重達標：
 | RP2.5.1 | 建 `Block` dataclass | 0.5 PD | — | 低 | — | 🔴 |
 | RP2.5.2 | webhook 入口 normalize | 0.5 PD | RP2.5.1 | 中 | — | 🔴 |
 | RP2.5.3 | 移除內部 isinstance 分支 | 1-2 PD | RP2.5.2 | 中 | — | 🔴 |
-| **RP2.6** | **except Exception 收斂** | 2 PD | RP1.C.1 | 低 | `refactor/exception-narrowing` | 🔴 |
-| RP2.6.1 | harness 5 處改具體型別 | 0.75 PD | — | 低 | — | 🔴 |
-| RP2.6.2 | data pipeline 3 處改具體型別 | 0.5 PD | — | 低 | — | 🔴 |
-| RP2.6.3 | api/auth_service 3 處改具體型別 | 0.5 PD | — | 低 | — | 🔴 |
-| RP2.6.4 | 整體驗證 | 0.25 PD | RP2.6.1-3 | 低 | — | 🔴 |
+| **RP2.6** | **except Exception 收斂**（PR #25 worktree 平行；46 處 narrowed，超出標稱 11 處） | 2 PD | RP1.C.1 | 低 | `refactor/rp26-exception-narrowing` | ✅ |
+| RP2.6.1 | harness 22 處（debounce 11 / data_correction 4 / llm_metrics 3 / profile_updater 2 / output_validator 1 / memory_manager 1） | 0.75 PD | — | 低 | — | ✅ |
+| RP2.6.2 | data pipeline 16 處跨 13 檔（source_to_raw / raw_to_bronze / bronze_to_silver / silver_to_skill 全 layer） | 0.5 PD | — | 低 | — | ✅ |
+| RP2.6.3 | api/services 4 處（auth_service 3 + family_review_service 1） | 0.5 PD | — | 低 | — | ✅ |
+| RP2.6.4 | 額外：agent/quality/quality_check.py 5 處個別精準型別 | 0.25 PD | — | 低 | — | ✅ |
+| RP2.6.5 | 整體驗證：syntax 全綠 + 全 codebase except Exception 從 ~108 → 62（剩 62 多為 scripts / `# noqa: BLE001`） | 0.25 PD | RP2.6.1-4 | 低 | — | ✅ |
 
 **RP2 小計**：14-19 PD
 
