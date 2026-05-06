@@ -182,28 +182,156 @@ async def shutdown():
     print("[*] Connections closed")
 
 
+# ── /health helpers ──
+
+import time
+from fastapi.responses import JSONResponse
+
+
+async def _timed_check(coro, timeout: float = 3.0) -> dict:
+    """Run a check coroutine with timeout, return {status, latency_ms} on success
+    or {status, error} on failure. Never raises — every error is captured.
+    """
+    start = time.perf_counter()
+    try:
+        result = await asyncio.wait_for(coro, timeout=timeout)
+    except asyncio.TimeoutError:
+        latency = (time.perf_counter() - start) * 1000
+        return {"status": "timeout", "latency_ms": round(latency, 1),
+                "error": f"exceeded {timeout}s"}
+    except Exception as e:
+        latency = (time.perf_counter() - start) * 1000
+        # Trim long stack messages and avoid leaking internals
+        msg = str(e).splitlines()[0][:200] if str(e) else type(e).__name__
+        return {"status": "error", "latency_ms": round(latency, 1), "error": msg}
+
+    latency = (time.perf_counter() - start) * 1000
+    payload = {"status": "ok", "latency_ms": round(latency, 1)}
+    if isinstance(result, dict):
+        # Allow checks to return extra metadata (e.g. skill count)
+        payload.update(result)
+    return payload
+
+
+async def _check_facts_db() -> dict:
+    """Ping facts DB via SELECT 1 — sync auto-reconnect through _ensure_conn()."""
+    import profiles.manager as pm
+    if not await pm._ensure_conn():
+        raise RuntimeError("facts DB connection unavailable")
+    await pm._facts_conn.execute("SELECT 1")
+    return {}
+
+
+async def _check_audit_db() -> dict:
+    """Ping audit DB via SELECT 1."""
+    import storage.postgres_impl as audit
+    if not await audit._ensure_conn():
+        raise RuntimeError("audit DB connection unavailable")
+    await audit._postgres_conn.execute("SELECT 1")
+    return {}
+
+
+async def _check_memory_db() -> dict:
+    """Ping memory backend (only meaningful for postgres / sqlite)."""
+    if _cfg is None:
+        raise RuntimeError("config not loaded")
+    mem_type = _cfg.memory.get("type", "memory")
+
+    if mem_type == "postgres":
+        from memory import postgres_saver as ps
+        conn = ps._postgres_conn
+        if conn is None or conn.closed or conn.broken:
+            raise RuntimeError("memory postgres connection broken")
+        await conn.execute("SELECT 1")
+        return {"backend": "postgres"}
+
+    if mem_type == "sqlite":
+        from memory import sqlite_saver as ss
+        if ss._sqlite_conn is None:
+            raise RuntimeError("memory sqlite connection not initialised")
+        async with ss._sqlite_conn.execute("SELECT 1") as cur:
+            await cur.fetchone()
+        return {"backend": "sqlite"}
+
+    # In-process MemorySaver — nothing to ping, always ok
+    return {"backend": mem_type}
+
+
+async def _check_llm() -> dict:
+    """Verify LLM client is constructed and config is valid.
+
+    NOTE: We deliberately do NOT issue a real LLM request here — that would
+    cost tokens, add latency, and risk false alarms from quota throttling.
+    Instead we check the static configuration that startup() validated.
+    """
+    if _cfg is None:
+        raise RuntimeError("config not loaded")
+    model = _cfg.llm.get("model")
+    if not model:
+        raise RuntimeError("llm.model not configured")
+    return {"model": model}
+
+
+async def _check_media_storage() -> dict:
+    """Verify media storage backend was initialised by startup()."""
+    import harness.multimodal as mm
+    if mm._media_storage is None:
+        # multimodal disabled is a valid state — surface as ok with detail
+        if not mm.is_enabled():
+            return {"backend": "disabled"}
+        raise RuntimeError("media storage not initialised but multimodal enabled")
+    backend_cls = type(mm._media_storage).__name__
+    return {"backend": backend_cls}
+
+
+async def _check_skill_registry() -> dict:
+    """Re-scan skills directory and report count.
+
+    This catches deployment misconfigs (missing data/, broken frontmatter, etc.).
+    """
+    if _cfg is None:
+        raise RuntimeError("config not loaded")
+    from skills import load_skills
+    skills_dir = _cfg.skills.get("data_dir", "skills/data")
+    skills = load_skills(skills_dir)
+    if not skills:
+        raise RuntimeError(f"no skills loaded from {skills_dir}")
+    return {"count": len(skills)}
+
+
 @app.get("/health")
 async def health():
-    """Health check — 驗證核心 DB 連線是否存活。"""
-    import profiles.manager as pm
-    import storage.postgres_impl as audit
+    """Health check — pings DB / LLM config / media storage / skill registry.
 
-    checks = {}
-
-    # Facts DB
-    fc = pm._facts_conn
-    checks["facts_db"] = "ok" if (fc is not None and not fc.closed and not fc.broken) else "disconnected"
-
-    # Audit DB
-    ac = audit._postgres_conn
-    checks["audit_db"] = "ok" if (ac is not None and not ac.closed and not ac.broken) else "disconnected"
-
-    all_ok = all(v == "ok" for v in checks.values())
-    from fastapi.responses import JSONResponse
-    return JSONResponse(
-        status_code=200 if all_ok else 503,
-        content={"status": "ok" if all_ok else "degraded", "version": "2.0-skills", "checks": checks},
+    Returns 200 + {status: "ok"} when every check passes, 503 + {status: "degraded"}
+    if any check fails. Individual check failures are isolated (one failure does
+    not crash the endpoint).
+    """
+    facts_db, audit_db, memory_db, llm, media_storage, skill_registry = await asyncio.gather(
+        _timed_check(_check_facts_db(), timeout=3.0),
+        _timed_check(_check_audit_db(), timeout=3.0),
+        _timed_check(_check_memory_db(), timeout=3.0),
+        _timed_check(_check_llm(), timeout=2.0),
+        _timed_check(_check_media_storage(), timeout=2.0),
+        _timed_check(_check_skill_registry(), timeout=5.0),
     )
+
+    checks = {
+        "facts_db": facts_db,
+        "audit_db": audit_db,
+        "memory_db": memory_db,
+        "llm": llm,
+        "media_storage": media_storage,
+        "skill_registry": skill_registry,
+    }
+
+    all_ok = all(c["status"] == "ok" for c in checks.values())
+    body = {
+        "status": "ok" if all_ok else "degraded",
+        "version": "2.0-skills",
+        "checks": checks,
+    }
+    return JSONResponse(status_code=200 if all_ok else 503, content=body)
 
 
 @app.get("/chat")
