@@ -1,24 +1,31 @@
 #!/usr/bin/env bash
 # scripts/dev/dev-up.sh — Local development startup orchestrator
 #
-# 一鍵啟動本地開發環境：
+# 一鍵啟動本地開發環境（情境 A：本機 docker DB + 假資料）：
 #   1. PostgreSQL 容器 (pgvector/pg17) — 冪等 (run / start / no-op)
 #   2. 等待 DB 就緒 (pg_isready)
 #   3. ngrok HTTP tunnel — 背景執行，自動偵測 public URL
-#   4. uvicorn (agent/app.py) — 前景執行，Ctrl+C 即停止
+#   4. uvicorn (agent/app.py) — 預設前景（Ctrl+C 即停止），多服務模式自動切背景
+#   5. （選用）uvicorn (api/main.py) on :8001
+#   6. （選用）next dev (web/) on :3000
 #
-# Ctrl+C 後會自動清理 ngrok；DB 容器保留 (手動 docker stop lock_AI)。
+# 收尾：./scripts/dev/dev-down.sh（多服務模式請用 --gcp 或 PID file 收）
 #
 # Usage:
-#   ./scripts/dev/dev-up.sh              # 預設：起 DB + ngrok + uvicorn
-#   ./scripts/dev/dev-up.sh --no-ngrok   # 跳過 ngrok (純本地測試)
-#   ./scripts/dev/dev-up.sh --db-only    # 只起 DB，不跑 uvicorn / ngrok
+#   ./scripts/dev/dev-up.sh                # 預設：DB + ngrok + agent (前景)
+#   ./scripts/dev/dev-up.sh --no-ngrok     # 跳過 ngrok
+#   ./scripts/dev/dev-up.sh --db-only      # 只起 DB
+#   ./scripts/dev/dev-up.sh --with-api     # +api on :8001（agent / api 全背景）
+#   ./scripts/dev/dev-up.sh --with-web     # +web on :3000
+#   ./scripts/dev/dev-up.sh --full         # = --with-api --with-web（全棧）
 
 set -euo pipefail
 
 # ── Constants ──────────────────────────────────────────────────────────────
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 AGENT_DIR="$PROJECT_ROOT/agent"
+API_DIR="$PROJECT_ROOT/api"
+WEB_DIR="$PROJECT_ROOT/web"
 LOG_DIR="$PROJECT_ROOT/.dev-logs"
 
 DB_CONTAINER="lock_AI"
@@ -28,22 +35,33 @@ DB_PASS="0000"
 DB_NAME="lock_AI_data"
 DB_PORT="5433"
 
-APP_PORT="8000"
+AGENT_PORT="8000"
+API_PORT="8001"
+WEB_PORT="3000"
 NGROK_API="http://127.0.0.1:4040/api/tunnels"
 
 # ── CLI flags ──────────────────────────────────────────────────────────────
 NO_NGROK=0
 DB_ONLY=0
+WITH_API=0
+WITH_WEB=0
 for arg in "$@"; do
   case "$arg" in
     --no-ngrok) NO_NGROK=1 ;;
     --db-only)  DB_ONLY=1 ;;
+    --with-api) WITH_API=1 ;;
+    --with-web) WITH_WEB=1 ;;
+    --full)     WITH_API=1; WITH_WEB=1 ;;
     -h|--help)
       sed -n '2,/^set -euo/p' "$0" | grep -E '^# ' | sed 's/^# //'
       exit 0 ;;
     *) echo "unknown flag: $arg" >&2; exit 2 ;;
   esac
 done
+
+# 多服務模式（agent / api / web 並存）→ agent 切背景，避免 Ctrl+C 把 api/web 留下來
+MULTI_SERVICE=0
+[ "$WITH_API" -eq 1 ] || [ "$WITH_WEB" -eq 1 ] && MULTI_SERVICE=1
 
 # ── Logging helpers ────────────────────────────────────────────────────────
 log()  { printf '\033[36m[dev-up]\033[0m %s\n' "$*"; }
@@ -54,7 +72,8 @@ err()  { printf '\033[31m[dev-up]\033[0m %s\n' "$*" >&2; }
 need() { command -v "$1" >/dev/null 2>&1 || { err "missing tool: $1"; exit 1; }; }
 need docker
 [ "$NO_NGROK" -eq 1 ] || need ngrok
-[ "$DB_ONLY" -eq 1 ] || need uv   # 只起 DB 不需要 uv；其他情況都要
+[ "$DB_ONLY" -eq 1 ] || need uv
+[ "$WITH_WEB" -eq 1 ] && need npm
 
 if [ ! -f "$PROJECT_ROOT/.env" ]; then
   err ".env not found at $PROJECT_ROOT/.env (copy from .env.example)"
@@ -65,6 +84,21 @@ fi
 if [ "$DB_ONLY" -ne 1 ] && [ ! -d "$PROJECT_ROOT/.venv" ]; then
   log "no .venv — running 'uv sync' (首次啟動會下載 deps，約 1–2 分鐘)"
   (cd "$PROJECT_ROOT" && uv sync) || { err "uv sync failed"; exit 1; }
+fi
+
+# 多服務模式：先檢查 port 衝突
+if [ "$MULTI_SERVICE" -eq 1 ]; then
+  check_port() {
+    local port="$1" label="$2"
+    if ss -tln 2>/dev/null | grep -q ":$port "; then
+      err "port $port ($label) 已被占用，請先停掉占用者"
+      ss -tln | grep ":$port " | head -3 >&2
+      exit 1
+    fi
+  }
+  check_port "$AGENT_PORT" agent
+  [ "$WITH_API" -eq 1 ] && check_port "$API_PORT" api
+  [ "$WITH_WEB" -eq 1 ] && check_port "$WEB_PORT" web
 fi
 
 mkdir -p "$LOG_DIR"
@@ -105,13 +139,13 @@ wait_db() {
 # ── 2. ngrok (background) ──────────────────────────────────────────────────
 NGROK_PID=""
 start_ngrok() {
-  if pgrep -f "ngrok http $APP_PORT" >/dev/null 2>&1; then
-    warn "ngrok already running on :$APP_PORT — skipping launch"
+  if pgrep -f "ngrok http $AGENT_PORT" >/dev/null 2>&1; then
+    warn "ngrok already running on :$AGENT_PORT — skipping launch"
     detect_ngrok_url
     return
   fi
-  log "starting ngrok http $APP_PORT (log: $LOG_DIR/ngrok.log)"
-  ngrok http "$APP_PORT" --log=stdout >"$LOG_DIR/ngrok.log" 2>&1 &
+  log "starting ngrok http $AGENT_PORT (log: $LOG_DIR/ngrok.log)"
+  ngrok http "$AGENT_PORT" --log=stdout >"$LOG_DIR/ngrok.log" 2>&1 &
   NGROK_PID=$!
   detect_ngrok_url
 }
@@ -133,7 +167,29 @@ detect_ngrok_url() {
   warn "ngrok URL not detected within 15s — inspect: tail -f $LOG_DIR/ngrok.log"
 }
 
-# ── 3. Cleanup trap ────────────────────────────────────────────────────────
+# ── 3. 背景啟動服務（多服務模式用） ────────────────────────────────────
+start_bg_service() {
+  local name="$1" cwd="$2" cmd="$3" port="$4"
+  log "starting $name on :$port (background)"
+  (
+    cd "$cwd"
+    nohup bash -c "$cmd" > "$LOG_DIR/${name}.log" 2>&1 &
+    echo $! > "$LOG_DIR/${name}.pid"
+  )
+  for i in $(seq 1 60); do
+    if curl -sf "http://127.0.0.1:$port" >/dev/null 2>&1 \
+       || curl -sf "http://127.0.0.1:$port/health" >/dev/null 2>&1; then
+      log "  ✓ $name ready ($i sec)"
+      return 0
+    fi
+    sleep 1
+  done
+  err "$name 60s 內未 ready，看 log: $LOG_DIR/${name}.log"
+  tail -20 "$LOG_DIR/${name}.log" >&2
+  return 1
+}
+
+# ── 4. Cleanup trap（前景模式用） ──────────────────────────────────────
 cleanup() {
   echo
   log "shutting down..."
@@ -143,24 +199,64 @@ cleanup() {
   fi
   log "db container kept running — stop manually: docker stop $DB_CONTAINER"
 }
-trap cleanup EXIT INT TERM
+[ "$MULTI_SERVICE" -eq 0 ] && trap cleanup EXIT INT TERM
 
-# ── 4. Run ─────────────────────────────────────────────────────────────────
+# ── 5. Run ─────────────────────────────────────────────────────────────────
 ensure_db
 wait_db
 
 if [ "$DB_ONLY" -eq 1 ]; then
   log "--db-only: skipping ngrok & uvicorn"
-  trap - EXIT INT TERM   # 不需要 cleanup ngrok
+  trap - EXIT INT TERM
   exit 0
 fi
 
 [ "$NO_NGROK" -eq 0 ] && start_ngrok
 
-log "starting uvicorn — http://127.0.0.1:$APP_PORT  (Ctrl+C to stop)"
-log "  health:  curl http://127.0.0.1:$APP_PORT/health"
-log "  test:    curl 'http://127.0.0.1:$APP_PORT/chat?q=門打不開'"
-echo
+# ── 5a. 單一服務模式：agent 前景跑（與舊行為一致）─────────────────────
+if [ "$MULTI_SERVICE" -eq 0 ]; then
+  log "starting uvicorn — http://127.0.0.1:$AGENT_PORT  (Ctrl+C to stop)"
+  log "  health:  curl http://127.0.0.1:$AGENT_PORT/health"
+  log "  test:    curl 'http://127.0.0.1:$AGENT_PORT/chat?q=門打不開'"
+  echo
+  cd "$AGENT_DIR"
+  exec uv run uvicorn app:app --reload --port "$AGENT_PORT"
+fi
 
-cd "$AGENT_DIR"
-uv run uvicorn app:app --reload --port "$APP_PORT"
+# ── 5b. 多服務模式：全部背景 + summary ────────────────────────────────
+start_bg_service agent "$AGENT_DIR" \
+  "uv run uvicorn app:app --host 127.0.0.1 --port $AGENT_PORT" "$AGENT_PORT"
+
+if [ "$WITH_API" -eq 1 ]; then
+  start_bg_service api "$API_DIR" \
+    "uv run uvicorn main:app --host 127.0.0.1 --port $API_PORT" "$API_PORT"
+fi
+
+if [ "$WITH_WEB" -eq 1 ]; then
+  if [ ! -d "$WEB_DIR/node_modules" ]; then
+    log "no node_modules — running 'npm install'..."
+    (cd "$WEB_DIR" && npm install) || { err "npm install failed"; exit 1; }
+  fi
+  start_bg_service web "$WEB_DIR" \
+    "npm run dev -- --port $WEB_PORT" "$WEB_PORT"
+fi
+
+# ── Summary ───────────────────────────────────────────────────────────
+echo ""
+log "═══════════════════════════════════════════════"
+log " 情境 A 啟動完成（本機 docker DB）"
+log "═══════════════════════════════════════════════"
+log "  db (docker)     : $DB_CONTAINER on :$DB_PORT"
+log "  agent           : pid $(cat "$LOG_DIR/agent.pid")  http://127.0.0.1:$AGENT_PORT"
+[ "$WITH_API" -eq 1 ] && log "  api             : pid $(cat "$LOG_DIR/api.pid")  http://127.0.0.1:$API_PORT"
+[ "$WITH_WEB" -eq 1 ] && log "  web             : pid $(cat "$LOG_DIR/web.pid")  http://127.0.0.1:$WEB_PORT"
+log ""
+log "驗證："
+log "  curl 'http://127.0.0.1:$AGENT_PORT/chat?q=門打不開'"
+[ "$WITH_API" -eq 1 ] && log "  open http://127.0.0.1:$API_PORT/docs"
+[ "$WITH_API" -eq 1 ] && log "  ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=changeme123 ./tests/smoke/api.sh"
+[ "$WITH_WEB" -eq 1 ] && log "  open http://127.0.0.1:$WEB_PORT/dashboard"
+log ""
+log "收尾：./scripts/dev/dev-down.sh --multi             # 停 agent / api / web"
+log "      ./scripts/dev/dev-down.sh --multi --stop-db    # 連 docker DB 一起停"
+log "═══════════════════════════════════════════════"

@@ -45,16 +45,27 @@ cp .env.local.example .env.local
 
 # 切換 .env 到本地模式（會自動備份原 .env）
 ./scripts/env/use-local.sh
+```
 
-# 啟動 DB + ngrok + uvicorn
-./scripts/dev/dev-up.sh                # 預設全開
-./scripts/dev/dev-up.sh --no-ngrok     # 不要 ngrok
-./scripts/dev/dev-up.sh --db-only      # 只起 DB
+### 啟動方式（依用途選一）
+
+```bash
+# 單 agent 開發（前景跑、Ctrl+C 即停，最常用）
+./scripts/dev/dev-up.sh                # DB + ngrok + agent (foreground)
+./scripts/dev/dev-up.sh --no-ngrok     # 跳過 ngrok（純本地測試）
+./scripts/dev/dev-up.sh --db-only      # 只起 DB（空 API container 殼）
+
+# 多服務全棧（agent + api + web 全背景，跟情境 B 對稱）
+./scripts/dev/dev-up.sh --with-api     # +api on :8001
+./scripts/dev/dev-up.sh --with-web     # +web on :3000
+./scripts/dev/dev-up.sh --full         # = --with-api --with-web
 
 # 收尾
-./scripts/dev/dev-down.sh              # 預設保留 DB container
-./scripts/dev/dev-down.sh --stop-db    # 連 DB 一起停
-./scripts/dev/dev-down.sh --remove-db  # 連 DB 一起停並刪除 container（清空資料）
+./scripts/dev/dev-down.sh                  # 單服務模式：停 ngrok + agent
+./scripts/dev/dev-down.sh --stop-db        # 連 docker DB 一起停
+./scripts/dev/dev-down.sh --remove-db      # 連 DB 停 + 刪 container（清資料）
+./scripts/dev/dev-down.sh --multi          # 多服務模式：停 agent / api / web
+./scripts/dev/dev-down.sh --multi --stop-db # 多服務 + 連 DB 停
 ```
 
 ### 本地驗證
@@ -63,7 +74,7 @@ cp .env.local.example .env.local
 # uvicorn 起來後快速測 LLM 連線
 curl "http://localhost:8000/chat?q=門打不開"
 
-# API smoke test（18 endpoints happy-path）
+# API smoke test（必須先用 --with-api 或 --full 起 api）
 ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=changeme123 ./tests/smoke/api.sh
 ```
 
@@ -88,7 +99,7 @@ gcloud config set project cedar-scope-489604-g3
 #   web             : pid <X>  http://127.0.0.1:3000
 
 # 收尾：一鍵停所有服務並切回 .env.local
-./scripts/dev/dev-down.sh --gcp --use-local
+./scripts/dev/dev-down.sh --multi --use-local
 ```
 
 ### 進階用法
