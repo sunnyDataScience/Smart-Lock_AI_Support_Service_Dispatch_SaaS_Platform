@@ -64,6 +64,15 @@ export default function DisputesPage() {
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  // Dispute decision modal state
+  const [decisionModal, setDecisionModal] = useState<{
+    decision: "resolve" | "escalate" | "reject";
+  } | null>(null);
+  const [decisionResolution, setDecisionResolution] = useState("");
+  const [decisionAmount, setDecisionAmount] = useState("");
+  const [decisionBusy, setDecisionBusy] = useState(false);
+  const [decisionError, setDecisionError] = useState<string | null>(null);
+
   const fetchDisputes = async (status: StatusTab["value"]) => {
     setLoading(true);
     setError(null);
@@ -226,6 +235,54 @@ export default function DisputesPage() {
                   )}
                 </div>
               )}
+
+              {/* Decision actions（filed/under_review/mediation 才能仲裁） */}
+              {selected.status &&
+                ["filed", "under_review", "mediation"].includes(
+                  selected.status,
+                ) && (
+                  <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[var(--border)] pt-4">
+                    <span className="text-[12px] font-medium text-[var(--text-secondary)]">
+                      仲裁決定：
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDecisionResolution("");
+                        setDecisionAmount("");
+                        setDecisionError(null);
+                        setDecisionModal({ decision: "resolve" });
+                      }}
+                      className="rounded-md border border-green-300 bg-green-50 px-3 py-1 text-[12px] font-semibold text-green-700 hover:bg-green-100"
+                    >
+                      解決
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDecisionResolution("");
+                        setDecisionAmount("");
+                        setDecisionError(null);
+                        setDecisionModal({ decision: "reject" });
+                      }}
+                      className="rounded-md border border-amber-300 bg-amber-50 px-3 py-1 text-[12px] font-semibold text-amber-700 hover:bg-amber-100"
+                    >
+                      拒絕
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDecisionResolution("");
+                        setDecisionAmount("");
+                        setDecisionError(null);
+                        setDecisionModal({ decision: "escalate" });
+                      }}
+                      className="rounded-md border border-red-300 bg-red-50 px-3 py-1 text-[12px] font-semibold text-red-700 hover:bg-red-100"
+                    >
+                      升級
+                    </button>
+                  </div>
+                )}
             </div>
           )}
 
@@ -339,6 +396,123 @@ export default function DisputesPage() {
           </div>
         </div>
       </div>
+
+      {/* Dispute decision modal */}
+      {decisionModal && selected && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => !decisionBusy && setDecisionModal(null)}
+        >
+          <div
+            className="w-[480px] rounded-xl bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="mb-3 text-[16px] font-semibold text-[var(--text-primary)]">
+              {decisionModal.decision === "resolve"
+                ? "解決爭議"
+                : decisionModal.decision === "reject"
+                  ? "拒絕爭議申請"
+                  : "升級爭議"}
+            </h3>
+            <p className="mb-3 text-[12px] text-[var(--text-secondary)]">
+              dispute #{selected.id.slice(0, 8)} · 此操作將寫入稽核並透過 WS 推送
+            </p>
+
+            <label className="mb-3 flex flex-col gap-1">
+              <span className="text-[12px] font-medium text-[var(--text-secondary)]">
+                仲裁結果說明 <span className="text-red-500">*</span>
+              </span>
+              <textarea
+                value={decisionResolution}
+                onChange={(e) => setDecisionResolution(e.target.value)}
+                rows={4}
+                maxLength={2000}
+                placeholder="例：經審查證據後，認定...，補償客戶 $500"
+                className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px]"
+              />
+              <span className="text-[10px] text-[var(--text-disabled)]">
+                至少 5 字（{decisionResolution.trim().length}/5）
+              </span>
+            </label>
+
+            {decisionModal.decision !== "escalate" && (
+              <label className="mb-3 flex flex-col gap-1">
+                <span className="text-[12px] font-medium text-[var(--text-secondary)]">
+                  調整金額（NT$，正=補償客戶 / 負=扣款；選填）
+                </span>
+                <input
+                  type="number"
+                  value={decisionAmount}
+                  onChange={(e) => setDecisionAmount(e.target.value)}
+                  placeholder="例：500 或 -200"
+                  className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px]"
+                />
+              </label>
+            )}
+
+            {decisionError && (
+              <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+                {decisionError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDecisionModal(null)}
+                disabled={decisionBusy}
+                className="rounded-md border border-[var(--border)] px-4 py-2 text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (decisionResolution.trim().length < 5) {
+                    setDecisionError("仲裁結果說明至少 5 字");
+                    return;
+                  }
+                  setDecisionBusy(true);
+                  setDecisionError(null);
+                  try {
+                    const body: Record<string, unknown> = {
+                      decision: decisionModal.decision,
+                      resolution: decisionResolution.trim(),
+                    };
+                    if (
+                      decisionModal.decision !== "escalate" &&
+                      decisionAmount.trim()
+                    ) {
+                      const amount = parseFloat(decisionAmount);
+                      if (!Number.isNaN(amount)) body.resolution_amount = amount;
+                    }
+                    await api.post(
+                      `/api/v1/disputes/${encodeURIComponent(selected.id)}/decision`,
+                      body,
+                    );
+                    setDecisionModal(null);
+                    fetchDisputes(activeTab);
+                  } catch (e) {
+                    setDecisionError(
+                      e instanceof ApiError
+                        ? `${e.errorCode} (${e.status})：${e.message}`
+                        : e instanceof Error
+                          ? e.message
+                          : String(e),
+                    );
+                  } finally {
+                    setDecisionBusy(false);
+                  }
+                }}
+                disabled={decisionBusy || decisionResolution.trim().length < 5}
+                className="rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-60"
+              >
+                {decisionBusy ? "處理中…" : "確認"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

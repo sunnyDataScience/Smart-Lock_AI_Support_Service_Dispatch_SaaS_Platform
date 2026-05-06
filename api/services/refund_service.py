@@ -249,4 +249,25 @@ async def submit_decision(
         "WHERE id = %s::uuid",
         (new_status, json.dumps(chain), refund_id),
     )
-    return await get_refund_request(tenant_id=tenant_id, refund_id=refund_id)
+    result = await get_refund_request(tenant_id=tenant_id, refund_id=refund_id)
+
+    # 即時推送（best-effort）
+    try:
+        from realtime.ws_hub import hub
+
+        await hub.publish(
+            "/realtime/refunds",
+            {
+                "type": "refund.decision.made",
+                "payload": {
+                    "refund_id": refund_id,
+                    "decision": decision,
+                    "status": new_status,
+                    "decided_by_user_id": decided_by_user_id,
+                },
+            },
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("ws publish refund.decision failed (non-fatal)")
+
+    return result

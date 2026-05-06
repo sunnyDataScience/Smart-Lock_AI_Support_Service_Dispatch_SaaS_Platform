@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Plus, Trash2, AlertCircle, CheckCircle2, Package } from "lucide-react";
+import { Plus, Trash2, CheckCircle2, Package } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import SubflowHeader from "@/components/tech/SubflowHeader";
+import { ApiError, api } from "@/lib/api";
 
 interface MissingItem {
   id: string;
@@ -38,6 +39,7 @@ export default function MaterialRequestPage() {
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitOk, setSubmitOk] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   function updateItem(idx: number, patch: Partial<MissingItem>) {
     setItems((prev) =>
@@ -56,12 +58,30 @@ export default function MaterialRequestPage() {
   async function submit() {
     if (!canSubmit) return;
     setSubmitting(true);
+    setSubmitError(null);
     try {
-      // 後端 API 待補：POST /api/v1/work-orders/{id}/material-request
-      // body: { items, urgency, note }
-      await new Promise((r) => setTimeout(r, 1000));
+      await api.post(
+        `/api/v1/work-orders/${encodeURIComponent(id)}/material-request`,
+        {
+          items: items.map((it) => ({
+            brand: it.brand.trim(),
+            model: it.model.trim(),
+            quantity: it.quantity,
+          })),
+          urgency,
+          note: note.trim() || undefined,
+        },
+      );
       setSubmitOk(true);
       setTimeout(() => router.push(`/my-orders/${id}`), 1500);
+    } catch (e) {
+      setSubmitError(
+        e instanceof ApiError
+          ? `${e.errorCode} (${e.status})：${e.message}`
+          : e instanceof Error
+            ? e.message
+            : String(e),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -78,10 +98,11 @@ export default function MaterialRequestPage() {
         </div>
       )}
 
-      <div className="m-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
-        <AlertCircle className="mr-1 inline h-3 w-3" />
-        後端 `/material-request` API 待補，目前為前端表單預覽
-      </div>
+      {submitError && (
+        <div className="m-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+          {submitError}
+        </div>
+      )}
 
       <section className="mx-4 mt-4 flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between">

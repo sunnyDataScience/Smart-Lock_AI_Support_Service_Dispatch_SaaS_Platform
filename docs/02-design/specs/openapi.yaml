@@ -333,6 +333,171 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApiErrorResponse'
 
+  /api/v1/work-orders/{id}/scope-change:
+    post:
+      tags: [dispatch]
+      summary: 範圍變更申請（T5；技師作業中→記錄事件）
+      description: 技師現場發現需追加工項時記錄申請。MVP 僅 prepend 到 service_report，等待客戶核准的流程後續迭代。
+      operationId: recordScopeChange
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason, items]
+              properties:
+                reason:
+                  type: string
+                  minLength: 10
+                  maxLength: 500
+                items:
+                  type: array
+                  minItems: 1
+                  maxItems: 20
+                  items:
+                    type: object
+                    required: [name, unit_price, quantity]
+                    properties:
+                      name: { type: string, minLength: 1, maxLength: 80 }
+                      unit_price: { type: string, maxLength: 20 }
+                      quantity: { type: integer, minimum: 1, maximum: 999 }
+                total_estimate: { type: string, maxLength: 20, nullable: true }
+      responses:
+        '200':
+          description: 範圍變更已記錄
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderEnvelope'
+        '409':
+          description: 狀態不允許（須為 assigned/accepted/in_progress）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/v1/work-orders/{id}/material-request:
+    post:
+      tags: [dispatch]
+      summary: 缺料回報（T6；等待調度員協調補料）
+      operationId: recordMaterialRequest
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items, urgency]
+              properties:
+                items:
+                  type: array
+                  minItems: 1
+                  maxItems: 20
+                  items:
+                    type: object
+                    required: [brand, model, quantity]
+                    properties:
+                      brand: { type: string, minLength: 1, maxLength: 40 }
+                      model: { type: string, minLength: 1, maxLength: 80 }
+                      quantity: { type: integer, minimum: 1, maximum: 999 }
+                urgency:
+                  type: string
+                  enum: [now, today, tomorrow]
+                  default: today
+                note: { type: string, maxLength: 500, nullable: true }
+      responses:
+        '200':
+          description: 缺料回報已記錄
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderEnvelope'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/work-orders/{id}/delay:
+    post:
+      tags: [dispatch]
+      summary: 延遲通知（T7；技師作業中→延遲時長與通知對象）
+      operationId: recordDelay
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [delay_minutes, reason]
+              properties:
+                delay_minutes: { type: integer, minimum: 5, maximum: 300 }
+                reason: { type: string, minLength: 1, maxLength: 80 }
+                reason_text: { type: string, maxLength: 500, nullable: true }
+                notify:
+                  type: string
+                  enum: [customer_only, customer_and_staff]
+                  default: customer_only
+      responses:
+        '200':
+          description: 延遲通知已記錄
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderEnvelope'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/work-orders/{id}/door-check:
+    post:
+      tags: [dispatch]
+      summary: 門面外觀檢核（T8；作業前後拍照 + checklist）
+      description: 技師現場拍前後照、勾完 checklist 後提交。photos 為媒體 URL（後續 v2 改為媒體 endpoint upload 後傳 URL）。
+      operationId: recordDoorCheck
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                checklist:
+                  type: object
+                  description: 任意 key→bool 的檢核項目集合
+                  additionalProperties: { type: boolean }
+                photos_before:
+                  type: array
+                  maxItems: 10
+                  items: { type: string }
+                photos_after:
+                  type: array
+                  maxItems: 10
+                  items: { type: string }
+                notes: { type: string, maxLength: 500, nullable: true }
+      responses:
+        '200':
+          description: 檢核已記錄
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderEnvelope'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
   /api/v1/work-orders/pool:
     get:
       tags: [dispatch]
@@ -481,6 +646,46 @@ paths:
                 $ref: '#/components/schemas/DisputeEnvelope'
         '404':
           $ref: '#/components/responses/NotFound'
+
+  /api/v1/disputes/{id}/decision:
+    post:
+      tags: [accounting]
+      summary: 提交爭議仲裁決定（filed/under_review/mediation → resolved/escalated）
+      operationId: submitDisputeDecision
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision, resolution]
+              properties:
+                decision:
+                  type: string
+                  enum: [resolve, escalate, reject]
+                resolution: { type: string, minLength: 5, maxLength: 2000 }
+                resolution_amount:
+                  type: [number, "null"]
+                  description: 調整金額（正=補償客戶，負=扣款）
+      responses:
+        '200':
+          description: 決定已送出
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisputeEnvelope'
+        '409':
+          description: 狀態衝突（必須為 filed/under_review/mediation）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
   /api/v1/warranty-claims:
     get:
@@ -775,6 +980,235 @@ paths:
                       preferred_hours: { type: array, items: { type: string } }
                       dnd_hours: { type: array, items: { type: string } }
                   past_reschedule_count: { type: integer }
+    patch:
+      tags: [dispatch]
+      summary: 切換在線狀態（available/busy/offline/on_leave/circuit_breaker_open）
+      operationId: updateMyAvailability
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [online_state]
+              properties:
+                online_state:
+                  type: string
+                  enum: [available, busy, offline, on_leave, circuit_breaker_open]
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      name: { type: string }
+                      online_state:
+                        type: string
+                        enum: [available, busy, offline, on_leave, circuit_breaker_open]
+
+  /api/v1/technicians/me/schedule:
+    get:
+      tags: [dispatch]
+      summary: 取得當月排班（每日工單數 + 休假/備勤標記 + 待審核申請）
+      operationId: getMySchedule
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - in: query
+          name: month
+          required: true
+          schema: { type: string, pattern: '^\d{4}-\d{2}$' }
+          description: YYYY-MM
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  month: { type: string }
+                  work_orders_per_day:
+                    type: object
+                    additionalProperties: { type: integer }
+                    description: key=YYYY-MM-DD, value=工單數
+                  leave_days:
+                    type: array
+                    items: { type: string }
+                  standby_days:
+                    type: array
+                    items: { type: string }
+                  pending_requests:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ScheduleRequest'
+
+  /api/v1/technicians/me/schedule/leave-request:
+    post:
+      tags: [dispatch]
+      summary: 申請休假
+      operationId: createLeaveRequest
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleRequestBody'
+      responses:
+        '200':
+          description: 申請已送出
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleRequest'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/technicians/me/schedule/standby-request:
+    post:
+      tags: [dispatch]
+      summary: 申請備勤
+      operationId: createStandbyRequest
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleRequestBody'
+      responses:
+        '200':
+          description: 申請已送出
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleRequest'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/technicians/me/schedule/request/{request_id}:
+    delete:
+      tags: [dispatch]
+      summary: 取消待審核申請
+      operationId: cancelScheduleRequest
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - in: path
+          name: request_id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: 已取消
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  status: { type: string, enum: [cancelled] }
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  # ----- Admin 端：審核排班申請 -----
+  /api/v1/admin/schedule-requests:
+    get:
+      tags: [dispatch]
+      summary: 列出 tenant 內所有排班申請（admin / operations_manager）
+      operationId: listScheduleRequests
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, approved, rejected, cancelled]
+        - in: query
+          name: type
+          schema: { type: string, enum: [leave, standby] }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminScheduleRequest'
+
+  /api/v1/admin/schedule-requests/{request_id}/approve:
+    post:
+      tags: [dispatch]
+      summary: 核准排班申請（pending → approved）
+      operationId: approveScheduleRequest
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - in: path
+          name: request_id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note: { type: string, maxLength: 500, nullable: true }
+      responses:
+        '200':
+          description: 已核准
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/admin/schedule-requests/{request_id}/reject:
+    post:
+      tags: [dispatch]
+      summary: 拒絕排班申請（pending → rejected）
+      operationId: rejectScheduleRequest
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - in: path
+          name: request_id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note: { type: string, maxLength: 500, nullable: true }
+      responses:
+        '200':
+          description: 已拒絕
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /api/v1/work-orders/{id}/reschedule:
     post:
@@ -3278,6 +3712,43 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/Technician'
+
+    # --------- Technician Schedule Request（T10 我的排班） ---------
+    ScheduleRequestBody:
+      type: object
+      required: [start_date, end_date, reason]
+      properties:
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+
+    ScheduleRequest:
+      type: object
+      required: [id, type, start_date, end_date, reason, status, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, enum: [leave, standby] }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        reason: { type: string }
+        status:
+          type: string
+          enum: [pending, approved, rejected, cancelled]
+        created_at: { type: string, format: date-time }
+        resolved_at:
+          type: [string, "null"]
+          format: date-time
+        resolution_note:
+          type: [string, "null"]
+
+    AdminScheduleRequest:
+      allOf:
+        - $ref: '#/components/schemas/ScheduleRequest'
+        - type: object
+          required: [technician_user_id]
+          properties:
+            technician_user_id: { type: string, format: uuid }
+            technician_name: { type: [string, "null"] }
 
     # --------- Customer（read-only 客戶主檔） ---------
     Customer:
