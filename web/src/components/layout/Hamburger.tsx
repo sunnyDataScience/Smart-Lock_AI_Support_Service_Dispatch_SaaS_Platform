@@ -26,7 +26,7 @@ export default function Hamburger() {
       aria-label={isOpen ? "關閉導航選單" : "開啟導航選單"}
       aria-expanded={isOpen}
       aria-controls="sidebar-drawer"
-      className="md:hidden fixed left-3 top-3 z-50 flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--bg-surface)] text-[var(--text-secondary)] shadow-md transition hover:bg-[var(--bg-page)] hover:text-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1"
+      className="md:hidden fixed left-2 top-2 z-50 flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white/85 text-[var(--text-secondary)] shadow-sm backdrop-blur-sm transition hover:bg-white hover:text-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 active:scale-95"
     >
       {isOpen ? (
         <X className="h-5 w-5" aria-hidden="true" />

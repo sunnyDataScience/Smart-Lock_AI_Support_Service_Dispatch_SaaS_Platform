@@ -64,8 +64,8 @@ export default function ConversationsPage() {
     <div className="flex h-full bg-[var(--bg-page)]">
       <Sidebar />
 
-      <div className="flex flex-1 flex-col">
-        <div className="flex flex-col gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex flex-col gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] py-3 pl-14 pr-4 md:px-4">
           <div className="flex items-center justify-between">
             <h1 className="text-[24px] font-semibold text-[#18181B]">
               對話管理

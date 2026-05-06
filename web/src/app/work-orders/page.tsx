@@ -71,9 +71,9 @@ export default function WorkOrdersPage() {
     <div className="flex h-full bg-[var(--bg-page)]">
       <Sidebar />
 
-      <div className="flex flex-1 flex-col">
-        {/* Page Header */}
-        <div className="flex flex-col gap-1 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-4">
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Page Header — mobile 加 pl-14 給 floating Hamburger 留空間 */}
+        <div className="flex flex-col gap-1 border-b border-[var(--border)] bg-[var(--bg-surface)] py-4 pl-14 pr-4 md:px-8">
           <span className="text-[13px] text-[var(--text-secondary)]">
             首頁 &gt; 工單管理 &gt; 工單列表
           </span>
