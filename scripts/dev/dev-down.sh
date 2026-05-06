@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# dev-down.sh — Local development teardown
+# scripts/dev/dev-down.sh — Local development teardown
 #
 # 停止 dev-up.sh 啟動的所有服務。
 #
 # Usage:
-#   ./scripts/dev-down.sh             # 停 ngrok + uvicorn (DB 保留)
-#   ./scripts/dev-down.sh --stop-db   # 連同 DB 容器一起停止
-#   ./scripts/dev-down.sh --remove-db # 連同 DB 容器停止並刪除 (清空資料！)
+#   ./scripts/dev/dev-down.sh             # 停 ngrok + uvicorn (DB 保留)
+#   ./scripts/dev/dev-down.sh --stop-db   # 連同 DB 容器一起停止
+#   ./scripts/dev/dev-down.sh --remove-db # 連同 DB 容器停止並刪除 (清空資料！)
 
 set -euo pipefail
 
