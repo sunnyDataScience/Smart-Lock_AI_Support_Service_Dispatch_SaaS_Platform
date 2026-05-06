@@ -50,12 +50,27 @@ if [[ "$FETCH" -eq 1 ]]; then
     exit 1
   }
 
-  # Secret Manager 中的 POSTGRES_URI 是給 Cloud Run 用的（Unix socket /cloudsql/...）
-  # 本機透過 cloud-sql-proxy 連，要把 host 改為 127.0.0.1:5432
-  # 從原 URI 抽出 user / password / dbname
-  CRED_DBNAME=$(echo "$POSTGRES_URI_FROM_GCP" | sed -E 's|^postgresql://([^@]+)@.*/([^?]+).*$|\1@127.0.0.1:5432/\2|')
-  PROXY_URI="postgresql://${CRED_DBNAME}"
-  PROXY_PG_VECTOR="postgresql+psycopg://${CRED_DBNAME}"
+  # Secret Manager 中的 POSTGRES_URI 是給 Cloud Run 用的，格式：
+  #   postgresql://USER:PASS@/DBNAME?host=/cloudsql/INSTANCE   (Unix socket)
+  # 本機透過 cloud-sql-proxy 連，要轉換為：
+  #   postgresql://USER:PASS@127.0.0.1:5432/DBNAME
+  # 用 Python urllib.parse 處理避免 sed 對 query string 與 socket path 誤判
+  PROXY_URI=$(echo "$POSTGRES_URI_FROM_GCP" | python3 -c "
+import sys
+from urllib.parse import urlparse
+raw = sys.stdin.read().strip()
+p = urlparse(raw)
+# netloc 在 Unix socket 格式為 'user:pass@'（host 為空），抽出 'user:pass'
+user_pass = p.netloc.rstrip('@')
+db = p.path.lstrip('/')
+if not user_pass or not db:
+    raise SystemExit(f'cannot parse credentials/db from URI (got user_pass={user_pass!r} db={db!r})')
+print(f'postgresql://{user_pass}@127.0.0.1:5432/{db}')
+") || {
+    echo "[use-gcp] FAIL: 解析 POSTGRES_URI 失敗"
+    exit 1
+  }
+  PROXY_PG_VECTOR=${PROXY_URI/postgresql:\/\//postgresql+psycopg:\/\/}
 
   echo "[use-gcp] 寫入 .env.gcp（透過 proxy 走 127.0.0.1:5432） ..."
   if [[ -f "$GCP_ENV" ]]; then
