@@ -54,10 +54,17 @@ err()  { printf '\033[31m[dev-up]\033[0m %s\n' "$*" >&2; }
 need() { command -v "$1" >/dev/null 2>&1 || { err "missing tool: $1"; exit 1; }; }
 need docker
 [ "$NO_NGROK" -eq 1 ] || need ngrok
+[ "$DB_ONLY" -eq 1 ] || need uv   # 只起 DB 不需要 uv；其他情況都要
 
 if [ ! -f "$PROJECT_ROOT/.env" ]; then
   err ".env not found at $PROJECT_ROOT/.env (copy from .env.example)"
   exit 1
+fi
+
+# 確保 .venv 存在；若無則自動 uv sync（首次啟動）
+if [ "$DB_ONLY" -ne 1 ] && [ ! -d "$PROJECT_ROOT/.venv" ]; then
+  log "no .venv — running 'uv sync' (首次啟動會下載 deps，約 1–2 分鐘)"
+  (cd "$PROJECT_ROOT" && uv sync) || { err "uv sync failed"; exit 1; }
 fi
 
 mkdir -p "$LOG_DIR"
@@ -156,4 +163,4 @@ log "  test:    curl 'http://127.0.0.1:$APP_PORT/chat?q=門打不開'"
 echo
 
 cd "$AGENT_DIR"
-uvicorn app:app --reload --port "$APP_PORT"
+uv run uvicorn app:app --reload --port "$APP_PORT"

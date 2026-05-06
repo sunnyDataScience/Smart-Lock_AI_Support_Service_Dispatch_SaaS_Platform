@@ -1,0 +1,30 @@
+[project]
+name = "smart-lock-data"
+version = "0.1.0"
+description = "Smart Lock data ETL pipeline (Medallion: source → raw → bronze → silver → SKILL.md)"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    # === LLM ===
+    "litellm",
+    "langchain-core>=0.3.0",
+    # === 內容下載與處理 ===
+    "yt-dlp",
+    "playwright",
+    "beautifulsoup4",
+    "markdownify",
+    # === Google Drive 串接 ===
+    "google-api-python-client",
+    # === 資料處理 ===
+    "pandas",
+    "pyyaml",
+    "python-dotenv>=1.0.0",
+]
+
+# 可選 LLM provider — 按需安裝（uv add --optional <provider>）
+[project.optional-dependencies]
+openai = ["langchain-openai"]
+anthropic = ["langchain-anthropic"]
+ollama = ["langchain-ollama"]
+
+[tool.uv]
+package = false
