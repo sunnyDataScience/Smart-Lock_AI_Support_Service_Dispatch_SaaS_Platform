@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 # scripts/dev/dev-down.sh — Local development teardown
 #
-# 停止 dev-up.sh 或 dev-up-gcp.sh 啟動的所有服務。
+# 停止 dev-up.sh / dev-up.sh --full / dev-up-gcp.sh 啟動的所有服務。
 #
 # Usage:
-#   ./scripts/dev/dev-down.sh             # 情境 A：停 ngrok + uvicorn (DB 保留)
-#   ./scripts/dev/dev-down.sh --stop-db   # A：連同 DB 容器一起停止
-#   ./scripts/dev/dev-down.sh --remove-db # A：連同 DB 容器停止並刪除 (清空資料！)
-#   ./scripts/dev/dev-down.sh --gcp       # 情境 B：停 agent / api / web / cloud-sql-proxy
-#   ./scripts/dev/dev-down.sh --gcp --use-local  # 收尾後切回 .env.local（避免下次誤連 prod）
+#   ./scripts/dev/dev-down.sh             # 情境 A 單服務：停 ngrok + agent (DB 保留)
+#   ./scripts/dev/dev-down.sh --stop-db   # A：連 DB 容器一起停止
+#   ./scripts/dev/dev-down.sh --remove-db # A：連 DB 容器停止並刪除 (清空資料！)
+#   ./scripts/dev/dev-down.sh --multi     # 多服務：停 agent / api / web (+proxy if exists)
+#   ./scripts/dev/dev-down.sh --gcp       # 別名：等同 --multi（情境 B 慣用）
+#   ./scripts/dev/dev-down.sh --multi --use-local  # 收尾後切回 .env.local
+#   ./scripts/dev/dev-down.sh --multi --stop-db    # 多服務 + 停 docker DB
 
 set -euo pipefail
 
@@ -22,13 +24,13 @@ WEB_PORT="3000"
 
 STOP_DB=0
 REMOVE_DB=0
-GCP_MODE=0
+MULTI_MODE=0
 USE_LOCAL_AFTER=0
 for arg in "$@"; do
   case "$arg" in
     --stop-db)    STOP_DB=1 ;;
     --remove-db)  STOP_DB=1; REMOVE_DB=1 ;;
-    --gcp)        GCP_MODE=1 ;;
+    --multi|--gcp)  MULTI_MODE=1 ;;   # --gcp 為向後相容別名
     --use-local)  USE_LOCAL_AFTER=1 ;;
     -h|--help)
       sed -n '2,/^set -euo/p' "$0" | grep -E '^# ' | sed 's/^# //'
@@ -71,8 +73,8 @@ stop_by_pid_and_port() {
 }
 
 # ── 情境 B：先停 agent / api / web / proxy ──────────────────────────
-if [ "$GCP_MODE" -eq 1 ]; then
-  log "=== GCP 模式收尾 ==="
+if [ "$MULTI_MODE" -eq 1 ]; then
+  log "=== 多服務模式收尾（agent + api + web + proxy if any） ==="
 
   stop_by_pid_and_port "$LOG_DIR/web.pid"   "$WEB_PORT"   "web (next.js)"
   stop_by_pid_and_port "$LOG_DIR/api.pid"   "$API_PORT"   "api (uvicorn)"
@@ -91,6 +93,20 @@ if [ "$GCP_MODE" -eq 1 ]; then
       "$PROJECT_ROOT/scripts/env/use-local.sh" >/dev/null
     else
       warn ".env.local 不存在，略過 use-local"
+    fi
+  fi
+
+  # 連 docker DB 一起停（情境 A --full 收尾用）
+  if [ "$STOP_DB" -eq 1 ]; then
+    if docker ps --format '{{.Names}}' | grep -qx "$DB_CONTAINER"; then
+      log "stopping db container '$DB_CONTAINER'"
+      docker stop "$DB_CONTAINER" >/dev/null
+    fi
+    if [ "$REMOVE_DB" -eq 1 ]; then
+      if docker ps -a --format '{{.Names}}' | grep -qx "$DB_CONTAINER"; then
+        warn "removing db container '$DB_CONTAINER' (data will be lost)"
+        docker rm "$DB_CONTAINER" >/dev/null
+      fi
     fi
   fi
 
