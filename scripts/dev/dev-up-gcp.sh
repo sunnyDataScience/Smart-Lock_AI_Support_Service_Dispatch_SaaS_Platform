@@ -113,6 +113,16 @@ else
   "$PROJECT_ROOT/scripts/env/use-gcp.sh"
 fi
 
+# 確認 .env 有 api 服務必要的 JWT 簽名 key（不是 DB 相關，是 api 本地簽名用）
+# 沒這個 key 的話 /api/v1/auth/login 會在簽 token 時 500
+if [ "$NO_API" -ne 1 ] && ! grep -qE '^API_JWT_SECRET_KEY="?[^<"]+' "$PROJECT_ROOT/.env"; then
+  err ".env 缺 API_JWT_SECRET_KEY（或仍是 placeholder）"
+  err "  生成方式: openssl rand -hex 32"
+  err "  範例: echo \"API_JWT_SECRET_KEY=\\\"\$(openssl rand -hex 32)\\\"\" >> .env.gcp"
+  err "  再重跑 $0"
+  exit 1
+fi
+
 # ── Step 2: cloud-sql-proxy ───────────────────────────────────────────
 log "step 2: 啟 cloud-sql-proxy"
 "$PROJECT_ROOT/scripts/dev/proxy-up.sh"
