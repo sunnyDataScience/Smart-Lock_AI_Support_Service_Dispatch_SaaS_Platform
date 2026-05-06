@@ -2,7 +2,9 @@
 
 > 撰寫日期：2026-04-10
 >
-> **歷史名詞對照**（v1.3.6 後）：本文中「agent_skills/」指本專案（路徑為 `Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/agent/`），對照組「agent/」指另一個 enterprise harness 參考專案。本專案內已將 `agent/skills/` 重命名為 `agent/agent_tools/`，且 `load_skill` tool 與 SKILL.md 架構於 v1.3.4–v1.3.5 全面退場，知識庫改用 `agent/product_info/` 的 mega-doc 架構。下方比較表中提到的「2 個工具（load_skill + transfer_to_human）」現實為「3 個工具（load_product_info + update_user_info + transfer_to_human）」。
+> **歷史名詞對照**（restore PR #17/18/19 + cleanup 後）：本文中「agent_skills/」指本專案（路徑為 `Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/agent/`），對照組「agent/」指另一個 enterprise harness 參考專案。
+> v1.3.4–v1.3.5 期間曾把 `agent/skills/` 改名為 `agent/agent_tools/` 並用 `agent/product_info/` mega-doc 架構替換 SKILL.md，於後續 restore 系列 PR 已**還原回 SKILL.md / `load_skill` 為唯一架構**（PR #17 helper / #18 skills 為 canonical / #19 wire-up + build / 本支 cleanup 移除 product_info 引用）。
+> 下方比較表「2 個工具（load_skill + transfer_to_human）」實際為 **3 個工具（`load_skill` + `update_user_info` + `transfer_to_human`）**。
 
 ---
 

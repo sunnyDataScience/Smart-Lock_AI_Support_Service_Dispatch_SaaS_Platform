@@ -437,14 +437,17 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
     """執行單一測試並評分。"""
     t0 = time.time()
 
-    # 組裝訊息：注入 [可用產品資料] 模擬 debounce.run_agent() 的新架構行為
+    # 組裝訊息：注入 [可用技能] 模擬 debounce.run_agent() 的 4 條路徑行為
+    from skills import filter_skills
     from skills.tools import (
         set_current_user_id,
         set_current_brand,
         set_current_user_input,
+        get_skills,
     )
-    from product_info import has_brand as has_product_brand, filter_loadable as filter_product_loadable
     from harness.line_ui_factory import infer_brand_from_text
+
+    _registered_skills = get_skills()
     brand = tc.device_brand or None
     model = tc.device_model or None
     # 品牌未知時，從問題文字自動推論（同生產路徑 debounce.py:289）
@@ -460,42 +463,48 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
         brand = QUICK_REPLY_DEFAULT_BRAND
         quick_reply_used = True
     # 同步生產路徑：ContextVar 注入 user_id / brand / model / user_input
-    # load_product_info 會用 ContextVar 做 profile gating
+    # load_skill 會用 ContextVar 做 profile gating
     set_current_user_id(f"qc-{tc.id}")
     set_current_brand(brand, model)
     set_current_user_input(tc.question)
 
-    # 構建 [可用產品資料] 前綴 — 對齊 debounce.py 4 條路徑
-    if brand and has_product_brand(brand) and model:
-        # A) brand+model 齊備
-        docs = filter_product_loadable(brand, model)
-        info_header = f"[可用產品資料]\n（用戶為 {brand} {model}，使用 load_product_info 載入）\n"
-    elif brand and has_product_brand(brand):
-        # B) brand 已知、model 未知
-        docs = filter_product_loadable(None, None)
+    def _brand_has_skills(b: str) -> bool:
+        return any(s.brands and b in s.brands for s in _registered_skills)
+
+    _SUB_PFX = ("ts-", "app-", "ss-")
+    _SUB_EXC = {"app-guide", "ss-dormakaba"}
+
+    # 構建 [可用技能] 前綴 — 對齊 debounce.py 4 條路徑
+    if brand and _brand_has_skills(brand) and model:
+        skill_list = filter_skills(_registered_skills, brand, model)
+        info_header = f"[可用技能]\n（用戶為 {brand} {model}，使用 load_skill 載入）\n"
+    elif brand and _brand_has_skills(brand):
+        skill_list = filter_skills(_registered_skills, brand, None)
         info_header = (
-            f"[可用產品資料]\n"
-            f"⚠️ {brand} 型號未確認，僅能載入 _common/* 通用資訊。回覆時請聲明：\n"
+            f"[可用技能]\n"
+            f"⚠️ {brand} 型號未確認，僅能載入 _common/* 與品牌通用技能。回覆時請聲明：\n"
             f"「以下為通用建議，您的型號實際操作可能略有差異，建議補充型號取得精準步驟。」\n"
         )
     elif brand:
-        # C) brand 已知但 product_info 無此品牌（如 Waferlock）
-        docs = filter_product_loadable(None, None)
+        skill_list = filter_skills(_registered_skills, None, None)
         info_header = (
-            f"[可用產品資料]\n"
-            f"⚠️ 目前無 {brand} 詳細產品資料，僅能提供通用建議。回覆時請聲明：\n"
+            f"[可用技能]\n"
+            f"⚠️ 目前無 {brand} 詳細技能資料，僅能提供 _common/* 通用建議。回覆時請聲明：\n"
             f"「我這邊沒有 {brand} 的詳細資料，建議您查看說明書，或我幫您安排專員協助。」\n"
         )
     else:
-        # D) 全未知
-        docs = filter_product_loadable(None, None)
+        skill_list = filter_skills(_registered_skills, None, None)
         info_header = (
-            "[可用產品資料]\n"
+            "[可用技能]\n"
             "⚠️ 品牌或型號未確認，僅能載入 _common/* 通用資訊。回覆時請聲明：\n"
             "「以下為通用建議，您的型號實際操作可能略有差異。」\n"
             "**請呼叫 update_user_info 確認用戶品牌。**\n"
         )
-    doc_lines = "\n".join(f"- {d.name}: {d.description}" for d in docs)
+    top_level = [
+        s for s in skill_list
+        if s.name in _SUB_EXC or not s.name.startswith(_SUB_PFX)
+    ]
+    doc_lines = "\n".join(f"- {s.name}: {s.description}" for s in top_level)
     skills_prefix = f"{info_header}{doc_lines}\n\n"
 
     # 用 brand/model（含 infer 後值）建構 [用戶資料] 區塊，與生產路徑一致
@@ -571,7 +580,7 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
 
     elapsed = round(time.time() - t0, 1)
 
-    # 收集 skill / product_info 呼叫紀錄（從 tool messages，包含兩輪）
+    # 收集 load_skill 呼叫紀錄（從 tool messages，包含兩輪）
     skills_loaded = []
     for msg in messages:
         if hasattr(msg, "type") and msg.type == "tool" and hasattr(msg, "content"):

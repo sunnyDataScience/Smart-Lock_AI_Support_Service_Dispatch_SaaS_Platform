@@ -45,6 +45,16 @@ def set_skills(skills: list[Skill]) -> None:
     _skills_section_cache.clear()
 
 
+def get_skills() -> list[Skill]:
+    """讀取目前已注入的技能清單。
+
+    必須走 getter — 直接 ``from skills.tools import _skills`` 取到的是 module
+    載入時的空 list reference；``set_skills()`` 用 ``global`` 重綁後，已被
+    複製出去的 reference 會 stale 化。
+    """
+    return _skills
+
+
 def set_profile_mgr(profile_mgr) -> None:
     """注入 ProfileManager（app 啟動時呼叫）。"""
     global _profile_mgr
