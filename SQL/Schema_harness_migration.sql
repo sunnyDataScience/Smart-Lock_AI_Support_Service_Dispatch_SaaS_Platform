@@ -77,3 +77,29 @@ CREATE INDEX IF NOT EXISTS idx_ht_node ON harness_traces (node_name);
 COMMENT ON TABLE harness_traces IS 'Harness L7: 結構化追蹤事件，每個 graph 節點執行都產生一筆';
 COMMENT ON COLUMN harness_traces.session_id IS 'LangGraph thread_id，對應一個完整對話 session';
 COMMENT ON COLUMN harness_traces.duration_ms IS '節點執行耗時 (毫秒)，用於 latency 監控';
+
+
+-- ============================================================================
+-- [3] user_facts 表 — SCD Type 2 用戶屬性歷史紀錄
+-- ============================================================================
+-- 用途：儲存 device_brand / device_model / phone / address 等用戶硬事實
+-- 寫入時 expire 舊版本（is_current=FALSE + end_date=NOW），插入新版本
+-- 讀取一律 WHERE is_current=TRUE
+-- 此前 schema 由 agent/profiles/manager.py 動態建立（runtime CREATE TABLE IF NOT EXISTS），
+-- 自 RP1.C.4 起改由本 SQL 檔統一管理；新環境部署前必須先跑此檔。
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS user_facts (
+    id SERIAL PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    attr_key VARCHAR(100) NOT NULL,
+    attr_val TEXT NOT NULL,
+    is_current BOOLEAN NOT NULL DEFAULT TRUE,
+    start_date TIMESTAMP DEFAULT NOW(),
+    end_date TIMESTAMP
+);
+
+COMMENT ON TABLE user_facts IS 'SCD Type 2 用戶硬事實：device_brand / device_model / phone / address 等';
+COMMENT ON COLUMN user_facts.is_current IS 'TRUE = 最新版本；FALSE = 已被新值取代（保留歷史）';
+COMMENT ON COLUMN user_facts.start_date IS '此版本生效時間';
+COMMENT ON COLUMN user_facts.end_date IS '此版本失效時間（is_current=FALSE 時非 NULL）';
