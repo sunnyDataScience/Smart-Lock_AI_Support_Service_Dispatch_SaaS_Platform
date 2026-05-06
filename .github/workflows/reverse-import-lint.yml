@@ -1,0 +1,89 @@
+name: Reverse import lint
+
+# 規則：agent/ 模組分層必須單向（leaf → upper），禁止反向 import：
+#   - agent/skills/       不可 import harness/*
+#   - agent/core/         不可 import harness/* 或 skills/*（leaf 必須最乾淨）
+#   - agent/harness/      不可 import agent module（agent.py / from agent import）
+#
+# 違反會造成 pydeps 圖出現 cycle，未來重構（如 RP2.1 debounce 拆分）會被卡住。
+# 是 RP2.2 / RP2.3（PR #23 / #24）建立的分層約束的 CI 守護。
+#
+# 例外：任何位置只要該行加上 # allow-rev-import 註解視為刻意例外。
+
+on:
+  pull_request:
+    paths:
+      - 'agent/**/*.py'
+  push:
+    branches: [main, dev]
+    paths:
+      - 'agent/**/*.py'
+
+jobs:
+  lint:
+    name: Detect reverse imports between agent layers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check skills/ → harness/
+        shell: bash
+        run: |
+          set -euo pipefail
+          violations=$(
+            find agent/skills -type f -name '*.py' \
+              -not -path 'agent/skills/__pycache__/*' \
+              -print0 \
+            | xargs -0 grep -nH -E '^\s*(from harness|import harness)' 2>/dev/null \
+            | grep -v 'allow-rev-import' \
+            || true
+          )
+          if [ -n "$violations" ]; then
+            echo "::error::skills/ must not import from harness/"
+            echo "Violations:"
+            echo "$violations"
+            exit 1
+          fi
+          echo "OK: agent/skills/ is clean"
+
+      - name: Check core/ → harness/ or skills/
+        shell: bash
+        run: |
+          set -euo pipefail
+          violations=$(
+            find agent/core -type f -name '*.py' \
+              -not -path 'agent/core/__pycache__/*' \
+              -print0 \
+            | xargs -0 grep -nH -E '^\s*(from harness|from skills|import harness|import skills)' 2>/dev/null \
+            | grep -v 'allow-rev-import' \
+            || true
+          )
+          if [ -n "$violations" ]; then
+            echo "::error::core/ must not import from harness/ or skills/ (leaf layer must stay clean)"
+            echo "Violations:"
+            echo "$violations"
+            exit 1
+          fi
+          echo "OK: agent/core/ is clean"
+
+      - name: Check harness/ → agent module
+        shell: bash
+        run: |
+          set -euo pipefail
+          # match `from agent import X` or `import agent` (top-level only — exclude `from agent.X` since
+          # there is no real `agent` package, agent.py is a top-level module).
+          violations=$(
+            find agent/harness -type f -name '*.py' \
+              -not -path 'agent/harness/__pycache__/*' \
+              -print0 \
+            | xargs -0 grep -nH -E '^\s*(from agent\s+import|import\s+agent\s*$|^\s*import\s+agent\s*#)' 2>/dev/null \
+            | grep -v 'allow-rev-import' \
+            || true
+          )
+          if [ -n "$violations" ]; then
+            echo "::error::harness/ must not import from agent module (use dependency injection via init() instead)"
+            echo "Violations:"
+            echo "$violations"
+            exit 1
+          fi
+          echo "OK: agent/harness/ does not reverse-import agent"
