@@ -7,7 +7,7 @@ from contextvars import ContextVar
 
 from langchain_core.tools import tool
 
-from harness.line_ui_factory import match_brand, match_model, get_brand_models
+from core.brand_match import match_brand, match_model, get_brand_models
 from . import Skill
 
 # ── 模組層級狀態（由 app 啟動時注入，啟動後不變）──

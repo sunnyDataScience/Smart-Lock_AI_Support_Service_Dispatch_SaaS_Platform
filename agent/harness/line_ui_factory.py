@@ -33,22 +33,28 @@ _URL_PATTERN = re.compile(r'https?://[^\s)\]]+')
 # ── Quick Reply 快速回覆 ──
 
 _quick_reply_config: dict = {}
-_brand_items: list[dict] = []
-_brand_models: dict[str, list[str]] = {}
+
+# Brand registry & matching helpers live in `core.brand_match` (RP2.2 — broke
+# the skills→harness reverse import). The wrappers below re-export the same
+# names from this module for backward compatibility with existing callers.
+from core.brand_match import (
+    set_brands,
+    match_brand,
+    match_model,
+    get_brand_models,
+    get_all_brand_models,
+    get_brand_items,
+    infer_brand_from_text,
+)
 
 
 def init_quick_reply(config: dict) -> None:
     """初始化 Quick Reply — 從 config 讀取品牌與型號清單。"""
-    global _quick_reply_config, _brand_items, _brand_models
+    global _quick_reply_config
 
     _quick_reply_config = config
-    _brand_items = config.get("brands", [])
-    _brand_models = {
-        b["text"]: b["models"]
-        for b in _brand_items
-        if b.get("models")
-    }
-    log.info("quick_reply_init", brands=[b["text"] for b in _brand_items])
+    set_brands(config.get("brands", []))
+    log.info("quick_reply_init", brands=[b["text"] for b in get_brand_items()])
 
 
 def _build_quick_reply(brand: str | None = None, model: str | None = None) -> QuickReply | None:
@@ -60,77 +66,30 @@ def _build_quick_reply(brand: str | None = None, model: str | None = None) -> Qu
     if not _quick_reply_config.get("enabled", False):
         return None
 
+    brand_items = get_brand_items()
+
     # 品牌未知 → 品牌按鈕
-    if not brand and _brand_items:
+    if not brand and brand_items:
         items = [
             QuickReplyItem(action=MessageAction(label=b["label"], text=b["text"]))
-            for b in _brand_items[:13]
+            for b in brand_items[:13]
         ]
         return QuickReply(items=items)
 
     # 品牌已知、型號未知、該品牌有特定型號 → 型號按鈕（最多 12 個 + 「其他型號」）
-    if brand and not model and brand in _brand_models:
-        models = _brand_models[brand][:12]
-        items = [
-            QuickReplyItem(action=MessageAction(label=m, text=m))
-            for m in models
-        ]
-        items.append(
-            QuickReplyItem(action=MessageAction(label="其他型號", text="其他型號，請直接回覆"))
-        )
-        return QuickReply(items=items)
+    if brand and not model:
+        models = get_brand_models(brand)[:12]
+        if models:
+            items = [
+                QuickReplyItem(action=MessageAction(label=m, text=m))
+                for m in models
+            ]
+            items.append(
+                QuickReplyItem(action=MessageAction(label="其他型號", text="其他型號，請直接回覆"))
+            )
+            return QuickReply(items=items)
 
     return None
-
-
-def match_brand(text: str) -> str | None:
-    """檢查文字是否完全匹配某個品牌名（不區分大小寫）。"""
-    text_lower = text.strip().lower()
-    for b in _brand_items:
-        if text_lower == b["text"].lower():
-            return b["text"]
-    return None
-
-
-def match_model(brand: str, text: str) -> str | None:
-    """檢查文字是否完全匹配某個品牌的型號名。"""
-    models = _brand_models.get(brand, [])
-    text_stripped = text.strip()
-    for m in models:
-        if text_stripped == m:
-            return m
-    return None
-
-
-def get_brand_models(brand: str) -> list[str]:
-    """取得指定品牌的型號清單。"""
-    return _brand_models.get(brand, [])
-
-
-def get_all_brand_models() -> dict[str, list[str]]:
-    """取得全部品牌的型號清單（dict[brand → list[model]]）。"""
-    return dict(_brand_models)
-
-
-def infer_brand_from_text(text: str) -> tuple[str | None, str | None]:
-    """從自由文字中掃描已知型號或品牌名，反向推論品牌。
-
-    優先匹配型號（更精確），其次匹配品牌名。
-
-    Returns:
-        (brand, model) 或 (None, None)
-    """
-    # 優先：型號匹配（同時得到品牌+型號）
-    for brand, models in _brand_models.items():
-        for m in models:
-            if m in text:
-                return brand, m
-    # 其次：品牌名匹配（只得到品牌）
-    text_lower = text.lower()
-    for b in _brand_items:
-        if b["text"].lower() in text_lower:
-            return b["text"], None
-    return None, None
 
 
 def is_quick_reply_enabled() -> bool:

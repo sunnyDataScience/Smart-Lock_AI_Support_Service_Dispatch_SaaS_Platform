@@ -95,7 +95,7 @@ def _build_mismatch_pattern() -> None:
     global _mismatch_pattern, _brand_canonical_lower, _model_canonical_lower, _model_to_brand
 
     try:
-        from harness.line_ui_factory import get_all_brand_models
+        from core.brand_match import get_all_brand_models
     except ImportError:
         return
 
