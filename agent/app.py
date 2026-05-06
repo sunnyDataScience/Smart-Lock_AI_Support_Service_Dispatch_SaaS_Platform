@@ -40,7 +40,7 @@ from llms import get_llm
 from memory import get_checkpointer, close_checkpointer
 from profiles import ProfileManager, init_facts_db, close_facts_db
 from storage import get_storage, close_storage
-from agent import build_agent
+from agent import build_agent, get_system_prompt
 
 import core.line_bot as line_bot
 import harness.debounce as debounce
@@ -181,7 +181,13 @@ async def startup():
         "request_timeout": _cfg.system.get("request_timeout", 60),
         "max_reply_length": line_cfg.get("max_reply_length", 5000),
     }
-    debounce.init(agent, debounce_config, _cfg.templates, profile_mgr=profile_mgr, audit_storage=audit_storage, opik_tracer=opik_tracer)
+    debounce.init(
+        agent, debounce_config, _cfg.templates,
+        profile_mgr=profile_mgr,
+        audit_storage=audit_storage,
+        opik_tracer=opik_tracer,
+        system_prompt_getter=get_system_prompt,
+    )
 
     # 初始化 multimodal (H2)
     await multimodal.init(_cfg.multimodal, access_token)
