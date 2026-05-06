@@ -42,11 +42,12 @@ ENV_VARS="VERTEX_PROJECT_ID=${PROJECT_ID},VERTEX_LOCATION=asia-northeast1"
 SECRETS="POSTGRES_URI=POSTGRES_URI:latest"
 SECRETS="${SECRETS},JWT_SECRET_KEY=API_JWT_SECRET_KEY:latest"
 
-# ── 切到 api 目錄（Dockerfile 所在位置）──
-# 此腳本位於 scripts/deploy/api.sh，PROJECT_ROOT 在 ../..
+# ── 切到 PROJECT_ROOT（uv workspace 根，docker build context）──
+# 新 Dockerfile 是 multi-stage uv build，需要 PROJECT_ROOT 才能拿到
+# uv.lock 與三個 sub-module 的 pyproject.toml
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-cd "${PROJECT_ROOT}/api"
+cd "${PROJECT_ROOT}"
 
 # ── 解析參數 ──
 BUILD=true
@@ -158,7 +159,7 @@ if $BUILD; then
     echo "=========================================="
     echo " Building image: ${IMAGE}"
     echo "=========================================="
-    docker build --platform linux/amd64 -t "${IMAGE}" .
+    docker build --platform linux/amd64 -f api/Dockerfile -t "${IMAGE}" .
     docker tag "${IMAGE}" "${IMAGE_BASE}:latest"
 
     echo ""

@@ -1,9 +1,0 @@
-__pycache__/
-*.pyc
-.env
-credentials.json
-data/media/
-data/profiles/
-data/db/
-.git
-.venv
