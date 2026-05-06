@@ -1,10 +1,10 @@
 """查看 user_facts 表中的使用者硬事實記錄。
 
 用法：
-    python scripts/view_facts.py                  # 顯示所有使用者的當前事實
-    python scripts/view_facts.py --all             # 顯示所有記錄（含歷史）
-    python scripts/view_facts.py --user {user_id}  # 查看特定使用者
-    python scripts/view_facts.py --user {user_id} --all  # 特定使用者含歷史
+    python tests/tools/view_facts.py                  # 顯示所有使用者的當前事實
+    python tests/tools/view_facts.py --all             # 顯示所有記錄（含歷史）
+    python tests/tools/view_facts.py --user {user_id}  # 查看特定使用者
+    python tests/tools/view_facts.py --user {user_id} --all  # 特定使用者含歷史
 """
 
 import os

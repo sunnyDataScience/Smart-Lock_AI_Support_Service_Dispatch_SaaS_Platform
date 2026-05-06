@@ -14,8 +14,8 @@ import time
 import argparse
 from unittest.mock import MagicMock, patch, AsyncMock
 
-# 將專案根目錄加入路徑
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# 將 agent/ 加入路徑（此檔案位於 tests/tools/，agent/ 在 ../../agent）
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "agent"))
 
 from fastapi.testclient import TestClient
 from app import app

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # ============================================================
-# deploy.sh — Build, push, and deploy to Cloud Run
+# scripts/deploy/agent.sh — Build, push, and deploy agent/ to Cloud Run
 #
 # Usage:
-#   ./scripts/deploy.sh              # 完整部署（build + push + deploy）
-#   ./scripts/deploy.sh --build-only # 只建立 image 不部署
-#   ./scripts/deploy.sh --deploy-only # 只部署（用已存在的 image）
-#   ./scripts/deploy.sh --update-db-uri # 從 DB_PASSWORD 重建 POSTGRES_URI secret
+#   ./scripts/deploy/agent.sh              # 完整部署（build + push + deploy）
+#   ./scripts/deploy/agent.sh --build-only # 只建立 image 不部署
+#   ./scripts/deploy/agent.sh --deploy-only # 只部署（用已存在的 image）
+#   ./scripts/deploy/agent.sh --update-db-uri # 從 DB_PASSWORD 重建 POSTGRES_URI secret
 # ============================================================
 set -euo pipefail
 
@@ -49,8 +49,10 @@ SECRETS="${SECRETS},OPIK_API_KEY=OPIK_API_KEY:latest"
 SECRETS="${SECRETS},OPIK_WORKSPACE=OPIK_WORKSPACE:latest"
 
 # ── 切到 agent 目錄（Dockerfile 所在位置）──
+# 此腳本位於 scripts/deploy/agent.sh，PROJECT_ROOT 在 ../..
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "${SCRIPT_DIR}/.."
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+cd "${PROJECT_ROOT}/agent"
 
 # ── 解析參數 ──
 BUILD=true

@@ -1,7 +1,7 @@
 """CLI 工具：從 checkpointer 撈出完整 messages 上下文，輸出為 .md 檔。
 
 用法：
-    cd agent && python scripts/view_context.py <thread_id>
+    python tests/tools/view_context.py <thread_id>
 """
 
 import asyncio
@@ -10,7 +10,7 @@ import sys
 from datetime import datetime
 
 # 讓 import 能找到專案根目錄
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "agent"))
 
 from dotenv import load_dotenv
 
@@ -23,7 +23,8 @@ TYPE_EMOJI = {
     "tool": "🔧",
 }
 
-TEMP_DIR = os.path.join(os.path.dirname(__file__), "..", "temp")
+# 輸出到專案根目錄下的 tmp/（已在 .gitignore）
+TEMP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "tmp")
 OUTPUT_PATH = os.path.join(TEMP_DIR, "messages_context.md")
 
 
@@ -123,7 +124,7 @@ async def main(thread_id: str):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("用法: python scripts/view_context.py <thread_id>")
+        print("用法: python tests/tools/view_context.py <thread_id>")
         sys.exit(1)
 
     thread_id = sys.argv[1]
