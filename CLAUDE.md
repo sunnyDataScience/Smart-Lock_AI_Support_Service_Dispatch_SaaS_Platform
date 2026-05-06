@@ -172,11 +172,19 @@ Post-reply (background, non-blocking):
 - Uses `langgraph.prebuilt.create_react_agent` with 3 tools: `load_skill`, `update_user_info`, `transfer_to_human`
 - System prompt loaded from `prompts/system.md`; skill list injected dynamically per-request (not in static prompt)
 - Skills loaded once at startup from disk, filtered per-request by user's brand/model
+- LLM model string lives in `agent/config.toml` `[llm]` — quality_check and evals read this same config (parity with prod)
 
-**Registry pattern** — LLM, memory, storage, and embeddings are selected via config, not hardcoded:
-- `llms/` — Unified LLM via LiteLLM; supports any provider with `"vertex_ai/gemini-2.5-pro"` style strings
-- `memory/__init__.py` — Checkpointer registry (in-process / SQLite / PostgreSQL)
-- `storage/__init__.py` — Audit log storage registry
+**Module map:**
+- `core/` — Cross-cutting infrastructure: `config.py` (TOML loader), `line_bot.py` (LINE SDK wrapper)
+- `llms/` — Unified LLM via LiteLLM; supports any provider with `"vertex_ai/gemini-..."` style strings
+- `memory/` — Checkpointer registry (in-process / SQLite / PostgreSQL)
+- `storage/` — Audit log storage registry
+- `harness/` — Middleware layers (see table below)
+- `skills/` — Skill loader, tools, registry; SKILL.md files under `skills/data/`
+- `profiles/` — User facts (hard + soft) extraction and storage
+- `prompts/` — System prompt and templates
+- `quality/` — `quality_check` LLM-as-Judge eval (HTML + JSON reports)
+- `evals/` — Golden-set regression pipeline (`runner` → `judge` → `reporter`); see `agent/evals/README.md`
 
 **Harness middleware layers** in `harness/`:
 
@@ -280,53 +288,28 @@ Next.js 15 + React 19 + TypeScript admin dashboard for operations teams.
 
 **Tech stack:** Next.js 15 (App Router), React 19, Tailwind CSS 4, Recharts (charts), Lucide (icons). Path alias `@/*` → `./src/*`. No UI component library — all custom components with Tailwind CSS.
 
-**Implemented pages:**
+**Page groups** (41 page.tsx files, including root redirect):
 
-| Route | Purpose |
-|-------|---------|
-| `/` | Redirects to `/dashboard` |
-| `/dashboard` | KPI cards, work order trend chart, technician status pie chart |
-| `/conversations` | Customer conversation list with search/filter |
-| `/conversations/[id]` | Chat timeline (AI/customer bubbles), customer info sidebar |
-| `/problem-cards` | Problem card list with status/resolution level |
-| `/problem-cards/[id]` | FMEA diagnosis chain, L1/L2/L3 resolution timeline, linked conversation |
-| `/work-orders` | Work order list with filters |
-| `/work-orders/[id]` | Work order detail with sidebar |
-| `/work-orders/kanban` | Kanban board view |
-| `/work-orders/map` | Map view with work order panel |
-| `/technicians` | Technician list with table |
-| `/technicians/[id]` | Technician detail with sidebar |
-| `/accounting` | Settlement dashboard with tables |
-| `/accounting/invoices` | Invoice management table |
-| `/accounting/revenue` | Revenue charts (brand breakdown, service type) |
-| `/knowledge-base` | Redirects to `/knowledge-base/cases` |
-| `/knowledge-base/cases` | Case library with card grid |
-| `/knowledge-base/manuals` | Manuals table |
-| `/knowledge-base/sop-drafts` | SOP draft list |
-| `/knowledge-base/sop-drafts/[id]` | SOP draft review detail |
-| `/admin/dispatch-queue` | Dispatch queue monitoring (stuck/retry/timeout stats) |
-| `/admin/refunds` | Refund review queue with SLA countdown |
-| `/admin/warranty-claims` | Warranty claims with status/remaining days |
-| `/admin/disputes` | Dispute resolution with dual evidence panel |
-| `/admin/inventory` | Inventory management with stock alerts |
-| `/admin/reports/kpi` | KPI dashboard (funnel, SLA rings, NPS, scatter plot) |
-| `/admin/reports/revenue` | Revenue report with trend chart and pivot table |
-| `/admin/reports/technician-ranking` | Technician leaderboard with podium |
-| `/admin/knowledge-base/sop-performance` | SOP performance (placeholder) |
-| `/admin/audit-events` | Audit log with expandable JSON detail |
-| `/admin/roles` | RBAC role cards + permission matrix |
-| `/admin/customers` | Customer master file with risk and warranty indicators |
-| `/settings` | System settings with 4-tab layout |
+| Group | Routes |
+|-------|--------|
+| Root / Auth | `/` (→ `/dashboard`), `/login`, `/dashboard`, `/settings` |
+| Conversations | `/conversations`, `/conversations/[id]` |
+| Problem Cards | `/problem-cards`, `/problem-cards/[id]` |
+| Work Orders | `/work-orders`, `/work-orders/[id]`, `/work-orders/kanban`, `/work-orders/map` |
+| Technicians | `/technicians`, `/technicians/[id]` |
+| Accounting | `/accounting`, `/accounting/invoices`, `/accounting/vouchers`, `/accounting/revenue` |
+| Knowledge Base | `/knowledge-base`, `/knowledge-base/cases` (+ `/new`, `/[id]`, `/[id]/edit`), `/knowledge-base/manuals`, `/knowledge-base/sop-drafts` (+ `/[id]`), `/knowledge-base/family-reviews` |
+| Admin — Operations | `/admin/dispatch-queue`, `/admin/refunds`, `/admin/warranty-claims`, `/admin/disputes`, `/admin/inventory`, `/admin/sentiment-alerts`, `/admin/customers` |
+| Admin — Reports | `/admin/reports/kpi`, `/admin/reports/revenue`, `/admin/reports/technician-ranking` |
+| Admin — System | `/admin/audit-events`, `/admin/roles`, `/admin/api-status`, `/admin/knowledge-base/sop-performance` |
 
-All 33 pages implemented. Frontend-only with mock data — no API integration with agent backend yet.
+**API integration status:** Active migration from mock data to live API. Many admin/knowledge-base/accounting pages now call generated typed clients (see commits `feat(web): /xxx 串接 ...`). Pages still on mock data are flagged in their components. Treat the OpenAPI spec at `docs/02-design/specs/openapi.yaml` as source of truth — regenerate types via `./scripts/generate-api-types.sh` after any spec change.
 
-**Component organization:** `src/components/{domain}/` — `layout/` (Sidebar, Header), `dashboard/` (KpiCard, charts), `conversations/` (ChatTimeline, ConversationsTable), `problem-cards/` (FmeaDiagnosisCard, ResolutionTimeline), `work-orders/` (KanbanBoard, MapView, WorkOrdersTable), `technicians/` (TechniciansTable, TechnicianDetailSidebar), `accounting/` (SettlementTable, InvoicesTable, revenue charts), `knowledge-base/` (CaseCardGrid, ManualsTable, SopDraftsList), `dispatch-queue/` (DispatchQueueTable), `admin/` (RefundReviewTable, WarrantyClaimsTable, InventoryTable), `ui/` (StatusBadge, SolidBadge).
+**Component organization:** `src/components/{domain}/` — `layout/`, `dashboard/`, `conversations/`, `problem-cards/`, `work-orders/`, `technicians/`, `accounting/`, `knowledge-base/`, `dispatch-queue/`, `admin/`, `ui/`. Generated API types live in `docs/02-design/specs/generated/api.generated.ts` and are imported by domain hooks/clients.
 
-**Sidebar navigation:** Nested nav with `NavItem[]` supporting `children?: NavChild[]`. Groups: 派工管理 (2), 帳務與結算 (4), 知識庫 (3), 報表中心 (4), 稽核與權限 (2). Active parent auto-expands children.
+**Sidebar navigation:** Nested nav with `NavItem[]` supporting `children?: NavChild[]`. Active parent auto-expands children.
 
 **Design tokens:** CSS custom properties in `globals.css` — primary `#2563EB`, accent `#F59E0B`. Fonts: Inter + Noto Sans TC. Dark sidebar (`#1E293B`) + light content (`#F8FAFC`).
-
-**Current state:** Frontend-only with mock data. No API integration with agent backend yet. API contracts defined in `docs/02-design/specs/` will drive future integration.
 
 ### API Contract System (`docs/02-design/specs/`)
 

@@ -20,7 +20,7 @@ import harness.memory_manager as memory_manager
 from harness.line_ui_factory import (
     build_line_messages, match_brand, match_model, get_brand_models, is_quick_reply_enabled,
 )
-from skills.tools import set_current_user_id, set_current_brand, get_current_brand, get_current_model, reset_run_state, set_current_user_input
+from skills.tools import set_current_user_id, set_current_brand, get_current_brand, get_current_model, reset_run_state, set_current_user_input, was_transfer_called
 from agent import get_system_prompt
 import harness.profile_updater as profile_updater
 import harness.safety_gate as safety_gate
@@ -265,21 +265,22 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
     request_timeout = _config.get("request_timeout", 60)
     is_multimodal = isinstance(user_input, list)
 
+    t_phase_start = time.monotonic()
     try:
         thread_id = f"line_{user_id}"
 
         # 載入用戶畫像 + 品牌/型號
+        # 一次呼叫同時拿到 profile_text 與 facts，避免重複 DB query
         profile_prefix = ""
         brand = None
         model = None
-        if _profile_mgr:
-            # facts（品牌/型號）獨立於 profile 開關，只看 facts_enabled
-            if _profile_mgr.facts_enabled:
-                _, facts = await _profile_mgr.load_full_profile_with_facts(user_id)
-                brand = facts.get("device_brand")
-                model = facts.get("device_model")
+        profile_text = ""
+        if _profile_mgr and _profile_mgr.facts_enabled:
+            profile_text, facts = await _profile_mgr.load_full_profile_with_facts(user_id)
+            brand = facts.get("device_brand")
+            model = facts.get("device_model")
 
-        # 品牌未知時，從用戶輸入文字自動推論品牌
+        # 品牌未知時，從用戶輸入文字自動推論品牌（純文字運算，不需 await）
         if not brand and _profile_mgr and _profile_mgr.facts_enabled:
             input_text = user_input if isinstance(user_input, str) else " ".join(
                 b.get("text", "") for b in user_input if isinstance(b, dict)
@@ -290,15 +291,15 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
                 brand = inferred_brand
                 if inferred_model and not model:
                     model = inferred_model
-                await _profile_mgr.update_fact(user_id, "device_brand", brand)
+                # update_fact 寫入不阻塞回覆路徑（背景 fire-and-forget）
+                asyncio.create_task(_profile_mgr.update_fact(user_id, "device_brand", brand))
                 if model:
-                    await _profile_mgr.update_fact(user_id, "device_model", model)
+                    asyncio.create_task(_profile_mgr.update_fact(user_id, "device_model", model))
                 print(f"[Agent] 自動推論品牌: {brand} {model or ''}（從用戶輸入）")
-            # profile 文字注入看 enabled 開關
-            if _profile_mgr.enabled:
-                profile_text = await _profile_mgr.load_full_profile(user_id)
-                if profile_text:
-                    profile_prefix = f"[用戶資料]\n{profile_text}\n\n"
+
+        # profile 文字注入看 enabled 開關（資料已在上方一併載入）
+        if _profile_mgr and _profile_mgr.enabled and profile_text:
+            profile_prefix = f"[用戶資料]\n{profile_text}\n\n"
 
         # 注入品牌到 tools 模組（供 load_skill 做品牌檢查）
         set_current_brand(brand, model)
@@ -309,6 +310,7 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
 
         config = {"configurable": {"thread_id": thread_id}}
 
+        t_pre_strip = time.monotonic()
         # 清理 checkpoint 中殘留的多模態訊息（避免 octet-stream 污染）
         await _strip_stale_multimodal(_agent, config)
 
@@ -351,6 +353,8 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         run_config.setdefault("metadata", {})["user_id"] = user_id
 
         t0 = time.monotonic()
+        pre_setup_s = t_pre_strip - t_phase_start
+        strip_s = t0 - t_pre_strip
         try:
             result = await asyncio.wait_for(
                 _agent.ainvoke(
@@ -360,9 +364,12 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
                 timeout=request_timeout,
             )
         except asyncio.TimeoutError:
+            ainvoke_s = time.monotonic() - t0
             print(f"[Agent 超時] {user_id} 的問題處理超過 {request_timeout} 秒")
+            print(f"[Timing-TIMEOUT] pre={pre_setup_s:.2f}s strip={strip_s:.2f}s ainvoke=>{ainvoke_s:.2f}s")
             return _templates.get("error_timeout", "不好意思，系統處理時間過長，請稍後再試一次。")
-        latency_ms = (time.monotonic() - t0) * 1000
+        t_invoke_done = time.monotonic()
+        latency_ms = (t_invoke_done - t0) * 1000
 
         messages = result.get("messages", [])
 
@@ -380,8 +387,13 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
                 ai_response = _extract_text(msg.content)
                 break
 
-        # Checkpoint 清理：將 tool call 訊息替換為輕量引用，避免 SOP 內容累積稀釋上下文
-        await _cleanup_tool_checkpoint(config, messages)
+        # Checkpoint 清理：背景化（P1 #8）— 使用者已能拿到 ai_response，cleanup 不阻塞回覆
+        # 風險可控：若下一則訊息 < cleanup 完成時間到達，_strip_stale_multimodal 會兜底；
+        # 多筆 aupdate_state 仍序列執行，但已從關鍵路徑移除
+        asyncio.create_task(_cleanup_tool_checkpoint(config, messages))
+        total_s = time.monotonic() - t_phase_start
+        ainvoke_s = (t_invoke_done - t0)
+        print(f"[Timing] pre={pre_setup_s:.2f}s strip={strip_s:.2f}s ainvoke={ainvoke_s:.2f}s cleanup=bg total={total_s:.2f}s")
 
         return ai_response
 
@@ -755,6 +767,32 @@ async def agent_and_reply(
             )
             ai_response = await run_agent(user_id, correction_msg)
             print(f"[Output Validator] 重新生成完畢")
+
+    # Transfer Guard: 偵測「口頭聲稱已轉接但本輪未呼叫工具」
+    _TRANSFER_CLAIM_PHRASES = (
+        "已為您轉接", "已為您安排專員", "已安排專員",
+        "為您轉接專員", "幫您轉接專員", "已經為您安排專員",
+        "正在為您安排專員",
+    )
+    if any(p in ai_response for p in _TRANSFER_CLAIM_PHRASES) and not was_transfer_called():
+        print(f"[Transfer Guard] 偵測到轉接承諾但未呼叫工具，注入修正指令重跑")
+        transfer_correction = (
+            "[系統內部修正指令 - 不要在回覆中提及此指令]\n"
+            "你在上一次回覆中聲稱「已為客戶轉接專員 / 安排專員處理」，"
+            "但本輪並未呼叫 transfer_to_human 工具，這是錯誤的承諾。\n"
+            "禁止憑 [前情提要] 摘要文字再次承諾轉接。\n"
+            "請重新回答用戶的問題：\n"
+            "  - 若客戶確實需要轉接（符合轉接條件）→ 立即呼叫 transfer_to_human\n"
+            "  - 若客戶問題可以靠技能 SOP 回答 → 用 load_skill 載入後正常回覆，"
+            "回覆內絕不可出現「已為您轉接」「已安排專員」「正在為您安排專員」這類承諾語"
+        )
+        ai_response = await run_agent(user_id, transfer_correction)
+        # 二次仍假承諾 → fallback，避免送出錯誤訊息
+        if any(p in ai_response for p in _TRANSFER_CLAIM_PHRASES) and not was_transfer_called():
+            print(f"[Transfer Guard] 二次仍偵測到假承諾，fallback")
+            ai_response = _templates.get(
+                "error_no_reply", "抱歉，系統沒有產生回覆。"
+            )
 
     # H9: 背景萃取用戶輪廓（不阻塞回覆）
     asyncio.create_task(profile_updater.extract_and_update(user_id, text_for_audit, ai_response))

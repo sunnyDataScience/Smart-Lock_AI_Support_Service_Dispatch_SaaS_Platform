@@ -6,14 +6,14 @@ requires-python = ">=3.11,<3.12"
 dependencies = [
     # === LangChain / LangGraph 生態 ===
     "langchain-text-splitters",
-    "langchain-litellm",
+    "langchain-litellm>=0.6.0",
     "langchain-chroma",
     "langchain-postgres",
     "langgraph",
     "langgraph-checkpoint-sqlite",
     "langgraph-checkpoint-postgres",
     # === LLM Provider ===
-    "litellm",
+    "litellm>=1.80.5",
     "google-genai",
     # === Web 框架 ===
     "fastapi",

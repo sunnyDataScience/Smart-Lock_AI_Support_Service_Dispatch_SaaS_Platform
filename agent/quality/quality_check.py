@@ -31,7 +31,51 @@ from langchain_litellm import ChatLiteLLM
 from core.config import load_config
 from agent import build_agent
 from langgraph.checkpoint.memory import MemorySaver
-from llms.litellm_model import _ensure_vertex_credentials
+from llms import get_llm
+from llms.litellm_model import _ensure_vertex_credentials, build_litellm
+
+# ─────────────────────────────────────────────
+# 繁體中文檢測（無外部依賴）
+# 「簡體獨有」字集 — 這些字符在繁體中文文本中不會出現，命中即視為簡體污染
+# 來源：常用簡繁差異字（手工整理高頻字 ~140 個）
+# ─────────────────────────────────────────────
+
+_SIMPLIFIED_ONLY_CHARS = set(
+    # 高頻簡體獨有字（手工審核，去除任何在繁體中也通用的字）
+    "们个电话说问题应么还会来对时间业书识级证录权类历东龙图机风众际从亲"
+    "园国经听觉资张这试发达运边过远进连选择产务习数据库网络节结报销责"
+    "贵贸费财购锁钥钱银铁钟铃铺镜检标头顺项须顾颗颜飞馆验"
+    "鸡鸭鸟鱼龟麦齐齿"
+    "党学写军农兴单卖买实宝宁宪宽寻导尘尝层岁帅师带帮帜庆厅厌厨厦厂广"
+    "异弹强归当贝贺贡贪贬货贫赔赏赐赋赞赠赢赵赶趋跃车转软较辑输"
+    "适递邻钉钢钩锅锐错锋镇长门闭闯阀队阶险难顿额饭饮饿驾驶骄"
+    "临丝乐乱争亏仅仓仪价优伞伟传伤伪体侠侨倾偿储备块团围圆圣场坏坚坛壢垒"
+    "执担拢抚抢拥挂损摄摆击杀杂极构枪树桥楼欢欧殴残殡毕"
+    "沟沪泞泪测济浏涌净渐渔满滤潜灭灯灿炼烂烦烧焕热营烫"
+    "爱爷牵状犹狈独狮猎献玛环现玺珑琼琐画监盖盘睁码矿砖础硕确礼祸离"
+    "积称稳穷窝笃笔笺笼筑简篮"
+    "紧综绍绑绒绕绘给绝统绸绪维绳绷绿缔编缠缩缴罗罢罚"
+    "聋联聪肃肠肤胆胀胁胜脏脑脚腊腾"
+    "兽刘刚创则剂剑剧办劝动励劲劳势"
+)
+
+
+def _detect_simplified(text: str, *, max_examples: int = 10) -> list[str]:
+    """掃描文字中出現的「簡體獨有」字，回傳命中字（去重，最多 max_examples 個）。
+
+    用途：驗證 agent 回覆是否混入簡體字。空 list 表示純繁體（在本字典範圍內）。
+    """
+    if not text:
+        return []
+    seen: list[str] = []
+    seen_set: set[str] = set()
+    for ch in text:
+        if ch in _SIMPLIFIED_ONLY_CHARS and ch not in seen_set:
+            seen.append(ch)
+            seen_set.add(ch)
+            if len(seen) >= max_examples:
+                break
+    return seen
 
 # ─────────────────────────────────────────────
 # 測試案例定義
@@ -380,15 +424,36 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
     t0 = time.time()
 
     # 組裝訊息：所有測試都注入 [可用技能]，模擬 debounce.run_agent() 的行為
-    from skills.tools import build_dynamic_skills_section
+    from skills.tools import (
+        build_dynamic_skills_section,
+        set_current_user_id,
+        set_current_brand,
+        set_current_user_input,
+    )
+    from harness.line_ui_factory import infer_brand_from_text
     brand = tc.device_brand or None
     model = tc.device_model or None
+    # 品牌未知時，從問題文字自動推論（同生產路徑 debounce.py:289）
+    if not brand:
+        inferred_brand, inferred_model = infer_brand_from_text(tc.question)
+        if inferred_brand:
+            brand = inferred_brand
+            if inferred_model and not model:
+                model = inferred_model
+    # 同步生產路徑：ContextVar 注入 user_id / brand / model / user_input
+    # 否則 load_skill 會以「品牌未知」拒絕載入品牌專屬技能
+    set_current_user_id(f"qc-{tc.id}")
+    set_current_brand(brand, model)
+    set_current_user_input(tc.question)
     skills_section = build_dynamic_skills_section(brand, model)
 
-    if tc.device_brand:
-        profile_lines = [f"[Verified Fact] device_brand: {tc.device_brand}"]
-        if tc.device_model:
-            profile_lines.append(f"[Verified Fact] device_model: {tc.device_model}")
+    # 用 brand/model（含 infer 後值）建構 [用戶資料] 區塊，與生產路徑一致
+    profile_lines = []
+    if brand:
+        profile_lines.append(f"[Verified Fact] device_brand: {brand}")
+    if model:
+        profile_lines.append(f"[Verified Fact] device_model: {model}")
+    if profile_lines:
         content = (
             f"[可用技能]\n{skills_section}\n\n"
             f"[用戶資料]\n" + "\n".join(profile_lines) + "\n\n"
@@ -416,7 +481,7 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
 
     # 多輪模擬：若有 auto_reply 且 agent 回覆含追問（？）→ 發送第二輪
     if tc.auto_reply and "？" in answer:
-        if tc.device_brand:
+        if profile_lines:
             reply_content = (
                 f"[可用技能]\n{skills_section}\n\n"
                 f"[用戶資料]\n" + "\n".join(profile_lines) + "\n\n"
@@ -467,6 +532,9 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
         else:
             judge_result = {"verdict": "fail", "reason": f"keyword 0/{kw_total}"}
 
+    # 繁體中文偵測（驗證 LLM 是否混入簡體字）
+    simplified_chars = _detect_simplified(answer)
+
     return {
         "id": tc.id,
         "category": tc.category,
@@ -478,6 +546,7 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
         "verdict": judge_result.get("verdict", "error"),
         "reason": judge_result.get("reason", ""),
         "elapsed_sec": elapsed,
+        "simplified_chars": simplified_chars,
     }
 
 
@@ -642,10 +711,19 @@ async def main():
 
     cfg = load_config()
 
-    model = ChatLiteLLM(model="vertex_ai/gemini-2.5-pro", temperature=0.3)
+    # 初始化 Quick Reply / 品牌字典（生產 app.py:126 會做）
+    # 沒做 → infer_brand_from_text 永遠返回 (None, None)，品牌路由失準
+    from harness.line_ui_factory import init_quick_reply
+    init_quick_reply(cfg.quick_reply)
+
+    # 主模型走 config.toml 的 [llm] 設定（含 thinking_budget 等）
+    # 如此 quality_check 才能驗證實際生產環境的模型表現
+    model = get_llm(cfg.llm)
+    print(f"[Quality Check] Using model: {cfg.llm.get('model')} (thinking={cfg.llm.get('thinking_budget', 'N/A')})")
 
     judge_model = None
     if use_judge:
+        # judge 用 Gemini 2.5 Flash GA（與被測模型解耦；GA 配額充裕，避免 preview 限速）
         judge_model = ChatLiteLLM(model="vertex_ai/gemini-2.5-flash", temperature=0.0)
 
     agent = build_agent(model, cfg, checkpointer=MemorySaver())
@@ -663,15 +741,27 @@ async def main():
 
         print(f"\n[{i+1:02d}/{len(TEST_CASES)}] {tc.id} | {tc.category} | {tc.question[:40]}...", end=" ", flush=True)
 
-        try:
-            r = await run_single(agent, judge_model, tc, config, use_judge=use_judge)
-        except Exception as e:
-            r = {
-                "id": tc.id, "category": tc.category, "question": tc.question,
-                "expected": tc.expected, "answer": f"ERROR: {e}",
-                "skills_loaded": [], "keyword_hits": "0/0",
-                "verdict": "error", "reason": str(e), "elapsed_sec": 0,
-            }
+        # 429 retry with exponential backoff (Vertex AI Flash 突發 RPM 保護)
+        r = None
+        for attempt in range(4):
+            try:
+                r = await run_single(agent, judge_model, tc, config, use_judge=use_judge)
+                break
+            except Exception as e:
+                msg = str(e)
+                is_429 = "RESOURCE_EXHAUSTED" in msg or "429" in msg or "RateLimitError" in msg
+                if is_429 and attempt < 3:
+                    backoff = 15 * (2 ** attempt)  # 15s, 30s, 60s
+                    print(f"\n       [429] retry in {backoff}s (attempt {attempt+1}/3)...", flush=True)
+                    await asyncio.sleep(backoff)
+                    continue
+                r = {
+                    "id": tc.id, "category": tc.category, "question": tc.question,
+                    "expected": tc.expected, "answer": f"ERROR: {e}",
+                    "skills_loaded": [], "keyword_hits": "0/0",
+                    "verdict": "error", "reason": str(e), "elapsed_sec": 0,
+                }
+                break
 
         results.append(r)
         verdict = r["verdict"]
@@ -688,6 +778,9 @@ async def main():
         print(f"[{icon}] {r['elapsed_sec']}s | kw={r['keyword_hits']} | skills={skills_str}")
         if verdict != "pass":
             print(f"       reason: {r['reason']}")
+
+        # Throttle: 避免 Vertex AI Flash 突發 RPM 上限
+        await asyncio.sleep(1.5)
 
     report = {"summary": stats, "category_stats": category_stats, "results": results}
     _save_report(report, json_path, html_path)
@@ -713,6 +806,21 @@ def _save_report(report: dict, json_path: str, html_path: str) -> None:
     for cat, cs in category_stats.items():
         rate = cs.get("pass", 0) / cs["total"] * 100 if cs.get("total") else 0
         print(f"  {cat:<12} {cs.get('pass',0):>6} {cs.get('partial',0):>8} {cs.get('fail',0):>6} {cs['total']:>6} {rate:>5.0f}%")
+
+    # 繁體中文檢查統計
+    results = report.get("results", [])
+    contaminated = [r for r in results if r.get("simplified_chars")]
+    print("\n  " + "-" * 50)
+    print(f"  繁體中文檢查：{len(results) - len(contaminated)}/{len(results)} 純繁體")
+    if contaminated:
+        print(f"  ⚠️  含簡體字案例：{len(contaminated)} 筆")
+        for r in contaminated[:5]:
+            chars = "".join(r["simplified_chars"])
+            print(f"    - [{r['id']}] 命中: {chars}")
+        if len(contaminated) > 5:
+            print(f"    ...（其他 {len(contaminated) - 5} 筆見 JSON）")
+    else:
+        print("  ✅ 全部 67 筆案例均為繁體中文")
 
     # 輸出 JSON + HTML
     with open(json_path, "w", encoding="utf-8") as f:
