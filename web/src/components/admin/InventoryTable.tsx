@@ -20,13 +20,13 @@ const STATUS_BADGE: Record<
 };
 
 const columns = [
-  { label: "物料名稱", width: "w-[200px]" },
-  { label: "料號", width: "w-[140px]" },
-  { label: "類別", width: "w-[120px]" },
-  { label: "當前庫存", width: "w-[150px]" },
-  { label: "安全庫存", width: "w-[100px]" },
-  { label: "最後補貨", width: "w-[140px]" },
-  { label: "操作", width: "flex-1" },
+  { label: "物料名稱", width: "w-[200px] shrink-0" },
+  { label: "料號", width: "w-[140px] shrink-0" },
+  { label: "類別", width: "w-[120px] shrink-0" },
+  { label: "當前庫存", width: "w-[150px] shrink-0" },
+  { label: "安全庫存", width: "w-[100px] shrink-0" },
+  { label: "最後補貨", width: "w-[140px] shrink-0" },
+  { label: "操作", width: "flex-1 min-w-0" },
 ];
 
 function formatDate(iso: string | null | undefined): string {
@@ -77,25 +77,25 @@ export default function InventoryTable({ items, loading }: Props) {
                   : ""
               }`}
             >
-              <div className="flex w-[200px] items-center px-3">
+              <div className="flex w-[200px] shrink-0 items-center px-3">
                 <span className="truncate text-[13px] font-medium text-[var(--text-primary)]">
                   {row.name}
                 </span>
               </div>
 
-              <div className="flex w-[140px] items-center px-3">
+              <div className="flex w-[140px] shrink-0 items-center px-3">
                 <span className="font-mono text-xs text-[var(--text-secondary)]">
                   {row.part_number}
                 </span>
               </div>
 
-              <div className="flex w-[120px] items-center px-3">
+              <div className="flex w-[120px] shrink-0 items-center px-3">
                 <span className="text-[13px] text-[var(--text-secondary)]">
                   {row.category}
                 </span>
               </div>
 
-              <div className="flex w-[150px] items-center gap-2 px-3">
+              <div className="flex w-[150px] shrink-0 items-center gap-2 px-3">
                 <span className={`text-[13px] font-semibold ${stockColor}`}>
                   {row.quantity_on_hand}
                 </span>
@@ -112,19 +112,19 @@ export default function InventoryTable({ items, loading }: Props) {
                 )}
               </div>
 
-              <div className="flex w-[100px] items-center px-3">
+              <div className="flex w-[100px] shrink-0 items-center px-3">
                 <span className="text-[13px] text-[var(--text-secondary)]">
                   {row.reorder_point}
                 </span>
               </div>
 
-              <div className="flex w-[140px] items-center px-3">
+              <div className="flex w-[140px] shrink-0 items-center px-3">
                 <span className="text-[13px] text-[var(--text-secondary)]">
                   {formatDate(row.last_restocked_at)}
                 </span>
               </div>
 
-              <div className="flex flex-1 items-center justify-end gap-[6px] px-3">
+              <div className="flex min-w-0 flex-1 items-center justify-end gap-[6px] px-3">
                 <button
                   disabled
                   title="即將推出（需 inventory_transactions 寫入端點）"

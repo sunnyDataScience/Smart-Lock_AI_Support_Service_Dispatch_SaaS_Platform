@@ -103,6 +103,11 @@ def get_brand_models(brand: str) -> list[str]:
     return _brand_models.get(brand, [])
 
 
+def get_all_brand_models() -> dict[str, list[str]]:
+    """取得全部品牌的型號清單（dict[brand → list[model]]）。"""
+    return dict(_brand_models)
+
+
 def infer_brand_from_text(text: str) -> tuple[str | None, str | None]:
     """從自由文字中掃描已知型號或品牌名，反向推論品牌。
 

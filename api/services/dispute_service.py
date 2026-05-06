@@ -179,3 +179,98 @@ async def get_dispute(*, tenant_id: str, dispute_id: str) -> dict:
     if not row:
         raise ApiError("NOT_FOUND", f"Dispute {dispute_id} not found", 404)
     return _row_to_dict(row)
+
+
+# =============================================================================
+# Decision (resolve / escalate)
+# =============================================================================
+
+_RESOLVABLE_FROM = {"filed", "under_review", "mediation"}
+_DECISION_TO_STATUS = {
+    "resolve": "resolved",
+    "escalate": "escalated",
+    "reject": "resolved",  # 拒絕同樣標 resolved，由 resolution 文字記錄結論
+}
+
+
+async def submit_decision(
+    *,
+    tenant_id: str,
+    dispute_id: str,
+    decision: str,
+    resolution: str,
+    resolution_amount: float | None,
+    resolver_user_id: str,
+) -> dict:
+    """提交仲裁決定。filed/under_review/mediation → resolved/escalated。"""
+    if decision not in _DECISION_TO_STATUS:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "decision must be one of resolve, escalate, reject",
+            422,
+        )
+    if not resolution or len(resolution.strip()) < 5:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "resolution must be at least 5 characters",
+            422,
+        )
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    cur = await db_module._conn.execute(
+        f"SELECT d.status {_TENANT_JOIN} "
+        f"WHERE d.id = %s::uuid AND u.tenant_id = %s::uuid "
+        f"LIMIT 1",
+        (dispute_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", f"Dispute {dispute_id} not found", 404)
+    if row[0] not in _RESOLVABLE_FROM:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot decide dispute in status '{row[0]}'; expected one of {sorted(_RESOLVABLE_FROM)}",
+            409,
+        )
+
+    new_status = _DECISION_TO_STATUS[decision]
+    await db_module._conn.execute(
+        "UPDATE disputes SET "
+        "  status = %s, "
+        "  resolution = %s, "
+        "  resolution_amount = %s, "
+        "  resolved_by = %s::uuid, "
+        "  resolved_at = NOW() "
+        "WHERE id = %s::uuid",
+        (
+            new_status,
+            resolution.strip()[:2000],
+            resolution_amount,
+            resolver_user_id,
+            dispute_id,
+        ),
+    )
+    result = await get_dispute(tenant_id=tenant_id, dispute_id=dispute_id)
+
+    # WS push（best-effort）
+    try:
+        from realtime.ws_hub import hub
+
+        await hub.publish(
+            "/realtime/disputes",
+            {
+                "type": "dispute.decision.made",
+                "payload": {
+                    "dispute_id": dispute_id,
+                    "decision": decision,
+                    "status": new_status,
+                    "resolution_amount": resolution_amount,
+                    "resolver_user_id": resolver_user_id,
+                },
+            },
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("ws publish dispute.decision failed (non-fatal)")
+
+    return result

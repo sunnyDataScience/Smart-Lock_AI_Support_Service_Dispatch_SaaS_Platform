@@ -11,10 +11,12 @@ from __future__ import annotations
 
 import json
 import re
+import time
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from core.config import load_prompt
+from harness.llm_metrics import log_simple
 
 # 模組層級狀態（由 init() 初始化）
 _llm = None
@@ -174,10 +176,33 @@ async def extract_and_update(user_id: str, question: str, answer: str):
             fact_attributes=fact_attrs,
         )
 
-        response = await _llm.ainvoke([
-            SystemMessage(content=prompt),
-            HumanMessage(content=f"使用者: {question}\n客服: {answer}"),
-        ])
+        model_name = _config.get("model_name") or _config.get("extractor_model") or "unknown"
+        t0 = time.monotonic()
+        try:
+            user_question_text = f"使用者: {question}\n客服: {answer}"
+            response = await _llm.ainvoke([
+                SystemMessage(content=prompt),
+                HumanMessage(content=user_question_text),
+            ])
+            log_simple(
+                user_id=user_id,
+                call_site="profile_extraction",
+                model=model_name,
+                response=response,
+                latency_ms=int((time.monotonic() - t0) * 1000),
+                user_question=user_question_text,
+            )
+        except Exception as e:
+            log_simple(
+                user_id=user_id,
+                call_site="profile_extraction",
+                model=model_name,
+                latency_ms=int((time.monotonic() - t0) * 1000),
+                success=False,
+                error_type=type(e).__name__,
+                user_question=f"使用者: {question}\n客服: {answer}",
+            )
+            raise
         raw_text = response.content.strip()
 
         # 清除 code fence

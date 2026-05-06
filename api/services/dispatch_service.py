@@ -82,6 +82,46 @@ def _availability_eta(status: str | None) -> int | None:
     return None
 
 
+# ---------------------------------------------------------------------------
+# Score breakdown rationale（給 admin 看「為什麼推薦」）
+# ---------------------------------------------------------------------------
+
+
+def _explain_skill(tech_skills: list[str], wo_brand: str | None) -> str:
+    if not wo_brand:
+        return "工單未指定品牌，技能匹配度回傳 fallback 0.5"
+    if not tech_skills:
+        return f"技師無技能資料，但工單需 {wo_brand}（fallback 0.5）"
+    skills_lower = {s.lower() for s in tech_skills}
+    if wo_brand.lower() in skills_lower:
+        return f"技師認證品牌包含 {wo_brand} ✓"
+    return f"技師未認證 {wo_brand} 品牌（其他技能：{', '.join(tech_skills[:3])}…）"
+
+
+def _explain_distance(
+    dist_km: float | None, district: str | None, tech_areas: list[str]
+) -> str:
+    if dist_km is None or district is None:
+        return "工單或技師缺地理資訊（fallback 距離權重 0.5）"
+    if dist_km <= 5:
+        return f"技師服務區包含 {district}，距離極近 (~{dist_km}km)"
+    if dist_km <= 15:
+        return f"技師服務鄰近區（~{dist_km}km）"
+    if dist_km <= 30:
+        return f"技師服務同市但跨區（~{dist_km}km）"
+    return f"距離較遠（~{dist_km}km），可能影響到場時間"
+
+
+def _explain_rating(rating: float | None) -> str:
+    if rating is None:
+        return "尚無客戶評分資料（factor 0.0）"
+    if rating >= 4.5:
+        return f"高評分技師（{rating}/5）"
+    if rating >= 3.5:
+        return f"穩定評分（{rating}/5）"
+    return f"評分偏低（{rating}/5），請審慎指派"
+
+
 def _is_excluded_by_circuit(status: str | None) -> bool:
     """暫無 circuit_breaker_until 欄；以 status 排除明顯不可派的狀態。"""
     return status in {"inactive", "on_leave", "circuit_breaker_open"}
@@ -123,16 +163,37 @@ def _score_rows(
         skill = _skill_score(tech["skills"], brand)
         dist_factor, dist_km = _distance_factor_and_km(tech["service_areas"], district)
         rating_f = _rating_factor(tech["rating"])
-        score = round(
-            (_W_SKILL * skill + _W_DISTANCE * dist_factor + _W_RATING * rating_f) * 100,
-            2,
-        )
+        # 各維度的「貢獻分」（0–40 / 0–30 / 0–30）
+        skill_contrib = round(_W_SKILL * skill * 100, 2)
+        distance_contrib = round(_W_DISTANCE * dist_factor * 100, 2)
+        rating_contrib = round(_W_RATING * rating_f * 100, 2)
+        score = round(skill_contrib + distance_contrib + rating_contrib, 2)
         out.append({
             "technician": tech,
             "score": score,
             "distance_km": dist_km,
             "skill_match": round(skill, 2),
             "availability_eta_minutes": _availability_eta(status),
+            "score_breakdown": {
+                "skill": {
+                    "factor": round(skill, 2),
+                    "weight": _W_SKILL,
+                    "contribution": skill_contrib,
+                    "rationale": _explain_skill(tech["skills"], brand),
+                },
+                "distance": {
+                    "factor": round(dist_factor, 2),
+                    "weight": _W_DISTANCE,
+                    "contribution": distance_contrib,
+                    "rationale": _explain_distance(dist_km, district, tech["service_areas"]),
+                },
+                "rating": {
+                    "factor": round(rating_f, 2),
+                    "weight": _W_RATING,
+                    "contribution": rating_contrib,
+                    "rationale": _explain_rating(tech["rating"]),
+                },
+            },
         })
     out.sort(key=lambda c: c["score"], reverse=True)
     return out

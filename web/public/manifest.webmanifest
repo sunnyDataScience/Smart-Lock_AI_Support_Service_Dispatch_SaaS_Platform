@@ -1,0 +1,53 @@
+{
+  "name": "Smart Lock 技師工作台",
+  "short_name": "Smart Lock Tech",
+  "description": "智慧鎖工單派工技師端 PWA — 案件池、工單詳情、現場簽章與排班管理",
+  "start_url": "/tech-login",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F8FAFC",
+  "theme_color": "#2563EB",
+  "lang": "zh-TW",
+  "dir": "ltr",
+  "categories": ["productivity", "business"],
+  "icons": [
+    {
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "案件池",
+      "short_name": "案件池",
+      "url": "/pool",
+      "description": "瀏覽附近可接工單"
+    },
+    {
+      "name": "我的工單",
+      "short_name": "工單",
+      "url": "/my-orders",
+      "description": "進行中與歷史工單"
+    },
+    {
+      "name": "我的排班",
+      "short_name": "排班",
+      "url": "/account/schedule",
+      "description": "管理休假與備勤"
+    }
+  ]
+}

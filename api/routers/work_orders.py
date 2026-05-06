@@ -324,3 +324,240 @@ async def propose_reschedule(
     if idem is not None:
         await idem.save(200, payload)
     return payload
+
+
+# =============================================================================
+# Subflow endpoints (T5–T8)  — 技師現場非 Happy Path 提交
+# =============================================================================
+
+
+class _ScopeItem(BaseModel):
+    name: str = Field(..., min_length=1, max_length=80)
+    unit_price: str = Field(..., max_length=20)
+    quantity: int = Field(..., ge=1, le=999)
+
+
+class _ScopeChangeRequest(BaseModel):
+    """T5 範圍變更申請。"""
+
+    reason: str = Field(..., min_length=10, max_length=500)
+    items: list[_ScopeItem] = Field(..., min_length=1, max_length=20)
+    total_estimate: str | None = Field(default=None, max_length=20)
+
+
+class _MaterialItem(BaseModel):
+    brand: str = Field(..., min_length=1, max_length=40)
+    model: str = Field(..., min_length=1, max_length=80)
+    quantity: int = Field(..., ge=1, le=999)
+
+
+class _MaterialRequestBody(BaseModel):
+    """T6 缺料回報。"""
+
+    items: list[_MaterialItem] = Field(..., min_length=1, max_length=20)
+    urgency: Literal["now", "today", "tomorrow"] = "today"
+    note: str | None = Field(default=None, max_length=500)
+
+
+class _DelayRequest(BaseModel):
+    """T7 延遲通知。"""
+
+    delay_minutes: int = Field(..., ge=5, le=300)
+    reason: str = Field(..., min_length=1, max_length=80)
+    reason_text: str | None = Field(default=None, max_length=500)
+    notify: Literal["customer_only", "customer_and_staff"] = "customer_only"
+
+
+class _DoorCheckRequest(BaseModel):
+    """T8 門面外觀檢核。photos_before/after 為媒體 URL（MVP 可為 placeholder 檔名）。"""
+
+    checklist: dict = Field(default_factory=dict)
+    photos_before: list[str] = Field(default_factory=list, max_length=10)
+    photos_after: list[str] = Field(default_factory=list, max_length=10)
+    notes: str | None = Field(default=None, max_length=500)
+
+
+@router.post(
+    "/work-orders/{id}/scope-change",
+    operation_id="recordScopeChange",
+    summary="記錄範圍變更申請（T5；技師作業中→記錄事件）",
+    response_model=WorkOrderEnvelope,
+)
+async def record_scope_change(
+    body: _ScopeChangeRequest,
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    order = await work_order_service.record_scope_change(
+        tenant_id=user.tenant_id,
+        wo_id=id,
+        reason=body.reason,
+        items=[item.model_dump() for item in body.items],
+        total_estimate=body.total_estimate,
+    )
+    payload = {"data": WorkOrder(**order).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload
+
+
+@router.post(
+    "/work-orders/{id}/material-request",
+    operation_id="recordMaterialRequest",
+    summary="記錄缺料回報（T6；技師作業中→等待調度員補料）",
+    response_model=WorkOrderEnvelope,
+)
+async def record_material_request(
+    body: _MaterialRequestBody,
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    order = await work_order_service.record_material_request(
+        tenant_id=user.tenant_id,
+        wo_id=id,
+        items=[item.model_dump() for item in body.items],
+        urgency=body.urgency,
+        note=body.note,
+    )
+    payload = {"data": WorkOrder(**order).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload
+
+
+@router.post(
+    "/work-orders/{id}/delay",
+    operation_id="recordDelay",
+    summary="記錄延遲通知（T7；技師作業中→記錄延遲與通知對象）",
+    response_model=WorkOrderEnvelope,
+)
+async def record_delay(
+    body: _DelayRequest,
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    order = await work_order_service.record_delay(
+        tenant_id=user.tenant_id,
+        wo_id=id,
+        delay_minutes=body.delay_minutes,
+        reason=body.reason,
+        reason_text=body.reason_text,
+        notify=body.notify,
+    )
+    payload = {"data": WorkOrder(**order).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload
+
+
+@router.post(
+    "/work-orders/{id}/door-check",
+    operation_id="recordDoorCheck",
+    summary="記錄門面外觀檢核（T8；技師作業中→拍照+checklist）",
+    response_model=WorkOrderEnvelope,
+)
+async def record_door_check(
+    body: _DoorCheckRequest,
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    order = await work_order_service.record_door_check(
+        tenant_id=user.tenant_id,
+        wo_id=id,
+        checklist=body.checklist,
+        photos_before=body.photos_before,
+        photos_after=body.photos_after,
+        notes=body.notes,
+    )
+    payload = {"data": WorkOrder(**order).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload
+
+
+@router.get(
+    "/work-orders/{id}/events",
+    operation_id="listWorkOrderEvents",
+    summary="列出該工單的結構化事件（subflow timeline）",
+)
+async def list_work_order_events(
+    id: str = Path(),
+    event_type: Literal[
+        "scope_change",
+        "material_request",
+        "delay",
+        "door_check",
+        "signature_submitted",
+        "reschedule_proposed",
+        "other",
+    ]
+    | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    return await work_order_service.list_work_order_events(
+        tenant_id=user.tenant_id,
+        wo_id=id,
+        event_type=event_type,
+        limit=limit,
+    )
+
+
+# =============================================================================
+# F2 — 客戶端改期 RSVP（Flow 11）
+# =============================================================================
+
+
+class _CustomerRescheduleConfirmRequest(BaseModel):
+    """LINE Flex 客戶選定的時段。"""
+
+    selected_start: str = Field(..., description="ISO 8601 datetime")
+    selected_end: str = Field(..., description="ISO 8601 datetime")
+
+
+@router.post(
+    "/work-orders/{id}/reschedule/customer-confirm",
+    operation_id="confirmCustomerReschedule",
+    summary="客戶 LINE Flex 選定改期時段（Flow 11）— 寫入 wo + 推 WS 給技師",
+    response_model=WorkOrderEnvelope,
+)
+async def confirm_customer_reschedule(
+    body: _CustomerRescheduleConfirmRequest,
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    order = await work_order_service.confirm_reschedule_by_customer(
+        tenant_id=user.tenant_id,
+        wo_id=id,
+        selected_start=body.selected_start,
+        selected_end=body.selected_end,
+    )
+    payload = {"data": WorkOrder(**order).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload
+
+
+@router.post(
+    "/work-orders/{id}/reschedule/customer-reject",
+    operation_id="rejectCustomerReschedule",
+    summary="客戶 LINE Flex 點「都不方便」（Flow 11）— 推 WS 給技師重選",
+    response_model=WorkOrderEnvelope,
+)
+async def reject_customer_reschedule(
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    order = await work_order_service.reject_reschedule_by_customer(
+        tenant_id=user.tenant_id, wo_id=id
+    )
+    payload = {"data": WorkOrder(**order).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload

@@ -216,6 +216,37 @@ _RESCHEDULE_FROM = {"assigned", "accepted", "in_progress"}
 _RESCHEDULE_LIMIT_24H = 3
 
 
+async def _publish_and_return(
+    *, tenant_id: str, wo_id: str, event_type: str
+) -> dict:
+    """共用：fetch 最新 order → 推 work-orders/{id} 事件 + dispatch-queue 變化通知 → 回傳。"""
+    order = await get_order(tenant_id=tenant_id, wo_id=wo_id)
+    try:
+        from realtime.ws_hub import hub  # 延遲 import 避免循環
+
+        await hub.publish(
+            f"/realtime/work-orders/{wo_id}",
+            {
+                "type": event_type,
+                "payload": {"event": event_type, "work_order": order},
+            },
+        )
+        await hub.publish(
+            "/realtime/dispatch-queue",
+            {
+                "type": "work_order.state_change",
+                "payload": {
+                    "work_order_id": wo_id,
+                    "event": event_type,
+                    "status": order.get("status"),
+                },
+            },
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("ws publish work_order state failed (non-fatal)")
+    return order
+
+
 async def _fetch_status_for_update(wo_id: str, tenant_id: str) -> str:
     """Fetch current DB status with tenant guard. Raises NOT_FOUND if missing."""
     cur = await db_module._conn.execute(
@@ -245,7 +276,9 @@ async def accept_order(*, tenant_id: str, wo_id: str) -> dict:
         "WHERE id = %s::uuid",
         (wo_id,),
     )
-    return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+    return await _publish_and_return(
+        tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.accepted"
+    )
 
 
 async def complete_order(
@@ -282,7 +315,9 @@ async def complete_order(
         "WHERE id = %s::uuid",
         (summary, final_price, wo_id),
     )
-    return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+    return await _publish_and_return(
+        tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.completed"
+    )
 
 
 async def cancel_order(
@@ -316,7 +351,9 @@ async def cancel_order(
             "WHERE id = %s::uuid",
             (wo_id,),
         )
-    return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+    return await _publish_and_return(
+        tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.cancelled"
+    )
 
 
 async def assign_order(
@@ -373,7 +410,9 @@ async def assign_order(
         "WHERE id = %s::uuid",
         (technician_id, note, wo_id),
     )
-    return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+    return await _publish_and_return(
+        tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.assigned"
+    )
 
 
 async def escalate_order(
@@ -421,7 +460,9 @@ async def escalate_order(
         "WHERE id = %s::uuid",
         (note, wo_id),
     )
-    return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+    return await _publish_and_return(
+        tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.escalated"
+    )
 
 
 async def confirm_order(
@@ -464,7 +505,9 @@ async def confirm_order(
         "WHERE id = %s::uuid",
         (rating, feedback_clean, wo_id),
     )
-    return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+    return await _publish_and_return(
+        tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.confirmed"
+    )
 
 
 async def propose_reschedule(
@@ -586,7 +629,9 @@ async def propose_reschedule(
         "WHERE id = %s::uuid",
         (new_start, note, wo_id),
     )
-    return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+    return await _publish_and_return(
+        tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.rescheduled"
+    )
 
 
 async def get_dispatch_queue_snapshot(*, tenant_id: str) -> dict:
@@ -652,3 +697,336 @@ async def get_today_stats(*, tenant_id: str) -> dict:
         "completion_rate": completion_rate,
         "overdue_count": overdue_count,
     }
+
+
+# =============================================================================
+# Subflow events (T5–T8)
+# =============================================================================
+# 設計：以結構化標籤 prepend 到 service_report 文字欄位，避免新增 schema。
+# 各事件帶 [TAG] 前綴 + ISO timestamp + JSON 序列化的細節。後續可遷移至獨立
+# work_order_events 表。
+#
+# 對應前端：
+#   /my-orders/[id]/scope-change       → POST /work-orders/{id}/scope-change
+#   /my-orders/[id]/material-request   → POST /work-orders/{id}/material-request
+#   /my-orders/[id]/delay              → POST /work-orders/{id}/delay
+#   /my-orders/[id]/door-check         → POST /work-orders/{id}/door-check
+
+import json
+from datetime import datetime, timezone
+
+# 子流程允許狀態：技師作業中（含 assigned 之後到 in_progress；不含 completed 後）
+_SUBFLOW_FROM = {"assigned", "accepted", "in_progress"}
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+_TAG_TO_EVENT_TYPE = {
+    "SCOPE_CHANGE": "scope_change",
+    "MATERIAL_REQUEST": "material_request",
+    "DELAY": "delay",
+    "DOOR_CHECK": "door_check",
+}
+
+
+async def _append_subflow_event(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    tag: str,
+    payload: dict,
+    actor_user_id: str | None = None,
+) -> dict:
+    """驗 status → INSERT 一筆 work_order_events → bump updated_at → 推 WS → 回傳。
+
+    v1.30.0 重構：從 service_report 文字 append 改為結構化事件表寫入，
+    便於後續 timeline / 統計 / 稽核查詢。service_report 不再被 subflow 修改。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    current = await _fetch_status_for_update(wo_id, tenant_id)
+    if current not in _SUBFLOW_FROM:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot record {tag} in status '{current}'; expected one of {sorted(_SUBFLOW_FROM)}",
+            409,
+        )
+    event_type = _TAG_TO_EVENT_TYPE.get(tag, "other")
+    await db_module._conn.execute(
+        "INSERT INTO work_order_events "
+        "  (work_order_id, tenant_id, actor_user_id, event_type, payload) "
+        "VALUES (%s::uuid, %s::uuid, %s, %s, %s::jsonb)",
+        (
+            wo_id,
+            tenant_id,
+            actor_user_id,
+            event_type,
+            json.dumps(payload, ensure_ascii=False),
+        ),
+    )
+    # 仍 bump updated_at 讓既有 list 排序對齊
+    await db_module._conn.execute(
+        "UPDATE work_orders SET updated_at = NOW() WHERE id = %s::uuid",
+        (wo_id,),
+    )
+    return await _publish_and_return(
+        tenant_id=tenant_id,
+        wo_id=wo_id,
+        event_type=f"work_order.subflow.{event_type}",
+    )
+
+
+async def record_scope_change(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    reason: str,
+    items: list[dict],
+    total_estimate: str | None = None,
+) -> dict:
+    """記錄範圍變更申請（T5）。等待客戶核准的設計目前簡化為直接記錄事件。"""
+    payload = {
+        "reason": reason,
+        "items": items,
+        "total_estimate": total_estimate,
+    }
+    return await _append_subflow_event(
+        tenant_id=tenant_id, wo_id=wo_id, tag="SCOPE_CHANGE", payload=payload
+    )
+
+
+async def record_material_request(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    items: list[dict],
+    urgency: str,
+    note: str | None = None,
+) -> dict:
+    """記錄缺料回報（T6），等待調度員協調補料。"""
+    payload = {"items": items, "urgency": urgency, "note": note}
+    return await _append_subflow_event(
+        tenant_id=tenant_id,
+        wo_id=wo_id,
+        tag="MATERIAL_REQUEST",
+        payload=payload,
+    )
+
+
+async def record_delay(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    delay_minutes: int,
+    reason: str,
+    reason_text: str | None = None,
+    notify: str = "customer_only",
+) -> dict:
+    """記錄延遲通知（T7）。實際 LINE/SMS 推送由通知服務處理（此處僅留紀錄）。"""
+    if delay_minutes < 5 or delay_minutes > 300:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "delay_minutes must be between 5 and 300",
+            422,
+        )
+    payload = {
+        "delay_minutes": delay_minutes,
+        "reason": reason,
+        "reason_text": reason_text,
+        "notify": notify,
+    }
+    return await _append_subflow_event(
+        tenant_id=tenant_id, wo_id=wo_id, tag="DELAY", payload=payload
+    )
+
+
+async def record_door_check(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    checklist: dict,
+    photos_before: list[str] | None = None,
+    photos_after: list[str] | None = None,
+    notes: str | None = None,
+) -> dict:
+    """記錄門面外觀檢核（T8）。photos 為媒體 URL 清單；MVP 僅記錄 placeholder 名稱。"""
+    payload = {
+        "checklist": checklist,
+        "photos_before": photos_before or [],
+        "photos_after": photos_after or [],
+        "notes": notes,
+    }
+    return await _append_subflow_event(
+        tenant_id=tenant_id,
+        wo_id=wo_id,
+        tag="DOOR_CHECK",
+        payload=payload,
+    )
+
+
+async def list_work_order_events(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    event_type: str | None = None,
+    limit: int = 100,
+) -> dict:
+    """列出某工單的事件（依時間倒序）。可依 event_type 過濾。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    # 先確認工單存在 + tenant 隔離
+    await _fetch_status_for_update(wo_id, tenant_id)
+    where = ["work_order_id = %s::uuid", "tenant_id = %s::uuid"]
+    params: list = [wo_id, tenant_id]
+    if event_type:
+        where.append("event_type = %s")
+        params.append(event_type)
+    params.append(limit)
+    sql = (
+        "SELECT id, event_type, payload, actor_user_id, created_at "
+        "FROM work_order_events "
+        f"WHERE {' AND '.join(where)} "
+        "ORDER BY created_at DESC LIMIT %s"
+    )
+    cur = await db_module._conn.execute(sql, tuple(params))
+    rows = await cur.fetchall()
+    items = [
+        {
+            "id": str(r[0]),
+            "event_type": r[1],
+            "payload": r[2] if isinstance(r[2], dict) else (json.loads(r[2]) if r[2] else {}),
+            "actor_user_id": str(r[3]) if r[3] else None,
+            "created_at": r[4].isoformat() if hasattr(r[4], "isoformat") else str(r[4]),
+        }
+        for r in rows
+    ]
+    return {"items": items}
+
+
+async def confirm_reschedule_by_customer(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    selected_start: str,
+    selected_end: str,
+) -> dict:
+    """客戶於 LINE Flex 選定改期時段 → 寫入 wo.scheduled_at + 紀錄事件 + 推 WS。
+
+    對齊 Flow 11（v1.7.0 frontend 已監聽 reschedule_confirmed_by_customer 事件）。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    try:
+        start_dt = datetime.fromisoformat(selected_start.replace("Z", "+00:00"))
+        end_dt = datetime.fromisoformat(selected_end.replace("Z", "+00:00"))
+    except ValueError as e:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "selected_start / selected_end 必須為 ISO 8601 格式",
+            422,
+        ) from e
+    if end_dt <= start_dt:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "selected_end must be after selected_start",
+            422,
+        )
+
+    current = await _fetch_status_for_update(wo_id, tenant_id)
+    if current not in _RESCHEDULE_FROM:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot confirm reschedule in status '{current}'",
+            409,
+        )
+
+    note = (
+        f"[CUSTOMER_RESCHEDULE_CONFIRMED {_now_iso()}] "
+        f"customer chose {start_dt.isoformat()}~{end_dt.isoformat()}"
+    )
+    await db_module._conn.execute(
+        "UPDATE work_orders SET "
+        "  scheduled_at = %s::timestamptz, "
+        "  service_report = COALESCE(service_report, '') || E'\\n' || %s, "
+        "  updated_at = NOW() "
+        "WHERE id = %s::uuid",
+        (start_dt, note, wo_id),
+    )
+    # 同時寫入結構化事件（v1.30.0 work_order_events）
+    await db_module._conn.execute(
+        "INSERT INTO work_order_events "
+        "  (work_order_id, tenant_id, event_type, payload) "
+        "VALUES (%s::uuid, %s::uuid, 'reschedule_proposed', %s::jsonb)",
+        (
+            wo_id,
+            tenant_id,
+            json.dumps(
+                {
+                    "confirmed_by": "customer",
+                    "selected_start": start_dt.isoformat(),
+                    "selected_end": end_dt.isoformat(),
+                },
+                ensure_ascii=False,
+            ),
+        ),
+    )
+
+    # 推 WS — 前端 v1.13.0 監聽 reschedule_confirmed_by_customer
+    try:
+        from realtime.ws_hub import hub
+
+        await hub.publish(
+            f"/realtime/work-orders/{wo_id}",
+            {
+                "type": "reschedule_confirmed_by_customer",
+                "payload": {
+                    "event": "reschedule_confirmed_by_customer",
+                    "work_order_id": wo_id,
+                    "selected_start": start_dt.isoformat(),
+                    "selected_end": end_dt.isoformat(),
+                },
+            },
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("ws publish reschedule_confirmed failed (non-fatal)")
+
+    return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+
+
+async def reject_reschedule_by_customer(
+    *, tenant_id: str, wo_id: str
+) -> dict:
+    """客戶 LINE Flex 點「都不方便」→ 推 WS 給技師端，wo 狀態不變。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    # 寫事件留下記錄
+    await db_module._conn.execute(
+        "INSERT INTO work_order_events "
+        "  (work_order_id, tenant_id, event_type, payload) "
+        "VALUES (%s::uuid, %s::uuid, 'reschedule_proposed', %s::jsonb)",
+        (
+            wo_id,
+            tenant_id,
+            json.dumps({"rejected_by": "customer"}, ensure_ascii=False),
+        ),
+    )
+    try:
+        from realtime.ws_hub import hub
+
+        await hub.publish(
+            f"/realtime/work-orders/{wo_id}",
+            {
+                "type": "reschedule_rejected_by_customer",
+                "payload": {
+                    "event": "reschedule_rejected_by_customer",
+                    "work_order_id": wo_id,
+                },
+            },
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("ws publish reschedule_rejected failed (non-fatal)")
+
+    return await get_order(tenant_id=tenant_id, wo_id=wo_id)

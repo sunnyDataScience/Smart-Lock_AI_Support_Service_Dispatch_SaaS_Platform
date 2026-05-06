@@ -1,0 +1,53 @@
+name: DB connection pattern lint
+
+# 規則：agent/ 執行期間長壽命的 process 程式碼，禁止直接呼叫 AsyncConnection.connect。
+# 必須使用 psycopg_pool.AsyncConnectionPool（pool 在 checkout 時驗證並回收壞掉的連線，
+# 避免 CloudSQL idle 斷線後整個模組失效——這是 v1.22.1 修復事件的根因）。
+#
+# 例外：
+#   - agent/scripts/   一次性 CLI 工具，process 結束即釋放，沒有 idle 斷線問題
+#   - 任何位置只要該行加上 # allow-direct-conn 註解視為刻意例外（未來可審計）
+
+on:
+  pull_request:
+    paths:
+      - 'agent/**/*.py'
+  push:
+    branches: [main]
+    paths:
+      - 'agent/**/*.py'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect direct AsyncConnection.connect in long-lived agent code
+        run: |
+          set -euo pipefail
+          # 找所有 agent/ 下的 .py，排除 scripts/、tests、__pycache__
+          # 接著找出含 "AsyncConnection.connect(" 但不含 "# allow-direct-conn" 的行
+          violations=$(
+            find agent -type f -name '*.py' \
+              -not -path 'agent/scripts/*' \
+              -not -path 'agent/__pycache__/*' \
+              -print0 \
+            | xargs -0 grep -nH 'AsyncConnection\.connect(' 2>/dev/null \
+            | grep -v 'allow-direct-conn' \
+            || true
+          )
+
+          if [ -n "$violations" ]; then
+            echo "::error::Found direct AsyncConnection.connect() call in long-lived agent code."
+            echo "Long-lived processes must use psycopg_pool.AsyncConnectionPool to survive CloudSQL idle disconnects."
+            echo "See report/v1.22.1.md and report/v1.22.2.md for context."
+            echo ""
+            echo "Violations:"
+            echo "$violations"
+            echo ""
+            echo "Fix: switch to AsyncConnectionPool, or add '# allow-direct-conn' on the offending line if truly intentional."
+            exit 1
+          fi
+
+          echo "OK: no direct AsyncConnection.connect() in long-lived agent code."

@@ -64,3 +64,47 @@ async def get_dispute(
 ) -> dict:
     dispute = await dispute_service.get_dispute(tenant_id=user.tenant_id, dispute_id=id)
     return {"data": Dispute(**dispute).model_dump(mode="json")}
+
+
+# =============================================================================
+# Dispute decision (resolve / escalate / reject)
+# =============================================================================
+
+from typing import Literal as _Literal  # noqa: E402
+
+from fastapi import Path  # noqa: E402
+from pydantic import BaseModel as _BaseModel, Field as _Field  # noqa: E402
+
+from core.idempotency import IdempotencyContext, idempotency_guard  # noqa: E402
+
+
+class _DecisionRequest(_BaseModel):
+    decision: _Literal["resolve", "escalate", "reject"]
+    resolution: str = _Field(..., min_length=5, max_length=2000)
+    resolution_amount: float | None = _Field(default=None)
+
+
+@router.post(
+    "/disputes/{id}/decision",
+    operation_id="submitDisputeDecision",
+    summary="提交爭議仲裁決定（filed/under_review/mediation → resolved/escalated）",
+    response_model=DisputeEnvelope,
+)
+async def submit_dispute_decision(
+    body: _DecisionRequest,
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    dispute = await dispute_service.submit_decision(
+        tenant_id=user.tenant_id,
+        dispute_id=id,
+        decision=body.decision,
+        resolution=body.resolution,
+        resolution_amount=body.resolution_amount,
+        resolver_user_id=user.user_id,
+    )
+    payload = {"data": Dispute(**dispute).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload

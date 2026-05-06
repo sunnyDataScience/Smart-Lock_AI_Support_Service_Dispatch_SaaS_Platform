@@ -30,12 +30,12 @@ const statusConfig: Record<DisputeStatus, { label: string; textColor: string; bg
 };
 
 const columns = [
-  { label: "爭議編號", width: "w-[140px]" },
-  { label: "類型", width: "w-[80px]" },
-  { label: "工單", width: "flex-1" },
-  { label: "調解金額", width: "w-[110px]" },
-  { label: "建立日期", width: "w-[100px]" },
-  { label: "狀態", width: "w-[100px]" },
+  { label: "爭議編號", width: "w-[140px] shrink-0" },
+  { label: "類型", width: "w-[80px] shrink-0" },
+  { label: "工單", width: "flex-1 min-w-0" },
+  { label: "調解金額", width: "w-[110px] shrink-0" },
+  { label: "建立日期", width: "w-[100px] shrink-0" },
+  { label: "狀態", width: "w-[100px] shrink-0" },
 ];
 
 function formatTwd(amount: string | null | undefined): string {
@@ -90,13 +90,13 @@ export default function DisputesTable({ items, loading, selectedId, onSelect }: 
               isSelected ? "bg-[#EFF6FF]" : "bg-[var(--bg-surface)] hover:bg-[#F8FAFC]"
             } ${idx < items.length - 1 ? "border-b border-[var(--border)]" : ""}`}
           >
-            <div className="flex w-[140px] items-center px-3">
+            <div className="flex w-[140px] shrink-0 items-center px-3">
               <span className="font-mono text-[12px] font-medium text-[var(--text-primary)]">
                 {row.id.slice(0, 8)}
               </span>
             </div>
 
-            <div className="flex w-[80px] items-center px-3">
+            <div className="flex w-[80px] shrink-0 items-center px-3">
               <span
                 className="rounded-[10px] px-2 py-[2px] text-[11px] font-medium"
                 style={{ color: type.textColor, backgroundColor: type.bgColor }}
@@ -105,25 +105,25 @@ export default function DisputesTable({ items, loading, selectedId, onSelect }: 
               </span>
             </div>
 
-            <div className="flex flex-1 items-center px-3">
+            <div className="flex min-w-0 flex-1 items-center px-3">
               <span className="truncate text-[13px] text-[var(--text-secondary)]">
                 {row.work_order_id ? `工單 ${row.work_order_id.slice(0, 8)}` : row.invoice_id ? `發票 ${row.invoice_id.slice(0, 8)}` : "—"}
               </span>
             </div>
 
-            <div className="flex w-[110px] items-center px-3">
+            <div className="flex w-[110px] shrink-0 items-center px-3">
               <span className="text-[13px] font-medium text-[var(--text-primary)]">
                 {formatTwd(row.resolution_amount)}
               </span>
             </div>
 
-            <div className="flex w-[100px] items-center px-3">
+            <div className="flex w-[100px] shrink-0 items-center px-3">
               <span className="text-[13px] text-[var(--text-secondary)]">
                 {formatDate(row.created_at)}
               </span>
             </div>
 
-            <div className="flex w-[100px] items-center px-3">
+            <div className="flex w-[100px] shrink-0 items-center px-3">
               <span
                 className="rounded-[10px] px-2 py-[2px] text-[11px] font-medium"
                 style={{ color: status.textColor, backgroundColor: status.bgColor }}
