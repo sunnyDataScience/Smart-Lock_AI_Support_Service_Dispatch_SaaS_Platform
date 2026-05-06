@@ -87,11 +87,14 @@ jobs:
           cache-to: type=gha,mode=max
 
       # ── Python image（agent / api）：用 import healthcheck ──
+      # 走 stdin pipe + quoted heredoc：避免 healthcheck 內的 f'...' 單引號
+      # 與外層 shell -c '...' 衝突造成 "syntax error near unexpected token '('"
       - name: Smoke-test ${{ matrix.module }} image (python)
         if: matrix.kind == 'python'
         run: |
-          docker run --rm --entrypoint python smart-lock-${{ matrix.module }}:ci \
-            -c '${{ matrix.healthcheck }}'
+          cat <<'PYEOF' | docker run --rm -i --entrypoint python smart-lock-${{ matrix.module }}:ci -
+          ${{ matrix.healthcheck }}
+          PYEOF
 
       # ── Web image：起 container + curl /，驗證 next standalone 能跑 ──
       - name: Smoke-test web image (next standalone runtime)
