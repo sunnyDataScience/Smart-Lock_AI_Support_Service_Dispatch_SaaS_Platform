@@ -88,7 +88,7 @@ gcloud config set project cedar-scope-489604-g3
 ./scripts/dev/proxy-up.sh --foreground   # 前景看 log
 
 # 5. 啟動 agent（不需要 dev-up.sh，因為 DB 是遠端）
-cd agent && uvicorn app:app --reload --port 8000
+cd agent && uv run uvicorn app:app --reload --port 8000
 
 # 結束：先停 agent (Ctrl+C)，再停 proxy
 ./scripts/dev/proxy-down.sh

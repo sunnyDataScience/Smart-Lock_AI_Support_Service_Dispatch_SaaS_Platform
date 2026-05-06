@@ -81,7 +81,7 @@ for i in $(seq 1 15); do
     echo ""
     echo "下一步："
     echo "  ./scripts/env/use-gcp.sh           # 切換 .env 到 GCP 設定"
-    echo "  cd agent && uvicorn app:app --reload --port 8000"
+    echo "  cd agent && uv run uvicorn app:app --reload --port 8000"
     exit 0
   fi
   sleep 1
