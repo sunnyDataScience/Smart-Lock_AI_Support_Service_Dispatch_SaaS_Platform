@@ -26,15 +26,15 @@ const statusConfig: Record<RefundRequestStatus, { label: string; textColor: stri
 };
 
 const columns = [
-  { label: "退款編號", width: "w-[120px]" },
-  { label: "關聯工單", width: "w-[120px]" },
-  { label: "金額", width: "w-[120px]" },
+  { label: "退款編號", width: "w-[120px] shrink-0" },
+  { label: "關聯工單", width: "w-[120px] shrink-0" },
+  { label: "金額", width: "w-[120px] shrink-0" },
   { label: "退款原因", width: "flex-[2]" },
-  { label: "雙簽", width: "w-[60px]" },
-  { label: "審批進度", width: "w-[100px]" },
-  { label: "狀態", width: "w-[110px]" },
-  { label: "申請時間", width: "w-[150px]" },
-  { label: "操作", width: "w-[160px]" },
+  { label: "雙簽", width: "w-[60px] shrink-0" },
+  { label: "審批進度", width: "w-[100px] shrink-0" },
+  { label: "狀態", width: "w-[110px] shrink-0" },
+  { label: "申請時間", width: "w-[150px] shrink-0" },
+  { label: "操作", width: "w-[160px] shrink-0" },
 ];
 
 function formatTwd(amount: string): string {
@@ -91,13 +91,13 @@ export default function RefundReviewTable({ items, loading, onDecide, pendingId 
               urgent ? "bg-[#FEF2F2]" : ""
             }`}
           >
-            <div className="flex w-[120px] items-center px-[10px]">
+            <div className="flex w-[120px] shrink-0 items-center px-[10px]">
               <span className="font-mono text-xs text-[var(--text-primary)]">
                 {row.id.slice(0, 8)}
               </span>
             </div>
 
-            <div className="flex w-[120px] items-center px-[10px]">
+            <div className="flex w-[120px] shrink-0 items-center px-[10px]">
               <Link
                 href={`/work-orders/${row.work_order_id}`}
                 className="font-mono text-xs text-[var(--primary)] hover:underline"
@@ -106,7 +106,7 @@ export default function RefundReviewTable({ items, loading, onDecide, pendingId 
               </Link>
             </div>
 
-            <div className="flex w-[120px] items-center px-[10px]">
+            <div className="flex w-[120px] shrink-0 items-center px-[10px]">
               <span className="font-mono text-[13px] font-semibold text-[var(--text-primary)]">
                 {formatTwd(row.amount)}
               </span>
@@ -118,7 +118,7 @@ export default function RefundReviewTable({ items, loading, onDecide, pendingId 
               </span>
             </div>
 
-            <div className="flex w-[60px] items-center justify-center px-[6px]">
+            <div className="flex w-[60px] shrink-0 items-center justify-center px-[6px]">
               {row.requires_dual_sign ? (
                 <span className="rounded bg-[#FEE2E2] px-2 py-[2px] text-[10px] font-medium text-[#991B1B]">
                   需
@@ -128,13 +128,13 @@ export default function RefundReviewTable({ items, loading, onDecide, pendingId 
               )}
             </div>
 
-            <div className="flex w-[100px] items-center justify-center px-[6px]">
+            <div className="flex w-[100px] shrink-0 items-center justify-center px-[6px]">
               <span className="text-xs text-[var(--text-secondary)]">
                 {chainLength === 0 ? "未啟動" : `${chainLength} 步`}
               </span>
             </div>
 
-            <div className="flex w-[110px] items-center justify-center px-[6px]">
+            <div className="flex w-[110px] shrink-0 items-center justify-center px-[6px]">
               <span
                 className="rounded-full px-[10px] py-[3px] text-xs font-medium"
                 style={{ color: badge.textColor, backgroundColor: badge.bgColor }}
@@ -143,13 +143,13 @@ export default function RefundReviewTable({ items, loading, onDecide, pendingId 
               </span>
             </div>
 
-            <div className="flex w-[150px] items-center px-[10px]">
+            <div className="flex w-[150px] shrink-0 items-center px-[10px]">
               <span className="text-[12px] text-[var(--text-secondary)]">
                 {row.created_at ? formatRelative(row.created_at) : "—"}
               </span>
             </div>
 
-            <div className="flex w-[160px] items-center justify-center gap-[6px] px-[6px]">
+            <div className="flex w-[160px] shrink-0 items-center justify-center gap-[6px] px-[6px]">
               {isClosed || row.status === "approved" ? (
                 <span className="rounded-md bg-[#E2E8F0] px-3 py-1 text-[11px] font-medium text-[var(--text-secondary)]">
                   {row.status === "executed"

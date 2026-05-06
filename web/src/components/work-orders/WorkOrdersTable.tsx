@@ -49,14 +49,14 @@ const URGENCY_STYLE: Record<Urgency, { label: string; color: string; bg: string 
 };
 
 const columns = [
-  { label: "工單 ID", width: "w-[120px]" },
-  { label: "區/地址", width: "flex-1" },
-  { label: "品牌", width: "w-[90px]" },
-  { label: "型號", width: "w-[110px]" },
-  { label: "狀態", width: "w-[80px]" },
-  { label: "緊急度", width: "w-[70px]" },
-  { label: "估價", width: "w-[100px]" },
-  { label: "建立時間", width: "w-[90px]" },
+  { label: "工單 ID", width: "w-[120px] shrink-0" },
+  { label: "區/地址", width: "flex-1 min-w-0" },
+  { label: "品牌", width: "w-[90px] shrink-0" },
+  { label: "型號", width: "w-[110px] shrink-0" },
+  { label: "狀態", width: "w-[80px] shrink-0" },
+  { label: "緊急度", width: "w-[70px] shrink-0" },
+  { label: "估價", width: "w-[100px] shrink-0" },
+  { label: "建立時間", width: "w-[90px] shrink-0" },
 ];
 
 function shortId(id: string): string {
@@ -106,25 +106,25 @@ export default function WorkOrdersTable({ items, loading }: Props) {
               idx % 2 === 0 ? "bg-white" : "bg-[var(--bg-page)]"
             }`}
           >
-            <div className="w-[120px]">
+            <div className="w-[120px] shrink-0">
               <span className="font-mono text-[12px] text-[var(--primary)]" title={order.id}>
                 {shortId(order.id)}
               </span>
             </div>
-            <div className="flex-1 truncate pr-4">
+            <div className="flex-1 min-w-0 truncate pr-4">
               <span className="text-[13px] text-[var(--text-primary)]">{districtAddr}</span>
             </div>
-            <div className="w-[90px]">
+            <div className="w-[90px] shrink-0">
               <span className="text-[13px] text-[var(--text-primary)]">
                 {order.brand || "—"}
               </span>
             </div>
-            <div className="w-[110px]">
+            <div className="w-[110px] shrink-0">
               <span className="text-[13px] text-[var(--text-primary)]">
                 {order.model || "—"}
               </span>
             </div>
-            <div className="w-[80px]">
+            <div className="w-[80px] shrink-0">
               <span
                 className="rounded-full px-[10px] py-1 text-[11px] font-medium"
                 style={{ color: statusStyle.color, backgroundColor: statusStyle.bg }}
@@ -132,7 +132,7 @@ export default function WorkOrdersTable({ items, loading }: Props) {
                 {statusStyle.label}
               </span>
             </div>
-            <div className="w-[70px]">
+            <div className="w-[70px] shrink-0">
               <span
                 className="rounded px-2 py-1 text-[11px] font-medium"
                 style={{ color: urgencyStyle.color, backgroundColor: urgencyStyle.bg }}
@@ -140,12 +140,12 @@ export default function WorkOrdersTable({ items, loading }: Props) {
                 {urgencyStyle.label}
               </span>
             </div>
-            <div className="w-[100px]">
+            <div className="w-[100px] shrink-0">
               <span className="text-[13px] text-[var(--text-primary)]">
                 {formatPrice(order.estimated_reward)}
               </span>
             </div>
-            <div className="w-[90px]">
+            <div className="w-[90px] shrink-0">
               <span className="text-[12px] text-[var(--text-secondary)]">
                 {formatRelative(order.created_at)}
               </span>

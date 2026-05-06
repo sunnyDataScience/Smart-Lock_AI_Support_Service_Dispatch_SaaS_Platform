@@ -25,12 +25,12 @@ const paymentMethodLabel: Record<NonNullable<Settlement["payment_method"]>, stri
 };
 
 const columns = [
-  { label: "技師", width: "w-[150px]" },
-  { label: "金額", width: "w-[140px]" },
-  { label: "狀態", width: "w-[100px]" },
-  { label: "付款方式", width: "w-[110px]" },
-  { label: "付款時間", width: "w-[160px]" },
-  { label: "建立時間", width: "flex-1 min-w-[160px]" },
+  { label: "技師", width: "w-[150px] shrink-0" },
+  { label: "金額", width: "w-[140px] shrink-0" },
+  { label: "狀態", width: "w-[100px] shrink-0" },
+  { label: "付款方式", width: "w-[110px] shrink-0" },
+  { label: "付款時間", width: "w-[160px] shrink-0" },
+  { label: "建立時間", width: "flex-1 min-w-[160px] min-w-0" },
 ];
 
 function formatAmount(amount: string, currency: string): string {
@@ -48,7 +48,7 @@ function formatDateTime(iso: string | null | undefined): string {
 
 export default function SettlementTable({ items, loading }: Props) {
   return (
-    <div className="flex flex-1 flex-col bg-[var(--bg-surface)]">
+    <div className="flex min-w-0 flex-1 flex-col bg-[var(--bg-surface)]">
       {/* Batch Action Bar — disabled until write endpoints land */}
       <div
         className="flex items-center gap-3 border-b border-[var(--border)] px-8 py-3 opacity-60"
@@ -110,21 +110,21 @@ export default function SettlementTable({ items, loading }: Props) {
             className="flex h-[48px] items-center border-b border-[var(--border)] px-8"
           >
             {/* Technician */}
-            <div className="flex w-[150px] items-center px-2">
+            <div className="flex w-[150px] shrink-0 items-center px-2">
               <span className="text-[13px] font-medium text-[var(--text-primary)]">
                 {s.technician_name || s.technician_id.slice(0, 8)}
               </span>
             </div>
 
             {/* Amount */}
-            <div className="flex w-[140px] items-center px-2">
+            <div className="flex w-[140px] shrink-0 items-center px-2">
               <span className="text-[13px] font-semibold text-[var(--text-primary)]">
                 {formatAmount(s.amount, s.currency)}
               </span>
             </div>
 
             {/* Status */}
-            <div className="flex w-[100px] items-center px-2">
+            <div className="flex w-[100px] shrink-0 items-center px-2">
               <span
                 className="rounded-full px-[10px] py-[3px] text-xs font-medium"
                 style={{ color: badge.textColor, backgroundColor: badge.bgColor }}
@@ -134,21 +134,21 @@ export default function SettlementTable({ items, loading }: Props) {
             </div>
 
             {/* Payment Method */}
-            <div className="flex w-[110px] items-center px-2">
+            <div className="flex w-[110px] shrink-0 items-center px-2">
               <span className="text-[13px] text-[var(--text-secondary)]">
                 {methodLabel}
               </span>
             </div>
 
             {/* Paid At */}
-            <div className="flex w-[160px] items-center px-2">
+            <div className="flex w-[160px] shrink-0 items-center px-2">
               <span className="text-[13px] text-[var(--text-secondary)]">
                 {formatDateTime(s.paid_at)}
               </span>
             </div>
 
             {/* Created At */}
-            <div className="flex flex-1 min-w-[160px] items-center px-2">
+            <div className="flex min-w-0 flex-1 min-w-[160px] items-center px-2">
               <span className="text-[13px] text-[var(--text-secondary)]">
                 {formatDateTime(s.created_at)}
               </span>
