@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import SolidBadge from "@/components/ui/SolidBadge";
+import DataTable, { type ColumnDef } from "@/components/ui/DataTable";
 import { formatRelative } from "@/lib/format";
 import type { components } from "@/types/api.generated";
 
@@ -15,25 +15,89 @@ const STATUS_LABEL: Record<ConversationStatus, string> = {
 };
 
 const STATUS_COLOR: Record<ConversationStatus, string> = {
-  active: "#2563EB",
-  waiting_human: "#EF4444",
-  closed: "#10B981",
+  active: "var(--badge-info-fg)",
+  waiting_human: "var(--badge-danger-fg)",
+  closed: "var(--badge-success-fg)",
 };
-
-const columns = [
-  { key: "id", label: "對話編號", width: "w-[160px]" },
-  { key: "customer", label: "客戶名稱", width: "w-[140px]" },
-  { key: "status", label: "狀態", width: "w-[100px]" },
-  { key: "messages", label: "訊息數", width: "w-[80px]" },
-  { key: "resolution", label: "解決層級", width: "w-[120px]" },
-  { key: "time", label: "更新時間", width: "flex-1" },
-] as const;
 
 const RESOLUTION_LABEL: Record<string, string> = {
   case_library: "案例庫",
   rag: "RAG",
   human: "人工",
 };
+
+const columns: ColumnDef<Conversation>[] = [
+  {
+    key: "id",
+    label: "對話編號",
+    width: "w-[160px]",
+    priority: "primary",
+    cardLabel: "ID",
+    render: (conv) => (
+      <span className="font-mono text-[12px] text-[var(--text-primary)]">
+        {conv.id.slice(0, 8)}
+      </span>
+    ),
+  },
+  {
+    key: "customer",
+    label: "客戶名稱",
+    width: "w-[140px]",
+    priority: "primary",
+    cardLabel: "客戶",
+    render: (conv) => (
+      <div className="flex flex-col">
+        <span className="text-[13px] font-medium text-[var(--text-primary)]">
+          {conv.display_name || "—"}
+        </span>
+        {conv.line_user_id && (
+          <span className="font-mono text-[11px] text-[var(--text-disabled)]">
+            {conv.line_user_id.slice(0, 10)}
+          </span>
+        )}
+      </div>
+    ),
+  },
+  {
+    key: "status",
+    label: "狀態",
+    width: "w-[100px]",
+    priority: "secondary",
+    render: (conv) => {
+      const status = conv.status as ConversationStatus;
+      return <SolidBadge label={STATUS_LABEL[status]} color={STATUS_COLOR[status]} />;
+    },
+  },
+  {
+    key: "messages",
+    label: "訊息數",
+    width: "w-[80px]",
+    priority: "secondary",
+    cardLabel: "訊息數",
+    render: (conv) => String(conv.message_count),
+  },
+  {
+    key: "resolution",
+    label: "解決層級",
+    width: "w-[120px]",
+    priority: "secondary",
+    cardLabel: "解決層級",
+    render: (conv) =>
+      conv.resolution_layer ? RESOLUTION_LABEL[conv.resolution_layer] ?? "—" : "—",
+  },
+  {
+    key: "time",
+    label: "更新時間",
+    width: "flex-1",
+    priority: "secondary",
+    cardLabel: "更新",
+    render: (conv) => (
+      <span className="text-[12px] text-[var(--text-tertiary)]">
+        {formatRelative(conv.updated_at)}
+      </span>
+    ),
+  },
+];
 
 interface Props {
   items: Conversation[];
@@ -42,71 +106,14 @@ interface Props {
 
 export default function ConversationsTable({ items, loading = false }: Props) {
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
-      <div className="flex h-[44px] items-center bg-[#F1F5F9] px-4">
-        {columns.map((col) => (
-          <div
-            key={col.key}
-            className={`flex items-center px-2 ${col.width}`}
-          >
-            <span className="text-[12px] font-semibold uppercase tracking-wider text-[#71717A]">
-              {col.label}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      {items.length === 0 && !loading && (
-        <div className="px-4 py-12 text-center text-sm text-[var(--text-secondary)]">
-          沒有符合條件的對話
-        </div>
-      )}
-
-      {items.map((conv, idx) => {
-        const status = conv.status as ConversationStatus;
-        const layer = conv.resolution_layer
-          ? RESOLUTION_LABEL[conv.resolution_layer] ?? "—"
-          : "—";
-        return (
-          <Link
-            key={conv.id}
-            href={`/conversations/${conv.id}`}
-            className={`flex h-12 items-center border-b border-[var(--border)] px-4 hover:bg-[#EFF6FF] ${
-              idx % 2 === 0 ? "bg-[var(--bg-page)]" : "bg-white"
-            }`}
-          >
-            <div className="flex w-[160px] items-center px-2">
-              <span className="font-mono text-[12px] text-[#18181B]">
-                {conv.id.slice(0, 8)}
-              </span>
-            </div>
-            <div className="flex w-[140px] flex-col px-2">
-              <span className="text-[13px] font-medium text-[#18181B]">
-                {conv.display_name || "—"}
-              </span>
-              <span className="font-mono text-[11px] text-[#A1A1AA]">
-                {conv.line_user_id ? conv.line_user_id.slice(0, 10) : ""}
-              </span>
-            </div>
-            <div className="w-[100px] px-2">
-              <SolidBadge label={STATUS_LABEL[status]} color={STATUS_COLOR[status]} />
-            </div>
-            <div className="w-[80px] px-2">
-              <span className="text-[13px] text-[#18181B]">
-                {conv.message_count}
-              </span>
-            </div>
-            <div className="w-[120px] px-2">
-              <span className="text-[13px] text-[#71717A]">{layer}</span>
-            </div>
-            <div className="flex-1 px-2">
-              <span className="text-[13px] text-[#71717A]">
-                {formatRelative(conv.updated_at)}
-              </span>
-            </div>
-          </Link>
-        );
-      })}
-    </div>
+    <DataTable<Conversation>
+      items={items}
+      rowKey={(c) => c.id}
+      columns={columns}
+      loading={loading}
+      rowHref={(c) => `/conversations/${c.id}`}
+      emptyText="沒有符合條件的對話"
+      ariaLabel="對話列表"
+    />
   );
 }
