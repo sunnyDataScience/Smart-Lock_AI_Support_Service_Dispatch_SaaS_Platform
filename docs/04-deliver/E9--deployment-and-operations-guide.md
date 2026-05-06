@@ -260,18 +260,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
 
       - name: Install dependencies
-        run: |
-          pip install ruff mypy
-          pip install -r backend/requirements.txt
+        run: uv sync --group dev    # 含 ruff / mypy / pytest
 
       - name: Run ruff check
-        run: ruff check backend/src/
+        run: uv run ruff check agent/ api/ data/
 
       - name: Run ruff format check
         run: ruff format --check backend/src/
@@ -310,15 +306,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
 
       - name: Install dependencies
-        run: |
-          pip install -r backend/requirements.txt
-          pip install -r backend/requirements-dev.txt
+        run: uv sync --group dev    # 含 dev 工具與三個 module 的 deps
 
       - name: Run pytest with coverage
         env:
@@ -1602,29 +1594,38 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# 安裝系統依賴
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        curl \
-        build-essential \
-    && rm -rf /var/lib/apt/lists/*
+# 從 Astral 官方 image COPY uv binary（無 build-essential）
+COPY --from=ghcr.io/astral-sh/uv:0.11 /uv /uvx /usr/local/bin/
+
+ENV UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    UV_PYTHON_DOWNLOADS=never
 
 # ----- Stage 2: Dependencies -----
 FROM base as dependencies
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Cache-friendly：先 copy 鎖定檔，避免改原始碼觸發重 sync
+COPY pyproject.toml uv.lock .python-version ./
+COPY agent/pyproject.toml ./agent/pyproject.toml
+COPY api/pyproject.toml ./api/pyproject.toml
+COPY data/pyproject.toml ./data/pyproject.toml
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --package smart-lock-agent
 
 # ----- Stage 3: Development -----
 FROM dependencies as development
 
-COPY requirements-dev.txt .
-RUN pip install --no-cache-dir -r requirements-dev.txt
+# 開發 image 多裝 dev 工具（ruff / pytest 等）
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --group dev --package smart-lock-agent
 
-COPY . .
+COPY agent/ ./agent/
 
+ENV PATH="/app/.venv/bin:$PATH"
+WORKDIR /app/agent
 EXPOSE 8000
-CMD ["uvicorn", "smart_lock.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
 # ----- Stage 4: Production -----
 FROM dependencies as production

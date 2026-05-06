@@ -12,11 +12,11 @@
 
 ## 1. 環境設定
 
-### 安裝依賴
+### 安裝依賴（uv workspace）
 
 ```bash
-cd agent
-pip install -r requirements.txt
+# 從專案根目錄安裝；自動下載 Python 3.11 並裝齊三個 module 的 deps
+uv sync
 ```
 
 ### 環境設定

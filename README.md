@@ -57,12 +57,15 @@
    cd Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform
    ```
 
-2. **建立 Python 環境**
+2. **建立 Python 環境**（uv workspace，Python 3.11）
    ```bash
-   conda create -n smart-lock python=3.11
-   conda activate smart-lock
-   pip install -r agent/requirements.txt
+   # 安裝 uv（任一方式）
+   pip install --user uv         # 或 pipx install uv
+   # 一行裝齊 agent + api + data 所有 deps + dev 工具
+   uv sync
    ```
+   uv 依 `.python-version` 自動下載 Python 3.11、依 `uv.lock` 固版重現。
+   後續 `pyproject.toml` 任何改動只要重跑 `uv sync` 即可。
 
 3. **環境變數設定**
    複製 `agent/.env.example` 並重新命名為 `.env`，填入必要的 API 金鑰 (Google AI, LINE Channel 等)。
