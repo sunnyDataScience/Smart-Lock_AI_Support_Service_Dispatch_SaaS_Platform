@@ -21,6 +21,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getCurrentSession, logout, type CurrentSession } from "@/lib/api";
 import NotificationBell from "./NotificationBell";
+import Hamburger from "./Hamburger";
+import { useSidebar } from "./SidebarContext";
 
 interface NavChild {
   label: string;
@@ -141,6 +143,7 @@ function roleLabel(session: CurrentSession | null): string {
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { isOpen, isMobile, close } = useSidebar();
   const [loggingOut, setLoggingOut] = useState(false);
   const [session, setSession] = useState<CurrentSession | null>(null);
 
@@ -159,10 +162,30 @@ export default function Sidebar() {
   }
 
   return (
-    <aside
-      className="flex w-[240px] flex-col bg-[var(--bg-sidebar)]"
-      aria-label="主導航"
-    >
+    <>
+      {/* Mobile floating hamburger — 任何 page 不論用不用 <Header /> 都有 */}
+      <Hamburger />
+
+      {/* Mobile backdrop — 半透明遮罩，點擊關閉 drawer
+       * md:hidden 在桌機自動隱藏，避免依賴 JS isMobile 判斷的 SSR 不一致 */}
+      {isOpen && (
+        <div
+          onClick={close}
+          aria-hidden="true"
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+        />
+      )}
+      <aside
+        id="sidebar-drawer"
+        aria-label="主導航"
+        aria-hidden={isMobile && !isOpen ? true : undefined}
+        /* 行動版預設：fixed 浮層 + 隱藏（-translate-x-full）
+         * 桌機（md+）：relative + 永遠顯示（md:translate-x-0 覆蓋）
+         * isOpen：行動版加 translate-x-0 滑入 */
+        className={`fixed inset-y-0 left-0 z-40 flex h-full w-[240px] flex-col bg-[var(--bg-sidebar)] transition-transform duration-200 ease-out md:relative md:inset-auto md:z-auto md:translate-x-0 ${
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
       <div className="flex items-center gap-3 p-5">
         <Lock className="h-7 w-7 text-[var(--primary)]" aria-hidden="true" />
         <span className="text-lg font-bold text-white">SmartLock</span>
@@ -261,6 +284,7 @@ export default function Sidebar() {
           <LogOut className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

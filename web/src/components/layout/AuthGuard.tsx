@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { auth } from "@/lib/api";
+import { SidebarProvider } from "./SidebarContext";
 
 const PUBLIC_PATHS = new Set(["/login"]);
 
@@ -42,5 +43,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (isPublic) return <>{children}</>;
   if (!checked) return null;
-  return <>{children}</>;
+  // SidebarProvider 掛在通過認證的 subtree 內，公開頁（如 login）
+  // 不需要也不會錯掛
+  return <SidebarProvider>{children}</SidebarProvider>;
 }
