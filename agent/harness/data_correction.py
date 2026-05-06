@@ -10,6 +10,8 @@ import os
 
 from psycopg import AsyncConnection
 
+from core.pg_pool import get_async_conn, set_cached
+
 logger = logging.getLogger(__name__)
 
 
@@ -21,27 +23,27 @@ _keyword: str = "#資料修正"
 _reply: str = "已收到您的回報，我們會盡快處理，謝謝您！"
 _uri_env: str = ""
 
+_POOL_NAME = "data_correction"
+
 
 async def _ensure_conn() -> bool:
-    """檢查連線健康度，必要時自動重連。"""
+    """檢查連線健康度，必要時自動重連。
+
+    委派至 `core.pg_pool.get_async_conn` — reconnect 邏輯集中。
+    """
     global _conn
-    if _conn is not None and not _conn.closed and not _conn.broken:
-        return True
     uri = os.getenv(_uri_env)
     if not uri:
+        _conn = None
+        set_cached(_POOL_NAME, None)
         return False
     try:
-        if _conn is not None:
-            try:
-                await _conn.close()
-            except Exception as e:
-                logger.warning("[Data Correction] close 既有連線失敗（將以新連線取代）: %s", e, exc_info=True)
-        _conn = await AsyncConnection.connect(uri, autocommit=True)
-        print("[Data Correction] 重新連線成功")
+        _conn = await get_async_conn(_POOL_NAME, uri)
         return True
     except Exception as e:
         print(f"[Data Correction] 重新連線失敗: {e}")
         _conn = None
+        set_cached(_POOL_NAME, None)
         return False
 
 
@@ -65,7 +67,7 @@ async def init_db(config: dict):
         return
 
     try:
-        _conn = await AsyncConnection.connect(uri, autocommit=True)
+        _conn = await get_async_conn(_POOL_NAME, uri)
         await _conn.execute("""
             CREATE TABLE IF NOT EXISTS data_corrections (
                 id BIGSERIAL PRIMARY KEY,
@@ -88,6 +90,7 @@ async def init_db(config: dict):
         print(f"[Data Correction] DB 連線失敗，降級為停用: {e}")
         _enabled = False
         _conn = None
+        set_cached(_POOL_NAME, None)
 
 
 async def close_db():
@@ -96,6 +99,7 @@ async def close_db():
     if _conn is not None:
         await _conn.close()
         _conn = None
+        set_cached(_POOL_NAME, None)
 
 
 async def check_and_save(

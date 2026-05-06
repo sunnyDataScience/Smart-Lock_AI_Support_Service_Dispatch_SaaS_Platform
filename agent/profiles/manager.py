@@ -3,34 +3,41 @@ import os
 
 from psycopg import AsyncConnection
 
+from core.pg_pool import get_async_conn, set_cached
+
 logger = logging.getLogger(__name__)
 
 
 # ── Module-level facts DB connection (global conn pattern) ──
+# Kept as a module attribute for backward compatibility (health checks in
+# app.py read `pm._facts_conn` directly). Stays in sync with pg_pool's
+# "facts" entry through `_ensure_conn`, `init_facts_db`, `close_facts_db`.
 _facts_conn: AsyncConnection | None = None
 _facts_uri_env: str = ""
 
+_POOL_NAME = "facts"
+
 
 async def _ensure_conn() -> bool:
-    """檢查連線健康度，必要時自動重連。"""
+    """檢查連線健康度，必要時自動重連。
+
+    內部委派至 `core.pg_pool.get_async_conn` — 真正的 reconnect
+    邏輯集中在 helper 內，本函式僅負責 URI 解析與 module-level
+    變數同步（給 health check / 既有 caller 用）。
+    """
     global _facts_conn
-    if _facts_conn is not None and not _facts_conn.closed and not _facts_conn.broken:
-        return True
     uri = os.getenv(_facts_uri_env)
     if not uri:
+        _facts_conn = None
+        set_cached(_POOL_NAME, None)
         return False
     try:
-        if _facts_conn is not None:
-            try:
-                await _facts_conn.close()
-            except Exception as e:
-                logger.warning("[Facts DB] close 既有連線失敗（將以新連線取代）: %s", e, exc_info=True)
-        _facts_conn = await AsyncConnection.connect(uri, autocommit=True)
-        print("[Facts DB] 重新連線成功")
+        _facts_conn = await get_async_conn(_POOL_NAME, uri)
         return True
     except Exception as e:
         print(f"[Facts DB] 重新連線失敗: {e}")
         _facts_conn = None
+        set_cached(_POOL_NAME, None)
         return False
 
 
@@ -43,7 +50,7 @@ async def init_facts_db(config: dict):
         print(f"[Facts DB] 警告：環境變數 {_facts_uri_env} 未設定，facts 功能降級為停用")
         return
     try:
-        _facts_conn = await AsyncConnection.connect(uri, autocommit=True)
+        _facts_conn = await get_async_conn(_POOL_NAME, uri)
         await _facts_conn.execute("""
             CREATE TABLE IF NOT EXISTS user_facts (
                 id SERIAL PRIMARY KEY,
@@ -66,6 +73,7 @@ async def init_facts_db(config: dict):
     except Exception as e:
         print(f"[Facts DB] 連線失敗，降級為停用: {e}")
         _facts_conn = None
+        set_cached(_POOL_NAME, None)
 
 
 async def close_facts_db():
@@ -74,6 +82,7 @@ async def close_facts_db():
     if _facts_conn is not None:
         await _facts_conn.close()
         _facts_conn = None
+        set_cached(_POOL_NAME, None)
 
 
 class ProfileManager:

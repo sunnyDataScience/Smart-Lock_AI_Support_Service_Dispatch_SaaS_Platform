@@ -17,10 +17,16 @@ import re
 from datetime import datetime, timezone
 from psycopg import AsyncConnection
 
+from core.pg_pool import get_async_conn, set_cached
+
 logger = logging.getLogger(__name__)
 
+# Kept module-level for backward compat (health check reads `audit._postgres_conn`).
+# Stays in sync with pg_pool's "audit" entry.
 _postgres_conn: AsyncConnection | None = None
 _postgres_uri_env: str = ""
+
+_POOL_NAME = "audit"
 
 # PII masking patterns
 _PII_PATTERNS = [
@@ -38,25 +44,24 @@ def _mask_pii(text: str) -> str:
 
 
 async def _ensure_conn() -> bool:
-    """檢查連線健康度，必要時自動重連。"""
+    """檢查連線健康度，必要時自動重連。
+
+    內部委派至 `core.pg_pool.get_async_conn` — reconnect 邏輯集中
+    於 helper，本函式只做 URI 解析與 module-level 變數同步。
+    """
     global _postgres_conn
-    if _postgres_conn is not None and not _postgres_conn.closed and not _postgres_conn.broken:
-        return True
     uri = os.getenv(_postgres_uri_env)
     if not uri:
+        _postgres_conn = None
+        set_cached(_POOL_NAME, None)
         return False
     try:
-        if _postgres_conn is not None:
-            try:
-                await _postgres_conn.close()
-            except Exception as e:
-                logger.warning("[Audit DB] close 既有連線失敗（將以新連線取代）: %s", e, exc_info=True)
-        _postgres_conn = await AsyncConnection.connect(uri, autocommit=True)
-        print("[Audit DB] 重新連線成功")
+        _postgres_conn = await get_async_conn(_POOL_NAME, uri)
         return True
     except Exception as e:
         print(f"[Audit DB] 重新連線失敗: {e}")
         _postgres_conn = None
+        set_cached(_POOL_NAME, None)
         return False
 
 
@@ -134,7 +139,7 @@ async def build_postgres_storage(config: dict) -> PostgresAuditStorage:
     _postgres_uri_env = config.get("postgres_uri_env", "POSTGRES_URI")
     uri = os.getenv(_postgres_uri_env)
     print(f"[*] 初始化審計日誌模組: 連線至 PostgreSQL")
-    conn = await AsyncConnection.connect(uri, autocommit=True)
+    conn = await get_async_conn(_POOL_NAME, uri)
     await conn.execute("""
         CREATE TABLE IF NOT EXISTS audit_log (
             id SERIAL PRIMARY KEY,
@@ -164,3 +169,4 @@ async def close_postgres_storage():
     if _postgres_conn is not None:
         await _postgres_conn.close()
         _postgres_conn = None
+        set_cached(_POOL_NAME, None)
