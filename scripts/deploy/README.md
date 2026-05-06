@@ -8,9 +8,7 @@
 | :--- | :--- | :--- |
 | **agent** (LINE Bot) | `agent.sh` | Cloud Run service `smart-lock-agent` |
 | **api** (FastAPI 後端) | `api.sh` | Cloud Run service `smart-lock-api` |
-| **web** (Next.js Admin) | ❌ 未提供 | （待決定平台：Vercel / Cloud Run / 其他） |
-
-> web 部署平台確定後會補 `web.sh`。目前 web 只能本地 dev (`./scripts/dev/dev-up.sh --with-web`)。
+| **web** (Next.js Admin) | `web.sh` | Cloud Run service `smart-lock-web`（standalone build, ~215MB） |
 
 ---
 
@@ -78,7 +76,7 @@ psql "$POSTGRES_URI" -f SQL/seeds/_admin_user.sql
 ./scripts/dev/proxy-down.sh
 ```
 
-### 步驟 4：部署服務（順序：agent → api）
+### 步驟 4：部署服務（順序：agent → api → web）
 
 ```bash
 # 4.1 部署 agent（含 build → push → deploy → health check）
@@ -87,15 +85,20 @@ psql "$POSTGRES_URI" -f SQL/seeds/_admin_user.sql
 # 4.2 部署 api
 ./scripts/deploy/api.sh
 
+# 4.3 部署 web（依賴 api 的 service URL，先把 api URL 設進 web/.env.production）
+echo "NEXT_PUBLIC_API_BASE_URL=https://smart-lock-api-xxx.a.run.app" > web/.env.production
+./scripts/deploy/web.sh
+
 # 各自的 service URL 會印在 deploy.sh 結尾
 ```
 
 ### 步驟 5：驗證 prod 服務
 
 ```bash
-# 從各 service URL 打 /health
+# 從各 service URL 打 /health 或 /
 curl https://smart-lock-agent-xxx.a.run.app/health
 curl https://smart-lock-api-xxx.a.run.app/health
+curl https://smart-lock-web-xxx.a.run.app/        # 200 + dashboard HTML
 
 # 設定 LINE Bot webhook URL 到 agent service URL
 # 在 LINE Developers Console: Messaging API → Webhook URL → 貼 https://...../webhook

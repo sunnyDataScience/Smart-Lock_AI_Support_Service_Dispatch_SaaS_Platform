@@ -1,9 +1,10 @@
 name: Docker Build Smoke Test
 
-# 確保 agent / api Dockerfile 能 build 成功，預防 Dockerfile 退化：
+# 確保 agent / api / web Dockerfile 能 build 成功，預防 Dockerfile 退化：
 #   - 改 pyproject.toml / 新增 Python 套件不會破壞 image build
-#   - .dockerignore 規則改動不會誤刪 build 必要檔案
-#   - 不 push image，只驗證 build + 一個 import 健康檢查
+#   - 改 web/package.json / next.config 不會破壞 next standalone build
+#   - .dockerignore / *.dockerignore 規則改動不會誤刪 build 必要檔案
+#   - 不 push image，只驗證 build + 一個 healthcheck
 
 on:
   push:
@@ -11,21 +12,28 @@ on:
     paths:
       - 'agent/**'
       - 'api/**'
-      - 'data/pyproject.toml'      # workspace member 改動會影響 lock
+      - 'web/**'
+      - 'data/pyproject.toml'
       - 'pyproject.toml'
       - 'uv.lock'
       - '.dockerignore'
+      - 'web/Dockerfile.dockerignore'
       - '.python-version'
       - '.github/workflows/docker-build-smoke.yml'
   pull_request:
     paths:
       - 'agent/Dockerfile'
       - 'api/Dockerfile'
+      - 'web/Dockerfile'
       - 'agent/pyproject.toml'
       - 'api/pyproject.toml'
       - 'pyproject.toml'
       - 'uv.lock'
+      - 'web/package.json'
+      - 'web/package-lock.json'
+      - 'web/next.config.ts'
       - '.dockerignore'
+      - 'web/Dockerfile.dockerignore'
 
 jobs:
   build:
@@ -35,14 +43,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        module: [agent, api]
+        module: [agent, api, web]
         include:
           - module: agent
+            kind: python
             healthcheck: |
               import psycopg, langchain_core, langgraph, fastapi, litellm, linebot
               import importlib.metadata as md
               print(f'litellm={md.version("litellm")} langgraph={md.version("langgraph")}')
           - module: api
+            kind: python
             healthcheck: |
               import fastapi, psycopg, jose, passlib, reportlab
               import importlib.metadata as md
@@ -53,6 +63,10 @@ jobs:
               except ImportError:
                   pass
               print(f'fastapi={fastapi.__version__} reportlab={md.version("reportlab")}')
+          - module: web
+            kind: web
+            # web image 沒有 python，改用 docker run + curl 測 server 起來
+            # 不寫 healthcheck（healthcheck 欄位給 python 用）
 
     steps:
       - uses: actions/checkout@v4
@@ -72,10 +86,32 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Smoke-test ${{ matrix.module }} image
+      # ── Python image（agent / api）：用 import healthcheck ──
+      - name: Smoke-test ${{ matrix.module }} image (python)
+        if: matrix.kind == 'python'
         run: |
           docker run --rm --entrypoint python smart-lock-${{ matrix.module }}:ci \
             -c '${{ matrix.healthcheck }}'
+
+      # ── Web image：起 container + curl /，驗證 next standalone 能跑 ──
+      - name: Smoke-test web image (next standalone runtime)
+        if: matrix.kind == 'web'
+        run: |
+          docker run -d --name web-ci -p 3001:8080 smart-lock-web:ci
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3001/ || echo 000)
+            if [ "$code" = "200" ]; then
+              echo "✓ web container HTTP 200 at $i sec"
+              docker logs web-ci | tail -10
+              docker stop web-ci
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "FAIL: web container 30s 內未 HTTP 200"
+          docker logs web-ci
+          docker stop web-ci || true
+          exit 1
 
       - name: Print image size
         run: docker images smart-lock-${{ matrix.module }}:ci --format '{{.Size}}'
