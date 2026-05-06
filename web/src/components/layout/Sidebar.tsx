@@ -159,20 +159,27 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="flex w-[240px] flex-col bg-[var(--bg-sidebar)]">
+    <aside
+      className="flex w-[240px] flex-col bg-[var(--bg-sidebar)]"
+      aria-label="主導航"
+    >
       <div className="flex items-center gap-3 p-5">
-        <Lock className="h-7 w-7 text-[var(--primary)]" />
+        <Lock className="h-7 w-7 text-[var(--primary)]" aria-hidden="true" />
         <span className="text-lg font-bold text-white">SmartLock</span>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-[2px] overflow-y-auto px-3 py-2">
+      <nav
+        className="flex flex-1 flex-col gap-[2px] overflow-y-auto px-3 py-2"
+        aria-label="頁面導航"
+      >
         {navItems.map((item) => {
           const active = isParentActive(item, pathname);
           return (
             <div key={item.href + item.label}>
               <Link
                 href={item.href}
-                className={`flex items-center gap-3 rounded-lg py-[10px] text-sm ${
+                aria-current={active ? "page" : undefined}
+                className={`flex items-center gap-3 rounded-lg py-[10px] text-sm focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-sidebar)] ${
                   active
                     ? "border-l-[3px] border-[var(--primary)] bg-[#1E3A5F] pl-[9px] pr-3 font-semibold"
                     : "px-3 font-medium text-[var(--text-disabled)]"
@@ -182,6 +189,7 @@ export default function Sidebar() {
                   className={`h-5 w-5 shrink-0 ${
                     active ? "text-[var(--primary)]" : ""
                   }`}
+                  aria-hidden="true"
                 />
                 <span className={active ? "text-[var(--text-inverse)]" : ""}>
                   {item.label}
@@ -195,7 +203,8 @@ export default function Sidebar() {
                       <Link
                         key={child.href}
                         href={child.href}
-                        className={`rounded-[6px] px-3 py-[6px] text-sm ${
+                        aria-current={childActive ? "page" : undefined}
+                        className={`rounded-[6px] px-3 py-[6px] text-sm focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-sidebar)] ${
                           childActive
                             ? "bg-[#1E3A5F] font-semibold text-[#93C5FD]"
                             : "font-normal text-[var(--text-disabled)]"
@@ -233,10 +242,11 @@ export default function Sidebar() {
           onClick={onLogout}
           disabled={loggingOut}
           title="登出"
-          aria-label="登出"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--text-disabled)] transition hover:bg-[#334155] hover:text-white disabled:opacity-50"
+          aria-label={loggingOut ? "正在登出" : "登出"}
+          aria-busy={loggingOut}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--text-disabled)] transition hover:bg-[#334155] hover:text-white focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-sidebar)] disabled:opacity-50"
         >
-          <LogOut className="h-4 w-4" />
+          <LogOut className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
     </aside>
