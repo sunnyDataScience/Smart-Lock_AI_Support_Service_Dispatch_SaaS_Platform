@@ -48,11 +48,12 @@ SECRETS="${SECRETS},POSTGRES_URI=POSTGRES_URI:latest"
 SECRETS="${SECRETS},OPIK_API_KEY=OPIK_API_KEY:latest"
 SECRETS="${SECRETS},OPIK_WORKSPACE=OPIK_WORKSPACE:latest"
 
-# ── 切到 agent 目錄（Dockerfile 所在位置）──
-# 此腳本位於 scripts/deploy/agent.sh，PROJECT_ROOT 在 ../..
+# ── 切到 PROJECT_ROOT（uv workspace 根，docker build context）──
+# 新 Dockerfile 是 multi-stage uv build，需要 PROJECT_ROOT 才能拿到
+# uv.lock 與三個 sub-module 的 pyproject.toml
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-cd "${PROJECT_ROOT}/agent"
+cd "${PROJECT_ROOT}"
 
 # ── 解析參數 ──
 BUILD=true
@@ -257,7 +258,7 @@ if $BUILD; then
     echo "=========================================="
     echo " Building image: ${IMAGE}"
     echo "=========================================="
-    docker build --platform linux/amd64 -t "${IMAGE}" .
+    docker build --platform linux/amd64 -f agent/Dockerfile -t "${IMAGE}" .
 
     # 同時標記為 latest（方便 deploy-only 使用）
     docker tag "${IMAGE}" "${IMAGE_BASE}:latest"

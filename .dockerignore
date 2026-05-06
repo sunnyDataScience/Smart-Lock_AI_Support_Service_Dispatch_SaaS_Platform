@@ -1,0 +1,89 @@
+# 專案根目錄 .dockerignore — agent/api 的 docker build context 都從這裡看
+# context = PROJECT_ROOT，所以路徑都從專案根算
+
+# ── 版控與 IDE ──
+.git/
+.gitignore
+.gitattributes
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── 環境檔 ──
+.env
+.env.*
+!.env.example
+!.env.local.example
+!.env.gcp.example
+credentials.json
+
+# ── Python 相關 ──
+**/__pycache__/
+**/*.py[cod]
+**/*.egg-info/
+**/dist/
+**/build/
+.venv/
+**/.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ── Docker / Compose ──
+docker-compose.override.yml
+**/Dockerfile.local
+
+# ── Node.js（前端，與後端 image 無關）──
+node_modules/
+**/node_modules/
+.next/
+**/.next/
+*.tsbuildinfo
+
+# ── 整個 web/ 前端不進後端 image ──
+web/
+
+# ── 設計流程文件、design pipeline ──
+docs/
+web_design_spec_prompt_pipeline/
+.claude/
+.cursor/
+*.md
+!agent/**/*.md
+!api/**/*.md
+!data/**/*.md
+
+# ── 開發期日誌 / 暫存 ──
+.dev-logs/
+tmp/
+**/tmp/
+*.log
+
+# ── agent 執行期資料（runtime 才產生，不該打進 image）──
+agent/data/
+agent/temp/
+agent/result.txt
+agent/quality/quality_report.html
+agent/quality/quality_report.json
+
+# ── data pipeline 大量素材（agent / api build 不需要）──
+data/media/
+data/storage/
+data/database/
+
+# ── SQL 種子資料（DB schema 由部署流程獨立套用，不進 image）──
+SQL/
+docs/Locksmith_Preparation_Checklist/
+
+# ── 鎖匠/客服歷史對話（個資，不進 image）──
+**/Locksmith_Preparation_Checklist/
+
+# ── tests / scripts（runtime 不需要）──
+tests/
+scripts/
+
+# ── OS 雜物 ──
+.DS_Store
+Thumbs.db
