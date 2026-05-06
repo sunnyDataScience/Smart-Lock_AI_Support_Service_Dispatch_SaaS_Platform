@@ -49,6 +49,12 @@ export default function MyOrderDetailPage() {
   const [showForm, setShowForm] = useState(false);
   const [summary, setSummary] = useState("");
   const [actualAmount, setActualAmount] = useState("");
+  const [completionPhotos, setCompletionPhotos] = useState<
+    { section: "before" | "after"; id: string; url: string; filename: string }[]
+  >([]);
+  const [photoUploading, setPhotoUploading] = useState<"before" | "after" | null>(
+    null,
+  );
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitOk, setSubmitOk] = useState(false);
@@ -73,6 +79,41 @@ export default function MyOrderDetailPage() {
     fetchOrder();
   }, [fetchOrder]);
 
+  async function uploadCompletionPhoto(
+    section: "before" | "after",
+    file: File,
+  ) {
+    if (!wo) return;
+    setPhotoUploading(section);
+    setSubmitError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append(
+        "purpose",
+        section === "before" ? "completion_before" : "completion_after",
+      );
+      fd.append("work_order_id", wo.id);
+      const res = await api.upload<{ id: string; url: string; filename: string }>(
+        "/api/v1/media",
+        fd,
+      );
+      setCompletionPhotos((prev) => [
+        ...prev,
+        {
+          section,
+          id: res.id,
+          url: res.url,
+          filename: res.filename,
+        },
+      ]);
+    } catch (e) {
+      setSubmitError(formatErr(e));
+    } finally {
+      setPhotoUploading(null);
+    }
+  }
+
   async function submitCompletion() {
     if (!wo || submitting) return;
     if (summary.trim().length < 5) {
@@ -85,6 +126,12 @@ export default function MyOrderDetailPage() {
       const body: CompletionReport = {
         summary: summary.trim(),
         ...(actualAmount.trim() ? { actual_amount: actualAmount.trim() } : {}),
+        photos_before: completionPhotos
+          .filter((p) => p.section === "before")
+          .map((p) => p.url),
+        photos_after: completionPhotos
+          .filter((p) => p.section === "after")
+          .map((p) => p.url),
       };
       const res = await api.post<WorkOrderEnvelope>(
         `/api/v1/work-orders/${encodeURIComponent(wo.id)}/complete`,
@@ -93,6 +140,7 @@ export default function MyOrderDetailPage() {
       setWo(res.data ?? wo);
       setSubmitOk(true);
       setShowForm(false);
+      setCompletionPhotos([]);
     } catch (e) {
       setSubmitError(formatErr(e));
     } finally {
@@ -358,6 +406,50 @@ export default function MyOrderDetailPage() {
                 />
               </label>
 
+              {/* 完工照片上傳（before / after） */}
+              <div className="flex flex-col gap-2">
+                <span className="text-[12px] font-medium text-[var(--text-secondary)]">
+                  完工照片（選填，供客戶/Admin 留證）
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["before", "after"] as const).map((section) => (
+                    <label
+                      key={section}
+                      className="flex h-20 cursor-pointer items-center justify-center gap-1 rounded-md border-2 border-dashed border-[var(--border)] text-[12px] text-[var(--text-secondary)] hover:border-[var(--primary)]"
+                    >
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) uploadCompletionPhoto(section, f);
+                          e.target.value = "";
+                        }}
+                      />
+                      {photoUploading === section
+                        ? "上傳中…"
+                        : section === "before"
+                          ? "+ 完工前"
+                          : "+ 完工後"}
+                    </label>
+                  ))}
+                </div>
+                {completionPhotos.length > 0 && (
+                  <div className="flex flex-wrap gap-1 text-[11px] text-[var(--text-secondary)]">
+                    {completionPhotos.map((p) => (
+                      <span
+                        key={p.id}
+                        className="rounded bg-[#F1F5F9] px-2 py-[2px]"
+                      >
+                        [{p.section}] {p.filename.slice(0, 16)}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {submitError && (
                 <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
                   {submitError}
@@ -384,7 +476,7 @@ export default function MyOrderDetailPage() {
               </div>
 
               <p className="text-[11px] text-[var(--text-disabled)]">
-                註：照片上傳、零件清單、簽章等完整欄位於後續迭代補上
+                註：零件清單、簽章等欄位於後續迭代補上
               </p>
             </section>
           )}

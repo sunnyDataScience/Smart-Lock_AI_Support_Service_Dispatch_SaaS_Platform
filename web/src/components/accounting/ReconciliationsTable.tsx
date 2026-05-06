@@ -12,15 +12,15 @@ interface Props {
 }
 
 const columns = [
-  { label: "ID", width: "w-[100px]" },
-  { label: "技師", width: "w-[140px]" },
-  { label: "結算期間", width: "w-[200px]" },
-  { label: "工單數", width: "w-[80px]", align: "text-right" as const },
-  { label: "營收", width: "w-[110px]", align: "text-right" as const },
-  { label: "平台費", width: "w-[110px]", align: "text-right" as const },
-  { label: "技師應領", width: "w-[120px]", align: "text-right" as const },
-  { label: "狀態", width: "w-[90px]" },
-  { label: "操作", width: "flex-1" },
+  { label: "ID", width: "w-[100px] shrink-0" },
+  { label: "技師", width: "w-[140px] shrink-0" },
+  { label: "結算期間", width: "w-[200px] shrink-0" },
+  { label: "工單數", width: "w-[80px] shrink-0", align: "text-right" as const },
+  { label: "營收", width: "w-[110px] shrink-0", align: "text-right" as const },
+  { label: "平台費", width: "w-[110px] shrink-0", align: "text-right" as const },
+  { label: "技師應領", width: "w-[120px] shrink-0", align: "text-right" as const },
+  { label: "狀態", width: "w-[90px] shrink-0" },
+  { label: "操作", width: "flex-1 min-w-0" },
 ];
 
 const statusConfig: Record<
@@ -88,42 +88,42 @@ export default function ReconciliationsTable({
               idx < items.length - 1 ? "border-b border-[var(--border)]" : ""
             }`}
           >
-            <div className="flex w-[100px] items-center px-3">
+            <div className="flex w-[100px] shrink-0 items-center px-3">
               <span className="font-mono text-xs text-[var(--text-primary)]">
                 {row.id.slice(0, 8)}
               </span>
             </div>
-            <div className="flex w-[140px] items-center px-3">
+            <div className="flex w-[140px] shrink-0 items-center px-3">
               <span className="truncate text-xs font-medium text-[var(--text-primary)]">
                 {row.technician_name ?? row.technician_id.slice(0, 8)}
               </span>
             </div>
-            <div className="flex w-[200px] items-center px-3">
+            <div className="flex w-[200px] shrink-0 items-center px-3">
               <span className="text-xs text-[var(--text-primary)]">
                 {formatPeriod(row.period_start, row.period_end)}
               </span>
             </div>
-            <div className="flex w-[80px] items-center justify-end px-3">
+            <div className="flex w-[80px] shrink-0 items-center justify-end px-3">
               <span className="text-xs text-[var(--text-primary)]">
                 {row.total_orders}
               </span>
             </div>
-            <div className="flex w-[110px] items-center justify-end px-3">
+            <div className="flex w-[110px] shrink-0 items-center justify-end px-3">
               <span className="font-mono text-[12px] text-[var(--text-primary)]">
                 {formatTwd(row.total_revenue)}
               </span>
             </div>
-            <div className="flex w-[110px] items-center justify-end px-3">
+            <div className="flex w-[110px] shrink-0 items-center justify-end px-3">
               <span className="font-mono text-[12px] text-[var(--text-secondary)]">
                 {formatTwd(row.platform_fee)}
               </span>
             </div>
-            <div className="flex w-[120px] items-center justify-end px-3">
+            <div className="flex w-[120px] shrink-0 items-center justify-end px-3">
               <span className="font-mono text-[12px] font-semibold text-[var(--text-primary)]">
                 {formatTwd(row.technician_payout)}
               </span>
             </div>
-            <div className="flex w-[90px] items-center px-3">
+            <div className="flex w-[90px] shrink-0 items-center px-3">
               <span
                 className="rounded-[10px] px-2 py-[2px] text-[11px] font-medium"
                 style={{ color: status.textColor, backgroundColor: status.bgColor }}
@@ -131,7 +131,7 @@ export default function ReconciliationsTable({
                 {status.label}
               </span>
             </div>
-            <div className="flex flex-1 items-center justify-end gap-[6px] px-3">
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-[6px] px-3">
               {canApprove ? (
                 <button
                   onClick={() => onApprove!(row)}

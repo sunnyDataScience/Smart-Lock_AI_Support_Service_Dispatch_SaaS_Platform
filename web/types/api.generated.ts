@@ -255,6 +255,95 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 上傳檔案（multipart）— 回傳 media_id 與 url */
+        post: operations["uploadMedia"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/media/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 下載媒體檔案（含 tenant 隔離） */
+        get: operations["getMedia"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/work-orders/{id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 列出該工單的結構化事件（subflow timeline）
+         * @description 取代舊有 service_report append 模式。每筆 subflow 動作（scope_change /
+         *     material_request / delay / door_check 等）會產生獨立 work_order_events 列。
+         */
+        get: operations["listWorkOrderEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/work-orders/{id}/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 列出該工單所有相關媒體（依用途與時間排序） */
+        get: operations["listMediaForWorkOrder"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/disputes/{id}/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 列出該爭議所有相關證據（含雙方上傳） */
+        get: operations["listMediaForDispute"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/work-orders/pool": {
         parameters: {
             query?: never;
@@ -695,6 +784,46 @@ export interface paths {
          * @description 技師提交 1-3 個備選時段，系統 LINE Flex push 給客戶 RSVP（24h TTL）
          */
         post: operations["proposeReschedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/work-orders/{id}/reschedule/customer-confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 客戶 LINE Flex 選定改期時段（Flow 11）
+         * @description agent webhook 收到 LINE postback 後呼叫；寫入 wo.scheduled_at + 推 WS 給技師
+         */
+        post: operations["confirmCustomerReschedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/work-orders/{id}/reschedule/customer-reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 客戶 LINE Flex 點「都不方便」（Flow 11）
+         * @description agent webhook 收到 LINE postback 後呼叫；推 WS 給技師重選備選時段
+         */
+        post: operations["rejectCustomerReschedule"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1371,6 +1500,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/customers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 客戶單筆詳情 + 聚合歷史（工單統計 / 平均評分 / 投訴 / 退款 / 最近紀錄） */
+        get: operations["getCustomer"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/roles": {
         parameters: {
             query?: never;
@@ -1925,8 +2071,18 @@ export interface components {
             /** @description 折讓金額（百分比或金額，由業務語意自行解讀；僅 approve 時生效） */
             discount_offered?: string | null;
         };
-        /** @enum {string} */
-        RefundRequestStatus: "pending" | "approved" | "rejected" | "escalated" | "executed" | "cancelled";
+        /**
+         * @description 退款狀態機（含雙簽中介態 csm_approved）：
+         *     - pending: 待審核（首位人員可 approve / reject / escalate）
+         *     - csm_approved: 雙簽進行中（已第一簽，等候第二位不同 user 的 approve / reject）
+         *     - approved: 最終核准（含雙簽完成 + 不需雙簽的單次核准）
+         *     - rejected: 被拒絕（任何階段皆可）
+         *     - escalated: 已升級（pending 階段觸發）
+         *     - executed: 已執行退款（approved 後的後續會計動作）
+         *     - cancelled: 申請者撤回
+         * @enum {string}
+         */
+        RefundRequestStatus: "pending" | "csm_approved" | "approved" | "rejected" | "escalated" | "executed" | "cancelled";
         /** @description 退款申請（read-only；雙簽流程經 submitRefundDecision 推進） */
         RefundRequest: {
             /** Format: uuid */
@@ -2268,6 +2424,57 @@ export interface components {
             technician_user_id: string;
             technician_name?: string | null;
         };
+        ScoreDimension: {
+            /**
+             * Format: float
+             * @description 該維度的標準化分（0-1）
+             */
+            factor: number;
+            /**
+             * Format: float
+             * @description 該維度的權重（總和為 1.0）
+             */
+            weight: number;
+            /**
+             * Format: float
+             * @description factor × weight × 100，最終分數的貢獻值
+             */
+            contribution: number;
+            /** @description 給 admin 看的人類可讀解釋 */
+            rationale: string;
+        };
+        WorkOrderEvent: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            event_type: "scope_change" | "material_request" | "delay" | "door_check" | "signature_submitted" | "reschedule_proposed" | "other";
+            /** @description 事件型別專屬 payload */
+            payload: {
+                [key: string]: unknown;
+            };
+            /** Format: uuid */
+            actor_user_id?: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        MediaFile: {
+            /** Format: uuid */
+            id: string;
+            /** @description 相對路徑 /api/v1/media/{id} */
+            url: string;
+            filename: string;
+            content_type: string;
+            size_bytes: number;
+            /** @enum {string} */
+            purpose: "door_check_before" | "door_check_after" | "completion_before" | "completion_after" | "dispute_evidence_customer" | "dispute_evidence_technician" | "other";
+            /** Format: uuid */
+            work_order_id?: string | null;
+            /** Format: uuid */
+            dispute_id?: string | null;
+            sha256?: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
         Customer: {
             /** Format: uuid */
             id: string;
@@ -2295,6 +2502,44 @@ export interface components {
         };
         CustomerEnvelope: components["schemas"]["ApiResponseGeneric"] & {
             data?: components["schemas"]["Customer"];
+        };
+        CustomerDetail: components["schemas"]["Customer"] & {
+            history: {
+                /** @description key=DB status, value=工單數 */
+                work_order_status_breakdown: {
+                    [key: string]: number;
+                };
+                avg_completion_minutes?: number | null;
+                avg_rating?: number | null;
+                rated_count?: number;
+                dispute_count: number;
+                refund_count: number;
+                refund_total: number;
+                recent_orders: {
+                    /** Format: uuid */
+                    id?: string;
+                    status?: string;
+                    address?: string | null;
+                    brand?: string | null;
+                    model?: string | null;
+                    priority?: string | null;
+                    estimated_price?: number | null;
+                    /** Format: date-time */
+                    created_at?: string | null;
+                    /** Format: date-time */
+                    completed_at?: string | null;
+                }[];
+                recent_conversations: {
+                    /** Format: uuid */
+                    id?: string;
+                    status?: string;
+                    channel?: string | null;
+                    /** Format: date-time */
+                    created_at?: string | null;
+                    /** Format: date-time */
+                    updated_at?: string | null;
+                }[];
+            };
         };
         CustomerPage: components["schemas"]["CursorPage"] & {
             items?: components["schemas"]["Customer"][];
@@ -3712,6 +3957,153 @@ export interface operations {
             409: components["responses"]["Conflict"];
         };
     };
+    uploadMedia: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                    /** @enum {string} */
+                    purpose: "door_check_before" | "door_check_after" | "completion_before" | "completion_after" | "dispute_evidence_customer" | "dispute_evidence_technician" | "other";
+                    /** Format: uuid */
+                    work_order_id?: string | null;
+                    /** Format: uuid */
+                    dispute_id?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description 已上傳 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaFile"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getMedia: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 檔案內容（content-type 依 metadata） */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listWorkOrderEvents: {
+        parameters: {
+            query?: {
+                event_type?: "scope_change" | "material_request" | "delay" | "door_check" | "signature_submitted" | "reschedule_proposed" | "other";
+                limit?: number;
+            };
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items?: components["schemas"]["WorkOrderEvent"][];
+                    };
+                };
+            };
+        };
+    };
+    listMediaForWorkOrder: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items?: components["schemas"]["MediaFile"][];
+                    };
+                };
+            };
+        };
+    };
+    listMediaForDispute: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items?: components["schemas"]["MediaFile"][];
+                    };
+                };
+            };
+        };
+    };
     listWorkOrderPool: {
         parameters: {
             query?: never;
@@ -4135,6 +4527,12 @@ export interface operations {
                             /** Format: float */
                             skill_match?: number;
                             availability_eta_minutes?: number;
+                            /** @description 各維度分數拆解（給 admin 看「為什麼推薦」） */
+                            score_breakdown?: {
+                                skill?: components["schemas"]["ScoreDimension"];
+                                distance?: components["schemas"]["ScoreDimension"];
+                                rating?: components["schemas"]["ScoreDimension"];
+                            };
                         }[];
                         total?: number;
                         auto_dispatch_attempts?: {
@@ -4578,6 +4976,96 @@ export interface operations {
             };
             /** @description RESCHEDULE_LIMIT_EXCEEDED（24h 內已 3 次） */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    confirmCustomerReschedule: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: date-time */
+                    selected_start: string;
+                    /** Format: date-time */
+                    selected_end: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 改期已確認 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkOrderEnvelope"];
+                };
+            };
+            /** @description 工單不存在 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 工單目前狀態不可改期 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    rejectCustomerReschedule: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 客戶已拒絕全部備選時段 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkOrderEnvelope"];
+                };
+            };
+            /** @description 工單不存在 */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5835,6 +6323,32 @@ export interface operations {
                     "application/json": components["schemas"]["CustomerPage"];
                 };
             };
+        };
+    };
+    getCustomer: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerDetail"];
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
     };
     listRoles: {

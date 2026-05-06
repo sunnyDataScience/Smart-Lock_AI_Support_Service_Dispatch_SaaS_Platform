@@ -12,6 +12,10 @@ dist/
 build/
 .venv/
 venv/
+agent/.venv/
+
+# 本機 setup 腳本的 runtime 狀態（PID 與 log）
+.runtime/
 
 # Node
 node_modules/

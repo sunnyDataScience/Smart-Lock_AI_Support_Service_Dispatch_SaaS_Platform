@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   ArrowUpCircle,
   CheckCircle2,
+  Info,
   MapPin,
   RefreshCw,
   Star,
@@ -26,12 +27,24 @@ type Technician = components["schemas"]["Technician"];
 type TechnicianLevel = components["schemas"]["TechnicianLevel"];
 type AssignReasonCode = components["schemas"]["WorkOrderAssignRequest"]["reason_code"];
 
+interface ScoreDimension {
+  factor: number;
+  weight: number;
+  contribution: number;
+  rationale: string;
+}
+
 interface Candidate {
   technician?: Technician;
   score?: number;
   distance_km?: number;
   skill_match?: number;
   availability_eta_minutes?: number;
+  score_breakdown?: {
+    skill?: ScoreDimension;
+    distance?: ScoreDimension;
+    rating?: ScoreDimension;
+  };
 }
 
 interface CandidatesResponse {
@@ -574,8 +587,8 @@ export default function DispatchManualPage() {
                               {t.level}
                             </span>
                           </td>
-                          <td className="px-3 py-3 text-right font-semibold text-[var(--primary)]">
-                            {(c.score ?? 0).toFixed(2)}
+                          <td className="px-3 py-3 text-right">
+                            <ScoreCell candidate={c} />
                           </td>
                           <td className="px-3 py-3 text-right text-[var(--text-secondary)]">
                             {c.distance_km != null ? (
@@ -755,6 +768,80 @@ export default function DispatchManualPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+
+/**
+ * 推薦分數 + hover tooltip 顯示 score breakdown（F4）
+ */
+function ScoreCell({ candidate }: { candidate: Candidate }) {
+  const score = candidate.score ?? 0;
+  const breakdown = candidate.score_breakdown;
+  if (!breakdown) {
+    return (
+      <span className="font-semibold text-[var(--primary)]">
+        {score.toFixed(2)}
+      </span>
+    );
+  }
+  const dims: { key: string; label: string; dim: ScoreDimension | undefined }[] =
+    [
+      { key: "skill", label: "技能匹配", dim: breakdown.skill },
+      { key: "distance", label: "距離", dim: breakdown.distance },
+      { key: "rating", label: "評分", dim: breakdown.rating },
+    ];
+  return (
+    <div className="group relative inline-flex items-center justify-end gap-1">
+      <span className="font-semibold text-[var(--primary)]">
+        {score.toFixed(2)}
+      </span>
+      <Info className="h-3 w-3 text-[var(--text-disabled)] group-hover:text-[var(--primary)]" />
+
+      {/* tooltip */}
+      <div className="invisible absolute right-0 top-full z-20 mt-1 w-[320px] rounded-lg border border-[var(--border)] bg-white p-3 text-left opacity-0 shadow-2xl transition-opacity group-hover:visible group-hover:opacity-100">
+        <div className="mb-2 flex items-center justify-between border-b border-[var(--border)] pb-2">
+          <span className="text-[12px] font-semibold text-[var(--text-primary)]">
+            綜合分拆解
+          </span>
+          <span className="text-[14px] font-bold text-[var(--primary)]">
+            {score.toFixed(2)}
+          </span>
+        </div>
+        <ul className="flex flex-col gap-2">
+          {dims.map(({ key, label, dim }) =>
+            dim ? (
+              <li key={key} className="flex flex-col gap-[2px]">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-medium text-[var(--text-primary)]">
+                    {label}
+                    <span className="ml-1 text-[var(--text-disabled)]">
+                      （×{dim.weight}）
+                    </span>
+                  </span>
+                  <span className="font-mono text-[var(--text-secondary)]">
+                    {dim.contribution.toFixed(1)} 分
+                  </span>
+                </div>
+                {/* progress bar */}
+                <div className="h-1 w-full overflow-hidden rounded-full bg-[#F1F5F9]">
+                  <div
+                    className="h-full bg-[var(--primary)]"
+                    style={{ width: `${Math.min(100, dim.factor * 100)}%` }}
+                  />
+                </div>
+                <span className="text-[10px] leading-[1.4] text-[var(--text-secondary)]">
+                  {dim.rationale}
+                </span>
+              </li>
+            ) : null,
+          )}
+        </ul>
+        <p className="mt-2 border-t border-[var(--border)] pt-2 text-[10px] text-[var(--text-disabled)]">
+          公式：技能 ×0.4 + 距離 ×0.3 + 評分 ×0.3 = 0~100 分
+        </p>
+      </div>
     </div>
   );
 }

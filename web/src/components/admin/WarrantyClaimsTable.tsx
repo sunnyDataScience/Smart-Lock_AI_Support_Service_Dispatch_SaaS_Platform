@@ -21,15 +21,15 @@ const statusConfig: Record<WarrantyClaimStatus, { label: string; textColor: stri
 };
 
 const columns = [
-  { label: "案件編號", width: "w-[110px]" },
-  { label: "設備", width: "w-[150px]" },
-  { label: "保固起始日", width: "w-[100px]" },
-  { label: "保固到期日", width: "w-[100px]" },
-  { label: "剩餘天數", width: "w-[90px]" },
-  { label: "保固期", width: "w-[80px]" },
-  { label: "申請狀態", width: "w-[90px]" },
-  { label: "折讓金額", width: "w-[100px]" },
-  { label: "操作", width: "flex-1" },
+  { label: "案件編號", width: "w-[110px] shrink-0" },
+  { label: "設備", width: "w-[150px] shrink-0" },
+  { label: "保固起始日", width: "w-[100px] shrink-0" },
+  { label: "保固到期日", width: "w-[100px] shrink-0" },
+  { label: "剩餘天數", width: "w-[90px] shrink-0" },
+  { label: "保固期", width: "w-[80px] shrink-0" },
+  { label: "申請狀態", width: "w-[90px] shrink-0" },
+  { label: "折讓金額", width: "w-[100px] shrink-0" },
+  { label: "操作", width: "flex-1 min-w-0" },
 ];
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -111,13 +111,13 @@ export default function WarrantyClaimsTable({
               idx < items.length - 1 ? "border-b border-[var(--border)]" : ""
             }`}
           >
-            <div className="flex w-[110px] items-center px-3">
+            <div className="flex w-[110px] shrink-0 items-center px-3">
               <span className="font-mono text-xs font-medium text-[var(--text-primary)]">
                 {row.id.slice(0, 8)}
               </span>
             </div>
 
-            <div className="flex w-[150px] flex-col justify-center px-3">
+            <div className="flex w-[150px] shrink-0 flex-col justify-center px-3">
               <span className="truncate text-xs font-semibold text-[var(--text-primary)]">
                 {row.device_brand}
               </span>
@@ -126,19 +126,19 @@ export default function WarrantyClaimsTable({
               </span>
             </div>
 
-            <div className="flex w-[100px] items-center px-3">
+            <div className="flex w-[100px] shrink-0 items-center px-3">
               <span className="text-xs text-[var(--text-primary)]">
                 {row.warranty_start_date}
               </span>
             </div>
 
-            <div className="flex w-[100px] items-center px-3">
+            <div className="flex w-[100px] shrink-0 items-center px-3">
               <span className="text-xs text-[var(--text-primary)]">
                 {row.warranty_end_date}
               </span>
             </div>
 
-            <div className="flex w-[90px] items-center px-3">
+            <div className="flex w-[90px] shrink-0 items-center px-3">
               <span
                 className="text-xs"
                 style={{ color: remainingUi.color, fontWeight: remainingUi.bold ? 700 : 600 }}
@@ -147,7 +147,7 @@ export default function WarrantyClaimsTable({
               </span>
             </div>
 
-            <div className="flex w-[80px] items-center px-3">
+            <div className="flex w-[80px] shrink-0 items-center px-3">
               <span
                 className="rounded-[10px] px-2 py-[2px] text-[11px] font-medium"
                 style={{ color: period.textColor, backgroundColor: period.bgColor }}
@@ -156,7 +156,7 @@ export default function WarrantyClaimsTable({
               </span>
             </div>
 
-            <div className="flex w-[90px] items-center px-3">
+            <div className="flex w-[90px] shrink-0 items-center px-3">
               <span
                 className="rounded-[10px] px-2 py-[2px] text-[11px] font-medium"
                 style={{ color: status.textColor, backgroundColor: status.bgColor }}
@@ -165,13 +165,13 @@ export default function WarrantyClaimsTable({
               </span>
             </div>
 
-            <div className="flex w-[100px] items-center px-3">
+            <div className="flex w-[100px] shrink-0 items-center px-3">
               <span className="font-mono text-[12px] text-[var(--text-primary)]">
                 {formatTwd(row.discount_offered)}
               </span>
             </div>
 
-            <div className="flex flex-1 items-center justify-end gap-[6px] px-3">
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-[6px] px-3">
               <button
                 disabled
                 title="即將推出"

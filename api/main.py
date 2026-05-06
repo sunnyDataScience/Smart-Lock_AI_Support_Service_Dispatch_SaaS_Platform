@@ -34,6 +34,7 @@ from routers import problem_cards as problem_cards_router
 from routers import work_orders as work_orders_router
 from routers import technicians as technicians_router
 from routers import admin_schedule as admin_schedule_router
+from routers import media as media_router
 from routers import dispatch_logs as dispatch_logs_router
 from routers import dispatch as dispatch_router
 from routers import settlements as settlements_router
@@ -62,10 +63,18 @@ cfg = load_config()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifecycle: 連線 DB → 服務生命週期 → 關閉連線。"""
+    """Application lifecycle: 連線 DB → 啟動 monitors → 關閉。"""
     await init_db(cfg.database)
+    # 啟動背景監測（單機 in-memory；多 worker 須改 distributed scheduler）
+    from realtime.inventory_monitor import monitor as inventory_monitor
+    from realtime.sla_monitor import monitor as sla_monitor
+
+    inventory_monitor.start()
+    sla_monitor.start()
     logger.info("API service ready (port=%s)", cfg.system["port"])
     yield
+    await sla_monitor.stop()
+    await inventory_monitor.stop()
     await close_db()
     logger.info("API service stopped")
 
@@ -105,6 +114,7 @@ app.include_router(problem_cards_router.router, prefix="/api/v1", tags=["custome
 app.include_router(work_orders_router.router, prefix="/api/v1", tags=["dispatch"])
 app.include_router(technicians_router.router, prefix="/api/v1", tags=["dispatch"])
 app.include_router(admin_schedule_router.router, prefix="/api/v1", tags=["dispatch"])
+app.include_router(media_router.router, prefix="/api/v1", tags=["media"])
 app.include_router(dispatch_logs_router.router, prefix="/api/v1", tags=["dispatch"])
 app.include_router(dispatch_router.router, prefix="/api/v1", tags=["dispatch"])
 app.include_router(settlements_router.router, prefix="/api/v1", tags=["accounting"])

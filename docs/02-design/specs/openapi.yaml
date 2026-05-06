@@ -498,6 +498,144 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
 
+  # ----- 媒體上傳（door check / completion / dispute evidence） -----
+  /api/v1/media:
+    post:
+      tags: [media]
+      summary: 上傳檔案（multipart）— 回傳 media_id 與 url
+      operationId: uploadMedia
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, purpose]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                purpose:
+                  type: string
+                  enum:
+                    - door_check_before
+                    - door_check_after
+                    - completion_before
+                    - completion_after
+                    - dispute_evidence_customer
+                    - dispute_evidence_technician
+                    - other
+                work_order_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                dispute_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+      responses:
+        '200':
+          description: 已上傳
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaFile'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/media/{id}:
+    get:
+      tags: [media]
+      summary: 下載媒體檔案（含 tenant 隔離）
+      operationId: getMedia
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: 檔案內容（content-type 依 metadata）
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/work-orders/{id}/events:
+    get:
+      tags: [dispatch]
+      summary: 列出該工單的結構化事件（subflow timeline）
+      description: |
+        取代舊有 service_report append 模式。每筆 subflow 動作（scope_change /
+        material_request / delay / door_check 等）會產生獨立 work_order_events 列。
+      operationId: listWorkOrderEvents
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/PathId'
+        - in: query
+          name: event_type
+          schema:
+            type: string
+            enum: [scope_change, material_request, delay, door_check, signature_submitted, reschedule_proposed, other]
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WorkOrderEvent'
+
+  /api/v1/work-orders/{id}/media:
+    get:
+      tags: [media]
+      summary: 列出該工單所有相關媒體（依用途與時間排序）
+      operationId: listMediaForWorkOrder
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MediaFile'
+
+  /api/v1/disputes/{id}/media:
+    get:
+      tags: [media]
+      summary: 列出該爭議所有相關證據（含雙方上傳）
+      operationId: listMediaForDispute
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MediaFile'
+
   /api/v1/work-orders/pool:
     get:
       tags: [dispatch]
@@ -874,6 +1012,16 @@ paths:
                           minimum: 0
                           maximum: 1
                         availability_eta_minutes: { type: integer }
+                        score_breakdown:
+                          type: object
+                          description: 各維度分數拆解（給 admin 看「為什麼推薦」）
+                          properties:
+                            skill:
+                              $ref: '#/components/schemas/ScoreDimension'
+                            distance:
+                              $ref: '#/components/schemas/ScoreDimension'
+                            rating:
+                              $ref: '#/components/schemas/ScoreDimension'
                   total: { type: integer }
                   auto_dispatch_attempts:
                     type: array
@@ -1255,6 +1403,58 @@ paths:
           description: RESCHEDULE_SLOT_TAKEN / WORK_ORDER_CONFLICT
         '422':
           description: RESCHEDULE_LIMIT_EXCEEDED（24h 內已 3 次）
+
+  /api/v1/work-orders/{id}/reschedule/customer-confirm:
+    post:
+      tags: [dispatch]
+      summary: 客戶 LINE Flex 選定改期時段（Flow 11）
+      description: agent webhook 收到 LINE postback 後呼叫；寫入 wo.scheduled_at + 推 WS 給技師
+      operationId: confirmCustomerReschedule
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [selected_start, selected_end]
+              properties:
+                selected_start: { type: string, format: date-time }
+                selected_end: { type: string, format: date-time }
+      responses:
+        '200':
+          description: 改期已確認
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderEnvelope'
+        '404':
+          description: 工單不存在
+        '409':
+          description: 工單目前狀態不可改期
+
+  /api/v1/work-orders/{id}/reschedule/customer-reject:
+    post:
+      tags: [dispatch]
+      summary: 客戶 LINE Flex 點「都不方便」（Flow 11）
+      description: agent webhook 收到 LINE postback 後呼叫；推 WS 給技師重選備選時段
+      operationId: rejectCustomerReschedule
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: 客戶已拒絕全部備選時段
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrderEnvelope'
+        '404':
+          description: 工單不存在
 
   # -----------------------------
   # 通知中心（Week 2 from G1）
@@ -2277,6 +2477,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/CustomerPage'
 
+  /api/v1/customers/{id}:
+    get:
+      tags: [customer_service]
+      summary: 客戶單筆詳情 + 聚合歷史（工單統計 / 平均評分 / 投訴 / 退款 / 最近紀錄）
+      operationId: getCustomer
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /api/v1/roles:
     get:
       tags: [user_management]
@@ -3250,7 +3468,16 @@ components:
     # --------- 退款申請（list/get） ---------
     RefundRequestStatus:
       type: string
-      enum: [pending, approved, rejected, escalated, executed, cancelled]
+      description: |
+        退款狀態機（含雙簽中介態 csm_approved）：
+        - pending: 待審核（首位人員可 approve / reject / escalate）
+        - csm_approved: 雙簽進行中（已第一簽，等候第二位不同 user 的 approve / reject）
+        - approved: 最終核准（含雙簽完成 + 不需雙簽的單次核准）
+        - rejected: 被拒絕（任何階段皆可）
+        - escalated: 已升級（pending 階段觸發）
+        - executed: 已執行退款（approved 後的後續會計動作）
+        - cancelled: 申請者撤回
+      enum: [pending, csm_approved, approved, rejected, escalated, executed, cancelled]
 
     RefundRequest:
       type: object
@@ -3750,6 +3977,76 @@ components:
             technician_user_id: { type: string, format: uuid }
             technician_name: { type: [string, "null"] }
 
+    # --------- Dispatch score dimension（A37 推薦解釋化） ---------
+    ScoreDimension:
+      type: object
+      required: [factor, weight, contribution, rationale]
+      properties:
+        factor:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: 該維度的標準化分（0-1）
+        weight:
+          type: number
+          format: float
+          description: 該維度的權重（總和為 1.0）
+        contribution:
+          type: number
+          format: float
+          description: factor × weight × 100，最終分數的貢獻值
+        rationale:
+          type: string
+          description: 給 admin 看的人類可讀解釋
+
+    # --------- Work order event（subflow timeline；取代 service_report append） ---------
+    WorkOrderEvent:
+      type: object
+      required: [id, event_type, payload, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        event_type:
+          type: string
+          enum: [scope_change, material_request, delay, door_check, signature_submitted, reschedule_proposed, other]
+        payload:
+          type: object
+          additionalProperties: true
+          description: 事件型別專屬 payload
+        actor_user_id:
+          type: [string, "null"]
+          format: uuid
+        created_at: { type: string, format: date-time }
+
+    # --------- Media file（T8 photos / 完工照片 / dispute evidence） ---------
+    MediaFile:
+      type: object
+      required: [id, url, filename, content_type, size_bytes, purpose, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string, description: '相對路徑 /api/v1/media/{id}' }
+        filename: { type: string }
+        content_type: { type: string }
+        size_bytes: { type: integer }
+        purpose:
+          type: string
+          enum:
+            - door_check_before
+            - door_check_after
+            - completion_before
+            - completion_after
+            - dispute_evidence_customer
+            - dispute_evidence_technician
+            - other
+        work_order_id:
+          type: [string, "null"]
+          format: uuid
+        dispute_id:
+          type: [string, "null"]
+          format: uuid
+        sha256: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+
     # --------- Customer（read-only 客戶主檔） ---------
     Customer:
       type: object
@@ -3799,6 +4096,63 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/Customer'
+
+    CustomerDetail:
+      allOf:
+        - $ref: '#/components/schemas/Customer'
+        - type: object
+          required: [history]
+          properties:
+            history:
+              type: object
+              required:
+                - work_order_status_breakdown
+                - dispute_count
+                - refund_count
+                - refund_total
+                - recent_orders
+                - recent_conversations
+              properties:
+                work_order_status_breakdown:
+                  type: object
+                  additionalProperties: { type: integer }
+                  description: key=DB status, value=工單數
+                avg_completion_minutes:
+                  type: [number, "null"]
+                avg_rating:
+                  type: [number, "null"]
+                rated_count:
+                  type: integer
+                dispute_count:
+                  type: integer
+                refund_count:
+                  type: integer
+                refund_total:
+                  type: number
+                recent_orders:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      status: { type: string }
+                      address: { type: [string, "null"] }
+                      brand: { type: [string, "null"] }
+                      model: { type: [string, "null"] }
+                      priority: { type: [string, "null"] }
+                      estimated_price: { type: [number, "null"] }
+                      created_at: { type: [string, "null"], format: date-time }
+                      completed_at: { type: [string, "null"], format: date-time }
+                recent_conversations:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      status: { type: string }
+                      channel: { type: [string, "null"] }
+                      created_at: { type: [string, "null"], format: date-time }
+                      updated_at: { type: [string, "null"], format: date-time }
 
     CustomerPage:
       allOf:

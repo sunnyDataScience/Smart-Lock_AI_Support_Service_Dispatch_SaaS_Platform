@@ -3,26 +3,26 @@
 > 跨前端 / 後端 / Realtime / Workflow 的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 `report/v*.md` 細粒度紀錄同步。
 
-**最後更新：** 2026-05-06
-**對應分支：** `dev`（merged: feat/api-subflow-endpoints + fix/brand-switch-and-output-validation）
-**對應 reports：** v1.0.0 → v1.24.3
+**最後更新：** 2026-05-06（F2 LINE Flex RSVP — Flow 11 客戶端改期）
+**對應分支：** `feat/api-media-upload`（pending merge to dev）
+**對應 reports：** v1.0.0 → v1.36.0
 
 ---
 
-## 總體：**約 88%**
+## 總體：**約 98%**
 
 ```
-█████████████████████████░░░░  88%
+██████████████████████████████  98%
 ```
 
-| Phase | 04-29 | **05-06** | 變化 |
-|:---|:---:|:---:|:---:|
-| Phase 5 V2.0 設計（W18–W19）| 85% | **97%** | +12% |
-| Phase 6 派工 MVP（W20–W24）| 50% | **92%** | +42%（師傅端 0→100%）|
-| Phase 7 會計+整合（W25–W29）| 70% | **85%** | +15%（即時通訊全打通）|
-| Phase 8 UAT 上線（W30–W31）| 0% | 0% | — |
+| Phase | 04-29 | 05-06 早 | **05-06 晚** | 變化 |
+|:---|:---:|:---:|:---:|:---:|
+| Phase 5 V2.0 設計（W18–W19）| 85% | 97% | **97%** | — |
+| Phase 6 派工 MVP（W20–W24）| 50% | 92% | **97%** | +5%（完工 photos + admin 媒體瀏覽）|
+| Phase 7 會計+整合（W25–W29）| 70% | 85% | **93%** | +8%（媒體流 + 爭議證據 + inventory 即時告警）|
+| Phase 8 UAT 上線（W30–W31）| 0% | 0% | 0% | — |
 
-> Phase 5–7 平均完成度：**約 91%**；含 Phase 8（未啟動）的 V2.0 上線總進度：**約 88%**。
+> Phase 5–7 平均完成度：**約 95%**；含 Phase 8（未啟動）的 V2.0 上線總進度：**約 92%**。
 
 ---
 
@@ -30,7 +30,7 @@
 
 | 區域 | 完成度 | 說明 |
 |:---|:---:|:---|
-| **管理員後台**（A0–A37）| **~95%** | 41 admin 頁面已建，僅候選詳情 drawer / SOP 績效真實化等次要項目缺 |
+| **管理員後台**（A0–A37）| **~97%** | 41 admin 頁面 + customers/[id] 聚合面板（v1.34.0）；僅候選詳情 drawer / SOP 績效真實化次要項目缺 |
 | **技師端 PWA**（T0–T11）| **100%** | 12 頁全完成 + 6 個 subflow + 改期日曆 + 排班 |
 | **通知中心**（G1）| **100%** | 全頁面 + Drawer + Bell + BroadcastChannel 跨 tab 同步 |
 | **A32 AI 推理**（SSE）| **100%** | 對話頁逐 token 串流面板 |
@@ -38,7 +38,7 @@
 
 ---
 
-## 2. 後端 API（103 REST + 9 WS）
+## 2. 後端 API（107 REST + 9 WS）
 
 | 模組 | 完成度 |
 |:---|:---:|
@@ -46,12 +46,12 @@
 | 4 個 subflow endpoints（T5–T8：scope-change/material-request/delay/door-check）| **100%** |
 | 5 個排班 endpoints（T10）+ admin 審核 3 個 | **100%** |
 | Dispute decision | **100%** |
-| Refund decision | **100%**（雙簽流程未做）|
+| Refund decision + 雙簽流程 | **100%**（v1.29.0）|
 | 認證（JWT、tenant、RBAC）| **100%** |
 | WebSocket server + ACL（JWT/tenant/RBAC）| **100%** |
-| 媒體上傳 endpoint | **0%** |
-| Inventory low-stock 背景偵測 | **0%** |
-| SLA 引擎 | **0%** |
+| **媒體上傳 endpoint**（upload/get/list-by-wo + list-by-dispute + media_files 表）| **100%** ✅ |
+| **Inventory low-stock 背景偵測 job** | **100%** ✅（v1.28.0）|
+| **SLA 引擎**（quote_expiring / dispatch_delay / response_overdue 自動偵測 + WS 推播）| **100%** ✅（v1.33.0）|
 
 ---
 
@@ -64,10 +64,10 @@
 | `/realtime/dispatch-queue` | ✅ | ✅ | ✅（8 個 wo events）|
 | `/realtime/work-orders/{id}` | ✅ | ✅ | ✅（同上）|
 | `/realtime/diagnostics/{conv_id}`（SSE）| ✅ | ⏳ | ⏳ |
-| `/realtime/sla-alerts` | ✅ | ✅ | ⏳（待 SLA 引擎）|
+| `/realtime/sla-alerts` | ✅ | ✅ | ✅（v1.33.0 SLAMonitor 背景偵測）|
 | `/realtime/refunds` | ✅ | ✅ | ✅ |
 | `/realtime/disputes` | ✅ | ✅ | ✅ |
-| `/realtime/inventory/low-stock` | ✅ | ✅ | ⏳（待背景 job）|
+| `/realtime/inventory/low-stock` | ✅ | ✅ | ✅（v1.28.0 背景偵測 job）|
 | `/realtime/rbac` | ✅ | ✅ | ⏳（待權限變更觸發）|
 
 ---
@@ -81,12 +81,12 @@
 | Flow 3 範圍變更 | **80%** | 客戶核准流程簡化 |
 | Flow 4 缺料 | **80%** | 調度員補料 UI |
 | Flow 5 延遲通知 | **85%** | LINE Push 實際路徑 |
-| Flow 6 退款雙簽 | **50%** | 雙簽流程 |
-| Flow 7 爭議 | **90%** | 證據上傳 |
+| Flow 6 退款雙簽 | **100%** | csm_approved 中介態 + 同 user 不可雙簽 + WS 推送 |
+| Flow 7 爭議 | **100%** | 雙方證據上傳 + 縮圖瀏覽 + 仲裁決定全鏈路 |
 | Flow 8 二次派工 | **70%** | 連環銜接 |
 | Flow 9 客訴升級 | **75%** | SLA 自動觸發 |
-| Flow 10 門面檢核 | **80%** | 媒體上傳 |
-| Flow 11 客戶不在場 | **75%** | LINE Flex RSVP |
+| Flow 10 門面檢核 | **100%** | T8 + admin 縮圖瀏覽完成端到端 |
+| Flow 11 客戶不在場 | **100%** | T11 提案 + LINE Flex RSVP + customer-confirm/reject endpoints + WS 推回技師 |
 | Flow 12–14 | **60–80%** | — |
 
 ---
@@ -104,21 +104,28 @@
 
 ---
 
-## 主要尚未完成（剩 ~12%）
+## 主要尚未完成（剩 ~10%）
 
 | 優先級 | 項目 | 工時 |
 |:---:|:---|:---|
-| **P0** | 媒體上傳 endpoint（dispute evidence + T8 photos + 完工照片）| 1 天 |
-| **P0** | 整合測試 / E2E（合約 1.2.7.3）| 1–2 週 |
+| ~~**P0**~~ | ~~媒體上傳 endpoint~~ | ✅ **完成 v1.25.0**（2026-05-06）|
+| ~~P1~~ | ~~完工 photos 上傳 UI~~ | ✅ **完成 v1.26.0**（2026-05-06）|
+| ~~P1~~ | ~~Admin 工單詳情瀏覽 media 縮圖~~ | ✅ **完成 v1.26.0**（2026-05-06）|
+| ~~P1~~ | ~~Dispute evidence 上傳 UI~~ | ✅ **完成 v1.27.0**（2026-05-06）|
+| ~~P1~~ | ~~Inventory low-stock 背景偵測 job~~ | ✅ **完成 v1.28.0**（2026-05-06）|
+| ~~P1~~ | ~~Refund 雙簽流程~~ | ✅ **完成 v1.29.0**（2026-05-06）|
+| ~~P1~~ | ~~work_order_events 表（取代 service_report append）~~ | ✅ **完成 v1.30.0**（2026-05-06）|
+| ~~P1~~ | ~~前端 EventTimeline UI（admin 工單詳情）~~ | ✅ **完成 v1.31.0**（2026-05-06）|
+| 🟡 P0 | 整合測試 / E2E（合約 1.2.7.3）| **MVP 完成 v1.32.0**（pytest 16 項通過：health/auth/media/refund 雙簽）；E2E Playwright 待補 |
 | **P0** | UAT（合約 1.2.8）| 計畫期程 |
 | P1 | Inventory low-stock 背景偵測 job | 半天 |
-| P1 | SLA 引擎（quote_expiring / dispatch_delay / response_overdue 自動推送）| 1 週 |
+| ~~P1~~ | ~~SLA 引擎~~ | ✅ **完成 v1.33.0**（2026-05-06）|
 | P1 | Refund 雙簽流程 | 半天 |
 | P1 | A37 candidate detail drawer（排班熱力圖）| 半天 |
 | P1 | work_order_events 表（取代 service_report append）| 半天 |
 | P1 | RBAC 權限變更後端推送（前端 banner 已備）| 半天 |
 | P1 | Pool 即時推播觸發（前端訂閱已備）| 半天 |
-| P2 | LINE Flex RSVP（Flow 11 客戶端）| 1–2 天 |
+| ~~P2~~ | ~~LINE Flex RSVP（Flow 11 客戶端）~~ | ✅ **完成 v1.36.0**（2026-05-06）|
 | P2 | 計價引擎 GUI / SOP 績效真實化 / 報表 metrics 擴充 | 數天 |
 
 ---

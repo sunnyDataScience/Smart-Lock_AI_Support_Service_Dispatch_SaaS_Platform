@@ -26,14 +26,14 @@ const urgencyStyles: Record<Urgency, { label: string; color: string; bg: string 
 };
 
 const columns = [
-  { label: "卡片 ID", width: "w-[180px]" },
-  { label: "症狀摘要", width: "flex-1" },
-  { label: "狀態", width: "w-[90px]" },
-  { label: "緊急度", width: "w-[70px]" },
-  { label: "類別", width: "w-[80px]" },
-  { label: "品牌", width: "w-[80px]" },
-  { label: "型號", width: "w-[100px]" },
-  { label: "建立時間", width: "w-[90px]" },
+  { label: "卡片 ID", width: "w-[180px] shrink-0" },
+  { label: "症狀摘要", width: "flex-1 min-w-0" },
+  { label: "狀態", width: "w-[90px] shrink-0" },
+  { label: "緊急度", width: "w-[70px] shrink-0" },
+  { label: "類別", width: "w-[80px] shrink-0" },
+  { label: "品牌", width: "w-[80px] shrink-0" },
+  { label: "型號", width: "w-[100px] shrink-0" },
+  { label: "建立時間", width: "w-[90px] shrink-0" },
 ];
 
 function shortId(id: string): string {
@@ -70,17 +70,17 @@ export default function ProblemCardsTable({ items, loading }: Props) {
               idx % 2 === 0 ? "bg-white" : "bg-[var(--bg-page)]"
             }`}
           >
-            <div className="w-[180px]">
+            <div className="w-[180px] shrink-0">
               <span className="font-mono text-[12px] text-[var(--text-primary)]" title={card.id}>
                 {shortId(card.id)}
               </span>
             </div>
-            <div className="flex-1 truncate pr-4">
+            <div className="flex-1 min-w-0 truncate pr-4">
               <span className="text-[13px] text-[var(--text-primary)]">
                 {card.symptom || "—"}
               </span>
             </div>
-            <div className="w-[90px]">
+            <div className="w-[90px] shrink-0">
               <span
                 className="rounded-full px-[10px] py-1 text-[11px] font-medium"
                 style={{ color: status.color, backgroundColor: status.bg }}
@@ -88,7 +88,7 @@ export default function ProblemCardsTable({ items, loading }: Props) {
                 {status.label}
               </span>
             </div>
-            <div className="w-[70px]">
+            <div className="w-[70px] shrink-0">
               <span
                 className="rounded px-2 py-1 text-[11px] font-medium"
                 style={{ color: urgency.color, backgroundColor: urgency.bg }}
@@ -96,20 +96,20 @@ export default function ProblemCardsTable({ items, loading }: Props) {
                 {urgency.label}
               </span>
             </div>
-            <div className="w-[80px]">
+            <div className="w-[80px] shrink-0">
               <span className="text-[13px] text-[var(--text-primary)]">{card.category}</span>
             </div>
-            <div className="w-[80px]">
+            <div className="w-[80px] shrink-0">
               <span className="text-[13px] text-[var(--text-primary)]">
                 {card.brand || "—"}
               </span>
             </div>
-            <div className="w-[100px]">
+            <div className="w-[100px] shrink-0">
               <span className="text-[13px] text-[var(--text-primary)]">
                 {card.model || "—"}
               </span>
             </div>
-            <div className="w-[90px]">
+            <div className="w-[90px] shrink-0">
               <span className="text-[12px] text-[var(--text-secondary)]">
                 {formatRelative(card.created_at)}
               </span>

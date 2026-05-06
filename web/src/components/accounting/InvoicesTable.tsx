@@ -22,14 +22,14 @@ const statusConfig: Record<InvoiceStatus, { label: string; textColor: string; bg
 };
 
 const columns = [
-  { label: "發票編號", width: "w-[140px]" },
-  { label: "工單", width: "w-[120px]" },
-  { label: "金額", width: "w-[140px]" },
-  { label: "稅務分類", width: "w-[110px]" },
-  { label: "狀態", width: "w-[110px]" },
-  { label: "開立時間", width: "w-[160px]" },
-  { label: "更新時間", width: "w-[160px]" },
-  { label: "操作", width: "flex-1" },
+  { label: "發票編號", width: "w-[140px] shrink-0" },
+  { label: "工單", width: "w-[120px] shrink-0" },
+  { label: "金額", width: "w-[140px] shrink-0" },
+  { label: "稅務分類", width: "w-[110px] shrink-0" },
+  { label: "狀態", width: "w-[110px] shrink-0" },
+  { label: "開立時間", width: "w-[160px] shrink-0" },
+  { label: "更新時間", width: "w-[160px] shrink-0" },
+  { label: "操作", width: "flex-1 min-w-0" },
 ];
 
 function formatTwd(amount: string): string {
@@ -47,7 +47,7 @@ const categoryLabel: Record<string, string> = {
 
 export default function InvoicesTable({ items, loading }: Props) {
   return (
-    <div className="flex flex-1 flex-col bg-[var(--bg-surface)]">
+    <div className="flex min-w-0 flex-1 flex-col bg-[var(--bg-surface)]">
       {/* Header Row */}
       <div className="flex h-[44px] items-center bg-[var(--bg-page)] px-8">
         {columns.map((col) => (
@@ -84,14 +84,14 @@ export default function InvoicesTable({ items, loading }: Props) {
             }`}
           >
             {/* Invoice Number */}
-            <div className="flex w-[140px] items-center px-2">
+            <div className="flex w-[140px] shrink-0 items-center px-2">
               <span className="font-['IBM_Plex_Mono'] text-[13px] font-medium text-[var(--text-primary)]">
                 {inv.invoice_number}
               </span>
             </div>
 
             {/* Work Order */}
-            <div className="flex w-[120px] items-center px-2">
+            <div className="flex w-[120px] shrink-0 items-center px-2">
               <Link
                 href={`/work-orders/${inv.work_order_id}`}
                 className="font-mono text-[13px] font-medium text-[var(--primary)] hover:underline"
@@ -101,21 +101,21 @@ export default function InvoicesTable({ items, loading }: Props) {
             </div>
 
             {/* Amount */}
-            <div className="flex w-[140px] items-center px-2">
+            <div className="flex w-[140px] shrink-0 items-center px-2">
               <span className="font-['IBM_Plex_Mono'] text-[13px] font-semibold text-[var(--text-primary)]">
                 {formatTwd(inv.amount)}
               </span>
             </div>
 
             {/* Tax Category */}
-            <div className="flex w-[110px] items-center px-2">
+            <div className="flex w-[110px] shrink-0 items-center px-2">
               <span className="text-[12px] text-[var(--text-secondary)]">
                 {inv.category ? categoryLabel[inv.category] ?? inv.category : "—"}
               </span>
             </div>
 
             {/* Status */}
-            <div className="flex w-[110px] items-center px-2">
+            <div className="flex w-[110px] shrink-0 items-center px-2">
               <span
                 className="rounded-full px-[10px] py-[3px] text-xs font-medium"
                 style={{ color: badge.textColor, backgroundColor: badge.bgColor }}
@@ -125,21 +125,21 @@ export default function InvoicesTable({ items, loading }: Props) {
             </div>
 
             {/* Issued At */}
-            <div className="flex w-[160px] items-center px-2">
+            <div className="flex w-[160px] shrink-0 items-center px-2">
               <span className="text-[12px] text-[var(--text-secondary)]">
                 {inv.issued_at ? formatRelative(inv.issued_at) : "—"}
               </span>
             </div>
 
             {/* Updated At */}
-            <div className="flex w-[160px] items-center px-2">
+            <div className="flex w-[160px] shrink-0 items-center px-2">
               <span className="text-[12px] text-[var(--text-secondary)]">
                 {inv.updated_at ? formatRelative(inv.updated_at) : "—"}
               </span>
             </div>
 
             {/* Actions */}
-            <div className="flex flex-1 items-center gap-1 px-2">
+            <div className="flex min-w-0 flex-1 items-center gap-1 px-2">
               <Eye className="h-4 w-4 text-[var(--text-secondary)]" />
             </div>
           </div>

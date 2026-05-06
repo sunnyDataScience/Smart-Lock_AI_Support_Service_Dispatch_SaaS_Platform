@@ -26,6 +26,8 @@ import {
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import WorkOrderDetailSidebar from "@/components/work-orders/WorkOrderDetailSidebar";
+import MediaGallery from "@/components/work-orders/MediaGallery";
+import EventTimeline from "@/components/work-orders/EventTimeline";
 import {
   STATUS_GROUP_MAP,
   STATUS_GROUP_STYLE,
@@ -1197,6 +1199,8 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
             onLoaded={setProblemCard}
           />
           <LineMediaGallery conversationId={problemCard?.conversation_id} />
+          <MediaGallery workOrderId={id} />
+          <EventTimeline workOrderId={id} />
           <WorkTimeline order={order} />
           <ConversationThread />
           <CompletionReport />

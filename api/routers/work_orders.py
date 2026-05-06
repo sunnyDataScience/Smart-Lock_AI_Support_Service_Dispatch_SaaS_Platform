@@ -477,3 +477,87 @@ async def record_door_check(
     if idem is not None:
         await idem.save(200, payload)
     return payload
+
+
+@router.get(
+    "/work-orders/{id}/events",
+    operation_id="listWorkOrderEvents",
+    summary="列出該工單的結構化事件（subflow timeline）",
+)
+async def list_work_order_events(
+    id: str = Path(),
+    event_type: Literal[
+        "scope_change",
+        "material_request",
+        "delay",
+        "door_check",
+        "signature_submitted",
+        "reschedule_proposed",
+        "other",
+    ]
+    | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    return await work_order_service.list_work_order_events(
+        tenant_id=user.tenant_id,
+        wo_id=id,
+        event_type=event_type,
+        limit=limit,
+    )
+
+
+# =============================================================================
+# F2 — 客戶端改期 RSVP（Flow 11）
+# =============================================================================
+
+
+class _CustomerRescheduleConfirmRequest(BaseModel):
+    """LINE Flex 客戶選定的時段。"""
+
+    selected_start: str = Field(..., description="ISO 8601 datetime")
+    selected_end: str = Field(..., description="ISO 8601 datetime")
+
+
+@router.post(
+    "/work-orders/{id}/reschedule/customer-confirm",
+    operation_id="confirmCustomerReschedule",
+    summary="客戶 LINE Flex 選定改期時段（Flow 11）— 寫入 wo + 推 WS 給技師",
+    response_model=WorkOrderEnvelope,
+)
+async def confirm_customer_reschedule(
+    body: _CustomerRescheduleConfirmRequest,
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    order = await work_order_service.confirm_reschedule_by_customer(
+        tenant_id=user.tenant_id,
+        wo_id=id,
+        selected_start=body.selected_start,
+        selected_end=body.selected_end,
+    )
+    payload = {"data": WorkOrder(**order).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload
+
+
+@router.post(
+    "/work-orders/{id}/reschedule/customer-reject",
+    operation_id="rejectCustomerReschedule",
+    summary="客戶 LINE Flex 點「都不方便」（Flow 11）— 推 WS 給技師重選",
+    response_model=WorkOrderEnvelope,
+)
+async def reject_customer_reschedule(
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    order = await work_order_service.reject_reschedule_by_customer(
+        tenant_id=user.tenant_id, wo_id=id
+    )
+    payload = {"data": WorkOrder(**order).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload

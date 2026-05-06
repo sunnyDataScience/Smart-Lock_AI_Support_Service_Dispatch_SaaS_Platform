@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   Search,
@@ -276,8 +277,9 @@ export default function CustomersPage() {
               </div>
             ) : (
               filtered.map((c) => (
-                <div
+                <Link
                   key={c.id}
+                  href={`/admin/customers/${c.id}`}
                   className="group flex items-center border-t border-[var(--border)] px-4 py-3 transition-colors hover:bg-blue-50"
                 >
                   <div className="flex w-[220px] items-center gap-3">
@@ -358,7 +360,7 @@ export default function CustomersPage() {
                       <MoreHorizontal className="h-4 w-4 text-[var(--text-secondary)]" />
                     </button>
                   </div>
-                </div>
+                </Link>
               ))
             )}
 

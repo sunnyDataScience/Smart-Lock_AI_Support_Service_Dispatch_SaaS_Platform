@@ -10,7 +10,7 @@ operationId 對齊 openapi.yaml：
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Path, Query
 
 from core.deps import CurrentUser, require_tenant
 from models.generated import Customer, CustomerPage
@@ -40,3 +40,17 @@ async def list_customers(
         "next_cursor": page["next_cursor"],
         "has_more": page["has_more"],
     }
+
+
+@router.get(
+    "/customers/{id}",
+    operation_id="getCustomer",
+    summary="客戶單筆詳情 + 聚合歷史（工單統計 / 平均評分 / 投訴 / 退款 / 最近紀錄）",
+)
+async def get_customer(
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    return await customer_service.get_customer(
+        tenant_id=user.tenant_id, customer_id=id
+    )

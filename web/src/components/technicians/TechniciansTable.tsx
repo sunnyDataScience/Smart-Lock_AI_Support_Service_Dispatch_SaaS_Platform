@@ -45,22 +45,22 @@ function avatarColor(id: string): string {
 }
 
 const columns = [
-  { label: "", width: "w-[52px]" },
-  { label: "技師", width: "w-[200px]" },
-  { label: "專長品牌", width: "w-[180px]" },
-  { label: "服務區域", width: "w-[180px]" },
-  { label: "評分", width: "w-[80px]" },
-  { label: "狀態", width: "w-[100px]" },
-  { label: "完成工單", width: "w-[100px]" },
-  { label: "操作", width: "flex-1" },
+  { label: "", width: "w-[52px] shrink-0" },
+  { label: "技師", width: "w-[200px] shrink-0" },
+  { label: "專長品牌", width: "w-[180px] shrink-0" },
+  { label: "服務區域", width: "w-[180px] shrink-0" },
+  { label: "評分", width: "w-[80px] shrink-0" },
+  { label: "狀態", width: "w-[100px] shrink-0" },
+  { label: "完成工單", width: "w-[100px] shrink-0" },
+  { label: "操作", width: "flex-1 min-w-0" },
 ];
 
 export default function TechniciansTable({ items, loading }: Props) {
   return (
-    <div className="flex flex-1 flex-col bg-[var(--bg-surface)]">
+    <div className="flex min-w-0 flex-1 flex-col bg-[var(--bg-surface)]">
       {/* Header Row */}
       <div className="flex h-[44px] items-center bg-[var(--bg-page)] px-8">
-        <div className="flex w-[52px] items-center">
+        <div className="flex w-[52px] shrink-0 items-center">
           <div className="h-[18px] w-[18px] rounded border-[1.5px] border-[var(--border)]" />
         </div>
         {columns.slice(1).map((col) => (
@@ -74,11 +74,11 @@ export default function TechniciansTable({ items, loading }: Props) {
 
       {/* Body */}
       {loading && items.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center py-12 text-sm text-[var(--text-secondary)]">
+        <div className="flex min-w-0 flex-1 items-center justify-center py-12 text-sm text-[var(--text-secondary)]">
           載入中…
         </div>
       ) : items.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center py-12 text-sm text-[var(--text-secondary)]">
+        <div className="flex min-w-0 flex-1 items-center justify-center py-12 text-sm text-[var(--text-secondary)]">
           目前沒有技師
         </div>
       ) : (
@@ -92,12 +92,12 @@ export default function TechniciansTable({ items, loading }: Props) {
               className="flex h-[60px] items-center border-b border-[var(--border)] px-8"
             >
               {/* Checkbox */}
-              <div className="flex w-[52px] items-center">
+              <div className="flex w-[52px] shrink-0 items-center">
                 <div className="h-[18px] w-[18px] rounded border-[1.5px] border-[var(--border)]" />
               </div>
 
               {/* Tech info */}
-              <div className="flex w-[200px] items-center gap-[10px]">
+              <div className="flex w-[200px] shrink-0 items-center gap-[10px]">
                 <div
                   className="h-9 w-9 flex-shrink-0 rounded-full"
                   style={{ backgroundColor: avatarColor(t.id) }}
@@ -116,7 +116,7 @@ export default function TechniciansTable({ items, loading }: Props) {
               </div>
 
               {/* Brands */}
-              <div className="flex w-[180px] flex-wrap items-center gap-1">
+              <div className="flex w-[180px] shrink-0 flex-wrap items-center gap-1">
                 {brands.length > 0 ? (
                   brands.map((b) => {
                     const style = BRAND_STYLE[b] ?? FALLBACK_BRAND;
@@ -136,14 +136,14 @@ export default function TechniciansTable({ items, loading }: Props) {
               </div>
 
               {/* Region */}
-              <div className="flex w-[180px] items-center">
+              <div className="flex w-[180px] shrink-0 items-center">
                 <span className="text-[13px] text-[var(--text-primary)]">
                   {region}
                 </span>
               </div>
 
               {/* Rating */}
-              <div className="flex w-[80px] items-center gap-1">
+              <div className="flex w-[80px] shrink-0 items-center gap-1">
                 <Star className="h-[14px] w-[14px] fill-[var(--accent)] text-[var(--accent)]" />
                 <span className="text-[13px] font-semibold text-[var(--text-primary)]">
                   {t.rating.toFixed(1)}
@@ -151,7 +151,7 @@ export default function TechniciansTable({ items, loading }: Props) {
               </div>
 
               {/* Status */}
-              <div className="flex w-[100px] items-center">
+              <div className="flex w-[100px] shrink-0 items-center">
                 <span
                   className="rounded-full px-[10px] py-[3px] text-[12px] font-medium"
                   style={{ color: status.textColor, backgroundColor: status.bgColor }}
@@ -161,14 +161,14 @@ export default function TechniciansTable({ items, loading }: Props) {
               </div>
 
               {/* Completed Orders */}
-              <div className="flex w-[100px] items-center">
+              <div className="flex w-[100px] shrink-0 items-center">
                 <span className="text-[14px] font-semibold text-[var(--primary)]">
                   {t.completed_orders_count ?? 0}
                 </span>
               </div>
 
               {/* Actions */}
-              <div className="flex flex-1 items-center">
+              <div className="flex min-w-0 flex-1 items-center">
                 <Ellipsis className="h-5 w-5 text-[var(--text-secondary)]" />
               </div>
             </div>
