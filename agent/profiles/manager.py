@@ -140,6 +140,20 @@ class ProfileManager:
         except Exception as e:
             print(f"[Facts DB] update_fact 失敗 ({attr_key}={attr_val}): {e}")
 
+    async def clear_fact(self, user_id: str, attr_key: str):
+        """將指定 fact 標記為過期但不寫入新值（用於品牌切換時清掉舊型號）。"""
+        if not self.facts_enabled or _facts_pool is None:
+            return
+        try:
+            async with _facts_pool.connection() as conn:
+                await conn.execute(
+                    "UPDATE user_facts SET is_current = FALSE, end_date = NOW() "
+                    "WHERE user_id = %s AND attr_key = %s AND is_current = TRUE",
+                    (user_id, attr_key),
+                )
+        except Exception as e:
+            print(f"[Facts DB] clear_fact 失敗 ({attr_key}): {e}")
+
     def format_facts(self, facts: dict) -> str:
         """Format facts dict as [Verified Fact] lines."""
         if not facts:
