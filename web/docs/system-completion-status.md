@@ -3,9 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow 的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 `report/v*.md` 細粒度紀錄同步。
 
-**最後更新：** 2026-05-06（客戶歷史聚合面板）
+**最後更新：** 2026-05-06（A37 推薦解釋化）
 **對應分支：** `feat/api-media-upload`（pending merge to dev）
-**對應 reports：** v1.0.0 → v1.34.0
+**對應 reports：** v1.0.0 → v1.35.0
 
 ---
 

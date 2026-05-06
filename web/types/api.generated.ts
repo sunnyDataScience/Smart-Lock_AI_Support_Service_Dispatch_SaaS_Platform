@@ -2384,6 +2384,25 @@ export interface components {
             technician_user_id: string;
             technician_name?: string | null;
         };
+        ScoreDimension: {
+            /**
+             * Format: float
+             * @description 該維度的標準化分（0-1）
+             */
+            factor: number;
+            /**
+             * Format: float
+             * @description 該維度的權重（總和為 1.0）
+             */
+            weight: number;
+            /**
+             * Format: float
+             * @description factor × weight × 100，最終分數的貢獻值
+             */
+            contribution: number;
+            /** @description 給 admin 看的人類可讀解釋 */
+            rationale: string;
+        };
         WorkOrderEvent: {
             /** Format: uuid */
             id: string;
@@ -4468,6 +4487,12 @@ export interface operations {
                             /** Format: float */
                             skill_match?: number;
                             availability_eta_minutes?: number;
+                            /** @description 各維度分數拆解（給 admin 看「為什麼推薦」） */
+                            score_breakdown?: {
+                                skill?: components["schemas"]["ScoreDimension"];
+                                distance?: components["schemas"]["ScoreDimension"];
+                                rating?: components["schemas"]["ScoreDimension"];
+                            };
                         }[];
                         total?: number;
                         auto_dispatch_attempts?: {

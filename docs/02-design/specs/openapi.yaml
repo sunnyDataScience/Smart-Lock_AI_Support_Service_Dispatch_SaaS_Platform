@@ -1012,6 +1012,16 @@ paths:
                           minimum: 0
                           maximum: 1
                         availability_eta_minutes: { type: integer }
+                        score_breakdown:
+                          type: object
+                          description: 各維度分數拆解（給 admin 看「為什麼推薦」）
+                          properties:
+                            skill:
+                              $ref: '#/components/schemas/ScoreDimension'
+                            distance:
+                              $ref: '#/components/schemas/ScoreDimension'
+                            rating:
+                              $ref: '#/components/schemas/ScoreDimension'
                   total: { type: integer }
                   auto_dispatch_attempts:
                     type: array
@@ -3914,6 +3924,29 @@ components:
           properties:
             technician_user_id: { type: string, format: uuid }
             technician_name: { type: [string, "null"] }
+
+    # --------- Dispatch score dimension（A37 推薦解釋化） ---------
+    ScoreDimension:
+      type: object
+      required: [factor, weight, contribution, rationale]
+      properties:
+        factor:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: 該維度的標準化分（0-1）
+        weight:
+          type: number
+          format: float
+          description: 該維度的權重（總和為 1.0）
+        contribution:
+          type: number
+          format: float
+          description: factor × weight × 100，最終分數的貢獻值
+        rationale:
+          type: string
+          description: 給 admin 看的人類可讀解釋
 
     # --------- Work order event（subflow timeline；取代 service_report append） ---------
     WorkOrderEvent:
