@@ -1769,42 +1769,59 @@ server {
 - `agent/Dockerfile` — LINE Bot agent 服務
 - `api/Dockerfile` — FastAPI backend 服務
 
-兩者共用 root 的 `pyproject.toml` + `uv.lock` + `.python-version`，透過 `uv sync --frozen --package <name>` 在 build stage 釘版安裝對應 workspace package 的依賴。runtime stage 只 copy `.venv`，不帶 build cache，最終 image 約 200-300MB。
+兩者共用 root 的 `pyproject.toml` + `uv.lock` + `.python-version`，透過 `uv sync --frozen --no-dev --package <smart-lock-{agent|api}>` 在 build stage 釘版安裝對應 workspace package 的依賴。runtime stage 只 copy `.venv` 與該模組原始碼，不帶 build cache，最終 image 約 250-800MB（agent 含 langgraph/litellm 較大）。
+
+> **WHY 這幾個關鍵設計**
+>
+> - **`uv` image 釘版（`ghcr.io/astral-sh/uv:0.11` 而非 `latest`）**：可重現 build。Cloud Run 重 build 不會因 uv 版本飄動而行為改變。
+> - **`UV_LINK_MODE=copy + UV_COMPILE_BYTECODE=1`**：copy 模式適合容器（無 hardlink 問題），bytecode 預編譯加快冷啟動。
+> - **`--package smart-lock-agent` / `smart-lock-api`**：對應子模組 `pyproject.toml` 的 `name`，**不是**目錄名 `agent`/`api`。
+> - **兩階段 layer COPY（lockfiles → source）**：改子模組 source 不重 sync deps，CI build 速度提升 5-10x。
+> - **runtime stage 只帶 venv + 該模組程式碼**：不帶 builder 階段的 uv binary、build cache、其他模組原始碼，image 顯著縮小。
 
 #### Agent Dockerfile (`agent/Dockerfile`)
 
 ```dockerfile
-# agent/Dockerfile
+# syntax=docker/dockerfile:1.7
+ARG PYTHON_VERSION=3.11
 
 # ----- Stage 1: Builder -----
-FROM python:3.11-slim AS builder
+FROM python:${PYTHON_VERSION}-slim-bookworm AS builder
 
-# 從 Astral 官方 image COPY uv binary（避開 build-essential，加快 build）
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-
-WORKDIR /app
+# 從 Astral 官方 image COPY uv binary（pin 版本以確保可重現）
+COPY --from=ghcr.io/astral-sh/uv:0.11 /uv /uvx /usr/local/bin/
 
 ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
-    UV_PYTHON_DOWNLOADS=never
+    UV_PYTHON_DOWNLOADS=never \
+    UV_NO_PROGRESS=1
 
-# Cache-friendly：先 copy 鎖定檔，避免改原始碼觸發重 sync
+WORKDIR /app
+
+# Cache-friendly：先只 copy 鎖定檔，跑 sync。改 agent/ 程式時這層 cache 命中（10x 加速）
 COPY pyproject.toml uv.lock .python-version ./
-COPY agent/pyproject.toml agent/
-COPY api/pyproject.toml api/
-COPY data/pyproject.toml data/
+COPY agent/pyproject.toml ./agent/pyproject.toml
+COPY api/pyproject.toml ./api/pyproject.toml
+COPY data/pyproject.toml ./data/pyproject.toml
 
-RUN uv sync --frozen --no-dev --package agent
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --package smart-lock-agent
+
+# 把 agent 程式碼搬進來（這層改動頻繁，獨立 cache）
+COPY agent/ ./agent/
 
 # ----- Stage 2: Runtime -----
-FROM python:3.11-slim AS runtime
+FROM python:${PYTHON_VERSION}-slim-bookworm
 
-# 只 copy 已建好的 venv，不帶 build cache
+WORKDIR /app
+
+# 只帶 venv + agent 原始碼，不含 uv binary 與 build tools
 COPY --from=builder /app/.venv /app/.venv
-ENV PATH="/app/.venv/bin:${PATH}"
+COPY --from=builder /app/agent /app/agent
 
-# Copy agent 原始碼（runtime 不需要 api/data 模組）
-COPY agent /app/agent
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PORT=8080
 
 WORKDIR /app/agent
 EXPOSE 8080
@@ -1816,33 +1833,42 @@ CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
 #### API Dockerfile (`api/Dockerfile`)
 
 ```dockerfile
-# api/Dockerfile
+# syntax=docker/dockerfile:1.7
+ARG PYTHON_VERSION=3.11
 
 # ----- Stage 1: Builder -----
-FROM python:3.11-slim AS builder
+FROM python:${PYTHON_VERSION}-slim-bookworm AS builder
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-
-WORKDIR /app
+COPY --from=ghcr.io/astral-sh/uv:0.11 /uv /uvx /usr/local/bin/
 
 ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
-    UV_PYTHON_DOWNLOADS=never
+    UV_PYTHON_DOWNLOADS=never \
+    UV_NO_PROGRESS=1
+
+WORKDIR /app
 
 COPY pyproject.toml uv.lock .python-version ./
-COPY agent/pyproject.toml agent/
-COPY api/pyproject.toml api/
-COPY data/pyproject.toml data/
+COPY agent/pyproject.toml ./agent/pyproject.toml
+COPY api/pyproject.toml ./api/pyproject.toml
+COPY data/pyproject.toml ./data/pyproject.toml
 
-RUN uv sync --frozen --no-dev --package api
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --package smart-lock-api
+
+COPY api/ ./api/
 
 # ----- Stage 2: Runtime -----
-FROM python:3.11-slim AS runtime
+FROM python:${PYTHON_VERSION}-slim-bookworm
+
+WORKDIR /app
 
 COPY --from=builder /app/.venv /app/.venv
-ENV PATH="/app/.venv/bin:${PATH}"
+COPY --from=builder /app/api /app/api
 
-COPY api /app/api
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PORT=8080
 
 WORKDIR /app/api
 EXPOSE 8080
