@@ -31,6 +31,7 @@ dependencies = [
     "aiofiles",
     # === Observability ===
     "opik",
+    "structlog>=24.4",
 ]
 
 # 不打包成 wheel（agent 是 application，不是 library）

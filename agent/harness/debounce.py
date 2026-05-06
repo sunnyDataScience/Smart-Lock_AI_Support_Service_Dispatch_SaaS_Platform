@@ -11,12 +11,13 @@
 import asyncio
 import base64
 import json
-import logging
 import time
 
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage, ToolMessage
 
-logger = logging.getLogger(__name__)
+from core.logging_config import get_logger
+
+log = get_logger(__name__)
 
 import core.line_bot as line_bot
 from core.content_utils import extract_text
@@ -332,8 +333,14 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         display = _extract_text_from_items(buffer_items) if buffer_items else (
             extract_text(message_content) if isinstance(message_content, str) else "[多模態訊息]"
         )
-        print(f"[Agent] 開始思考 user_id: {user_id} 的問題...")
-        print(f"[Agent] 送入內容:\n{'─' * 40}\n{display[:500]}{'...(截斷)' if len(display) > 500 else ''}\n{'─' * 40}")
+        log.info(
+            "agent_thinking_started",
+            module="debounce",
+            user_id=user_id,
+            input_preview=display[:500],
+            input_len=len(display),
+            multimodal=is_multimodal,
+        )
 
         # 注入 Opik 追蹤
         run_config = config.copy()
@@ -354,8 +361,15 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
             )
         except asyncio.TimeoutError:
             ainvoke_s = time.monotonic() - t0
-            print(f"[Agent 超時] {user_id} 的問題處理超過 {request_timeout} 秒")
-            print(f"[Timing-TIMEOUT] pre={pre_setup_s:.2f}s strip={strip_s:.2f}s ainvoke=>{ainvoke_s:.2f}s")
+            log.warning(
+                "agent_timeout",
+                module="debounce",
+                user_id=user_id,
+                timeout_s=request_timeout,
+                pre_setup_s=round(pre_setup_s, 3),
+                strip_s=round(strip_s, 3),
+                ainvoke_s=round(ainvoke_s, 3),
+            )
             return _templates.get("error_timeout", "不好意思，系統處理時間過長，請稍後再試一次。")
         t_invoke_done = time.monotonic()
         latency_ms = (t_invoke_done - t0) * 1000
@@ -382,12 +396,27 @@ async def run_agent(user_id: str, user_input: str | list, buffer_items: list | N
         asyncio.create_task(_cleanup_tool_checkpoint(config, messages))
         total_s = time.monotonic() - t_phase_start
         ainvoke_s = (t_invoke_done - t0)
-        print(f"[Timing] pre={pre_setup_s:.2f}s strip={strip_s:.2f}s ainvoke={ainvoke_s:.2f}s cleanup=bg total={total_s:.2f}s")
+        log.info(
+            "agent_timing",
+            module="debounce",
+            user_id=user_id,
+            pre_setup_s=round(pre_setup_s, 3),
+            strip_s=round(strip_s, 3),
+            ainvoke_s=round(ainvoke_s, 3),
+            total_s=round(total_s, 3),
+            cleanup="bg",
+        )
 
         return ai_response
 
     except Exception as e:
-        print(f"[Agent 執行錯誤] {e}")
+        log.error(
+            "agent_execution_error",
+            module="debounce",
+            user_id=user_id,
+            error=str(e),
+            exc_info=True,
+        )
         return _templates.get("error_system", "不好意思，系統大腦剛剛稍微當機了一下，請稍後再試一次！")
 
 async def _cleanup_multimodal_checkpoint(config: dict, messages: list, buffer_items: list | None):
@@ -485,7 +514,14 @@ async def _audit_agent_result(user_id: str, messages: list, latency_ms: float):
             latency_ms=latency_ms,
         )
     except Exception as e:
-        print(f"[Audit] 記錄 agent 結果失敗: {e}")
+        log.warning(
+            "audit_log_write_failed",
+            module="debounce",
+            event_type="agent_result",
+            user_id=user_id,
+            error=str(e),
+            exc_info=True,
+        )
 
 
 async def _quick_reply_intercept(
@@ -724,7 +760,13 @@ async def agent_and_reply(
                 if history_lines:
                     validator_context_parts.append(f"[最近對話]\n" + "\n".join(history_lines))
         except Exception as e:
-            logger.warning("[Debounce] 組裝 validator context 失敗（將以空 context 繼續）: %s", e, exc_info=True)
+            log.warning(
+                "validator_context_build_failed",
+                module="debounce",
+                user_id=user_id,
+                error=str(e),
+                exc_info=True,
+            )
         if _profile_mgr and _profile_mgr.enabled:
             profile_text = await _profile_mgr.load_full_profile(user_id)
             if profile_text:
@@ -747,7 +789,14 @@ async def agent_and_reply(
                         payload={"reason": validation["reason"], "original_response": ai_response[:500]},
                     )
                 except Exception as e:
-                    logger.warning("[Debounce] 寫入 output_validation audit log 失敗（不影響回覆流程）: %s", e, exc_info=True)
+                    log.warning(
+                        "audit_log_write_failed",
+                        module="debounce",
+                        event_type="output_validation",
+                        user_id=user_id,
+                        error=str(e),
+                        exc_info=True,
+                    )
             # 注入修正指令，重跑完整 ReAct loop
             correction_msg = (
                 f"[系統內部修正指令 - 不要在回覆中提及此指令]\n"
