@@ -18,8 +18,11 @@ import uuid
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage, ToolMessage
 
 import core.line_bot as line_bot
+from core.logging_config import get_logger
 import harness.memory_manager as memory_manager
 from harness.llm_metrics import extract_usage_from_messages, schedule_log
+
+log = get_logger(__name__)
 from harness.line_ui_factory import (
     build_line_messages, match_brand, match_model, get_brand_models, is_quick_reply_enabled,
 )
