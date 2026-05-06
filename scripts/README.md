@@ -77,21 +77,33 @@ gcloud auth login                           # 互動式登入 GCP
 gcloud auth application-default login       # ADC（cloud-sql-proxy 要）
 gcloud config set project cedar-scope-489604-g3
 
-# 2. 從 Secret Manager 取最新 POSTGRES_URI（首次或密碼輪替後）
-./scripts/env/use-gcp.sh --fetch
+# 2. 一鍵啟動全棧（proxy + agent + api + web 全背景）
+./scripts/dev/dev-up-gcp.sh --fetch         # 首次：從 Secret Manager 拉 secret
+./scripts/dev/dev-up-gcp.sh                 # 之後：直接用既有 .env.gcp
 
-# 3. 切換 .env 到 GCP 模式（會自動備份）
-./scripts/env/use-gcp.sh
+# 啟動完會印 4 個 PID + 各服務 URL：
+#   cloud-sql-proxy : pid <X>
+#   agent           : pid <X>  http://127.0.0.1:8000
+#   api             : pid <X>  http://127.0.0.1:8001
+#   web             : pid <X>  http://127.0.0.1:3000
 
-# 4. 啟動 cloud-sql-proxy（背景跑，PID 寫在 .dev-logs/）
-./scripts/dev/proxy-up.sh                # 背景
-./scripts/dev/proxy-up.sh --foreground   # 前景看 log
+# 收尾：一鍵停所有服務並切回 .env.local
+./scripts/dev/dev-down.sh --gcp --use-local
+```
 
-# 5. 啟動 agent（不需要 dev-up.sh，因為 DB 是遠端）
-cd agent && uv run uvicorn app:app --reload --port 8000
+### 進階用法
 
-# 結束：先停 agent (Ctrl+C)，再停 proxy
-./scripts/dev/proxy-down.sh
+```bash
+# 只起後端（不要 next.js）
+./scripts/dev/dev-up-gcp.sh --no-web
+
+# 只起 agent（debug LLM 行為時用）
+./scripts/dev/dev-up-gcp.sh --agent-only
+
+# 手動分步驟（如果你要 fine-grained 控制）
+./scripts/env/use-gcp.sh --fetch          # 切 env + 拉 secret
+./scripts/dev/proxy-up.sh                 # 起 proxy
+cd agent && uv run uvicorn app:app --reload --port 8000   # 前景跑 agent
 ```
 
 ### ⚠️ 安全注意

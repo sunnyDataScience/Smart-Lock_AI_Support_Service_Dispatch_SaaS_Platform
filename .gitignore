@@ -62,3 +62,4 @@ cloud-sql-proxy
 .claude/settings.local.json
 .claude/taskmaster-data/
 .claude/statusline-go.exe
+.dev-logs/
