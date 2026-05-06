@@ -139,6 +139,11 @@ cd agent && uv run uvicorn app:app --reload --port 8000   # 前景跑 agent
 ./scripts/deploy/api.sh
 ./scripts/deploy/api.sh --build-only
 ./scripts/deploy/api.sh --deploy-only
+
+# Web (Next.js Admin Dashboard)
+./scripts/deploy/web.sh
+./scripts/deploy/web.sh --build-only
+./scripts/deploy/web.sh --deploy-only
 ```
 
 部署細節（image tag、Secret Manager、Cloud SQL Unix socket、health check
