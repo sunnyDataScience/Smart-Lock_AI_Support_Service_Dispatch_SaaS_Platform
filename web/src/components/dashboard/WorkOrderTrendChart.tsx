@@ -24,7 +24,8 @@ const RANGES = [
 
 type RangeLabel = (typeof RANGES)[number]["label"];
 
-const FETCH_LIMIT = 200;
+// API 上限為 100（pydantic Field(le=100)），超過會 422
+const FETCH_LIMIT = 100;
 
 interface BucketRow {
   date: string;
