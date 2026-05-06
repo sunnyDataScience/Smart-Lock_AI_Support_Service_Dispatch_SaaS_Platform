@@ -38,6 +38,34 @@
   --warning: #F59E0B;
   --error: #EF4444;
   --info: #3B82F6;
+
+  /* Semantic badge / pill tokens
+   * 給 StatusBadge / KpiCard / 表格行狀態 / urgency / pending banner 等用
+   * 命名規範：--{用途}-{調性}-{bg|fg}
+   * 調性對應：
+   *   warn   → 黃（in-progress / 待派工 / urgent）
+   *   info   → 藍（assigned / 已派工）
+   *   success→ 綠（completed / 完成）
+   *   danger → 紅（overdue / 緊急 / error）
+   *   muted  → 灰（pending / normal / default）
+   */
+  --badge-warn-bg: #FEF3C7;
+  --badge-warn-fg: #B45309;
+  --badge-info-bg: #DBEAFE;
+  --badge-info-fg: #1D4ED8;
+  --badge-success-bg: #D1FAE5;
+  --badge-success-fg: #065F46;
+  --badge-danger-bg: #FEE2E2;
+  --badge-danger-fg: #DC2626;
+  --badge-muted-bg: #F1F5F9;
+  --badge-muted-fg: #64748B;
+
+  /* Surface tokens — 給卡片、區塊用 */
+  --surface-elevated: #FFFFFF;
+  --surface-subtle: #F8FAFC;
+  --surface-strong: #F1F5F9;
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
+  --shadow-popover: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
 }
 
 @layer base {

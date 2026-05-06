@@ -54,7 +54,7 @@ function formatPercent(rate: number | undefined | null): string {
 
 function PendingBadge() {
   return (
-    <span className="ml-2 inline-block rounded bg-[#FEF3C7] px-1.5 py-[1px] text-[10px] font-medium text-[#B45309]">
+    <span className="ml-2 inline-block rounded bg-[var(--badge-warn-bg)] px-1.5 py-[1px] text-[10px] font-medium text-[var(--badge-warn-fg)]">
       待派工模組接入
     </span>
   );

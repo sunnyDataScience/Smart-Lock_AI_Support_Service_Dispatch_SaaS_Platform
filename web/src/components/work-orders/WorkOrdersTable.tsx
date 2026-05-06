@@ -34,18 +34,21 @@ const STATUS_GROUP_MAP: Record<WorkOrderStatus, StatusGroup> = {
   cancelled: "cancelled",
 };
 
+// 工單狀態色彩：用 globals.css semantic token，視覺與 StatusBadge 對齊。
+// pending/dispatched 用各自的紫/藍區分階段（不在 badge token 內，保留 hex）；
+// 其餘用統一的 --badge-{tone} 變數。
 const STATUS_GROUP_STYLE: Record<StatusGroup, { label: string; color: string; bg: string }> = {
   pending: { label: "待處理", color: "#6366F1", bg: "#EEF2FF" },
   dispatched: { label: "已派工", color: "#8B5CF6", bg: "#F5F3FF" },
-  in_progress: { label: "處理中", color: "#3B82F6", bg: "#DBEAFE" },
-  done: { label: "已完成", color: "#10B981", bg: "#D1FAE5" },
-  cancelled: { label: "已取消", color: "#EF4444", bg: "#FEE2E2" },
+  in_progress: { label: "處理中", color: "var(--badge-info-fg)", bg: "var(--badge-info-bg)" },
+  done: { label: "已完成", color: "var(--badge-success-fg)", bg: "var(--badge-success-bg)" },
+  cancelled: { label: "已取消", color: "var(--badge-danger-fg)", bg: "var(--badge-danger-bg)" },
 };
 
 const URGENCY_STYLE: Record<Urgency, { label: string; color: string; bg: string }> = {
-  low: { label: "低", color: "#64748B", bg: "#F1F5F9" },
-  medium: { label: "中", color: "#D97706", bg: "#FEF3C7" },
-  high: { label: "高", color: "#EF4444", bg: "#FEE2E2" },
+  low: { label: "低", color: "var(--badge-muted-fg)", bg: "var(--badge-muted-bg)" },
+  medium: { label: "中", color: "var(--badge-warn-fg)", bg: "var(--badge-warn-bg)" },
+  high: { label: "高", color: "var(--badge-danger-fg)", bg: "var(--badge-danger-bg)" },
 };
 
 const columns = [

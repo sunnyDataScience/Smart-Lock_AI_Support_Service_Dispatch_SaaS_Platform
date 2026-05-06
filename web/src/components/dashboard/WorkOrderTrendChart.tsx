@@ -109,7 +109,7 @@ export default function WorkOrderTrendChart({
           <h3 className="text-[20px] font-semibold text-[#18181B]">工單趨勢</h3>
           {hasMore && (
             <span
-              className="rounded bg-[#FEF3C7] px-2 py-[2px] text-[10px] font-medium text-[#B45309]"
+              className="rounded bg-[var(--badge-warn-bg)] px-2 py-[2px] text-[10px] font-medium text-[var(--badge-warn-fg)]"
               title={`只取最近 ${sampleLimit} 筆工單；資料量超過時較舊區段可能偏低`}
             >
               取樣 {sampleLimit} 筆

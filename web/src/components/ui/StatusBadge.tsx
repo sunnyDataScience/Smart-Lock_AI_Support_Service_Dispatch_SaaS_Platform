@@ -11,15 +11,16 @@ export interface StatusBadgeProps {
     | "default";
 }
 
+// 統一從 globals.css 的 semantic token 讀（--badge-{tone}-bg/fg）
 const variantStyles: Record<StatusBadgeProps["variant"], string> = {
-  "in-progress": "bg-[#FEF3C7] text-[#B45309]",
-  assigned: "bg-[var(--primary-light)] text-[#1D4ED8]",
-  pending: "bg-[#F1F5F9] text-[#64748B]",
-  completed: "bg-[#D1FAE5] text-[#065F46]",
-  overdue: "bg-[#FEE2E2] text-[#DC2626]",
-  urgent: "bg-[#FEF3C7] text-[#B45309]",
-  normal: "bg-[#F1F5F9] text-[#64748B]",
-  default: "bg-[#F1F5F9] text-[#64748B]",
+  "in-progress": "bg-[var(--badge-warn-bg)] text-[var(--badge-warn-fg)]",
+  assigned: "bg-[var(--badge-info-bg)] text-[var(--badge-info-fg)]",
+  pending: "bg-[var(--badge-muted-bg)] text-[var(--badge-muted-fg)]",
+  completed: "bg-[var(--badge-success-bg)] text-[var(--badge-success-fg)]",
+  overdue: "bg-[var(--badge-danger-bg)] text-[var(--badge-danger-fg)]",
+  urgent: "bg-[var(--badge-warn-bg)] text-[var(--badge-warn-fg)]",
+  normal: "bg-[var(--badge-muted-bg)] text-[var(--badge-muted-fg)]",
+  default: "bg-[var(--badge-muted-bg)] text-[var(--badge-muted-fg)]",
 };
 
 export default function StatusBadge({ label, variant }: StatusBadgeProps) {
