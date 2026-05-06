@@ -97,7 +97,9 @@
 
 ## 5. 執行計畫概要
 
-1. **專案初始化：** 使用 Poetry 管理依賴，建立 FastAPI 專案骨架（`src/app/`）。
+> **更新（2026-05）**：依賴管理已從 pip + requirements.txt（早期版本）/ Poetry（本 ADR 原計畫）遷移至 **uv workspace**（根 `pyproject.toml`、子模組 `agent/api/data/pyproject.toml`、共享 `uv.lock`）。詳見 commit 75c0a21、e9ef158 與 `scripts/README.md`。本決策未變更框架選擇（仍為 FastAPI + Pydantic + SQLAlchemy 2.0），僅變更套件管理工具；以下原計畫保留作決策歷史紀錄。
+
+1. **專案初始化：** 使用 Poetry 管理依賴（已超越，現用 uv），建立 FastAPI 專案骨架（`src/app/`）。
 2. **Webhook 端點：** 實作 `/webhook/line` 端點，接收 LINE Messaging API 事件，立即回應 200 後非同步處理。
 3. **API 模組化：** 依業務領域拆分 API Router — `routers/line.py`、`routers/cases.py`、`routers/technicians.py`、`routers/billing.py`。
 4. **Pydantic Schema 定義：** 優先定義 ProblemCard、ServiceOrder、TechnicianProfile 等核心 Pydantic model。

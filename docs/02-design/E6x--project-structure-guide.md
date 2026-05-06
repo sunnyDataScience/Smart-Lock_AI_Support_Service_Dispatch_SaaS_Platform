@@ -1,9 +1,11 @@
 # 專案結構指南 - 電子鎖智能客服與派工平台
 
-**文件版本:** v3.0
-**最後更新:** 2026-04-04
+**文件版本:** v3.1
+**最後更新:** 2026-05-06
 **主要作者:** 技術負責人
 **狀態:** 活躍 (Active)
+
+> **v3.1 變更摘要：** 同步 uv workspace 結構（`pyproject.toml` 取代 `requirements.txt`）、補 `scripts/{dev,env,ci,deploy}` 子目錄分類、`scripts/view_*.py` → `tests/tools/`、`silver_to_gold/` → `silver_to_skill/`、harness/ 從 8 層子目錄改寫為 8 個扁平 middleware 檔案、registry pattern 三種變體精確化（LiteLLM 字串路由 vs dict registry vs 直接 export）。
 
 ---
 
@@ -22,7 +24,7 @@
   - [4.7 memory/ + profiles/ + storage/ -- Persistence](#47-memory--profiles--storage----persistence)
   - [4.8 data/ -- ETL Knowledge Base Pipeline](#48-data----etl-knowledge-base-pipeline)
   - [4.9 services/ -- V2.0 Business Logic Services](#49-services----v20-business-logic-services)
-  - [4.10 scripts/ -- Admin CLI Utilities](#410-scripts----admin-cli-utilities)
+  - [4.10 tests/tools/ + scripts/ -- 跨平台工具與部署腳本](#410-teststools--scripts----跨平台工具與部署腳本)
 - [5. 前端目錄詳解 (frontend/) - V2.0](#5-前端目錄詳解-frontend---v20)
 - [6. Docker 與部署結構](#6-docker-與部署結構)
   - [6.1 docker-compose.yml 服務定義](#61-docker-composeyml-服務定義)
@@ -85,12 +87,14 @@ Infrastructure (外層) --> Application (中層) --> Domain (內層)
 
 ### 2.5 可預測性 (Predictability)
 
-看到功能名稱就能推斷出檔案位置。例如：知道有個「問題卡」功能，就能預測以下路徑存在：
+看到功能名稱就能推斷出檔案位置。例如：知道有個「技能」功能，就能預測以下路徑存在：
 
-- `agent/harness/task/problem_card.py` -- ProblemCard dataclass
-- `agent/harness/task/decomposer.py` -- task_decompose() 節點
-- `agent/harness/task/prompts/decompose_task.md` -- LLM prompt
-- `agent/config.toml [harness.task]` -- 設定開關
+- `agent/skills/data/{Brand}/{Model}/SKILL.md` -- 技能知識文件（YAML frontmatter + Markdown SOP）
+- `agent/skills/__init__.py` -- `load_skills()` / `filter_skills()` 進入點
+- `agent/skills/tools.py` -- `load_skill` / `update_user_info` / `transfer_to_human` 三個 agent tool
+- `agent/config.toml [skills]` -- 設定開關
+
+> **歷史備註：** 早期 V1 設計中以「ProblemCard + harness/task/」承擔故障推理，現已被 SKILL-based ReAct agent 取代。本文件中仍出現的 `harness/task/` 路徑屬歷史脈絡描述，不再對應現存程式碼。
 
 ---
 
@@ -103,21 +107,19 @@ Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/
 │   ├── core/                 # System foundations (config, constants, debounce, line_bot)
 │   ├── embeddings/           # Embedding providers (ollama, vertexai)
 │   ├── graph/                # LangGraph state machine (state, builder, nodes)
-│   ├── harness/              # 8-Layer Agent Governance Framework
-│   │   ├── context/          # L2: Context Assembly + Token Budget
-│   │   ├── entropy/          # L8: SOP Generation + Anomaly Detection
-│   │   ├── feedback/         # L5: Response Verification
-│   │   ├── governance/       # L3: Tool Registry + Risk Levels
-│   │   ├── observability/    # L7: Tracing + Metrics
-│   │   ├── safety/           # L6: Safety Gate (PII, dangerous keywords, sentiment)
-│   │   └── task/             # L1: Task Decomposition + Diagnostic Intelligence
-│   │       ├── knowledge/    # Knowledge assets (SOPs, fault_trees, failure_modes, OCAP)
-│   │       ├── prompts/      # Diagnostic reasoning prompts
-│   │       └── taxonomy/     # Classification taxonomies
+│   ├── harness/              # 8 個扁平 middleware 檔案（H2/H3/H_DC/H_QR/H4/H5/H6/H7.5）
+│   │   ├── debounce.py       # H3: 訊息去抖 + 編排核心（含 H8 audit log 旁路）
+│   │   ├── multimodal.py     # H2: 多模態下載 + buffer 替換
+│   │   ├── data_correction.py # H_DC: #資料修正 攔截
+│   │   ├── line_ui_factory.py # H_QR: Quick Reply 品牌詢問
+│   │   ├── profile_updater.py # H4: LLM 提取使用者資料
+│   │   ├── memory_manager.py # H5: 對話記憶壓縮
+│   │   ├── safety_gate.py    # H6: 危險關鍵字攔截
+│   │   ├── output_validator.py # H7.5: 輸出驗證（禁止洩漏內部機制）
+│   │   └── media_storage/    # 多模態存儲後端 registry
 │   ├── llms/                 # LLM providers (ollama, gemini, vertexai)
 │   ├── memory/               # Chat history persistence (postgres, sqlite)
 │   ├── profiles/             # User profile management
-│   ├── scripts/              # Admin tools (seed_db, debug, view_logs)
 │   ├── services/             # V2.0 Business Logic Services (16 modules)
 │   │   ├── audit/            # Structured audit logging (7 event types)
 │   │   ├── auth/             # Dynamic RBAC (7 roles)
@@ -143,11 +145,11 @@ Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/
 │   └── main.py               # CLI test mode
 │
 ├── data/                     # Data Pipeline & Storage
-│   ├── pipeline/             # ETL stages (raw -> bronze -> silver -> gold)
+│   ├── pipeline/             # ETL stages (raw -> bronze -> silver -> skill)
 │   │   ├── source_to_raw/    #   Raw data collection
 │   │   ├── raw_to_bronze/    #   Text extraction (YouTube, LINE, Website, GDrive)
-│   │   ├── bronze_to_silver/ #   LLM content enrichment
-│   │   └── silver_to_gold/   #   Vectorization -> pgvector write
+│   │   ├── bronze_to_silver/ #   LLM 語意切塊
+│   │   └── silver_to_skill/  #   Classify -> SKILL.md draft -> approve_drafts.py
 │   ├── storage/              # Data lake (raw/bronze/silver layers, ~228 JSON files)
 │   ├── database/             # pgvector startup config
 │   ├── embeddings/           # Embedding providers (ETL)
@@ -173,11 +175,40 @@ Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/
 │
 ├── frontend/                 # V2.0 Next.js 14 Admin Panel + Tech App
 │
+├── scripts/                  # Cross-cutting shell scripts (dev / env / ci / deploy)
+├── tests/                    # 整合測試與除錯工具（debug tools）
+│   ├── tools/                #   除錯與資料檢視工具（view_*.py / clean_data.py / simulate_e2e.py）
+│   └── smoke/                #   煙測腳本（api.sh）
+│
+├── pyproject.toml            # uv workspace root（members: agent, api, data）
+├── uv.lock                   # 統一鎖檔，由 `uv sync` 生成與更新
+├── .python-version           # 釘 Python 3.11（pyenv 兼容）
 ├── .claude/                  # Claude Code config
 ├── .env                      # Environment variables (not version-controlled)
 ├── .gitignore                # Git ignore rules
 └── README.md                 # Project introduction & quickstart
 ```
+
+### 3.1 uv Workspace 結構
+
+專案採用 [uv workspace](https://docs.astral.sh/uv/concepts/workspaces/) 進行多模組依賴管理，從根目錄統一執行 `uv sync` 即可同步所有子模組依賴。
+
+```plaintext
+pyproject.toml          # workspace root（members: agent, api, data）
+agent/pyproject.toml    # agent 子模組依賴（LangGraph + LINE Bot + LiteLLM）
+api/pyproject.toml      # api 子模組依賴（FastAPI 管理後台 API）
+data/pyproject.toml     # data pipeline 依賴（yt-dlp / Playwright / Whisper）
+.python-version         # 釘 Python 3.11（pyenv 兼容）
+uv.lock                 # 統一 lock，由 `uv sync` 生成與更新
+```
+
+**為什麼選 uv workspace 而非各模組獨立 venv：**
+
+- **單一 lock**：跨模組依賴衝突在 `uv sync` 時即時發現，避免「在 agent 跑得起來、在 api 跑不起來」的版本漂移。
+- **快速切換**：`uv run -p agent python main.py` 即可指定執行 context，不需 `cd agent && source .venv/bin/activate`。
+- **CI 一致性**：CI 與本機共用同一份 `uv.lock`，杜絕「在 CI 才出錯」的依賴重現問題。
+
+> 舊有 `requirements.txt` 已淘汰。歷史 commit 中可見的 `pip install -r agent/requirements.txt` 指令請改為 `uv sync`（從專案根目錄執行）。
 
 ---
 
@@ -287,85 +318,49 @@ agent/agents/
 
 ---
 
-### 4.3 harness/ -- 8-Layer Agent Governance Framework
+### 4.3 harness/ -- Middleware 治理層（8 個扁平檔案）
 
-Harness 是 Agent 系統的運行時治理基礎設施。8 層架構中，各層的 V1.0 啟用狀態與成本特性如下：
+> **與 V1.0 設計文件的差異：** 早期設計提案（`docs/agent-harness-refactor/`）規劃 8 層子目錄（task/、context/、governance/...），實際落地時為**降低耦合與啟動延遲**，所有 harness middleware 改為**扁平單檔模組**，由 `harness/debounce.py` 作為編排核心同步觸發。沒有 sub-package、沒有跨層共享 state，每個檔案就是一個 middleware。
+
+**實際結構（截至 v3.1）：**
 
 ```plaintext
 agent/harness/
-├── __init__.py                         # is_harness_enabled(), is_layer_enabled()
-│
-├── task/                               # L1: Task Decomposition + Diagnostic Intelligence
-│   ├── __init__.py
-│   ├── decomposer.py                  #   task_decompose() — Software 3.0 diagnostic reasoning
-│   ├── problem_card.py                #   ProblemCard dataclass + CRUD
-│   ├── knowledge_loader.py            #   Knowledge asset loader (SOPs, fault trees, OCAP)
-│   ├── prompts/                       #   Diagnostic reasoning prompt templates
-│   │   ├── decompose_task.md          #     Task decomposition prompt
-│   │   └── diagnostic_reasoning.md    #     Diagnostic reasoning chain prompt
-│   ├── taxonomy/                      #   Classification taxonomies
-│   │   ├── components.toml            #     Hardware component taxonomy
-│   │   └── symptoms.toml              #     Symptom classification taxonomy
-│   └── knowledge/                     #   Structured knowledge assets
-│       ├── README.md                  #     Knowledge asset documentation
-│       ├── sop/                       #     Standard Operating Procedures
-│       │   ├── SOP-CS-001.json        #       Customer service SOP
-│       │   ├── SOP-DISPATCH-001.json  #       Dispatch SOP
-│       │   ├── SOP-EMERGENCY-001.json #       Emergency SOP
-│       │   └── SOP-HW-001.json       #       Hardware troubleshooting SOP
-│       ├── fault_trees/               #     Fault tree decision models
-│       │   ├── FT-HW-001.json        #       Fault tree: hardware category 1
-│       │   ├── FT-HW-002.json        #       Fault tree: hardware category 2
-│       │   ├── FT-HW-003.json        #       Fault tree: hardware category 3
-│       │   ├── FT-HW-004.json        #       Fault tree: hardware category 4
-│       │   └── FT-HW-005.json        #       Fault tree: hardware category 5
-│       ├── failure_modes/             #     Failure mode registry
-│       │   └── failure_mode_registry.json #   Structured failure mode definitions
-│       ├── failures/                  #     Failure taxonomy
-│       │   └── failure_taxonomy.json  #       Hierarchical failure classification
-│       └── ocap_rules.json           #     OCAP (Occurrence, Cause, Action, Prevention) rules
-│
-├── context/                            # L2: Context Assembly + Token Budget
-│   ├── assembler.py                   #   context_assemble() — context selection
-│   ├── budget.py                      #   Token budget calculation
-│   └── freshness.py                   #   Source freshness scoring
-│
-├── governance/                         # L3: Tool Governance
-│   ├── registry.py                    #   ToolRegistry (risk levels)
-│   └── validator.py                   #   Parameter schema validation
-│
-├── feedback/                           # L5: Feedback & Verification
-│   └── verifier.py                    #   verify_answer() — quality assessment + retry
-│
-├── safety/                             # L6: Safety & Control
-│   └── gate.py                        #   safety_gate() — PII detection, dangerous keywords, sentiment
-│
-├── observability/                      # L7: Observability
-│   ├── tracer.py                      #   @traced decorator
-│   └── metrics.py                     #   SessionMetrics + execution report
-│
-└── entropy/                            # L8: Entropy Management
-    ├── checker.py                     #   entropy_check() — novel case detection
-    └── sop_generator.py               #   Auto-generate SOP from novel cases
+├── debounce.py          # H3: 訊息去抖 + 編排核心（buffer_wait=1.5s）
+├── multimodal.py        # H2: 多模態下載 + buffer placeholder 替換
+├── data_correction.py   # H_DC: #資料修正 攔截，存 conversation context 到 DB
+├── line_ui_factory.py   # H_QR: Quick Reply 品牌/型號詢問
+├── profile_updater.py   # H4: 背景任務，LLM 提取使用者資料（電話、地址）
+├── memory_manager.py    # H5: 對話記憶壓縮（>12 則自動摘要）
+├── safety_gate.py       # H6: 危險關鍵字攔截
+├── output_validator.py  # H7.5: 輸出驗證（禁止洩漏內部機制詞彙）
+└── media_storage/       # 多模態檔案儲存後端（dict registry：local / gcs）
 ```
 
-> **注意：** L4 (State & Memory) 由既有 `memory/` + `profiles/` 模組承擔，未在 harness 目錄中重複。
-> 完整設計規格請參閱 `docs/agent-harness-refactor/`。
+> **H8 audit log** 目前漂在 `debounce.py` 內部 background task，未獨立成檔。若未來規模擴大可抽出為 `harness/audit.py`。
+> **L4 State & Memory** 由 `memory/` + `profiles/` 模組承擔（不在 harness/）。
 
-**V1.0 各層啟用狀態：**
+**Middleware 觸發順序與成本：**
 
-| Layer | 名稱 | V1.0 狀態 | 成本特性 | 說明 |
-|-------|------|-----------|---------|------|
-| L1 | Task Decompose | ON | LLM call | Software 3.0 diagnostic reasoning，結合知識資產進行故障推理 |
-| L2 | Context Assembly | OFF (V1.2) | LLM call | 需要 data proof 驗證 context 精選的效益後才啟用 |
-| L3 | Governance | ON | lightweight, no LLM | 純 registry 查詢 + schema 驗證，零 LLM 成本 |
-| L4 | State & Memory | ON | core | memory/ + profiles/ 承擔，系統核心功能 |
-| L5 | Feedback/Verify | OFF (V1.2) | LLM call | 回答驗證會增加 latency，需評估成本效益後啟用 |
-| L6 | Safety Gate | ON | regex-based, zero cost | 純正則比對 PII、危險關鍵字、情緒偵測，零延遲 |
-| L7 | Observability | ON | decorator, zero latency | `@traced` decorator 注入，不影響 request path |
-| L8 | Entropy | ON | async, off request path | 非同步執行，新案例偵測與 SOP 產生不阻塞主流程 |
+| 編號 | 檔案 | 觸發時機 | 阻塞 | 成本特性 |
+|------|------|---------|------|---------|
+| H2 | `multimodal.py` | 收到 image/audio/video | 背景下載 + 同步 buffer 替換 | 受網路 IO 影響 |
+| H3 | `debounce.py` | 所有訊息 | 同步（buffer_wait=1.5s） | 純 asyncio.sleep |
+| H_DC | `data_correction.py` | `#資料修正` 關鍵字 | 同步 — 存 DB 後跳過 agent | DB 寫入 |
+| H_QR | `line_ui_factory.py` | 品牌未知 | 同步 — 暫停問品牌 | 零 LLM |
+| H4 | `profile_updater.py` | agent 回覆後 | 背景 — LLM 抽取 | LLM call |
+| H5 | `memory_manager.py` | agent 前後 | 同步檢查 + 背景壓縮 | LLM call（壓縮時） |
+| H6 | `safety_gate.py` | LLM call 前 | 同步 | regex，零延遲 |
+| H7.5 | `output_validator.py` | LLM 回覆後 | 同步 | regex，零延遲 |
+| H8 | `debounce.py` 內部 | agent 回覆後 | 背景 | DB 寫入 |
 
-**啟用判斷規則：** `config.toml [harness]` master switch + 各層獨立 `enabled` flag。`builder.py` 中 `is_layer_enabled()` 為 False 時，該層節點自動 pass-through。
+**設計原則：**
+
+- **編排集中於 `debounce.py`**：其他 middleware 都是「被 debounce.py 呼叫的純函式或 task」，沒有迴圈依賴。
+- **背景任務不阻塞回覆**：H4、H5（壓縮階段）、H8 都是 `asyncio.create_task` fire-and-forget，使用者體感延遲 = LLM 回覆延遲，不疊加。
+- **每個 middleware 自己管 ContextVar**：避免在 async 環境下用全域變數造成 request 串味。
+
+> **歷史脈絡：** 早期設計中的 L1 Task Decomposition + 知識資產（SOP/fault_trees/OCAP rules）方案已被 **SKILL-based ReAct agent** 取代。`agent/skills/data/` 取代了 `harness/task/knowledge/`，`agent/agent.py` 的 `create_react_agent` 取代了 `task_decompose()`。詳見 [4.8 data/](#48-data----etl-knowledge-base-pipeline) 與 `agent/skills/`。
 
 ---
 
@@ -421,18 +416,25 @@ agent/core/
 
 ```plaintext
 agent/llms/
-├── __init__.py                         # get_llm(config) factory
-├── vertexai_model.py                   # Google Vertex AI (production)
-├── gemini_model.py                     # Google Gemini API (development)
-└── ollama_model.py                     # Ollama local inference (offline dev)
+├── __init__.py                         # build_llm() — LiteLLM 字串前綴路由
+└── litellm_model.py                    # LiteLLM 統一封裝（vertex_ai / openai / anthropic / ollama）
 
 agent/embeddings/
-├── __init__.py                         # get_embeddings(config) factory
+├── __init__.py                         # build 函式直接 export（無 registry）
 ├── vertexai_embed.py                   # Vertex AI text-embedding-004
 └── ollama_embed.py                     # Ollama local embedding
 ```
 
-透過 `config.toml [llm].provider` 切換 LLM 供應商（`"vertexai"` / `"gemini"` / `"ollama"`），程式碼零修改。Embedding 供應商由各 `[[databases]]` 條目的 `embedding_provider` 欄位獨立指定。
+**Registry pattern 在 agent/ 內的三種變體：**
+
+| 模組 | 切換機制 | 實作風格 | 為何如此選擇 |
+|------|---------|---------|-------------|
+| `agent/llms/` | **LiteLLM 字串前綴路由**（如 `"vertex_ai/gemini-2.5-pro"`、`"openai/gpt-4o"`） | 不是 dict registry，但同樣 config-driven — 字串解析交給 LiteLLM 完成 | 供應商爆炸時不想為每家寫 wrapper；LiteLLM 已涵蓋 100+ 模型 |
+| `agent/memory/__init__.py` | dict registry（key: `in-process` / `sqlite` / `postgres`） | 顯式 dict 對應到 LangGraph 原生 checkpointer | 只有 3 個後端，dict 比 entry-point 更直接 |
+| `agent/storage/__init__.py` | dict registry（key 同上） | 顯式 dict 對應到審計日誌實作 | 同上 |
+| `agent/embeddings/` | build 函式直接 export，無 registry | `build_vertexai_embeddings()` / `build_ollama_embeddings()` 個別 import | 規模小（2 家），加 registry 反而增加間接層 |
+
+切換時改 `config.toml`：`[llm] model_name = "vertex_ai/gemini-2.5-pro"` / `[memory] type = "postgres"` / `[storage] type = "sqlite"`，程式碼零修改。Embedding 供應商由各 `[[databases]]` 條目的 `embedding_provider` 欄位獨立指定。
 
 ---
 
@@ -467,8 +469,8 @@ data/
 ├── pipeline/
 │   ├── source_to_raw/                  # Raw data collection scripts
 │   ├── raw_to_bronze/                  # Text extraction (YouTube, LINE, Website, GDrive)
-│   ├── bronze_to_silver/               # LLM content enrichment & structuring
-│   └── silver_to_gold/                 # Vector embedding -> pgvector write
+│   ├── bronze_to_silver/               # LLM 語意切塊 + 結構化
+│   └── silver_to_skill/                # Classify -> SKILL.md draft -> approve_drafts.py
 ├── storage/                            # Data lake (~228 JSON files across layers)
 │   ├── raw/                            #   Raw layer files
 │   ├── bronze/                         #   Bronze layer extracted text
@@ -483,14 +485,16 @@ data/
 └── pyproject.toml                      # uv workspace member
 ```
 
-採用 **Medallion Architecture**（Raw -> Bronze -> Silver -> Gold）：
+採用 **Medallion Architecture**（Raw -> Bronze -> Silver -> Skill/Gold）：
 
 | 層級 | 處理內容 | 輸出 |
 |------|---------|------|
 | **Raw** | 原始檔案收集（PDF、影片 URL、網頁 URL） | 原始檔案 |
 | **Bronze** | 文字擷取（YouTube 字幕、LINE 對話匯出、網頁爬蟲、GDrive PDF） | 純文字 |
-| **Silver** | LLM 內容增強（摘要、分類、結構化 JSON） | 結構化 JSON |
-| **Gold** | 向量嵌入（text-embedding-004）-> pgvector 寫入 | pgvector collections |
+| **Silver** | LLM 語意切塊與分類（chunking + categorization） | 結構化 JSON |
+| **Skill (Gold)** | 分類 → 起草 → 人審 → SKILL.md（YAML frontmatter + Markdown SOP） | `agent/skills/data/{Brand}/{Model}/SKILL.md` |
+
+> **命名說明**：通用 Medallion 文獻多以「Gold」稱呼最終層，本專案最終產物是給 ReAct agent 使用的知識文件 `SKILL.md`，故目錄命名為 `silver_to_skill/` 而非 `silver_to_gold/`。意義上等價，命名上更貼近實際產物。`approve_drafts.py` 是 Gold 層的人工審核閘門。
 
 ---
 
@@ -551,20 +555,50 @@ agent/services/
 
 ---
 
-### 4.10 tests/tools/ -- 除錯與資料檢視工具
+### 4.10 tests/tools/ + scripts/ -- 跨平台工具與部署腳本
 
-> 已從 `agent/scripts/` 移至專案根目錄 `tests/tools/`，從專案根目錄執行
+#### 4.10.1 tests/tools/ -- 除錯與資料檢視工具
+
+> 已從 `agent/scripts/` 移至專案根目錄 `tests/tools/`，從**專案根目錄**執行
 > 即可（不需 `cd agent`）。Python 腳本內已自行把 `agent/` 加入 `sys.path`。
 
 ```plaintext
 tests/tools/
 ├── view_logs.py                        # 審計日誌查詢
 ├── view_context.py                     # checkpointer 對話狀態檢視
-├── view_facts.py                       # user_facts 表（SCD Type 2）
-├── view_corrections.py                 # #資料修正 紀錄
+├── view_facts.py                       # user_facts 表（SCD Type 2，brand/model/phone/address）
+├── view_corrections.py                 # #資料修正 紀錄（--all / --export / --clear）
 ├── clean_data.py                       # DB 清理（測試重置）
 └── simulate_e2e.py                     # E2E 模擬（debounce / Quick Reply / 多模態）
 ```
+
+**跨平台執行方式：**
+
+| 平台 | 推薦指令 | 備註 |
+|------|---------|------|
+| Linux / macOS | `./tests/tools/view_facts.py <user_id>` | 透過 shebang `#!/usr/bin/env python3` 直接執行 |
+| pyenv 使用者 | `python3 tests/tools/view_facts.py <user_id>` | 避開 `python` shim 找不到 3.11 的問題 |
+| 統一 uv 環境 | `uv run tests/tools/view_facts.py <user_id>` | 使用 workspace 的 `uv.lock` 解析依賴 |
+| Windows | `python tests\tools\view_facts.py <user_id>` 或 `py tests\tools\view_facts.py <user_id>` | 反斜線分隔；`py` 是 Windows Python launcher |
+
+#### 4.10.2 scripts/ -- 跨切面 shell 腳本
+
+```plaintext
+scripts/
+├── dev/      # 本機開發環境（dev-up.sh / dev-down.sh / proxy-up.sh / proxy-down.sh）
+├── env/      # 環境切換（use-local.sh / use-gcp.sh，切換 .env 指向）
+├── ci/       # API 契約 CI（generate-api-types.sh / mock-server.sh /
+│             #   check-operationid-orphans.sh / generate-mapping-api-index.sh）
+└── deploy/   # Cloud Run 部署（agent.sh / api.sh）
+```
+
+**遷移備註：** 早期 `scripts/dev-up.sh`、`scripts/use-local.sh`、`scripts/deploy.sh` 等扁平佈局已淘汰，請以 [`scripts/README.md`](../../scripts/README.md) 為入口取得最新指令對照表與跨平台說明（Linux / macOS / Windows）。
+
+**煙測腳本** 不在 `scripts/` 而在 `tests/smoke/`：
+- `tests/smoke/api.sh` — 需先設定 `ADMIN_EMAIL` 與 `ADMIN_PASSWORD` 環境變數，例：
+  ```bash
+  ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=changeme123 ./tests/smoke/api.sh
+  ```
 
 ---
 
@@ -875,15 +909,21 @@ ORDER_API_TOKEN=your-bearer-token
 | 修改 Graph 流程 | `graph/builder.py`（新增節點 or 修改邊路由） |
 | 新增 Harness 層 | `harness/{layer_name}/` 建立模組 + `config.toml [harness.xxx]` 設定 |
 | 新增 V2.0 業務模組 | `services/{module_name}/` 建立模組 + `config.toml` + `SQL/Schema_v2_extensions.sql` |
-| 新增/修改知識資產 | `harness/task/knowledge/` 下對應子目錄（sop/, fault_trees/, etc.） |
+| 新增/修改知識資產 | `agent/skills/data/{Brand}/{Model}/SKILL.md`（透過 data pipeline `silver_to_skill/approve_drafts.py` 審核入庫） |
 | 查看 GAP 分析 | `docs/_gap-analysis/gap-analysis-report-cn.md` |
 | 查看 V2.0 設計規格 | `docs/02-design/specs/` |
-| 除錯對話內容 | `scripts/view_logs.py`、`scripts/view_context.py` |
+| 除錯對話內容 | `tests/tools/view_logs.py`、`tests/tools/view_context.py`（從專案根執行；`uv run` 或 shebang 皆可） |
 | 修改 LINE 訊息樣式 | `tools/line_ui_factory.py` |
 | 更新使用者輪廓邏輯 | `profiles/manager.py` + `agents/prompts/update_profile.md` |
 | 新增敏感詞 | `config.toml [system].sensitive_keywords` |
 | 查看資料庫 Schema | `SQL/Schema.sql`（V1）、`SQL/Schema_v2_extensions.sql`（V2） |
-| 查看使用者 hard_facts | `scripts/view_facts.py` |
+| 查看使用者 hard_facts | `tests/tools/view_facts.py <user_id>`（從專案根執行） |
+| 模擬 E2E 對話流程 | `tests/tools/simulate_e2e.py`（debounce / Quick Reply / 多模態） |
+| 清理測試資料庫 | `tests/tools/clean_data.py` |
+| 切換 DB 目標 | `./scripts/env/use-local.sh` 或 `./scripts/env/use-gcp.sh`（詳見 `scripts/README.md`） |
+| 啟動本機開發環境 | `./scripts/dev/dev-up.sh`（Docker DB + ngrok + uvicorn） |
+| 部署到 Cloud Run | `./scripts/deploy/agent.sh` 或 `./scripts/deploy/api.sh` |
+| API 煙測 | `ADMIN_EMAIL=... ADMIN_PASSWORD=... ./tests/smoke/api.sh` |
 | 環境變數說明 | `.env`（機密）、`config.toml`（非機密） |
 | 架構決策記錄 | `docs/01-define/adrs/` |
 

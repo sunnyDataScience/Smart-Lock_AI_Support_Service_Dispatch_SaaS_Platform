@@ -54,12 +54,15 @@ docker run --rm -v "$PWD":/work -w /work \
 ### 啟動 Mock Server（前端不必等後端）
 
 ```bash
-# 方式 1：npx（Node 18+）
-./scripts/ci/mock-server.sh
-# 或直接 npx
+# 方式 1（推薦）：包裝腳本（Node 18+）
+./scripts/ci/mock-server.sh                     # 預設 port 4010
+./scripts/ci/mock-server.sh 4010 --errors       # 隨機回 4xx/5xx，測試前端 error path
+
+# 或直接呼叫 npx（不建議，缺少預設參數與健康檢查）
 npx --yes @stoplight/prism-cli mock docs/02-design/specs/openapi.yaml --port 4010
 
-# 方式 2：Docker Compose（完整化，含 AsyncAPI profile）
+# 方式 2：Docker Compose（完整化，含 AsyncAPI profile）—— 僅供 local 多服務開發；
+# 生產環境統一走 Cloud Run，不使用 docker-compose.mock.yml
 docker compose -f docker-compose.mock.yml up -d
 curl http://localhost:4010/api/v1/work-orders -H "X-Tenant-ID: 00000000-0000-0000-0000-000000000000"
 docker compose -f docker-compose.mock.yml down
