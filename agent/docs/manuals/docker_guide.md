@@ -48,15 +48,11 @@ sed 's/="\(.*\)"/=\1/' .env > .env.docker
 ## 3. 建構 Agent Image
 
 ```bash
-# 從專案根目錄 build（context = PROJECT_ROOT，因為 uv workspace 共享 uv.lock）
-docker build --platform linux/amd64 -f agent/Dockerfile -t smart-lock-agent .
+cd agent
+docker build -t smart-lock-agent .
 ```
 
-Image 採用 multi-stage uv build：
-- **builder**：copy uv binary + 鎖定檔，跑 `uv sync --frozen --no-dev --package smart-lock-agent`，享 cache mount + bytecode 預編譯
-- **runtime**：`python:3.11-slim-bookworm` + builder 的 `.venv` + agent 原始碼，無 build tools 與 uv binary，image 體積最小
-
-secrets（`.env`、`credentials.json`）透過專案根 `.dockerignore` 排除，不會包進 image。
+Image 使用 `python:3.11-slim`，安裝 `requirements.txt` 後複製 agent 程式碼。secrets（`.env`、`credentials.json`）透過 `.dockerignore` 排除，不會包進 image。
 
 ---
 

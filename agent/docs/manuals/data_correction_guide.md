@@ -182,4 +182,4 @@ postgres_uri_env = "POSTGRES_URI"    # DB 連線環境變數名稱
 | `agent/harness/data_correction.py` | 攔截模組（init_db / check_and_save / close_db） |
 | `agent/harness/debounce.py` | 攔截呼叫點（agent_and_reply 內） |
 | `agent/config.toml` | `[data_correction]` 設定區段 |
-| `tests/tools/view_corrections.py` | 查看/匯出修正紀錄的 CLI 工具 |
+| `agent/scripts/view_corrections.py` | 查看/匯出修正紀錄的 CLI 工具 |

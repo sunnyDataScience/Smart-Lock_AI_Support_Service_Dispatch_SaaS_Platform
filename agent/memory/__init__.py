@@ -2,14 +2,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from .sqlite_saver import build_sqlite_saver, close_sqlite_conn
 from .postgres_saver import build_postgres_saver, close_postgres_conn
 
-
-async def build_in_memory_saver(config: dict):
-    """In-process MemorySaver builder (no persistence, no resources to close)."""
-    return MemorySaver()
-
-
 MEMORY_REGISTRY = {
-    "memory": build_in_memory_saver,
     "sqlite": build_sqlite_saver,
     "postgres": build_postgres_saver,
 }
@@ -22,14 +15,16 @@ async def get_checkpointer(config: dict):
     _checkpointer_type = memory_type
     print(f"[*] 初始化記憶體模組: 使用 {memory_type} 機制...")
 
+    if memory_type == "memory":
+        return MemorySaver()
+
     builder = MEMORY_REGISTRY.get(memory_type)
     if not builder:
-        raise ValueError(f"不支援的記憶體類型: {memory_type}，可用: {', '.join(MEMORY_REGISTRY)}")
+        raise ValueError(f"不支援的記憶體類型: {memory_type}，可用: memory, {', '.join(MEMORY_REGISTRY)}")
     return await builder(config)
 
 async def close_checkpointer():
     if _checkpointer_type == "postgres":
         await close_postgres_conn()
-    elif _checkpointer_type == "sqlite":
+    else:
         await close_sqlite_conn()
-    # "memory" backend has no resources to close
