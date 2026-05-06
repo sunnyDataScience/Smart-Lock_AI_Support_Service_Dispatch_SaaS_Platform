@@ -45,11 +45,15 @@
     height: 100%;
   }
 
+  /* next/font 在 layout.tsx 將 Inter / Noto Sans TC 注入為 CSS variable
+   * 沒載到（SSR fallback）時退到 system font 以避免 layout shift */
   .font-primary {
-    font-family: "Inter", "Noto Sans TC", sans-serif;
+    font-family: var(--font-inter), var(--font-noto-sans-tc),
+      ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
 
   .font-secondary {
-    font-family: "Inter", "Noto Sans TC", sans-serif;
+    font-family: var(--font-inter), var(--font-noto-sans-tc),
+      ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
 }
