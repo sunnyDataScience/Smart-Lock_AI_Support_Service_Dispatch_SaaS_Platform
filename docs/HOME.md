@@ -24,6 +24,7 @@ TR0  TR1       TR2  TR3      TR4  TR5       TR6    TR7        TR8  TR9  TR10
 | E5 | TR4 | [[02-design/E5--api-design-specification]] | Approved |
 | E6 | TR5 | [[02-design/E6--development-workflow-cookbook]] | Active |
 | E7 | TR5 | [[02-design/E7--bdd-scenarios]] | Active |
+| E7x | TR5 | [[02-design/E7x--test-plan-and-readiness]] | Active |
 | GR6 | TR6 | [[03-develop/GR6--code-complete]] | Template |
 | GR7 | TR7 | [[03-develop/GR7--integration]] | Template |
 | E8 | TR8 | [[04-deliver/E8--security-and-readiness-checklists]] | In Use |
@@ -73,16 +74,25 @@ TR0  TR1       TR2  TR3      TR4  TR5       TR6    TR7        TR8  TR9  TR10
 ### Path C: Building a Feature
 
 1. [[02-design/E7--bdd-scenarios]] -- Find your feature's acceptance criteria
-2. [[02-design/specs/_MOC]] -- Find the technical spec
-3. [[02-design/E5--api-design-specification]] -- API contracts
-4. [[01-define/diagrams/_MOC]] -- Visual references
-5. [[02-design/agent-harness/_MOC]] -- If working on AI agent features
+2. [[02-design/E7x--test-plan-and-readiness]] -- Confirm test coverage and gaps before coding
+3. [[02-design/specs/_MOC]] -- Find the technical spec
+4. [[02-design/E5--api-design-specification]] -- API contracts
+5. [[01-define/diagrams/_MOC]] -- Visual references
+6. [[02-design/agent-harness/_MOC]] -- If working on AI agent features
 
 ### Path D: Understanding the Domain
 
 1. [[_domain-knowledge/locksmith-checklist/_MOC]] -- All locksmith knowledge
 2. [[_domain-knowledge/requirements/_MOC]] -- Data collection status
 3. [[_domain-knowledge/E2x--wbs-pre-development]] -- What data is still needed
+
+### Path E: QA / Test Owner
+
+1. [[02-design/E7x--test-plan-and-readiness]] -- Test plan, gap matrix, mock spectrum, Sprint 1 roadmap
+2. [[02-design/E7--bdd-scenarios]] -- Source scenarios to bridge into pytest-bdd
+3. [[02-design/specs/openapi]] / [[02-design/specs/asyncapi]] -- Contracts to verify against
+4. [[02-design/E5x--work-order-interaction-flows]] -- Work order state machine reference
+5. [[03-develop/GR6--code-complete]] / [[03-develop/GR7--integration]] -- Quality gate checklists
 
 ---
 
