@@ -139,18 +139,20 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 
 ## 4. 缺口分類 + 優先級
 
+> **狀態同步基準**：以 PR #38（PM Q1–Q10 拍板）+ PR #40（5-track 平行 follow-up：dispatcher seed / public token spec / workday helper / track placeholder / F-110）+ PR #41（5 流程升 🟢）為準。本節 status 圖示：✅ 完成 / 🟡 進行中或部分完成 / 🔴 阻塞中（待外部依賴或會議拍板） / ❌ V1.0 不做（降級 V1.5+ 或 V2.0+）。
+
 ### 4.1 文件缺口
 
 | 缺口 | 影響流程 | P | 工時 | 負責 | 狀態 |
 |------|---------|---|------|------|------|
 | ~~派工規則 5 因子權重表 + tie-breaker~~ | F-003 / F-004 | **P0** | 2d | PM + TL | ✅ 已建 [[02-design/specs/dispatch-weights]] |
-| 角色矩陣 v1.0（含派工員、Manager / Director） | F-004 / F-016 / F-019 | **P0** | 2d | PM | 待 PM Q1/Q2 |
-| Hard SLA vs Soft Target 對照表 | F-016 | **P0** | 1d | PM | 待 PM Q5 |
-| 月結 SLA 計時單位（工作日 / 自然日） | F-013 | **P0** | 0.5d | PM + 法務 | 待 PM Q4 |
-| 消費者端追蹤入口（LINE / Web / 兩者） | F-022 | **P0** | 1d | PM | 待 PM Q3 |
-| SMS / Email / FCM fallback 通知策略 | F-010 / F-011 / F-016 | P1 | 1.5d | PM | 待 PM Q8 |
-| 庫存 F-210 完整規格 | F-007 | P1 | 3d | PM + BE | pending |
-| 離線 / Service Worker 完整策略 | F-023 + 技師端 | P1 | 2d | FE Lead | 部分（NetworkErrorBanner 已建，PWA 仍 pending） |
+| ~~角色矩陣 v1.0（含派工員、Manager / Director）~~ | F-004 / F-016 / F-019 | **P0** | 2d | PM | ✅ Q1=A / Q2=A 拍板（PR #38）+ PR #40 dispatcher seed 齊；見 [[02-design/specs/role-matrix-v1]] |
+| ~~Hard SLA vs Soft Target 對照表~~ | F-016 | **P0** | 1d | PM | ✅ Q5=B 拍板 + F-110 BDD 補完；見 [[02-design/specs/sla-policy]] |
+| ~~月結 SLA 計時單位（工作日 / 自然日）~~ | F-013 | **P0** | 0.5d | PM + 法務 | ✅ Q4=C 拍板 + `agent/core/workday.py` helper 齊；見 [[02-design/specs/workday-sla-policy]] |
+| ~~消費者端追蹤入口（LINE / Web / 兩者）~~ | F-022 | **P0** | 1d | PM | ✅ Q3=C 拍板（兩者並存）+ `getWorkOrderPublicStatus` spec 齊；見 [[02-design/specs/consumer-tracking-entry]] |
+| ~~SMS / Email / FCM fallback 通知策略~~ | F-010 / F-011 / F-016 | ❌ V1.5+ | — | PM | ✅ Q8=A 拍板 V1.0 only LINE，範圍縮小；見 [[02-design/specs/notification-channel-strategy]] |
+| 庫存 F-210 完整規格 | F-007 | P1 | 3d | PM + BE | 🔴 仍 pending PM + BE（與下方 §4.6 Inventory SKU/批號決策綁定） |
+| 離線 / Service Worker 完整策略 | F-023 + 技師端 | P1 | 2d | FE Lead | 🟡 NetworkErrorBanner 已建（A1 Wave 1）；PWA + offline queue 仍待 FE Lead 2d |
 
 ### 4.2 前端 UI 缺口
 
@@ -160,10 +162,10 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 | ~~客服接管後的 chat UI~~ | **P0** | 3d | ✅ A4 Wave 2 完成（HandoverComposer.tsx） |
 | ~~Modal / Drawer / Toast 統一 library~~ | **P0** | 3d | ✅ A2 Wave 1 完成（Radix UI） |
 | ~~Dashboard 日期範圍選擇器~~ | P1 | 1d | ✅ A3 Wave 2 完成（DateRangePicker） |
-| ~~稽核 CSV 匯出 Modal~~（accounting / reports 仍待） | P1 | 2d | 部分（A5 完成 audit；accounting / reports 匯出仍 pending） |
-| 客戶 admin「新增 / 編輯」表單 | P1 | 1.5d | pending |
-| 消費者端工單追蹤頁（若 Q3 = Web） | P0 或不做 | 5d | 待 PM Q3 |
-| i18n / 深色模式 | — | 不做 | — |
+| ~~稽核 CSV 匯出 Modal~~（accounting / reports 仍待） | P1 | 2d | 🟡 部分（A5 完成 audit；accounting / reports 匯出仍 pending，綁 §4.3 `exportReport`） |
+| 客戶 admin「新增 / 編輯」表單 | P1 | 1.5d | 🟡 FE 工時 1.5d（`chore/fe-admin-forms` worktree 進行中） |
+| 消費者端工單追蹤頁 `/track/[token]` | **P0** | 5d | 🟡 PR #40 placeholder 已建（`web/src/app/track/[token]/page.tsx`），full impl 待 FE 工時 |
+| i18n / 深色模式 | — | 不做 | ❌ V1.0 範圍外 |
 
 ### 4.3 後端 API 缺口
 
@@ -171,36 +173,36 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 |------|---|------|------|
 | ~~`sendChatMessage`~~ | **P0** | 1.5d | ✅ A4 完成（LINE Push integration TODO） |
 | ~~`exportAuditEvents`~~ | P1 | 2d | ✅ A5 完成（>100k 背景 job 留 202 contract） |
-| `getWorkOrderPublicStatus`（消費者匿名追蹤，若 Q3 = Web） | P0 | 1.5d | 待 PM Q3 |
-| `updateCustomer` / `createCustomer` | P1 | 1d | pending |
-| `updateMyAvailability`（技師在線狀態切換） | P1 | 1d | pending |
-| `exportReport`（KPI / 營收 CSV / PDF） | P1 | 2d | pending |
-| 通知 channel 抽象層（為 SMS / FCM 預留） | P1 | 2d | pending |
+| `getWorkOrderPublicStatus`（消費者匿名追蹤） | **P0** | 1.5d | 🟡 PR #40 OpenAPI spec + skeleton 齊（Q3=C / Q9=B 共用 token），full impl 待 BE |
+| `updateCustomer` / `createCustomer` | P1 | 1d | 🟡 BE 工時 1d（`chore/be-crud-endpoints` worktree 進行中） |
+| `updateMyAvailability`（技師在線狀態切換） | P1 | 1d | 🟡 BE 工時 1d |
+| `exportReport`（KPI / 營收 CSV / PDF） | P1 | 2d | 🟡 BE 工時 2d |
+| 通知 channel 抽象層（為 SMS / FCM 預留） | ❌ V1.5+ | — | ❌ Q8=A 後降級 V1.5+；見 [[02-design/specs/notification-channel-strategy]] |
 
 ### 4.4 外部系統整合缺口（V2.0 阻塞）
 
-| 缺口 | P | 工時 |
-|------|---|------|
-| 金流（消費者付款 + 退款回沖）— provider 選型 | **P0** V2.0 | 10d+ |
-| 撥款 API（技師薪資） | **P0** V2.0 | 8d+ |
-| SMS provider | P1 | 2d |
-| Email provider | P1 | 1.5d |
-| FCM / APNs 推播 | P2 | 3d |
-| Whisper 語音轉文字 | P2 | 2d |
-| 鼎新 A1 會計對接 | P2 | 10d+ |
+| 缺口 | P | 工時 | 狀態 |
+|------|---|------|------|
+| 金流（消費者付款 + 退款回沖）— provider 選型 | **P0** V2.0 | 10d+ | 🔴 PR #39 follow-up 矩陣：等 PM / TL / CEO / Finance 90 min 會議拍板（D2） |
+| 撥款 API（技師薪資） | **P0** V2.0 | 8d+ | 🔴 同上會議綁定 |
+| SMS provider | — | — | ❌ Q8=A V1.0 不需，降 V1.5+ |
+| Email provider | — | — | ❌ Q8=A V1.0 不需，降 V1.5+ |
+| FCM / APNs 推播 | — | — | ❌ V2.0+（Q8=A 後續評估） |
+| Whisper 語音轉文字 | — | — | ❌ V2.0+ |
+| 鼎新 A1 會計對接 | — | — | ❌ V3 |
 
 ### 4.5 角色 / 權限矛盾（影響 BDD `Given` 步驟）
-- 「派工員」V2.0 是否獨立角色 (Q1)
-- Ops_Manager vs Ops_Director 階層 (Q2)
-- 客服可否手動繞過自動派工 (Q6)
-- 技師拒單上限與懲罰 (P1)
+- ✅ **「派工員」V2.0 是否獨立角色 (Q1=A 拍板)**：獨立 `dispatch_officer` role；見 [[02-design/specs/role-matrix-v1]]
+- ✅ **Ops_Manager vs Ops_Director 階層 (Q2=A 拍板)**：Director > Manager 階層；見 [[02-design/specs/role-matrix-v1]]
+- ✅ **客服可否手動繞過自動派工 (Q6=A 拍板)**：可繞過，需留稽核 + 二人覆核；見 BDD F-XXX
+- 🔴 技師拒單上限與懲罰（P1，待 PM）
 
 ### 4.6 資料模型 / 狀態機矛盾（影響 fixture 設計）
-- WorkOrder 是否含 `paused` / `material-waiting` 狀態
-- ProblemCard → WorkOrder 是否 1:N（多技師協作）
-- Dispute 狀態機分支（reject vs dual-sign）
-- Refund 是否依賴金流結果改狀態
-- Inventory 移動最小單位（批號 vs SKU）
+- 🟡 **WorkOrder paused / material-waiting**：spec 細化中；見 [[02-design/specs/work-order-state-machine-extensions]]（V2.0 擴充 5 個狀態）
+- 🟢 **ProblemCard → WorkOrder 1:N（多技師協作）**：可寫 spec（待補）
+- ✅ **Dispute 狀態機分支（reject vs dual-sign）**：Q2=A 拍板可細化（Director 終裁）
+- 🔴 **Refund 是否依賴金流結果改狀態**：待 §4.4 金流 Q7 D2 會議拍板
+- 🔴 **Inventory 移動最小單位（批號 vs SKU）**：綁 F-210 完整規格
 
 ---
 
