@@ -1,22 +1,33 @@
-"""Customers router — read-only 客戶主檔（管理員視角）。
+"""Customers router — 客戶主檔（管理員視角）。
 
 operationId 對齊 openapi.yaml：
   - listCustomers — tenant 內的 LINE 使用者，cursor 分頁，含對話 / 工單聚合計數
+  - getCustomer  — 單筆詳情 + 聚合歷史
+  - createCustomer — admin / operations_manager 手動建檔（非 LINE 來源）
+  - updateCustomer — admin / operations_manager 整體取代（PUT 語意）
 
-未來擴充（不在本 phase 範圍）：
-  - getCustomer：單筆詳情（CustomerEnvelope schema 已預留）
-  - 風險等級 / 滿意度 / 偏好技師 / 保固聚合 — 需獨立資料來源
+未來擴充：風險等級 / 滿意度 / 偏好技師 / 保固聚合（需獨立資料來源）。
 """
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Path, Query
+from fastapi.responses import JSONResponse
 
-from core.deps import CurrentUser, require_tenant
-from models.generated import Customer, CustomerPage
+from core.deps import CurrentUser, require_tenant, role_required
+from models.generated import (
+    Customer,
+    CustomerCreateRequest,
+    CustomerEnvelope,
+    CustomerPage,
+    CustomerUpdateRequest,
+)
 from services import customer_service
 
 router = APIRouter()
+
+
+_customer_writer = role_required("admin", "operations_manager")
 
 
 @router.get(
@@ -42,6 +53,28 @@ async def list_customers(
     }
 
 
+@router.post(
+    "/customers",
+    operation_id="createCustomer",
+    summary="建立客戶（admin / operations_manager；非 LINE 來源手動建檔）",
+    response_model=CustomerEnvelope,
+    status_code=201,
+)
+async def create_customer(
+    body: CustomerCreateRequest,
+    user: CurrentUser = Depends(_customer_writer),
+) -> JSONResponse:
+    payload = body.model_dump(exclude_unset=True)
+    customer = await customer_service.create_customer(
+        tenant_id=user.tenant_id, payload=payload
+    )
+    envelope = {
+        "success": True,
+        "data": Customer(**customer).model_dump(mode="json"),
+    }
+    return JSONResponse(status_code=201, content=envelope)
+
+
 @router.get(
     "/customers/{id}",
     operation_id="getCustomer",
@@ -54,3 +87,21 @@ async def get_customer(
     return await customer_service.get_customer(
         tenant_id=user.tenant_id, customer_id=id
     )
+
+
+@router.put(
+    "/customers/{id}",
+    operation_id="updateCustomer",
+    summary="更新客戶資料（admin / operations_manager；整體取代，未提供欄位視為 null）",
+    response_model=CustomerEnvelope,
+)
+async def update_customer(
+    body: CustomerUpdateRequest,
+    id: str = Path(),
+    user: CurrentUser = Depends(_customer_writer),
+) -> dict:
+    payload = body.model_dump()
+    customer = await customer_service.update_customer(
+        tenant_id=user.tenant_id, customer_id=id, payload=payload
+    )
+    return {"success": True, "data": Customer(**customer).model_dump(mode="json")}

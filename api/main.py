@@ -49,6 +49,7 @@ from routers import customers as customers_router
 from routers import roles as roles_router
 from routers import inventory as inventory_router
 from routers import reports_kpi as reports_kpi_router
+from routers import reports_export as reports_export_router
 from routers import resolution as resolution_router
 from routers import kb_export as kb_export_router
 from routers import sentiment_alerts as sentiment_alerts_router
@@ -131,6 +132,7 @@ app.include_router(customers_router.router, prefix="/api/v1", tags=["customer_se
 app.include_router(roles_router.router, prefix="/api/v1", tags=["user_management"])
 app.include_router(inventory_router.router, prefix="/api/v1", tags=["inventory"])
 app.include_router(reports_kpi_router.router, prefix="/api/v1", tags=["reports"])
+app.include_router(reports_export_router.router, prefix="/api/v1", tags=["reports"])
 app.include_router(resolution_router.router, prefix="/api/v1", tags=["customer_service"])
 app.include_router(kb_export_router.router, prefix="/api/v1", tags=["knowledge_base"])
 # Q3=C / Q9=B 共用機制：消費者匿名 token endpoints（無需登入）

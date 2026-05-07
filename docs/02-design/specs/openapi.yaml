@@ -781,6 +781,31 @@ paths:
                       preferred_hours: { type: array, items: { type: string } }
                       dnd_hours: { type: array, items: { type: string } }
                   past_reschedule_count: { type: integer }
+    patch:
+      tags: [dispatch]
+      summary: 切換技師在線狀態（available / busy / offline / on_leave / circuit_breaker_open）
+      operationId: updateMyAvailability
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MyAvailabilityUpdateRequest'
+      responses:
+        '200':
+          description: OK — 已更新
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyAvailabilityResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
   /api/v1/work-orders/{id}/reschedule:
     post:
@@ -1591,6 +1616,58 @@ paths:
               schema:
                 $ref: '#/components/schemas/RevenueSummary'
 
+  /api/v1/reports/export:
+    get:
+      tags: [reports]
+      summary: 匯出 KPI / 營收 / 技師排行報表（CSV / PDF）
+      description: |
+        依 report_type 串接對應的 service 並轉成 CSV stream（同步）。
+        PDF 路徑目前回 422 + TODO（缺 PDF 渲染依賴 reportlab/weasyprint，待後續迭代）。
+        admin / operations_manager / accountant 三種角色可呼叫；其他一律 403。
+      operationId: exportReport
+      parameters:
+        - in: query
+          name: report_type
+          required: true
+          schema:
+            type: string
+            enum: [kpi, revenue, technician_ranking]
+        - in: query
+          name: format
+          required: false
+          schema:
+            type: string
+            enum: [csv, pdf]
+            default: csv
+        - in: query
+          name: from
+          required: false
+          schema: { type: string, format: date }
+          description: 起始日期（YYYY-MM-DD）；revenue/technician_ranking 適用
+        - in: query
+          name: to
+          required: false
+          schema: { type: string, format: date }
+          description: 結束日期（YYYY-MM-DD）；revenue/technician_ranking 適用
+        - in: query
+          name: period
+          required: false
+          schema:
+            $ref: '#/components/schemas/DashboardPeriod'
+          description: KPI 報表使用的期間（kpi 適用，預設 30d）
+      responses:
+        '200':
+          description: 報表 stream
+          content:
+            text/csv:
+              schema: { type: string, format: binary }
+            application/pdf:
+              schema: { type: string, format: binary }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
   /api/v1/config:
     get:
       tags: [user_management]
@@ -1948,6 +2025,71 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CustomerPage'
+    post:
+      tags: [customer_service]
+      summary: 建立客戶（admin / operations_manager；非 LINE 來源手動建檔）
+      operationId: createCustomer
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerCreateRequest'
+      responses:
+        '201':
+          description: 已建立
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/customers/{id}:
+    get:
+      tags: [customer_service]
+      summary: 客戶單筆詳情 + 聚合歷史
+      operationId: getCustomer
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [customer_service]
+      summary: 更新客戶資料（admin / operations_manager；整體取代）
+      operationId: updateCustomer
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerUpdateRequest'
+      responses:
+        '200':
+          description: 已更新
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
   /api/v1/roles:
     get:
@@ -3554,6 +3696,9 @@ components:
           description: LINE Platform User ID（U + 32 hex），可能為空（非 LINE 來源）
         phone:
           type: [string, "null"]
+        email:
+          type: [string, "null"]
+          format: email
         address:
           type: [string, "null"]
         last_active_at:
@@ -3592,6 +3737,50 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/Customer'
+
+    CustomerCreateRequest:
+      type: object
+      required: [display_name]
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: 顯示名稱（必填）
+        phone:
+          type: [string, "null"]
+          maxLength: 50
+          description: 聯絡電話（建議帶台灣手機格式）
+        email:
+          type: [string, "null"]
+          format: email
+          maxLength: 255
+        address:
+          type: [string, "null"]
+          description: 派工地址
+        line_user_id:
+          type: [string, "null"]
+          maxLength: 255
+          description: 若客戶有 LINE 帳號可同步建立綁定（可選）
+
+    CustomerUpdateRequest:
+      type: object
+      description: PUT 整體取代；未提供的欄位視為 null（顯示名稱必填）
+      required: [display_name]
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        phone:
+          type: [string, "null"]
+          maxLength: 50
+        email:
+          type: [string, "null"]
+          format: email
+          maxLength: 255
+        address:
+          type: [string, "null"]
 
     # --------- Role / RBAC（read-only 權限矩陣） ---------
     RoleResource:
@@ -4614,6 +4803,36 @@ components:
         regions:
           type: array
           items: { type: string }
+
+    # --------- My Availability（PATCH /technicians/me/availability） ---------
+    MyAvailabilityUpdateRequest:
+      type: object
+      required: [online_state]
+      properties:
+        online_state:
+          type: string
+          enum: [available, busy, offline, on_leave, circuit_breaker_open]
+          description: |
+            available — 可派工；
+            busy — 忙碌中（不接新工單）；
+            offline — 下線；
+            on_leave — 休假；
+            circuit_breaker_open — 熔斷（系統判斷後置）
+
+    MyAvailabilityResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseGeneric'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [id, name, online_state]
+              properties:
+                id: { type: string, format: uuid }
+                name: { type: string }
+                online_state:
+                  type: string
+                  enum: [available, busy, offline, on_leave, circuit_breaker_open]
 
     # --------- Work Order Confirm（客戶評價） ---------
     WorkOrderConfirmRequest:
