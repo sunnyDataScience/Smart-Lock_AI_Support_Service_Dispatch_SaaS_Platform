@@ -49,28 +49,30 @@ related:
 | **F-001** | LINE 報修 → ProblemCard | 消費者 | 消費者旅程 §1 階段 1-4（問題發生→LINE→AI→PC）| work-order Flow 1 (S1 詢問) | F-101, F-102, F-107, F-108 | 模組 1 ConversationManager + 模組 2 ProblemCardEngine | 🟢 | — | ✅ aligned | 確認 work-order S1 階段對應 |
 | **F-002** | 客服審 PC → 開 WO | 客服 | 管理員旅程 §3 階段 1（儀表板）| work-order Flow 1（PC → created）| F-105 admin V1.0 | 模組 1（會話）+ 業務模組（審核未明列）| 🟢 | — | ⚠ partial | 補 module-spec 「PC → WO 審核」業務模組 |
 | **F-003** | 自動派工規則引擎 | 系統 | 隱含於消費者 §1 階段 6（派工建立）| work-order Flow 1 → dispatch §2 媒合演算法 | F-202 智慧派工引擎 | 模組 7 TechnicianMatcher（V2.0 業務層）| 🟢 | — | ✅ aligned | 確認 dispatch §2 ↔ F-202 ↔ dispatch-weights |
-| **F-004** | 手動派工 | 客服 / 派工員 | 管理員旅程 §3 階段 3（派工監控） | dispatch §4 拒單重派 + work-order Flow 2 | F-202（含 manual override） | 模組 7 TechnicianMatcher | 🟡 | **Q1 / Q6** | ⚠ blocked | PM 拍板 Q1（派工員角色）+ Q6（繞過 audit） |
+| **F-004** | 手動派工 | 客服 / 派工員 | 管理員旅程 §3 階段 3（派工監控） | dispatch §4 拒單重派 + work-order Flow 2 | F-202（含 manual override） | 模組 7 TechnicianMatcher | 🟡 | ✅ Q1=A / Q6=A | ⚠ partial | 實作 dispatcher 新角色 + 客服繞過 + audit log |
 | **F-005** | 技師接單 → 出發 | 技師 | 技師旅程 §2 階段 1-3（推播→案件池→接單） | work-order Flow 1 + dispatch §4 | F-201 師傅工作台 | 業務模組未明列 | 🟢 | — | ✅ aligned | 補 module-spec |
 | **F-006** | 到場拍照 | 技師 | 技師旅程 §2 階段 4（到場） | work-order Flow 1 | F-201 師傅工作台 | 業務模組未明列 | 🟢 | — | ✅ aligned | 補 module-spec |
 | **F-007** | 材料申請 | 技師 → 客服 | 異常流程 §7.2（缺料 + Flow 4） | work-order Flow 4 + admin-governance G3 庫存 | F-210 庫存與材料管理 | 業務模組未明列（V2.0）| 🟡 | F-210 規格不全 | ⚠ partial | 等 F-210 詳細規格（PM + BE） |
-| **F-008** | Scope Change | 技師 → 消費者 | 異常流程 §7.1（範圍變更） | work-order Flow 3（範圍變更） | F-203 標準化定價引擎（隱含） | 模組 8 PricingEngine | 🟡 | **Q9** | ⚠ blocked | PM 拍板 Q9（同意入口 LINE / Web） |
+| **F-008** | Scope Change | 技師 → 消費者 | 異常流程 §7.1（範圍變更） | work-order Flow 3（範圍變更） | F-203 標準化定價引擎（隱含） | 模組 8 PricingEngine | 🟡 | ✅ Q9=B | ⚠ partial | 實作 Web 匿名 token + Playwright spec（與 Q3=C 共用機制） |
 | **F-009** | 完工簽名 | 技師 + 消費者 | 技師 §2 階段 5 + 消費者 §1 階段 7 | work-order Flow 1 完成節點 | F-201 師傅工作台 | 業務模組未明列 | 🟢 | — | ✅ aligned | 補 module-spec |
-| **F-010** | 改約 / 延遲 | 技師 | 異常流程 §7（延遲 + Flow 5） | work-order Flow 5（延遲 / 改約） | F-201（部分）| 業務模組未明列 | 🟡 | **Q8** | ⚠ blocked | PM 拍板 Q8（非 LINE fallback） |
-| **F-011** | 消費者付款 V2.0 | 消費者 | 消費者 §1 階段 8（結算）— V2.0 未實作 | work-order Flow 12（金流缺，Flow 11-13 細節不足）| **❌ BDD 缺** | 業務模組（金流未列）| 🔴 | **Q7** | ❌ orphan | PM 拍板 Q7（V1.0 是否含金流）→ 補 BDD |
-| **F-012** | 技師月結撥款 | 系統 + 財務 | 管理員旅程 §3 階段 5（月度結算） | work-order Flow（撥款 API 缺） | F-204 自動化會計 | 業務模組（撥款未列）| 🔴 | **Q7** | ❌ orphan | 撥款 API 整合（外力）+ PM 拍板 |
-| **F-013** | 對帳爭議雙簽 | 技師 ↔ 客服 | 管理員旅程 §3 階段 5 + 客服主管 §6 | work-order Flow 6（退款）+ admin-governance G4（爭議） | F-204 + F-207 退款審批 | 模組 6 RefundService | 🟢 | **Q2 / Q4** | ⚠ partial | PM 拍板 Q2（雙簽階層）+ Q4（SLA 工作日） |
-| **F-014** | 退款流程 | 客服 + 主管 | 客服主管旅程 §6 階段 3-5 | work-order Flow 6 退款 | F-207 退款審批與雙簽 | 模組 6 RefundService | 🟡 | **Q7** | ⚠ blocked | 規則可單測；金流回沖待 Q7 拍板 |
+| **F-010** | 改約 / 延遲 | 技師 | 異常流程 §7（延遲 + Flow 5） | work-order Flow 5（延遲 / 改約） | F-201（部分）| 業務模組未明列 | 🟢 | ✅ Q8=A | ✅ aligned | V1.0 only LINE，非 LINE 拒收（範圍縮小，可測） |
+| **F-011** | 消費者付款 **V1.0**（升級！）| 消費者 | 消費者 §1 階段 8（結算）| work-order Flow 12 | **❌ BDD 缺** | 業務模組（金流未列）| 🔴 | ✅ Q7=B（重大）| ⚠ blocked | **緊急**：選 provider（Stripe / 綠界 / 藍新 / Linepay）+ PCI compliance 審查 + 補 BDD F-211 |
+| **F-012** | 技師月結撥款 **V1.0**（升級！）| 系統 + 財務 | 管理員旅程 §3 階段 5（月度結算） | work-order Flow | F-204 自動化會計 | 業務模組（撥款未列）| 🔴 | ✅ Q7=B（重大）| ⚠ blocked | 與 F-011 同 provider；撥款 API 整合 + 補 BDD |
+| **F-013** | 對帳爭議雙簽 | 技師 ↔ 客服 | 管理員旅程 §3 階段 5 + 客服主管 §6 | work-order Flow 6（退款）+ admin-governance G4（爭議） | F-204 + F-207 退款審批 | 模組 6 RefundService | 🟢 | ✅ Q2=A / Q4=C | ✅ aligned | 實作 Director 階層雙簽 + 工作日+國定假日 calendar lib（holidays 套件） |
+| **F-014** | 退款流程 | 客服 + 主管 | 客服主管旅程 §6 階段 3-5 | work-order Flow 6 退款 | F-207 退款審批與雙簽 | 模組 6 RefundService | 🟡 | ✅ Q7=B（重大）| ⚠ blocked | 規則可單測；金流回沖待 provider 選型整合 |
 | **F-015** | 保固申訴 | 消費者 → 客服 | 異常流程 §7.4（品質不合格） | work-order Flow 7（保固爭議） | F-208 保固爭議處理 | 模組 12 WarrantyClaim | 🟢 | — | ✅ aligned | warranty-dispute spec 已有 |
-| **F-016** | SLA 紅色警報（2hr 到場） | 系統 + 主管 | 異常流程 §7.3（Red Code） | work-order §3 SLA + admin-governance G4 升級 | **❌ BDD 缺** | 業務模組（SLA 監控未列）| 🟡 | **Q5** | ❌ orphan | PM 拍板 Q5（hard / soft SLA）→ 補 BDD |
+| **F-016** | SLA 紅色警報（2hr 到場） | 系統 + 主管 | 異常流程 §7.3（Red Code） | work-order §3 SLA + admin-governance G4 升級 | **❌ BDD 缺**（待補）| 業務模組（SLA 監控未列）| 🟡 | ✅ Q5=B | ⚠ partial | Soft SLA：dashboard 變紅 + 升主管，**無賠償**；補 BDD F-110 + alert event 測試 |
 | **F-017** | SOP 草稿審核 | AI → 客服 → 主管 | 管理員旅程 §3 階段 2（知識庫） | work-order §15 知識沉澱 | F-104 自進化知識庫 | 模組 5 SOPGenerator | 🟢 | — | ✅ aligned | 完整 |
 | **F-018** | 客服接管對話 | 客服 | 消費者 §1 階段 5（三層解決最後降級）| 隱含於 work-order Flow 1 升級 | F-103 三層解決機制 | 模組 3 ThreeLayerResolver | 🟢 | — | ⚠ partial | LINE Push API 真實串接 TODO（外力） |
-| **F-019** | RBAC 動態調整 | 管理員 | 管理員旅程 §3 階段 4（客訴升級隱含 RBAC） | admin-governance G1 RBAC 角色生命週期 | F-209 動態 RBAC | 模組 14 RBACService | 🟡 | **Q1 / Q2** | ⚠ blocked | PM 拍板 Q1（派工員）+ Q2（Manager / Director 階層）|
+| **F-019** | RBAC 動態調整 | 管理員 | 管理員旅程 §3 階段 4（客訴升級隱含 RBAC） | admin-governance G1 RBAC 角色生命週期 | F-209 動態 RBAC | 模組 14 RBACService | 🟡 | ✅ Q1=A / Q2=A | ⚠ partial | 實作 dispatcher 新角色 + Director > Manager 階層 + updateRolePermissions API |
 | **F-020** | 稽核日誌 | 管理員 | 管理員旅程 §3 階段 4 隱含 | admin-governance G2 稽核日誌 | F-205 admin V2.0 + F-209 | 模組 13 AuditLogger | 🟢 | — | ✅ aligned | exportAuditEvents 已實作 |
 | **F-021** | Dashboard / 報表 | 管理員 | 管理員旅程 §3 階段 1（儀表板） | dispatch §7 報表 SQL + API | F-105 + F-205 | 業務模組未明列 | 🟢 | — | ⚠ partial | revenue / technician-ranking 後端 filter TODO |
-| **F-022** | 消費者端工單追蹤 | 消費者 | 消費者 §1 階段 6-7（已派工後） | work-order Flow 1 後段（缺消費者 view） | **❌ BDD 缺** | 業務模組（消費者 API 未列）| 🔴 | **Q3** | ❌ orphan | PM 拍板 Q3（追蹤入口 LINE / Web）→ 補 BDD + API |
+| **F-022** | 消費者端工單追蹤 | 消費者 | 消費者 §1 階段 6-7（已派工後） | work-order Flow 1 後段 | **❌ BDD 缺**（待補）| 業務模組（消費者 API 未列）| 🔴 | ✅ Q3=C | ⚠ blocked | 兩者並存（LINE 主 + Web VIP 備）；建 Web 匿名 token + getWorkOrderPublicStatus + Playwright spec + 補 BDD F-211 |
 | **F-023** | 錯誤頁 / 離線 | 任何 | （cross-cutting，無單一旅程） | （cross-cutting） | **❌ BDD 缺**（建議新增 F-110）| （cross-cutting）| 🟢 | — | ⚠ partial | 補 BDD（建議 F-110 cross-cutting）|
 
-> ✅ aligned (8) / ⚠ partial (10) / ⚠ blocked (5) / ❌ orphan (4)
+> **2026-05-07 PM 拍板後狀態**：✅ aligned (10) / ⚠ partial (8) / ⚠ blocked (4) / ❌ orphan (0 — 4 個 BDD 缺口已定方向，待補 Feature) + cross-cutting (1, F-023)
+>
+> 變化：F-010 ⚠blocked → ✅aligned；F-013 ⚠partial → ✅aligned；F-022 ❌orphan → ⚠blocked（待 Web 匿名 token）；F-011/F-012/F-016 ❌orphan → ⚠blocked/partial（PM 已決定方向但需實作）
 
 ---
 
@@ -164,3 +166,4 @@ related:
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-05-07 | Claude (assisted) | 初版：以 E7x F-001~F-023 為主鍵，整合 E1x / E5x×3 / E7 / E7x×3 共 8 維對應；標出 4 orphan + 10 partial + 8 aligned + 1 cross-cutting；建立 P0 / P1 / P2 修正優先序 |
+| 2026-05-07 | PM + Claude (sync) | **PM Q1-Q10 全拍板同步**：10 row 中 9 row 的 PM Block column 從 `**Q-N**` → `✅ Q-N=X`；對齊狀態升級 — F-010 ⚠blocked→✅aligned, F-013 ⚠partial→✅aligned, F-011/F-012/F-014/F-022 ❌orphan→⚠blocked（待 Q7=B provider 選型 / Q3=C Web 匿名 token 實作）, F-016 ❌orphan→⚠partial（Q5=B Soft SLA）, F-004/F-008/F-019 ⚠blocked→⚠partial. 詳見 [[decision-log/E7x--pm-alignment-Q1-Q10#12-決策追蹤總表]]。 |

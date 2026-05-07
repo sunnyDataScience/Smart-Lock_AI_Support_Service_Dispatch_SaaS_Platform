@@ -61,7 +61,12 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 
 **🔴 不能測（3 條）**：F-011 消費者付款、F-012 技師撥款、F-022 消費者端工單追蹤 — 第三方未整合或入口未定。
 
-**根本原因**：V1.0 / V2.0 範圍切分未凍結 + 角色階層未拍板 + Hard / Soft SLA 未定義。**這三件事不是工程問題、是產品決策**，必須先用一場 90 分鐘對齊會議解決 [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10|Q1–Q10]]，否則 BDD 會卡在「Given 不知該寫什麼角色」。
+**根本原因（已解）**：V1.0 / V2.0 範圍切分 + 角色階層 + Hard / Soft SLA 三大產品決策已於 **2026-05-07 PM 全部拍板**（[[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10|Q1–Q10]]）。新阻塞點：
+- **Q7=B 反向**：V1.0 含金流 → 上線延 ~1.5 個月（待 provider 選型 + PCI 審查）
+- **Q3=C / Q9=B 反向**：消費者追蹤 + Scope Change 入口走 Web 匿名 token（共用機制，需建公開 API + Playwright spec）
+- **Q4=C 反向**：月結 SLA 工作日+國定假日（需 holidays 套件 + calendar 維護）
+
+實作工作（詳見 [[_flows-bdd-test/_SSOT-alignment-matrix#5-修正動作優先級給-phase-4|_SSOT-alignment-matrix §5]]）已可開始排程，BDD scenarios 也可以開始寫具體 Given/When/Then。
 
 > 📊 **完整統計**（按角色 / Realtime / 外部依賴 / BDD 覆蓋）：見 §2 對齊矩陣 + [[_flows-bdd-test/v-model-right/E7--bdd-scenarios#ⅲb-feature--e7x-流程編號對照f-101f-201--f-001f-023|E7 §Ⅲ.b Feature ↔ E7x 流程對照表]]。
 
@@ -99,26 +104,33 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 
 ---
 
-## 3. 必須先向 PM 釐清的 10 個問題（附合理預設）
+## 3. 必須先向 PM 釐清的 10 個問題 → ✅ **全部已拍板（2026-05-07）**
 
-> 建議用 **1 場 90 分鐘對齊會議** 一次解決。下列「預設」是本文件為規劃假設的答案，PM 拍板後可即時調整測試矩陣。
+> ✅ 2026-05-07 **PM 全部拍板**（10/10）：6 採預設（Q1/Q2/Q5/Q6/Q8/Q10）+ 4 採反向（Q3=C / Q4=C / Q7=B / Q9=B）。
+> 📋 **完整脈絡 + 影響評估 + 後續行動**請見 **[[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10|決策矩陣]]** §12 / §12.1。
 
-> 📋 **完整版**：選項對比、影響範圍清單、會議議程、**PM 決策欄位**、追蹤總表 與 拍板後續更新清單請見 **[[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10|Q1–Q10 對齊文件]]**（本表為摘要）。
+| # | 問題 | 合理預設 | **PM 決策** | 影響流程 | 後續關鍵行動 |
+|---|------|---------|------------|---------|------------|
+| Q1 | 派工員角色 | A 新角色 | ✅ **A** | F-004 / F-019 | dispatcher 新角色 seed + roles enum |
+| Q2 | 雙簽終簽人 | A 階層 | ✅ **A** | F-013 / F-014 | Director > Manager 階層；既有 test_refund_dual_sign 已對齊 |
+| Q3 | 消費者追蹤入口 | A LINE only | ✅ **C**（反向）| F-022 | LINE 主 + Web VIP 備並存；建 Web 匿名 token + getWorkOrderPublicStatus |
+| Q4 | 月結 SLA 計時 | B 自然日 | ✅ **C**（反向）| F-013 | 工作日 + 國定假日跳過；引入 holidays 套件 |
+| Q5 | F-016 SLA 屬性 | B Soft | ✅ **B** | F-016 | Soft：dashboard 紅 + 升主管，無賠償；補 BDD F-110 |
+| Q6 | 客服繞過派工 | A 可+audit | ✅ **A** | F-004 | manualAssign 不需雙簽；強制 audit log |
+| Q7 | V1.0 金流 | A 不含 | 🔴 **B**（反向 + 重大）| F-011/F-014/V1.0 整體 | **緊急排 provider 選型會議**；上線延 ~30 dev-day + PCI 審查 |
+| Q8 | 非 LINE fallback | A 拒收 | ✅ **A** | F-001 / F-010 | V1.0 only LINE，範圍縮小 |
+| Q9 | Scope Change 同意 | A LINE quick reply | ✅ **B**（反向）| F-008 | Web 匿名 token + Playwright；與 Q3=C 共用機制 |
+| Q10 | 派工失敗 rollback | A 重派 3 次 | ✅ **A** | F-003 / F-005 | 自動重派 3 次後升級客服 |
 
-| # | 問題 | 合理預設 | 預設下的 BDD 影響 | 反向選項影響 | 詳細 |
-|---|------|----------|-------------------|-------------|------|
-| Q1 | 「派工員」是 V2.0 新角色還是客服子權限？ | **新角色** | 新增 RBAC seed + F-004 多 actor 矩陣 | 反：沿用客服 fixture，僅權限旗標 | [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10#2-q1-—-派工員是-v2-0-新角色還是客服子權限]] |
-| Q2 | Manager vs Director 雙簽終簽人？ | **Director > Manager** | F-013 / F-014 雙簽鎖 actor 順序 | 反：平級需驗無序性 | [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10#3-q2-—-manager-vs-director-雙簽終簽人]] |
-| Q3 | 消費者端追蹤入口？ | **LINE only** | 跳過 Web E2E，改 LINE Bot 模擬器 | 反：需新頁 + 匿名 token API + Playwright | [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10#4-q3-—-消費者端追蹤入口]] |
-| Q4 | 月結爭議 SLA 7 日是工作日嗎？ | **自然日**（24h × 7） | 簡化計時邏輯 | 反：工作日需 calendar lib + 跨週 fixture | [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10#5-q4-—-月結爭議-sla-7-日是工作日嗎]] |
-| Q5 | F-016「2 小時到場」是 hard SLA？ | **soft**（破線僅警報 / dashboard 變紅 + 升級主管） | 只驗 alert event | 反：hard 需賠償計算 + 自動沖銷（綁 Q7） | [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10#6-q5-—-f-016-2-小時到場是-hard-sla]] |
-| Q6 | 客服可否手動繞過自動派工？ | **可繞過但留稽核** | F-004 測「客服指定 → 立即生效 + audit log」 | 反：測雙簽流程 | [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10#7-q6-—-客服可否手動繞過自動派工]] |
-| Q7 | V1.0 是否含金流？ | **不含**（線下） | F-011 / F-014 用 fake provider，跳過實際扣款 | 反：必須先選 provider + PCI compliance | [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10#8-q7-—-v1-0-是否含金流]] |
-| Q8 | 非 LINE 用戶 fallback？ | **拒收案**（V1.0 只服務 LINE 用戶） | 縮減測試範圍 | 反：需先整合 SMS provider | [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10#9-q8-—-非-line-用戶-fallback]] |
-| Q9 | Scope Change 同意入口？ | **LINE quick reply** | Bot 模擬器測試 | 反：Web 匿名 token + Playwright | [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10#10-q9-—-scope-change-同意入口]] |
-| Q10 | 派工 / 接單失敗 rollback policy？ | **回 pool 自動重派 3 次後升級客服** | 全線負面測試 Then 步驟 | 反：直接回客服人工介入 | [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10#11-q10-—-派工-接單失敗-rollback-policy]] |
-
-> ⚠ Q4 / Q5 預設更新（2026-05-07）：對齊文件成案後重新評估技術成本，從 E7x 初版的「工作日 / hard」改為「自然日 / soft」。理由詳見 [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10|對齊文件]] §5 / §6。
+> 📊 **決策影響統計**（詳見 [[_flows-bdd-test/_SSOT-alignment-matrix#3-對齊狀態彙總|_SSOT-alignment-matrix §3]]）：
+>
+> - PM 拍板後 ⚠ blocked 從 5 → 4（4 條仍待實作 / provider 選型）
+> - ❌ orphan 從 4 → 0（全部已決定方向，待補 BDD Feature）
+> - ✅ aligned 從 8 → 10（F-010 / F-013 升級）
+>
+> ⚠ **Q7=B 為最重大決策**：V1.0 含金流 → 上線延 ~1.5 個月，需 PCI compliance 審查。建議 PM/TL/CEO 立即評估：
+> 1. 是否願意延 1.5 個月換金流整合？
+> 2. 或拆 V1.0a（不含金流）+ V1.0b（含金流）兩階段？
 
 ---
 
@@ -523,6 +535,7 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 | 2026-05-07 | Claude (assisted) | **測試基礎設施 Wave（autonomous-only）**：補齊「不需外力」的測試金字塔骨架：Makefile、pytest markers、tests/fixtures、tests/factories、schemathesis、AsyncAPI validator、Playwright config + login smoke、test-suite.yml workflow。詳見 §15.2。 |
 | 2026-05-07 | Claude (assisted) | **§3 PM Q1–Q10 抽出為獨立對齊文件**：[[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10|Q1–Q10 對齊文件]] 提供完整選項對比、會議議程、PM 決策欄位、追蹤表、下游更新清單。§3 表保留為摘要，每行加 `詳細` 連結至對齊文件對應章節。Q4 / Q5 預設更新為「自然日 / soft」（重新評估技術成本）。 |
 | 2026-05-07 | Claude (assisted) | **§1 / §2 雙向對齊**：TL;DR 數字與 §2 對齊矩陣逐行對照修正。修正內容：(a) 🟡 部分可測列表加入 F-014（移除 F-013，因 F-013 §2 已是 🟢）；(b) 🔴 不能測從「4 條 (F-011/F-012/F-014/F-022)」修正為「3 條 (F-011/F-012/F-022)」；(c) 🟡 條數明確標 7 條；(d) 加 cross-link 至 [[_flows-bdd-test/v-model-right/E7--bdd-scenarios|E7 §Ⅲ.b]] BDD 對照表。理由：§2 為 SSOT，§1 為摘要，過去 §1 落後 §2。 |
+| 2026-05-07 | PM + Claude (sync) | **PM Q1-Q10 全拍板同步**：§1 TL;DR 改寫「根本原因（已解）」+ 列出新阻塞（Q7=B 金流 / Q3=C+Q9=B Web 匿名 token / Q4=C 工作日 calendar）；§3 從 10 row 待拍表變「拍板結果 + 後續行動」表，標明 4 反向選項；指向 _SSOT-alignment-matrix §3 對齊狀態彙總。Q7=B 為最重大決策（V1.0 含金流，延 ~1.5 月）。 |
 
 ### 15.1 Wave 1+2 補完明細（2026-05-07）
 
