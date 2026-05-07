@@ -1743,8 +1743,18 @@ export interface components {
             /** @description 折讓金額（百分比或金額，由業務語意自行解讀；僅 approve 時生效） */
             discount_offered?: string | null;
         };
-        /** @enum {string} */
-        RefundRequestStatus: "pending" | "approved" | "rejected" | "escalated" | "executed" | "cancelled";
+        /**
+         * @description 退款申請狀態：
+         *     - pending: 待審核
+         *     - csm_approved: 第一簽完成（CSM Approved），等待第二簽（雙簽流程中介態）
+         *     - approved: 已核准（雙簽完成或單簽核准）
+         *     - rejected: 已拒絕
+         *     - escalated: 已升級
+         *     - executed: 已執行
+         *     - cancelled: 已取消
+         * @enum {string}
+         */
+        RefundRequestStatus: "pending" | "csm_approved" | "approved" | "rejected" | "escalated" | "executed" | "cancelled";
         /** @description 退款申請（read-only；雙簽流程經 submitRefundDecision 推進） */
         RefundRequest: {
             /** Format: uuid */
