@@ -1445,8 +1445,8 @@ onPageLoad: () => {
 |:---------|:-----|:-----|
 | **API 設計規範** | E5--api-design-specification.md | `docs/02-design/E5--api-design-specification.md` |
 | **前端架構規範** | E5x--frontend-architecture.md | `docs/02-design/E5x--frontend-architecture.md` |
-| **工單互動流程** | E5x--work-order-interaction-flows.md | `docs/02-design/E5x--work-order-interaction-flows.md` |
-| **派工營運規格** | E5x--dispatch-operations.md | `docs/02-design/E5x--dispatch-operations.md` |
+| **工單互動流程** | E5x--work-order-interaction-flows.md | `docs/_flows-bdd-test/E5x--work-order-interaction-flows.md` |
+| **派工營運規格** | E5x--dispatch-operations.md | `docs/_flows-bdd-test/E5x--dispatch-operations.md` |
 | **多租戶架構** | multi-tenant-architecture.md | `docs/02-design/platform-multi-tenant/multi-tenant-architecture.md` |
 | **派工整合規格** | dispatch-integration-spec.md | `docs/02-design/platform-multi-tenant/dispatch-integration-spec.md` |
 | **Agent Harness 架構** | harness-architecture.md | `docs/02-design/agent-harness/harness-architecture.md` |

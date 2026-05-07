@@ -1,6 +1,6 @@
 # Smart Lock AI Support & Service Dispatch SaaS Platform — Makefile
 #
-# 對應 docs/02-design/E7x--test-plan-and-readiness.md §13 Verification 列出的
+# 對應 docs/_flows-bdd-test/E7x--test-plan-and-readiness.md §13 Verification 列出的
 # 5 個測試 layer，每個 target 都可獨立執行。
 #
 # 用法：

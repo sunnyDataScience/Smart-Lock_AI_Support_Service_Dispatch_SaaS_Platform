@@ -23,8 +23,8 @@ TR0  TR1       TR2  TR3      TR4  TR5       TR6    TR7        TR8  TR9  TR10
 | E4 | TR3 | [[01-define/diagrams/E4--06_erd]] | Approved |
 | E5 | TR4 | [[02-design/E5--api-design-specification]] | Approved |
 | E6 | TR5 | [[02-design/E6--development-workflow-cookbook]] | Active |
-| E7 | TR5 | [[02-design/E7--bdd-scenarios]] | Active |
-| E7x | TR5 | [[02-design/E7x--test-plan-and-readiness]] | Active |
+| E7 | TR5 | [[_flows-bdd-test/E7--bdd-scenarios]] | Active |
+| E7x | TR5 | [[_flows-bdd-test/E7x--test-plan-and-readiness]] | Active |
 | GR6 | TR6 | [[03-develop/GR6--code-complete]] | Template |
 | GR7 | TR7 | [[03-develop/GR7--integration]] | Template |
 | E8 | TR8 | [[04-deliver/E8--security-and-readiness-checklists]] | In Use |
@@ -50,6 +50,7 @@ TR0  TR1       TR2  TR3      TR4  TR5       TR6    TR7        TR8  TR9  TR10
 - [[_domain-knowledge/_MOC]] -- Smart lock repair expertise that powers the AI
 - [[_gap-analysis/_MOC]] -- What is missing vs. investor/contract requirements
 - [[_meeting-minutes/_MOC]] -- Decision records from meetings
+- [[_flows-bdd-test/_MOC]] -- **Cross-phase topic folder**: user journeys, work order / dispatch / admin governance flows, BDD scenarios, test plan & PM alignment (consolidated from `00-discover/` and `02-design/`)
 
 ---
 
@@ -58,7 +59,7 @@ TR0  TR1       TR2  TR3      TR4  TR5       TR6    TR7        TR8  TR9  TR10
 ### Path A: New Team Member
 
 1. [[00-discover/E1--project-brief-and-prd]] -- What we are building and why
-2. [[00-discover/E1x--user-journey-map]] -- How users interact with the system
+2. [[_flows-bdd-test/E1x--user-journey-map]] -- How users interact with the system
 3. [[01-define/E3--architecture-and-design]] -- Technical architecture overview
 4. [[02-design/E6--development-workflow-cookbook]] -- How we work
 5. [[02-design/E6x--project-structure-guide]] -- Where code lives
@@ -73,8 +74,8 @@ TR0  TR1       TR2  TR3      TR4  TR5       TR6    TR7        TR8  TR9  TR10
 
 ### Path C: Building a Feature
 
-1. [[02-design/E7--bdd-scenarios]] -- Find your feature's acceptance criteria
-2. [[02-design/E7x--test-plan-and-readiness]] -- Confirm test coverage and gaps before coding
+1. [[_flows-bdd-test/E7--bdd-scenarios]] -- Find your feature's acceptance criteria
+2. [[_flows-bdd-test/E7x--test-plan-and-readiness]] -- Confirm test coverage and gaps before coding
 3. [[02-design/specs/_MOC]] -- Find the technical spec
 4. [[02-design/E5--api-design-specification]] -- API contracts
 5. [[01-define/diagrams/_MOC]] -- Visual references
@@ -88,10 +89,10 @@ TR0  TR1       TR2  TR3      TR4  TR5       TR6    TR7        TR8  TR9  TR10
 
 ### Path E: QA / Test Owner
 
-1. [[02-design/E7x--test-plan-and-readiness]] -- Test plan, gap matrix, mock spectrum, Sprint 1 roadmap
-2. [[02-design/E7--bdd-scenarios]] -- Source scenarios to bridge into pytest-bdd
+1. [[_flows-bdd-test/E7x--test-plan-and-readiness]] -- Test plan, gap matrix, mock spectrum, Sprint 1 roadmap
+2. [[_flows-bdd-test/E7--bdd-scenarios]] -- Source scenarios to bridge into pytest-bdd
 3. [[02-design/specs/openapi]] / [[02-design/specs/asyncapi]] -- Contracts to verify against
-4. [[02-design/E5x--work-order-interaction-flows]] -- Work order state machine reference
+4. [[_flows-bdd-test/E5x--work-order-interaction-flows]] -- Work order state machine reference
 5. [[03-develop/GR6--code-complete]] / [[03-develop/GR7--integration]] -- Quality gate checklists
 
 ---

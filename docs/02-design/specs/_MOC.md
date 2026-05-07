@@ -7,7 +7,7 @@ Detailed technical specifications for individual platform features. Each spec de
 ## Relationship to Other Zones
 
 - **Parent:** [[02-design/_MOC]]
-- **Implements:** Architecture from [[01-define/E3--architecture-and-design]] and flows from [[02-design/E5x--work-order-interaction-flows]]
+- **Implements:** Architecture from [[01-define/E3--architecture-and-design]] and flows from [[_flows-bdd-test/E5x--work-order-interaction-flows]]
 - **Gaps:** Many specs were created to close items in [[_gap-analysis/gap-analysis-report]]
 
 ---

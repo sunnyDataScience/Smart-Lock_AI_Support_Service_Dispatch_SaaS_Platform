@@ -2,7 +2,7 @@
 /**
  * scripts/ci/asyncapi-validate.mjs — AsyncAPI envelope validator
  *
- * 對應 docs/02-design/E7x--test-plan-and-readiness.md §10 #22 與 §14。
+ * 對應 docs/_flows-bdd-test/E7x--test-plan-and-readiness.md §10 #22 與 §14。
  * 用 @asyncapi/parser 解析 docs/02-design/specs/asyncapi.yaml，驗證：
  *   1. spec 本身語法 / 結構合法（標準 spec lint，補 spectral 看不到的事）
  *   2. 列出所有 channel + payload 形狀（給 reviewer 看）

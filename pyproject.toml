@@ -22,7 +22,7 @@ dev = [
 
 # CI / 測試專用工具（與 dev 分離，本機可跳過）
 # 用：uv sync --group test
-# 對應 docs/02-design/E7x--test-plan-and-readiness.md §10 / §14
+# 對應 docs/_flows-bdd-test/E7x--test-plan-and-readiness.md §10 / §14
 test = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
