@@ -11,7 +11,7 @@
 > - `docs/02-design/specs/audit-log-spec.md` — 稽核事件分類與保留政策
 > - `docs/02-design/specs/inventory-management-spec.md` — 庫存資料模型
 > - `docs/02-design/specs/warranty-dispute-spec.md` — 保固爭議狀態機
-> - `docs/_flows-bdd-test/E5x--work-order-interaction-flows.md` — 13 個工單 Flow
+> - `docs/_flows-bdd-test/E5x--workflow-work-order.md` — 13 個工單 Flow
 > - `docs/02-design/E5x--frontend-architecture.md §8.3` — 動態 RBAC 契約
 >
 > **與其他 Flow 文件的關係**：
@@ -544,7 +544,7 @@ sequenceDiagram
 - **R1**：爭議建立時工單狀態必須為 `completed` 或 `confirmed`，否則 422
 - **R2**：同一工單同時只能有一個 `active` 爭議（重複提出 → 409 `CONFLICT`）
 - **R3**：爭議期間該工單的支付凍結（不論 pending 還是已付），結案後才釋放
-- **R4**：技師 12 個月內累計被裁決失敗 3 次 → 觸發熔斷（對齊 `E5x--work-order-interaction-flows.md §22`）
+- **R4**：技師 12 個月內累計被裁決失敗 3 次 → 觸發熔斷（對齊 `E5x--workflow-work-order.md §22`）
 - **R5**：裁決書必填：事實認定、法規/規則引用、賠償金額、責任歸屬比例
 - **R6**：爭議 PDF 歸檔 3 年（金流類保留 7 年與此不同，以長者為準）
 - **R7**：保固爭議（Flow 7）與本流程分離：保固爭議是「責任判定 + 修復」、本流程是「金額賠償裁決」
@@ -616,7 +616,7 @@ G4 爭議裁決 ──→ LINE Push（客戶）
 - [ ] §3.6 PII 遮蔽規則細節（特別是超管層級的開放度）
 - [ ] §4.6 R2 金額門檻（5 萬 / 20 萬）是否與 Flow 6 退款門檻一致？
 - [ ] §5.6 R9 爭議雙簽門檻（5000）是否與 Flow 6 退款雙簽門檻（§9.1 可能的 10000/100000）統一？
-- [ ] §5.6 R4 技師熔斷閾值（12 個月 3 次）是否為新規則？還是已在 `E5x--work-order-interaction-flows.md §22` 有等價規則？
+- [ ] §5.6 R4 技師熔斷閾值（12 個月 3 次）是否為新規則？還是已在 `E5x--workflow-work-order.md §22` 有等價規則？
 - [ ] §5.6 R7 保固爭議 vs 金額爭議的分界是否清楚？
 - [ ] §5.7 新錯誤碼 `DISPUTE_EXTERNAL_PENDING` 的命名
 - [ ] §6.1 議題分界是否準確？

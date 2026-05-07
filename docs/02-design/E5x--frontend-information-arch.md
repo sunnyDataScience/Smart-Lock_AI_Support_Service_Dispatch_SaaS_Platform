@@ -10,8 +10,8 @@
 **相關文檔:**
 - API 設計規範：[`E5--api-design-specification`](E5--api-design-specification.md)
 - 前端架構規範：[`E5x--frontend-architecture`](E5x--frontend-architecture.md)
-- 工單互動流程：[`E5x--work-order-interaction-flows`](E5x--work-order-interaction-flows.md)
-- 派工營運規格：[`E5x--dispatch-operations`](E5x--dispatch-operations.md)
+- 工單互動流程：[`E5x--workflow-work-order`](E5x--workflow-work-order.md)
+- 派工營運規格：[`E5x--workflow-dispatch`](E5x--workflow-dispatch.md)
 - 多租戶架構：[`platform-multi-tenant/multi-tenant-architecture`](platform-multi-tenant/multi-tenant-architecture.md)
 - 派工整合規格：[`platform-multi-tenant/dispatch-integration-spec`](platform-multi-tenant/dispatch-integration-spec.md)
 - Agent Harness 診斷架構：[`agent-harness/diagnostic-intelligence-architecture`](agent-harness/diagnostic-intelligence-architecture.md)
@@ -242,7 +242,7 @@ graph TB
 
 **總計：** Admin Panel 37 頁（含 V3.0 多租戶 3 頁）+ Technician App 11 頁 = **48 頁**
 
-> **備註：** A17–A22 為 V2.0 營運閉環必要頁（退款/RBAC/庫存/稽核/保固/爭議），補 A23–A33 係對齊 `E5x--dispatch-operations` 與 13 項 `specs/`；A34–A36 對齊 V3.0 多租戶架構；T5–T10 對齊 `E5x--work-order-interaction-flows` 10 個流程中的非 Happy Path 分支。
+> **備註：** A17–A22 為 V2.0 營運閉環必要頁（退款/RBAC/庫存/稽核/保固/爭議），補 A23–A33 係對齊 `E5x--workflow-dispatch` 與 13 項 `specs/`；A34–A36 對齊 V3.0 多租戶架構；T5–T10 對齊 `E5x--workflow-work-order` 10 個流程中的非 Happy Path 分支。
 
 ---
 
@@ -1445,8 +1445,8 @@ onPageLoad: () => {
 |:---------|:-----|:-----|
 | **API 設計規範** | E5--api-design-specification.md | `docs/02-design/E5--api-design-specification.md` |
 | **前端架構規範** | E5x--frontend-architecture.md | `docs/02-design/E5x--frontend-architecture.md` |
-| **工單互動流程** | E5x--work-order-interaction-flows.md | `docs/_flows-bdd-test/E5x--work-order-interaction-flows.md` |
-| **派工營運規格** | E5x--dispatch-operations.md | `docs/_flows-bdd-test/E5x--dispatch-operations.md` |
+| **工單互動流程** | E5x--workflow-work-order.md | `docs/_flows-bdd-test/E5x--workflow-work-order.md` |
+| **派工營運規格** | E5x--workflow-dispatch.md | `docs/_flows-bdd-test/E5x--workflow-dispatch.md` |
 | **多租戶架構** | multi-tenant-architecture.md | `docs/02-design/platform-multi-tenant/multi-tenant-architecture.md` |
 | **派工整合規格** | dispatch-integration-spec.md | `docs/02-design/platform-multi-tenant/dispatch-integration-spec.md` |
 | **Agent Harness 架構** | harness-architecture.md | `docs/02-design/agent-harness/harness-architecture.md` |
@@ -1459,7 +1459,7 @@ onPageLoad: () => {
 |:-----|:-----|:-----|:---------|
 | 2026-02-26 | v1.0 | 前端架構師 | 初版發布：涵蓋 V1.0 Admin Panel + V2.0 Technician App 完整 IA |
 | 2026-04-04 | v1.1 | 前端架構師 | 新增 V2.0 Admin Panel 6 頁：退款審批、RBAC、庫存、稽核、保固索賠、爭議仲裁 |
-| 2026-04-23 | v1.2 | 前端架構師 | **對齊系統架構全面擴充：** <br/>• 新增 A23–A33 Admin 頁面（客戶主檔、技師排班/技能/結算、派工佇列、KPI/排行/營收、診斷推理、SOP 績效）<br/>• 新增 V3.0 A34–A36 多租戶頁面（租戶設定、品牌客製、超管控制台）<br/>• 新增 T5–T10 技師端子流程頁（範圍變更、缺料、延遲、門面檢核、簽章、排班）<br/>• 擴充 §6.13–6.31 共 19 個缺失的頁面詳細規格<br/>• 新增 §8.4 WebSocket 頻道目錄（10 個頻道）與 §8.5 多租戶資料隔離策略<br/>• 更新路由守衛支援 `/admin/*` 與 V3.0 超管檢查<br/>• 對齊 `E5x--work-order-interaction-flows` 10 個流程、`E5x--dispatch-operations` 7 類營運、13 項 `specs/` 技術規格與 `agent-harness` AI 診斷架構 |
+| 2026-04-23 | v1.2 | 前端架構師 | **對齊系統架構全面擴充：** <br/>• 新增 A23–A33 Admin 頁面（客戶主檔、技師排班/技能/結算、派工佇列、KPI/排行/營收、診斷推理、SOP 績效）<br/>• 新增 V3.0 A34–A36 多租戶頁面（租戶設定、品牌客製、超管控制台）<br/>• 新增 T5–T10 技師端子流程頁（範圍變更、缺料、延遲、門面檢核、簽章、排班）<br/>• 擴充 §6.13–6.31 共 19 個缺失的頁面詳細規格<br/>• 新增 §8.4 WebSocket 頻道目錄（10 個頻道）與 §8.5 多租戶資料隔離策略<br/>• 更新路由守衛支援 `/admin/*` 與 V3.0 超管檢查<br/>• 對齊 `E5x--workflow-work-order` 10 個流程、`E5x--workflow-dispatch` 7 類營運、13 項 `specs/` 技術規格與 `agent-harness` AI 診斷架構 |
 | 2026-04-24 | v1.3 | 文件整併 | **合併 `E5x--frontend-navigation-matrix.md`：** <br/>• 新增 §11 頁面導航矩陣與狀態規範（導航矩陣、Dirty State、錯誤狀態、Query String、深連結、多頁簽同步、跨頁返回）<br/>• 附錄重新編號為 §12<br/>• 新增附錄 B：21 份 Pipeline Spec 導航與狀態矩陣 |
 
 ### 12.4 審核記錄

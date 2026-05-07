@@ -8,8 +8,8 @@ owners:
   - Operations Manager
   - PM
 related:
-  - "[[_flows-bdd-test/E5x--dispatch-operations]]"
-  - "[[_flows-bdd-test/E5x--work-order-interaction-flows]]"
+  - "[[_flows-bdd-test/E5x--workflow-dispatch]]"
+  - "[[_flows-bdd-test/E5x--workflow-work-order]]"
   - "[[_flows-bdd-test/E7x--test-plan-and-readiness]]"
 last_reviewed: 2026-05-07
 ---
@@ -20,7 +20,7 @@ last_reviewed: 2026-05-07
 >
 > **預期讀者**：派工後端工程師、QA、PM。
 >
-> **與既有文件關係**：本文件取代 [[_flows-bdd-test/E5x--dispatch-operations]] §2.2–§2.3 的舊版權重描述（0.35 / 0.30 / 0.20 / 0.15 + bonus 0.10 / 0.05）。新版以 5 因子（含 fairness）取代 bonus 結構，所有實作以本文件為準。
+> **與既有文件關係**：本文件取代 [[_flows-bdd-test/E5x--workflow-dispatch]] §2.2–§2.3 的舊版權重描述（0.35 / 0.30 / 0.20 / 0.15 + bonus 0.10 / 0.05）。新版以 5 因子（含 fairness）取代 bonus 結構，所有實作以本文件為準。
 
 ## 1. 概念
 

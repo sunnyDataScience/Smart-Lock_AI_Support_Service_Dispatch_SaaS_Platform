@@ -20,9 +20,9 @@ owners: [PM, Tech Lead, QA Lead]
 | File | Description | Origin |
 |------|-------------|--------|
 | [[E1x--user-journey-map]] | Consumer, technician, admin, CS manager journey maps with emotion curves | ex `00-discover/` |
-| [[E5x--work-order-interaction-flows]] | Complete work order and dispatch lifecycle (10 flows) | ex `02-design/` |
-| [[E5x--dispatch-operations]] | 派工營運規格：排班、媒合演算法、薪酬分潤、拒單重派、客戶設備主檔、技能體系、報表 | ex `02-design/` |
-| [[E5x--flows-admin-governance]] | 後台治理流程：RBAC 角色生命週期、稽核日誌、庫存告警、爭議仲裁 | ex `02-design/` |
+| [[E5x--workflow-work-order]] | Complete work order and dispatch lifecycle (10 flows) | ex `02-design/` |
+| [[E5x--workflow-dispatch]] | 派工營運規格：排班、媒合演算法、薪酬分潤、拒單重派、客戶設備主檔、技能體系、報表 | ex `02-design/` |
+| [[E5x--workflow-admin-governance]] | 後台治理流程：RBAC 角色生命週期、稽核日誌、庫存告警、爭議仲裁 | ex `02-design/` |
 
 ### BDD Specifications
 
@@ -43,9 +43,9 @@ owners: [PM, Tech Lead, QA Lead]
 ## Reading Order
 
 1. [[E1x--user-journey-map]] -- Who the users are and what they feel
-2. [[E5x--work-order-interaction-flows]] -- How a work order moves through the system
-3. [[E5x--dispatch-operations]] -- How dispatch decisions get made
-4. [[E5x--flows-admin-governance]] -- How admin governs the platform
+2. [[E5x--workflow-work-order]] -- How a work order moves through the system
+3. [[E5x--workflow-dispatch]] -- How dispatch decisions get made
+4. [[E5x--workflow-admin-governance]] -- How admin governs the platform
 5. [[E7--bdd-scenarios]] -- What the code must do (acceptance criteria)
 6. [[E7x--test-plan-and-readiness]] -- How we will verify it
 7. [[E7x--pm-alignment-Q1-Q10]] -- PM open questions reference

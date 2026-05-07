@@ -92,7 +92,7 @@ TR0  TR1       TR2  TR3      TR4  TR5       TR6    TR7        TR8  TR9  TR10
 1. [[_flows-bdd-test/E7x--test-plan-and-readiness]] -- Test plan, gap matrix, mock spectrum, Sprint 1 roadmap
 2. [[_flows-bdd-test/E7--bdd-scenarios]] -- Source scenarios to bridge into pytest-bdd
 3. [[02-design/specs/openapi]] / [[02-design/specs/asyncapi]] -- Contracts to verify against
-4. [[_flows-bdd-test/E5x--work-order-interaction-flows]] -- Work order state machine reference
+4. [[_flows-bdd-test/E5x--workflow-work-order]] -- Work order state machine reference
 5. [[03-develop/GR6--code-complete]] / [[03-develop/GR7--integration]] -- Quality gate checklists
 
 ---

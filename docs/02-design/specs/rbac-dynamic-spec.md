@@ -15,8 +15,8 @@
 ## 2. Role Hierarchy (角色階層)
 
 > **本節為全系統角色的權威來源。** 其他文件中的角色定義應引用本表：
-> - 工單流程角色（6 個業務角色）：`E5x--work-order-interaction-flows.md §2`
-> - 治理流程角色（7 個治理角色）：`E5x--flows-admin-governance.md §1`
+> - 工單流程角色（6 個業務角色）：`E5x--workflow-work-order.md §2`
+> - 治理流程角色（7 個治理角色）：`E5x--workflow-admin-governance.md §1`
 > - 多租戶平台角色（5 個平台角色）：`platform-multi-tenant/E5x--flows-multi-tenant.md §1`
 
 ### 2.1 角色總覽（全版本）

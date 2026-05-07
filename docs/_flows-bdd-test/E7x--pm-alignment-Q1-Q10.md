@@ -10,9 +10,9 @@ owners:
 related:
   - "[[_flows-bdd-test/E7x--test-plan-and-readiness]]"
   - "[[_flows-bdd-test/E7--bdd-scenarios]]"
-  - "[[_flows-bdd-test/E5x--dispatch-operations]]"
-  - "[[_flows-bdd-test/E5x--work-order-interaction-flows]]"
-  - "[[_flows-bdd-test/E5x--flows-admin-governance]]"
+  - "[[_flows-bdd-test/E5x--workflow-dispatch]]"
+  - "[[_flows-bdd-test/E5x--workflow-work-order]]"
+  - "[[_flows-bdd-test/E5x--workflow-admin-governance]]"
   - "[[02-design/specs/dispatch-weights]]"
   - "[[01-define/E2--statement-of-work]]"
 last_reviewed: 2026-05-07
@@ -67,7 +67,7 @@ last_updated: 2026-05-07 (初版)
 ## 2. Q1 — 「派工員」是 V2.0 新角色還是客服子權限？
 
 ### 業務脈絡
-[[_flows-bdd-test/E5x--dispatch-operations]] §3 描述「派工員」職責（手動派工、改派、處理 SLA 警報），但 V1.0 沒有這個角色—所有派工由「客服」兼任。V2.0 引入自動派工後，是否獨立此角色？
+[[_flows-bdd-test/E5x--workflow-dispatch]] §3 描述「派工員」職責（手動派工、改派、處理 SLA 警報），但 V1.0 沒有這個角色—所有派工由「客服」兼任。V2.0 引入自動派工後，是否獨立此角色？
 
 ### 影響流程
 - F-004 手動派工（actor 該寫 dispatcher 還是 customer_service）
@@ -107,7 +107,7 @@ last_updated: 2026-05-07 (初版)
 ### 拍板後續更新
 - `SQL/seeds/_admin_user.sql` 加 dispatcher seed
 - `api/models/users.py` enum 加 `dispatcher`
-- `docs/_flows-bdd-test/E5x--dispatch-operations.md` §3 actor 表
+- `docs/_flows-bdd-test/E5x--workflow-dispatch.md` §3 actor 表
 - `docs/_flows-bdd-test/E7--bdd-scenarios.md` F-004 Given 步驟
 - `tests/factories/technician.py` 反向不影響（technician 不是 dispatcher）
 
@@ -157,7 +157,7 @@ F-013 / F-014（退款 / 爭議雙簽）需要兩人簽核才能放行。第二�
 - `SQL/Schema_v2_extensions.sql` user_role enum 確認 `operations_director` 在
 - `api/services/refund_service.py` 雙簽 actor check 邏輯（取決於選項）
 - `api/tests/test_refund_dual_sign.py` 加 director-vs-manager case
-- `docs/_flows-bdd-test/E5x--flows-admin-governance.md` RBAC §
+- `docs/_flows-bdd-test/E5x--workflow-admin-governance.md` RBAC §
 
 ---
 
@@ -252,7 +252,7 @@ F-013 月結對帳爭議 SLA 7 日。是 7 個工作日（Mon-Fri）還是 7 個
 
 ### 拍板後續更新
 - `api/services/dispute_service.py`：SLA 計時邏輯
-- `docs/_flows-bdd-test/E5x--flows-admin-governance.md`：SLA 表格
+- `docs/_flows-bdd-test/E5x--workflow-admin-governance.md`：SLA 表格
 - `tests/factories/`：若 A/C，加 `WeekdayClock` fixture
 
 ---
@@ -301,7 +301,7 @@ F-016 派工後 2 小時內技師應到場。「破線」是僅警報、還是�
 
 ### 拍板後續更新
 - `api/services/sla_monitor.py`：alert vs penalty 分流
-- `docs/_flows-bdd-test/E5x--flows-admin-governance.md` §SLA
+- `docs/_flows-bdd-test/E5x--workflow-admin-governance.md` §SLA
 - `tests/golden/sla/`：若 A/C，加 escalation timeline fixture
 
 ---
@@ -348,7 +348,7 @@ F-004 客服在自動派工跑完後，能否「跳過 best match，指定特定
 ### 拍板後續更新
 - `api/services/dispatch_service.py`：manualAssign 是否需 second_actor
 - `api/tests/`：加 `test_manual_dispatch.py`
-- `docs/_flows-bdd-test/E5x--dispatch-operations.md` §手動派工
+- `docs/_flows-bdd-test/E5x--workflow-dispatch.md` §手動派工
 
 ---
 
@@ -491,7 +491,7 @@ F-008 技師到場後發現問題比預期大（換鎖 → 加上換門框），
 ### 拍板後續更新
 - `agent/skills/data/_common/`：scope-change-consent skill
 - `agent/core/line_bot.py`：若 A，加 Flex template
-- `docs/_flows-bdd-test/E5x--work-order-interaction-flows.md` F-008
+- `docs/_flows-bdd-test/E5x--workflow-work-order.md` F-008
 
 ---
 

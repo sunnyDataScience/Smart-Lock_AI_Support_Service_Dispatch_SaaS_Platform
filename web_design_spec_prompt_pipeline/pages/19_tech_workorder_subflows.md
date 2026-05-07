@@ -1,7 +1,7 @@
 # Page-Level Prompt: 技師端 — 工單非 Happy Path 子流程（6 頁合一）
 
 > 技師 PWA 工單現場例外處理與交付收尾。涵蓋 T5 範圍變更、T6 缺料回報、T7 延遲通知、T8 門面外觀檢核、T9 雙方電子簽章、T10 我的排班。
-> 對齊 `E5x--work-order-interaction-flows` Flow 3/4/5/10、`specs/e-signature-spec.md`、`specs/inventory-management-spec.md`、`specs/sla-availability-spec.md`、`E5x--frontend-architecture.md` §3.3 / §8.5 / §8.7。
+> 對齊 `E5x--workflow-work-order` Flow 3/4/5/10、`specs/e-signature-spec.md`、`specs/inventory-management-spec.md`、`specs/sla-availability-spec.md`、`E5x--frontend-architecture.md` §3.3 / §8.5 / §8.7。
 
 ---
 
