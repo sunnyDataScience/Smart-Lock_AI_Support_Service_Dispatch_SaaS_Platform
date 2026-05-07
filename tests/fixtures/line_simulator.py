@@ -1,6 +1,6 @@
 """LINE Webhook 模擬器 — 可重用的 pytest fixture 與工具函式。
 
-對應 docs/02-design/E7x--test-plan-and-readiness.md §10 #6 與 §5.3
+對應 docs/_flows-bdd-test/E7x--test-plan-and-readiness.md §10 #6 與 §5.3
 "LINE Bot 不對真 LINE 做 E2E"，建立 forge HMAC-SHA256 webhook + capture reply
 的測試 fixture。
 

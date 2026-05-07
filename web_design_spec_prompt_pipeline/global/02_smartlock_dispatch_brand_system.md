@@ -555,4 +555,4 @@ Technician App
   - `references/ui_style_benchmark_report.md`（風格參考報告）
   - `docs/01-define/E3x--module-breakdown.md`（模組分解）
   - `docs/02-design/E5x--frontend-information-arch.md`（前端資訊架構）
-  - `docs/02-design/E5x--work-order-interaction-flows.md`（工單互動流程）
+  - `docs/_flows-bdd-test/E5x--work-order-interaction-flows.md`（工單互動流程）

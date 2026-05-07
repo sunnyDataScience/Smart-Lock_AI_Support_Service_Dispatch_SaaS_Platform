@@ -13,16 +13,13 @@
 | TR4 | [[E5--api-design-specification]] | REST API + WebSocket conventions, endpoint catalog | Approved | **E5** |
 | TR4 | [[E5x--frontend-architecture]] | Frontend architecture, dev standards, component system | Draft | ext-E5 |
 | TR4 | [[E5x--frontend-information-arch]] | Information architecture for Admin Panel + Technician App | Active | ext-E5 |
-| TR4 | [[E5x--work-order-interaction-flows]] | Complete work order and dispatch lifecycle (10 flows) | Design Complete | ext-E5 |
-| TR4 | [[E5x--dispatch-operations]] | 派工營運規格：排班、媒合演算法、薪酬分潤、拒單重派、客戶設備主檔、技能體系、報表 | Design | ext-E5 |
-| TR4 | [[E5x--flows-admin-governance]] | 後台治理流程：RBAC 角色生命週期、稽核日誌、庫存告警、爭議仲裁 | Draft | ext-E5 |
 | TR5 | [[E6--development-workflow-cookbook]] | End-to-end development methodology, phases, documentation requirements | Active | **E6** |
 | TR5 | [[E6x--project-structure-guide]] | Directory structure conventions for Agent, graph, harness, core systems | Active | ext-E6 |
 | TR5 | [[E6x--file-dependencies]] | Inter-file dependency map | Active | ext-E6 |
 | TR5 | [[E6x--class-relationships]] | Class relationship diagrams | Active | ext-E6 |
 | TR5 | [[E6x--code-review-and-refactoring]] | Code quality standards and review checklist | Active | ext-E6 |
-| TR5 | [[E7--bdd-scenarios]] | BDD principles, Gherkin syntax, V1.0 + V2.0 feature scenarios | Active | **E7** |
-| TR5 | [[E7x--module-specification-and-tests]] | Detailed module specs with test cases for core V1.0 components | Draft | ext-E7 |
+
+> **Moved out:** Work order flows (E5x), dispatch operations (E5x), admin governance flows (E5x), BDD scenarios (E7), test plan (E7x), PM alignment (E7x), module test specs (E7x) now live under [[../_flows-bdd-test/_MOC]] -- see that folder for the full set.
 
 > **E{N}** = Essential at this gate. **ext-E{N}** = Extension. See [[GATE-MAP]] for full framework.
 
@@ -37,9 +34,10 @@
 ## Reading Order
 
 1. [[E5--api-design-specification]] -- How modules communicate.
-2. [[E5x--work-order-interaction-flows]] -- The core business logic.
+2. [[../_flows-bdd-test/E5x--work-order-interaction-flows]] -- The core business logic (in `_flows-bdd-test/`).
 3. [[E6--development-workflow-cookbook]] -- How we work.
 4. [[E6x--project-structure-guide]] -- Where code lives.
-5. [[E7--bdd-scenarios]] -- What the code must do (acceptance criteria).
+5. [[../_flows-bdd-test/E7--bdd-scenarios]] -- What the code must do (acceptance criteria, in `_flows-bdd-test/`).
 6. [[specs/_MOC]] -- Feature-specific technical specs.
 7. [[agent-harness/_MOC]] -- AI agent framework deep dive.
+8. [[../_flows-bdd-test/_MOC]] -- All flow / BDD / test plan documents (cross-phase folder).

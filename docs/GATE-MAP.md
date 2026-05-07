@@ -110,7 +110,7 @@ TR10:     [GR10] GA Readiness Review
 | **E4** | TR3 | [[01-define/diagrams/E4--06_erd]] | Approved |
 | **E5** | TR4 | [[02-design/E5--api-design-specification]] | Approved |
 | **E6** | TR5 | [[02-design/E6--development-workflow-cookbook]] | Active |
-| **E7** | TR5 | [[02-design/E7--bdd-scenarios]] | Active |
+| **E7** | TR5 | [[_flows-bdd-test/E7--bdd-scenarios]] | Active |
 | **E8** | TR8 | [[04-deliver/E8--security-and-readiness-checklists]] | In Use |
 | **E9** | TR9 | [[04-deliver/E9--deployment-and-operations-guide]] | Draft |
 
@@ -119,7 +119,7 @@ TR10:     [GR10] GA Readiness Review
 #### Extends E1 -- Problem & Vision
 | Gate | File | Role |
 |------|------|------|
-| TR0 | [[00-discover/E1x--user-journey-map]] | Deepens user understanding |
+| TR0 | [[_flows-bdd-test/E1x--user-journey-map]] | Deepens user understanding |
 | TR1 | [[00-discover/E1x--moat-system-architecture]] | Competitive positioning |
 | TR1 | [[00-discover/E1x--moat-mapping-matrix]] | Investor alignment |
 | TR1 | [[00-discover/E1x--executive-architecture-overview]] | Executive communication |
@@ -154,8 +154,9 @@ TR10:     [GR10] GA Readiness Review
 #### Extends E5 -- API & Feature Specs
 | Gate | File | Role |
 |------|------|------|
-| TR4 | [[02-design/E5x--work-order-interaction-flows]] | Core business logic |
-| TR4 | [[02-design/E5x--dispatch-operations]] | 派工營運基礎設施規格 |
+| TR4 | [[_flows-bdd-test/E5x--work-order-interaction-flows]] | Core business logic |
+| TR4 | [[_flows-bdd-test/E5x--dispatch-operations]] | 派工營運基礎設施規格 |
+| TR4 | [[_flows-bdd-test/E5x--flows-admin-governance]] | 後台治理流程（RBAC、稽核、庫存、爭議） |
 | TR4 | [[02-design/E5x--frontend-architecture]] | Frontend design |
 | TR4 | [[02-design/E5x--frontend-information-arch]] | Information architecture |
 | TR4 | [[02-design/specs/audit-log-spec]] | Feature spec |
@@ -183,7 +184,11 @@ TR10:     [GR10] GA Readiness Review
 #### Extends E7 -- Test & Acceptance
 | Gate | File | Role |
 |------|------|------|
-| TR5 | [[02-design/E7x--module-specification-and-tests]] | Module test cases |
+| TR5 | [[_flows-bdd-test/E7x--test-plan-and-readiness]] | Test plan, gap matrix, mock spectrum |
+| TR5 | [[_flows-bdd-test/E7x--pm-alignment-Q1-Q10]] | PM alignment Q1-Q10 |
+| TR5 | [[_flows-bdd-test/E7x--module-specification-and-tests]] | Module test cases |
+
+> See [[_flows-bdd-test/_MOC]] for the consolidated cross-phase folder containing user journeys, interaction flows, BDD scenarios, and test plan governance.
 
 #### Extends E3+E6 -- AI Agent Subsystem
 | Gate | File | Role |

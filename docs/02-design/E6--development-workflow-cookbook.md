@@ -171,7 +171,7 @@
 | 階段 | 文件 | 狀態 | 文件路徑 |
 |:-----|:-----|:-----|:---------|
 | **規劃** | 專案簡報與 PRD | 已批准 | `docs/00-discover/E1--project-brief-and-prd.md` |
-| **規劃** | BDD 情境 | 活躍 | `docs/02-design/E7--bdd-scenarios.md` |
+| **規劃** | BDD 情境 | 活躍 | `docs/_flows-bdd-test/E7--bdd-scenarios.md` |
 | **設計** | 架構與設計文檔 | 已批准 | `docs/01-define/E3--architecture-and-design.md` |
 | **設計** | ADR (6 份) | 已決策 | `docs/01-define/adrs/adr-001 ~ adr-006` |
 | **設計** | API 設計規格 | 已批准 | `docs/02-design/E5--api-design-specification.md` |
@@ -180,7 +180,7 @@
 | **設計** | V2.0 系統設計規格 (14 份) | 活躍 | `docs/02-design/specs/` |
 | **設計** | Agent Harness 重構文件 | 活躍 | `docs/agent-harness-refactor/` |
 | **設計** | 護城河映射矩陣 | 已完成 | `docs/00-discover/moat-mapping-matrix.md` |
-| **開發** | 模組規格與測試 | 草稿 | `docs/02-design/E7x--module-specification-and-tests.md` |
+| **開發** | 模組規格與測試 | 草稿 | `docs/_flows-bdd-test/E7x--module-specification-and-tests.md` |
 | **開發** | V2.0 業務服務模組 (16 個) | 活躍 | `agent/services/` |
 | **開發** | 模組依賴關係 | 草稿 | `docs/02-design/E6x--file-dependencies.md` |
 | **開發** | 類別關係文檔 | 草稿 | `docs/02-design/E6x--class-relationships.md` |

@@ -8,11 +8,11 @@ owners:
   - Tech Lead
   - QA Lead
 related:
-  - "[[02-design/E7x--test-plan-and-readiness]]"
-  - "[[02-design/E7--bdd-scenarios]]"
-  - "[[02-design/E5x--dispatch-operations]]"
-  - "[[02-design/E5x--work-order-interaction-flows]]"
-  - "[[02-design/E5x--flows-admin-governance]]"
+  - "[[_flows-bdd-test/E7x--test-plan-and-readiness]]"
+  - "[[_flows-bdd-test/E7--bdd-scenarios]]"
+  - "[[_flows-bdd-test/E5x--dispatch-operations]]"
+  - "[[_flows-bdd-test/E5x--work-order-interaction-flows]]"
+  - "[[_flows-bdd-test/E5x--flows-admin-governance]]"
   - "[[02-design/specs/dispatch-weights]]"
   - "[[01-define/E2--statement-of-work]]"
 last_reviewed: 2026-05-07
@@ -21,7 +21,7 @@ last_updated: 2026-05-07 (初版)
 
 # PM Alignment — Q1–Q10 Decision Matrix
 
-> **目的**：為 [[02-design/E7x--test-plan-and-readiness|E7x test plan]] §3 列出的 10 個 PM 待拍板問題提供**完整脈絡 + 選項評估 + 推薦預設 + 拍板欄位**，作為單一場 90 分鐘對齊會議的議程素材與決策紀錄。
+> **目的**：為 [[_flows-bdd-test/E7x--test-plan-and-readiness|E7x test plan]] §3 列出的 10 個 PM 待拍板問題提供**完整脈絡 + 選項評估 + 推薦預設 + 拍板欄位**，作為單一場 90 分鐘對齊會議的議程素材與決策紀錄。
 >
 > **預期讀者**：PM（決策者）、Tech Lead（評估技術影響）、QA Lead（更新 BDD/test plan）。
 >
@@ -36,7 +36,7 @@ last_updated: 2026-05-07 (初版)
 
 ## 0. 為什麼必須先對齊 Q1–Q10
 
-對應 [[02-design/E7x--test-plan-and-readiness|E7x]] §1 / §2：
+對應 [[_flows-bdd-test/E7x--test-plan-and-readiness|E7x]] §1 / §2：
 
 - 🟡 **5 條流程因 PM 決策懸而未決**：F-004 / F-007 / F-008 / F-010 / F-013 / F-014 / F-016 / F-019 全部綁 Q1–Q10
 - 🔴 **2 條流程因角色未定無法測**：F-022 消費者端追蹤（Q3）、F-018 部分串接（隱含 Q3）
@@ -67,7 +67,7 @@ last_updated: 2026-05-07 (初版)
 ## 2. Q1 — 「派工員」是 V2.0 新角色還是客服子權限？
 
 ### 業務脈絡
-[[02-design/E5x--dispatch-operations]] §3 描述「派工員」職責（手動派工、改派、處理 SLA 警報），但 V1.0 沒有這個角色—所有派工由「客服」兼任。V2.0 引入自動派工後，是否獨立此角色？
+[[_flows-bdd-test/E5x--dispatch-operations]] §3 描述「派工員」職責（手動派工、改派、處理 SLA 警報），但 V1.0 沒有這個角色—所有派工由「客服」兼任。V2.0 引入自動派工後，是否獨立此角色？
 
 ### 影響流程
 - F-004 手動派工（actor 該寫 dispatcher 還是 customer_service）
@@ -107,8 +107,8 @@ last_updated: 2026-05-07 (初版)
 ### 拍板後續更新
 - `SQL/seeds/_admin_user.sql` 加 dispatcher seed
 - `api/models/users.py` enum 加 `dispatcher`
-- `docs/02-design/E5x--dispatch-operations.md` §3 actor 表
-- `docs/02-design/E7--bdd-scenarios.md` F-004 Given 步驟
+- `docs/_flows-bdd-test/E5x--dispatch-operations.md` §3 actor 表
+- `docs/_flows-bdd-test/E7--bdd-scenarios.md` F-004 Given 步驟
 - `tests/factories/technician.py` 反向不影響（technician 不是 dispatcher）
 
 ---
@@ -157,7 +157,7 @@ F-013 / F-014（退款 / 爭議雙簽）需要兩人簽核才能放行。第二�
 - `SQL/Schema_v2_extensions.sql` user_role enum 確認 `operations_director` 在
 - `api/services/refund_service.py` 雙簽 actor check 邏輯（取決於選項）
 - `api/tests/test_refund_dual_sign.py` 加 director-vs-manager case
-- `docs/02-design/E5x--flows-admin-governance.md` RBAC §
+- `docs/_flows-bdd-test/E5x--flows-admin-governance.md` RBAC §
 
 ---
 
@@ -186,7 +186,7 @@ F-022 消費者端工單追蹤（已派工後查進度）需要入口。LINE Bot
 3. 跳過 Web E2E → 解鎖 F-022 從 🔴 變 🟢
 
 ### 反向選項後果
-- B：必須先做 `getWorkOrderPublicStatus` API（[[02-design/E7x--test-plan-and-readiness]] §4.3）+ 匿名 token + Playwright 公開測試 → +5 dev-day
+- B：必須先做 `getWorkOrderPublicStatus` API（[[_flows-bdd-test/E7x--test-plan-and-readiness]] §4.3）+ 匿名 token + Playwright 公開測試 → +5 dev-day
 - C：A + B 工作量
 
 ### PM 決策
@@ -252,7 +252,7 @@ F-013 月結對帳爭議 SLA 7 日。是 7 個工作日（Mon-Fri）還是 7 個
 
 ### 拍板後續更新
 - `api/services/dispute_service.py`：SLA 計時邏輯
-- `docs/02-design/E5x--flows-admin-governance.md`：SLA 表格
+- `docs/_flows-bdd-test/E5x--flows-admin-governance.md`：SLA 表格
 - `tests/factories/`：若 A/C，加 `WeekdayClock` fixture
 
 ---
@@ -301,7 +301,7 @@ F-016 派工後 2 小時內技師應到場。「破線」是僅警報、還是�
 
 ### 拍板後續更新
 - `api/services/sla_monitor.py`：alert vs penalty 分流
-- `docs/02-design/E5x--flows-admin-governance.md` §SLA
+- `docs/_flows-bdd-test/E5x--flows-admin-governance.md` §SLA
 - `tests/golden/sla/`：若 A/C，加 escalation timeline fixture
 
 ---
@@ -348,7 +348,7 @@ F-004 客服在自動派工跑完後，能否「跳過 best match，指定特定
 ### 拍板後續更新
 - `api/services/dispatch_service.py`：manualAssign 是否需 second_actor
 - `api/tests/`：加 `test_manual_dispatch.py`
-- `docs/02-design/E5x--dispatch-operations.md` §手動派工
+- `docs/_flows-bdd-test/E5x--dispatch-operations.md` §手動派工
 
 ---
 
@@ -398,7 +398,7 @@ F-011 消費者付款 + F-014 退款回沖。V1.0 是否要整合金流 provider
 - `docs/01-define/E2--statement-of-work.md`：V1.0 範圍
 - `api/providers/payment.py`（若 C）：fake interface
 - `tests/fixtures/`：若 C，加 `fake_payment.py`
-- `docs/02-design/E7x--test-plan-and-readiness.md` §4.4：刪掉 V2.0 阻塞項
+- `docs/_flows-bdd-test/E7x--test-plan-and-readiness.md` §4.4：刪掉 V2.0 阻塞項
 
 ---
 
@@ -491,7 +491,7 @@ F-008 技師到場後發現問題比預期大（換鎖 → 加上換門框），
 ### 拍板後續更新
 - `agent/skills/data/_common/`：scope-change-consent skill
 - `agent/core/line_bot.py`：若 A，加 Flex template
-- `docs/02-design/E5x--work-order-interaction-flows.md` F-008
+- `docs/_flows-bdd-test/E5x--work-order-interaction-flows.md` F-008
 
 ---
 
@@ -567,7 +567,7 @@ F-008 技師到場後發現問題比預期大（換鎖 → 加上換門框），
 
 ## 13. 拍板後的下游更新清單
 
-對應 [[02-design/E7x--test-plan-and-readiness|E7x]] §10 Sprint 1 解鎖項：
+對應 [[_flows-bdd-test/E7x--test-plan-and-readiness|E7x]] §10 Sprint 1 解鎖項：
 
 ```
 Q1 拍板 → [✓] §10 #11–#18 Happy Path E2E (F-004 解鎖)

@@ -1,7 +1,7 @@
 /**
  * web/tests/e2e/admin/login.spec.ts — login page smoke test
  *
- * 對應 docs/02-design/E7x--test-plan-and-readiness.md §13 #2
+ * 對應 docs/_flows-bdd-test/E7x--test-plan-and-readiness.md §13 #2
  * 8 條 Happy Path E2E 的「最小 smoke」起點。本 spec 只驗：
  *   1. /login 路徑可達（無 5xx / 404）
  *   2. email / password 欄位存在

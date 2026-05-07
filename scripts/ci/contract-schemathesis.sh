@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scripts/ci/contract-schemathesis.sh — OpenAPI 合約 fuzz 測試
 #
-# 對應 docs/02-design/E7x--test-plan-and-readiness.md §5.2 contract layer (5%)
+# 對應 docs/_flows-bdd-test/E7x--test-plan-and-readiness.md §5.2 contract layer (5%)
 # 與 §10 #21。用 schemathesis 對既有 91 ops 衍生 N 個 fuzz example，
 # 驗證實際 API 回應符合 OpenAPI spec 宣告的 status code / schema / headers。
 #
