@@ -42,6 +42,7 @@ import psycopg
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
 
 import core.line_bot as line_bot
+from core.blocks import Block, to_text as blocks_to_text
 from core.content_utils import extract_text
 from core.logging_config import get_logger
 
@@ -166,43 +167,21 @@ async def _print_context(user_id: str, ai_response: str) -> None:
 # ─────────────────────────────────────────────
 
 
-def _content_to_text_reference(content: list, items: list | None = None) -> str:
-    """Render multimodal blocks as a text reference (for checkpoint cleanup).
+def _blocks_to_text_reference(blocks: list[Block]) -> str:
+    """Render the turn's :class:`Block` list as the checkpoint text reference.
 
-    Mirrors legacy debounce._content_to_text_reference. Kept here because
-    it operates on raw LangChain content blocks (dict shape), not the new
-    typed ``core.blocks.Block`` form — the checkpoint stores the raw shape
-    and we don't want to round-trip through Block just to render placeholders.
+    Replaces the legacy ``_content_to_text_reference`` shim which parsed raw
+    LangChain ``content`` dicts and threaded ``buffer_items`` through to
+    recover ``file_path`` per media block. Now that the orchestrator owns the
+    typed :class:`Block` list end-to-end (RP3 follow-up F1), we render straight
+    from it — same ``[使用者傳送了{label}: {file_path}]`` output, no shim.
+
+    Falls back to ``"[使用者曾傳送媒體]"`` when ``blocks`` is falsy so the
+    checkpoint cleanup path always writes something coherent.
     """
-    parts: list[str] = []
-    media_idx = 0
-    media_items = [i for i in (items or []) if isinstance(i, dict) and i.get("type") == "media"]
-
-    for block in content:
-        if isinstance(block, dict):
-            if block.get("type") == "text":
-                parts.append(block["text"])
-            elif block.get("type") in ("media", "image_url"):
-                file_path = (
-                    media_items[media_idx]["file_path"]
-                    if media_idx < len(media_items)
-                    else "unknown"
-                )
-                mime = block.get("mime_type", "")
-                if not mime and block.get("image_url", {}).get("url", "").startswith("data:"):
-                    mime = block["image_url"]["url"].split(";")[0].replace("data:", "")
-                label = (
-                    "圖片" if "image" in mime
-                    else "音檔" if "audio" in mime
-                    else "影片" if "video" in mime
-                    else "媒體"
-                )
-                parts.append(f"[使用者傳送了{label}: {file_path}]")
-                media_idx += 1
-        elif isinstance(block, str):
-            parts.append(block)
-
-    return "\n".join(parts)
+    if not blocks:
+        return "[使用者曾傳送媒體]"
+    return blocks_to_text(blocks, with_media_refs=True) or "[使用者曾傳送媒體]"
 
 
 async def strip_stale_multimodal(agent: Any, config: dict) -> None:
@@ -248,13 +227,17 @@ async def strip_stale_multimodal(agent: Any, config: dict) -> None:
 
 
 async def cleanup_multimodal_checkpoint(
-    config: dict, messages: list, buffer_items: list | None,
+    config: dict, messages: list, buffer_items: list[Block] | None,
 ) -> None:
-    """Replace this turn's multimodal HumanMessage with a text reference."""
+    """Replace this turn's multimodal HumanMessage with a text reference.
+
+    Reads file paths and media labels straight off the :class:`Block` list
+    produced by the debounce buffer, no longer the raw LangChain dict shape.
+    """
     try:
         for msg in messages:
             if hasattr(msg, "type") and msg.type == "human" and isinstance(msg.content, list):
-                text_ref = _content_to_text_reference(msg.content, buffer_items)
+                text_ref = _blocks_to_text_reference(buffer_items or [])
                 await _agent.aupdate_state(
                     config,
                     {"messages": [HumanMessage(content=text_ref, id=msg.id)]},
@@ -412,17 +395,9 @@ async def _audit_agent_result(
 # ─────────────────────────────────────────────
 
 
-def _extract_text_from_items(items: list) -> str:
-    """Best-effort textification of buffer items (audit / log path)."""
-    parts: list[str] = []
-    for item in items:
-        if isinstance(item, str):
-            parts.append(item)
-        elif isinstance(item, dict) and item.get("type") == "media":
-            label = item.get("label", "媒體")
-            file_path = item.get("file_path", "")
-            parts.append(f"[使用者傳送了{label}: {file_path}]")
-    return "\n".join(parts)
+def _extract_text_from_items(items: list[Block]) -> str:
+    """Best-effort textification of buffer :class:`Block` items (audit/log)."""
+    return blocks_to_text(items, with_media_refs=True)
 
 
 async def _resolve_brand_model(
@@ -562,14 +537,16 @@ _REF_MARKER_RE = re.compile(r"\s*\[已參考(?:技能)?:[^\]]*\][\s,，]*")
 async def run_agent(
     user_id: str,
     user_input: str | list,
-    buffer_items: list | None = None,
+    buffer_items: list[Block] | None = None,
 ) -> str:
     """Send the user's input through the ReAct agent and return the AI text.
 
     Args:
         user_input: plain text or LangChain multimodal content blocks list.
-        buffer_items: legacy buffer items (used by checkpoint cleanup to look
-            up file paths). May be None when called from /chat.
+        buffer_items: typed :class:`Block` list for the current turn (used by
+            checkpoint cleanup to render media labels + file paths). May be
+            ``None`` when called from ``/chat`` or quality_check, in which
+            case the media reference falls back to a generic placeholder.
     """
     from skills.tools import (
         set_current_user_id, set_current_brand, reset_run_state, set_current_user_input,
@@ -707,7 +684,7 @@ async def agent_and_reply(
     user_id: str,
     reply_token: str,
     content: str | list,
-    buffer_items: list | None = None,
+    buffer_items: list[Block] | None = None,
     *,
     skip_quick_reply: bool = False,
 ) -> None:
@@ -735,9 +712,9 @@ async def agent_and_reply(
     if _audit_storage:
         try:
             media_paths = [
-                item["file_path"]
-                for item in (buffer_items or [])
-                if isinstance(item, dict) and item.get("type") == "media" and item.get("file_path")
+                b.file_path
+                for b in (buffer_items or [])
+                if b.type == "media" and b.file_path
             ]
             if media_paths:
                 await _audit_storage.log_event(

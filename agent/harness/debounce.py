@@ -31,11 +31,11 @@ from __future__ import annotations
 
 import asyncio
 
-from core.blocks import Block, drop_pending, from_buffer_item, to_langchain_content
+from core.blocks import Block, from_buffer_item, to_langchain_content
 from core.logging_config import get_logger
 
 import harness.orchestrator as orchestrator
-from harness.buffer import BufferEntry, buffers
+from harness.buffer import buffers
 
 # Re-exports (back-compat) — see module docstring.
 from harness.orchestrator import (  # noqa: F401  re-export for legacy callers
@@ -110,7 +110,7 @@ def add_message_to_buffer(
         message_content = to_langchain_content(items)
         asyncio.create_task(
             orchestrator.agent_and_reply(
-                user_id, reply_token or "", message_content, buffer_items=_to_legacy_items(items),
+                user_id, reply_token or "", message_content, buffer_items=items,
             )
         )
         return
@@ -189,10 +189,11 @@ async def process_and_reply(user_id: str, reply_token: str) -> None:
             # graceful fallback so the user gets *some* reply.
             items = (Block(type="text", text="[使用者傳送了媒體檔案，但系統處理超時，請盡量協助]"),)
 
-        message_content = to_langchain_content(list(items))
+        items_list = list(items)
+        message_content = to_langchain_content(items_list)
         await orchestrator.agent_and_reply(
             user_id, reply_token, message_content,
-            buffer_items=_to_legacy_items(list(items)),
+            buffer_items=items_list,
         )
 
     except asyncio.CancelledError:
@@ -227,39 +228,6 @@ async def cleanup_stale_buffers() -> None:
         evicted_pending = await pending.evict_stale(pending_ttl)
         for uid in evicted_pending:
             log.debug("quick_reply_expired_removed", user_id=uid)
-
-
-# ─────────────────────────────────────────────
-# Internal helpers
-# ─────────────────────────────────────────────
-
-
-def _to_legacy_items(blocks: list[Block]) -> list:
-    """Render a Block list back to the legacy buffer-item dict shape.
-
-    Downstream consumers (audit log, checkpoint cleanup) still expect the
-    ``[{type: "media", file_path: ..., mime_type: ...}, "...str..."]`` shape
-    that ``add_message_to_buffer`` historically produced. Until those
-    consumers are migrated to consume :class:`Block` directly we return the
-    same shape.
-    """
-    out: list = []
-    for b in drop_pending(blocks):
-        if b.type == "text":
-            out.append(b.text or "")
-        elif b.type == "media":
-            d = {
-                "type": "media",
-                "label": b.label,
-            }
-            if b.mime_type:
-                d["mime_type"] = b.mime_type
-            if b.file_path:
-                d["file_path"] = b.file_path
-            if b.media_bytes:
-                d["media_bytes"] = b.media_bytes
-            out.append(d)
-    return out
 
 
 __all__ = [
