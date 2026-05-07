@@ -320,7 +320,7 @@ graph TB
 
 ```
 components/
-├── ui/              # 基礎 UI 元件（Button, Input, Modal, DataTable, Badge, Card, Toast）
+├── ui/              # 基礎 UI 元件（Button, Input, Modal, Drawer, DataTable, Badge, Card, Toast, DateRangePicker, NetworkErrorBanner, Skeleton, Spinner, StatusBadge, EmptyState, ErrorState, LiveRegion, SolidBadge）
 │                    # 來源：shadcn/ui 客製化，無業務邏輯，可跨專案複用
 ├── layout/          # 佈局元件（Sidebar, TopNav, Breadcrumb, PageHeader）
 │                    # 定義 Admin Panel / Technician App 的頁面骨架
@@ -855,6 +855,7 @@ export default config;
 | `Input` | shadcn/ui | 文字輸入欄位 | `type`, `error`, `placeholder` |
 | `Select` | shadcn/ui | 下拉選單 | `options`, `value`, `onChange` |
 | `Modal` / `Dialog` | shadcn/ui | 彈出對話框 | `open`, `onClose`, `title` |
+| `Drawer` | shadcn/ui (Radix) | 側邊滑出面板 | `side` (right/left/bottom), `size`, `open`, `onClose` |
 | `DataTable` | shadcn/ui + TanStack Table | 通用資料表格 | `columns`, `data`, `sorting`, `pagination` |
 | `Badge` | shadcn/ui | 狀態標籤 | `variant` (status colors) |
 | `Card` | shadcn/ui | 內容容器 | `title`, `description`, `footer` |
@@ -863,7 +864,10 @@ export default config;
 | `Tabs` | shadcn/ui | 分頁標籤 | `tabs`, `activeTab`, `onChange` |
 | `Timeline` | shadcn/ui + custom | 工單/對話時間軸 | `events`, `orientation` |
 | `Kanban` | custom + React DnD | 工單看板欄式拖放 | `columns`, `onDragEnd` |
-| `DateRangePicker` | react-day-picker + Popover | 日期範圍篩選 | `from`, `to`, `max-range` |
+| `DateRangePicker` | 自製 (Radix Popover) | 日期區間選擇 | `value`, `onChange`, `presets` |
+| `NetworkErrorBanner` | 自製 | 離線狀態橫幅 | （無 props，自動偵測 navigator.onLine） |
+| `HandoverComposer` | 自製 (在 components/conversations/) | 客服接管 chat 輸入 | `conversationId`, `onSent` |
+| `AuditExportModal` | 自製 (在 components/admin/) | 稽核 CSV/JSON 匯出 | `open`, `onClose`, `filter` |
 | `Map` | @react-google-maps/api | 地址/技師位置 | `center`, `markers`, `onClick` |
 | `FileUpload` | react-dropzone + custom | 照片、PDF 上傳 | `accept`, `maxSize`, `onProgress` |
 | `ImageLightbox` | yet-another-react-lightbox | 照片全屏/對比 | `slides`, `plugins` |
