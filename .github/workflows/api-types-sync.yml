@@ -5,7 +5,7 @@ on:
     paths:
       - 'docs/02-design/specs/openapi.yaml'
       - 'docs/02-design/specs/generated/api.generated.ts'
-      - 'scripts/generate-api-types.sh'
+      - 'scripts/ci/generate-api-types.sh'
   pull_request:
     paths:
       - 'docs/02-design/specs/openapi.yaml'
@@ -23,11 +23,11 @@ jobs:
           node-version: '20'
 
       - name: Run generate-api-types --check
-        run: ./scripts/generate-api-types.sh --check
+        run: ./scripts/ci/generate-api-types.sh --check
 
       # 若 --check fail，提示如何修復
       - name: Failure hint
         if: failure()
         run: |
           echo "::error::TypeScript 型別檔與 openapi.yaml 不同步。"
-          echo "::error::請在本地執行：./scripts/generate-api-types.sh 並 commit 結果"
+          echo "::error::請在本地執行：./scripts/ci/generate-api-types.sh 並 commit 結果"
