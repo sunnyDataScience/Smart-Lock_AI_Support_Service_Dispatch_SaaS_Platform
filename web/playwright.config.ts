@@ -1,7 +1,7 @@
 /**
  * web/playwright.config.ts — Playwright E2E configuration
  *
- * 對應 docs/_flows-bdd-test/E7x--test-plan-and-readiness.md §5.2 e2e layer (5%)
+ * 對應 docs/_flows-bdd-test/v-model-right/E7x--test-plan-and-readiness.md §5.2 e2e layer (5%)
  * 與 §13 Verification 第 2 步 (8 條 Happy Path E2E)。
  *
  * 設計（多 project 對齊 E7x §10 #10）：

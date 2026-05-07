@@ -11,7 +11,7 @@
 > - `docs/02-design/specs/audit-log-spec.md` — 稽核事件分類與保留政策
 > - `docs/02-design/specs/inventory-management-spec.md` — 庫存資料模型
 > - `docs/02-design/specs/warranty-dispute-spec.md` — 保固爭議狀態機
-> - `docs/_flows-bdd-test/E5x--workflow-work-order.md` — 13 個工單 Flow
+> - `docs/_flows-bdd-test/v-model-left/E5x--workflow-work-order.md` — 13 個工單 Flow
 > - `docs/02-design/E5x--frontend-architecture.md §8.3` — 動態 RBAC 契約
 >
 > **與其他 Flow 文件的關係**：

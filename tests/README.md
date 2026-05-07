@@ -1,6 +1,6 @@
 # tests/ — 測試金字塔
 
-對應 [`docs/_flows-bdd-test/E7x--test-plan-and-readiness.md`](../docs/_flows-bdd-test/E7x--test-plan-and-readiness.md)
+對應 [`docs/_flows-bdd-test/v-model-right/E7x--test-plan-and-readiness.md`](../docs/_flows-bdd-test/v-model-right/E7x--test-plan-and-readiness.md)
 §5.2 金字塔配置（cost-asymmetry 設計）。
 
 ## 目錄結構

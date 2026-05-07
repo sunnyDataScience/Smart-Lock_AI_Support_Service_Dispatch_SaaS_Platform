@@ -8,19 +8,19 @@ owners:
   - Operations Manager
   - PM
 related:
-  - "[[_flows-bdd-test/E5x--workflow-dispatch]]"
-  - "[[_flows-bdd-test/E5x--workflow-work-order]]"
-  - "[[_flows-bdd-test/E7x--test-plan-and-readiness]]"
+  - "[[_flows-bdd-test/v-model-left/E5x--workflow-dispatch]]"
+  - "[[_flows-bdd-test/v-model-left/E5x--workflow-work-order]]"
+  - "[[_flows-bdd-test/v-model-right/E7x--test-plan-and-readiness]]"
 last_reviewed: 2026-05-07
 ---
 
 # 派工演算法權重與 Tie-Breaker 規則
 
-> **目的**：為派工媒合演算法提供唯一且可機械驗證的計分公式，作為 [[_flows-bdd-test/E7x--test-plan-and-readiness|E7x test plan]] §7.1 property test 與 50 case golden dataset 的單一真相來源（SSOT）。
+> **目的**：為派工媒合演算法提供唯一且可機械驗證的計分公式，作為 [[_flows-bdd-test/v-model-right/E7x--test-plan-and-readiness|E7x test plan]] §7.1 property test 與 50 case golden dataset 的單一真相來源（SSOT）。
 >
 > **預期讀者**：派工後端工程師、QA、PM。
 >
-> **與既有文件關係**：本文件取代 [[_flows-bdd-test/E5x--workflow-dispatch]] §2.2–§2.3 的舊版權重描述（0.35 / 0.30 / 0.20 / 0.15 + bonus 0.10 / 0.05）。新版以 5 因子（含 fairness）取代 bonus 結構，所有實作以本文件為準。
+> **與既有文件關係**：本文件取代 [[_flows-bdd-test/v-model-left/E5x--workflow-dispatch]] §2.2–§2.3 的舊版權重描述（0.35 / 0.30 / 0.20 / 0.15 + bonus 0.10 / 0.05）。新版以 5 因子（含 fairness）取代 bonus 結構，所有實作以本文件為準。
 
 ## 1. 概念
 
@@ -87,7 +87,7 @@ last_reviewed: 2026-05-07
 
 ## 6. 範例：5 個 Golden Test Cases
 
-下列為 [[_flows-bdd-test/E7x--test-plan-and-readiness|E7x test plan]] §7.1 派工計分 50 case golden dataset 的種子範例。
+下列為 [[_flows-bdd-test/v-model-right/E7x--test-plan-and-readiness|E7x test plan]] §7.1 派工計分 50 case golden dataset 的種子範例。
 完整 50 case 將存於 `tests/golden/dispatch_scoring/`，本文件提供 5 個代表性 case 作為實作參考：
 
 ### Case G-01：標準距離權重

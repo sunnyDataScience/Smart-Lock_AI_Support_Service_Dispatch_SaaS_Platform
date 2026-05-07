@@ -1,6 +1,6 @@
 # Web E2E 測試（Playwright）
 
-對應 [`docs/_flows-bdd-test/E7x--test-plan-and-readiness.md`](../../../docs/_flows-bdd-test/E7x--test-plan-and-readiness.md) §5.2 e2e layer (5%)。
+對應 [`docs/_flows-bdd-test/v-model-right/E7x--test-plan-and-readiness.md`](../../../docs/_flows-bdd-test/v-model-right/E7x--test-plan-and-readiness.md) §5.2 e2e layer (5%)。
 
 ## 結構
 
