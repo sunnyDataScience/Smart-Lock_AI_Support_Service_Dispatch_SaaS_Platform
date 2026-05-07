@@ -2,7 +2,7 @@
 title: Security Checklist — OWASP Top 10 + Pen Test Scope
 phase: V-MODEL RIGHT (System Test, security dimension)
 gate: TR5 / TR7
-status: SKELETON
+status: Initial Content (待 SME 補充細節)
 last_updated: 2026-05-07
 owners: [Security Lead, Tech Lead]
 ---
@@ -29,16 +29,16 @@ owners: [Security Lead, Tech Lead]
 
 | OWASP # | 風險 | 對應 SEC-NNN | 影響端點 | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| A01 | Broken Access Control | SEC-001 RBAC 權限繞過、IDOR | all `admin/*` endpoints | ⚠ TBD |
-| A02 | Cryptographic Failures | SEC-002 PII 加密（at-rest + in-transit） | DB tables with PII（users, conversations, addresses） | TBD |
-| A03 | Injection | SEC-003 SQL injection on search endpoints | `/search/*`, `/conversations?q=` | TBD |
-| A04 | Insecure Design | TBD | TBD | TBD |
-| A05 | Security Misconfiguration | TBD | TBD | TBD |
-| A06 | Vulnerable & Outdated Components | TBD（trivy 持續掃） | dependencies | TBD |
-| A07 | Identification & Authentication Failures | SEC-007 JWT 驗證、session fixation、brute force | `/auth/*` | ⚠ TBD |
-| A08 | Software & Data Integrity Failures | TBD | CI/CD pipeline、supply chain | TBD |
-| A09 | Security Logging & Monitoring Failures | TBD | audit_logs 表完整性 | TBD |
-| A10 | Server-Side Request Forgery (SSRF) | TBD | webhook receivers、url preview | TBD |
+| A01 | Broken Access Control | SEC-001 RBAC 權限繞過 + IDOR | all `admin/*`、`/work-orders/{id}`、`/refunds/{id}` | ⚠ TBD |
+| A02 | Cryptographic Failures | SEC-002 PII 加密（at-rest + in-transit） + Webhook HMAC | DB（users / conversations / addresses）、`/webhook` | ⚠ TBD |
+| A03 | Injection | SEC-003 SQL injection / XSS / NoSQL injection | `/search/*`、`/conversations?q=`、所有自由文字輸入 | ⚠ TBD |
+| A04 | Insecure Design | SEC-004 Threat modeling per feature | F-011 / F-014 金流、F-019 RBAC、F-020 audit | ⚠ TBD |
+| A05 | Security Misconfiguration | SEC-005 默認密碼 + 公開 endpoint 列表審計 | Cloud Run env、Secret Manager、CloudSQL | ⚠ TBD |
+| A06 | Vulnerable & Outdated Components | SEC-006 Dependency audit（npm audit / pip audit / trivy） | package-lock.json / poetry.lock / Docker image | ⚠ TBD |
+| A07 | Identification & Authentication Failures | SEC-007 JWT 驗證 + session fixation + brute force lockout | `/auth/*`、admin login | ⚠ TBD |
+| A08 | Software & Data Integrity Failures | SEC-008 Webhook signature 驗證 + signed token | `/webhook`、Q3=C anonymous Web token、Q9=B scope-change token | ⚠ TBD |
+| A09 | Security Logging & Monitoring Failures | SEC-009 audit log 完整性 + 防篡改 | audit_logs 表、所有寫入操作 | ⚠ TBD |
+| A10 | Server-Side Request Forgery (SSRF) | SEC-010 GCS / Vertex API call URL validation | webhook receivers、url preview、image fetch | ⚠ TBD |
 
 **規範**：
 - 每個 OWASP 類別至少 1 條 SEC-NNN；A01 / A03 / A07（最高風險）至少 3 條
@@ -89,11 +89,16 @@ owners: [Security Lead, Tech Lead]
 
 | SEC-ID | OWASP # | 場景 | 工具 | 對應 COM-NNN | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| SEC-001 | A01 | 一般使用者帳號嘗試呼叫 `/admin/users` | Burp Suite + custom script | TBD | ⚠ TBD |
-| SEC-002 | A02 | DB dump 後 PII 欄位是否加密 | manual + DB inspect | COM-001 | TBD |
-| SEC-003 | A03 | 搜尋端點 payload 注入（UNION SELECT） | sqlmap + Burp | TBD | TBD |
-| SEC-007 | A07 | 密碼錯誤 N 次後 lockout 行為 | k6 + custom | TBD | TBD |
-| SEC-NNN | TBD | TBD | TBD | TBD | TBD |
+| SEC-001 | A01 | 一般使用者帳號嘗試呼叫 `/admin/*`；技師 A 嘗試讀取技師 B 的 WO（IDOR） | Burp Suite + custom script | COM-002 | ⚠ TBD |
+| SEC-002 | A02 | DB dump 後 PII 欄位（手機 / 地址）是否加密；TLS 強制（HSTS preload） | manual DB inspect + sslyze | COM-001 / COM-003 | ⚠ TBD |
+| SEC-003 | A03 | 搜尋 / 自由文字端點 payload 注入（UNION SELECT、`<script>`、$where） | sqlmap + Burp + DOMPurify check | — | ⚠ TBD |
+| SEC-004 | A04 | F-011 金流流程 threat modeling（STRIDE）；確認無設計層繞過 | manual review + STRIDE workshop | COM-005 | ⚠ TBD |
+| SEC-005 | A05 | Cloud Run env vars 無洩漏；公開 endpoint 列表須白名單；無默認帳密 | gcloud audit + nmap | — | ⚠ TBD |
+| SEC-006 | A06 | npm audit / pip audit / trivy 掃描，CRITICAL/HIGH 漏洞 0 容忍 | npm audit + pip-audit + trivy | — | ⚠ TBD |
+| SEC-007 | A07 | 密碼錯誤 N 次後 lockout；JWT exp / iss / aud 驗證；session fixation | k6 brute force + custom JWT fuzz | — | ⚠ TBD |
+| SEC-008 | A08 | LINE webhook HMAC-SHA256 驗證；Q3=C / Q9=B signed token 防偽造 + 過期 | curl + custom signer | COM-004 | ⚠ TBD |
+| SEC-009 | A09 | 模擬寫入操作後檢查 audit_logs 完整性（無漏記、無篡改）；alert 觸發測試 | DB inspect + log diff | COM-002 | ⚠ TBD |
+| SEC-010 | A10 | GCS / Vertex API URL validation；阻止內網 metadata endpoint（169.254.169.254）存取 | OWASP ZAP + custom payload | — | ⚠ TBD |
 
 **規範**：
 - ID 格式：`SEC-NNN`
@@ -124,6 +129,6 @@ CI 整合（規劃）：
 | 日期 | 版本 | 變更內容 | 作者 |
 | :--- | :--- | :--- | :--- |
 | 2026-05-07 | 0.1.0 | 骨架建立 | Claude / Security Lead |
-| TBD | 0.2.0 | OWASP A01 / A03 / A07 SEC-NNN 補完 | Security Lead |
+| 2026-05-07 | 0.2.0 | Initial Content：OWASP A01~A10 全 10 項對照 + SEC-001~010 場景填入 | Claude |
 | TBD | 0.3.0 | Pen test vendor 簽約 + scope 定稿 | Security Lead / 法務 |
 | TBD | 0.4.0 | 第一次 pen test 結果 + 修復追蹤 | Security Lead |

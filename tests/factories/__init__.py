@@ -10,7 +10,7 @@
 公開 API：
 
     from tests.factories import (
-        TenantFactory, TechnicianFactory,
+        TenantFactory, TechnicianFactory, DispatcherFactory,
         ProblemCardFactory, WorkOrderFactory,
     )
 
@@ -20,16 +20,20 @@
     techs = TechnicianFactory.create_batch(5)
     # 客製欄位
     wo = WorkOrderFactory(status="in_progress", priority="high")
+    # V2.0 派工角色（PM Q1=A）
+    dispatcher = DispatcherFactory()
 """
 
 from __future__ import annotations
 
+from .dispatcher import DispatcherFactory
 from .problemcard import ProblemCardFactory
 from .technician import TechnicianFactory
 from .tenant import TenantFactory
 from .workorder import WorkOrderFactory
 
 __all__ = [
+    "DispatcherFactory",
     "ProblemCardFactory",
     "TechnicianFactory",
     "TenantFactory",

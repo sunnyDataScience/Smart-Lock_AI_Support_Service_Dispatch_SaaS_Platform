@@ -1466,6 +1466,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/work-orders/{token}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 消費者匿名查工單狀態（LINE 短連結 / Web 備援）
+         * @description Q3=C 共用入口。消費者點 LINE 推播短連結 → 此端點。
+         *     無需登入；token 30 天有效；完工 90 天後 410 Gone。
+         *     僅回傳遮罩後的 PII（姓氏、電話末四碼）。
+         */
+        get: operations["getWorkOrderPublicStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/scope-changes/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 消費者匿名取得 Scope Change 提案（Q9=B）
+         * @description Q9=B：技師現場發現需追加項目 → 系統發 LINE 短連結 →
+         *     消費者開啟此頁面 → 看提案明細 → 回 POST 同意/拒絕。
+         */
+        get: operations["getScopeChangeProposalPublic"];
+        put?: never;
+        /** 消費者匿名回覆 Scope Change 提案（Q9=B 同意/拒絕） */
+        post: operations["respondScopeChangePublic"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2931,6 +2975,84 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             channels?: ("push" | "sms" | "line" | "email")[];
+        };
+        /**
+         * @description 消費者匿名查工單狀態回應（Q3=C）。
+         *     所有 PII 欄位皆已遮罩；不含金額、技師完整資料、客戶完整地址。
+         */
+        PublicWorkOrderStatus: {
+            /** Format: uuid */
+            work_order_id: string;
+            /**
+             * @description 工單狀態（不對外暴露完整狀態機；以 customer-facing 標籤命名）
+             * @enum {string}
+             */
+            status: "pending" | "scheduled" | "on_the_way" | "in_progress" | "completed" | "cancelled";
+            /** Format: date-time */
+            scheduled_at?: string | null;
+            /** Format: date-time */
+            completed_at?: string | null;
+            /**
+             * @description 僅露姓氏 + 「師傅」（例：「陳師傅」）
+             * @example 陳師傅
+             */
+            technician_name?: string | null;
+            /**
+             * @description 末四碼，前綴星號（例：「****1234」）
+             * @example ****1234
+             */
+            technician_phone_masked?: string | null;
+            /** @description 預計抵達分鐘數（on_the_way 才有值） */
+            eta_minutes?: number | null;
+            /**
+             * Format: uri
+             * @description 即時追蹤頁面（地圖；可選）
+             */
+            tracking_url?: string | null;
+        };
+        /**
+         * @description Q9=B 消費者匿名取得 Scope Change 提案。
+         *     items[] 為新增/變更的施工項目；amount_delta 為單筆差額（含稅）。
+         */
+        PublicScopeChangeProposal: {
+            /** Format: uuid */
+            proposal_id: string;
+            /** Format: uuid */
+            work_order_id: string;
+            /** @enum {string} */
+            status: "pending" | "accepted" | "rejected" | "expired" | "superseded";
+            /** @description 技師現場說明（例：「鎖芯老化需更換」） */
+            reason?: string | null;
+            items: components["schemas"]["PublicScopeChangeItem"][];
+            /** @description 總差額（新台幣，含稅） */
+            total_delta: number;
+            /**
+             * Format: date-time
+             * @description 提案逾時時間（過後 410 Gone）
+             */
+            expires_at: string;
+        };
+        PublicScopeChangeItem: {
+            name: string;
+            description?: string | null;
+            /** @default 1 */
+            quantity: number;
+            amount_delta: number;
+        };
+        PublicScopeChangeResponse: {
+            /** @enum {string} */
+            decision: "accept" | "reject";
+            comment?: string | null;
+        };
+        PublicScopeChangeResult: {
+            /** Format: uuid */
+            proposal_id: string;
+            /** @enum {string} */
+            decision: "accept" | "reject";
+            /** Format: date-time */
+            recorded_at: string;
+            /** @description 後續流程提示（例：「技師將於 5 分鐘內收到通知」） */
+            next_step?: string | null;
         };
     };
     responses: {
@@ -5726,6 +5848,150 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Notification"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getWorkOrderPublicStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description HMAC 簽章後的 work order tracking token（含 expiry） */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK — 遮罩後的工單狀態 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicWorkOrderStatus"];
+                };
+            };
+            /** @description Token 無效或已過期 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description 工單完工超過 90 天，連結已封存 */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Rate limit 觸發 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    getScopeChangeProposalPublic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK — Scope Change 提案明細 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicScopeChangeProposal"];
+                };
+            };
+            /** @description Token 無效或已過期 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description 提案已超時或已被覆蓋 */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    respondScopeChangePublic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicScopeChangeResponse"];
+            };
+        };
+        responses: {
+            /** @description OK — 回覆已記錄 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicScopeChangeResult"];
+                };
+            };
+            /** @description Token 無效或已過期 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description 提案已被覆蓋或已回覆 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description 提案已超時 */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
                 };
             };
             422: components["responses"]["ValidationError"];

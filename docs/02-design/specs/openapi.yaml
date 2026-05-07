@@ -67,6 +67,12 @@ tags:
     description: 電子簽章與雙簽
   - name: realtime
     description: WebSocket / SSE 端點說明（實際契約見 asyncapi.yaml）
+  - name: public
+    description: |
+      消費者匿名端點（無需登入），由 LINE 短連結帶簽章 token 進入。
+      共用機制 — Q3=C（工單追蹤兩者並存：LINE 主 + Web VIP 備）+
+      Q9=B（Scope Change 同意走 Web 匿名 token）。
+      所有 endpoint 僅暴露受限 PII（姓氏、電話末四碼、必要狀態欄位）。
 
 #####################################################################
 # Paths — 骨架：每個 Bounded Context 至少一個代表性 endpoint
@@ -2338,6 +2344,145 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Notification'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  # -----------------------------
+  # public — 消費者匿名 token 端點（Q3=C / Q9=B 共用機制）
+  #
+  # ## Q3=C/Q9=B Implementation TODO
+  # - Token 簽章採 HMAC-SHA256(secret, work_order_id|expiry|nonce)
+  # - 30 天 TTL；完工 90 天後 410 Gone
+  # - 撤銷清單存 Redis（key: revoked:{token_hash}）
+  # - PII 遮罩：技師姓名僅露姓氏，電話 mask 為 ****1234
+  # - Rate limit：每 token / 每 IP 60 req/min
+  # - 不寫 audit log 完整 user_id（僅 token_hash + IP）
+  # -----------------------------
+  /api/v1/public/work-orders/{token}/status:
+    get:
+      tags: [public]
+      summary: 消費者匿名查工單狀態（LINE 短連結 / Web 備援）
+      description: |
+        Q3=C 共用入口。消費者點 LINE 推播短連結 → 此端點。
+        無需登入；token 30 天有效；完工 90 天後 410 Gone。
+        僅回傳遮罩後的 PII（姓氏、電話末四碼）。
+      operationId: getWorkOrderPublicStatus
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: HMAC 簽章後的 work order tracking token（含 expiry）
+          schema:
+            type: string
+            minLength: 32
+            maxLength: 512
+      responses:
+        '200':
+          description: OK — 遮罩後的工單狀態
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicWorkOrderStatus'
+        '404':
+          description: Token 無效或已過期
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '410':
+          description: 工單完工超過 90 天，連結已封存
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '429':
+          description: Rate limit 觸發
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/v1/public/scope-changes/{token}:
+    get:
+      tags: [public]
+      summary: 消費者匿名取得 Scope Change 提案（Q9=B）
+      description: |
+        Q9=B：技師現場發現需追加項目 → 系統發 LINE 短連結 →
+        消費者開啟此頁面 → 看提案明細 → 回 POST 同意/拒絕。
+      operationId: getScopeChangeProposalPublic
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 32
+            maxLength: 512
+      responses:
+        '200':
+          description: OK — Scope Change 提案明細
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicScopeChangeProposal'
+        '404':
+          description: Token 無效或已過期
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '410':
+          description: 提案已超時或已被覆蓋
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+    post:
+      tags: [public]
+      summary: 消費者匿名回覆 Scope Change 提案（Q9=B 同意/拒絕）
+      operationId: respondScopeChangePublic
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 32
+            maxLength: 512
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublicScopeChangeResponse'
+      responses:
+        '200':
+          description: OK — 回覆已記錄
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicScopeChangeResult'
+        '404':
+          description: Token 無效或已過期
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '409':
+          description: 提案已被覆蓋或已回覆
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '410':
+          description: 提案已超時
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
         '422':
           $ref: '#/components/responses/ValidationError'
 
@@ -4777,3 +4922,118 @@ components:
     # --------- AuditEvent / DomainEvent 保留 ---------
     # AuditEvent — 隨 /api/v1/audit-events 端點 Week 3 補完
     # DomainEvent — 見 asyncapi.yaml DomainEventEnvelope
+
+    # --------- Public anonymous endpoints (Q3=C / Q9=B) ---------
+    PublicWorkOrderStatus:
+      type: object
+      description: |
+        消費者匿名查工單狀態回應（Q3=C）。
+        所有 PII 欄位皆已遮罩；不含金額、技師完整資料、客戶完整地址。
+      required: [work_order_id, status]
+      properties:
+        work_order_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          description: 工單狀態（不對外暴露完整狀態機；以 customer-facing 標籤命名）
+          enum: [pending, scheduled, on_the_way, in_progress, completed, cancelled]
+        scheduled_at:
+          type: [string, "null"]
+          format: date-time
+        completed_at:
+          type: [string, "null"]
+          format: date-time
+        technician_name:
+          type: [string, "null"]
+          description: 僅露姓氏 + 「師傅」（例：「陳師傅」）
+          examples: ["陳師傅"]
+        technician_phone_masked:
+          type: [string, "null"]
+          description: 末四碼，前綴星號（例：「****1234」）
+          examples: ["****1234"]
+        eta_minutes:
+          type: [integer, "null"]
+          description: 預計抵達分鐘數（on_the_way 才有值）
+          minimum: 0
+        tracking_url:
+          type: [string, "null"]
+          format: uri
+          description: 即時追蹤頁面（地圖；可選）
+
+    PublicScopeChangeProposal:
+      type: object
+      description: |
+        Q9=B 消費者匿名取得 Scope Change 提案。
+        items[] 為新增/變更的施工項目；amount_delta 為單筆差額（含稅）。
+      required: [proposal_id, work_order_id, status, items, total_delta, expires_at]
+      properties:
+        proposal_id:
+          type: string
+          format: uuid
+        work_order_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, accepted, rejected, expired, superseded]
+        reason:
+          type: [string, "null"]
+          description: 技師現場說明（例：「鎖芯老化需更換」）
+          maxLength: 500
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicScopeChangeItem'
+        total_delta:
+          type: number
+          description: 總差額（新台幣，含稅）
+        expires_at:
+          type: string
+          format: date-time
+          description: 提案逾時時間（過後 410 Gone）
+
+    PublicScopeChangeItem:
+      type: object
+      required: [name, amount_delta]
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        description:
+          type: [string, "null"]
+          maxLength: 500
+        quantity:
+          type: integer
+          minimum: 1
+          default: 1
+        amount_delta:
+          type: number
+
+    PublicScopeChangeResponse:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [accept, reject]
+        comment:
+          type: [string, "null"]
+          maxLength: 500
+
+    PublicScopeChangeResult:
+      type: object
+      required: [proposal_id, decision, recorded_at]
+      properties:
+        proposal_id:
+          type: string
+          format: uuid
+        decision:
+          type: string
+          enum: [accept, reject]
+        recorded_at:
+          type: string
+          format: date-time
+        next_step:
+          type: [string, "null"]
+          description: 後續流程提示（例：「技師將於 5 分鐘內收到通知」）

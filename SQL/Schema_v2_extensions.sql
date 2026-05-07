@@ -69,6 +69,7 @@ INSERT INTO roles (name, display_name, description, is_system) VALUES
     ('admin',        '系統管理員',      '總部管理員，擁有完整系統存取權限',                  TRUE),
     ('reviewer',     'SOP 審核員',     '負責審核 SOP 草稿與品質管理',                     TRUE),
     ('technician',   '維修技師',       '執行現場維修與安裝的技師',                         TRUE),
+    ('dispatcher',   '派工員',         'V2.0 獨立派工角色：負責派遣工單給技師、追蹤派工狀態（F-004 / F-019）', TRUE),
     ('brand_oem',    '品牌原廠',       '品牌原廠人員，查看保固統計與上傳品牌資料',           FALSE),
     ('distributor',  '經銷商',         '經銷商/服務中心，管理區域營運',                     FALSE),
     ('super_admin',  '超級管理員',      '系統擁有者，完整存取 + 系統設定',                  TRUE)

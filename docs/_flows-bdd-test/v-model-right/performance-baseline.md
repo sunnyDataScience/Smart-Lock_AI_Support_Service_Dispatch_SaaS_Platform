@@ -2,7 +2,7 @@
 title: Performance Baseline — Load / Stress / Spike Tests
 phase: V-MODEL RIGHT (System Test, performance dimension)
 gate: TR5 / TR7
-status: SKELETON
+status: Initial Content (待 SME 補充細節)
 last_updated: 2026-05-07
 owners: [DevOps, Tech Lead]
 ---
@@ -31,11 +31,21 @@ owners: [DevOps, Tech Lead]
 
 | API operationId | p50 | p95 | p99 | max RPS | 對應 QA-NNN | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `createConversation` | < 80ms | < 200ms | < 500ms | 100 | QA-001 | ⚠ TBD baseline |
-| `runDispatch` | < 800ms | < 2s | < 5s | 10 | QA-001 | TBD |
-| `listWorkOrders` | TBD | TBD | TBD | TBD | TBD | TBD |
-| `uploadEvidence` | TBD | TBD | TBD | TBD | TBD | TBD |
-| ... | ... | ... | ... | ... | ... | ... |
+| `createConversation` | < 80ms | < 200ms | < 500ms | 100 | QA-001 / QA-005 | ⚠ TBD baseline |
+| `analyzeMedia` | < 1s | < 3s | < 6s | 30 | QA-001 / QA-007 | ⚠ TBD baseline |
+| `createProblemCard` | < 200ms | < 500ms | < 1s | 50 | QA-001 | ⚠ TBD |
+| `listProblemCards` | < 50ms | < 100ms | < 200ms | 200 | QA-001 | ⚠ TBD |
+| `runDispatch` | < 800ms | < 2s | < 5s | 10 | QA-001 / QA-006 | ⚠ TBD |
+| `claimOrder` | < 80ms | < 200ms | < 500ms | 30 | QA-001 | ⚠ TBD |
+| `updateWorkOrderStatus` | < 50ms | < 100ms | < 200ms | 100 | QA-001 | ⚠ TBD |
+| `submitRefundDecision` | < 200ms | < 500ms | < 1s | 20 | QA-001 / QA-004 | ⚠ TBD |
+| `exportAuditEvents` (small <100k rows) | < 2s | < 5s | < 10s | 5 | QA-001 / QA-004 | ⚠ TBD |
+| `exportAuditEvents` (large >100k via background) | < 10s | < 30s | < 60s | 1 | QA-001 / QA-004 | ⚠ TBD |
+| `listWorkOrders` (paginated) | < 80ms | < 200ms | < 500ms | 100 | QA-001 | ⚠ TBD |
+| `getDashboardStats` | < 200ms | < 500ms | < 1s | 50 | QA-001 | ⚠ TBD |
+| `listSopDrafts` | < 80ms | < 200ms | < 500ms | 30 | QA-001 | ⚠ TBD |
+| `getKpiReport` (default range) | < 400ms | < 1s | < 2s | 20 | QA-001 | ⚠ TBD |
+| AsyncAPI WS publish (any channel) | < 20ms | < 50ms | < 100ms | N/A (event-driven) | QA-001 | ⚠ TBD baseline |
 
 **規範**：
 - 每個 operationId 必須有 SLA；無 SLA 的端點在 spec lint 時報警（Phase 3 加入）
@@ -103,10 +113,14 @@ owners: [DevOps, Tech Lead]
 
 | PT-ID | 場景 | 工具 | 對應 QA-NNN | 對應 operationId | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| PT-001 | createConversation smoke @ 50 VU × 2min | k6 | QA-001 | createConversation | ⚠ TBD baseline |
-| PT-002 | TBD（runDispatch load @ 500 VU） | k6 | QA-001 | runDispatch | TBD |
-| PT-003 | TBD（spike test — LINE 廣播模擬） | k6 | QA-001 | createConversation | TBD |
-| PT-NNN | TBD | TBD | TBD | TBD | TBD |
+| PT-001 | createConversation smoke @ 50 VU × 2min | k6 | QA-001 / QA-005 | createConversation | ⚠ TBD baseline |
+| PT-002 | createConversation load @ 500 VU × 10min（漸增） | k6 | QA-001 | createConversation | ⚠ TBD |
+| PT-003 | runDispatch stress（找 breaking point；漸增至 error > 5%） | k6 | QA-001 / QA-006 | runDispatch | ⚠ TBD |
+| PT-004 | listWorkOrders soak @ 50 VU × 4hr（記憶體洩漏 / 連線池） | k6 + Grafana | QA-003 | listWorkOrders | ⚠ TBD |
+| PT-005 | analyzeMedia spike（LINE 廣播後 10× 圖片湧入） | k6 | QA-001 / QA-008 | analyzeMedia | ⚠ TBD |
+| PT-006 | submitRefundDecision load @ 100 VU（雙簽併發） | k6 | QA-001 / QA-004 | submitRefundDecision | ⚠ TBD |
+| PT-007 | exportAuditEvents large（背景任務）soak 1hr | k6 + worker monitor | QA-004 | exportAuditEvents | ⚠ TBD |
+| PT-008 | AsyncAPI WS broadcast spike（500 訂閱者同時接 dispatch event） | k6-ws | QA-001 | (WS publish) | ⚠ TBD |
 
 **規範**：
 - ID 格式：`PT-NNN`
@@ -119,5 +133,6 @@ owners: [DevOps, Tech Lead]
 | 日期 | 版本 | 變更內容 | 作者 |
 | :--- | :--- | :--- | :--- |
 | 2026-05-07 | 0.1.0 | 骨架建立 | Claude / DevOps |
-| TBD | 0.2.0 | k6 腳本上版 + baseline 數字填入 | DevOps |
-| TBD | 0.3.0 | Capacity plan + 水平擴展驗證 | Tech Lead |
+| 2026-05-07 | 0.2.0 | Initial Content：15 個 endpoint SLA + PT-001~008 場景填入（baseline 數字待 DevOps 跑 k6） | Claude |
+| TBD | 0.3.0 | k6 腳本上版 + baseline 實測數字回填 | DevOps |
+| TBD | 0.4.0 | Capacity plan + 水平擴展驗證 | Tech Lead |
