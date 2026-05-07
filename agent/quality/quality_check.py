@@ -542,16 +542,17 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
     # 多輪模擬：若有 auto_reply 且 agent 回覆含追問（？）→ 發送第二輪
     if tc.auto_reply and "？" in answer:
         # 對齊 production：第二輪前先跑 checkpoint cleanup（替換 ToolMessage / 中間 AIMessage）
+        # RP3 P1.5 — _cleanup_tool_checkpoint 從 debounce 移至 orchestrator，且 _agent
+        # 改用 orchestrator 模組內的 module-level state。我們在這個 quality run 一次性
+        # patch orchestrator._agent，避免 quality 與 production 共用同個 agent 實例。
         try:
-            from harness.debounce import _cleanup_tool_checkpoint
-            # quality_check 的 agent 沒注入到 debounce 模組，臨時 patch _agent 全域
-            import harness.debounce as _dbnc
-            _orig_agent = getattr(_dbnc, "_agent", None)
-            _dbnc._agent = agent
+            import harness.orchestrator as _orch
+            _orig_agent = getattr(_orch, "_agent", None)
+            _orch._agent = agent
             try:
-                await _cleanup_tool_checkpoint(config, messages)
+                await _orch.cleanup_tool_checkpoint(config, messages)
             finally:
-                _dbnc._agent = _orig_agent
+                _orch._agent = _orig_agent
         except (AttributeError, RuntimeError) as e:
             print(f"\n       [cleanup warn] {e}", end="")
 
