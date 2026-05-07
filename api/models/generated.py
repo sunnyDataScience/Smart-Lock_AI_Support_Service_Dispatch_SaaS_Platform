@@ -753,6 +753,7 @@ class Customer(BaseModel):
         description='LINE Platform User ID（U + 32 hex），可能為空（非 LINE 來源）',
     )
     phone: str | None = None
+    email: EmailStr | None = None
     address: str | None = None
     last_active_at: AwareDatetime | None = Field(
         None, description='最近一次互動時間（users.last_active_at）'
@@ -774,6 +775,23 @@ class CustomerEnvelope(ApiResponseGeneric):
 
 class CustomerPage(CursorPage):
     items: list[Customer] | None = None
+
+
+class CustomerCreateRequest(BaseModel):
+    display_name: constr(min_length=1, max_length=255)
+    phone: constr(max_length=50) | None = None
+    email: EmailStr | None = None
+    address: str | None = None
+    line_user_id: constr(max_length=255) | None = None
+
+
+class CustomerUpdateRequest(BaseModel):
+    """PUT 整體取代；未提供的欄位視為 null（display_name 必填）。"""
+
+    display_name: constr(min_length=1, max_length=255)
+    phone: constr(max_length=50) | None = None
+    email: EmailStr | None = None
+    address: str | None = None
 
 
 class RoleResource(StrEnum):
@@ -1539,6 +1557,30 @@ class TechnicianUpdateRequest(BaseModel):
     email: EmailStr | None = None
     capabilities: list[str] | None = None
     regions: list[str] | None = None
+
+
+class MyAvailabilityState(StrEnum):
+    available = 'available'
+    busy = 'busy'
+    offline = 'offline'
+    on_leave = 'on_leave'
+    circuit_breaker_open = 'circuit_breaker_open'
+
+
+class MyAvailabilityUpdateRequest(BaseModel):
+    online_state: MyAvailabilityState
+
+
+class MyAvailabilityData(BaseModel):
+    id: UUID
+    name: str
+    online_state: MyAvailabilityState
+
+
+class MyAvailabilityResponse(ApiResponseGeneric):
+    data: MyAvailabilityData | None = Field(
+        None, description='更新後的技師在線狀態'
+    )
 
 
 class WorkOrderConfirmRequest(BaseModel):

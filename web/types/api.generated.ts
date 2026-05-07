@@ -467,7 +467,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** 切換技師在線狀態（available / busy / offline / on_leave / circuit_breaker_open） */
+        patch: operations["updateMyAvailability"];
         trace?: never;
     };
     "/api/v1/work-orders/{id}/reschedule": {
@@ -977,6 +978,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 匯出 KPI / 營收 / 技師排行報表（CSV / PDF）
+         * @description 依 report_type 串接對應的 service 並轉成 CSV stream（同步）。
+         *     PDF 路徑目前回 422 + TODO（缺 PDF 渲染依賴 reportlab/weasyprint，待後續迭代）。
+         *     admin / operations_manager / accountant 三種角色可呼叫；其他一律 403。
+         */
+        get: operations["exportReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/config": {
         parameters: {
             query?: never;
@@ -1182,6 +1205,25 @@ export interface paths {
         /** 客戶主檔列表（管理員視角，cursor 分頁） */
         get: operations["listCustomers"];
         put?: never;
+        /** 建立客戶（admin / operations_manager；非 LINE 來源手動建檔） */
+        post: operations["createCustomer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 客戶單筆詳情 + 聚合歷史 */
+        get: operations["getCustomer"];
+        /** 更新客戶資料（admin / operations_manager；整體取代） */
+        put: operations["updateCustomer"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2118,6 +2160,8 @@ export interface components {
             /** @description LINE Platform User ID（U + 32 hex），可能為空（非 LINE 來源） */
             line_user_id?: string | null;
             phone?: string | null;
+            /** Format: email */
+            email?: string | null;
             address?: string | null;
             /**
              * Format: date-time
@@ -2140,6 +2184,26 @@ export interface components {
         };
         CustomerPage: components["schemas"]["CursorPage"] & {
             items?: components["schemas"]["Customer"][];
+        };
+        CustomerCreateRequest: {
+            /** @description 顯示名稱（必填） */
+            display_name: string;
+            /** @description 聯絡電話（建議帶台灣手機格式） */
+            phone?: string | null;
+            /** Format: email */
+            email?: string | null;
+            /** @description 派工地址 */
+            address?: string | null;
+            /** @description 若客戶有 LINE 帳號可同步建立綁定（可選） */
+            line_user_id?: string | null;
+        };
+        /** @description PUT 整體取代；未提供的欄位視為 null（顯示名稱必填） */
+        CustomerUpdateRequest: {
+            display_name: string;
+            phone?: string | null;
+            /** Format: email */
+            email?: string | null;
+            address?: string | null;
         };
         /**
          * @description 系統定義的權限資源類別
@@ -2777,6 +2841,26 @@ export interface components {
             email?: string;
             capabilities?: string[];
             regions?: string[];
+        };
+        MyAvailabilityUpdateRequest: {
+            /**
+             * @description available — 可派工；
+             *     busy — 忙碌中（不接新工單）；
+             *     offline — 下線；
+             *     on_leave — 休假；
+             *     circuit_breaker_open — 熔斷（系統判斷後置）
+             * @enum {string}
+             */
+            online_state: "available" | "busy" | "offline" | "on_leave" | "circuit_breaker_open";
+        };
+        MyAvailabilityResponse: components["schemas"]["ApiResponseGeneric"] & {
+            data?: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                /** @enum {string} */
+                online_state: "available" | "busy" | "offline" | "on_leave" | "circuit_breaker_open";
+            };
         };
         WorkOrderConfirmRequest: {
             rating: number;
@@ -3968,6 +4052,36 @@ export interface operations {
             };
         };
     };
+    updateMyAvailability: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MyAvailabilityUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK — 已更新 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyAvailabilityResponse"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
     proposeReschedule: {
         parameters: {
             query?: never;
@@ -4972,6 +5086,38 @@ export interface operations {
             };
         };
     };
+    exportReport: {
+        parameters: {
+            query: {
+                report_type: "kpi" | "revenue" | "technician_ranking";
+                format?: "csv" | "pdf";
+                /** @description 起始日期（YYYY-MM-DD）；revenue/technician_ranking 適用 */
+                from?: string;
+                /** @description 結束日期（YYYY-MM-DD）；revenue/technician_ranking 適用 */
+                to?: string;
+                /** @description KPI 報表使用的期間（kpi 適用，預設 30d） */
+                period?: components["schemas"]["DashboardPeriod"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 報表 stream */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                    "application/pdf": string;
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
     getSystemConfig: {
         parameters: {
             query?: never;
@@ -5380,6 +5526,90 @@ export interface operations {
                     "application/json": components["schemas"]["CustomerPage"];
                 };
             };
+        };
+    };
+    createCustomer: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description 已建立 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerEnvelope"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description 已更新 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerEnvelope"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
         };
     };
     listRoles: {

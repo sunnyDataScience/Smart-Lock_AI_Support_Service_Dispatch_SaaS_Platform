@@ -1030,3 +1030,65 @@ async def reject_reschedule_by_customer(
         logger.exception("ws publish reschedule_rejected failed (non-fatal)")
 
     return await get_order(tenant_id=tenant_id, wo_id=wo_id)
+
+
+# =============================================================================
+# Public anonymous endpoint helper — Q3=C
+# =============================================================================
+#
+# 不帶 tenant gate；呼叫者必須先用 token 解出 work_order_id 才能進來。
+# 完工 90 天封存：completed_at < NOW() - 90d 時 raise 410。
+# 回傳僅供 PII 遮罩後的展示欄位，不含金額 / 客戶完整地址。
+
+
+# customer-facing 狀態映射：把內部狀態收斂成消費者能理解的 6 種
+_PUBLIC_STATUS_MAP = {
+    "created": "pending",
+    "assigned": "scheduled",
+    "accepted": "scheduled",
+    "on_the_way": "on_the_way",
+    "in_progress": "in_progress",
+    "completed": "completed",
+    "confirmed": "completed",
+    "cancelled": "cancelled",
+}
+
+
+async def get_public_status(*, work_order_id: str) -> dict | None:
+    """讀取工單對外可揭露的狀態欄位。
+
+    回傳 dict（含未遮罩的技師欄位，由 router 套 mask）；查無資料回 None；
+    超過 90 天封存則 raise ApiError(410)。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    sql = (
+        "SELECT wo.id, wo.status, wo.scheduled_at, wo.completed_at, "
+        "       t.name, t.phone "
+        "FROM work_orders wo "
+        "LEFT JOIN technicians t ON wo.technician_id = t.id "
+        "WHERE wo.id = %s::uuid"
+    )
+    cur = await db_module._conn.execute(sql, (work_order_id,))
+    row = await cur.fetchone()
+    if not row:
+        return None
+
+    completed_at = row[3]
+    if completed_at is not None:
+        from datetime import datetime, timedelta, timezone
+
+        archive_cutoff = datetime.now(timezone.utc) - timedelta(days=90)
+        if completed_at < archive_cutoff:
+            raise ApiError("GONE", "工單完工超過 90 天，連結已封存", 410)
+
+    return {
+        "work_order_id": str(row[0]),
+        "raw_status": row[1],
+        "public_status": _PUBLIC_STATUS_MAP.get(row[1], "pending"),
+        "scheduled_at": row[2].isoformat() if row[2] else None,
+        "completed_at": completed_at.isoformat() if completed_at else None,
+        "technician_name": row[4],
+        "technician_phone": row[5],
+    }

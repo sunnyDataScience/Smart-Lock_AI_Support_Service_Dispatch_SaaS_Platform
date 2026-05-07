@@ -51,30 +51,39 @@ def _token_path() -> Path:
 async def get_work_order_public_status(
     token: str = Path(..., min_length=32, max_length=512),
 ) -> dict:
-    """SKELETON — 回 placeholder 資料；錯誤路徑使用 stub 判定。
+    """匿名工單狀態查詢（Q3=C）— 從 PR #40 stub 升級為真實查詢。
 
-    TODO Q3=C/Q9=B impl:
-      - verify_token(token) → 取得 work_order_id
-      - 呼叫 work_order_service.get_public_status
-      - 完工 > 90 天 → raise GoneError → 410
+    TODO（user 後續處理）：
+      - services.public_token.verify_token 仍為 stub，未做真實 HMAC 簽章
+      - rate limit / audit log（per-token + per-IP）尚未實作
     """
+    from core.errors import ApiError
+    from services import work_order_service
+
     try:
         payload = verify_token(token)
     except TokenInvalidError:
-        from core.errors import ApiError
         raise ApiError("NOT_FOUND", "token invalid or expired", 404)
     except TokenExpiredError:
-        from core.errors import ApiError
         raise ApiError("NOT_FOUND", "token expired", 404)
 
-    # TODO Q3=C/Q9=B impl: 從 DB 取真實工單；以下為 placeholder
+    # purpose 不符 → 一律 404，避免 token 跨 endpoint 重用
+    if payload.purpose != "work_order_status":
+        raise ApiError("NOT_FOUND", "token purpose mismatch", 404)
+
+    record = await work_order_service.get_public_status(
+        work_order_id=payload.subject_id
+    )
+    if record is None:
+        raise ApiError("NOT_FOUND", "work order not found", 404)
+
     return {
-        "work_order_id": payload.subject_id,
-        "status": "scheduled",
-        "scheduled_at": datetime.now(timezone.utc).isoformat(),
-        "completed_at": None,
-        "technician_name": mask_technician_name("陳大文"),
-        "technician_phone_masked": mask_phone("0912345678"),
+        "work_order_id": record["work_order_id"],
+        "status": record["public_status"],
+        "scheduled_at": record["scheduled_at"],
+        "completed_at": record["completed_at"],
+        "technician_name": mask_technician_name(record["technician_name"]),
+        "technician_phone_masked": mask_phone(record["technician_phone"]),
         "eta_minutes": None,
         "tracking_url": None,
     }

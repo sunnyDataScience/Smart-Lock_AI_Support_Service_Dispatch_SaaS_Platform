@@ -48,7 +48,8 @@ _CUSTOMER_SELECT = """
         JOIN problem_cards pc ON wo.problem_card_id = pc.id
         JOIN conversations c3 ON pc.conversation_id = c3.id
         WHERE c3.user_id = u.id
-    ) AS last_service_at
+    ) AS last_service_at,
+    u.email
 """
 
 
@@ -61,7 +62,7 @@ def _derive_display_name(display_name: str | None, phone: str | None, uid: str) 
 
 
 def _row_to_customer(row: tuple) -> dict:
-    """row 順序對齊 _CUSTOMER_SELECT。"""
+    """row 順序對齊 _CUSTOMER_SELECT（包含尾端的 email 欄位）。"""
     uid = str(row[0])
     out: dict = {
         "id": uid,
@@ -75,6 +76,10 @@ def _row_to_customer(row: tuple) -> dict:
         "total_orders": int(row[8] or 0),
         "last_service_at": row[9].isoformat() if row[9] else None,
     }
+    # email 欄位於 _CUSTOMER_SELECT 末端；list_customers / get_customer 路徑
+    # 都會帶 11 個欄位。tuple 較舊（10 欄）時自動 fallback 為 None。
+    if len(row) >= 11:
+        out["email"] = row[10]
     return out
 
 
@@ -253,3 +258,113 @@ async def get_customer(*, tenant_id: str, customer_id: str) -> dict:
             "recent_conversations": recent_conversations,
         },
     }
+
+
+# =============================================================================
+# Mutations — POST /customers, PUT /customers/{id}
+# =============================================================================
+#
+# 寫入策略：
+#   - users 表為單一帳號主檔；customer 等於 role='line_user' 的 row
+#   - createCustomer 一律設 role='line_user'，line_user_id 為可選（非 LINE 來源
+#     可空）
+#   - updateCustomer 為 PUT 整體取代：未提供欄位視為 null（display_name 必填）
+#   - 唯一性：line_user_id 為 UNIQUE，重複時回 422 而非 500
+#   - 跨租戶寫入：service 端用 tenant_id 條件守住，404 路徑保證不洩露其他 tenant
+
+
+_ALLOWED_CREATE_FIELDS = {"display_name", "phone", "email", "address", "line_user_id"}
+_ALLOWED_UPDATE_FIELDS = {"display_name", "phone", "email", "address"}
+
+
+def _filter_create_payload(raw: dict) -> dict:
+    """Drop unknown keys early to avoid SQL parameter mismatch."""
+    return {k: v for k, v in raw.items() if k in _ALLOWED_CREATE_FIELDS}
+
+
+def _filter_update_payload(raw: dict) -> dict:
+    return {k: raw.get(k) for k in _ALLOWED_UPDATE_FIELDS}
+
+
+async def create_customer(*, tenant_id: str, payload: dict) -> dict:
+    """POST /customers — admin / operations_manager 手動建檔。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    data = _filter_create_payload(payload)
+    if not data.get("display_name"):
+        raise ApiError("VALIDATION_ERROR", "display_name is required", 422)
+
+    # 處理 line_user_id 唯一性衝突：先預查再 INSERT，確保使用者拿到 422
+    line_user_id = data.get("line_user_id")
+    if line_user_id:
+        cur = await db_module._conn.execute(
+            "SELECT id FROM users WHERE line_user_id = %s", (line_user_id,)
+        )
+        if await cur.fetchone():
+            raise ApiError(
+                "VALIDATION_ERROR",
+                "line_user_id already exists",
+                422,
+            )
+
+    cols = ["tenant_id", "role", *data.keys()]
+    placeholders = ["%s::uuid", "%s", *(["%s"] * len(data))]
+    args = [tenant_id, "line_user", *data.values()]
+
+    sql = (
+        f"INSERT INTO users ({', '.join(cols)}) "
+        f"VALUES ({', '.join(placeholders)}) "
+        f"RETURNING id"
+    )
+    cur = await db_module._conn.execute(sql, args)
+    row = await cur.fetchone()
+    new_id = str(row[0])
+
+    # Fetch full row through the read pipeline so聚合計數欄位（皆為 0）一致
+    return await _fetch_customer_row(tenant_id=tenant_id, customer_id=new_id)
+
+
+async def update_customer(
+    *, tenant_id: str, customer_id: str, payload: dict
+) -> dict:
+    """PUT /customers/{id} — 整體取代；未提供欄位視為 null。
+
+    line_user_id 不允許從這個端點調整（避免帳號被誤接管）。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    data = _filter_update_payload(payload)
+    if not data.get("display_name"):
+        raise ApiError("VALIDATION_ERROR", "display_name is required", 422)
+
+    set_clause = ", ".join(f"{k} = %s" for k in data.keys()) + ", updated_at = NOW()"
+    args: list = [*data.values(), customer_id, tenant_id]
+
+    sql = (
+        f"UPDATE users SET {set_clause} "
+        f"WHERE id = %s::uuid AND tenant_id = %s::uuid AND role = 'line_user' "
+        f"RETURNING id"
+    )
+    cur = await db_module._conn.execute(sql, args)
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "Customer not found", 404)
+
+    return await _fetch_customer_row(
+        tenant_id=tenant_id, customer_id=customer_id
+    )
+
+
+async def _fetch_customer_row(*, tenant_id: str, customer_id: str) -> dict:
+    """Helper：用 read pipeline 帶聚合欄位回客戶資料。"""
+    cur = await db_module._conn.execute(
+        f"SELECT {_CUSTOMER_SELECT} FROM users u "
+        f"WHERE u.id = %s::uuid AND u.tenant_id = %s::uuid AND u.role = 'line_user'",
+        (customer_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "Customer not found", 404)
+    return _row_to_customer(row)
