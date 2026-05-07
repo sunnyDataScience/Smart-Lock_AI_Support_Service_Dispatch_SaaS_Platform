@@ -103,3 +103,22 @@ COMMENT ON TABLE user_facts IS 'SCD Type 2 用戶硬事實：device_brand / devi
 COMMENT ON COLUMN user_facts.is_current IS 'TRUE = 最新版本；FALSE = 已被新值取代（保留歷史）';
 COMMENT ON COLUMN user_facts.start_date IS '此版本生效時間';
 COMMENT ON COLUMN user_facts.end_date IS '此版本失效時間（is_current=FALSE 時非 NULL）';
+
+
+-- ============================================================================
+-- [4] user_soft_profiles 表 — 用戶軟性畫像（自由文字）
+-- ============================================================================
+-- 用途：儲存 LLM 萃取的軟性畫像 markdown，每位 user_id 一筆，覆寫式更新
+-- 此前 schema 由 agent/profiles/manager.py 動態建立（runtime CREATE TABLE IF NOT EXISTS），
+-- 自 RP3 C1 起改由本 SQL 檔統一管理；新環境部署前必須先跑此檔。
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS user_soft_profiles (
+    user_id TEXT PRIMARY KEY,
+    content TEXT NOT NULL DEFAULT '',
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+COMMENT ON TABLE user_soft_profiles IS '用戶軟性畫像（LLM 萃取的自由文字 markdown），每 user_id 一筆，覆寫式更新';
+COMMENT ON COLUMN user_soft_profiles.content IS '軟性畫像內容（markdown 格式）';
+COMMENT ON COLUMN user_soft_profiles.updated_at IS '最近更新時間';

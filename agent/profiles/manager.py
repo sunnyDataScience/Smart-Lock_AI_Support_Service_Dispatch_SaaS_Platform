@@ -1,4 +1,5 @@
 import os
+import psycopg
 from psycopg_pool import AsyncConnectionPool
 
 
@@ -10,6 +11,21 @@ _facts_uri_env: str = ""
 def get_pool() -> AsyncConnectionPool | None:
     """供 /health 等模組讀取 pool 健康狀態。"""
     return _facts_pool
+
+
+async def _verify_required_tables(conn) -> None:
+    """Schema 單一真相來源原則：runtime 不再建表，啟動時只驗證表存在。
+
+    若表不存在，明確要求 operator 跑 schema migration（SQL/Schema_harness_migration.sql）。
+    """
+    for table in ("user_facts", "user_soft_profiles"):
+        try:
+            await conn.execute(f"SELECT 1 FROM {table} LIMIT 0")
+        except psycopg.errors.UndefinedTable:
+            raise RuntimeError(
+                f"Required table '{table}' missing. Run schema migration: "
+                f"psql $POSTGRES_URI < SQL/Schema_harness_migration.sql"
+            ) from None
 
 
 async def init_facts_db(config: dict):
@@ -34,24 +50,7 @@ async def init_facts_db(config: dict):
         await pool.open(wait=True)
 
         async with pool.connection() as conn:
-            await conn.execute("""
-                CREATE TABLE IF NOT EXISTS user_facts (
-                    id SERIAL PRIMARY KEY,
-                    user_id TEXT NOT NULL,
-                    attr_key VARCHAR(100) NOT NULL,
-                    attr_val TEXT NOT NULL,
-                    is_current BOOLEAN NOT NULL DEFAULT TRUE,
-                    start_date TIMESTAMP DEFAULT NOW(),
-                    end_date TIMESTAMP
-                )
-            """)
-            await conn.execute("""
-                CREATE TABLE IF NOT EXISTS user_soft_profiles (
-                    user_id TEXT PRIMARY KEY,
-                    content TEXT NOT NULL DEFAULT '',
-                    updated_at TIMESTAMP DEFAULT NOW()
-                )
-            """)
+            await _verify_required_tables(conn)
 
         _facts_pool = pool
         print("[Facts DB] 已連線至 PostgreSQL（user_facts + user_soft_profiles, pool）")
