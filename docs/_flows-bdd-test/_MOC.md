@@ -17,39 +17,56 @@ owners: [PM, Tech Lead, QA Lead]
 
 ### User Flow / Journey
 
-| File | Description | Origin |
-|------|-------------|--------|
-| [[E1x--user-journey-map]] | Consumer, technician, admin, CS manager journey maps with emotion curves | ex `00-discover/` |
-| [[E5x--work-order-interaction-flows]] | Complete work order and dispatch lifecycle (10 flows) | ex `02-design/` |
-| [[E5x--dispatch-operations]] | 派工營運規格：排班、媒合演算法、薪酬分潤、拒單重派、客戶設備主檔、技能體系、報表 | ex `02-design/` |
-| [[E5x--flows-admin-governance]] | 後台治理流程：RBAC 角色生命週期、稽核日誌、庫存告警、爭議仲裁 | ex `02-design/` |
+
+| File                               | Description                                                              | Origin            |
+| ---------------------------------- | ------------------------------------------------------------------------ | ----------------- |
+| [[E1x--user-journey-map]]          | Consumer, technician, admin, CS manager journey maps with emotion curves | ex `00-discover/` |
+| [[E5x--workflow-work-order]]       | Complete work order and dispatch lifecycle (10 flows)                    | ex `02-design/`   |
+| [[E5x--workflow-dispatch]]         | 派工營運規格：排班、媒合演算法、薪酬分潤、拒單重派、客戶設備主檔、技能體系、報表                                 | ex `02-design/`   |
+| [[E5x--workflow-admin-governance]] | 後台治理流程：RBAC 角色生命週期、稽核日誌、庫存告警、爭議仲裁                                        | ex `02-design/`   |
+
 
 ### BDD Specifications
 
-| File | Description | Origin |
-|------|-------------|--------|
+
+| File                  | Description                                                   | Origin          |
+| --------------------- | ------------------------------------------------------------- | --------------- |
 | [[E7--bdd-scenarios]] | BDD principles, Gherkin syntax, V1.0 + V2.0 feature scenarios | ex `02-design/` |
+
 
 ### Test Plan & PM Alignment
 
-| File | Description | Origin |
-|------|-------------|--------|
-| [[E7x--test-plan-and-readiness]] | Test plan, gap matrix, mock spectrum, Sprint 1 roadmap, PR-gate setup | ex `02-design/` |
-| [[E7x--pm-alignment-Q1-Q10]] | PM alignment Q1-Q10 — open questions resolved before lock-in | ex `02-design/` |
-| [[E7x--module-specification-and-tests]] | Detailed module specs with test cases for core V1.0 components | ex `02-design/` |
+
+| File                                    | Description                                                           | Origin          |
+| --------------------------------------- | --------------------------------------------------------------------- | --------------- |
+| [[E7x--test-plan-and-readiness]]        | Test plan, gap matrix, mock spectrum, Sprint 1 roadmap, PR-gate setup | ex `02-design/` |
+| [[E7x--pm-alignment-Q1-Q10]]            | PM alignment Q1-Q10 — open questions resolved before lock-in          | ex `02-design/` |
+| [[E7x--module-specification-and-tests]] | Detailed module specs with test cases for core V1.0 components        | ex `02-design/` |
+
+
+### Governance & Review
+
+
+| File                  | Description                                                        |
+| --------------------- | ------------------------------------------------------------------ |
+| [[_review-notes]]     | 9 檔逐一 review：結構摘要 / 編號系統 / cross-refs / 對齊狀態 / 開放問題 / 修正建議         |
+| [[_alignment-matrix]] | 主對齊矩陣（23 user flows × 8 dimensions）— **PM/TL/QA 從任一 F-XXX 找對應的入口** |
+
 
 ---
 
 ## Reading Order
 
-1. [[E1x--user-journey-map]] -- Who the users are and what they feel
-2. [[E5x--work-order-interaction-flows]] -- How a work order moves through the system
-3. [[E5x--dispatch-operations]] -- How dispatch decisions get made
-4. [[E5x--flows-admin-governance]] -- How admin governs the platform
-5. [[E7--bdd-scenarios]] -- What the code must do (acceptance criteria)
-6. [[E7x--test-plan-and-readiness]] -- How we will verify it
-7. [[E7x--pm-alignment-Q1-Q10]] -- PM open questions reference
-8. [[E7x--module-specification-and-tests]] -- Per-module test case detail
+1. [[_alignment-matrix]] -- 從這裡開始：23 條 user flow 一覽 + 對齊狀態
+2. [[E1x--user-journey-map]] -- Who the users are and what they feel
+3. [[E5x--workflow-work-order]] -- How a work order moves through the system
+4. [[E5x--workflow-dispatch]] -- How dispatch decisions get made
+5. [[E5x--workflow-admin-governance]] -- How admin governs the platform
+6. [[E7--bdd-scenarios]] -- What the code must do (acceptance criteria)
+7. [[E7x--test-plan-and-readiness]] -- How we will verify it
+8. [[E7x--pm-alignment-Q1-Q10]] -- PM open questions reference
+9. [[E7x--module-specification-and-tests]] -- Per-module test case detail
+10. [[_review-notes]] -- 細部 review 觀察與待修建議
 
 ---
 
@@ -59,3 +76,4 @@ owners: [PM, Tech Lead, QA Lead]
 - Parent (DISCOVER phase): [[../00-discover/_MOC]]
 - Documentation hub: [[../HOME]]
 - Gate framework: [[../GATE-MAP]]
+

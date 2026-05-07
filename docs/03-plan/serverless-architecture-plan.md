@@ -405,7 +405,7 @@ docs/
 ├── 01-define/
 │   └── E3x--module-breakdown.md          ← 模組依賴，決定 API 擴充順序
 ├── 02-design/
-│   ├── E5x--work-order-interaction-flows  ← 工單狀態機，決定 API 行為
+│   ├── E5x--workflow-work-order  ← 工單狀態機，決定 API 行為
 │   ├── E5x--frontend-information-arch     ← 28 頁 IA，已轉化為 page specs
 │   ├── E5x--frontend-architecture         ← 前端技術規範
 │   ├── platform-multi-tenant/

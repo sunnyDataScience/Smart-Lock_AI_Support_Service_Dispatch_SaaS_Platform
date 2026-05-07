@@ -358,7 +358,7 @@
 
 ## 7.5 Flow × Page 覆蓋矩陣（2026-04-23 驗證閘新增）
 
-> 對齊 `E5x--work-order-interaction-flows.md` 13 個 Flow + 新增 Flow 14、`flows-admin-governance.md` G1-G4、`flows-multi-tenant.md` MT1-MT5。
+> 對齊 `E5x--workflow-work-order.md` 13 個 Flow + 新增 Flow 14、`flows-admin-governance.md` G1-G4、`flows-multi-tenant.md` MT1-MT5。
 
 ### 工單互動 Flow（14 個）
 

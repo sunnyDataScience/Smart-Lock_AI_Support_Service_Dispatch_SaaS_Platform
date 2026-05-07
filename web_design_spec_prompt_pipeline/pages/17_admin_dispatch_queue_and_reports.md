@@ -2,7 +2,7 @@
 
 > 對應 `guides/vibe_coding_build_strategy.md` → Step 5。
 > 涵蓋 V2.0 營運管理核心：A28 派工佇列即時監控（拒單重派、人工介入）+ A29~A31 三大報表（KPI 儀表板、技師排行榜、營收報表），支撐平台數據化營運決策。
-> 對齊 `E5x--frontend-information-arch.md` §6.23–6.24、`E5x--dispatch-operations-supplement.md` §4 & §7、`specs/sla-availability-spec.md`。
+> 對齊 `E5x--frontend-information-arch.md` §6.23–6.24、`E5x--workflow-dispatch-supplement.md` §4 & §7、`specs/sla-availability-spec.md`。
 
 ---
 

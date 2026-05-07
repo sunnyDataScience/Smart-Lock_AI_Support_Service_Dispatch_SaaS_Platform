@@ -161,6 +161,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/work-orders/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 取消工單（強制 Idempotency-Key）
+         * @description 將工單從非結案狀態（created/assigned/accepted/in_progress）轉為 cancelled。
+         */
+        post: operations["cancelWorkOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/work-orders/pool": {
         parameters: {
             query?: never;
@@ -192,6 +212,150 @@ export interface paths {
         get: operations["getDispatchQueue"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dispatch-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 派工歷程列表
+         * @description 管理員派工監控明細表格資料源；以 (work_order_id, created_at) 排序。
+         */
+        get: operations["listDispatchLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/refunds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 退款申請列表 */
+        get: operations["listRefundRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/refunds/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 退款申請詳情 */
+        get: operations["getRefundRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/disputes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 爭議案件列表 */
+        get: operations["listDisputes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/disputes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 爭議案件詳情 */
+        get: operations["getDispute"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/warranty-claims": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 保固申請列表 */
+        get: operations["listWarrantyClaims"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/warranty-claims/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 保固申請詳情 */
+        get: operations["getWarrantyClaim"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/warranty-claims/{id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 保固審批決策（強制 Idempotency-Key）
+         * @description 管理員 / 客服經理對 filed / in_progress 的保固申請做決策。
+         *     decision = approve / reject / start_review 三選一，
+         *     approve 時可附 discount_offered（保固外折讓）。
+         */
+        post: operations["submitWarrantyDecision"];
         delete?: never;
         options?: never;
         head?: never;
@@ -428,6 +592,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/change-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 變更密碼（需要當前密碼驗證） */
+        post: operations["changePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/conversations/{id}/messages": {
         parameters: {
             query?: never;
@@ -438,7 +619,14 @@ export interface paths {
         /** 對話訊息列表（cursor 分頁） */
         get: operations["listConversationMessages"];
         put?: never;
-        post?: never;
+        /**
+         * 發送訊息（人類客服接管後使用）
+         * @description 客服在 AI 對話被升級（status=waiting_human）後接管，透過此端點發送訊息。
+         *     訊息會觸發 LINE Push API 推給用戶，並在 metadata 標記
+         *     `sender_role=agent_human` + `sender_id=<user_id>` 以便稽核識別。
+         *     對話狀態必須為 `waiting_human`，否則回 409。
+         */
+        post: operations["sendChatMessage"];
         delete?: never;
         options?: never;
         head?: never;
@@ -461,6 +649,40 @@ export interface paths {
         head?: never;
         /** 更新問題卡（部分欄位） */
         patch: operations["updateProblemCard"];
+        trace?: never;
+    };
+    "/api/v1/problem-cards/{id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 確認問題卡（draft → confirmed） */
+        post: operations["confirmProblemCard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/problem-cards/{id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 結案問題卡（confirmed → resolved） */
+        post: operations["resolveProblemCard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/problem-cards/{id}/export": {
@@ -721,6 +943,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/kpi": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** KPI 儀表板（轉換漏斗 + 異常率 + 技師效率；read-only） */
+        get: operations["getKpiReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/revenue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 營收彙整（KPI + 月度趨勢 + 品牌占比） */
+        get: operations["getRevenueSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/config": {
         parameters: {
             query?: never;
@@ -750,6 +1006,28 @@ export interface paths {
         get: operations["listAuditLogs"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audit-logs/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 匯出稽核事件為 CSV
+         * @description 依篩選條件匯出稽核日誌。回傳 CSV stream（同步）或 job_id（異步）。
+         *     ≤ 100k 筆走同步 stream；> 100k 筆走背景 job + email 通知。
+         *     此 spec 先實作同步版本，異步路徑保留 202 contract 待後續迭代補完。
+         */
+        post: operations["exportAuditEvents"];
         delete?: never;
         options?: never;
         head?: never;
@@ -858,6 +1136,91 @@ export interface paths {
         head?: never;
         /** 更新個人資料 */
         patch: operations["updateMyProfile"];
+        trace?: never;
+    };
+    "/api/v1/technicians": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 技師列表（管理員視角，cursor 分頁） */
+        get: operations["listTechnicians"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/technicians/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 技師詳情（管理員視角） */
+        get: operations["getTechnician"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 客戶主檔列表（管理員視角，cursor 分頁） */
+        get: operations["listCustomers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 角色與權限矩陣（read-only；含本租戶各角色使用者數） */
+        get: operations["listRoles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inventory/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 庫存品項清單（read-only；cursor 分頁 + 庫存狀態 / 類別過濾） */
+        get: operations["listInventoryItems"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/work-orders/{id}/confirm": {
@@ -1018,6 +1381,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/accounting/invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 發票列表 */
+        get: operations["listInvoices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting/invoices/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 發票詳情 */
+        get: operations["getInvoice"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/accounting/vouchers": {
         parameters: {
             query?: never;
@@ -1151,7 +1548,14 @@ export interface components {
         LoginResponse: components["schemas"]["ApiResponseGeneric"] & {
             data?: {
                 access_token: string;
-                /** @description 秒數 */
+                /** @description 用於 /auth/refresh 換發 access token */
+                refresh_token: string;
+                /**
+                 * @default Bearer
+                 * @enum {string}
+                 */
+                token_type: "Bearer";
+                /** @description access_token 有效秒數 */
                 expires_in: number;
             };
         };
@@ -1207,7 +1611,7 @@ export interface components {
             items?: components["schemas"]["ProblemCard"][];
         };
         /**
-         * @description 16 狀態工單狀態機（見 `E5x--work-order-interaction-flows.md §18.3`）
+         * @description 16 狀態工單狀態機（見 `E5x--workflow-work-order.md §18.3`）
          * @enum {string}
          */
         WorkOrderStatus: "inquiring" | "qualified" | "quoted" | "negotiating" | "accepted" | "scheduled" | "dispatching" | "assigned" | "en_route" | "arrived" | "in_progress" | "completed" | "billed" | "paid" | "closed" | "cancelled";
@@ -1245,16 +1649,185 @@ export interface components {
         WorkOrderPage: components["schemas"]["CursorPage"] & {
             items?: components["schemas"]["WorkOrder"][];
         };
+        /**
+         * @description 完工回報。`photos_before` / `photos_after` 暫時為 optional（`minItems: 0`），
+         *     待媒體上傳模組接入後再上修為必填。
+         */
         CompletionReport: {
             summary: string;
-            photos_before: string[];
-            photos_after: string[];
+            photos_before?: string[];
+            photos_after?: string[];
             parts_used?: {
                 /** Format: uuid */
                 part_id: string;
                 quantity: number;
             }[];
             actual_amount?: string;
+        };
+        /** @description 工單取消理由（管理員或上層流程觸發）。 */
+        WorkOrderCancelRequest: {
+            reason?: string;
+        };
+        /** @description 手動指派技師（admin override）。technician_id + reason_code 必填；override_flags 預留 circuit-breaker / cross-area，MVP 一律 false。 */
+        WorkOrderAssignRequest: {
+            /** Format: uuid */
+            technician_id: string;
+            /** @enum {string} */
+            reason_code: "auto_dispatch_exhausted" | "customer_requested_specific_tech" | "skill_shortage_override" | "sla_rescue" | "other";
+            reason_text?: string;
+            override_flags?: {
+                /** @default false */
+                allow_circuit: boolean;
+                /** @default false */
+                allow_cross_area: boolean;
+            };
+        };
+        /** @description 工單升級至上層覆審。level 指定接收者；reason 必填留稽核軌跡。MVP 不切狀態，僅將 priority 推進到 urgent 並記入 service_report；上層 escalation_logs 表上線後再正規化。 */
+        WorkOrderEscalateRequest: {
+            /** @enum {string} */
+            level: "operations_manager" | "tenant_admin";
+            reason: string;
+        };
+        /** @enum {string} */
+        WarrantyClaimStatus: "filed" | "approved" | "rejected" | "in_progress" | "closed";
+        /** @description 保固申請（read-only） */
+        WarrantyClaim: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            work_order_id?: string | null;
+            /** Format: uuid */
+            customer_id: string;
+            device_brand: string;
+            device_model: string;
+            /** Format: date */
+            purchase_date?: string | null;
+            /**
+             * Format: date
+             * @description 保固起始日（以「交屋日期」為準）
+             */
+            warranty_start_date: string;
+            /** Format: date */
+            warranty_end_date: string;
+            /** Format: date */
+            claim_date: string;
+            is_within_warranty: boolean;
+            status: components["schemas"]["WarrantyClaimStatus"];
+            dispute_reason?: string | null;
+            verification_source?: string | null;
+            resolution?: string | null;
+            /** @description 折讓金額（無保固但提供折讓時） */
+            discount_offered?: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        WarrantyClaimEnvelope: components["schemas"]["ApiResponseGeneric"] & {
+            data?: components["schemas"]["WarrantyClaim"];
+        };
+        WarrantyClaimPage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["WarrantyClaim"][];
+        };
+        /**
+         * @description 保固審批決策。approve / reject 為終局狀態；start_review 進入 in_progress 由
+         *     客服繼續調查（蒐證、聯繫客戶）後可再下 approve / reject。resolution 為審
+         *     批意見，approve / reject 時必填以利稽核；discount_offered 僅 approve 時
+         *     有意義（保固外折讓金額，2 位小數字串）。
+         */
+        WarrantyDecision: {
+            /** @enum {string} */
+            decision: "approve" | "reject" | "start_review";
+            /** @description 處理結果描述（approve / reject 必填） */
+            resolution?: string;
+            /** @description 折讓金額（百分比或金額，由業務語意自行解讀；僅 approve 時生效） */
+            discount_offered?: string | null;
+        };
+        /** @enum {string} */
+        RefundRequestStatus: "pending" | "approved" | "rejected" | "escalated" | "executed" | "cancelled";
+        /** @description 退款申請（read-only；雙簽流程經 submitRefundDecision 推進） */
+        RefundRequest: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            work_order_id: string;
+            /** Format: uuid */
+            invoice_id?: string | null;
+            /** Format: uuid */
+            complaint_id?: string | null;
+            /** Format: uuid */
+            requested_by: string;
+            amount: string;
+            reason: string;
+            status: components["schemas"]["RefundRequestStatus"];
+            requires_dual_sign?: boolean;
+            /** @description 審批鏈（已記錄的決策步驟，順序由舊到新） */
+            approval_chain?: {
+                [key: string]: unknown;
+            }[];
+            /** Format: date-time */
+            executed_at?: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        RefundRequestEnvelope: components["schemas"]["ApiResponseGeneric"] & {
+            data?: components["schemas"]["RefundRequest"];
+        };
+        RefundRequestPage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["RefundRequest"][];
+        };
+        /**
+         * @description 爭議類型（pricing 價格 / quality 品質 / warranty 保固 / cancellation_fee 取消費 / settlement 結算）
+         * @enum {string}
+         */
+        DisputeType: "pricing" | "quality" | "warranty" | "cancellation_fee" | "settlement";
+        /**
+         * @description 爭議狀態（filed 待處理 / in_review 調解中 / resolved 已結案 / rejected 已駁回 / closed 已關閉）
+         * @enum {string}
+         */
+        DisputeStatus: "filed" | "in_review" | "resolved" | "rejected" | "closed";
+        /** @description 爭議案件（read-only；調解動作待 submitDisputeResolution 上線後接入） */
+        Dispute: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            work_order_id?: string | null;
+            /** Format: uuid */
+            invoice_id?: string | null;
+            /** Format: uuid */
+            filed_by: string;
+            dispute_type: components["schemas"]["DisputeType"];
+            status: components["schemas"]["DisputeStatus"];
+            description: string;
+            /** @description 雙方證據（jsonb；通常為 customer/technician 兩段結構） */
+            evidence?: {
+                [key: string]: unknown;
+            } | {
+                [key: string]: unknown;
+            }[] | null;
+            resolution?: string | null;
+            /** @description 調解金額（部分退款 / 全額退款時填寫） */
+            resolution_amount?: string | null;
+            /** Format: uuid */
+            resolved_by?: string | null;
+            /** Format: date-time */
+            filed_at: string;
+            /** Format: date-time */
+            resolved_at?: string | null;
+            /** Format: date-time */
+            sla_deadline?: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        DisputeEnvelope: components["schemas"]["ApiResponseGeneric"] & {
+            data?: components["schemas"]["Dispute"];
+        };
+        DisputePage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["Dispute"][];
         };
         RefundDecision: {
             /** @enum {string} */
@@ -1273,6 +1846,37 @@ export interface components {
             /** Format: date-time */
             signed_at?: string;
         };
+        /**
+         * @description 派工事件類型（assign 指派 / accept 接受 / reject 拒絕 / timeout 超時 / reassign 重派 / cancel 取消）
+         * @enum {string}
+         */
+        DispatchAction: "assign" | "accept" | "reject" | "timeout" | "reassign" | "cancel";
+        /** @description 派工歷程紀錄（read-only；單一工單可有多筆代表派工嘗試序列） */
+        DispatchLog: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            work_order_id: string;
+            action: components["schemas"]["DispatchAction"];
+            /** Format: uuid */
+            technician_id?: string | null;
+            /** @description 由 technicians 表 JOIN 取得方便前端顯示 */
+            technician_name?: string | null;
+            /** @description AI 媒合分數（0-100） */
+            match_score?: number | null;
+            /** @description 媒合因子（jsonb；通常為 distance/skill/availability 加權結構） */
+            match_factors?: {
+                [key: string]: unknown;
+            } | null;
+            rejection_reason?: string | null;
+            timeout_seconds?: number | null;
+            notes?: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        DispatchLogPage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["DispatchLog"][];
+        };
         DispatchQueueSnapshot: {
             pending: number;
             assigning: number;
@@ -1283,7 +1887,7 @@ export interface components {
         /** @enum {string} */
         QuoteStatus: "draft" | "sent" | "negotiating" | "accepted" | "rejected" | "expired";
         /**
-         * @description 工單報價（對齊 E5x--work-order-interaction-flows.md §17）。
+         * @description 工單報價（對齊 E5x--workflow-work-order.md §17）。
          *     採區間制：min/max 為當前報價區間，客戶 accept 後 scalar 欄位為最終金額。
          */
         Quote: {
@@ -1339,7 +1943,7 @@ export interface components {
         ExceptionType: "no_show" | "customer_absent" | "scope_change_rejected" | "material_shortage" | "delay_severe" | "appearance_refused" | "payment_failed" | "quality_complaint" | "schedule_conflict" | "other";
         /** @enum {string} */
         ExceptionStatus: "open" | "investigating" | "resolved" | "escalated" | "closed";
-        /** @description 工單異常記錄（對齊 E5x--work-order-interaction-flows.md §22 異常返回節點 + 熔斷規則） */
+        /** @description 工單異常記錄（對齊 E5x--workflow-work-order.md §22 異常返回節點 + 熔斷規則） */
         Exception: {
             /** Format: uuid */
             id: string;
@@ -1378,7 +1982,7 @@ export interface components {
         };
         /** @enum {string} */
         InvoiceStatus: "pending" | "issued" | "allowance_pending" | "voided" | "reopened";
-        /** @description 電子發票（對齊 E5x--work-order-interaction-flows.md §21 EX5） */
+        /** @description 電子發票（對齊 E5x--workflow-work-order.md §21 EX5） */
         Invoice: {
             /** Format: uuid */
             id: string;
@@ -1449,6 +2053,109 @@ export interface components {
         TechnicianEnvelope: components["schemas"]["ApiResponseGeneric"] & {
             data?: components["schemas"]["Technician"];
         };
+        TechnicianPage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["Technician"][];
+        };
+        Customer: {
+            /** Format: uuid */
+            id: string;
+            /** @description 顯示名稱（LINE 名稱或從電話 / userId 推導） */
+            display_name: string;
+            /** @description LINE Platform User ID（U + 32 hex），可能為空（非 LINE 來源） */
+            line_user_id?: string | null;
+            phone?: string | null;
+            address?: string | null;
+            /**
+             * Format: date-time
+             * @description 最近一次互動時間（users.last_active_at）
+             */
+            last_active_at?: string | null;
+            total_conversations: number;
+            /** @description 此客戶累積工單數（穿越 conversations → problem_cards → work_orders） */
+            total_orders: number;
+            /**
+             * Format: date-time
+             * @description 最近一次工單完工時間
+             */
+            last_service_at?: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        CustomerEnvelope: components["schemas"]["ApiResponseGeneric"] & {
+            data?: components["schemas"]["Customer"];
+        };
+        CustomerPage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["Customer"][];
+        };
+        /**
+         * @description 系統定義的權限資源類別
+         * @enum {string}
+         */
+        RoleResource: "work_orders" | "technicians" | "customers" | "accounting" | "invoices" | "refunds" | "inventory" | "warranty" | "disputes" | "audit_logs" | "roles" | "system_settings";
+        RolePermission: {
+            resource: components["schemas"]["RoleResource"];
+            read: boolean;
+            write: boolean;
+            delete: boolean;
+            /**
+             * @description 是否為系統強制鎖定的權限（不可被自訂角色覆寫）
+             * @default false
+             */
+            locked: boolean;
+        };
+        Role: {
+            /** @description 角色 ID（system roles 為固定字串：admin / reviewer / technician / brand_oem / line_user） */
+            id: string;
+            name: string;
+            description: string;
+            /** @description 本租戶內擁有此角色的使用者數 */
+            user_count: number;
+            /** @description 是否為系統內建角色（不可刪除） */
+            is_system: boolean;
+            permissions: components["schemas"]["RolePermission"][];
+        };
+        RolesEnvelope: components["schemas"]["ApiResponseGeneric"] & {
+            data?: components["schemas"]["Role"][];
+        };
+        /**
+         * @description 庫存狀態（衍生自 quantity_on_hand 與 reorder_point 比較）
+         * @enum {string}
+         */
+        InventoryStockStatus: "in_stock" | "low_stock" | "out_of_stock";
+        InventoryItem: {
+            /** Format: uuid */
+            id: string;
+            /** @description 料號（unique；例：BAT-AA-001） */
+            part_number: string;
+            name: string;
+            /** @description 類別（battery / lock_body / circuit_board / screw / side_panel / other） */
+            category: string;
+            /** @description 適用品牌清單 */
+            brand_compatibility?: string[] | null;
+            /** @description 單位成本（TWD，decimal 字串；NULL 表示未設定） */
+            unit_cost?: string | null;
+            quantity_on_hand: number;
+            /** @description 安全庫存量；quantity_on_hand <= reorder_point 觸發補貨警示 */
+            reorder_point: number;
+            stock_status: components["schemas"]["InventoryStockStatus"];
+            supplier?: string | null;
+            is_active: boolean;
+            /**
+             * Format: date-time
+             * @description 最近一次入庫時間（衍生自 inventory_transactions purchase 紀錄；NULL 表示尚未補貨過）
+             */
+            last_restocked_at?: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        InventoryItemPage: components["schemas"]["CursorPage"] & {
+            items?: components["schemas"]["InventoryItem"][];
+        };
+        InventoryItemEnvelope: components["schemas"]["ApiResponseGeneric"] & {
+            data?: components["schemas"]["InventoryItem"];
+        };
         /** @enum {string} */
         NotificationType: "work_order" | "refund" | "dispute" | "rbac" | "inventory" | "sla" | "system" | "mention";
         /** @enum {string} */
@@ -1507,6 +2214,20 @@ export interface components {
         MessagePage: components["schemas"]["CursorPage"] & {
             items?: components["schemas"]["Message"][];
         };
+        /**
+         * @description 客服接管後發送訊息的請求 payload。
+         *     `content` 上限 5000 字（LINE Push 文字限制 + UI 友善上限）；
+         *     `media_uri` 可選，用於發送圖片或檔案連結。
+         */
+        SendChatMessageRequest: {
+            /** @description 訊息內容（純文字） */
+            content: string;
+            /**
+             * Format: uri
+             * @description 媒體檔案 URL（圖片 / 檔案，選填）
+             */
+            media_uri?: string | null;
+        };
         ProblemCardCreateRequest: {
             /** Format: uuid */
             conversation_id: string;
@@ -1533,6 +2254,14 @@ export interface components {
             urgency?: components["schemas"]["Urgency"];
             status?: components["schemas"]["ProblemCardStatus"];
             media_urls?: string[];
+        };
+        /** @description 問題卡結案。resolution_layer 必填，記錄最終由哪一層解決。 */
+        ProblemCardResolveRequest: {
+            /**
+             * @description L1=AI 直接回覆、L2=技師遠端指導、L3=現場派工。
+             * @enum {string}
+             */
+            resolution_layer: "L1" | "L2" | "L3";
         };
         ProblemCardEnvelope: components["schemas"]["ApiResponseGeneric"] & {
             data?: components["schemas"]["ProblemCard"];
@@ -1696,6 +2425,14 @@ export interface components {
         AuthLogoutRequest: {
             refresh_token?: string | null;
         };
+        /**
+         * @description 變更密碼。new_password 至少 8 字元（與 bcrypt 72 byte 上限一致），
+         *     且不可與 current_password 相同。
+         */
+        ChangePasswordRequest: {
+            current_password: string;
+            new_password: string;
+        };
         /** @enum {string} */
         DashboardPeriod: "today" | "7d" | "30d" | "90d";
         DashboardStats: {
@@ -1729,6 +2466,106 @@ export interface components {
                 brand?: string;
                 count?: number;
             }[];
+            /** @description 派工今日 KPI（today_count / completion_rate / overdue_count）。 */
+            work_orders?: {
+                /** @description 今日新建工單數 */
+                today_count?: number;
+                /**
+                 * Format: float
+                 * @description 今日完工率 = 今日完工 / 今日新建（today_count == 0 時為 null）
+                 */
+                completion_rate?: number | null;
+                /** @description 排程時間已過且未結案（status NOT IN completed/closed/cancelled） */
+                overdue_count?: number;
+            };
+            /** @description 技師概況 KPI（total_count / online_count / dispatchable_count）。 */
+            technicians?: {
+                /** @description 此租戶啟用中（status='active'）的技師總數 */
+                total_count?: number;
+                /** @description 目前可派遣的技師數（active 且不在執行中工單） */
+                online_count?: number;
+                /** @description 已上線且可立即指派（保留欄位，目前等同 online_count） */
+                dispatchable_count?: number;
+            };
+        };
+        RevenueKpis: {
+            /** @description 本月營收（已開立 invoice issued + paid 加總，TWD 字串） */
+            month_revenue: string;
+            /** @description 平均 invoice 金額 */
+            average_invoice_amount: string;
+            /**
+             * Format: float
+             * @description 付款成功率 = paid / (issued + paid + cancelled)；無發票時為 null
+             */
+            paid_rate: number | null;
+            /** @description 未收帳款金額（DB status='draft' 加總） */
+            outstanding_amount: string;
+            /** @description 未收帳款筆數 */
+            outstanding_count: number;
+        };
+        RevenueTrendPoint: {
+            /** @description 期間標籤（例 2026-04） */
+            period: string;
+            /** @description 期間內已開立 invoice 金額（TWD 字串） */
+            revenue: string;
+            /** @description 期間內 invoice 筆數 */
+            order_count: number;
+        };
+        RevenueByBrandPoint: {
+            brand: string;
+            revenue: string;
+            /**
+             * Format: float
+             * @description 占總營收比例
+             */
+            share: number;
+        };
+        RevenueSummary: {
+            /** @enum {string} */
+            granularity: "day" | "week" | "month";
+            kpis: components["schemas"]["RevenueKpis"];
+            trend: components["schemas"]["RevenueTrendPoint"][];
+            by_brand: components["schemas"]["RevenueByBrandPoint"][];
+        };
+        /**
+         * @description 轉換漏斗（值為計數，過濾條件以 created_at 落在 period 區間內）。
+         *     - dispatched：work_orders.status IN (assigned, in_progress, completed, confirmed)
+         *     - completed：work_orders.status IN (completed, confirmed)
+         */
+        KpiFunnel: {
+            conversations: number;
+            problem_cards: number;
+            work_orders: number;
+            dispatched: number;
+            completed: number;
+        };
+        /** @description 異常率（分母為 period 區間內 work_orders 總數，分母為 0 時欄位為 null）。 */
+        KpiDisputeRates: {
+            /** @description 退款率（refund_requests 數 / work_orders 總數） */
+            refund_rate?: string | null;
+            /** @description 保固索賠率（warranty_claims 數 / work_orders 總數） */
+            warranty_claim_rate?: string | null;
+            /** @description 爭議升級率（disputes 數 / work_orders 總數） */
+            dispute_rate?: string | null;
+        };
+        /**
+         * @description 技師效率指標。avg_handle_minutes 取 period 區間內所有 status='completed/confirmed'
+         *     且具備 started_at + completed_at 工單的平均值。
+         */
+        KpiTechnicianEfficiency: {
+            /** @description 平均處理時長（分鐘）；無樣本時 null */
+            avg_handle_minutes?: number | null;
+            completed_count?: number;
+        };
+        KpiReport: {
+            period: components["schemas"]["DashboardPeriod"];
+            /** Format: date-time */
+            generated_at: string;
+            funnel: components["schemas"]["KpiFunnel"];
+            dispute_rates: components["schemas"]["KpiDisputeRates"];
+            technician_efficiency: components["schemas"]["KpiTechnicianEfficiency"];
+            /** @description 暫不可計算的指標（SLA / NPS / 滿意度 / FTFR / 差評率）說明 */
+            notes?: string[];
         };
         /** @description 系統設定（部分更新）。各區塊允許獨立 PATCH，未指定的子鍵不變動。 */
         SystemConfig: {
@@ -2264,6 +3101,8 @@ export interface operations {
                 /** @description Cursor-based 分頁游標，首頁省略。 */
                 cursor?: components["parameters"]["Cursor"];
                 limit?: components["parameters"]["Limit"];
+                /** @description 過濾特定對話下的問題卡 */
+                conversation_id?: string;
             };
             header: {
                 /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
@@ -2323,6 +3162,10 @@ export interface operations {
                 cursor?: components["parameters"]["Cursor"];
                 limit?: components["parameters"]["Limit"];
                 status?: components["schemas"]["WorkOrderStatus"];
+                /** @description 過濾特定問題卡的工單 */
+                problem_card_id?: string;
+                /** @description 過濾指派給特定技師的工單 */
+                technician_id?: string;
             };
             header: {
                 /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
@@ -2443,6 +3286,49 @@ export interface operations {
             };
         };
     };
+    cancelWorkOrder: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["WorkOrderCancelRequest"];
+            };
+        };
+        responses: {
+            /** @description 取消成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkOrderEnvelope"];
+                };
+            };
+            /** @description 狀態衝突（工單已結案無法取消） */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
     listWorkOrderPool: {
         parameters: {
             query?: never;
@@ -2486,6 +3372,230 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DispatchQueueSnapshot"];
                 };
+            };
+        };
+    };
+    listDispatchLogs: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                work_order_id?: string;
+                action?: components["schemas"]["DispatchAction"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DispatchLogPage"];
+                };
+            };
+        };
+    };
+    listRefundRequests: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                status?: components["schemas"]["RefundRequestStatus"];
+                work_order_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefundRequestPage"];
+                };
+            };
+        };
+    };
+    getRefundRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefundRequestEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listDisputes: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                status?: components["schemas"]["DisputeStatus"];
+                dispute_type?: components["schemas"]["DisputeType"];
+                work_order_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisputePage"];
+                };
+            };
+        };
+    };
+    getDispute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisputeEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listWarrantyClaims: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                status?: components["schemas"]["WarrantyClaimStatus"];
+                customer_id?: string;
+                work_order_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WarrantyClaimPage"];
+                };
+            };
+        };
+    };
+    getWarrantyClaim: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WarrantyClaimEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    submitWarrantyDecision: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WarrantyDecision"];
+            };
+        };
+        responses: {
+            /** @description 決策已記錄 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WarrantyClaimEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description STATE_CONFLICT — 申請非 filed / in_progress */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description VALIDATION_ERROR — decision 不在白名單或 resolution 缺失 */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -2626,19 +3736,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    /** Format: uuid */
-                    technician_id: string;
-                    /** @enum {string} */
-                    reason_code: "auto_dispatch_exhausted" | "customer_requested_specific_tech" | "skill_shortage_override" | "sla_rescue" | "other";
-                    reason_text?: string;
-                    override_flags?: {
-                        /** @default false */
-                        allow_circuit?: boolean;
-                        /** @default false */
-                        allow_cross_area?: boolean;
-                    };
-                };
+                "application/json": components["schemas"]["WorkOrderAssignRequest"];
             };
         };
         responses: {
@@ -2681,11 +3779,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    /** @enum {string} */
-                    level: "operations_manager" | "tenant_admin";
-                    reason: string;
-                };
+                "application/json": components["schemas"]["WorkOrderEscalateRequest"];
             };
         };
         responses: {
@@ -2986,6 +4080,30 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
         };
     };
+    changePassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangePasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description 密碼已更新 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
     listConversationMessages: {
         parameters: {
             query?: {
@@ -3011,6 +4129,52 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+        };
+    };
+    sendChatMessage: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendChatMessageRequest"];
+            };
+        };
+        responses: {
+            /** @description 訊息已建立並推送 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description 對話狀態不允許發訊（非 waiting_human） */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
         };
     };
     getProblemCard: {
@@ -3062,6 +4226,90 @@ export interface operations {
             };
             404: components["responses"]["NotFound"];
             422: components["responses"]["ValidationError"];
+        };
+    };
+    confirmProblemCard: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 已確認 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemCardEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description 狀態衝突（非 draft 不可確認） */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    resolveProblemCard: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProblemCardResolveRequest"];
+            };
+        };
+        responses: {
+            /** @description 已結案 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemCardEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description 狀態衝突（非 confirmed 不可結案） */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
         };
     };
     exportProblemCard: {
@@ -3546,6 +4794,52 @@ export interface operations {
             };
         };
     };
+    getKpiReport: {
+        parameters: {
+            query?: {
+                /** @description 統計時間區間（預設 30d） */
+                period?: components["schemas"]["DashboardPeriod"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KpiReport"];
+                };
+            };
+        };
+    };
+    getRevenueSummary: {
+        parameters: {
+            query?: {
+                /** @description 趨勢資料粒度（目前後端僅實作 month） */
+                granularity?: "day" | "week" | "month";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevenueSummary"];
+                };
+            };
+        };
+    };
     getSystemConfig: {
         parameters: {
             query?: never;
@@ -3623,6 +4917,59 @@ export interface operations {
                     "application/json": components["schemas"]["AuditLogPage"];
                 };
             };
+        };
+    };
+    exportAuditEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: date-time */
+                    from?: string | null;
+                    /** Format: date-time */
+                    to?: string | null;
+                    event_types?: string[];
+                    actor_id?: string | null;
+                    resource_type?: string | null;
+                    /**
+                     * @default csv
+                     * @enum {string}
+                     */
+                    format?: "csv" | "json";
+                };
+            };
+        };
+        responses: {
+            /** @description CSV / JSON stream（同步，≤100k 筆） */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                    "application/json": components["schemas"]["AuditLogEntry"][];
+                };
+            };
+            /** @description 背景 job（>100k 筆） */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        job_id?: string;
+                        /** Format: date-time */
+                        estimated_completion?: string;
+                    };
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            403: components["responses"]["Forbidden"];
         };
     };
     listSentimentAlerts: {
@@ -3828,6 +5175,127 @@ export interface operations {
                 };
             };
             422: components["responses"]["ValidationError"];
+        };
+    };
+    listTechnicians: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                availability?: components["schemas"]["TechnicianAvailability"];
+                level?: components["schemas"]["TechnicianLevel"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TechnicianPage"];
+                };
+            };
+        };
+    };
+    getTechnician: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TechnicianEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listCustomers: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerPage"];
+                };
+            };
+        };
+    };
+    listRoles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RolesEnvelope"];
+                };
+            };
+        };
+    };
+    listInventoryItems: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                /** @description 庫存狀態過濾；out_of_stock=quantity_on_hand=0；low_stock=quantity_on_hand<=reorder_point 且 >0；in_stock=quantity_on_hand>reorder_point */
+                stock_status?: components["schemas"]["InventoryStockStatus"];
+                /** @description 類別過濾（精確匹配，例如 battery / lock_body / circuit_board） */
+                category?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InventoryItemPage"];
+                };
+            };
         };
     };
     confirmWorkOrder: {
@@ -4122,6 +5590,55 @@ export interface operations {
                     "application/json": components["schemas"]["SettlementPage"];
                 };
             };
+        };
+    };
+    listInvoices: {
+        parameters: {
+            query?: {
+                /** @description Cursor-based 分頁游標，首頁省略。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                status?: components["schemas"]["InvoiceStatus"];
+                work_order_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoicePage"];
+                };
+            };
+        };
+    };
+    getInvoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoiceEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
     };
     listVouchers: {

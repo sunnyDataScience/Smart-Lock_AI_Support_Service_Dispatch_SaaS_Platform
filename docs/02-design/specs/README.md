@@ -109,7 +109,7 @@ PR 變動本目錄時自動觸發：
 1. 於 `openapi.yaml` 的 `paths` 下新增端點，參考既有端點格式
 2. 必要時於 `components/schemas` 新增 DTO
 3. 若新增錯誤碼，同步更新 `../error-codes.md` 與 `openapi.yaml` `ApiErrorResponse.error_code.examples`
-4. 對應的業務流程若在 `../E5x--work-order-interaction-flows.md` 有描述，於該 Flow 章節頂部加 metadata：
+4. 對應的業務流程若在 `../E5x--workflow-work-order.md` 有描述，於該 Flow 章節頂部加 metadata：
    ```markdown
    > **Endpoints:** `openapi#operationId=xxx`
    > **Events:** `asyncapi#operationId=yyy`

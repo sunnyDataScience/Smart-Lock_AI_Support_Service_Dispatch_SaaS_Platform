@@ -11,7 +11,7 @@
 > - `docs/02-design/specs/audit-log-spec.md` — 稽核事件分類與保留政策
 > - `docs/02-design/specs/inventory-management-spec.md` — 庫存資料模型
 > - `docs/02-design/specs/warranty-dispute-spec.md` — 保固爭議狀態機
-> - `docs/_flows-bdd-test/E5x--work-order-interaction-flows.md` — 13 個工單 Flow
+> - `docs/_flows-bdd-test/E5x--workflow-work-order.md` — 13 個工單 Flow
 > - `docs/02-design/E5x--frontend-architecture.md §8.3` — 動態 RBAC 契約
 >
 > **與其他 Flow 文件的關係**：
@@ -39,15 +39,17 @@
 > **權威角色清單：** 全系統角色定義與權限矩陣見 `specs/rbac-dynamic-spec.md §2`。
 > 本節僅列出治理流程涉及的 7 個角色。
 
-| 角色 | 說明 | 關鍵權限 |
-|:---|:---|:---|
-| `super_admin` | 平台最高權限，跨租戶 | 所有 `*.admin` 權限 |
-| `tenant_admin` | 租戶管理員 | 同租戶內所有治理權限 |
-| `operations_manager` | 營運主管 | 工單指派/覆核、爭議二級審核 |
-| `accountant` | 會計 | 退款/發票/對帳；**爭議金額裁決雙簽簽核人** |
-| `support_agent` | 客服人員 | 對話、問題卡、客訴處理 |
-| `dispatch_officer` | 派工員 | 工單派遣、人工介入、候選排序 |
-| `auditor` | 稽核員（可外部審計） | **只讀**所有稽核事件 |
+| 角色 | 說明 | 關鍵權限 | 對應 work-order 角色 |
+|:---|:---|:---|:---|
+| `super_admin` | 平台最高權限，跨租戶 | 所有 `*.admin` 權限 | Admin（超集合） |
+| `tenant_admin` | 租戶管理員 | 同租戶內所有治理權限 | Admin |
+| `operations_manager` | 營運主管 | 工單指派/覆核、爭議二級審核 | Admin（特化） |
+| `accountant` | 會計 | 退款/發票/對帳；**爭議金額裁決雙簽簽核人** | Finance |
+| `support_agent` | 客服人員 | 對話、問題卡、客訴處理 | Admin（客服面向）|
+| `dispatch_officer` | 派工員 | 工單派遣、人工介入、候選排序 | （新角色，待 PM Q1 拍板）|
+| `auditor` | 稽核員（可外部審計） | **只讀**所有稽核事件 | （新角色，無對應） |
+
+> **角色映射說明**：[[E5x--workflow-work-order]] §2.1 用 6 角色（Customer / AI_System / Dispatch_Engine / Technician / Admin / Finance）；admin-governance 細化 Admin 為 4 子角色（tenant_admin / operations_manager / support_agent / dispatch_officer）+ 額外 super_admin / auditor。`dispatch_officer` 是否獨立列入請見 [[E7x--pm-alignment-Q1-Q10#2-q1-—-派工員是-v2-0-新角色還是客服子權限|PM Q1]]。
 
 ### 1.2 權限碼格式（對齊 `rbac-dynamic-spec.md`）
 
@@ -544,7 +546,7 @@ sequenceDiagram
 - **R1**：爭議建立時工單狀態必須為 `completed` 或 `confirmed`，否則 422
 - **R2**：同一工單同時只能有一個 `active` 爭議（重複提出 → 409 `CONFLICT`）
 - **R3**：爭議期間該工單的支付凍結（不論 pending 還是已付），結案後才釋放
-- **R4**：技師 12 個月內累計被裁決失敗 3 次 → 觸發熔斷（對齊 `E5x--work-order-interaction-flows.md §22`）
+- **R4**：技師 12 個月內累計被裁決失敗 3 次 → 觸發熔斷（對齊 `E5x--workflow-work-order.md §22`）
 - **R5**：裁決書必填：事實認定、法規/規則引用、賠償金額、責任歸屬比例
 - **R6**：爭議 PDF 歸檔 3 年（金流類保留 7 年與此不同，以長者為準）
 - **R7**：保固爭議（Flow 7）與本流程分離：保固爭議是「責任判定 + 修復」、本流程是「金額賠償裁決」
@@ -616,7 +618,7 @@ G4 爭議裁決 ──→ LINE Push（客戶）
 - [ ] §3.6 PII 遮蔽規則細節（特別是超管層級的開放度）
 - [ ] §4.6 R2 金額門檻（5 萬 / 20 萬）是否與 Flow 6 退款門檻一致？
 - [ ] §5.6 R9 爭議雙簽門檻（5000）是否與 Flow 6 退款雙簽門檻（§9.1 可能的 10000/100000）統一？
-- [ ] §5.6 R4 技師熔斷閾值（12 個月 3 次）是否為新規則？還是已在 `E5x--work-order-interaction-flows.md §22` 有等價規則？
+- [ ] §5.6 R4 技師熔斷閾值（12 個月 3 次）是否為新規則？還是已在 `E5x--workflow-work-order.md §22` 有等價規則？
 - [ ] §5.6 R7 保固爭議 vs 金額爭議的分界是否清楚？
 - [ ] §5.7 新錯誤碼 `DISPUTE_EXTERNAL_PENDING` 的命名
 - [ ] §6.1 議題分界是否準確？

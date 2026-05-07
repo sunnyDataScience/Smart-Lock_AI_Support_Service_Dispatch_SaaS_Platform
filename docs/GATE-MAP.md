@@ -154,9 +154,9 @@ TR10:     [GR10] GA Readiness Review
 #### Extends E5 -- API & Feature Specs
 | Gate | File | Role |
 |------|------|------|
-| TR4 | [[_flows-bdd-test/E5x--work-order-interaction-flows]] | Core business logic |
-| TR4 | [[_flows-bdd-test/E5x--dispatch-operations]] | 派工營運基礎設施規格 |
-| TR4 | [[_flows-bdd-test/E5x--flows-admin-governance]] | 後台治理流程（RBAC、稽核、庫存、爭議） |
+| TR4 | [[_flows-bdd-test/E5x--workflow-work-order]] | Core business logic |
+| TR4 | [[_flows-bdd-test/E5x--workflow-dispatch]] | 派工營運基礎設施規格 |
+| TR4 | [[_flows-bdd-test/E5x--workflow-admin-governance]] | 後台治理流程（RBAC、稽核、庫存、爭議） |
 | TR4 | [[02-design/E5x--frontend-architecture]] | Frontend design |
 | TR4 | [[02-design/E5x--frontend-information-arch]] | Information architecture |
 | TR4 | [[02-design/specs/audit-log-spec]] | Feature spec |

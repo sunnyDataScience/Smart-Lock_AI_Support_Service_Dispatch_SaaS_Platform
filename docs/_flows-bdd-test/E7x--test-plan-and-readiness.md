@@ -12,9 +12,9 @@ related:
   - "[[02-design/E5--api-design-specification]]"
   - "[[02-design/specs/_MOC]]"
   - "[[_flows-bdd-test/E1x--user-journey-map]]"
-  - "[[_flows-bdd-test/E5x--work-order-interaction-flows]]"
-  - "[[_flows-bdd-test/E5x--dispatch-operations]]"
-  - "[[_flows-bdd-test/E5x--flows-admin-governance]]"
+  - "[[_flows-bdd-test/E5x--workflow-work-order]]"
+  - "[[_flows-bdd-test/E5x--workflow-dispatch]]"
+  - "[[_flows-bdd-test/E5x--workflow-admin-governance]]"
   - "[[03-develop/GR6--code-complete]]"
   - "[[03-develop/GR7--integration]]"
   - "[[04-deliver/GR10--ga-readiness]]"
@@ -479,9 +479,9 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 ### BDD 規格來源
 - [[_flows-bdd-test/E7--bdd-scenarios|E7]] — 21 Feature ~100 Scenarios
 - [[_flows-bdd-test/E1x--user-journey-map|E1x User Journey Map]] — 4 角色旅程地圖
-- [[_flows-bdd-test/E5x--work-order-interaction-flows]] — 13 個 WO flow
-- [[_flows-bdd-test/E5x--dispatch-operations]] — 派工 7 模組
-- [[_flows-bdd-test/E5x--flows-admin-governance]] — RBAC + 稽核
+- [[_flows-bdd-test/E5x--workflow-work-order]] — 13 個 WO flow
+- [[_flows-bdd-test/E5x--workflow-dispatch]] — 派工 7 模組
+- [[_flows-bdd-test/E5x--workflow-admin-governance]] — RBAC + 稽核
 
 ### 治理 / 對齊文件
 - **[[_flows-bdd-test/E7x--pm-alignment-Q1-Q10|Q1–Q10 PM 對齊文件]]** — §3 表格的完整版（含選項對比、影響範圍、會議議程、PM 決策欄位、追蹤表）
