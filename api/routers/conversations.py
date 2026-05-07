@@ -1,7 +1,7 @@
-"""Conversations router — 3 endpoints。
+"""Conversations router — 4 endpoints。
 
 operationId 對齊 openapi.yaml：
-  listConversations, getConversation, listConversationMessages
+  listConversations, getConversation, listConversationMessages, sendChatMessage
 """
 
 from __future__ import annotations
@@ -9,6 +9,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Path, Query
 
 from core.deps import CurrentUser, require_tenant
+from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
     Conversation,
     ConversationEnvelope,
@@ -17,6 +18,7 @@ from models.generated import (
     Message,
     MessagePage,
 )
+from models.internal import SendChatMessageRequest
 from services import conversation_service
 
 router = APIRouter()
@@ -86,3 +88,42 @@ async def list_conversation_messages(
         "next_cursor": page["next_cursor"],
         "has_more": page["has_more"],
     }
+
+
+@router.post(
+    "/conversations/{id}/messages",
+    operation_id="sendChatMessage",
+    summary="發送訊息（人類客服接管後使用）",
+    response_model=Message,
+    status_code=201,
+)
+async def send_chat_message(
+    body: SendChatMessageRequest,
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    """客服接管 escalated 對話後送訊息給 LINE 用戶。
+
+    僅允許 admin / customer_service 角色（其他角色 → 403）。
+    """
+    # RBAC：客服 / 主管才能接管發訊
+    if user.role not in {"admin", "customer_service", "manager", "supervisor"}:
+        from core.errors import ApiError
+        raise ApiError(
+            "FORBIDDEN",
+            "Only customer service or supervisor roles can send takeover messages",
+            403,
+        )
+
+    msg = await conversation_service.send_message(
+        tenant_id=user.tenant_id,
+        conv_id=id,
+        sender_user_id=user.user_id,
+        content=body.content,
+        media_uri=str(body.media_uri) if body.media_uri else None,
+    )
+    payload = Message(**msg).model_dump(mode="json")
+    if idem is not None:
+        await idem.save(201, payload)
+    return payload
