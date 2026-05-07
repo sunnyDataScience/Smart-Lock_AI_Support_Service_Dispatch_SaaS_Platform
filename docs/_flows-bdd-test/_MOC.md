@@ -17,33 +17,41 @@ owners: [PM, Tech Lead, QA Lead]
 
 ### User Flow / Journey
 
-| File | Description | Origin |
-|------|-------------|--------|
-| [[E1x--user-journey-map]] | Consumer, technician, admin, CS manager journey maps with emotion curves | ex `00-discover/` |
-| [[E5x--workflow-work-order]] | Complete work order and dispatch lifecycle (10 flows) | ex `02-design/` |
-| [[E5x--workflow-dispatch]] | 派工營運規格：排班、媒合演算法、薪酬分潤、拒單重派、客戶設備主檔、技能體系、報表 | ex `02-design/` |
-| [[E5x--workflow-admin-governance]] | 後台治理流程：RBAC 角色生命週期、稽核日誌、庫存告警、爭議仲裁 | ex `02-design/` |
+
+| File                               | Description                                                              | Origin            |
+| ---------------------------------- | ------------------------------------------------------------------------ | ----------------- |
+| [[E1x--user-journey-map]]          | Consumer, technician, admin, CS manager journey maps with emotion curves | ex `00-discover/` |
+| [[E5x--workflow-work-order]]       | Complete work order and dispatch lifecycle (10 flows)                    | ex `02-design/`   |
+| [[E5x--workflow-dispatch]]         | 派工營運規格：排班、媒合演算法、薪酬分潤、拒單重派、客戶設備主檔、技能體系、報表                                 | ex `02-design/`   |
+| [[E5x--workflow-admin-governance]] | 後台治理流程：RBAC 角色生命週期、稽核日誌、庫存告警、爭議仲裁                                        | ex `02-design/`   |
+
 
 ### BDD Specifications
 
-| File | Description | Origin |
-|------|-------------|--------|
+
+| File                  | Description                                                   | Origin          |
+| --------------------- | ------------------------------------------------------------- | --------------- |
 | [[E7--bdd-scenarios]] | BDD principles, Gherkin syntax, V1.0 + V2.0 feature scenarios | ex `02-design/` |
+
 
 ### Test Plan & PM Alignment
 
-| File | Description | Origin |
-|------|-------------|--------|
-| [[E7x--test-plan-and-readiness]] | Test plan, gap matrix, mock spectrum, Sprint 1 roadmap, PR-gate setup | ex `02-design/` |
-| [[E7x--pm-alignment-Q1-Q10]] | PM alignment Q1-Q10 — open questions resolved before lock-in | ex `02-design/` |
-| [[E7x--module-specification-and-tests]] | Detailed module specs with test cases for core V1.0 components | ex `02-design/` |
+
+| File                                    | Description                                                           | Origin          |
+| --------------------------------------- | --------------------------------------------------------------------- | --------------- |
+| [[E7x--test-plan-and-readiness]]        | Test plan, gap matrix, mock spectrum, Sprint 1 roadmap, PR-gate setup | ex `02-design/` |
+| [[E7x--pm-alignment-Q1-Q10]]            | PM alignment Q1-Q10 — open questions resolved before lock-in          | ex `02-design/` |
+| [[E7x--module-specification-and-tests]] | Detailed module specs with test cases for core V1.0 components        | ex `02-design/` |
+
 
 ### Governance & Review
 
-| File | Description |
-|------|-------------|
-| [[_review-notes]] | 9 檔逐一 review：結構摘要 / 編號系統 / cross-refs / 對齊狀態 / 開放問題 / 修正建議 |
+
+| File                  | Description                                                        |
+| --------------------- | ------------------------------------------------------------------ |
+| [[_review-notes]]     | 9 檔逐一 review：結構摘要 / 編號系統 / cross-refs / 對齊狀態 / 開放問題 / 修正建議         |
 | [[_alignment-matrix]] | 主對齊矩陣（23 user flows × 8 dimensions）— **PM/TL/QA 從任一 F-XXX 找對應的入口** |
+
 
 ---
 
@@ -68,3 +76,4 @@ owners: [PM, Tech Lead, QA Lead]
 - Parent (DISCOVER phase): [[../00-discover/_MOC]]
 - Documentation hub: [[../HOME]]
 - Gate framework: [[../GATE-MAP]]
+
