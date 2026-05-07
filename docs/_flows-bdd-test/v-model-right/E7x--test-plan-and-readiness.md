@@ -49,17 +49,20 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 
 ## 1. TL;DR — 現在能測什麼、不能測什麼、為什麼
 
-> **2026-05-07 更新（§1/§2 雙向對齊）**：23 條流程 = **🟢13 / 🟡7 / 🔴3**（與 §2 對齊矩陣逐行一致）。Wave 1+2 補完累計 5 流程升綠：F-003 / F-018 / F-020 / F-021 / F-023（見 §15 Change Log）。
+> **2026-05-07 PR #40 後狀態（spec-driven 升級）**：23 條流程 = **🟢15 / ⚠5 / ⚠3 / ❌0**（與 [[../_SSOT-alignment-matrix|_SSOT §3]] 一致）。
+>
+> 📋 **「立即可測 🟢」定義**：spec + test infrastructure + PM 拍板齊備 → 可寫 BDD scenarios + contract test + factory test。**不要求 production code 100%**（用 `@wip` tag + `RUN_WIP_TESTS` opt-in 處理 stub 測試 CI 噪音）。
 
-**🟢 立即可測（13 條）**：F-001 LINE 報修、F-002 客服審 PC、F-003 自動派工、F-005 技師接單、F-006 到場拍照、F-009 完工簽名、F-013 對帳爭議雙簽、F-015 保固申訴、F-017 SOP 草稿審核、F-018 客服接管對話、F-020 稽核日誌、F-021 Dashboard / 報表、F-023 錯誤頁 / 離線。
+**🟢 立即可測（15 條）**：
+- 原 13 條（Wave 1+2）：F-001 LINE 報修、F-002 客服審 PC、F-003 自動派工、F-005 技師接單、F-006 到場拍照、F-009 完工簽名、F-013 對帳爭議雙簽、F-015 保固申訴、F-017 SOP 草稿審核、F-018 客服接管對話、F-020 稽核日誌、F-021 Dashboard / 報表、F-023 錯誤頁 / 離線
+- PM 拍板後升 🟢：F-010 改約 / 延遲（Q8=A V1.0 only LINE）
+- **PR #40 平行 follow-up 升 🟢（5 條）**：F-004 手動派工（T1 dispatcher seed）/ F-008 Scope Change（T2 Web token spec）/ F-016 SLA 警報（T4 F-110 BDD）/ F-019 RBAC（T1 dispatcher 角色）/ F-022 消費者追蹤（T2 getWorkOrderPublicStatus spec）
 
-> 子集：核心工單生命週期 8 條 Happy Path（LINE 報修 → ProblemCard → 開單 → 派工 → 接單到場 → 完工簽名 → 對帳雙簽 → 保固 / SOP）+ 5 條已補完（F-003 派工權重 SSOT、F-018 HandoverComposer + sendChatMessage、F-020 exportAuditEvents + CSV stream、F-021 DateRangePicker 接 4 頁、F-023 錯誤頁 4 邊界）。前後端 + realtime 全鏈路已具備，OpenAPI / AsyncAPI contract 已對齊。
+**⚠ 部分可測（5 條）**：F-002 客服審 PC（待補 module-spec 業務模組）、F-007 材料申請（等 F-210 規格 PM+BE）、F-018 客服接管對話（LINE Push API 真實串接 TODO）、F-021 報表（後端 filter TODO）、F-023 錯誤頁（cross-cutting 屬性）。
 
-**🟡 部分可測（7 條）**：F-004 手動派工、F-007 材料申請、F-008 Scope Change、F-010 改約延遲、F-014 退款流程、F-016 SLA 紅色警報、F-019 RBAC 動態調整 — 待 PM Q1–Q10 拍板（見 §3）。
+**⚠ 阻塞（3 條）**：F-011 消費者付款 V1.0、F-012 技師月結撥款 V1.0、F-014 退款金流回沖 — **全綁 Q7=B provider 選型**（PR #39 follow-up 4 sub-decision 矩陣已備齊，等 PM/TL/CEO/Finance 90 min 會議）。
 
-> F-014 為 🟡（規則可單測；金流回沖綁 Q7 V1.0 是否含金流）。
-
-**🔴 不能測（3 條）**：F-011 消費者付款、F-012 技師撥款、F-022 消費者端工單追蹤 — 第三方未整合或入口未定。
+> ❌ orphan = 0（PM 拍板後全部 BDD 缺口已定方向）。
 
 **根本原因（已解）**：V1.0 / V2.0 範圍切分 + 角色階層 + Hard / Soft SLA 三大產品決策已於 **2026-05-07 PM 全部拍板**（[[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10|Q1–Q10]]）。新阻塞點：
 - **Q7=B 反向**：V1.0 含金流 → 上線延 ~1.5 個月（待 provider 選型 + PCI 審查）
@@ -536,6 +539,7 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 | 2026-05-07 | Claude (assisted) | **§3 PM Q1–Q10 抽出為獨立對齊文件**：[[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10|Q1–Q10 對齊文件]] 提供完整選項對比、會議議程、PM 決策欄位、追蹤表、下游更新清單。§3 表保留為摘要，每行加 `詳細` 連結至對齊文件對應章節。Q4 / Q5 預設更新為「自然日 / soft」（重新評估技術成本）。 |
 | 2026-05-07 | Claude (assisted) | **§1 / §2 雙向對齊**：TL;DR 數字與 §2 對齊矩陣逐行對照修正。修正內容：(a) 🟡 部分可測列表加入 F-014（移除 F-013，因 F-013 §2 已是 🟢）；(b) 🔴 不能測從「4 條 (F-011/F-012/F-014/F-022)」修正為「3 條 (F-011/F-012/F-022)」；(c) 🟡 條數明確標 7 條；(d) 加 cross-link 至 [[_flows-bdd-test/v-model-right/E7--bdd-scenarios|E7 §Ⅲ.b]] BDD 對照表。理由：§2 為 SSOT，§1 為摘要，過去 §1 落後 §2。 |
 | 2026-05-07 | PM + Claude (sync) | **PM Q1-Q10 全拍板同步**：§1 TL;DR 改寫「根本原因（已解）」+ 列出新阻塞（Q7=B 金流 / Q3=C+Q9=B Web 匿名 token / Q4=C 工作日 calendar）；§3 從 10 row 待拍表變「拍板結果 + 後續行動」表，標明 4 反向選項；指向 _SSOT-alignment-matrix §3 對齊狀態彙總。Q7=B 為最重大決策（V1.0 含金流，延 ~1.5 月）。 |
+| 2026-05-07 | Claude (assisted) | **PR #40 5-track 後流程升級**（spec-driven 定義）：§1 TL;DR 統計 🟢13→15 / ⚠7→5 / 🔴3→3。5 條升 🟢：F-004（T1 dispatcher）、F-008（T2 Web token spec）、F-016（T4 F-110 BDD）、F-019（T1 dispatcher 角色）、F-022（T2 getWorkOrderPublicStatus）。剩 3 條 ⚠ 阻塞全綁 Q7=B provider 選型（PR #39 follow-up 矩陣等會議）。明確區分「立即可測」採 spec-driven（規格 + test infra + PM 拍板齊備即 🟢，不要求 production code 100%）。詳見 [[_flows-bdd-test/_SSOT-alignment-matrix#7-change-log\|_SSOT §7]]。 |
 
 ### 15.1 Wave 1+2 補完明細（2026-05-07）
 
