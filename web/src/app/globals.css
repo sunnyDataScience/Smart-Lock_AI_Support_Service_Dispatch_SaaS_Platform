@@ -146,3 +146,134 @@
     border-width: 0;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * UI primitives（Modal / Drawer / Toast）動效
+ *
+ * 為什麼放這：專案沒裝 tailwindcss-animate plugin，Radix 的 data-[state]
+ * attribute 變化需要自寫 CSS 接住，才能在 open / closed 時播動畫。
+ * 動效節制：fade + scale 給 modal、translate 給 drawer / toast，
+ * 一律 ease-out + 150–200ms。respects prefers-reduced-motion。
+ * ───────────────────────────────────────────────────────────────────────── */
+
+@keyframes ui-overlay-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes ui-overlay-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes ui-modal-zoom-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes ui-modal-zoom-out {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  to   { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
+}
+@keyframes ui-drawer-slide-in-right {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes ui-drawer-slide-out-right {
+  from { transform: translateX(0); }
+  to   { transform: translateX(100%); }
+}
+@keyframes ui-drawer-slide-in-left {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes ui-drawer-slide-out-left {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-100%); }
+}
+@keyframes ui-drawer-slide-in-bottom {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes ui-drawer-slide-out-bottom {
+  from { transform: translateY(0); }
+  to   { transform: translateY(100%); }
+}
+@keyframes ui-toast-slide-in-right {
+  from { transform: translateX(calc(100% + 1rem)); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+@keyframes ui-toast-slide-out-right {
+  from { transform: translateX(0); opacity: 1; }
+  to   { transform: translateX(calc(100% + 1rem)); opacity: 0; }
+}
+
+.ui-modal-overlay[data-state="open"] {
+  animation: ui-overlay-fade-in 150ms ease-out;
+}
+.ui-modal-overlay[data-state="closed"] {
+  animation: ui-overlay-fade-out 150ms ease-out;
+}
+
+.ui-modal-content[data-state="open"] {
+  animation: ui-modal-zoom-in 150ms ease-out;
+}
+.ui-modal-content[data-state="closed"] {
+  animation: ui-modal-zoom-out 150ms ease-out;
+}
+
+.ui-drawer-content-right[data-state="open"] {
+  animation: ui-drawer-slide-in-right 200ms ease-out;
+}
+.ui-drawer-content-right[data-state="closed"] {
+  animation: ui-drawer-slide-out-right 200ms ease-out;
+}
+.ui-drawer-content-left[data-state="open"] {
+  animation: ui-drawer-slide-in-left 200ms ease-out;
+}
+.ui-drawer-content-left[data-state="closed"] {
+  animation: ui-drawer-slide-out-left 200ms ease-out;
+}
+.ui-drawer-content-bottom[data-state="open"] {
+  animation: ui-drawer-slide-in-bottom 200ms ease-out;
+}
+.ui-drawer-content-bottom[data-state="closed"] {
+  animation: ui-drawer-slide-out-bottom 200ms ease-out;
+}
+
+.ui-toast-root[data-state="open"] {
+  animation: ui-toast-slide-in-right 200ms ease-out;
+}
+.ui-toast-root[data-state="closed"] {
+  animation: ui-toast-slide-out-right 150ms ease-out;
+}
+/* Radix 在 swipe 關閉時會 set data-swipe="end"，此時不重播 slide-out */
+.ui-toast-root[data-swipe="move"] {
+  transform: translateX(var(--radix-toast-swipe-move-x));
+}
+.ui-toast-root[data-swipe="cancel"] {
+  transform: translateX(0);
+  transition: transform 200ms ease-out;
+}
+.ui-toast-root[data-swipe="end"] {
+  animation: ui-toast-slide-out-right 100ms ease-out;
+}
+
+/* mobile：toast viewport 從上方進入，避免擋住底部操作 */
+@media (max-width: 640px) {
+  .ui-toast-viewport {
+    top: 0.5rem;
+    right: 0.5rem;
+    left: 0.5rem;
+    max-width: none;
+  }
+}
+
+/* respects user motion preferences — 直接停掉動畫 */
+@media (prefers-reduced-motion: reduce) {
+  .ui-modal-overlay,
+  .ui-modal-content,
+  .ui-drawer-content-right,
+  .ui-drawer-content-left,
+  .ui-drawer-content-bottom,
+  .ui-toast-root {
+    animation: none !important;
+  }
+}
