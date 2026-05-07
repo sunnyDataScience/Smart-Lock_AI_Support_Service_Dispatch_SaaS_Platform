@@ -9,11 +9,12 @@ import {
   Clock,
   ChevronDown,
   Eye,
-  MoreHorizontal,
+  Pencil,
   X,
   Lock,
   RefreshCw,
 } from "lucide-react";
+import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import { ApiError, api } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
@@ -151,16 +152,15 @@ export default function CustomersPage() {
                   }`}
                 />
               </button>
-              <button
-                disabled
-                title="即將推出"
-                className="flex cursor-not-allowed items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2 opacity-60"
+              <Link
+                href="/admin/customers/new"
+                className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2 hover:opacity-90"
               >
                 <UserPlus className="h-4 w-4 text-white" />
                 <span className="text-[13px] font-medium text-white">
                   新增客戶
                 </span>
-              </button>
+              </Link>
             </div>
           </div>
 
@@ -343,20 +343,20 @@ export default function CustomersPage() {
                   </div>
 
                   <div className="flex w-[60px] items-center gap-1">
-                    <button
-                      disabled
-                      title="即將推出（客戶詳情頁）"
-                      className="cursor-not-allowed rounded-md p-1 opacity-0 transition-opacity group-hover:opacity-60"
+                    <Link
+                      href={`/admin/customers/${c.id}`}
+                      title="檢視詳情"
+                      className="rounded-md p-1 opacity-0 transition-opacity hover:bg-[var(--bg-page)] group-hover:opacity-80"
                     >
                       <Eye className="h-4 w-4 text-[var(--text-secondary)]" />
-                    </button>
-                    <button
-                      disabled
-                      title="即將推出"
-                      className="cursor-not-allowed rounded-md p-1 opacity-0 transition-opacity group-hover:opacity-60"
+                    </Link>
+                    <Link
+                      href={`/admin/customers/${c.id}/edit`}
+                      title="編輯客戶"
+                      className="rounded-md p-1 opacity-0 transition-opacity hover:bg-[var(--bg-page)] group-hover:opacity-80"
                     >
-                      <MoreHorizontal className="h-4 w-4 text-[var(--text-secondary)]" />
-                    </button>
+                      <Pencil className="h-4 w-4 text-[var(--text-secondary)]" />
+                    </Link>
                   </div>
                 </div>
               ))
