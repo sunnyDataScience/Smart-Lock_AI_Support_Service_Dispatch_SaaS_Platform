@@ -6,6 +6,8 @@ import uuid
 
 import pytest
 
+pytestmark = pytest.mark.component
+
 
 @pytest.mark.asyncio
 async def test_upload_and_get_image(client, admin_headers):

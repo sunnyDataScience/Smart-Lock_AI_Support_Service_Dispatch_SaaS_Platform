@@ -20,6 +20,8 @@ import pytest_asyncio
 
 from tests.conftest import ADMIN_USER_ID
 
+pytestmark = pytest.mark.component
+
 
 @pytest_asyncio.fixture
 async def make_overdue_wo():

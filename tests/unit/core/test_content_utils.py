@@ -8,7 +8,11 @@ Covers the three call-site contracts that the helper consolidates:
 
 from __future__ import annotations
 
+import pytest
+
 from core.content_utils import extract_text
+
+pytestmark = pytest.mark.unit
 
 
 # ─────────────────────────────────────────────

@@ -2,6 +2,8 @@
 
 import pytest
 
+pytestmark = pytest.mark.component
+
 
 @pytest.mark.asyncio
 async def test_health(client):

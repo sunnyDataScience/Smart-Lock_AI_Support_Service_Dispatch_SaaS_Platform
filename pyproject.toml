@@ -20,6 +20,20 @@ dev = [
     "pytest-asyncio>=0.23",
 ]
 
+# CI / 測試專用工具（與 dev 分離，本機可跳過）
+# 用：uv sync --group test
+# 對應 docs/02-design/E7x--test-plan-and-readiness.md §10 / §14
+test = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",            # coverage report（HTML / XML for diff-cover）
+    "diff-cover>=9.0",            # PR coverage diff 留言
+    "schemathesis>=3.36",         # OpenAPI 合約 fuzz（91 ops × N examples）
+    "factory-boy>=3.3",           # 測試資料工廠（替代 hardcoded fixtures）
+    "respx>=0.21",                # httpx mock（測 LLM / LINE 對外呼叫）
+    "hypothesis>=6.100",          # property-based test（派工計分 / settlement Decimal）
+]
+
 # ── uv workspace 設定 ──
 # 三個 module 各為獨立 package，但共用同一個 .venv 與 uv.lock
 # 預設：`uv sync --all-packages` 同時裝 agent / api / data 所有 deps
@@ -34,3 +48,20 @@ smart-lock-data = { workspace = true }
 # Root 本身不打包成 wheel（沒有 .py code，只當 workspace 容器）
 [tool.uv]
 package = false
+
+# ── pytest 全域設定（root 層；api/ 仍保留自己的 api/pytest.ini） ──
+# 測試金字塔分層 markers，對應 E7x §5.2
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+markers = [
+    "unit: 純函式單元測試（無 I/O、無 DB、無網路；< 1s/case）",
+    "component: 元件測試（API router + DB stub 或單頁 + mock fetch；< 5s/case）",
+    "contract: 合約測試（OpenAPI / AsyncAPI 形狀；schemathesis / parser）",
+    "e2e: 端到端測試（多服務串接；Playwright / 真 webhook）",
+    "slow: 預期 > 30s 的測試（property fuzz / load smoke）",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
