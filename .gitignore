@@ -28,6 +28,9 @@ npm-debug.log*
 *.swp
 *.swo
 
+# Git worktrees (parallel development workspaces)
+.worktrees/
+
 # OS
 .DS_Store
 Thumbs.db

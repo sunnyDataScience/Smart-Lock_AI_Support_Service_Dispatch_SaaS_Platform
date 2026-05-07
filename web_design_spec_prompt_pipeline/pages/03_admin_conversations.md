@@ -52,6 +52,10 @@
    - section_type: status_indicator
    - section_purpose: 指示新訊息即時推送連線狀態
 
+8. **handover_composer**
+   - section_type: form
+   - section_purpose: 客服在對話 escalate 後接管，透過 textarea 直接發訊（後端推送 LINE Push）
+
 ---
 
 ## [SECTION COMPONENT SPEC]
@@ -204,6 +208,29 @@
   - submitted: Dialog 關閉，顯示 Toast "回饋已提交，感謝您的協助"
   - error: Dialog 內顯示 inline 錯誤 "提交失敗，請重試"
 - **copy_constraints**: 回饋備註最多 200 字；正確答案最多 500 字；Toast 訊息最多 20 字
+
+### Section: handover_composer
+
+- **visibility**: 僅在 conversation status = `waiting_human` / `escalated` 時顯示
+- **layout**: 取代 ChatInput 區域，置於 chat_timeline 下方
+- **elements**:
+  - handover_banner: Banner / required / 紅色「客服接管模式」橫幅 + 接管者名稱
+  - composer_textarea: Textarea / required / max 5000 字、auto-resize 1-5 列、placeholder「輸入訊息...」
+  - char_counter: Text / required / `{current} / 5000` 接近上限變紅
+  - send_btn: Button Primary / required / 「發送」+ Cmd/Ctrl+Enter shortcut；發送中 disabled + spinner
+  - media_attach_btn: IconButton / optional / 附加圖片（V2.0）
+- **states**:
+  - idle: 一般狀態
+  - typing: 字數計數即時更新
+  - sending: send_btn disabled + spinner，textarea readonly
+  - sent: useToast variant=success 「已發送」+ textarea 清空 + refetch messages
+  - error: useToast variant=error 顯示後端錯誤訊息，textarea 內容保留
+- **a11y**: textarea aria-label="客服訊息"，send_btn 收到 Enter 不發送（避免誤觸），需 Cmd/Ctrl+Enter
+- **api**:
+  - POST /api/v1/conversations/{id}/messages（operationId: sendChatMessage）
+  - headers: X-Tenant-ID, Idempotency-Key (uuid v4 per send)
+  - body: { content: string (≤5000), media_uri?: string }
+  - 201 response: 新 Message，prepend 到 messages list（DESC→reverse→ASC pattern）
 
 ### Section: realtime_indicator
 

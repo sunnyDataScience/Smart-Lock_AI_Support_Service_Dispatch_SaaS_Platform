@@ -93,6 +93,7 @@
 |:-----|:-----|:---------|:-----|:------------|:-------------|
 | **G1** | `/notifications` | **全域通知中心** | V2.0 ² | `21_global_notifications.md` | 主要 |
 | G2 | `/offline` | 離線狀態頁 | V2.0 ² | `23_global_offline.md` | 主要 |
+| G3 | 多重（`/not-found`、`/error`、global-error） | Next.js error boundaries（404/500/global-error） | V1.0 | `23a_global_error_boundaries.md` | 主要 |
 
 > ³ G2 spec 於 2026-04-23 驗證閘 Stage 3 末期建立（commit `b409c8a`）。
 

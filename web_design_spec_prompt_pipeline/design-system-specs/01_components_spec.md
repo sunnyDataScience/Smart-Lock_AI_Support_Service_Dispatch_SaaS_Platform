@@ -173,6 +173,12 @@ Templates（模板）
 | Scroll | Body 可 scroll，Header/Footer 固定 |
 | Mobile | < sm 斷點轉為 full-screen sheet（bottom-up slide） |
 
+**Wave 1+2 實作 prop API（@radix-ui/react-dialog 基礎）**
+- size: `sm` (max-w-md) / `md` (max-w-lg, default) / `lg` (max-w-2xl) / `xl` (max-w-4xl)
+- 元件家族：Modal / ModalTrigger / ModalContent / ModalHeader / ModalTitle / ModalDescription / ModalFooter / ModalClose
+- focus trap + escape close 由 Radix 提供
+- 動效：fade in + scale up (150-200ms ease-out)
+
 ### 3.6 Toast / Notification
 
 | 維度 | 規格 |
@@ -185,6 +191,13 @@ Templates（模板）
 | Animation | slide-in from right + fade, 300ms |
 | Stack | 最多顯示 3 個，新的推舊的向下 |
 | Accessibility | role="alert", aria-live="polite" |
+
+**Wave 1+2 實作 prop API（@radix-ui/react-toast 基礎）**
+- ToastProvider 接於 root layout
+- useToast() hook → `toast({ title, description?, variant?, duration? })`
+- variant: `default` (白底) / `success` (綠) / `warning` (黃) / `error` (紅)；左側 4px 彩條
+- 顯示位置: 右上 (desktop) / 上方 (mobile)
+- 動效: slide in + progress bar 倒數（duration 預設 4000ms）
 
 ### 3.7 Table（資料表格）
 
@@ -258,6 +271,19 @@ Templates（模板）
 | Switch / Toggle | 開關 | default | on / off / disabled |
 | Date Picker | 日期選擇器 | single / range | open / selected / disabled dates |
 | File Upload | 檔案上傳 | drag-drop / button | idle / dragover / uploading / success / error |
+
+**Wave 1+2 Drawer 實作 prop API**
+- side: `right` (default) / `left` / `bottom`（mobile-first）
+- size: `sm` (w-80) / `md` (w-96) / `lg` (w-[28rem])
+- 動效: slide in from edge (200ms ease-out)
+
+**Wave 1+2 DateRangePicker 實作 prop API**
+- value: `DateRange = { from: Date | null; to: Date | null }`
+- onChange: (range) => void
+- presets: 7 個內建（今天、昨天、過去 7 日、過去 30 日、本月、上月、自訂）
+- 自寫雙月日曆（避免 react-day-picker / date-fns 依賴）
+- 響應式: ≥640px 雙月並排 / <640px 單月
+- 鍵盤: 方向鍵跨日、Enter 選取、Esc 關閉
 
 ---
 

@@ -2,10 +2,11 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, Plus } from "lucide-react";
+import { ChevronLeft, Headphones, Plus } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import ChatTimeline from "@/components/conversations/ChatTimeline";
 import DiagnosticReasoningPanel from "@/components/conversations/DiagnosticReasoningPanel";
+import HandoverComposer from "@/components/conversations/HandoverComposer";
 import { ApiError, api } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import type { components } from "@/types/api.generated";
@@ -223,7 +224,29 @@ export default function ConversationDetailPage({
           </div>
         ) : (
           <div className="flex flex-1 overflow-hidden">
-            <ChatTimeline messages={messages} loading={loading} />
+            <div className="flex flex-1 flex-col overflow-hidden">
+              {conv?.status === "waiting_human" && (
+                <div className="flex items-center gap-2 border-b border-[#FECACA] bg-[#FEF2F2] px-4 py-2 text-[13px] font-medium text-[#B91C1C]">
+                  <Headphones className="h-4 w-4" />
+                  接管模式：此對話已升級為人工，您發送的訊息將直接推送給用戶
+                </div>
+              )}
+
+              <div className="flex flex-1 overflow-hidden">
+                <ChatTimeline messages={messages} loading={loading} />
+              </div>
+
+              <HandoverComposer
+                conversationId={id}
+                enabled={conv?.status === "waiting_human"}
+                onSent={(msg) =>
+                  // messages 由 API 以 DESC 回傳（新→舊），ChatTimeline 內部
+                  // reverse 為 ASC 顯示。新送出的訊息應 prepend 到 DESC 列表
+                  // 最前端，才能在 ASC timeline 底部正確呈現。
+                  setMessages((prev) => [msg, ...prev])
+                }
+              />
+            </div>
 
             <aside className="flex w-[380px] flex-col gap-4 overflow-auto border-l border-[var(--border)] bg-[var(--bg-surface)] p-6">
               <DiagnosticReasoningPanel conversationId={id} />

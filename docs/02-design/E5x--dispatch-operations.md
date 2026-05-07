@@ -157,6 +157,8 @@ async def is_technician_available(
 
 ### 2.2 評分公式
 
+> 完整權重與 tie-breaker 規則：[[02-design/specs/dispatch-weights]]
+
 ```
 total_score = W_dist × distance_score
             + W_skill × skill_score

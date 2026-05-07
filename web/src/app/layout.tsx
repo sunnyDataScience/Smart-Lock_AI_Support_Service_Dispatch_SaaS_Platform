@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Noto_Sans_TC } from "next/font/google";
 import AuthGuard from "@/components/layout/AuthGuard";
+import { ToastProvider } from "@/components/ui/Toast";
 import "./globals.css";
 
 // next/font 在 build time 自托管 Google Fonts，避免 runtime FOIT/CLS
@@ -40,7 +41,10 @@ export default function RootLayout({
         <a href="#main-content" className="skip-link">
           跳到主要內容
         </a>
-        <AuthGuard>{children}</AuthGuard>
+        {/* ToastProvider 在 body 最外層、AuthGuard 之外，登入畫面也能用 toast */}
+        <ToastProvider>
+          <AuthGuard>{children}</AuthGuard>
+        </ToastProvider>
       </body>
     </html>
   );

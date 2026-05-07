@@ -1019,6 +1019,44 @@ paths:
                 $ref: '#/components/schemas/MessagePage'
         '404':
           $ref: '#/components/responses/NotFound'
+    post:
+      tags: [customer_service]
+      summary: 發送訊息（人類客服接管後使用）
+      description: |
+        客服在 AI 對話被升級（status=waiting_human）後接管，透過此端點發送訊息。
+        訊息會觸發 LINE Push API 推給用戶，並在 metadata 標記
+        `sender_role=agent_human` + `sender_id=<user_id>` 以便稽核識別。
+        對話狀態必須為 `waiting_human`，否則回 409。
+      operationId: sendChatMessage
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendChatMessageRequest'
+      responses:
+        '201':
+          description: 訊息已建立並推送
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 對話狀態不允許發訊（非 waiting_human）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
   /api/v1/problem-cards/{id}:
     get:
@@ -1616,6 +1654,68 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuditLogPage'
+
+  /api/v1/audit-logs/export:
+    post:
+      tags: [audit]
+      operationId: exportAuditEvents
+      summary: 匯出稽核事件為 CSV
+      description: |
+        依篩選條件匯出稽核日誌。回傳 CSV stream（同步）或 job_id（異步）。
+        ≤ 100k 筆走同步 stream；> 100k 筆走背景 job + email 通知。
+        此 spec 先實作同步版本，異步路徑保留 202 contract 待後續迭代補完。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                from:
+                  type: string
+                  format: date-time
+                  nullable: true
+                to:
+                  type: string
+                  format: date-time
+                  nullable: true
+                event_types:
+                  type: array
+                  items: { type: string }
+                actor_id:
+                  type: string
+                  nullable: true
+                resource_type:
+                  type: string
+                  nullable: true
+                format:
+                  type: string
+                  enum: [csv, json]
+                  default: csv
+      responses:
+        '200':
+          description: CSV / JSON stream（同步，≤100k 筆）
+          content:
+            text/csv:
+              schema: { type: string, format: binary }
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditLogEntry'
+        '202':
+          description: 背景 job（>100k 筆）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id: { type: string }
+                  estimated_completion: { type: string, format: date-time }
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /api/v1/sentiment/alerts:
     get:
@@ -3560,6 +3660,24 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/Message'
+
+    SendChatMessageRequest:
+      type: object
+      required: [content]
+      description: |
+        客服接管後發送訊息的請求 payload。
+        `content` 上限 5000 字（LINE Push 文字限制 + UI 友善上限）；
+        `media_uri` 可選，用於發送圖片或檔案連結。
+      properties:
+        content:
+          type: string
+          maxLength: 5000
+          minLength: 1
+          description: 訊息內容（純文字）
+        media_uri:
+          type: [string, "null"]
+          format: uri
+          description: 媒體檔案 URL（圖片 / 檔案，選填）
 
     # --------- 問題卡（Create/Update 與 Export） ---------
     ProblemCardCreateRequest:

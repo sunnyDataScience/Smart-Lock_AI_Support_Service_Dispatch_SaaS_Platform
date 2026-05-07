@@ -69,6 +69,10 @@
    - section_type: searchable_table
    - section_purpose: 可搜尋的系統操作稽核紀錄
 
+7a. **audit_export_modal**
+   - section_type: modal
+   - section_purpose: 稽核日誌匯出對話框（CSV / JSON），支援同步下載與大檔異步匯出兩條路徑
+
 ### 子頁面 6 — 角色權限 `/admin/roles`
 
 8. **rbac_management**
@@ -382,6 +386,28 @@
   - error_row: error_event 類型的列左側加紅色邊框 `border-l-4 border-red-500`
   - copying: 複製按鈕點擊後短暫變為 "已複製" + icon: Check / 2 秒後恢復
 - **copy_constraints**: 資源名稱最多 50 字元，JSON 詳情無長度限制（可捲動）
+
+### Section: audit_export_modal
+
+- **trigger**: 頁面標題列「匯出」按鈕（lucide `Download` icon）
+- **layout**: Modal size=md（基於 components/ui/Modal）
+- **elements**:
+  - filter_summary: ReadOnlyText / required / 顯示當前篩選條件摘要（日期範圍、事件類型、operator）
+  - format_radio: RadioGroup / required / 兩選項 CSV / JSON，預設 CSV
+  - estimated_count: Text / optional / 「預估匯出 N 筆」（呼叫 listAuditLogs count 取得）
+  - export_btn: Button Primary / required / 「開始匯出」
+  - cancel_btn: Button Secondary / required / 「取消」
+- **states**:
+  - idle: 預設
+  - exporting: export_btn disabled + spinner
+  - sync_done (≤100k): 觸發 blob download，檔名 `audit-events-YYYY-MM-DD-HHmm.csv`，useToast variant=success「匯出完成」，關閉 modal
+  - async_started (>100k): 收到 202 + job_id，useToast variant=info「匯出中，完成後寄送 email」，關閉 modal
+  - error: useToast variant=error 顯示錯誤
+- **api**:
+  - POST /api/v1/audit-logs/export（operationId: exportAuditEvents）
+  - body: { from?, to?, event_types[], actor_id?, resource_type?, format: 'csv'|'json' }
+  - 200: text/csv stream → blob 下載
+  - 202: { job_id, estimated_completion } → email 通知
 
 ---
 
