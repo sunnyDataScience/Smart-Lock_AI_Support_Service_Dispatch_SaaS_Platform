@@ -19,7 +19,7 @@ related:
   - "[[03-develop/GR7--integration]]"
   - "[[04-deliver/GR10--ga-readiness]]"
 last_reviewed: 2026-05-07
-last_updated: 2026-05-07 (Wave 1+2 補完：5 流程從 🔴/🟡 變 🟢)
+last_updated: 2026-05-07 (§1/§2 雙向對齊：🟢13/🟡7/🔴3，TL;DR 與對齊矩陣完全一致)
 ---
 
 # E7x — Test Plan and Readiness Roadmap
@@ -49,22 +49,21 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 
 ## 1. TL;DR — 現在能測什麼、不能測什麼、為什麼
 
-> **2026-05-07 更新**：Wave 1+2 補完後，🟢 從 8 條增為 **13 條**；🔴 從 5 條降為 **4 條**。F-003 / F-018 / F-020 / F-021 / F-023 全綠（見 §15 Change Log）。
+> **2026-05-07 更新（§1/§2 雙向對齊）**：23 條流程 = **🟢13 / 🟡7 / 🔴3**（與 §2 對齊矩陣逐行一致）。Wave 1+2 補完累計 5 流程升綠：F-003 / F-018 / F-020 / F-021 / F-023（見 §15 Change Log）。
 
-**🟢 立即可測（13 條）**：核心工單生命週期 8 條 Happy Path（LINE 報修 → ProblemCard → 開單 → 派工 → 接單到場 → 完工簽名 → 對帳雙簽 → 保固 / SOP），加上：
-- F-003 自動派工演算法（權重表 SSOT 已建）
-- F-018 客服接管對話（HandoverComposer + sendChatMessage）
-- F-020 稽核日誌匯出（exportAuditEvents + CSV stream）
-- F-021 Dashboard / 報表日期區間（DateRangePicker 接 4 頁）
-- F-023 錯誤頁與離線（404/500/global-error/NetworkErrorBanner）
+**🟢 立即可測（13 條）**：F-001 LINE 報修、F-002 客服審 PC、F-003 自動派工、F-005 技師接單、F-006 到場拍照、F-009 完工簽名、F-013 對帳爭議雙簽、F-015 保固申訴、F-017 SOP 草稿審核、F-018 客服接管對話、F-020 稽核日誌、F-021 Dashboard / 報表、F-023 錯誤頁 / 離線。
 
-前後端 + realtime 全鏈路已具備，OpenAPI / AsyncAPI contract 已對齊。
+> 子集：核心工單生命週期 8 條 Happy Path（LINE 報修 → ProblemCard → 開單 → 派工 → 接單到場 → 完工簽名 → 對帳雙簽 → 保固 / SOP）+ 5 條已補完（F-003 派工權重 SSOT、F-018 HandoverComposer + sendChatMessage、F-020 exportAuditEvents + CSV stream、F-021 DateRangePicker 接 4 頁、F-023 錯誤頁 4 邊界）。前後端 + realtime 全鏈路已具備，OpenAPI / AsyncAPI contract 已對齊。
 
-**🟡 部分可測**：F-004 手動派工、F-007 材料申請、F-008 Scope Change、F-010 改約延遲、F-013 對帳爭議雙簽、F-016 SLA 紅色警報、F-019 RBAC 動態調整 — 待 PM Q1–Q10 拍板（見 §3）。
+**🟡 部分可測（7 條）**：F-004 手動派工、F-007 材料申請、F-008 Scope Change、F-010 改約延遲、F-014 退款流程、F-016 SLA 紅色警報、F-019 RBAC 動態調整 — 待 PM Q1–Q10 拍板（見 §3）。
 
-**🔴 不能測（4 條）**：F-011 消費者付款、F-012 技師撥款、F-014 退款金流回沖、F-022 消費者端工單追蹤 — 第三方未整合或入口未定。
+> F-014 為 🟡（規則可單測；金流回沖綁 Q7 V1.0 是否含金流）。
 
-**根本原因**：V1.0 / V2.0 範圍切分未凍結 + 角色階層未拍板 + Hard / Soft SLA 未定義。**這三件事不是工程問題、是產品決策**，必須先用一場 90 分鐘對齊會議解決 [[#3-必須先向-pm-釐清的-10-個問題附合理預設|Q1–Q10]]，否則 BDD 會卡在「Given 不知該寫什麼角色」。
+**🔴 不能測（3 條）**：F-011 消費者付款、F-012 技師撥款、F-022 消費者端工單追蹤 — 第三方未整合或入口未定。
+
+**根本原因**：V1.0 / V2.0 範圍切分未凍結 + 角色階層未拍板 + Hard / Soft SLA 未定義。**這三件事不是工程問題、是產品決策**，必須先用一場 90 分鐘對齊會議解決 [[02-design/E7x--pm-alignment-Q1-Q10|Q1–Q10]]，否則 BDD 會卡在「Given 不知該寫什麼角色」。
+
+> 📊 **完整統計**（按角色 / Realtime / 外部依賴 / BDD 覆蓋）：見 §2 對齊矩陣 + [[02-design/E7--bdd-scenarios#ⅲb-feature--e7x-流程編號對照f-101f-201--f-001f-023|E7 §Ⅲ.b Feature ↔ E7x 流程對照表]]。
 
 ---
 
@@ -520,9 +519,10 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-05-07 | Claude (assisted) | 初始版本：對齊矩陣、Gap 分類、PM Q1–Q10、金字塔、Sprint 1 路線圖 |
-| 2026-05-07 | Claude (assisted) | **Wave 1+2 補完狀態同步**：5 流程從 🔴/🟡 變 🟢，🟢 從 8 條增為 13 條、🔴 從 5 條降為 4 條。詳見 §15.1。 |
+| 2026-05-07 | Claude (assisted) | **Wave 1+2 補完狀態同步**：5 流程從 🔴/🟡 變 🟢，🟢 從 8 條增為 13 條、🔴 從 5 條降為 3 條（F-014 從 🔴 降為 🟡 規則可測；F-013 從 🟡 升為 🟢 既有 dual-sign 雙簽測試完整）。詳見 §15.1。 |
 | 2026-05-07 | Claude (assisted) | **測試基礎設施 Wave（autonomous-only）**：補齊「不需外力」的測試金字塔骨架：Makefile、pytest markers、tests/fixtures、tests/factories、schemathesis、AsyncAPI validator、Playwright config + login smoke、test-suite.yml workflow。詳見 §15.2。 |
 | 2026-05-07 | Claude (assisted) | **§3 PM Q1–Q10 抽出為獨立對齊文件**：[[02-design/E7x--pm-alignment-Q1-Q10|Q1–Q10 對齊文件]] 提供完整選項對比、會議議程、PM 決策欄位、追蹤表、下游更新清單。§3 表保留為摘要，每行加 `詳細` 連結至對齊文件對應章節。Q4 / Q5 預設更新為「自然日 / soft」（重新評估技術成本）。 |
+| 2026-05-07 | Claude (assisted) | **§1 / §2 雙向對齊**：TL;DR 數字與 §2 對齊矩陣逐行對照修正。修正內容：(a) 🟡 部分可測列表加入 F-014（移除 F-013，因 F-013 §2 已是 🟢）；(b) 🔴 不能測從「4 條 (F-011/F-012/F-014/F-022)」修正為「3 條 (F-011/F-012/F-022)」；(c) 🟡 條數明確標 7 條；(d) 加 cross-link 至 [[02-design/E7--bdd-scenarios|E7 §Ⅲ.b]] BDD 對照表。理由：§2 為 SSOT，§1 為摘要，過去 §1 落後 §2。 |
 
 ### 15.1 Wave 1+2 補完明細（2026-05-07）
 
