@@ -1655,6 +1655,68 @@ paths:
               schema:
                 $ref: '#/components/schemas/AuditLogPage'
 
+  /api/v1/audit-logs/export:
+    post:
+      tags: [audit]
+      operationId: exportAuditEvents
+      summary: 匯出稽核事件為 CSV
+      description: |
+        依篩選條件匯出稽核日誌。回傳 CSV stream（同步）或 job_id（異步）。
+        ≤ 100k 筆走同步 stream；> 100k 筆走背景 job + email 通知。
+        此 spec 先實作同步版本，異步路徑保留 202 contract 待後續迭代補完。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                from:
+                  type: string
+                  format: date-time
+                  nullable: true
+                to:
+                  type: string
+                  format: date-time
+                  nullable: true
+                event_types:
+                  type: array
+                  items: { type: string }
+                actor_id:
+                  type: string
+                  nullable: true
+                resource_type:
+                  type: string
+                  nullable: true
+                format:
+                  type: string
+                  enum: [csv, json]
+                  default: csv
+      responses:
+        '200':
+          description: CSV / JSON stream（同步，≤100k 筆）
+          content:
+            text/csv:
+              schema: { type: string, format: binary }
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditLogEntry'
+        '202':
+          description: 背景 job（>100k 筆）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id: { type: string }
+                  estimated_completion: { type: string, format: date-time }
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   /api/v1/sentiment/alerts:
     get:
       tags: [customer_service]

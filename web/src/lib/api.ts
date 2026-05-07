@@ -317,6 +317,72 @@ async function downloadBlob(
   URL.revokeObjectURL(url);
 }
 
+/**
+ * downloadBlobPost — POST + JSON body that returns a streaming download.
+ *
+ * For endpoints like /audit-logs/export where the filter payload is too large
+ * for a query string and the response is a text/csv | application/json stream.
+ *
+ * Returns the blob and the resolved filename so callers can either auto-download
+ * (default) or pipe the data elsewhere (e.g. a preview pane).
+ */
+async function downloadBlobPost(
+  path: string,
+  body: unknown,
+  opts?: { filename?: string; idempotencyKey?: string },
+): Promise<{ blob: Blob; filename: string }> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const token = auth.getAccessToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  headers["X-Tenant-ID"] = auth.getTenantId();
+  headers["Idempotency-Key"] = opts?.idempotencyKey ?? newIdempotencyKey();
+
+  const init: RequestInit = {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  };
+
+  let res = await fetch(buildUrl(path), init);
+
+  if (res.status === 401) {
+    const ok = await refreshAccessToken();
+    if (ok) {
+      const newToken = auth.getAccessToken();
+      if (newToken) (init.headers as Record<string, string>)["Authorization"] = `Bearer ${newToken}`;
+      res = await fetch(buildUrl(path), init);
+    }
+  }
+
+  if (!res.ok) {
+    const contentType = res.headers.get("content-type") ?? "";
+    const payload = contentType.includes("application/json")
+      ? ((await res.json()) as ApiErrorResponse)
+      : { error_code: "UNKNOWN", message: await res.text() };
+    throw new ApiError(res.status, payload);
+  }
+
+  const blob = await res.blob();
+  const cd = res.headers.get("content-disposition") ?? "";
+  const match = /filename="?([^";]+)"?/.exec(cd);
+  const filename = opts?.filename ?? match?.[1] ?? "download";
+  return { blob, filename };
+}
+
+/** Helper — trigger browser download from an already-resolved blob + filename. */
+function triggerBlobDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export const api = {
   get: <T = unknown>(path: string, opts?: Omit<RequestOptions, "body" | "idempotencyKey">) =>
     request<T>("GET", path, opts),
@@ -330,6 +396,8 @@ export const api = {
     request<T>("DELETE", path, { ...opts, idempotencyKey: opts?.idempotencyKey ?? newIdempotencyKey() }),
   upload: uploadMultipart,
   download: downloadBlob,
+  downloadPost: downloadBlobPost,
+  triggerDownload: triggerBlobDownload,
   raw: request,
 };
 
