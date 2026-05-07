@@ -513,6 +513,7 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 |------|--------|--------|
 | 2026-05-07 | Claude (assisted) | 初始版本：對齊矩陣、Gap 分類、PM Q1–Q10、金字塔、Sprint 1 路線圖 |
 | 2026-05-07 | Claude (assisted) | **Wave 1+2 補完狀態同步**：5 流程從 🔴/🟡 變 🟢，🟢 從 8 條增為 13 條、🔴 從 5 條降為 4 條。詳見 §15.1。 |
+| 2026-05-07 | Claude (assisted) | **測試基礎設施 Wave（autonomous-only）**：補齊「不需外力」的測試金字塔骨架：Makefile、pytest markers、tests/fixtures、tests/factories、schemathesis、AsyncAPI validator、Playwright config + login smoke、test-suite.yml workflow。詳見 §15.2。 |
 
 ### 15.1 Wave 1+2 補完明細（2026-05-07）
 
@@ -546,3 +547,55 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 - A5：權限檢查暫硬編 `role in {admin, ops}`，待 F-019 RBAC 動態化後改 `audit.read.all`
 - A4：`SendChatMessageRequest` 暫放 `internal.py`，下次 codegen 一併歸位
 - 整體：`web/types/api.generated.ts` 待統一 regenerate
+
+### 15.2 測試基礎設施 Wave（2026-05-07）
+
+依「**前後端分離視角，先區分『可自主補齊』vs『需外力介入』，再把可補齊項全做完**」原則執行。
+路線圖見 [`/home/sunny/.claude/plans/home-sunny-python-workstation-github-sm-temporal-parnas.md`](file:///home/sunny/.claude/plans/home-sunny-python-workstation-github-sm-temporal-parnas.md)。
+
+**5 個 commit 拆分（chore/test-readiness-foundation + chore/test-readiness-ci-docs 兩分支）**
+
+| # | Commit | Branch | 內容 |
+|---|--------|--------|------|
+| 1 | `1ffb8d8` | foundation | 根 `Makefile`（5 layer target + coverage / mock / clean）+ `pyproject.toml [dependency-groups] test`（schemathesis / pytest-cov / diff-cover / factory-boy / respx / hypothesis）+ `[tool.pytest.ini_options] markers` + 7 個既有 test 加 `pytestmark`（5 component / 2 unit）|
+| 2 | `4fec6d2` | foundation | `tests/fixtures/line_simulator.py`（lift `create_line_signature` HMAC-SHA256 + `LINESimulator` dataclass + 3 fixture）+ `tests/factories/{tenant,technician,problemcard,workorder}.py`（factory_boy + Faker zh_TW）|
+| 3 | `887f252` | foundation | `scripts/ci/contract-schemathesis.sh`（OpenAPI fuzz；`--check-only` 模式 PR-gate 用）+ `scripts/ci/asyncapi-validate.mjs`（`@asyncapi/parser` 驗 spec + 列 10 channels）+ `scripts/ci/package.json`（與 web/ 隔離）|
+| 4 | `714291f` | foundation | `web/playwright.config.ts`（admin Desktop Chrome / tech Pixel 7 mobile 兩 project）+ `web/tests/e2e/admin/login.spec.ts`（不打 submit 的 smoke）+ `web/tests/e2e/README.md` |
+| 5 | `06a2a10` | ci-docs | `.github/workflows/test-suite.yml`（unit / asyncapi / contract-check 3 個獨立 PR-gate job）+ `tests/README.md`（金字塔規範首頁）+ `scripts/README.md` 補 Makefile + contract / asyncapi 工具用法 |
+
+**對應 §10 Sprint 1 完成度**
+
+| Sprint 1 任務 | 狀態 |
+|--------------|------|
+| #4 Modal / Toast library | ✅ Wave 1 A2（既有） |
+| #5 404 / 500 / Network Error page | ✅ Wave 1 A1（既有） |
+| #6 LINESimulator fixture（基礎版） | ✅ commit 4fec6d2 |
+| #8 種子資料 factory_boy 基礎版 | ✅ commit 4fec6d2（factory layer，DB 寫入由測試自管） |
+| #21 Schemathesis PR-gate | ✅ commit 887f252（`--check-only` mode；真打 mode 留 nightly） |
+| #22 AsyncAPI envelope validator | ✅ commit 887f252（spec 結構；envelope golden 對拍待 SSE 整合） |
+| #27 PR template + ownership matrix（部分） | ✅ commit 06a2a10（test-suite.yml + tests/README.md） |
+
+**驗證**：
+- `make test-unit` → 25 passed in 0.86s
+- `bash scripts/ci/contract-schemathesis.sh --check-only` → ✓ OpenAPI YAML 結構合法
+- `node scripts/ci/asyncapi-validate.mjs` → ✓ AsyncAPI 2.6.0, 10 channels, 0 error / 26 warning
+- `npx playwright --version` → 1.59.1（裝在 web/node_modules）
+- `make help` → 完整列出 9 個 target
+
+**外力介入清單（本 Wave 不做）**：
+- PM Q1–Q10 全部（角色矩陣、SLA hard/soft、消費者追蹤入口、SMS fallback、Scope Change 入口）
+- 金流 / 撥款 / SMS / Email / FCM / LINE Push 真實整合
+- Vertex AI nightly 真打預算決策、Opik workspace
+- 客製化測試資料（QA + 真客戶協助）
+- 設計團隊視覺回歸（Chromatic / 設計人力 < 3）
+
+**Sprint 1 仍待後續處理**：
+- #7 金流 / SMS / Email fake provider（綁 PM Q7 V1.0 是否含金流）
+- #9 Prism mock 18 → 50 endpoints（spec 補完後再擴）
+- #10 Playwright 基礎 fixture（登入 / 切角色 / 種資料）— 綁 PM Q1
+- #11–#18 Happy Path 8 條 E2E — 全綁 PM Q1–Q10
+- #19 negative cases / #20 F-007 / F-008 / F-010 — 綁 PM 拍板
+- #23 F-016 SLA — 綁 PM Q5
+- #24 Settlement property + golden / #25 Dispatch scoring property + golden — 雖權重已建但邊界 case 未拍
+- #26 Agent eval CI 整合（fake-LLM smoke / nightly 真 Vertex / Promptfoo）— 綁預算決策
+- 完整 coverage diff PR comment（diff-cover bot）— 需 component test 進 CI 才有意義
