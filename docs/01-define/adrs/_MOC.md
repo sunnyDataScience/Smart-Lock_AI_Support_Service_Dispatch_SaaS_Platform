@@ -22,3 +22,4 @@ Records of significant architectural decisions with context, alternatives consid
 | [[adr-004-line-bot-architecture]] | LINE Bot state | Stateful + Redis session cache | Stateless, webhook-only |
 | [[adr-005-frontend-framework-v2]] | V2.0 frontend | Next.js 14 + TypeScript | React SPA, Vue.js |
 | [[adr-006-llm-model-selection]] | LLM model | Multi-model strategy | Single vendor lock-in |
+| [[adr-007-llm-registry-pattern]] | LLM provider 抽象層形式 | LiteLLM 字串路由（不補 dict registry） | dict registry（重複抽象）、擴大範圍至 embeddings |
