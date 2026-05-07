@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Check, ChevronDown, ChevronRight, Copy } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Copy, Download } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
+import { AuditExportModal } from "@/components/admin/AuditExportModal";
 import { ApiError, api } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import type { components } from "@/types/api.generated";
@@ -130,6 +131,7 @@ export default function AuditEventsPage() {
   const [error, setError] = useState<string | null>(null);
   const [logType, setLogType] = useState<AuditLogType | "">("");
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const fetchPage = useCallback(
     async (afterCursor: string | null, append: boolean, filter: AuditLogType | "") => {
@@ -173,6 +175,14 @@ export default function AuditEventsPage() {
             <h1 className="text-2xl font-bold text-[var(--text-primary)]">
               稽核日誌
             </h1>
+            <button
+              type="button"
+              onClick={() => setExportOpen(true)}
+              className="inline-flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
+            >
+              <Download className="h-4 w-4" aria-hidden="true" />
+              匯出
+            </button>
           </div>
 
           <div className="flex items-center gap-3">
@@ -305,6 +315,12 @@ export default function AuditEventsPage() {
           )}
         </div>
       </div>
+
+      <AuditExportModal
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        filters={{ log_type: logType || null }}
+      />
     </div>
   );
 }
