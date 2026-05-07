@@ -24,11 +24,11 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: OperationId 雙向 + [PAGE META] 宣告驗證
-        run: ./scripts/check-operationid-orphans.sh
+        run: ./scripts/ci/check-operationid-orphans.sh
 
       - name: MAPPING.md §8.1 同步檢查
-        run: ./scripts/generate-mapping-api-index.sh --check
+        run: ./scripts/ci/generate-mapping-api-index.sh --check
 
       # Week 5+ 啟用（body path 也視為 error）
       # - name: Strict 模式（CI gate）
-      #   run: ./scripts/check-operationid-orphans.sh --strict --quiet
+      #   run: ./scripts/ci/check-operationid-orphans.sh --strict --quiet
