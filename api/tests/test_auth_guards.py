@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import pytest
 
+pytestmark = pytest.mark.component
+
 
 @pytest.mark.asyncio
 async def test_missing_authorization_returns_401(client):

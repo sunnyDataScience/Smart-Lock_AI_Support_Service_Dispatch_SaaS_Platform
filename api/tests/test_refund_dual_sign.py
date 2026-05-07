@@ -19,6 +19,8 @@ import pytest_asyncio
 
 from tests.conftest import ADMIN_USER_ID, DEFAULT_TENANT_ID
 
+pytestmark = pytest.mark.component
+
 
 @pytest_asyncio.fixture
 async def insert_refund(client, admin_headers):
