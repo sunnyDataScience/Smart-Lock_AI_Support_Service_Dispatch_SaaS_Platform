@@ -18,6 +18,9 @@ dev = [
     "ruff>=0.6",
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
+    # Q4=C 拍板：月結 SLA 7 工作日 + 國定假日跳過
+    # 使用 holidays 套件取得台灣國定假日；agent/core/workday.py 為唯一呼叫點
+    "holidays>=0.50",
 ]
 
 # CI / 測試專用工具（與 dev 分離，本機可跳過）

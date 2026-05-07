@@ -76,6 +76,74 @@ related:
 
 ---
 
+## 1.5 Legacy ID → New ID 對照表（Phase 3 漸進遷移第一步）
+
+> **本表是 Phase 3 漸進遷移的第一步（alias 不改舊 ID）**：
+> - 既有檔（_SSOT 全 23 row、E7 BDD 19 Features、E5x×3 Flows）**不重命名**
+> - 新增內容用新前綴：例如新建 BDD scenarios 用 `FT-NNN`、新加測試用 `AT/ST/IT/UT/PT/SEC-NNN`
+> - 完整遷移（所有舊 ID 改名）等下次 PR 評估
+> - 詳細設計見 [[_RESTRUCTURE-PROPOSAL#3-提案-b統一-id-系統|提案 §3.1]]
+
+### 1.5.a User Flows（F-001~F-023 → US-001~US-023）
+
+| Legacy ID | 描述 | New ID（Phase 3 預留）| 推薦使用時機 |
+|-----------|-----|-------------------|------------|
+| F-001 | LINE 報修 → ProblemCard | US-001 | 新 BDD scenario / spec 引用時用 |
+| F-002 | 客服審 PC → 開 WO | US-002 | 同上 |
+| F-003 | 自動派工規則引擎 | US-003 | 同上 |
+| F-004 | 手動派工 | US-004 | 同上 |
+| F-005 | 技師接單 → 出發 | US-005 | 同上 |
+| F-006 | 到場拍照 | US-006 | 同上 |
+| F-007 | 材料申請 | US-007 | 同上 |
+| F-008 | Scope Change | US-008 | 同上 |
+| F-009 | 完工簽名 | US-009 | 同上 |
+| F-010 | 改約 / 延遲 | US-010 | 同上 |
+| F-011 | 消費者付款 V1.0 | US-011 | 同上 |
+| F-012 | 技師月結撥款 V1.0 | US-012 | 同上 |
+| F-013 | 對帳爭議雙簽 | US-013 | 同上 |
+| F-014 | 退款流程 | US-014 | 同上 |
+| F-015 | 保固申訴 | US-015 | 同上 |
+| F-016 | SLA 紅色警報（2hr 到場）| US-016 | 同上 |
+| F-017 | SOP 草稿審核 | US-017 | 同上 |
+| F-018 | 客服接管對話 | US-018 | 同上 |
+| F-019 | RBAC 動態調整 | US-019 | 同上 |
+| F-020 | 稽核日誌 | US-020 | 同上 |
+| F-021 | Dashboard / 報表 | US-021 | 同上 |
+| F-022 | 消費者端工單追蹤 | US-022 | 同上 |
+| F-023 | 錯誤頁 / 離線（cross-cutting）| US-023 | 同上 |
+
+### 1.5.b BDD Features（F-1NN/F-2NN → FT-NNN）
+
+| Legacy ID | 描述 | New ID（Phase 3 預留）| 推薦使用時機 |
+|-----------|-----|-------------------|------------|
+| F-101~F-109 | V1.0 BDD Features（9 個）| FT-101~FT-109 | 新 BDD Feature 編號用 FT- 前綴 |
+| F-201~F-210 | V2.0 BDD Features（10 個）| FT-201~FT-210 | 同上 |
+| F-110 | SLA Soft Alert（新增）| FT-110 | 已用新前綴（Phase 3 範例）|
+
+### 1.5.c E5x Workflow / Module / Decision IDs
+
+| Legacy ID | 描述 | New ID（Phase 3 預留）| 推薦使用時機 |
+|-----------|-----|-------------------|------------|
+| Flow 1-13 | E5x work-order Flows | UC-101~UC-113 | use case 編號 |
+| G1-G4 | E5x admin governance | UC-G01~UC-G04 | 同上 |
+| 模組 1-7 | E7x module spec | MOD-01~MOD-07 | module 規格編號 |
+| Q1-Q10 | PM decisions | DEC-001~DEC-010 | 新決策直接用 DEC- |
+
+### 1.5.d 新類型 ID（Phase 3 新增類別）
+
+| 類型 | New ID 前綴 | 推薦使用時機 |
+|------|------------|------------|
+| Quality Attributes | QA-NNN | north-star-requirements.md 用 |
+| Compliance | COM-NNN | 同上 |
+| Acceptance Test | AT-NNN | v-model-right/ tests 用 |
+| System Test | ST-NNN | 同上 |
+| Integration Test | IT-NNN | integration-test-matrix.md 用 |
+| Unit Test | UT-NNN | module spec test cases 用 |
+| Performance Test | PT-NNN | performance-baseline.md 用 |
+| Security Test | SEC-NNN | security-checklist.md 用 |
+
+---
+
 ## 2. 反向缺口（BDD Feature 有但 E7x 沒列獨立流程）
 
 對應 [[v-model-right/E7--bdd-scenarios#ⅲb-feature--e7x-流程編號對照f-101f-201--f-001f-023|E7 §Ⅲ.b]] 反向缺口：
@@ -167,3 +235,4 @@ related:
 |------|--------|--------|
 | 2026-05-07 | Claude (assisted) | 初版：以 E7x F-001~F-023 為主鍵，整合 E1x / E5x×3 / E7 / E7x×3 共 8 維對應；標出 4 orphan + 10 partial + 8 aligned + 1 cross-cutting；建立 P0 / P1 / P2 修正優先序 |
 | 2026-05-07 | PM + Claude (sync) | **PM Q1-Q10 全拍板同步**：10 row 中 9 row 的 PM Block column 從 `**Q-N**` → `✅ Q-N=X`；對齊狀態升級 — F-010 ⚠blocked→✅aligned, F-013 ⚠partial→✅aligned, F-011/F-012/F-014/F-022 ❌orphan→⚠blocked（待 Q7=B provider 選型 / Q3=C Web 匿名 token 實作）, F-016 ❌orphan→⚠partial（Q5=B Soft SLA）, F-004/F-008/F-019 ⚠blocked→⚠partial. 詳見 [[decision-log/E7x--pm-alignment-Q1-Q10#12-決策追蹤總表]]。 |
+| 2026-05-07 | Claude (assisted) | **新增 §1.5 Legacy ID → New ID 對照表（Phase 3 漸進遷移第一步，alias 不改舊 ID）**：覆蓋 23 條 user flows（F→US）、19 個 BDD Features（F-1NN/F-2NN→FT）+ F-110 新增、E5x Flows / Modules / Decisions（→UC/MOD/DEC）、新類型 QA/COM/AT/ST/IT/UT/PT/SEC。詳見 [[_RESTRUCTURE-PROPOSAL#3-提案-b統一-id-系統|提案 §3.1]]。 |

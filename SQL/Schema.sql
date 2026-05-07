@@ -113,6 +113,7 @@ CREATE TABLE users (
                         -- 'admin'       : 總部管理員
                         -- 'reviewer'    : SOP 審核員
                         -- 'technician'  : 維修技師 (V2.0)
+                        -- 'dispatcher'  : 派工員 (V2.0；獨立角色，非 customer_service 子權限)
     is_active           BOOLEAN DEFAULT TRUE,           -- 帳號啟用狀態
     last_active_at      TIMESTAMP WITH TIME ZONE,       -- 最後互動時間 (每次對話時更新)
     profile_updated_at  TIMESTAMP WITH TIME ZONE,       -- LINE Profile 最後同步時間

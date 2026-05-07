@@ -28,6 +28,7 @@
   - [Feature: 自動化會計系統](#feature-自動化會計系統)
   - [Feature: 管理後台 V2.0](#feature-管理後台-v20)
   - [Feature: V1↔V2 資料串接](#feature-v1v2-資料串接)
+  - [Feature: F-110 SLA Soft Alert](#feature-f-110-sla-soft-alert紅色警報dashboard-變紅--升主管q5b-拍板)
 - [Ⅵ. 最佳實踐](#ⅵ-最佳實踐)
 
 ---
@@ -102,6 +103,7 @@
 | F-107 | 情緒分流 | `sentiment_triage.feature` | 4 |
 | F-108 | 主動照片引導 | `proactive_photo_guidance.feature` | 3 |
 | F-109 | 家族成員覆核 | `family_member_review.feature` | 3 |
+| F-110 | SLA Soft Alert（cross-cutting）| `sla_soft_alert.feature` | 4 |
 
 ### V2.0 - 師傅派工與帳務模組
 
@@ -150,7 +152,7 @@
 | F-013 | 對帳爭議雙簽 | F-204, F-207 | 會計 + 退款審批 |
 | F-014 | 退款流程 | F-207 | 退款審批與雙簽 |
 | F-015 | 保固申訴 | F-208 | 保固爭議處理 |
-| F-016 | SLA 紅色警報（2hr 到場） | **⚠ 無對應** | BDD 待補；綁 PM Q5（hard vs soft SLA） |
+| F-016 | SLA 紅色警報（2hr 到場） | F-110 | Q5=B 拍板：Soft SLA，補 F-110 cross-cutting Feature |
 | F-017 | SOP 草稿審核 | F-104 | 自進化知識庫 |
 | F-018 | 客服接管對話 | F-105 | admin V1.0（接管 UI 為新增） |
 | F-019 | RBAC 動態調整 | F-209 | 動態 RBAC |
@@ -159,11 +161,12 @@
 | F-022 | 消費者端工單追蹤 | **⚠ 無對應** | BDD 待補；綁 PM Q3（追蹤入口） |
 | F-023 | 錯誤頁 / 離線 | **⚠ 無對應** | Cross-cutting concern；建議獨立 Feature 或併入既有 |
 
-> **覆蓋率**：23 條 E7x 流程中 **19 條有 BDD Feature 對應**、**4 條缺**（F-011、F-016、F-022、F-023）。
+> **覆蓋率**：23 條 E7x 流程中 **20 條有 BDD Feature 對應**、**3 條缺**（F-011、F-022、F-023）。
 >
 > **缺口處理建議**：
-> - F-011 / F-016 / F-022：等 PM 拍板 [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10|Q3 / Q5 / Q7]] 後新增對應 BDD Feature
-> - F-023（cross-cutting）：建議新增 `F-110 錯誤邊界與離線體驗`（V1.0 已實作，BDD 補規格即可）
+> - F-011 / F-022：等 PM 拍板 [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10|Q3 / Q7]] 後新增對應 BDD Feature
+> - F-016：✅ 已補 F-110（Q5=B 拍板：Soft SLA，破線僅警報，無賠償）
+> - F-023（cross-cutting）：建議獨立新增 `F-111 錯誤邊界與離線體驗`（V1.0 已實作，BDD 補規格即可）
 >
 > 反向缺口（有 BDD Feature 但 E7x 沒列為獨立流程）：
 > - F-103 三層解決機制 — 隱含於 F-001 / F-018，但 E7x 沒明列
@@ -1462,6 +1465,86 @@ Feature: V1 to V2 Data Bridge
     And when the V2.0 module comes back online
     Then all queued dispatch requests should be processed in priority order
     And no dispatch request should be lost
+```
+
+---
+
+### Feature: F-110 SLA Soft Alert（紅色警報，dashboard 變紅 + 升主管，Q5=B 拍板）
+
+> **背景**：對應 E7x F-016 SLA 紅色警報流程。PM Q5=B 拍板：SLA 為 **Soft Target**（軟性目標），破線僅觸發警報與升級主管，**無賠償、無自動沖銷**。本 Feature 為 cross-cutting，覆蓋技師推播、未 ack 升級、未到場升級、警報撤回 4 個關鍵節點。
+>
+> **對應 E7x 流程**：F-016（SLA 紅色警報）
+> **對應 PM 決策**：[[decision-log/E7x--pm-alignment-Q1-Q10|Q5=B Soft SLA]]
+
+```gherkin
+Feature: F-110 SLA Soft Alert
+  As an operations manager
+  I want the system to monitor service-level commitments and alert me when they slip
+  So that I can intervene early without triggering automatic compensation
+
+  Background:
+    Given the SLA monitoring service is active
+    And the admin dashboard is connected to the alert event stream
+    And the platform policy is "Soft SLA: alert only, no compensation, no auto-refund" (Q5=B)
+
+  @happy-path @v2.0 @sla
+  Scenario: Dispatch creates an immediate technician push within 30 seconds
+    Given a dispatch order "DO-20260507-0101" has just been created from ProblemCard "PC-20260507-0101"
+    And technician "T-042" matches the brand "Yale" and the service area "台北市信義區"
+    When the dispatch engine assigns "DO-20260507-0101" to technician "T-042"
+    Then a LINE push notification should be delivered to "T-042" within 30 seconds
+    And the dispatch order status should transition to "assigned"
+    And the SLA timer should be initialized with:
+      | sla_metric            | threshold        |
+      | technician_ack        | 15 minutes       |
+      | technician_on_site    | 2 hours          |
+    And no SLA alert should be raised at this point
+
+  @happy-path @critical @v2.0 @sla
+  Scenario: Technician fails to acknowledge within 15 minutes triggers admin dashboard alert
+    Given dispatch order "DO-20260507-0101" was assigned to technician "T-042" 15 minutes ago
+    And technician "T-042" has not acknowledged the assignment
+    When the SLA monitor evaluates the "technician_ack" metric
+    Then an SLA alert event should be emitted with:
+      | field            | value                          |
+      | alert_id         | non-empty                      |
+      | dispatch_order   | DO-20260507-0101               |
+      | sla_metric       | technician_ack                 |
+      | severity         | red                            |
+      | compensation     | none                           |
+    And the admin dashboard row for "DO-20260507-0101" should turn red
+    And the alert should appear in the admin alert center
+    And no compensation record should be created
+    And no automatic refund should be triggered
+
+  @happy-path @critical @v2.0 @sla
+  Scenario: Technician fails to arrive within 2 hours escalates to Ops Manager (no compensation)
+    Given dispatch order "DO-20260507-0101" was acknowledged by technician "T-042" 2 hours ago
+    And technician "T-042" has not yet checked in on site
+    When the SLA monitor evaluates the "technician_on_site" metric
+    Then an SLA escalation event should be emitted with:
+      | field            | value                          |
+      | dispatch_order   | DO-20260507-0101               |
+      | sla_metric       | technician_on_site             |
+      | severity         | red                            |
+      | escalated_to     | role:ops_manager               |
+      | compensation     | none                           |
+      | auto_refund      | false                          |
+    And a notification should be delivered to all users with role "Ops Manager"
+    And the admin dashboard should display the escalation banner for "DO-20260507-0101"
+    And the audit log should record an "SLA_ESCALATION" event referencing Q5=B (Soft SLA, no compensation)
+    And no entries should be created in the refund or compensation ledgers
+
+  @edge-case @v2.0 @sla
+  Scenario: Technician arrival clears the SLA alert and restores dashboard to green
+    Given dispatch order "DO-20260507-0101" has an active SLA alert with severity "red"
+    And the admin dashboard row for "DO-20260507-0101" is currently red
+    When technician "T-042" performs on-site check-in for "DO-20260507-0101"
+    Then the SLA alert "DO-20260507-0101" should be marked as "resolved"
+    And a "SLA_ALERT_CLEARED" event should be emitted
+    And the admin dashboard row for "DO-20260507-0101" should turn green
+    And the escalation banner should be removed from the admin dashboard
+    And the audit log should record both the original alert and the clearance with the same correlation_id
 ```
 
 ---

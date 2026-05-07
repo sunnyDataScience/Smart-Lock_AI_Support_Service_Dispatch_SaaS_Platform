@@ -54,6 +54,7 @@ from routers import kb_export as kb_export_router
 from routers import sentiment_alerts as sentiment_alerts_router
 from routers import vouchers as vouchers_router
 from routers import family_reviews as family_reviews_router
+from routers import public as public_router  # Q3=C / Q9=B 共用機制
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -132,6 +133,9 @@ app.include_router(inventory_router.router, prefix="/api/v1", tags=["inventory"]
 app.include_router(reports_kpi_router.router, prefix="/api/v1", tags=["reports"])
 app.include_router(resolution_router.router, prefix="/api/v1", tags=["customer_service"])
 app.include_router(kb_export_router.router, prefix="/api/v1", tags=["knowledge_base"])
+# Q3=C / Q9=B 共用機制：消費者匿名 token endpoints（無需登入）
+# Auth middleware 應在 path 前綴 /api/v1/public/ 略過 bearer 驗證
+app.include_router(public_router.router, prefix="/api/v1", tags=["public"])
 
 
 @app.get("/health")
