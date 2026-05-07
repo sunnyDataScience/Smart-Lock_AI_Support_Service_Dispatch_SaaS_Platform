@@ -243,3 +243,34 @@
 | 增加流量 | Growth |
 | 管理後台 | Admin |
 | 部署上線 | Infrastructure |
+
+---
+
+## 附錄 A：Wave 1+2 補完（Smart-Lock 專案實作）
+
+> 本附錄登記 Smart-Lock AI Support Platform 跨頁面共用的 UI 模組（Wave 1+2 已 merge 至 dev）。
+> 每個模組包含：用途、技術棧、API、使用頁面。實際 source 在 `web/src/components/`。
+
+### A.1 UI Foundation (`web/src/components/ui/`)
+
+| Module | 用途 | 技術 | API 簡述 | 使用頁面 |
+|:---|:---|:---|:---|:---|
+| Modal | 通用對話框 | @radix-ui/react-dialog | size: sm/md/lg/xl；ModalTrigger/Content/Header/Title/Description/Footer/Close | 所有需確認動作的頁面 |
+| Drawer | 側邊滑出面板 | @radix-ui/react-dialog | side: right/left/bottom；size: sm/md/lg | 詳情頁、settings、行動裝置 |
+| Toast | 全域通知 | @radix-ui/react-toast | useToast() hook → `toast({title, description, variant, duration})`；variant: default/success/warning/error | 全站（layout 已掛 ToastProvider） |
+| DateRangePicker | 日期區間選擇 | @radix-ui/react-popover + 自寫雙月日曆 | value: DateRange, onChange, presets[] | dashboard、admin/reports/* |
+| NetworkErrorBanner | 離線橫幅 | navigator.onLine + addEventListener | 無 props，自動偵測 | 全站（待 mount 點決議） |
+
+### A.2 Domain Components
+
+| Module | 路徑 | 用途 | 使用頁面 |
+|:---|:---|:---|:---|
+| HandoverComposer | components/conversations/HandoverComposer.tsx | 客服接管 chat textarea | /conversations/[id]（waiting_human 狀態） |
+| AuditExportModal | components/admin/AuditExportModal.tsx | 稽核 CSV/JSON 匯出 | /admin/audit-events |
+
+### A.3 Lib / Utils
+
+| Module | 路徑 | 用途 |
+|:---|:---|:---|
+| dateRange | lib/dateRange.ts | DateRange type、7 個 preset、formatDateRange、toQueryString、mapRangeToDashboardPeriod、detectPreset |
+| api.downloadPost / triggerDownload | lib/api.ts | POST + blob 下載 + createObjectURL 觸發 |

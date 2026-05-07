@@ -52,6 +52,10 @@
    - section_type: status_indicator
    - section_purpose: 顯示 WebSocket 連線狀態，確保管理者知曉資料是否為即時
 
+8. **date_range_filter**
+   - section_type: filter
+   - section_purpose: 提供日期範圍選擇，影響下方 KPI / charts / table 的資料區間
+
 ---
 
 ## [SECTION COMPONENT SPEC]
@@ -171,6 +175,19 @@
   - expanded: 展開列下方顯示額外資訊區塊，背景 #F8FAFC，左側 3px #2563EB 指示條
 - **copy_constraints**: 工單編號固定格式 16 字元；客戶名稱最多 10 字；問題摘要最多 50 字
 
+### Section: date_range_filter
+
+- **layout**: 頁面標題列右側內聯，與全域搜尋同行
+- **elements**:
+  - date_range_picker: DateRangePicker / required / 預設「過去 7 日」；presets: 今天 / 昨天 / 過去 7 日 / 過去 30 日 / 本月 / 上月 / 自訂；用 lib/dateRange.ts toQueryString() 觸發 fetch
+  - sync_indicator: Spinner / optional / 切換 range 時顯示
+- **states**:
+  - default: 顯示 preset label
+  - custom: 顯示 `YYYY-MM-DD ~ YYYY-MM-DD`
+  - loading: spinner 替代 chevron icon
+- **a11y**: aria-label="選擇日期範圍"，鍵盤方向鍵 + Enter 操作
+- **interaction**: 點擊展開 popover；左側 preset 列表 + 右側雙月日曆；selecting custom range 後關閉 popover 並 refetch
+
 ### Section: realtime_status_bar
 
 - **layout**: page_header 右側小型狀態指示器，與通知鈴鐺同列
@@ -200,6 +217,7 @@
 8. 點擊工單列展開 → Collapsible 動畫展開顯示詳情
 9. 點擊工單編號或 "查看全部" → 導航至 `/work-orders` 或 `/work-orders/{id}`
 10. 手動點擊 refresh 按鈕 → 所有 API 重新請求 → 顯示短暫 loading 態
+11. 使用者切換日期範圍 → 觸發所有 KPI / chart / table 重新 fetch
 
 ### RWD 行為差異
 
