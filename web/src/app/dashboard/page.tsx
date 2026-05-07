@@ -22,6 +22,12 @@ import TechnicianStatusChart from "@/components/dashboard/TechnicianStatusChart"
 import RecentWorkOrders from "@/components/dashboard/RecentWorkOrders";
 import HotTopicsCard from "@/components/dashboard/HotTopicsCard";
 import LiveRegion from "@/components/ui/LiveRegion";
+import DateRangePicker from "@/components/ui/DateRangePicker";
+import {
+  getPresetRange,
+  mapRangeToDashboardPeriod,
+  type DateRange,
+} from "@/lib/dateRange";
 import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
@@ -30,8 +36,6 @@ type WorkOrder = components["schemas"]["WorkOrder"];
 type WorkOrderPage = components["schemas"]["WorkOrderPage"];
 type Technician = components["schemas"]["Technician"];
 type TechnicianPage = components["schemas"]["TechnicianPage"];
-
-const PERIOD: components["schemas"]["DashboardPeriod"] = "7d";
 
 // 統一在 page 層 fetch 工單與技師，避免子元件各自重複 fetch
 const WORK_ORDERS_LIMIT = 100;  // /work-orders pydantic le=100
@@ -68,6 +72,10 @@ function describeError(e: unknown): string {
 }
 
 export default function DashboardPage() {
+  // 日期範圍 — 預設過去 7 日（與舊的 PERIOD = "7d" 行為一致）
+  const [range, setRange] = useState<DateRange>(() => getPresetRange("last7"));
+  const period = useMemo(() => mapRangeToDashboardPeriod(range), [range]);
+
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -86,12 +94,15 @@ export default function DashboardPage() {
     let cancelled = false;
 
     // 三個並行 fetch（dashboard stats / work-orders / technicians）
+    // TODO[E7x §4.3]: 後端 dashboard / work-orders / technicians 尚未支援
+    // from/to 自訂範圍 filter；目前先把 range 折回 DashboardPeriod enum，
+    // work-orders / technicians 暫不帶日期參數（由前端切片）。
     (async () => {
       setError(null);
       try {
         const data = await api.get<DashboardStats>(
           "/api/v1/dashboard/stats",
-          { query: { period: PERIOD } },
+          { query: { period } },
         );
         if (!cancelled) setStats(data);
       } catch (e) {
@@ -135,7 +146,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [period]);
 
   const conv = stats?.conversations;
   const res = stats?.resolution;
@@ -173,6 +184,13 @@ export default function DashboardPage() {
               載入儀表板失敗：{error}
             </div>
           )}
+
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] text-[var(--text-secondary)]">
+              統計區間
+            </span>
+            <DateRangePicker value={range} onChange={setRange} />
+          </div>
 
           <div className="flex gap-6">
             <KpiCard

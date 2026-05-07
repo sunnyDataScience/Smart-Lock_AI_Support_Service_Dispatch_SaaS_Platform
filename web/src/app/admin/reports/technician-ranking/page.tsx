@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Crown, ChevronDown, Download, RefreshCw } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
+import DateRangePicker from "@/components/ui/DateRangePicker";
+import { getPresetRange, type DateRange } from "@/lib/dateRange";
 import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
@@ -99,6 +101,10 @@ const podiumDecor: Record<number, PodiumDecor> = {
 };
 
 export default function TechnicianRankingPage() {
+  // 日期範圍 — 預設「本月」（與 segments 內被選中的「本月」一致）。
+  // TODO[E7x §4.3]: /api/v1/technicians 尚無 date filter，
+  // range state 暫時只控制 UI；技師排名仍以全 100 筆 sample 計算。
+  const [range, setRange] = useState<DateRange>(() => getPresetRange("thisMonth"));
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -192,6 +198,8 @@ export default function TechnicianRankingPage() {
                 </button>
               ))}
             </div>
+
+            <DateRangePicker value={range} onChange={setRange} />
 
             <button
               disabled
