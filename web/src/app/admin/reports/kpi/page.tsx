@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   RefreshCw,
-  Calendar,
   ChevronDown,
   Download,
   Timer,
@@ -11,6 +10,12 @@ import {
   ArrowRight,
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
+import DateRangePicker from "@/components/ui/DateRangePicker";
+import {
+  getPresetRange,
+  mapRangeToDashboardPeriod,
+  type DateRange,
+} from "@/lib/dateRange";
 import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
@@ -67,10 +72,35 @@ function PendingTag({ note }: { note: string }) {
 }
 
 export default function KpiDashboardPage() {
-  const [period, setPeriod] = useState<Period>("30d");
+  // 預設「過去 30 日」，與舊行為一致；DateRangePicker 與 segment 共享同一 range state
+  const [range, setRange] = useState<DateRange>(() => getPresetRange("last30"));
+  const period = useMemo<Period>(() => mapRangeToDashboardPeriod(range), [range]);
   const [report, setReport] = useState<KpiReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // segment 點擊時把對應的 range 寫回（picker 自動偵測高亮）
+  // 90d 不在 PRESETS 內，這裡手動建 range；mapRangeToDashboardPeriod 會折回 "90d"
+  const handleSegmentClick = (value: Period) => {
+    if (value === "today") {
+      setRange(getPresetRange("today"));
+      return;
+    }
+    if (value === "7d") {
+      setRange(getPresetRange("last7"));
+      return;
+    }
+    if (value === "30d") {
+      setRange(getPresetRange("last30"));
+      return;
+    }
+    // 90d
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const from = new Date(today);
+    from.setDate(today.getDate() - 89);
+    setRange({ from, to: today });
+  };
 
   async function fetchReport(p: Period) {
     setLoading(true);
@@ -94,6 +124,8 @@ export default function KpiDashboardPage() {
   }
 
   useEffect(() => {
+    // TODO[E7x §4.3]: 後端 reports/kpi 尚未支援 from/to 參數，
+    // 目前透過 mapRangeToDashboardPeriod 折回 enum 觸發 fetch。
     fetchReport(period);
   }, [period]);
 
@@ -145,7 +177,7 @@ export default function KpiDashboardPage() {
               {SEGMENTS.map((seg) => (
                 <button
                   key={seg.value}
-                  onClick={() => setPeriod(seg.value)}
+                  onClick={() => handleSegmentClick(seg.value)}
                   className={`rounded-md px-[14px] py-[6px] text-[13px] ${
                     period === seg.value
                       ? "bg-[var(--primary)] font-medium text-white"
@@ -157,16 +189,7 @@ export default function KpiDashboardPage() {
               ))}
             </div>
 
-            <button
-              disabled
-              title="即將推出（自訂日期區間）"
-              className="flex cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-[7px] opacity-50"
-            >
-              <Calendar className="h-4 w-4 text-[var(--text-secondary)]" />
-              <span className="text-[13px] text-[var(--text-primary)]">
-                自訂日期區間
-              </span>
-            </button>
+            <DateRangePicker value={range} onChange={setRange} />
 
             <button
               disabled

@@ -17,6 +17,8 @@ import {
   Tooltip,
 } from "recharts";
 import Sidebar from "@/components/layout/Sidebar";
+import DateRangePicker from "@/components/ui/DateRangePicker";
+import { getPresetRange, type DateRange } from "@/lib/dateRange";
 import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
@@ -81,6 +83,10 @@ function buildBrandRows(byBrand: RevenueByBrandPoint[]) {
 }
 
 export default function RevenueReportPage() {
+  // 日期範圍 — 預設「過去 30 日」。
+  // TODO[E7x §4.3]: /api/v1/reports/revenue 目前只支援 granularity=month，
+  // 還沒有 from/to 參數；range state 暫時只控制 UI，實際 API 仍 fetch 近 12 月。
+  const [range, setRange] = useState<DateRange>(() => getPresetRange("last30"));
   const [summary, setSummary] = useState<RevenueSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -181,16 +187,7 @@ export default function RevenueReportPage() {
               ))}
             </div>
 
-            <button
-              disabled
-              title="即將推出"
-              className="flex cursor-not-allowed items-center gap-2 rounded-lg border border-[#CBD5E1] bg-[var(--bg-page)] px-3 py-[7px] opacity-60"
-            >
-              <Calendar className="h-[14px] w-[14px] text-[var(--text-disabled)]" />
-              <span className="text-[13px] text-[var(--text-disabled)]">
-                自訂期間
-              </span>
-            </button>
+            <DateRangePicker value={range} onChange={setRange} />
 
             <button
               disabled
