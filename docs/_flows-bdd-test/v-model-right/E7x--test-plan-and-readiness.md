@@ -8,13 +8,13 @@ owners:
   - Tech Lead
   - PM
 related:
-  - "[[_flows-bdd-test/E7--bdd-scenarios]]"
+  - "[[_flows-bdd-test/v-model-right/E7--bdd-scenarios]]"
   - "[[02-design/E5--api-design-specification]]"
   - "[[02-design/specs/_MOC]]"
-  - "[[_flows-bdd-test/E1x--user-journey-map]]"
-  - "[[_flows-bdd-test/E5x--workflow-work-order]]"
-  - "[[_flows-bdd-test/E5x--workflow-dispatch]]"
-  - "[[_flows-bdd-test/E5x--workflow-admin-governance]]"
+  - "[[_flows-bdd-test/v-model-left/E1x--user-journey-map]]"
+  - "[[_flows-bdd-test/v-model-left/E5x--workflow-work-order]]"
+  - "[[_flows-bdd-test/v-model-left/E5x--workflow-dispatch]]"
+  - "[[_flows-bdd-test/v-model-left/E5x--workflow-admin-governance]]"
   - "[[03-develop/GR6--code-complete]]"
   - "[[03-develop/GR7--integration]]"
   - "[[04-deliver/GR10--ga-readiness]]"
@@ -24,7 +24,7 @@ last_updated: 2026-05-07 (§1/§2 雙向對齊：🟢13/🟡7/🔴3，TL;DR 與�
 
 # E7x — Test Plan and Readiness Roadmap
 
-> **目的**：以第三方 BDD 視角，對齊 [[_flows-bdd-test/E7--bdd-scenarios|E7 BDD scenarios]] 中描述的使用者流程與既有前端 / 後端 / 即時通訊實作，找出**文件、UI、API、外部系統**四個面向的缺口，並提出 30 天 Sprint 1 的測試 readiness 路線圖。
+> **目的**：以第三方 BDD 視角，對齊 [[_flows-bdd-test/v-model-right/E7--bdd-scenarios|E7 BDD scenarios]] 中描述的使用者流程與既有前端 / 後端 / 即時通訊實作，找出**文件、UI、API、外部系統**四個面向的缺口，並提出 30 天 Sprint 1 的測試 readiness 路線圖。
 >
 > **預期讀者**：QA Lead、Tech Lead、PM。
 >
@@ -41,7 +41,7 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 - V1.0 已上線（AI 客服 + 知識庫管理）；V2.0 規劃中（派工、技師端、帳務、退款、爭議、保固）
 
 **為什麼要這份文件**：
-1. [[_flows-bdd-test/E7--bdd-scenarios|E7 BDD scenarios]] 已寫 21 Feature ~100 Scenarios，但**沒有測試執行計畫**；既有自動化覆蓋率：smoke ~20% endpoints + agent evals 67 題 + 5 個 api/tests，無 E2E、無 contract test、無 visual regression、無 load test。
+1. [[_flows-bdd-test/v-model-right/E7--bdd-scenarios|E7 BDD scenarios]] 已寫 21 Feature ~100 Scenarios，但**沒有測試執行計畫**；既有自動化覆蓋率：smoke ~20% endpoints + agent evals 67 題 + 5 個 api/tests，無 E2E、無 contract test、無 visual regression、無 load test。
 2. V2.0 上線前需要的測試基礎設施 + Gap 補完，必須在 30 天內形成可信的測試 baseline。
 3. 文件描述的使用者流程與前端元件 / API spec / 外部系統整合**並非處處對齊**，須先標明 Gap，再規劃測試。
 
@@ -61,9 +61,9 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 
 **🔴 不能測（3 條）**：F-011 消費者付款、F-012 技師撥款、F-022 消費者端工單追蹤 — 第三方未整合或入口未定。
 
-**根本原因**：V1.0 / V2.0 範圍切分未凍結 + 角色階層未拍板 + Hard / Soft SLA 未定義。**這三件事不是工程問題、是產品決策**，必須先用一場 90 分鐘對齊會議解決 [[_flows-bdd-test/E7x--pm-alignment-Q1-Q10|Q1–Q10]]，否則 BDD 會卡在「Given 不知該寫什麼角色」。
+**根本原因**：V1.0 / V2.0 範圍切分未凍結 + 角色階層未拍板 + Hard / Soft SLA 未定義。**這三件事不是工程問題、是產品決策**，必須先用一場 90 分鐘對齊會議解決 [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10|Q1–Q10]]，否則 BDD 會卡在「Given 不知該寫什麼角色」。
 
-> 📊 **完整統計**（按角色 / Realtime / 外部依賴 / BDD 覆蓋）：見 §2 對齊矩陣 + [[_flows-bdd-test/E7--bdd-scenarios#ⅲb-feature--e7x-流程編號對照f-101f-201--f-001f-023|E7 §Ⅲ.b Feature ↔ E7x 流程對照表]]。
+> 📊 **完整統計**（按角色 / Realtime / 外部依賴 / BDD 覆蓋）：見 §2 對齊矩陣 + [[_flows-bdd-test/v-model-right/E7--bdd-scenarios#ⅲb-feature--e7x-流程編號對照f-101f-201--f-001f-023|E7 §Ⅲ.b Feature ↔ E7x 流程對照表]]。
 
 ---
 
@@ -103,22 +103,22 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 
 > 建議用 **1 場 90 分鐘對齊會議** 一次解決。下列「預設」是本文件為規劃假設的答案，PM 拍板後可即時調整測試矩陣。
 
-> 📋 **完整版**：選項對比、影響範圍清單、會議議程、**PM 決策欄位**、追蹤總表 與 拍板後續更新清單請見 **[[_flows-bdd-test/E7x--pm-alignment-Q1-Q10|Q1–Q10 對齊文件]]**（本表為摘要）。
+> 📋 **完整版**：選項對比、影響範圍清單、會議議程、**PM 決策欄位**、追蹤總表 與 拍板後續更新清單請見 **[[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10|Q1–Q10 對齊文件]]**（本表為摘要）。
 
 | # | 問題 | 合理預設 | 預設下的 BDD 影響 | 反向選項影響 | 詳細 |
 |---|------|----------|-------------------|-------------|------|
-| Q1 | 「派工員」是 V2.0 新角色還是客服子權限？ | **新角色** | 新增 RBAC seed + F-004 多 actor 矩陣 | 反：沿用客服 fixture，僅權限旗標 | [[_flows-bdd-test/E7x--pm-alignment-Q1-Q10#2-q1-—-派工員是-v2-0-新角色還是客服子權限]] |
-| Q2 | Manager vs Director 雙簽終簽人？ | **Director > Manager** | F-013 / F-014 雙簽鎖 actor 順序 | 反：平級需驗無序性 | [[_flows-bdd-test/E7x--pm-alignment-Q1-Q10#3-q2-—-manager-vs-director-雙簽終簽人]] |
-| Q3 | 消費者端追蹤入口？ | **LINE only** | 跳過 Web E2E，改 LINE Bot 模擬器 | 反：需新頁 + 匿名 token API + Playwright | [[_flows-bdd-test/E7x--pm-alignment-Q1-Q10#4-q3-—-消費者端追蹤入口]] |
-| Q4 | 月結爭議 SLA 7 日是工作日嗎？ | **自然日**（24h × 7） | 簡化計時邏輯 | 反：工作日需 calendar lib + 跨週 fixture | [[_flows-bdd-test/E7x--pm-alignment-Q1-Q10#5-q4-—-月結爭議-sla-7-日是工作日嗎]] |
-| Q5 | F-016「2 小時到場」是 hard SLA？ | **soft**（破線僅警報 / dashboard 變紅 + 升級主管） | 只驗 alert event | 反：hard 需賠償計算 + 自動沖銷（綁 Q7） | [[_flows-bdd-test/E7x--pm-alignment-Q1-Q10#6-q5-—-f-016-2-小時到場是-hard-sla]] |
-| Q6 | 客服可否手動繞過自動派工？ | **可繞過但留稽核** | F-004 測「客服指定 → 立即生效 + audit log」 | 反：測雙簽流程 | [[_flows-bdd-test/E7x--pm-alignment-Q1-Q10#7-q6-—-客服可否手動繞過自動派工]] |
-| Q7 | V1.0 是否含金流？ | **不含**（線下） | F-011 / F-014 用 fake provider，跳過實際扣款 | 反：必須先選 provider + PCI compliance | [[_flows-bdd-test/E7x--pm-alignment-Q1-Q10#8-q7-—-v1-0-是否含金流]] |
-| Q8 | 非 LINE 用戶 fallback？ | **拒收案**（V1.0 只服務 LINE 用戶） | 縮減測試範圍 | 反：需先整合 SMS provider | [[_flows-bdd-test/E7x--pm-alignment-Q1-Q10#9-q8-—-非-line-用戶-fallback]] |
-| Q9 | Scope Change 同意入口？ | **LINE quick reply** | Bot 模擬器測試 | 反：Web 匿名 token + Playwright | [[_flows-bdd-test/E7x--pm-alignment-Q1-Q10#10-q9-—-scope-change-同意入口]] |
-| Q10 | 派工 / 接單失敗 rollback policy？ | **回 pool 自動重派 3 次後升級客服** | 全線負面測試 Then 步驟 | 反：直接回客服人工介入 | [[_flows-bdd-test/E7x--pm-alignment-Q1-Q10#11-q10-—-派工-接單失敗-rollback-policy]] |
+| Q1 | 「派工員」是 V2.0 新角色還是客服子權限？ | **新角色** | 新增 RBAC seed + F-004 多 actor 矩陣 | 反：沿用客服 fixture，僅權限旗標 | [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10#2-q1-—-派工員是-v2-0-新角色還是客服子權限]] |
+| Q2 | Manager vs Director 雙簽終簽人？ | **Director > Manager** | F-013 / F-014 雙簽鎖 actor 順序 | 反：平級需驗無序性 | [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10#3-q2-—-manager-vs-director-雙簽終簽人]] |
+| Q3 | 消費者端追蹤入口？ | **LINE only** | 跳過 Web E2E，改 LINE Bot 模擬器 | 反：需新頁 + 匿名 token API + Playwright | [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10#4-q3-—-消費者端追蹤入口]] |
+| Q4 | 月結爭議 SLA 7 日是工作日嗎？ | **自然日**（24h × 7） | 簡化計時邏輯 | 反：工作日需 calendar lib + 跨週 fixture | [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10#5-q4-—-月結爭議-sla-7-日是工作日嗎]] |
+| Q5 | F-016「2 小時到場」是 hard SLA？ | **soft**（破線僅警報 / dashboard 變紅 + 升級主管） | 只驗 alert event | 反：hard 需賠償計算 + 自動沖銷（綁 Q7） | [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10#6-q5-—-f-016-2-小時到場是-hard-sla]] |
+| Q6 | 客服可否手動繞過自動派工？ | **可繞過但留稽核** | F-004 測「客服指定 → 立即生效 + audit log」 | 反：測雙簽流程 | [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10#7-q6-—-客服可否手動繞過自動派工]] |
+| Q7 | V1.0 是否含金流？ | **不含**（線下） | F-011 / F-014 用 fake provider，跳過實際扣款 | 反：必須先選 provider + PCI compliance | [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10#8-q7-—-v1-0-是否含金流]] |
+| Q8 | 非 LINE 用戶 fallback？ | **拒收案**（V1.0 只服務 LINE 用戶） | 縮減測試範圍 | 反：需先整合 SMS provider | [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10#9-q8-—-非-line-用戶-fallback]] |
+| Q9 | Scope Change 同意入口？ | **LINE quick reply** | Bot 模擬器測試 | 反：Web 匿名 token + Playwright | [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10#10-q9-—-scope-change-同意入口]] |
+| Q10 | 派工 / 接單失敗 rollback policy？ | **回 pool 自動重派 3 次後升級客服** | 全線負面測試 Then 步驟 | 反：直接回客服人工介入 | [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10#11-q10-—-派工-接單失敗-rollback-policy]] |
 
-> ⚠ Q4 / Q5 預設更新（2026-05-07）：對齊文件成案後重新評估技術成本，從 E7x 初版的「工作日 / hard」改為「自然日 / soft」。理由詳見 [[_flows-bdd-test/E7x--pm-alignment-Q1-Q10|對齊文件]] §5 / §6。
+> ⚠ Q4 / Q5 預設更新（2026-05-07）：對齊文件成案後重新評估技術成本，從 E7x 初版的「工作日 / hard」改為「自然日 / soft」。理由詳見 [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10|對齊文件]] §5 / §6。
 
 ---
 
@@ -195,7 +195,7 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 
 1. **Spec-as-source-of-truth, not test-as-source-of-truth** — [[02-design/specs/_MOC|OpenAPI 91 op + AsyncAPI 10 channel]] 是契約。測試驗證契約，不重新定義。對應 Google "Test Certified" L3、Atlassian shift-left。
 2. **Cost-asymmetry rules the pyramid shape** — Vertex AI 每呼叫 ~$0.01、flaky LINE webhook E2E 每次數小時人力。盡量推到 fake / stub，真實呼叫只放 nightly + release gate。
-3. **BDD scenarios are governance, not execution** — [[_flows-bdd-test/E7--bdd-scenarios|E7]] ~100 個 scenario 是利害關係人契約（PM、UAT、法務），prose 永遠留在 markdown，只挑 ~30 條機械化橋接。**拒絕 100% E2E 化**（Spotify 2017 反模式）。
+3. **BDD scenarios are governance, not execution** — [[_flows-bdd-test/v-model-right/E7--bdd-scenarios|E7]] ~100 個 scenario 是利害關係人契約（PM、UAT、法務），prose 永遠留在 markdown，只挑 ~30 條機械化橋接。**拒絕 100% E2E 化**（Spotify 2017 反模式）。
 
 ### 5.2 金字塔配置（按 cost-asymmetry 設計，非教條 33/33/33）
 
@@ -221,7 +221,7 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 | **B. Contract-backed**（形狀 + 條件） | ~30 | Schemathesis hooks，Gherkin 提取 → parametrize | PR + nightly |
 | **C. Documentation-only**（邊界 / 法規 / UAT walkthrough） | ~50 | 標 `[doc-only]` tag，僅 GR6 review | release 前 |
 
-**Gherkin → executable 橋接**：寫一個 ~200 行 markdown extractor，從 [[_flows-bdd-test/E7--bdd-scenarios|E7]] 提取 `[tier-a|tier-b]` 的 scenario，產生 pytest-bdd `features/`。**約 3 dev-day，後續維護近 0**（Spotify「living documentation」模式）。
+**Gherkin → executable 橋接**：寫一個 ~200 行 markdown extractor，從 [[_flows-bdd-test/v-model-right/E7--bdd-scenarios|E7]] 提取 `[tier-a|tier-b]` 的 scenario，產生 pytest-bdd `features/`。**約 3 dev-day，後續維護近 0**（Spotify「living documentation」模式）。
 
 **LINE Bot 不對真 LINE 做 E2E**：建 `LINESimulator` fixture（forge HMAC-SHA256 webhook + capture reply / push via respx + YAML script 驅動多輪對話），約 1 dev-week。每條 LINE scenario 在 < 100 ms 跑完。
 
@@ -337,7 +337,7 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 ### Week 1：對齊 + 文件補完（解 Q1–Q10）
 1. 召開 90 min PM / TL 對齊會，產出**角色矩陣 v1.0**、~~派工權重 + tie-breaker 表~~ ✅、**SLA hard / soft 對照表**、**WO / Dispute / Refund 狀態機 single source**
 2. 凍結 V1.0 範圍（金流、SMS、鼎新明確 OUT）
-3. [[_flows-bdd-test/E7--bdd-scenarios|E7]] scenarios 加 `[tier-a|tier-b|tier-c|doc-only]` tag
+3. [[_flows-bdd-test/v-model-right/E7--bdd-scenarios|E7]] scenarios 加 `[tier-a|tier-b|tier-c|doc-only]` tag
 
 ### Week 2：測試基礎設施
 4. ~~統一 **Modal / Toast library**~~ ✅ A2 完成（Radix UI）
@@ -416,7 +416,7 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 **借鏡模式**：
 - **Spotify Squad**：每 squad 全擁自己 layer；contract / AsyncAPI 等橫切由「平台公會」1–2 senior eng 守
 - **Google Test Certified**：每季自評，V2.0 launch target = L3（持續測試 + 正確金字塔 + 0 manual regression）。L5 暫不追求
-- **Atlassian shift-left**：PM 在 [[_flows-bdd-test/E7--bdd-scenarios|E7]] 寫 Gherkin 才能讓票進 estimation。**硬規則**
+- **Atlassian shift-left**：PM 在 [[_flows-bdd-test/v-model-right/E7--bdd-scenarios|E7]] 寫 Gherkin 才能讓票進 estimation。**硬規則**
 
 ---
 
@@ -477,14 +477,14 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 - `agent/quality/quality_check.py` — 67 題 + LLM-as-Judge
 
 ### BDD 規格來源
-- [[_flows-bdd-test/E7--bdd-scenarios|E7]] — 21 Feature ~100 Scenarios
-- [[_flows-bdd-test/E1x--user-journey-map|E1x User Journey Map]] — 4 角色旅程地圖
-- [[_flows-bdd-test/E5x--workflow-work-order]] — 13 個 WO flow
-- [[_flows-bdd-test/E5x--workflow-dispatch]] — 派工 7 模組
-- [[_flows-bdd-test/E5x--workflow-admin-governance]] — RBAC + 稽核
+- [[_flows-bdd-test/v-model-right/E7--bdd-scenarios|E7]] — 21 Feature ~100 Scenarios
+- [[_flows-bdd-test/v-model-left/E1x--user-journey-map|E1x User Journey Map]] — 4 角色旅程地圖
+- [[_flows-bdd-test/v-model-left/E5x--workflow-work-order]] — 13 個 WO flow
+- [[_flows-bdd-test/v-model-left/E5x--workflow-dispatch]] — 派工 7 模組
+- [[_flows-bdd-test/v-model-left/E5x--workflow-admin-governance]] — RBAC + 稽核
 
 ### 治理 / 對齊文件
-- **[[_flows-bdd-test/E7x--pm-alignment-Q1-Q10|Q1–Q10 PM 對齊文件]]** — §3 表格的完整版（含選項對比、影響範圍、會議議程、PM 決策欄位、追蹤表）
+- **[[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10|Q1–Q10 PM 對齊文件]]** — §3 表格的完整版（含選項對比、影響範圍、會議議程、PM 決策欄位、追蹤表）
 - [[02-design/specs/dispatch-weights]] — F-003 派工權重 SSOT
 
 ### 前端待補關鍵頁
@@ -521,8 +521,8 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 | 2026-05-07 | Claude (assisted) | 初始版本：對齊矩陣、Gap 分類、PM Q1–Q10、金字塔、Sprint 1 路線圖 |
 | 2026-05-07 | Claude (assisted) | **Wave 1+2 補完狀態同步**：5 流程從 🔴/🟡 變 🟢，🟢 從 8 條增為 13 條、🔴 從 5 條降為 3 條（F-014 從 🔴 降為 🟡 規則可測；F-013 從 🟡 升為 🟢 既有 dual-sign 雙簽測試完整）。詳見 §15.1。 |
 | 2026-05-07 | Claude (assisted) | **測試基礎設施 Wave（autonomous-only）**：補齊「不需外力」的測試金字塔骨架：Makefile、pytest markers、tests/fixtures、tests/factories、schemathesis、AsyncAPI validator、Playwright config + login smoke、test-suite.yml workflow。詳見 §15.2。 |
-| 2026-05-07 | Claude (assisted) | **§3 PM Q1–Q10 抽出為獨立對齊文件**：[[_flows-bdd-test/E7x--pm-alignment-Q1-Q10|Q1–Q10 對齊文件]] 提供完整選項對比、會議議程、PM 決策欄位、追蹤表、下游更新清單。§3 表保留為摘要，每行加 `詳細` 連結至對齊文件對應章節。Q4 / Q5 預設更新為「自然日 / soft」（重新評估技術成本）。 |
-| 2026-05-07 | Claude (assisted) | **§1 / §2 雙向對齊**：TL;DR 數字與 §2 對齊矩陣逐行對照修正。修正內容：(a) 🟡 部分可測列表加入 F-014（移除 F-013，因 F-013 §2 已是 🟢）；(b) 🔴 不能測從「4 條 (F-011/F-012/F-014/F-022)」修正為「3 條 (F-011/F-012/F-022)」；(c) 🟡 條數明確標 7 條；(d) 加 cross-link 至 [[_flows-bdd-test/E7--bdd-scenarios|E7 §Ⅲ.b]] BDD 對照表。理由：§2 為 SSOT，§1 為摘要，過去 §1 落後 §2。 |
+| 2026-05-07 | Claude (assisted) | **§3 PM Q1–Q10 抽出為獨立對齊文件**：[[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10|Q1–Q10 對齊文件]] 提供完整選項對比、會議議程、PM 決策欄位、追蹤表、下游更新清單。§3 表保留為摘要，每行加 `詳細` 連結至對齊文件對應章節。Q4 / Q5 預設更新為「自然日 / soft」（重新評估技術成本）。 |
+| 2026-05-07 | Claude (assisted) | **§1 / §2 雙向對齊**：TL;DR 數字與 §2 對齊矩陣逐行對照修正。修正內容：(a) 🟡 部分可測列表加入 F-014（移除 F-013，因 F-013 §2 已是 🟢）；(b) 🔴 不能測從「4 條 (F-011/F-012/F-014/F-022)」修正為「3 條 (F-011/F-012/F-022)」；(c) 🟡 條數明確標 7 條；(d) 加 cross-link 至 [[_flows-bdd-test/v-model-right/E7--bdd-scenarios|E7 §Ⅲ.b]] BDD 對照表。理由：§2 為 SSOT，§1 為摘要，過去 §1 落後 §2。 |
 
 ### 15.1 Wave 1+2 補完明細（2026-05-07）
 

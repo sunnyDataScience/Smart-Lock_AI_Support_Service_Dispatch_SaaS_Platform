@@ -59,7 +59,7 @@ owners: [PM, Tech Lead, QA Lead]
 
 ## E1x--user-journey-map.md
 
-**檔案路徑**：docs/_flows-bdd-test/E1x--user-journey-map.md
+**檔案路徑**：docs/_flows-bdd-test/v-model-left/E1x--user-journey-map.md
 **行數**：567
 **Frontmatter**：無 YAML（僅標題列 metadata：v1.0、2026-03-31、消費者 V1.0 已上線、其餘 V2.0 未實作）
 **內部編號系統**：4 角色（消費者 / 技師 / 管理員 / 客服主管）× stage 1-N + 異常流程 4 類
@@ -108,7 +108,7 @@ owners: [PM, Tech Lead, QA Lead]
 
 ## E5x--workflow-work-order.md
 
-**檔案路徑**：docs/_flows-bdd-test/E5x--workflow-work-order.md
+**檔案路徑**：docs/_flows-bdd-test/v-model-left/E5x--workflow-work-order.md
 **行數**：3,476
 **Frontmatter**：無 YAML（> 區塊聲明 v1.0、2026-03-31、設計完成待開發）
 **內部編號系統**：Flow 1-13（含 Flow 11-13 補充）+ S1-S7 階段 + §16-§24 缺口補充
@@ -161,7 +161,7 @@ owners: [PM, Tech Lead, QA Lead]
 
 ## E5x--workflow-dispatch.md
 
-**檔案路徑**：docs/_flows-bdd-test/E5x--workflow-dispatch.md
+**檔案路徑**：docs/_flows-bdd-test/v-model-left/E5x--workflow-dispatch.md
 **行數**：811
 **Frontmatter**：無 YAML（> 聲明「設計文件 V2.0 派工營運基礎設施規格」、2026-04-22）
 **內部編號系統**：§1-§9（缺失項目清單 + 技術規格）+ HIGH/MEDIUM 優先度
@@ -215,7 +215,7 @@ owners: [PM, Tech Lead, QA Lead]
 
 ## E5x--workflow-admin-governance.md
 
-**檔案路徑**：docs/_flows-bdd-test/E5x--workflow-admin-governance.md
+**檔案路徑**：docs/_flows-bdd-test/v-model-left/E5x--workflow-admin-governance.md
 **行數**：630
 **Frontmatter**：無 YAML（> 聲明 v0.1 draft、2026-04-23、Claude 起草待人工校對）
 **內部編號系統**：Flow G1-G4（4 條治理流程）
@@ -275,7 +275,7 @@ owners: [PM, Tech Lead, QA Lead]
 
 ## E7--bdd-scenarios.md
 
-**檔案路徑**：docs/_flows-bdd-test/E7--bdd-scenarios.md
+**檔案路徑**：docs/_flows-bdd-test/v-model-right/E7--bdd-scenarios.md
 **行數**：1,521
 **Frontmatter**：v1.1 | 2026-04-04 | Active | 開發團隊
 **內部編號系統**：F-101~~F-109 (V1.0, 9 Feature) + F-201~~F-210 (V2.0, 10 Feature) = 19 Feature × 3-6 sc/F = ~~85 scenario；§Ⅲ.b 對照表（PR #33 加）映射 E7x F-001~~F-023
@@ -292,8 +292,8 @@ owners: [PM, Tech Lead, QA Lead]
 
 ### Outbound cross-refs
 
-- `[[_flows-bdd-test/E7x--test-plan-and-readiness]]`（line 16, 126, 131）
-- `[[_flows-bdd-test/E7x--pm-alignment-Q1-Q10]]`（line 131 — 缺口綁 Q3/Q5/Q7）
+- `[[_flows-bdd-test/v-model-right/E7x--test-plan-and-readiness]]`（line 16, 126, 131）
+- `[[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10]]`（line 131 — 缺口綁 Q3/Q5/Q7）
 
 ### 對齊狀態
 
@@ -325,7 +325,7 @@ owners: [PM, Tech Lead, QA Lead]
 
 ## E7x--test-plan-and-readiness.md
 
-**檔案路徑**：docs/_flows-bdd-test/E7x--test-plan-and-readiness.md
+**檔案路徑**：docs/_flows-bdd-test/v-model-right/E7x--test-plan-and-readiness.md
 **行數**：611
 **Frontmatter**：`title: E7x — Test Plan and Readiness Roadmap | phase: DESIGN | gate: TR5 | status: Active | owners: [QA Lead, Tech Lead, PM]`
 **內部編號系統**：F-001~F-023 流程 + Q1-Q10 PM 決策 + Tier A/B/C BDD + §0-§15 章節 + Wave 1/2 5 commit
@@ -382,7 +382,7 @@ owners: [PM, Tech Lead, QA Lead]
 
 ## E7x--pm-alignment-Q1-Q10.md
 
-**檔案路徑**：docs/_flows-bdd-test/E7x--pm-alignment-Q1-Q10.md
+**檔案路徑**：docs/_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10.md
 **行數**：617
 **Frontmatter**：`title: PM Alignment — Q1–Q10 Decision Matrix | phase: DESIGN | gate: TR4 | status: Active (待 PM 拍板) | owners: [PM, Tech Lead, QA Lead]`
 **內部編號系統**：Q1-Q10 + 90 min 議程 + 3 選項 (A/B/C) + §12 追蹤表 + §13 下游更新
@@ -435,7 +435,7 @@ owners: [PM, Tech Lead, QA Lead]
 
 ## E7x--module-specification-and-tests.md
 
-**檔案路徑**：docs/_flows-bdd-test/E7x--module-specification-and-tests.md
+**檔案路徑**：docs/_flows-bdd-test/v-model-left/E7x--module-spec-v1-core.md（前身：E7x--module-specification-and-tests.md，已 split）
 **行數**：1,509
 **Frontmatter**：`version: v2.0 | Last Updated: 2026-04-04 | Status: 草稿(Draft) | Lead Author: 開發工程師 | Reviewers: 技術負責人`
 **內部編號系統**：模組 1-5（AI 層）+ 模組 6-21（V2.0 業務服務層）+ 規格 N-M + TC-{CM,PCE,TLR,...}-NNN + Addendum 實作對照表

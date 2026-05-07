@@ -34,10 +34,10 @@
 ## Reading Order
 
 1. [[E5--api-design-specification]] -- How modules communicate.
-2. [[../_flows-bdd-test/E5x--workflow-work-order]] -- The core business logic (in `_flows-bdd-test/`).
+2. [[../_flows-bdd-test/v-model-left/E5x--workflow-work-order]] -- The core business logic (in `_flows-bdd-test/`).
 3. [[E6--development-workflow-cookbook]] -- How we work.
 4. [[E6x--project-structure-guide]] -- Where code lives.
-5. [[../_flows-bdd-test/E7--bdd-scenarios]] -- What the code must do (acceptance criteria, in `_flows-bdd-test/`).
+5. [[../_flows-bdd-test/v-model-right/E7--bdd-scenarios]] -- What the code must do (acceptance criteria, in `_flows-bdd-test/`).
 6. [[specs/_MOC]] -- Feature-specific technical specs.
 7. [[agent-harness/_MOC]] -- AI agent framework deep dive.
 8. [[../_flows-bdd-test/_MOC]] -- All flow / BDD / test plan documents (cross-phase folder).

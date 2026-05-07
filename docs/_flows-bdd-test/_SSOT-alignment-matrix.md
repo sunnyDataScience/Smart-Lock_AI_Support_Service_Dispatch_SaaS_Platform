@@ -1,18 +1,28 @@
 ---
-title: _flows-bdd-test/ Master Alignment Matrix
+title: ⭐ _flows-bdd-test/ Master Alignment Matrix (SSOT — 流程北極星)
 phase: CROSS-PHASE
-status: Active
+status: SSOT (Single Source of Truth — 23 user flows F-001~F-023)
 last_updated: 2026-05-07
 owners: [PM, Tech Lead, QA Lead]
 related:
   - "[[_MOC]]"
+  - "[[north-star-requirements]]"
   - "[[_review-notes]]"
-  - "[[E7x--test-plan-and-readiness]]"
-  - "[[E7--bdd-scenarios]]"
-  - "[[E7x--pm-alignment-Q1-Q10]]"
+  - "[[v-model-right/E7x--test-plan-and-readiness]]"
+  - "[[v-model-right/E7--bdd-scenarios]]"
+  - "[[decision-log/E7x--pm-alignment-Q1-Q10]]"
 ---
 
-# _flows-bdd-test/ — Master Alignment Matrix
+# ⭐ _flows-bdd-test/ — Master Alignment Matrix (SSOT)
+
+> **本檔為 `_flows-bdd-test/` 的流程北極星**（Single Source of Truth）。任何關於 23 條 user flow（F-001~F-023）的問題，都從這裡開始查。
+>
+> **配對北極星**：[[north-star-requirements]]（需求北極星，REQ-NNN catalog）。流程 SSOT（本檔）對應 V-Model 的「user flow 層」；需求 SSOT 對應 V-Model 左上頂點「Requirements 層」。
+>
+> **使用方式**：
+> 1. 找你關心的 F-XXX → §1 主對齊矩陣查橫排所有對應
+> 2. 對齊狀態為 ⚠ / ❌ 的 row → 看「修正動作」column
+> 3. 有 PM 阻塞 column 標 Q-N → 推 PM 拍板（[[decision-log/E7x--pm-alignment-Q1-Q10|決策矩陣]]）
 
 > **目的**：以 **E7x F-001~F-023（23 條 user flow，現有 SSOT）為主鍵**，建立**單一對照表**，讓 PM / TL / QA 從任何一個 F-XXX 編號可一眼看出：
 > - E1x 對應角色 + stage
@@ -66,7 +76,7 @@ related:
 
 ## 2. 反向缺口（BDD Feature 有但 E7x 沒列獨立流程）
 
-對應 [[E7--bdd-scenarios#ⅲb-feature--e7x-流程編號對照f-101f-201--f-001f-023|E7 §Ⅲ.b]] 反向缺口：
+對應 [[v-model-right/E7--bdd-scenarios#ⅲb-feature--e7x-流程編號對照f-101f-201--f-001f-023|E7 §Ⅲ.b]] 反向缺口：
 
 | BDD Feature | 隱含於 / 屬性 | 修正動作 |
 |------------|-------------|---------|
@@ -143,7 +153,7 @@ related:
 
 - [ ] 從任一 F-XXX 可在 1 分鐘內找到所有對應檔案位置
 - [ ] 每個 ⚠ / ❌ row 都有具體「修正動作」（無 placeholder）
-- [ ] PM 阻塞 column 與 [[E7x--pm-alignment-Q1-Q10]] §12 追蹤表雙向一致
+- [ ] PM 阻塞 column 與 [[decision-log/E7x--pm-alignment-Q1-Q10]] §12 追蹤表雙向一致
 - [ ] 反向缺口（§2）每行都有歸宿（隱含 / cross-cutting / 補 F-024+）
 - [ ] §5 P0 動作完成率 100% 視為 Phase 4 完成
 

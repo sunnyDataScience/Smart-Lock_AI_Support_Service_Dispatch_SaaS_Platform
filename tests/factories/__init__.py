@@ -1,6 +1,6 @@
 """factory_boy 工廠 — 替代 hardcoded fixture，讓 schema migration 自動跟著走。
 
-對應 docs/_flows-bdd-test/E7x--test-plan-and-readiness.md §6.2 "Factories over fixtures"。
+對應 docs/_flows-bdd-test/v-model-right/E7x--test-plan-and-readiness.md §6.2 "Factories over fixtures"。
 
 設計原則：
 - 工廠輸出 dict（不直寫 DB）；測試自行決定要 INSERT 還是當作 in-memory 資料

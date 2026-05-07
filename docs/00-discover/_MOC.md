@@ -25,6 +25,6 @@
 ## Reading Order
 
 1. [[E1--project-brief-and-prd]] -- Start here. Understand the "why."
-2. [[../_flows-bdd-test/E1x--user-journey-map]] -- See how each user type interacts (in `_flows-bdd-test/`).
+2. [[../_flows-bdd-test/v-model-left/E1x--user-journey-map]] -- See how each user type interacts (in `_flows-bdd-test/`).
 3. [[E1x--moat-system-architecture]] -- Why this platform is defensible.
 4. [[E1x--executive-architecture-overview]] -- Quick visual summary.
