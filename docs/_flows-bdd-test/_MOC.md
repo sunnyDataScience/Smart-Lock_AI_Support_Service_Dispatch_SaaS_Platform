@@ -96,9 +96,10 @@ owners: [PM, Tech Lead, QA Lead]
 
 ### decision-log/ — 決策紀錄
 
-| File | Description |
-|------|-------------|
-| [[decision-log/E7x--pm-alignment-Q1-Q10]] | PM Q1-Q10 決策矩陣（90 min 會議議程）|
+| File | Description | Status |
+|------|-------------|--------|
+| [[decision-log/E7x--pm-alignment-Q1-Q10]] | PM Q1-Q10 決策矩陣（90 min 會議議程）| ✅ 全 10/10 拍板（2026-05-07）|
+| [[decision-log/Q7-followup--payment-provider-decision]] | **🔴 緊急** Q7=B 後續：金流 provider 選型 + V1.0a/V1.0b 拆分 + PCI SAQ-A + 撥款 | 🔴 PENDING — 待 PM/TL/CEO/Finance 會議 |
 
 ### Governance（治理 / Review）
 

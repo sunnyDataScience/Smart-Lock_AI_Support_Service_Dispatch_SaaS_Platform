@@ -658,7 +658,7 @@ PM 採 4 題反向選項，需特別追蹤後續影響：
 | ---------- | ------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------ |
 | **Q3 = C** | LINE only → 兩者並存                | +5 dev-day（Web 追蹤頁 + getWorkOrderPublicStatus + token）    | 開新 PR 補 API spec + Playwright 公開 spec；F-022 從 ❌ orphan → ⚠ partial |
 | **Q4 = C** | 自然日 → 工作日+國定假日                  | +1 dev-day（calendar lib）+ 每年 12 月維護假日 JSON                | 引入 `holidays` 套件；fixture 設計跨週/連假 case                              |
-| **Q7 = B** | 不含 → 含金流                        | **+30 dev-day**，PCI compliance 審查（60 dev-day），上線延 ~1.5 個月 | **緊急：排 provider 選型會議**（Stripe / 綠界 / 藍新 / Linepay？）+ 訂閱費走哪個金流？     |
+| **Q7 = B** | 不含 → 含金流                        | **+30 dev-day**，PCI compliance 審查（60 dev-day），上線延 ~1.5 個月 | **🔴 詳細決策矩陣已建**：[[Q7-followup--payment-provider-decision]]（4 候選 provider 對比 + V1.0a/V1.0b 拆分方案 + PCI SAQ-A 推薦 + 30 天行動清單 + 預算估算 NT$270k setup + NT$180k/年）。**待 90 min PM/TL/CEO/Finance 會議拍板 4 個 sub-decision (D1-D4)** |
 | **Q9 = B** | LINE quick reply → Web 匿名 token | 與 Q3=C 共用機制，marginal cost 0                               | 與 Q3 同 PR 處理                                                       |
 
 
