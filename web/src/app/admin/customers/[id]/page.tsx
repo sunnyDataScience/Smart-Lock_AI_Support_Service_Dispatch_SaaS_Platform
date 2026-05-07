@@ -9,6 +9,7 @@ import {
   CircleAlert,
   DollarSign,
   MessageSquare,
+  Pencil,
   Phone,
   Star,
   Wallet,
@@ -123,16 +124,27 @@ export default function CustomerDetailPage({
       <Sidebar />
 
       <div className="flex flex-1 flex-col">
-        <div className="flex items-center gap-2 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-4">
-          <Link
-            href="/admin/customers"
-            className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-          <span className="text-[13px] text-[var(--text-secondary)]">
-            首頁 &gt; 客戶主檔 &gt; 詳情
-          </span>
+        <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-4">
+          <div className="flex items-center gap-2">
+            <Link
+              href="/admin/customers"
+              className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+            <span className="text-[13px] text-[var(--text-secondary)]">
+              首頁 &gt; 客戶主檔 &gt; 詳情
+            </span>
+          </div>
+          {data && (
+            <Link
+              href={`/admin/customers/${id}/edit`}
+              className="flex items-center gap-1 rounded-md border border-[var(--border)] bg-white px-3 py-[7px] text-[13px] text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              編輯客戶
+            </Link>
+          )}
         </div>
 
         {error && (
