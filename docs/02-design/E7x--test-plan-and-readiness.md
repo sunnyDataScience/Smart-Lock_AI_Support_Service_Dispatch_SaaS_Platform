@@ -19,6 +19,7 @@ related:
   - "[[03-develop/GR7--integration]]"
   - "[[04-deliver/GR10--ga-readiness]]"
 last_reviewed: 2026-05-07
+last_updated: 2026-05-07 (Wave 1+2 補完：5 流程從 🔴/🟡 變 🟢)
 ---
 
 # E7x — Test Plan and Readiness Roadmap
@@ -48,11 +49,20 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 
 ## 1. TL;DR — 現在能測什麼、不能測什麼、為什麼
 
-**🟢 立即可測**：核心工單生命週期 8 條 Happy Path（LINE 報修 → ProblemCard → 開單 → 派工 → 接單到場 → 完工簽名 → 對帳雙簽 → 保固 / SOP），前後端 + realtime 全鏈路已具備，OpenAPI / AsyncAPI contract 已對齊。
+> **2026-05-07 更新**：Wave 1+2 補完後，🟢 從 8 條增為 **13 條**；🔴 從 5 條降為 **4 條**。F-003 / F-018 / F-020 / F-021 / F-023 全綠（見 §15 Change Log）。
 
-**🟡 部分可測**：派工演算法、客服接管、Scope Change、改約延遲、SLA 紅色警報、RBAC 動態調整、稽核匯出 — 缺前端 UI、部分 API、規格未凍結。
+**🟢 立即可測（13 條）**：核心工單生命週期 8 條 Happy Path（LINE 報修 → ProblemCard → 開單 → 派工 → 接單到場 → 完工簽名 → 對帳雙簽 → 保固 / SOP），加上：
+- F-003 自動派工演算法（權重表 SSOT 已建）
+- F-018 客服接管對話（HandoverComposer + sendChatMessage）
+- F-020 稽核日誌匯出（exportAuditEvents + CSV stream）
+- F-021 Dashboard / 報表日期區間（DateRangePicker 接 4 頁）
+- F-023 錯誤頁與離線（404/500/global-error/NetworkErrorBanner）
 
-**🔴 不能測**：消費者付款、技師撥款、保固理賠金流回沖、消費者端工單追蹤、SMS / Email / FCM fallback — 第三方未整合或入口未定。
+前後端 + realtime 全鏈路已具備，OpenAPI / AsyncAPI contract 已對齊。
+
+**🟡 部分可測**：F-004 手動派工、F-007 材料申請、F-008 Scope Change、F-010 改約延遲、F-013 對帳爭議雙簽、F-016 SLA 紅色警報、F-019 RBAC 動態調整 — 待 PM Q1–Q10 拍板（見 §3）。
+
+**🔴 不能測（4 條）**：F-011 消費者付款、F-012 技師撥款、F-014 退款金流回沖、F-022 消費者端工單追蹤 — 第三方未整合或入口未定。
 
 **根本原因**：V1.0 / V2.0 範圍切分未凍結 + 角色階層未拍板 + Hard / Soft SLA 未定義。**這三件事不是工程問題、是產品決策**，必須先用一場 90 分鐘對齊會議解決 [[#3-必須先向-pm-釐清的-10-個問題附合理預設|Q1–Q10]]，否則 BDD 會卡在「Given 不知該寫什麼角色」。
 
@@ -66,7 +76,7 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 |---|------|------|---------|----------------|----------|------|------|-------|
 | F-001 | LINE 報修 → ProblemCard | 消費者 | (LINE Bot 後端) | `createConversation`, `analyzeMedia`, `createProblemCard` | — | LINE / Vertex / GCS | 🟢 | — |
 | F-002 | 客服審 PC → 開 WO | 客服 | `web/src/app/problem-cards/page.tsx`, `[id]/page.tsx` | `listProblemCards`, `getProblemCard`, `convertToWorkOrder` | `work-orders` | — | 🟢 | — |
-| F-003 | 自動派工規則引擎 | 系統 | `web/src/app/admin/dispatch-queue/page.tsx` | `runDispatch`, `listDispatchQueue` | `dispatch-queue`, `pool` | — | 🟡 | 5 因子權重 + tie-breaker 未文件化 |
+| F-003 | 自動派工規則引擎 | 系統 | `web/src/app/admin/dispatch-queue/page.tsx` | `runDispatch`, `listDispatchQueue` | `dispatch-queue`, `pool` | — | 🟢 | ✅ 權重 SSOT 已建：[[02-design/specs/dispatch-weights]] |
 | F-004 | 手動派工 | 客服 / 派工員 | `web/src/app/admin/dispatch-manual/page.tsx` | `manualAssign`, `reassignWorkOrder` | `dispatch-queue` | — | 🟡 | 「派工員」角色定義 (Q1)；reassign 雙簽 (Q6) |
 | F-005 | 技師接單 → 出發 | 技師 | `web/src/app/pool/page.tsx`, `my-orders/page.tsx` | `claimOrder`, `updateWorkOrderStatus` | `pool`, `work-orders` | — | 🟢 | — |
 | F-006 | 到場拍照 | 技師 | `web/src/app/my-orders/[id]/door-check/page.tsx` | `checkIn`, `uploadMedia` | `work-orders` | GCS / Vision | 🟢 | — |
@@ -81,12 +91,12 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 | F-015 | 保固申訴 | 消費者 → 客服 | `web/src/app/admin/warranty-claims/page.tsx` | `submitWarrantyDecision` | — | LINE | 🟢 | warranty-dispute spec 已有 |
 | F-016 | SLA 紅色警報（2hr 到場） | 系統 + 主管 | `admin/sentiment-alerts/page.tsx`, dashboard | (隱含於監控) | `sla-alerts` | LINE | 🟡 | hard vs soft (Q5) |
 | F-017 | SOP 草稿審核 | AI → 客服 → 主管 | `web/src/app/knowledge-base/sop-drafts/page.tsx` | `listSopDrafts`, `reviewSopDraft`, `adoptSopDraft` | — | Vertex AI | 🟢 | — |
-| F-018 | 客服接管對話 | 客服 | `web/src/app/conversations/[id]/page.tsx` | `escalateConversation`（缺 `sendChatMessage`） | `user-notifications` | LINE | 🟡 | 接管後 chat UI 最小化 |
+| F-018 | 客服接管對話 | 客服 | `web/src/app/conversations/[id]/page.tsx`, `components/conversations/HandoverComposer.tsx` | `escalateConversation`, `sendChatMessage` ✅ | `user-notifications` | LINE | 🟢 | ✅ HandoverComposer + sendChatMessage 已實作（LINE Push integration TODO） |
 | F-019 | RBAC 動態調整 | 管理員 | `web/src/app/admin/roles/page.tsx` | `listRoles`（缺 `updateRolePermissions`） | `rbac` | — | 🟡 | Manager / Director 階層 (Q2) |
-| F-020 | 稽核日誌 | 管理員 | `web/src/app/admin/audit-events/page.tsx` | `listAuditLogs` | — | — | 🟡 | CSV / PDF 匯出 UI 缺 |
-| F-021 | Dashboard / 報表 | 管理員 | `web/src/app/dashboard/page.tsx`, `admin/reports/*` | `getDashboardStats`, `getKpiReport`, `getRevenueSummary` | — | — | 🟡 | 日期範圍選擇器缺 |
+| F-020 | 稽核日誌 | 管理員 | `web/src/app/admin/audit-events/page.tsx`, `components/admin/AuditExportModal.tsx` | `listAuditLogs`, `exportAuditEvents` ✅ | — | — | 🟢 | ✅ CSV stream + Modal 已建（>100k 筆 background job 預留 202 contract） |
+| F-021 | Dashboard / 報表 | 管理員 | `web/src/app/dashboard/page.tsx`, `admin/reports/*`, `components/ui/DateRangePicker.tsx` | `getDashboardStats`, `getKpiReport`, `getRevenueSummary` | — | — | 🟢 | ✅ DateRangePicker 已建並接 4 頁（revenue / technician-ranking 後端 filter TODO） |
 | F-022 | 消費者端工單追蹤 | 消費者 | (Web 缺) | (缺 `getWorkOrderPublicStatus`) | `work-orders` | LINE / Maps | 🔴 | 入口 LINE vs Web (Q3) |
-| F-023 | 錯誤頁 / 離線 | 任何 | (缺 404 / 500 / Network Error) | — | — | — | 🔴 | 頁面缺；Service Worker 規格缺 |
+| F-023 | 錯誤頁 / 離線 | 任何 | `web/src/app/{not-found,error,global-error}.tsx`, `components/ui/NetworkErrorBanner.tsx` | — | — | — | 🟢 | ✅ 4 個錯誤邊界已建（Service Worker 完整離線策略仍待 §4.1 P1） |
 
 ---
 
@@ -113,40 +123,41 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 
 ### 4.1 文件缺口
 
-| 缺口 | 影響流程 | P | 工時 | 負責 |
-|------|---------|---|------|------|
-| 派工規則 5 因子權重表 + tie-breaker | F-003 / F-004 | **P0** | 2d | PM + TL |
-| 角色矩陣 v1.0（含派工員、Manager / Director） | F-004 / F-016 / F-019 | **P0** | 2d | PM |
-| Hard SLA vs Soft Target 對照表 | F-016 | **P0** | 1d | PM |
-| 月結 SLA 計時單位（工作日 / 自然日） | F-013 | **P0** | 0.5d | PM + 法務 |
-| 消費者端追蹤入口（LINE / Web / 兩者） | F-022 | **P0** | 1d | PM |
-| SMS / Email / FCM fallback 通知策略 | F-010 / F-011 / F-016 | P1 | 1.5d | PM |
-| 庫存 F-210 完整規格 | F-007 | P1 | 3d | PM + BE |
-| 離線 / Service Worker 策略 | F-023 + 技師端 | P1 | 2d | FE Lead |
+| 缺口 | 影響流程 | P | 工時 | 負責 | 狀態 |
+|------|---------|---|------|------|------|
+| ~~派工規則 5 因子權重表 + tie-breaker~~ | F-003 / F-004 | **P0** | 2d | PM + TL | ✅ 已建 [[02-design/specs/dispatch-weights]] |
+| 角色矩陣 v1.0（含派工員、Manager / Director） | F-004 / F-016 / F-019 | **P0** | 2d | PM | 待 PM Q1/Q2 |
+| Hard SLA vs Soft Target 對照表 | F-016 | **P0** | 1d | PM | 待 PM Q5 |
+| 月結 SLA 計時單位（工作日 / 自然日） | F-013 | **P0** | 0.5d | PM + 法務 | 待 PM Q4 |
+| 消費者端追蹤入口（LINE / Web / 兩者） | F-022 | **P0** | 1d | PM | 待 PM Q3 |
+| SMS / Email / FCM fallback 通知策略 | F-010 / F-011 / F-016 | P1 | 1.5d | PM | 待 PM Q8 |
+| 庫存 F-210 完整規格 | F-007 | P1 | 3d | PM + BE | pending |
+| 離線 / Service Worker 完整策略 | F-023 + 技師端 | P1 | 2d | FE Lead | 部分（NetworkErrorBanner 已建，PWA 仍 pending） |
 
 ### 4.2 前端 UI 缺口
 
-| 缺口 | P | 工時 |
-|------|---|------|
-| 404 / 500 / Network Error page | **P0** | 1d |
-| 客服接管後的 chat UI（不只是 escalate 按鈕） | **P0** | 3d |
-| Modal / Drawer / Toast 統一 library（建議 Radix / shadcn） | **P0** | 3d |
-| 客戶 admin「新增 / 編輯」表單 | P1 | 1.5d |
-| Dashboard 日期範圍選擇器 | P1 | 1d |
-| CSV / PDF 匯出 UI（accounting / audit / reports） | P1 | 2d |
-| 消費者端工單追蹤頁（若 Q3 = Web） | P0 或不做 | 5d |
-| i18n / 深色模式 | — | 不做 |
+| 缺口 | P | 工時 | 狀態 |
+|------|---|------|------|
+| ~~404 / 500 / Network Error page~~ | **P0** | 1d | ✅ A1 Wave 1 完成（commit `da61b1f`） |
+| ~~客服接管後的 chat UI~~ | **P0** | 3d | ✅ A4 Wave 2 完成（HandoverComposer.tsx） |
+| ~~Modal / Drawer / Toast 統一 library~~ | **P0** | 3d | ✅ A2 Wave 1 完成（Radix UI） |
+| ~~Dashboard 日期範圍選擇器~~ | P1 | 1d | ✅ A3 Wave 2 完成（DateRangePicker） |
+| ~~稽核 CSV 匯出 Modal~~（accounting / reports 仍待） | P1 | 2d | 部分（A5 完成 audit；accounting / reports 匯出仍 pending） |
+| 客戶 admin「新增 / 編輯」表單 | P1 | 1.5d | pending |
+| 消費者端工單追蹤頁（若 Q3 = Web） | P0 或不做 | 5d | 待 PM Q3 |
+| i18n / 深色模式 | — | 不做 | — |
 
 ### 4.3 後端 API 缺口
 
-| 缺口 | P | 工時 |
-|------|---|------|
-| `sendChatMessage`（人類接管後發訊） | **P0** | 1.5d |
-| `getWorkOrderPublicStatus`（消費者匿名追蹤，若 Q3 = Web） | P0 | 1.5d |
-| `updateCustomer` / `createCustomer` | P1 | 1d |
-| `updateMyAvailability`（技師在線狀態切換） | P1 | 1d |
-| `exportReport` / `exportAuditEvents`（CSV / PDF） | P1 | 2d |
-| 通知 channel 抽象層（為 SMS / FCM 預留） | P1 | 2d |
+| 缺口 | P | 工時 | 狀態 |
+|------|---|------|------|
+| ~~`sendChatMessage`~~ | **P0** | 1.5d | ✅ A4 完成（LINE Push integration TODO） |
+| ~~`exportAuditEvents`~~ | P1 | 2d | ✅ A5 完成（>100k 背景 job 留 202 contract） |
+| `getWorkOrderPublicStatus`（消費者匿名追蹤，若 Q3 = Web） | P0 | 1.5d | 待 PM Q3 |
+| `updateCustomer` / `createCustomer` | P1 | 1d | pending |
+| `updateMyAvailability`（技師在線狀態切換） | P1 | 1d | pending |
+| `exportReport`（KPI / 營收 CSV / PDF） | P1 | 2d | pending |
+| 通知 channel 抽象層（為 SMS / FCM 預留） | P1 | 2d | pending |
 
 ### 4.4 外部系統整合缺口（V2.0 阻塞）
 
@@ -321,18 +332,23 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 假設團隊：2 BE + 1 FE + 1 QA + 0.5 SRE。
 
 ### Week 1：對齊 + 文件補完（解 Q1–Q10）
-1. 召開 90 min PM / TL 對齊會，產出**角色矩陣 v1.0**、**派工權重 + tie-breaker 表**、**SLA hard / soft 對照表**、**WO / Dispute / Refund 狀態機 single source**
+1. 召開 90 min PM / TL 對齊會，產出**角色矩陣 v1.0**、~~派工權重 + tie-breaker 表~~ ✅、**SLA hard / soft 對照表**、**WO / Dispute / Refund 狀態機 single source**
 2. 凍結 V1.0 範圍（金流、SMS、鼎新明確 OUT）
 3. [[02-design/E7--bdd-scenarios|E7]] scenarios 加 `[tier-a|tier-b|tier-c|doc-only]` tag
 
 ### Week 2：測試基礎設施
-4. 統一 **Modal / Toast library**（unblock UI 測試穩定度，建議 Radix UI / shadcn）
-5. 補 **404 / 500 / Network Error page**（負面測試前置）
+4. ~~統一 **Modal / Toast library**~~ ✅ A2 完成（Radix UI）
+5. ~~補 **404 / 500 / Network Error page**~~ ✅ A1 完成
 6. **`LINESimulator` fixture** + 8 reference test 對 V1.0 對話流程（3 dev-days）
 7. **金流 / SMS / Email fake provider**（contract first，等真 integration）
 8. **種子資料**：3 客戶 / 5 技師 / 20 工單跨狀態 / 5 庫存
 9. **Prism mock server** 擴 18 → 50 endpoints
 10. **Playwright 基礎 fixture**（登入 / 切角色 / 種資料）
+
+> **附加完成（Wave 2 - 原列為後續 Sprint）**：
+> - ✅ Dashboard / 報表日期區間 UI（DateRangePicker，原 §4.2 P1）
+> - ✅ 客服接管 chat UI + sendChatMessage API（HandoverComposer，原 §4.2/4.3 P0）
+> - ✅ 稽核 CSV 匯出 + exportAuditEvents API（AuditExportModal，原 §4.2/4.3 P1）
 
 ### Week 3：Happy Path E2E 8 條跑通
 11. F-001 LINE 報修 → PC（mock LINE）
@@ -496,3 +512,37 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-05-07 | Claude (assisted) | 初始版本：對齊矩陣、Gap 分類、PM Q1–Q10、金字塔、Sprint 1 路線圖 |
+| 2026-05-07 | Claude (assisted) | **Wave 1+2 補完狀態同步**：5 流程從 🔴/🟡 變 🟢，🟢 從 8 條增為 13 條、🔴 從 5 條降為 4 條。詳見 §15.1。 |
+
+### 15.1 Wave 1+2 補完明細（2026-05-07）
+
+依 [[#10-30-天-sprint-1-交付物清單]] Week 1/2 + 部分 Week 3/4 提前完成，採 git worktree 兩波平行開發：
+
+**Wave 1（dev → 3 worktree → merge）**
+
+| Task | Branch | Commit | Files |
+|------|--------|--------|-------|
+| A6 派工權重 SSOT | `docs/dispatch-weights` | `d427503` | `docs/02-design/specs/dispatch-weights.md` + E5x cross-link |
+| A1 錯誤頁 | `feat/error-pages` | `da61b1f` | `not-found.tsx` / `error.tsx` / `global-error.tsx` / `_error-parts/BackButton.tsx` / `NetworkErrorBanner.tsx` |
+| A2 UI library | `feat/ui-foundation` | `63f8305` | `Modal.tsx` / `Drawer.tsx` / `Toast.tsx` + ToastProvider 接入 layout + globals.css 動效 keyframes，依賴 `@radix-ui/react-dialog`、`@radix-ui/react-toast` |
+
+**Wave 2（dev → 3 worktree → merge，A2 已可用）**
+
+| Task | Branch | Commit | Files |
+|------|--------|--------|-------|
+| A3 日期選擇器 | `feat/dashboard-daterange` | `3776c6a` | `DateRangePicker.tsx` + `lib/dateRange.ts`，接到 dashboard / kpi / revenue / technician-ranking 4 頁，依賴 `@radix-ui/react-popover` |
+| A4 接管 chat | `feat/handover-chat` | `770a628` | `sendChatMessage` operationId + `HandoverComposer.tsx` + `conversation_service.send_message`（`assistant` role + metadata.sender_role=agent_human 零破壞）|
+| A5 稽核匯出 | `feat/audit-export` | `2bdcf96` | `exportAuditEvents` operationId + `AuditExportModal.tsx` + StreamingResponse CSV + `api.downloadPost` |
+
+**驗證**：
+- OpenAPI 從 91 → 93 operationIds，無重複
+- `tsc --noEmit` 0 error
+- Python AST parse 全 OK
+- spectral lint 0 new error
+
+**殘留 TODO**（標記在程式碼中）：
+- A4：LINE Push API integration、audit log write（在 `conversation_service.send_message`）
+- A5：>100k 筆 background job + email notification + signed URL（202 contract 已預留）
+- A5：權限檢查暫硬編 `role in {admin, ops}`，待 F-019 RBAC 動態化後改 `audit.read.all`
+- A4：`SendChatMessageRequest` 暫放 `internal.py`，下次 codegen 一併歸位
+- 整體：`web/types/api.generated.ts` 待統一 regenerate
