@@ -39,15 +39,17 @@
 > **權威角色清單：** 全系統角色定義與權限矩陣見 `specs/rbac-dynamic-spec.md §2`。
 > 本節僅列出治理流程涉及的 7 個角色。
 
-| 角色 | 說明 | 關鍵權限 |
-|:---|:---|:---|
-| `super_admin` | 平台最高權限，跨租戶 | 所有 `*.admin` 權限 |
-| `tenant_admin` | 租戶管理員 | 同租戶內所有治理權限 |
-| `operations_manager` | 營運主管 | 工單指派/覆核、爭議二級審核 |
-| `accountant` | 會計 | 退款/發票/對帳；**爭議金額裁決雙簽簽核人** |
-| `support_agent` | 客服人員 | 對話、問題卡、客訴處理 |
-| `dispatch_officer` | 派工員 | 工單派遣、人工介入、候選排序 |
-| `auditor` | 稽核員（可外部審計） | **只讀**所有稽核事件 |
+| 角色 | 說明 | 關鍵權限 | 對應 work-order 角色 |
+|:---|:---|:---|:---|
+| `super_admin` | 平台最高權限，跨租戶 | 所有 `*.admin` 權限 | Admin（超集合） |
+| `tenant_admin` | 租戶管理員 | 同租戶內所有治理權限 | Admin |
+| `operations_manager` | 營運主管 | 工單指派/覆核、爭議二級審核 | Admin（特化） |
+| `accountant` | 會計 | 退款/發票/對帳；**爭議金額裁決雙簽簽核人** | Finance |
+| `support_agent` | 客服人員 | 對話、問題卡、客訴處理 | Admin（客服面向）|
+| `dispatch_officer` | 派工員 | 工單派遣、人工介入、候選排序 | （新角色，待 PM Q1 拍板）|
+| `auditor` | 稽核員（可外部審計） | **只讀**所有稽核事件 | （新角色，無對應） |
+
+> **角色映射說明**：[[E5x--workflow-work-order]] §2.1 用 6 角色（Customer / AI_System / Dispatch_Engine / Technician / Admin / Finance）；admin-governance 細化 Admin 為 4 子角色（tenant_admin / operations_manager / support_agent / dispatch_officer）+ 額外 super_admin / auditor。`dispatch_officer` 是否獨立列入請見 [[E7x--pm-alignment-Q1-Q10#2-q1-—-派工員是-v2-0-新角色還是客服子權限|PM Q1]]。
 
 ### 1.2 權限碼格式（對齊 `rbac-dynamic-spec.md`）
 

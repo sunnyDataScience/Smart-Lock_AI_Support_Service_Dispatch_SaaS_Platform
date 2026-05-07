@@ -800,6 +800,8 @@ Feature: Sentiment Triage
   Scenario: Ambiguous frustration expression
     Given the consumer sends a message "已經試了很多次了，真的很煩"
     When the system performs sentiment analysis on the message
+    # NOTE: edge case 模糊表達閾值放寬至 0.85（vs 主流程 0.90），主動釋出協助
+    # 不阻塞流程；不觸發 admin alert（合約 9.3 識別率 >= 90% 是 main path 指標）
     Then the sentiment_label should be "negative" with confidence >= 0.85
     And the system should proactively offer additional help:
       """

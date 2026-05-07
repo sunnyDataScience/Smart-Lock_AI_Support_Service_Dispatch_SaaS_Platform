@@ -38,18 +38,27 @@ owners: [PM, Tech Lead, QA Lead]
 | [[E7x--pm-alignment-Q1-Q10]] | PM alignment Q1-Q10 — open questions resolved before lock-in | ex `02-design/` |
 | [[E7x--module-specification-and-tests]] | Detailed module specs with test cases for core V1.0 components | ex `02-design/` |
 
+### Governance & Review
+
+| File | Description |
+|------|-------------|
+| [[_review-notes]] | 9 檔逐一 review：結構摘要 / 編號系統 / cross-refs / 對齊狀態 / 開放問題 / 修正建議 |
+| [[_alignment-matrix]] | 主對齊矩陣（23 user flows × 8 dimensions）— **PM/TL/QA 從任一 F-XXX 找對應的入口** |
+
 ---
 
 ## Reading Order
 
-1. [[E1x--user-journey-map]] -- Who the users are and what they feel
-2. [[E5x--workflow-work-order]] -- How a work order moves through the system
-3. [[E5x--workflow-dispatch]] -- How dispatch decisions get made
-4. [[E5x--workflow-admin-governance]] -- How admin governs the platform
-5. [[E7--bdd-scenarios]] -- What the code must do (acceptance criteria)
-6. [[E7x--test-plan-and-readiness]] -- How we will verify it
-7. [[E7x--pm-alignment-Q1-Q10]] -- PM open questions reference
-8. [[E7x--module-specification-and-tests]] -- Per-module test case detail
+1. [[_alignment-matrix]] -- 從這裡開始：23 條 user flow 一覽 + 對齊狀態
+2. [[E1x--user-journey-map]] -- Who the users are and what they feel
+3. [[E5x--workflow-work-order]] -- How a work order moves through the system
+4. [[E5x--workflow-dispatch]] -- How dispatch decisions get made
+5. [[E5x--workflow-admin-governance]] -- How admin governs the platform
+6. [[E7--bdd-scenarios]] -- What the code must do (acceptance criteria)
+7. [[E7x--test-plan-and-readiness]] -- How we will verify it
+8. [[E7x--pm-alignment-Q1-Q10]] -- PM open questions reference
+9. [[E7x--module-specification-and-tests]] -- Per-module test case detail
+10. [[_review-notes]] -- 細部 review 觀察與待修建議
 
 ---
 
