@@ -179,7 +179,39 @@ cd agent && uv run uvicorn app:app --reload --port 8000   # 前景跑 agent
 
 # 檢查 OpenAPI / AsyncAPI operationId 與文件之間的一致性
 ./scripts/ci/check-operationid-orphans.sh
+
+# OpenAPI 合約 fuzz（schemathesis；需先 uv sync --group test）
+./scripts/ci/contract-schemathesis.sh                  # 預設 :8001（需 api 跑）
+./scripts/ci/contract-schemathesis.sh --check-only     # 只驗 spec YAML 結構
+API_BASE=http://localhost:8000 ./scripts/ci/contract-schemathesis.sh
+
+# AsyncAPI envelope 結構驗證（需先 cd scripts/ci && npm install）
+node scripts/ci/asyncapi-validate.mjs                  # 列 10 channels
+node scripts/ci/asyncapi-validate.mjs --quiet          # 只報錯
 ```
+
+---
+
+## 測試（Makefile）
+
+對應 [`docs/02-design/E7x--test-plan-and-readiness.md`](../docs/02-design/E7x--test-plan-and-readiness.md)
+§5.2 測試金字塔分層。從專案根目錄執行：
+
+```bash
+make help              # 列出所有 target
+make test-unit         # 純函式單元測試（< 30s，無 DB / 網路）
+make test-component    # API component（需 dev DB；./scripts/dev/dev-up.sh --db-only）
+make test-contract     # OpenAPI fuzz（schemathesis；需 api on :8001）
+make test-e2e-smoke    # API smoke + Playwright login（需 api + web）
+make test-agent-mini   # AI agent eval 5 題（需 agent on :8000；真打 LLM）
+make test-all          # = unit + component + contract（最常用）
+
+make coverage          # 產生 coverage HTML / XML（diff-cover 用）
+make mock-up / mock-down  # Prism mock @ :4010 背景啟停
+make clean             # 清理 __pycache__ / .pytest_cache / coverage data
+```
+
+詳見 [`tests/README.md`](../tests/README.md)（金字塔規範 + Mock 光譜 + marker 選擇）。
 
 ---
 
