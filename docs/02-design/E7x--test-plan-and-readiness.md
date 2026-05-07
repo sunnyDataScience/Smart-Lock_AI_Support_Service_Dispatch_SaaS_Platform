@@ -104,18 +104,22 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 
 > 建議用 **1 場 90 分鐘對齊會議** 一次解決。下列「預設」是本文件為規劃假設的答案，PM 拍板後可即時調整測試矩陣。
 
-| # | 問題 | 合理預設 | 預設下的 BDD 影響 | 反向選項影響 |
-|---|------|----------|-------------------|-------------|
-| Q1 | 「派工員」是 V2.0 新角色還是客服子權限？ | **新角色** | 新增 RBAC seed + F-004 多 actor 矩陣 | 反：沿用客服 fixture，僅權限旗標 |
-| Q2 | Manager vs Director 雙簽終簽人？ | **Director > Manager** | F-013 / F-014 雙簽鎖 actor 順序 | 反：平級需驗無序性 |
-| Q3 | 消費者端追蹤入口？ | **LINE only** | 跳過 Web E2E，改 LINE Bot 模擬器 | 反：需新頁 + 匿名 token API + Playwright |
-| Q4 | 月結爭議 SLA 7 日是工作日嗎？ | **工作日** | 含週末跳過邏輯，fixture 跨週 | 反：自然日簡化計時 |
-| Q5 | F-016「2 小時到場」是 hard SLA？ | **hard**（破線即升級+賠償） | 測賠償計算 + 自動沖銷 | 反：soft 只驗 alert event |
-| Q6 | 客服可否手動繞過自動派工？ | **可繞過但留稽核** | F-004 測「客服指定 → 立即生效 + audit log」 | 反：測雙簽流程 |
-| Q7 | V1.0 是否含金流？ | **不含** | F-011 / F-014 用 fake provider，跳過實際扣款 | 反：必須先選 provider |
-| Q8 | 非 LINE 用戶 fallback？ | **拒收案**（V1.0 只服務 LINE 用戶） | 縮減測試範圍 | 反：需先整合 SMS |
-| Q9 | Scope Change 同意入口？ | **LINE quick reply** | Bot 模擬器測試 | 反：Web 匿名 token + Playwright |
-| Q10 | 派工 / 接單失敗 rollback policy？ | **回 pool 自動重派 3 次後升級客服** | 全線負面測試 Then 步驟 | 反：直接回客服人工介入 |
+> 📋 **完整版**：選項對比、影響範圍清單、會議議程、**PM 決策欄位**、追蹤總表 與 拍板後續更新清單請見 **[[02-design/E7x--pm-alignment-Q1-Q10|Q1–Q10 對齊文件]]**（本表為摘要）。
+
+| # | 問題 | 合理預設 | 預設下的 BDD 影響 | 反向選項影響 | 詳細 |
+|---|------|----------|-------------------|-------------|------|
+| Q1 | 「派工員」是 V2.0 新角色還是客服子權限？ | **新角色** | 新增 RBAC seed + F-004 多 actor 矩陣 | 反：沿用客服 fixture，僅權限旗標 | [[02-design/E7x--pm-alignment-Q1-Q10#2-q1-—-派工員是-v2-0-新角色還是客服子權限]] |
+| Q2 | Manager vs Director 雙簽終簽人？ | **Director > Manager** | F-013 / F-014 雙簽鎖 actor 順序 | 反：平級需驗無序性 | [[02-design/E7x--pm-alignment-Q1-Q10#3-q2-—-manager-vs-director-雙簽終簽人]] |
+| Q3 | 消費者端追蹤入口？ | **LINE only** | 跳過 Web E2E，改 LINE Bot 模擬器 | 反：需新頁 + 匿名 token API + Playwright | [[02-design/E7x--pm-alignment-Q1-Q10#4-q3-—-消費者端追蹤入口]] |
+| Q4 | 月結爭議 SLA 7 日是工作日嗎？ | **自然日**（24h × 7） | 簡化計時邏輯 | 反：工作日需 calendar lib + 跨週 fixture | [[02-design/E7x--pm-alignment-Q1-Q10#5-q4-—-月結爭議-sla-7-日是工作日嗎]] |
+| Q5 | F-016「2 小時到場」是 hard SLA？ | **soft**（破線僅警報 / dashboard 變紅 + 升級主管） | 只驗 alert event | 反：hard 需賠償計算 + 自動沖銷（綁 Q7） | [[02-design/E7x--pm-alignment-Q1-Q10#6-q5-—-f-016-2-小時到場是-hard-sla]] |
+| Q6 | 客服可否手動繞過自動派工？ | **可繞過但留稽核** | F-004 測「客服指定 → 立即生效 + audit log」 | 反：測雙簽流程 | [[02-design/E7x--pm-alignment-Q1-Q10#7-q6-—-客服可否手動繞過自動派工]] |
+| Q7 | V1.0 是否含金流？ | **不含**（線下） | F-011 / F-014 用 fake provider，跳過實際扣款 | 反：必須先選 provider + PCI compliance | [[02-design/E7x--pm-alignment-Q1-Q10#8-q7-—-v1-0-是否含金流]] |
+| Q8 | 非 LINE 用戶 fallback？ | **拒收案**（V1.0 只服務 LINE 用戶） | 縮減測試範圍 | 反：需先整合 SMS provider | [[02-design/E7x--pm-alignment-Q1-Q10#9-q8-—-非-line-用戶-fallback]] |
+| Q9 | Scope Change 同意入口？ | **LINE quick reply** | Bot 模擬器測試 | 反：Web 匿名 token + Playwright | [[02-design/E7x--pm-alignment-Q1-Q10#10-q9-—-scope-change-同意入口]] |
+| Q10 | 派工 / 接單失敗 rollback policy？ | **回 pool 自動重派 3 次後升級客服** | 全線負面測試 Then 步驟 | 反：直接回客服人工介入 | [[02-design/E7x--pm-alignment-Q1-Q10#11-q10-—-派工-接單失敗-rollback-policy]] |
+
+> ⚠ Q4 / Q5 預設更新（2026-05-07）：對齊文件成案後重新評估技術成本，從 E7x 初版的「工作日 / hard」改為「自然日 / soft」。理由詳見 [[02-design/E7x--pm-alignment-Q1-Q10|對齊文件]] §5 / §6。
 
 ---
 
@@ -480,6 +484,10 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 - [[02-design/E5x--dispatch-operations]] — 派工 7 模組
 - [[02-design/E5x--flows-admin-governance]] — RBAC + 稽核
 
+### 治理 / 對齊文件
+- **[[02-design/E7x--pm-alignment-Q1-Q10|Q1–Q10 PM 對齊文件]]** — §3 表格的完整版（含選項對比、影響範圍、會議議程、PM 決策欄位、追蹤表）
+- [[02-design/specs/dispatch-weights]] — F-003 派工權重 SSOT
+
 ### 前端待補關鍵頁
 - `web/src/app/conversations/[id]/page.tsx` — 接管後 chat UI 缺
 - `web/src/app/admin/dispatch-manual/page.tsx` — 與 Q1 / Q6 綁定
@@ -514,6 +522,7 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 | 2026-05-07 | Claude (assisted) | 初始版本：對齊矩陣、Gap 分類、PM Q1–Q10、金字塔、Sprint 1 路線圖 |
 | 2026-05-07 | Claude (assisted) | **Wave 1+2 補完狀態同步**：5 流程從 🔴/🟡 變 🟢，🟢 從 8 條增為 13 條、🔴 從 5 條降為 4 條。詳見 §15.1。 |
 | 2026-05-07 | Claude (assisted) | **測試基礎設施 Wave（autonomous-only）**：補齊「不需外力」的測試金字塔骨架：Makefile、pytest markers、tests/fixtures、tests/factories、schemathesis、AsyncAPI validator、Playwright config + login smoke、test-suite.yml workflow。詳見 §15.2。 |
+| 2026-05-07 | Claude (assisted) | **§3 PM Q1–Q10 抽出為獨立對齊文件**：[[02-design/E7x--pm-alignment-Q1-Q10|Q1–Q10 對齊文件]] 提供完整選項對比、會議議程、PM 決策欄位、追蹤表、下游更新清單。§3 表保留為摘要，每行加 `詳細` 連結至對齊文件對應章節。Q4 / Q5 預設更新為「自然日 / soft」（重新評估技術成本）。 |
 
 ### 15.1 Wave 1+2 補完明細（2026-05-07）
 
