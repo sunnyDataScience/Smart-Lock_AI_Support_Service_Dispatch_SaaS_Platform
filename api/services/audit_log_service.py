@@ -331,5 +331,5 @@ async def log_event(
                 ip_address,
             ],
         )
-    except Exception as exc:  # pragma: no cover — best effort
+    except Exception as exc:  # noqa: BLE001 — pragma: no cover; best-effort logging, must not fail caller
         logger.warning("audit log_event failed: %s", exc)
