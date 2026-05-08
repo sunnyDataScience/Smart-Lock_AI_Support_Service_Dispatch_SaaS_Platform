@@ -18,6 +18,7 @@ import {
 } from "@/lib/dateRange";
 import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
+import { ReportExportModal } from "@/components/admin/reports/ReportExportModal";
 
 type KpiReport = components["schemas"]["KpiReport"];
 type Period = components["schemas"]["DashboardPeriod"];
@@ -78,6 +79,7 @@ export default function KpiDashboardPage() {
   const [report, setReport] = useState<KpiReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   // segment 點擊時把對應的 range 寫回（picker 自動偵測高亮）
   // 90d 不在 PRESETS 內，這裡手動建 range；mapRangeToDashboardPeriod 會折回 "90d"
@@ -203,9 +205,9 @@ export default function KpiDashboardPage() {
             <div className="flex-1" />
 
             <button
-              disabled
-              title="即將推出"
-              className="flex cursor-not-allowed items-center gap-[6px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-[14px] py-[7px] opacity-50"
+              onClick={() => setExportOpen(true)}
+              title="匯出 CSV"
+              className="flex items-center gap-[6px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-[14px] py-[7px] hover:bg-[var(--bg-page)]"
             >
               <Download className="h-4 w-4 text-[var(--text-secondary)]" />
               <span className="text-[13px] text-[var(--text-primary)]">匯出報告</span>
@@ -377,6 +379,13 @@ export default function KpiDashboardPage() {
           </div>
         </div>
       </div>
+
+      <ReportExportModal
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        reportType="kpi"
+        filters={{ period }}
+      />
     </div>
   );
 }

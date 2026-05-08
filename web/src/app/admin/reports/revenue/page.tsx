@@ -21,6 +21,7 @@ import DateRangePicker from "@/components/ui/DateRangePicker";
 import { getPresetRange, type DateRange } from "@/lib/dateRange";
 import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
+import { ReportExportModal } from "@/components/admin/reports/ReportExportModal";
 
 type RevenueSummary = components["schemas"]["RevenueSummary"];
 type RevenueTrendPoint = components["schemas"]["RevenueTrendPoint"];
@@ -91,6 +92,7 @@ export default function RevenueReportPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const fetchSummary = async () => {
     setLoading(true);
@@ -215,9 +217,9 @@ export default function RevenueReportPage() {
             <div className="flex-1" />
 
             <button
-              disabled
-              title="即將推出"
-              className="flex cursor-not-allowed items-center gap-[6px] rounded-lg bg-[#CBD5E1] px-[14px] py-[7px] opacity-70"
+              onClick={() => setExportOpen(true)}
+              title="匯出 CSV"
+              className="flex items-center gap-[6px] rounded-lg bg-[var(--primary)] px-[14px] py-[7px] hover:opacity-90"
             >
               <Download className="h-[14px] w-[14px] text-white" />
               <span className="text-[13px] font-semibold text-white">匯出</span>
@@ -431,6 +433,24 @@ export default function RevenueReportPage() {
           </div>
         </div>
       </div>
+
+      <ReportExportModal
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        reportType="revenue"
+        filters={{
+          granularity: "month",
+          from: range.from ? toDateOnly(range.from) : undefined,
+          to: range.to ? toDateOnly(range.to) : undefined,
+        }}
+      />
     </div>
   );
+}
+
+function toDateOnly(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
