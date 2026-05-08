@@ -2,6 +2,7 @@
 
 import { Search } from "lucide-react";
 import NotificationBell from "./NotificationBell";
+import ThemeToggle from "@/components/theme/ThemeToggle";
 
 interface HeaderProps {
   title: string;
@@ -18,7 +19,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
       <div className="flex min-w-0 items-center gap-2 md:gap-4">
         {/* mobile 留空間給 floating Hamburger，避免標題被遮住 */}
         <div className="md:hidden h-10 w-10 shrink-0" aria-hidden="true" />
-        <h1 className="truncate text-[20px] font-semibold tracking-tight text-[#18181B] md:text-[24px]">
+        <h1 className="truncate text-[20px] font-semibold tracking-tight text-[var(--text-primary)] md:text-[24px]">
           {title}
         </h1>
         {subtitle && (
@@ -45,10 +46,11 @@ export default function Header({ title, subtitle }: HeaderProps) {
             type="search"
             placeholder="搜尋工單、技師、客戶..."
             aria-label="全域搜尋"
-            className="h-10 flex-1 bg-transparent text-[14px] text-[#18181B] outline-none placeholder:text-[var(--text-disabled)]"
+            className="h-10 flex-1 bg-transparent text-[14px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-disabled)]"
           />
         </label>
 
+        <ThemeToggle />
         <NotificationBell />
       </div>
     </header>
