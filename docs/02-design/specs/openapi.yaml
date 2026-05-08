@@ -854,6 +854,167 @@ paths:
           description: RESCHEDULE_LIMIT_EXCEEDED（24h 內已 3 次）
 
   # -----------------------------
+  # F-010 Reschedule / Delay quick-actions（含 LINE Push 真實串接）
+  # -----------------------------
+  /api/v1/work-orders/{id}/reschedule-request:
+    post:
+      tags: [dispatch]
+      summary: 技師 / 管理員直接改約（單方變更，附 LINE 通知）
+      description: |
+        與 `proposeReschedule` 不同：本端點直接更新 `scheduled_at`，不走 LINE Flex
+        RSVP 流程；技師僅能改自己被指派的工單（403 否則），admin / operations_manager
+        無此限制。完成後會嘗試 LINE push 通知客戶（Q8=A V1.0 only LINE，
+        非 LINE 客戶 → notification_sent=false）。
+      operationId: requestReschedule
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [new_scheduled_at, reason]
+              properties:
+                new_scheduled_at:
+                  type: string
+                  format: date-time
+                  description: 必須是未來時間
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+      responses:
+        '200':
+          description: 改約成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  work_order:
+                    $ref: '#/components/schemas/WorkOrder'
+                  rescheduled: { type: boolean }
+                  new_scheduled_at: { type: string, format: date-time }
+                  notification_sent: { type: boolean }
+                  channel:
+                    type: string
+                    enum: [line, none]
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: STATE_CONFLICT — 工單已結案或不在可改約狀態
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/work-orders/{id}/reschedule/approve:
+    post:
+      tags: [dispatch]
+      summary: 管理員核准 / 退回改約申請
+      description: |
+        對 `requestReschedule` 提交的改約做最終決策。`reject` 會嘗試將
+        `scheduled_at` 還原到最近一次申請前的時間。RBAC：admin /
+        operations_manager / tenant_admin。
+      operationId: approveReschedule
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision:
+                  type: string
+                  enum: [approve, reject]
+                comment:
+                  type: string
+                  maxLength: 500
+      responses:
+        '200':
+          description: 決策完成
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  work_order:
+                    $ref: '#/components/schemas/WorkOrder'
+                  decision:
+                    type: string
+                    enum: [approve, reject]
+                  reverted:
+                    type: boolean
+                    description: reject 時是否成功還原 scheduled_at
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: STATE_CONFLICT
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/work-orders/{id}/notify-delay:
+    post:
+      tags: [dispatch]
+      summary: 技師現場延遲，主動 LINE 通知客戶
+      description: |
+        與 `recordDelay`（純事件記錄）不同，本端點會：
+        1. 寫入 work_order_events（type=delay）
+        2. 主動 LINE push 通知客戶（Q8=A V1.0 only LINE）
+        技師只能對自己被指派的工單呼叫；非 LINE 客戶 →
+        notification_sent=false 但事件仍會記錄。
+      operationId: notifyDelay
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [delay_minutes, reason]
+              properties:
+                delay_minutes:
+                  type: integer
+                  minimum: 5
+                  maximum: 300
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+      responses:
+        '200':
+          description: 通知已發送（LINE）或記錄完成（非 LINE 客戶）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  work_order:
+                    $ref: '#/components/schemas/WorkOrder'
+                  notification_sent: { type: boolean }
+                  channel:
+                    type: string
+                    enum: [line, none]
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: STATE_CONFLICT — 工單不在 assigned/accepted/in_progress 狀態
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  # -----------------------------
   # 通知中心（Week 2 from G1）
   # -----------------------------
   /api/v1/notifications:

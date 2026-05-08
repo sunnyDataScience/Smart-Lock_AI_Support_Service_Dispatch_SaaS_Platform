@@ -491,6 +491,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/work-orders/{id}/reschedule-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 技師 / 管理員直接改約（單方變更，附 LINE 通知）
+         * @description 與 `proposeReschedule` 不同：本端點直接更新 `scheduled_at`，不走 LINE Flex
+         *     RSVP 流程；技師僅能改自己被指派的工單（403 否則），admin / operations_manager
+         *     無此限制。完成後會嘗試 LINE push 通知客戶（Q8=A V1.0 only LINE，
+         *     非 LINE 客戶 → notification_sent=false）。
+         */
+        post: operations["requestReschedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/work-orders/{id}/reschedule/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 管理員核准 / 退回改約申請
+         * @description 對 `requestReschedule` 提交的改約做最終決策。`reject` 會嘗試將
+         *     `scheduled_at` 還原到最近一次申請前的時間。RBAC：admin /
+         *     operations_manager / tenant_admin。
+         */
+        post: operations["approveReschedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/work-orders/{id}/notify-delay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 技師現場延遲，主動 LINE 通知客戶
+         * @description 與 `recordDelay`（純事件記錄）不同，本端點會：
+         *     1. 寫入 work_order_events（type=delay）
+         *     2. 主動 LINE push 通知客戶（Q8=A V1.0 only LINE）
+         *     技師只能對自己被指派的工單呼叫；非 LINE 客戶 →
+         *     notification_sent=false 但事件仍會記錄。
+         */
+        post: operations["notifyDelay"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications": {
         parameters: {
             query?: never;
@@ -4143,6 +4212,156 @@ export interface operations {
                 };
                 content?: never;
             };
+        };
+    };
+    requestReschedule: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: date-time
+                     * @description 必須是未來時間
+                     */
+                    new_scheduled_at: string;
+                    reason: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 改約成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        work_order?: components["schemas"]["WorkOrder"];
+                        rescheduled?: boolean;
+                        /** Format: date-time */
+                        new_scheduled_at?: string;
+                        notification_sent?: boolean;
+                        /** @enum {string} */
+                        channel?: "line" | "none";
+                    };
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description STATE_CONFLICT — 工單已結案或不在可改約狀態 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    approveReschedule: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    decision: "approve" | "reject";
+                    comment?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 決策完成 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        work_order?: components["schemas"]["WorkOrder"];
+                        /** @enum {string} */
+                        decision?: "approve" | "reject";
+                        /** @description reject 時是否成功還原 scheduled_at */
+                        reverted?: boolean;
+                    };
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description STATE_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    notifyDelay: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    delay_minutes: number;
+                    reason: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 通知已發送（LINE）或記錄完成（非 LINE 客戶） */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        work_order?: components["schemas"]["WorkOrder"];
+                        notification_sent?: boolean;
+                        /** @enum {string} */
+                        channel?: "line" | "none";
+                    };
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description STATE_CONFLICT — 工單不在 assigned/accepted/in_progress 狀態 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            422: components["responses"]["ValidationError"];
         };
     };
     listNotifications: {
