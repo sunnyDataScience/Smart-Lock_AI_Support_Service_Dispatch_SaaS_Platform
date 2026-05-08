@@ -1317,6 +1317,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/roles/{role_name}/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * 動態調整角色權限（F-019；僅 admin / tenant_admin / super_admin；強制 Director > Manager 階層）
+         * @description 更新指定角色的權限矩陣，並透過 `/realtime/rbac` channel 即時推送
+         *     `rbac.permission.changed` 事件給所有相關 session。
+         *
+         *     Director > Manager 階層：actor 不能授權超出自己階層的權限。
+         *     例如 operations_manager 無法授權 operations_director 才能用的 resource，
+         *     違反時回 403 `RBAC_HIERARCHY_VIOLATION`。
+         *
+         *     所有變更會寫入 audit_events（event_type=admin_action,
+         *     action=role.permissions_updated），含 reason / before / after。
+         */
+        patch: operations["updateRolePermissions"];
+        trace?: never;
+    };
     "/api/v1/inventory/items": {
         parameters: {
             query?: never;
@@ -2303,6 +2331,29 @@ export interface components {
         };
         RolesEnvelope: components["schemas"]["ApiResponseGeneric"] & {
             data?: components["schemas"]["Role"][];
+        };
+        RolePermissionsUpdateRequest: {
+            /**
+             * @description 扁平化權限碼清單（格式 `resource.action`，例如 `work_orders.write`）。
+             *     傳入此清單代表「desired state」— 後端以差異 diff 寫入 role_permissions 表。
+             */
+            permissions: string[];
+            /** @description 修改原因（會記入 audit_events.payload.reason） */
+            reason: string;
+        };
+        RolePermissionsUpdateResponse: components["schemas"]["ApiResponseGeneric"] & {
+            data?: {
+                /** @description 被修改的角色 ID */
+                role_name: string;
+                /** @description 更新後的扁平化權限碼清單 */
+                permissions: string[];
+                /** Format: date-time */
+                updated_at: string;
+                /** @description 是否成功推送 WS 通知（false 表示無人訂閱或 publish 失敗，仍視為成功） */
+                ws_published: boolean;
+                /** @description 本租戶內持有此角色的使用者數（提示前端可預期被斷線重 auth 的人數） */
+                affected_user_count?: number;
+            };
         };
         /**
          * @description 庫存狀態（衍生自 quantity_on_hand 與 reorder_point 比較）
@@ -5849,6 +5900,44 @@ export interface operations {
                     "application/json": components["schemas"]["RolesEnvelope"];
                 };
             };
+        };
+    };
+    updateRolePermissions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 角色 ID（admin / reviewer / technician / brand_oem / line_user / dispatcher / customer_service 等） */
+                role_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RolePermissionsUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description 已更新並廣播 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RolePermissionsUpdateResponse"];
+                };
+            };
+            /** @description 階層越權或角色不足 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
         };
     };
     listInventoryItems: {

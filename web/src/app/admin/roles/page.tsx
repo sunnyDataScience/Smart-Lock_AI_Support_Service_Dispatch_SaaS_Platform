@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Check, Lock, RefreshCw } from "lucide-react";
+import { Plus, Check, Lock, RefreshCw, Edit3 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, getCurrentSession } from "@/lib/api";
 import type { components } from "@/types/api.generated";
+import { RolePermissionsEditor } from "@/components/admin/RolePermissionsEditor";
+import { useRealtimeChannel } from "@/lib/useRealtimeChannel";
 
 type Role = components["schemas"]["Role"];
 type RolePermission = components["schemas"]["RolePermission"];
@@ -29,6 +31,27 @@ const RESOURCE_LABELS: Record<RoleResource, string> = {
   roles: "角色權限",
   system_settings: "系統設定",
 };
+
+// 階層（與後端 ROLE_HIERARCHY 對齊；前端僅用於 disable 編輯按鈕的 UX
+// hint，最終授權仍在後端強制）。
+const ROLE_HIERARCHY: Record<string, number> = {
+  super_admin: 5,
+  tenant_admin: 4,
+  admin: 4,
+  operations_director: 3,
+  operations_manager: 2,
+  reviewer: 2,
+  customer_service: 1,
+  support_agent: 1,
+  dispatcher: 1,
+  dispatch_officer: 1,
+  technician: 1,
+  brand_oem: 0,
+  auditor: 0,
+  line_user: 0,
+};
+
+const RBAC_ADMIN_ROLES = new Set(["admin", "tenant_admin", "super_admin"]);
 
 function PermCell({
   granted,
@@ -72,6 +95,9 @@ export default function RolesPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Role | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [actorRole, setActorRole] = useState<string | null>(null);
 
   async function fetchRoles() {
     setLoading(true);
@@ -98,8 +124,19 @@ export default function RolesPage() {
 
   useEffect(() => {
     fetchRoles();
+    const session = getCurrentSession();
+    setActorRole(session?.role ?? null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 訂閱 /realtime/rbac — 任何權限變更 → 重抓 roles 即時刷新矩陣
+  // （RbacChangedBanner 會獨立處理「需要重新整理」的全域提示）
+  useRealtimeChannel<{ role_id?: string; changed_codes?: string[] }>({
+    channelPath: "/realtime/rbac",
+    onMessage: () => {
+      void fetchRoles();
+    },
+  });
 
   const activeRole = useMemo(
     () =>
@@ -107,6 +144,14 @@ export default function RolesPage() {
       (roles.length > 0 ? roles[0] : null),
     [roles, selectedId],
   );
+
+  const canEdit = useMemo(() => {
+    if (!actorRole || !RBAC_ADMIN_ROLES.has(actorRole)) return false;
+    if (!activeRole) return false;
+    const actorTier = ROLE_HIERARCHY[actorRole] ?? 0;
+    const targetTier = ROLE_HIERARCHY[activeRole.id] ?? 0;
+    return actorTier > targetTier;
+  }, [actorRole, activeRole]);
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -151,9 +196,15 @@ export default function RolesPage() {
             </div>
           )}
 
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] leading-relaxed text-amber-800">
-            目前僅展示 5 個系統角色與其權限矩陣（鏡射後端 role_required 守衛邏輯）；
-            自訂角色 CRUD 與權限矩陣編輯需要 roles / role_permissions 表，待 RBAC 模組接入後再上線。
+          {toast && (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+              {toast}
+            </div>
+          )}
+
+          <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-[13px] leading-relaxed text-blue-800">
+            F-019：admin / tenant_admin 可動態調整角色權限；變更會透過
+            `/realtime/rbac` 即時推送給所有相關 session。階層強制：actor 必須嚴格高於目標角色。
           </div>
 
           {/* Role Cards */}
@@ -210,26 +261,26 @@ export default function RolesPage() {
                     {activeRole.name} 權限矩陣
                   </span>
                   <span className="text-[12px] text-[var(--text-secondary)]">
-                    （read-only；鎖定圖示代表系統強制）
+                    （鎖定圖示代表系統強制；F-019 啟用後可由 admin 動態調整）
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    disabled
-                    title="即將推出"
-                    className="cursor-not-allowed rounded-lg px-[14px] py-2 opacity-50"
+                    onClick={() => setEditing(activeRole)}
+                    disabled={!canEdit}
+                    data-testid="edit-permissions-btn"
+                    title={
+                      canEdit
+                        ? "編輯權限"
+                        : actorRole && !RBAC_ADMIN_ROLES.has(actorRole)
+                          ? "您的角色階層不足以授權此權限"
+                          : "您的角色階層不足以授權此角色"
+                    }
+                    className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-[14px] py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <span className="text-[13px] font-medium text-[var(--text-secondary)]">
-                      重置為預設
-                    </span>
-                  </button>
-                  <button
-                    disabled
-                    title="即將推出（需 role_permissions 表）"
-                    className="cursor-not-allowed rounded-lg bg-[var(--primary)] px-[14px] py-2 opacity-50"
-                  >
-                    <span className="text-[13px] font-medium text-white">
-                      儲存權限設定
+                    <Edit3 className="h-4 w-4" />
+                    <span className="text-[13px] font-medium">
+                      編輯權限
                     </span>
                   </button>
                 </div>
@@ -285,6 +336,19 @@ export default function RolesPage() {
           )}
         </div>
       </div>
+
+      {editing && (
+        <RolePermissionsEditor
+          role={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            setToast(`已更新「${editing.name}」的權限矩陣`);
+            void fetchRoles();
+            setTimeout(() => setToast(null), 4000);
+          }}
+        />
+      )}
     </div>
   );
 }

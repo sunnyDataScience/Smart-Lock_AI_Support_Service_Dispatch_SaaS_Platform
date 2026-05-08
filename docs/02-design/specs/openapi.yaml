@@ -2265,6 +2265,52 @@ paths:
               schema:
                 $ref: '#/components/schemas/RolesEnvelope'
 
+  /api/v1/roles/{role_name}/permissions:
+    patch:
+      tags: [user_management]
+      summary: 動態調整角色權限（F-019；僅 admin / tenant_admin / super_admin；強制 Director > Manager 階層）
+      description: |
+        更新指定角色的權限矩陣，並透過 `/realtime/rbac` channel 即時推送
+        `rbac.permission.changed` 事件給所有相關 session。
+
+        Director > Manager 階層：actor 不能授權超出自己階層的權限。
+        例如 operations_manager 無法授權 operations_director 才能用的 resource，
+        違反時回 403 `RBAC_HIERARCHY_VIOLATION`。
+
+        所有變更會寫入 audit_events（event_type=admin_action,
+        action=role.permissions_updated），含 reason / before / after。
+      operationId: updateRolePermissions
+      parameters:
+        - in: path
+          name: role_name
+          required: true
+          schema:
+            type: string
+          description: 角色 ID（admin / reviewer / technician / brand_oem / line_user / dispatcher / customer_service 等）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RolePermissionsUpdateRequest'
+      responses:
+        '200':
+          description: 已更新並廣播
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RolePermissionsUpdateResponse'
+        '403':
+          description: 階層越權或角色不足
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
   /api/v1/inventory/items:
     get:
       tags: [inventory]
@@ -4016,6 +4062,55 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/Role'
+
+    RolePermissionsUpdateRequest:
+      type: object
+      required: [permissions, reason]
+      properties:
+        permissions:
+          type: array
+          description: |
+            扁平化權限碼清單（格式 `resource.action`，例如 `work_orders.write`）。
+            傳入此清單代表「desired state」— 後端以差異 diff 寫入 role_permissions 表。
+          items:
+            type: string
+            pattern: '^[a-z_]+\.(read|write|delete)$'
+          minItems: 0
+          maxItems: 200
+        reason:
+          type: string
+          minLength: 4
+          maxLength: 500
+          description: 修改原因（會記入 audit_events.payload.reason）
+      additionalProperties: false
+
+    RolePermissionsUpdateResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseGeneric'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [role_name, permissions, updated_at, ws_published]
+              properties:
+                role_name:
+                  type: string
+                  description: 被修改的角色 ID
+                permissions:
+                  type: array
+                  items:
+                    type: string
+                  description: 更新後的扁平化權限碼清單
+                updated_at:
+                  type: string
+                  format: date-time
+                ws_published:
+                  type: boolean
+                  description: 是否成功推送 WS 通知（false 表示無人訂閱或 publish 失敗，仍視為成功）
+                affected_user_count:
+                  type: integer
+                  minimum: 0
+                  description: 本租戶內持有此角色的使用者數（提示前端可預期被斷線重 auth 的人數）
 
     # --------- Inventory ---------
     InventoryStockStatus:
