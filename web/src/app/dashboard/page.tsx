@@ -21,6 +21,7 @@ import WorkOrderTrendChart from "@/components/dashboard/WorkOrderTrendChart";
 import TechnicianStatusChart from "@/components/dashboard/TechnicianStatusChart";
 import RecentWorkOrders from "@/components/dashboard/RecentWorkOrders";
 import HotTopicsCard from "@/components/dashboard/HotTopicsCard";
+import SlaAlertBanner from "@/components/dashboard/SlaAlertBanner";
 import LiveRegion from "@/components/ui/LiveRegion";
 import DateRangePicker from "@/components/ui/DateRangePicker";
 import {
@@ -184,6 +185,9 @@ export default function DashboardPage() {
               載入儀表板失敗：{error}
             </div>
           )}
+
+          {/* F-016 SLA 紅色警報（Q5=B Soft SLA：dashboard 變紅 + 升 Ops Manager） */}
+          <SlaAlertBanner />
 
           <div className="flex items-center justify-between">
             <span className="text-[13px] text-[var(--text-secondary)]">

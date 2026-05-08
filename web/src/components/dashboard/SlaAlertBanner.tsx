@@ -13,13 +13,21 @@ import {
 import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
 import { useRealtimeChannel } from "@/lib/useRealtimeChannel";
 
-type AlertType = "quote_expiring" | "dispatch_delay" | "response_overdue";
+type AlertType =
+  | "quote_expiring"
+  | "dispatch_delay"
+  | "response_overdue"
+  | "arrival_overdue";
+
+type Severity = "red" | "amber" | "yellow";
 
 interface SlaAlert {
   id: string;
   alert_type: AlertType;
   target_id: string;
   threshold_minutes?: number;
+  severity?: Severity;
+  escalated_to?: string;
   received_at: string;
 }
 
@@ -65,6 +73,17 @@ const TYPE_META: Record<
     color: "#9A3412",
     href: (id) => `/work-orders/${id}`,
   },
+  arrival_overdue: {
+    // F-016 SLA 紅色警報 — Q5=B Soft SLA：dashboard 變紅 + 升 Ops Manager
+    // 嚴禁串接賠償 / 自動退款
+    label: "技師到場逾時（紅色警報）",
+    description: "技師逾 2 小時未到場，已升級至 Ops Manager",
+    Icon: AlertTriangle,
+    bg: "#FEE2E2",
+    border: "#DC2626",
+    color: "#7F1D1D",
+    href: (id) => `/admin/work-orders/${id}`,
+  },
 };
 
 const MAX_ALERTS = 5;
@@ -77,6 +96,8 @@ export default function SlaAlertBanner() {
     alert_type?: AlertType;
     target_id?: string;
     threshold_minutes?: number;
+    severity?: Severity;
+    escalated_to?: string;
   }>({
     channelPath: "/realtime/sla-alerts",
     onMessage: (msg) => {
@@ -84,6 +105,8 @@ export default function SlaAlertBanner() {
         alert_type?: AlertType;
         target_id?: string;
         threshold_minutes?: number;
+        severity?: Severity;
+        escalated_to?: string;
       };
       if (!data.alert_type || !data.target_id) return;
       setAlerts((prev) => {
@@ -93,12 +116,18 @@ export default function SlaAlertBanner() {
           alert_type: data.alert_type as AlertType,
           target_id: data.target_id as string,
           threshold_minutes: data.threshold_minutes,
+          severity: data.severity,
+          escalated_to: data.escalated_to,
           received_at: new Date().toISOString(),
         };
         return [next, ...prev].slice(0, MAX_ALERTS);
       });
     },
   });
+
+  const hasRed = alerts.some(
+    (a) => a.severity === "red" || a.alert_type === "arrival_overdue",
+  );
 
   function dismiss(id: string) {
     setAlerts((prev) => prev.filter((a) => a.id !== id));
@@ -111,7 +140,10 @@ export default function SlaAlertBanner() {
   if (alerts.length === 0) {
     // 仍顯示一個小型 indicator，讓使用者知道訂閱狀態
     return (
-      <div className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-white px-4 py-2 text-[12px] text-[var(--text-secondary)]">
+      <div
+        data-testid="sla-alert-banner-empty"
+        className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-white px-4 py-2 text-[12px] text-[var(--text-secondary)]"
+      >
         <AlertTriangle className="h-4 w-4 text-[#10B981]" />
         <span>SLA 告警通道</span>
         <RealtimeIndicator status={status} />
@@ -122,13 +154,31 @@ export default function SlaAlertBanner() {
     );
   }
 
+  // 紅色警報（arrival_overdue / severity=red）優先 — F-016
+  const headerBorder = hasRed ? "border-red-300" : "border-amber-200";
+  const headerBg = hasRed ? "bg-red-50" : "bg-amber-50";
+  const headerBorderInner = hasRed ? "border-red-300" : "border-amber-200";
+  const headerIconColor = hasRed ? "text-red-700" : "text-amber-700";
+  const headerTitleColor = hasRed ? "text-red-900" : "text-amber-900";
+  const headerBtnColor = hasRed ? "text-red-800" : "text-amber-800";
+  const dividerColor = hasRed ? "divide-red-200" : "divide-amber-200";
+
   return (
-    <section className="rounded-lg border border-amber-200 bg-amber-50 shadow-sm">
-      <div className="flex items-center justify-between border-b border-amber-200 px-4 py-2">
+    <section
+      data-testid="sla-alert-banner"
+      data-severity={hasRed ? "red" : "amber"}
+      className={`rounded-lg border ${headerBorder} ${headerBg} shadow-sm`}
+    >
+      <div
+        className={`flex items-center justify-between border-b ${headerBorderInner} px-4 py-2`}
+      >
         <div className="flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-amber-700" />
-          <span className="text-[13px] font-semibold text-amber-900">
-            SLA 告警（{alerts.length}）
+          <AlertTriangle className={`h-4 w-4 ${headerIconColor}`} />
+          <span
+            className={`text-[13px] font-semibold ${headerTitleColor}`}
+            data-testid="sla-alert-banner-title"
+          >
+            {hasRed ? "⚠ SLA 破線" : "SLA 告警"}（{alerts.length}）
           </span>
           <RealtimeIndicator status={status} compact />
         </div>
@@ -136,27 +186,30 @@ export default function SlaAlertBanner() {
           <button
             type="button"
             onClick={() => setCollapsed((v) => !v)}
-            className="text-[11px] text-amber-800 hover:underline"
+            className={`text-[11px] ${headerBtnColor} hover:underline`}
           >
             {collapsed ? "展開" : "收合"}
           </button>
           <button
             type="button"
             onClick={dismissAll}
-            className="text-[11px] text-amber-800 hover:underline"
+            className={`text-[11px] ${headerBtnColor} hover:underline`}
           >
             全部已讀
           </button>
         </div>
       </div>
       {!collapsed && (
-        <ul className="divide-y divide-amber-200">
+        <ul className={`divide-y ${dividerColor}`} data-testid="sla-alert-list">
           {alerts.map((a) => {
             const meta = TYPE_META[a.alert_type];
             const Icon = meta.Icon;
             return (
               <li
                 key={a.id}
+                data-testid="sla-alert-item"
+                data-alert-type={a.alert_type}
+                data-severity={a.severity ?? "amber"}
                 className="flex items-start gap-3 px-4 py-3"
                 style={{ backgroundColor: meta.bg }}
               >
@@ -185,10 +238,12 @@ export default function SlaAlertBanner() {
                   <span className="mt-1 font-mono text-[10px] text-[var(--text-disabled)]">
                     target #{a.target_id.slice(0, 8)} ·{" "}
                     {new Date(a.received_at).toLocaleTimeString("zh-TW")}
+                    {a.escalated_to ? ` · 已升級 ${a.escalated_to}` : ""}
                   </span>
                 </div>
                 <div className="flex flex-shrink-0 items-center gap-1">
                   <Link
+                    data-testid="sla-alert-jump"
                     href={meta.href(a.target_id)}
                     className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-[11px] font-semibold text-[var(--primary)] hover:bg-[#EFF6FF]"
                   >

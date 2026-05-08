@@ -271,9 +271,22 @@ components:
       type: object
       required: [alert_type, target_id]
       properties:
-        alert_type: { type: string, enum: [quote_expiring, dispatch_delay, response_overdue] }
+        alert_type:
+          type: string
+          enum: [quote_expiring, dispatch_delay, response_overdue, arrival_overdue]
+          description: |
+            `arrival_overdue` 為 F-016 SLA 紅色警報（2hr 到場破線）。
+            依 PM Q5=B 拍板：Soft Target，破線僅升 Ops Manager + dashboard 紅燈，
+            無賠償、無自動沖銷、無自動退款連動。
         target_id: { type: string, format: uuid }
         threshold_minutes: { type: integer }
+        severity:
+          type: string
+          enum: [red, amber, yellow]
+          description: 警報嚴重度。`arrival_overdue` 固定為 `red`。
+        escalated_to:
+          type: string
+          description: 升級對象（角色名）。`arrival_overdue` 固定為 `ops_manager`。
 
     RbacPermissionChangedData:
       type: object
