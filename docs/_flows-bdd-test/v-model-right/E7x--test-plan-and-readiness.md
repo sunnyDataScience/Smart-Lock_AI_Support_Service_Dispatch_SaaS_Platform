@@ -49,16 +49,19 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 
 ## 1. TL;DR — 現在能測什麼、不能測什麼、為什麼
 
-> **2026-05-07 PR #40 後狀態（spec-driven 升級）**：23 條流程 = **🟢15 / ⚠5 / ⚠3 / ❌0**（與 [[../_SSOT-alignment-matrix|_SSOT §3]] 一致）。
+> **2026-05-08 PR #45-49 後狀態（impl complete）**：23 條流程 = **🟢16 / ⚠4 / ⚠3 / ❌0**（與 [[../_SSOT-alignment-matrix|_SSOT §3]] 一致）。
+>
+> 🆕 5 條從「spec-driven aligned」升「impl complete」：F-004 / F-008 / F-010 / F-016 / F-019；F-018 順手升 ✅（PR #47 LINE Push real 解殘留 TODO）。
 >
 > 📋 **「立即可測 🟢」定義**：spec + test infrastructure + PM 拍板齊備 → 可寫 BDD scenarios + contract test + factory test。**不要求 production code 100%**（用 `@wip` tag + `RUN_WIP_TESTS` opt-in 處理 stub 測試 CI 噪音）。
 
-**🟢 立即可測（15 條）**：
-- 原 13 條（Wave 1+2）：F-001 LINE 報修、F-002 客服審 PC、F-003 自動派工、F-005 技師接單、F-006 到場拍照、F-009 完工簽名、F-013 對帳爭議雙簽、F-015 保固申訴、F-017 SOP 草稿審核、F-018 客服接管對話、F-020 稽核日誌、F-021 Dashboard / 報表、F-023 錯誤頁 / 離線
-- PM 拍板後升 🟢：F-010 改約 / 延遲（Q8=A V1.0 only LINE）
-- **PR #40 平行 follow-up 升 🟢（5 條）**：F-004 手動派工（T1 dispatcher seed）/ F-008 Scope Change（T2 Web token spec）/ F-016 SLA 警報（T4 F-110 BDD）/ F-019 RBAC（T1 dispatcher 角色）/ F-022 消費者追蹤（T2 getWorkOrderPublicStatus spec）
+**🟢 立即可測（16 條）**：
+- 原 13 條（Wave 1+2）：F-001 / F-002 / F-003 / F-005 / F-006 / F-009 / F-013 / F-015 / F-017 / F-018 / F-020 / F-021 / F-023
+- PM 拍板後升 🟢：F-010（Q8=A V1.0 only LINE）
+- **PR #40 spec-driven 升 🟢（5 條）**：F-004 / F-008 / F-016 / F-019 / F-022
+- **PR #45-49 production code 完成（impl complete）**：F-004 / F-008 / F-010 / F-016 / F-018（順手）/ F-019 — 標 ✅(impl complete)
 
-**⚠ 部分可測（5 條）**：F-002 客服審 PC（待補 module-spec 業務模組）、F-007 材料申請（等 F-210 規格 PM+BE）、F-018 客服接管對話（LINE Push API 真實串接 TODO）、F-021 報表（後端 filter TODO）、F-023 錯誤頁（cross-cutting 屬性）。
+**⚠ 部分可測（4 條）**：F-002 客服審 PC（待補 module-spec 業務模組）、F-007 材料申請（等 F-210 規格 PM+BE）、F-021 報表（revenue/technician-ranking 後端 filter TODO）、F-023 錯誤頁（cross-cutting 屬性）。
 
 **⚠ 阻塞（3 條）**：F-011 消費者付款 V1.0、F-012 技師月結撥款 V1.0、F-014 退款金流回沖 — **全綁 Q7=B provider 選型**（PR #39 follow-up 4 sub-decision 矩陣已備齊，等 PM/TL/CEO/Finance 90 min 會議）。
 
@@ -82,27 +85,27 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 | # | 流程 | 角色 | 前端頁面 | API operationId | Realtime | 外部 | 評等 | 阻塞項 |
 |---|------|------|---------|----------------|----------|------|------|-------|
 | F-001 | LINE 報修 → ProblemCard | 消費者 | (LINE Bot 後端) | `createConversation`, `analyzeMedia`, `createProblemCard` | — | LINE / Vertex / GCS | 🟢 | — |
-| F-002 | 客服審 PC → 開 WO | 客服 | `web/src/app/problem-cards/page.tsx`, `[id]/page.tsx` | `listProblemCards`, `getProblemCard`, `convertToWorkOrder` | `work-orders` | — | 🟢 | — |
+| F-002 | 客服審 PC → 開 WO | 客服 | `web/src/app/problem-cards/page.tsx`, `[id]/page.tsx` | `listProblemCards`, `getProblemCard`, `convertToWorkOrder` | `work-orders` | — | 🟡 | 待補 module-spec「PC → WO 審核」業務模組 |
 | F-003 | 自動派工規則引擎 | 系統 | `web/src/app/admin/dispatch-queue/page.tsx` | `runDispatch`, `listDispatchQueue` | `dispatch-queue`, `pool` | — | 🟢 | ✅ 權重 SSOT 已建：[[02-design/specs/dispatch-weights]] |
-| F-004 | 手動派工 | 客服 / 派工員 | `web/src/app/admin/dispatch-manual/page.tsx` | `manualAssign`, `reassignWorkOrder` | `dispatch-queue` | — | 🟡 | 「派工員」角色定義 (Q1)；reassign 雙簽 (Q6) |
+| F-004 | 手動派工 | 客服 / 派工員 | `web/src/app/admin/dispatch-manual/page.tsx` | `assignWorkOrder`, `assignDispatch` | `dispatch-queue` | — | 🟢 | ✅ PR #45 dispatcher RBAC 升級（修補 P0）+ 客服繞過 audit log（10 test）|
 | F-005 | 技師接單 → 出發 | 技師 | `web/src/app/pool/page.tsx`, `my-orders/page.tsx` | `claimOrder`, `updateWorkOrderStatus` | `pool`, `work-orders` | — | 🟢 | — |
 | F-006 | 到場拍照 | 技師 | `web/src/app/my-orders/[id]/door-check/page.tsx` | `checkIn`, `uploadMedia` | `work-orders` | GCS / Vision | 🟢 | — |
 | F-007 | 材料申請 | 技師 → 客服 | `my-orders/[id]/material-request/page.tsx`, `admin/inventory/page.tsx` | `requestMaterial`, `approveMaterial`, `listInventory` | `inventory low-stock` | — | 🟡 | F-210 庫存規格不全（多倉 / 借調） |
-| F-008 | Scope Change | 技師 → 消費者 | `my-orders/[id]/scope-change/page.tsx` | `proposeScopeChange`, `approveScopeChange` | `work-orders` | LINE | 🟡 | 同意入口 LINE vs Web (Q9) |
+| F-008 | Scope Change | 技師 → 消費者 | `my-orders/[id]/scope-change/page.tsx`, `web/src/app/scope-change/[token]` | `getScopeChangeProposalPublic`, `respondScopeChangePublic` | `work-orders` | LINE | 🟢 | ✅ PR #46 HMAC token 真實簽章 + scope_change_service real（27 test）|
 | F-009 | 完工簽名 | 技師 + 消費者 | `my-orders/[id]/signature/page.tsx` | `submitSignature`, `completeWorkOrder` | `work-orders` | — | 🟢 | — |
-| F-010 | 改約 / 延遲 | 技師 | `my-orders/[id]/reschedule/page.tsx`, `delay/page.tsx`, `admin/schedule-requests/page.tsx` | `requestReschedule`, `approveReschedule`, `notifyDelay` | `user-notifications` | LINE / (SMS 缺) | 🟡 | 非 LINE 用戶 fallback (Q8) |
-| F-011 | 消費者付款 V2.0 | 消費者 | (未實作) | (缺 paymentIntent) | — | **金流缺** | 🔴 | V2.0 阻塞 |
-| F-012 | 技師月結撥款 | 系統 + 財務 | `web/src/app/accounting/page.tsx` | `runSettlement`, `listSettlements` | — | **撥款 API 缺** | 🔴 | 計算可單測；實際撥款 0 整合 |
-| F-013 | 對帳爭議雙簽 | 技師 ↔ 客服 | `web/src/app/accounting/page.tsx` (reconciliation), `admin/disputes/page.tsx` | `raiseDispute`, `dualSignDispute`（現 `submitRefundDecision`） | `disputes` | — | 🟢 | SLA 工作日 / 自然日 (Q4) |
-| F-014 | 退款流程 | 客服 + 主管 | `web/src/app/admin/refunds/page.tsx` | `submitRefundDecision` | `refunds` | **金流缺** | 🟡 | 規則可測；金流回沖無 |
+| F-010 | 改約 / 延遲 | 技師 | `my-orders/[id]/reschedule/page.tsx`, `delay/page.tsx`, `admin/schedule-requests/page.tsx` | `requestReschedule`, `approveReschedule`, `notifyDelay` | `user-notifications` | LINE | 🟢 | ✅ PR #47 3 ops + LINE Push real (retry+fail-soft, Q8=A V1.0 only LINE)（12 test）|
+| F-011 | 消費者付款 **V1.0**（Q7=B 升級） | 消費者 | (待 provider 選型) | (缺 paymentIntent) | — | **Q7=B 待 provider** | 🔴 | PR #39 follow-up 4 sub-decision 矩陣等 PM/TL/CEO/Finance 90 min 會議 |
+| F-012 | 技師月結撥款 **V1.0** | 系統 + 財務 | `web/src/app/accounting/page.tsx` | `runSettlement`, `listSettlements` | — | **Q7=B 同 provider** | 🔴 | 同 F-011；撥款 API 待 provider D4 |
+| F-013 | 對帳爭議雙簽 | 技師 ↔ 客服 | `web/src/app/accounting/page.tsx` (reconciliation), `admin/disputes/page.tsx` | `raiseDispute`, `dualSignDispute`（現 `submitRefundDecision`） | `disputes` | — | 🟢 | ✅ Q2=A 階層 + Q4=C 工作日 holidays helper（PR #40 T3 + agent/core/workday.py）|
+| F-014 | 退款流程 | 客服 + 主管 | `web/src/app/admin/refunds/page.tsx` | `submitRefundDecision` | `refunds` | **Q7=B 待金流回沖** | 🔴 | 規則可單測；金流回沖待 provider 選型 |
 | F-015 | 保固申訴 | 消費者 → 客服 | `web/src/app/admin/warranty-claims/page.tsx` | `submitWarrantyDecision` | — | LINE | 🟢 | warranty-dispute spec 已有 |
-| F-016 | SLA 紅色警報（2hr 到場） | 系統 + 主管 | `admin/sentiment-alerts/page.tsx`, dashboard | (隱含於監控) | `sla-alerts` | LINE | 🟡 | hard vs soft (Q5) |
+| F-016 | SLA 紅色警報（2hr 到場） | 系統 + 主管 | `admin/sentiment-alerts/page.tsx`, `dashboard/page.tsx` (SlaAlertBanner) | (sla_monitor.py: arrival_overdue) | `sla-alerts` | LINE | 🟢 | ✅ PR #48 Soft alert + 紅燈（Q5=B 合規驗證；8 test + 2 @wip）|
 | F-017 | SOP 草稿審核 | AI → 客服 → 主管 | `web/src/app/knowledge-base/sop-drafts/page.tsx` | `listSopDrafts`, `reviewSopDraft`, `adoptSopDraft` | — | Vertex AI | 🟢 | — |
-| F-018 | 客服接管對話 | 客服 | `web/src/app/conversations/[id]/page.tsx`, `components/conversations/HandoverComposer.tsx` | `escalateConversation`, `sendChatMessage` ✅ | `user-notifications` | LINE | 🟢 | ✅ HandoverComposer + sendChatMessage 已實作（LINE Push integration TODO） |
-| F-019 | RBAC 動態調整 | 管理員 | `web/src/app/admin/roles/page.tsx` | `listRoles`（缺 `updateRolePermissions`） | `rbac` | — | 🟡 | Manager / Director 階層 (Q2) |
+| F-018 | 客服接管對話 | 客服 | `web/src/app/conversations/[id]/page.tsx`, `components/conversations/HandoverComposer.tsx` | `escalateConversation`, `sendChatMessage` ✅ | `user-notifications` | LINE | 🟢 | ✅ PR #47（順手解）LINE Push real impl（line_push_service.py + retry + audit + fail-soft）|
+| F-019 | RBAC 動態調整 | 管理員 | `web/src/app/admin/roles/page.tsx`, `RolePermissionsEditor` | `listRoles`, `updateRolePermissions` ✅ | `rbac` | — | 🟢 | ✅ PR #49 階層 + WS publish + Editor UI（10 BE + 2 @wip）|
 | F-020 | 稽核日誌 | 管理員 | `web/src/app/admin/audit-events/page.tsx`, `components/admin/AuditExportModal.tsx` | `listAuditLogs`, `exportAuditEvents` ✅ | — | — | 🟢 | ✅ CSV stream + Modal 已建（>100k 筆 background job 預留 202 contract） |
 | F-021 | Dashboard / 報表 | 管理員 | `web/src/app/dashboard/page.tsx`, `admin/reports/*`, `components/ui/DateRangePicker.tsx` | `getDashboardStats`, `getKpiReport`, `getRevenueSummary` | — | — | 🟢 | ✅ DateRangePicker 已建並接 4 頁（revenue / technician-ranking 後端 filter TODO） |
-| F-022 | 消費者端工單追蹤 | 消費者 | (Web 缺) | (缺 `getWorkOrderPublicStatus`) | `work-orders` | LINE / Maps | 🔴 | 入口 LINE vs Web (Q3) |
+| F-022 | 消費者端工單追蹤 | 消費者 | `web/src/app/track/[token]/page.tsx` | `getWorkOrderPublicStatus` ✅ | `work-orders` | LINE | 🟢 | ✅ Q3=C 兩者並存 + PR #43/#44/#46 真實 impl（HMAC token 簽章 + Web 公開頁 + PII mask）|
 | F-023 | 錯誤頁 / 離線 | 任何 | `web/src/app/{not-found,error,global-error}.tsx`, `components/ui/NetworkErrorBanner.tsx` | — | — | — | 🟢 | ✅ 4 個錯誤邊界已建（Service Worker 完整離線策略仍待 §4.1 P1） |
 
 ---
@@ -628,3 +631,4 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 - #24 Settlement property + golden / #25 Dispatch scoring property + golden — 雖權重已建但邊界 case 未拍
 - #26 Agent eval CI 整合（fake-LLM smoke / nightly 真 Vertex / Promptfoo）— 綁預算決策
 - 完整 coverage diff PR comment（diff-cover bot）— 需 component test 進 CI 才有意義
+| 2026-05-08 | Claude (assisted) | **PR #45-49 production code 完成同步**：§1 TL;DR 統計 🟢15→16 / ⚠5→4 / ⚠3→3。§2 對齊矩陣 6 row 評等更新（F-004/F-008/F-010/F-016/F-018/F-019/F-022）+ 阻塞項從「待 PM Q*」改為「✅ PR #N 實作」。F-011/F-012/F-014 仍 🔴 綁 Q7=B provider 選型（PR #39 follow-up 4 sub-decision 待 PM/TL/CEO/Finance 90 min 會議）。 |
