@@ -19,7 +19,7 @@ related:
   - "[[03-develop/GR7--integration]]"
   - "[[04-deliver/GR10--ga-readiness]]"
 last_reviewed: 2026-05-08
-last_updated: 2026-05-08 (§4.2/§4.3 黃燈全清：PR #43/#44 + commit `bd7ec2f` 後 BE 全綠 + FE 僅剩 V1.1 PDF)
+last_updated: 2026-05-08 (V1.1 PDF + accounting + 深色模式 + notification 抽象層提前完成；剩餘僅 i18n + 真 vendor SMS/Email/FCM)
 ---
 
 # E7x — Test Plan and Readiness Roadmap
@@ -165,7 +165,8 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 | ~~稽核 CSV 匯出 Modal~~（accounting / reports） | P1 | 2d | ✅ 完成 — A5 audit + commit `bd7ec2f` `ReportExportModal` 接 KPI / Revenue / Technician Ranking / Accounting 4 頁；CSV stream；PDF V1.1 補（缺 reportlab dep） |
 | ~~客戶 admin「新增 / 編輯」表單~~ | P1 | 1.5d | ✅ PR #44 完成（`admin/customers/new/page.tsx` + `[id]/edit/page.tsx`） |
 | ~~消費者端工單追蹤頁 `/track/[token]`~~ | **P0** | 5d | ✅ PR #44 full impl（含 scope-change 同意頁） |
-| i18n / 深色模式 | — | 不做 | ❌ V1.0 範圍外 |
+| ~~深色模式~~ | V1.0 範圍外 提前 | 1d | ✅ 提前完成（commit `098caa3`）— ThemeProvider（system/light/dark）+ ThemeToggle（icon / segmented）+ globals.css `[data-theme="dark"]` CSS var 覆寫 + 防 FOUC inline script + 接入 layout/Settings/Header；無新 npm package |
+| i18n（多語系） | — | 不做 | ❌ V1.0 範圍外（仍維持） |
 
 ### 4.3 後端 API 缺口
 
@@ -176,8 +177,8 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 | ~~`getWorkOrderPublicStatus`~~（消費者匿名追蹤） | **P0** | 1.5d | ✅ PR #43 完成（`api/routers/public.py`，Q3=C / Q9=B 共用 token；含 `getScopeChangeProposalPublic` + `respondScopeChangePublic`） |
 | ~~`updateCustomer` / `createCustomer`~~ | P1 | 1d | ✅ PR #43 完成（`api/routers/customers.py`） |
 | ~~`updateMyAvailability`~~（技師在線狀態切換） | P1 | 1d | ✅ PR #43 完成（`api/routers/technicians.py` PATCH `/technicians/me/availability`） |
-| ~~`exportReport`~~（KPI / 營收 CSV / PDF） | P1 | 2d | ✅ PR #43 完成（`api/routers/reports_export.py` GET StreamingResponse CSV；PDF 路徑 422 待 reportlab dep V1.1） |
-| 通知 channel 抽象層（為 SMS / FCM 預留） | ❌ V1.5+ | — | ❌ Q8=A 後降級 V1.5+；見 [[02-design/specs/notification-channel-strategy]] |
+| ~~`exportReport`~~（KPI / 營收 CSV / PDF） | P1 | 2d | ✅ 完成 — PR #43 CSV stream + commit `da58302` 補 PDF（reportlab + STSong-Light）+ `accounting` report_type + `bd7ec2f` FE PDF radio |
+| ~~通知 channel 抽象層~~（為 SMS / FCM 預留） | V1.5+ 提前 | 1.5d | ✅ 提前完成（commits `6ea4802` `171dbf9` `e6a8db1`）— ChannelAdapter ABC + dict registry + LINE adapter（包裝 line_bot）+ SMS/Email/FCM stub + NotificationRouter（fallback chain）+ bootstrap；既有 caller 不動，V1.5 補真 vendor 時零 refactor |
 
 ### 4.4 外部系統整合缺口（V2.0 阻塞）
 
@@ -185,9 +186,9 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 |------|---|------|------|
 | 金流（消費者付款 + 退款回沖）— provider 選型 | **P0** V2.0 | 10d+ | 🔴 PR #39 follow-up 矩陣：等 PM / TL / CEO / Finance 90 min 會議拍板（D2） |
 | 撥款 API（技師薪資） | **P0** V2.0 | 8d+ | 🔴 同上會議綁定 |
-| SMS provider | — | — | ❌ Q8=A V1.0 不需，降 V1.5+ |
-| Email provider | — | — | ❌ Q8=A V1.0 不需，降 V1.5+ |
-| FCM / APNs 推播 | — | — | ❌ V2.0+（Q8=A 後續評估） |
+| SMS provider | — | — | 🟡 stub adapter 完成（commit `171dbf9` `agent/notifications/adapters/sms.py`）；真 vendor SDK（Twilio / AWS SNS）V1.5+ |
+| Email provider | — | — | 🟡 stub adapter 完成（`agent/notifications/adapters/email.py`）；真 vendor（SendGrid / SES）V1.5+ |
+| FCM / APNs 推播 | — | — | 🟡 stub adapter 完成（`agent/notifications/adapters/fcm.py`）；真 vendor V2.0+ |
 | Whisper 語音轉文字 | — | — | ❌ V2.0+ |
 | 鼎新 A1 會計對接 | — | — | ❌ V3 |
 
@@ -543,6 +544,7 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 | 2026-05-07 | PM + Claude (sync) | **PM Q1-Q10 全拍板同步**：§1 TL;DR 改寫「根本原因（已解）」+ 列出新阻塞（Q7=B 金流 / Q3=C+Q9=B Web 匿名 token / Q4=C 工作日 calendar）；§3 從 10 row 待拍表變「拍板結果 + 後續行動」表，標明 4 反向選項；指向 _SSOT-alignment-matrix §3 對齊狀態彙總。Q7=B 為最重大決策（V1.0 含金流，延 ~1.5 月）。 |
 | 2026-05-07 | Claude (assisted) | **PR #40 5-track 後流程升級**（spec-driven 定義）：§1 TL;DR 統計 🟢13→15 / ⚠7→5 / 🔴3→3。5 條升 🟢：F-004（T1 dispatcher）、F-008（T2 Web token spec）、F-016（T4 F-110 BDD）、F-019（T1 dispatcher 角色）、F-022（T2 getWorkOrderPublicStatus）。剩 3 條 ⚠ 阻塞全綁 Q7=B provider 選型（PR #39 follow-up 矩陣等會議）。明確區分「立即可測」採 spec-driven（規格 + test infra + PM 拍板齊備即 🟢，不要求 production code 100%）。詳見 [[_flows-bdd-test/_SSOT-alignment-matrix#7-change-log\|_SSOT §7]]。 |
 | 2026-05-08 | Claude (assisted) | **§4.2/§4.3 黃燈全清**：PR #43（`api/routers/public.py` `getWorkOrderPublicStatus` + `customers.py` updateCustomer/createCustomer + `technicians.py` updateMyAvailability + `reports_export.py` exportReport CSV）+ PR #44（admin/customers 表單 + `/track/[token]` 全套）+ commit `bd7ec2f`（`ReportExportModal` 通用 modal 接 KPI / Revenue / Technician Ranking / Accounting 4 頁）後，§4.2 + §4.3 黃燈全部清空。BE 4 條全綠、FE 3 條全綠。剩餘僅 V1.1 PDF 路徑（缺 reportlab dep，明確標非本期範圍）+ accounting BE service（V1.1）。 |
+| 2026-05-08 | Claude (assisted) | **V1.1 + V1.5 提前實作四件套**：(1) commit `da58302/8a3dbbd/ca41857` PDF 報表（reportlab 內建 STSong-Light 繁中 CID font，V1.0 不需新 dep — voucher_service 已用） + `accounting` report_type（reuse `settlement_service.list_settlements()`） + FE Modal PDF radio；(2) commit `098caa3` 深色模式（ThemeProvider system/light/dark + ThemeToggle + `[data-theme="dark"]` CSS var 覆寫 + 防 FOUC inline script + 接 Settings/Header，無新 npm package）；(3) commits `6ea4802/171dbf9/e6a8db1` 通知 channel 抽象層（`agent/notifications/` ChannelAdapter ABC + dict registry + LINE 真實 adapter + SMS/Email/FCM stub + Router fallback chain + bootstrap，**既有 caller 不動** — V1.5 補真 vendor 時零 refactor）。剩餘 ❌ 僅 i18n 多語系（V1.0 範圍外維持）+ 真 vendor SMS/Email/FCM SDK（V1.5+/V2.0+）。 |
 
 ### 15.1 Wave 1+2 補完明細（2026-05-07）
 
