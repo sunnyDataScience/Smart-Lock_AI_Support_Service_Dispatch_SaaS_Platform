@@ -241,8 +241,8 @@ async def send_message(
       3. INSERT messages，role='assistant'（LINE 視角），
          metadata 標 sender_role=agent_human + sender_id 供稽核
       4. UPDATE conversations.message_count + updated_at
-      5. TODO: 呼叫 LINE Push API 將訊息推給 line_user_id
-      6. TODO: 寫 audit log
+      5. 呼叫 LINE Push API 將訊息推給 line_user_id（fail-soft，由 line_push_service 處理）
+      6. TODO: 寫 audit log（line_push_service 已自帶 audit；handover 專屬 audit 待補）
     """
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
@@ -301,17 +301,27 @@ async def send_message(
         (conv_id,),
     )
 
-    # 5. TODO: integrate LINE Push API
-    #    需呼叫 line-bot-sdk 的 push_message(line_user_id, content)，
-    #    或透過 message broker 投到 agent 服務統一推播。
-    #    目前先 log 供開發追蹤。
-    logger.info(
-        "TODO LINE Push: conv=%s line_user=%s sender=%s content_len=%d",
-        conv_id,
-        line_user_id,
-        sender_user_id,
-        len(content),
-    )
+    # 5. LINE Push（F-018 closeout）— fail-soft；推送失敗不阻斷客服訊息寫入
+    if line_user_id:
+        try:
+            from services import line_push_service
+
+            await line_push_service.push_text(
+                line_user_id=line_user_id,
+                text=content,
+                actor_user_id=sender_user_id,
+                tenant_id=tenant_id,
+            )
+        except Exception:  # noqa: BLE001 — must never break handover write
+            logger.warning(
+                "LINE push failed during handover (conv=%s)", conv_id, exc_info=True
+            )
+    else:
+        logger.info(
+            "LINE push skipped (no line_user_id): conv=%s sender=%s",
+            conv_id,
+            sender_user_id,
+        )
 
     # 6. TODO: audit log（寫入 audit_logs 表，標 actor=sender_user_id、
     #    action=send_handover_message、entity=message:<id>）

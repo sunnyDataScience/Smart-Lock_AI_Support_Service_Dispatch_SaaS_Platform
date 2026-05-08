@@ -1054,6 +1054,394 @@ _PUBLIC_STATUS_MAP = {
 }
 
 
+# =============================================================================
+# F-010 Reschedule / Delay quick-action ops（含 LINE Push 真實串接）
+# =============================================================================
+#
+# 與既有的 propose_reschedule (Flow 11 LINE Flex RSVP) / record_delay (T7 事件)
+# 互補：
+#   - request_reschedule  ：技師 / admin 直接改 scheduled_at，不走 RSVP（單方變更）
+#   - approve_reschedule  ：admin 對 request_reschedule 提案做核准 / 退回
+#   - notify_delay        ：在 record_delay 之後，主動 LINE push 通知客戶
+#
+# 三個動作完成後一律寫 audit_event + 嘗試 LINE push（fail-soft）。
+#
+# Reschedule request lifecycle（state in service_report tag）：
+#   [RESCHEDULE_REQUEST@<iso> by=<uid> from=<old_iso> to=<new_iso> reason=<text>]
+#   [RESCHEDULE_DECISION@<iso> by=<uid> decision=approve|reject comment=<text>]
+
+
+_RESCHEDULE_REASON_MAX = 500
+
+
+async def _audit_action(
+    *,
+    action: str,
+    actor_id: str | None,
+    actor_role: str | None,
+    work_order_id: str,
+    payload: dict,
+) -> None:
+    """Best-effort audit write — must not fail caller."""
+    try:
+        from services import audit_log_service
+
+        await audit_log_service.log_event(
+            event_type="dispatch_decision",
+            actor_id=actor_id,
+            actor_role=actor_role,
+            action=action,
+            target_type="work_order",
+            target_id=work_order_id,
+            payload=payload,
+        )
+    except Exception:  # noqa: BLE001
+        logger.warning("audit %s failed", action, exc_info=True)
+
+
+async def request_reschedule(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    new_scheduled_at: str,
+    reason: str,
+    actor_user_id: str,
+    actor_role: str,
+) -> dict:
+    """Technician / admin requests an immediate reschedule.
+
+    - 技師只能改自己的工單；admin 不限。
+    - 不寫 RSVP，直接更新 scheduled_at 並 LINE push 通知客戶（fail-soft）。
+    - 回傳：{"work_order": ..., "notification_sent": bool, "channel": "line"|"none",
+              "new_scheduled_at": iso}
+    """
+    # ─── validation ───────────────────────────────────────────────────────
+    if not new_scheduled_at:
+        raise ApiError("VALIDATION_ERROR", "new_scheduled_at is required", 422)
+    try:
+        from datetime import datetime as _dt2, timezone as _tz
+
+        new_dt = _dt2.fromisoformat(new_scheduled_at.replace("Z", "+00:00"))
+        if new_dt.tzinfo is None:
+            new_dt = new_dt.replace(tzinfo=_tz.utc)
+    except ValueError as e:
+        raise ApiError("VALIDATION_ERROR", "new_scheduled_at must be ISO 8601", 422) from e
+    if new_dt <= _dt2.now(_tz.utc):
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "new_scheduled_at must be in the future",
+            422,
+        )
+    if not reason or not reason.strip():
+        raise ApiError("VALIDATION_ERROR", "reason is required", 422)
+    if len(reason) > _RESCHEDULE_REASON_MAX:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"reason must be at most {_RESCHEDULE_REASON_MAX} chars",
+            422,
+        )
+
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    # ─── tenant + ownership check ─────────────────────────────────────────
+    cur = await db_module._conn.execute(
+        f"SELECT wo.status, wo.technician_id, wo.scheduled_at {_WO_JOIN} "
+        f"WHERE wo.id = %s::uuid AND u.tenant_id = %s::uuid",
+        (wo_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "Work order not found", 404)
+    current_status, tech_id, old_scheduled = row[0], row[1], row[2]
+
+    if current_status not in _RESCHEDULE_FROM:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot reschedule in status '{current_status}'; "
+            f"expected one of {sorted(_RESCHEDULE_FROM)}",
+            409,
+        )
+
+    # 技師 RBAC：只能改自己被指派的工單
+    if actor_role == "technician":
+        if tech_id is None or str(tech_id) != actor_user_id:
+            raise ApiError(
+                "FORBIDDEN",
+                "Technicians can only reschedule their own work orders",
+                403,
+            )
+
+    # ─── apply ────────────────────────────────────────────────────────────
+    from datetime import datetime as _dt2, timezone as _tz
+
+    now_iso = _dt2.now(_tz.utc).isoformat()
+    note = (
+        f"[RESCHEDULE_REQUEST@{now_iso}] by={actor_user_id} "
+        f"from={old_scheduled.isoformat() if old_scheduled else 'unset'} "
+        f"to={new_dt.isoformat()} reason={reason.strip()[:_RESCHEDULE_REASON_MAX]}"
+    )
+    await db_module._conn.execute(
+        "UPDATE work_orders SET "
+        "  scheduled_at = %s::timestamptz, "
+        "  service_report = COALESCE(service_report, '') || E'\\n' || %s, "
+        "  updated_at = NOW() "
+        "WHERE id = %s::uuid",
+        (new_dt, note, wo_id),
+    )
+
+    # ─── audit + LINE push ────────────────────────────────────────────────
+    await _audit_action(
+        action="work_order.reschedule_requested",
+        actor_id=actor_user_id,
+        actor_role=actor_role,
+        work_order_id=wo_id,
+        payload={
+            "new_scheduled_at": new_dt.isoformat(),
+            "old_scheduled_at": old_scheduled.isoformat() if old_scheduled else None,
+            "reason": reason.strip()[:_RESCHEDULE_REASON_MAX],
+        },
+    )
+
+    from services import line_push_service
+
+    text = (
+        f"您的工單 #{wo_id[:8]} 已改約至 "
+        f"{new_dt.strftime('%Y-%m-%d %H:%M')}（原因：{reason.strip()[:50]}）"
+    )
+    notification_sent, channel = await line_push_service.push_to_work_order_customer(
+        tenant_id=tenant_id,
+        work_order_id=wo_id,
+        text=text,
+        actor_user_id=actor_user_id,
+    )
+
+    order = await _publish_and_return(
+        tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.reschedule_requested"
+    )
+    return {
+        "work_order": order,
+        "rescheduled": True,
+        "new_scheduled_at": new_dt.isoformat(),
+        "notification_sent": notification_sent,
+        "channel": channel,
+    }
+
+
+async def approve_reschedule(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    decision: str,
+    comment: str | None,
+    actor_user_id: str,
+    actor_role: str,
+) -> dict:
+    """Admin / operations_manager approves or rejects a reschedule request.
+
+    decision='approve' → 不修改 scheduled_at（已在 request 時更新），僅蓋審核章
+    decision='reject' → 復原 scheduled_at 至最近一次 [RESCHEDULE_REQUEST] 之 `from`
+    """
+    if decision not in {"approve", "reject"}:
+        raise ApiError("VALIDATION_ERROR", "decision must be 'approve' or 'reject'", 422)
+    if comment and len(comment) > _RESCHEDULE_REASON_MAX:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"comment must be at most {_RESCHEDULE_REASON_MAX} chars",
+            422,
+        )
+
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    cur = await db_module._conn.execute(
+        f"SELECT wo.status, wo.service_report, wo.scheduled_at {_WO_JOIN} "
+        f"WHERE wo.id = %s::uuid AND u.tenant_id = %s::uuid",
+        (wo_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "Work order not found", 404)
+    current_status, report_text = row[0], (row[1] or "")
+
+    if current_status not in _RESCHEDULE_FROM:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot approve/reject reschedule in status '{current_status}'",
+            409,
+        )
+
+    from datetime import datetime as _dt2, timezone as _tz
+
+    now_iso = _dt2.now(_tz.utc).isoformat()
+
+    # 'reject' → 嘗試從最近一筆 [RESCHEDULE_REQUEST] 還原 from
+    revert_to: _dt2 | None = None
+    if decision == "reject":
+        for line in reversed(report_text.splitlines()):
+            if "[RESCHEDULE_REQUEST@" not in line or "from=" not in line:
+                continue
+            # parse "from=<iso>" segment
+            try:
+                from_seg = line.split("from=", 1)[1].split(" ", 1)[0]
+                if from_seg == "unset":
+                    break
+                revert_to = _dt2.fromisoformat(from_seg.replace("Z", "+00:00"))
+                if revert_to.tzinfo is None:
+                    revert_to = revert_to.replace(tzinfo=_tz.utc)
+                break
+            except (ValueError, IndexError):
+                continue
+
+    note = (
+        f"[RESCHEDULE_DECISION@{now_iso}] by={actor_user_id} "
+        f"decision={decision}"
+    )
+    if comment:
+        note += f" comment={comment.strip()[:_RESCHEDULE_REASON_MAX]}"
+
+    if decision == "reject" and revert_to is not None:
+        await db_module._conn.execute(
+            "UPDATE work_orders SET "
+            "  scheduled_at = %s::timestamptz, "
+            "  service_report = COALESCE(service_report, '') || E'\\n' || %s, "
+            "  updated_at = NOW() "
+            "WHERE id = %s::uuid",
+            (revert_to, note, wo_id),
+        )
+    else:
+        await db_module._conn.execute(
+            "UPDATE work_orders SET "
+            "  service_report = COALESCE(service_report, '') || E'\\n' || %s, "
+            "  updated_at = NOW() "
+            "WHERE id = %s::uuid",
+            (note, wo_id),
+        )
+
+    await _audit_action(
+        action=f"work_order.reschedule_{decision}d",
+        actor_id=actor_user_id,
+        actor_role=actor_role,
+        work_order_id=wo_id,
+        payload={
+            "decision": decision,
+            "comment": (comment or "").strip()[:_RESCHEDULE_REASON_MAX] or None,
+            "reverted_to": revert_to.isoformat() if revert_to else None,
+        },
+    )
+
+    order = await _publish_and_return(
+        tenant_id=tenant_id,
+        wo_id=wo_id,
+        event_type=f"work_order.reschedule_{decision}d",
+    )
+    return {
+        "work_order": order,
+        "decision": decision,
+        "reverted": revert_to is not None,
+    }
+
+
+async def notify_delay(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    delay_minutes: int,
+    reason: str,
+    actor_user_id: str,
+    actor_role: str,
+) -> dict:
+    """Technician notifies customer of an in-flight delay (LINE push)。
+
+    記錄事件（同 record_delay）+ LINE push（Q8=A V1.0 only LINE）。
+    """
+    if not isinstance(delay_minutes, int) or delay_minutes < 5 or delay_minutes > 300:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "delay_minutes must be an integer between 5 and 300",
+            422,
+        )
+    if not reason or not reason.strip():
+        raise ApiError("VALIDATION_ERROR", "reason is required", 422)
+    if len(reason) > 500:
+        raise ApiError("VALIDATION_ERROR", "reason must be at most 500 chars", 422)
+
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    # tenant + ownership check
+    cur = await db_module._conn.execute(
+        f"SELECT wo.status, wo.technician_id {_WO_JOIN} "
+        f"WHERE wo.id = %s::uuid AND u.tenant_id = %s::uuid",
+        (wo_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "Work order not found", 404)
+    current_status, tech_id = row[0], row[1]
+    if current_status not in _SUBFLOW_FROM:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot notify delay in status '{current_status}'; "
+            f"expected one of {sorted(_SUBFLOW_FROM)}",
+            409,
+        )
+    if actor_role == "technician":
+        if tech_id is None or str(tech_id) != actor_user_id:
+            raise ApiError(
+                "FORBIDDEN",
+                "Technicians can only notify delays for their own work orders",
+                403,
+            )
+
+    # 寫結構化事件（重用 _append_subflow_event 但避免重複狀態檢查 — 直接 INSERT）
+    payload = {
+        "delay_minutes": delay_minutes,
+        "reason": reason.strip()[:500],
+        "channel_attempt": "line",
+    }
+    await db_module._conn.execute(
+        "INSERT INTO work_order_events "
+        "  (work_order_id, tenant_id, actor_user_id, event_type, payload) "
+        "VALUES (%s::uuid, %s::uuid, %s, 'delay', %s::jsonb)",
+        (wo_id, tenant_id, actor_user_id, json.dumps(payload, ensure_ascii=False)),
+    )
+    await db_module._conn.execute(
+        "UPDATE work_orders SET updated_at = NOW() WHERE id = %s::uuid",
+        (wo_id,),
+    )
+
+    await _audit_action(
+        action="work_order.delay_notified",
+        actor_id=actor_user_id,
+        actor_role=actor_role,
+        work_order_id=wo_id,
+        payload=payload,
+    )
+
+    from services import line_push_service
+
+    text = (
+        f"您的工單 #{wo_id[:8]} 將延遲約 {delay_minutes} 分鐘抵達，"
+        f"造成不便敬請見諒（原因：{reason.strip()[:50]}）"
+    )
+    notification_sent, channel = await line_push_service.push_to_work_order_customer(
+        tenant_id=tenant_id,
+        work_order_id=wo_id,
+        text=text,
+        actor_user_id=actor_user_id,
+    )
+
+    order = await _publish_and_return(
+        tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.delay_notified"
+    )
+    return {
+        "work_order": order,
+        "notification_sent": notification_sent,
+        "channel": channel,
+    }
+
+
 async def get_public_status(*, work_order_id: str) -> dict | None:
     """讀取工單對外可揭露的狀態欄位。
 
