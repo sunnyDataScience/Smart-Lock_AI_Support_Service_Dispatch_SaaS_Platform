@@ -36,6 +36,12 @@ from httpx import ASGITransport, AsyncClient  # noqa: E402
 # 種子帳號（對齊 SQL/seeds/_admin_user.sql + technicians.sql）
 ADMIN_USER_ID = "c782bcfe-89bb-40b3-94b3-8c73d7bd0961"
 DEFAULT_TENANT_ID = "00000000-0000-0000-0000-000000000001"
+# Dispatcher 帳號（對齊 SQL/seeds/dispatcher_user.sql — F-004 V2 獨立角色）
+DISPATCHER_USER_ID = "d1893a7f-1c2e-4a6b-9e4d-2f5b8c6a1e02"
+# Customer service 用 fake UUID（無 seed 要求 — token 驗證只看 claims）
+CUSTOMER_SERVICE_USER_ID = "22222222-2222-2222-2222-222222222222"
+# Technician 用既有 demo-tech seed（不存在也 OK，role 檢查在 DB 查詢前）
+TECHNICIAN_USER_ID = "33333333-3333-3333-3333-333333333333"
 
 
 @pytest.fixture(scope="session")
@@ -101,6 +107,36 @@ def secondary_admin_headers() -> dict[str, str]:
     """第二位 admin（不同 user_id）— 用於雙簽測試。"""
     other_user_id = "11111111-1111-1111-1111-111111111111"
     token = _make_token(user_id=other_user_id, role="operations_manager")
+    return {
+        "Authorization": f"Bearer {token}",
+        "X-Tenant-ID": DEFAULT_TENANT_ID,
+    }
+
+
+@pytest.fixture
+def dispatcher_headers() -> dict[str, str]:
+    """Dispatcher 角色 headers（F-004 V2 新獨立角色）。"""
+    token = _make_token(user_id=DISPATCHER_USER_ID, role="dispatcher")
+    return {
+        "Authorization": f"Bearer {token}",
+        "X-Tenant-ID": DEFAULT_TENANT_ID,
+    }
+
+
+@pytest.fixture
+def customer_service_headers() -> dict[str, str]:
+    """Customer service 角色 headers（PM Q6=A — 可繞過自動派工 + audit log）。"""
+    token = _make_token(user_id=CUSTOMER_SERVICE_USER_ID, role="customer_service")
+    return {
+        "Authorization": f"Bearer {token}",
+        "X-Tenant-ID": DEFAULT_TENANT_ID,
+    }
+
+
+@pytest.fixture
+def technician_headers() -> dict[str, str]:
+    """Technician 角色 headers — 應被 manual dispatch 端點 403。"""
+    token = _make_token(user_id=TECHNICIAN_USER_ID, role="technician")
     return {
         "Authorization": f"Bearer {token}",
         "X-Tenant-ID": DEFAULT_TENANT_ID,
