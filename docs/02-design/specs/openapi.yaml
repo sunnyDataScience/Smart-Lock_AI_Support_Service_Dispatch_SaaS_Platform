@@ -1780,10 +1780,13 @@ paths:
   /api/v1/reports/export:
     get:
       tags: [reports]
-      summary: 匯出 KPI / 營收 / 技師排行報表（CSV / PDF）
+      summary: 匯出 KPI / 營收 / 技師排行 / 結算報表（CSV / PDF）
       description: |
-        依 report_type 串接對應的 service 並轉成 CSV stream（同步）。
-        PDF 路徑目前回 422 + TODO（缺 PDF 渲染依賴 reportlab/weasyprint，待後續迭代）。
+        依 report_type 串接對應的 service 並轉成 CSV / PDF。
+        - CSV：行內 stream（generator）；以 text/csv; charset=utf-8 回傳。
+        - PDF：reportlab + STSong-Light CID 字型整檔生成；以 application/pdf 回傳。
+        - report_type=accounting：reuse settlement_service.list_settlements
+          （單檔匯出上限 500 筆；超出時 PDF 副標會標 truncated）。
         admin / operations_manager / accountant 三種角色可呼叫；其他一律 403。
       operationId: exportReport
       parameters:
@@ -1792,7 +1795,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: [kpi, revenue, technician_ranking]
+            enum: [kpi, revenue, technician_ranking, accounting]
         - in: query
           name: format
           required: false
@@ -1818,7 +1821,7 @@ paths:
           description: KPI 報表使用的期間（kpi 適用，預設 30d）
       responses:
         '200':
-          description: 報表 stream
+          description: 報表 stream（CSV 走 text/csv；PDF 走 application/pdf）
           content:
             text/csv:
               schema: { type: string, format: binary }
