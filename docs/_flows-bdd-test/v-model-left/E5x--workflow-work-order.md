@@ -230,7 +230,7 @@ SLA 計時器觸發
 
 ---
 
-## 4. Flow 1：正常路徑 (Happy Path)
+## 4. Flow 1：正常路徑 (Happy Path) — 對應 F-001 / F-002 / F-005 / F-006 / F-009
 
 > **Endpoints:** `openapi#operationId=listConversations`, `getConversation`, `listProblemCards`, `listWorkOrderPool`, `acceptWorkOrder`, `getWorkOrder`, `completeWorkOrder`, `submitWorkOrderSignature`
 > **Events In:** `work_order.available`（WS `/realtime/pool/{tech_id}`）, `work_order.assigned`
@@ -388,7 +388,7 @@ sequenceDiagram
 
 ---
 
-## 5. Flow 2：拒單與逾時重派
+## 5. Flow 2：拒單與逾時重派 — 對應 F-005 / F-004 / F-003
 
 > **Endpoints:** `listDispatchCandidates`, `assignWorkOrder`（強制 Idempotency + reason_code）, `escalateWorkOrder`
 > **Events Out:** `work_order.status.changed`（assigned → reassigning → assigned）、`work_order.available`（回池）
@@ -516,7 +516,7 @@ sequenceDiagram
 
 ---
 
-## 6. Flow 3：範圍變更
+## 6. Flow 3：範圍變更 — 對應 F-008
 
 > **Endpoints（Week 4 補完）：** `createScopeChangeRequest`（`POST /work-orders/{id}/scope-change`）, `approveScopeChange`, `rejectScopeChange`
 > **Events Out:** `work_order.scope.change_requested`, `work_order.scope.change_approved|rejected`
@@ -631,7 +631,7 @@ sequenceDiagram
 
 ---
 
-## 7. Flow 4：缺料處理
+## 7. Flow 4：缺料處理 — 對應 F-007
 
 > **Endpoints（Week 4 補完）：** `createMaterialRequest`（`POST /work-orders/{id}/material-request`）, `getInventoryAvailability`
 > **Events Out:** `work_order.material.requested`, `inventory.low_stock.alert`（若觸發閾值，走 G3）
@@ -749,7 +749,7 @@ sequenceDiagram
 
 ---
 
-## 8. Flow 5：延遲通知與改期
+## 8. Flow 5：延遲通知與改期 — 對應 F-010
 
 > **Endpoints:** `postDelayNotification`（Week 4）, `getTechnicianAvailability`, `proposeReschedule`（T11）
 > **Events Out:** `work_order.delay.notified`, `work_order.reschedule.proposed`, `work_order.reschedule.confirmed_by_customer`
@@ -880,7 +880,7 @@ sequenceDiagram
 
 ---
 
-## 9. Flow 6：退款審批與大額雙簽
+## 9. Flow 6：退款審批與大額雙簽 — 對應 F-013 / F-014
 
 > **Endpoints:** `openapi#operationId=submitRefundDecision`（Idempotency 必填）；待補：`listRefunds`, `getRefund`, `submitRefundSignature`（Week 3）
 > **Events In:** `refund.requested`（客戶發起）
@@ -1044,7 +1044,7 @@ sequenceDiagram
 
 ---
 
-## 10. Flow 7：保固爭議
+## 10. Flow 7：保固爭議 — 對應 F-015
 
 > **Endpoints（Week 4 補完）：** `createWarrantyClaim`, `verifyWarrantyPeriod`, `proposeDiscountCompromise`
 > **Events Out:** `warranty.claim.created`, `warranty.claim.resolved`, `warranty.out_of_period.declined`
@@ -1183,7 +1183,7 @@ sequenceDiagram
 
 ---
 
-## 11. Flow 8：品質不合格與二次派工
+## 11. Flow 8：品質不合格與二次派工 — 對應 F-015 / F-008
 
 > **Endpoints:** `createReworkOrder`（Week 4）, `listDispatchCandidates`（篩選 S 級）, `assignWorkOrder`
 > **Events Out:** `work_order.rework.required`, `work_order.status.changed`
@@ -1314,7 +1314,7 @@ sequenceDiagram
 
 ---
 
-## 12. Flow 9：客訴處理完整生命週期
+## 12. Flow 9：客訴處理完整生命週期 — 對應 F-018 / F-016（admin G4 升級）
 
 > **Endpoints（Week 4 補完）：** `createComplaint`, `classifyComplaint`, `proposeResolution`, `escalateComplaint`, `acknowledgeComplaint`
 > **Events In:** LINE webhook `message.text`（含 anger_level 分析）
@@ -1525,7 +1525,7 @@ sequenceDiagram
 
 ---
 
-## 13. Flow 10：門外觀變更確認
+## 13. Flow 10：門外觀變更確認 — 對應 F-008 / F-006
 
 > **Endpoints（Week 4 補完）：** `submitAppearanceNotice`（POST /work-orders/{id}/door-check）, `uploadEvidencePhotos`, `acknowledgeAppearanceNotice`
 > **Events Out:** `work_order.appearance.notice_issued`, `work_order.appearance.signed|rejected`
@@ -2181,7 +2181,7 @@ stateDiagram-v2
 
 ---
 
-## 19. Flow 11：客戶不在場
+## 19. Flow 11：客戶不在場 — 對應 F-010 / F-016
 
 > **Endpoints:** `reportCustomerAbsent`（Week 4）, `proposeReschedule`（T11）
 > **Events Out:** `customer.absent.reported`, `work_order.reschedule.proposed`
@@ -2323,7 +2323,7 @@ sequenceDiagram
 
 ---
 
-## 20. Flow 12：金流與支付
+## 20. Flow 12：金流與支付 — 對應 F-011 / F-012（V1.0，Q7=B 待 provider 選型）
 
 > **Gap ID**：OP-01 — 原文件完全缺少付款階段，只有「帳務結清」一句帶過
 >
@@ -2480,7 +2480,7 @@ sequenceDiagram
 
 ---
 
-## 21. Flow 13：帳款異常 EX5
+## 21. Flow 13：帳款異常 EX5 — 對應 F-013 / F-014 / F-021
 
 > **Endpoints（Week 4 補完）：** `flagBillingException`, `reopenInvoice`, `issueAllowance`, `retryPayment`
 > **Webhook（inbound）:** 金流三平台 `payment.failed` / `payment.refund.failed`
@@ -3167,7 +3167,7 @@ sequenceDiagram
 > 以下三章為 pre-Week-2 驗證閘針對既有 Flow 9/10 與新 Flow 14 的補完。
 > 與既有 §12 Flow 9、§13 Flow 10 互為補充；§25 為全新 Flow。
 
-## 25. Flow 14：技師排班衝突解決
+## 25. Flow 14：技師排班衝突解決 — 對應 F-010 / dispatch §1 排班
 
 > **Endpoints:** `getTechnicianAvailability`（衝突偵測核心）, `submitTimeOffRequest`（Week 4）, `listDispatchCandidates`（重派）, `assignWorkOrder`（重派落地）, `proposeReschedule`（T11）
 > **Events Out:** `technician.schedule.conflict.detected`, `technician.time_off.requested`, `work_order.reassigned`
@@ -3355,7 +3355,7 @@ Flow 5 延遲通知 → 預估新完工時間 ETC
 
 ---
 
-## 26. Flow 10 補遺：費用結算細則
+## 26. Flow 10 補遺：費用結算細則 — 對應 F-013 / F-021
 
 > 補既有 §13（Flow 10 門外觀變更）的費用結算空白。
 
@@ -3406,7 +3406,7 @@ APPEARANCE_CHANGE_EVIDENCE_INCOMPLETE  422  必拍照片未齊（少於 4 張）
 
 ---
 
-## 27. Flow 9 補遺：與爭議仲裁（G4）的銜接
+## 27. Flow 9 補遺：與爭議仲裁（G4）的銜接 — 對應 F-013 / F-014（admin G4 仲裁）
 
 > 補既有 §12（Flow 9）與 `flows-admin-governance.md §5 Flow G4` 的互動。
 

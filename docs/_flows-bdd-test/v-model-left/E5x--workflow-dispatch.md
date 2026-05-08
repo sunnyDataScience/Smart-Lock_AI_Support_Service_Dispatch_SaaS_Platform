@@ -21,7 +21,7 @@
 
 ---
 
-## §1 技師排班/班表系統
+## §1 技師排班/班表系統 — 對應 F-003（auto dispatch 依賴）/ F-010（衝突改約）
 
 ### 1.1 問題
 
@@ -149,7 +149,7 @@ async def is_technician_available(
 
 ---
 
-## §2 媒合演算法實作規格
+## §2 媒合演算法實作規格 — 對應 F-003（核心）
 
 ### 2.1 問題
 
@@ -298,7 +298,7 @@ async def match_technician(
 
 ---
 
-## §3 技師薪酬/分潤計算
+## §3 技師薪酬/分潤計算 — 對應 F-012（V1.0 月結撥款，Q7=B 待 provider）
 
 ### 3.1 分潤結構
 
@@ -387,7 +387,7 @@ CREATE TABLE technician_settlements (
 
 ---
 
-## §4 拒單重派流程
+## §4 拒單重派流程 — 對應 F-005（接單）/ F-004（手動重派）/ F-003（自動）
 
 ### 4.1 資料模型
 
@@ -473,7 +473,7 @@ async def calc_monthly_rejection_rates(tenant_id: str):
 
 ---
 
-## §5 客戶/設備主檔
+## §5 客戶/設備主檔 — 對應 F-001 / F-002（PC 主檔）/ cross-cutting
 
 ### 5.1 問題
 
@@ -561,7 +561,7 @@ async def check_warranty(device_id: int) -> dict:
 
 ---
 
-## §6 技師技能分類體系
+## §6 技師技能分類體系 — 對應 F-003（媒合演算法依賴）
 
 ### 6.1 技能代碼結構
 
@@ -641,7 +641,7 @@ async def check_expiring_certifications(tenant_id: str):
 
 ---
 
-## §7 報表 SQL + API
+## §7 報表 SQL + API — 對應 F-021 Dashboard / 報表
 
 ### 7.1 轉換漏斗（Conversion Funnel）
 
@@ -778,7 +778,7 @@ CREATE TABLE customer_ratings (
 
 ---
 
-## §8 新增表彙總
+## §8 新增表彙總 — cross-cutting（schema 支撐 F-003 / F-004 / F-005 / F-010 / F-021）
 
 本文件新增的所有資料表：
 
@@ -799,7 +799,7 @@ CREATE TABLE customer_ratings (
 
 ---
 
-## §9 與現有系統的整合點
+## §9 與現有系統的整合點 — cross-cutting（agent / api / web 三模組依賴）
 
 | 現有元件 | 整合方式 | 改動量 |
 |----------|---------|--------|

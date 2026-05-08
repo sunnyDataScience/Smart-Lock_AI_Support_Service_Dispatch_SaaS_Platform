@@ -37,19 +37,24 @@
 ### 1.1 角色（本檔登場）
 
 > **權威角色清單：** 全系統角色定義與權限矩陣見 `specs/rbac-dynamic-spec.md §2`。
-> 本節僅列出治理流程涉及的 7 個角色。
+> 本節列出治理流程涉及的 8 個角色（含 Q2=A 新增 `operations_director`）。
 
 | 角色 | 說明 | 關鍵權限 | 對應 work-order 角色 |
 |:---|:---|:---|:---|
-| `super_admin` | 平台最高權限，跨租戶 | 所有 `*.admin` 權限 | Admin（超集合） |
+| `super_admin` | 平台最高權限，跨租戶 | 所有 `*.admin` 權限；唯一可授 `tenant_admin` | Admin（超集合） |
 | `tenant_admin` | 租戶管理員 | 同租戶內所有治理權限 | Admin |
+| `operations_director` | 營運總監（Q2=A 新增）| 工單覆核、雙簽核准、爭議三級裁決 | Admin（特化，Manager 之上）|
 | `operations_manager` | 營運主管 | 工單指派/覆核、爭議二級審核 | Admin（特化） |
 | `accountant` | 會計 | 退款/發票/對帳；**爭議金額裁決雙簽簽核人** | Finance |
 | `support_agent` | 客服人員 | 對話、問題卡、客訴處理 | Admin（客服面向）|
-| `dispatch_officer` | 派工員 | 工單派遣、人工介入、候選排序 | （新角色，待 PM Q1 拍板）|
+| `dispatch_officer` | 派工員（✅ Q1=A 拍板獨立角色）| 工單派遣、人工介入、候選排序 | Admin（特化，新角色）|
 | `auditor` | 稽核員（可外部審計） | **只讀**所有稽核事件 | （新角色，無對應） |
 
-> **角色映射說明**：[[E5x--workflow-work-order]] §2.1 用 6 角色（Customer / AI_System / Dispatch_Engine / Technician / Admin / Finance）；admin-governance 細化 Admin 為 4 子角色（tenant_admin / operations_manager / support_agent / dispatch_officer）+ 額外 super_admin / auditor。`dispatch_officer` 是否獨立列入請見 [[E7x--pm-alignment-Q1-Q10#2-q1-—-派工員是-v2-0-新角色還是客服子權限|PM Q1]]。
+> **階層（Q2=A 拍板，PR #49 實作 ROLE_HIERARCHY）**：
+> `super_admin` > `tenant_admin` ≅ `admin` > `operations_director` > `operations_manager` > `dispatch_officer` ≅ `support_agent` > `accountant` ≅ `auditor`
+> （`can_grant` 採嚴格 > 比較，禁止平階授權；詳見 `api/services/role_service.py`）
+
+> **角色映射說明**：[[E5x--workflow-work-order]] §2.1 用 6 角色（Customer / AI_System / Dispatch_Engine / Technician / Admin / Finance）；admin-governance 細化 Admin 為 5 子角色（tenant_admin / operations_director / operations_manager / support_agent / dispatch_officer）+ 額外 super_admin / auditor。dispatch_officer 獨立角色見 [[../decision-log/E7x--pm-alignment-Q1-Q10#2-q1-—-派工員是-v2-0-新角色還是客服子權限|PM Q1]] = ✅ A 拍板。
 
 ### 1.2 權限碼格式（對齊 `rbac-dynamic-spec.md`）
 
@@ -80,7 +85,7 @@
 
 ---
 
-## 2. Flow G1：RBAC 角色生命週期
+## 2. Flow G1：RBAC 角色生命週期 — 對應 F-019
 
 ### 2.1 觸發條件
 
@@ -190,7 +195,7 @@ sequenceDiagram
 
 ---
 
-## 3. Flow G2：稽核日誌查詢與匯出
+## 3. Flow G2：稽核日誌查詢與匯出 — 對應 F-020
 
 ### 3.1 觸發條件
 
@@ -302,7 +307,7 @@ sequenceDiagram
 
 ---
 
-## 4. Flow G3：庫存低警報與補貨
+## 4. Flow G3：庫存低警報與補貨 — 對應 F-007（材料申請）/ F-021（低庫存 alert）
 
 ### 4.1 觸發條件
 
@@ -413,7 +418,7 @@ sequenceDiagram
 
 ---
 
-## 5. Flow G4：爭議仲裁獨立流程
+## 5. Flow G4：爭議仲裁獨立流程 — 對應 F-013（雙簽）/ F-014（退款）
 
 ### 5.1 觸發條件
 

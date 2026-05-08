@@ -200,15 +200,15 @@ related:
 
 ## 4. 共通對齊缺口（多檔同問題）
 
-| 缺口類型 | 影響檔 | 處理優先度 | 修正動作 |
-|---------|-------|---------|---------|
-| 3 個 E5x workflow 缺 F-XXX 引用 | work-order / dispatch / admin-governance | 🔴 HIGH | 各 Flow 標題後補「對應 F-NNN」（依本表第 1 節） |
-| 角色命名 6 vs 7（work-order vs admin-governance） | work-order §2.1 / admin-governance §1.1 | 🟡 MEDIUM | admin-governance §1.1 加「對應 work-order 角色」column |
-| Module spec 缺 F-101~F-109 對應 | E7x module-spec | 🟡 MEDIUM | 各模組 subheading 補「對應 BDD Feature: F-NNN」 |
-| F-107 情緒分流閾值 0.85 vs 0.90 不一致 | E7 line 767 / 802 | 🟡 MEDIUM | 統一為 0.90，line 802 加 confidence threshold 註腳 |
-| Q1-Q10 §12 全部 ⬜待拍 | pm-alignment | 🔴 BLOCKING | 排 90 min PM 對齊會議（外力，本 PR 不解） |
-| F-011/F-016/F-022 BDD 缺 | E7 BDD | 🟡 待 PM | 等 Q3/Q5/Q7 拍板後補 BDD Feature（外力）|
-| F-023 BDD 缺 | E7 BDD | 🟡 LOW | 建議新增 F-110 錯誤邊界 cross-cutting Feature |
+| 缺口類型 | 影響檔 | 處理優先度 | 修正動作 | 狀態 |
+|---------|-------|---------|---------|------|
+| 3 個 E5x workflow 缺 F-XXX 引用 | work-order / dispatch / admin-governance | 🔴 HIGH | 各 Flow 標題後補「對應 F-NNN」（依本表第 1 節） | ✅ **本 PR 解**（work-order 16 Flow + dispatch §1-§9 + admin-governance G1-G4 全補）|
+| 角色命名 6 vs 7（work-order vs admin-governance） | work-order §2.1 / admin-governance §1.1 | 🟡 MEDIUM | admin-governance §1.1 加「對應 work-order 角色」column | ✅ **本 PR 解**（既有 column 補 dispatcher Q1=A 拍板狀態 + 新增 operations_director 角色 + ROLE_HIERARCHY 階層說明）|
+| Module spec 缺 F-101~F-109 對應 | E7x module-spec | 🟡 MEDIUM | 各模組 subheading 補「對應 BDD Feature: F-NNN」 | ✅ **本 PR 解**（模組 1-8 全補 BDD Feature + 流程引用）|
+| F-107 情緒分流閾值 0.85 vs 0.90 不一致 | E7 line 767 / 802 | 🟡 MEDIUM | ~~統一為 0.90~~ → 釐清雙閾值設計（main 0.90 / edge 0.85，非衝突）| ✅ **本 PR 解**（Feature header 加 dual-threshold callout + inline note 強化）|
+| Q1-Q10 §12 全部 ⬜待拍 | pm-alignment | 🔴 BLOCKING | 排 90 min PM 對齊會議（外力，本 PR 不解） | ✅ **PR #38 解**（10/10 全拍板 2026-05-07）|
+| F-011/F-016/F-022 BDD 缺 | E7 BDD | 🟡 待 PM | 等 Q3/Q5/Q7 拍板後補 BDD Feature（外力）| ⚠ **部分解**：F-016 PR #40 T4 補 F-110 ✅ / F-022 Q3=C 拍板可寫但 BDD F-211 仍 TODO / F-011 仍綁 Q7=B provider |
+| F-023 BDD 缺 | E7 BDD | 🟡 LOW | 建議新增 F-110 錯誤邊界 cross-cutting Feature | ✅ **PR #40 T4 解**（F-110 錯誤邊界 cross-cutting Feature + 4 scenarios 已建）|
 
 ---
 
@@ -261,3 +261,4 @@ related:
 | 2026-05-07 | Claude (assisted) | **新增 §1.5 Legacy ID → New ID 對照表（Phase 3 漸進遷移第一步，alias 不改舊 ID）**：覆蓋 23 條 user flows（F→US）、19 個 BDD Features（F-1NN/F-2NN→FT）+ F-110 新增、E5x Flows / Modules / Decisions（→UC/MOD/DEC）、新類型 QA/COM/AT/ST/IT/UT/PT/SEC。詳見 [[_RESTRUCTURE-PROPOSAL#3-提案-b統一-id-系統|提案 §3.1]]。 |
 | 2026-05-07 | Claude (assisted) | **PR #40 5-track 解綁後狀態升級**：新增「立即可測 ✅」spec-driven 定義（規格 + test infra + PM 拍板齊備 → 可寫測試，不要求 production code 100%）。5 條流程升 ✅ aligned：F-004（T1 dispatcher seed）/ F-008（T2 Web token spec）/ F-016（T4 F-110 BDD）/ F-019（T1 dispatcher 角色）/ F-022（T2 getWorkOrderPublicStatus spec）。新統計：✅ 15 / ⚠ partial 5 / ⚠ blocked 3（全綁 Q7=B provider 選型）/ ❌ 0。 |
 | 2026-05-08 | Claude (assisted) | **PR #45-49 production code 完成**：5 條 spec-driven aligned 升「impl complete」+ F-018 順手升 ✅。**PR #45** F-004 dispatcher RBAC 升級修補 P0 + 客服繞過 audit / **PR #46** F-008 HMAC 真實簽章 + scope_change_service real（CAS 防 race，27 test）/ **PR #47** F-010 3 reschedule/delay ops + LINE Push real（順手解 F-018 LINE Push integration TODO）/ **PR #48** F-016 SLA Soft alert + WS publish + dashboard 紅燈（Q5=B 合規驗證 — payload 0 賠償字串）/ **PR #49** F-019 updateRolePermissions API + ROLE_HIERARCHY + WS + RolePermissionsEditor UI。新統計：✅ 16 / ⚠ partial 4 / ⚠ blocked 3（仍綁 Q7=B）/ ❌ 0。 |
+| 2026-05-08 | Claude (assisted) | **§4 共通對齊缺口收尾 4 項 ✅**：(1) E5x workflow 3 檔 F-NNN 引用補齊（work-order 16 Flow / dispatch §1-§9 / admin-governance G1-G4）；(2) admin-governance §1.1 角色表 dispatcher Q1=A 標已拍板 + 新增 operations_director（Q2=A）+ ROLE_HIERARCHY 階層說明；(3) E7x module-spec 模組 1-8 全補 BDD Feature + 流程引用；(4) E7 F-107 雙閾值設計釐清（Feature header callout 0.90 main / 0.85 edge 非衝突，calibration 變動需同步）。§4 表加狀態 column；剩 1 項 ⚠ 部分解（F-011 BDD 仍綁 Q7=B）。 |

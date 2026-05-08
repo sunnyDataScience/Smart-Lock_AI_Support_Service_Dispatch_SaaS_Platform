@@ -750,9 +750,14 @@ Feature: Security Protection
 
 ---
 
-### Feature: 情緒分流（Sentiment Triage）
+### Feature: 情緒分流（Sentiment Triage）— F-107
 
 > AI 鎖匠代理人即時偵測消費者負面情緒關鍵詞，觸發優先回應協議並通知真人管理員。合約 9.3 條 / 驗收 4.4(a) 要求負面情緒識別率 >= 90%。
+>
+> **🎚 Confidence Threshold 雙閾值設計（intentional dual-threshold）**：
+> - **Main path（明確投訴關鍵詞）**：`confidence >= 0.90` → 觸發 priority response + admin LINE push（合約底線 ≥ 90% 識別率）
+> - **Edge case（模糊挫折表達）**：`confidence >= 0.85` → 主動釋出協助但 **不通知 admin**（不阻塞流程，避免 false positive 騷擾管理員）
+> - 兩者非衝突：edge case 鬆閾值 + 不升級 = 友善體驗；main path 嚴閾值 + 升級 = 合約滿足。實作見 `agent/profiles/sentiment.py` + Q11 待議題（如未來 calibrate 數值，需同步更新 BDD 兩處 + 模組規格 §6-1）。
 
 ```gherkin
 Feature: Sentiment Triage
@@ -803,8 +808,9 @@ Feature: Sentiment Triage
   Scenario: Ambiguous frustration expression
     Given the consumer sends a message "已經試了很多次了，真的很煩"
     When the system performs sentiment analysis on the message
-    # NOTE: edge case 模糊表達閾值放寬至 0.85（vs 主流程 0.90），主動釋出協助
-    # 不阻塞流程；不觸發 admin alert（合約 9.3 識別率 >= 90% 是 main path 指標）
+    # NOTE: edge case 模糊表達閾值放寬至 0.85（vs 主流程 0.90 — Feature header 雙閾值設計）
+    # 不阻塞流程；不觸發 admin alert（合約 9.3 識別率 >= 90% 僅約束 main path）
+    # 設計 rationale 見 Feature header callout；calibration 變動需同步 _SSOT §4 表
     Then the sentiment_label should be "negative" with confidence >= 0.85
     And the system should proactively offer additional help:
       """

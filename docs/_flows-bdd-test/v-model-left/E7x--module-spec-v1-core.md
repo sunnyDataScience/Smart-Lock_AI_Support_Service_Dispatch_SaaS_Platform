@@ -58,7 +58,7 @@ owners: [Tech Lead, Backend Eng]
 
 ---
 
-## 模組 1: ConversationManager (ProcessMessageUseCase)
+## 模組 1: ConversationManager (ProcessMessageUseCase) — 對應 BDD Feature: F-101 / 流程 F-001 / F-002 / F-018
 
 **所在路徑**: `backend/src/smart_lock/application/conversation/use_cases.py`
 **對應領域層**: `backend/src/smart_lock/domains/conversation/entities.py`
@@ -261,7 +261,7 @@ async def resume_expired_session(
 
 ---
 
-## 模組 2: ProblemCardEngine (GenerateProblemCardUseCase)
+## 模組 2: ProblemCardEngine (GenerateProblemCardUseCase) — 對應 BDD Feature: F-102 / 流程 F-001 / F-002
 
 **所在路徑**: `backend/src/smart_lock/application/problem_card/use_cases.py`
 **對應領域層**: `backend/src/smart_lock/domains/problem_card/entities.py`
@@ -418,7 +418,7 @@ def evaluate_completeness(self, problem_card: ProblemCard) -> float:
 
 ---
 
-## 模組 3: ThreeLayerResolver (ResolveQueryUseCase)
+## 模組 3: ThreeLayerResolver (ResolveQueryUseCase) — 對應 BDD Feature: F-103 / 流程 F-001 / F-018
 
 **所在路徑**: `backend/src/smart_lock/application/resolution/use_cases.py`
 **對應領域層**: `backend/src/smart_lock/domains/resolution/strategies.py`
@@ -693,7 +693,7 @@ async def escalate(
 
 ---
 
-## 模組 4: KnowledgeBaseManager
+## 模組 4: KnowledgeBaseManager — 對應 BDD Feature: F-104 / 流程 F-001（RAG）/ F-017（SOP 草稿前置）
 
 ### SearchCaseLibraryUseCase / IngestManualUseCase
 
@@ -899,7 +899,7 @@ async def ingest_manual(
 
 ---
 
-## 模組 5: SOPGenerator (DraftSOPUseCase)
+## 模組 5: SOPGenerator (DraftSOPUseCase) — 對應 BDD Feature: F-104（自進化）/ 流程 F-017
 
 **所在路徑**: `backend/src/smart_lock/application/knowledge_base/use_cases.py`
 **對應領域層**: `backend/src/smart_lock/domains/knowledge_base/entities.py` (SOPDraft)
@@ -1100,7 +1100,7 @@ async def check_duplicate(
 
 ---
 
-## 模組 6: SentimentTriageEngine (AnalyzeSentimentUseCase)
+## 模組 6: SentimentTriageEngine (AnalyzeSentimentUseCase) — 對應 BDD Feature: F-107 / 流程 F-016 / F-018
 
 **模組職責**: 即時分析消費者訊息的情緒傾向，偵測負面情緒關鍵詞（合約 9.3 條），觸發優先回應協議並通知真人管理員。合約驗收標準：負面情緒識別率 >= 90%。
 
@@ -1232,7 +1232,7 @@ async def notify_admin_escalation(
 
 ---
 
-## 模組 7: ProactivePhotoGuidance (GuidePhotoUploadUseCase)
+## 模組 7: ProactivePhotoGuidance (GuidePhotoUploadUseCase) — 對應 BDD Feature: F-108 / 流程 F-001 / F-006
 
 **模組職責**: 當消費者描述模糊導致 ProblemCard 完整率不足合約要求的 85% 時，主動引導上傳特定部位照片。合約 9.3 條要求。圖片僅作為附件存儲，不進行 AI 影像辨識（SOW 2.1(4) 排除項）。
 
@@ -1284,7 +1284,7 @@ async def attach_photo_to_problem_card(
 
 ---
 
-## 模組 8: FamilyReviewEngine (FamilyReviewUseCase)
+## 模組 8: FamilyReviewEngine (FamilyReviewUseCase) — 對應 BDD Feature: F-109（V1.0 後段）/ 流程 cross-cutting
 
 **模組職責**: 實現甲方指定家族成員對 SOP 草稿的覆核機制。合約 4.4(d) 要求覆核率 100%，覆核紀錄不可刪除。
 
