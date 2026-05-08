@@ -152,3 +152,145 @@ def test_mask_technician_name_uses_first_char():
 
     assert mask_technician_name("陳大文") == "陳師傅"
     assert mask_technician_name(None) is None
+
+
+# =============================================================================
+# Scope Change public endpoints (Q9=B) — integration with mocked service
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_scope_change_purpose_mismatch_returns_404(client):
+    """token purpose 不是 scope_change → 404。"""
+    from services.public_token import TokenPayload
+
+    fake_payload = TokenPayload(
+        subject_id="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        purpose="work_order_status",
+        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+    )
+    with patch("routers.public.verify_token", return_value=fake_payload):
+        res = await client.get(f"/api/v1/public/scope-changes/{_VALID_TOKEN}")
+    assert res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_scope_change_returns_proposal(client):
+    """合法 scope_change token → 回傳提案明細。"""
+    from services.public_token import TokenPayload
+
+    fake_payload = TokenPayload(
+        subject_id="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        purpose="scope_change",
+        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+    )
+    fake_proposal = {
+        "proposal_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        "work_order_id": "11111111-2222-3333-4444-555555555555",
+        "status": "pending",
+        "raw_status": "pending",
+        "reason": "鎖芯老化需更換",
+        "items": [
+            {"name": "鎖芯總成", "description": None, "quantity": 1, "amount_delta": 1800.0}
+        ],
+        "total_delta": 1800.0,
+        "original_price": 2000.0,
+        "new_price": 3800.0,
+        "customer_decision": None,
+        "created_at": "2026-05-07T10:00:00+00:00",
+        "updated_at": "2026-05-07T10:00:00+00:00",
+    }
+    with (
+        patch("routers.public.verify_token", return_value=fake_payload),
+        patch(
+            "services.scope_change_service.get_proposal_public",
+            return_value=fake_proposal,
+        ),
+    ):
+        res = await client.get(f"/api/v1/public/scope-changes/{_VALID_TOKEN}")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["proposal_id"] == "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+    assert body["status"] == "pending"
+    assert body["total_delta"] == 1800.0
+    assert len(body["items"]) == 1
+    # 金額相關欄位（original/new price）不該外露給消費者
+    assert "original_price" not in body
+    assert "new_price" not in body
+
+
+@pytest.mark.asyncio
+async def test_post_scope_change_invalid_decision_returns_422(client):
+    from services.public_token import TokenPayload
+
+    fake_payload = TokenPayload(
+        subject_id="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        purpose="scope_change",
+        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+    )
+    with patch("routers.public.verify_token", return_value=fake_payload):
+        res = await client.post(
+            f"/api/v1/public/scope-changes/{_VALID_TOKEN}",
+            json={"decision": "maybe"},
+        )
+    assert res.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_post_scope_change_accept_calls_service(client):
+    from services.public_token import TokenPayload
+
+    fake_payload = TokenPayload(
+        subject_id="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        purpose="scope_change",
+        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+    )
+    fake_result = {
+        "proposal_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        "decision": "accept",
+        "recorded_at": "2026-05-07T11:00:00+00:00",
+        "next_step": "技師將於 5 分鐘內收到通知並繼續施工。",
+    }
+    with (
+        patch("routers.public.verify_token", return_value=fake_payload),
+        patch(
+            "services.scope_change_service.respond_public",
+            return_value=fake_result,
+        ) as mock_respond,
+    ):
+        res = await client.post(
+            f"/api/v1/public/scope-changes/{_VALID_TOKEN}",
+            json={"decision": "accept", "comment": "OK"},
+        )
+    assert res.status_code == 200
+    assert res.json()["decision"] == "accept"
+    # 確認 service 收到 token_hash + comment
+    kwargs = mock_respond.call_args.kwargs
+    assert kwargs["decision"] == "accept"
+    assert kwargs["comment"] == "OK"
+    assert kwargs["token_hash"] is not None and len(kwargs["token_hash"]) == 64
+
+
+@pytest.mark.asyncio
+async def test_post_scope_change_conflict_propagates_409(client):
+    from services.public_token import TokenPayload
+
+    fake_payload = TokenPayload(
+        subject_id="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        purpose="scope_change",
+        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+    )
+    from core.errors import ApiError
+
+    with (
+        patch("routers.public.verify_token", return_value=fake_payload),
+        patch(
+            "services.scope_change_service.respond_public",
+            side_effect=ApiError("CONFLICT", "already decided", 409),
+        ),
+    ):
+        res = await client.post(
+            f"/api/v1/public/scope-changes/{_VALID_TOKEN}",
+            json={"decision": "reject"},
+        )
+    assert res.status_code == 409

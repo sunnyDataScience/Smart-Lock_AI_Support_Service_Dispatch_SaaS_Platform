@@ -1,33 +1,65 @@
-"""Public anonymous token service — Q3=C / Q9=B 共用機制（SKELETON）。
+"""Public anonymous token service — Q3=C / Q9=B 共用機制（HMAC 真實版）。
 
 LINE 推播短連結 → Web 匿名頁面 → 此模組驗證 token →
 顯示工單狀態（Q3=C）或 Scope Change 提案（Q9=B）。
 
-## Q3=C/Q9=B Implementation TODO
+## 設計
 
-實作此模組時請補齊：
-  1. HMAC-SHA256 簽章：`hmac(secret, f"{subject_id}|{purpose}|{exp}|{nonce}")`
-  2. Token 結構：`base64url(payload).base64url(signature)`
-     - payload = {sub, purpose, exp, nonce, tenant_id}
-     - purpose ∈ {"work_order_status", "scope_change"}
-  3. TTL：work order 預設 30 天；scope change 與 proposal expires_at 對齊
-  4. 撤銷清單：Redis SET，key=`revoked:tokens`，member=token_hash(sha256)
-  5. Rate limit：依 token + IP，60 req/min（Redis sliding window）
-  6. PII 遮罩工具（mask_phone / mask_name）建議放這裡，由 router 呼叫
-  7. Audit log：寫 token_hash + IP + UA，**禁止**寫完整 token / customer email
+Token 格式：``base64url(payload_json) . base64url(signature)``
+
+payload 結構：
+    {
+      "sub": "<subject_id>",          # work_order_id 或 scope_change_proposal_id
+      "purpose": "work_order_status" | "scope_change",
+      "exp": 1714999999,               # 過期 unix timestamp (UTC)
+      "nonce": "<8 url-safe bytes>",  # 防重播；同 subject 多 token 隔離
+      "tenant_id": "<uuid>"           # 多租戶隔離
+    }
+
+signature = HMAC-SHA256(secret, payload_json_bytes) → 32 bytes → base64url
+
+驗證流程：
+    1. 拆 ``payload.sig`` → base64url decode
+    2. HMAC verify（``hmac.compare_digest`` 防 timing attack）
+    3. 檢查 ``exp < now`` → ``TokenExpiredError``
+    4. 檢查撤銷清單（in-memory set, key=sha256(token)）
+    5. router 層比對 ``purpose`` 是否與 endpoint 預期相符（不符 → 404）
 
 風險控制：
-  - secret 從 GCP Secret Manager 讀（PUBLIC_TOKEN_HMAC_SECRET），輪替策略 90 天
-  - 簽章演算法升級時保留 v1/v2 雙驗，一個版本灰度後再下架
+    - secret 從環境變數 ``PUBLIC_TOKEN_HMAC_SECRET`` 讀；未設定時 dev 預設值
+    - secret 輪替策略：90 天，輪替時保留 v1/v2 雙驗，灰度後下架
+    - PII 遮罩工具（mask_phone / mask_technician_name）由 router 呼叫
+    - audit log（token_hash + IP + UA）由 router/service 寫，**禁止**寫完整 token
+
+TODO（未實作）：
+    - rate limit：依 token + IP，60 req/min（Redis sliding window）
+    - 撤銷清單：from in-memory set → Redis SET (revoked:tokens)
+    - secret 從 GCP Secret Manager 讀取（生產環境）
 """
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
+import json
+import logging
+import os
+import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
+logger = logging.getLogger("api.public_token")
+
 TokenPurpose = Literal["work_order_status", "scope_change"]
+
+# secret 來源：env var → 生產 GCP Secret Manager 注入；dev 用固定 fallback
+_DEV_SECRET = "dev-secret-do-not-use-in-prod"  # noqa: S105 — explicit dev fallback
+_SECRET_ENV = "PUBLIC_TOKEN_HMAC_SECRET"
+
+# in-memory 撤銷清單（TODO: 換 Redis）
+_revoked_token_hashes: set[str] = set()
 
 
 @dataclass(frozen=True)
@@ -38,6 +70,7 @@ class TokenPayload:
     purpose: TokenPurpose
     expires_at: datetime
     tenant_id: str | None = None
+    nonce: str | None = None
 
 
 class TokenInvalidError(Exception):
@@ -48,6 +81,37 @@ class TokenExpiredError(Exception):
     """Token 已過期或被撤銷 → 對外回 404 / 410。"""
 
 
+# =============================================================================
+# Internal helpers
+# =============================================================================
+
+def _get_secret() -> bytes:
+    secret = os.getenv(_SECRET_ENV) or _DEV_SECRET
+    return secret.encode("utf-8")
+
+
+def _b64url_encode(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+
+
+def _b64url_decode(s: str) -> bytes:
+    pad = "=" * (-len(s) % 4)
+    return base64.urlsafe_b64decode(s + pad)
+
+
+def _sign(payload_bytes: bytes) -> bytes:
+    return hmac.new(_get_secret(), payload_bytes, hashlib.sha256).digest()
+
+
+def _token_hash(token: str) -> str:
+    """Token 雜湊（供 audit log / 撤銷清單使用，不洩露原 token）。"""
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+# =============================================================================
+# Public API
+# =============================================================================
+
 def generate_token(
     subject_id: str,
     *,
@@ -55,52 +119,104 @@ def generate_token(
     ttl_days: int = 30,
     tenant_id: str | None = None,
 ) -> str:
-    """產生簽章 token（SKELETON — 回傳 placeholder 字串）。
+    """產生簽章 token。
 
-    Q3=C/Q9=B Implementation TODO:
-        實作 HMAC-SHA256 簽章 + base64url 編碼，回 `payload.sig` 雙段格式。
-        現階段僅回傳可辨識的 placeholder，方便前端串接 mock。
+    Args:
+        subject_id: work_order_id 或 scope_change_proposal_id
+        purpose: ``work_order_status`` (Q3=C) | ``scope_change`` (Q9=B)
+        ttl_days: 過期天數；work order 預設 30，scope change 由呼叫端帶 7
+        tenant_id: 多租戶隔離
+
+    Returns:
+        ``payload_b64.signature_b64`` 格式字串
     """
-    # TODO Q3=C/Q9=B impl: HMAC-SHA256 signed UUID + expiry + revocation list
     expires_at = datetime.now(timezone.utc) + timedelta(days=ttl_days)
-    return (
-        f"stub-{purpose}-{subject_id[:8]}-"
-        f"{int(expires_at.timestamp())}-PLACEHOLDER"
-    )
+    payload = {
+        "sub": subject_id,
+        "purpose": purpose,
+        "exp": int(expires_at.timestamp()),
+        "nonce": secrets.token_urlsafe(8),
+        "tenant_id": tenant_id,
+    }
+    payload_bytes = json.dumps(
+        payload, separators=(",", ":"), ensure_ascii=False, sort_keys=True
+    ).encode("utf-8")
+    sig = _sign(payload_bytes)
+    return f"{_b64url_encode(payload_bytes)}.{_b64url_encode(sig)}"
 
 
 def verify_token(token: str) -> TokenPayload:
-    """驗證 token（SKELETON — 回傳 placeholder TokenPayload）。
+    """驗證 token 並回傳 payload。
 
-    Q3=C/Q9=B Implementation TODO:
-        - 拆 `payload.sig` → base64url decode → HMAC verify
-        - 檢查 expires_at < now → raise TokenExpiredError
-        - 查 Redis 撤銷清單 → raise TokenExpiredError
-        - 簽章不符 → raise TokenInvalidError
+    Raises:
+        TokenInvalidError: 格式錯誤 / 簽章不符
+        TokenExpiredError: 過期或已撤銷
     """
-    # TODO Q3=C/Q9=B impl: HMAC verify + revocation check
-    if not token or len(token) < 16:
-        raise TokenInvalidError("token too short")
+    if not token or "." not in token:
+        raise TokenInvalidError("token format invalid")
+
+    try:
+        payload_b64, sig_b64 = token.split(".", 1)
+        payload_bytes = _b64url_decode(payload_b64)
+        sig_bytes = _b64url_decode(sig_b64)
+    except (ValueError, base64.binascii.Error) as exc:
+        raise TokenInvalidError(f"token decode failed: {exc}") from None
+
+    expected_sig = _sign(payload_bytes)
+    if not hmac.compare_digest(expected_sig, sig_bytes):
+        raise TokenInvalidError("signature mismatch")
+
+    try:
+        payload = json.loads(payload_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise TokenInvalidError(f"payload not valid json: {exc}") from None
+
+    sub = payload.get("sub")
+    purpose = payload.get("purpose")
+    exp = payload.get("exp")
+    if not sub or purpose not in {"work_order_status", "scope_change"} or not exp:
+        raise TokenInvalidError("payload missing required fields")
+
+    expires_at = datetime.fromtimestamp(int(exp), tz=timezone.utc)
+    if expires_at < datetime.now(timezone.utc):
+        raise TokenExpiredError("token expired")
+
+    if is_revoked(_token_hash(token)):
+        raise TokenExpiredError("token revoked")
+
     return TokenPayload(
-        subject_id="00000000-0000-0000-0000-000000000000",
-        purpose="work_order_status",
-        expires_at=datetime.now(timezone.utc) + timedelta(days=30),
-        tenant_id=None,
+        subject_id=str(sub),
+        purpose=purpose,  # type: ignore[arg-type]
+        expires_at=expires_at,
+        tenant_id=payload.get("tenant_id"),
+        nonce=payload.get("nonce"),
     )
 
 
-def mask_technician_name(full_name: str | None) -> str | None:
-    """技師姓名遮罩：僅露姓氏 + 「師傅」（例：「陳大文」→「陳師傅」）。
+def is_revoked(token_hash: str) -> bool:
+    """檢查 token hash 是否在撤銷清單中。
 
-    Q3=C/Q9=B Implementation TODO:
-        - 處理英文姓名（取首字 + Master）
-        - 處理複姓（歐陽 / 司馬 / 諸葛）
+    TODO: 改為 Redis ``SISMEMBER revoked:tokens <hash>``。
     """
-    # TODO Q3=C/Q9=B impl: 完整命名規則
-    if not full_name:
-        return None
-    return f"{full_name[0]}師傅"
+    return token_hash in _revoked_token_hashes
 
+
+def revoke_token(token: str) -> None:
+    """將 token 加入撤銷清單（用於：客戶申訴後撤銷、scope_change 已決議）。
+
+    TODO: 改為 Redis ``SADD revoked:tokens <hash>`` + 設過期時間 = token TTL。
+    """
+    _revoked_token_hashes.add(_token_hash(token))
+
+
+def token_hash_for_audit(token: str) -> str:
+    """供 audit log 使用的 token 雜湊（永遠不要寫完整 token）。"""
+    return _token_hash(token)
+
+
+# =============================================================================
+# PII masking utilities
+# =============================================================================
 
 def mask_phone(phone: str | None) -> str | None:
     """電話遮罩：保留末四碼（例：「0912345678」→「****5678」）。"""
@@ -110,3 +226,32 @@ def mask_phone(phone: str | None) -> str | None:
     if len(digits) < 4:
         return "****"
     return f"****{digits[-4:]}"
+
+
+def mask_technician_name(full_name: str | None) -> str | None:
+    """技師姓名遮罩：僅露姓氏 + 「師傅」（例：「陳大文」→「陳師傅」）。
+
+    複姓暫不處理（TODO：歐陽 / 司馬 / 諸葛）；英文名 fallback 用首字 + Master。
+    """
+    if not full_name:
+        return None
+    name = full_name.strip()
+    if not name:
+        return None
+    first = name[0]
+    if first.isascii() and first.isalpha():
+        return f"{first}. Master"
+    return f"{first}師傅"
+
+
+def mask_customer_name(full_name: str | None) -> str | None:
+    """客戶姓名遮罩：保留姓氏 + 性別中性「先生/小姐」改為「客戶」。
+
+    例：「王小明」→「王客戶」；無資料 → None。
+    """
+    if not full_name:
+        return None
+    name = full_name.strip()
+    if not name:
+        return None
+    return f"{name[0]}客戶"
