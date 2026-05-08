@@ -37,6 +37,7 @@ class AppConfig:
     data_correction: dict = field(default_factory=dict)
     opik: dict = field(default_factory=dict)
     skills: dict = field(default_factory=dict)
+    notifications: dict = field(default_factory=dict)
 
 
 def load_config(file_path: str | None = None) -> AppConfig:
@@ -70,6 +71,7 @@ def load_config(file_path: str | None = None) -> AppConfig:
         data_correction=data.get("data_correction", {}),
         opik=data.get("opik", {}),
         skills=data.get("skills", {}),
+        notifications=data.get("notifications", {}),
     )
 
 

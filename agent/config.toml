@@ -164,7 +164,27 @@ keyword          = "#資料修正"
 reply            = "已收到您的回報，我們會盡快處理，謝謝您！"
 postgres_uri_env = "POSTGRES_URI"
 
-# ── 14. OPIK LLM Observability ──
+# ── 14. Notification Channels（V1.0 only LINE，V1.5+ 補 SMS/Email/FCM）──
+# 詳見 docs/02-design/specs/notification-channel-strategy.md
+[notifications]
+default_channel = "line"
+fallback_chain  = ["line"]  # V1.5+ 視 PM 拍板改 ["line", "sms"] 等
+
+[notifications.providers.line]
+enabled = true
+
+[notifications.providers.sms]
+enabled  = false  # V1.5+
+provider = ""     # twilio / aws_sns / domestic
+
+[notifications.providers.email]
+enabled  = false  # V1.5+
+provider = ""     # ses / sendgrid
+
+[notifications.providers.fcm]
+enabled = false  # V2.0+
+
+# ── 15. OPIK LLM Observability ──
 [opik]
 enabled       = false  # Phase 0 診斷：暫關以 A/B 排除 callback hang 嫌疑
 project_name  = "smart-lock-agent"

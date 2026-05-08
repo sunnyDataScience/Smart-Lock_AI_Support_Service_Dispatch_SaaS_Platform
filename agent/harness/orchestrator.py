@@ -379,6 +379,10 @@ async def agent_and_reply(
     )
 
     # 9. send
+    # TODO(V1.5): migrate to NotificationRouter once non-LINE channels exist.
+    #   Current direct call keeps Phase 0 behaviour identical; abstraction
+    #   layer (agent/notifications/) is registered at startup but not wired
+    #   here yet — see docs/02-design/specs/notification-channel-strategy.md
     max_len = _config.get("max_reply_length", 5000)
     message_objects = build_line_messages(ai_response[:max_len], skip_quick_reply=True)
     await line_bot.send_response(

@@ -114,7 +114,13 @@ async def startup():
     line_bot.init(access_token, {
         "loading_seconds": line_cfg.get("loading_seconds", 20),
         "push_fallback_prefix": _cfg.templates.get("push_fallback_prefix", ""),
+        "max_reply_length": line_cfg.get("max_reply_length", 5000),
     })
+
+    # 註冊通知 channel adapters（V1.0 只 LINE 真實，SMS/Email/FCM 為 V1.5+ stub）
+    # 必須在 line_bot.init 之後，因為 LineChannelAdapter 包裝其全域狀態。
+    from notifications import register_default_channels
+    register_default_channels()
 
     # 初始化記憶壓縮（摘要任務不需深度推理 → 低 thinking_budget）
     memory_llm = get_llm({
