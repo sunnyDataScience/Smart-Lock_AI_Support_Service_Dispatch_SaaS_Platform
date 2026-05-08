@@ -18,8 +18,8 @@ related:
   - "[[03-develop/GR6--code-complete]]"
   - "[[03-develop/GR7--integration]]"
   - "[[04-deliver/GR10--ga-readiness]]"
-last_reviewed: 2026-05-07
-last_updated: 2026-05-07 (§1/§2 雙向對齊：🟢13/🟡7/🔴3，TL;DR 與對齊矩陣完全一致)
+last_reviewed: 2026-05-08
+last_updated: 2026-05-08 (§4.2/§4.3 黃燈全清：PR #43/#44 + commit `bd7ec2f` 後 BE 全綠 + FE 僅剩 V1.1 PDF)
 ---
 
 # E7x — Test Plan and Readiness Roadmap
@@ -162,9 +162,9 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 | ~~客服接管後的 chat UI~~ | **P0** | 3d | ✅ A4 Wave 2 完成（HandoverComposer.tsx） |
 | ~~Modal / Drawer / Toast 統一 library~~ | **P0** | 3d | ✅ A2 Wave 1 完成（Radix UI） |
 | ~~Dashboard 日期範圍選擇器~~ | P1 | 1d | ✅ A3 Wave 2 完成（DateRangePicker） |
-| ~~稽核 CSV 匯出 Modal~~（accounting / reports 仍待） | P1 | 2d | 🟡 部分（A5 完成 audit；accounting / reports 匯出仍 pending，綁 §4.3 `exportReport`） |
-| 客戶 admin「新增 / 編輯」表單 | P1 | 1.5d | 🟡 FE 工時 1.5d（`chore/fe-admin-forms` worktree 進行中） |
-| 消費者端工單追蹤頁 `/track/[token]` | **P0** | 5d | 🟡 PR #40 placeholder 已建（`web/src/app/track/[token]/page.tsx`），full impl 待 FE 工時 |
+| ~~稽核 CSV 匯出 Modal~~（accounting / reports） | P1 | 2d | ✅ 完成 — A5 audit + commit `bd7ec2f` `ReportExportModal` 接 KPI / Revenue / Technician Ranking / Accounting 4 頁；CSV stream；PDF V1.1 補（缺 reportlab dep） |
+| ~~客戶 admin「新增 / 編輯」表單~~ | P1 | 1.5d | ✅ PR #44 完成（`admin/customers/new/page.tsx` + `[id]/edit/page.tsx`） |
+| ~~消費者端工單追蹤頁 `/track/[token]`~~ | **P0** | 5d | ✅ PR #44 full impl（含 scope-change 同意頁） |
 | i18n / 深色模式 | — | 不做 | ❌ V1.0 範圍外 |
 
 ### 4.3 後端 API 缺口
@@ -173,10 +173,10 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 |------|---|------|------|
 | ~~`sendChatMessage`~~ | **P0** | 1.5d | ✅ A4 完成（LINE Push integration TODO） |
 | ~~`exportAuditEvents`~~ | P1 | 2d | ✅ A5 完成（>100k 背景 job 留 202 contract） |
-| `getWorkOrderPublicStatus`（消費者匿名追蹤） | **P0** | 1.5d | 🟡 PR #40 OpenAPI spec + skeleton 齊（Q3=C / Q9=B 共用 token），full impl 待 BE |
-| `updateCustomer` / `createCustomer` | P1 | 1d | 🟡 BE 工時 1d（`chore/be-crud-endpoints` worktree 進行中） |
-| `updateMyAvailability`（技師在線狀態切換） | P1 | 1d | 🟡 BE 工時 1d |
-| `exportReport`（KPI / 營收 CSV / PDF） | P1 | 2d | 🟡 BE 工時 2d |
+| ~~`getWorkOrderPublicStatus`~~（消費者匿名追蹤） | **P0** | 1.5d | ✅ PR #43 完成（`api/routers/public.py`，Q3=C / Q9=B 共用 token；含 `getScopeChangeProposalPublic` + `respondScopeChangePublic`） |
+| ~~`updateCustomer` / `createCustomer`~~ | P1 | 1d | ✅ PR #43 完成（`api/routers/customers.py`） |
+| ~~`updateMyAvailability`~~（技師在線狀態切換） | P1 | 1d | ✅ PR #43 完成（`api/routers/technicians.py` PATCH `/technicians/me/availability`） |
+| ~~`exportReport`~~（KPI / 營收 CSV / PDF） | P1 | 2d | ✅ PR #43 完成（`api/routers/reports_export.py` GET StreamingResponse CSV；PDF 路徑 422 待 reportlab dep V1.1） |
 | 通知 channel 抽象層（為 SMS / FCM 預留） | ❌ V1.5+ | — | ❌ Q8=A 後降級 V1.5+；見 [[02-design/specs/notification-channel-strategy]] |
 
 ### 4.4 外部系統整合缺口（V2.0 阻塞）
@@ -542,6 +542,7 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 | 2026-05-07 | Claude (assisted) | **§1 / §2 雙向對齊**：TL;DR 數字與 §2 對齊矩陣逐行對照修正。修正內容：(a) 🟡 部分可測列表加入 F-014（移除 F-013，因 F-013 §2 已是 🟢）；(b) 🔴 不能測從「4 條 (F-011/F-012/F-014/F-022)」修正為「3 條 (F-011/F-012/F-022)」；(c) 🟡 條數明確標 7 條；(d) 加 cross-link 至 [[_flows-bdd-test/v-model-right/E7--bdd-scenarios|E7 §Ⅲ.b]] BDD 對照表。理由：§2 為 SSOT，§1 為摘要，過去 §1 落後 §2。 |
 | 2026-05-07 | PM + Claude (sync) | **PM Q1-Q10 全拍板同步**：§1 TL;DR 改寫「根本原因（已解）」+ 列出新阻塞（Q7=B 金流 / Q3=C+Q9=B Web 匿名 token / Q4=C 工作日 calendar）；§3 從 10 row 待拍表變「拍板結果 + 後續行動」表，標明 4 反向選項；指向 _SSOT-alignment-matrix §3 對齊狀態彙總。Q7=B 為最重大決策（V1.0 含金流，延 ~1.5 月）。 |
 | 2026-05-07 | Claude (assisted) | **PR #40 5-track 後流程升級**（spec-driven 定義）：§1 TL;DR 統計 🟢13→15 / ⚠7→5 / 🔴3→3。5 條升 🟢：F-004（T1 dispatcher）、F-008（T2 Web token spec）、F-016（T4 F-110 BDD）、F-019（T1 dispatcher 角色）、F-022（T2 getWorkOrderPublicStatus）。剩 3 條 ⚠ 阻塞全綁 Q7=B provider 選型（PR #39 follow-up 矩陣等會議）。明確區分「立即可測」採 spec-driven（規格 + test infra + PM 拍板齊備即 🟢，不要求 production code 100%）。詳見 [[_flows-bdd-test/_SSOT-alignment-matrix#7-change-log\|_SSOT §7]]。 |
+| 2026-05-08 | Claude (assisted) | **§4.2/§4.3 黃燈全清**：PR #43（`api/routers/public.py` `getWorkOrderPublicStatus` + `customers.py` updateCustomer/createCustomer + `technicians.py` updateMyAvailability + `reports_export.py` exportReport CSV）+ PR #44（admin/customers 表單 + `/track/[token]` 全套）+ commit `bd7ec2f`（`ReportExportModal` 通用 modal 接 KPI / Revenue / Technician Ranking / Accounting 4 頁）後，§4.2 + §4.3 黃燈全部清空。BE 4 條全綠、FE 3 條全綠。剩餘僅 V1.1 PDF 路徑（缺 reportlab dep，明確標非本期範圍）+ accounting BE service（V1.1）。 |
 
 ### 15.1 Wave 1+2 補完明細（2026-05-07）
 
