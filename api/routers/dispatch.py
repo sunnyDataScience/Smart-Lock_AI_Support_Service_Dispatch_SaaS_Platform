@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import CurrentUser, require_tenant, role_required
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
     DispatchAssignRequest,
@@ -21,7 +21,18 @@ from models.generated import (
     WorkOrder,
     WorkOrderEnvelope,
 )
-from services import dispatch_service
+from services import audit_log_service, dispatch_service
+
+# F-004 manual dispatch — 同 work_orders.py：admin/operations_manager/tenant_admin
+# /dispatcher/customer_service 才能呼叫；客服繞過時強制 audit log。
+_DISPATCH_ALLOWED_ROLES = (
+    "admin",
+    "operations_manager",
+    "tenant_admin",
+    "dispatcher",
+    "customer_service",
+)
+_BYPASS_ROLES = {"customer_service"}
 
 router = APIRouter()
 
@@ -84,7 +95,7 @@ async def auto_match_dispatch(
 )
 async def assign_dispatch(
     body: DispatchAssignRequest,
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*_DISPATCH_ALLOWED_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     order = await dispatch_service.assign_dispatch(
@@ -93,6 +104,21 @@ async def assign_dispatch(
         technician_id=str(body.technician_id),
         override_reason=body.override_reason,
     )
+    # PM Q6=A — 客服繞過自動派工必須留稽核軌跡
+    if user.role in _BYPASS_ROLES:
+        await audit_log_service.log_event(
+            event_type="dispatch_decision",
+            actor_id=user.user_id,
+            actor_role=user.role,
+            action="manual_dispatch_bypass",
+            target_type="work_order",
+            target_id=str(body.work_order_id),
+            payload={
+                "endpoint": "assignDispatch",
+                "technician_id": str(body.technician_id),
+                "override_reason": body.override_reason or "未提供理由",
+            },
+        )
     payload = {"data": WorkOrder(**order).model_dump(mode="json")}
     if idem is not None:
         await idem.save(200, payload)

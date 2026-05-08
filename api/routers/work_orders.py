@@ -15,7 +15,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Path, Query
 from pydantic import BaseModel, Field
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import CurrentUser, require_tenant, role_required
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
     ApiResponseGeneric,
@@ -30,7 +30,21 @@ from models.generated import (
     WorkOrderEscalateRequest,
     WorkOrderPage,
 )
-from services import signature_service, work_order_service
+from services import audit_log_service, signature_service, work_order_service
+
+# F-004 manual dispatch — 允許角色：
+#   - admin / operations_manager / tenant_admin: 完整管理權
+#   - dispatcher: 專責派工角色（PM Q1=A — V2 獨立角色）
+#   - customer_service: 客服可繞過自動派工（PM Q6=A — 強制 audit log）
+# technician / brand_oem / line_user / reviewer 一律 403。
+_DISPATCH_ALLOWED_ROLES = (
+    "admin",
+    "operations_manager",
+    "tenant_admin",
+    "dispatcher",
+    "customer_service",
+)
+_BYPASS_ROLES = {"customer_service"}
 
 
 class _RescheduleSlot(BaseModel):
@@ -156,16 +170,35 @@ async def accept_work_order(
 async def assign_work_order(
     body: WorkOrderAssignRequest,
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*_DISPATCH_ALLOWED_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
+    reason_code = (
+        body.reason_code.value if hasattr(body.reason_code, "value") else str(body.reason_code)
+    )
     order = await work_order_service.assign_order(
         tenant_id=user.tenant_id,
         wo_id=id,
         technician_id=str(body.technician_id),
-        reason_code=body.reason_code.value if hasattr(body.reason_code, "value") else str(body.reason_code),
+        reason_code=reason_code,
         reason_text=body.reason_text,
     )
+    # PM Q6=A — 客服繞過自動派工必須留稽核軌跡
+    if user.role in _BYPASS_ROLES:
+        await audit_log_service.log_event(
+            event_type="dispatch_decision",
+            actor_id=user.user_id,
+            actor_role=user.role,
+            action="manual_dispatch_bypass",
+            target_type="work_order",
+            target_id=id,
+            payload={
+                "endpoint": "assignWorkOrder",
+                "technician_id": str(body.technician_id),
+                "reason_code": reason_code,
+                "reason_text": body.reason_text or "未提供理由",
+            },
+        )
     payload = {"data": WorkOrder(**order).model_dump(mode="json")}
     if idem is not None:
         await idem.save(200, payload)
