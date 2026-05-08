@@ -17,12 +17,14 @@ import { ApiError, api } from "@/lib/api";
  * ReportExportModal — E7x §4.2 P1 報表匯出 UI（KPI / 營收 / 技師排行 / 結算）。
  *
  * 對應 BE GET /api/v1/reports/export（operationId: exportReport），role gate
- * admin / operations_manager / accountant。CSV 路徑串流下載；PDF 在後端目前
- * 一律 422（缺 reportlab/weasyprint dep），本 modal 僅暴露 CSV。
+ * admin / operations_manager / accountant。
  *
- * 注意：accounting report_type 在 BE/openapi spec 目前 **未列入 enum**
- *   （僅 kpi/revenue/technician_ranking）。仍保留 type 以利未來擴充；
- *   呼叫時 BE 會回 422，使用者會看到對應的 error toast。
+ * format：
+ *   - csv → text/csv stream（行內 generator）
+ *   - pdf → application/pdf（reportlab + STSong-Light，整檔）
+ *
+ * report_type=accounting：BE 透過 settlement_service.list_settlements 匯出
+ * 結算列表（CSV 欄位含 settlement_id / technician / amount / status / paid_at）。
  */
 
 export type ReportType = "kpi" | "revenue" | "technician_ranking" | "accounting";
@@ -30,20 +32,32 @@ export type ReportType = "kpi" | "revenue" | "technician_ranking" | "accounting"
 const REPORT_LABELS: Record<ReportType, { title: string; description: string }> = {
   kpi: {
     title: "匯出 KPI 報表",
-    description: "依當前期間（today / 7d / 30d / 90d）匯出 CSV。",
+    description: "依當前期間（today / 7d / 30d / 90d）匯出 CSV / PDF。",
   },
   revenue: {
     title: "匯出營收報表",
-    description: "依當前日期範圍與品牌切片匯出 CSV。",
+    description: "依當前日期範圍與品牌切片匯出 CSV / PDF。",
   },
   technician_ranking: {
     title: "匯出技師排行報表",
-    description: "依當前日期範圍匯出技師排行 CSV。",
+    description: "依當前日期範圍匯出技師排行 CSV / PDF。",
   },
   accounting: {
     title: "匯出結算報表",
-    description: "依當前期間匯出結算 CSV（後端 endpoint 待 V1.1 補上）。",
+    description: "匯出結算列表（settlement / technician / amount / status）CSV / PDF。",
   },
+};
+
+type ExportFormat = "csv" | "pdf";
+
+const FORMAT_LABEL: Record<ExportFormat, string> = {
+  csv: "CSV（試算表）",
+  pdf: "PDF（A4 列印）",
+};
+
+const FORMAT_CONTENT_TYPE: Record<ExportFormat, string> = {
+  csv: "text/csv",
+  pdf: "application/pdf",
 };
 
 export type ReportExportFilters = Record<
@@ -68,6 +82,7 @@ export function ReportExportModal({
   filters,
   filterSummary,
 }: ReportExportModalProps) {
+  const [format, setFormat] = useState<ExportFormat>("csv");
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
 
@@ -76,7 +91,7 @@ export function ReportExportModal({
     // 組 query — 過濾掉 undefined/null/空字串，後端視為「不過濾」
     const query: Record<string, string> = {
       report_type: reportType,
-      format: "csv",
+      format,
     };
     for (const [key, value] of Object.entries(filters)) {
       if (value === undefined || value === null) continue;
@@ -86,7 +101,7 @@ export function ReportExportModal({
     }
 
     const today = new Date().toISOString().slice(0, 10);
-    const filename = `${reportType}-${today}.csv`;
+    const filename = `${reportType}-${today}.${format}`;
 
     try {
       await api.download("/api/v1/reports/export", { query, filename });
@@ -129,9 +144,33 @@ export function ReportExportModal({
             </div>
           </section>
 
-          <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-[12px] text-blue-900">
-            <strong>格式：</strong>CSV（PDF 暫不支援，將於 V1.1 補上）
-          </div>
+          <section>
+            <h3 className="mb-2 text-[13px] font-semibold text-[var(--text-secondary)]">
+              匯出格式
+            </h3>
+            <div className="flex gap-4">
+              {(["csv", "pdf"] as ExportFormat[]).map((opt) => (
+                <label
+                  key={opt}
+                  className="flex cursor-pointer items-center gap-2 text-[13px] text-[var(--text-primary)]"
+                >
+                  <input
+                    type="radio"
+                    name="report-export-format"
+                    value={opt}
+                    checked={format === opt}
+                    onChange={() => setFormat(opt)}
+                    className="h-4 w-4 accent-[var(--primary)]"
+                  />
+                  {FORMAT_LABEL[opt]}
+                </label>
+              ))}
+            </div>
+            <p className="mt-2 text-[12px] text-[var(--text-secondary)]">
+              Content-Type：
+              <span className="font-['IBM_Plex_Mono']">{FORMAT_CONTENT_TYPE[format]}</span>
+            </p>
+          </section>
         </div>
 
         <ModalFooter>
