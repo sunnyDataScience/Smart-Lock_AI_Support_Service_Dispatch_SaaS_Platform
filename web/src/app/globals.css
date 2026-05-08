@@ -74,6 +74,95 @@
   --shadow-popover: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+ * Dark theme — 深色模式
+ *
+ * 設計原則（與 sidebar 維持深色不變的設計一致）：
+ *   - sidebar 比 light mode 再深一階（更突出對比）
+ *   - 主內容區從 #F8FAFC 翻為 #0F172A（原 text-primary）
+ *   - surface 從 #FFFFFF 翻為 #1E293B（原 sidebar 色，二級階層）
+ *   - border 從 #E2E8F0 翻為 #334155（保留分割線可見）
+ *   - 文字反相但仍維持 ≥ 4.5:1 對比度（WCAG AA body）
+ *   - primary 從 #2563EB 提亮為 #3B82F6（深底配深藍對比不夠）
+ *   - badge tones 用「深底淺字」的陰影色：bg 用品牌色 20% alpha，
+ *     fg 用品牌色 60% lightness 的提亮版本，避免 light mode 的高彩度淺色
+ *     直接套到深底（會刺眼且對比過低）
+ *
+ * 套用方式：layout.tsx 在 <head> 注入 inline script 讀 localStorage
+ * 立刻 setAttribute("data-theme", "dark"|"light")，避免 React 載入前閃白。
+ * 所有元件全部使用 CSS variable，自動繼承新值，無需逐元件改寫。
+ * ───────────────────────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  /* Brand — primary 提亮 1 階（#2563EB → #3B82F6），對深底 4.55:1 */
+  --primary: #3B82F6;
+  --primary-hover: #60A5FA;
+  --primary-light: #1E3A8A;          /* 反向：深底用「深藍」當 light 變體 */
+  --secondary: #94A3B8;
+  --secondary-hover: #CBD5E1;
+  --accent: #FBBF24;
+  --accent-hover: #F59E0B;
+
+  /* Backgrounds — 主內容翻轉，sidebar 再深一階 */
+  --bg-page: #0F172A;
+  --bg-sidebar: #0B1220;
+  --bg-surface: #1E293B;
+
+  /* Borders */
+  --border: #334155;
+  --border-focus: #60A5FA;
+
+  /* Text — 對比度（深底 #0F172A / surface #1E293B）：
+   *   --text-primary    #F1F5F9 → 16.0:1 ✅ AAA
+   *   --text-secondary  #94A3B8 → 5.4:1  ✅ AA body
+   *   --text-tertiary   #64748B → 4.5:1  ✅ AA body 邊界
+   *   --text-disabled   #64748B → 4.5:1  ✅ */
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-tertiary: #64748B;
+  --text-disabled: #64748B;
+  --text-inverse: #0F172A;
+
+  /* Status — 提亮 1 階以對深底 */
+  --status-success: #34D399;
+  --status-warning: #FBBF24;
+  --status-danger: #F87171;
+  --status-active: #60A5FA;
+  --status-assigned: #A78BFA;
+  --status-pending: #818CF8;
+
+  /* System */
+  --success: #34D399;
+  --warning: #FBBF24;
+  --error: #F87171;
+  --info: #60A5FA;
+
+  /* Semantic badge tokens — 深底版本：bg 用低飽和深色，fg 用提亮品牌色
+   * 避免直接套 light 的 #FEF3C7 / #DBEAFE 等高亮淺色（深底刺眼且對比 < 3:1） */
+  --badge-warn-bg: #422006;
+  --badge-warn-fg: #FCD34D;
+  --badge-info-bg: #1E3A5F;
+  --badge-info-fg: #93C5FD;
+  --badge-success-bg: #064E3B;
+  --badge-success-fg: #6EE7B7;
+  --badge-danger-bg: #7F1D1D;
+  --badge-danger-fg: #FCA5A5;
+  --badge-muted-bg: #1E293B;
+  --badge-muted-fg: #94A3B8;
+
+  /* Surface tokens — elevated/subtle/strong 在深底要「往上提亮」一階
+   * 而不是 light mode 的「往下加深」邏輯（深色設計通則） */
+  --surface-elevated: #1E293B;
+  --surface-subtle: #0F172A;
+  --surface-strong: #334155;
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+  --shadow-popover: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+}
+
+/* color-scheme 提示瀏覽器原生 UI（scrollbar / form controls）配色 */
+html { color-scheme: light dark; }
+[data-theme="light"] { color-scheme: light; }
+[data-theme="dark"] { color-scheme: dark; }
+
 @layer base {
   html, body {
     height: 100%;

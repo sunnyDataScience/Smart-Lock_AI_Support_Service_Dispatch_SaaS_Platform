@@ -12,6 +12,7 @@ import {
 import Sidebar from "@/components/layout/Sidebar";
 import PricingForm from "@/components/settings/PricingForm";
 import SystemConfigForm from "@/components/settings/SystemConfigForm";
+import ThemeToggle from "@/components/theme/ThemeToggle";
 import { ApiError, api, getCurrentSession, type CurrentSession } from "@/lib/api";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -131,7 +132,12 @@ function ProfileForm() {
 
         <div className="flex gap-5">
           <SelectField label="語言" value="繁體中文" disabled />
+          <ThemeField />
+        </div>
+
+        <div className="flex gap-5">
           <FormField label="聯絡電話" value="—" placeholder="待 /users/me 上線" />
+          <div className="flex-1" />
         </div>
       </div>
 
@@ -394,6 +400,19 @@ function FormField({
         >
           {value || placeholder || ""}
         </span>
+      </div>
+    </div>
+  );
+}
+
+function ThemeField() {
+  return (
+    <div className="flex flex-1 flex-col gap-[6px]">
+      <span className="text-[13px] font-semibold text-[var(--text-primary)]">
+        外觀主題
+      </span>
+      <div className="flex h-10 items-center">
+        <ThemeToggle variant="segmented" />
       </div>
     </div>
   );
