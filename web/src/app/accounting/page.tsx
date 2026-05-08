@@ -12,12 +12,14 @@ import {
   Calendar,
   ChevronDown,
   CheckCircle2,
+  Download,
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import SettlementTable from "@/components/accounting/SettlementTable";
 import ReconciliationsTable from "@/components/accounting/ReconciliationsTable";
 import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
+import { ReportExportModal } from "@/components/admin/reports/ReportExportModal";
 
 type Settlement = components["schemas"]["Settlement"];
 type SettlementPage = components["schemas"]["SettlementPage"];
@@ -92,6 +94,7 @@ export default function AccountingPage() {
   const [approving, setApproving] = useState(false);
   const [approveError, setApproveError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -212,6 +215,16 @@ export default function AccountingPage() {
                 <RefreshCw
                   className={`h-4 w-4 text-[var(--text-secondary)] ${loading || reconsLoading ? "animate-spin" : ""}`}
                 />
+              </button>
+              <button
+                onClick={() => setExportOpen(true)}
+                title="匯出 CSV"
+                className="flex items-center gap-[6px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 hover:bg-[var(--bg-page)]"
+              >
+                <Download className="h-4 w-4 text-[var(--text-secondary)]" />
+                <span className="text-[13px] text-[var(--text-primary)]">
+                  匯出 CSV
+                </span>
               </button>
               <span className="text-[13px] text-[var(--text-secondary)]">
                 {updatedAt
@@ -422,6 +435,13 @@ export default function AccountingPage() {
           {toast}
         </div>
       )}
+
+      <ReportExportModal
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        reportType="accounting"
+        filters={{ status: reconStatus || undefined }}
+      />
     </div>
   );
 }

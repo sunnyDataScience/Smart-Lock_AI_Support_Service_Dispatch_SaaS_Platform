@@ -7,6 +7,7 @@ import DateRangePicker from "@/components/ui/DateRangePicker";
 import { getPresetRange, type DateRange } from "@/lib/dateRange";
 import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
+import { ReportExportModal } from "@/components/admin/reports/ReportExportModal";
 
 type Technician = components["schemas"]["Technician"];
 type TechnicianPage = components["schemas"]["TechnicianPage"];
@@ -109,6 +110,7 @@ export default function TechnicianRankingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const fetchTechnicians = async () => {
     setLoading(true);
@@ -226,12 +228,12 @@ export default function TechnicianRankingPage() {
             <div className="flex-1" />
 
             <button
-              disabled
-              title="即將推出"
-              className="flex cursor-not-allowed items-center gap-[6px] rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-4 py-2 opacity-60"
+              onClick={() => setExportOpen(true)}
+              title="匯出 CSV"
+              className="flex items-center gap-[6px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2 hover:bg-[var(--bg-page)]"
             >
-              <Download className="h-4 w-4 text-[var(--text-disabled)]" />
-              <span className="text-[13px] text-[var(--text-disabled)]">
+              <Download className="h-4 w-4 text-[var(--text-secondary)]" />
+              <span className="text-[13px] text-[var(--text-primary)]">
                 匯出 CSV
               </span>
             </button>
@@ -452,6 +454,23 @@ export default function TechnicianRankingPage() {
           </div>
         </div>
       </div>
+
+      <ReportExportModal
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        reportType="technician_ranking"
+        filters={{
+          from: range.from ? toDateOnly(range.from) : undefined,
+          to: range.to ? toDateOnly(range.to) : undefined,
+        }}
+      />
     </div>
   );
+}
+
+function toDateOnly(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
