@@ -1,0 +1,95 @@
+{
+  "common": {
+    "save": "Save",
+    "saveChanges": "Save changes",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "loading": "Loading…",
+    "submitting": "Working…",
+    "error": "Error",
+    "success": "Success",
+    "search": "Search",
+    "language": "Language",
+    "comingSoon": "Coming soon",
+    "notAvailable": "—"
+  },
+  "header": {
+    "searchPlaceholder": "Search work orders, technicians, customers...",
+    "searchLabel": "Global search",
+    "searchSrLabel": "Search work orders, technicians, customers"
+  },
+  "settings": {
+    "title": "Settings",
+    "tabs": {
+      "system": "System",
+      "pricing": "Pricing",
+      "profile": "Profile",
+      "security": "Security"
+    },
+    "profile": {
+      "title": "Profile",
+      "metaJwt": "Sourced from JWT; full profile (name / phone / preferences) ships with /users/me endpoint",
+      "metaSession": "Current identity is decoded from the access token",
+      "displayName": "Display name",
+      "email": "Email",
+      "userId": "User ID",
+      "role": "Role",
+      "tenantId": "Tenant ID",
+      "timezone": "Timezone",
+      "timezoneTaipei": "(UTC+8) Taipei",
+      "language": "Language",
+      "theme": "Theme",
+      "phone": "Phone",
+      "phonePlaceholder": "Available once /users/me ships",
+      "uploadAvatar": "Upload avatar"
+    },
+    "security": {
+      "title": "Security",
+      "metaCurrent": "Password change is live; 2FA / device management coming later",
+      "metaSubtitle": "Manage password and sign-in security",
+      "currentPassword": "Current password",
+      "currentPasswordPlaceholder": "Enter current password",
+      "newPassword": "New password",
+      "newPasswordPlaceholder": "Enter new password (8–72 chars)",
+      "confirmPassword": "Confirm new password",
+      "confirmPasswordPlaceholder": "Re-enter new password",
+      "twoFactor": "Two-factor authentication (2FA)",
+      "twoFactorPending": "Pending",
+      "authenticatorApp": "Authenticator App",
+      "authenticatorDesc": "Requires backend TOTP enrol / verify endpoint; not in this release",
+      "twoFactorDisabled": "Disabled",
+      "updatePassword": "Update password",
+      "updating": "Updating…",
+      "validateMissing": "Please fill in all password fields",
+      "validateLength": "New password must be 8–72 characters",
+      "validateMismatch": "Password confirmation does not match",
+      "validateSame": "New password must differ from current password",
+      "successMsg": "Password updated"
+    }
+  },
+  "locale": {
+    "label": "Language",
+    "menuLabel": "Language options",
+    "current": "Switch language (current: {label})",
+    "zh-TW": "Traditional Chinese",
+    "en": "English"
+  },
+  "theme": {
+    "label": "Theme mode",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "current": "Switch theme (current: {label})",
+    "menuLabel": "Theme options"
+  },
+  "role": {
+    "admin": "System Administrator",
+    "reviewer": "Reviewer",
+    "technician": "Technician",
+    "brand_oem": "Brand OEM",
+    "line_user": "LINE User"
+  }
+}

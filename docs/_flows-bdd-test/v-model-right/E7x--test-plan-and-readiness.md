@@ -18,8 +18,8 @@ related:
   - "[[03-develop/GR6--code-complete]]"
   - "[[03-develop/GR7--integration]]"
   - "[[04-deliver/GR10--ga-readiness]]"
-last_reviewed: 2026-05-08
-last_updated: 2026-05-08 (V1.1 PDF + accounting + 深色模式 + notification 抽象層提前完成；剩餘僅 i18n + 真 vendor SMS/Email/FCM)
+last_reviewed: 2026-05-09
+last_updated: 2026-05-09 (i18n scaffold 提前完成；剩餘僅 41 頁字串漸進遷移 + 真 vendor SMS/Email/FCM)
 ---
 
 # E7x — Test Plan and Readiness Roadmap
@@ -169,7 +169,7 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 | ~~客戶 admin「新增 / 編輯」表單~~ | P1 | 1.5d | ✅ PR #44 完成（`admin/customers/new/page.tsx` + `[id]/edit/page.tsx`） |
 | ~~消費者端工單追蹤頁 `/track/[token]`~~ | **P0** | 5d | ✅ PR #44 full impl（含 scope-change 同意頁） |
 | ~~深色模式~~ | V1.0 範圍外 提前 | 1d | ✅ 提前完成（commit `098caa3`）— ThemeProvider（system/light/dark）+ ThemeToggle（icon / segmented）+ globals.css `[data-theme="dark"]` CSS var 覆寫 + 防 FOUC inline script + 接入 layout/Settings/Header；無新 npm package |
-| i18n（多語系） | — | 不做 | ❌ V1.0 範圍外（仍維持） |
+| ~~i18n（多語系） scaffold~~ | V1.0 範圍外 提前 | 1d | ✅ 提前完成（branch `feat/i18n-scaffold`）— LocaleProvider + LocaleToggle（icon / segmented）+ messages/{zh-TW,en}.json + `useTranslations(namespace)` hook（與 next-intl 形狀相容）+ html.lang 動態同步 + 接入 layout/Settings/Header；**無新 npm package**；41 頁字串漸進遷移（不強制全頁抽 keys，動到該頁時順手）；策略見 [[02-design/specs/i18n-strategy]] |
 
 ### 4.3 後端 API 缺口
 
@@ -337,7 +337,7 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 | 消費者付款 / 撥款 E2E | 無 provider 整合，無程式碼 | V2.0 啟動 |
 | 鼎新 A1 自動會計 | V3 規劃 | V3 |
 | AI Layer 6 PDCA 持續學習 | 路線圖未定 | V3 |
-| 多語系 i18n 測試 | 無 i18n 框架 | 國際化專案啟動 |
+| 多語系 i18n 完整 41 頁字串擴抽 | scaffold 已就位（`feat/i18n-scaffold`），但全量遷移無業務驅動 | 國際化專案啟動 / 第一個 en-only 客戶 |
 | 深色模式視覺回歸 | 無切換 UI | UX 階段 2 |
 | Whisper 語音 | 未整合 | LINE 語音占比 > 10% |
 | FCM 推播 | tech 端可用 LINE 替代 | 自有 App 啟動 |
@@ -634,3 +634,4 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 - #26 Agent eval CI 整合（fake-LLM smoke / nightly 真 Vertex / Promptfoo）— 綁預算決策
 - 完整 coverage diff PR comment（diff-cover bot）— 需 component test 進 CI 才有意義
 | 2026-05-08 | Claude (assisted) | **PR #45-49 production code 完成同步**：§1 TL;DR 統計 🟢15→16 / ⚠5→4 / ⚠3→3。§2 對齊矩陣 6 row 評等更新（F-004/F-008/F-010/F-016/F-018/F-019/F-022）+ 阻塞項從「待 PM Q*」改為「✅ PR #N 實作」。F-011/F-012/F-014 仍 🔴 綁 Q7=B provider 選型（PR #39 follow-up 4 sub-decision 待 PM/TL/CEO/Finance 90 min 會議）。 |
+| 2026-05-09 | Claude (assisted) | **i18n scaffold 提前完成**（branch `feat/i18n-scaffold`）：§4.2 i18n row 從 ❌ 升 ✅；§9 「不要先做」改為「完整 41 頁字串擴抽」（scaffold 不在排除清單）。實作鏡像 098caa3 深色模式模式：LocaleProvider（context + localStorage + html.lang 同步）+ LocaleToggle（icon / segmented）+ messages/{zh-TW,en}.json + `useTranslations(namespace)` hook（next-intl 形狀相容，未來遷移無痛）+ 純函式 `translate()` helper（React 外可用）+ Header / Settings 接入示範。**無新 npm package**；建 [[02-design/specs/i18n-strategy]] 策略 ADR；建 `web/src/i18n/README.md` onboarding 指南。剩餘 41 頁字串硬編 zh-TW 不影響 V1.0 上線（預設仍 zh-TW），漸進遷移策略：每次動到該頁時順手抽 keys。 |

@@ -3,6 +3,7 @@ import { Inter, Noto_Sans_TC } from "next/font/google";
 import AuthGuard from "@/components/layout/AuthGuard";
 import { ToastProvider } from "@/components/ui/Toast";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { LocaleProvider } from "@/components/i18n/LocaleProvider";
 import "./globals.css";
 
 /**
@@ -65,12 +66,17 @@ export default function RootLayout({
         <a href="#main-content" className="skip-link">
           跳到主要內容
         </a>
-        {/* ThemeProvider 在最外層 — 任何元件都能 useTheme()
-         * ToastProvider 在 ThemeProvider 內，登入畫面也能用 toast */}
+        {/* Provider 嵌套順序：Theme（最外）→ Locale → Toast → AuthGuard
+         *   - Theme 影響色票，最早套用避免閃白
+         *   - Locale 設定 html.lang，screen reader / 字型 fallback 需要
+         *   - Toast 在最內層，登入畫面也能用；t() 透過 Locale context 取得
+         */}
         <ThemeProvider>
-          <ToastProvider>
-            <AuthGuard>{children}</AuthGuard>
-          </ToastProvider>
+          <LocaleProvider>
+            <ToastProvider>
+              <AuthGuard>{children}</AuthGuard>
+            </ToastProvider>
+          </LocaleProvider>
         </ThemeProvider>
       </body>
     </html>
