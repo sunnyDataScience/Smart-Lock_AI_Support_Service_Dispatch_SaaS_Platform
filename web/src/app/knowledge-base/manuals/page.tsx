@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CloudUpload, Trash2, X } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import ManualsTable from "@/components/knowledge-base/ManualsTable";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
@@ -24,16 +25,22 @@ function formatErr(e: unknown): string {
 
 const PAGE_SIZE = 20;
 
-const tabs = [
-  { label: "案例庫", href: "/knowledge-base/cases", count: 128 },
-  { label: "產品手冊", href: "/knowledge-base/manuals", dynamic: true },
-  { label: "SOP 草稿", href: "/knowledge-base/sop-drafts", count: 7 },
-];
-
 const BRAND_OPTIONS = ["Yale", "Chatlock", "美樂", "Dormakaba", "Philips", "Kaadas"];
 
 export default function ManualsPage() {
   const pathname = usePathname();
+  const tKb = useTranslations("kb");
+  const tTabs = useTranslations("kb.tabs");
+  const tM = useTranslations("kb.manuals");
+
+  const tabs = useMemo(
+    () => [
+      { label: tTabs("cases"), href: "/knowledge-base/cases", count: 128 },
+      { label: tTabs("manuals"), href: "/knowledge-base/manuals", dynamic: true },
+      { label: tTabs("sopDrafts"), href: "/knowledge-base/sop-drafts", count: 7 },
+    ],
+    [tTabs],
+  );
   const [items, setItems] = useState<Manual[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
@@ -59,7 +66,7 @@ export default function ManualsPage() {
       await api.delete(`/api/v1/knowledge-base/manuals/${encodeURIComponent(manual.id)}`);
       setItems((prev) => prev.filter((m) => m.id !== manual.id));
       setConfirmTarget(null);
-      setToast(`已刪除「${manual.title}」`);
+      setToast(tM("deleteToast", { title: manual.title }));
     } catch (e) {
       setDeleteError(formatErr(e));
     } finally {
@@ -70,7 +77,7 @@ export default function ManualsPage() {
   const handleUploaded = (manual: Manual) => {
     setItems((prev) => [manual, ...prev.filter((m) => m.id !== manual.id)]);
     setUploadOpen(false);
-    setToast(`已上傳「${manual.title}」（背景處理中）`);
+    setToast(tM("uploadToast", { title: manual.title }));
   };
 
   const fetchPage = useCallback(
@@ -112,10 +119,10 @@ export default function ManualsPage() {
         {/* Page Header */}
         <div className="flex flex-col gap-4 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 pt-5">
           <span className="text-[13px] text-[var(--text-secondary)]">
-            首頁 &gt; 知識庫 &gt; 產品手冊
+            {tKb("breadcrumbHome")} &gt; {tKb("breadcrumbKb")} &gt; {tM("breadcrumbManuals")}
           </span>
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-            知識庫管理
+            {tKb("pageTitle")}
           </h1>
 
           {/* Tab Bar */}
@@ -146,9 +153,9 @@ export default function ManualsPage() {
             value={brand}
             onChange={(e) => setBrand(e.target.value)}
             className="h-10 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)]"
-            aria-label="品牌篩選"
+            aria-label={tM("brandFilterLabel")}
           >
-            <option value="">全部品牌</option>
+            <option value="">{tM("allBrands")}</option>
             {BRAND_OPTIONS.map((b) => (
               <option key={b} value={b}>
                 {b}
@@ -160,7 +167,7 @@ export default function ManualsPage() {
               onClick={() => setBrand("")}
               className="h-10 rounded-lg px-3 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
             >
-              清除篩選
+              {tM("clearFilter")}
             </button>
           )}
         </div>
@@ -181,12 +188,11 @@ export default function ManualsPage() {
             <CloudUpload className="h-12 w-12 text-[var(--primary)]" />
             <div className="flex items-center gap-1">
               <span className="text-sm font-semibold text-[var(--text-primary)]">
-                點擊上傳產品手冊（PDF）
+                {tM("uploadCta")}
               </span>
             </div>
             <span className="text-xs text-[var(--text-disabled)]">
-              建立後狀態為 processing，待 PDF 解析 pipeline 完成後自動轉 ready
-              · 單檔上限 50MB
+              {tM("uploadHint")}
             </span>
           </button>
 
@@ -205,15 +211,15 @@ export default function ManualsPage() {
           <div className="flex items-center justify-between">
             <span className="text-[13px] text-[var(--text-secondary)]">
               {loading
-                ? "載入中…"
-                : `顯示 ${items.length} 筆${hasMore ? "（尚有更多）" : ""}`}
+                ? tM("loading")
+                : `${tM("showCount", { count: items.length })}${hasMore ? tM("hasMoreSuffix") : ""}`}
             </span>
             {hasMore && !loading && (
               <button
                 onClick={() => fetchPage(cursor, true, brand)}
                 className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
               >
-                載入更多
+                {tM("loadMore")}
               </button>
             )}
           </div>
@@ -264,6 +270,7 @@ function ConfirmDeleteModal({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const t = useTranslations("kb.manuals.deleteModal");
   return (
     <div
       className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4"
@@ -276,15 +283,15 @@ function ConfirmDeleteModal({
         <div className="mb-4 flex items-center gap-2">
           <Trash2 className="h-5 w-5 text-[var(--status-danger)]" />
           <span className="text-[18px] font-semibold text-[var(--text-primary)]">
-            刪除手冊
+            {t("title")}
           </span>
         </div>
         <p className="text-[13px] leading-[1.6] text-[var(--text-secondary)]">
-          確認刪除手冊
+          {t("confirmPrefix")}
           <span className="px-1 font-semibold text-[var(--text-primary)]">
-            「{manual.title}」
+            {t("confirmTitle", { title: manual.title })}
           </span>
-          ？此操作將連同已切片內容（chunks）一併移除，無法復原。
+          {t("confirmSuffix")}
         </p>
 
         {error && (
@@ -299,14 +306,14 @@ function ConfirmDeleteModal({
             disabled={pending}
             className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
           >
-            取消
+            {t("cancel")}
           </button>
           <button
             onClick={onConfirm}
             disabled={pending}
             className="rounded-md bg-[var(--status-danger)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {pending ? "刪除中…" : "確認刪除"}
+            {pending ? t("deleting") : t("confirm")}
           </button>
         </div>
       </div>
@@ -323,6 +330,7 @@ function UploadManualModal({
   onCancel: () => void;
   onUploaded: (manual: Manual) => void;
 }) {
+  const t = useTranslations("kb.manuals.uploadModal");
   const [file, setFile] = useState<File | null>(null);
   const [brand, setBrand] = useState<string>(brandOptions[0] ?? "");
   const [model, setModel] = useState<string>("");
@@ -367,7 +375,7 @@ function UploadManualModal({
         fd,
       );
       if (res.data) onUploaded(res.data);
-      else setError("伺服器未回傳手冊資料");
+      else setError(t("noResponse"));
     } catch (e) {
       setError(formatErr(e));
     } finally {
@@ -388,7 +396,7 @@ function UploadManualModal({
           <div className="flex items-center gap-2">
             <CloudUpload className="h-5 w-5 text-[var(--primary)]" />
             <span className="text-[18px] font-semibold text-[var(--text-primary)]">
-              上傳產品手冊
+              {t("title")}
             </span>
           </div>
           <button
@@ -403,7 +411,7 @@ function UploadManualModal({
           {/* File */}
           <div className="flex flex-col gap-1">
             <label className="text-[12px] font-medium text-[var(--text-secondary)]">
-              PDF 檔案（必填，上限 50MB）
+              {t("fileLabel")}
             </label>
             <input
               ref={fileInputRef}
@@ -420,7 +428,7 @@ function UploadManualModal({
                 }`}
               >
                 {file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB
-                {fileInvalid && "（不符合 PDF 或超過 50MB 上限）"}
+                {fileInvalid && t("fileInvalid")}
               </span>
             )}
           </div>
@@ -428,7 +436,7 @@ function UploadManualModal({
           {/* Brand */}
           <div className="flex flex-col gap-1">
             <label className="text-[12px] font-medium text-[var(--text-secondary)]">
-              品牌（必填）
+              {t("brandLabel")}
             </label>
             <select
               value={brand}
@@ -447,14 +455,14 @@ function UploadManualModal({
           {/* Model */}
           <div className="flex flex-col gap-1">
             <label className="text-[12px] font-medium text-[var(--text-secondary)]">
-              型號（選填，留空表示品牌通用手冊）
+              {t("modelLabel")}
             </label>
             <input
               type="text"
               value={model}
               onChange={(e) => setModel(e.target.value.slice(0, 100))}
               disabled={pending}
-              placeholder="例：AI-99"
+              placeholder={t("modelPlaceholder")}
               className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
             />
           </div>
@@ -462,14 +470,14 @@ function UploadManualModal({
           {/* Title */}
           <div className="flex flex-col gap-1">
             <label className="text-[12px] font-medium text-[var(--text-secondary)]">
-              手冊標題（必填，最多 200 字）
+              {t("titleLabel")}
             </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value.slice(0, 200))}
               disabled={pending}
-              placeholder="例：Chatlock AI-99 使用手冊 v2.3"
+              placeholder={t("titlePlaceholder")}
               className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
             />
             <span className="text-[11px] text-[var(--text-disabled)]">
@@ -484,8 +492,7 @@ function UploadManualModal({
           )}
 
           <p className="rounded-md bg-[#F0F9FF] px-3 py-2 text-[12px] leading-[1.6] text-[#0C4A6E]">
-            送出後狀態為 processing，等 PDF 解析 pipeline 完成後自動轉 ready；
-            背景處理期間檔案仍會出現在列表中。
+            {t("info")}
           </p>
         </div>
 
@@ -495,14 +502,14 @@ function UploadManualModal({
             disabled={pending}
             className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
           >
-            返回
+            {t("back")}
           </button>
           <button
             onClick={handleSubmit}
             disabled={!valid}
             className="rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {pending ? "上傳中…" : "送出上傳"}
+            {pending ? t("uploading") : t("submit")}
           </button>
         </div>
       </div>

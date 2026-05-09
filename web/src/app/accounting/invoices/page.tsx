@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -15,26 +15,37 @@ import {
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import InvoicesTable from "@/components/accounting/InvoicesTable";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
 type Invoice = components["schemas"]["Invoice"];
 type InvoicePage = components["schemas"]["InvoicePage"];
 
-const tabs = [
-  { icon: Wallet, label: "結算管理", href: "/accounting", dot: false },
-  { icon: FileText, label: "發票管理", href: "/accounting/invoices", dot: true },
-  { icon: BookText, label: "會計傳票", href: "/accounting/vouchers", dot: false },
-  { icon: BarChart3, label: "營收報表", href: "/accounting/revenue", dot: false },
-];
-
-const filterDropdowns = [
-  { label: "全部狀態" },
-  { label: "付款方式" },
-];
-
 export default function InvoicesPage() {
   const pathname = usePathname();
+  const tPage = useTranslations("accounting");
+  const tTabs = useTranslations("accounting.tabs");
+  const tCommon = useTranslations("accounting.common");
+  const tInv = useTranslations("accounting.invoices");
+
+  const tabs = useMemo(
+    () => [
+      { icon: Wallet, label: tTabs("settlements"), href: "/accounting", dot: false },
+      { icon: FileText, label: tTabs("invoices"), href: "/accounting/invoices", dot: true },
+      { icon: BookText, label: tTabs("vouchers"), href: "/accounting/vouchers", dot: false },
+      { icon: BarChart3, label: tTabs("revenue"), href: "/accounting/revenue", dot: false },
+    ],
+    [tTabs],
+  );
+
+  const filterDropdowns = useMemo(
+    () => [
+      { label: tInv("filterAllStatus") },
+      { label: tInv("filterPaymentMethod") },
+    ],
+    [tInv],
+  );
   const [items, setItems] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +84,9 @@ export default function InvoicesPage() {
     fetchInvoices();
   }, []);
 
-  const totalLabel = `共 ${items.length}${hasMore ? "+" : ""} 筆`;
+  const totalLabel = hasMore
+    ? tCommon("totalCountPlus", { count: items.length })
+    : tCommon("totalCount", { count: items.length });
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -85,13 +98,13 @@ export default function InvoicesPage() {
           <div className="flex items-center justify-between px-8 py-5">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-                財務結算管理
+                {tPage("pageTitle")}
               </h1>
               <button
                 onClick={() => fetchInvoices()}
                 disabled={loading}
                 className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
-                title="重新整理"
+                title={tCommon("refresh")}
               >
                 <RefreshCw
                   className={`h-[14px] w-[14px] text-[var(--text-secondary)] ${loading ? "animate-spin" : ""}`}
@@ -108,12 +121,14 @@ export default function InvoicesPage() {
                   className="h-[6px] w-[6px] rounded-full"
                   style={{ backgroundColor: error ? "#DC2626" : "#22C55E" }}
                 />
-                {error ? "連線失敗" : "已連線"}
+                {error ? tCommon("disconnected") : tCommon("connected")}
               </span>
               <span className="text-[13px] text-[var(--text-secondary)]">
                 {updatedAt
-                  ? `最後更新：${updatedAt.toLocaleTimeString("zh-TW", { hour12: false })}`
-                  : "—"}
+                  ? tCommon("lastUpdated", {
+                      time: updatedAt.toLocaleTimeString("zh-TW", { hour12: false }),
+                    })
+                  : tCommon("dash")}
               </span>
               <span className="text-[13px] text-[var(--text-secondary)]">·</span>
               <span className="text-[13px] text-[var(--text-secondary)]">
@@ -165,8 +180,7 @@ export default function InvoicesPage() {
 
         {/* Banner */}
         <div className="mx-8 mt-4 rounded-lg border border-[var(--border)] bg-[#FFFBEB] px-4 py-3 text-[13px] leading-relaxed text-[#92400E]">
-          表格為 listInvoices 即時資料。搜尋 / 狀態 / 付款方式 / 日期範圍 /
-          僅顯示逾期 待 invoice 寫入 endpoints 與篩選欄位收斂後接入。
+          {tInv("banner")}
         </div>
 
         {/* Filter Toolbar */}
@@ -174,13 +188,13 @@ export default function InvoicesPage() {
           {/* Search */}
           <div
             className="flex h-[38px] w-[320px] items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60"
-            title="即將推出"
+            title={tCommon("comingSoon")}
           >
             <Search className="h-4 w-4 text-[var(--text-disabled)]" />
             <input
               disabled
               type="text"
-              placeholder="搜尋發票編號、客戶名稱..."
+              placeholder={tInv("searchPlaceholder")}
               className="flex-1 cursor-not-allowed bg-transparent text-[13px] outline-none placeholder:text-[var(--text-disabled)]"
             />
           </div>
@@ -189,7 +203,7 @@ export default function InvoicesPage() {
             <button
               key={dd.label}
               disabled
-              title="即將推出"
+              title={tCommon("comingSoon")}
               className="flex h-[38px] cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60"
             >
               <span className="text-[13px] text-[var(--text-disabled)]">
@@ -201,24 +215,24 @@ export default function InvoicesPage() {
 
           <button
             disabled
-            title="即將推出"
+            title={tCommon("comingSoon")}
             className="flex h-[38px] cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60"
           >
             <Calendar className="h-4 w-4 text-[var(--text-disabled)]" />
             <span className="text-[13px] text-[var(--text-disabled)]">
-              日期範圍
+              {tInv("dateRange")}
             </span>
             <ChevronDown className="h-[14px] w-[14px] text-[var(--text-disabled)]" />
           </button>
 
           <div className="flex-1" />
 
-          <label className="flex cursor-not-allowed items-center gap-2 opacity-60" title="即將推出">
+          <label className="flex cursor-not-allowed items-center gap-2 opacity-60" title={tCommon("comingSoon")}>
             <div className="flex h-5 w-9 items-center rounded-full bg-[var(--border)] px-[2px]">
               <div className="h-4 w-4 rounded-full bg-white shadow-sm" />
             </div>
             <span className="text-[13px] text-[var(--text-disabled)]">
-              僅顯示逾期
+              {tInv("overdueOnly")}
             </span>
           </label>
         </div>
@@ -234,7 +248,7 @@ export default function InvoicesPage() {
                 disabled={loading}
                 className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-5 py-[10px] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {loading ? "載入中…" : "載入更多"}
+                {loading ? tCommon("loading") : tCommon("loadMore")}
               </button>
             </div>
           )}

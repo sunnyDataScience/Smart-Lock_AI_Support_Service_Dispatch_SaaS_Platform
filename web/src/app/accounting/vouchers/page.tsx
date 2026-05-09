@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -13,26 +13,13 @@ import {
   Download,
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
 type Voucher = components["schemas"]["Voucher"];
 type VoucherPage = components["schemas"]["VoucherPage"];
 type RelatedEntityType = NonNullable<Voucher["related_entity_type"]>;
-
-const tabs = [
-  { icon: Wallet, label: "結算管理", href: "/accounting" },
-  { icon: FileText, label: "發票管理", href: "/accounting/invoices" },
-  { icon: BookText, label: "會計傳票", href: "/accounting/vouchers" },
-  { icon: BarChart3, label: "營收報表", href: "/accounting/revenue" },
-];
-
-const ENTITY_LABEL: Record<RelatedEntityType, string> = {
-  reconciliation: "對帳",
-  settlement: "結算",
-  refund: "退款",
-  invoice: "發票",
-};
 
 const ENTITY_BADGE: Record<RelatedEntityType, { bg: string; text: string }> = {
   reconciliation: { bg: "#DBEAFE", text: "#2563EB" },
@@ -63,6 +50,31 @@ function isoDaysAgo(n: number): string {
 
 export default function VouchersPage() {
   const pathname = usePathname();
+  const tPage = useTranslations("accounting");
+  const tTabs = useTranslations("accounting.tabs");
+  const tCommon = useTranslations("accounting.common");
+  const tV = useTranslations("accounting.vouchers");
+
+  const tabs = useMemo(
+    () => [
+      { icon: Wallet, label: tTabs("settlements"), href: "/accounting" },
+      { icon: FileText, label: tTabs("invoices"), href: "/accounting/invoices" },
+      { icon: BookText, label: tTabs("vouchers"), href: "/accounting/vouchers" },
+      { icon: BarChart3, label: tTabs("revenue"), href: "/accounting/revenue" },
+    ],
+    [tTabs],
+  );
+
+  const ENTITY_LABEL: Record<RelatedEntityType, string> = useMemo(
+    () => ({
+      reconciliation: tV("entityReconciliation"),
+      settlement: tV("entitySettlement"),
+      refund: tV("entityRefund"),
+      invoice: tV("entityInvoice"),
+    }),
+    [tV],
+  );
+
   const [items, setItems] = useState<Voucher[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -128,7 +140,9 @@ export default function VouchersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startDate, endDate]);
 
-  const totalLabel = `共 ${items.length}${hasMore ? "+" : ""} 筆`;
+  const totalLabel = hasMore
+    ? tCommon("totalCountPlus", { count: items.length })
+    : tCommon("totalCount", { count: items.length });
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -140,13 +154,13 @@ export default function VouchersPage() {
           <div className="flex items-center justify-between px-8 py-5">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-                財務結算管理
+                {tPage("pageTitle")}
               </h1>
               <button
                 onClick={() => fetchVouchers()}
                 disabled={loading}
                 className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
-                title="重新整理"
+                title={tCommon("refresh")}
               >
                 <RefreshCw
                   className={`h-[14px] w-[14px] text-[var(--text-secondary)] ${loading ? "animate-spin" : ""}`}
@@ -163,12 +177,14 @@ export default function VouchersPage() {
                   className="h-[6px] w-[6px] rounded-full"
                   style={{ backgroundColor: error ? "#DC2626" : "#22C55E" }}
                 />
-                {error ? "連線失敗" : "已連線"}
+                {error ? tCommon("disconnected") : tCommon("connected")}
               </span>
               <span className="text-[13px] text-[var(--text-secondary)]">
                 {updatedAt
-                  ? `最後更新：${updatedAt.toLocaleTimeString("zh-TW", { hour12: false })}`
-                  : "—"}
+                  ? tCommon("lastUpdated", {
+                      time: updatedAt.toLocaleTimeString("zh-TW", { hour12: false }),
+                    })
+                  : tCommon("dash")}
               </span>
               <span className="text-[13px] text-[var(--text-secondary)]">·</span>
               <span className="text-[13px] text-[var(--text-secondary)]">
@@ -224,14 +240,16 @@ export default function VouchersPage() {
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               max={endDate || undefined}
+              aria-label={tV("filterStartLabel")}
               className="h-[38px] rounded-md border border-[var(--border)] bg-white px-3 text-[13px] text-[var(--text-primary)]"
             />
-            <span className="text-[13px] text-[var(--text-secondary)]">至</span>
+            <span className="text-[13px] text-[var(--text-secondary)]">{tV("filterTo")}</span>
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               min={startDate || undefined}
+              aria-label={tV("filterEndLabel")}
               className="h-[38px] rounded-md border border-[var(--border)] bg-white px-3 text-[13px] text-[var(--text-primary)]"
             />
             {(startDate || endDate) && (
@@ -242,7 +260,7 @@ export default function VouchersPage() {
                 }}
                 className="text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               >
-                清除日期
+                {tV("filterClear")}
               </button>
             )}
           </div>
@@ -253,34 +271,34 @@ export default function VouchersPage() {
           <div className="mx-8 mt-4 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
             <div className="flex items-center bg-[#F8FAFC] px-4" style={{ height: 44 }}>
               <div className="w-[160px] text-xs font-semibold text-[var(--text-secondary)]">
-                傳票編號
+                {tV("colVoucherNo")}
               </div>
               <div className="w-[120px] text-xs font-semibold text-[var(--text-secondary)]">
-                類型
+                {tV("colType")}
               </div>
               <div className="w-[120px] text-xs font-semibold text-[var(--text-secondary)]">
-                入帳日
+                {tV("colDate")}
               </div>
               <div className="w-[100px] text-xs font-semibold text-[var(--text-secondary)]">
-                借方
+                {tV("colDebit")}
               </div>
               <div className="w-[100px] text-xs font-semibold text-[var(--text-secondary)]">
-                貸方
+                {tV("colCredit")}
               </div>
               <div className="w-[160px] text-right text-xs font-semibold text-[var(--text-secondary)]">
-                金額
+                {tV("colAmount")}
               </div>
               <div className="flex-1 pl-6 text-xs font-semibold text-[var(--text-secondary)]">
-                摘要
+                {tV("colMemo")}
               </div>
               <div className="w-[110px] text-right text-xs font-semibold text-[var(--text-secondary)]">
-                動作
+                {tV("colAction")}
               </div>
             </div>
 
             {items.length === 0 && !loading && (
               <div className="px-4 py-12 text-center text-sm text-[var(--text-secondary)]">
-                沒有符合條件的傳票
+                {tV("noResults")}
               </div>
             )}
 
@@ -328,17 +346,17 @@ export default function VouchersPage() {
                     {amt.display}
                   </div>
                   <div className="flex-1 pl-6 text-[13px] text-[var(--text-secondary)]">
-                    {row.memo || "—"}
+                    {row.memo || tCommon("dash")}
                   </div>
                   <div className="w-[110px] text-right">
                     <button
                       onClick={() => handleExport(row)}
                       disabled={exporting === row.id}
                       className="inline-flex items-center gap-[6px] rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-[10px] py-[6px] text-[12px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
-                      title="匯出 PDF"
+                      title={tV("exportTitle")}
                     >
                       <Download className="h-[12px] w-[12px]" />
-                      {exporting === row.id ? "匯出中…" : "PDF"}
+                      {exporting === row.id ? tV("exporting") : tV("exportButton")}
                     </button>
                   </div>
                 </div>
@@ -353,7 +371,7 @@ export default function VouchersPage() {
                 disabled={loading}
                 className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-5 py-[10px] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {loading ? "載入中…" : "載入更多"}
+                {loading ? tCommon("loading") : tCommon("loadMore")}
               </button>
             </div>
           )}

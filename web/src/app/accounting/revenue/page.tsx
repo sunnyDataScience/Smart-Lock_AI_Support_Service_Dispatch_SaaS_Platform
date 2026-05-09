@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -21,23 +21,11 @@ import Sidebar from "@/components/layout/Sidebar";
 import RevenueTrendChart from "@/components/accounting/RevenueTrendChart";
 import BrandRevenueChart from "@/components/accounting/BrandRevenueChart";
 import ServiceTypeChart from "@/components/accounting/ServiceTypeChart";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
 type RevenueSummary = components["schemas"]["RevenueSummary"];
-
-const tabs = [
-  { icon: Wallet, label: "結算管理", href: "/accounting", dot: false },
-  { icon: FileText, label: "發票管理", href: "/accounting/invoices", dot: true },
-  { icon: BookText, label: "會計傳票", href: "/accounting/vouchers", dot: false },
-  { icon: BarChart3, label: "營收報表", href: "/accounting/revenue", dot: false },
-];
-
-const segments = [
-  { label: "日", value: "day", enabled: false },
-  { label: "週", value: "week", enabled: false },
-  { label: "月", value: "month", enabled: true },
-];
 
 function formatTwd(amount: string | undefined | null): string {
   if (!amount) return "—";
@@ -53,6 +41,29 @@ function formatPercent(rate: number | null | undefined): string {
 
 export default function RevenuePage() {
   const pathname = usePathname();
+  const tPage = useTranslations("accounting");
+  const tTabs = useTranslations("accounting.tabs");
+  const tCommon = useTranslations("accounting.common");
+  const tR = useTranslations("accounting.revenue");
+
+  const tabs = useMemo(
+    () => [
+      { icon: Wallet, label: tTabs("settlements"), href: "/accounting", dot: false },
+      { icon: FileText, label: tTabs("invoices"), href: "/accounting/invoices", dot: true },
+      { icon: BookText, label: tTabs("vouchers"), href: "/accounting/vouchers", dot: false },
+      { icon: BarChart3, label: tTabs("revenue"), href: "/accounting/revenue", dot: false },
+    ],
+    [tTabs],
+  );
+
+  const segments = useMemo(
+    () => [
+      { label: tR("segDay"), value: "day", enabled: false },
+      { label: tR("segWeek"), value: "week", enabled: false },
+      { label: tR("segMonth"), value: "month", enabled: true },
+    ],
+    [tR],
+  );
   const [data, setData] = useState<RevenueSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -90,30 +101,30 @@ export default function RevenuePage() {
       icon: DollarSign,
       iconColor: "#2563EB",
       iconBg: "#DBEAFE",
-      title: "本月營收",
+      title: tR("kpiMonthRevenue"),
       value: formatTwd(kpis?.month_revenue),
     },
     {
       icon: Calculator,
       iconColor: "#10B981",
       iconBg: "#D1FAE5",
-      title: "平均發票金額",
+      title: tR("kpiAvgInvoice"),
       value: formatTwd(kpis?.average_invoice_amount),
     },
     {
       icon: CircleCheck,
       iconColor: "#10B981",
       iconBg: "#D1FAE5",
-      title: "付款成功率",
+      title: tR("kpiPaidRate"),
       value: formatPercent(kpis?.paid_rate),
     },
     {
       icon: TriangleAlert,
       iconColor: "#F59E0B",
       iconBg: "#FEF3C7",
-      title: "未收帳款",
+      title: tR("kpiOutstanding"),
       value: formatTwd(kpis?.outstanding_amount),
-      sub: kpis ? `共 ${kpis.outstanding_count} 筆未收` : undefined,
+      sub: kpis ? tR("kpiOutstandingSub", { count: kpis.outstanding_count }) : undefined,
       subColor: "#F59E0B",
     },
   ];
@@ -128,13 +139,13 @@ export default function RevenuePage() {
           <div className="flex items-center justify-between px-8 pt-4 pb-3">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-                財務結算管理
+                {tPage("pageTitle")}
               </h1>
               <button
                 onClick={fetchSummary}
                 disabled={loading}
                 className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
-                title="重新整理"
+                title={tCommon("refresh")}
               >
                 <RefreshCw
                   className={`h-[14px] w-[14px] text-[var(--text-secondary)] ${loading ? "animate-spin" : ""}`}
@@ -151,15 +162,17 @@ export default function RevenuePage() {
                   className="h-[6px] w-[6px] rounded-full"
                   style={{ backgroundColor: error ? "#DC2626" : "#22C55E" }}
                 />
-                {error ? "連線失敗" : "已連線"}
+                {error ? tCommon("disconnected") : tCommon("connected")}
               </span>
             </div>
             <div className="flex items-center gap-[6px]">
               <Clock3 className="h-[14px] w-[14px] text-[var(--text-secondary)]" />
               <span className="text-[13px] text-[var(--text-secondary)]">
                 {updatedAt
-                  ? `最後更新：${updatedAt.toLocaleTimeString("zh-TW", { hour12: false })}`
-                  : "—"}
+                  ? tCommon("lastUpdated", {
+                      time: updatedAt.toLocaleTimeString("zh-TW", { hour12: false }),
+                    })
+                  : tCommon("dash")}
               </span>
             </div>
           </div>
@@ -205,9 +218,7 @@ export default function RevenuePage() {
         )}
 
         <div className="mx-8 mt-4 rounded-lg border border-[var(--border)] bg-[#FFFBEB] px-4 py-3 text-[13px] leading-relaxed text-[#92400E]">
-          KPI / 月度趨勢 / 品牌占比為 getRevenueSummary 即時資料。
-          服務類型分佈、CSV/Excel 匯出、日 / 週粒度與日期範圍待 invoice
-          欄位收斂與匯出 endpoint 上線後接入。
+          {tR("banner")}
         </div>
 
         {/* Scrollable Content */}
@@ -253,7 +264,7 @@ export default function RevenuePage() {
                   <button
                     key={seg.label}
                     disabled={!seg.enabled}
-                    title={seg.enabled ? undefined : "即將推出"}
+                    title={seg.enabled ? undefined : tCommon("comingSoon")}
                     className={`rounded-md px-4 py-2 text-[13px] ${
                       seg.enabled && seg.value === data?.granularity
                         ? "bg-[var(--primary)] font-semibold text-white"
@@ -269,12 +280,12 @@ export default function RevenuePage() {
 
               <button
                 disabled
-                title="即將推出"
+                title={tCommon("comingSoon")}
                 className="flex cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2 opacity-60"
               >
                 <Calendar className="h-4 w-4 text-[var(--text-disabled)]" />
                 <span className="text-[13px] text-[var(--text-disabled)]">
-                  日期範圍
+                  {tR("dateRange")}
                 </span>
               </button>
             </div>
@@ -295,21 +306,21 @@ export default function RevenuePage() {
           <div className="flex items-center justify-end gap-3 px-8 py-3">
             <button
               disabled
-              title="即將推出"
+              title={tCommon("comingSoon")}
               className="flex cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-4 py-[10px] opacity-60"
             >
               <Download className="h-4 w-4 text-[var(--text-disabled)]" />
               <span className="text-sm font-medium text-[var(--text-disabled)]">
-                CSV匯出
+                {tR("exportCsv")}
               </span>
             </button>
             <button
               disabled
-              title="即將推出"
+              title={tCommon("comingSoon")}
               className="flex cursor-not-allowed items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-[10px] opacity-60"
             >
               <Download className="h-4 w-4 text-white" />
-              <span className="text-sm font-medium text-white">Excel匯出</span>
+              <span className="text-sm font-medium text-white">{tR("exportExcel")}</span>
             </button>
           </div>
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -17,6 +17,7 @@ import {
 import Sidebar from "@/components/layout/Sidebar";
 import SettlementTable from "@/components/accounting/SettlementTable";
 import ReconciliationsTable from "@/components/accounting/ReconciliationsTable";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 import { ReportExportModal } from "@/components/admin/reports/ReportExportModal";
@@ -31,52 +32,65 @@ type ReconciliationApproveResponse = {
   settlement: Settlement;
 };
 
-const RECON_STATUS_FILTERS: { value: ReconciliationStatus | ""; label: string }[] = [
-  { value: "pending", label: "待核准" },
-  { value: "approved", label: "已核准" },
-  { value: "disputed", label: "爭議中" },
-  { value: "", label: "全部" },
-];
-
-const tabs = [
-  {
-    icon: Wallet,
-    label: "結算管理",
-    href: "/accounting" as string | undefined,
-    dot: false,
-  },
-  {
-    icon: FileText,
-    label: "發票管理",
-    href: "/accounting/invoices" as string | undefined,
-    dot: true,
-  },
-  {
-    icon: BookText,
-    label: "會計傳票",
-    href: "/accounting/vouchers" as string | undefined,
-    dot: false,
-  },
-  {
-    icon: BarChart3,
-    label: "營收報表",
-    href: "/accounting/revenue" as string | undefined,
-    dot: false,
-  },
-];
-
-const segments = [
-  { label: "月結(5號)", active: true },
-  { label: "雙週結", active: false },
-  { label: "週結", active: false },
-];
-
 function formatTime(d: Date): string {
   return d.toLocaleTimeString("zh-TW", { hour12: false });
 }
 
 export default function AccountingPage() {
   const pathname = usePathname();
+  const tPage = useTranslations("accounting");
+  const tTabs = useTranslations("accounting.tabs");
+  const tCommon = useTranslations("accounting.common");
+  const tS = useTranslations("accounting.settlements");
+
+  const RECON_STATUS_FILTERS: { value: ReconciliationStatus | ""; label: string }[] = useMemo(
+    () => [
+      { value: "pending", label: tS("filterPending") },
+      { value: "approved", label: tS("filterApproved") },
+      { value: "disputed", label: tS("filterDisputed") },
+      { value: "", label: tS("filterAll") },
+    ],
+    [tS],
+  );
+
+  const tabs = useMemo(
+    () => [
+      {
+        icon: Wallet,
+        label: tTabs("settlements"),
+        href: "/accounting" as string | undefined,
+        dot: false,
+      },
+      {
+        icon: FileText,
+        label: tTabs("invoices"),
+        href: "/accounting/invoices" as string | undefined,
+        dot: true,
+      },
+      {
+        icon: BookText,
+        label: tTabs("vouchers"),
+        href: "/accounting/vouchers" as string | undefined,
+        dot: false,
+      },
+      {
+        icon: BarChart3,
+        label: tTabs("revenue"),
+        href: "/accounting/revenue" as string | undefined,
+        dot: false,
+      },
+    ],
+    [tTabs],
+  );
+
+  const segments = useMemo(
+    () => [
+      { label: tS("segMonth"), active: true },
+      { label: tS("segBiweek"), active: false },
+      { label: tS("segWeek"), active: false },
+    ],
+    [tS],
+  );
   const [items, setItems] = useState<Settlement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -176,7 +190,10 @@ export default function AccountingPage() {
       );
       setApproveTarget(null);
       setToast(
-        `已核准對帳 ${recon.id.slice(0, 8)}（已建立 ${recon.technician_payout} 結算）`,
+        tS("approveToast", {
+          id: recon.id.slice(0, 8),
+          payout: recon.technician_payout,
+        }),
       );
       fetchReconciliations(reconStatus);
       fetchSettlements();
@@ -204,13 +221,13 @@ export default function AccountingPage() {
           <div className="flex items-center justify-between px-8 py-5">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-                財務結算管理
+                {tPage("pageTitle")}
               </h1>
               <button
                 onClick={refreshAll}
                 disabled={loading || reconsLoading}
                 className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
-                title="重新整理"
+                title={tCommon("refresh")}
               >
                 <RefreshCw
                   className={`h-4 w-4 text-[var(--text-secondary)] ${loading || reconsLoading ? "animate-spin" : ""}`}
@@ -218,18 +235,18 @@ export default function AccountingPage() {
               </button>
               <button
                 onClick={() => setExportOpen(true)}
-                title="匯出 CSV"
+                title={tS("exportTitle")}
                 className="flex items-center gap-[6px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 hover:bg-[var(--bg-page)]"
               >
                 <Download className="h-4 w-4 text-[var(--text-secondary)]" />
                 <span className="text-[13px] text-[var(--text-primary)]">
-                  匯出 CSV
+                  {tCommon("exportCsv")}
                 </span>
               </button>
               <span className="text-[13px] text-[var(--text-secondary)]">
                 {updatedAt
-                  ? `最後更新：${formatTime(updatedAt)}`
-                  : "尚未載入"}
+                  ? tCommon("lastUpdated", { time: formatTime(updatedAt) })
+                  : tCommon("notLoaded")}
               </span>
               <span
                 className="flex items-center gap-[6px] rounded-full px-3 py-1 text-xs font-medium"
@@ -242,7 +259,7 @@ export default function AccountingPage() {
                   className="h-[6px] w-[6px] rounded-full"
                   style={{ backgroundColor: error ? "#DC2626" : "#22C55E" }}
                 />
-                {error ? "連線失敗" : "已連線"}
+                {error ? tCommon("disconnected") : tCommon("connected")}
               </span>
             </div>
           </div>
@@ -301,12 +318,12 @@ export default function AccountingPage() {
           {/* Month Dropdown — disabled */}
           <button
             disabled
-            title="即將推出"
+            title={tCommon("comingSoon")}
             className="flex cursor-not-allowed items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-[14px] py-2 opacity-60"
           >
             <Calendar className="h-4 w-4 text-[var(--text-disabled)]" />
             <span className="text-sm font-medium text-[var(--text-disabled)]">
-              所有期間
+              {tS("allPeriods")}
             </span>
             <ChevronDown className="h-4 w-4 text-[var(--text-disabled)]" />
           </button>
@@ -314,13 +331,13 @@ export default function AccountingPage() {
           {/* Segmented Control — disabled */}
           <div
             className="flex rounded-md bg-[#F1F5F9] p-[3px] opacity-60"
-            title="即將推出"
+            title={tCommon("comingSoon")}
           >
             {segments.map((seg) => (
               <button
                 key={seg.label}
                 disabled
-                title="即將推出"
+                title={tCommon("comingSoon")}
                 className={`cursor-not-allowed rounded px-[14px] py-[6px] text-[13px] ${
                   seg.active
                     ? "bg-[var(--bg-surface)] font-semibold text-[var(--text-disabled)] shadow-sm"
@@ -338,7 +355,7 @@ export default function AccountingPage() {
           {/* Total Badge — real count from API */}
           <div className="rounded-lg bg-[var(--primary)] px-5 py-[10px]">
             <span className="text-lg font-bold text-white">
-              共 {items.length} 筆
+              {tS("totalBadge", { count: items.length })}
             </span>
           </div>
         </div>
@@ -357,10 +374,10 @@ export default function AccountingPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-                  對帳記錄
+                  {tS("reconTitle")}
                 </h2>
                 <span className="text-[13px] text-[var(--text-secondary)]">
-                  共 {recons.length} 筆
+                  {tCommon("totalCount", { count: recons.length })}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -404,10 +421,10 @@ export default function AccountingPage() {
           <section className="flex flex-col gap-3 pb-4">
             <div className="flex items-center gap-3">
               <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-                結算記錄
+                {tS("settlementTitle")}
               </h2>
               <span className="text-[13px] text-[var(--text-secondary)]">
-                共 {items.length} 筆
+                {tCommon("totalCount", { count: items.length })}
               </span>
             </div>
             <SettlementTable items={items} loading={loading} />
@@ -459,6 +476,7 @@ function ApproveReconciliationModal({
   onCancel: () => void;
   onConfirm: (note: string) => void;
 }) {
+  const t = useTranslations("accounting.settlements.approveModal");
   const [note, setNote] = useState("");
   return (
     <div
@@ -472,31 +490,31 @@ function ApproveReconciliationModal({
         <div className="mb-4 flex items-center gap-2">
           <CheckCircle2 className="h-5 w-5 text-[var(--success)]" />
           <span className="text-[18px] font-semibold text-[var(--text-primary)]">
-            核准對帳
+            {t("title")}
           </span>
         </div>
         <div className="mb-4 space-y-1 rounded-lg bg-[var(--bg-page)] p-3 text-[13px]">
           <div className="flex justify-between">
-            <span className="text-[var(--text-secondary)]">對帳 ID</span>
+            <span className="text-[var(--text-secondary)]">{t("reconId")}</span>
             <span className="font-mono text-[var(--text-primary)]">
               {recon.id.slice(0, 8)}
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-[var(--text-secondary)]">技師</span>
+            <span className="text-[var(--text-secondary)]">{t("technician")}</span>
             <span className="text-[var(--text-primary)]">
               {recon.technician_name ?? recon.technician_id.slice(0, 8)}
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-[var(--text-secondary)]">技師應領</span>
+            <span className="text-[var(--text-secondary)]">{t("payout")}</span>
             <span className="font-mono font-semibold text-[var(--text-primary)]">
               NT$ {Number(recon.technician_payout).toLocaleString("en-US")}
             </span>
           </div>
         </div>
         <p className="mb-3 text-[13px] leading-[1.6] text-[var(--text-secondary)]">
-          核准後將建立對應結算（status=pending），無法復原。可選填稽核備註：
+          {t("desc")}
         </p>
         <textarea
           value={note}
@@ -504,7 +522,7 @@ function ApproveReconciliationModal({
           maxLength={500}
           disabled={pending}
           rows={3}
-          placeholder="備註（選填，最多 500 字）"
+          placeholder={t("notePlaceholder")}
           className="w-full resize-none rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] text-[var(--text-primary)] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
         />
 
@@ -520,14 +538,14 @@ function ApproveReconciliationModal({
             disabled={pending}
             className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
           >
-            取消
+            {t("cancel")}
           </button>
           <button
             onClick={() => onConfirm(note)}
             disabled={pending}
             className="rounded-md bg-[var(--success)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {pending ? "核准中…" : "確認核准"}
+            {pending ? t("approving") : t("confirm")}
           </button>
         </div>
       </div>
