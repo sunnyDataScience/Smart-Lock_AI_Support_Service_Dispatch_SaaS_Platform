@@ -103,6 +103,100 @@
     "submitting": "Signing in…",
     "devHint": "Test account: admin@example.com / changeme123"
   },
+  "status": {
+    "workOrder": {
+      "inquiring": "Inquiring",
+      "qualified": "Qualified",
+      "quoted": "Quoted",
+      "negotiating": "Negotiating",
+      "accepted": "Accepted",
+      "scheduled": "Scheduled",
+      "dispatching": "Dispatching",
+      "assigned": "Assigned",
+      "en_route": "En route",
+      "arrived": "Arrived",
+      "in_progress": "In progress",
+      "completed": "Completed",
+      "billed": "Billed",
+      "paid": "Paid",
+      "closed": "Closed",
+      "cancelled": "Cancelled"
+    },
+    "workOrderGroup": {
+      "pending": "Pending",
+      "dispatched": "Dispatched",
+      "in_progress": "In progress",
+      "done": "Done",
+      "cancelled": "Cancelled"
+    }
+  },
+  "urgency": {
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "mediumBadge": "Urgent",
+    "highBadge": "Red Code"
+  },
+  "tables": {
+    "empty": "No data",
+    "loading": "Loading…",
+    "workOrders": {
+      "ariaLabel": "Work orders",
+      "cols": {
+        "id": "Order ID",
+        "address": "District / Address",
+        "brand": "Brand",
+        "model": "Model",
+        "status": "Status",
+        "urgency": "Urgency",
+        "estimate": "Estimate",
+        "createdAt": "Created"
+      }
+    },
+    "problemCards": {
+      "ariaLabel": "Problem cards",
+      "cols": {
+        "id": "Card ID",
+        "symptom": "Symptom",
+        "status": "Status",
+        "urgency": "Urgency",
+        "category": "Category",
+        "brand": "Brand",
+        "model": "Model",
+        "createdAt": "Created"
+      }
+    },
+    "conversations": {
+      "ariaLabel": "Conversations",
+      "empty": "No matching conversations",
+      "cols": {
+        "id": "Conversation ID",
+        "idCard": "ID",
+        "customer": "Customer",
+        "customerCard": "Customer",
+        "status": "Status",
+        "messages": "Messages",
+        "resolution": "Resolution layer",
+        "time": "Updated",
+        "timeCard": "Updated"
+      }
+    }
+  },
+  "problemCardStatus": {
+    "draft": "Draft",
+    "confirmed": "Confirmed",
+    "resolved": "Resolved"
+  },
+  "conversationStatus": {
+    "active": "Active",
+    "waiting_human": "Escalated",
+    "closed": "Closed"
+  },
+  "resolutionLayer": {
+    "case_library": "Case library",
+    "rag": "RAG",
+    "human": "Human"
+  },
   "sidebar": {
     "appName": "SmartLock",
     "navAria": "Main navigation",

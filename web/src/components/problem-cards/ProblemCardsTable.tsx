@@ -1,7 +1,9 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { formatRelative } from "@/lib/format";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type ProblemCard = components["schemas"]["ProblemCard"];
@@ -13,39 +15,52 @@ interface Props {
   loading?: boolean;
 }
 
-const statusStyles: Record<ProblemCardStatus, { label: string; color: string; bg: string }> = {
-  draft: { label: "待確認", color: "#6366F1", bg: "#EEF2FF" },
-  confirmed: { label: "已確認", color: "#2563EB", bg: "#DBEAFE" },
-  resolved: { label: "已解決", color: "#10B981", bg: "#D1FAE5" },
+// Tone（顏色）與 label（i18n 字串）分離 — 同 WorkOrdersTable 的設計約束
+const STATUS_TONE: Record<ProblemCardStatus, { color: string; bg: string }> = {
+  draft: { color: "#6366F1", bg: "#EEF2FF" },
+  confirmed: { color: "#2563EB", bg: "#DBEAFE" },
+  resolved: { color: "#10B981", bg: "#D1FAE5" },
 };
 
-const urgencyStyles: Record<Urgency, { label: string; color: string; bg: string }> = {
-  low: { label: "低", color: "#64748B", bg: "#F1F5F9" },
-  medium: { label: "中", color: "#D97706", bg: "#FEF3C7" },
-  high: { label: "高", color: "#EF4444", bg: "#FEE2E2" },
+const URGENCY_TONE: Record<Urgency, { color: string; bg: string }> = {
+  low: { color: "#64748B", bg: "#F1F5F9" },
+  medium: { color: "#D97706", bg: "#FEF3C7" },
+  high: { color: "#EF4444", bg: "#FEE2E2" },
 };
-
-const columns = [
-  { label: "卡片 ID", width: "w-[180px] shrink-0" },
-  { label: "症狀摘要", width: "flex-1 min-w-0" },
-  { label: "狀態", width: "w-[90px] shrink-0" },
-  { label: "緊急度", width: "w-[70px] shrink-0" },
-  { label: "類別", width: "w-[80px] shrink-0" },
-  { label: "品牌", width: "w-[80px] shrink-0" },
-  { label: "型號", width: "w-[100px] shrink-0" },
-  { label: "建立時間", width: "w-[90px] shrink-0" },
-];
 
 function shortId(id: string): string {
   return id.slice(0, 8);
 }
 
 export default function ProblemCardsTable({ items, loading }: Props) {
+  const tCols = useTranslations("tables.problemCards.cols");
+  const tTable = useTranslations("tables.problemCards");
+  const tEmpty = useTranslations("tables");
+  const tStatus = useTranslations("problemCardStatus");
+  const tUrgency = useTranslations("urgency");
+
+  const columns = useMemo(
+    () => [
+      { key: "id", label: tCols("id"), width: "w-[180px] shrink-0" },
+      { key: "symptom", label: tCols("symptom"), width: "flex-1 min-w-0" },
+      { key: "status", label: tCols("status"), width: "w-[90px] shrink-0" },
+      { key: "urgency", label: tCols("urgency"), width: "w-[70px] shrink-0" },
+      { key: "category", label: tCols("category"), width: "w-[80px] shrink-0" },
+      { key: "brand", label: tCols("brand"), width: "w-[80px] shrink-0" },
+      { key: "model", label: tCols("model"), width: "w-[100px] shrink-0" },
+      { key: "createdAt", label: tCols("createdAt"), width: "w-[90px] shrink-0" },
+    ],
+    [tCols],
+  );
+
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
+    <div
+      className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]"
+      aria-label={tTable("ariaLabel")}
+    >
       <div className="flex h-[44px] items-center bg-[var(--bg-page)] px-4">
         {columns.map((col) => (
-          <div key={col.label} className={`${col.width} px-0`}>
+          <div key={col.key} className={`${col.width} px-0`}>
             <span className="text-[12px] font-semibold text-[var(--text-secondary)]">
               {col.label}
             </span>
@@ -55,13 +70,13 @@ export default function ProblemCardsTable({ items, loading }: Props) {
 
       {items.length === 0 && !loading && (
         <div className="flex h-24 items-center justify-center">
-          <span className="text-[13px] text-[var(--text-secondary)]">目前無資料</span>
+          <span className="text-[13px] text-[var(--text-secondary)]">{tEmpty("empty")}</span>
         </div>
       )}
 
       {items.map((card, idx) => {
-        const status = statusStyles[card.status];
-        const urgency = urgencyStyles[card.urgency];
+        const statusTone = STATUS_TONE[card.status];
+        const urgencyTone = URGENCY_TONE[card.urgency];
         return (
           <Link
             key={card.id}
@@ -83,17 +98,17 @@ export default function ProblemCardsTable({ items, loading }: Props) {
             <div className="w-[90px] shrink-0">
               <span
                 className="rounded-full px-[10px] py-1 text-[11px] font-medium"
-                style={{ color: status.color, backgroundColor: status.bg }}
+                style={{ color: statusTone.color, backgroundColor: statusTone.bg }}
               >
-                {status.label}
+                {tStatus(card.status)}
               </span>
             </div>
             <div className="w-[70px] shrink-0">
               <span
                 className="rounded px-2 py-1 text-[11px] font-medium"
-                style={{ color: urgency.color, backgroundColor: urgency.bg }}
+                style={{ color: urgencyTone.color, backgroundColor: urgencyTone.bg }}
               >
-                {urgency.label}
+                {tUrgency(card.urgency)}
               </span>
             </div>
             <div className="w-[80px] shrink-0">

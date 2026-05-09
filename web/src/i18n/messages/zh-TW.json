@@ -103,6 +103,100 @@
     "submitting": "登入中…",
     "devHint": "測試帳號：admin@example.com / changeme123"
   },
+  "status": {
+    "workOrder": {
+      "inquiring": "詢問中",
+      "qualified": "已審核",
+      "quoted": "已報價",
+      "negotiating": "議價中",
+      "accepted": "已接單",
+      "scheduled": "已排程",
+      "dispatching": "派工中",
+      "assigned": "已指派",
+      "en_route": "前往中",
+      "arrived": "已抵達",
+      "in_progress": "作業中",
+      "completed": "已完工",
+      "billed": "已開單",
+      "paid": "已付款",
+      "closed": "已結案",
+      "cancelled": "已取消"
+    },
+    "workOrderGroup": {
+      "pending": "待處理",
+      "dispatched": "已派工",
+      "in_progress": "處理中",
+      "done": "已完成",
+      "cancelled": "已取消"
+    }
+  },
+  "urgency": {
+    "low": "低",
+    "medium": "中",
+    "high": "高",
+    "mediumBadge": "急件",
+    "highBadge": "Red Code"
+  },
+  "tables": {
+    "empty": "目前無資料",
+    "loading": "載入中…",
+    "workOrders": {
+      "ariaLabel": "工單列表",
+      "cols": {
+        "id": "工單 ID",
+        "address": "區/地址",
+        "brand": "品牌",
+        "model": "型號",
+        "status": "狀態",
+        "urgency": "緊急度",
+        "estimate": "估價",
+        "createdAt": "建立時間"
+      }
+    },
+    "problemCards": {
+      "ariaLabel": "問題卡列表",
+      "cols": {
+        "id": "卡片 ID",
+        "symptom": "症狀摘要",
+        "status": "狀態",
+        "urgency": "緊急度",
+        "category": "類別",
+        "brand": "品牌",
+        "model": "型號",
+        "createdAt": "建立時間"
+      }
+    },
+    "conversations": {
+      "ariaLabel": "對話列表",
+      "empty": "沒有符合條件的對話",
+      "cols": {
+        "id": "對話編號",
+        "idCard": "ID",
+        "customer": "客戶名稱",
+        "customerCard": "客戶",
+        "status": "狀態",
+        "messages": "訊息數",
+        "resolution": "解決層級",
+        "time": "更新時間",
+        "timeCard": "更新"
+      }
+    }
+  },
+  "problemCardStatus": {
+    "draft": "待確認",
+    "confirmed": "已確認",
+    "resolved": "已解決"
+  },
+  "conversationStatus": {
+    "active": "進行中",
+    "waiting_human": "已升級",
+    "closed": "已結束"
+  },
+  "resolutionLayer": {
+    "case_library": "案例庫",
+    "rag": "RAG",
+    "human": "人工"
+  },
   "sidebar": {
     "appName": "SmartLock",
     "navAria": "主導航",

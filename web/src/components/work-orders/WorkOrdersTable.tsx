@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import Link from "next/link";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { formatRelative } from "@/lib/format";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
@@ -22,9 +23,9 @@ const VIRTUALIZE_THRESHOLD = 50;
 // 虛擬化模式的可視高度（單頁 ~12 列 + buffer）
 const VIRTUAL_VIEWPORT_HEIGHT = 600;
 
-type StatusGroup = "pending" | "dispatched" | "in_progress" | "done" | "cancelled";
+export type StatusGroup = "pending" | "dispatched" | "in_progress" | "done" | "cancelled";
 
-const STATUS_GROUP_MAP: Record<WorkOrderStatus, StatusGroup> = {
+export const STATUS_GROUP_MAP: Record<WorkOrderStatus, StatusGroup> = {
   inquiring: "pending",
   qualified: "pending",
   quoted: "pending",
@@ -43,33 +44,48 @@ const STATUS_GROUP_MAP: Record<WorkOrderStatus, StatusGroup> = {
   cancelled: "cancelled",
 };
 
-// 工單狀態色彩：用 globals.css semantic token，視覺與 StatusBadge 對齊。
-// pending/dispatched 用各自的紫/藍區分階段（不在 badge token 內，保留 hex）；
-// 其餘用統一的 --badge-{tone} 變數。
-const STATUS_GROUP_STYLE: Record<StatusGroup, { label: string; color: string; bg: string }> = {
-  pending: { label: "待處理", color: "#6366F1", bg: "#EEF2FF" },
-  dispatched: { label: "已派工", color: "#8B5CF6", bg: "#F5F3FF" },
-  in_progress: { label: "處理中", color: "var(--badge-info-fg)", bg: "var(--badge-info-bg)" },
-  done: { label: "已完成", color: "var(--badge-success-fg)", bg: "var(--badge-success-bg)" },
-  cancelled: { label: "已取消", color: "var(--badge-danger-fg)", bg: "var(--badge-danger-bg)" },
+// Tone（顏色 token）與 label（i18n 字串）已分離。
+// 視覺常數模組級不變；label 由各元件自行 useTranslations 取得。
+export const STATUS_GROUP_TONE: Record<StatusGroup, { color: string; bg: string }> = {
+  pending: { color: "#6366F1", bg: "#EEF2FF" },
+  dispatched: { color: "#8B5CF6", bg: "#F5F3FF" },
+  in_progress: { color: "var(--badge-info-fg)", bg: "var(--badge-info-bg)" },
+  done: { color: "var(--badge-success-fg)", bg: "var(--badge-success-bg)" },
+  cancelled: { color: "var(--badge-danger-fg)", bg: "var(--badge-danger-bg)" },
 };
 
-const URGENCY_STYLE: Record<Urgency, { label: string; color: string; bg: string }> = {
-  low: { label: "低", color: "var(--badge-muted-fg)", bg: "var(--badge-muted-bg)" },
-  medium: { label: "中", color: "var(--badge-warn-fg)", bg: "var(--badge-warn-bg)" },
-  high: { label: "高", color: "var(--badge-danger-fg)", bg: "var(--badge-danger-bg)" },
+export const URGENCY_TONE: Record<Urgency, { color: string; bg: string }> = {
+  low: { color: "var(--badge-muted-fg)", bg: "var(--badge-muted-bg)" },
+  medium: { color: "var(--badge-warn-fg)", bg: "var(--badge-warn-bg)" },
+  high: { color: "var(--badge-danger-fg)", bg: "var(--badge-danger-bg)" },
 };
 
-const columns = [
-  { label: "工單 ID", width: "w-[120px]" },
-  { label: "區/地址", width: "flex-1" },
-  { label: "品牌", width: "w-[90px]" },
-  { label: "型號", width: "w-[110px]" },
-  { label: "狀態", width: "w-[80px]" },
-  { label: "緊急度", width: "w-[70px]" },
-  { label: "估價", width: "w-[100px]" },
-  { label: "建立時間", width: "w-[90px]" },
-];
+/**
+ * Backward-compat exports — 保留 STATUS_GROUP_STYLE / URGENCY_STYLE 結構讓
+ * 既有 8 處 consumer（kanban/map/sidebar 等）暫時不破。下一輪逐步遷移到
+ * STATUS_GROUP_TONE + useTranslations("status.workOrderGroup") 的純 i18n 模式。
+ *
+ * 這些 label 為 zh-TW；切英文時，consumer 仍顯示中文 — 已知 trade-off。
+ */
+export const STATUS_GROUP_STYLE: Record<
+  StatusGroup,
+  { label: string; color: string; bg: string }
+> = {
+  pending: { label: "待處理", ...STATUS_GROUP_TONE.pending },
+  dispatched: { label: "已派工", ...STATUS_GROUP_TONE.dispatched },
+  in_progress: { label: "處理中", ...STATUS_GROUP_TONE.in_progress },
+  done: { label: "已完成", ...STATUS_GROUP_TONE.done },
+  cancelled: { label: "已取消", ...STATUS_GROUP_TONE.cancelled },
+};
+
+export const URGENCY_STYLE: Record<
+  Urgency,
+  { label: string; color: string; bg: string }
+> = {
+  low: { label: "低", ...URGENCY_TONE.low },
+  medium: { label: "中", ...URGENCY_TONE.medium },
+  high: { label: "高", ...URGENCY_TONE.high },
+};
 
 function shortId(id: string): string {
   return id.slice(0, 8);
@@ -90,14 +106,18 @@ function WorkOrderRow({
   order,
   idx,
   style,
+  groupLabel,
+  urgencyLabel,
 }: {
   order: WorkOrder;
   idx: number;
   style?: React.CSSProperties;
+  groupLabel: string;
+  urgencyLabel: string;
 }) {
   const group = STATUS_GROUP_MAP[order.status];
-  const statusStyle = STATUS_GROUP_STYLE[group];
-  const urgencyStyle = URGENCY_STYLE[order.urgency];
+  const groupTone = STATUS_GROUP_TONE[group];
+  const urgencyTone = URGENCY_TONE[order.urgency];
   const districtAddr = order.district
     ? order.address.startsWith(order.district)
       ? order.address
@@ -134,17 +154,17 @@ function WorkOrderRow({
       <div role="cell" className="w-[80px]">
         <span
           className="rounded-full px-[10px] py-1 text-[11px] font-medium"
-          style={{ color: statusStyle.color, backgroundColor: statusStyle.bg }}
+          style={{ color: groupTone.color, backgroundColor: groupTone.bg }}
         >
-          {statusStyle.label}
+          {groupLabel}
         </span>
       </div>
       <div role="cell" className="w-[70px]">
         <span
           className="rounded px-2 py-1 text-[11px] font-medium"
-          style={{ color: urgencyStyle.color, backgroundColor: urgencyStyle.bg }}
+          style={{ color: urgencyTone.color, backgroundColor: urgencyTone.bg }}
         >
-          {urgencyStyle.label}
+          {urgencyLabel}
         </span>
       </div>
       <div role="cell" className="w-[100px]">
@@ -161,12 +181,12 @@ function WorkOrderRow({
   );
 }
 
-function TableHeader() {
+function TableHeader({ cols }: { cols: { key: string; label: string; width: string }[] }) {
   return (
     <div role="row" className="flex h-[44px] items-center bg-[var(--bg-page)] px-4">
-      {columns.map((col) => (
+      {cols.map((col) => (
         <div
-          key={col.label}
+          key={col.key}
           role="columnheader"
           aria-sort="none"  /* 之後加排序時改 ascending/descending */
           className={`${col.width} px-0`}
@@ -184,7 +204,15 @@ function TableHeader() {
  * 虛擬化版本（>= VIRTUALIZE_THRESHOLD 列）— 用 @tanstack/react-virtual
  * 在固定高度 viewport 內只渲染可見的 ~12 列 + overscan 5 列。
  */
-function VirtualizedRows({ items }: { items: WorkOrder[] }) {
+function VirtualizedRows({
+  items,
+  groupLabels,
+  urgencyLabels,
+}: {
+  items: WorkOrder[];
+  groupLabels: Record<StatusGroup, string>;
+  urgencyLabels: Record<Urgency, string>;
+}) {
   const parentRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
     count: items.length,
@@ -213,6 +241,8 @@ function VirtualizedRows({ items }: { items: WorkOrder[] }) {
               key={order.id}
               order={order}
               idx={vi.index}
+              groupLabel={groupLabels[STATUS_GROUP_MAP[order.status]]}
+              urgencyLabel={urgencyLabels[order.urgency]}
               style={{
                 position: "absolute",
                 top: 0,
@@ -229,35 +259,79 @@ function VirtualizedRows({ items }: { items: WorkOrder[] }) {
 }
 
 export default function WorkOrdersTable({ items, loading }: Props) {
+  const tCols = useTranslations("tables.workOrders.cols");
+  const tTable = useTranslations("tables.workOrders");
+  const tEmpty = useTranslations("tables");
+  const tGroup = useTranslations("status.workOrderGroup");
+  const tUrgency = useTranslations("urgency");
+
+  const cols = useMemo(
+    () => [
+      { key: "id", label: tCols("id"), width: "w-[120px]" },
+      { key: "address", label: tCols("address"), width: "flex-1" },
+      { key: "brand", label: tCols("brand"), width: "w-[90px]" },
+      { key: "model", label: tCols("model"), width: "w-[110px]" },
+      { key: "status", label: tCols("status"), width: "w-[80px]" },
+      { key: "urgency", label: tCols("urgency"), width: "w-[70px]" },
+      { key: "estimate", label: tCols("estimate"), width: "w-[100px]" },
+      { key: "createdAt", label: tCols("createdAt"), width: "w-[90px]" },
+    ],
+    [tCols],
+  );
+
+  const groupLabels: Record<StatusGroup, string> = useMemo(
+    () => ({
+      pending: tGroup("pending"),
+      dispatched: tGroup("dispatched"),
+      in_progress: tGroup("in_progress"),
+      done: tGroup("done"),
+      cancelled: tGroup("cancelled"),
+    }),
+    [tGroup],
+  );
+
+  const urgencyLabels: Record<Urgency, string> = useMemo(
+    () => ({
+      low: tUrgency("low"),
+      medium: tUrgency("medium"),
+      high: tUrgency("high"),
+    }),
+    [tUrgency],
+  );
+
   const useVirtual = items.length >= VIRTUALIZE_THRESHOLD;
 
   return (
     <div
       role="table"
-      aria-label="工單列表"
+      aria-label={tTable("ariaLabel")}
       aria-rowcount={items.length + 1}  /* 含表頭 */
-      aria-colcount={columns.length}
+      aria-colcount={cols.length}
       className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]"
     >
-      <TableHeader />
+      <TableHeader cols={cols} />
 
       {items.length === 0 && !loading && (
         <div role="row" className="flex h-24 items-center justify-center">
-          <div role="cell" aria-colspan={columns.length}>
-            <span className="text-[13px] text-[var(--text-secondary)]">目前無資料</span>
+          <div role="cell" aria-colspan={cols.length}>
+            <span className="text-[13px] text-[var(--text-secondary)]">{tEmpty("empty")}</span>
           </div>
         </div>
       )}
 
       {useVirtual ? (
-        <VirtualizedRows items={items} />
+        <VirtualizedRows items={items} groupLabels={groupLabels} urgencyLabels={urgencyLabels} />
       ) : (
         items.map((order, idx) => (
-          <WorkOrderRow key={order.id} order={order} idx={idx} />
+          <WorkOrderRow
+            key={order.id}
+            order={order}
+            idx={idx}
+            groupLabel={groupLabels[STATUS_GROUP_MAP[order.status]]}
+            urgencyLabel={urgencyLabels[order.urgency]}
+          />
         ))
       )}
     </div>
   );
 }
-
-export { STATUS_GROUP_MAP, STATUS_GROUP_STYLE, URGENCY_STYLE };

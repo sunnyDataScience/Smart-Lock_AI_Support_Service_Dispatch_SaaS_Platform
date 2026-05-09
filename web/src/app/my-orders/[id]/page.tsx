@@ -11,8 +11,9 @@ import {
   AlertCircle,
 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
-import StatusBadge, { statusLabel } from "@/components/tech/StatusBadge";
+import StatusBadge from "@/components/tech/StatusBadge";
 import UrgencyBadge from "@/components/tech/UrgencyBadge";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
@@ -40,6 +41,7 @@ export default function MyOrderDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "";
   const router = useRouter();
+  const tStatus = useTranslations("status.workOrder");
 
   const [wo, setWo] = useState<WorkOrder | null>(null);
   const [loading, setLoading] = useState(false);
@@ -262,7 +264,7 @@ export default function MyOrderDetailPage() {
                   狀態
                 </span>
                 <span className="font-medium text-[var(--text-primary)]">
-                  {statusLabel(wo.status)}
+                  {tStatus(wo.status)}
                 </span>
               </div>
               {wo.estimated_reward && (
@@ -483,7 +485,7 @@ export default function MyOrderDetailPage() {
 
           {isTerminal && (
             <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-page)] p-4 text-center text-[13px] text-[var(--text-secondary)]">
-              此工單已 {statusLabel(wo.status)}，無法再操作
+              此工單已 {tStatus(wo.status)}，無法再操作
             </div>
           )}
         </div>
