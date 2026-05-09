@@ -1582,6 +1582,303 @@
           "mention": "提及"
         }
       }
+    },
+    "accounting": {
+      "settlementTable": {
+        "batchSelectAll": "全選",
+        "batchConfirm": "批次確認",
+        "batchMarkPaid": "批次標記已付",
+        "comingSoon": "即將推出",
+        "loading": "載入中…",
+        "empty": "尚無結算資料",
+        "cols": {
+          "technician": "技師",
+          "amount": "金額",
+          "status": "狀態",
+          "paymentMethod": "付款方式",
+          "paidAt": "付款時間",
+          "createdAt": "建立時間"
+        },
+        "status": {
+          "pending": "待付款",
+          "paid": "已付款",
+          "failed": "付款失敗"
+        },
+        "paymentMethod": {
+          "bank_transfer": "銀行轉帳",
+          "other": "其他"
+        }
+      },
+      "invoicesTable": {
+        "loading": "載入中…",
+        "empty": "尚無發票紀錄",
+        "cols": {
+          "invoiceNumber": "發票編號",
+          "workOrder": "工單",
+          "amount": "金額",
+          "category": "稅務分類",
+          "status": "狀態",
+          "issuedAt": "開立時間",
+          "updatedAt": "更新時間",
+          "actions": "操作"
+        },
+        "status": {
+          "pending": "待開立",
+          "issued": "已開立",
+          "allowance_pending": "折讓處理中",
+          "voided": "作廢",
+          "reopened": "重開立"
+        },
+        "category": {
+          "service_fee": "服務費",
+          "travel_fee": "車馬費",
+          "parts": "零件",
+          "other": "其他"
+        }
+      },
+      "reconciliationsTable": {
+        "loading": "載入中…",
+        "empty": "目前沒有對帳記錄",
+        "approve": "核准對帳",
+        "processing": "處理中…",
+        "cols": {
+          "id": "ID",
+          "technician": "技師",
+          "period": "結算期間",
+          "orders": "工單數",
+          "revenue": "營收",
+          "platformFee": "平台費",
+          "payout": "技師應領",
+          "status": "狀態",
+          "actions": "操作"
+        },
+        "status": {
+          "pending": "待核准",
+          "approved": "已核准",
+          "disputed": "爭議中"
+        }
+      },
+      "settlementDetailModal": {
+        "title": "{technician} 結算明細 — {month}",
+        "period": "結算期間：{period}",
+        "mockTechName": "陳建宏",
+        "mockMonth": "2026/04",
+        "mockPeriod": "2026/04/01 - 2026/04/30",
+        "serviceType": {
+          "repair": "一般維修",
+          "install": "安裝",
+          "customMaterial": "客供材料"
+        },
+        "bonus": {
+          "highRating": "高評價獎金（評分 ≥ 4.8）— {orderId}",
+          "fastFinish": "快速完工獎金（比預估快 25%）— {orderId}"
+        },
+        "penalty": {
+          "rework": "重工扣款（同一問題二次維修）— {orderId}",
+          "complaint": "客訴扣款（收到客戶投訴）— {orderId}"
+        },
+        "summary": {
+          "labor": "工資合計",
+          "bonus": "獎金合計",
+          "penalty": "扣款合計",
+          "net": "淨結算額"
+        },
+        "ordersTitle": "工單佣金明細",
+        "cols": {
+          "orderId": "工單編號",
+          "serviceType": "服務類型",
+          "rate": "佣金比例",
+          "orderAmount": "工單金額",
+          "commission": "佣金金額"
+        },
+        "totalRow": "合計 ({count} 筆)",
+        "bonusTitle": "獎金明細",
+        "penaltyTitle": "扣款明細",
+        "finalAmount": "最終結算金額",
+        "print": "列印",
+        "confirm": "確認結算",
+        "close": "關閉"
+      }
+    },
+    "workOrders": {
+      "eventTimeline": {
+        "title": "事件時間軸",
+        "countSuffix": "{count} 筆",
+        "filterAll": "全部類型",
+        "refresh": "重新整理",
+        "loading": "載入中…",
+        "emptyAll": "此工單尚無 subflow 事件紀錄",
+        "emptyFiltered": "無 {label} 類型事件",
+        "byUser": "by user #{id}",
+        "type": {
+          "scope_change": "範圍變更",
+          "material_request": "缺料回報",
+          "delay": "延遲通知",
+          "door_check": "門面檢核",
+          "signature_submitted": "電子簽章",
+          "reschedule_proposed": "改期請求",
+          "other": "其他"
+        },
+        "payload": {
+          "reasonLabel": "理由：{value}",
+          "itemUnit": "（單價 ${value}）",
+          "totalEstimate": "預估追加：${value}",
+          "urgencyLabel": "急迫度：{value}",
+          "noteLabel": "備註：{value}",
+          "delaySummary": "延遲 {minutes} 分鐘 · {reason}",
+          "delayExtra": "補充：{value}",
+          "notify": "通知：{value}",
+          "checkSummary": "檢核 {checked}/{total} · 照片 前 {before}/後 {after}",
+          "notesLabel": "備註：{value}"
+        }
+      },
+      "detailSidebar": {
+        "deviceSnLabel": "S/N： — （示意）",
+        "deviceBattery": "電量（示意）",
+        "deviceConnection": "連線（示意）",
+        "deviceLastOp": "最近操作（示意）",
+        "comingSoon": "即將推出",
+        "remoteUnlock": "遠端開鎖",
+        "resetCode": "重置密碼",
+        "quotationTitle": "報價明細",
+        "estimateLabel": "估價",
+        "quotationInfo": "零件費 / 出勤費 / 折扣明細將於派工計費模組接入後顯示。",
+        "customerTitle": "客戶資訊",
+        "loadFailed": "載入失敗",
+        "noConversation": "無關聯對話",
+        "loading": "載入中…",
+        "viewConversation": "查看完整對話 →",
+        "technicianTitle": "指派技師",
+        "unassigned": "尚未指派",
+        "markIssue": "標記異常",
+        "modulePending": "派工模組接入後可執行操作"
+      },
+      "kanban": {
+        "loading": "載入中…",
+        "empty": "目前沒有工單",
+        "columnEmpty": "此欄位暫無工單",
+        "unscheduled": "未排程",
+        "overdue": "逾時 {minutes}min",
+        "remaining": "剩餘 {hh}:{mm}",
+        "urgency": "緊急度 {label}",
+        "techTag": "技師 {id}",
+        "unassignedItalic": "未指派",
+        "column": {
+          "pending": "待指派",
+          "dispatched": "已派工",
+          "in_progress": "進行中",
+          "done": "已完工",
+          "cancelled": "已取消"
+        }
+      },
+      "mapPanel": {
+        "title": "工單列表",
+        "slaSort": "SLA 排序",
+        "comingSoon": "即將推出",
+        "loading": "載入中…",
+        "empty": "目前沒有工單",
+        "unscheduled": "未排程",
+        "overdue": "逾時 {minutes}min",
+        "remaining": "剩餘 {hh}:{mm}",
+        "techTag": "技師 {id}",
+        "unassigned": "未指派"
+      },
+      "mapView": {
+        "notice": "地圖渲染（Leaflet/Mapbox + 地理編碼）需 GIS 模組接入，本頁先以行政區分桶呈現工單分布；點擊左側清單可在右側看到該工單詳情卡。指派技師、建立路線等寫入路徑待派工 AI 引擎上線後同步開放。",
+        "districtTitle": "行政區分布",
+        "noData": "尚無區域資料",
+        "noDistrict": "未分區",
+        "bucketPending": "待 {count}",
+        "bucketInProgress": "中 {count}",
+        "bucketDone": "完 {count}",
+        "urgency": "緊急度 {label}",
+        "scheduled": "排程 {time}",
+        "unscheduled": "未排程",
+        "techTag": "技師 {id}",
+        "unassigned": "未指派",
+        "comingSoon": "即將推出",
+        "assignTech": "指派技師",
+        "viewDetail": "查看詳情 →",
+        "hint": "點擊左側工單清單檢視詳情",
+        "hintSub": "互動式地圖待 GIS 模組接入"
+      }
+    },
+    "technicians": {
+      "table": {
+        "loading": "載入中…",
+        "empty": "目前沒有技師",
+        "cols": {
+          "technician": "技師",
+          "brands": "專長品牌",
+          "region": "服務區域",
+          "rating": "評分",
+          "status": "狀態",
+          "completed": "完成工單",
+          "actions": "操作"
+        },
+        "availability": {
+          "available": "可用",
+          "busy": "外出中",
+          "offline": "離線",
+          "on_leave": "休假中",
+          "circuit_breaker_open": "暫停派工"
+        }
+      },
+      "detailSidebar": {
+        "availabilityTitle": "可用狀態",
+        "availabilityOnline": "可用",
+        "lastOnline": "最後上線：5 分鐘前",
+        "autoOffline": "系統將在無回應 30 分鐘後自動切為離線",
+        "mockLabel": "示意",
+        "mockTooltip": "示意資料，待相關模組接入後顯示真實內容",
+        "activeOrdersTitle": "進行中工單",
+        "loadFailed": "載入失敗：{error}",
+        "querying": "查詢中…",
+        "noActive": "目前無進行中工單",
+        "createdAt": "建立於 {time}",
+        "commissionTitle": "佣金摘要",
+        "commissionPeriod": "2026年4月",
+        "commissionRow": {
+          "repair": "一般維修佣金 (70%)",
+          "install": "安裝佣金 (60%)",
+          "customMaterial": "客供材料佣金 (80%)",
+          "bonus": "獎金加項",
+          "penalty": "扣款減項"
+        },
+        "pending": "待結算",
+        "monthlyBadge": "月結 (5號)",
+        "nextSettle": "下次結算：2026/05/05",
+        "logTitle": "獎懲紀錄",
+        "viewLogAll": "查看完整紀錄 →"
+      }
+    },
+    "problemCards": {
+      "detailSidebar": {
+        "statusTitle": "狀態",
+        "loading": "載入中…",
+        "status": {
+          "draft": "草稿",
+          "confirmed": "已確認",
+          "resolved": "已解決"
+        },
+        "aiConfidence": "AI 信心",
+        "timeTitle": "時間紀錄",
+        "createdAt": "建立時間",
+        "updatedAt": "最後更新",
+        "linkedTitle": "關聯工單",
+        "loadFailed": "載入失敗：{error}",
+        "querying": "查詢中…",
+        "noLinked": "尚無關聯工單",
+        "orderId": "工單編號",
+        "orderStatus": "工單狀態",
+        "technician": "指派技師",
+        "techTag": "技師 {id}",
+        "unassigned": "未指派",
+        "markResolved": "標記已解決",
+        "escalate": "升級至 L3 派工",
+        "linkCase": "關聯知識案例",
+        "comingSoon": "即將推出"
+      }
     }
   }
 }

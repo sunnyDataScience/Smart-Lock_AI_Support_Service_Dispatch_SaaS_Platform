@@ -1,7 +1,9 @@
 "use client";
 
+import { useMemo } from "react";
 import { Star, Ellipsis } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type Technician = components["schemas"]["Technician"];
@@ -12,18 +14,16 @@ interface Props {
   loading?: boolean;
 }
 
-interface AvailabilityStyle {
-  label: string;
-  textColor: string;
-  bgColor: string;
-}
-
-const AVAILABILITY_STYLE: Record<Availability, AvailabilityStyle> = {
-  available: { label: "可用", textColor: "#065F46", bgColor: "#D1FAE5" },
-  busy: { label: "外出中", textColor: "#1E40AF", bgColor: "#DBEAFE" },
-  offline: { label: "離線", textColor: "var(--text-secondary)", bgColor: "var(--bg-page)" },
-  on_leave: { label: "休假中", textColor: "#92400E", bgColor: "#FEF3C7" },
-  circuit_breaker_open: { label: "暫停派工", textColor: "#991B1B", bgColor: "#FEE2E2" },
+// Tone（顏色）— label 由 i18n 提供
+const AVAILABILITY_TONE: Record<
+  Availability,
+  { textColor: string; bgColor: string }
+> = {
+  available: { textColor: "#065F46", bgColor: "#D1FAE5" },
+  busy: { textColor: "#1E40AF", bgColor: "#DBEAFE" },
+  offline: { textColor: "var(--text-secondary)", bgColor: "var(--bg-page)" },
+  on_leave: { textColor: "#92400E", bgColor: "#FEF3C7" },
+  circuit_breaker_open: { textColor: "#991B1B", bgColor: "#FEE2E2" },
 };
 
 const BRAND_STYLE: Record<string, { textColor: string; bgColor: string }> = {
@@ -44,18 +44,34 @@ function avatarColor(id: string): string {
   return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
 }
 
-const columns = [
-  { label: "", width: "w-[52px] shrink-0" },
-  { label: "技師", width: "w-[200px] shrink-0" },
-  { label: "專長品牌", width: "w-[180px] shrink-0" },
-  { label: "服務區域", width: "w-[180px] shrink-0" },
-  { label: "評分", width: "w-[80px] shrink-0" },
-  { label: "狀態", width: "w-[100px] shrink-0" },
-  { label: "完成工單", width: "w-[100px] shrink-0" },
-  { label: "操作", width: "flex-1 min-w-0" },
-];
-
 export default function TechniciansTable({ items, loading }: Props) {
+  const t = useTranslations("components.technicians.table");
+
+  const columns = useMemo(
+    () => [
+      { label: "", width: "w-[52px] shrink-0" },
+      { label: t("cols.technician"), width: "w-[200px] shrink-0" },
+      { label: t("cols.brands"), width: "w-[180px] shrink-0" },
+      { label: t("cols.region"), width: "w-[180px] shrink-0" },
+      { label: t("cols.rating"), width: "w-[80px] shrink-0" },
+      { label: t("cols.status"), width: "w-[100px] shrink-0" },
+      { label: t("cols.completed"), width: "w-[100px] shrink-0" },
+      { label: t("cols.actions"), width: "flex-1 min-w-0" },
+    ],
+    [t],
+  );
+
+  const availabilityLabels: Record<Availability, string> = useMemo(
+    () => ({
+      available: t("availability.available"),
+      busy: t("availability.busy"),
+      offline: t("availability.offline"),
+      on_leave: t("availability.on_leave"),
+      circuit_breaker_open: t("availability.circuit_breaker_open"),
+    }),
+    [t],
+  );
+
   return (
     <div className="flex min-w-0 flex-1 flex-col bg-[var(--bg-surface)]">
       {/* Header Row */}
@@ -75,20 +91,22 @@ export default function TechniciansTable({ items, loading }: Props) {
       {/* Body */}
       {loading && items.length === 0 ? (
         <div className="flex min-w-0 flex-1 items-center justify-center py-12 text-sm text-[var(--text-secondary)]">
-          載入中…
+          {t("loading")}
         </div>
       ) : items.length === 0 ? (
         <div className="flex min-w-0 flex-1 items-center justify-center py-12 text-sm text-[var(--text-secondary)]">
-          目前沒有技師
+          {t("empty")}
         </div>
       ) : (
-        items.map((t) => {
-          const status = AVAILABILITY_STYLE[t.availability] ?? AVAILABILITY_STYLE.available;
-          const brands = (t.skills ?? []).slice(0, 3);
-          const region = (t.service_areas ?? []).slice(0, 2).join("、") || "—";
+        items.map((tech) => {
+          const tone = AVAILABILITY_TONE[tech.availability] ?? AVAILABILITY_TONE.available;
+          const availabilityLabel =
+            availabilityLabels[tech.availability] ?? availabilityLabels.available;
+          const brands = (tech.skills ?? []).slice(0, 3);
+          const region = (tech.service_areas ?? []).slice(0, 2).join("、") || "—";
           return (
             <div
-              key={t.id}
+              key={tech.id}
               className="flex h-[60px] items-center border-b border-[var(--border)] px-8"
             >
               {/* Checkbox */}
@@ -100,17 +118,17 @@ export default function TechniciansTable({ items, loading }: Props) {
               <div className="flex w-[200px] shrink-0 items-center gap-[10px]">
                 <div
                   className="h-9 w-9 flex-shrink-0 rounded-full"
-                  style={{ backgroundColor: avatarColor(t.id) }}
+                  style={{ backgroundColor: avatarColor(tech.id) }}
                 />
                 <div className="flex flex-col gap-[2px]">
                   <Link
-                    href={`/technicians/${t.id}`}
+                    href={`/technicians/${tech.id}`}
                     className="text-[14px] font-medium text-[var(--text-primary)] hover:underline"
                   >
-                    {t.name}
+                    {tech.name}
                   </Link>
                   <span className="font-['IBM_Plex_Mono'] text-[11px] text-[var(--text-secondary)]">
-                    {t.phone}
+                    {tech.phone}
                   </span>
                 </div>
               </div>
@@ -146,7 +164,7 @@ export default function TechniciansTable({ items, loading }: Props) {
               <div className="flex w-[80px] shrink-0 items-center gap-1">
                 <Star className="h-[14px] w-[14px] fill-[var(--accent)] text-[var(--accent)]" />
                 <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-                  {t.rating.toFixed(1)}
+                  {tech.rating.toFixed(1)}
                 </span>
               </div>
 
@@ -154,16 +172,16 @@ export default function TechniciansTable({ items, loading }: Props) {
               <div className="flex w-[100px] shrink-0 items-center">
                 <span
                   className="rounded-full px-[10px] py-[3px] text-[12px] font-medium"
-                  style={{ color: status.textColor, backgroundColor: status.bgColor }}
+                  style={{ color: tone.textColor, backgroundColor: tone.bgColor }}
                 >
-                  {status.label}
+                  {availabilityLabel}
                 </span>
               </div>
 
               {/* Completed Orders */}
               <div className="flex w-[100px] shrink-0 items-center">
                 <span className="text-[14px] font-semibold text-[var(--primary)]">
-                  {t.completed_orders_count ?? 0}
+                  {tech.completed_orders_count ?? 0}
                 </span>
               </div>
 

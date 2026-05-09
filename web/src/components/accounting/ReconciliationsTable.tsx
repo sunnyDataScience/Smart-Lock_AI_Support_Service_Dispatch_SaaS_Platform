@@ -1,8 +1,11 @@
 "use client";
 
+import { useMemo } from "react";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type Reconciliation = components["schemas"]["Reconciliation"];
+type ReconciliationStatus = components["schemas"]["ReconciliationStatus"];
 
 interface Props {
   items: Reconciliation[];
@@ -11,25 +14,13 @@ interface Props {
   pendingApproveId?: string | null;
 }
 
-const columns = [
-  { label: "ID", width: "w-[100px] shrink-0" },
-  { label: "技師", width: "w-[140px] shrink-0" },
-  { label: "結算期間", width: "w-[200px] shrink-0" },
-  { label: "工單數", width: "w-[80px] shrink-0", align: "text-right" as const },
-  { label: "營收", width: "w-[110px] shrink-0", align: "text-right" as const },
-  { label: "平台費", width: "w-[110px] shrink-0", align: "text-right" as const },
-  { label: "技師應領", width: "w-[120px] shrink-0", align: "text-right" as const },
-  { label: "狀態", width: "w-[90px] shrink-0" },
-  { label: "操作", width: "flex-1 min-w-0" },
-];
-
-const statusConfig: Record<
-  components["schemas"]["ReconciliationStatus"],
-  { label: string; textColor: string; bgColor: string }
+const STATUS_TONE: Record<
+  ReconciliationStatus,
+  { textColor: string; bgColor: string }
 > = {
-  pending: { label: "待核准", textColor: "#92400E", bgColor: "#FEF3C7" },
-  approved: { label: "已核准", textColor: "#065F46", bgColor: "#D1FAE5" },
-  disputed: { label: "爭議中", textColor: "#991B1B", bgColor: "#FEE2E2" },
+  pending: { textColor: "#92400E", bgColor: "#FEF3C7" },
+  approved: { textColor: "#065F46", bgColor: "#D1FAE5" },
+  disputed: { textColor: "#991B1B", bgColor: "#FEE2E2" },
 };
 
 function formatTwd(amount: string | null | undefined): string {
@@ -52,6 +43,32 @@ export default function ReconciliationsTable({
   onApprove,
   pendingApproveId,
 }: Props) {
+  const t = useTranslations("components.accounting.reconciliationsTable");
+
+  const columns = useMemo(
+    () => [
+      { label: t("cols.id"), width: "w-[100px] shrink-0" },
+      { label: t("cols.technician"), width: "w-[140px] shrink-0" },
+      { label: t("cols.period"), width: "w-[200px] shrink-0" },
+      { label: t("cols.orders"), width: "w-[80px] shrink-0", align: "text-right" as const },
+      { label: t("cols.revenue"), width: "w-[110px] shrink-0", align: "text-right" as const },
+      { label: t("cols.platformFee"), width: "w-[110px] shrink-0", align: "text-right" as const },
+      { label: t("cols.payout"), width: "w-[120px] shrink-0", align: "text-right" as const },
+      { label: t("cols.status"), width: "w-[90px] shrink-0" },
+      { label: t("cols.actions"), width: "flex-1 min-w-0" },
+    ],
+    [t],
+  );
+
+  const statusLabels: Record<ReconciliationStatus, string> = useMemo(
+    () => ({
+      pending: t("status.pending"),
+      approved: t("status.approved"),
+      disputed: t("status.disputed"),
+    }),
+    [t],
+  );
+
   return (
     <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
       <div className="flex h-[44px] items-center bg-[#F8FAFC] border-b border-[var(--border)]">
@@ -69,17 +86,17 @@ export default function ReconciliationsTable({
 
       {loading && items.length === 0 && (
         <div className="flex h-[120px] items-center justify-center text-sm text-[var(--text-secondary)]">
-          載入中…
+          {t("loading")}
         </div>
       )}
       {!loading && items.length === 0 && (
         <div className="flex h-[120px] items-center justify-center text-sm text-[var(--text-secondary)]">
-          目前沒有對帳記錄
+          {t("empty")}
         </div>
       )}
 
       {items.map((row, idx) => {
-        const status = statusConfig[row.status];
+        const tone = STATUS_TONE[row.status];
         const canApprove = row.status === "pending" && !!onApprove;
         return (
           <div
@@ -126,9 +143,9 @@ export default function ReconciliationsTable({
             <div className="flex w-[90px] shrink-0 items-center px-3">
               <span
                 className="rounded-[10px] px-2 py-[2px] text-[11px] font-medium"
-                style={{ color: status.textColor, backgroundColor: status.bgColor }}
+                style={{ color: tone.textColor, backgroundColor: tone.bgColor }}
               >
-                {status.label}
+                {statusLabels[row.status]}
               </span>
             </div>
             <div className="flex min-w-0 flex-1 items-center justify-end gap-[6px] px-3">
@@ -138,7 +155,7 @@ export default function ReconciliationsTable({
                   disabled={pendingApproveId !== null && pendingApproveId !== undefined}
                   className="rounded-md bg-[var(--success)] px-2 py-1 text-[11px] font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {pendingApproveId === row.id ? "處理中…" : "核准對帳"}
+                  {pendingApproveId === row.id ? t("processing") : t("approve")}
                 </button>
               ) : (
                 <span className="text-[11px] text-[var(--text-secondary)]">—</span>

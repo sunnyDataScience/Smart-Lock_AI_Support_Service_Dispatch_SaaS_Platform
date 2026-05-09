@@ -1582,6 +1582,303 @@
           "mention": "Mention"
         }
       }
+    },
+    "accounting": {
+      "settlementTable": {
+        "batchSelectAll": "Select all",
+        "batchConfirm": "Batch confirm",
+        "batchMarkPaid": "Batch mark paid",
+        "comingSoon": "Coming soon",
+        "loading": "Loading…",
+        "empty": "No settlement data",
+        "cols": {
+          "technician": "Technician",
+          "amount": "Amount",
+          "status": "Status",
+          "paymentMethod": "Payment method",
+          "paidAt": "Paid at",
+          "createdAt": "Created"
+        },
+        "status": {
+          "pending": "Pending",
+          "paid": "Paid",
+          "failed": "Failed"
+        },
+        "paymentMethod": {
+          "bank_transfer": "Bank transfer",
+          "other": "Other"
+        }
+      },
+      "invoicesTable": {
+        "loading": "Loading…",
+        "empty": "No invoice records",
+        "cols": {
+          "invoiceNumber": "Invoice #",
+          "workOrder": "Work order",
+          "amount": "Amount",
+          "category": "Tax category",
+          "status": "Status",
+          "issuedAt": "Issued",
+          "updatedAt": "Updated",
+          "actions": "Actions"
+        },
+        "status": {
+          "pending": "Pending",
+          "issued": "Issued",
+          "allowance_pending": "Allowance pending",
+          "voided": "Voided",
+          "reopened": "Reopened"
+        },
+        "category": {
+          "service_fee": "Service fee",
+          "travel_fee": "Travel fee",
+          "parts": "Parts",
+          "other": "Other"
+        }
+      },
+      "reconciliationsTable": {
+        "loading": "Loading…",
+        "empty": "No reconciliation records",
+        "approve": "Approve",
+        "processing": "Processing…",
+        "cols": {
+          "id": "ID",
+          "technician": "Technician",
+          "period": "Period",
+          "orders": "Orders",
+          "revenue": "Revenue",
+          "platformFee": "Platform fee",
+          "payout": "Payout",
+          "status": "Status",
+          "actions": "Actions"
+        },
+        "status": {
+          "pending": "Pending",
+          "approved": "Approved",
+          "disputed": "Disputed"
+        }
+      },
+      "settlementDetailModal": {
+        "title": "{technician} settlement — {month}",
+        "period": "Period: {period}",
+        "mockTechName": "Chen Chien-hung",
+        "mockMonth": "2026/04",
+        "mockPeriod": "2026/04/01 - 2026/04/30",
+        "serviceType": {
+          "repair": "Repair",
+          "install": "Install",
+          "customMaterial": "Customer parts"
+        },
+        "bonus": {
+          "highRating": "High rating bonus (≥ 4.8) — {orderId}",
+          "fastFinish": "Fast finish bonus (25% faster) — {orderId}"
+        },
+        "penalty": {
+          "rework": "Rework deduction (repeat fix) — {orderId}",
+          "complaint": "Complaint deduction (customer complaint) — {orderId}"
+        },
+        "summary": {
+          "labor": "Labor total",
+          "bonus": "Bonus total",
+          "penalty": "Penalty total",
+          "net": "Net amount"
+        },
+        "ordersTitle": "Order commission breakdown",
+        "cols": {
+          "orderId": "Order #",
+          "serviceType": "Service type",
+          "rate": "Commission rate",
+          "orderAmount": "Order amount",
+          "commission": "Commission"
+        },
+        "totalRow": "Total ({count})",
+        "bonusTitle": "Bonus details",
+        "penaltyTitle": "Penalty details",
+        "finalAmount": "Final settlement amount",
+        "print": "Print",
+        "confirm": "Confirm settlement",
+        "close": "Close"
+      }
+    },
+    "workOrders": {
+      "eventTimeline": {
+        "title": "Event timeline",
+        "countSuffix": "{count} events",
+        "filterAll": "All types",
+        "refresh": "Refresh",
+        "loading": "Loading…",
+        "emptyAll": "No subflow events for this work order",
+        "emptyFiltered": "No {label} events",
+        "byUser": "by user #{id}",
+        "type": {
+          "scope_change": "Scope change",
+          "material_request": "Material request",
+          "delay": "Delay notice",
+          "door_check": "Door inspection",
+          "signature_submitted": "E-signature",
+          "reschedule_proposed": "Reschedule",
+          "other": "Other"
+        },
+        "payload": {
+          "reasonLabel": "Reason: {value}",
+          "itemUnit": "(unit ${value})",
+          "totalEstimate": "Estimated addition: ${value}",
+          "urgencyLabel": "Urgency: {value}",
+          "noteLabel": "Note: {value}",
+          "delaySummary": "Delay {minutes} min · {reason}",
+          "delayExtra": "Note: {value}",
+          "notify": "Notify: {value}",
+          "checkSummary": "Check {checked}/{total} · Photos before {before}/after {after}",
+          "notesLabel": "Notes: {value}"
+        }
+      },
+      "detailSidebar": {
+        "deviceSnLabel": "S/N: — (mock)",
+        "deviceBattery": "Battery (mock)",
+        "deviceConnection": "Connection (mock)",
+        "deviceLastOp": "Last op (mock)",
+        "comingSoon": "Coming soon",
+        "remoteUnlock": "Remote unlock",
+        "resetCode": "Reset PIN",
+        "quotationTitle": "Quotation",
+        "estimateLabel": "Estimate",
+        "quotationInfo": "Parts / dispatch fee / discount details will appear once the dispatch billing module ships.",
+        "customerTitle": "Customer",
+        "loadFailed": "Load failed",
+        "noConversation": "No linked conversation",
+        "loading": "Loading…",
+        "viewConversation": "View full conversation →",
+        "technicianTitle": "Assigned technician",
+        "unassigned": "Not assigned",
+        "markIssue": "Flag issue",
+        "modulePending": "Actions enabled once dispatch module is connected"
+      },
+      "kanban": {
+        "loading": "Loading…",
+        "empty": "No work orders",
+        "columnEmpty": "No work orders in this column",
+        "unscheduled": "Unscheduled",
+        "overdue": "Overdue {minutes}min",
+        "remaining": "Remaining {hh}:{mm}",
+        "urgency": "Urgency {label}",
+        "techTag": "Tech {id}",
+        "unassignedItalic": "Unassigned",
+        "column": {
+          "pending": "Unassigned",
+          "dispatched": "Dispatched",
+          "in_progress": "In progress",
+          "done": "Completed",
+          "cancelled": "Cancelled"
+        }
+      },
+      "mapPanel": {
+        "title": "Work orders",
+        "slaSort": "Sort by SLA",
+        "comingSoon": "Coming soon",
+        "loading": "Loading…",
+        "empty": "No work orders",
+        "unscheduled": "Unscheduled",
+        "overdue": "Overdue {minutes}min",
+        "remaining": "Remaining {hh}:{mm}",
+        "techTag": "Tech {id}",
+        "unassigned": "Unassigned"
+      },
+      "mapView": {
+        "notice": "Map rendering (Leaflet/Mapbox + geocoding) requires the GIS module. This view buckets work orders by district instead; click an order in the left list to inspect it on the right. Technician assignment and routing actions ship with the dispatch AI engine.",
+        "districtTitle": "By district",
+        "noData": "No district data",
+        "noDistrict": "Unzoned",
+        "bucketPending": "Pending {count}",
+        "bucketInProgress": "In progress {count}",
+        "bucketDone": "Done {count}",
+        "urgency": "Urgency {label}",
+        "scheduled": "Scheduled {time}",
+        "unscheduled": "Unscheduled",
+        "techTag": "Tech {id}",
+        "unassigned": "Unassigned",
+        "comingSoon": "Coming soon",
+        "assignTech": "Assign technician",
+        "viewDetail": "View details →",
+        "hint": "Click an order on the left to see its details",
+        "hintSub": "Interactive map ships with the GIS module"
+      }
+    },
+    "technicians": {
+      "table": {
+        "loading": "Loading…",
+        "empty": "No technicians",
+        "cols": {
+          "technician": "Technician",
+          "brands": "Brands",
+          "region": "Service area",
+          "rating": "Rating",
+          "status": "Status",
+          "completed": "Completed orders",
+          "actions": "Actions"
+        },
+        "availability": {
+          "available": "Available",
+          "busy": "On site",
+          "offline": "Offline",
+          "on_leave": "On leave",
+          "circuit_breaker_open": "Suspended"
+        }
+      },
+      "detailSidebar": {
+        "availabilityTitle": "Availability",
+        "availabilityOnline": "Available",
+        "lastOnline": "Last online: 5 min ago",
+        "autoOffline": "System will auto-set offline after 30 min of inactivity",
+        "mockLabel": "Mock",
+        "mockTooltip": "Mock data — will show real content once the relevant module ships",
+        "activeOrdersTitle": "Active orders",
+        "loadFailed": "Load failed: {error}",
+        "querying": "Loading…",
+        "noActive": "No active orders",
+        "createdAt": "Created {time}",
+        "commissionTitle": "Commission summary",
+        "commissionPeriod": "April 2026",
+        "commissionRow": {
+          "repair": "General repair commission (70%)",
+          "install": "Installation commission (60%)",
+          "customMaterial": "Customer-supplied parts commission (80%)",
+          "bonus": "Bonus",
+          "penalty": "Penalty"
+        },
+        "pending": "Pending",
+        "monthlyBadge": "Monthly (5th)",
+        "nextSettle": "Next settle: 2026/05/05",
+        "logTitle": "Bonus & penalty log",
+        "viewLogAll": "View all →"
+      }
+    },
+    "problemCards": {
+      "detailSidebar": {
+        "statusTitle": "Status",
+        "loading": "Loading…",
+        "status": {
+          "draft": "Draft",
+          "confirmed": "Confirmed",
+          "resolved": "Resolved"
+        },
+        "aiConfidence": "AI confidence",
+        "timeTitle": "Timestamps",
+        "createdAt": "Created",
+        "updatedAt": "Last updated",
+        "linkedTitle": "Linked work order",
+        "loadFailed": "Load failed: {error}",
+        "querying": "Loading…",
+        "noLinked": "No linked work order",
+        "orderId": "Order #",
+        "orderStatus": "Order status",
+        "technician": "Technician",
+        "techTag": "Tech {id}",
+        "unassigned": "Unassigned",
+        "markResolved": "Mark resolved",
+        "escalate": "Escalate to L3",
+        "linkCase": "Link knowledge case",
+        "comingSoon": "Coming soon"
+      }
     }
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   CheckSquare,
@@ -11,6 +11,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { ApiError, api } from "@/lib/api";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 type EventType =
   | "scope_change"
@@ -29,10 +30,10 @@ interface WorkOrderEvent {
   created_at: string;
 }
 
-const TYPE_META: Record<
+// Tone（icon + 顏色）— 模組級不變；label 由 hook 提供
+const TYPE_TONE: Record<
   EventType,
   {
-    label: string;
     Icon: React.ComponentType<{
       className?: string;
       style?: React.CSSProperties;
@@ -42,48 +43,51 @@ const TYPE_META: Record<
   }
 > = {
   scope_change: {
-    label: "範圍變更",
     Icon: Wrench,
     color: "#9A3412",
     bg: "#FFEDD5",
   },
   material_request: {
-    label: "缺料回報",
     Icon: PackageSearch,
     color: "#92400E",
     bg: "#FEF3C7",
   },
   delay: {
-    label: "延遲通知",
     Icon: Clock,
     color: "#B45309",
     bg: "#FEF3C7",
   },
   door_check: {
-    label: "門面檢核",
     Icon: CheckSquare,
     color: "#065F46",
     bg: "#D1FAE5",
   },
   signature_submitted: {
-    label: "電子簽章",
     Icon: PenTool,
     color: "#1E40AF",
     bg: "#DBEAFE",
   },
   reschedule_proposed: {
-    label: "改期請求",
     Icon: RefreshCw,
     color: "#1E40AF",
     bg: "#DBEAFE",
   },
   other: {
-    label: "其他",
     Icon: AlertCircle,
     color: "#475569",
     bg: "#F1F5F9",
   },
 };
+
+const EVENT_TYPES: EventType[] = [
+  "scope_change",
+  "material_request",
+  "delay",
+  "door_check",
+  "signature_submitted",
+  "reschedule_proposed",
+  "other",
+];
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
@@ -97,6 +101,8 @@ function PayloadPreview({
   type: EventType;
   payload: Record<string, unknown>;
 }) {
+  const t = useTranslations("components.workOrders.eventTimeline.payload");
+
   switch (type) {
     case "scope_change": {
       const items = Array.isArray(payload.items)
@@ -105,20 +111,21 @@ function PayloadPreview({
       return (
         <div className="text-[12px] text-[var(--text-secondary)]">
           <p className="text-[var(--text-primary)]">
-            理由：{String(payload.reason ?? "—")}
+            {t("reasonLabel", { value: String(payload.reason ?? "—") })}
           </p>
           {items.length > 0 && (
             <ul className="mt-1 list-disc pl-4">
               {items.map((it, i) => (
                 <li key={i}>
-                  {it.name} × {it.quantity}（單價 ${it.unit_price}）
+                  {it.name} × {it.quantity}
+                  {t("itemUnit", { value: String(it.unit_price ?? "") })}
                 </li>
               ))}
             </ul>
           )}
           {payload.total_estimate ? (
             <p className="mt-1 font-semibold text-[#9A3412]">
-              預估追加：${String(payload.total_estimate)}
+              {t("totalEstimate", { value: String(payload.total_estimate) })}
             </p>
           ) : null}
         </div>
@@ -130,7 +137,7 @@ function PayloadPreview({
         : [];
       return (
         <div className="text-[12px] text-[var(--text-secondary)]">
-          <p>急迫度：{String(payload.urgency ?? "—")}</p>
+          <p>{t("urgencyLabel", { value: String(payload.urgency ?? "—") })}</p>
           {items.length > 0 && (
             <ul className="mt-1 list-disc pl-4">
               {items.map((it, i) => (
@@ -140,7 +147,9 @@ function PayloadPreview({
               ))}
             </ul>
           )}
-          {payload.note ? <p className="mt-1">備註：{String(payload.note)}</p> : null}
+          {payload.note ? (
+            <p className="mt-1">{t("noteLabel", { value: String(payload.note) })}</p>
+          ) : null}
         </div>
       );
     }
@@ -148,13 +157,15 @@ function PayloadPreview({
       return (
         <div className="text-[12px] text-[var(--text-secondary)]">
           <p>
-            延遲 {String(payload.delay_minutes ?? "—")} 分鐘 ·{" "}
-            {String(payload.reason ?? "")}
+            {t("delaySummary", {
+              minutes: String(payload.delay_minutes ?? "—"),
+              reason: String(payload.reason ?? ""),
+            })}
           </p>
           {payload.reason_text ? (
-            <p>補充：{String(payload.reason_text)}</p>
+            <p>{t("delayExtra", { value: String(payload.reason_text) })}</p>
           ) : null}
-          <p>通知：{String(payload.notify ?? "—")}</p>
+          <p>{t("notify", { value: String(payload.notify ?? "—") })}</p>
         </div>
       );
     }
@@ -171,9 +182,16 @@ function PayloadPreview({
       return (
         <div className="text-[12px] text-[var(--text-secondary)]">
           <p>
-            檢核 {checkedCount}/{totalCount} · 照片 前 {photosB}/後 {photosA}
+            {t("checkSummary", {
+              checked: checkedCount,
+              total: totalCount,
+              before: photosB,
+              after: photosA,
+            })}
           </p>
-          {payload.notes ? <p>備註：{String(payload.notes)}</p> : null}
+          {payload.notes ? (
+            <p>{t("notesLabel", { value: String(payload.notes) })}</p>
+          ) : null}
         </div>
       );
     }
@@ -191,6 +209,22 @@ interface Props {
 }
 
 export default function EventTimeline({ workOrderId }: Props) {
+  const t = useTranslations("components.workOrders.eventTimeline");
+  const tType = useTranslations("components.workOrders.eventTimeline.type");
+
+  const typeLabels: Record<EventType, string> = useMemo(
+    () => ({
+      scope_change: tType("scope_change"),
+      material_request: tType("material_request"),
+      delay: tType("delay"),
+      door_check: tType("door_check"),
+      signature_submitted: tType("signature_submitted"),
+      reschedule_proposed: tType("reschedule_proposed"),
+      other: tType("other"),
+    }),
+    [tType],
+  );
+
   const [items, setItems] = useState<WorkOrderEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -230,10 +264,10 @@ export default function EventTimeline({ workOrderId }: Props) {
         <div className="flex items-center gap-2">
           <Clock className="h-4 w-4 text-[var(--text-secondary)]" />
           <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">
-            事件時間軸
+            {t("title")}
           </h3>
           <span className="rounded bg-[#F1F5F9] px-2 py-[1px] text-[11px] text-[var(--text-secondary)]">
-            {items.length} 筆
+            {t("countSuffix", { count: items.length })}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -244,10 +278,10 @@ export default function EventTimeline({ workOrderId }: Props) {
             }
             className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px]"
           >
-            <option value="all">全部類型</option>
-            {Object.entries(TYPE_META).map(([k, m]) => (
+            <option value="all">{t("filterAll")}</option>
+            {EVENT_TYPES.map((k) => (
               <option key={k} value={k}>
-                {m.label}
+                {typeLabels[k]}
               </option>
             ))}
           </select>
@@ -256,7 +290,7 @@ export default function EventTimeline({ workOrderId }: Props) {
             onClick={fetchItems}
             disabled={loading}
             className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
-            title="重新整理"
+            title={t("refresh")}
           >
             <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
           </button>
@@ -271,33 +305,36 @@ export default function EventTimeline({ workOrderId }: Props) {
 
       {loading && items.length === 0 ? (
         <div className="py-6 text-center text-[12px] text-[var(--text-disabled)]">
-          載入中…
+          {t("loading")}
         </div>
       ) : items.length === 0 ? (
         <div className="py-6 text-center text-[12px] text-[var(--text-disabled)]">
           {filter === "all"
-            ? "此工單尚無 subflow 事件紀錄"
-            : `無 ${TYPE_META[filter as EventType]?.label ?? filter} 類型事件`}
+            ? t("emptyAll")
+            : t("emptyFiltered", {
+                label: typeLabels[filter as EventType] ?? filter,
+              })}
         </div>
       ) : (
         <ol className="relative ml-3 border-l-2 border-[var(--border)]">
           {items.map((ev) => {
-            const meta = TYPE_META[ev.event_type] ?? TYPE_META.other;
-            const Icon = meta.Icon;
+            const tone = TYPE_TONE[ev.event_type] ?? TYPE_TONE.other;
+            const Icon = tone.Icon;
+            const label = typeLabels[ev.event_type] ?? typeLabels.other;
             return (
               <li key={ev.id} className="relative mb-4 ml-4 last:mb-0">
                 <span
                   className="absolute -left-[28px] flex h-6 w-6 items-center justify-center rounded-full ring-2 ring-white"
-                  style={{ backgroundColor: meta.bg }}
+                  style={{ backgroundColor: tone.bg }}
                 >
-                  <Icon className="h-3 w-3" style={{ color: meta.color }} />
+                  <Icon className="h-3 w-3" style={{ color: tone.color }} />
                 </span>
                 <div className="flex items-baseline justify-between gap-2">
                   <span
                     className="text-[12px] font-semibold"
-                    style={{ color: meta.color }}
+                    style={{ color: tone.color }}
                   >
-                    {meta.label}
+                    {label}
                   </span>
                   <span className="font-mono text-[10px] text-[var(--text-disabled)]">
                     {formatTime(ev.created_at)}
@@ -308,7 +345,7 @@ export default function EventTimeline({ workOrderId }: Props) {
                 </div>
                 {ev.actor_user_id && (
                   <span className="mt-1 inline-block font-mono text-[10px] text-[var(--text-disabled)]">
-                    by user #{ev.actor_user_id.slice(0, 8)}
+                    {t("byUser", { id: ev.actor_user_id.slice(0, 8) })}
                   </span>
                 )}
               </li>
