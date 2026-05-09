@@ -23,80 +23,84 @@ import { getCurrentSession, logout, type CurrentSession } from "@/lib/api";
 import NotificationBell from "./NotificationBell";
 import Hamburger from "./Hamburger";
 import { useSidebar } from "./SidebarContext";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 interface NavChild {
-  label: string;
+  /** translation key under sidebar.nav.*; e.g. "kbCases" → t("kbCases") */
+  id: string;
   href: string;
 }
 
 interface NavItem {
   icon: React.ElementType;
-  label: string;
+  /** translation key under sidebar.nav.*; e.g. "dashboard" → t("dashboard") */
+  id: string;
   href: string;
   children?: NavChild[];
 }
 
+// id 對應 messages/{locale}.json 的 sidebar.nav.* 鍵
 const navItems: NavItem[] = [
-  { icon: LayoutDashboard, label: "儀表板", href: "/dashboard" },
-  { icon: MessageSquare, label: "對話管理", href: "/conversations" },
-  { icon: ClipboardList, label: "問題卡", href: "/problem-cards" },
+  { icon: LayoutDashboard, id: "dashboard", href: "/dashboard" },
+  { icon: MessageSquare, id: "conversations", href: "/conversations" },
+  { icon: ClipboardList, id: "problemCards", href: "/problem-cards" },
   {
     icon: BookOpen,
-    label: "知識庫",
+    id: "knowledgeBase",
     href: "/knowledge-base/cases",
     children: [
-      { label: "案例庫", href: "/knowledge-base/cases" },
-      { label: "手冊管理", href: "/knowledge-base/manuals" },
-      { label: "SOP 審核", href: "/knowledge-base/sop-drafts" },
-      { label: "家族覆核", href: "/knowledge-base/family-reviews" },
+      { id: "kbCases", href: "/knowledge-base/cases" },
+      { id: "kbManuals", href: "/knowledge-base/manuals" },
+      { id: "kbSopDrafts", href: "/knowledge-base/sop-drafts" },
+      { id: "kbFamilyReviews", href: "/knowledge-base/family-reviews" },
     ],
   },
   {
     icon: Truck,
-    label: "派工管理",
+    id: "dispatch",
     href: "/work-orders",
     children: [
-      { label: "工單列表", href: "/work-orders" },
-      { label: "派工佇列監控", href: "/admin/dispatch-queue" },
+      { id: "workOrders", href: "/work-orders" },
+      { id: "dispatchQueue", href: "/admin/dispatch-queue" },
     ],
   },
-  { icon: Users, label: "技師管理", href: "/technicians" },
-  { icon: CircleUserRound, label: "客戶主檔", href: "/admin/customers" },
+  { icon: Users, id: "technicians", href: "/technicians" },
+  { icon: CircleUserRound, id: "customers", href: "/admin/customers" },
   {
     icon: Receipt,
-    label: "帳務與結算",
+    id: "accounting",
     href: "/accounting",
     children: [
-      { label: "月結算總覽", href: "/accounting" },
-      { label: "會計傳票", href: "/accounting/vouchers" },
-      { label: "退款審批", href: "/admin/refunds" },
-      { label: "保固索賠", href: "/admin/warranty-claims" },
-      { label: "爭議仲裁", href: "/admin/disputes" },
+      { id: "settlements", href: "/accounting" },
+      { id: "vouchers", href: "/accounting/vouchers" },
+      { id: "refunds", href: "/admin/refunds" },
+      { id: "warranty", href: "/admin/warranty-claims" },
+      { id: "disputes", href: "/admin/disputes" },
     ],
   },
-  { icon: Package, label: "庫存", href: "/admin/inventory" },
+  { icon: Package, id: "inventory", href: "/admin/inventory" },
   {
     icon: BarChart3,
-    label: "報表中心",
+    id: "reports",
     href: "/admin/reports/kpi",
     children: [
-      { label: "KPI 儀表板", href: "/admin/reports/kpi" },
-      { label: "技師排行", href: "/admin/reports/technician-ranking" },
-      { label: "營收報表", href: "/admin/reports/revenue" },
-      { label: "SOP 績效", href: "/admin/knowledge-base/sop-performance" },
+      { id: "kpi", href: "/admin/reports/kpi" },
+      { id: "techRanking", href: "/admin/reports/technician-ranking" },
+      { id: "revenue", href: "/admin/reports/revenue" },
+      { id: "sopPerformance", href: "/admin/knowledge-base/sop-performance" },
     ],
   },
   {
     icon: ShieldCheck,
-    label: "稽核與權限",
+    id: "audit",
     href: "/admin/audit-events",
     children: [
-      { label: "RBAC 管理", href: "/admin/roles" },
-      { label: "稽核日誌", href: "/admin/audit-events" },
-      { label: "情緒告警", href: "/admin/sentiment-alerts" },
+      { id: "roles", href: "/admin/roles" },
+      { id: "auditLogs", href: "/admin/audit-events" },
+      { id: "sentimentAlerts", href: "/admin/sentiment-alerts" },
     ],
   },
-  { icon: Settings, label: "系統設定", href: "/settings" },
+  { icon: Settings, id: "settings", href: "/settings" },
 ];
 
 function isParentActive(item: NavItem, pathname: string): boolean {
@@ -109,14 +113,6 @@ function isParentActive(item: NavItem, pathname: string): boolean {
 function isChildActive(child: NavChild, pathname: string): boolean {
   return pathname === child.href || pathname.startsWith(child.href + "/");
 }
-
-const ROLE_LABELS: Record<string, string> = {
-  admin: "系統管理員",
-  reviewer: "審核員",
-  technician: "技師",
-  brand_oem: "品牌 OEM",
-  line_user: "LINE 使用者",
-};
 
 function displayName(session: CurrentSession | null): string {
   if (!session) return "—";
@@ -135,15 +131,13 @@ function avatarChar(session: CurrentSession | null): string {
   return "?";
 }
 
-function roleLabel(session: CurrentSession | null): string {
-  if (!session?.role) return "—";
-  return ROLE_LABELS[session.role] ?? session.role;
-}
-
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { isOpen, isMobile, close } = useSidebar();
+  const tSidebar = useTranslations("sidebar");
+  const tNav = useTranslations("sidebar.nav");
+  const tRole = useTranslations("role");
   const [loggingOut, setLoggingOut] = useState(false);
   const [session, setSession] = useState<CurrentSession | null>(null);
 
@@ -159,6 +153,11 @@ export default function Sidebar() {
     } finally {
       router.replace("/login");
     }
+  }
+
+  function roleLabel(): string {
+    if (!session?.role) return "—";
+    return tRole(session.role);
   }
 
   return (
@@ -177,7 +176,7 @@ export default function Sidebar() {
       )}
       <aside
         id="sidebar-drawer"
-        aria-label="主導航"
+        aria-label={tSidebar("navAria")}
         aria-hidden={isMobile && !isOpen ? true : undefined}
         /* 行動版預設：fixed 浮層 + 隱藏（-translate-x-full）
          * 桌機（md+）：relative + 永遠顯示（md:translate-x-0 覆蓋）
@@ -188,19 +187,22 @@ export default function Sidebar() {
       >
       <div className="flex items-center gap-3 p-5">
         <Lock className="h-7 w-7 text-[var(--primary)]" aria-hidden="true" />
-        <span className="text-lg font-bold text-white">SmartLock</span>
+        <span className="text-lg font-bold text-white">
+          {tSidebar("appName")}
+        </span>
       </div>
 
       <nav
         className="flex flex-1 flex-col gap-[2px] overflow-y-auto px-3 py-2"
-        aria-label="頁面導航"
+        aria-label={tSidebar("pageNavAria")}
       >
         {navItems.map((item) => {
           const active = isParentActive(item, pathname);
           const hasChildren = !!item.children;
           const submenuId = hasChildren ? `submenu-${item.href.replace(/\//g, "-")}` : undefined;
+          const itemLabel = tNav(item.id);
           return (
-            <div key={item.href + item.label}>
+            <div key={item.href + item.id}>
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
@@ -220,14 +222,14 @@ export default function Sidebar() {
                   aria-hidden="true"
                 />
                 <span className={active ? "text-[var(--text-inverse)]" : ""}>
-                  {item.label}
+                  {itemLabel}
                 </span>
               </Link>
               {active && hasChildren && (
                 <ul
                   id={submenuId}
                   role="menu"
-                  aria-label={`${item.label} 子選單`}
+                  aria-label={tSidebar("submenuLabel", { label: itemLabel })}
                   className="flex flex-col gap-[2px] py-1 pl-[44px]"
                 >
                   {item.children!.map((child) => {
@@ -244,7 +246,7 @@ export default function Sidebar() {
                               : "font-normal text-[var(--text-disabled)]"
                           }`}
                         >
-                          {child.label}
+                          {tNav(child.id)}
                         </Link>
                       </li>
                     );
@@ -263,12 +265,12 @@ export default function Sidebar() {
         <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
           <span
             className="truncate text-sm font-medium text-white"
-            title={session?.email ?? session?.userId ?? "未登入"}
+            title={session?.email ?? session?.userId ?? tSidebar("loggedOut")}
           >
             {displayName(session)}
           </span>
           <span className="text-xs text-[var(--text-disabled)]">
-            {roleLabel(session)}
+            {roleLabel()}
           </span>
         </div>
         <NotificationBell variant="dark" />
@@ -276,8 +278,8 @@ export default function Sidebar() {
           type="button"
           onClick={onLogout}
           disabled={loggingOut}
-          title="登出"
-          aria-label={loggingOut ? "正在登出" : "登出"}
+          title={tSidebar("logout")}
+          aria-label={loggingOut ? tSidebar("loggingOut") : tSidebar("logout")}
           aria-busy={loggingOut}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-[var(--text-disabled)] transition hover:bg-[#334155] hover:text-white focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-sidebar)] disabled:opacity-50"
         >
