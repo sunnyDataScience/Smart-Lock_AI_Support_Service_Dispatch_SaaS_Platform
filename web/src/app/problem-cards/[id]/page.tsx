@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import {
   CheckCircle2,
+  ClipboardList,
   Download,
   Flag,
   Info,
@@ -35,6 +36,7 @@ type DispatchAutoMatchResponse = components["schemas"]["DispatchAutoMatchRespons
 type DispatchCandidate = components["schemas"]["DispatchCandidate"];
 type DispatchAutoMatchRequest = components["schemas"]["DispatchAutoMatchRequest"];
 type AutoMatchUrgency = NonNullable<DispatchAutoMatchRequest["urgency"]>;
+type WorkOrderEnvelope = components["schemas"]["WorkOrderEnvelope"];
 
 const EXPORT_FORMATS: { value: ExportFormat; label: string; mime: string; ext: string }[] = [
   { value: "pdf", label: "PDF", mime: "application/pdf", ext: "pdf" },
@@ -77,7 +79,14 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionPending, setActionPending] = useState<
-    "confirm" | "resolve" | "update" | "auto" | "export" | "match" | null
+    | "confirm"
+    | "resolve"
+    | "update"
+    | "auto"
+    | "export"
+    | "match"
+    | "convert"
+    | null
   >(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionToast, setActionToast] = useState<string | null>(null);
@@ -238,6 +247,24 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
     }
   };
 
+  const handleConvertToWO = async () => {
+    setActionPending("convert");
+    setActionError(null);
+    try {
+      const res = await api.post<WorkOrderEnvelope>(
+        `/api/v1/problem-cards/${encodeURIComponent(id)}/convert-to-work-order`,
+      );
+      const woId = res.data?.id;
+      setActionToast(
+        woId ? `工單已建立：${woId.slice(0, 8)}` : "工單已建立",
+      );
+    } catch (e) {
+      setActionError(formatActionError(e));
+    } finally {
+      setActionPending(null);
+    }
+  };
+
   const handleResolve = async (layer: ResolutionLayer) => {
     setActionPending("resolve");
     setActionError(null);
@@ -258,6 +285,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
 
   const canConfirm = card?.status === "draft";
   const canResolve = card?.status === "confirmed";
+  const canConvertToWO = card?.status === "confirmed";
   const canEdit = card?.status === "draft" || card?.status === "confirmed";
   const canAutoResolve =
     card != null &&
@@ -383,6 +411,17 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   {actionPending === "confirm" ? "處理中…" : "確認問題卡"}
+                </button>
+              )}
+              {canConvertToWO && (
+                <button
+                  onClick={handleConvertToWO}
+                  disabled={actionPending !== null}
+                  className="inline-flex items-center gap-2 rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                  title="將此問題卡轉為工單，進入派工流程"
+                >
+                  <ClipboardList className="h-4 w-4" />
+                  {actionPending === "convert" ? "建立中…" : "開單"}
                 </button>
               )}
               {canResolve && (
