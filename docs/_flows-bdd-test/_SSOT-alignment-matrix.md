@@ -47,7 +47,7 @@ related:
 | F-XXX | 流程名稱 | 角色 | E1x 旅程 | E5x Workflow | E7 BDD Feature | Module Spec | Test Status | PM Block | 對齊 | 修正動作 |
 |-------|---------|------|---------|--------------|----------------|-------------|-------------|----------|------|---------|
 | **F-001** | LINE 報修 → ProblemCard | 消費者 | 消費者旅程 §1 階段 1-4（問題發生→LINE→AI→PC）| work-order Flow 1 (S1 詢問) | F-101, F-102, F-107, F-108 | 模組 1 ConversationManager + 模組 2 ProblemCardEngine | 🟢 | — | ✅ aligned | 確認 work-order S1 階段對應 |
-| **F-002** | 客服審 PC → 開 WO | 客服 | 管理員旅程 §3 階段 1（儀表板）| work-order Flow 1（PC → created）| F-105 admin V1.0 | 模組 1（會話）+ 業務模組（審核未明列）| 🟢 | — | ⚠ partial | 補 module-spec 「PC → WO 審核」業務模組 |
+| **F-002** | 客服審 PC → 開 WO | 客服 | 管理員旅程 §3 階段 1（儀表板）| work-order Flow 1（PC → created）| F-105 admin V1.0 | 模組 1（會話）+ 模組 9 ProblemCardReviewEngine | 🟢 | — | ✅ aligned | 模組 9 規格 9-1 review_problem_card / 9-2 create_work_order_from_problem_card 已補（v1-core spec）|
 | **F-003** | 自動派工規則引擎 | 系統 | 隱含於消費者 §1 階段 6（派工建立）| work-order Flow 1 → dispatch §2 媒合演算法 | F-202 智慧派工引擎 | 模組 7 TechnicianMatcher（V2.0 業務層）| 🟢 | — | ✅ aligned | 確認 dispatch §2 ↔ F-202 ↔ dispatch-weights |
 | **F-004** | 手動派工 | 客服 / 派工員 | 管理員旅程 §3 階段 3（派工監控） | dispatch §4 拒單重派 + work-order Flow 2 | F-202（含 manual override） | 模組 7 TechnicianMatcher | 🟢 | ✅ Q1=A / Q6=A | ✅ aligned **(impl complete)** | **PR #45**：assignWorkOrder + assignDispatch 從 require_tenant 升 role_required（修補 P0 漏洞）+ 客服繞過自動 audit log（10 component test pass）|
 | **F-005** | 技師接單 → 出發 | 技師 | 技師旅程 §2 階段 1-3（推播→案件池→接單） | work-order Flow 1 + dispatch §4 | F-201 師傅工作台 | 業務模組未明列 | 🟢 | — | ✅ aligned | 補 module-spec |
@@ -68,9 +68,9 @@ related:
 | **F-020** | 稽核日誌 | 管理員 | 管理員旅程 §3 階段 4 隱含 | admin-governance G2 稽核日誌 | F-205 admin V2.0 + F-209 | 模組 13 AuditLogger | 🟢 | — | ✅ aligned | exportAuditEvents 已實作 |
 | **F-021** | Dashboard / 報表 | 管理員 | 管理員旅程 §3 階段 1（儀表板） | dispatch §7 報表 SQL + API | F-105 + F-205 | 業務模組未明列 | 🟢 | — | ⚠ partial | revenue / technician-ranking 後端 filter TODO |
 | **F-022** | 消費者端工單追蹤 | 消費者 | 消費者 §1 階段 6-7（已派工後） | work-order Flow 1 後段 | （待補 F-211）| 業務模組（消費者 API 未列）| 🟢 | ✅ Q3=C | ✅ aligned | PR #40 T2：getWorkOrderPublicStatus spec + skeleton + Web placeholder 齊；可寫 contract test + @wip Playwright。HMAC token 簽章 + BDD F-211 follow-up |
-| **F-023** | 錯誤頁 / 離線 | 任何 | （cross-cutting，無單一旅程） | （cross-cutting） | **❌ BDD 缺**（建議新增 F-110）| （cross-cutting）| 🟢 | — | ⚠ partial | 補 BDD（建議 F-110 cross-cutting）|
+| **F-023** | 錯誤頁 / 離線 | 任何 | （cross-cutting，無單一旅程） | （cross-cutting） | ✅ F-110 錯誤邊界 cross-cutting Feature（4 scenarios）| （cross-cutting）| 🟢 | — | ✅ aligned | PR #40 T4 已建 F-110 + 4 scenarios，本次同步矩陣狀態（先前與 §4 row 211 不一致）|
 
-> **2026-05-08 PR #45-49 後狀態**：✅ aligned (16) / ⚠ partial (4) / ⚠ blocked (3) / ❌ orphan (0)
+> **2026-05-08 後狀態（本 PR sync 後）**：✅ aligned (18) / ⚠ partial (2) / ⚠ blocked (3) / ❌ orphan (0)
 >
 > 📋 **狀態定義**：✅ aligned 含兩階段 — (a) **spec-driven**（規格 + test infra + PM 拍板齊，PR #41 階段）；(b) **impl complete**（production code 完成 + component test pass，PR #45-49 階段）。標 `(impl complete)` 註明已升至第二階段。
 >
@@ -171,14 +171,14 @@ related:
 ## 3. 對齊狀態彙總
 
 ```
-總計 23 user flows（PR #40 後）
+總計 23 user flows（本 PR 矩陣 sync 後）
 
-  ✅ aligned    : 16 條  F-001/F-003/F-004/F-005/F-006/F-008/F-009/F-010/
-                         F-013/F-015/F-016/F-017/F-018/F-019/F-020/F-022
-  ⚠ partial    :  4 條  F-002/F-007/F-021/F-023
+  ✅ aligned    : 18 條  F-001/F-002/F-003/F-004/F-005/F-006/F-008/F-009/F-010/
+                         F-013/F-015/F-016/F-017/F-018/F-019/F-020/F-022/F-023
+  ⚠ partial    :  2 條  F-007/F-021
   ⚠ blocked    :  3 條  F-011/F-012/F-014（全綁 Q7=B provider 選型）
   ❌ orphan     :  0 條
-  
+
   PR #45-49 後：5 條從「spec-driven aligned」升「impl complete」：
     F-004 / F-008 / F-010 / F-016 / F-019（標 ✅(impl complete)）
     F-018 從 ⚠partial → ✅(impl complete)（PR #47 順手解 LINE Push real）
@@ -188,12 +188,13 @@ related:
   - PR #40 (5-track)：✅15 / ⚠partial 5 / ⚠blocked 3 / ❌0  (+5 升 ✅)
   - PR #45-49 (impl)：✅16 / ⚠partial 4 / ⚠blocked 3 / ❌0  (+1 F-018 升 ✅，5 條從
                        spec-driven 升 impl complete)
+  - 本 PR (matrix sync)：✅18 / ⚠partial 2 / ⚠blocked 3 / ❌0  (+2 升 ✅)
+                          F-002（補模組 9 ProblemCardReviewEngine）
+                          F-023（與 §4 row 211 PR #40 T4 結果同步）
 
-按阻塞類型（剩 8 條 ⚠/blocked）：
+按阻塞類型（剩 5 條 ⚠/blocked）：
   Q7=B provider 選型可解 : 3 條（F-011/F-012/F-014 — PR #39 follow-up 矩陣等會議）
-  外力 / TODO 可解        : 4 條（F-007 F-210 規格 / F-018 LINE Push API /
-                                F-021 後端 filter / F-023 cross-cutting）
-  純文件對齊              : 1 條（F-002 module-spec 補審核業務模組）
+  外力 / TODO 可解        : 2 條（F-007 F-210 規格 / F-021 後端 filter）
 ```
 
 ---
@@ -262,3 +263,4 @@ related:
 | 2026-05-07 | Claude (assisted) | **PR #40 5-track 解綁後狀態升級**：新增「立即可測 ✅」spec-driven 定義（規格 + test infra + PM 拍板齊備 → 可寫測試，不要求 production code 100%）。5 條流程升 ✅ aligned：F-004（T1 dispatcher seed）/ F-008（T2 Web token spec）/ F-016（T4 F-110 BDD）/ F-019（T1 dispatcher 角色）/ F-022（T2 getWorkOrderPublicStatus spec）。新統計：✅ 15 / ⚠ partial 5 / ⚠ blocked 3（全綁 Q7=B provider 選型）/ ❌ 0。 |
 | 2026-05-08 | Claude (assisted) | **PR #45-49 production code 完成**：5 條 spec-driven aligned 升「impl complete」+ F-018 順手升 ✅。**PR #45** F-004 dispatcher RBAC 升級修補 P0 + 客服繞過 audit / **PR #46** F-008 HMAC 真實簽章 + scope_change_service real（CAS 防 race，27 test）/ **PR #47** F-010 3 reschedule/delay ops + LINE Push real（順手解 F-018 LINE Push integration TODO）/ **PR #48** F-016 SLA Soft alert + WS publish + dashboard 紅燈（Q5=B 合規驗證 — payload 0 賠償字串）/ **PR #49** F-019 updateRolePermissions API + ROLE_HIERARCHY + WS + RolePermissionsEditor UI。新統計：✅ 16 / ⚠ partial 4 / ⚠ blocked 3（仍綁 Q7=B）/ ❌ 0。 |
 | 2026-05-08 | Claude (assisted) | **§4 共通對齊缺口收尾 4 項 ✅**：(1) E5x workflow 3 檔 F-NNN 引用補齊（work-order 16 Flow / dispatch §1-§9 / admin-governance G1-G4）；(2) admin-governance §1.1 角色表 dispatcher Q1=A 標已拍板 + 新增 operations_director（Q2=A）+ ROLE_HIERARCHY 階層說明；(3) E7x module-spec 模組 1-8 全補 BDD Feature + 流程引用；(4) E7 F-107 雙閾值設計釐清（Feature header callout 0.90 main / 0.85 edge 非衝突，calibration 變動需同步）。§4 表加狀態 column；剩 1 項 ⚠ 部分解（F-011 BDD 仍綁 Q7=B）。 |
+| 2026-05-08 | Claude (assisted) | **F-002 / F-023 矩陣狀態 sync ✅**：(1) F-002 ⚠partial → ✅aligned — 在 `E7x--module-spec-v1-core.md` 補模組 9 ProblemCardReviewEngine（規格 9-1 review_problem_card / 9-2 create_work_order_from_problem_card，含 DbC 前置/後置/不變性 + 5 類測試情境輪廓），對齊 BDD F-105 admin V1.0；(2) F-023 ⚠partial → ✅aligned — 與 §4 row 211 早已記錄的 PR #40 T4 F-110 cross-cutting Feature + 4 scenarios 結果同步（先前 row 71 與 §4 不一致）。新統計：✅ 18 / ⚠ partial 2（F-007 / F-021）/ ⚠ blocked 3（F-011/012/014 全綁 Q7=B）/ ❌ 0。 |
