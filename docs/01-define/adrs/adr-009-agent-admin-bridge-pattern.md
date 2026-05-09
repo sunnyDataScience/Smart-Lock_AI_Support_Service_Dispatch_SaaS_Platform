@@ -1,7 +1,7 @@
 # ADR-009: Agent ↔ Admin 資料同步機制（Bridge Pattern）
 
-**狀態:** **Proposed** — 待 user 拍板選項
-**決策者:** （待定 — 建議 PM + Tech Lead + Sunny）
+**狀態:** **Accepted**（2026-05-09 17:00 拍板）
+**決策者:** Sunny（PM + Tech Lead 角色）
 **日期:** 2026-05-09
 **作者:** Sunny + Claude（assisted）
 
@@ -13,9 +13,12 @@
 
 `F-flow disconnect scan` 5/9 16:30 發現系統有 **architectural-level 斷鏈**：agent (LangGraph) 與 admin API/Web 是兩個完全不通的半邊，唯一橋為 F-010 reschedule postback。Production 第一筆 LINE 訊息：agent 處理完寫到 LangGraph checkpoints 表，admin tables 全空 — admin dashboard 看不到任何客戶活動。
 
-本 ADR 列出 **5 個橋接 pattern** 的 trade-off，請 user 從中拍板，後續所有 P0 修補（F-001 / F-014 / F-015 / F-017）按拍板的 pattern 統一執行。
+本 ADR 列出 **5 個橋接 pattern** 的 trade-off，user 於 2026-05-09 17:00 拍板：
 
-**先看 §6 推薦選項與決策點**。
+- **採用 Option D (HTTP call from agent to admin API)** — 詳見 §6
+- **§8 五個業務決策點全拍板**（dual-trigger 退款保固、rating>=4 觸發 SOP、document_number 本 sprint 含、conversation/message 邊界、Haiku intent classifier）
+
+執行計畫詳見 `/home/sunny/.claude/plans/crispy-brewing-tide.md`（9 phase, ~7-8 天 sprint）。
 
 ---
 
@@ -276,15 +279,20 @@ OpenAPI 補：
 
 ---
 
-## 8. 開放決策點
+## 8. 拍板結果（5/9 17:00）
 
-| 問題 | 預設建議 |
-|------|---------|
-| 採用哪個 pattern？ | D (HTTP call) |
-| F-014/F-015 退款/保固「客戶申請」誰觸發？ | 待設計（消費者透過 LINE 申請？客服代開？） |
-| F-017 SOP 自進化在哪 trigger？ | 案件 resolved 後 agent 端 LLM 抽取產出 |
-| Idempotency 怎麼設計？ | 用 `(line_user_id, message_id)` 做 key，防 LINE retry |
-| Retry 失敗怎辦？ | logger + alert + outbox fallback（小成本） |
+| 問題 | 拍板 | 詳細設計 |
+|------|------|---------|
+| 採用哪個 pattern？ | ✅ **D (HTTP call)** | 詳見 §6 |
+| F-014/F-015 退款/保固「客戶申請」誰觸發？ | ✅ **Dual-trigger** | (a) 消費者 LINE 申請（agent intent classifier 偵測「退款」/「保固」意圖）+ (b) CS 在 admin web 主動代開。同一個 `POST /api/v1/refunds`（resp. `/warranty-claims`）endpoint，body metadata 區分 `requested_by`。 |
+| F-017 SOP 自進化在哪 trigger？ | ✅ **每筆 case resolved 且 customer_rating>=4** | 無 rating 則 skip（不擴大 LLM 成本）。agent 異步 fire-and-forget 任務：work_order.status=completed 且 rating>=4 → LLM extract → `POST /sop-drafts`。 |
+| Idempotency 怎麼設計？ | ✅ **雙層**：HTTP `Idempotency-Key` (key = `{line_user_id}:{message_id}:{flow_id}`, TTL 24h) + 業務 unique key | 業務 key per 單據：conversation `session_id`、PC `(conversation_id)`、WO `(problem_card_id)`、Refund `(work_order_id, reason_code)`、Warranty `(work_order_id, claim_type)`、SopDraft `(case_entry_id, model_version)`。 |
+| Retry 失敗怎辦？ | ✅ **三層策略** | Critical path (LINE → conversation/PC create) 與 Customer-initiated (refund/warranty 申請): retry 3 次 (100ms/500ms/2s) → fail 寫 `agent_outbox` (worker phase 2 補) → 客戶仍收 LINE 確認回應。Side-effect path (SOP, metric): 1 次嘗試失敗 logger + alert，下次 case resolved 重新有機會。 |
+| **(新增 D3)** 業務單據編號 (document_number)？ | ✅ **本 sprint 含**（不延後） | 5 表加 `document_number VARCHAR(30) UNIQUE` 欄位 + 5 sequences + `generate_doc_number(prefix, seq_name)` SQL function。Format: `{ST/WO/RM/WC/SOP}-YYYYMMDD-NNNN`。Frontend detail page 取代純 UUID 顯示；LINE 回覆給 customer 引用。 |
+| **(D4)** F-001 message vs conversation 邊界？ | ✅ Recommended | conversation = LINE session（既有 30 min idle reset）；message = LINE event 個別訊息。conversation 在首次訊息建立，後續訊息歸屬同 session。|
+| **(D5)** agent intent classifier 成本控制？ | ✅ Recommended | 用既有 LiteLLM；intent first-pass 走 cheap model（Haiku），confidence 高才升級主模型。維持 LINE 1s 回應限制。|
+
+執行計畫詳見 `/home/sunny/.claude/plans/crispy-brewing-tide.md`（9 phase, ~7-8 天 sprint）。
 
 ---
 
