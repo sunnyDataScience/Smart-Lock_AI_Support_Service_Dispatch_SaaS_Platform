@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { ApiError, api } from "@/lib/api";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 /**
  * AuditExportModal — F-020 / E7x §4.2 P1 稽核日誌匯出 UI。
@@ -46,20 +47,21 @@ export interface AuditExportModalProps {
 
 type ExportFormat = "csv" | "json";
 
-const FORMAT_LABEL: Record<ExportFormat, string> = {
-  csv: "CSV（試算表）",
-  json: "JSON",
-};
-
 export function AuditExportModal({
   open,
   onOpenChange,
   filters,
   filterSummary,
 }: AuditExportModalProps) {
+  const t = useTranslations("components.admin.auditExport");
   const [format, setFormat] = useState<ExportFormat>("csv");
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
+
+  const FORMAT_LABEL: Record<ExportFormat, string> = {
+    csv: t("formatLabel.csv"),
+    json: t("formatLabel.json"),
+  };
 
   async function handleExport() {
     setSubmitting(true);
@@ -83,15 +85,15 @@ export function AuditExportModal({
       // 200 路徑會回 .csv / .json filename。
       if (blob.size === 0) {
         toast({
-          title: "匯出失敗",
-          description: "回傳資料為空",
+          title: t("toast.failTitle"),
+          description: t("toast.emptyBody"),
           variant: "error",
         });
         return;
       }
       api.triggerDownload(blob, filename);
       toast({
-        title: "匯出完成",
+        title: t("toast.successTitle"),
         description: filename,
         variant: "success",
       });
@@ -99,11 +101,15 @@ export function AuditExportModal({
     } catch (e) {
       const msg =
         e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
+          ? t("toast.errorBody", {
+              code: e.errorCode,
+              status: e.status,
+              message: e.message,
+            })
           : e instanceof Error
             ? e.message
             : String(e);
-      toast({ title: "匯出失敗", description: msg, variant: "error" });
+      toast({ title: t("toast.failTitle"), description: msg, variant: "error" });
     } finally {
       setSubmitting(false);
     }
@@ -113,16 +119,14 @@ export function AuditExportModal({
     <Modal open={open} onOpenChange={onOpenChange}>
       <ModalContent size="md">
         <ModalHeader>
-          <ModalTitle>匯出稽核日誌</ModalTitle>
-          <ModalDescription>
-            依目前篩選條件匯出稽核事件。資料量超過 10 萬筆會自動轉背景處理。
-          </ModalDescription>
+          <ModalTitle>{t("title")}</ModalTitle>
+          <ModalDescription>{t("description")}</ModalDescription>
         </ModalHeader>
 
         <div className="flex flex-col gap-4 px-6 py-4">
           <section>
             <h3 className="mb-2 text-[13px] font-semibold text-[var(--text-secondary)]">
-              使用目前篩選條件
+              {t("useCurrentFilters")}
             </h3>
             <div className="rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2 text-[13px] text-[var(--text-primary)]">
               {filterSummary ?? <DefaultFilterSummary filters={filters} />}
@@ -131,7 +135,7 @@ export function AuditExportModal({
 
           <section>
             <h3 className="mb-2 text-[13px] font-semibold text-[var(--text-secondary)]">
-              匯出格式
+              {t("format")}
             </h3>
             <div className="flex gap-4">
               {(["csv", "json"] as ExportFormat[]).map((opt) => (
@@ -161,7 +165,7 @@ export function AuditExportModal({
             disabled={submitting}
             className="rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2 text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
           >
-            取消
+            {t("actions.cancel")}
           </button>
           <button
             type="button"
@@ -170,7 +174,7 @@ export function AuditExportModal({
             className="inline-flex items-center gap-2 rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-medium text-white hover:opacity-90 disabled:opacity-50"
           >
             <Download className="h-4 w-4" aria-hidden="true" />
-            {submitting ? "匯出中…" : "匯出"}
+            {submitting ? t("actions.exporting") : t("actions.export")}
           </button>
         </ModalFooter>
       </ModalContent>
@@ -179,17 +183,18 @@ export function AuditExportModal({
 }
 
 function DefaultFilterSummary({ filters }: { filters: AuditExportFilters }) {
+  const t = useTranslations("components.admin.auditExport");
   const items: { label: string; value: string }[] = [];
-  if (filters.log_type) items.push({ label: "事件類型", value: filters.log_type });
-  if (filters.from) items.push({ label: "起始時間", value: filters.from });
-  if (filters.to) items.push({ label: "結束時間", value: filters.to });
-  if (filters.actor_id) items.push({ label: "操作者", value: filters.actor_id });
+  if (filters.log_type) items.push({ label: t("filters.logType"), value: filters.log_type });
+  if (filters.from) items.push({ label: t("filters.from"), value: filters.from });
+  if (filters.to) items.push({ label: t("filters.to"), value: filters.to });
+  if (filters.actor_id) items.push({ label: t("filters.actor"), value: filters.actor_id });
   if (filters.resource_type)
-    items.push({ label: "資源類型", value: filters.resource_type });
+    items.push({ label: t("filters.resourceType"), value: filters.resource_type });
 
   if (items.length === 0) {
     return (
-      <span className="text-[var(--text-secondary)]">無篩選條件 — 將匯出全部</span>
+      <span className="text-[var(--text-secondary)]">{t("filters.none")}</span>
     );
   }
   return (

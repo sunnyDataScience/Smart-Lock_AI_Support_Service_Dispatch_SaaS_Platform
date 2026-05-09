@@ -1,6 +1,8 @@
 "use client";
 
+import { useMemo } from "react";
 import type { components } from "@/types/api.generated";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 type Dispute = components["schemas"]["Dispute"];
 type DisputeType = components["schemas"]["DisputeType"];
@@ -13,30 +15,37 @@ interface Props {
   onSelect?: (id: string) => void;
 }
 
-const typeConfig: Record<DisputeType, { label: string; textColor: string; bgColor: string }> = {
-  pricing: { label: "價格", textColor: "#2563EB", bgColor: "#DBEAFE" },
-  quality: { label: "品質", textColor: "#7C3AED", bgColor: "#EDE9FE" },
-  warranty: { label: "保固", textColor: "#059669", bgColor: "#D1FAE5" },
-  cancellation_fee: { label: "取消費", textColor: "#EA580C", bgColor: "#FFEDD5" },
-  settlement: { label: "結算", textColor: "#DB2777", bgColor: "#FCE7F3" },
+const TYPE_TONE: Record<DisputeType, { textColor: string; bgColor: string }> = {
+  pricing: { textColor: "#2563EB", bgColor: "#DBEAFE" },
+  quality: { textColor: "#7C3AED", bgColor: "#EDE9FE" },
+  warranty: { textColor: "#059669", bgColor: "#D1FAE5" },
+  cancellation_fee: { textColor: "#EA580C", bgColor: "#FFEDD5" },
+  settlement: { textColor: "#DB2777", bgColor: "#FCE7F3" },
 };
 
-const statusConfig: Record<DisputeStatus, { label: string; textColor: string; bgColor: string }> = {
-  filed: { label: "待處理", textColor: "#D97706", bgColor: "#FEF3C7" },
-  in_review: { label: "調解中", textColor: "#2563EB", bgColor: "#DBEAFE" },
-  resolved: { label: "已結案", textColor: "#059669", bgColor: "#D1FAE5" },
-  rejected: { label: "已駁回", textColor: "#64748B", bgColor: "#F1F5F9" },
-  closed: { label: "已關閉", textColor: "#374151", bgColor: "#E5E7EB" },
+const TYPE_KEY: Record<DisputeType, string> = {
+  pricing: "type.pricing",
+  quality: "type.quality",
+  warranty: "type.warranty",
+  cancellation_fee: "type.cancellationFee",
+  settlement: "type.settlement",
 };
 
-const columns = [
-  { label: "爭議編號", width: "w-[140px] shrink-0" },
-  { label: "類型", width: "w-[80px] shrink-0" },
-  { label: "工單", width: "flex-1 min-w-0" },
-  { label: "調解金額", width: "w-[110px] shrink-0" },
-  { label: "建立日期", width: "w-[100px] shrink-0" },
-  { label: "狀態", width: "w-[100px] shrink-0" },
-];
+const STATUS_TONE: Record<DisputeStatus, { textColor: string; bgColor: string }> = {
+  filed: { textColor: "#D97706", bgColor: "#FEF3C7" },
+  in_review: { textColor: "#2563EB", bgColor: "#DBEAFE" },
+  resolved: { textColor: "#059669", bgColor: "#D1FAE5" },
+  rejected: { textColor: "#64748B", bgColor: "#F1F5F9" },
+  closed: { textColor: "#374151", bgColor: "#E5E7EB" },
+};
+
+const STATUS_KEY: Record<DisputeStatus, string> = {
+  filed: "status.filed",
+  in_review: "status.inReview",
+  resolved: "status.resolved",
+  rejected: "status.rejected",
+  closed: "status.closed",
+};
 
 function formatTwd(amount: string | null | undefined): string {
   if (!amount) return "—";
@@ -51,12 +60,26 @@ function formatDate(iso: string | null | undefined): string {
 }
 
 export default function DisputesTable({ items, loading, selectedId, onSelect }: Props) {
+  const t = useTranslations("components.admin.disputes");
+
+  const columns = useMemo(
+    () => [
+      { key: "id", label: t("cols.id"), width: "w-[140px] shrink-0" },
+      { key: "type", label: t("cols.type"), width: "w-[80px] shrink-0" },
+      { key: "workOrder", label: t("cols.workOrder"), width: "flex-1 min-w-0" },
+      { key: "resolutionAmount", label: t("cols.resolutionAmount"), width: "w-[110px] shrink-0" },
+      { key: "createdAt", label: t("cols.createdAt"), width: "w-[100px] shrink-0" },
+      { key: "status", label: t("cols.status"), width: "w-[100px] shrink-0" },
+    ],
+    [t],
+  );
+
   return (
     <div className="overflow-hidden rounded-lg border border-[var(--border)]">
       <div className="flex h-[44px] items-center border-b border-[var(--border)] bg-[#F8FAFC]">
         {columns.map((col) => (
           <div
-            key={col.label}
+            key={col.key}
             className={`flex items-center px-3 ${col.width}`}
           >
             <span className="text-xs font-semibold text-[var(--text-secondary)]">
@@ -68,19 +91,24 @@ export default function DisputesTable({ items, loading, selectedId, onSelect }: 
 
       {loading && items.length === 0 && (
         <div className="flex h-[120px] items-center justify-center text-sm text-[var(--text-secondary)]">
-          載入中…
+          {t("loading")}
         </div>
       )}
       {!loading && items.length === 0 && (
         <div className="flex h-[120px] items-center justify-center text-sm text-[var(--text-secondary)]">
-          尚無爭議案件
+          {t("empty")}
         </div>
       )}
 
       {items.map((row, idx) => {
-        const type = typeConfig[row.dispute_type];
-        const status = statusConfig[row.status];
+        const typeTone = TYPE_TONE[row.dispute_type];
+        const statusTone = STATUS_TONE[row.status];
         const isSelected = selectedId === row.id;
+        const linkedRef = row.work_order_id
+          ? t("ref.workOrder", { id: row.work_order_id.slice(0, 8) })
+          : row.invoice_id
+            ? t("ref.invoice", { id: row.invoice_id.slice(0, 8) })
+            : "—";
         return (
           <button
             key={row.id}
@@ -99,15 +127,15 @@ export default function DisputesTable({ items, loading, selectedId, onSelect }: 
             <div className="flex w-[80px] shrink-0 items-center px-3">
               <span
                 className="rounded-[10px] px-2 py-[2px] text-[11px] font-medium"
-                style={{ color: type.textColor, backgroundColor: type.bgColor }}
+                style={{ color: typeTone.textColor, backgroundColor: typeTone.bgColor }}
               >
-                {type.label}
+                {t(TYPE_KEY[row.dispute_type])}
               </span>
             </div>
 
             <div className="flex min-w-0 flex-1 items-center px-3">
               <span className="truncate text-[13px] text-[var(--text-secondary)]">
-                {row.work_order_id ? `工單 ${row.work_order_id.slice(0, 8)}` : row.invoice_id ? `發票 ${row.invoice_id.slice(0, 8)}` : "—"}
+                {linkedRef}
               </span>
             </div>
 
@@ -126,9 +154,9 @@ export default function DisputesTable({ items, loading, selectedId, onSelect }: 
             <div className="flex w-[100px] shrink-0 items-center px-3">
               <span
                 className="rounded-[10px] px-2 py-[2px] text-[11px] font-medium"
-                style={{ color: status.textColor, backgroundColor: status.bgColor }}
+                style={{ color: statusTone.textColor, backgroundColor: statusTone.bgColor }}
               >
-                {status.label}
+                {t(STATUS_KEY[row.status])}
               </span>
             </div>
           </button>

@@ -24,6 +24,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { ApiError, api } from "@/lib/api";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type CustomerCreateRequest = components["schemas"]["CustomerCreateRequest"];
@@ -68,6 +69,7 @@ export function CustomerForm({
   redirectTo,
 }: CustomerFormProps) {
   const router = useRouter();
+  const t = useTranslations("components.admin.customerForm");
 
   const [displayName, setDisplayName] = useState(initial?.display_name ?? "");
   const [phone, setPhone] = useState(initial?.phone ?? "");
@@ -92,19 +94,19 @@ export function CustomerForm({
     const errors: FieldErrors = {};
 
     if (!displayName.trim()) {
-      errors.display_name = "客戶名稱必填";
+      errors.display_name = t("errors.displayNameRequired");
     }
 
     const normPhone = normalizePhone(phone);
     if (!normPhone) {
-      errors.phone = "電話必填";
+      errors.phone = t("errors.phoneRequired");
     } else if (!PHONE_REGEX.test(normPhone)) {
-      errors.phone = "請輸入有效的台灣手機（09xx-xxx-xxx）";
+      errors.phone = t("errors.phoneInvalid");
     }
 
     const trimmedEmail = email.trim();
     if (trimmedEmail && !EMAIL_REGEX.test(trimmedEmail)) {
-      errors.email = "Email 格式不正確";
+      errors.email = t("errors.emailInvalid");
     }
 
     setFieldErrors(errors);
@@ -136,7 +138,7 @@ export function CustomerForm({
         const newId = res.data?.id;
         router.replace(redirectTo ?? (newId ? `/admin/customers/${newId}` : "/admin/customers"));
       } else {
-        if (!customerId) throw new Error("缺少客戶 ID（edit mode）");
+        if (!customerId) throw new Error(t("errors.missingId"));
         const payload: CustomerUpdateRequest = basePayload;
         await api.patch(
           `/api/v1/customers/${encodeURIComponent(customerId)}`,
@@ -147,7 +149,11 @@ export function CustomerForm({
     } catch (e) {
       setServerError(
         e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
+          ? t("errors.server", {
+              code: e.errorCode,
+              status: e.status,
+              message: e.message,
+            })
           : e instanceof Error
             ? e.message
             : String(e),
@@ -172,11 +178,11 @@ export function CustomerForm({
         className="flex w-fit items-center gap-1 text-[13px] text-[var(--text-secondary)] hover:text-[var(--primary)]"
       >
         <ChevronLeft className="h-4 w-4" />
-        取消
+        {t("back")}
       </Link>
 
       <h1 className="text-[20px] font-semibold text-[var(--text-primary)]">
-        {mode === "create" ? "新增客戶" : "編輯客戶"}
+        {mode === "create" ? t("titleCreate") : t("titleEdit")}
       </h1>
 
       {serverError && (
@@ -189,7 +195,7 @@ export function CustomerForm({
       )}
 
       <Field
-        label="客戶名稱"
+        label={t("fields.displayName")}
         required
         error={fieldErrors.display_name}
         htmlFor="customer-display-name"
@@ -206,10 +212,10 @@ export function CustomerForm({
       </Field>
 
       <Field
-        label="電話"
+        label={t("fields.phone")}
         required
         error={fieldErrors.phone}
-        hint="台灣手機格式（例：0912-345-678）"
+        hint={t("fields.phoneHint")}
         htmlFor="customer-phone"
       >
         <input
@@ -226,7 +232,7 @@ export function CustomerForm({
       </Field>
 
       <Field
-        label="Email"
+        label={t("fields.email")}
         error={fieldErrors.email}
         htmlFor="customer-email"
       >
@@ -237,12 +243,12 @@ export function CustomerForm({
           onChange={(e) => setEmail(e.target.value)}
           maxLength={254}
           autoComplete="email"
-          placeholder="optional"
+          placeholder={t("fields.emailPlaceholder")}
           className="w-full rounded-md border border-[var(--border)] px-3 py-2 text-[14px] focus:border-[var(--primary)] focus:outline-none"
         />
       </Field>
 
-      <Field label="地址" htmlFor="customer-address">
+      <Field label={t("fields.address")} htmlFor="customer-address">
         <textarea
           id="customer-address"
           value={address}
@@ -259,7 +265,7 @@ export function CustomerForm({
           href={cancelHref}
           className="rounded-md border border-[var(--border)] px-4 py-2 text-[13px] text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
         >
-          取消
+          {t("actions.cancel")}
         </Link>
         <button
           type="submit"
@@ -268,11 +274,11 @@ export function CustomerForm({
         >
           {submitting
             ? mode === "create"
-              ? "建立中…"
-              : "儲存中…"
+              ? t("actions.creating")
+              : t("actions.saving")
             : mode === "create"
-              ? "建立客戶"
-              : "儲存變更"}
+              ? t("actions.create")
+              : t("actions.save")}
         </button>
       </div>
     </form>

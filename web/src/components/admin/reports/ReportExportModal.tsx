@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { ApiError, api } from "@/lib/api";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 /**
  * ReportExportModal — E7x §4.2 P1 報表匯出 UI（KPI / 營收 / 技師排行 / 結算）。
@@ -29,31 +30,20 @@ import { ApiError, api } from "@/lib/api";
 
 export type ReportType = "kpi" | "revenue" | "technician_ranking" | "accounting";
 
-const REPORT_LABELS: Record<ReportType, { title: string; description: string }> = {
-  kpi: {
-    title: "匯出 KPI 報表",
-    description: "依當前期間（today / 7d / 30d / 90d）匯出 CSV / PDF。",
-  },
-  revenue: {
-    title: "匯出營收報表",
-    description: "依當前日期範圍與品牌切片匯出 CSV / PDF。",
-  },
+const REPORT_KEY: Record<ReportType, { titleKey: string; descKey: string }> = {
+  kpi: { titleKey: "report.kpi.title", descKey: "report.kpi.description" },
+  revenue: { titleKey: "report.revenue.title", descKey: "report.revenue.description" },
   technician_ranking: {
-    title: "匯出技師排行報表",
-    description: "依當前日期範圍匯出技師排行 CSV / PDF。",
+    titleKey: "report.technicianRanking.title",
+    descKey: "report.technicianRanking.description",
   },
   accounting: {
-    title: "匯出結算報表",
-    description: "匯出結算列表（settlement / technician / amount / status）CSV / PDF。",
+    titleKey: "report.accounting.title",
+    descKey: "report.accounting.description",
   },
 };
 
 type ExportFormat = "csv" | "pdf";
-
-const FORMAT_LABEL: Record<ExportFormat, string> = {
-  csv: "CSV（試算表）",
-  pdf: "PDF（A4 列印）",
-};
 
 const FORMAT_CONTENT_TYPE: Record<ExportFormat, string> = {
   csv: "text/csv",
@@ -82,9 +72,15 @@ export function ReportExportModal({
   filters,
   filterSummary,
 }: ReportExportModalProps) {
+  const t = useTranslations("components.admin.reportExport");
   const [format, setFormat] = useState<ExportFormat>("csv");
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
+
+  const FORMAT_LABEL: Record<ExportFormat, string> = {
+    csv: t("formatLabel.csv"),
+    pdf: t("formatLabel.pdf"),
+  };
 
   async function handleExport() {
     setSubmitting(true);
@@ -106,7 +102,7 @@ export function ReportExportModal({
     try {
       await api.download("/api/v1/reports/export", { query, filename });
       toast({
-        title: "匯出完成",
+        title: t("toast.successTitle"),
         description: filename,
         variant: "success",
       });
@@ -114,30 +110,34 @@ export function ReportExportModal({
     } catch (e) {
       const msg =
         e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
+          ? t("toast.errorBody", {
+              code: e.errorCode,
+              status: e.status,
+              message: e.message,
+            })
           : e instanceof Error
             ? e.message
             : String(e);
-      toast({ title: "匯出失敗", description: msg, variant: "error" });
+      toast({ title: t("toast.failTitle"), description: msg, variant: "error" });
     } finally {
       setSubmitting(false);
     }
   }
 
-  const label = REPORT_LABELS[reportType];
+  const labelKeys = REPORT_KEY[reportType];
 
   return (
     <Modal open={open} onOpenChange={onOpenChange}>
       <ModalContent size="md">
         <ModalHeader>
-          <ModalTitle>{label.title}</ModalTitle>
-          <ModalDescription>{label.description}</ModalDescription>
+          <ModalTitle>{t(labelKeys.titleKey)}</ModalTitle>
+          <ModalDescription>{t(labelKeys.descKey)}</ModalDescription>
         </ModalHeader>
 
         <div className="flex flex-col gap-4 px-6 py-4">
           <section>
             <h3 className="mb-2 text-[13px] font-semibold text-[var(--text-secondary)]">
-              使用目前篩選條件
+              {t("useCurrentFilters")}
             </h3>
             <div className="rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2 text-[13px] text-[var(--text-primary)]">
               {filterSummary ?? <DefaultFilterSummary filters={filters} />}
@@ -146,7 +146,7 @@ export function ReportExportModal({
 
           <section>
             <h3 className="mb-2 text-[13px] font-semibold text-[var(--text-secondary)]">
-              匯出格式
+              {t("format")}
             </h3>
             <div className="flex gap-4">
               {(["csv", "pdf"] as ExportFormat[]).map((opt) => (
@@ -167,7 +167,7 @@ export function ReportExportModal({
               ))}
             </div>
             <p className="mt-2 text-[12px] text-[var(--text-secondary)]">
-              Content-Type：
+              {t("contentTypeLabel")}
               <span className="font-['IBM_Plex_Mono']">{FORMAT_CONTENT_TYPE[format]}</span>
             </p>
           </section>
@@ -180,7 +180,7 @@ export function ReportExportModal({
             disabled={submitting}
             className="rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2 text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
           >
-            取消
+            {t("actions.cancel")}
           </button>
           <button
             type="button"
@@ -189,7 +189,7 @@ export function ReportExportModal({
             className="inline-flex items-center gap-2 rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-medium text-white hover:opacity-90 disabled:opacity-50"
           >
             <Download className="h-4 w-4" aria-hidden="true" />
-            {submitting ? "匯出中…" : "開始匯出"}
+            {submitting ? t("actions.exporting") : t("actions.export")}
           </button>
         </ModalFooter>
       </ModalContent>
@@ -198,6 +198,7 @@ export function ReportExportModal({
 }
 
 function DefaultFilterSummary({ filters }: { filters: ReportExportFilters }) {
+  const t = useTranslations("components.admin.reportExport");
   const items = Object.entries(filters)
     .filter(([, v]) => v !== undefined && v !== null && String(v).length > 0)
     .map(([k, v]) => ({ label: k, value: String(v) }));
@@ -205,7 +206,7 @@ function DefaultFilterSummary({ filters }: { filters: ReportExportFilters }) {
   if (items.length === 0) {
     return (
       <span className="text-[var(--text-secondary)]">
-        無篩選條件 — 將匯出全部
+        {t("filters.none")}
       </span>
     );
   }

@@ -1249,5 +1249,339 @@
       "submit": "確認簽章",
       "submitting": "提交中…"
     }
+  },
+  "components": {
+    "admin": {
+      "refundReview": {
+        "cols": {
+          "id": "退款編號",
+          "workOrder": "關聯工單",
+          "amount": "金額",
+          "reason": "退款原因",
+          "dualSign": "雙簽",
+          "approvalProgress": "審批進度",
+          "status": "狀態",
+          "createdAt": "申請時間",
+          "actions": "操作"
+        },
+        "loading": "載入中…",
+        "empty": "尚無退款申請",
+        "status": {
+          "pending": "待審核",
+          "csmApproved": "等候第二簽",
+          "approved": "已核准",
+          "rejected": "已拒絕",
+          "escalated": "已升級",
+          "executed": "已完款",
+          "cancelled": "已取消"
+        },
+        "dualSign": {
+          "required": "需"
+        },
+        "chain": {
+          "notStarted": "未啟動",
+          "stepCount": "{count} 步"
+        },
+        "actions": {
+          "approve": "核准",
+          "secondSign": "第二簽",
+          "reject": "拒絕",
+          "executed": "已完款",
+          "approved": "已核准",
+          "rejected": "已拒絕",
+          "cancelled": "已取消",
+          "escalated": "已升級",
+          "approveTitleSecondSign": "第二簽核准（必須是不同 user）",
+          "approveTitleFirstWithDual": "首次核准（之後須第二簽）",
+          "approveTitleSimple": "核准"
+        }
+      },
+      "warrantyClaims": {
+        "cols": {
+          "id": "案件編號",
+          "device": "設備",
+          "warrantyStart": "保固起始日",
+          "warrantyEnd": "保固到期日",
+          "remainingDays": "剩餘天數",
+          "warrantyPeriod": "保固期",
+          "claimStatus": "申請狀態",
+          "discount": "折讓金額",
+          "actions": "操作"
+        },
+        "loading": "載入中…",
+        "empty": "尚無保固申請",
+        "remaining": {
+          "overdue": "已逾期 {days} 天",
+          "today": "今日到期",
+          "days": "{days} 天"
+        },
+        "period": {
+          "expired": "已過期",
+          "grace": "寬限期",
+          "active": "有效"
+        },
+        "status": {
+          "filed": "已申請",
+          "inProgress": "處理中",
+          "approved": "已核准",
+          "rejected": "已拒絕",
+          "closed": "已結案"
+        },
+        "actions": {
+          "viewDetails": "檢視詳情",
+          "comingSoon": "即將推出",
+          "review": "審批決策",
+          "reviewing": "處理中…"
+        }
+      },
+      "disputes": {
+        "cols": {
+          "id": "爭議編號",
+          "type": "類型",
+          "workOrder": "工單",
+          "resolutionAmount": "調解金額",
+          "createdAt": "建立日期",
+          "status": "狀態"
+        },
+        "loading": "載入中…",
+        "empty": "尚無爭議案件",
+        "type": {
+          "pricing": "價格",
+          "quality": "品質",
+          "warranty": "保固",
+          "cancellationFee": "取消費",
+          "settlement": "結算"
+        },
+        "status": {
+          "filed": "待處理",
+          "inReview": "調解中",
+          "resolved": "已結案",
+          "rejected": "已駁回",
+          "closed": "已關閉"
+        },
+        "ref": {
+          "workOrder": "工單 {id}",
+          "invoice": "發票 {id}"
+        }
+      },
+      "rolePermissions": {
+        "title": "編輯權限：{name}",
+        "description": "修改後將透過 WebSocket 即時推送給所有 {count} 位該角色使用者。",
+        "closeAria": "關閉",
+        "tableHeaderResource": "資源",
+        "actions": {
+          "read": "讀取",
+          "write": "寫入",
+          "delete": "刪除"
+        },
+        "resources": {
+          "workOrders": "工單",
+          "technicians": "技師",
+          "customers": "客戶",
+          "accounting": "結算",
+          "invoices": "發票",
+          "refunds": "退款",
+          "inventory": "庫存",
+          "warranty": "保固",
+          "disputes": "爭議",
+          "auditLogs": "稽核日誌",
+          "roles": "角色權限",
+          "systemSettings": "系統設定"
+        },
+        "reasonLabel": "修改原因",
+        "reasonPlaceholder": "例如：F-019 需求 — 開放 reviewer 寫入發票權限",
+        "reasonHint": "將記入 audit_events.payload.reason（最少 4 字元）",
+        "errors": {
+          "reasonTooShort": "請填寫修改原因（至少 4 個字元）",
+          "forbidden": "您的角色階層不足以授權此權限（後端拒絕：{code}）",
+          "validation": "輸入驗證失敗：{message}",
+          "generic": "{code} ({status})：{message}"
+        },
+        "cancel": "取消",
+        "submit": "儲存權限設定"
+      },
+      "customerForm": {
+        "back": "取消",
+        "titleCreate": "新增客戶",
+        "titleEdit": "編輯客戶",
+        "fields": {
+          "displayName": "客戶名稱",
+          "phone": "電話",
+          "phoneHint": "台灣手機格式（例：0912-345-678）",
+          "email": "Email",
+          "emailPlaceholder": "optional",
+          "address": "地址"
+        },
+        "errors": {
+          "displayNameRequired": "客戶名稱必填",
+          "phoneRequired": "電話必填",
+          "phoneInvalid": "請輸入有效的台灣手機（09xx-xxx-xxx）",
+          "emailInvalid": "Email 格式不正確",
+          "missingId": "缺少客戶 ID（edit mode）",
+          "server": "{code} ({status})：{message}"
+        },
+        "actions": {
+          "cancel": "取消",
+          "create": "建立客戶",
+          "creating": "建立中…",
+          "save": "儲存變更",
+          "saving": "儲存中…"
+        }
+      },
+      "inventory": {
+        "cols": {
+          "name": "物料名稱",
+          "partNumber": "料號",
+          "category": "類別",
+          "quantity": "當前庫存",
+          "reorderPoint": "安全庫存",
+          "lastRestocked": "最後補貨",
+          "actions": "操作"
+        },
+        "loading": "載入中…",
+        "empty": "尚無庫存品項",
+        "badge": {
+          "lowStock": "低庫存",
+          "outOfStock": "缺貨"
+        },
+        "actions": {
+          "restock": "補貨",
+          "edit": "編輯",
+          "log": "紀錄",
+          "comingSoon": "即將推出",
+          "restockComingSoon": "即將推出（需 inventory_transactions 寫入端點）"
+        }
+      },
+      "auditExport": {
+        "title": "匯出稽核日誌",
+        "description": "依目前篩選條件匯出稽核事件。資料量超過 10 萬筆會自動轉背景處理。",
+        "useCurrentFilters": "使用目前篩選條件",
+        "format": "匯出格式",
+        "formatLabel": {
+          "csv": "CSV（試算表）",
+          "json": "JSON"
+        },
+        "actions": {
+          "cancel": "取消",
+          "export": "匯出",
+          "exporting": "匯出中…"
+        },
+        "toast": {
+          "successTitle": "匯出完成",
+          "failTitle": "匯出失敗",
+          "emptyBody": "回傳資料為空",
+          "errorBody": "{code} ({status})：{message}"
+        },
+        "filters": {
+          "logType": "事件類型",
+          "from": "起始時間",
+          "to": "結束時間",
+          "actor": "操作者",
+          "resourceType": "資源類型",
+          "none": "無篩選條件 — 將匯出全部"
+        }
+      },
+      "reportExport": {
+        "useCurrentFilters": "使用目前篩選條件",
+        "format": "匯出格式",
+        "formatLabel": {
+          "csv": "CSV（試算表）",
+          "pdf": "PDF（A4 列印）"
+        },
+        "contentTypeLabel": "Content-Type：",
+        "actions": {
+          "cancel": "取消",
+          "export": "開始匯出",
+          "exporting": "匯出中…"
+        },
+        "toast": {
+          "successTitle": "匯出完成",
+          "failTitle": "匯出失敗",
+          "errorBody": "{code} ({status})：{message}"
+        },
+        "filters": {
+          "none": "無篩選條件 — 將匯出全部"
+        },
+        "report": {
+          "kpi": {
+            "title": "匯出 KPI 報表",
+            "description": "依當前期間（today / 7d / 30d / 90d）匯出 CSV / PDF。"
+          },
+          "revenue": {
+            "title": "匯出營收報表",
+            "description": "依當前日期範圍與品牌切片匯出 CSV / PDF。"
+          },
+          "technicianRanking": {
+            "title": "匯出技師排行報表",
+            "description": "依當前日期範圍匯出技師排行 CSV / PDF。"
+          },
+          "accounting": {
+            "title": "匯出結算報表",
+            "description": "匯出結算列表（settlement / technician / amount / status）CSV / PDF。"
+          }
+        }
+      }
+    },
+    "dispatchQueue": {
+      "table": {
+        "cols": {
+          "workOrderId": "工單編號",
+          "attemptCount": "派工次數",
+          "currentTech": "當前技師",
+          "matchScore": "媒合分數",
+          "reason": "拒單原因 / 備註",
+          "remaining": "剩餘時間",
+          "createdAt": "建立時間",
+          "actions": "操作"
+        },
+        "loading": "載入中…",
+        "empty": "目前沒有派工歷程",
+        "attemptBadge": "第 {n} 次",
+        "techUnassigned": "未指派",
+        "reason": {
+          "accepted": "技師已接受"
+        },
+        "remaining": {
+          "overdue": "已逾時 {minutes}min"
+        },
+        "actions": {
+          "intervene": "介入",
+          "comingSoon": "即將推出"
+        },
+        "footer": "顯示 {rows} 筆活躍工單（共 {total} 條派工事件）"
+      }
+    },
+    "layout": {
+      "notificationDrawer": {
+        "closeOverlayAria": "關閉通知中心",
+        "title": "通知中心",
+        "refresh": "重新整理",
+        "close": "關閉",
+        "tabs": {
+          "unread": "未讀",
+          "all": "全部"
+        },
+        "markAllRead": "全部標為已讀",
+        "marking": "處理中…",
+        "loading": "載入中…",
+        "emptyUnread": "目前沒有未讀通知",
+        "emptyAll": "目前沒有通知",
+        "markOneRead": "標為已讀",
+        "markingOne": "標記中…",
+        "openLink": "前往",
+        "limitNote": "僅顯示最近 {limit} 筆",
+        "viewAll": "查看全部通知",
+        "type": {
+          "workOrder": "工單",
+          "refund": "退款",
+          "dispute": "爭議",
+          "rbac": "權限",
+          "inventory": "庫存",
+          "sla": "SLA",
+          "system": "系統",
+          "mention": "提及"
+        }
+      }
+    }
   }
 }
