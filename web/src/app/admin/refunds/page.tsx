@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { RefreshCw, X } from "lucide-react";
+import { Plus, RefreshCw, X } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import RefundReviewTable from "@/components/admin/RefundReviewTable";
 import { ApiError, api } from "@/lib/api";
@@ -45,6 +45,30 @@ export default function RefundReviewPage() {
   const [actionPending, setActionPending] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionToast, setActionToast] = useState<string | null>(null);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+
+  const handleCreateRefund = async (form: {
+    work_order_id: string;
+    amount: string;
+    reason: string;
+    reason_code: string;
+  }) => {
+    setActionPending("create");
+    setActionError(null);
+    try {
+      await api.post<RefundRequestEnvelope>("/api/v1/refunds", {
+        ...form,
+        requested_by_role: "customer_service",
+      });
+      setActionToast("退款申請已建立");
+      setCreateModalOpen(false);
+      await fetchRefunds();
+    } catch (e) {
+      setActionError(formatActionError(e));
+    } finally {
+      setActionPending(null);
+    }
+  };
 
   const fetchRefunds = async (opts?: { append?: boolean; cursor?: string | null }) => {
     setLoading(true);
@@ -173,6 +197,18 @@ export default function RefundReviewPage() {
                 className={`h-[14px] w-[14px] text-[var(--text-secondary)] ${loading ? "animate-spin" : ""}`}
               />
             </button>
+            <button
+              onClick={() => {
+                setActionError(null);
+                setCreateModalOpen(true);
+              }}
+              disabled={actionPending !== null}
+              className="inline-flex items-center gap-1 rounded-md bg-[var(--primary)] px-3 py-[6px] text-[13px] font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              title="建立退款申請（F-014 dual-trigger CS 路徑）"
+            >
+              <Plus className="h-4 w-4" />
+              建立退款申請
+            </button>
             <span
               className="flex items-center gap-[6px] rounded-full px-3 py-1 text-xs font-medium"
               style={{
@@ -261,6 +297,15 @@ export default function RefundReviewPage() {
           onClose={() => setModalRefund(null)}
           onSubmit={handleSubmitDecision}
           submitting={actionPending === modalRefund.id}
+        />
+      )}
+
+      {createModalOpen && (
+        <CreateRefundModal
+          onCancel={() => setCreateModalOpen(false)}
+          onSubmit={handleCreateRefund}
+          submitting={actionPending === "create"}
+          error={actionError}
         />
       )}
 
@@ -411,6 +456,151 @@ function DecisionModal({
             className={`rounded-md px-4 py-[7px] text-[12px] font-medium text-white transition ${cfg.btn} disabled:cursor-not-allowed disabled:opacity-50`}
           >
             {submitting ? "送出中…" : cfg.label}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+interface CreateRefundModalProps {
+  onCancel: () => void;
+  onSubmit: (form: {
+    work_order_id: string;
+    amount: string;
+    reason: string;
+    reason_code: string;
+  }) => Promise<void>;
+  submitting: boolean;
+  error: string | null;
+}
+
+const REASON_CODES: { value: string; label: string }[] = [
+  { value: "defective_product", label: "商品瑕疵" },
+  { value: "service_quality", label: "服務品質" },
+  { value: "customer_dissatisfaction", label: "客戶不滿意" },
+  { value: "billing_error", label: "帳務錯誤" },
+  { value: "other", label: "其他" },
+];
+
+function CreateRefundModal({
+  onCancel,
+  onSubmit,
+  submitting,
+  error,
+}: CreateRefundModalProps) {
+  const [workOrderId, setWorkOrderId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+  const [reasonCode, setReasonCode] = useState("defective_product");
+
+  const valid =
+    /^[0-9a-f-]{36}$/i.test(workOrderId.trim()) &&
+    /^\d+(\.\d{1,2})?$/.test(amount.trim()) &&
+    reason.trim().length > 0;
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-[480px] rounded-xl bg-white p-6 shadow-xl">
+        <div className="mb-4 flex items-center justify-between">
+          <span className="text-[18px] font-semibold text-[var(--text-primary)]">
+            建立退款申請
+          </span>
+          <button
+            onClick={onCancel}
+            disabled={submitting}
+            className="rounded p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-[12px] font-medium text-[var(--text-secondary)]">
+              工單 ID（UUID）
+            </span>
+            <input
+              value={workOrderId}
+              onChange={(e) => setWorkOrderId(e.target.value)}
+              disabled={submitting}
+              placeholder="00000000-0000-0000-0000-000000000000"
+              className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] font-mono focus:border-[var(--primary)] focus:outline-none"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[12px] font-medium text-[var(--text-secondary)]">
+              退款金額（NT$）
+            </span>
+            <input
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              disabled={submitting}
+              placeholder="例如 1500.00"
+              className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[12px] font-medium text-[var(--text-secondary)]">
+              退款原因分類
+            </span>
+            <select
+              value={reasonCode}
+              onChange={(e) => setReasonCode(e.target.value)}
+              disabled={submitting}
+              className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+            >
+              {REASON_CODES.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[12px] font-medium text-[var(--text-secondary)]">
+              退款原因敘述
+            </span>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              disabled={submitting}
+              rows={3}
+              maxLength={500}
+              placeholder="例如：商品到貨後 3 天即故障，客戶要求全額退款"
+              className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+            />
+          </label>
+        </div>
+
+        {error && (
+          <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+            {error}
+          </div>
+        )}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            disabled={submitting}
+            className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
+          >
+            取消
+          </button>
+          <button
+            disabled={!valid || submitting}
+            onClick={() =>
+              onSubmit({
+                work_order_id: workOrderId.trim(),
+                amount: amount.trim(),
+                reason: reason.trim(),
+                reason_code: reasonCode,
+              })
+            }
+            className="rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {submitting ? "建立中…" : "建立"}
           </button>
         </div>
       </div>
