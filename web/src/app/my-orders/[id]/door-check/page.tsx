@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Camera,
@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import SubflowHeader from "@/components/tech/SubflowHeader";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api } from "@/lib/api";
 
 interface UploadedPhoto {
@@ -27,6 +28,7 @@ function PhotoThumb({
   photo: UploadedPhoto;
   onRemove: () => void;
 }) {
+  const tCommon = useTranslations("techPortal.common");
   return (
     <div className="relative h-20 overflow-hidden rounded-md border border-[var(--border)]">
       <span className="flex h-full w-full items-center justify-center bg-[#F1F5F9] text-[10px] text-[var(--text-secondary)]">
@@ -39,7 +41,7 @@ function PhotoThumb({
         type="button"
         onClick={onRemove}
         className="absolute right-[2px] top-[2px] flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black"
-        aria-label="移除"
+        aria-label={tCommon("remove")}
       >
         <X className="h-3 w-3" />
       </button>
@@ -47,19 +49,27 @@ function PhotoThumb({
   );
 }
 
-const CHECKLIST = [
-  { key: "frame_intact", label: "門框完整無變形" },
-  { key: "no_scratches", label: "門板無新刮痕" },
-  { key: "lock_aligned", label: "鎖具對位正確" },
-  { key: "handle_smooth", label: "把手轉動順暢" },
-  { key: "test_open_close", label: "已測試開關閉合 5 次以上" },
-  { key: "customer_confirmed", label: "客戶已現場確認外觀" },
-];
+const CHECKLIST_KEYS = [
+  "frame_intact",
+  "no_scratches",
+  "lock_aligned",
+  "handle_smooth",
+  "test_open_close",
+  "customer_confirmed",
+] as const;
 
 export default function DoorCheckPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "";
   const router = useRouter();
+  const t = useTranslations("techPortal.doorCheck");
+  const tChecklist = useTranslations("techPortal.doorCheck.checklist");
+  const tCommon = useTranslations("techPortal.common");
+
+  const checklist = useMemo(
+    () => CHECKLIST_KEYS.map((key) => ({ key, label: tChecklist(key) })),
+    [tChecklist],
+  );
 
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
@@ -129,7 +139,7 @@ export default function DoorCheckPage() {
     setPhotos((prev) => prev.filter((p) => p.id !== photoId));
   }
 
-  const allChecked = checked.size === CHECKLIST.length;
+  const allChecked = checked.size === CHECKLIST_KEYS.length;
   const hasBefore = photos.some((p) => p.section === "before");
   const hasAfter = photos.some((p) => p.section === "after");
   const canSubmit = allChecked && hasBefore && hasAfter && !submitting;
@@ -139,9 +149,9 @@ export default function DoorCheckPage() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const checklistObj = CHECKLIST.reduce<Record<string, boolean>>(
-        (acc, item) => {
-          acc[item.key] = checked.has(item.key);
+      const checklistObj = CHECKLIST_KEYS.reduce<Record<string, boolean>>(
+        (acc, key) => {
+          acc[key] = checked.has(key);
           return acc;
         },
         {},
@@ -176,12 +186,12 @@ export default function DoorCheckPage() {
 
   return (
     <TechShell>
-      <SubflowHeader workOrderId={id} title="門面外觀檢核" />
+      <SubflowHeader workOrderId={id} title={t("title")} />
 
       {submitOk && (
         <div className="m-4 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-[13px] text-green-700">
           <CheckCircle2 className="h-4 w-4" />
-          檢核完成，前往簽章流程
+          {t("successProceed")}
         </div>
       )}
 
@@ -209,7 +219,7 @@ export default function DoorCheckPage() {
 
       <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
-          作業前照片（必填，至少 1 張）
+          {t("beforeLabel")}
         </span>
         <button
           type="button"
@@ -218,7 +228,7 @@ export default function DoorCheckPage() {
           className="flex h-24 items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[var(--border)] text-[13px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:bg-[#EFF6FF] disabled:opacity-60"
         >
           <Camera className="h-5 w-5" />
-          {uploading === "before" ? "上傳中…" : "拍照 / 選擇圖片"}
+          {uploading === "before" ? tCommon("uploading") : t("captureCta")}
         </button>
         {photos.filter((p) => p.section === "before").length > 0 && (
           <div className="mt-2 grid grid-cols-3 gap-2">
@@ -237,7 +247,7 @@ export default function DoorCheckPage() {
 
       <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
-          作業後照片（必填，至少 1 張）
+          {t("afterLabel")}
         </span>
         <button
           type="button"
@@ -246,7 +256,7 @@ export default function DoorCheckPage() {
           className="flex h-24 items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[var(--border)] text-[13px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:bg-[#EFF6FF] disabled:opacity-60"
         >
           <Camera className="h-5 w-5" />
-          {uploading === "after" ? "上傳中…" : "拍照 / 選擇圖片"}
+          {uploading === "after" ? tCommon("uploading") : t("captureCta")}
         </button>
         {photos.filter((p) => p.section === "after").length > 0 && (
           <div className="mt-2 grid grid-cols-3 gap-2">
@@ -265,9 +275,9 @@ export default function DoorCheckPage() {
 
       <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
-          檢核項目（{checked.size} / {CHECKLIST.length}）
+          {t("checklistLabel", { checked: checked.size, total: CHECKLIST_KEYS.length })}
         </span>
-        {CHECKLIST.map((item) => (
+        {checklist.map((item) => (
           <label
             key={item.key}
             className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-[13px] ${
@@ -289,13 +299,13 @@ export default function DoorCheckPage() {
 
       <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
-          備註（選填）
+          {t("notesLabel")}
         </span>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={2}
-          placeholder="例：原舊鎖芯有輕微生鏽，安裝後一切正常..."
+          placeholder={t("notesPlaceholder")}
           className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px]"
         />
       </section>
@@ -306,7 +316,7 @@ export default function DoorCheckPage() {
           onClick={() => router.push(`/my-orders/${id}`)}
           className="h-12 flex-1 rounded-lg border border-[var(--border)] text-[14px] font-medium"
         >
-          取消
+          {tCommon("cancel")}
         </button>
         <button
           type="button"
@@ -314,7 +324,7 @@ export default function DoorCheckPage() {
           disabled={!canSubmit}
           className="h-12 flex-[2] rounded-lg bg-[var(--primary)] text-[14px] font-semibold text-white disabled:opacity-60"
         >
-          {submitting ? "提交中…" : "完成檢核 → 進簽章"}
+          {submitting ? t("submitting") : t("submit")}
         </button>
       </div>
     </TechShell>

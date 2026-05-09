@@ -997,5 +997,257 @@
       "dateRange": "日期範圍",
       "overdueOnly": "僅顯示逾期"
     }
+  },
+  "techPortal": {
+    "common": {
+      "back": "返回",
+      "cancel": "取消",
+      "loading": "載入中…",
+      "submitting": "送出中…",
+      "uploading": "上傳中…",
+      "remove": "移除",
+      "add": "新增",
+      "notFound": "找不到工單",
+      "backToList": "返回列表",
+      "refresh": "重新整理"
+    },
+    "shell": {
+      "guard": {
+        "openOnPhone": "請使用手機開啟",
+        "description": "技師工作台為手機優先設計，請以行動裝置（≤ 768px）開啟以獲得完整體驗。",
+        "qrAlt": "掃描 QR Code 在手機開啟",
+        "scanHint": "掃描以在手機開啟此頁面",
+        "devCheckHint": "開發/測試需要桌面檢視？",
+        "forceDesktop": "強制顯示桌面版"
+      },
+      "bottomNav": {
+        "pool": "案件池",
+        "myOrders": "我的工單",
+        "account": "帳戶"
+      }
+    },
+    "techLogin": {
+      "brandName": "Smart Lock",
+      "subtitle": "技師工作台",
+      "title": "登入",
+      "identifierLabel": "手機號碼或 Email",
+      "identifierPlaceholder": "0912xxxxxx 或 tech@example.com",
+      "passwordLabel": "密碼",
+      "passwordPlaceholder": "••••••",
+      "submit": "登入",
+      "submitting": "登入中…",
+      "forgotPassword": "忘記密碼（待補）",
+      "forgotPasswordTitle": "V2.0 規劃",
+      "adminLink": "我是管理員 →",
+      "footerVersion": "v0.1 — 技師端 PWA"
+    },
+    "pool": {
+      "title": "案件池",
+      "loading": "載入中…",
+      "availableCount": "{count} 件可接工單",
+      "refreshTitle": "重新整理",
+      "conflictTaken": "此工單已被其他技師接走",
+      "empty": "目前沒有可接工單",
+      "estimatedReward": "預估 ${amount}",
+      "accept": "接受工單",
+      "accepting": "接單中…"
+    },
+    "myOrders": {
+      "title": "我的工單",
+      "refreshTitle": "重新整理",
+      "errorNoSession": "尚未登入或無法取得技師身份",
+      "tabs": {
+        "active": "進行中",
+        "pending": "待確認",
+        "history": "歷史"
+      },
+      "empty": {
+        "active": "目前沒有進行中的工單",
+        "pending": "沒有待確認工單",
+        "history": "沒有歷史工單"
+      },
+      "goToPool": "前往案件池接單"
+    },
+    "detail": {
+      "title": "工單詳情",
+      "completionSubmitted": "完工報告已提交，等待客戶確認",
+      "address": "服務地址",
+      "navigate": "導航前往",
+      "device": "鎖具資訊",
+      "service": "服務資訊",
+      "status": "狀態",
+      "estimatedReward": "預估佣金",
+      "scheduledTime": "預約時間",
+      "completionTime": "完工時間",
+      "customer": "客戶資訊",
+      "viewProblemCard": "查看問題卡 →",
+      "callCustomer": "撥打客戶電話（待補）",
+      "callCustomerTitle": "客戶電話需後端提供 — MVP 待補",
+      "completeCta": "完工回報",
+      "subflows": {
+        "reschedule": "改期",
+        "delay": "延遲通知",
+        "scopeChange": "範圍變更",
+        "materialRequest": "缺料回報",
+        "doorCheck": "門面檢核",
+        "signature": "電子簽章"
+      },
+      "form": {
+        "title": "完工報告",
+        "summaryLabel": "作業摘要",
+        "summaryPlaceholder": "例：更換鎖芯、測試開關正常、與客戶確認完成。",
+        "amountLabel": "實收金額（NT$）",
+        "amountPlaceholder": "例：1500",
+        "photosLabel": "完工照片（選填，供客戶/Admin 留證）",
+        "photoBefore": "+ 完工前",
+        "photoAfter": "+ 完工後",
+        "errorSummaryShort": "請輸入完工摘要（至少 5 字）",
+        "submit": "提交完工",
+        "submitting": "提交中…",
+        "note": "註：零件清單、簽章等欄位於後續迭代補上"
+      },
+      "terminalNotice": "此工單已 {status}，無法再操作"
+    },
+    "doorCheck": {
+      "title": "門面外觀檢核",
+      "successProceed": "檢核完成，前往簽章流程",
+      "beforeLabel": "作業前照片（必填，至少 1 張）",
+      "afterLabel": "作業後照片（必填，至少 1 張）",
+      "captureCta": "拍照 / 選擇圖片",
+      "checklistLabel": "檢核項目（{checked} / {total}）",
+      "checklist": {
+        "frame_intact": "門框完整無變形",
+        "no_scratches": "門板無新刮痕",
+        "lock_aligned": "鎖具對位正確",
+        "handle_smooth": "把手轉動順暢",
+        "test_open_close": "已測試開關閉合 5 次以上",
+        "customer_confirmed": "客戶已現場確認外觀"
+      },
+      "notesLabel": "備註（選填）",
+      "notesPlaceholder": "例：原舊鎖芯有輕微生鏽，安裝後一切正常...",
+      "submit": "完成檢核 → 進簽章",
+      "submitting": "提交中…"
+    },
+    "delay": {
+      "title": "延遲通知",
+      "successSubmitted": "延遲通知已送出",
+      "durationLabel": "延遲時長",
+      "durations": {
+        "min15": "+15 分鐘",
+        "min30": "+30 分鐘",
+        "min60": "+60 分鐘",
+        "h2": "+2 小時"
+      },
+      "customMinutes": "自訂分鐘數",
+      "reasonLabel": "延遲原因",
+      "reasons": {
+        "previousOrder": "前一單延長",
+        "traffic": "塞車 / 路況",
+        "customerNotArrived": "客戶尚未到場",
+        "materialNotArrived": "材料尚未到貨",
+        "other": "其他"
+      },
+      "reasonOtherPlaceholder": "補充說明...",
+      "notifyLabel": "通知對象",
+      "notify": {
+        "customerOnly": "僅通知客戶",
+        "customerAndStaff": "通知客戶與調度員"
+      },
+      "rescheduleHintTitle": "需要重新選時段？",
+      "rescheduleHintBody": "若延遲超過 1 小時或客戶要求換日，建議直接走改期流程：",
+      "rescheduleLink": "前往改期日曆",
+      "submit": "送出延遲通知",
+      "submitting": "送出中…"
+    },
+    "materialRequest": {
+      "title": "缺料回報",
+      "successSubmitted": "缺料申請已送出，調度員將協調補料",
+      "listTitle": "缺件清單",
+      "addItem": "新增",
+      "brandPlaceholder": "品牌（例：Yale）",
+      "modelPlaceholder": "型號（例：YDM-7116）",
+      "quantityLabel": "數量",
+      "urgencyLabel": "急迫程度",
+      "urgencies": {
+        "now": "立即（中斷作業）",
+        "today": "今日內",
+        "tomorrow": "明日可"
+      },
+      "noteLabel": "備註",
+      "notePlaceholder": "例：客戶要求今晚 8 點前到貨...",
+      "submit": "送出缺料申請",
+      "submitting": "送出中…"
+    },
+    "reschedule": {
+      "title": "改期日曆",
+      "originalScheduled": "原預約：",
+      "fromHints": {
+        "label": "來源：",
+        "delay": "T7 延遲通知",
+        "noShow": "Flow 11 客戶不在場",
+        "staffAssist": "派工人工介入協助"
+      },
+      "successSubmitted": "改期請求已送出，等候客戶確認",
+      "customerInfoTitle": "客戶資訊提示",
+      "preferredHours": "客戶偏好：",
+      "dndHours": "勿擾：",
+      "pastCount": "此工單已改期 {count} 次",
+      "pastCountWarning": "（建議與客戶協調確認，避免再次調整）",
+      "selectDate": "選擇日期",
+      "prevWeek": "上一週",
+      "nextWeek": "下一週",
+      "slotsTitle": "時段（30 分鐘）",
+      "slotsHint": "可選 1-{max} 個備選（已選 {selected}）",
+      "slotsLoading": "載入時段中…",
+      "slotsEmpty": "此日期無可用時段",
+      "reasons": {
+        "buffer_insufficient": "鄰近工單預留時間不足",
+        "another_order": "已有其他工單",
+        "customer_dnd": "客戶勿擾時段",
+        "holiday": "假日",
+        "tooDense": "鄰近時段過密"
+      },
+      "softConflictTitle": "所選時段有 soft conflict",
+      "ackLabel": "我已了解並仍要使用這些時段",
+      "messageTitle": "給客戶的訊息",
+      "defaultMessage": "很抱歉需要調整時間，請問以下時段是否方便？",
+      "sendVia": "送出方式：",
+      "sendViaLine": "LINE",
+      "sendViaLineSms": "LINE + SMS",
+      "willProvide": "將提供 {count} 個備選時段給客戶",
+      "errorLimitExceeded": "此工單 24 小時內已改期 3 次，請聯繫客服",
+      "errorConflict": "時段或工單狀態衝突，請重新選擇",
+      "errorRejectedByCustomer": "客戶已拒絕改期，請重新選擇時段",
+      "submit": "送出改期請求",
+      "submitting": "送出中…"
+    },
+    "scopeChange": {
+      "title": "範圍變更申請",
+      "successSubmitted": "範圍變更已送出，等候客戶核准",
+      "reasonLabel": "變更事由",
+      "reasonPlaceholder": "例：客戶現場確認需追加更換 2 個鎖芯...",
+      "reasonHint": "至少 10 字（{count}/10）",
+      "itemsLabel": "追加工項",
+      "addItem": "新增",
+      "itemNamePlaceholder": "工項名稱",
+      "unitPriceLabel": "單價",
+      "unitPricePlaceholder": "$",
+      "quantityLabel": "數量",
+      "subtotal": "小計：${amount}",
+      "totalLabel": "追加總額",
+      "submit": "送出申請",
+      "submitting": "送出中…"
+    },
+    "signature": {
+      "title": "雙方電子簽章",
+      "successSigned": "簽章已完成",
+      "instruction": "請技師與客戶分別於下方手寫簽章，確認本次服務內容與完工狀態。提交後系統會記錄簽章時間與 GPS 位置。",
+      "techLabel": "技師簽名",
+      "customerLabel": "客戶簽名",
+      "clear": "清除",
+      "uploadHint": "簽章資料以 base64 PNG 上傳至 `/api/v1/work-orders/{id}/signature`",
+      "submit": "確認簽章",
+      "submitting": "提交中…"
+    }
   }
 }

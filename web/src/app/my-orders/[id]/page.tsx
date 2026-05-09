@@ -42,6 +42,10 @@ export default function MyOrderDetailPage() {
   const id = params?.id ?? "";
   const router = useRouter();
   const tStatus = useTranslations("status.workOrder");
+  const t = useTranslations("techPortal.detail");
+  const tForm = useTranslations("techPortal.detail.form");
+  const tSub = useTranslations("techPortal.detail.subflows");
+  const tCommon = useTranslations("techPortal.common");
 
   const [wo, setWo] = useState<WorkOrder | null>(null);
   const [loading, setLoading] = useState(false);
@@ -119,7 +123,7 @@ export default function MyOrderDetailPage() {
   async function submitCompletion() {
     if (!wo || submitting) return;
     if (summary.trim().length < 5) {
-      setSubmitError("請輸入完工摘要（至少 5 字）");
+      setSubmitError(tForm("errorSummaryShort"));
       return;
     }
     setSubmitting(true);
@@ -166,7 +170,7 @@ export default function MyOrderDetailPage() {
           type="button"
           onClick={() => router.push("/my-orders")}
           className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
-          aria-label="返回"
+          aria-label={tCommon("back")}
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -175,7 +179,7 @@ export default function MyOrderDetailPage() {
             #{id.slice(0, 8)}
           </span>
           <span className="text-[14px] font-semibold text-[var(--text-primary)]">
-            工單詳情
+            {t("title")}
           </span>
         </div>
         {wo && (
@@ -195,23 +199,23 @@ export default function MyOrderDetailPage() {
       {submitOk && (
         <div className="m-4 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-[13px] text-green-700">
           <CheckCircle2 className="h-4 w-4" />
-          完工報告已提交，等待客戶確認
+          {t("completionSubmitted")}
         </div>
       )}
 
       {loading && !wo ? (
         <div className="flex h-40 items-center justify-center text-[13px] text-[var(--text-secondary)]">
-          載入中…
+          {tCommon("loading")}
         </div>
       ) : !wo ? (
         <div className="flex h-60 flex-col items-center justify-center gap-2 text-[var(--text-secondary)]">
           <AlertCircle className="h-10 w-10 text-[var(--text-disabled)]" />
-          <p className="text-[14px]">找不到工單</p>
+          <p className="text-[14px]">{tCommon("notFound")}</p>
           <Link
             href="/my-orders"
             className="text-[12px] text-[var(--primary)] hover:underline"
           >
-            返回列表
+            {tCommon("backToList")}
           </Link>
         </div>
       ) : (
@@ -219,7 +223,7 @@ export default function MyOrderDetailPage() {
           {/* address_section */}
           <section className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
             <span className="text-[11px] font-medium text-[var(--text-secondary)]">
-              服務地址
+              {t("address")}
             </span>
             <p className="text-[16px] font-semibold text-[var(--text-primary)]">
               {wo.address}
@@ -234,14 +238,14 @@ export default function MyOrderDetailPage() {
               className="mt-2 inline-flex h-11 items-center justify-center gap-1 rounded-lg border border-[var(--border)] text-[14px] font-medium text-[var(--primary)] hover:bg-[#EFF6FF]"
             >
               <Navigation className="h-4 w-4" />
-              導航前往
+              {t("navigate")}
             </a>
           </section>
 
           {/* device_section */}
           <section className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
             <span className="text-[11px] font-medium text-[var(--text-secondary)]">
-              鎖具資訊
+              {t("device")}
             </span>
             <div className="flex items-center gap-2">
               <span className="rounded bg-[#F1F5F9] px-2 py-[2px] text-[13px] font-medium text-[var(--text-primary)]">
@@ -256,12 +260,12 @@ export default function MyOrderDetailPage() {
           {/* service_info_section */}
           <section className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
             <span className="text-[11px] font-medium text-[var(--text-secondary)]">
-              服務資訊
+              {t("service")}
             </span>
             <div className="grid grid-cols-2 gap-2 text-[13px]">
               <div>
                 <span className="block text-[11px] text-[var(--text-disabled)]">
-                  狀態
+                  {t("status")}
                 </span>
                 <span className="font-medium text-[var(--text-primary)]">
                   {tStatus(wo.status)}
@@ -270,7 +274,7 @@ export default function MyOrderDetailPage() {
               {wo.estimated_reward && (
                 <div>
                   <span className="block text-[11px] text-[var(--text-disabled)]">
-                    預估佣金
+                    {t("estimatedReward")}
                   </span>
                   <span className="font-bold text-[#059669]">
                     ${wo.estimated_reward}
@@ -280,7 +284,7 @@ export default function MyOrderDetailPage() {
               {wo.scheduled_time && (
                 <div>
                   <span className="block text-[11px] text-[var(--text-disabled)]">
-                    預約時間
+                    {t("scheduledTime")}
                   </span>
                   <span className="font-medium text-[var(--text-primary)]">
                     {new Date(wo.scheduled_time).toLocaleString("zh-TW")}
@@ -290,7 +294,7 @@ export default function MyOrderDetailPage() {
               {wo.completion_time && (
                 <div>
                   <span className="block text-[11px] text-[var(--text-disabled)]">
-                    完工時間
+                    {t("completionTime")}
                   </span>
                   <span className="font-medium text-[var(--text-primary)]">
                     {new Date(wo.completion_time).toLocaleString("zh-TW")}
@@ -303,22 +307,22 @@ export default function MyOrderDetailPage() {
           {/* customer_section（電話需從 ProblemCard 取，MVP 先省）*/}
           <section className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
             <span className="text-[11px] font-medium text-[var(--text-secondary)]">
-              客戶資訊
+              {t("customer")}
             </span>
             <Link
               href={`/problem-cards/${wo.problem_card_id}`}
               className="text-[13px] text-[var(--primary)] hover:underline"
             >
-              查看問題卡 →
+              {t("viewProblemCard")}
             </Link>
             <button
               type="button"
               disabled
               className="mt-2 inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#94A3B8] text-[14px] font-semibold text-white opacity-60"
-              title="客戶電話需後端提供 — MVP 待補"
+              title={t("callCustomerTitle")}
             >
               <Phone className="h-4 w-4" />
-              撥打客戶電話（待補）
+              {t("callCustomer")}
             </button>
           </section>
 
@@ -330,7 +334,7 @@ export default function MyOrderDetailPage() {
                 onClick={() => setShowForm(true)}
                 className="h-12 rounded-lg bg-[var(--primary)] text-[15px] font-semibold text-white hover:bg-[#1D4ED8]"
               >
-                完工回報
+                {t("completeCta")}
               </button>
 
               {/* Subflow CTAs */}
@@ -339,37 +343,37 @@ export default function MyOrderDetailPage() {
                   href={`/my-orders/${wo.id}/reschedule`}
                   className="flex h-11 items-center justify-center rounded-lg border border-[var(--border)] bg-white text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
                 >
-                  改期
+                  {tSub("reschedule")}
                 </Link>
                 <Link
                   href={`/my-orders/${wo.id}/delay`}
                   className="flex h-11 items-center justify-center rounded-lg border border-[var(--border)] bg-white text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
                 >
-                  延遲通知
+                  {tSub("delay")}
                 </Link>
                 <Link
                   href={`/my-orders/${wo.id}/scope-change`}
                   className="flex h-11 items-center justify-center rounded-lg border border-[var(--border)] bg-white text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
                 >
-                  範圍變更
+                  {tSub("scopeChange")}
                 </Link>
                 <Link
                   href={`/my-orders/${wo.id}/material-request`}
                   className="flex h-11 items-center justify-center rounded-lg border border-[var(--border)] bg-white text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
                 >
-                  缺料回報
+                  {tSub("materialRequest")}
                 </Link>
                 <Link
                   href={`/my-orders/${wo.id}/door-check`}
                   className="flex h-11 items-center justify-center rounded-lg border border-[var(--border)] bg-white text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
                 >
-                  門面檢核
+                  {tSub("doorCheck")}
                 </Link>
                 <Link
                   href={`/my-orders/${wo.id}/signature`}
                   className="flex h-11 items-center justify-center rounded-lg border border-[var(--border)] bg-white text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
                 >
-                  電子簽章
+                  {tSub("signature")}
                 </Link>
               </div>
             </div>
@@ -378,32 +382,32 @@ export default function MyOrderDetailPage() {
           {showForm && (
             <section className="flex flex-col gap-3 rounded-xl border border-[var(--primary)] bg-white p-4 shadow-sm">
               <span className="text-[14px] font-semibold text-[var(--text-primary)]">
-                完工報告
+                {tForm("title")}
               </span>
 
               <label className="flex flex-col gap-1">
                 <span className="text-[12px] font-medium text-[var(--text-secondary)]">
-                  作業摘要 <span className="text-red-500">*</span>
+                  {tForm("summaryLabel")} <span className="text-red-500">*</span>
                 </span>
                 <textarea
                   value={summary}
                   onChange={(e) => setSummary(e.target.value)}
                   rows={4}
-                  placeholder="例：更換鎖芯、測試開關正常、與客戶確認完成。"
+                  placeholder={tForm("summaryPlaceholder")}
                   className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
                 />
               </label>
 
               <label className="flex flex-col gap-1">
                 <span className="text-[12px] font-medium text-[var(--text-secondary)]">
-                  實收金額（NT$）
+                  {tForm("amountLabel")}
                 </span>
                 <input
                   type="text"
                   inputMode="numeric"
                   value={actualAmount}
                   onChange={(e) => setActualAmount(e.target.value)}
-                  placeholder="例：1500"
+                  placeholder={tForm("amountPlaceholder")}
                   className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
                 />
               </label>
@@ -411,7 +415,7 @@ export default function MyOrderDetailPage() {
               {/* 完工照片上傳（before / after） */}
               <div className="flex flex-col gap-2">
                 <span className="text-[12px] font-medium text-[var(--text-secondary)]">
-                  完工照片（選填，供客戶/Admin 留證）
+                  {tForm("photosLabel")}
                 </span>
                 <div className="grid grid-cols-2 gap-2">
                   {(["before", "after"] as const).map((section) => (
@@ -431,10 +435,10 @@ export default function MyOrderDetailPage() {
                         }}
                       />
                       {photoUploading === section
-                        ? "上傳中…"
+                        ? tCommon("uploading")
                         : section === "before"
-                          ? "+ 完工前"
-                          : "+ 完工後"}
+                          ? tForm("photoBefore")
+                          : tForm("photoAfter")}
                     </label>
                   ))}
                 </div>
@@ -465,7 +469,7 @@ export default function MyOrderDetailPage() {
                   disabled={submitting}
                   className="h-11 flex-1 rounded-lg border border-[var(--border)] text-[14px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
                 >
-                  取消
+                  {tCommon("cancel")}
                 </button>
                 <button
                   type="button"
@@ -473,19 +477,19 @@ export default function MyOrderDetailPage() {
                   disabled={submitting}
                   className="h-11 flex-[2] rounded-lg bg-[var(--primary)] text-[14px] font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-60"
                 >
-                  {submitting ? "提交中…" : "提交完工"}
+                  {submitting ? tForm("submitting") : tForm("submit")}
                 </button>
               </div>
 
               <p className="text-[11px] text-[var(--text-disabled)]">
-                註：零件清單、簽章等欄位於後續迭代補上
+                {tForm("note")}
               </p>
             </section>
           )}
 
           {isTerminal && (
             <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-page)] p-4 text-center text-[13px] text-[var(--text-secondary)]">
-              此工單已 {tStatus(wo.status)}，無法再操作
+              {t("terminalNotice", { status: tStatus(wo.status) })}
             </div>
           )}
         </div>

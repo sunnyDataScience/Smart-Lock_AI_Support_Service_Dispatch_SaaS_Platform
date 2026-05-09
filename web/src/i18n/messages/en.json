@@ -997,5 +997,257 @@
       "dateRange": "Date range",
       "overdueOnly": "Overdue only"
     }
+  },
+  "techPortal": {
+    "common": {
+      "back": "Back",
+      "cancel": "Cancel",
+      "loading": "Loading…",
+      "submitting": "Submitting…",
+      "uploading": "Uploading…",
+      "remove": "Remove",
+      "add": "Add",
+      "notFound": "Work order not found",
+      "backToList": "Back to list",
+      "refresh": "Refresh"
+    },
+    "shell": {
+      "guard": {
+        "openOnPhone": "Please open on a phone",
+        "description": "The technician portal is mobile-first. Open it on a phone (≤ 768px) for the best experience.",
+        "qrAlt": "Scan QR code to open on phone",
+        "scanHint": "Scan to open this page on your phone",
+        "devCheckHint": "Need desktop view for development/testing?",
+        "forceDesktop": "Force desktop view"
+      },
+      "bottomNav": {
+        "pool": "Pool",
+        "myOrders": "My orders",
+        "account": "Account"
+      }
+    },
+    "techLogin": {
+      "brandName": "Smart Lock",
+      "subtitle": "Technician portal",
+      "title": "Sign in",
+      "identifierLabel": "Phone number or email",
+      "identifierPlaceholder": "0912xxxxxx or tech@example.com",
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "••••••",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "forgotPassword": "Forgot password (TBD)",
+      "forgotPasswordTitle": "Planned for V2.0",
+      "adminLink": "I'm an admin →",
+      "footerVersion": "v0.1 — Technician PWA"
+    },
+    "pool": {
+      "title": "Order pool",
+      "loading": "Loading…",
+      "availableCount": "{count} orders available",
+      "refreshTitle": "Refresh",
+      "conflictTaken": "This order has been taken by another technician",
+      "empty": "No orders available right now",
+      "estimatedReward": "Est. ${amount}",
+      "accept": "Accept order",
+      "accepting": "Accepting…"
+    },
+    "myOrders": {
+      "title": "My orders",
+      "refreshTitle": "Refresh",
+      "errorNoSession": "Not signed in or technician identity unavailable",
+      "tabs": {
+        "active": "Active",
+        "pending": "Pending",
+        "history": "History"
+      },
+      "empty": {
+        "active": "No active orders right now",
+        "pending": "No pending orders",
+        "history": "No historical orders"
+      },
+      "goToPool": "Go to order pool"
+    },
+    "detail": {
+      "title": "Order details",
+      "completionSubmitted": "Completion report submitted, awaiting customer confirmation",
+      "address": "Service address",
+      "navigate": "Navigate",
+      "device": "Device info",
+      "service": "Service info",
+      "status": "Status",
+      "estimatedReward": "Estimated reward",
+      "scheduledTime": "Scheduled time",
+      "completionTime": "Completion time",
+      "customer": "Customer info",
+      "viewProblemCard": "View problem card →",
+      "callCustomer": "Call customer (TBD)",
+      "callCustomerTitle": "Customer phone requires backend support — TBD for MVP",
+      "completeCta": "Complete order",
+      "subflows": {
+        "reschedule": "Reschedule",
+        "delay": "Delay notice",
+        "scopeChange": "Scope change",
+        "materialRequest": "Material request",
+        "doorCheck": "Door check",
+        "signature": "Signature"
+      },
+      "form": {
+        "title": "Completion report",
+        "summaryLabel": "Work summary",
+        "summaryPlaceholder": "e.g. Replaced lock cylinder, tested open/close, confirmed with customer.",
+        "amountLabel": "Actual amount (NT$)",
+        "amountPlaceholder": "e.g. 1500",
+        "photosLabel": "Completion photos (optional, for customer/admin records)",
+        "photoBefore": "+ Before",
+        "photoAfter": "+ After",
+        "errorSummaryShort": "Please enter a completion summary (at least 5 characters)",
+        "submit": "Submit completion",
+        "submitting": "Submitting…",
+        "note": "Note: parts list, signatures and other fields will be added in later iterations"
+      },
+      "terminalNotice": "This order is already {status} and cannot be modified"
+    },
+    "doorCheck": {
+      "title": "Door appearance check",
+      "successProceed": "Check completed, proceeding to signature",
+      "beforeLabel": "Before photos (required, at least 1)",
+      "afterLabel": "After photos (required, at least 1)",
+      "captureCta": "Take photo / choose image",
+      "checklistLabel": "Checklist ({checked} / {total})",
+      "checklist": {
+        "frame_intact": "Door frame intact, no deformation",
+        "no_scratches": "No new scratches on door",
+        "lock_aligned": "Lock alignment correct",
+        "handle_smooth": "Handle turns smoothly",
+        "test_open_close": "Tested open/close at least 5 times",
+        "customer_confirmed": "Customer confirmed appearance on site"
+      },
+      "notesLabel": "Notes (optional)",
+      "notesPlaceholder": "e.g. Original cylinder slightly rusted, all good after install...",
+      "submit": "Finish check → Signature",
+      "submitting": "Submitting…"
+    },
+    "delay": {
+      "title": "Delay notification",
+      "successSubmitted": "Delay notification sent",
+      "durationLabel": "Delay duration",
+      "durations": {
+        "min15": "+15 min",
+        "min30": "+30 min",
+        "min60": "+60 min",
+        "h2": "+2 hr"
+      },
+      "customMinutes": "Custom minutes",
+      "reasonLabel": "Reason",
+      "reasons": {
+        "previousOrder": "Previous order ran long",
+        "traffic": "Traffic / road conditions",
+        "customerNotArrived": "Customer not on site",
+        "materialNotArrived": "Materials not yet arrived",
+        "other": "Other"
+      },
+      "reasonOtherPlaceholder": "Additional details...",
+      "notifyLabel": "Notify",
+      "notify": {
+        "customerOnly": "Customer only",
+        "customerAndStaff": "Customer and dispatcher"
+      },
+      "rescheduleHintTitle": "Need to pick a new time slot?",
+      "rescheduleHintBody": "If the delay exceeds 1 hour or the customer wants a different day, use the reschedule flow:",
+      "rescheduleLink": "Open reschedule calendar",
+      "submit": "Send delay notice",
+      "submitting": "Sending…"
+    },
+    "materialRequest": {
+      "title": "Material request",
+      "successSubmitted": "Material request sent, dispatcher will coordinate restock",
+      "listTitle": "Missing parts",
+      "addItem": "Add",
+      "brandPlaceholder": "Brand (e.g. Yale)",
+      "modelPlaceholder": "Model (e.g. YDM-7116)",
+      "quantityLabel": "Qty",
+      "urgencyLabel": "Urgency",
+      "urgencies": {
+        "now": "Now (interrupting work)",
+        "today": "Today",
+        "tomorrow": "Tomorrow OK"
+      },
+      "noteLabel": "Notes",
+      "notePlaceholder": "e.g. Customer needs delivery before 8pm tonight...",
+      "submit": "Send material request",
+      "submitting": "Sending…"
+    },
+    "reschedule": {
+      "title": "Reschedule calendar",
+      "originalScheduled": "Original schedule:",
+      "fromHints": {
+        "label": "Source:",
+        "delay": "T7 delay notice",
+        "noShow": "Flow 11 customer no-show",
+        "staffAssist": "Dispatcher manual assist"
+      },
+      "successSubmitted": "Reschedule request sent, awaiting customer confirmation",
+      "customerInfoTitle": "Customer info hints",
+      "preferredHours": "Preferred:",
+      "dndHours": "Do not disturb:",
+      "pastCount": "This order has been rescheduled {count} times",
+      "pastCountWarning": " (please coordinate with customer to avoid further changes)",
+      "selectDate": "Select date",
+      "prevWeek": "Prev week",
+      "nextWeek": "Next week",
+      "slotsTitle": "Time slots (30 min)",
+      "slotsHint": "Pick 1-{max} alternatives ({selected} selected)",
+      "slotsLoading": "Loading slots…",
+      "slotsEmpty": "No available slots on this date",
+      "reasons": {
+        "buffer_insufficient": "Insufficient buffer between adjacent orders",
+        "another_order": "Another order already scheduled",
+        "customer_dnd": "Customer do-not-disturb hours",
+        "holiday": "Holiday",
+        "tooDense": "Adjacent slots too dense"
+      },
+      "softConflictTitle": "Selected slots have soft conflicts",
+      "ackLabel": "I understand and want to use these slots anyway",
+      "messageTitle": "Message to customer",
+      "defaultMessage": "Sorry, we need to adjust the time. Are any of the following slots convenient?",
+      "sendVia": "Send via:",
+      "sendViaLine": "LINE",
+      "sendViaLineSms": "LINE + SMS",
+      "willProvide": "Will offer {count} alternative slots to the customer",
+      "errorLimitExceeded": "This order has been rescheduled 3 times in 24 hours, please contact support",
+      "errorConflict": "Time slot or order status conflict, please reselect",
+      "errorRejectedByCustomer": "Customer rejected the reschedule, please pick new slots",
+      "submit": "Send reschedule request",
+      "submitting": "Sending…"
+    },
+    "scopeChange": {
+      "title": "Scope change request",
+      "successSubmitted": "Scope change submitted, awaiting customer approval",
+      "reasonLabel": "Reason for change",
+      "reasonPlaceholder": "e.g. Customer confirmed on-site, need to add 2 lock cylinders...",
+      "reasonHint": "At least 10 characters ({count}/10)",
+      "itemsLabel": "Additional items",
+      "addItem": "Add",
+      "itemNamePlaceholder": "Item name",
+      "unitPriceLabel": "Unit price",
+      "unitPricePlaceholder": "$",
+      "quantityLabel": "Qty",
+      "subtotal": "Subtotal: ${amount}",
+      "totalLabel": "Additional total",
+      "submit": "Submit request",
+      "submitting": "Submitting…"
+    },
+    "signature": {
+      "title": "Dual electronic signature",
+      "successSigned": "Signatures completed",
+      "instruction": "Both technician and customer please sign below to confirm the service and completion. Submission records timestamp and GPS location.",
+      "techLabel": "Technician signature",
+      "customerLabel": "Customer signature",
+      "clear": "Clear",
+      "uploadHint": "Signature data uploaded as base64 PNG to `/api/v1/work-orders/{id}/signature`",
+      "submit": "Confirm signature",
+      "submitting": "Submitting…"
+    }
   }
 }

@@ -6,6 +6,7 @@ import { Clock, MapPin, RefreshCw } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import UrgencyBadge from "@/components/tech/UrgencyBadge";
 import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api, getCurrentSession } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import { useRealtimeChannel } from "@/lib/useRealtimeChannel";
@@ -25,6 +26,7 @@ function formatErr(e: unknown): string {
 
 export default function PoolPage() {
   const router = useRouter();
+  const t = useTranslations("techPortal.pool");
   const [items, setItems] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +98,7 @@ export default function PoolPage() {
       }
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
-        setConflictMsg("此工單已被其他技師接走");
+        setConflictMsg(t("conflictTaken"));
         setItems((prev) => prev.filter((x) => x.id !== wo.id));
       } else {
         setError(formatErr(e));
@@ -112,11 +114,11 @@ export default function PoolPage() {
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border)] bg-white px-4 py-3">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-[18px] font-semibold text-[#1E293B]">案件池</h1>
+            <h1 className="text-[18px] font-semibold text-[#1E293B]">{t("title")}</h1>
             <RealtimeIndicator status={poolStatus} compact />
           </div>
           <p className="text-[12px] text-[var(--text-secondary)]">
-            {loading ? "載入中…" : `${items.length} 件可接工單`}
+            {loading ? t("loading") : t("availableCount", { count: items.length })}
           </p>
         </div>
         <button
@@ -124,7 +126,7 @@ export default function PoolPage() {
           onClick={fetchPool}
           disabled={loading}
           className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
-          title="重新整理"
+          title={t("refreshTitle")}
         >
           <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
         </button>
@@ -145,18 +147,18 @@ export default function PoolPage() {
       <div className="flex flex-col gap-3 px-4 py-4">
         {loading && items.length === 0 ? (
           <div className="flex h-40 items-center justify-center text-[13px] text-[var(--text-secondary)]">
-            載入中…
+            {t("loading")}
           </div>
         ) : items.length === 0 ? (
           <div className="flex h-60 flex-col items-center justify-center gap-2 text-[var(--text-secondary)]">
             <MapPin className="h-10 w-10 text-[var(--text-disabled)]" />
-            <p className="text-[14px]">目前沒有可接工單</p>
+            <p className="text-[14px]">{t("empty")}</p>
             <button
               type="button"
               onClick={fetchPool}
               className="mt-2 rounded-md border border-[var(--border)] px-3 py-1 text-[12px] font-medium text-[var(--primary)] hover:bg-[#EFF6FF]"
             >
-              重新整理
+              {t("refreshTitle")}
             </button>
           </div>
         ) : (
@@ -191,7 +193,7 @@ export default function PoolPage() {
                   </span>
                   {wo.estimated_reward && (
                     <span className="text-[#059669] font-semibold">
-                      預估 ${wo.estimated_reward}
+                      {t("estimatedReward", { amount: wo.estimated_reward })}
                     </span>
                   )}
                 </div>
@@ -207,7 +209,7 @@ export default function PoolPage() {
                   disabled={!!accepting}
                   className="mt-2 h-12 rounded-lg bg-[var(--primary)] text-[15px] font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-60"
                 >
-                  {accepting === wo.id ? "接單中…" : "接受工單"}
+                  {accepting === wo.id ? t("accepting") : t("accept")}
                 </button>
               </article>
             );

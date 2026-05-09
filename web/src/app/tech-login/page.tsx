@@ -5,10 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import DesktopMobileGuard from "@/components/tech/DesktopMobileGuard";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, loginTechnician } from "@/lib/api";
 
 export default function TechLoginPage() {
   const router = useRouter();
+  const t = useTranslations("techPortal.techLogin");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -48,8 +50,8 @@ export default function TechLoginPage() {
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 backdrop-blur">
             <Wrench className="h-7 w-7 text-white" />
           </div>
-          <h1 className="mt-1 text-[20px] font-bold">Smart Lock</h1>
-          <p className="text-[14px] opacity-90">技師工作台</p>
+          <h1 className="mt-1 text-[20px] font-bold">{t("brandName")}</h1>
+          <p className="text-[14px] opacity-90">{t("subtitle")}</p>
         </header>
 
         {/* tech_login_form */}
@@ -59,12 +61,12 @@ export default function TechLoginPage() {
             className="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow-2xl"
           >
             <h2 className="text-[16px] font-semibold text-[var(--text-primary)]">
-              登入
+              {t("title")}
             </h2>
 
             <label className="flex flex-col gap-[6px]">
               <span className="text-[12px] font-medium text-[var(--text-secondary)]">
-                手機號碼或 Email
+                {t("identifierLabel")}
               </span>
               <input
                 type="text"
@@ -74,13 +76,13 @@ export default function TechLoginPage() {
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 className="h-12 rounded-lg border border-[var(--border)] px-3 text-[15px] focus:border-[var(--primary)] focus:outline-none"
-                placeholder="0912xxxxxx 或 tech@example.com"
+                placeholder={t("identifierPlaceholder")}
               />
             </label>
 
             <label className="flex flex-col gap-[6px]">
               <span className="text-[12px] font-medium text-[var(--text-secondary)]">
-                密碼
+                {t("passwordLabel")}
               </span>
               <input
                 type="password"
@@ -90,7 +92,7 @@ export default function TechLoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="h-12 rounded-lg border border-[var(--border)] px-3 text-[15px] focus:border-[var(--primary)] focus:outline-none"
-                placeholder="••••••"
+                placeholder={t("passwordPlaceholder")}
               />
             </label>
 
@@ -105,7 +107,7 @@ export default function TechLoginPage() {
               disabled={loading || !identifier || !password}
               className="mt-2 h-12 rounded-lg bg-[var(--primary)] text-[15px] font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-60"
             >
-              {loading ? "登入中…" : "登入"}
+              {loading ? t("submitting") : t("submit")}
             </button>
 
             <div className="mt-2 flex items-center justify-between text-[12px]">
@@ -113,12 +115,12 @@ export default function TechLoginPage() {
                 type="button"
                 disabled
                 className="text-[var(--text-disabled)]"
-                title="V2.0 規劃"
+                title={t("forgotPasswordTitle")}
               >
-                忘記密碼（待補）
+                {t("forgotPassword")}
               </button>
               <Link href="/login" className="text-[var(--primary)] hover:underline">
-                我是管理員 →
+                {t("adminLink")}
               </Link>
             </div>
           </form>
@@ -126,7 +128,7 @@ export default function TechLoginPage() {
 
         {/* mobile_footer */}
         <footer className="my-6 text-center text-[11px] text-[var(--text-disabled)]">
-          v0.1 — 技師端 PWA
+          {t("footerVersion")}
         </footer>
       </div>
     </div>

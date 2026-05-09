@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Smartphone } from "lucide-react";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 const MOBILE_BREAKPOINT = 768; // 寬度 ≥ 769px 視為桌面
 
@@ -14,6 +15,7 @@ export default function DesktopMobileGuard({
 }: {
   children: React.ReactNode;
 }) {
+  const t = useTranslations("techPortal.shell.guard");
   const [isDesktop, setIsDesktop] = useState(false);
   const [forceDesktop, setForceDesktop] = useState(false);
 
@@ -55,27 +57,27 @@ export default function DesktopMobileGuard({
             <Smartphone className="h-7 w-7 text-[var(--primary)]" />
           </div>
           <h1 className="text-[18px] font-bold text-[var(--text-primary)]">
-            請使用手機開啟
+            {t("openOnPhone")}
           </h1>
           <p className="text-center text-[13px] leading-[1.6] text-[var(--text-secondary)]">
-            技師工作台為手機優先設計，請以行動裝置（≤ 768px）開啟以獲得完整體驗。
+            {t("description")}
           </p>
 
           {qrSrc && (
             <div className="mt-2 flex flex-col items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] p-4">
               <img
                 src={qrSrc}
-                alt="掃描 QR Code 在手機開啟"
+                alt={t("qrAlt")}
                 className="h-[180px] w-[180px] rounded-md"
               />
               <span className="text-[11px] text-[var(--text-disabled)]">
-                掃描以在手機開啟此頁面
+                {t("scanHint")}
               </span>
             </div>
           )}
 
           <div className="mt-2 w-full border-t border-[var(--border)] pt-4 text-center text-[11px] text-[var(--text-disabled)]">
-            開發/測試需要桌面檢視？
+            {t("devCheckHint")}
             <button
               type="button"
               onClick={() => {
@@ -88,7 +90,7 @@ export default function DesktopMobileGuard({
               }}
               className="ml-1 text-[var(--primary)] hover:underline"
             >
-              強制顯示桌面版
+              {t("forceDesktop")}
             </button>
           </div>
         </div>

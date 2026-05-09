@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Eraser, CheckCircle2 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import SubflowHeader from "@/components/tech/SubflowHeader";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
@@ -26,6 +27,7 @@ interface SignaturePadProps {
 function SignaturePad({ label, onChange }: SignaturePadProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawingRef = useRef(false);
+  const tSig = useTranslations("techPortal.signature");
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -105,7 +107,7 @@ function SignaturePad({ label, onChange }: SignaturePadProps) {
           className="flex items-center gap-1 text-[11px] text-[var(--text-secondary)] hover:text-red-600"
         >
           <Eraser className="h-3 w-3" />
-          清除
+          {tSig("clear")}
         </button>
       </div>
       <canvas
@@ -127,6 +129,8 @@ export default function SignaturePage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "";
   const router = useRouter();
+  const t = useTranslations("techPortal.signature");
+  const tCommon = useTranslations("techPortal.common");
 
   const [techSig, setTechSig] = useState("");
   const [custSig, setCustSig] = useState("");
@@ -177,12 +181,12 @@ export default function SignaturePage() {
 
   return (
     <TechShell>
-      <SubflowHeader workOrderId={id} title="雙方電子簽章" />
+      <SubflowHeader workOrderId={id} title={t("title")} />
 
       {submitOk && (
         <div className="m-4 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-[13px] text-green-700">
           <CheckCircle2 className="h-4 w-4" />
-          簽章已完成
+          {t("successSigned")}
         </div>
       )}
 
@@ -193,19 +197,19 @@ export default function SignaturePage() {
       )}
 
       <p className="mx-4 mt-4 text-[12px] text-[var(--text-secondary)]">
-        請技師與客戶分別於下方手寫簽章，確認本次服務內容與完工狀態。提交後系統會記錄簽章時間與 GPS 位置。
+        {t("instruction")}
       </p>
 
       <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
-        <SignaturePad label="技師簽名" onChange={setTechSig} />
+        <SignaturePad label={t("techLabel")} onChange={setTechSig} />
       </section>
 
       <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
-        <SignaturePad label="客戶簽名" onChange={setCustSig} />
+        <SignaturePad label={t("customerLabel")} onChange={setCustSig} />
       </section>
 
       <p className="mx-4 mt-4 text-[11px] text-[var(--text-disabled)]">
-        簽章資料以 base64 PNG 上傳至 `/api/v1/work-orders/{`{id}`}/signature`
+        {t("uploadHint", { id })}
       </p>
 
       <div className="mt-4 flex gap-2 px-4 pb-4">
@@ -214,7 +218,7 @@ export default function SignaturePage() {
           onClick={() => router.push(`/my-orders/${id}`)}
           className="h-12 flex-1 rounded-lg border border-[var(--border)] text-[14px] font-medium"
         >
-          取消
+          {tCommon("cancel")}
         </button>
         <button
           type="button"
@@ -222,7 +226,7 @@ export default function SignaturePage() {
           disabled={!canSubmit}
           className="h-12 flex-[2] rounded-lg bg-[var(--primary)] text-[14px] font-semibold text-white disabled:opacity-60"
         >
-          {submitting ? "提交中…" : "確認簽章"}
+          {submitting ? t("submitting") : t("submit")}
         </button>
       </div>
     </TechShell>

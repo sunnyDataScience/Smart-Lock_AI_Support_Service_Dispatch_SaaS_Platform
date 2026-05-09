@@ -1,35 +1,63 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { CalendarClock, ArrowRight, CheckCircle2 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import SubflowHeader from "@/components/tech/SubflowHeader";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api } from "@/lib/api";
 
-const DELAY_OPTIONS = [
-  { value: 15, label: "+15 分鐘" },
-  { value: 30, label: "+30 分鐘" },
-  { value: 60, label: "+60 分鐘" },
-  { value: 120, label: "+2 小時" },
+const DURATION_KEYS = [
+  { value: 15, key: "min15" },
+  { value: 30, key: "min30" },
+  { value: 60, key: "min60" },
+  { value: 120, key: "h2" },
+] as const;
+
+type ReasonKey =
+  | "previousOrder"
+  | "traffic"
+  | "customerNotArrived"
+  | "materialNotArrived"
+  | "other";
+
+const REASON_KEYS: ReasonKey[] = [
+  "previousOrder",
+  "traffic",
+  "customerNotArrived",
+  "materialNotArrived",
+  "other",
 ];
 
-const REASON_OPTIONS = [
-  "前一單延長",
-  "塞車 / 路況",
-  "客戶尚未到場",
-  "材料尚未到貨",
-  "其他",
-];
+// 後端介面語意：reason 為固定的 zh-TW 字串。i18n 後 UI 顯示用 i18n，但送往
+// API 仍維持原始中文以保持 backend 行為不變。
+const REASON_TO_API: Record<ReasonKey, string> = {
+  previousOrder: "前一單延長",
+  traffic: "塞車 / 路況",
+  customerNotArrived: "客戶尚未到場",
+  materialNotArrived: "材料尚未到貨",
+  other: "其他",
+};
 
 export default function DelayPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "";
   const router = useRouter();
+  const t = useTranslations("techPortal.delay");
+  const tDur = useTranslations("techPortal.delay.durations");
+  const tReason = useTranslations("techPortal.delay.reasons");
+  const tNotify = useTranslations("techPortal.delay.notify");
+  const tCommon = useTranslations("techPortal.common");
+
+  const durationOptions = useMemo(
+    () => DURATION_KEYS.map((d) => ({ value: d.value, label: tDur(d.key) })),
+    [tDur],
+  );
 
   const [delayMinutes, setDelayMinutes] = useState(30);
-  const [reason, setReason] = useState(REASON_OPTIONS[0]);
+  const [reasonKey, setReasonKey] = useState<ReasonKey>("previousOrder");
   const [reasonText, setReasonText] = useState("");
   const [notify, setNotify] = useState<"customer_only" | "customer_and_staff">(
     "customer_only",
@@ -45,8 +73,8 @@ export default function DelayPage() {
     try {
       await api.post(`/api/v1/work-orders/${encodeURIComponent(id)}/delay`, {
         delay_minutes: delayMinutes,
-        reason,
-        reason_text: reason === "其他" ? reasonText.trim() : undefined,
+        reason: REASON_TO_API[reasonKey],
+        reason_text: reasonKey === "other" ? reasonText.trim() : undefined,
         notify,
       });
       setSubmitOk(true);
@@ -66,12 +94,12 @@ export default function DelayPage() {
 
   return (
     <TechShell>
-      <SubflowHeader workOrderId={id} title="延遲通知" />
+      <SubflowHeader workOrderId={id} title={t("title")} />
 
       {submitOk && (
         <div className="m-4 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-[13px] text-green-700">
           <CheckCircle2 className="h-4 w-4" />
-          延遲通知已送出
+          {t("successSubmitted")}
         </div>
       )}
 
@@ -83,10 +111,10 @@ export default function DelayPage() {
 
       <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
-          延遲時長
+          {t("durationLabel")}
         </span>
         <div className="flex flex-wrap gap-2">
-          {DELAY_OPTIONS.map((opt) => (
+          {durationOptions.map((opt) => (
             <button
               key={opt.value}
               type="button"
@@ -102,7 +130,7 @@ export default function DelayPage() {
           ))}
         </div>
         <label className="mt-2 flex items-center gap-2 text-[12px]">
-          <span className="text-[var(--text-secondary)]">自訂分鐘數</span>
+          <span className="text-[var(--text-secondary)]">{t("customMinutes")}</span>
           <input
             type="number"
             min={5}
@@ -116,34 +144,34 @@ export default function DelayPage() {
 
       <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
-          延遲原因
+          {t("reasonLabel")}
         </span>
         <div className="flex flex-col gap-2">
-          {REASON_OPTIONS.map((r) => (
+          {REASON_KEYS.map((r) => (
             <label
               key={r}
               className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-[13px] ${
-                reason === r
+                reasonKey === r
                   ? "border-[var(--primary)] bg-[#EFF6FF]"
                   : "border-[var(--border)] bg-white"
               }`}
             >
               <input
                 type="radio"
-                checked={reason === r}
-                onChange={() => setReason(r)}
+                checked={reasonKey === r}
+                onChange={() => setReasonKey(r)}
                 className="h-4 w-4 accent-[var(--primary)]"
               />
-              {r}
+              {tReason(r)}
             </label>
           ))}
         </div>
-        {reason === "其他" && (
+        {reasonKey === "other" && (
           <textarea
             value={reasonText}
             onChange={(e) => setReasonText(e.target.value)}
             rows={2}
-            placeholder="補充說明..."
+            placeholder={t("reasonOtherPlaceholder")}
             className="mt-2 rounded-md border border-[var(--border)] px-3 py-2 text-[13px]"
           />
         )}
@@ -151,14 +179,14 @@ export default function DelayPage() {
 
       <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
-          通知對象
+          {t("notifyLabel")}
         </span>
         {(
           [
-            ["customer_only", "僅通知客戶"],
-            ["customer_and_staff", "通知客戶與調度員"],
+            ["customer_only", "customerOnly"],
+            ["customer_and_staff", "customerAndStaff"],
           ] as const
-        ).map(([v, label]) => (
+        ).map(([v, lk]) => (
           <label key={v} className="flex items-center gap-2 text-[13px]">
             <input
               type="radio"
@@ -166,22 +194,20 @@ export default function DelayPage() {
               onChange={() => setNotify(v)}
               className="h-4 w-4 accent-[var(--primary)]"
             />
-            {label}
+            {tNotify(lk)}
           </label>
         ))}
       </section>
 
       <div className="mx-4 mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3 text-[12px] text-blue-900">
-        <span className="font-semibold">需要重新選時段？</span>
-        <p className="mt-1">
-          若延遲超過 1 小時或客戶要求換日，建議直接走改期流程：
-        </p>
+        <span className="font-semibold">{t("rescheduleHintTitle")}</span>
+        <p className="mt-1">{t("rescheduleHintBody")}</p>
         <Link
           href={`/my-orders/${id}/reschedule?from=delay`}
           className="mt-2 inline-flex items-center gap-1 text-[var(--primary)] hover:underline"
         >
           <CalendarClock className="h-3 w-3" />
-          前往改期日曆
+          {t("rescheduleLink")}
           <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
@@ -192,7 +218,7 @@ export default function DelayPage() {
           onClick={() => router.push(`/my-orders/${id}`)}
           className="h-12 flex-1 rounded-lg border border-[var(--border)] text-[14px] font-medium text-[var(--text-primary)]"
         >
-          取消
+          {tCommon("cancel")}
         </button>
         <button
           type="button"
@@ -200,7 +226,7 @@ export default function DelayPage() {
           disabled={submitting}
           className="h-12 flex-[2] rounded-lg bg-[var(--primary)] text-[14px] font-semibold text-white disabled:opacity-60"
         >
-          {submitting ? "送出中…" : "送出延遲通知"}
+          {submitting ? t("submitting") : t("submit")}
         </button>
       </div>
     </TechShell>
