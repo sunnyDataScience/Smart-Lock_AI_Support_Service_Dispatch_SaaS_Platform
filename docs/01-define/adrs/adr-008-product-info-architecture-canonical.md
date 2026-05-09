@@ -2,9 +2,37 @@
 
 **版本**: v1.0
 **日期**: 2026-05-09
-**狀態**: **ACTIVE — 不可逆向**
+**狀態**: **SUPERSEDED 2026-05-09**（待 ADR-009 補正式論證）
 **作者**: Imding1211
 **對應 commits**: `integrate/sunny-onto-zenobia0000-20260508` 系列（2825cbe → 整合分支 tip）
+
+---
+
+## ⚠️ SUPERSEDED 附註（2026-05-09 14:42 後加）
+
+> 本 ADR 於 2026-05-09 上午由 Imding1211 撰寫並推上 origin/dev (`dbfe75b`)，主張
+> `product_info/` 為唯一正典、`skills/` 架構**不可逆向**。
+>
+> **同日 14:42 經團隊重新協商**，決議改以本地 dev（含 5/6 22:45 後續 137 commits
+> 的 skills/ 架構 + RP3 重構 + V1.5 通知 + F-002/F-023 文件補強）為主，
+> 並以 `--force-with-lease` 覆蓋 origin/dev → `a9d6fbb` (5/9 14:42)
+> → 後 fast-forward 至 `f9cff16` (5/9 14:51 復原本附註所在的兩份檔案)。
+>
+> 本 ADR 即日起**狀態變為 SUPERSEDED**，僅作 5/9 上午架構決議的歷史紀錄保留。
+> 下方所有「**禁止**」、「**不可逆**」、「**任何試圖把 agent/ 改回 skills/ 的 PR
+> 都會被拒絕**」等敘述**均不再適用**。
+>
+> 後續如需正式確立 skills/ 為新正典，建議寫 ADR-009 補上：
+> - 為何 5/6-5/8 的 skills/ 架構 + RP3 工作的價值優於 product_info/ mega-doc 路線
+> - quality_check 退步可接受度與補救方案
+> - `agent/agent_tools/` 是否重新 rename 回 `agent/skills/`、`product_info/` 去留、
+>   SKILL.md vs mega-doc 取捨
+> - 5/9 14:42 force-push 的決策過程、授權人、協商內容（口頭確認，無書面紀錄）
+>
+> 在 ADR-009 寫成前，當前 dev 架構（skills/ canonical）為 **de facto 狀態，
+> 沒有書面 ADR 背書**。本附註只標記 ADR-008 失效，不構成新架構的論證。
+>
+> **附註人**: Sunny Weng（2026-05-09 14:5x）
 
 ---
 
