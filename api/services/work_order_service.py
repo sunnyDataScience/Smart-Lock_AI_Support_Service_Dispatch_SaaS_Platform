@@ -201,6 +201,101 @@ async def get_order(*, tenant_id: str, wo_id: str) -> dict:
     return _wo_row_to_dict(row)
 
 
+async def create_from_problem_card(
+    *,
+    tenant_id: str,
+    pc_id: str,
+    customer_address: str | None = None,
+    customer_name: str | None = None,
+    customer_phone: str | None = None,
+    created_by: str | None = None,
+) -> tuple[dict, bool]:
+    """從 confirmed ProblemCard 建立 WorkOrder（F-002 客服審 PC → 開 WO）。
+
+    前置條件：PC.status = 'confirmed' 且未已存在對應 WO。
+    Idempotency：同 PC 重複呼叫回既存 WO（created_flag=False，HTTP 200）；
+    新建回 created_flag=True（HTTP 201）。
+
+    customer_address / name / phone：優先用 caller 帶入；否則 fallback 到
+    user 的 profile（users.address/display_name/phone）。address 兩者皆無 → 422。
+
+    urgency / priority：PC.urgency 與 WO.priority 共用 DB enum
+    (low/normal/high/urgent)，直接 pass-through。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    # 1. 取 PC + 同 transaction lock 防止 race（兩個並發 convert 同一張 PC）
+    cur = await db_module._conn.execute(
+        "SELECT pc.status, pc.urgency, "
+        "       u.address, u.display_name, u.phone "
+        "FROM problem_cards pc "
+        "JOIN conversations c ON pc.conversation_id = c.id "
+        "JOIN users u ON c.user_id = u.id "
+        "WHERE pc.id = %s::uuid AND u.tenant_id = %s::uuid "
+        "FOR UPDATE OF pc",
+        (pc_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "Problem card not found", 404)
+
+    pc_status, pc_urgency, user_address, user_name, user_phone = row
+
+    if pc_status != "confirmed":
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot convert problem card in status '{pc_status}'; expected 'confirmed'",
+            409,
+        )
+
+    # 2. Idempotency: existing WO with same problem_card_id?
+    cur = await db_module._conn.execute(
+        "SELECT id FROM work_orders "
+        "WHERE problem_card_id = %s::uuid "
+        "ORDER BY created_at ASC LIMIT 1",
+        (pc_id,),
+    )
+    existing = await cur.fetchone()
+    if existing:
+        wo = await get_order(tenant_id=tenant_id, wo_id=str(existing[0]))
+        return wo, False
+
+    # 3. Resolve customer info（caller override > user profile fallback）
+    final_address = customer_address or user_address
+    if not final_address:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "customer_address required: not found in user profile and not provided",
+            422,
+        )
+    final_name = customer_name or user_name
+    final_phone = customer_phone or user_phone
+    # PC.urgency 與 WO.priority 共用 DB enum (low/normal/high/urgent)，直接 pass-through
+    priority = pc_urgency or "normal"
+
+    # 4. INSERT
+    insert_cur = await db_module._conn.execute(
+        "INSERT INTO work_orders "
+        "  (problem_card_id, status, priority, "
+        "   customer_name, customer_phone, customer_address, created_by) "
+        "VALUES (%s::uuid, 'created', %s, %s, %s, %s, "
+        "        %s::uuid) "
+        "RETURNING id",
+        (pc_id, priority, final_name, final_phone, final_address, created_by),
+    )
+    new_row = await insert_cur.fetchone()
+    if not new_row:
+        raise ApiError("INTERNAL_ERROR", "Failed to insert work order", 500)
+    new_wo_id = str(new_row[0])
+
+    # 5. WS publish + return
+    wo = await _publish_and_return(
+        tenant_id=tenant_id, wo_id=new_wo_id, event_type="work_order.created"
+    )
+    return wo, True
+
+
 _ACCEPT_FROM = {"assigned"}
 _COMPLETE_FROM = {"accepted", "in_progress"}
 _CANCEL_FROM = {"created", "assigned", "accepted", "in_progress"}

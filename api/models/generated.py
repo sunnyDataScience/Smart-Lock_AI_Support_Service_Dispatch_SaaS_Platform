@@ -1021,6 +1021,18 @@ class ProblemCardResolveRequest(BaseModel):
     )
 
 
+class ConvertProblemCardToWorkOrderRequest(BaseModel):
+    customer_address: constr(max_length=500) | None = Field(
+        None, description='派工地址（覆寫 user profile）'
+    )
+    customer_name: constr(max_length=100) | None = Field(
+        None, description='客戶姓名（覆寫 user.display_name）'
+    )
+    customer_phone: constr(max_length=50) | None = Field(
+        None, description='客戶電話（覆寫 user.phone）'
+    )
+
+
 class ProblemCardEnvelope(ApiResponseGeneric):
     data: ProblemCard | None = Field(None, description='實際載荷，由各 endpoint 具體化')
 

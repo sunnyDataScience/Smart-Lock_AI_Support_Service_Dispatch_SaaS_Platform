@@ -85,7 +85,7 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 | # | 流程 | 角色 | 前端頁面 | API operationId | Realtime | 外部 | 評等 | 阻塞項 |
 |---|------|------|---------|----------------|----------|------|------|-------|
 | F-001 | LINE 報修 → ProblemCard | 消費者 | (LINE Bot 後端) | `createConversation`, `analyzeMedia`, `createProblemCard` | — | LINE / Vertex / GCS | 🟢 | — |
-| F-002 | 客服審 PC → 開 WO | 客服 | `web/src/app/problem-cards/page.tsx`, `[id]/page.tsx` | `listProblemCards`, `getProblemCard`, `convertToWorkOrder` | `work-orders` | — | 🟡 | 待補 module-spec「PC → WO 審核」業務模組 |
+| F-002 | 客服審 PC → 開 WO | 客服 | `web/src/app/problem-cards/page.tsx`, `[id]/page.tsx` | `listProblemCards`, `getProblemCard`, `updateProblemCard`, `confirmProblemCard`, `resolveProblemCard`, `exportProblemCard`, **`convertToWorkOrder`** ✅, `POST /api/v1/resolve`, `POST /api/v1/dispatch/auto-match` | `work-orders` | — | 🟢 | ✅ 本 PR：補 `convertToWorkOrder` endpoint + `work_order_service.create_from_problem_card()` + frontend「開單」按鈕；解 production blocker（confirmProblemCard 不會觸發 WO 建立的 silent gap）|
 | F-003 | 自動派工規則引擎 | 系統 | `web/src/app/admin/dispatch-queue/page.tsx` | `runDispatch`, `listDispatchQueue` | `dispatch-queue`, `pool` | — | 🟢 | ✅ 權重 SSOT 已建：[[02-design/specs/dispatch-weights]] |
 | F-004 | 手動派工 | 客服 / 派工員 | `web/src/app/admin/dispatch-manual/page.tsx` | `assignWorkOrder`, `assignDispatch` | `dispatch-queue` | — | 🟢 | ✅ PR #45 dispatcher RBAC 升級（修補 P0）+ 客服繞過 audit log（10 test）|
 | F-005 | 技師接單 → 出發 | 技師 | `web/src/app/pool/page.tsx`, `my-orders/page.tsx` | `claimOrder`, `updateWorkOrderStatus` | `pool`, `work-orders` | — | 🟢 | — |

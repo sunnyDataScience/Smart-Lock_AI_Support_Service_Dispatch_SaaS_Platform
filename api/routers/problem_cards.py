@@ -1,17 +1,18 @@
-"""ProblemCards router — 2 read + 4 writes + 1 export。
+"""ProblemCards router — 2 read + 5 writes + 1 export。
 
 operationId 對齊 openapi.yaml：
   listProblemCards, getProblemCard, createProblemCard, updateProblemCard,
-  confirmProblemCard, resolveProblemCard, exportProblemCard
+  confirmProblemCard, resolveProblemCard, convertToWorkOrder, exportProblemCard
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Path, Query
+from fastapi import APIRouter, Depends, Path, Query, Response
 
 from core.deps import CurrentUser, require_tenant
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
+    ConvertProblemCardToWorkOrderRequest,
     ProblemCard,
     ProblemCardCreateRequest,
     ProblemCardEnvelope,
@@ -19,8 +20,10 @@ from models.generated import (
     ProblemCardPage,
     ProblemCardResolveRequest,
     ProblemCardUpdateRequest,
+    WorkOrder,
+    WorkOrderEnvelope,
 )
-from services import problem_card_service
+from services import problem_card_service, work_order_service
 
 router = APIRouter()
 
@@ -210,4 +213,32 @@ async def resolve_problem_card(
     payload = {"data": ProblemCard(**card).model_dump(mode="json")}
     if idem is not None:
         await idem.save(200, payload)
+    return payload
+
+
+@router.post(
+    "/problem-cards/{id}/convert-to-work-order",
+    operation_id="convertToWorkOrder",
+    summary="將已確認問題卡轉為工單（F-002 客服審 PC → 開 WO）",
+    response_model=WorkOrderEnvelope,
+)
+async def convert_to_work_order(
+    response: Response,
+    body: ConvertProblemCardToWorkOrderRequest | None = None,
+    id: str = Path(),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    wo, created = await work_order_service.create_from_problem_card(
+        tenant_id=user.tenant_id,
+        pc_id=id,
+        customer_address=body.customer_address if body else None,
+        customer_name=body.customer_name if body else None,
+        customer_phone=body.customer_phone if body else None,
+        created_by=user.user_id,
+    )
+    response.status_code = 201 if created else 200
+    payload = {"data": WorkOrder(**wo).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(response.status_code, payload)
     return payload

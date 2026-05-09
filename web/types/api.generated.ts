@@ -755,6 +755,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/problem-cards/{id}/convert-to-work-order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 將已確認問題卡轉為工單（F-002 客服審 PC → 開 WO）
+         * @description 將狀態為 `confirmed` 的 ProblemCard 轉換為新建立的 WorkOrder。
+         *     idempotent：同一張 PC 重複呼叫回傳既存 WO（200），新建回 201。
+         */
+        post: operations["convertToWorkOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/problem-cards/{id}/export": {
         parameters: {
             query?: never;
@@ -1055,9 +1076,12 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * 匯出 KPI / 營收 / 技師排行報表（CSV / PDF）
-         * @description 依 report_type 串接對應的 service 並轉成 CSV stream（同步）。
-         *     PDF 路徑目前回 422 + TODO（缺 PDF 渲染依賴 reportlab/weasyprint，待後續迭代）。
+         * 匯出 KPI / 營收 / 技師排行 / 結算報表（CSV / PDF）
+         * @description 依 report_type 串接對應的 service 並轉成 CSV / PDF。
+         *     - CSV：行內 stream（generator）；以 text/csv; charset=utf-8 回傳。
+         *     - PDF：reportlab + STSong-Light CID 字型整檔生成；以 application/pdf 回傳。
+         *     - report_type=accounting：reuse settlement_service.list_settlements
+         *       （單檔匯出上限 500 筆；超出時 PDF 副標會標 truncated）。
          *     admin / operations_manager / accountant 三種角色可呼叫；其他一律 403。
          */
         get: operations["exportReport"];
@@ -2500,6 +2524,18 @@ export interface components {
              * @enum {string}
              */
             resolution_layer: "L1" | "L2" | "L3";
+        };
+        /**
+         * @description F-002 PC → WO 轉換的可選覆寫欄位 — 缺省從 user profile 帶入。
+         *     customer_address：若 user.address 為空且本欄亦無提供 → 422。
+         */
+        ConvertProblemCardToWorkOrderRequest: {
+            /** @description 派工地址（覆寫 user profile） */
+            customer_address?: string;
+            /** @description 客戶姓名（覆寫 user.display_name） */
+            customer_name?: string;
+            /** @description 客戶電話（覆寫 user.phone） */
+            customer_phone?: string;
         };
         ProblemCardEnvelope: components["schemas"]["ApiResponseGeneric"] & {
             data?: components["schemas"]["ProblemCard"];
@@ -4828,6 +4864,69 @@ export interface operations {
             };
         };
     };
+    convertToWorkOrder: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["PathId"];
+            };
+            cookie?: never;
+        };
+        /** @description 可選的 customer_address / name / phone 覆寫；缺省從 user profile 帶入 */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ConvertProblemCardToWorkOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description 既存工單（idempotent hit） */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkOrderEnvelope"];
+                };
+            };
+            /** @description 已建立新工單 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkOrderEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description PC 狀態非 `confirmed`，無法轉換 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description customer_address 缺失（user profile 與 request body 皆無） */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
     exportProblemCard: {
         parameters: {
             query?: {
@@ -5359,7 +5458,7 @@ export interface operations {
     exportReport: {
         parameters: {
             query: {
-                report_type: "kpi" | "revenue" | "technician_ranking";
+                report_type: "kpi" | "revenue" | "technician_ranking" | "accounting";
                 format?: "csv" | "pdf";
                 /** @description 起始日期（YYYY-MM-DD）；revenue/technician_ranking 適用 */
                 from?: string;
@@ -5374,7 +5473,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description 報表 stream */
+            /** @description 報表 stream（CSV 走 text/csv；PDF 走 application/pdf） */
             200: {
                 headers: {
                     [name: string]: unknown;
