@@ -8,7 +8,7 @@ operationId 對齊 openapi.yaml：listRefundRequests, getRefundRequest, submitRe
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Path, Query
+from fastapi import APIRouter, Depends, Path, Query, Response
 
 from core.deps import CurrentUser, require_tenant
 from core.idempotency import IdempotencyContext, idempotency_guard
@@ -16,6 +16,7 @@ from models.generated import (
     RefundDecision,
     RefundEnvelope,
     RefundRequest,
+    RefundRequestCreateRequest,
     RefundRequestEnvelope,
     RefundRequestPage,
     RefundRequestStatus,
@@ -50,6 +51,45 @@ async def list_refund_requests(
         "next_cursor": page["next_cursor"],
         "has_more": page["has_more"],
     }
+
+
+@router.post(
+    "/refunds",
+    operation_id="createRefundRequest",
+    summary="建立退款申請（F-014 dual-trigger）",
+    response_model=RefundRequestEnvelope,
+)
+async def create_refund_request(
+    body: RefundRequestCreateRequest,
+    response: Response,
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    reason_code = (
+        body.reason_code.value
+        if hasattr(body.reason_code, "value")
+        else str(body.reason_code)
+    )
+    requested_by_role = (
+        body.requested_by_role.value
+        if hasattr(body.requested_by_role, "value")
+        else str(body.requested_by_role)
+    )
+    refund, created = await refund_service.create_refund_request(
+        tenant_id=user.tenant_id,
+        work_order_id=str(body.work_order_id),
+        amount=body.amount,
+        reason=body.reason,
+        reason_code=reason_code,
+        requested_by_role=requested_by_role,
+        requested_by=user.user_id,
+        requires_dual_sign=body.requires_dual_sign,
+    )
+    response.status_code = 201 if created else 200
+    payload = {"data": RefundRequest(**refund).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(response.status_code, payload)
+    return payload
 
 
 @router.get(

@@ -1,12 +1,14 @@
-"""SOP Drafts router — read + 寫入路徑（review / adopt）。
+"""SOP Drafts router — read + 寫入路徑（create / review / adopt）。
 
 operationId 對齊 openapi.yaml：
-  listSopDrafts, getSopDraft, reviewSopDraft, adoptSopDraft
+  listSopDrafts, getSopDraft, createSopDraft, reviewSopDraft, adoptSopDraft
+
+createSopDraft 5/9 17:00 補（ADR-009 §8 D2 自進化機制）。
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Path, Query
+from fastapi import APIRouter, Depends, Path, Query, Response
 
 from core.deps import CurrentUser, require_tenant
 from core.idempotency import IdempotencyContext, idempotency_guard
@@ -15,6 +17,7 @@ from models.generated import (
     CaseEntryEnvelope,
     SopDraft,
     SopDraftAdoptRequest,
+    SopDraftCreateRequest,
     SopDraftEnvelope,
     SopDraftPage,
     SopDraftReviewRequest,
@@ -48,6 +51,38 @@ async def list_sop_drafts(
         "next_cursor": page["next_cursor"],
         "has_more": page["has_more"],
     }
+
+
+@router.post(
+    "/sop-drafts",
+    operation_id="createSopDraft",
+    summary="建立 SOP 草稿（F-017 自進化；agent 異步觸發）",
+    response_model=SopDraftEnvelope,
+)
+async def create_sop_draft(
+    body: SopDraftCreateRequest,
+    response: Response,
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    source_type = (
+        body.source_type.value
+        if hasattr(body.source_type, "value")
+        else str(body.source_type)
+    )
+    draft, created = await sop_draft_service.create_draft(
+        tenant_id=user.tenant_id,
+        source_case_id=str(body.source_case_id),
+        source_type=source_type,
+        draft_content=body.draft_content,
+        model_version=body.model_version,
+        confidence_score=body.confidence_score,
+    )
+    response.status_code = 201 if created else 200
+    payload = {"data": SopDraft(**draft).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(response.status_code, payload)
+    return payload
 
 
 @router.get(

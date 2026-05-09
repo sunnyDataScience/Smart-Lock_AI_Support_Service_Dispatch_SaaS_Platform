@@ -147,6 +147,41 @@ paths:
                 $ref: '#/components/schemas/ConversationPage'
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [customer_service]
+      summary: 建立對話（F-001 LINE 報修首訊建 ServiceTicket，agent → admin bridge）
+      description: |
+        ADR-009 §8 D pattern：agent 在 LINE webhook 第一筆訊息呼叫此 endpoint
+        建立 conversation record。session_id 為業務 unique key，重複呼叫回 200 既存。
+      operationId: createConversation
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConversationCreateRequest'
+      responses:
+        '201':
+          description: 已建立新對話
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationEnvelope'
+        '200':
+          description: 既存對話（idempotent hit by session_id）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationEnvelope'
+        '422':
+          description: validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
 
   /api/v1/conversations/{id}:
     get:
@@ -423,6 +458,50 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RefundRequestPage'
+    post:
+      tags: [accounting]
+      summary: 建立退款申請（F-014 dual-trigger）
+      description: |
+        ADR-009 §8 D1 dual-trigger：(a) agent 偵測 LINE 退款意圖呼叫；
+        (b) CS 在 admin 主動代開。同 endpoint，requested_by_role 區分。
+        業務 unique key (work_order_id, reason_code) 防同 WO 同原因重複。
+      operationId: createRefundRequest
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundRequestCreateRequest'
+      responses:
+        '201':
+          description: 已建立新退款申請
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundRequestEnvelope'
+        '200':
+          description: 既存退款申請（idempotent hit）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundRequestEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 同 WO 同 reason_code 已有申請
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '422':
+          description: validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
 
   /api/v1/refunds/{id}:
     get:
@@ -516,6 +595,49 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WarrantyClaimPage'
+    post:
+      tags: [accounting]
+      summary: 建立保固申請（F-015 dual-trigger）
+      description: |
+        ADR-009 §8 D1 dual-trigger：(a) agent 偵測 LINE 保固意圖；
+        (b) CS 在 admin 代開。業務 unique key (work_order_id, claim_type)。
+      operationId: createWarrantyClaim
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WarrantyClaimCreateRequest'
+      responses:
+        '201':
+          description: 已建立新保固申請
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarrantyClaimEnvelope'
+        '200':
+          description: 既存保固申請（idempotent hit）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarrantyClaimEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 同 WO 同 claim_type 已有申請
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '422':
+          description: validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
 
   /api/v1/warranty-claims/{id}:
     get:
@@ -1664,6 +1786,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SopDraftPage'
+    post:
+      tags: [knowledge_base]
+      summary: 建立 SOP 草稿（F-017 自進化機制；agent 自動觸發）
+      description: |
+        ADR-009 §8 D2：每筆 case resolved 且 customer_rating>=4 → agent 異步
+        LLM extract → 呼此 endpoint。業務 unique key (case_entry_id, model_version)
+        允許同案不同 LLM 版本重出 draft。
+      operationId: createSopDraft
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SopDraftCreateRequest'
+      responses:
+        '201':
+          description: 已建立 SOP 草稿
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SopDraftEnvelope'
+        '200':
+          description: 既存草稿（同 case + 同 model_version idempotent hit）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SopDraftEnvelope'
+        '422':
+          description: validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
 
   /api/v1/sop-drafts/{id}:
     get:
@@ -3166,6 +3324,7 @@ components:
       required: [id, line_user_id, display_name, status, message_count, created_at, updated_at]
       properties:
         id: { type: string, format: uuid }
+        document_number: { type: [string, "null"], maxLength: 30, description: 'ServiceTicket 編號 ST-YYYYMMDD-NNNN（ERP 引用號）' }
         line_user_id: { type: string }
         display_name: { type: string }
         status: { $ref: '#/components/schemas/ConversationStatus' }
@@ -3266,6 +3425,7 @@ components:
       required: [id, problem_card_id, status, district, address, brand, model, urgency, created_at, updated_at]
       properties:
         id: { type: string, format: uuid }
+        document_number: { type: [string, "null"], maxLength: 30, description: 'WorkOrder 編號 WO-YYYYMMDD-NNNN（ERP 引用號）' }
         problem_card_id: { type: string, format: uuid }
         technician_id:
           type: [string, "null"]
@@ -3395,6 +3555,7 @@ components:
         - updated_at
       properties:
         id: { type: string, format: uuid }
+        document_number: { type: [string, "null"], maxLength: 30, description: 'WarrantyClaim 編號 WC-YYYYMMDD-NNNN（ERP 引用號）' }
         work_order_id: { type: [string, "null"], format: uuid }
         customer_id: { type: string, format: uuid }
         device_brand: { type: string }
@@ -3477,6 +3638,7 @@ components:
       required: [id, work_order_id, requested_by, amount, reason, status, created_at, updated_at]
       properties:
         id: { type: string, format: uuid }
+        document_number: { type: [string, "null"], maxLength: 30, description: 'RefundMemo 編號 RM-YYYYMMDD-NNNN（ERP 引用號）' }
         work_order_id: { type: string, format: uuid }
         invoice_id: { type: [string, "null"], format: uuid }
         complaint_id: { type: [string, "null"], format: uuid }
@@ -4398,6 +4560,128 @@ components:
           maxLength: 50
           description: 客戶電話（覆寫 user.phone）
 
+    ConversationCreateRequest:
+      type: object
+      description: |
+        F-001 ServiceTicket 建立 (ADR-009 D pattern bridge)。agent 在 LINE
+        webhook 第一筆訊息呼叫；session_id 為業務 unique key，重複回 200。
+      required: [line_user_id, session_id]
+      properties:
+        line_user_id:
+          type: string
+          maxLength: 255
+          description: LINE Platform User ID (U + 32 hex chars)
+        session_id:
+          type: string
+          maxLength: 255
+          description: 業務 unique key（對 line_user_id + 30 min idle window）
+        display_name:
+          type: string
+          maxLength: 255
+          description: LINE 顯示名稱（從 LINE Get Profile API 取得）
+        channel:
+          type: string
+          enum: [line, web, voice]
+          default: line
+          description: 進入通道（V1.0 僅 line；V2.0 開放 web/voice）
+
+    RefundRequestCreateRequest:
+      type: object
+      description: |
+        F-014 RefundCreditMemo 建立（dual-trigger）。業務 unique key
+        (work_order_id, reason_code) 防同 WO 同原因重複。
+      required: [work_order_id, amount, reason, reason_code, requested_by_role]
+      properties:
+        work_order_id:
+          type: string
+          format: uuid
+        amount:
+          type: string
+          pattern: '^-?\d+(\.\d{1,2})?$'
+          description: 退款金額
+        reason:
+          type: string
+          maxLength: 500
+          description: 退款原因敘述
+        reason_code:
+          type: string
+          enum: [defective_product, service_quality, customer_dissatisfaction, billing_error, other]
+          description: 退款原因分類（業務 key 一部分）
+        requires_dual_sign:
+          type: boolean
+          description: |
+            是否需雙簽。若未指定，後端依 amount vs `dual_sign_threshold` 自動
+            判斷。傳入 true 強制雙簽（即使金額未達門檻）。
+        requested_by_role:
+          type: string
+          enum: [customer_via_line, customer_service, manager]
+          description: |
+            觸發路徑（dual-trigger 區分）。customer_via_line 由 agent 從 LINE
+            意圖偵測；customer_service / manager 由 admin web 代開。
+
+    WarrantyClaimCreateRequest:
+      type: object
+      description: |
+        F-015 WarrantyClaim 建立（dual-trigger）。業務 unique key
+        (work_order_id, claim_type)。
+      required: [customer_id, device_brand, device_model, claim_type, requested_by_role]
+      properties:
+        work_order_id:
+          type: [string, "null"]
+          format: uuid
+          description: 關聯工單（可選，customer 主動申訴可能無 WO）
+        customer_id:
+          type: string
+          format: uuid
+        device_brand:
+          type: string
+          maxLength: 100
+        device_model:
+          type: string
+          maxLength: 100
+        claim_type:
+          type: string
+          enum: [defective, malfunction, premature_failure, missing_parts, other]
+          description: 申訴類型（業務 key 一部分）
+        purchase_date:
+          type: [string, "null"]
+          format: date
+        dispute_reason:
+          type: string
+          maxLength: 500
+          description: 客戶敘述
+        requested_by_role:
+          type: string
+          enum: [customer_via_line, customer_service, technician]
+
+    SopDraftCreateRequest:
+      type: object
+      description: |
+        F-017 SopDraft 建立（agent 自動觸發；case resolved + rating>=4）。
+        業務 unique key (case_entry_id, model_version) 允許同案不同 LLM 版本。
+      required: [draft_content, model_version, source_case_id]
+      properties:
+        source_case_id:
+          type: string
+          format: uuid
+          description: 來源 case_entry / problem_card / conversation ID
+        source_type:
+          type: string
+          enum: [case_entry, problem_card, conversation]
+          default: problem_card
+        draft_content:
+          type: string
+          description: LLM extracted SOP markdown content
+        model_version:
+          type: string
+          maxLength: 50
+          description: 產生此 draft 的 LLM 模型 + 版本（idempotency key 一部分）
+        confidence_score:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: LLM extract confidence
+
     ProblemCardEnvelope:
       allOf:
         - $ref: '#/components/schemas/ApiResponseGeneric'
@@ -4578,6 +4862,7 @@ components:
       required: [id, title, steps, status, created_at]
       properties:
         id: { type: string, format: uuid }
+        document_number: { type: [string, "null"], maxLength: 30, description: 'SopDraft 編號 SOP-YYYYMMDD-NNNN（ERP 引用號）' }
         case_event_id: { type: [string, "null"], format: uuid }
         problem_card_id: { type: [string, "null"], format: uuid }
         title: { type: string, maxLength: 200 }

@@ -74,6 +74,9 @@ class ResolutionLayer(Enum):
 
 class Conversation(BaseModel):
     id: UUID
+    document_number: constr(max_length=30) | None = Field(
+        None, description='ServiceTicket 編號 ST-YYYYMMDD-NNNN（ERP 引用號）'
+    )
     line_user_id: str
     display_name: str
     status: ConversationStatus
@@ -147,6 +150,9 @@ class WorkOrderStatus(StrEnum):
 
 class WorkOrder(BaseModel):
     id: UUID
+    document_number: constr(max_length=30) | None = Field(
+        None, description='WorkOrder 編號 WO-YYYYMMDD-NNNN（ERP 引用號）'
+    )
     problem_card_id: UUID
     technician_id: UUID | None = None
     status: WorkOrderStatus
@@ -231,6 +237,9 @@ class WarrantyClaimStatus(StrEnum):
 
 class WarrantyClaim(BaseModel):
     id: UUID
+    document_number: constr(max_length=30) | None = Field(
+        None, description='WarrantyClaim 編號 WC-YYYYMMDD-NNNN（ERP 引用號）'
+    )
     work_order_id: UUID | None = None
     customer_id: UUID
     device_brand: str
@@ -292,6 +301,9 @@ class RefundRequestStatus(StrEnum):
 
 class RefundRequest(BaseModel):
     id: UUID
+    document_number: constr(max_length=30) | None = Field(
+        None, description='RefundMemo 編號 RM-YYYYMMDD-NNNN（ERP 引用號）'
+    )
     work_order_id: UUID
     invoice_id: UUID | None = None
     complaint_id: UUID | None = None
@@ -1033,6 +1045,103 @@ class ConvertProblemCardToWorkOrderRequest(BaseModel):
     )
 
 
+class ConversationChannel(StrEnum):
+    line = 'line'
+    web = 'web'
+    voice = 'voice'
+
+
+class ConversationCreateRequest(BaseModel):
+    line_user_id: constr(max_length=255) = Field(
+        ..., description='LINE Platform User ID (U + 32 hex chars)'
+    )
+    session_id: constr(max_length=255) = Field(
+        ..., description='業務 unique key（對 line_user_id + 30 min idle window）'
+    )
+    display_name: constr(max_length=255) | None = Field(
+        None, description='LINE 顯示名稱（從 LINE Get Profile API 取得）'
+    )
+    channel: ConversationChannel = Field(
+        ConversationChannel.line, description='進入通道'
+    )
+
+
+class RefundReasonCode(StrEnum):
+    defective_product = 'defective_product'
+    service_quality = 'service_quality'
+    customer_dissatisfaction = 'customer_dissatisfaction'
+    billing_error = 'billing_error'
+    other = 'other'
+
+
+class RefundRequestedByRole(StrEnum):
+    customer_via_line = 'customer_via_line'
+    customer_service = 'customer_service'
+    manager = 'manager'
+
+
+class RefundRequestCreateRequest(BaseModel):
+    work_order_id: UUID
+    amount: constr(pattern=r'^-?\d+(\.\d{1,2})?$') = Field(..., description='退款金額')
+    reason: constr(max_length=500) = Field(..., description='退款原因敘述')
+    reason_code: RefundReasonCode = Field(
+        ..., description='退款原因分類（業務 key 一部分）'
+    )
+    requires_dual_sign: bool | None = Field(
+        None, description='強制雙簽（若 None 由後端依金額閾值判斷）'
+    )
+    requested_by_role: RefundRequestedByRole = Field(
+        ..., description='觸發路徑（dual-trigger 區分）'
+    )
+
+
+class WarrantyClaimType(StrEnum):
+    defective = 'defective'
+    malfunction = 'malfunction'
+    premature_failure = 'premature_failure'
+    missing_parts = 'missing_parts'
+    other = 'other'
+
+
+class WarrantyRequestedByRole(StrEnum):
+    customer_via_line = 'customer_via_line'
+    customer_service = 'customer_service'
+    technician = 'technician'
+
+
+class WarrantyClaimCreateRequest(BaseModel):
+    work_order_id: UUID | None = None
+    customer_id: UUID
+    device_brand: constr(max_length=100)
+    device_model: constr(max_length=100)
+    claim_type: WarrantyClaimType
+    purchase_date: date | None = None
+    dispute_reason: constr(max_length=500) | None = None
+    requested_by_role: WarrantyRequestedByRole
+
+
+class SopDraftSourceType(StrEnum):
+    case_entry = 'case_entry'
+    problem_card = 'problem_card'
+    conversation = 'conversation'
+
+
+class SopDraftCreateRequest(BaseModel):
+    source_case_id: UUID = Field(
+        ..., description='來源 case_entry / problem_card / conversation ID'
+    )
+    source_type: SopDraftSourceType = Field(
+        SopDraftSourceType.problem_card, description='來源類型'
+    )
+    draft_content: str = Field(..., description='LLM extracted SOP markdown content')
+    model_version: constr(max_length=50) = Field(
+        ..., description='產生此 draft 的 LLM 模型 + 版本（idempotency key 一部分）'
+    )
+    confidence_score: confloat(ge=0.0, le=1.0) | None = Field(
+        None, description='LLM extract confidence'
+    )
+
+
 class ProblemCardEnvelope(ApiResponseGeneric):
     data: ProblemCard | None = Field(None, description='實際載荷，由各 endpoint 具體化')
 
@@ -1154,6 +1263,9 @@ class SopDraftStep(BaseModel):
 
 class SopDraft(BaseModel):
     id: UUID
+    document_number: constr(max_length=30) | None = Field(
+        None, description='SopDraft 編號 SOP-YYYYMMDD-NNNN（ERP 引用號）'
+    )
     case_event_id: UUID | None = None
     problem_card_id: UUID | None = None
     title: constr(max_length=200)

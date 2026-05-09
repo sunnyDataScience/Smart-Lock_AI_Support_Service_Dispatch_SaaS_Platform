@@ -82,6 +82,7 @@ def _conv_row_to_dict(row: tuple) -> dict:
         "message_count": int(row[5] or 0),
         "created_at": row[6].isoformat() if row[6] else None,
         "updated_at": row[7].isoformat() if row[7] else None,
+        "document_number": row[8] if len(row) > 8 else None,
     }
 
 
@@ -103,7 +104,7 @@ def _msg_row_to_dict(row: tuple) -> dict:
 
 _CONV_SELECT = (
     "c.id, u.line_user_id, u.display_name, c.status, c.resolution_layer, "
-    "c.message_count, c.created_at, c.updated_at"
+    "c.message_count, c.created_at, c.updated_at, c.document_number"
 )
 
 
@@ -168,6 +169,72 @@ async def get_conversation(*, tenant_id: str, conv_id: str) -> dict:
     if not row:
         raise ApiError("NOT_FOUND", "Conversation not found", 404)
     return _conv_row_to_dict(row)
+
+
+async def create_conversation(
+    *,
+    tenant_id: str,
+    line_user_id: str,
+    session_id: str,
+    display_name: str | None = None,
+    channel: str = "line",
+) -> tuple[dict, bool]:
+    """F-001 ServiceTicket 建立（ADR-009 D pattern bridge）。
+
+    流程:
+      1. session_id idempotency check（業務 unique key）→ 既存回 200
+      2. line_user_id upsert users 表（ON CONFLICT DO UPDATE last_active_at）
+      3. INSERT conversation + 自動 generate document_number (ST-YYYYMMDD-NNNN)
+      4. 回 (conversation_dict, created_flag)
+
+    Returns:
+        (conv_dict, created_flag): created=True → HTTP 201；created=False → HTTP 200
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    # 1. Idempotency check: session_id 是否已存在?
+    cur = await db_module._conn.execute(
+        "SELECT c.id FROM conversations c "
+        "JOIN users u ON c.user_id = u.id "
+        "WHERE c.session_id = %s AND u.tenant_id = %s::uuid LIMIT 1",
+        (session_id, tenant_id),
+    )
+    existing = await cur.fetchone()
+    if existing:
+        conv = await get_conversation(tenant_id=tenant_id, conv_id=str(existing[0]))
+        return conv, False
+
+    # 2. Upsert user (line_user_id UNIQUE 約束)
+    cur = await db_module._conn.execute(
+        "INSERT INTO users (line_user_id, display_name, tenant_id, role, last_active_at) "
+        "VALUES (%s, %s, %s::uuid, 'line_user', NOW()) "
+        "ON CONFLICT (line_user_id) DO UPDATE SET "
+        "  display_name = COALESCE(EXCLUDED.display_name, users.display_name), "
+        "  last_active_at = NOW() "
+        "RETURNING id",
+        (line_user_id, display_name, tenant_id),
+    )
+    user_row = await cur.fetchone()
+    if not user_row:
+        raise ApiError("INTERNAL_ERROR", "Failed to upsert user", 500)
+    user_id = str(user_row[0])
+
+    # 3. INSERT conversation + 自動 doc number
+    cur = await db_module._conn.execute(
+        "INSERT INTO conversations "
+        "  (user_id, session_id, status, document_number) "
+        "VALUES (%s::uuid, %s, 'active', generate_doc_number('ST', 'doc_seq_st')) "
+        "RETURNING id",
+        (user_id, session_id),
+    )
+    new_row = await cur.fetchone()
+    if not new_row:
+        raise ApiError("INTERNAL_ERROR", "Failed to insert conversation", 500)
+    new_conv_id = str(new_row[0])
+
+    conv = await get_conversation(tenant_id=tenant_id, conv_id=new_conv_id)
+    return conv, True
 
 
 async def list_messages(

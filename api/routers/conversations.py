@@ -1,17 +1,19 @@
-"""Conversations router — 4 endpoints。
+"""Conversations router — 5 endpoints。
 
 operationId 對齊 openapi.yaml：
-  listConversations, getConversation, listConversationMessages, sendChatMessage
+  listConversations, getConversation, createConversation,
+  listConversationMessages, sendChatMessage
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Path, Query
+from fastapi import APIRouter, Depends, Path, Query, Response
 
 from core.deps import CurrentUser, require_tenant
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
     Conversation,
+    ConversationCreateRequest,
     ConversationEnvelope,
     ConversationPage,
     ConversationStatus,
@@ -47,6 +49,35 @@ async def list_conversations(
         "next_cursor": page["next_cursor"],
         "has_more": page["has_more"],
     }
+
+
+@router.post(
+    "/conversations",
+    operation_id="createConversation",
+    summary="建立對話（F-001 LINE 報修首訊建 ServiceTicket）",
+    response_model=ConversationEnvelope,
+)
+async def create_conversation(
+    body: ConversationCreateRequest,
+    response: Response,
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    channel = (
+        body.channel.value if hasattr(body.channel, "value") else str(body.channel)
+    )
+    conv, created = await conversation_service.create_conversation(
+        tenant_id=user.tenant_id,
+        line_user_id=body.line_user_id,
+        session_id=body.session_id,
+        display_name=body.display_name,
+        channel=channel,
+    )
+    response.status_code = 201 if created else 200
+    payload = {"data": Conversation(**conv).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(response.status_code, payload)
+    return payload
 
 
 @router.get(

@@ -68,6 +68,7 @@ def _row_to_dict(row: tuple) -> dict:
         "discount_offered": _coerce_decimal(row[14]),
         "created_at": row[15].isoformat() if row[15] else None,
         "updated_at": row[16].isoformat() if row[16] else None,
+        "document_number": row[17] if len(row) > 17 else None,
     }
 
 
@@ -75,7 +76,7 @@ _SELECT = (
     "w.id, w.work_order_id, w.customer_id, w.device_brand, w.device_model, "
     "w.purchase_date, w.warranty_start_date, w.warranty_end_date, w.claim_date, "
     "w.is_within_warranty, w.status, w.dispute_reason, w.verification_source, "
-    "w.resolution, w.discount_offered, w.created_at, w.updated_at"
+    "w.resolution, w.discount_offered, w.created_at, w.updated_at, w.document_number"
 )
 
 _TENANT_JOIN = (
@@ -159,6 +160,94 @@ async def get_warranty_claim(*, tenant_id: str, claim_id: str) -> dict:
     if not row:
         raise ApiError("NOT_FOUND", f"Warranty claim {claim_id} not found", 404)
     return _row_to_dict(row)
+
+
+async def create_warranty_claim(
+    *,
+    tenant_id: str,
+    customer_id: str,
+    device_brand: str,
+    device_model: str,
+    claim_type: str,
+    requested_by_role: str,
+    work_order_id: str | None = None,
+    purchase_date: str | None = None,
+    dispute_reason: str | None = None,
+) -> tuple[dict, bool]:
+    """F-015 WarrantyClaim 建立（ADR-009 D pattern, dual-trigger）。
+
+    Idempotency: business unique key (work_order_id, claim_type) — 同 WO 同
+    類型若已有 active row（非 rejected/closed），回 200 既存。
+
+    customer_id 必須屬於 tenant；warranty_start_date / warranty_end_date /
+    is_within_warranty 在本實作預設用 90 天試算（後續可改抓 customer 購入紀錄）。
+
+    Returns: (claim_dict, created_flag)
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    # 1. 驗證 customer 同 tenant
+    cur = await db_module._conn.execute(
+        "SELECT tenant_id FROM users WHERE id = %s::uuid",
+        (customer_id,),
+    )
+    user_row = await cur.fetchone()
+    if not user_row:
+        raise ApiError("NOT_FOUND", "Customer not found", 404)
+    if str(user_row[0]) != tenant_id:
+        raise ApiError("NOT_FOUND", "Customer not found", 404)  # tenant 偽裝 404
+
+    # 2. Idempotency check（僅當 work_order_id 提供時）
+    if work_order_id:
+        cur = await db_module._conn.execute(
+            "SELECT id FROM warranty_claims "
+            "WHERE work_order_id = %s::uuid AND claim_type = %s "
+            "  AND status NOT IN ('rejected', 'closed') "
+            "ORDER BY created_at ASC LIMIT 1",
+            (work_order_id, claim_type),
+        )
+        existing = await cur.fetchone()
+        if existing:
+            claim = await get_warranty_claim(
+                tenant_id=tenant_id, claim_id=str(existing[0]),
+            )
+            return claim, False
+
+    # 3. 預設保固試算：用 purchase_date + 90 天，缺 purchase_date 則用 today + 90 天
+    #    後續可改抓真實合約日期；此處保持 MVP 簡單預設。
+    purchase_date_clause = "%s::date" if purchase_date else "CURRENT_DATE"
+    purchase_date_arg = [purchase_date] if purchase_date else []
+
+    # 4. INSERT + 自動 doc number
+    cur = await db_module._conn.execute(
+        f"INSERT INTO warranty_claims "
+        f"  (work_order_id, customer_id, device_brand, device_model, "
+        f"   purchase_date, warranty_start_date, warranty_end_date, "
+        f"   claim_date, is_within_warranty, status, dispute_reason, "
+        f"   claim_type, requested_by_role, document_number) "
+        f"VALUES (%s, %s::uuid, %s, %s, "
+        f"        {purchase_date_clause}, "
+        f"        COALESCE({purchase_date_clause}, CURRENT_DATE), "
+        f"        COALESCE({purchase_date_clause}, CURRENT_DATE) + INTERVAL '90 days', "
+        f"        CURRENT_DATE, "
+        f"        (COALESCE({purchase_date_clause}, CURRENT_DATE) + INTERVAL '90 days') >= CURRENT_DATE, "
+        f"        'filed', %s, %s, %s, generate_doc_number('WC', 'doc_seq_wc')) "
+        f"RETURNING id",
+        (
+            work_order_id, customer_id, device_brand, device_model,
+            *purchase_date_arg, *purchase_date_arg, *purchase_date_arg,
+            *purchase_date_arg,
+            dispute_reason, claim_type, requested_by_role,
+        ),
+    )
+    new_row = await cur.fetchone()
+    if not new_row:
+        raise ApiError("INTERNAL_ERROR", "Failed to insert warranty claim", 500)
+    new_claim_id = str(new_row[0])
+
+    claim = await get_warranty_claim(tenant_id=tenant_id, claim_id=new_claim_id)
+    return claim, True
 
 
 # 決策狀態機：只有 filed / in_progress 可下決策；approved / rejected / closed 為終局
