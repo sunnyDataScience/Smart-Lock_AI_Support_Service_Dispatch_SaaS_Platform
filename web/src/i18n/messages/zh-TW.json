@@ -407,5 +407,303 @@
         }
       }
     }
+  },
+  "admin": {
+    "common": {
+      "refresh": "重新整理",
+      "connected": "已連線",
+      "disconnected": "連線失敗",
+      "lastUpdated": "最後更新：{time}",
+      "totalCount": "共 {count} 筆",
+      "totalCountMore": "共 {count}+ 筆",
+      "loadMore": "載入更多",
+      "loading": "載入中…",
+      "submitting": "送出中…",
+      "submit": "確認送出",
+      "cancel": "取消",
+      "comingSoon": "即將推出",
+      "all": "全部",
+      "clearFilter": "清除篩選",
+      "noData": "目前無資料",
+      "back": "返回",
+      "approvalFailed": "審批失敗：{error}"
+    },
+    "refunds": {
+      "title": "退款審核佇列",
+      "decision": {
+        "approve": "核准退款",
+        "reject": "拒絕退款",
+        "escalate": "升級審批",
+        "submitted": "{label}已送出"
+      },
+      "sla": {
+        "tier2": "申請 ≤ 2 小時",
+        "tier8": "申請 ≤ 8 小時",
+        "tierLong": "申請 > 8 小時"
+      },
+      "modal": {
+        "title": "退款審批決策",
+        "refundId": "退款編號：",
+        "amount": "金額：",
+        "originalReason": "原始原因：{reason}",
+        "approveHint": "確認核准後，狀態變更為「已核准」。後續仍需出納執行打款。",
+        "rejectHint": "拒絕後申請結束，需在原因欄位寫明客戶可理解的拒絕理由。",
+        "escalateHint": "金額或情境超出本人權限時使用，狀態變更為「已升級」。",
+        "reasonLabel": "審批原因（必填，最多 500 字）",
+        "reasonPlaceholder": "請說明本次決策的依據（將寫入 approval_chain）",
+        "charCount": "{count} / 500",
+        "dualSignNote": "本案標示需雙簽，MVP 將於單步寫入後保留稽核紀錄。"
+      }
+    },
+    "disputes": {
+      "title": "爭議案件處理",
+      "tabs": {
+        "all": "全部",
+        "filed": "待處理",
+        "in_review": "調解中",
+        "resolved": "已結案",
+        "rejected": "已駁回"
+      },
+      "type": {
+        "label": "類型",
+        "pricing": "價格",
+        "quality": "品質",
+        "warranty": "保固",
+        "cancellation_fee": "取消費",
+        "settlement": "結算"
+      },
+      "description": "爭議描述",
+      "resolution": "調解結果：",
+      "evidence": {
+        "customer": "客戶方證據",
+        "technician": "技師方證據",
+        "countComing": "{count} 件（縮圖即將推出）",
+        "thumbnailPending": "證據縮圖渲染待媒體上傳路徑上線後接入。"
+      },
+      "form": {
+        "title": "調解處理",
+        "noteLabel": "調解備註",
+        "notePlaceholder": "請輸入調解備註內容...",
+        "amountLabel": "調解金額 NT$",
+        "methodLabel": "調解方式",
+        "methodPlaceholder": "部分退款",
+        "saveDraft": "儲存草稿",
+        "confirmResolution": "確認調解結果"
+      }
+    },
+    "warranty": {
+      "title": "保固申請管理",
+      "tabs": {
+        "all": "全部",
+        "filed": "已申請",
+        "in_progress": "處理中",
+        "approved": "已核准",
+        "rejected": "已拒絕",
+        "closed": "已結案"
+      },
+      "ruleNotice": "保固起算日以「交屋日期」為準，非「入住日期」。此為系統核心規則，所有保固計算均依據此原則。",
+      "searchPlaceholder": "搜尋案件編號、設備或客戶...",
+      "toast": {
+        "approved": "已核准保固",
+        "rejected": "已拒絕保固",
+        "startReview": "已轉入處理中"
+      },
+      "decision": {
+        "approve": "核准",
+        "reject": "拒絕",
+        "startReview": "轉入處理中",
+        "approveHint": "保固有效或經審核同意：可附保固外折讓金額。",
+        "rejectHint": "已過保固或不符合條件：必填拒絕原因供客戶查證。",
+        "startReviewHint": "需蒐證或聯繫客戶：暫推進到 in_progress，後續再下最終決策。"
+      },
+      "modal": {
+        "title": "保固審批決策",
+        "warrantyUntil": "保固至",
+        "withinWarranty": "（保固內）",
+        "outOfWarranty": "（已過保）",
+        "resolutionLabel": "審批意見 / 處理結果",
+        "resolutionMaxHint": "（最多 500 字）",
+        "resolutionPlaceholderApprove": "例如：保固期內主板異常，核准免費更換",
+        "resolutionPlaceholderReject": "例如：已過保固期 18 個月，且設備外觀有人為損傷痕跡",
+        "resolutionPlaceholderReview": "例如：客戶補件中，待提供購買發票後再覆審",
+        "discountLabel": "折讓金額 / 折扣（NT$，可留空）",
+        "discountPlaceholder": "例如：1500.00 或 0 表示完全免費",
+        "discountFormatError": "金額格式應為小數兩位內的數字",
+        "decisionFinalHint": "送出後狀態將推進到「{label}」；approve / reject 為終局，無法再變更。"
+      }
+    },
+    "sentiment": {
+      "title": "負面情緒告警",
+      "flowNotice": "狀態流向：未處理 → 已確認 → 已結案。確認 / 結案後會寫入備註並記錄到後端，已結案無法回退。",
+      "filterLabel": "狀態",
+      "empty": "沒有符合條件的告警紀錄",
+      "alreadyResolved": "已結案",
+      "status": {
+        "pending": "未處理",
+        "acknowledged": "已確認",
+        "resolved": "已結案"
+      },
+      "label": {
+        "very_negative": "極度負面",
+        "negative": "負面",
+        "neutral": "中性",
+        "positive": "正面"
+      },
+      "action": {
+        "acknowledge": "確認",
+        "resolve": "結案"
+      },
+      "cols": {
+        "time": "時間",
+        "status": "狀態",
+        "sentiment": "情緒",
+        "confidence": "信心",
+        "messageSnippet": "客戶訊息片段",
+        "keywords": "關鍵字",
+        "conversation": "對話",
+        "action": "處置"
+      },
+      "modal": {
+        "titleResolve": "結案告警",
+        "titleAcknowledge": "確認告警",
+        "closeAria": "關閉",
+        "noteLabel": "管理員備註",
+        "notePlaceholderResolve": "結案時請填寫處置摘要（如：已退費 / 主管已親洽）",
+        "notePlaceholderAcknowledge": "（選填）填寫已聯繫紀錄、預計處理時間等",
+        "noteCount": "{count} / 1000",
+        "noteOverLimit": "超過 1000 字上限",
+        "required": "必填",
+        "submitResolve": "確認結案",
+        "submitAcknowledge": "確認"
+      }
+    },
+    "inventory": {
+      "title": "物料庫存管理",
+      "addItem": "新增物料",
+      "addItemTooltip": "即將推出（需 createInventoryItem 端點）",
+      "summary": {
+        "current": "本頁品項",
+        "currentMore": "本頁品項 (+)",
+        "low": "低庫存",
+        "out": "缺貨"
+      },
+      "searchPlaceholder": "搜尋物料名稱或料號（本頁過濾）...",
+      "categoryLabel": "物料類別",
+      "categoryTooltip": "即將推出（需 server-side category filter）",
+      "stockStatusLabel": "庫存狀態",
+      "stockStatusTooltip": "即將推出（需 server-side status filter）"
+    },
+    "audit": {
+      "title": "稽核日誌",
+      "export": "匯出",
+      "filterLabel": "事件類型",
+      "empty": "沒有符合條件的稽核紀錄",
+      "logType": {
+        "api_call": "API 呼叫",
+        "llm_interaction": "LLM 互動",
+        "rag_retrieval": "RAG 檢索",
+        "admin_action": "管理操作",
+        "agent_message": "Agent 訊息"
+      },
+      "actor": {
+        "system": "系統",
+        "admin": "Admin"
+      },
+      "cols": {
+        "time": "時間",
+        "logType": "事件類型",
+        "actor": "操作者",
+        "action": "動作"
+      },
+      "json": {
+        "copy": "Copy JSON",
+        "copied": "已複製",
+        "copyFailed": "複製失敗"
+      }
+    },
+    "roles": {
+      "title": "角色與權限管理",
+      "createCustom": "建立自訂角色",
+      "createCustomTooltip": "即將推出（需自訂角色 CRUD endpoint）",
+      "f019Notice": "F-019：admin / tenant_admin 可動態調整角色權限；變更會透過 `/realtime/rbac` 即時推送給所有相關 session。階層強制：actor 必須嚴格高於目標角色。",
+      "loadingRoles": "載入中…",
+      "noRoles": "尚無角色資料",
+      "systemBadge": "系統",
+      "userCount": "使用者 {count}",
+      "matrixTitle": "{name} 權限矩陣",
+      "matrixHint": "（鎖定圖示代表系統強制；F-019 啟用後可由 admin 動態調整）",
+      "editPermissions": "編輯權限",
+      "editTooltipNoRbac": "您的角色階層不足以授權此權限",
+      "editTooltipNoTier": "您的角色階層不足以授權此角色",
+      "savedToast": "已更新「{name}」的權限矩陣",
+      "cols": {
+        "resource": "資源",
+        "read": "讀取",
+        "write": "寫入",
+        "delete": "刪除"
+      },
+      "resource": {
+        "work_orders": "工單",
+        "technicians": "技師",
+        "customers": "客戶",
+        "accounting": "結算",
+        "invoices": "發票",
+        "refunds": "退款",
+        "inventory": "庫存",
+        "warranty": "保固",
+        "disputes": "爭議",
+        "audit_logs": "稽核日誌",
+        "roles": "角色權限",
+        "system_settings": "系統設定"
+      }
+    },
+    "scheduleRequests": {
+      "title": "排班申請審核",
+      "breadcrumb": "首頁 > 派工管理 > 排班申請審核",
+      "tabs": {
+        "pending": "待審核",
+        "approved": "已核准",
+        "rejected": "已拒絕",
+        "cancelled": "已取消",
+        "all": "全部"
+      },
+      "type": {
+        "leave": "休假",
+        "standby": "備勤"
+      },
+      "status": {
+        "pending": "待審核",
+        "approved": "已核准",
+        "rejected": "已拒絕",
+        "cancelled": "已取消"
+      },
+      "emptyPending": "目前無待審核申請",
+      "emptyOther": "無 {label} 的申請",
+      "cols": {
+        "technician": "技師",
+        "type": "類型",
+        "dateRange": "起訖日期",
+        "reason": "事由",
+        "status": "狀態",
+        "createdAt": "申請時間",
+        "actions": "操作"
+      },
+      "approvalNote": "審批備註：{note}",
+      "approve": "核准",
+      "reject": "拒絕",
+      "toast": {
+        "approved": "已核准申請",
+        "rejected": "已拒絕申請"
+      },
+      "modal": {
+        "titleApprove": "核准申請",
+        "titleReject": "拒絕申請",
+        "noteLabel": "審批備註（選填，會記錄到稽核）：",
+        "notePlaceholder": "例：核准 / 改期建議 / 拒絕原因...",
+        "processing": "處理中…",
+        "confirmApprove": "確認核准",
+        "confirmReject": "確認拒絕"
+      }
+    }
   }
 }

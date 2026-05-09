@@ -407,5 +407,303 @@
         }
       }
     }
+  },
+  "admin": {
+    "common": {
+      "refresh": "Refresh",
+      "connected": "Connected",
+      "disconnected": "Disconnected",
+      "lastUpdated": "Last updated: {time}",
+      "totalCount": "{count} record(s)",
+      "totalCountMore": "{count}+ record(s)",
+      "loadMore": "Load more",
+      "loading": "Loading…",
+      "submitting": "Submitting…",
+      "submit": "Submit",
+      "cancel": "Cancel",
+      "comingSoon": "Coming soon",
+      "all": "All",
+      "clearFilter": "Clear filter",
+      "noData": "No data",
+      "back": "Back",
+      "approvalFailed": "Approval failed: {error}"
+    },
+    "refunds": {
+      "title": "Refund review queue",
+      "decision": {
+        "approve": "Approve refund",
+        "reject": "Reject refund",
+        "escalate": "Escalate review",
+        "submitted": "{label} submitted"
+      },
+      "sla": {
+        "tier2": "Filed ≤ 2 hours",
+        "tier8": "Filed ≤ 8 hours",
+        "tierLong": "Filed > 8 hours"
+      },
+      "modal": {
+        "title": "Refund decision",
+        "refundId": "Refund ID:",
+        "amount": "Amount:",
+        "originalReason": "Original reason: {reason}",
+        "approveHint": "After approval, status moves to \"Approved\". Cashier still needs to release the payment.",
+        "rejectHint": "Rejection ends the request; please write a customer-friendly reason in the field.",
+        "escalateHint": "Use when the amount or scenario exceeds your authority. Status becomes \"Escalated\".",
+        "reasonLabel": "Approval reason (required, max 500 chars)",
+        "reasonPlaceholder": "Describe the rationale for this decision (will be written to approval_chain)",
+        "charCount": "{count} / 500",
+        "dualSignNote": "This case is flagged for dual-sign; MVP will retain audit trail after a single-step write."
+      }
+    },
+    "disputes": {
+      "title": "Dispute case handling",
+      "tabs": {
+        "all": "All",
+        "filed": "Filed",
+        "in_review": "Reviewing",
+        "resolved": "Resolved",
+        "rejected": "Rejected"
+      },
+      "type": {
+        "label": "Type",
+        "pricing": "Pricing",
+        "quality": "Quality",
+        "warranty": "Warranty",
+        "cancellation_fee": "Cancellation fee",
+        "settlement": "Settlement"
+      },
+      "description": "Dispute description",
+      "resolution": "Resolution:",
+      "evidence": {
+        "customer": "Customer evidence",
+        "technician": "Technician evidence",
+        "countComing": "{count} item(s) (thumbnails coming)",
+        "thumbnailPending": "Thumbnail rendering will go live after the media upload path is ready."
+      },
+      "form": {
+        "title": "Resolution form",
+        "noteLabel": "Resolution note",
+        "notePlaceholder": "Enter resolution note...",
+        "amountLabel": "Resolution amount NT$",
+        "methodLabel": "Resolution method",
+        "methodPlaceholder": "Partial refund",
+        "saveDraft": "Save draft",
+        "confirmResolution": "Confirm resolution"
+      }
+    },
+    "warranty": {
+      "title": "Warranty claim management",
+      "tabs": {
+        "all": "All",
+        "filed": "Filed",
+        "in_progress": "In progress",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "closed": "Closed"
+      },
+      "ruleNotice": "Warranty starts from the \"handover date\", not the \"move-in date\". This is a core system rule and applies to all warranty calculations.",
+      "searchPlaceholder": "Search by case ID, device, or customer...",
+      "toast": {
+        "approved": "Warranty approved",
+        "rejected": "Warranty rejected",
+        "startReview": "Moved to in-progress"
+      },
+      "decision": {
+        "approve": "Approve",
+        "reject": "Reject",
+        "startReview": "Move to in-progress",
+        "approveHint": "Warranty valid or approved on review: optional out-of-warranty discount can be attached.",
+        "rejectHint": "Out of warranty or ineligible: rejection reason is required for customer reference.",
+        "startReviewHint": "Needs evidence or customer follow-up: temporarily push to in_progress before final decision."
+      },
+      "modal": {
+        "title": "Warranty decision",
+        "warrantyUntil": "Warranty until",
+        "withinWarranty": " (within warranty)",
+        "outOfWarranty": " (expired)",
+        "resolutionLabel": "Approval comment / resolution",
+        "resolutionMaxHint": " (max 500 chars)",
+        "resolutionPlaceholderApprove": "e.g., Mainboard fault during warranty, approved free replacement",
+        "resolutionPlaceholderReject": "e.g., Out of warranty by 18 months and visible signs of human damage",
+        "resolutionPlaceholderReview": "e.g., Customer is gathering documents; will revisit after invoice is provided",
+        "discountLabel": "Discount / offset (NT$, optional)",
+        "discountPlaceholder": "e.g., 1500.00 or 0 for fully free",
+        "discountFormatError": "Amount must be a number with up to two decimals",
+        "decisionFinalHint": "After submission status becomes \"{label}\"; approve / reject is final and cannot be changed."
+      }
+    },
+    "sentiment": {
+      "title": "Negative sentiment alerts",
+      "flowNotice": "Status flow: Pending → Acknowledged → Resolved. Acknowledge / resolve writes a note to the backend; resolved cases cannot be reopened.",
+      "filterLabel": "Status",
+      "empty": "No matching alerts",
+      "alreadyResolved": "Resolved",
+      "status": {
+        "pending": "Pending",
+        "acknowledged": "Acknowledged",
+        "resolved": "Resolved"
+      },
+      "label": {
+        "very_negative": "Very negative",
+        "negative": "Negative",
+        "neutral": "Neutral",
+        "positive": "Positive"
+      },
+      "action": {
+        "acknowledge": "Acknowledge",
+        "resolve": "Resolve"
+      },
+      "cols": {
+        "time": "Time",
+        "status": "Status",
+        "sentiment": "Sentiment",
+        "confidence": "Confidence",
+        "messageSnippet": "Customer message",
+        "keywords": "Keywords",
+        "conversation": "Chat",
+        "action": "Action"
+      },
+      "modal": {
+        "titleResolve": "Resolve alert",
+        "titleAcknowledge": "Acknowledge alert",
+        "closeAria": "Close",
+        "noteLabel": "Admin note",
+        "notePlaceholderResolve": "Resolution summary (e.g., refund issued / supervisor reached out)",
+        "notePlaceholderAcknowledge": "(Optional) Note contact log, expected handling time, etc.",
+        "noteCount": "{count} / 1000",
+        "noteOverLimit": "Exceeds 1000-char limit",
+        "required": "Required",
+        "submitResolve": "Confirm resolve",
+        "submitAcknowledge": "Confirm"
+      }
+    },
+    "inventory": {
+      "title": "Inventory management",
+      "addItem": "Add item",
+      "addItemTooltip": "Coming soon (requires createInventoryItem endpoint)",
+      "summary": {
+        "current": "Current page items",
+        "currentMore": "Current page items (+)",
+        "low": "Low stock",
+        "out": "Out of stock"
+      },
+      "searchPlaceholder": "Search by name or part number (filters current page)...",
+      "categoryLabel": "Category",
+      "categoryTooltip": "Coming soon (requires server-side category filter)",
+      "stockStatusLabel": "Stock status",
+      "stockStatusTooltip": "Coming soon (requires server-side status filter)"
+    },
+    "audit": {
+      "title": "Audit logs",
+      "export": "Export",
+      "filterLabel": "Event type",
+      "empty": "No matching audit records",
+      "logType": {
+        "api_call": "API call",
+        "llm_interaction": "LLM interaction",
+        "rag_retrieval": "RAG retrieval",
+        "admin_action": "Admin action",
+        "agent_message": "Agent message"
+      },
+      "actor": {
+        "system": "System",
+        "admin": "Admin"
+      },
+      "cols": {
+        "time": "Time",
+        "logType": "Event type",
+        "actor": "Actor",
+        "action": "Action"
+      },
+      "json": {
+        "copy": "Copy JSON",
+        "copied": "Copied",
+        "copyFailed": "Copy failed"
+      }
+    },
+    "roles": {
+      "title": "Roles & permissions",
+      "createCustom": "Create custom role",
+      "createCustomTooltip": "Coming soon (requires custom-role CRUD endpoint)",
+      "f019Notice": "F-019: admin / tenant_admin can adjust role permissions dynamically; changes are pushed in real-time to all related sessions via `/realtime/rbac`. Hierarchy enforcement: actor must strictly outrank target role.",
+      "loadingRoles": "Loading…",
+      "noRoles": "No roles available",
+      "systemBadge": "System",
+      "userCount": "Users {count}",
+      "matrixTitle": "{name} permission matrix",
+      "matrixHint": "(Lock icon means system-enforced; can be adjusted by admin once F-019 ships)",
+      "editPermissions": "Edit permissions",
+      "editTooltipNoRbac": "Your role tier is not high enough to grant this permission",
+      "editTooltipNoTier": "Your role tier is not high enough to grant this role",
+      "savedToast": "Updated permission matrix for \"{name}\"",
+      "cols": {
+        "resource": "Resource",
+        "read": "Read",
+        "write": "Write",
+        "delete": "Delete"
+      },
+      "resource": {
+        "work_orders": "Work orders",
+        "technicians": "Technicians",
+        "customers": "Customers",
+        "accounting": "Accounting",
+        "invoices": "Invoices",
+        "refunds": "Refunds",
+        "inventory": "Inventory",
+        "warranty": "Warranty",
+        "disputes": "Disputes",
+        "audit_logs": "Audit logs",
+        "roles": "Role permissions",
+        "system_settings": "System settings"
+      }
+    },
+    "scheduleRequests": {
+      "title": "Schedule request review",
+      "breadcrumb": "Home > Dispatch > Schedule request review",
+      "tabs": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "cancelled": "Cancelled",
+        "all": "All"
+      },
+      "type": {
+        "leave": "Leave",
+        "standby": "Standby"
+      },
+      "status": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "cancelled": "Cancelled"
+      },
+      "emptyPending": "No pending requests",
+      "emptyOther": "No {label} requests",
+      "cols": {
+        "technician": "Technician",
+        "type": "Type",
+        "dateRange": "Date range",
+        "reason": "Reason",
+        "status": "Status",
+        "createdAt": "Submitted at",
+        "actions": "Actions"
+      },
+      "approvalNote": "Approval note: {note}",
+      "approve": "Approve",
+      "reject": "Reject",
+      "toast": {
+        "approved": "Request approved",
+        "rejected": "Request rejected"
+      },
+      "modal": {
+        "titleApprove": "Approve request",
+        "titleReject": "Reject request",
+        "noteLabel": "Approval note (optional, recorded in audit):",
+        "notePlaceholder": "e.g., Approved / suggest reschedule / rejection reason...",
+        "processing": "Processing…",
+        "confirmApprove": "Confirm approve",
+        "confirmReject": "Confirm reject"
+      }
+    }
   }
 }

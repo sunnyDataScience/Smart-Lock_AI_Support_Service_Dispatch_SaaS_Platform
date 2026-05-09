@@ -5,6 +5,7 @@ import { Plus, RefreshCw, X } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import RefundReviewTable from "@/components/admin/RefundReviewTable";
 import { ApiError, api } from "@/lib/api";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type RefundRequest = components["schemas"]["RefundRequest"];
@@ -12,12 +13,6 @@ type RefundRequestPage = components["schemas"]["RefundRequestPage"];
 type RefundRequestEnvelope = components["schemas"]["RefundRequestEnvelope"];
 type RefundDecisionBody = components["schemas"]["RefundDecision"];
 type Decision = "approve" | "reject" | "escalate";
-
-const DECISION_LABEL: Record<Decision, string> = {
-  approve: "核准退款",
-  reject: "拒絕退款",
-  escalate: "升級審批",
-};
 
 const SLA_TIER_2H_MS = 2 * 60 * 60 * 1000;
 const SLA_TIER_8H_MS = 8 * 60 * 60 * 1000;
@@ -33,6 +28,8 @@ function formatActionError(e: unknown): string {
 }
 
 export default function RefundReviewPage() {
+  const t = useTranslations("admin.refunds");
+  const tc = useTranslations("admin.common");
   const [items, setItems] = useState<RefundRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +66,15 @@ export default function RefundReviewPage() {
       setActionPending(null);
     }
   };
+
+  const decisionLabel = useMemo<Record<Decision, string>>(
+    () => ({
+      approve: t("decision.approve"),
+      reject: t("decision.reject"),
+      escalate: t("decision.escalate"),
+    }),
+    [t],
+  );
 
   const fetchRefunds = async (opts?: { append?: boolean; cursor?: string | null }) => {
     setLoading(true);
@@ -129,7 +135,7 @@ export default function RefundReviewPage() {
       if (updated) {
         setItems((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
       }
-      setActionToast(`${DECISION_LABEL[modalDecision]}已送出`);
+      setActionToast(t("decision.submitted", { label: decisionLabel[modalDecision] }));
       setModalRefund(null);
     } catch (e) {
       setActionError(formatActionError(e));
@@ -155,21 +161,21 @@ export default function RefundReviewPage() {
 
   const slaCards = [
     {
-      label: "申請 ≤ 2 小時",
+      label: t("sla.tier2"),
       count: slaCounts.tier2,
       labelColor: "#991B1B",
       countColor: "#DC2626",
       bgColor: "#FEE2E2",
     },
     {
-      label: "申請 ≤ 8 小時",
+      label: t("sla.tier8"),
       count: slaCounts.tier8,
       labelColor: "#92400E",
       countColor: "#D97706",
       bgColor: "#FEF3C7",
     },
     {
-      label: "申請 > 8 小時",
+      label: t("sla.tierLong"),
       count: slaCounts.tierLong,
       labelColor: "#065F46",
       countColor: "#059669",
@@ -185,13 +191,13 @@ export default function RefundReviewPage() {
         <div className="flex flex-1 flex-col gap-5 overflow-auto pl-14 pr-4 py-6 md:px-8">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-              退款審核佇列
+              {t("title")}
             </h1>
             <button
               onClick={() => fetchRefunds()}
               disabled={loading}
               className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
-              title="重新整理"
+              title={tc("refresh")}
             >
               <RefreshCw
                 className={`h-[14px] w-[14px] text-[var(--text-secondary)] ${loading ? "animate-spin" : ""}`}
@@ -220,16 +226,18 @@ export default function RefundReviewPage() {
                 className="h-[6px] w-[6px] rounded-full"
                 style={{ backgroundColor: error ? "#DC2626" : "#22C55E" }}
               />
-              {error ? "連線失敗" : "已連線"}
+              {error ? tc("disconnected") : tc("connected")}
             </span>
             <span className="text-[13px] text-[var(--text-secondary)]">
               {updatedAt
-                ? `最後更新：${updatedAt.toLocaleTimeString("zh-TW", { hour12: false })}`
+                ? tc("lastUpdated", { time: updatedAt.toLocaleTimeString("zh-TW", { hour12: false }) })
                 : "—"}
             </span>
             <span className="text-[13px] text-[var(--text-secondary)]">·</span>
             <span className="text-[13px] text-[var(--text-secondary)]">
-              共 {items.length}{hasMore ? "+" : ""} 筆
+              {hasMore
+                ? tc("totalCountMore", { count: items.length })
+                : tc("totalCount", { count: items.length })}
             </span>
           </div>
 
@@ -282,7 +290,7 @@ export default function RefundReviewPage() {
                 disabled={loading}
                 className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-5 py-[10px] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {loading ? "載入中…" : "載入更多"}
+                {loading ? tc("loading") : tc("loadMore")}
               </button>
             </div>
           )}
@@ -335,29 +343,33 @@ function DecisionModal({
   onSubmit,
   submitting,
 }: DecisionModalProps) {
+  const t = useTranslations("admin.refunds");
+  const tc = useTranslations("admin.common");
   const [reason, setReason] = useState("");
   const trimmed = reason.trim();
   const valid = trimmed.length > 0 && trimmed.length <= 500;
-  const decisionStyle: Record<
-    Decision,
-    { btn: string; label: string; hint: string }
-  > = {
-    approve: {
-      btn: "bg-[var(--primary)] hover:opacity-90",
-      label: "核准退款",
-      hint: "確認核准後，狀態變更為「已核准」。後續仍需出納執行打款。",
-    },
-    reject: {
-      btn: "bg-[#EF4444] hover:opacity-90",
-      label: "拒絕退款",
-      hint: "拒絕後申請結束，需在原因欄位寫明客戶可理解的拒絕理由。",
-    },
-    escalate: {
-      btn: "bg-[#3B82F6] hover:opacity-90",
-      label: "升級審批",
-      hint: "金額或情境超出本人權限時使用，狀態變更為「已升級」。",
-    },
-  };
+  const decisionStyle = useMemo<
+    Record<Decision, { btn: string; label: string; hint: string }>
+  >(
+    () => ({
+      approve: {
+        btn: "bg-[var(--primary)] hover:opacity-90",
+        label: t("decision.approve"),
+        hint: t("modal.approveHint"),
+      },
+      reject: {
+        btn: "bg-[#EF4444] hover:opacity-90",
+        label: t("decision.reject"),
+        hint: t("modal.rejectHint"),
+      },
+      escalate: {
+        btn: "bg-[#3B82F6] hover:opacity-90",
+        label: t("decision.escalate"),
+        hint: t("modal.escalateHint"),
+      },
+    }),
+    [t],
+  );
   const cfg = decisionStyle[decision];
   const amountStr = (() => {
     const n = Number(refund.amount);
@@ -377,7 +389,7 @@ function DecisionModal({
       >
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-            退款審批決策
+            {t("modal.title")}
           </h2>
           <button
             onClick={onClose}
@@ -389,16 +401,16 @@ function DecisionModal({
 
         <div className="mt-3 rounded-lg bg-[var(--bg-page)] px-3 py-2 text-[12px] text-[var(--text-secondary)]">
           <div>
-            退款編號：
+            {t("modal.refundId")}
             <span className="font-mono text-[var(--text-primary)]">
               {refund.id.slice(0, 8)}
             </span>
           </div>
           <div>
-            金額：
+            {t("modal.amount")}
             <span className="font-semibold text-[var(--text-primary)]">{amountStr}</span>
           </div>
-          <div className="line-clamp-2">原始原因：{refund.reason}</div>
+          <div className="line-clamp-2">{t("modal.originalReason", { reason: refund.reason })}</div>
         </div>
 
         <div className="mt-4 grid grid-cols-3 gap-2">
@@ -426,19 +438,19 @@ function DecisionModal({
         </p>
 
         <label className="mt-4 block text-[12px] font-medium text-[var(--text-secondary)]">
-          審批原因（必填，最多 500 字）
+          {t("modal.reasonLabel")}
         </label>
         <textarea
           value={reason}
           onChange={(e) => setReason(e.target.value.slice(0, 500))}
-          placeholder="請說明本次決策的依據（將寫入 approval_chain）"
+          placeholder={t("modal.reasonPlaceholder")}
           className="mt-1 h-24 w-full resize-none rounded-md border border-[var(--border)] bg-white p-2 text-sm focus:border-[var(--primary)] focus:outline-none"
         />
         <div className="mt-1 flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
-          <span>{trimmed.length} / 500</span>
+          <span>{t("modal.charCount", { count: trimmed.length })}</span>
           {refund.requires_dual_sign && (
             <span className="text-[#B45309]">
-              本案標示需雙簽，MVP 將於單步寫入後保留稽核紀錄。
+              {t("modal.dualSignNote")}
             </span>
           )}
         </div>
@@ -448,14 +460,14 @@ function DecisionModal({
             onClick={onClose}
             className="rounded-md border border-[var(--border)] px-3 py-[7px] text-[12px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
           >
-            取消
+            {tc("cancel")}
           </button>
           <button
             disabled={!valid || submitting}
             onClick={() => onSubmit(trimmed)}
             className={`rounded-md px-4 py-[7px] text-[12px] font-medium text-white transition ${cfg.btn} disabled:cursor-not-allowed disabled:opacity-50`}
           >
-            {submitting ? "送出中…" : cfg.label}
+            {submitting ? tc("submitting") : cfg.label}
           </button>
         </div>
       </div>

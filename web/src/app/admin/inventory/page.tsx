@@ -5,6 +5,7 @@ import { Plus, Search, ChevronDown, RefreshCw } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import InventoryTable from "@/components/admin/InventoryTable";
 import { ApiError, api } from "@/lib/api";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type InventoryItem = components["schemas"]["InventoryItem"];
@@ -19,6 +20,8 @@ interface InventoryItemPage {
 const PAGE_LIMIT = 50;
 
 export default function InventoryPage() {
+  const t = useTranslations("admin.inventory");
+  const tc = useTranslations("admin.common");
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,21 +75,21 @@ export default function InventoryPage() {
 
   const summaryCards = [
     {
-      label: hasMore ? `本頁品項 (+)` : "本頁品項",
+      label: hasMore ? t("summary.currentMore") : t("summary.current"),
       value: summary.total,
       textColor: "var(--text-primary)",
       bgColor: "var(--bg-surface)",
       borderColor: "var(--border)",
     },
     {
-      label: "低庫存",
+      label: t("summary.low"),
       value: summary.low,
       textColor: "#92400E",
       bgColor: "#FFFBEB",
       borderColor: "#FDE68A",
     },
     {
-      label: "缺貨",
+      label: t("summary.out"),
       value: summary.out,
       textColor: "#991B1B",
       bgColor: "#FEF2F2",
@@ -102,13 +105,13 @@ export default function InventoryPage() {
         <div className="flex flex-1 flex-col gap-5 overflow-auto pl-14 pr-4 py-6 md:px-8">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-              物料庫存管理
+              {t("title")}
             </h1>
             <div className="flex items-center gap-2">
               <button
                 onClick={fetchItems}
                 disabled={loading}
-                title="重新整理"
+                title={tc("refresh")}
                 className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <RefreshCw
@@ -119,11 +122,11 @@ export default function InventoryPage() {
               </button>
               <button
                 disabled
-                title="即將推出（需 createInventoryItem 端點）"
+                title={t("addItemTooltip")}
                 className="flex cursor-not-allowed items-center gap-[6px] rounded-lg bg-[var(--primary)] px-4 py-[10px] text-sm font-medium text-white opacity-50"
               >
                 <Plus className="h-4 w-4" />
-                新增物料
+                {t("addItem")}
               </button>
             </div>
           </div>
@@ -167,27 +170,27 @@ export default function InventoryPage() {
                 type="text"
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
-                placeholder="搜尋物料名稱或料號（本頁過濾）..."
+                placeholder={t("searchPlaceholder")}
                 className="flex-1 bg-transparent text-[13px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-disabled)]"
               />
             </div>
             <button
               disabled
-              title="即將推出（需 server-side category filter）"
+              title={t("categoryTooltip")}
               className="flex w-[160px] cursor-not-allowed items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 opacity-50"
             >
               <span className="text-[13px] text-[var(--text-secondary)]">
-                物料類別
+                {t("categoryLabel")}
               </span>
               <ChevronDown className="h-4 w-4 text-[var(--text-secondary)]" />
             </button>
             <button
               disabled
-              title="即將推出（需 server-side status filter）"
+              title={t("stockStatusTooltip")}
               className="flex w-[160px] cursor-not-allowed items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 opacity-50"
             >
               <span className="text-[13px] text-[var(--text-secondary)]">
-                庫存狀態
+                {t("stockStatusLabel")}
               </span>
               <ChevronDown className="h-4 w-4 text-[var(--text-secondary)]" />
             </button>

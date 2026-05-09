@@ -5,6 +5,7 @@ import { Image as ImageIcon, ChevronDown, RefreshCw } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import DisputesTable from "@/components/admin/DisputesTable";
 import { ApiError, api } from "@/lib/api";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type Dispute = components["schemas"]["Dispute"];
@@ -13,24 +14,23 @@ type DisputeStatus = components["schemas"]["DisputeStatus"];
 type DisputeType = components["schemas"]["DisputeType"];
 
 interface StatusTab {
-  label: string;
   value: DisputeStatus | "all";
 }
 
 const statusTabs: StatusTab[] = [
-  { label: "全部", value: "all" },
-  { label: "待處理", value: "filed" },
-  { label: "調解中", value: "in_review" },
-  { label: "已結案", value: "resolved" },
-  { label: "已駁回", value: "rejected" },
+  { value: "all" },
+  { value: "filed" },
+  { value: "in_review" },
+  { value: "resolved" },
+  { value: "rejected" },
 ];
 
-const typeBadges: { value: DisputeType; label: string; textColor: string; bgColor: string }[] = [
-  { value: "pricing", label: "價格", textColor: "#2563EB", bgColor: "#DBEAFE" },
-  { value: "quality", label: "品質", textColor: "#7C3AED", bgColor: "#EDE9FE" },
-  { value: "warranty", label: "保固", textColor: "#059669", bgColor: "#D1FAE5" },
-  { value: "cancellation_fee", label: "取消費", textColor: "#EA580C", bgColor: "#FFEDD5" },
-  { value: "settlement", label: "結算", textColor: "#DB2777", bgColor: "#FCE7F3" },
+const typeBadges: { value: DisputeType; textColor: string; bgColor: string }[] = [
+  { value: "pricing", textColor: "#2563EB", bgColor: "#DBEAFE" },
+  { value: "quality", textColor: "#7C3AED", bgColor: "#EDE9FE" },
+  { value: "warranty", textColor: "#059669", bgColor: "#D1FAE5" },
+  { value: "cancellation_fee", textColor: "#EA580C", bgColor: "#FFEDD5" },
+  { value: "settlement", textColor: "#DB2777", bgColor: "#FCE7F3" },
 ];
 
 function formatTwd(amount: string | null | undefined): string {
@@ -55,6 +55,8 @@ function evidenceItems(evidence: Dispute["evidence"], side: "customer" | "techni
 }
 
 export default function DisputesPage() {
+  const t = useTranslations("admin.disputes");
+  const tc = useTranslations("admin.common");
   const [activeTab, setActiveTab] = useState<StatusTab["value"]>("all");
   const [items, setItems] = useState<Dispute[]>([]);
   const [loading, setLoading] = useState(true);
@@ -103,13 +105,13 @@ export default function DisputesPage() {
         <div className="flex flex-1 flex-col gap-5 overflow-auto pl-14 pr-4 py-6 md:px-8">
           <div className="flex items-center gap-3">
             <h1 className="text-[22px] font-bold text-[var(--text-primary)]">
-              爭議案件處理
+              {t("title")}
             </h1>
             <button
               onClick={() => fetchDisputes(activeTab)}
               disabled={loading}
               className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
-              title="重新整理"
+              title={tc("refresh")}
             >
               <RefreshCw
                 className={`h-[14px] w-[14px] text-[var(--text-secondary)] ${loading ? "animate-spin" : ""}`}
@@ -126,16 +128,16 @@ export default function DisputesPage() {
                 className="h-[6px] w-[6px] rounded-full"
                 style={{ backgroundColor: error ? "#DC2626" : "#22C55E" }}
               />
-              {error ? "連線失敗" : "已連線"}
+              {error ? tc("disconnected") : tc("connected")}
             </span>
             <span className="text-[13px] text-[var(--text-secondary)]">
               {updatedAt
-                ? `最後更新：${updatedAt.toLocaleTimeString("zh-TW", { hour12: false })}`
+                ? tc("lastUpdated", { time: updatedAt.toLocaleTimeString("zh-TW", { hour12: false }) })
                 : "—"}
             </span>
             <span className="text-[13px] text-[var(--text-secondary)]">·</span>
             <span className="text-[13px] text-[var(--text-secondary)]">
-              共 {items.length} 筆
+              {tc("totalCount", { count: items.length })}
             </span>
           </div>
 
@@ -149,7 +151,7 @@ export default function DisputesPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-[13px] font-medium text-[var(--text-secondary)]">
-                類型
+                {t("type.label")}
               </span>
               <div className="flex items-center gap-2">
                 {typeBadges.map((badge) => (
@@ -161,7 +163,7 @@ export default function DisputesPage() {
                       backgroundColor: badge.bgColor,
                     }}
                   >
-                    {badge.label}
+                    {t(`type.${badge.value}`)}
                   </span>
                 ))}
               </div>
@@ -178,7 +180,7 @@ export default function DisputesPage() {
                       : "bg-[var(--bg-surface)] text-[var(--text-secondary)]"
                   } ${idx > 0 ? "border-l border-[var(--border)]" : ""}`}
                 >
-                  {tab.label}
+                  {t(`tabs.${tab.value}`)}
                 </button>
               ))}
             </div>
@@ -199,14 +201,14 @@ export default function DisputesPage() {
                 <span className="font-mono text-[12px] font-medium text-[var(--text-secondary)]">
                   {selected.id.slice(0, 8)}
                 </span>
-                <span className="text-[13px] font-semibold text-[var(--text-primary)]">爭議描述</span>
+                <span className="text-[13px] font-semibold text-[var(--text-primary)]">{t("description")}</span>
               </div>
               <p className="text-[13px] leading-[1.6] text-[var(--text-primary)]">
                 {selected.description}
               </p>
               {selected.resolution && (
                 <div className="mt-3 rounded-md bg-[#F8FAFC] p-3 text-[13px] leading-[1.6] text-[var(--text-secondary)]">
-                  <span className="font-semibold text-[var(--text-primary)]">調解結果：</span>
+                  <span className="font-semibold text-[var(--text-primary)]">{t("resolution")}</span>
                   {selected.resolution}
                   {selected.resolution_amount && (
                     <span className="ml-2 font-medium text-[var(--text-primary)]">
@@ -223,10 +225,12 @@ export default function DisputesPage() {
             <div className="flex flex-1 flex-col gap-3 p-5">
               <div className="flex items-center justify-between">
                 <span className="text-[15px] font-semibold text-[#2563EB]">
-                  客戶方證據
+                  {t("evidence.customer")}
                 </span>
                 <span className="text-[11px] text-[var(--text-disabled)]">
-                  {selected ? `${evidenceItems(selected.evidence, "customer").length} 件（縮圖即將推出）` : "—"}
+                  {selected
+                    ? t("evidence.countComing", { count: evidenceItems(selected.evidence, "customer").length })
+                    : "—"}
                 </span>
               </div>
               <div className="flex gap-[10px]">
@@ -234,7 +238,7 @@ export default function DisputesPage() {
                 <ImagePlaceholder />
               </div>
               <p className="text-[13px] leading-[1.5] text-[var(--text-disabled)]">
-                證據縮圖渲染待媒體上傳路徑上線後接入。
+                {t("evidence.thumbnailPending")}
               </p>
             </div>
 
@@ -243,10 +247,12 @@ export default function DisputesPage() {
             <div className="flex flex-1 flex-col gap-3 p-5">
               <div className="flex items-center justify-between">
                 <span className="text-[15px] font-semibold text-[#D97706]">
-                  技師方證據
+                  {t("evidence.technician")}
                 </span>
                 <span className="text-[11px] text-[var(--text-disabled)]">
-                  {selected ? `${evidenceItems(selected.evidence, "technician").length} 件（縮圖即將推出）` : "—"}
+                  {selected
+                    ? t("evidence.countComing", { count: evidenceItems(selected.evidence, "technician").length })
+                    : "—"}
                 </span>
               </div>
               <div className="flex gap-[10px]">
@@ -254,7 +260,7 @@ export default function DisputesPage() {
                 <ImagePlaceholder />
               </div>
               <p className="text-[13px] leading-[1.5] text-[var(--text-disabled)]">
-                證據縮圖渲染待媒體上傳路徑上線後接入。
+                {t("evidence.thumbnailPending")}
               </p>
             </div>
           </div>
@@ -263,20 +269,20 @@ export default function DisputesPage() {
           <div className="flex flex-col gap-4 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-5">
             <div className="flex items-center justify-between">
               <span className="text-base font-semibold text-[var(--text-primary)]">
-                調解處理
+                {t("form.title")}
               </span>
               <span className="rounded-full bg-[#F1F5F9] px-3 py-1 text-[11px] font-medium text-[var(--text-secondary)]">
-                即將推出
+                {tc("comingSoon")}
               </span>
             </div>
 
             <div className="flex flex-col gap-[6px]">
               <span className="text-[13px] font-medium text-[var(--text-primary)]">
-                調解備註
+                {t("form.noteLabel")}
               </span>
               <textarea
                 disabled
-                placeholder="請輸入調解備註內容..."
+                placeholder={t("form.notePlaceholder")}
                 className="h-[100px] resize-none cursor-not-allowed rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 py-3 text-[13px] text-[var(--text-disabled)] outline-none placeholder:text-[var(--text-disabled)] opacity-60"
               />
             </div>
@@ -284,7 +290,7 @@ export default function DisputesPage() {
             <div className="flex gap-4">
               <div className="flex flex-1 flex-col gap-[6px]">
                 <span className="text-[13px] font-medium text-[var(--text-primary)]">
-                  調解金額 NT$
+                  {t("form.amountLabel")}
                 </span>
                 <input
                   disabled
@@ -295,14 +301,14 @@ export default function DisputesPage() {
               </div>
               <div className="flex flex-1 flex-col gap-[6px]">
                 <span className="text-[13px] font-medium text-[var(--text-primary)]">
-                  調解方式
+                  {t("form.methodLabel")}
                 </span>
                 <button
                   disabled
                   className="flex h-10 cursor-not-allowed items-center justify-between rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60"
                 >
                   <span className="text-[13px] text-[var(--text-disabled)]">
-                    部分退款
+                    {t("form.methodPlaceholder")}
                   </span>
                   <ChevronDown className="h-4 w-4 text-[var(--text-disabled)]" />
                 </button>
@@ -312,17 +318,17 @@ export default function DisputesPage() {
             <div className="flex items-center justify-end gap-3">
               <button
                 disabled
-                title="即將推出"
+                title={tc("comingSoon")}
                 className="cursor-not-allowed rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-5 py-[10px] text-sm font-medium text-[var(--text-secondary)] opacity-60"
               >
-                儲存草稿
+                {t("form.saveDraft")}
               </button>
               <button
                 disabled
-                title="即將推出"
+                title={tc("comingSoon")}
                 className="cursor-not-allowed rounded-md bg-[var(--primary)] px-5 py-[10px] text-sm font-medium text-white opacity-60"
               >
-                確認調解結果
+                {t("form.confirmResolution")}
               </button>
             </div>
           </div>
