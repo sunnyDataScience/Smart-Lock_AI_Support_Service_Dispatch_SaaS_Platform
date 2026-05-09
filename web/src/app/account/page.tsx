@@ -14,19 +14,12 @@ import {
   Wrench,
 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api, auth, getCurrentSession, logout } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
 type Technician = components["schemas"]["Technician"];
 type TechnicianEnvelope = components["schemas"]["TechnicianEnvelope"];
-
-const AVAILABILITY_LABEL: Record<Technician["availability"], string> = {
-  available: "在線",
-  busy: "忙碌中",
-  offline: "離線",
-  on_leave: "請假中",
-  circuit_breaker_open: "暫停接單（熔斷）",
-};
 
 const AVAILABILITY_COLOR: Record<Technician["availability"], string> = {
   available: "#10B981",
@@ -46,6 +39,8 @@ function formatErr(e: unknown): string {
 
 export default function AccountPage() {
   const router = useRouter();
+  const t = useTranslations("pages.account.profile");
+  const tAvail = useTranslations("pages.account.profile.availability");
   const [tech, setTech] = useState<Technician | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,7 +77,7 @@ export default function AccountPage() {
 
   async function handleLogout() {
     if (loggingOut) return;
-    if (!window.confirm("確定要登出？")) return;
+    if (!window.confirm(t("logoutConfirm"))) return;
     setLoggingOut(true);
     try {
       await logout();
@@ -93,10 +88,10 @@ export default function AccountPage() {
     }
   }
 
-  const displayName = tech?.name ?? session?.email ?? "技師";
+  const displayName = tech?.name ?? session?.email ?? t("fallbackName");
   const availability = tech?.availability ?? "offline";
   const availColor = AVAILABILITY_COLOR[availability];
-  const availLabel = AVAILABILITY_LABEL[availability];
+  const availLabel = tAvail(availability);
 
   return (
     <TechShell>
@@ -130,9 +125,9 @@ export default function AccountPage() {
 
         <div className="mt-4 flex items-center justify-between rounded-xl bg-white/15 px-3 py-2 backdrop-blur">
           <div className="flex flex-col">
-            <span className="text-[12px] opacity-90">在線接單</span>
+            <span className="text-[12px] opacity-90">{t("onlineToggleLabel")}</span>
             <span className="text-[10px] opacity-70">
-              （後端 API 待補，當前為本地切換）
+              {t("onlineToggleHint")}
             </span>
           </div>
           <button
@@ -142,7 +137,7 @@ export default function AccountPage() {
             style={{
               backgroundColor: online ? "#10B981" : "rgba(255,255,255,0.3)",
             }}
-            aria-label="切換在線/離線"
+            aria-label={t("ariaToggleOnline")}
           >
             <span
               className="absolute top-[2px] h-6 w-6 rounded-full bg-white shadow transition-all"
@@ -161,7 +156,7 @@ export default function AccountPage() {
       {/* income_overview / performance_dashboard — MVP 顯示骨架 */}
       <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
-          本月收入概覽（待後端 API）
+          {t("monthIncome")}
         </span>
         <div className="mt-2 flex items-baseline gap-1">
           <span className="text-[30px] font-bold text-[var(--text-primary)]">
@@ -170,7 +165,7 @@ export default function AccountPage() {
           <span className="text-[12px] text-[var(--text-disabled)]">NT$</span>
         </div>
         <p className="mt-1 text-[11px] text-[var(--text-disabled)]">
-          收入總覽、佣金組成、結算紀錄屬 V1.1 範圍
+          {t("incomeNote")}
         </p>
       </section>
 
@@ -181,7 +176,7 @@ export default function AccountPage() {
             {tech?.completed_orders_count ?? "—"}
           </span>
           <span className="text-[10px] text-[var(--text-disabled)]">
-            完成工單
+            {t("completedOrders")}
           </span>
         </div>
         <div className="rounded-xl border border-[var(--border)] bg-white p-3 text-center shadow-sm">
@@ -190,7 +185,7 @@ export default function AccountPage() {
             {tech?.rating != null ? tech.rating.toFixed(1) : "—"}
           </span>
           <span className="text-[10px] text-[var(--text-disabled)]">
-            平均評分
+            {t("rating")}
           </span>
         </div>
         <div className="rounded-xl border border-[var(--border)] bg-white p-3 text-center shadow-sm">
@@ -198,35 +193,35 @@ export default function AccountPage() {
           <span className="mt-1 block text-[16px] font-bold text-[var(--text-primary)]">
             {tech?.level ?? "—"}
           </span>
-          <span className="text-[10px] text-[var(--text-disabled)]">分級</span>
+          <span className="text-[10px] text-[var(--text-disabled)]">{t("level")}</span>
         </div>
       </section>
 
       {/* profile_section */}
       <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
         <span className="mb-2 block text-[11px] font-medium text-[var(--text-secondary)]">
-          個人資料
+          {t("personal")}
         </span>
         {loading && !tech ? (
           <div className="text-[12px] text-[var(--text-disabled)]">
-            載入中…
+            {t("loading")}
           </div>
         ) : tech ? (
           <div className="flex flex-col gap-2 text-[13px]">
             <div className="flex justify-between">
-              <span className="text-[var(--text-secondary)]">手機</span>
+              <span className="text-[var(--text-secondary)]">{t("phone")}</span>
               <span className="font-medium text-[var(--text-primary)]">
                 {tech.phone || "—"}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[var(--text-secondary)]">技能</span>
+              <span className="text-[var(--text-secondary)]">{t("skills")}</span>
               <span className="text-right font-medium text-[var(--text-primary)] line-clamp-1">
                 {tech.skills.length > 0 ? tech.skills.join(", ") : "—"}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[var(--text-secondary)]">服務區域</span>
+              <span className="text-[var(--text-secondary)]">{t("serviceArea")}</span>
               <span className="text-right font-medium text-[var(--text-primary)] line-clamp-1">
                 {tech.service_areas.length > 0
                   ? tech.service_areas.join(", ")
@@ -236,7 +231,7 @@ export default function AccountPage() {
           </div>
         ) : (
           <div className="text-[12px] text-[var(--text-disabled)]">
-            尚未取得個人資料
+            {t("noProfile")}
           </div>
         )}
       </section>
@@ -250,7 +245,7 @@ export default function AccountPage() {
           <div className="flex items-center gap-3">
             <CalendarDays className="h-4 w-4 text-[var(--text-secondary)]" />
             <span className="text-[14px] font-medium text-[var(--text-primary)]">
-              我的排班
+              {t("mySchedule")}
             </span>
           </div>
           <ChevronRight className="h-4 w-4 text-[var(--text-disabled)]" />
@@ -264,7 +259,7 @@ export default function AccountPage() {
           <div className="flex items-center gap-3">
             <Bell className="h-4 w-4 text-[var(--text-secondary)]" />
             <span className="text-[14px] font-medium text-[var(--text-primary)]">
-              通知偏好
+              {t("notifPref")}
             </span>
           </div>
           <ChevronRight className="h-4 w-4 text-[var(--text-disabled)]" />
@@ -278,7 +273,7 @@ export default function AccountPage() {
           <div className="flex items-center gap-3">
             <CircleUser className="h-4 w-4 text-[var(--text-secondary)]" />
             <span className="text-[14px] font-medium text-[var(--text-primary)]">
-              編輯個人資料
+              {t("editProfile")}
             </span>
           </div>
           <ChevronRight className="h-4 w-4 text-[var(--text-disabled)]" />
@@ -293,7 +288,7 @@ export default function AccountPage() {
           <div className="flex items-center gap-3">
             <LogOut className="h-4 w-4 text-red-600" />
             <span className="text-[14px] font-medium text-red-600">
-              {loggingOut ? "登出中…" : "登出"}
+              {loggingOut ? t("loggingOut") : t("logout")}
             </span>
           </div>
           <ChevronRight className="h-4 w-4 text-[var(--text-disabled)]" />
@@ -301,7 +296,7 @@ export default function AccountPage() {
       </section>
 
       <p className="px-4 pb-4 text-center text-[10px] text-[var(--text-disabled)]">
-        Smart Lock 技師工作台 v0.1
+        {t("footer")}
       </p>
     </TechShell>
   );

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Calculator, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { ApiError, api } from "@/lib/api";
+import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type PricingRule = components["schemas"]["PricingRule"];
@@ -16,26 +17,8 @@ type PricingCalculateResponse = components["schemas"]["PricingCalculateResponse"
 type LockType = PricingRule["lock_type"];
 type Difficulty = PricingRule["difficulty"];
 
-const LOCK_TYPE_OPTIONS: { value: LockType; label: string }[] = [
-  { value: "digital_deadbolt", label: "電子鎖（Deadbolt）" },
-  { value: "smart_lock", label: "智慧鎖（Smart Lock）" },
-  { value: "padlock", label: "掛鎖" },
-  { value: "other", label: "其他" },
-];
-
-const DIFFICULTY_OPTIONS: { value: Difficulty; label: string }[] = [
-  { value: "simple", label: "簡單" },
-  { value: "moderate", label: "中等" },
-  { value: "complex", label: "困難" },
-];
-
-const lockTypeLabel: Record<LockType, string> = Object.fromEntries(
-  LOCK_TYPE_OPTIONS.map((o) => [o.value, o.label]),
-) as Record<LockType, string>;
-
-const difficultyLabel: Record<Difficulty, string> = Object.fromEntries(
-  DIFFICULTY_OPTIONS.map((o) => [o.value, o.label]),
-) as Record<Difficulty, string>;
+const LOCK_TYPE_VALUES: LockType[] = ["digital_deadbolt", "smart_lock", "padlock", "other"];
+const DIFFICULTY_VALUES: Difficulty[] = ["simple", "moderate", "complex"];
 
 const difficultyColor: Record<
   Difficulty,
@@ -55,6 +38,19 @@ function formatTwd(amount: string): string {
 const DECIMAL_RE = /^\d+(\.\d{1,2})?$/;
 
 export default function PricingForm() {
+  const t = useTranslations("components.settings.pricingForm");
+  const tLock = useTranslations("components.settings.pricingForm.lockTypes");
+  const tDiff = useTranslations("components.settings.pricingForm.difficulties");
+  const { locale } = useLocale();
+  const lockTypeLabel = useMemo<Record<LockType, string>>(
+    () => Object.fromEntries(LOCK_TYPE_VALUES.map((v) => [v, tLock(v)])) as Record<LockType, string>,
+    [tLock],
+  );
+  const difficultyLabel = useMemo<Record<Difficulty, string>>(
+    () => Object.fromEntries(DIFFICULTY_VALUES.map((v) => [v, tDiff(v)])) as Record<Difficulty, string>,
+    [tDiff],
+  );
+
   const [items, setItems] = useState<PricingRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -129,7 +125,7 @@ export default function PricingForm() {
       const created = res.data;
       if (created) {
         setItems((prev) => [created, ...prev]);
-        setToast(`已建立規則：${created.brand} / ${lockTypeLabel[created.lock_type]}`);
+        setToast(t("createdToast", { brand: created.brand, lockType: lockTypeLabel[created.lock_type] }));
       }
       setEditorMode(null);
       setEditorRule(null);
@@ -162,7 +158,7 @@ export default function PricingForm() {
         setItems((prev) =>
           prev.map((r) => (r.id === updated.id ? updated : r)),
         );
-        setToast(`已更新規則：${updated.brand} / ${lockTypeLabel[updated.lock_type]}`);
+        setToast(t("updatedToast", { brand: updated.brand, lockType: lockTypeLabel[updated.lock_type] }));
       }
       setEditorMode(null);
       setEditorRule(null);
@@ -184,13 +180,13 @@ export default function PricingForm() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-xl font-bold text-[var(--text-primary)]">
-            報價規則 V2.0
+            {t("title")}
           </span>
           <button
             onClick={fetchRules}
             disabled={loading}
             className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
-            title="重新整理"
+            title={t("refresh")}
           >
             <RefreshCw
               className={`h-[14px] w-[14px] text-[var(--text-secondary)] ${loading ? "animate-spin" : ""}`}
@@ -207,13 +203,13 @@ export default function PricingForm() {
               className="h-[6px] w-[6px] rounded-full"
               style={{ backgroundColor: error ? "#DC2626" : "#22C55E" }}
             />
-            {error ? "連線失敗" : "已連線"}
+            {error ? t("connection.fail") : t("connection.ok")}
           </span>
         </div>
         <span className="text-[13px] text-[var(--text-secondary)]">
           {updatedAt
-            ? `最後更新：${updatedAt.toLocaleTimeString("zh-TW", { hour12: false })}`
-            : "管理依品牌、鎖型、難度的基礎報價"}
+            ? t("lastUpdated", { time: updatedAt.toLocaleTimeString(locale, { hour12: false }) })
+            : t("subtitle")}
         </span>
       </div>
 
@@ -227,7 +223,7 @@ export default function PricingForm() {
 
       <div className="flex items-center justify-between">
         <span className="text-[13px] text-[var(--text-secondary)]">
-          列表為 listPricingRules 即時資料（已過濾停用規則），可即時新增與編輯。
+          {t("intro")}
         </span>
         <div className="flex items-center gap-2">
           <button
@@ -235,14 +231,14 @@ export default function PricingForm() {
             className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2 text-[13px] font-semibold text-[var(--text-primary)] transition hover:bg-[var(--bg-page)]"
           >
             <Calculator className="h-4 w-4" />
-            試算報價
+            {t("calc")}
           </button>
           <button
             onClick={openCreate}
             className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90"
           >
             <Plus className="h-4 w-4" />
-            新增規則
+            {t("create")}
           </button>
         </div>
       </div>
@@ -252,27 +248,27 @@ export default function PricingForm() {
         <div className="flex items-center bg-[#F8FAFC] px-4 py-3">
           <div className="w-[140px]">
             <span className="text-xs font-semibold text-[var(--text-secondary)]">
-              品牌
+              {t("cols.brand")}
             </span>
           </div>
           <div className="w-[180px]">
             <span className="text-xs font-semibold text-[var(--text-secondary)]">
-              鎖型
+              {t("cols.lockType")}
             </span>
           </div>
           <div className="w-[110px]">
             <span className="text-xs font-semibold text-[var(--text-secondary)]">
-              難度
+              {t("cols.difficulty")}
             </span>
           </div>
           <div className="flex w-[140px] justify-end">
             <span className="text-xs font-semibold text-[var(--text-secondary)]">
-              基礎價
+              {t("cols.basePrice")}
             </span>
           </div>
           <div className="flex flex-1 justify-center">
             <span className="text-xs font-semibold text-[var(--text-secondary)]">
-              加價條件
+              {t("cols.surcharges")}
             </span>
           </div>
           <div className="w-[80px]" />
@@ -281,12 +277,12 @@ export default function PricingForm() {
         {/* Loading / Empty */}
         {loading && items.length === 0 && (
           <div className="flex h-[120px] items-center justify-center text-sm text-[var(--text-secondary)]">
-            載入中…
+            {t("loading")}
           </div>
         )}
         {!loading && items.length === 0 && !error && (
           <div className="flex h-[120px] items-center justify-center text-sm text-[var(--text-secondary)]">
-            尚無計價規則
+            {t("empty")}
           </div>
         )}
 
@@ -328,7 +324,7 @@ export default function PricingForm() {
               <div className="flex flex-1 flex-col gap-1 pl-4">
                 {surcharges.length === 0 && (
                   <span className="text-[12px] text-[var(--text-disabled)]">
-                    無加價條件
+                    {t("noSurcharge")}
                   </span>
                 )}
                 {surcharges.map((s, idx) => (
@@ -353,7 +349,7 @@ export default function PricingForm() {
               <div className="flex w-[80px] justify-end">
                 <button
                   onClick={() => openEdit(rule)}
-                  title="編輯規則"
+                  title={t("edit")}
                   className="flex h-8 w-8 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)]"
                 >
                   <Pencil className="h-4 w-4 text-[var(--text-secondary)]" />
@@ -415,6 +411,9 @@ function PricingRuleEditor({
   onSubmitCreate: (req: PricingRuleCreateRequest) => void;
   onSubmitUpdate: (req: PricingRuleUpdateRequest) => void;
 }) {
+  const t = useTranslations("components.settings.pricingForm.editor");
+  const tLock = useTranslations("components.settings.pricingForm.lockTypes");
+  const tDiff = useTranslations("components.settings.pricingForm.difficulties");
   const initial = rule;
   const [brand, setBrand] = useState(initial?.brand ?? "");
   const [lockType, setLockType] = useState<LockType>(
@@ -435,14 +434,14 @@ function PricingRuleEditor({
   const isEdit = mode === "edit";
 
   const validate = (): string | null => {
-    if (!isEdit && !brand.trim()) return "請填寫品牌";
+    if (!isEdit && !brand.trim()) return t("errors.brandRequired");
     if (basePrice && !DECIMAL_RE.test(basePrice))
-      return "基礎價格式：1200 或 1200.50";
+      return t("errors.basePriceFormat");
     for (let i = 0; i < surcharges.length; i++) {
       const s = surcharges[i];
-      if (!s.name.trim()) return `加價條件 #${i + 1}：請填寫名稱`;
+      if (!s.name.trim()) return t("errors.surchargeName", { n: String(i + 1) });
       if (!s.amount || !DECIMAL_RE.test(s.amount))
-        return `加價條件 #${i + 1}：金額需為數字（如 500.00）`;
+        return t("errors.surchargeAmount", { n: String(i + 1) });
     }
     return null;
   };
@@ -486,13 +485,13 @@ function PricingRuleEditor({
         ) !== JSON.stringify(oldSurcharges);
       if (surchargesChanged) req.surcharges = newSurcharges;
       if (Object.keys(req).length === 0) {
-        alert("沒有任何變更");
+        alert(t("errors.noChange"));
         return;
       }
       onSubmitUpdate(req);
     } else {
       if (!basePrice) {
-        alert("請填寫基礎價");
+        alert(t("errors.basePriceRequired"));
         return;
       }
       const req: PricingRuleCreateRequest = {
@@ -533,67 +532,67 @@ function PricingRuleEditor({
       >
         <div className="mb-4 flex items-center gap-2">
           <span className="text-[18px] font-semibold text-[var(--text-primary)]">
-            {isEdit ? "編輯計價規則" : "新增計價規則"}
+            {isEdit ? t("editTitle") : t("createTitle")}
           </span>
         </div>
 
         <div className="flex flex-col gap-4">
-          <Field label="品牌" required>
+          <Field label={t("fields.brand")} required>
             <input
               type="text"
               value={brand}
               onChange={(e) => setBrand(e.target.value)}
               disabled={isEdit || pending}
               maxLength={100}
-              placeholder="例：Yale"
+              placeholder={t("fields.brandPlaceholder")}
               className="w-full rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] text-[var(--text-primary)] focus:border-[var(--primary)] focus:outline-none disabled:bg-[var(--bg-page)] disabled:opacity-70"
             />
             {isEdit && (
               <span className="mt-1 text-[11px] text-[var(--text-disabled)]">
-                建立後不可變更
+                {t("fields.brandLockedHint")}
               </span>
             )}
           </Field>
 
           <div className="grid grid-cols-2 gap-4">
-            <Field label="鎖型" required>
+            <Field label={t("fields.lockType")} required>
               <select
                 value={lockType}
                 onChange={(e) => setLockType(e.target.value as LockType)}
                 disabled={isEdit || pending}
                 className="w-full rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] text-[var(--text-primary)] focus:border-[var(--primary)] focus:outline-none disabled:bg-[var(--bg-page)] disabled:opacity-70"
               >
-                {LOCK_TYPE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
+                {LOCK_TYPE_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {tLock(value)}
                   </option>
                 ))}
               </select>
             </Field>
-            <Field label="難度" required>
+            <Field label={t("fields.difficulty")} required>
               <select
                 value={difficulty}
                 onChange={(e) => setDifficulty(e.target.value as Difficulty)}
                 disabled={isEdit || pending}
                 className="w-full rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] text-[var(--text-primary)] focus:border-[var(--primary)] focus:outline-none disabled:bg-[var(--bg-page)] disabled:opacity-70"
               >
-                {DIFFICULTY_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
+                {DIFFICULTY_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {tDiff(value)}
                   </option>
                 ))}
               </select>
             </Field>
           </div>
 
-          <Field label="基礎價（NT$）" required>
+          <Field label={t("fields.basePrice")} required>
             <input
               type="text"
               value={basePrice}
               onChange={(e) => setBasePrice(e.target.value)}
               disabled={pending}
               inputMode="decimal"
-              placeholder="例：1200.00"
+              placeholder={t("fields.basePricePlaceholder")}
               className="w-full rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] text-[var(--text-primary)] focus:border-[var(--primary)] focus:outline-none disabled:opacity-70"
             />
           </Field>
@@ -601,7 +600,7 @@ function PricingRuleEditor({
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <span className="text-[13px] font-medium text-[var(--text-primary)]">
-                加價條件（選填）
+                {t("fields.surcharges")}
               </span>
               <button
                 onClick={addSurcharge}
@@ -610,12 +609,12 @@ function PricingRuleEditor({
                 className="flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1 text-[12px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
               >
                 <Plus className="h-3 w-3" />
-                新增加價
+                {t("fields.addSurcharge")}
               </button>
             </div>
             {surcharges.length === 0 && (
               <span className="text-[12px] text-[var(--text-disabled)]">
-                尚未設定加價條件
+                {t("fields.noSurchargeYet")}
               </span>
             )}
             {surcharges.map((s, idx) => (
@@ -626,7 +625,7 @@ function PricingRuleEditor({
                   onChange={(e) => updateSurcharge(idx, "name", e.target.value)}
                   disabled={pending}
                   maxLength={100}
-                  placeholder="名稱（夜間服務）"
+                  placeholder={t("fields.surchargeName")}
                   className="w-[120px] rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-[6px] text-[12px] focus:border-[var(--primary)] focus:outline-none disabled:opacity-70"
                 />
                 <input
@@ -637,7 +636,7 @@ function PricingRuleEditor({
                   }
                   disabled={pending}
                   maxLength={200}
-                  placeholder="條件（22:00–06:00）"
+                  placeholder={t("fields.surchargeCondition")}
                   className="flex-1 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-[6px] text-[12px] focus:border-[var(--primary)] focus:outline-none disabled:opacity-70"
                 />
                 <input
@@ -648,14 +647,14 @@ function PricingRuleEditor({
                   }
                   disabled={pending}
                   inputMode="decimal"
-                  placeholder="金額"
+                  placeholder={t("fields.surchargeAmount")}
                   className="w-[90px] rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-[6px] text-[12px] focus:border-[var(--primary)] focus:outline-none disabled:opacity-70"
                 />
                 <button
                   onClick={() => removeSurcharge(idx)}
                   disabled={pending}
                   type="button"
-                  title="移除"
+                  title={t("fields.remove")}
                   className="flex h-8 w-8 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-red-50 disabled:opacity-50"
                 >
                   <Trash2 className="h-3 w-3 text-[var(--status-danger)]" />
@@ -678,7 +677,7 @@ function PricingRuleEditor({
             type="button"
             className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
           >
-            取消
+            {t("cancel")}
           </button>
           <button
             onClick={handleSubmit}
@@ -686,7 +685,7 @@ function PricingRuleEditor({
             type="button"
             className="rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {pending ? "儲存中…" : isEdit ? "確認更新" : "確認建立"}
+            {pending ? t("saving") : isEdit ? t("update") : t("create")}
           </button>
         </div>
       </div>
@@ -721,6 +720,9 @@ function PricingCalculator({
   rules: PricingRule[];
   onClose: () => void;
 }) {
+  const t = useTranslations("components.settings.pricingForm.calculator");
+  const tLock = useTranslations("components.settings.pricingForm.lockTypes");
+  const tDiff = useTranslations("components.settings.pricingForm.difficulties");
   const brandSuggestions = Array.from(
     new Set(rules.map((r) => r.brand).filter(Boolean)),
   );
@@ -737,7 +739,7 @@ function PricingCalculator({
 
   const calculate = async () => {
     if (!brand.trim()) {
-      setError("請填寫品牌");
+      setError(t("errBrandRequired"));
       return;
     }
     const items = additionalText
@@ -785,24 +787,24 @@ function PricingCalculator({
       >
         <div className="flex items-center justify-between">
           <span className="text-lg font-bold text-[var(--text-primary)]">
-            試算報價
+            {t("title")}
           </span>
           <button
             onClick={onClose}
             className="text-[13px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           >
-            關閉
+            {t("close")}
           </button>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="品牌" required>
+          <Field label={t("brand")} required>
             <input
               list="pricing-calc-brand-list"
               value={brand}
               onChange={(e) => setBrand(e.target.value)}
               className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] text-[var(--text-primary)]"
-              placeholder="輸入品牌"
+              placeholder={t("brandPlaceholder")}
             />
             <datalist id="pricing-calc-brand-list">
               {brandSuggestions.map((b) => (
@@ -810,28 +812,28 @@ function PricingCalculator({
               ))}
             </datalist>
           </Field>
-          <Field label="鎖型" required>
+          <Field label={t("lockType")} required>
             <select
               value={lockType}
               onChange={(e) => setLockType(e.target.value as LockType)}
               className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] text-[var(--text-primary)]"
             >
-              {LOCK_TYPE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
+              {LOCK_TYPE_VALUES.map((value) => (
+                <option key={value} value={value}>
+                  {tLock(value)}
                 </option>
               ))}
             </select>
           </Field>
-          <Field label="難度" required>
+          <Field label={t("difficulty")} required>
             <select
               value={difficulty}
               onChange={(e) => setDifficulty(e.target.value as Difficulty)}
               className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] text-[var(--text-primary)]"
             >
-              {DIFFICULTY_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
+              {DIFFICULTY_VALUES.map((value) => (
+                <option key={value} value={value}>
+                  {tDiff(value)}
                 </option>
               ))}
             </select>
@@ -843,7 +845,7 @@ function PricingCalculator({
                 checked={isEmergency}
                 onChange={(e) => setIsEmergency(e.target.checked)}
               />
-              緊急加成
+              {t("isEmergency")}
             </label>
             <label className="flex items-center gap-2 text-[13px] text-[var(--text-primary)]">
               <input
@@ -851,18 +853,18 @@ function PricingCalculator({
                 checked={isNight}
                 onChange={(e) => setIsNight(e.target.checked)}
               />
-              夜間服務
+              {t("isNight")}
             </label>
           </div>
         </div>
 
-        <Field label="額外項目（用逗號或換行分隔，例：陽台, 二樓）">
+        <Field label={t("additional")}>
           <textarea
             value={additionalText}
             onChange={(e) => setAdditionalText(e.target.value)}
             rows={2}
             className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] text-[var(--text-primary)]"
-            placeholder="陽台, 二樓"
+            placeholder={t("additionalPlaceholder")}
           />
         </Field>
 
@@ -875,7 +877,7 @@ function PricingCalculator({
         {result && (
           <div className="flex flex-col gap-2 rounded-lg border border-[var(--border)] bg-[#F8FAFC] p-4">
             <div className="flex items-center justify-between text-[13px]">
-              <span className="text-[var(--text-secondary)]">基礎價</span>
+              <span className="text-[var(--text-secondary)]">{t("basePrice")}</span>
               <span className="font-['IBM_Plex_Mono'] font-semibold text-[var(--text-primary)]">
                 {formatTwd(result.base_price)}
               </span>
@@ -900,12 +902,12 @@ function PricingCalculator({
             ))}
             {(result.surcharges ?? []).length === 0 && (
               <div className="text-[12px] text-[var(--text-disabled)]">
-                無套用任何加成
+                {t("noSurcharges")}
               </div>
             )}
             <div className="mt-1 flex items-center justify-between border-t border-[var(--border)] pt-2 text-[14px]">
               <span className="font-semibold text-[var(--text-primary)]">
-                總額（{result.currency ?? "TWD"}）
+                {t("totalLabel", { currency: result.currency ?? "TWD" })}
               </span>
               <span className="font-['IBM_Plex_Mono'] text-lg font-bold text-[var(--primary)]">
                 {formatTwd(result.total)}
@@ -920,14 +922,14 @@ function PricingCalculator({
             disabled={pending}
             className="rounded-lg border border-[var(--border)] px-4 py-2 text-[13px] font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
           >
-            關閉
+            {t("close")}
           </button>
           <button
             onClick={calculate}
             disabled={pending}
             className="rounded-lg bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white hover:opacity-90 disabled:opacity-50"
           >
-            {pending ? "計算中…" : "試算"}
+            {pending ? t("calculating") : t("calc")}
           </button>
         </div>
       </div>

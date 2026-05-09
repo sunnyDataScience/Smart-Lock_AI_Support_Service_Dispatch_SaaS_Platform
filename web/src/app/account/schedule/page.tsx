@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api } from "@/lib/api";
 
 type RequestItem = {
@@ -70,10 +71,14 @@ function buildMonthGrid(year: number, month: number): Date[] {
   return days;
 }
 
-const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"];
+const WEEKDAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
 export default function SchedulePage() {
   const router = useRouter();
+  const t = useTranslations("pages.account.schedule");
+  const tWeek = useTranslations("pages.account.schedule.weekdays");
+  const tModal = useTranslations("pages.account.schedule.modal");
+  const tStatus = useTranslations("pages.account.schedule.requestStatus");
   const today = new Date();
   const [cursor, setCursor] = useState({
     year: today.getFullYear(),
@@ -159,7 +164,9 @@ export default function SchedulePage() {
       setRequests((prev) => [created, ...prev]);
       setModalType(null);
       setActionMsg(
-        `${modalType === "leave" ? "休假" : "備勤"}申請已送出，等候管理員審核`,
+        t("submitDone", {
+          type: modalType === "leave" ? t("leaveTag") : t("standbyTag"),
+        }),
       );
       setTimeout(() => setActionMsg(null), 3000);
     } catch (e) {
@@ -170,13 +177,13 @@ export default function SchedulePage() {
   }
 
   async function cancelRequest(id: string) {
-    if (!window.confirm("確定取消此申請？")) return;
+    if (!window.confirm(t("cancelConfirm"))) return;
     try {
       await api.delete(
         `/api/v1/technicians/me/schedule/request/${encodeURIComponent(id)}`,
       );
       setRequests((prev) => prev.filter((r) => r.id !== id));
-      setActionMsg("已取消申請");
+      setActionMsg(t("cancelDone"));
       setTimeout(() => setActionMsg(null), 2000);
     } catch (e) {
       setErrorMsg(formatErr(e));
@@ -190,14 +197,17 @@ export default function SchedulePage() {
         online_state: newState ? "offline" : "available",
       });
       setCloseToday(newState);
-      setActionMsg(newState ? "本日接單已關閉" : "本日接單已恢復");
+      setActionMsg(newState ? t("closeDone") : t("openDone"));
       setTimeout(() => setActionMsg(null), 2000);
     } catch (e) {
       setErrorMsg(formatErr(e));
     }
   }
 
-  const monthLabel = `${cursor.year} 年 ${cursor.month + 1} 月`;
+  const monthLabel = t("monthLabel", {
+    year: String(cursor.year),
+    month: String(cursor.month + 1),
+  });
   const todayKey = toDateKey(today);
   const leaveCount = requests.filter(
     (r) => r.type === "leave" && r.status !== "rejected",
@@ -214,12 +224,12 @@ export default function SchedulePage() {
           type="button"
           onClick={() => router.push("/account")}
           className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
-          aria-label="返回"
+          aria-label={t("back")}
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
         <span className="text-[15px] font-semibold text-[var(--text-primary)]">
-          我的排班
+          {t("title")}
         </span>
       </div>
 
@@ -243,7 +253,7 @@ export default function SchedulePage() {
             type="button"
             onClick={() => shiftMonth(-1)}
             className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
-            aria-label="上個月"
+            aria-label={t("prevMonth")}
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
@@ -254,7 +264,7 @@ export default function SchedulePage() {
             type="button"
             onClick={() => shiftMonth(1)}
             className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
-            aria-label="下個月"
+            aria-label={t("nextMonth")}
           >
             <ChevronRight className="h-5 w-5" />
           </button>
@@ -262,20 +272,20 @@ export default function SchedulePage() {
 
         <div className="mt-3 grid grid-cols-3 gap-2 text-center">
           <div className="rounded-md bg-[#FEF3C7] px-2 py-1">
-            <span className="block text-[10px] text-[#92400E]">休假申請</span>
+            <span className="block text-[10px] text-[#92400E]">{t("leaveQuota")}</span>
             <span className="text-[16px] font-bold text-[#92400E]">
               {leaveCount}
             </span>
           </div>
           <div className="rounded-md bg-[#DBEAFE] px-2 py-1">
-            <span className="block text-[10px] text-[#1E40AF]">備勤申請</span>
+            <span className="block text-[10px] text-[#1E40AF]">{t("standbyQuota")}</span>
             <span className="text-[16px] font-bold text-[#1E40AF]">
               {standbyCount}
             </span>
           </div>
           <div className="rounded-md bg-[#F1F5F9] px-2 py-1">
             <span className="block text-[10px] text-[var(--text-secondary)]">
-              本月工單
+              {t("monthOrders")}
             </span>
             <span className="text-[16px] font-bold text-[var(--text-primary)]">
               {Object.values(workOrdersPerDay).reduce(
@@ -290,12 +300,12 @@ export default function SchedulePage() {
       {/* schedule_calendar_view */}
       <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-white p-3 shadow-sm">
         <div className="grid grid-cols-7 gap-1 text-center">
-          {WEEKDAY_LABELS.map((w) => (
+          {WEEKDAY_KEYS.map((w) => (
             <span
               key={w}
               className="text-[11px] font-medium text-[var(--text-secondary)]"
             >
-              {w}
+              {tWeek(w)}
             </span>
           ))}
           {grid.map((d) => {
@@ -336,15 +346,15 @@ export default function SchedulePage() {
         <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-[var(--border)] pt-2 text-[10px] text-[var(--text-secondary)]">
           <span className="inline-flex items-center gap-1">
             <span className="inline-block h-3 w-3 rounded bg-[#FEF3C7]" />
-            休假
+            {t("legend.leave")}
           </span>
           <span className="inline-flex items-center gap-1">
             <span className="inline-block h-3 w-3 rounded bg-[#DBEAFE]" />
-            備勤
+            {t("legend.standby")}
           </span>
           <span className="inline-flex items-center gap-1">
             <span className="inline-block h-2 w-2 rounded-full bg-[var(--primary)]" />
-            工單數
+            {t("legend.orders")}
           </span>
         </div>
       </section>
@@ -353,10 +363,10 @@ export default function SchedulePage() {
       <section className="mx-4 mt-4 flex items-center justify-between rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
         <div className="flex flex-col">
           <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-            關閉本日接單
+            {t("closeToday")}
           </span>
           <span className="text-[11px] text-[var(--text-secondary)]">
-            1 小時內無工單立即生效；有工單時最後一單完工後生效
+            {t("closeTodayHint")}
           </span>
         </div>
         <button
@@ -366,7 +376,7 @@ export default function SchedulePage() {
           style={{
             backgroundColor: closeToday ? "#EF4444" : "#E2E8F0",
           }}
-          aria-label="切換本日接單"
+          aria-label={t("closeTodayAria")}
         >
           <span
             className="absolute top-[2px] h-6 w-6 rounded-full bg-white shadow transition-all"
@@ -383,7 +393,7 @@ export default function SchedulePage() {
           className="flex h-12 items-center justify-center gap-1 rounded-lg border border-amber-200 bg-amber-50 text-[14px] font-medium text-amber-800 hover:bg-amber-100"
         >
           <CalendarDays className="h-4 w-4" />
-          申請休假
+          {t("applyLeave")}
         </button>
         <button
           type="button"
@@ -391,7 +401,7 @@ export default function SchedulePage() {
           className="flex h-12 items-center justify-center gap-1 rounded-lg border border-blue-200 bg-blue-50 text-[14px] font-medium text-blue-800 hover:bg-blue-100"
         >
           <Clock className="h-4 w-4" />
-          申請備勤
+          {t("applyStandby")}
         </button>
       </section>
 
@@ -399,15 +409,17 @@ export default function SchedulePage() {
       <section className="mx-4 mt-4 mb-6 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-            待審核申請
+            {t("pending")}
           </span>
           <span className="text-[11px] text-[var(--text-disabled)]">
-            {requests.filter((r) => r.status === "pending").length} 筆
+            {t("pendingCount", {
+              count: String(requests.filter((r) => r.status === "pending").length),
+            })}
           </span>
         </div>
         {requests.length === 0 ? (
           <p className="py-3 text-center text-[12px] text-[var(--text-disabled)]">
-            目前無待審核申請
+            {t("noPending")}
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
@@ -425,7 +437,7 @@ export default function SchedulePage() {
                           : "bg-blue-100 text-blue-800"
                       }`}
                     >
-                      {r.type === "leave" ? "休假" : "備勤"}
+                      {r.type === "leave" ? t("leaveTag") : t("standbyTag")}
                     </span>
                     <span className="text-[12px] text-[var(--text-secondary)]">
                       {r.start_date} ～ {r.end_date}
@@ -435,12 +447,14 @@ export default function SchedulePage() {
                     {r.reason}
                   </span>
                   <span className="text-[10px] text-[var(--text-disabled)]">
-                    狀態：
-                    {r.status === "pending"
-                      ? "待審核"
-                      : r.status === "approved"
-                        ? "已核准"
-                        : "已拒絕"}
+                    {t("statusPrefix", {
+                      label:
+                        r.status === "pending"
+                          ? tStatus("pending")
+                          : r.status === "approved"
+                            ? tStatus("approved")
+                            : tStatus("rejected"),
+                    })}
                   </span>
                 </div>
                 {r.status === "pending" && (
@@ -448,7 +462,7 @@ export default function SchedulePage() {
                     type="button"
                     onClick={() => cancelRequest(r.id)}
                     className="flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50"
-                    aria-label="取消申請"
+                    aria-label={t("cancelAria")}
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
@@ -471,7 +485,7 @@ export default function SchedulePage() {
           >
             <div className="mb-3 flex items-center justify-between">
               <span className="text-[16px] font-semibold text-[var(--text-primary)]">
-                {modalType === "leave" ? "申請休假" : "申請備勤加班"}
+                {modalType === "leave" ? tModal("leaveTitle") : tModal("standbyTitle")}
               </span>
               <button
                 type="button"
@@ -484,7 +498,7 @@ export default function SchedulePage() {
 
             <label className="mb-2 flex flex-col gap-1">
               <span className="text-[11px] font-medium text-[var(--text-secondary)]">
-                開始日期
+                {tModal("startDate")}
               </span>
               <input
                 type="date"
@@ -496,7 +510,7 @@ export default function SchedulePage() {
 
             <label className="mb-2 flex flex-col gap-1">
               <span className="text-[11px] font-medium text-[var(--text-secondary)]">
-                結束日期
+                {tModal("endDate")}
               </span>
               <input
                 type="date"
@@ -508,7 +522,7 @@ export default function SchedulePage() {
 
             <label className="mb-3 flex flex-col gap-1">
               <span className="text-[11px] font-medium text-[var(--text-secondary)]">
-                {modalType === "leave" ? "休假事由" : "備勤備註"}
+                {modalType === "leave" ? tModal("leaveReason") : tModal("standbyNote")}
               </span>
               <textarea
                 value={formReason}
@@ -516,13 +530,13 @@ export default function SchedulePage() {
                 rows={3}
                 placeholder={
                   modalType === "leave"
-                    ? "例：年假 / 醫療 / 家庭事務..."
-                    : "例：本日支援人手..."
+                    ? tModal("leaveReasonPlaceholder")
+                    : tModal("standbyNotePlaceholder")
                 }
                 className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px]"
               />
               <span className="text-[10px] text-[var(--text-disabled)]">
-                至少 5 字（{formReason.trim().length}/5）
+                {tModal("minLength", { count: String(formReason.trim().length) })}
               </span>
             </label>
 
@@ -533,7 +547,7 @@ export default function SchedulePage() {
                 disabled={submitting}
                 className="h-11 flex-1 rounded-lg border border-[var(--border)] text-[14px] font-medium text-[var(--text-primary)] disabled:opacity-50"
               >
-                取消
+                {tModal("cancel")}
               </button>
               <button
                 type="button"
@@ -546,7 +560,7 @@ export default function SchedulePage() {
                 }
                 className="h-11 flex-[2] rounded-lg bg-[var(--primary)] text-[14px] font-semibold text-white disabled:opacity-60"
               >
-                {submitting ? "送出中…" : "送出申請"}
+                {submitting ? tModal("submitting") : tModal("submit")}
               </button>
             </div>
           </div>

@@ -18,6 +18,7 @@ import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import { ApiError, api } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type Customer = components["schemas"]["Customer"];
@@ -42,18 +43,19 @@ function formatDateOnly(iso: string | null | undefined): string {
   return iso.slice(0, 10);
 }
 
-const columns = [
-  { label: "客戶", width: "w-[220px]" },
-  { label: "LINE ID", width: "w-[150px]" },
-  { label: "地址", width: "w-[260px]" },
-  { label: "對話", width: "w-[80px]" },
-  { label: "工單", width: "w-[80px]" },
-  { label: "最近服務", width: "w-[120px]" },
-  { label: "最近互動", width: "w-[120px]" },
-  { label: "", width: "w-[60px]" },
-];
+const COLUMN_KEYS = [
+  { key: "customer", width: "w-[220px]" },
+  { key: "lineId", width: "w-[150px]" },
+  { key: "address", width: "w-[260px]" },
+  { key: "conversations", width: "w-[80px]" },
+  { key: "orders", width: "w-[80px]" },
+  { key: "lastService", width: "w-[120px]" },
+  { key: "lastActive", width: "w-[120px]" },
+  { key: "actions", width: "w-[60px]" },
+] as const;
 
 export default function CustomersPage() {
+  const t = useTranslations("admin.customers.list");
   const [items, setItems] = useState<Customer[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -117,11 +119,11 @@ export default function CustomersPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-semibold text-[var(--text-primary)]">
-                客戶主檔
+                {t("title")}
               </h1>
               <span className="flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-[2px] text-xs text-[var(--primary)]">
                 <Lock className="h-3 w-3" />
-                SmartLock 租戶
+                {t("tenantTag")}
               </span>
             </div>
             <div className="flex items-center gap-3">
@@ -129,7 +131,7 @@ export default function CustomersPage() {
                 <Search className="h-4 w-4 text-[var(--text-disabled)]" />
                 <input
                   type="text"
-                  placeholder="本頁過濾：姓名 / 電話 / LINE ID / 地址…"
+                  placeholder={t("searchPlaceholder")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="flex-1 bg-transparent text-[13px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-disabled)]"
@@ -143,7 +145,7 @@ export default function CustomersPage() {
               <button
                 onClick={() => fetchPage(null)}
                 disabled={loading}
-                title="重新整理"
+                title={t("refresh")}
                 className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <RefreshCw
@@ -158,7 +160,7 @@ export default function CustomersPage() {
               >
                 <UserPlus className="h-4 w-4 text-white" />
                 <span className="text-[13px] font-medium text-white">
-                  新增客戶
+                  {t("addCustomer")}
                 </span>
               </Link>
             </div>
@@ -178,7 +180,7 @@ export default function CustomersPage() {
               </div>
               <div className="flex flex-col">
                 <span className="text-xs text-[var(--text-secondary)]">
-                  本頁客戶數
+                  {t("stats.pageTotal")}
                 </span>
                 <span className="text-xl font-bold text-[var(--text-primary)]">
                   {items.length}
@@ -193,13 +195,13 @@ export default function CustomersPage() {
               </div>
               <div className="flex flex-col">
                 <span className="text-xs text-[var(--text-secondary)]">
-                  活躍客戶
+                  {t("stats.active")}
                 </span>
                 <span className="text-xl font-bold text-[var(--text-disabled)]">
                   —
                 </span>
                 <span className="text-[11px] text-[var(--text-disabled)]">
-                  待活躍判定規則
+                  {t("stats.activeNote")}
                 </span>
               </div>
             </div>
@@ -210,13 +212,13 @@ export default function CustomersPage() {
               </div>
               <div className="flex flex-col">
                 <span className="text-xs text-[var(--text-secondary)]">
-                  高風險客戶
+                  {t("stats.highRisk")}
                 </span>
                 <span className="text-xl font-bold text-[var(--text-disabled)]">
                   —
                 </span>
                 <span className="text-[11px] text-[var(--text-disabled)]">
-                  待風險引擎
+                  {t("stats.highRiskNote")}
                 </span>
               </div>
             </div>
@@ -227,13 +229,13 @@ export default function CustomersPage() {
               </div>
               <div className="flex flex-col">
                 <span className="text-xs text-[var(--text-secondary)]">
-                  保固即將到期
+                  {t("stats.warrantyExpiring")}
                 </span>
                 <span className="text-xl font-bold text-[var(--text-disabled)]">
                   —
                 </span>
                 <span className="text-[11px] text-[var(--text-disabled)]">
-                  待保固模組
+                  {t("stats.warrantyNote")}
                 </span>
               </div>
             </div>
@@ -241,14 +243,14 @@ export default function CustomersPage() {
 
           {/* Filter Bar — disabled */}
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 opacity-60">
-            {["風險等級", "設備品牌", "保固狀態", "偏好技師"].map((label) => (
+            {(["risk", "brand", "warranty", "preferredTech"] as const).map((key) => (
               <button
-                key={label}
+                key={key}
                 disabled
-                title="即將推出"
+                title={t("comingSoon")}
                 className="flex cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-[7px] text-[13px] text-[var(--text-disabled)]"
               >
-                {label}
+                {t(`filterChips.${key}`)}
                 <ChevronDown className="h-3 w-3 text-[var(--text-disabled)]" />
               </button>
             ))}
@@ -257,10 +259,10 @@ export default function CustomersPage() {
           {/* Data Table */}
           <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]">
             <div className="flex items-center bg-[#F8FAFC] px-4 py-3">
-              {columns.map((col) => (
-                <div key={col.label || "actions"} className={col.width}>
+              {COLUMN_KEYS.map((col) => (
+                <div key={col.key} className={col.width}>
                   <span className="text-xs font-semibold text-[var(--text-secondary)]">
-                    {col.label}
+                    {col.key === "actions" ? "" : t(`cols.${col.key}`)}
                   </span>
                 </div>
               ))}
@@ -268,11 +270,11 @@ export default function CustomersPage() {
 
             {loading && items.length === 0 ? (
               <div className="flex h-32 items-center justify-center text-[13px] text-[var(--text-secondary)]">
-                載入中…
+                {t("loading")}
               </div>
             ) : filtered.length === 0 ? (
               <div className="flex h-32 items-center justify-center text-[13px] text-[var(--text-secondary)]">
-                {searchQuery ? "本頁無符合的客戶" : "目前沒有客戶資料"}
+                {searchQuery ? t("emptyFilter") : t("empty")}
               </div>
             ) : (
               filtered.map((c) => (
@@ -345,14 +347,14 @@ export default function CustomersPage() {
                   <div className="flex w-[60px] items-center gap-1">
                     <Link
                       href={`/admin/customers/${c.id}`}
-                      title="檢視詳情"
+                      title={t("viewDetail")}
                       className="rounded-md p-1 opacity-0 transition-opacity hover:bg-[var(--bg-page)] group-hover:opacity-80"
                     >
                       <Eye className="h-4 w-4 text-[var(--text-secondary)]" />
                     </Link>
                     <Link
                       href={`/admin/customers/${c.id}/edit`}
-                      title="編輯客戶"
+                      title={t("editCustomer")}
                       className="rounded-md p-1 opacity-0 transition-opacity hover:bg-[var(--bg-page)] group-hover:opacity-80"
                     >
                       <Pencil className="h-4 w-4 text-[var(--text-secondary)]" />
@@ -369,7 +371,7 @@ export default function CustomersPage() {
                   disabled={loadingMore}
                   className="rounded-lg border border-[var(--border)] px-4 py-2 text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {loadingMore ? "載入中…" : "載入更多"}
+                  {loadingMore ? t("loadingMore") : t("loadMore")}
                 </button>
               </div>
             )}

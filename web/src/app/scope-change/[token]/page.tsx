@@ -18,6 +18,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 type Params = { token: string };
 
@@ -54,14 +55,6 @@ interface PublicScopeChangeResult {
   next_step?: string | null;
 }
 
-const STATUS_LABEL: Record<ProposalStatus, string> = {
-  pending: "等待您回覆",
-  accepted: "已同意",
-  rejected: "已拒絕",
-  expired: "已逾時",
-  superseded: "已被新提案取代",
-};
-
 const STATUS_BADGE: Record<ProposalStatus, string> = {
   pending: "bg-amber-50 text-amber-700 border-amber-200",
   accepted: "bg-green-50 text-green-700 border-green-200",
@@ -81,6 +74,7 @@ export default function PublicScopeChangePage({
   params: Promise<Params>;
 }) {
   const { token } = use(params);
+  const t = useTranslations("pages.scopeChangePublic");
   const [state, setState] = useState<FetchState>({ kind: "loading" });
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -102,7 +96,7 @@ export default function PublicScopeChangePage({
           setState({
             kind: "error",
             code: "not_found",
-            message: "連結無效或已過期，請聯絡客服協助。",
+            message: t("errors.notFound"),
           });
           return;
         }
@@ -110,7 +104,7 @@ export default function PublicScopeChangePage({
           setState({
             kind: "error",
             code: "expired",
-            message: "連結已失效，請聯絡客服取得最新狀態。",
+            message: t("errors.expired"),
           });
           return;
         }
@@ -118,7 +112,7 @@ export default function PublicScopeChangePage({
           setState({
             kind: "error",
             code: "rate_limit",
-            message: "查詢過於頻繁，請稍候再試。",
+            message: t("errors.rateLimit"),
           });
           return;
         }
@@ -126,7 +120,7 @@ export default function PublicScopeChangePage({
           setState({
             kind: "error",
             code: "other",
-            message: `查詢失敗（${res.status}），請稍後再試。`,
+            message: t("errors.fail", { status: String(res.status) }),
           });
           return;
         }
@@ -138,7 +132,7 @@ export default function PublicScopeChangePage({
           setState({
             kind: "error",
             code: "other",
-            message: "網路連線失敗，請稍後再試。",
+            message: t("errors.network"),
           });
         }
       }
@@ -147,13 +141,13 @@ export default function PublicScopeChangePage({
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, t]);
 
   async function respond(decision: "accept" | "reject") {
     if (submitting || result) return;
 
     if (decision === "accept") {
-      const ok = window.confirm("確認同意此追加項目並繼續施工？");
+      const ok = window.confirm(t("confirmAccept"));
       if (!ok) return;
     }
 
@@ -173,7 +167,7 @@ export default function PublicScopeChangePage({
 
       if (res.status === 409) {
         // 提案狀態已變更 → 重新拉
-        setSubmitError("提案狀態已變動，正在重新整理…");
+        setSubmitError(t("errors.stateChanged"));
         try {
           const refresh = await fetch(
             `${API_BASE}/api/v1/public/scope-changes/${encodeURIComponent(token)}`,
@@ -190,14 +184,14 @@ export default function PublicScopeChangePage({
       }
 
       if (!res.ok) {
-        setSubmitError(`提交失敗（${res.status}），請稍後再試。`);
+        setSubmitError(t("errors.submitFail", { status: String(res.status) }));
         return;
       }
 
       const data = (await res.json()) as PublicScopeChangeResult;
       setResult(data);
     } catch {
-      setSubmitError("網路連線失敗，請稍後再試。");
+      setSubmitError(t("errors.networkSubmit"));
     } finally {
       setSubmitting(false);
     }
@@ -207,7 +201,7 @@ export default function PublicScopeChangePage({
     <main className="min-h-screen bg-slate-50 px-4 py-8">
       <div className="mx-auto max-w-md rounded-lg bg-white p-6 shadow">
         <h1 className="text-xl font-semibold text-slate-900">
-          施工範圍變更確認
+          {t("title")}
         </h1>
 
         {state.kind === "loading" && <ProposalSkeleton />}
@@ -219,7 +213,7 @@ export default function PublicScopeChangePage({
             data-error-code={state.code}
             className="mt-6 rounded border border-red-200 bg-red-50 p-4 text-sm text-red-700"
           >
-            <p className="font-medium">無法載入提案</p>
+            <p className="font-medium">{t("errorTitle")}</p>
             <p className="mt-1 text-[13px]">{state.message}</p>
           </div>
         )}
@@ -268,28 +262,30 @@ function ProposalPanel({
   result,
   onRespond,
 }: ProposalPanelProps) {
+  const t = useTranslations("pages.scopeChangePublic");
+  const tStatus = useTranslations("pages.scopeChangePublic.status");
   const showButtons = proposal.status === "pending" && !result;
 
   return (
     <div className="mt-6 space-y-4" data-testid="scope-proposal">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-slate-500">提案狀態</span>
+        <span className="text-xs text-slate-500">{t("fields.status")}</span>
         <span
           className={`inline-block rounded-full border px-3 py-1 text-[12px] font-medium ${STATUS_BADGE[proposal.status]}`}
         >
-          {STATUS_LABEL[proposal.status]}
+          {tStatus(proposal.status)}
         </span>
       </div>
 
       {proposal.reason && (
         <div className="rounded-md bg-slate-50 p-3 text-[13px] text-slate-700">
-          <p className="text-xs text-slate-500">技師說明</p>
+          <p className="text-xs text-slate-500">{t("fields.techNote")}</p>
           <p className="mt-1">{proposal.reason}</p>
         </div>
       )}
 
       <div>
-        <p className="mb-2 text-xs text-slate-500">追加項目</p>
+        <p className="mb-2 text-xs text-slate-500">{t("fields.items")}</p>
         <ul className="divide-y divide-slate-200 rounded border border-slate-200">
           {proposal.items.map((item, idx) => (
             <li key={idx} className="flex items-start justify-between p-3">
@@ -303,7 +299,7 @@ function ProposalPanel({
                   </p>
                 )}
                 <p className="mt-1 text-[11px] text-slate-400">
-                  數量：{item.quantity}
+                  {t("fields.quantity", { count: String(item.quantity) })}
                 </p>
               </div>
               <span className="shrink-0 text-[13px] font-mono text-slate-900">
@@ -315,14 +311,14 @@ function ProposalPanel({
       </div>
 
       <div className="flex items-center justify-between rounded-md bg-blue-50 px-3 py-2 text-[14px] text-blue-900">
-        <span className="font-medium">總增減金額</span>
+        <span className="font-medium">{t("fields.totalDelta")}</span>
         <span className="font-mono font-semibold">
           {formatTwd(proposal.total_delta)}
         </span>
       </div>
 
       <p className="text-[11px] text-slate-500">
-        提案有效至：{formatDateTime(proposal.expires_at)}
+        {t("fields.validUntil", { time: formatDateTime(proposal.expires_at) })}
       </p>
 
       {submitError && (
@@ -340,7 +336,7 @@ function ProposalPanel({
           className="rounded border border-green-200 bg-green-50 px-3 py-3 text-[13px] text-green-800"
         >
           <p className="font-medium">
-            {result.decision === "accept" ? "已同意此提案" : "已拒絕此提案"}
+            {result.decision === "accept" ? t("result.accepted") : t("result.rejected")}
           </p>
           {result.next_step && (
             <p className="mt-1 text-[12px]">{result.next_step}</p>
@@ -357,7 +353,7 @@ function ProposalPanel({
             onClick={() => onRespond("reject")}
             className="flex-1 rounded-md border border-slate-300 bg-white px-4 py-2 text-[14px] font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {submitting ? "處理中…" : "拒絕"}
+            {submitting ? t("buttons.submitting") : t("buttons.reject")}
           </button>
           <button
             type="button"
@@ -366,7 +362,7 @@ function ProposalPanel({
             onClick={() => onRespond("accept")}
             className="flex-1 rounded-md bg-blue-600 px-4 py-2 text-[14px] font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {submitting ? "處理中…" : "同意"}
+            {submitting ? t("buttons.submitting") : t("buttons.accept")}
           </button>
         </div>
       )}

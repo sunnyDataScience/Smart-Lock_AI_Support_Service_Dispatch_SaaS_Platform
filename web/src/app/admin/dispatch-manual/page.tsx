@@ -19,6 +19,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import StatusBadge, { statusLabel } from "@/components/tech/StatusBadge";
 import UrgencyBadge from "@/components/tech/UrgencyBadge";
 import { ApiError, api } from "@/lib/api";
+import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
@@ -57,12 +58,12 @@ interface CandidatesResponse {
   }[];
 }
 
-const REASON_OPTIONS: { value: AssignReasonCode; label: string }[] = [
-  { value: "auto_dispatch_exhausted", label: "自動派工已窮盡" },
-  { value: "customer_requested_specific_tech", label: "客戶指名" },
-  { value: "skill_shortage_override", label: "技能不足但特殊覆蓋" },
-  { value: "sla_rescue", label: "SLA 即將違反強制指派" },
-  { value: "other", label: "其他（手填）" },
+const REASON_VALUES: AssignReasonCode[] = [
+  "auto_dispatch_exhausted",
+  "customer_requested_specific_tech",
+  "skill_shortage_override",
+  "sla_rescue",
+  "other",
 ];
 
 const LEVELS: TechnicianLevel[] = ["S", "A", "B", "C"];
@@ -79,6 +80,9 @@ export default function DispatchManualPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const workOrderId = searchParams.get("work_order_id") ?? "";
+  const t = useTranslations("admin.dispatchManual");
+  const tReasons = useTranslations("admin.dispatchManual.reasons");
+  const { locale } = useLocale();
 
   const [wo, setWo] = useState<WorkOrder | null>(null);
   const [woLoading, setWoLoading] = useState(false);
@@ -193,7 +197,7 @@ export default function DispatchManualPage() {
   async function submitAssign() {
     if (!wo || !selectedTechId || submitting) return;
     if (reasonCode === "other" && reasonText.trim().length < 10) {
-      setSubmitError("「其他」理由需填 10–500 字");
+      setSubmitError(t("errors.otherRequired"));
       return;
     }
     setSubmitting(true);
@@ -208,7 +212,7 @@ export default function DispatchManualPage() {
           override_flags: { allow_circuit: false, allow_cross_area: false },
         },
       );
-      setActionMsg(`已指派給 ${selectedTech?.name ?? "技師"}`);
+      setActionMsg(t("actionMsg.assignedTo", { name: selectedTech?.name ?? t("actionMsg.fallbackTech") }));
       setReasonModalOpen(false);
       setReasonText("");
       // 返回 A28 派工佇列
@@ -217,9 +221,9 @@ export default function DispatchManualPage() {
       if (e instanceof ApiError) {
         if (e.status === 409) {
           if (e.errorCode === "TECHNICIAN_CIRCUIT_BREAKER_OPEN") {
-            setSubmitError("技師熔斷中，需 operations_manager 雙簽（MVP 待補）");
+            setSubmitError(t("errors.circuitBreaker"));
           } else if (e.errorCode === "WORK_ORDER_CONFLICT") {
-            setSubmitError("工單已被其他人指派，請重新整理");
+            setSubmitError(t("errors.conflict"));
           } else {
             setSubmitError(formatErr(e));
           }
@@ -236,7 +240,7 @@ export default function DispatchManualPage() {
 
   async function escalateOrder() {
     if (!wo || escalateBusy) return;
-    const reason = window.prompt("升級至上層覆審的原因（必填）：");
+    const reason = window.prompt(t("errors.escalatePrompt"));
     if (!reason || reason.trim().length === 0) return;
     setEscalateBusy(true);
     try {
@@ -244,7 +248,7 @@ export default function DispatchManualPage() {
         `/api/v1/work-orders/${encodeURIComponent(wo.id)}/escalate`,
         { level: "operations_manager", reason: reason.trim() },
       );
-      setActionMsg("已升級至 operations_manager，等候主管處理");
+      setActionMsg(t("actionMsg.escalated"));
     } catch (e) {
       setError(formatErr(e));
     } finally {
@@ -254,13 +258,13 @@ export default function DispatchManualPage() {
 
   async function cancelOrder() {
     if (!wo || escalateBusy) return;
-    if (!window.confirm("確定取消此工單並全額退款？此操作會通知客戶。")) return;
+    if (!window.confirm(t("errors.cancelConfirm"))) return;
     setEscalateBusy(true);
     try {
       await api.post(`/api/v1/work-orders/${encodeURIComponent(wo.id)}/cancel`, {
         reason: "manual_dispatch_cancel",
       });
-      setActionMsg("工單已取消");
+      setActionMsg(t("actionMsg.cancelled"));
       setTimeout(() => router.push("/admin/dispatch-queue"), 1500);
     } catch (e) {
       setError(formatErr(e));
@@ -278,19 +282,19 @@ export default function DispatchManualPage() {
           <div className="rounded-xl border border-[var(--border)] bg-white p-8 text-center shadow-sm">
             <AlertTriangle className="mx-auto h-10 w-10 text-amber-500" />
             <h2 className="mt-3 text-[18px] font-semibold text-[var(--text-primary)]">
-              缺少工單參數
+              {t("missingParam.title")}
             </h2>
             <p className="mt-2 text-[13px] text-[var(--text-secondary)]">
-              請從派工佇列監控 (A28) 點「人工介入」進入，或在 URL 加上
+              {t("missingParam.hint")}
               <code className="mx-1 rounded bg-[#F1F5F9] px-1 py-[1px] font-mono text-[12px]">
-                ?work_order_id=xxx
+                {t("missingParam.queryHint")}
               </code>
             </p>
             <Link
               href="/admin/dispatch-queue"
               className="mt-4 inline-block rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#1D4ED8]"
             >
-              前往派工佇列
+              {t("missingParam.goQueue")}
             </Link>
           </div>
         </div>
@@ -306,11 +310,11 @@ export default function DispatchManualPage() {
         {/* Page Header */}
         <div className="flex flex-col gap-1 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-4">
           <span className="text-[13px] text-[var(--text-secondary)]">
-            首頁 &gt; 派工管理 &gt; 人工介入
+            {t("breadcrumb")}
           </span>
           <div className="flex items-center justify-between">
             <h1 className="text-[24px] font-bold text-[#0F172A]">
-              派工人工介入
+              {t("title")}
             </h1>
             <button
               type="button"
@@ -324,7 +328,7 @@ export default function DispatchManualPage() {
               <RefreshCw
                 className={`h-4 w-4 ${loading || woLoading ? "animate-spin" : ""}`}
               />
-              重新整理
+              {t("refresh")}
             </button>
           </div>
         </div>
@@ -351,11 +355,11 @@ export default function DispatchManualPage() {
         >
           {woLoading ? (
             <div className="text-[13px] text-[var(--text-secondary)]">
-              載入工單中…
+              {t("ctxLoading")}
             </div>
           ) : !wo ? (
             <div className="text-[13px] text-red-700">
-              找不到工單 (id: {workOrderId})
+              {t("ctxNotFound", { id: workOrderId })}
             </div>
           ) : (
             <>
@@ -363,7 +367,7 @@ export default function DispatchManualPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <h2 className="text-[16px] font-semibold text-[var(--text-primary)]">
-                      工單 #{wo.id.slice(0, 8)}
+                      {t("ctxOrderTitle", { id: wo.id.slice(0, 8) })}
                     </h2>
                     <StatusBadge status={wo.status} />
                     <UrgencyBadge urgency={wo.urgency} />
@@ -377,21 +381,21 @@ export default function DispatchManualPage() {
                 </div>
                 <div className="text-right">
                   <span className="block text-[11px] text-[var(--text-disabled)]">
-                    已嘗試派工
+                    {t("ctxAttempted")}
                   </span>
                   <span className="text-[20px] font-bold text-[var(--text-primary)]">
                     {attempts.length}
                   </span>
                   <span className="text-[12px] text-[var(--text-secondary)]">
                     {" "}
-                    次
+                    {t("ctxTimes")}
                   </span>
                 </div>
               </div>
               {attempts.length > 0 && (
                 <details className="rounded-md bg-[#F8FAFC] px-3 py-2 text-[12px] text-[var(--text-secondary)]">
                   <summary className="cursor-pointer font-medium">
-                    自動派工嘗試紀錄 ({attempts.length})
+                    {t("ctxAttemptHistory", { count: String(attempts.length) })}
                   </summary>
                   <ul className="mt-2 flex flex-col gap-1">
                     {attempts.map((a, i) => (
@@ -399,16 +403,16 @@ export default function DispatchManualPage() {
                         <span>
                           {a.technician_id?.slice(0, 8) ?? "-"}：{" "}
                           {a.outcome === "declined"
-                            ? "拒接"
+                            ? t("ctxAttemptOutcome.declined")
                             : a.outcome === "timeout"
-                              ? "逾時"
+                              ? t("ctxAttemptOutcome.timeout")
                               : a.outcome === "accepted"
-                                ? "已接"
+                                ? t("ctxAttemptOutcome.accepted")
                                 : a.outcome ?? "-"}
                         </span>
                         <span>
                           {a.attempted_at
-                            ? new Date(a.attempted_at).toLocaleString("zh-TW")
+                            ? new Date(a.attempted_at).toLocaleString(locale)
                             : "-"}
                         </span>
                       </li>
@@ -425,12 +429,12 @@ export default function DispatchManualPage() {
           {/* filter_sidebar */}
           <aside className="w-[240px] flex-shrink-0 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
             <h3 className="mb-3 text-[14px] font-semibold text-[var(--text-primary)]">
-              篩選
+              {t("filters.title")}
             </h3>
 
             <div className="mb-4">
               <span className="mb-1 block text-[12px] font-medium text-[var(--text-secondary)]">
-                技師分級
+                {t("filters.techLevel")}
               </span>
               <div className="flex flex-wrap gap-2">
                 {LEVELS.map((lv) => (
@@ -451,7 +455,7 @@ export default function DispatchManualPage() {
 
             <div className="mb-4">
               <span className="mb-1 block text-[12px] font-medium text-[var(--text-secondary)]">
-                最低評分：{ratingMin.toFixed(1)}
+                {t("filters.minRating", { value: ratingMin.toFixed(1) })}
               </span>
               <input
                 type="range"
@@ -471,12 +475,12 @@ export default function DispatchManualPage() {
                 onChange={(e) => setExcludeCircuit(e.target.checked)}
                 className="h-4 w-4 accent-[var(--primary)]"
               />
-              排除熔斷中技師
+              {t("filters.excludeCircuit")}
             </label>
 
             <div className="mb-2 border-t border-[var(--border)] pt-3">
               <span className="mb-1 block text-[12px] font-medium text-[var(--text-secondary)]">
-                排序方式
+                {t("filters.sortLabel")}
               </span>
               <select
                 value={sortBy}
@@ -485,9 +489,9 @@ export default function DispatchManualPage() {
                 }
                 className="w-full rounded-md border border-[var(--border)] px-2 py-1 text-[12px]"
               >
-                <option value="score">綜合分數</option>
-                <option value="distance">距離最近</option>
-                <option value="rating">評分最高</option>
+                <option value="score">{t("filters.sort.score")}</option>
+                <option value="distance">{t("filters.sort.distance")}</option>
+                <option value="rating">{t("filters.sort.rating")}</option>
               </select>
             </div>
           </aside>
@@ -496,12 +500,17 @@ export default function DispatchManualPage() {
           <section className="flex flex-1 flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-white shadow-sm">
             <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
               <span className="text-[13px] font-medium text-[var(--text-primary)]">
-                候選技師（共 {filtered.length} 位
-                {totalAvailable > 0 ? ` / 總 ${totalAvailable} 位可用` : ""}）
+                {t("candidates.summary", {
+                  count: String(filtered.length),
+                  available:
+                    totalAvailable > 0
+                      ? t("candidates.available", { total: String(totalAvailable) })
+                      : "",
+                })}
               </span>
               {selectedTech && (
                 <span className="text-[12px] text-[var(--primary)]">
-                  已選：{selectedTech.name}
+                  {t("candidates.selected", { name: selectedTech.name })}
                 </span>
               )}
             </div>
@@ -509,44 +518,44 @@ export default function DispatchManualPage() {
             <div className="flex-1 overflow-auto">
               {loading && filtered.length === 0 ? (
                 <div className="flex h-40 items-center justify-center text-[13px] text-[var(--text-secondary)]">
-                  載入中…
+                  {t("candidates.loading")}
                 </div>
               ) : filtered.length === 0 ? (
                 <div className="flex h-60 flex-col items-center justify-center gap-2 text-[var(--text-secondary)]">
                   <AlertTriangle className="h-10 w-10 text-amber-500" />
-                  <p className="text-[14px]">無符合條件的技師</p>
-                  <p className="text-[12px]">請放寬篩選條件，或考慮升級主管</p>
+                  <p className="text-[14px]">{t("candidates.emptyTitle")}</p>
+                  <p className="text-[12px]">{t("candidates.emptyHint")}</p>
                 </div>
               ) : (
                 <table className="w-full text-[13px]">
                   <thead className="sticky top-0 bg-[#F8FAFC] text-left text-[12px] font-medium text-[var(--text-secondary)]">
                     <tr>
                       <th className="px-3 py-2 w-10"></th>
-                      <th className="px-3 py-2">技師</th>
-                      <th className="px-3 py-2 text-center">分級</th>
-                      <th className="px-3 py-2 text-right">綜合分</th>
-                      <th className="px-3 py-2 text-right">距離</th>
-                      <th className="px-3 py-2 text-right">評分</th>
-                      <th className="px-3 py-2 text-right">技能匹配</th>
-                      <th className="px-3 py-2 text-center">可用性</th>
+                      <th className="px-3 py-2">{t("candidates.cols.tech")}</th>
+                      <th className="px-3 py-2 text-center">{t("candidates.cols.level")}</th>
+                      <th className="px-3 py-2 text-right">{t("candidates.cols.score")}</th>
+                      <th className="px-3 py-2 text-right">{t("candidates.cols.distance")}</th>
+                      <th className="px-3 py-2 text-right">{t("candidates.cols.rating")}</th>
+                      <th className="px-3 py-2 text-right">{t("candidates.cols.skill")}</th>
+                      <th className="px-3 py-2 text-center">{t("candidates.cols.availability")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
                     {filtered.map((c) => {
-                      const t = c.technician;
-                      if (!t) return null;
-                      const isSelected = selectedTechId === t.id;
-                      const isCircuit = !!t.circuit_breaker_until;
+                      const tech = c.technician;
+                      if (!tech) return null;
+                      const isSelected = selectedTechId === tech.id;
+                      const isCircuit = !!tech.circuit_breaker_until;
                       const availColor =
-                        t.availability === "available"
+                        tech.availability === "available"
                           ? "#10B981"
-                          : t.availability === "busy"
+                          : tech.availability === "busy"
                             ? "#EF4444"
                             : "#94A3B8";
                       return (
                         <tr
-                          key={t.id}
-                          onClick={() => !isCircuit && setSelectedTechId(t.id)}
+                          key={tech.id}
+                          onClick={() => !isCircuit && setSelectedTechId(tech.id)}
                           className={`cursor-pointer transition ${
                             isSelected
                               ? "bg-[#EFF6FF]"
@@ -560,7 +569,7 @@ export default function DispatchManualPage() {
                               type="radio"
                               checked={isSelected}
                               onChange={() =>
-                                !isCircuit && setSelectedTechId(t.id)
+                                !isCircuit && setSelectedTechId(tech.id)
                               }
                               disabled={isCircuit}
                               className="h-4 w-4 cursor-pointer accent-[var(--primary)]"
@@ -573,18 +582,18 @@ export default function DispatchManualPage() {
                                 style={{ backgroundColor: availColor }}
                               />
                               <span className="font-medium text-[var(--text-primary)]">
-                                {t.name}
+                                {tech.name}
                               </span>
                               {isCircuit && (
                                 <span className="rounded bg-red-100 px-2 py-[1px] text-[10px] font-bold text-red-700">
-                                  熔斷
+                                  {t("candidates.circuitBadge")}
                                 </span>
                               )}
                             </div>
                           </td>
                           <td className="px-3 py-3 text-center">
                             <span className="inline-block rounded bg-[#F1F5F9] px-2 py-[2px] text-[11px] font-bold text-[var(--text-primary)]">
-                              {t.level}
+                              {tech.level}
                             </span>
                           </td>
                           <td className="px-3 py-3 text-right">
@@ -603,7 +612,7 @@ export default function DispatchManualPage() {
                           <td className="px-3 py-3 text-right">
                             <span className="inline-flex items-center gap-1 font-medium text-amber-600">
                               <Star className="h-3 w-3 fill-amber-400" />
-                              {t.rating.toFixed(1)}
+                              {tech.rating.toFixed(1)}
                             </span>
                           </td>
                           <td className="px-3 py-3 text-right text-[var(--text-secondary)]">
@@ -614,9 +623,9 @@ export default function DispatchManualPage() {
                           <td className="px-3 py-3 text-center text-[12px] text-[var(--text-secondary)]">
                             {c.availability_eta_minutes != null
                               ? c.availability_eta_minutes === 0
-                                ? "立即"
-                                : `${c.availability_eta_minutes} 分後`
-                              : t.availability}
+                                ? t("candidates.etaImmediate")
+                                : t("candidates.etaMinutes", { min: String(c.availability_eta_minutes) })
+                              : tech.availability}
                           </td>
                         </tr>
                       );
@@ -632,8 +641,8 @@ export default function DispatchManualPage() {
         <div className="sticky bottom-0 mt-4 flex items-center justify-between gap-3 border-t border-[var(--border)] bg-white px-8 py-3 shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
           <span className="text-[13px] text-[var(--text-secondary)]">
             {selectedTech
-              ? `將指派工單 #${wo?.id.slice(0, 8) ?? "-"} 給 ${selectedTech.name}`
-              : "請從候選列表中選擇技師"}
+              ? t("panel.willAssign", { id: wo?.id.slice(0, 8) ?? "-", name: selectedTech.name })
+              : t("panel.noTech")}
           </span>
           <div className="flex items-center gap-2">
             <button
@@ -643,7 +652,7 @@ export default function DispatchManualPage() {
               className="flex items-center gap-1 rounded-md border border-red-200 bg-white px-3 py-2 text-[13px] font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
             >
               <XCircle className="h-4 w-4" />
-              取消工單
+              {t("panel.cancelOrder")}
             </button>
             <button
               type="button"
@@ -652,7 +661,7 @@ export default function DispatchManualPage() {
               className="flex items-center gap-1 rounded-md border border-amber-200 bg-white px-3 py-2 text-[13px] font-medium text-amber-700 hover:bg-amber-50 disabled:opacity-50"
             >
               <ArrowUpCircle className="h-4 w-4" />
-              升級主管
+              {t("panel.escalate")}
             </button>
             {wo && (
               <Link
@@ -660,7 +669,7 @@ export default function DispatchManualPage() {
                 className="flex items-center gap-1 rounded-md border border-blue-200 bg-white px-3 py-2 text-[13px] font-medium text-blue-700 hover:bg-blue-50"
               >
                 <ArrowUpCircle className="h-4 w-4 rotate-90" />
-                改期 + 通知客戶
+                {t("panel.reschedule")}
               </Link>
             )}
             <button
@@ -670,7 +679,9 @@ export default function DispatchManualPage() {
               className="flex items-center gap-1 rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-50"
             >
               <Zap className="h-4 w-4" />
-              指派{selectedTech ? ` 給 ${selectedTech.name}` : ""}
+              {selectedTech
+                ? t("panel.assignActionTo", { name: selectedTech.name })
+                : t("panel.assignAction")}
             </button>
           </div>
         </div>
@@ -688,7 +699,7 @@ export default function DispatchManualPage() {
           >
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-[16px] font-semibold text-[var(--text-primary)]">
-                指派理由
+                {t("modal.title")}
               </h3>
               <button
                 type="button"
@@ -700,27 +711,29 @@ export default function DispatchManualPage() {
             </div>
 
             <p className="mb-3 text-[12px] text-[var(--text-secondary)]">
-              指派至 <strong>{selectedTech?.name}</strong>（
-              {selectedTech?.level} 級），請選擇理由（稽核用）：
+              {t("modal.intro", {
+                name: selectedTech?.name ?? "",
+                level: selectedTech?.level ?? "",
+              })}
             </p>
 
             <div className="mb-3 flex flex-col gap-2">
-              {REASON_OPTIONS.map((opt) => (
+              {REASON_VALUES.map((value) => (
                 <label
-                  key={opt.value}
+                  key={value}
                   className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-[13px] ${
-                    reasonCode === opt.value
+                    reasonCode === value
                       ? "border-[var(--primary)] bg-[#EFF6FF]"
                       : "border-[var(--border)] bg-white"
                   }`}
                 >
                   <input
                     type="radio"
-                    checked={reasonCode === opt.value}
-                    onChange={() => setReasonCode(opt.value)}
+                    checked={reasonCode === value}
+                    onChange={() => setReasonCode(value)}
                     className="h-4 w-4 accent-[var(--primary)]"
                   />
-                  {opt.label}
+                  {tReasons(value)}
                 </label>
               ))}
             </div>
@@ -728,14 +741,14 @@ export default function DispatchManualPage() {
             {(reasonCode === "other" || reasonText) && (
               <label className="mb-3 flex flex-col gap-1">
                 <span className="text-[12px] font-medium text-[var(--text-secondary)]">
-                  補充說明 {reasonCode === "other" && <span className="text-red-500">*</span>}
+                  {t("modal.extra")} {reasonCode === "other" && <span className="text-red-500">*</span>}
                 </span>
                 <textarea
                   value={reasonText}
                   onChange={(e) => setReasonText(e.target.value)}
                   rows={3}
                   maxLength={500}
-                  placeholder="10–500 字"
+                  placeholder={t("modal.extraPlaceholder")}
                   className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px]"
                 />
               </label>
@@ -754,7 +767,7 @@ export default function DispatchManualPage() {
                 disabled={submitting}
                 className="rounded-md border border-[var(--border)] px-4 py-2 text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
               >
-                取消
+                {t("modal.cancel")}
               </button>
               <button
                 type="button"
@@ -762,7 +775,7 @@ export default function DispatchManualPage() {
                 disabled={submitting}
                 className="rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-60"
               >
-                {submitting ? "提交中…" : "確認指派"}
+                {submitting ? t("modal.submitting") : t("modal.submit")}
               </button>
             </div>
           </div>
@@ -777,6 +790,8 @@ export default function DispatchManualPage() {
  * 推薦分數 + hover tooltip 顯示 score breakdown（F4）
  */
 function ScoreCell({ candidate }: { candidate: Candidate }) {
+  const t = useTranslations("admin.dispatchManual.scoreCell");
+  const tDim = useTranslations("admin.dispatchManual.scoreCell.dim");
   const score = candidate.score ?? 0;
   const breakdown = candidate.score_breakdown;
   if (!breakdown) {
@@ -786,11 +801,11 @@ function ScoreCell({ candidate }: { candidate: Candidate }) {
       </span>
     );
   }
-  const dims: { key: string; label: string; dim: ScoreDimension | undefined }[] =
+  const dims: { key: "skill" | "distance" | "rating"; dim: ScoreDimension | undefined }[] =
     [
-      { key: "skill", label: "技能匹配", dim: breakdown.skill },
-      { key: "distance", label: "距離", dim: breakdown.distance },
-      { key: "rating", label: "評分", dim: breakdown.rating },
+      { key: "skill", dim: breakdown.skill },
+      { key: "distance", dim: breakdown.distance },
+      { key: "rating", dim: breakdown.rating },
     ];
   return (
     <div className="group relative inline-flex items-center justify-end gap-1">
@@ -803,25 +818,25 @@ function ScoreCell({ candidate }: { candidate: Candidate }) {
       <div className="invisible absolute right-0 top-full z-20 mt-1 w-[320px] rounded-lg border border-[var(--border)] bg-white p-3 text-left opacity-0 shadow-2xl transition-opacity group-hover:visible group-hover:opacity-100">
         <div className="mb-2 flex items-center justify-between border-b border-[var(--border)] pb-2">
           <span className="text-[12px] font-semibold text-[var(--text-primary)]">
-            綜合分拆解
+            {t("title")}
           </span>
           <span className="text-[14px] font-bold text-[var(--primary)]">
             {score.toFixed(2)}
           </span>
         </div>
         <ul className="flex flex-col gap-2">
-          {dims.map(({ key, label, dim }) =>
+          {dims.map(({ key, dim }) =>
             dim ? (
               <li key={key} className="flex flex-col gap-[2px]">
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="font-medium text-[var(--text-primary)]">
-                    {label}
+                    {tDim(key)}
                     <span className="ml-1 text-[var(--text-disabled)]">
-                      （×{dim.weight}）
+                      {t("weight", { weight: String(dim.weight) })}
                     </span>
                   </span>
                   <span className="font-mono text-[var(--text-secondary)]">
-                    {dim.contribution.toFixed(1)} 分
+                    {t("contribution", { value: dim.contribution.toFixed(1) })}
                   </span>
                 </div>
                 {/* progress bar */}
@@ -839,7 +854,7 @@ function ScoreCell({ candidate }: { candidate: Candidate }) {
           )}
         </ul>
         <p className="mt-2 border-t border-[var(--border)] pt-2 text-[10px] text-[var(--text-disabled)]">
-          公式：技能 ×0.4 + 距離 ×0.3 + 評分 ×0.3 = 0~100 分
+          {t("formula")}
         </p>
       </div>
     </div>
