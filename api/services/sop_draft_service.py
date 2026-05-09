@@ -55,7 +55,7 @@ _API_STATUS_TO_DB = {
 
 _SELECT_COLUMNS = (
     "id, source_problem_card_id, title, steps, status, "
-    "reviewed_by, reviewed_at, review_comment, created_at"
+    "reviewed_by, reviewed_at, review_comment, created_at, document_number"
 )
 
 
@@ -119,6 +119,7 @@ def _row_to_dict(row: tuple) -> dict:
         "reviewed_at": row[6].isoformat() if row[6] else None,
         "review_comment": row[7],
         "created_at": row[8].isoformat() if row[8] else None,
+        "document_number": row[9] if len(row) > 9 else None,
     }
 
 
@@ -185,6 +186,95 @@ async def get_draft(*, tenant_id: str, draft_id: str) -> dict:
     if not row:
         raise ApiError("NOT_FOUND", "SOP draft not found", 404)
     return _row_to_dict(row)
+
+
+async def create_draft(
+    *,
+    tenant_id: str,
+    source_case_id: str,
+    source_type: str,
+    draft_content: str,
+    model_version: str,
+    confidence_score: float | None = None,
+) -> tuple[dict, bool]:
+    """F-017 SopDraft 建立（ADR-009 D pattern, agent 異步觸發）。
+
+    Idempotency: business unique key (source_problem_card_id, model_version) —
+    同案不同 LLM 版本可重出 draft。
+
+    source_type 決定 draft_content 來源是 problem_card / case_entry / conversation。
+    本 MVP 把 draft_content 整段塞 steps 第一筆，title 從 source_case 拉。
+    後續可改為結構化 LLM output（多個 step）。
+
+    Returns: (draft_dict, created_flag)
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    # 1. 解析 source_problem_card_id（依 source_type）
+    pc_id = None
+    if source_type == "problem_card":
+        pc_id = source_case_id
+    elif source_type == "case_entry":
+        # case_entries 可能有 problem_card_id ref，未實作時 keep None
+        pc_id = None
+    elif source_type == "conversation":
+        # 從 conversation 找關聯 PC
+        cur = await db_module._conn.execute(
+            "SELECT id FROM problem_cards WHERE conversation_id = %s::uuid LIMIT 1",
+            (source_case_id,),
+        )
+        row = await cur.fetchone()
+        pc_id = str(row[0]) if row else None
+
+    # 2. Idempotency check（pc_id + model_version）
+    if pc_id:
+        cur = await db_module._conn.execute(
+            "SELECT id FROM sop_drafts "
+            "WHERE source_problem_card_id = %s::uuid AND model_version = %s "
+            "ORDER BY created_at ASC LIMIT 1",
+            (pc_id, model_version),
+        )
+        existing = await cur.fetchone()
+        if existing:
+            draft = await get_draft(tenant_id=tenant_id, draft_id=str(existing[0]))
+            return draft, False
+
+    # 3. 從 source 拉 title（best-effort）
+    title = "AI 自動生成 SOP"
+    if pc_id:
+        cur = await db_module._conn.execute(
+            "SELECT brand, model FROM problem_cards WHERE id = %s::uuid",
+            (pc_id,),
+        )
+        row = await cur.fetchone()
+        if row:
+            title = f"{row[0] or '未知品牌'} {row[1] or ''} 處置流程".strip()
+
+    # 4. 把 draft_content 包成單 step（後續可改 LLM 多 step output）
+    steps_json = json.dumps([
+        {"order": 1, "title": "處置步驟", "description": draft_content[:2000]}
+    ])
+
+    # 5. INSERT + 自動 doc number
+    cur = await db_module._conn.execute(
+        "INSERT INTO sop_drafts "
+        "  (source_problem_card_id, title, steps, status, model_version, "
+        "   confidence_score, tenant_id, document_number) "
+        "VALUES (%s, %s, %s::jsonb, 'pending_review', %s, %s, %s::uuid, "
+        "        generate_doc_number('SOP', 'doc_seq_sop')) "
+        "RETURNING id",
+        (
+            pc_id, title, steps_json, model_version, confidence_score, tenant_id,
+        ),
+    )
+    new_row = await cur.fetchone()
+    if not new_row:
+        raise ApiError("INTERNAL_ERROR", "Failed to insert SOP draft", 500)
+    new_draft_id = str(new_row[0])
+
+    draft = await get_draft(tenant_id=tenant_id, draft_id=new_draft_id)
+    return draft, True
 
 
 async def review_draft(

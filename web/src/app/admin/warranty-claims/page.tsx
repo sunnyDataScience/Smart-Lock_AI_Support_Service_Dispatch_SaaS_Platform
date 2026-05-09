@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, Info, RefreshCw, Search, ShieldCheck, X } from "lucide-react";
+import { CheckCircle2, Info, Plus, RefreshCw, Search, ShieldCheck, X } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import WarrantyClaimsTable from "@/components/admin/WarrantyClaimsTable";
 import { ApiError, api } from "@/lib/api";
@@ -40,6 +40,43 @@ export default function WarrantyClaimsPage() {
   const [actionPending, setActionPending] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionToast, setActionToast] = useState<string | null>(null);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+
+  const handleCreateClaim = async (form: {
+    customer_id: string;
+    work_order_id: string;
+    device_brand: string;
+    device_model: string;
+    claim_type: string;
+    dispute_reason: string;
+  }) => {
+    setActionPending("create");
+    setActionError(null);
+    try {
+      await api.post<WarrantyClaimEnvelope>("/api/v1/warranty-claims", {
+        customer_id: form.customer_id,
+        work_order_id: form.work_order_id || undefined,
+        device_brand: form.device_brand,
+        device_model: form.device_model,
+        claim_type: form.claim_type,
+        dispute_reason: form.dispute_reason || undefined,
+        requested_by_role: "customer_service",
+      });
+      setActionToast("保固申訴已建立");
+      setCreateModalOpen(false);
+      await fetchClaims();
+    } catch (e) {
+      setActionError(
+        e instanceof ApiError
+          ? `${e.errorCode} (${e.status})：${e.message}`
+          : e instanceof Error
+            ? e.message
+            : String(e),
+      );
+    } finally {
+      setActionPending(null);
+    }
+  };
 
   useEffect(() => {
     if (!actionToast) return;
@@ -142,6 +179,18 @@ export default function WarrantyClaimsPage() {
               <RefreshCw
                 className={`h-[14px] w-[14px] text-[var(--text-secondary)] ${loading ? "animate-spin" : ""}`}
               />
+            </button>
+            <button
+              onClick={() => {
+                setActionError(null);
+                setCreateModalOpen(true);
+              }}
+              disabled={actionPending !== null}
+              className="inline-flex items-center gap-1 rounded-md bg-[var(--primary)] px-3 py-[6px] text-[13px] font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              title="建立保固申訴（F-015 dual-trigger CS 路徑）"
+            >
+              <Plus className="h-4 w-4" />
+              建立保固申訴
             </button>
             <span
               className="flex items-center gap-[6px] rounded-full px-3 py-1 text-xs font-medium"
@@ -247,6 +296,15 @@ export default function WarrantyClaimsPage() {
           pending={actionPending === modalClaim.id}
           onCancel={() => setModalClaim(null)}
           onSubmit={handleSubmitDecision}
+        />
+      )}
+
+      {createModalOpen && (
+        <CreateWarrantyModal
+          onCancel={() => setCreateModalOpen(false)}
+          onSubmit={handleCreateClaim}
+          submitting={actionPending === "create"}
+          error={actionError}
         />
       )}
 
@@ -442,6 +500,181 @@ function DecisionModal({
             className="rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? "送出中…" : "確認送出"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface CreateWarrantyModalProps {
+  onCancel: () => void;
+  onSubmit: (form: {
+    customer_id: string;
+    work_order_id: string;
+    device_brand: string;
+    device_model: string;
+    claim_type: string;
+    dispute_reason: string;
+  }) => Promise<void>;
+  submitting: boolean;
+  error: string | null;
+}
+
+const CLAIM_TYPES: { value: string; label: string }[] = [
+  { value: "defective", label: "瑕疵" },
+  { value: "malfunction", label: "故障" },
+  { value: "premature_failure", label: "未到使用年限失效" },
+  { value: "missing_parts", label: "缺件" },
+  { value: "other", label: "其他" },
+];
+
+function CreateWarrantyModal({
+  onCancel,
+  onSubmit,
+  submitting,
+  error,
+}: CreateWarrantyModalProps) {
+  const [customerId, setCustomerId] = useState("");
+  const [workOrderId, setWorkOrderId] = useState("");
+  const [deviceBrand, setDeviceBrand] = useState("");
+  const [deviceModel, setDeviceModel] = useState("");
+  const [claimType, setClaimType] = useState("defective");
+  const [disputeReason, setDisputeReason] = useState("");
+
+  const valid =
+    /^[0-9a-f-]{36}$/i.test(customerId.trim()) &&
+    deviceBrand.trim().length > 0 &&
+    deviceModel.trim().length > 0;
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-[480px] rounded-xl bg-white p-6 shadow-xl">
+        <div className="mb-4 flex items-center justify-between">
+          <span className="text-[18px] font-semibold text-[var(--text-primary)]">
+            建立保固申訴
+          </span>
+          <button
+            onClick={onCancel}
+            disabled={submitting}
+            className="rounded p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-[12px] font-medium text-[var(--text-secondary)]">
+              客戶 ID（UUID，必填）
+            </span>
+            <input
+              value={customerId}
+              onChange={(e) => setCustomerId(e.target.value)}
+              disabled={submitting}
+              placeholder="00000000-0000-0000-0000-000000000000"
+              className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] font-mono focus:border-[var(--primary)] focus:outline-none"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[12px] font-medium text-[var(--text-secondary)]">
+              工單 ID（UUID，可選）
+            </span>
+            <input
+              value={workOrderId}
+              onChange={(e) => setWorkOrderId(e.target.value)}
+              disabled={submitting}
+              placeholder="（可留空）"
+              className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] font-mono focus:border-[var(--primary)] focus:outline-none"
+            />
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-[12px] font-medium text-[var(--text-secondary)]">
+                品牌
+              </span>
+              <input
+                value={deviceBrand}
+                onChange={(e) => setDeviceBrand(e.target.value)}
+                disabled={submitting}
+                maxLength={100}
+                className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[12px] font-medium text-[var(--text-secondary)]">
+                型號
+              </span>
+              <input
+                value={deviceModel}
+                onChange={(e) => setDeviceModel(e.target.value)}
+                disabled={submitting}
+                maxLength={100}
+                className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+              />
+            </label>
+          </div>
+          <label className="flex flex-col gap-1">
+            <span className="text-[12px] font-medium text-[var(--text-secondary)]">
+              申訴類型
+            </span>
+            <select
+              value={claimType}
+              onChange={(e) => setClaimType(e.target.value)}
+              disabled={submitting}
+              className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+            >
+              {CLAIM_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[12px] font-medium text-[var(--text-secondary)]">
+              申訴敘述（可選）
+            </span>
+            <textarea
+              value={disputeReason}
+              onChange={(e) => setDisputeReason(e.target.value)}
+              disabled={submitting}
+              rows={2}
+              maxLength={500}
+              className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+            />
+          </label>
+        </div>
+
+        {error && (
+          <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+            {error}
+          </div>
+        )}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            disabled={submitting}
+            className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
+          >
+            取消
+          </button>
+          <button
+            disabled={!valid || submitting}
+            onClick={() =>
+              onSubmit({
+                customer_id: customerId.trim(),
+                work_order_id: workOrderId.trim(),
+                device_brand: deviceBrand.trim(),
+                device_model: deviceModel.trim(),
+                claim_type: claimType,
+                dispute_reason: disputeReason.trim(),
+              })
+            }
+            className="rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {submitting ? "建立中…" : "建立"}
           </button>
         </div>
       </div>

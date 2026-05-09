@@ -1,19 +1,20 @@
-"""Warranty Claims router — list + get + submitWarrantyDecision。
+"""Warranty Claims router — list + get + create + submitWarrantyDecision。
 
 operationId 對齊 openapi.yaml：
-  listWarrantyClaims, getWarrantyClaim, submitWarrantyDecision
+  listWarrantyClaims, getWarrantyClaim, createWarrantyClaim, submitWarrantyDecision
 
-不含 createWarrantyClaim / submitEvidence 等寫入路徑。
+createWarrantyClaim 5/9 17:00 補（ADR-009 §8 D1 dual-trigger）。
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Path, Query
+from fastapi import APIRouter, Depends, Path, Query, Response
 
 from core.deps import CurrentUser, require_tenant
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
     WarrantyClaim,
+    WarrantyClaimCreateRequest,
     WarrantyClaimEnvelope,
     WarrantyClaimPage,
     WarrantyClaimStatus,
@@ -51,6 +52,49 @@ async def list_warranty_claims(
         "next_cursor": page["next_cursor"],
         "has_more": page["has_more"],
     }
+
+
+@router.post(
+    "/warranty-claims",
+    operation_id="createWarrantyClaim",
+    summary="建立保固申請（F-015 dual-trigger）",
+    response_model=WarrantyClaimEnvelope,
+)
+async def create_warranty_claim(
+    body: WarrantyClaimCreateRequest,
+    response: Response,
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    claim_type = (
+        body.claim_type.value
+        if hasattr(body.claim_type, "value")
+        else str(body.claim_type)
+    )
+    requested_by_role = (
+        body.requested_by_role.value
+        if hasattr(body.requested_by_role, "value")
+        else str(body.requested_by_role)
+    )
+    purchase_date = (
+        body.purchase_date.isoformat() if body.purchase_date else None
+    )
+    claim, created = await warranty_service.create_warranty_claim(
+        tenant_id=user.tenant_id,
+        customer_id=str(body.customer_id),
+        device_brand=body.device_brand,
+        device_model=body.device_model,
+        claim_type=claim_type,
+        requested_by_role=requested_by_role,
+        work_order_id=str(body.work_order_id) if body.work_order_id else None,
+        purchase_date=purchase_date,
+        dispute_reason=body.dispute_reason,
+    )
+    response.status_code = 201 if created else 200
+    payload = {"data": WarrantyClaim(**claim).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(response.status_code, payload)
+    return payload
 
 
 @router.get(

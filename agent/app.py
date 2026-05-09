@@ -352,6 +352,57 @@ async def _handle_reschedule_postback(event):
         logger.exception("failed to send reschedule reply")
 
 
+# ── F-001 ServiceTicket bridge: ensure conversation record exists ──
+#
+# ADR-009 D pattern (HTTP call) — 在 LINE webhook 第一筆訊息建立 conversation
+# record，讓 admin dashboard 能看到客戶活動。Cache 30 min（對齊 LINE session
+# idle timeout），每筆訊息走 cache fast-path 不重打 admin API。
+
+_CONVERSATION_CACHE: dict[str, tuple[str, float]] = {}  # line_user_id -> (conv_id, expire_ts)
+_CONVERSATION_TTL_SEC = 30 * 60  # 30 min
+
+
+async def _ensure_conversation_record(
+    line_user_id: str, *, display_name: str | None = None
+) -> str | None:
+    """確保 conversation record 已存在，回 conversation_id。
+
+    Cache TTL 30 min；首次或過期觸發 AdminAPIClient.create_conversation。
+    Fail-soft：失敗回 None，不阻塞 LINE webhook。
+    """
+    import time
+
+    now = time.time()
+    cached = _CONVERSATION_CACHE.get(line_user_id)
+    if cached and cached[1] > now:
+        return cached[0]
+
+    try:
+        from integrations import AdminAPIClient
+
+        client = AdminAPIClient.from_env()
+        # session_id 用 line_user_id + 時段 hash（30 min window）
+        session_window = int(now // _CONVERSATION_TTL_SEC)
+        session_id = f"line-{line_user_id}-{session_window}"
+
+        conv = await client.create_conversation(
+            line_user_id=line_user_id,
+            session_id=session_id,
+            display_name=display_name,
+            channel="line",
+            idempotency_key=f"{line_user_id}:{session_id}:F-001-conv",
+        )
+        if conv:
+            conv_id = conv.get("id")
+            if conv_id:
+                _CONVERSATION_CACHE[line_user_id] = (conv_id, now + _CONVERSATION_TTL_SEC)
+                return conv_id
+    except Exception:  # noqa: BLE001 — fail-soft on bridge failure
+        logger.exception("F-001 ensure_conversation_record failed (non-fatal)")
+
+    return None
+
+
 # ── LINE Webhook ──
 
 
@@ -385,6 +436,9 @@ async def line_webhook(request: Request):
 
         user_id = event.source.user_id
         reply_token = event.reply_token
+
+        # ── F-001 bridge: 確保 conversation record 已建立（fire-and-forget 不阻塞）──
+        asyncio.create_task(_ensure_conversation_record(user_id))
 
         # ── 1. 貼圖 → 友善回覆 ──
         if isinstance(event.message, StickerMessageContent):

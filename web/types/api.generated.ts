@@ -48,7 +48,12 @@ export interface paths {
         /** 對話列表（cursor 分頁） */
         get: operations["listConversations"];
         put?: never;
-        post?: never;
+        /**
+         * 建立對話（F-001 LINE 報修首訊建 ServiceTicket，agent → admin bridge）
+         * @description ADR-009 §8 D pattern：agent 在 LINE webhook 第一筆訊息呼叫此 endpoint
+         *     建立 conversation record。session_id 為業務 unique key，重複呼叫回 200 既存。
+         */
+        post: operations["createConversation"];
         delete?: never;
         options?: never;
         head?: never;
@@ -248,7 +253,13 @@ export interface paths {
         /** 退款申請列表 */
         get: operations["listRefundRequests"];
         put?: never;
-        post?: never;
+        /**
+         * 建立退款申請（F-014 dual-trigger）
+         * @description ADR-009 §8 D1 dual-trigger：(a) agent 偵測 LINE 退款意圖呼叫；
+         *     (b) CS 在 admin 主動代開。同 endpoint，requested_by_role 區分。
+         *     業務 unique key (work_order_id, reason_code) 防同 WO 同原因重複。
+         */
+        post: operations["createRefundRequest"];
         delete?: never;
         options?: never;
         head?: never;
@@ -316,7 +327,12 @@ export interface paths {
         /** 保固申請列表 */
         get: operations["listWarrantyClaims"];
         put?: never;
-        post?: never;
+        /**
+         * 建立保固申請（F-015 dual-trigger）
+         * @description ADR-009 §8 D1 dual-trigger：(a) agent 偵測 LINE 保固意圖；
+         *     (b) CS 在 admin 代開。業務 unique key (work_order_id, claim_type)。
+         */
+        post: operations["createWarrantyClaim"];
         delete?: never;
         options?: never;
         head?: never;
@@ -942,7 +958,13 @@ export interface paths {
         /** SOP 草稿列表 */
         get: operations["listSopDrafts"];
         put?: never;
-        post?: never;
+        /**
+         * 建立 SOP 草稿（F-017 自進化機制；agent 自動觸發）
+         * @description ADR-009 §8 D2：每筆 case resolved 且 customer_rating>=4 → agent 異步
+         *     LLM extract → 呼此 endpoint。業務 unique key (case_entry_id, model_version)
+         *     允許同案不同 LLM 版本重出 draft。
+         */
+        post: operations["createSopDraft"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1771,6 +1793,8 @@ export interface components {
         Conversation: {
             /** Format: uuid */
             id: string;
+            /** @description ServiceTicket 編號 ST-YYYYMMDD-NNNN（ERP 引用號） */
+            document_number?: string | null;
             line_user_id: string;
             display_name: string;
             status: components["schemas"]["ConversationStatus"];
@@ -1825,6 +1849,8 @@ export interface components {
         WorkOrder: {
             /** Format: uuid */
             id: string;
+            /** @description WorkOrder 編號 WO-YYYYMMDD-NNNN（ERP 引用號） */
+            document_number?: string | null;
             /** Format: uuid */
             problem_card_id: string;
             /** Format: uuid */
@@ -1901,6 +1927,8 @@ export interface components {
         WarrantyClaim: {
             /** Format: uuid */
             id: string;
+            /** @description WarrantyClaim 編號 WC-YYYYMMDD-NNNN（ERP 引用號） */
+            document_number?: string | null;
             /** Format: uuid */
             work_order_id?: string | null;
             /** Format: uuid */
@@ -1966,6 +1994,8 @@ export interface components {
         RefundRequest: {
             /** Format: uuid */
             id: string;
+            /** @description RefundMemo 編號 RM-YYYYMMDD-NNNN（ERP 引用號） */
+            document_number?: string | null;
             /** Format: uuid */
             work_order_id: string;
             /** Format: uuid */
@@ -2537,6 +2567,100 @@ export interface components {
             /** @description 客戶電話（覆寫 user.phone） */
             customer_phone?: string;
         };
+        /**
+         * @description F-001 ServiceTicket 建立 (ADR-009 D pattern bridge)。agent 在 LINE
+         *     webhook 第一筆訊息呼叫；session_id 為業務 unique key，重複回 200。
+         */
+        ConversationCreateRequest: {
+            /** @description LINE Platform User ID (U + 32 hex chars) */
+            line_user_id: string;
+            /** @description 業務 unique key（對 line_user_id + 30 min idle window） */
+            session_id: string;
+            /** @description LINE 顯示名稱（從 LINE Get Profile API 取得） */
+            display_name?: string;
+            /**
+             * @description 進入通道（V1.0 僅 line；V2.0 開放 web/voice）
+             * @default line
+             * @enum {string}
+             */
+            channel: "line" | "web" | "voice";
+        };
+        /**
+         * @description F-014 RefundCreditMemo 建立（dual-trigger）。業務 unique key
+         *     (work_order_id, reason_code) 防同 WO 同原因重複。
+         */
+        RefundRequestCreateRequest: {
+            /** Format: uuid */
+            work_order_id: string;
+            /** @description 退款金額 */
+            amount: string;
+            /** @description 退款原因敘述 */
+            reason: string;
+            /**
+             * @description 退款原因分類（業務 key 一部分）
+             * @enum {string}
+             */
+            reason_code: "defective_product" | "service_quality" | "customer_dissatisfaction" | "billing_error" | "other";
+            /**
+             * @description 是否需雙簽。若未指定，後端依 amount vs `dual_sign_threshold` 自動
+             *     判斷。傳入 true 強制雙簽（即使金額未達門檻）。
+             */
+            requires_dual_sign?: boolean;
+            /**
+             * @description 觸發路徑（dual-trigger 區分）。customer_via_line 由 agent 從 LINE
+             *     意圖偵測；customer_service / manager 由 admin web 代開。
+             * @enum {string}
+             */
+            requested_by_role: "customer_via_line" | "customer_service" | "manager";
+        };
+        /**
+         * @description F-015 WarrantyClaim 建立（dual-trigger）。業務 unique key
+         *     (work_order_id, claim_type)。
+         */
+        WarrantyClaimCreateRequest: {
+            /**
+             * Format: uuid
+             * @description 關聯工單（可選，customer 主動申訴可能無 WO）
+             */
+            work_order_id?: string | null;
+            /** Format: uuid */
+            customer_id: string;
+            device_brand: string;
+            device_model: string;
+            /**
+             * @description 申訴類型（業務 key 一部分）
+             * @enum {string}
+             */
+            claim_type: "defective" | "malfunction" | "premature_failure" | "missing_parts" | "other";
+            /** Format: date */
+            purchase_date?: string | null;
+            /** @description 客戶敘述 */
+            dispute_reason?: string;
+            /** @enum {string} */
+            requested_by_role: "customer_via_line" | "customer_service" | "technician";
+        };
+        /**
+         * @description F-017 SopDraft 建立（agent 自動觸發；case resolved + rating>=4）。
+         *     業務 unique key (case_entry_id, model_version) 允許同案不同 LLM 版本。
+         */
+        SopDraftCreateRequest: {
+            /**
+             * Format: uuid
+             * @description 來源 case_entry / problem_card / conversation ID
+             */
+            source_case_id: string;
+            /**
+             * @default problem_card
+             * @enum {string}
+             */
+            source_type: "case_entry" | "problem_card" | "conversation";
+            /** @description LLM extracted SOP markdown content */
+            draft_content: string;
+            /** @description 產生此 draft 的 LLM 模型 + 版本（idempotency key 一部分） */
+            model_version: string;
+            /** @description LLM extract confidence */
+            confidence_score?: number;
+        };
         ProblemCardEnvelope: components["schemas"]["ApiResponseGeneric"] & {
             data?: components["schemas"]["ProblemCard"];
         };
@@ -2640,6 +2764,8 @@ export interface components {
         SopDraft: {
             /** Format: uuid */
             id: string;
+            /** @description SopDraft 編號 SOP-YYYYMMDD-NNNN（ERP 引用號） */
+            document_number?: string | null;
             /** Format: uuid */
             case_event_id?: string | null;
             /** Format: uuid */
@@ -3441,6 +3567,56 @@ export interface operations {
             403: components["responses"]["Forbidden"];
         };
     };
+    createConversation: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConversationCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description 既存對話（idempotent hit by session_id） */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationEnvelope"];
+                };
+            };
+            /** @description 已建立新對話 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationEnvelope"];
+                };
+            };
+            /** @description validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
     getConversation: {
         parameters: {
             query?: never;
@@ -3799,6 +3975,66 @@ export interface operations {
             };
         };
     };
+    createRefundRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefundRequestCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description 既存退款申請（idempotent hit） */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefundRequestEnvelope"];
+                };
+            };
+            /** @description 已建立新退款申請 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefundRequestEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description 同 WO 同 reason_code 已有申請 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
     getRefundRequest: {
         parameters: {
             query?: never;
@@ -3895,6 +4131,66 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WarrantyClaimPage"];
+                };
+            };
+        };
+    };
+    createWarrantyClaim: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WarrantyClaimCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description 既存保固申請（idempotent hit） */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WarrantyClaimEnvelope"];
+                };
+            };
+            /** @description 已建立新保固申請 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WarrantyClaimEnvelope"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description 同 WO 同 claim_type 已有申請 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
                 };
             };
         };
@@ -5261,6 +5557,56 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SopDraftPage"];
+                };
+            };
+        };
+    };
+    createSopDraft: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 多租戶識別（V3.0 強制）。由 Middleware 從 JWT payload 或 Cookie 注入。 */
+                "X-Tenant-ID": components["parameters"]["XTenantId"];
+                /**
+                 * @description 寫操作冪等性鍵（UUID v4）。24h 內相同 Key 視為同一請求，回傳首次結果。
+                 *     強制範圍：接單、完工、雙簽、退款決策、金流類 mutation。
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SopDraftCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description 既存草稿（同 case + 同 model_version idempotent hit） */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SopDraftEnvelope"];
+                };
+            };
+            /** @description 已建立 SOP 草稿 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SopDraftEnvelope"];
+                };
+            };
+            /** @description validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
                 };
             };
         };

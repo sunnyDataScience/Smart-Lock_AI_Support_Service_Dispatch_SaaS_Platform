@@ -96,14 +96,18 @@ def _row_to_dict(row: tuple) -> dict:
         "executed_at": row[10].isoformat() if row[10] else None,
         "created_at": row[11].isoformat() if row[11] else None,
         "updated_at": row[12].isoformat() if row[12] else None,
+        "document_number": row[13] if len(row) > 13 else None,
     }
 
 
 _SELECT = (
     "r.id, r.work_order_id, r.invoice_id, r.complaint_id, r.requested_by, "
     "r.amount, r.reason, r.status, r.requires_dual_sign, r.approval_chain, "
-    "r.executed_at, r.created_at, r.updated_at"
+    "r.executed_at, r.created_at, r.updated_at, r.document_number"
 )
+
+# ADR-009 §8 D1：dual_sign threshold（金額 >= 此額度自動要求雙簽，可被 caller override）
+_DUAL_SIGN_THRESHOLD = 100000.0  # NT$ 100,000（對齊 SQL/Schema.sql comment）
 
 _TENANT_JOIN = (
     "FROM refund_requests r "
@@ -184,6 +188,89 @@ async def get_refund_request(*, tenant_id: str, refund_id: str) -> dict:
     if not row:
         raise ApiError("NOT_FOUND", f"Refund request {refund_id} not found", 404)
     return _row_to_dict(row)
+
+
+async def create_refund_request(
+    *,
+    tenant_id: str,
+    work_order_id: str,
+    amount: str,
+    reason: str,
+    reason_code: str,
+    requested_by_role: str,
+    requested_by: str,
+    requires_dual_sign: bool | None = None,
+) -> tuple[dict, bool]:
+    """F-014 RefundCreditMemo 建立（ADR-009 D pattern, dual-trigger）。
+
+    Idempotency: business unique key (work_order_id, reason_code) — 同 WO 同
+    原因若已有非 rejected/cancelled 申請，回 200 既存。
+
+    Dual-sign auto-determination: requires_dual_sign 若為 None，依金額 >=
+    `_DUAL_SIGN_THRESHOLD` (NT$100,000) 自動設定。
+
+    Returns: (refund_dict, created_flag)
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    # 1. 驗證 WO 存在 + tenant 隔離
+    cur = await db_module._conn.execute(
+        "SELECT u.tenant_id FROM work_orders wo "
+        "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
+        "JOIN conversations c ON pc.conversation_id = c.id "
+        "JOIN users u ON c.user_id = u.id "
+        "WHERE wo.id = %s::uuid",
+        (work_order_id,),
+    )
+    wo_row = await cur.fetchone()
+    if not wo_row:
+        raise ApiError("NOT_FOUND", "Work order not found", 404)
+    if str(wo_row[0]) != tenant_id:
+        raise ApiError("NOT_FOUND", "Work order not found", 404)  # 跨 tenant 偽裝 404
+
+    # 2. Idempotency check: 同 WO 同 reason_code 已存在 active row?
+    cur = await db_module._conn.execute(
+        "SELECT id FROM refund_requests "
+        "WHERE work_order_id = %s::uuid AND reason_code = %s "
+        "  AND status NOT IN ('rejected', 'cancelled') "
+        "ORDER BY created_at ASC LIMIT 1",
+        (work_order_id, reason_code),
+    )
+    existing = await cur.fetchone()
+    if existing:
+        refund = await get_refund_request(
+            tenant_id=tenant_id, refund_id=str(existing[0]),
+        )
+        return refund, False
+
+    # 3. Auto-determine dual-sign（caller 未指定時依金額判斷）
+    if requires_dual_sign is None:
+        try:
+            requires_dual_sign = float(amount) >= _DUAL_SIGN_THRESHOLD
+        except (TypeError, ValueError):
+            requires_dual_sign = False
+
+    # 4. INSERT + 自動 doc number
+    cur = await db_module._conn.execute(
+        "INSERT INTO refund_requests "
+        "  (work_order_id, requested_by, amount, reason, reason_code, "
+        "   requested_by_role, status, requires_dual_sign, document_number) "
+        "VALUES (%s::uuid, %s::uuid, %s, %s, %s, %s, "
+        "        'pending', %s, generate_doc_number('RM', 'doc_seq_rm')) "
+        "RETURNING id",
+        (
+            work_order_id, requested_by, float(amount), reason, reason_code,
+            requested_by_role, requires_dual_sign,
+        ),
+    )
+    new_row = await cur.fetchone()
+    if not new_row:
+        raise ApiError("INTERNAL_ERROR", "Failed to insert refund request", 500)
+    new_refund_id = str(new_row[0])
+
+    refund = await get_refund_request(tenant_id=tenant_id, refund_id=new_refund_id)
+    return refund, True
 
 
 # 決策可從哪些狀態觸發
