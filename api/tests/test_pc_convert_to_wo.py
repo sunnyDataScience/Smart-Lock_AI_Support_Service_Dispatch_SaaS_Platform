@@ -47,7 +47,7 @@ async def insert_pc_chain(client):
         user_name: str = "張三",
         user_phone: str = "0900-000-001",
         tenant_id: str = DEFAULT_TENANT_ID,
-        urgency: str = "medium",
+        urgency: str = "normal",  # DB form: low/normal/high/urgent
     ) -> dict:
         await _ensure_conn()
         user_id = str(uuid.uuid4())
@@ -76,12 +76,13 @@ async def insert_pc_chain(client):
         )
         created["conv"].append(conv_id)
 
+        # symptoms 是 JSONB array（不是單字串），urgency 是 DB enum (low/normal/high/urgent)
         await db_module._conn.execute(
             "INSERT INTO problem_cards "
-            "  (id, conversation_id, brand, model, symptom, status, urgency) "
-            "VALUES (%s::uuid, %s::uuid, %s, %s, %s, %s, %s)",
-            (pc_id, conv_id, "TestBrand", "TestModel", "test symptom",
-             pc_status, urgency),
+            "  (id, conversation_id, brand, model, symptoms, status, urgency) "
+            "VALUES (%s::uuid, %s::uuid, %s, %s, %s::jsonb, %s, %s)",
+            (pc_id, conv_id, "TestBrand", "TestModel",
+             '["test_symptom"]', pc_status, urgency),
         )
         created["pc"].append(pc_id)
 
@@ -171,7 +172,7 @@ async def test_convert_draft_rejected(client, admin_headers, insert_pc_chain):
         json={},
     )
     assert res.status_code == 409
-    assert res.json()["error"]["code"] == "STATE_CONFLICT"
+    assert res.json()["error_code"] == "STATE_CONFLICT"
 
 
 # ============================================================================
@@ -204,7 +205,7 @@ async def test_convert_missing_address_422(
         json={},
     )
     assert res.status_code == 422
-    assert res.json()["error"]["code"] == "VALIDATION_ERROR"
+    assert res.json()["error_code"] == "VALIDATION_ERROR"
 
 
 # ============================================================================

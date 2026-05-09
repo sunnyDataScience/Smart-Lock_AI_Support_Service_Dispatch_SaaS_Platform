@@ -201,9 +201,6 @@ async def get_order(*, tenant_id: str, wo_id: str) -> dict:
     return _wo_row_to_dict(row)
 
 
-_PC_URGENCY_TO_WO_PRIORITY = {"low": "low", "medium": "normal", "high": "high"}
-
-
 async def create_from_problem_card(
     *,
     tenant_id: str,
@@ -222,8 +219,8 @@ async def create_from_problem_card(
     customer_address / name / phone：優先用 caller 帶入；否則 fallback 到
     user 的 profile（users.address/display_name/phone）。address 兩者皆無 → 422。
 
-    urgency mapping：PC.urgency (low/medium/high) → WO.priority
-    (low/normal/high)；emergency 路徑由派工層 override 處理。
+    urgency / priority：PC.urgency 與 WO.priority 共用 DB enum
+    (low/normal/high/urgent)，直接 pass-through。
     """
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
@@ -274,7 +271,8 @@ async def create_from_problem_card(
         )
     final_name = customer_name or user_name
     final_phone = customer_phone or user_phone
-    priority = _PC_URGENCY_TO_WO_PRIORITY.get(pc_urgency or "medium", "normal")
+    # PC.urgency 與 WO.priority 共用 DB enum (low/normal/high/urgent)，直接 pass-through
+    priority = pc_urgency or "normal"
 
     # 4. INSERT
     insert_cur = await db_module._conn.execute(
