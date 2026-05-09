@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { formatRelative } from "@/lib/format";
 import {
@@ -7,6 +8,7 @@ import {
   STATUS_GROUP_STYLE,
   URGENCY_STYLE,
 } from "@/components/work-orders/WorkOrdersTable";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
@@ -17,26 +19,36 @@ interface Props {
   error?: string | null;
 }
 
-const columns = [
-  { key: "id", label: "工單 ID", width: "w-[110px]" },
-  { key: "address", label: "區/地址", width: "flex-1" },
-  { key: "device", label: "品牌/型號", width: "w-[160px]" },
-  { key: "status", label: "狀態", width: "w-[90px]" },
-  { key: "urgency", label: "緊急度", width: "w-[70px]" },
-  { key: "createdAt", label: "建立時間", width: "w-[100px]" },
-  { key: "technician", label: "指派技師", width: "w-[110px]" },
-] as const;
+// Stable column keys; labels resolved per-render via i18n
+const COLUMN_DEFS = [
+  { key: "id" as const, width: "w-[110px]" },
+  { key: "address" as const, width: "flex-1" },
+  { key: "device" as const, width: "w-[160px]" },
+  { key: "status" as const, width: "w-[90px]" },
+  { key: "urgency" as const, width: "w-[70px]" },
+  { key: "createdAt" as const, width: "w-[100px]" },
+  { key: "technician" as const, width: "w-[110px]" },
+];
 
 function shortId(id: string): string {
   return id.slice(0, 8);
 }
 
-function technicianTag(technicianId: string | null | undefined): string | null {
-  if (!technicianId) return null;
-  return `技師 ${technicianId.slice(0, 4)}`;
-}
-
 export default function RecentWorkOrders({ items, loading, error }: Props) {
+  const t = useTranslations("pages.dashboard.recentWorkOrders");
+  const tCols = useTranslations("pages.dashboard.recentWorkOrders.cols");
+  const tGroup = useTranslations("status.workOrderGroup");
+  const tUrgency = useTranslations("urgency");
+
+  const columns = useMemo(
+    () => COLUMN_DEFS.map((c) => ({ ...c, label: tCols(c.key) })),
+    [tCols],
+  );
+
+  function technicianTag(technicianId: string | null | undefined): string | null {
+    if (!technicianId) return null;
+    return t("technicianTag", { id: technicianId.slice(0, 4) });
+  }
   return (
     <section
       aria-labelledby="recent-work-orders-heading"
@@ -47,13 +59,13 @@ export default function RecentWorkOrders({ items, loading, error }: Props) {
           id="recent-work-orders-heading"
           className="text-[18px] font-bold text-[#18181B]"
         >
-          最近工單
+          {t("title")}
         </h3>
         <Link
           href="/work-orders"
           className="text-[14px] font-medium text-[var(--primary)] hover:underline focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 rounded"
         >
-          查看全部 →
+          {t("viewAll")}
         </Link>
       </div>
 
@@ -79,19 +91,19 @@ export default function RecentWorkOrders({ items, loading, error }: Props) {
 
       {error && (
         <div className="border-b border-red-200 bg-red-50 px-5 py-3 text-[12px] text-red-700">
-          載入工單失敗：{error}
+          {t("loadFailed", { error })}
         </div>
       )}
 
       {loading && items.length === 0 && (
         <div className="flex h-[120px] items-center justify-center text-[13px] text-[var(--text-secondary)]">
-          載入中…
+          {t("loading")}
         </div>
       )}
 
       {!loading && items.length === 0 && !error && (
         <div className="flex h-[120px] items-center justify-center text-[13px] text-[var(--text-secondary)]">
-          目前沒有工單
+          {t("empty")}
         </div>
       )}
 
@@ -137,7 +149,7 @@ export default function RecentWorkOrders({ items, loading, error }: Props) {
                   className="rounded-full px-[10px] py-[2px] text-[11px] font-medium"
                   style={{ color: status.color, backgroundColor: status.bg }}
                 >
-                  {status.label}
+                  {tGroup(group)}
                 </span>
               </div>
               <div role="cell" className="w-[70px]">
@@ -145,7 +157,7 @@ export default function RecentWorkOrders({ items, loading, error }: Props) {
                   className="rounded px-2 py-[2px] text-[11px] font-medium"
                   style={{ color: urgency.color, backgroundColor: urgency.bg }}
                 >
-                  {urgency.label}
+                  {tUrgency(order.urgency)}
                 </span>
               </div>
               <div role="cell" className="w-[100px]">
@@ -155,7 +167,7 @@ export default function RecentWorkOrders({ items, loading, error }: Props) {
               </div>
               <div role="cell" className="w-[110px]">
                 <span className="text-[13px] text-[#18181B]">
-                  {tech ?? <span className="text-[var(--text-disabled)]">未指派</span>}
+                  {tech ?? <span className="text-[var(--text-disabled)]">{t("unassigned")}</span>}
                 </span>
               </div>
             </Link>
@@ -170,7 +182,7 @@ export default function RecentWorkOrders({ items, loading, error }: Props) {
           <div className="h-px bg-[#E4E4E7]" />
           <div className="flex justify-center px-5 py-3">
             <span className="text-[12px] text-[var(--text-disabled)]">
-              顯示最近 {items.length} 筆
+              {t("showingCount", { count: items.length })}
             </span>
           </div>
         </>

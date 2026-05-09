@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
 import { useRealtimeChannel } from "@/lib/useRealtimeChannel";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 type AlertType =
   | "quote_expiring"
@@ -31,11 +32,10 @@ interface SlaAlert {
   received_at: string;
 }
 
-const TYPE_META: Record<
+// Tone（顏色 / icon / href）與 label 分離 — label 由 useTranslations 解析
+const TYPE_TONE: Record<
   AlertType,
   {
-    label: string;
-    description: string;
     Icon: React.ComponentType<{
       className?: string;
       style?: React.CSSProperties;
@@ -47,8 +47,6 @@ const TYPE_META: Record<
   }
 > = {
   quote_expiring: {
-    label: "報價即將過期",
-    description: "報價單超過保留時限即將失效",
     Icon: Clock,
     bg: "#FEF3C7",
     border: "#FCD34D",
@@ -56,8 +54,6 @@ const TYPE_META: Record<
     href: (id) => `/work-orders/${id}`,
   },
   dispatch_delay: {
-    label: "派工延遲",
-    description: "自動派工逾時或連續拒單，需人工介入",
     Icon: Zap,
     bg: "#FEE2E2",
     border: "#FCA5A5",
@@ -65,8 +61,6 @@ const TYPE_META: Record<
     href: (id) => `/admin/dispatch-manual?work_order_id=${id}`,
   },
   response_overdue: {
-    label: "回覆 SLA 違反",
-    description: "客戶等待回覆超過 SLA 閾值",
     Icon: AlertCircle,
     bg: "#FFEDD5",
     border: "#FB923C",
@@ -76,8 +70,6 @@ const TYPE_META: Record<
   arrival_overdue: {
     // F-016 SLA 紅色警報 — Q5=B Soft SLA：dashboard 變紅 + 升 Ops Manager
     // 嚴禁串接賠償 / 自動退款
-    label: "技師到場逾時（紅色警報）",
-    description: "技師逾 2 小時未到場，已升級至 Ops Manager",
     Icon: AlertTriangle,
     bg: "#FEE2E2",
     border: "#DC2626",
@@ -89,6 +81,8 @@ const TYPE_META: Record<
 const MAX_ALERTS = 5;
 
 export default function SlaAlertBanner() {
+  const t = useTranslations("alerts.sla");
+  const tTypes = useTranslations("alerts.sla.types");
   const [alerts, setAlerts] = useState<SlaAlert[]>([]);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -145,10 +139,10 @@ export default function SlaAlertBanner() {
         className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-white px-4 py-2 text-[12px] text-[var(--text-secondary)]"
       >
         <AlertTriangle className="h-4 w-4 text-[#10B981]" />
-        <span>SLA 告警通道</span>
+        <span>{t("channelName")}</span>
         <RealtimeIndicator status={status} />
         <span className="ml-auto text-[var(--text-disabled)]">
-          目前無告警
+          {t("noAlerts")}
         </span>
       </div>
     );
@@ -178,7 +172,8 @@ export default function SlaAlertBanner() {
             className={`text-[13px] font-semibold ${headerTitleColor}`}
             data-testid="sla-alert-banner-title"
           >
-            {hasRed ? "⚠ SLA 破線" : "SLA 告警"}（{alerts.length}）
+            {hasRed ? t("breached") : t("warning")}
+            {t("countSuffix", { count: alerts.length })}
           </span>
           <RealtimeIndicator status={status} compact />
         </div>
@@ -188,22 +183,22 @@ export default function SlaAlertBanner() {
             onClick={() => setCollapsed((v) => !v)}
             className={`text-[11px] ${headerBtnColor} hover:underline`}
           >
-            {collapsed ? "展開" : "收合"}
+            {collapsed ? t("expand") : t("collapse")}
           </button>
           <button
             type="button"
             onClick={dismissAll}
             className={`text-[11px] ${headerBtnColor} hover:underline`}
           >
-            全部已讀
+            {t("dismissAll")}
           </button>
         </div>
       </div>
       {!collapsed && (
         <ul className={`divide-y ${dividerColor}`} data-testid="sla-alert-list">
           {alerts.map((a) => {
-            const meta = TYPE_META[a.alert_type];
-            const Icon = meta.Icon;
+            const tone = TYPE_TONE[a.alert_type];
+            const Icon = tone.Icon;
             return (
               <li
                 key={a.id}
@@ -211,50 +206,51 @@ export default function SlaAlertBanner() {
                 data-alert-type={a.alert_type}
                 data-severity={a.severity ?? "amber"}
                 className="flex items-start gap-3 px-4 py-3"
-                style={{ backgroundColor: meta.bg }}
+                style={{ backgroundColor: tone.bg }}
               >
                 <div
                   className="mt-[2px] flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full"
                   style={{ backgroundColor: "white" }}
                 >
-                  <Icon className="h-4 w-4" style={{ color: meta.color }} />
+                  <Icon className="h-4 w-4" style={{ color: tone.color }} />
                 </div>
                 <div className="flex flex-1 flex-col">
                   <span
                     className="text-[13px] font-semibold"
-                    style={{ color: meta.color }}
+                    style={{ color: tone.color }}
                   >
-                    {meta.label}
+                    {tTypes(`${a.alert_type}.label`)}
                     {a.threshold_minutes != null
-                      ? `（閾值 ${a.threshold_minutes} 分）`
+                      ? t("thresholdMin", { min: a.threshold_minutes })
                       : ""}
                   </span>
                   <span
                     className="text-[12px]"
-                    style={{ color: meta.color, opacity: 0.85 }}
+                    style={{ color: tone.color, opacity: 0.85 }}
                   >
-                    {meta.description}
+                    {tTypes(`${a.alert_type}.description`)}
                   </span>
                   <span className="mt-1 font-mono text-[10px] text-[var(--text-disabled)]">
-                    target #{a.target_id.slice(0, 8)} ·{" "}
+                    {t("targetIdPrefix")}
+                    {a.target_id.slice(0, 8)} ·{" "}
                     {new Date(a.received_at).toLocaleTimeString("zh-TW")}
-                    {a.escalated_to ? ` · 已升級 ${a.escalated_to}` : ""}
+                    {a.escalated_to ? t("escalated", { to: a.escalated_to }) : ""}
                   </span>
                 </div>
                 <div className="flex flex-shrink-0 items-center gap-1">
                   <Link
                     data-testid="sla-alert-jump"
-                    href={meta.href(a.target_id)}
+                    href={tone.href(a.target_id)}
                     className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-[11px] font-semibold text-[var(--primary)] hover:bg-[#EFF6FF]"
                   >
-                    處理
+                    {t("handle")}
                     <ArrowRight className="h-3 w-3" />
                   </Link>
                   <button
                     type="button"
                     onClick={() => dismiss(a.id)}
                     className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-white"
-                    aria-label="忽略"
+                    aria-label={t("dismissAria")}
                   >
                     <X className="h-3 w-3" />
                   </button>

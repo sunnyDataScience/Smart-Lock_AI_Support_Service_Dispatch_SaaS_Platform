@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import ConversationsTable from "@/components/conversations/ConversationsTable";
 import { ApiError, api } from "@/lib/api";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type Conversation = components["schemas"]["Conversation"];
@@ -11,16 +12,23 @@ type ConversationPage = components["schemas"]["ConversationPage"];
 type ConversationStatus = components["schemas"]["ConversationStatus"];
 type StatusFilter = "" | ConversationStatus;
 
-const TABS: { value: StatusFilter; label: string }[] = [
-  { value: "", label: "全部" },
-  { value: "active", label: "進行中" },
-  { value: "waiting_human", label: "已升級" },
-  { value: "closed", label: "已結束" },
+// Stable tab keys; labels resolved per-render via i18n
+const TAB_DEFS: { value: StatusFilter; key: string }[] = [
+  { value: "", key: "all" },
+  { value: "active", key: "active" },
+  { value: "waiting_human", key: "waiting_human" },
+  { value: "closed", key: "closed" },
 ];
 
 const PAGE_SIZE = 20;
 
 export default function ConversationsPage() {
+  const t = useTranslations("pages.conversations");
+  const tTabs = useTranslations("pages.conversations.tabs");
+  const TABS = useMemo(
+    () => TAB_DEFS.map((d) => ({ value: d.value, label: tTabs(d.key) })),
+    [tTabs],
+  );
   const [items, setItems] = useState<Conversation[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
@@ -68,7 +76,7 @@ export default function ConversationsPage() {
         <div className="flex flex-col gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] py-3 pl-14 pr-4 md:px-4">
           <div className="flex items-center justify-between">
             <h1 className="text-[24px] font-semibold text-[#18181B]">
-              對話管理
+              {t("title")}
             </h1>
           </div>
 
@@ -90,7 +98,11 @@ export default function ConversationsPage() {
             </div>
 
             <span className="ml-auto text-[13px] text-[var(--text-secondary)]">
-              {loading ? "載入中…" : `共 ${items.length} 筆${hasMore ? "+" : ""}`}
+              {loading
+                ? t("loading")
+                : hasMore
+                  ? t("totalCountMore", { count: items.length })
+                  : t("totalCount", { count: items.length })}
             </span>
           </div>
         </div>
@@ -115,7 +127,7 @@ export default function ConversationsPage() {
                 onClick={() => fetchPage(cursor, true, statusFilter)}
                 className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-6 py-2 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
               >
-                {loading ? "載入中…" : "載入更多"}
+                {loading ? t("loadingMore") : t("loadMore")}
               </button>
             </div>
           )}
