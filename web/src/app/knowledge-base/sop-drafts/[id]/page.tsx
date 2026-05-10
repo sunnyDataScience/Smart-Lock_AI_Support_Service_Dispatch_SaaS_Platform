@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -11,6 +11,7 @@ import {
   PackageCheck,
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 import { formatRelative } from "@/lib/format";
@@ -19,28 +20,6 @@ type SopDraft = components["schemas"]["SopDraft"];
 type SopDraftEnvelope = components["schemas"]["SopDraftEnvelope"];
 type SopDraftStatus = components["schemas"]["SopDraftStatus"];
 type CaseEntryEnvelope = components["schemas"]["CaseEntryEnvelope"];
-
-const statusConfig: Record<
-  SopDraftStatus,
-  { label: string; bg: string; text: string }
-> = {
-  draft: { label: "草稿", bg: "#F1F5F9", text: "var(--text-disabled)" },
-  under_review: {
-    label: "待審核",
-    bg: "var(--status-warning)",
-    text: "#92400E",
-  },
-  approved: {
-    label: "已核准",
-    bg: "var(--status-success)",
-    text: "#FFFFFF",
-  },
-  rejected: {
-    label: "已拒絕",
-    bg: "var(--status-danger)",
-    text: "#FFFFFF",
-  },
-};
 
 type Toast = { kind: "success" | "error"; text: string } | null;
 
@@ -57,6 +36,32 @@ export default function SopReviewPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
+  const tR = useTranslations("kb.sopDrafts.review");
+
+  const statusConfig: Record<
+    SopDraftStatus,
+    { label: string; bg: string; text: string }
+  > = useMemo(
+    () => ({
+      draft: { label: tR("statusDraft"), bg: "#F1F5F9", text: "var(--text-disabled)" },
+      under_review: {
+        label: tR("statusUnderReview"),
+        bg: "var(--status-warning)",
+        text: "#92400E",
+      },
+      approved: {
+        label: tR("statusApproved"),
+        bg: "var(--status-success)",
+        text: "#FFFFFF",
+      },
+      rejected: {
+        label: tR("statusRejected"),
+        bg: "var(--status-danger)",
+        text: "#FFFFFF",
+      },
+    }),
+    [tR],
+  );
   const [draft, setDraft] = useState<SopDraft | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -111,7 +116,7 @@ export default function SopReviewPage({
         setComment("");
         setToast({
           kind: "success",
-          text: decision === "approve" ? "已核准草稿" : "已拒絕草稿",
+          text: decision === "approve" ? tR("approveToast") : tR("rejectToast"),
         });
       }
     } catch (e) {
@@ -143,8 +148,8 @@ export default function SopReviewPage({
       setToast({
         kind: "success",
         text: newCaseId
-          ? `已採納並建立案例 ${newCaseId.slice(0, 8)}…`
-          : "已採納草稿",
+          ? tR("adoptToastWithCase", { id: newCaseId.slice(0, 8) })
+          : tR("adoptToastNoCase"),
       });
       if (newCaseId) {
         // 給 toast 一點時間後再跳轉
@@ -170,10 +175,10 @@ export default function SopReviewPage({
               className="flex items-center gap-[6px] text-sm text-[var(--primary)]"
             >
               <ArrowLeft className="h-4 w-4" />
-              返回 SOP 草稿列表
+              {tR("back")}
             </Link>
             <h1 className="text-xl font-bold text-[var(--text-primary)]">
-              {loading ? "載入中…" : (draft?.title ?? "—")}
+              {loading ? tR("loading") : (draft?.title ?? "—")}
             </h1>
             {statusInfo && (
               <span
@@ -219,11 +224,11 @@ export default function SopReviewPage({
           <div className="flex-1 overflow-auto border-r border-[var(--border)] bg-[var(--bg-surface)] p-6">
             <div className="flex flex-col gap-5">
               <h2 className="text-[22px] font-bold text-[var(--text-primary)]">
-                {draft?.title ?? (loading ? "載入中…" : "—")}
+                {draft?.title ?? (loading ? tR("loading") : "—")}
               </h2>
 
               <h3 className="text-base font-semibold text-[var(--text-primary)]">
-                SOP 步驟
+                {tR("stepsTitle")}
               </h3>
 
               {/* Steps */}
@@ -248,7 +253,7 @@ export default function SopReviewPage({
               ) : (
                 !loading && (
                   <p className="text-[13px] text-[var(--text-secondary)]">
-                    尚無步驟內容
+                    {tR("noSteps")}
                   </p>
                 )
               )}
@@ -257,7 +262,7 @@ export default function SopReviewPage({
               {draft?.problem_card_id && (
                 <div className="flex flex-col gap-2 rounded-lg bg-[#EFF6FF] p-4">
                   <span className="text-xs font-semibold text-[var(--text-secondary)]">
-                    來源問題卡
+                    {tR("sourceCard")}
                   </span>
                   <Link
                     href={`/problem-cards/${draft.problem_card_id}`}
@@ -271,9 +276,9 @@ export default function SopReviewPage({
               {/* Meta */}
               {draft && (
                 <div className="flex flex-col gap-1 text-xs text-[var(--text-secondary)]">
-                  <span>建立於 {formatRelative(draft.created_at)}</span>
+                  <span>{tR("createdAt", { time: formatRelative(draft.created_at) })}</span>
                   {draft.reviewed_at && (
-                    <span>審核於 {formatRelative(draft.reviewed_at)}</span>
+                    <span>{tR("reviewedAt", { time: formatRelative(draft.reviewed_at) })}</span>
                   )}
                 </div>
               )}
@@ -283,30 +288,28 @@ export default function SopReviewPage({
           {/* Right: Review Tools */}
           <div className="flex w-[42%] flex-col gap-5 overflow-auto bg-[var(--bg-page)] p-6">
             <h3 className="text-lg font-bold text-[var(--text-primary)]">
-              審核工具
+              {tR("toolsTitle")}
             </h3>
 
             {/* Workflow info banner */}
             <div className="rounded-lg border border-[var(--border)] bg-[#EFF6FF] px-4 py-3 text-[12px] leading-relaxed text-[var(--text-secondary)]">
-              審核流程：
+              {tR("workflowPrefix")}
               <span className="font-semibold text-[var(--text-primary)]">
-                {" "}
-                待審核 → 核准/拒絕
+                {tR("workflowStep1")}
               </span>
-              ；核准後可
+              {tR("workflowMid")}
               <span className="font-semibold text-[var(--text-primary)]">
-                {" "}
-                採納並入庫
+                {tR("workflowStep2")}
               </span>
-              （建立案例庫條目）。已拒絕之草稿不可再復原。
+              {tR("workflowSuffix")}
             </div>
 
             {/* Comment textarea */}
             <div className="flex flex-col gap-2">
               <label className="text-sm font-semibold text-[var(--text-primary)]">
-                審核意見
+                {tR("commentLabel")}
                 <span className="ml-1 text-xs font-normal text-[var(--text-secondary)]">
-                  （選填，最多 1000 字）
+                  {tR("commentMeta")}
                 </span>
               </label>
               <textarea
@@ -314,10 +317,10 @@ export default function SopReviewPage({
                 onChange={(e) => setComment(e.target.value.slice(0, 1000))}
                 placeholder={
                   canReview
-                    ? "輸入審核意見，將連同決策一併送出…"
+                    ? tR("commentPlaceholderActive")
                     : status === "under_review"
                       ? ""
-                      : "草稿狀態非「待審核」，無法輸入意見"
+                      : tR("commentPlaceholderDisabled")
                 }
                 disabled={!canReview}
                 className="h-[140px] w-full resize-none rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-[14px] py-3 text-[13px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-disabled)] focus:border-[var(--primary)] disabled:cursor-not-allowed disabled:bg-[#F8FAFC] disabled:text-[var(--text-disabled)]"
@@ -331,7 +334,7 @@ export default function SopReviewPage({
             {draft?.review_comment && (
               <div className="flex flex-col gap-2">
                 <span className="text-sm font-semibold text-[var(--text-primary)]">
-                  既有審核紀錄
+                  {tR("existingReview")}
                 </span>
                 <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-[13px] leading-relaxed text-[var(--text-secondary)]">
                   {draft.review_comment}
@@ -352,37 +355,29 @@ export default function SopReviewPage({
               <button
                 disabled={!canReview}
                 onClick={() => handleReview("approve")}
-                title={
-                  canReview
-                    ? "核准草稿（可後續採納入庫）"
-                    : "僅「待審核」狀態可核准"
-                }
+                title={canReview ? tR("approveTitle") : tR("approveDisabledTitle")}
                 className="flex h-[42px] items-center justify-center gap-2 rounded-lg bg-[var(--status-success)] text-sm font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <CircleCheck className="h-[18px] w-[18px]" />
-                {submitting === "approve" ? "處理中…" : "核准"}
+                {submitting === "approve" ? tR("submitting") : tR("approve")}
               </button>
               <button
                 disabled={!canReview}
                 onClick={() => handleReview("reject")}
-                title={canReview ? "拒絕草稿" : "僅「待審核」狀態可拒絕"}
+                title={canReview ? tR("rejectTitle") : tR("rejectDisabledTitle")}
                 className="flex h-[42px] items-center justify-center gap-2 rounded-lg bg-[var(--status-danger)] text-sm font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <CircleX className="h-[18px] w-[18px]" />
-                {submitting === "reject" ? "處理中…" : "拒絕"}
+                {submitting === "reject" ? tR("submitting") : tR("reject")}
               </button>
               <button
                 disabled={!canAdopt}
                 onClick={handleAdopt}
-                title={
-                  canAdopt
-                    ? "採納至案例庫，建立 case_entry 並標記草稿為已發布"
-                    : "僅「已核准」狀態可採納入庫"
-                }
+                title={canAdopt ? tR("adoptTitle") : tR("adoptDisabledTitle")}
                 className="flex h-[42px] items-center justify-center gap-2 rounded-lg bg-[var(--primary)] text-sm font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <PackageCheck className="h-[18px] w-[18px]" />
-                {submitting === "adopt" ? "處理中…" : "採納並入庫"}
+                {submitting === "adopt" ? tR("submitting") : tR("adopt")}
               </button>
             </div>
           </div>

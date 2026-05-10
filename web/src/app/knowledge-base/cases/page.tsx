@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Search, Plus, Download } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import CaseCardGrid from "@/components/knowledge-base/CaseCardGrid";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api, auth } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
@@ -15,18 +16,6 @@ type CaseSearchResponse = components["schemas"]["CaseSearchResponse"];
 type KbExportRequest = components["schemas"]["KbExportRequest"];
 type KbExportJob = components["schemas"]["KbExportJob"];
 type KbExportScope = NonNullable<KbExportRequest["scope"]>;
-
-const EXPORT_SCOPES: { value: KbExportScope; label: string; hint: string }[] = [
-  { value: "all", label: "全部", hint: "案例 + 手冊" },
-  { value: "cases_only", label: "僅案例", hint: "case_entries" },
-  { value: "manuals_only", label: "僅手冊", hint: "manuals" },
-];
-
-const tabs = [
-  { label: "案例庫", href: "/knowledge-base/cases", dynamic: true },
-  { label: "產品手冊", href: "/knowledge-base/manuals", count: 23 },
-  { label: "SOP 草稿", href: "/knowledge-base/sop-drafts", count: 7 },
-];
 
 const PAGE_SIZE = 20;
 
@@ -45,6 +34,28 @@ type VerifiedFilter = "" | "true" | "false";
 
 export default function CasesPage() {
   const pathname = usePathname();
+  const tKb = useTranslations("kb");
+  const tTabs = useTranslations("kb.tabs");
+  const tC = useTranslations("kb.cases");
+
+  const EXPORT_SCOPES: { value: KbExportScope; label: string; hint: string }[] = useMemo(
+    () => [
+      { value: "all", label: tC("scopeAll"), hint: tC("scopeAllHint") },
+      { value: "cases_only", label: tC("scopeCases"), hint: tC("scopeCasesHint") },
+      { value: "manuals_only", label: tC("scopeManuals"), hint: tC("scopeManualsHint") },
+    ],
+    [tC],
+  );
+
+  const tabs = useMemo(
+    () => [
+      { label: tTabs("cases"), href: "/knowledge-base/cases", dynamic: true },
+      { label: tTabs("manuals"), href: "/knowledge-base/manuals", count: 23 },
+      { label: tTabs("sopDrafts"), href: "/knowledge-base/sop-drafts", count: 7 },
+    ],
+    [tTabs],
+  );
+
   const [items, setItems] = useState<CaseEntry[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
@@ -172,7 +183,7 @@ export default function CasesPage() {
         body,
       );
       if (!job.download_url) {
-        throw new Error("匯出任務未提供下載連結");
+        throw new Error(tC("exportNoUrl"));
       }
       const token = auth.getAccessToken();
       const tenantId = auth.getTenantId();
@@ -183,7 +194,7 @@ export default function CasesPage() {
         },
       });
       if (!res.ok) {
-        throw new Error(`下載失敗（HTTP ${res.status}）`);
+        throw new Error(tC("exportDownloadFail", { status: res.status }));
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -195,7 +206,9 @@ export default function CasesPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       const scopeLabel = EXPORT_SCOPES.find((s) => s.value === scope)?.label ?? scope;
-      setExportToast(`已匯出 ${job.item_count ?? 0} 筆（${scopeLabel}）`);
+      setExportToast(
+        tC("exportToast", { count: job.item_count ?? 0, scope: scopeLabel }),
+      );
     } catch (e) {
       setExportError(
         e instanceof ApiError
@@ -223,10 +236,10 @@ export default function CasesPage() {
       <div className="flex flex-1 flex-col overflow-hidden">
         <div className="flex flex-col gap-4 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 pt-5">
           <span className="text-[13px] text-[var(--text-secondary)]">
-            首頁 &gt; 知識庫 &gt; 案例庫
+            {tKb("breadcrumbHome")} &gt; {tKb("breadcrumbKb")} &gt; {tC("breadcrumbCases")}
           </span>
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-            知識庫管理
+            {tKb("pageTitle")}
           </h1>
 
           <div className="flex">
@@ -257,7 +270,7 @@ export default function CasesPage() {
               type="text"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="輸入關鍵字搜尋案例（標題 / 問題 / 解決方案）"
+              placeholder={tC("searchPlaceholder")}
               className="h-10 flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-disabled)]"
             />
             {searchInput && (
@@ -266,7 +279,7 @@ export default function CasesPage() {
                 onClick={() => setSearchInput("")}
                 className="text-[12px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               >
-                清除
+                {tC("clear")}
               </button>
             )}
           </div>
@@ -275,9 +288,9 @@ export default function CasesPage() {
             value={brand}
             onChange={(e) => setBrand(e.target.value)}
             className="h-10 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)]"
-            aria-label="品牌篩選"
+            aria-label={tC("brandFilterLabel")}
           >
-            <option value="">全部品牌</option>
+            <option value="">{tC("allBrands")}</option>
             {BRAND_OPTIONS.map((b) => (
               <option key={b} value={b}>
                 {b}
@@ -289,11 +302,11 @@ export default function CasesPage() {
             value={verified}
             onChange={(e) => setVerified(e.target.value as VerifiedFilter)}
             className="h-10 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)]"
-            aria-label="驗證狀態篩選"
+            aria-label={tC("verifiedFilterLabel")}
           >
-            <option value="">全部狀態</option>
-            <option value="true">已驗證</option>
-            <option value="false">未驗證</option>
+            <option value="">{tC("allStatuses")}</option>
+            <option value="true">{tC("verified")}</option>
+            <option value="false">{tC("unverified")}</option>
           </select>
 
           {hasFilters && (
@@ -304,7 +317,7 @@ export default function CasesPage() {
               }}
               className="h-10 rounded-lg px-3 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
             >
-              清除篩選
+              {tC("clearFilter")}
             </button>
           )}
 
@@ -314,10 +327,10 @@ export default function CasesPage() {
               onClick={() => setExportMenuOpen((v) => !v)}
               disabled={exportPending}
               className="flex h-10 items-center gap-2 rounded-lg border border-[var(--border)] bg-white px-4 text-sm font-semibold text-[var(--text-primary)] transition hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
-              title={brand ? `將以品牌「${brand}」過濾匯出` : "匯出全租戶知識庫"}
+              title={brand ? tC("exportTitleBrand", { brand }) : tC("exportTitleAll")}
             >
               <Download className="h-4 w-4" />
-              {exportPending ? "匯出中…" : "匯出索引"}
+              {exportPending ? tC("exporting") : tC("exportButton")}
             </button>
             {exportMenuOpen && (
               <div className="absolute right-0 top-full z-30 mt-1 w-48 overflow-hidden rounded-md border border-[var(--border)] bg-white shadow-lg">
@@ -333,7 +346,7 @@ export default function CasesPage() {
                     </span>
                     <span className="text-[11px] text-[var(--text-secondary)]">
                       {s.hint}
-                      {brand ? ` · 限 ${brand}` : ""}
+                      {brand ? tC("exportLimitedToBrand", { brand }) : ""}
                     </span>
                   </button>
                 ))}
@@ -346,13 +359,13 @@ export default function CasesPage() {
             className="flex h-10 items-center gap-2 rounded-lg bg-[var(--primary)] px-5 text-sm font-semibold text-white hover:bg-[var(--primary-hover)]"
           >
             <Plus className="h-4 w-4" />
-            新增案例
+            {tC("addCase")}
           </Link>
         </div>
 
         {exportError && (
           <div className="mx-8 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            匯出失敗：{exportError}
+            {tC("exportError", { error: exportError })}
           </div>
         )}
 
@@ -370,8 +383,11 @@ export default function CasesPage() {
 
         {inSearchMode && !searchLoading && !searchError && (
           <div className="mx-8 mt-4 rounded-lg border border-[var(--border)] bg-[#F8FAFC] px-4 py-2 text-[12px] text-[var(--text-secondary)]">
-            {`搜尋「${searchQuery}」找到 ${searchHits?.length ?? 0} 筆相關案例`}
-            {brand && `（限品牌：${brand}）`}
+            {tC("searchHits", {
+              query: searchQuery,
+              count: searchHits?.length ?? 0,
+            })}
+            {brand && tC("searchHitsBrand", { brand })}
           </div>
         )}
 

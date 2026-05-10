@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
@@ -15,6 +16,8 @@ type CaseEntryUpdateRequest = components["schemas"]["CaseEntryUpdateRequest"];
 export default function EditCasePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const tF = useTranslations("kb.cases.form");
+  const tD = useTranslations("kb.cases.detail");
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -77,7 +80,7 @@ export default function EditCasePage({ params }: { params: Promise<{ id: string 
     setError(null);
 
     if (!title.trim() || !brand.trim() || !problemDescription.trim() || !solution.trim()) {
-      setError("請填寫標題、品牌、問題描述、解決方案。");
+      setError(tF("validateRequired"));
       return;
     }
 
@@ -123,18 +126,18 @@ export default function EditCasePage({ params }: { params: Promise<{ id: string 
             className="flex w-fit items-center gap-1 text-[13px] text-[var(--text-secondary)] hover:text-[var(--primary)]"
           >
             <ChevronLeft className="h-4 w-4" />
-            返回案例詳情
+            {tF("backToDetail")}
           </Link>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">編輯案例</h1>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">{tF("editTitle")}</h1>
         </div>
 
         <div className="flex-1 overflow-auto px-8 py-6">
           {loading ? (
-            <div className="text-sm text-[var(--text-secondary)]">載入中…</div>
+            <div className="text-sm text-[var(--text-secondary)]">{tD("loading")}</div>
           ) : notFound ? (
             <div className="flex h-60 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--border)] text-[var(--text-secondary)]">
-              <p className="text-base">找不到此案例</p>
-              <p className="text-sm">案例可能已被刪除。</p>
+              <p className="text-base">{tD("notFoundTitle")}</p>
+              <p className="text-sm">{tD("notFoundDescShort")}</p>
             </div>
           ) : (
             <form onSubmit={onSubmit} className="flex max-w-3xl flex-col gap-5">
@@ -144,7 +147,7 @@ export default function EditCasePage({ params }: { params: Promise<{ id: string 
                 </div>
               )}
 
-              <Field label="標題" required>
+              <Field label={tF("title")} required>
                 <input
                   type="text"
                   value={title}
@@ -155,7 +158,7 @@ export default function EditCasePage({ params }: { params: Promise<{ id: string 
               </Field>
 
               <div className="grid grid-cols-2 gap-5">
-                <Field label="品牌" required>
+                <Field label={tF("brand")} required>
                   <input
                     type="text"
                     value={brand}
@@ -163,7 +166,7 @@ export default function EditCasePage({ params }: { params: Promise<{ id: string 
                     className={inputCls}
                   />
                 </Field>
-                <Field label="型號">
+                <Field label={tF("model")}>
                   <input
                     type="text"
                     value={model}
@@ -173,7 +176,7 @@ export default function EditCasePage({ params }: { params: Promise<{ id: string 
                 </Field>
               </div>
 
-              <Field label="標籤（以逗號分隔）">
+              <Field label={tF("tags")}>
                 <input
                   type="text"
                   value={tagsInput}
@@ -182,7 +185,7 @@ export default function EditCasePage({ params }: { params: Promise<{ id: string 
                 />
               </Field>
 
-              <Field label="問題描述" required>
+              <Field label={tF("problem")} required>
                 <textarea
                   value={problemDescription}
                   onChange={(e) => setProblemDescription(e.target.value)}
@@ -191,7 +194,7 @@ export default function EditCasePage({ params }: { params: Promise<{ id: string 
                 />
               </Field>
 
-              <Field label="解決方案" required>
+              <Field label={tF("solution")} required>
                 <textarea
                   value={solution}
                   onChange={(e) => setSolution(e.target.value)}
@@ -207,7 +210,7 @@ export default function EditCasePage({ params }: { params: Promise<{ id: string 
                   onChange={(e) => setVerified(e.target.checked)}
                   className="h-4 w-4 rounded border-[var(--border)]"
                 />
-                標記為已驗證
+                {tF("verifiedCheckbox")}
               </label>
 
               <div className="flex items-center gap-3">
@@ -216,13 +219,13 @@ export default function EditCasePage({ params }: { params: Promise<{ id: string 
                   disabled={submitting}
                   className="flex h-10 items-center rounded-lg bg-[var(--primary)] px-6 text-sm font-semibold text-white hover:bg-[var(--primary-hover)] disabled:opacity-50"
                 >
-                  {submitting ? "儲存中…" : "儲存變更"}
+                  {submitting ? tF("saving") : tF("saveSubmit")}
                 </button>
                 <Link
                   href={`/knowledge-base/cases/${id}`}
                   className="flex h-10 items-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-6 text-sm font-medium text-[var(--text-primary)] hover:border-[var(--primary)]"
                 >
-                  取消
+                  {tF("cancel")}
                 </Link>
               </div>
             </form>

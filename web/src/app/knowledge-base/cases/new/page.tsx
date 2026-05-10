@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
@@ -13,6 +14,7 @@ type CaseEntryCreateRequest = components["schemas"]["CaseEntryCreateRequest"];
 
 export default function NewCasePage() {
   const router = useRouter();
+  const tF = useTranslations("kb.cases.form");
 
   const [title, setTitle] = useState("");
   const [brand, setBrand] = useState("");
@@ -30,7 +32,7 @@ export default function NewCasePage() {
     setError(null);
 
     if (!title.trim() || !brand.trim() || !problemDescription.trim() || !solution.trim()) {
-      setError("請填寫標題、品牌、問題描述、解決方案。");
+      setError(tF("validateRequired"));
       return;
     }
 
@@ -51,7 +53,7 @@ export default function NewCasePage() {
     setSubmitting(true);
     try {
       const res = await api.post<CaseEntryEnvelope>("/api/v1/knowledge-base/cases", body);
-      if (!res.data) throw new Error("後端未回傳案例資料");
+      if (!res.data) throw new Error(tF("errorNoData"));
       router.replace(`/knowledge-base/cases/${res.data.id}`);
     } catch (e) {
       setError(
@@ -76,9 +78,9 @@ export default function NewCasePage() {
             className="flex w-fit items-center gap-1 text-[13px] text-[var(--text-secondary)] hover:text-[var(--primary)]"
           >
             <ChevronLeft className="h-4 w-4" />
-            取消
+            {tF("back")}
           </Link>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">新增案例</h1>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">{tF("newTitle")}</h1>
         </div>
 
         <div className="flex-1 overflow-auto px-8 py-6">
@@ -89,64 +91,64 @@ export default function NewCasePage() {
               </div>
             )}
 
-            <Field label="標題" required>
+            <Field label={tF("title")} required>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 maxLength={200}
-                placeholder="例：AI-99 門板未對齊導致無法上鎖"
+                placeholder={tF("titlePlaceholder")}
                 className={inputCls}
               />
             </Field>
 
             <div className="grid grid-cols-2 gap-5">
-              <Field label="品牌" required>
+              <Field label={tF("brand")} required>
                 <input
                   type="text"
                   value={brand}
                   onChange={(e) => setBrand(e.target.value)}
-                  placeholder="Chatlock / Dormakaba / KESO ..."
+                  placeholder={tF("brandPlaceholder")}
                   className={inputCls}
                 />
               </Field>
-              <Field label="型號">
+              <Field label={tF("model")}>
                 <input
                   type="text"
                   value={model}
                   onChange={(e) => setModel(e.target.value)}
-                  placeholder="AI-99"
+                  placeholder={tF("modelPlaceholder")}
                   className={inputCls}
                 />
               </Field>
             </div>
 
-            <Field label="標籤（以逗號分隔）">
+            <Field label={tF("tags")}>
               <input
                 type="text"
                 value={tagsInput}
                 onChange={(e) => setTagsInput(e.target.value)}
-                placeholder="安裝, 門板, 機械"
+                placeholder={tF("tagsPlaceholder")}
                 className={inputCls}
               />
             </Field>
 
-            <Field label="問題描述" required>
+            <Field label={tF("problem")} required>
               <textarea
                 value={problemDescription}
                 onChange={(e) => setProblemDescription(e.target.value)}
                 rows={5}
-                placeholder="顧客回報的具體現象..."
+                placeholder={tF("problemPlaceholder")}
                 className={textareaCls}
               />
             </Field>
 
-            <Field label="解決方案" required>
+            <Field label={tF("solution")} required>
               <textarea
                 value={solution}
                 onChange={(e) => setSolution(e.target.value)}
                 rows={8}
-                placeholder="處理步驟與最終結果..."
+                placeholder={tF("solutionPlaceholder")}
                 className={textareaCls}
               />
             </Field>
@@ -157,13 +159,13 @@ export default function NewCasePage() {
                 disabled={submitting}
                 className="flex h-10 items-center rounded-lg bg-[var(--primary)] px-6 text-sm font-semibold text-white hover:bg-[var(--primary-hover)] disabled:opacity-50"
               >
-                {submitting ? "建立中…" : "建立案例"}
+                {submitting ? tF("creating") : tF("createSubmit")}
               </button>
               <Link
                 href="/knowledge-base/cases"
                 className="flex h-10 items-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-6 text-sm font-medium text-[var(--text-primary)] hover:border-[var(--primary)]"
               >
-                取消
+                {tF("cancel")}
               </Link>
             </div>
           </form>

@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ShieldCheck, X, Check, XCircle } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import type { components } from "@/types/api.generated";
@@ -14,21 +15,10 @@ type FamilyReviewPendingResponse =
   components["schemas"]["FamilyReviewPendingResponse"];
 type FamilyReviewAction = components["schemas"]["FamilyReviewAction"];
 
-const ACTION_LABEL: Record<FamilyReviewAction, string> = {
-  approved: "通過",
-  rejected: "退回",
-};
-
 const ACTION_BADGE: Record<FamilyReviewAction, { bg: string; text: string }> = {
   approved: { bg: "#DCFCE7", text: "#166534" },
   rejected: { bg: "#FEE2E2", text: "#B91C1C" },
 };
-
-const ACTION_FILTERS: { label: string; value: FamilyReviewAction | "" }[] = [
-  { label: "全部", value: "" },
-  { label: "通過", value: "approved" },
-  { label: "退回", value: "rejected" },
-];
 
 const PAGE_SIZE = 20;
 
@@ -44,6 +34,25 @@ interface SubmitTarget {
 }
 
 export default function FamilyReviewsPage() {
+  const tF = useTranslations("kb.familyReviews");
+
+  const ACTION_LABEL: Record<FamilyReviewAction, string> = useMemo(
+    () => ({
+      approved: tF("actionApprove"),
+      rejected: tF("actionReject"),
+    }),
+    [tF],
+  );
+
+  const ACTION_FILTERS: { label: string; value: FamilyReviewAction | "" }[] = useMemo(
+    () => [
+      { label: tF("filterAll"), value: "" },
+      { label: tF("filterApproved"), value: "approved" },
+      { label: tF("filterRejected"), value: "rejected" },
+    ],
+    [tF],
+  );
+
   const [pending, setPending] = useState<FamilyReviewPendingItem[]>([]);
   const [pendingLoading, setPendingLoading] = useState(true);
 
@@ -152,11 +161,14 @@ export default function FamilyReviewsPage() {
             <div className="flex items-center gap-3">
               <ShieldCheck className="h-7 w-7 text-[var(--primary)]" />
               <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-                家族覆核
+                {tF("title")}
               </h1>
               <span className="text-[13px] text-[var(--text-secondary)]">
-                · 待覆核 {pending.length} 筆 · 歷史 {history.length}
-                {hasMore ? "+" : ""} 筆
+                {tF("summary", {
+                  pending: pending.length,
+                  history: history.length,
+                  plus: hasMore ? "+" : "",
+                })}
               </span>
             </div>
           </div>
@@ -168,7 +180,7 @@ export default function FamilyReviewsPage() {
             <button
               onClick={() => setError(null)}
               className="text-red-400 hover:text-red-600"
-              title="關閉"
+              title={tF("errorClose")}
             >
               <X className="h-4 w-4" />
             </button>
@@ -179,29 +191,29 @@ export default function FamilyReviewsPage() {
           {/* Pending Section */}
           <section className="flex flex-col gap-3">
             <h2 className="text-base font-semibold text-[var(--text-primary)]">
-              待覆核清單（管理員初審通過）
+              {tF("pendingTitle")}
             </h2>
             <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
               <div
                 className="flex items-center bg-[#F8FAFC] px-4 text-xs font-semibold text-[var(--text-secondary)]"
                 style={{ height: 44 }}
               >
-                <div className="flex-1">SOP 標題</div>
-                <div className="w-[180px]">初審員</div>
-                <div className="w-[200px]">初審通過時間</div>
-                <div className="w-[180px]">等待時長</div>
-                <div className="w-[180px] text-right">動作</div>
+                <div className="flex-1">{tF("colSopTitle")}</div>
+                <div className="w-[180px]">{tF("colReviewer")}</div>
+                <div className="w-[200px]">{tF("colApprovedAt")}</div>
+                <div className="w-[180px]">{tF("colWaiting")}</div>
+                <div className="w-[180px] text-right">{tF("colAction")}</div>
               </div>
 
               {pendingLoading && pending.length === 0 && (
                 <div className="px-4 py-12 text-center text-sm text-[var(--text-secondary)]">
-                  載入中…
+                  {tF("loading")}
                 </div>
               )}
 
               {!pendingLoading && pending.length === 0 && (
                 <div className="px-4 py-12 text-center text-sm text-[var(--text-secondary)]">
-                  目前沒有待家族覆核的草稿
+                  {tF("noPending")}
                 </div>
               )}
 
@@ -237,7 +249,7 @@ export default function FamilyReviewsPage() {
                       }
                       className="inline-flex items-center gap-1 rounded-md bg-[#22C55E] px-3 py-[6px] text-[12px] font-medium text-white hover:bg-[#16A34A]"
                     >
-                      <Check className="h-[12px] w-[12px]" /> 通過
+                      <Check className="h-[12px] w-[12px]" /> {tF("actionApprove")}
                     </button>
                     <button
                       onClick={() =>
@@ -249,7 +261,7 @@ export default function FamilyReviewsPage() {
                       }
                       className="inline-flex items-center gap-1 rounded-md bg-[#EF4444] px-3 py-[6px] text-[12px] font-medium text-white hover:bg-[#DC2626]"
                     >
-                      <XCircle className="h-[12px] w-[12px]" /> 退回
+                      <XCircle className="h-[12px] w-[12px]" /> {tF("actionReject")}
                     </button>
                   </div>
                 </div>
@@ -261,7 +273,7 @@ export default function FamilyReviewsPage() {
           <section className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                覆核歷史
+                {tF("historyTitle")}
               </h2>
               <div className="flex items-center gap-2">
                 {ACTION_FILTERS.map((f) => {
@@ -288,22 +300,22 @@ export default function FamilyReviewsPage() {
                 className="flex items-center bg-[#F8FAFC] px-4 text-xs font-semibold text-[var(--text-secondary)]"
                 style={{ height: 44 }}
               >
-                <div className="w-[180px]">時間</div>
-                <div className="w-[100px]">結果</div>
-                <div className="w-[200px]">SOP 草稿</div>
-                <div className="w-[200px]">覆核者</div>
-                <div className="flex-1">備註</div>
+                <div className="w-[180px]">{tF("colTime")}</div>
+                <div className="w-[100px]">{tF("colResult")}</div>
+                <div className="w-[200px]">{tF("colDraft")}</div>
+                <div className="w-[200px]">{tF("colReviewerHistory")}</div>
+                <div className="flex-1">{tF("colNote")}</div>
               </div>
 
               {historyLoading && history.length === 0 && (
                 <div className="px-4 py-12 text-center text-sm text-[var(--text-secondary)]">
-                  載入中…
+                  {tF("loading")}
                 </div>
               )}
 
               {!historyLoading && history.length === 0 && (
                 <div className="px-4 py-12 text-center text-sm text-[var(--text-secondary)]">
-                  沒有符合條件的覆核紀錄
+                  {tF("noHistory")}
                 </div>
               )}
 
@@ -348,7 +360,7 @@ export default function FamilyReviewsPage() {
                   disabled={historyLoading}
                   className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-5 py-[10px] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {historyLoading ? "載入中…" : "載入更多"}
+                  {historyLoading ? tF("loading") : tF("loadMore")}
                 </button>
               </div>
             )}
@@ -378,6 +390,7 @@ interface SubmitModalProps {
 }
 
 function SubmitModal({ target, submitting, onClose, onSubmit }: SubmitModalProps) {
+  const t = useTranslations("kb.familyReviews");
   const [action, setAction] = useState<FamilyReviewAction>(target.defaultAction);
   const [comment, setComment] = useState("");
   const trimmed = comment.trim();
@@ -390,7 +403,7 @@ function SubmitModal({ target, submitting, onClose, onSubmit }: SubmitModalProps
       <div className="w-[520px] rounded-xl bg-[var(--bg-surface)] p-6 shadow-xl">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">
-            提交家族覆核
+            {t("modalTitle")}
           </h3>
           <button
             onClick={onClose}
@@ -418,7 +431,7 @@ function SubmitModal({ target, submitting, onClose, onSubmit }: SubmitModalProps
                 : "border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-secondary)]"
             }`}
           >
-            通過
+            {t("actionApprove")}
           </button>
           <button
             onClick={() => setAction("rejected")}
@@ -429,13 +442,13 @@ function SubmitModal({ target, submitting, onClose, onSubmit }: SubmitModalProps
                 : "border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-secondary)]"
             }`}
           >
-            退回
+            {t("actionReject")}
           </button>
         </div>
 
         <div className="mt-4">
           <label className="text-[13px] font-medium text-[var(--text-secondary)]">
-            備註 {action === "rejected" && <span className="text-red-500">*</span>}
+            {t("noteLabel")} {action === "rejected" && <span className="text-red-500">*</span>}
           </label>
           <textarea
             value={comment}
@@ -443,8 +456,8 @@ function SubmitModal({ target, submitting, onClose, onSubmit }: SubmitModalProps
             disabled={submitting}
             placeholder={
               action === "rejected"
-                ? "退回原因（必填）"
-                : "可選：覆核意見、後續建議"
+                ? t("notePlaceholderReject")
+                : t("notePlaceholderApprove")
             }
             rows={4}
             className="mt-1 w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] text-[var(--text-primary)] outline-none focus:border-[var(--primary)] disabled:opacity-50"
@@ -456,7 +469,7 @@ function SubmitModal({ target, submitting, onClose, onSubmit }: SubmitModalProps
               {comment.length} / 1000
             </span>
             {requireComment && (
-              <span className="text-red-600">退回必須填寫原因</span>
+              <span className="text-red-600">{t("noteRequired")}</span>
             )}
           </div>
         </div>
@@ -467,14 +480,14 @@ function SubmitModal({ target, submitting, onClose, onSubmit }: SubmitModalProps
             disabled={submitting}
             className="rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
           >
-            取消
+            {t("cancel")}
           </button>
           <button
             onClick={() => onSubmit(action, comment)}
             disabled={disabled}
             className="rounded-md bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {submitting ? "提交中…" : "確認提交"}
+            {submitting ? t("submitting") : t("submit")}
           </button>
         </div>
       </div>
