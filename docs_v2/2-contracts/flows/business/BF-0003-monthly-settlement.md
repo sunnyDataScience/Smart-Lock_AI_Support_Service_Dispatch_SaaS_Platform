@@ -1,8 +1,29 @@
-# 帳務流程 & 結算報表範本
-
-> ⚠️ 本文件為 AI 生成之模擬資料，僅供系統開發測試用途，不代表實際產品規格。
-
 ---
+id: BF-0003
+title: 月結帳務與撥款 (Business Flow)
+tier: 2
+status: accepted
+last-synced-with: pending
+sync-source: doc
+synced-at: 2026-05-10
+trace_to:
+  - "FR-0012-monthly-settlement.md"
+  - "FR-0013-dual-sign-dispute.md"
+  - "FR-0014-refund.md"
+  - "../../modules/refund-service.md"
+related:
+  - "../../../1-decisions/ADR-0014-pm-alignment-q2.md (雙簽終簽)"
+  - "../../../1-decisions/ADR-0016-pm-alignment-q4.md (工作日 SLA)"
+  - "../../../1-decisions/ADR-0019-pm-alignment-q7.md (V1 金流範圍)"
+legacy_id: 17_帳務流程與結算報表範本; F-012
+extracted_from: docs/_domain-knowledge/locksmith-checklist/17_帳務流程與結算報表範本.md
+---
+
+# BF-0003 — 月結帳務與撥款
+
+> **Business Flow 性質**：E2E 業務能力 — 從完工到撥款的月結整體流程。
+> 涉及多 actor (技師 / 客服 / 財務) 與多 sub-flow (對帳 / 雙簽 / 撥款)。
+
 
 ## 一、帳務處理流程
 

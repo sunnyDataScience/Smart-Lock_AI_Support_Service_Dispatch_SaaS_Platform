@@ -1,8 +1,25 @@
-# SOP 審核流程定義
-
-> ⚠️ 本文件為 AI 生成之模擬資料，僅供系統開發測試用途，不代表實際產品規格。
-
 ---
+id: SF-0001
+title: SOP 草稿審核流程 (Sub-Flow)
+tier: 2
+status: accepted
+last-synced-with: pending
+sync-source: doc
+synced-at: 2026-05-10
+trace_to:
+  - "FR-0017-sop-draft-review.md"
+  - "../../modules/sop-generator.md"
+  - "../../../1-decisions/ADR-0014-pm-alignment-q2.md (雙簽階層)"
+related:
+  - "../../../0-principles/glossary.md §SOP-related terms"
+legacy_id: 10_SOP審核流程定義
+extracted_from: docs/_domain-knowledge/locksmith-checklist/10_SOP審核流程定義.md
+---
+
+# SF-0001 — SOP 草稿審核 Sub-Flow
+
+> **Sub-Flow 性質**：跨 BF 共享的 SOP review 步驟，被 BF-work-order（完工後 SOP 沉澱）與 BF-knowledge-base（手動建檔）引用。
+
 
 ## 一、審核角色定義
 
