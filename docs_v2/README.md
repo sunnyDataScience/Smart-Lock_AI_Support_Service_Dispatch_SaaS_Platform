@@ -41,15 +41,19 @@ related:
 
 | Phase | 範圍 | 狀態 |
 | :--: | :-- | :-- |
-| Phase 0 | 完整盤點 + 10 slop 模式 + 254 檔對應表 | ✅ 完成（產物在 `docs/_audit/vibecoding-{migration-analysis,mapping-table}-2026-05-10.md`）|
+| Phase 0 | 完整盤點 + 10 slop 模式 + 254 檔對應表 | ✅ 完成（產物在 `4-exploration/audits/vibecoding-{migration,mapping-table}-2026-05-10.md`）|
 | Phase 1 | CR-0001 CIA + AI Architect+PM 拍板 8 條決策 | ✅ 完成 → [`4-exploration/change-requests/CR-0001-*`](./4-exploration/change-requests/CR-0001-vibecoding-6tier-migration.md) |
-| Phase 2 | docs_v2/ 骨架 + 6 tier README + ID legacy + ADR rename | 🟡 進行中 |
-| Phase 3 | Contract 遷移（API + 24 specs + flows + frontend） | ⬜ |
-| Phase 4 | Process / Exploration / Views | ⬜ |
-| Phase 5 | Pipeline 整併 | ⬜ |
-| Phase 6 | 舊 docs/ 標 superseded、wikilink rewrite、90 天後刪除 | ⬜ |
+| Phase 2 | docs_v2/ 骨架 + 9 tier README + ID legacy + 9 ADR rename | ✅ commit `a2a2201` |
+| Phase 3 | Contract 遷移（API + 14 module specs + V2/V3 藍圖） | ✅ commit `cbb1473` |
+| Phase 4 | Process / Audits / Explorations / Business / Flow placeholders | ✅ commit `a190a4d` |
+| Phase 5 | Pipeline 88 檔三向拆 | ✅ commit `5fba15c` |
+| Phase 6 | _domain-knowledge 33 檔 + PII 警示 | ✅ 本 commit |
+| **結構性遷移** | **219 檔在 docs_v2/，docs/+pipeline 未動** | **✅ 完成** |
+| Phase 7 (CR-0004) | 29 個 `_pending-*` SPLIT/MERGE 細工 | ⬜ follow-up |
+| Phase 8 (CR-0007) | docs/ 標 superseded + wikilink rewrite + 90 天觀察 | ⬜ follow-up |
+| Phase 9 (CR-0008) | docs/ 刪除 + docs_v2/ rename → docs/ | ⬜ follow-up |
 
-每個 /loop iteration 推進一段。詳見 CR-0001 §9。
+詳見 [`4-exploration/audits/CR-0001-status-2026-05-10.md`](./4-exploration/audits/CR-0001-status-2026-05-10.md)。
 
 ---
 
