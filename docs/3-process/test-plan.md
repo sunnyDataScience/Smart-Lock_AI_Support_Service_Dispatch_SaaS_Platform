@@ -398,17 +398,17 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 
 ---
 
-## 11. Quality Gates（對應 [[./quality-gates#b-gr6--code-complete|GR6]] / [[./quality-gates#c-gr7--integration|GR7]] / [[./quality-gates#d-gr10--ga-readiness|GR10]]）
+## 11. Quality Gates
 
-| Gate | 觸發 | 必跑測試 | KPI | Flaky 容忍 | 失敗 |
-|------|-----|---------|-----|----------|------|
-| **PR-gate** | 每 PR | unit + component + contract（Schemathesis 50） + E2E-smoke 5 + agent-eval-mini | 全綠；coverage Δ ≥ -1% | E2E ≤ 1 retry | 阻 merge |
-| **Pre-merge to main** | squash | + k6 load smoke 5 min + visual regression | per-endpoint p95 latency budget | 0 | 阻 + revert |
-| **GR6 — V2.0 spec freeze** | 手動 | + 全 BDD Tier A + AsyncAPI contract + AI eval 全集 | 100% Tier A pass；eval ≥ baseline | 0 | reopen design |
-| **GR7 — Pre-prod release** | release branch | + chaos drill + security scan（gitleaks / trivy） + agent eval 300 + axe-core a11y | 0 critical security；eval cost regression < 15% | 0 | 阻 release |
-| **GR10 — Post-launch sign-off** | 14 d post-deploy | synthetic 99%+ green + RUM SLA met + 0 P0 | 99.5% uptime per channel | n/a | hotfix backlog |
+> **Quality Gates SSOT** — 詳見 [`./quality-gates.md`](./quality-gates.md)：
+> - §B: GR6 — V2.0 spec freeze 條件
+> - §C: GR7 — Pre-prod release 條件
+> - §D: GR10 — Post-launch sign-off 條件
+> - PR-gate / Pre-merge to main / Rollback triggers 等 CI 細節亦在 quality-gates.md 內
 
-**Rollback triggers**：synthetic probe red > 5 min，或 prod log 出現 AsyncAPI envelope validation failure，自動建 incident + page on-call。Rollback = Cloud Run revision flip + 向後相容 migration revert（migration 強制 backward-compat，sqlfluff custom rule lint）。
+本檔（test-plan）只負責「測試金字塔比例 + 覆蓋率目標 + 風險區」（戰略層），閘門條件（GR6/7/10）統一以 quality-gates.md 為準。
+
+<!-- DO NOT DUPLICATE: GR6/GR7/GR10 表格已遷至 quality-gates.md §B/C/D 為 SSOT。如要修改 gate 條件，編輯 quality-gates.md 而非本檔。 -->
 
 ---
 
