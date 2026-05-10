@@ -1,23 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, X } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { ApiError, api } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type SentimentAlert = components["schemas"]["SentimentAlert"];
 type SentimentAlertPage = components["schemas"]["SentimentAlertPage"];
 type SentimentAlertStatus = components["schemas"]["SentimentAlertStatus"];
 type SentimentLabel = SentimentAlert["sentiment_label"];
-
-const STATUS_LABEL: Record<SentimentAlertStatus, string> = {
-  pending: "未處理",
-  acknowledged: "已確認",
-  resolved: "已結案",
-};
 
 const STATUS_BADGE: Record<SentimentAlertStatus, { bg: string; text: string }> = {
   pending: { bg: "#FEE2E2", text: "#B91C1C" },
@@ -26,13 +21,6 @@ const STATUS_BADGE: Record<SentimentAlertStatus, { bg: string; text: string }> =
 };
 
 const STATUS_OPTIONS: SentimentAlertStatus[] = ["pending", "acknowledged", "resolved"];
-
-const LABEL_TEXT: Record<SentimentLabel, string> = {
-  very_negative: "極度負面",
-  negative: "負面",
-  neutral: "中性",
-  positive: "正面",
-};
 
 const LABEL_BADGE: Record<SentimentLabel, { bg: string; text: string }> = {
   very_negative: { bg: "#7F1D1D", text: "#FECACA" },
@@ -43,27 +31,21 @@ const LABEL_BADGE: Record<SentimentLabel, { bg: string; text: string }> = {
 
 const PAGE_SIZE = 20;
 
-const columns = [
-  { label: "時間", width: "w-[140px]" },
-  { label: "狀態", width: "w-[100px]" },
-  { label: "情緒", width: "w-[100px]" },
-  { label: "信心", width: "w-[80px]" },
-  { label: "客戶訊息片段", width: "flex-1" },
-  { label: "關鍵字", width: "w-[180px]" },
-  { label: "對話", width: "w-[80px]" },
-  { label: "處置", width: "w-[160px]" },
-];
+const COLUMN_KEYS = [
+  { key: "time", width: "w-[140px]" },
+  { key: "status", width: "w-[100px]" },
+  { key: "sentiment", width: "w-[100px]" },
+  { key: "confidence", width: "w-[80px]" },
+  { key: "messageSnippet", width: "flex-1" },
+  { key: "keywords", width: "w-[180px]" },
+  { key: "conversation", width: "w-[80px]" },
+  { key: "action", width: "w-[160px]" },
+] as const;
 
 const NEXT_STATUS_OPTIONS: Record<SentimentAlertStatus, SentimentAlertStatus[]> = {
   pending: ["acknowledged", "resolved"],
   acknowledged: ["resolved"],
   resolved: [],
-};
-
-const ACTION_LABEL: Record<SentimentAlertStatus, string> = {
-  pending: "—",
-  acknowledged: "確認",
-  resolved: "結案",
 };
 
 function formatConfidence(c: number): string {
@@ -76,6 +58,8 @@ interface ActionTarget {
 }
 
 export default function SentimentAlertsPage() {
+  const t = useTranslations("admin.sentiment");
+  const tc = useTranslations("admin.common");
   const [items, setItems] = useState<SentimentAlert[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
@@ -84,6 +68,34 @@ export default function SentimentAlertsPage() {
   const [statusFilter, setStatusFilter] = useState<SentimentAlertStatus | "">("");
   const [actionTarget, setActionTarget] = useState<ActionTarget | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
+
+  const statusLabel = useMemo<Record<SentimentAlertStatus, string>>(
+    () => ({
+      pending: t("status.pending"),
+      acknowledged: t("status.acknowledged"),
+      resolved: t("status.resolved"),
+    }),
+    [t],
+  );
+
+  const labelText = useMemo<Record<SentimentLabel, string>>(
+    () => ({
+      very_negative: t("label.very_negative"),
+      negative: t("label.negative"),
+      neutral: t("label.neutral"),
+      positive: t("label.positive"),
+    }),
+    [t],
+  );
+
+  const actionLabel = useMemo<Record<SentimentAlertStatus, string>>(
+    () => ({
+      pending: "—",
+      acknowledged: t("action.acknowledge"),
+      resolved: t("action.resolve"),
+    }),
+    [t],
+  );
 
   const handleUpdated = (updated: SentimentAlert) => {
     setItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
@@ -131,27 +143,27 @@ export default function SentimentAlertsPage() {
             <div className="flex items-center gap-3">
               <AlertTriangle className="h-6 w-6 text-[#DC2626]" />
               <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-                負面情緒告警
+                {t("title")}
               </h1>
             </div>
           </div>
 
           <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-            狀態流向：未處理 → 已確認 → 已結案。確認 / 結案後會寫入備註並記錄到後端，已結案無法回退。
+            {t("flowNotice")}
           </div>
 
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-[13px] text-[var(--text-secondary)]">狀態</span>
+              <span className="text-[13px] text-[var(--text-secondary)]">{t("filterLabel")}</span>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as SentimentAlertStatus | "")}
                 className="rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] text-[var(--text-primary)]"
               >
-                <option value="">全部</option>
+                <option value="">{tc("all")}</option>
                 {STATUS_OPTIONS.map((s) => (
                   <option key={s} value={s}>
-                    {STATUS_LABEL[s]}
+                    {statusLabel[s]}
                   </option>
                 ))}
               </select>
@@ -163,13 +175,17 @@ export default function SentimentAlertsPage() {
                 className="rounded-md px-3 py-2"
               >
                 <span className="text-[13px] font-medium text-[var(--text-secondary)]">
-                  清除篩選
+                  {tc("clearFilter")}
                 </span>
               </button>
             )}
 
             <span className="ml-auto text-[13px] text-[var(--text-secondary)]">
-              {loading ? "載入中…" : `共 ${items.length} 筆${hasMore ? "+" : ""}`}
+              {loading
+                ? tc("loading")
+                : hasMore
+                  ? tc("totalCountMore", { count: items.length })
+                  : tc("totalCount", { count: items.length })}
             </span>
           </div>
 
@@ -181,10 +197,10 @@ export default function SentimentAlertsPage() {
 
           <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
             <div className="flex items-center bg-[#F8FAFC] px-4" style={{ height: 44 }}>
-              {columns.map((col, i) => (
-                <div key={i} className={`flex h-full items-center ${col.width}`}>
+              {COLUMN_KEYS.map((col) => (
+                <div key={col.key} className={`flex h-full items-center ${col.width}`}>
                   <span className="text-xs font-semibold text-[var(--text-secondary)]">
-                    {col.label}
+                    {t(`cols.${col.key}`)}
                   </span>
                 </div>
               ))}
@@ -192,7 +208,7 @@ export default function SentimentAlertsPage() {
 
             {items.length === 0 && !loading && (
               <div className="px-4 py-12 text-center text-sm text-[var(--text-secondary)]">
-                沒有符合條件的告警紀錄
+                {t("empty")}
               </div>
             )}
 
@@ -220,7 +236,7 @@ export default function SentimentAlertsPage() {
                       className="rounded-[10px] px-2 py-[2px] text-[11px] font-medium"
                       style={{ backgroundColor: sBadge.bg, color: sBadge.text }}
                     >
-                      {STATUS_LABEL[status]}
+                      {statusLabel[status]}
                     </span>
                   </div>
 
@@ -229,7 +245,7 @@ export default function SentimentAlertsPage() {
                       className="rounded-[10px] px-2 py-[2px] text-[11px] font-medium"
                       style={{ backgroundColor: lBadge.bg, color: lBadge.text }}
                     >
-                      {LABEL_TEXT[label]}
+                      {labelText[label]}
                     </span>
                   </div>
 
@@ -274,7 +290,7 @@ export default function SentimentAlertsPage() {
 
                   <div className="flex h-full w-[160px] flex-wrap items-center gap-2">
                     {NEXT_STATUS_OPTIONS[status].length === 0 ? (
-                      <span className="text-xs text-[var(--text-disabled)]">已結案</span>
+                      <span className="text-xs text-[var(--text-disabled)]">{t("alreadyResolved")}</span>
                     ) : (
                       NEXT_STATUS_OPTIONS[status].map((next) => (
                         <button
@@ -289,7 +305,7 @@ export default function SentimentAlertsPage() {
                               : "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
                           }`}
                         >
-                          {ACTION_LABEL[next]}
+                          {actionLabel[next]}
                         </button>
                       ))
                     )}
@@ -306,7 +322,7 @@ export default function SentimentAlertsPage() {
                 onClick={() => fetchPage(cursor, true, statusFilter)}
                 className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-6 py-2 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
               >
-                {loading ? "載入中…" : "載入更多"}
+                {loading ? tc("loading") : tc("loadMore")}
               </button>
             </div>
           )}
@@ -353,6 +369,8 @@ interface UpdateAlertModalProps {
 }
 
 function UpdateAlertModal({ target, saving, onClose, onSubmit }: UpdateAlertModalProps) {
+  const t = useTranslations("admin.sentiment");
+  const tc = useTranslations("admin.common");
   const [note, setNote] = useState("");
   const trimmed = note.trim();
   const tooLong = trimmed.length > 1000;
@@ -370,12 +388,12 @@ function UpdateAlertModal({ target, saving, onClose, onSubmit }: UpdateAlertModa
       >
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-            {target.toStatus === "resolved" ? "結案告警" : "確認告警"}
+            {target.toStatus === "resolved" ? t("modal.titleResolve") : t("modal.titleAcknowledge")}
           </h2>
           <button
             onClick={onClose}
             className="rounded p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
-            aria-label="關閉"
+            aria-label={t("modal.closeAria")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -383,25 +401,25 @@ function UpdateAlertModal({ target, saving, onClose, onSubmit }: UpdateAlertModa
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium text-[var(--text-primary)]">
-            管理員備註{noteRequired && <span className="ml-1 text-red-500">*</span>}
+            {t("modal.noteLabel")}{noteRequired && <span className="ml-1 text-red-500">*</span>}
           </label>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder={
               target.toStatus === "resolved"
-                ? "結案時請填寫處置摘要（如：已退費 / 主管已親洽）"
-                : "（選填）填寫已聯繫紀錄、預計處理時間等"
+                ? t("modal.notePlaceholderResolve")
+                : t("modal.notePlaceholderAcknowledge")
             }
             rows={4}
             className="rounded-md border border-[var(--border)] px-3 py-2 text-sm focus:border-[var(--primary)] focus:outline-none"
           />
           <div className="flex justify-between text-xs text-[var(--text-secondary)]">
             <span className={tooLong ? "text-red-600" : ""}>
-              {tooLong ? "超過 1000 字上限" : `${trimmed.length} / 1000`}
+              {tooLong ? t("modal.noteOverLimit") : t("modal.noteCount", { count: trimmed.length })}
             </span>
             {noteRequired && trimmed.length === 0 && (
-              <span className="text-red-500">必填</span>
+              <span className="text-red-500">{t("modal.required")}</span>
             )}
           </div>
         </div>
@@ -412,7 +430,7 @@ function UpdateAlertModal({ target, saving, onClose, onSubmit }: UpdateAlertModa
             disabled={saving}
             className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
           >
-            取消
+            {tc("cancel")}
           </button>
           <button
             onClick={() => onSubmit(trimmed)}
@@ -423,7 +441,11 @@ function UpdateAlertModal({ target, saving, onClose, onSubmit }: UpdateAlertModa
                 : "bg-amber-600 hover:bg-amber-700"
             }`}
           >
-            {saving ? "送出中…" : target.toStatus === "resolved" ? "確認結案" : "確認"}
+            {saving
+              ? tc("submitting")
+              : target.toStatus === "resolved"
+                ? t("modal.submitResolve")
+                : t("modal.submitAcknowledge")}
           </button>
         </div>
       </div>

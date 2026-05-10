@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Info, Plus, RefreshCw, Search, ShieldCheck, X } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import WarrantyClaimsTable from "@/components/admin/WarrantyClaimsTable";
 import { ApiError, api } from "@/lib/api";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type WarrantyClaim = components["schemas"]["WarrantyClaim"];
@@ -15,20 +16,21 @@ type WarrantyDecision = components["schemas"]["WarrantyDecision"];
 type DecisionValue = WarrantyDecision["decision"];
 
 interface StatusTab {
-  label: string;
   value: WarrantyClaimStatus | "all";
 }
 
 const statusTabs: StatusTab[] = [
-  { label: "全部", value: "all" },
-  { label: "已申請", value: "filed" },
-  { label: "處理中", value: "in_progress" },
-  { label: "已核准", value: "approved" },
-  { label: "已拒絕", value: "rejected" },
-  { label: "已結案", value: "closed" },
+  { value: "all" },
+  { value: "filed" },
+  { value: "in_progress" },
+  { value: "approved" },
+  { value: "rejected" },
+  { value: "closed" },
 ];
 
 export default function WarrantyClaimsPage() {
+  const t = useTranslations("admin.warranty");
+  const tc = useTranslations("admin.common");
   const [activeTab, setActiveTab] = useState<StatusTab["value"]>("all");
   const [items, setItems] = useState<WarrantyClaim[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,10 +111,10 @@ export default function WarrantyClaimsPage() {
       setModalClaim(null);
       const tone =
         decision === "approve"
-          ? "已核准保固"
+          ? t("toast.approved")
           : decision === "reject"
-            ? "已拒絕保固"
-            : "已轉入處理中";
+            ? t("toast.rejected")
+            : t("toast.startReview");
       setActionToast(tone);
     } catch (e) {
       setActionError(
@@ -168,13 +170,13 @@ export default function WarrantyClaimsPage() {
         <div className="flex flex-1 flex-col gap-5 overflow-auto pl-14 pr-4 py-6 md:px-8">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-              保固申請管理
+              {t("title")}
             </h1>
             <button
               onClick={() => fetchClaims({ status: activeTab })}
               disabled={loading}
               className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
-              title="重新整理"
+              title={tc("refresh")}
             >
               <RefreshCw
                 className={`h-[14px] w-[14px] text-[var(--text-secondary)] ${loading ? "animate-spin" : ""}`}
@@ -203,16 +205,18 @@ export default function WarrantyClaimsPage() {
                 className="h-[6px] w-[6px] rounded-full"
                 style={{ backgroundColor: error ? "#DC2626" : "#22C55E" }}
               />
-              {error ? "連線失敗" : "已連線"}
+              {error ? tc("disconnected") : tc("connected")}
             </span>
             <span className="text-[13px] text-[var(--text-secondary)]">
               {updatedAt
-                ? `最後更新：${updatedAt.toLocaleTimeString("zh-TW", { hour12: false })}`
+                ? tc("lastUpdated", { time: updatedAt.toLocaleTimeString("zh-TW", { hour12: false }) })
                 : "—"}
             </span>
             <span className="text-[13px] text-[var(--text-secondary)]">·</span>
             <span className="text-[13px] text-[var(--text-secondary)]">
-              共 {items.length}{hasMore ? "+" : ""} 筆
+              {hasMore
+                ? tc("totalCountMore", { count: items.length })
+                : tc("totalCount", { count: items.length })}
             </span>
           </div>
 
@@ -225,13 +229,13 @@ export default function WarrantyClaimsPage() {
           <div className="flex items-center gap-[10px] rounded-lg border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-3">
             <Info className="h-5 w-5 shrink-0 text-[#1D4ED8]" />
             <span className="text-[13px] leading-[1.5] text-[#1D4ED8]">
-              保固起算日以「交屋日期」為準，非「入住日期」。此為系統核心規則，所有保固計算均依據此原則。
+              {t("ruleNotice")}
             </span>
           </div>
 
           {actionError && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              審批失敗：{actionError}
+              {tc("approvalFailed", { error: actionError })}
             </div>
           )}
 
@@ -247,20 +251,20 @@ export default function WarrantyClaimsPage() {
                       : "bg-[var(--bg-surface)] text-[var(--text-secondary)]"
                   }`}
                 >
-                  {tab.label}
+                  {t(`tabs.${tab.value}`)}
                 </button>
               ))}
             </div>
 
             <div
               className="flex w-[300px] cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2 opacity-60"
-              title="即將推出"
+              title={tc("comingSoon")}
             >
               <Search className="h-4 w-4 text-[var(--text-disabled)]" />
               <input
                 disabled
                 type="text"
-                placeholder="搜尋案件編號、設備或客戶..."
+                placeholder={t("searchPlaceholder")}
                 className="flex-1 cursor-not-allowed bg-transparent text-[13px] outline-none placeholder:text-[var(--text-disabled)]"
               />
             </div>
@@ -283,7 +287,7 @@ export default function WarrantyClaimsPage() {
                 disabled={loading}
                 className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-5 py-[10px] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {loading ? "載入中…" : "載入更多"}
+                {loading ? tc("loading") : tc("loadMore")}
               </button>
             </div>
           )}
@@ -317,28 +321,10 @@ export default function WarrantyClaimsPage() {
   );
 }
 
-const DECISION_OPTIONS: { value: DecisionValue; label: string; hint: string; color: string; bg: string }[] = [
-  {
-    value: "approve",
-    label: "核准",
-    hint: "保固有效或經審核同意：可附保固外折讓金額。",
-    color: "#065F46",
-    bg: "#D1FAE5",
-  },
-  {
-    value: "reject",
-    label: "拒絕",
-    hint: "已過保固或不符合條件：必填拒絕原因供客戶查證。",
-    color: "#991B1B",
-    bg: "#FEE2E2",
-  },
-  {
-    value: "start_review",
-    label: "轉入處理中",
-    hint: "需蒐證或聯繫客戶：暫推進到 in_progress，後續再下最終決策。",
-    color: "#1E40AF",
-    bg: "#DBEAFE",
-  },
+const DECISION_OPTIONS_META: { value: DecisionValue; color: string; bg: string }[] = [
+  { value: "approve", color: "#065F46", bg: "#D1FAE5" },
+  { value: "reject", color: "#991B1B", bg: "#FEE2E2" },
+  { value: "start_review", color: "#1E40AF", bg: "#DBEAFE" },
 ];
 
 function DecisionModal({
@@ -356,6 +342,8 @@ function DecisionModal({
     discountOffered: string,
   ) => Promise<void>;
 }) {
+  const t = useTranslations("admin.warranty");
+  const tc = useTranslations("admin.common");
   const [decision, setDecision] = useState<DecisionValue>("approve");
   const [resolution, setResolution] = useState("");
   const [discount, setDiscount] = useState("");
@@ -367,7 +355,27 @@ function DecisionModal({
     trimmed.length <= 500 &&
     decimalOk;
 
-  const activeOpt = DECISION_OPTIONS.find((o) => o.value === decision)!;
+  const decisionOptions = useMemo(
+    () =>
+      DECISION_OPTIONS_META.map((meta) => ({
+        ...meta,
+        label:
+          meta.value === "approve"
+            ? t("decision.approve")
+            : meta.value === "reject"
+              ? t("decision.reject")
+              : t("decision.startReview"),
+        hint:
+          meta.value === "approve"
+            ? t("decision.approveHint")
+            : meta.value === "reject"
+              ? t("decision.rejectHint")
+              : t("decision.startReviewHint"),
+      })),
+    [t],
+  );
+
+  const activeOpt = decisionOptions.find((o) => o.value === decision)!;
 
   return (
     <div
@@ -381,7 +389,7 @@ function DecisionModal({
         <div className="mb-1 flex items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-[var(--primary)]" />
           <span className="text-[18px] font-semibold text-[var(--text-primary)]">
-            保固審批決策
+            {t("modal.title")}
           </span>
         </div>
         <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-[var(--text-secondary)]">
@@ -392,13 +400,13 @@ function DecisionModal({
           </span>
           <span>·</span>
           <span>
-            保固至 <span className="text-[var(--text-primary)]">{claim.warranty_end_date}</span>
-            {claim.is_within_warranty ? "（保固內）" : "（已過保）"}
+            {t("modal.warrantyUntil")} <span className="text-[var(--text-primary)]">{claim.warranty_end_date}</span>
+            {claim.is_within_warranty ? t("modal.withinWarranty") : t("modal.outOfWarranty")}
           </span>
         </div>
 
         <div className="flex flex-col gap-2">
-          {DECISION_OPTIONS.map((opt) => {
+          {decisionOptions.map((opt) => {
             const active = opt.value === decision;
             return (
               <button
@@ -431,9 +439,9 @@ function DecisionModal({
 
         <div className="mt-4 flex flex-col gap-1">
           <label className="text-[12px] font-medium text-[var(--text-secondary)]">
-            審批意見 / 處理結果
+            {t("modal.resolutionLabel")}
             {requiresResolution && <span className="text-[var(--error)]"> *</span>}
-            <span className="ml-1 text-[var(--text-disabled)]">（最多 500 字）</span>
+            <span className="ml-1 text-[var(--text-disabled)]">{t("modal.resolutionMaxHint")}</span>
           </label>
           <textarea
             value={resolution}
@@ -441,10 +449,10 @@ function DecisionModal({
             rows={4}
             placeholder={
               decision === "approve"
-                ? "例如：保固期內主板異常，核准免費更換"
+                ? t("modal.resolutionPlaceholderApprove")
                 : decision === "reject"
-                  ? "例如：已過保固期 18 個月，且設備外觀有人為損傷痕跡"
-                  : "例如：客戶補件中，待提供購買發票後再覆審"
+                  ? t("modal.resolutionPlaceholderReject")
+                  : t("modal.resolutionPlaceholderReview")
             }
             className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
           />
@@ -456,14 +464,14 @@ function DecisionModal({
         {decision === "approve" && (
           <div className="mt-3 flex flex-col gap-1">
             <label className="text-[12px] font-medium text-[var(--text-secondary)]">
-              折讓金額 / 折扣（NT$，可留空）
+              {t("modal.discountLabel")}
             </label>
             <input
               type="text"
               inputMode="decimal"
               value={discount}
               onChange={(e) => setDiscount(e.target.value)}
-              placeholder="例如：1500.00 或 0 表示完全免費"
+              placeholder={t("modal.discountPlaceholder")}
               className={`rounded-md border px-3 py-2 text-[13px] focus:outline-none ${
                 decimalOk
                   ? "border-[var(--border)] focus:border-[var(--primary)]"
@@ -472,7 +480,7 @@ function DecisionModal({
             />
             {!decimalOk && (
               <span className="text-[11px] text-red-600">
-                金額格式應為小數兩位內的數字
+                {t("modal.discountFormatError")}
               </span>
             )}
           </div>
@@ -482,7 +490,7 @@ function DecisionModal({
           className="mt-3 rounded-md px-3 py-2 text-[12px] leading-[1.6]"
           style={{ color: activeOpt.color, backgroundColor: activeOpt.bg }}
         >
-          送出後狀態將推進到「{activeOpt.label}」；approve / reject 為終局，無法再變更。
+          {t("modal.decisionFinalHint", { label: activeOpt.label })}
         </p>
 
         <div className="mt-5 flex justify-end gap-2">
@@ -492,14 +500,14 @@ function DecisionModal({
             className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
           >
             <X className="mr-1 inline h-3 w-3" />
-            返回
+            {tc("back")}
           </button>
           <button
             onClick={() => onSubmit(decision, trimmed, discount.trim())}
             disabled={pending || !valid}
             className="rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {pending ? "送出中…" : "確認送出"}
+            {pending ? tc("submitting") : tc("submit")}
           </button>
         </div>
       </div>

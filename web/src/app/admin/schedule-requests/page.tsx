@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   CheckCircle2,
@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { ApiError, api } from "@/lib/api";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 type Status = "pending" | "approved" | "rejected" | "cancelled";
 type ReqType = "leave" | "standby";
@@ -33,27 +34,25 @@ interface ListResponse {
   items: AdminScheduleRequest[];
 }
 
-const STATUS_TABS: { value: Status | "all"; label: string }[] = [
-  { value: "pending", label: "待審核" },
-  { value: "approved", label: "已核准" },
-  { value: "rejected", label: "已拒絕" },
-  { value: "cancelled", label: "已取消" },
-  { value: "all", label: "全部" },
+const STATUS_TAB_VALUES: (Status | "all")[] = [
+  "pending",
+  "approved",
+  "rejected",
+  "cancelled",
+  "all",
 ];
 
-const TYPE_LABEL: Record<ReqType, { label: string; bg: string; color: string }> =
-  {
-    leave: { label: "休假", bg: "#FEF3C7", color: "#92400E" },
-    standby: { label: "備勤", bg: "#DBEAFE", color: "#1E40AF" },
-  };
+const TYPE_META: Record<ReqType, { bg: string; color: string }> = {
+  leave: { bg: "#FEF3C7", color: "#92400E" },
+  standby: { bg: "#DBEAFE", color: "#1E40AF" },
+};
 
-const STATUS_BADGE: Record<Status, { label: string; bg: string; color: string }> =
-  {
-    pending: { label: "待審核", bg: "#F1F5F9", color: "#475569" },
-    approved: { label: "已核准", bg: "#D1FAE5", color: "#065F46" },
-    rejected: { label: "已拒絕", bg: "#FEE2E2", color: "#991B1B" },
-    cancelled: { label: "已取消", bg: "#E2E8F0", color: "#475569" },
-  };
+const STATUS_META: Record<Status, { bg: string; color: string }> = {
+  pending: { bg: "#F1F5F9", color: "#475569" },
+  approved: { bg: "#D1FAE5", color: "#065F46" },
+  rejected: { bg: "#FEE2E2", color: "#991B1B" },
+  cancelled: { bg: "#E2E8F0", color: "#475569" },
+};
 
 function formatErr(e: unknown): string {
   return e instanceof ApiError
@@ -64,6 +63,8 @@ function formatErr(e: unknown): string {
 }
 
 export default function ScheduleRequestsPage() {
+  const t = useTranslations("admin.scheduleRequests");
+  const tc = useTranslations("admin.common");
   const [tab, setTab] = useState<Status | "all">("pending");
   const [items, setItems] = useState<AdminScheduleRequest[]>([]);
   const [loading, setLoading] = useState(false);
@@ -75,6 +76,35 @@ export default function ScheduleRequestsPage() {
     decision: "approve" | "reject";
   } | null>(null);
   const [resolveNote, setResolveNote] = useState("");
+
+  const tabLabel = useMemo<Record<Status | "all", string>>(
+    () => ({
+      pending: t("tabs.pending"),
+      approved: t("tabs.approved"),
+      rejected: t("tabs.rejected"),
+      cancelled: t("tabs.cancelled"),
+      all: t("tabs.all"),
+    }),
+    [t],
+  );
+
+  const typeLabel = useMemo<Record<ReqType, string>>(
+    () => ({
+      leave: t("type.leave"),
+      standby: t("type.standby"),
+    }),
+    [t],
+  );
+
+  const statusLabel = useMemo<Record<Status, string>>(
+    () => ({
+      pending: t("status.pending"),
+      approved: t("status.approved"),
+      rejected: t("status.rejected"),
+      cancelled: t("status.cancelled"),
+    }),
+    [t],
+  );
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -107,7 +137,7 @@ export default function ScheduleRequestsPage() {
         `/api/v1/admin/schedule-requests/${encodeURIComponent(id)}/${decision}`,
         resolveNote.trim() ? { note: resolveNote.trim() } : {},
       );
-      setActionMsg(decision === "approve" ? "已核准申請" : "已拒絕申請");
+      setActionMsg(decision === "approve" ? t("toast.approved") : t("toast.rejected"));
       setTimeout(() => setActionMsg(null), 2500);
       setResolveDialog(null);
       setResolveNote("");
@@ -126,11 +156,11 @@ export default function ScheduleRequestsPage() {
       <div className="flex flex-1 flex-col overflow-hidden">
         <div className="flex flex-col gap-1 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-4">
           <span className="text-[13px] text-[var(--text-secondary)]">
-            首頁 &gt; 派工管理 &gt; 排班申請審核
+            {t("breadcrumb")}
           </span>
           <div className="flex items-center justify-between">
             <h1 className="text-[24px] font-bold text-[#0F172A]">
-              排班申請審核
+              {t("title")}
             </h1>
             <button
               type="button"
@@ -141,24 +171,24 @@ export default function ScheduleRequestsPage() {
               <RefreshCw
                 className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
               />
-              重新整理
+              {tc("refresh")}
             </button>
           </div>
         </div>
 
         <div className="flex border-b border-[var(--border)] bg-[var(--bg-surface)] px-8">
-          {STATUS_TABS.map((t) => (
+          {STATUS_TAB_VALUES.map((value) => (
             <button
-              key={t.value}
+              key={value}
               type="button"
-              onClick={() => setTab(t.value)}
+              onClick={() => setTab(value)}
               className={`px-4 py-3 text-[13px] ${
-                tab === t.value
+                tab === value
                   ? "border-b-2 border-[var(--primary)] font-semibold text-[var(--primary)]"
                   : "font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
-              {t.label}
+              {tabLabel[value]}
             </button>
           ))}
         </div>
@@ -178,34 +208,34 @@ export default function ScheduleRequestsPage() {
         <main className="flex-1 overflow-auto px-8 py-6">
           {loading && items.length === 0 ? (
             <div className="flex h-40 items-center justify-center text-[13px] text-[var(--text-secondary)]">
-              載入中…
+              {tc("loading")}
             </div>
           ) : items.length === 0 ? (
             <div className="flex h-40 flex-col items-center justify-center gap-2 text-[var(--text-secondary)]">
               <CalendarDays className="h-10 w-10 text-[var(--text-disabled)]" />
               <p className="text-[14px]">
                 {tab === "pending"
-                  ? "目前無待審核申請"
-                  : `無 ${STATUS_TABS.find((t) => t.value === tab)?.label} 的申請`}
+                  ? t("emptyPending")
+                  : t("emptyOther", { label: tabLabel[tab] })}
               </p>
             </div>
           ) : (
             <table className="w-full overflow-hidden rounded-lg border border-[var(--border)] bg-white text-[13px] shadow-sm">
               <thead className="bg-[#F8FAFC] text-left text-[12px] font-medium text-[var(--text-secondary)]">
                 <tr>
-                  <th className="px-3 py-2">技師</th>
-                  <th className="px-3 py-2">類型</th>
-                  <th className="px-3 py-2">起訖日期</th>
-                  <th className="px-3 py-2">事由</th>
-                  <th className="px-3 py-2">狀態</th>
-                  <th className="px-3 py-2">申請時間</th>
-                  <th className="px-3 py-2 text-right">操作</th>
+                  <th className="px-3 py-2">{t("cols.technician")}</th>
+                  <th className="px-3 py-2">{t("cols.type")}</th>
+                  <th className="px-3 py-2">{t("cols.dateRange")}</th>
+                  <th className="px-3 py-2">{t("cols.reason")}</th>
+                  <th className="px-3 py-2">{t("cols.status")}</th>
+                  <th className="px-3 py-2">{t("cols.createdAt")}</th>
+                  <th className="px-3 py-2 text-right">{t("cols.actions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
                 {items.map((r) => {
-                  const typeMeta = TYPE_LABEL[r.type];
-                  const statusMeta = STATUS_BADGE[r.status];
+                  const typeMeta = TYPE_META[r.type];
+                  const statusMeta = STATUS_META[r.status];
                   return (
                     <tr key={r.id} className="hover:bg-[#F8FAFC]">
                       <td className="px-3 py-3 font-medium text-[var(--text-primary)]">
@@ -222,7 +252,7 @@ export default function ScheduleRequestsPage() {
                             color: typeMeta.color,
                           }}
                         >
-                          {typeMeta.label}
+                          {typeLabel[r.type]}
                         </span>
                       </td>
                       <td className="px-3 py-3 text-[var(--text-secondary)]">
@@ -232,7 +262,7 @@ export default function ScheduleRequestsPage() {
                         <div className="line-clamp-2 max-w-md">{r.reason}</div>
                         {r.resolution_note && (
                           <div className="mt-1 text-[11px] text-[var(--text-disabled)]">
-                            審批備註：{r.resolution_note}
+                            {t("approvalNote", { note: r.resolution_note })}
                           </div>
                         )}
                       </td>
@@ -244,7 +274,7 @@ export default function ScheduleRequestsPage() {
                             color: statusMeta.color,
                           }}
                         >
-                          {statusMeta.label}
+                          {statusLabel[r.status]}
                         </span>
                       </td>
                       <td className="px-3 py-3 text-[11px] text-[var(--text-disabled)]">
@@ -267,7 +297,7 @@ export default function ScheduleRequestsPage() {
                               disabled={busy === r.id}
                               className="rounded-md border border-green-300 bg-green-50 px-3 py-1 text-[12px] font-semibold text-green-700 hover:bg-green-100 disabled:opacity-50"
                             >
-                              核准
+                              {t("approve")}
                             </button>
                             <button
                               type="button"
@@ -280,7 +310,7 @@ export default function ScheduleRequestsPage() {
                               disabled={busy === r.id}
                               className="rounded-md border border-red-300 bg-red-50 px-3 py-1 text-[12px] font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
                             >
-                              拒絕
+                              {t("reject")}
                             </button>
                           </div>
                         ) : (
@@ -314,7 +344,9 @@ export default function ScheduleRequestsPage() {
           >
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-[16px] font-semibold text-[var(--text-primary)]">
-                {resolveDialog.decision === "approve" ? "核准申請" : "拒絕申請"}
+                {resolveDialog.decision === "approve"
+                  ? t("modal.titleApprove")
+                  : t("modal.titleReject")}
               </h3>
               <button
                 type="button"
@@ -326,14 +358,14 @@ export default function ScheduleRequestsPage() {
             </div>
 
             <p className="mb-3 text-[12px] text-[var(--text-secondary)]">
-              審批備註（選填，會記錄到稽核）：
+              {t("modal.noteLabel")}
             </p>
             <textarea
               value={resolveNote}
               onChange={(e) => setResolveNote(e.target.value)}
               rows={3}
               maxLength={500}
-              placeholder="例：核准 / 改期建議 / 拒絕原因..."
+              placeholder={t("modal.notePlaceholder")}
               className="w-full rounded-md border border-[var(--border)] px-3 py-2 text-[13px]"
             />
 
@@ -344,7 +376,7 @@ export default function ScheduleRequestsPage() {
                 disabled={!!busy}
                 className="rounded-md border border-[var(--border)] px-4 py-2 text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
               >
-                取消
+                {tc("cancel")}
               </button>
               <button
                 type="button"
@@ -364,10 +396,10 @@ export default function ScheduleRequestsPage() {
                   <XCircle className="h-4 w-4" />
                 )}
                 {busy
-                  ? "處理中…"
+                  ? t("modal.processing")
                   : resolveDialog.decision === "approve"
-                    ? "確認核准"
-                    : "確認拒絕"}
+                    ? t("modal.confirmApprove")
+                    : t("modal.confirmReject")}
               </button>
             </div>
           </div>

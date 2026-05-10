@@ -1,24 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, ChevronDown, ChevronRight, Copy, Download } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { AuditExportModal } from "@/components/admin/AuditExportModal";
 import { ApiError, api } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type AuditLogEntry = components["schemas"]["AuditLogEntry"];
 type AuditLogPage = components["schemas"]["AuditLogPage"];
 type AuditLogType = components["schemas"]["AuditLogType"];
-
-const LOG_TYPE_LABEL: Record<AuditLogType, string> = {
-  api_call: "API 呼叫",
-  llm_interaction: "LLM 互動",
-  rag_retrieval: "RAG 檢索",
-  admin_action: "管理操作",
-  agent_message: "Agent 訊息",
-};
 
 const LOG_TYPE_BADGE: Record<AuditLogType, { bg: string; text: string }> = {
   api_call: { bg: "#E0E7FF", text: "#4F46E5" },
@@ -38,32 +31,29 @@ const LOG_TYPE_OPTIONS: AuditLogType[] = [
 
 const PAGE_SIZE = 20;
 
-const columns = [
-  { label: "時間", width: "w-[180px]" },
-  { label: "事件類型", width: "w-[120px]" },
-  { label: "操作者", width: "w-[260px]" },
-  { label: "動作", width: "flex-1" },
-  { label: "", width: "w-8" },
-];
-
-function formatActor(actorId: string | null | undefined): { name: string; subtitle: string } {
-  if (!actorId) return { name: "系統", subtitle: "system" };
-  return { name: `Admin`, subtitle: actorId.slice(0, 8) };
-}
+const COLUMN_KEYS = [
+  { key: "time", width: "w-[180px]" },
+  { key: "logType", width: "w-[120px]" },
+  { key: "actor", width: "w-[260px]" },
+  { key: "action", width: "flex-1" },
+  { key: "spacer", width: "w-8" },
+] as const;
 
 function LogTypeBadge({ type }: { type: AuditLogType }) {
+  const t = useTranslations("admin.audit");
   const style = LOG_TYPE_BADGE[type];
   return (
     <span
       className="rounded-[10px] px-2 py-[2px] text-[11px] font-medium"
       style={{ backgroundColor: style.bg, color: style.text }}
     >
-      {LOG_TYPE_LABEL[type]}
+      {t(`logType.${type}`)}
     </span>
   );
 }
 
 function ExpandedJson({ payload }: { payload: Record<string, unknown> | null | undefined }) {
+  const t = useTranslations("admin.audit");
   const obj = payload ?? {};
   const jsonStr = JSON.stringify(obj, null, 2);
   const [copied, setCopied] = useState(false);
@@ -115,7 +105,7 @@ function ExpandedJson({ payload }: { payload: Record<string, unknown> | null | u
             <Copy className="h-[14px] w-[14px]" />
           )}
           <span className="text-xs font-medium">
-            {copied ? "已複製" : copyError ? "複製失敗" : "Copy JSON"}
+            {copied ? t("json.copied") : copyError ? t("json.copyFailed") : t("json.copy")}
           </span>
         </button>
       </div>
@@ -123,7 +113,22 @@ function ExpandedJson({ payload }: { payload: Record<string, unknown> | null | u
   );
 }
 
+function useFormatActor() {
+  const t = useTranslations("admin.audit");
+  return useMemo(
+    () =>
+      (actorId: string | null | undefined): { name: string; subtitle: string } => {
+        if (!actorId) return { name: t("actor.system"), subtitle: "system" };
+        return { name: t("actor.admin"), subtitle: actorId.slice(0, 8) };
+      },
+    [t],
+  );
+}
+
 export default function AuditEventsPage() {
+  const t = useTranslations("admin.audit");
+  const tc = useTranslations("admin.common");
+  const formatActor = useFormatActor();
   const [items, setItems] = useState<AuditLogEntry[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
@@ -132,6 +137,17 @@ export default function AuditEventsPage() {
   const [logType, setLogType] = useState<AuditLogType | "">("");
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+
+  const logTypeLabel = useMemo<Record<AuditLogType, string>>(
+    () => ({
+      api_call: t("logType.api_call"),
+      llm_interaction: t("logType.llm_interaction"),
+      rag_retrieval: t("logType.rag_retrieval"),
+      admin_action: t("logType.admin_action"),
+      agent_message: t("logType.agent_message"),
+    }),
+    [t],
+  );
 
   const fetchPage = useCallback(
     async (afterCursor: string | null, append: boolean, filter: AuditLogType | "") => {
@@ -173,7 +189,7 @@ export default function AuditEventsPage() {
         <div className="flex flex-1 flex-col gap-5 overflow-auto pl-14 pr-4 py-6 md:px-8">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-              稽核日誌
+              {t("title")}
             </h1>
             <button
               type="button"
@@ -181,14 +197,14 @@ export default function AuditEventsPage() {
               className="inline-flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
             >
               <Download className="h-4 w-4" aria-hidden="true" />
-              匯出
+              {t("export")}
             </button>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <span className="text-[13px] text-[var(--text-secondary)]">
-                事件類型
+                {t("filterLabel")}
               </span>
               <select
                 value={logType}
@@ -198,10 +214,10 @@ export default function AuditEventsPage() {
                 }}
                 className="rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] text-[var(--text-primary)]"
               >
-                <option value="">全部</option>
-                {LOG_TYPE_OPTIONS.map((t) => (
-                  <option key={t} value={t}>
-                    {LOG_TYPE_LABEL[t]}
+                <option value="">{tc("all")}</option>
+                {LOG_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {logTypeLabel[opt]}
                   </option>
                 ))}
               </select>
@@ -213,13 +229,17 @@ export default function AuditEventsPage() {
                 className="rounded-md px-3 py-2"
               >
                 <span className="text-[13px] font-medium text-[var(--text-secondary)]">
-                  清除篩選
+                  {tc("clearFilter")}
                 </span>
               </button>
             )}
 
             <span className="ml-auto text-[13px] text-[var(--text-secondary)]">
-              {loading ? "載入中…" : `共 ${items.length} 筆${hasMore ? "+" : ""}`}
+              {loading
+                ? tc("loading")
+                : hasMore
+                  ? tc("totalCountMore", { count: items.length })
+                  : tc("totalCount", { count: items.length })}
             </span>
           </div>
 
@@ -231,10 +251,10 @@ export default function AuditEventsPage() {
 
           <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
             <div className="flex items-center bg-[#F8FAFC] px-4" style={{ height: 44 }}>
-              {columns.map((col, i) => (
-                <div key={i} className={`flex h-full items-center ${col.width}`}>
+              {COLUMN_KEYS.map((col) => (
+                <div key={col.key} className={`flex h-full items-center ${col.width}`}>
                   <span className="text-xs font-semibold text-[var(--text-secondary)]">
-                    {col.label}
+                    {col.key === "spacer" ? "" : t(`cols.${col.key}`)}
                   </span>
                 </div>
               ))}
@@ -242,7 +262,7 @@ export default function AuditEventsPage() {
 
             {items.length === 0 && !loading && (
               <div className="px-4 py-12 text-center text-sm text-[var(--text-secondary)]">
-                沒有符合條件的稽核紀錄
+                {t("empty")}
               </div>
             )}
 
@@ -309,7 +329,7 @@ export default function AuditEventsPage() {
                 onClick={() => fetchPage(cursor, true, logType)}
                 className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-6 py-2 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
               >
-                {loading ? "載入中…" : "載入更多"}
+                {loading ? tc("loading") : tc("loadMore")}
               </button>
             </div>
           )}

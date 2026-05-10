@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, Check, Lock, RefreshCw, Edit3 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { ApiError, api, getCurrentSession } from "@/lib/api";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 import { RolePermissionsEditor } from "@/components/admin/RolePermissionsEditor";
 import { useRealtimeChannel } from "@/lib/useRealtimeChannel";
@@ -16,21 +17,6 @@ interface RolesResponse {
   data?: Role[];
   message?: string;
 }
-
-const RESOURCE_LABELS: Record<RoleResource, string> = {
-  work_orders: "工單",
-  technicians: "技師",
-  customers: "客戶",
-  accounting: "結算",
-  invoices: "發票",
-  refunds: "退款",
-  inventory: "庫存",
-  warranty: "保固",
-  disputes: "爭議",
-  audit_logs: "稽核日誌",
-  roles: "角色權限",
-  system_settings: "系統設定",
-};
 
 // 階層（與後端 ROLE_HIERARCHY 對齊；前端僅用於 disable 編輯按鈕的 UX
 // hint，最終授權仍在後端強制）。
@@ -91,6 +77,8 @@ function PermCell({
 }
 
 export default function RolesPage() {
+  const t = useTranslations("admin.roles");
+  const tc = useTranslations("admin.common");
   const [roles, setRoles] = useState<Role[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -98,6 +86,24 @@ export default function RolesPage() {
   const [editing, setEditing] = useState<Role | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [actorRole, setActorRole] = useState<string | null>(null);
+
+  const resourceLabels = useMemo<Record<RoleResource, string>>(
+    () => ({
+      work_orders: t("resource.work_orders"),
+      technicians: t("resource.technicians"),
+      customers: t("resource.customers"),
+      accounting: t("resource.accounting"),
+      invoices: t("resource.invoices"),
+      refunds: t("resource.refunds"),
+      inventory: t("resource.inventory"),
+      warranty: t("resource.warranty"),
+      disputes: t("resource.disputes"),
+      audit_logs: t("resource.audit_logs"),
+      roles: t("resource.roles"),
+      system_settings: t("resource.system_settings"),
+    }),
+    [t],
+  );
 
   async function fetchRoles() {
     setLoading(true);
@@ -162,13 +168,13 @@ export default function RolesPage() {
           {/* Header */}
           <div className="flex items-center justify-between">
             <h1 className="text-[22px] font-bold text-[var(--text-primary)]">
-              角色與權限管理
+              {t("title")}
             </h1>
             <div className="flex items-center gap-2">
               <button
                 onClick={fetchRoles}
                 disabled={loading}
-                title="重新整理"
+                title={tc("refresh")}
                 className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <RefreshCw
@@ -179,12 +185,12 @@ export default function RolesPage() {
               </button>
               <button
                 disabled
-                title="即將推出（需自訂角色 CRUD endpoint）"
+                title={t("createCustomTooltip")}
                 className="flex cursor-not-allowed items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-[10px] opacity-50"
               >
                 <Plus className="h-4 w-4 text-white" />
                 <span className="text-sm font-medium text-white">
-                  建立自訂角色
+                  {t("createCustom")}
                 </span>
               </button>
             </div>
@@ -203,18 +209,17 @@ export default function RolesPage() {
           )}
 
           <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-[13px] leading-relaxed text-blue-800">
-            F-019：admin / tenant_admin 可動態調整角色權限；變更會透過
-            `/realtime/rbac` 即時推送給所有相關 session。階層強制：actor 必須嚴格高於目標角色。
+            {t("f019Notice")}
           </div>
 
           {/* Role Cards */}
           {loading && roles.length === 0 ? (
             <div className="flex h-32 items-center justify-center text-[13px] text-[var(--text-secondary)]">
-              載入中…
+              {t("loadingRoles")}
             </div>
           ) : roles.length === 0 ? (
             <div className="flex h-32 items-center justify-center text-[13px] text-[var(--text-secondary)]">
-              尚無角色資料
+              {t("noRoles")}
             </div>
           ) : (
             <div className="grid grid-cols-5 gap-4">
@@ -236,7 +241,7 @@ export default function RolesPage() {
                       </span>
                       {role.is_system && (
                         <span className="rounded-md bg-[#DBEAFE] px-2 py-[3px] text-[11px] font-semibold text-[var(--primary)]">
-                          系統
+                          {t("systemBadge")}
                         </span>
                       )}
                     </div>
@@ -244,7 +249,7 @@ export default function RolesPage() {
                       {role.description}
                     </span>
                     <span className="w-fit rounded-md bg-[#F1F5F9] px-2 py-1 text-xs font-medium text-[var(--text-secondary)]">
-                      使用者 {role.user_count}
+                      {t("userCount", { count: role.user_count })}
                     </span>
                   </button>
                 );
@@ -258,10 +263,10 @@ export default function RolesPage() {
               <div className="flex items-center justify-between px-5 py-4">
                 <div className="flex items-center gap-3">
                   <span className="text-base font-semibold text-[var(--text-primary)]">
-                    {activeRole.name} 權限矩陣
+                    {t("matrixTitle", { name: activeRole.name })}
                   </span>
                   <span className="text-[12px] text-[var(--text-secondary)]">
-                    （鎖定圖示代表系統強制；F-019 啟用後可由 admin 動態調整）
+                    {t("matrixHint")}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -271,16 +276,16 @@ export default function RolesPage() {
                     data-testid="edit-permissions-btn"
                     title={
                       canEdit
-                        ? "編輯權限"
+                        ? t("editPermissions")
                         : actorRole && !RBAC_ADMIN_ROLES.has(actorRole)
-                          ? "您的角色階層不足以授權此權限"
-                          : "您的角色階層不足以授權此角色"
+                          ? t("editTooltipNoRbac")
+                          : t("editTooltipNoTier")
                     }
                     className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-[14px] py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Edit3 className="h-4 w-4" />
                     <span className="text-[13px] font-medium">
-                      編輯權限
+                      {t("editPermissions")}
                     </span>
                   </button>
                 </div>
@@ -290,22 +295,22 @@ export default function RolesPage() {
                 <div className="flex items-center border-b border-[var(--border)] bg-[#F8FAFC] px-5 py-[10px]">
                   <div className="w-[200px]">
                     <span className="text-xs font-semibold text-[var(--text-secondary)]">
-                      資源
+                      {t("cols.resource")}
                     </span>
                   </div>
                   <div className="flex flex-1 items-center justify-center">
                     <span className="text-xs font-semibold text-[var(--text-secondary)]">
-                      讀取
+                      {t("cols.read")}
                     </span>
                   </div>
                   <div className="flex flex-1 items-center justify-center">
                     <span className="text-xs font-semibold text-[var(--text-secondary)]">
-                      寫入
+                      {t("cols.write")}
                     </span>
                   </div>
                   <div className="flex flex-1 items-center justify-center">
                     <span className="text-xs font-semibold text-[var(--text-secondary)]">
-                      刪除
+                      {t("cols.delete")}
                     </span>
                   </div>
                 </div>
@@ -317,7 +322,7 @@ export default function RolesPage() {
                   >
                     <div className="w-[200px]">
                       <span className="text-[13px] font-medium text-[var(--text-primary)]">
-                        {RESOURCE_LABELS[row.resource] ?? row.resource}
+                        {resourceLabels[row.resource] ?? row.resource}
                       </span>
                     </div>
                     <div className="flex flex-1 items-center justify-center">
@@ -343,7 +348,7 @@ export default function RolesPage() {
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);
-            setToast(`已更新「${editing.name}」的權限矩陣`);
+            setToast(t("savedToast", { name: editing.name }));
             void fetchRoles();
             setTimeout(() => setToast(null), 4000);
           }}
