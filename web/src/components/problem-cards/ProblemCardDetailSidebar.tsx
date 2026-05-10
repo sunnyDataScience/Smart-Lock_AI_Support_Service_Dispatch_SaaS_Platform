@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ApiError, api } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import {
   STATUS_GROUP_MAP,
-  STATUS_GROUP_STYLE,
+  STATUS_GROUP_TONE,
+  type StatusGroup,
 } from "@/components/work-orders/WorkOrdersTable";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type ProblemCard = components["schemas"]["ProblemCard"];
@@ -20,13 +22,14 @@ interface Props {
   loading?: boolean;
 }
 
-const PC_STATUS_STYLE: Record<
+// Tone（顏色）固定；label 由 i18n 提供
+const PC_STATUS_TONE: Record<
   ProblemCardStatus,
-  { label: string; color: string; bg: string }
+  { color: string; bg: string }
 > = {
-  draft: { label: "草稿", color: "#6366F1", bg: "#EEF2FF" },
-  confirmed: { label: "已確認", color: "#3B82F6", bg: "#DBEAFE" },
-  resolved: { label: "已解決", color: "#10B981", bg: "#D1FAE5" },
+  draft: { color: "#6366F1", bg: "#EEF2FF" },
+  confirmed: { color: "#3B82F6", bg: "#DBEAFE" },
+  resolved: { color: "#10B981", bg: "#D1FAE5" },
 };
 
 function formatDateTime(iso: string): string {
@@ -43,12 +46,30 @@ function formatDateTime(iso: string): string {
   }
 }
 
-function technicianTag(id: string | null | undefined): string | null {
-  if (!id) return null;
-  return `技師 ${id.slice(0, 4)}`;
-}
-
 export default function ProblemCardDetailSidebar({ card, loading }: Props) {
+  const t = useTranslations("components.problemCards.detailSidebar");
+  const tGroup = useTranslations("status.workOrderGroup");
+
+  const groupLabels: Record<StatusGroup, string> = useMemo(
+    () => ({
+      pending: tGroup("pending"),
+      dispatched: tGroup("dispatched"),
+      in_progress: tGroup("in_progress"),
+      done: tGroup("done"),
+      cancelled: tGroup("cancelled"),
+    }),
+    [tGroup],
+  );
+
+  const statusLabels: Record<ProblemCardStatus, string> = useMemo(
+    () => ({
+      draft: t("status.draft"),
+      confirmed: t("status.confirmed"),
+      resolved: t("status.resolved"),
+    }),
+    [t],
+  );
+
   const [linked, setLinked] = useState<WorkOrder | null>(null);
   const [linkedLoading, setLinkedLoading] = useState(false);
   const [linkedError, setLinkedError] = useState<string | null>(null);
@@ -85,25 +106,26 @@ export default function ProblemCardDetailSidebar({ card, loading }: Props) {
     };
   }, [card]);
 
-  const status = card ? PC_STATUS_STYLE[card.status] : null;
+  const tone = card ? PC_STATUS_TONE[card.status] : null;
+  const comingSoon = t("comingSoon");
 
   return (
     <div className="flex w-[380px] flex-shrink-0 flex-col gap-4">
       {/* Status */}
       <div className="flex w-full flex-col gap-3 rounded-lg border border-[var(--border)] bg-white p-5">
         <span className="text-[14px] font-semibold text-[var(--text-secondary)]">
-          狀態
+          {t("statusTitle")}
         </span>
         {loading && !card ? (
           <span className="text-[13px] text-[var(--text-disabled)]">
-            載入中…
+            {t("loading")}
           </span>
-        ) : status ? (
+        ) : tone && card ? (
           <span
             className="self-start rounded-full px-3 py-1 text-[12px] font-semibold"
-            style={{ color: status.color, backgroundColor: status.bg }}
+            style={{ color: tone.color, backgroundColor: tone.bg }}
           >
-            {status.label}
+            {statusLabels[card.status]}
           </span>
         ) : (
           <span className="text-[13px] text-[var(--text-disabled)]">—</span>
@@ -111,7 +133,7 @@ export default function ProblemCardDetailSidebar({ card, loading }: Props) {
         {card?.confidence_score != null && (
           <div className="flex items-center justify-between">
             <span className="text-[13px] text-[var(--text-secondary)]">
-              AI 信心
+              {t("aiConfidence")}
             </span>
             <span className="text-[13px] font-medium text-[var(--text-primary)]">
               {(card.confidence_score * 100).toFixed(0)}%
@@ -123,11 +145,11 @@ export default function ProblemCardDetailSidebar({ card, loading }: Props) {
       {/* Timestamps */}
       <div className="flex w-full flex-col gap-3 rounded-lg border border-[var(--border)] bg-white p-5">
         <span className="text-[14px] font-semibold text-[var(--text-secondary)]">
-          時間紀錄
+          {t("timeTitle")}
         </span>
         <div className="flex items-center justify-between">
           <span className="text-[13px] text-[var(--text-secondary)]">
-            建立時間
+            {t("createdAt")}
           </span>
           <span className="text-[13px] font-medium text-[var(--text-primary)]">
             {card ? formatDateTime(card.created_at) : "—"}
@@ -135,7 +157,7 @@ export default function ProblemCardDetailSidebar({ card, loading }: Props) {
         </div>
         <div className="flex items-start justify-between">
           <span className="text-[13px] text-[var(--text-secondary)]">
-            最後更新
+            {t("updatedAt")}
           </span>
           <div className="flex flex-col items-end gap-[2px]">
             <span className="text-[13px] font-medium text-[var(--text-primary)]">
@@ -153,33 +175,35 @@ export default function ProblemCardDetailSidebar({ card, loading }: Props) {
         <div className="w-[3px] flex-shrink-0 bg-[var(--primary)]" />
         <div className="flex w-full flex-col gap-3 p-5">
           <span className="text-[14px] font-semibold text-[var(--text-secondary)]">
-            關聯工單
+            {t("linkedTitle")}
           </span>
           {linkedError && (
             <span className="text-[12px] text-red-600">
-              載入失敗：{linkedError}
+              {t("loadFailed", { error: linkedError })}
             </span>
           )}
           {linkedLoading && !linked && (
             <span className="text-[13px] text-[var(--text-disabled)]">
-              查詢中…
+              {t("querying")}
             </span>
           )}
           {!linkedLoading && !linked && !linkedError && card && (
             <span className="text-[13px] text-[var(--text-disabled)]">
-              尚無關聯工單
+              {t("noLinked")}
             </span>
           )}
           {linked &&
             (() => {
               const group = STATUS_GROUP_MAP[linked.status];
-              const woStyle = STATUS_GROUP_STYLE[group];
-              const tech = technicianTag(linked.technician_id);
+              const woTone = STATUS_GROUP_TONE[group];
+              const tech = linked.technician_id
+                ? t("techTag", { id: linked.technician_id.slice(0, 4) })
+                : null;
               return (
                 <>
                   <div className="flex items-center justify-between">
                     <span className="text-[13px] text-[var(--text-secondary)]">
-                      工單編號
+                      {t("orderId")}
                     </span>
                     <Link
                       href={`/work-orders/${linked.id}`}
@@ -191,22 +215,24 @@ export default function ProblemCardDetailSidebar({ card, loading }: Props) {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-[13px] text-[var(--text-secondary)]">
-                      工單狀態
+                      {t("orderStatus")}
                     </span>
                     <span
                       className="rounded-full px-[10px] py-[3px] text-[11px] font-semibold"
-                      style={{ color: woStyle.color, backgroundColor: woStyle.bg }}
+                      style={{ color: woTone.color, backgroundColor: woTone.bg }}
                     >
-                      {woStyle.label}
+                      {groupLabels[group]}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-[13px] text-[var(--text-secondary)]">
-                      指派技師
+                      {t("technician")}
                     </span>
                     <span className="text-[13px] font-medium text-[var(--text-primary)]">
                       {tech ?? (
-                        <span className="text-[var(--text-disabled)]">未指派</span>
+                        <span className="text-[var(--text-disabled)]">
+                          {t("unassigned")}
+                        </span>
                       )}
                     </span>
                   </div>
@@ -221,26 +247,26 @@ export default function ProblemCardDetailSidebar({ card, loading }: Props) {
         <button
           type="button"
           disabled
-          title="即將推出"
+          title={comingSoon}
           className="w-full cursor-not-allowed rounded-lg bg-[#94A3B8]/60 py-[10px] text-center text-[14px] font-semibold text-white opacity-70"
         >
-          標記已解決
+          {t("markResolved")}
         </button>
         <button
           type="button"
           disabled
-          title="即將推出"
+          title={comingSoon}
           className="w-full cursor-not-allowed rounded-lg bg-[#94A3B8]/60 py-[10px] text-center text-[14px] font-semibold text-white opacity-70"
         >
-          升級至 L3 派工
+          {t("escalate")}
         </button>
         <button
           type="button"
           disabled
-          title="即將推出"
+          title={comingSoon}
           className="w-full cursor-not-allowed rounded-lg border-[1.5px] border-[var(--primary)] bg-transparent py-[10px] text-center text-[14px] font-semibold text-[var(--primary)] opacity-60"
         >
-          關聯知識案例
+          {t("linkCase")}
         </button>
       </div>
     </div>

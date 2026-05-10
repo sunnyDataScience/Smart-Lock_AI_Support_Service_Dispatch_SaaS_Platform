@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { ApiError, api } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import {
   STATUS_GROUP_MAP,
-  STATUS_GROUP_STYLE,
+  STATUS_GROUP_TONE,
+  type StatusGroup,
 } from "@/components/work-orders/WorkOrdersTable";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
@@ -30,7 +32,7 @@ interface Props {
 }
 
 interface CommissionRow {
-  label: string;
+  labelKey: "repair" | "install" | "customMaterial" | "bonus" | "penalty";
   value: string;
   color?: string;
   bold?: boolean;
@@ -44,12 +46,12 @@ interface LogEntry {
 }
 
 const commissionRows: CommissionRow[] = [
-  { label: "一般維修佣金 (70%)", value: "NT$ 28,000" },
-  { label: "安裝佣金 (60%)", value: "NT$ 12,000" },
-  { label: "客供材料佣金 (80%)", value: "NT$ 4,800" },
-  { label: "獎金加項", value: "+NT$ 1,200", color: "#059669", bold: true },
+  { labelKey: "repair", value: "NT$ 28,000" },
+  { labelKey: "install", value: "NT$ 12,000" },
+  { labelKey: "customMaterial", value: "NT$ 4,800" },
+  { labelKey: "bonus", value: "+NT$ 1,200", color: "#059669", bold: true },
   {
-    label: "扣款減項",
+    labelKey: "penalty",
     value: "-NT$ 400",
     color: "var(--error)",
     bold: true,
@@ -101,22 +103,24 @@ function CardTitle({ children }: { children: React.ReactNode }) {
 }
 
 function MockBadge() {
+  const t = useTranslations("components.technicians.detailSidebar");
   return (
     <span
       className="text-[10px] font-medium rounded px-1.5 py-0.5"
       style={{ backgroundColor: "#F1F5F9", color: "var(--text-disabled)" }}
-      title="示意資料，待相關模組接入後顯示真實內容"
+      title={t("mockTooltip")}
     >
-      示意
+      {t("mockLabel")}
     </span>
   );
 }
 
 function AvailabilityCard() {
+  const t = useTranslations("components.technicians.detailSidebar");
   return (
     <CardWrapper>
       <div className="flex items-center gap-2">
-        <CardTitle>可用狀態</CardTitle>
+        <CardTitle>{t("availabilityTitle")}</CardTitle>
         <MockBadge />
       </div>
       <div className="flex items-center justify-between w-full">
@@ -126,7 +130,7 @@ function AvailabilityCard() {
             style={{ backgroundColor: "#059669" }}
           />
           <span className="text-sm font-semibold" style={{ color: "#059669" }}>
-            可用
+            {t("availabilityOnline")}
           </span>
         </div>
         <div
@@ -137,16 +141,30 @@ function AvailabilityCard() {
         </div>
       </div>
       <p className="text-xs" style={{ color: "var(--text-disabled)" }}>
-        最後上線：5 分鐘前
+        {t("lastOnline")}
       </p>
       <p className="text-[11px]" style={{ color: "var(--text-disabled)" }}>
-        系統將在無回應 30 分鐘後自動切為離線
+        {t("autoOffline")}
       </p>
     </CardWrapper>
   );
 }
 
 function ActiveOrdersCard({ technicianId }: { technicianId?: string }) {
+  const t = useTranslations("components.technicians.detailSidebar");
+  const tGroup = useTranslations("status.workOrderGroup");
+
+  const groupLabels: Record<StatusGroup, string> = useMemo(
+    () => ({
+      pending: tGroup("pending"),
+      dispatched: tGroup("dispatched"),
+      in_progress: tGroup("in_progress"),
+      done: tGroup("done"),
+      cancelled: tGroup("cancelled"),
+    }),
+    [tGroup],
+  );
+
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -186,7 +204,7 @@ function ActiveOrdersCard({ technicianId }: { technicianId?: string }) {
   return (
     <CardWrapper>
       <div className="flex items-center gap-2">
-        <CardTitle>進行中工單</CardTitle>
+        <CardTitle>{t("activeOrdersTitle")}</CardTitle>
         {orders.length > 0 && (
           <span
             className="text-xs font-semibold rounded-full px-2 py-0.5 text-white"
@@ -199,19 +217,19 @@ function ActiveOrdersCard({ technicianId }: { technicianId?: string }) {
 
       {error && (
         <span className="text-[12px]" style={{ color: "var(--error)" }}>
-          載入失敗：{error}
+          {t("loadFailed", { error })}
         </span>
       )}
 
       {!error && loading && orders.length === 0 && (
         <span className="text-xs" style={{ color: "var(--text-disabled)" }}>
-          查詢中…
+          {t("querying")}
         </span>
       )}
 
       {!error && !loading && orders.length === 0 && (
         <span className="text-xs" style={{ color: "var(--text-disabled)" }}>
-          目前無進行中工單
+          {t("noActive")}
         </span>
       )}
 
@@ -219,7 +237,7 @@ function ActiveOrdersCard({ technicianId }: { technicianId?: string }) {
         <div className="flex flex-col gap-2 w-full">
           {orders.map((order) => {
             const group = STATUS_GROUP_MAP[order.status];
-            const style = STATUS_GROUP_STYLE[group];
+            const tone = STATUS_GROUP_TONE[group];
             const shortId = order.id.slice(0, 8);
             const device = [order.brand, order.model].filter(Boolean).join(" ") || "—";
             const location = order.district || order.address || "—";
@@ -240,9 +258,9 @@ function ActiveOrdersCard({ technicianId }: { technicianId?: string }) {
                   </Link>
                   <span
                     className="text-[11px] font-medium rounded px-1.5 py-0.5"
-                    style={{ backgroundColor: style.bg, color: style.color }}
+                    style={{ backgroundColor: tone.bg, color: tone.color }}
                   >
-                    {style.label}
+                    {groupLabels[group]}
                   </span>
                 </div>
                 <p
@@ -255,7 +273,7 @@ function ActiveOrdersCard({ technicianId }: { technicianId?: string }) {
                   className="text-[11px]"
                   style={{ color: "var(--text-disabled)" }}
                 >
-                  建立於 {formatRelative(order.created_at)}
+                  {t("createdAt", { time: formatRelative(order.created_at) })}
                 </p>
               </div>
             );
@@ -267,26 +285,27 @@ function ActiveOrdersCard({ technicianId }: { technicianId?: string }) {
 }
 
 function CommissionSummaryCard() {
+  const t = useTranslations("components.technicians.detailSidebar");
   return (
     <CardWrapper>
       <div className="flex items-center gap-2">
-        <CardTitle>佣金摘要</CardTitle>
+        <CardTitle>{t("commissionTitle")}</CardTitle>
         <MockBadge />
       </div>
       <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-        2026年4月
+        {t("commissionPeriod")}
       </p>
       <p className="text-[28px] font-bold" style={{ color: "#059669" }}>
         NT$ 45,600
       </p>
       <div className="flex flex-col gap-1.5 w-full">
         {commissionRows.map((row) => (
-          <div key={row.label} className="flex items-center justify-between w-full">
+          <div key={row.labelKey} className="flex items-center justify-between w-full">
             <span
               className="text-xs"
               style={{ color: "var(--text-secondary)" }}
             >
-              {row.label}
+              {t(`commissionRow.${row.labelKey}`)}
             </span>
             <span
               className="text-xs"
@@ -309,7 +328,7 @@ function CommissionSummaryCard() {
           className="text-[13px] font-semibold"
           style={{ color: "var(--text-primary)" }}
         >
-          待結算
+          {t("pending")}
         </span>
         <span className="text-sm font-semibold" style={{ color: "#D97706" }}>
           NT$ 12,400
@@ -320,13 +339,13 @@ function CommissionSummaryCard() {
           className="text-[11px] font-medium rounded px-2 py-0.5"
           style={{ backgroundColor: "#DBEAFE", color: "#1E40AF" }}
         >
-          月結 (5號)
+          {t("monthlyBadge")}
         </span>
         <span
           className="text-xs"
           style={{ color: "var(--text-secondary)" }}
         >
-          下次結算：2026/05/05
+          {t("nextSettle")}
         </span>
       </div>
     </CardWrapper>
@@ -334,10 +353,11 @@ function CommissionSummaryCard() {
 }
 
 function PenaltyBonusLog() {
+  const t = useTranslations("components.technicians.detailSidebar");
   return (
     <CardWrapper>
       <div className="flex items-center gap-2">
-        <CardTitle>獎懲紀錄</CardTitle>
+        <CardTitle>{t("logTitle")}</CardTitle>
         <MockBadge />
       </div>
       <div className="flex flex-col gap-2.5 w-full">
@@ -389,7 +409,7 @@ function PenaltyBonusLog() {
         className="text-[13px]"
         style={{ color: "var(--primary)" }}
       >
-        查看完整紀錄 →
+        {t("viewLogAll")}
       </Link>
     </CardWrapper>
   );

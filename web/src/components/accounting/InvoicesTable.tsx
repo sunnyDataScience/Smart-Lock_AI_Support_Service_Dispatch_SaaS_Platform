@@ -1,7 +1,9 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { Eye } from "lucide-react";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 import { formatRelative } from "@/lib/format";
 
@@ -13,24 +15,13 @@ interface Props {
   loading?: boolean;
 }
 
-const statusConfig: Record<InvoiceStatus, { label: string; textColor: string; bgColor: string }> = {
-  pending: { label: "待開立", textColor: "#92400E", bgColor: "#FEF3C7" },
-  issued: { label: "已開立", textColor: "#065F46", bgColor: "#D1FAE5" },
-  allowance_pending: { label: "折讓處理中", textColor: "#1E40AF", bgColor: "#DBEAFE" },
-  voided: { label: "作廢", textColor: "#991B1B", bgColor: "#FEE2E2" },
-  reopened: { label: "重開立", textColor: "#5B21B6", bgColor: "#EDE9FE" },
+const STATUS_TONE: Record<InvoiceStatus, { textColor: string; bgColor: string }> = {
+  pending: { textColor: "#92400E", bgColor: "#FEF3C7" },
+  issued: { textColor: "#065F46", bgColor: "#D1FAE5" },
+  allowance_pending: { textColor: "#1E40AF", bgColor: "#DBEAFE" },
+  voided: { textColor: "#991B1B", bgColor: "#FEE2E2" },
+  reopened: { textColor: "#5B21B6", bgColor: "#EDE9FE" },
 };
-
-const columns = [
-  { label: "發票編號", width: "w-[140px] shrink-0" },
-  { label: "工單", width: "w-[120px] shrink-0" },
-  { label: "金額", width: "w-[140px] shrink-0" },
-  { label: "稅務分類", width: "w-[110px] shrink-0" },
-  { label: "狀態", width: "w-[110px] shrink-0" },
-  { label: "開立時間", width: "w-[160px] shrink-0" },
-  { label: "更新時間", width: "w-[160px] shrink-0" },
-  { label: "操作", width: "flex-1 min-w-0" },
-];
 
 function formatTwd(amount: string): string {
   const n = Number(amount);
@@ -38,14 +29,44 @@ function formatTwd(amount: string): string {
   return `NT$ ${n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
-const categoryLabel: Record<string, string> = {
-  service_fee: "服務費",
-  travel_fee: "車馬費",
-  parts: "零件",
-  other: "其他",
-};
-
 export default function InvoicesTable({ items, loading }: Props) {
+  const t = useTranslations("components.accounting.invoicesTable");
+
+  const columns = useMemo(
+    () => [
+      { label: t("cols.invoiceNumber"), width: "w-[140px] shrink-0" },
+      { label: t("cols.workOrder"), width: "w-[120px] shrink-0" },
+      { label: t("cols.amount"), width: "w-[140px] shrink-0" },
+      { label: t("cols.category"), width: "w-[110px] shrink-0" },
+      { label: t("cols.status"), width: "w-[110px] shrink-0" },
+      { label: t("cols.issuedAt"), width: "w-[160px] shrink-0" },
+      { label: t("cols.updatedAt"), width: "w-[160px] shrink-0" },
+      { label: t("cols.actions"), width: "flex-1 min-w-0" },
+    ],
+    [t],
+  );
+
+  const statusLabels: Record<InvoiceStatus, string> = useMemo(
+    () => ({
+      pending: t("status.pending"),
+      issued: t("status.issued"),
+      allowance_pending: t("status.allowance_pending"),
+      voided: t("status.voided"),
+      reopened: t("status.reopened"),
+    }),
+    [t],
+  );
+
+  const categoryLabel: Record<string, string> = useMemo(
+    () => ({
+      service_fee: t("category.service_fee"),
+      travel_fee: t("category.travel_fee"),
+      parts: t("category.parts"),
+      other: t("category.other"),
+    }),
+    [t],
+  );
+
   return (
     <div className="flex min-w-0 flex-1 flex-col bg-[var(--bg-surface)]">
       {/* Header Row */}
@@ -62,18 +83,18 @@ export default function InvoicesTable({ items, loading }: Props) {
       {/* Loading / Empty */}
       {loading && items.length === 0 && (
         <div className="flex h-[120px] items-center justify-center text-sm text-[var(--text-secondary)]">
-          載入中…
+          {t("loading")}
         </div>
       )}
       {!loading && items.length === 0 && (
         <div className="flex h-[120px] items-center justify-center text-sm text-[var(--text-secondary)]">
-          尚無發票紀錄
+          {t("empty")}
         </div>
       )}
 
       {/* Data Rows */}
       {items.map((inv) => {
-        const badge = statusConfig[inv.status];
+        const tone = STATUS_TONE[inv.status];
         const isVoided = inv.status === "voided";
 
         return (
@@ -118,9 +139,9 @@ export default function InvoicesTable({ items, loading }: Props) {
             <div className="flex w-[110px] shrink-0 items-center px-2">
               <span
                 className="rounded-full px-[10px] py-[3px] text-xs font-medium"
-                style={{ color: badge.textColor, backgroundColor: badge.bgColor }}
+                style={{ color: tone.textColor, backgroundColor: tone.bgColor }}
               >
-                {badge.label}
+                {statusLabels[inv.status]}
               </span>
             </div>
 

@@ -1,15 +1,19 @@
 "use client";
 
+import { useMemo } from "react";
 import { MapPin, X } from "lucide-react";
 import Link from "next/link";
 import type { components } from "@/types/api.generated";
 import {
   STATUS_GROUP_MAP,
-  STATUS_GROUP_STYLE,
-  URGENCY_STYLE,
+  STATUS_GROUP_TONE,
+  URGENCY_TONE,
+  type StatusGroup,
 } from "@/components/work-orders/WorkOrdersTable";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
+type Urgency = components["schemas"]["Urgency"];
 
 interface Props {
   items: WorkOrder[];
@@ -25,10 +29,13 @@ interface DistrictBucket {
   done: number;
 }
 
-function bucketByDistrict(items: WorkOrder[]): DistrictBucket[] {
+function bucketByDistrict(
+  items: WorkOrder[],
+  noDistrictLabel: string,
+): DistrictBucket[] {
   const map = new Map<string, DistrictBucket>();
   for (const item of items) {
-    const key = item.district || "未分區";
+    const key = item.district || noDistrictLabel;
     const group = STATUS_GROUP_MAP[item.status];
     const bucket = map.get(key) ?? {
       district: key,
@@ -50,20 +57,38 @@ function shortId(id: string): string {
   return id.slice(0, 8);
 }
 
-function technicianTag(technicianId: string | null | undefined): string | null {
-  if (!technicianId) return null;
-  return `技師 ${technicianId.slice(0, 4)}`;
-}
-
 export default function MapView({ items, selectedItem, onClose }: Props) {
-  const buckets = bucketByDistrict(items);
+  const t = useTranslations("components.workOrders.mapView");
+  const tGroup = useTranslations("status.workOrderGroup");
+  const tUrgency = useTranslations("urgency");
+
+  const groupLabels: Record<StatusGroup, string> = useMemo(
+    () => ({
+      pending: tGroup("pending"),
+      dispatched: tGroup("dispatched"),
+      in_progress: tGroup("in_progress"),
+      done: tGroup("done"),
+      cancelled: tGroup("cancelled"),
+    }),
+    [tGroup],
+  );
+
+  const urgencyBaseLabels: Record<Urgency, string> = useMemo(
+    () => ({
+      low: tUrgency("low"),
+      medium: tUrgency("medium"),
+      high: tUrgency("high"),
+    }),
+    [tUrgency],
+  );
+
+  const noDistrictLabel = t("noDistrict");
+  const buckets = bucketByDistrict(items, noDistrictLabel);
 
   return (
     <div className="relative flex flex-1 flex-col gap-4 bg-[var(--bg-page)] p-6">
       <div className="rounded-lg border border-[var(--border)] bg-[#FFFBEB] px-4 py-3 text-[13px] leading-relaxed text-[#92400E]">
-        地圖渲染（Leaflet/Mapbox + 地理編碼）需 GIS 模組接入，本頁先以行政區
-        分桶呈現工單分布；點擊左側清單可在右側看到該工單詳情卡。指派技師、
-        建立路線等寫入路徑待派工 AI 引擎上線後同步開放。
+        {t("notice")}
       </div>
 
       <div className="flex flex-1 gap-4 overflow-hidden">
@@ -71,13 +96,13 @@ export default function MapView({ items, selectedItem, onClose }: Props) {
           <div className="flex items-center gap-2 border-b border-[var(--border)] px-4 py-3">
             <MapPin className="h-4 w-4 text-[var(--text-secondary)]" />
             <span className="text-[14px] font-semibold text-[var(--text-primary)]">
-              行政區分布
+              {t("districtTitle")}
             </span>
           </div>
           <div className="flex flex-1 flex-col overflow-auto">
             {buckets.length === 0 ? (
               <div className="flex h-[120px] items-center justify-center text-[12px] text-[var(--text-secondary)]">
-                尚無區域資料
+                {t("noData")}
               </div>
             ) : (
               buckets.map((b) => (
@@ -90,16 +115,22 @@ export default function MapView({ items, selectedItem, onClose }: Props) {
                       className="truncate text-[13px] font-medium text-[var(--text-primary)]"
                       title={b.district}
                     >
-                      {b.district || "未分區"}
+                      {b.district || noDistrictLabel}
                     </span>
                     <span className="rounded bg-[#1E293B] px-2 py-[2px] text-[11px] font-bold text-white">
                       {b.count}
                     </span>
                   </div>
                   <div className="flex gap-2 text-[10px]">
-                    <span style={{ color: "#6366F1" }}>待 {b.pending}</span>
-                    <span style={{ color: "#3B82F6" }}>中 {b.inProgress}</span>
-                    <span style={{ color: "#10B981" }}>完 {b.done}</span>
+                    <span style={{ color: "#6366F1" }}>
+                      {t("bucketPending", { count: b.pending })}
+                    </span>
+                    <span style={{ color: "#3B82F6" }}>
+                      {t("bucketInProgress", { count: b.inProgress })}
+                    </span>
+                    <span style={{ color: "#10B981" }}>
+                      {t("bucketDone", { count: b.done })}
+                    </span>
                   </div>
                 </div>
               ))
@@ -128,24 +159,24 @@ export default function MapView({ items, selectedItem, onClose }: Props) {
               <div className="flex items-center gap-2">
                 {(() => {
                   const group = STATUS_GROUP_MAP[selectedItem.status];
-                  const style = STATUS_GROUP_STYLE[group];
+                  const tone = STATUS_GROUP_TONE[group];
                   return (
                     <span
                       className="rounded-full px-[10px] py-[2px] text-[11px] font-medium"
-                      style={{ color: style.color, backgroundColor: style.bg }}
+                      style={{ color: tone.color, backgroundColor: tone.bg }}
                     >
-                      {style.label}
+                      {groupLabels[group]}
                     </span>
                   );
                 })()}
                 {(() => {
-                  const u = URGENCY_STYLE[selectedItem.urgency];
+                  const u = URGENCY_TONE[selectedItem.urgency];
                   return (
                     <span
                       className="rounded px-2 py-[2px] text-[11px] font-medium"
                       style={{ color: u.color, backgroundColor: u.bg }}
                     >
-                      緊急度 {u.label}
+                      {t("urgency", { label: urgencyBaseLabels[selectedItem.urgency] })}
                     </span>
                   );
                 })()}
@@ -168,12 +199,18 @@ export default function MapView({ items, selectedItem, onClose }: Props) {
                 </span>
                 <div className="flex items-center justify-between">
                   <span className="text-[12px] text-[var(--text-secondary)]">
-                    {technicianTag(selectedItem.technician_id) ?? "未指派"}
+                    {selectedItem.technician_id
+                      ? t("techTag", { id: selectedItem.technician_id.slice(0, 4) })
+                      : t("unassigned")}
                   </span>
                   <span className="text-[12px] text-[var(--text-secondary)]">
                     {selectedItem.scheduled_time
-                      ? `排程 ${new Date(selectedItem.scheduled_time).toLocaleString("zh-TW", { hour12: false })}`
-                      : "未排程"}
+                      ? t("scheduled", {
+                          time: new Date(selectedItem.scheduled_time).toLocaleString("zh-TW", {
+                            hour12: false,
+                          }),
+                        })
+                      : t("unscheduled")}
                   </span>
                 </div>
               </div>
@@ -183,18 +220,18 @@ export default function MapView({ items, selectedItem, onClose }: Props) {
               <div className="flex items-center justify-between">
                 <button
                   disabled
-                  title="即將推出"
+                  title={t("comingSoon")}
                   className="flex h-[34px] cursor-not-allowed items-center gap-[6px] rounded-lg bg-[#CBD5E1] px-4 opacity-70"
                 >
                   <span className="text-[13px] font-semibold text-white">
-                    指派技師
+                    {t("assignTech")}
                   </span>
                 </button>
                 <Link
                   href={`/work-orders/${selectedItem.id}`}
                   className="text-[13px] font-medium text-[var(--primary)] hover:underline"
                 >
-                  查看詳情 →
+                  {t("viewDetail")}
                 </Link>
               </div>
             </div>
@@ -202,10 +239,10 @@ export default function MapView({ items, selectedItem, onClose }: Props) {
             <div className="text-center">
               <MapPin className="mx-auto h-10 w-10 text-[var(--text-disabled)]" />
               <p className="mt-2 text-[13px] text-[var(--text-secondary)]">
-                點擊左側工單清單檢視詳情
+                {t("hint")}
               </p>
               <p className="mt-1 text-[11px] text-[var(--text-disabled)]">
-                互動式地圖待 GIS 模組接入
+                {t("hintSub")}
               </p>
             </div>
           )}

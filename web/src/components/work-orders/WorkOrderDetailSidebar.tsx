@@ -12,6 +12,7 @@ import {
   Info,
 } from "lucide-react";
 import { ApiError, api } from "@/lib/api";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
@@ -41,6 +42,8 @@ function formatPrice(value?: string | null): string {
 }
 
 export default function WorkOrderDetailSidebar({ workOrder, conversationId }: Props) {
+  const t = useTranslations("components.workOrders.detailSidebar");
+
   const brandModel = workOrder
     ? `${workOrder.brand || "—"} ${workOrder.model || ""}`.trim()
     : "—";
@@ -113,6 +116,8 @@ export default function WorkOrderDetailSidebar({ workOrder, conversationId }: Pr
     };
   }, [conversationId]);
 
+  const comingSoon = t("comingSoon");
+
   return (
     <div className="flex w-[380px] flex-shrink-0 flex-col gap-4 overflow-auto bg-[#F1F5F9] p-5">
       {/* Device Panel — brand/model 真實，其他示意 */}
@@ -126,7 +131,7 @@ export default function WorkOrderDetailSidebar({ workOrder, conversationId }: Pr
           {brandModel || "—"}
         </span>
         <span className="text-[12px] text-[var(--text-secondary)]">
-          S/N： — （示意）
+          {t("deviceSnLabel")}
         </span>
 
         <div className="flex gap-2 opacity-70">
@@ -134,38 +139,38 @@ export default function WorkOrderDetailSidebar({ workOrder, conversationId }: Pr
             <div className="flex h-9 w-9 items-center justify-center rounded-full border-[3px] border-[#CBD5E1]">
               <span className="text-[10px] font-semibold text-[var(--text-disabled)]">—</span>
             </div>
-            <span className="text-[11px] text-[var(--text-secondary)]">電量（示意）</span>
+            <span className="text-[11px] text-[var(--text-secondary)]">{t("deviceBattery")}</span>
           </div>
           <div className="flex flex-1 flex-col items-center gap-1 rounded-lg bg-[#F8FAFC] p-2">
             <div className="flex items-center gap-1">
               <div className="h-3 w-3 rounded-full bg-[#CBD5E1]" />
               <span className="text-[12px] text-[var(--text-disabled)]">—</span>
             </div>
-            <span className="text-[11px] text-[var(--text-secondary)]">連線（示意）</span>
+            <span className="text-[11px] text-[var(--text-secondary)]">{t("deviceConnection")}</span>
           </div>
           <div className="flex flex-1 flex-col items-center gap-1 rounded-lg bg-[#F8FAFC] p-2">
             <Clock3 className="h-5 w-5 text-[#94A3B8]" />
             <span className="text-[12px] text-[var(--text-disabled)]">—</span>
-            <span className="text-[11px] text-[var(--text-secondary)]">最近操作（示意）</span>
+            <span className="text-[11px] text-[var(--text-secondary)]">{t("deviceLastOp")}</span>
           </div>
         </div>
 
         <div className="flex flex-col gap-2">
           <button
             disabled
-            title="即將推出"
+            title={comingSoon}
             className="flex h-9 items-center justify-center gap-2 rounded-lg bg-[var(--accent)] opacity-60 cursor-not-allowed"
           >
             <LockOpen className="h-4 w-4 text-white" />
-            <span className="text-[13px] font-semibold text-white">遠端開鎖</span>
+            <span className="text-[13px] font-semibold text-white">{t("remoteUnlock")}</span>
           </button>
           <button
             disabled
-            title="即將推出"
+            title={comingSoon}
             className="flex h-9 items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] opacity-60 cursor-not-allowed"
           >
             <Key className="h-4 w-4 text-[var(--text-primary)]" />
-            <span className="text-[13px] font-semibold text-[var(--text-primary)]">重置密碼</span>
+            <span className="text-[13px] font-semibold text-[var(--text-primary)]">{t("resetCode")}</span>
           </button>
         </div>
       </div>
@@ -173,10 +178,10 @@ export default function WorkOrderDetailSidebar({ workOrder, conversationId }: Pr
       {/* Quotation — estimated_reward 真實 */}
       <div className="flex flex-col gap-2 rounded-lg bg-[var(--bg-surface)] p-4 shadow-sm">
         <span className="text-[16px] font-semibold text-[var(--text-primary)]">
-          報價明細
+          {t("quotationTitle")}
         </span>
         <div className="flex items-center justify-between">
-          <span className="text-[13px] text-[var(--text-primary)]">估價</span>
+          <span className="text-[13px] text-[var(--text-primary)]">{t("estimateLabel")}</span>
           <span className="font-mono text-[14px] font-semibold text-[var(--text-primary)]">
             {formatPrice(workOrder?.estimated_reward)}
           </span>
@@ -184,7 +189,7 @@ export default function WorkOrderDetailSidebar({ workOrder, conversationId }: Pr
         <div className="flex items-start gap-2 rounded-md bg-[#F8FAFC] px-3 py-2">
           <Info className="mt-[2px] h-[14px] w-[14px] flex-shrink-0 text-[var(--text-disabled)]" />
           <span className="text-[12px] text-[var(--text-secondary)]">
-            零件費 / 出勤費 / 折扣明細將於派工計費模組接入後顯示。
+            {t("quotationInfo")}
           </span>
         </div>
       </div>
@@ -208,14 +213,14 @@ export default function WorkOrderDetailSidebar({ workOrder, conversationId }: Pr
       <div className="flex flex-col gap-2 rounded-lg border-t-2 border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
         <button
           disabled
-          title="即將推出"
+          title={comingSoon}
           className="flex h-10 items-center justify-center gap-2 rounded-lg bg-[var(--accent)] opacity-60 cursor-not-allowed"
         >
           <TriangleAlert className="h-4 w-4 text-white" />
-          <span className="text-[14px] font-semibold text-white">標記異常</span>
+          <span className="text-[14px] font-semibold text-white">{t("markIssue")}</span>
         </button>
         <span className="text-center text-[13px] text-[var(--text-secondary)]">
-          派工模組接入後可執行操作
+          {t("modulePending")}
         </span>
       </div>
     </div>
@@ -233,6 +238,8 @@ function CustomerInfoPanel({
   address: string;
   error: string | null;
 }) {
+  const t = useTranslations("components.workOrders.detailSidebar");
+
   const hasConversation = !!conversationId;
   const linePrefix = conversation?.line_user_id
     ? conversation.line_user_id.slice(0, 12) + "…"
@@ -242,23 +249,23 @@ function CustomerInfoPanel({
     <div className="flex flex-col gap-[10px] rounded-lg bg-[var(--bg-surface)] p-4 shadow-sm">
       <div className="flex items-center justify-between">
         <span className="text-[16px] font-semibold text-[var(--text-primary)]">
-          客戶資訊
+          {t("customerTitle")}
         </span>
         {error && (
           <span className="rounded bg-[#FEE2E2] px-2 py-[2px] text-[11px] text-[#991B1B]">
-            載入失敗
+            {t("loadFailed")}
           </span>
         )}
       </div>
 
       {!hasConversation ? (
         <span className="text-[13px] text-[var(--text-disabled)]">
-          無關聯對話
+          {t("noConversation")}
         </span>
       ) : error ? (
         <span className="text-[12px] text-[var(--text-disabled)]">{error}</span>
       ) : !conversation ? (
-        <span className="text-[13px] text-[var(--text-secondary)]">載入中…</span>
+        <span className="text-[13px] text-[var(--text-secondary)]">{t("loading")}</span>
       ) : (
         <>
           <span className="text-[14px] font-semibold text-[var(--text-primary)]">
@@ -292,7 +299,7 @@ function CustomerInfoPanel({
           href={`/conversations/${conversation.id}`}
           className="text-[12px] font-medium text-[var(--primary)] hover:underline"
         >
-          查看完整對話 →
+          {t("viewConversation")}
         </a>
       )}
     </div>
@@ -308,15 +315,17 @@ function TechnicianPanel({
   technician: Technician | null;
   error: string | null;
 }) {
+  const t = useTranslations("components.workOrders.detailSidebar");
+
   const ratingFloor = technician ? Math.floor(technician.rating) : 0;
 
   if (!technicianId) {
     return (
       <div className="flex flex-col gap-[10px] rounded-lg bg-[var(--bg-surface)] p-4 shadow-sm">
         <span className="text-[16px] font-semibold text-[var(--text-primary)]">
-          指派技師
+          {t("technicianTitle")}
         </span>
-        <span className="text-[14px] text-[var(--text-disabled)]">尚未指派</span>
+        <span className="text-[14px] text-[var(--text-disabled)]">{t("unassigned")}</span>
       </div>
     );
   }
@@ -326,10 +335,10 @@ function TechnicianPanel({
       <div className="flex flex-col gap-[10px] rounded-lg bg-[var(--bg-surface)] p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <span className="text-[16px] font-semibold text-[var(--text-primary)]">
-            指派技師
+            {t("technicianTitle")}
           </span>
           <span className="rounded bg-[#FEE2E2] px-2 py-[2px] text-[11px] text-[#991B1B]">
-            載入失敗
+            {t("loadFailed")}
           </span>
         </div>
         <span className="font-['IBM_Plex_Mono'] text-[13px] text-[var(--text-secondary)]">
@@ -344,9 +353,9 @@ function TechnicianPanel({
     return (
       <div className="flex flex-col gap-[10px] rounded-lg bg-[var(--bg-surface)] p-4 shadow-sm">
         <span className="text-[16px] font-semibold text-[var(--text-primary)]">
-          指派技師
+          {t("technicianTitle")}
         </span>
-        <span className="text-[13px] text-[var(--text-secondary)]">載入中…</span>
+        <span className="text-[13px] text-[var(--text-secondary)]">{t("loading")}</span>
       </div>
     );
   }
@@ -356,7 +365,7 @@ function TechnicianPanel({
   return (
     <div className="flex flex-col gap-[10px] rounded-lg bg-[var(--bg-surface)] p-4 shadow-sm">
       <span className="text-[16px] font-semibold text-[var(--text-primary)]">
-        指派技師
+        {t("technicianTitle")}
       </span>
       <div className="flex items-center gap-[10px]">
         <div
