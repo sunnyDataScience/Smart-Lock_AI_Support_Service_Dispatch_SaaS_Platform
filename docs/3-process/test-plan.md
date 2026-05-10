@@ -8,23 +8,23 @@ owners:
   - Tech Lead
   - PM
 related:
-  - "[[_flows-bdd-test/v-model-right/E7--bdd-scenarios]]"
-  - "[[02-design/E5--api-design-specification]]"
-  - "[[02-design/specs/_MOC]]"
-  - "[[_flows-bdd-test/v-model-left/E1x--user-journey-map]]"
-  - "[[_flows-bdd-test/v-model-left/E5x--workflow-work-order]]"
-  - "[[_flows-bdd-test/v-model-left/E5x--workflow-dispatch]]"
-  - "[[_flows-bdd-test/v-model-left/E5x--workflow-admin-governance]]"
-  - "[[03-develop/GR6--code-complete]]"
-  - "[[03-develop/GR7--integration]]"
-  - "[[04-deliver/GR10--ga-readiness]]"
+  - "[[./bdd/all-features]]"
+  - "[[../2-contracts/api/README]]"
+  - "[[../2-contracts/modules/INDEX]]"
+  - "[[../4-exploration/prd-2026-q1-v1-launch]]"
+  - "[[../2-contracts/flows/business/BF-0001-work-order-lifecycle]]"
+  - "[[../2-contracts/flows/business/BF-0000-dispatch-overview]]"
+  - "[[../2-contracts/flows/business/BF-0002-admin-governance]]"
+  - "[[./quality-gates#b-gr6--code-complete]]"
+  - "[[./quality-gates#c-gr7--integration]]"
+  - "[[./quality-gates#d-gr10--ga-readiness]]"
 last_reviewed: 2026-05-09
 last_updated: 2026-05-09 (i18n scaffold 提前完成；剩餘僅 41 頁字串漸進遷移 + 真 vendor SMS/Email/FCM)
 ---
 
 # E7x — Test Plan and Readiness Roadmap
 
-> **目的**：以第三方 BDD 視角，對齊 [[_flows-bdd-test/v-model-right/E7--bdd-scenarios|E7 BDD scenarios]] 中描述的使用者流程與既有前端 / 後端 / 即時通訊實作，找出**文件、UI、API、外部系統**四個面向的缺口，並提出 30 天 Sprint 1 的測試 readiness 路線圖。
+> **目的**：以第三方 BDD 視角，對齊 [[./bdd/all-features|E7 BDD scenarios]] 中描述的使用者流程與既有前端 / 後端 / 即時通訊實作，找出**文件、UI、API、外部系統**四個面向的缺口，並提出 30 天 Sprint 1 的測試 readiness 路線圖。
 >
 > **預期讀者**：QA Lead、Tech Lead、PM。
 >
@@ -41,7 +41,7 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 - V1.0 已上線（AI 客服 + 知識庫管理）；V2.0 規劃中（派工、技師端、帳務、退款、爭議、保固）
 
 **為什麼要這份文件**：
-1. [[_flows-bdd-test/v-model-right/E7--bdd-scenarios|E7 BDD scenarios]] 已寫 21 Feature ~100 Scenarios，但**沒有測試執行計畫**；既有自動化覆蓋率：smoke ~20% endpoints + agent evals 67 題 + 5 個 api/tests，無 E2E、無 contract test、無 visual regression、無 load test。
+1. [[./bdd/all-features|E7 BDD scenarios]] 已寫 21 Feature ~100 Scenarios，但**沒有測試執行計畫**；既有自動化覆蓋率：smoke ~20% endpoints + agent evals 67 題 + 5 個 api/tests，無 E2E、無 contract test、無 visual regression、無 load test。
 2. V2.0 上線前需要的測試基礎設施 + Gap 補完，必須在 30 天內形成可信的測試 baseline。
 3. 文件描述的使用者流程與前端元件 / API spec / 外部系統整合**並非處處對齊**，須先標明 Gap，再規劃測試。
 
@@ -71,14 +71,14 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 
 > ❌ orphan = 0（PM 拍板後全部 BDD 缺口已定方向）。
 
-**根本原因（已解）**：V1.0 / V2.0 範圍切分 + 角色階層 + Hard / Soft SLA 三大產品決策已於 **2026-05-07 PM 全部拍板**（[[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10|Q1–Q10]]）。新阻塞點：
+**根本原因（已解）**：V1.0 / V2.0 範圍切分 + 角色階層 + Hard / Soft SLA 三大產品決策已於 **2026-05-07 PM 全部拍板**（[[../1-decisions/ADR-0013-pm-alignment-q1|Q1–Q10]]）。新阻塞點：
 - **Q7=B 反向**：V1.0 含金流 → 上線延 ~1.5 個月（待 provider 選型 + PCI 審查）
 - **Q3=C / Q9=B 反向**：消費者追蹤 + Scope Change 入口走 Web 匿名 token（共用機制，需建公開 API + Playwright spec）
 - **Q4=C 反向**：月結 SLA 工作日+國定假日（需 holidays 套件 + calendar 維護）
 
-實作工作（詳見 [[_flows-bdd-test/_SSOT-alignment-matrix#5-修正動作優先級給-phase-4|_SSOT-alignment-matrix §5]]）已可開始排程，BDD scenarios 也可以開始寫具體 Given/When/Then。
+實作工作（詳見 [[../5-views/traceability-matrix#5-修正動作優先級給-phase-4|_SSOT-alignment-matrix §5]]）已可開始排程，BDD scenarios 也可以開始寫具體 Given/When/Then。
 
-> 📊 **完整統計**（按角色 / Realtime / 外部依賴 / BDD 覆蓋）：見 §2 對齊矩陣 + [[_flows-bdd-test/v-model-right/E7--bdd-scenarios#ⅲb-feature--e7x-流程編號對照f-101f-201--f-001f-023|E7 §Ⅲ.b Feature ↔ E7x 流程對照表]]。
+> 📊 **完整統計**（按角色 / Realtime / 外部依賴 / BDD 覆蓋）：見 §2 對齊矩陣 + [[./bdd/all-features#ⅲb-feature--e7x-流程編號對照f-101f-201--f-001f-023|E7 §Ⅲ.b Feature ↔ E7x 流程對照表]]。
 
 ---
 
@@ -90,7 +90,7 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 |---|------|------|---------|----------------|----------|------|------|-------|
 | F-001 | LINE 報修 → ProblemCard | 消費者 | (LINE Bot 後端) | `createConversation` ✅, `analyzeMedia`, `createProblemCard` | — | LINE / Vertex / GCS | 🟢 | ✅ 5/9 sprint `createConversation` + agent webhook bridge `_ensure_conversation_record` real impl + `AdminAPIClient` 30 min cache |
 | F-002 | 客服審 PC → 開 WO | 客服 | `web/src/app/problem-cards/page.tsx`, `[id]/page.tsx` | `listProblemCards`, `getProblemCard`, `updateProblemCard`, `confirmProblemCard`, `resolveProblemCard`, `exportProblemCard`, **`convertToWorkOrder`** ✅, `POST /api/v1/resolve`, `POST /api/v1/dispatch/auto-match` | `work-orders` | — | 🟢 | ✅ 本 PR：補 `convertToWorkOrder` endpoint + `work_order_service.create_from_problem_card()` + frontend「開單」按鈕；解 production blocker（confirmProblemCard 不會觸發 WO 建立的 silent gap）|
-| F-003 | 自動派工規則引擎 | 系統 | `web/src/app/admin/dispatch-queue/page.tsx` | `runDispatch`, `listDispatchQueue` | `dispatch-queue`, `pool` | — | 🟢 | ✅ 權重 SSOT 已建：[[02-design/specs/dispatch-weights]] |
+| F-003 | 自動派工規則引擎 | 系統 | `web/src/app/admin/dispatch-queue/page.tsx` | `runDispatch`, `listDispatchQueue` | `dispatch-queue`, `pool` | — | 🟢 | ✅ 權重 SSOT 已建：[[../2-contracts/modules/dispatch-engine-weights]] |
 | F-004 | 手動派工 | 客服 / 派工員 | `web/src/app/admin/dispatch-manual/page.tsx` | `assignWorkOrder`, `assignDispatch` | `dispatch-queue` | — | 🟢 | ✅ PR #45 dispatcher RBAC 升級（修補 P0）+ 客服繞過 audit log（10 test）|
 | F-005 | 技師接單 → 出發 | 技師 | `web/src/app/pool/page.tsx`, `my-orders/page.tsx` | `claimOrder`, `updateWorkOrderStatus` | `pool`, `work-orders` | — | 🟢 | — |
 | F-006 | 到場拍照 | 技師 | `web/src/app/my-orders/[id]/door-check/page.tsx` | `checkIn`, `uploadMedia` | `work-orders` | GCS / Vision | 🟢 | — |
@@ -117,7 +117,7 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 ## 3. 必須先向 PM 釐清的 10 個問題 → ✅ **全部已拍板（2026-05-07）**
 
 > ✅ 2026-05-07 **PM 全部拍板**（10/10）：6 採預設（Q1/Q2/Q5/Q6/Q8/Q10）+ 4 採反向（Q3=C / Q4=C / Q7=B / Q9=B）。
-> 📋 **完整脈絡 + 影響評估 + 後續行動**請見 **[[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10|決策矩陣]]** §12 / §12.1。
+> 📋 **完整脈絡 + 影響評估 + 後續行動**請見 **[[../1-decisions/ADR-0013-pm-alignment-q1|決策矩陣]]** §12 / §12.1。
 
 | # | 問題 | 合理預設 | **PM 決策** | 影響流程 | 後續關鍵行動 |
 |---|------|---------|------------|---------|------------|
@@ -132,7 +132,7 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 | Q9 | Scope Change 同意 | A LINE quick reply | ✅ **B**（反向）| F-008 | Web 匿名 token + Playwright；與 Q3=C 共用機制 |
 | Q10 | 派工失敗 rollback | A 重派 3 次 | ✅ **A** | F-003 / F-005 | 自動重派 3 次後升級客服 |
 
-> 📊 **決策影響統計**（詳見 [[_flows-bdd-test/_SSOT-alignment-matrix#3-對齊狀態彙總|_SSOT-alignment-matrix §3]]）：
+> 📊 **決策影響統計**（詳見 [[../5-views/traceability-matrix#3-對齊狀態彙總|_SSOT-alignment-matrix §3]]）：
 >
 > - PM 拍板後 ⚠ blocked 從 5 → 4（4 條仍待實作 / provider 選型）
 > - ❌ orphan 從 4 → 0（全部已決定方向，待補 BDD Feature）
@@ -152,12 +152,12 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 
 | 缺口 | 影響流程 | P | 工時 | 負責 | 狀態 |
 |------|---------|---|------|------|------|
-| ~~派工規則 5 因子權重表 + tie-breaker~~ | F-003 / F-004 | **P0** | 2d | PM + TL | ✅ 已建 [[02-design/specs/dispatch-weights]] |
-| ~~角色矩陣 v1.0（含派工員、Manager / Director）~~ | F-004 / F-016 / F-019 | **P0** | 2d | PM | ✅ Q1=A / Q2=A 拍板（PR #38）+ PR #40 dispatcher seed 齊；見 [[02-design/specs/role-matrix-v1]] |
-| ~~Hard SLA vs Soft Target 對照表~~ | F-016 | **P0** | 1d | PM | ✅ Q5=B 拍板 + F-110 BDD 補完；見 [[02-design/specs/sla-policy]] |
-| ~~月結 SLA 計時單位（工作日 / 自然日）~~ | F-013 | **P0** | 0.5d | PM + 法務 | ✅ Q4=C 拍板 + `agent/core/workday.py` helper 齊；見 [[02-design/specs/workday-sla-policy]] |
-| ~~消費者端追蹤入口（LINE / Web / 兩者）~~ | F-022 | **P0** | 1d | PM | ✅ Q3=C 拍板（兩者並存）+ `getWorkOrderPublicStatus` spec 齊；見 [[02-design/specs/consumer-tracking-entry]] |
-| ~~SMS / Email / FCM fallback 通知策略~~ | F-010 / F-011 / F-016 | ❌ V1.5+ | — | PM | ✅ Q8=A 拍板 V1.0 only LINE，範圍縮小；見 [[02-design/specs/notification-channel-strategy]] |
+| ~~派工規則 5 因子權重表 + tie-breaker~~ | F-003 / F-004 | **P0** | 2d | PM + TL | ✅ 已建 [[../2-contracts/modules/dispatch-engine-weights]] |
+| ~~角色矩陣 v1.0（含派工員、Manager / Director）~~ | F-004 / F-016 / F-019 | **P0** | 2d | PM | ✅ Q1=A / Q2=A 拍板（PR #38）+ PR #40 dispatcher seed 齊；見 [[../2-contracts/modules/rbac]] |
+| ~~Hard SLA vs Soft Target 對照表~~ | F-016 | **P0** | 1d | PM | ✅ Q5=B 拍板 + F-110 BDD 補完；見 [[../0-principles/product-principles]] |
+| ~~月結 SLA 計時單位（工作日 / 自然日）~~ | F-013 | **P0** | 0.5d | PM + 法務 | ✅ Q4=C 拍板 + `agent/core/workday.py` helper 齊；見 [[../0-principles/product-principles]] |
+| ~~消費者端追蹤入口（LINE / Web / 兩者）~~ | F-022 | **P0** | 1d | PM | ✅ Q3=C 拍板（兩者並存）+ `getWorkOrderPublicStatus` spec 齊；見 [[../2-contracts/modules/consumer-tracking]] |
+| ~~SMS / Email / FCM fallback 通知策略~~ | F-010 / F-011 / F-016 | ❌ V1.5+ | — | PM | ✅ Q8=A 拍板 V1.0 only LINE，範圍縮小；見 [[../1-decisions/ADR-0012-notification-channels]] |
 | 庫存 F-210 完整規格 | F-007 | P1 | 3d | PM + BE | 🔴 仍 pending PM + BE（與下方 §4.6 Inventory SKU/批號決策綁定） |
 | 離線 / Service Worker 完整策略 | F-023 + 技師端 | P1 | 2d | FE Lead | 🟡 NetworkErrorBanner 已建（A1 Wave 1）；PWA + offline queue 仍待 FE Lead 2d |
 
@@ -173,7 +173,7 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 | ~~客戶 admin「新增 / 編輯」表單~~ | P1 | 1.5d | ✅ PR #44 完成（`admin/customers/new/page.tsx` + `[id]/edit/page.tsx`） |
 | ~~消費者端工單追蹤頁 `/track/[token]`~~ | **P0** | 5d | ✅ PR #44 full impl（含 scope-change 同意頁） |
 | ~~深色模式~~ | V1.0 範圍外 提前 | 1d | ✅ 提前完成（commit `098caa3`）— ThemeProvider（system/light/dark）+ ThemeToggle（icon / segmented）+ globals.css `[data-theme="dark"]` CSS var 覆寫 + 防 FOUC inline script + 接入 layout/Settings/Header；無新 npm package |
-| ~~i18n（多語系） scaffold~~ | V1.0 範圍外 提前 | 1d | ✅ 提前完成（branch `feat/i18n-scaffold`）— LocaleProvider + LocaleToggle（icon / segmented）+ messages/{zh-TW,en}.json + `useTranslations(namespace)` hook（與 next-intl 形狀相容）+ html.lang 動態同步 + 接入 layout/Settings/Header；**無新 npm package**；41 頁字串漸進遷移（不強制全頁抽 keys，動到該頁時順手）；策略見 [[02-design/specs/i18n-strategy]] |
+| ~~i18n（多語系） scaffold~~ | V1.0 範圍外 提前 | 1d | ✅ 提前完成（branch `feat/i18n-scaffold`）— LocaleProvider + LocaleToggle（icon / segmented）+ messages/{zh-TW,en}.json + `useTranslations(namespace)` hook（與 next-intl 形狀相容）+ html.lang 動態同步 + 接入 layout/Settings/Header；**無新 npm package**；41 頁字串漸進遷移（不強制全頁抽 keys，動到該頁時順手）；策略見 [[../1-decisions/ADR-0011-i18n-strategy]] |
 
 ### 4.3 後端 API 缺口
 
@@ -200,13 +200,13 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 | 鼎新 A1 會計對接 | — | — | ❌ V3 |
 
 ### 4.5 角色 / 權限矛盾（影響 BDD `Given` 步驟）
-- ✅ **「派工員」V2.0 是否獨立角色 (Q1=A 拍板)**：獨立 `dispatch_officer` role；見 [[02-design/specs/role-matrix-v1]]
-- ✅ **Ops_Manager vs Ops_Director 階層 (Q2=A 拍板)**：Director > Manager 階層；見 [[02-design/specs/role-matrix-v1]]
+- ✅ **「派工員」V2.0 是否獨立角色 (Q1=A 拍板)**：獨立 `dispatch_officer` role；見 [[../2-contracts/modules/rbac]]
+- ✅ **Ops_Manager vs Ops_Director 階層 (Q2=A 拍板)**：Director > Manager 階層；見 [[../2-contracts/modules/rbac]]
 - ✅ **客服可否手動繞過自動派工 (Q6=A 拍板)**：可繞過，需留稽核 + 二人覆核；見 BDD F-XXX
 - 🔴 技師拒單上限與懲罰（P1，待 PM）
 
 ### 4.6 資料模型 / 狀態機矛盾（影響 fixture 設計）
-- 🟡 **WorkOrder paused / material-waiting**：spec 細化中；見 [[02-design/specs/work-order-state-machine-extensions]]（V2.0 擴充 5 個狀態）
+- 🟡 **WorkOrder paused / material-waiting**：spec 細化中；見 [[../2-contracts/state-machines/work-order-extensions]]（V2.0 擴充 5 個狀態）
 - 🟢 **ProblemCard → WorkOrder 1:N（多技師協作）**：可寫 spec（待補）
 - ✅ **Dispute 狀態機分支（reject vs dual-sign）**：Q2=A 拍板可細化（Director 終裁）
 - 🔴 **Refund 是否依賴金流結果改狀態**：待 §4.4 金流 Q7 D2 會議拍板
@@ -218,9 +218,9 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 
 ### 5.1 三項操作原則
 
-1. **Spec-as-source-of-truth, not test-as-source-of-truth** — [[02-design/specs/_MOC|OpenAPI 91 op + AsyncAPI 10 channel]] 是契約。測試驗證契約，不重新定義。對應 Google "Test Certified" L3、Atlassian shift-left。
+1. **Spec-as-source-of-truth, not test-as-source-of-truth** — [[../2-contracts/modules/INDEX|OpenAPI 91 op + AsyncAPI 10 channel]] 是契約。測試驗證契約，不重新定義。對應 Google "Test Certified" L3、Atlassian shift-left。
 2. **Cost-asymmetry rules the pyramid shape** — Vertex AI 每呼叫 ~$0.01、flaky LINE webhook E2E 每次數小時人力。盡量推到 fake / stub，真實呼叫只放 nightly + release gate。
-3. **BDD scenarios are governance, not execution** — [[_flows-bdd-test/v-model-right/E7--bdd-scenarios|E7]] ~100 個 scenario 是利害關係人契約（PM、UAT、法務），prose 永遠留在 markdown，只挑 ~30 條機械化橋接。**拒絕 100% E2E 化**（Spotify 2017 反模式）。
+3. **BDD scenarios are governance, not execution** — [[./bdd/all-features|E7]] ~100 個 scenario 是利害關係人契約（PM、UAT、法務），prose 永遠留在 markdown，只挑 ~30 條機械化橋接。**拒絕 100% E2E 化**（Spotify 2017 反模式）。
 
 ### 5.2 金字塔配置（按 cost-asymmetry 設計，非教條 33/33/33）
 
@@ -246,7 +246,7 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 | **B. Contract-backed**（形狀 + 條件） | ~30 | Schemathesis hooks，Gherkin 提取 → parametrize | PR + nightly |
 | **C. Documentation-only**（邊界 / 法規 / UAT walkthrough） | ~50 | 標 `[doc-only]` tag，僅 GR6 review | release 前 |
 
-**Gherkin → executable 橋接**：寫一個 ~200 行 markdown extractor，從 [[_flows-bdd-test/v-model-right/E7--bdd-scenarios|E7]] 提取 `[tier-a|tier-b]` 的 scenario，產生 pytest-bdd `features/`。**約 3 dev-day，後續維護近 0**（Spotify「living documentation」模式）。
+**Gherkin → executable 橋接**：寫一個 ~200 行 markdown extractor，從 [[./bdd/all-features|E7]] 提取 `[tier-a|tier-b]` 的 scenario，產生 pytest-bdd `features/`。**約 3 dev-day，後續維護近 0**（Spotify「living documentation」模式）。
 
 **LINE Bot 不對真 LINE 做 E2E**：建 `LINESimulator` fixture（forge HMAC-SHA256 webhook + capture reply / push via respx + YAML script 驅動多輪對話），約 1 dev-week。每條 LINE scenario 在 < 100 ms 跑完。
 
@@ -322,7 +322,7 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 - **校準集 30 hand-graded case**：每 release 重跑，judge 與人工 agreement < 0.85 = judge prompt 是 bug
 
 ### 8.3 Hallucination / 安全
-30 case adversarial prompt（Anthropic red-team + 10 個台灣社工攻擊繁中）。Pass：refusal ≥ 95%、無 PII 洩漏、無離域回答。失敗阻 [[03-develop/GR7--integration|GR7]]。
+30 case adversarial prompt（Anthropic red-team + 10 個台灣社工攻擊繁中）。Pass：refusal ≥ 95%、無 PII 洩漏、無離域回答。失敗阻 [[./quality-gates#c-gr7--integration|GR7]]。
 
 ### 8.4 Cost / Latency budget
 Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR comment 貼 main 對比 delta。**Hard gate：cost regression > 15% 阻 merge**（Stripe / OpenAI 內部慣例）。
@@ -330,7 +330,7 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 ### 8.5 CI cost containment
 - PR 跑 67 case smoke vs fake LLM（$0）
 - Nightly 跑 200 case vs 真 Vertex 預算 cap
-- Release gate（[[03-develop/GR6--code-complete|GR6]]） 跑全 300 + 多 judge ≈ $15 / release
+- Release gate（[[./quality-gates#b-gr6--code-complete|GR6]]） 跑全 300 + 多 judge ≈ $15 / release
 
 ---
 
@@ -362,7 +362,7 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 ### Week 1：對齊 + 文件補完（解 Q1–Q10）
 1. 召開 90 min PM / TL 對齊會，產出**角色矩陣 v1.0**、~~派工權重 + tie-breaker 表~~ ✅、**SLA hard / soft 對照表**、**WO / Dispute / Refund 狀態機 single source**
 2. 凍結 V1.0 範圍（金流、SMS、鼎新明確 OUT）
-3. [[_flows-bdd-test/v-model-right/E7--bdd-scenarios|E7]] scenarios 加 `[tier-a|tier-b|tier-c|doc-only]` tag
+3. [[./bdd/all-features|E7]] scenarios 加 `[tier-a|tier-b|tier-c|doc-only]` tag
 
 ### Week 2：測試基礎設施
 4. ~~統一 **Modal / Toast library**~~ ✅ A2 完成（Radix UI）
@@ -407,7 +407,7 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 
 ---
 
-## 11. Quality Gates（對應 [[03-develop/GR6--code-complete|GR6]] / [[03-develop/GR7--integration|GR7]] / [[04-deliver/GR10--ga-readiness|GR10]]）
+## 11. Quality Gates（對應 [[./quality-gates#b-gr6--code-complete|GR6]] / [[./quality-gates#c-gr7--integration|GR7]] / [[./quality-gates#d-gr10--ga-readiness|GR10]]）
 
 | Gate | 觸發 | 必跑測試 | KPI | Flaky 容忍 | 失敗 |
 |------|-----|---------|-----|----------|------|
@@ -441,7 +441,7 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 **借鏡模式**：
 - **Spotify Squad**：每 squad 全擁自己 layer；contract / AsyncAPI 等橫切由「平台公會」1–2 senior eng 守
 - **Google Test Certified**：每季自評，V2.0 launch target = L3（持續測試 + 正確金字塔 + 0 manual regression）。L5 暫不追求
-- **Atlassian shift-left**：PM 在 [[_flows-bdd-test/v-model-right/E7--bdd-scenarios|E7]] 寫 Gherkin 才能讓票進 estimation。**硬規則**
+- **Atlassian shift-left**：PM 在 [[./bdd/all-features|E7]] 寫 Gherkin 才能讓票進 estimation。**硬規則**
 
 ---
 
@@ -502,15 +502,15 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 - `agent/quality/quality_check.py` — 67 題 + LLM-as-Judge
 
 ### BDD 規格來源
-- [[_flows-bdd-test/v-model-right/E7--bdd-scenarios|E7]] — 21 Feature ~100 Scenarios
-- [[_flows-bdd-test/v-model-left/E1x--user-journey-map|E1x User Journey Map]] — 4 角色旅程地圖
-- [[_flows-bdd-test/v-model-left/E5x--workflow-work-order]] — 13 個 WO flow
-- [[_flows-bdd-test/v-model-left/E5x--workflow-dispatch]] — 派工 7 模組
-- [[_flows-bdd-test/v-model-left/E5x--workflow-admin-governance]] — RBAC + 稽核
+- [[./bdd/all-features|E7]] — 21 Feature ~100 Scenarios
+- [[../4-exploration/prd-2026-q1-v1-launch|E1x User Journey Map]] — 4 角色旅程地圖
+- [[../2-contracts/flows/business/BF-0001-work-order-lifecycle]] — 13 個 WO flow
+- [[../2-contracts/flows/business/BF-0000-dispatch-overview]] — 派工 7 模組
+- [[../2-contracts/flows/business/BF-0002-admin-governance]] — RBAC + 稽核
 
 ### 治理 / 對齊文件
-- **[[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10|Q1–Q10 PM 對齊文件]]** — §3 表格的完整版（含選項對比、影響範圍、會議議程、PM 決策欄位、追蹤表）
-- [[02-design/specs/dispatch-weights]] — F-003 派工權重 SSOT
+- **[[../1-decisions/ADR-0013-pm-alignment-q1|Q1–Q10 PM 對齊文件]]** — §3 表格的完整版（含選項對比、影響範圍、會議議程、PM 決策欄位、追蹤表）
+- [[../2-contracts/modules/dispatch-engine-weights]] — F-003 派工權重 SSOT
 
 ### 前端待補關鍵頁
 - `web/src/app/conversations/[id]/page.tsx` — 接管後 chat UI 缺
@@ -546,10 +546,10 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 | 2026-05-07 | Claude (assisted) | 初始版本：對齊矩陣、Gap 分類、PM Q1–Q10、金字塔、Sprint 1 路線圖 |
 | 2026-05-07 | Claude (assisted) | **Wave 1+2 補完狀態同步**：5 流程從 🔴/🟡 變 🟢，🟢 從 8 條增為 13 條、🔴 從 5 條降為 3 條（F-014 從 🔴 降為 🟡 規則可測；F-013 從 🟡 升為 🟢 既有 dual-sign 雙簽測試完整）。詳見 §15.1。 |
 | 2026-05-07 | Claude (assisted) | **測試基礎設施 Wave（autonomous-only）**：補齊「不需外力」的測試金字塔骨架：Makefile、pytest markers、tests/fixtures、tests/factories、schemathesis、AsyncAPI validator、Playwright config + login smoke、test-suite.yml workflow。詳見 §15.2。 |
-| 2026-05-07 | Claude (assisted) | **§3 PM Q1–Q10 抽出為獨立對齊文件**：[[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10|Q1–Q10 對齊文件]] 提供完整選項對比、會議議程、PM 決策欄位、追蹤表、下游更新清單。§3 表保留為摘要，每行加 `詳細` 連結至對齊文件對應章節。Q4 / Q5 預設更新為「自然日 / soft」（重新評估技術成本）。 |
-| 2026-05-07 | Claude (assisted) | **§1 / §2 雙向對齊**：TL;DR 數字與 §2 對齊矩陣逐行對照修正。修正內容：(a) 🟡 部分可測列表加入 F-014（移除 F-013，因 F-013 §2 已是 🟢）；(b) 🔴 不能測從「4 條 (F-011/F-012/F-014/F-022)」修正為「3 條 (F-011/F-012/F-022)」；(c) 🟡 條數明確標 7 條；(d) 加 cross-link 至 [[_flows-bdd-test/v-model-right/E7--bdd-scenarios|E7 §Ⅲ.b]] BDD 對照表。理由：§2 為 SSOT，§1 為摘要，過去 §1 落後 §2。 |
+| 2026-05-07 | Claude (assisted) | **§3 PM Q1–Q10 抽出為獨立對齊文件**：[[../1-decisions/ADR-0013-pm-alignment-q1|Q1–Q10 對齊文件]] 提供完整選項對比、會議議程、PM 決策欄位、追蹤表、下游更新清單。§3 表保留為摘要，每行加 `詳細` 連結至對齊文件對應章節。Q4 / Q5 預設更新為「自然日 / soft」（重新評估技術成本）。 |
+| 2026-05-07 | Claude (assisted) | **§1 / §2 雙向對齊**：TL;DR 數字與 §2 對齊矩陣逐行對照修正。修正內容：(a) 🟡 部分可測列表加入 F-014（移除 F-013，因 F-013 §2 已是 🟢）；(b) 🔴 不能測從「4 條 (F-011/F-012/F-014/F-022)」修正為「3 條 (F-011/F-012/F-022)」；(c) 🟡 條數明確標 7 條；(d) 加 cross-link 至 [[./bdd/all-features|E7 §Ⅲ.b]] BDD 對照表。理由：§2 為 SSOT，§1 為摘要，過去 §1 落後 §2。 |
 | 2026-05-07 | PM + Claude (sync) | **PM Q1-Q10 全拍板同步**：§1 TL;DR 改寫「根本原因（已解）」+ 列出新阻塞（Q7=B 金流 / Q3=C+Q9=B Web 匿名 token / Q4=C 工作日 calendar）；§3 從 10 row 待拍表變「拍板結果 + 後續行動」表，標明 4 反向選項；指向 _SSOT-alignment-matrix §3 對齊狀態彙總。Q7=B 為最重大決策（V1.0 含金流，延 ~1.5 月）。 |
-| 2026-05-07 | Claude (assisted) | **PR #40 5-track 後流程升級**（spec-driven 定義）：§1 TL;DR 統計 🟢13→15 / ⚠7→5 / 🔴3→3。5 條升 🟢：F-004（T1 dispatcher）、F-008（T2 Web token spec）、F-016（T4 F-110 BDD）、F-019（T1 dispatcher 角色）、F-022（T2 getWorkOrderPublicStatus）。剩 3 條 ⚠ 阻塞全綁 Q7=B provider 選型（PR #39 follow-up 矩陣等會議）。明確區分「立即可測」採 spec-driven（規格 + test infra + PM 拍板齊備即 🟢，不要求 production code 100%）。詳見 [[_flows-bdd-test/_SSOT-alignment-matrix#7-change-log\|_SSOT §7]]。 |
+| 2026-05-07 | Claude (assisted) | **PR #40 5-track 後流程升級**（spec-driven 定義）：§1 TL;DR 統計 🟢13→15 / ⚠7→5 / 🔴3→3。5 條升 🟢：F-004（T1 dispatcher）、F-008（T2 Web token spec）、F-016（T4 F-110 BDD）、F-019（T1 dispatcher 角色）、F-022（T2 getWorkOrderPublicStatus）。剩 3 條 ⚠ 阻塞全綁 Q7=B provider 選型（PR #39 follow-up 矩陣等會議）。明確區分「立即可測」採 spec-driven（規格 + test infra + PM 拍板齊備即 🟢，不要求 production code 100%）。詳見 [[../5-views/traceability-matrix#7-change-log\|_SSOT §7]]。 |
 | 2026-05-08 | Claude (assisted) | **§4.2/§4.3 黃燈全清**：PR #43（`api/routers/public.py` `getWorkOrderPublicStatus` + `customers.py` updateCustomer/createCustomer + `technicians.py` updateMyAvailability + `reports_export.py` exportReport CSV）+ PR #44（admin/customers 表單 + `/track/[token]` 全套）+ commit `bd7ec2f`（`ReportExportModal` 通用 modal 接 KPI / Revenue / Technician Ranking / Accounting 4 頁）後，§4.2 + §4.3 黃燈全部清空。BE 4 條全綠、FE 3 條全綠。剩餘僅 V1.1 PDF 路徑（缺 reportlab dep，明確標非本期範圍）+ accounting BE service（V1.1）。 |
 | 2026-05-08 | Claude (assisted) | **V1.1 + V1.5 提前實作四件套**：(1) commit `da58302/8a3dbbd/ca41857` PDF 報表（reportlab 內建 STSong-Light 繁中 CID font，V1.0 不需新 dep — voucher_service 已用） + `accounting` report_type（reuse `settlement_service.list_settlements()`） + FE Modal PDF radio；(2) commit `098caa3` 深色模式（ThemeProvider system/light/dark + ThemeToggle + `[data-theme="dark"]` CSS var 覆寫 + 防 FOUC inline script + 接 Settings/Header，無新 npm package）；(3) commits `6ea4802/171dbf9/e6a8db1` 通知 channel 抽象層（`agent/notifications/` ChannelAdapter ABC + dict registry + LINE 真實 adapter + SMS/Email/FCM stub + Router fallback chain + bootstrap，**既有 caller 不動** — V1.5 補真 vendor 時零 refactor）。剩餘 ❌ 僅 i18n 多語系（V1.0 範圍外維持）+ 真 vendor SMS/Email/FCM SDK（V1.5+/V2.0+）。 |
 
@@ -638,7 +638,7 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 - #26 Agent eval CI 整合（fake-LLM smoke / nightly 真 Vertex / Promptfoo）— 綁預算決策
 - 完整 coverage diff PR comment（diff-cover bot）— 需 component test 進 CI 才有意義
 | 2026-05-08 | Claude (assisted) | **PR #45-49 production code 完成同步**：§1 TL;DR 統計 🟢15→16 / ⚠5→4 / ⚠3→3。§2 對齊矩陣 6 row 評等更新（F-004/F-008/F-010/F-016/F-018/F-019/F-022）+ 阻塞項從「待 PM Q*」改為「✅ PR #N 實作」。F-011/F-012/F-014 仍 🔴 綁 Q7=B provider 選型（PR #39 follow-up 4 sub-decision 待 PM/TL/CEO/Finance 90 min 會議）。 |
-| 2026-05-09 | Claude (assisted) | **i18n scaffold 提前完成**（branch `feat/i18n-scaffold`）：§4.2 i18n row 從 ❌ 升 ✅；§9 「不要先做」改為「完整 41 頁字串擴抽」（scaffold 不在排除清單）。實作鏡像 098caa3 深色模式模式：LocaleProvider（context + localStorage + html.lang 同步）+ LocaleToggle（icon / segmented）+ messages/{zh-TW,en}.json + `useTranslations(namespace)` hook（next-intl 形狀相容，未來遷移無痛）+ 純函式 `translate()` helper（React 外可用）+ Header / Settings 接入示範。**無新 npm package**；建 [[02-design/specs/i18n-strategy]] 策略 ADR；建 `web/src/i18n/README.md` onboarding 指南。剩餘 41 頁字串硬編 zh-TW 不影響 V1.0 上線（預設仍 zh-TW），漸進遷移策略：每次動到該頁時順手抽 keys。 |
+| 2026-05-09 | Claude (assisted) | **i18n scaffold 提前完成**（branch `feat/i18n-scaffold`）：§4.2 i18n row 從 ❌ 升 ✅；§9 「不要先做」改為「完整 41 頁字串擴抽」（scaffold 不在排除清單）。實作鏡像 098caa3 深色模式模式：LocaleProvider（context + localStorage + html.lang 同步）+ LocaleToggle（icon / segmented）+ messages/{zh-TW,en}.json + `useTranslations(namespace)` hook（next-intl 形狀相容，未來遷移無痛）+ 純函式 `translate()` helper（React 外可用）+ Header / Settings 接入示範。**無新 npm package**；建 [[../1-decisions/ADR-0011-i18n-strategy]] 策略 ADR；建 `web/src/i18n/README.md` onboarding 指南。剩餘 41 頁字串硬編 zh-TW 不影響 V1.0 上線（預設仍 zh-TW），漸進遷移策略：每次動到該頁時順手抽 keys。 |
 
 ---
 

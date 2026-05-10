@@ -121,131 +121,131 @@ TR10:     [GR10] GA Readiness Review
 
 | Essential | Gate | Current File | Status |
 |-----------|------|-------------|--------|
-| **E1** | TR1 | [[00-discover/E1--project-brief-and-prd]] | Approved |
-| **E2** | TR2 | [[01-define/E2--statement-of-work]] + [[01-define/adrs/]] | Approved |
-| **E3** | TR3 | [[01-define/E3--architecture-and-design]] | Approved |
-| **E4** | TR3 | [[01-define/diagrams/E4--06_erd]] | Approved |
-| **E5** | TR4 | [[02-design/E5--api-design-specification]] | Approved |
-| **E6** | TR5 | [[02-design/E6--development-workflow-cookbook]] | Active |
-| **E7** | TR5 | [[_flows-bdd-test/v-model-right/E7--bdd-scenarios]] | Active |
-| **E8** | TR8 | [[04-deliver/E8--security-and-readiness-checklists]] | In Use |
-| **E9** | TR9 | [[04-deliver/E9--deployment-and-operations-guide]] | Draft |
+| **E1** | TR1 | [[../4-exploration/prd-2026-q1-v1-launch]] | Approved |
+| **E2** | TR2 | [[../4-exploration/sow-2026-q1]] + [[../1-decisions/]] | Approved |
+| **E3** | TR3 | [[../1-decisions/architecture-overview]] | Approved |
+| **E4** | TR3 | [[../1-decisions/domain-model]] | Approved |
+| **E5** | TR4 | [[../2-contracts/api/README]] | Approved |
+| **E6** | TR5 | [[./workflow-manual]] | Active |
+| **E7** | TR5 | [[./bdd/all-features]] | Active |
+| **E8** | TR8 | [[./security-readiness-checklist]] | In Use |
+| **E9** | TR9 | [[./deployment-runbook]] | Draft |
 
 ### Extension Documents (grouped by which Essential they extend)
 
 #### Extends E1 -- Problem & Vision
 | Gate | File | Role |
 |------|------|------|
-| TR0 | [[_flows-bdd-test/v-model-left/E1x--user-journey-map]] | Deepens user understanding |
-| TR1 | [[00-discover/E1x--moat-system-architecture]] | Competitive positioning |
-| TR1 | [[00-discover/E1x--moat-mapping-matrix]] | Investor alignment |
-| TR1 | [[00-discover/E1x--executive-architecture-overview]] | Executive communication |
-| TR1 | [[00-discover/E1x--presentation-blueprint]] | Pitch structure |
+| TR0 | [[../4-exploration/prd-2026-q1-v1-launch]] | Deepens user understanding |
+| TR1 | [[../business/moat-system-architecture]] | Competitive positioning |
+| TR1 | [[../business/moat-mapping-matrix]] | Investor alignment |
+| TR1 | [[../business/executive-architecture-overview]] | Executive communication |
+| TR1 | [[../business/presentation-blueprint]] | Pitch structure |
 
 #### Extends E2 -- Scope & Decisions
 | Gate | File | Role |
 |------|------|------|
-| TR2 | [[01-define/adrs/adr-001-backend-framework]] | Backend decision |
-| TR2 | [[01-define/adrs/adr-002-database-selection]] | Database decision |
-| TR2 | [[01-define/adrs/adr-003-llm-integration-framework]] | LLM decision |
-| TR2 | [[01-define/adrs/adr-004-line-bot-architecture]] | LINE Bot decision |
-| TR2 | [[01-define/adrs/adr-005-frontend-framework-v2]] | Frontend decision |
-| TR2 | [[01-define/adrs/adr-006-llm-model-selection]] | Model decision |
-| TR2 | [[01-define/E2x--wbs-project-schedule]] | Timeline tracking |
-| TR2 | [[_domain-knowledge/E2x--wbs-pre-development]] | Pre-dev data checklist |
+| TR2 | [[../1-decisions/ADR-0001-backend-framework]] | Backend decision |
+| TR2 | [[../1-decisions/ADR-0002-database-selection]] | Database decision |
+| TR2 | [[../1-decisions/ADR-0003-llm-integration-framework]] | LLM decision |
+| TR2 | [[../1-decisions/ADR-0004-line-bot-architecture]] | LINE Bot decision |
+| TR2 | [[../1-decisions/ADR-0005-frontend-framework-v2]] | Frontend decision |
+| TR2 | [[../1-decisions/ADR-0006-llm-model-selection]] | Model decision |
+| TR2 | [[../4-exploration/wbs-2026-q1]] | Timeline tracking |
+| TR2 | [[../4-exploration/wbs-2026-q1]] | Pre-dev data checklist |
 
 #### Extends E3 -- Architecture
 | Gate | File | Role |
 |------|------|------|
-| TR3 | [[01-define/E3x--module-breakdown]] | Module decomposition |
-| TR3 | [[01-define/diagrams/01_business_process_diagram]] | Business flow |
-| TR3 | [[01-define/diagrams/02_use_case_diagram]] | Use cases |
-| TR3 | [[01-define/diagrams/03_system_context_diagram]] | System context |
-| TR3 | [[01-define/diagrams/04_high_level_architecture_diagram]] | Container view |
-| TR3 | [[01-define/diagrams/05_layered_component_diagram]] | Component view |
-| TR3 | [[01-define/diagrams/07_sequence_diagram]] | Interactions |
-| TR3 | [[01-define/diagrams/08_api_interface_diagram]] | API mapping |
-| TR3 | [[01-define/diagrams/09_deployment_diagram]] | Infrastructure |
-| TR3 | [[01-define/diagrams/10_security_permission_diagram]] | RBAC design |
+| TR3 | [[../1-decisions/module-boundary/agent]] | Module decomposition |
+| TR3 | [[../1-decisions/architecture-overview]] | Business flow |
+| TR3 | [[../1-decisions/architecture-overview]] | Use cases |
+| TR3 | [[../1-decisions/architecture-overview]] | System context |
+| TR3 | [[../1-decisions/architecture-overview]] | Container view |
+| TR3 | [[../1-decisions/architecture-overview]] | Component view |
+| TR3 | [[../5-views/file-dependencies]] | Interactions |
+| TR3 | [[../2-contracts/api/openapi.yaml]] | API mapping |
+| TR3 | [[../1-decisions/architecture-overview]] | Infrastructure |
+| TR3 | [[../2-contracts/modules/rbac]] | RBAC design |
 
 #### Extends E5 -- API & Feature Specs
 | Gate | File | Role |
 |------|------|------|
-| TR4 | [[_flows-bdd-test/v-model-left/E5x--workflow-work-order]] | Core business logic |
-| TR4 | [[_flows-bdd-test/v-model-left/E5x--workflow-dispatch]] | 派工營運基礎設施規格 |
-| TR4 | [[_flows-bdd-test/v-model-left/E5x--workflow-admin-governance]] | 後台治理流程（RBAC、稽核、庫存、爭議） |
-| TR4 | [[02-design/E5x--frontend-architecture]] | Frontend design |
-| TR4 | [[02-design/E5x--frontend-information-arch]] | Information architecture |
-| TR4 | [[02-design/specs/audit-log-spec]] | Feature spec |
-| TR4 | [[02-design/specs/b2b-api-spec]] | Feature spec |
-| TR4 | [[02-design/specs/brand-data-api-spec]] | Feature spec |
-| TR4 | [[02-design/specs/data-export-spec]] | Feature spec |
-| TR4 | [[02-design/specs/e-signature-spec]] | Feature spec |
-| TR4 | [[02-design/specs/inter-agent-messaging-spec]] | Feature spec |
-| TR4 | [[02-design/specs/inventory-management-spec]] | Feature spec |
-| TR4 | [[02-design/specs/rbac-dynamic-spec]] | Feature spec |
-| TR4 | [[02-design/specs/realtime-messaging-spec]] | Feature spec |
-| TR4 | [[02-design/specs/refund-approval-spec]] | Feature spec |
-| TR4 | [[02-design/specs/sla-availability-spec]] | Feature spec |
-| TR4 | [[02-design/specs/vision-processing-spec]] | Feature spec |
-| TR4 | [[02-design/specs/warranty-dispute-spec]] | Feature spec |
+| TR4 | [[../2-contracts/flows/business/BF-0001-work-order-lifecycle]] | Core business logic |
+| TR4 | [[../2-contracts/flows/business/BF-0000-dispatch-overview]] | 派工營運基礎設施規格 |
+| TR4 | [[../2-contracts/flows/business/BF-0002-admin-governance]] | 後台治理流程（RBAC、稽核、庫存、爭議） |
+| TR4 | [[../1-decisions/architecture-overview]] | Frontend design |
+| TR4 | [[../2-contracts/pages/INDEX]] | Information architecture |
+| TR4 | [[../2-contracts/modules/audit-logger]] | Feature spec |
+| TR4 | b2b-api-spec | Feature spec |
+| TR4 | brand-data-api-spec | Feature spec |
+| TR4 | [[../2-contracts/modules/data-export]] | Feature spec |
+| TR4 | [[../2-contracts/modules/e-signature]] | Feature spec |
+| TR4 | [[../2-contracts/modules/inter-agent-messaging]] | Feature spec |
+| TR4 | [[../2-contracts/modules/inventory]] | Feature spec |
+| TR4 | [[../2-contracts/modules/rbac]] | Feature spec |
+| TR4 | [[../2-contracts/modules/realtime-messaging]] | Feature spec |
+| TR4 | [[../2-contracts/modules/refund-service]] | Feature spec |
+| TR4 | [[../2-contracts/modules/sla-monitor]] | Feature spec |
+| TR4 | [[../2-contracts/modules/vision-processing]] | Feature spec |
+| TR4 | [[../2-contracts/modules/warranty-claim]] | Feature spec |
 
 #### Extends E6 -- Dev Workflow
 | Gate | File | Role |
 |------|------|------|
-| TR5 | [[02-design/E6x--project-structure-guide]] | Directory conventions |
-| TR5 | [[02-design/E6x--code-review-and-refactoring]] | Quality standards |
-| TR5 | [[02-design/E6x--file-dependencies]] | Dependency map |
-| TR5 | [[02-design/E6x--class-relationships]] | Class diagram |
+| TR5 | [[../5-views/project-structure]] | Directory conventions |
+| TR5 | [[./code-review-checklist]] | Quality standards |
+| TR5 | [[../5-views/file-dependencies]] | Dependency map |
+| TR5 | [[../5-views/class-relationships]] | Class diagram |
 
 #### Extends E7 -- Test & Acceptance
 | Gate | File | Role |
 |------|------|------|
-| TR5 | [[_flows-bdd-test/v-model-right/E7x--test-plan-and-readiness]] | Test plan, gap matrix, mock spectrum |
-| TR5 | [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10]] | PM alignment Q1-Q10 |
-| TR5 | [[_flows-bdd-test/v-model-left/E7x--module-spec-v1-core]] | Module test cases |
+| TR5 | [[./test-plan]] | Test plan, gap matrix, mock spectrum |
+| TR5 | [[../1-decisions/ADR-0013-pm-alignment-q1]] | PM alignment Q1-Q10 |
+| TR5 | [[../2-contracts/modules/INDEX]] | Module test cases |
 
-> See [[_flows-bdd-test/_MOC]] for the consolidated cross-phase folder containing user journeys, interaction flows, BDD scenarios, and test plan governance.
+> See [[../2-contracts/flows/business/BF-0001-work-order-lifecycle]] for the consolidated cross-phase folder containing user journeys, interaction flows, BDD scenarios, and test plan governance.
 
 #### Extends E3+E6 -- AI Agent Subsystem
 | Gate | File | Role |
 |------|------|------|
-| TR3 | [[02-design/agent-harness/harness-architecture]] | Agent framework architecture |
-| TR4 | [[02-design/agent-harness/diagnostic-intelligence-architecture]] | Diagnostic AI design |
-| TR4 | [[02-design/agent-harness/diagnostic-state-machine-spec]] | State machine spec |
-| TR4 | [[02-design/agent-harness/graph-flow-redesign]] | LangGraph workflow |
-| TR4 | [[02-design/agent-harness/config-evolution]] | Config management |
-| TR4 | [[02-design/agent-harness/problem-card-spec]] | Data structure |
-| TR4 | [[02-design/agent-harness/poc-spec]] | PoC scope |
-| TR5 | [[02-design/agent-harness/gap-analysis]] | Harness gaps |
-| TR5 | [[02-design/agent-harness/migration-roadmap]] | Migration plan |
-| TR5 | [[02-design/agent-harness/wbs-harness-development]] | Harness WBS |
-| TR5 | [[02-design/agent-harness/optimization-strategy]] | Performance plan |
-| TR5 | [[02-design/agent-harness/knowledge-asset-review-checklist]] | Knowledge validation |
+| TR3 | [[../1-decisions/module-boundary/agent]] | Agent framework architecture |
+| TR4 | diagnostic-intelligence-architecture | Diagnostic AI design |
+| TR4 | diagnostic-state-machine-spec | State machine spec |
+| TR4 | graph-flow-redesign | LangGraph workflow |
+| TR4 | config-evolution | Config management |
+| TR4 | [[../2-contracts/modules/problem-card-engine]] | Data structure |
+| TR4 | poc-spec | PoC scope |
+| TR5 | gap-analysis | Harness gaps |
+| TR5 | migration-roadmap | Migration plan |
+| TR5 | wbs-harness-development | Harness WBS |
+| TR5 | optimization-strategy | Performance plan |
+| TR5 | knowledge-asset-review-checklist | Knowledge validation |
 
 #### Extends E9 -- Operations
 | Gate | File | Role |
 |------|------|------|
-| TR9 | [[04-deliver/E9x--documentation-and-maintenance]] | Maintenance SOP |
+| TR9 | E9x--documentation-and-maintenance | Maintenance SOP |
 
 #### Gate Reviews -- Validation Gates
 | Gate | File | Role |
 |------|------|------|
-| TR6 | [[03-develop/GR6--code-complete]] | Code complete validation |
-| TR7 | [[03-develop/GR7--integration]] | Integration validation |
-| TR10 | [[04-deliver/GR10--ga-readiness]] | GA readiness validation |
+| TR6 | [[./quality-gates#b-gr6--code-complete]] | Code complete validation |
+| TR7 | [[./quality-gates#c-gr7--integration]] | Integration validation |
+| TR10 | [[./quality-gates#d-gr10--ga-readiness]] | GA readiness validation |
 
 #### Cross-Gate -- Validation & Feedback
 | Gate | File | Role |
 |------|------|------|
-| TR10 | [[_gap-analysis/gap-analysis-report]] | Gap identification |
-| TR10 | [[_gap-analysis/gap-analysis-report-cn]] | Gap report (Chinese) |
+| TR10 | gap-analysis-report | Gap identification |
+| TR10 | gap-analysis-report-cn | Gap report (Chinese) |
 
 #### Domain Knowledge -- Parallel Track (feeds into TR3-TR5)
 | Gate | File | Role |
 |------|------|------|
-| TR2+ | [[_domain-knowledge/locksmith-checklist/_MOC]] | 19 domain data items |
-| TR2+ | [[_domain-knowledge/requirements/_MOC]] | 9 data collection folders |
+| TR2+ | [[../0-principles/glossary]] | 19 domain data items |
+| TR2+ | [[../4-exploration/prd-2026-q1-v1-launch]] | 9 data collection folders |
 
 ---
 
@@ -474,7 +474,7 @@ Reviewer: ____
 - [ ] Support team trained and has escalation paths
 
 ### 4. Gap Analysis & Technical Debt
-- [ ] Gap analysis completed (reference: [[_gap-analysis/]])
+- [ ] Gap analysis completed (reference: )
 - [ ] Known technical debt catalogued in backlog with priority
 - [ ] Security findings from TR8 review fully remediated or risk-accepted
 - [ ] Performance bottlenecks identified and improvement plan drafted

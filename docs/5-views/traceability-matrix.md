@@ -5,24 +5,24 @@ status: SSOT (Single Source of Truth — 23 user flows F-001~F-023)
 last_updated: 2026-05-07
 owners: [PM, Tech Lead, QA Lead]
 related:
-  - "[[_MOC]]"
-  - "[[north-star-requirements]]"
-  - "[[_review-notes]]"
-  - "[[v-model-right/E7x--test-plan-and-readiness]]"
-  - "[[v-model-right/E7--bdd-scenarios]]"
-  - "[[decision-log/E7x--pm-alignment-Q1-Q10]]"
+  - "[[../README]]"
+  - "[[../2-contracts/functional-requirements/FR-0001-line-intake]]"
+  - "_review-notes"
+  - "[[../3-process/test-plan]]"
+  - "[[../3-process/bdd/all-features]]"
+  - "[[../1-decisions/ADR-0013-pm-alignment-q1]]"
 ---
 
 # ⭐ _flows-bdd-test/ — Master Alignment Matrix (SSOT)
 
 > **本檔為 `_flows-bdd-test/` 的流程北極星**（Single Source of Truth）。任何關於 23 條 user flow（F-001~F-023）的問題，都從這裡開始查。
 >
-> **配對北極星**：[[north-star-requirements]]（需求北極星，REQ-NNN catalog）。流程 SSOT（本檔）對應 V-Model 的「user flow 層」；需求 SSOT 對應 V-Model 左上頂點「Requirements 層」。
+> **配對北極星**：[[../2-contracts/functional-requirements/FR-0001-line-intake]]（需求北極星，REQ-NNN catalog）。流程 SSOT（本檔）對應 V-Model 的「user flow 層」；需求 SSOT 對應 V-Model 左上頂點「Requirements 層」。
 >
 > **使用方式**：
 > 1. 找你關心的 F-XXX → §1 主對齊矩陣查橫排所有對應
 > 2. 對齊狀態為 ⚠ / ❌ 的 row → 看「修正動作」column
-> 3. 有 PM 阻塞 column 標 Q-N → 推 PM 拍板（[[decision-log/E7x--pm-alignment-Q1-Q10|決策矩陣]]）
+> 3. 有 PM 阻塞 column 標 Q-N → 推 PM 拍板（[[../1-decisions/ADR-0013-pm-alignment-q1|決策矩陣]]）
 
 > **目的**：以 **E7x F-001~F-023（23 條 user flow，現有 SSOT）為主鍵**，建立**單一對照表**，讓 PM / TL / QA 從任何一個 F-XXX 編號可一眼看出：
 > - E1x 對應角色 + stage
@@ -33,7 +33,7 @@ related:
 > - PM 阻塞題號
 > - **對齊狀態 + 修正動作**
 >
-> **資料來源**：E7x test plan §2 + E7 §Ⅲ.b + [[_review-notes]] 觀察。
+> **資料來源**：E7x test plan §2 + E7 §Ⅲ.b + _review-notes 觀察。
 >
 > **使用方式**：
 > 1. 找你關心的 F-XXX → 查橫排所有對應
@@ -100,7 +100,7 @@ related:
 > - 既有檔（_SSOT 全 23 row、E7 BDD 19 Features、E5x×3 Flows）**不重命名**
 > - 新增內容用新前綴：例如新建 BDD scenarios 用 `FT-NNN`、新加測試用 `AT/ST/IT/UT/PT/SEC-NNN`
 > - 完整遷移（所有舊 ID 改名）等下次 PR 評估
-> - 詳細設計見 [[_RESTRUCTURE-PROPOSAL#3-提案-b統一-id-系統|提案 §3.1]]
+> - 詳細設計見 提案 §3.1
 
 ### 1.5.a User Flows（F-001~F-023 → US-001~US-023）
 
@@ -164,7 +164,7 @@ related:
 
 ## 2. 反向缺口（BDD Feature 有但 E7x 沒列獨立流程）
 
-對應 [[v-model-right/E7--bdd-scenarios#ⅲb-feature--e7x-流程編號對照f-101f-201--f-001f-023|E7 §Ⅲ.b]] 反向缺口：
+對應 [[../3-process/bdd/all-features#ⅲb-feature--e7x-流程編號對照f-101f-201--f-001f-023|E7 §Ⅲ.b]] 反向缺口：
 
 | BDD Feature | 隱含於 / 屬性 | 修正動作 |
 |------------|-------------|---------|
@@ -270,7 +270,7 @@ related:
 
 - [ ] 從任一 F-XXX 可在 1 分鐘內找到所有對應檔案位置
 - [ ] 每個 ⚠ / ❌ row 都有具體「修正動作」（無 placeholder）
-- [ ] PM 阻塞 column 與 [[decision-log/E7x--pm-alignment-Q1-Q10]] §12 追蹤表雙向一致
+- [ ] PM 阻塞 column 與 [[../1-decisions/ADR-0013-pm-alignment-q1]] §12 追蹤表雙向一致
 - [ ] 反向缺口（§2）每行都有歸宿（隱含 / cross-cutting / 補 F-024+）
 - [ ] §5 P0 動作完成率 100% 視為 Phase 4 完成
 
@@ -281,8 +281,8 @@ related:
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-05-07 | Claude (assisted) | 初版：以 E7x F-001~F-023 為主鍵，整合 E1x / E5x×3 / E7 / E7x×3 共 8 維對應；標出 4 orphan + 10 partial + 8 aligned + 1 cross-cutting；建立 P0 / P1 / P2 修正優先序 |
-| 2026-05-07 | PM + Claude (sync) | **PM Q1-Q10 全拍板同步**：10 row 中 9 row 的 PM Block column 從 `**Q-N**` → `✅ Q-N=X`；對齊狀態升級 — F-010 ⚠blocked→✅aligned, F-013 ⚠partial→✅aligned, F-011/F-012/F-014/F-022 ❌orphan→⚠blocked（待 Q7=B provider 選型 / Q3=C Web 匿名 token 實作）, F-016 ❌orphan→⚠partial（Q5=B Soft SLA）, F-004/F-008/F-019 ⚠blocked→⚠partial. 詳見 [[decision-log/E7x--pm-alignment-Q1-Q10#12-決策追蹤總表]]。 |
-| 2026-05-07 | Claude (assisted) | **新增 §1.5 Legacy ID → New ID 對照表（Phase 3 漸進遷移第一步，alias 不改舊 ID）**：覆蓋 23 條 user flows（F→US）、19 個 BDD Features（F-1NN/F-2NN→FT）+ F-110 新增、E5x Flows / Modules / Decisions（→UC/MOD/DEC）、新類型 QA/COM/AT/ST/IT/UT/PT/SEC。詳見 [[_RESTRUCTURE-PROPOSAL#3-提案-b統一-id-系統|提案 §3.1]]。 |
+| 2026-05-07 | PM + Claude (sync) | **PM Q1-Q10 全拍板同步**：10 row 中 9 row 的 PM Block column 從 `**Q-N**` → `✅ Q-N=X`；對齊狀態升級 — F-010 ⚠blocked→✅aligned, F-013 ⚠partial→✅aligned, F-011/F-012/F-014/F-022 ❌orphan→⚠blocked（待 Q7=B provider 選型 / Q3=C Web 匿名 token 實作）, F-016 ❌orphan→⚠partial（Q5=B Soft SLA）, F-004/F-008/F-019 ⚠blocked→⚠partial. 詳見 [[../1-decisions/ADR-0013-pm-alignment-q1#12-決策追蹤總表]]。 |
+| 2026-05-07 | Claude (assisted) | **新增 §1.5 Legacy ID → New ID 對照表（Phase 3 漸進遷移第一步，alias 不改舊 ID）**：覆蓋 23 條 user flows（F→US）、19 個 BDD Features（F-1NN/F-2NN→FT）+ F-110 新增、E5x Flows / Modules / Decisions（→UC/MOD/DEC）、新類型 QA/COM/AT/ST/IT/UT/PT/SEC。詳見 提案 §3.1。 |
 | 2026-05-07 | Claude (assisted) | **PR #40 5-track 解綁後狀態升級**：新增「立即可測 ✅」spec-driven 定義（規格 + test infra + PM 拍板齊備 → 可寫測試，不要求 production code 100%）。5 條流程升 ✅ aligned：F-004（T1 dispatcher seed）/ F-008（T2 Web token spec）/ F-016（T4 F-110 BDD）/ F-019（T1 dispatcher 角色）/ F-022（T2 getWorkOrderPublicStatus spec）。新統計：✅ 15 / ⚠ partial 5 / ⚠ blocked 3（全綁 Q7=B provider 選型）/ ❌ 0。 |
 | 2026-05-08 | Claude (assisted) | **PR #45-49 production code 完成**：5 條 spec-driven aligned 升「impl complete」+ F-018 順手升 ✅。**PR #45** F-004 dispatcher RBAC 升級修補 P0 + 客服繞過 audit / **PR #46** F-008 HMAC 真實簽章 + scope_change_service real（CAS 防 race，27 test）/ **PR #47** F-010 3 reschedule/delay ops + LINE Push real（順手解 F-018 LINE Push integration TODO）/ **PR #48** F-016 SLA Soft alert + WS publish + dashboard 紅燈（Q5=B 合規驗證 — payload 0 賠償字串）/ **PR #49** F-019 updateRolePermissions API + ROLE_HIERARCHY + WS + RolePermissionsEditor UI。新統計：✅ 16 / ⚠ partial 4 / ⚠ blocked 3（仍綁 Q7=B）/ ❌ 0。 |
 | 2026-05-08 | Claude (assisted) | **§4 共通對齊缺口收尾 4 項 ✅**：(1) E5x workflow 3 檔 F-NNN 引用補齊（work-order 16 Flow / dispatch §1-§9 / admin-governance G1-G4）；(2) admin-governance §1.1 角色表 dispatcher Q1=A 標已拍板 + 新增 operations_director（Q2=A）+ ROLE_HIERARCHY 階層說明；(3) E7x module-spec 模組 1-8 全補 BDD Feature + 流程引用；(4) E7 F-107 雙閾值設計釐清（Feature header callout 0.90 main / 0.85 edge 非衝突，calibration 變動需同步）。§4 表加狀態 column；剩 1 項 ⚠ 部分解（F-011 BDD 仍綁 Q7=B）。 |

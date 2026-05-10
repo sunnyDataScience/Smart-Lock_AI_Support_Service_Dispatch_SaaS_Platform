@@ -146,10 +146,10 @@ extracted_from: docs/_flows-bdd-test/v-model-right/E7--bdd-scenarios.md
 
 ### Ⅲ.b Feature ↔ E7x 流程編號對照（F-101/F-201 ↔ F-001~F-023）
 
-> **背景**：本檔（E7 BDD scenarios）與 [[_flows-bdd-test/v-model-right/E7x--test-plan-and-readiness|E7x test plan]] 並存兩套 F 編號系統，**用途不同**：
+> **背景**：本檔（E7 BDD scenarios）與 [[../test-plan|E7x test plan]] 並存兩套 F 編號系統，**用途不同**：
 >
 > - **E7 Feature ID（F-101~F-109 / F-201~F-210）**：以「**Feature 規格檔**」（單一 `.feature`）為單位，按 V1.0/V2.0 模組分類，總共 19 個。每個 Feature 內含 3–6 個 Scenario。
-> - **E7x 流程編號（F-001~F-023）**：以「**使用者流程**」（end-to-end user flow）為單位，跨 V1.0/V2.0、跨多 Feature，總共 23 個。用於 [[_flows-bdd-test/v-model-right/E7x--test-plan-and-readiness#2-使用者流程-×-前端頁面-×-api-×-即時-channel-×-外部依賴-對齊矩陣|§2 對齊矩陣]] 與 [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10|PM Q1–Q10 對齊文件]]。
+> - **E7x 流程編號（F-001~F-023）**：以「**使用者流程**」（end-to-end user flow）為單位，跨 V1.0/V2.0、跨多 Feature，總共 23 個。用於 [[../test-plan#2-使用者流程-×-前端頁面-×-api-×-即時-channel-×-外部依賴-對齊矩陣|§2 對齊矩陣]] 與 [[../../1-decisions/ADR-0013-pm-alignment-q1|PM Q1–Q10 對齊文件]]。
 >
 > 兩套系統為 **N:M 對應**（一條 E7x 流程可跨多 Feature；一個 Feature 可涵蓋多條 E7x 流程）。本表為人工對照，新增 Feature 或新增 E7x 流程時請同步更新本表。
 
@@ -182,7 +182,7 @@ extracted_from: docs/_flows-bdd-test/v-model-right/E7--bdd-scenarios.md
 > **覆蓋率**：23 條 E7x 流程中 **20 條有 BDD Feature 對應**、**3 條缺**（F-011、F-022、F-023）。
 >
 > **缺口處理建議**：
-> - F-011 / F-022：等 PM 拍板 [[_flows-bdd-test/decision-log/E7x--pm-alignment-Q1-Q10|Q3 / Q7]] 後新增對應 BDD Feature
+> - F-011 / F-022：等 PM 拍板 [[../../1-decisions/ADR-0013-pm-alignment-q1|Q3 / Q7]] 後新增對應 BDD Feature
 > - F-016：✅ 已補 F-110（Q5=B 拍板：Soft SLA，破線僅警報，無賠償）
 > - F-023（cross-cutting）：建議獨立新增 `F-111 錯誤邊界與離線體驗`（V1.0 已實作，BDD 補規格即可）
 >
