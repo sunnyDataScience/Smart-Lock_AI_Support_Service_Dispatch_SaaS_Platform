@@ -60,33 +60,6 @@ export const URGENCY_TONE: Record<Urgency, { color: string; bg: string }> = {
   high: { color: "var(--badge-danger-fg)", bg: "var(--badge-danger-bg)" },
 };
 
-/**
- * Backward-compat exports — 保留 STATUS_GROUP_STYLE / URGENCY_STYLE 結構讓
- * 既有 8 處 consumer（kanban/map/sidebar 等）暫時不破。下一輪逐步遷移到
- * STATUS_GROUP_TONE + useTranslations("status.workOrderGroup") 的純 i18n 模式。
- *
- * 這些 label 為 zh-TW；切英文時，consumer 仍顯示中文 — 已知 trade-off。
- */
-export const STATUS_GROUP_STYLE: Record<
-  StatusGroup,
-  { label: string; color: string; bg: string }
-> = {
-  pending: { label: "待處理", ...STATUS_GROUP_TONE.pending },
-  dispatched: { label: "已派工", ...STATUS_GROUP_TONE.dispatched },
-  in_progress: { label: "處理中", ...STATUS_GROUP_TONE.in_progress },
-  done: { label: "已完成", ...STATUS_GROUP_TONE.done },
-  cancelled: { label: "已取消", ...STATUS_GROUP_TONE.cancelled },
-};
-
-export const URGENCY_STYLE: Record<
-  Urgency,
-  { label: string; color: string; bg: string }
-> = {
-  low: { label: "低", ...URGENCY_TONE.low },
-  medium: { label: "中", ...URGENCY_TONE.medium },
-  high: { label: "高", ...URGENCY_TONE.high },
-};
-
 function shortId(id: string): string {
   return id.slice(0, 8);
 }
