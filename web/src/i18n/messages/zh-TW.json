@@ -389,7 +389,10 @@
         "confirmClose": "確認結案",
         "escalate": "升級工單",
         "signature": "電子簽章",
-        "reschedule": "送出改期"
+        "reschedule": "送出改期",
+        "assign": "指派技師",
+        "reassign": "重新指派",
+        "actionFailed": "操作失敗：{error}"
       },
       "toasts": {
         "accepted": "已接受派工",
@@ -405,7 +408,10 @@
         "actionFailed": "操作失敗：{msg}",
         "loadFailed": "載入工單失敗：{msg}"
       },
-      "loading": "載入中…",
+      "loading": {
+        "loadFailed": "載入工單失敗：{error}",
+        "loadingOrder": "載入中…"
+      },
       "infoBanner": "問題診斷摘要、客戶上傳媒體、工單歷程為即時資料；SLA 時間軸、對話內容、完工報告與異常為示意，待 SLA / 完工報告模組接入後將顯示真實資料。",
       "sla": {
         "create": "建立",
@@ -414,7 +420,15 @@
         "inProgress": "進行中",
         "complete": "完工",
         "confirm": "確認",
-        "remaining": "剩餘 02:15"
+        "remaining": "剩餘 {time}",
+        "stage": {
+          "created": "建立",
+          "dispatched": "派工",
+          "accepted": "接受",
+          "inProgress": "進行中",
+          "completed": "完工",
+          "confirmed": "確認"
+        }
       },
       "problemCard": {
         "title": "問題診斷摘要",
@@ -445,7 +459,11 @@
         "empty": "客戶尚未上傳任何媒體",
         "video": "🎬 影片",
         "alt": "客戶上傳",
-        "submittedAt": "提交時間：{time}"
+        "submittedAt": "提交時間：{time}",
+        "badge": "LINE",
+        "loadFailed": "載入媒體失敗：{error}",
+        "videoLabel": "🎬 影片",
+        "imageAlt": "客戶上傳"
       },
       "timeline": {
         "title": "工單歷程",
@@ -456,7 +474,8 @@
           "system": "系統",
           "tech": "技師",
           "schedule": "排程",
-          "complete": "完工"
+          "complete": "完工",
+          "technician": "技師"
         },
         "events": {
           "created": "工單建立",
@@ -468,13 +487,27 @@
           "completed": "工單完工",
           "lastUpdate": "最後更新",
           "currentStatus": "目前狀態：{status}"
+        },
+        "filterAll": "全部",
+        "comingSoon": "即將推出",
+        "event": {
+          "created": "工單建立",
+          "createdFromPc": "由問題卡 {shortId} 衍生",
+          "scheduledTitle": "預計到場時間",
+          "scheduledWithTech": "技師 {shortId} 已排程",
+          "scheduledNoTech": "尚未指派技師",
+          "arrivedTitle": "技師抵達現場",
+          "completedTitle": "工單完工",
+          "lastUpdatedTitle": "最後更新",
+          "lastUpdatedDetail": "目前狀態：{status}"
         }
       },
       "conversation": {
         "title": "LINE 對話記錄（示意）",
         "openInNewWindow": "在新視窗開啟",
         "placeholder": "示意：問題卡關聯對話將顯示於此",
-        "readOnly": "唯讀模式 — 此為 LINE 對話備份"
+        "readOnly": "唯讀模式 — 此為 LINE 對話備份",
+        "readOnlyNotice": "唯讀模式 — 此為 LINE 對話備份"
       },
       "completionReport": {
         "title": "完工報告（示意）",
@@ -612,6 +645,200 @@
         "messageLabel": "告知客戶訊息（必填，最多 120 字）",
         "messagePlaceholder": "技師臨時被叫去處理鄰居緊急事件，請選一個方便的備選時段",
         "channelLabel": "通知管道",
+        "warning": "MVP 版本不會真的推播 LINE/SMS，但首選時段會立即更新到 scheduled_at；24 小時內最多可改期 3 次，超過將回 RESCHEDULE_LIMIT_EXCEEDED。",
+        "back": "返回",
+        "submit": "送出改期",
+        "submitting": "送出中…"
+      },
+      "header": {
+        "breadcrumb": "首頁 > 工單管理 > 工單列表 > {shortId}",
+        "urgencyLabel": "緊急度：{label}",
+        "brandLabel": "品牌：",
+        "modelLabel": "型號：",
+        "addressLabel": "地址：",
+        "linkedProblemCard": "關聯問題卡：{shortId}"
+      },
+      "info": {
+        "title": "提示",
+        "banner": "問題診斷摘要、客戶上傳媒體、工單歷程為即時資料；SLA 時間軸、對話內容、完工報告與異常為示意，待 SLA / 完工報告模組接入後將顯示真實資料。"
+      },
+      "toast": {
+        "accepted": "已接受派工",
+        "completed": "工單已標記完工",
+        "cancelled": "工單已取消",
+        "assigned": "已指派技師",
+        "confirmed": "客戶已確認結案",
+        "signatureDone": "雙方簽章完成",
+        "escalatedOps": "已升級至營運主管",
+        "escalatedTenant": "已升級至租戶管理員",
+        "rescheduleSent": "改期請求已送出（{count} 個備選時段）"
+      },
+      "pcSummary": {
+        "title": "問題診斷摘要",
+        "badge": "ProblemCard",
+        "noPc": "此工單未關聯問題卡",
+        "loadFailed": "載入失敗：{error}",
+        "loading": "載入問題卡中…",
+        "urgencyLabel": "緊急度 {label}",
+        "aiConfidence": "AI 信心 {percent}%",
+        "status": {
+          "draft": "草稿",
+          "confirmed": "已確認",
+          "resolved": "已解決"
+        },
+        "field": {
+          "brand": "品牌",
+          "model": "型號",
+          "category": "類別",
+          "conversation": "關聯對話",
+          "symptom": "症狀描述"
+        }
+      },
+      "completionMock": {
+        "title": "完工報告（示意）",
+        "submittedAt": "提交時間：—",
+        "functionTests": "功能測試",
+        "tests": {
+          "fingerprint": "指紋解鎖",
+          "password": "密碼解鎖",
+          "battery": "電池電壓 (示意)"
+        }
+      },
+      "completeDialog": {
+        "title": "標記完工",
+        "summaryLabel": "完工摘要",
+        "summaryRequired": "*",
+        "summaryPlaceholder": "例如：更換主板、測試指紋與密碼解鎖正常",
+        "summaryCounter": "{current} / 2000",
+        "amountLabel": "實收金額（NT$，可留空）",
+        "amountPlaceholder": "例如：3500.00",
+        "amountInvalid": "金額格式應為小數兩位內的數字",
+        "cancel": "取消",
+        "submit": "確認完工",
+        "submitting": "送出中…"
+      },
+      "assignDialog": {
+        "titleAssign": "指派技師",
+        "titleReassign": "重新指派技師",
+        "scoreFormula": "綜合分 = 0.4 技能 + 0.3 距離 + 0.3 評分",
+        "candidateLabel": "候選技師（依綜合分排序）",
+        "required": "*",
+        "loadingCandidates": "計算候選技師中…",
+        "loadFailed": "載入失敗：{error}",
+        "noCandidates": "目前無可派候選技師（已排除歇業 / 熔斷狀態）",
+        "currentlyAssigned": "目前已指派",
+        "scoreTooltip": "綜合分（0~100）",
+        "skillPercent": "技能 {percent}%",
+        "distance": "距離 {value}",
+        "distanceInArea": "區內",
+        "distanceKm": "≈ {km} km",
+        "rating": "評分 {rating} / 5",
+        "etaMinutes": "{min} 分鐘可達",
+        "skillsPrefix": "專長 {names}",
+        "skillsMore": "…",
+        "reasonLabel": "指派原因",
+        "reason": {
+          "auto_dispatch_exhausted": "自動派工已耗盡候選",
+          "customer_requested_specific_tech": "客戶指定技師",
+          "skill_shortage_override": "技能不足但人手吃緊",
+          "sla_rescue": "SLA 救援",
+          "other": "其他"
+        },
+        "reasonTextLabel": "補充說明（可留空）",
+        "reasonTextPlaceholder": "例如：客戶指名張師傅、附近僅此技師具備該品牌維修經驗",
+        "reasonTextCounter": "{current} / 500",
+        "cancel": "取消",
+        "submit": "確認指派",
+        "submitting": "送出中…"
+      },
+      "cancelDialog": {
+        "title": "取消工單",
+        "reasonLabel": "取消原因（可留空）",
+        "reasonPlaceholder": "例如：客戶改約、重複建立工單",
+        "counter": "{current} / 500",
+        "back": "返回",
+        "submit": "確認取消",
+        "submitting": "送出中…"
+      },
+      "confirmDialog": {
+        "title": "客戶確認結案",
+        "ratingLabel": "滿意度評分",
+        "required": "*",
+        "starAria": "給 {n} 星",
+        "ratingHint": {
+          "1": "極不滿意",
+          "2": "不滿意",
+          "3": "普通",
+          "4": "滿意",
+          "5": "非常滿意"
+        },
+        "feedbackLabel": "客戶意見（可留空，最多 1000 字）",
+        "feedbackPlaceholder": "例如：技師準時到場、解說清楚，鎖具運作正常",
+        "counter": "{current} / 1000",
+        "warning": "確認結案為終局狀態 — 一旦送出無法再切回 in_progress / completed。",
+        "back": "返回",
+        "submit": "確認結案",
+        "submitting": "送出中…"
+      },
+      "signatureDialog": {
+        "title": "雙方電子簽章",
+        "intro": "客戶與技師雙方簽章將寫入 digital_signatures，並以 SHA-256 產生整合性雜湊。已簽章的角色不會被覆寫；雙方均完成後此工單無法再次簽章。",
+        "customerLabel": "客戶簽章 *",
+        "technicianLabel": "技師簽章 *",
+        "gpsLabel": "GPS 位置（可選，作為簽章地點佐證）",
+        "captureGps": "取得目前位置",
+        "latPlaceholder": "緯度（lat）",
+        "lngPlaceholder": "經度（lng）",
+        "errorNoGeolocation": "此裝置不支援定位",
+        "errorLocateFailed": "定位失敗",
+        "errorLatLngNumeric": "經緯度需為數字",
+        "back": "返回",
+        "submit": "確認簽章",
+        "submitting": "送出中…"
+      },
+      "signaturePad": {
+        "uploadedLength": "已上傳（{chars} 字元）",
+        "clear": "清除重傳",
+        "selectFile": "選擇簽章圖片（PNG / JPEG / SVG，<2 MB）",
+        "errorImageOnly": "請選擇圖片檔（PNG / JPEG / SVG）",
+        "errorTooLarge": "檔案過大，請小於 2 MB",
+        "errorReadFailed": "檔案讀取失敗",
+        "base64Label": "base64"
+      },
+      "escalateDialog": {
+        "title": "升級工單",
+        "level": {
+          "operations_manager": {
+            "label": "升級至營運主管",
+            "hint": "技師回報無法處理 / SLA 即將逾時 / 客訴需要更高層介入時。"
+          },
+          "tenant_admin": {
+            "label": "升級至租戶管理員",
+            "hint": "金額爭議 / 流程例外 / 跨部門協調，需要租戶最高權限拍板。"
+          }
+        },
+        "reasonLabel": "升級原因（必填，最多 500 字）",
+        "reasonPlaceholderActive": "說明為何需要 {label}（將寫入 service_report 稽核軌跡）",
+        "reasonPlaceholderFallback": "請填寫升級原因",
+        "counter": "{current} / 500",
+        "warning": "升級後 priority 會推進到 urgent，工單仍維持當前狀態以等候上層覆審。",
+        "back": "返回",
+        "submit": "確認升級",
+        "submitting": "送出中…"
+      },
+      "rescheduleDialog": {
+        "title": "送出改期請求",
+        "slotTitle": "備選時段 {n}",
+        "removeSlot": "移除",
+        "startTime": "開始時間",
+        "endTime": "結束時間",
+        "addSlot": "+ 新增備選時段（{current}/3）",
+        "messageLabel": "告知客戶訊息（必填，最多 120 字）",
+        "messagePlaceholder": "技師臨時被叫去處理鄰居緊急事件，請選一個方便的備選時段",
+        "messageCounter": "{current} / 120",
+        "channelLabel": "通知管道",
+        "channelLine": "LINE",
+        "channelLineSms": "LINE + SMS",
         "warning": "MVP 版本不會真的推播 LINE/SMS，但首選時段會立即更新到 scheduled_at；24 小時內最多可改期 3 次，超過將回 RESCHEDULE_LIMIT_EXCEEDED。",
         "back": "返回",
         "submit": "送出改期",
