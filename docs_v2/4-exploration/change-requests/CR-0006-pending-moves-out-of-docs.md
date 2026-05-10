@@ -2,20 +2,31 @@
 id: CR-0006
 title: 4 內容應搬離 docs_v2/ — 進 agent/skills/data/ 與 data/ 與 SQL/seed/
 date: 2026-05-10
-status: partial-executed
-partial_executed_at: 2026-05-10
-partial_executed_what: |
-  Commit 6aac976:
+status: executed
+executed_at: 2026-05-10
+executed_what: |
+  Commit 6aac976 (Phase 1):
   - agent/skills/data/_common/faq/SKILL.md (258 行) ✅
   - agent/skills/data/_common/sentiment-keywords/SKILL.md (73 行) ✅
   - data/docs/manuals/INDEX.md (49 行) ✅
   - data/docs/conversations/INDEX.md (新建目錄+檔，66 行) ✅
   - SQL/seeds/README.md (22 行；PII 警示 + demo accounts) ✅
   - SQL/seeds/technicians.sql 已是 demo seed (無 PII)，無需修改
-  待 ops 對齊：
-  - 真實技師名冊 → Secret Manager / ops repo
+
+  本 commit (Phase 2 — PII governance path):
+  - PII Audit (../audits/CR-0006-pii-audit-2026-05-10.md): NO_REAL_PII
+    確認 13_合作師傅名冊 為 AI mock data (0 個 phone/email/address pattern)
+  - scripts/ops/sync-technicians-roster.sh — GCP Secret Manager 載入路徑
+    (與專案既有 secrets pattern 一致：cedar-scope-489604-g3 / TECHNICIANS_ROSTER)
+  - .ops/ 加入 .gitignore (script 自動處理)
+  - technicians.PII-WARNING.md 更新為 EXECUTED status
 phase: 4-exploration / change-request
-owners: [AI auto-mode (executed partial)]
+owners: [AI auto-mode (executed)]
+ops_pending: |
+  唯一遺留：當未來真實 roster 進來時，ops 需執行：
+    gcloud secrets create TECHNICIANS_ROSTER --replication-policy=automatic
+    ./scripts/ops/sync-technicians-roster.sh --upload <real-csv>
+  此為 ops 例行操作，非阻擋 CR-0006 完成。
 related:
   - "CR-0001-vibecoding-6tier-migration.md (parent CR)"
   - "../audits/CR-0001-status-2026-05-10.md (§3.3 MOVE-OUT-OF-DOCS)"
