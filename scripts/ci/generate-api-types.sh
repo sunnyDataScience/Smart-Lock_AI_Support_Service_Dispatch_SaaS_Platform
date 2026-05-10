@@ -16,7 +16,25 @@ set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
-SPEC="docs/02-design/specs/openapi.yaml"
+# CR-0009 dual-write: docs_v2/ is the new SSOT; docs/ remains as legacy mirror
+# during 90-day cutover. Both paths must stay in sync until CR-0008 removes docs/.
+SPEC_NEW="docs_v2/2-contracts/api/openapi.yaml"
+SPEC_LEGACY="docs/02-design/specs/openapi.yaml"
+if [[ -f "$SPEC_NEW" && -f "$SPEC_LEGACY" ]]; then
+  if ! diff -q "$SPEC_NEW" "$SPEC_LEGACY" >/dev/null 2>&1; then
+    echo "ERROR (CR-0009): SPEC drift between"
+    echo "  new:    $SPEC_NEW"
+    echo "  legacy: $SPEC_LEGACY"
+    echo "Both must stay in sync during the 90-day cutover (until CR-0008)."
+    diff "$SPEC_NEW" "$SPEC_LEGACY" | head -20
+    exit 1
+  fi
+  SPEC="$SPEC_NEW"
+elif [[ -f "$SPEC_NEW" ]]; then
+  SPEC="$SPEC_NEW"
+else
+  SPEC="$SPEC_LEGACY"
+fi
 CHECK_ONLY=0
 for arg in "$@"; do
   [[ "$arg" == "--check" ]] && CHECK_ONLY=1

@@ -2,14 +2,31 @@
 id: CR-0009
 title: CI 腳本路徑更新 — docs/02-design/specs/ → docs/2-contracts/api/
 date: 2026-05-10
-status: draft
+status: executed
+executed_at: 2026-05-10
+executed_what: |
+  Strategy A (dual-write) 已實作：
+  - 5 ci scripts 加 SPEC_NEW + SPEC_LEGACY + drift check：
+    + generate-api-types.sh
+    + mock-server.sh (含 docker volume 路徑)
+    + check-operationid-orphans.sh (openapi + asyncapi 雙路徑)
+    + contract-schemathesis.sh
+    + asyncapi-validate.mjs
+  - 4 github workflows trigger paths 加 docs_v2/ + 加 drift check step:
+    + spec-lint.yml (含 verify spec drift step + lint 改用 docs_v2/)
+    + api-types-sync.yml
+    + orphan-check.yml (加 docs_v2/2-contracts/{api,flows,pages}/**)
+    + mock-smoke.yml
+  - 本機驗證 ./scripts/ci/generate-api-types.sh --check ✅ pass
+  - 本機驗證 ./scripts/ci/check-operationid-orphans.sh --quiet ✅ OK
+  - 兩邊 spec 確認在 sync (diff -q ✓)
 phase: 4-exploration / change-request
 related:
   - "CR-0001-vibecoding-6tier-migration.md (parent)"
   - "CR-0007-docs-supersede-cutover.md"
-  - "CR-0008-docs-final-rename.md (待建)"
+  - "CR-0008-docs-final-rename.md (依賴本 CR 完成 30 天 + 90 天觀察)"
   - "../../3-process/migration-cutover-runbook.md"
-trigger: 可獨立啟動；推薦在 CR-0007 90 天觀察期內並行
+trigger: 已執行於 2026-05-10
 ---
 
 # CR-0009 — CI Path Update

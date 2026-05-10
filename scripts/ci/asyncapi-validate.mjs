@@ -25,7 +25,18 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..', '..');
-const SPEC_PATH = resolve(REPO_ROOT, 'docs/02-design/specs/asyncapi.yaml');
+// CR-0009 dual-write: prefer docs_v2/ (new SSOT); enforce drift check
+const SPEC_NEW = resolve(REPO_ROOT, 'docs_v2/2-contracts/api/asyncapi.yaml');
+const SPEC_LEGACY = resolve(REPO_ROOT, 'docs/02-design/specs/asyncapi.yaml');
+if (existsSync(SPEC_NEW) && existsSync(SPEC_LEGACY)) {
+  const a = readFileSync(SPEC_NEW, 'utf8');
+  const b = readFileSync(SPEC_LEGACY, 'utf8');
+  if (a !== b) {
+    console.error(`[asyncapi] ERROR (CR-0009): asyncapi.yaml drift between ${SPEC_NEW} and ${SPEC_LEGACY}`);
+    process.exit(1);
+  }
+}
+const SPEC_PATH = existsSync(SPEC_NEW) ? SPEC_NEW : SPEC_LEGACY;
 
 const QUIET = process.argv.includes('--quiet');
 

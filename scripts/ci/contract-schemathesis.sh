@@ -18,7 +18,15 @@
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-SPEC="$REPO_ROOT/docs/02-design/specs/openapi.yaml"
+# CR-0009 dual-write: prefer docs_v2/ (new SSOT)
+SPEC_NEW="$REPO_ROOT/docs_v2/2-contracts/api/openapi.yaml"
+SPEC_LEGACY="$REPO_ROOT/docs/02-design/specs/openapi.yaml"
+if [[ -f "$SPEC_NEW" && -f "$SPEC_LEGACY" ]] && ! diff -q "$SPEC_NEW" "$SPEC_LEGACY" >/dev/null 2>&1; then
+  echo "ERROR (CR-0009): SPEC drift between $SPEC_NEW and $SPEC_LEGACY" >&2
+  exit 1
+fi
+SPEC="$SPEC_NEW"
+[[ -f "$SPEC" ]] || SPEC="$SPEC_LEGACY"
 API_BASE="${API_BASE:-http://localhost:8001}"
 MAX_EXAMPLES="${MAX_EXAMPLES:-10}"
 CHECK_ONLY=0

@@ -15,10 +15,18 @@ PORT="${1:-4010}"
 shift || true
 EXTRA_ARGS="$*"
 
-SPEC="$REPO_ROOT/docs/02-design/specs/openapi.yaml"
+# CR-0009 dual-write: prefer docs_v2/ (new SSOT); enforce drift check
+SPEC_NEW="$REPO_ROOT/docs_v2/2-contracts/api/openapi.yaml"
+SPEC_LEGACY="$REPO_ROOT/docs/02-design/specs/openapi.yaml"
+if [[ -f "$SPEC_NEW" && -f "$SPEC_LEGACY" ]] && ! diff -q "$SPEC_NEW" "$SPEC_LEGACY" >/dev/null 2>&1; then
+  echo "ERROR (CR-0009): SPEC drift between $SPEC_NEW and $SPEC_LEGACY"
+  exit 1
+fi
+SPEC="$SPEC_NEW"
+[[ -f "$SPEC" ]] || SPEC="$SPEC_LEGACY"
 
 if [[ ! -f "$SPEC" ]]; then
-  echo "ERROR: OpenAPI spec not found at $SPEC"
+  echo "ERROR: OpenAPI spec not found at $SPEC_NEW or $SPEC_LEGACY"
   exit 1
 fi
 
@@ -34,7 +42,7 @@ if command -v npx >/dev/null 2>&1; then
 elif command -v docker >/dev/null 2>&1; then
   echo "[docker] starting prism..."
   exec docker run --rm -i \
-    -v "$REPO_ROOT/docs/02-design/specs:/specs:ro" \
+    -v "$REPO_ROOT/docs_v2/2-contracts/api:/specs:ro" \
     -p "${PORT}:${PORT}" \
     stoplight/prism:5 \
     mock -h 0.0.0.0 -p "$PORT" $EXTRA_ARGS /specs/openapi.yaml
