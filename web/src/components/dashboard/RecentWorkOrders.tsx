@@ -5,8 +5,8 @@ import Link from "next/link";
 import { formatRelative } from "@/lib/format";
 import {
   STATUS_GROUP_MAP,
-  STATUS_GROUP_STYLE,
-  URGENCY_STYLE,
+  STATUS_GROUP_TONE,
+  URGENCY_TONE,
 } from "@/components/work-orders/WorkOrdersTable";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
@@ -109,8 +109,8 @@ export default function RecentWorkOrders({ items, loading, error }: Props) {
 
       {items.map((order, idx) => {
         const group = STATUS_GROUP_MAP[order.status];
-        const status = STATUS_GROUP_STYLE[group];
-        const urgency = URGENCY_STYLE[order.urgency];
+        const status = STATUS_GROUP_TONE[group];
+        const urgency = URGENCY_TONE[order.urgency];
         const districtAddr = order.district || order.address || "—";
         const tech = technicianTag(order.technician_id);
         return (
