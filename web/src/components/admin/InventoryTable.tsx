@@ -1,6 +1,8 @@
 "use client";
 
+import { useMemo } from "react";
 import type { components } from "@/types/api.generated";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 type InventoryItem = components["schemas"]["InventoryItem"];
 type StockStatus = components["schemas"]["InventoryStockStatus"];
@@ -10,25 +12,6 @@ interface Props {
   loading?: boolean;
 }
 
-const STATUS_BADGE: Record<
-  StockStatus,
-  { label: string; textColor: string; bgColor: string } | null
-> = {
-  in_stock: null,
-  low_stock: { label: "低庫存", textColor: "#B45309", bgColor: "#FFFBEB" },
-  out_of_stock: { label: "缺貨", textColor: "#DC2626", bgColor: "#FEF2F2" },
-};
-
-const columns = [
-  { label: "物料名稱", width: "w-[200px] shrink-0" },
-  { label: "料號", width: "w-[140px] shrink-0" },
-  { label: "類別", width: "w-[120px] shrink-0" },
-  { label: "當前庫存", width: "w-[150px] shrink-0" },
-  { label: "安全庫存", width: "w-[100px] shrink-0" },
-  { label: "最後補貨", width: "w-[140px] shrink-0" },
-  { label: "操作", width: "flex-1 min-w-0" },
-];
-
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -36,12 +19,36 @@ function formatDate(iso: string | null | undefined): string {
 }
 
 export default function InventoryTable({ items, loading }: Props) {
+  const t = useTranslations("components.admin.inventory");
+
+  const columns = useMemo(
+    () => [
+      { key: "name", label: t("cols.name"), width: "w-[200px] shrink-0" },
+      { key: "partNumber", label: t("cols.partNumber"), width: "w-[140px] shrink-0" },
+      { key: "category", label: t("cols.category"), width: "w-[120px] shrink-0" },
+      { key: "quantity", label: t("cols.quantity"), width: "w-[150px] shrink-0" },
+      { key: "reorderPoint", label: t("cols.reorderPoint"), width: "w-[100px] shrink-0" },
+      { key: "lastRestocked", label: t("cols.lastRestocked"), width: "w-[140px] shrink-0" },
+      { key: "actions", label: t("cols.actions"), width: "flex-1 min-w-0" },
+    ],
+    [t],
+  );
+
+  const STATUS_BADGE: Record<
+    StockStatus,
+    { label: string; textColor: string; bgColor: string } | null
+  > = {
+    in_stock: null,
+    low_stock: { label: t("badge.lowStock"), textColor: "#B45309", bgColor: "#FFFBEB" },
+    out_of_stock: { label: t("badge.outOfStock"), textColor: "#DC2626", bgColor: "#FEF2F2" },
+  };
+
   return (
     <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
       <div className="flex h-[44px] items-center border-b border-[var(--border)] bg-[#F8FAFC]">
         {columns.map((col) => (
           <div
-            key={col.label}
+            key={col.key}
             className={`flex items-center px-3 ${col.width}`}
           >
             <span className="text-xs font-semibold text-[var(--text-secondary)]">
@@ -53,11 +60,11 @@ export default function InventoryTable({ items, loading }: Props) {
 
       {loading && items.length === 0 ? (
         <div className="flex h-32 items-center justify-center text-[13px] text-[var(--text-secondary)]">
-          載入中…
+          {t("loading")}
         </div>
       ) : items.length === 0 ? (
         <div className="flex h-32 items-center justify-center text-[13px] text-[var(--text-secondary)]">
-          尚無庫存品項
+          {t("empty")}
         </div>
       ) : (
         items.map((row, idx) => {
@@ -127,24 +134,24 @@ export default function InventoryTable({ items, loading }: Props) {
               <div className="flex min-w-0 flex-1 items-center justify-end gap-[6px] px-3">
                 <button
                   disabled
-                  title="即將推出（需 inventory_transactions 寫入端點）"
+                  title={t("actions.restockComingSoon")}
                   className="cursor-not-allowed rounded-md bg-[var(--primary)] px-3 py-[5px] text-xs font-medium text-white opacity-50"
                 >
-                  補貨
+                  {t("actions.restock")}
                 </button>
                 <button
                   disabled
-                  title="即將推出"
+                  title={t("actions.comingSoon")}
                   className="cursor-not-allowed rounded-md border border-[var(--border)] px-3 py-[5px] text-xs font-medium text-[var(--text-secondary)] opacity-50"
                 >
-                  編輯
+                  {t("actions.edit")}
                 </button>
                 <button
                   disabled
-                  title="即將推出"
+                  title={t("actions.comingSoon")}
                   className="cursor-not-allowed rounded-md border border-[var(--border)] px-3 py-[5px] text-xs font-medium text-[var(--text-secondary)] opacity-50"
                 >
-                  紀錄
+                  {t("actions.log")}
                 </button>
               </div>
             </div>

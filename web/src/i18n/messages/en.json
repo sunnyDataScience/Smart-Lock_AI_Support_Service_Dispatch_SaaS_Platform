@@ -1249,5 +1249,339 @@
       "submit": "Confirm signature",
       "submitting": "Submitting…"
     }
+  },
+  "components": {
+    "admin": {
+      "refundReview": {
+        "cols": {
+          "id": "Refund ID",
+          "workOrder": "Work order",
+          "amount": "Amount",
+          "reason": "Reason",
+          "dualSign": "Dual sign",
+          "approvalProgress": "Approval",
+          "status": "Status",
+          "createdAt": "Submitted",
+          "actions": "Actions"
+        },
+        "loading": "Loading…",
+        "empty": "No refund requests",
+        "status": {
+          "pending": "Pending",
+          "csmApproved": "Awaiting 2nd sign",
+          "approved": "Approved",
+          "rejected": "Rejected",
+          "escalated": "Escalated",
+          "executed": "Settled",
+          "cancelled": "Cancelled"
+        },
+        "dualSign": {
+          "required": "Yes"
+        },
+        "chain": {
+          "notStarted": "Not started",
+          "stepCount": "{count} steps"
+        },
+        "actions": {
+          "approve": "Approve",
+          "secondSign": "2nd sign",
+          "reject": "Reject",
+          "executed": "Settled",
+          "approved": "Approved",
+          "rejected": "Rejected",
+          "cancelled": "Cancelled",
+          "escalated": "Escalated",
+          "approveTitleSecondSign": "Second sign approval (must be a different user)",
+          "approveTitleFirstWithDual": "First approval (second sign required)",
+          "approveTitleSimple": "Approve"
+        }
+      },
+      "warrantyClaims": {
+        "cols": {
+          "id": "Case ID",
+          "device": "Device",
+          "warrantyStart": "Warranty start",
+          "warrantyEnd": "Warranty end",
+          "remainingDays": "Days remaining",
+          "warrantyPeriod": "Period",
+          "claimStatus": "Status",
+          "discount": "Discount",
+          "actions": "Actions"
+        },
+        "loading": "Loading…",
+        "empty": "No warranty claims",
+        "remaining": {
+          "overdue": "{days} days overdue",
+          "today": "Expires today",
+          "days": "{days} days"
+        },
+        "period": {
+          "expired": "Expired",
+          "grace": "Grace period",
+          "active": "Active"
+        },
+        "status": {
+          "filed": "Filed",
+          "inProgress": "In progress",
+          "approved": "Approved",
+          "rejected": "Rejected",
+          "closed": "Closed"
+        },
+        "actions": {
+          "viewDetails": "View details",
+          "comingSoon": "Coming soon",
+          "review": "Review",
+          "reviewing": "Working…"
+        }
+      },
+      "disputes": {
+        "cols": {
+          "id": "Dispute ID",
+          "type": "Type",
+          "workOrder": "Linked entity",
+          "resolutionAmount": "Resolution amount",
+          "createdAt": "Created",
+          "status": "Status"
+        },
+        "loading": "Loading…",
+        "empty": "No disputes",
+        "type": {
+          "pricing": "Pricing",
+          "quality": "Quality",
+          "warranty": "Warranty",
+          "cancellationFee": "Cancellation fee",
+          "settlement": "Settlement"
+        },
+        "status": {
+          "filed": "Filed",
+          "inReview": "In review",
+          "resolved": "Resolved",
+          "rejected": "Rejected",
+          "closed": "Closed"
+        },
+        "ref": {
+          "workOrder": "Work order {id}",
+          "invoice": "Invoice {id}"
+        }
+      },
+      "rolePermissions": {
+        "title": "Edit permissions: {name}",
+        "description": "Updates are pushed live via WebSocket to all {count} users in this role.",
+        "closeAria": "Close",
+        "tableHeaderResource": "Resource",
+        "actions": {
+          "read": "Read",
+          "write": "Write",
+          "delete": "Delete"
+        },
+        "resources": {
+          "workOrders": "Work orders",
+          "technicians": "Technicians",
+          "customers": "Customers",
+          "accounting": "Accounting",
+          "invoices": "Invoices",
+          "refunds": "Refunds",
+          "inventory": "Inventory",
+          "warranty": "Warranty",
+          "disputes": "Disputes",
+          "auditLogs": "Audit logs",
+          "roles": "Roles",
+          "systemSettings": "System settings"
+        },
+        "reasonLabel": "Reason for change",
+        "reasonPlaceholder": "e.g. F-019 — grant reviewer write access to invoices",
+        "reasonHint": "Recorded in audit_events.payload.reason (min 4 characters)",
+        "errors": {
+          "reasonTooShort": "Please provide a reason (at least 4 characters)",
+          "forbidden": "Your role tier cannot grant this permission (server: {code})",
+          "validation": "Validation failed: {message}",
+          "generic": "{code} ({status}): {message}"
+        },
+        "cancel": "Cancel",
+        "submit": "Save permissions"
+      },
+      "customerForm": {
+        "back": "Cancel",
+        "titleCreate": "New customer",
+        "titleEdit": "Edit customer",
+        "fields": {
+          "displayName": "Customer name",
+          "phone": "Phone",
+          "phoneHint": "Taiwan mobile format (e.g. 0912-345-678)",
+          "email": "Email",
+          "emailPlaceholder": "optional",
+          "address": "Address"
+        },
+        "errors": {
+          "displayNameRequired": "Customer name is required",
+          "phoneRequired": "Phone is required",
+          "phoneInvalid": "Please enter a valid Taiwan mobile number (09xx-xxx-xxx)",
+          "emailInvalid": "Invalid email format",
+          "missingId": "Missing customer ID (edit mode)",
+          "server": "{code} ({status}): {message}"
+        },
+        "actions": {
+          "cancel": "Cancel",
+          "create": "Create customer",
+          "creating": "Creating…",
+          "save": "Save changes",
+          "saving": "Saving…"
+        }
+      },
+      "inventory": {
+        "cols": {
+          "name": "Item name",
+          "partNumber": "Part number",
+          "category": "Category",
+          "quantity": "On hand",
+          "reorderPoint": "Reorder point",
+          "lastRestocked": "Last restocked",
+          "actions": "Actions"
+        },
+        "loading": "Loading…",
+        "empty": "No inventory items",
+        "badge": {
+          "lowStock": "Low stock",
+          "outOfStock": "Out of stock"
+        },
+        "actions": {
+          "restock": "Restock",
+          "edit": "Edit",
+          "log": "Log",
+          "comingSoon": "Coming soon",
+          "restockComingSoon": "Coming soon (requires inventory_transactions write endpoint)"
+        }
+      },
+      "auditExport": {
+        "title": "Export audit logs",
+        "description": "Export audit events using current filters. Volumes over 100k auto-switch to background processing.",
+        "useCurrentFilters": "Apply current filters",
+        "format": "Export format",
+        "formatLabel": {
+          "csv": "CSV (spreadsheet)",
+          "json": "JSON"
+        },
+        "actions": {
+          "cancel": "Cancel",
+          "export": "Export",
+          "exporting": "Exporting…"
+        },
+        "toast": {
+          "successTitle": "Export complete",
+          "failTitle": "Export failed",
+          "emptyBody": "Empty response",
+          "errorBody": "{code} ({status}): {message}"
+        },
+        "filters": {
+          "logType": "Event type",
+          "from": "From",
+          "to": "To",
+          "actor": "Actor",
+          "resourceType": "Resource type",
+          "none": "No filters — exporting everything"
+        }
+      },
+      "reportExport": {
+        "useCurrentFilters": "Apply current filters",
+        "format": "Export format",
+        "formatLabel": {
+          "csv": "CSV (spreadsheet)",
+          "pdf": "PDF (A4 print)"
+        },
+        "contentTypeLabel": "Content-Type:",
+        "actions": {
+          "cancel": "Cancel",
+          "export": "Start export",
+          "exporting": "Exporting…"
+        },
+        "toast": {
+          "successTitle": "Export complete",
+          "failTitle": "Export failed",
+          "errorBody": "{code} ({status}): {message}"
+        },
+        "filters": {
+          "none": "No filters — exporting everything"
+        },
+        "report": {
+          "kpi": {
+            "title": "Export KPI report",
+            "description": "Export the current period (today / 7d / 30d / 90d) as CSV / PDF."
+          },
+          "revenue": {
+            "title": "Export revenue report",
+            "description": "Export by current date range and brand slice as CSV / PDF."
+          },
+          "technicianRanking": {
+            "title": "Export technician ranking report",
+            "description": "Export technician ranking for the current date range as CSV / PDF."
+          },
+          "accounting": {
+            "title": "Export settlement report",
+            "description": "Export settlement list (settlement / technician / amount / status) as CSV / PDF."
+          }
+        }
+      }
+    },
+    "dispatchQueue": {
+      "table": {
+        "cols": {
+          "workOrderId": "Work order",
+          "attemptCount": "Attempts",
+          "currentTech": "Current tech",
+          "matchScore": "Match score",
+          "reason": "Reason / notes",
+          "remaining": "Remaining",
+          "createdAt": "Created",
+          "actions": "Actions"
+        },
+        "loading": "Loading…",
+        "empty": "No dispatch history",
+        "attemptBadge": "Attempt {n}",
+        "techUnassigned": "Unassigned",
+        "reason": {
+          "accepted": "Accepted by technician"
+        },
+        "remaining": {
+          "overdue": "{minutes}min overdue"
+        },
+        "actions": {
+          "intervene": "Intervene",
+          "comingSoon": "Coming soon"
+        },
+        "footer": "Showing {rows} active orders ({total} dispatch events total)"
+      }
+    },
+    "layout": {
+      "notificationDrawer": {
+        "closeOverlayAria": "Close notification center",
+        "title": "Notifications",
+        "refresh": "Refresh",
+        "close": "Close",
+        "tabs": {
+          "unread": "Unread",
+          "all": "All"
+        },
+        "markAllRead": "Mark all as read",
+        "marking": "Working…",
+        "loading": "Loading…",
+        "emptyUnread": "No unread notifications",
+        "emptyAll": "No notifications",
+        "markOneRead": "Mark as read",
+        "markingOne": "Marking…",
+        "openLink": "Open",
+        "limitNote": "Showing latest {limit}",
+        "viewAll": "View all notifications",
+        "type": {
+          "workOrder": "Work order",
+          "refund": "Refund",
+          "dispute": "Dispute",
+          "rbac": "Role",
+          "inventory": "Inventory",
+          "sla": "SLA",
+          "system": "System",
+          "mention": "Mention"
+        }
+      }
+    }
   }
 }

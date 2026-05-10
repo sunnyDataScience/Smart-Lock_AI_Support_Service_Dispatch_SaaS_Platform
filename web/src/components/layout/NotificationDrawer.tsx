@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Bell,
   X,
@@ -19,6 +19,7 @@ import {
   useBroadcast,
 } from "@/lib/useBroadcast";
 import { formatRelative } from "@/lib/format";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type Notification = components["schemas"]["Notification"];
@@ -58,21 +59,16 @@ const SEVERITY_META: Record<
   critical: { color: "#DC2626", bg: "#FEE2E2", Icon: AlertCircle },
 };
 
-const TYPE_LABEL: Record<NotificationType, string> = {
-  work_order: "工單",
-  refund: "退款",
-  dispute: "爭議",
-  rbac: "權限",
-  inventory: "庫存",
-  sla: "SLA",
-  system: "系統",
-  mention: "提及",
+const TYPE_KEY: Record<NotificationType, string> = {
+  work_order: "type.workOrder",
+  refund: "type.refund",
+  dispute: "type.dispute",
+  rbac: "type.rbac",
+  inventory: "type.inventory",
+  sla: "type.sla",
+  system: "type.system",
+  mention: "type.mention",
 };
-
-const TABS: { value: StatusFilter; label: string }[] = [
-  { value: "unread", label: "未讀" },
-  { value: "all", label: "全部" },
-];
 
 function formatErr(e: unknown): string {
   return e instanceof ApiError
@@ -87,6 +83,7 @@ export default function NotificationDrawer({
   onClose,
   onUnreadCountChange,
 }: Props) {
+  const t = useTranslations("components.layout.notificationDrawer");
   const [tab, setTab] = useState<StatusFilter>("unread");
   const [items, setItems] = useState<Notification[]>([]);
   const [hasMore, setHasMore] = useState(false);
@@ -94,6 +91,14 @@ export default function NotificationDrawer({
   const [error, setError] = useState<string | null>(null);
   const [marking, setMarking] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
+
+  const TABS = useMemo(
+    () => [
+      { value: "unread" as StatusFilter, label: t("tabs.unread") },
+      { value: "all" as StatusFilter, label: t("tabs.all") },
+    ],
+    [t],
+  );
 
   const fetchItems = useCallback(
     async (status: StatusFilter) => {
@@ -220,7 +225,7 @@ export default function NotificationDrawer({
     <>
       <button
         type="button"
-        aria-label="關閉通知中心"
+        aria-label={t("closeOverlayAria")}
         onClick={onClose}
         className="fixed inset-0 z-40 bg-black/30"
       />
@@ -230,7 +235,7 @@ export default function NotificationDrawer({
           <div className="flex items-center gap-2">
             <Bell className="h-5 w-5 text-[var(--text-secondary)]" />
             <span className="text-base font-semibold text-[var(--text-primary)]">
-              通知中心
+              {t("title")}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -238,7 +243,7 @@ export default function NotificationDrawer({
               type="button"
               onClick={() => fetchItems(tab)}
               disabled={loading}
-              title="重新整理"
+              title={t("refresh")}
               className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[#F1F5F9] disabled:opacity-50"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
@@ -246,7 +251,7 @@ export default function NotificationDrawer({
             <button
               type="button"
               onClick={onClose}
-              title="關閉"
+              title={t("close")}
               className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[#F1F5F9]"
             >
               <X className="h-4 w-4" />
@@ -256,17 +261,17 @@ export default function NotificationDrawer({
 
         <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-3">
           <div className="flex">
-            {TABS.map((t) => (
+            {TABS.map((tt) => (
               <button
-                key={t.value}
-                onClick={() => setTab(t.value)}
+                key={tt.value}
+                onClick={() => setTab(tt.value)}
                 className={`px-3 py-2 text-[13px] ${
-                  tab === t.value
+                  tab === tt.value
                     ? "border-b-2 border-[var(--primary)] font-semibold text-[var(--primary)]"
                     : "font-medium text-[var(--text-secondary)]"
                 }`}
               >
-                {t.label}
+                {tt.label}
               </button>
             ))}
           </div>
@@ -277,7 +282,7 @@ export default function NotificationDrawer({
             className="flex items-center gap-1 rounded-md px-2 py-1 text-[12px] font-medium text-[var(--primary)] hover:bg-[#EFF6FF] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <CheckCheck className="h-[14px] w-[14px]" />
-            {bulkBusy ? "處理中…" : "全部標為已讀"}
+            {bulkBusy ? t("marking") : t("markAllRead")}
           </button>
         </div>
 
@@ -290,11 +295,11 @@ export default function NotificationDrawer({
         <div className="flex-1 overflow-y-auto">
           {loading && items.length === 0 ? (
             <div className="flex h-32 items-center justify-center text-[13px] text-[var(--text-secondary)]">
-              載入中…
+              {t("loading")}
             </div>
           ) : items.length === 0 ? (
             <div className="flex h-32 items-center justify-center text-[13px] text-[var(--text-secondary)]">
-              {tab === "unread" ? "目前沒有未讀通知" : "目前沒有通知"}
+              {tab === "unread" ? t("emptyUnread") : t("emptyAll")}
             </div>
           ) : (
             <ul className="divide-y divide-[var(--border)]">
@@ -303,7 +308,7 @@ export default function NotificationDrawer({
                 const Icon = meta.Icon;
                 const unread = !n.read_at;
                 const url = n.related_entity?.url ?? null;
-                const typeLabel = TYPE_LABEL[n.type] ?? n.type;
+                const typeLabel = TYPE_KEY[n.type] ? t(TYPE_KEY[n.type]) : n.type;
                 return (
                   <li
                     key={n.id}
@@ -346,7 +351,7 @@ export default function NotificationDrawer({
                             disabled={marking === n.id}
                             className="text-[11px] font-medium text-[var(--primary)] hover:underline disabled:opacity-50"
                           >
-                            {marking === n.id ? "標記中…" : "標為已讀"}
+                            {marking === n.id ? t("markingOne") : t("markOneRead")}
                           </button>
                         )}
                         {url && (
@@ -358,7 +363,7 @@ export default function NotificationDrawer({
                             }}
                             className="flex items-center gap-1 text-[11px] font-medium text-[var(--primary)] hover:underline"
                           >
-                            前往
+                            {t("openLink")}
                             <ExternalLink className="h-3 w-3" />
                           </Link>
                         )}
@@ -372,7 +377,7 @@ export default function NotificationDrawer({
 
           {hasMore && items.length > 0 && (
             <div className="px-5 py-3 text-center text-[11px] text-[var(--text-disabled)]">
-              僅顯示最近 {PAGE_LIMIT} 筆
+              {t("limitNote", { limit: PAGE_LIMIT })}
             </div>
           )}
         </div>
@@ -383,7 +388,7 @@ export default function NotificationDrawer({
             onClick={onClose}
             className="flex items-center justify-center gap-1 rounded-md py-2 text-[13px] font-medium text-[var(--primary)] hover:bg-[#EFF6FF]"
           >
-            查看全部通知
+            {t("viewAll")}
             <ExternalLink className="h-[14px] w-[14px]" />
           </Link>
         </div>

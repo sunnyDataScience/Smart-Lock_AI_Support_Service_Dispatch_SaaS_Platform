@@ -1,8 +1,10 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import type { components } from "@/types/api.generated";
 import { formatRelative } from "@/lib/format";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 type RefundRequest = components["schemas"]["RefundRequest"];
 type RefundRequestStatus = components["schemas"]["RefundRequestStatus"];
@@ -15,27 +17,16 @@ interface Props {
   pendingId?: string | null;
 }
 
-const statusConfig: Record<RefundRequestStatus, { label: string; textColor: string; bgColor: string }> = {
-  pending: { label: "待審核", textColor: "#92400E", bgColor: "#FEF3C7" },
-  csm_approved: { label: "等候第二簽", textColor: "#7C2D12", bgColor: "#FED7AA" },
-  approved: { label: "已核准", textColor: "#065F46", bgColor: "#D1FAE5" },
-  rejected: { label: "已拒絕", textColor: "#991B1B", bgColor: "#FEE2E2" },
-  escalated: { label: "已升級", textColor: "#1E40AF", bgColor: "#DBEAFE" },
-  executed: { label: "已完款", textColor: "#374151", bgColor: "#E5E7EB" },
-  cancelled: { label: "已取消", textColor: "#374151", bgColor: "#E5E7EB" },
+// Tone (color) — separate from i18n label, same convention as other tables.
+const STATUS_TONE: Record<RefundRequestStatus, { textColor: string; bgColor: string }> = {
+  pending: { textColor: "#92400E", bgColor: "#FEF3C7" },
+  csm_approved: { textColor: "#7C2D12", bgColor: "#FED7AA" },
+  approved: { textColor: "#065F46", bgColor: "#D1FAE5" },
+  rejected: { textColor: "#991B1B", bgColor: "#FEE2E2" },
+  escalated: { textColor: "#1E40AF", bgColor: "#DBEAFE" },
+  executed: { textColor: "#374151", bgColor: "#E5E7EB" },
+  cancelled: { textColor: "#374151", bgColor: "#E5E7EB" },
 };
-
-const columns = [
-  { label: "退款編號", width: "w-[120px] shrink-0" },
-  { label: "關聯工單", width: "w-[120px] shrink-0" },
-  { label: "金額", width: "w-[120px] shrink-0" },
-  { label: "退款原因", width: "flex-[2]" },
-  { label: "雙簽", width: "w-[60px] shrink-0" },
-  { label: "審批進度", width: "w-[100px] shrink-0" },
-  { label: "狀態", width: "w-[110px] shrink-0" },
-  { label: "申請時間", width: "w-[150px] shrink-0" },
-  { label: "操作", width: "w-[160px] shrink-0" },
-];
 
 function formatTwd(amount: string): string {
   const n = Number(amount);
@@ -52,12 +43,29 @@ function isUrgentStatus(status: RefundRequestStatus): boolean {
 }
 
 export default function RefundReviewTable({ items, loading, onDecide, pendingId }: Props) {
+  const t = useTranslations("components.admin.refundReview");
+
+  const columns = useMemo(
+    () => [
+      { key: "id", label: t("cols.id"), width: "w-[120px] shrink-0" },
+      { key: "workOrder", label: t("cols.workOrder"), width: "w-[120px] shrink-0" },
+      { key: "amount", label: t("cols.amount"), width: "w-[120px] shrink-0" },
+      { key: "reason", label: t("cols.reason"), width: "flex-[2]" },
+      { key: "dualSign", label: t("cols.dualSign"), width: "w-[60px] shrink-0" },
+      { key: "approvalProgress", label: t("cols.approvalProgress"), width: "w-[100px] shrink-0" },
+      { key: "status", label: t("cols.status"), width: "w-[110px] shrink-0" },
+      { key: "createdAt", label: t("cols.createdAt"), width: "w-[150px] shrink-0" },
+      { key: "actions", label: t("cols.actions"), width: "w-[160px] shrink-0" },
+    ],
+    [t],
+  );
+
   return (
     <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
       <div className="flex h-[44px] items-center rounded-t-lg bg-[#F1F5F9]">
         {columns.map((col) => (
           <div
-            key={col.label}
+            key={col.key}
             className={`flex items-center px-[10px] ${col.width}`}
           >
             <span className="text-xs font-semibold text-[var(--text-secondary)]">
@@ -69,20 +77,30 @@ export default function RefundReviewTable({ items, loading, onDecide, pendingId 
 
       {loading && items.length === 0 && (
         <div className="flex h-[120px] items-center justify-center text-sm text-[var(--text-secondary)]">
-          載入中…
+          {t("loading")}
         </div>
       )}
       {!loading && items.length === 0 && (
         <div className="flex h-[120px] items-center justify-center text-sm text-[var(--text-secondary)]">
-          尚無退款申請
+          {t("empty")}
         </div>
       )}
 
       {items.map((row) => {
-        const badge = statusConfig[row.status];
+        const tone = STATUS_TONE[row.status];
         const urgent = isUrgentStatus(row.status);
         const chainLength = Array.isArray(row.approval_chain) ? row.approval_chain.length : 0;
         const isClosed = row.status === "executed" || row.status === "cancelled" || row.status === "rejected";
+
+        const statusKeyMap: Record<RefundRequestStatus, string> = {
+          pending: "status.pending",
+          csm_approved: "status.csmApproved",
+          approved: "status.approved",
+          rejected: "status.rejected",
+          escalated: "status.escalated",
+          executed: "status.executed",
+          cancelled: "status.cancelled",
+        };
 
         return (
           <div
@@ -121,7 +139,7 @@ export default function RefundReviewTable({ items, loading, onDecide, pendingId 
             <div className="flex w-[60px] shrink-0 items-center justify-center px-[6px]">
               {row.requires_dual_sign ? (
                 <span className="rounded bg-[#FEE2E2] px-2 py-[2px] text-[10px] font-medium text-[#991B1B]">
-                  需
+                  {t("dualSign.required")}
                 </span>
               ) : (
                 <span className="text-[11px] text-[var(--text-secondary)]">—</span>
@@ -130,16 +148,18 @@ export default function RefundReviewTable({ items, loading, onDecide, pendingId 
 
             <div className="flex w-[100px] shrink-0 items-center justify-center px-[6px]">
               <span className="text-xs text-[var(--text-secondary)]">
-                {chainLength === 0 ? "未啟動" : `${chainLength} 步`}
+                {chainLength === 0
+                  ? t("chain.notStarted")
+                  : t("chain.stepCount", { count: chainLength })}
               </span>
             </div>
 
             <div className="flex w-[110px] shrink-0 items-center justify-center px-[6px]">
               <span
                 className="rounded-full px-[10px] py-[3px] text-xs font-medium"
-                style={{ color: badge.textColor, backgroundColor: badge.bgColor }}
+                style={{ color: tone.textColor, backgroundColor: tone.bgColor }}
               >
-                {badge.label}
+                {t(statusKeyMap[row.status])}
               </span>
             </div>
 
@@ -153,12 +173,12 @@ export default function RefundReviewTable({ items, loading, onDecide, pendingId 
               {isClosed || row.status === "approved" ? (
                 <span className="rounded-md bg-[#E2E8F0] px-3 py-1 text-[11px] font-medium text-[var(--text-secondary)]">
                   {row.status === "executed"
-                    ? "已完款"
+                    ? t("actions.executed")
                     : row.status === "approved"
-                      ? "已核准"
+                      ? t("actions.approved")
                       : row.status === "rejected"
-                        ? "已拒絕"
-                        : "已取消"}
+                        ? t("actions.rejected")
+                        : t("actions.cancelled")}
                 </span>
               ) : row.status === "pending" || row.status === "csm_approved" ? (
                 <>
@@ -168,25 +188,25 @@ export default function RefundReviewTable({ items, loading, onDecide, pendingId 
                     className="rounded-md bg-[var(--primary)] px-3 py-1 text-[11px] font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                     title={
                       row.status === "csm_approved"
-                        ? "第二簽核准（必須是不同 user）"
+                        ? t("actions.approveTitleSecondSign")
                         : row.requires_dual_sign
-                          ? "首次核准（之後須第二簽）"
-                          : "核准"
+                          ? t("actions.approveTitleFirstWithDual")
+                          : t("actions.approveTitleSimple")
                     }
                   >
-                    {row.status === "csm_approved" ? "第二簽" : "核准"}
+                    {row.status === "csm_approved" ? t("actions.secondSign") : t("actions.approve")}
                   </button>
                   <button
                     onClick={() => onDecide?.(row, "reject")}
                     disabled={!onDecide || pendingId === row.id}
                     className="rounded-md bg-[#EF4444] px-3 py-1 text-[11px] font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    拒絕
+                    {t("actions.reject")}
                   </button>
                 </>
               ) : (
                 <span className="rounded-md bg-[#DBEAFE] px-3 py-1 text-[11px] font-medium text-[#1E40AF]">
-                  已升級
+                  {t("actions.escalated")}
                 </span>
               )}
             </div>

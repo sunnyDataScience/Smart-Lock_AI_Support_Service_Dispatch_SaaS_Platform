@@ -1,6 +1,8 @@
 "use client";
 
+import { useMemo } from "react";
 import type { components } from "@/types/api.generated";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 type WarrantyClaim = components["schemas"]["WarrantyClaim"];
 type WarrantyClaimStatus = components["schemas"]["WarrantyClaimStatus"];
@@ -12,25 +14,21 @@ interface Props {
   pendingId?: string | null;
 }
 
-const statusConfig: Record<WarrantyClaimStatus, { label: string; textColor: string; bgColor: string }> = {
-  filed: { label: "已申請", textColor: "#92400E", bgColor: "#FEF3C7" },
-  in_progress: { label: "處理中", textColor: "#1E40AF", bgColor: "#DBEAFE" },
-  approved: { label: "已核准", textColor: "#065F46", bgColor: "#D1FAE5" },
-  rejected: { label: "已拒絕", textColor: "#991B1B", bgColor: "#FEE2E2" },
-  closed: { label: "已結案", textColor: "#374151", bgColor: "#E5E7EB" },
+const STATUS_TONE: Record<WarrantyClaimStatus, { textColor: string; bgColor: string }> = {
+  filed: { textColor: "#92400E", bgColor: "#FEF3C7" },
+  in_progress: { textColor: "#1E40AF", bgColor: "#DBEAFE" },
+  approved: { textColor: "#065F46", bgColor: "#D1FAE5" },
+  rejected: { textColor: "#991B1B", bgColor: "#FEE2E2" },
+  closed: { textColor: "#374151", bgColor: "#E5E7EB" },
 };
 
-const columns = [
-  { label: "案件編號", width: "w-[110px] shrink-0" },
-  { label: "設備", width: "w-[150px] shrink-0" },
-  { label: "保固起始日", width: "w-[100px] shrink-0" },
-  { label: "保固到期日", width: "w-[100px] shrink-0" },
-  { label: "剩餘天數", width: "w-[90px] shrink-0" },
-  { label: "保固期", width: "w-[80px] shrink-0" },
-  { label: "申請狀態", width: "w-[90px] shrink-0" },
-  { label: "折讓金額", width: "w-[100px] shrink-0" },
-  { label: "操作", width: "flex-1 min-w-0" },
-];
+const STATUS_KEY: Record<WarrantyClaimStatus, string> = {
+  filed: "status.filed",
+  in_progress: "status.inProgress",
+  approved: "status.approved",
+  rejected: "status.rejected",
+  closed: "status.closed",
+};
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -38,28 +36,6 @@ function daysUntil(dateStr: string): number {
   const target = new Date(dateStr + "T00:00:00").getTime();
   const today = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00").getTime();
   return Math.round((target - today) / ONE_DAY_MS);
-}
-
-function remainingDisplay(remaining: number): { label: string; color: string; bold: boolean } {
-  if (remaining < 0) {
-    return { label: `已逾期 ${Math.abs(remaining)} 天`, color: "#DC2626", bold: true };
-  }
-  if (remaining === 0) {
-    return { label: "今日到期", color: "#DC2626", bold: true };
-  }
-  if (remaining <= 30) {
-    return { label: `${remaining} 天`, color: "#D97706", bold: true };
-  }
-  if (remaining <= 90) {
-    return { label: `${remaining} 天`, color: "#D97706", bold: false };
-  }
-  return { label: `${remaining} 天`, color: "#059669", bold: false };
-}
-
-function periodBadge(isWithin: boolean, remaining: number): { label: string; textColor: string; bgColor: string } {
-  if (!isWithin) return { label: "已過期", textColor: "#B91C1C", bgColor: "#FEE2E2" };
-  if (remaining <= 30) return { label: "寬限期", textColor: "#92400E", bgColor: "#FEF3C7" };
-  return { label: "有效", textColor: "#15803D", bgColor: "#DCFCE7" };
 }
 
 function formatTwd(amount: string | null | undefined): string {
@@ -75,11 +51,54 @@ export default function WarrantyClaimsTable({
   onDecide,
   pendingId,
 }: Props) {
+  const t = useTranslations("components.admin.warrantyClaims");
+
+  const columns = useMemo(
+    () => [
+      { key: "id", label: t("cols.id"), width: "w-[110px] shrink-0" },
+      { key: "device", label: t("cols.device"), width: "w-[150px] shrink-0" },
+      { key: "warrantyStart", label: t("cols.warrantyStart"), width: "w-[100px] shrink-0" },
+      { key: "warrantyEnd", label: t("cols.warrantyEnd"), width: "w-[100px] shrink-0" },
+      { key: "remainingDays", label: t("cols.remainingDays"), width: "w-[90px] shrink-0" },
+      { key: "warrantyPeriod", label: t("cols.warrantyPeriod"), width: "w-[80px] shrink-0" },
+      { key: "claimStatus", label: t("cols.claimStatus"), width: "w-[90px] shrink-0" },
+      { key: "discount", label: t("cols.discount"), width: "w-[100px] shrink-0" },
+      { key: "actions", label: t("cols.actions"), width: "flex-1 min-w-0" },
+    ],
+    [t],
+  );
+
+  function remainingDisplay(remaining: number): { label: string; color: string; bold: boolean } {
+    if (remaining < 0) {
+      return {
+        label: t("remaining.overdue", { days: Math.abs(remaining) }),
+        color: "#DC2626",
+        bold: true,
+      };
+    }
+    if (remaining === 0) {
+      return { label: t("remaining.today"), color: "#DC2626", bold: true };
+    }
+    if (remaining <= 30) {
+      return { label: t("remaining.days", { days: remaining }), color: "#D97706", bold: true };
+    }
+    if (remaining <= 90) {
+      return { label: t("remaining.days", { days: remaining }), color: "#D97706", bold: false };
+    }
+    return { label: t("remaining.days", { days: remaining }), color: "#059669", bold: false };
+  }
+
+  function periodBadge(isWithin: boolean, remaining: number): { label: string; textColor: string; bgColor: string } {
+    if (!isWithin) return { label: t("period.expired"), textColor: "#B91C1C", bgColor: "#FEE2E2" };
+    if (remaining <= 30) return { label: t("period.grace"), textColor: "#92400E", bgColor: "#FEF3C7" };
+    return { label: t("period.active"), textColor: "#15803D", bgColor: "#DCFCE7" };
+  }
+
   return (
     <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
       <div className="flex h-[44px] items-center bg-[#F8FAFC] border-b border-[var(--border)]">
         {columns.map((col) => (
-          <div key={col.label} className={`flex items-center px-3 ${col.width}`}>
+          <div key={col.key} className={`flex items-center px-3 ${col.width}`}>
             <span className="text-xs font-semibold text-[var(--text-secondary)]">
               {col.label}
             </span>
@@ -89,12 +108,12 @@ export default function WarrantyClaimsTable({
 
       {loading && items.length === 0 && (
         <div className="flex h-[120px] items-center justify-center text-sm text-[var(--text-secondary)]">
-          載入中…
+          {t("loading")}
         </div>
       )}
       {!loading && items.length === 0 && (
         <div className="flex h-[120px] items-center justify-center text-sm text-[var(--text-secondary)]">
-          尚無保固申請
+          {t("empty")}
         </div>
       )}
 
@@ -102,7 +121,7 @@ export default function WarrantyClaimsTable({
         const remaining = daysUntil(row.warranty_end_date);
         const remainingUi = remainingDisplay(remaining);
         const period = periodBadge(row.is_within_warranty, remaining);
-        const status = statusConfig[row.status];
+        const tone = STATUS_TONE[row.status];
 
         return (
           <div
@@ -159,9 +178,9 @@ export default function WarrantyClaimsTable({
             <div className="flex w-[90px] shrink-0 items-center px-3">
               <span
                 className="rounded-[10px] px-2 py-[2px] text-[11px] font-medium"
-                style={{ color: status.textColor, backgroundColor: status.bgColor }}
+                style={{ color: tone.textColor, backgroundColor: tone.bgColor }}
               >
-                {status.label}
+                {t(STATUS_KEY[row.status])}
               </span>
             </div>
 
@@ -174,10 +193,10 @@ export default function WarrantyClaimsTable({
             <div className="flex min-w-0 flex-1 items-center justify-end gap-[6px] px-3">
               <button
                 disabled
-                title="即將推出"
+                title={t("actions.comingSoon")}
                 className="cursor-not-allowed rounded-md border border-[var(--border)] px-2 py-1 text-[11px] font-medium text-[var(--text-secondary)] opacity-60"
               >
-                檢視詳情
+                {t("actions.viewDetails")}
               </button>
               {(row.status === "filed" || row.status === "in_progress") && onDecide ? (
                 <button
@@ -185,7 +204,7 @@ export default function WarrantyClaimsTable({
                   disabled={pendingId !== null && pendingId !== undefined}
                   className="rounded-md bg-[var(--primary)] px-2 py-1 text-[11px] font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {pendingId === row.id ? "處理中…" : "審批決策"}
+                  {pendingId === row.id ? t("actions.reviewing") : t("actions.review")}
                 </button>
               ) : null}
             </div>

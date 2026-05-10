@@ -1,8 +1,10 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { ChevronRight, Ellipsis } from "lucide-react";
 import type { components } from "@/types/api.generated";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 type DispatchLog = components["schemas"]["DispatchLog"];
 
@@ -11,13 +13,10 @@ interface Props {
   loading?: boolean;
 }
 
-const attemptBadge: Record<
-  number,
-  { label: string; bg: string; text: string }
-> = {
-  1: { label: "第 1 次", bg: "#DBEAFE", text: "#2563EB" },
-  2: { label: "第 2 次", bg: "#FEF3C7", text: "#D97706" },
-  3: { label: "第 3 次", bg: "#FEE2E2", text: "#DC2626" },
+const ATTEMPT_TONE: Record<number, { bg: string; text: string }> = {
+  1: { bg: "#DBEAFE", text: "#2563EB" },
+  2: { bg: "#FEF3C7", text: "#D97706" },
+  3: { bg: "#FEE2E2", text: "#DC2626" },
 };
 
 const TECH_PALETTE = ["#2563EB", "#8B5CF6", "#10B981", "#F59E0B", "#6366F1", "#EC4899"];
@@ -35,26 +34,6 @@ function scoreColor(score: number | null | undefined): string {
   if (score >= 60) return "#3B82F6";
   if (score >= 40) return "#F59E0B";
   return "#EF4444";
-}
-
-function formatRelativeRemaining(createdIso: string | null | undefined, timeoutSec: number | null | undefined): {
-  label: string;
-  cls: string;
-} {
-  if (!createdIso || !timeoutSec) return { label: "—", cls: "text-[var(--text-secondary)]" };
-  const created = new Date(createdIso).getTime();
-  const deadline = created + timeoutSec * 1000;
-  const remainingMs = deadline - Date.now();
-  if (remainingMs < 0) {
-    const overdueMin = Math.round(-remainingMs / 60000);
-    return { label: `已逾時 ${overdueMin}min`, cls: "text-[#DC2626] font-bold" };
-  }
-  const totalSec = Math.floor(remainingMs / 1000);
-  const min = Math.floor(totalSec / 60);
-  const sec = totalSec % 60;
-  const label = `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
-  if (totalSec <= 120) return { label, cls: "text-[#D97706] font-medium" };
-  return { label, cls: "text-[var(--text-primary)] font-medium" };
 }
 
 function formatCreatedAt(iso: string | null | undefined): string {
@@ -102,28 +81,55 @@ function aggregate(items: DispatchLog[]): AggregatedRow[] {
   return rows;
 }
 
-const columns = [
-  { label: "", width: "w-10" },
-  { label: "工單編號", width: "w-[140px]" },
-  { label: "派工次數", width: "w-20" },
-  { label: "當前技師", width: "w-[140px]" },
-  { label: "媒合分數", width: "w-[120px]" },
-  { label: "拒單原因 / 備註", width: "flex-1" },
-  { label: "剩餘時間", width: "w-[100px]" },
-  { label: "建立時間", width: "w-[130px]" },
-  { label: "操作", width: "w-20" },
-];
-
 export default function DispatchQueueTable({ items, loading }: Props) {
+  const t = useTranslations("components.dispatchQueue.table");
   const rows = aggregate(items);
+
+  const columns = useMemo(
+    () => [
+      { key: "expand", label: "", width: "w-10" },
+      { key: "workOrderId", label: t("cols.workOrderId"), width: "w-[140px]" },
+      { key: "attemptCount", label: t("cols.attemptCount"), width: "w-20" },
+      { key: "currentTech", label: t("cols.currentTech"), width: "w-[140px]" },
+      { key: "matchScore", label: t("cols.matchScore"), width: "w-[120px]" },
+      { key: "reason", label: t("cols.reason"), width: "flex-1" },
+      { key: "remaining", label: t("cols.remaining"), width: "w-[100px]" },
+      { key: "createdAt", label: t("cols.createdAt"), width: "w-[130px]" },
+      { key: "actions", label: t("cols.actions"), width: "w-20" },
+    ],
+    [t],
+  );
+
+  function formatRelativeRemaining(
+    createdIso: string | null | undefined,
+    timeoutSec: number | null | undefined,
+  ): { label: string; cls: string } {
+    if (!createdIso || !timeoutSec) return { label: "—", cls: "text-[var(--text-secondary)]" };
+    const created = new Date(createdIso).getTime();
+    const deadline = created + timeoutSec * 1000;
+    const remainingMs = deadline - Date.now();
+    if (remainingMs < 0) {
+      const overdueMin = Math.round(-remainingMs / 60000);
+      return {
+        label: t("remaining.overdue", { minutes: overdueMin }),
+        cls: "text-[#DC2626] font-bold",
+      };
+    }
+    const totalSec = Math.floor(remainingMs / 1000);
+    const min = Math.floor(totalSec / 60);
+    const sec = totalSec % 60;
+    const label = `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+    if (totalSec <= 120) return { label, cls: "text-[#D97706] font-medium" };
+    return { label, cls: "text-[var(--text-primary)] font-medium" };
+  }
 
   return (
     <div className="flex flex-col gap-4">
       <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
         <div className="flex items-center bg-[#F8FAFC] px-4 py-3">
-          {columns.map((col, idx) => (
+          {columns.map((col) => (
             <span
-              key={col.label || `col-${idx}`}
+              key={col.key}
               className={`${col.width} shrink-0 text-xs font-semibold text-[var(--text-secondary)]`}
             >
               {col.label}
@@ -133,23 +139,25 @@ export default function DispatchQueueTable({ items, loading }: Props) {
 
         {loading && rows.length === 0 && (
           <div className="flex h-[120px] items-center justify-center text-sm text-[var(--text-secondary)]">
-            載入中…
+            {t("loading")}
           </div>
         )}
         {!loading && rows.length === 0 && (
           <div className="flex h-[120px] items-center justify-center text-sm text-[var(--text-secondary)]">
-            目前沒有派工歷程
+            {t("empty")}
           </div>
         )}
 
         {rows.map(({ log, attempt, isStuck }) => {
-          const badge = attemptBadge[attempt];
+          const tone = ATTEMPT_TONE[attempt];
           const color = scoreColor(log.match_score);
           const score = log.match_score ?? null;
           const barWidth = score != null ? Math.round((score / 100) * 60) : 0;
-          const techName = log.technician_name ?? "未指派";
+          const techName = log.technician_name ?? t("techUnassigned");
           const reasonText =
-            log.rejection_reason ?? log.notes ?? (log.action === "accept" ? "技師已接受" : "—");
+            log.rejection_reason ??
+            log.notes ??
+            (log.action === "accept" ? t("reason.accepted") : "—");
           const remaining =
             log.action === "assign"
               ? formatRelativeRemaining(log.created_at, log.timeout_seconds)
@@ -177,9 +185,9 @@ export default function DispatchQueueTable({ items, loading }: Props) {
               <div className="flex w-20 shrink-0 items-center">
                 <span
                   className="rounded px-2 py-[2px] text-xs font-semibold"
-                  style={{ backgroundColor: badge.bg, color: badge.text }}
+                  style={{ backgroundColor: tone.bg, color: tone.text }}
                 >
-                  {badge.label}
+                  {t("attemptBadge", { n: attempt })}
                 </span>
               </div>
 
@@ -234,15 +242,15 @@ export default function DispatchQueueTable({ items, loading }: Props) {
                 {isStuck ? (
                   <button
                     disabled
-                    title="即將推出"
+                    title={t("actions.comingSoon")}
                     className="cursor-not-allowed rounded-md bg-[var(--primary)] px-3 py-1 text-xs font-semibold text-white opacity-60"
                   >
-                    介入
+                    {t("actions.intervene")}
                   </button>
                 ) : (
                   <button
                     disabled
-                    title="即將推出"
+                    title={t("actions.comingSoon")}
                     className="flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-md opacity-60"
                   >
                     <Ellipsis className="h-5 w-5 text-[var(--text-secondary)]" />
@@ -256,7 +264,7 @@ export default function DispatchQueueTable({ items, loading }: Props) {
 
       <div className="flex items-center justify-between px-4">
         <span className="text-[13px] text-[var(--text-secondary)]">
-          顯示 {rows.length} 筆活躍工單（共 {items.length} 條派工事件）
+          {t("footer", { rows: rows.length, total: items.length })}
         </span>
       </div>
     </div>
