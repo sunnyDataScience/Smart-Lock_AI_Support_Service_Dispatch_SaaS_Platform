@@ -39,21 +39,38 @@ related:
 
 ## 遷移狀態（CR-0001）
 
+🎉 **CR-0001 全程完成（2026-05-10，17 commits、339 檔、0 _pending-*、0 broken refs）**
+
 | Phase | 範圍 | 狀態 |
 | :--: | :-- | :-- |
-| Phase 0 | 完整盤點 + 10 slop 模式 + 254 檔對應表 | ✅ 完成（產物在 `4-exploration/audits/vibecoding-{migration,mapping-table}-2026-05-10.md`）|
-| Phase 1 | CR-0001 CIA + AI Architect+PM 拍板 8 條決策 | ✅ 完成 → [`4-exploration/change-requests/CR-0001-*`](./4-exploration/change-requests/CR-0001-vibecoding-6tier-migration.md) |
-| Phase 2 | docs_v2/ 骨架 + 9 tier README + ID legacy + 9 ADR rename | ✅ commit `a2a2201` |
-| Phase 3 | Contract 遷移（API + 14 module specs + V2/V3 藍圖） | ✅ commit `cbb1473` |
-| Phase 4 | Process / Audits / Explorations / Business / Flow placeholders | ✅ commit `a190a4d` |
-| Phase 5 | Pipeline 88 檔三向拆 | ✅ commit `5fba15c` |
-| Phase 6 | _domain-knowledge 33 檔 + PII 警示 | ✅ 本 commit |
-| **結構性遷移** | **219 檔在 docs_v2/，docs/+pipeline 未動** | **✅ 完成** |
-| Phase 7 (CR-0004) | 29 個 `_pending-*` SPLIT/MERGE 細工 | ⬜ follow-up |
-| Phase 8 (CR-0007) | docs/ 標 superseded + wikilink rewrite + 90 天觀察 | ⬜ follow-up |
-| Phase 9 (CR-0008) | docs/ 刪除 + docs_v2/ rename → docs/ | ⬜ follow-up |
+| Phase 0 | 完整盤點 + 10 slop 模式 + 254 檔對應表 | ✅ |
+| Phase 1 | CR-0001 CIA + AI Architect+PM 拍板 8 條決策 | ✅ |
+| Phase 2 | docs_v2/ 骨架 + 9 tier README + ID legacy + 9 ADR rename | ✅ `a2a2201` |
+| Phase 3 | API + 14 module + V2/V3 blueprints | ✅ `cbb1473` |
+| Phase 4 | process + audits + explorations + business + flow placeholders | ✅ `a190a4d` |
+| Phase 5 | pipeline 88 檔三向拆 | ✅ `5fba15c` |
+| Phase 6 | _domain-knowledge 33 檔 + PII 警示 | ✅ `573f3c2` |
+| Phase 7-1 | tier-0 anchors（glossary + product-principles）+ 4 module-boundary + rbac MERGE | ✅ `2970aff` |
+| Phase 7-2 | PM Q1-Q10 → 10 ADRs (ADR-0013~0022) | ✅ `7c09556` |
+| Phase 7-3 | v1-core-modules → 9 module + REQ→25 FR | ✅ `845bae8` |
+| Phase 7-4 | 9 MERGE operations + 新 dispatch-engine | ✅ `87b2da7` |
+| Phase 7-5 | frontend-quality-attributes + CR-0006 stub | ✅ `644dbf7` |
+| Phase 7-6 | SF-0001 + BF-0003 | ✅ `1cc60c9` |
+| Phase 7-7 | 3 大 BF flows → 4 BF + 21 SF + state machine | ✅ `e009090` |
+| Phase 7-8 | 0 個 _pending-* 達成 | ✅ `5721d63` |
+| Phase 7-9 | 22 page spec → 53 thin page-contracts + INDEX | ✅ `4302e78` |
+| Phase 7-10 | Phase 8 prep: CR-0007/8/9 + cutover runbook + 一致性 audit | ✅ `a2a4e42` |
+| Phase 7-11 | 5-views 4 個 AUTO 視圖手動 regen | ✅ `f3ecb61` |
+| **結構性遷移 + 細工 + Phase 8 prep** | **339 檔 / 0 broken refs / 0 _pending-***  | **✅ 完成** |
+| Phase 8 (CR-0007) | docs/ 標 superseded + wikilinks rewrite + 90 天觀察 | ⏸ 待 PM 拍板（draft 已就位）|
+| Phase 8b (CR-0009) | CI 路徑雙寫過渡 | ⏸ 待 PM 拍板（draft 已就位）|
+| Phase 9 (CR-0008) | docs/ 刪除 + docs_v2/ rename → docs/ + bdd → tests/bdd/ | ⏸ Phase 8a 觀察期後 |
+| Follow-up CR-0006 | 4 _pending-move-to → agent/skills + data + SQL/seed | ⏸ 待 ops 對齊 |
 
-詳見 [`4-exploration/audits/CR-0001-status-2026-05-10.md`](./4-exploration/audits/CR-0001-status-2026-05-10.md)。
+詳見:
+- [CR-0001 status](./4-exploration/audits/CR-0001-status-2026-05-10.md)
+- [docs_v2 consistency audit](./4-exploration/audits/docs_v2-consistency-audit-2026-05-10.md)
+- [migration cutover runbook](./3-process/migration-cutover-runbook.md)
 
 ---
 
