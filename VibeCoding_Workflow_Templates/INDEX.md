@@ -1,208 +1,174 @@
-# VibeCoding Workflow Templates -- TR Gate Index
+# VibeCoding Workflow Templates
 
-> **Version:** v3.1
-> **Updated:** 2026-04-12
-> **Framework:** TR0-TR10 Product Development Gates
-
----
-
-## Quick Start
-
-**New project?** Copy 9 Essential templates (marked **E{N}**) and you have a complete lifecycle.
-**Need depth?** Add Extension templates (marked **E{N}x**) only when a gate review requires it.
+> **Version:** v5.5 — Stability-tier layout + Ownership Matrix
+> **Updated:** 2026-05-10
+> **🚪 New here?** Start at [OWNERSHIP-MATRIX.md](./OWNERSHIP-MATRIX.md) — tells you which files demand human decisions (~16) vs which AI auto-manages (~6).
+> **Migration from v3:** see [LEGACY-INDEX.md](./LEGACY-INDEX.md)
 
 ---
 
-## Naming Convention
+## Why this layout
+
+Templates are organized by **stability tier**, not by workflow phase. The path prefix (`0-`, `1-`, ..., `5-`) tells you and your AI **how often this kind of doc changes** — which is the metadata that matters most when deciding whether to trust a doc as ground truth.
+
+Lower number = more stable. Higher number = changes more often.
 
 ```
-E{N}--{name}.md      Essential #N -- MUST have at this gate (remove = specific failure class)
-E{N}x--{name}.md     Extension of Essential #N -- add when E{N} lacks depth for a gate
-GR{N}--{name}.md     Gate Review #N -- validation checklist for TR{N} (confirms readiness, no new artifact)
-G--{name}.md          Governance -- cross-cutting process docs
+0-principles  ←  read first, trust most
+1-decisions
+2-contracts
+3-process
+4-exploration
+5-views        ←  read last, trust least (regenerate from code)
 ```
 
----
-
-## TR Gate Map
-
-```
-DISCOVER        DEFINE         DESIGN         DEVELOP           DELIVER
-TR0  TR1       TR2  TR3      TR4  TR5       TR6    TR7        TR8  TR9  TR10
- |    |         |    |        |    |         |      |          |    |     |
- E1   E1       E2   E3       E5   E6       GR6    GR7         E8   E9   GR10
-              E2x   E4      E5x  E6x                              E9x
-                    E3x          E7
-                                E7x
-```
-
-> **E** = Essential (produces artifact) | **GR** = Gate Review (validates existing artifacts)
+See [HOW-TO-INSTANTIATE.md](./HOW-TO-INSTANTIATE.md) for how to use these templates inside your own project.
 
 ---
 
-## 9 Essential Templates (Minimum Viable Document Set)
+## The 6 tiers
 
-| # | Gate | Template | Purpose | If absent... |
-|---|------|----------|---------|--------------|
-| **E1** | TR0-TR1 | [E1--prd.md](./00-discover/E1--prd.md) | Problem + Solution + Users + Metrics | Build wrong thing |
-| **E2** | TR2 | [E2--adr.md](./01-define/E2--adr.md) | Architecture decisions with rationale | Undocumented tech debt |
-| **E3** | TR3 | [E3--architecture.md](./02-design/E3--architecture.md) | System architecture (C4 + DDD + Clean) | Modules don't fit |
-| **E4** | TR3 | [E4--data-model.md](./02-design/E4--data-model.md) | ERD + table specs + migration strategy | Data inconsistency |
-| **E5** | TR4 | [E5--api-contract.md](./02-design/E5--api-contract.md) | API specification + error handling | Frontend/backend mismatch |
-| **E6** | TR5 | [E6--dev-workflow.md](./03-develop/E6--dev-workflow.md) | Dev process + standards + phases | Merge conflicts, chaos |
-| **E7** | TR5 | [E7--module-spec-tests.md](./03-develop/E7--module-spec-tests.md) | Module specs + Design by Contract + tests | Ship untested features |
-| **E8** | TR8 | [E8--quality-checklist.md](./04-deliver/E8--quality-checklist.md) | Security + quality + production readiness | Vulnerabilities |
-| **E9** | TR9 | [E9--deploy-ops.md](./04-deliver/E9--deploy-ops.md) | Deployment + CI/CD + monitoring + rollback | Manual outages |
+### 0-principles — *near-immutable invariants*
+Mission, non-goals, quality bars, technical hard limits, naming conventions, terminology. Reviewed every 6 months, changed only on major version. AI loads this first.
+- [`product-principles.template.md`](./0-principles/product-principles.template.md)
+- [`flow-id-conventions.md`](./0-principles/flow-id-conventions.md) — Flow ID 9-prefix system
+- [`glossary.template.md`](./0-principles/glossary.template.md) — **NEW v5.2**: business terminology source of truth (critical for ERP-class systems)
+- [`frontend-quality-attributes.template.md`](./0-principles/frontend-quality-attributes.template.md) — **NEW v5.4**: frontend SLO / Core Web Vitals / A11y / responsive breakpoints (per ADR-0001)
 
----
+### 1-decisions — *append-only judgments*
+ADRs, architecture overviews, module charters, domain models. Once Accepted, never edited; superseded by writing a new decision.
+- [`adr.template.md`](./1-decisions/adr.template.md)
+- [`architecture-overview.template.md`](./1-decisions/architecture-overview.template.md)
+- [`module-boundary.template.md`](./1-decisions/module-boundary.template.md) — **NEW v5.2**: per-module charter (owns / does NOT own / dependencies / ACL)
+- [`domain-model.template.md`](./1-decisions/domain-model.template.md) — **NEW v5.2**: per-bounded-context DDD model (aggregates, invariants, ERD, events)
+- [`frontend-tech-stack.template.md`](./1-decisions/frontend-tech-stack.template.md) — **NEW v5.4**: frontend layered tech selection + project structure (per ADR-0001)
 
-## Extension Templates (Add When Needed)
+### 2-contracts — *interfaces that MUST track code*
+API specs, module contracts, layered Flows, FRs, traceability. Carry frontmatter `id`, `status`, `last-synced-with`; the `sunnydata-doc-freshness` skill flags drift + lifecycle issues.
+- [`api-spec.template.md`](./2-contracts/api-spec.template.md) — "how do systems exchange data?"
+- [`module-contract.template.md`](./2-contracts/module-contract.template.md) — "what does this module promise?"
+- [`flow-business.template.md`](./2-contracts/flow-business.template.md) — L1 BF; "how does it happen E2E?"
+- [`flow-user.template.md`](./2-contracts/flow-user.template.md) — L2 UF; "how does this actor do it?"
+- [`flow-sub.template.md`](./2-contracts/flow-sub.template.md) — L3 SF; "how does this shared step work?"
+- [`functional-requirement.template.md`](./2-contracts/functional-requirement.template.md) — FR; "how do we judge correctness?"
+- [`state-machine.template.md`](./2-contracts/state-machine.template.md) — per-entity state transitions (extract when ≥5 states)
+- [`master-data-specification.template.md`](./2-contracts/master-data-specification.template.md) — master entity governance (critical for ERP)
+- [`flow-index.template.md`](./2-contracts/flow-index.template.md) — **NEW v5.3**: project-wide Flow aggregation view (paired with `sunnydata-flow-audit` skill)
+- [`traceability-matrix.template.md`](./2-contracts/traceability-matrix.template.md) — cross-layer coverage map
+- [`frontend-design-system.template.md`](./2-contracts/frontend-design-system.template.md) — **NEW v5.4**: design tokens + atomic design + API client + auth + frontend security checklist (per ADR-0001)
+- [`page-contract.template.md`](./2-contracts/page-contract.template.md) — **NEW v5.4**: per-page contract (route / responsibility / data / CTA / nav) (per ADR-0001)
 
-### 00-discover/ (TR0-TR1)
+### 3-process — *how we work*
+Workflow guides, checklists, methodology references, runbooks, gates.
+- [`workflow-manual.md`](./3-process/workflow-manual.md)
+- [`bdd-guide.md`](./3-process/bdd-guide.md)
+- [`code-review-checklist.md`](./3-process/code-review-checklist.md)
+- [`security-readiness-checklist.md`](./3-process/security-readiness-checklist.md)
+- [`deployment-runbook.template.md`](./3-process/deployment-runbook.template.md)
+- [`docs-maintenance-guide.md`](./3-process/docs-maintenance-guide.md)
+- [`quality-gates.md`](./3-process/quality-gates.md) — **NEW v5**: Gate 0-4 stage prerequisites
+- [`test-plan.template.md`](./3-process/test-plan.template.md) — **NEW v5.1**: strategic test document
+- [`vendor-api-test-requirement.template.md`](./3-process/vendor-api-test-requirement.template.md) — **NEW v5.1**: per-vendor test prerequisites
+- [`frontend-pre-merge-checklist.template.md`](./3-process/frontend-pre-merge-checklist.template.md) — **NEW v5.4**: frontend test strategy + code/quality/IA checklists (per ADR-0001)
 
-| Tag | Template | Extends | Purpose |
-|-----|----------|---------|---------|
-| E1x | [E1x--bdd-guide.md](./00-discover/E1x--bdd-guide.md) | E1 | BDD/Gherkin -- turn PRD into executable acceptance criteria |
+### 4-exploration — *per-task ephemeral intent*
+PRDs, WBS, brainstorms, change-impact analyses. Date-stamp filenames, archive when shipped.
+- [`prd.template.md`](./4-exploration/prd.template.md)
+- [`wbs.template.md`](./4-exploration/wbs.template.md)
+- [`change-impact-analysis.template.md`](./4-exploration/change-impact-analysis.template.md) — **NEW v5**: CIA (CR-NNNN) — produced by `sunnydata-change-impact-analysis` skill, mandated by `change-governance` rule
 
-### 01-define/ (TR2)
-
-| Tag | Template | Extends | Purpose |
-|-----|----------|---------|---------|
-| E2x | [E2x--wbs-plan.md](./01-define/E2x--wbs-plan.md) | E2 | WBS -- work breakdown, timeline, progress tracking |
-
-### 02-design/ (TR3-TR4)
-
-| Tag | Template | Extends | Purpose |
-|-----|----------|---------|---------|
-| E3x | [E3x--class-relationships.md](./02-design/E3x--class-relationships.md) | E3 | UML class diagrams, SOLID validation |
-| E5x | [E5x--frontend-architecture.md](./02-design/E5x--frontend-architecture.md) | E5 | Frontend tech stack, 5-layer design, performance |
-| E5x | [E5x--frontend-ia.md](./02-design/E5x--frontend-ia.md) | E5 | User journeys, sitemap, navigation, routing |
-
-### 03-develop/ (TR5-TR7)
-
-| Tag | Template | Extends | Purpose |
-|-----|----------|---------|---------|
-| E6x | [E6x--project-structure.md](./03-develop/E6x--project-structure.md) | E6 | Directory conventions, file naming |
-| E6x | [E6x--file-dependencies.md](./03-develop/E6x--file-dependencies.md) | E6 | Module dependency analysis, coupling risks |
-| E6x | [E6x--code-review.md](./03-develop/E6x--code-review.md) | E6 | Code review checklist, refactoring patterns |
-
-### 04-deliver/ (TR8-TR10)
-
-| Tag | Template | Extends | Purpose |
-|-----|----------|---------|---------|
-| E9x | [E9x--doc-maintenance.md](./04-deliver/E9x--doc-maintenance.md) | E9 | Documentation standards, knowledge preservation |
-
----
-
-## Gate Review Templates (Validation Gates)
-
-These gates validate that existing artifacts work correctly. They don't produce new knowledge -- they confirm readiness.
-
-| GR# | Gate | Template | Validates | If skipped... |
-|-----|------|----------|-----------|---------------|
-| **GR6** | TR6 | [GR6--code-complete.md](./03-develop/GR6--code-complete.md) | E5, E6, E7 | Ship half-built modules |
-| **GR7** | TR7 | [GR7--integration.md](./03-develop/GR7--integration.md) | E6, E7 | Components don't work together |
-| **GR10** | TR10 | [GR10--ga-readiness.md](./04-deliver/GR10--ga-readiness.md) | E8, E9 | Silent production degradation |
-
-### _governance/ (Cross-Gate)
-
-| Tag | Template | Purpose |
-|-----|----------|---------|
-| G | [G--workflow-manual.md](./_governance/G--workflow-manual.md) | Dual-mode process (Full vs MVP), RACI, gate rules |
-| G | [G--output-style.md](./_governance/G--output-style.md) | Claude Code output style presets per role |
+### 5-views — *derived from code; do not hand-edit*
+Project structure, dependency graphs, class diagrams, frontend trees. Regenerate via `/regenerate-views` skill or language-specific tooling.
+- [`project-structure.template.md`](./5-views/project-structure.template.md)
+- [`file-dependencies.template.md`](./5-views/file-dependencies.template.md)
+- [`class-relationships.template.md`](./5-views/class-relationships.template.md)
+- [`frontend-route-map.template.md`](./5-views/frontend-route-map.template.md) — **NEW v5.4**: page tree + nav + route table + page-to-page data passing (derived from router config; per ADR-0001)
 
 ---
 
-## Usage by Role
+## How AI should consume these templates
 
-| Role | Essential | Extensions |
-|------|-----------|------------|
-| **PM** | E1, E2x | E1x |
-| **Architect** | E2, E3, E4, E5 | E3x |
-| **Backend Dev** | E5, E6, E7 | E6x (all 3) |
-| **Frontend Dev** | E5, E6, E7 | E5x (both) |
-| **Security** | E8 | -- |
-| **SRE / Ops** | E9 | E9x |
-| **Tech Lead** | All E | G (both) |
-
----
-
-## Mermaid: Full Process vs MVP
-
-```mermaid
-graph TD
-    Start[Project Start] --> Mode{Mode?}
-    
-    Mode -->|Full| E1[E1: PRD]
-    Mode -->|MVP| MVP[E1 minimal + E6 + E9]
-    
-    E1 --> E2[E2: ADR + E2x: WBS]
-    E2 --> Define[E3: Architecture + E4: Data Model]
-    Define --> Design[E5: API + E6: Dev Workflow + E7: Specs]
-    Design --> Develop[GR6: Code Complete + GR7: Integration]
-    Develop --> Ship[E8: Quality + E9: Deploy + GR10: GA]
-    
-    MVP --> MVPBuild[Build fast]
-    MVPBuild --> MVPGate{Need to scale?}
-    MVPGate -->|Yes| E2
-    MVPGate -->|No| MVPShip[MVP Launch]
-    
-    style E1 fill:#fff3e0
-    style Define fill:#e3f2fd
-    style Design fill:#e3f2fd
-    style Develop fill:#e8f5e9
-    style Ship fill:#f3e5f5
-```
+| Tier | When to load | How to treat the content |
+|---|---|---|
+| 0-principles | Every new conversation | Hard constraint — overrides downstream |
+| 1-decisions | Before proposing architecture | Honor or escalate; never silently contradict |
+| 2-contracts | When touching public interfaces | Check `last-synced-with` first |
+| 3-process | Before category of work (review, deploy, test) | Follow the checklist |
+| 4-exploration | For motivation context | Don't assume current behavior |
+| 5-views | Almost never directly | Read the code, then optionally compare |
 
 ---
 
-## Generalizable Template Kit
+## How humans should pick a template to fill
 
-To bootstrap ANY new project, copy 9 Essentials + 3 Gate Reviews into `docs/`:
-
-```bash
-# 9 Essentials (produce artifacts)
-mkdir -p docs/{00-discover,01-define,02-design,03-develop,04-deliver}
-cp VibeCoding_Workflow_Templates/00-discover/E1--prd.md docs/00-discover/
-cp VibeCoding_Workflow_Templates/01-define/E2--adr.md docs/01-define/
-cp VibeCoding_Workflow_Templates/02-design/E3--architecture.md docs/02-design/
-cp VibeCoding_Workflow_Templates/02-design/E4--data-model.md docs/02-design/
-cp VibeCoding_Workflow_Templates/02-design/E5--api-contract.md docs/02-design/
-cp VibeCoding_Workflow_Templates/03-develop/E6--dev-workflow.md docs/03-develop/
-cp VibeCoding_Workflow_Templates/03-develop/E7--module-spec-tests.md docs/03-develop/
-cp VibeCoding_Workflow_Templates/04-deliver/E8--quality-checklist.md docs/04-deliver/
-cp VibeCoding_Workflow_Templates/04-deliver/E9--deploy-ops.md docs/04-deliver/
-
-# 3 Gate Reviews (validate artifacts)
-cp VibeCoding_Workflow_Templates/03-develop/GR6--code-complete.md docs/03-develop/
-cp VibeCoding_Workflow_Templates/03-develop/GR7--integration.md docs/03-develop/
-cp VibeCoding_Workflow_Templates/04-deliver/GR10--ga-readiness.md docs/04-deliver/
-```
-
-**9 Essentials + 3 Gate Reviews. 5 folders. Complete product lifecycle.**
-
-Extensions are added ONLY when a gate review says "E{N} lacks detail for this decision."
+| You're doing… | Reach for… |
+|---|---|
+| Starting a project | `0-principles/product-principles.template.md` |
+| Recording an architectural choice | `1-decisions/adr.template.md` |
+| Documenting a service boundary | `2-contracts/api-spec.template.md` |
+| Documenting a module's public surface | `2-contracts/module-contract.template.md` |
+| Drafting a feature spec | `4-exploration/prd.template.md` |
+| Planning a sprint | `4-exploration/wbs.template.md` |
+| Adopting BDD on a new feature | `3-process/bdd-guide.md` (read, don't fill) |
+| Pre-launch checks | `3-process/security-readiness-checklist.md` (read, don't fill) |
+| Onboarding diagrams | `5-views/*` — but **regenerate**, don't write by hand |
 
 ---
 
-## Version History
+## Old-numbering → new-path migration table
 
-### v3.1 (2026-04-12)
-- Introduced GR (Gate Review) document type for validation gates
-- Added GR6 (Code Complete), GR7 (Integration), GR10 (GA Readiness)
-- Fixed phase grouping to align with GATE-MAP.md (TR2+TR3=DEFINE, TR4+TR5=DESIGN)
-- Every TR0-TR10 gate now has a corresponding document (E or GR)
-- Updated G--workflow-manual.md to reference current template paths
+| v3 path | v4 path |
+|---|---|
+| `01_workflow_manual.md` | `3-process/workflow-manual.md` |
+| `02_project_brief_and_prd.md` | `4-exploration/prd.template.md` |
+| `03_behavior_driven_development_guide.md` | `3-process/bdd-guide.md` |
+| `04_architecture_decision_record_template.md` | `1-decisions/adr.template.md` |
+| `05_architecture_and_design_document.md` | `1-decisions/architecture-overview.template.md` |
+| `06_api_design_specification.md` | `2-contracts/api-spec.template.md` |
+| `07_module_specification_and_tests.md` | `2-contracts/module-contract.template.md` |
+| `08_project_structure_guide.md` | `5-views/project-structure.template.md` |
+| `09_file_dependencies_template.md` | `5-views/file-dependencies.template.md` |
+| `10_class_relationships_template.md` | `5-views/class-relationships.template.md` |
+| `11_code_review_and_refactoring_guide.md` | `3-process/code-review-checklist.md` |
+| `12_frontend_architecture_specification.md` | **split across 0/1/2/3** (per [ADR-0001](../docs/1-decisions/ADR-0001-frontend-template-tier-realignment.md)): `0-principles/frontend-quality-attributes`, `1-decisions/frontend-tech-stack`, `2-contracts/frontend-design-system`, `3-process/frontend-pre-merge-checklist` |
+| `13_security_and_readiness_checklists.md` | `3-process/security-readiness-checklist.md` |
+| `14_deployment_and_operations_guide.md` | `3-process/deployment-runbook.template.md` |
+| `15_documentation_and_maintenance_guide.md` | `3-process/docs-maintenance-guide.md` |
+| `16_wbs_development_plan_template.md` | `4-exploration/wbs.template.md` |
+| `17_frontend_information_architecture_template.md` | **split** (per [ADR-0001](../docs/1-decisions/ADR-0001-frontend-template-tier-realignment.md)): `2-contracts/page-contract` (per-page contract), `5-views/frontend-route-map` (route/nav derive), `4-exploration/prd.template.md §6` (IA principles) |
+| *(new in v4)* | `0-principles/product-principles.template.md` |
+| *(new in v5)* | `0-principles/flow-id-conventions.md` |
+| *(new in v5)* | `2-contracts/flow-business.template.md` |
+| *(new in v5)* | `2-contracts/flow-user.template.md` |
+| *(new in v5)* | `2-contracts/flow-sub.template.md` |
+| *(new in v5)* | `2-contracts/traceability-matrix.template.md` |
+| *(new in v5)* | `3-process/quality-gates.md` |
+| *(new in v5)* | `4-exploration/change-impact-analysis.template.md` |
+| *(new in v5.1)* | `2-contracts/functional-requirement.template.md` |
+| *(new in v5.1)* | `3-process/test-plan.template.md` |
+| *(new in v5.1)* | `3-process/vendor-api-test-requirement.template.md` |
+| *(new in v5.2)* | `0-principles/glossary.template.md` |
+| *(new in v5.2)* | `1-decisions/module-boundary.template.md` |
+| *(new in v5.2)* | `1-decisions/domain-model.template.md` |
+| *(new in v5.2)* | `2-contracts/state-machine.template.md` |
+| *(new in v5.2)* | `2-contracts/master-data-specification.template.md` |
+| *(new in v5.3)* | `2-contracts/flow-index.template.md` |
 
-### v3.0 (2026-04-12)
-- Restructured to TR0-TR10 gate framework
-- Introduced E{N}/E{N}x naming convention
-- Added E4--data-model.md (was missing)
-- 5 phase folders replace flat 00-17 numbering
-- Aligned with docs/GATE-MAP.md
+A migration script for downstream forks is at `scripts/migrate-templates-v3-to-v4.sh`.
 
-### v2.1 (2025-10-03)
-- Added frontend information architecture template
+---
 
-### v2.0 (2025-10-03)
-- Initial indexed structure with 18 templates
+## Version history
+
+| Version | Date | Change |
+|---|---|---|
+| v5.4 | 2026-05-10 | Frontend template tier realignment (ADR-0001 / CR-0001): split `5-views/frontend-architecture` and `5-views/frontend-information-architecture` into 6 properly-tiered templates (0/1/2/3/5) + integrated IA principles into `prd.template.md §6` |
+| v5.3 | 2026-05-10 | Flow self-monitoring: project-wide flow-index aggregation template; sunnydata-flow-audit skill detecting broken refs / orphans / layering violations / stale flows / index drift |
+| v5.2 | 2026-05-10 | ERP-class foundation: Glossary (terminology source of truth); Module Boundary charter (per-module owns/NOT-owns); Domain Model (DDD aggregates + ERD + invariants); State Machine (extracted when complex); Master Data Specification (governance for long-lived shared entities) |
+| v5.1 | 2026-05-10 | "One doc, one question" enforcement: standalone Functional Requirement template (decouple FR from Flow); Test Plan strategic template; Vendor API Test Requirement template |
+| v5.0 | 2026-05-10 | Change Governance: Flow ID system (BF/UF/SF/FR/NFR/API/TC/ADR/CR), layered Flow templates, Traceability Matrix, Quality Gates, CIA template & skill, change-governance hard-gate rule, lifecycle frontmatter (status/supersedes) |
+| v4.0 | 2026-05-10 | Stability-tier layout; added 0-principles; .template.md naming; sync metadata for tier 2 |
+| v3.0 | 2026-03-16 | Phase-based numbering, removed cookbook, unified zh-TW |
+| v2.1 | 2025-10-03 | Added 17 (frontend IA) |
+| v2.0 | 2025-10-03 | Reorganized numbering, added INDEX |
+| v1.0 | 2025-10-01 | Initial release |
