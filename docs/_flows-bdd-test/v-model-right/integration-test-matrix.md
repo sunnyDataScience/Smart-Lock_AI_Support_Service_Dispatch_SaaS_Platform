@@ -11,6 +11,10 @@ owners: [QA Lead, Tech Lead]
 
 > **狀態**: 骨架文件（SKELETON）— 框架就位，10 channel 中 2 個有範例，其餘 8 個待補。
 
+status: superseded
+superseded_by: docs_v2/3-process/test-plan.md (appendix)
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
 ---
 
 ## §0 Purpose

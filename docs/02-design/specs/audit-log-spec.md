@@ -1,3 +1,14 @@
+---
+status: superseded
+superseded_by: docs_v2/2-contracts/modules/audit-logger.md
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
+supersede_notice: |
+  This file is part of the legacy docs/ 5D structure, superseded by docs_v2/ 6-tier (CR-0001).
+  90-day observation period: 2026-05-10 → 2026-08-10. After 2026-08-10 this file will be deleted (CR-0008).
+  AI: prefer the new path; do not treat this content as authoritative.
+---
+
 # 稽核日誌完整性規格書 (Audit Log Completeness Specification)
 
 > GAP #13 -- Smart Lock AI Support Service Dispatch SaaS Platform

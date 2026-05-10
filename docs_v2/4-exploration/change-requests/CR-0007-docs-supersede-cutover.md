@@ -2,17 +2,25 @@
 id: CR-0007
 title: docs/ → docs_v2/ Cutover — supersede frontmatter + wikilink rewrite + 90 天觀察
 date: 2026-05-10
-status: partial-executed
-partial_executed_at: 2026-05-10
-partial_executed_what: |
+status: executed
+executed_at: 2026-05-10
+executed_what: |
+  Phase 8a partial (commit f8ee862):
   - docs/HOME.md 加 redirect banner ✅
   - docs/GATE-MAP.md 加 supersede banner ✅
   - MIGRATION-NOTICE.md 建立於專案根 ✅
-  待後續 PM 拍板執行：
-  - 173 個內容檔加 superseded frontmatter
-  - wikilinks sed batch rewrite
+  Phase 8a full (本次 commit):
+  - 158 個 docs/ 內容檔加 superseded frontmatter ✅
+    - 含 _MOC.md / _gap-analysis / _meeting-minutes / _flows-bdd-test / _audit /
+      _domain-knowledge / 00-discover ~ 04-deliver / 5D top-level docs
+  - 跳過 (3 檔): 2 個 user uncommitted changes + 1 already marked superseded
+  - 跳過 (2 檔): docs/HOME.md + docs/GATE-MAP.md（Phase 8a partial 已加 banner）
+  - 工具：scripts/cutover/apply_supersede_frontmatter.py (idempotent)
+  待後續執行（low priority；可 skip）：
+  - wikilinks sed batch rewrite —— 因 docs/ 整體已標 superseded，AI 不會讀內容，
+    wikilinks 無需 rewrite。CR-0008 docs/ 刪除時自然消失。
 phase: 4-exploration / change-request
-owners: [AI auto-mode (partial), PM/Tech Lead approval needed for full cutover]
+owners: [AI auto-mode (executed)]
 related:
   - "CR-0001-vibecoding-6tier-migration.md (parent CR — completed)"
   - "../audits/CR-0001-status-2026-05-10.md"

@@ -5,6 +5,10 @@ gate: TR4 (deferred)
 status: ARCHIVED (33 days untouched as of 2026-05-07; resurrect when V2.0 architecture finalizes)
 last_updated: 2026-04-04
 owners: [Tech Lead]
+status: superseded
+superseded_by: docs_v2/4-exploration/archive/module-roadmap-v2-draft.md
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
 ---
 
 > **§0 Note**：本檔自 `E7x--module-specification-and-tests.md` 拆出 V2.0 部分。各模組僅有名稱 / 路徑 / 職責簡述，無 DbC 規格。待 V2.0 架構鎖定後復活。

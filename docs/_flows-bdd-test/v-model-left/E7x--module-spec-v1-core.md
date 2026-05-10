@@ -5,6 +5,10 @@ gate: TR4 / TR5
 status: Active (split from E7x--module-specification-and-tests.md)
 last_updated: 2026-05-07
 owners: [Tech Lead, Backend Eng]
+status: superseded
+superseded_by: docs_v2/2-contracts/modules/{conversation-manager, problem-card-engine-v1, three-layer-resolver, ...} (9 modules split)
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
 ---
 
 > **§0 Note**：本檔自原 `E7x--module-specification-and-tests.md` 拆出 V1.0 部分（模組 1-5 + Addendum）。V2.0 業務模組（模組 6-21）已 33 天未動，封存於 `_archive/E7x--module-roadmap-v2-draft.md`。

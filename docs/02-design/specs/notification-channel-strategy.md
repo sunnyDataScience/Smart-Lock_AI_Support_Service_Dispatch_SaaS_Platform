@@ -12,6 +12,10 @@ related:
   - "[[02-design/specs/sla-policy]]"
   - "[[decision-log/E7x--pm-alignment-Q1-Q10]]"
 last_reviewed: 2026-05-07
+status: superseded
+superseded_by: docs_v2/1-decisions/ADR-0012-notification-channels.md
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
 ---
 
 # 通知 Channel 策略（Notification Channel Strategy）

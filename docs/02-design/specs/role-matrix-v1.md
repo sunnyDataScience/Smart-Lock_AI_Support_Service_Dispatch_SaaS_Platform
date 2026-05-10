@@ -14,6 +14,10 @@ related:
   - "[[02-design/specs/dispatch-weights]]"
   - "[[02-design/specs/sla-policy]]"
 last_reviewed: 2026-05-07
+status: superseded
+superseded_by: docs_v2/2-contracts/modules/rbac.md (§B)
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
 ---
 
 # V1.0 角色與權限矩陣（Role Matrix v1.0）

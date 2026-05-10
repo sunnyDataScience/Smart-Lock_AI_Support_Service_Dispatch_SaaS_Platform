@@ -10,6 +10,10 @@ related:
   - "[[../v-model-right/E7x--test-plan-and-readiness]]"
   - "[[../_SSOT-alignment-matrix]]"
   - "[[../../01-define/E2--statement-of-work]]"
+status: superseded
+superseded_by: docs_v2/1-decisions/ADR-0023-payment-provider-pending.md
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
 ---
 
 # Q7 Follow-up — V1.0 金流 Provider 選型決策矩陣

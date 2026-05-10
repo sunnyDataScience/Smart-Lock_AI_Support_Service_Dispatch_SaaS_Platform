@@ -11,6 +11,10 @@ related:
   - "[[_flows-bdd-test/v-model-left/E5x--workflow-work-order]]"
   - "[[_flows-bdd-test/v-model-right/E7x--test-plan-and-readiness]]"
 last_reviewed: 2026-05-07
+status: superseded
+superseded_by: docs_v2/2-contracts/state-machines/work-order.md
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
 ---
 
 # 工單狀態機 V2.0 擴充規格（Work Order State Machine Extensions）

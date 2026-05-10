@@ -11,6 +11,10 @@ related:
 trigger:
   - PR f3a5f69 (F-002 production blocker 修補) 揭露 silent gap pattern
   - User 5/9 16:04 拍板：全 23 條 + Playwright + 一次衝完
+status: superseded
+superseded_by: docs_v2/4-exploration/audits/flow-disconnect-2026-05.md
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
 ---
 
 # F-Flow Production Code 斷鏈全盤掃描

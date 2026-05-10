@@ -1,3 +1,14 @@
+---
+status: superseded
+superseded_by: docs_v2/1-decisions/ADR-0007-llm-registry-pattern.md
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
+supersede_notice: |
+  This file is part of the legacy docs/ 5D structure, superseded by docs_v2/ 6-tier (CR-0001).
+  90-day observation period: 2026-05-10 → 2026-08-10. After 2026-08-10 this file will be deleted (CR-0008).
+  AI: prefer the new path; do not treat this content as authoritative.
+---
+
 # ADR-007: LLM Registry 形式 — 承認 LiteLLM 字串路由為 dict registry 替代方案
 
 **狀態:** Accepted

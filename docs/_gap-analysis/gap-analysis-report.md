@@ -1,3 +1,14 @@
+---
+status: superseded
+superseded_by: docs_v2/4-exploration/audits/gap-analysis-2026.md
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
+supersede_notice: |
+  This file is part of the legacy docs/ 5D structure, superseded by docs_v2/ 6-tier (CR-0001).
+  90-day observation period: 2026-05-10 → 2026-08-10. After 2026-08-10 this file will be deleted (CR-0008).
+  AI: prefer the new path; do not treat this content as authoritative.
+---
+
 # AI Locksmith Platform - System Design Gap Analysis Report
 ## Investor Review: What's Missing & What Must Be Added
 

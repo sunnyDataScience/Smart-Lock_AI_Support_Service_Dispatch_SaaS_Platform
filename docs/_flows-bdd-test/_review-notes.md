@@ -4,6 +4,10 @@ phase: CROSS-PHASE
 status: Active
 last_updated: 2026-05-07
 owners: [PM, Tech Lead, QA Lead]
+status: superseded
+superseded_by: docs_v2/4-exploration/audits/flows-review-notes.md
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
 ---
 
 # _flows-bdd-test/ — Per-File Review Notes

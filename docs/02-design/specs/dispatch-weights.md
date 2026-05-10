@@ -12,6 +12,10 @@ related:
   - "[[_flows-bdd-test/v-model-left/E5x--workflow-work-order]]"
   - "[[_flows-bdd-test/v-model-right/E7x--test-plan-and-readiness]]"
 last_reviewed: 2026-05-07
+status: superseded
+superseded_by: docs_v2/2-contracts/modules/dispatch-engine-weights.md
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
 ---
 
 # 派工演算法權重與 Tie-Breaker 規則

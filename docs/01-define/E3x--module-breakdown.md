@@ -1,3 +1,14 @@
+---
+status: superseded
+superseded_by: docs_v2/4-exploration/agent-harness-v2/v1-v2-module-detailed-spec.md
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
+supersede_notice: |
+  This file is part of the legacy docs/ 5D structure, superseded by docs_v2/ 6-tier (CR-0001).
+  90-day observation period: 2026-05-10 → 2026-08-10. After 2026-08-10 this file will be deleted (CR-0008).
+  AI: prefer the new path; do not treat this content as authoritative.
+---
+
 # 電子鎖智能客服與派工平台 — 模組分解與依賴關係
 
 > **版本:** v1.0 | **日期:** 2026-03-31

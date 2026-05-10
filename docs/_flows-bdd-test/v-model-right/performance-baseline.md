@@ -5,6 +5,10 @@ gate: TR5 / TR7
 status: Initial Content (待 SME 補充細節)
 last_updated: 2026-05-07
 owners: [DevOps, Tech Lead]
+status: superseded
+superseded_by: docs_v2/0-principles/frontend-quality-attributes.md + 3-process/test-plan.md
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
 ---
 
 # Performance Baseline — Load / Stress / Spike Tests

@@ -5,6 +5,10 @@ gate: TR5 / TR7
 status: Initial Content (待 SME 補充細節)
 last_updated: 2026-05-07
 owners: [Security Lead, Tech Lead]
+status: superseded
+superseded_by: docs_v2/3-process/security-readiness-checklist.md (appendix)
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
 ---
 
 # Security Checklist — OWASP Top 10 + Pen Test Scope

@@ -17,6 +17,10 @@ related:
   - "[[01-define/E2--statement-of-work]]"
 last_reviewed: 2026-05-07
 last_updated: 2026-05-07 (PM 拍板 sync)
+status: superseded
+superseded_by: docs_v2/1-decisions/ADR-0013~0022-pm-alignment-q*.md
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
 ---
 
 # PM Alignment — Q1–Q10 Decision Matrix

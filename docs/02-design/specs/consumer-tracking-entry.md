@@ -12,6 +12,10 @@ related:
   - "[[02-design/specs/openapi]]"
   - "[[decision-log/E7x--pm-alignment-Q1-Q10]]"
 last_reviewed: 2026-05-07
+status: superseded
+superseded_by: docs_v2/ (見 docs_v2/4-exploration/audits/vibecoding-mapping-table-2026-05-10.md)
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
 ---
 
 # 消費者端工單追蹤入口（Consumer Tracking Entry）

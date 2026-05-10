@@ -14,6 +14,10 @@ related:
   - "[[02-design/specs/sla-availability-spec]]"
   - "[[decision-log/E7x--pm-alignment-Q1-Q10]]"
 last_reviewed: 2026-05-07
+status: superseded
+superseded_by: docs_v2/0-principles/product-principles.md (§4)
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
 ---
 
 # SLA Policy — Hard vs Soft Target

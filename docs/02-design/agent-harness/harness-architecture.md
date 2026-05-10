@@ -1,3 +1,14 @@
+---
+status: superseded
+superseded_by: docs_v2/4-exploration/agent-harness-v2/architecture.md (V2 部分) + docs_v2/1-decisions/module-boundary/agent.md (V1 部分)
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
+supersede_notice: |
+  This file is part of the legacy docs/ 5D structure, superseded by docs_v2/ 6-tier (CR-0001).
+  90-day observation period: 2026-05-10 → 2026-08-10. After 2026-08-10 this file will be deleted (CR-0008).
+  AI: prefer the new path; do not treat this content as authoritative.
+---
+
 ## 一句話先講
 
 **Agent Harness 的本質，不是把模型接上工具而已，而是把「模型做事的整個生存環境」工程化，讓它能在有限上下文、真實工具、安全邊界、長任務與回饋迴路裡，穩定把事做完。** ([Anthropic][1])

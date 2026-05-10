@@ -1,3 +1,14 @@
+---
+status: superseded
+superseded_by: docs_v2/4-exploration/multi-tenant-platform/flows.md
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
+supersede_notice: |
+  This file is part of the legacy docs/ 5D structure, superseded by docs_v2/ 6-tier (CR-0001).
+  90-day observation period: 2026-05-10 → 2026-08-10. After 2026-08-10 this file will be deleted (CR-0008).
+  AI: prefer the new path; do not treat this content as authoritative.
+---
+
 # E5x — 多租戶流程規格書 (Multi-Tenant Flows, V3.0)
 
 > **文件版本**：v0.1（draft，待人工校對業務細節）

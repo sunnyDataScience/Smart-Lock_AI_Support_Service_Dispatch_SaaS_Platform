@@ -11,6 +11,10 @@ related:
   - "[[02-design/specs/notification-channel-strategy]]"
 last_reviewed: 2026-05-09
 last_updated: 2026-05-09
+status: superseded
+superseded_by: docs_v2/1-decisions/ADR-0011-i18n-strategy.md
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
 ---
 
 # i18n Strategy — 多語系實作決策

@@ -11,6 +11,10 @@ related:
   - "[[v-model-right/E7x--test-plan-and-readiness]]"
   - "[[v-model-right/E7--bdd-scenarios]]"
   - "[[decision-log/E7x--pm-alignment-Q1-Q10]]"
+status: superseded
+superseded_by: docs_v2/5-views/traceability-matrix.md
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
 ---
 
 # ⭐ _flows-bdd-test/ — Master Alignment Matrix (SSOT)

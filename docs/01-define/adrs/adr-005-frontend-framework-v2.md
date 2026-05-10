@@ -1,3 +1,14 @@
+---
+status: superseded
+superseded_by: docs_v2/1-decisions/ADR-0005-frontend-framework-v2.md
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
+supersede_notice: |
+  This file is part of the legacy docs/ 5D structure, superseded by docs_v2/ 6-tier (CR-0001).
+  90-day observation period: 2026-05-10 → 2026-08-10. After 2026-08-10 this file will be deleted (CR-0008).
+  AI: prefer the new path; do not treat this content as authoritative.
+---
+
 # ADR-005: 選擇 Next.js 作為 V2.0 前端框架
 
 **狀態:** 已接受 (Accepted)

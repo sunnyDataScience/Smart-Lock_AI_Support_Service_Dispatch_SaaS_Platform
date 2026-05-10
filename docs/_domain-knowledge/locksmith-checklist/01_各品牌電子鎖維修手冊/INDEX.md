@@ -1,3 +1,14 @@
+---
+status: superseded
+superseded_by: data/manuals/INDEX.md (待 CR-0006)
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
+supersede_notice: |
+  This file is part of the legacy docs/ 5D structure, superseded by docs_v2/ 6-tier (CR-0001).
+  90-day observation period: 2026-05-10 → 2026-08-10. After 2026-08-10 this file will be deleted (CR-0008).
+  AI: prefer the new path; do not treat this content as authoritative.
+---
+
 # 各品牌電子鎖維修手冊 — 資料概覽
 
 > **注意**：原始 PDF 檔案體積較大，不納入版本控制。

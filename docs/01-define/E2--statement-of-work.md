@@ -1,3 +1,14 @@
+---
+status: superseded
+superseded_by: docs_v2/4-exploration/sow-2026-q1.md
+superseded_at: 2026-05-10
+supersede_cr: CR-0007
+supersede_notice: |
+  This file is part of the legacy docs/ 5D structure, superseded by docs_v2/ 6-tier (CR-0001).
+  90-day observation period: 2026-05-10 → 2026-08-10. After 2026-08-10 this file will be deleted (CR-0008).
+  AI: prefer the new path; do not treat this content as authoritative.
+---
+
 # 軟體需求分析與工作說明書 (SOW) - 電子鎖智能客服與派工平台
 
 > **技術棧更新（2026-04-21）**
