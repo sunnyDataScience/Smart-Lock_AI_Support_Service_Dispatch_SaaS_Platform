@@ -13,6 +13,8 @@ DB ↔ API 對齊：
     時 fallback created_at（保證 draft 也能落點）
   - 品牌透過 invoices→work_orders→problem_cards.brand JOIN 取得；
     NULL/空字串收斂為「未分類」
+  - F-021 串接：可選 start_date / end_date 把 trend / by_brand / KPI（除 month_revenue
+    保持「本月」語意外）改用 DB-side filter，避免 client-side 撈滿表
 
 租戶隔離：與 invoice_service 同 4 層 JOIN
     invoices → work_orders → problem_cards → conversations → users.tenant_id
@@ -21,6 +23,7 @@ DB ↔ API 對齊：
 from __future__ import annotations
 
 import logging
+from datetime import date
 from decimal import Decimal
 
 import core.db as db_module
@@ -53,24 +56,86 @@ _TENANT_JOIN = (
 )
 
 
-async def _query_kpis(tenant_id: str) -> dict:
-    """5 個 KPI 用一個 SQL with FILTER 子句一次撈出。"""
-    sql = f"""
-        SELECT
-            COALESCE(SUM(i.amount) FILTER (
-                WHERE i.status IN ('issued','paid')
-                  AND date_trunc('month', COALESCE(i.issued_at, i.created_at))
-                      = date_trunc('month', NOW())
-            ), 0) AS month_revenue,
-            COALESCE(AVG(i.amount) FILTER (WHERE i.status IN ('issued','paid')), 0) AS avg_amount,
-            COUNT(*) FILTER (WHERE i.status = 'paid') AS paid_count,
-            COUNT(*) FILTER (WHERE i.status IN ('issued','paid','cancelled')) AS issued_or_done,
-            COALESCE(SUM(i.amount) FILTER (WHERE i.status = 'draft'), 0) AS outstanding_amount,
-            COUNT(*) FILTER (WHERE i.status = 'draft') AS outstanding_count
-        {_TENANT_JOIN}
-        WHERE u.tenant_id = %s::uuid
+# 落點欄位：優先 issued_at，draft 走 created_at — 與 trend query 一致
+_DATE_FALLBACK = "COALESCE(i.issued_at, i.created_at)"
+
+
+def _date_range_clause() -> str:
+    """Inclusive date range — end_date is included via < end + 1 day."""
+    return (
+        f"{_DATE_FALLBACK} >= %s::date "
+        f"AND {_DATE_FALLBACK} < (%s::date + INTERVAL '1 day')"
+    )
+
+
+def _validate_date_range(
+    start_date: date | None,
+    end_date: date | None,
+) -> None:
+    """Either both dates or neither; start <= end."""
+    if (start_date is None) ^ (end_date is None):
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "start_date and end_date must be provided together",
+            422,
+        )
+    if start_date is not None and end_date is not None and start_date > end_date:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "start_date must be <= end_date",
+            422,
+        )
+
+
+async def _query_kpis(
+    tenant_id: str,
+    start_date: date | None,
+    end_date: date | None,
+) -> dict:
+    """5 個 KPI 用一個 SQL with FILTER 子句一次撈出。
+
+    當 start_date/end_date 提供時：所有 KPI 都在該 date range 內計算（含
+    month_revenue — 名稱保留但語意變為「期間內」）。
     """
-    cur = await db_module._conn.execute(sql, (tenant_id,))
+    using_range = start_date is not None and end_date is not None
+
+    if using_range:
+        # 期間內：month_revenue 改解讀為「期間內 issued+paid 總額」
+        sql = f"""
+            SELECT
+                COALESCE(SUM(i.amount) FILTER (
+                    WHERE i.status IN ('issued','paid')
+                ), 0) AS month_revenue,
+                COALESCE(AVG(i.amount) FILTER (WHERE i.status IN ('issued','paid')), 0) AS avg_amount,
+                COUNT(*) FILTER (WHERE i.status = 'paid') AS paid_count,
+                COUNT(*) FILTER (WHERE i.status IN ('issued','paid','cancelled')) AS issued_or_done,
+                COALESCE(SUM(i.amount) FILTER (WHERE i.status = 'draft'), 0) AS outstanding_amount,
+                COUNT(*) FILTER (WHERE i.status = 'draft') AS outstanding_count
+            {_TENANT_JOIN}
+            WHERE u.tenant_id = %s::uuid
+              AND {_date_range_clause()}
+        """
+        args: list = [tenant_id, start_date, end_date]
+    else:
+        # 預設：month_revenue = 本月 issued+paid 總額
+        sql = f"""
+            SELECT
+                COALESCE(SUM(i.amount) FILTER (
+                    WHERE i.status IN ('issued','paid')
+                      AND date_trunc('month', {_DATE_FALLBACK})
+                          = date_trunc('month', NOW())
+                ), 0) AS month_revenue,
+                COALESCE(AVG(i.amount) FILTER (WHERE i.status IN ('issued','paid')), 0) AS avg_amount,
+                COUNT(*) FILTER (WHERE i.status = 'paid') AS paid_count,
+                COUNT(*) FILTER (WHERE i.status IN ('issued','paid','cancelled')) AS issued_or_done,
+                COALESCE(SUM(i.amount) FILTER (WHERE i.status = 'draft'), 0) AS outstanding_amount,
+                COUNT(*) FILTER (WHERE i.status = 'draft') AS outstanding_count
+            {_TENANT_JOIN}
+            WHERE u.tenant_id = %s::uuid
+        """
+        args = [tenant_id]
+
+    cur = await db_module._conn.execute(sql, args)
     row = await cur.fetchone()
 
     month_rev = row[0]
@@ -91,22 +156,34 @@ async def _query_kpis(tenant_id: str) -> dict:
     }
 
 
-async def _query_trend_monthly(tenant_id: str) -> list[dict]:
-    """最近 12 個自然月（含本月）。空月份不補 0，前端 chart 自處理。"""
+async def _query_trend_monthly(
+    tenant_id: str,
+    start_date: date | None,
+    end_date: date | None,
+) -> list[dict]:
+    """月度趨勢。預設取最近 12 個月（含本月）；提供 date range 時改取 range 內月份。"""
+    if start_date is not None and end_date is not None:
+        time_clause = _date_range_clause()
+        time_args: list = [start_date, end_date]
+    else:
+        time_clause = (
+            f"{_DATE_FALLBACK} >= date_trunc('month', NOW()) - INTERVAL '11 months'"
+        )
+        time_args = []
+
     sql = f"""
         SELECT
-            to_char(date_trunc('month', COALESCE(i.issued_at, i.created_at)), 'YYYY-MM') AS period,
+            to_char(date_trunc('month', {_DATE_FALLBACK}), 'YYYY-MM') AS period,
             COALESCE(SUM(i.amount), 0) AS revenue,
             COUNT(*) AS order_count
         {_TENANT_JOIN}
         WHERE u.tenant_id = %s::uuid
           AND i.status IN ('issued','paid')
-          AND COALESCE(i.issued_at, i.created_at)
-              >= date_trunc('month', NOW()) - INTERVAL '11 months'
-        GROUP BY date_trunc('month', COALESCE(i.issued_at, i.created_at))
-        ORDER BY date_trunc('month', COALESCE(i.issued_at, i.created_at)) ASC
+          AND {time_clause}
+        GROUP BY date_trunc('month', {_DATE_FALLBACK})
+        ORDER BY date_trunc('month', {_DATE_FALLBACK}) ASC
     """
-    cur = await db_module._conn.execute(sql, (tenant_id,))
+    cur = await db_module._conn.execute(sql, [tenant_id, *time_args])
     rows = await cur.fetchall()
     return [
         {
@@ -118,18 +195,28 @@ async def _query_trend_monthly(tenant_id: str) -> list[dict]:
     ]
 
 
-async def _query_by_brand(tenant_id: str) -> list[dict]:
+async def _query_by_brand(
+    tenant_id: str,
+    start_date: date | None,
+    end_date: date | None,
+) -> list[dict]:
+    extra_clause = ""
+    extra_args: list = []
+    if start_date is not None and end_date is not None:
+        extra_clause = f" AND {_date_range_clause()}"
+        extra_args = [start_date, end_date]
+
     sql = f"""
         SELECT
             COALESCE(NULLIF(pc.brand, ''), '未分類') AS brand,
             COALESCE(SUM(i.amount), 0) AS revenue
         {_TENANT_JOIN}
         WHERE u.tenant_id = %s::uuid
-          AND i.status IN ('issued','paid')
+          AND i.status IN ('issued','paid'){extra_clause}
         GROUP BY 1
         ORDER BY 2 DESC
     """
-    cur = await db_module._conn.execute(sql, (tenant_id,))
+    cur = await db_module._conn.execute(sql, [tenant_id, *extra_args])
     rows = await cur.fetchall()
 
     total = sum(Decimal(str(r[1])) for r in rows) if rows else Decimal("0")
@@ -145,19 +232,27 @@ async def _query_by_brand(tenant_id: str) -> list[dict]:
     return out
 
 
-async def get_revenue_summary(*, tenant_id: str, granularity: str = "month") -> dict:
+async def get_revenue_summary(
+    *,
+    tenant_id: str,
+    granularity: str = "month",
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> dict:
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
     if granularity not in _VALID_GRANULARITY:
         raise ApiError("VALIDATION_ERROR", f"Invalid granularity: {granularity}", 422)
 
+    _validate_date_range(start_date, end_date)
+
     # 後端目前僅支援 month；day/week 也回傳 month 結果（前端 segmented control disabled）
     effective = "month"
 
-    kpis = await _query_kpis(tenant_id)
-    trend = await _query_trend_monthly(tenant_id)
-    by_brand = await _query_by_brand(tenant_id)
+    kpis = await _query_kpis(tenant_id, start_date, end_date)
+    trend = await _query_trend_monthly(tenant_id, start_date, end_date)
+    by_brand = await _query_by_brand(tenant_id, start_date, end_date)
 
     return {
         "granularity": effective,

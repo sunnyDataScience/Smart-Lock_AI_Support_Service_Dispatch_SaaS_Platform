@@ -5758,8 +5758,15 @@ export interface operations {
     getKpiReport: {
         parameters: {
             query?: {
-                /** @description 統計時間區間（預設 30d） */
+                /**
+                 * @description 統計時間區間（預設 30d）。
+                 *     若同時提供 start_date / end_date，date range 優先，period 被忽略。
+                 */
                 period?: components["schemas"]["DashboardPeriod"];
+                /** @description 統計起日（含），與 end_date 搭配使用；提供時覆蓋 period。 */
+                start_date?: string;
+                /** @description 統計迄日（含），與 start_date 搭配使用；提供時覆蓋 period。 */
+                end_date?: string;
             };
             header?: never;
             path?: never;
@@ -5783,6 +5790,10 @@ export interface operations {
             query?: {
                 /** @description 趨勢資料粒度（目前後端僅實作 month） */
                 granularity?: "day" | "week" | "month";
+                /** @description 統計起日（含），落點以 invoices.issued_at 為準（draft 走 created_at）。 */
+                start_date?: string;
+                /** @description 統計迄日（含），與 start_date 搭配使用。 */
+                end_date?: string;
             };
             header?: never;
             path?: never;

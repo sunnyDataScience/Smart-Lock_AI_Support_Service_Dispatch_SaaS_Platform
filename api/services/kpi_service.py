@@ -8,6 +8,8 @@ GET /api/v1/reports/kpi — 給 /admin/reports/kpi KPI 儀表板。
   - technician_efficiency：AVG(EXTRACT(EPOCH FROM completed_at - started_at)/60) 分鐘
 
 period 採用 dashboard 同 enum（today / 7d / 30d / 90d）。
+若呼叫端提供 start_date / end_date，date range 覆蓋 period（F-021 Dashboard
+DateRangePicker 串接，DB-side filter 取代 client-side filter）。
 SLA / NPS / 滿意度 / FTFR / 差評率不在本端點計算（缺乏資料來源 — 無 SLA 規則表
 與評價回傳機制）；以 notes 欄位告知前端。
 """
@@ -15,7 +17,7 @@ SLA / NPS / 滿意度 / FTFR / 差評率不在本端點計算（缺乏資料來�
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 import core.db as db_module
 from core.db import _ensure_conn
@@ -40,33 +42,65 @@ def _period_clause(alias: str) -> str:
     )
 
 
+def _date_range_clause(alias: str) -> str:
+    """Inclusive date range — ``end_date`` is included via ``< end + 1 day``。"""
+    return (
+        f"{alias}.created_at >= %s::date "
+        f"AND {alias}.created_at < (%s::date + INTERVAL '1 day')"
+    )
+
+
 def _ratio(numer: int, denom: int) -> str | None:
     if denom <= 0:
         return None
     return f"{(numer / denom):.4f}"
 
 
-async def _count_conversations(tenant_id: str, interval: str) -> int:
+def _build_time_filter(
+    alias: str,
+    interval: str,
+    start_date: date | None,
+    end_date: date | None,
+) -> tuple[str, list]:
+    """Pick date-range when caller supplied dates, else fall back to period."""
+    if start_date is not None and end_date is not None:
+        return _date_range_clause(alias), [start_date, end_date]
+    return _period_clause(alias), [interval, interval]
+
+
+async def _count_conversations(
+    tenant_id: str,
+    interval: str,
+    start_date: date | None,
+    end_date: date | None,
+) -> int:
+    clause, time_args = _build_time_filter("c", interval, start_date, end_date)
     sql = (
         "SELECT COUNT(*) FROM conversations c "
         "JOIN users u ON c.user_id = u.id "
         "WHERE u.tenant_id = %s::uuid "
-        f"AND {_period_clause('c')}"
+        f"AND {clause}"
     )
-    cur = await db_module._conn.execute(sql, (tenant_id, interval, interval))
+    cur = await db_module._conn.execute(sql, [tenant_id, *time_args])
     row = await cur.fetchone()
     return int(row[0] or 0)
 
 
-async def _count_problem_cards(tenant_id: str, interval: str) -> int:
+async def _count_problem_cards(
+    tenant_id: str,
+    interval: str,
+    start_date: date | None,
+    end_date: date | None,
+) -> int:
+    clause, time_args = _build_time_filter("pc", interval, start_date, end_date)
     sql = (
         "SELECT COUNT(*) FROM problem_cards pc "
         "JOIN conversations c ON pc.conversation_id = c.id "
         "JOIN users u ON c.user_id = u.id "
         "WHERE u.tenant_id = %s::uuid "
-        f"AND {_period_clause('pc')}"
+        f"AND {clause}"
     )
-    cur = await db_module._conn.execute(sql, (tenant_id, interval, interval))
+    cur = await db_module._conn.execute(sql, [tenant_id, *time_args])
     row = await cur.fetchone()
     return int(row[0] or 0)
 
@@ -74,10 +108,13 @@ async def _count_problem_cards(tenant_id: str, interval: str) -> int:
 async def _count_work_orders(
     tenant_id: str,
     interval: str,
+    start_date: date | None,
+    end_date: date | None,
     statuses: tuple[str, ...] | None = None,
 ) -> int:
-    where = ["u.tenant_id = %s::uuid", _period_clause("wo")]
-    args: list = [tenant_id, interval, interval]
+    clause, time_args = _build_time_filter("wo", interval, start_date, end_date)
+    where = ["u.tenant_id = %s::uuid", clause]
+    args: list = [tenant_id, *time_args]
     if statuses:
         placeholders = ",".join(["%s"] * len(statuses))
         where.append(f"wo.status IN ({placeholders})")
@@ -97,11 +134,14 @@ async def _count_work_orders(
 async def _count_dispute_table(
     tenant_id: str,
     interval: str,
+    start_date: date | None,
+    end_date: date | None,
     table: str,
     fk: str = "work_order_id",
 ) -> int:
     """通用 disputes/refund_requests/warranty_claims 計數
     — 透過 work_orders → problem_cards → conversations → users 路徑。"""
+    clause, time_args = _build_time_filter("t", interval, start_date, end_date)
     sql = (
         f"SELECT COUNT(*) FROM {table} t "
         f"JOIN work_orders wo ON t.{fk} = wo.id "
@@ -109,16 +149,22 @@ async def _count_dispute_table(
         "JOIN conversations c ON pc.conversation_id = c.id "
         "JOIN users u ON c.user_id = u.id "
         "WHERE u.tenant_id = %s::uuid "
-        f"AND {_period_clause('t')}"
+        f"AND {clause}"
     )
-    cur = await db_module._conn.execute(sql, (tenant_id, interval, interval))
+    cur = await db_module._conn.execute(sql, [tenant_id, *time_args])
     row = await cur.fetchone()
     return int(row[0] or 0)
 
 
-async def _avg_handle_minutes(tenant_id: str, interval: str) -> tuple[float | None, int]:
+async def _avg_handle_minutes(
+    tenant_id: str,
+    interval: str,
+    start_date: date | None,
+    end_date: date | None,
+) -> tuple[float | None, int]:
     """平均處理時長（分鐘）+ 完工樣本數。
     僅取 status IN (completed, confirmed) 且 started_at / completed_at 皆非 NULL。"""
+    clause, time_args = _build_time_filter("wo", interval, start_date, end_date)
     sql = (
         "SELECT AVG(EXTRACT(EPOCH FROM (wo.completed_at - wo.started_at)) / 60.0), "
         "       COUNT(*) "
@@ -130,16 +176,42 @@ async def _avg_handle_minutes(tenant_id: str, interval: str) -> tuple[float | No
         "AND wo.status IN ('completed','confirmed') "
         "AND wo.started_at IS NOT NULL "
         "AND wo.completed_at IS NOT NULL "
-        f"AND {_period_clause('wo')}"
+        f"AND {clause}"
     )
-    cur = await db_module._conn.execute(sql, (tenant_id, interval, interval))
+    cur = await db_module._conn.execute(sql, [tenant_id, *time_args])
     row = await cur.fetchone()
     avg = float(row[0]) if row[0] is not None else None
     cnt = int(row[1] or 0)
     return avg, cnt
 
 
-async def get_kpi_report(*, tenant_id: str, period: str) -> dict:
+def _validate_date_range(
+    start_date: date | None,
+    end_date: date | None,
+) -> tuple[date | None, date | None]:
+    """Either both dates or neither; start <= end."""
+    if (start_date is None) ^ (end_date is None):
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "start_date and end_date must be provided together",
+            422,
+        )
+    if start_date is not None and end_date is not None and start_date > end_date:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "start_date must be <= end_date",
+            422,
+        )
+    return start_date, end_date
+
+
+async def get_kpi_report(
+    *,
+    tenant_id: str,
+    period: str,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> dict:
     """GET /reports/kpi。"""
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
@@ -148,26 +220,42 @@ async def get_kpi_report(*, tenant_id: str, period: str) -> dict:
         raise ApiError("INVALID_PERIOD", f"period must be one of {list(_PERIOD_INTERVAL)}", 400)
     interval = _PERIOD_INTERVAL[period]
 
-    conversations_n = await _count_conversations(tenant_id, interval)
-    problem_cards_n = await _count_problem_cards(tenant_id, interval)
-    work_orders_n = await _count_work_orders(tenant_id, interval)
+    start_date, end_date = _validate_date_range(start_date, end_date)
+
+    conversations_n = await _count_conversations(tenant_id, interval, start_date, end_date)
+    problem_cards_n = await _count_problem_cards(tenant_id, interval, start_date, end_date)
+    work_orders_n = await _count_work_orders(tenant_id, interval, start_date, end_date)
     dispatched_n = await _count_work_orders(
         tenant_id,
         interval,
+        start_date,
+        end_date,
         statuses=("assigned", "accepted", "in_progress", "completed", "confirmed"),
     )
     completed_n = await _count_work_orders(
         tenant_id,
         interval,
+        start_date,
+        end_date,
         statuses=("completed", "confirmed"),
     )
 
-    refund_n = await _count_dispute_table(tenant_id, interval, "refund_requests")
-    warranty_n = await _count_dispute_table(tenant_id, interval, "warranty_claims")
-    dispute_n = await _count_dispute_table(tenant_id, interval, "disputes")
+    refund_n = await _count_dispute_table(
+        tenant_id, interval, start_date, end_date, "refund_requests"
+    )
+    warranty_n = await _count_dispute_table(
+        tenant_id, interval, start_date, end_date, "warranty_claims"
+    )
+    dispute_n = await _count_dispute_table(
+        tenant_id, interval, start_date, end_date, "disputes"
+    )
 
-    avg_min, completed_cnt = await _avg_handle_minutes(tenant_id, interval)
+    avg_min, completed_cnt = await _avg_handle_minutes(
+        tenant_id, interval, start_date, end_date
+    )
 
+    # 使用 date range 時，period 仍回傳呼叫端送的值（schema 限制：DashboardPeriod
+    # enum 沒有 "custom"），實際時間區間以 start_date / end_date 為準。
     return {
         "period": period,
         "generated_at": datetime.now(timezone.utc).isoformat(),

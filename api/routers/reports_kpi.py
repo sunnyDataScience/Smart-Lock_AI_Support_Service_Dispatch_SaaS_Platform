@@ -10,6 +10,8 @@ operationId 對齊 openapi.yaml：getKpiReport。
 
 from __future__ import annotations
 
+from datetime import date
+
 from fastapi import APIRouter, Depends, Query
 
 from core.deps import CurrentUser, require_tenant
@@ -27,10 +29,20 @@ router = APIRouter()
 )
 async def get_kpi_report(
     period: DashboardPeriod = Query(default=DashboardPeriod.field_30d),
+    start_date: date | None = Query(
+        default=None,
+        description="統計起日（含），與 end_date 搭配使用；提供時覆蓋 period。",
+    ),
+    end_date: date | None = Query(
+        default=None,
+        description="統計迄日（含），與 start_date 搭配使用；提供時覆蓋 period。",
+    ),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
     report = await kpi_service.get_kpi_report(
         tenant_id=user.tenant_id,
         period=period.value,
+        start_date=start_date,
+        end_date=end_date,
     )
     return KpiReport(**report).model_dump(mode="json")

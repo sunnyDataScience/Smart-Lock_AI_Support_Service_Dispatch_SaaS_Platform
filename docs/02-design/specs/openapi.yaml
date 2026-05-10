@@ -1951,7 +1951,19 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/DashboardPeriod'
-          description: 統計時間區間（預設 30d）
+          description: |
+            統計時間區間（預設 30d）。
+            若同時提供 start_date / end_date，date range 優先，period 被忽略。
+        - name: start_date
+          in: query
+          required: false
+          schema: { type: string, format: date }
+          description: 統計起日（含），與 end_date 搭配使用；提供時覆蓋 period。
+        - name: end_date
+          in: query
+          required: false
+          schema: { type: string, format: date }
+          description: 統計迄日（含），與 start_date 搭配使用；提供時覆蓋 period。
       responses:
         '200':
           description: OK
@@ -1974,6 +1986,16 @@ paths:
             enum: [day, week, month]
             default: month
           description: 趨勢資料粒度（目前後端僅實作 month）
+        - name: start_date
+          in: query
+          required: false
+          schema: { type: string, format: date }
+          description: 統計起日（含），落點以 invoices.issued_at 為準（draft 走 created_at）。
+        - name: end_date
+          in: query
+          required: false
+          schema: { type: string, format: date }
+          description: 統計迄日（含），與 start_date 搭配使用。
       responses:
         '200':
           description: OK
