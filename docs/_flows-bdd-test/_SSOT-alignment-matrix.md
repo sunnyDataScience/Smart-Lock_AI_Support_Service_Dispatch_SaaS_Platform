@@ -66,7 +66,7 @@ related:
 | **F-018** | 客服接管對話 | 客服 | 消費者 §1 階段 5（三層解決最後降級）| 隱含於 work-order Flow 1 升級 | F-103 三層解決機制 | 模組 3 ThreeLayerResolver | 🟢 | — | ✅ aligned **(impl complete)** | **PR #47**（順手解）：conversation_service.py LINE Push real impl（line_push_service.py 含 retry 1s/2s/4s + audit + fail-soft）|
 | **F-019** | RBAC 動態調整 | 管理員 | 管理員旅程 §3 階段 4（客訴升級隱含 RBAC） | admin-governance G1 RBAC 角色生命週期 | F-209 動態 RBAC | 模組 14 RBACService | 🟢 | ✅ Q1=A / Q2=A | ✅ aligned **(impl complete)** | **PR #49**：updateRolePermissions API + ROLE_HIERARCHY (super_admin>tenant_admin>director>manager>...) + can_grant 嚴格 > + WS publish `/realtime/rbac` + RolePermissionsEditor UI（10 BE test + 2 @wip Playwright）|
 | **F-020** | 稽核日誌 | 管理員 | 管理員旅程 §3 階段 4 隱含 | admin-governance G2 稽核日誌 | F-205 admin V2.0 + F-209 | 模組 13 AuditLogger | 🟢 | — | ✅ aligned | exportAuditEvents 已實作 |
-| **F-021** | Dashboard / 報表 | 管理員 | 管理員旅程 §3 階段 1（儀表板） | dispatch §7 報表 SQL + API | F-105 + F-205 | 業務模組未明列 | 🟢 | — | ⚠ partial | revenue / technician-ranking 後端 filter TODO |
+| **F-021** | Dashboard / 報表 | 管理員 | 管理員旅程 §3 階段 1（儀表板） | dispatch §7 報表 SQL + API | F-105 + F-205 | 業務模組未明列 | 🟢 | — | ✅ aligned **(impl complete)** | 5/10 morning：補完 `getKpiReport` + `getRevenueSummary` 的 `start_date` / `end_date` query params（commit `4c1d74b`），DateRangePicker 4 頁 wiring 全通 |
 | **F-022** | 消費者端工單追蹤 | 消費者 | 消費者 §1 階段 6-7（已派工後） | work-order Flow 1 後段 | （待補 F-211）| 業務模組（消費者 API 未列）| 🟢 | ✅ Q3=C | ✅ aligned | PR #40 T2：getWorkOrderPublicStatus spec + skeleton + Web placeholder 齊；可寫 contract test + @wip Playwright。HMAC token 簽章 + BDD F-211 follow-up |
 | **F-023** | 錯誤頁 / 離線 | 任何 | （cross-cutting，無單一旅程） | （cross-cutting） | ✅ F-110 錯誤邊界 cross-cutting Feature（4 scenarios）| （cross-cutting）| 🟢 | — | ✅ aligned | PR #40 T4 已建 F-110 + 4 scenarios，本次同步矩陣狀態（先前與 §4 row 211 不一致）|
 
@@ -181,12 +181,12 @@ related:
 ```
 總計 23 user flows（5/9 evening P0 bridge sprint 後）
 
-  ✅ aligned    : 18 條  F-001/F-002/F-003/F-004/F-005/F-006/F-008/F-009/F-010/
-                         F-013/F-015/F-016/F-017/F-018/F-019/F-020/F-022/F-023
-                         （其中 10 條標 (impl complete)：
+  ✅ aligned    : 19 條  F-001/F-002/F-003/F-004/F-005/F-006/F-008/F-009/F-010/
+                         F-013/F-015/F-016/F-017/F-018/F-019/F-020/F-021/F-022/F-023
+                         （其中 11 條標 (impl complete)：
                            F-001/F-002/F-004/F-008/F-010/F-015/F-016/F-017/
-                           F-018/F-019）
-  ⚠ partial    :  3 條  F-007/F-014/F-021
+                           F-018/F-019/F-021）
+  ⚠ partial    :  2 條  F-007/F-014
   ⚠ blocked    :  2 條  F-011/F-012（全綁 Q7=B provider 選型）
   ❌ orphan     :  0 條
 
@@ -198,6 +198,10 @@ related:
     F-001 / F-015 / F-017 從 spec-driven aligned 升 ✅(impl complete)
     F-014 從 ⚠blocked → ⚠partial（規則層 5/9 修完；金流回沖仍綁 Q7=B）
 
+  5/10 morning（worktree 4-track sync）後：
+    F-021 ⚠partial → ✅(impl complete)（T4 補 getKpiReport/getRevenueSummary
+    start_date/end_date filter；commit `4c1d74b`）
+
 歷程：
   - PR #38 (PM 拍板) ：✅10 / ⚠partial 8 / ⚠blocked 4 / ❌0
   - PR #40 (5-track)：✅15 / ⚠partial 5 / ⚠blocked 3 / ❌0  (+5 升 ✅)
@@ -208,10 +212,12 @@ related:
                           F-023（與 §4 row 211 PR #40 T4 結果同步）
   - 5/9 evening (P0 sprint) ：✅18 / ⚠partial 3 / ⚠blocked 2 / ❌0
                           (+1 F-014 blocked→partial；+3 F-001/F-015/F-017 升 impl complete)
+  - 5/10 morning (4-track) ：✅19 / ⚠partial 2 / ⚠blocked 2 / ❌0
+                          (+1 F-021 升 ✅(impl complete))
 
-按阻塞類型（剩 5 條 ⚠/blocked）：
+按阻塞類型（剩 4 條 ⚠/blocked）：
   Q7=B provider 選型可解 : 2 條（F-011/F-012）— F-014 規則層 5/9 已修，剩金流回沖等 provider
-  外力 / TODO 可解        : 3 條（F-007 F-210 規格 / F-014 金流回沖 / F-021 後端 filter）
+  外力 / TODO 可解        : 2 條（F-007 F-210 規格 / F-014 金流回沖）
 ```
 
 ---
@@ -283,3 +289,4 @@ related:
 | 2026-05-08 | Claude (assisted) | **F-002 / F-023 矩陣狀態 sync ✅**：(1) F-002 ⚠partial → ✅aligned — 在 `E7x--module-spec-v1-core.md` 補模組 9 ProblemCardReviewEngine（規格 9-1 review_problem_card / 9-2 create_work_order_from_problem_card，含 DbC 前置/後置/不變性 + 5 類測試情境輪廓），對齊 BDD F-105 admin V1.0；(2) F-023 ⚠partial → ✅aligned — 與 §4 row 211 早已記錄的 PR #40 T4 F-110 cross-cutting Feature + 4 scenarios 結果同步（先前 row 71 與 §4 不一致）。新統計：✅ 18 / ⚠ partial 2（F-007 / F-021）/ ⚠ blocked 3（F-011/012/014 全綁 Q7=B）/ ❌ 0。 |
 | 2026-05-09 | Sunny + Claude | **F-002 production code 補完 ✅(impl complete)**：三層驗證發現 F-002「開 WO」這步在 production code **完全沒實作** — confirmProblemCard 只 UPDATE PC.status，無 side effect；work_order_service 全檔無 `create_*` 函式；dev 靠 seed data 看似 work，production 第一筆 confirmed PC 就會孤立，連帶 F-003~F-016 派工/技師/對帳/SLA 主幹斷鏈。本 PR 補：(1) `api/services/work_order_service.create_from_problem_card()` 含 SELECT FOR UPDATE 防 race + idempotency check + address fallback chain；(2) router `POST /problem-cards/{id}/convert-to-work-order` (`convertToWorkOrder` operationId) — 201 (new) / 200 (existing)；(3) OpenAPI spec 加 operation + `ConvertProblemCardToWorkOrderRequest` schema；(4) frontend 在 PC confirmed 狀態啟用「開單」按鈕；(5) 7 case integration test（happy/idempotent/state×2/address×2/tenant）；(6) `E7x--test-plan-and-readiness.md` row 88 wiring 修正 + 評等 🟡 → 🟢。F-002 SSOT row 50（模組規格）已於 5/8 標 ✅，本次同步 production code 至同層級。|
 | 2026-05-09 evening | Sunny + Claude | **P0 bridge pattern sprint 完成 ✅**：ADR-009 D pattern 拍板採用 HTTP call from agent to admin API；4 條 P0 production blocker 修補（commit `44873f0` merged 到 dev）。F-001 ✅(impl complete) `createConversation` + agent webhook `_ensure_conversation_record` + 30 min cache；F-014 ⚠blocked→⚠partial（規則層補完 `createRefundRequest` dual-trigger + business unique key + auto dual-sign threshold；剩金流回沖綁 Q7=B）；F-015 ✅(impl complete) `createWarrantyClaim` dual-trigger；F-017 ✅(impl complete) `createSopDraft` + rating>=4 trigger skeleton。附帶 `Schema_doc_numbering.sql`（5 表 + sequences + ERP-style document_number XX-YYYYMMDD-NNNN + agent_outbox 表）。Backend 29/29 + Playwright 3/3 全 pass。新統計：✅ 18（含 10 個 impl complete）/ ⚠ partial 3（F-007/F-014/F-021）/ ⚠ blocked 2（F-011/F-012 全綁 Q7=B 金流 provider）/ ❌ 0。 |
+| 2026-05-10 morning | Sunny + Claude | **4-track worktree 平行 sync ✅**：4 條 deferred items 平行收尾 — (T1) SSOT + test-plan 矩陣 sync 5/9 evening sprint 結果（commit `a8111ae`）；(T2) agent H_INTENT + H_PC layer 整合（commit `ef567d0`，15/15 unit test pass，新增 `harness/intent_handler.py` + `harness/pc_creator.py`，stage 4.5 + 7.5 接入 orchestrator）；(T3) 5 detail/list page 顯示 ERP `document_number`（commit `d636553`）；(T4) F-021 `getKpiReport` + `getRevenueSummary` 加 `start_date` / `end_date` query params（commit `4c1d74b`）→ **F-021 ⚠partial → ✅aligned (impl complete)**。新統計：✅ 19（含 11 個 impl complete）/ ⚠ partial 2（F-007/F-014）/ ⚠ blocked 2（F-011/F-012）/ ❌ 0。剩外力解 4 條：F-007 F-210 規格（PM+BE）+ F-011/F-012/F-014 金流 Q7=B provider 選型會議。|

@@ -55,6 +55,8 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 >
 > **2026-05-09 evening P0 bridge sprint 後狀態**：23 條流程 = **🟢18 / ⚠3 / ⚠2 / ❌0**（commit `44873f0` merged 到 dev，與 [[../_SSOT-alignment-matrix|_SSOT §3]] 同步）。F-001 / F-015 / F-017 升 ✅(impl complete)；F-014 從 ⚠blocked → ⚠partial（規則層補完 `createRefundRequest` dual-trigger + business unique key + auto dual-sign threshold；剩金流回沖綁 Q7=B）。Backend 29/29 + Playwright 3/3 + OpenAPI lint 0 errors。
 >
+> **2026-05-10 morning 4-track worktree sync 後狀態**：23 條流程 = **🟢19 / ⚠2 / ⚠2 / ❌0**。F-021 升 ✅(impl complete) — `getKpiReport` + `getRevenueSummary` 加 `start_date` / `end_date` query params（commit `4c1d74b`）。同步附帶 T1 矩陣 sync / T2 agent intent + PC trigger 整合 / T3 web 5 detail page document_number 顯示。剩外力解 4 條：F-007（F-210 規格 PM+BE）+ F-011/F-012/F-014（Q7=B provider 選型會議）。
+>
 > 📋 **「立即可測 🟢」定義**：spec + test infrastructure + PM 拍板齊備 → 可寫 BDD scenarios + contract test + factory test。**不要求 production code 100%**（用 `@wip` tag + `RUN_WIP_TESTS` opt-in 處理 stub 測試 CI 噪音）。
 
 **🟢 立即可測（16 條）**：
@@ -63,9 +65,9 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 - **PR #40 spec-driven 升 🟢（5 條）**：F-004 / F-008 / F-016 / F-019 / F-022
 - **PR #45-49 production code 完成（impl complete）**：F-004 / F-008 / F-010 / F-016 / F-018（順手）/ F-019 — 標 ✅(impl complete)
 
-**⚠ 部分可測（4 條）**：F-002 客服審 PC（待補 module-spec 業務模組）、F-007 材料申請（等 F-210 規格 PM+BE）、F-021 報表（revenue/technician-ranking 後端 filter TODO）、F-023 錯誤頁（cross-cutting 屬性）。
+**⚠ 部分可測（2 條，5/10 morning 後）**：F-007 材料申請（等 F-210 規格 PM+BE）、F-014 退款流程（規則層 5/9 已修，剩金流回沖綁 Q7=B）。
 
-**⚠ 阻塞（3 條）**：F-011 消費者付款 V1.0、F-012 技師月結撥款 V1.0、F-014 退款金流回沖 — **全綁 Q7=B provider 選型**（PR #39 follow-up 4 sub-decision 矩陣已備齊，等 PM/TL/CEO/Finance 90 min 會議）。
+**⚠ 阻塞（2 條）**：F-011 消費者付款 V1.0、F-012 技師月結撥款 V1.0 — **全綁 Q7=B provider 選型**（PR #39 follow-up 4 sub-decision 矩陣已備齊，等 PM/TL/CEO/Finance 90 min 會議）。
 
 > ❌ orphan = 0（PM 拍板後全部 BDD 缺口已定方向）。
 
@@ -106,7 +108,7 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 | F-018 | 客服接管對話 | 客服 | `web/src/app/conversations/[id]/page.tsx`, `components/conversations/HandoverComposer.tsx` | `escalateConversation`, `sendChatMessage` ✅ | `user-notifications` | LINE | 🟢 | ✅ PR #47（順手解）LINE Push real impl（line_push_service.py + retry + audit + fail-soft）|
 | F-019 | RBAC 動態調整 | 管理員 | `web/src/app/admin/roles/page.tsx`, `RolePermissionsEditor` | `listRoles`, `updateRolePermissions` ✅ | `rbac` | — | 🟢 | ✅ PR #49 階層 + WS publish + Editor UI（10 BE + 2 @wip）|
 | F-020 | 稽核日誌 | 管理員 | `web/src/app/admin/audit-events/page.tsx`, `components/admin/AuditExportModal.tsx` | `listAuditLogs`, `exportAuditEvents` ✅ | — | — | 🟢 | ✅ CSV stream + Modal 已建（>100k 筆 background job 預留 202 contract） |
-| F-021 | Dashboard / 報表 | 管理員 | `web/src/app/dashboard/page.tsx`, `admin/reports/*`, `components/ui/DateRangePicker.tsx` | `getDashboardStats`, `getKpiReport`, `getRevenueSummary` | — | — | 🟢 | ✅ DateRangePicker 已建並接 4 頁（revenue / technician-ranking 後端 filter TODO） |
+| F-021 | Dashboard / 報表 | 管理員 | `web/src/app/dashboard/page.tsx`, `admin/reports/*`, `components/ui/DateRangePicker.tsx` | `getDashboardStats`, `getKpiReport ✅`, `getRevenueSummary ✅` | — | — | 🟢 | ✅ 5/10 sprint：`getKpiReport` + `getRevenueSummary` 加 `start_date` / `end_date` query params（commit `4c1d74b`）；DateRangePicker 4 頁 wiring 全通 |
 | F-022 | 消費者端工單追蹤 | 消費者 | `web/src/app/track/[token]/page.tsx` | `getWorkOrderPublicStatus` ✅ | `work-orders` | LINE | 🟢 | ✅ Q3=C 兩者並存 + PR #43/#44/#46 真實 impl（HMAC token 簽章 + Web 公開頁 + PII mask）|
 | F-023 | 錯誤頁 / 離線 | 任何 | `web/src/app/{not-found,error,global-error}.tsx`, `components/ui/NetworkErrorBanner.tsx` | — | — | — | 🟢 | ✅ 4 個錯誤邊界已建（Service Worker 完整離線策略仍待 §4.1 P1） |
 
