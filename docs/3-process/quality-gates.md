@@ -1,11 +1,11 @@
 ---
-title: Quality Gates — TR0-TR10 + GR6/7/10 + VibeCoding gate-0~5 reconciliation
-tier: 3
+title: Quality Gates — TR0-TR10 + GR6/7/10 + VibeCoding gate-0~5
 status: active
-last_updated: 2026-05-10
-supersedes: docs/GATE-MAP.md, docs/03-develop/GR6--code-complete.md, docs/03-develop/GR7--integration.md, docs/04-deliver/GR10--ga-readiness.md
+last_updated: 2026-05-11
+owners: [Tech Lead, QA Lead, PM]
 related:
-  - "../0-principles/id-mapping-legacy.md §A.2 (TR-Gate → quality-gates instance)"
+  - "./test-plan.md (test pyramid, coverage targets)"
+  - "./code-review-checklist.md (PR-level quality criteria)"
 ---
 
 # Quality Gates

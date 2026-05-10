@@ -1,25 +1,16 @@
 ---
-title: E7x — Test Plan and Readiness Roadmap
-phase: DESIGN
-gate: TR5
-status: Active
-owners:
-  - QA Lead
-  - Tech Lead
-  - PM
+title: Test Plan and Readiness Roadmap
+status: active
+last_updated: 2026-05-11
+owners: [QA Lead, Tech Lead, PM]
 related:
-  - "[[./bdd/all-features]]"
-  - "[[../2-contracts/api/README]]"
-  - "[[../2-contracts/modules/INDEX]]"
-  - "[[../4-exploration/prd-2026-q1-v1-launch]]"
-  - "[[../2-contracts/flows/business/BF-0001-work-order-lifecycle]]"
-  - "[[../2-contracts/flows/business/BF-0000-dispatch-overview]]"
-  - "[[../2-contracts/flows/business/BF-0002-admin-governance]]"
-  - "[[./quality-gates#b-gr6--code-complete]]"
-  - "[[./quality-gates#c-gr7--integration]]"
-  - "[[./quality-gates#d-gr10--ga-readiness]]"
-last_reviewed: 2026-05-09
-last_updated: 2026-05-09 (i18n scaffold 提前完成；剩餘僅 41 頁字串漸進遷移 + 真 vendor SMS/Email/FCM)
+  - "./bdd/all-features.md"
+  - "../2-contracts/api/README.md"
+  - "../2-contracts/modules/INDEX.md"
+  - "../2-contracts/flows/business/BF-0001-work-order-lifecycle.md"
+  - "../2-contracts/flows/business/BF-0000-dispatch-overview.md"
+  - "../2-contracts/flows/business/BF-0002-admin-governance.md"
+  - "./quality-gates.md (Quality Gates SSOT — GR6/GR7/GR10)"
 ---
 
 # E7x — Test Plan and Readiness Roadmap
@@ -644,18 +635,7 @@ Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR
 
 ## Appendix — Integration Test Matrix (merged)
 
----
-
-## title: Integration Test Matrix — Cross-Module Async Flow
-phase: V-MODEL RIGHT (Integration Test layer)
-gate: TR5
-status: Initial Content (待 SME 補充細節)
-last_updated: 2026-05-07
-owners: [QA Lead, Tech Lead]
-
-# Integration Test Matrix — Cross-Module Async Flow
-
-> **狀態**: 骨架文件（SKELETON）— 框架就位，10 channel 中 2 個有範例，其餘 8 個待補。
+> **狀態**: 骨架文件（SKELETON）— 框架就位，10 channel 中 2 個有範例，其餘 8 個待補。owners: QA Lead + Tech Lead.
 
 ---
 

@@ -1,39 +1,31 @@
 ---
-title: ⭐ _flows-bdd-test/ Master Alignment Matrix (SSOT — 流程北極星)
-phase: CROSS-PHASE
-status: SSOT (Single Source of Truth — 23 user flows F-001~F-023)
-last_updated: 2026-05-07
+title: Master Traceability Matrix — 23 User Flows (F-001~F-023)
+status: active
+last_updated: 2026-05-11
 owners: [PM, Tech Lead, QA Lead]
+description: 跨層覆蓋 — F-XXX × 角色 / journey / workflow / BDD / module / test status / PM 阻塞
 related:
-  - "[[../README]]"
-  - "[[../2-contracts/functional-requirements/FR-0001-line-intake]]"
-  - "_review-notes"
-  - "[[../3-process/test-plan]]"
-  - "[[../3-process/bdd/all-features]]"
-  - "[[../1-decisions/ADR-0013-pm-alignment-q1]]"
+  - "../README.md"
+  - "../2-contracts/functional-requirements/FR-0001-line-intake.md"
+  - "../3-process/test-plan.md"
+  - "../3-process/bdd/all-features.md"
+  - "../1-decisions/ADR-0013-pm-alignment-q1.md"
 ---
 
-# ⭐ _flows-bdd-test/ — Master Alignment Matrix (SSOT)
+# Master Traceability Matrix (SSOT)
 
-> **本檔為 `_flows-bdd-test/` 的流程北極星**（Single Source of Truth）。任何關於 23 條 user flow（F-001~F-023）的問題，都從這裡開始查。
+> 流程北極星 — 任何關於 23 條 user flow（F-001~F-023）的問題，都從這裡開始查。
 >
-> **配對北極星**：[[../2-contracts/functional-requirements/FR-0001-line-intake]]（需求北極星，REQ-NNN catalog）。流程 SSOT（本檔）對應 V-Model 的「user flow 層」；需求 SSOT 對應 V-Model 左上頂點「Requirements 層」。
+> **配對北極星**：[`../2-contracts/functional-requirements/FR-0001-line-intake.md`](../2-contracts/functional-requirements/FR-0001-line-intake.md)（需求北極星，REQ/FR catalog）。流程 SSOT（本檔）對應 V-Model 的「user flow 層」；需求 SSOT 對應 V-Model 左上頂點「Requirements 層」。
 >
 > **使用方式**：
 > 1. 找你關心的 F-XXX → §1 主對齊矩陣查橫排所有對應
 > 2. 對齊狀態為 ⚠ / ❌ 的 row → 看「修正動作」column
-> 3. 有 PM 阻塞 column 標 Q-N → 推 PM 拍板（[[../1-decisions/ADR-0013-pm-alignment-q1|決策矩陣]]）
+> 3. 有 PM 阻塞 column 標 Q-N → 推 PM 拍板（[ADR-0013~0022](../1-decisions/)）
 
-> **目的**：以 **E7x F-001~F-023（23 條 user flow，現有 SSOT）為主鍵**，建立**單一對照表**，讓 PM / TL / QA 從任何一個 F-XXX 編號可一眼看出：
-> - E1x 對應角色 + stage
-> - E5x workflow 對應 Flow 編號
-> - E7 BDD 對應 Feature ID（F-1XX / F-2XX）
-> - E7x module-spec 對應規格
-> - 測試準備度
-> - PM 阻塞題號
-> - **對齊狀態 + 修正動作**
->
-> **資料來源**：E7x test plan §2 + E7 §Ⅲ.b + _review-notes 觀察。
+> **目的**：以 **F-001~F-023（23 條 user flow）為主鍵**，建立**單一對照表**，讓 PM / TL / QA 從任何一個 F-XXX 編號一眼看出角色 / journey / workflow / BDD Feature / module spec / 測試狀態 / PM 阻塞 / 對齊狀態 + 修正動作。
+
+> **資料來源**：test-plan §2 + bdd/all-features §Ⅲ.b + 流程文件觀察。
 >
 > **使用方式**：
 > 1. 找你關心的 F-XXX → 查橫排所有對應

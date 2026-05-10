@@ -1,13 +1,16 @@
-# Code Review 與重構指南 - 電子鎖智能客服與派工平台
+---
+title: Code Review 與重構指南
+status: active
+last_updated: 2026-05-11
+owners: [Tech Lead]
+related:
+  - "../1-decisions/architecture-overview.md"
+  - "../2-contracts/api/README.md"
+  - "../5-views/project-structure.md"
+  - "./quality-gates.md (CI / branch gates)"
+---
 
-**文件版本:** v1.1
-**最後更新:** 2026-04-04
-**主要作者:** 技術負責人
-**狀態:** 草稿 (Draft)
-**相關文檔:**
-- `docs/05_architecture_and_design_document.md` (架構設計)
-- `docs/06_api_design_specification.md` (API 規範)
-- `docs/08_project_structure_guide.md` (專案結構)
+# Code Review 與重構指南 - 電子鎖智能客服與派工平台
 
 ---
 
