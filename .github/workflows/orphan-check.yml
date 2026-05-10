@@ -3,27 +3,18 @@ name: OperationId Orphan Check
 on:
   push:
     paths:
-      # CR-0009 dual-write: trigger on either path
-      - 'docs/02-design/specs/openapi.yaml'
-      - 'docs/02-design/specs/asyncapi.yaml'
-      - 'docs/02-design/**/*.md'
-      - 'docs_v2/2-contracts/api/openapi.yaml'
-      - 'docs_v2/2-contracts/api/asyncapi.yaml'
-      - 'docs_v2/2-contracts/flows/**/*.md'
-      - 'docs_v2/2-contracts/pages/**/*.md'
-      - 'web_design_spec_prompt_pipeline/pages/**/*.md'
+      - 'docs/2-contracts/api/openapi.yaml'
+      - 'docs/2-contracts/api/asyncapi.yaml'
+      - 'docs/2-contracts/flows/**/*.md'
+      - 'docs/2-contracts/pages/**/*.md'
       - 'scripts/ci/check-operationid-orphans.sh'
       - 'scripts/ci/generate-mapping-api-index.sh'
   pull_request:
     paths:
-      - 'docs/02-design/specs/openapi.yaml'
-      - 'docs/02-design/specs/asyncapi.yaml'
-      - 'docs/02-design/**/*.md'
-      - 'docs_v2/2-contracts/api/openapi.yaml'
-      - 'docs_v2/2-contracts/api/asyncapi.yaml'
-      - 'docs_v2/2-contracts/flows/**/*.md'
-      - 'docs_v2/2-contracts/pages/**/*.md'
-      - 'web_design_spec_prompt_pipeline/pages/**/*.md'
+      - 'docs/2-contracts/api/openapi.yaml'
+      - 'docs/2-contracts/api/asyncapi.yaml'
+      - 'docs/2-contracts/flows/**/*.md'
+      - 'docs/2-contracts/pages/**/*.md'
 
 jobs:
   orphan-check:

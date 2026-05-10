@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scripts/ci/contract-schemathesis.sh — OpenAPI 合約 fuzz 測試
 #
-# 對應 docs/_flows-bdd-test/v-model-right/E7x--test-plan-and-readiness.md §5.2 contract layer (5%)
+# 對應 docs/3-process/test-plan.md §5.2 contract layer (5%)
 # 與 §10 #21。用 schemathesis 對既有 91 ops 衍生 N 個 fuzz example，
 # 驗證實際 API 回應符合 OpenAPI spec 宣告的 status code / schema / headers。
 #
@@ -18,15 +18,7 @@
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-# CR-0009 dual-write: prefer docs_v2/ (new SSOT)
-SPEC_NEW="$REPO_ROOT/docs_v2/2-contracts/api/openapi.yaml"
-SPEC_LEGACY="$REPO_ROOT/docs/02-design/specs/openapi.yaml"
-if [[ -f "$SPEC_NEW" && -f "$SPEC_LEGACY" ]] && ! diff -q "$SPEC_NEW" "$SPEC_LEGACY" >/dev/null 2>&1; then
-  echo "ERROR (CR-0009): SPEC drift between $SPEC_NEW and $SPEC_LEGACY" >&2
-  exit 1
-fi
-SPEC="$SPEC_NEW"
-[[ -f "$SPEC" ]] || SPEC="$SPEC_LEGACY"
+SPEC="$REPO_ROOT/docs/2-contracts/api/openapi.yaml"
 API_BASE="${API_BASE:-http://localhost:8001}"
 MAX_EXAMPLES="${MAX_EXAMPLES:-10}"
 CHECK_ONLY=0

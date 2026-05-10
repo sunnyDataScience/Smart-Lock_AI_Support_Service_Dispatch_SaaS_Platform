@@ -18,5 +18,5 @@
 
 ## 對應 docs
 
-- `docs_v2/2-contracts/master-data/` — master data 設計
-- `docs_v2/2-contracts/modules/rbac.md` — 角色權限矩陣
+- `docs/2-contracts/master-data/` — master data 設計
+- `docs/2-contracts/modules/rbac.md` — 角色權限矩陣

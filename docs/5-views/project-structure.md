@@ -27,8 +27,8 @@ related:
 ├── scripts/            # CI / dev / deploy / env management
 ├── tests/              # smoke + tools + bdd (Phase 9 將收 tests/bdd/)
 ├── docs/               # Documentation (legacy 5D — Phase 8 後 superseded)
-├── docs_v2/            # Documentation (NEW VibeCoding 6-tier)
-├── web_design_spec_prompt_pipeline/  # Pipeline 工具 (legacy — pipelined 已遷 docs_v2/)
+├── docs/            # Documentation (NEW VibeCoding 6-tier)
+├── web_design_spec_prompt_pipeline/  # Pipeline 工具 (legacy — pipelined 已遷 docs/)
 ├── VibeCoding_Workflow_Templates/    # 模板 source-of-truth
 ├── .claude/            # Claude Code agents/skills/rules/hooks
 ├── .github/workflows/  # CI workflows

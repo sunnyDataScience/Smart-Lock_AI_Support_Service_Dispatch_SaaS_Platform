@@ -303,15 +303,15 @@ Next.js 15 + React 19 + TypeScript admin dashboard for operations teams.
 | Admin — Reports | `/admin/reports/kpi`, `/admin/reports/revenue`, `/admin/reports/technician-ranking` |
 | Admin — System | `/admin/audit-events`, `/admin/roles`, `/admin/api-status`, `/admin/knowledge-base/sop-performance` |
 
-**API integration status:** Active migration from mock data to live API. Many admin/knowledge-base/accounting pages now call generated typed clients (see commits `feat(web): /xxx 串接 ...`). Pages still on mock data are flagged in their components. Treat the OpenAPI spec at `docs/02-design/specs/openapi.yaml` as source of truth — regenerate types via `./scripts/generate-api-types.sh` after any spec change.
+**API integration status:** Active migration from mock data to live API. Many admin/knowledge-base/accounting pages now call generated typed clients (see commits `feat(web): /xxx 串接 ...`). Pages still on mock data are flagged in their components. Treat the OpenAPI spec at `docs/2-contracts/api/openapi.yaml` as source of truth — regenerate types via `./scripts/ci/generate-api-types.sh` after any spec change.
 
-**Component organization:** `src/components/{domain}/` — `layout/`, `dashboard/`, `conversations/`, `problem-cards/`, `work-orders/`, `technicians/`, `accounting/`, `knowledge-base/`, `dispatch-queue/`, `admin/`, `ui/`. Generated API types live in `docs/02-design/specs/generated/api.generated.ts` and are imported by domain hooks/clients.
+**Component organization:** `src/components/{domain}/` — `layout/`, `dashboard/`, `conversations/`, `problem-cards/`, `work-orders/`, `technicians/`, `accounting/`, `knowledge-base/`, `dispatch-queue/`, `admin/`, `ui/`. Generated API types live in `web/types/api.generated.ts` (resolved via tsconfig `@/types/*` alias) and are imported by domain hooks/clients.
 
 **Sidebar navigation:** Nested nav with `NavItem[]` supporting `children?: NavChild[]`. Active parent auto-expands children.
 
 **Design tokens:** CSS custom properties in `globals.css` — primary `#2563EB`, accent `#F59E0B`. Fonts: Inter + Noto Sans TC. Dark sidebar (`#1E293B`) + light content (`#F8FAFC`).
 
-### API Contract System (`docs/02-design/specs/`)
+### API Contract System (`docs/2-contracts/api/`)
 
 Machine-readable API contracts as single source of truth for frontend development:
 

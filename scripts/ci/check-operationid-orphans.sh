@@ -23,28 +23,11 @@ set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
-# CR-0009 dual-write: prefer docs_v2/ (new SSOT); enforce drift check
-OPENAPI_NEW="docs_v2/2-contracts/api/openapi.yaml"
-OPENAPI_LEGACY="docs/02-design/specs/openapi.yaml"
-ASYNCAPI_NEW="docs_v2/2-contracts/api/asyncapi.yaml"
-ASYNCAPI_LEGACY="docs/02-design/specs/asyncapi.yaml"
-for pair in "OPENAPI:$OPENAPI_NEW:$OPENAPI_LEGACY" "ASYNCAPI:$ASYNCAPI_NEW:$ASYNCAPI_LEGACY"; do
-  IFS=: read -r kind newp legp <<< "$pair"
-  if [[ -f "$newp" && -f "$legp" ]] && ! diff -q "$newp" "$legp" >/dev/null 2>&1; then
-    echo "ERROR (CR-0009): $kind drift between $newp and $legp" >&2
-    exit 1
-  fi
-done
-OPENAPI="$OPENAPI_NEW"
-[[ -f "$OPENAPI" ]] || OPENAPI="$OPENAPI_LEGACY"
-ASYNCAPI="$ASYNCAPI_NEW"
-[[ -f "$ASYNCAPI" ]] || ASYNCAPI="$ASYNCAPI_LEGACY"
-# Flows / pages 仍需掃 docs/ 與 docs_v2/ 兩邊
-FLOWS_DIR="docs/02-design"
-FLOWS_DIR_NEW="docs_v2/2-contracts/flows"
-PAGES_DIR="web_design_spec_prompt_pipeline/pages"
-PAGES_DIR_NEW="docs_v2/2-contracts/pages"
-MAPPING="$PAGES_DIR/MAPPING.md"
+OPENAPI="docs/2-contracts/api/openapi.yaml"
+ASYNCAPI="docs/2-contracts/api/asyncapi.yaml"
+FLOWS_DIR="docs/2-contracts/flows"
+PAGES_DIR="docs/2-contracts/pages"
+MAPPING="$PAGES_DIR/INDEX.md"
 
 QUIET=0
 STRICT=0

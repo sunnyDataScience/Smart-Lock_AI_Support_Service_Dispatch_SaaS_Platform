@@ -3,15 +3,12 @@ name: Mock Server Smoke Test
 on:
   push:
     paths:
-      # CR-0009 dual-write: trigger on either path
-      - 'docs/02-design/specs/openapi.yaml'
-      - 'docs_v2/2-contracts/api/openapi.yaml'
+      - 'docs/2-contracts/api/openapi.yaml'
       - 'docker-compose.mock.yml'
       - 'scripts/ci/mock-server.sh'
   pull_request:
     paths:
-      - 'docs/02-design/specs/openapi.yaml'
-      - 'docs_v2/2-contracts/api/openapi.yaml'
+      - 'docs/2-contracts/api/openapi.yaml'
       - 'docker-compose.mock.yml'
 
 jobs:

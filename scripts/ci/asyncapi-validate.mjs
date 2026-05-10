@@ -2,8 +2,8 @@
 /**
  * scripts/ci/asyncapi-validate.mjs — AsyncAPI envelope validator
  *
- * 對應 docs/_flows-bdd-test/v-model-right/E7x--test-plan-and-readiness.md §10 #22 與 §14。
- * 用 @asyncapi/parser 解析 docs/02-design/specs/asyncapi.yaml，驗證：
+ * 對應 docs/3-process/test-plan.md §10 #22 與 §14。
+ * 用 @asyncapi/parser 解析 docs/2-contracts/api/asyncapi.yaml，驗證：
  *   1. spec 本身語法 / 結構合法（標準 spec lint，補 spectral 看不到的事）
  *   2. 列出所有 channel + payload 形狀（給 reviewer 看）
  *   3. （未來）驗證 tests/golden/events/*.json 對應 channel 的 envelope
@@ -25,18 +25,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..', '..');
-// CR-0009 dual-write: prefer docs_v2/ (new SSOT); enforce drift check
-const SPEC_NEW = resolve(REPO_ROOT, 'docs_v2/2-contracts/api/asyncapi.yaml');
-const SPEC_LEGACY = resolve(REPO_ROOT, 'docs/02-design/specs/asyncapi.yaml');
-if (existsSync(SPEC_NEW) && existsSync(SPEC_LEGACY)) {
-  const a = readFileSync(SPEC_NEW, 'utf8');
-  const b = readFileSync(SPEC_LEGACY, 'utf8');
-  if (a !== b) {
-    console.error(`[asyncapi] ERROR (CR-0009): asyncapi.yaml drift between ${SPEC_NEW} and ${SPEC_LEGACY}`);
-    process.exit(1);
-  }
-}
-const SPEC_PATH = existsSync(SPEC_NEW) ? SPEC_NEW : SPEC_LEGACY;
+const SPEC_PATH = resolve(REPO_ROOT, 'docs/2-contracts/api/asyncapi.yaml');
 
 const QUIET = process.argv.includes('--quiet');
 
