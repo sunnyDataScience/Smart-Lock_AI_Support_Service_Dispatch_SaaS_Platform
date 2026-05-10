@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, ChevronDown, Wrench, Plus } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import TechniciansTable from "@/components/technicians/TechniciansTable";
 import { ApiError, api } from "@/lib/api";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type Technician = components["schemas"]["Technician"];
@@ -12,14 +13,27 @@ type TechnicianPage = components["schemas"]["TechnicianPage"];
 
 const PAGE_SIZE = 20;
 
-const filterDropdowns = [
-  { label: "狀態", hasChevron: true },
-  { label: "專長品牌", hasChevron: true },
-  { label: "服務區域", hasChevron: true },
-  { label: "評分 ≥ 4.0", hasChevron: true },
-];
+// Stable keys for filter labels — resolved per-render via i18n
+const FILTER_DROPDOWN_KEYS = [
+  "status",
+  "brandSpecialty",
+  "serviceArea",
+  "rating",
+] as const;
 
 export default function TechniciansPage() {
+  const t = useTranslations("pages.technicians");
+  const tFilters = useTranslations("pages.technicians.filters");
+
+  const filterDropdowns = useMemo(
+    () =>
+      FILTER_DROPDOWN_KEYS.map((key) => ({
+        key,
+        label: tFilters(key),
+        hasChevron: true,
+      })),
+    [tFilters],
+  );
   const [items, setItems] = useState<Technician[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
@@ -65,23 +79,25 @@ export default function TechniciansPage() {
             <Wrench className="h-6 w-6 text-[var(--primary)]" />
             <div className="flex flex-col gap-[2px]">
               <h1 className="text-[22px] font-bold text-[var(--text-primary)]">
-                技師管理
+                {t("title")}
               </h1>
             </div>
             <span className="ml-1 flex items-center rounded-xl bg-[#DBEAFE] px-3 py-1 text-xs font-semibold text-[var(--primary)]">
               {loading && items.length === 0
-                ? "載入中"
-                : `${items.length}${hasMore ? "+" : ""} 位技師`}
+                ? t("loadingBadge")
+                : hasMore
+                  ? t("techCountMore", { count: items.length })
+                  : t("techCount", { count: items.length })}
             </span>
           </div>
 
           <button
             disabled
-            title="即將推出"
+            title={t("comingSoonTitle")}
             className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-5 py-[10px] opacity-60 cursor-not-allowed"
           >
             <Plus className="h-4 w-4 text-white" />
-            <span className="text-sm font-semibold text-white">新增技師</span>
+            <span className="text-sm font-semibold text-white">{t("addTechnician")}</span>
           </button>
         </div>
 
@@ -92,7 +108,7 @@ export default function TechniciansPage() {
             <Search className="h-4 w-4 text-[var(--text-disabled)]" />
             <input
               type="text"
-              placeholder="搜尋功能即將推出"
+              placeholder={t("searchPlaceholder")}
               disabled
               className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-[var(--text-disabled)] cursor-not-allowed"
             />
@@ -101,9 +117,9 @@ export default function TechniciansPage() {
           {/* Filter Dropdowns disabled */}
           {filterDropdowns.map((dd) => (
             <button
-              key={dd.label}
+              key={dd.key}
               disabled
-              title="即將推出"
+              title={t("comingSoonTitle")}
               className="flex h-[38px] items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60 cursor-not-allowed"
             >
               <span className="text-[13px] text-[var(--text-primary)]">
@@ -120,7 +136,7 @@ export default function TechniciansPage() {
         <main className="flex flex-1 flex-col gap-4 overflow-auto bg-[var(--bg-page)]">
           {error && (
             <div className="mx-8 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              載入技師失敗：{error}
+              {t("loadFailed", { error })}
             </div>
           )}
 
@@ -133,7 +149,7 @@ export default function TechniciansPage() {
                 onClick={() => fetchPage(cursor, true)}
                 className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-6 py-2 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
               >
-                {loading ? "載入中…" : "載入更多"}
+                {loading ? t("loadingMore") : t("loadMore")}
               </button>
             </div>
           )}

@@ -237,5 +237,175 @@
       "sentimentAlerts": "Sentiment alerts",
       "settings": "Settings"
     }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Dashboard",
+      "subtitle": "Last 7 days operations",
+      "loadingAria": "Loading dashboard data",
+      "loadFailedAria": "Failed to load data",
+      "loadedAria": "Dashboard loaded — {workOrders} work orders, {technicians} technicians",
+      "loadFailed": "Failed to load dashboard: {error}",
+      "rangeLabel": "Date range",
+      "pendingBadge": "Pending dispatch module",
+      "dispatchSection": "Dispatch metrics",
+      "kpi": {
+        "convTotal": "Total conversations (last 7d)",
+        "convTotalSub": "Active {active} · Resolved {resolved}",
+        "convActive": "Active conversations",
+        "convActiveSub": "Conversations not yet closed",
+        "convResolved": "Resolved",
+        "convResolvedSub": "AI resolution rate {rate}",
+        "convEscalated": "Escalated to human",
+        "convEscalatedSub": "Awaiting agent reply",
+        "aiRate": "AI resolution rate",
+        "aiRateSub": "Resolved by case library + RAG",
+        "avgResolution": "Avg. resolution time",
+        "avgResolutionSub": "From start to close",
+        "todayWorkOrders": "Today's work orders",
+        "todayWorkOrdersSub": "Created today",
+        "completionRate": "Completion rate",
+        "completionRateSub": "Today closed / created",
+        "overdue": "Overdue work orders",
+        "overdueSub": "Past schedule, not closed",
+        "onlineTech": "Online technicians",
+        "onlineTechSub": "{count} dispatchable",
+        "slaRate": "SLA hit rate",
+        "slaRateValue": "88%",
+        "slaRateSub": "Monthly target 95%"
+      },
+      "duration": {
+        "seconds": "{n} s",
+        "minutes": "{n} min",
+        "hours": "{n} h",
+        "hoursMinutes": "{h} h {m} min"
+      },
+      "recentWorkOrders": {
+        "title": "Recent work orders",
+        "viewAll": "View all →",
+        "loadFailed": "Failed to load work orders: {error}",
+        "loading": "Loading…",
+        "empty": "No work orders",
+        "showingCount": "Showing latest {count}",
+        "unassigned": "Unassigned",
+        "technicianTag": "Tech {id}",
+        "cols": {
+          "id": "Order ID",
+          "address": "District / Address",
+          "device": "Brand / Model",
+          "status": "Status",
+          "urgency": "Urgency",
+          "createdAt": "Created",
+          "technician": "Technician"
+        }
+      }
+    },
+    "problemCards": {
+      "breadcrumb": "Home > Problem cards",
+      "title": "Problem card management",
+      "totalLabelPrefix": "Total",
+      "totalCards": "cards",
+      "totalCardsMore": "+ cards",
+      "filters": {
+        "status": "Status",
+        "urgency": "Urgency",
+        "brand": "Brand",
+        "dateRange": "Date range"
+      },
+      "comingSoonTitle": "Coming soon",
+      "searchPlaceholder": "Search coming soon",
+      "loadFailed": "Failed to load problem cards: {error}",
+      "loadingMore": "Loading…",
+      "loadMore": "Load more"
+    },
+    "workOrders": {
+      "breadcrumb": "Home > Work orders > List",
+      "title": "Work order management",
+      "totalLabelPrefix": "Total",
+      "totalOrders": "orders",
+      "totalOrdersMore": "+ orders",
+      "filters": {
+        "status": "Status",
+        "last7Days": "Last 7 days",
+        "brand": "Brand"
+      },
+      "views": {
+        "list": "List",
+        "kanban": "Kanban",
+        "map": "Map"
+      },
+      "comingSoonTitle": "Coming soon",
+      "searchPlaceholder": "Search coming soon",
+      "loadFailed": "Failed to load work orders: {error}",
+      "loadingMore": "Loading…",
+      "loadMore": "Load more"
+    },
+    "conversations": {
+      "title": "Conversations",
+      "tabs": {
+        "all": "All",
+        "active": "Active",
+        "waiting_human": "Escalated",
+        "closed": "Closed"
+      },
+      "loading": "Loading…",
+      "totalCount": "Total {count}",
+      "totalCountMore": "Total {count}+",
+      "loadingMore": "Loading…",
+      "loadMore": "Load more"
+    },
+    "technicians": {
+      "title": "Technician management",
+      "loadingBadge": "Loading",
+      "techCount": "{count} technicians",
+      "techCountMore": "{count}+ technicians",
+      "addTechnician": "Add technician",
+      "filters": {
+        "status": "Status",
+        "brandSpecialty": "Brand specialty",
+        "serviceArea": "Service area",
+        "rating": "Rating ≥ 4.0"
+      },
+      "comingSoonTitle": "Coming soon",
+      "searchPlaceholder": "Search coming soon",
+      "loadFailed": "Failed to load technicians: {error}",
+      "loadingMore": "Loading…",
+      "loadMore": "Load more"
+    }
+  },
+  "alerts": {
+    "sla": {
+      "channelName": "SLA alerts channel",
+      "noAlerts": "No alerts",
+      "breached": "⚠ SLA breached",
+      "warning": "SLA alert",
+      "countSuffix": " ({count})",
+      "expand": "Expand",
+      "collapse": "Collapse",
+      "dismissAll": "Mark all read",
+      "handle": "Handle",
+      "dismissAria": "Dismiss",
+      "escalated": " · escalated to {to}",
+      "thresholdMin": " (threshold {min} min)",
+      "targetIdPrefix": "target #",
+      "types": {
+        "quote_expiring": {
+          "label": "Quote expiring",
+          "description": "Quote will expire — past retention window"
+        },
+        "dispatch_delay": {
+          "label": "Dispatch delay",
+          "description": "Auto-dispatch timeout or repeated rejections — manual action needed"
+        },
+        "response_overdue": {
+          "label": "Response SLA breach",
+          "description": "Customer response time exceeded SLA threshold"
+        },
+        "arrival_overdue": {
+          "label": "Technician arrival overdue (red alert)",
+          "description": "Technician >2h late — escalated to Ops Manager"
+        }
+      }
+    }
   }
 }

@@ -30,6 +30,7 @@ import {
   type DateRange,
 } from "@/lib/dateRange";
 import { ApiError, api } from "@/lib/api";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type DashboardStats = components["schemas"]["DashboardStats"];
@@ -43,14 +44,19 @@ const WORK_ORDERS_LIMIT = 100;  // /work-orders pydantic le=100
 const RECENT_WO_DISPLAY = 5;    // RecentWorkOrders 只顯示前 5 筆
 const TECHNICIANS_LIMIT = 100;
 
-function formatDuration(seconds: number | undefined | null): string {
+function formatDuration(
+  seconds: number | undefined | null,
+  t: (k: string, vars?: Record<string, string | number>) => string,
+): string {
   if (seconds == null) return "—";
-  if (seconds < 60) return `${seconds} 秒`;
+  if (seconds < 60) return t("duration.seconds", { n: seconds });
   const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes} 分`;
+  if (minutes < 60) return t("duration.minutes", { n: minutes });
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
-  return mins === 0 ? `${hours} 時` : `${hours} 時 ${mins} 分`;
+  return mins === 0
+    ? t("duration.hours", { n: hours })
+    : t("duration.hoursMinutes", { h: hours, m: mins });
 }
 
 function formatPercent(rate: number | undefined | null): string {
@@ -58,10 +64,10 @@ function formatPercent(rate: number | undefined | null): string {
   return `${Math.round(rate * 100)}%`;
 }
 
-function PendingBadge() {
+function PendingBadge({ label }: { label: string }) {
   return (
     <span className="ml-2 inline-block rounded bg-[var(--badge-warn-bg)] px-1.5 py-[1px] text-[10px] font-medium text-[var(--badge-warn-fg)]">
-      待派工模組接入
+      {label}
     </span>
   );
 }
@@ -73,6 +79,9 @@ function describeError(e: unknown): string {
 }
 
 export default function DashboardPage() {
+  const t = useTranslations("pages.dashboard");
+  const tKpi = useTranslations("pages.dashboard.kpi");
+
   // 日期範圍 — 預設過去 7 日（與舊的 PERIOD = "7d" 行為一致）
   const [range, setRange] = useState<DateRange>(() => getPresetRange("last7"));
   const period = useMemo(() => mapRangeToDashboardPeriod(range), [range]);
@@ -161,7 +170,7 @@ export default function DashboardPage() {
       <Sidebar />
 
       <div className="flex flex-1 flex-col">
-        <Header title="儀表板" subtitle="近 7 日營運概況" />
+        <Header title={t("title")} subtitle={t("subtitle")} />
 
         <main
           id="main-content"
@@ -171,10 +180,13 @@ export default function DashboardPage() {
           {/* 動態狀態 — 給 screen reader 知道 fetch 進度（視覺隱藏） */}
           <LiveRegion politeness="polite">
             {workOrdersLoading || techniciansLoading
-              ? "正在載入儀表板資料"
+              ? t("loadingAria")
               : error || workOrdersError || techniciansError
-                ? "資料載入失敗"
-                : `儀表板已載入，工單 ${workOrders.length} 筆、技師 ${technicians.length} 位`}
+                ? t("loadFailedAria")
+                : t("loadedAria", {
+                    workOrders: workOrders.length,
+                    technicians: technicians.length,
+                  })}
           </LiveRegion>
 
           {error && (
@@ -182,7 +194,7 @@ export default function DashboardPage() {
               role="alert"
               className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
             >
-              載入儀表板失敗：{error}
+              {t("loadFailed", { error })}
             </div>
           )}
 
@@ -191,42 +203,47 @@ export default function DashboardPage() {
 
           <div className="flex items-center justify-between">
             <span className="text-[13px] text-[var(--text-secondary)]">
-              統計區間
+              {t("rangeLabel")}
             </span>
             <DateRangePicker value={range} onChange={setRange} />
           </div>
 
           <div className="flex gap-6">
             <KpiCard
-              title="對話總數（近 7 日）"
+              title={tKpi("convTotal")}
               value={conv ? String(conv.total) : "—"}
-              subtitle={`進行中 ${conv?.active ?? "—"}・已解決 ${conv?.resolved ?? "—"}`}
+              subtitle={tKpi("convTotalSub", {
+                active: conv?.active ?? "—",
+                resolved: conv?.resolved ?? "—",
+              })}
               accentColor="#2563EB"
               iconBgColor="#EFF6FF"
               icon={MessageSquare}
             />
             <KpiCard
-              title="進行中對話"
+              title={tKpi("convActive")}
               value={conv ? String(conv.active) : "—"}
-              subtitle="未結束的對話數"
+              subtitle={tKpi("convActiveSub")}
               accentColor="#2563EB"
               iconBgColor="#EFF6FF"
               icon={Inbox}
             />
             <KpiCard
-              title="已解決"
+              title={tKpi("convResolved")}
               value={conv ? String(conv.resolved) : "—"}
               valueColor="#10B981"
-              subtitle={`AI 解決率 ${formatPercent(res?.ai_resolution_rate)}`}
+              subtitle={tKpi("convResolvedSub", {
+                rate: formatPercent(res?.ai_resolution_rate),
+              })}
               accentColor="#10B981"
               iconBgColor="#ECFDF5"
               icon={CheckCircle2}
             />
             <KpiCard
-              title="升級至人工"
+              title={tKpi("convEscalated")}
               value={conv ? String(conv.escalated) : "—"}
               valueColor="#EF4444"
-              subtitle="等候客服回覆"
+              subtitle={tKpi("convEscalatedSub")}
               accentColor="#EF4444"
               iconBgColor="#FEF2F2"
               icon={UserCog}
@@ -235,18 +252,18 @@ export default function DashboardPage() {
 
           <div className="flex gap-6">
             <KpiCard
-              title="AI 解決率"
+              title={tKpi("aiRate")}
               value={formatPercent(res?.ai_resolution_rate)}
               valueColor="#8B5CF6"
-              subtitle="案例庫 + RAG 解決占比"
+              subtitle={tKpi("aiRateSub")}
               accentColor="#8B5CF6"
               iconBgColor="#F5F3FF"
               icon={Sparkles}
             />
             <KpiCard
-              title="平均解決時間"
-              value={formatDuration(res?.avg_resolution_time_seconds)}
-              subtitle="從開始到結案"
+              title={tKpi("avgResolution")}
+              value={formatDuration(res?.avg_resolution_time_seconds, t)}
+              subtitle={tKpi("avgResolutionSub")}
               accentColor="#2563EB"
               iconBgColor="#EFF6FF"
               icon={Timer}
@@ -260,45 +277,45 @@ export default function DashboardPage() {
 
           <div>
             <div className="mb-2 flex items-center text-[13px] text-[#71717A]">
-              派工管理指標
+              {t("dispatchSection")}
             </div>
             <div className="flex gap-6">
               <KpiCard
-                title="今日工單數"
+                title={tKpi("todayWorkOrders")}
                 value={
                   stats?.work_orders?.today_count != null
                     ? String(stats.work_orders.today_count)
                     : "—"
                 }
-                subtitle="今日新建立"
+                subtitle={tKpi("todayWorkOrdersSub")}
                 accentColor="#2563EB"
                 iconBgColor="#EFF6FF"
                 icon={ClipboardList}
               />
               <KpiCard
-                title="完工率"
+                title={tKpi("completionRate")}
                 value={formatPercent(stats?.work_orders?.completion_rate)}
                 valueColor="#F59E0B"
-                subtitle="今日完工 / 今日新建"
+                subtitle={tKpi("completionRateSub")}
                 accentColor="#10B981"
                 iconBgColor="#ECFDF5"
                 icon={CircleCheckBig}
               />
               <KpiCard
-                title="逾時工單"
+                title={tKpi("overdue")}
                 value={
                   stats?.work_orders?.overdue_count != null
                     ? String(stats.work_orders.overdue_count)
                     : "—"
                 }
                 valueColor="#EF4444"
-                subtitle="排程時間已過且未結案"
+                subtitle={tKpi("overdueSub")}
                 accentColor="#EF4444"
                 iconBgColor="#FEF2F2"
                 icon={TriangleAlert}
               />
               <KpiCard
-                title="在線技師"
+                title={tKpi("onlineTech")}
                 value={
                   stats?.technicians
                     ? `${stats.technicians.online_count ?? 0} / ${stats.technicians.total_count ?? 0}`
@@ -306,7 +323,9 @@ export default function DashboardPage() {
                 }
                 subtitle={
                   stats?.technicians?.dispatchable_count != null
-                    ? `可派遣 ${stats.technicians.dispatchable_count} 人`
+                    ? tKpi("onlineTechSub", {
+                        count: stats.technicians.dispatchable_count,
+                      })
                     : "—"
                 }
                 accentColor="#F59E0B"
@@ -317,12 +336,12 @@ export default function DashboardPage() {
             <div className="mt-4 flex gap-6">
               <div className="flex-1">
                 <div className="mb-1 flex items-center text-[12px] text-[#71717A]">
-                  <PendingBadge />
+                  <PendingBadge label={t("pendingBadge")} />
                 </div>
                 <KpiCard
-                  title="SLA 達標率"
-                  value="88%"
-                  subtitle="本月目標 95%"
+                  title={tKpi("slaRate")}
+                  value={tKpi("slaRateValue")}
+                  subtitle={tKpi("slaRateSub")}
                   accentColor="#2563EB"
                   iconBgColor="#EFF6FF"
                   icon={Shield}

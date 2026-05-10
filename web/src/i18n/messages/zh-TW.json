@@ -237,5 +237,175 @@
       "sentimentAlerts": "情緒告警",
       "settings": "系統設定"
     }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "儀表板",
+      "subtitle": "近 7 日營運概況",
+      "loadingAria": "正在載入儀表板資料",
+      "loadFailedAria": "資料載入失敗",
+      "loadedAria": "儀表板已載入，工單 {workOrders} 筆、技師 {technicians} 位",
+      "loadFailed": "載入儀表板失敗：{error}",
+      "rangeLabel": "統計區間",
+      "pendingBadge": "待派工模組接入",
+      "dispatchSection": "派工管理指標",
+      "kpi": {
+        "convTotal": "對話總數（近 7 日）",
+        "convTotalSub": "進行中 {active}・已解決 {resolved}",
+        "convActive": "進行中對話",
+        "convActiveSub": "未結束的對話數",
+        "convResolved": "已解決",
+        "convResolvedSub": "AI 解決率 {rate}",
+        "convEscalated": "升級至人工",
+        "convEscalatedSub": "等候客服回覆",
+        "aiRate": "AI 解決率",
+        "aiRateSub": "案例庫 + RAG 解決占比",
+        "avgResolution": "平均解決時間",
+        "avgResolutionSub": "從開始到結案",
+        "todayWorkOrders": "今日工單數",
+        "todayWorkOrdersSub": "今日新建立",
+        "completionRate": "完工率",
+        "completionRateSub": "今日完工 / 今日新建",
+        "overdue": "逾時工單",
+        "overdueSub": "排程時間已過且未結案",
+        "onlineTech": "在線技師",
+        "onlineTechSub": "可派遣 {count} 人",
+        "slaRate": "SLA 達標率",
+        "slaRateValue": "88%",
+        "slaRateSub": "本月目標 95%"
+      },
+      "duration": {
+        "seconds": "{n} 秒",
+        "minutes": "{n} 分",
+        "hours": "{n} 時",
+        "hoursMinutes": "{h} 時 {m} 分"
+      },
+      "recentWorkOrders": {
+        "title": "最近工單",
+        "viewAll": "查看全部 →",
+        "loadFailed": "載入工單失敗：{error}",
+        "loading": "載入中…",
+        "empty": "目前沒有工單",
+        "showingCount": "顯示最近 {count} 筆",
+        "unassigned": "未指派",
+        "technicianTag": "技師 {id}",
+        "cols": {
+          "id": "工單 ID",
+          "address": "區/地址",
+          "device": "品牌/型號",
+          "status": "狀態",
+          "urgency": "緊急度",
+          "createdAt": "建立時間",
+          "technician": "指派技師"
+        }
+      }
+    },
+    "problemCards": {
+      "breadcrumb": "首頁 > 問題卡片",
+      "title": "問題卡片管理",
+      "totalLabelPrefix": "共",
+      "totalCards": "張卡片",
+      "totalCardsMore": "+ 張卡片",
+      "filters": {
+        "status": "狀態篩選",
+        "urgency": "緊急度",
+        "brand": "品牌",
+        "dateRange": "日期範圍"
+      },
+      "comingSoonTitle": "即將推出",
+      "searchPlaceholder": "搜尋功能即將推出",
+      "loadFailed": "載入問題卡失敗：{error}",
+      "loadingMore": "載入中…",
+      "loadMore": "載入更多"
+    },
+    "workOrders": {
+      "breadcrumb": "首頁 > 工單管理 > 工單列表",
+      "title": "工單管理",
+      "totalLabelPrefix": "共",
+      "totalOrders": "筆工單",
+      "totalOrdersMore": "+ 筆工單",
+      "filters": {
+        "status": "狀態",
+        "last7Days": "最近 7 天",
+        "brand": "品牌"
+      },
+      "views": {
+        "list": "列表",
+        "kanban": "看板",
+        "map": "地圖"
+      },
+      "comingSoonTitle": "即將推出",
+      "searchPlaceholder": "搜尋功能即將推出",
+      "loadFailed": "載入工單失敗：{error}",
+      "loadingMore": "載入中…",
+      "loadMore": "載入更多"
+    },
+    "conversations": {
+      "title": "對話管理",
+      "tabs": {
+        "all": "全部",
+        "active": "進行中",
+        "waiting_human": "已升級",
+        "closed": "已結束"
+      },
+      "loading": "載入中…",
+      "totalCount": "共 {count} 筆",
+      "totalCountMore": "共 {count}+ 筆",
+      "loadingMore": "載入中…",
+      "loadMore": "載入更多"
+    },
+    "technicians": {
+      "title": "技師管理",
+      "loadingBadge": "載入中",
+      "techCount": "{count} 位技師",
+      "techCountMore": "{count}+ 位技師",
+      "addTechnician": "新增技師",
+      "filters": {
+        "status": "狀態",
+        "brandSpecialty": "專長品牌",
+        "serviceArea": "服務區域",
+        "rating": "評分 ≥ 4.0"
+      },
+      "comingSoonTitle": "即將推出",
+      "searchPlaceholder": "搜尋功能即將推出",
+      "loadFailed": "載入技師失敗：{error}",
+      "loadingMore": "載入中…",
+      "loadMore": "載入更多"
+    }
+  },
+  "alerts": {
+    "sla": {
+      "channelName": "SLA 告警通道",
+      "noAlerts": "目前無告警",
+      "breached": "⚠ SLA 破線",
+      "warning": "SLA 告警",
+      "countSuffix": "（{count}）",
+      "expand": "展開",
+      "collapse": "收合",
+      "dismissAll": "全部已讀",
+      "handle": "處理",
+      "dismissAria": "忽略",
+      "escalated": " · 已升級 {to}",
+      "thresholdMin": "（閾值 {min} 分）",
+      "targetIdPrefix": "target #",
+      "types": {
+        "quote_expiring": {
+          "label": "報價即將過期",
+          "description": "報價單超過保留時限即將失效"
+        },
+        "dispatch_delay": {
+          "label": "派工延遲",
+          "description": "自動派工逾時或連續拒單，需人工介入"
+        },
+        "response_overdue": {
+          "label": "回覆 SLA 違反",
+          "description": "客戶等待回覆超過 SLA 閾值"
+        },
+        "arrival_overdue": {
+          "label": "技師到場逾時（紅色警報）",
+          "description": "技師逾 2 小時未到場，已升級至 Ops Manager"
+        }
+      }
+    }
   }
 }
