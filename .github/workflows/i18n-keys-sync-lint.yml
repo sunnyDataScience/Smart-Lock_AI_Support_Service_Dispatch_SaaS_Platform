@@ -1,0 +1,93 @@
+name: i18n message keys sync lint
+
+# 規則：web/src/i18n/messages/*.json 必須結構同步（兩語系 keys 完全對齊）。
+#
+# 為什麼：i18n scaffold（feat/i18n-scaffold PR #50）採輕量 DIY，缺 key 時
+# fallback 到 DEFAULT_LOCALE，再 fallback 到 path 字串。如果 zh-TW.json 加了
+# 新 key 而 en.json 漏加，英文用戶會看到 "settings.foo.bar" 這種 path 字串
+# 而非翻譯內容。
+#
+# 7 個平行批次的 i18n 工程（PR #51-58）都會擴增 messages 檔，本 lint 攔截
+# 兩語系結構漂移。
+#
+# 例外：無 — 任何兩語系結構不一致都應視為 bug。如果某 key 故意只在 zh-TW
+# 存在（例如 zh-TW only feature），應同步在 en.json 加 key 並用英文 fallback。
+
+on:
+  pull_request:
+    paths:
+      - 'web/src/i18n/messages/*.json'
+      - '.github/workflows/i18n-keys-sync-lint.yml'
+  push:
+    branches: [main, dev]
+    paths:
+      - 'web/src/i18n/messages/*.json'
+
+jobs:
+  check-keys-parity:
+    name: Verify message keys are in sync across locales
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare key structure between zh-TW and en
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ZH=web/src/i18n/messages/zh-TW.json
+          EN=web/src/i18n/messages/en.json
+
+          if [ ! -f "$ZH" ] || [ ! -f "$EN" ]; then
+            echo "::error::Missing locale file (expected $ZH and $EN)"
+            exit 1
+          fi
+
+          # 用 python 攤平 nested keys 為 dotted path（python3 系統內建，
+          # 跟其他 lint workflow 走 pure shell 不同因為 nested JSON 拿純 grep
+          # 處理會過於脆弱）
+          python3 - "$ZH" "$EN" <<'PY'
+          import json
+          import sys
+
+          def flatten(obj, prefix=""):
+              if isinstance(obj, dict):
+                  for k, v in obj.items():
+                      yield from flatten(v, f"{prefix}.{k}" if prefix else k)
+              else:
+                  yield prefix
+
+          paths = {}
+          for path in sys.argv[1:]:
+              with open(path, encoding="utf-8") as f:
+                  data = json.load(f)
+              keys = set(flatten(data))
+              paths[path] = keys
+
+          (zh_path, en_path) = sys.argv[1], sys.argv[2]
+          zh_keys, en_keys = paths[zh_path], paths[en_path]
+
+          only_in_zh = sorted(zh_keys - en_keys)
+          only_in_en = sorted(en_keys - zh_keys)
+
+          if not only_in_zh and not only_in_en:
+              print(f"OK: {len(zh_keys)} keys synchronized between zh-TW and en")
+              sys.exit(0)
+
+          print("::error::message keys out of sync between zh-TW and en")
+          print()
+          if only_in_zh:
+              print(f"Keys only in zh-TW.json ({len(only_in_zh)}):")
+              for k in only_in_zh:
+                  print(f"  - {k}")
+              print()
+          if only_in_en:
+              print(f"Keys only in en.json ({len(only_in_en)}):")
+              for k in only_in_en:
+                  print(f"  - {k}")
+              print()
+          print("Fix: ensure both files contain the same nested key structure.")
+          print("If a key is genuinely zh-TW-only, still add an en.json entry")
+          print("(English fallback string, e.g. transliterate or short English equivalent).")
+          sys.exit(1)
+          PY
