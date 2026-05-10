@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   CircleDashed,
@@ -14,6 +14,7 @@ import {
 import Sidebar from "@/components/layout/Sidebar";
 import DispatchQueueTable from "@/components/dispatch-queue/DispatchQueueTable";
 import { ApiError, api } from "@/lib/api";
+import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type DispatchQueueSnapshot = components["schemas"]["DispatchQueueSnapshot"];
@@ -22,16 +23,14 @@ type DispatchLogPage = components["schemas"]["DispatchLogPage"];
 type WorkOrder = components["schemas"]["WorkOrder"];
 type WorkOrderPage = components["schemas"]["WorkOrderPage"];
 
-const URGENCY_COLOR: Record<NonNullable<WorkOrder["urgency"]>, { bg: string; text: string; label: string }> = {
-  high: { bg: "#FEE2E2", text: "#B91C1C", label: "高" },
-  medium: { bg: "#FEF3C7", text: "#B45309", label: "中" },
-  low: { bg: "#DCFCE7", text: "#15803D", label: "低" },
+const URGENCY_TONE: Record<NonNullable<WorkOrder["urgency"]>, { bg: string; text: string }> = {
+  high: { bg: "#FEE2E2", text: "#B91C1C" },
+  medium: { bg: "#FEF3C7", text: "#B45309" },
+  low: { bg: "#DCFCE7", text: "#15803D" },
 };
 
 interface CardConfig {
   key: keyof DispatchQueueSnapshot;
-  title: string;
-  subtitle: string;
   borderColor: string;
   iconColor: string;
   icon: React.ElementType;
@@ -40,43 +39,39 @@ interface CardConfig {
 const cardConfigs: CardConfig[] = [
   {
     key: "pending",
-    title: "待派工",
-    subtitle: "尚未指派技師",
     borderColor: "#F59E0B",
     iconColor: "#F59E0B",
     icon: CircleDashed,
   },
   {
     key: "assigning",
-    title: "派工中",
-    subtitle: "等待技師回應",
     borderColor: "#3B82F6",
     iconColor: "#3B82F6",
     icon: Send,
   },
   {
     key: "assigned",
-    title: "已派工",
-    subtitle: "技師已接受",
     borderColor: "#10B981",
     iconColor: "#10B981",
     icon: CircleCheck,
   },
   {
     key: "sla_at_risk",
-    title: "SLA 風險",
-    subtitle: "2 小時內可能逾期",
     borderColor: "#EF4444",
     iconColor: "#EF4444",
     icon: Timer,
   },
 ];
 
-function formatTime(d: Date): string {
-  return d.toLocaleTimeString("zh-TW", { hour12: false });
-}
-
 export default function DispatchQueuePage() {
+  const t = useTranslations("admin.dispatchQueue");
+  const tCards = useTranslations("admin.dispatchQueue.cards");
+  const tUrgency = useTranslations("admin.dispatchQueue.urgency");
+  const { locale } = useLocale();
+  const formatTime = useMemo(
+    () => (d: Date) => d.toLocaleTimeString(locale, { hour12: false }),
+    [locale],
+  );
   const [urgentOnly, setUrgentOnly] = useState(false);
   const [snapshot, setSnapshot] = useState<DispatchQueueSnapshot | null>(null);
   const [logs, setLogs] = useState<DispatchLog[]>([]);
@@ -127,11 +122,11 @@ export default function DispatchQueuePage() {
           <div className="flex items-center justify-between">
             <div className="flex flex-col gap-1">
               <span className="text-[13px] text-[var(--text-secondary)]">
-                首頁 &gt; 派工管理 &gt; 派工佇列
+                {t("breadcrumb")}
               </span>
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-                  派工佇列監控
+                  {t("title")}
                 </h1>
                 <span
                   className="flex items-center gap-[6px] rounded-full px-3 py-1 text-xs font-medium"
@@ -144,21 +139,21 @@ export default function DispatchQueuePage() {
                     className="h-[6px] w-[6px] rounded-full"
                     style={{ backgroundColor: error ? "#DC2626" : "#22C55E" }}
                   />
-                  {error ? "連線失敗" : "已連線"}
+                  {error ? t("connection.fail") : t("connection.ok")}
                 </span>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-sm text-[var(--text-secondary)]">
                 {updatedAt
-                  ? `最後更新：${formatTime(updatedAt)}`
-                  : "尚未載入"}
+                  ? t("lastUpdated", { time: formatTime(updatedAt) })
+                  : t("notLoaded")}
               </span>
               <button
                 onClick={fetchAll}
                 disabled={loading}
                 className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
-                title="重新整理"
+                title={t("refresh")}
               >
                 <RefreshCw
                   className={`h-4 w-4 text-[var(--text-secondary)] ${loading ? "animate-spin" : ""}`}
@@ -197,13 +192,13 @@ export default function DispatchQueuePage() {
                   />
                   <div className="flex flex-col gap-[2px]">
                     <span className="text-xs font-medium text-[var(--text-secondary)]">
-                      {card.title}
+                      {tCards(`${card.key}.title`)}
                     </span>
                     <span className="text-3xl font-bold text-[var(--text-primary)]">
                       {display}
                     </span>
                     <span className="text-xs text-[var(--text-disabled)]">
-                      {card.subtitle}
+                      {tCards(`${card.key}.subtitle`)}
                     </span>
                   </div>
                 </div>
@@ -218,33 +213,33 @@ export default function DispatchQueuePage() {
             <input
               type="text"
               disabled
-              placeholder="即將推出：搜尋工單編號、客戶、地址"
+              placeholder={t("search.placeholder")}
               className="h-9 flex-1 cursor-not-allowed bg-transparent text-sm text-[var(--text-disabled)] outline-none placeholder:text-[var(--text-disabled)]"
-              title="即將推出"
+              title={t("search.comingSoon")}
             />
           </div>
 
           <button
             disabled
-            title="即將推出"
+            title={t("search.comingSoon")}
             className="flex cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2 text-sm text-[var(--text-disabled)] opacity-60"
           >
-            派工次數：全部
+            {t("filters.dispatchCount")}
             <ChevronDown className="h-[14px] w-[14px] text-[var(--text-disabled)]" />
           </button>
 
           <button
             disabled
-            title="即將推出"
+            title={t("search.comingSoon")}
             className="flex cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2 text-sm text-[var(--text-disabled)] opacity-60"
           >
-            回應狀態：全部
+            {t("filters.responseStatus")}
             <ChevronDown className="h-[14px] w-[14px] text-[var(--text-disabled)]" />
           </button>
 
           <div
             className="flex items-center gap-2 opacity-60"
-            title="即將推出"
+            title={t("search.comingSoon")}
           >
             <button
               disabled
@@ -260,7 +255,7 @@ export default function DispatchQueuePage() {
               />
             </button>
             <span className="text-sm text-[var(--text-disabled)]">
-              僅顯示需介入
+              {t("filters.needIntervention")}
             </span>
           </div>
         </div>
@@ -269,21 +264,21 @@ export default function DispatchQueuePage() {
           <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]">
             <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
               <span className="text-sm font-semibold text-[var(--text-primary)]">
-                可接案件池（listWorkOrderPool）
+                {t("pool.title")}
               </span>
               <span className="text-xs text-[var(--text-secondary)]">
-                共 {pool.length} 筆 · 依緊急度 + 建立時間排序
+                {t("pool.summary", { count: String(pool.length) })}
               </span>
             </div>
             {pool.length === 0 ? (
               <div className="flex h-20 items-center justify-center text-sm text-[var(--text-secondary)]">
-                目前沒有待接工單
+                {t("pool.empty")}
               </div>
             ) : (
               <div className="divide-y divide-[var(--border)]">
                 {pool.slice(0, 10).map((wo) => {
                   const urgency = wo.urgency ?? "low";
-                  const color = URGENCY_COLOR[urgency];
+                  const color = URGENCY_TONE[urgency];
                   return (
                     <Link
                       key={wo.id}
@@ -297,7 +292,7 @@ export default function DispatchQueuePage() {
                         className="rounded-md px-2 py-[2px] text-[11px] font-semibold"
                         style={{ backgroundColor: color.bg, color: color.text }}
                       >
-                        {color.label}
+                        {tUrgency(urgency)}
                       </span>
                       <span className="text-[13px] font-medium text-[var(--text-primary)]">
                         {wo.brand}
@@ -309,7 +304,7 @@ export default function DispatchQueuePage() {
                       </span>
                       <span className="text-[11px] text-[var(--text-disabled)]">
                         {wo.created_at
-                          ? new Date(wo.created_at).toLocaleString("zh-TW", {
+                          ? new Date(wo.created_at).toLocaleString(locale, {
                               hour12: false,
                             })
                           : "—"}
@@ -321,7 +316,7 @@ export default function DispatchQueuePage() {
             )}
             {pool.length > 10 && (
               <div className="border-t border-[var(--border)] px-4 py-2 text-center text-[12px] text-[var(--text-secondary)]">
-                還有 {pool.length - 10} 筆未顯示，請至 /work-orders 列表處理。
+                {t("pool.more", { count: String(pool.length - 10) })}
               </div>
             )}
           </div>

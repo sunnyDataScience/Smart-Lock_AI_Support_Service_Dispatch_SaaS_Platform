@@ -25,6 +25,7 @@ import {
   NotificationBroadcastEvent,
   useBroadcast,
 } from "@/lib/useBroadcast";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type Notification = components["schemas"]["Notification"];
@@ -42,23 +43,18 @@ type StatusFilter = "all" | "unread" | "read" | "archived";
 
 const PAGE_LIMIT = 50;
 
-const STATUS_TABS: { value: StatusFilter; label: string }[] = [
-  { value: "unread", label: "未讀" },
-  { value: "all", label: "全部" },
-  { value: "read", label: "已讀" },
-  { value: "archived", label: "已存檔" },
-];
+const STATUS_TAB_VALUES: StatusFilter[] = ["unread", "all", "read", "archived"];
 
-const TYPE_FILTERS: { value: NotificationType | "all"; label: string }[] = [
-  { value: "all", label: "全部類型" },
-  { value: "work_order", label: "工單" },
-  { value: "refund", label: "退款" },
-  { value: "dispute", label: "爭議" },
-  { value: "rbac", label: "權限" },
-  { value: "inventory", label: "庫存" },
-  { value: "sla", label: "SLA" },
-  { value: "system", label: "系統" },
-  { value: "mention", label: "提及" },
+const TYPE_FILTER_VALUES: (NotificationType | "all")[] = [
+  "all",
+  "work_order",
+  "refund",
+  "dispute",
+  "rbac",
+  "inventory",
+  "sla",
+  "system",
+  "mention",
 ];
 
 const SEVERITY_META: Record<
@@ -77,17 +73,6 @@ const SEVERITY_META: Record<
   critical: { color: "#DC2626", bg: "#FEE2E2", Icon: AlertCircle },
 };
 
-const TYPE_LABEL: Record<NotificationType, string> = {
-  work_order: "工單",
-  refund: "退款",
-  dispute: "爭議",
-  rbac: "權限",
-  inventory: "庫存",
-  sla: "SLA",
-  system: "系統",
-  mention: "提及",
-};
-
 function formatErr(e: unknown): string {
   return e instanceof ApiError
     ? `${e.errorCode} (${e.status})：${e.message}`
@@ -99,6 +84,10 @@ function formatErr(e: unknown): string {
 export default function NotificationsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useTranslations("pages.notifications");
+  const tTabs = useTranslations("pages.notifications.tabs");
+  const tTypes = useTranslations("pages.notifications.types");
+  const tSev = useTranslations("pages.notifications.severity");
 
   const initialTab = (searchParams.get("tab") as StatusFilter) || "unread";
   const initialType =
@@ -106,10 +95,10 @@ export default function NotificationsPage() {
   const deepLinkId = searchParams.get("id");
 
   const [tab, setTab] = useState<StatusFilter>(
-    STATUS_TABS.some((t) => t.value === initialTab) ? initialTab : "unread",
+    STATUS_TAB_VALUES.includes(initialTab) ? initialTab : "unread",
   );
   const [typeFilter, setTypeFilter] = useState<NotificationType | "all">(
-    TYPE_FILTERS.some((t) => t.value === initialType) ? initialType : "all",
+    TYPE_FILTER_VALUES.includes(initialType) ? initialType : "all",
   );
 
   const [items, setItems] = useState<Notification[]>([]);
@@ -335,11 +324,11 @@ export default function NotificationsPage() {
             <div className="flex items-center gap-3">
               <Bell className="h-6 w-6 text-[var(--text-secondary)]" />
               <h1 className="text-[24px] font-semibold text-[#18181B]">
-                通知中心
+                {t("title")}
               </h1>
               {unreadCount > 0 && (
                 <span className="rounded-full bg-[var(--primary)] px-3 py-[2px] text-[12px] font-semibold text-white">
-                  未讀 {unreadCount}
+                  {t("unreadBadge", { count: String(unreadCount) })}
                 </span>
               )}
               <RealtimeIndicator status={rtStatus} />
@@ -349,7 +338,7 @@ export default function NotificationsPage() {
                 type="button"
                 onClick={fetchItems}
                 disabled={loading}
-                title="重新整理"
+                title={t("refresh")}
                 className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--border)] bg-white text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
               >
                 <RefreshCw
@@ -364,12 +353,12 @@ export default function NotificationsPage() {
                   className="flex items-center gap-1 rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] font-medium text-[var(--primary)] hover:bg-[#EFF6FF] disabled:opacity-50"
                 >
                   <CheckCheck className="h-4 w-4" />
-                  {bulkBusy ? "處理中…" : "全部標為已讀"}
+                  {bulkBusy ? t("markAllBusy") : t("markAll")}
                 </button>
               )}
               <Link
                 href="/settings?tab=notifications"
-                title="通知偏好"
+                title={t("preferences")}
                 className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--border)] bg-white text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
               >
                 <Settings className="h-4 w-4" />
@@ -379,34 +368,34 @@ export default function NotificationsPage() {
 
           {/* tab_group */}
           <div className="flex">
-            {STATUS_TABS.map((t) => (
+            {STATUS_TAB_VALUES.map((value) => (
               <button
-                key={t.value}
-                onClick={() => setTab(t.value)}
+                key={value}
+                onClick={() => setTab(value)}
                 className={`px-4 py-[10px] text-[14px] ${
-                  tab === t.value
+                  tab === value
                     ? "border-b-2 border-[var(--primary)] font-semibold text-[var(--primary)]"
                     : "font-medium text-[#71717A] hover:text-[var(--text-primary)]"
                 }`}
               >
-                {t.label}
+                {tTabs(value)}
               </button>
             ))}
           </div>
 
           {/* filter_chips */}
           <div className="flex flex-wrap items-center gap-2">
-            {TYPE_FILTERS.map((f) => (
+            {TYPE_FILTER_VALUES.map((value) => (
               <button
-                key={f.value}
-                onClick={() => setTypeFilter(f.value)}
+                key={value}
+                onClick={() => setTypeFilter(value)}
                 className={`rounded-full border px-3 py-1 text-[12px] font-medium transition ${
-                  typeFilter === f.value
+                  typeFilter === value
                     ? "border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]"
                     : "border-[var(--border)] bg-white text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
                 }`}
               >
-                {f.label}
+                {tTypes(value)}
               </button>
             ))}
           </div>
@@ -426,8 +415,11 @@ export default function NotificationsPage() {
             <div className="flex items-center justify-between border-b border-[var(--border)] bg-white px-6 py-2 text-[12px] text-[var(--text-secondary)]">
               <span>
                 {loading
-                  ? "載入中…"
-                  : `共 ${items.length} 筆${hasMore ? "+" : ""}`}
+                  ? t("loading")
+                  : t("totalCount", {
+                      count: String(items.length),
+                      plus: hasMore ? "+" : "",
+                    })}
               </span>
               {items.length > 0 && (
                 <button
@@ -439,7 +431,7 @@ export default function NotificationsPage() {
                   }
                   className="text-[12px] font-medium text-[var(--primary)] hover:underline"
                 >
-                  {selectedIds.size === items.length ? "取消全選" : "全選"}
+                  {selectedIds.size === items.length ? t("clearSelection") : t("selectAll")}
                 </button>
               )}
             </div>
@@ -447,23 +439,23 @@ export default function NotificationsPage() {
             <div className="flex-1 overflow-y-auto">
               {loading && items.length === 0 ? (
                 <div className="flex h-40 items-center justify-center text-[13px] text-[var(--text-secondary)]">
-                  載入中…
+                  {t("loading")}
                 </div>
               ) : items.length === 0 ? (
                 <div className="flex h-60 flex-col items-center justify-center gap-2 text-[var(--text-secondary)]">
                   <Bell className="h-10 w-10 text-[var(--text-disabled)]" />
                   <p className="text-[14px]">
                     {tab === "unread"
-                      ? "已看完所有未讀通知"
+                      ? t("empty.unread")
                       : tab === "archived"
-                        ? "沒有已存檔通知"
-                        : "目前沒有通知"}
+                        ? t("empty.archived")
+                        : t("empty.all")}
                   </p>
                   <Link
                     href="/settings?tab=notifications"
                     className="text-[12px] text-[var(--primary)] hover:underline"
                   >
-                    管理通知偏好 →
+                    {t("managePrefs")}
                   </Link>
                 </div>
               ) : (
@@ -474,7 +466,7 @@ export default function NotificationsPage() {
                     const unread = !n.read_at;
                     const checked = selectedIds.has(n.id);
                     const active = selectedId === n.id;
-                    const typeLabel = TYPE_LABEL[n.type] ?? n.type;
+                    const typeLabel = tTypes(n.type);
                     return (
                       <li
                         key={n.id}
@@ -542,7 +534,7 @@ export default function NotificationsPage() {
                                       : "#D97706",
                                 }}
                               >
-                                {n.severity === "critical" ? "嚴重" : "警告"}
+                                {n.severity === "critical" ? tSev("critical") : tSev("warning")}
                               </span>
                             )}
                             <span>{formatRelative(n.created_at)}</span>
@@ -555,7 +547,7 @@ export default function NotificationsPage() {
               )}
               {hasMore && items.length > 0 && (
                 <div className="px-6 py-3 text-center text-[11px] text-[var(--text-disabled)]">
-                  僅顯示最近 {PAGE_LIMIT} 筆，更多通知請使用過濾條件縮小範圍
+                  {t("moreHint", { limit: String(PAGE_LIMIT) })}
                 </div>
               )}
             </div>
@@ -566,7 +558,7 @@ export default function NotificationsPage() {
             <aside className="hidden w-[400px] flex-col border-l border-[var(--border)] bg-white md:flex">
               <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
                 <span className="text-[14px] font-semibold text-[var(--text-primary)]">
-                  通知詳情
+                  {t("detail")}
                 </span>
                 <button
                   type="button"
@@ -585,14 +577,14 @@ export default function NotificationsPage() {
                       color: SEVERITY_META[selectedItem.severity].color,
                     }}
                   >
-                    {TYPE_LABEL[selectedItem.type] ?? selectedItem.type}
+                    {tTypes(selectedItem.type)}
                   </span>
                   <span className="text-[var(--text-disabled)]">
                     {formatRelative(selectedItem.created_at)}
                   </span>
                   <span className="text-[var(--text-disabled)]">·</span>
                   <span className="text-[var(--text-disabled)]">
-                    來源：{selectedItem.source}
+                    {t("fromSource", { source: selectedItem.source })}
                   </span>
                 </div>
                 <h2 className="mb-2 text-[16px] font-semibold text-[var(--text-primary)]">
@@ -607,10 +599,10 @@ export default function NotificationsPage() {
                     href={selectedItem.related_entity.url}
                     className="mt-4 inline-flex items-center gap-1 rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#1D4ED8]"
                   >
-                    前往
+                    {t("openLink")}
                     {selectedItem.related_entity.type
                       ? ` ${selectedItem.related_entity.type}`
-                      : "來源頁面"}
+                      : ` ${t("openLinkSource")}`}
                     <ExternalLink className="h-[14px] w-[14px]" />
                   </Link>
                 )}
@@ -618,7 +610,7 @@ export default function NotificationsPage() {
                 {selectedItem.actions && selectedItem.actions.length > 0 && (
                   <div className="mt-4 flex flex-col gap-2">
                     <span className="text-[12px] font-medium text-[var(--text-secondary)]">
-                      快速動作
+                      {t("quickActions")}
                     </span>
                     {selectedItem.actions.map((a, i) =>
                       a.endpoint && a.label ? (
@@ -644,7 +636,7 @@ export default function NotificationsPage() {
                     className="flex flex-1 items-center justify-center gap-1 rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
                   >
                     <CheckCheck className="h-4 w-4" />
-                    標為已讀
+                    {t("markRead")}
                   </button>
                 )}
                 <button
@@ -654,7 +646,7 @@ export default function NotificationsPage() {
                   className="flex flex-1 items-center justify-center gap-1 rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
                 >
                   <Archive className="h-4 w-4" />
-                  存檔
+                  {t("archive")}
                 </button>
               </div>
             </aside>
@@ -665,7 +657,7 @@ export default function NotificationsPage() {
         {selectedIds.size > 0 && (
           <div className="sticky bottom-0 flex items-center justify-between gap-3 border-t border-[var(--border)] bg-white px-6 py-3 shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
             <span className="text-[13px] font-medium text-[var(--text-primary)]">
-              已選 {selectedIds.size} 則
+              {t("selectedCount", { count: String(selectedIds.size) })}
             </span>
             <div className="flex items-center gap-2">
               <button
@@ -675,7 +667,7 @@ export default function NotificationsPage() {
                 className="flex items-center gap-1 rounded-md border border-[var(--border)] bg-white px-3 py-[6px] text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
               >
                 <CheckCheck className="h-4 w-4" />
-                標為已讀
+                {t("bulkMarkRead")}
               </button>
               <button
                 type="button"
@@ -684,14 +676,14 @@ export default function NotificationsPage() {
                 className="flex items-center gap-1 rounded-md border border-[var(--border)] bg-white px-3 py-[6px] text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
               >
                 <Archive className="h-4 w-4" />
-                存檔
+                {t("bulkArchive")}
               </button>
               <button
                 type="button"
                 onClick={() => setSelectedIds(new Set())}
                 className="rounded-md px-3 py-[6px] text-[13px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
               >
-                取消
+                {t("bulkCancel")}
               </button>
             </div>
           </div>

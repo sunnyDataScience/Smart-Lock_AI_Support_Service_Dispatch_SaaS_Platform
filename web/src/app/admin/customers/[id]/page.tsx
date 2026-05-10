@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { ApiError, api } from "@/lib/api";
+import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 
 interface RecentOrder {
   id: string;
@@ -61,21 +62,6 @@ interface CustomerDetail {
   };
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  created: "待派工",
-  assigned: "已指派",
-  accepted: "已接單",
-  in_progress: "作業中",
-  completed: "已完工",
-  confirmed: "已確認",
-  cancelled: "已取消",
-};
-
-function formatDateTime(iso?: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString("zh-TW", { hour12: false });
-}
-
 function formatTwd(n: number | null | undefined): string {
   if (n == null) return "—";
   return `NT$ ${Math.round(n).toLocaleString("en-US")}`;
@@ -87,6 +73,27 @@ export default function CustomerDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const t = useTranslations("admin.customers.detail");
+  const tStatus = useTranslations("admin.customers.detail.status");
+  const tKpi = useTranslations("admin.customers.detail.kpi");
+  const tCols = useTranslations("admin.customers.detail.ordersCols");
+  const { locale } = useLocale();
+  const formatDateTime = (iso?: string | null): string => {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleString(locale, { hour12: false });
+  };
+  const statusLabel = (status: string): string => {
+    const known: Record<string, string> = {
+      created: tStatus("created"),
+      assigned: tStatus("assigned"),
+      accepted: tStatus("accepted"),
+      in_progress: tStatus("in_progress"),
+      completed: tStatus("completed"),
+      confirmed: tStatus("confirmed"),
+      cancelled: tStatus("cancelled"),
+    };
+    return known[status] ?? status;
+  };
   const [data, setData] = useState<CustomerDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -129,11 +136,12 @@ export default function CustomerDetailPage({
             <Link
               href="/admin/customers"
               className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
+              aria-label={t("back")}
             >
               <ArrowLeft className="h-5 w-5" />
             </Link>
             <span className="text-[13px] text-[var(--text-secondary)]">
-              首頁 &gt; 客戶主檔 &gt; 詳情
+              {t("breadcrumb")}
             </span>
           </div>
           {data && (
@@ -142,7 +150,7 @@ export default function CustomerDetailPage({
               className="flex items-center gap-1 rounded-md border border-[var(--border)] bg-white px-3 py-[7px] text-[13px] text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
             >
               <Pencil className="h-3.5 w-3.5" />
-              編輯客戶
+              {t("edit")}
             </Link>
           )}
         </div>
@@ -155,11 +163,11 @@ export default function CustomerDetailPage({
 
         {loading && !data ? (
           <div className="flex h-40 items-center justify-center text-[13px] text-[var(--text-secondary)]">
-            載入中…
+            {t("loading")}
           </div>
         ) : !data ? (
           <div className="m-8 text-[14px] text-[var(--text-secondary)]">
-            找不到客戶
+            {t("notFound")}
           </div>
         ) : (
           <main className="flex-1 overflow-auto px-8 py-6">
@@ -189,14 +197,14 @@ export default function CustomerDetailPage({
                     </span>
                   </div>
                   <div>
-                    <span className="text-[var(--text-secondary)]">地址：</span>
+                    <span className="text-[var(--text-secondary)]">{t("addressLabel")}</span>
                     <span className="text-[var(--text-primary)]">
                       {data.address || "—"}
                     </span>
                   </div>
                   <div>
                     <span className="text-[var(--text-secondary)]">
-                      LINE ID：
+                      {t("lineIdLabel")}
                     </span>
                     <span className="font-mono text-[11px] text-[var(--text-secondary)]">
                       {data.line_user_id
@@ -206,7 +214,7 @@ export default function CustomerDetailPage({
                   </div>
                   <div>
                     <span className="text-[var(--text-secondary)]">
-                      建檔時間：
+                      {t("createdLabel")}
                     </span>
                     <span className="text-[var(--text-primary)]">
                       {formatDateTime(data.created_at)}
@@ -214,7 +222,7 @@ export default function CustomerDetailPage({
                   </div>
                   <div>
                     <span className="text-[var(--text-secondary)]">
-                      最近活動：
+                      {t("lastActiveLabel")}
                     </span>
                     <span className="text-[var(--text-primary)]">
                       {formatDateTime(data.last_active_at)}
@@ -228,19 +236,19 @@ export default function CustomerDetailPage({
                 <section className="grid grid-cols-4 gap-3">
                   <KpiCard
                     icon={ClipboardList}
-                    label="總工單"
+                    label={tKpi("totalOrders")}
                     value={data.total_orders}
                     color="#2563EB"
                   />
                   <KpiCard
                     icon={MessageSquare}
-                    label="對話次數"
+                    label={tKpi("totalConversations")}
                     value={data.total_conversations}
                     color="#0E7490"
                   />
                   <KpiCard
                     icon={Star}
-                    label="平均評分"
+                    label={tKpi("avgRating")}
                     value={
                       data.history.avg_rating != null
                         ? data.history.avg_rating.toFixed(2)
@@ -248,14 +256,14 @@ export default function CustomerDetailPage({
                     }
                     sub={
                       data.history.rated_count > 0
-                        ? `${data.history.rated_count} 則評分`
-                        : "尚無評分"
+                        ? tKpi("rated", { count: String(data.history.rated_count) })
+                        : tKpi("noRating")
                     }
                     color="#D97706"
                   />
                   <KpiCard
                     icon={CircleAlert}
-                    label="投訴次數"
+                    label={tKpi("disputeCount")}
                     value={data.history.dispute_count}
                     color={
                       data.history.dispute_count > 0 ? "#DC2626" : "#475569"
@@ -266,17 +274,17 @@ export default function CustomerDetailPage({
                 <section className="grid grid-cols-3 gap-3">
                   <KpiCard
                     icon={Calendar}
-                    label="平均處理時長"
+                    label={tKpi("avgCompletion")}
                     value={
                       data.history.avg_completion_minutes != null
-                        ? `${Math.round(data.history.avg_completion_minutes)} 分`
+                        ? tKpi("minutes", { min: String(Math.round(data.history.avg_completion_minutes)) })
                         : "—"
                     }
                     color="#0E7490"
                   />
                   <KpiCard
                     icon={Wallet}
-                    label="退款次數"
+                    label={tKpi("refundCount")}
                     value={data.history.refund_count}
                     color={
                       data.history.refund_count > 0 ? "#B91C1C" : "#475569"
@@ -284,7 +292,7 @@ export default function CustomerDetailPage({
                   />
                   <KpiCard
                     icon={DollarSign}
-                    label="退款總額"
+                    label={tKpi("refundTotal")}
                     value={formatTwd(data.history.refund_total)}
                     color={
                       data.history.refund_total > 0 ? "#B91C1C" : "#475569"
@@ -297,7 +305,7 @@ export default function CustomerDetailPage({
                   0 && (
                   <section className="rounded-lg border border-[var(--border)] bg-white p-4 shadow-sm">
                     <h3 className="mb-3 text-[14px] font-semibold text-[var(--text-primary)]">
-                      工單狀態分布
+                      {t("statusBreakdown")}
                     </h3>
                     <div className="flex flex-wrap gap-2">
                       {Object.entries(
@@ -307,7 +315,7 @@ export default function CustomerDetailPage({
                           key={status}
                           className="rounded-md bg-[#F1F5F9] px-3 py-1 text-[12px] text-[var(--text-secondary)]"
                         >
-                          {STATUS_LABEL[status] ?? status}：
+                          {t("statusValue", { label: statusLabel(status) })}
                           <strong className="text-[var(--text-primary)]">
                             {count}
                           </strong>
@@ -320,21 +328,21 @@ export default function CustomerDetailPage({
                 {/* 最近工單 */}
                 <section className="rounded-lg border border-[var(--border)] bg-white p-4 shadow-sm">
                   <h3 className="mb-3 text-[14px] font-semibold text-[var(--text-primary)]">
-                    最近工單（{data.history.recent_orders.length}）
+                    {t("recentOrders", { count: String(data.history.recent_orders.length) })}
                   </h3>
                   {data.history.recent_orders.length === 0 ? (
                     <p className="py-4 text-center text-[12px] text-[var(--text-disabled)]">
-                      尚無工單紀錄
+                      {t("noOrders")}
                     </p>
                   ) : (
                     <table className="w-full text-[12px]">
                       <thead className="bg-[#F8FAFC] text-left text-[11px] text-[var(--text-secondary)]">
                         <tr>
-                          <th className="px-2 py-2">工單</th>
-                          <th className="px-2 py-2">品牌型號</th>
-                          <th className="px-2 py-2">狀態</th>
-                          <th className="px-2 py-2 text-right">預估價</th>
-                          <th className="px-2 py-2">建立時間</th>
+                          <th className="px-2 py-2">{tCols("id")}</th>
+                          <th className="px-2 py-2">{tCols("brandModel")}</th>
+                          <th className="px-2 py-2">{tCols("status")}</th>
+                          <th className="px-2 py-2 text-right">{tCols("estimate")}</th>
+                          <th className="px-2 py-2">{tCols("createdAt")}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[var(--border)]">
@@ -356,7 +364,7 @@ export default function CustomerDetailPage({
                             </td>
                             <td className="px-2 py-2">
                               <span className="rounded bg-[#F1F5F9] px-2 py-[1px] text-[11px]">
-                                {STATUS_LABEL[wo.status] ?? wo.status}
+                                {statusLabel(wo.status)}
                               </span>
                             </td>
                             <td className="px-2 py-2 text-right">
@@ -375,11 +383,11 @@ export default function CustomerDetailPage({
                 {/* 最近對話 */}
                 <section className="rounded-lg border border-[var(--border)] bg-white p-4 shadow-sm">
                   <h3 className="mb-3 text-[14px] font-semibold text-[var(--text-primary)]">
-                    最近對話（{data.history.recent_conversations.length}）
+                    {t("recentConversations", { count: String(data.history.recent_conversations.length) })}
                   </h3>
                   {data.history.recent_conversations.length === 0 ? (
                     <p className="py-4 text-center text-[12px] text-[var(--text-disabled)]">
-                      尚無對話紀錄
+                      {t("noConversations")}
                     </p>
                   ) : (
                     <ul className="divide-y divide-[var(--border)]">

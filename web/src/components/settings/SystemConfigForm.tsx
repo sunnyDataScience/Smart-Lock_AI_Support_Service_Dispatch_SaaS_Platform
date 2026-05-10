@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Save, RefreshCw } from "lucide-react";
 import { ApiError, api } from "@/lib/api";
+import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type SystemConfig = components["schemas"]["SystemConfig"];
@@ -101,6 +102,9 @@ function SectionCard({
 }
 
 export default function SystemConfigForm() {
+  const t = useTranslations("components.settings.systemConfigForm");
+  const tSec = useTranslations("components.settings.systemConfigForm.sections");
+  const { locale } = useLocale();
   const [config, setConfig] = useState<SystemConfig>(DEFAULT_CONFIG);
   const [original, setOriginal] = useState<SystemConfig>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
@@ -174,12 +178,12 @@ export default function SystemConfigForm() {
     <div className="flex flex-1 flex-col gap-6 overflow-auto rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-xl font-bold text-[var(--text-primary)]">系統設定</span>
+          <span className="text-xl font-bold text-[var(--text-primary)]">{t("title")}</span>
           <button
             onClick={fetchConfig}
             disabled={loading || saving}
             className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
-            title="重新整理"
+            title={t("refresh")}
           >
             <RefreshCw
               className={`h-[14px] w-[14px] text-[var(--text-secondary)] ${loading ? "animate-spin" : ""}`}
@@ -196,13 +200,13 @@ export default function SystemConfigForm() {
               className="h-[6px] w-[6px] rounded-full"
               style={{ backgroundColor: error ? "#DC2626" : "#22C55E" }}
             />
-            {error ? "連線失敗" : "已連線"}
+            {error ? t("connection.fail") : t("connection.ok")}
           </span>
         </div>
         <span className="text-[13px] text-[var(--text-secondary)]">
           {savedAt
-            ? `已儲存：${savedAt.toLocaleTimeString("zh-TW", { hour12: false })}`
-            : "RAG / LLM / 解決引擎 / LINE Bot 即時設定"}
+            ? t("savedAt", { time: savedAt.toLocaleTimeString(locale, { hour12: false }) })
+            : t("subtitle")}
         </span>
       </div>
 
@@ -214,16 +218,16 @@ export default function SystemConfigForm() {
         </div>
       )}
 
-      <SectionCard title="RAG 檢索" description="向量相似度與分塊參數，影響案例庫匹配準確度">
+      <SectionCard title={tSec("rag.title")} description={tSec("rag.desc")}>
         <div className="flex gap-4">
           <NumberField
-            label="相似度門檻"
+            label={tSec("rag.similarity")}
             value={config.rag?.similarity_threshold}
             onChange={(v) => updateSection("rag", { similarity_threshold: v })}
             min={0} max={1} step={0.01}
           />
           <NumberField
-            label="最大結果數"
+            label={tSec("rag.maxResults")}
             value={config.rag?.max_results}
             onChange={(v) => updateSection("rag", { max_results: Math.round(v) })}
             min={1} max={20}
@@ -231,13 +235,13 @@ export default function SystemConfigForm() {
         </div>
         <div className="flex gap-4">
           <NumberField
-            label="分塊大小"
+            label={tSec("rag.chunkSize")}
             value={config.rag?.chunk_size}
             onChange={(v) => updateSection("rag", { chunk_size: Math.round(v) })}
             min={100} max={4000} unit="chars"
           />
           <NumberField
-            label="分塊重疊"
+            label={tSec("rag.chunkOverlap")}
             value={config.rag?.chunk_overlap}
             onChange={(v) => updateSection("rag", { chunk_overlap: Math.round(v) })}
             min={0} max={500} unit="chars"
@@ -245,28 +249,28 @@ export default function SystemConfigForm() {
         </div>
       </SectionCard>
 
-      <SectionCard title="LLM 模型" description="主推理模型、溫度與 token 上限">
+      <SectionCard title={tSec("llm.title")} description={tSec("llm.desc")}>
         <div className="flex gap-4">
           <TextField
-            label="模型"
+            label={tSec("llm.model")}
             value={config.llm?.model}
             onChange={(v) => updateSection("llm", { model: v })}
           />
           <TextField
-            label="System Prompt 版本"
+            label={tSec("llm.promptVersion")}
             value={config.llm?.system_prompt_version}
             onChange={(v) => updateSection("llm", { system_prompt_version: v })}
           />
         </div>
         <div className="flex gap-4">
           <NumberField
-            label="溫度"
+            label={tSec("llm.temperature")}
             value={config.llm?.temperature}
             onChange={(v) => updateSection("llm", { temperature: v })}
             min={0} max={2} step={0.1}
           />
           <NumberField
-            label="最大 Tokens"
+            label={tSec("llm.maxTokens")}
             value={config.llm?.max_tokens}
             onChange={(v) => updateSection("llm", { max_tokens: Math.round(v) })}
             min={1} max={8192}
@@ -274,36 +278,36 @@ export default function SystemConfigForm() {
         </div>
       </SectionCard>
 
-      <SectionCard title="解決引擎" description="L1→L2→L3 三層升級閾值與自動轉接">
+      <SectionCard title={tSec("resolution.title")} description={tSec("resolution.desc")}>
         <div className="flex gap-4">
           <NumberField
-            label="FAQ 信心門檻"
+            label={tSec("resolution.faqThreshold")}
             value={config.resolution?.faq_confidence_threshold}
             onChange={(v) => updateSection("resolution", { faq_confidence_threshold: v })}
             min={0} max={1} step={0.01}
           />
           <NumberField
-            label="RAG 信心門檻"
+            label={tSec("resolution.ragThreshold")}
             value={config.resolution?.rag_confidence_threshold}
             onChange={(v) => updateSection("resolution", { rag_confidence_threshold: v })}
             min={0} max={1} step={0.01}
           />
         </div>
         <ToggleField
-          label="自動升級至人工"
+          label={tSec("resolution.autoEscalate")}
           value={config.resolution?.auto_escalation_enabled}
           onChange={(v) => updateSection("resolution", { auto_escalation_enabled: v })}
         />
       </SectionCard>
 
-      <SectionCard title="LINE Bot" description="問候訊息與對話輪次上限">
+      <SectionCard title={tSec("line_bot.title")} description={tSec("line_bot.desc")}>
         <ToggleField
-          label="啟用問候訊息"
+          label={tSec("line_bot.greeting")}
           value={config.line_bot?.greeting_message_enabled}
           onChange={(v) => updateSection("line_bot", { greeting_message_enabled: v })}
         />
         <NumberField
-          label="最大對話輪次"
+          label={tSec("line_bot.maxTurns")}
           value={config.line_bot?.max_conversation_turns}
           onChange={(v) => updateSection("line_bot", { max_conversation_turns: Math.round(v) })}
           min={1} max={200}
@@ -318,7 +322,7 @@ export default function SystemConfigForm() {
           disabled={!dirty || saving}
           className="rounded-lg border border-[var(--border)] px-5 py-[10px] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <span className="text-sm font-medium text-[var(--text-secondary)]">取消變更</span>
+          <span className="text-sm font-medium text-[var(--text-secondary)]">{t("reset")}</span>
         </button>
         <button
           onClick={handleSave}
@@ -326,7 +330,7 @@ export default function SystemConfigForm() {
           className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-5 py-[10px] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Save className="h-4 w-4 text-white" />
-          <span className="text-sm font-medium text-white">{saving ? "儲存中…" : "儲存設定"}</span>
+          <span className="text-sm font-medium text-white">{saving ? t("saving") : t("save")}</span>
         </button>
       </div>
     </div>
