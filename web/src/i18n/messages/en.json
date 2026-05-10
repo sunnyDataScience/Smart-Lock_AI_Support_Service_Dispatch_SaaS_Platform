@@ -381,15 +381,18 @@
       "linkedProblemCard": "Linked problem card: {id}",
       "actions": {
         "accept": "Accept dispatch",
-        "accepting": "Working…",
+        "accepting": "Processing…",
         "assignNew": "Reassign",
         "assignFresh": "Assign technician",
-        "complete": "Mark complete",
-        "cancel": "Cancel order",
+        "complete": "Mark completed",
+        "cancel": "Cancel work order",
         "confirmClose": "Confirm closure",
         "escalate": "Escalate",
         "signature": "E-signature",
-        "reschedule": "Send reschedule"
+        "reschedule": "Send reschedule",
+        "assign": "Assign technician",
+        "reassign": "Reassign technician",
+        "actionFailed": "Action failed: {error}"
       },
       "toasts": {
         "accepted": "Dispatch accepted",
@@ -405,7 +408,10 @@
         "actionFailed": "Action failed: {msg}",
         "loadFailed": "Failed to load work order: {msg}"
       },
-      "loading": "Loading…",
+      "loading": {
+        "loadFailed": "Failed to load work order: {error}",
+        "loadingOrder": "Loading…"
+      },
       "infoBanner": "Problem-card summary, customer media, and timeline are live data; SLA timeline, conversation, completion report, and exceptions are placeholders pending the SLA / completion-report modules.",
       "sla": {
         "create": "Created",
@@ -414,7 +420,15 @@
         "inProgress": "In progress",
         "complete": "Completed",
         "confirm": "Confirmed",
-        "remaining": "Remaining 02:15"
+        "remaining": "Remaining {time}",
+        "stage": {
+          "created": "Created",
+          "dispatched": "Dispatched",
+          "accepted": "Accepted",
+          "inProgress": "In progress",
+          "completed": "Completed",
+          "confirmed": "Confirmed"
+        }
       },
       "problemCard": {
         "title": "Diagnosis summary",
@@ -436,27 +450,32 @@
         }
       },
       "media": {
-        "title": "Customer media",
+        "title": "Customer-uploaded media",
         "channel": "LINE",
-        "count": "{count} items",
-        "noConversation": "No conversation linked, no media to show",
+        "count": "{count} item(s)",
+        "noConversation": "No linked conversation; no media to display",
         "loadError": "Failed to load media: {msg}",
         "loading": "Loading media…",
         "empty": "Customer has not uploaded any media",
         "video": "🎬 Video",
         "alt": "Customer upload",
-        "submittedAt": "Submitted: {time}"
+        "submittedAt": "Submitted: {time}",
+        "badge": "LINE",
+        "loadFailed": "Failed to load media: {error}",
+        "videoLabel": "🎬 Video",
+        "imageAlt": "Customer upload"
       },
       "timeline": {
-        "title": "Work order timeline",
-        "empty": "No timeline data",
+        "title": "Work-order timeline",
+        "empty": "No timeline data yet",
         "all": "All",
         "filterTitle": "Coming soon",
         "badge": {
           "system": "System",
           "tech": "Tech",
           "schedule": "Schedule",
-          "complete": "Complete"
+          "complete": "Completion",
+          "technician": "Technician"
         },
         "events": {
           "created": "Work order created",
@@ -468,13 +487,27 @@
           "completed": "Work order completed",
           "lastUpdate": "Last update",
           "currentStatus": "Current status: {status}"
+        },
+        "filterAll": "All",
+        "comingSoon": "Coming soon",
+        "event": {
+          "created": "Work order created",
+          "createdFromPc": "Derived from problem card {shortId}",
+          "scheduledTitle": "Estimated arrival",
+          "scheduledWithTech": "Technician {shortId} scheduled",
+          "scheduledNoTech": "No technician assigned",
+          "arrivedTitle": "Technician arrived on site",
+          "completedTitle": "Work order completed",
+          "lastUpdatedTitle": "Last updated",
+          "lastUpdatedDetail": "Current status: {status}"
         }
       },
       "conversation": {
-        "title": "LINE conversation (placeholder)",
+        "title": "LINE conversation log (placeholder)",
         "openInNewWindow": "Open in new window",
-        "placeholder": "Placeholder: linked PC conversation will appear here",
-        "readOnly": "Read-only — LINE conversation backup"
+        "placeholder": "Placeholder: linked conversation will appear here",
+        "readOnly": "Read-only — LINE conversation backup",
+        "readOnlyNotice": "Read-only — this is a backup of the LINE conversation"
       },
       "completionReport": {
         "title": "Completion report (placeholder)",
@@ -487,7 +520,7 @@
         }
       },
       "exception": {
-        "title": "Exception log (placeholder)",
+        "title": "Exception records (placeholder)",
         "placeholder": "Placeholder: work-order exception events will appear here"
       },
       "completeModal": {
@@ -613,6 +646,200 @@
         "messagePlaceholder": "Technician was pulled to a neighbour's emergency. Please pick a convenient slot.",
         "channelLabel": "Notification channel",
         "warning": "MVP does not actually push LINE/SMS, but the first slot will immediately update scheduled_at. Up to 3 reschedules in 24h, otherwise RESCHEDULE_LIMIT_EXCEEDED is returned.",
+        "back": "Back",
+        "submit": "Send reschedule",
+        "submitting": "Submitting…"
+      },
+      "header": {
+        "breadcrumb": "Home > Work orders > List > {shortId}",
+        "urgencyLabel": "Urgency: {label}",
+        "brandLabel": "Brand: ",
+        "modelLabel": "Model: ",
+        "addressLabel": "Address: ",
+        "linkedProblemCard": "Linked problem card: {shortId}"
+      },
+      "info": {
+        "title": "Notice",
+        "banner": "Problem-card summary, customer media, and the work-order timeline are live data; the SLA timeline, conversation thread, completion report, and exceptions are placeholders until the SLA / completion-report modules are wired in."
+      },
+      "toast": {
+        "accepted": "Dispatch accepted",
+        "completed": "Work order marked completed",
+        "cancelled": "Work order cancelled",
+        "assigned": "Technician assigned",
+        "confirmed": "Customer confirmed closure",
+        "signatureDone": "Both parties signed",
+        "escalatedOps": "Escalated to operations manager",
+        "escalatedTenant": "Escalated to tenant administrator",
+        "rescheduleSent": "Reschedule request sent ({count} candidate slots)"
+      },
+      "pcSummary": {
+        "title": "Problem-card summary",
+        "badge": "ProblemCard",
+        "noPc": "This work order has no linked problem card",
+        "loadFailed": "Load failed: {error}",
+        "loading": "Loading problem card…",
+        "urgencyLabel": "Urgency {label}",
+        "aiConfidence": "AI confidence {percent}%",
+        "status": {
+          "draft": "Draft",
+          "confirmed": "Confirmed",
+          "resolved": "Resolved"
+        },
+        "field": {
+          "brand": "Brand",
+          "model": "Model",
+          "category": "Category",
+          "conversation": "Linked conversation",
+          "symptom": "Symptom"
+        }
+      },
+      "completionMock": {
+        "title": "Completion report (placeholder)",
+        "submittedAt": "Submitted: —",
+        "functionTests": "Function tests",
+        "tests": {
+          "fingerprint": "Fingerprint unlock",
+          "password": "Password unlock",
+          "battery": "Battery voltage (placeholder)"
+        }
+      },
+      "completeDialog": {
+        "title": "Mark completed",
+        "summaryLabel": "Completion summary",
+        "summaryRequired": "*",
+        "summaryPlaceholder": "e.g. Replaced motherboard; verified fingerprint and password unlocking",
+        "summaryCounter": "{current} / 2000",
+        "amountLabel": "Actual amount (NT$, optional)",
+        "amountPlaceholder": "e.g. 3500.00",
+        "amountInvalid": "Amount must be a number with up to two decimal places",
+        "cancel": "Cancel",
+        "submit": "Confirm completion",
+        "submitting": "Submitting…"
+      },
+      "assignDialog": {
+        "titleAssign": "Assign technician",
+        "titleReassign": "Reassign technician",
+        "scoreFormula": "Score = 0.4 skill + 0.3 distance + 0.3 rating",
+        "candidateLabel": "Candidate technicians (sorted by score)",
+        "required": "*",
+        "loadingCandidates": "Computing candidates…",
+        "loadFailed": "Load failed: {error}",
+        "noCandidates": "No assignable candidates (offline / circuit-broken excluded)",
+        "currentlyAssigned": "Currently assigned",
+        "scoreTooltip": "Score (0–100)",
+        "skillPercent": "Skill {percent}%",
+        "distance": "Distance {value}",
+        "distanceInArea": "In area",
+        "distanceKm": "≈ {km} km",
+        "rating": "Rating {rating} / 5",
+        "etaMinutes": "{min} min ETA",
+        "skillsPrefix": "Skills {names}",
+        "skillsMore": "…",
+        "reasonLabel": "Assignment reason",
+        "reason": {
+          "auto_dispatch_exhausted": "Auto-dispatch exhausted",
+          "customer_requested_specific_tech": "Customer requested specific technician",
+          "skill_shortage_override": "Skill shortage override",
+          "sla_rescue": "SLA rescue",
+          "other": "Other"
+        },
+        "reasonTextLabel": "Notes (optional)",
+        "reasonTextPlaceholder": "e.g. Customer asked for Mr. Chang; only nearby tech with this brand experience",
+        "reasonTextCounter": "{current} / 500",
+        "cancel": "Cancel",
+        "submit": "Confirm assignment",
+        "submitting": "Submitting…"
+      },
+      "cancelDialog": {
+        "title": "Cancel work order",
+        "reasonLabel": "Cancellation reason (optional)",
+        "reasonPlaceholder": "e.g. Customer rescheduled; duplicate work order",
+        "counter": "{current} / 500",
+        "back": "Back",
+        "submit": "Confirm cancellation",
+        "submitting": "Submitting…"
+      },
+      "confirmDialog": {
+        "title": "Customer confirms closure",
+        "ratingLabel": "Satisfaction rating",
+        "required": "*",
+        "starAria": "Give {n} star(s)",
+        "ratingHint": {
+          "1": "Very dissatisfied",
+          "2": "Dissatisfied",
+          "3": "Neutral",
+          "4": "Satisfied",
+          "5": "Very satisfied"
+        },
+        "feedbackLabel": "Customer feedback (optional, up to 1000 chars)",
+        "feedbackPlaceholder": "e.g. Technician arrived on time, explained clearly, lock works fine",
+        "counter": "{current} / 1000",
+        "warning": "Closure is terminal — once submitted you cannot revert to in_progress / completed.",
+        "back": "Back",
+        "submit": "Confirm closure",
+        "submitting": "Submitting…"
+      },
+      "signatureDialog": {
+        "title": "Both-party e-signature",
+        "intro": "Customer and technician signatures are stored in digital_signatures with a SHA-256 integrity hash. A signed role cannot be overwritten; once both parties sign, the work order cannot be re-signed.",
+        "customerLabel": "Customer signature *",
+        "technicianLabel": "Technician signature *",
+        "gpsLabel": "GPS location (optional, signature location evidence)",
+        "captureGps": "Capture current location",
+        "latPlaceholder": "Latitude (lat)",
+        "lngPlaceholder": "Longitude (lng)",
+        "errorNoGeolocation": "This device does not support geolocation",
+        "errorLocateFailed": "Failed to locate",
+        "errorLatLngNumeric": "Lat/lng must be numeric",
+        "back": "Back",
+        "submit": "Confirm signature",
+        "submitting": "Submitting…"
+      },
+      "signaturePad": {
+        "uploadedLength": "Uploaded ({chars} chars)",
+        "clear": "Clear & re-upload",
+        "selectFile": "Choose signature image (PNG / JPEG / SVG, <2 MB)",
+        "errorImageOnly": "Please choose an image (PNG / JPEG / SVG)",
+        "errorTooLarge": "File too large; must be under 2 MB",
+        "errorReadFailed": "Failed to read file",
+        "base64Label": "base64"
+      },
+      "escalateDialog": {
+        "title": "Escalate work order",
+        "level": {
+          "operations_manager": {
+            "label": "Escalate to operations manager",
+            "hint": "When the technician cannot resolve, the SLA is about to breach, or the complaint needs higher-level intervention."
+          },
+          "tenant_admin": {
+            "label": "Escalate to tenant administrator",
+            "hint": "Pricing dispute, process exception, or cross-team coordination requiring the highest tenant authority."
+          }
+        },
+        "reasonLabel": "Escalation reason (required, up to 500 chars)",
+        "reasonPlaceholderActive": "Explain why {label} is needed (recorded in the service_report audit trail)",
+        "reasonPlaceholderFallback": "Please provide an escalation reason",
+        "counter": "{current} / 500",
+        "warning": "After escalation the priority is raised to urgent; the work order keeps its current status pending higher-level review.",
+        "back": "Back",
+        "submit": "Confirm escalation",
+        "submitting": "Submitting…"
+      },
+      "rescheduleDialog": {
+        "title": "Send reschedule request",
+        "slotTitle": "Candidate slot {n}",
+        "removeSlot": "Remove",
+        "startTime": "Start time",
+        "endTime": "End time",
+        "addSlot": "+ Add candidate slot ({current}/3)",
+        "messageLabel": "Customer message (required, up to 120 chars)",
+        "messagePlaceholder": "Technician was pulled into a neighboring emergency; please pick a convenient slot",
+        "messageCounter": "{current} / 120",
+        "channelLabel": "Notification channel",
+        "channelLine": "LINE",
+        "channelLineSms": "LINE + SMS",
+        "warning": "MVP does not actually push LINE/SMS, but the first slot is written to scheduled_at immediately; up to 3 reschedules per 24 h, beyond which RESCHEDULE_LIMIT_EXCEEDED is returned.",
         "back": "Back",
         "submit": "Send reschedule",
         "submitting": "Submitting…"
