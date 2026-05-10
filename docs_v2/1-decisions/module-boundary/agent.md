@@ -9,7 +9,6 @@ synced-with-CLAUDE-md: true
 related:
   - "../architecture-overview.md"
   - "../../2-contracts/modules/{problem-card-engine, audit-logger, vision-processing, inter-agent-messaging}.md"
-  - "../../4-exploration/agent-harness-v2/architecture.md (V2 設計)"
 ---
 
 # Module Boundary — agent/
@@ -76,6 +75,6 @@ related:
 
 修正方向：harness → agent / skills → harness 為單向。
 
-## 待整理（從 _pending-split-module-breakdown.md M1-M8 抽取）
+## 模組詳細
 
-詳細模組規格見 source `docs/01-define/E3x--module-breakdown.md` §3.1~3.8（M1 LINE Bot 接入、M2 對話管理、M3 ProblemCard 引擎、M4 三層解決引擎、M5 知識庫管理、M6 Admin Panel V1.0、M7 SOP 自動生成、M8 LLM Gateway）。
+詳細模組契約見 [`../../2-contracts/modules/INDEX.md`](../../2-contracts/modules/INDEX.md)（9 V1.0 core modules + 15 specs）。

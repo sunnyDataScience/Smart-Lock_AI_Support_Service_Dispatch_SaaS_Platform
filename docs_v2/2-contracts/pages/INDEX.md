@@ -1,57 +1,46 @@
 ---
-title: Page Contracts Index — 53 pages (38 Admin + 11 Tech + 4 Global)
+title: Page Contracts Index — 10 anchor pages
 tier: 2
 status: active
 last_updated: 2026-05-10
 related:
   - "../../1-decisions/module-boundary/web.md"
   - "../frontend-design-system/"
-  - "../../5-views/traceability-matrix.md (legacy IA mapping at appendix)"
-  - "../../extras/web-frontend/pages-legacy/ (源 22 specs，作為深度參考)"
+  - "../../5-views/frontend-route-map.md (full IA → route mapping)"
 ---
 
 # Page Contracts Index
 
-> 53 個 page contract 從 IA spec + pipeline 22 specs 拆分而成。
-> 每個 page-contract 為 thin 包裝（route / auth / FR trace / source spec pointer）。
-> 完整 UI / Component / Layout 規格在 `extras/web-frontend/pages-legacy/` 22 specs 內。
+> 10 個 **anchor page-contracts**，覆蓋 V1.0 主要 user flow 入口。
+> 每 page-contract = thin spec（route / auth / FR trace）。
+> **完整 52 頁 IA 對照** + **route → page.tsx 映射**見 [`5-views/frontend-route-map.md`](../../5-views/frontend-route-map.md)。
+>
+> **Why anchor-only**: 大部分頁面為 CRUD / list / detail 樣板，frontend code (`web/src/app/<route>/page.tsx`) 即為 source of truth。Anchor pages 涵蓋有特殊 auth / multi-step flow / cross-cutting behavior 的關鍵入口。
 
-## Admin Panel (38 pages, A0-A37)
+## Admin Panel anchors (4)
 
-### V1.0 (11 pages)
-- [`A0-管理員登入`](./A0-管理員登入.md) — `/login`
-- [`A1-營運儀表板`](./A1-營運儀表板.md) — `/dashboard`
-- [`A2-對話列表`](./A2-對話列表.md) — `/conversations`
-- [`A3-對話詳情`](./A3-對話詳情.md) — `/conversations/[id]`
-- [`A4-問題卡列表`](./A4-問題卡列表.md) — `/problem-cards`
-- [`A5-問題卡詳情`](./A5-問題卡詳情.md) — `/problem-cards/[id]`
-- [`A6-案例庫`](./A6-案例庫.md) — `/knowledge-base/cases`
-- [`A7-案例詳情-編輯`](./A7-案例詳情-編輯.md) — `/knowledge-base/cases/[id]`
-- [`A8-手冊管理`](./A8-手冊管理.md) — `/knowledge-base/manuals`
-- [`A9-SOP-審核佇列`](./A9-SOP-審核佇列.md) — `/knowledge-base/sop-drafts`
-- [`A10-SOP-審核面板`](./A10-SOP-審核面板.md) — `/knowledge-base/sop-drafts/[id]`
-- [`A16-系統設定`](./A16-系統設定.md) — `/settings`
+| ID | Route | 說明 |
+| :-- | :-- | :-- |
+| [`A0-管理員登入`](./A0-管理員登入.md) | `/login` | Auth flow 入口 |
+| [`A1-營運儀表板`](./A1-營運儀表板.md) | `/dashboard` | Admin 主入口 |
+| [`A12-工單詳情`](./A12-工單詳情.md) | `/work-orders/[id]` | V2 核心：工單 lifecycle 全功能介面 |
 
-### V2.0 (24 pages)
-- A11-A15: Work Order + 技師 + 帳務
-- A17-A22: 進階管理（退款/RBAC/庫存/稽核/保固/爭議）
-- A23-A33: 客戶 + 技師詳細 + 派工/報表
-- A37: 派工人工介入
+## Technician Web App anchors (3)
 
-### V3.0 (3 pages, 多租戶)
-- A34-A36: tenant settings + brand customization + super admin
+| ID | Route | 說明 |
+| :-- | :-- | :-- |
+| [`T0-技師登入`](./T0-技師登入.md) | `/tech-login` | 技師 auth |
+| [`T1-案件池`](./T1-案件池.md) | `/pool` | 技師主入口 / 接單 |
+| [`T3-工單詳情-完工回報`](./T3-工單詳情-完工回報.md) | `/my-orders/[id]` | 技師核心 flow（出發 → 到場 → 完工）|
 
-## Technician Web App (11 pages, T0-T10)
+## Global / Cross-cutting anchors (4)
 
-- T0 登入 / T1 案件池 / T2-T3 我的工單 / T4 帳戶
-- T5-T9 工單子流程（scope-change / material / delay / door-check / signature）
-- T10 排班
-
-## Global (4 pages, G1-G4)
-
-- G1 通知中心 / G2 離線 / G3 錯誤邊界 / G4 改約 calendar
-
----
+| ID | Route | 說明 |
+| :-- | :-- | :-- |
+| [`G1-全域通知中心`](./G1-全域通知中心.md) | `/notifications` | 跨 actor 通知 |
+| [`G2-離線狀態頁`](./G2-離線狀態頁.md) | `/offline` | PWA offline UX |
+| [`G3-錯誤邊界`](./G3-錯誤邊界.md) | error.tsx / 404 / 500 | Next.js error boundary 慣例 |
+| [`G4-改約-calendar`](./G4-改約-calendar.md) | reschedule UI | calendar widget |
 
 ## frontmatter 標準
 
@@ -61,26 +50,16 @@ id: PAGE-XX
 route: /path/to/page
 version: V1.0 | V2.0 | V3.0
 access_role: admin | technician | any
-trace_to_fr: FR-NNNN-... (對應 functional requirement)
-source_spec_path: extras/web-frontend/pages-legacy/...
-source_spec_section: 主要 / 列表段 / Tab: ... 等
+trace_to_fr: FR-NNNN-...
 ---
 ```
 
-## 待補完（Phase 8 / CR follow-up）
+## 新增 page contract 時機
 
-每個 page-contract 的 §4 Data Sources 與 §5 Component Map 目前為 TODO。
-需從 source spec 抽 structured data（API endpoint list、components）。
-建議：
-1. 先實作頁面（web/src/app${route}/page.tsx）
-2. 跑 `sunnydata-auto-regen` 從 router config 推 frontend-route-map
-3. 補 Data Sources（從 generated/api.generated.ts 對照）
-4. 補 Component Map（從實際 import 樹）
+只在以下情況新增 anchor：
+1. 跨多 user flow 的入口（如 dashboard）
+2. 含特殊 auth / RBAC 規則
+3. multi-step flow 的核心步驟
+4. cross-cutting global behavior（error / offline / notification）
 
----
-
-## Change Log
-
-| Date | Change |
-| :--- | :--- |
-| 2026-05-10 | 初版 — 從 22 page spec 拆為 53 個 thin contract |
+CRUD list / detail 不需新建 contract — `web/src/app/<route>/page.tsx` + frontend-route-map 已涵蓋。

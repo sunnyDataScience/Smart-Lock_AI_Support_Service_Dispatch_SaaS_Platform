@@ -18,7 +18,7 @@ related:
 | Module | Code | Trace |
 | :-- | :-- | :-- |
 | [`conversation-manager.md`](./conversation-manager.md) | `agent/harness/debounce.py` + `app.py` | M1 + F-001 |
-| [`problem-card-engine.md`](./problem-card-engine.md) | `api/services/problem_card_service.py` | M2 + F-001/002 (V2 design 在 `../../4-exploration/agent-harness-v2/problem-card-spec.md`) |
+| [`problem-card-engine.md`](./problem-card-engine.md) | `api/services/problem_card_service.py` | M2 + F-001/002 |
 | [`three-layer-resolver.md`](./three-layer-resolver.md) | `agent/agent.py` + `harness/safety_gate.py` + `output_validator.py` | M3 |
 | [`knowledge-base-manager.md`](./knowledge-base-manager.md) | `agent/skills/` + `data/pipeline/` | M4 |
 | [`sop-generator.md`](./sop-generator.md) | `agent/harness/sop_extractor.py` | M5 |

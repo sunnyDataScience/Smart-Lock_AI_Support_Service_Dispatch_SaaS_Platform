@@ -64,11 +64,8 @@ related:
 - WS 中斷：自動重連 + UI 顯示「連線中」
 - offline：service worker 快取靜態資源 + offline UI（G2）
 
-## 待整理
+## Page contracts & route map
 
-完整頁面路由表（52 頁）見：
-- 結構化 page contracts：[`../../2-contracts/pages/`](../../2-contracts/pages/) — 22 spec 待 SPLIT 為 52 個別 contract
-- Auto route map（待產出）：[`../../5-views/frontend-route-map.md`](../../5-views/frontend-route-map.md)
-- Pages mapping table：[`../../5-views/_pending-merge-pages-mapping.md`](../../5-views/_pending-merge-pages-mapping.md)
-
-具體模組規格見 source `docs/01-define/E3x--module-breakdown.md` §3.6 (M6 Admin V1.0)、§4.4 (M12 Tech App)、§4.5 (M13 Admin V2.0)。
+- **Anchor page contracts**：[`../../2-contracts/pages/INDEX.md`](../../2-contracts/pages/INDEX.md) — 10 個關鍵入口
+- **Full route → page.tsx mapping**：[`../../5-views/frontend-route-map.md`](../../5-views/frontend-route-map.md)（AUTO，含 IA 52 頁完整對照）
+- **CRUD list/detail 頁**: 直接看 `web/src/app/<route>/page.tsx`，frontend-route-map 是 SSOT
