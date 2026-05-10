@@ -14,3 +14,11 @@ status: warning
 - 對應 contract：未來 `2-contracts/modules/technician-management.md`（待建）
 
 CR-0001 D4 拍板。Phase 7 (post-CR-0001) 處理。
+
+## Status (2026-05-10 update — CR-0006 partial)
+
+- ✅ 已驗證 `SQL/seeds/technicians.sql` 為 demo seed（無 PII），可入 git
+- ✅ `SQL/seeds/README.md` 已建立，含 PII 警示與 demo accounts 說明
+- ⏸ 真實名冊 → Secret Manager / ops repo（待 ops 對齊）
+
+對應 source-of-truth: [`SQL/seeds/README.md`](../../../SQL/seeds/README.md)

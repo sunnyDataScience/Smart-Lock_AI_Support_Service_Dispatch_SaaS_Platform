@@ -2,9 +2,20 @@
 id: CR-0006
 title: 4 內容應搬離 docs_v2/ — 進 agent/skills/data/ 與 data/ 與 SQL/seed/
 date: 2026-05-10
-status: draft
+status: partial-executed
+partial_executed_at: 2026-05-10
+partial_executed_what: |
+  Commit 6aac976:
+  - agent/skills/data/_common/faq/SKILL.md (258 行) ✅
+  - agent/skills/data/_common/sentiment-keywords/SKILL.md (73 行) ✅
+  - data/docs/manuals/INDEX.md (49 行) ✅
+  - data/docs/conversations/INDEX.md (新建目錄+檔，66 行) ✅
+  - SQL/seeds/README.md (22 行；PII 警示 + demo accounts) ✅
+  - SQL/seeds/technicians.sql 已是 demo seed (無 PII)，無需修改
+  待 ops 對齊：
+  - 真實技師名冊 → Secret Manager / ops repo
 phase: 4-exploration / change-request
-owners: [TBD]
+owners: [AI auto-mode (executed partial)]
 related:
   - "CR-0001-vibecoding-6tier-migration.md (parent CR)"
   - "../audits/CR-0001-status-2026-05-10.md (§3.3 MOVE-OUT-OF-DOCS)"
