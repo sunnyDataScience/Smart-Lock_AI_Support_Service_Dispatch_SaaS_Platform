@@ -1,78 +1,94 @@
 ---
-title: Module Contracts Index
+title: Module Contracts Index — 26 modules
 tier: 2
 status: active
 last_updated: 2026-05-10
+related:
+  - "../../1-decisions/module-boundary/"
+  - "../api/openapi.yaml"
 ---
 
 # 2-contracts/modules/ — Module Contracts Index
 
-> Phase 3 已從 `docs/02-design/specs/*-spec.md` 直接複製內容；下個 iteration 會逐檔重構為 VibeCoding `module-contract.template.md` 結構（pre/post conditions、invariants、API surface）。
->
-> 帶 `_pending-merge_` 前綴的檔案 = 應併入別的 module，等下個 iteration 處理。
+> 26 個 module contract，覆蓋 V1.0 + V2.0 已實作或設計完成的所有後端模組。
+> 每檔 frontmatter 含 `id` (MOD-X) / `source-paths` (code 對應) / `related` (flow/ADR trace)。
 
-## 已複製的 module contracts (12)
+## V1.0 Core (9 modules — from E7x--module-spec-v1-core)
 
-| Module | 來源 | 對應 code | 重構狀態 |
-| :-- | :-- | :-- | :-- |
-| [`audit-logger.md`](./audit-logger.md) | `02-design/specs/audit-log-spec.md` | `agent/storage/audit_*`、API `/api/admin/audit-events` | TODO: pre/post conditions、event schema 結構化 |
-| [`consumer-tracking.md`](./consumer-tracking.md) | `02-design/specs/consumer-tracking-entry.md` | API `/api/public/work-orders/{token}` | TODO: HMAC token spec 提到 frontmatter |
-| [`data-export.md`](./data-export.md) | `02-design/specs/data-export-spec.md` | API `/api/admin/audit-events?format=csv` | TODO |
-| [`dispatch-engine-weights.md`](./dispatch-engine-weights.md) | `02-design/specs/dispatch-weights.md` | `api/services/dispatch_engine.py` | TODO: 併入 `dispatch-engine.md`（待建）或留作 master-data |
-| [`e-signature.md`](./e-signature.md) | `02-design/specs/e-signature-spec.md` | TBD | TODO |
-| [`inter-agent-messaging.md`](./inter-agent-messaging.md) | `02-design/specs/inter-agent-messaging-spec.md` | `agent/skills/tools.py` (transfer_to_human) | TODO |
-| [`inventory.md`](./inventory.md) | `02-design/specs/inventory-management-spec.md` | F-210 規格不全（尚待 PM） | TODO |
-| [`problem-card-engine.md`](./problem-card-engine.md) | `02-design/agent-harness/problem-card-spec.md` | `api/services/problem_card_service.py` | TODO |
-| [`rbac.md`](./rbac.md) | `02-design/specs/rbac-dynamic-spec.md` | `api/services/rbac_service.py` | TODO: 併入 `_pending-merge_role-matrix.md` 內容 |
-| [`realtime-messaging.md`](./realtime-messaging.md) | `02-design/specs/realtime-messaging-spec.md` | `api/realtime/*`（WebSocket）| TODO |
-| [`refund-service.md`](./refund-service.md) | `02-design/specs/refund-approval-spec.md` | `api/services/refund_service.py` | TODO |
-| [`sla-monitor.md`](./sla-monitor.md) | `02-design/specs/sla-availability-spec.md` | `api/services/sla_monitor.py` | TODO: SPLIT — targets 抽到 `0-principles/frontend-quality-attributes.md §SLA` |
-| [`vision-processing.md`](./vision-processing.md) | `02-design/specs/vision-processing-spec.md` | `agent/harness/multimodal.py` | TODO |
-| [`warranty-claim.md`](./warranty-claim.md) | `02-design/specs/warranty-dispute-spec.md` | `api/services/warranty_service.py` | TODO |
-
-## 待併入別處（_pending-merge_ 前綴）
-
-| 檔案 | 應併入 | 動作 |
+| Module | Code | Trace |
 | :-- | :-- | :-- |
-| `_pending-merge_role-matrix.md` | `rbac.md §role-matrix` | Phase 3 後段 |
-| `../api/_pending-merge_webhooks.md` | `2-contracts/api/asyncapi.yaml §webhooks` | Phase 3 後段 |
-| `../../0-principles/_pending-merge_sla-policy.md` | `0-principles/product-principles.md §SLA-policy` | Phase 4 |
-| `../../0-principles/_pending-merge_workday-sla-policy.md` | `0-principles/product-principles.md §workday-policy` | Phase 4 |
+| [`conversation-manager.md`](./conversation-manager.md) | `agent/harness/debounce.py` + `app.py` | M1 + F-001 |
+| [`problem-card-engine.md`](./problem-card-engine.md) | `api/services/problem_card_service.py` | M2 + F-001/002 (V2 design 在 `../../4-exploration/agent-harness-v2/problem-card-spec.md`) |
+| [`three-layer-resolver.md`](./three-layer-resolver.md) | `agent/agent.py` + `harness/safety_gate.py` + `output_validator.py` | M3 |
+| [`knowledge-base-manager.md`](./knowledge-base-manager.md) | `agent/skills/` + `data/pipeline/` | M4 |
+| [`sop-generator.md`](./sop-generator.md) | `agent/harness/sop_extractor.py` | M5 |
+| [`sentiment-triage-engine.md`](./sentiment-triage-engine.md) | `agent/harness/safety_gate.py` (sentiment) + `api/services/sentiment_*.py` | M6 + F-107 |
+| [`proactive-photo-guidance.md`](./proactive-photo-guidance.md) | `agent/harness/multimodal.py` + agent skill | M7 + F-108 |
+| [`family-review-engine.md`](./family-review-engine.md) | `api/services/family_review_*.py` | M8 + F-109 |
+| [`problem-card-review-engine.md`](./problem-card-review-engine.md) | `api/services/problem_card_review_*.py` | M9 + F-105 |
 
-## 待新建（從 V1.0 module-spec 拆出）
+## V2.0 / Existing Specs (15 modules — from 02-design/specs)
 
-來源：`docs/_flows-bdd-test/v-model-left/E7x--module-spec-v1-core.md`（V1.0 的 5 個核心模組）
+| Module | Code | Source |
+| :-- | :-- | :-- |
+| [`audit-logger.md`](./audit-logger.md) | `agent/storage/audit_*` + API `/api/admin/audit-events` | audit-log-spec |
+| [`consumer-tracking.md`](./consumer-tracking.md) | API `/api/public/work-orders/{token}` | consumer-tracking-entry |
+| [`data-export.md`](./data-export.md) | API `/api/admin/audit-events?format=csv` | data-export-spec |
+| [`dispatch-engine.md`](./dispatch-engine.md) | `api/services/dispatch_engine.py` | MERGE 3 來源 (triage-rules + business-rules + ADR-0013/0018/0022) |
+| [`dispatch-engine-weights.md`](./dispatch-engine-weights.md) | `api/services/dispatch_engine.py` (weights) | dispatch-weights spec |
+| [`e-signature.md`](./e-signature.md) | TBD | e-signature-spec |
+| [`inter-agent-messaging.md`](./inter-agent-messaging.md) | `agent/skills/tools.py` (transfer_to_human) | inter-agent-messaging-spec |
+| [`inventory.md`](./inventory.md) | F-210 規格不全（待 PM） | inventory-management-spec |
+| [`rbac.md`](./rbac.md) | `api/services/rbac_service.py` | rbac-dynamic-spec + role-matrix-v1 (MERGE) |
+| [`realtime-messaging.md`](./realtime-messaging.md) | `api/realtime/*` (WebSocket) | realtime-messaging-spec |
+| [`refund-service.md`](./refund-service.md) | `api/services/refund_service.py` | refund-approval-spec |
+| [`sla-monitor.md`](./sla-monitor.md) | `api/services/sla_monitor.py` | sla-availability-spec |
+| [`vision-processing.md`](./vision-processing.md) | `agent/harness/multimodal.py` | vision-processing-spec |
+| [`warranty-claim.md`](./warranty-claim.md) | `api/services/warranty_service.py` | warranty-dispute-spec |
 
-| 待建 | 對應 code |
-| :-- | :-- |
-| `conversation-manager.md` | `agent/harness/debounce.py` + `app.py` |
-| `three-layer-resolver.md` | `agent/agent.py` + `harness/safety_gate.py` + `output_validator.py` |
-| `pricing-engine.md` | `api/services/pricing_*` |
-| `sop-generator.md` | `agent/harness/sop_extractor.py` |
-| `dispatch-engine.md` | `api/services/dispatch_engine.py`（與 `dispatch-engine-weights.md` 整合）|
+## Cross-cutting
 
-## 待新建（從 _flows-bdd-test 抽 module）
+- `technicians.PII-WARNING.md` (in `../master-data/`) — PII governance reference
+- `INDEX.md` — 本檔
 
-| 待建 | 對應 code |
-| :-- | :-- |
-| `technician-matcher.md` | `api/services/dispatch_engine.py` (V2.0) |
-| `sla-monitor.md` | 已建（Phase 3） |
-| `notification.md` | from `1-decisions/ADR-0012-notification-channels.md` 拆 |
+## 待新建（low priority）
 
-## frontmatter 標準（每個 module-contract 必加）
+| Module | Source | 對應 code |
+| :-- | :-- | :-- |
+| `notification.md` | `1-decisions/ADR-0012-notification-channels.md` 拆 | `agent/notifications/` |
+| `pricing-engine.md` | `_flows-bdd-test` 抽 | `api/services/pricing_*.py` |
+| `technician-matcher.md` | (V2.0 dispatch 演算法子層) | `api/services/dispatch_engine.py` (V2.0) |
+| `technician-management.md` | (對應 PII technicians governance) | `api/services/technicians_*.py` |
+
+## 重構狀態
+
+所有 contracts 目前為「直接複製 + frontmatter 包裝」(thin contract)。
+完整重構為 VibeCoding `module-contract.template.md` 結構（pre/post conditions、invariants、API surface 詳細）為 follow-up CR (low priority)。
+
+每 contract 的 `source-paths` frontmatter 已正確標示 code 對應，後續 sunnydata-doc-freshness skill 可據此追 stale。
+
+## frontmatter 標準
 
 ```yaml
 ---
-id: API-NNNN（或 MOD-NNNN）
+id: MOD-XX
+title: <module-name>
+tier: 2
 status: accepted
 last-synced-with: <commit-sha>
 sync-source: code | doc
 source-paths:
   - api/services/X_service.py
   - tests/integration/test_X.py
-synced-at: 2026-05-10
+synced-at: YYYY-MM-DD
 related:
   - "../flows/business/BF-NNNN-*"
   - "../api/openapi.yaml#/paths/.../"
 ---
 ```
+
+## Change Log
+
+| Date | Change |
+| :-- | :-- |
+| 2026-05-10 | 初版 → 完整重整：26 modules（9 V1 core + 15 specs + dispatch-engine MERGE + cross-cutting）+ 4 待新建 |

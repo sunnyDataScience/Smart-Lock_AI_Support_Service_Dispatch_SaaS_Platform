@@ -1,279 +1,189 @@
-# ProblemCard Specification
+---
+id: MOD-PCE
+title: problem-card-engine — V1.0 Canonical Module Contract
+tier: 2
+status: accepted
+last-synced-with: pending
+sync-source: code
+source-paths:
+  - api/services/problem_card_service.py
+  - agent/skills/data/_common/troubleshoot/SKILL.md
+  - api/routers/problem_cards.py
+synced-at: 2026-05-10
+related:
+  - "../flows/business/BF-0001-work-order-lifecycle.md"
+  - "../flows/sub/SF-WO-01-happy-path.md"
+  - "../functional-requirements/FR-0002-problem-card-triage.md"
+  - "../../1-decisions/module-boundary/agent.md"
+  - "../../4-exploration/agent-harness-v2/problem-card-spec.md (V2.0 future design)"
+legacy_id: V1-Module-02 + 02-design/agent-harness/problem-card-spec.md
+canonical_for: ProblemCard module
+canonical_at: 2026-05-10
+notice: |
+  本檔為 ProblemCard module 的唯一 V1.0 canonical contract。
+  原 problem-card-engine-v1.md 已 rename 為本檔。
+  原 problem-card-engine.md (V2 design) 搬至 4-exploration/agent-harness-v2/problem-card-spec.md。
+---
 
-> **文件狀態：V2.0 設計文件（尚未實作）**
-> 本文件描述的是未來 V2.0 目標架構，非目前 V1.0 生產環境的實際狀態。
-> V1.0 現行架構請參考 SA/SD 分析文件。
-> 最後審查日期：2026-04-21
+# problem-card-engine-v1 — V1.0 Core Module Contract
 
-> ProblemCard data model, lifecycle, and cross-layer integration
->
-> **Architecture reference**: ProblemCard 由 Software 3.0 diagnostic reasoning engine 建立和更新，
-> 詳見 [`diagnostic-intelligence-architecture.md`](./diagnostic-intelligence-architecture.md) §4。
-> ProblemCard 承載四層因果鏈狀態 (Symptom → Failure → Failure Mode → Defect hypothesis)。
+> 從 `_pending-split-v1-core-modules.md` (V1.0 5-9 module spec) 模組 2 抽出。
+> 待重構為 VibeCoding `module-contract.template.md` 的 pre/post conditions 結構。
+
+## 模組 2: ProblemCardEngine (GenerateProblemCardUseCase) — 對應 BDD Feature: F-102 / 流程 F-001 / F-002
+
+**所在路徑**: `backend/src/smart_lock/application/problem_card/use_cases.py`
+**對應領域層**: `backend/src/smart_lock/domains/problem_card/entities.py`
+**對應 BDD Feature**: `docs/03_behavior_driven_development.md#feature-problemcard-智慧分診`
+**對應資料庫表**: `problem_cards`
+
+**模組描述**: ProblemCardEngine 負責從多輪對話中萃取結構化資訊，生成 ProblemCard 診斷卡。它使用 LLM 進行實體擷取（品牌、型號、位置、門況、網路狀態、症狀），計算欄位完整度分數，並在資訊不足時產生追問問題。ProblemCard 是三層解決機制的核心輸入。
 
 ---
 
-## Overview
+### 規格 2-1: `generate_problem_card`
 
-ProblemCard is the **first-class task representation artifact** of the harness framework. It serves as the central data hub that flows through all 8 harness layers, accumulating structured information about a customer's problem from initial report to resolution.
+**描述 (Description)**: 從對話上下文與訊息記錄中，利用 LLM 提取結構化欄位，建立或更新 ProblemCard。
 
-ProblemCard is also the **seed data** for Moat F (Data Flywheel) -- every resolved card becomes a potential SOP candidate and training example for the industry language model (Moat A).
-
-### Design Principle: Domain-Agnostic Core + Dynamic Attributes
-
-ProblemCard splits fields into two categories:
-
-1. **Core fields** (domain-agnostic): `symptom_summary`, `category`, `completeness_score`, `status` -- every vertical domain has these
-2. **Domain attributes** (dynamic): stored in a `domain_attributes: dict` backed by JSONB -- schema defined in `config.toml [harness.task.domain_schema]`
-
-This design enables switching verticals (e.g. from smart locks to home appliances) by changing config, not code.
-
----
-
-## Data Model
-
+**函式簽名**:
 ```python
-@dataclass
-class ProblemCard:
-    # --- Identity (domain-agnostic) ---
-    card_id: str                    # "pc_{uuid8}" format
-    user_id: str                    # LINE user ID or thread ID
-    created_at: datetime
-    status: CardStatus              # open -> diagnosing -> resolved | escalated
-
-    # --- L1: Task Goals (domain-agnostic core) ---
-    symptom_summary: str            # "門鎖按指紋沒反應，螢幕不亮"
-    category: str                   # "hardware_fault" | "software_setting" | ...
-    completeness_score: float       # 0.0~1.0 (acceptance criteria)
-
-    # --- L1: Domain-specific attributes (dynamic) ---
-    domain_attributes: dict         # JSONB -- schema from config
-    # Smart lock example: {"device_brand": "Yale", "device_model": "AI-99", "door_type": "木門", "fault_category": "hardware_fault"}
-    # Home appliance example: {"appliance_brand": "Dyson", "appliance_model": "V15", "purchase_date": "2024-01", "warranty_status": "active"}
-
-    # --- L5: Checkpoints (domain-agnostic) ---
-    attempts: list[ResolutionAttempt]   # diagnostic history
-    resolution_summary: str             # final fix description
-    resolution_level: str               # "L1_self_service" | "L2_rag" | "L3_escalation"
-
-    # --- L8: Entropy (domain-agnostic) ---
-    is_novel: bool                  # True if no similar case in KB
-    sop_generated: bool             # True after SOP creation
+async def generate_problem_card(
+    self,
+    conversation_id: uuid.UUID,
+    collected_fields: dict,
+    conversation_messages: list[MessageDTO],
+) -> ProblemCardResponseDTO:
 ```
 
-### ResolutionAttempt
+**契約式設計 (Design by Contract, DbC)**:
 
+*   **前置條件 (Preconditions)**:
+    1. `conversation_id` 對應的 `conversations` 記錄必須存在。
+    2. `collected_fields` 為字典，鍵為 ProblemCard 欄位名稱（`brand`, `model`, `location`, `door_status`, `network_status`, `symptoms`），值為字串或 null。
+    3. `conversation_messages` 至少包含一則 `role = "user"` 的訊息。
+    4. LLMGateway 服務可用。
+
+*   **後置條件 (Postconditions)**:
+    1. `problem_cards` 表中已建立或更新一筆記錄，`conversation_id` 外鍵指向傳入的對話。
+    2. `completeness_score` 已根據關鍵欄位填充率重新計算（計算公式見規格 2-2）。
+    3. `extracted_fields` JSONB 中記錄了 LLM 每個欄位的原始擷取結果與 confidence score。
+    4. 若 `completeness_score >= 0.85`（合約要求 ProblemCard 必要欄位完整率 >= 85%），`status` 為 `"confirmed"` 或保持 `"incomplete"`（視是否有使用者確認）。
+    5. 回傳的 `ProblemCardResponseDTO` 包含 `missing_fields` 列表與對應的 `follow_up_questions`。
+
+*   **不變性 (Invariants)**:
+    1. `completeness_score` 永遠在 `0.0` ~ `1.0` 之間。
+    2. 一個 `conversations` 最多對應一張 `problem_cards`（UNIQUE FK 約束）。
+    3. `symptoms` JSONB 欄位始終為陣列格式。
+
+---
+
+### 規格 2-2: `evaluate_completeness`
+
+**描述 (Description)**: 根據 ProblemCard 的欄位填充情況計算完整度分數。
+
+**函式簽名**:
 ```python
-@dataclass
-class ResolutionAttempt:
-    timestamp: datetime
-    agent_name: str             # "hardware_technician", "app_specialist"
-    strategy: str               # "keyword: 鎖舌卡住", "broadened: 鎖舌 反弓"
-    result: str                 # "matched" | "no_match" | "partial"
-    answer_snippet: str         # first 200 chars of agent answer
-    quality_score: float        # from L5 evaluator (0.0~1.0)
+def evaluate_completeness(self, problem_card: ProblemCard) -> float:
 ```
 
-### Domain Schema Configuration
+**契約式設計 (Design by Contract, DbC)**:
 
-```toml
-# config.toml -- smart lock vertical
-[harness.task.domain_schema]
-fields = ["device_brand", "device_model", "door_type", "fault_category"]
+*   **前置條件 (Preconditions)**:
+    1. `problem_card` 為合法的 ProblemCard 實體（非 None）。
 
-# config.toml -- home appliance vertical (example)
-# [harness.task.domain_schema]
-# fields = ["appliance_brand", "appliance_model", "purchase_date", "warranty_status"]
-```
+*   **後置條件 (Postconditions)**:
+    1. 回傳值為 `0.0` ~ `1.0` 之間的浮點數。
+    2. 計算規則：`brand` 權重 0.25，`symptoms` 權重 0.25，`model` 權重 0.15，`location` 權重 0.15，`door_status` 權重 0.10，`network_status` 權重 0.10。
+    3. 某欄位非空（非 None 且非空字串）時，獲得該權重的全部分數。
 
-### Accessor Methods
-
-```python
-card.get_attr("device_brand")              # -> "Philips"
-card.set_attr("device_brand", "dormakaba")  # updates domain_attributes
-```
+*   **不變性 (Invariants)**:
+    1. 欄位權重之和始終等於 `1.0`。
+    2. 此方法為純函式，不產生副作用。
 
 ---
 
-## Lifecycle
+### 測試情境與案例 (ProblemCardEngine)
 
-```
-                    [L1 task_decompose]
-                          |
-                    CREATE (status=open)
-                          |
-                    Fill: symptom_summary, category, domain_attributes
-                    Score: completeness_score
-                          |
-                    [Router + Agent]
-                          |
-                    UPDATE (status=diagnosing)
-                    Enrich: domain_attributes (agent adds details)
-                          |
-                    [L5 verify_answer]
-                          |
-                    APPEND: ResolutionAttempt
-                          |
-              +-----------+-----------+
-              |                       |
-         PASS (score>=0.6)      FAIL (score<0.6)
-              |                       |
-         UPDATE:                 UPDATE:
-         status=resolved         attempt_count++
-         resolution_summary      -> retry (back to L2)
-         resolution_level
-              |
-        [L8 entropy_check]
-              |
-        CHECK: similar cards exist?
-              |
-         +----+----+
-         |         |
-       NOVEL     KNOWN
-         |         |
-    is_novel=T   (no action)
-    Queue SOP
-```
+#### 情境 1: 正常路徑 — 所有欄位齊全時生成完整 ProblemCard
 
----
+*   **測試案例 ID**: `TC-PCE-001`
+*   **描述**: 對話中已收集到全部六個欄位，系統應生成 `completeness_score = 1.0` 的 ProblemCard。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Arrange**:
+        - 建立 `conversation_id` 對應的對話記錄。
+        - 設定 `collected_fields = {"brand": "Samsung", "model": "SHP-DP609", "location": "新北市板橋區", "door_status": "closed_locked", "network_status": "wifi_connected", "symptoms": "指紋辨識失敗率突然升高"}`。
+        - Mock LLMGateway 回傳與 `collected_fields` 一致的擷取結果。
+    2.  **Act**: 呼叫 `generate_problem_card(conversation_id, collected_fields, messages)`。
+    3.  **Assert**:
+        - 驗證 `problem_cards` 表中記錄的 `brand` 為 `"Samsung"`、`model` 為 `"SHP-DP609"`。
+        - 驗證 `completeness_score` 為 `1.0`。
+        - 驗證 `status` 為 `"confirmed"`。
+        - 驗證回傳 DTO 的 `missing_fields` 為空列表。
 
-## Completeness Score Calculation
+#### 情境 2: 正常路徑 — 僅有品牌與症狀的最低限度 ProblemCard
 
-```python
-def calculate_completeness(card: ProblemCard) -> float:
-    """Score 0.0~1.0 based on core + domain field coverage.
+*   **測試案例 ID**: `TC-PCE-002`
+*   **描述**: 僅收集到 `brand` 和 `symptoms`，ProblemCard 達到觸發解決引擎的最低門檻。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Arrange**:
+        - 設定 `collected_fields = {"brand": "Yale", "symptoms": "鎖打不開"}`，其餘欄位為 null。
+    2.  **Act**: 呼叫 `generate_problem_card(conversation_id, collected_fields, messages)`。
+    3.  **Assert**:
+        - 驗證 `completeness_score` 為 `0.5`（brand 0.25 + symptoms 0.25）。
+        - 驗證 `missing_fields` 包含 `["model", "location", "door_status", "network_status"]`。
+        - 驗證 `follow_up_questions` 非空，第一個問題詢問型號。
 
-    Core fields have fixed weights (55%):
-      - symptom_summary: 0.30
-      - category: 0.25
+#### 情境 3: 邊界情況 — 停產型號處理
 
-    Domain fields share remaining weight (45%) equally.
-    """
-    score = 0.0
+*   **測試案例 ID**: `TC-PCE-003`
+*   **描述**: 使用者的電子鎖型號已標記為停產，系統應在 ProblemCard 中標記並提供替代建議。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Arrange**:
+        - 設定 `collected_fields = {"brand": "Milre", "model": "MI-6800"}`。
+        - 產品資料庫中 `MI-6800` 標記為 `discontinued = true`，替代型號為 `["MI-7800", "MI-8000"]`。
+    2.  **Act**: 呼叫 `generate_problem_card(conversation_id, collected_fields, messages)`。
+    3.  **Assert**:
+        - 驗證 `extracted_fields` JSONB 中包含 `"discontinued_model": true`。
+        - 驗證回傳 DTO 包含替代型號建議。
+        - 驗證系統仍繼續處理（不因停產而中斷服務）。
 
-    # Core fields (fixed weight)
-    if card.symptom_summary.strip():
-        score += 0.30
-    if card.category.strip():
-        score += 0.25
+#### 情境 4: 邊界情況 — 重複生成 ProblemCard（冪等性）
 
-    # Domain fields (equal weight, from config)
-    domain_fields = get_domain_schema()  # reads [harness.task.domain_schema].fields
-    if domain_fields:
-        per_field = 0.45 / len(domain_fields)
-        for f in domain_fields:
-            val = card.domain_attributes.get(f, "")
-            if val and str(val).strip():
-                score += per_field
+*   **測試案例 ID**: `TC-PCE-004`
+*   **描述**: 同一 `conversation_id` 重複呼叫 `generate_problem_card`，應更新既有記錄而非建立新記錄。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Arrange**:
+        - 已存在 `problem_cards` 記錄，`conversation_id` 對應，`brand = "Yale"`，`model = null`。
+        - 新的 `collected_fields = {"brand": "Yale", "model": "YDM-7116"}`。
+    2.  **Act**: 呼叫 `generate_problem_card(conversation_id, collected_fields, messages)`。
+    3.  **Assert**:
+        - 驗證 `problem_cards` 表中仍只有一筆記錄（未重複建立）。
+        - 驗證 `model` 已更新為 `"YDM-7116"`。
+        - 驗證 `completeness_score` 已重新計算。
 
-    return round(score, 2)
-```
+#### 情境 5: 無效輸入 — 空的對話訊息列表
 
-**Smart lock example** (4 domain fields, each worth 0.1125):
-- symptom(0.30) + category(0.25) = 0.55 minimum when both filled
-- + device_brand(0.1125) + device_model(0.1125) = 0.775
-- Target: `completeness_score >= 0.60` (symptom + category + at least one domain field)
+*   **測試案例 ID**: `TC-PCE-005`
+*   **描述**: 傳入空的 `conversation_messages`，系統應拋出驗證例外。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Arrange**: 設定 `conversation_messages = []`。
+    2.  **Act**: 呼叫 `generate_problem_card(conversation_id, {}, [])`。
+    3.  **Assert**:
+        - 預期系統拋出 `ValidationError`，訊息包含 `"conversation_messages"`。
+        - 驗證 `problem_cards` 表未寫入任何記錄。
 
----
+#### 情境 6: 業務規則 — 優先度自動分類
 
-## PostgreSQL Schema
-
-```sql
-CREATE TABLE problem_cards (
-    card_id            VARCHAR(20) PRIMARY KEY,
-    user_id            VARCHAR(100) NOT NULL,
-    session_id         VARCHAR(200),
-    status             VARCHAR(20) NOT NULL DEFAULT 'open',
-
-    -- Core fields (domain-agnostic)
-    symptom_summary    TEXT NOT NULL DEFAULT '',
-    category           VARCHAR(50) DEFAULT '',
-    completeness_score FLOAT DEFAULT 0.0,
-
-    -- Domain-specific attributes (JSONB -- schema-free)
-    domain_attributes  JSONB NOT NULL DEFAULT '{}'::jsonb,
-
-    -- Resolution
-    resolution_summary TEXT DEFAULT '',
-    resolution_level   VARCHAR(30) DEFAULT '',
-    attempts_json      JSONB DEFAULT '[]'::jsonb,
-
-    -- Entropy
-    is_novel           BOOLEAN DEFAULT FALSE,
-    sop_generated      BOOLEAN DEFAULT FALSE,
-
-    -- Timestamps
-    created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_problem_cards_user ON problem_cards(user_id);
-CREATE INDEX idx_problem_cards_status ON problem_cards(status);
-CREATE INDEX idx_problem_cards_created ON problem_cards(created_at);
--- GIN index for JSONB queries (e.g. find all cards for a specific brand)
-CREATE INDEX idx_problem_cards_domain ON problem_cards USING GIN (domain_attributes);
-```
-
-**Key design**: `domain_attributes JSONB` replaces individual columns (`device_brand`, `device_model`, `door_type`). GIN index enables efficient queries like:
-
-```sql
--- Find all cards for a specific brand
-SELECT * FROM problem_cards
-WHERE domain_attributes->>'device_brand' = 'Yale';
-
--- Find cards with any domain attribute matching
-SELECT * FROM problem_cards
-WHERE domain_attributes @> '{"fault_category": "hardware_fault"}'::jsonb;
-```
+*   **測試案例 ID**: `TC-PCE-006`
+*   **描述**: 根據 `door_status` 與 `symptoms` 自動設定 ProblemCard 的 `urgency` 等級。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Arrange**:
+        - 測試案例 A: `door_status = "locked_out"`, `symptoms = "密碼鍵盤無回應"` => 預期 `urgency = "high"`。
+        - 測試案例 B: `door_status = "locked_out"`, `symptoms = "人被鎖在門外"` => 預期 `urgency = "urgent"`。
+        - 測試案例 C: `door_status = "normal"`, `symptoms = "WiFi 連線失敗"` => 預期 `urgency = "low"`。
+    2.  **Act**: 分別呼叫 `generate_problem_card`。
+    3.  **Assert**:
+        - 驗證各案例的 `urgency` 欄位符合預期分類。
 
 ---
 
-## Cross-Layer Integration
-
-| Layer | Reads | Writes |
-|---|---|---|
-| **L1 task_decompose** | user question, user_profile, domain_schema config | card_id, symptom_summary, category, domain_attributes, completeness_score |
-| **L2 context_assemble** | category, domain_attributes | context_meta.relevance_weights (boosted by card fields) |
-| **L3 tool_governance** | (indirect via agent) | audit_trail entry |
-| **L5 verify_answer** | goal, acceptance_criteria | ResolutionAttempt, status, resolution_summary |
-| **L8 entropy_check** | symptom_summary, status | is_novel, sop_candidates |
-
----
-
-## Domain Migration Guide
-
-To switch ProblemCard to a new vertical domain:
-
-1. **config.toml**: Change `[harness.task.domain_schema].fields`
-2. **Prompt**: The decompose prompt auto-generates the `domain_attributes` JSON schema from config
-3. **Database**: No migration needed -- `domain_attributes` JSONB accepts any key-value pairs
-4. **Code**: Zero changes -- `ProblemCard.domain_attributes` is a dict
-
-Example: switching from smart locks to HVAC repair:
-
-```toml
-[harness.task.domain_schema]
-fields = ["equipment_type", "equipment_brand", "installation_year", "error_code", "location"]
-```
-
-The decompose prompt will automatically generate:
-```json
-"domain_attributes": {
-    "equipment_type": "extracted value or empty string",
-    "equipment_brand": "extracted value or empty string",
-    "installation_year": "extracted value or empty string",
-    "error_code": "extracted value or empty string",
-    "location": "extracted value or empty string"
-}
-```
-
----
-
-## Moat Alignment
-
-| Moat | ProblemCard Contribution |
-|---|---|
-| **A. Industry Language Model** | Symptom descriptions build oral-to-standard terminology mapping |
-| **F. Data Flywheel** | Resolved cards -> SOP candidates -> knowledge base quality improvement |
-| **I. Hardware Diagnostics** | category + domain_attributes + resolution patterns -> root cause mapping |
-| **J. Crisis Workflow** | Escalated cards with low completeness -> crisis pattern detection |
