@@ -1,5 +1,14 @@
 # GATE-MAP: Product Development TR0-TR10 Document Framework
 
+> # ⚠️ SUPERSEDED → `docs_v2/3-process/quality-gates.md`
+>
+> 本 GATE-MAP 已合併到新 quality-gates.md（CR-0001 D2 拍板：TR-gate 為 quality-gates 的 instance）。
+>
+> 新位置: [`../docs_v2/3-process/quality-gates.md`](../docs_v2/3-process/quality-gates.md)
+> 90 天觀察期至 2026-08-10。
+>
+> AI 請從新位置讀 quality gates。
+
 ---
 
 ## Philosophy

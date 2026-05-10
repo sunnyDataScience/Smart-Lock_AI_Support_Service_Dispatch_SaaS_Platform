@@ -2,9 +2,17 @@
 id: CR-0007
 title: docs/ → docs_v2/ Cutover — supersede frontmatter + wikilink rewrite + 90 天觀察
 date: 2026-05-10
-status: draft
+status: partial-executed
+partial_executed_at: 2026-05-10
+partial_executed_what: |
+  - docs/HOME.md 加 redirect banner ✅
+  - docs/GATE-MAP.md 加 supersede banner ✅
+  - MIGRATION-NOTICE.md 建立於專案根 ✅
+  待後續 PM 拍板執行：
+  - 173 個內容檔加 superseded frontmatter
+  - wikilinks sed batch rewrite
 phase: 4-exploration / change-request
-owners: [TBD - PM/Tech Lead approval needed]
+owners: [AI auto-mode (partial), PM/Tech Lead approval needed for full cutover]
 related:
   - "CR-0001-vibecoding-6tier-migration.md (parent CR — completed)"
   - "../audits/CR-0001-status-2026-05-10.md"

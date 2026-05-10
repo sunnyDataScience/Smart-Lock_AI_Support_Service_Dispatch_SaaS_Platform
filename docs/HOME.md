@@ -1,5 +1,19 @@
 # Smart Lock AI SaaS Platform -- Documentation Hub
 
+> # ⚠️ DOCUMENTATION MIGRATED to `docs_v2/`
+>
+> **本 docs/ 5D + TR-Gate 結構已被 `docs_v2/` 6-tier 結構取代**（CR-0001, 2026-05-10）。
+>
+> 新文件 hub: [`../docs_v2/README.md`](../docs_v2/README.md)
+> 完整遷移計畫: [`../docs_v2/4-exploration/change-requests/CR-0001-vibecoding-6tier-migration.md`](../docs_v2/4-exploration/change-requests/CR-0001-vibecoding-6tier-migration.md)
+> 對照表（254 檔）: [`../docs_v2/4-exploration/audits/vibecoding-mapping-table-2026-05-10.md`](../docs_v2/4-exploration/audits/vibecoding-mapping-table-2026-05-10.md)
+>
+> **本檔保留 90 天觀察期** (2026-05-10 → 2026-08-10)，之後將刪除（CR-0008）。
+> 過渡期內所有外部 PR / Issue / commit 引用本檔仍可訪問，但**新文件請寫入 `docs_v2/`**。
+>
+> AI 處理規則：請忽略本 5D 結構，以 `docs_v2/` 6-tier 為 SSOT。
+> 詳見 `.claude/rules/context-stability.md` + `.claude/rules/change-governance.md`。
+
 ---
 
 ## TR Gate View -- Where Are We?
