@@ -2,24 +2,31 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useMemo } from "react";
 import { Map as MapIcon, ClipboardList, Wallet } from "lucide-react";
-
-const TABS = [
-  { label: "案件池", href: "/pool", Icon: MapIcon, match: /^\/pool/ },
-  {
-    label: "我的工單",
-    href: "/my-orders",
-    Icon: ClipboardList,
-    match: /^\/my-orders/,
-  },
-  { label: "帳戶", href: "/account", Icon: Wallet, match: /^\/account/ },
-];
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 export default function TechBottomNav() {
   const pathname = usePathname() ?? "";
+  const t = useTranslations("techPortal.shell.bottomNav");
+
+  const tabs = useMemo(
+    () => [
+      { label: t("pool"), href: "/pool", Icon: MapIcon, match: /^\/pool/ },
+      {
+        label: t("myOrders"),
+        href: "/my-orders",
+        Icon: ClipboardList,
+        match: /^\/my-orders/,
+      },
+      { label: t("account"), href: "/account", Icon: Wallet, match: /^\/account/ },
+    ],
+    [t],
+  );
+
   return (
     <nav className="sticky bottom-0 z-30 grid grid-cols-3 border-t border-[var(--border)] bg-white pb-[env(safe-area-inset-bottom,0)]">
-      {TABS.map(({ label, href, Icon, match }) => {
+      {tabs.map(({ label, href, Icon, match }) => {
         const active = match.test(pathname);
         return (
           <Link

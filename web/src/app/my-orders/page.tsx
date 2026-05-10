@@ -6,6 +6,7 @@ import { ChevronRight, ClipboardList, RefreshCw } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import StatusBadge from "@/components/tech/StatusBadge";
 import UrgencyBadge from "@/components/tech/UrgencyBadge";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api, getCurrentSession } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import type { components } from "@/types/api.generated";
@@ -16,30 +17,18 @@ type WorkOrderStatus = components["schemas"]["WorkOrderStatus"];
 
 type TabKey = "active" | "pending" | "history";
 
-const TABS: { value: TabKey; label: string; statuses: WorkOrderStatus[] }[] = [
-  {
-    value: "active",
-    label: "進行中",
-    statuses: [
-      "accepted",
-      "scheduled",
-      "assigned",
-      "en_route",
-      "arrived",
-      "in_progress",
-    ],
-  },
-  {
-    value: "pending",
-    label: "待確認",
-    statuses: ["completed", "billed"],
-  },
-  {
-    value: "history",
-    label: "歷史",
-    statuses: ["paid", "closed", "cancelled"],
-  },
-];
+const TAB_STATUSES: Record<TabKey, WorkOrderStatus[]> = {
+  active: [
+    "accepted",
+    "scheduled",
+    "assigned",
+    "en_route",
+    "arrived",
+    "in_progress",
+  ],
+  pending: ["completed", "billed"],
+  history: ["paid", "closed", "cancelled"],
+};
 
 function formatErr(e: unknown): string {
   return e instanceof ApiError
@@ -50,10 +39,23 @@ function formatErr(e: unknown): string {
 }
 
 export default function MyOrdersPage() {
+  const t = useTranslations("techPortal.myOrders");
+  const tTabs = useTranslations("techPortal.myOrders.tabs");
+  const tEmpty = useTranslations("techPortal.myOrders.empty");
+  const tCommon = useTranslations("techPortal.common");
   const [tab, setTab] = useState<TabKey>("active");
   const [items, setItems] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const tabs = useMemo(
+    () => [
+      { value: "active" as TabKey, label: tTabs("active"), statuses: TAB_STATUSES.active },
+      { value: "pending" as TabKey, label: tTabs("pending"), statuses: TAB_STATUSES.pending },
+      { value: "history" as TabKey, label: tTabs("history"), statuses: TAB_STATUSES.history },
+    ],
+    [tTabs],
+  );
 
   const technicianId = useMemo(() => {
     const session = getCurrentSession();
@@ -62,7 +64,7 @@ export default function MyOrdersPage() {
 
   const fetchList = useCallback(async () => {
     if (!technicianId) {
-      setError("尚未登入或無法取得技師身份");
+      setError(t("errorNoSession"));
       return;
     }
     setLoading(true);
@@ -81,17 +83,17 @@ export default function MyOrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [technicianId]);
+  }, [technicianId, t]);
 
   useEffect(() => {
     fetchList();
   }, [fetchList]);
 
-  const tabStatuses = TABS.find((t) => t.value === tab)?.statuses ?? [];
+  const tabStatuses = TAB_STATUSES[tab];
   const visible = items.filter((x) => tabStatuses.includes(x.status));
-  const counts = TABS.reduce<Record<TabKey, number>>(
-    (acc, t) => {
-      acc[t.value] = items.filter((x) => t.statuses.includes(x.status)).length;
+  const counts = (Object.keys(TAB_STATUSES) as TabKey[]).reduce<Record<TabKey, number>>(
+    (acc, key) => {
+      acc[key] = items.filter((x) => TAB_STATUSES[key].includes(x.status)).length;
       return acc;
     },
     { active: 0, pending: 0, history: 0 },
@@ -101,13 +103,13 @@ export default function MyOrdersPage() {
     <TechShell>
       {/* page_header */}
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border)] bg-white px-4 py-3">
-        <h1 className="text-[18px] font-semibold text-[#1E293B]">我的工單</h1>
+        <h1 className="text-[18px] font-semibold text-[#1E293B]">{t("title")}</h1>
         <button
           type="button"
           onClick={fetchList}
           disabled={loading}
           className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
-          title="重新整理"
+          title={t("refreshTitle")}
         >
           <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
         </button>
@@ -115,27 +117,27 @@ export default function MyOrdersPage() {
 
       {/* tab_bar */}
       <div className="sticky top-[57px] z-10 grid grid-cols-3 border-b border-[var(--border)] bg-white">
-        {TABS.map((t) => (
+        {tabs.map((tabItem) => (
           <button
-            key={t.value}
+            key={tabItem.value}
             type="button"
-            onClick={() => setTab(t.value)}
+            onClick={() => setTab(tabItem.value)}
             className={`relative flex h-12 items-center justify-center gap-1 text-[14px] font-medium ${
-              tab === t.value
+              tab === tabItem.value
                 ? "border-b-2 border-[var(--primary)] font-semibold text-[var(--primary)]"
                 : "text-[#64748B]"
             }`}
           >
-            {t.label}
-            {counts[t.value] > 0 && (
+            {tabItem.label}
+            {counts[tabItem.value] > 0 && (
               <span
                 className={`min-w-[18px] rounded-full px-[6px] py-[1px] text-[10px] font-bold ${
-                  tab === t.value
+                  tab === tabItem.value
                     ? "bg-[var(--primary)] text-white"
                     : "bg-[#E2E8F0] text-[#475569]"
                 }`}
               >
-                {counts[t.value]}
+                {counts[tabItem.value]}
               </span>
             )}
           </button>
@@ -151,24 +153,18 @@ export default function MyOrdersPage() {
       <div className="flex flex-col gap-3 px-4 py-4">
         {loading && items.length === 0 ? (
           <div className="flex h-40 items-center justify-center text-[13px] text-[var(--text-secondary)]">
-            載入中…
+            {tCommon("loading")}
           </div>
         ) : visible.length === 0 ? (
           <div className="flex h-60 flex-col items-center justify-center gap-2 text-[var(--text-secondary)]">
             <ClipboardList className="h-10 w-10 text-[var(--text-disabled)]" />
-            <p className="text-[14px]">
-              {tab === "active"
-                ? "目前沒有進行中的工單"
-                : tab === "pending"
-                  ? "沒有待確認工單"
-                  : "沒有歷史工單"}
-            </p>
+            <p className="text-[14px]">{tEmpty(tab)}</p>
             {tab === "active" && (
               <Link
                 href="/pool"
                 className="mt-2 rounded-md bg-[var(--primary)] px-3 py-2 text-[12px] font-semibold text-white"
               >
-                前往案件池接單
+                {t("goToPool")}
               </Link>
             )}
           </div>

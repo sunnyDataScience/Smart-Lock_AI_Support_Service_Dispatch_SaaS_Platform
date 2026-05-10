@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Plus, Trash2, CheckCircle2, Package } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import SubflowHeader from "@/components/tech/SubflowHeader";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api } from "@/lib/api";
 
 interface MissingItem {
@@ -23,19 +24,24 @@ function newItem(): MissingItem {
   };
 }
 
-const URGENCIES = [
-  { value: "now", label: "立即（中斷作業）" },
-  { value: "today", label: "今日內" },
-  { value: "tomorrow", label: "明日可" },
-] as const;
+type UrgencyValue = "now" | "today" | "tomorrow";
+const URGENCY_VALUES: UrgencyValue[] = ["now", "today", "tomorrow"];
 
 export default function MaterialRequestPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "";
   const router = useRouter();
+  const t = useTranslations("techPortal.materialRequest");
+  const tUrg = useTranslations("techPortal.materialRequest.urgencies");
+  const tCommon = useTranslations("techPortal.common");
+
+  const urgencies = useMemo(
+    () => URGENCY_VALUES.map((v) => ({ value: v, label: tUrg(v) })),
+    [tUrg],
+  );
 
   const [items, setItems] = useState<MissingItem[]>([newItem()]);
-  const [urgency, setUrgency] = useState<typeof URGENCIES[number]["value"]>("today");
+  const [urgency, setUrgency] = useState<UrgencyValue>("today");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitOk, setSubmitOk] = useState(false);
@@ -89,12 +95,12 @@ export default function MaterialRequestPage() {
 
   return (
     <TechShell>
-      <SubflowHeader workOrderId={id} title="缺料回報" />
+      <SubflowHeader workOrderId={id} title={t("title")} />
 
       {submitOk && (
         <div className="m-4 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-[13px] text-green-700">
           <CheckCircle2 className="h-4 w-4" />
-          缺料申請已送出，調度員將協調補料
+          {t("successSubmitted")}
         </div>
       )}
 
@@ -107,7 +113,7 @@ export default function MaterialRequestPage() {
       <section className="mx-4 mt-4 flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-            缺件清單
+            {t("listTitle")}
           </span>
           <button
             type="button"
@@ -115,7 +121,7 @@ export default function MaterialRequestPage() {
             className="flex items-center gap-1 rounded-md border border-[var(--border)] px-2 py-1 text-[12px] text-[var(--primary)] hover:bg-[#EFF6FF]"
           >
             <Plus className="h-3 w-3" />
-            新增
+            {t("addItem")}
           </button>
         </div>
 
@@ -133,7 +139,7 @@ export default function MaterialRequestPage() {
                   onChange={(e) =>
                     updateItem(idx, { brand: e.target.value })
                   }
-                  placeholder="品牌（例：Yale）"
+                  placeholder={t("brandPlaceholder")}
                   className="rounded-md border border-[var(--border)] bg-white px-2 py-1 text-[13px]"
                 />
                 <input
@@ -142,11 +148,11 @@ export default function MaterialRequestPage() {
                   onChange={(e) =>
                     updateItem(idx, { model: e.target.value })
                   }
-                  placeholder="型號（例：YDM-7116）"
+                  placeholder={t("modelPlaceholder")}
                   className="rounded-md border border-[var(--border)] bg-white px-2 py-1 text-[13px]"
                 />
                 <label className="flex items-center gap-1 text-[12px]">
-                  <span className="text-[var(--text-secondary)]">數量</span>
+                  <span className="text-[var(--text-secondary)]">{t("quantityLabel")}</span>
                   <input
                     type="number"
                     min={1}
@@ -178,10 +184,10 @@ export default function MaterialRequestPage() {
 
       <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
-          急迫程度
+          {t("urgencyLabel")}
         </span>
         <div className="flex flex-col gap-2">
-          {URGENCIES.map((u) => (
+          {urgencies.map((u) => (
             <label
               key={u.value}
               className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-[13px] ${
@@ -204,13 +210,13 @@ export default function MaterialRequestPage() {
 
       <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
-          備註
+          {t("noteLabel")}
         </span>
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={2}
-          placeholder="例：客戶要求今晚 8 點前到貨..."
+          placeholder={t("notePlaceholder")}
           className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
         />
       </section>
@@ -221,7 +227,7 @@ export default function MaterialRequestPage() {
           onClick={() => router.push(`/my-orders/${id}`)}
           className="h-12 flex-1 rounded-lg border border-[var(--border)] text-[14px] font-medium text-[var(--text-primary)]"
         >
-          取消
+          {tCommon("cancel")}
         </button>
         <button
           type="button"
@@ -229,7 +235,7 @@ export default function MaterialRequestPage() {
           disabled={!canSubmit}
           className="h-12 flex-[2] rounded-lg bg-[var(--primary)] text-[14px] font-semibold text-white disabled:opacity-60"
         >
-          {submitting ? "送出中…" : "送出缺料申請"}
+          {submitting ? t("submitting") : t("submit")}
         </button>
       </div>
     </TechShell>

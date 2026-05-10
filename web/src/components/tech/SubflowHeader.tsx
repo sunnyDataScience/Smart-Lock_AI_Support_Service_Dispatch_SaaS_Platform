@@ -2,6 +2,7 @@
 
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 interface Props {
   workOrderId: string;
@@ -12,6 +13,7 @@ interface Props {
 
 export default function SubflowHeader({ workOrderId, title, backTo }: Props) {
   const router = useRouter();
+  const tCommon = useTranslations("techPortal.common");
   const target = backTo ?? `/my-orders/${workOrderId}`;
   return (
     <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-[var(--border)] bg-white px-2 py-3">
@@ -19,7 +21,7 @@ export default function SubflowHeader({ workOrderId, title, backTo }: Props) {
         type="button"
         onClick={() => router.push(target)}
         className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
-        aria-label="返回"
+        aria-label={tCommon("back")}
       >
         <ArrowLeft className="h-5 w-5" />
       </button>
