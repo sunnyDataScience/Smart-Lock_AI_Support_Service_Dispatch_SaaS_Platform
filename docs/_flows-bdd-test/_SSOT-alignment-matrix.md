@@ -46,7 +46,7 @@ related:
 
 | F-XXX | 流程名稱 | 角色 | E1x 旅程 | E5x Workflow | E7 BDD Feature | Module Spec | Test Status | PM Block | 對齊 | 修正動作 |
 |-------|---------|------|---------|--------------|----------------|-------------|-------------|----------|------|---------|
-| **F-001** | LINE 報修 → ProblemCard | 消費者 | 消費者旅程 §1 階段 1-4（問題發生→LINE→AI→PC）| work-order Flow 1 (S1 詢問) | F-101, F-102, F-107, F-108 | 模組 1 ConversationManager + 模組 2 ProblemCardEngine | 🟢 | — | ✅ aligned | 確認 work-order S1 階段對應 |
+| **F-001** | LINE 報修 → ProblemCard | 消費者 | 消費者旅程 §1 階段 1-4（問題發生→LINE→AI→PC）| work-order Flow 1 (S1 詢問) | F-101, F-102, F-107, F-108 | 模組 1 ConversationManager + 模組 2 ProblemCardEngine | 🟢 | — | ✅ aligned **(impl complete)** | 5/9 evening sprint：補 `createConversation` endpoint + agent webhook bridge `_ensure_conversation_record`（`agent/app.py`）+ `AdminAPIClient`（`agent/integrations/admin_api.py`，30 min cache）。Status note：work-order S1 階段對應已確認 |
 | **F-002** | 客服審 PC → 開 WO | 客服 | 管理員旅程 §3 階段 1（儀表板）| work-order Flow 1（PC → created）| F-105 admin V1.0 | 模組 1（會話）+ 模組 9 ProblemCardReviewEngine | 🟢 | — | ✅ aligned **(impl complete)** | 5/8 模組 9 規格補完；5/9 production code 補完：`convertToWorkOrder` endpoint + `work_order_service.create_from_problem_card()` + 「開單」UI（7 integration test）|
 | **F-003** | 自動派工規則引擎 | 系統 | 隱含於消費者 §1 階段 6（派工建立）| work-order Flow 1 → dispatch §2 媒合演算法 | F-202 智慧派工引擎 | 模組 7 TechnicianMatcher（V2.0 業務層）| 🟢 | — | ✅ aligned | 確認 dispatch §2 ↔ F-202 ↔ dispatch-weights |
 | **F-004** | 手動派工 | 客服 / 派工員 | 管理員旅程 §3 階段 3（派工監控） | dispatch §4 拒單重派 + work-order Flow 2 | F-202（含 manual override） | 模組 7 TechnicianMatcher | 🟢 | ✅ Q1=A / Q6=A | ✅ aligned **(impl complete)** | **PR #45**：assignWorkOrder + assignDispatch 從 require_tenant 升 role_required（修補 P0 漏洞）+ 客服繞過自動 audit log（10 component test pass）|
@@ -59,10 +59,10 @@ related:
 | **F-011** | 消費者付款 **V1.0**（升級！）| 消費者 | 消費者 §1 階段 8（結算）| work-order Flow 12 | **❌ BDD 缺** | 業務模組（金流未列）| 🔴 | ✅ Q7=B（重大）| ⚠ blocked | **緊急**：選 provider（Stripe / 綠界 / 藍新 / Linepay）+ PCI compliance 審查 + 補 BDD F-211 |
 | **F-012** | 技師月結撥款 **V1.0**（升級！）| 系統 + 財務 | 管理員旅程 §3 階段 5（月度結算） | work-order Flow | F-204 自動化會計 | 業務模組（撥款未列）| 🔴 | ✅ Q7=B（重大）| ⚠ blocked | 與 F-011 同 provider；撥款 API 整合 + 補 BDD |
 | **F-013** | 對帳爭議雙簽 | 技師 ↔ 客服 | 管理員旅程 §3 階段 5 + 客服主管 §6 | work-order Flow 6（退款）+ admin-governance G4（爭議） | F-204 + F-207 退款審批 | 模組 6 RefundService | 🟢 | ✅ Q2=A / Q4=C | ✅ aligned | 實作 Director 階層雙簽 + 工作日+國定假日 calendar lib（holidays 套件） |
-| **F-014** | 退款流程 | 客服 + 主管 | 客服主管旅程 §6 階段 3-5 | work-order Flow 6 退款 | F-207 退款審批與雙簽 | 模組 6 RefundService | 🟡 | ✅ Q7=B（重大）| ⚠ blocked | 規則可單測；金流回沖待 provider 選型整合 |
-| **F-015** | 保固申訴 | 消費者 → 客服 | 異常流程 §7.4（品質不合格） | work-order Flow 7（保固爭議） | F-208 保固爭議處理 | 模組 12 WarrantyClaim | 🟢 | — | ✅ aligned | warranty-dispute spec 已有 |
+| **F-014** | 退款流程 | 客服 + 主管 | 客服主管旅程 §6 階段 3-5 | work-order Flow 6 退款 | F-207 退款審批與雙簽 | 模組 6 RefundService | 🟡 | ✅ Q7=B（重大）| ⚠ partial | 5/9 evening sprint：補 `createRefundRequest` dual-trigger（CS web Modal + agent intent skeleton）+ business unique key (work_order_id, reason_code) + auto dual-sign threshold NT$100,000；剩金流回沖仍綁 Q7=B provider 選型整合 |
+| **F-015** | 保固申訴 | 消費者 → 客服 | 異常流程 §7.4（品質不合格） | work-order Flow 7（保固爭議） | F-208 保固爭議處理 | 模組 12 WarrantyClaim | 🟢 | — | ✅ aligned **(impl complete)** | 5/9 evening sprint：補 `createWarrantyClaim` dual-trigger（CS web Modal + agent intent skeleton）。warranty-dispute spec 已有 |
 | **F-016** | SLA 紅色警報（2hr 到場） | 系統 + 主管 | 異常流程 §7.3（Red Code） | work-order §3 SLA + admin-governance G4 升級 | ✅ F-110 | 業務模組（sla_monitor.py）| 🟢 | ✅ Q5=B | ✅ aligned **(impl complete)** | **PR #48**：sla_monitor.py 加 arrival_overdue alert_type + WS publish `/realtime/sla-alerts` + dashboard 紅燈（SlaAlertBanner）+ Q5=B 合規驗證（payload 0 賠償/沖銷字串；audit policy marker；8 component test）|
-| **F-017** | SOP 草稿審核 | AI → 客服 → 主管 | 管理員旅程 §3 階段 2（知識庫） | work-order §15 知識沉澱 | F-104 自進化知識庫 | 模組 5 SOPGenerator | 🟢 | — | ✅ aligned | 完整 |
+| **F-017** | SOP 草稿審核 | AI → 客服 → 主管 | 管理員旅程 §3 階段 2（知識庫） | work-order §15 知識沉澱 | F-104 自進化知識庫 | 模組 5 SOPGenerator | 🟢 | — | ✅ aligned **(impl complete)** | 5/9 evening sprint：補 `createSopDraft` endpoint + rating>=4 trigger skeleton（`agent/harness/sop_extractor.py`，LLM extract 仍 placeholder，V2.0 升級）|
 | **F-018** | 客服接管對話 | 客服 | 消費者 §1 階段 5（三層解決最後降級）| 隱含於 work-order Flow 1 升級 | F-103 三層解決機制 | 模組 3 ThreeLayerResolver | 🟢 | — | ✅ aligned **(impl complete)** | **PR #47**（順手解）：conversation_service.py LINE Push real impl（line_push_service.py 含 retry 1s/2s/4s + audit + fail-soft）|
 | **F-019** | RBAC 動態調整 | 管理員 | 管理員旅程 §3 階段 4（客訴升級隱含 RBAC） | admin-governance G1 RBAC 角色生命週期 | F-209 動態 RBAC | 模組 14 RBACService | 🟢 | ✅ Q1=A / Q2=A | ✅ aligned **(impl complete)** | **PR #49**：updateRolePermissions API + ROLE_HIERARCHY (super_admin>tenant_admin>director>manager>...) + can_grant 嚴格 > + WS publish `/realtime/rbac` + RolePermissionsEditor UI（10 BE test + 2 @wip Playwright）|
 | **F-020** | 稽核日誌 | 管理員 | 管理員旅程 §3 階段 4 隱含 | admin-governance G2 稽核日誌 | F-205 admin V2.0 + F-209 | 模組 13 AuditLogger | 🟢 | — | ✅ aligned | exportAuditEvents 已實作 |
@@ -70,9 +70,9 @@ related:
 | **F-022** | 消費者端工單追蹤 | 消費者 | 消費者 §1 階段 6-7（已派工後） | work-order Flow 1 後段 | （待補 F-211）| 業務模組（消費者 API 未列）| 🟢 | ✅ Q3=C | ✅ aligned | PR #40 T2：getWorkOrderPublicStatus spec + skeleton + Web placeholder 齊；可寫 contract test + @wip Playwright。HMAC token 簽章 + BDD F-211 follow-up |
 | **F-023** | 錯誤頁 / 離線 | 任何 | （cross-cutting，無單一旅程） | （cross-cutting） | ✅ F-110 錯誤邊界 cross-cutting Feature（4 scenarios）| （cross-cutting）| 🟢 | — | ✅ aligned | PR #40 T4 已建 F-110 + 4 scenarios，本次同步矩陣狀態（先前與 §4 row 211 不一致）|
 
-> **2026-05-08 後狀態（本 PR sync 後）**：✅ aligned (18) / ⚠ partial (2) / ⚠ blocked (3) / ❌ orphan (0)
+> **2026-05-09 evening 後狀態（P0 bridge sprint 後）**：✅ aligned (18，含 10 條 impl complete) / ⚠ partial (3) / ⚠ blocked (2) / ❌ orphan (0)
 >
-> 📋 **狀態定義**：✅ aligned 含兩階段 — (a) **spec-driven**（規格 + test infra + PM 拍板齊，PR #41 階段）；(b) **impl complete**（production code 完成 + component test pass，PR #45-49 階段）。標 `(impl complete)` 註明已升至第二階段。
+> 📋 **狀態定義**：✅ aligned 含兩階段 — (a) **spec-driven**（規格 + test infra + PM 拍板齊，PR #41 階段）；(b) **impl complete**（production code 完成 + component test pass，PR #45-49 + 5/9 evening sprint 階段）。標 `(impl complete)` 註明已升至第二階段。
 >
 > PR #45-49 production code 完成（5 流程 + 1 順手）：
 > - F-004 ✅(impl complete)：PR #45 dispatcher RBAC + 客服繞過 audit
@@ -82,7 +82,15 @@ related:
 > - F-016 ✅(impl complete)：PR #48 SLA Soft alert + 紅燈（Q5=B 合規驗證）
 > - F-019 ✅(impl complete)：PR #49 updateRolePermissions + 階層 + UI + WS
 >
-> F-011 / F-012 / F-014 仍 ⚠blocked（綁 Q7=B provider 選型，待 PR #39 follow-up 4 sub-decision 拍板）
+> **5/9 evening P0 bridge sprint 完成（commit `44873f0` merged 到 dev）— ADR-009 §8 D pattern HTTP call from agent to admin API**：
+> - F-001 ✅ → ✅(impl complete)：`createConversation` endpoint + agent webhook bridge `_ensure_conversation_record` + `AdminAPIClient`（30 min cache）
+> - F-014 ⚠blocked → ⚠partial：`createRefundRequest` dual-trigger + business unique key (work_order_id, reason_code) + auto dual-sign threshold NT$100,000（規則層完成；金流回沖仍綁 Q7=B）
+> - F-015 ✅ → ✅(impl complete)：`createWarrantyClaim` dual-trigger（CS web Modal + agent intent skeleton）
+> - F-017 ✅ → ✅(impl complete)：`createSopDraft` + rating>=4 trigger skeleton（`agent/harness/sop_extractor.py`）
+> - 附帶 `Schema_doc_numbering.sql`：5 表加 `document_number`（ERP-style `XX-YYYYMMDD-NNNN`）+ `agent_outbox` 表 + 業務 unique keys
+> - 測試：Backend integration 29/29 pass + Playwright E2E 3/3 pass + OpenAPI lint 0 errors
+>
+> F-011 / F-012 仍 ⚠blocked（綁 Q7=B provider 選型，待 PR #39 follow-up 4 sub-decision 拍板）
 
 ---
 
@@ -171,30 +179,39 @@ related:
 ## 3. 對齊狀態彙總
 
 ```
-總計 23 user flows（本 PR 矩陣 sync 後）
+總計 23 user flows（5/9 evening P0 bridge sprint 後）
 
   ✅ aligned    : 18 條  F-001/F-002/F-003/F-004/F-005/F-006/F-008/F-009/F-010/
                          F-013/F-015/F-016/F-017/F-018/F-019/F-020/F-022/F-023
-  ⚠ partial    :  2 條  F-007/F-021
-  ⚠ blocked    :  3 條  F-011/F-012/F-014（全綁 Q7=B provider 選型）
+                         （其中 10 條標 (impl complete)：
+                           F-001/F-002/F-004/F-008/F-010/F-015/F-016/F-017/
+                           F-018/F-019）
+  ⚠ partial    :  3 條  F-007/F-014/F-021
+  ⚠ blocked    :  2 條  F-011/F-012（全綁 Q7=B provider 選型）
   ❌ orphan     :  0 條
 
   PR #45-49 後：5 條從「spec-driven aligned」升「impl complete」：
     F-004 / F-008 / F-010 / F-016 / F-019（標 ✅(impl complete)）
     F-018 從 ⚠partial → ✅(impl complete)（PR #47 順手解 LINE Push real）
 
+  5/9 evening P0 bridge sprint 後：
+    F-001 / F-015 / F-017 從 spec-driven aligned 升 ✅(impl complete)
+    F-014 從 ⚠blocked → ⚠partial（規則層 5/9 修完；金流回沖仍綁 Q7=B）
+
 歷程：
   - PR #38 (PM 拍板) ：✅10 / ⚠partial 8 / ⚠blocked 4 / ❌0
   - PR #40 (5-track)：✅15 / ⚠partial 5 / ⚠blocked 3 / ❌0  (+5 升 ✅)
   - PR #45-49 (impl)：✅16 / ⚠partial 4 / ⚠blocked 3 / ❌0  (+1 F-018 升 ✅，5 條從
                        spec-driven 升 impl complete)
-  - 本 PR (matrix sync)：✅18 / ⚠partial 2 / ⚠blocked 3 / ❌0  (+2 升 ✅)
+  - 5/8 (matrix sync)：✅18 / ⚠partial 2 / ⚠blocked 3 / ❌0  (+2 升 ✅)
                           F-002（補模組 9 ProblemCardReviewEngine）
                           F-023（與 §4 row 211 PR #40 T4 結果同步）
+  - 5/9 evening (P0 sprint) ：✅18 / ⚠partial 3 / ⚠blocked 2 / ❌0
+                          (+1 F-014 blocked→partial；+3 F-001/F-015/F-017 升 impl complete)
 
 按阻塞類型（剩 5 條 ⚠/blocked）：
-  Q7=B provider 選型可解 : 3 條（F-011/F-012/F-014 — PR #39 follow-up 矩陣等會議）
-  外力 / TODO 可解        : 2 條（F-007 F-210 規格 / F-021 後端 filter）
+  Q7=B provider 選型可解 : 2 條（F-011/F-012）— F-014 規則層 5/9 已修，剩金流回沖等 provider
+  外力 / TODO 可解        : 3 條（F-007 F-210 規格 / F-014 金流回沖 / F-021 後端 filter）
 ```
 
 ---
@@ -265,3 +282,4 @@ related:
 | 2026-05-08 | Claude (assisted) | **§4 共通對齊缺口收尾 4 項 ✅**：(1) E5x workflow 3 檔 F-NNN 引用補齊（work-order 16 Flow / dispatch §1-§9 / admin-governance G1-G4）；(2) admin-governance §1.1 角色表 dispatcher Q1=A 標已拍板 + 新增 operations_director（Q2=A）+ ROLE_HIERARCHY 階層說明；(3) E7x module-spec 模組 1-8 全補 BDD Feature + 流程引用；(4) E7 F-107 雙閾值設計釐清（Feature header callout 0.90 main / 0.85 edge 非衝突，calibration 變動需同步）。§4 表加狀態 column；剩 1 項 ⚠ 部分解（F-011 BDD 仍綁 Q7=B）。 |
 | 2026-05-08 | Claude (assisted) | **F-002 / F-023 矩陣狀態 sync ✅**：(1) F-002 ⚠partial → ✅aligned — 在 `E7x--module-spec-v1-core.md` 補模組 9 ProblemCardReviewEngine（規格 9-1 review_problem_card / 9-2 create_work_order_from_problem_card，含 DbC 前置/後置/不變性 + 5 類測試情境輪廓），對齊 BDD F-105 admin V1.0；(2) F-023 ⚠partial → ✅aligned — 與 §4 row 211 早已記錄的 PR #40 T4 F-110 cross-cutting Feature + 4 scenarios 結果同步（先前 row 71 與 §4 不一致）。新統計：✅ 18 / ⚠ partial 2（F-007 / F-021）/ ⚠ blocked 3（F-011/012/014 全綁 Q7=B）/ ❌ 0。 |
 | 2026-05-09 | Sunny + Claude | **F-002 production code 補完 ✅(impl complete)**：三層驗證發現 F-002「開 WO」這步在 production code **完全沒實作** — confirmProblemCard 只 UPDATE PC.status，無 side effect；work_order_service 全檔無 `create_*` 函式；dev 靠 seed data 看似 work，production 第一筆 confirmed PC 就會孤立，連帶 F-003~F-016 派工/技師/對帳/SLA 主幹斷鏈。本 PR 補：(1) `api/services/work_order_service.create_from_problem_card()` 含 SELECT FOR UPDATE 防 race + idempotency check + address fallback chain；(2) router `POST /problem-cards/{id}/convert-to-work-order` (`convertToWorkOrder` operationId) — 201 (new) / 200 (existing)；(3) OpenAPI spec 加 operation + `ConvertProblemCardToWorkOrderRequest` schema；(4) frontend 在 PC confirmed 狀態啟用「開單」按鈕；(5) 7 case integration test（happy/idempotent/state×2/address×2/tenant）；(6) `E7x--test-plan-and-readiness.md` row 88 wiring 修正 + 評等 🟡 → 🟢。F-002 SSOT row 50（模組規格）已於 5/8 標 ✅，本次同步 production code 至同層級。|
+| 2026-05-09 evening | Sunny + Claude | **P0 bridge pattern sprint 完成 ✅**：ADR-009 D pattern 拍板採用 HTTP call from agent to admin API；4 條 P0 production blocker 修補（commit `44873f0` merged 到 dev）。F-001 ✅(impl complete) `createConversation` + agent webhook `_ensure_conversation_record` + 30 min cache；F-014 ⚠blocked→⚠partial（規則層補完 `createRefundRequest` dual-trigger + business unique key + auto dual-sign threshold；剩金流回沖綁 Q7=B）；F-015 ✅(impl complete) `createWarrantyClaim` dual-trigger；F-017 ✅(impl complete) `createSopDraft` + rating>=4 trigger skeleton。附帶 `Schema_doc_numbering.sql`（5 表 + sequences + ERP-style document_number XX-YYYYMMDD-NNNN + agent_outbox 表）。Backend 29/29 + Playwright 3/3 全 pass。新統計：✅ 18（含 10 個 impl complete）/ ⚠ partial 3（F-007/F-014/F-021）/ ⚠ blocked 2（F-011/F-012 全綁 Q7=B 金流 provider）/ ❌ 0。 |

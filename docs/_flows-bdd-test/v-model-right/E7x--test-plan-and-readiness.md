@@ -53,6 +53,8 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 >
 > 🆕 5 條從「spec-driven aligned」升「impl complete」：F-004 / F-008 / F-010 / F-016 / F-019；F-018 順手升 ✅（PR #47 LINE Push real 解殘留 TODO）。
 >
+> **2026-05-09 evening P0 bridge sprint 後狀態**：23 條流程 = **🟢18 / ⚠3 / ⚠2 / ❌0**（commit `44873f0` merged 到 dev，與 [[../_SSOT-alignment-matrix|_SSOT §3]] 同步）。F-001 / F-015 / F-017 升 ✅(impl complete)；F-014 從 ⚠blocked → ⚠partial（規則層補完 `createRefundRequest` dual-trigger + business unique key + auto dual-sign threshold；剩金流回沖綁 Q7=B）。Backend 29/29 + Playwright 3/3 + OpenAPI lint 0 errors。
+>
 > 📋 **「立即可測 🟢」定義**：spec + test infrastructure + PM 拍板齊備 → 可寫 BDD scenarios + contract test + factory test。**不要求 production code 100%**（用 `@wip` tag + `RUN_WIP_TESTS` opt-in 處理 stub 測試 CI 噪音）。
 
 **🟢 立即可測（16 條）**：
@@ -84,7 +86,7 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 
 | # | 流程 | 角色 | 前端頁面 | API operationId | Realtime | 外部 | 評等 | 阻塞項 |
 |---|------|------|---------|----------------|----------|------|------|-------|
-| F-001 | LINE 報修 → ProblemCard | 消費者 | (LINE Bot 後端) | `createConversation`, `analyzeMedia`, `createProblemCard` | — | LINE / Vertex / GCS | 🟢 | — |
+| F-001 | LINE 報修 → ProblemCard | 消費者 | (LINE Bot 後端) | `createConversation` ✅, `analyzeMedia`, `createProblemCard` | — | LINE / Vertex / GCS | 🟢 | ✅ 5/9 sprint `createConversation` + agent webhook bridge `_ensure_conversation_record` real impl + `AdminAPIClient` 30 min cache |
 | F-002 | 客服審 PC → 開 WO | 客服 | `web/src/app/problem-cards/page.tsx`, `[id]/page.tsx` | `listProblemCards`, `getProblemCard`, `updateProblemCard`, `confirmProblemCard`, `resolveProblemCard`, `exportProblemCard`, **`convertToWorkOrder`** ✅, `POST /api/v1/resolve`, `POST /api/v1/dispatch/auto-match` | `work-orders` | — | 🟢 | ✅ 本 PR：補 `convertToWorkOrder` endpoint + `work_order_service.create_from_problem_card()` + frontend「開單」按鈕；解 production blocker（confirmProblemCard 不會觸發 WO 建立的 silent gap）|
 | F-003 | 自動派工規則引擎 | 系統 | `web/src/app/admin/dispatch-queue/page.tsx` | `runDispatch`, `listDispatchQueue` | `dispatch-queue`, `pool` | — | 🟢 | ✅ 權重 SSOT 已建：[[02-design/specs/dispatch-weights]] |
 | F-004 | 手動派工 | 客服 / 派工員 | `web/src/app/admin/dispatch-manual/page.tsx` | `assignWorkOrder`, `assignDispatch` | `dispatch-queue` | — | 🟢 | ✅ PR #45 dispatcher RBAC 升級（修補 P0）+ 客服繞過 audit log（10 test）|
@@ -97,10 +99,10 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 | F-011 | 消費者付款 **V1.0**（Q7=B 升級） | 消費者 | (待 provider 選型) | (缺 paymentIntent) | — | **Q7=B 待 provider** | 🔴 | PR #39 follow-up 4 sub-decision 矩陣等 PM/TL/CEO/Finance 90 min 會議 |
 | F-012 | 技師月結撥款 **V1.0** | 系統 + 財務 | `web/src/app/accounting/page.tsx` | `runSettlement`, `listSettlements` | — | **Q7=B 同 provider** | 🔴 | 同 F-011；撥款 API 待 provider D4 |
 | F-013 | 對帳爭議雙簽 | 技師 ↔ 客服 | `web/src/app/accounting/page.tsx` (reconciliation), `admin/disputes/page.tsx` | `raiseDispute`, `dualSignDispute`（現 `submitRefundDecision`） | `disputes` | — | 🟢 | ✅ Q2=A 階層 + Q4=C 工作日 holidays helper（PR #40 T3 + agent/core/workday.py）|
-| F-014 | 退款流程 | 客服 + 主管 | `web/src/app/admin/refunds/page.tsx` | `submitRefundDecision` | `refunds` | **Q7=B 待金流回沖** | 🔴 | 規則可單測；金流回沖待 provider 選型 |
-| F-015 | 保固申訴 | 消費者 → 客服 | `web/src/app/admin/warranty-claims/page.tsx` | `submitWarrantyDecision` | — | LINE | 🟢 | warranty-dispute spec 已有 |
+| F-014 | 退款流程 | 客服 + 主管 | `web/src/app/admin/refunds/page.tsx` | `submitRefundDecision`, `createRefundRequest` ✅ | `refunds` | **Q7=B 待金流回沖**（規則層 5/9 已補）| 🟡 | ✅ 5/9 sprint `createRefundRequest` dual-trigger（CS web Modal + agent intent skeleton）+ business unique key (work_order_id, reason_code) + auto dual-sign threshold NT$100,000；剩金流回沖待 Q7=B provider |
+| F-015 | 保固申訴 | 消費者 → 客服 | `web/src/app/admin/warranty-claims/page.tsx` | `submitWarrantyDecision`, `createWarrantyClaim` ✅ | — | LINE | 🟢 | ✅ 5/9 sprint `createWarrantyClaim` dual-trigger real impl（CS web Modal + agent intent skeleton）；warranty-dispute spec 已有 |
 | F-016 | SLA 紅色警報（2hr 到場） | 系統 + 主管 | `admin/sentiment-alerts/page.tsx`, `dashboard/page.tsx` (SlaAlertBanner) | (sla_monitor.py: arrival_overdue) | `sla-alerts` | LINE | 🟢 | ✅ PR #48 Soft alert + 紅燈（Q5=B 合規驗證；8 test + 2 @wip）|
-| F-017 | SOP 草稿審核 | AI → 客服 → 主管 | `web/src/app/knowledge-base/sop-drafts/page.tsx` | `listSopDrafts`, `reviewSopDraft`, `adoptSopDraft` | — | Vertex AI | 🟢 | — |
+| F-017 | SOP 草稿審核 | AI → 客服 → 主管 | `web/src/app/knowledge-base/sop-drafts/page.tsx` | `listSopDrafts`, `reviewSopDraft`, `adoptSopDraft`, `createSopDraft` ✅ | — | Vertex AI | 🟢 | ✅ 5/9 sprint `createSopDraft` + rating>=4 trigger skeleton（`agent/harness/sop_extractor.py`，LLM extract 仍 placeholder，V2.0 升級）|
 | F-018 | 客服接管對話 | 客服 | `web/src/app/conversations/[id]/page.tsx`, `components/conversations/HandoverComposer.tsx` | `escalateConversation`, `sendChatMessage` ✅ | `user-notifications` | LINE | 🟢 | ✅ PR #47（順手解）LINE Push real impl（line_push_service.py + retry + audit + fail-soft）|
 | F-019 | RBAC 動態調整 | 管理員 | `web/src/app/admin/roles/page.tsx`, `RolePermissionsEditor` | `listRoles`, `updateRolePermissions` ✅ | `rbac` | — | 🟢 | ✅ PR #49 階層 + WS publish + Editor UI（10 BE + 2 @wip）|
 | F-020 | 稽核日誌 | 管理員 | `web/src/app/admin/audit-events/page.tsx`, `components/admin/AuditExportModal.tsx` | `listAuditLogs`, `exportAuditEvents` ✅ | — | — | 🟢 | ✅ CSV stream + Modal 已建（>100k 筆 background job 預留 202 contract） |
@@ -187,7 +189,7 @@ Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後�
 
 | 缺口 | P | 工時 | 狀態 |
 |------|---|------|------|
-| 金流（消費者付款 + 退款回沖）— provider 選型 | **P0** V2.0 | 10d+ | 🔴 PR #39 follow-up 矩陣：等 PM / TL / CEO / Finance 90 min 會議拍板（D2） |
+| 金流（消費者付款 + 退款回沖）— provider 選型 | **P0** V2.0 | 10d+ | 🔴 PR #39 follow-up 矩陣：等 PM / TL / CEO / Finance 90 min 會議拍板（D2）。**註**：F-014 退款規則層已於 5/9 evening sprint 補完（`createRefundRequest` dual-trigger + business unique key + auto dual-sign threshold NT$100,000），剩餘僅金流回沖部分綁此 provider 決策 |
 | 撥款 API（技師薪資） | **P0** V2.0 | 8d+ | 🔴 同上會議綁定 |
 | SMS provider | — | — | 🟡 stub adapter 完成（commit `171dbf9` `agent/notifications/adapters/sms.py`）；真 vendor SDK（Twilio / AWS SNS）V1.5+ |
 | Email provider | — | — | 🟡 stub adapter 完成（`agent/notifications/adapters/email.py`）；真 vendor（SendGrid / SES）V1.5+ |
