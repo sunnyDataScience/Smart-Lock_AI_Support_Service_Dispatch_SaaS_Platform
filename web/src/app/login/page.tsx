@@ -4,8 +4,11 @@ import { Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { ApiError, login } from "@/lib/api";
+import LocaleToggle from "@/components/i18n/LocaleToggle";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 export default function LoginPage() {
+  const t = useTranslations("login");
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,7 +35,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--bg-page)] px-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-[var(--bg-page)] px-4">
+      {/* 登入前語系切換 — 公開頁面也應允許切，否則 zh-TW 預設不會的英文用戶看不懂表單
+       * 位置：右上角 absolute，不擠壓登入卡片視覺中心 */}
+      <div className="absolute right-4 top-4">
+        <LocaleToggle />
+      </div>
+
       <div className="w-full max-w-[400px] rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-8 shadow-sm">
         <div className="mb-6 flex flex-col items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--primary)]">
@@ -40,10 +49,10 @@ export default function LoginPage() {
           </div>
           <div className="flex flex-col items-center gap-1">
             <h1 className="text-xl font-bold text-[var(--text-primary)]">
-              登入 SmartLock Admin
+              {t("title")}
             </h1>
             <p className="text-sm text-[var(--text-secondary)]">
-              請輸入您的帳號與密碼
+              {t("subtitle")}
             </p>
           </div>
         </div>
@@ -51,7 +60,7 @@ export default function LoginPage() {
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <label htmlFor="login-email" className="flex flex-col gap-[6px]">
             <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-              Email
+              {t("emailLabel")}
             </span>
             <input
               id="login-email"
@@ -62,13 +71,13 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
               className="h-10 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--border-focus)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 disabled:opacity-50"
-              placeholder="admin@example.com"
+              placeholder={t("emailPlaceholder")}
             />
           </label>
 
           <label htmlFor="login-password" className="flex flex-col gap-[6px]">
             <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-              密碼
+              {t("passwordLabel")}
             </span>
             <input
               id="login-password"
@@ -79,7 +88,7 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
               className="h-10 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--border-focus)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 disabled:opacity-50"
-              placeholder="••••••••"
+              placeholder={t("passwordPlaceholder")}
             />
           </label>
 
@@ -97,13 +106,13 @@ export default function LoginPage() {
             disabled={loading || !email || !password}
             className="h-10 rounded-lg bg-[var(--primary)] text-sm font-medium text-white transition hover:bg-[var(--primary-hover)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2 disabled:opacity-50"
           >
-            {loading ? "登入中…" : "登入"}
+            {loading ? t("submitting") : t("submit")}
           </button>
         </form>
 
         {/* TODO: remove dev hint before prod */}
         <p className="mt-6 text-center text-xs text-[var(--text-disabled)]">
-          測試帳號：admin@example.com / changeme123
+          {t("devHint")}
         </p>
       </div>
     </div>

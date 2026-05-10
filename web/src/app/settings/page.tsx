@@ -13,15 +13,9 @@ import Sidebar from "@/components/layout/Sidebar";
 import PricingForm from "@/components/settings/PricingForm";
 import SystemConfigForm from "@/components/settings/SystemConfigForm";
 import ThemeToggle from "@/components/theme/ThemeToggle";
+import LocaleToggle from "@/components/i18n/LocaleToggle";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api, getCurrentSession, type CurrentSession } from "@/lib/api";
-
-const ROLE_LABELS: Record<string, string> = {
-  admin: "系統管理員",
-  reviewer: "審核員",
-  technician: "技師",
-  brand_oem: "品牌 OEM",
-  line_user: "LINE 使用者",
-};
 
 function deriveName(email: string | null, userId: string | null): string {
   if (email) {
@@ -43,18 +37,21 @@ type TabId = "profile" | "security" | "pricing" | "system";
 
 interface Tab {
   id: TabId;
-  label: string;
   icon: React.ComponentType<{ className?: string }>;
 }
 
+// label 走 i18n key（settings.tabs.{id}），避免硬編 zh-TW
 const tabs: Tab[] = [
-  { id: "system", label: "系統設定", icon: SettingsIcon },
-  { id: "pricing", label: "報價規則", icon: Calculator },
-  { id: "profile", label: "個人資料", icon: User },
-  { id: "security", label: "帳戶安全", icon: Shield },
+  { id: "system", icon: SettingsIcon },
+  { id: "pricing", icon: Calculator },
+  { id: "profile", icon: User },
+  { id: "security", icon: Shield },
 ];
 
 function ProfileForm() {
+  const tCommon = useTranslations("common");
+  const tProfile = useTranslations("settings.profile");
+  const tRole = useTranslations("role");
   const [session, setSession] = useState<CurrentSession | null>(null);
 
   useEffect(() => {
@@ -62,12 +59,11 @@ function ProfileForm() {
   }, []);
 
   const name = deriveName(session?.email ?? null, session?.userId ?? null);
-  const email = session?.email ?? "—";
-  const role = session?.role
-    ? (ROLE_LABELS[session.role] ?? session.role)
-    : "—";
-  const userId = session?.userId ?? "—";
-  const tenantId = session?.tenantId ?? "—";
+  const dash = tCommon("notAvailable");
+  const email = session?.email ?? dash;
+  const role = session?.role ? tRole(session.role) : dash;
+  const userId = session?.userId ?? dash;
+  const tenantId = session?.tenantId ?? dash;
 
   return (
     <div className="flex flex-1 flex-col gap-6 overflow-auto rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
@@ -75,14 +71,14 @@ function ProfileForm() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-xl font-bold text-[var(--text-primary)]">
-            個人資料
+            {tProfile("title")}
           </span>
           <span className="rounded bg-[#F1F5F9] px-2 py-[2px] text-[11px] text-[var(--text-secondary)]">
-            來自 JWT；待 /users/me endpoint 上線後補齊姓名 / 電話 / 偏好
+            {tProfile("metaJwt")}
           </span>
         </div>
         <span className="text-[13px] text-[var(--text-secondary)]">
-          目前登入身分由 access token 解碼
+          {tProfile("metaSession")}
         </span>
       </div>
 
@@ -102,12 +98,12 @@ function ProfileForm() {
           </span>
           <button
             disabled
-            title="即將推出"
+            title={tCommon("comingSoon")}
             className="flex cursor-not-allowed items-center gap-[6px] rounded-lg border border-[var(--border)] px-[14px] py-[6px] opacity-60"
           >
             <Upload className="h-[14px] w-[14px] text-[var(--text-secondary)]" />
             <span className="text-[13px] font-medium text-[var(--text-secondary)]">
-              上傳頭像
+              {tProfile("uploadAvatar")}
             </span>
           </button>
         </div>
@@ -116,27 +112,35 @@ function ProfileForm() {
       {/* Form Fields */}
       <div className="flex flex-col gap-5">
         <div className="flex gap-5">
-          <FormField label="顯示名稱" value={name} />
-          <FormField label="電子郵件" value={email} />
+          <FormField label={tProfile("displayName")} value={name} />
+          <FormField label={tProfile("email")} value={email} />
         </div>
 
         <div className="flex gap-5">
-          <FormField label="使用者 ID" value={userId} mono />
-          <FormField label="角色" value={role} />
+          <FormField label={tProfile("userId")} value={userId} mono />
+          <FormField label={tProfile("role")} value={role} />
         </div>
 
         <div className="flex gap-5">
-          <FormField label="租戶 ID" value={tenantId} mono />
-          <SelectField label="時區" value="(UTC+8) 台北" disabled />
+          <FormField label={tProfile("tenantId")} value={tenantId} mono />
+          <SelectField
+            label={tProfile("timezone")}
+            value={tProfile("timezoneTaipei")}
+            disabled
+          />
         </div>
 
         <div className="flex gap-5">
-          <SelectField label="語言" value="繁體中文" disabled />
+          <LanguageField />
           <ThemeField />
         </div>
 
         <div className="flex gap-5">
-          <FormField label="聯絡電話" value="—" placeholder="待 /users/me 上線" />
+          <FormField
+            label={tProfile("phone")}
+            value={dash}
+            placeholder={tProfile("phonePlaceholder")}
+          />
           <div className="flex-1" />
         </div>
       </div>
@@ -147,19 +151,21 @@ function ProfileForm() {
       <div className="flex justify-end gap-3">
         <button
           disabled
-          title="即將推出"
+          title={tCommon("comingSoon")}
           className="cursor-not-allowed rounded-lg border border-[var(--border)] px-5 py-[10px] opacity-60"
         >
           <span className="text-sm font-medium text-[var(--text-secondary)]">
-            取消
+            {tCommon("cancel")}
           </span>
         </button>
         <button
           disabled
-          title="即將推出"
+          title={tCommon("comingSoon")}
           className="cursor-not-allowed rounded-lg bg-[var(--primary)] px-5 py-[10px] opacity-60"
         >
-          <span className="text-sm font-medium text-white">儲存變更</span>
+          <span className="text-sm font-medium text-white">
+            {tCommon("saveChanges")}
+          </span>
         </button>
       </div>
     </div>
@@ -167,6 +173,8 @@ function ProfileForm() {
 }
 
 function SecurityForm() {
+  const tCommon = useTranslations("common");
+  const tSec = useTranslations("settings.security");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -184,16 +192,16 @@ function SecurityForm() {
 
   function validate(): string | null {
     if (!currentPassword || !newPassword || !confirmPassword) {
-      return "請填寫所有密碼欄位";
+      return tSec("validateMissing");
     }
     if (newPassword.length < 8 || newPassword.length > 72) {
-      return "新密碼長度須介於 8–72 字元";
+      return tSec("validateLength");
     }
     if (newPassword !== confirmPassword) {
-      return "兩次輸入的新密碼不一致";
+      return tSec("validateMismatch");
     }
     if (currentPassword === newPassword) {
-      return "新密碼不可與目前密碼相同";
+      return tSec("validateSame");
     }
     return null;
   }
@@ -212,7 +220,7 @@ function SecurityForm() {
         current_password: currentPassword,
         new_password: newPassword,
       });
-      setSuccess("密碼已更新");
+      setSuccess(tSec("successMsg"));
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -234,14 +242,14 @@ function SecurityForm() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-xl font-bold text-[var(--text-primary)]">
-            帳戶安全
+            {tSec("title")}
           </span>
           <span className="rounded bg-[#F1F5F9] px-2 py-[2px] text-[11px] text-[var(--text-secondary)]">
-            密碼變更已上線；2FA / 登入裝置管理待後續模組
+            {tSec("metaCurrent")}
           </span>
         </div>
         <span className="text-[13px] text-[var(--text-secondary)]">
-          管理密碼與登入安全設定
+          {tSec("metaSubtitle")}
         </span>
       </div>
 
@@ -261,27 +269,27 @@ function SecurityForm() {
       <div className="flex flex-col gap-5">
         <div className="flex gap-5">
           <PasswordInput
-            label="目前密碼"
+            label={tSec("currentPassword")}
             value={currentPassword}
             onChange={setCurrentPassword}
-            placeholder="輸入目前密碼"
+            placeholder={tSec("currentPasswordPlaceholder")}
             disabled={submitting}
           />
           <div className="flex-1" />
         </div>
         <div className="flex gap-5">
           <PasswordInput
-            label="新密碼"
+            label={tSec("newPassword")}
             value={newPassword}
             onChange={setNewPassword}
-            placeholder="輸入新密碼（8–72 字元）"
+            placeholder={tSec("newPasswordPlaceholder")}
             disabled={submitting}
           />
           <PasswordInput
-            label="確認新密碼"
+            label={tSec("confirmPassword")}
             value={confirmPassword}
             onChange={setConfirmPassword}
-            placeholder="再次輸入新密碼"
+            placeholder={tSec("confirmPasswordPlaceholder")}
             disabled={submitting}
           />
         </div>
@@ -292,23 +300,23 @@ function SecurityForm() {
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-2">
           <span className="text-base font-semibold text-[var(--text-primary)]">
-            雙重驗證（2FA）
+            {tSec("twoFactor")}
           </span>
           <span className="rounded-md bg-[#FEF3C7] px-2 py-[2px] text-[10px] font-semibold text-[#92400E]">
-            待接入
+            {tSec("twoFactorPending")}
           </span>
         </div>
         <div className="flex items-center justify-between rounded-lg border border-dashed border-[var(--border)] bg-[#F8FAFC] p-4">
           <div className="flex flex-col gap-1">
             <span className="text-sm font-medium text-[var(--text-secondary)]">
-              Authenticator App
+              {tSec("authenticatorApp")}
             </span>
             <span className="text-[13px] text-[var(--text-secondary)]">
-              需後端 TOTP enrol / verify endpoint；本期暫未提供
+              {tSec("authenticatorDesc")}
             </span>
           </div>
           <span className="rounded-md bg-[#F1F5F9] px-2 py-1 text-xs font-semibold text-[var(--text-secondary)]">
-            未啟用
+            {tSec("twoFactorDisabled")}
           </span>
         </div>
       </div>
@@ -323,7 +331,7 @@ function SecurityForm() {
           className="rounded-lg border border-[var(--border)] px-5 py-[10px] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-60"
         >
           <span className="text-sm font-medium text-[var(--text-secondary)]">
-            取消
+            {tCommon("cancel")}
           </span>
         </button>
         <button
@@ -333,7 +341,7 @@ function SecurityForm() {
           className="rounded-lg bg-[var(--primary)] px-5 py-[10px] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <span className="text-sm font-medium text-white">
-            {submitting ? "更新中…" : "更新密碼"}
+            {submitting ? tSec("updating") : tSec("updatePassword")}
           </span>
         </button>
       </div>
@@ -406,13 +414,28 @@ function FormField({
 }
 
 function ThemeField() {
+  const t = useTranslations("settings.profile");
   return (
     <div className="flex flex-1 flex-col gap-[6px]">
       <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-        外觀主題
+        {t("theme")}
       </span>
       <div className="flex h-10 items-center">
         <ThemeToggle variant="segmented" />
+      </div>
+    </div>
+  );
+}
+
+function LanguageField() {
+  const t = useTranslations("settings.profile");
+  return (
+    <div className="flex flex-1 flex-col gap-[6px]">
+      <span className="text-[13px] font-semibold text-[var(--text-primary)]">
+        {t("language")}
+      </span>
+      <div className="flex h-10 items-center">
+        <LocaleToggle variant="segmented" />
       </div>
     </div>
   );
@@ -453,6 +476,8 @@ const tabContent: Record<TabId, React.ComponentType> = {
 };
 
 export default function SettingsPage() {
+  const tTabs = useTranslations("settings.tabs");
+  const tTitle = useTranslations("settings");
   const [activeTab, setActiveTab] = useState<TabId>("system");
 
   const ActiveContent = tabContent[activeTab];
@@ -467,7 +492,7 @@ export default function SettingsPage() {
           <div className="flex w-[220px] flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] py-4">
             <div className="px-4 pb-3">
               <span className="text-lg font-bold text-[var(--text-primary)]">
-                系統設定
+                {tTitle("title")}
               </span>
             </div>
             <div className="mx-0 h-px bg-[var(--border)]" />
@@ -499,7 +524,7 @@ export default function SettingsPage() {
                           : "font-medium text-[var(--text-secondary)]"
                       }`}
                     >
-                      {tab.label}
+                      {tTabs(tab.id)}
                     </span>
                   </button>
                 );

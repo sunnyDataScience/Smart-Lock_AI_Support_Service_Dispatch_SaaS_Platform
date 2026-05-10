@@ -1,0 +1,241 @@
+{
+  "common": {
+    "save": "儲存",
+    "saveChanges": "儲存變更",
+    "cancel": "取消",
+    "confirm": "確認",
+    "delete": "刪除",
+    "edit": "編輯",
+    "close": "關閉",
+    "loading": "載入中…",
+    "submitting": "處理中…",
+    "error": "錯誤",
+    "success": "成功",
+    "search": "搜尋",
+    "language": "語言",
+    "comingSoon": "即將推出",
+    "notAvailable": "—"
+  },
+  "header": {
+    "searchPlaceholder": "搜尋工單、技師、客戶...",
+    "searchLabel": "全域搜尋",
+    "searchSrLabel": "搜尋工單、技師、客戶"
+  },
+  "settings": {
+    "title": "系統設定",
+    "tabs": {
+      "system": "系統設定",
+      "pricing": "報價規則",
+      "profile": "個人資料",
+      "security": "帳戶安全"
+    },
+    "profile": {
+      "title": "個人資料",
+      "metaJwt": "來自 JWT；待 /users/me endpoint 上線後補齊姓名 / 電話 / 偏好",
+      "metaSession": "目前登入身分由 access token 解碼",
+      "displayName": "顯示名稱",
+      "email": "電子郵件",
+      "userId": "使用者 ID",
+      "role": "角色",
+      "tenantId": "租戶 ID",
+      "timezone": "時區",
+      "timezoneTaipei": "(UTC+8) 台北",
+      "language": "語言",
+      "theme": "外觀主題",
+      "phone": "聯絡電話",
+      "phonePlaceholder": "待 /users/me 上線",
+      "uploadAvatar": "上傳頭像"
+    },
+    "security": {
+      "title": "帳戶安全",
+      "metaCurrent": "密碼變更已上線；2FA / 登入裝置管理待後續模組",
+      "metaSubtitle": "管理密碼與登入安全設定",
+      "currentPassword": "目前密碼",
+      "currentPasswordPlaceholder": "輸入目前密碼",
+      "newPassword": "新密碼",
+      "newPasswordPlaceholder": "輸入新密碼（8–72 字元）",
+      "confirmPassword": "確認新密碼",
+      "confirmPasswordPlaceholder": "再次輸入新密碼",
+      "twoFactor": "雙重驗證（2FA）",
+      "twoFactorPending": "待接入",
+      "authenticatorApp": "Authenticator App",
+      "authenticatorDesc": "需後端 TOTP enrol / verify endpoint；本期暫未提供",
+      "twoFactorDisabled": "未啟用",
+      "updatePassword": "更新密碼",
+      "updating": "更新中…",
+      "validateMissing": "請填寫所有密碼欄位",
+      "validateLength": "新密碼長度須介於 8–72 字元",
+      "validateMismatch": "兩次輸入的新密碼不一致",
+      "validateSame": "新密碼不可與目前密碼相同",
+      "successMsg": "密碼已更新"
+    }
+  },
+  "locale": {
+    "label": "語言",
+    "menuLabel": "語言選項",
+    "current": "切換語言（目前：{label}）",
+    "zh-TW": "繁體中文",
+    "en": "English"
+  },
+  "theme": {
+    "label": "主題模式",
+    "light": "淺色",
+    "dark": "深色",
+    "system": "系統",
+    "current": "切換主題（目前：{label}）",
+    "menuLabel": "主題選項"
+  },
+  "role": {
+    "admin": "系統管理員",
+    "reviewer": "審核員",
+    "technician": "技師",
+    "brand_oem": "品牌 OEM",
+    "line_user": "LINE 使用者"
+  },
+  "login": {
+    "title": "登入 SmartLock Admin",
+    "subtitle": "請輸入您的帳號與密碼",
+    "emailLabel": "Email",
+    "emailPlaceholder": "admin@example.com",
+    "passwordLabel": "密碼",
+    "passwordPlaceholder": "••••••••",
+    "submit": "登入",
+    "submitting": "登入中…",
+    "devHint": "測試帳號：admin@example.com / changeme123"
+  },
+  "status": {
+    "workOrder": {
+      "inquiring": "詢問中",
+      "qualified": "已審核",
+      "quoted": "已報價",
+      "negotiating": "議價中",
+      "accepted": "已接單",
+      "scheduled": "已排程",
+      "dispatching": "派工中",
+      "assigned": "已指派",
+      "en_route": "前往中",
+      "arrived": "已抵達",
+      "in_progress": "作業中",
+      "completed": "已完工",
+      "billed": "已開單",
+      "paid": "已付款",
+      "closed": "已結案",
+      "cancelled": "已取消"
+    },
+    "workOrderGroup": {
+      "pending": "待處理",
+      "dispatched": "已派工",
+      "in_progress": "處理中",
+      "done": "已完成",
+      "cancelled": "已取消"
+    }
+  },
+  "urgency": {
+    "low": "低",
+    "medium": "中",
+    "high": "高",
+    "mediumBadge": "急件",
+    "highBadge": "Red Code"
+  },
+  "tables": {
+    "empty": "目前無資料",
+    "loading": "載入中…",
+    "workOrders": {
+      "ariaLabel": "工單列表",
+      "cols": {
+        "id": "工單 ID",
+        "address": "區/地址",
+        "brand": "品牌",
+        "model": "型號",
+        "status": "狀態",
+        "urgency": "緊急度",
+        "estimate": "估價",
+        "createdAt": "建立時間"
+      }
+    },
+    "problemCards": {
+      "ariaLabel": "問題卡列表",
+      "cols": {
+        "id": "卡片 ID",
+        "symptom": "症狀摘要",
+        "status": "狀態",
+        "urgency": "緊急度",
+        "category": "類別",
+        "brand": "品牌",
+        "model": "型號",
+        "createdAt": "建立時間"
+      }
+    },
+    "conversations": {
+      "ariaLabel": "對話列表",
+      "empty": "沒有符合條件的對話",
+      "cols": {
+        "id": "對話編號",
+        "idCard": "ID",
+        "customer": "客戶名稱",
+        "customerCard": "客戶",
+        "status": "狀態",
+        "messages": "訊息數",
+        "resolution": "解決層級",
+        "time": "更新時間",
+        "timeCard": "更新"
+      }
+    }
+  },
+  "problemCardStatus": {
+    "draft": "待確認",
+    "confirmed": "已確認",
+    "resolved": "已解決"
+  },
+  "conversationStatus": {
+    "active": "進行中",
+    "waiting_human": "已升級",
+    "closed": "已結束"
+  },
+  "resolutionLayer": {
+    "case_library": "案例庫",
+    "rag": "RAG",
+    "human": "人工"
+  },
+  "sidebar": {
+    "appName": "SmartLock",
+    "navAria": "主導航",
+    "pageNavAria": "頁面導航",
+    "submenuLabel": "{label} 子選單",
+    "loggedOut": "未登入",
+    "logout": "登出",
+    "loggingOut": "正在登出",
+    "nav": {
+      "dashboard": "儀表板",
+      "conversations": "對話管理",
+      "problemCards": "問題卡",
+      "knowledgeBase": "知識庫",
+      "kbCases": "案例庫",
+      "kbManuals": "手冊管理",
+      "kbSopDrafts": "SOP 審核",
+      "kbFamilyReviews": "家族覆核",
+      "dispatch": "派工管理",
+      "workOrders": "工單列表",
+      "dispatchQueue": "派工佇列監控",
+      "technicians": "技師管理",
+      "customers": "客戶主檔",
+      "accounting": "帳務與結算",
+      "settlements": "月結算總覽",
+      "vouchers": "會計傳票",
+      "refunds": "退款審批",
+      "warranty": "保固索賠",
+      "disputes": "爭議仲裁",
+      "inventory": "庫存",
+      "reports": "報表中心",
+      "kpi": "KPI 儀表板",
+      "techRanking": "技師排行",
+      "revenue": "營收報表",
+      "sopPerformance": "SOP 績效",
+      "audit": "稽核與權限",
+      "roles": "RBAC 管理",
+      "auditLogs": "稽核日誌",
+      "sentimentAlerts": "情緒告警",
+      "settings": "系統設定"
+    }
+  }
+}

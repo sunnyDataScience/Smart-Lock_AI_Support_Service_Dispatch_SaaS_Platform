@@ -3,6 +3,8 @@
 import { Search } from "lucide-react";
 import NotificationBell from "./NotificationBell";
 import ThemeToggle from "@/components/theme/ThemeToggle";
+import LocaleToggle from "@/components/i18n/LocaleToggle";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 interface HeaderProps {
   title: string;
@@ -14,6 +16,7 @@ interface HeaderProps {
  * 內部 render，不在 Header 內。所有 page 不論用不用 <Header /> 都自動有。
  */
 export default function Header({ title, subtitle }: HeaderProps) {
+  const t = useTranslations("header");
   return (
     <header className="flex h-16 items-center justify-between border-b border-[var(--border)] bg-[var(--bg-surface)] px-4 md:px-6">
       <div className="flex min-w-0 items-center gap-2 md:gap-4">
@@ -40,16 +43,17 @@ export default function Header({ title, subtitle }: HeaderProps) {
             className="h-[18px] w-[18px] text-[var(--text-disabled)]"
             aria-hidden="true"
           />
-          <span className="sr-only">搜尋工單、技師、客戶</span>
+          <span className="sr-only">{t("searchSrLabel")}</span>
           <input
             id="header-global-search"
             type="search"
-            placeholder="搜尋工單、技師、客戶..."
-            aria-label="全域搜尋"
+            placeholder={t("searchPlaceholder")}
+            aria-label={t("searchLabel")}
             className="h-10 flex-1 bg-transparent text-[14px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-disabled)]"
           />
         </label>
 
+        <LocaleToggle />
         <ThemeToggle />
         <NotificationBell />
       </div>
