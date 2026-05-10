@@ -1,8 +1,26 @@
-# 行為驅動開發情境 (BDD Scenarios) - 電子鎖智能客服與派工平台
-
+---
+title: BDD Scenarios — All V1.0 + V2.0 Features (16 features × ~85 scenarios)
+tier: 3
+status: accepted
+last_updated: 2026-05-10
+related:
+  - "../bdd-guide.md (BDD methodology)"
+  - "../test-plan.md"
+  - "../../2-contracts/functional-requirements/ (FR-0001~0025)"
+todo: |
+  Phase 8 / CR-0008: SPLIT each Feature into separate Gherkin .feature file
+  under tests/bdd/ (one Feature per file).
+  Currently kept as single doc per pragmatic preservation.
+legacy_id: E7--bdd-scenarios
+extracted_from: docs/_flows-bdd-test/v-model-right/E7--bdd-scenarios.md
 ---
 
-**文件版本:** `v1.1`
+# BDD Scenarios — All Features
+
+> 16 個 BDD Feature × ~85 個 scenario 的完整 catalog。Phase 8 將拆為
+> per-feature `.feature` 檔（Gherkin）並搬入 `tests/bdd/`。
+> 在那之前本檔為 BDD scenario 的 SSOT。
+
 **最後更新:** `2026-04-04`
 **主要作者:** `開發團隊`
 **狀態:** `活躍 (Active)`
