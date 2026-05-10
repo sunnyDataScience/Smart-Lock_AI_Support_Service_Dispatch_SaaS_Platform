@@ -110,8 +110,11 @@ export default function RefundReviewTable({ items, loading, onDecide, pendingId 
             }`}
           >
             <div className="flex w-[120px] shrink-0 items-center px-[10px]">
-              <span className="font-mono text-xs text-[var(--text-primary)]">
-                {row.id.slice(0, 8)}
+              <span
+                className="font-mono text-xs text-[var(--text-primary)]"
+                title={row.id}
+              >
+                {row.document_number ?? row.id.slice(0, 8)}
               </span>
             </div>
 

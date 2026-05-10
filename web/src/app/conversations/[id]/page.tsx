@@ -182,8 +182,11 @@ export default function ConversationDetailPage({
 
             <div className="h-6 w-px bg-[var(--border)]" />
 
-            <span className="font-mono text-[13px] font-medium text-[var(--text-secondary)]">
-              {id.slice(0, 8)}
+            <span
+              className="font-mono text-[13px] font-medium text-[var(--text-secondary)]"
+              title={id}
+            >
+              {conv?.document_number ?? id.slice(0, 8)}
             </span>
 
             {conv && (

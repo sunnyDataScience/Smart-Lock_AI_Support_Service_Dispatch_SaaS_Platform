@@ -1018,6 +1018,7 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
   }, [actionToast]);
 
   const shortId = id.slice(0, 8);
+  const displayId = order?.document_number ?? shortId;
   const statusGroup = order ? STATUS_GROUP_MAP[order.status] : null;
   const statusTone = statusGroup ? STATUS_GROUP_TONE[statusGroup] : null;
   const urgencyTone = order ? URGENCY_TONE[order.urgency] : null;
@@ -1058,7 +1059,7 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
           {/* Detail Header */}
           <div className="flex flex-col gap-4 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-5">
             <span className="text-[11px] text-[var(--text-secondary)]">
-              {tHeader("breadcrumb", { shortId })}
+              {tHeader("breadcrumb", { shortId: displayId })}
             </span>
             <div className="flex items-center gap-3">
               <Link
@@ -1068,7 +1069,7 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
                 <ChevronLeft className="h-5 w-5 text-[var(--text-secondary)]" />
               </Link>
               <span className="font-mono text-[28px] font-bold text-[var(--text-primary)]" title={id}>
-                {shortId}
+                {displayId}
               </span>
               {statusTone && statusGroup && (
                 <span

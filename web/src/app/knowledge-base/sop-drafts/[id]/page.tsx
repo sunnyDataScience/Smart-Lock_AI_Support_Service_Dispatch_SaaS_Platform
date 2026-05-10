@@ -180,6 +180,14 @@ export default function SopReviewPage({
             <h1 className="text-xl font-bold text-[var(--text-primary)]">
               {loading ? tR("loading") : (draft?.title ?? "—")}
             </h1>
+            {draft && (
+              <span
+                className="font-mono text-[12px] font-medium text-[var(--text-secondary)]"
+                title={draft.id}
+              >
+                {draft.document_number ?? draft.id.slice(0, 8)}
+              </span>
+            )}
             {statusInfo && (
               <span
                 className="rounded-full px-3 py-1 text-xs font-semibold"

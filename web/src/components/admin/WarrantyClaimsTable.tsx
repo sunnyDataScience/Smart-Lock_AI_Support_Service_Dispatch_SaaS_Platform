@@ -131,8 +131,11 @@ export default function WarrantyClaimsTable({
             }`}
           >
             <div className="flex w-[110px] shrink-0 items-center px-3">
-              <span className="font-mono text-xs font-medium text-[var(--text-primary)]">
-                {row.id.slice(0, 8)}
+              <span
+                className="font-mono text-xs font-medium text-[var(--text-primary)]"
+                title={row.id}
+              >
+                {row.document_number ?? row.id.slice(0, 8)}
               </span>
             </div>
 
