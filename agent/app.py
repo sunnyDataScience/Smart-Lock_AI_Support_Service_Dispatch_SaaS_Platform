@@ -193,6 +193,7 @@ async def startup():
         audit_storage=audit_storage,
         opik_tracer=opik_tracer,
         system_prompt_getter=get_system_prompt,
+        conversation_id_getter=get_cached_conversation_id,
     )
 
     # 初始化 multimodal (H2)
@@ -400,6 +401,20 @@ async def _ensure_conversation_record(
     except Exception:  # noqa: BLE001 — fail-soft on bridge failure
         logger.exception("F-001 ensure_conversation_record failed (non-fatal)")
 
+    return None
+
+
+def get_cached_conversation_id(line_user_id: str) -> str | None:
+    """Public read-only accessor for ``_CONVERSATION_CACHE`` (used by harness).
+
+    Cache 由 ``_ensure_conversation_record`` 在每筆 webhook 進來時 prime；本函式
+    僅查表，不會主動建 conversation。Returns None on cache miss / expired.
+    """
+    import time
+
+    cached = _CONVERSATION_CACHE.get(line_user_id)
+    if cached and cached[1] > time.time():
+        return cached[0]
     return None
 
 

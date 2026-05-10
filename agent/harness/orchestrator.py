@@ -46,7 +46,9 @@ from core.logging_config import get_logger
 import harness.agent_audit as agent_audit
 import harness.checkpoint_cleanup as checkpoint_cleanup
 import harness.data_correction as data_correction
+import harness.intent_handler as intent_handler
 import harness.memory_manager as memory_manager
+import harness.pc_creator as pc_creator
 import harness.profile_updater as profile_updater
 import harness.safety_gate as safety_gate
 import harness.skills_prefix as skills_prefix
@@ -74,6 +76,11 @@ _pending_store: PendingStore = _default_pending_store
 # import. Returns the current system prompt string for debug rendering.
 _get_system_prompt = lambda: ""  # noqa: E731 — sentinel that init() may overwrite
 
+# F-001 — getter callable injected by app.py for ``_CONVERSATION_CACHE`` lookup
+# (avoids harness→agent reverse import). Returns conversation_id (UUID str) or
+# None if cache miss / expired. Used by H_PC layer to FK problem_card → conv.
+_get_conversation_id = lambda _user_id: None  # noqa: E731 — sentinel
+
 
 def init(
     agent: Any,
@@ -84,11 +91,13 @@ def init(
     audit_storage: Any = None,
     opik_tracer: Any = None,
     system_prompt_getter: Any = None,
+    conversation_id_getter: Any = None,
     pending_store: PendingStore | None = None,
 ) -> None:
     """Inject runtime dependencies. Called once at app startup."""
     global _agent, _config, _templates, _profile_mgr, _audit_storage
-    global _opik_tracer, _get_system_prompt, _pending_store
+    global _opik_tracer, _get_system_prompt, _get_conversation_id
+    global _pending_store
     _agent = agent
     _config = config
     _templates = templates
@@ -97,6 +106,8 @@ def init(
     _opik_tracer = opik_tracer
     if system_prompt_getter is not None:
         _get_system_prompt = system_prompt_getter
+    if conversation_id_getter is not None:
+        _get_conversation_id = conversation_id_getter
     if pending_store is not None:
         _pending_store = pending_store
 
@@ -358,6 +369,23 @@ async def agent_and_reply(
         if result.intercepted:
             return
 
+    # 4.5. H_INTENT — F-014/F-015 LINE 自助路徑 short-circuit
+    #
+    # ADR-009 §8 D1 dual-trigger (a) path：detect refund/warranty intent，命中
+    # 即 reply 申請受理確認、跳過 agent，避免 AI 同時給技術建議稀釋客戶意圖。
+    # V1.0 不直接 create_refund/warranty（缺 work_order_id / customer_id 等
+    # required field）；audit log 留 trace，CS 在 admin 用 dual-trigger (b)
+    # path 代開。詳見 ``harness/intent_handler.py`` module docstring。
+    intent_reply = await intent_handler.try_handle_intent(
+        user_id=user_id, text=text_for_audit, audit_storage=_audit_storage,
+    )
+    if intent_reply is not None:
+        await agent_audit.log_outbound_message(
+            audit_storage=_audit_storage, user_id=user_id, ai_response=intent_reply,
+        )
+        await line_bot.send_response(user_id, reply_token, intent_reply)
+        return
+
     # 5. agent invocation
     ai_response = await run_agent(user_id, content, buffer_items=buffer_items)
     print(
@@ -372,6 +400,17 @@ async def agent_and_reply(
 
     # 7. profile updater (background)
     asyncio.create_task(profile_updater.extract_and_update(user_id, text_for_audit, ai_response))
+
+    # 7.5. H_PC — F-001 problem_card auto-trigger (background, fire-and-forget)
+    #
+    # ADR-009 §8 D pattern：facts 含 brand 且 user 訊息夠長 → 寫一筆 PC 進
+    # admin tables，閉環 conversation → PC → work_order。idempotency by
+    # ``{conversation_id}:F-001-pc`` + admin 端業務 unique key (conv, brand,
+    # model)，重複呼叫安全。conv_id 從 ``_CONVERSATION_CACHE`` (app.py)
+    # 透過注入 getter 拿；profile_mgr.load_facts 拿最新 brand/model（前一
+    # 行 profile_updater 是同步起 task 不會 race，因 facts 由
+    # ``update_user_info`` 工具早在 agent invoke 階段就寫入）。
+    asyncio.create_task(_maybe_trigger_problem_card(user_id, text_for_audit))
 
     # 8. outbound audit
     await agent_audit.log_outbound_message(
@@ -434,6 +473,31 @@ async def _validate_and_maybe_regenerate(
     )
 
     return ai_response
+
+
+async def _maybe_trigger_problem_card(user_id: str, last_user_text: str) -> None:
+    """H_PC layer：load facts + lookup conv_id → call pc_creator.
+
+    Helper extracted so the call-site in :func:`agent_and_reply` is a single
+    ``asyncio.create_task`` and the orchestrator stays a thin coordinator
+    (CLAUDE.md "harness-tier 是 thin coordinator" 約束).
+    """
+    try:
+        conv_id = _get_conversation_id(user_id)
+        facts: dict = {}
+        if _profile_mgr and getattr(_profile_mgr, "facts_enabled", False):
+            facts = await _profile_mgr.load_facts(user_id)
+        await pc_creator.maybe_create_problem_card(
+            user_id=user_id,
+            conversation_id=conv_id,
+            facts=facts,
+            last_user_text=last_user_text,
+        )
+    except Exception:  # noqa: BLE001 — fail-soft: PC trigger 絕不阻塞回覆
+        log.warning(
+            "H_PC unexpected error",
+            user_id=user_id, exc_info=True,
+        )
 
 
 __all__ = [

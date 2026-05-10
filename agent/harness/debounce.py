@@ -62,6 +62,7 @@ def init(
     audit_storage=None,
     opik_tracer=None,
     system_prompt_getter=None,
+    conversation_id_getter=None,
 ):
     """Inject runtime dependencies. Called once at app startup.
 
@@ -76,6 +77,7 @@ def init(
         audit_storage=audit_storage,
         opik_tracer=opik_tracer,
         system_prompt_getter=system_prompt_getter,
+        conversation_id_getter=conversation_id_getter,
     )
 
 
