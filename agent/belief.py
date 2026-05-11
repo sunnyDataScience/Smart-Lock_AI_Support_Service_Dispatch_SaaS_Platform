@@ -41,11 +41,18 @@ OwnershipStatus = Literal[
 
 @dataclass
 class Hypothesis:
-    """單一假設。description 自然語言，confidence 為 0-1 連續值。"""
+    """單一假設。description 自然語言，confidence 為 0-1 連續值。
+
+    likely_misframe 為 v2 schema 新增（業主強調的能力差距）：客戶用的字眼
+    可能跟我們的領域詞不一致（「卡卡的」可能是門五金、鎖芯、app 三種誤判），
+    LLM 在 Hypothesize 階段標出**這個 hypothesis 最可能誤解客戶哪件事**。
+    None 代表 LLM 沒識別出 misframe（如「AS850 加卡步驟」這類明確訊息）。
+    """
     description: str
     confidence: float
     primary_intent: PrimaryIntent
     ownership_status: OwnershipStatus
+    likely_misframe: str | None = None
 
     def __post_init__(self) -> None:
         if not 0.0 <= self.confidence <= 1.0:

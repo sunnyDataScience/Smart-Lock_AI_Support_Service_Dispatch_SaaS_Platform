@@ -44,12 +44,16 @@ def render_belief_hint(belief: BeliefState, decision: ActionDecision) -> str:
         f"- 主要意圖：{top.primary_intent}",
         f"- 擁有狀態：{top.ownership_status}",
     ]
+    if top.likely_misframe:
+        lines.append(f"- 可能誤解：{top.likely_misframe}")
 
     if len(belief.hypotheses) >= 2:
         runner = belief.hypotheses[1]
         lines.append(
             f"- 第二可能：{runner.description}（信心 {runner.confidence:.2f}）"
         )
+        if runner.likely_misframe:
+            lines.append(f"  - 第二可能誤解：{runner.likely_misframe}")
 
     lines.append(f"- 建議動作：{decision.action}")
 

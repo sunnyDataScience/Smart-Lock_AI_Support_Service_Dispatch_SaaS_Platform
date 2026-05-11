@@ -116,11 +116,15 @@ def parse_response(text: str, turn_id: int = 0) -> BeliefState:
     hyps: list[Hypothesis] = []
     for h in hyps_raw:
         try:
+            misframe = h.get("likely_misframe")
+            if misframe is not None:
+                misframe = str(misframe).strip() or None
             hyps.append(Hypothesis(
                 description=str(h["description"]).strip(),
                 confidence=float(h["confidence"]),
                 primary_intent=h["primary_intent"],
                 ownership_status=h["ownership_status"],
+                likely_misframe=misframe,
             ))
         except (KeyError, ValueError, TypeError) as e:
             raise ValueError(f"hypothesize: malformed hypothesis {h!r}: {e}") from e

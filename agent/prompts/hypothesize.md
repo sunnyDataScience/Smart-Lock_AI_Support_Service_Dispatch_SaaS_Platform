@@ -20,16 +20,25 @@
 {
   "hypotheses": [
     {
-      "description": "客戶在問 Dormakaba AS850 的加卡步驟",
-      "confidence": 0.85,
+      "description": "客戶卡卡的指的是門五金問題（喇叭鎖、把手鬆動）",
+      "confidence": 0.45,
       "primary_intent": "troubleshoot",
-      "ownership_status": "owned"
+      "ownership_status": "brand_only",
+      "likely_misframe": "客戶可能以為「卡卡的」一定是電子鎖故障，但其實常常是門五金鬆動或卡榫變形"
     },
     {
-      "description": "或想加指紋（同產品線常見後續需求）",
-      "confidence": 0.10,
+      "description": "客戶卡卡的指的是電子鎖鎖芯卡住",
+      "confidence": 0.35,
       "primary_intent": "troubleshoot",
-      "ownership_status": "owned"
+      "ownership_status": "brand_only",
+      "likely_misframe": null
+    },
+    {
+      "description": "客戶卡卡的指的是 app 操作卡頓",
+      "confidence": 0.20,
+      "primary_intent": "troubleshoot",
+      "ownership_status": "brand_only",
+      "likely_misframe": null
     }
   ]
 }
@@ -52,6 +61,11 @@
   - `brand_only` — 只有品牌
   - `considering` — 還沒買，在挑選
   - `unknown` — 完全沒提到
+- `likely_misframe`（**新；schema v2**，可省略；省略時填 `null`）：**這個 hypothesis 最可能誤解客戶哪件事**。客戶用的字眼可能跟我們的領域詞不一致：
+  - 「卡卡的」可能指門五金、鎖芯、app 卡頓 — 三種誤判要分別列為不同 hypothesis，並在最容易被忽略的那個填 misframe 提醒下游
+  - 「電子鎖壞了」可能指電池沒電、面板故障、機構故障 — 客戶可能把「沒電」也叫「壞了」
+  - 客戶訊息明確（「AS850 加卡步驟」「換電池」）→ 填 `null`，不要硬擠
+  - **規則**：只在「客戶用詞模糊或可能跨類別」時填，**寫出來能幫下游 LLM 想到客戶沒講出口的真實問題**才有價值
 
 ## 形成假設的原則
 
