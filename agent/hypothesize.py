@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Awaitable, Callable
 
 from belief import BeliefState, Hypothesis
+from calibrate import CalibrationSignal
 
 _PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "hypothesize.md"
 
@@ -30,6 +31,7 @@ class HypothesizeInput:
     prior_belief: BeliefState | None = None
     catalog_block: str = ""    # profiles.context.format_catalog_section() 的輸出
     user_facts_block: str = "" # [用戶資料] 區塊
+    calibration_signal: CalibrationSignal | None = None  # E3: prior 輪 Calibrate 輸出
 
 
 def _format_history(history: list[dict]) -> str:
@@ -54,6 +56,15 @@ def _load_template() -> str:
     return _PROMPT_PATH.read_text(encoding="utf-8")
 
 
+def _format_calibration_signal(sig: CalibrationSignal | None) -> str:
+    if sig is None:
+        return "null"
+    parts = [f"signal: {sig.signal}", f"reason: {sig.reason}"]
+    if sig.evidence_quote:
+        parts.append(f"evidence_quote: {sig.evidence_quote!r}")
+    return "\n".join(parts)
+
+
 def render_prompt(inp: HypothesizeInput) -> str:
     """把 inputs 接在 hypothesize.md template 後面，給 LLM。"""
     template = _load_template()
@@ -70,6 +81,9 @@ def render_prompt(inp: HypothesizeInput) -> str:
         "",
         "[既有 belief]",
         _format_prior_belief(inp.prior_belief),
+        "",
+        "[Calibrate Signal]",
+        _format_calibration_signal(inp.calibration_signal),
         "",
     ]
     if inp.catalog_block.strip():

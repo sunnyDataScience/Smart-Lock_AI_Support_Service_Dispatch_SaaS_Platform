@@ -76,11 +76,18 @@ def _select_probe_dimension(belief: BeliefState) -> str:
     return "symptom"
 
 
-def decide(belief: BeliefState) -> ActionDecision:
+def decide(
+    belief: BeliefState,
+    *,
+    calibration_signal: str | None = None,
+) -> ActionDecision:
     """根據 BeliefState 規則層判定下一步動作。
 
     Args:
         belief: 本輪 Hypothesize 階段輸出
+        calibration_signal: 上輪 Calibrate 輸出（CONFIRM/DENY/ADD/SHIFT/
+            IMPATIENT/NEUTRAL）；IMPATIENT 規則層強制 ESCALATE，不靠 LLM
+            自己判斷意圖
 
     Returns:
         ActionDecision — Execute 階段依此跑回應流程
@@ -92,6 +99,15 @@ def decide(belief: BeliefState) -> ActionDecision:
             reason="no hypothesis produced — ask open-ended",
             target_hypothesis=None,
             probe_dimension="intent",
+        )
+
+    # 規則 0：客戶不耐煩 → 強制 ESCALATE（防線：LLM 沒把 intent 改 dispatch
+    # 也要切過去，避免「機器人答非所問」累積成奧客）
+    if calibration_signal == "IMPATIENT":
+        return ActionDecision(
+            action="ESCALATE",
+            reason="calibrate signal=IMPATIENT → 規則層強制轉真人",
+            target_hypothesis=top,
         )
 
     # 規則 1：強制 ESCALATE 意圖（不看 confidence）

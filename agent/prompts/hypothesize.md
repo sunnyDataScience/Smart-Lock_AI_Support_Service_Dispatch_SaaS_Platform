@@ -11,6 +11,7 @@
 - `[本輪客戶訊息]` — 客戶剛說的話
 - `[對話歷史]` — 之前幾輪的雙方訊息（最近 3 輪）
 - `[既有 belief]` — 上一輪結束時的 belief，若是第 0 輪則為 `null`
+- `[Calibrate Signal]` — Calibrate 階段對「客戶本輪是否確認/否認/換話題」的分類（六種：CONFIRM / DENY / ADD / SHIFT / IMPATIENT / NEUTRAL），若是第 0 輪則為 `null`
 - `[可用產品資料]` — 知識庫 catalog（mega-doc 清單）
 - `[用戶資料]` — 已知品牌/型號/電話/地址（可能空）
 
@@ -74,6 +75,13 @@
 3. **likely_misframe 警覺**：客戶用的詞可能跟我們的領域詞不一致（「卡卡的」可能是門五金、可能是鎖芯、可能是 app）。把不同 misframe 列為不同 hypothesis
 4. **首輪訊息不要硬猜**：「你好」「請問」這類純寒暄，給單一 hypothesis `small_talk` 高 confidence，不用列其他
 5. **不要編造事實**：confidence 反映你看到的證據強度，不是希望它是哪一個。看不出來就降低
+6. **依 Calibrate Signal 修正方向**（若有）：
+   - `DENY` → 上輪 top hypothesis 是錯的，**新 belief 不應再走同方向**；若客戶在 evidence_quote 給了正確方向，新 top 反映該方向
+   - `CONFIRM` → 上輪 top 是對的，**新 belief 深化同方向細節**（confidence 可拉高）
+   - `ADD` → 客戶補充資訊，**保留同主題並把新細節納入 description**
+   - `SHIFT` → 客戶換話題，**完全 reset hypothesis**，不繼承上輪
+   - `IMPATIENT` → 客戶不耐煩，**新 belief top 應傾向 dispatch_request 或 quote_request**（觸發規則層 ESCALATE）；不要再追問
+   - `NEUTRAL` → 照常 Hypothesize，不必特別處理 signal
 
 ## 不要做的事
 
