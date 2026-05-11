@@ -1,16 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import ConversationsTable from "@/components/conversations/ConversationsTable";
-import { ApiError, api } from "@/lib/api";
+import { ApiError } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
 
 type Conversation = components["schemas"]["Conversation"];
-type ConversationPage = components["schemas"]["ConversationPage"];
 type ConversationStatus = components["schemas"]["ConversationStatus"];
 type StatusFilter = "" | ConversationStatus;
+
+function formatConversationError(e: unknown): string {
+  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
+  if (e instanceof Error) return e.message;
+  return String(e);
+}
 
 // Stable tab keys; labels resolved per-render via i18n
 const TAB_DEFS: { value: StatusFilter; key: string }[] = [
@@ -29,44 +35,15 @@ export default function ConversationsPage() {
     () => TAB_DEFS.map((d) => ({ value: d.value, label: tTabs(d.key) })),
     [tTabs],
   );
-  const [items, setItems] = useState<Conversation[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("");
 
-  const fetchPage = useCallback(
-    async (afterCursor: string | null, append: boolean, filter: StatusFilter) => {
-      setLoading(true);
-      setError(null);
-      try {
-        const query: Record<string, string | number> = { limit: PAGE_SIZE };
-        if (afterCursor) query.cursor = afterCursor;
-        if (filter) query.status = filter;
-        const res = await api.get<ConversationPage>("/api/v1/conversations", { query });
-        const newItems = res.items ?? [];
-        setItems((prev) => (append ? [...prev, ...newItems] : newItems));
-        setCursor(res.next_cursor ?? null);
-        setHasMore(!!res.has_more);
-      } catch (e) {
-        setError(
-          e instanceof ApiError
-            ? `${e.errorCode} (${e.status})：${e.message}`
-            : e instanceof Error
-              ? e.message
-              : String(e),
-        );
-      } finally {
-        setLoading(false);
-      }
-    },
-    [],
-  );
-
-  useEffect(() => {
-    fetchPage(null, false, statusFilter);
-  }, [fetchPage, statusFilter]);
+  const { items, hasMore, loading, error, loadMore } = usePaginatedFetch<Conversation>({
+    path: "/api/v1/conversations",
+    pageSize: PAGE_SIZE,
+    query: statusFilter ? { status: statusFilter } : undefined,
+    queryKey: `status=${statusFilter}`,
+    formatError: formatConversationError,
+  });
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -124,7 +101,7 @@ export default function ConversationsPage() {
             <div className="mt-4 flex justify-center">
               <button
                 disabled={loading}
-                onClick={() => fetchPage(cursor, true, statusFilter)}
+                onClick={loadMore}
                 className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-6 py-2 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
               >
                 {loading ? t("loadingMore") : t("loadMore")}

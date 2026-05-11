@@ -44,6 +44,11 @@ export interface UsePaginatedFetchOptions {
   pageSize?: number;
   /** 額外 query params（不含 limit / cursor — hook 自動加） */
   query?: Record<string, string | number | boolean | undefined>;
+  /**
+   * 觸發重新載入的 key（query 變動時請改本字串，hook 會偵測並 refresh）。
+   * 範例：`queryKey={`status=${filter}`}`。缺省時只在 mount 載入一次。
+   */
+  queryKey?: string;
   /** 是否啟用 fetch（false 時不發 request，用於條件式載入），預設 true */
   enabled?: boolean;
   /**
@@ -90,6 +95,7 @@ export function usePaginatedFetch<T>(
     path,
     pageSize = DEFAULT_PAGE_SIZE,
     query,
+    queryKey,
     enabled = true,
     formatError = toUserMessage,
   } = opts;
@@ -144,12 +150,13 @@ export function usePaginatedFetch<T>(
     await fetchPage(null, false);
   }, [fetchPage]);
 
-  // 首次 + path/pageSize/enabled 變動時觸發
+  // 首次 + path / pageSize / enabled / queryKey 變動時觸發（reset to first page）
   useEffect(() => {
     if (enabled) {
       fetchPage(null, false);
     }
-  }, [fetchPage, enabled]);
+    // queryKey 是顯式觸發 refetch 的 dependency；query object 本身不放入避免無謂 re-fetch
+  }, [fetchPage, enabled, queryKey]);
 
   return { items, cursor, hasMore, loading, error, loadMore, refresh };
 }
