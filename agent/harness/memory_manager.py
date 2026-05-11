@@ -8,8 +8,9 @@
 
 由 debounce.run_agent() 在 ainvoke 前呼叫。
 """
-
 from __future__ import annotations
+
+PHASE: str = "H5"  # per harness/__init__.py PIPELINE inventory (ADR-0024 §3 S2)
 
 import time
 

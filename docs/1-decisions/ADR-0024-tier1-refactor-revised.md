@@ -244,6 +244,37 @@ ADR-0023 於 2026-05-11 PR #62 merge 後 30 分鐘進入 Phase 1.1 hands-on 階�
 
 - **ADR-0025** — 預留給 Phase 4' harness PIPELINE 切換時的決策記錄（原 ADR-0023 預留 ADR-0024，因本 ADR 占用 0024，下移）
 
+## §9 Phase 4' 實作修正紀錄
+
+> 2026-05-11 — Phase 4' hands-on 進入 orchestrator.py 後發現本 ADR §3 S2 的「PIPELINE 清單常數 + for layer in PIPELINE: await layer.apply(ctx) + 各 sibling module 補 apply(ctx) 介面」處方**部分不適用**。
+
+### 發現
+
+`agent_and_reply()` 是 **branching pipeline**：
+- 4 個 stage 有 early return (short-circuit)
+- 3 個 stage 是 fire-and-forget background
+- 各 layer signature 非統一（不同參數組合）
+
+統一 `apply(ctx)` 介面意味著 12+ 欄位 ctx god-object，將原本 explicit short-circuit 改為 implicit flag → 可讀性下降。
+
+### 縮減版實作（與本 §3 S2 原處方差異）
+
+| 項目 | §3 S2 原處方 | 實作 |
+|---|---|---|
+| `harness/__init__.py` | `PIPELINE = [layer1, ...]` + 各 layer 為 module 物件 | `PIPELINE: tuple[PipelineEntry, ...]` 結構化常數（phase_id, module, description, lifecycle, blocking）作為 doc/introspection |
+| 各 sibling module | 補 `async def apply(ctx)` 介面 | 補 `PHASE: str = "..."` 模組層級常數（9 個 layer module） |
+| `orchestrator.agent_and_reply()` | 改 `for layer in PIPELINE: await layer.apply(ctx)` | **不變更**（保留既有 branching control flow） |
+| staging | 1 週 | **不需要**（零 runtime 變更） |
+
+### 決策記錄
+
+詳見 [ADR-0025](./ADR-0025-harness-branching-pipeline.md) — 「Harness 採 branching pipeline，PIPELINE list 為 introspection-only」。
+
+ADR-0025 拍板的核心理由：
+1. **承認 hands-on 發現** — 本 §3 S2 的線性 pipeline 假設基於對 agent_and_reply control flow 的誤判
+2. **保留 explicit control flow** — Linus 「good taste」精神：explicit 優於 implicit
+3. **doc/introspection 已解 80% 訴求** — 不需 ctx god-object 即可達成「新增 layer 路徑可預測」目標
+
 ---
 
 | 日期 | 審核人 | 備註 |

@@ -4,6 +4,7 @@
 dangerous_keywords，命中時直接回傳拒絕訊息，跳過 LLM 處理。
 """
 
+PHASE: str = "H6"  # per harness/__init__.py PIPELINE inventory (ADR-0024 §3 S2)
 import re
 
 from core.logging_config import get_logger

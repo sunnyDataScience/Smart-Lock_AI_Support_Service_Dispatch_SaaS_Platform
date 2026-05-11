@@ -28,8 +28,9 @@ modules (``buffer``, ``line_ui_factory``) and ``core``, but must not import
 ``agent`` (top-level orchestration) — that direction would re-introduce
 the cycle that ADR ``agent-layering-rules.md`` v1.0 just removed.
 """
-
 from __future__ import annotations
+
+PHASE: str = "H_QR"  # per harness/__init__.py PIPELINE inventory (ADR-0024 §3 S2)
 
 import time
 from dataclasses import dataclass

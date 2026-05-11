@@ -4,6 +4,7 @@
 對話 checkpoint 不受影響，使用者可繼續正常對話。
 """
 
+PHASE: str = "H_DC"  # per harness/__init__.py PIPELINE inventory (ADR-0024 §3 S2)
 import os
 import json
 

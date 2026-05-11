@@ -27,8 +27,9 @@ V1.1 升級：
 
 Layering: harness-tier，可 import harness / core，不可 import agent。
 """
-
 from __future__ import annotations
+
+PHASE: str = "H_INTENT"  # per harness/__init__.py PIPELINE inventory (ADR-0024 §3 S2)
 
 import logging
 
