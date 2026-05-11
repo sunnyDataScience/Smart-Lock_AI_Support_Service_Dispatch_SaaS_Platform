@@ -433,8 +433,73 @@ def keyword_score(tc: TestCase, answer: str) -> tuple[int, int]:
 # 主流程
 # ─────────────────────────────────────────────
 
-async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judge: bool = True) -> dict:
-    """執行單一測試並評分。"""
+
+async def _try_synthetic_turn_cycle(
+    turn_cycle_model,
+    tc: TestCase,
+    brand: str | None,
+    model_name: str | None,
+) -> tuple[str, str | None]:
+    """合成單輪 Hypothesize + Decide，回傳 (hint_string, action_type)。
+
+    quality_check 不走 orchestrator/agent_and_reply，所以 [turn_cycle].enabled
+    對它無效。要量化 turn_cycle 影響必須在這層自己跑 Hypothesize + Decide。
+    沒有 prior belief（每個 test 都是 fresh thread），沒有 DB 寫入。
+
+    Fail-open：任何例外都回 ("", None) 退回原始流程。
+    """
+    try:
+        from harness.turn_cycle_runner import wrap_langchain_llm
+        from hypothesize import HypothesizeInput, hypothesize
+        from policy import decide
+        from harness.belief_hint import render_belief_hint
+    except ImportError as e:
+        print(f"\n       [turn_cycle skip] import failed: {e}", end="")
+        return "", None
+
+    facts: dict[str, str] = {}
+    if brand:
+        facts["device_brand"] = brand
+    if model_name:
+        facts["device_model"] = model_name
+
+    user_facts_block = ""
+    if facts:
+        lines = ["[用戶資料]"]
+        for k, v in facts.items():
+            lines.append(f"- {k}：{v}")
+        user_facts_block = "\n".join(lines)
+
+    try:
+        llm = wrap_langchain_llm(turn_cycle_model)
+        inp = HypothesizeInput(
+            user_message=tc.question,
+            history=[],
+            prior_belief=None,
+            catalog_block="",
+            user_facts_block=user_facts_block,
+        )
+        belief = await hypothesize(inp, llm, turn_id=0)
+        decision = decide(belief)
+        return render_belief_hint(belief, decision), decision.action
+    except Exception as e:  # noqa: BLE001 — fail-open
+        print(f"\n       [turn_cycle fail] {type(e).__name__}: {e}", end="")
+        return "", None
+
+
+async def run_single(
+    agent, judge_model, tc: TestCase, config: dict,
+    *,
+    use_judge: bool = True,
+    turn_cycle_model=None,
+) -> dict:
+    """執行單一測試並評分。
+
+    Args:
+        turn_cycle_model: 若非 None，跑 synthetic Hypothesize+Decide 把
+            [Belief Hint] 注入 prompt prefix（讓 quality_check 量化 turn_cycle
+            影響；旗標關時為 None，行為與舊版完全一致）
+    """
     t0 = time.time()
 
     # 組裝訊息：注入 [可用技能] 模擬 debounce.run_agent() 的 4 條路徑行為
@@ -513,15 +578,26 @@ async def run_single(agent, judge_model, tc: TestCase, config: dict, *, use_judg
         profile_lines.append(f"[Verified Fact] device_brand: {brand}")
     if model:
         profile_lines.append(f"[Verified Fact] device_model: {model}")
+
+    # turn_cycle 旗標開：跑 synthetic Hypothesize+Decide 拿 belief_hint
+    belief_hint = ""
+    turn_cycle_action: str | None = None
+    if turn_cycle_model is not None:
+        belief_hint, turn_cycle_action = await _try_synthetic_turn_cycle(
+            turn_cycle_model, tc, brand, model,
+        )
+
     if profile_lines:
         content = (
             f"{skills_prefix}"
             f"[用戶資料]\n" + "\n".join(profile_lines) + "\n\n"
+            f"{belief_hint}"
             f"[用戶訊息]\n{tc.question}"
         )
     else:
         content = (
             f"{skills_prefix}"
+            f"{belief_hint}"
             f"[用戶訊息]\n{tc.question}"
         )
 
@@ -631,6 +707,12 @@ def _parse_args():
     p.add_argument("--no-judge", action="store_true", help="跳過 LLM-as-Judge，只用關鍵詞評分")
     p.add_argument("--judge-only", action="store_true", help="不呼叫 agent，用現有 JSON 重新跑 LLM 評分")
     p.add_argument("--retry-failed", action="store_true", help="只重測上次非 pass 的案例，更新報告")
+    p.add_argument(
+        "--turn-cycle",
+        action="store_true",
+        help="開 Belief-Augmented ReAct：每筆 test 先跑 Hypothesize + Decide，把 [Belief Hint] "
+             "注入 prompt 前綴，量化 turn_cycle 對通過率的影響",
+    )
     return p.parse_args()
 
 
@@ -733,9 +815,11 @@ async def main():
             judge_model = ChatLiteLLM(model="vertex_ai/gemini-2.5-flash", temperature=0.0)
 
         agent = build_agent(model, cfg, checkpointer=MemorySaver())
+        turn_cycle_model = model if args.turn_cycle else None
 
         print("=" * 60)
-        print(f"  Quality Check — Retry Failed ({len(retry_cases)} cases)")
+        mode_suffix = "  + Turn Cycle" if args.turn_cycle else ""
+        print(f"  Quality Check — Retry Failed{mode_suffix} ({len(retry_cases)} cases)")
         print("=" * 60)
 
         for i, tc in enumerate(retry_cases):
@@ -745,7 +829,10 @@ async def main():
             print(f"\n[{i+1:02d}/{len(retry_cases)}] {tc.id} (was {prev_verdict}) | {tc.question[:40]}...", end=" ", flush=True)
 
             try:
-                r = await run_single(agent, judge_model, tc, config, use_judge=use_judge)
+                r = await run_single(
+                    agent, judge_model, tc, config,
+                    use_judge=use_judge, turn_cycle_model=turn_cycle_model,
+                )
             except (RuntimeError, ValueError, TimeoutError, ConnectionError, AttributeError) as e:
                 r = {
                     "id": tc.id, "category": tc.category, "question": tc.question,
@@ -810,8 +897,13 @@ async def main():
 
     agent = build_agent(model, cfg, checkpointer=MemorySaver())
 
+    # --turn-cycle：跑 synthetic Hypothesize+Decide 量化 belief-augmented ReAct
+    # 影響。共用主模型（同 Vertex 配額），fail-open 不影響 baseline 跑得起來。
+    turn_cycle_model = model if args.turn_cycle else None
+
+    mode_suffix = "  + Turn Cycle" if args.turn_cycle else ""
     print("=" * 60)
-    print(f"  Quality Check — {mode_label} ({len(TEST_CASES)} cases)")
+    print(f"  Quality Check — {mode_label}{mode_suffix} ({len(TEST_CASES)} cases)")
     print("=" * 60)
 
     results = []
@@ -827,7 +919,10 @@ async def main():
         r = None
         for attempt in range(4):
             try:
-                r = await run_single(agent, judge_model, tc, config, use_judge=use_judge)
+                r = await run_single(
+                    agent, judge_model, tc, config,
+                    use_judge=use_judge, turn_cycle_model=turn_cycle_model,
+                )
                 break
             except (RuntimeError, ValueError, TimeoutError, ConnectionError) as e:
                 msg = str(e)
