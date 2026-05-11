@@ -1,17 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Check, ChevronDown, ChevronRight, Copy, Download } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { AuditExportModal } from "@/components/admin/AuditExportModal";
-import { ApiError, api } from "@/lib/api";
+import { ApiError } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
 
 type AuditLogEntry = components["schemas"]["AuditLogEntry"];
-type AuditLogPage = components["schemas"]["AuditLogPage"];
 type AuditLogType = components["schemas"]["AuditLogType"];
+
+function formatAuditError(e: unknown): string {
+  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
+  if (e instanceof Error) return e.message;
+  return String(e);
+}
 
 const LOG_TYPE_BADGE: Record<AuditLogType, { bg: string; text: string }> = {
   api_call: { bg: "#E0E7FF", text: "#4F46E5" },
@@ -129,11 +135,6 @@ export default function AuditEventsPage() {
   const t = useTranslations("admin.audit");
   const tc = useTranslations("admin.common");
   const formatActor = useFormatActor();
-  const [items, setItems] = useState<AuditLogEntry[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [logType, setLogType] = useState<AuditLogType | "">("");
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
@@ -149,37 +150,13 @@ export default function AuditEventsPage() {
     [t],
   );
 
-  const fetchPage = useCallback(
-    async (afterCursor: string | null, append: boolean, filter: AuditLogType | "") => {
-      setLoading(true);
-      setError(null);
-      try {
-        const query: Record<string, string | number> = { limit: PAGE_SIZE };
-        if (afterCursor) query.cursor = afterCursor;
-        if (filter) query.log_type = filter;
-        const res = await api.get<AuditLogPage>("/api/v1/audit-logs", { query });
-        const newItems = res.items ?? [];
-        setItems((prev) => (append ? [...prev, ...newItems] : newItems));
-        setCursor(res.next_cursor ?? null);
-        setHasMore(!!res.has_more);
-      } catch (e) {
-        setError(
-          e instanceof ApiError
-            ? `${e.errorCode} (${e.status})：${e.message}`
-            : e instanceof Error
-              ? e.message
-              : String(e),
-        );
-      } finally {
-        setLoading(false);
-      }
-    },
-    [],
-  );
-
-  useEffect(() => {
-    fetchPage(null, false, logType);
-  }, [fetchPage, logType]);
+  const { items, cursor, hasMore, loading, error, loadMore } = usePaginatedFetch<AuditLogEntry>({
+    path: "/api/v1/audit-logs",
+    pageSize: PAGE_SIZE,
+    query: logType ? { log_type: logType } : undefined,
+    queryKey: `logType=${logType}`,
+    formatError: formatAuditError,
+  });
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -326,7 +303,7 @@ export default function AuditEventsPage() {
             <div className="flex justify-center pt-2">
               <button
                 disabled={loading}
-                onClick={() => fetchPage(cursor, true, logType)}
+                onClick={loadMore}
                 className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-6 py-2 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
               >
                 {loading ? tc("loading") : tc("loadMore")}
