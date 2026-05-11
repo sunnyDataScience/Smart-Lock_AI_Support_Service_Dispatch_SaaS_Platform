@@ -70,12 +70,14 @@
 
 ## 形成假設的原則
 
-1. **覆蓋優先於精準**：當客戶訊息模糊時（如「卡卡的」、單詞「電子鎖」），列出 2-3 個 hypothesis 比給 1 個高 confidence 更好
-2. **看歷史不看單句**：「我也要加」如果在「上一輪我問了加卡」之後，意圖很清楚；單獨看會錯
-3. **likely_misframe 警覺**：客戶用的詞可能跟我們的領域詞不一致（「卡卡的」可能是門五金、可能是鎖芯、可能是 app）。把不同 misframe 列為不同 hypothesis
-4. **首輪訊息不要硬猜**：「你好」「請問」這類純寒暄，給單一 hypothesis `small_talk` 高 confidence，不用列其他
-5. **不要編造事實**：confidence 反映你看到的證據強度，不是希望它是哪一個。看不出來就降低
-6. **依 Calibrate Signal 修正方向**（若有）：
+1. **訊息明確 → 一個 hypothesis、高 confidence**：客戶訊息已含品牌/型號/具體操作詞（「AS701 改密碼」、「ML660 手冊連結」、「預約安裝流程」）→ 只列 1 個 hypothesis、confidence ≥ 0.85。**不要為了「覆蓋」硬擠次要假設拉低主信心**
+2. **多意圖訊息要拆**：客戶一句話含 2+ 個獨立問題（「改密碼？順便問週日營業嗎？」）→ 列 2-3 個 hypothesis 分別代表每個子意圖，每個 confidence 都偏高（≥ 0.7）— 因為每個子問題本身都明確
+3. **真正模糊才列多個 + 拉低 confidence**：客戶用詞跨領域（「卡卡的」、單詞「電子鎖」）or 缺關鍵資訊（沒品牌沒情境）→ 列 2-3 個 hypothesis、top confidence 0.4-0.6
+4. **看歷史不看單句**：「我也要加」如果在「上一輪我問了加卡」之後，意圖很清楚；單獨看會錯
+5. **likely_misframe 警覺**：客戶用的詞可能跟我們的領域詞不一致（「卡卡的」可能是門五金、可能是鎖芯、可能是 app）。把不同 misframe 列為不同 hypothesis
+6. **首輪訊息不要硬猜**：「你好」「請問」這類純寒暄，給單一 hypothesis `small_talk` 高 confidence，不用列其他
+7. **不要編造事實**：confidence 反映你看到的證據強度，不是希望它是哪一個。看不出來就降低
+8. **依 Calibrate Signal 修正方向**（若有）：
    - `DENY` → 上輪 top hypothesis 是錯的，**新 belief 不應再走同方向**；若客戶在 evidence_quote 給了正確方向，新 top 反映該方向
    - `CONFIRM` → 上輪 top 是對的，**新 belief 深化同方向細節**（confidence 可拉高）
    - `ADD` → 客戶補充資訊，**保留同主題並把新細節納入 description**

@@ -39,7 +39,13 @@ GAP_TO_COMMIT = 0.30
 
 
 # 規則層強制 ESCALATE 的 intent
-_ESCALATE_INTENTS = {"quote_request", "dispatch_request"}
+#
+# 設計：只把「客戶問的是 AI 沒辦法答的事」放進來。
+# - quote_request：金額相關，無 SOP 可走，必須真人
+# - dispatch_request 不在此列：客戶說「我想預約安裝」AI 應該先說流程
+#   + 要求門照 + 留聯絡方式，最後再 transfer_to_human 安排專員聯繫。
+#   一上來就 ESCALATE 反而讓客戶覺得被踢皮球。
+_ESCALATE_INTENTS = {"quote_request"}
 
 
 @dataclass
