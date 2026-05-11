@@ -29,11 +29,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 
-/** 後端標準分頁回應信封 */
+/** 後端標準分頁回應信封（對齊 OpenAPI `CursorPage` schema） */
 export interface PaginatedResponse<T> {
   items: T[];
   next_cursor?: string | null;
-  total?: number;
+  has_more?: boolean;
+  total_count?: number;
 }
 
 export interface UsePaginatedFetchOptions {
@@ -45,6 +46,11 @@ export interface UsePaginatedFetchOptions {
   query?: Record<string, string | number | boolean | undefined>;
   /** 是否啟用 fetch（false 時不發 request，用於條件式載入），預設 true */
   enabled?: boolean;
+  /**
+   * 客製錯誤訊息格式（譬如要顯示 errorCode + status）。
+   * 不指定時使用 `toUserMessage` — 取 `ApiError.message` 或 fallback 字串。
+   */
+  formatError?: (err: unknown) => string;
 }
 
 export interface UsePaginatedFetchResult<T> {
@@ -85,6 +91,7 @@ export function usePaginatedFetch<T>(
     pageSize = DEFAULT_PAGE_SIZE,
     query,
     enabled = true,
+    formatError = toUserMessage,
   } = opts;
 
   const [items, setItems] = useState<T[]>([]);
@@ -114,15 +121,16 @@ export function usePaginatedFetch<T>(
         setItems((prev) => (append ? [...prev, ...newItems] : newItems));
         const nextCursor = res.next_cursor ?? null;
         setCursor(nextCursor);
-        setHasMore(nextCursor !== null);
+        // 優先用後端權威旗標 has_more；缺欄位時 fallback 用 next_cursor 判斷
+        setHasMore(res.has_more ?? nextCursor !== null);
       } catch (err) {
-        setError(toUserMessage(err));
+        setError(formatError(err));
         // 失敗保留現有 items；hasMore 不變（讓 user 重試 loadMore 或 refresh）
       } finally {
         setLoading(false);
       }
     },
-    [path, pageSize, enabled],
+    [path, pageSize, enabled, formatError],
   );
 
   const loadMore = useCallback(async () => {
