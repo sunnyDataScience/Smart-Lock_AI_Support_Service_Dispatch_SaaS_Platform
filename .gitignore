@@ -75,6 +75,10 @@ cloud-sql-proxy
 # Playwright MCP local cache（瀏覽器自動化工具的本地暫存）
 .playwright-mcp/
 
+# Python 測試與 property-based 測試暫存（本地產物）
+.hypothesis/
+.pytest_cache/
+
 # Debug screenshots（根目錄除錯截圖，不入庫）
 /dashboard-*.png
 /work-orders-*.png
