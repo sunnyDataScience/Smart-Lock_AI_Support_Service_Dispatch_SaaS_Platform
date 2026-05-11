@@ -1,15 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Search, ChevronDown, Wrench, Plus } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import TechniciansTable from "@/components/technicians/TechniciansTable";
-import { ApiError, api } from "@/lib/api";
+import { ApiError } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
 
 type Technician = components["schemas"]["Technician"];
-type TechnicianPage = components["schemas"]["TechnicianPage"];
+
+function formatTechnicianError(e: unknown): string {
+  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
+  if (e instanceof Error) return e.message;
+  return String(e);
+}
 
 const PAGE_SIZE = 20;
 
@@ -34,39 +40,11 @@ export default function TechniciansPage() {
       })),
     [tFilters],
   );
-  const [items, setItems] = useState<Technician[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchPage = useCallback(async (afterCursor: string | null, append: boolean) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const query: Record<string, string | number> = { limit: PAGE_SIZE };
-      if (afterCursor) query.cursor = afterCursor;
-      const res = await api.get<TechnicianPage>("/api/v1/technicians", { query });
-      const newItems = res.items ?? [];
-      setItems((prev) => (append ? [...prev, ...newItems] : newItems));
-      setCursor(res.next_cursor ?? null);
-      setHasMore(!!res.has_more);
-    } catch (e) {
-      setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchPage(null, false);
-  }, [fetchPage]);
+  const { items, cursor, hasMore, loading, error, loadMore } = usePaginatedFetch<Technician>({
+    path: "/api/v1/technicians",
+    pageSize: PAGE_SIZE,
+    formatError: formatTechnicianError,
+  });
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -146,7 +124,7 @@ export default function TechniciansPage() {
             <div className="flex justify-center pb-6">
               <button
                 disabled={loading}
-                onClick={() => fetchPage(cursor, true)}
+                onClick={loadMore}
                 className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-6 py-2 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
               >
                 {loading ? t("loadingMore") : t("loadMore")}
