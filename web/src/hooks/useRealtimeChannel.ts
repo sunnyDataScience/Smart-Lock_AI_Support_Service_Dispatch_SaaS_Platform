@@ -5,7 +5,7 @@ import {
   RealtimeMessage,
   RealtimeStatus,
   subscribeRealtime,
-} from "./realtime";
+} from "@/lib/realtime";
 
 /**
  * 訂閱單一 realtime 頻道的 React hook。

@@ -7,7 +7,7 @@ import { ApiError, api, getCurrentSession } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 import { RolePermissionsEditor } from "@/components/admin/RolePermissionsEditor";
-import { useRealtimeChannel } from "@/lib/useRealtimeChannel";
+import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
 
 type Role = components["schemas"]["Role"];
 type RolePermission = components["schemas"]["RolePermission"];
