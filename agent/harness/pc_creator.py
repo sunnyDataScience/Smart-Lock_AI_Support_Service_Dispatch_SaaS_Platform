@@ -22,8 +22,9 @@ V2.0 升級空間（不在本 commit）：
 - category 由 keyword 推（V1 統一 "故障"）
 - 偵測「已解決」訊號避免關閉前的最後一句被當 PC 寫入
 """
-
 from __future__ import annotations
+
+PHASE: str = "H_PC"  # per harness/__init__.py PIPELINE inventory (ADR-0024 §3 S2)
 
 import logging
 

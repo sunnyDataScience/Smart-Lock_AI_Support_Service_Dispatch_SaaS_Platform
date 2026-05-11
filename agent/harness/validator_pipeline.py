@@ -22,8 +22,9 @@ would only add indirection.
 Layering: harness module. Imports ``output_validator`` (sibling) and core.
 Never agent-root.
 """
-
 from __future__ import annotations
+
+PHASE: str = "H7_5"  # per harness/__init__.py PIPELINE inventory (ADR-0024 §3 S2)
 
 from typing import Any, Awaitable, Callable
 

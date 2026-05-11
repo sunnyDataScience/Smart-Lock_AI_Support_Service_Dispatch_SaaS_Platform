@@ -17,8 +17,9 @@ on typed :class:`Block` instances (not legacy dict shape).
 Layering: harness module. Imports ``core.blocks`` (lower-tier) and
 ``llm_metrics`` (sibling). Never agent-root.
 """
-
 from __future__ import annotations
+
+PHASE: str = "H8"  # per harness/__init__.py PIPELINE inventory (ADR-0024 §3 S2)
 
 import json
 from typing import Any
