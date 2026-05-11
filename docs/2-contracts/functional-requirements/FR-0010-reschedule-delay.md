@@ -30,7 +30,23 @@ related:
 
 ## §3 Acceptance Criteria
 
-技師發起延遲 → 系統 LINE 推播消費者，含預計到場時間
+### §3.1 SLO（正常路徑）
+
+技師可發起 reschedule，客戶 LINE 確認新時段；延遲 > 2h 觸發 SLA soft alert (per FR-0016)。
+
+### §3.2 邊界案例
+
+- 客戶拒絕新時段 → 進入 dispatch_pending 重新派工
+- 同 WO 多次 reschedule → ≤ 3 次，第 4 次強制 admin 介入
+
+### §3.3 異常處理
+
+- 原排程 < 30 min 才 reschedule → 算技師失約 (penalty -5 weight)
+- 技師單方面取消無通知 → 自動 reassign + 客訴流程
+
+### §3.4 TC Coverage
+
+涵蓋之 TC（per `docs/2-contracts/test-cases/registry.yaml`）: IT-0062 (sla-monitor F-110 SLA breach), IT-0095 (digital signature for new time)
 
 ## §4 Trace
 

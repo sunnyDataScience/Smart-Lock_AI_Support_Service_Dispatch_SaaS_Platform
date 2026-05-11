@@ -30,7 +30,23 @@ related:
 
 ## §3 Acceptance Criteria
 
-技師到場必須上傳 ≥ 1 張照片，含 GPS metadata 與 timestamp
+### §3.1 SLO（正常路徑）
+
+技師現場拍照前後各 ≥ 3 張上傳 GCS，wo.photos JSONB 含完整 metadata。
+
+### §3.2 邊界案例
+
+- 10MB 邊界接受；10.1MB 拒絕 413
+- 非 JPG/PNG 拒絕並提示格式
+
+### §3.3 異常處理
+
+- GCS 上傳失敗 → 重試 3 次，仍失敗則保留 base64 於 local queue 待後續同步
+- 完工後 2 年照片自動 GCS lifecycle 刪除
+
+### §3.4 TC Coverage
+
+涵蓋之 TC（per `docs/2-contracts/test-cases/registry.yaml`）: IT-0123~0128 (vision-processing 6 cases), IT-0111~0116 (proactive-photo-guidance)
 
 ## §4 Trace
 

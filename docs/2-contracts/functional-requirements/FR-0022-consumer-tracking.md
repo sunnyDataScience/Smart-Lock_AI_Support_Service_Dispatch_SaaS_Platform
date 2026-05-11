@@ -30,7 +30,23 @@ related:
 
 ## §3 Acceptance Criteria
 
-消費者可在 LINE Rich Menu 查狀態；Web VIP 提供匿名 token 連結
+### §3.1 SLO（正常路徑）
+
+LINE 用戶「查工單」intent + Web HMAC token 雙軌共存 (Q3=C)；PII 自動遮罩。
+
+### §3.2 邊界案例
+
+- HMAC token 7 天 TTL；過期回 410
+- LINE user 未綁定 customer → 提示輸入手機號碼
+
+### §3.3 異常處理
+
+- Token 簽章被竄改 → 403 + audit tamper
+- 查無 wo → 不洩漏「存在但不可見」vs「不存在」差異
+
+### §3.4 TC Coverage
+
+涵蓋之 TC（per `docs/2-contracts/test-cases/registry.yaml`）: IT-0075~0080 (consumer-tracking 6 cases)
 
 ## §4 Trace
 

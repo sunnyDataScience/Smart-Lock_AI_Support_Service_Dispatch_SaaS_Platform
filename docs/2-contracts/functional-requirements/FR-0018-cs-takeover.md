@@ -30,7 +30,23 @@ related:
 
 ## §3 Acceptance Criteria
 
-AI confidence < 閾值 → 自動轉人工；客服可從後台介入回覆
+### §3.1 SLO（正常路徑）
+
+AI agent 偵測「找主管 / 投訴 / 退費」等關鍵詞 → 立即 transfer human + audit。
+
+### §3.2 邊界案例
+
+- 隱含不滿（無關鍵詞但語氣強烈）→ confidence ≥ 0.85 仍升級
+- 非營業時間升 L3 → 留言給 next-business-day admin
+
+### §3.3 異常處理
+
+- LINE Push 通知 admin 失敗 → audit 記錄 + retry queue
+- 客戶撤回投訴 → 對話續寫，但 audit 不刪
+
+### §3.4 TC Coverage
+
+涵蓋之 TC（per `docs/2-contracts/test-cases/registry.yaml`）: IT-0141~0146 (sentiment-triage-engine 6 cases), BDD-0036~0046 (Sentiment Triage)
 
 ## §4 Trace
 

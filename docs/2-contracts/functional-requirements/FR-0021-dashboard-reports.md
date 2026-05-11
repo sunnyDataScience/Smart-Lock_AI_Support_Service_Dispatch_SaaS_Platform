@@ -30,7 +30,23 @@ Dashboard / 報表（KPI / Revenue / Tech ranking）
 
 ## §3 Acceptance Criteria
 
-後台儀表板提供 KPI、營收、技師排行；filter 可按月/區域
+### §3.1 SLO（正常路徑）
+
+Dashboard 即時顯示 KPI（uptime, dispatch SLA, complaint rate），5s 內更新。
+
+### §3.2 邊界案例
+
+- Tier-1 uptime 99.5% 邊界視為達標
+- 報表查詢過去 1 年 → 分頁 + 快取（5 min stale OK）
+
+### §3.3 異常處理
+
+- 資料來源（DB）不可用 → 顯示 stale 但標時間戳
+- 前端 polling 失敗 → 重連 + degraded indicator
+
+### §3.4 TC Coverage
+
+涵蓋之 TC（per `docs/2-contracts/test-cases/registry.yaml`）: IT-0057~0062 (sla-monitor uptime 計算), IT-0086 (financial reports export)
 
 ## §4 Trace
 

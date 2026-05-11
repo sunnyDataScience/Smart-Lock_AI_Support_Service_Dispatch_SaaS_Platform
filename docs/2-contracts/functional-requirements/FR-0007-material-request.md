@@ -30,7 +30,23 @@ related:
 
 ## §3 Acceptance Criteria
 
-技師可從 App 申請材料，客服核可後庫存自動扣減
+### §3.1 SLO（正常路徑）
+
+材料請領單據實時扣庫存，跌破 reorder_point 自動通知 warehouse_admin。
+
+### §3.2 邊界案例
+
+- 庫存=1 請領 2 → 409 insufficient_inventory
+- 退料還原庫存 + 工單 net_consumption 正確
+
+### §3.3 異常處理
+
+- consume 缺 work_order_id → 422 field_required
+- 並發 5 個請領同 item → DB row lock 確保 quantity 正確
+
+### §3.4 TC Coverage
+
+涵蓋之 TC（per `docs/2-contracts/test-cases/registry.yaml`）: IT-0105~0110 (inventory 6 cases)
 
 ## §4 Trace
 

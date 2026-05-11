@@ -30,7 +30,23 @@ related:
 
 ## §3 Acceptance Criteria
 
-技師與消費者於 App / Web 簽名後 WO 進 completed
+### §3.1 SLO（正常路徑）
+
+完工照片上傳 + LINE Flex Message 客戶點擊「確認完工」即完成 e-signature。
+
+### §3.2 邊界案例
+
+- 客戶 48h 未確認 → 自動標記 confirmed (per V1.0 規則)，audit 標 auto-confirmed
+- 完工後再修改 → 拒絕，必須走 scope change 流程
+
+### §3.3 異常處理
+
+- 完工照不足 3 張 → 422 photo_count_insufficient
+- 簽章 signatures.signature_data 缺欄位 → 422 invalid_signature
+
+### §3.4 TC Coverage
+
+涵蓋之 TC（per `docs/2-contracts/test-cases/registry.yaml`）: IT-0093~0094 (e-signature WORK_ORDER_COMPLETION), IT-0123~0124 (vision before/after photos)
 
 ## §4 Trace
 

@@ -30,7 +30,23 @@ related:
 
 ## §3 Acceptance Criteria
 
-爭議案需 Manager + Director 雙簽，留 audit trail
+### §3.1 SLO（正常路徑）
+
+Disputes 進雙簽流程，CSM + operations_manager 共識才能 close。
+
+### §3.2 邊界案例
+
+- 60 天未解決 → 自動升 operations_director
+- 客戶撤銷 dispute → 標 closed_withdrawn
+
+### §3.3 異常處理
+
+- 單方 close 嘗試 → 409 dual_sign_required
+- 已 close 的 dispute 再 open → 必須新建 dispute_v2 引用前一個
+
+### §3.4 TC Coverage
+
+涵蓋之 TC（per `docs/2-contracts/test-cases/registry.yaml`）: IT-0052 (雙簽流程 250k), IT-0134 (warranty disputes 進入)
 
 ## §4 Trace
 

@@ -30,7 +30,23 @@ ProblemCard 智能分診
 
 ## §3 Acceptance Criteria
 
-AI 由對話內容自動產生 PC，分類 confidence ≥ 0.85
+### §3.1 SLO（正常路徑）
+
+ProblemCard 自動生成完整度 ≥ 0.85（合約 9.3 條），缺欄位觸發追問。
+
+### §3.2 邊界案例
+
+- 停產型號 → 降級至品牌層級 diagnostics + 標 escalate
+- 重複生成同 conversation_id → 回傳既有 card（冪等）
+
+### §3.3 異常處理
+
+- 空對話訊息列表 → 422 invalid_input
+- LLMGateway 5xx → fallback 最低門檻 (brand+symptoms) 後繼續
+
+### §3.4 TC Coverage
+
+涵蓋之 TC（per `docs/2-contracts/test-cases/registry.yaml`）: BDD-0007~0011 (ProblemCard 智慧分診), IT-0017~0022 (problem-card-engine), IT-0135~0140 (problem-card-review-engine)
 
 ## §4 Trace
 

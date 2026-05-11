@@ -30,7 +30,23 @@ related:
 
 ## §3 Acceptance Criteria
 
-退款規則可單測；金流回沖整合金流 provider
+### §3.1 SLO（正常路徑）
+
+退款 ≤ 100k 單簽 / > 100k 雙簽；7 種 audit event 完整保留。
+
+### §3.2 邊界案例
+
+- 100,000 邊界視為單簽；100,001 強制雙簽
+- Reject 後再 approve 嘗試 → 409 terminal_state
+
+### §3.3 異常處理
+
+- 缺 work_order_id 或 complaint_id (BR-REFUND-004) → 422
+- execute_refund LINE 通知失敗 → audit + retry queue，主流程不卡
+
+### §3.4 TC Coverage
+
+涵蓋之 TC（per `docs/2-contracts/test-cases/registry.yaml`）: IT-0051~0056 (refund-service 6 cases)
 
 ## §4 Trace
 

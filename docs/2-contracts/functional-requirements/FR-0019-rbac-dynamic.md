@@ -30,7 +30,23 @@ related:
 
 ## §3 Acceptance Criteria
 
-Admin 可建立 dispatcher / Director > Manager 階層；變更即時生效
+### §3.1 SLO（正常路徑）
+
+7 種 system role × 8 維權限矩陣動態可配置，super_admin 不受限。
+
+### §3.2 邊界案例
+
+- Tenant 邊界：跨 tenant 操作 → 403 tenant_boundary_violation
+- role 升級需更高 role 簽核（admin 不可升 super_admin）
+
+### §3.3 異常處理
+
+- Revoked token 嘗試呼叫 → 401 不洩漏 role/user_id
+- DB seed role 缺失 → 服務啟動 fail-fast
+
+### §3.4 TC Coverage
+
+涵蓋之 TC（per `docs/2-contracts/test-cases/registry.yaml`）: IT-0045~0050 (rbac 6 cases), IT-0140 (review tenant boundary)
 
 ## §4 Trace
 

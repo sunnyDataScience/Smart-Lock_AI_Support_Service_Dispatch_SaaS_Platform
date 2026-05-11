@@ -30,7 +30,23 @@ related:
 
 ## §3 Acceptance Criteria
 
-5xx / 離線狀態提供友善頁面與重試引導
+### §3.1 SLO（正常路徑）
+
+全 5xx error 顯示友善訊息 + retry 按鈕；offline 偵測切換離線頁。
+
+### §3.2 邊界案例
+
+- Network restore → 自動 retry pending requests
+- Backend degraded（部分服務 OK）→ 顯示「部分功能受限」
+
+### §3.3 異常處理
+
+- 錯誤訊息不可洩漏 stack trace 或內部路徑
+- 5xx 連續 3 次 → frontend circuit breaker 啟用
+
+### §3.4 TC Coverage
+
+涵蓋之 TC（per `docs/2-contracts/test-cases/registry.yaml`）: IT-0061 (degraded health check)
 
 ## §4 Trace
 

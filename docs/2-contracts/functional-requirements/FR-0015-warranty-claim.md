@@ -30,7 +30,23 @@ related:
 
 ## §3 Acceptance Criteria
 
-申訴 → 客服 receive → 技師複勘排程 ≤ 7d
+### §3.1 SLO（正常路徑）
+
+保固索賠以 handover_date 起算（非 purchase_date，per BR-WARRANTY-001）；AI 禁止自動報價（per BR-WARRANTY-002）。
+
+### §3.2 邊界案例
+
+- claim_date = warranty_end_date 視為仍在保固
+- 收據與建案資料庫衝突 → 採信建案資料庫 (BR-WARRANTY-004)
+
+### §3.3 異常處理
+
+- AI 嘗試自動報價保固 → safety_gate 攔截 + escalate CSM
+- denied 後消費者爭議 → 進 disputes 表，operations_manager 接手
+
+### §3.4 TC Coverage
+
+涵蓋之 TC（per `docs/2-contracts/test-cases/registry.yaml`）: IT-0129~0134 (warranty-claim 6 cases)
 
 ## §4 Trace
 

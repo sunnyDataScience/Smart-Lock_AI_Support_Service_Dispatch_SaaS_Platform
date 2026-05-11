@@ -30,7 +30,23 @@ related:
 
 ## §3 Acceptance Criteria
 
-推播後技師於 5min 內可在 App 接單，更新 WO 狀態為 en_route
+### §3.1 SLO（正常路徑）
+
+技師收到 LINE push 後可在 APP 內 accept/decline；accept 後 30 min 內 SLA 視為達標。
+
+### §3.2 邊界案例
+
+- 30 min 邊界：T+30:00 accept 視為達標；T+30:01 視為逾時
+- 技師同時 push 2 個 WO → 接單其中 1 個自動拒絕另一個
+
+### §3.3 異常處理
+
+- WO 已被 reassign 後技師才 accept → 409 already_reassigned
+- 技師 LINE 帳號未綁定 → fallback SMS push
+
+### §3.4 TC Coverage
+
+涵蓋之 TC（per `docs/2-contracts/test-cases/registry.yaml`）: IT-0043 (auto-reassign timeout), IT-0117~0122 (realtime-messaging chat)
 
 ## §4 Trace
 

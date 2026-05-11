@@ -30,7 +30,23 @@ related:
 
 ## §3 Acceptance Criteria
 
-月底批次計算技師應付款，銀行 API 整合於 T+3 完成入帳
+### §3.1 SLO（正常路徑）
+
+月結 cron 每月 1 日 02:00 跑齊，技師應收=收現金-公司應扣材料費，自動匯款。
+
+### §3.2 邊界案例
+
+- 材料費 > 收款金額 → 技師應付公司差額 (negative settlement)
+- 月結期間 disputes 未結 → 該 wo 不入當月結算
+
+### §3.3 異常處理
+
+- 匯款 API 失敗 3 次 → alert finance + 標 manual_payout
+- settlement 衝突（同 wo 雙重計算）→ DB unique constraint 拒絕
+
+### §3.4 TC Coverage
+
+涵蓋之 TC（per `docs/2-contracts/test-cases/registry.yaml`）: IT-0070 (financial_action 7-year retention), IT-0086 (financial export PDF)
 
 ## §4 Trace
 

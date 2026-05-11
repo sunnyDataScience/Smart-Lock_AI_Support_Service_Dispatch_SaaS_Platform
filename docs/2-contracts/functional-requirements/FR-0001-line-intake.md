@@ -30,7 +30,24 @@ LINE 客服報修受理（圖片 + 文字 + 對話）
 
 ## §3 Acceptance Criteria
 
-使用者透過 LINE 提交報修可在 < 5s 收到 AI 初判回覆
+### §3.1 SLO（正常路徑）
+
+使用者透過 LINE 提交報修，AI 初判回覆 P95 ≤ 5s (含意圖辨識 + ProblemCard 啟動)。圖片附件接受 JPG/PNG ≤ 10MB。
+
+### §3.2 邊界案例
+
+- LINE webhook 重送（X-Line-Signature 相同）→ 冪等處理，不重複建 Conversation
+- 圖片 = 10MB 邊界值仍接受；10.1MB 拒絕回 413
+- 對話 4 輪後仍 intent_confidence < 0.7 → 升 L3 (per dispatch-engine §1)
+
+### §3.3 異常處理
+
+- LINE webhook 簽章驗證失敗 → 401，不寫入任何 conversation
+- 下游 LLM timeout → 回覆「客服繁忙，稍候片刻」，不阻塞 webhook (FastAPI BackgroundTask)
+
+### §3.4 TC Coverage
+
+涵蓋之 TC（per `docs/2-contracts/test-cases/registry.yaml`）: BDD-0001~0011 (LINE Bot + ProblemCard 智慧分診), IT-0001~0008 (conversation-manager), IT-0017~0022 (problem-card-engine)
 
 ## §4 Trace
 
