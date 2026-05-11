@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -15,11 +15,17 @@ import {
 import Sidebar from "@/components/layout/Sidebar";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api } from "@/lib/api";
+import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
 
 type Voucher = components["schemas"]["Voucher"];
-type VoucherPage = components["schemas"]["VoucherPage"];
 type RelatedEntityType = NonNullable<Voucher["related_entity_type"]>;
+
+function formatVoucherError(e: unknown): string {
+  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
+  if (e instanceof Error) return e.message;
+  return String(e);
+}
 
 const ENTITY_BADGE: Record<RelatedEntityType, { bg: string; text: string }> = {
   reconciliation: { bg: "#DBEAFE", text: "#2563EB" },
@@ -75,70 +81,49 @@ export default function VouchersPage() {
     [tV],
   );
 
-  const [items, setItems] = useState<Voucher[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
   const [startDate, setStartDate] = useState<string>(isoDaysAgo(30));
   const [endDate, setEndDate] = useState<string>(todayIso());
   const [exporting, setExporting] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const {
+    items,
+    cursor: nextCursor,
+    hasMore,
+    lastFetchedAt: updatedAt,
+    loading,
+    error: fetchError,
+    loadMore,
+    refresh,
+  } = usePaginatedFetch<Voucher>({
+    path: "/api/v1/accounting/vouchers",
+    pageSize: 50,
+    query: {
+      posting_date_start: startDate || undefined,
+      posting_date_end: endDate || undefined,
+    },
+    queryKey: `range=${startDate}~${endDate}`,
+    formatError: formatVoucherError,
+  });
+
+  // page-level error 合併 list fetch error 與 action (export) error
+  const error = fetchError || actionError;
 
   const handleExport = async (voucher: Voucher) => {
     if (exporting) return;
     setExporting(voucher.id);
+    setActionError(null);
     try {
       await api.download(
         `/api/v1/accounting/vouchers/${voucher.id}/export`,
         { filename: `voucher_${voucher.voucher_number}.pdf` },
       );
     } catch (e) {
-      setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
-      );
+      setActionError(formatVoucherError(e));
     } finally {
       setExporting(null);
     }
   };
-
-  const fetchVouchers = async (opts?: { append?: boolean; cursor?: string | null }) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const query: Record<string, string | number> = { limit: 50 };
-      if (opts?.cursor) query.cursor = opts.cursor;
-      if (startDate) query.posting_date_start = startDate;
-      if (endDate) query.posting_date_end = endDate;
-      const res = await api.get<VoucherPage>("/api/v1/accounting/vouchers", {
-        query,
-      });
-      const newItems = res.items ?? [];
-      setItems((prev) => (opts?.append ? [...prev, ...newItems] : newItems));
-      setNextCursor(res.next_cursor ?? null);
-      setHasMore(res.has_more ?? false);
-      setUpdatedAt(new Date());
-    } catch (e) {
-      setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchVouchers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startDate, endDate]);
 
   const totalLabel = hasMore
     ? tCommon("totalCountPlus", { count: items.length })
@@ -157,7 +142,7 @@ export default function VouchersPage() {
                 {tPage("pageTitle")}
               </h1>
               <button
-                onClick={() => fetchVouchers()}
+                onClick={refresh}
                 disabled={loading}
                 className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
                 title={tCommon("refresh")}
@@ -367,7 +352,7 @@ export default function VouchersPage() {
           {hasMore && (
             <div className="flex justify-center py-4">
               <button
-                onClick={() => fetchVouchers({ append: true, cursor: nextCursor })}
+                onClick={loadMore}
                 disabled={loading}
                 className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-5 py-[10px] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
               >

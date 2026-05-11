@@ -66,6 +66,8 @@ export interface UsePaginatedFetchResult<T> {
   hasMore: boolean;
   /** 後端回應 `total_count` — 後端有提供時才有值 */
   totalCount: number | undefined;
+  /** 上次成功 fetch 完成的時間（供 page 顯示「上次更新 hh:mm」）；初次未完成前為 null */
+  lastFetchedAt: Date | null;
   /** 任何 fetch 進行中（首次載入或 loadMore） */
   loading: boolean;
   /** user-facing 錯誤訊息（ApiError.message 或 generic）；null 表示無錯 */
@@ -106,6 +108,7 @@ export function usePaginatedFetch<T>(
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState<number | undefined>(undefined);
+  const [lastFetchedAt, setLastFetchedAt] = useState<Date | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -134,6 +137,7 @@ export function usePaginatedFetch<T>(
         setHasMore(res.has_more ?? nextCursor !== null);
         // total_count 只有後端有提供時更新；缺欄位時保留前次值
         if (typeof res.total_count === "number") setTotalCount(res.total_count);
+        setLastFetchedAt(new Date());
       } catch (err) {
         setError(formatError(err));
         // 失敗保留現有 items；hasMore 不變（讓 user 重試 loadMore 或 refresh）
@@ -163,5 +167,15 @@ export function usePaginatedFetch<T>(
     // queryKey 是顯式觸發 refetch 的 dependency；query object 本身不放入避免無謂 re-fetch
   }, [fetchPage, enabled, queryKey]);
 
-  return { items, cursor, hasMore, totalCount, loading, error, loadMore, refresh };
+  return {
+    items,
+    cursor,
+    hasMore,
+    totalCount,
+    lastFetchedAt,
+    loading,
+    error,
+    loadMore,
+    refresh,
+  };
 }
