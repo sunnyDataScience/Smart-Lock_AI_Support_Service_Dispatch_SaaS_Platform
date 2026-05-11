@@ -196,6 +196,11 @@ async def startup():
         conversation_id_getter=get_cached_conversation_id,
     )
 
+    # Belief-Augmented ReAct wiring (D-2). 預設 [turn_cycle].enabled=false，
+    # 開關打開後本檔不必再改 — 由 orchestrator runtime 內判旗標。
+    from harness import orchestrator as _orchestrator
+    _orchestrator.init_turn_cycle(model, _cfg.turn_cycle)
+
     # 初始化 multimodal (H2)
     await multimodal.init(_cfg.multimodal, access_token)
 

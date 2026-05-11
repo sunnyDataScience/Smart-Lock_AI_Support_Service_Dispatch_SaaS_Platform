@@ -72,6 +72,10 @@ _audit_storage: Any = None
 _opik_tracer: Any = None
 _pending_store: PendingStore = _default_pending_store
 
+# Turn Cycle wiring — Belief-Augmented ReAct (D-2)
+_turn_cycle_llm: Any = None         # LangChain ChatModel for Hypothesize
+_turn_cycle_cfg: dict = {}          # config.toml [turn_cycle] section
+
 # RP2.3 — getter callable injected by app.py to avoid harness→agent reverse
 # import. Returns the current system prompt string for debug rendering.
 _get_system_prompt = lambda: ""  # noqa: E731 — sentinel that init() may overwrite
@@ -110,6 +114,18 @@ def init(
         _get_conversation_id = conversation_id_getter
     if pending_store is not None:
         _pending_store = pending_store
+
+
+def init_turn_cycle(llm_model: Any, turn_cycle_cfg: dict) -> None:
+    """Wire Belief-Augmented ReAct (D-2). Called separately from main init.
+
+    Keeping this off the main init() signature avoids breaking debounce.init
+    backwards compatibility — quality_check / tests that still call old
+    init() shape keep working with turn_cycle disabled.
+    """
+    global _turn_cycle_llm, _turn_cycle_cfg
+    _turn_cycle_llm = llm_model
+    _turn_cycle_cfg = turn_cycle_cfg or {}
 
 
 # ─────────────────────────────────────────────
@@ -153,15 +169,61 @@ def _extract_text_from_items(items: list[Block]) -> str:
 _REF_MARKER_RE = re.compile(r"\s*\[已參考(?:技能)?:[^\]]*\][\s,，]*")
 
 
+async def _maybe_run_turn_cycle(user_id: str, user_text: str) -> str:
+    """Run Hypothesize + Decide if turn_cycle enabled. Return belief_hint string.
+
+    Fail-open: any error returns ``""`` (= run_agent behaves identically to
+    pre-Turn-Cycle path). When ``[turn_cycle].enabled=false`` (default) this
+    is a no-op fast path returning ``""``.
+    """
+    if not _turn_cycle_cfg.get("enabled", False):
+        return ""
+    if _turn_cycle_llm is None or _profile_mgr is None:
+        log.warning("turn_cycle_missing_wiring", user_id=user_id)
+        return ""
+
+    pool = _profile_mgr.get_pool() if hasattr(_profile_mgr, "get_pool") else None
+    if pool is None:
+        # ProfileManager 未啟用 facts_db → 沒 pool 可用，跳過 turn_cycle
+        return ""
+
+    facts = await _profile_mgr.load_facts(user_id) if hasattr(_profile_mgr, "load_facts") else {}
+
+    from harness.turn_cycle_runner import run_belief_cycle
+    try:
+        hint, _action = await run_belief_cycle(
+            user_id=user_id,
+            user_message=user_text,
+            history=[],  # 階段 D-2 暫不灌 history；Calibrate 階段 P1 才需要
+            user_facts=facts or {},
+            pool=pool,
+            llm_model=_turn_cycle_llm,
+        )
+    except Exception as e:  # noqa: BLE001 — fail-open 雙重保險
+        if not _turn_cycle_cfg.get("fail_open", True):
+            raise
+        log.warning("turn_cycle_caller_failed", user_id=user_id, error=str(e))
+        return ""
+    return hint
+
+
 # ─────────────────────────────────────────────
 # Public entry: run_agent
 # ─────────────────────────────────────────────
 
 
 async def _build_message_content(
-    user_id: str, user_input: str | list, thread_id: str,
+    user_id: str,
+    user_input: str | list,
+    thread_id: str,
+    belief_hint: str = "",
 ) -> tuple[str | list, str | None, str | None, str | None, str | None]:
     """Build the LangChain ``content`` for one ainvoke + return inferred facts.
+
+    Args:
+        belief_hint: optional [Belief Hint] block from Turn Cycle. Empty
+            string when ``[turn_cycle].enabled = false`` (default) — prefix
+            shape stays identical to pre-Turn-Cycle behavior.
 
     Returns:
         ``(message_content, brand, model, mentioned_brand, mentioned_model)``
@@ -193,6 +255,7 @@ async def _build_message_content(
         skills_block=skills_block,
         profile_text=profile_to_inject,
         summary_prefix=summary_prefix,
+        belief_hint=belief_hint,
     )
     if isinstance(user_input, list):
         message_content: str | list = [{"type": "text", "text": prefix}] + user_input
@@ -214,8 +277,14 @@ async def run_agent(
     user_id: str,
     user_input: str | list,
     buffer_items: list[Block] | None = None,
+    belief_hint: str = "",
 ) -> str:
-    """Send the user's input through the ReAct agent and return the AI text."""
+    """Send the user's input through the ReAct agent and return the AI text.
+
+    Args:
+        belief_hint: optional [Belief Hint] block produced by Turn Cycle.
+            Empty string preserves pre-Turn-Cycle behavior (default).
+    """
     from skills.tools import (
         set_current_user_id, reset_run_state, set_current_user_input,
     )
@@ -234,7 +303,9 @@ async def run_agent(
     t_phase_start = time.monotonic()
 
     try:
-        message_content, *_facts = await _build_message_content(user_id, user_input, thread_id)
+        message_content, *_facts = await _build_message_content(
+            user_id, user_input, thread_id, belief_hint=belief_hint,
+        )
         config = {"configurable": {"thread_id": thread_id}}
 
         t_pre_strip = time.monotonic()
@@ -386,8 +457,19 @@ async def agent_and_reply(
         await line_bot.send_response(user_id, reply_token, intent_reply)
         return
 
+    # 4.7. Turn Cycle — Hypothesize + Decide (D-2)
+    #
+    # 若 [turn_cycle].enabled=true，跑 Hypothesize → 持久化 belief → Decide，
+    # 把 [Belief Hint] 區塊送進 run_agent。任何例外都 fail-open（fail_open
+    # 旗標 production 永遠 true），不影響使用者回覆。
+    # ESCALATE action 仍走 ReAct，靠 prompt hint 引導 LLM 呼叫 transfer_to_human
+    # — 保留 H7.5 output_validator + transfer guard 一致性。
+    belief_hint = await _maybe_run_turn_cycle(user_id, text_for_audit)
+
     # 5. agent invocation
-    ai_response = await run_agent(user_id, content, buffer_items=buffer_items)
+    ai_response = await run_agent(
+        user_id, content, buffer_items=buffer_items, belief_hint=belief_hint,
+    )
     print(
         f"[Agent] 思考完畢！回覆內容:\n{'─' * 40}\n"
         f"{ai_response[:500]}{'...(截斷)' if len(ai_response) > 500 else ''}\n{'─' * 40}"

@@ -124,6 +124,7 @@ def build_user_prefix(
     skills_block: str,
     profile_text: str | None,
     summary_prefix: str | None,
+    belief_hint: str = "",
 ) -> str:
     """Compose the full text-mode prefix (for non-multimodal turns).
 
@@ -131,6 +132,8 @@ def build_user_prefix(
         <skills_block>
         [用戶資料]\\n<profile_text>\\n\\n   (omitted if profile_text falsy)
         <summary_prefix>                      (omitted if summary_prefix falsy)
+        <belief_hint>                         (omitted if belief_hint empty;
+                                               turn_cycle 旗標關時恆空)
         [用戶訊息]\\n
     The caller appends the actual user message after the trailing ``\\n``.
     Multimodal callers should use :func:`build_multimodal_prefix` instead so
@@ -145,6 +148,8 @@ def build_user_prefix(
         parts.append(f"[用戶資料]\n{profile_text}\n\n")
     if summary_prefix:
         parts.append(summary_prefix)
+    if belief_hint:
+        parts.append(belief_hint)
     parts.append("[用戶訊息]\n")
     return "".join(parts)
 
@@ -154,6 +159,7 @@ def build_multimodal_prefix(
     skills_block: str,
     profile_text: str | None,
     summary_prefix: str | None,
+    belief_hint: str = "",
 ) -> str:
     """Same content as :func:`build_user_prefix` but for multimodal turns.
 
@@ -165,6 +171,7 @@ def build_multimodal_prefix(
         skills_block=skills_block,
         profile_text=profile_text,
         summary_prefix=summary_prefix,
+        belief_hint=belief_hint,
     )
 
 
