@@ -15,7 +15,7 @@ related:
   - "../../1-decisions/module-boundary/web.md"
   - "../../5-views/_pending-merge-pages-mapping.md (legacy IA mapping)"
   - "../api/openapi.yaml (data sources)"
-source_spec_path: web_design_spec_prompt_pipeline/pages/22_reschedule_calendar.md
+source_spec_path: docs/legacy/web_design_spec_prompt_pipeline/pages/22_reschedule_calendar.md
 source_spec_section: 主要
 legacy_id: IA-G4
 ---
@@ -35,7 +35,7 @@ FR-0010-reschedule-delay (calendar UI)
 ## §3 Source Spec
 
 完整 UI / Component / Layout / Data Source / CTA 規格見：
-- 來源：`web_design_spec_prompt_pipeline/pages/22_reschedule_calendar.md`
+- 來源：`docs/legacy/web_design_spec_prompt_pipeline/pages/22_reschedule_calendar.md`
 - 區段：主要
 - 對應 docs 路徑：`docs/extras/web-frontend/pages-legacy/22_reschedule_calendar.md` (Phase 8 後移到此)
 

@@ -41,7 +41,7 @@ jobs:
           if [ -n "$violations" ]; then
             echo "::error::Found direct AsyncConnection.connect() call in long-lived agent code."
             echo "Long-lived processes must use psycopg_pool.AsyncConnectionPool to survive CloudSQL idle disconnects."
-            echo "See report/v1.22.1.md and report/v1.22.2.md for context."
+            echo "See docs/releases/v1.22.1.md and docs/releases/v1.22.2.md for context."
             echo ""
             echo "Violations:"
             echo "$violations"

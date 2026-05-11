@@ -27,7 +27,14 @@ related:
 ├── scripts/            # CI / dev / deploy / env management
 ├── tests/              # smoke + tools + bdd (Phase 9 將收 tests/bdd/)
 ├── docs/               # Documentation (VibeCoding 6-tier: 0-principles ~ 5-views)
-├── web_design_spec_prompt_pipeline/  # ⚠ legacy — 已被 docs/2-contracts/frontend-design-system/ 取代；待 Phase 2' 搬移至 docs/legacy/
+│   ├── 0-principles/   # Tier 0 不變憲法
+│   ├── 1-decisions/    # Tier 1 ADR + module boundaries
+│   ├── 2-contracts/    # Tier 2 OpenAPI/AsyncAPI/Flows/FR/pages
+│   ├── 3-process/      # Tier 3 deployment + quality gates
+│   ├── 4-exploration/  # Tier 4 PRD/SOW/WBS
+│   ├── 5-views/        # Tier 5 衍生視圖（含本檔）
+│   ├── releases/       # 版本 release notes（自 report/ 搬遷 2026-05-11）
+│   └── legacy/         # 歷史保留（含 web_design_spec_prompt_pipeline/）
 ├── VibeCoding_Workflow_Templates/    # 模板 source-of-truth
 ├── .claude/            # Claude Code agents/skills/rules/hooks
 ├── .github/workflows/  # CI workflows
