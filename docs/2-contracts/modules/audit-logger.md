@@ -198,3 +198,43 @@ LIMIT $5;
 | `agent/services/finance/` | `financial_action` | 退款、付款 |
 | `agent/services/warranty/` | `financial_action` | 保固折扣報價 |
 | admin API | `admin_action` | 管理操作 |
+
+---
+
+## §X 測試情境與案例 (AuditLogger)
+
+<!-- TC-ID: IT-0069 -->
+#### 情境 1: 正常路徑 — conversation 事件寫入後依保留期限可查
+*   **Arrange**: 寫入 `conversation` audit entry，actor=u-001。
+*   **Act**: 60 天後 GET /audit?event_type=conversation&actor=u-001。
+*   **Assert**: 1 筆紀錄可查；91 天後同 query 回 empty（per §2 90-day 保留）。
+
+<!-- TC-ID: IT-0070 -->
+#### 情境 2: 正常路徑 — financial_action 7 年保留 + PII 遮蔽
+*   **Arrange**: 寫入退款 audit entry，含客戶手機 `0912-345-678`。
+*   **Act**: 查詢該 entry。
+*   **Assert**: `actor_phone` 顯示 `091*-***-678` (per §3 PII mask)；entry created_at + 7 年仍可查。
+
+<!-- TC-ID: IT-0071 -->
+#### 情境 3: 邊界 — 保留期限剛到期當天的查詢
+*   **Arrange**: conversation entry，retention=90 天，現在第 90 天 23:59。
+*   **Act**: 查詢該 entry。
+*   **Assert**: 仍可查 (≤ 期限視為有效)；第 91 天 00:00 起 cleanup job 標 deleted=true。
+
+<!-- TC-ID: IT-0072 -->
+#### 情境 4: 邊界 — 同毫秒寫入多筆 idempotency
+*   **Arrange**: 同一 actor 在 1ms 內呼叫 audit_log() 5 次（相同 event_type / target_id）。
+*   **Act**: 5 個並發 INSERT。
+*   **Assert**: 5 筆紀錄都寫入（audit 不去重，每筆 timestamp 微秒級不同 + UUID 唯一）；無 deadlock。
+
+<!-- TC-ID: IT-0073 -->
+#### 情境 5: 異常處理 — Audit DB 寫入失敗時整 transaction rollback
+*   **Arrange**: financial_action 寫入過程中 mock audit DB connection drop。
+*   **Act**: 呼叫 refund.execute()。
+*   **Assert**: refund 不執行（status 保留 csm_approved，executed_at 為 null）；error_log 含 `audit.write_failed.tx_rollback`。
+
+<!-- TC-ID: IT-0074 -->
+#### 情境 6: 業務規則 — admin_action 不可被任何 role 刪除 (append-only)
+*   **Arrange**: super_admin 嘗試 DELETE FROM audit_logs WHERE event_type='admin_action'。
+*   **Act**: 執行 DELETE。
+*   **Assert**: raise `append_only_violation`；audit_logs 仍含原紀錄 + 新增 `audit.tamper_attempt` 事件 (actor=super_admin)。

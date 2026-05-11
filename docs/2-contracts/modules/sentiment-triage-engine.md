@@ -102,6 +102,7 @@ async def notify_admin_escalation(
 
 ### 測試情境與案例 (SentimentTriageEngine)
 
+<!-- TC-ID: IT-0141 | legacy: TC-STE-001 -->
 #### 情境 1: 正常路徑 — 偵測明確負面情緒並通知管理員
 
 *   **測試案例 ID**: `TC-STE-001`
@@ -117,6 +118,7 @@ async def notify_admin_escalation(
         - 驗證 LINE Push API 被呼叫（Mock 驗證）。
         - 驗證 ProblemCard `sentiment_label` 已更新為 `"negative"`。
 
+<!-- TC-ID: IT-0142 | legacy: TC-STE-002 -->
 #### 情境 2: 正常路徑 — 中性訊息不觸發升級
 
 *   **測試案例 ID**: `TC-STE-002`
@@ -129,6 +131,7 @@ async def notify_admin_escalation(
         - 驗證 `trigger_escalation = False`。
         - 驗證 LINE Push API **未被呼叫**。
 
+<!-- TC-ID: IT-0143 | legacy: TC-STE-003 -->
 #### 情境 3: 邊界情況 — 隱含不滿但未使用關鍵詞
 
 *   **測試案例 ID**: `TC-STE-003`
@@ -141,6 +144,7 @@ async def notify_admin_escalation(
         - 驗證 `confidence >= 0.85`。
         - 驗證系統切換為安撫語氣回覆。
 
+<!-- TC-ID: IT-0144 | legacy: TC-STE-004 -->
 #### 情境 4: 效能約束 — 情緒分析不阻塞對話
 
 *   **測試案例 ID**: `TC-STE-004`
@@ -151,6 +155,18 @@ async def notify_admin_escalation(
     3.  **Assert**:
         - 驗證 LINE Webhook 回應在 1 秒內返回 200。
         - 驗證情緒分析以 BackgroundTask 排入佇列。
+
+<!-- TC-ID: IT-0145 -->
+#### 情境 5: 異常 — LINE Push API 失敗不中斷主流程
+*   **Arrange**: 偵測 negative，trigger_escalation=true；mock LINE Push API 回 500。
+*   **Act**: notify_admin_escalation。
+*   **Assert**: 主對話流程仍正常回覆消費者；admin_notifications 表新增 1 筆 status=failed；error_log 記錄但不 raise exception；retry queue 排程下次重試。
+
+<!-- TC-ID: IT-0146 -->
+#### 情境 6: 業務規則 — 負面情緒識別率 ≥ 90% (合約 9.3 條)
+*   **Arrange**: 甲方測試集 100 條訊息 (50 negative + 50 neutral/positive)。
+*   **Act**: 跑全部訊息過 analyze_sentiment。
+*   **Assert**: True positive rate ≥ 90% (≥ 45/50 negative 被正確識別)；False positive rate ≤ 10% (≤ 5/50 neutral 誤判 negative)；audit_logs 含 batch_eval 摘要。
 
 ---
 

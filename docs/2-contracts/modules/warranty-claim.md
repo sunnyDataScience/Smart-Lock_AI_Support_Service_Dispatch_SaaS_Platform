@@ -213,3 +213,43 @@ BR-WARRANTY-002 由 `agent/harness/safety/gate.py` 強制執行：
 - 當偵測到工單關聯保固索賠時，safety gate 必須攔截任何自動報價動作。
 - 攔截後觸發人工轉接 (escalation) 流程。
 - 對應的 audit event type 為 `safety_gate`，記錄攔截原因與觸發條件。
+
+---
+
+## §9 測試情境與案例 (WarrantyClaim)
+
+<!-- TC-ID: IT-0129 -->
+#### 情境 1: 正常路徑 — 保固期內 claim approved
+*   **Arrange**: 建案資料庫 handover_date=2025-12-01，warranty 2 年；claim_date=2026-05-11 (5 個月)。
+*   **Act**: 提交 claim。
+*   **Assert**: warranty_claims status=approved；is_within_warranty=true；source=project_database (per BR-WARRANTY-004)；audit `warranty.approved`。
+
+<!-- TC-ID: IT-0130 -->
+#### 情境 2: 正常路徑 — 保固外客戶折扣報價
+*   **Arrange**: handover=2023-01-01，warranty 2 年到 2025-01-01；claim=2026-05-11 (過保 16 個月)。
+*   **Act**: 系統計算 discount。
+*   **Assert**: is_within_warranty=false；status=denied；discount_offered (per §6 過保折扣公式，如過保 1 年內 70% 折)；不自動執行（仍需 CSM 確認）。
+
+<!-- TC-ID: IT-0131 -->
+#### 情境 3: 邊界 — claim_date = warranty_end_date 視為仍在保固
+*   **Arrange**: warranty_end_date=2026-12-01；claim_date=2026-12-01。
+*   **Act**: 計算。
+*   **Assert**: is_within_warranty=true (per §2.1, ≤ end_date)；status=approved。
+
+<!-- TC-ID: IT-0132 -->
+#### 情境 4: 邊界 — 收據與建案資料庫衝突採信建案（BR-WARRANTY-004）
+*   **Arrange**: 客戶提供收據 purchase_date=2025-09-01，建案資料庫 handover=2025-12-01。
+*   **Act**: 驗證。
+*   **Assert**: 採信 handover=2025-12-01；audit `warranty.source.project_database_used`，含 receipt_date 與 handover_date 兩值對照。
+
+<!-- TC-ID: IT-0133 -->
+#### 情境 5: 異常 — AI 自動報價保固案件被 safety gate 攔截 (BR-WARRANTY-002)
+*   **Arrange**: ProblemCard 含 warranty_claim_id；AI agent 觸發 estimate_quote()。
+*   **Act**: safety_gate 偵測。
+*   **Assert**: gate 攔截，不執行 estimate；escalate 至 CSM；audit_logs event_type=safety_gate, reason=`warranty_no_ai_quote`。
+
+<!-- TC-ID: IT-0134 -->
+#### 情境 6: 業務規則 — Denied 後消費者爭議進 disputes 表
+*   **Arrange**: warranty_claim wc-001 status=denied。
+*   **Act**: 消費者提交爭議。
+*   **Assert**: warranty_claims status=disputed；disputes 表新增 1 筆，linked to wc-001；通知 operations_manager；audit `warranty.disputed`。

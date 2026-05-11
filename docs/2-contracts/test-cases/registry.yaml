@@ -6,10 +6,10 @@
 # Schema: docs/2-contracts/test-cases/CONVENTION.md §5
 
 metadata:
-  generated_at: '2026-05-11T10:38:28.755496Z'
+  generated_at: '2026-05-11T10:46:23.190070Z'
   generated_by: scripts/ci/extract-test-cases.py
   schema_version: 1
-  total_count: 147
+  total_count: 225
 test_cases:
 - id: BDD-0001
   title: Recognize user intent from initial message
@@ -1266,5 +1266,711 @@ test_cases:
   trace:
     module:
     - family-review-engine
+  tags: []
+  status: implemented
+- id: IT-0069
+  title: 正常路徑 — conversation 事件寫入後依保留期限可查
+  type: integration
+  source: docs/2-contracts/modules/audit-logger.md#L206-L211
+  trace:
+    module:
+    - audit-logger
+  tags: []
+  status: implemented
+- id: IT-0070
+  title: 正常路徑 — financial_action 7 年保留 + PII 遮蔽
+  type: integration
+  source: docs/2-contracts/modules/audit-logger.md#L212-L217
+  trace:
+    module:
+    - audit-logger
+  tags: []
+  status: implemented
+- id: IT-0071
+  title: 邊界 — 保留期限剛到期當天的查詢
+  type: integration
+  source: docs/2-contracts/modules/audit-logger.md#L218-L223
+  trace:
+    module:
+    - audit-logger
+  tags: []
+  status: implemented
+- id: IT-0072
+  title: 邊界 — 同毫秒寫入多筆 idempotency
+  type: integration
+  source: docs/2-contracts/modules/audit-logger.md#L224-L229
+  trace:
+    module:
+    - audit-logger
+  tags: []
+  status: implemented
+- id: IT-0073
+  title: 異常處理 — Audit DB 寫入失敗時整 transaction rollback
+  type: integration
+  source: docs/2-contracts/modules/audit-logger.md#L230-L235
+  trace:
+    module:
+    - audit-logger
+  tags: []
+  status: implemented
+- id: IT-0074
+  title: 業務規則 — admin_action 不可被任何 role 刪除 (append-only)
+  type: integration
+  source: docs/2-contracts/modules/audit-logger.md#L236-L240
+  trace:
+    module:
+    - audit-logger
+  tags: []
+  status: implemented
+- id: IT-0075
+  title: 正常路徑 — LINE 用戶 `查工單` intent 回傳自己的 work_order
+  type: integration
+  source: docs/2-contracts/modules/consumer-tracking.md#L110-L115
+  trace:
+    module:
+    - consumer-tracking
+  tags: []
+  status: implemented
+- id: IT-0076
+  title: 正常路徑 — VIP 收推播短連結 Web 追蹤
+  type: integration
+  source: docs/2-contracts/modules/consumer-tracking.md#L116-L121
+  trace:
+    module:
+    - consumer-tracking
+  tags: []
+  status: implemented
+- id: IT-0077
+  title: 邊界 — Token 過期應 410 Gone
+  type: integration
+  source: docs/2-contracts/modules/consumer-tracking.md#L122-L127
+  trace:
+    module:
+    - consumer-tracking
+  tags: []
+  status: implemented
+- id: IT-0078
+  title: 邊界 — LINE user_id 無對應 customer
+  type: integration
+  source: docs/2-contracts/modules/consumer-tracking.md#L128-L133
+  trace:
+    module:
+    - consumer-tracking
+  tags: []
+  status: implemented
+- id: IT-0079
+  title: 異常 — Token HMAC 簽章被竄改
+  type: integration
+  source: docs/2-contracts/modules/consumer-tracking.md#L134-L139
+  trace:
+    module:
+    - consumer-tracking
+  tags: []
+  status: implemented
+- id: IT-0080
+  title: 業務規則 — PII 遮罩在 response payload
+  type: integration
+  source: docs/2-contracts/modules/consumer-tracking.md#L140-L144
+  trace:
+    module:
+    - consumer-tracking
+  tags: []
+  status: implemented
+- id: IT-0081
+  title: 正常路徑 — 使用者匯出自己對話 JSON
+  type: integration
+  source: docs/2-contracts/modules/data-export.md#L186-L191
+  trace:
+    module:
+    - data-export
+  tags: []
+  status: implemented
+- id: IT-0082
+  title: 正常路徑 — admin 匯出 financial PDF 含合規聲明
+  type: integration
+  source: docs/2-contracts/modules/data-export.md#L192-L197
+  trace:
+    module:
+    - data-export
+  tags: []
+  status: implemented
+- id: IT-0083
+  title: 邊界 — 72 小時後匯出檔案自動刪除
+  type: integration
+  source: docs/2-contracts/modules/data-export.md#L198-L203
+  trace:
+    module:
+    - data-export
+  tags: []
+  status: implemented
+- id: IT-0084
+  title: 邊界 — CSV flatten 巢狀資料 dot notation
+  type: integration
+  source: docs/2-contracts/modules/data-export.md#L204-L209
+  trace:
+    module:
+    - data-export
+  tags: []
+  status: implemented
+- id: IT-0085
+  title: 異常 — 非 financial role 嘗試匯出 financial scope
+  type: integration
+  source: docs/2-contracts/modules/data-export.md#L210-L215
+  trace:
+    module:
+    - data-export
+  tags: []
+  status: implemented
+- id: IT-0086
+  title: 業務規則 — personal_data scope GDPR 必含所有 PII 但須加密
+  type: integration
+  source: docs/2-contracts/modules/data-export.md#L216-L220
+  trace:
+    module:
+    - data-export
+  tags: []
+  status: implemented
+- id: IT-0087
+  title: 正常路徑 — 距離 3km 完全匹配技師分數驗證
+  type: integration
+  source: docs/2-contracts/modules/dispatch-engine-weights.md#L131-L136
+  trace:
+    module:
+    - dispatch-engine-weights
+  tags: []
+  status: implemented
+- id: IT-0088
+  title: 正常路徑 — 距離邊界 5km/10km/20km/30km 線性計算
+  type: integration
+  source: docs/2-contracts/modules/dispatch-engine-weights.md#L137-L142
+  trace:
+    module:
+    - dispatch-engine-weights
+  tags: []
+  status: implemented
+- id: IT-0089
+  title: 邊界 — 5 名技師同分（tie）以 6 級 tie-breaker 排序
+  type: integration
+  source: docs/2-contracts/modules/dispatch-engine-weights.md#L143-L148
+  trace:
+    module:
+    - dispatch-engine-weights
+  tags: []
+  status: implemented
+- id: IT-0090
+  title: 邊界 — 3 輪擴大搜尋直到找到候選
+  type: integration
+  source: docs/2-contracts/modules/dispatch-engine-weights.md#L149-L154
+  trace:
+    module:
+    - dispatch-engine-weights
+  tags: []
+  status: implemented
+- id: IT-0091
+  title: 異常 — 紅色警報覆寫權重（urgent severity）
+  type: integration
+  source: docs/2-contracts/modules/dispatch-engine-weights.md#L155-L160
+  trace:
+    module:
+    - dispatch-engine-weights
+  tags: []
+  status: implemented
+- id: IT-0092
+  title: 業務規則 — Fairness 防壟斷新進技師加成
+  type: integration
+  source: docs/2-contracts/modules/dispatch-engine-weights.md#L161-L165
+  trace:
+    module:
+    - dispatch-engine-weights
+  tags: []
+  status: implemented
+- id: IT-0093
+  title: 正常路徑 — LINE Flex Message 確認工單完工
+  type: integration
+  source: docs/2-contracts/modules/e-signature.md#L163-L168
+  trace:
+    module:
+    - e-signature
+  tags: []
+  status: implemented
+- id: IT-0094
+  title: 正常路徑 — V2.0 Digital Signature 手寫簽名退款接受
+  type: integration
+  source: docs/2-contracts/modules/e-signature.md#L169-L174
+  trace:
+    module:
+    - e-signature
+  tags: []
+  status: implemented
+- id: IT-0095
+  title: 邊界 — 同 work_order 重複簽章（idempotent）
+  type: integration
+  source: docs/2-contracts/modules/e-signature.md#L175-L180
+  trace:
+    module:
+    - e-signature
+  tags: []
+  status: implemented
+- id: IT-0096
+  title: 邊界 — Signature 必要性檢查 (REFUND_ACCEPTANCE 必要)
+  type: integration
+  source: docs/2-contracts/modules/e-signature.md#L181-L186
+  trace:
+    module:
+    - e-signature
+  tags: []
+  status: implemented
+- id: IT-0097
+  title: 異常 — Verbal Recorded 後未補簽
+  type: integration
+  source: docs/2-contracts/modules/e-signature.md#L187-L192
+  trace:
+    module:
+    - e-signature
+  tags: []
+  status: implemented
+- id: IT-0098
+  title: 業務規則 — 不可否認性 append-only
+  type: integration
+  source: docs/2-contracts/modules/e-signature.md#L193-L197
+  trace:
+    module:
+    - e-signature
+  tags: []
+  status: implemented
+- id: IT-0099
+  title: 正常路徑 — receptionist 派訊息給 hardware_technician
+  type: integration
+  source: docs/2-contracts/modules/inter-agent-messaging.md#L297-L302
+  trace:
+    module:
+    - inter-agent-messaging
+  tags: []
+  status: implemented
+- id: IT-0100
+  title: 正常路徑 — 多 Agent escalation chain 完整 trace
+  type: integration
+  source: docs/2-contracts/modules/inter-agent-messaging.md#L303-L308
+  trace:
+    module:
+    - inter-agent-messaging
+  tags: []
+  status: implemented
+- id: IT-0101
+  title: 邊界 — correlation_id 重複收信去重
+  type: integration
+  source: docs/2-contracts/modules/inter-agent-messaging.md#L309-L314
+  trace:
+    module:
+    - inter-agent-messaging
+  tags: []
+  status: implemented
+- id: IT-0102
+  title: 邊界 — 未知 recipient agent 拒絕
+  type: integration
+  source: docs/2-contracts/modules/inter-agent-messaging.md#L315-L320
+  trace:
+    module:
+    - inter-agent-messaging
+  tags: []
+  status: implemented
+- id: IT-0103
+  title: 異常 — Phase 0 in-memory bus crash 重啟後 state 重建
+  type: integration
+  source: docs/2-contracts/modules/inter-agent-messaging.md#L321-L326
+  trace:
+    module:
+    - inter-agent-messaging
+  tags: []
+  status: implemented
+- id: IT-0104
+  title: 業務規則 — Phase 1 PostgreSQL 持久化稽核查詢
+  type: integration
+  source: docs/2-contracts/modules/inter-agent-messaging.md#L327-L331
+  trace:
+    module:
+    - inter-agent-messaging
+  tags: []
+  status: implemented
+- id: IT-0105
+  title: 正常路徑 — 技師完工消耗 2 顆電池正確扣減
+  type: integration
+  source: docs/2-contracts/modules/inventory.md#L229-L234
+  trace:
+    module:
+    - inventory
+  tags: []
+  status: implemented
+- id: IT-0106
+  title: 正常路徑 — 補貨入庫 transaction
+  type: integration
+  source: docs/2-contracts/modules/inventory.md#L235-L240
+  trace:
+    module:
+    - inventory
+  tags: []
+  status: implemented
+- id: IT-0107
+  title: 邊界 — 消耗後跌破 reorder_point 觸發通知
+  type: integration
+  source: docs/2-contracts/modules/inventory.md#L241-L246
+  trace:
+    module:
+    - inventory
+  tags: []
+  status: implemented
+- id: IT-0108
+  title: 邊界 — 庫存不足拒絕扣減
+  type: integration
+  source: docs/2-contracts/modules/inventory.md#L247-L252
+  trace:
+    module:
+    - inventory
+  tags: []
+  status: implemented
+- id: IT-0109
+  title: 異常 — Consume 缺 work_order_id 必填驗證失敗
+  type: integration
+  source: docs/2-contracts/modules/inventory.md#L253-L258
+  trace:
+    module:
+    - inventory
+  tags: []
+  status: implemented
+- id: IT-0110
+  title: 業務規則 — Return 退料還原庫存與工單關聯
+  type: integration
+  source: docs/2-contracts/modules/inventory.md#L259-L263
+  trace:
+    module:
+    - inventory
+  tags: []
+  status: implemented
+- id: IT-0111
+  title: 正常路徑 — 完整度 0.6 觸發 lock_bolt_side 引導
+  type: integration
+  source: docs/2-contracts/modules/proactive-photo-guidance.md#L79-L84
+  trace:
+    module:
+    - proactive-photo-guidance
+  tags: []
+  status: implemented
+- id: IT-0112
+  title: 正常路徑 — 上傳照片 attach 到 ProblemCard
+  type: integration
+  source: docs/2-contracts/modules/proactive-photo-guidance.md#L85-L90
+  trace:
+    module:
+    - proactive-photo-guidance
+  tags: []
+  status: implemented
+- id: IT-0113
+  title: 邊界 — completeness=0.85 剛好不觸發
+  type: integration
+  source: docs/2-contracts/modules/proactive-photo-guidance.md#L91-L96
+  trace:
+    module:
+    - proactive-photo-guidance
+  tags: []
+  status: implemented
+- id: IT-0114
+  title: 邊界 — 同 ProblemCard 已引導不重複發送
+  type: integration
+  source: docs/2-contracts/modules/proactive-photo-guidance.md#L97-L102
+  trace:
+    module:
+    - proactive-photo-guidance
+  tags: []
+  status: implemented
+- id: IT-0115
+  title: 異常 — image_url 不合法
+  type: integration
+  source: docs/2-contracts/modules/proactive-photo-guidance.md#L103-L108
+  trace:
+    module:
+    - proactive-photo-guidance
+  tags: []
+  status: implemented
+- id: IT-0116
+  title: 業務規則 — 完整度 < 85% 是合約要求門檻
+  type: integration
+  source: docs/2-contracts/modules/proactive-photo-guidance.md#L109-L113
+  trace:
+    module:
+    - proactive-photo-guidance
+  tags: []
+  status: implemented
+- id: IT-0117
+  title: 正常路徑 — 管理員傳文字訊息給工單頻道
+  type: integration
+  source: docs/2-contracts/modules/realtime-messaging.md#L306-L311
+  trace:
+    module:
+    - realtime-messaging
+  tags: []
+  status: implemented
+- id: IT-0118
+  title: 正常路徑 — 師傅離線時 LINE push fallback
+  type: integration
+  source: docs/2-contracts/modules/realtime-messaging.md#L312-L317
+  trace:
+    module:
+    - realtime-messaging
+  tags: []
+  status: implemented
+- id: IT-0119
+  title: 邊界 — 同 channel 5 人並發發訊息順序保證
+  type: integration
+  source: docs/2-contracts/modules/realtime-messaging.md#L318-L323
+  trace:
+    module:
+    - realtime-messaging
+  tags: []
+  status: implemented
+- id: IT-0120
+  title: 邊界 — 工單 closed 後 chat 限制只可讀不可寫
+  type: integration
+  source: docs/2-contracts/modules/realtime-messaging.md#L324-L329
+  trace:
+    module:
+    - realtime-messaging
+  tags: []
+  status: implemented
+- id: IT-0121
+  title: 異常 — Redis 連線失效 fallback 至 in-memory
+  type: integration
+  source: docs/2-contracts/modules/realtime-messaging.md#L330-L335
+  trace:
+    module:
+    - realtime-messaging
+  tags: []
+  status: implemented
+- id: IT-0122
+  title: 業務規則 — 跨工單 RBAC 防止資訊洩漏
+  type: integration
+  source: docs/2-contracts/modules/realtime-messaging.md#L336-L340
+  trace:
+    module:
+    - realtime-messaging
+  tags: []
+  status: implemented
+- id: IT-0123
+  title: 正常路徑 — LINE 圖片下載並存 GCS
+  type: integration
+  source: docs/2-contracts/modules/vision-processing.md#L132-L137
+  trace:
+    module:
+    - vision-processing
+  tags: []
+  status: implemented
+- id: IT-0124
+  title: 正常路徑 — 技師上傳完工照片到 work_orders.photos
+  type: integration
+  source: docs/2-contracts/modules/vision-processing.md#L138-L143
+  trace:
+    module:
+    - vision-processing
+  tags: []
+  status: implemented
+- id: IT-0125
+  title: 邊界 — 檔案剛好 10MB 接受
+  type: integration
+  source: docs/2-contracts/modules/vision-processing.md#L144-L149
+  trace:
+    module:
+    - vision-processing
+  tags: []
+  status: implemented
+- id: IT-0126
+  title: 邊界 — 完工後 2 年照片自動 GCS lifecycle 刪除
+  type: integration
+  source: docs/2-contracts/modules/vision-processing.md#L150-L155
+  trace:
+    module:
+    - vision-processing
+  tags: []
+  status: implemented
+- id: IT-0127
+  title: 異常 — 非 JPEG/PNG 格式拒絕
+  type: integration
+  source: docs/2-contracts/modules/vision-processing.md#L156-L161
+  trace:
+    module:
+    - vision-processing
+  tags: []
+  status: implemented
+- id: IT-0128
+  title: 業務規則 — 跨工單存取控制（最小權限）
+  type: integration
+  source: docs/2-contracts/modules/vision-processing.md#L162-L166
+  trace:
+    module:
+    - vision-processing
+  tags: []
+  status: implemented
+- id: IT-0129
+  title: 正常路徑 — 保固期內 claim approved
+  type: integration
+  source: docs/2-contracts/modules/warranty-claim.md#L221-L226
+  trace:
+    module:
+    - warranty-claim
+  tags: []
+  status: implemented
+- id: IT-0130
+  title: 正常路徑 — 保固外客戶折扣報價
+  type: integration
+  source: docs/2-contracts/modules/warranty-claim.md#L227-L232
+  trace:
+    module:
+    - warranty-claim
+  tags: []
+  status: implemented
+- id: IT-0131
+  title: 邊界 — claim_date = warranty_end_date 視為仍在保固
+  type: integration
+  source: docs/2-contracts/modules/warranty-claim.md#L233-L238
+  trace:
+    module:
+    - warranty-claim
+  tags: []
+  status: implemented
+- id: IT-0132
+  title: 邊界 — 收據與建案資料庫衝突採信建案（BR-WARRANTY-004）
+  type: integration
+  source: docs/2-contracts/modules/warranty-claim.md#L239-L244
+  trace:
+    module:
+    - warranty-claim
+  tags: []
+  status: implemented
+- id: IT-0133
+  title: 異常 — AI 自動報價保固案件被 safety gate 攔截 (BR-WARRANTY-002)
+  type: integration
+  source: docs/2-contracts/modules/warranty-claim.md#L245-L250
+  trace:
+    module:
+    - warranty-claim
+  tags: []
+  status: implemented
+- id: IT-0134
+  title: 業務規則 — Denied 後消費者爭議進 disputes 表
+  type: integration
+  source: docs/2-contracts/modules/warranty-claim.md#L251-L255
+  trace:
+    module:
+    - warranty-claim
+  tags: []
+  status: implemented
+- id: IT-0135
+  title: 正常路徑 — 核可 confirmed PC 自動建立 WO + 觸發派工
+  type: integration
+  source: docs/2-contracts/modules/problem-card-review-engine.md#L96-L101
+  trace:
+    module:
+    - problem-card-review-engine
+  tags: []
+  status: implemented
+- id: IT-0136
+  title: 正常路徑 — needs_info 退回 PC 至 draft 重啟對話
+  type: integration
+  source: docs/2-contracts/modules/problem-card-review-engine.md#L102-L107
+  trace:
+    module:
+    - problem-card-review-engine
+  tags: []
+  status: implemented
+- id: IT-0137
+  title: 邊界 — Idempotency key 重複阻擋雙重核可
+  type: integration
+  source: docs/2-contracts/modules/problem-card-review-engine.md#L108-L113
+  trace:
+    module:
+    - problem-card-review-engine
+  tags: []
+  status: implemented
+- id: IT-0138
+  title: 邊界 — Rejected 後 PC 進 closed_by_review 終態
+  type: integration
+  source: docs/2-contracts/modules/problem-card-review-engine.md#L114-L119
+  trace:
+    module:
+    - problem-card-review-engine
+  tags: []
+  status: implemented
+- id: IT-0139
+  title: 異常 — 對非 confirmed 狀態 PC 執行 review (前置條件違反)
+  type: integration
+  source: docs/2-contracts/modules/problem-card-review-engine.md#L120-L125
+  trace:
+    module:
+    - problem-card-review-engine
+  tags: []
+  status: implemented
+- id: IT-0140
+  title: 業務規則 — 跨 tenant 審核被 RBAC 阻擋
+  type: integration
+  source: docs/2-contracts/modules/problem-card-review-engine.md#L126-L133
+  trace:
+    module:
+    - problem-card-review-engine
+  tags: []
+  status: implemented
+- id: IT-0141
+  title: 正常路徑 — 偵測明確負面情緒並通知管理員
+  type: integration
+  source: docs/2-contracts/modules/sentiment-triage-engine.md#L105-L120
+  trace:
+    module:
+    - sentiment-triage-engine
+  tags: []
+  status: implemented
+  legacy_id: TC-STE-001
+- id: IT-0142
+  title: 正常路徑 — 中性訊息不觸發升級
+  type: integration
+  source: docs/2-contracts/modules/sentiment-triage-engine.md#L121-L133
+  trace:
+    module:
+    - sentiment-triage-engine
+  tags: []
+  status: implemented
+  legacy_id: TC-STE-002
+- id: IT-0143
+  title: 邊界情況 — 隱含不滿但未使用關鍵詞
+  type: integration
+  source: docs/2-contracts/modules/sentiment-triage-engine.md#L134-L146
+  trace:
+    module:
+    - sentiment-triage-engine
+  tags: []
+  status: implemented
+  legacy_id: TC-STE-003
+- id: IT-0144
+  title: 效能約束 — 情緒分析不阻塞對話
+  type: integration
+  source: docs/2-contracts/modules/sentiment-triage-engine.md#L147-L158
+  trace:
+    module:
+    - sentiment-triage-engine
+  tags: []
+  status: implemented
+  legacy_id: TC-STE-004
+- id: IT-0145
+  title: 異常 — LINE Push API 失敗不中斷主流程
+  type: integration
+  source: docs/2-contracts/modules/sentiment-triage-engine.md#L159-L164
+  trace:
+    module:
+    - sentiment-triage-engine
+  tags: []
+  status: implemented
+- id: IT-0146
+  title: 業務規則 — 負面情緒識別率 ≥ 90% (合約 9.3 條)
+  type: integration
+  source: docs/2-contracts/modules/sentiment-triage-engine.md#L165-L172
+  trace:
+    module:
+    - sentiment-triage-engine
   tags: []
   status: implemented

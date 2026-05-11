@@ -93,13 +93,41 @@ async def create_work_order_from_problem_card(
 
 ### 測試情境與案例 (ProblemCardReviewEngine)
 
-> 本模組詳細測試案例（TC-PCR-NNN）待 V1.0 admin BDD F-105 細化後補充於 `附錄 A`。涵蓋情境包含：
+<!-- TC-ID: IT-0135 -->
+#### 情境 1: 正常路徑 — 核可 confirmed PC 自動建立 WO + 觸發派工
+*   **Arrange**: PC pc-001 status=confirmed, completeness=0.92。Reviewer u-csm-001 (customer_service)。
+*   **Act**: POST /problem-cards/pc-001/confirm，body=`{action:approved, comment:"OK", idempotency_key:"ik-001"}`。
+*   **Assert**: audit_logs review action APPEND-ONLY；create_work_order_from_problem_card 觸發；work_orders 新增 wo-1 (source=pc_review_approved, tenant 繼承)；TechnicianMatcher 啟動；PC 仍 confirmed (由 WO lifecycle 接管)。
 
-- **Happy Path**: 客服核可 confirmed PC → WO 自動建立 + 派工觸發
-- **Edge Case**: 客服重複核可同一 PC（idempotency 阻擋）
-- **Edge Case**: 客服退回 PC（needs_info）→ 對話續寫 → 再次 confirmed → 二度送審
-- **Invalid Input**: 對非 confirmed 狀態的 PC 執行 review（前置條件違反 → 409）
-- **Business Rule**: 跨 tenant 審核被 RBAC 阻擋（前置條件 3 違反 → 403）
+<!-- TC-ID: IT-0136 -->
+#### 情境 2: 正常路徑 — needs_info 退回 PC 至 draft 重啟對話
+*   **Arrange**: PC pc-002 status=confirmed。
+*   **Act**: review(action=needs_info, comment="缺地址細節")。
+*   **Assert**: PC.status=draft；ConversationManager 重新啟動收集流程；不建立 WO；audit logs 含 reviewer+comment。
+
+<!-- TC-ID: IT-0137 -->
+#### 情境 3: 邊界 — Idempotency key 重複阻擋雙重核可
+*   **Arrange**: PC pc-003 已用 idempotency_key=ik-003 approve 過。
+*   **Act**: 再次帶同 idempotency_key 呼叫。
+*   **Assert**: 回原 result（同 work_order_id），**不**再次建立 WO；audit `review.idempotency_hit`。
+
+<!-- TC-ID: IT-0138 -->
+#### 情境 4: 邊界 — Rejected 後 PC 進 closed_by_review 終態
+*   **Arrange**: PC pc-004 status=confirmed。
+*   **Act**: review(action=rejected, comment="重複案件")。
+*   **Assert**: PC.status=closed_by_review；rejected comment 保留；再次嘗試 approve → 409 `terminal_state`。
+
+<!-- TC-ID: IT-0139 -->
+#### 情境 5: 異常 — 對非 confirmed 狀態 PC 執行 review (前置條件違反)
+*   **Arrange**: PC pc-005 status=draft。
+*   **Act**: review(action=approved)。
+*   **Assert**: 回 409 `precondition_failed` detail=`pc_not_confirmed`；audit_logs 不寫；PC 不變。
+
+<!-- TC-ID: IT-0140 -->
+#### 情境 6: 業務規則 — 跨 tenant 審核被 RBAC 阻擋
+*   **Arrange**: PC pc-006 tenant_id=T-A；reviewer u-csm-B tenant_id=T-B。
+*   **Act**: review(pc-006, reviewer=u-csm-B)。
+*   **Assert**: 回 403 `tenant_boundary_violation`；audit `rbac.denied.cross_tenant`；含 attacker_tenant + target_tenant。
 
 ---
 

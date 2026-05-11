@@ -74,3 +74,40 @@ async def attach_photo_to_problem_card(
 
 ---
 
+## 測試情境與案例 (ProactivePhotoGuidance)
+
+<!-- TC-ID: IT-0111 -->
+#### 情境 1: 正常路徑 — 完整度 0.6 觸發 lock_bolt_side 引導
+*   **Arrange**: ProblemCard pc-001 completeness_score=0.6（< 0.85），缺視覺診斷資訊。
+*   **Act**: evaluate_and_guide_photo_upload(pc-001, conv-001)。
+*   **Assert**: LINE Flex Message 已發送含 `lock_bolt_side` 拍攝指引 + 示意圖；conversation_logs 含 1 筆 photo_guidance；audit `photo.guidance_sent`。
+
+<!-- TC-ID: IT-0112 -->
+#### 情境 2: 正常路徑 — 上傳照片 attach 到 ProblemCard
+*   **Arrange**: pc-001 attachment_links=[]；客戶上傳 LINE 照片。
+*   **Act**: attach_photo_to_problem_card(pc-001, https://cdn/abc.jpg, photo_type=lock_bolt_side)。
+*   **Assert**: attachment_links 新增 `{url, photo_type:lock_bolt_side, uploaded_at}`；不執行 AI 影像辨識（per SOW 2.1(4) 排除）。
+
+<!-- TC-ID: IT-0113 -->
+#### 情境 3: 邊界 — completeness=0.85 剛好不觸發
+*   **Arrange**: pc-edge completeness=0.85 (=閾值)。
+*   **Act**: evaluate_and_guide_photo_upload。
+*   **Assert**: 不發送 Flex Message；不寫 photo_guidance；回傳 `{triggered: false, reason: "completeness_threshold_met"}`。
+
+<!-- TC-ID: IT-0114 -->
+#### 情境 4: 邊界 — 同 ProblemCard 已引導不重複發送
+*   **Arrange**: pc-001 之前已有 photo_guidance log 24h 內。
+*   **Act**: 再次 evaluate。
+*   **Assert**: 不重複發 Flex；audit `photo.guidance_dedupe`。
+
+<!-- TC-ID: IT-0115 -->
+#### 情境 5: 異常 — image_url 不合法
+*   **Arrange**: pc-001。
+*   **Act**: attach_photo_to_problem_card(pc-001, "not-a-url")。
+*   **Assert**: 回 422 `invalid_url`；attachment_links 不變。
+
+<!-- TC-ID: IT-0116 -->
+#### 情境 6: 業務規則 — 完整度 < 85% 是合約要求門檻
+*   **Arrange**: 合約 9.3 條要求 completeness ≥ 85% 才能 dispatch。
+*   **Act**: 派工前檢查 pc-001 completeness=0.7 (即使已引導照片但仍未上傳)。
+*   **Assert**: dispatch_engine.assign() 回 422 `completeness_below_contract_threshold`；audit `dispatch.blocked.completeness`。

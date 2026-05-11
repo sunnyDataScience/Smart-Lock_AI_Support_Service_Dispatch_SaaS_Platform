@@ -289,3 +289,43 @@ Phase 1 將寫入 PostgreSQL `agent_message_log` table，支援 SQL 查詢。
 | `agent/services/messaging/bus.py` | AgentMessageBus class |
 | `agent/services/messaging/__init__.py` | Package exports |
 | `agent/graph/state.py` | GraphState -- 新增 `agent_messages` 欄位（Phase 0 optional） |
+
+---
+
+## §X 測試情境與案例 (InterAgentMessaging)
+
+<!-- TC-ID: IT-0099 -->
+#### 情境 1: 正常路徑 — receptionist 派訊息給 hardware_technician
+*   **Arrange**: GraphState 初始 agent_messages=[]。
+*   **Act**: receptionist 呼叫 `bus.send(to="hardware_technician", payload={...}, correlation_id="cor-001")`。
+*   **Assert**: state["agent_messages"] 新增 1 筆，含 sender/recipient/correlation_id/timestamp；hardware_technician 下個 node 可 `receive_by(correlation_id)` 取得。
+
+<!-- TC-ID: IT-0100 -->
+#### 情境 2: 正常路徑 — 多 Agent escalation chain 完整 trace
+*   **Arrange**: store_assistant → manual_librarian → hardware_technician 三層。
+*   **Act**: 訊息逐層 forward，每層附 `parent_message_id`。
+*   **Assert**: agent_messages 3 筆構成 linked list；可從 leaf 反查到 root；correlation_id 全段相同。
+
+<!-- TC-ID: IT-0101 -->
+#### 情境 3: 邊界 — correlation_id 重複收信去重
+*   **Arrange**: 同 correlation_id 同 recipient 重複 send 2 次。
+*   **Act**: bus.send 2 次。
+*   **Assert**: agent_messages 只新增 1 筆（idempotent）；audit `messaging.dedupe`。
+
+<!-- TC-ID: IT-0102 -->
+#### 情境 4: 邊界 — 未知 recipient agent 拒絕
+*   **Arrange**: 7 個合法 agent 之外，嘗試 send to "unknown_agent"。
+*   **Act**: bus.send。
+*   **Assert**: raise `UnknownRecipientError`；不寫入 state；audit `messaging.invalid_recipient`。
+
+<!-- TC-ID: IT-0103 -->
+#### 情境 5: 異常 — Phase 0 in-memory bus crash 重啟後 state 重建
+*   **Arrange**: 系統 crash 前 state 持久化在 LangGraph checkpoint。
+*   **Act**: 重啟後 load checkpoint。
+*   **Assert**: agent_messages 完整還原；correlation chain 可繼續；無重複 escalation。
+
+<!-- TC-ID: IT-0104 -->
+#### 情境 6: 業務規則 — Phase 1 PostgreSQL 持久化稽核查詢
+*   **Arrange**: Phase 1 enable，所有 message 持久化到 DB。
+*   **Act**: 查詢 GET /audit/messages?correlation_id=cor-001。
+*   **Assert**: 回傳該 correlation 完整訊息鏈（含 cross-process）；timestamp 順序正確；非當前 process 的 message 也能查到。

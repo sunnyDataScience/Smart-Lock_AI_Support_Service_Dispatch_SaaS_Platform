@@ -124,3 +124,42 @@ last_reviewed: 2026-05-07
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-05-07 | Claude (assisted) | 初版：5 因子權重、tie-breaker 6 級、3 輪擴大、紅色警報覆寫、5 case 種子 |
+| 2026-05-11 | Claude (assisted) | 新增 §9 測試情境（6 cases，IT-0087 ~ IT-0092） |
+
+## §9 測試情境與案例 (DispatchWeights)
+
+<!-- TC-ID: IT-0087 -->
+#### 情境 1: 正常路徑 — 距離 3km 完全匹配技師分數驗證
+*   **Arrange**: tech T1 距案件 3km、brand+lock_type 雙匹配、rating=4.8、today_load=2/6、week_load=15。
+*   **Act**: 計算總分。
+*   **Assert**: distance=1.0×0.35=0.35; skill=1.0×0.30=0.30; rating=0.96×0.15=0.144; load=(1-2/6)×0.10=0.0667; fairness=(1-15/50)×0.10=0.07; total ≈ 0.931 (誤差 < 0.001)。
+
+<!-- TC-ID: IT-0088 -->
+#### 情境 2: 正常路徑 — 距離邊界 5km/10km/20km/30km 線性計算
+*   **Arrange**: 4 名技師距離分別 5km, 10km, 20km, 30km。
+*   **Act**: 計算 distance 分數。
+*   **Assert**: 1.0 / 0.7 / 0.3 / 0.05（per §2.1 線段端點）。
+
+<!-- TC-ID: IT-0089 -->
+#### 情境 3: 邊界 — 5 名技師同分（tie）以 6 級 tie-breaker 排序
+*   **Arrange**: T1~T5 總分均為 0.85（人工建構）。
+*   **Act**: 應用 tie-breaker（per §3 6 級）。
+*   **Assert**: 排序依次為 distance > rating > fairness > load > skill > random seed；最後 random 用 work_order_id hash 確定（同 wo_id 重跑結果一致 = idempotent）。
+
+<!-- TC-ID: IT-0090 -->
+#### 情境 4: 邊界 — 3 輪擴大搜尋直到找到候選
+*   **Arrange**: 5km 內 0 技師，10km 內 0 技師，20km 內 1 技師 T1。
+*   **Act**: dispatch_engine 三輪搜尋。
+*   **Assert**: 第 1/2 輪空集，第 3 輪 (20km) 找到 T1；audit 含 `dispatch.expand_radius` 標記 round=3, final_radius=20km。
+
+<!-- TC-ID: IT-0091 -->
+#### 情境 5: 異常 — 紅色警報覆寫權重（urgent severity）
+*   **Arrange**: severity=urgent；T1 距 1km、rating 3.2；T2 距 12km、rating 4.9。
+*   **Act**: 計算 (per §5 紅色覆寫)。
+*   **Assert**: 紅色路徑下 rating weight 從 0.15 → 0.40，distance 從 0.35 → 0.20；T2 總分 > T1，T2 中選；audit `dispatch.urgent_weight_override`。
+
+<!-- TC-ID: IT-0092 -->
+#### 情境 6: 業務規則 — Fairness 防壟斷新進技師加成
+*   **Arrange**: 新進 T-new (week_load=0) 與 senior T-sen (week_load=45)；其餘維度相同。
+*   **Act**: 計算 fairness。
+*   **Assert**: T-new fairness=(1-0)=1.0；T-sen fairness=(1-45/50)=0.1；最終 T-new 分數高，獲派 (per 防壟斷規則)。

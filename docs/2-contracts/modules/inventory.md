@@ -221,3 +221,43 @@ CREATE INDEX idx_inv_txn_type_created ON inventory_transactions (transaction_typ
 - V2.0：多倉庫支援（warehouse_id 欄位）
 - V2.0：技師車載庫存獨立追蹤
 - V3.0：自動補貨下單整合供應商 API
+
+---
+
+## §9 測試情境與案例 (Inventory)
+
+<!-- TC-ID: IT-0105 -->
+#### 情境 1: 正常路徑 — 技師完工消耗 2 顆電池正確扣減
+*   **Arrange**: item BAT-AA-PANA-001 quantity_on_hand=20，reorder_point=5。
+*   **Act**: 技師 t-001 完工時送 POST /inventory/consume，body=`{item_id, quantity:2, work_order_id:wo-001}`。
+*   **Assert**: quantity_on_hand=18；inventory_transactions 新增 1 筆 (type=consume, qty=-2, wo_id=wo-001)；audit `inventory.consume`。
+
+<!-- TC-ID: IT-0106 -->
+#### 情境 2: 正常路徑 — 補貨入庫 transaction
+*   **Arrange**: item LOCK-CYL-DORM-100 quantity=3。
+*   **Act**: 採購 POST /inventory/purchase，qty=50。
+*   **Assert**: quantity=53；inventory_transactions type=purchase qty=+50；audit `inventory.purchase`。
+
+<!-- TC-ID: IT-0107 -->
+#### 情境 3: 邊界 — 消耗後跌破 reorder_point 觸發通知
+*   **Arrange**: item BAT-AA, quantity=6, reorder=5；消耗 2 個。
+*   **Act**: consume qty=2 → quantity=4 (< 5)。
+*   **Assert**: notifications 新增 1 筆 target=warehouse_admin，type=`inventory.low_stock`，含 item_id + current_qty=4；audit `inventory.reorder_alert`。
+
+<!-- TC-ID: IT-0108 -->
+#### 情境 4: 邊界 — 庫存不足拒絕扣減
+*   **Arrange**: quantity=1。
+*   **Act**: consume qty=2。
+*   **Assert**: 回 409 `insufficient_inventory`，detail 含 current=1, requested=2；transaction 不寫入；quantity 不變；audit `inventory.refused.insufficient`。
+
+<!-- TC-ID: IT-0109 -->
+#### 情境 5: 異常 — Consume 缺 work_order_id 必填驗證失敗
+*   **Arrange**: 任意 item。
+*   **Act**: POST /inventory/consume，body 缺 work_order_id。
+*   **Assert**: 回 422 `field_required`；transaction 不寫；audit `inventory.invalid_request`。
+
+<!-- TC-ID: IT-0110 -->
+#### 情境 6: 業務規則 — Return 退料還原庫存與工單關聯
+*   **Arrange**: 技師領 5 個電池但只用 3 個，退回 2 個；wo-001 已有 consume transaction qty=-5。
+*   **Act**: POST /inventory/return，qty=2, work_order_id=wo-001。
+*   **Assert**: quantity 加 2；transactions 新增 type=return qty=+2 同 wo_id；wo-001 實際消耗為 3 (5-2)；audit `inventory.return` 含 net_consumption=3。

@@ -298,3 +298,43 @@ Headers: Authorization: Bearer {jwt_token}
 | GAP #9 報價引擎 | 範圍變更時，管理員在 chat 中發送更新報價供師傅確認 |
 | GAP #20 爭議處理 | chat 訊息紀錄作為爭議處理的證據之一 |
 | GAP #25 完工證據鏈 | 師傅在 chat 中傳送的現場照片可納入完工證據 |
+
+---
+
+## §X 測試情境與案例 (RealtimeMessaging)
+
+<!-- TC-ID: IT-0117 -->
+#### 情境 1: 正常路徑 — 管理員傳文字訊息給工單頻道
+*   **Arrange**: work_order wo-001 已建立 chat channel；admin u-admin-001 已加入。
+*   **Act**: WebSocket send `{type:text, content:"請確認配件型號", channel:wo-001}`。
+*   **Assert**: chat_messages 新增 1 筆 (sender=admin, type=text, wo_id=wo-001)；技師端 WebSocket 收到；audit `chat.message_sent`。
+
+<!-- TC-ID: IT-0118 -->
+#### 情境 2: 正常路徑 — 師傅離線時 LINE push fallback
+*   **Arrange**: 技師 t-001 WebSocket disconnected。
+*   **Act**: admin 發訊息 to wo-001 channel。
+*   **Assert**: chat_messages 寫入；LINE push notification 發送至 t-001；當 t-001 重新連線時收到未讀訊息列表。
+
+<!-- TC-ID: IT-0119 -->
+#### 情境 3: 邊界 — 同 channel 5 人並發發訊息順序保證
+*   **Arrange**: chat wo-001 含 5 個 user 同時 send。
+*   **Act**: 5 個 WebSocket 同時 publish 到 Redis。
+*   **Assert**: 所有 user 收到的訊息順序相同（依 Redis publish timestamp）；chat_messages 5 筆按時間排序；無 deadlock。
+
+<!-- TC-ID: IT-0120 -->
+#### 情境 4: 邊界 — 工單 closed 後 chat 限制只可讀不可寫
+*   **Arrange**: wo-002 status=closed。
+*   **Act**: 嘗試 send 訊息到 wo-002 channel。
+*   **Assert**: 回 403 `channel_read_only`；可繼續 read 歷史；audit `chat.send.refused.closed`。
+
+<!-- TC-ID: IT-0121 -->
+#### 情境 5: 異常 — Redis 連線失效 fallback 至 in-memory
+*   **Arrange**: Phase 0 + 1 共存環境，Redis down。
+*   **Act**: chat send。
+*   **Assert**: 自動 fallback in-memory bus；訊息仍交付當前 instance；audit `chat.degraded.in_memory_fallback`；alert oncall。
+
+<!-- TC-ID: IT-0122 -->
+#### 情境 6: 業務規則 — 跨工單 RBAC 防止資訊洩漏
+*   **Arrange**: technician t-002 不屬於 wo-001 的指派技師。
+*   **Act**: t-002 嘗試 join WebSocket channel wo-001。
+*   **Assert**: 回 403 `channel_forbidden`；不接收任何 wo-001 訊息；audit `chat.access.denied`。

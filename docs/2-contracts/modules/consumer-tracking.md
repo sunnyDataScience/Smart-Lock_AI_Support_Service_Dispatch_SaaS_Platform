@@ -103,3 +103,42 @@ last_reviewed: 2026-05-07
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-05-07 | Claude (assisted) | 初版：兩者並存（LINE 主 / Web VIP 備）+ 共用 token 機制 + PII 遮罩規則（Q3=C 拍板） |
+| 2026-05-11 | Claude (assisted) | 新增 §8 測試情境（6 cases，IT-0075 ~ IT-0080） |
+
+## §8 測試情境與案例 (ConsumerTracking)
+
+<!-- TC-ID: IT-0075 -->
+#### 情境 1: 正常路徑 — LINE 用戶 `查工單` intent 回傳自己的 work_order
+*   **Arrange**: LINE user_id=U001 對應 customer_id=c-001，有 work_order wo-001。
+*   **Act**: 用戶發送「查工單」，LIFF 觸發 `getWorkOrderPublicStatus(line_user_id=U001)`。
+*   **Assert**: 回傳 wo-001 狀態 + 派工進度；不含其他 customer 工單；audit_logs 含 `consumer.track.line` 事件。
+
+<!-- TC-ID: IT-0076 -->
+#### 情境 2: 正常路徑 — VIP 收推播短連結 Web 追蹤
+*   **Arrange**: 系統產 HMAC token `tk-abc` for wo-002，發送至 VIP 客戶 email。
+*   **Act**: 客戶開啟 `/track/tk-abc`。
+*   **Assert**: 回傳 wo-002 狀態（無需登入）；token 有效期 7 天內可重複查；audit 含 `consumer.track.web.token` 事件。
+
+<!-- TC-ID: IT-0077 -->
+#### 情境 3: 邊界 — Token 過期應 410 Gone
+*   **Arrange**: HMAC token 8 天前產生，TTL=7 days。
+*   **Act**: GET /track/expired-token。
+*   **Assert**: 回 410 + 顯示「連結已過期，請聯絡客服重發」；不洩漏 wo_id；audit `consumer.track.token_expired`。
+
+<!-- TC-ID: IT-0078 -->
+#### 情境 4: 邊界 — LINE user_id 無對應 customer
+*   **Arrange**: LINE user U999 從未綁定 customer。
+*   **Act**: 「查工單」intent。
+*   **Assert**: 回應「您尚未綁定客戶身份，請先輸入手機號碼」；不回傳任何工單；不洩漏其他客戶資料。
+
+<!-- TC-ID: IT-0079 -->
+#### 情境 5: 異常 — Token HMAC 簽章被竄改
+*   **Arrange**: 攻擊者把 token `tk-abc.sig123` 改成 `tk-abc.sig999`。
+*   **Act**: GET /track/tampered-token。
+*   **Assert**: HMAC verify 失敗，回 403 + audit `consumer.track.token_tampered`，含 source_ip；不揭示真實 wo_id 是否存在。
+
+<!-- TC-ID: IT-0080 -->
+#### 情境 6: 業務規則 — PII 遮罩在 response payload
+*   **Arrange**: wo-001 含 customer.phone=0912345678 + customer.name=王小明。
+*   **Act**: GET /track/{token}。
+*   **Assert**: response 含 `customer_phone_masked="091*-***-678"` + `customer_name_masked="王*明"`；無未遮罩欄位；technician.name 不遮罩（per §3 PII 範圍）。
