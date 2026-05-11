@@ -1,0 +1,24 @@
+# Test Case Registry — CI Single Source of Truth
+#
+# 本檔由 scripts/ci/extract-test-cases.py 從各原始檔的 <!-- TC-ID: XXX --> 標記
+# 自動產生。**請勿手動編輯本檔**——改原始檔 (modules/BDD/state-machines) 後跑：
+#
+#   python scripts/ci/extract-test-cases.py
+#
+# Schema 定義見 docs/2-contracts/test-cases/CONVENTION.md §5
+# ID 規則見 CONVENTION.md §2
+
+metadata:
+  generated_at: "1970-01-01T00:00:00Z"   # 由 extract script 更新
+  generated_by: "scripts/ci/extract-test-cases.py"
+  schema_version: 1
+  total_count: 0
+
+test_cases: []
+
+# 後續 commit 2-7 將自動填充：
+#   - commit 2: 74 BDD scenarios from bdd/all-features.md
+#   - commit 3: ~30 IT/UT from 5 完整 modules
+#   - commit 4-5: ~100 IT/UT from 16 補洞 modules
+#   - commit 6: FR-level boundary cases (若不在 module 內)
+#   - commit 7: matrix 升級不新增 case，只調整 reverse index

@@ -1,0 +1,48 @@
+name: Test Case Coverage Check
+
+on:
+  push:
+    paths:
+      - 'docs/2-contracts/test-cases/**'
+      - 'docs/2-contracts/modules/**/*.md'
+      - 'docs/2-contracts/state-machines/**/*.md'
+      - 'docs/2-contracts/functional-requirements/**/*.md'
+      - 'docs/3-process/bdd/**/*.md'
+      - 'scripts/ci/extract-test-cases.py'
+      - 'scripts/ci/check-test-case-coverage.py'
+      - '.github/workflows/test-case-coverage.yml'
+  pull_request:
+    paths:
+      - 'docs/2-contracts/test-cases/**'
+      - 'docs/2-contracts/modules/**/*.md'
+      - 'docs/2-contracts/state-machines/**/*.md'
+      - 'docs/2-contracts/functional-requirements/**/*.md'
+      - 'docs/3-process/bdd/**/*.md'
+
+jobs:
+  coverage-check:
+    name: TC-NNNN Coverage + Registry Consistency
+    runs-on: ubuntu-latest
+    # NOTE: warn-only during commits 1-6 (骨架 + 抽取 + 補洞 stage).
+    # Commit 7 will remove this continue-on-error to make CI blocking.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PyYAML
+        run: pip install --quiet pyyaml
+
+      - name: Registry consistency check (extract --check)
+        run: python scripts/ci/extract-test-cases.py --check
+
+      - name: Coverage rules (R1-R7)
+        run: python scripts/ci/check-test-case-coverage.py --report
+
+      # When commit 7 lands, swap above with:
+      # - name: Coverage rules (strict)
+      #   run: python scripts/ci/check-test-case-coverage.py --strict --report
