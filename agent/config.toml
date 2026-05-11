@@ -191,3 +191,13 @@ project_name  = "smart-lock-agent"
 api_key_env   = "OPIK_API_KEY"
 workspace_env = "OPIK_WORKSPACE"
 tags          = ["production"]
+
+[turn_cycle]
+# Belief-Augmented ReAct — 在 ReAct 前先跑 Hypothesize + Decide，把
+# (BeliefState, ActionDecision) 渲染成 [Belief Hint] 注入 prompt prefix。
+# 預設關，安全切上線（吸取 b899478 dual dispatch 教訓）。
+enabled       = false
+# Hypothesize 失敗（JSON 不合法 / LLM 逾時 / DB 寫入掛掉）時的行為：
+#   true  → 走原 ReAct path 不影響使用者
+#   false → 把例外 raise 出去（測試環境抓 bug 用，**production 永遠 true**）
+fail_open     = true

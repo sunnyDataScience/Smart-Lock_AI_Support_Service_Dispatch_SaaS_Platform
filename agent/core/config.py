@@ -38,6 +38,7 @@ class AppConfig:
     opik: dict = field(default_factory=dict)
     skills: dict = field(default_factory=dict)
     notifications: dict = field(default_factory=dict)
+    turn_cycle: dict = field(default_factory=dict)
 
 
 def load_config(file_path: str | None = None) -> AppConfig:
@@ -72,6 +73,7 @@ def load_config(file_path: str | None = None) -> AppConfig:
         opik=data.get("opik", {}),
         skills=data.get("skills", {}),
         notifications=data.get("notifications", {}),
+        turn_cycle=data.get("turn_cycle", {}),
     )
 
 
