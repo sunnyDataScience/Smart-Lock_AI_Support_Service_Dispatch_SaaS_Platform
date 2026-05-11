@@ -29,13 +29,17 @@ from belief import BeliefState, Hypothesis
 ActionType = Literal["COMMIT", "PROBE", "EXPLORE", "ESCALATE"]
 
 
-# Confidence thresholds — 新需求 §7.2 預設值
-HIGH_CONFIDENCE = 0.70   # >= HIGH → COMMIT
+# Confidence thresholds
+#
+# B-fix-v2 後調整：原 HIGH=0.70 / GAP=0.30 太緊，明確訊息但 Hypothesize 給
+# conf 0.55-0.65 都會掉到 PROBE 反問。Baseline 85% 已穩 → turn-cycle 應該
+# 「不破壞 + 補強模糊情境」，所以閾值應寬鬆。
+HIGH_CONFIDENCE = 0.55   # >= HIGH → COMMIT（從 0.70 降到 0.55）
 LOW_CONFIDENCE = 0.30    # < LOW   → EXPLORE
 # (LOW, HIGH] 之間 → PROBE
 
 # Top vs runner-up gap — top 沒拉開就算「並列」，要 PROBE 區分
-GAP_TO_COMMIT = 0.30
+GAP_TO_COMMIT = 0.15     # 從 0.30 降到 0.15（多意圖場景子 hypothesis 接近正常）
 
 
 # 規則層強制 ESCALATE 的 intent
