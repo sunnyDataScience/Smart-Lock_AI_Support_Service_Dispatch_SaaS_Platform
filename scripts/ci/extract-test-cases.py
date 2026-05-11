@@ -178,6 +178,11 @@ def scan_file(path: Path, default_type: str) -> list[TestCase]:
         if m:
             markers.append((i, m.group(1), m.group(2)))
 
+    # Auto-infer trace.module from filename when scanning modules/*.md
+    auto_module = None
+    if "/2-contracts/modules/" in file_rel and not file_rel.endswith("/INDEX.md"):
+        auto_module = path.stem
+
     for idx, (line_idx, tc_id, legacy) in enumerate(markers):
         prefix, _ = parse_id_prefix(tc_id)
         case_type = TYPE_PREFIX.get(prefix, default_type)
@@ -188,12 +193,17 @@ def scan_file(path: Path, default_type: str) -> list[TestCase]:
         next_line = markers[idx + 1][0] if idx + 1 < len(markers) else len(lines)
         source = f"{file_rel}#L{line_idx + 1}-L{next_line}"
 
+        trace = {"flow": [], "fr": [], "module": []}
+        if auto_module:
+            trace["module"] = [auto_module]
+
         cases.append(
             TestCase(
                 id=tc_id,
                 title=title,
                 type=case_type,
                 source=source,
+                trace=trace,
                 tags=tags,
                 legacy_id=legacy,
             )

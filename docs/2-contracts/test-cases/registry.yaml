@@ -6,10 +6,10 @@
 # Schema: docs/2-contracts/test-cases/CONVENTION.md §5
 
 metadata:
-  generated_at: '2026-05-11T10:30:50.485895Z'
+  generated_at: '2026-05-11T10:32:38.056748Z'
   generated_by: scripts/ci/extract-test-cases.py
   schema_version: 1
-  total_count: 79
+  total_count: 117
 test_cases:
 - id: BDD-0001
   title: Recognize user intent from initial message
@@ -649,4 +649,352 @@ test_cases:
   trace: {}
   tags:
   - boundary
+  status: implemented
+- id: IT-0001
+  title: 正常路徑 — 新使用者首次發送問題訊息
+  type: integration
+  source: docs/2-contracts/modules/conversation-manager.md#L112-L129
+  trace:
+    module:
+    - conversation-manager
+  tags: []
+  status: implemented
+- id: IT-0002
+  title: 正常路徑 — 多輪對話逐步收集 ProblemCard 資訊
+  type: integration
+  source: docs/2-contracts/modules/conversation-manager.md#L130-L145
+  trace:
+    module:
+    - conversation-manager
+  tags: []
+  status: implemented
+- id: IT-0003
+  title: 正常路徑 — 資訊收集完成觸發三層解決機制
+  type: integration
+  source: docs/2-contracts/modules/conversation-manager.md#L146-L163
+  trace:
+    module:
+    - conversation-manager
+  tags: []
+  status: implemented
+- id: IT-0004
+  title: 邊界情況 — 對話超時後恢復
+  type: integration
+  source: docs/2-contracts/modules/conversation-manager.md#L164-L178
+  trace:
+    module:
+    - conversation-manager
+  tags: []
+  status: implemented
+- id: IT-0005
+  title: 無效輸入 — 使用者發送不相關訊息
+  type: integration
+  source: docs/2-contracts/modules/conversation-manager.md#L179-L193
+  trace:
+    module:
+    - conversation-manager
+  tags: []
+  status: implemented
+- id: IT-0006
+  title: 無效輸入 — LINE User ID 格式不合法
+  type: integration
+  source: docs/2-contracts/modules/conversation-manager.md#L194-L205
+  trace:
+    module:
+    - conversation-manager
+  tags: []
+  status: implemented
+- id: IT-0007
+  title: 業務規則 — LINE Webhook 非同步處理保證 1 秒內回應
+  type: integration
+  source: docs/2-contracts/modules/conversation-manager.md#L206-L220
+  trace:
+    module:
+    - conversation-manager
+  tags: []
+  status: implemented
+- id: IT-0008
+  title: 業務規則 — 同一使用者並行對話限制
+  type: integration
+  source: docs/2-contracts/modules/conversation-manager.md#L221-L235
+  trace:
+    module:
+    - conversation-manager
+  tags: []
+  status: implemented
+- id: IT-0009
+  title: 正常路徑 — 向量搜尋命中高相似度案例
+  type: integration
+  source: docs/2-contracts/modules/knowledge-base-manager.md#L127-L142
+  trace:
+    module:
+    - knowledge-base-manager
+  tags: []
+  status: implemented
+- id: IT-0010
+  title: 正常路徑 — 搜尋無命中（所有結果低於閾值）
+  type: integration
+  source: docs/2-contracts/modules/knowledge-base-manager.md#L143-L156
+  trace:
+    module:
+    - knowledge-base-manager
+  tags: []
+  status: implemented
+- id: IT-0011
+  title: 正常路徑 — PDF 手冊上傳與切片處理
+  type: integration
+  source: docs/2-contracts/modules/knowledge-base-manager.md#L157-L175
+  trace:
+    module:
+    - knowledge-base-manager
+  tags: []
+  status: implemented
+- id: IT-0012
+  title: 邊界情況 — 品牌過濾縮小搜尋範圍
+  type: integration
+  source: docs/2-contracts/modules/knowledge-base-manager.md#L176-L187
+  trace:
+    module:
+    - knowledge-base-manager
+  tags: []
+  status: implemented
+- id: IT-0013
+  title: 無效輸入 — 上傳非 PDF 檔案
+  type: integration
+  source: docs/2-contracts/modules/knowledge-base-manager.md#L188-L199
+  trace:
+    module:
+    - knowledge-base-manager
+  tags: []
+  status: implemented
+- id: IT-0014
+  title: 無效輸入 — 超過大小限制的 PDF
+  type: integration
+  source: docs/2-contracts/modules/knowledge-base-manager.md#L200-L210
+  trace:
+    module:
+    - knowledge-base-manager
+  tags: []
+  status: implemented
+- id: IT-0015
+  title: 業務規則 — 已停用的案例不出現在搜尋結果
+  type: integration
+  source: docs/2-contracts/modules/knowledge-base-manager.md#L211-L222
+  trace:
+    module:
+    - knowledge-base-manager
+  tags: []
+  status: implemented
+- id: IT-0016
+  title: 業務規則 — PDF 處理失敗的錯誤記錄
+  type: integration
+  source: docs/2-contracts/modules/knowledge-base-manager.md#L223-L238
+  trace:
+    module:
+    - knowledge-base-manager
+  tags: []
+  status: implemented
+- id: IT-0017
+  title: 正常路徑 — 所有欄位齊全時生成完整 ProblemCard
+  type: integration
+  source: docs/2-contracts/modules/problem-card-engine.md#L107-L123
+  trace:
+    module:
+    - problem-card-engine
+  tags: []
+  status: implemented
+  legacy_id: TC-PCE-001
+- id: IT-0018
+  title: 正常路徑 — 僅有品牌與症狀的最低限度 ProblemCard
+  type: integration
+  source: docs/2-contracts/modules/problem-card-engine.md#L124-L137
+  trace:
+    module:
+    - problem-card-engine
+  tags: []
+  status: implemented
+  legacy_id: TC-PCE-002
+- id: IT-0019
+  title: 邊界情況 — 停產型號處理
+  type: integration
+  source: docs/2-contracts/modules/problem-card-engine.md#L138-L152
+  trace:
+    module:
+    - problem-card-engine
+  tags: []
+  status: implemented
+  legacy_id: TC-PCE-003
+- id: IT-0020
+  title: 邊界情況 — 重複生成 ProblemCard（冪等性）
+  type: integration
+  source: docs/2-contracts/modules/problem-card-engine.md#L153-L167
+  trace:
+    module:
+    - problem-card-engine
+  tags: []
+  status: implemented
+  legacy_id: TC-PCE-004
+- id: IT-0021
+  title: 無效輸入 — 空的對話訊息列表
+  type: integration
+  source: docs/2-contracts/modules/problem-card-engine.md#L168-L179
+  trace:
+    module:
+    - problem-card-engine
+  tags: []
+  status: implemented
+  legacy_id: TC-PCE-005
+- id: IT-0022
+  title: 業務規則 — 優先度自動分類
+  type: integration
+  source: docs/2-contracts/modules/problem-card-engine.md#L180-L195
+  trace:
+    module:
+    - problem-card-engine
+  tags: []
+  status: implemented
+  legacy_id: TC-PCE-006
+- id: IT-0023
+  title: 正常路徑 — 從 L2 解決的案件生成 SOP 草稿
+  type: integration
+  source: docs/2-contracts/modules/sop-generator.md#L110-L128
+  trace:
+    module:
+    - sop-generator
+  tags: []
+  status: implemented
+- id: IT-0024
+  title: 正常路徑 — 從 L3 人工解決的案件生成包含臨時/永久修復的 SOP
+  type: integration
+  source: docs/2-contracts/modules/sop-generator.md#L129-L142
+  trace:
+    module:
+    - sop-generator
+  tags: []
+  status: implemented
+- id: IT-0025
+  title: 邊界情況 — 重複檢測發現高相似度既有案例
+  type: integration
+  source: docs/2-contracts/modules/sop-generator.md#L143-L158
+  trace:
+    module:
+    - sop-generator
+  tags: []
+  status: implemented
+- id: IT-0026
+  title: 邊界情況 — 同一對話不可重複生成 SOP
+  type: integration
+  source: docs/2-contracts/modules/sop-generator.md#L159-L171
+  trace:
+    module:
+    - sop-generator
+  tags: []
+  status: implemented
+- id: IT-0027
+  title: 無效輸入 — 案件未解決即嘗試生成 SOP
+  type: integration
+  source: docs/2-contracts/modules/sop-generator.md#L172-L184
+  trace:
+    module:
+    - sop-generator
+  tags: []
+  status: implemented
+- id: IT-0028
+  title: 無效輸入 — 使用者回饋為負面時不生成 SOP
+  type: integration
+  source: docs/2-contracts/modules/sop-generator.md#L185-L197
+  trace:
+    module:
+    - sop-generator
+  tags: []
+  status: implemented
+- id: IT-0029
+  title: 業務規則 — SOP 發布後自動轉為案例條目
+  type: integration
+  source: docs/2-contracts/modules/sop-generator.md#L198-L216
+  trace:
+    module:
+    - sop-generator
+  tags: []
+  status: implemented
+- id: IT-0030
+  title: 業務規則 — 管理員退回 SOP 時記錄回饋
+  type: integration
+  source: docs/2-contracts/modules/sop-generator.md#L217-L233
+  trace:
+    module:
+    - sop-generator
+  tags: []
+  status: implemented
+- id: IT-0031
+  title: 正常路徑 — L1 高信心命中直接解決
+  type: integration
+  source: docs/2-contracts/modules/three-layer-resolver.md#L184-L200
+  trace:
+    module:
+    - three-layer-resolver
+  tags: []
+  status: implemented
+- id: IT-0032
+  title: 正常路徑 — L1 未命中，L2 RAG 成功解決
+  type: integration
+  source: docs/2-contracts/modules/three-layer-resolver.md#L201-L217
+  trace:
+    module:
+    - three-layer-resolver
+  tags: []
+  status: implemented
+- id: IT-0033
+  title: 正常路徑 — L1 和 L2 均失敗，升級至 L3
+  type: integration
+  source: docs/2-contracts/modules/three-layer-resolver.md#L218-L233
+  trace:
+    module:
+    - three-layer-resolver
+  tags: []
+  status: implemented
+- id: IT-0034
+  title: 邊界情況 — L1 多個接近閾值的模糊匹配
+  type: integration
+  source: docs/2-contracts/modules/three-layer-resolver.md#L234-L248
+  trace:
+    module:
+    - three-layer-resolver
+  tags: []
+  status: implemented
+- id: IT-0035
+  title: 邊界情況 — L1 閾值邊界值行為
+  type: integration
+  source: docs/2-contracts/modules/three-layer-resolver.md#L249-L261
+  trace:
+    module:
+    - three-layer-resolver
+  tags: []
+  status: implemented
+- id: IT-0036
+  title: 無效輸入 — ProblemCard 未達最低完整度
+  type: integration
+  source: docs/2-contracts/modules/three-layer-resolver.md#L262-L274
+  trace:
+    module:
+    - three-layer-resolver
+  tags: []
+  status: implemented
+- id: IT-0037
+  title: 業務規則 — L3 非營業時間升級
+  type: integration
+  source: docs/2-contracts/modules/three-layer-resolver.md#L275-L290
+  trace:
+    module:
+    - three-layer-resolver
+  tags: []
+  status: implemented
+- id: IT-0038
+  title: 業務規則 — Embedding Service 不可用時的降級處理
+  type: integration
+  source: docs/2-contracts/modules/three-layer-resolver.md#L291-L307
+  trace:
+    module:
+    - three-layer-resolver
+  tags: []
   status: implemented
