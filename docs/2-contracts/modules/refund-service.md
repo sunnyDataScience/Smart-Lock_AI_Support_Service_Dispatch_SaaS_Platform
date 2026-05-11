@@ -233,3 +233,91 @@ GET /refunds/{id}
 | `executed_at` | TIMESTAMPTZ | 退款執行時間 |
 | `created_at` | TIMESTAMPTZ | 建立時間 |
 | `updated_at` | TIMESTAMPTZ | 更新時間 |
+
+---
+
+## §5 測試情境與案例 (RefundService)
+
+<!-- TC-ID: IT-0051 -->
+#### 情境 1: 正常路徑 — 單簽流程退款 80,000 TWD 成功執行
+
+*   **描述**: 退款金額 80,000 TWD（< 門檻 100,000）走單簽流程 pending → csm_approved → executed。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Arrange**:
+        - 建立 work_order `wo-001` (status=completed)，invoice `inv-001` 金額 100,000。
+        - User `u-customer-001` 為 line_user。
+        - User `u-csm-001` 為 admin (CSM 簽核權)。
+    2.  **Act**:
+        - POST /refunds，body=`{"work_order_id":"wo-001","amount":80000,"reason":"裝錯型號"}`，actor=u-customer-001 → 取得 refund_id `r-001`，status=pending、requires_dual_sign=false。
+        - POST /refunds/r-001/approve，actor=u-csm-001。
+    3.  **Assert**:
+        - status 從 `pending` → `csm_approved` → 自動觸發 execute_refund() → `executed`。
+        - `approval_chain` JSONB 含 2 個 entry: `{"by":"u-csm-001","action":"approve","at":"..."}`, `{"by":"system","action":"execute","at":"..."}`。
+        - `executed_at` 非 null。
+        - LINE 通知已發送（per BR-REFUND-005）。
+
+<!-- TC-ID: IT-0052 -->
+#### 情境 2: 正常路徑 — 雙簽流程退款 250,000 TWD 完整 4 階段
+
+*   **描述**: 金額 250,000 > 門檻，走雙簽 pending → csm_approved → ops_approved → dual_signed → executed。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Arrange**:
+        - User u-csm-001 (admin), u-ops-001 (operations_manager)。
+        - complaint `co-001` 已建立。
+    2.  **Act**:
+        - POST /refunds，amount=250000，complaint_id=co-001 → `r-002`，status=pending、requires_dual_sign=true。
+        - POST /refunds/r-002/approve，actor=u-csm-001 → status=csm_approved。
+        - POST /refunds/r-002/approve，actor=u-ops-001 → status=ops_approved → 觸發 transition → dual_signed → execute → executed。
+    3.  **Assert**:
+        - `approval_chain` 4 個 entry (csm/ops/system_dual_sign/system_execute)。
+        - `executed_at` 非 null。
+        - executed 與最後 approve 同一 transaction（assert: 中途 mock LINE API 失敗，整 transaction rollback，refund 不應到 executed）。
+
+<!-- TC-ID: IT-0053 -->
+#### 情境 3: 邊界情況 — 退款金額剛好 100,000 走單簽
+
+*   **描述**: amount=100000 屬於 `<=` 門檻，應 requires_dual_sign=false（per §2.1）。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Arrange**:
+        - work_order `wo-003` (status=completed)。
+    2.  **Act**: POST /refunds，amount=100000。
+    3.  **Assert**:
+        - `requires_dual_sign` = false。
+        - 走單簽流程，CSM approve 後直接 executed。
+        - 與情境 4 (amount=100001) 對比測試。
+
+<!-- TC-ID: IT-0054 -->
+#### 情境 4: 邊界情況 — 退款 100,001 觸發雙簽
+
+*   **描述**: amount=100001 > 門檻，必須走雙簽，即便僅多 1 元。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Arrange**: same as 情境 3。
+    2.  **Act**: POST /refunds，amount=100001。
+    3.  **Assert**:
+        - `requires_dual_sign` = true。
+        - CSM approve 後 status=csm_approved，**未**自動執行；必須再 OPS approve。
+
+<!-- TC-ID: IT-0055 -->
+#### 情境 5: 無效輸入 — 缺 work_order_id 與 complaint_id 兩個 NULL
+
+*   **描述**: 違反 BR-REFUND-004，request validation 階段拒絕。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Act**: POST /refunds，body=`{"amount":50000,"reason":"missing references"}`（無 work_order_id 也無 complaint_id）。
+    2.  **Assert**:
+        - 回 422 `Unprocessable Entity`，error_code=`refund.missing_reference`。
+        - DB 無新增 refunds row。
+        - `audit_logs` 無 refund 相關事件（因未進 service layer）。
+
+<!-- TC-ID: IT-0056 -->
+#### 情境 6: 業務規則 — 任一階段 reject 立即終止流程（冪等）
+
+*   **描述**: per BR-REFUND-003，CSM reject 後流程結束；再次嘗試 approve 應 409 Conflict。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Arrange**: refund `r-005` status=pending。
+    2.  **Act**:
+        - POST /refunds/r-005/reject，actor=u-csm-001 → status=rejected。
+        - 再次 POST /refunds/r-005/approve，actor=u-ops-001。
+    3.  **Assert**:
+        - 第二個 call 回 409 `Conflict`，error_code=`refund.terminal_state`。
+        - `approval_chain` 只含 1 個 reject entry，不被覆寫。
+        - `executed_at` 仍為 null。

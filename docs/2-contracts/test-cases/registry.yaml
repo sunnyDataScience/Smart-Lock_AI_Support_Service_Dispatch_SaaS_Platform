@@ -6,10 +6,10 @@
 # Schema: docs/2-contracts/test-cases/CONVENTION.md §5
 
 metadata:
-  generated_at: '2026-05-11T10:32:38.056748Z'
+  generated_at: '2026-05-11T10:38:28.755496Z'
   generated_by: scripts/ci/extract-test-cases.py
   schema_version: 1
-  total_count: 117
+  total_count: 147
 test_cases:
 - id: BDD-0001
   title: Recognize user intent from initial message
@@ -996,5 +996,275 @@ test_cases:
   trace:
     module:
     - three-layer-resolver
+  tags: []
+  status: implemented
+- id: IT-0039
+  title: 正常路徑 — 一般案件依權重派發給最高分技師
+  type: integration
+  source: docs/2-contracts/modules/dispatch-engine.md#L91-L105
+  trace:
+    module:
+    - dispatch-engine
+  tags: []
+  status: implemented
+- id: IT-0040
+  title: 正常路徑 — 緊急案件（SLA red code）派給最高分技師
+  type: integration
+  source: docs/2-contracts/modules/dispatch-engine.md#L106-L119
+  trace:
+    module:
+    - dispatch-engine
+  tags: []
+  status: implemented
+- id: IT-0041
+  title: 邊界情況 — Triage 多輪模糊對話升級至 L3
+  type: integration
+  source: docs/2-contracts/modules/dispatch-engine.md#L120-L132
+  trace:
+    module:
+    - dispatch-engine
+  tags: []
+  status: implemented
+- id: IT-0042
+  title: 邊界情況 — 派工失敗轉 dispatch_pending
+  type: integration
+  source: docs/2-contracts/modules/dispatch-engine.md#L133-L146
+  trace:
+    module:
+    - dispatch-engine
+  tags: []
+  status: implemented
+- id: IT-0043
+  title: 異常處理 — 技師 30 分鐘未回應觸發 auto-reassign
+  type: integration
+  source: docs/2-contracts/modules/dispatch-engine.md#L147-L160
+  trace:
+    module:
+    - dispatch-engine
+  tags: []
+  status: implemented
+- id: IT-0044
+  title: 業務規則 — 建案/保固期案件 AI 拒絕報價
+  type: integration
+  source: docs/2-contracts/modules/dispatch-engine.md#L161-L175
+  trace:
+    module:
+    - dispatch-engine
+  tags: []
+  status: implemented
+- id: IT-0045
+  title: 正常路徑 — admin 對 work_orders 有完整 CRUD 權限
+  type: integration
+  source: docs/2-contracts/modules/rbac.md#L351-L363
+  trace:
+    module:
+    - rbac
+  tags: []
+  status: implemented
+- id: IT-0046
+  title: 正常路徑 — technician 僅能讀寫自己的 work_orders
+  type: integration
+  source: docs/2-contracts/modules/rbac.md#L364-L378
+  trace:
+    module:
+    - rbac
+  tags: []
+  status: implemented
+- id: IT-0047
+  title: 邊界情況 — line_user 角色降級檢查（預設角色）
+  type: integration
+  source: docs/2-contracts/modules/rbac.md#L379-L393
+  trace:
+    module:
+    - rbac
+  tags: []
+  status: implemented
+- id: IT-0048
+  title: 邊界情況 — dispatch_officer 繞過自動派工 audit 強制
+  type: integration
+  source: docs/2-contracts/modules/rbac.md#L394-L407
+  trace:
+    module:
+    - rbac
+  tags: []
+  status: implemented
+- id: IT-0049
+  title: 異常處理 — 已撤銷 token 嘗試呼叫 API
+  type: integration
+  source: docs/2-contracts/modules/rbac.md#L408-L419
+  trace:
+    module:
+    - rbac
+  tags: []
+  status: implemented
+- id: IT-0050
+  title: 業務規則 — 角色階層升級需更高權限角色簽核
+  type: integration
+  source: docs/2-contracts/modules/rbac.md#L420-L434
+  trace:
+    module:
+    - rbac
+  tags: []
+  status: implemented
+- id: IT-0051
+  title: 正常路徑 — 單簽流程退款 80,000 TWD 成功執行
+  type: integration
+  source: docs/2-contracts/modules/refund-service.md#L241-L258
+  trace:
+    module:
+    - refund-service
+  tags: []
+  status: implemented
+- id: IT-0052
+  title: 正常路徑 — 雙簽流程退款 250,000 TWD 完整 4 階段
+  type: integration
+  source: docs/2-contracts/modules/refund-service.md#L259-L275
+  trace:
+    module:
+    - refund-service
+  tags: []
+  status: implemented
+- id: IT-0053
+  title: 邊界情況 — 退款金額剛好 100,000 走單簽
+  type: integration
+  source: docs/2-contracts/modules/refund-service.md#L276-L288
+  trace:
+    module:
+    - refund-service
+  tags: []
+  status: implemented
+- id: IT-0054
+  title: 邊界情況 — 退款 100,001 觸發雙簽
+  type: integration
+  source: docs/2-contracts/modules/refund-service.md#L289-L299
+  trace:
+    module:
+    - refund-service
+  tags: []
+  status: implemented
+- id: IT-0055
+  title: 無效輸入 — 缺 work_order_id 與 complaint_id 兩個 NULL
+  type: integration
+  source: docs/2-contracts/modules/refund-service.md#L300-L310
+  trace:
+    module:
+    - refund-service
+  tags: []
+  status: implemented
+- id: IT-0056
+  title: 業務規則 — 任一階段 reject 立即終止流程（冪等）
+  type: integration
+  source: docs/2-contracts/modules/refund-service.md#L311-L323
+  trace:
+    module:
+    - refund-service
+  tags: []
+  status: implemented
+- id: IT-0057
+  title: 正常路徑 — Tier-1 服務 uptime 計算當月達標
+  type: integration
+  source: docs/2-contracts/modules/sla-monitor.md#L293-L306
+  trace:
+    module:
+    - sla-monitor
+  tags: []
+  status: implemented
+- id: IT-0058
+  title: 正常路徑 — Circuit breaker 連續 3 次失敗後切換 fallback
+  type: integration
+  source: docs/2-contracts/modules/sla-monitor.md#L307-L320
+  trace:
+    module:
+    - sla-monitor
+  tags: []
+  status: implemented
+- id: IT-0059
+  title: 邊界情況 — uptime 剛好等於 Tier-1 上限 99.5% 視為達標
+  type: integration
+  source: docs/2-contracts/modules/sla-monitor.md#L321-L332
+  trace:
+    module:
+    - sla-monitor
+  tags: []
+  status: implemented
+- id: IT-0060
+  title: 邊界情況 — 預定維護窗口不計入停機時間
+  type: integration
+  source: docs/2-contracts/modules/sla-monitor.md#L333-L345
+  trace:
+    module:
+    - sla-monitor
+  tags: []
+  status: implemented
+- id: IT-0061
+  title: 異常處理 — Health check endpoint 部分失敗仍標 degraded
+  type: integration
+  source: docs/2-contracts/modules/sla-monitor.md#L346-L358
+  trace:
+    module:
+    - sla-monitor
+  tags: []
+  status: implemented
+- id: IT-0062
+  title: 業務規則 — F-110 SLA Soft Alert dashboard 變紅 + 升主管（Q5=B）
+  type: integration
+  source: docs/2-contracts/modules/sla-monitor.md#L359-L370
+  trace:
+    module:
+    - sla-monitor
+  tags: []
+  status: implemented
+- id: IT-0063
+  title: 正常路徑 — 家族成員 approve 後 SOP 變 family_approved
+  type: integration
+  source: docs/2-contracts/modules/family-review-engine.md#L61-L75
+  trace:
+    module:
+    - family-review-engine
+  tags: []
+  status: implemented
+- id: IT-0064
+  title: 正常路徑 — 家族成員 reject 後 SOP 變 family_rejected + 通知原審員
+  type: integration
+  source: docs/2-contracts/modules/family-review-engine.md#L76-L89
+  trace:
+    module:
+    - family-review-engine
+  tags: []
+  status: implemented
+- id: IT-0065
+  title: 邊界情況 — 同一 SOP 重複覆核（冪等性）
+  type: integration
+  source: docs/2-contracts/modules/family-review-engine.md#L90-L101
+  trace:
+    module:
+    - family-review-engine
+  tags: []
+  status: implemented
+- id: IT-0066
+  title: 邊界情況 — 覆核紀錄 APPEND-ONLY 不可改寫
+  type: integration
+  source: docs/2-contracts/modules/family-review-engine.md#L102-L115
+  trace:
+    module:
+    - family-review-engine
+  tags: []
+  status: implemented
+- id: IT-0067
+  title: 無效輸入 — 對未通過 admin_approved 的 SOP submit family_review
+  type: integration
+  source: docs/2-contracts/modules/family-review-engine.md#L116-L126
+  trace:
+    module:
+    - family-review-engine
+  tags: []
+  status: implemented
+- id: IT-0068
+  title: 業務規則 — 覆核率 100% 強制檢查 — SOP 未經 family_review 不可入庫
+  type: integration
+  source: docs/2-contracts/modules/family-review-engine.md#L127-L138
+  trace:
+    module:
+    - family-review-engine
   tags: []
   status: implemented
