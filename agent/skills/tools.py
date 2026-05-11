@@ -206,6 +206,74 @@ def load_skill(skill_name: str) -> str:
 
 
 @tool
+def load_product_info(doc_name: str) -> str:
+    """載入指定產品文件的完整內容到對話中。
+
+    用法跟 ``load_skill`` 一樣但讀 product_info DB（mega-doc 路線取代
+    舊 SKILL.md）。doc_name 是 catalog 列出的名稱（如 "Dormakaba/AS850"、
+    "_common/troubleshoot"、"3E/F(T7)"）。
+
+    Args:
+        doc_name: 產品文件名稱，必須是 [可用產品資料] 區塊列出的其中之一
+    """
+    # late import 避免 circular（skills 套件可能在 product_info 之前載入）
+    import product_info as pi
+
+    brand = _current_brand.get()
+    model = _current_model.get()
+
+    doc = pi.get_doc(doc_name)
+    if doc is not None:
+        # 品牌檢查：品牌專屬文件在品牌未知時禁止載入
+        if doc.brand != "_common" and not brand:
+            print(f"[product_info] >>> 拒絕載入品牌文件: {doc_name}（用戶品牌未知）")
+            return (
+                f"產品文件 '{doc_name}' 屬於 {doc.brand}，"
+                f"但目前尚未確認用戶的電子鎖品牌。請先詢問用戶品牌，確認後再載入。"
+            )
+        if doc.brand != "_common" and brand and brand != doc.brand:
+            print(f"[product_info] >>> 拒絕載入品牌文件: {doc_name}（品牌不符: {brand}）")
+            return (
+                f"產品文件 '{doc_name}' 屬於 {doc.brand}，"
+                f"不適用於用戶品牌 {brand}。請載入適合 {brand} 的文件。"
+            )
+        # 型號檢查：型號專屬文件（非 _brand）在型號不符時禁止
+        is_brand_common = doc.model is not None and doc.model.startswith("_")
+        if doc.brand != "_common" and not is_brand_common:
+            if not model:
+                print(f"[product_info] >>> 拒絕載入型號文件: {doc_name}（型號未知）")
+                return (
+                    f"產品文件 '{doc_name}' 是型號專屬文件，"
+                    f"但目前尚未確認用戶的電子鎖型號。請先詢問型號後再載入。"
+                )
+            if model != doc.model:
+                print(f"[product_info] >>> 拒絕載入型號文件: {doc_name}（型號不符: {model}，僅適用 {doc.model}）")
+                return (
+                    f"產品文件 '{doc_name}' 僅適用於 {doc.brand}/{doc.model}，"
+                    f"不適用於用戶目前的型號 {model}。"
+                )
+
+        print(f"[product_info] >>> 載入: {doc_name}")
+        _skill_loaded_this_run.set(True)
+        _current_skill.set(doc_name)
+        _opik_tag_skill(doc_name)
+        return f"已載入產品文件: {doc_name}\n\n{doc.body}"
+
+    # 找不到：列出該品牌可用的文件
+    all_docs = pi.all_docs()
+    if all_docs:
+        if brand:
+            candidates = [d.name for d in all_docs if d.brand == brand or d.brand == "_common"]
+        else:
+            candidates = [d.name for d in all_docs if d.brand == "_common"]
+        available = ", ".join(candidates[:20]) if candidates else "（catalog 為空）"
+        print(f"[product_info] >>> 找不到: {doc_name}")
+        return f"找不到產品文件 '{doc_name}'。當前可用: {available}"
+
+    return f"找不到產品文件 '{doc_name}'，且 product_info cache 為空（DB 未載入？）"
+
+
+@tool
 async def update_user_info(brand: str = "", model: str = "") -> str:
     """更新用戶的設備品牌與型號���當客戶告知品牌或型��時呼叫此工具，系統會立即解鎖對應品牌的技能���
 

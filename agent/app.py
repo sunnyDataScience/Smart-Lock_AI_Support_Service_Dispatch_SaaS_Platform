@@ -98,6 +98,19 @@ async def startup():
     if _cfg.user_profile.get("facts_enabled", False):
         await init_facts_db(_cfg.user_profile)
 
+    # 載入 product_info DB cache（給 load_product_info tool + Belief
+    # Hint catalog block 用；DB 沒 product_docs 表 → 跳過不 fatal，agent
+    # 仍可用 load_skill 跑舊路徑）
+    try:
+        from psycopg_pool import AsyncConnectionPool
+        import product_info as _pi
+        pi_pool = AsyncConnectionPool(os.environ["POSTGRES_URI"], min_size=1, max_size=2, open=False)
+        await pi_pool.open()
+        docs = await _pi.load_all_docs(pi_pool)
+        log.info("product_info_loaded", n=len(docs))
+    except Exception as e:  # noqa: BLE001 — fail-soft，允許舊 skills 路徑跑
+        log.warning("product_info_load_failed", error=str(e))
+
     # 初始化用戶輪廓萃取器
     profile_updater.init(model, {
         **_cfg.user_profile,
