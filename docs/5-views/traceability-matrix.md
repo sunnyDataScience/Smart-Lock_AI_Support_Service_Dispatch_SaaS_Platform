@@ -86,6 +86,130 @@ related:
 
 ---
 
+## 1.6 F-XXX → TC IDs Mapping（per `docs/2-contracts/test-cases/registry.yaml`）
+
+> 由 `scripts/ci/extract-test-cases.py` 從 registry.yaml `trace.flow` 反查產出。
+> 想找「F-001 有哪些測試案例」→ 直接看本表。
+
+| F-XXX | 流程名稱 | TC IDs |
+| :-- | :-- | :-- |
+| F-001 | LINE 報修 → ProblemCard | BDD-0001~0011, BDD-0041~0043, IT-0001~0008 (conversation-manager), IT-0017~0022 (problem-card-engine), IT-0111~0116 (proactive-photo-guidance) |
+| F-002 | 客服審 PC → 開 WO | BDD-0007~0011, BDD-0023~0026, IT-0017~0022, IT-0135~0140 (problem-card-review-engine) |
+| F-003 | 自動派工規則引擎 | BDD-0051~0056, IT-0039~0044 (dispatch-engine), IT-0087~0092 (dispatch-engine-weights) |
+| F-004 | 手動派工 | BDD-0051~0056, IT-0045~0050 (rbac bypass audit), IT-0039~0044 |
+| F-005 | 技師接單 → 出發 | BDD-0047~0050 (師傅工作台) |
+| F-006 | 到場拍照 | BDD-0041~0043, BDD-0047~0050, IT-0111~0116, IT-0123~0128 (vision-processing) |
+| F-007 | 材料申請 | IT-0105~0110 (inventory) |
+| F-008 | Scope Change | BDD-0057~0064 (定價引擎), IT-0117~0122 (realtime-messaging) |
+| F-009 | 完工簽名 | BDD-0047~0050, IT-0093~0098 (e-signature) |
+| F-010 | 改約 / 延遲 | IT-0117~0122 (realtime-messaging chat) |
+| F-011 | 消費者付款 V1.0 | BDD-0065~0070 (自動化會計), IT-0093~0098 (e-signature) |
+| F-012 | 技師月結撥款 V1.0 | BDD-0065~0070 |
+| F-013 | 對帳爭議雙簽 | BDD-0065~0070, IT-0051~0056 (refund-service) |
+| F-014 | 退款流程 | BDD-0065~0070, IT-0051~0056 |
+| F-015 | 保固申訴 | IT-0129~0134 (warranty-claim) |
+| F-016 | SLA 紅色警報（2hr） | BDD-0077~0079 (F-110 SLA), IT-0057~0062 (sla-monitor) |
+| F-017 | SOP 草稿審核 | BDD-0018~0022 (自進化知識庫), BDD-0044~0046 (家族覆核), IT-0009~0016 (knowledge-base-manager), IT-0023~0030 (sop-generator), IT-0063~0068 (family-review-engine) |
+| F-018 | 客服接管對話 | BDD-0012~0017 (三層解決), BDD-0036~0040 (情緒分流), IT-0031~0038 (three-layer-resolver), IT-0141~0146 (sentiment-triage-engine) |
+| F-019 | RBAC 動態調整 | BDD-0023~0035 (V1.0 admin + 安全), IT-0045~0050 (rbac) |
+| F-020 | 稽核日誌 | BDD-0027~0035 (安全防護), IT-0069~0074 (audit-logger), IT-0081~0086 (data-export) |
+| F-021 | Dashboard / Reports | BDD-0071~0073 (管理後台 V2.0) |
+| F-022 | 消費者追蹤 | IT-0075~0080 (consumer-tracking) |
+| F-023 | Error / Offline Page | IT-0061 (sla-monitor degraded health) |
+| F-024 | LINE Webhook HA | IT-0057~0061 (sla-monitor uptime) |
+| F-025 | Multimodal Understanding | BDD-0003 (User sends photo), IT-0123~0128 (vision-processing V1.0) |
+
+> **覆蓋率**：23 user flow × ≥ 1 TC + 2 跨層 trace (F-024/F-025) = 25 / 25 = **100% FR 覆蓋**（per CI R1）。
+
+## 1.7 Reverse Index — TC ID → 多維 trace
+
+> 給定一個 TC，查它涵蓋哪些 FR / Flow / Module。完整資料見 `registry.yaml`，本表為人讀摘要（每類列首 + 末筆）。
+
+<details>
+<summary>展開 BDD-NNNN reverse index（79 cases）</summary>
+
+| TC ID | Title (節錄) | Flow | FR | Module |
+| :-- | :-- | :-- | :-- | :-- |
+| BDD-0001 | Recognize user intent from initial message | F-001 | FR-0001, FR-0025 | — |
+| BDD-0011 | (Outline) ProblemCard priority classification | F-001, F-002 | FR-0002 | — |
+| BDD-0012 | Layer 1 - Case library vector search | F-018 | FR-0018 | — |
+| BDD-0036 | Detect explicit complaint keywords | F-018 | FR-0018 | — |
+| BDD-0044~0046 | 家族成員覆核 | F-017 | FR-0017 | — |
+| BDD-0051~0056 | 智慧派工 | F-003, F-004 | FR-0003, FR-0004 | — |
+| BDD-0077~0079 | F-110 SLA Soft Alert | F-016 | FR-0016 | — |
+
+</details>
+
+<details>
+<summary>展開 IT-NNNN reverse index（146 cases by module）</summary>
+
+| Module | TC Range | Flow | FR |
+| :-- | :-- | :-- | :-- |
+| conversation-manager | IT-0001~0008 | F-001, F-002 | FR-0001, FR-0025 |
+| knowledge-base-manager | IT-0009~0016 | F-017 | FR-0017 |
+| problem-card-engine | IT-0017~0022 (legacy TC-PCE-001~006) | F-001, F-002 | FR-0001, FR-0002 |
+| sop-generator | IT-0023~0030 | F-017 | FR-0017 |
+| three-layer-resolver | IT-0031~0038 | F-018 | FR-0018 |
+| dispatch-engine | IT-0039~0044 | F-003, F-004 | FR-0003, FR-0004 |
+| rbac | IT-0045~0050 | F-019, F-004 | FR-0019, FR-0004 |
+| refund-service | IT-0051~0056 | F-013, F-014 | FR-0013, FR-0014 |
+| sla-monitor | IT-0057~0062 | F-016, F-023, F-024 | FR-0016, FR-0023, FR-0024 |
+| family-review-engine | IT-0063~0068 | F-017 | FR-0017 |
+| audit-logger | IT-0069~0074 | F-020 | FR-0020 |
+| consumer-tracking | IT-0075~0080 | F-022 | FR-0022 |
+| data-export | IT-0081~0086 | F-020 | FR-0020 |
+| dispatch-engine-weights | IT-0087~0092 | F-003 | FR-0003 |
+| e-signature | IT-0093~0098 | F-009, F-011 | FR-0009, FR-0011 |
+| inter-agent-messaging | IT-0099~0104 | — | — (internal infra) |
+| inventory | IT-0105~0110 | F-007 | FR-0007 |
+| proactive-photo-guidance | IT-0111~0116 | F-001, F-006 | FR-0001, FR-0006 |
+| realtime-messaging | IT-0117~0122 | F-008, F-010 | FR-0008, FR-0010 |
+| vision-processing | IT-0123~0128 | F-006, F-025 | FR-0006, FR-0025 |
+| warranty-claim | IT-0129~0134 | F-015 | FR-0015 |
+| problem-card-review-engine | IT-0135~0140 | F-002 | FR-0002 |
+| sentiment-triage-engine | IT-0141~0146 (incl. legacy TC-STE-001~004) | F-018 | FR-0018 |
+
+</details>
+
+## 1.8 Derived Views
+
+> 由 `scripts/ci/check-test-case-coverage.py` 自動產出（CI 每次跑後更新）。
+
+### 1.8.1 Uncovered FR
+
+**目前 0 個** — 25/25 FR 全部有 TC trace（R1 ✅）。
+
+### 1.8.2 Orphan TCs（empty trace — cross-cutting / V1↔V2 sync allowed）
+
+| TC ID | Title | 原因 |
+| :-- | :-- | :-- |
+| BDD-0074 | V1↔V2 資料串接（連動 schema 遷移）| 跨版本 schema sync — 不直接對應 user flow / FR |
+| BDD-0075 | V1↔V2 資料串接（mapping 規則）| 同上 |
+| BDD-0076 | V1↔V2 資料串接（驗證一致性）| 同上 |
+| IT-0099~0104 | inter-agent-messaging | 內部 infra layer（LangGraph agent 通訊），無 user-facing FR |
+
+> R4 為 warn-only，cross-cutting 案例允許 empty trace。
+
+### 1.8.3 Duplicate Source
+
+**目前 0 個** — 無 TC 共用 source line range（R5 ✅）。
+
+### 1.8.4 Coverage Summary
+
+| Metric | Value |
+| :-- | :-- |
+| Total TCs | 225 |
+| BDD scenarios | 79 (R3 ✅) |
+| Integration tests | 146 (R2 ✅ 23/23 modules ≥ 5) |
+| Unit tests | 0 (待後續從 IT 中挑出) |
+| EVAL tests | 0 (golden set 移植留 commit 後續) |
+| E2E tests | 0 (Playwright 移植留 commit 後續) |
+| FR coverage | 25/25 = 100% (R1 ✅) |
+| Module coverage | 23/23 = 100% (R2 ✅) |
+| CI status | **strict / blocking** since commit 7 |
+
+---
+
 ## 1.5 Legacy ID → New ID 對照表（Phase 3 漸進遷移第一步）
 
 > **本表是 Phase 3 漸進遷移的第一步（alias 不改舊 ID）**：

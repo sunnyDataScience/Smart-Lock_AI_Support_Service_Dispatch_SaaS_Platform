@@ -23,9 +23,8 @@ jobs:
   coverage-check:
     name: TC-NNNN Coverage + Registry Consistency
     runs-on: ubuntu-latest
-    # NOTE: warn-only during commits 1-6 (骨架 + 抽取 + 補洞 stage).
-    # Commit 7 will remove this continue-on-error to make CI blocking.
-    continue-on-error: true
+    # Commit 7+: strict / blocking. R1/R2/R3/R5/R6/R7 must pass; R4 (orphan)
+    # remains warn-only for cross-cutting / V1↔V2 sync cases.
     steps:
       - uses: actions/checkout@v4
 
@@ -40,9 +39,5 @@ jobs:
       - name: Registry consistency check (extract --check)
         run: python scripts/ci/extract-test-cases.py --check
 
-      - name: Coverage rules (R1-R7)
-        run: python scripts/ci/check-test-case-coverage.py --report
-
-      # When commit 7 lands, swap above with:
-      # - name: Coverage rules (strict)
-      #   run: python scripts/ci/check-test-case-coverage.py --strict --report
+      - name: Coverage rules (strict)
+        run: python scripts/ci/check-test-case-coverage.py --strict --report

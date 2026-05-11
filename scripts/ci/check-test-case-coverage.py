@@ -143,20 +143,20 @@ def check_r3_bdd_scenarios_tagged() -> tuple[int, int]:
 
 
 def check_r4_orphan_tcs(cases: list[dict], strict: bool) -> tuple[int, int]:
-    """R4: No orphan TC (empty trace)."""
+    """R4: Orphan TC (empty trace) — always warn-only (some cross-cutting cases
+    legitimately lack FR/flow trace, e.g. V1↔V2 sync, internal infra)."""
     orphans = []
     for c in cases:
         trace = c.get("trace") or {}
         if not any(trace.get(k) for k in ("flow", "fr", "module")):
             orphans.append(c["id"])
     if orphans:
-        severity = "ERROR" if strict else "WARN"
-        print(f"[{severity}] R4 — {len(orphans)} orphan TC(s) (empty trace):")
+        print(f"[WARN] R4 — {len(orphans)} orphan TC(s) (empty trace, allowed for cross-cutting):")
         for tid in orphans[:10]:
             print(f"        {tid}")
         if len(orphans) > 10:
             print(f"        ... and {len(orphans) - 10} more")
-        return (len(orphans) if strict else 0), len(orphans)
+        return 0, len(orphans)
     print("[OK]   R4 — No orphan TCs")
     return 0, 0
 

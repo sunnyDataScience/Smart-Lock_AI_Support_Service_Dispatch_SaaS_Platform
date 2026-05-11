@@ -37,6 +37,7 @@ except ImportError:
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 REGISTRY_PATH = REPO_ROOT / "docs/2-contracts/test-cases/registry.yaml"
+TRACE_OVERRIDES_PATH = REPO_ROOT / "docs/2-contracts/test-cases/trace-overrides.yaml"
 
 SOURCES = {
     "bdd": [REPO_ROOT / "docs/3-process/bdd/all-features.md"],
@@ -212,6 +213,41 @@ def scan_file(path: Path, default_type: str) -> list[TestCase]:
     return cases
 
 
+def load_trace_overrides() -> dict:
+    if not TRACE_OVERRIDES_PATH.exists():
+        return {"by_module": {}, "by_bdd_range": []}
+    return yaml.safe_load(TRACE_OVERRIDES_PATH.read_text(encoding="utf-8")) or {}
+
+
+def apply_trace_overrides(cases: list[TestCase], overrides: dict) -> None:
+    """Merge by_module + by_bdd_range trace into each case (existing inline trace wins)."""
+    by_module = overrides.get("by_module", {}) or {}
+    by_bdd_range = overrides.get("by_bdd_range", []) or []
+
+    for c in cases:
+        # by_module: for IT/UT cases under modules/<stem>.md
+        if c.trace["module"]:
+            mod = c.trace["module"][0]
+            override = by_module.get(mod)
+            if override:
+                for key in ("flow", "fr"):
+                    if not c.trace.get(key):
+                        c.trace[key] = list(override.get(key, []))
+
+        # by_bdd_range: only applies to BDD cases
+        if c.id.startswith("BDD-"):
+            num = int(c.id.split("-")[1])
+            for rule in by_bdd_range:
+                start, end = rule["range"]
+                start_n = int(start.split("-")[1])
+                end_n = int(end.split("-")[1])
+                if start_n <= num <= end_n:
+                    for key in ("flow", "fr"):
+                        if not c.trace.get(key):
+                            c.trace[key] = list(rule.get(key, []))
+                    break
+
+
 def scan_all() -> list[TestCase]:
     all_cases: list[TestCase] = []
     for path in SOURCES["bdd"]:
@@ -221,6 +257,7 @@ def scan_all() -> list[TestCase]:
         all_cases.extend(scan_file(path, "integration"))
     for path in SOURCES["state_machines"]:
         all_cases.extend(scan_file(path, "integration"))
+    apply_trace_overrides(all_cases, load_trace_overrides())
     return all_cases
 
 
