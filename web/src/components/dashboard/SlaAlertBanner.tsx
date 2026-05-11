@@ -11,7 +11,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
-import { useRealtimeChannel } from "@/lib/useRealtimeChannel";
+import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 type AlertType =

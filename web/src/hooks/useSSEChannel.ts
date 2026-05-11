@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { SSEMessage, SSEStatus, subscribeSSE } from "./sse";
+import { SSEMessage, SSEStatus, subscribeSSE } from "@/lib/sse";
 
 /**
  * 訂閱單一 SSE 頻道的 React hook。對齊 useRealtimeChannel 的用法。

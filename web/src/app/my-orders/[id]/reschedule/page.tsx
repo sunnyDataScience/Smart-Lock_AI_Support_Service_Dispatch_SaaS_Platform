@@ -15,12 +15,12 @@ import TechShell from "@/components/tech/TechShell";
 import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
 import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api } from "@/lib/api";
-import { useRealtimeChannel } from "@/lib/useRealtimeChannel";
+import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
 import {
   BROADCAST_CHANNELS,
   WorkOrderBroadcastEvent,
   useBroadcast,
-} from "@/lib/useBroadcast";
+} from "@/hooks/useBroadcast";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];

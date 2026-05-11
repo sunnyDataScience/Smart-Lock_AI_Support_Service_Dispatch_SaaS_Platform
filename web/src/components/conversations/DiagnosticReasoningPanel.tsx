@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Brain, ChevronDown, ChevronUp, X } from "lucide-react";
 import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
-import { useSSEChannel } from "@/lib/useSSEChannel";
+import { useSSEChannel } from "@/hooks/useSSEChannel";
 
 interface DiagnosticStep {
   step_index: number;
