@@ -236,12 +236,19 @@ async def _build_message_content(
     )
     set_current_brand(brand, model)
 
-    skills_block = skills_prefix.build_skills_block(
+    # A-2 退場 agent/skills/：優先用 product_info catalog；若 DB cache 空
+    # （啟動載入失敗）退回舊 build_skills_block
+    skills_block = skills_prefix.build_product_info_block(
         brand=brand, model=model,
         mentioned_brand=mentioned_brand, mentioned_model=mentioned_model,
-        registered_skills=get_skills(),
-        filter_skills=filter_skills,
     )
+    if not skills_block:
+        skills_block = skills_prefix.build_skills_block(
+            brand=brand, model=model,
+            mentioned_brand=mentioned_brand, mentioned_model=mentioned_model,
+            registered_skills=get_skills(),
+            filter_skills=filter_skills,
+        )
 
     profile_to_inject = (
         profile_text if (_profile_mgr and _profile_mgr.enabled and profile_text) else None

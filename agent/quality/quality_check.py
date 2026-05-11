@@ -539,38 +539,45 @@ async def run_single(
     _SUB_PFX = ("ts-", "app-", "ss-")
     _SUB_EXC = {"app-guide", "ss-dormakaba"}
 
-    # 構建 [可用技能] 前綴 — 對齊 debounce.py 4 條路徑
-    if brand and _brand_has_skills(brand) and model:
-        skill_list = filter_skills(_registered_skills, brand, model)
-        info_header = f"[可用技能]\n（用戶為 {brand} {model}，使用 load_skill 載入）\n"
-    elif brand and _brand_has_skills(brand):
-        skill_list = filter_skills(_registered_skills, brand, None)
-        info_header = (
-            f"[可用技能]\n"
-            f"⚠️ {brand} 型號未確認，僅能載入 _common/* 與品牌通用技能。回覆時請聲明：\n"
-            f"「以下為通用建議，您的型號實際操作可能略有差異，建議補充型號取得精準步驟。」\n"
-        )
-    elif brand:
-        skill_list = filter_skills(_registered_skills, None, None)
-        info_header = (
-            f"[可用技能]\n"
-            f"⚠️ 目前無 {brand} 詳細技能資料，僅能提供 _common/* 通用建議。回覆時請聲明：\n"
-            f"「我這邊沒有 {brand} 的詳細資料，建議您查看說明書，或我幫您安排專員協助。」\n"
-        )
-    else:
-        skill_list = filter_skills(_registered_skills, None, None)
-        info_header = (
-            "[可用技能]\n"
-            "⚠️ 品牌或型號未確認，僅能載入 _common/* 通用資訊。回覆時請聲明：\n"
-            "「以下為通用建議，您的型號實際操作可能略有差異。」\n"
-            "**請呼叫 update_user_info 確認用戶品牌。**\n"
-        )
-    top_level = [
-        s for s in skill_list
-        if s.name in _SUB_EXC or not s.name.startswith(_SUB_PFX)
-    ]
-    doc_lines = "\n".join(f"- {s.name}: {s.description}" for s in top_level)
-    skills_prefix = f"{info_header}{doc_lines}\n\n"
+    # A-2 退場 agent/skills/：優先用 product_info catalog block
+    # （與 production orchestrator._build_message_content 邏輯一致）
+    from harness.skills_prefix import build_product_info_block
+    skills_prefix = build_product_info_block(
+        brand=brand, model=model, mentioned_brand=None, mentioned_model=None,
+    )
+    if not skills_prefix:
+        # product_info cache 空（DB 未 seed）→ 退回舊 [可用技能]
+        if brand and _brand_has_skills(brand) and model:
+            skill_list = filter_skills(_registered_skills, brand, model)
+            info_header = f"[可用技能]\n（用戶為 {brand} {model}，使用 load_skill 載入）\n"
+        elif brand and _brand_has_skills(brand):
+            skill_list = filter_skills(_registered_skills, brand, None)
+            info_header = (
+                f"[可用技能]\n"
+                f"⚠️ {brand} 型號未確認，僅能載入 _common/* 與品牌通用技能。回覆時請聲明：\n"
+                f"「以下為通用建議，您的型號實際操作可能略有差異，建議補充型號取得精準步驟。」\n"
+            )
+        elif brand:
+            skill_list = filter_skills(_registered_skills, None, None)
+            info_header = (
+                f"[可用技能]\n"
+                f"⚠️ 目前無 {brand} 詳細技能資料，僅能提供 _common/* 通用建議。回覆時請聲明：\n"
+                f"「我這邊沒有 {brand} 的詳細資料，建議您查看說明書，或我幫您安排專員協助。」\n"
+            )
+        else:
+            skill_list = filter_skills(_registered_skills, None, None)
+            info_header = (
+                "[可用技能]\n"
+                "⚠️ 品牌或型號未確認，僅能載入 _common/* 通用資訊。回覆時請聲明：\n"
+                "「以下為通用建議，您的型號實際操作可能略有差異。」\n"
+                "**請呼叫 update_user_info 確認用戶品牌。**\n"
+            )
+        top_level = [
+            s for s in skill_list
+            if s.name in _SUB_EXC or not s.name.startswith(_SUB_PFX)
+        ]
+        doc_lines = "\n".join(f"- {s.name}: {s.description}" for s in top_level)
+        skills_prefix = f"{info_header}{doc_lines}\n\n"
 
     # 用 brand/model（含 infer 後值）建構 [用戶資料] 區塊，與生產路徑一致
     profile_lines = []
@@ -884,6 +891,18 @@ async def main():
     # 沒做 → infer_brand_from_text 永遠返回 (None, None)，品牌路由失準
     from harness.line_ui_factory import init_quick_reply
     init_quick_reply(cfg.quick_reply)
+
+    # 載入 product_info DB cache（A-2 退場 agent/skills/）
+    # 失敗 fail-soft，quality_check 仍可走舊 build_skills_block 路徑
+    try:
+        from psycopg_pool import AsyncConnectionPool
+        import product_info as _pi
+        _qc_pool = AsyncConnectionPool(os.environ["POSTGRES_URI"], min_size=1, max_size=2, open=False)
+        await _qc_pool.open()
+        _docs = await _pi.load_all_docs(_qc_pool)
+        print(f"[Quality Check] product_info cache: {len(_docs)} docs")
+    except Exception as e:  # noqa: BLE001
+        print(f"[Quality Check] product_info load failed ({e}) — fallback to skills/")
 
     # 主模型走 config.toml 的 [llm] 設定（含 thinking_budget 等）
     # 如此 quality_check 才能驗證實際生產環境的模型表現

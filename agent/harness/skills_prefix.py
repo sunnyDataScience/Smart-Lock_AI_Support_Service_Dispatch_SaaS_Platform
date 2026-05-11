@@ -119,6 +119,90 @@ def build_skills_block(
     return f"{header}{doc_lines}\n\n"
 
 
+def build_product_info_block(
+    *,
+    brand: str | None,
+    model: str | None,
+    mentioned_brand: str | None,
+    mentioned_model: str | None,
+) -> str:
+    """Build the ``[可用產品資料]\\n...`` section using product_info DB cache.
+
+    Replacement for :func:`build_skills_block` (A-2 退場 agent/skills/）。
+    Reads ``product_info`` module's in-memory cache (loaded at startup from
+    ``product_docs`` table).
+
+    Returns:
+        A string ending in ``\\n\\n`` so the caller can concatenate the next
+        prefix block without intermediate spacing. If product_info cache is
+        empty (DB load failed) returns an empty string — caller can decide
+        to fall back to skills_block.
+    """
+    # late import 避免 circular
+    import product_info as pi
+
+    all_docs = pi.all_docs()
+    if not all_docs:
+        return ""
+
+    def _brand_in_catalog(b: str) -> bool:
+        return any(d.brand == b for d in all_docs)
+
+    if brand and _brand_in_catalog(brand) and model:
+        loadable = pi.filter_loadable(brand, model)
+        header = f"[可用產品資料]\n（用戶為 {brand} {model}，使用 load_product_info 載入）\n"
+    elif brand and _brand_in_catalog(brand):
+        loadable = pi.filter_loadable(brand, None)
+        header = (
+            f"[可用產品資料]\n"
+            f"⚠️ {brand} 型號未確認，僅能載入 _common/* 與品牌通用文件。回覆時請聲明：\n"
+            f"「以下為通用建議，您的型號實際操作可能略有差異，建議補充型號取得精準步驟。」\n"
+        )
+    elif brand:
+        loadable = pi.filter_loadable(None, None)
+        header = (
+            f"[可用產品資料]\n"
+            f"⚠️ 目前無 {brand} 詳細產品資料，僅能提供 _common/* 通用建議。\n"
+            f"禁止說「我這邊沒有 {brand} 的詳細資料」「建議您查看說明書」這類話術；\n"
+            f"優先載入 _common/* 給通用建議，若客戶問題需要型號專屬步驟就呼叫 transfer_to_human 安排專員協助。\n"
+        )
+    else:
+        loadable = pi.filter_loadable(None, None)
+        header = (
+            "[可用產品資料]\n"
+            "⚠️ 品牌或型號未確認，僅能載入 _common/* 通用資訊。回覆時請聲明：\n"
+            "「以下為通用建議，您的型號實際操作可能略有差異。」\n"
+            "**請呼叫 update_user_info 確認用戶品牌。**\n"
+        )
+
+    if mentioned_brand and brand and mentioned_brand != brand:
+        switch_lines = [
+            "",
+            f"⚠️ 切換產品上下文：客戶在本輪訊息中提到「{mentioned_brand}",
+        ]
+        if mentioned_model:
+            switch_lines[-1] += f" {mentioned_model}"
+        switch_lines[-1] += f"」，與紀錄中的 {brand}"
+        if model:
+            switch_lines[-1] += f" {model}"
+        switch_lines[-1] += " 不同。"
+        switch_lines.append(
+            f"請先呼叫 update_user_info(brand=\"{mentioned_brand}\""
+            + (f", model=\"{mentioned_model}\"" if mentioned_model else "")
+            + ") 切換產品上下文，"
+            "再 load_product_info 載入對應文件回答客戶原問題。"
+        )
+        switch_lines.append(
+            "禁止用「客戶設備型號跟紀錄不符」當拒答理由，也禁止叫客戶查說明書。"
+        )
+        header += "\n".join(switch_lines) + "\n"
+
+    # `_brand`、`_common/*` 排前面（通用），`{Brand}/{Model}` 排後面（具體）
+    loadable_sorted = sorted(loadable, key=lambda d: (d.brand != "_common", d.brand, d.model or ""))
+    doc_lines = "\n".join(f"- {d.name}: {d.description}" for d in loadable_sorted)
+    return f"{header}{doc_lines}\n\n"
+
+
 def build_user_prefix(
     *,
     skills_block: str,
