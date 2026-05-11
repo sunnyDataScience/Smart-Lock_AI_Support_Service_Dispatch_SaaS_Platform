@@ -64,7 +64,8 @@ async def write_agent_result(
                     args_summary = json.dumps(tc.get("args", {}), ensure_ascii=False)[:200]
                     await audit_storage.log_tool_invocation(
                         user_id, "smart_lock_agent", tool_name,
-                        risk_level="read" if tool_name == "load_skill" else "escalate",
+                        # read-only tools 都 risk=read；transfer / update_user_info 才升 escalate
+                        risk_level="read" if tool_name in ("load_skill", "load_product_info") else "escalate",
                         args_summary=args_summary,
                     )
                     if tool_name == "transfer_to_human":

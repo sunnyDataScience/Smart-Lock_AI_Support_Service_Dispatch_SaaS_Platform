@@ -13,7 +13,6 @@ from langgraph.prebuilt import create_react_agent
 from core.config import AppConfig, load_prompt
 from skills import load_skills
 from skills.tools import (
-    load_skill,
     load_product_info,
     update_user_info,
     transfer_to_human,
@@ -64,13 +63,12 @@ def build_agent(model, cfg: AppConfig, checkpointer=None, profile_mgr=None):
     set_transfer_message_from_file(transfer_prompt_path)
 
     # 4. 建立 agent
-    # load_skill + load_product_info 並存（A 退場過渡）：
-    # - load_product_info 是新主路（product_info DB）
-    # - load_skill 暫保留向後兼容直到 system.md / skills_prefix / quality_check
-    #   全部對齊新 catalog；後續 commit 會 drop
+    # 三 tool 上線（A-3a 退場 load_skill）：load_product_info 為知識載入唯一
+    # 入口；skills_prefix.build_skills_block fallback 還在但僅 DB cache 空時
+    # 觸發，且現在會 surface 為空 [可用技能] 區塊（LLM 自然就不會呼叫舊 tool）
     agent = create_react_agent(
         model=model,
-        tools=[load_skill, load_product_info, update_user_info, transfer_to_human],
+        tools=[load_product_info, update_user_info, transfer_to_human],
         prompt=prompt,
         checkpointer=checkpointer,
         name=cfg.system.get("agent_name", "smart_lock_agent"),

@@ -175,13 +175,15 @@ async def cleanup_tool(agent: Any, config: dict, messages: list) -> None:
             ):
                 skill_names: list[str] = []
                 for tc in msg.tool_calls:
-                    if tc.get("name") == "load_skill":
-                        skill_names.append(tc.get("args", {}).get("name", "unknown"))
+                    if tc.get("name") in ("load_skill", "load_product_info"):
+                        # load_skill 舊 tool 參數叫 "name"，load_product_info 叫 "doc_name"
+                        args = tc.get("args", {}) or {}
+                        skill_names.append(args.get("doc_name") or args.get("name", "unknown"))
                 if skill_names:
                     for tc in msg.tool_calls:
                         if tc.get("id"):
                             cleaned_tool_call_ids.add(tc["id"])
-                    ref = ", ".join(f"[已參考技能: {n}]" for n in skill_names)
+                    ref = ", ".join(f"[已參考: {n}]" for n in skill_names)
                     await agent.aupdate_state(
                         config,
                         {"messages": [AIMessage(content=ref, id=msg.id)]},
