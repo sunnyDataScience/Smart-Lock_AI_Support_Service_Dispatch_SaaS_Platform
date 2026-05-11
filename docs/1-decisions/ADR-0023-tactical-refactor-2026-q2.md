@@ -1,13 +1,14 @@
 ---
 id: ADR-0023
 title: Tier 1 戰術級資料夾與整合層重構（2026 Q2）
-status: accepted
+status: superseded
 date: 2026-05-11
 deciders: [Tech Lead, Architect]
 legacy_id: null
 supersedes: []
-superseded_by: []
+superseded_by: [ADR-0024]
 related:
+  - "./ADR-0024-tier1-refactor-revised.md (修正版，已取代本 ADR)"
   - "../5-views/project-structure.md"
   - "../0-principles/product-principles.md"
   - "./module-boundary/agent.md"
@@ -19,9 +20,12 @@ related:
 
 # ADR-0023 — Tier 1 戰術級資料夾與整合層重構（2026 Q2）
 
+> ⚠ **本 ADR 已被 [ADR-0024](./ADR-0024-tier1-refactor-revised.md) 取代** — 詳見本檔 §8 變更紀錄
+> 本 ADR 保留作為決策足跡，所有實際執行依 ADR-0024。
+
 ## Status
 
-**Accepted** (拍板於 2026-05-11)
+**Superseded** by ADR-0024 (於 2026-05-11，merge 後 30 分鐘 hands-on 驗證發現 4/5 訊號處方不合理 + 3 處事實錯誤)
 
 > 本決策對應 Tier 1 架構審查結果。決策原始計畫文件路徑：
 > `~/.claude/plans/home-sunny-python-workstation-github-sm-snuggly-cascade.md`
@@ -190,3 +194,22 @@ Phase 4 必須在 Phase 2 完成後（依賴 web routes metadata）。
 | 日期 | 審核人 | 備註 |
 | :--- | :--- | :--- |
 | 2026-05-11 | Tech Lead / Architect | 初版 — 對應 Q2 戰術級重構計畫 |
+| 2026-05-11 | Tech Lead / Architect | Superseded by ADR-0024 (hands-on 修正版) |
+
+---
+
+## §8 變更紀錄 — 為何被 supersede
+
+本 ADR merge 後（PR #62，commit `87e77e3`）進入 Phase 1.1 hands-on 階段，於 grep 真實 reference 與讀檔內容後發現多處基於假設而非事實的判斷。詳見 [ADR-0024 §1-§3](./ADR-0024-tier1-refactor-revised.md)。
+
+**摘要：**
+
+| 類別 | 數量 | 例子 |
+|---|---|---|
+| 處方誤判 | 4/5 訊號 | `report/` 不是垃圾、`api/data` 命名類比錯誤、harness 過度設計、Tier 5 自動化 ROI 不對 |
+| 事實錯誤 | 3 處 | ADR-0010 懸空引用、UF flow 系統未實作、`api/agent/integrations/` 空目錄未提及 |
+| 工期估計 | 偏差 2-3x | 原 2-3 週 → 實際 1 週內 |
+
+**仍有效的部分**：6-tier docs 與 4 大模組邊界保留不動的核心結論成立。修正主要在「執行處方」而非「審查結論」。
+
+**保留本 ADR 不刪的理由**：開源協作慣例 — 決策歷史不可改寫；新人可從 ADR-0023 → ADR-0024 看見「假設驅動 → hands-on 驗證」的學習過程。
