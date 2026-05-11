@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -16,11 +16,17 @@ import {
 import Sidebar from "@/components/layout/Sidebar";
 import InvoicesTable from "@/components/accounting/InvoicesTable";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api } from "@/lib/api";
+import { ApiError } from "@/lib/api";
+import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
 
 type Invoice = components["schemas"]["Invoice"];
-type InvoicePage = components["schemas"]["InvoicePage"];
+
+function formatInvoiceError(e: unknown): string {
+  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
+  if (e instanceof Error) return e.message;
+  return String(e);
+}
 
 export default function InvoicesPage() {
   const pathname = usePathname();
@@ -46,43 +52,20 @@ export default function InvoicesPage() {
     ],
     [tInv],
   );
-  const [items, setItems] = useState<Invoice[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
-
-  const fetchInvoices = async (opts?: { append?: boolean; cursor?: string | null }) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const query: Record<string, string | number> = { limit: 50 };
-      if (opts?.cursor) query.cursor = opts.cursor;
-      const res = await api.get<InvoicePage>("/api/v1/accounting/invoices", {
-        query,
-      });
-      const newItems = res.items ?? [];
-      setItems((prev) => (opts?.append ? [...prev, ...newItems] : newItems));
-      setNextCursor(res.next_cursor ?? null);
-      setHasMore(res.has_more ?? false);
-      setUpdatedAt(new Date());
-    } catch (e) {
-      setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchInvoices();
-  }, []);
+  const {
+    items,
+    cursor: nextCursor,
+    hasMore,
+    lastFetchedAt: updatedAt,
+    loading,
+    error,
+    loadMore,
+    refresh,
+  } = usePaginatedFetch<Invoice>({
+    path: "/api/v1/accounting/invoices",
+    pageSize: 50,
+    formatError: formatInvoiceError,
+  });
 
   const totalLabel = hasMore
     ? tCommon("totalCountPlus", { count: items.length })
@@ -101,7 +84,7 @@ export default function InvoicesPage() {
                 {tPage("pageTitle")}
               </h1>
               <button
-                onClick={() => fetchInvoices()}
+                onClick={refresh}
                 disabled={loading}
                 className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
                 title={tCommon("refresh")}
@@ -244,7 +227,7 @@ export default function InvoicesPage() {
           {hasMore && (
             <div className="flex justify-center py-4">
               <button
-                onClick={() => fetchInvoices({ append: true, cursor: nextCursor })}
+                onClick={loadMore}
                 disabled={loading}
                 className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-5 py-[10px] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
               >
