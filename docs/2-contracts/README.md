@@ -23,8 +23,8 @@ last_updated: 2026-05-10
 | `functional-requirements/` | FR-NNNN — 業務規則 + AC | `docs/_flows-bdd-test/north-star-requirements.md` REQ-NNN 個別化 |
 | `state-machines/` | per-entity state transitions（≥5 states 才獨立檔） | `work-order` (16 states) from `E5x--workflow-work-order` + `02-design/specs/work-order-state-machine-extensions.md` |
 | `master-data/` | master entity governance（DQ rules、lifecycle、GDPR） | `docs/brand_model_list.md` + `_domain-knowledge/locksmith-checklist/{02,03,07,19}` 結構化部分 |
-| `pages/` | 每 page 一份 contract（route、auth、data、CTA、nav） | `docs/02-design/E5x--frontend-information-arch.md` (52 頁) + `web_design_spec_prompt_pipeline/pages/*` (22 spec) SPLIT |
-| `frontend-design-system.md` | tokens、atomic design、API client、auth、frontend security | `docs/02-design/E5x--frontend-architecture` + `web_design_spec_prompt_pipeline/{global/02_smartlock_*, design-system-specs/smartlock/*}` |
+| `pages/` | 每 page 一份 contract（route、auth、data、CTA、nav） | `docs/02-design/E5x--frontend-information-arch.md` (52 頁) + `docs/legacy/web_design_spec_prompt_pipeline/pages/*` (22 spec) SPLIT |
+| `frontend-design-system.md` | tokens、atomic design、API client、auth、frontend security | `docs/02-design/E5x--frontend-architecture` + `docs/legacy/web_design_spec_prompt_pipeline/{global/02_smartlock_*, design-system-specs/smartlock/*}` |
 | `flow-index.md` | **AUTO** — 所有 flow 的 frontmatter scan aggregation | `sunnydata-auto-regen` |
 | `traceability-matrix.md` | **AUTO** — 跨層 ID 覆蓋率 | `sunnydata-auto-regen`（暫先手動 from `docs/_flows-bdd-test/_SSOT-alignment-matrix.md`，CR-0001 D7 取共識）|
 
