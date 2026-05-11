@@ -67,6 +67,23 @@ VALID_TAGS = {
     "security",
 }
 
+# Map BDD @tag (without leading @) to controlled vocabulary.
+# Unmapped tags (e.g. @v1.0, @critical) are dropped.
+BDD_TAG_ALIASES = {
+    "happy-path": "happy-path",
+    "sad-path": "error-handling",
+    "edge-case": "boundary",
+    "smoke-test": "smoke-test",
+    "security": "security",
+    "boundary": "boundary",
+    "error-handling": "error-handling",
+    "business-rule": "business-rule",
+    "idempotency": "idempotency",
+}
+
+BDD_TAG_LINE_PATTERN = re.compile(r"^\s*@\w[\w@\-\s.]*$")
+BDD_TAG_TOKEN_PATTERN = re.compile(r"@([\w\-.]+)")
+
 
 @dataclass
 class TestCase:
@@ -112,13 +129,32 @@ def infer_title_from_context(lines: list[str], marker_line_idx: int) -> str:
             continue
         if line.startswith("#"):
             line = line.lstrip("#").strip()
-        if line.startswith("Scenario:"):
+        if line.startswith("Scenario Outline:"):
+            line = line[len("Scenario Outline:"):].strip()
+        elif line.startswith("Scenario:"):
             line = line[len("Scenario:"):].strip()
         if line.startswith("情境") or line.startswith("規格"):
             parts = line.split(":", 1) + line.split("—", 1)
             line = parts[1].strip() if len(parts) > 1 else line
         return line[:80]
     return "(title not inferred)"
+
+
+def infer_tags_from_context(lines: list[str], marker_line_idx: int) -> list[str]:
+    """Collect @tag lines between marker and Scenario, map via BDD_TAG_ALIASES."""
+    tags: list[str] = []
+    for j in range(marker_line_idx + 1, min(marker_line_idx + 5, len(lines))):
+        line = lines[j].strip()
+        if not line:
+            continue
+        if line.startswith("Scenario:") or line.startswith("Scenario Outline:"):
+            break
+        if line.startswith("@"):
+            for token in BDD_TAG_TOKEN_PATTERN.findall(line):
+                mapped = BDD_TAG_ALIASES.get(token.lower())
+                if mapped and mapped not in tags:
+                    tags.append(mapped)
+    return tags
 
 
 def infer_source_range(file_rel: str, start_line: int, lines: list[str]) -> str:
@@ -146,6 +182,7 @@ def scan_file(path: Path, default_type: str) -> list[TestCase]:
         prefix, _ = parse_id_prefix(tc_id)
         case_type = TYPE_PREFIX.get(prefix, default_type)
         title = infer_title_from_context(lines, line_idx)
+        tags = infer_tags_from_context(lines, line_idx) if case_type == "bdd" else []
 
         # Source range: from marker line to next marker (or EOF)
         next_line = markers[idx + 1][0] if idx + 1 < len(markers) else len(lines)
@@ -157,6 +194,7 @@ def scan_file(path: Path, default_type: str) -> list[TestCase]:
                 title=title,
                 type=case_type,
                 source=source,
+                tags=tags,
                 legacy_id=legacy,
             )
         )

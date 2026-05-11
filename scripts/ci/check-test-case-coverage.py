@@ -51,7 +51,7 @@ VALID_TAGS = {
 }
 REQUIRED_FIELDS = {"id", "title", "type", "source", "trace", "tags", "status"}
 MODULE_MIN_TC = 5
-SCENARIO_PATTERN = re.compile(r"^\s*Scenario:")
+SCENARIO_PATTERN = re.compile(r"^\s*Scenario(?:\s+Outline)?:")
 TC_ID_PATTERN = re.compile(r"<!--\s*TC-ID:\s*([A-Z]+-\d{4})")
 
 
