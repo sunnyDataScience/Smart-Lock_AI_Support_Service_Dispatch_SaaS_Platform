@@ -6,10 +6,10 @@ import Sidebar from "@/components/layout/Sidebar";
 import RefundReviewTable from "@/components/admin/RefundReviewTable";
 import { ApiError, api } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
 
 type RefundRequest = components["schemas"]["RefundRequest"];
-type RefundRequestPage = components["schemas"]["RefundRequestPage"];
 type RefundRequestEnvelope = components["schemas"]["RefundRequestEnvelope"];
 type RefundDecisionBody = components["schemas"]["RefundDecision"];
 type Decision = "approve" | "reject" | "escalate";
@@ -30,12 +30,21 @@ function formatActionError(e: unknown): string {
 export default function RefundReviewPage() {
   const t = useTranslations("admin.refunds");
   const tc = useTranslations("admin.common");
-  const [items, setItems] = useState<RefundRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
+  const {
+    items,
+    cursor: nextCursor,
+    hasMore,
+    lastFetchedAt: updatedAt,
+    loading,
+    error,
+    loadMore,
+    refresh: fetchRefunds,
+    mutate,
+  } = usePaginatedFetch<RefundRequest>({
+    path: "/api/v1/refunds",
+    pageSize: 50,
+    formatError: formatActionError,
+  });
 
   const [modalRefund, setModalRefund] = useState<RefundRequest | null>(null);
   const [modalDecision, setModalDecision] = useState<Decision>("approve");
@@ -76,35 +85,6 @@ export default function RefundReviewPage() {
     [t],
   );
 
-  const fetchRefunds = async (opts?: { append?: boolean; cursor?: string | null }) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const query: Record<string, string | number> = { limit: 50 };
-      if (opts?.cursor) query.cursor = opts.cursor;
-      const res = await api.get<RefundRequestPage>("/api/v1/refunds", { query });
-      const newItems = res.items ?? [];
-      setItems((prev) => (opts?.append ? [...prev, ...newItems] : newItems));
-      setNextCursor(res.next_cursor ?? null);
-      setHasMore(res.has_more ?? false);
-      setUpdatedAt(new Date());
-    } catch (e) {
-      setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchRefunds();
-  }, []);
-
   useEffect(() => {
     if (!actionToast) return;
     const t = setTimeout(() => setActionToast(null), 2400);
@@ -133,7 +113,8 @@ export default function RefundReviewPage() {
       );
       const updated = res.data;
       if (updated) {
-        setItems((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+        // optimistic local update via hook mutate (per Phase 3.3 backlog §C2)
+        mutate((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
       }
       setActionToast(t("decision.submitted", { label: decisionLabel[modalDecision] }));
       setModalRefund(null);
@@ -286,7 +267,7 @@ export default function RefundReviewPage() {
           {hasMore && (
             <div className="flex justify-center">
               <button
-                onClick={() => fetchRefunds({ append: true, cursor: nextCursor })}
+                onClick={loadMore}
                 disabled={loading}
                 className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-5 py-[10px] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
               >
