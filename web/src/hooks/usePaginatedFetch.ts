@@ -14,8 +14,7 @@
  *
  * 不做的事：
  * - 不處理 offset-based 分頁（只 cursor-based）
- * - 不處理 mutation（POST/PATCH/DELETE 仍直接呼 api.* + 手動 invalidate cache）
- * - 不做 optimistic update
+ * - 不自動 invalidate cache（mutation 後請自行 `mutate(updater)` 或 `refresh()`）
  *
  * 用法：
  *   const wo = usePaginatedFetch<WorkOrder>({
@@ -24,6 +23,14 @@
  *     pageSize: 20,
  *   });
  *   wo.items, wo.loading, wo.error, wo.hasMore, wo.loadMore(), wo.refresh()
+ *
+ *   // 區分 initial skeleton vs inline spinner：
+ *   wo.loadingInitial  // true 時 page 顯示整列 skeleton
+ *   wo.loadingMore     // true 時列表底顯示 spinner（含 refresh 場景）
+ *
+ *   // CRUD 後 optimistic local update：
+ *   await api.delete(`/api/v1/work-orders/${id}`);
+ *   wo.mutate(prev => prev.filter(w => w.id !== id));
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -68,14 +75,31 @@ export interface UsePaginatedFetchResult<T> {
   totalCount: number | undefined;
   /** 上次成功 fetch 完成的時間（供 page 顯示「上次更新 hh:mm」）；初次未完成前為 null */
   lastFetchedAt: Date | null;
-  /** 任何 fetch 進行中（首次載入或 loadMore） */
+  /** 任何 fetch 進行中（首次載入、loadMore、或 refresh） */
   loading: boolean;
+  /** 初次載入中（items 仍空、首頁尚未到貨）— 用於顯示整列 skeleton */
+  loadingInitial: boolean;
+  /** 追加載入或 refresh 中（items 已有資料、底部 spinner / refresh icon 旋轉） */
+  loadingMore: boolean;
   /** user-facing 錯誤訊息（ApiError.message 或 generic）；null 表示無錯 */
   error: string | null;
   /** 取下一頁（append） */
   loadMore: () => Promise<void>;
   /** 重新從 cursor=null 開始（reset） */
   refresh: () => Promise<void>;
+  /**
+   * 外部 CRUD 後就地更新 hook items（不重新打 API）— 對齊 SWR `mutate` 慣例。
+   *
+   * @example
+   *   // 樂觀 delete
+   *   await api.delete(`/api/v1/manuals/${id}`);
+   *   mutate(prev => prev.filter(m => m.id !== id));
+   *
+   *   // 樂觀 upsert（新增至最前）
+   *   const created = await api.post(...);
+   *   mutate(prev => [created, ...prev.filter(m => m.id !== created.id)]);
+   */
+  mutate: (updater: (items: T[]) => T[]) => void;
 }
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -159,6 +183,10 @@ export function usePaginatedFetch<T>(
     await fetchPage(null, false);
   }, [fetchPage]);
 
+  const mutate = useCallback((updater: (items: T[]) => T[]) => {
+    setItems(updater);
+  }, []);
+
   // 首次 + path / pageSize / enabled / queryKey 變動時觸發（reset to first page）
   useEffect(() => {
     if (enabled) {
@@ -167,6 +195,10 @@ export function usePaginatedFetch<T>(
     // queryKey 是顯式觸發 refetch 的 dependency；query object 本身不放入避免無謂 re-fetch
   }, [fetchPage, enabled, queryKey]);
 
+  // derived loading flags — caller 可二選一展示（初次 skeleton vs 增量 inline）
+  const loadingInitial = loading && items.length === 0;
+  const loadingMore = loading && items.length > 0;
+
   return {
     items,
     cursor,
@@ -174,8 +206,11 @@ export function usePaginatedFetch<T>(
     totalCount,
     lastFetchedAt,
     loading,
+    loadingInitial,
+    loadingMore,
     error,
     loadMore,
     refresh,
+    mutate,
   };
 }
