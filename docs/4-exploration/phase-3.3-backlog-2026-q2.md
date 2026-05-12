@@ -2,8 +2,8 @@
 
 **對應 ADR：** [ADR-0024](../1-decisions/ADR-0024-tier1-refactor-revised.md) §3 S1
 **對應 WBS：** [wbs-2026-q2-tactical-refactor.md](./wbs-2026-q2-tactical-refactor.md) §4.4
-**狀態：** BACKLOG（Phase 3.3 主推進於 2026-05-11 完成 8/18 page，剩餘 10 個整理於此）
-**建立日：** 2026-05-12
+**狀態：** **MOSTLY DONE**（2026-05-12 完成 backlog 8/10；剩 2 個 page 因「不分頁/自訂信封」結構性不適 hook，標 NOT-APPLICABLE）
+**建立日：** 2026-05-12 / **最終更新：** 2026-05-12
 
 ---
 
@@ -13,7 +13,9 @@ ADR-0024 §3 S1 Phase 3.3 hands-on 階段（2026-05-11）確認適用 `usePagina
 
 本文件記錄各 page 的具體阻塞點、hook 擴展需求、工作量估計，作為後續 pick up 時的起手依據。
 
-## 已完成（8/18）
+## 已完成（16/18）
+
+### 第 1 輪（PR #68-#72，2026-05-11）
 
 | # | Page | PR |
 |---|---|---|
@@ -26,68 +28,100 @@ ADR-0024 §3 S1 Phase 3.3 hands-on 階段（2026-05-11）確認適用 `usePagina
 | 7 | `web/src/app/accounting/vouchers/page.tsx` | #71 |
 | 8 | `web/src/app/admin/audit-events/page.tsx` | #72 |
 
----
+### 第 2 輪（PR #75-#83，2026-05-12）— backlog 推進
 
-## A. Future PR 群（6 個 — admin / account domain）
-
-| # | Page | 阻塞點 | Hook 擴展需求 | 工作量 |
-|---|---|---|---|---|
-| A1 | `web/src/app/admin/customers/page.tsx` | 雙 loading state（`loading` 初次 vs `loadingMore` 增量）+ 客端 `searchQuery` filter | hook 增加 `loadingMore` 區分 initial vs append phase | 1-2 小時 |
-| A2 | `web/src/app/admin/refunds/page.tsx` | 18 useState（refund modal + approve/reject action + updatedAt + filters） | 無 hook 變更；需先抽 modal 與 action 邏輯為 sub-component | 2-3 小時 |
-| A3 | `web/src/app/admin/warranty-claims/page.tsx` | 22 useState + `activeTab`（多 tab 各自 fetch）+ 多 filter + updatedAt | hook 已 fit；需設計 multi-tab fetch pattern（每 tab 一個 hook instance vs 共用 + queryKey） | 2-3 小時 |
-| A4 | `web/src/app/admin/sentiment-alerts/page.tsx` | `handleUpdated` 直接 mutate hook items（`setItems(prev => prev.map(...))`） | hook 需暴露 `mutate(updater)` API | 1-2 小時 + hook +20 行 |
-| A5 | `web/src/app/admin/inventory/page.tsx` | **不分頁**（single fetch limit=50）+ 客端 filter + summary computation | usePaginatedFetch 不適用；考慮獨立 `useFetch` 簡易 hook 或保留原狀 | **判斷 ROI 後**再做（可能不做） |
-| A6 | `web/src/app/account/schedule/page.tsx` | 15 useState（含 schedule 編輯/儲存 flow），結構未深入 inspect | 待 inspect | 待估計（2-3 小時） |
-
----
-
-## B. 獨立 PR 群（4 個 — 結構不適 single-hook）
-
-| # | Page | 阻塞點 | 設計方向 | 工作量 |
-|---|---|---|---|---|
-| B1 | `web/src/app/notifications/page.tsx` | response 含 `unread_count`（不在 `CursorPage` schema）+ bulk actions（`selectedIds`、`bulkBusy`、`marking`）+ `useBroadcast` + `useRealtimeChannel` 整合 | 自訂 hook `useNotificationList`（extending usePaginatedFetch + unread_count + mutate）或保留 page 內 | 3-4 小時 |
-| B2 | `web/src/app/knowledge-base/cases/page.tsx` | main list + search hits（替代 view）+ export modal + 多 toast/error 周邊 | 分 2 part：main list 用 hook；search 部分獨立 `useSearch` hook | 2-3 小時 |
-| B3 | `web/src/app/knowledge-base/manuals/page.tsx` | delete confirm modal + upload flow + 外部 setItems mutate（delete 後 filter、upload 後 unshift） | 同 A4 需要 hook `mutate(updater)` | 1-2 小時（依 A4 hook 擴展完成順序） |
-| B4 | `web/src/app/knowledge-base/family-reviews/page.tsx` | **雙清單頁**：pending（不分頁）+ history（分頁 + actionFilter） | history 用 usePaginatedFetch；pending 保留原 useState 邏輯 | 1-2 小時 |
-
----
-
-## C. Hook 擴展總清單（跨 backlog 共需）
-
-| 擴展 | 用途 | 受益 page 數 | 優先順序 |
+| # | Page | PR | Hook 擴展 |
 |---|---|---|---|
-| `loadingMore: boolean` | 區分初次載入 skeleton vs loadMore inline spinner | 1（A1 customers）+ 潛在多個 | M |
-| `mutate(updater: (items: T[]) => T[]): void` | 外部 CRUD 後同步更新 hook items（取代 `refresh()` 全抓） | 至少 3（A4 sentiment-alerts、B3 manuals、未來其他 page） | **H** |
-| 非分頁版本 `useFetch<T>(path, opts)` | 取代不需分頁的單頁 fetch | 1（A5 inventory）+ 潛在多個 | L（ROI 待評） |
+| C1 + C2 | hook 補 loadingInitial/loadingMore + mutate | #75 | — |
+| 9 | `web/src/app/admin/customers/page.tsx` | #76 | 用 loadingInitial/loadingMore |
+| 10 | `web/src/app/knowledge-base/family-reviews/page.tsx` | #77 | 雙清單頁 (history用hook) |
+| 11 | `web/src/app/admin/sentiment-alerts/page.tsx` | #78 | mutate |
+| 12 | `web/src/app/knowledge-base/manuals/page.tsx` | #79 | mutate |
+| 13 | `web/src/app/admin/refunds/page.tsx` | #80 | mutate + refresh aliasing |
+| 14 | `web/src/app/admin/warranty-claims/page.tsx` | #81 | mutate + queryKey on activeTab |
+| 15 | `web/src/app/knowledge-base/cases/page.tsx` | #82 | main list 用 hook (search/export 保留) |
+| 16 | `web/src/app/notifications/page.tsx` | #83 | mutate + onSuccess (unread_count) |
 
-### C2 `mutate` API 設計建議
+---
 
-對齊 SWR `mutate` 慣例：
+## A. Future PR 群 — 全部完成或標 NOT-APPLICABLE
+
+| # | Page | 結果 | PR / 備註 |
+|---|---|---|---|
+| A1 | `web/src/app/admin/customers/page.tsx` | ✅ DONE | PR #76 — 用 loadingInitial/loadingMore |
+| A2 | `web/src/app/admin/refunds/page.tsx` | ✅ DONE | PR #80 — 用 mutate + refresh aliasing；原 plan 寫「先抽 modal」hands-on 後判斷 modal/state 緊密耦合，抽出反而增加 prop 噪音 → 就地用 hook |
+| A3 | `web/src/app/admin/warranty-claims/page.tsx` | ✅ DONE | PR #81 — 用 mutate + queryKey on activeTab；對齊 A2 pattern |
+| A4 | `web/src/app/admin/sentiment-alerts/page.tsx` | ✅ DONE | PR #78 — 用 mutate API |
+| A5 | `web/src/app/admin/inventory/page.tsx` | ❌ **NOT-APPLICABLE** | **不分頁**（single fetch limit=50）+ 客端 filter + summary computation；usePaginatedFetch 結構性不適。保留 page-local 設計 — 收益 < 風險 |
+| A6 | `web/src/app/account/schedule/page.tsx` | ❌ **NOT-APPLICABLE** | hands-on 後發現 response 信封是 `ScheduleResponse`（含 workOrdersPerDay / leaveDays / standbyDays / pendingRequests 五個獨立 field），完全非 `PaginatedResponse` 信封；硬塞 hook 反扭曲 |
+
+---
+
+## B. 獨立 PR 群 — 全部完成
+
+| # | Page | 結果 | PR / 備註 |
+|---|---|---|---|
+| B1 | `web/src/app/notifications/page.tsx` | ✅ DONE | PR #83 — 用 mutate + `onSuccess` callback 訪問自訂 field `unread_count`（hook 新增 C4 extension）；原 plan 預估自訂 useNotificationList，hands-on 後改為 hook generic onSuccess 即可 |
+| B2 | `web/src/app/knowledge-base/cases/page.tsx` | ✅ DONE | PR #82 — main list 用 hook，search/export 保留 page-local（單頁使用，抽 useSearch hook ROI 不對） |
+| B3 | `web/src/app/knowledge-base/manuals/page.tsx` | ✅ DONE | PR #79 — 用 mutate API（delete filter + upload unshift） |
+| B4 | `web/src/app/knowledge-base/family-reviews/page.tsx` | ✅ DONE | PR #77 — history 用 hook + queryKey on actionFilter；pending 保留原 useState |
+
+---
+
+## C. Hook 擴展總清單（執行結果）
+
+| 擴展 | 結果 | PR | 用途 |
+|---|---|---|---|
+| C1 `loadingInitial` + `loadingMore` (derived) | ✅ DONE | #75 | 區分初次載入 skeleton vs loadMore inline spinner |
+| C2 `mutate(updater: (items: T[]) => T[]): void` | ✅ DONE | #75 | 外部 CRUD 後同步更新 hook items（SWR 慣例） |
+| C3 非分頁版本 `useFetch<T>(path, opts)` | ❌ **NOT BUILT** | — | hands-on A5/A6 後決定不做：兩個 candidate page (inventory + schedule) 結構各異（一個 client filter + summary、一個 5-field 自訂信封），共用 hook 反而 over-fit；保留 page-local |
+| C4 `onSuccess?: (res) => void` callback | ✅ DONE | #83 | 訪問 hook 標準信封外的自訂 field（如 notifications 的 `unread_count`）；當時 B1 hands-on 後加入
+
+### Hook 最終 API（PR #75 + #83 後）
 
 ```typescript
 interface UsePaginatedFetchResult<T> {
-  // ... existing fields
-  mutate: (updater: (items: T[]) => T[]) => void;
+  items: T[];
+  cursor: string | null;
+  hasMore: boolean;
+  totalCount: number | undefined;
+  lastFetchedAt: Date | null;
+  loading: boolean;
+  loadingInitial: boolean;   // C1
+  loadingMore: boolean;      // C1
+  error: string | null;
+  loadMore: () => Promise<void>;
+  refresh: () => Promise<void>;
+  mutate: (updater: (items: T[]) => T[]) => void;  // C2
 }
 
-// usage in page (e.g. manuals delete)
-const { items, mutate } = usePaginatedFetch<Manual>({ path: "/api/v1/knowledge-base/manuals" });
-await api.delete(`/api/v1/knowledge-base/manuals/${id}`);
-mutate(prev => prev.filter(m => m.id !== id));  // optimistic local update
+interface UsePaginatedFetchOptions {
+  path: string;
+  pageSize?: number;
+  query?: Record<string, ...>;
+  queryKey?: string;
+  enabled?: boolean;
+  formatError?: (err: unknown) => string;
+  onSuccess?: (res: PaginatedResponse<T>) => void;  // C4
+}
 ```
-
-優點：caller 不需 `refresh()` 全抓重 fetch；UX 沒「資料消失再出現」閃爍。
 
 ---
 
-## D. 優先順序建議（若日後 pick up）
+## D. 執行順序紀錄（實際）
 
-1. **先做 hook 擴展 C2 `mutate(updater)`** —— unblocks A4 + B3 共 2 個 page，且 C2 是「hook 質感升級」（對齊 SWR `mutate` API），未來其他 page 也會用到
-2. **A1 customers** —— 加 `loadingMore` flag 一次性解決 distinct loading semantics
-3. **B4 family-reviews** —— 雙清單頁 pattern 對齊後，未來類似頁面可參考
-4. **A2 refunds / A3 warranty-claims** —— admin 高使用度，但 useState 數量多需先 component 拆解
-5. **B1 notifications** —— 最複雜，依賴 C2 mutate + 自訂 hook，建議最後做
-6. **A5 inventory** + **A6 account/schedule** —— 視 ROI，可能 skip
+依 backlog §D 推薦順序執行（全部完成）：
+
+1. ✅ C1+C2 hook 擴展 → PR #75
+2. ✅ A1 customers → PR #76
+3. ✅ B4 family-reviews → PR #77
+4. ✅ A4 sentiment-alerts → PR #78
+5. ✅ B3 manuals → PR #79
+6. ✅ A2 refunds → PR #80
+7. ✅ A3 warranty-claims → PR #81
+8. ✅ B2 cases → PR #82
+9. ✅ B1 notifications + C4 onSuccess → PR #83
+10. ❌ A5 inventory + A6 schedule — hands-on 後判 NOT-APPLICABLE
 
 ---
 
@@ -119,3 +153,4 @@ mutate(prev => prev.filter(m => m.id !== id));  // optimistic local update
 | 日期 | 內容 |
 | :--- | :--- |
 | 2026-05-12 | 初版 — 整理自 PR #68-#72 描述與 hands-on 階段發現 |
+| 2026-05-12 | **MOSTLY DONE** — 後續 9 個 PR (#75-#83) 完成 backlog 8/10；剩 2 個 (A5 inventory / A6 schedule) hands-on 後判 NOT-APPLICABLE；hook 擴展完成 C1/C2/C4，C3 決定不做。Phase 3.3 最終 16/18 page 改用 hook |
