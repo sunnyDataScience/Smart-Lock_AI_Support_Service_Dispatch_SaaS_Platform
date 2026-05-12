@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -101,15 +102,47 @@ export default function NotificationsPage() {
     TYPE_FILTER_VALUES.includes(initialType) ? initialType : "all",
   );
 
-  const [items, setItems] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(deepLinkId);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [marking, setMarking] = useState<string | null>(null);
+
+  const listQuery = useMemo(() => {
+    const q: Record<string, string | number | boolean | undefined> = {};
+    if (tab !== "all") q.status = tab;
+    if (typeFilter !== "all") q.type = typeFilter;
+    return q;
+  }, [tab, typeFilter]);
+
+  const {
+    items,
+    hasMore,
+    loading,
+    error: fetchError,
+    refresh: fetchItems,
+    mutate,
+  } = usePaginatedFetch<Notification>({
+    path: "/api/v1/notifications",
+    pageSize: PAGE_LIMIT,
+    query: listQuery,
+    queryKey: `tab=${tab}|type=${typeFilter}`,
+    onSuccess: (res) => {
+      // notifications 用自訂 response field `unread_count` — 透過 hook
+      // onSuccess hook 訪問 raw response（per Phase 3.3 backlog §B1）
+      const customRes = res as { unread_count?: number; items?: Notification[] };
+      const items = customRes.items ?? [];
+      const fromCount =
+        typeof customRes.unread_count === "number"
+          ? customRes.unread_count
+          : items.filter((n) => !n.read_at).length;
+      setUnreadCount(fromCount);
+    },
+  });
+
+  const error = fetchError || actionError;
+  const setError = setActionError;
 
   // Sync URL query when tab / type filter / selected id changes
   useEffect(() => {
@@ -123,36 +156,10 @@ export default function NotificationsPage() {
     });
   }, [tab, typeFilter, selectedId, router]);
 
-  const fetchItems = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const query: Record<string, string | number> = { limit: PAGE_LIMIT };
-      if (tab !== "all") query.status = tab;
-      if (typeFilter !== "all") query.type = typeFilter;
-      const res = await api.get<NotificationListResponse>(
-        "/api/v1/notifications",
-        { query },
-      );
-      const next = res.items ?? [];
-      setItems(next);
-      setHasMore(!!res.has_more);
-      const fromCount =
-        typeof res.unread_count === "number"
-          ? res.unread_count
-          : next.filter((n) => !n.read_at).length;
-      setUnreadCount(fromCount);
-    } catch (e) {
-      setError(formatErr(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [tab, typeFilter]);
-
   useEffect(() => {
-    fetchItems();
+    // hook 已自動在 queryKey 變動時 refetch；本 useEffect 只清空 bulk selection
     setSelectedIds(new Set());
-  }, [fetchItems]);
+  }, [tab, typeFilter]);
 
   // 跨 tab 同步：同 user 開多 tab 時，標記已讀/全部已讀/封存等動作互相同步
   const broadcast = useBroadcast<NotificationBroadcastEvent>(
@@ -160,24 +167,24 @@ export default function NotificationsPage() {
     (event) => {
       if (event.type === "marked_read") {
         const now = new Date().toISOString();
-        setItems((prev) =>
+        mutate((prev) =>
           prev.map((x) =>
             x.id === event.id && !x.read_at ? { ...x, read_at: now } : x,
           ),
         );
         setUnreadCount((c) => Math.max(0, c - 1));
         if (tab === "unread") {
-          setItems((prev) => prev.filter((x) => x.id !== event.id));
+          mutate((prev) => prev.filter((x) => x.id !== event.id));
         }
       } else if (event.type === "archived") {
-        setItems((prev) => prev.filter((x) => x.id !== event.id));
+        mutate((prev) => prev.filter((x) => x.id !== event.id));
       } else if (event.type === "all_read") {
         const now = new Date().toISOString();
-        setItems((prev) =>
+        mutate((prev) =>
           prev.map((x) => (x.read_at ? x : { ...x, read_at: now })),
         );
         setUnreadCount(0);
-        if (tab === "unread") setItems([]);
+        if (tab === "unread") mutate(() => []);
       } else if (event.type === "new_received") {
         // 其他 tab 透過 WS 收到新通知，本 tab 重抓以拿到完整資料
         fetchItems();
@@ -198,7 +205,7 @@ export default function NotificationsPage() {
       const isUnread = !incoming.read_at;
       if (tab === "unread" && !isUnread) return;
       if (tab === "read" && isUnread) return;
-      setItems((prev) => {
+      mutate((prev) => {
         if (prev.some((x) => x.id === incoming.id)) return prev;
         return [incoming, ...prev];
       });
@@ -220,7 +227,7 @@ export default function NotificationsPage() {
         read_at: new Date().toISOString(),
       });
       const now = new Date().toISOString();
-      setItems((prev) =>
+      mutate((prev) =>
         prev.map((x) => (x.id === n.id ? { ...x, read_at: now } : x)),
       );
       setUnreadCount((c) => Math.max(0, c - 1));
@@ -238,7 +245,7 @@ export default function NotificationsPage() {
       await api.patch(`/api/v1/notifications/${encodeURIComponent(n.id)}`, {
         archived_at: new Date().toISOString(),
       });
-      setItems((prev) => prev.filter((x) => x.id !== n.id));
+      mutate((prev) => prev.filter((x) => x.id !== n.id));
       if (selectedId === n.id) setSelectedId(null);
       broadcast.post({ type: "archived", id: n.id });
     } catch (e) {
@@ -257,11 +264,11 @@ export default function NotificationsPage() {
         typeFilter === "all" ? {} : { filter: { type: [typeFilter] } },
       );
       const now = new Date().toISOString();
-      setItems((prev) =>
+      mutate((prev) =>
         prev.map((x) => (x.read_at ? x : { ...x, read_at: now })),
       );
       setUnreadCount(0);
-      if (tab === "unread") setItems([]);
+      if (tab === "unread") mutate(() => []);
       broadcast.post({ type: "all_read" });
     } catch (e) {
       setError(formatErr(e));
@@ -279,17 +286,17 @@ export default function NotificationsPage() {
         action,
       });
       if (action === "archive") {
-        setItems((prev) => prev.filter((x) => !selectedIds.has(x.id)));
+        mutate((prev) => prev.filter((x) => !selectedIds.has(x.id)));
       } else if (action === "mark_read") {
         const now = new Date().toISOString();
-        setItems((prev) =>
+        mutate((prev) =>
           prev.map((x) =>
             selectedIds.has(x.id) && !x.read_at ? { ...x, read_at: now } : x,
           ),
         );
         setUnreadCount((c) => Math.max(0, c - selectedIds.size));
         if (tab === "unread") {
-          setItems((prev) => prev.filter((x) => !selectedIds.has(x.id)));
+          mutate((prev) => prev.filter((x) => !selectedIds.has(x.id)));
         }
       }
       setSelectedIds(new Set());
