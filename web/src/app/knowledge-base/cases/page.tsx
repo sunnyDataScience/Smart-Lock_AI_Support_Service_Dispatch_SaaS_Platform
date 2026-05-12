@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Search, Plus, Download } from "lucide-react";
@@ -8,14 +8,20 @@ import Sidebar from "@/components/layout/Sidebar";
 import CaseCardGrid from "@/components/knowledge-base/CaseCardGrid";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api, auth } from "@/lib/api";
+import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
 
 type CaseEntry = components["schemas"]["CaseEntry"];
-type CaseEntryPage = components["schemas"]["CaseEntryPage"];
 type CaseSearchResponse = components["schemas"]["CaseSearchResponse"];
 type KbExportRequest = components["schemas"]["KbExportRequest"];
 type KbExportJob = components["schemas"]["KbExportJob"];
 type KbExportScope = NonNullable<KbExportRequest["scope"]>;
+
+function formatCasesError(e: unknown): string {
+  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
+  if (e instanceof Error) return e.message;
+  return String(e);
+}
 
 const PAGE_SIZE = 20;
 
@@ -56,12 +62,6 @@ export default function CasesPage() {
     [tTabs],
   );
 
-  const [items, setItems] = useState<CaseEntry[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [totalCount, setTotalCount] = useState<number | undefined>(undefined);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [brand, setBrand] = useState<string>("");
   const [verified, setVerified] = useState<VerifiedFilter>("");
   const [searchInput, setSearchInput] = useState("");
@@ -76,44 +76,28 @@ export default function CasesPage() {
   const [exportToast, setExportToast] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
 
-  const fetchPage = useCallback(
-    async (
-      afterCursor: string | null,
-      append: boolean,
-      filters: { brand: string; verified: VerifiedFilter },
-    ) => {
-      setLoading(true);
-      setError(null);
-      try {
-        const query: Record<string, string | number | boolean> = { limit: PAGE_SIZE };
-        if (afterCursor) query.cursor = afterCursor;
-        if (filters.brand) query.brand = filters.brand;
-        if (filters.verified !== "") query.verified = filters.verified === "true";
-        const res = await api.get<CaseEntryPage>("/api/v1/knowledge-base/cases", { query });
-        const newItems = res.items ?? [];
-        setItems((prev) => (append ? [...prev, ...newItems] : newItems));
-        setCursor(res.next_cursor ?? null);
-        setHasMore(!!res.has_more);
-        if (typeof res.total_count === "number") setTotalCount(res.total_count);
-        else if (!append) setTotalCount(undefined);
-      } catch (e) {
-        setError(
-          e instanceof ApiError
-            ? `${e.errorCode} (${e.status})：${e.message}`
-            : e instanceof Error
-              ? e.message
-              : String(e),
-        );
-      } finally {
-        setLoading(false);
-      }
-    },
-    [],
-  );
+  const mainListQuery = useMemo(() => {
+    const q: Record<string, string | number | boolean | undefined> = {};
+    if (brand) q.brand = brand;
+    if (verified !== "") q.verified = verified === "true";
+    return q;
+  }, [brand, verified]);
 
-  useEffect(() => {
-    fetchPage(null, false, { brand, verified });
-  }, [fetchPage, brand, verified]);
+  const {
+    items,
+    cursor,
+    hasMore,
+    totalCount,
+    loading,
+    error,
+    loadMore,
+  } = usePaginatedFetch<CaseEntry>({
+    path: "/api/v1/knowledge-base/cases",
+    pageSize: PAGE_SIZE,
+    query: mainListQuery,
+    queryKey: `brand=${brand}|verified=${verified}`,
+    formatError: formatCasesError,
+  });
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -397,7 +381,7 @@ export default function CasesPage() {
             loading={displayLoading}
             hasMore={inSearchMode ? false : hasMore}
             totalCount={inSearchMode ? displayItems.length : totalCount}
-            onLoadMore={() => fetchPage(cursor, true, { brand, verified })}
+            onLoadMore={loadMore}
           />
         </div>
       </div>
