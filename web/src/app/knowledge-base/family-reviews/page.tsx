@@ -6,14 +6,20 @@ import Sidebar from "@/components/layout/Sidebar";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
+import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
 
 type FamilyReview = components["schemas"]["FamilyReview"];
-type FamilyReviewPage = components["schemas"]["FamilyReviewPage"];
 type FamilyReviewPendingItem = components["schemas"]["FamilyReviewPendingItem"];
 type FamilyReviewPendingResponse =
   components["schemas"]["FamilyReviewPendingResponse"];
 type FamilyReviewAction = components["schemas"]["FamilyReviewAction"];
+
+function formatFamilyReviewError(e: unknown): string {
+  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
+  if (e instanceof Error) return e.message;
+  return String(e);
+}
 
 const ACTION_BADGE: Record<FamilyReviewAction, { bg: string; text: string }> = {
   approved: { bg: "#DCFCE7", text: "#166534" },
@@ -53,18 +59,39 @@ export default function FamilyReviewsPage() {
     [tF],
   );
 
+  // Pending list — 不分頁，保留 page-local state
   const [pending, setPending] = useState<FamilyReviewPendingItem[]>([]);
   const [pendingLoading, setPendingLoading] = useState(true);
+  const [pendingError, setPendingError] = useState<string | null>(null);
 
-  const [history, setHistory] = useState<FamilyReview[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
-  const [historyLoading, setHistoryLoading] = useState(true);
+  // History list — cursor-paginated，用 hook
   const [actionFilter, setActionFilter] = useState<FamilyReviewAction | "">("");
+  const {
+    items: history,
+    cursor,
+    hasMore,
+    loading: historyLoading,
+    error: historyError,
+    loadMore: loadMoreHistory,
+    refresh: refreshHistory,
+  } = usePaginatedFetch<FamilyReview>({
+    path: "/api/v1/family-reviews",
+    pageSize: PAGE_SIZE,
+    query: actionFilter ? { action: actionFilter } : undefined,
+    queryKey: `action=${actionFilter}`,
+    formatError: formatFamilyReviewError,
+  });
 
-  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [target, setTarget] = useState<SubmitTarget | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // page-level error 合併 pending fetch / history fetch / handleSubmit 三個來源
+  const error = pendingError || historyError || actionError;
+  const clearError = () => {
+    setPendingError(null);
+    setActionError(null);
+  };
 
   const fetchPending = useCallback(async () => {
     setPendingLoading(true);
@@ -73,55 +100,17 @@ export default function FamilyReviewsPage() {
         "/api/v1/family-reviews/pending",
       );
       setPending(res.data ?? []);
+      setPendingError(null);
     } catch (e) {
-      setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
-      );
+      setPendingError(formatFamilyReviewError(e));
     } finally {
       setPendingLoading(false);
     }
   }, []);
 
-  const fetchHistory = useCallback(
-    async (opts?: { append?: boolean; cursor?: string | null }) => {
-      setHistoryLoading(true);
-      try {
-        const query: Record<string, string | number> = { limit: PAGE_SIZE };
-        if (opts?.cursor) query.cursor = opts.cursor;
-        if (actionFilter) query.action = actionFilter;
-        const res = await api.get<FamilyReviewPage>("/api/v1/family-reviews", {
-          query,
-        });
-        const items = res.items ?? [];
-        setHistory((prev) => (opts?.append ? [...prev, ...items] : items));
-        setCursor(res.next_cursor ?? null);
-        setHasMore(res.has_more ?? false);
-      } catch (e) {
-        setError(
-          e instanceof ApiError
-            ? `${e.errorCode} (${e.status})：${e.message}`
-            : e instanceof Error
-              ? e.message
-              : String(e),
-        );
-      } finally {
-        setHistoryLoading(false);
-      }
-    },
-    [actionFilter],
-  );
-
   useEffect(() => {
     fetchPending();
   }, [fetchPending]);
-
-  useEffect(() => {
-    fetchHistory();
-  }, [fetchHistory]);
 
   const handleSubmit = async (
     draftId: string,
@@ -129,7 +118,7 @@ export default function FamilyReviewsPage() {
     comment: string,
   ) => {
     setSubmitting(true);
-    setError(null);
+    setActionError(null);
     try {
       await api.post("/api/v1/family-reviews", {
         sop_draft_id: draftId,
@@ -137,15 +126,9 @@ export default function FamilyReviewsPage() {
         comment: comment.trim() || undefined,
       });
       setTarget(null);
-      await Promise.all([fetchPending(), fetchHistory()]);
+      await Promise.all([fetchPending(), refreshHistory()]);
     } catch (e) {
-      setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
-      );
+      setActionError(formatFamilyReviewError(e));
     } finally {
       setSubmitting(false);
     }
@@ -178,7 +161,7 @@ export default function FamilyReviewsPage() {
           <div className="mx-8 mt-4 flex items-start justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             <span>{error}</span>
             <button
-              onClick={() => setError(null)}
+              onClick={clearError}
               className="text-red-400 hover:text-red-600"
               title={tF("errorClose")}
             >
@@ -354,10 +337,8 @@ export default function FamilyReviewsPage() {
             {hasMore && (
               <div className="flex justify-center pt-2">
                 <button
-                  onClick={() =>
-                    fetchHistory({ append: true, cursor: cursor })
-                  }
-                  disabled={historyLoading}
+                  onClick={loadMoreHistory}
+                  disabled={historyLoading || !cursor}
                   className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-5 py-[10px] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {historyLoading ? tF("loading") : tF("loadMore")}
