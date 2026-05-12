@@ -63,6 +63,12 @@ export interface UsePaginatedFetchOptions {
    * 不指定時使用 `toUserMessage` — 取 `ApiError.message` 或 fallback 字串。
    */
   formatError?: (err: unknown) => string;
+  /**
+   * 每次 fetch 成功後的副作用 hook — 可拿 raw response 訪問 hook 標準
+   * 信封以外的自訂 field（如 notifications 的 `unread_count`）。
+   * 不指定時不執行任何副作用。
+   */
+  onSuccess?: <R extends PaginatedResponse<unknown>>(res: R) => void;
 }
 
 export interface UsePaginatedFetchResult<T> {
@@ -126,6 +132,7 @@ export function usePaginatedFetch<T>(
     queryKey,
     enabled = true,
     formatError = toUserMessage,
+    onSuccess,
   } = opts;
 
   const [items, setItems] = useState<T[]>([]);
@@ -162,6 +169,8 @@ export function usePaginatedFetch<T>(
         // total_count 只有後端有提供時更新；缺欄位時保留前次值
         if (typeof res.total_count === "number") setTotalCount(res.total_count);
         setLastFetchedAt(new Date());
+        // caller 可訪問 raw response 訪問 hook 標準信封外的自訂 field
+        onSuccess?.(res);
       } catch (err) {
         setError(formatError(err));
         // 失敗保留現有 items；hasMore 不變（讓 user 重試 loadMore 或 refresh）
@@ -169,7 +178,7 @@ export function usePaginatedFetch<T>(
         setLoading(false);
       }
     },
-    [path, pageSize, enabled, formatError],
+    [path, pageSize, enabled, formatError, onSuccess],
   );
 
   const loadMore = useCallback(async () => {
