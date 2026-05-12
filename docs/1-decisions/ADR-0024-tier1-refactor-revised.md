@@ -164,6 +164,8 @@ ADR-0023 於 2026-05-11 PR #62 merge 後 30 分鐘進入 Phase 1.1 hands-on 階�
 
 **工期**：原 0.5 週 → 拆兩階段（5.1: 3-5 天 / 5.2: 0.5 天）；**先進 backlog**
 
+**2026-05-12 ROI 重評估**：Phase 1-4 完成後依本 ADR 排程進行重估，結論 **DEFER**（成本：75 檔手工補 + 高維護負擔 + 與 traceability-matrix.md 重疊；收益：V3 時程不明確、新人痛點未量化）。明確啟動觸發條件（T1-T4）與移除條件（R1-R2）詳見 [`docs/4-exploration/phase-5-flow-index-backlog-2026-q2.md`](../4-exploration/phase-5-flow-index-backlog-2026-q2.md)。
+
 ---
 
 ## §4 修正後總工期
