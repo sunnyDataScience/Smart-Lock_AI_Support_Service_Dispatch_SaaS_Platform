@@ -4,9 +4,39 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Smart Lock AI Support & Service Dispatch SaaS Platform — a LINE Bot-based AI customer service agent for smart lock troubleshooting, with a Next.js admin dashboard for operations monitoring. Built with a skill-based ReAct agent (LangGraph) and a Medallion data pipeline that produces SKILL.md knowledge files.
+Smart Lock AI Support & Service Dispatch SaaS Platform — a LINE Bot-based AI customer service agent for smart lock troubleshooting, with a Next.js admin dashboard for operations monitoring. Built with a ReAct agent (LangGraph) backed by a `product_info/` mega-doc knowledge base (one self-contained mega-doc per brand+model, sourced strictly from `data/storage/bronze/`), plus a Medallion data pipeline.
+
+On this branch (`refactor/agent-port`) the agent runtime is also equipped with an optional **Belief-Augmented ReAct (Turn Cycle)** prototype — Hypothesize → Decide → Execute → Calibrate — gated by `[turn_cycle].enabled` in `agent/config.toml` (default `false`). See [ADR-0010](docs/1-decisions/ADR-0010-belief-augmented-react.md) and the [Turn Cycle manual](agent/docs/manuals/turn_cycle_belief_augmented_react.md).
 
 Primary language: **Chinese (Traditional)** for all user-facing text, comments, and documentation. Code identifiers and git messages may mix English and Chinese.
+
+## 🔒 Architecture Lock — agent/ 知識庫架構（必讀）
+
+**正典是 `product_info/` mega-doc，不是 `skills/` SKILL.md。** 詳見 [ADR-0008](docs/1-decisions/ADR-0008-product-info-architecture-canonical.md) 與 [Product Info Cutover Audit 2026-05-11](agent/docs/manuals/product_info_cutover_2026-05-11.md)。
+
+| 項目 | ✅ 採用（正典）| ❌ 棄用（2026-05-11 A-3b 起）|
+|---|---|---|
+| 知識庫格式 | `agent/product_info/{Brand}/{Model}.md` mega-doc | `agent/skills/data/{Brand}/{Model}/skill-name/SKILL.md`（已全部刪除）|
+| Agent tool | `load_product_info(name)` | `load_skill(skill_name)`（已退場）|
+| Tool module | `agent/agent_tools/tools.py` | `agent/skills/tools.py` |
+| Prompt 區塊標題 | `[可用產品資料]` | `[可用技能]` |
+
+**對 AI 助手與新進開發者的硬性約束：**
+
+1. **不准在 `agent/` 內 import `skills`** — `from skills import ...` / `import skills` / `from skills.tools import ...` 全部禁止。本 branch 已於 A-3a 退場 load_skill tool、A-3b 刪除 69 個 SKILL.md，code 已對齊；新增 import 會破壞此狀態。
+2. **不准重建 `agent/skills/data/*/SKILL.md`** — 新產品知識一律寫成 `agent/product_info/{Brand}/{Model}.md` mega-doc。
+3. **任何「想改回 skills/」的提案** → 先讀 ADR-0008，到 issue tracker 提案徵詢，不要直接 force-push。本 branch 上的 ADR-0008 曾於 2026-05-09 14:42 被 force-push 改標為「SUPERSEDED」；後續 5/11 A-1~A-3b 系列 commit 在本 branch 重新走回原始決議方向。
+
+## 🧪 Experimental Lock — Belief-Augmented ReAct（Turn Cycle）
+
+**本 branch 為 Turn Cycle 實驗 fork**，已於 67 共同題對打跑出 **89.6% strict / 100% pass+partial / 0 fails**（vs `refactor/agent-improvements` agent-port baseline 83.6% strict / 1 fail）。詳見 [ADR-0010](docs/1-decisions/ADR-0010-belief-augmented-react.md)。
+
+**硬性約束：**
+
+1. **預設關**：`[turn_cycle].enabled=false`、`fail_open=true`。production deploy 前需維持此狀態，避免 dual-dispatch 上線回退類事件重演（既往教訓見 commit log）。
+2. **Hypothesize / Decide / Calibrate 三檔不准單獨拿出 import** — 必須走 `harness/turn_cycle_runner.run_belief_cycle()` 入口。
+3. **policy 閾值**（`agent/policy.py` HIGH=0.55 / GAP=0.15）已由 B-fix-v2 調過，調整需附 quality_check 對打數據。詳見 [Action Policy Thresholds 手冊](agent/docs/manuals/action_policy_thresholds.md)。
+4. **本 branch 是否進 production 待後續路線決議**（截至本文，roadmap 走向為 hermes-cs，agent-port 暫為 archive 候選；見 `docs/_audit/runtime-architecture-comparison-2026-05-13-0125.md`）。
 
 ## Common Commands
 
@@ -118,8 +148,8 @@ No automated unit test suite exists. Testing is via `quality_check` (LLM-as-Judg
 
 ### Major Modules
 
-1. **`agent/`** — Skill-based ReAct Agent (LINE Bot AI customer service)
-2. **`data/`** — Medallion ETL Pipeline producing SKILL.md knowledge files
+1. **`agent/`** — ReAct Agent backed by `product_info/` mega-doc knowledge base (LINE Bot AI customer service); optional Belief-Augmented ReAct (Turn Cycle) gated by config
+2. **`data/`** — Medallion ETL Pipeline (Bronze → Silver SOP drafts; final mega-doc 由業主審稿後手動更新 `agent/product_info/`)
 3. **`web/`** — Next.js Admin Dashboard (operations monitoring & conversation review)
 4. **`docs/02-design/specs/`** — API Contract SSOT (OpenAPI + AsyncAPI + CI validation)
 5. **`web_design_spec_prompt_pipeline/`** — AI-assisted web design prompt pipeline
@@ -146,11 +176,14 @@ Debounce buffer (harness/debounce.py)
       └─ run_agent()
           ├─ Load user facts (brand/model) from DB
           ├─ Auto-infer brand from user input (infer_brand_from_text)
-          ├─ Inject [可用技能] + [用戶資料] + [前情提要] prefixes
+          ├─ Inject [可用產品資料] + [用戶資料] + [前情提要] prefixes
+          │  └─ (optional, gated by [turn_cycle].enabled)
+          │     Belief-Augmented prefix → Hypothesize + Decide → [Belief Hint]
           ├─ Strip stale multimodal from checkpoint
           ├─ agent.ainvoke() with request_timeout (180s)
-          │   └─ LLM + tools: load_skill, update_user_info, transfer_to_human
+          │   └─ LLM + tools: load_product_info, update_user_info, transfer_to_human
           ├─ Output validator: check forbidden phrases (H7.5)
+          ├─ Calibrate (optional, post-reply) → CalibrationSignal persisted to BeliefState
           ├─ Checkpoint cleanup: replace multimodal + tool_calls with text refs
           ├─ Audit log (H8, background)
           └─ Return AI response
@@ -169,21 +202,24 @@ Post-reply (background, non-blocking):
 - `main.py` — CLI mode (verifies LLM connectivity only, no harness layers)
 
 **Agent construction** (`agent.py`):
-- Uses `langgraph.prebuilt.create_react_agent` with 3 tools: `load_skill`, `update_user_info`, `transfer_to_human`
-- System prompt loaded from `prompts/system.md`; skill list injected dynamically per-request (not in static prompt)
-- Skills loaded once at startup from disk, filtered per-request by user's brand/model
+- Uses `langgraph.prebuilt.create_react_agent` with 3 tools: `load_product_info`, `update_user_info`, `transfer_to_human`
+- System prompt loaded from `prompts/system.md`; product info catalog injected dynamically per-request (not in static prompt)
+- Mega-docs loaded once at startup from disk (`product_info/`), filtered per-request by user's brand/model
 - LLM model string lives in `agent/config.toml` `[llm]` — quality_check and evals read this same config (parity with prod)
+- Optional Belief-Augmented pre-pass: when `[turn_cycle].enabled=true`，先跑 Hypothesize + Decide 產 `[Belief Hint]`，附加到 system prompt 前綴。Calibrate 在 reply 後跑，把信號寫回 BeliefState 供下輪 Hypothesize 修正 belief。詳見 [Turn Cycle manual](agent/docs/manuals/turn_cycle_belief_augmented_react.md)。
 
 **Module map:**
-- `core/` — Cross-cutting infrastructure: `config.py` (TOML loader), `line_bot.py` (LINE SDK wrapper)
+- `core/` — Cross-cutting infrastructure: `config.py` (TOML loader), `line_bot.py` (LINE SDK wrapper), `brand_match.py`, `tracing.py`
 - `llms/` — Unified LLM via LiteLLM; supports any provider with `"vertex_ai/gemini-..."` style strings
 - `memory/` — Checkpointer registry (in-process / SQLite / PostgreSQL)
 - `storage/` — Audit log storage registry
 - `harness/` — Middleware layers (see table below)
-- `skills/` — Skill loader, tools, registry; SKILL.md files under `skills/data/`
+- `agent_tools/` — Agent tools: `load_product_info`, `update_user_info`, `transfer_to_human` + ContextVar helpers
+- `product_info/` — Brand-keyed mega-doc knowledge base (`{Brand}/{Model}.md` + `_common/*.md`)
+- `belief.py` / `belief_store.py` / `hypothesize.py` / `policy.py` / `calibrate.py` — Belief-Augmented ReAct primitives (BeliefState v2 schema, hypothesizer LLM module, action decision policy, calibration signal classifier)
 - `profiles/` — User facts (hard + soft) extraction and storage
 - `prompts/` — System prompt and templates
-- `quality/` — `quality_check` LLM-as-Judge eval (HTML + JSON reports)
+- `quality/` — `quality_check` LLM-as-Judge eval (HTML + JSON reports); supports `--turn-cycle` flag for A/B
 - `evals/` — Golden-set regression pipeline (`runner` → `judge` → `reporter`); see `agent/evals/README.md`
 
 **Harness middleware layers** in `harness/`:
@@ -199,54 +235,69 @@ Post-reply (background, non-blocking):
 | H6 | `safety_gate.py` | Before LLM call | Sync — blocks dangerous keywords |
 | H7.5 | `output_validator.py` | After LLM reply | Sync — blocks internal mechanism phrases |
 | H8 | Audit in `debounce.py` | After agent reply | Background — logs tool calls + escalations |
+| H_TC | `turn_cycle.py` + `turn_cycle_runner.py` | Pre-agent (when enabled) | Sync — Hypothesize + Decide → `[Belief Hint]` prefix |
 
 **Checkpoint cleanup** (important for debugging):
-- After each `run_agent()`, ToolMessage content (full SOP text) is replaced with `[已參考技能: {name}]`
+- After each `run_agent()`, ToolMessage content (full mega-doc text) is replaced with `[已參考產品資料: {name}]`
 - Multimodal HumanMessage content (base64 data) is replaced with `[使用者曾傳送圖片]` references
-- This prevents context bloat in long conversations. Use `scripts/view_context.py` to inspect state.
+- This prevents context bloat in long conversations. Use `tests/tools/view_context.py` to inspect state.
 
-### Skills System (`agent/skills/`)
+### Product Info Knowledge Base (`agent/product_info/`)
 
 **Two-stage loading:**
-1. **Startup**: `load_skills()` scans `skills/data/` for SKILL.md files, parses frontmatter, infers brands/models from directory path
-2. **Per-request**: `filter_skills(brand, model)` narrows to applicable skills → injected as `[可用技能]` prefix in user message
+1. **Startup**: `load_all_docs()` scans `product_info/` for `.md` files, parses YAML frontmatter (`brand`, `model`, `description`), builds in-memory index
+2. **Per-request**: `filter_loadable(brand, model)` decides what's loadable → catalog injected as `[可用產品資料]` prefix in user message
 
-**Brand-based hierarchy:**
+**Directory layout (one mega-doc per brand+model, plus `_common/*`):**
 
 ```
-skills/data/
-├── _common/           # brands=None (universal) — troubleshoot, dispatch-guide, store-info
-├── Chatlock/
-│   ├── _all-models/   # brands=["Chatlock"] — ts-*-chatlock, app-guide, system-settings
-│   └── AI-99/         # brands=["Chatlock"], models=["AI-99"] — app-battery, app-camera
-├── Dormakaba/_all-models/
-└── ...
+agent/product_info/
+├── _common/                # brand=_common, model=None
+│   ├── troubleshoot.md
+│   ├── dispatch.md
+│   ├── general-knowledge.md
+│   └── store-info.md
+├── Chatlock/{A90,AI-88,AI-99}.md
+├── Dormakaba/                # 16 mega-docs：AS701/AS850/AS901/DP850/...
+└── {Philips,Kaadas,Milre,AiLock,3E}/
 ```
 
-**Key concepts:**
-- **Path-based metadata** (`skills/__init__.py`): `_common/` = universal; `{Brand}/_all-models/` = brand-wide; `{Brand}/{Model}/` = model-specific. Never hardcoded in frontmatter.
-- **Skill filtering** (`filter_skills()`): Brand unknown → only `_common` skills returned. Brand known → `_common` + matching brand skills. Brand + model known → `_common` + brand-wide + model-specific.
-- **Sub-skill routing**: Router skills (e.g., `troubleshoot`) direct the agent to load brand-specific sub-skills. Sub-skills with prefixes `ts-*`, `app-*`, `ss-*` are hidden from the top-level skill list (exceptions: `app-guide`, `ss-dormakaba`).
-- **Prefix matching fallback** (`tools.py`): `load_skill("ts-door-stuck")` with no exact match → returns list of `ts-door-stuck-*` sub-skills for agent to choose from.
-- **Brand gate**: `load_skill()` blocks loading brand-specific skills when user brand is unknown or mismatched.
-- **SKILL.md format**: YAML frontmatter (`name`, `description`, `trigger_keywords`, `category`, `severity`) + Markdown SOP body.
+**Sourcing rule (CRITICAL — bronze-only):** all mega-doc content must be derived strictly from `data/storage/bronze/`（YouTube 字幕、website、video transcript）。PDF (GDrive) 不可信，mega-doc 只引 URL 不抄內容。
 
-### Tools (`agent/skills/tools.py`)
+**Strict profile gating** (`product_info/__init__.py:filter_loadable`): brand+model 齊備 → 可載入 `{Brand}/{Model}` + 全部 `_common/*`；否則只能載 `_common/*`。
+
+詳見 [Product Info Cutover Audit 2026-05-11](agent/docs/manuals/product_info_cutover_2026-05-11.md) — A-1～A-3b 階段切換的完整紀錄。
+
+### Tools (`agent/agent_tools/tools.py`)
 
 Three agent tools, all use `ContextVar` for per-request isolation in async:
 
 | Tool | Purpose | Key behavior |
 |------|---------|--------------|
-| `load_skill` | Load SOP content | Brand gate + prefix matching fallback |
-| `update_user_info` | Set brand/model | Validates against `config.toml` brands via `match_brand()`/`match_model()`, normalizes casing, writes to DB, updates ContextVar, returns refreshed skill list |
-| `transfer_to_human` | Escalate to human | Auto-fills known facts (phone, address, device) into form template |
+| `load_product_info` | Load mega-doc | Strict profile gate — rejects loads outside `{brand}/{model} + _common/*` |
+| `update_user_info` | Set brand/model | Validates via `match_brand()`/`match_model()`, normalizes casing, writes to DB (SCD Type 2), updates ContextVar, returns refreshed product info catalog |
+| `transfer_to_human` | Escalate to human | Auto-fills known facts (phone, address, device) into form template; gated by `_doc_loaded_this_run` to prevent premature escalation |
+
+### Belief-Augmented ReAct (Turn Cycle, optional)
+
+新增於本 branch 的實驗模組。**預設關閉** (`[turn_cycle].enabled=false`)。
+
+- `agent/belief.py` — `BeliefState` v2 schema：`primary_intent` / `hypotheses[]`（含 `likely_misframe`）/ `confidence` / `ownership_status` / `next_action` 等
+- `agent/belief_store.py` — PostgreSQL 持久化（`belief_states` 表，每 session 一筆，按 turn append）
+- `agent/hypothesize.py` — Hypothesize meta-skill：渲染對話歷史 + facts → 呼 LLM → JSON parse → 回 `Hypothesis[]`
+- `agent/policy.py` — Action Decision Policy (`decide()`)：拿 BeliefState + threshold（HIGH=0.55 / GAP=0.15）決定 COMMIT / PROBE / EXPLORE / ESCALATE
+- `agent/calibrate.py` — Calibrate signal classifier：看客戶下一輪回應分類為 DENY / CONFIRM / ADD / SHIFT / IMPATIENT / NEUTRAL，回灌 Hypothesize 用
+- `agent/harness/turn_cycle.py` / `turn_cycle_runner.py` — orchestrator + LLM caller wrapper
+- `agent/harness/belief_hint.py` — render `(BeliefState, ActionDecision)` 為 `[Belief Hint]` 字串注入 prompt prefix
+
+詳細手冊：[Turn Cycle / Belief-Augmented ReAct manual](agent/docs/manuals/turn_cycle_belief_augmented_react.md)。設計決議：[ADR-0010](docs/1-decisions/ADR-0010-belief-augmented-react.md)。閾值調整理由：[Action Policy Thresholds](agent/docs/manuals/action_policy_thresholds.md)。
 
 ### Profile & Facts System (`agent/profiles/`)
 
 - **Hard facts** (DB, SCD Type 2): `device_brand`, `device_model`, `phone`, `address` — stored in `user_facts` table with versioning
 - **Soft facts** (brand-specific, configurable per brand in `config.toml`): `door_type`, `install_date`, `unlock_methods`, etc.
 - Facts collected via: Quick Reply buttons (brand/model), `update_user_info` tool (brand/model), LLM extraction post-reply (phone/address)
-- Brand/model facts drive skill filtering — missing brand = limited skill access
+- Brand/model facts drive product info filtering — missing brand = only `_common/*` mega-docs accessible
 
 ### Data Pipeline (`data/pipeline/`)
 
@@ -254,9 +305,9 @@ Three agent tools, all use `ContextVar` for per-request isolation in async:
 1. `source_to_raw/` — Download content (YouTube via yt-dlp, websites via Playwright, Google Drive)
 2. `raw_to_bronze/` — Extract and convert (Whisper ASR, Vision LLM for images)
 3. `bronze_to_silver/` — Semantic chunking via LLM
-4. `silver_to_skill/` — Classify, draft, and approve SKILL.md files → output to `agent/skills/data/`
+4. `silver_to_skill/` — Classify and draft skill candidates (legacy artifact; agent runtime no longer reads `agent/skills/data/`, use `agent/product_info/` directly per the bronze-only rule)
 
-**Skill approval** (`approve_drafts.py`): New skills placed by brand suffix detection (e.g., name ending in `-dormakaba` → `Dormakaba/_all-models/`; no brand suffix → `_common/`). Pipeline config: `data/config.toml`.
+`silver_to_skill/` 仍可跑當輔助線索，但其產物在 A-3b 後不再進 runtime；新產品知識由業主直接審稿/編輯 `agent/product_info/{Brand}/{Model}.md`。
 
 ### Database
 
@@ -271,7 +322,7 @@ All DB modules share the same `POSTGRES_URI` but maintain independent `AsyncConn
 
 ### Configuration Flow
 
-All config centralized in `agent/config.toml`. Key sections: `[system]` (domain, timeout), `[llm]` (model string), `[line_bot]`, `[memory]` (compression settings + Flash model for summaries), `[skills]`, `[prompts]`, `[safety]`, `[output_validator]`, `[debounce]`, `[multimodal]`, `[user_profile]` (facts_enabled), `[quick_reply]` (brand/model lists — single source of truth for validation), `[data_correction]` (keyword intercept + DB logging), `[opik]`.
+All config centralized in `agent/config.toml`. Key sections: `[system]` (domain, timeout), `[llm]` (model string), `[line_bot]`, `[memory]` (compression settings + Flash model for summaries), `[product_info]`, `[prompts]`, `[safety]`, `[output_validator]`, `[debounce]`, `[multimodal]`, `[user_profile]` (facts_enabled), `[quick_reply]` (brand/model lists — single source of truth for validation), `[data_correction]` (keyword intercept + DB logging), `[opik]`, `[turn_cycle]` (Belief-Augmented ReAct: `enabled`, `fail_open`).
 
 ### Deployment
 
