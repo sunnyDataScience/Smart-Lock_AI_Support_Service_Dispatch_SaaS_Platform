@@ -1,14 +1,39 @@
 # ADR-008: Agent 知識庫架構以 `product_info/` 為唯一正典（Architecture Lock）
 
-**版本**: v1.0
+**版本**: v1.0（2026-05-09）/ v1.1（2026-05-13，本 branch 加 reinstate 附註）
 **日期**: 2026-05-09
-**狀態**: **SUPERSEDED 2026-05-09**（待 ADR-009 補正式論證）
-**作者**: Imding1211
-**對應 commits**: `integrate/sunny-onto-zenobia0000-20260508` 系列（2825cbe → 整合分支 tip）
+**狀態**:
+- on `main` / `dev`: 仍是 **SUPERSEDED**（未撤回該分支上的翻案）
+- on `refactor/agent-port`: **REINSTATED**（2026-05-11 A-1～A-3b 實質執行原始決議；見下方 §0a）
+**作者**: Imding1211 / 2026-05-13 reinstate 附註: Claude（與 Imding1211 在 hermes-cs 進度回顧時 confirm）
+**對應 commits**: `integrate/sunny-onto-zenobia0000-20260508` 系列（2825cbe → 整合分支 tip） + 本 branch `6787843` ~ `e6ed743`
 
 ---
 
-## ⚠️ SUPERSEDED 附註（2026-05-09 14:42 後加）
+## ⓪a 本分支 REINSTATE 附註（2026-05-13 後加，僅適用 `refactor/agent-port`）
+
+> 本 ADR 在 2026-05-09 14:42 因 origin/dev force-push 被加上 SUPERSEDED 附註。但**本分支 `refactor/agent-port` 自 5/9 後獨立演化**，並於 2026-05-11 一日內以 5 個 commit 完成原始決議內容：
+>
+> - `6787843` Stage 0 — port product_info DB 基礎建設（45 mega-doc + filter_loadable）
+> - `d9edd3f` A-1 — 新增 `load_product_info` tool（並存階段）
+> - `5d46160` A-2 — system prompt catalog 從 `[可用技能]` 切 `[可用產品資料]`
+> - `0eac531` A-3a — 退場 `load_skill` tool
+> - `e6ed743` A-3b — 刪除 `agent/skills/data/` 全部 69 個 SKILL.md
+>
+> 對打結果：67 共同題 strict pass **89.6%**（vs 改回 skills/ 後的 dev baseline 83.6%）。
+>
+> 因此**在本 branch 上，ADR-008 的核心主張（product_info 為唯一正典）已重新成立並有實證**。下方 §1～§N 所有「禁止」「不可逆」「PR 拒收」條款**在本 branch 重新生效**。
+>
+> 不撤回 main / dev 分支上的 SUPERSEDED 是因為：
+> 1. 該附註為其他分支原作者的決定，跨 branch 重寫他人附註不適當
+> 2. main / dev 走自己的路線（roadmap 目前走向 hermes-cs，dev 可能直接砍 agent/）
+> 3. 本 branch 是 archive 候選，附註僅為 audit trail 用途
+>
+> **附註對應手冊**: [Product Info Cutover Audit 2026-05-11](../../agent/docs/manuals/product_info_cutover_2026-05-11.md)
+
+---
+
+## ⚠️ SUPERSEDED 附註（2026-05-09 14:42 後加，跨 branch 適用）
 
 > 本 ADR 於 2026-05-09 上午由 Imding1211 撰寫並推上 origin/dev (`dbfe75b`)，主張
 > `product_info/` 為唯一正典、`skills/` 架構**不可逆向**。
