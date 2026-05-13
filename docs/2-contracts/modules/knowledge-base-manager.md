@@ -124,6 +124,7 @@ async def ingest_manual(
 
 ### 測試情境與案例 (KnowledgeBaseManager)
 
+<!-- TC-ID: IT-0009 -->
 #### 情境 1: 正常路徑 — 向量搜尋命中高相似度案例
 
 *   **測試案例 ID**: `TC-KBM-001`
@@ -139,6 +140,7 @@ async def ingest_manual(
         - 驗證 `solution` 欄位非空。
         - 驗證 `search_duration_ms` 為正整數。
 
+<!-- TC-ID: IT-0010 -->
 #### 情境 2: 正常路徑 — 搜尋無命中（所有結果低於閾值）
 
 *   **測試案例 ID**: `TC-KBM-002`
@@ -152,6 +154,7 @@ async def ingest_manual(
         - 驗證 `results` 為空列表。
         - 驗證 `total_found` 為 0。
 
+<!-- TC-ID: IT-0011 -->
 #### 情境 3: 正常路徑 — PDF 手冊上傳與切片處理
 
 *   **測試案例 ID**: `TC-KBM-003`
@@ -170,6 +173,7 @@ async def ingest_manual(
             - 驗證每筆 chunk 的 `embedding` 維度為 768。
             - 驗證 `chunk_index` 從 0 開始連續遞增。
 
+<!-- TC-ID: IT-0012 -->
 #### 情境 4: 邊界情況 — 品牌過濾縮小搜尋範圍
 
 *   **測試案例 ID**: `TC-KBM-004`
@@ -181,6 +185,7 @@ async def ingest_manual(
     3.  **Assert**:
         - 驗證結果中 Yale 品牌的案例排在 Samsung 之前（假設 similarity 相近時品牌匹配有加分）。
 
+<!-- TC-ID: IT-0013 -->
 #### 情境 5: 無效輸入 — 上傳非 PDF 檔案
 
 *   **測試案例 ID**: `TC-KBM-005`
@@ -192,6 +197,7 @@ async def ingest_manual(
         - 預期系統拋出 `ValidationError`，訊息包含 `"PDF"` 或 `"file format"`。
         - 驗證 `manuals` 表未新增任何記錄。
 
+<!-- TC-ID: IT-0014 -->
 #### 情境 6: 無效輸入 — 超過大小限制的 PDF
 
 *   **測試案例 ID**: `TC-KBM-006`
@@ -202,6 +208,7 @@ async def ingest_manual(
     3.  **Assert**:
         - 預期系統拋出 `ValidationError`，訊息包含 `"file size"` 或 `"50MB"`。
 
+<!-- TC-ID: IT-0015 -->
 #### 情境 7: 業務規則 — 已停用的案例不出現在搜尋結果
 
 *   **測試案例 ID**: `TC-KBM-007`
@@ -213,6 +220,7 @@ async def ingest_manual(
     3.  **Assert**:
         - 驗證搜尋結果中不包含該停用案例。
 
+<!-- TC-ID: IT-0016 -->
 #### 情境 8: 業務規則 — PDF 處理失敗的錯誤記錄
 
 *   **測試案例 ID**: `TC-KBM-008`

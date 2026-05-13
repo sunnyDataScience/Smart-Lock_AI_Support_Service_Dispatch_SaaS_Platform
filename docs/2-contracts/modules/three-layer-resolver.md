@@ -181,6 +181,7 @@ async def escalate(
 
 ### 測試情境與案例 (ThreeLayerResolver)
 
+<!-- TC-ID: IT-0031 -->
 #### 情境 1: 正常路徑 — L1 高信心命中直接解決
 
 *   **測試案例 ID**: `TC-TLR-001`
@@ -197,6 +198,7 @@ async def escalate(
         - 驗證 `HumanHandoffStrategy.escalate()` **未被呼叫**。
         - 驗證 `conversations.resolution_layer` 更新為 `"L1"`。
 
+<!-- TC-ID: IT-0032 -->
 #### 情境 2: 正常路徑 — L1 未命中，L2 RAG 成功解決
 
 *   **測試案例 ID**: `TC-TLR-002`
@@ -213,6 +215,7 @@ async def escalate(
         - 驗證 `source_references` 列出引用的手冊段落。
         - 驗證 `HumanHandoffStrategy.escalate()` **未被呼叫**。
 
+<!-- TC-ID: IT-0033 -->
 #### 情境 3: 正常路徑 — L1 和 L2 均失敗，升級至 L3
 
 *   **測試案例 ID**: `TC-TLR-003`
@@ -228,6 +231,7 @@ async def escalate(
         - 驗證 `escalation_info` 包含 `ticket_id` 與 `priority = "urgent"`。
         - 驗證 `conversations.status` 為 `"escalated"`。
 
+<!-- TC-ID: IT-0034 -->
 #### 情境 4: 邊界情況 — L1 多個接近閾值的模糊匹配
 
 *   **測試案例 ID**: `TC-TLR-004`
@@ -242,6 +246,7 @@ async def escalate(
         - 驗證 `answer` 包含三個候選方案，格式為可選擇的列表。
         - 驗證 `requires_user_selection = True`。
 
+<!-- TC-ID: IT-0035 -->
 #### 情境 5: 邊界情況 — L1 閾值邊界值行為
 
 *   **測試案例 ID**: `TC-TLR-005`
@@ -254,6 +259,7 @@ async def escalate(
         - 驗證 `resolution_layer = "L1"` （0.85 **包含在**閾值內，即 `>=` 而非 `>`）。
         - 驗證 `success = True`。
 
+<!-- TC-ID: IT-0036 -->
 #### 情境 6: 無效輸入 — ProblemCard 未達最低完整度
 
 *   **測試案例 ID**: `TC-TLR-006`
@@ -266,6 +272,7 @@ async def escalate(
         - 預期系統拋出 `ValidationError`，訊息包含 `"completeness_score"` 或 `"symptoms"`。
         - 驗證三層策略均未被執行。
 
+<!-- TC-ID: IT-0037 -->
 #### 情境 7: 業務規則 — L3 非營業時間升級
 
 *   **測試案例 ID**: `TC-TLR-007`
@@ -281,6 +288,7 @@ async def escalate(
         - 驗證 `conversations.status` 為 `"escalated"`，但實際處理時間為排程時間。
         - 驗證回覆訊息包含案件編號與 `"明天上班後第一時間聯繫您"` 語意。
 
+<!-- TC-ID: IT-0038 -->
 #### 情境 8: 業務規則 — Embedding Service 不可用時的降級處理
 
 *   **測試案例 ID**: `TC-TLR-008`

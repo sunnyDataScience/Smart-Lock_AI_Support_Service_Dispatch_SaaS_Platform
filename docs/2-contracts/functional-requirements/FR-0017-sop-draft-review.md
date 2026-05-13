@@ -30,7 +30,23 @@ SOP 草稿審核（AI 自進化）
 
 ## §3 Acceptance Criteria
 
-AI 從歷史對話產生 SOP draft，客服 → 主管雙層審核發布
+### §3.1 SLO（正常路徑）
+
+SOP 草稿須 admin 初審 + family_reviewer 終審 (per 合約 4.4(d) 100% 覆核率)。
+
+### §3.2 邊界案例
+
+- Admin reject 後 SOP 回 draft，可再次提交
+- family_reviewer 多人 → 任一人 approve 即通過 (per V1.0 simple rule)
+
+### §3.3 異常處理
+
+- 覆核紀錄不可刪除/改寫（APPEND-ONLY）→ DB trigger 攔截 + audit tamper_attempt
+- 嘗試繞過 family_review 直接 publish → 403 family_review_required
+
+### §3.4 TC Coverage
+
+涵蓋之 TC（per `docs/2-contracts/test-cases/registry.yaml`）: IT-0063~0068 (family-review-engine 6 cases), IT-0023~0030 (sop-generator)
 
 ## §4 Trace
 

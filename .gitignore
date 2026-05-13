@@ -50,8 +50,12 @@ GEMINI.md
 
 # 執行期本地資料（用戶輪廓、媒體、資料庫等，含個資不進版控）
 agent/data/
+api/data/
 data/media/
 data/storage/skill_drafts/
+
+# Playwright E2E 測試輸出（本地產物，不進版控）
+web/test-results/
 
 # 鎖匠方資料（大型二進位 / 含個資，僅保留 INDEX.md）
 docs/Locksmith_Preparation_Checklist/01_各品牌電子鎖維修手冊/*.pdf
@@ -70,6 +74,10 @@ cloud-sql-proxy
 
 # Playwright MCP local cache（瀏覽器自動化工具的本地暫存）
 .playwright-mcp/
+
+# Python 測試與 property-based 測試暫存（本地產物）
+.hypothesis/
+.pytest_cache/
 
 # Debug screenshots（根目錄除錯截圖，不入庫）
 /dashboard-*.png

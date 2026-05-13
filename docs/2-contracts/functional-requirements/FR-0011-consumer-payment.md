@@ -30,7 +30,23 @@ related:
 
 ## §3 Acceptance Criteria
 
-完工後消費者於 5min 內可在 LINE/Web 完成付款
+### §3.1 SLO（正常路徑）
+
+客戶現金 / Apple Pay / Line Pay 三軌支付，技師收款後即時更新 wo.payment_status。
+
+### §3.2 邊界案例
+
+- Line Pay 失敗 fallback 現金 → audit 完整記錄兩次嘗試
+- 金額 < 1000 不可分期；≥ 50000 強制要求收據簽章
+
+### §3.3 異常處理
+
+- Line Pay webhook 重送 → 冪等不重複扣款
+- 現金收款 dispute → 進 disputes 表 + 警示主管
+
+### §3.4 TC Coverage
+
+涵蓋之 TC（per `docs/2-contracts/test-cases/registry.yaml`）: IT-0051~0056 (refund-service flow), IT-0093~0098 (e-signature high-amount)
 
 ## §4 Trace
 

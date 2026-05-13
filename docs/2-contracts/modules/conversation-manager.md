@@ -109,6 +109,7 @@ async def resume_expired_session(
 
 ### 測試情境與案例 (ConversationManager)
 
+<!-- TC-ID: IT-0001 -->
 #### 情境 1: 正常路徑 — 新使用者首次發送問題訊息
 
 *   **測試案例 ID**: `TC-CM-001`
@@ -126,6 +127,7 @@ async def resume_expired_session(
         - 驗證回傳的 `ConversationResponseDTO.reply_messages` 包含問候語且詢問品牌資訊。
         - 驗證 `conversations.context` 包含 `{"intent": "lock_malfunction", "collected_fields": {}, "missing_fields": ["brand", "model", "location", "door_status", "symptoms"]}`。
 
+<!-- TC-ID: IT-0002 -->
 #### 情境 2: 正常路徑 — 多輪對話逐步收集 ProblemCard 資訊
 
 *   **測試案例 ID**: `TC-CM-002`
@@ -141,6 +143,7 @@ async def resume_expired_session(
         - 驗證回覆訊息詢問下一個缺失欄位（型號）。
         - 驗證 `conversations.message_count` 遞增 2。
 
+<!-- TC-ID: IT-0003 -->
 #### 情境 3: 正常路徑 — 資訊收集完成觸發三層解決機制
 
 *   **測試案例 ID**: `TC-CM-003`
@@ -158,6 +161,7 @@ async def resume_expired_session(
         - 驗證 `ThreeLayerResolver.resolve()` 被呼叫。
         - 驗證回覆訊息包含解決方案內容。
 
+<!-- TC-ID: IT-0004 -->
 #### 情境 4: 邊界情況 — 對話超時後恢復
 
 *   **測試案例 ID**: `TC-CM-004`
@@ -172,6 +176,7 @@ async def resume_expired_session(
         - 驗證新對話的 `context.collected_fields` 包含 `{"brand": "Gateman"}`。
         - 驗證回覆訊息包含 `"Gateman"` 品牌名稱，並詢問型號。
 
+<!-- TC-ID: IT-0005 -->
 #### 情境 5: 無效輸入 — 使用者發送不相關訊息
 
 *   **測試案例 ID**: `TC-CM-005`
@@ -186,6 +191,7 @@ async def resume_expired_session(
         - 驗證回覆訊息包含引導語，例如 `"我是電子鎖客服助手，請問您的電子鎖有什麼問題需要協助嗎？"`。
         - 驗證未建立 `problem_cards` 記錄。
 
+<!-- TC-ID: IT-0006 -->
 #### 情境 6: 無效輸入 — LINE User ID 格式不合法
 
 *   **測試案例 ID**: `TC-CM-006`
@@ -197,6 +203,7 @@ async def resume_expired_session(
         - 預期系統拋出 `ValidationError`，錯誤訊息包含 `"line_user_id"`。
         - 驗證資料庫未寫入任何記錄。
 
+<!-- TC-ID: IT-0007 -->
 #### 情境 7: 業務規則 — LINE Webhook 非同步處理保證 1 秒內回應
 
 *   **測試案例 ID**: `TC-CM-007`
@@ -211,6 +218,7 @@ async def resume_expired_session(
         - 驗證 LLM 呼叫已透過 `asyncio.create_task` 排入非同步佇列。
         - 驗證回傳的 DTO 包含 `processing = True` 標記（表示正在非同步處理）。
 
+<!-- TC-ID: IT-0008 -->
 #### 情境 8: 業務規則 — 同一使用者並行對話限制
 
 *   **測試案例 ID**: `TC-CM-008`

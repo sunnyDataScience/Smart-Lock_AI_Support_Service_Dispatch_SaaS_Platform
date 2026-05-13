@@ -124,3 +124,43 @@ V2.0 新增 Vision Agent prompt：
 | V2.0 Phase 1 | Month 7-8 | 故障碼 OCR (Gemini Vision) |
 | V2.0 Phase 2 | Month 9-10 | 完工照片自動驗證 |
 | V2.0 Phase 3 | Month 11-12 | 門鎖型號辨識 + 環境評估 |
+
+---
+
+## §6 測試情境與案例 (VisionProcessing — V1.0 Scope)
+
+<!-- TC-ID: IT-0123 -->
+#### 情境 1: 正常路徑 — LINE 圖片下載並存 GCS
+*   **Arrange**: LINE webhook 收到 image message，size=2MB。
+*   **Act**: 下載並存至 GCS。
+*   **Assert**: GCS object 命名 `{problem_card_id}/incoming_{timestamp}.jpg`；media_urls 新增 URL；AI 回覆「已收到您的照片」；不執行任何 AI 分析（per SOW V1.0 排除）。
+
+<!-- TC-ID: IT-0124 -->
+#### 情境 2: 正常路徑 — 技師上傳完工照片到 work_orders.photos
+*   **Arrange**: wo-001 技師 APP 上傳前後照各 3 張。
+*   **Act**: POST /work-orders/wo-001/photos。
+*   **Assert**: GCS 6 個 object；work_orders.photos JSONB 含 6 個 entry (3 before + 3 after)；命名格式正確。
+
+<!-- TC-ID: IT-0125 -->
+#### 情境 3: 邊界 — 檔案剛好 10MB 接受
+*   **Arrange**: 圖片 exact 10MB。
+*   **Act**: 上傳。
+*   **Assert**: 接受 (≤ 10MB 為合法)；存 GCS；10.1MB 應拒絕回 413。
+
+<!-- TC-ID: IT-0126 -->
+#### 情境 4: 邊界 — 完工後 2 年照片自動 GCS lifecycle 刪除
+*   **Arrange**: wo-old completed_at=2024-05-11，現在 2026-05-11 (24 months)。
+*   **Act**: GCS lifecycle rule 觸發 cleanup。
+*   **Assert**: object 刪除；work_orders.photos URL 失效 (GET 404)；audit `vision.cleanup.retention_expired`。
+
+<!-- TC-ID: IT-0127 -->
+#### 情境 5: 異常 — 非 JPEG/PNG 格式拒絕
+*   **Arrange**: 客戶上傳 .heic 檔案。
+*   **Act**: LINE webhook 處理。
+*   **Assert**: 回覆「請使用 JPG 或 PNG 格式」；不存 GCS；audit `vision.refused.unsupported_format`。
+
+<!-- TC-ID: IT-0128 -->
+#### 情境 6: 業務規則 — 跨工單存取控制（最小權限）
+*   **Arrange**: t-002 不屬於 wo-001 指派技師。
+*   **Act**: GET /work-orders/wo-001/photos/abc.jpg with t-002 token。
+*   **Assert**: 回 403 `photo_access_denied`；GCS signed URL 不生成；audit `vision.access.denied`。

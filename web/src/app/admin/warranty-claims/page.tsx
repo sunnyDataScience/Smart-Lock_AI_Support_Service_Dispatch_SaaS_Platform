@@ -6,14 +6,20 @@ import Sidebar from "@/components/layout/Sidebar";
 import WarrantyClaimsTable from "@/components/admin/WarrantyClaimsTable";
 import { ApiError, api } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
 
 type WarrantyClaim = components["schemas"]["WarrantyClaim"];
 type WarrantyClaimEnvelope = components["schemas"]["WarrantyClaimEnvelope"];
-type WarrantyClaimPage = components["schemas"]["WarrantyClaimPage"];
 type WarrantyClaimStatus = components["schemas"]["WarrantyClaimStatus"];
 type WarrantyDecision = components["schemas"]["WarrantyDecision"];
 type DecisionValue = WarrantyDecision["decision"];
+
+function formatWarrantyError(e: unknown): string {
+  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
+  if (e instanceof Error) return e.message;
+  return String(e);
+}
 
 interface StatusTab {
   value: WarrantyClaimStatus | "all";
@@ -32,17 +38,29 @@ export default function WarrantyClaimsPage() {
   const t = useTranslations("admin.warranty");
   const tc = useTranslations("admin.common");
   const [activeTab, setActiveTab] = useState<StatusTab["value"]>("all");
-  const [items, setItems] = useState<WarrantyClaim[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
   const [modalClaim, setModalClaim] = useState<WarrantyClaim | null>(null);
   const [actionPending, setActionPending] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionToast, setActionToast] = useState<string | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+
+  const {
+    items,
+    cursor: nextCursor,
+    hasMore,
+    lastFetchedAt: updatedAt,
+    loading,
+    error,
+    loadMore,
+    refresh: fetchClaims,
+    mutate,
+  } = usePaginatedFetch<WarrantyClaim>({
+    path: "/api/v1/warranty-claims",
+    pageSize: 50,
+    query: activeTab !== "all" ? { status: activeTab } : undefined,
+    queryKey: `tab=${activeTab}`,
+    formatError: formatWarrantyError,
+  });
 
   const handleCreateClaim = async (form: {
     customer_id: string;
@@ -106,7 +124,8 @@ export default function WarrantyClaimsPage() {
       );
       const updated = res.data ?? null;
       if (updated) {
-        setItems((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+        // optimistic local update via hook mutate (per Phase 3.3 backlog §C2)
+        mutate((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
       }
       setModalClaim(null);
       const tone =
@@ -129,39 +148,6 @@ export default function WarrantyClaimsPage() {
     }
   };
 
-  const fetchClaims = async (
-    opts?: { append?: boolean; cursor?: string | null; status?: StatusTab["value"] },
-  ) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const query: Record<string, string | number> = { limit: 50 };
-      const status = opts?.status ?? activeTab;
-      if (status !== "all") query.status = status;
-      if (opts?.cursor) query.cursor = opts.cursor;
-      const res = await api.get<WarrantyClaimPage>("/api/v1/warranty-claims", { query });
-      const newItems = res.items ?? [];
-      setItems((prev) => (opts?.append ? [...prev, ...newItems] : newItems));
-      setNextCursor(res.next_cursor ?? null);
-      setHasMore(res.has_more ?? false);
-      setUpdatedAt(new Date());
-    } catch (e) {
-      setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchClaims({ status: activeTab });
-  }, [activeTab]);
-
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
       <Sidebar />
@@ -173,7 +159,7 @@ export default function WarrantyClaimsPage() {
               {t("title")}
             </h1>
             <button
-              onClick={() => fetchClaims({ status: activeTab })}
+              onClick={fetchClaims}
               disabled={loading}
               className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
               title={tc("refresh")}
@@ -283,7 +269,7 @@ export default function WarrantyClaimsPage() {
           {hasMore && (
             <div className="flex justify-center">
               <button
-                onClick={() => fetchClaims({ append: true, cursor: nextCursor, status: activeTab })}
+                onClick={loadMore}
                 disabled={loading}
                 className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-5 py-[10px] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
               >

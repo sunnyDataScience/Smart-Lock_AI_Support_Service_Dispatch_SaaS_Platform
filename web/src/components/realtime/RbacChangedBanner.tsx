@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ShieldAlert, X, RefreshCw } from "lucide-react";
-import { useRealtimeChannel } from "@/lib/useRealtimeChannel";
+import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
 
 /**
  * 訂閱 /realtime/rbac，收到 RbacPermissionChanged 後顯示頂部 banner，

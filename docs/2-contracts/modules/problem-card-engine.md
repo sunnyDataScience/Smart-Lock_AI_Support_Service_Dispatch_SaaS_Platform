@@ -104,6 +104,7 @@ def evaluate_completeness(self, problem_card: ProblemCard) -> float:
 
 ### 測試情境與案例 (ProblemCardEngine)
 
+<!-- TC-ID: IT-0017 | legacy: TC-PCE-001 -->
 #### 情境 1: 正常路徑 — 所有欄位齊全時生成完整 ProblemCard
 
 *   **測試案例 ID**: `TC-PCE-001`
@@ -120,6 +121,7 @@ def evaluate_completeness(self, problem_card: ProblemCard) -> float:
         - 驗證 `status` 為 `"confirmed"`。
         - 驗證回傳 DTO 的 `missing_fields` 為空列表。
 
+<!-- TC-ID: IT-0018 | legacy: TC-PCE-002 -->
 #### 情境 2: 正常路徑 — 僅有品牌與症狀的最低限度 ProblemCard
 
 *   **測試案例 ID**: `TC-PCE-002`
@@ -133,6 +135,7 @@ def evaluate_completeness(self, problem_card: ProblemCard) -> float:
         - 驗證 `missing_fields` 包含 `["model", "location", "door_status", "network_status"]`。
         - 驗證 `follow_up_questions` 非空，第一個問題詢問型號。
 
+<!-- TC-ID: IT-0019 | legacy: TC-PCE-003 -->
 #### 情境 3: 邊界情況 — 停產型號處理
 
 *   **測試案例 ID**: `TC-PCE-003`
@@ -147,6 +150,7 @@ def evaluate_completeness(self, problem_card: ProblemCard) -> float:
         - 驗證回傳 DTO 包含替代型號建議。
         - 驗證系統仍繼續處理（不因停產而中斷服務）。
 
+<!-- TC-ID: IT-0020 | legacy: TC-PCE-004 -->
 #### 情境 4: 邊界情況 — 重複生成 ProblemCard（冪等性）
 
 *   **測試案例 ID**: `TC-PCE-004`
@@ -161,6 +165,7 @@ def evaluate_completeness(self, problem_card: ProblemCard) -> float:
         - 驗證 `model` 已更新為 `"YDM-7116"`。
         - 驗證 `completeness_score` 已重新計算。
 
+<!-- TC-ID: IT-0021 | legacy: TC-PCE-005 -->
 #### 情境 5: 無效輸入 — 空的對話訊息列表
 
 *   **測試案例 ID**: `TC-PCE-005`
@@ -172,6 +177,7 @@ def evaluate_completeness(self, problem_card: ProblemCard) -> float:
         - 預期系統拋出 `ValidationError`，訊息包含 `"conversation_messages"`。
         - 驗證 `problem_cards` 表未寫入任何記錄。
 
+<!-- TC-ID: IT-0022 | legacy: TC-PCE-006 -->
 #### 情境 6: 業務規則 — 優先度自動分類
 
 *   **測試案例 ID**: `TC-PCE-006`

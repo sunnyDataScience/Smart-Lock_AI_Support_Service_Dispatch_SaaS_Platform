@@ -1,0 +1,154 @@
+# Trace overrides — manually-maintained TC → flow/fr mapping rules.
+#
+# Read by scripts/ci/extract-test-cases.py and MERGED into registry.yaml trace
+# (existing inline trace wins; this fills in trace.flow / trace.fr).
+#
+# Two rule types:
+#   1. by_module: <module-stem> → trace      (applies to all TCs whose source is in modules/<stem>.md)
+#   2. by_bdd_range: <start_id>-<end_id> → trace  (applies to BDD-NNNN within inclusive range)
+#
+# Trace inference precedence:
+#   inline (in source file) > by_bdd_range > by_module > empty
+
+by_module:
+  # V1.0 5 完整 modules
+  conversation-manager:
+    flow: [F-001, F-002]
+    fr: [FR-0001, FR-0025]
+  problem-card-engine:
+    flow: [F-001, F-002]
+    fr: [FR-0001, FR-0002]
+  three-layer-resolver:
+    flow: [F-018]
+    fr: [FR-0018]
+  knowledge-base-manager:
+    flow: [F-017]
+    fr: [FR-0017]
+  sop-generator:
+    flow: [F-017]
+    fr: [FR-0017]
+
+  # V1.0 5 P0 stub modules (commit 4)
+  dispatch-engine:
+    flow: [F-003, F-004]
+    fr: [FR-0003, FR-0004]
+  rbac:
+    flow: [F-019, F-004]
+    fr: [FR-0019, FR-0004]
+  refund-service:
+    flow: [F-013, F-014]
+    fr: [FR-0013, FR-0014]
+  sla-monitor:
+    flow: [F-016, F-023, F-024]
+    fr: [FR-0016, FR-0023, FR-0024]  # FR-0023 error/offline 涵蓋自 degraded health
+  family-review-engine:
+    flow: [F-017]
+    fr: [FR-0017]
+
+  # 11 stub + 2 partial modules (commit 5)
+  audit-logger:
+    flow: [F-020]
+    fr: [FR-0020]
+  consumer-tracking:
+    flow: [F-022]
+    fr: [FR-0022]
+  data-export:
+    flow: [F-020]
+    fr: [FR-0020]
+  dispatch-engine-weights:
+    flow: [F-003]
+    fr: [FR-0003]
+  e-signature:
+    flow: [F-009, F-011]
+    fr: [FR-0009, FR-0011]
+  inter-agent-messaging:
+    flow: []
+    fr: []  # internal infra layer — no direct FR
+  inventory:
+    flow: [F-007]
+    fr: [FR-0007]
+  proactive-photo-guidance:
+    flow: [F-001, F-006]
+    fr: [FR-0001, FR-0006]
+  realtime-messaging:
+    flow: [F-008, F-010]
+    fr: [FR-0008, FR-0010]
+  vision-processing:
+    flow: [F-006, F-025]
+    fr: [FR-0006, FR-0025]
+  warranty-claim:
+    flow: [F-015]
+    fr: [FR-0015]
+  problem-card-review-engine:
+    flow: [F-002]
+    fr: [FR-0002]
+  sentiment-triage-engine:
+    flow: [F-018]
+    fr: [FR-0018]
+
+# BDD scenarios grouped by feature block (per docs/3-process/bdd/all-features.md headings)
+by_bdd_range:
+  # F-101 LINE Bot AI 客服對話
+  - range: [BDD-0001, BDD-0006]
+    flow: [F-001]
+    fr: [FR-0001, FR-0025]
+  # F-102 ProblemCard 智慧分診
+  - range: [BDD-0007, BDD-0011]
+    flow: [F-001, F-002]
+    fr: [FR-0002]
+  # F-103 三層解決機制
+  - range: [BDD-0012, BDD-0017]
+    flow: [F-018]
+    fr: [FR-0018]
+  # F-104 自進化知識庫
+  - range: [BDD-0018, BDD-0022]
+    flow: [F-017]
+    fr: [FR-0017]
+  # F-105 管理後台 V1.0
+  - range: [BDD-0023, BDD-0026]
+    flow: [F-002]
+    fr: [FR-0002, FR-0019]
+  # F-106 安全防護
+  - range: [BDD-0027, BDD-0035]
+    flow: [F-019, F-020]
+    fr: [FR-0019, FR-0020]
+  # F-107 情緒分流
+  - range: [BDD-0036, BDD-0040]
+    flow: [F-018]
+    fr: [FR-0018]
+  # F-108 主動照片引導
+  - range: [BDD-0041, BDD-0043]
+    flow: [F-001, F-006]
+    fr: [FR-0001, FR-0006]
+  # F-109 家族成員覆核
+  - range: [BDD-0044, BDD-0046]
+    flow: [F-017]
+    fr: [FR-0017]
+  # F-201 師傅工作台
+  - range: [BDD-0047, BDD-0050]
+    flow: [F-005, F-006, F-009]
+    fr: [FR-0005, FR-0006, FR-0009]
+  # F-202 智慧派工
+  - range: [BDD-0051, BDD-0056]
+    flow: [F-003, F-004]
+    fr: [FR-0003, FR-0004]
+  # F-203 標準化定價 + scope change
+  - range: [BDD-0057, BDD-0064]
+    flow: [F-008]
+    fr: [FR-0008]
+  # F-204 自動化會計
+  - range: [BDD-0065, BDD-0070]
+    flow: [F-011, F-012, F-013, F-014]
+    fr: [FR-0011, FR-0012, FR-0013, FR-0014]
+  # F-205 管理後台 V2.0
+  - range: [BDD-0071, BDD-0073]
+    flow: [F-021]
+    fr: [FR-0021]
+  # V1↔V2 資料串接 (no direct FR)
+  - range: [BDD-0074, BDD-0076]
+    flow: []
+    fr: []
+  # F-110 SLA Soft Alert
+  - range: [BDD-0077, BDD-0079]
+    flow: [F-016]
+    fr: [FR-0016]

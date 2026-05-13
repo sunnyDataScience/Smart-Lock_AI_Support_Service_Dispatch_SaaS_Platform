@@ -30,7 +30,23 @@ related:
 
 ## §3 Acceptance Criteria
 
-所有寫入操作留 audit log；可由後台 exportAuditEvents 匯出
+### §3.1 SLO（正常路徑）
+
+7 種 audit event 依保留期限（90d / 1y / 2y / 7y）可匯出。Append-only 強制 DB trigger。
+
+### §3.2 邊界案例
+
+- 保留期限到期當天仍可查；翌日 cleanup job 標 deleted
+- 並發寫入（μs 級）UUID 唯一防衝突
+
+### §3.3 異常處理
+
+- DELETE/UPDATE audit_logs → DB trigger raise + audit tamper_attempt
+- Audit DB 連線失效 → 整 transaction rollback
+
+### §3.4 TC Coverage
+
+涵蓋之 TC（per `docs/2-contracts/test-cases/registry.yaml`）: IT-0069~0074 (audit-logger 6 cases), IT-0081~0086 (data-export)
 
 ## §4 Trace
 

@@ -30,7 +30,23 @@ related:
 
 ## §3 Acceptance Criteria
 
-派工員可繞過自動派工，所有 manual override 須留 actor_id + reason
+### §3.1 SLO（正常路徑）
+
+support_agent 可繞過自動派工，強制寫 audit log 含 actor/reason/original_recommendation (ADR-0018)。
+
+### §3.2 邊界案例
+
+- audit DB 寫入失敗 → 整 transaction rollback，WorkOrder 不建立
+- 重複 manual-assign 同 problem_card → 冪等回傳既有 wo
+
+### §3.3 異常處理
+
+- actor 角色非 support_agent → 403 forbidden
+- 缺 reason 欄位 → 422 field_required
+
+### §3.4 TC Coverage
+
+涵蓋之 TC（per `docs/2-contracts/test-cases/registry.yaml`）: IT-0048 (rbac bypass audit), IT-0073 (audit DB rollback), IT-0049 (revoke token)
 
 ## §4 Trace
 

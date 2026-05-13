@@ -1,15 +1,15 @@
 ---
-title: Project Structure (AI-AUTO)
+title: Project Structure
 tier: 5
 status: active
-last_regenerated: 2026-05-10
-generator: manual (sunnydata-auto-regen TBD); from `find` over agent/, api/, data/, web/, SQL/
-DO_NOT_EDIT: |
-  Tier 5 = AI-AUTO 視圖。手動編輯會在下次 regen 被覆寫。
-  如果輸出不對 → 修 generator，不要改本檔。
+last_updated: 2026-05-11
+generator: manual
 related:
   - "../1-decisions/module-boundary/{agent,api,data-pipeline,web}.md"
+  - "../1-decisions/ADR-0024-tier1-refactor-revised.md (§3 S4 — Tier 5 自動化 ROI 評估後改 manual)"
 ---
+
+> **維護模式**：本檔為手動維護（per ADR-0024 §3 S4 — 自動 generator ROI 不對）。模組結構性變動時請同步本檔；統計數字（file count）容忍 ±10% 漂移。
 
 # Project Structure
 
@@ -26,9 +26,15 @@ related:
 ├── SQL/                # DB schema + seeds + migrations
 ├── scripts/            # CI / dev / deploy / env management
 ├── tests/              # smoke + tools + bdd (Phase 9 將收 tests/bdd/)
-├── docs/               # Documentation (legacy 5D — Phase 8 後 superseded)
-├── docs/            # Documentation (NEW VibeCoding 6-tier)
-├── web_design_spec_prompt_pipeline/  # Pipeline 工具 (legacy — pipelined 已遷 docs/)
+├── docs/               # Documentation (VibeCoding 6-tier: 0-principles ~ 5-views)
+│   ├── 0-principles/   # Tier 0 不變憲法
+│   ├── 1-decisions/    # Tier 1 ADR + module boundaries
+│   ├── 2-contracts/    # Tier 2 OpenAPI/AsyncAPI/Flows/FR/pages
+│   ├── 3-process/      # Tier 3 deployment + quality gates
+│   ├── 4-exploration/  # Tier 4 PRD/SOW/WBS
+│   ├── 5-views/        # Tier 5 衍生視圖（含本檔）
+│   ├── releases/       # 版本 release notes（自 report/ 搬遷 2026-05-11）
+│   └── legacy/         # 歷史保留（含 web_design_spec_prompt_pipeline/）
 ├── VibeCoding_Workflow_Templates/    # 模板 source-of-truth
 ├── .claude/            # Claude Code agents/skills/rules/hooks
 ├── .github/workflows/  # CI workflows

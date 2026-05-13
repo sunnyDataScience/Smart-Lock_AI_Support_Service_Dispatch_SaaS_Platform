@@ -344,3 +344,91 @@ auditor（read-only，獨立於階層之外）
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-05-07 | Claude (assisted) | 初版：7 role × 8 權限維度 + Q1=A / Q2=A / Q6=A 拍板整合 |
+| 2026-05-11 | Claude (assisted) | 新增 §7 測試情境（6 cases，IT-0045 ~ IT-0050）|
+
+## §7 測試情境與案例 (RBAC)
+
+<!-- TC-ID: IT-0045 -->
+#### 情境 1: 正常路徑 — admin 對 work_orders 有完整 CRUD 權限
+
+*   **描述**: User 角色為 `admin`，呼叫 `work_orders` 各 endpoint 應全部通過。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Arrange**:
+        - Seed user `u-admin-001` 帶 role `admin`，登入取得 bearer token。
+        - DB 已有 work_order `wo-001`。
+    2.  **Act**: 依序呼叫 POST /work-orders（create）、GET /work-orders/wo-001（read）、PATCH /work-orders/wo-001（update）、DELETE /work-orders/wo-001（delete）。
+    3.  **Assert**:
+        - 4 個 endpoint 全部回 2xx。
+        - `audit_logs` 含 4 筆 `rbac.allowed` 事件，標 `actor=u-admin-001, role=admin`。
+
+<!-- TC-ID: IT-0046 -->
+#### 情境 2: 正常路徑 — technician 僅能讀寫自己的 work_orders
+
+*   **描述**: technician 對自己的 work_order 可 read/update，對他人的應 403。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Arrange**:
+        - User `u-tech-001` 角色 `technician`，其 work_order `wo-mine` (assigned_technician_id=u-tech-001)、`wo-others` (assigned_technician_id=u-tech-002)。
+    2.  **Act**:
+        - GET /work-orders/wo-mine 與 PATCH /work-orders/wo-mine
+        - GET /work-orders/wo-others 與 PATCH /work-orders/wo-others
+    3.  **Assert**:
+        - 前兩個回 200。
+        - 後兩個回 403 `Forbidden`，body 含 `error_code="rbac.forbidden.scope_own"`。
+        - `audit_logs` 含 1 筆 `rbac.allowed` + 1 筆 `rbac.denied`。
+
+<!-- TC-ID: IT-0047 -->
+#### 情境 3: 邊界情況 — line_user 角色降級檢查（預設角色）
+
+*   **描述**: 新註冊 LINE user 預設 role=`line_user`，僅能 read self conversations，對 reports 應 403。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Arrange**:
+        - User `u-line-001` 角色 `line_user`（預設）。
+    2.  **Act**:
+        - GET /conversations/own → 200
+        - GET /conversations/u-line-002（他人）→ 403
+        - GET /reports → 403
+    3.  **Assert**:
+        - 三個結果符合預期。
+        - 後兩個 audit_logs `rbac.denied` 帶 `denied_resource` 標籤。
+
+<!-- TC-ID: IT-0048 -->
+#### 情境 4: 邊界情況 — dispatch_officer 繞過自動派工 audit 強制
+
+*   **描述**: per ADR-0018，`support_agent` 角色繞過自動派工時必須寫 audit log（不可靜默繞過）。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Arrange**:
+        - User `u-sa-001` 角色 `support_agent`。
+        - ProblemCard `pc-001` 已存在。
+    2.  **Act**: 呼叫 POST /work-orders/manual-assign，body=`{"problem_card_id":"pc-001","technician_id":"t-99","reason":"customer requested specific tech"}`。
+    3.  **Assert**:
+        - 回 201，WorkOrder 建立。
+        - `audit_logs` 必須含 `dispatch.bypass.manual` 事件，含 `actor`, `reason`, `original_recommendation` 三欄位。
+        - 若 audit 寫入失敗，整個 transaction rollback（assert：強制故意讓 audit DB down 時，WorkOrder 不應建立）。
+
+<!-- TC-ID: IT-0049 -->
+#### 情境 5: 異常處理 — 已撤銷 token 嘗試呼叫 API
+
+*   **描述**: User token 已 revoke 後仍嘗試呼叫，應 401 不可洩漏角色資訊。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Arrange**:
+        - User `u-admin-001` 登入取得 token，然後管理員呼叫 POST /auth/revoke。
+    2.  **Act**: 用舊 token GET /work-orders。
+    3.  **Assert**:
+        - 回 401 `Unauthorized`，body 僅 `{"error":"invalid_token"}`，**不可**洩漏 `role` 或 `user_id`。
+        - `audit_logs` 含 `auth.revoked_token_attempt` 事件。
+
+<!-- TC-ID: IT-0050 -->
+#### 情境 6: 業務規則 — 角色階層升級需更高權限角色簽核
+
+*   **描述**: 把 user 從 `technician` 升為 `admin` 需要 `super_admin` 或現有 `admin` 簽核（per Q2=A 拍板）。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Arrange**:
+        - Actor `u-admin-001` 角色 `admin`。
+        - Target user `u-tech-005` 目前角色 `technician`。
+    2.  **Act**:
+        - 情境 A: actor=admin 呼叫 PATCH /users/u-tech-005/role，body=`{"new_role":"admin"}` → 應 200。
+        - 情境 B: actor=reviewer 同呼叫 → 應 403。
+        - 情境 C: actor=admin 嘗試升為 `super_admin` → 應 403。
+    3.  **Assert**:
+        - 三個 case 回應符合預期。
+        - 情境 A audit_logs 含 `rbac.role_change`，old_role/new_role/approver_id 完整。

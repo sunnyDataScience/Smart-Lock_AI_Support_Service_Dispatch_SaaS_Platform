@@ -1,842 +1,460 @@
 ---
-title: Test Plan and Readiness Roadmap
 status: active
-last_updated: 2026-05-11
-owners: [QA Lead, Tech Lead, PM]
+owner: QA Lead
+last_reviewed: 2026-05-11
+target_release: V1.0
+supersedes: null
+superseded_by: null
+title: Test Plan
 related:
-  - "./bdd/all-features.md"
-  - "../2-contracts/api/README.md"
+  - "./bdd/all-features.md (BDD scenarios SSOT — 21 features × ~100 scenarios)"
+  - "../2-contracts/api/README.md (OpenAPI 91 ops + AsyncAPI 10 channels)"
   - "../2-contracts/modules/INDEX.md"
-  - "../2-contracts/flows/business/BF-0001-work-order-lifecycle.md"
-  - "../2-contracts/flows/business/BF-0000-dispatch-overview.md"
-  - "../2-contracts/flows/business/BF-0002-admin-governance.md"
+  - "../5-views/traceability-matrix.md (F-001~F-023 cross-layer coverage)"
   - "./quality-gates.md (Quality Gates SSOT — GR6/GR7/GR10)"
+  - "./vendor-api-test-requirement.md (per-vendor detail template)"
 ---
 
-# E7x — Test Plan and Readiness Roadmap
+# Test Plan
 
-> **目的**：以第三方 BDD 視角，對齊 [[./bdd/all-features|E7 BDD scenarios]] 中描述的使用者流程與既有前端 / 後端 / 即時通訊實作，找出**文件、UI、API、外部系統**四個面向的缺口，並提出 30 天 Sprint 1 的測試 readiness 路線圖。
+> **Tier**: 3-process → strategic test document
 >
-> **預期讀者**：QA Lead、Tech Lead、PM。
+> **Purpose**: this is the **strategy** layer. It answers "**why** are we testing this, and **how** are we organizing the effort?". The execution layer (which test asserts which rule) lives in `../5-views/traceability-matrix.md`.
 >
-> **方法論借鏡**：Google Test Certified L3、Spotify Test Pyramid Reborn、Atlassian shift-left、Stripe contract testing、Martin Fowler / Meta 測試分類學。
-
----
-
-## 0. Context
-
-Smart-Lock AI Support & Service Dispatch SaaS Platform 是台灣電子鎖售後客服 / 派工 / 帳務 SaaS：
-- C 端透過 LINE Bot 智能客服（LangGraph + Vertex AI Gemini 2.5 Flash），故障無法遠端排除即升級派工
-- B 端 Next.js 後台（41 頁）+ 技師 mobile-first 介面
-- FastAPI 後端 91 個 operationId、AsyncAPI 10 個即時 channel、PostgreSQL + GCS + LINE
-- V1.0 已上線（AI 客服 + 知識庫管理）；V2.0 規劃中（派工、技師端、帳務、退款、爭議、保固）
-
-**為什麼要這份文件**：
-1. [[./bdd/all-features|E7 BDD scenarios]] 已寫 21 Feature ~100 Scenarios，但**沒有測試執行計畫**；既有自動化覆蓋率：smoke ~20% endpoints + agent evals 67 題 + 5 個 api/tests，無 E2E、無 contract test、無 visual regression、無 load test。
-2. V2.0 上線前需要的測試基礎設施 + Gap 補完，必須在 30 天內形成可信的測試 baseline。
-3. 文件描述的使用者流程與前端元件 / API spec / 外部系統整合**並非處處對齊**，須先標明 Gap，再規劃測試。
+> **Difference from traceability matrix**: matrix says "F-001 → TC-101..108 → test-conversation-create job". This plan says "we test LINE intake because it's the single revenue funnel; target 90% line coverage on ProblemCardEngine, accept 70% on Notification."
 
 ---
 
-## 1. TL;DR — 現在能測什麼、不能測什麼、為什麼
+## 1. Scope
 
-> **2026-05-08 PR #45-49 後狀態（impl complete）**：23 條流程 = **🟢16 / ⚠4 / ⚠3 / ❌0**（與 [[../_SSOT-alignment-matrix|_SSOT §3]] 一致）。
->
-> 🆕 5 條從「spec-driven aligned」升「impl complete」：F-004 / F-008 / F-010 / F-016 / F-019；F-018 順手升 ✅（PR #47 LINE Push real 解殘留 TODO）。
->
-> **2026-05-09 evening P0 bridge sprint 後狀態**：23 條流程 = **🟢18 / ⚠3 / ⚠2 / ❌0**（commit `44873f0` merged 到 dev，與 [[../_SSOT-alignment-matrix|_SSOT §3]] 同步）。F-001 / F-015 / F-017 升 ✅(impl complete)；F-014 從 ⚠blocked → ⚠partial（規則層補完 `createRefundRequest` dual-trigger + business unique key + auto dual-sign threshold；剩金流回沖綁 Q7=B）。Backend 29/29 + Playwright 3/3 + OpenAPI lint 0 errors。
->
-> **2026-05-10 morning 4-track worktree sync 後狀態**：23 條流程 = **🟢19 / ⚠2 / ⚠2 / ❌0**。F-021 升 ✅(impl complete) — `getKpiReport` + `getRevenueSummary` 加 `start_date` / `end_date` query params（commit `4c1d74b`）。同步附帶 T1 矩陣 sync / T2 agent intent + PC trigger 整合 / T3 web 5 detail page document_number 顯示。剩外力解 4 條：F-007（F-210 規格 PM+BE）+ F-011/F-012/F-014（Q7=B provider 選型會議）。
->
-> 📋 **「立即可測 🟢」定義**：spec + test infrastructure + PM 拍板齊備 → 可寫 BDD scenarios + contract test + factory test。**不要求 production code 100%**（用 `@wip` tag + `RUN_WIP_TESTS` opt-in 處理 stub 測試 CI 噪音）。
+### In scope
 
-**🟢 立即可測（16 條）**：
-- 原 13 條（Wave 1+2）：F-001 / F-002 / F-003 / F-005 / F-006 / F-009 / F-013 / F-015 / F-017 / F-018 / F-020 / F-021 / F-023
-- PM 拍板後升 🟢：F-010（Q8=A V1.0 only LINE）
-- **PR #40 spec-driven 升 🟢（5 條）**：F-004 / F-008 / F-016 / F-019 / F-022
-- **PR #45-49 production code 完成（impl complete）**：F-004 / F-008 / F-010 / F-016 / F-018（順手）/ F-019 — 標 ✅(impl complete)
+- **Modules / surfaces**: LINE Bot agent (LangGraph + Vertex AI Gemini 2.5 Flash), 41-page Next.js admin + technician web app, FastAPI backend (91 operationId + 10 AsyncAPI channels), PostgreSQL + GCS + LINE
+- **Release window**: V1.0 (AI customer service + knowledge base) shipped; V2.0 (dispatch / technician / accounting / refund / dispute / warranty) in progress
+- **User flows**: 23 user flows F-001~F-023 across Consumer / Technician / Customer Service / Admin
+- **Test types**: unit / component / contract / integration / E2E / performance / security / AI eval / UAT
 
-**⚠ 部分可測（2 條，5/10 morning 後）**：F-007 材料申請（等 F-210 規格 PM+BE）、F-014 退款流程（規則層 5/9 已修，剩金流回沖綁 Q7=B）。
+### Out of scope
 
-**⚠ 阻塞（2 條）**：F-011 消費者付款 V1.0、F-012 技師月結撥款 V1.0 — **全綁 Q7=B provider 選型**（PR #39 follow-up 4 sub-decision 矩陣已備齊，等 PM/TL/CEO/Finance 90 min 會議）。
-
-> ❌ orphan = 0（PM 拍板後全部 BDD 缺口已定方向）。
-
-**根本原因（已解）**：V1.0 / V2.0 範圍切分 + 角色階層 + Hard / Soft SLA 三大產品決策已於 **2026-05-07 PM 全部拍板**（[[../1-decisions/ADR-0013-pm-alignment-q1|Q1–Q10]]）。新阻塞點：
-- **Q7=B 反向**：V1.0 含金流 → 上線延 ~1.5 個月（待 provider 選型 + PCI 審查）
-- **Q3=C / Q9=B 反向**：消費者追蹤 + Scope Change 入口走 Web 匿名 token（共用機制，需建公開 API + Playwright spec）
-- **Q4=C 反向**：月結 SLA 工作日+國定假日（需 holidays 套件 + calendar 維護）
-
-實作工作（詳見 [[../5-views/traceability-matrix#5-修正動作優先級給-phase-4|_SSOT-alignment-matrix §5]]）已可開始排程，BDD scenarios 也可以開始寫具體 Given/When/Then。
-
-> 📊 **完整統計**（按角色 / Realtime / 外部依賴 / BDD 覆蓋）：見 §2 對齊矩陣 + [[./bdd/all-features#ⅲb-feature--e7x-流程編號對照f-101f-201--f-001f-023|E7 §Ⅲ.b Feature ↔ E7x 流程對照表]]。
+- Manual exploratory testing (covered separately by QA Lead per release)
+- Vendor-side test infrastructure (covered in `vendor-api-test-requirement.md` per vendor)
+- V3.0 multi-tenant platform tests (not started; gated on first OEM signing)
 
 ---
 
-## 2. 使用者流程 × 前端頁面 × API × 即時 channel × 外部依賴 對齊矩陣
+## 2. Quality Targets
 
-評等：🟢 立即可測 / 🟡 需補規格或 UI / 🔴 阻塞
+| Dimension | Target | Floor | Measurement |
+|---|---|---|---|
+| Agent harness line coverage | 85% | 75% | `pytest --cov=agent/harness` |
+| API services line coverage | 80% | 70% | `pytest --cov=api/services` |
+| Domain logic (problem-card / dispatch / refund) | 90% | 80% | `pytest --cov=api/services/{problem_card,dispatch_engine,refund_service}` |
+| Web component coverage | 70% | 60% | `vitest --coverage` |
+| API contract coverage | 100% endpoints have ≥1 test | 100% | `schemathesis` against openapi.yaml |
+| BF coverage | 100% BFs have ≥1 happy + ≥1 exception E2E | 100% | manual matrix review (Appendix A) |
+| BDD scenario pass rate | 100% Tier A pass | 100% | `pytest-bdd` |
+| External vendor contract | 100% vendors have contract test | 100% | per-vendor (see §8) |
+| Agent eval baseline | 67 → 300 cases by V2.0 | 67 floor | `agent/evals/` golden set |
+| Critical path NFR | All `priority: critical` NFRs auto-verified | 100% | nightly k6 + agent eval |
+
+### Performance SLA per operationId
+
+詳見 `../0-principles/frontend-quality-attributes.md §1`（15 個 endpoint p50/p95/p99 + 5 channel WS publish latency）。
+
+---
+
+## 3. Test Pyramid (proportions, not absolutes)
+
+| Layer | Target % | What lives here |
+|---|---|---|
+| Unit | 70% | Pure functions, business rules, value objects, agent prompts |
+| Component / Module | 15% | Single module + its direct deps (in-process); harness layer + service classes |
+| Contract | 8% | OpenAPI (schemathesis 50 ops) + AsyncAPI envelope + vendor contract (LINE / Vertex / payment) |
+| Integration | 5% | Cross-module flows with real Postgres + GCS + LINE webhook simulator |
+| E2E | 2% | Full BF happy + critical exception only (Playwright) |
+
+> **Rationale**: cost grows roughly 10× per layer up. Heavy E2E reliance correlates with flaky tests, slow feedback, ignored failures. Smart Lock 的痛點：目前 E2E ≈ 0 / Unit ≈ 20%，金字塔倒立。30-day Sprint 1 目標是把 Unit + Component + Contract 補到 65% 以上。
+
+---
+
+## 4. Test Stage Catalog
+
+| Stage | When run | Speed budget | Owner | Tools |
+|---|---|---|---|---|
+| Unit | Every save (watch mode) | < 30s full suite | Dev | pytest / vitest |
+| Component | Every commit (pre-push) | < 2 min | Dev | pytest + RTL |
+| Contract (OpenAPI) | Every PR | < 1 min | Dev | schemathesis (50 ops) + `scripts/ci/generate-api-types.sh --check` |
+| Contract (AsyncAPI) | Every PR | < 1 min | Dev | `scripts/ci/asyncapi-validate.mjs` |
+| Integration | Every PR | < 5 min | Dev | pytest + testcontainers (Postgres + GCS emulator) |
+| E2E (critical) | Every PR | < 15 min | QA | Playwright (10 anchor pages) |
+| E2E (full) | Nightly | < 60 min | QA | Playwright (all BFs) |
+| Performance | Nightly + on release branch | (async, alert on regression) | SRE | k6 (see Appendix E) |
+| Security (SAST) | Every PR | < 3 min | Security | semgrep / bandit / gitleaks / trivy |
+| Security (DAST) | Weekly | (async) | Security | OWASP ZAP |
+| Agent eval | Every PR (mini, 10 cases) + nightly (full 67→300) | < 5 min PR / < 30 min nightly | AI Lead | `agent/quality/quality_check` LLM-as-Judge |
+| UAT | Per release | (manual checklist) | Product | per-feature checklist |
+| Regression | Pre-release | (subset of above) | QA | tag-filtered run (`@smoke-test`, `@happy-path`) |
+
+---
+
+## 5. Test Data Strategy
+
+| Data Source | Used by | Lifecycle | Provenance |
+|---|---|---|---|
+| Fixtures (committed JSON / SQL) | Unit, Component | Versioned in repo | Hand-curated minimal cases under `tests/fixtures/` |
+| Factories (factory-boy) | Component, Integration | Generated per test | Schema-derived from `api/models/` Pydantic |
+| Seed (SQL bootstrap) | Integration, E2E, dashboard demo | Reset per suite | `SQL/seeds/*.sql` (idempotent; see `SQL/seeds/README.md`) |
+| Demo accounts | E2E | Reset per suite | `demo-admin@example.com` / `demo-tech@example.com` from `SQL/seeds/_admin_user.sql` + `dispatcher_user.sql` |
+| Sandbox (vendor) | Contract, vendor E2E | Vendor-managed | LINE channel test mode + Vertex AI test project; payment vendor TBD per ADR-0023 |
+| Anonymized prod snapshot | Performance, edge-case discovery | Quarterly refresh | Pipeline strips PII before commit (待 build) |
+| Synthetic at scale | Performance | Generated on demand | k6 dataset gen scripts under `tests/perf/k6/` (待 build) |
+| Agent eval golden set | AI evaluation | Versioned in `agent/evals/fixtures/` | Curated from historical conversations + adversarial cases |
+| LLM mock fixtures | Unit | Versioned | Recorded request/response per test scenario |
+
+### PII Boundaries
+
+- ❌ Real customer / technician PII **never** in any tier (per `SQL/seeds/README.md` PII NOTICE)
+- ❌ Real LINE channel tokens / payment credentials in fixtures
+- ✅ Use sandbox vendor envs + faker-generated names for all stages
+
+### Anti-patterns to refuse
+
+- ❌ Using prod data in unit tests
+- ❌ Tests that depend on a specific seed timestamp ("works on Tuesdays")
+- ❌ Shared mutable fixture across tests (creates order-of-execution coupling)
+- ❌ Hard-coded user_id / line_user_id strings (use factory or env-injected fixture)
+
+---
+
+## 6. Coverage by Risk Area
+
+> Higher risk → higher coverage target. Override the §2 default per area.
+
+| Area | Risk | Coverage target | Why |
+|---|---|---|---|
+| Payment processing (F-011/F-012/F-014) | CRITICAL | ≥ 95% domain + property-based + chaos | Money loss, regulatory fines (PCI SAQ-A scope per ADR-0019) |
+| Authentication / RBAC (F-019) | CRITICAL | ≥ 95% + security-focused tests | Account takeover; 7-role hierarchy per ADR-0013/0014/0018 |
+| Work-order state machine (F-001~F-010) | HIGH | ≥ 90% + state-transition exhaustive | 16 states; status mismatch = customer complaint |
+| AI agent reasoning quality | HIGH | golden set 67 → 300 cases by V2.0 + LLM-as-Judge nightly | Wrong technical guidance = on-site rework; fault diagnosis is core competence |
+| Dispatch matching (F-003/F-004) | HIGH | ≥ 90% + weight-tuning regression suite | SLA breach; unfair distribution → technician churn |
+| Multimodal handling (F-001 image/audio) | HIGH | ≥ 80% + vision contract test | Photo evidence is dispute resolution baseline |
+| SLA monitor (F-016) | MEDIUM-HIGH | Soft target alerts only per ADR-0017 (no compensation) | V1 = no SLA penalty; V2 may upgrade to Hard SLA |
+| Refund / warranty / dispute (F-013/F-014/F-015) | MEDIUM | ≥ 85% + dual-sign property test | Manual fallback OK; audit trail mandatory |
+| Notification dispatch | MEDIUM | ≥ 70% + retry test | User annoyance; LINE Push 3-retry already implemented |
+| Dashboard / reports (F-021) | LOW | ≥ 60% | Eventually-consistent OK; PM tolerates daily refresh |
+| Knowledge base / SOP draft (F-017) | LOW | ≥ 60% | Human-in-the-loop review catches errors |
+
+### AI / LLM specific coverage
+
+| Aspect | Target | Tool |
+|---|---|---|
+| Intent recognition accuracy | ≥ 90% on golden set | `agent/quality/quality_check` LLM-as-Judge |
+| Tool call correctness (load_skill / update_user_info / transfer_to_human) | 100% on golden set | Custom validator in `agent/evals/runner.py` |
+| Prompt injection robustness | All injection cases blocked | H6 safety_gate + H7.5 output_validator |
+| Token cost regression | < 15% increase per release | `agent/evals/reporter.py` cost diff |
+| Forbidden phrase detection | 100% blocked | H7.5 output_validator + assertion in eval |
+| Hallucination rate (made-up SKILL.md ref) | < 5% on golden set | LLM-as-Judge factual check |
+
+---
+
+## 7. CI Quality Gate Specification
+
+> **SSOT**: see [`./quality-gates.md`](./quality-gates.md) — Gate 0-4 stage prerequisites + GR6/GR7/GR10 lifecycle gates.
+
+### What CI MUST output (beyond pass/fail)
+
+```
+PR #N affects:
+  Flows:        F-001, F-008
+  FRs:          FR-0001, FR-0008
+  APIs:         createConversation (no change), submitScopeChange (BREAKING)
+  Tests:        F-101 BDD scenarios, scope_change unit + component
+  Coverage:     api/services/ 84% (-1% from main; floor 70% OK)
+  NFRs:         createConversation p95 = 167ms (target < 200ms ✅)
+  Vendors:      LINE OK; Vertex sandbox OK; payment N/A
+  Agent eval:   67/67 pass, cost +3% (acceptable, < 15% threshold)
+
+  Coverage debt this PR introduces:
+    - new code in api/services/scope_change_service.py:142 not covered
+
+  Required reviewers (per CODEOWNERS): @backend @qa
+```
+
+### Blocking conditions (fail the build)
+
+- Any test in modified path failed
+- Coverage below floor (§2)
+- Any contract test failed (schemathesis / asyncapi-validate / OpenAPI lint)
+- Any new public API endpoint without contract test
+- Any FR with `status: active` whose linked TCs all failing
+- Agent eval regression > 15% cost OR > 5% quality score drop
+- Spec drift between docs/ and code (`api/main.py app.openapi() != docs/2-contracts/api/openapi.yaml`)
+
+### Warning conditions (annotate but don't block)
+
+- Coverage dropped 1-3%
+- New code paths uncovered
+- Vendor contract test stale (> 7 days)
+- Flaky test detected (rerun reverted result)
+- Agent eval cost +5% to +15%
+
+---
+
+## 8. Vendor / External Test Strategy
+
+For each external dependency, fill `vendor-api-test-requirement.md` separately. Summary index here:
+
+| Vendor | Plan link | Sandbox available? | Contract test status |
+|---|---|---|---|
+| LINE Messaging API | `./vendor/line.md` (待建) | Yes (channel test mode) | active (HMAC sig + Push retry) |
+| Vertex AI (Gemini 2.5 Flash) | `./vendor/vertex-ai.md` (待建) | Yes (test project) | active (LiteLLM unified, eval-driven) |
+| Google Cloud Storage | `./vendor/gcs.md` (待建) | Yes (emulator) | active (testcontainers fake-gcs) |
+| PostgreSQL + pgvector | (internal infra) | Yes (testcontainers) | active |
+| Payment provider | `./vendor/payment.md` | TBD per ADR-0023 | **blocked** — provider selection PM/TL/CEO/Finance meeting pending |
+| Maps / geocoding (V2.0) | `./vendor/maps.md` (待建) | TBD | not started |
+| Opik (LLM observability) | `./vendor/opik.md` (待建) | Yes | not started (optional) |
+
+每個 vendor 必須含：sandbox creds 取得方式、rate limit / quota、failure modes、fallback 策略、contract refresh cadence。範本見 `vendor-api-test-requirement.md`。
+
+---
+
+## 9. Risk Register (testing-specific)
+
+| Risk | Likelihood | Impact | Mitigation |
+|---|---|---|---|
+| Payment provider selection drag → F-011/F-012/F-014 blocked | High | High | Q7=B decision meeting; provider-agnostic interface; contract-mock fallback while waiting |
+| Flaky LINE webhook E2E (時序 + rate limit) | High | Medium | Quarantine + root-cause within 1 sprint; debounce 1.5s in test = same as prod |
+| Vertex AI quota exhaustion in nightly eval | Medium | High | Cost cap $50/month nightly + $20/event ad-hoc per ADR-0017 budget control |
+| Agent prompt regression (silent quality drop) | Medium | High | Golden set 67 → 300 cases; LLM-as-Judge with cost + quality diff in every PR |
+| Vendor sandbox unstable (Vertex / LINE) | Medium | High | Maintain contract-test fallback using recorded fixtures |
+| Coverage games (test the easy paths) | Medium | High | Mutation testing quarterly (mutmut); review uncovered branches in code review |
+| Test suite > 60 min | Medium | Medium | Parallelize; split critical vs full E2E; testcontainers reuse |
+| Hard-coded LINE user_id in fixtures → cross-test pollution | Medium | Medium | Factory-derived user_id; env-injected per worker |
+| F-007 inventory spec incomplete → blocked | Medium | Low | Wait PM + BE; mark @wip on related tests |
+| AsyncAPI envelope drift between code and spec | Low | High | `scripts/ci/asyncapi-validate.mjs` on every PR |
+
+---
+
+## 10. Schedule & Ownership
+
+### Sprint 1 (30 days from cutover; covers V1.0 stabilization + V2.0 test foundation)
+
+| Phase | Owner | Deliverable | Due |
+|---|---|---|---|
+| Backfill schemathesis 50 ops | Backend Lead | Contract test green | Day 7 |
+| Playwright E2E (10 anchor pages) | QA Lead | Smoke pass on main | Day 14 |
+| Agent eval golden set 67 → 150 | AI Lead | `agent/evals/fixtures/` curated | Day 14 |
+| Factory-boy fixtures (work-order / dispatch / refund) | Backend | `tests/factories/` | Day 21 |
+| testcontainers integration (Postgres + GCS) | DevOps | CI runs full integration suite | Day 21 |
+| k6 baseline (15 endpoints from `0-principles/frontend-quality-attributes.md §1`) | SRE | Baseline numbers recorded | Day 28 |
+| Mutation testing pilot (mutmut on `api/services/refund_service`) | QA | Baseline mutation score | Day 28 |
+| Quarterly Test Plan review | QA Lead | Updated doc + retro | Every quarter |
+
+### Standing ownership
+
+| Area | Primary | Secondary |
+|---|---|---|
+| Test strategy + this doc | QA Lead | Tech Lead |
+| Unit + component coverage | Each dev (CODEOWNERS) | QA Lead reviews |
+| Contract (OpenAPI/AsyncAPI) | Backend Lead | QA Lead |
+| E2E (Playwright) | QA Lead | FE Lead |
+| Performance (k6) | SRE | Tech Lead |
+| Security (SAST/DAST) | Security Lead | DevOps |
+| Agent eval | AI Lead | QA Lead |
+| Vendor contract refresh | Owner per vendor (see §8) | QA Lead audits monthly |
+
+---
+
+## 11. Sign-off
+
+| Role | Name | Date | Approved? |
+|---|---|---|---|
+| QA Lead | | | |
+| Engineering Lead | | | |
+| Product (UAT scope) | | | |
+| Security Lead | | | |
+| SRE Lead (NFR) | | | |
+| AI Lead (eval baseline) | | | |
+
+---
+
+## See also
+
+- [`../5-views/traceability-matrix.md`](../5-views/traceability-matrix.md) — execution-layer "what tests what" (23 F-XXX × 8 dimensions)
+- [`./vendor-api-test-requirement.md`](./vendor-api-test-requirement.md) — per-vendor detail template
+- [`./quality-gates.md`](./quality-gates.md) — Gate 0-4 prerequisites + GR6/GR7/GR10
+- [`./security-readiness-checklist.md`](./security-readiness-checklist.md) — security-test-specific checklist
+- [`./bdd-guide.md`](./bdd-guide.md) — Gherkin authoring guide
+- [`./bdd/all-features.md`](./bdd/all-features.md) — 21 Features × ~100 Scenarios BDD SSOT
+- [`./code-review-checklist.md`](./code-review-checklist.md) — PR-level criteria (lint / test / coverage)
+- [`../0-principles/frontend-quality-attributes.md`](../0-principles/frontend-quality-attributes.md) — performance SLA per endpoint
+
+---
+
+# Appendix A — 23 User Flow × API/Channel/External 對齊矩陣
+
+> V1.0 實裝狀態追蹤（snapshot 2026-05-10 morning）。詳細逐 flow trace 見 `../5-views/traceability-matrix.md`。
+
+評等：🟢 立即可測 / 🟡 部分可測 / 🔴 阻塞 / ❌ orphan
+
+### 狀態統計（2026-05-10 morning）
+
+23 條流程 = **🟢19 / ⚠2 / ⚠2 / ❌0**
+
+剩 4 條外力解：
+- F-007 材料申請（待 F-210 規格 PM+BE）
+- F-011 消費者付款 V1.0、F-012 技師月結撥款 V1.0、F-014 退款金流回沖（全綁 Q7=B provider 選型會議）
+
+### 完整矩陣
 
 | # | 流程 | 角色 | 前端頁面 | API operationId | Realtime | 外部 | 評等 | 阻塞項 |
 |---|------|------|---------|----------------|----------|------|------|-------|
-| F-001 | LINE 報修 → ProblemCard | 消費者 | (LINE Bot 後端) | `createConversation` ✅, `analyzeMedia`, `createProblemCard` | — | LINE / Vertex / GCS | 🟢 | ✅ 5/9 sprint `createConversation` + agent webhook bridge `_ensure_conversation_record` real impl + `AdminAPIClient` 30 min cache |
-| F-002 | 客服審 PC → 開 WO | 客服 | `web/src/app/problem-cards/page.tsx`, `[id]/page.tsx` | `listProblemCards`, `getProblemCard`, `updateProblemCard`, `confirmProblemCard`, `resolveProblemCard`, `exportProblemCard`, **`convertToWorkOrder`** ✅, `POST /api/v1/resolve`, `POST /api/v1/dispatch/auto-match` | `work-orders` | — | 🟢 | ✅ 本 PR：補 `convertToWorkOrder` endpoint + `work_order_service.create_from_problem_card()` + frontend「開單」按鈕；解 production blocker（confirmProblemCard 不會觸發 WO 建立的 silent gap）|
-| F-003 | 自動派工規則引擎 | 系統 | `web/src/app/admin/dispatch-queue/page.tsx` | `runDispatch`, `listDispatchQueue` | `dispatch-queue`, `pool` | — | 🟢 | ✅ 權重 SSOT 已建：[[../2-contracts/modules/dispatch-engine-weights]] |
-| F-004 | 手動派工 | 客服 / 派工員 | `web/src/app/admin/dispatch-manual/page.tsx` | `assignWorkOrder`, `assignDispatch` | `dispatch-queue` | — | 🟢 | ✅ PR #45 dispatcher RBAC 升級（修補 P0）+ 客服繞過 audit log（10 test）|
-| F-005 | 技師接單 → 出發 | 技師 | `web/src/app/pool/page.tsx`, `my-orders/page.tsx` | `claimOrder`, `updateWorkOrderStatus` | `pool`, `work-orders` | — | 🟢 | — |
-| F-006 | 到場拍照 | 技師 | `web/src/app/my-orders/[id]/door-check/page.tsx` | `checkIn`, `uploadMedia` | `work-orders` | GCS / Vision | 🟢 | — |
-| F-007 | 材料申請 | 技師 → 客服 | `my-orders/[id]/material-request/page.tsx`, `admin/inventory/page.tsx` | `requestMaterial`, `approveMaterial`, `listInventory` | `inventory low-stock` | — | 🟡 | F-210 庫存規格不全（多倉 / 借調） |
-| F-008 | Scope Change | 技師 → 消費者 | `my-orders/[id]/scope-change/page.tsx`, `web/src/app/scope-change/[token]` | `getScopeChangeProposalPublic`, `respondScopeChangePublic` | `work-orders` | LINE | 🟢 | ✅ PR #46 HMAC token 真實簽章 + scope_change_service real（27 test）|
+| F-001 | LINE 報修 → ProblemCard | 消費者 | (LINE Bot 後端) | `createConversation` ✅, `analyzeMedia`, `createProblemCard` | — | LINE / Vertex / GCS | 🟢 | ✅ impl complete |
+| F-002 | 客服審 PC → 開 WO | 客服 | `problem-cards/page.tsx`, `[id]/page.tsx` | `listProblemCards`, `convertToWorkOrder` ✅ | `work-orders` | — | 🟢 | ✅ impl complete |
+| F-003 | 自動派工規則引擎 | 系統 | `admin/dispatch-queue/page.tsx` | `runDispatch`, `listDispatchQueue` | `dispatch-queue`, `pool` | — | 🟢 | 權重 SSOT: `../2-contracts/modules/dispatch-engine-weights.md` |
+| F-004 | 手動派工 | 客服 / 派工員 | `admin/dispatch-manual/page.tsx` | `assignWorkOrder`, `assignDispatch` | `dispatch-queue` | — | 🟢 | ✅ PR #45 dispatcher RBAC + 客服繞過 audit |
+| F-005 | 技師接單 → 出發 | 技師 | `pool/page.tsx`, `my-orders/page.tsx` | `claimOrder`, `updateWorkOrderStatus` | `pool`, `work-orders` | — | 🟢 | — |
+| F-006 | 到場拍照 | 技師 | `my-orders/[id]/door-check/page.tsx` | `checkIn`, `uploadMedia` | `work-orders` | GCS / Vision | 🟢 | — |
+| F-007 | 材料申請 | 技師 → 客服 | `my-orders/[id]/material-request/page.tsx`, `admin/inventory/page.tsx` | `requestMaterial`, `approveMaterial` | `inventory low-stock` | — | 🟡 | F-210 庫存規格不全（多倉 / 借調） |
+| F-008 | Scope Change | 技師 → 消費者 | `my-orders/[id]/scope-change/page.tsx`, `scope-change/[token]` | `getScopeChangeProposalPublic`, `respondScopeChangePublic` | `work-orders` | LINE | 🟢 | ✅ PR #46 HMAC + scope_change real |
 | F-009 | 完工簽名 | 技師 + 消費者 | `my-orders/[id]/signature/page.tsx` | `submitSignature`, `completeWorkOrder` | `work-orders` | — | 🟢 | — |
-| F-010 | 改約 / 延遲 | 技師 | `my-orders/[id]/reschedule/page.tsx`, `delay/page.tsx`, `admin/schedule-requests/page.tsx` | `requestReschedule`, `approveReschedule`, `notifyDelay` | `user-notifications` | LINE | 🟢 | ✅ PR #47 3 ops + LINE Push real (retry+fail-soft, Q8=A V1.0 only LINE)（12 test）|
-| F-011 | 消費者付款 **V1.0**（Q7=B 升級） | 消費者 | (待 provider 選型) | (缺 paymentIntent) | — | **Q7=B 待 provider** | 🔴 | PR #39 follow-up 4 sub-decision 矩陣等 PM/TL/CEO/Finance 90 min 會議 |
-| F-012 | 技師月結撥款 **V1.0** | 系統 + 財務 | `web/src/app/accounting/page.tsx` | `runSettlement`, `listSettlements` | — | **Q7=B 同 provider** | 🔴 | 同 F-011；撥款 API 待 provider D4 |
-| F-013 | 對帳爭議雙簽 | 技師 ↔ 客服 | `web/src/app/accounting/page.tsx` (reconciliation), `admin/disputes/page.tsx` | `raiseDispute`, `dualSignDispute`（現 `submitRefundDecision`） | `disputes` | — | 🟢 | ✅ Q2=A 階層 + Q4=C 工作日 holidays helper（PR #40 T3 + agent/core/workday.py）|
-| F-014 | 退款流程 | 客服 + 主管 | `web/src/app/admin/refunds/page.tsx` | `submitRefundDecision`, `createRefundRequest` ✅ | `refunds` | **Q7=B 待金流回沖**（規則層 5/9 已補）| 🟡 | ✅ 5/9 sprint `createRefundRequest` dual-trigger（CS web Modal + agent intent skeleton）+ business unique key (work_order_id, reason_code) + auto dual-sign threshold NT$100,000；剩金流回沖待 Q7=B provider |
-| F-015 | 保固申訴 | 消費者 → 客服 | `web/src/app/admin/warranty-claims/page.tsx` | `submitWarrantyDecision`, `createWarrantyClaim` ✅ | — | LINE | 🟢 | ✅ 5/9 sprint `createWarrantyClaim` dual-trigger real impl（CS web Modal + agent intent skeleton）；warranty-dispute spec 已有 |
-| F-016 | SLA 紅色警報（2hr 到場） | 系統 + 主管 | `admin/sentiment-alerts/page.tsx`, `dashboard/page.tsx` (SlaAlertBanner) | (sla_monitor.py: arrival_overdue) | `sla-alerts` | LINE | 🟢 | ✅ PR #48 Soft alert + 紅燈（Q5=B 合規驗證；8 test + 2 @wip）|
-| F-017 | SOP 草稿審核 | AI → 客服 → 主管 | `web/src/app/knowledge-base/sop-drafts/page.tsx` | `listSopDrafts`, `reviewSopDraft`, `adoptSopDraft`, `createSopDraft` ✅ | — | Vertex AI | 🟢 | ✅ 5/9 sprint `createSopDraft` + rating>=4 trigger skeleton（`agent/harness/sop_extractor.py`，LLM extract 仍 placeholder，V2.0 升級）|
-| F-018 | 客服接管對話 | 客服 | `web/src/app/conversations/[id]/page.tsx`, `components/conversations/HandoverComposer.tsx` | `escalateConversation`, `sendChatMessage` ✅ | `user-notifications` | LINE | 🟢 | ✅ PR #47（順手解）LINE Push real impl（line_push_service.py + retry + audit + fail-soft）|
-| F-019 | RBAC 動態調整 | 管理員 | `web/src/app/admin/roles/page.tsx`, `RolePermissionsEditor` | `listRoles`, `updateRolePermissions` ✅ | `rbac` | — | 🟢 | ✅ PR #49 階層 + WS publish + Editor UI（10 BE + 2 @wip）|
-| F-020 | 稽核日誌 | 管理員 | `web/src/app/admin/audit-events/page.tsx`, `components/admin/AuditExportModal.tsx` | `listAuditLogs`, `exportAuditEvents` ✅ | — | — | 🟢 | ✅ CSV stream + Modal 已建（>100k 筆 background job 預留 202 contract） |
-| F-021 | Dashboard / 報表 | 管理員 | `web/src/app/dashboard/page.tsx`, `admin/reports/*`, `components/ui/DateRangePicker.tsx` | `getDashboardStats`, `getKpiReport ✅`, `getRevenueSummary ✅` | — | — | 🟢 | ✅ 5/10 sprint：`getKpiReport` + `getRevenueSummary` 加 `start_date` / `end_date` query params（commit `4c1d74b`）；DateRangePicker 4 頁 wiring 全通 |
-| F-022 | 消費者端工單追蹤 | 消費者 | `web/src/app/track/[token]/page.tsx` | `getWorkOrderPublicStatus` ✅ | `work-orders` | LINE | 🟢 | ✅ Q3=C 兩者並存 + PR #43/#44/#46 真實 impl（HMAC token 簽章 + Web 公開頁 + PII mask）|
-| F-023 | 錯誤頁 / 離線 | 任何 | `web/src/app/{not-found,error,global-error}.tsx`, `components/ui/NetworkErrorBanner.tsx` | — | — | — | 🟢 | ✅ 4 個錯誤邊界已建（Service Worker 完整離線策略仍待 §4.1 P1） |
+| F-010 | 改約 / 延遲 | 技師 | `my-orders/[id]/reschedule/page.tsx`, `delay/page.tsx` | `requestReschedule`, `approveReschedule`, `notifyDelay` | `user-notifications` | LINE | 🟢 | ✅ PR #47 LINE Push retry |
+| F-011 | 消費者付款 V1.0 | 消費者 | (待 provider) | (缺 paymentIntent) | — | **Q7=B 待 provider** | 🔴 | ADR-0019 / Q7 follow-up 待 PM/TL/CEO/Finance 會議 |
+| F-012 | 技師月結撥款 V1.0 | 系統 + 財務 | `accounting/page.tsx` | `runSettlement`, `listSettlements` | — | **Q7=B 同 provider** | 🔴 | 同 F-011 |
+| F-013 | 對帳爭議雙簽 | 技師 ↔ 客服 | `accounting/page.tsx` (reconciliation), `admin/disputes/page.tsx` | `raiseDispute`, `dualSignDispute` | `disputes` | — | 🟢 | ✅ Q2=A 階層 + Q4=C 工作日 holidays |
+| F-014 | 退款流程 | 客服 + 主管 | `admin/refunds/page.tsx` | `submitRefundDecision`, `createRefundRequest` ✅ | `refunds` | **Q7=B 待金流回沖** | 🟡 | 規則層 5/9 補完；金流回沖等 Q7=B |
+| F-015 | 保固申訴 | 消費者 → 客服 | `admin/warranty-claims/page.tsx` | `submitWarrantyDecision`, `createWarrantyClaim` ✅ | — | LINE | 🟢 | ✅ impl complete |
+| F-016 | SLA 紅色警報 (2hr 到場) | 系統 + 主管 | `admin/sentiment-alerts/page.tsx`, dashboard | (sla_monitor.py: arrival_overdue) | `sla-alerts` | LINE | 🟢 | ✅ PR #48 Soft alert + 紅燈 |
+| F-017 | SOP 草稿審核 | AI → 客服 → 主管 | `knowledge-base/sop-drafts/page.tsx` | `listSopDrafts`, `reviewSopDraft`, `createSopDraft` ✅ | — | Vertex AI | 🟢 | ✅ rating>=4 trigger skeleton |
+| F-018 | 客服接管對話 | 客服 | `conversations/[id]/page.tsx`, `HandoverComposer.tsx` | `escalateConversation`, `sendChatMessage` ✅ | `user-notifications` | LINE | 🟢 | ✅ PR #47 LINE Push real |
+| F-019 | RBAC 動態調整 | 管理員 | `admin/roles/page.tsx`, `RolePermissionsEditor` | `listRoles`, `updateRolePermissions` ✅ | `rbac` | — | 🟢 | ✅ PR #49 階層 + WS publish + UI |
+| F-020 | 稽核日誌 | 管理員 | `admin/audit-events/page.tsx`, `AuditExportModal.tsx` | `listAuditLogs`, `exportAuditEvents` ✅ | — | — | 🟢 | ✅ CSV stream + >100k bg job 預留 |
+| F-021 | Dashboard / 報表 | 管理員 | `dashboard/page.tsx`, `admin/reports/*`, `DateRangePicker.tsx` | `getDashboardStats`, `getKpiReport ✅`, `getRevenueSummary ✅` | — | — | 🟢 | ✅ start_date/end_date params |
+| F-022 | 消費者端工單追蹤 | 消費者 | `track/[token]/page.tsx` | `getWorkOrderPublicStatus` ✅ | `work-orders` | LINE | 🟢 | ✅ Q3=C HMAC token + Web 公開頁 + PII mask |
+| F-023 | 錯誤頁 / 離線 | 任何 | `{not-found,error,global-error}.tsx`, `NetworkErrorBanner.tsx` | — | — | — | 🟢 | ✅ 4 個錯誤邊界已建；Service Worker 仍待 |
 
 ---
 
-## 3. 必須先向 PM 釐清的 10 個問題 → ✅ **全部已拍板（2026-05-07）**
+# Appendix B — PM Q1-Q10 拍板紀錄（V1.0 業務決策）
 
-> ✅ 2026-05-07 **PM 全部拍板**（10/10）：6 採預設（Q1/Q2/Q5/Q6/Q8/Q10）+ 4 採反向（Q3=C / Q4=C / Q7=B / Q9=B）。
-> 📋 **完整脈絡 + 影響評估 + 後續行動**請見 **[[../1-decisions/ADR-0013-pm-alignment-q1|決策矩陣]]** §12 / §12.1。
+詳細決策 + 候選方案 + 反向選項見 [`../1-decisions/ADR-0013~0022`](../1-decisions/)。摘要：
 
-| # | 問題 | 合理預設 | **PM 決策** | 影響流程 | 後續關鍵行動 |
-|---|------|---------|------------|---------|------------|
-| Q1 | 派工員角色 | A 新角色 | ✅ **A** | F-004 / F-019 | dispatcher 新角色 seed + roles enum |
-| Q2 | 雙簽終簽人 | A 階層 | ✅ **A** | F-013 / F-014 | Director > Manager 階層；既有 test_refund_dual_sign 已對齊 |
-| Q3 | 消費者追蹤入口 | A LINE only | ✅ **C**（反向）| F-022 | LINE 主 + Web VIP 備並存；建 Web 匿名 token + getWorkOrderPublicStatus |
-| Q4 | 月結 SLA 計時 | B 自然日 | ✅ **C**（反向）| F-013 | 工作日 + 國定假日跳過；引入 holidays 套件 |
-| Q5 | F-016 SLA 屬性 | B Soft | ✅ **B** | F-016 | Soft：dashboard 紅 + 升主管，無賠償；補 BDD F-110 |
-| Q6 | 客服繞過派工 | A 可+audit | ✅ **A** | F-004 | manualAssign 不需雙簽；強制 audit log |
-| Q7 | V1.0 金流 | A 不含 | 🔴 **B**（反向 + 重大）| F-011/F-014/V1.0 整體 | **緊急排 provider 選型會議**；上線延 ~30 dev-day + PCI 審查 |
-| Q8 | 非 LINE fallback | A 拒收 | ✅ **A** | F-001 / F-010 | V1.0 only LINE，範圍縮小 |
-| Q9 | Scope Change 同意 | A LINE quick reply | ✅ **B**（反向）| F-008 | Web 匿名 token + Playwright；與 Q3=C 共用機制 |
-| Q10 | 派工失敗 rollback | A 重派 3 次 | ✅ **A** | F-003 / F-005 | 自動重派 3 次後升級客服 |
-
-> 📊 **決策影響統計**（詳見 [[../5-views/traceability-matrix#3-對齊狀態彙總|_SSOT-alignment-matrix §3]]）：
->
-> - PM 拍板後 ⚠ blocked 從 5 → 4（4 條仍待實作 / provider 選型）
-> - ❌ orphan 從 4 → 0（全部已決定方向，待補 BDD Feature）
-> - ✅ aligned 從 8 → 10（F-010 / F-013 升級）
->
-> ⚠ **Q7=B 為最重大決策**：V1.0 含金流 → 上線延 ~1.5 個月，需 PCI compliance 審查。建議 PM/TL/CEO 立即評估：
-> 1. 是否願意延 1.5 個月換金流整合？
-> 2. 或拆 V1.0a（不含金流）+ V1.0b（含金流）兩階段？
+| Q | 拍板 | 影響流程 | 對應 ADR |
+|---|------|---------|---------|
+| Q1 派工員角色 | A — 新角色 `dispatch_officer` | F-004 / F-016 / F-019 | ADR-0013 |
+| Q2 雙簽終簽人 | A — `operations_director`（Manager 之上）| F-013 / F-014 | ADR-0014 |
+| Q3 消費者端追蹤 | C — HMAC token web link + LINE 並存 | F-022 | ADR-0015 |
+| Q4 月結爭議 SLA | C — 工作日（holidays 套件） | F-013 | ADR-0016 |
+| Q5 F-016 SLA 性質 | B — Soft Target（V1 全 Soft，無賠償）| F-016 | ADR-0017 |
+| Q6 客服繞過自動派工 | A — 允許 + 強制 audit log | F-004 | ADR-0018 |
+| Q7 V1.0 金流範圍 | B — 拆 V1.0a/b + provider 選型 follow-up | F-011 / F-012 / F-014 | ADR-0019 |
+| Q8 非 LINE 用戶 fallback | A — LINE Push retry（V1 only LINE）| F-010 / F-018 | ADR-0020 |
+| Q9 Scope Change 同意 | B — 消費者 Web 二次確認 | F-008 | ADR-0021 |
+| Q10 派工/接單失敗 rollback | 採預設方案 | F-005 / F-003 | ADR-0022 |
 
 ---
 
-## 4. 缺口分類 + 優先級
+# Appendix C — 「不要先做」清單（短期不投入測試資源）
 
-> **狀態同步基準**：以 PR #38（PM Q1–Q10 拍板）+ PR #40（5-track 平行 follow-up：dispatcher seed / public token spec / workday helper / track placeholder / F-110）+ PR #41（5 流程升 🟢）為準。本節 status 圖示：✅ 完成 / 🟡 進行中或部分完成 / 🔴 阻塞中（待外部依賴或會議拍板） / ❌ V1.0 不做（降級 V1.5+ 或 V2.0+）。
-
-### 4.1 文件缺口
-
-| 缺口 | 影響流程 | P | 工時 | 負責 | 狀態 |
-|------|---------|---|------|------|------|
-| ~~派工規則 5 因子權重表 + tie-breaker~~ | F-003 / F-004 | **P0** | 2d | PM + TL | ✅ 已建 [[../2-contracts/modules/dispatch-engine-weights]] |
-| ~~角色矩陣 v1.0（含派工員、Manager / Director）~~ | F-004 / F-016 / F-019 | **P0** | 2d | PM | ✅ Q1=A / Q2=A 拍板（PR #38）+ PR #40 dispatcher seed 齊；見 [[../2-contracts/modules/rbac]] |
-| ~~Hard SLA vs Soft Target 對照表~~ | F-016 | **P0** | 1d | PM | ✅ Q5=B 拍板 + F-110 BDD 補完；見 [[../0-principles/product-principles]] |
-| ~~月結 SLA 計時單位（工作日 / 自然日）~~ | F-013 | **P0** | 0.5d | PM + 法務 | ✅ Q4=C 拍板 + `agent/core/workday.py` helper 齊；見 [[../0-principles/product-principles]] |
-| ~~消費者端追蹤入口（LINE / Web / 兩者）~~ | F-022 | **P0** | 1d | PM | ✅ Q3=C 拍板（兩者並存）+ `getWorkOrderPublicStatus` spec 齊；見 [[../2-contracts/modules/consumer-tracking]] |
-| ~~SMS / Email / FCM fallback 通知策略~~ | F-010 / F-011 / F-016 | ❌ V1.5+ | — | PM | ✅ Q8=A 拍板 V1.0 only LINE，範圍縮小；見 [[../1-decisions/ADR-0012-notification-channels]] |
-| 庫存 F-210 完整規格 | F-007 | P1 | 3d | PM + BE | 🔴 仍 pending PM + BE（與下方 §4.6 Inventory SKU/批號決策綁定） |
-| 離線 / Service Worker 完整策略 | F-023 + 技師端 | P1 | 2d | FE Lead | 🟡 NetworkErrorBanner 已建（A1 Wave 1）；PWA + offline queue 仍待 FE Lead 2d |
-
-### 4.2 前端 UI 缺口
-
-| 缺口 | P | 工時 | 狀態 |
-|------|---|------|------|
-| ~~404 / 500 / Network Error page~~ | **P0** | 1d | ✅ A1 Wave 1 完成（commit `da61b1f`） |
-| ~~客服接管後的 chat UI~~ | **P0** | 3d | ✅ A4 Wave 2 完成（HandoverComposer.tsx） |
-| ~~Modal / Drawer / Toast 統一 library~~ | **P0** | 3d | ✅ A2 Wave 1 完成（Radix UI） |
-| ~~Dashboard 日期範圍選擇器~~ | P1 | 1d | ✅ A3 Wave 2 完成（DateRangePicker） |
-| ~~稽核 CSV 匯出 Modal~~（accounting / reports） | P1 | 2d | ✅ 完成 — A5 audit + commit `bd7ec2f` `ReportExportModal` 接 KPI / Revenue / Technician Ranking / Accounting 4 頁；CSV stream；PDF V1.1 補（缺 reportlab dep） |
-| ~~客戶 admin「新增 / 編輯」表單~~ | P1 | 1.5d | ✅ PR #44 完成（`admin/customers/new/page.tsx` + `[id]/edit/page.tsx`） |
-| ~~消費者端工單追蹤頁 `/track/[token]`~~ | **P0** | 5d | ✅ PR #44 full impl（含 scope-change 同意頁） |
-| ~~深色模式~~ | V1.0 範圍外 提前 | 1d | ✅ 提前完成（commit `098caa3`）— ThemeProvider（system/light/dark）+ ThemeToggle（icon / segmented）+ globals.css `[data-theme="dark"]` CSS var 覆寫 + 防 FOUC inline script + 接入 layout/Settings/Header；無新 npm package |
-| ~~i18n（多語系） scaffold~~ | V1.0 範圍外 提前 | 1d | ✅ 提前完成（branch `feat/i18n-scaffold`）— LocaleProvider + LocaleToggle（icon / segmented）+ messages/{zh-TW,en}.json + `useTranslations(namespace)` hook（與 next-intl 形狀相容）+ html.lang 動態同步 + 接入 layout/Settings/Header；**無新 npm package**；41 頁字串漸進遷移（不強制全頁抽 keys，動到該頁時順手）；策略見 [[../1-decisions/ADR-0011-i18n-strategy]] |
-
-### 4.3 後端 API 缺口
-
-| 缺口 | P | 工時 | 狀態 |
-|------|---|------|------|
-| ~~`sendChatMessage`~~ | **P0** | 1.5d | ✅ A4 完成（LINE Push integration TODO） |
-| ~~`exportAuditEvents`~~ | P1 | 2d | ✅ A5 完成（>100k 背景 job 留 202 contract） |
-| ~~`getWorkOrderPublicStatus`~~（消費者匿名追蹤） | **P0** | 1.5d | ✅ PR #43 完成（`api/routers/public.py`，Q3=C / Q9=B 共用 token；含 `getScopeChangeProposalPublic` + `respondScopeChangePublic`） |
-| ~~`updateCustomer` / `createCustomer`~~ | P1 | 1d | ✅ PR #43 完成（`api/routers/customers.py`） |
-| ~~`updateMyAvailability`~~（技師在線狀態切換） | P1 | 1d | ✅ PR #43 完成（`api/routers/technicians.py` PATCH `/technicians/me/availability`） |
-| ~~`exportReport`~~（KPI / 營收 CSV / PDF） | P1 | 2d | ✅ 完成 — PR #43 CSV stream + commit `da58302` 補 PDF（reportlab + STSong-Light）+ `accounting` report_type + `bd7ec2f` FE PDF radio |
-| ~~通知 channel 抽象層~~（為 SMS / FCM 預留） | V1.5+ 提前 | 1.5d | ✅ 提前完成（commits `6ea4802` `171dbf9` `e6a8db1`）— ChannelAdapter ABC + dict registry + LINE adapter（包裝 line_bot）+ SMS/Email/FCM stub + NotificationRouter（fallback chain）+ bootstrap；既有 caller 不動，V1.5 補真 vendor 時零 refactor |
-
-### 4.4 外部系統整合缺口（V2.0 阻塞）
-
-| 缺口 | P | 工時 | 狀態 |
-|------|---|------|------|
-| 金流（消費者付款 + 退款回沖）— provider 選型 | **P0** V2.0 | 10d+ | 🔴 PR #39 follow-up 矩陣：等 PM / TL / CEO / Finance 90 min 會議拍板（D2）。**註**：F-014 退款規則層已於 5/9 evening sprint 補完（`createRefundRequest` dual-trigger + business unique key + auto dual-sign threshold NT$100,000），剩餘僅金流回沖部分綁此 provider 決策 |
-| 撥款 API（技師薪資） | **P0** V2.0 | 8d+ | 🔴 同上會議綁定 |
-| SMS provider | — | — | 🟡 stub adapter 完成（commit `171dbf9` `agent/notifications/adapters/sms.py`）；真 vendor SDK（Twilio / AWS SNS）V1.5+ |
-| Email provider | — | — | 🟡 stub adapter 完成（`agent/notifications/adapters/email.py`）；真 vendor（SendGrid / SES）V1.5+ |
-| FCM / APNs 推播 | — | — | 🟡 stub adapter 完成（`agent/notifications/adapters/fcm.py`）；真 vendor V2.0+ |
-| Whisper 語音轉文字 | — | — | ❌ V2.0+ |
-| 鼎新 A1 會計對接 | — | — | ❌ V3 |
-
-### 4.5 角色 / 權限矛盾（影響 BDD `Given` 步驟）
-- ✅ **「派工員」V2.0 是否獨立角色 (Q1=A 拍板)**：獨立 `dispatch_officer` role；見 [[../2-contracts/modules/rbac]]
-- ✅ **Ops_Manager vs Ops_Director 階層 (Q2=A 拍板)**：Director > Manager 階層；見 [[../2-contracts/modules/rbac]]
-- ✅ **客服可否手動繞過自動派工 (Q6=A 拍板)**：可繞過，需留稽核 + 二人覆核；見 BDD F-XXX
-- 🔴 技師拒單上限與懲罰（P1，待 PM）
-
-### 4.6 資料模型 / 狀態機矛盾（影響 fixture 設計）
-- 🟡 **WorkOrder paused / material-waiting**：spec 細化中；見 [[../2-contracts/state-machines/work-order-extensions]]（V2.0 擴充 5 個狀態）
-- 🟢 **ProblemCard → WorkOrder 1:N（多技師協作）**：可寫 spec（待補）
-- ✅ **Dispute 狀態機分支（reject vs dual-sign）**：Q2=A 拍板可細化（Director 終裁）
-- 🔴 **Refund 是否依賴金流結果改狀態**：待 §4.4 金流 Q7 D2 會議拍板
-- 🔴 **Inventory 移動最小單位（批號 vs SKU）**：綁 F-210 完整規格
+| 項目 | 理由 | 重新評估時機 |
+|---|---|---|
+| Visual regression（Percy / Chromatic）| Day-1 沒有 visual designer signoff workflow；先有 E2E 比較重要 | V2.0 開始 |
+| BrowserStack 跨瀏覽器矩陣 | 後台只支援 Chrome/Edge/Safari latest，無 IE11 | 出現實際 bug 報告 |
+| Stress test 找 breaking point | k6 baseline 還沒跑出來；找破壞點前先把 load test 跑穩 | Day 30 後 |
+| Mutation testing 全模組 | 太貴（每次 30+ 分鐘）；先用在 `refund_service` pilot | Pilot 後評估 ROI |
+| Service Worker 離線完整測試 | F-023 4 個錯誤邊界已建；Service Worker 是 P1 不是 P0 | V2.0 之前 |
+| 完整 41 頁字串 i18n 抽取測試 | scaffold 已建（ADR-0011）；剩 41 頁字串漸進遷移 | 每次動到該頁時順手 |
+| Multi-tenant tests (V3) | 多租戶未啟動 | 第一個 OEM 客戶簽約後 |
+| 第三方 vendor SMS / Email / FCM real impl 測試 | V1.0 用 stub；只在 channel SLA 緊急時換 real | Channel SLA breach |
 
 ---
 
-## 5. BDD 測試金字塔策略
-
-### 5.1 三項操作原則
-
-1. **Spec-as-source-of-truth, not test-as-source-of-truth** — [[../2-contracts/modules/INDEX|OpenAPI 91 op + AsyncAPI 10 channel]] 是契約。測試驗證契約，不重新定義。對應 Google "Test Certified" L3、Atlassian shift-left。
-2. **Cost-asymmetry rules the pyramid shape** — Vertex AI 每呼叫 ~$0.01、flaky LINE webhook E2E 每次數小時人力。盡量推到 fake / stub，真實呼叫只放 nightly + release gate。
-3. **BDD scenarios are governance, not execution** — [[./bdd/all-features|E7]] ~100 個 scenario 是利害關係人契約（PM、UAT、法務），prose 永遠留在 markdown，只挑 ~30 條機械化橋接。**拒絕 100% E2E 化**（Spotify 2017 反模式）。
-
-### 5.2 金字塔配置（按 cost-asymmetry 設計，非教條 33/33/33）
-
-| Layer | 占比 | Wall-clock | Tool | 為什麼選這個 |
-|-------|------|-----------|------|-------------|
-| **Unit**（純函數、定價矩陣、派工計分、狀態機 reducer） | 55% | <2 min | pytest + hypothesis | hypothesis 對派工計分 + 帳務 Decimal 做 property test |
-| **Component**（單 router + DB stub、單頁 + mocked fetch） | 15% | <3 min | pytest + httpx.AsyncClient；React Testing Library + MSW | MSW 直接吃 `api.generated.ts` types 當 mock factory |
-| **Integration**（router + 真 Postgres via testcontainers、LangGraph node + fake Vertex） | 10% | <5 min | pytest + testcontainers-python + respx | settlement 必須真 SQL；respx 是唯一不會在 retry 上說謊的 httpx mocker |
-| **Contract**（OpenAPI 形狀、AsyncAPI envelope） | 5% | <2 min | Schemathesis + 自寫 AsyncAPI validator + Pact-Python（僅 tech mobile ↔ pool） | Schemathesis 自動從 91 op 衍生 ~600 fuzz；Pact 只用在 trust boundary |
-| **E2E**（admin + tech browser；LINE 模擬器 → backend → admin） | 5% | <8 min PR / ~25 min nightly | Playwright TS 多 project | 既有 Playwright MCP 已用，POM 共享 |
-| **Visual regression** | 3%（~40 stories） | <3 min | Playwright `toHaveScreenshot` | 設計團隊 < 3 人前不上 Chromatic |
-| **Load** | 2%（10–15 場景） | nightly | k6 | 第一線 WS / SSE 支援，10 channel 必須 |
-| **Chaos** | 2%（5–6 fault drills） | weekly | toxiproxy + pytest fixtures | 1 cluster 不需 Chaos Monkey；toxiproxy 注 Postgres / Vertex 延遲 |
-| **AI / LLM eval** | 3%（67 → 300 cases） | nightly + release | 既有 `agent/evals/` + Promptfoo（model A/B） | 保留 judge.py，加 Promptfoo 比 model 更強 |
-
-> **金字塔形狀理由**：55% unit 偏高是**刻意**的 — 最高風險邏輯（派工計分、月結帳務、RBAC permission diffing、refund dual-sign 狀態機）都是 deterministic 純程式碼，屬於 unit + property test 的領域。拒絕 Spotify 舊式 33 / 33 / 33 — 它強迫過多 integration test，ROI 不佳。
-
-### 5.3 BDD scenarios 三層治理（避免 100 scenarios 全 E2E 化的陷阱）
-
-| Tier | Scenario 數 | 機制 | 何時跑 |
-|------|-------------|------|-------|
-| **A. 可執行規格**（V1.0 流程 1 / 2 / 3、V2.0 流程 5 / 7） | ~20 | pytest-bdd 綁 integration fixture（真 Postgres + fake Vertex + fake LINE） | PR + nightly |
-| **B. Contract-backed**（形狀 + 條件） | ~30 | Schemathesis hooks，Gherkin 提取 → parametrize | PR + nightly |
-| **C. Documentation-only**（邊界 / 法規 / UAT walkthrough） | ~50 | 標 `[doc-only]` tag，僅 GR6 review | release 前 |
-
-**Gherkin → executable 橋接**：寫一個 ~200 行 markdown extractor，從 [[./bdd/all-features|E7]] 提取 `[tier-a|tier-b]` 的 scenario，產生 pytest-bdd `features/`。**約 3 dev-day，後續維護近 0**（Spotify「living documentation」模式）。
-
-**LINE Bot 不對真 LINE 做 E2E**：建 `LINESimulator` fixture（forge HMAC-SHA256 webhook + capture reply / push via respx + YAML script 驅動多輪對話），約 1 dev-week。每條 LINE scenario 在 < 100 ms 跑完。
-
----
-
-## 6. Five-layer Mock 光譜 + 環境分層
-
-每個 fixture 必須標明屬於哪一層（Martin Fowler / Meta 測試分類學）：
-
-| Layer | 定義 | 用在 | 範例 |
-|-------|-----|-----|------|
-| **Live** | 真實第三方、真錢 | 僅 prod synthetic | prod canary 真 Vertex |
-| **Sandbox** | 廠商提供測試模式 | Staging | LINE 測試 channel、Vertex 測試 project |
-| **Virtual** | 錄製重播 | Integration nightly | VCR.py cassettes for Vertex |
-| **Stub** | 手寫匹配 spec | PR-gate integration | Prism @ 4010、fake LangGraph LLM |
-| **Fake** | in-memory 同介面 | Unit | `InMemoryGCS`、`InMemoryWSHub` |
-
-### 6.1 環境矩陣
-
-| 環境 | 用途 | 必跑測試 | 預算 |
-|------|------|---------|------|
-| **Local** | dev 筆電 | docker-compose.mock + Prism + Postgres，unit / component / first-tier integration < 90 s。**不要求 GCP credentials**（onboarding 殺手） | 0 |
-| **CI / PR** | 每 PR | unit + component + contract（Schemathesis 50） + E2E-smoke 5 journey + agent-eval-mini 10（fake LLM） | 12 min p95 |
-| **CI / Nightly** | 每晚 | + 全 E2E + visual + k6 50 VU 5 min + agent eval 100（真 Vertex，月預算 $50 cap，超出 fail-open warning） | 25 min |
-| **Staging** | 從 main 自動部署 | 5 min Playwright synthetic + weekly chaos drill | $3/月 synthetic |
-| **Prod** | 唯讀 synthetic + canary | flag-gated rollout | — |
-
-### 6.2 測試資料策略
-- **Factories over fixtures**：`factory_boy`（Python） + 從 `api.generated.ts` 衍生 TS factory generator。schema migration 自動跟著走。
-- **Golden datasets**：派工計分 50 case、月結對帳 30 case、refund dual-sign 20 case、agent eval 67 → 300。版本鎖在 git，tag spec version。
-- **DB 隔離**：unit / component → transaction rollback；integration → testcontainers 一個容器 per test file。**避免單一共享 DB**（flaky 噩夢源頭）。
-
----
-
-## 7. 高風險場景的特別測試
-
-### 7.1 派工計分（5 因子 + 3 輪擴大）
-- **property + golden 並行**：hypothesis 驗單調性（更近不會排更後、評分 tie-breaker 正確、技師不會派給自己、給定輸入結果 deterministic） + 50 case golden（手調邊界，`--update-golden` flag 通過 PR review 才能改）
-- 避免 golden-test-rot anti-pattern
-
-### 7.2 月結對帳金額（最高風險）
-- **Decimal 而非 float**，custom ruff plugin lint 強制
-- **property test**：`sum(line_items) == total` 永真
-- **並發**：`asyncio.gather(100 settlements)` 對同 tenant，DB row-version 驗無雙計（Stripe 模式）
-- **冪等**：同期間二次跑產生 0 新 entries
-
-### 7.3 RBAC 即時撤銷（3 個 race condition）
-- WS 訂閱中被撤角色 → 2 s 內收到強制取消訂閱
-- 撤銷前已發 in-flight HTTP → 下次 request 403
-- tech mobile 快取角色 → 透過 BroadcastChannel 失效
-
-### 7.4 紅色警報 SLA（30 s push / 15 min ack / 2 hr 到場）
-- **時間旅行**：unit 用 freezegun；跨進程 integration 用 `ClockFixture` 暴露 `clock.advance(seconds=120)`，SLA monitor 改用它而非 `time.time()`
-- **不容妥協**：testing wall-clock = 2 小時測試
-
-### 7.5 Idempotency-Key（3 種模式）
-- 同 key 同 body → 單一 side-effect
-- 同 key 不同 body → 422
-- 並發同 key 跨 worker（pytest-xdist 2 process + `asyncio.gather`） → 恰一成功（Stripe documented test）
-
----
-
-## 8. AI / LLM 測試策略（既有 67 → 300 case 演進）
-
-### 8.1 Dataset 成長（90 天）
-- 67 stay 為 smoke set，PR 跑 **deterministic fake LLM**（response 用 question hash 索引），cost $0、wall-clock < 30 s
-- 加 200 case，按類別 tag：`intent_classification` / `entity_extraction` / `retrieval_relevance` / `sop_generation` / `safety_jailbreak` / `cost_latency_budget`
-- 每 case metadata 標 `evaluator: exact_match | semantic_similarity | judge_llm | regex | tool_call_assertion`
-
-### 8.2 LLM-as-Judge bias 控制
-- **多 judge 投票**（Gemini 2.5 Pro + Claude Sonnet + GPT-4o）對 10% 樣本，分歧升級人工。DeepMind Self-Refine：3-judge majority 88% reliability vs 單 judge 70%
-- **pairwise > absolute scoring**：A / B 比較時 LLM 對「哪個好」可靠度比「打 0–10」高 20–30%
-- **校準集 30 hand-graded case**：每 release 重跑，judge 與人工 agreement < 0.85 = judge prompt 是 bug
-
-### 8.3 Hallucination / 安全
-30 case adversarial prompt（Anthropic red-team + 10 個台灣社工攻擊繁中）。Pass：refusal ≥ 95%、無 PII 洩漏、無離域回答。失敗阻 [[./quality-gates#c-gr7--integration|GR7]]。
-
-### 8.4 Cost / Latency budget
-Eval pipeline 算 `mean_tokens_in/out / p95_latency_ms / cost_per_1k_calls`。PR comment 貼 main 對比 delta。**Hard gate：cost regression > 15% 阻 merge**（Stripe / OpenAI 內部慣例）。
-
-### 8.5 CI cost containment
-- PR 跑 67 case smoke vs fake LLM（$0）
-- Nightly 跑 200 case vs 真 Vertex 預算 cap
-- Release gate（[[./quality-gates#b-gr6--code-complete|GR6]]） 跑全 300 + 多 judge ≈ $15 / release
-
----
-
-## 9. 「不要先做」清單（短期不投入測試資源）
-
-| 範圍 | 原因 | 重評時點 |
-|------|------|---------|
-| 消費者付款 / 撥款 E2E | 無 provider 整合，無程式碼 | V2.0 啟動 |
-| 鼎新 A1 自動會計 | V3 規劃 | V3 |
-| AI Layer 6 PDCA 持續學習 | 路線圖未定 | V3 |
-| 多語系 i18n 完整 41 頁字串擴抽 | scaffold 已就位（`feat/i18n-scaffold`），但全量遷移無業務驅動 | 國際化專案啟動 / 第一個 en-only 客戶 |
-| 深色模式視覺回歸 | 無切換 UI | UX 階段 2 |
-| Whisper 語音 | 未整合 | LINE 語音占比 > 10% |
-| FCM 推播 | tech 端可用 LINE 替代 | 自有 App 啟動 |
-| 多技師協作 | V2.0 後段 | V2.0 中 |
-| 報表 PDF 匯出 | 內部用戶可先用 CSV | P1 完成後 |
-| 瀏覽器相容性（IE / 舊 Safari） | Cloudflare logs < 0.3% 流量 | **不做** |
-| Mutation testing | Test L4 才需要 | 跳過 |
-| Chromatic 視覺回歸 | 設計團隊 < 3 人 | 用 Playwright snapshot 替代 |
-
-**原則**：不為「未來會做」的功能寫 placeholder test。改用 `@wip` tag 在 BDD 中標記但 skip。
-
----
-
-## 10. 30 天 Sprint 1 交付物清單
-
-假設團隊：2 BE + 1 FE + 1 QA + 0.5 SRE。
-
-### Week 1：對齊 + 文件補完（解 Q1–Q10）
-1. 召開 90 min PM / TL 對齊會，產出**角色矩陣 v1.0**、~~派工權重 + tie-breaker 表~~ ✅、**SLA hard / soft 對照表**、**WO / Dispute / Refund 狀態機 single source**
-2. 凍結 V1.0 範圍（金流、SMS、鼎新明確 OUT）
-3. [[./bdd/all-features|E7]] scenarios 加 `[tier-a|tier-b|tier-c|doc-only]` tag
-
-### Week 2：測試基礎設施
-4. ~~統一 **Modal / Toast library**~~ ✅ A2 完成（Radix UI）
-5. ~~補 **404 / 500 / Network Error page**~~ ✅ A1 完成
-6. **`LINESimulator` fixture** + 8 reference test 對 V1.0 對話流程（3 dev-days）
-7. **金流 / SMS / Email fake provider**（contract first，等真 integration）
-8. **種子資料**：3 客戶 / 5 技師 / 20 工單跨狀態 / 5 庫存
-9. **Prism mock server** 擴 18 → 50 endpoints
-10. **Playwright 基礎 fixture**（登入 / 切角色 / 種資料）
-
-> **附加完成（Wave 2 - 原列為後續 Sprint）**：
-> - ✅ Dashboard / 報表日期區間 UI（DateRangePicker，原 §4.2 P1）
-> - ✅ 客服接管 chat UI + sendChatMessage API（HandoverComposer，原 §4.2/4.3 P0）
-> - ✅ 稽核 CSV 匯出 + exportAuditEvents API（AuditExportModal，原 §4.2/4.3 P1）
-
-### Week 3：Happy Path E2E 8 條跑通
-11. F-001 LINE 報修 → PC（mock LINE）
-12. F-002 客服開單 → WO
-13. F-003 自動派工
-14. F-005 + F-006 技師接單到場
-15. F-009 完工簽名
-16. F-013 對帳爭議雙簽（沿用 existing `test_refund_dual_sign.py`）
-17. F-015 保固申訴
-18. F-017 SOP 草稿審核
-
-> **目標**：**8 條 Happy Path 綠燈**，宣稱「核心可運轉」。
-
-### Week 4：Edge Case + Contract Test
-19. 每條 Happy Path 各 2 個 negative case（共 16）
-20. F-007 / F-008 / F-010 加入測試
-21. **Schemathesis** 對 Prism + 真 FastAPI dev server，PR-gate
-22. **AsyncAPI envelope validator** script + nightly job（10 channel 各 1 fixture，dispatch-queue 為 reference 12-test parametrized base，後續 9 channel 1 day each）
-23. F-016 SLA 警報自動化（依 Q5 結論決定 hard / soft）
-24. **Settlement property + 30 case golden**（Decimal-only ruff lint）
-25. **Dispatch scoring property + 50 case golden**
-26. **Agent eval CI 整合**：fake-LLM smoke on PR + nightly 真 Vertex $50 / month cap + Promptfoo A / B harness
-27. **PR template + ownership matrix**；coverage diff via `pytest-cov` + `diff-cover` 貼 PR comment
-
-**Sprint 1 總人日 ~30**，4.5 人 30 天可吸收（70% bandwidth）。
-
-**Sprint 1 explicit non-goals**：chaos drills、k6 load > 5 min、tech mobile Pact contract、Chromatic、mutation testing、全 20 個 BDD Tier A bridge（只做 5 個 reference）。
-
----
-
-## 11. Quality Gates
-
-> **Quality Gates SSOT** — 詳見 [`./quality-gates.md`](./quality-gates.md)：
-> - §B: GR6 — V2.0 spec freeze 條件
-> - §C: GR7 — Pre-prod release 條件
-> - §D: GR10 — Post-launch sign-off 條件
-> - PR-gate / Pre-merge to main / Rollback triggers 等 CI 細節亦在 quality-gates.md 內
-
-本檔（test-plan）只負責「測試金字塔比例 + 覆蓋率目標 + 風險區」（戰略層），閘門條件（GR6/7/10）統一以 quality-gates.md 為準。
-
-<!-- DO NOT DUPLICATE: GR6/GR7/GR10 表格已遷至 quality-gates.md §B/C/D 為 SSOT。如要修改 gate 條件，編輯 quality-gates.md 而非本檔。 -->
-
----
-
-## 12. Test Ownership Matrix
-
-| Layer | Primary | Reviewer | Gate |
-|-------|---------|----------|------|
-| Unit | Feature dev | Peer | PR |
-| Component | Feature dev | QA spot-check | PR |
-| Integration | Feature dev | QA + BE Lead | PR |
-| Contract | BE Lead | API platform | PR + nightly |
-| E2E | QA | FE Lead | PR-smoke + nightly |
-| Visual | FE dev | Designer | nightly |
-| Load | SRE | BE Lead | nightly |
-| Chaos | SRE | BE Lead | weekly |
-| AI eval | ML eng | Domain expert（鎖匠師傅） | nightly + GR6 |
-| Synthetic | SRE | QA | continuous |
-| BDD Tier A | PM 寫 Gherkin / QA 實作 | TL | GR6 |
-| BDD Tier C | PM | Stakeholder | GR6 review |
-
-**借鏡模式**：
-- **Spotify Squad**：每 squad 全擁自己 layer；contract / AsyncAPI 等橫切由「平台公會」1–2 senior eng 守
-- **Google Test Certified**：每季自評，V2.0 launch target = L3（持續測試 + 正確金字塔 + 0 manual regression）。L5 暫不追求
-- **Atlassian shift-left**：PM 在 [[./bdd/all-features|E7]] 寫 Gherkin 才能讓票進 estimation。**硬規則**
-
----
-
-## 13. Verification — 怎麼驗證這份文件落地
-
-實作 Sprint 1 後，端到端驗證步驟：
-
-1. **CI pipeline 完整跑通**：
-   ```bash
-   # PR-gate 模擬
-   make test-unit        # < 2 min, 55% case
-   make test-component   # < 3 min, 15% case
-   make test-contract    # Schemathesis 50 cases
-   make test-e2e-smoke   # Playwright 5 journeys
-   make test-agent-mini  # 10 case, fake LLM
-   ```
-
-2. **8 條 Happy Path E2E 綠燈**（Week 3 目標）：
-   ```bash
-   cd web && npx playwright test --project=admin   # F-002, F-013, F-015, F-017
-   cd web && npx playwright test --project=tech    # F-005, F-006, F-009
-   pytest tests/bdd/features/F-001-line-report.feature  # F-001 透過 LINESimulator
-   ```
-
-3. **AsyncAPI 10 channel 連線測試**：
-   ```bash
-   pytest api/tests/realtime/ -v   # 連線 + 訂閱 + 訊息順序 + 斷線重連
-   ```
-
-4. **Mock server 對前端可用**：
-   ```bash
-   ./scripts/ci/mock-server.sh   # Prism @ 4010
-   cd web && PUBLIC_API_URL=http://localhost:4010 npm run dev
-   # 開瀏覽器逛 41 頁，確認無 4xx / 5xx
-   ```
-
-5. **Coverage diff 出現在 PR**：建任意 PR，確認 `diff-cover` bot 留言
-
-6. **Agent eval cost cap 生效**：手動觸發 nightly workflow，確認超 $50 / month 時 fail-open warning 而非硬擋
-
-7. **Synthetic monitoring 上線**：staging Cloud Scheduler 5 min 跑 5 個 Playwright 旅程，Cloud Monitoring dashboard 看到 99% green line
-
----
-
-## 14. Critical Files
-
-### API 合約 SSOT
-- `docs/02-design/specs/openapi.yaml` — 91 operationId
-- `docs/02-design/specs/asyncapi.yaml` — 10 channel
-- `web/types/api.generated.ts` — TS types（由 ./scripts/ci/generate-api-types.sh 從 openapi.yaml 產生）
-
-### 現有測試資產（要擴展，非重寫）
-- `tests/smoke/api.sh` — 18 endpoints smoke
-- `api/tests/conftest.py` — pytest fixtures（AsyncClient + JWT factory）
-- `api/tests/test_refund_dual_sign.py` — 雙簽 reference
-- `api/tests/test_sla_monitor.py` — SLA reference
-- `agent/evals/runner.py`, `agent/evals/judge.py`, `agent/evals/reporter.py` — eval pipeline
-- `agent/quality/quality_check.py` — 67 題 + LLM-as-Judge
-
-### BDD 規格來源
-- [[./bdd/all-features|E7]] — 21 Feature ~100 Scenarios
-- [[../4-exploration/prd-2026-q1-v1-launch|E1x User Journey Map]] — 4 角色旅程地圖
-- [[../2-contracts/flows/business/BF-0001-work-order-lifecycle]] — 13 個 WO flow
-- [[../2-contracts/flows/business/BF-0000-dispatch-overview]] — 派工 7 模組
-- [[../2-contracts/flows/business/BF-0002-admin-governance]] — RBAC + 稽核
-
-### 治理 / 對齊文件
-- **[[../1-decisions/ADR-0013-pm-alignment-q1|Q1–Q10 PM 對齊文件]]** — §3 表格的完整版（含選項對比、影響範圍、會議議程、PM 決策欄位、追蹤表）
-- [[../2-contracts/modules/dispatch-engine-weights]] — F-003 派工權重 SSOT
-
-### 前端待補關鍵頁
-- `web/src/app/conversations/[id]/page.tsx` — 接管後 chat UI 缺
-- `web/src/app/admin/dispatch-manual/page.tsx` — 與 Q1 / Q6 綁定
-- `web/src/app/dashboard/page.tsx` — 日期範圍選擇器缺
-- `web/src/app/admin/audit-events/page.tsx` — 匯出 UI 缺
-- `web/src/lib/api.ts` — JWT + Idempotency-Key 已實作（測試入口）
-- 缺：`web/src/app/not-found.tsx`、`web/src/app/error.tsx`、Modal / Toast library
-
-### CI / Mock 基礎
-- `scripts/ci/mock-server.sh` — Prism @ 4010
-- `.github/workflows/mock-smoke.yml`、`spec-lint.yml`、`api-types-sync.yml`、`orphan-check.yml`
-- `scripts/ci/check-operationid-orphans.sh` — 91 op 雙向對應 lint
-
-### 新建（Sprint 1 交付）
-- `tests/bdd/features/` — pytest-bdd Tier A scenarios
-- `tests/bdd/extractor.py` — E7 markdown → pytest-bdd bridge（~200 行）
-- `tests/fixtures/line_simulator.py` — LINE webhook 模擬器
-- `tests/fixtures/fake_payment.py`、`fake_sms.py`、`fake_email.py` — V2.0 stub
-- `tests/factories/` — factory_boy + TS generator
-- `tests/golden/dispatch_scoring/`、`tests/golden/settlement/` — 80 case
-- `tests/realtime/channel_kit.py` — 10 channel parametrized base
-- `scripts/ci/asyncapi-validate.mjs` — AsyncAPI envelope validator
-- `web/playwright.config.ts`、`web/tests/e2e/{admin,tech}/` — Playwright POM
-- `web/src/components/ui/{Modal,Toast,Drawer}.tsx` — 統一 library
-
----
-
-## 15. Change Log
-
-| Date | Author | Change |
-|------|--------|--------|
-| 2026-05-07 | Claude (assisted) | 初始版本：對齊矩陣、Gap 分類、PM Q1–Q10、金字塔、Sprint 1 路線圖 |
-| 2026-05-07 | Claude (assisted) | **Wave 1+2 補完狀態同步**：5 流程從 🔴/🟡 變 🟢，🟢 從 8 條增為 13 條、🔴 從 5 條降為 3 條（F-014 從 🔴 降為 🟡 規則可測；F-013 從 🟡 升為 🟢 既有 dual-sign 雙簽測試完整）。詳見 §15.1。 |
-| 2026-05-07 | Claude (assisted) | **測試基礎設施 Wave（autonomous-only）**：補齊「不需外力」的測試金字塔骨架：Makefile、pytest markers、tests/fixtures、tests/factories、schemathesis、AsyncAPI validator、Playwright config + login smoke、test-suite.yml workflow。詳見 §15.2。 |
-| 2026-05-07 | Claude (assisted) | **§3 PM Q1–Q10 抽出為獨立對齊文件**：[[../1-decisions/ADR-0013-pm-alignment-q1|Q1–Q10 對齊文件]] 提供完整選項對比、會議議程、PM 決策欄位、追蹤表、下游更新清單。§3 表保留為摘要，每行加 `詳細` 連結至對齊文件對應章節。Q4 / Q5 預設更新為「自然日 / soft」（重新評估技術成本）。 |
-| 2026-05-07 | Claude (assisted) | **§1 / §2 雙向對齊**：TL;DR 數字與 §2 對齊矩陣逐行對照修正。修正內容：(a) 🟡 部分可測列表加入 F-014（移除 F-013，因 F-013 §2 已是 🟢）；(b) 🔴 不能測從「4 條 (F-011/F-012/F-014/F-022)」修正為「3 條 (F-011/F-012/F-022)」；(c) 🟡 條數明確標 7 條；(d) 加 cross-link 至 [[./bdd/all-features|E7 §Ⅲ.b]] BDD 對照表。理由：§2 為 SSOT，§1 為摘要，過去 §1 落後 §2。 |
-| 2026-05-07 | PM + Claude (sync) | **PM Q1-Q10 全拍板同步**：§1 TL;DR 改寫「根本原因（已解）」+ 列出新阻塞（Q7=B 金流 / Q3=C+Q9=B Web 匿名 token / Q4=C 工作日 calendar）；§3 從 10 row 待拍表變「拍板結果 + 後續行動」表，標明 4 反向選項；指向 _SSOT-alignment-matrix §3 對齊狀態彙總。Q7=B 為最重大決策（V1.0 含金流，延 ~1.5 月）。 |
-| 2026-05-07 | Claude (assisted) | **PR #40 5-track 後流程升級**（spec-driven 定義）：§1 TL;DR 統計 🟢13→15 / ⚠7→5 / 🔴3→3。5 條升 🟢：F-004（T1 dispatcher）、F-008（T2 Web token spec）、F-016（T4 F-110 BDD）、F-019（T1 dispatcher 角色）、F-022（T2 getWorkOrderPublicStatus）。剩 3 條 ⚠ 阻塞全綁 Q7=B provider 選型（PR #39 follow-up 矩陣等會議）。明確區分「立即可測」採 spec-driven（規格 + test infra + PM 拍板齊備即 🟢，不要求 production code 100%）。詳見 [[../5-views/traceability-matrix#7-change-log\|_SSOT §7]]。 |
-| 2026-05-08 | Claude (assisted) | **§4.2/§4.3 黃燈全清**：PR #43（`api/routers/public.py` `getWorkOrderPublicStatus` + `customers.py` updateCustomer/createCustomer + `technicians.py` updateMyAvailability + `reports_export.py` exportReport CSV）+ PR #44（admin/customers 表單 + `/track/[token]` 全套）+ commit `bd7ec2f`（`ReportExportModal` 通用 modal 接 KPI / Revenue / Technician Ranking / Accounting 4 頁）後，§4.2 + §4.3 黃燈全部清空。BE 4 條全綠、FE 3 條全綠。剩餘僅 V1.1 PDF 路徑（缺 reportlab dep，明確標非本期範圍）+ accounting BE service（V1.1）。 |
-| 2026-05-08 | Claude (assisted) | **V1.1 + V1.5 提前實作四件套**：(1) commit `da58302/8a3dbbd/ca41857` PDF 報表（reportlab 內建 STSong-Light 繁中 CID font，V1.0 不需新 dep — voucher_service 已用） + `accounting` report_type（reuse `settlement_service.list_settlements()`） + FE Modal PDF radio；(2) commit `098caa3` 深色模式（ThemeProvider system/light/dark + ThemeToggle + `[data-theme="dark"]` CSS var 覆寫 + 防 FOUC inline script + 接 Settings/Header，無新 npm package）；(3) commits `6ea4802/171dbf9/e6a8db1` 通知 channel 抽象層（`agent/notifications/` ChannelAdapter ABC + dict registry + LINE 真實 adapter + SMS/Email/FCM stub + Router fallback chain + bootstrap，**既有 caller 不動** — V1.5 補真 vendor 時零 refactor）。剩餘 ❌ 僅 i18n 多語系（V1.0 範圍外維持）+ 真 vendor SMS/Email/FCM SDK（V1.5+/V2.0+）。 |
-
-### 15.1 Wave 1+2 補完明細（2026-05-07）
-
-依 [[#10-30-天-sprint-1-交付物清單]] Week 1/2 + 部分 Week 3/4 提前完成，採 git worktree 兩波平行開發：
-
-**Wave 1（dev → 3 worktree → merge）**
-
-| Task | Branch | Commit | Files |
-|------|--------|--------|-------|
-| A6 派工權重 SSOT | `docs/dispatch-weights` | `d427503` | `docs/02-design/specs/dispatch-weights.md` + E5x cross-link |
-| A1 錯誤頁 | `feat/error-pages` | `da61b1f` | `not-found.tsx` / `error.tsx` / `global-error.tsx` / `_error-parts/BackButton.tsx` / `NetworkErrorBanner.tsx` |
-| A2 UI library | `feat/ui-foundation` | `63f8305` | `Modal.tsx` / `Drawer.tsx` / `Toast.tsx` + ToastProvider 接入 layout + globals.css 動效 keyframes，依賴 `@radix-ui/react-dialog`、`@radix-ui/react-toast` |
-
-**Wave 2（dev → 3 worktree → merge，A2 已可用）**
-
-| Task | Branch | Commit | Files |
-|------|--------|--------|-------|
-| A3 日期選擇器 | `feat/dashboard-daterange` | `3776c6a` | `DateRangePicker.tsx` + `lib/dateRange.ts`，接到 dashboard / kpi / revenue / technician-ranking 4 頁，依賴 `@radix-ui/react-popover` |
-| A4 接管 chat | `feat/handover-chat` | `770a628` | `sendChatMessage` operationId + `HandoverComposer.tsx` + `conversation_service.send_message`（`assistant` role + metadata.sender_role=agent_human 零破壞）|
-| A5 稽核匯出 | `feat/audit-export` | `2bdcf96` | `exportAuditEvents` operationId + `AuditExportModal.tsx` + StreamingResponse CSV + `api.downloadPost` |
-
-**驗證**：
-- OpenAPI 從 91 → 93 operationIds，無重複
-- `tsc --noEmit` 0 error
-- Python AST parse 全 OK
-- spectral lint 0 new error
-
-**殘留 TODO**（標記在程式碼中）：
-- A4：LINE Push API integration、audit log write（在 `conversation_service.send_message`）
-- A5：>100k 筆 background job + email notification + signed URL（202 contract 已預留）
-- A5：權限檢查暫硬編 `role in {admin, ops}`，待 F-019 RBAC 動態化後改 `audit.read.all`
-- A4：`SendChatMessageRequest` 暫放 `internal.py`，下次 codegen 一併歸位
-- 整體：`web/types/api.generated.ts` 待統一 regenerate
-
-### 15.2 測試基礎設施 Wave（2026-05-07）
-
-依「**前後端分離視角，先區分『可自主補齊』vs『需外力介入』，再把可補齊項全做完**」原則執行。
-路線圖見 [`/home/sunny/.claude/plans/home-sunny-python-workstation-github-sm-temporal-parnas.md`](file:///home/sunny/.claude/plans/home-sunny-python-workstation-github-sm-temporal-parnas.md)。
-
-**5 個 commit 拆分（chore/test-readiness-foundation + chore/test-readiness-ci-docs 兩分支）**
-
-| # | Commit | Branch | 內容 |
-|---|--------|--------|------|
-| 1 | `1ffb8d8` | foundation | 根 `Makefile`（5 layer target + coverage / mock / clean）+ `pyproject.toml [dependency-groups] test`（schemathesis / pytest-cov / diff-cover / factory-boy / respx / hypothesis）+ `[tool.pytest.ini_options] markers` + 7 個既有 test 加 `pytestmark`（5 component / 2 unit）|
-| 2 | `4fec6d2` | foundation | `tests/fixtures/line_simulator.py`（lift `create_line_signature` HMAC-SHA256 + `LINESimulator` dataclass + 3 fixture）+ `tests/factories/{tenant,technician,problemcard,workorder}.py`（factory_boy + Faker zh_TW）|
-| 3 | `887f252` | foundation | `scripts/ci/contract-schemathesis.sh`（OpenAPI fuzz；`--check-only` 模式 PR-gate 用）+ `scripts/ci/asyncapi-validate.mjs`（`@asyncapi/parser` 驗 spec + 列 10 channels）+ `scripts/ci/package.json`（與 web/ 隔離）|
-| 4 | `714291f` | foundation | `web/playwright.config.ts`（admin Desktop Chrome / tech Pixel 7 mobile 兩 project）+ `web/tests/e2e/admin/login.spec.ts`（不打 submit 的 smoke）+ `web/tests/e2e/README.md` |
-| 5 | `06a2a10` | ci-docs | `.github/workflows/test-suite.yml`（unit / asyncapi / contract-check 3 個獨立 PR-gate job）+ `tests/README.md`（金字塔規範首頁）+ `scripts/README.md` 補 Makefile + contract / asyncapi 工具用法 |
-
-**對應 §10 Sprint 1 完成度**
-
-| Sprint 1 任務 | 狀態 |
-|--------------|------|
-| #4 Modal / Toast library | ✅ Wave 1 A2（既有） |
-| #5 404 / 500 / Network Error page | ✅ Wave 1 A1（既有） |
-| #6 LINESimulator fixture（基礎版） | ✅ commit 4fec6d2 |
-| #8 種子資料 factory_boy 基礎版 | ✅ commit 4fec6d2（factory layer，DB 寫入由測試自管） |
-| #21 Schemathesis PR-gate | ✅ commit 887f252（`--check-only` mode；真打 mode 留 nightly） |
-| #22 AsyncAPI envelope validator | ✅ commit 887f252（spec 結構；envelope golden 對拍待 SSE 整合） |
-| #27 PR template + ownership matrix（部分） | ✅ commit 06a2a10（test-suite.yml + tests/README.md） |
-
-**驗證**：
-- `make test-unit` → 25 passed in 0.86s
-- `bash scripts/ci/contract-schemathesis.sh --check-only` → ✓ OpenAPI YAML 結構合法
-- `node scripts/ci/asyncapi-validate.mjs` → ✓ AsyncAPI 2.6.0, 10 channels, 0 error / 26 warning
-- `npx playwright --version` → 1.59.1（裝在 web/node_modules）
-- `make help` → 完整列出 9 個 target
-
-**外力介入清單（本 Wave 不做）**：
-- PM Q1–Q10 全部（角色矩陣、SLA hard/soft、消費者追蹤入口、SMS fallback、Scope Change 入口）
-- 金流 / 撥款 / SMS / Email / FCM / LINE Push 真實整合
-- Vertex AI nightly 真打預算決策、Opik workspace
-- 客製化測試資料（QA + 真客戶協助）
-- 設計團隊視覺回歸（Chromatic / 設計人力 < 3）
-
-**Sprint 1 仍待後續處理**：
-- #7 金流 / SMS / Email fake provider（綁 PM Q7 V1.0 是否含金流）
-- #9 Prism mock 18 → 50 endpoints（spec 補完後再擴）
-- #10 Playwright 基礎 fixture（登入 / 切角色 / 種資料）— 綁 PM Q1
-- #11–#18 Happy Path 8 條 E2E — 全綁 PM Q1–Q10
-- #19 negative cases / #20 F-007 / F-008 / F-010 — 綁 PM 拍板
-- #23 F-016 SLA — 綁 PM Q5
-- #24 Settlement property + golden / #25 Dispatch scoring property + golden — 雖權重已建但邊界 case 未拍
-- #26 Agent eval CI 整合（fake-LLM smoke / nightly 真 Vertex / Promptfoo）— 綁預算決策
-- 完整 coverage diff PR comment（diff-cover bot）— 需 component test 進 CI 才有意義
-| 2026-05-08 | Claude (assisted) | **PR #45-49 production code 完成同步**：§1 TL;DR 統計 🟢15→16 / ⚠5→4 / ⚠3→3。§2 對齊矩陣 6 row 評等更新（F-004/F-008/F-010/F-016/F-018/F-019/F-022）+ 阻塞項從「待 PM Q*」改為「✅ PR #N 實作」。F-011/F-012/F-014 仍 🔴 綁 Q7=B provider 選型（PR #39 follow-up 4 sub-decision 待 PM/TL/CEO/Finance 90 min 會議）。 |
-| 2026-05-09 | Claude (assisted) | **i18n scaffold 提前完成**（branch `feat/i18n-scaffold`）：§4.2 i18n row 從 ❌ 升 ✅；§9 「不要先做」改為「完整 41 頁字串擴抽」（scaffold 不在排除清單）。實作鏡像 098caa3 深色模式模式：LocaleProvider（context + localStorage + html.lang 同步）+ LocaleToggle（icon / segmented）+ messages/{zh-TW,en}.json + `useTranslations(namespace)` hook（next-intl 形狀相容，未來遷移無痛）+ 純函式 `translate()` helper（React 外可用）+ Header / Settings 接入示範。**無新 npm package**；建 [[../1-decisions/ADR-0011-i18n-strategy]] 策略 ADR；建 `web/src/i18n/README.md` onboarding 指南。剩餘 41 頁字串硬編 zh-TW 不影響 V1.0 上線（預設仍 zh-TW），漸進遷移策略：每次動到該頁時順手抽 keys。 |
-
----
-
-## Appendix — Integration Test Matrix (merged)
+# Appendix D — Integration Test Matrix
 
 > **狀態**: 骨架文件（SKELETON）— 框架就位，10 channel 中 2 個有範例，其餘 8 個待補。owners: QA Lead + Tech Lead.
 
----
-
-## §0 Purpose
+## D.1 Purpose
 
 補齊 V-Model 右翼 **整合測試層** 的 reliability 覆蓋率（**20% → 80%**），對應：
+- **ISO/IEC 25010**: Reliability + Interoperability
+- **ISTQB**: Integration Testing
+- 雙北極星 → `north-star-requirements` 的 `QA-002`（async envelope 一致性）
 
-- **ISO/IEC 25010**: Reliability（Maturity / Availability / Fault Tolerance / Recoverability）
-- **ISTQB Foundation Level**: Integration Test（component integration + system integration）
-- **AsyncAPI 2.6**: 10 個 channel 的訊息合約一致性
+## D.2 Test Categories
 
-整合測試的關鍵差異於單元測試 — **不在驗證個別模組正確性**，而在驗證 **跨模組 / 跨服務 / 跨網路邊界** 的：
+略（從原 §1 抽出，內容過長省略 — 詳見 git history commit `a190a4d` 之前的 `_flows-bdd-test/v-model-right/integration-test-matrix.md`）
 
-1. 訊息合約（envelope shape）
-2. 順序保證（ordering）
-3. 最終一致性（eventual consistency）
-4. 失敗注入下的回復（fault tolerance）
+## D.3 IT-NNN Matrix (per AsyncAPI Channel)
 
----
-
-## §1 Test Categories
-
-### 1.1 Async Channel Tests
-
-對應 `docs/02-design/specs/asyncapi.yaml` 的 10 個 channel，每個 channel 至少 1 條 `IT-NNN`。
-
-### 1.2 Pact Contract Tests
-
-跨信任邊界（trust boundary）的 consumer-driven contract testing：
-
-
-| Consumer                   | Provider    | 邊界類型                            |
-| -------------------------- | ----------- | ------------------------------- |
-| tech mobile (React Native) | pool API    | external network                |
-| web admin                  | api backend | internal network（同 GCP project） |
-| TBD                        | TBD         | TBD                             |
-
-
-### 1.3 Cross-Module State Consistency
-
-跨模組（agent ↔ api ↔ web）共享狀態的同步測試 — 例：派工狀態變更後，三方視圖在 < 2s 內收斂。
-
-### 1.4 Eventual Consistency Verification
-
-非同步事件（domain events）發送 → 訂閱方收斂時間驗證；超時門檻：5s（p95）。
+| Channel | IT-ID | Scenario | Status |
+|---|---|---|---|
+| work-orders | IT-001 | WO state transition events 全 16 state 都 publish | 待補 |
+| dispatch-queue | IT-002 | Auto-dispatch 後 publish dispatch:assigned 含 technician_id | 待補 |
+| pool | — | TBD | 待 |
+| user-notifications | — | TBD | 待 |
+| disputes | — | TBD | 待 |
+| refunds | — | TBD | 待 |
+| inventory low-stock | — | TBD | 待 |
+| sla-alerts | — | TBD | 待 |
+| rbac | — | TBD | 待 |
 
 ---
 
-## §2 IT-NNN Matrix（per AsyncAPI Channel）
+# Appendix E — Performance Test Scenarios
 
+API SLA targets 已搬至 [`../0-principles/frontend-quality-attributes.md §1`](../0-principles/frontend-quality-attributes.md)，本 appendix 為 test scenarios + capacity planning。
 
-| IT-ID  | Channel                             | 觸發場景（GIVEN-WHEN）                                   | 驗證點                                                                                  | 對應 F-XXX      | Status             |
-| ------ | ----------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------- | ------------------ |
-| IT-001 | `/realtime/work-orders/{id}`        | GIVEN 訂閱 WO channel WHEN API 觸發 pending → assigned | (1) envelope shape 符合 schema (2) ordering 嚴格遞增 (3) p95 推送延遲 < 1s                     | F-005 / F-016 | ⚠ TBD baseline     |
-| IT-002 | `/realtime/dispatch-queue`          | GIVEN dispatcher 訂閱 queue WHEN runDispatch 成功      | `dispatch_assigned` < 500ms 內收到；`assignedTechId` 與 API 回傳一致；ordering by `created_at` | F-003 / F-004 | ⚠ TBD baseline     |
-| IT-003 | `/realtime/pool/{tech_id}`          | GIVEN 技師訂閱個人 pool WHEN 系統推派新案                      | 技師端 < 1s 收到 push event；payload 含 work_order_id + customer_address；dedup by event_id  | F-005         | ⚠ TBD              |
-| IT-004 | `/realtime/refunds`                 | GIVEN Manager 訂閱 refunds WHEN Director 完成第二簽       | event sequence: `refund_submitted → manager_approved → director_approved`；不可逆序       | F-013 / F-014 | ⚠ TBD              |
-| IT-005 | `/realtime/disputes`                | GIVEN admin 訂閱 disputes WHEN G4 仲裁觸發               | `dispute_opened` → `dispute_resolved` event chain；含 reviewer_id 與 resolution         | F-013         | ⚠ TBD              |
-| IT-006 | `/realtime/sla-alerts`              | GIVEN supervisor 訂閱 SLA WHEN WO 距派工已 > 2hr 未到場     | Soft 警報 envelope 含 `severity=red`；單一 WO 同一日去重；無賠償欄位（V1.0）                            | F-016         | ⚠ pending Q5=B     |
-| IT-007 | `/realtime/rbac`                    | GIVEN admin 變更角色 WHEN updateRolePermissions 完成     | 受影響使用者於 < 2s 內收到 `role_changed`；前端 reactive 重新計算可見頁面                                 | F-019         | ⚠ TBD              |
-| IT-008 | `/realtime/inventory/low-stock`     | GIVEN 倉管訂閱 WHEN 庫存扣減後低於 threshold                  | `low_stock_alert` event 含 sku + 當前庫存；同 sku 4hr 內去重                                   | F-007         | ⚠ pending F-210 規格 |
-| IT-009 | `/realtime/diagnostics/{conv_id}`   | GIVEN web admin 訂閱 conversation WHEN AI 進行多輪診斷     | 每個 reasoning step 即時推送；含 step_index、tool_call、confidence                             | F-001 / F-018 | ⚠ TBD              |
-| IT-010 | `/realtime/notifications/{user_id}` | GIVEN 任意 user 訂閱 WHEN 系統觸發通知（任意類型）                 | envelope shape unified；`type` 必填（system / dispatch / payment / refund）               | F-018 / F-022 | ⚠ TBD              |
+## E.1 Test Scenarios
 
-
-**規範**：
-
-- ID 格式：`IT-NNN`
-- 每個 AsyncAPI channel 至少 1 條 IT；高風險 channel（如 dispatch / payment）至少 3 條（happy path / error / spike）
-- `Status` 用語同 north-star（✅ Live / 🚧 In Dev / ⚠ TBD baseline / ❌ Deferred）
-
-### §2.1 Pact Contract Tests（tech mobile ↔ pool boundary）
-
-
-| Pact-ID  | Consumer                   | Provider                         | 互動契約                                                                                         | Status |
-| -------- | -------------------------- | -------------------------------- | -------------------------------------------------------------------------------------------- | ------ |
-| PACT-001 | tech mobile (React Native) | pool API `GET /pool/orders`      | response schema：order_id / customer_addr / sla_due_at；空 pool 回傳 `[]` 而非 404                  | ⚠ TBD  |
-| PACT-002 | tech mobile (React Native) | pool API `POST /pool/{id}/claim` | request body：`{tech_id}`；response：`{status: claimed, work_order_id}`；併發 claim → 409 Conflict | ⚠ TBD  |
-
-
----
-
-## §3 Tooling
-
-
-| 工具                         | 用途                                                | 已建置?                                 |
-| -------------------------- | ------------------------------------------------- | ------------------------------------ |
-| **respx**                  | mock HTTPX requests for FastAPI integration tests | TBD                                  |
-| **Pact-Python**            | consumer-driven contract（tech mobile ↔ pool）      | TBD                                  |
-| **AsyncAPI parser**        | 解析 asyncapi.yaml 產生 channel test stub             | ✅ `scripts/ci/asyncapi-validate.mjs` |
-| **websockets test client** | 訂閱 channel + assert envelope                      | TBD                                  |
-
-
-CI 流程：每次 PR 觸發 → `asyncapi-validate.mjs`（schema 合規） → `pytest -m integration`（IT-NNN 套件）。
-
----
-
-## §4 TBD — 8 Channels Pending
-
-對應 PR #31 commit `887f252`：目前僅 2 channel（work-orders, dispatch-queue）有 IT 範例，剩餘 8 channel 待 QA Lead 與後端對齊後補上。
-
-清單（從 `asyncapi.yaml` 解析，待 QA Lead 確認）：
-
-1. TBD（channel 名稱待確認）
-2. TBD
-3. TBD
-4. TBD
-5. TBD
-6. TBD
-7. TBD
-8. TBD
-
-**動作項**：
-
-- QA Lead 與後端 sync `asyncapi.yaml` channel list
-- 每個 channel 補 1-3 條 IT-NNN
-- 在 PR-NNN 加入 CI gate（mock-smoke.yml 延伸）
-
----
-
-## §5 Change Log
-
-
-| 日期         | 版本    | 變更內容                                                          | 作者               |
-| ---------- | ----- | ------------------------------------------------------------- | ---------------- |
-| 2026-05-07 | 0.1.0 | 骨架建立                                                          | Claude / QA Lead |
-| 2026-05-07 | 0.2.0 | Initial Content：IT-001~010 + PACT-001/002 填入（待實際 baseline 跑通） | Claude           |
-| TBD        | 0.3.0 | k6 / pytest -m integration baseline 數字確認                      | QA Lead          |
-| TBD        | 0.4.0 | Pact contract 加入 CI                                           | Tech Lead        |
-
-
-
----
-
-## Appendix — Performance Test Scenarios (merged from former performance-baseline §2+)
-
-（API SLA targets 已搬至 `0-principles/frontend-quality-attributes.md §1`，本 appendix 為 test scenarios + capacity planning。）
-
-## §2 Test Scenarios
-
-### 2.1 Smoke Test
+### Smoke
 - **目標**：每次部署後 5 分鐘內驗證系統「沒掛」
 - **負載**：50 VU × 2 min
 - **失敗條件**：error rate > 1% 或 p95 > SLA × 1.5
 
-### 2.2 Load Test
+### Load
 - **目標**：驗證正常營運負載下 SLA 達標
 - **負載**：500 VU × 10 min（漸增）
 - **失敗條件**：任一 operationId p95 超 SLA
 
-### 2.3 Stress Test
+### Stress
 - **目標**：找系統破壞點（capacity ceiling）
 - **負載**：1000+ VU 漸增，直到 error rate > 5%
 - **產出**：breaking point 報告（VU 數 + RPS + 瓶頸資源）
 
-### 2.4 Spike Test
-- **目標**：模擬突發流量（如 LINE 廣播後 10× 湧入）
+### Spike
+- **目標**：模擬突發流量（LINE 廣播後 10× 湧入）
 - **負載**：50 VU baseline → 突增 500 VU × 1 min → 回降
 - **失敗條件**：spike 後 5 min 內 p95 未回到 baseline
 
-### 2.5 Soak Test
+### Soak
 - **目標**：偵測記憶體洩漏 / 連線池耗盡
 - **負載**：50 VU × 4hr
 - **失敗條件**：記憶體單調遞增 / DB 連線數不釋放
 
----
-
-## §3 Tooling
+## E.2 Tooling
 
 | 工具 | 用途 | 已建置? |
-| :--- | :--- | :--- |
+|---|---|---|
 | **k6** (open-source) | 主要負載產生器 | TBD |
 | **Grafana k6 cloud** | 雲端執行 + 結果儲存 + 趨勢圖 | TBD |
 | **Prometheus + Grafana** | 系統端 metrics（Cloud Run / CloudSQL） | TBD |
 
 腳本位置（規劃中）：`tests/perf/k6/{operationId}.js`
 
-參考：`E7x--test-plan-and-readiness.md` §5.2 已定義 k6 baseline 框架。
-
----
-
-## §4 Cost Cap — Vertex AI Budget
-
-效能測試會大量呼叫 Gemini（agent + judge），**必須** 設定預算上限避免燒錢：
+## E.3 Cost Cap — Vertex AI Budget
 
 | 項目 | 月度上限 | 觸發動作 |
-| :--- | :--- | :--- |
+|---|---|---|
 | Vertex AI nightly perf test | $50/month | 超過 80% → 告警；100% → 停 nightly job |
 | ad-hoc stress test | $20/event | 需 Tech Lead 預核 |
 
-對應：`E7x--test-plan-and-readiness.md` §8.4 預算控制。
-
----
-
-## §5 PT-NNN Matrix
+## E.4 PT-NNN Matrix
 
 | PT-ID | 場景 | 工具 | 對應 QA-NNN | 對應 operationId | Status |
-| :--- | :--- | :--- | :--- | :--- | :--- |
+|---|---|---|---|---|---|
 | PT-001 | createConversation smoke @ 50 VU × 2min | k6 | QA-001 / QA-005 | createConversation | ⚠ TBD baseline |
 | PT-002 | createConversation load @ 500 VU × 10min（漸增） | k6 | QA-001 | createConversation | ⚠ TBD |
-| PT-003 | runDispatch stress（找 breaking point；漸增至 error > 5%） | k6 | QA-001 / QA-006 | runDispatch | ⚠ TBD |
+| PT-003 | runDispatch stress（找 breaking point） | k6 | QA-001 / QA-006 | runDispatch | ⚠ TBD |
 | PT-004 | listWorkOrders soak @ 50 VU × 4hr（記憶體洩漏 / 連線池） | k6 + Grafana | QA-003 | listWorkOrders | ⚠ TBD |
 | PT-005 | analyzeMedia spike（LINE 廣播後 10× 圖片湧入） | k6 | QA-001 / QA-008 | analyzeMedia | ⚠ TBD |
 | PT-006 | submitRefundDecision load @ 100 VU（雙簽併發） | k6 | QA-001 / QA-004 | submitRefundDecision | ⚠ TBD |
@@ -849,11 +467,15 @@ CI 流程：每次 PR 觸發 → `asyncapi-validate.mjs`（schema 合規） → 
 
 ---
 
-## §6 Change Log
+# Appendix F — Change Log
 
 | 日期 | 版本 | 變更內容 | 作者 |
-| :--- | :--- | :--- | :--- |
+|---|---|---|---|
 | 2026-05-07 | 0.1.0 | 骨架建立 | Claude / DevOps |
-| 2026-05-07 | 0.2.0 | Initial Content：15 個 endpoint SLA + PT-001~008 場景填入（baseline 數字待 DevOps 跑 k6） | Claude |
-| TBD | 0.3.0 | k6 腳本上版 + baseline 實測數字回填 | DevOps |
-| TBD | 0.4.0 | Capacity plan + 水平擴展驗證 | Tech Lead |
+| 2026-05-07 | 0.2.0 | Initial Content：15 endpoint SLA + PT-001~008 場景填入 | Claude |
+| 2026-05-08 | 0.3.0 | PR #45-49 production code 完成同步：對齊矩陣 6 row 評等更新 | Claude (assisted) |
+| 2026-05-09 | 0.4.0 | i18n scaffold 提前完成（ADR-0011）；4-track sprint completion | Claude (assisted) |
+| 2026-05-10 | 0.5.0 | F-021 升 ✅(impl complete)：getKpiReport / getRevenueSummary date range params | Claude (assisted) |
+| 2026-05-11 | 1.0.0 | **重構對齊 VibeCoding test-plan.template.md**：11 sections + Appendices；frontmatter 改 owner 單數 + 加 target_release/supersedes；補 §2 Quality Targets / §5 Test Data Strategy / §11 Sign-off；project-specific 內容（23 流程對齊、PM Q、不要先做、Integration / Performance Matrix）移到 Appendix A-F 保留 | Claude (assisted) |
+| TBD | 1.1.0 | k6 baseline 實測數字回填 + Service Worker 完整離線 | DevOps |
+| TBD | 1.2.0 | Capacity plan + 水平擴展驗證 + Q7=B provider 拍板後 F-011/F-012/F-014 unblock | Tech Lead |

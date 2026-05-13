@@ -155,3 +155,43 @@ CREATE INDEX idx_signatures_signed_at ON digital_signatures (signed_at DESC);
 - V2.0：Canvas 手寫簽名 Web Component
 - V2.0：PDF 文件嵌入簽章影像
 - V3.0：第三方 CA 憑證整合（符合進階電子簽章要求）
+
+---
+
+## §9 測試情境與案例 (ESignature)
+
+<!-- TC-ID: IT-0093 -->
+#### 情境 1: 正常路徑 — LINE Flex Message 確認工單完工
+*   **Arrange**: work_order wo-001 (status=completed_pending_confirm)，技師上傳 3 張完工照片；系統 push LINE Flex Message 含「確認完工」按鈕至 customer。
+*   **Act**: Customer 點擊按鈕，LINE postback event 進入。
+*   **Assert**: signatures 表新增 1 筆 (doc_type=WORK_ORDER_COMPLETION, method=line_confirmation, signed_at=T)；wo-001 status → confirmed；audit `e-signature.created`。
+
+<!-- TC-ID: IT-0094 -->
+#### 情境 2: 正常路徑 — V2.0 Digital Signature 手寫簽名退款接受
+*   **Arrange**: refund r-001 雙簽通過，需客戶 REFUND_ACCEPTANCE 簽章；前端 canvas 取得 base64 PNG。
+*   **Act**: POST /signatures，body 含 signature_data + IP + User-Agent。
+*   **Assert**: 簽章存入 signature_data JSONB；IP/UA 完整記錄；audit 含 ip_hash（非明文 IP）。
+
+<!-- TC-ID: IT-0095 -->
+#### 情境 3: 邊界 — 同 work_order 重複簽章（idempotent）
+*   **Arrange**: wo-002 已有 1 筆有效 signature。
+*   **Act**: 客戶再次點擊舊 Flex Message 按鈕。
+*   **Assert**: 不新增 signature（同 doc_id + method + signer 視為冪等）；audit `e-signature.duplicate_ignored`。
+
+<!-- TC-ID: IT-0096 -->
+#### 情境 4: 邊界 — Signature 必要性檢查 (REFUND_ACCEPTANCE 必要)
+*   **Arrange**: refund r-002 dual_signed 但無 customer signature。
+*   **Act**: 嘗試呼叫 execute_refund()。
+*   **Assert**: 回 422 `signature_required`，detail=`REFUND_ACCEPTANCE missing`；不執行；audit `refund.blocked.no_signature`。
+
+<!-- TC-ID: IT-0097 -->
+#### 情境 5: 異常 — Verbal Recorded 後未補簽
+*   **Arrange**: 緊急場景用 verbal recording 暫代簽章，30 天 grace period 過後仍未補 digital signature。
+*   **Act**: cron job 偵測。
+*   **Assert**: notifications push 給 admin 提醒補簽；audit `e-signature.grace_period_exceeded`；signature 不自動失效（仍有輔助證據效力）。
+
+<!-- TC-ID: IT-0098 -->
+#### 情境 6: 業務規則 — 不可否認性 append-only
+*   **Arrange**: 攻擊面 — 嘗試 UPDATE signatures SET signature_data=NULL WHERE id='sig-001'。
+*   **Act**: 任何 role 執行該 SQL。
+*   **Assert**: raise `append_only_violation`（DB trigger）；audit `e-signature.tamper_attempt` 含 actor + source_ip。

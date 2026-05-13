@@ -284,3 +284,87 @@
 | 版本 | 日期 | 變更內容 | 作者 |
 |------|------|---------|------|
 | 1.0 | 2026-04-04 | 初版建立 | -- |
+| 1.1 | 2026-05-11 | 新增測試情境（6 cases，IT-0057 ~ IT-0062）| Claude (assisted) |
+
+---
+
+## §C. 測試情境與案例 (SLAMonitor)
+
+<!-- TC-ID: IT-0057 -->
+#### 情境 1: 正常路徑 — Tier-1 服務 uptime 計算當月達標
+
+*   **描述**: LINE Bot Tier-1 目標 99.5%，當月實際停機 2 小時（< 3.6h 上限），uptime 應 ≥ 99.5%。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Arrange**:
+        - 當月共 30 天 = 43200 分鐘。
+        - 注入 stop_events: `[(2026-05-08T14:00, 2026-05-08T16:00)]` = 120 分鐘 downtime。
+    2.  **Act**: 呼叫 `sla_monitor.compute_uptime(subsystem="line_bot", month="2026-05")`。
+    3.  **Assert**:
+        - uptime = (43200-120)/43200 = 99.722%。
+        - 回傳 `{"subsystem":"line_bot","tier":1,"target":99.5,"actual":99.722,"sla_met":true}`。
+        - 無 alert 發出。
+
+<!-- TC-ID: IT-0058 -->
+#### 情境 2: 正常路徑 — Circuit breaker 連續 3 次失敗後切換 fallback
+
+*   **描述**: per §2.3 LLM circuit breaker，CLOSED → 連 3 次失敗 → OPEN → 啟用 fallback。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Arrange**:
+        - Circuit state=CLOSED，連續失敗計數=0。
+        - Mock LLMGateway 連續 3 次回 timeout。
+    2.  **Act**: 呼叫 3 次 LLMGateway，每次都收到 timeout。
+    3.  **Assert**:
+        - 第 3 次後 state=OPEN，fallback mode 啟用。
+        - structured log 含 `circuit_breaker.transition`，from=CLOSED, to=OPEN。
+        - 第 4 次呼叫不再嘗試 LLM，直接走 fallback 路徑。
+
+<!-- TC-ID: IT-0059 -->
+#### 情境 3: 邊界情況 — uptime 剛好等於 Tier-1 上限 99.5% 視為達標
+
+*   **描述**: 停機剛好 3.6 小時時，uptime = 99.500%，per §1 應視為 `sla_met=true`（不嚴格小於）。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Arrange**: 注入 216 分鐘 downtime（= 3.6h）。
+    2.  **Act**: compute_uptime。
+    3.  **Assert**:
+        - uptime = 99.5%（exact）。
+        - `sla_met=true`。
+        - 與 `downtime=217min` (uptime=99.498%) 對比，後者應 `sla_met=false`。
+
+<!-- TC-ID: IT-0060 -->
+#### 情境 4: 邊界情況 — 預定維護窗口不計入停機時間
+
+*   **描述**: per §1.1，預定維護窗口（第 5 節定義）必須排除在 downtime 計算之外。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Arrange**:
+        - 注入 2 個 stop_events：(維護窗口 `2026-05-08T02:00 ~ 03:00`，type=`scheduled_maintenance`) 與 (意外 `2026-05-15T14:00 ~ 16:00`，type=`incident`)。
+    2.  **Act**: compute_uptime。
+    3.  **Assert**:
+        - 只有 incident 120 min 計入 downtime。
+        - scheduled 60 min 不計。
+        - 報告詳細列出 `scheduled_excluded_minutes` 與 `incident_minutes` 兩欄。
+
+<!-- TC-ID: IT-0061 -->
+#### 情境 5: 異常處理 — Health check endpoint 部分失敗仍標 degraded
+
+*   **描述**: per §2.1，`/health` ok 但 `/health/llm` 503 → 整體狀態應 `degraded`，非 `ok`。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Arrange**:
+        - Mock DB ok、Redis ok、LLM 連線 timeout。
+    2.  **Act**: GET /health/aggregate。
+    3.  **Assert**:
+        - 回 503 `{"status":"degraded","checks":{"db":"ok","redis":"ok","llm":"unhealthy"}}`。
+        - 不可回 200（即使 db/redis ok）。
+        - alert 發送給 oncall（per §6）。
+
+<!-- TC-ID: IT-0062 -->
+#### 情境 6: 業務規則 — F-110 SLA Soft Alert dashboard 變紅 + 升主管（Q5=B）
+
+*   **描述**: 派工建立到技師抵達 > 2hr → dashboard 紅色 + push 主管，per FR-0016 SLA。
+*   **測試步驟 (Arrange-Act-Assert)**:
+    1.  **Arrange**:
+        - WorkOrder `wo-001` created_at=`T`，technician_arrived_at 為 null，T+2h05m。
+    2.  **Act**: SLA monitor cron 在 T+2h05m 執行 `check_arrival_sla_breach()`。
+    3.  **Assert**:
+        - dashboard widget `wo-001` 標 `severity=red`。
+        - notifications 含 1 筆 target=`operations_manager` (per ADR-0013/0022 升級路徑)。
+        - 不應觸發退費（per FR-0016 V1.0 不賠償），audit_logs 含 `sla.breach.no_compensation` 標記。

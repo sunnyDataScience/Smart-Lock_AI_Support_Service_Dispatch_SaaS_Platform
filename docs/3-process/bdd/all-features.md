@@ -213,6 +213,7 @@ Feature: LINE Bot AI Customer Service Conversation
     Given a registered LINE user with userId "U1234abcd"
     And the user has linked their LINE account to the platform
 
+  <!-- TC-ID: BDD-0001 -->
   @happy-path @smoke-test @v1.0
   Scenario: Recognize user intent from initial message
     When the user sends a LINE message "我家的電子鎖打不開"
@@ -220,6 +221,7 @@ Feature: LINE Bot AI Customer Service Conversation
     And the system should respond with a greeting and ask for the lock brand
     And the response time should be within 3 seconds
 
+  <!-- TC-ID: BDD-0002 -->
   @happy-path @v1.0
   Scenario: Multi-turn dialogue to collect diagnostic information
     Given the user has initiated a conversation with intent "lock_malfunction"
@@ -237,6 +239,7 @@ Feature: LINE Bot AI Customer Service Conversation
       | symptom      | 密碼鍵盤完全沒反應，沒有燈光       |
     And the system should proceed to the Three-Layer Resolution Engine
 
+  <!-- TC-ID: BDD-0003 -->
   @happy-path @v1.0
   Scenario: User sends a photo of the lock for identification
     Given the user has initiated a conversation with intent "lock_malfunction"
@@ -245,6 +248,7 @@ Feature: LINE Bot AI Customer Service Conversation
     And the system should respond "看起來這是一台 Samsung SHP-DP609，請問對嗎？"
     And the user should be able to confirm or correct the identification
 
+  <!-- TC-ID: BDD-0004 -->
   @sad-path @v1.0
   Scenario: User sends an unrelated or unclear message
     Given the user has initiated a conversation
@@ -253,6 +257,7 @@ Feature: LINE Bot AI Customer Service Conversation
     And the system should say "我是電子鎖客服助手，請問您的電子鎖有什麼問題需要協助嗎？"
     And the conversation state should remain at "awaiting_issue_description"
 
+  <!-- TC-ID: BDD-0005 -->
   @edge-case @v1.0
   Scenario: Session timeout during multi-turn dialogue
     Given the user has initiated a conversation with intent "lock_malfunction"
@@ -263,6 +268,7 @@ Feature: LINE Bot AI Customer Service Conversation
     Then the system should resume the conversation from where it left off
     And the system should say "沒關係！我們之前聊到您的 Gateman 電子鎖，請問型號是什麼？"
 
+  <!-- TC-ID: BDD-0006 -->
   @edge-case @v1.0
   Scenario Outline: Handle various symptom descriptions for the same root cause
     Given the user has initiated a conversation with intent "lock_malfunction"
@@ -297,6 +303,7 @@ Feature: ProblemCard Smart Triage
     Given the AI conversation module is active
     And the NLP entity extraction service is available
 
+  <!-- TC-ID: BDD-0007 -->
   @happy-path @smoke-test @v1.0
   Scenario: Auto-generate ProblemCard from complete conversation
     Given a completed multi-turn dialogue with the following extracted entities:
@@ -313,6 +320,7 @@ Feature: ProblemCard Smart Triage
     And the ProblemCard should be persisted to the database with a unique ID
     And the ProblemCard should be linked to the LINE userId "U1234abcd"
 
+  <!-- TC-ID: BDD-0008 -->
   @sad-path @v1.0
   Scenario: Incomplete information triggers follow-up questions
     Given a multi-turn dialogue with the following extracted entities:
@@ -328,6 +336,7 @@ Feature: ProblemCard Smart Triage
     And the system should generate follow-up questions for each missing field
     And the first follow-up question should be "請問您的 Yale 電子鎖型號是什麼？通常可以在鎖的背面或說明書上找到"
 
+  <!-- TC-ID: BDD-0009 -->
   @happy-path @v1.0
   Scenario: ProblemCard enrichment with historical data
     Given a completed ProblemCard with brand "Gateman" and model "WV-40"
@@ -340,6 +349,7 @@ Feature: ProblemCard Smart Triage
       | 2    | 指紋辨識靈敏度下降     | 30%       |
       | 3    | 反鎖後無法從外開啟     | 15%       |
 
+  <!-- TC-ID: BDD-0010 -->
   @edge-case @v1.0
   Scenario: Handle unknown or discontinued lock model
     Given the user describes their lock as brand "Milre" and model "MI-6800"
@@ -349,6 +359,7 @@ Feature: ProblemCard Smart Triage
     And the ProblemCard should include compatible replacement models
     And the system should inform the user "此型號已停產，但我們仍會盡力協助您排除問題"
 
+  <!-- TC-ID: BDD-0011 -->
   @edge-case @v1.0
   Scenario Outline: ProblemCard priority classification based on door status
     Given a ProblemCard with door_status "<door_status>" and symptom "<symptom>"
@@ -382,6 +393,7 @@ Feature: Three-Layer Resolution Engine
     And the RAG pipeline has ingested 120 PDF manuals covering 45 lock models
     And the human support team has 3 agents currently online
 
+  <!-- TC-ID: BDD-0012 -->
   @happy-path @smoke-test @v1.0
   Scenario: Layer 1 - Case library vector search finds a high-confidence match
     Given a ProblemCard with:
@@ -402,6 +414,7 @@ Feature: Three-Layer Resolution Engine
     And the system should present the solution to the user via LINE
     And the case should be logged as "resolved_at_layer_1"
 
+  <!-- TC-ID: BDD-0013 -->
   @happy-path @v1.0
   Scenario: Layer 2 - RAG retrieves answer from PDF manual when Layer 1 fails
     Given a ProblemCard with:
@@ -426,6 +439,7 @@ Feature: Three-Layer Resolution Engine
     And the case should be logged as "resolved_at_layer_2"
     And the RAG confidence score should be above 0.70
 
+  <!-- TC-ID: BDD-0014 -->
   @happy-path @v1.0
   Scenario: Layer 3 - Human handoff when both Layer 1 and Layer 2 fail
     Given a ProblemCard with:
@@ -448,6 +462,7 @@ Feature: Three-Layer Resolution Engine
       """
     And the ProblemCard and full conversation history should be attached to the ticket
 
+  <!-- TC-ID: BDD-0015 -->
   @sad-path @v1.0
   Scenario: Layer 3 - No human agents available during off-hours
     Given a ProblemCard with priority "high"
@@ -464,6 +479,7 @@ Feature: Three-Layer Resolution Engine
     And the system should schedule a callback for the next business day at 09:00
     And the case status should be "pending_human_review"
 
+  <!-- TC-ID: BDD-0016 -->
   @edge-case @v1.0
   Scenario: Layer 1 match is ambiguous with multiple close results
     Given a ProblemCard with:
@@ -477,6 +493,7 @@ Feature: Three-Layer Resolution Engine
     And the system should ask "以下有幾個可能的解決方案，請問哪一個最符合您的狀況？"
     And each candidate should display a brief summary for the user to choose
 
+  <!-- TC-ID: BDD-0017 -->
   @edge-case @v1.0
   Scenario Outline: Resolution engine threshold behavior at boundary values
     Given a ProblemCard for brand "<brand>" model "<model>" with symptom "<symptom>"
@@ -508,6 +525,7 @@ Feature: Self-Evolving Knowledge Base
     Given the knowledge base contains 500 existing SOP entries
     And the SOP auto-generation service is active
 
+  <!-- TC-ID: BDD-0018 -->
   @happy-path @smoke-test @v1.0
   Scenario: Auto-generate SOP draft from a Layer 2 resolved case
     Given a case "CASE-20260217-0023" was resolved at Layer 2 (RAG)
@@ -530,6 +548,7 @@ Feature: Self-Evolving Knowledge Base
     And the SOP draft status should be "pending_review"
     And a notification should be sent to the admin dashboard
 
+  <!-- TC-ID: BDD-0019 -->
   @happy-path @v1.0
   Scenario: Admin reviews and adopts SOP draft into knowledge base
     Given an SOP draft "SOP-DRAFT-0045" with status "pending_review"
@@ -549,6 +568,7 @@ Feature: Self-Evolving Knowledge Base
     And the knowledge base entry count should increase to 501
     And the SOP should be immediately available for Layer 1 vector search
 
+  <!-- TC-ID: BDD-0020 -->
   @sad-path @v1.0
   Scenario: Admin rejects SOP draft with revision feedback
     Given an SOP draft "SOP-DRAFT-0046" with status "pending_review"
@@ -558,6 +578,7 @@ Feature: Self-Evolving Knowledge Base
     And the feedback should be recorded in the draft history
     And the system should attempt to regenerate the SOP with the feedback incorporated
 
+  <!-- TC-ID: BDD-0021 -->
   @happy-path @v1.0
   Scenario: Knowledge base detects duplicate SOP and suggests merge
     Given an existing active SOP "SOP-0123" for "Yale YDM-7116 密碼鍵盤無回應"
@@ -568,6 +589,7 @@ Feature: Self-Evolving Knowledge Base
     And the admin should see both SOPs side-by-side for comparison
     And the admin should be able to choose "merge", "replace", or "keep both"
 
+  <!-- TC-ID: BDD-0022 -->
   @edge-case @v1.0
   Scenario: SOP generation from a case resolved via human agent at Layer 3
     Given a case "CASE-20260217-0067" was resolved at Layer 3 by human agent "agent_wang"
@@ -600,6 +622,7 @@ Feature: Admin Panel V1.0
     Given an admin user "admin@smartlock.com" is logged in
     And the admin has role "admin"
 
+  <!-- TC-ID: BDD-0023 -->
   @happy-path @smoke-test @v1.0
   Scenario: View and manage knowledge base entries
     Given the knowledge base contains 500 active SOP entries
@@ -610,6 +633,7 @@ Feature: Admin Panel V1.0
     Then the filtered results should show all SOPs matching "Yale" brand and "密碼" related symptoms
     And the results should be sorted by usage count descending
 
+  <!-- TC-ID: BDD-0024 -->
   @happy-path @v1.0
   Scenario: Review conversation logs and resolution quality
     Given there are 150 conversation sessions in the past 24 hours
@@ -621,6 +645,7 @@ Feature: Admin Panel V1.0
     Then the full conversation transcript should be displayed
     And the ProblemCard details should be shown in a sidebar
 
+  <!-- TC-ID: BDD-0025 -->
   @happy-path @v1.0
   Scenario: Dashboard shows real-time KPI metrics
     When the admin navigates to the "Dashboard" page
@@ -636,6 +661,7 @@ Feature: Admin Panel V1.0
       | knowledge_base_growth_this_week    | 本週知識庫成長數                        |
     And the dashboard should auto-refresh every 60 seconds
 
+  <!-- TC-ID: BDD-0026 -->
   @edge-case @v1.0
   Scenario: Admin bulk-manages ProblemCards with filters
     Given there are 1200 ProblemCards in the system
@@ -667,6 +693,7 @@ Feature: Security Protection
     Given the content filtering service is active
     And the prompt injection detection model is loaded
 
+  <!-- TC-ID: BDD-0027 -->
   @happy-path @smoke-test @v1.0
   Scenario: Block inappropriate content in user messages
     Given a LINE user sends a message containing profanity or offensive language
@@ -675,6 +702,7 @@ Feature: Security Protection
     And the system should respond "我們希望維持友善的對話環境，請以正常方式描述您的問題，我會盡力協助您。"
     And the original message should be logged for review but not processed by the AI
 
+  <!-- TC-ID: BDD-0028 -->
   @sad-path @v1.0
   Scenario: Detect and block prompt injection attack
     Given a LINE user sends the following message:
@@ -688,6 +716,7 @@ Feature: Security Protection
     And the incident should be logged with severity "high"
     And the user should not be blocked unless repeated attempts are detected
 
+  <!-- TC-ID: BDD-0029 -->
   @sad-path @v1.0
   Scenario: Refuse out-of-scope questions politely
     When a LINE user asks "請問台北哪裡有好吃的牛肉麵？"
@@ -698,6 +727,7 @@ Feature: Security Protection
       如果您的電子鎖有任何問題，歡迎隨時告訴我！
       """
 
+  <!-- TC-ID: BDD-0030 -->
   @edge-case @v1.0
   Scenario: Rate limiting on suspicious rapid-fire messages
     Given a LINE user has sent 30 messages within the last 60 seconds
@@ -707,6 +737,7 @@ Feature: Security Protection
     And the throttle should be lifted after 120 seconds of inactivity
     And the incident should be logged with details of the message pattern
 
+  <!-- TC-ID: BDD-0031 -->
   @edge-case @v1.0
   Scenario Outline: Content filter handles borderline cases
     When a LINE user sends the message "<message>"
@@ -723,6 +754,7 @@ Feature: Security Protection
 
   # --- 審計日誌（合約 10.3 條）---
 
+  <!-- TC-ID: BDD-0032 -->
   @happy-path @v1.0 @contract-10.3
   Scenario: All LLM interactions are recorded in audit log
     Given a consumer sends "我的 Samsung 電子鎖打不開"
@@ -735,6 +767,7 @@ Feature: Security Protection
       | token_usage  | > 0                      |
       | timestamp    | <current UTC timestamp>  |
 
+  <!-- TC-ID: BDD-0033 -->
   @happy-path @v1.0 @contract-10.3
   Scenario: Admin actions are recorded in audit log
     Given an admin user "admin@smartlock.com" is logged in
@@ -747,6 +780,7 @@ Feature: Security Protection
       | target_id    | SOP-001                  |
       | timestamp    | <current UTC timestamp>  |
 
+  <!-- TC-ID: BDD-0034 -->
   @happy-path @v1.0 @contract-10.3
   Scenario: RAG retrieval sources are recorded in audit log
     Given the system performs L2 RAG retrieval for a ProblemCard
@@ -758,6 +792,7 @@ Feature: Security Protection
       | similarity_scores | <array of floats>      |
       | timestamp       | <current UTC timestamp>  |
 
+  <!-- TC-ID: BDD-0035 -->
   @edge-case @v1.0 @contract-10.3
   Scenario: Audit logs are append-only and cannot be deleted
     Given an admin user "admin@smartlock.com" is logged in
@@ -787,6 +822,7 @@ Feature: Sentiment Triage
     Given a consumer is chatting with the AI locksmith agent via LINE
     And the conversation is in "active" or "collecting" state
 
+  <!-- TC-ID: BDD-0036 -->
   @critical @v1.0
   Scenario: Detect explicit complaint keywords and trigger escalation
     Given the consumer sends a message containing "不能接受這種服務品質"
@@ -806,6 +842,7 @@ Feature: Sentiment Triage
       | problem_card_link  | <link_to_current_problem_card>     |
     And the ProblemCard should be updated with sentiment_label = "negative"
 
+  <!-- TC-ID: BDD-0037 -->
   @critical @v1.0
   Scenario: Detect complaint escalation request
     Given the consumer sends a message containing "要求投訴，找你們主管"
@@ -814,6 +851,7 @@ Feature: Sentiment Triage
     And the system should immediately trigger Layer 3 human handoff
     And the system should log the escalation reason as "consumer_complaint_request"
 
+  <!-- TC-ID: BDD-0038 -->
   @happy-path @v1.0
   Scenario: Neutral sentiment does not trigger escalation
     Given the consumer sends a message "請問 Yale 電子鎖怎麼更換電池？"
@@ -822,6 +860,7 @@ Feature: Sentiment Triage
     And no admin notification should be sent
     And the conversation should continue normal resolution flow
 
+  <!-- TC-ID: BDD-0039 -->
   @edge-case @v1.0
   Scenario: Ambiguous frustration expression
     Given the consumer sends a message "已經試了很多次了，真的很煩"
@@ -836,6 +875,7 @@ Feature: Sentiment Triage
       讓我為您整理目前的狀況，看看還有什麼方法可以幫您解決。
       """
 
+  <!-- TC-ID: BDD-0040 -->
   @edge-case @v1.0
   Scenario Outline: Negative sentiment keyword detection accuracy
     Given the consumer sends a message "<message>"
@@ -871,6 +911,7 @@ Feature: Proactive Photo Guidance
     Given a consumer is chatting with the AI locksmith agent via LINE
     And a ProblemCard has been created for this conversation
 
+  <!-- TC-ID: BDD-0041 -->
   @happy-path @v1.0
   Scenario: Guide photo upload when description is vague
     Given the ProblemCard has completeness_score = 0.50 (only brand and symptoms filled)
@@ -885,6 +926,7 @@ Feature: Proactive Photo Guidance
       """
     And the Flex Message should include illustrative thumbnails for each photo type
 
+  <!-- TC-ID: BDD-0042 -->
   @happy-path @v1.0
   Scenario: Attach uploaded photo to ProblemCard
     Given the system has requested photo upload
@@ -893,6 +935,7 @@ Feature: Proactive Photo Guidance
     And the ProblemCard attachment_links field should contain the image URL
     And the system should acknowledge: "照片已收到，謝謝！讓我根據目前的資訊為您分析。"
 
+  <!-- TC-ID: BDD-0043 -->
   @edge-case @v1.0
   Scenario: Skip photo guidance when description is already specific
     Given the ProblemCard has completeness_score = 0.90
@@ -917,6 +960,7 @@ Feature: Family Member Review
     Given I am logged in as a user with "family_reviewer" role
     And there are SOP drafts that have passed initial admin review
 
+  <!-- TC-ID: BDD-0044 -->
   @critical @v1.0
   Scenario: Family member approves an SOP draft
     Given an SOP draft "SHP-DP609 指紋模組重置流程" has status "admin_approved"
@@ -933,6 +977,7 @@ Feature: Family Member Review
       | reviewed_at    | <current_timestamp>          |
     And the review record should be immutable (cannot be deleted or modified)
 
+  <!-- TC-ID: BDD-0045 -->
   @critical @v1.0
   Scenario: Family member rejects an SOP draft
     Given an SOP draft "YDM-7116 電池更換流程" has status "admin_approved"
@@ -942,6 +987,7 @@ Feature: Family Member Review
     And the SOP should NOT be published to the case library
     And the admin should be notified of the rejection with the comment
 
+  <!-- TC-ID: BDD-0046 -->
   @critical @v1.0
   Scenario: SOP cannot enter knowledge base without family review
     Given an SOP draft "Gateman WV-40 故障排除" has status "admin_approved"
@@ -976,6 +1022,7 @@ Feature: Technician Workbench
       | rating             | 4.8                              |
       | status             | active                           |
 
+  <!-- TC-ID: BDD-0047 -->
   @happy-path @smoke-test @v2.0
   Scenario: Technician registers and completes certification
     Given a new technician wants to register on the platform
@@ -990,6 +1037,7 @@ Feature: Technician Workbench
     And the admin should receive a notification to verify the technician
     And the technician should see a message "您的申請已送出，我們將在 1-2 個工作天內完成審核"
 
+  <!-- TC-ID: BDD-0048 -->
   @happy-path @v2.0
   Scenario: Technician browses and filters the case pool
     Given the case pool contains 25 open cases
@@ -1000,6 +1048,7 @@ Feature: Technician Workbench
     Then only Yale cases in 台北市 and 新北市 should be displayed
     And each case should show: case ID, brand, model, location district, symptom summary, estimated price, urgency level
 
+  <!-- TC-ID: BDD-0049 -->
   @happy-path @v2.0
   Scenario: Technician accepts a case with one click
     Given an open case "CASE-20260217-0034" in the case pool with:
@@ -1017,6 +1066,7 @@ Feature: Technician Workbench
     And "tech_chen" should receive the full ProblemCard with customer contact info
     And the customer should be notified "您的案件已由陳師傅接案，預計 2 小時內聯繫您"
 
+  <!-- TC-ID: BDD-0050 -->
   @happy-path @v2.0
   Scenario: Technician submits a completion report
     Given "tech_chen" has an accepted case "CASE-20260217-0034"
@@ -1036,6 +1086,7 @@ Feature: Technician Workbench
     And the pricing engine should calculate the final price
     And the customer should receive a completion notification with the invoice
 
+  <!-- TC-ID: BDD-0051 -->
   @sad-path @v2.0
   Scenario: Technician attempts to accept a case outside their certification
     Given an open case "CASE-20260217-0050" with brand "Dormakaba"
@@ -1044,6 +1095,7 @@ Feature: Technician Workbench
     Then the system should reject the acceptance
     And "tech_chen" should see a message "您目前未持有 Dormakaba 品牌認證，無法接此案件"
 
+  <!-- TC-ID: BDD-0052 -->
   @edge-case @v2.0
   Scenario: Technician cancels an accepted case
     Given "tech_chen" has accepted case "CASE-20260217-0034" 30 minutes ago
@@ -1074,6 +1126,7 @@ Feature: Smart Dispatch Engine
       | 王師傅   | Samsung, Gateman      | 新北市, 桃園市     | 4.9    | 2            |
       | 李師傅   | Yale, Samsung, Gateman| 台北市, 新北市     | 4.2    | 0            |
 
+  <!-- TC-ID: BDD-0053 -->
   @happy-path @smoke-test @v2.0
   Scenario: Auto-match technician based on brand, region, and rating
     Given a new dispatch request for case "CASE-20260217-0070" with:
@@ -1090,6 +1143,7 @@ Feature: Smart Dispatch Engine
     And the system should push a notification to "林師傅" first
     And the notification should include case summary, estimated price, and location district
 
+  <!-- TC-ID: BDD-0054 -->
   @happy-path @v2.0
   Scenario: Fallback to next technician when first match declines
     Given the dispatch engine has matched "林師傅" for case "CASE-20260217-0070"
@@ -1099,6 +1153,7 @@ Feature: Smart Dispatch Engine
     And "林師傅" should be marked as "timeout_on_case_0070"
     And the case log should record the escalation: "林師傅 timeout → push to 陳師傅"
 
+  <!-- TC-ID: BDD-0055 -->
   @happy-path @v2.0
   Scenario: Admin manually assigns a technician overriding auto-match
     Given the dispatch engine matched "林師傅" for case "CASE-20260217-0070"
@@ -1109,6 +1164,7 @@ Feature: Smart Dispatch Engine
     And "陳師傅" should receive a priority push notification
     And the override should be logged for audit trail
 
+  <!-- TC-ID: BDD-0056 -->
   @sad-path @v2.0
   Scenario: No matching technician available for a case
     Given a new dispatch request for case "CASE-20260217-0080" with:
@@ -1122,6 +1178,7 @@ Feature: Smart Dispatch Engine
     And the admin should receive an alert "案件 CASE-20260217-0080 無法自動配對師傅，需手動處理"
     And the customer should be informed "我們正在為您尋找合適的師傅，將盡快與您聯繫"
 
+  <!-- TC-ID: BDD-0057 -->
   @edge-case @v2.0
   Scenario: Dispatch priority for critical cases bypasses normal queue
     Given all matched technicians currently have active cases
@@ -1165,6 +1222,7 @@ Feature: Standardized Pricing Engine
       | after_hours      | 300     |
       | remote_area      | 400     |
 
+  <!-- TC-ID: BDD-0058 -->
   @happy-path @smoke-test @v2.0
   Scenario: Calculate standard price for a typical repair job
     Given a completed case with:
@@ -1182,6 +1240,7 @@ Feature: Standardized Pricing Engine
       | total        |                      | 1,950  |
     And the price breakdown should be attached to the case
 
+  <!-- TC-ID: BDD-0059 -->
   @happy-path @v2.0
   Scenario: Calculate price with multiple surcharges
     Given a completed case with:
@@ -1200,6 +1259,7 @@ Feature: Standardized Pricing Engine
       | after_hours        | + 300                     | 300    |
       | total              |                           | 5,120  |
 
+  <!-- TC-ID: BDD-0060 -->
   @happy-path @v2.0
   Scenario: Admin configures new brand pricing
     Given the admin navigates to "Pricing Configuration"
@@ -1212,6 +1272,7 @@ Feature: Standardized Pricing Engine
     And the pricing engine should immediately use the new rule for Dormakaba cases
     And the change should be logged in the audit trail with admin ID and timestamp
 
+  <!-- TC-ID: BDD-0061 -->
   @sad-path @v2.0
   Scenario: Pricing engine encounters an unconfigured brand/lock_type combination
     Given a completed case with brand "Philips" and lock_type "digital_lock"
@@ -1225,6 +1286,7 @@ Feature: Standardized Pricing Engine
       """
     And the case should not proceed to invoicing until price is confirmed
 
+  <!-- TC-ID: BDD-0062 -->
   @edge-case @v2.0
   Scenario Outline: Price calculation with various brand and difficulty combinations
     Given a case with brand "<brand>", lock_type "<lock_type>", difficulty "<difficulty>", and surcharges "<surcharges>"
@@ -1260,6 +1322,7 @@ Feature: Automated Accounting System
       | tax_rate                 | 5%             |
       | payment_method           | bank_transfer  |
 
+  <!-- TC-ID: BDD-0063 -->
   @happy-path @smoke-test @v2.0
   Scenario: Advance payment reconciliation for a completed case
     Given a customer paid an advance of 2,000 元 for case "CASE-20260217-0034"
@@ -1273,6 +1336,7 @@ Feature: Automated Accounting System
     And a refund voucher should be generated for 50 元
     And the customer should be notified "您的案件已完成，多收的 50 元將退回您的帳戶"
 
+  <!-- TC-ID: BDD-0064 -->
   @happy-path @v2.0
   Scenario: Generate bi-weekly settlement report for technician
     Given "tech_chen" completed the following cases in the current settlement period:
@@ -1290,6 +1354,7 @@ Feature: Automated Accounting System
     And the report should be available for download as PDF
     And "tech_chen" should receive a notification with the settlement summary
 
+  <!-- TC-ID: BDD-0065 -->
   @happy-path @v2.0
   Scenario: Automatic voucher generation for accounting entries
     Given a completed case "CASE-20260217-0034" with final price 1,950 元
@@ -1302,6 +1367,7 @@ Feature: Automated Accounting System
     And each voucher should have a unique voucher number
     And the vouchers should be marked as "auto_generated"
 
+  <!-- TC-ID: BDD-0066 -->
   @sad-path @v2.0
   Scenario: Settlement dispute raised by technician
     Given "tech_chen" receives the bi-weekly settlement report
@@ -1313,6 +1379,7 @@ Feature: Automated Accounting System
     And the admin should receive a notification to review the dispute
     And the settlement for non-disputed cases should proceed normally
 
+  <!-- TC-ID: BDD-0067 -->
   @edge-case @v2.0
   Scenario: Handle customer no-show or cancellation after technician dispatch
     Given "tech_chen" was dispatched to case "CASE-20260217-0060"
@@ -1340,6 +1407,7 @@ Feature: Admin Panel V2.0
     Given an admin user "ops@smartlock.com" is logged in
     And the admin has role "admin"
 
+  <!-- TC-ID: BDD-0068 -->
   @happy-path @smoke-test @v2.0
   Scenario: Operations dashboard displays dispatch KPIs
     When the admin navigates to the "Operations Dashboard"
@@ -1356,6 +1424,7 @@ Feature: Admin Panel V2.0
     And the dashboard should include a map view showing active cases and technician locations
     And the data should auto-refresh every 30 seconds
 
+  <!-- TC-ID: BDD-0069 -->
   @happy-path @v2.0
   Scenario: Admin handles customer complaint
     Given a customer filed a complaint for case "CASE-20260210-0025" with:
@@ -1375,6 +1444,7 @@ Feature: Admin Panel V2.0
     And the complaint status should change to "resolved"
     And the technician's rating should be recalculated
 
+  <!-- TC-ID: BDD-0070 -->
   @happy-path @v2.0
   Scenario: Track complete case lifecycle from creation to settlement
     When the admin searches for case "CASE-20260217-0034"
@@ -1390,6 +1460,7 @@ Feature: Admin Panel V2.0
       | invoiced           | 2026-02-17T15:16:00     | Price calculated: 1,950 元        |
       | settled            | 2026-02-28T09:00:00     | Included in bi-weekly settlement |
 
+  <!-- TC-ID: BDD-0071 -->
   @edge-case @v2.0
   Scenario: Admin force-closes a stale case
     Given case "CASE-20260201-0010" has been in status "accepted" for 7 days without progress
@@ -1417,6 +1488,7 @@ Feature: V1 to V2 Data Bridge
     Given both V1.0 AI module and V2.0 Dispatch module are active
     And the data bridge service is running
 
+  <!-- TC-ID: BDD-0072 -->
   @happy-path @smoke-test @v2.0
   Scenario: ProblemCard automatically creates a dispatch order
     Given a ProblemCard "PC-20260217-0034" was created by the AI with:
@@ -1441,6 +1513,7 @@ Feature: V1 to V2 Data Bridge
     And the dispatch engine should immediately begin technician matching
     And the full conversation history should be accessible from the dispatch order
 
+  <!-- TC-ID: BDD-0073 -->
   @happy-path @v2.0
   Scenario: AI determines "needs technician" during Layer 3 handoff
     Given a human agent is handling case "CASE-20260217-0067"
@@ -1453,6 +1526,7 @@ Feature: V1 to V2 Data Bridge
       - AI conversation summary
       - Human agent's technical notes
 
+  <!-- TC-ID: BDD-0074 -->
   @edge-case @v2.0
   Scenario: Dispatch completion feedback loops back to knowledge base
     Given a dispatch order "DO-20260217-0034" has been completed
@@ -1473,6 +1547,7 @@ Feature: V1 to V2 Data Bridge
     And the SOP draft should be tagged "source: dispatch_completion"
     And future similar cases should be routed to dispatch faster (skip Layer 2)
 
+  <!-- TC-ID: BDD-0075 -->
   @sad-path @v2.0
   Scenario: Data bridge handles V2.0 module unavailability gracefully
     Given the V2.0 Dispatch module is temporarily unavailable due to maintenance
@@ -1511,6 +1586,7 @@ Feature: F-110 SLA Soft Alert
     And the admin dashboard is connected to the alert event stream
     And the platform policy is "Soft SLA: alert only, no compensation, no auto-refund" (Q5=B)
 
+  <!-- TC-ID: BDD-0076 -->
   @happy-path @v2.0 @sla
   Scenario: Dispatch creates an immediate technician push within 30 seconds
     Given a dispatch order "DO-20260507-0101" has just been created from ProblemCard "PC-20260507-0101"
@@ -1524,6 +1600,7 @@ Feature: F-110 SLA Soft Alert
       | technician_on_site    | 2 hours          |
     And no SLA alert should be raised at this point
 
+  <!-- TC-ID: BDD-0077 -->
   @happy-path @critical @v2.0 @sla
   Scenario: Technician fails to acknowledge within 15 minutes triggers admin dashboard alert
     Given dispatch order "DO-20260507-0101" was assigned to technician "T-042" 15 minutes ago
@@ -1541,6 +1618,7 @@ Feature: F-110 SLA Soft Alert
     And no compensation record should be created
     And no automatic refund should be triggered
 
+  <!-- TC-ID: BDD-0078 -->
   @happy-path @critical @v2.0 @sla
   Scenario: Technician fails to arrive within 2 hours escalates to Ops Manager (no compensation)
     Given dispatch order "DO-20260507-0101" was acknowledged by technician "T-042" 2 hours ago
@@ -1559,6 +1637,7 @@ Feature: F-110 SLA Soft Alert
     And the audit log should record an "SLA_ESCALATION" event referencing Q5=B (Soft SLA, no compensation)
     And no entries should be created in the refund or compensation ledgers
 
+  <!-- TC-ID: BDD-0079 -->
   @edge-case @v2.0 @sla
   Scenario: Technician arrival clears the SLA alert and restores dashboard to green
     Given dispatch order "DO-20260507-0101" has an active SLA alert with severity "red"

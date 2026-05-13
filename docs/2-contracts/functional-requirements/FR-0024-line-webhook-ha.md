@@ -30,7 +30,23 @@ LINE Webhook 高可用（ack < 200ms）
 
 ## §3 Acceptance Criteria
 
-LINE webhook 收訊後 < 200ms 回 200 OK；非同步處理長任務
+### §3.1 SLO（正常路徑）
+
+LINE webhook 多 instance 部署（Cloud Run 自動擴展），P99 latency ≤ 200ms。
+
+### §3.2 邊界案例
+
+- 突發流量 10x → autoscale 60s 內補 instance
+- Webhook 處理時間 > 5s → return 200 後 BackgroundTask 繼續
+
+### §3.3 異常處理
+
+- instance crash → load balancer 自動標 unhealthy + retry 其他 instance
+- DB 連線池滿 → 503 retry-after 5s
+
+### §3.4 TC Coverage
+
+涵蓋之 TC（per `docs/2-contracts/test-cases/registry.yaml`）: BDD-0001 (response time < 3s), IT-0057~0061 (sla-monitor uptime + degraded)
 
 ## §4 Trace
 

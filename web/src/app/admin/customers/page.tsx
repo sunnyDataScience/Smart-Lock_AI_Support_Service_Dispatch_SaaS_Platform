@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Search,
   UserPlus,
@@ -16,13 +16,19 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
-import { ApiError, api } from "@/lib/api";
+import { ApiError } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
 
 type Customer = components["schemas"]["Customer"];
-type CustomerPage = components["schemas"]["CustomerPage"];
+
+function formatCustomerError(e: unknown): string {
+  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
+  if (e instanceof Error) return e.message;
+  return String(e);
+}
 
 const PAGE_LIMIT = 20;
 
@@ -56,46 +62,22 @@ const COLUMN_KEYS = [
 
 export default function CustomersPage() {
   const t = useTranslations("admin.customers.list");
-  const [items, setItems] = useState<Customer[]>([]);
-  const [hasMore, setHasMore] = useState(false);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  async function fetchPage(cursor: string | null) {
-    if (cursor === null) setLoading(true);
-    else setLoadingMore(true);
-    setError(null);
-    try {
-      const res = await api.get<CustomerPage>("/api/v1/customers", {
-        query: {
-          limit: PAGE_LIMIT,
-          ...(cursor ? { cursor } : {}),
-        },
-      });
-      const fetched = res.items ?? [];
-      setItems((prev) => (cursor === null ? fetched : [...prev, ...fetched]));
-      setHasMore(!!res.has_more);
-      setNextCursor(res.next_cursor ?? null);
-    } catch (e) {
-      setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
-      );
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  }
-
-  useEffect(() => {
-    fetchPage(null);
-  }, []);
+  const {
+    items,
+    hasMore,
+    loadingInitial,
+    loadingMore,
+    loading,
+    error,
+    loadMore,
+    refresh,
+  } = usePaginatedFetch<Customer>({
+    path: "/api/v1/customers",
+    pageSize: PAGE_LIMIT,
+    formatError: formatCustomerError,
+  });
 
   const filtered = searchQuery
     ? items.filter((c) => {
@@ -143,7 +125,7 @@ export default function CustomersPage() {
                 )}
               </div>
               <button
-                onClick={() => fetchPage(null)}
+                onClick={refresh}
                 disabled={loading}
                 title={t("refresh")}
                 className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
@@ -268,7 +250,7 @@ export default function CustomersPage() {
               ))}
             </div>
 
-            {loading && items.length === 0 ? (
+            {loadingInitial ? (
               <div className="flex h-32 items-center justify-center text-[13px] text-[var(--text-secondary)]">
                 {t("loading")}
               </div>
@@ -367,7 +349,7 @@ export default function CustomersPage() {
             {hasMore && filtered.length > 0 && (
               <div className="flex items-center justify-center border-t border-[var(--border)] px-4 py-3">
                 <button
-                  onClick={() => nextCursor && fetchPage(nextCursor)}
+                  onClick={loadMore}
                   disabled={loadingMore}
                   className="rounded-lg border border-[var(--border)] px-4 py-2 text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
                 >

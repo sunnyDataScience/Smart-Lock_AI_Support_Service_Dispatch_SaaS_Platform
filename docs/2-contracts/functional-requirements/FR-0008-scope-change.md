@@ -30,7 +30,23 @@ Scope Change 流程（增項 / 改價）
 
 ## §3 Acceptance Criteria
 
-變更須消費者 Web 端二次確認；無確認則回退原報價
+### §3.1 SLO（正常路徑）
+
+現場範圍變更需客戶 LINE 確認新報價後才繼續，audit 完整保留 before/after。
+
+### §3.2 邊界案例
+
+- 客戶 30 min 未回覆 → 暫停施工 + 通知 admin
+- scope change ≥ 50% 原價 → 強制 admin 簽核（不可僅客戶同意）
+
+### §3.3 異常處理
+
+- 客戶 reject scope change → 工單暫停，安排技師撤離
+- 範圍變更後 idempotency_key 重複 → 不重複建記錄
+
+### §3.4 TC Coverage
+
+涵蓋之 TC（per `docs/2-contracts/test-cases/registry.yaml`）: IT-0117~0122 (realtime-messaging chat 中 admin 發更新報價), IT-0093~0098 (e-signature 客戶 LINE 確認)
 
 ## §4 Trace
 

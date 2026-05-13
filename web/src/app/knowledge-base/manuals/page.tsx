@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CloudUpload, Trash2, X } from "lucide-react";
@@ -41,17 +42,28 @@ export default function ManualsPage() {
     ],
     [tTabs],
   );
-  const [items, setItems] = useState<Manual[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [brand, setBrand] = useState<string>("");
   const [confirmTarget, setConfirmTarget] = useState<Manual | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
+
+  const {
+    items,
+    cursor,
+    hasMore,
+    loading,
+    error,
+    loadMore,
+    mutate,
+  } = usePaginatedFetch<Manual>({
+    path: "/api/v1/knowledge-base/manuals",
+    pageSize: PAGE_SIZE,
+    query: brand ? { brand } : undefined,
+    queryKey: `brand=${brand}`,
+    formatError: formatErr,
+  });
 
   useEffect(() => {
     if (!toast) return;
@@ -64,7 +76,8 @@ export default function ManualsPage() {
     setDeleteError(null);
     try {
       await api.delete(`/api/v1/knowledge-base/manuals/${encodeURIComponent(manual.id)}`);
-      setItems((prev) => prev.filter((m) => m.id !== manual.id));
+      // optimistic local update via hook mutate (per Phase 3.3 backlog §C2)
+      mutate((prev) => prev.filter((m) => m.id !== manual.id));
       setConfirmTarget(null);
       setToast(tM("deleteToast", { title: manual.title }));
     } catch (e) {
@@ -75,39 +88,11 @@ export default function ManualsPage() {
   };
 
   const handleUploaded = (manual: Manual) => {
-    setItems((prev) => [manual, ...prev.filter((m) => m.id !== manual.id)]);
+    // upsert：去重後置頂（per Phase 3.3 backlog §C2 mutate 慣例）
+    mutate((prev) => [manual, ...prev.filter((m) => m.id !== manual.id)]);
     setUploadOpen(false);
     setToast(tM("uploadToast", { title: manual.title }));
   };
-
-  const fetchPage = useCallback(
-    async (afterCursor: string | null, append: boolean, brandFilter: string) => {
-      setLoading(true);
-      setError(null);
-      try {
-        const query: Record<string, string | number> = { limit: PAGE_SIZE };
-        if (afterCursor) query.cursor = afterCursor;
-        if (brandFilter) query.brand = brandFilter;
-        const res = await api.get<ManualPage>(
-          "/api/v1/knowledge-base/manuals",
-          { query },
-        );
-        const newItems = res.items ?? [];
-        setItems((prev) => (append ? [...prev, ...newItems] : newItems));
-        setCursor(res.next_cursor ?? null);
-        setHasMore(!!res.has_more);
-      } catch (e) {
-        setError(formatErr(e));
-      } finally {
-        setLoading(false);
-      }
-    },
-    [],
-  );
-
-  useEffect(() => {
-    fetchPage(null, false, brand);
-  }, [fetchPage, brand]);
 
   const showCount = hasMore ? `${items.length}+` : items.length;
 
@@ -216,7 +201,7 @@ export default function ManualsPage() {
             </span>
             {hasMore && !loading && (
               <button
-                onClick={() => fetchPage(cursor, true, brand)}
+                onClick={loadMore}
                 className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
               >
                 {tM("loadMore")}

@@ -107,6 +107,7 @@ async def check_duplicate(
 
 ### 測試情境與案例 (SOPGenerator)
 
+<!-- TC-ID: IT-0023 -->
 #### 情境 1: 正常路徑 — 從 L2 解決的案件生成 SOP 草稿
 
 *   **測試案例 ID**: `TC-SOP-001`
@@ -125,6 +126,7 @@ async def check_duplicate(
         - 驗證 `status` 為 `"pending_review"`。
         - 驗證 `source_conversation_id` 與 `source_problem_card_id` 正確設定。
 
+<!-- TC-ID: IT-0024 -->
 #### 情境 2: 正常路徑 — 從 L3 人工解決的案件生成包含臨時/永久修復的 SOP
 
 *   **測試案例 ID**: `TC-SOP-002`
@@ -138,6 +140,7 @@ async def check_duplicate(
         - 驗證 `steps` JSONB 中包含 `"temporary_fix"` 和 `"permanent_fix"` 兩個區段。
         - 驗證 `notes` 中包含 `"requires_technician: true"` 標記（需派技師到場）。
 
+<!-- TC-ID: IT-0025 -->
 #### 情境 3: 邊界情況 — 重複檢測發現高相似度既有案例
 
 *   **測試案例 ID**: `TC-SOP-003`
@@ -153,6 +156,7 @@ async def check_duplicate(
         - 驗證 `similar_entries` 至少包含 1 筆，`similarity_score >= 0.90`。
         - 驗證相似案例的 `case_entry_id` 與 `title` 正確回傳。
 
+<!-- TC-ID: IT-0026 -->
 #### 情境 4: 邊界情況 — 同一對話不可重複生成 SOP
 
 *   **測試案例 ID**: `TC-SOP-004`
@@ -165,6 +169,7 @@ async def check_duplicate(
         - 預期系統拋出 `ValidationError` 或回傳已存在的 SOP draft（而非建立新的）。
         - 驗證 `sop_drafts` 表中該 conversation 的記錄數仍為 1。
 
+<!-- TC-ID: IT-0027 -->
 #### 情境 5: 無效輸入 — 案件未解決即嘗試生成 SOP
 
 *   **測試案例 ID**: `TC-SOP-005`
@@ -177,6 +182,7 @@ async def check_duplicate(
         - 預期系統拋出 `ValidationError`，訊息包含 `"conversation must be resolved"`。
         - 驗證 `sop_drafts` 表未新增記錄。
 
+<!-- TC-ID: IT-0028 -->
 #### 情境 6: 無效輸入 — 使用者回饋為負面時不生成 SOP
 
 *   **測試案例 ID**: `TC-SOP-006`
@@ -189,6 +195,7 @@ async def check_duplicate(
         - 預期系統拋出 `ValidationError`，訊息包含 `"positive feedback required"` 或類似語意。
         - 驗證 `sop_drafts` 表未新增記錄。
 
+<!-- TC-ID: IT-0029 -->
 #### 情境 7: 業務規則 — SOP 發布後自動轉為案例條目
 
 *   **測試案例 ID**: `TC-SOP-007`
@@ -207,6 +214,7 @@ async def check_duplicate(
         - 驗證 `sop_drafts.published_as_case_entry_id` 指向新建的案例條目。
         - 驗證新案例在後續的 L1 向量搜尋中可被命中。
 
+<!-- TC-ID: IT-0030 -->
 #### 情境 8: 業務規則 — 管理員退回 SOP 時記錄回饋
 
 *   **測試案例 ID**: `TC-SOP-008`

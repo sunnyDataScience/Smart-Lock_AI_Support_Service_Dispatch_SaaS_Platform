@@ -135,7 +135,7 @@ PR 變動本目錄時自動觸發：
 - `../error-codes.md` — 錯誤碼目錄
 - `../E5--api-design-specification.md` — 完整 API 設計規範敘事版
 - `../E5x--frontend-architecture.md §8` — 前後端協作契約框架
-- `../../../web_design_spec_prompt_pipeline/pages/MAPPING.md` — 頁面 ↔ API 對照索引
+- `../../../docs/legacy/web_design_spec_prompt_pipeline/pages/MAPPING.md` — 頁面 ↔ API 對照索引
 
 ---
 

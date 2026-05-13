@@ -17,7 +17,7 @@ import {
   BROADCAST_CHANNELS,
   NotificationBroadcastEvent,
   useBroadcast,
-} from "@/lib/useBroadcast";
+} from "@/hooks/useBroadcast";
 import { formatRelative } from "@/lib/format";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";

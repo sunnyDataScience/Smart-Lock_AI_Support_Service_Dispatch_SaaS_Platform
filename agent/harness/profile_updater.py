@@ -6,8 +6,9 @@
 hard_facts → PostgreSQL user_facts（SCD Type 2）
 soft_profile → 制式化 MD 檔案（data/profiles/）
 """
-
 from __future__ import annotations
+
+PHASE: str = "H4"  # per harness/__init__.py PIPELINE inventory (ADR-0024 §3 S2)
 
 import json
 import re

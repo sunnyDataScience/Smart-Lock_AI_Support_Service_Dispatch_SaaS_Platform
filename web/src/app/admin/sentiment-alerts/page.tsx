@@ -1,18 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, X } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { ApiError, api } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
 
 type SentimentAlert = components["schemas"]["SentimentAlert"];
-type SentimentAlertPage = components["schemas"]["SentimentAlertPage"];
 type SentimentAlertStatus = components["schemas"]["SentimentAlertStatus"];
 type SentimentLabel = SentimentAlert["sentiment_label"];
+
+function formatSentimentError(e: unknown): string {
+  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
+  if (e instanceof Error) return e.message;
+  return String(e);
+}
 
 const STATUS_BADGE: Record<SentimentAlertStatus, { bg: string; text: string }> = {
   pending: { bg: "#FEE2E2", text: "#B91C1C" },
@@ -60,14 +66,28 @@ interface ActionTarget {
 export default function SentimentAlertsPage() {
   const t = useTranslations("admin.sentiment");
   const tc = useTranslations("admin.common");
-  const [items, setItems] = useState<SentimentAlert[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<SentimentAlertStatus | "">("");
   const [actionTarget, setActionTarget] = useState<ActionTarget | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
+
+  const {
+    items,
+    cursor,
+    hasMore,
+    loading,
+    error: fetchError,
+    loadMore,
+    mutate,
+  } = usePaginatedFetch<SentimentAlert>({
+    path: "/api/v1/sentiment/alerts",
+    pageSize: PAGE_SIZE,
+    query: statusFilter ? { status: statusFilter } : undefined,
+    queryKey: `status=${statusFilter}`,
+    formatError: formatSentimentError,
+  });
+
+  const [actionError, setActionError] = useState<string | null>(null);
+  const error = fetchError || actionError;
 
   const statusLabel = useMemo<Record<SentimentAlertStatus, string>>(
     () => ({
@@ -98,40 +118,9 @@ export default function SentimentAlertsPage() {
   );
 
   const handleUpdated = (updated: SentimentAlert) => {
-    setItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
+    // optimistic local update via hook mutate API (per Phase 3.3 backlog §C2)
+    mutate((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
   };
-
-  const fetchPage = useCallback(
-    async (afterCursor: string | null, append: boolean, filter: SentimentAlertStatus | "") => {
-      setLoading(true);
-      setError(null);
-      try {
-        const query: Record<string, string | number> = { limit: PAGE_SIZE };
-        if (afterCursor) query.cursor = afterCursor;
-        if (filter) query.status = filter;
-        const res = await api.get<SentimentAlertPage>("/api/v1/sentiment/alerts", { query });
-        const newItems = res.items ?? [];
-        setItems((prev) => (append ? [...prev, ...newItems] : newItems));
-        setCursor(res.next_cursor ?? null);
-        setHasMore(!!res.has_more);
-      } catch (e) {
-        setError(
-          e instanceof ApiError
-            ? `${e.errorCode} (${e.status})：${e.message}`
-            : e instanceof Error
-              ? e.message
-              : String(e),
-        );
-      } finally {
-        setLoading(false);
-      }
-    },
-    [],
-  );
-
-  useEffect(() => {
-    fetchPage(null, false, statusFilter);
-  }, [fetchPage, statusFilter]);
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -319,7 +308,7 @@ export default function SentimentAlertsPage() {
             <div className="flex justify-center pt-2">
               <button
                 disabled={loading}
-                onClick={() => fetchPage(cursor, true, statusFilter)}
+                onClick={loadMore}
                 className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-6 py-2 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
               >
                 {loading ? tc("loading") : tc("loadMore")}
@@ -344,13 +333,7 @@ export default function SentimentAlertsPage() {
               handleUpdated(updated);
               setActionTarget(null);
             } catch (e) {
-              setError(
-                e instanceof ApiError
-                  ? `${e.errorCode} (${e.status})：${e.message}`
-                  : e instanceof Error
-                    ? e.message
-                    : String(e),
-              );
+              setActionError(formatSentimentError(e));
             } finally {
               setSavingId(null);
             }

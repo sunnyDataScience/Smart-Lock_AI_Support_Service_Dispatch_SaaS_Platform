@@ -7,7 +7,7 @@
  *   - 統一錯誤格式（後端回 ApiErrorResponse）→ 前端 throw ApiError
  *   - GET 共享 in-flight promise + 30s staleTime cache（避免重複 fetch）
  *
- * 型別來源：docs/02-design/specs/generated/api.generated.ts（SSOT）
+ * 型別來源：web/types/api.generated.ts（由 docs/02-design/specs/openapi.yaml 透過 ./scripts/ci/generate-api-types.sh 產生）
  *
  * 用法：
  *   import { api } from "@/lib/api";

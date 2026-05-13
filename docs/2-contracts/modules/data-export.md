@@ -178,3 +178,43 @@ pending --> processing --> completed --> expired (72h TTL)
 - 合約第 9-3 條: 資料可攜權
 - GAP #14: Data Export / Portability
 - `agent/services/export/exporter.py`: 實作模組
+
+---
+
+## §11 測試情境與案例 (DataExport)
+
+<!-- TC-ID: IT-0081 -->
+#### 情境 1: 正常路徑 — 使用者匯出自己對話 JSON
+*   **Arrange**: u-001 過去 30 天有 50 筆 conversation。
+*   **Act**: POST /exports，scope=conversations、format=json、actor=u-001。
+*   **Assert**: 回 202 + job_id；非同步完成後可下載；JSON 含 50 筆 + nested session metadata；audit `export.requested` + `export.completed`。
+
+<!-- TC-ID: IT-0082 -->
+#### 情境 2: 正常路徑 — admin 匯出 financial PDF 含合規聲明
+*   **Arrange**: admin u-admin-001，財務模組過去 1 年 200 筆 invoice。
+*   **Act**: POST /exports，scope=financial、format=pdf。
+*   **Assert**: PDF 第一頁含公司抬頭 + 合規聲明（per §3 格式限制）；audit 含 actor=admin。
+
+<!-- TC-ID: IT-0083 -->
+#### 情境 3: 邊界 — 72 小時後匯出檔案自動刪除
+*   **Arrange**: export job 完成於 T 時刻，produced_at=T，retention=72h。
+*   **Act**: T+73h 嘗試 GET /exports/{id}/download。
+*   **Assert**: 回 410 Gone + 訊息「檔案已過期，請重新發起匯出」；GCS object 已 delete；audit `export.expired_cleanup`。
+
+<!-- TC-ID: IT-0084 -->
+#### 情境 4: 邊界 — CSV flatten 巢狀資料 dot notation
+*   **Arrange**: work_order 含 nested customer.address.city。
+*   **Act**: 匯出 CSV。
+*   **Assert**: header 含 `customer.address.city` 欄位；row 值正確；陣列欄位（如 status_history）用 JSON string 包覆。
+
+<!-- TC-ID: IT-0085 -->
+#### 情境 5: 異常 — 非 financial role 嘗試匯出 financial scope
+*   **Arrange**: technician u-tech-001 沒 financial 權限。
+*   **Act**: POST /exports，scope=financial。
+*   **Assert**: 回 403 `forbidden.scope`；job 不建立；audit `rbac.denied` 含 denied_scope=financial。
+
+<!-- TC-ID: IT-0086 -->
+#### 情境 6: 業務規則 — personal_data scope GDPR 必含所有 PII 但須加密
+*   **Arrange**: u-001 申請 personal_data export。
+*   **Act**: 完成 export。
+*   **Assert**: 檔案 ZIP 加密（密碼透過 LINE 推播分開傳）；內容含姓名/電話/地址/身分證；不含他人 PII；audit `gdpr.export` 含 contract_clause=9-3。
