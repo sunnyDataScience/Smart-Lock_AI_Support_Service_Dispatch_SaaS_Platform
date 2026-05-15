@@ -3,13 +3,13 @@ id: MOD-PCE
 title: problem-card-engine — V1.0 Canonical Module Contract
 tier: 2
 status: accepted
-last-synced-with: pending
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
 sync-source: code
 source-paths:
   - api/services/problem_card_service.py
-  - agent/skills/data/_common/troubleshoot/SKILL.md
+  - agent/product_info/_common/troubleshoot.md
   - api/routers/problem_cards.py
-synced-at: 2026-05-10
+synced-at: 2026-05-15
 related:
   - "../flows/business/BF-0001-work-order-lifecycle.md"
   - "../flows/sub/SF-WO-01-happy-path.md"

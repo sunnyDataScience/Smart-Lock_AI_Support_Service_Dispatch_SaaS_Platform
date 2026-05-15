@@ -4,9 +4,9 @@ title: 到場拍照存證
 tier: 2
 priority: P0
 status: ✅ Live
-last-synced-with: pending
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
 sync-source: doc
-synced-at: 2026-05-10
+synced-at: 2026-05-15
 legacy_id: REQ-006
 trace_to_flow: F-006
 related:

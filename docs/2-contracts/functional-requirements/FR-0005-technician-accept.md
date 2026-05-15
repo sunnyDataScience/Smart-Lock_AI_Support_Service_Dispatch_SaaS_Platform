@@ -4,9 +4,9 @@ title: 技師接單與出發回報
 tier: 2
 priority: P0
 status: ✅ Live
-last-synced-with: pending
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
 sync-source: doc
-synced-at: 2026-05-10
+synced-at: 2026-05-15
 legacy_id: REQ-005
 trace_to_flow: F-005
 related:

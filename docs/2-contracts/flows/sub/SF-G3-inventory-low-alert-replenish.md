@@ -3,9 +3,9 @@ id: SF-G3
 title: inventory low alert replenish (Admin Governance Sub-Flow)
 tier: 2
 status: accepted
-last-synced-with: pending
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
 sync-source: doc
-synced-at: 2026-05-10
+synced-at: 2026-05-15
 parent_bf: BF-0002-admin-governance
 trace_to_flow: F-007 / F-021
 related:

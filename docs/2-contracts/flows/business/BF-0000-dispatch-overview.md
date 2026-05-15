@@ -3,7 +3,8 @@ id: BF-0000
 title: Dispatch Overview (Business Flow)
 tier: 2
 status: accepted
-last-synced-with: pending
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
+synced-at: 2026-05-15
 trace_to_fr:
   - "FR-0003-auto-dispatch"
   - "FR-0004-manual-dispatch-audit"

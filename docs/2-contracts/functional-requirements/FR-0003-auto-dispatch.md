@@ -4,9 +4,9 @@ title: 自動派工演算法（規則引擎）
 tier: 2
 priority: P0
 status: 🚧 In Dev
-last-synced-with: pending
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
 sync-source: doc
-synced-at: 2026-05-10
+synced-at: 2026-05-15
 legacy_id: REQ-003
 trace_to_flow: F-003
 related:

@@ -3,9 +3,9 @@ id: SF-WO-03
 title: scope change (Sub-Flow of Work Order)
 tier: 2
 status: accepted
-last-synced-with: pending
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
 sync-source: doc
-synced-at: 2026-05-10
+synced-at: 2026-05-15
 parent_bf: BF-0001-work-order-lifecycle
 trace_to_flow: F-008
 trace_to_fr: TODO
