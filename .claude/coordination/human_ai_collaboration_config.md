@@ -19,7 +19,7 @@
 | **專案規劃階段** |
 | 專案初始化 | `4-exploration/prd.template.md` | documentation-specialist | HIGH |
 | 架構重大決策 | `1-decisions/adr.template.md` | workflow-template-manager | HIGH |
-| 功能驗收規劃 | `3-process/bdd-guide.md` | e2e-validation-specialist | MEDIUM |
+| 功能驗收規劃 | `3-process/PROC-0003-bdd-guide.md` | e2e-validation-specialist | MEDIUM |
 | **開發階段** |
 | 完成核心功能 | `1-decisions/architecture-overview.template.md` | code-quality-specialist | MEDIUM |
 | API 變更/新增 | `2-contracts/api-spec.template.md` | documentation-specialist | HIGH |
@@ -29,8 +29,8 @@
 | 複雜依賴關係 | `5-views/file-dependencies.template.md` | code-quality-specialist | MEDIUM |
 | 類別結構設計 | `5-views/class-relationships.template.md` | code-quality-specialist | MEDIUM |
 | **品質保證階段** |
-| 安全考量 | `3-process/security-readiness-checklist.md` | security-infrastructure-auditor | HIGH |
-| 準備部署 | `3-process/security-readiness-checklist.md` | deployment-expert | HIGH |
+| 安全考量 | `3-process/PROC-0010-security-readiness-checklist.md` | security-infrastructure-auditor | HIGH |
+| 準備部署 | `3-process/PROC-0010-security-readiness-checklist.md` | deployment-expert | HIGH |
 
 ### 🔍 審視邏輯
 
@@ -182,7 +182,7 @@ def analyze_and_suggest(code_changes, suggest_mode):
         suggestions.append({
             'agent': 'security-infrastructure-auditor',
             'reason': '偵測到安全相關程式碼',
-            'template': '3-process/security-readiness-checklist.md',
+            'template': '3-process/PROC-0010-security-readiness-checklist.md',
             'emoji': '🔴'
         })
 

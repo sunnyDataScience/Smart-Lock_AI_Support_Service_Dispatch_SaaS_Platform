@@ -48,7 +48,7 @@ Phase 5' 拆兩階段：
 | **5.1 初次補 75 檔 frontmatter** | 3-5 天工時，純手工（非可自動化），中等心智成本 |
 | **持續維護負擔** | **高** — git log 顯示 BF/SF/FR 高頻變動（feat(modules)、feat(test-cases)、feat(traceability) 等 weekly 級新增），每次都要補欄位 + 跑 generator + 過 CI gate |
 | **CI gate 假警報風險** | 中等 — frontmatter 漏 sync 會 fail CI，可能成為新型「卡進度」噪音 |
-| **與既有 traceability-matrix.md 重疊** | **HIGH** — `docs/5-views/traceability-matrix.md` 已含 BDD scenario / FR / TC trace；Flow INDEX 與其資料維度重疊 |
+| **與既有 traceability-matrix.md 重疊** | **HIGH** — `docs/5-views/VIEW-0005-traceability-matrix.md` 已含 BDD scenario / FR / TC trace；Flow INDEX 與其資料維度重疊 |
 
 ### 訊號
 

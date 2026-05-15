@@ -4,9 +4,9 @@ status: active
 last_updated: 2026-05-11
 owners: [Tech Lead]
 related:
-  - "../1-decisions/architecture-overview.md"
+  - "../1-decisions/ARCH-0001-architecture-overview.md"
   - "../2-contracts/api/README.md"
-  - "../5-views/project-structure.md"
+  - "../5-views/VIEW-0004-project-structure.md"
   - "./quality-gates.md (CI / branch gates)"
 ---
 

@@ -63,7 +63,7 @@ sources_merged:
 維度（節錄）：
 - 區域（geofence + 距離）
 - 品牌技能（technician.skills 與 problem_card.brand 匹配）
-- 師傅分級（[`../../0-principles/glossary.md §3`](../../0-principles/glossary.md) S/A+/A/新人）
+- 師傅分級（[`../../0-principles/GLOS-0001-glossary.md §3`](../../0-principles/GLOS-0001-glossary.md) S/A+/A/新人）
 - 即時 availability（schedule + 當下 work_orders.in_progress count）
 - SLA 緊急度（red code 派最高分技師）
 

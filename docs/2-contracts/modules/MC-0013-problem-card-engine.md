@@ -14,7 +14,7 @@ related:
   - "../flows/business/BF-0001-work-order-lifecycle.md"
   - "../flows/sub/SF-WO-01-happy-path.md"
   - "../functional-requirements/FR-0002-problem-card-triage.md"
-  - "../../1-decisions/module-boundary/agent.md"
+  - "../../1-decisions/module-boundary/ARCH-0002-module-boundary-agent.md"
   - "../../4-exploration/agent-harness-v2/problem-card-spec.md (V2.0 future design)"
 legacy_id: V1-Module-02 + 02-design/agent-harness/problem-card-spec.md
 canonical_for: ProblemCard module

@@ -10,7 +10,7 @@ related:
   - "./bdd/all-features.md (BDD scenarios SSOT — 21 features × ~100 scenarios)"
   - "../2-contracts/api/README.md (OpenAPI 91 ops + AsyncAPI 10 channels)"
   - "../2-contracts/modules/INDEX.md"
-  - "../5-views/traceability-matrix.md (F-001~F-023 cross-layer coverage)"
+  - "../5-views/VIEW-0005-traceability-matrix.md (F-001~F-023 cross-layer coverage)"
   - "./quality-gates.md (Quality Gates SSOT — GR6/GR7/GR10)"
   - "./vendor-api-test-requirement.md (per-vendor detail template)"
 ---
@@ -19,7 +19,7 @@ related:
 
 > **Tier**: 3-process → strategic test document
 >
-> **Purpose**: this is the **strategy** layer. It answers "**why** are we testing this, and **how** are we organizing the effort?". The execution layer (which test asserts which rule) lives in `../5-views/traceability-matrix.md`.
+> **Purpose**: this is the **strategy** layer. It answers "**why** are we testing this, and **how** are we organizing the effort?". The execution layer (which test asserts which rule) lives in `../5-views/VIEW-0005-traceability-matrix.md`.
 >
 > **Difference from traceability matrix**: matrix says "F-001 → TC-101..108 → test-conversation-create job". This plan says "we test LINE intake because it's the single revenue funnel; target 90% line coverage on ProblemCardEngine, accept 70% on Notification."
 
@@ -59,7 +59,7 @@ related:
 
 ### Performance SLA per operationId
 
-詳見 `../0-principles/frontend-quality-attributes.md §1`（15 個 endpoint p50/p95/p99 + 5 channel WS publish latency）。
+詳見 `../0-principles/PRIN-0002-frontend-quality-attributes.md §1`（15 個 endpoint p50/p95/p99 + 5 channel WS publish latency）。
 
 ---
 
@@ -246,7 +246,7 @@ For each external dependency, fill `vendor-api-test-requirement.md` separately. 
 | Agent eval golden set 67 → 150 | AI Lead | `agent/evals/fixtures/` curated | Day 14 |
 | Factory-boy fixtures (work-order / dispatch / refund) | Backend | `tests/factories/` | Day 21 |
 | testcontainers integration (Postgres + GCS) | DevOps | CI runs full integration suite | Day 21 |
-| k6 baseline (15 endpoints from `0-principles/frontend-quality-attributes.md §1`) | SRE | Baseline numbers recorded | Day 28 |
+| k6 baseline (15 endpoints from `0-principles/PRIN-0002-frontend-quality-attributes.md §1`) | SRE | Baseline numbers recorded | Day 28 |
 | Mutation testing pilot (mutmut on `api/services/refund_service`) | QA | Baseline mutation score | Day 28 |
 | Quarterly Test Plan review | QA Lead | Updated doc + retro | Every quarter |
 
@@ -280,20 +280,20 @@ For each external dependency, fill `vendor-api-test-requirement.md` separately. 
 
 ## See also
 
-- [`../5-views/traceability-matrix.md`](../5-views/traceability-matrix.md) — execution-layer "what tests what" (23 F-XXX × 8 dimensions)
+- [`../5-views/VIEW-0005-traceability-matrix.md`](../5-views/VIEW-0005-traceability-matrix.md) — execution-layer "what tests what" (23 F-XXX × 8 dimensions)
 - [`./vendor-api-test-requirement.md`](./vendor-api-test-requirement.md) — per-vendor detail template
 - [`./quality-gates.md`](./quality-gates.md) — Gate 0-4 prerequisites + GR6/GR7/GR10
 - [`./security-readiness-checklist.md`](./security-readiness-checklist.md) — security-test-specific checklist
 - [`./bdd-guide.md`](./bdd-guide.md) — Gherkin authoring guide
 - [`./bdd/all-features.md`](./bdd/all-features.md) — 21 Features × ~100 Scenarios BDD SSOT
 - [`./code-review-checklist.md`](./code-review-checklist.md) — PR-level criteria (lint / test / coverage)
-- [`../0-principles/frontend-quality-attributes.md`](../0-principles/frontend-quality-attributes.md) — performance SLA per endpoint
+- [`../0-principles/PRIN-0002-frontend-quality-attributes.md`](../0-principles/PRIN-0002-frontend-quality-attributes.md) — performance SLA per endpoint
 
 ---
 
 # Appendix A — 23 User Flow × API/Channel/External 對齊矩陣
 
-> V1.0 實裝狀態追蹤（snapshot 2026-05-10 morning）。詳細逐 flow trace 見 `../5-views/traceability-matrix.md`。
+> V1.0 實裝狀態追蹤（snapshot 2026-05-10 morning）。詳細逐 flow trace 見 `../5-views/VIEW-0005-traceability-matrix.md`。
 
 評等：🟢 立即可測 / 🟡 部分可測 / 🔴 阻塞 / ❌ orphan
 
@@ -402,7 +402,7 @@ For each external dependency, fill `vendor-api-test-requirement.md` separately. 
 
 # Appendix E — Performance Test Scenarios
 
-API SLA targets 已搬至 [`../0-principles/frontend-quality-attributes.md §1`](../0-principles/frontend-quality-attributes.md)，本 appendix 為 test scenarios + capacity planning。
+API SLA targets 已搬至 [`../0-principles/PRIN-0002-frontend-quality-attributes.md §1`](../0-principles/PRIN-0002-frontend-quality-attributes.md)，本 appendix 為 test scenarios + capacity planning。
 
 ## E.1 Test Scenarios
 

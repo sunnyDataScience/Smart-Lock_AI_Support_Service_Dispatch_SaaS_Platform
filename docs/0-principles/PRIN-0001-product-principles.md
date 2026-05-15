@@ -6,12 +6,12 @@ last_updated: 2026-05-10
 sources_merged:
   - "_pending-merge_sla-policy.md → §SLA-policy"
   - "_pending-merge_workday-sla-policy.md → §workday-policy"
-  - "../4-exploration/prd-2026-q1-v1-launch.md → §mission, §scope"
+  - "../4-exploration/PRD-0001-2026-q1-v1-launch.md → §mission, §scope"
   - "../4-exploration/_pending-merge-user-journey-map.md → §user-roles"
 related:
   - "glossary.md"
   - "frontend-quality-attributes.md"
-  - "../1-decisions/architecture-overview.md"
+  - "../1-decisions/ARCH-0001-architecture-overview.md"
 ---
 
 # Product Principles
@@ -93,7 +93,7 @@ L3 升級人工：客服接管 / 派工技師現場處理（剩餘 15%）
 | SLA-005 | 月結爭議 | 7 工作日 | 警報 + 升 Ops Director |
 | SLA-006 | 系統可用性 | 99.5% | 月報追蹤 |
 
-對應實作見 [`2-contracts/modules/sla-monitor.md`](../2-contracts/modules/sla-monitor.md)。
+對應實作見 [`2-contracts/modules/MC-0019-sla-monitor.md`](../2-contracts/modules/MC-0019-sla-monitor.md)。
 
 ---
 
@@ -135,7 +135,7 @@ def workday_diff(start: date, end: date, country: str = "TW") -> int: ...
 | 部署平台 | GCP Cloud Run（agent + api 兩個 service） |
 | 資料隔離（V3）| Shared DB + RLS（per ADR-0010 拍板）|
 
-詳見 [`../1-decisions/architecture-overview.md`](../1-decisions/architecture-overview.md) 與相關 ADR。
+詳見 [`../1-decisions/ARCH-0001-architecture-overview.md`](../1-decisions/ARCH-0001-architecture-overview.md) 與相關 ADR。
 
 ---
 

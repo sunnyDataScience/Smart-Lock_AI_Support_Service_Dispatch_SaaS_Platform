@@ -24,11 +24,11 @@ model: opus
 ## VibeCoding 模板知識庫（v3.0 -- 17 模板 / 6 階段）
 
 ### Stage 0: 工作流與流程基礎 (00)
-- `3-process/workflow-manual.md` -- 整體開發流程指南（含完整流程 + MVP 模式）
+- `3-process/PROC-0009-workflow-manual.md` -- 整體開發流程指南（含完整流程 + MVP 模式）
 
 ### Stage 1: 規劃與需求 (02-03)
 - `4-exploration/prd.template.md` -- 需求與商業邏輯
-- `3-process/bdd-guide.md` -- 行為驅動開發
+- `3-process/PROC-0003-bdd-guide.md` -- 行為驅動開發
 
 ### Stage 2: 架構與設計 (04-06)
 - `1-decisions/adr.template.md` -- 架構決策記錄
@@ -42,12 +42,12 @@ model: opus
 - `5-views/class-relationships.template.md` -- UML 類別設計
 
 ### Stage 4: 開發與品質 (11-12, 17)
-- `3-process/code-review-checklist.md` -- 程式碼品質流程
+- `3-process/PROC-0001-code-review-checklist.md` -- 程式碼品質流程
 - `5-views/frontend-architecture.template.md` -- 前端技術棧
 - `5-views/frontend-information-architecture.template.md` -- 使用者旅程與導覽
 
 ### Stage 5: 安全與部署 (13-14)
-- `3-process/security-readiness-checklist.md` -- 安全與就緒標準
+- `3-process/PROC-0010-security-readiness-checklist.md` -- 安全與就緒標準
 - `3-process/deployment-runbook.template.md` -- CI/CD 和運維
 
 ### Stage 6: 維護與管理 (15-16)

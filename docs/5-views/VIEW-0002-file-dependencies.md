@@ -7,7 +7,7 @@ generator: manual (Phase 8 後改 pyan + madge); from grep over agent/, api/, we
 DO_NOT_EDIT: |
   Tier 5 = AI-AUTO 視圖。手動編輯會在下次 regen 被覆寫。
 related:
-  - "../1-decisions/architecture-overview.md"
+  - "../1-decisions/ARCH-0001-architecture-overview.md"
   - "../1-decisions/module-boundary/"
 ---
 

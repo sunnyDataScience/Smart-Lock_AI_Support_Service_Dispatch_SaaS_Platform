@@ -67,5 +67,5 @@ related:
 ## Page contracts & route map
 
 - **Anchor page contracts**：[`../../2-contracts/pages/INDEX.md`](../../2-contracts/pages/INDEX.md) — 10 個關鍵入口
-- **Full route → page.tsx mapping**：[`../../5-views/frontend-route-map.md`](../../5-views/frontend-route-map.md)（AUTO，含 IA 52 頁完整對照）
+- **Full route → page.tsx mapping**：[`../../5-views/VIEW-0003-frontend-route-map.md`](../../5-views/VIEW-0003-frontend-route-map.md)（AUTO，含 IA 52 頁完整對照）
 - **CRUD list/detail 頁**: 直接看 `web/src/app/<route>/page.tsx`，frontend-route-map 是 SSOT

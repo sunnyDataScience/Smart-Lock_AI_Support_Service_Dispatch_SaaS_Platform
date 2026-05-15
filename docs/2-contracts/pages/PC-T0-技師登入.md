@@ -12,10 +12,10 @@ access_role: technician
 trace_to_fr: auth
 related:
   - "../frontend-design-system/"
-  - "../../1-decisions/module-boundary/web.md"
+  - "../../1-decisions/module-boundary/ARCH-0004-module-boundary-web.md"
   - "../../5-views/_pending-merge-pages-mapping.md (legacy IA mapping)"
   - "../api/openapi.yaml (data sources)"
-source_spec_path: docs/legacy/web_design_spec_prompt_pipeline/pages/14_auth_and_settings.md
+source_spec_path: docs/_archive/legacy/web_design_spec_prompt_pipeline/pages/14_auth_and_settings.md
 source_spec_section: T0 子段
 legacy_id: IA-T0
 ---
@@ -35,9 +35,9 @@ auth
 ## §3 Source Spec
 
 完整 UI / Component / Layout / Data Source / CTA 規格見：
-- 來源：`docs/legacy/web_design_spec_prompt_pipeline/pages/14_auth_and_settings.md`
+- 來源：`docs/_archive/legacy/web_design_spec_prompt_pipeline/pages/14_auth_and_settings.md`
 - 區段：T0 子段
-- 對應 docs 路徑：`docs/extras/web-frontend/pages-legacy/14_auth_and_settings.md` (Phase 8 後移到此)
+- 對應 docs 路徑：`docs/_archive/extras/web-frontend/pages-legacy/14_auth_and_settings.md` (Phase 8 後移到此)
 
 ## §4 Data Sources
 

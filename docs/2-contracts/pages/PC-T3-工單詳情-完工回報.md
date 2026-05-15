@@ -12,10 +12,10 @@ access_role: technician
 trace_to_fr: FR-0005 / FR-0006-onsite-photo / FR-0009-completion-sign
 related:
   - "../frontend-design-system/"
-  - "../../1-decisions/module-boundary/web.md"
+  - "../../1-decisions/module-boundary/ARCH-0004-module-boundary-web.md"
   - "../../5-views/_pending-merge-pages-mapping.md (legacy IA mapping)"
   - "../api/openapi.yaml (data sources)"
-source_spec_path: docs/legacy/web_design_spec_prompt_pipeline/pages/12_tech_my_orders.md
+source_spec_path: docs/_archive/legacy/web_design_spec_prompt_pipeline/pages/12_tech_my_orders.md
 source_spec_section: 詳情段
 legacy_id: IA-T3
 ---
@@ -35,9 +35,9 @@ FR-0005 / FR-0006-onsite-photo / FR-0009-completion-sign
 ## §3 Source Spec
 
 完整 UI / Component / Layout / Data Source / CTA 規格見：
-- 來源：`docs/legacy/web_design_spec_prompt_pipeline/pages/12_tech_my_orders.md`
+- 來源：`docs/_archive/legacy/web_design_spec_prompt_pipeline/pages/12_tech_my_orders.md`
 - 區段：詳情段
-- 對應 docs 路徑：`docs/extras/web-frontend/pages-legacy/12_tech_my_orders.md` (Phase 8 後移到此)
+- 對應 docs 路徑：`docs/_archive/extras/web-frontend/pages-legacy/12_tech_my_orders.md` (Phase 8 後移到此)
 
 ## §4 Data Sources
 

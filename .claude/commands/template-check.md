@@ -9,11 +9,11 @@ description: 驗證專案是否符合指定的 VibeCoding 工作流模板規範�
 ## 可用模板
 
 ### 階段 0: 流程
-1. **workflow-manual** → `3-process/workflow-manual.md`
+1. **workflow-manual** → `3-process/PROC-0009-workflow-manual.md`
 
 ### 階段 1: 規劃 (02-03)
 2. **project-brief** → `4-exploration/prd.template.md`
-3. **bdd** → `3-process/bdd-guide.md`
+3. **bdd** → `3-process/PROC-0003-bdd-guide.md`
 
 ### 階段 2: 架構設計 (04-06)
 4. **adr** → `1-decisions/adr.template.md`
@@ -27,12 +27,12 @@ description: 驗證專案是否符合指定的 VibeCoding 工作流模板規範�
 10. **classes** → `5-views/class-relationships.template.md`
 
 ### 階段 4: 開發品質 (11-12, 17)
-11. **code-review** → `3-process/code-review-checklist.md`
+11. **code-review** → `3-process/PROC-0001-code-review-checklist.md`
 12. **frontend-arch** → `5-views/frontend-architecture.template.md`
 13. **frontend-ia** → `5-views/frontend-information-architecture.template.md`
 
 ### 階段 5: 安全部署 (13-14)
-14. **security** → `3-process/security-readiness-checklist.md`
+14. **security** → `3-process/PROC-0010-security-readiness-checklist.md`
 15. **deployment** → `3-process/deployment-runbook.template.md`
 
 ### 階段 6: 維護管理 (15-16)

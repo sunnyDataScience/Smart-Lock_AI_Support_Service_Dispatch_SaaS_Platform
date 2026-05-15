@@ -9,13 +9,13 @@ supersedes: []
 superseded_by: [ADR-0024]
 related:
   - "./ADR-0024-tier1-refactor-revised.md (修正版，已取代本 ADR)"
-  - "../5-views/project-structure.md"
-  - "../0-principles/product-principles.md"
-  - "./module-boundary/agent.md"
-  - "./module-boundary/api.md"
-  - "./module-boundary/web.md"
-  - "./module-boundary/data-pipeline.md"
-  - "../4-exploration/wbs-2026-q2-tactical-refactor.md"
+  - "../5-views/VIEW-0004-project-structure.md"
+  - "../0-principles/PRIN-0001-product-principles.md"
+  - "./module-boundary/ARCH-0002-module-boundary-agent.md"
+  - "./module-boundary/ARCH-0003-module-boundary-api.md"
+  - "./module-boundary/ARCH-0004-module-boundary-web.md"
+  - "./module-boundary/ARCH-0005-module-boundary-data-pipeline.md"
+  - "../4-exploration/WBS-0002-2026-q2-tactical-refactor.md"
 ---
 
 # ADR-0023 — Tier 1 戰術級資料夾與整合層重構（2026 Q2）
@@ -59,7 +59,7 @@ repo 目前已具備 Tier 1 架構成熟度的多項訊號：
 | S1 | `web/src/` 缺 `api/` + `hooks/` 層 | 52 個 page.tsx 直接 import `lib/api.ts`；每 component 重複 loading/error/cache 邏輯；無 domain hooks | 團隊擴大、易讀性 |
 | S2 | harness 是 module-level wiring 而非 registry | `orchestrator.py` 用 module-level state；V2.0 新增 dispatch/refund 層需直接改 orchestrator | V2.0 上線、技術債 |
 | S3 | 頂層雜訊 + legacy 殘留 | `CLAUDE_TEMPLATE.md` 在 root；`report/` 等執行時產物路徑未統一；`api/data/` 與 `agent/storage/` 命名不一致 | 易讀性、新人 onboarding |
-| S4 | Tier 5 自動化未完成 | `docs/5-views/project-structure.md` 標 AI-AUTO 但實際 manual；檔內第 29-30 行兩條 `docs/` 重複（bug） | 技術債、文檔可信度 |
+| S4 | Tier 5 自動化未完成 | `docs/5-views/VIEW-0004-project-structure.md` 標 AI-AUTO 但實際 manual；檔內第 29-30 行兩條 `docs/` 重複（bug） | 技術債、文檔可信度 |
 | S5 | 跨模組整合層缺索引 | `docs/2-contracts/flows/BF-*` 沒有直接連結到 OpenAPI operationId；FR ↔ Flow ↔ API ↔ Page 需手動串 | V3 多通道擴展 |
 
 ### 驅動因素 / 約束
@@ -149,7 +149,7 @@ repo 目前已具備 Tier 1 架構成熟度的多項訊號：
 
 ## 5. 執行計畫
 
-詳見 [`../4-exploration/wbs-2026-q2-tactical-refactor.md`](../4-exploration/wbs-2026-q2-tactical-refactor.md)。
+詳見 [`../4-exploration/WBS-0002-2026-q2-tactical-refactor.md`](../4-exploration/WBS-0002-2026-q2-tactical-refactor.md)。
 
 5 個 Phase 摘要：
 

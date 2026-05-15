@@ -5,7 +5,7 @@
 **對應 ADR：** [ADR-0024](../1-decisions/ADR-0024-tier1-refactor-revised.md)（supersedes [ADR-0023](../1-decisions/ADR-0023-tactical-refactor-2026-q2.md)）
 
 > **版本說明**：v1.0 對應 ADR-0023 初版；ADR-0023 於 hands-on 驗證後 supersede 為 ADR-0024，本 WBS 同步覆寫為 v2.0。
-> v1.0 內容請查 git history（`git log -- docs/4-exploration/wbs-2026-q2-tactical-refactor.md`）。
+> v1.0 內容請查 git history（`git log -- docs/4-exploration/WBS-0002-2026-q2-tactical-refactor.md`）。
 
 > **範圍**：本 WBS 描述 Tier 1 架構審查 hands-on 修正後的 **5 個戰術級改進**，獨立於主合約交付的 `wbs-2026-q1.md`。
 
@@ -42,7 +42,7 @@
   - 內文補 §8 變更紀錄（為何被 supersede）
 
 ### 1.3 本 WBS v2（覆寫 v1）
-- **檔案**：`docs/4-exploration/wbs-2026-q2-tactical-refactor.md`
+- **檔案**：`docs/4-exploration/WBS-0002-2026-q2-tactical-refactor.md`
 - **依賴**：ADR-0024
 
 ### 1.4 CHANGELOG.md 更新
@@ -61,7 +61,7 @@
 > ADR-0024 §3 S4 — 從整套 generator 縮減為 3 行修正
 
 ### 2.1 修 `project-structure.md`
-- **檔案**：`docs/5-views/project-structure.md`
+- **檔案**：`docs/5-views/VIEW-0004-project-structure.md`
 - **動作**：
   - 第 30 行重複 `docs/` bug → 修正（其中一條應指 legacy 或刪除）
   - frontmatter `generator: manual (sunnydata-auto-regen TBD)` → `generator: manual`
@@ -84,17 +84,17 @@
 
 > ADR-0024 §3 S3 — 從 4 動作縮減為 2 動作（保留 CLAUDE_TEMPLATE.md、不改名 api/data）
 
-### 3.1 `report/` → `docs/releases/`
+### 3.1 `report/` → `docs/1-decisions/releases/`
 - **動作**：
   - `git mv report docs/releases`
   - 更新所有引用：grep `report/` 確認無 deploy script / hook 引用
-  - 補 `docs/releases/README.md` 說明 v1.x.x 版本歷史
+  - 補 `docs/1-decisions/releases/README.md` 說明 v1.x.x 版本歷史
 
-### 3.2 `web_design_spec_prompt_pipeline/` → `docs/legacy/`
+### 3.2 `web_design_spec_prompt_pipeline/` → `docs/_archive/legacy/`
 - **動作**：
-  - `git mv web_design_spec_prompt_pipeline docs/legacy/web_design_spec_prompt_pipeline`
-  - 補 `docs/legacy/web_design_spec_prompt_pipeline/README.md`：標明「已遷出，僅保留歷史，不再維護」
-  - 更新 `docs/5-views/project-structure.md` 移除頂層 `web_design_spec_prompt_pipeline/` 引用
+  - `git mv web_design_spec_prompt_pipeline docs/_archive/legacy/web_design_spec_prompt_pipeline`
+  - 補 `docs/_archive/legacy/web_design_spec_prompt_pipeline/README.md`：標明「已遷出，僅保留歷史，不再維護」
+  - 更新 `docs/5-views/VIEW-0004-project-structure.md` 移除頂層 `web_design_spec_prompt_pipeline/` 引用
 
 ### 3.3 處理 `api/agent/integrations/` 空目錄（ADR-0024 E3）
 - **動作**：
@@ -106,7 +106,7 @@
 - `grep -rn "report/\|web_design_spec_prompt_pipeline" --include="*.sh" --include="*.yml" --include="*.toml"` 無殘留
 - repo root `ls` 後檢視：4 大模組 + 標準工具目錄 + docs + .claude，無 legacy 殘留
 
-**PR**: `refactor(repo): relocate report/ → docs/releases/, legacy pipeline → docs/legacy/`
+**PR**: `refactor(repo): relocate report/ → docs/1-decisions/releases/, legacy pipeline → docs/_archive/legacy/`
 
 ---
 
@@ -219,9 +219,9 @@
 ## 8.0 驗收條件（Phase 1'-4' 完成）
 
 - [ ] ADR-0024 merge；ADR-0023 標 superseded
-- [ ] `docs/5-views/project-structure.md` bug 已修；frontmatter generator 為 manual
+- [ ] `docs/5-views/VIEW-0004-project-structure.md` bug 已修；frontmatter generator 為 manual
 - [ ] `.gitignore` 涵蓋 `.hypothesis/`、`.pytest_cache/`
-- [ ] `docs/releases/` 與 `docs/legacy/web_design_spec_prompt_pipeline/` 已建立
+- [ ] `docs/1-decisions/releases/` 與 `docs/_archive/legacy/web_design_spec_prompt_pipeline/` 已建立
 - [ ] `web/src/hooks/` 已建立並涵蓋既有 3 個 use*.ts + 新增 usePaginatedFetch
 - [ ] 13 個直接 import api 的 page 已遷移
 - [ ] `agent/harness/__init__.py` PIPELINE 列表；orchestrator 改用迴圈

@@ -25,16 +25,16 @@ related:
 | **5** | [`5-views/`](./5-views/) | code 衍生視圖 — project structure、deps、route map | refactor 後 AUTO |
 
 **特例**：
-- [`business/`](./business/) — 商業 / 募資 / 簡報素材（非工程文件）
-- [`extras/`](./extras/) — 工具方法論、Pipeline orchestrator、design cloning（輔助）
+- [`4-exploration/`](./4-exploration/) — 商業 / 募資 / 簡報素材（BIZ-0001~0004）
+- [`_archive/`](./_archive/) — legacy + extras（不再維護）
 
 ## Reading Paths
 
 ### Path A — 新人 / 新對話
-1. [`0-principles/product-principles.md`](./0-principles/product-principles.md) — Mission / 非任務 / 品質基準
-2. [`0-principles/glossary.md`](./0-principles/glossary.md) — 術語 SSOT
-3. [`1-decisions/architecture-overview.md`](./1-decisions/architecture-overview.md) — 系統 C4
-4. [`3-process/workflow-manual.md`](./3-process/workflow-manual.md) — 怎麼做事
+1. [`0-principles/PRIN-0001-product-principles.md`](./0-principles/PRIN-0001-product-principles.md) — Mission / 非任務 / 品質基準
+2. [`0-principles/GLOS-0001-glossary.md`](./0-principles/GLOS-0001-glossary.md) — 術語 SSOT
+3. [`1-decisions/ARCH-0001-architecture-overview.md`](./1-decisions/ARCH-0001-architecture-overview.md) — 系統 C4
+4. [`3-process/PROC-0009-workflow-manual.md`](./3-process/PROC-0009-workflow-manual.md) — 怎麼做事
 
 ### Path B — 改 API / 改 Flow
 1. [`.claude/rules/change-governance.md`](../.claude/rules/change-governance.md) — 是否要 CR
@@ -44,17 +44,17 @@ related:
 5. [`2-contracts/modules/`](./2-contracts/modules/) — 模組 contract
 
 ### Path C — 規劃功能
-1. [`4-exploration/prd-2026-q1-v1-launch.md`](./4-exploration/prd-2026-q1-v1-launch.md) — V1 PRD
+1. [`4-exploration/PRD-0001-2026-q1-v1-launch.md`](./4-exploration/PRD-0001-2026-q1-v1-launch.md) — V1 PRD
 2. 起新 PRD：`vibecoding-write-prd` skill → `4-exploration/prd-YYYY-QN-*.md`
 3. 起新 CR：`sunnydata-change-impact-analysis` skill
 
 ### Path D — Operate / Deploy
-1. [`3-process/deployment-runbook.md`](./3-process/deployment-runbook.md) — 部署 SOP
-2. [`3-process/security-readiness-checklist.md`](./3-process/security-readiness-checklist.md) — 上線前
-3. [`3-process/quality-gates.md`](./3-process/quality-gates.md) — Gate 0-4 + GR6/7/10
+1. [`3-process/PROC-0007-deployment-runbook.md`](./3-process/PROC-0007-deployment-runbook.md) — 部署 SOP
+2. [`3-process/PROC-0010-security-readiness-checklist.md`](./3-process/PROC-0010-security-readiness-checklist.md) — 上線前
+3. [`3-process/QG-0001-quality-gates.md`](./3-process/QG-0001-quality-gates.md) — Gate 0-4 + GR6/7/10
 
 ### Path E — 投資人 / Stakeholder
-1. [`business/`](./business/) — 簡報、moat 分析
+1. [`4-exploration/`](./4-exploration/) — 簡報、moat 分析
 
 ## 文件治理
 

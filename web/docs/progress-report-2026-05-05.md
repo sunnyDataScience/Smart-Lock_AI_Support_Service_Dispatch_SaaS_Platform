@@ -6,7 +6,7 @@
 **對應合約：** 主合約附件二（SOW V2.0）、附件三（Project Plan）
 **程式分支：** `dev`、`feat/api-media-upload`（pending merge to dev，累積 25+ commits）
 **前次報告：** [`progress-report-2026-04-29.md`](./progress-report-2026-04-29.md)
-**對應 reports：** v1.0.0 → v1.36.0（細粒度紀錄於 `/docs/releases/v*.md`）
+**對應 reports：** v1.0.0 → v1.36.0（細粒度紀錄於 `/docs/1-decisions/releases/v*.md`）
 
 ---
 
@@ -120,7 +120,7 @@
 | :--- | :--- |
 | 「為什麼 Phase 8 還是 0%？」 | Phase 8 UAT 期程依合約 W30–W31，需業主開放正式 UAT 環境與名單，技術面已 ready |
 | 「整合測試只跑了 16 項夠嗎？」 | 是 MVP 覆蓋 4 大關鍵路徑（health / auth / media / refund 雙簽），E2E Playwright 會補足使用者操作層 |
-| 「2 天完成 71 個 commit 品質如何？」 | 每個 commit 配套 `docs/releases/v*.md`，125 個 endpoints 在 OpenAPI/AsyncAPI 規格管控下，TS types 自動生成、CI 阻擋未同步變更 |
+| 「2 天完成 71 個 commit 品質如何？」 | 每個 commit 配套 `docs/1-decisions/releases/v*.md`，125 個 endpoints 在 OpenAPI/AsyncAPI 規格管控下，TS types 自動生成、CI 阻擋未同步變更 |
 | 「F2 LINE Flex 真的可用嗎？」 | API + agent 已 smoke test 通過；真實 LINE OA 端到端待 sandbox 帳號開通即可驗證 |
 | 「上線時程能否提早？」 | 功能面確實已逼近 100%，但 UAT 不可省略；建議業主本週指派 UAT 名單即可進入 Phase 8 |
 
@@ -247,7 +247,7 @@
 | 各頁面功能狀態 | 41 + 12 頁狀態對照 | [`page-status.md`](./page-status.md) |
 | 登入測試手冊 | Admin + 技師端登入 | [`login-testing-guide.md`](./login-testing-guide.md) |
 
-進度報告（細粒度）目錄：`/docs/releases/v*.md`（v1.0.0 → v1.36.0）
+進度報告（細粒度）目錄：`/docs/1-decisions/releases/v*.md`（v1.0.0 → v1.36.0）
 
 ---
 

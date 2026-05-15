@@ -121,8 +121,8 @@ TR10:     [GR10] GA Readiness Review
 
 | Essential | Gate | Current File | Status |
 |-----------|------|-------------|--------|
-| **E1** | TR1 | [[../4-exploration/prd-2026-q1-v1-launch]] | Approved |
-| **E2** | TR2 | [[../4-exploration/sow-2026-q1]] + [[../1-decisions/]] | Approved |
+| **E1** | TR1 | [[../4-exploration/PRD-0001-2026-q1-v1-launch]] | Approved |
+| **E2** | TR2 | [[../4-exploration/SOW-0001-2026-q1]] + [[../1-decisions/]] | Approved |
 | **E3** | TR3 | [[../1-decisions/architecture-overview]] | Approved |
 | **E4** | TR3 | [[../1-decisions/domain-model]] | Approved |
 | **E5** | TR4 | [[../2-contracts/api/README]] | Approved |
@@ -136,7 +136,7 @@ TR10:     [GR10] GA Readiness Review
 #### Extends E1 -- Problem & Vision
 | Gate | File | Role |
 |------|------|------|
-| TR0 | [[../4-exploration/prd-2026-q1-v1-launch]] | Deepens user understanding |
+| TR0 | [[../4-exploration/PRD-0001-2026-q1-v1-launch]] | Deepens user understanding |
 | TR1 | [[../business/moat-system-architecture]] | Competitive positioning |
 | TR1 | [[../business/moat-mapping-matrix]] | Investor alignment |
 | TR1 | [[../business/executive-architecture-overview]] | Executive communication |
@@ -151,8 +151,8 @@ TR10:     [GR10] GA Readiness Review
 | TR2 | [[../1-decisions/ADR-0004-line-bot-architecture]] | LINE Bot decision |
 | TR2 | [[../1-decisions/ADR-0005-frontend-framework-v2]] | Frontend decision |
 | TR2 | [[../1-decisions/ADR-0006-llm-model-selection]] | Model decision |
-| TR2 | [[../4-exploration/wbs-2026-q1]] | Timeline tracking |
-| TR2 | [[../4-exploration/wbs-2026-q1]] | Pre-dev data checklist |
+| TR2 | [[../4-exploration/WBS-0001-2026-q1]] | Timeline tracking |
+| TR2 | [[../4-exploration/WBS-0001-2026-q1]] | Pre-dev data checklist |
 
 #### Extends E3 -- Architecture
 | Gate | File | Role |
@@ -245,7 +245,7 @@ TR10:     [GR10] GA Readiness Review
 | Gate | File | Role |
 |------|------|------|
 | TR2+ | [[../0-principles/glossary]] | 19 domain data items |
-| TR2+ | [[../4-exploration/prd-2026-q1-v1-launch]] | 9 data collection folders |
+| TR2+ | [[../4-exploration/PRD-0001-2026-q1-v1-launch]] | 9 data collection folders |
 
 ---
 

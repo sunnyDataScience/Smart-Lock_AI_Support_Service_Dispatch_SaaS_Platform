@@ -4,7 +4,7 @@ tier: 0
 status: active
 related:
   - "glossary.md §3 師傅分級"
-  - "../2-contracts/modules/dispatch-engine.md"
+  - "../2-contracts/modules/MC-0005-dispatch-engine.md"
 legacy_id: E5x--workflow-dispatch §6
 ---
 
