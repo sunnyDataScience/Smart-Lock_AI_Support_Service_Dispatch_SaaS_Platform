@@ -1,3 +1,15 @@
+---
+id: DS-0001
+title: "Design Foundations"
+tier: 2-contracts
+status: active
+owner: HYBRID
+last-reviewed: 2026-05-15
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
+sync-source: doc
+synced-at: 2026-05-15
+---
+
 # 00_Foundations — 電子鎖智能客服與派工平台 基礎系統規格
 
 > 全站的物理定律。Admin Panel、Technician PWA、LINE Bot 三端共享同一套設計語言。

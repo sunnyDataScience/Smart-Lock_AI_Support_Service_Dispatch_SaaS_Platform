@@ -1,3 +1,15 @@
+---
+id: DS-0002
+title: "Component Specifications"
+tier: 2-contracts
+status: active
+owner: HYBRID
+last-reviewed: 2026-05-15
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
+sync-source: doc
+synced-at: 2026-05-15
+---
+
 # 01_Components — 電子鎖智能客服與派工平台 元件庫規格
 
 > 頁面不是畫出來的，是裝出來的。

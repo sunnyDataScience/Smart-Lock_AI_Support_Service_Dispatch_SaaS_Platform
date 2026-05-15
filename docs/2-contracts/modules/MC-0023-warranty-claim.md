@@ -1,3 +1,15 @@
+---
+id: MC-0023
+title: "Warranty Claim"
+tier: 2-contracts
+status: active
+owner: HYBRID
+last-reviewed: 2026-05-15
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
+sync-source: doc
+synced-at: 2026-05-15
+---
+
 # 保固索賠與爭議處理規格書 (Warranty Dispute Specification)
 
 > GAP #12 -- Smart Lock AI Support Service Dispatch SaaS Platform

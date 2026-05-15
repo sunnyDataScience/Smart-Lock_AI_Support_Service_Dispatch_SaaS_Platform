@@ -1,3 +1,15 @@
+---
+id: MDS-0001
+title: "品牌型號清單"
+tier: 2-contracts
+status: active
+owner: HYBRID
+last-reviewed: 2026-05-15
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
+sync-source: doc
+synced-at: 2026-05-15
+---
+
 Milre美樂6500F
 Milre美樂6500S
 Milre美樂7150

@@ -1,3 +1,15 @@
+---
+id: MDS-0004
+title: "故障分類體系"
+tier: 2-contracts
+status: active
+owner: HYBRID
+last-reviewed: 2026-05-15
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
+sync-source: doc
+synced-at: 2026-05-15
+---
+
 ### 1. 門扇卡死無法開啟 (物理故障)
 *   **症狀**：解鎖後有馬達聲，但門推不開或拉不動。
 *   **原理解析**：非鎖壞掉，多為「受口片」與「鎖舌」之間無縫隙導致摩擦力過大。常發生於裝潢期間（保護工程厚度改變）或腳鍊下垂。

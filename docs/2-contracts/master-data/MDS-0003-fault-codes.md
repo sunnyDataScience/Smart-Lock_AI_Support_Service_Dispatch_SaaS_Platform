@@ -1,3 +1,15 @@
+---
+id: MDS-0003
+title: "故障碼對照表"
+tier: 2-contracts
+status: active
+owner: HYBRID
+last-reviewed: 2026-05-15
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
+sync-source: doc
+synced-at: 2026-05-15
+---
+
 # 故障碼 / 蜂鳴聲 / 燈號對照表
 
 > ⚠️ 本文件為 AI 生成之模擬資料，僅供系統開發測試用途，不代表實際產品規格。

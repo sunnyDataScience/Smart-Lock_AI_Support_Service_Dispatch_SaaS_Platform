@@ -1,3 +1,15 @@
+---
+id: DS-0003
+title: "UI Patterns"
+tier: 2-contracts
+status: active
+owner: HYBRID
+last-reviewed: 2026-05-15
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
+sync-source: doc
+synced-at: 2026-05-15
+---
+
 # 02_Patterns — 電子鎖智能客服與派工平台 互動模式規格
 
 > Components 是「零件」，Patterns 是「常用組裝方法」。

@@ -1,3 +1,15 @@
+---
+id: MC-0022
+title: "Vision Processing"
+tier: 2-contracts
+status: active
+owner: HYBRID
+last-reviewed: 2026-05-15
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
+sync-source: doc
+synced-at: 2026-05-15
+---
+
 # 圖片/Vision 處理策略 (GAP #8)
 
 ## 狀態: Planned (V2.0)

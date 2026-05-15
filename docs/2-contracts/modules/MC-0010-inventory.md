@@ -1,3 +1,15 @@
+---
+id: MC-0010
+title: "Inventory Management"
+tier: 2-contracts
+status: active
+owner: HYBRID
+last-reviewed: 2026-05-15
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
+sync-source: doc
+synced-at: 2026-05-15
+---
+
 # GAP #17 -- 物料庫存管理規格書 (Inventory Management)
 
 > 版本：0.1-draft | 狀態：設計中

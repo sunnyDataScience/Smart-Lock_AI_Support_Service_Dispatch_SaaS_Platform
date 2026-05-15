@@ -1,11 +1,13 @@
 ---
-id: PAGE-T1
+id: PC-T1
 title: 案件池
 tier: 2
 status: accepted
-last-synced-with: pending
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
+owner: HYBRID
+last-reviewed: 2026-05-15
 sync-source: code
-synced-at: 2026-05-10
+synced-at: 2026-05-15
 route: /pool
 version: V2.0
 access_role: technician

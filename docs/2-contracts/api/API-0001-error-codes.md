@@ -1,3 +1,15 @@
+---
+id: API-0001
+title: "錯誤代碼規範"
+tier: 2-contracts
+status: active
+owner: HYBRID
+last-reviewed: 2026-05-15
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
+sync-source: doc
+synced-at: 2026-05-15
+---
+
 # API 錯誤碼目錄 (Error Code Catalog)
 
 > **用途：** `/api/v1/*` 所有端點回傳 `ApiErrorResponse` 時，`error_code` 必須取自本檔列舉。

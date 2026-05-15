@@ -1,3 +1,15 @@
+---
+id: DS-0099
+title: "Design System Documentation"
+tier: 2-contracts
+status: active
+owner: HYBRID
+last-reviewed: 2026-05-15
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
+sync-source: doc
+synced-at: 2026-05-15
+---
+
 # 99_Documentation — 電子鎖智能客服與派工平台 治理、交付、變更管理
 
 > 設計系統如果沒有治理，只會越來越胖、越來越亂，最後死掉。

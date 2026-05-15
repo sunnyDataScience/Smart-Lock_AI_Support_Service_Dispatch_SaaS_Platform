@@ -3,12 +3,11 @@ id: MOD-V1-05
 title: sop-generator — V1.0 Core Module
 tier: 2
 status: accepted
-last-synced-with: pending
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
 sync-source: doc
 source-paths:
-  - agent/...
-  - api/...
-synced-at: 2026-05-10
+  - "# TODO: specify concrete file paths"
+synced-at: 2026-05-15
 related:
   - "../flows/business/_pending-split_BF-work-order.md"
   - "../functional-requirements/"

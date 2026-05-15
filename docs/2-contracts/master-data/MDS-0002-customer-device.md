@@ -1,5 +1,5 @@
 ---
-id: MD-CUSTOMER-DEVICE
+id: MDS-0002
 title: Customer / Device Master Data
 tier: 2
 status: accepted
@@ -7,6 +7,11 @@ related:
   - "./brand-model.md"
   - "../modules/problem-card-engine.md"
 legacy_id: E5x--workflow-dispatch §5
+owner: HYBRID
+last-reviewed: 2026-05-15
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
+sync-source: doc
+synced-at: 2026-05-15
 ---
 
 # Customer / Device Master Data

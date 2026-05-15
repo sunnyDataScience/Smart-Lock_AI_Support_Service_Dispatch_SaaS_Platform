@@ -1,3 +1,15 @@
+---
+id: DS-0000
+title: "Brand System"
+tier: 2-contracts
+status: active
+owner: HYBRID
+last-reviewed: 2026-05-15
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
+sync-source: doc
+synced-at: 2026-05-15
+---
+
 # Brand System: Smart Lock AI Support & Service Dispatch Platform
 
 > 這是 `BASE_DESIGN_SYSTEM.md` 的具體實作，用於「電子鎖智能客服與派工平台」。

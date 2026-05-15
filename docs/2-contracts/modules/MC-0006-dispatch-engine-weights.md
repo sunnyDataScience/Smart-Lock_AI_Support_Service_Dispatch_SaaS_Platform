@@ -1,17 +1,21 @@
 ---
-title: Dispatch Matching Weights and Tie-Breaker Rules
-phase: DESIGN
-gate: TR4
-status: Active
-owners:
-  - Tech Lead
-  - Operations Manager
-  - PM
+id: MC-0006
+title: "Dispatch Matching Weights and Tie-Breaker Rules"
+tier: 2-contracts
+status: active
+owner: HYBRID
+last-reviewed: 2026-05-15
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
+sync-source: doc
+synced-at: 2026-05-15
 related:
   - "[[_flows-bdd-test/v-model-left/E5x--workflow-dispatch]]"
   - "[[_flows-bdd-test/v-model-left/E5x--workflow-work-order]]"
   - "[[_flows-bdd-test/v-model-right/E7x--test-plan-and-readiness]]"
-last_reviewed: 2026-05-07
+owners:
+  - Tech Lead
+  - Operations Manager
+  - PM
 ---
 
 # 派工演算法權重與 Tie-Breaker 規則

@@ -1,17 +1,21 @@
 ---
-title: Consumer Tracking Entry — 消費者端工單追蹤入口
-phase: DESIGN
-gate: TR4
-status: Active
-owners:
-  - PM
-  - Tech Lead
-  - Product Designer
+id: MC-0002
+title: "Consumer Tracking Entry — 消費者端工單追蹤入口"
+tier: 2-contracts
+status: active
+owner: HYBRID
+last-reviewed: 2026-05-15
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
+sync-source: doc
+synced-at: 2026-05-15
 related:
   - "[[_flows-bdd-test/v-model-left/E5x--workflow-work-order]]"
   - "[[02-design/specs/openapi]]"
   - "[[decision-log/E7x--pm-alignment-Q1-Q10]]"
-last_reviewed: 2026-05-07
+owners:
+  - PM
+  - Tech Lead
+  - Product Designer
 ---
 
 # 消費者端工單追蹤入口（Consumer Tracking Entry）

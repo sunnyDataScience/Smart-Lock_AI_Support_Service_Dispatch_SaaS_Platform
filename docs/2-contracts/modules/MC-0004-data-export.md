@@ -1,3 +1,15 @@
+---
+id: MC-0004
+title: "Data Export"
+tier: 2-contracts
+status: active
+owner: HYBRID
+last-reviewed: 2026-05-15
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
+sync-source: doc
+synced-at: 2026-05-15
+---
+
 # Data Export / Portability 規格書
 
 > GAP #14 -- 資料匯出與可攜性  

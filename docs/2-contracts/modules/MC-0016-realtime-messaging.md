@@ -1,3 +1,15 @@
+---
+id: MC-0016
+title: "Realtime Messaging"
+tier: 2-contracts
+status: active
+owner: HYBRID
+last-reviewed: 2026-05-15
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
+sync-source: doc
+synced-at: 2026-05-15
+---
+
 # Real-time Messaging Specification (Admin-Technician In-Platform Chat)
 
 > GAP #7 -- Investor Review Notes 1.5

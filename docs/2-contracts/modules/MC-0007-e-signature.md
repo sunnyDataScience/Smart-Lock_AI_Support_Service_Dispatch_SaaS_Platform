@@ -1,3 +1,15 @@
+---
+id: MC-0007
+title: "E-Signature"
+tier: 2-contracts
+status: active
+owner: HYBRID
+last-reviewed: 2026-05-15
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
+sync-source: doc
+synced-at: 2026-05-15
+---
+
 # GAP #19 -- 電子簽章規格書 (Electronic Signature)
 
 > 版本：0.1-draft | 狀態：設計中
