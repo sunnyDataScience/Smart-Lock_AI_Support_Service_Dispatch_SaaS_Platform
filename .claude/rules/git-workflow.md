@@ -14,13 +14,52 @@
 
 Types: feat, fix, refactor, docs, test, chore, perf, ci
 
-## Commit Message 品質標準（開源協作）
+## AI 協作時代的 Commit 分層策略
+
+Commit message 的讀者不只是人 — **AI 是最頻繁讀 git log 的消費者**。好的 commit history 讓 AI 進入新 session 時能快速重建專案脈絡，站在前人的肩膀上。
+
+### 核心原則：type prefix 是 AI 的索引
+
+AI 用 `git log --oneline` 掃描歷史時，type prefix 告訴它該不該展開讀 body：
+
+| Type | AI 讀取深度 | Body 長度 | 說明 |
+|---|---|---|---|
+| `feat` | 讀 subject + body | WHY/WHAT/IMPACT 完整 | 有架構決策，值得深讀 |
+| `fix` | 讀 subject + root cause | WHY + 一句 root cause | 知道修了什麼、根因是什麼 |
+| `refactor` | 讀 subject + 動機 | WHY 就好 | 為什麼重構比怎麼重構重要 |
+| `perf` | 讀 subject + 數據 | before/after benchmark | 數據說話 |
+| `docs`, `test` | 只讀 subject | 一行夠了 | AI 掃描跳過 |
+| `chore`, `ci` | 只讀 subject | 一行夠了 | AI 掃描跳過 |
+
+### 學徒模式連動（選用）
+
+使用 Apprentice output style 時，`feat` commit 的 body 可附規模燈號，讓未來 AI session 直接從 git history 重建決策脈絡：
+
+```
+feat(billing): add Strategy Pattern for multi-plan billing
+
+🟢 MVP-appropriate: Strategy over if-else even with 2 plans —
+cost of one interface + two impls is lower than future if-else
+untangling (OCP, Rule of Three).
+
+Upgrade path: 🟡 Plugin Architecture when plans exceed 5 and
+require dynamic loading.
+```
+
+未來 AI 讀到這段，不需要問任何人就知道：
+1. 當初的決策是什麼
+2. 為什麼在 MVP 階段就這樣做
+3. 什麼條件下該升級
+
+## Commit Message 品質標準
 
 ### Subject（第一行）
 - 說明做了什麼，限 72 字元
 - 用祈使句：「add」而非「added」或「adds」
 
-### Body（必要，空一行後）
+### Body（依 type 分層）
+
+**`feat` / 架構決策 — 完整 WHY/WHAT/IMPACT：**
 
 **WHY（為什麼）**— 第一段永遠回答動機：
 - 解決什麼問題？現狀有什麼痛點？
@@ -37,8 +76,34 @@ Types: feat, fix, refactor, docs, test, chore, perf, ci
 - 破壞性變更（breaking changes）須明確標記
 - 後續需要的動作（如 migration）
 
+**`fix` — WHY + root cause：**
+
+```
+fix(auth): prevent token reuse after rotation
+
+Root cause: refresh token was not invalidated in Redis after
+issuing a new one, allowing replay within the old TTL window.
+```
+
+**`refactor` — WHY 就好：**
+
+```
+refactor(billing): extract pricing rules into dedicated module
+
+Pricing logic was scattered across 3 services, making it
+impossible to unit test billing rules in isolation.
+```
+
+**`docs`, `test`, `chore`, `ci` — subject 一行即可：**
+
+```
+docs(api): update authentication endpoint examples
+test(billing): add edge case for zero-amount invoices
+chore(deps): bump fastapi to 0.115.0
+```
+
 ### 鐵律
-- 想像一個**從沒看過這個 repo 的人**讀你的 commit message
+- 想像一個**從沒看過這個 repo 的 AI agent** 讀你的 commit message — 它能從 subject 判斷要不要深入嗎？
 - 一個 commit 做一件事 — 大型變更拆成多個邏輯 commit
 - 每個 commit 可獨立 review、獨立 revert
 - 禁止「fix」「update」「misc」等無意義 subject
@@ -124,3 +189,17 @@ Merge 後刪除遠端分支：`git push origin --delete <branch>`
 - 使用語義化版本（MAJOR.MINOR.PATCH）
 - 重要版本建立 git tag
 - 維護 CHANGELOG.md（依 Keep a Changelog 格式）
+
+## Release 自動化
+
+不要手動跑 `git tag` + 手動寫 CHANGELOG。使用 `/release <version>` command：
+
+1. Pre-flight 檢查（branch、clean tree、tests）
+2. 呼叫 `sunnydata-changelog-sync` skill 從 Conventional Commits + ADR + CR 自動產生 release notes
+3. 🛑 人類審核 CHANGELOG diff
+4. Commit CHANGELOG（`chore(release): vX.Y.Z`）
+5. 建立 annotated tag
+6. Push branch + tag
+7. `.github/workflows/release.yml` 偵測 tag 推送 → 自動建立 GitHub Release
+
+Conventional Commits 規範強制（見上方 §commit type）— 違反規範的 commit 會出現在 changelog 的「Other Changes」段，提醒下次規範化。
