@@ -6,7 +6,7 @@ owners: [QA Lead]
 related:
   - "./CONVENTION.md"
   - "./registry.yaml"
-  - "../../5-views/traceability-matrix.md"
+  - "../../5-views/VIEW-0005-traceability-matrix.md"
 ---
 
 # Test Case Registry — Human-Readable Index

@@ -20,7 +20,7 @@ related:
 - REST API surface（OpenAPI 3.1，見 `2-contracts/api/openapi.yaml`）
 - WebSocket / SSE realtime（AsyncAPI 2.6，見 `2-contracts/api/asyncapi.yaml`）
 - JWT 認證 + RBAC middleware
-- 7 個 system role（super_admin / tenant_admin / ops_director / ops_manager / dispatch_officer / support_agent / auditor；見 `2-contracts/modules/rbac.md`）
+- 7 個 system role（super_admin / tenant_admin / ops_director / ops_manager / dispatch_officer / support_agent / auditor；見 `2-contracts/modules/MC-0015-rbac.md`）
 - Work Order 16 狀態機（含 SLA 監控）
 - 派工演算法（auto + manual + 拒單重派）
 - 報價引擎（V2.0）

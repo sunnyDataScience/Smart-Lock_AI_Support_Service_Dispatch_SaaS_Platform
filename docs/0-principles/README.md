@@ -16,7 +16,7 @@ last_updated: 2026-05-10
 | :-- | :-- | :-- |
 | `product-principles.md` | Mission / 非任務 / 品質基準 / 技術硬限制 | 待 Phase 2/3 從 `docs/00-discover/E1` + `north-star-requirements` 抽 NFR/QA |
 | `glossary.md` | 業務術語 SSOT | 待 Phase 2/3 整合 `docs/_domain-knowledge/locksmith-checklist/{02,06,07,15}` 的純定義 |
-| `flow-id-conventions.md` | BF/UF/SF/FR/NFR/API/TC/ADR/CR 9-prefix Flow ID | copy from `VibeCoding_Workflow_Templates/0-principles/flow-id-conventions.md` |
+| `PRIN-0004-flow-id-conventions.md` | BF/UF/SF/FR/NFR/API/TC/ADR/CR 9-prefix Flow ID | copy from `VibeCoding_Workflow_Templates/0-principles/flow-id-conventions.md` |
 | `frontend-quality-attributes.md` | 前端 SLO / Core Web Vitals / A11y / 響應式 / 性能 baseline | 整合 `docs/02-design/E5x--frontend-architecture §QA` + `_flows-bdd-test/v-model-right/performance-baseline.md` + `02-design/specs/sla-*` |
 | `id-mapping-legacy.md` | 舊 ID（E1/E1x/F-XXX/REQ-NNN）→ 新 BF/UF/SF/FR 對照 | 本 Phase 2 立刻寫，CR-0001 D6 配套 |
 

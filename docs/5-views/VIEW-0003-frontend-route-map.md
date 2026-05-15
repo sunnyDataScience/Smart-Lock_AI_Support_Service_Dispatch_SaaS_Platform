@@ -8,7 +8,7 @@ DO_NOT_EDIT: |
   Tier 5 = AI-AUTO 視圖。手動編輯會在下次 regen 被覆寫。
 related:
   - "../2-contracts/pages/INDEX.md"
-  - "../1-decisions/module-boundary/web.md"
+  - "../1-decisions/module-boundary/ARCH-0004-module-boundary-web.md"
   - "../1-decisions/frontend-tech-stack.md"
 ---
 
@@ -112,7 +112,7 @@ related:
 | `/admin/*` | admin (含 ops_director / ops_manager / dispatch_officer / support_agent / auditor 視子路由) |
 | `/pool`, `/my-orders*`, `/account*` | technician |
 
-詳見 `2-contracts/modules/rbac.md` 7 角色 × 8 權限矩陣。
+詳見 `2-contracts/modules/MC-0015-rbac.md` 7 角色 × 8 權限矩陣。
 
 ## 變更紀錄
 

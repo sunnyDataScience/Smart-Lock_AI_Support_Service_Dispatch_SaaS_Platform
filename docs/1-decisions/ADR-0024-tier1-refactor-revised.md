@@ -9,9 +9,9 @@ supersedes: [ADR-0023]
 superseded_by: []
 related:
   - "./ADR-0023-tactical-refactor-2026-q2.md (初版，已 superseded)"
-  - "../5-views/project-structure.md"
-  - "../0-principles/product-principles.md"
-  - "../4-exploration/wbs-2026-q2-tactical-refactor.md (同步修正)"
+  - "../5-views/VIEW-0004-project-structure.md"
+  - "../0-principles/PRIN-0001-product-principles.md"
+  - "../4-exploration/WBS-0002-2026-q2-tactical-refactor.md (同步修正)"
 ---
 
 # ADR-0024 — Tier 1 戰術級重構（2026 Q2）— hands-on 修正版
@@ -116,8 +116,8 @@ ADR-0023 於 2026-05-11 PR #62 merge 後 30 分鐘進入 Phase 1.1 hands-on 階�
 - ❌ **不**搬 `CLAUDE_TEMPLATE.md`（保留 root）
 - ❌ **不**動 `api/data/` 命名
 - ❌ **不**動 `report/` 內容（但搬位置）
-- ✅ 搬 `report/` → `docs/releases/`（內容性質正確歸位）+ 更新 `.gitignore` / hook / CLAUDE.md 中引用
-- ✅ 搬 `web_design_spec_prompt_pipeline/` → `docs/legacy/web_design_spec_prompt_pipeline/`（明確 legacy 標記）
+- ✅ 搬 `report/` → `docs/1-decisions/releases/`（內容性質正確歸位）+ 更新 `.gitignore` / hook / CLAUDE.md 中引用
+- ✅ 搬 `web_design_spec_prompt_pipeline/` → `docs/_archive/legacy/web_design_spec_prompt_pipeline/`（明確 legacy 標記）
 - ✅ `.gitignore` 補 `.hypothesis/`、`.pytest_cache/`
 - ✅ 確認 `api/agent/integrations/` 空目錄處理（E3 處理）
 
@@ -164,7 +164,7 @@ ADR-0023 於 2026-05-11 PR #62 merge 後 30 分鐘進入 Phase 1.1 hands-on 階�
 
 **工期**：原 0.5 週 → 拆兩階段（5.1: 3-5 天 / 5.2: 0.5 天）；**先進 backlog**
 
-**2026-05-12 ROI 重評估**：Phase 1-4 完成後依本 ADR 排程進行重估，結論 **DEFER**（成本：75 檔手工補 + 高維護負擔 + 與 traceability-matrix.md 重疊；收益：V3 時程不明確、新人痛點未量化）。明確啟動觸發條件（T1-T4）與移除條件（R1-R2）詳見 [`docs/4-exploration/phase-5-flow-index-backlog-2026-q2.md`](../4-exploration/phase-5-flow-index-backlog-2026-q2.md)。
+**2026-05-12 ROI 重評估**：Phase 1-4 完成後依本 ADR 排程進行重估，結論 **DEFER**（成本：75 檔手工補 + 高維護負擔 + 與 traceability-matrix.md 重疊；收益：V3 時程不明確、新人痛點未量化）。明確啟動觸發條件（T1-T4）與移除條件（R1-R2）詳見 [`docs/4-exploration/WBS-0004-phase-5-flow-index-backlog-2026-q2.md`](../4-exploration/WBS-0004-phase-5-flow-index-backlog-2026-q2.md)。
 
 ---
 
@@ -203,9 +203,9 @@ ADR-0023 於 2026-05-11 PR #62 merge 後 30 分鐘進入 Phase 1.1 hands-on 階�
 |---|---|---|
 | `docs/1-decisions/` | 0' | 新增 ADR-0024；標 ADR-0023 superseded |
 | `docs/4-exploration/` | 0' | 更新 wbs-2026-q2-tactical-refactor.md（覆寫，含變更紀錄）|
-| `docs/5-views/project-structure.md` | 1' | **3 行修正**（不是 generator）|
+| `docs/5-views/VIEW-0004-project-structure.md` | 1' | **3 行修正**（不是 generator）|
 | `.gitignore` | 1' | 補 `.hypothesis/`、`.pytest_cache/` |
-| `docs/releases/`（新）、`docs/legacy/`（新）| 2' | 接收頂層歸位內容 |
+| `docs/1-decisions/releases/`（新）、`docs/_archive/legacy/`（新）| 2' | 接收頂層歸位內容 |
 | `report/`、`web_design_spec_prompt_pipeline/` | 2' | git mv（保留歷史）|
 | `web/src/hooks/`（新）、`web/src/lib/use*.ts` | 3' | 遷移 + 新增 usePaginatedFetch |
 | `web/src/app/**/page.tsx` | 3' | **13 個檔**（不是 52）|

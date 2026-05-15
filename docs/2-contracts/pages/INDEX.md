@@ -4,16 +4,16 @@ tier: 2
 status: active
 last_updated: 2026-05-10
 related:
-  - "../../1-decisions/module-boundary/web.md"
+  - "../../1-decisions/module-boundary/ARCH-0004-module-boundary-web.md"
   - "../frontend-design-system/"
-  - "../../5-views/frontend-route-map.md (full IA → route mapping)"
+  - "../../5-views/VIEW-0003-frontend-route-map.md (full IA → route mapping)"
 ---
 
 # Page Contracts Index
 
 > 10 個 **anchor page-contracts**，覆蓋 V1.0 主要 user flow 入口。
 > 每 page-contract = thin spec（route / auth / FR trace）。
-> **完整 52 頁 IA 對照** + **route → page.tsx 映射**見 [`5-views/frontend-route-map.md`](../../5-views/frontend-route-map.md)。
+> **完整 52 頁 IA 對照** + **route → page.tsx 映射**見 [`5-views/VIEW-0003-frontend-route-map.md`](../../5-views/VIEW-0003-frontend-route-map.md)。
 >
 > **Why anchor-only**: 大部分頁面為 CRUD / list / detail 樣板，frontend code (`web/src/app/<route>/page.tsx`) 即為 source of truth。Anchor pages 涵蓋有特殊 auth / multi-step flow / cross-cutting behavior 的關鍵入口。
 

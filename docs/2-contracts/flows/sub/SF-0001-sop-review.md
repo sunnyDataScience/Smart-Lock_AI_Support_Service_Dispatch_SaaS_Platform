@@ -11,7 +11,7 @@ trace_to:
   - "../../modules/sop-generator.md"
   - "../../../1-decisions/ADR-0014-pm-alignment-q2.md (雙簽階層)"
 related:
-  - "../../../0-principles/glossary.md §SOP-related terms"
+  - "../../../0-principles/GLOS-0001-glossary.md §SOP-related terms"
 legacy_id: 10_SOP審核流程定義
 extracted_from: docs/_domain-knowledge/locksmith-checklist/10_SOP審核流程定義.md
 ---

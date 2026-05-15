@@ -9,7 +9,7 @@ related:
   - "../../3-process/bdd/all-features.md"
   - "../modules/INDEX.md"
   - "../functional-requirements/"
-  - "../../5-views/traceability-matrix.md"
+  - "../../5-views/VIEW-0005-traceability-matrix.md"
 ---
 
 # Test Case ID Convention
@@ -168,7 +168,7 @@ Scenario: 停產型號處理
 - id: IT-0017
   title: "ProblemCardEngine: 冪等性 — 同 conversation 重複呼叫"
   type: integration
-  source: docs/2-contracts/modules/problem-card-engine.md#L165-L175
+  source: docs/2-contracts/modules/MC-0013-problem-card-engine.md#L165-L175
   trace:
     flow: [F-001]
     fr: [FR-0001]
@@ -196,7 +196,7 @@ Scenario: 停產型號處理
 - id: UT-0008
   title: "calculate_distance_km: 跨日界線不應 wrap-around"
   type: unit
-  source: docs/2-contracts/modules/dispatch-engine.md#L88-L96
+  source: docs/2-contracts/modules/MC-0005-dispatch-engine.md#L88-L96
   trace:
     fr: [FR-0014]
     module: [dispatch-engine]

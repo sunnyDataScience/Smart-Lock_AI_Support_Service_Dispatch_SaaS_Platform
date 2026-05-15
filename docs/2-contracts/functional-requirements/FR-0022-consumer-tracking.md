@@ -11,7 +11,7 @@ legacy_id: REQ-022
 trace_to_flow: F-022
 related:
   - "../../0-principles/id-mapping-legacy.md §A.3 (REQ→FR)"
-  - "../../0-principles/product-principles.md"
+  - "../../0-principles/PRIN-0001-product-principles.md"
   - "../flows/business/"
   - "../api/openapi.yaml"
 ---

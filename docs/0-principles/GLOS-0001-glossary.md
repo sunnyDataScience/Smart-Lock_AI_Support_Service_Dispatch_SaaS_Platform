@@ -42,7 +42,7 @@ related:
 | :-- | :-- |
 | Conversation (對話) | LINE 通訊串；包含多 message；狀態機 idle → collecting → resolving → resolved |
 | ProblemCard (PC, 問題卡) | AI 從對話自動產生的結構化問題；含分類、症狀、嚴重度、所需技能 |
-| Work Order (WO, 工單) | 派工執行單位；16 個 state（見 [`2-contracts/state-machines/work-order-extensions.md`](../2-contracts/state-machines/work-order-extensions.md)）|
+| Work Order (WO, 工單) | 派工執行單位；16 個 state（見 [`2-contracts/state-machines/SM-0002-work-order-extensions.md`](../2-contracts/state-machines/SM-0002-work-order-extensions.md)）|
 | Skill (技能 / SKILL.md) | Agent 可載入的 SOP 知識檔；存於 `agent/skills/data/` |
 | Case Entry (案例) | 知識庫案例；可作為訓練資料與 SOP 草稿來源 |
 | SOP Draft | AI 從歷史對話產生的 SOP 草稿；客服→主管雙層審核發布 |
@@ -126,14 +126,14 @@ related:
 | 雙重驗證 | 密碼+卡片 | `* 8` 解除（dormakaba）|
 | IoT 限制 | Wi-Fi 連不上 | 僅 2.4G；高階路由器降為 802.11b/g/n |
 
-完整故障碼對照表：[`2-contracts/master-data/fault-codes.md`](../2-contracts/master-data/fault-codes.md)
-完整故障體系：[`2-contracts/master-data/fault-taxonomy.md`](../2-contracts/master-data/fault-taxonomy.md)
+完整故障碼對照表：[`2-contracts/master-data/MDS-0003-fault-codes.md`](../2-contracts/master-data/MDS-0003-fault-codes.md)
+完整故障體系：[`2-contracts/master-data/MDS-0004-fault-taxonomy.md`](../2-contracts/master-data/MDS-0004-fault-taxonomy.md)
 
 ---
 
 ## §5 品牌與型號（簡表）
 
-V1.0 支援品牌（見 `2-contracts/master-data/brand-model.md` 與 `agent/skills/data/`）：
+V1.0 支援品牌（見 `2-contracts/master-data/MDS-0001-brand-model.md` 與 `agent/skills/data/`）：
 
 - **Chatlock** (含 AI-99 等型號)
 - **Dormakaba** (AS901, DP850, ML660, ...)

@@ -5,11 +5,11 @@ status: active
 last_updated: 2026-05-10
 sources_merged:
   - "_pending-split-performance-baseline.md §1 SLA Targets (per-endpoint)"
-  - "../2-contracts/modules/sla-monitor.md §SLA targets"
+  - "../2-contracts/modules/MC-0019-sla-monitor.md §SLA targets"
   - "product-principles.md §3 Quality Bars"
 related:
   - "product-principles.md"
-  - "../3-process/test-plan.md (Performance test scenarios)"
+  - "../3-process/TP-0001-test-plan.md (Performance test scenarios)"
   - "../1-decisions/frontend-tech-stack.md"
 ---
 
@@ -44,7 +44,7 @@ related:
 
 **規範**：
 - 每個 operationId 必須有 SLA；無 SLA 的端點在 spec lint 時報警
-- `max RPS` 為單實例 baseline；水平擴展能力見 `3-process/test-plan.md §capacity-planning`
+- `max RPS` 為單實例 baseline；水平擴展能力見 `3-process/TP-0001-test-plan.md §capacity-planning`
 
 實際 baseline 數字由 DevOps 跑 k6 後填入（CR follow-up）。
 

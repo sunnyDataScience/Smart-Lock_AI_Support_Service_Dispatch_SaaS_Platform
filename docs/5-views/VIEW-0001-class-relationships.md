@@ -7,7 +7,7 @@ generator: manual (Phase 8 後改 UML extractor); from grep "^class " over agent
 DO_NOT_EDIT: |
   Tier 5 = AI-AUTO 視圖。手動編輯會在下次 regen 被覆寫。
 related:
-  - "../1-decisions/domain-model.md"
+  - "../1-decisions/DDD-0001-domain-model.md"
   - "../1-decisions/module-boundary/"
   - "../2-contracts/modules/"
 ---
@@ -106,19 +106,19 @@ related:
 待 Phase 8 grep 補完。主要 service classes 對應 module-contract:
 
 - `WorkOrderService` → `2-contracts/modules/`（待建）
-- `DispatchEngine` → `2-contracts/modules/dispatch-engine.md`
-- `RefundService` → `2-contracts/modules/refund-service.md`
+- `DispatchEngine` → `2-contracts/modules/MC-0005-dispatch-engine.md`
+- `RefundService` → `2-contracts/modules/MC-0017-refund-service.md`
 - `ScopeChangeService` → `2-contracts/modules/`（待建）
-- `RbacService` → `2-contracts/modules/rbac.md`
-- `AuditLogger` → `2-contracts/modules/audit-logger.md`
-- `WarrantyService` → `2-contracts/modules/warranty-claim.md`
-- `ProblemCardService` → `2-contracts/modules/problem-card-engine.md`
-- `ConversationService` → `2-contracts/modules/conversation-manager.md`
-- `LinePushService` → `2-contracts/modules/realtime-messaging.md` (相關)
+- `RbacService` → `2-contracts/modules/MC-0015-rbac.md`
+- `AuditLogger` → `2-contracts/modules/MC-0001-audit-logger.md`
+- `WarrantyService` → `2-contracts/modules/MC-0023-warranty-claim.md`
+- `ProblemCardService` → `2-contracts/modules/MC-0013-problem-card-engine.md`
+- `ConversationService` → `2-contracts/modules/MC-0003-conversation-manager.md`
+- `LinePushService` → `2-contracts/modules/MC-0016-realtime-messaging.md` (相關)
 - `PricingEngine` → `2-contracts/modules/`（待建）
-- `SlaMonitor` → `2-contracts/modules/sla-monitor.md`
+- `SlaMonitor` → `2-contracts/modules/MC-0019-sla-monitor.md`
 
-## DDD aggregate roots（per `1-decisions/domain-model.md`）
+## DDD aggregate roots（per `1-decisions/DDD-0001-domain-model.md`）
 
 - `Conversation` (aggregate of Messages)
 - `ProblemCard` (aggregate)

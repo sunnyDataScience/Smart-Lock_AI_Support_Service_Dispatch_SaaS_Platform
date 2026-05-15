@@ -7,7 +7,7 @@ description: 跨層覆蓋 — F-XXX × 角色 / journey / workflow / BDD / modul
 related:
   - "../README.md"
   - "../2-contracts/functional-requirements/FR-0001-line-intake.md"
-  - "../3-process/test-plan.md"
+  - "../3-process/TP-0001-test-plan.md"
   - "../3-process/bdd/all-features.md"
   - "../1-decisions/ADR-0013-pm-alignment-q1.md"
 ---
@@ -409,11 +409,11 @@ related:
 
 ---
 
-## Appendix — Pages Mapping (merged from docs/legacy/web_design_spec_prompt_pipeline/pages/MAPPING.md)
+## Appendix — Pages Mapping (merged from docs/_archive/legacy/web_design_spec_prompt_pipeline/pages/MAPPING.md)
 
 # 頁面規格對應表 (Page Specification Mapping)
 
-> **用途：** 作為 `docs/02-design/E5x--frontend-information-arch.md`（IA 48 頁定義）與本目錄 `docs/legacy/web_design_spec_prompt_pipeline/pages/*.md`（19 份 page spec）之間的**雙向對照索引**。
+> **用途：** 作為 `docs/02-design/E5x--frontend-information-arch.md`（IA 48 頁定義）與本目錄 `docs/_archive/legacy/web_design_spec_prompt_pipeline/pages/*.md`（19 份 page spec）之間的**雙向對照索引**。
 > **維護原則：** IA 新增/刪除頁面時同步更新本檔；pipeline 新增 spec 檔時新增對應列。
 >
 > **最後更新：** 2026-04-23 · **版本：** v1.1 · **對應 IA 版本：** v1.2 · **對應前端架構版本：** v1.2
