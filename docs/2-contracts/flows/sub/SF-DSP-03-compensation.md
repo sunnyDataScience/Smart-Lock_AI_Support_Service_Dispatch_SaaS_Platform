@@ -9,6 +9,9 @@ related:
   - "../business/BF-0003-monthly-settlement.md"
   - "../../../1-decisions/ADR-0019-pm-alignment-q7.md"
 legacy_id: E5x--workflow-dispatch §3
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
+sync-source: doc
+synced-at: 2026-05-15
 ---
 
 # SF-DSP-03 — Technician Compensation

@@ -10,6 +10,9 @@ related:
   - "../../modules/dispatch-engine.md"
   - "../../../1-decisions/ADR-0022-pm-alignment-q10.md (rollback)"
 legacy_id: E5x--workflow-dispatch §4
+last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
+sync-source: doc
+synced-at: 2026-05-15
 ---
 
 # SF-DSP-04 — Rejection & Reassign
