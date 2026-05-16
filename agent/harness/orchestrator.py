@@ -198,6 +198,9 @@ async def _maybe_run_turn_cycle(user_id: str, user_text: str) -> str:
             user_facts=facts or {},
             pool=pool,
             llm_model=_turn_cycle_llm,
+            # CR-0001 §1: persist 改 config-gated。預設 false 避免不小心
+            # 開 enabled=true 時 belief_states 表瞬間爆量。
+            persist=_turn_cycle_cfg.get("persist", False),
         )
     except Exception as e:  # noqa: BLE001 — fail-open 雙重保險
         if not _turn_cycle_cfg.get("fail_open", True):

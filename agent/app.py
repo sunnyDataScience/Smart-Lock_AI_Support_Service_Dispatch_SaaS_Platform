@@ -69,6 +69,9 @@ if _OTEL_READY:
 
 # ── Global state ──
 _cfg = None
+# CR-0001 §1 / ADR-0029：暴露 audit_storage 給 module-level handlers
+# （_handle_media_message 等）寫 fail-soft 失敗事件，避免黑洞。
+_audit_storage = None
 
 
 def _get_env(env_name: str) -> str:
@@ -81,7 +84,7 @@ def _get_env(env_name: str) -> str:
 
 @app.on_event("startup")
 async def startup():
-    global _cfg
+    global _cfg, _audit_storage
 
     # 載入設定
     _cfg = load_config()
@@ -92,6 +95,14 @@ async def startup():
 
     # 建立 checkpointer（透過 registry）
     checkpointer = await get_checkpointer(_cfg.memory)
+
+    # CR-0001 §1：audit_storage 提前到此處，後續 profile_updater / safety_gate
+    # / memory_manager 等都需要它做 fail-soft 失敗事件落地（ADR-0029 三件組）。
+    # llm_metrics.set_storage 也提前到 profile_updater.init 之前。
+    audit_storage = await get_storage(_cfg.storage)
+    _audit_storage = audit_storage  # 暴露給 module-level handlers (_handle_media_message)
+    from harness import llm_metrics
+    llm_metrics.set_storage(audit_storage)
 
     # 建立 ProfileManager
     profile_mgr = ProfileManager(_cfg.user_profile)
@@ -112,11 +123,13 @@ async def startup():
         log.warning("product_info_load_failed", error=str(e))
 
     # 初始化用戶輪廓萃取器
+    # CR-0001 §1 / ADR-0029：傳入 audit_storage 讓抽取失敗能寫 audit_log
+    # (event_type='profile_extraction', action='profile.extraction_failed')
     profile_updater.init(model, {
         **_cfg.user_profile,
         "domain": _cfg.system.get("domain", "電子鎖、智慧門鎖"),
         "update_profile_prompt": _cfg.prompts.get("update_profile_prompt", "prompts/update_profile.md"),
-    }, profile_mgr)
+    }, profile_mgr, audit_storage=audit_storage)
 
     # 建立 agent
     agent = build_agent(model, _cfg, checkpointer=checkpointer, profile_mgr=profile_mgr)
@@ -141,18 +154,14 @@ async def startup():
         "temperature": 0.2,
         "thinking_budget": 256,
     })
+    # CR-0001 §1 / Phase D1：傳入 audit_storage 讓壓縮前 raw backup 落地
     memory_manager.init(memory_llm, {
         **_cfg.memory,
         "domain": _cfg.system.get("domain", "電子鎖、智慧門鎖"),
         "summarize_prompt": _cfg.prompts.get("summarize_prompt", "prompts/summarize_messages.md"),
-    }, profile_mgr=profile_mgr)
+    }, profile_mgr=profile_mgr, audit_storage=audit_storage)
 
-    # 初始化審計日誌
-    audit_storage = await get_storage(_cfg.storage)
-
-    # 注入 LLM 用量紀錄共用 storage（取代 Opik 的 token + latency 紀錄角色）
-    from harness import llm_metrics
-    llm_metrics.set_storage(audit_storage)
+    # （audit_storage + llm_metrics 已於前面 checkpointer 之後初始化）
 
     # 初始化安全閘門 (H6)
     safety_gate.init(_cfg.safety)
@@ -166,6 +175,13 @@ async def startup():
 
     # 初始化資料修正攔截
     await data_correction.init_db(_cfg.data_correction)
+
+    # CR-0001 §3 / Phase C2：啟用 LINE webhook idempotency
+    from harness import webhook_idempotency
+    await webhook_idempotency.init_db(
+        getattr(_cfg, "webhook_idempotency", {}) if hasattr(_cfg, "webhook_idempotency") else {}
+    )
+    asyncio.create_task(webhook_idempotency.cleanup_loop())
 
     # 初始化 OPIK tracing
     opik_tracer = None
@@ -220,16 +236,48 @@ async def startup():
     # 啟動背景清理任務
     asyncio.create_task(debounce.cleanup_stale_buffers())
 
-    log.info("agent_ready", layers=["skill", "debounce", "multimodal", "audit"])
+    # CR-0001 §1 / ADR-0029：啟動 outbox consumer worker
+    # （admin_api.py 失敗時寫 agent_outbox，此 worker 撈出來重試）
+    try:
+        from harness import outbox_worker
+        from psycopg_pool import AsyncConnectionPool as _Pool
+        outbox_pool = _Pool(os.environ["POSTGRES_URI"], min_size=1, max_size=2, open=False)
+        await outbox_pool.open()
+        outbox_worker.start_in_background(
+            outbox_pool,
+            base_url=os.environ.get("INTERNAL_API_BASE_URL", "http://localhost:8001"),
+            bearer=os.environ.get("INTERNAL_API_BEARER", ""),
+            tenant_id=os.environ.get(
+                "INTERNAL_API_TENANT_ID",
+                "00000000-0000-0000-0000-000000000001",
+            ),
+        )
+        log.info("outbox_worker_scheduled")
+    except Exception as e:  # noqa: BLE001 — 啟動 worker 失敗不應 block agent ready
+        log.warning("outbox_worker_start_failed", error=str(e))
+
+    log.info("agent_ready", layers=["skill", "debounce", "multimodal", "audit", "outbox"])
 
 
 @app.on_event("shutdown")
 async def shutdown():
+    # CR-0001 §1：先停 outbox worker 再關 DB pool，避免半途 cancellation
+    try:
+        from harness import outbox_worker
+        await outbox_worker.stop_outbox_worker()
+    except Exception as e:  # noqa: BLE001
+        log.warning("outbox_worker_stop_failed", error=str(e))
+
     await multimodal.close()
     await close_storage()
     await close_checkpointer()
     await close_facts_db()
     await data_correction.close_db()
+    try:
+        from harness import webhook_idempotency
+        await webhook_idempotency.close_db()
+    except Exception as e:  # noqa: BLE001
+        log.warning("webhook_idempotency_close_failed", error=str(e))
     log.info("connections_closed")
 
 
@@ -470,6 +518,18 @@ async def line_webhook(request: Request):
         user_id = event.source.user_id
         reply_token = event.reply_token
 
+        # CR-0001 §3 / NFR-IDEMP-001 / Phase C2：LINE 重送防護
+        # event.message.id 是 LINE 端每筆訊息 unique（webhookEventId 在 V3
+        # SDK 不一定可取，但 message.id 一致可用）。已處理過 → 跳過。
+        from harness import webhook_idempotency
+        event_msg = getattr(event, "message", None)
+        event_id = getattr(event_msg, "id", None) if event_msg is not None else None
+        if event_id:
+            first_time = await webhook_idempotency.mark_processed(event_id)
+            if not first_time:
+                log.info("webhook_duplicate_skipped", event_id=event_id, user_id=user_id)
+                continue
+
         # ── F-001 bridge: 確保 conversation record 已建立（fire-and-forget 不阻塞）──
         asyncio.create_task(_ensure_conversation_record(user_id))
 
@@ -546,3 +606,22 @@ async def _handle_media_message(user_id: str, message_id: str, media_type: str):
             f"[使用者傳送了{media_label}，但系統無法下載內容，請根據對話脈絡盡量協助]",
             replace_media_pending=True,
         )
+        # CR-0001 §1 / ADR-0029：multimodal download 失敗必寫 audit_log
+        # (event_type='multimodal_failure')。fire-and-forget，自身失敗只 log。
+        if _audit_storage is not None:
+            try:
+                await _audit_storage.log_event(
+                    event_type="multimodal_failure",
+                    actor_id=user_id,
+                    actor_role="system",
+                    action=f"multimodal.{media_type}_download_failed",
+                    target_type="line_message",
+                    target_id=message_id,
+                    payload={
+                        "media_type": media_type,
+                        "error_type": type(e).__name__,
+                        "error_msg": str(e)[:500],
+                    },
+                )
+            except Exception as audit_err:  # noqa: BLE001
+                log.warning("audit_media_failure_log_failed", error=str(audit_err))

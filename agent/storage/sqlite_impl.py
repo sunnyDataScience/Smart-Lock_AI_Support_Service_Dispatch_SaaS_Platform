@@ -55,14 +55,70 @@ class SqliteAuditStorage:
         )
         await self._conn.commit()
 
-    async def log_tool_invocation(self, *args, **kwargs):
-        pass
+    # ADR-0029: 與 postgres_impl 對齊；audit method 禁留 pass no-op。
+    # Signature 與 postgres_impl.PostgresAuditStorage 完全一致以保證
+    # caller (agent_audit.py / safety_gate.py / transfer_to_human flow)
+    # 可以在兩個 backend 間透明切換。
 
-    async def log_safety_gate(self, *args, **kwargs):
-        pass
+    async def log_tool_invocation(
+        self,
+        user_id: str,
+        actor: str,
+        tool_name: str,
+        *,
+        risk_level: str = "read",
+        args_summary: str = "",
+    ):
+        await self.log_event(
+            event_type="tool_invocation",
+            actor_id=user_id,
+            actor_role=actor,
+            action=f"tool.{tool_name}",
+            target_type="tool",
+            target_id=tool_name,
+            payload={"risk_level": risk_level, "args_summary": args_summary},
+        )
 
-    async def log_escalation(self, *args, **kwargs):
-        pass
+    async def log_safety_gate(
+        self,
+        user_id: str,
+        decision: str,
+        details: list | None = None,
+    ):
+        await self.log_event(
+            event_type="safety_gate",
+            actor_id=user_id,
+            actor_role="system",
+            action=f"safety_gate.{decision}",
+            payload={"decision": decision, "details": details or []},
+        )
+
+    async def log_escalation(
+        self,
+        user_id: str,
+        reason: str,
+        *,
+        contact: str | None = None,
+        address: str | None = None,
+        device_info: str | None = None,
+        handoff_form_text: str | None = None,
+    ):
+        payload: dict = {"reason": reason}
+        if contact:
+            payload["contact"] = contact
+        if address:
+            payload["address"] = address
+        if device_info:
+            payload["device_info"] = device_info
+        if handoff_form_text:
+            payload["handoff_form_text"] = handoff_form_text
+        await self.log_event(
+            event_type="escalation",
+            actor_id=user_id,
+            actor_role="user",
+            action="escalation.transfer_to_human",
+            payload=payload,
+        )
 
     async def log_llm_interaction(self, user_id: str, model: str, call_site: str = "react_agent", latency_ms: float | int | None = None, **kwargs):
         await self.log_llm_call(

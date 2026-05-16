@@ -75,12 +75,21 @@ class PostgresAuditStorage:
         if payload:
             masked_payload = _mask_pii(json.dumps(payload, ensure_ascii=False, default=str))
 
+        # ADR-0030 / Phase C3-a：tenant_id 從 ContextVar 取，fail-safe 'default'。
+        # Schema_cr0001 migration 已給 audit_log.tenant_id 加 NOT NULL DEFAULT
+        # 'default'，未 ALTER 的舊環境靠 default 兜底，INSERT 不會失敗。
+        try:
+            from skills.tools import get_current_tenant
+            tenant_id = get_current_tenant()
+        except Exception:  # noqa: BLE001 — import 失敗（CLI 模式無 tools layer）
+            tenant_id = "default"
+
         try:
             async with _postgres_pool.connection() as conn:
                 await conn.execute(
                     """INSERT INTO audit_log
-                       (user_id, role, content, timestamp, event_type, action, target_type, target_id, payload)
-                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                       (user_id, role, content, timestamp, event_type, action, target_type, target_id, payload, tenant_id)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                     (
                         actor_id,
                         actor_role,
@@ -91,21 +100,94 @@ class PostgresAuditStorage:
                         target_type,
                         target_id,
                         masked_payload,
+                        tenant_id,
                     ),
                 )
         except Exception as e:
             print(f"[Audit DB] log_event 失敗: {e}")
 
     # --- Convenience methods for common events ---
+    # ADR-0029: fail-soft 三件組 — audit method 禁留 pass no-op。
+    # 之前這三個是 pass 導致 tool_invocation / safety_gate / escalation
+    # 事件全部丟失（CR-0001 §1 黑洞點）；改成 log_event 對齊文件 §3-7。
 
-    async def log_tool_invocation(self, *args, **kwargs):
-        pass
+    async def log_tool_invocation(
+        self,
+        user_id: str,
+        actor: str,
+        tool_name: str,
+        *,
+        risk_level: str = "read",
+        args_summary: str = "",
+    ):
+        """Audit one agent tool call.
 
-    async def log_safety_gate(self, *args, **kwargs):
-        pass
+        ``actor`` is the agent identifier (e.g. ``smart_lock_agent``).
+        ``risk_level`` ∈ {"read", "escalate"} per agent_audit.py:69 convention.
+        ``args_summary`` truncated to 200 chars by caller (agent_audit.py:65).
+        """
+        await self.log_event(
+            event_type="tool_invocation",
+            actor_id=user_id,
+            actor_role=actor,
+            action=f"tool.{tool_name}",
+            target_type="tool",
+            target_id=tool_name,
+            payload={"risk_level": risk_level, "args_summary": args_summary},
+        )
 
-    async def log_escalation(self, *args, **kwargs):
-        pass
+    async def log_safety_gate(
+        self,
+        user_id: str,
+        decision: str,
+        details: list | None = None,
+    ):
+        """Audit one H6 safety-gate decision.
+
+        ``decision`` ∈ {"blocked", "allowed"}; ``details`` is a list of
+        per-rule hit records, e.g. ``[{"keyword_match": True, "rule": "..."}]``.
+        """
+        await self.log_event(
+            event_type="safety_gate",
+            actor_id=user_id,
+            actor_role="system",
+            action=f"safety_gate.{decision}",
+            payload={"decision": decision, "details": details or []},
+        )
+
+    async def log_escalation(
+        self,
+        user_id: str,
+        reason: str,
+        *,
+        contact: str | None = None,
+        address: str | None = None,
+        device_info: str | None = None,
+        handoff_form_text: str | None = None,
+    ):
+        """Audit one transfer_to_human escalation.
+
+        CR-0001 §8 Q1 decision (a)：handoff form 完整內容寫進 audit_log.payload，
+        dashboard 從 ``WHERE event_type='escalation'`` 撈 handoff queue。
+        所有 contact/address/device_info/handoff_form_text 為選填以保持
+        backward compat (legacy 呼叫只帶 reason)。
+        """
+        payload: dict = {"reason": reason}
+        if contact:
+            payload["contact"] = contact
+        if address:
+            payload["address"] = address
+        if device_info:
+            payload["device_info"] = device_info
+        if handoff_form_text:
+            payload["handoff_form_text"] = handoff_form_text
+        await self.log_event(
+            event_type="escalation",
+            actor_id=user_id,
+            actor_role="user",
+            action="escalation.transfer_to_human",
+            payload=payload,
+        )
 
     async def log_llm_interaction(self, user_id: str, model: str, call_site: str = "react_agent", latency_ms: float | int | None = None, **kwargs):
         """Backward-compatible wrapper — forwards to log_llm_call."""
