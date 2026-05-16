@@ -1,3 +1,12 @@
+---
+id: ADR-0010
+title: Belief-Augmented ReAct（Turn Cycle 實驗）
+tier: 1
+status: experimental
+date: 2026-05-11
+deciders: [Imding1211, Claude（implementor）]
+---
+
 # ADR-010: Belief-Augmented ReAct（Turn Cycle 實驗）
 
 **狀態:** **Experimental — On Hold**（2026-05-11 Stage B 完工 / 2026-05-13 roadmap 轉向 hermes-cs → 本 ADR 對應實驗暫不進 production）

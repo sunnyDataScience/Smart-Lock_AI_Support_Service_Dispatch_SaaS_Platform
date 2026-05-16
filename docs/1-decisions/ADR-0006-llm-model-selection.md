@@ -1,3 +1,12 @@
+---
+id: ADR-0006
+title: LLM 模型選擇策略
+tier: 1
+status: accepted
+date: 2026-04-04
+deciders: [技術負責人, 開發團隊]
+---
+
 # ADR-006: LLM 模型選擇策略
 
 **狀態:** Accepted

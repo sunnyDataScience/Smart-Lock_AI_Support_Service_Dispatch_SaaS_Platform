@@ -1,7 +1,10 @@
 ---
+id: ARCH-0005
+date: 2026-05-10
+deciders: [Tech Lead, Architecture team]
 title: Module Boundary — data/pipeline/
 tier: 1
-status: active
+status: accepted
 last_updated: 2026-05-10
 source_paths:
   - data/pipeline/

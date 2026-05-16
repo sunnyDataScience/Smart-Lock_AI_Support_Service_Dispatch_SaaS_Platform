@@ -1,3 +1,12 @@
+---
+id: PROC-0007
+title: 部署與運維指南 - 電子鎖智能客服與派工平台
+tier: 3
+status: active
+owner: SRE
+last_updated: 2026-05-16
+---
+
 # 部署與運維指南 - 電子鎖智能客服與派工平台
 
 # Deployment and Operations Guide - Smart Lock AI Support & Service Dispatch SaaS Platform

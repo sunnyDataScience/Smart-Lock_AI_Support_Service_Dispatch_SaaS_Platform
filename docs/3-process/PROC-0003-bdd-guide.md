@@ -1,3 +1,12 @@
+---
+id: PROC-0003
+title: BDD 行為驅動情境指南
+tier: 3
+status: active
+owner: QA Lead
+last_updated: 2026-05-16
+---
+
 # BDD 行為驅動情境指南
 
 > **版本:** v1.0 | **更新:** YYYY-MM-DD

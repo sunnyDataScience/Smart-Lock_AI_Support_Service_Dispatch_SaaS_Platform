@@ -1,3 +1,12 @@
+---
+id: ADR-0004
+title: LINE Bot 對話架構設計
+tier: 1
+status: accepted
+date: 2026-02-17
+deciders: [技術負責人, 開發團隊]
+---
+
 # ADR-004: LINE Bot 對話架構設計
 
 > **ADR 狀態更新（2026-04-21）**

@@ -1,4 +1,5 @@
 ---
+id: QG-0001
 title: Quality Gates — TR0-TR10 + GR6/7/10 + VibeCoding gate-0~5
 status: active
 last_updated: 2026-05-11

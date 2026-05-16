@@ -1,3 +1,12 @@
+---
+id: ADR-0005
+title: 選擇 Next.js 作為 V2.0 前端框架
+tier: 1
+status: accepted
+date: 2026-02-17
+deciders: [技術負責人, 開發團隊]
+---
+
 # ADR-005: 選擇 Next.js 作為 V2.0 前端框架
 
 **狀態:** 已接受 (Accepted)

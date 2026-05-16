@@ -1,3 +1,12 @@
+---
+id: ADR-0003
+title: 選擇 LangChain 作為 LLM 整合框架
+tier: 1
+status: accepted
+date: 2026-02-17
+deciders: [技術負責人, 開發團隊]
+---
+
 # ADR-003: 選擇 LangChain 作為 LLM 整合框架
 
 > **ADR 狀態更新（2026-04-21）**

@@ -1,3 +1,12 @@
+---
+id: PROC-0005
+title: 品質檢查清單 (Quality Checklist)
+tier: 3
+status: active
+owner: FE Lead
+last_updated: 2025-03-02
+---
+
 # 品質檢查清單 (Quality Checklist)
 
 > 通用驗收清單，適用於所有網站類型。對照你的 Design System 填入具體數值。

@@ -1,3 +1,12 @@
+---
+id: DDD-0001
+title: 06 — Entity Relationship Diagram（實體關聯圖）
+tier: 1
+status: accepted
+date: 2026-05-16
+deciders: [Tech Lead]
+---
+
 # 06 — Entity Relationship Diagram（實體關聯圖）
 
 > **為什麼重要？** 定義資料核心，確保資料模型正確支撐所有業務場景。

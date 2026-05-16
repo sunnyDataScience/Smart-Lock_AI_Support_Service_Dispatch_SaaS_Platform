@@ -1,3 +1,12 @@
+---
+id: ADR-0001
+title: 選擇 FastAPI 作為後端框架
+tier: 1
+status: accepted
+date: 2026-02-17
+deciders: [技術負責人, 開發團隊]
+---
+
 # ADR-001: 選擇 FastAPI 作為後端框架
 
 **狀態:** 已接受 (Accepted)

@@ -1,7 +1,9 @@
 ---
+id: PROC-0004
+owner: QA Lead + Tech Lead
 title: BDD Scenarios — All V1.0 + V2.0 Features (16 features × ~85 scenarios)
 tier: 3
-status: accepted
+status: active
 last_updated: 2026-05-10
 related:
   - "../bdd-guide.md (BDD methodology)"

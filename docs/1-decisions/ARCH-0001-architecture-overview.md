@@ -1,3 +1,12 @@
+---
+id: ARCH-0001
+title: 整合性架構與設計文件 - 電子鎖智能客服與派工平台
+tier: 1
+status: accepted
+date: 2026-05-16
+deciders: [Tech Lead]
+---
+
 # 整合性架構與設計文件 - 電子鎖智能客服與派工平台
 
 # Smart Lock AI Support & Service Dispatch SaaS Platform

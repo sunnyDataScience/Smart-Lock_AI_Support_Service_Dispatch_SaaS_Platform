@@ -1,3 +1,12 @@
+---
+id: ADR-0007
+title: LLM Registry 形式 — 承認 LiteLLM 字串路由為 dict registry 替代方案
+tier: 1
+status: accepted
+date: 2026-05-07
+deciders: [技術負責人, 開發團隊]
+---
+
 # ADR-007: LLM Registry 形式 — 承認 LiteLLM 字串路由為 dict registry 替代方案
 
 **狀態:** Accepted

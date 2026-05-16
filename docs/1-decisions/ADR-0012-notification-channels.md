@@ -1,8 +1,10 @@
 ---
+id: ADR-0012
+date: 2026-05-09
 title: Notification Channel Strategy — V1.0 / V1.5+ 通知 channel 策略
 phase: DESIGN
 gate: TR4
-status: Active
+status: accepted
 owners:
   - PM
   - Tech Lead

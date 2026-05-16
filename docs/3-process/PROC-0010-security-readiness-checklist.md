@@ -1,3 +1,12 @@
+---
+id: PROC-0010
+title: 綜合品質檢查清單 (Unified Quality Checklist) - 電子鎖智能客服與派工平台
+tier: 3
+status: active
+owner: Security + QA Lead
+last_updated: 2026-05-16
+---
+
 # 綜合品質檢查清單 (Unified Quality Checklist) - 電子鎖智能客服與派工平台
 
 > **文件現況（2026-04-21）**

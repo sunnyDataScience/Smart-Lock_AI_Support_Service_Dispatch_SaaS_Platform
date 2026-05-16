@@ -1,7 +1,10 @@
 ---
+id: ARCH-0002
+date: 2026-05-10
+deciders: [Tech Lead, Architecture team]
 title: Module Boundary — agent/
 tier: 1
-status: active
+status: accepted
 last_updated: 2026-05-10
 source_paths:
   - agent/

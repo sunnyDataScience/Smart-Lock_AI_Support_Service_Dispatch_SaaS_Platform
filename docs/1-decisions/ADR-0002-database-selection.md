@@ -1,3 +1,12 @@
+---
+id: ADR-0002
+title: 選擇 PostgreSQL + pgvector 作為主要資料庫
+tier: 1
+status: accepted
+date: 2026-02-17
+deciders: [技術負責人, 開發團隊]
+---
+
 # ADR-002: 選擇 PostgreSQL + pgvector 作為主要資料庫
 
 **狀態:** 已接受 (Accepted)

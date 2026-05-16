@@ -1,7 +1,10 @@
 ---
+id: ARCH-0004
+date: 2026-05-10
+deciders: [Tech Lead, Architecture team]
 title: Module Boundary — web/
 tier: 1
-status: active
+status: accepted
 last_updated: 2026-05-10
 source_paths:
   - web/

@@ -1,3 +1,12 @@
+---
+id: ADR-0008
+title: Agent 知識庫架構以 `product_info/` 為唯一正典（Architecture Lock）
+tier: 1
+status: accepted
+date: 2026-05-09
+deciders: [Imding1211, "2026-05-13 reinstate 附註: Claude（與 Imding1211 在 hermes-cs 進度回顧時 confirm）"]
+---
+
 # ADR-008: Agent 知識庫架構以 `product_info/` 為唯一正典（Architecture Lock）
 
 **版本**: v1.0（2026-05-09）/ v1.1（2026-05-13，本 branch 加 reinstate 附註）

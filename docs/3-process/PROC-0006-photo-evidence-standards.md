@@ -1,3 +1,12 @@
+---
+id: PROC-0006
+title: 完工照片拍攝規範
+tier: 3
+status: active
+owner: Ops Lead
+last_updated: 2026-05-16
+---
+
 # 完工照片拍攝規範
 
 > ⚠️ 本文件為 AI 生成之模擬資料，僅供系統開發測試用途，不代表實際產品規格。

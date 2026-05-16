@@ -1,3 +1,12 @@
+---
+id: ADR-0009
+title: Agent ↔ Admin 資料同步機制（Bridge Pattern）
+tier: 1
+status: accepted
+date: 2026-05-09
+deciders: [Sunny（PM, Tech Lead 角色）]
+---
+
 # ADR-009: Agent ↔ Admin 資料同步機制（Bridge Pattern）
 
 **狀態:** **Accepted**（2026-05-09 17:00 拍板）

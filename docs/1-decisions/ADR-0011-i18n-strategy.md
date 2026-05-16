@@ -1,8 +1,10 @@
 ---
+id: ADR-0011
+date: 2026-05-09
 title: i18n Strategy — 多語系實作決策
 phase: DESIGN
 gate: TR5
-status: Active
+status: accepted
 owners:
   - FE Lead
   - Tech Lead

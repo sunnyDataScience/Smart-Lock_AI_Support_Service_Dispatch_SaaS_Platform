@@ -1,3 +1,12 @@
+---
+id: PROC-0002
+title: AI 工業化設計完整戰法
+tier: 3
+status: active
+owner: Tech Lead + AI Lead
+last_updated: 2026-03-17
+---
+
 # AI 工業化設計完整戰法
 
 > Pencil + Figma MCP + Claude Code = 設計即程式碼的工業級流水線

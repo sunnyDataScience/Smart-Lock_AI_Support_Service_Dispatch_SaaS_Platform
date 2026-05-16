@@ -1,4 +1,7 @@
 ---
+id: PROC-0008
+title: Vendor API Test Requirement template
+last_updated: 2026-05-16
 status: draft
 owner: <integration-lead-or-backend-lead>
 last_reviewed: <YYYY-MM-DD>
