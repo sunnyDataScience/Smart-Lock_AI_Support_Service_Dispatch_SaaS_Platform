@@ -3,7 +3,10 @@ id: FR-0022
 title: 消費者端工單追蹤（LINE + Web 並存）
 tier: 2
 priority: P1
-status: ⚠ blocked（Q3=C 待補 Web token + BDD）
+status: draft
+blockers: [Q3=C]
+lifecycle: blocked
+lifecycle-reason: "Q3=C 待補 Web token + BDD"
 last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
 sync-source: doc
 synced-at: 2026-05-15

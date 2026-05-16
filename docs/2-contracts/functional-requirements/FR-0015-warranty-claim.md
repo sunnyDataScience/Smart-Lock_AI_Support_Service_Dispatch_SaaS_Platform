@@ -3,7 +3,7 @@ id: FR-0015
 title: 保固申訴受理
 tier: 2
 priority: P1
-status: ✅ Live
+status: active
 last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
 sync-source: doc
 synced-at: 2026-05-15

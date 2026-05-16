@@ -3,7 +3,10 @@ id: FR-0016
 title: SLA 2hr 到場（Soft 警報）
 tier: 2
 priority: P0
-status: ⚠ partial（Q5=B Soft SLA）
+status: active
+blockers: [Q5=B]
+lifecycle: partial
+lifecycle-reason: "Q5=B Soft SLA"
 last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
 sync-source: doc
 synced-at: 2026-05-15

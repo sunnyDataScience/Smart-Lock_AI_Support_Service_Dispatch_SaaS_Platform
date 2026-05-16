@@ -3,7 +3,9 @@ id: FR-0021
 title: Dashboard / 報表（KPI / Revenue / Tech ranking）
 tier: 2
 priority: P1
-status: ⚠ partial（後端 filter TODO）
+status: active
+lifecycle: partial
+lifecycle-reason: "後端 filter TODO"
 last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
 sync-source: doc
 synced-at: 2026-05-15

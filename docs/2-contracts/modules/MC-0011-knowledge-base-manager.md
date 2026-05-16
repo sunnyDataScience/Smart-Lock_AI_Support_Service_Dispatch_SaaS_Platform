@@ -3,11 +3,14 @@ id: MOD-V1-04
 title: knowledge-base-manager — V1.0 Core Module
 tier: 2
 status: accepted
-last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
-sync-source: doc
+last-synced-with: dccfc0019fa897a3e5b37c4ae1130e6240190d6b
+sync-source: code
 source-paths:
-  - "# TODO: specify concrete file paths"
-synced-at: 2026-05-15
+  - api/services/case_service.py
+  - api/services/manual_service.py
+  - api/services/kb_export_service.py
+  - agent/product_info/
+synced-at: 2026-05-16
 related:
   - "../flows/business/_pending-split_BF-work-order.md"
   - "../functional-requirements/"

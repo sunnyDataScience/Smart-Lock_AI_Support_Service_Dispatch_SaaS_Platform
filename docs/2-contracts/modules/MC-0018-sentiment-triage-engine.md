@@ -3,11 +3,12 @@ id: MOD-V1-06
 title: sentiment-triage-engine — V1.0 Core Module
 tier: 2
 status: accepted
-last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
-sync-source: doc
+last-synced-with: dccfc0019fa897a3e5b37c4ae1130e6240190d6b
+sync-source: code
 source-paths:
-  - "# TODO: specify concrete file paths"
-synced-at: 2026-05-15
+  - api/services/sentiment_service.py
+  - api/services/notification_service.py
+synced-at: 2026-05-16
 related:
   - "../flows/business/_pending-split_BF-work-order.md"
   - "../functional-requirements/"

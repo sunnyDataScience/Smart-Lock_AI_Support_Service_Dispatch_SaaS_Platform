@@ -3,12 +3,12 @@ id: MOD-DISPATCH
 title: Dispatch Engine — 派工演算法 + 業務規則
 tier: 2
 status: accepted
-last-synced-with: f0f0146d1459d1a9142db218ec55cdf3b56e5891
+last-synced-with: dccfc0019fa897a3e5b37c4ae1130e6240190d6b
 sync-source: code
 source-paths:
-  - api/services/dispatch_engine.py
-  - api/services/sla_monitor.py
-synced-at: 2026-05-11
+  - api/services/dispatch_service.py
+  - api/realtime/sla_monitor.py
+synced-at: 2026-05-16
 related:
   - "./dispatch-engine-weights.md (權重表)"
   - "./sla-monitor.md"

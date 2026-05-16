@@ -3,7 +3,10 @@ id: FR-0023
 title: 錯誤頁 / 離線體驗（cross-cutting）
 tier: 2
 priority: P2
-status: ⚠ partial（建議新增 F-110 cross-cutting）
+status: active
+blockers: [F-110]
+lifecycle: partial
+lifecycle-reason: "建議新增 F-110 cross-cutting"
 last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
 sync-source: doc
 synced-at: 2026-05-15

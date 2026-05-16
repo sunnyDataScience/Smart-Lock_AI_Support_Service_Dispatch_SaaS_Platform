@@ -3,7 +3,9 @@ id: FR-0008
 title: Scope Change 流程（增項 / 改價）
 tier: 2
 priority: P1
-status: ⚠ pending Q9=B
+status: draft
+blockers: [Q9=B]
+lifecycle: pending-decision
 last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
 sync-source: doc
 synced-at: 2026-05-15

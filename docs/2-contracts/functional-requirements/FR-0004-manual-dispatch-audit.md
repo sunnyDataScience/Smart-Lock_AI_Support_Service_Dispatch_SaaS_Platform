@@ -3,7 +3,9 @@ id: FR-0004
 title: 手動派工 + audit log
 tier: 2
 priority: P0
-status: ⚠ pending Q1=A / Q6=A
+status: draft
+blockers: [Q1=A, Q6=A]
+lifecycle: pending-decision
 last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
 sync-source: doc
 synced-at: 2026-05-15

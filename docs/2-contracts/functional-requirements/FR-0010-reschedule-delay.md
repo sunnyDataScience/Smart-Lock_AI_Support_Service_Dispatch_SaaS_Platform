@@ -3,7 +3,9 @@ id: FR-0010
 title: 改約 / 延遲通知（V1.0 LINE only）
 tier: 2
 priority: P1
-status: ✅ pending Q8=A
+status: active
+blockers: [Q8=A]
+lifecycle: pending-decision
 last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
 sync-source: doc
 synced-at: 2026-05-15
