@@ -4,10 +4,11 @@ title: "Audit Logger"
 tier: 2-contracts
 status: active
 owner: HYBRID
-last-reviewed: 2026-05-15
+last-reviewed: 2026-05-16
 last-synced-with: 4e9658e90324cbceb26f5e5445f481fc5678df1f
 sync-source: doc
-synced-at: 2026-05-15
+synced-at: 2026-05-16
+related: [CR-0001, ADR-0029, ADR-0030]
 ---
 
 # 稽核日誌完整性規格書 (Audit Log Completeness Specification)
@@ -41,10 +42,19 @@ synced-at: 2026-05-15
 | `conversation` | 對話訊息 | 90 天 | 使用者與 AI agent 的聊天訊息 |
 | `tool_invocation` | 工具呼叫 | 90 天 | 每次 tool call，記錄參數與結果摘要 |
 | `safety_gate` | 安全閘門事件 | 1 年 | `gate.py` 的攔截、放行、警告事件 |
-| `escalation` | 人工轉接事件 | 1 年 | AI 判定需轉接人工客服的事件 |
+| `escalation` | 人工轉接事件 | 1 年 | AI 判定需轉接人工客服；**CR-0001 §3 後 payload 含完整 handoff form** (contact/address/device_info) |
 | `dispatch_decision` | 派工決策 | 2 年 | 派工匹配、指派、拒單、重派等決策 |
 | `financial_action` | 財務操作 | 7 年 | 退款、付款、結算、折扣等金流操作 |
 | `admin_action` | 管理操作 | 7 年 | 角色變更、系統設定調整、手動覆寫 |
+| `memory_compressed` | 對話壓縮事件 | 1 年 | **CR-0001 §1 Phase D1** — memory_manager 壓縮前 dump raw messages 到 audit_log 保證 ≥1 年可重播 (NFR-MEM-001) |
+| `profile_extraction` | Profile 抽取失敗 | 90 天 | **CR-0001 §1 Phase A3** — profile_updater 抽 facts 失敗（JSON parse / LLM 超時等） |
+| `multimodal_failure` | 多模態下載失敗 | 90 天 | **CR-0001 §1 Phase D2** — LINE media download timeout / storage 失敗 |
+
+> 🔴 **歷史 gap（已於 2026-05-16 CR-0001 修補）**：截至 2026-05-15 之前，
+> `log_tool_invocation` / `log_escalation` / `log_safety_gate` 三個方法在
+> `PostgresAuditStorage` 與 `SqliteAuditStorage` 都是 `pass` no-op stub，
+> 所有上述四種事件**從未寫入 audit_log**。ADR-0029 將此列為「fail-soft
+> 三件組」第一條鐵律：**audit method 禁留 pass no-op**。
 
 ### 2.1 保留期限依據
 
@@ -107,6 +117,9 @@ CREATE INDEX idx_audit_logs_timestamp  ON audit_logs (timestamp);
 | `dispatch_decision` | 730 | 每週排程刪除過期記錄 |
 | `financial_action` | 2555 | 每月排程刪除過期記錄 |
 | `admin_action` | 2555 | 每月排程刪除過期記錄 |
+| `memory_compressed` | 365 | 每日排程刪除過期記錄；對齊 NFR-MEM-001 ≥1 年重播窗 |
+| `profile_extraction` | 90 | 每日排程刪除過期記錄 |
+| `multimodal_failure` | 90 | 每日排程刪除過期記錄 |
 
 ### 4.1 清理邏輯
 

@@ -9,13 +9,20 @@ source-paths:
   - api/services/problem_card_service.py
   - agent/product_info/_common/troubleshoot.md
   - api/routers/problem_cards.py
-synced-at: 2026-05-15
+  - agent/harness/pc_creator.py
+  - agent/harness/outbox_worker.py
+  - agent/integrations/admin_api.py
+  - SQL/Schema_doc_numbering.sql
+  - SQL/Schema_cr0001_integration_gaps.sql
+synced-at: 2026-05-16
 related:
   - "../flows/business/BF-0001-work-order-lifecycle.md"
   - "../flows/sub/SF-WO-01-happy-path.md"
   - "../functional-requirements/FR-0002-problem-card-triage.md"
   - "../../1-decisions/module-boundary/ARCH-0002-module-boundary-agent.md"
+  - "../../1-decisions/ADR-0029-fail-soft-to-durable-three-pack.md"
   - "../../4-exploration/agent-harness-v2/problem-card-spec.md (V2.0 future design)"
+  - "../../4-exploration/CR-0001-system-integration-gap-repair.md"
 legacy_id: V1-Module-02 + 02-design/agent-harness/problem-card-spec.md
 canonical_for: ProblemCard module
 canonical_at: 2026-05-10
@@ -65,15 +72,18 @@ async def generate_problem_card(
 
 *   **後置條件 (Postconditions)**:
     1. `problem_cards` 表中已建立或更新一筆記錄，`conversation_id` 外鍵指向傳入的對話。
-    2. `completeness_score` 已根據關鍵欄位填充率重新計算（計算公式見規格 2-2）。
-    3. `extracted_fields` JSONB 中記錄了 LLM 每個欄位的原始擷取結果與 confidence score。
-    4. 若 `completeness_score >= 0.85`（合約要求 ProblemCard 必要欄位完整率 >= 85%），`status` 為 `"confirmed"` 或保持 `"incomplete"`（視是否有使用者確認）。
-    5. 回傳的 `ProblemCardResponseDTO` 包含 `missing_fields` 列表與對應的 `follow_up_questions`。
+    2. **`conversations.last_problem_card_id` 寫回 PC.id（CR-0001 §5 Phase C1 雙向 FK，由 `pc_creator._link_pc_to_conversation` 完成）。寫回失敗純 log 不阻塞 PC 主流程。**
+    3. `completeness_score` 已根據關鍵欄位填充率重新計算（計算公式見規格 2-2）。
+    4. `extracted_fields` JSONB 中記錄了 LLM 每個欄位的原始擷取結果與 confidence score。
+    5. 若 `completeness_score >= 0.85`（合約要求 ProblemCard 必要欄位完整率 >= 85%），`status` 為 `"confirmed"` 或保持 `"incomplete"`（視是否有使用者確認）。
+    6. 回傳的 `ProblemCardResponseDTO` 包含 `missing_fields` 列表與對應的 `follow_up_questions`。
+    7. **若 admin api 全部 retry 失敗（5xx / timeout），`pc_creator` 透過 `AdminAPIClient._write_outbox` 寫進 `agent_outbox` 表（status='pending'）；`harness/outbox_worker` 每 30s 撈出重試，最多 5 次（CR-0001 §1 Phase B2，配 ADR-0029 三件組）。**
 
 *   **不變性 (Invariants)**:
     1. `completeness_score` 永遠在 `0.0` ~ `1.0` 之間。
     2. 一個 `conversations` 最多對應一張 `problem_cards`（UNIQUE FK 約束）。
     3. `symptoms` JSONB 欄位始終為陣列格式。
+    4. **`agent_outbox.idempotency_key = "{conversation_id}:F-001-pc"`（CR-0001 §8 Q6 + admin api 端業務 unique key (conversation_id, brand, model) 雙保險，保證重複 PC 不會生）。**
 
 ---
 
