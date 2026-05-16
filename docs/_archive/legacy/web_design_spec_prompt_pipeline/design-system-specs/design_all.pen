@@ -154562,7 +154562,7 @@
                                   "fill": "$--text-secondary",
                                   "textGrowth": "fixed-width",
                                   "width": 140,
-                                  "content": "sk_live_a7b2...",
+                                  "content": "EXAMPLE_API_KEY",
                                   "fontFamily": "Courier New",
                                   "fontSize": 12,
                                   "fontWeight": "normal"
@@ -154745,7 +154745,7 @@
                                   "fill": "$--text-secondary",
                                   "textGrowth": "fixed-width",
                                   "width": 140,
-                                  "content": "sk_test_f3d8...",
+                                  "content": "EXAMPLE_API_KEY",
                                   "fontFamily": "Courier New",
                                   "fontSize": 12,
                                   "fontWeight": "normal"
@@ -154898,7 +154898,7 @@
                                   "fill": "$--text-secondary",
                                   "textGrowth": "fixed-width",
                                   "width": 140,
-                                  "content": "sk_live_m9k1...",
+                                  "content": "EXAMPLE_API_KEY",
                                   "fontFamily": "Inter",
                                   "fontSize": 12,
                                   "fontWeight": "normal"
@@ -155539,7 +155539,7 @@
                               "fill": "#94A3B8",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
-                              "content": "sk_live_a7b2c9d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9",
+                              "content": "EXAMPLE_API_KEY",
                               "fontFamily": "Inter",
                               "fontSize": 12,
                               "fontWeight": "normal"
