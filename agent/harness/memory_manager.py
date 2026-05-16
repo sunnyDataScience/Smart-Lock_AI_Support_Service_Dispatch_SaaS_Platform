@@ -42,12 +42,16 @@ def _extract_text_from_content(content) -> str:
 _llm = None
 _config: dict = {}
 _profile_mgr = None
+# CR-0001 §1 Phase D1 / NFR-MEM-001：注入 audit_storage 讓壓縮前的 raw
+# message list 落地到 audit_log (event_type='memory_compressed')，
+# 滿足藍圖 sheet 11 Archival「完整可重播 ≥1 年」的承諾。
+_audit_storage = None
 
 # 每個 thread 的摘要（in-memory，隨 checkpoint 生命週期）
 _summaries: dict[str, str] = {}
 
 
-def init(llm, config: dict, profile_mgr=None):
+def init(llm, config: dict, profile_mgr=None, audit_storage=None):
     """注入依賴，由 app.py startup 呼叫。
 
     Args:
@@ -57,11 +61,15 @@ def init(llm, config: dict, profile_mgr=None):
             - context_retention_pair (int): 壓縮後保留的對話輪數，default 5
             - domain (str): 領域描述，注入摘要 prompt
         profile_mgr: ProfileManager instance（用於載入用戶輪廓）
+        audit_storage: Audit storage（CR-0001 §1 / Phase D1）。壓縮前先把
+            被刪除的 raw messages dump 進 audit_log，避免長對話超過壓縮
+            窗後永久失去。
     """
-    global _llm, _config, _profile_mgr
+    global _llm, _config, _profile_mgr, _audit_storage
     _llm = llm
     _config = config
     _profile_mgr = profile_mgr
+    _audit_storage = audit_storage
 
 
 async def maybe_compress(agent, thread_id: str, user_id: str = "") -> str | None:
@@ -181,6 +189,17 @@ async def maybe_compress(agent, thread_id: str, user_id: str = "") -> str | None
         log.warning("memory_summary_failed", error=str(e), exc_info=True)
         return None
 
+    # CR-0001 §1 / NFR-MEM-001 / Phase D1：壓縮前 backup raw messages 到
+    # audit_log (event_type='memory_compressed')。失敗純 log，不阻塞主
+    # 流程（fail-soft per ADR-0029）。dump 完整 dialogue + 對應 message
+    # types，讓後續 dashboard 能依 thread_id + timestamp 重播。
+    await _backup_raw_to_audit(
+        user_id=user_id or thread_id,
+        thread_id=thread_id,
+        messages_dropped=messages_to_summarize,
+        summary=new_summary,
+    )
+
     # 刪除舊訊息（透過 RemoveMessage）
     remove_messages = [RemoveMessage(id=msg.id) for msg in messages_to_summarize if hasattr(msg, "id") and msg.id]
 
@@ -195,6 +214,49 @@ async def maybe_compress(agent, thread_id: str, user_id: str = "") -> str | None
     log.info("memory_compression_done", removed=len(remove_messages), summary_length=len(new_summary))
 
     return new_summary
+
+
+async def _backup_raw_to_audit(
+    *,
+    user_id: str,
+    thread_id: str,
+    messages_dropped: list,
+    summary: str,
+) -> None:
+    """Dump 即將被 RemoveMessage 刪掉的訊息到 audit_log。
+
+    Schema：event_type='memory_compressed'，payload 含 thread_id、訊息
+    數量、每則訊息的 (type, content_excerpt)。content 截 2000 字以
+    控制 row size；超過會用 ``...`` 標示，原文若需取回必須升級到 cold
+    storage（藍圖 sheet 11 archival P1 範圍）。
+    """
+    if _audit_storage is None:
+        return
+    try:
+        raw_dump = []
+        for msg in messages_dropped:
+            mtype = getattr(msg, "type", "unknown")
+            content = getattr(msg, "content", "")
+            content_str = _extract_text_from_content(content) if content else ""
+            if len(content_str) > 2000:
+                content_str = content_str[:2000] + "...(truncated)"
+            raw_dump.append({"type": mtype, "content": content_str})
+
+        await _audit_storage.log_event(
+            event_type="memory_compressed",
+            actor_id=user_id,
+            actor_role="system",
+            action="memory.compressed",
+            payload={
+                "thread_id": thread_id,
+                "n_dropped": len(messages_dropped),
+                "summary_length": len(summary),
+                "summary_excerpt": summary[:500],
+                "messages": raw_dump,
+            },
+        )
+    except Exception as exc:  # noqa: BLE001 — audit 自身失敗純 log
+        log.warning("audit_memory_backup_failed", error=str(exc))
 
 
 def get_summary(thread_id: str) -> str:

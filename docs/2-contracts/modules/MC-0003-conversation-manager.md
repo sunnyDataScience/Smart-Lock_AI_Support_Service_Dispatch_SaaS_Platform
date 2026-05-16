@@ -10,6 +10,10 @@ source-paths:
   - agent/harness/orchestrator.py
   - agent/harness/intent_classifier.py
   - agent/harness/debounce.py
+  - agent/harness/webhook_idempotency.py
+  - agent/harness/memory_manager.py
+  - agent/app.py
+  - SQL/Schema_cr0001_integration_gaps.sql
 synced-at: 2026-05-16
 related:
   - "../flows/business/_pending-split_BF-work-order.md"
@@ -58,6 +62,7 @@ async def process_message(
     3. `content_type` 必須為 `"text"`, `"image"`, `"location"` 之一。
     4. LINE Webhook 簽章驗證已通過（由上層 Webhook Controller 確保）。
     5. Redis 連線可用（用於讀寫對話 Session Cache）。
+    6. **`webhook_idempotency` 表 idempotency 檢查已通過（CR-0001 §3 / Phase C2 / NFR-IDEMP-001）。重複 event_id 在 webhook 入口即被攔截為 200，不會到達本 use case。**
 
 *   **後置條件 (Postconditions)**:
     1. 使用者訊息已持久化至 `messages` 表，`role` 為 `"user"`。
@@ -68,12 +73,15 @@ async def process_message(
     6. 若為新對話，則 `conversations` 表已建立新記錄，`status` 為 `"active"`，Redis Session Cache 已寫入。
     7. 回傳的 `ConversationResponseDTO` 包含 `reply_messages`（至少一則）與 `conversation_id`。
     8. 整個方法的同步部分（排除 LLM 呼叫）在 500ms 以內完成，LLM 呼叫透過 `asyncio.create_task` 非同步執行。
+    9. **若本輪觸發 `pc_creator.maybe_create_problem_card` 並成功，`conversations.last_problem_card_id` 已寫回 PC.id（CR-0001 §5 / Phase C1 雙向 FK）。**
+    10. **若對話訊息數超過 `[memory].max_messages_threshold`，壓縮前 raw messages 已 dump 進 `audit_log` (event_type='memory_compressed')（CR-0001 §1 / Phase D1 / NFR-MEM-001）。**
 
 *   **不變性 (Invariants)**:
     1. 一個 `conversations` 記錄最多關聯一張 `problem_cards` 記錄（1:1 UNIQUE FK）。
     2. 對話狀態只能依照狀態機規則轉換：`active -> collecting -> resolving -> resolved | escalated`，或 `active | collecting -> expired`。
     3. `conversations.message_count` 永遠等於其關聯的 `messages` 記錄總數。
     4. `users.last_active_at` 在每次互動後更新。
+    5. **`conversations.last_problem_card_id` 若非 NULL，必對應有效的 `problem_cards.id`（ON DELETE SET NULL — PC 被刪不會把 conversation 連動刪）。**
 
 ---
 

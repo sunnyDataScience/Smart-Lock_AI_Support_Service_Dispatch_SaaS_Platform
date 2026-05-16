@@ -201,3 +201,9 @@ enabled       = false
 #   true  → 走原 ReAct path 不影響使用者
 #   false → 把例外 raise 出去（測試環境抓 bug 用，**production 永遠 true**）
 fail_open     = true
+# 是否把每輪新 belief 寫進 belief_states 表（CR-0001 §1 / ADR-0029）：
+#   true  → 持久化，啟用 calibrate 跨輪修正
+#   false → 純 in-memory，turn_cycle 開但不灌 DB
+# 預設 false：避免不小心打開 enabled=true 時 belief_states 表瞬間爆量。
+# Production 若要啟用 Turn Cycle 完整效益，必須同時設 enabled=true + persist=true。
+persist       = false

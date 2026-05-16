@@ -56,6 +56,7 @@ async def run_belief_cycle(
     pool: AsyncConnectionPool,
     llm_model: Any,
     thread_id: str | None = None,
+    persist: bool = False,
 ) -> tuple[str, str | None]:
     """跑 Hypothesize → Decide，回傳 (hint_prefix, action_type)。
 
@@ -69,6 +70,11 @@ async def run_belief_cycle(
         pool: PG 連線池（讀 prior belief + 寫新 belief）
         llm_model: LangChain ChatModel
         thread_id: belief 持久化用；預設等於 ``"line_{user_id}"``
+        persist: 是否把新 belief 寫進 ``belief_states`` 表。CR-0001 §1
+            修正：原本在 ``turn_cycle.run_pre_execute`` 預設 True 硬編碼，
+            caller 即使 ``enabled=false`` 也可能誤開。現在改成顯式 kwarg，
+            預設 False，由 orchestrator 從 ``[turn_cycle].persist`` config
+            讀。production 若要完整 Turn Cycle 效益必須兩個都開。
 
     Returns:
         ``(belief_hint_string, action_type)``
@@ -89,7 +95,7 @@ async def run_belief_cycle(
 
     try:
         belief, decision = await asyncio.wait_for(
-            run_pre_execute(ctx, pool=pool, llm=llm),
+            run_pre_execute(ctx, pool=pool, llm=llm, persist=persist),
             timeout=_HYPOTHESIZE_TIMEOUT_S,
         )
     except asyncio.TimeoutError:

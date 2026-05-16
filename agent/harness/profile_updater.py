@@ -27,6 +27,7 @@ log = get_logger(__name__)
 _llm = None
 _config: dict = {}
 _profile_mgr = None
+_audit_storage = None  # ADR-0029 / CR-0001 §1：抽取失敗必寫 audit_log
 
 # ── 軟輪廓欄位定義 ──
 
@@ -56,12 +57,17 @@ _SECTION_MAP = {
 }
 
 
-def init(llm, config: dict, profile_mgr):
-    """注入依賴，由 app.py startup 呼叫。"""
-    global _llm, _config, _profile_mgr
+def init(llm, config: dict, profile_mgr, audit_storage=None):
+    """注入依賴，由 app.py startup 呼叫。
+
+    ``audit_storage`` 為選填以保持 backward compat（測試/CLI mode 可不傳）。
+    Production 應傳入以滿足 ADR-0029 fail-soft → audit 三件組要求。
+    """
+    global _llm, _config, _profile_mgr, _audit_storage
     _llm = llm
     _config = config
     _profile_mgr = profile_mgr
+    _audit_storage = audit_storage
 
 
 # ── 軟輪廓 MD 解析 / 渲染 / 合併 ──
@@ -245,6 +251,29 @@ async def extract_and_update(user_id: str, question: str, answer: str):
 
         except json.JSONDecodeError:
             log.warning("profile_json_parse_failed")
+            await _audit_failure(user_id, error_type="json_parse_failed", raw=cleaned[:500])
 
     except (RuntimeError, ValueError, TimeoutError, ConnectionError) as e:
         log.warning("profile_update_failed", error=str(e), exc_info=True)
+        await _audit_failure(user_id, error_type=type(e).__name__, raw=str(e)[:500])
+
+
+async def _audit_failure(user_id: str, *, error_type: str, raw: str) -> None:
+    """ADR-0029 三件組 — profile 抽取失敗事件寫 audit_log（fire-and-forget）。
+
+    為什麼不阻塞：profile_updater 是 H4 背景任務，本來就 fail-soft；audit
+    是為了讓 admin dashboard 能看到「哪些 user 一直抽不出 facts」，不該
+    再次造成 cascading failure。
+    """
+    if _audit_storage is None:
+        return
+    try:
+        await _audit_storage.log_event(
+            event_type="profile_extraction",
+            actor_id=user_id,
+            actor_role="system",
+            action="profile.extraction_failed",
+            payload={"error_type": error_type, "raw_excerpt": raw},
+        )
+    except Exception as e:  # noqa: BLE001 — audit 自身失敗純 log，避免循環
+        log.warning("audit_profile_failure_log_failed", error=str(e))

@@ -20,6 +20,11 @@ _skills_section_cache: dict[tuple[str | None, str | None], str] = {}
 
 # ── 請求層級狀態（用 contextvars 隔離併發請求）──
 _current_user_id: ContextVar[str] = ContextVar("current_user_id", default="")
+# ADR-0030 / CR-0001 §5 / Phase C3-a：tenant_id propagation。預設 'default'
+# 維持 single-tenant 部署無感升級；多租戶 onboard 時 webhook 入口會從
+# LINE channel secret 反查並 set()。所有寫 audit/facts/PC 的下游模組都
+# 應透過 ``get_current_tenant()`` 取此值。
+_current_tenant: ContextVar[str] = ContextVar("current_tenant", default="default")
 _current_brand: ContextVar[str | None] = ContextVar("current_brand", default=None)
 _current_model: ContextVar[str | None] = ContextVar("current_model", default=None)
 _skill_loaded_this_run: ContextVar[bool] = ContextVar("skill_loaded_this_run", default=False)
@@ -64,6 +69,20 @@ def set_profile_mgr(profile_mgr) -> None:
 def set_current_user_id(user_id: str) -> None:
     """設定當前請求的 user_id（每次 run_agent 前呼叫）。"""
     _current_user_id.set(user_id)
+
+
+def set_current_tenant(tenant_id: str) -> None:
+    """設定當前請求的 tenant_id。
+
+    ADR-0030 / CR-0001 §5：每次 run_agent 入口呼叫。傳空字串會 fallback
+    到 'default' 以避免 INSERT 違反 NOT NULL 約束。
+    """
+    _current_tenant.set(tenant_id or "default")
+
+
+def get_current_tenant() -> str:
+    """讀取當前請求的 tenant_id。fail-safe 回 'default'。"""
+    return _current_tenant.get() or "default"
 
 
 def reset_run_state() -> None:

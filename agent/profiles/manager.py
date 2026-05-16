@@ -119,9 +119,20 @@ class ProfileManager:
             return {}
 
     async def update_fact(self, user_id: str, attr_key: str, attr_val: str):
-        """SCD Type 2 upsert: expire old + insert new，使用 CTE 確保原子性。"""
+        """SCD Type 2 upsert: expire old + insert new，使用 CTE 確保原子性。
+
+        ADR-0030 / Phase C3-a：INSERT 帶 tenant_id（讀 ContextVar，fallback
+        'default'）。expire UPDATE 不加 tenant_id 條件以保 backward compat
+        （single-tenant 部署所有現有 row tenant_id='default'，filter 等同無
+        效；多租戶上線時改 schema 加 NOT NULL 即自動隔離）。
+        """
         if not self.facts_enabled or _facts_pool is None:
             return
+        try:
+            from skills.tools import get_current_tenant
+            tenant_id = get_current_tenant()
+        except Exception:  # noqa: BLE001
+            tenant_id = "default"
         try:
             async with _facts_pool.connection() as conn:
                 await conn.execute(
@@ -129,12 +140,14 @@ class ProfileManager:
                     "  UPDATE user_facts SET is_current = FALSE, end_date = NOW() "
                     "  WHERE user_id = %s AND attr_key = %s AND is_current = TRUE AND attr_val != %s"
                     ") "
-                    "INSERT INTO user_facts (user_id, attr_key, attr_val, is_current, start_date) "
-                    "SELECT %s, %s, %s, TRUE, NOW() "
+                    "INSERT INTO user_facts (user_id, attr_key, attr_val, is_current, start_date, tenant_id) "
+                    "SELECT %s, %s, %s, TRUE, NOW(), %s "
                     "WHERE NOT EXISTS ("
                     "  SELECT 1 FROM user_facts WHERE user_id = %s AND attr_key = %s AND attr_val = %s AND is_current = TRUE"
                     ")",
-                    (user_id, attr_key, attr_val, user_id, attr_key, attr_val, user_id, attr_key, attr_val),
+                    (user_id, attr_key, attr_val,
+                     user_id, attr_key, attr_val, tenant_id,
+                     user_id, attr_key, attr_val),
                 )
         except Exception as e:
             print(f"[Facts DB] update_fact 失敗 ({attr_key}={attr_val}): {e}")

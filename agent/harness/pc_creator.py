@@ -105,6 +105,12 @@ async def maybe_create_problem_card(
                 user_id, conversation_id,
                 pc.get("id"), pc.get("document_number"),
             )
+            # CR-0001 §5 / Phase C1：寫回 conversations.last_problem_card_id
+            # 讓 admin dashboard 可以從對話頁直接 link 到 PC。失敗純 log，
+            # 不影響 PC 主流程（fail-soft per ADR-0029）。
+            pc_id = pc.get("id")
+            if pc_id:
+                await _link_pc_to_conversation(conversation_id, pc_id)
         return pc
     except Exception:  # noqa: BLE001 — fail-soft；admin_api 內部已 outbox
         logger.exception(
@@ -112,3 +118,34 @@ async def maybe_create_problem_card(
             user_id, conversation_id,
         )
         return None
+
+
+async def _link_pc_to_conversation(conversation_id: str, pc_id: str) -> None:
+    """更新 conversations.last_problem_card_id（CR-0001 §5 Phase C1）。
+
+    用 admin_api 自己的 conn pool 較重；直接走 psycopg 一次性連線即可
+    （此函式呼叫頻率低，平均每對話 1 次）。失敗只 log，不丟例外
+    （fail-soft per ADR-0029 — PC 已建立成功，link 不上不致命）。
+    """
+    import os
+    try:
+        import psycopg
+    except ImportError:
+        return
+    pg_uri = os.environ.get("POSTGRES_URI", "")
+    if not pg_uri:
+        return
+    try:
+        async with await psycopg.AsyncConnection.connect(pg_uri) as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    "UPDATE conversations SET last_problem_card_id = %s, "
+                    "updated_at = NOW() WHERE id = %s",
+                    (pc_id, conversation_id),
+                )
+                await conn.commit()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "F-001 link_pc_to_conversation failed conv=%s pc=%s err=%s",
+            conversation_id, pc_id, exc,
+        )

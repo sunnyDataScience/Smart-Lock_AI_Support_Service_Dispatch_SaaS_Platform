@@ -58,6 +58,14 @@ async def write_agent_result(
     if not audit_storage:
         return
     try:
+        # 預先建 tool_call_id → ToolMessage.content 對照表，讓 transfer_to_human
+        # 的 audit 能拿到工具回傳的完整 handoff form（CR-0001 §8 Q1 / ADR-0029）。
+        tool_returns: dict[str, str] = {}
+        for msg in messages:
+            if hasattr(msg, "type") and msg.type == "tool" and hasattr(msg, "tool_call_id"):
+                content = getattr(msg, "content", "")
+                tool_returns[msg.tool_call_id] = content if isinstance(content, str) else str(content)
+
         for msg in messages:
             if hasattr(msg, "type") and msg.type == "ai" and hasattr(msg, "tool_calls"):
                 for tc in (msg.tool_calls or []):
@@ -71,7 +79,18 @@ async def write_agent_result(
                     )
                     if tool_name == "transfer_to_human":
                         reason = tc.get("args", {}).get("reason", "")
-                        await audit_storage.log_escalation(user_id, reason)
+                        # 從對應 ToolMessage 撈組好的 handoff form 文字 + 解析 facts
+                        # 之前 log_escalation 是 no-op + signature 只收 reason，所以
+                        # 表單內容根本沒寫進 DB。現在 ADR-0029 補對齊。
+                        form_text = tool_returns.get(tc.get("id", ""), "")
+                        contact, address, device_info = _parse_handoff_form(form_text)
+                        await audit_storage.log_escalation(
+                            user_id, reason,
+                            contact=contact,
+                            address=address,
+                            device_info=device_info,
+                            handoff_form_text=form_text or None,
+                        )
 
         ai_steps = extract_usage_from_messages(messages)
         last_index = len(ai_steps) - 1
@@ -203,6 +222,42 @@ async def log_safety_gate_hit(
         await audit_storage.log_safety_gate(user_id, "blocked", [{"keyword_match": True}])
     except (psycopg.Error, OSError, RuntimeError, ValueError, TimeoutError, ConnectionError, AttributeError) as e:
         log.warning("audit_safety_gate_failed", user_id=user_id, error=str(e), exc_info=True)
+
+
+def _parse_handoff_form(form_text: str) -> tuple[str | None, str | None, str | None]:
+    """從 transfer_to_human 工具回傳文字抽 contact/address/device_info。
+
+    工具回傳的 form 是固定模板（agent/skills/tools.py:325-333）：
+        🔹 聯絡電話：09XX...
+        🔹 聯絡地址：...
+        🔹 設備品牌型號：Brand Model
+
+    解析不到（如空字串、新模板）回 (None, None, None)，audit payload 只
+    保留 reason + 完整 handoff_form_text，仍然不丟資料。
+    """
+    if not form_text:
+        return None, None, None
+    contact = address = device = None
+    for line in form_text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if "聯絡電話" in line:
+            contact = _extract_after_colon(line) or None
+        elif "聯絡地址" in line:
+            address = _extract_after_colon(line) or None
+        elif "設備品牌型號" in line:
+            device = _extract_after_colon(line) or None
+    # 空白值（user 未填）統一回 None
+    return (contact or None, address or None, device or None)
+
+
+def _extract_after_colon(line: str) -> str:
+    """擷取冒號（半形或全形）後的值，trim 空白與符號。"""
+    for sep in ("：", ":"):
+        if sep in line:
+            return line.split(sep, 1)[1].strip()
+    return ""
 
 
 __all__ = [
