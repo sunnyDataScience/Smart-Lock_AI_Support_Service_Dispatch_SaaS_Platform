@@ -116,7 +116,6 @@ ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=changeme123 ./tests/smoke/api.sh
 # API contract tooling (run from project root)
 ./scripts/ci/generate-api-types.sh            # Generate TypeScript types from OpenAPI
 ./scripts/ci/mock-server.sh                   # Start Prism mock server on port 4010
-./scripts/ci/check-operationid-orphans.sh     # Validate spec ↔ docs bidirectionality
 
 # Deployment (Cloud Run)
 # Deploy LINE Bot agent
@@ -151,7 +150,7 @@ No automated unit test suite exists. Testing is via `quality_check` (LLM-as-Judg
 1. **`agent/`** — ReAct Agent backed by `product_info/` mega-doc knowledge base (LINE Bot AI customer service); optional Belief-Augmented ReAct (Turn Cycle) gated by config
 2. **`data/`** — Medallion ETL Pipeline (Bronze → Silver SOP drafts; final mega-doc 由業主審稿後手動更新 `agent/product_info/`)
 3. **`web/`** — Next.js Admin Dashboard (operations monitoring & conversation review)
-4. **`docs/02-design/specs/`** — API Contract SSOT (OpenAPI + AsyncAPI + CI validation)
+4. **`docs/architecture/api/`** — API Contract SSOT (OpenAPI 3.1 + CI validation)
 5. **`web_design_spec_prompt_pipeline/`** — AI-assisted web design prompt pipeline
 
 ### Request Processing Flow
@@ -354,7 +353,7 @@ Next.js 15 + React 19 + TypeScript admin dashboard for operations teams.
 | Admin — Reports | `/admin/reports/kpi`, `/admin/reports/revenue`, `/admin/reports/technician-ranking` |
 | Admin — System | `/admin/audit-events`, `/admin/roles`, `/admin/api-status`, `/admin/knowledge-base/sop-performance` |
 
-**API integration status:** Active migration from mock data to live API. Many admin/knowledge-base/accounting pages now call generated typed clients (see commits `feat(web): /xxx 串接 ...`). Pages still on mock data are flagged in their components. Treat the OpenAPI spec at `docs/2-contracts/api/openapi.yaml` as source of truth — regenerate types via `./scripts/ci/generate-api-types.sh` after any spec change.
+**API integration status:** Active migration from mock data to live API. Many admin/knowledge-base/accounting pages now call generated typed clients (see commits `feat(web): /xxx 串接 ...`). Pages still on mock data are flagged in their components. Treat the OpenAPI spec at `docs/architecture/api/openapi.yaml` as source of truth — regenerate types via `./scripts/ci/generate-api-types.sh` after any spec change.
 
 **Component organization:** `src/components/{domain}/` — `layout/`, `dashboard/`, `conversations/`, `problem-cards/`, `work-orders/`, `technicians/`, `accounting/`, `knowledge-base/`, `dispatch-queue/`, `admin/`, `ui/`. Generated API types live in `web/types/api.generated.ts` (resolved via tsconfig `@/types/*` alias) and are imported by domain hooks/clients.
 
@@ -362,29 +361,30 @@ Next.js 15 + React 19 + TypeScript admin dashboard for operations teams.
 
 **Design tokens:** CSS custom properties in `globals.css` — primary `#2563EB`, accent `#F59E0B`. Fonts: Inter + Noto Sans TC. Dark sidebar (`#1E293B`) + light content (`#F8FAFC`).
 
-### API Contract System (`docs/2-contracts/api/`)
+### API Contract System (`docs/architecture/api/`)
 
 Machine-readable API contracts as single source of truth for frontend development:
 
 - `openapi.yaml` — REST API 3.1 specification
-- `asyncapi.yaml` — WebSocket/SSE/Webhook/Domain Events spec
-- `generated/api.generated.ts` — Auto-generated TypeScript types
+- `web/types/api.generated.ts` — Auto-generated TypeScript types
+
+> **Retired on `dev_new_arch` (f00ac91):** the AsyncAPI spec (`asyncapi.yaml`),
+> the operationId bidirectionality check, and the TC-NNNN test-case registry
+> were dropped in the docs restructure. Related CI (`orphan-check.yml`,
+> `test-case-coverage.yml`, `asyncapi-validate.mjs`) was removed accordingly.
 
 ```bash
-# Lint specs
-npx @stoplight/spectral-cli lint docs/02-design/specs/openapi.yaml
+# Lint spec
+npx @stoplight/spectral-cli lint docs/architecture/api/openapi.yaml
 
 # Generate TypeScript types
 ./scripts/ci/generate-api-types.sh
 
 # Start mock server (Prism on port 4010)
 ./scripts/ci/mock-server.sh
-
-# Validate operationId bidirectionality (specs ↔ docs)
-./scripts/ci/check-operationid-orphans.sh
 ```
 
-CI workflows (`.github/workflows/`): `spec-lint.yml`, `api-types-sync.yml`, `orphan-check.yml`, `mock-smoke.yml` — all gate on spec file changes.
+CI workflows (`.github/workflows/`): `spec-lint.yml`, `api-types-sync.yml`, `mock-smoke.yml` — all gate on OpenAPI spec changes.
 
 ### Web Design Spec Pipeline (`web_design_spec_prompt_pipeline/`)
 

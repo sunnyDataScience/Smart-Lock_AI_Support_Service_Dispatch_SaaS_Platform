@@ -177,17 +177,10 @@ cd agent && uv run uvicorn app:app --reload --port 8000   # 前景跑 agent
 ./scripts/ci/mock-server.sh 4011      # 自訂 port
 ./scripts/ci/mock-server.sh 4010 --errors  # 產生錯誤回應範例
 
-# 檢查 OpenAPI / AsyncAPI operationId 與文件之間的一致性
-./scripts/ci/check-operationid-orphans.sh
-
 # OpenAPI 合約 fuzz（schemathesis；需先 uv sync --group test）
 ./scripts/ci/contract-schemathesis.sh                  # 預設 :8001（需 api 跑）
 ./scripts/ci/contract-schemathesis.sh --check-only     # 只驗 spec YAML 結構
 API_BASE=http://localhost:8000 ./scripts/ci/contract-schemathesis.sh
-
-# AsyncAPI envelope 結構驗證（需先 cd scripts/ci && npm install）
-node scripts/ci/asyncapi-validate.mjs                  # 列 10 channels
-node scripts/ci/asyncapi-validate.mjs --quiet          # 只報錯
 ```
 
 ---

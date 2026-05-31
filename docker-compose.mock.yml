@@ -6,7 +6,7 @@
 #   docker compose -f docker-compose.mock.yml down
 #
 # 或用 npx（無需 Docker）：
-#   npx --yes @stoplight/prism-cli mock docs/02-design/specs/openapi.yaml --port 4010
+#   npx --yes @stoplight/prism-cli mock docs/architecture/api/openapi.yaml --port 4010
 
 services:
   prism-openapi:
@@ -18,7 +18,7 @@ services:
       -m false
       /specs/openapi.yaml
     volumes:
-      - ./docs/02-design/specs:/specs:ro
+      - ./docs/architecture/api:/specs:ro
     ports:
       - "4010:4010"
     restart: unless-stopped
@@ -28,22 +28,8 @@ services:
       timeout: 5s
       retries: 3
 
-  # AsyncAPI mock（實驗性，Prism 對 AsyncAPI 支援仍發展中）
-  # 暫不預設啟動，需要時手動：
-  # docker compose -f docker-compose.mock.yml --profile async up -d
-  prism-asyncapi:
-    profiles: [async]
-    image: stoplight/prism:5
-    command: >
-      mock
-      -h 0.0.0.0
-      -p 4011
-      /specs/asyncapi.yaml
-    volumes:
-      - ./docs/02-design/specs:/specs:ro
-    ports:
-      - "4011:4011"
-    restart: unless-stopped
+  # NOTE: prism-asyncapi service removed — asyncapi.yaml 已於 dev_new_arch
+  # 文件重構退場（見 f00ac91）。Domain events 不再走 AsyncAPI 契約驗證。
 
 networks:
   default:

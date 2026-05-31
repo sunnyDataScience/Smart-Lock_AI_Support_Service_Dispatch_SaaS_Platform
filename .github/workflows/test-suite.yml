@@ -3,10 +3,11 @@
 # 對應 docs/_flows-bdd-test/v-model-right/E7x--test-plan-and-readiness.md §11 PR-gate
 # 與 §13 Verification 第 1 步。
 #
-# 設計：分 3 個 job，獨立失敗（fail-fast: false）：
+# 設計：分 2 個 job，獨立失敗（fail-fast: false）：
 #   1. unit       — pytest -m unit（無 DB、無網路；< 30s）
-#   2. asyncapi   — node scripts/ci/asyncapi-validate.mjs（spec 結構驗證）
-#   3. contract-check — schemathesis --check-only（spec YAML 結構，不打 api）
+#   2. contract-check — schemathesis --check-only（spec YAML 結構，不打 api）
+#
+# NOTE: asyncapi job 已移除 — asyncapi.yaml 於 dev_new_arch 文件重構退場（f00ac91）。
 #
 # 不在 PR-gate：
 #   - component test（需 docker postgres + seeds，留給 nightly）
@@ -41,24 +42,6 @@ jobs:
 
       - name: Run unit tests
         run: uv run pytest tests/unit -m unit -v --tb=short
-
-  asyncapi:
-    name: AsyncAPI envelope validate
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install asyncapi parser
-        working-directory: scripts/ci
-        run: npm ci
-
-      - name: Validate AsyncAPI spec structure
-        run: node scripts/ci/asyncapi-validate.mjs --quiet
 
   contract-check:
     name: OpenAPI structural validation

@@ -15,7 +15,7 @@ PORT="${1:-4010}"
 shift || true
 EXTRA_ARGS="$*"
 
-SPEC="$REPO_ROOT/docs/2-contracts/api/openapi.yaml"
+SPEC="$REPO_ROOT/docs/architecture/api/openapi.yaml"
 
 if [[ ! -f "$SPEC" ]]; then
   echo "ERROR: OpenAPI spec not found at $SPEC"
@@ -34,7 +34,7 @@ if command -v npx >/dev/null 2>&1; then
 elif command -v docker >/dev/null 2>&1; then
   echo "[docker] starting prism..."
   exec docker run --rm -i \
-    -v "$REPO_ROOT/docs/2-contracts/api:/specs:ro" \
+    -v "$REPO_ROOT/docs/architecture/api:/specs:ro" \
     -p "${PORT}:${PORT}" \
     stoplight/prism:5 \
     mock -h 0.0.0.0 -p "$PORT" $EXTRA_ARGS /specs/openapi.yaml
