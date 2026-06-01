@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { Search, ChevronDown, Wrench, Plus } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import TechniciansTable from "@/components/technicians/TechniciansTable";
-import { ApiError } from "@/lib/api";
+import { ApiError, getCurrentSession } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
@@ -31,6 +31,10 @@ export default function TechniciansPage() {
   const t = useTranslations("pages.technicians");
   const tFilters = useTranslations("pages.technicians.filters");
 
+  // CR-0002-α：遷移至 tenant-scoped v2 端點
+  const session = getCurrentSession();
+  const tenantId = session?.tenantId ?? "00000000-0000-0000-0000-000000000001";
+
   const filterDropdowns = useMemo(
     () =>
       FILTER_DROPDOWN_KEYS.map((key) => ({
@@ -41,7 +45,7 @@ export default function TechniciansPage() {
     [tFilters],
   );
   const { items, cursor, hasMore, loading, error, loadMore } = usePaginatedFetch<Technician>({
-    path: "/api/v1/technicians",
+    path: `/tenants/${encodeURIComponent(tenantId)}/technicians`,
     pageSize: PAGE_SIZE,
     formatError: formatTechnicianError,
   });
