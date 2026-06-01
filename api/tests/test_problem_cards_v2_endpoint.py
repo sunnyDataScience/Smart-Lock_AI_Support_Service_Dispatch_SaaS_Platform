@@ -47,6 +47,7 @@ def _make_other_tenant_path_headers(
     return {
         "Authorization": f"Bearer {token}",
         "X-Tenant-ID": DEFAULT_TENANT_ID,
+        "Idempotency-Key": str(uuid.uuid4()),  # POST 須帶（idempotency_guard）；403/404 檢查在其後
     }
 
 
@@ -106,7 +107,7 @@ async def test_create_problem_card_v2_201(client, admin_headers):
     fake_conversation_id = str(uuid.uuid4())
     res = await client.post(
         f"/tenants/{DEFAULT_TENANT_ID}/problem-cards",
-        headers=admin_headers,
+        headers={**admin_headers, "Idempotency-Key": str(uuid.uuid4())},
         json={
             "conversation_id": fake_conversation_id,
             "brand": "Dormakaba",
@@ -135,6 +136,7 @@ async def test_create_problem_card_v2_cross_tenant_403(client):
             "brand": "Dormakaba",
             "model": "AS701",
             "symptom": "測試",
+            "urgency": "high",  # enum low/medium/high；required（否則 422 先於 403 cross-tenant guard）
         },
     )
     assert res.status_code == 403, res.text
@@ -203,7 +205,7 @@ async def test_confirm_problem_card_v2_not_found(client, admin_headers):
     fake_id = str(uuid.uuid4())
     res = await client.post(
         f"/tenants/{DEFAULT_TENANT_ID}/problem-cards/{fake_id}/confirm",
-        headers=admin_headers,
+        headers={**admin_headers, "Idempotency-Key": str(uuid.uuid4())},
     )
     assert res.status_code == 404, res.text
 
@@ -233,8 +235,8 @@ async def test_resolve_problem_card_v2_not_found(client, admin_headers):
     fake_id = str(uuid.uuid4())
     res = await client.post(
         f"/tenants/{DEFAULT_TENANT_ID}/problem-cards/{fake_id}/resolve",
-        headers=admin_headers,
-        json={"resolution_layer": "faq_match"},
+        headers={**admin_headers, "Idempotency-Key": str(uuid.uuid4())},
+        json={"resolution_layer": "L1"},  # enum 為 L1/L2/L3（否則 422 先於 403/404）
     )
     assert res.status_code == 404, res.text
 
@@ -247,7 +249,7 @@ async def test_resolve_problem_card_v2_cross_tenant_403(client):
     res = await client.post(
         f"/tenants/{OTHER_TENANT_ID}/problem-cards/{fake_id}/resolve",
         headers=headers,
-        json={"resolution_layer": "faq_match"},
+        json={"resolution_layer": "L1"},  # enum 為 L1/L2/L3（否則 422 先於 403/404）
     )
     assert res.status_code == 403, res.text
     body = res.json()

@@ -21,6 +21,7 @@ from core.db import init_db, close_db, healthcheck
 from core.errors import register_exception_handlers
 from core.idempotency import IdempotencyReplay, handle_idempotency_replay
 from middleware.request_id import RequestIdMiddleware
+from middleware.deprecation import DeprecationMiddleware  # CR-0002-α D3：legacy /api/v1 全標 Deprecation
 from routers import auth as auth_router
 from routers import notifications as notifications_router
 from routers import system_config as system_config_router
@@ -114,6 +115,7 @@ app.add_middleware(
     expose_headers=["X-Request-Id", "RateLimit-Limit", "RateLimit-Remaining", "RateLimit-Reset"],
 )
 app.add_middleware(RequestIdMiddleware)
+app.add_middleware(DeprecationMiddleware)  # CR-0002-α D3：/api/v1/* 回應一律 Deprecation: true（含 error path）
 
 register_exception_handlers(app)
 app.add_exception_handler(IdempotencyReplay, handle_idempotency_replay)
