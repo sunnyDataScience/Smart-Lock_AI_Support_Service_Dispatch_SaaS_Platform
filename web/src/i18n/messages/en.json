@@ -753,12 +753,37 @@
       },
       "cancelDialog": {
         "title": "Cancel work order",
-        "reasonLabel": "Cancellation reason (optional)",
+        "reasonLabel": "Note (optional)",
         "reasonPlaceholder": "e.g. Customer rescheduled; duplicate work order",
         "counter": "{current} / 500",
         "back": "Back",
         "submit": "Confirm cancellation",
-        "submitting": "Submitting…"
+        "submitting": "Submitting…",
+        "reasonCodeLabel": "Cancellation reason category",
+        "initiatorLabel": "Initiated by",
+        "approverLabel": "Approver ID (SoD — must differ from initiator)",
+        "approverPlaceholder": "Enter approver account ID",
+        "goodwillLabel": "Goodwill waiver (fee → 0, requires supervisor)",
+        "feeResult": "Cancelled (stage {stage}); customer fee NT${customerFee}, travel fee NT${travelFee}",
+        "initiator": {
+          "customer": "Customer",
+          "customer_service": "Customer service",
+          "technician": "Technician",
+          "system_auto": "System"
+        },
+        "reasonCodes": {
+          "quote_not_confirmed": "Before quote confirmed (S1, free)",
+          "quote_confirmed_no_dispatch": "Quote confirmed, not dispatched (S1.5, free)",
+          "dispatched_not_departed": "Dispatched, not departed (S2)",
+          "en_route_cancelled": "En route, not arrived (S3)",
+          "customer_not_onsite": "Arrived, customer absent (S3, evidence required)",
+          "onsite_not_executed": "Onsite, cannot perform (S4)",
+          "customer_refused": "Onsite, customer refused (S4)",
+          "partial_completed_cancel": "Cancel after partial work (S5)",
+          "technician_initiated_cancel": "Technician-initiated (customer free)",
+          "unpaid_no_response": "Unpaid / no response timeout (system)",
+          "business_cancel": "Platform-initiated"
+        }
       },
       "confirmDialog": {
         "title": "Customer confirms closure",

@@ -58,6 +58,7 @@ from routers import vouchers as vouchers_router
 from routers import family_reviews as family_reviews_router
 from routers import data_corrections as data_corrections_router  # CR-0001 §3 review queue
 from routers import public as public_router  # Q3=C / Q9=B 共用機制
+from routers import cancellation as cancellation_router  # spec-alignment P1-A (ADR-0102, tenant-scoped)
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -86,7 +87,12 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Smart Lock AI — Admin REST API",
     version="0.2.0",
-    description="Phase 1 MVP. Contract SSOT: docs/02-design/specs/openapi.yaml",
+    description=(
+        "Phase 1 MVP. Contract SSOT (frozen V1.1): docs/architecture/api/openapi.yaml "
+        "+ openapi-smart-lock-saas.yaml. NOTE: legacy /api/v1 routes were generated from the "
+        "now-deleted docs/02-design/specs/openapi.yaml; spec-alignment migration in progress "
+        "(see docs/_audit/spec-code-gap-audit-2026-06-01.md)."
+    ),
     lifespan=lifespan,
 )
 
@@ -142,6 +148,8 @@ app.include_router(kb_export_router.router, prefix="/api/v1", tags=["knowledge_b
 # Q3=C / Q9=B 共用機制：消費者匿名 token endpoints（無需登入）
 # Auth middleware 應在 path 前綴 /api/v1/public/ 略過 bearer 驗證
 app.include_router(public_router.router, prefix="/api/v1", tags=["public"])
+# spec-alignment P1-A：tenant-scoped 取消端點，無 /api/v1 前綴以對齊 frozen spec path
+app.include_router(cancellation_router.router, tags=["M11 AR / Payment"])
 
 
 @app.get("/health")

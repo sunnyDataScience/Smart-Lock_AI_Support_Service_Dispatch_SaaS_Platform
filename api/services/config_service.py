@@ -8,6 +8,7 @@ import logging
 import core.db as db_module
 from core.db import _ensure_conn
 from core.errors import ApiError
+from services.cancellation_service import DEFAULT_CANCELLATION_CONFIG
 
 logger = logging.getLogger("api.config_service")
 
@@ -24,6 +25,8 @@ DEFAULT_CONFIG: dict = {
         "max_tokens": 1024,
         "system_prompt_version": "v1.0",
     },
+    # M18 cancellation namespace (ADR-0102 §E / ADR-0067) — 取消費/reason code/累犯閾值
+    "cancellation": DEFAULT_CANCELLATION_CONFIG,
     "resolution": {
         "faq_confidence_threshold": 0.7,
         "rag_confidence_threshold": 0.6,
@@ -66,6 +69,28 @@ async def get_config(tenant_id: str) -> dict:
         )
         return DEFAULT_CONFIG
     return row[0]
+
+
+async def get_cancellation_config(tenant_id: str) -> tuple[dict, str]:
+    """取 cancellation namespace 設定 + config version snapshot（ADR-0067 §5）。
+
+    回 (cancellation_config, config_version_str)。tenant 尚無 config row 時用預設值，
+    version 標 'default'。version 用於寫入 cancellation.config_version_used。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    cur = await db_module._conn.execute(
+        "SELECT config, version FROM system_config WHERE tenant_id = %s::uuid",
+        (tenant_id,),
+    )
+    row = await cur.fetchone()
+    if not row:
+        return (DEFAULT_CANCELLATION_CONFIG, "default")
+    config = row[0] or {}
+    version = str(row[1]) if row[1] is not None else "1"
+    cancellation = config.get("cancellation") or DEFAULT_CANCELLATION_CONFIG
+    return (cancellation, version)
 
 
 async def update_config(tenant_id: str, patch: dict, *, updated_by: str | None) -> dict:

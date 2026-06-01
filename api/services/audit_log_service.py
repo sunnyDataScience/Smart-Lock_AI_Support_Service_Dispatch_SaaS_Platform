@@ -333,3 +333,44 @@ async def log_event(
         )
     except Exception as exc:  # noqa: BLE001 — pragma: no cover; best-effort logging, must not fail caller
         logger.warning("audit log_event failed: %s", exc)
+
+
+async def log_event_returning_id(
+    *,
+    event_type: str,
+    actor_id: str | None,
+    actor_role: str | None,
+    action: str,
+    target_type: str | None = None,
+    target_id: str | None = None,
+    payload: dict[str, Any] | None = None,
+    ip_address: str | None = None,
+) -> str:
+    """Insert an audit event and RETURN its id.
+
+    Unlike :func:`log_event`, callers here NEED the id (e.g. cancellation.audit_event_id
+    is NOT NULL), so a failure must propagate rather than be swallowed.
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    sql = (
+        "INSERT INTO audit_events "
+        "(event_type, actor_id, actor_role, action, target_type, target_id, payload, ip_address) "
+        "VALUES (%s, %s::uuid, %s, %s, %s, %s::uuid, %s::jsonb, %s) "
+        "RETURNING id"
+    )
+    cur = await db_module._conn.execute(
+        sql,
+        [
+            event_type,
+            actor_id,
+            actor_role,
+            action,
+            target_type,
+            target_id,
+            json.dumps(payload, ensure_ascii=False) if payload else None,
+            ip_address,
+        ],
+    )
+    row = await cur.fetchone()
+    return str(row[0])

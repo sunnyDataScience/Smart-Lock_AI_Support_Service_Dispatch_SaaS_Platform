@@ -59,6 +59,8 @@ interface RequestOptions {
   signal?: AbortSignal;
   /** 跳過 401 → refresh → retry 流程（用於 login/refresh 自身）。 */
   skipAuth?: boolean;
+  /** 額外 headers（如 SoD X-Initiator / X-Approver / X-Executor）。 */
+  headers?: Record<string, string>;
 }
 
 function buildUrl(path: string, query?: RequestOptions["query"]): string {
@@ -182,6 +184,11 @@ async function rawRequest<T>(
 
   if (options.idempotencyKey && method !== "GET") {
     headers["Idempotency-Key"] = options.idempotencyKey;
+  }
+
+  // 額外 headers（SoD 等）— 最後合併，可覆寫上方預設
+  if (options.headers) {
+    for (const [k, v] of Object.entries(options.headers)) headers[k] = v;
   }
 
   const init: RequestInit = {

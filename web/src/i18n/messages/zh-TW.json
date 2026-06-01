@@ -753,12 +753,37 @@
       },
       "cancelDialog": {
         "title": "取消工單",
-        "reasonLabel": "取消原因（可留空）",
+        "reasonLabel": "備註（可留空）",
         "reasonPlaceholder": "例如：客戶改約、重複建立工單",
         "counter": "{current} / 500",
         "back": "返回",
         "submit": "確認取消",
-        "submitting": "送出中…"
+        "submitting": "送出中…",
+        "reasonCodeLabel": "取消原因分類",
+        "initiatorLabel": "發起方",
+        "approverLabel": "覆核主管 ID（SoD，需與發起人不同）",
+        "approverPlaceholder": "輸入覆核主管帳號 ID",
+        "goodwillLabel": "善意豁免（費用歸零，需主管覆核）",
+        "feeResult": "已取消（階段 {stage}）；客戶費用 NT${customerFee}、車馬費 NT${travelFee}",
+        "initiator": {
+          "customer": "客戶",
+          "customer_service": "客服",
+          "technician": "技師",
+          "system_auto": "系統"
+        },
+        "reasonCodes": {
+          "quote_not_confirmed": "報價未確認前取消（S1，免費）",
+          "quote_confirmed_no_dispatch": "已確認報價、未派工取消（S1.5，免費）",
+          "dispatched_not_departed": "已派工、未出發取消（S2）",
+          "en_route_cancelled": "已出發、未到場取消（S3）",
+          "customer_not_onsite": "師傅到場、客戶不在（S3，需存證）",
+          "onsite_not_executed": "已到場、無法施工（S4）",
+          "customer_refused": "已到場、客戶拒絕施工（S4）",
+          "partial_completed_cancel": "已部分施工後取消（S5）",
+          "technician_initiated_cancel": "師傅主動取消（客戶免費）",
+          "unpaid_no_response": "未付款／未回覆逾時（系統取消）",
+          "business_cancel": "平台主動取消"
+        }
       },
       "confirmDialog": {
         "title": "客戶確認結案",

@@ -104,6 +104,39 @@ async def require_admin(user: CurrentUser) -> CurrentUser:
     return user
 
 
+@dataclass
+class SodActors:
+    """SoD 三維行為人（BR-M17-01 / ADR-0102 §D）。"""
+
+    initiator: str
+    approver: str
+    executor: str | None
+
+
+async def require_sod_actors(
+    x_initiator: str | None = Header(default=None, alias="X-Initiator"),
+    x_approver: str | None = Header(default=None, alias="X-Approver"),
+    x_executor: str | None = Header(default=None, alias="X-Executor"),
+) -> SodActors:
+    """解析 X-Initiator / X-Approver / X-Executor headers。
+
+    spec（openapi-smart-lock-saas.yaml）: X-Initiator + X-Approver required，
+    X-Executor optional。任二相同 → 403 SOD_VIOLATION。
+    """
+    if not x_initiator:
+        raise ApiError("VALIDATION_ERROR", "Missing required header X-Initiator", 422)
+    if not x_approver:
+        raise ApiError("VALIDATION_ERROR", "Missing required header X-Approver", 422)
+    actors = [a for a in (x_initiator, x_approver, x_executor) if a]
+    if len(actors) != len(set(actors)):
+        raise ApiError(
+            "SOD_VIOLATION",
+            "Separation of Duties violated: X-Initiator / X-Approver / X-Executor must be distinct",
+            403,
+        )
+    return SodActors(initiator=x_initiator, approver=x_approver, executor=x_executor)
+
+
 def role_required(*roles: str):
     """Dependency factory 限制角色。"""
     async def _dep(

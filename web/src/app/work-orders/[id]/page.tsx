@@ -32,7 +32,7 @@ import {
   URGENCY_TONE,
 } from "@/components/work-orders/WorkOrdersTable";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, getCurrentSession } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
@@ -40,6 +40,49 @@ type WorkOrderEnvelope = components["schemas"]["WorkOrderEnvelope"];
 type WorkOrderStatus = components["schemas"]["WorkOrderStatus"];
 type WorkOrderAssignRequest = components["schemas"]["WorkOrderAssignRequest"];
 type AssignReasonCode = WorkOrderAssignRequest["reason_code"];
+
+// Cancellation 6-stage v2（ADR-0102 / FR-0052）— spec generated.ts 重生前的本地型別。
+type CancellationResult = {
+  work_order_id: string;
+  cancellation_stage: string;
+  customer_fee: number;
+  travel_fee: number;
+  technician_penalty: number | null;
+  reason_code: string;
+  audit_event_id: string;
+};
+
+type CancelInitiatorRole = "customer" | "customer_service" | "technician" | "system_auto";
+
+type CancelPayload = {
+  reasonCode: string;
+  initiatorRole: CancelInitiatorRole;
+  goodwillWaiver: boolean;
+  approver: string;
+  note: string;
+};
+
+// 客服可選的 reason code（覆寫專用 goodwill_waiver/supervisor_override 不在此清單）。
+const CANCEL_REASON_CODES = [
+  "quote_not_confirmed",
+  "quote_confirmed_no_dispatch",
+  "dispatched_not_departed",
+  "en_route_cancelled",
+  "customer_not_onsite",
+  "onsite_not_executed",
+  "customer_refused",
+  "partial_completed_cancel",
+  "technician_initiated_cancel",
+  "unpaid_no_response",
+  "business_cancel",
+] as const;
+
+const CANCEL_INITIATOR_ROLES: CancelInitiatorRole[] = [
+  "customer_service",
+  "customer",
+  "technician",
+  "system_auto",
+];
 type WorkOrderEscalateRequest = components["schemas"]["WorkOrderEscalateRequest"];
 type EscalateLevel = WorkOrderEscalateRequest["level"];
 type WorkOrderConfirmRequest = components["schemas"]["WorkOrderConfirmRequest"];
@@ -784,6 +827,7 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
   const tHeader = useTranslations("pages.workOrderDetail.header");
   const tActions = useTranslations("pages.workOrderDetail.actions");
   const tToast = useTranslations("pages.workOrderDetail.toast");
+  const tCancelDialog = useTranslations("pages.workOrderDetail.cancelDialog");
   const tLoading = useTranslations("pages.workOrderDetail.loading");
   const tCommon = useTranslations("common");
   const tGroup = useTranslations("status.workOrderGroup");
@@ -868,17 +912,42 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
     }
   };
 
-  const handleCancel = async (reason: string) => {
+  const handleCancel = async (payload: CancelPayload) => {
     setActionPending("cancel");
     setActionError(null);
     try {
-      const res = await api.post<WorkOrderEnvelope>(
-        `/api/v1/work-orders/${encodeURIComponent(id)}/cancel`,
-        reason ? { reason } : {},
+      // spec-aligned tenant-scoped 端點 + SoD headers（ADR-0102 / FR-0052）
+      const session = getCurrentSession();
+      const tenantId = session?.tenantId;
+      if (!tenantId) {
+        throw new ApiError(400, { error_code: "NO_TENANT", message: "Missing tenant" });
+      }
+      const res = await api.post<{ data: CancellationResult }>(
+        `/tenants/${encodeURIComponent(tenantId)}/work-orders/${encodeURIComponent(id)}/cancel`,
+        {
+          reason_code: payload.reasonCode,
+          initiator_role: payload.initiatorRole,
+          goodwill_waiver: payload.goodwillWaiver,
+          note: payload.note || undefined,
+        },
+        {
+          headers: {
+            "X-Initiator": session?.userId ?? "operator",
+            "X-Approver": payload.approver,
+          },
+        },
       );
-      setOrder(res.data ?? null);
+      const r = res.data;
+      // 端點回 CancellationResult（非 WorkOrder）→ 本地標記工單為 cancelled
+      setOrder((prev) => (prev ? { ...prev, status: "cancelled" } : prev));
       setActionMode(null);
-      setActionToast(tToast("cancelled"));
+      setActionToast(
+        tCancelDialog("feeResult", {
+          stage: r.cancellation_stage,
+          customerFee: r.customer_fee,
+          travelFee: r.travel_fee,
+        }),
+      );
     } catch (e) {
       setActionError(formatActionError(e));
     } finally {
@@ -1669,11 +1738,17 @@ function CancelModal({
 }: {
   pending: boolean;
   onCancel: () => void;
-  onSubmit: (reason: string) => Promise<void>;
+  onSubmit: (payload: CancelPayload) => Promise<void>;
 }) {
   const t = useTranslations("pages.workOrderDetail.cancelDialog");
-  const [reason, setReason] = useState("");
-  const trimmed = reason.trim();
+  const [reasonCode, setReasonCode] = useState<string>(CANCEL_REASON_CODES[2]); // dispatched_not_departed
+  const [initiatorRole, setInitiatorRole] = useState<CancelInitiatorRole>("customer_service");
+  const [goodwillWaiver, setGoodwillWaiver] = useState(false);
+  const [approver, setApprover] = useState("");
+  const [note, setNote] = useState("");
+  const trimmedNote = note.trim();
+  // SoD：X-Approver 必填且須與發起人不同（後端最終把關，前端先擋空白）
+  const canSubmit = approver.trim().length > 0;
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
@@ -1684,22 +1759,86 @@ function CancelModal({
             {t("title")}
           </span>
         </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-[12px] font-medium text-[var(--text-secondary)]">
-            {t("reasonLabel")}
+
+        <div className="flex flex-col gap-4">
+          {/* reason code 分類（決定階段 + 費用） */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[12px] font-medium text-[var(--text-secondary)]">
+              {t("reasonCodeLabel")}
+            </label>
+            <select
+              value={reasonCode}
+              onChange={(e) => setReasonCode(e.target.value)}
+              className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+            >
+              {CANCEL_REASON_CODES.map((code) => (
+                <option key={code} value={code}>
+                  {t(`reasonCodes.${code}`)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 發起方 */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[12px] font-medium text-[var(--text-secondary)]">
+              {t("initiatorLabel")}
+            </label>
+            <select
+              value={initiatorRole}
+              onChange={(e) => setInitiatorRole(e.target.value as CancelInitiatorRole)}
+              className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+            >
+              {CANCEL_INITIATOR_ROLES.map((role) => (
+                <option key={role} value={role}>
+                  {t(`initiator.${role}`)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* SoD 覆核主管 ID（X-Approver） */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[12px] font-medium text-[var(--text-secondary)]">
+              {t("approverLabel")}
+            </label>
+            <input
+              value={approver}
+              onChange={(e) => setApprover(e.target.value)}
+              placeholder={t("approverPlaceholder")}
+              className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+            />
+          </div>
+
+          {/* goodwill 豁免 */}
+          <label className="flex items-center gap-2 text-[13px] text-[var(--text-primary)]">
+            <input
+              type="checkbox"
+              checked={goodwillWaiver}
+              onChange={(e) => setGoodwillWaiver(e.target.checked)}
+            />
+            {t("goodwillLabel")}
           </label>
-          <textarea
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            rows={4}
-            maxLength={500}
-            placeholder={t("reasonPlaceholder")}
-            className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
-          />
-          <span className="text-[11px] text-[var(--text-disabled)]">
-            {t("counter", { current: trimmed.length })}
-          </span>
+
+          {/* 備註 */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[12px] font-medium text-[var(--text-secondary)]">
+              {t("reasonLabel")}
+            </label>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={3}
+              maxLength={500}
+              placeholder={t("reasonPlaceholder")}
+              className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+            />
+            <span className="text-[11px] text-[var(--text-disabled)]">
+              {t("counter", { current: trimmedNote.length })}
+            </span>
+          </div>
         </div>
+
         <div className="mt-5 flex justify-end gap-2">
           <button
             onClick={onCancel}
@@ -1709,8 +1848,16 @@ function CancelModal({
             {t("back")}
           </button>
           <button
-            onClick={() => onSubmit(trimmed)}
-            disabled={pending}
+            onClick={() =>
+              onSubmit({
+                reasonCode,
+                initiatorRole,
+                goodwillWaiver,
+                approver: approver.trim(),
+                note: trimmedNote,
+              })
+            }
+            disabled={pending || !canSubmit}
             className="rounded-md bg-[var(--error)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? t("submitting") : t("submit")}
