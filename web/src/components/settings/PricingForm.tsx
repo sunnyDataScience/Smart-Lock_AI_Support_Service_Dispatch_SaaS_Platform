@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Calculator, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, auth } from "@/lib/api";
 import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
@@ -758,8 +758,9 @@ function PricingCalculator({
     setError(null);
     setResult(null);
     try {
+      const tenantId = auth.getTenantId();
       const res = await api.post<PricingCalculateResponse>(
-        "/api/v1/pricing/calculate",
+        `/tenants/${tenantId}/pricing/calculate`,
         req,
       );
       setResult(res);
