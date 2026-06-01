@@ -11,7 +11,7 @@ import {
   ModalTitle,
 } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, getCurrentSession } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 /**
@@ -74,9 +74,14 @@ export function AuditExportModal({
     if (filters.actor_id) body.actor_id = filters.actor_id;
     if (filters.resource_type) body.resource_type = filters.resource_type;
 
+    // CR-0002-α：遷至 tenant-scoped v2 端點（POST /tenants/{tenantId}/audit/exports）
+    const session = getCurrentSession();
+    const tenantId = session?.tenantId ?? "00000000-0000-0000-0000-000000000001";
+    const exportPath = `/tenants/${encodeURIComponent(tenantId)}/audit/exports`;
+
     try {
       const { blob, filename } = await api.downloadPost(
-        "/api/v1/audit-logs/export",
+        exportPath,
         body,
       );
       // 後端可能把 application/json 同時用於同步 JSON stream 與異步 202 job

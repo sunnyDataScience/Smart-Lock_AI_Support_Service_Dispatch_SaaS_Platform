@@ -1,20 +1,19 @@
-"""Audit Logs router — listAuditLogs + exportAuditEvents endpoints。
+"""Audit v2 router — tenant-scoped 稽核事件端點（CR-0002-α 雙掛過渡）。
 
-operationId 對齊 openapi.yaml：listAuditLogs / exportAuditEvents
-讀 audit_events 表（部署層級事件，不做 tenant 過濾）。
+v2 path 對齊 frozen spec (gap audit §2.2)：
+  GET  /tenants/{tenantId}/audit/events   → listAuditEventsV2
+  POST /tenants/{tenantId}/audit/exports  → exportAuditEventsV2
+
+舊 /api/v1/audit-logs + /api/v1/audit-logs/export 保留並加 Deprecation header（D3）。
+業務邏輯直接呼叫既有 audit_log_service 函式，不重寫。
 """
 
 from __future__ import annotations
 
-import csv
-import io
-import logging
-import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query, Request, Response
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, Path, Query, Request
 from pydantic import BaseModel, Field
 
 from core.deps import CurrentUser, require_tenant
@@ -25,23 +24,27 @@ from services.audit_log_service import (
     EXPORT_CSV_COLUMNS,
     SYNC_EXPORT_THRESHOLD,
 )
-
-logger = logging.getLogger("api.routers.audit_logs")
+import csv
+import io
+import uuid
+from datetime import timezone
+from fastapi.responses import StreamingResponse
 
 router = APIRouter()
 
 
-_DEPRECATION_LINK_EVENTS = '</tenants/{tid}/audit/events>; rel="successor-version"'
-_DEPRECATION_LINK_EXPORTS = '</tenants/{tid}/audit/exports>; rel="successor-version"'
-
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /tenants/{tenantId}/audit/events
+# ─────────────────────────────────────────────────────────────────────────────
 
 @router.get(
-    "/audit-logs",
-    operation_id="listAuditLogs",
-    summary="稽核日誌列表（cursor 分頁）[DEPRECATED — 遷至 /tenants/{tenantId}/audit/events]",
+    "/tenants/{tenantId}/audit/events",
+    operation_id="listAuditEventsV2",
+    summary="稽核事件列表（tenant-scoped v2，cursor 分頁）",
     response_model=AuditLogPage,
 )
-async def list_audit_logs(
+async def list_audit_events_v2(
+    tenantId: str = Path(...),
     log_type: AuditLogType | None = Query(default=None),
     start_time: str | None = Query(default=None),
     end_time: str | None = Query(default=None),
@@ -49,12 +52,14 @@ async def list_audit_logs(
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(require_tenant),
-    response: Response,
 ) -> dict:
-    # D3 Deprecation header（no Sunset date set）
-    tid = user.tenant_id or "{tid}"
-    response.headers["Deprecation"] = "true"
-    response.headers["Link"] = f"</tenants/{tid}/audit/events>; rel=\"successor-version\""
+    # cross-tenant guard（ADR-0030）
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError(
+            "CROSS_TENANT_WRITE",
+            "Path tenantId does not match authenticated tenant",
+            403,
+        )
 
     page = await audit_log_service.list_audit_logs(
         log_type=log_type.value if log_type else None,
@@ -72,12 +77,11 @@ async def list_audit_logs(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Export — F-020 / E7x §4.2 P1
+# POST /tenants/{tenantId}/audit/exports
 # ─────────────────────────────────────────────────────────────────────────────
 
-
-class ExportAuditEventsRequest(BaseModel):
-    """Filter payload for POST /audit-logs/export.
+class ExportAuditEventsV2Request(BaseModel):
+    """Filter payload for POST /tenants/{tenantId}/audit/exports.
 
     `from_` aliased to `from` because `from` is a Python keyword; pydantic
     handles the alias both ways via `populate_by_name`.
@@ -100,11 +104,6 @@ def _csv_header_row() -> str:
 
 
 def _csv_row(record: dict) -> str:
-    """Serialize a single record as one CSV line.
-
-    csv.writer auto-quotes fields containing commas / quotes / newlines, which
-    matters for the JSON-encoded `payload` column.
-    """
     buf = io.StringIO()
     csv.writer(buf).writerow([record.get(col, "") for col in EXPORT_CSV_COLUMNS])
     return buf.getvalue()
@@ -115,9 +114,9 @@ def _filename(now: datetime, ext: str) -> str:
 
 
 @router.post(
-    "/audit-logs/export",
-    operation_id="exportAuditEvents",
-    summary="匯出稽核事件為 CSV [DEPRECATED — 遷至 /tenants/{tenantId}/audit/exports]",
+    "/tenants/{tenantId}/audit/exports",
+    operation_id="exportAuditEventsV2",
+    summary="匯出稽核事件（tenant-scoped v2）",
     responses={
         200: {
             "description": "CSV / JSON stream（同步）",
@@ -126,19 +125,21 @@ def _filename(now: datetime, ext: str) -> str:
         202: {"description": "Background job（>100k 筆，待後續實作）"},
     },
 )
-async def export_audit_events(
-    body: ExportAuditEventsRequest,
+async def export_audit_events_v2(
+    body: ExportAuditEventsV2Request,
     request: Request,
+    tenantId: str = Path(...),
     user: CurrentUser = Depends(require_tenant),
-    response: Response,
 ):
-    # D3 Deprecation header（no Sunset date set）
-    tid = user.tenant_id or "{tid}"
-    response.headers["Deprecation"] = "true"
-    response.headers["Link"] = f"</tenants/{tid}/audit/exports>; rel=\"successor-version\""
+    # cross-tenant guard
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError(
+            "CROSS_TENANT_WRITE",
+            "Path tenantId does not match authenticated tenant",
+            403,
+        )
 
-    # Authorization: only admin / ops roles may export.  Other roles get a
-    # generic 403 — exposing the rule list would leak the RBAC matrix.
+    # Authorization: only admin / ops roles may export.
     if user.role not in {"admin", "ops"}:
         raise ApiError(
             error_code="FORBIDDEN",
@@ -146,7 +147,6 @@ async def export_audit_events(
             status_code=403,
         )
 
-    # Estimate row count to choose sync vs async path.
     total = await audit_log_service.count_audit_events(
         from_=body.from_,
         to=body.to,
@@ -158,7 +158,6 @@ async def export_audit_events(
     now = datetime.now(timezone.utc)
     client_ip = request.client.host if request.client else None
 
-    # Audit the export request itself (best-effort, never blocks).
     await audit_log_service.log_event(
         event_type="admin_action",
         actor_id=user.user_id,
@@ -170,23 +169,18 @@ async def export_audit_events(
             "filters": body.model_dump(mode="json", by_alias=True),
             "estimated_rows": total,
             "format": body.format,
+            "tenant_id": tenantId,
         },
         ip_address=client_ip,
     )
 
-    # Async path — TODO: queue a background job + email notification with
-    # signed download URL.  For now we surface a 202 with a stub job_id so
-    # the contract holds and clients can implement polling.
     if total > SYNC_EXPORT_THRESHOLD:
         job_id = str(uuid.uuid4())
-        # TODO: enqueue actual export job; for now this is a contract-only stub.
         return {
             "job_id": job_id,
             "estimated_completion": None,
         }
 
-    # Sync path — stream rows out as the cursor walks the table so memory
-    # stays bounded regardless of total row count (within the threshold).
     if body.format == "json":
         async def gen_json():
             yield "["
@@ -198,8 +192,6 @@ async def export_audit_events(
                 actor_id=body.actor_id,
                 resource_type=body.resource_type,
             ):
-                # Strip the JSON-encoded payload column back to a dict so the
-                # JSON response stays structured (CSV needs string, JSON does not).
                 import json as _json
 
                 payload = record.get("payload") or ""
