@@ -10,7 +10,7 @@
 import { use, useEffect, useState } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import { CustomerForm, type CustomerFormInitial } from "@/components/admin/CustomerForm";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, getCurrentSession } from "@/lib/api";
 
 interface CustomerDetailLite extends CustomerFormInitial {
   id: string;
@@ -33,8 +33,12 @@ export default function EditCustomerPage({
     setError(null);
     (async () => {
       try {
+        // CR-0002-α：遷移至 tenant-scoped v2 端點讀取客戶資料
+        const session = getCurrentSession();
+        const tenantId =
+          session?.tenantId ?? "00000000-0000-0000-0000-000000000001";
         const res = await api.get<CustomerDetailLite>(
-          `/api/v1/customers/${encodeURIComponent(id)}`,
+          `/tenants/${encodeURIComponent(tenantId)}/customers/${encodeURIComponent(id)}`,
         );
         if (cancelled) return;
         setInitial({

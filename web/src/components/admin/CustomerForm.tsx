@@ -23,7 +23,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, getCurrentSession } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
@@ -129,10 +129,15 @@ export function CustomerForm({
 
     setSubmitting(true);
     try {
+      // CR-0002-α：遷移至 tenant-scoped v2 端點
+      const session = getCurrentSession();
+      const tenantId =
+        session?.tenantId ?? "00000000-0000-0000-0000-000000000001";
+
       if (mode === "create") {
         const payload: CustomerCreateRequest = basePayload;
         const res = await api.post<{ data: { id: string } }>(
-          "/api/v1/customers",
+          `/tenants/${encodeURIComponent(tenantId)}/customers`,
           payload,
         );
         const newId = res.data?.id;
@@ -140,8 +145,9 @@ export function CustomerForm({
       } else {
         if (!customerId) throw new Error(t("errors.missingId"));
         const payload: CustomerUpdateRequest = basePayload;
-        await api.patch(
-          `/api/v1/customers/${encodeURIComponent(customerId)}`,
+        // PUT v2（tenant-scoped）；note: legacy PUT /api/v1/customers/{id} 仍可用但已加 Deprecation header
+        await api.put(
+          `/tenants/${encodeURIComponent(tenantId)}/customers/${encodeURIComponent(customerId)}`,
           payload,
         );
         router.replace(redirectTo ?? `/admin/customers/${customerId}`);

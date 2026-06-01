@@ -61,6 +61,7 @@ from routers import public as public_router  # Q3=C / Q9=B 共用機制
 from routers import cancellation as cancellation_router  # spec-alignment P1-A (ADR-0102, tenant-scoped)
 from routers import refunds_v2 as refunds_v2_router  # spec-alignment P1-B (ADR-0040v2, tenant-scoped SoD+5tier)
 from routers import device_warranty as device_warranty_router  # spec-alignment P1-B (ADR-0044 v2, tenant-scoped)
+from routers import customers_v2 as customers_v2_router  # spec-alignment P2-α (CR-0002-α, tenant-scoped M04 Customer)
 # ⬇ APPEND-ANCHOR（spec-alignment 平行波次）：新 tenant-scoped v2 router import 在此一行一個 append（P2/P3）
 from routers import audit_v2 as audit_v2_router  # spec-alignment P2-α (CR-0002-α, M17 audit tenant-scoped)
 
@@ -158,6 +159,7 @@ app.include_router(cancellation_router.router, tags=["M11 AR / Payment"])
 app.include_router(refunds_v2_router.router, tags=["M11 AR / Payment"])
 # spec-alignment P1-B：tenant-scoped 保固端點（5-mode），無 /api/v1 前綴以對齊 frozen spec path
 app.include_router(device_warranty_router.router, tags=["M13 Warranty"])
+app.include_router(customers_v2_router.router, tags=["M04 Customer"])  # spec-alignment P2-α (CR-0002-α, tenant-scoped)
 # ⬇ APPEND-ANCHOR（spec-alignment 平行波次）：新 tenant-scoped v2 router include 在此一行一個 append（P2/P3）
 #   注意：FastAPI 漏 include_router 不報錯 → silent 404，新增務必同時補 import-anchor 與此處。
 app.include_router(audit_v2_router.router, tags=["M17 Audit"])  # spec-alignment P2-α (CR-0002-α)
