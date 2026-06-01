@@ -847,9 +847,12 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
     setError(null);
     (async () => {
       try {
-        const res = await api.get<WorkOrderEnvelope>(
-          `/api/v1/work-orders/${encodeURIComponent(id)}`,
-        );
+        // CR-0002-α：優先打 tenant-scoped v2 路徑；tenantId 未知時 fallback legacy
+        const session = getCurrentSession();
+        const woPath = session?.tenantId
+          ? `/tenants/${encodeURIComponent(session.tenantId)}/work-orders/${encodeURIComponent(id)}`
+          : `/api/v1/work-orders/${encodeURIComponent(id)}`;
+        const res = await api.get<WorkOrderEnvelope>(woPath);
         if (!cancelled) setOrder(res.data ?? null);
       } catch (e) {
         if (cancelled) return;
