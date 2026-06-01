@@ -32,6 +32,12 @@ DEFAULT_CONFIG: dict = {
     "warranty": DEFAULT_WARRANTY_CONFIG,
     # ⬇ APPEND-SLOT（spec-alignment 平行波次）：新 M18 namespace 在此一行一個 append
     #   （P1-C: quote 佔位；P3: m18 governance 等）。降低多 worktree 撞 DEFAULT_CONFIG 中段。
+    # M04 quote namespace (BR-M04-05 / FR-0042) — 報價有效期佔位；quote lifecycle 整模組 P3 補
+    "quote": {
+        "standard_ttl_days": 14,   # 一般報價有效期
+        "urgent_ttl_days": 3,      # 急件報價有效期
+        # TODO(P3): 完整 quote lifecycle schema（state machine / expired 通知 / priority_flag）
+    },
     "resolution": {
         "faq_confidence_threshold": 0.7,
         "rag_confidence_threshold": 0.6,
