@@ -190,7 +190,7 @@ RFC7807 superset + Deprecation middleware + ~13 模組 tenant-scoped v2（呼既
 
 ### γ 收尾 — 部分完成 + **型別重生 DEFERRED（Opus 風險裁定）**
 - ✅ **C-01**：main.py SSOT 註記已指向新 spec（早前 commit 已修）。
-- ✅ **spec lint**（spectral）：openapi.yaml 16 errors / companion 58 errors —— 多為 missing response `description`/`operationId`（pre-existing 規格 hygiene）。歸為「spec-polish」獨立工項。
+- ✅ **spec lint + spec-polish 完成**（commit cf2d7d33）：兩檔 spectral errors **16+58 → 0**（補 description/operationId/securityScheme + 修一個 legal-hold responses 縮排錯置）。**純 additive metadata、零語意變更**（$ref 49→49 不變、無 path/schema 改動）→ 不影響既有 generated types。88 個 operationId 補齊（mock-server 可正確路由）。
 - ⛔ **D6 型別重生 DEFERRED**（資料佐證的風險裁定，**不在 dual-mount 期間做**）：
   - TS 從 openapi.yaml 重生＝6994→2165 行（**-70% 型別**），因新 spec 僅 30 paths 且 companion 57 paths 未合併；**83 個 web 檔** import 這些型別 → 覆蓋重生會全面打爆前端。
   - `api/models/generated.py` 有 **38 個 py importer**，且無 scripted 重生（手動 datamodel-codegen），同樣高風險。
