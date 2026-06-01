@@ -2,7 +2,9 @@
  * /track/[token] — 消費者匿名工單追蹤頁面（Q3=C 共用機制）
  *
  * 入口：LINE 推播短連結（例：https://app.example.com/track/<signed-token>）
- * 後端：GET /api/v1/public/work-orders/{token}/status (operationId: getWorkOrderPublicStatus)
+ * 後端 v2：GET /consumer/work-orders/{token} (operationId: getConsumerWorkOrderV2, M16 FR-0022)
+ * 後端 legacy（雙掛過渡中）：GET /api/v1/public/work-orders/{token}/status
+ *   ↑ legacy 已由 DeprecationMiddleware 自動加 Deprecation header（D3），P3 波次退場。
  *
  * 設計重點：
  *   - mobile-first（消費者主要從 LINE webview 開啟）
@@ -10,6 +12,8 @@
  *   - 不帶 Authorization / X-Tenant-ID header（public endpoint 用 token 簽章驗證）
  *   - 錯誤處理：404 → 連結無效；410 → 連結已失效
  *   - PII 已由後端 mask（technician_name 只露姓 + 「師傅」；phone 末四碼）
+ *
+ * CR-0002-α P2-α path 遷移：已切換至 /consumer/work-orders/{token}（spec M16 對齊）。
  */
 
 "use client";
@@ -19,7 +23,7 @@ import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 type Params = { token: string };
 
-// 直接打 public endpoint — 不走 src/lib/api.ts（會帶 Authorization / X-Tenant-ID）
+// 直接打 consumer endpoint — 不走 src/lib/api.ts（會帶 Authorization / X-Tenant-ID）
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8001";
 
 type Status =
@@ -30,17 +34,18 @@ type Status =
   | "completed"
   | "cancelled";
 
-interface PublicWorkOrderStatus {
-  work_order_id: string;
-  status: Status;
-  scheduled_at?: string | null;
-  completed_at?: string | null;
-  technician_name?: string | null;
-  technician_phone_masked?: string | null;
+/** v2 ConsumerWOView schema（spec M16 FR-0022）。 */
+interface ConsumerWorkOrderView {
+  /** 對應 spec ConsumerWOView.work_order_state */
+  work_order_state: Status;
   eta_minutes?: number | null;
+  /** 已 mask 的技師顯示名（e.g. 李師傅）— spec ConsumerWOView.technician_display_name */
+  technician_display_name?: string | null;
+  /** ISO datetime — spec ConsumerWOView.last_update_at */
+  last_update_at?: string | null;
 }
 
-const STATUS_COLOR: Record<Status, string> = {
+const STATUS_COLOR: Record<Status, string> = { // eslint-disable-line @typescript-eslint/no-unused-vars
   pending: "bg-slate-100 text-slate-700 border-slate-200",
   scheduled: "bg-blue-50 text-blue-700 border-blue-200",
   on_the_way: "bg-amber-50 text-amber-700 border-amber-200",
@@ -51,7 +56,7 @@ const STATUS_COLOR: Record<Status, string> = {
 
 type FetchState =
   | { kind: "loading" }
-  | { kind: "ok"; data: PublicWorkOrderStatus }
+  | { kind: "ok"; data: ConsumerWorkOrderView }
   | { kind: "error"; message: string; code: "expired" | "not_found" | "rate_limit" | "other" };
 
 export default function PublicTrackPage({
@@ -68,8 +73,10 @@ export default function PublicTrackPage({
 
     async function fetchStatus() {
       try {
+        // v2 spec-aligned path（CR-0002-α M16 Consumer）: /consumer/work-orders/{token}
+        // legacy path /api/v1/public/work-orders/{token}/status 雙掛中，P3 波次退場
         const res = await fetch(
-          `${API_BASE}/api/v1/public/work-orders/${encodeURIComponent(token)}/status`,
+          `${API_BASE}/consumer/work-orders/${encodeURIComponent(token)}`,
           { cache: "no-store", credentials: "omit" },
         );
 
@@ -108,7 +115,7 @@ export default function PublicTrackPage({
           return;
         }
 
-        const data = (await res.json()) as PublicWorkOrderStatus;
+        const data = (await res.json()) as ConsumerWorkOrderView;
         setState({ kind: "ok", data });
       } catch {
         if (!cancelled) {
@@ -184,29 +191,23 @@ function ErrorPanel({
   );
 }
 
-function StatusPanel({ data }: { data: PublicWorkOrderStatus }) {
+function StatusPanel({ data }: { data: ConsumerWorkOrderView }) {
   const t = useTranslations("pages.track");
   const tStatus = useTranslations("pages.track.status");
   const showEta =
-    data.status === "on_the_way" && data.eta_minutes != null;
+    data.work_order_state === "on_the_way" && data.eta_minutes != null;
+  const statusColor = STATUS_COLOR[data.work_order_state] ?? STATUS_COLOR["pending"];
 
   return (
     <div className="mt-6 space-y-4" data-testid="track-status">
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-slate-500">{t("fields.orderId")}</span>
-        <span className="font-mono text-xs text-slate-700">
-          #{data.work_order_id.slice(0, 8)}
-        </span>
-      </div>
-
       <div>
         <span className="text-xs text-slate-500">{t("fields.currentStatus")}</span>
         <div className="mt-1">
           <span
             data-testid="status-badge"
-            className={`inline-block rounded-full border px-3 py-1 text-[13px] font-medium ${STATUS_COLOR[data.status]}`}
+            className={`inline-block rounded-full border px-3 py-1 text-[13px] font-medium ${statusColor}`}
           >
-            {tStatus(data.status)}
+            {tStatus(data.work_order_state)}
           </span>
         </div>
       </div>
@@ -217,18 +218,8 @@ function StatusPanel({ data }: { data: PublicWorkOrderStatus }) {
         </div>
       )}
 
-      <InfoRow label={t("fields.scheduled")} value={formatDateTime(data.scheduled_at)} />
-      <InfoRow label={t("fields.completed")} value={formatDateTime(data.completed_at)} />
-      <InfoRow label={t("fields.technician")} value={data.technician_name ?? "—"} />
-
-      {data.technician_phone_masked && (
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-slate-500">{t("fields.technicianPhone")}</span>
-          <span className="font-mono text-[13px] text-slate-700">
-            {data.technician_phone_masked}
-          </span>
-        </div>
-      )}
+      <InfoRow label={t("fields.lastUpdate")} value={formatDateTime(data.last_update_at)} />
+      <InfoRow label={t("fields.technician")} value={data.technician_display_name ?? "—"} />
     </div>
   );
 }
