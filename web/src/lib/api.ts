@@ -30,12 +30,37 @@ const STORAGE_KEYS = {
   email: "smartlock.email",
 } as const;
 
+/**
+ * ApiErrorResponse — superset interface compatible with:
+ *   - RFC7807 problem+json fields (type/title/status/detail/instance) — new
+ *   - Legacy fields (error_code/message/request_id/timestamp/details) — kept as extension members
+ *
+ * All fields are optional so both old and new response shapes parse without throwing.
+ * Callers MUST NOT fetch the `type` URI — it is an identifier string only (D5 decision).
+ */
 export interface ApiErrorResponse {
-  error_code: string;
-  message: string;
+  // RFC7807 fields (new — application/problem+json)
+  type?: string;
+  title?: string;
+  status?: number;
+  detail?: string;
+  instance?: string;
+
+  // Legacy extension members (backward-compat)
+  error_code?: string;
+  message?: string;
   details?: unknown;
   request_id?: string;
   timestamp?: string;
+}
+
+/** Derive error_code from RFC7807 type URI (urn:smartlock:error:{code} → upper CODE). */
+function deriveCodeFromType(type: string | undefined): string | undefined {
+  if (!type) return undefined;
+  // Format: urn:smartlock:error:validation_error → VALIDATION_ERROR
+  const match = /^urn:smartlock:error:(.+)$/.exec(type);
+  if (!match) return undefined;
+  return match[1].toUpperCase();
 }
 
 export class ApiError extends Error {
@@ -44,11 +69,15 @@ export class ApiError extends Error {
   details?: unknown;
   requestId?: string;
   constructor(status: number, body: ApiErrorResponse) {
-    super(body.message || `HTTP ${status}`);
+    // Prefer detail (RFC7807) → message (legacy) → title (RFC7807) → fallback
+    const msg = body.detail ?? body.message ?? body.title ?? `HTTP ${status}`;
+    super(msg);
     this.status = status;
-    this.errorCode = body.error_code || "UNKNOWN";
+    // Prefer error_code (legacy extension member) → derive from type URI → "UNKNOWN"
+    this.errorCode = body.error_code ?? deriveCodeFromType(body.type) ?? "UNKNOWN";
     this.details = body.details;
-    this.requestId = body.request_id;
+    // Prefer request_id (legacy) → instance (RFC7807 — may be path, not ID)
+    this.requestId = body.request_id ?? body.instance;
   }
 }
 
@@ -212,7 +241,9 @@ async function rawRequest<T>(
   if (res.status === 204) return undefined as T;
 
   const contentType = res.headers.get("content-type") ?? "";
-  const payload = contentType.includes("application/json") ? await res.json() : await res.text();
+  // Accept both application/json and application/problem+json (RFC7807)
+  const isJson = contentType.includes("application/json") || contentType.includes("application/problem+json");
+  const payload = isJson ? await res.json() : await res.text();
 
   if (!res.ok) {
     const body = (typeof payload === "object" && payload) as ApiErrorResponse;
@@ -304,7 +335,8 @@ async function downloadBlob(
 
   if (!res.ok) {
     const contentType = res.headers.get("content-type") ?? "";
-    const payload = contentType.includes("application/json")
+    const isJson = contentType.includes("application/json") || contentType.includes("application/problem+json");
+    const payload = isJson
       ? ((await res.json()) as ApiErrorResponse)
       : { error_code: "UNKNOWN", message: await res.text() };
     throw new ApiError(res.status, payload);
@@ -365,7 +397,8 @@ async function downloadBlobPost(
 
   if (!res.ok) {
     const contentType = res.headers.get("content-type") ?? "";
-    const payload = contentType.includes("application/json")
+    const isJson = contentType.includes("application/json") || contentType.includes("application/problem+json");
+    const payload = isJson
       ? ((await res.json()) as ApiErrorResponse)
       : { error_code: "UNKNOWN", message: await res.text() };
     throw new ApiError(res.status, payload);
