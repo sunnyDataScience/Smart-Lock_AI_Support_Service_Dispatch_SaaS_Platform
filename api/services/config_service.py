@@ -30,6 +30,8 @@ DEFAULT_CONFIG: dict = {
     "cancellation": DEFAULT_CANCELLATION_CONFIG,
     # M13 warranty namespace (ADR-0044 v2 / FR-0015) — 5-mode 起算 / period / B2B override
     "warranty": DEFAULT_WARRANTY_CONFIG,
+    # ⬇ APPEND-SLOT（spec-alignment 平行波次）：新 M18 namespace 在此一行一個 append
+    #   （P1-C: quote 佔位；P3: m18 governance 等）。降低多 worktree 撞 DEFAULT_CONFIG 中段。
     "resolution": {
         "faq_confidence_threshold": 0.7,
         "rag_confidence_threshold": 0.6,

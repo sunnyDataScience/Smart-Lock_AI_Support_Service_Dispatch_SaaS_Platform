@@ -1,0 +1,21 @@
+# SQL/migrations/ — 編號登記簿（spec-alignment 重構）
+
+> 平行 worktree 開發時，**先在此認領 migration 編號**再開檔，避免兩個分支撞同一編號。
+> forward-only、可重跑（`ADD COLUMN IF NOT EXISTS` / `DO $$ ... pg_constraint 查存在 ... $$`）。
+> 套用：`psql "$POSTGRES_URI" -f SQL/migrations/NNN-*.sql`。
+
+| 編號 | 檔名 | 波次 | 狀態 | 說明 |
+|---|---|---|---|---|
+| 001 | `001-cancellation-6stage.sql` | P1-A | ✅ done | cancellation 表（6 階段費用 + SoD + audit）|
+| 002 | `002-refund-sod-5tier.sql` | P1-B | ✅ done | refund_requests 加欄：tier / refund_class / 三維 SoD + CHECK |
+| 003 | `003-warranty-5mode.sql` | P1-B | ✅ done | warranty_claims 加欄：warranty_start_mode(6) / period_months / B2B override |
+| 004 | _(reserved)_ | P2-β | 🔒 預留 | RLS policy（7 表 tenant_id row-level security）— 須先過 ADR-0030 tier-1 裁決 |
+| 005 | _(reserved)_ | P2-β | 🔒 預留 | RLS session config（SET ROLE / set_config per-request + non-owner app role）|
+| 006 | _(reserved)_ | P3 | 🔒 預留 | master data：site / device / brand / model |
+| 007 | _(reserved)_ | P3 | 🔒 預留 | quote_version（lifecycle 狀態機 + 14d/3d TTL；對照 spec DDL saas.quote_version）|
+| 008 | _(reserved)_ | P3 | 🔒 預留 | M18 config governance 四表（namespace / version / rollout / audit）|
+| 009 | _(reserved)_ | P3 | 🔒 預留 | sync 6 模組（outbox + idempotency + human gate）|
+| 010 | _(reserved)_ | P3 | 🔒 預留 | dgs / change_request / exceptions inbox |
+
+> 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
+> 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。
