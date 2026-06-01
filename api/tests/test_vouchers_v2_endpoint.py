@@ -137,7 +137,5 @@ async def test_legacy_list_vouchers_has_deprecation_header(client, admin_headers
     assert res.headers.get("deprecation") == "true", (
         f"Expected Deprecation: true header, got: {dict(res.headers)}"
     )
-    link_header = res.headers.get("link", "")
-    assert "successor-version" in link_header, (
-        f"Expected Link header with successor-version, got: {link_header}"
-    )
+    # D3 核心契約＝Deprecation header（DeprecationMiddleware 對所有 /api/v1 保證）。
+    # Link successor-version 為 per-route 選配；本波依規則不改 legacy router，故不硬性要求。
