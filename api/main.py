@@ -65,6 +65,7 @@ from routers import customers_v2 as customers_v2_router  # spec-alignment P2-α 
 from routers import rbac_v2 as rbac_v2_router  # spec-alignment P2-α (CR-0002-α, M17 RBAC tenant-scoped)
 # ⬇ APPEND-ANCHOR（spec-alignment 平行波次）：新 tenant-scoped v2 router import 在此一行一個 append（P2/P3）
 from routers import audit_v2 as audit_v2_router  # spec-alignment P2-α (CR-0002-α, M17 audit tenant-scoped)
+from routers import problem_cards_v2 as problem_cards_v2_router  # spec-alignment P2-α (CR-0002-α, M03 ProblemCard tenant-scoped)
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -165,6 +166,7 @@ app.include_router(rbac_v2_router.router, tags=["M17 RBAC"])  # spec-alignment P
 # ⬇ APPEND-ANCHOR（spec-alignment 平行波次）：新 tenant-scoped v2 router include 在此一行一個 append（P2/P3）
 #   注意：FastAPI 漏 include_router 不報錯 → silent 404，新增務必同時補 import-anchor 與此處。
 app.include_router(audit_v2_router.router, tags=["M17 Audit"])  # spec-alignment P2-α (CR-0002-α)
+app.include_router(problem_cards_v2_router.router, tags=["M03 ProblemCard"])  # spec-alignment P2-α (CR-0002-α, M03 ProblemCard tenant-scoped)
 
 
 @app.get("/health")

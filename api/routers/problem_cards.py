@@ -3,6 +3,9 @@
 operationId 對齊 openapi.yaml：
   listProblemCards, getProblemCard, createProblemCard, updateProblemCard,
   confirmProblemCard, resolveProblemCard, convertToWorkOrder, exportProblemCard
+
+[DEPRECATED — 雙掛過渡 D3] 所有端點已加 Deprecation header，
+請遷移至 /tenants/{tenantId}/problem-cards（CR-0002-α P2-α）。
 """
 
 from __future__ import annotations
@@ -31,15 +34,21 @@ router = APIRouter()
 @router.get(
     "/problem-cards",
     operation_id="listProblemCards",
-    summary="問題卡列表（cursor 分頁）",
+    summary="問題卡列表（cursor 分頁）[DEPRECATED — 請遷移至 /tenants/{tenantId}/problem-cards]",
     response_model=ProblemCardPage,
 )
 async def list_problem_cards(
+    response: Response,
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     conversation_id: str | None = Query(default=None, description="過濾特定對話下的問題卡"),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
+    # D3：雙掛過渡期 Deprecation header（CR-0002-α）
+    response.headers["Deprecation"] = "true"
+    response.headers["Link"] = (
+        f"</tenants/{user.tenant_id}/problem-cards>; rel=\"successor-version\""
+    )
     page = await problem_card_service.list_cards(
         tenant_id=user.tenant_id,
         cursor=cursor,
@@ -56,13 +65,19 @@ async def list_problem_cards(
 @router.get(
     "/problem-cards/{id}",
     operation_id="getProblemCard",
-    summary="問題卡詳情",
+    summary="問題卡詳情 [DEPRECATED — 請遷移至 /tenants/{tenantId}/problem-cards/{id}]",
     response_model=ProblemCardEnvelope,
 )
 async def get_problem_card(
+    response: Response,
     id: str = Path(),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
+    # D3：雙掛過渡期 Deprecation header（CR-0002-α）
+    response.headers["Deprecation"] = "true"
+    response.headers["Link"] = (
+        f"</tenants/{user.tenant_id}/problem-cards/{id}>; rel=\"successor-version\""
+    )
     card = await problem_card_service.get_card(
         tenant_id=user.tenant_id, pc_id=id,
     )
@@ -72,15 +87,21 @@ async def get_problem_card(
 @router.post(
     "/problem-cards",
     operation_id="createProblemCard",
-    summary="建立問題卡（每個對話最多一張）",
+    summary="建立問題卡（每個對話最多一張）[DEPRECATED — 請遷移至 /tenants/{tenantId}/problem-cards]",
     status_code=201,
     response_model=ProblemCardEnvelope,
 )
 async def create_problem_card(
+    response: Response,
     body: ProblemCardCreateRequest,
     user: CurrentUser = Depends(require_tenant),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
+    # D3：雙掛過渡期 Deprecation header（CR-0002-α）
+    response.headers["Deprecation"] = "true"
+    response.headers["Link"] = (
+        f"</tenants/{user.tenant_id}/problem-cards>; rel=\"successor-version\""
+    )
     urgency = (
         body.urgency.value
         if body.urgency and hasattr(body.urgency, "value")
@@ -128,14 +149,20 @@ async def create_problem_card(
 @router.get(
     "/problem-cards/{id}/export",
     operation_id="exportProblemCard",
-    summary="匯出問題卡（json / csv / pdf；content 為 base64 編碼）",
+    summary="匯出問題卡（json / csv / pdf；content 為 base64 編碼）[DEPRECATED]",
     response_model=ProblemCardExport,
 )
 async def export_problem_card(
+    response: Response,
     id: str = Path(),
     format: str = Query(default="pdf", pattern="^(pdf|json|csv)$"),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
+    # D3：雙掛過渡期 Deprecation header（CR-0002-α）
+    response.headers["Deprecation"] = "true"
+    response.headers["Link"] = (
+        f"</tenants/{user.tenant_id}/problem-cards/{id}>; rel=\"successor-version\""
+    )
     return await problem_card_service.export_card(
         tenant_id=user.tenant_id, pc_id=id, fmt=format,
     )
@@ -144,14 +171,20 @@ async def export_problem_card(
 @router.patch(
     "/problem-cards/{id}",
     operation_id="updateProblemCard",
-    summary="部分更新問題卡（status 變更請走 /confirm 或 /resolve）",
+    summary="部分更新問題卡（status 變更請走 /confirm 或 /resolve）[DEPRECATED — 請遷移至 /tenants/{tenantId}/problem-cards/{id}]",
     response_model=ProblemCardEnvelope,
 )
 async def update_problem_card(
+    response: Response,
     body: ProblemCardUpdateRequest,
     id: str = Path(),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
+    # D3：雙掛過渡期 Deprecation header（CR-0002-α）
+    response.headers["Deprecation"] = "true"
+    response.headers["Link"] = (
+        f"</tenants/{user.tenant_id}/problem-cards/{id}>; rel=\"successor-version\""
+    )
     urgency = body.urgency.value if body.urgency and hasattr(body.urgency, "value") else body.urgency
     status = body.status.value if body.status and hasattr(body.status, "value") else body.status
     media_urls = (
@@ -174,14 +207,20 @@ async def update_problem_card(
 @router.post(
     "/problem-cards/{id}/confirm",
     operation_id="confirmProblemCard",
-    summary="確認問題卡（draft → confirmed）",
+    summary="確認問題卡（draft → confirmed）[DEPRECATED — 請遷移至 /tenants/{tenantId}/problem-cards/{id}/confirm]",
     response_model=ProblemCardEnvelope,
 )
 async def confirm_problem_card(
+    response: Response,
     id: str = Path(),
     user: CurrentUser = Depends(require_tenant),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
+    # D3：雙掛過渡期 Deprecation header（CR-0002-α）
+    response.headers["Deprecation"] = "true"
+    response.headers["Link"] = (
+        f"</tenants/{user.tenant_id}/problem-cards/{id}/confirm>; rel=\"successor-version\""
+    )
     card = await problem_card_service.confirm_card(
         tenant_id=user.tenant_id, pc_id=id,
     )
@@ -194,15 +233,21 @@ async def confirm_problem_card(
 @router.post(
     "/problem-cards/{id}/resolve",
     operation_id="resolveProblemCard",
-    summary="結案問題卡（confirmed → resolved）",
+    summary="結案問題卡（confirmed → resolved）[DEPRECATED — 請遷移至 /tenants/{tenantId}/problem-cards/{id}/resolve]",
     response_model=ProblemCardEnvelope,
 )
 async def resolve_problem_card(
+    response: Response,
     body: ProblemCardResolveRequest,
     id: str = Path(),
     user: CurrentUser = Depends(require_tenant),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
+    # D3：雙掛過渡期 Deprecation header（CR-0002-α）
+    response.headers["Deprecation"] = "true"
+    response.headers["Link"] = (
+        f"</tenants/{user.tenant_id}/problem-cards/{id}/resolve>; rel=\"successor-version\""
+    )
     layer = body.resolution_layer
     layer_str = layer.value if hasattr(layer, "value") else str(layer)
     card = await problem_card_service.resolve_card(
