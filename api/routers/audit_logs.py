@@ -42,6 +42,7 @@ _DEPRECATION_LINK_EXPORTS = '</tenants/{tid}/audit/exports>; rel="successor-vers
     response_model=AuditLogPage,
 )
 async def list_audit_logs(
+    response: Response,
     log_type: AuditLogType | None = Query(default=None),
     start_time: str | None = Query(default=None),
     end_time: str | None = Query(default=None),
@@ -49,7 +50,6 @@ async def list_audit_logs(
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(require_tenant),
-    response: Response,
 ) -> dict:
     # D3 Deprecation header（no Sunset date set）
     tid = user.tenant_id or "{tid}"
@@ -129,8 +129,8 @@ def _filename(now: datetime, ext: str) -> str:
 async def export_audit_events(
     body: ExportAuditEventsRequest,
     request: Request,
-    user: CurrentUser = Depends(require_tenant),
     response: Response,
+    user: CurrentUser = Depends(require_tenant),
 ):
     # D3 Deprecation header（no Sunset date set）
     tid = user.tenant_id or "{tid}"
