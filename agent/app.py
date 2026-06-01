@@ -215,6 +215,9 @@ async def startup():
         **_cfg.debounce,
         "request_timeout": _cfg.system.get("request_timeout", 60),
         "max_reply_length": line_cfg.get("max_reply_length", 5000),
+        # BR-A01-02/AC-V11-11：傳入 LLM token cap 設定給 orchestrator._apply_token_cap
+        "max_output_tokens": _cfg.llm.get("max_output_tokens", 1500),
+        "reply_truncation_marker": _cfg.llm.get("reply_truncation_marker", "（詳情請洽客服）"),
     }
     debounce.init(
         agent, debounce_config, _cfg.templates,

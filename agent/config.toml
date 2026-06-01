@@ -13,9 +13,11 @@ request_timeout = 120    # 秒，Phase 0 暫時拉長以止血；Phase 2 完成�
 # Gemini 2.5 Flash GA：穩定 quota（~1000 RPM、4M TPM）、SLA 有保障
 # Gemini 3 Flash 待 GA 後再切（preview quota 嚴格，會在生產環境踩 rate limit）
 [llm]
-model            = "vertex_ai/gemini-2.5-flash"
-temperature      = 0.3
-thinking_budget  = 0      # Phase 2 試刀：客服 SOP 走 prompt 工程，不依賴 thinking
+model                  = "vertex_ai/gemini-2.5-flash"
+temperature            = 0.3
+thinking_budget        = 0      # Phase 2 試刀：客服 SOP 走 prompt 工程，不依賴 thinking
+max_output_tokens      = 1500   # BR-A01-02/AC-V11-11：回覆 token 上限（生成期 hard cap）
+reply_truncation_marker = "（詳情請洽客服）"  # 截斷保底補上的結尾標記
 
 # ── 3. LINE Bot 設定 ──
 [line_bot]

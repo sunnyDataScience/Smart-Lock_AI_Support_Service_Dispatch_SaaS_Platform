@@ -283,6 +283,67 @@ def _extract_final_ai_text(messages: list) -> str:
     return fallback
 
 
+# Sentence boundary characters used by _apply_token_cap for graceful truncation.
+_SENTENCE_BOUNDARY_RE = re.compile(r"[。！？\n]")
+
+
+def _apply_token_cap(text: str, *, cap_chars: int, marker: str) -> str:
+    """Safety-net fallback: truncate *text* to *cap_chars* with graceful boundary.
+
+    Strategy (BR-A01-02 / AC-V11-11 保底層):
+    1. text 在 cap_chars 內 → 原樣回傳。
+    2. 超過 → 從 cap_chars 處往前回退到最後一個句界（。！？\\n）截斷，
+       接上 marker；找不到句界就硬切到 cap_chars 再接 marker。
+    3. fail-open / 不送空：
+       - text 為空或 None → 回傳原 text（不補 marker）。
+       - marker 本身導致截斷結果只剩 marker（body 空）→ 回退原文。
+       - 任何例外 → 回退原文（呼叫端另包 try/except 雙重保險）。
+
+    Args:
+        text:      原始回覆文字。
+        cap_chars: 保底字元上限（建議 = int(max_output_tokens * 0.67)）。
+        marker:    超長時補在結尾的提示語。
+
+    Returns:
+        可能截斷的文字（或原文如果在 cap 內 / fail-open）。
+    """
+    # fail-open: 空值直接回傳
+    if not text:
+        return text  # type: ignore[return-value]  # text 可能是 None 或 ""
+
+    try:
+        if len(text) <= cap_chars:
+            return text
+
+        # 在 cap_chars 範圍內找最後一個句界
+        window = text[:cap_chars]
+        match = None
+        for m in _SENTENCE_BOUNDARY_RE.finditer(window):
+            match = m
+
+        if match is not None:
+            cut_pos = match.end()  # 包含句界字元本身
+        else:
+            cut_pos = cap_chars   # 無句界 → 硬切
+
+        body = text[:cut_pos]
+
+        # fail-open: body 截斷後空字串 → 回退原文
+        if not body:
+            return text
+
+        result = body + marker
+
+        # fail-open: 若加上 marker 後整體為空（marker 本身是空字串等極端情況）→ 回退
+        if not result:
+            return text
+
+        return result
+
+    except Exception:  # noqa: BLE001 — fail-open 熱路徑，任何例外回退原文
+        return text
+
+
 async def run_agent(
     user_id: str,
     user_input: str | list,
@@ -367,6 +428,19 @@ async def run_agent(
         ))
 
         ai_response = _extract_final_ai_text(messages)
+
+        # BR-A01-02 / AC-V11-11 — 保底截斷層（生成期 max_tokens 為主力；此處為
+        # safety-net，極少觸發）。cap_chars ≈ max_output_tokens × 0.67（中文約
+        # 1 char ≈ 1.5 token，1500 tokens ≈ 1000 chars）。fail-open：任何例外
+        # 回退原文，絕不送空訊息。
+        try:
+            _llm_cfg = _config if isinstance(_config, dict) else {}
+            _cap_tokens = _llm_cfg.get("max_output_tokens", 1500)
+            _cap_chars = int(_cap_tokens * 0.67)
+            _marker = _llm_cfg.get("reply_truncation_marker", "（詳情請洽客服）")
+            ai_response = _apply_token_cap(ai_response, cap_chars=_cap_chars, marker=_marker)
+        except Exception:  # noqa: BLE001 — fail-open，不阻斷回覆
+            pass
 
         # Background tool-checkpoint cleanup so the user reply isn't blocked.
         asyncio.create_task(checkpoint_cleanup.cleanup_tool(_agent, config, messages))

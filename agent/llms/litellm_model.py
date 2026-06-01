@@ -66,7 +66,14 @@ def build_litellm(config: dict):
     if vertex_location:
         extra_kwargs["vertex_location"] = vertex_location
 
+    # BR-A01-02/AC-V11-11：生成期 token 上限。
+    # LiteLLM max_tokens → Gemini maxOutputTokens（精確 token 計數，免費，無需
+    # tiktoken/sentencepiece）。未設定或為 None 時維持原有行為（無上限）。
+    max_output_tokens = config.get("max_output_tokens")
+
     init_kwargs: dict = {"model": model, "temperature": temperature}
+    if max_output_tokens is not None:
+        init_kwargs["max_tokens"] = int(max_output_tokens)
     if extra_kwargs:
         init_kwargs["model_kwargs"] = extra_kwargs
 
