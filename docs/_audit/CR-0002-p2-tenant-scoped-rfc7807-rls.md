@@ -1,11 +1,12 @@
 ---
 id: CR-0002
 title: "Change Impact Analysis — P2 tenant-scoped 遷移 + RFC7807 + (RLS?)"
-status: draft
+status: decisions-recorded
 tier: 4-exploration
 owner: HYBRID
 created: 2026-06-01
-target-release: P2 (α/β/γ 三子波)
+decisions-recorded: 2026-06-01
+target-release: P2 (α + γ；β=RLS 延後至多租戶)
 product-version: null
 supersedes: null
 superseded-by: null
@@ -139,6 +140,21 @@ P2 觸及**全部** endpoint（path scheme）與**全部** error response（RFC7
 | **D8** | **前端逐頁 ship vs Wave 全綠才 merge** | 遷一頁刪一處 /api/v1 即 ship / 四 Wave 全綠才 merge | 業主 + 前端 | 逐頁 ship（小步可逆）|
 
 > **CIA §8 未全部填寫前，P2 任何 code 不得動**（change-governance 硬 gate）。
+
+### 8.1 Recorded Decisions（業主裁決 2026-06-01）
+
+| # | 裁定 | 後續 |
+|--|---|---|
+| **D1** | **(A) 不做 RLS，延後至多租戶**（目前單一客戶；ADR-0030 application-side WHERE 仍 valid 且已滿足 AC-CONTRACT-06）| **撤 CR-0002-β**。未來 onboard 第 2 租戶時再開新 ADR superseding ADR-0030 + 連線池重寫。本波**不需** superseding ADR（因維持 ADR-0030 既定機制）。gap audit §1/§5.3「ADR-0030 要求 RLS」之誤讀於此澄清。|
+| **D2** | N/A（D1=A）| — |
+| **D3** | 照建議：legacy ~40 endpoint **只加 Deprecation header、不設 Sunset** | C-11 保留全部，P3 再評 |
+| **D4** | 照建議：**先確認前端 cancel UI 已 fee-aware**（P1-A 已遷 work-orders 詳情頁 CancelModal 顯示費用）才轉 thin-proxy；確認無其他 caller | α Stream-E 實作時驗 |
+| **D5** | 照建議：RFC7807 type URI 當**識別字串**，前端**不 fetch** | α Stream-A |
+| **D6** | 照建議：OpenAPI 兩檔 **namespace 分離**重生 | γ |
+| **D7** | 照建議：**α 不動 agent**（webhook/debounce 維持）；RLS 既延後，agent session 議題一併延 | — |
+| **D8** | 照建議：前端**逐頁 ship**（遷一頁刪一處 /api/v1）| α Stream-G |
+
+> **§8 已填妥 → P2-α/γ 解除 code gate。** RLS（β）延後不在本波。
 
 ---
 
