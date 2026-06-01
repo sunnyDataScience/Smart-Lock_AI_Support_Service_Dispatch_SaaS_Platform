@@ -69,7 +69,14 @@ def _path(tenant_id: str = DEFAULT_TENANT_ID) -> str:
     return f"/tenants/{tenant_id}/refunds"
 
 
-def _sod_headers(admin_headers: dict, *, initiator="csm-1", approver="sup-1", executor=None) -> dict:
+# SoD 行為人 ID 為 UUID（對齊 migration 002 的 initiator_user_id/approver_user_ids/executor_user_id UUID 欄位）
+_INITIATOR_UID = "a0000000-0000-4000-8000-000000000001"
+_APPROVER_UID = "a0000000-0000-4000-8000-000000000002"
+_EXECUTOR_UID = "a0000000-0000-4000-8000-000000000003"
+_SAME_UID = "a0000000-0000-4000-8000-00000000000f"
+
+
+def _sod_headers(admin_headers: dict, *, initiator=_INITIATOR_UID, approver=_APPROVER_UID, executor=None) -> dict:
     h = dict(admin_headers)
     h["Idempotency-Key"] = str(uuid.uuid4())
     h["X-Initiator"] = initiator
@@ -129,7 +136,7 @@ async def test_create_refund_sod_violation_403(make_wo, client, admin_headers):
     wo_id = await make_wo()
     res = await client.post(
         _path(),
-        headers=_sod_headers(admin_headers, initiator="same-user", approver="same-user"),
+        headers=_sod_headers(admin_headers, initiator=_SAME_UID, approver=_SAME_UID),
         json={"work_order_id": wo_id, "amount": 8000, "refund_class": "product", "reason": "x"},
     )
     assert res.status_code == 403
@@ -177,7 +184,7 @@ async def test_get_refund_roundtrip(make_wo, client, admin_headers):
     wo_id = await make_wo()
     create = await client.post(
         _path(),
-        headers=_sod_headers(admin_headers, executor="exec-1"),
+        headers=_sod_headers(admin_headers, executor=_EXECUTOR_UID),
         json={"work_order_id": wo_id, "amount": 40000, "refund_class": "travel", "reason": "x"},
     )
     assert create.status_code == 200, create.text
@@ -188,4 +195,4 @@ async def test_get_refund_roundtrip(make_wo, client, admin_headers):
     data = got.json()["data"]
     assert data["tier"] == "L4"           # 30000 < 40000 <= 100000 → L4
     assert data["refund_class"] == "travel"
-    assert data["executor_user_id"] == "exec-1"
+    assert data["executor_user_id"] == _EXECUTOR_UID
