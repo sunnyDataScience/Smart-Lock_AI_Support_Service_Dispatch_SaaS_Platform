@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, auth, getCurrentSession } from "@/lib/api";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
 
@@ -61,6 +61,10 @@ export default function VouchersPage() {
   const tCommon = useTranslations("accounting.common");
   const tV = useTranslations("accounting.vouchers");
 
+  // CR-0002-α：遷移至 tenant-scoped v2 端點
+  const session = getCurrentSession();
+  const tenantId = session?.tenantId ?? auth.getTenantId();
+
   const tabs = useMemo(
     () => [
       { icon: Wallet, label: tTabs("settlements"), href: "/accounting" },
@@ -96,7 +100,7 @@ export default function VouchersPage() {
     loadMore,
     refresh,
   } = usePaginatedFetch<Voucher>({
-    path: "/api/v1/accounting/vouchers",
+    path: `/tenants/${encodeURIComponent(tenantId)}/vouchers`,
     pageSize: 50,
     query: {
       posting_date_start: startDate || undefined,
@@ -115,7 +119,7 @@ export default function VouchersPage() {
     setActionError(null);
     try {
       await api.download(
-        `/api/v1/accounting/vouchers/${voucher.id}/export`,
+        `/tenants/${encodeURIComponent(tenantId)}/vouchers/${voucher.id}/export`,
         { filename: `voucher_${voucher.voucher_number}.pdf` },
       );
     } catch (e) {
