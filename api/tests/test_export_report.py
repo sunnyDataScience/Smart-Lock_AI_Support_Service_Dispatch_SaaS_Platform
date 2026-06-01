@@ -57,13 +57,15 @@ async def test_export_technician_ranking_csv_stub(client, admin_headers):
 
 
 @pytest.mark.asyncio
-async def test_export_pdf_returns_422_pending_impl(client, admin_headers):
+async def test_export_pdf_returns_pdf(client, admin_headers):
     res = await client.get(
         "/api/v1/reports/export?report_type=kpi&format=pdf",
         headers=admin_headers,
     )
-    assert res.status_code == 422
-    assert "PDF" in res.text or "pdf" in res.text.lower()
+    # PDF 匯出已實作（reportlab，commit da583027）；原 pending_impl 422 斷言已過期 → 更新為實況。
+    assert res.status_code == 200, res.text
+    assert res.headers["content-type"].startswith("application/pdf")
+    assert res.content[:4] == b"%PDF"  # PDF magic bytes
 
 
 @pytest.mark.asyncio

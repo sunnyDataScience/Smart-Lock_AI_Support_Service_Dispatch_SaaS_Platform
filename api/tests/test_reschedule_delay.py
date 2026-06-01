@@ -113,6 +113,22 @@ async def insert_work_order():
         )
         created["pc"].append(pc_id)
 
+        # Ensure FK-referenced technician exists。測試自足：不依賴外部 seed。
+        #  - work_orders.technician_id → technicians.id
+        #  - work_order_events.actor_user_id → users.id（notify_delay 以技師為 actor 記事件）
+        # 故技師需同時存在於 users（role=technician）與 technicians。先 users 後 technicians。
+        if technician_id:
+            await db_module._conn.execute(
+                "INSERT INTO users (id, tenant_id, display_name, role, is_active) "
+                "VALUES (%s::uuid, %s::uuid, %s, 'technician', TRUE) ON CONFLICT (id) DO NOTHING",
+                (technician_id, DEFAULT_TENANT_ID, f"test-tech-{str(technician_id)[:8]}"),
+            )
+            await db_module._conn.execute(
+                "INSERT INTO technicians (id, tenant_id, name, phone) "
+                "VALUES (%s::uuid, %s::uuid, %s, %s) ON CONFLICT (id) DO NOTHING",
+                (technician_id, DEFAULT_TENANT_ID, f"test-tech-{str(technician_id)[:8]}", "0900000000"),
+            )
+
         wo_id = str(uuid.uuid4())
         sched = scheduled_at or _future_iso(48)
         await db_module._conn.execute(
