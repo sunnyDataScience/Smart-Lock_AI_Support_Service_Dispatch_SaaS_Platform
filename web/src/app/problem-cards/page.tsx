@@ -3,7 +3,7 @@
 import { Calendar, ChevronDown, Search } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import ProblemCardsTable from "@/components/problem-cards/ProblemCardsTable";
-import { ApiError } from "@/lib/api";
+import { ApiError, getCurrentSession } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
@@ -23,8 +23,13 @@ const FILTER_KEYS = ["status", "urgency", "brand"] as const;
 export default function ProblemCardsPage() {
   const t = useTranslations("pages.problemCards");
   const tFilters = useTranslations("pages.problemCards.filters");
+
+  // CR-0002-α：遷移至 tenant-scoped v2 端點
+  const session = getCurrentSession();
+  const tenantId = session?.tenantId ?? "00000000-0000-0000-0000-000000000001";
+
   const { items, cursor, hasMore, loading, error, loadMore } = usePaginatedFetch<ProblemCard>({
-    path: "/api/v1/problem-cards",
+    path: `/tenants/${encodeURIComponent(tenantId)}/problem-cards`,
     pageSize: PAGE_SIZE,
     formatError: formatProblemCardError,
   });
