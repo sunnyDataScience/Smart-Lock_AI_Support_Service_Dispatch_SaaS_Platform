@@ -111,3 +111,33 @@ async def update_config(tenant_id: str, patch: dict, *, updated_by: str | None) 
         (tenant_id, json.dumps(merged), updated_by),
     )
     return merged
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Refund namespace (ADR-0040 v2 §E / ADR-0067) — P1-B 三維 SoD + 5-tier
+# append-only：刻意放檔尾並延遲 import，降低與平行分支的合併衝突。
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def get_refund_config(tenant_id: str) -> tuple[dict, str]:
+    """取 refund namespace 設定 + config version snapshot（ADR-0067 §5）。
+
+    回 (refund_config, config_version_str)。tenant 尚無 config row 或 config 內
+    無 'refund' namespace → 用 DEFAULT_REFUND_CONFIG、version 'default'。version
+    用於寫入 refund_requests.config_version_used。寫法對齊 get_cancellation_config。
+    """
+    from services.refund_service import DEFAULT_REFUND_CONFIG
+
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    cur = await db_module._conn.execute(
+        "SELECT config, version FROM system_config WHERE tenant_id = %s::uuid",
+        (tenant_id,),
+    )
+    row = await cur.fetchone()
+    if not row:
+        return (DEFAULT_REFUND_CONFIG, "default")
+    config = row[0] or {}
+    version = str(row[1]) if row[1] is not None else "1"
+    refund = config.get("refund") or DEFAULT_REFUND_CONFIG
+    return (refund, version)
