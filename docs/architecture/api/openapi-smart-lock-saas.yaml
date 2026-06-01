@@ -52,6 +52,7 @@ info:
   contact:
     name: devteam-design (sd + dba)
     url: https://github.com/lock-smith-project/dev-docs
+    email: devteam@smart-lock-saas.com
 
 servers:
   - url: https://api.smart-lock-saas.com/v1
@@ -108,6 +109,7 @@ paths:
       operationId: listChannels
       responses:
         '200':
+          description: 'OK'
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ChannelList' }
@@ -118,8 +120,10 @@ paths:
     get:
       tags: [M01 Channel Intake]
       summary: Channel HA status (FR-0024 + A11)
+      operationId: getChannelStatus
       responses:
         '200':
+          description: 'OK'
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ChannelStatus' }
@@ -132,11 +136,13 @@ paths:
     get:
       tags: [M02 Brand & Product Master]
       summary: List brands (with brand_scope filter)
+      operationId: listBrands
       parameters:
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
         '200':
+          description: 'OK'
           content:
             application/json:
               schema: { $ref: '#/components/schemas/BrandList' }
@@ -147,14 +153,17 @@ paths:
     get:
       tags: [M02 Brand & Product Master]
       summary: List models under brand
+      operationId: listBrandModels
       responses:
         '200':
+          description: 'OK'
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ModelList' }
     post:
       tags: [M02 Brand & Product Master]
       summary: Register new model
+      operationId: createBrandModel
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         required: true
@@ -163,6 +172,7 @@ paths:
             schema: { $ref: '#/components/schemas/ModelCreate' }
       responses:
         '201':
+          description: 'Model created'
           content: { application/json: { schema: { $ref: '#/components/schemas/Model' } } }
         '409': { $ref: '#/components/responses/StateConflict' }
         '422': { $ref: '#/components/responses/SchemaInvalid' }
@@ -175,24 +185,27 @@ paths:
     get:
       tags: [M04 Customer-Site-Device]
       summary: List customers (PII redacted)
+      operationId: listCustomers
       parameters:
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
         '200':
+          description: 'OK'
           content:
             application/json:
               schema: { $ref: '#/components/schemas/CustomerList' }
     post:
       tags: [M04 Customer-Site-Device]
       summary: Create customer (PII encrypted at rest, see ERD §customer)
+      operationId: createCustomer
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/CustomerCreate' }
       responses:
-        '201': { content: { application/json: { schema: { $ref: '#/components/schemas/Customer' } } } }
+        '201': { description: 'Customer created', content: { application/json: { schema: { $ref: '#/components/schemas/Customer' } } } }
   /tenants/{tenantId}/customers/{customerId}/sites:
     parameters:
       - $ref: '#/components/parameters/TenantPath'
@@ -200,21 +213,24 @@ paths:
     get:
       tags: [M04 Customer-Site-Device]
       summary: List sites for customer (site_group_id for 建案)
+      operationId: listCustomerSites
       responses:
         '200':
+          description: 'OK'
           content:
             application/json:
               schema: { $ref: '#/components/schemas/SiteList' }
     post:
       tags: [M04 Customer-Site-Device]
       summary: Create site
+      operationId: createCustomerSite
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/SiteCreate' }
       responses:
-        '201': { content: { application/json: { schema: { $ref: '#/components/schemas/Site' } } } }
+        '201': { description: 'Site created', content: { application/json: { schema: { $ref: '#/components/schemas/Site' } } } }
   /tenants/{tenantId}/sites/{siteId}/devices:
     parameters:
       - $ref: '#/components/parameters/TenantPath'
@@ -222,13 +238,14 @@ paths:
     post:
       tags: [M04 Customer-Site-Device]
       summary: Register device (smart lock) — ADR-0053 serial required for main lock + >1000 NTD
+      operationId: registerDevice
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/DeviceCreate' }
       responses:
-        '201': { content: { application/json: { schema: { $ref: '#/components/schemas/Device' } } } }
+        '201': { description: 'Device registered', content: { application/json: { schema: { $ref: '#/components/schemas/Device' } } } }
         '422':
           description: SERIAL_REQUIRED — main lock or > NTD 1000 must carry serial (ADR-0053)
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
@@ -239,6 +256,7 @@ paths:
     get:
       tags: [M13 Warranty]
       summary: Get device warranty (mode + start_date + expiry)
+      operationId: getDeviceWarranty
       description: |
         ADR-0044 warranty_mode enum:
         - `purchase` — 購買日起算
@@ -248,12 +266,14 @@ paths:
         - `manual_override` — 客服手動指定（須 reason + audit）
       responses:
         '200':
+          description: 'OK'
           content:
             application/json:
               schema: { $ref: '#/components/schemas/DeviceWarranty' }
     patch:
       tags: [M13 Warranty]
       summary: Adjust warranty (manual_override only; goes through ChangeRequest)
+      operationId: patchDeviceWarranty
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         content:
@@ -273,22 +293,25 @@ paths:
     get:
       tags: [M05 Technician]
       summary: List technicians (active + suspended)
+      operationId: listTechnicians
       parameters:
         - { name: status, in: query, schema: { type: string, enum: [active, onboarding, suspended, terminated] } }
         - $ref: '#/components/parameters/Cursor'
       responses:
         '200':
+          description: 'OK'
           content: { application/json: { schema: { $ref: '#/components/schemas/TechnicianList' } } }
     post:
       tags: [M05 Technician]
       summary: Onboard technician (FR-0044)
+      operationId: createTechnician
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/TechnicianCreate' }
       responses:
-        '201': { content: { application/json: { schema: { $ref: '#/components/schemas/Technician' } } } }
+        '201': { description: 'Technician onboarded', content: { application/json: { schema: { $ref: '#/components/schemas/Technician' } } } }
   /tenants/{tenantId}/technicians/{techId}:suspend:
     parameters:
       - $ref: '#/components/parameters/TenantPath'
@@ -296,6 +319,7 @@ paths:
     post:
       tags: [M05 Technician]
       summary: Suspend technician (cumulative cancel ≥ 2/month per ADR-0102 §C tech-initiated)
+      operationId: suspendTechnician
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/XInitiator'
@@ -316,6 +340,7 @@ paths:
     post:
       tags: [M06 Dispatch]
       summary: Plan dispatch for a WorkOrder (FR-0003 / ADR-0045)
+      operationId: planDispatch
       description: |
         Returns candidate technicians ranked by score (distance / load / brand familiarity).
         Read-only — does not assign; caller must follow up with `:assign`.
@@ -326,6 +351,7 @@ paths:
             schema: { $ref: '#/components/schemas/DispatchPlanRequest' }
       responses:
         '200':
+          description: 'OK'
           content: { application/json: { schema: { $ref: '#/components/schemas/DispatchPlanResponse' } } }
   /tenants/{tenantId}/work-orders/{woId}:assign:
     parameters:
@@ -334,6 +360,7 @@ paths:
     post:
       tags: [M06 Dispatch]
       summary: Assign technician to WO (manual or post-plan)
+      operationId: assignWorkOrder
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/XInitiator'
@@ -342,7 +369,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/AssignRequest' }
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/WorkOrderRef' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOrderRef' } } } }
         '409': { $ref: '#/components/responses/StateConflict' }
   /tenants/{tenantId}/work-orders/{woId}:accept:
     parameters:
@@ -351,9 +378,10 @@ paths:
     post:
       tags: [M06 Dispatch]
       summary: Technician accepts assignment (FR-0005 / SLA 10/5 min)
+      operationId: acceptWorkOrder
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/WorkOrderRef' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOrderRef' } } } }
         '410':
           description: SLA_WINDOW_EXPIRED — accept window closed; WO re-pooled
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
@@ -368,13 +396,14 @@ paths:
     post:
       tags: [M07 Onsite]
       summary: Mark technician arrived (FR-0006, GPS + timestamp evidence)
+      operationId: onsiteArrival
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/ArrivalEvent' }
       responses:
-        '201': { content: { application/json: { schema: { $ref: '#/components/schemas/Onsite' } } } }
+        '201': { description: 'Arrival recorded', content: { application/json: { schema: { $ref: '#/components/schemas/Onsite' } } } }
   /tenants/{tenantId}/work-orders/{woId}/onsite/completion:
     parameters:
       - $ref: '#/components/parameters/TenantPath'
@@ -382,6 +411,7 @@ paths:
     post:
       tags: [M07 Onsite]
       summary: Submit completion sign + photos (FR-0009)
+      operationId: onsiteCompletion
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         content:
@@ -389,6 +419,7 @@ paths:
             schema: { $ref: '#/components/schemas/CompletionSubmit' }
       responses:
         '201':
+          description: 'Completion submitted'
           content: { application/json: { schema: { $ref: '#/components/schemas/CompletionResult' } } }
         '422':
           description: |
@@ -407,6 +438,7 @@ paths:
     post:
       tags: [M11 AR / Payment]
       summary: Cancel WorkOrder — 6-stage cancellation v2 (ADR-0102)
+      operationId: cancelWorkOrder
       description: |
         Server-side computes `cancellation_stage` (S1/S1.5/S2/S3/S4/S5) from WO state machine.
         Caller submits `reason_code` (from `/m18/configs/cancellation_reason_codes` lookup).
@@ -444,6 +476,7 @@ paths:
     post:
       tags: [M11 AR / Payment]
       summary: Submit refund request (ADR-0040 v2 — 5-tier SoD)
+      operationId: createRefund
       description: |
         Server resolves tier (L1 ≤1000 / L2 ≤5000 / L3 ≤20000 / L4 ≤100000 / L5 >100000) from amount.
         SoD enforcement: `X-Initiator` ≠ `X-Approver` ≠ `X-Executor` (BR-M17-01).
@@ -475,21 +508,23 @@ paths:
     get:
       tags: [M11 AR / Payment]
       summary: Get refund status (approval chain + ledger trace)
+      operationId: getRefund
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/Refund' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/Refund' } } } }
 
   /tenants/{tenantId}/payments:
     parameters: [{ $ref: '#/components/parameters/TenantPath' }]
     post:
       tags: [M11 AR / Payment]
       summary: Record consumer payment (FR-0011 — onsite cash / link / bank transfer)
+      operationId: recordPayment
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/PaymentRecord' }
       responses:
-        '201': { content: { application/json: { schema: { $ref: '#/components/schemas/Payment' } } } }
+        '201': { description: 'Payment recorded', content: { application/json: { schema: { $ref: '#/components/schemas/Payment' } } } }
 
   # ============================================================
   # M13 Warranty Claim — RMA flow（V1 mvp）
@@ -499,13 +534,14 @@ paths:
     post:
       tags: [M13 Warranty]
       summary: File warranty claim (FR-0015)
+      operationId: createWarrantyClaim
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/WarrantyClaimCreate' }
       responses:
-        '201': { content: { application/json: { schema: { $ref: '#/components/schemas/WarrantyClaim' } } } }
+        '201': { description: 'Warranty claim created', content: { application/json: { schema: { $ref: '#/components/schemas/WarrantyClaim' } } } }
         '422':
           description: WARRANTY_EXPIRED or DEVICE_NOT_FOUND
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
@@ -521,8 +557,10 @@ paths:
     get:
       tags: [M14 Partner Portal]
       summary: Partner dashboard (scope = own brand only — ADR-0043)
+      operationId: getPartnerDashboard
       responses:
         '200':
+          description: 'OK'
           content: { application/json: { schema: { $ref: '#/components/schemas/PartnerDashboard' } } }
         '403':
           description: SCOPE_VIOLATION — partner can only read own brand
@@ -537,11 +575,13 @@ paths:
     get:
       tags: [M15 Exception / ChangeRequest]
       summary: Exception approval inbox (FR-0049)
+      operationId: listExceptionInbox
       parameters:
         - { name: queue, in: query, schema: { type: string, enum: [pending, escalated, all] } }
         - $ref: '#/components/parameters/Cursor'
       responses:
         '200':
+          description: 'OK'
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ExceptionList' }
@@ -552,6 +592,7 @@ paths:
     post:
       tags: [M15 Exception / ChangeRequest]
       summary: Approve / reject exception (with audit trail)
+      operationId: approveException
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/XInitiator'
@@ -573,11 +614,13 @@ paths:
     get:
       tags: [M16 Consumer Tracking]
       summary: Consumer-facing case status (FR-0022)
+      operationId: getConsumerWorkOrder
       description: |
         Unauthenticated endpoint; identification via signed tracking token (TTL=30d).
         Returns sanitized WO state + ETA + tech masked name (李師傅), no PII bleed.
       responses:
         '200':
+          description: 'OK'
           content: { application/json: { schema: { $ref: '#/components/schemas/ConsumerWOView' } } }
         '404': { description: token invalid or expired }
 
@@ -589,12 +632,15 @@ paths:
     get:
       tags: [M17 RBAC / Audit]
       summary: List role matrix (4-tier RBAC, ADR-0042; 18 roles)
+      operationId: getRoleMatrix
       responses:
         '200':
+          description: 'OK'
           content: { application/json: { schema: { $ref: '#/components/schemas/RoleMatrix' } } }
     put:
       tags: [M17 RBAC / Audit]
       summary: Update role matrix (via ChangeRequest)
+      operationId: updateRoleMatrix
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         content:
@@ -607,6 +653,7 @@ paths:
     get:
       tags: [M17 RBAC / Audit]
       summary: Query audit log (FR-0020)
+      operationId: listAuditEvents
       parameters:
         - { name: actor, in: query, schema: { type: string } }
         - { name: event_type, in: query, schema: { type: string } }
@@ -614,12 +661,13 @@ paths:
         - { name: to, in: query, schema: { type: string, format: date-time } }
         - $ref: '#/components/parameters/Cursor'
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/AuditEventList' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/AuditEventList' } } } }
   /tenants/{tenantId}/audit/exports:
     parameters: [{ $ref: '#/components/parameters/TenantPath' }]
     post:
       tags: [M17 RBAC / Audit]
       summary: Async audit export (CSV / NDJSON)
+      operationId: createAuditExport
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         content:
@@ -627,6 +675,7 @@ paths:
             schema: { $ref: '#/components/schemas/AuditExportRequest' }
       responses:
         '202':
+          description: 'Export job queued'
           content: { application/json: { schema: { $ref: '#/components/schemas/ExportJobRef' } } }
 
   # ============================================================
@@ -637,10 +686,11 @@ paths:
     get:
       tags: [M18 Config Governance (ADR-0067)]
       summary: List config namespaces
+      operationId: listConfigNamespaces
       parameters:
         - { name: namespace, in: query, schema: { type: string }, description: 'e.g. pricing / cancellation / sla / rbac / templates' }
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/ConfigNamespaceList' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/ConfigNamespaceList' } } } }
   /tenants/{tenantId}/m18/configs/{namespace}/{key}:
     parameters:
       - $ref: '#/components/parameters/TenantPath'
@@ -649,14 +699,16 @@ paths:
     get:
       tags: [M18 Config Governance (ADR-0067)]
       summary: Get current config value + version metadata (admin view)
+      operationId: getConfigValue
       description: |
         Admin write-path; for read-from-business-module, use **`GET /m18/config-read/{namespace}/{key}`**
         (ADR-0068 Anti-Corruption Layer).
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/ConfigValue' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/ConfigValue' } } } }
     put:
       tags: [M18 Config Governance (ADR-0067)]
       summary: Draft new config version (schema validation + audit)
+      operationId: draftConfigVersion
       description: |
         ADR-0067 §Decision 組件 1+2: schema validation pre-flight + new version_id minted.
         Does NOT activate immediately — must call `:start-rollout` next.
@@ -668,7 +720,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/ConfigDraft' }
       responses:
-        '201': { content: { application/json: { schema: { $ref: '#/components/schemas/ConfigVersion' } } } }
+        '201': { description: 'Config version drafted', content: { application/json: { schema: { $ref: '#/components/schemas/ConfigVersion' } } } }
         '422':
           description: CONFIG_SCHEMA_INVALID — pre-flight schema validation failed
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
@@ -681,6 +733,7 @@ paths:
     post:
       tags: [M18 Config Governance (ADR-0067)]
       summary: Start staged rollout (5% → 50% → 100% per ADR-0067 §Decision 組件 3)
+      operationId: startConfigRollout
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/XInitiator'
@@ -691,6 +744,7 @@ paths:
             schema: { $ref: '#/components/schemas/RolloutRequest' }
       responses:
         '202':
+          description: 'Rollout started'
           content: { application/json: { schema: { $ref: '#/components/schemas/RolloutHandle' } } }
         '403':
           description: SOD_VIOLATION (initiator == approver) or INSUFFICIENT_AUTHORITY
@@ -702,9 +756,10 @@ paths:
     post:
       tags: [M18 Config Governance (ADR-0067)]
       summary: Rollback to previous version (≤ 1 min RTO per ADR-0067)
+      operationId: rollbackConfig
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/RolloutHandle' } } } }
+        '200': { description: 'Rolled back', content: { application/json: { schema: { $ref: '#/components/schemas/RolloutHandle' } } } }
   /tenants/{tenantId}/m18/configs/{namespace}/{key}/audit:
     parameters:
       - $ref: '#/components/parameters/TenantPath'
@@ -713,9 +768,10 @@ paths:
     get:
       tags: [M18 Config Governance (ADR-0067)]
       summary: Config change audit log (who / when / diff / why / version)
+      operationId: listConfigAudit
       parameters: [{ $ref: '#/components/parameters/Cursor' }]
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/ConfigAuditList' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/ConfigAuditList' } } } }
 
   # ============================================================
   # M18 Config Read API (ADR-0068 ACL) — read path for all business modules
@@ -727,6 +783,7 @@ paths:
     get:
       tags: [M18 Config Read API (ADR-0068 ACL)]
       summary: Resolve current config value (ACL for business modules — ADR-0068)
+      operationId: readConfig
       description: |
         All consumer modules (M04 quote / M11 refund / M06 dispatch / M12 settlement /
         M14 partner / M15 exception) MUST go through this endpoint.
@@ -743,6 +800,7 @@ paths:
         - { name: version, in: query, schema: { type: string }, description: 'optional; omit = latest active' }
       responses:
         '200':
+          description: 'OK'
           headers:
             X-Config-Version:
               schema: { type: string }
@@ -765,6 +823,7 @@ paths:
     post:
       tags: [A01 Chatbot Intake (debounce)]
       summary: Debounce window check (800ms ± 100ms per K-AI-9)
+      operationId: chatbotDebounceCheck
       description: |
         Server-authoritative debounce; client should NOT compute locally.
         Returns `should_process=true` when window has elapsed without further msgs.
@@ -776,7 +835,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/DebounceCheckRequest' }
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/DebounceCheckResponse' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/DebounceCheckResponse' } } } }
 
   # ============================================================
   # A03 ReAct Agent + A04 RAG + A05 Guardrails — orchestration
@@ -785,6 +844,7 @@ paths:
     post:
       tags: [A03 ReAct Agent]
       summary: Generate AI response (Skill-Gated ReAct + RAG + Guardrails)
+      operationId: chatbotAgentRespond
       description: |
         Pipeline: Intake → Debounce → Intent → Skill Selection → ReAct Reasoning →
         RAG (A04) → Output Validator (A05) → response.
@@ -798,7 +858,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/AgentRequest' }
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/AgentResponse' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/AgentResponse' } } } }
         '403':
           description: AI_FORBIDDEN_ACTION — guardrail rejected (writes to A09 telemetry)
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
@@ -807,6 +867,7 @@ paths:
     post:
       tags: [A04 RAG Pipeline]
       summary: RAG vector search (pgvector top-k + tenant/brand scope filter)
+      operationId: chatbotRagSearch
       description: |
         ADR-0057 RAG-not-prompt + ADR-0101 multi-tenant scope.
         `X-Brand-Scope` / `X-Project-Scope` header narrows retrieval namespace.
@@ -819,12 +880,13 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/RagSearchRequest' }
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/RagSearchResponse' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/RagSearchResponse' } } } }
 
   /chatbot/guardrails:check:
     post:
       tags: [A05 Guardrails]
       summary: Run deterministic guardrail rules (FR-NEW-7 + ADR-0028)
+      operationId: chatbotGuardrailsCheck
       description: |
         Pre-output validator. Returns `passed=false` if guardrail rule triggered;
         `rule_triggered_by` (deterministic only — no LLM self-report per BR-AI-003).
@@ -833,7 +895,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/GuardrailCheckRequest' }
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/GuardrailCheckResponse' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/GuardrailCheckResponse' } } } }
 
   # ============================================================
   # A06 ProblemCard Bridge — chatbot → ERP PC sync (Phase I MVP — Q2=C)
@@ -842,6 +904,7 @@ paths:
     post:
       tags: [A06 ProblemCard Bridge]
       summary: AI drafts PC (will require CS 1-click confirm per ADR-0031)
+      operationId: chatbotDraftProblemCard
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/XTenantId'
@@ -864,6 +927,7 @@ paths:
     post:
       tags: [A07 Human Handoff]
       summary: Request human handoff (FR-0018 + 7 hard rules from ADR-0048)
+      operationId: chatbotRequestHandoff
       description: |
         OQ-004 (2026-05-24) — returns CS callback link rather than embedded chat.
         Rule trigger written by deterministic engine (BR-AI-003).
@@ -875,7 +939,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/HandoffRequest' }
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/HandoffResponse' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/HandoffResponse' } } } }
 
   # ============================================================
   # A08 Multimodal — image upload (FR-0025 + FR-NEW-9 image-moderation gate)
@@ -884,6 +948,7 @@ paths:
     post:
       tags: [A08 Multimodal]
       summary: Accept image attachment (SOW 2.1(4) — NO image-to-text vision API)
+      operationId: chatbotUploadImage
       description: |
         Image attached as evidence ONLY. Server reject any call attempting vision
         inference (FR-NEW-9 hard gate; pre-commit + runtime double-check).
@@ -896,7 +961,7 @@ paths:
           multipart/form-data:
             schema: { $ref: '#/components/schemas/ImageUpload' }
       responses:
-        '201': { content: { application/json: { schema: { $ref: '#/components/schemas/ImageUploadResult' } } } }
+        '201': { description: 'Image uploaded', content: { application/json: { schema: { $ref: '#/components/schemas/ImageUploadResult' } } } }
         '422':
           description: IMAGE_QUALITY_REJECT or VISION_API_FORBIDDEN
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
@@ -908,6 +973,7 @@ paths:
     post:
       tags: [A09 Eval & Observability]
       summary: Trigger eval run (200-question forbidden corpus + K-AI-1/7 accuracy)
+      operationId: createEvalRun
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         content:
@@ -915,20 +981,23 @@ paths:
             schema: { $ref: '#/components/schemas/EvalRunRequest' }
       responses:
         '202':
+          description: 'Eval run started'
           content: { application/json: { schema: { $ref: '#/components/schemas/EvalRunHandle' } } }
   /chatbot/eval/runs/{runId}:
     parameters: [{ name: runId, in: path, required: true, schema: { type: string } }]
     get:
       tags: [A09 Eval & Observability]
       summary: Get eval run result; pass < 95% → block_deploy=true (FR-NEW-3)
+      operationId: getEvalRun
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/EvalRunResult' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/EvalRunResult' } } } }
   /chatbot/health:
     get:
       tags: [A11 Deployment Health]
       summary: Chatbot system health (FR-0033 + A11)
+      operationId: getChatbotHealth
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/HealthReport' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/HealthReport' } } } }
 
   # ============================================================
   # KB — Agent Knowledge Base (ADR-0101)
@@ -937,6 +1006,7 @@ paths:
     get:
       tags: [KB (Agent Knowledge Base)]
       summary: List KB documents (tenant + brand + project scope filter per ADR-0101 §2.3)
+      operationId: listKBDocuments
       parameters:
         - $ref: '#/components/parameters/XTenantId'
         - { name: X-Brand-Scope, in: header, schema: { type: array, items: { type: string } } }
@@ -944,10 +1014,11 @@ paths:
         - { name: doc_type, in: query, schema: { type: string, enum: [mega_doc, manual, sop, faq] } }
         - $ref: '#/components/parameters/Cursor'
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/KBDocumentList' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/KBDocumentList' } } } }
     post:
       tags: [KB (Agent Knowledge Base)]
       summary: Ingest KB document (mega-doc per ADR-0008 / ADR-0101)
+      operationId: ingestKBDocument
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/XTenantId'
@@ -956,16 +1027,17 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/KBDocumentIngest' }
       responses:
-        '201': { content: { application/json: { schema: { $ref: '#/components/schemas/KBDocument' } } } }
+        '201': { description: 'Document ingested', content: { application/json: { schema: { $ref: '#/components/schemas/KBDocument' } } } }
   /kb/documents/{docId}:
     parameters: [{ name: docId, in: path, required: true, schema: { type: string } }]
     get:
       tags: [KB (Agent Knowledge Base)]
       summary: Read KB document (with scope check)
+      operationId: getKBDocument
       parameters:
         - $ref: '#/components/parameters/XTenantId'
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/KBDocument' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/KBDocument' } } } }
         '403':
           description: KB_SCOPE_VIOLATION — tenant/brand/project scope mismatch
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
@@ -973,11 +1045,12 @@ paths:
     get:
       tags: [KB (Agent Knowledge Base)]
       summary: Serial → warranty dynamic lookup (ADR-0101 §2.2 tool extension — UC-new-2)
+      operationId: kbSerialWarrantyLookup
       parameters:
         - $ref: '#/components/parameters/XTenantId'
         - { name: serial, in: query, required: true, schema: { type: string } }
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/DynamicLookupResult' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/DynamicLookupResult' } } } }
         '404':
           description: SERIAL_NOT_FOUND — fallback to custom_sku transfer_to_human path (ADR-0101 §2.4)
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
@@ -985,12 +1058,13 @@ paths:
     get:
       tags: [KB (Agent Knowledge Base)]
       summary: Project → unit → model dynamic lookup (UC-new-3 / BR-M14-02)
+      operationId: kbProjectUnitModelLookup
       parameters:
         - $ref: '#/components/parameters/XTenantId'
         - { name: project_id, in: query, required: true, schema: { type: string } }
         - { name: unit_id, in: query, schema: { type: string } }
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/DynamicLookupResult' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/DynamicLookupResult' } } } }
 
   # ============================================================
   # Sync — ERP ↔ Chatbot (S-M01 to S-M06)
@@ -999,6 +1073,7 @@ paths:
     post:
       tags: [Sync (ERP ↔ Chatbot)]
       summary: S-M01 Intake capture sync — chatbot → ERP raw intake event
+      operationId: syncIntakeCapture
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/XTenantId'
@@ -1007,11 +1082,12 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/SyncEventEnvelope' }
       responses:
-        '202': { content: { application/json: { schema: { $ref: '#/components/schemas/SyncReceipt' } } } }
+        '202': { description: 'Accepted', content: { application/json: { schema: { $ref: '#/components/schemas/SyncReceipt' } } } }
   /sync/facts-master:
     post:
       tags: [Sync (ERP ↔ Chatbot)]
       summary: S-M02 User facts master sync (SCD2 — eternal retention)
+      operationId: syncFactsMaster
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/XTenantId'
@@ -1020,11 +1096,12 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/SyncEventEnvelope' }
       responses:
-        '202': { content: { application/json: { schema: { $ref: '#/components/schemas/SyncReceipt' } } } }
+        '202': { description: 'Accepted', content: { application/json: { schema: { $ref: '#/components/schemas/SyncReceipt' } } } }
   /sync/pc-convert:
     post:
       tags: [Sync (ERP ↔ Chatbot)]
       summary: S-M03 PC convert sync — AI draft → ERP PC + CS 1-click queue
+      operationId: syncPcConvert
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/XTenantId'
@@ -1033,11 +1110,12 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/SyncEventEnvelope' }
       responses:
-        '202': { content: { application/json: { schema: { $ref: '#/components/schemas/SyncReceipt' } } } }
+        '202': { description: 'Accepted', content: { application/json: { schema: { $ref: '#/components/schemas/SyncReceipt' } } } }
   /sync/convert-to-wo:
     post:
       tags: [Sync (ERP ↔ Chatbot)]
       summary: S-M04 Convert-to-WO (G-Sync-3 — Phase I forced human gate)
+      operationId: syncConvertToWO
       description: |
         Phase I MVP MUST require `human_confirmed=true` (ADR-0031).
         AI direct convert → 403 AI_FORBIDDEN_CONVERT_TO_WO.
@@ -1049,7 +1127,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/ConvertToWORequest' }
       responses:
-        '201': { content: { application/json: { schema: { $ref: '#/components/schemas/WorkOrderRef' } } } }
+        '201': { description: 'WorkOrder created', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOrderRef' } } } }
         '403':
           description: AI_FORBIDDEN_CONVERT_TO_WO
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
@@ -1057,6 +1135,7 @@ paths:
     post:
       tags: [Sync (ERP ↔ Chatbot)]
       summary: S-M05 Dispatch sync — ERP → chatbot status push
+      operationId: syncDispatch
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/XTenantId'
@@ -1065,11 +1144,12 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/SyncEventEnvelope' }
       responses:
-        '202': { content: { application/json: { schema: { $ref: '#/components/schemas/SyncReceipt' } } } }
+        '202': { description: 'Accepted', content: { application/json: { schema: { $ref: '#/components/schemas/SyncReceipt' } } } }
   /sync/evidence-writeback:
     post:
       tags: [Sync (ERP ↔ Chatbot)]
       summary: S-M06 Evidence write-back (ERP photo / sign → chatbot context)
+      operationId: syncEvidenceWriteback
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/XTenantId'
@@ -1078,7 +1158,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/SyncEventEnvelope' }
       responses:
-        '202': { content: { application/json: { schema: { $ref: '#/components/schemas/SyncReceipt' } } } }
+        '202': { description: 'Accepted', content: { application/json: { schema: { $ref: '#/components/schemas/SyncReceipt' } } } }
 
   # ============================================================
   # ACL External Integration (ADR-0068 pattern applied to 3rd-party)
@@ -1087,6 +1167,7 @@ paths:
     post:
       tags: [ACL External Integration]
       summary: Brand serial-control system lookup (ADR-0053 + ADR-0068 ACL)
+      operationId: aclSerialControlLookup
       description: |
         Wraps external brand serial-control system. ACL contract:
         - Inbound failure → 503 EXTERNAL_DEP_DOWN (no leak of underlying error).
@@ -1099,7 +1180,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/SerialLookupRequest' }
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/SerialLookupResult' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/SerialLookupResult' } } } }
         '503':
           description: EXTERNAL_DEP_DOWN (degraded mode banner per ADR-0067)
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
@@ -1107,6 +1188,7 @@ paths:
     post:
       tags: [ACL External Integration]
       summary: Brand warranty system inquiry (ADR-0044 + ADR-0068 ACL)
+      operationId: aclBrandWarrantyInquire
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/XTenantId'
@@ -1115,11 +1197,12 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/WarrantyInquireRequest' }
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/WarrantyInquireResult' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/WarrantyInquireResult' } } } }
   /acl/rma-partner/submit:
     post:
       tags: [ACL External Integration]
       summary: Submit RMA to partner system (FR-0048 quality feedback loop)
+      operationId: aclRmaPartnerSubmit
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/XTenantId'
@@ -1128,7 +1211,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/RMASubmitRequest' }
       responses:
-        '202': { content: { application/json: { schema: { $ref: '#/components/schemas/RMASubmitReceipt' } } } }
+        '202': { description: 'Accepted', content: { application/json: { schema: { $ref: '#/components/schemas/RMASubmitReceipt' } } } }
 
   # ============================================================
   # Phase II placeholders (not exposed in V1)
@@ -1139,8 +1222,10 @@ paths:
     post:
       tags: [M11 AR / Payment]
       summary: '[Phase II] Trigger monthly settlement (M12)'
+      operationId: triggerMonthlySettlement
       description: 'NOT exposed in V1. OAuth scope `phase2.settlement` required.'
       responses:
+        '200': { description: 'Accepted (Phase II only; V1 returns 501 below)' }
         '501': { description: NOT_IMPLEMENTED_V1 }
 
 components:

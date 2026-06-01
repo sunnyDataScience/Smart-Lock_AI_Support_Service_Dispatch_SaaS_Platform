@@ -57,6 +57,7 @@ info:
   contact:
     name: devteam-design (sd)
     url: https://github.com/lock-smith-project/dev-docs
+    email: devteam@smart-lock-saas.com
 
 servers:
   - url: https://api.smart-lock-saas.com/v1
@@ -125,29 +126,32 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/ProblemCardCreate' }
       responses:
-        '201': { content: { application/json: { schema: { $ref: '#/components/schemas/ProblemCard' } } } }
+        '201': { description: 'ProblemCard created', content: { application/json: { schema: { $ref: '#/components/schemas/ProblemCard' } } } }
         '422': { description: 'completeness < 0.85 → Exception module', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
     get:
       tags: [ProblemCard]
       summary: List ProblemCards (cursor pagination)
+      operationId: listProblemCards
       parameters:
         - { name: cursor, in: query, schema: { type: string } }
         - { name: limit, in: query, schema: { type: integer, maximum: 100, default: 20 } }
         - { name: tenant_id, in: query, required: true, schema: { type: string } }
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/ProblemCardList' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/ProblemCardList' } } } }
   /problem-cards/{id}:
     parameters:
       - { name: id, in: path, required: true, schema: { type: string } }
     get:
       tags: [ProblemCard]
+      operationId: getProblemCard
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/ProblemCard' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/ProblemCard' } } } }
     patch:
       tags: [ProblemCard]
       summary: 'Update PC (only state in {incomplete, draft})'
+      operationId: updateProblemCard
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/ProblemCard' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/ProblemCard' } } } }
         '422': { description: PC unique constraint violation (ADR-0036) }
 
   ## --- WorkOrder ---
@@ -155,6 +159,7 @@ paths:
     post:
       tags: [WorkOrder]
       summary: Create WorkOrder (AI draft + CS 1-click confirm per ADR-0031)
+      operationId: createWorkOrder
       description: |
         v2.3.0 (ADR-0066) — `quote_id` precondition:
           - `quote_id IS NOT NULL` → server enforces `quote.state == customer_confirmed`
@@ -184,6 +189,7 @@ paths:
     post:
       tags: [WorkOrder]
       summary: Close WorkOrder (422 hard gate on null address per ADR-0032)
+      operationId: closeWorkOrder
       responses:
         '200': { description: completed }
         '422':
@@ -202,6 +208,7 @@ paths:
     post:
       tags: [Onsite]
       summary: Scope change with 三件套 (signature + photo + audit)
+      operationId: onsiteScopeChange
       requestBody:
         content:
           application/json:
@@ -555,13 +562,14 @@ paths:
     post:
       tags: ['ContractTemplate (ADR-0060 V1)']
       summary: Create Contract Template (draft state)
+      operationId: createContractTemplate
       parameters: [{ name: Idempotency-Key, in: header, required: true, schema: { type: string } }]
       requestBody:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/ContractTemplate' }
       responses:
-        '201': { content: { application/json: { schema: { $ref: '#/components/schemas/ContractTemplate' } } } }
+        '201': { description: 'Contract template created', content: { application/json: { schema: { $ref: '#/components/schemas/ContractTemplate' } } } }
         '403':
           description: CROSS_TENANT_WRITE
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
@@ -572,28 +580,32 @@ paths:
     get:
       tags: ['ContractTemplate (ADR-0060 V1)']
       summary: List Contract Templates (cursor pagination)
+      operationId: listContractTemplates
       parameters:
         - { name: cursor, in: query, schema: { type: string } }
         - { name: limit, in: query, schema: { type: integer, maximum: 100, default: 20 } }
         - { name: tenant_id, in: query, required: true, schema: { type: string } }
         - { name: partner_id, in: query, schema: { type: string } }
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/ContractTemplateList' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/ContractTemplateList' } } } }
   /contract-templates/{id}:
     parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
     get:
       tags: ['ContractTemplate (ADR-0060 V1)']
+      operationId: getContractTemplate
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/ContractTemplate' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/ContractTemplate' } } } }
     patch:
       tags: ['ContractTemplate (ADR-0060 V1)']
       summary: 'PATCH only allowed in state=draft (additive-only)'
+      operationId: updateContractTemplate
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/ContractTemplate' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/ContractTemplate' } } } }
         '403': { description: not in draft state (V2 uses :action endpoints) }
     delete:
       tags: ['ContractTemplate (ADR-0060 V1)']
       summary: 'DELETE only allowed in state=draft (soft delete)'
+      operationId: deleteContractTemplate
       responses:
         '204': { description: soft deleted }
 
@@ -611,6 +623,7 @@ paths:
     post:
       tags: ['DGS (ADR-0061 V1)']
       summary: Two-phase purge (T0 crypto-shred DEK + soft-delete)
+      operationId: dgsEvidencePurge
       security: [{ bearerAuth: [], dgsExecutor: [] }]
       parameters: [{ name: Idempotency-Key, in: header, required: true, schema: { type: string } }]
       requestBody:
@@ -632,6 +645,7 @@ paths:
     post:
       tags: ['DGS (ADR-0061 V1)']
       summary: Flip legal_hold (push invalidation ≤ 5s)
+      operationId: dgsEvidenceLegalHold
       security: [{ bearerAuth: [], legalRole: [] }]
       requestBody:
         content:
@@ -642,13 +656,14 @@ paths:
               properties:
                 legal_hold: { type: boolean }
                 hold_reason_id: { type: string }
-        responses:
-          '200': { description: flip persisted + invalidation dispatched }
+      responses:
+        '200': { description: flip persisted + invalidation dispatched }
 
   /dgs/forget:
     post:
       tags: ['DGS (ADR-0061 V1)']
       summary: GDPR forget request
+      operationId: dgsForget
       security: [{ bearerAuth: [], dpoOrDataSubject: [] }]
       requestBody:
         content:
@@ -672,8 +687,10 @@ paths:
     get:
       tags: ['DGS (ADR-0061 V1)']
       summary: Get current Rego policy version + hash
+      operationId: getDgsPolicyVersion
       responses:
         '200':
+          description: 'OK'
           content:
             application/json:
               schema:
@@ -689,13 +706,15 @@ paths:
     post:
       tags: ['ChangeRequest (ADR-0046)']
       summary: Apply a change request (policy/price/rbac/sla/template/contract)
+      operationId: createChangeRequest
       parameters: [{ name: Idempotency-Key, in: header, required: true, schema: { type: string } }]
       responses:
-        '201': { content: { application/json: { schema: { $ref: '#/components/schemas/ChangeRequest' } } } }
+        '201': { description: 'Change request created', content: { application/json: { schema: { $ref: '#/components/schemas/ChangeRequest' } } } }
   /change-requests/{id}/approve:
     parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
     post:
       tags: ['ChangeRequest (ADR-0046)']
+      operationId: approveChangeRequest
       responses: { '200': { description: approved with audit } }
 
   ## --- SOP Review (FR-NEW-5 family reviewer SLA) ---
@@ -704,12 +723,14 @@ paths:
     post:
       tags: [SOP Review]
       summary: 'Dual review (CS supervisor + Domain Expert)'
+      operationId: sopDualReview
       responses: { '200': { description: dual review complete } }
   /sops/{id}/review/family:
     parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
     post:
       tags: [SOP Review]
       summary: 'Family Reviewer 100% gate (SLA 24h)'
+      operationId: sopFamilyReview
       responses:
         '200': { description: approved or rejected }
         '425': { description: 'too early - dual review not done' }
@@ -719,8 +740,10 @@ paths:
     post:
       tags: [Eval]
       summary: Run AI Forbidden 200-question Eval (block-deploy gate per ADR-0047)
+      operationId: runForbiddenEval
       responses:
         '200':
+          description: 'OK'
           content:
             application/json:
               schema:
@@ -742,8 +765,9 @@ paths:
     get:
       tags: ['Voucher (ADR-VCH-001/002 V1)']
       summary: Read single voucher
+      operationId: getVoucher
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/Voucher' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/Voucher' } } } }
         '403': { description: CROSS_TENANT_READ }
         '404': { description: not found }
         '410': { description: VOUCHER_VOIDED, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
@@ -751,6 +775,7 @@ paths:
     get:
       tags: ['Voucher (ADR-VCH-001/002 V1)']
       summary: List vouchers (cursor pagination, max 100)
+      operationId: listVouchers
       parameters:
         - { name: cursor, in: query, schema: { type: string } }
         - { name: period, in: query, required: true, schema: { type: string, pattern: '^\d{4}-\d{2}$' }, description: 'YYYY-MM' }
@@ -758,13 +783,14 @@ paths:
         - { name: issuer_party, in: query, schema: { type: string, enum: [platform, locksmith, brand] } }
         - { name: limit, in: query, schema: { type: integer, maximum: 100, default: 20 } }
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/VoucherList' } } } }
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/VoucherList' } } } }
         '422': { description: invalid period format }
   /vouchers/{id}/void:
     parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
     post:
       tags: ['Voucher (ADR-VCH-001/002 V1)']
       summary: Void voucher (writes red entry; original row never modified)
+      operationId: voidVoucher
       security: [{ bearerAuth: [], keeperRole: [] }]
       parameters: [{ name: Idempotency-Key, in: header, required: true, schema: { type: string } }]
       requestBody:
@@ -788,6 +814,7 @@ paths:
     get:
       tags: ['Voucher (ADR-VCH-001/002 V1)']
       summary: '[V2.1 preview] Async export job for ERP / 電子發票 ED4'
+      operationId: exportVouchers
       security: [{ bearerAuth: [], keeperRole: [] }]
       parameters:
         - { name: format, in: query, required: true, schema: { type: string, enum: [csv, json, ed4] } }
@@ -808,8 +835,10 @@ paths:
     get:
       tags: ['Voucher (ADR-VCH-001/002 V1)']
       summary: '[V2.1 preview] Poll export job; returns signed URL (15min TTL) when ready'
+      operationId: getExportJob
       responses:
         '200':
+          description: 'OK'
           content:
             application/json:
               schema:
@@ -826,6 +855,26 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    keeperRole:
+      type: apiKey
+      in: header
+      name: X-Keeper-Role
+      description: 'Platform keeper role (ADR-VCH-001); required for voucher void / export operations'
+    dgsExecutor:
+      type: apiKey
+      in: header
+      name: X-DGS-Executor
+      description: 'DGS executor role (ADR-0061); required for evidence purge'
+    legalRole:
+      type: apiKey
+      in: header
+      name: X-Legal-Role
+      description: 'Legal / DPO role (ADR-0061); required for legal-hold flip'
+    dpoOrDataSubject:
+      type: apiKey
+      in: header
+      name: X-DPO-Or-Data-Subject
+      description: 'DPO or data-subject role (ADR-0061 GDPR); required for forget request'
   schemas:
     Error:
       type: object
