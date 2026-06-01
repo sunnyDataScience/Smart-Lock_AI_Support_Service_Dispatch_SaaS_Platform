@@ -66,3 +66,47 @@ class CancellationResult(BaseModel):
 
 class CancellationEnvelope(BaseModel):
     data: CancellationResult
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Refund 三維 SoD + 5-tier (ADR-0040 v2 / BR-REFUND-006 / FR-0014)
+# 對應 spec: saas.refund (docs/architecture/data/ddl-migration-001-init.sql:463)。
+# tier 由伺服器端從 amount 推算（client 不傳）。待 generated.py 重生後移至 generated。
+# ─────────────────────────────────────────────────────────────────────────────
+
+_REFUND_CLASSES = ("product", "labor", "material", "travel", "inspection")
+
+
+class RefundSodRequest(BaseModel):
+    """POST /tenants/{tenantId}/refunds 的 request body。
+
+    tier 不在 body — 伺服器端從 amount 推算（resolve_tier）。三維 SoD 行為人走
+    X-Initiator / X-Approver / X-Executor headers（require_sod_actors），不在 body。
+    """
+
+    work_order_id: str = Field(..., min_length=1)
+    amount: float = Field(..., gt=0, description="退款金額（> 0），tier 由伺服器端推算")
+    refund_class: str = Field(
+        ..., description="product / labor / material / travel / inspection（必填）"
+    )
+    reason: str = Field(..., min_length=1, max_length=2000)
+    evidence_ids: list[str] = Field(default_factory=list)
+
+
+class RefundSodResult(BaseModel):
+    """退款建立結果（對齊 saas.refund 欄位）。"""
+
+    refund_id: str
+    work_order_id: str | None = None
+    amount: str  # decimal string with 2 decimals
+    tier: str  # L1 / L2 / L3 / L4 / L5
+    refund_class: str
+    state: str  # pending / approved / executed / rejected
+    initiator_user_id: str | None = None
+    approver_user_ids: list[str] = Field(default_factory=list)
+    executor_user_id: str | None = None
+    audit_event_id: str | None = None
+
+
+class RefundSodEnvelope(BaseModel):
+    data: RefundSodResult
