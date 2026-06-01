@@ -13,7 +13,7 @@ operationId 對齊 openapi.yaml：
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Path, Query
+from fastapi import APIRouter, Depends, Path, Query, Response
 
 from core.deps import CurrentUser, require_tenant, role_required
 from models.generated import (
@@ -84,16 +84,22 @@ async def get_my_availability(
 @router.get(
     "/technicians",
     operation_id="listTechnicians",
-    summary="技師列表（管理員視角，cursor 分頁）",
+    summary="技師列表（管理員視角，cursor 分頁）[DEPRECATED — 請遷移至 /tenants/{tenantId}/technicians]",
     response_model=TechnicianPage,
 )
 async def list_technicians(
+    response: Response,
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     availability: TechnicianAvailability | None = Query(default=None),
     level: TechnicianLevel | None = Query(default=None),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
+    # D3：雙掛過渡期 Deprecation header（CR-0002-α）
+    response.headers["Deprecation"] = "true"
+    response.headers["Link"] = (
+        f"</tenants/{user.tenant_id}/technicians>; rel=\"successor-version\""
+    )
     page = await technician_service.list_technicians(
         tenant_id=user.tenant_id,
         cursor=cursor,
@@ -111,13 +117,19 @@ async def list_technicians(
 @router.get(
     "/technicians/{id}",
     operation_id="getTechnician",
-    summary="技師詳情（管理員視角）",
+    summary="技師詳情（管理員視角）[DEPRECATED — 請遷移至 /tenants/{tenantId}/technicians/{techId}]",
     response_model=TechnicianEnvelope,
 )
 async def get_technician(
+    response: Response,
     id: str = Path(),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
+    # D3：雙掛過渡期 Deprecation header（CR-0002-α）
+    response.headers["Deprecation"] = "true"
+    response.headers["Link"] = (
+        f"</tenants/{user.tenant_id}/technicians/{id}>; rel=\"successor-version\""
+    )
     technician = await technician_service.get_technician(
         tenant_id=user.tenant_id, technician_id=id,
     )

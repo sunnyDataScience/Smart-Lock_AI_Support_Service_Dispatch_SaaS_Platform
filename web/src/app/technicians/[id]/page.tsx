@@ -5,7 +5,7 @@ import { ChevronRight, Pencil, Ban, Star, Info } from "lucide-react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import TechnicianDetailSidebar from "@/components/technicians/TechnicianDetailSidebar";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, getCurrentSession } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
 type Technician = components["schemas"]["Technician"];
@@ -268,6 +268,10 @@ export default function TechnicianDetailPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // CR-0002-α：遷移至 tenant-scoped v2 端點
+  const session = getCurrentSession();
+  const tenantId = session?.tenantId ?? "00000000-0000-0000-0000-000000000001";
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -275,7 +279,7 @@ export default function TechnicianDetailPage({ params }: PageProps) {
     (async () => {
       try {
         const res = await api.get<TechnicianEnvelope>(
-          `/api/v1/technicians/${encodeURIComponent(id)}`,
+          `/tenants/${encodeURIComponent(tenantId)}/technicians/${encodeURIComponent(id)}`,
         );
         if (!cancelled) setTechnician(res.data ?? null);
       } catch (e) {
@@ -294,7 +298,7 @@ export default function TechnicianDetailPage({ params }: PageProps) {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, tenantId]);
 
   const status = technician
     ? AVAILABILITY_STYLE[technician.availability] ?? AVAILABILITY_STYLE.available
