@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, RefreshCw, X } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import RefundReviewTable from "@/components/admin/RefundReviewTable";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, getCurrentSession } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
@@ -13,6 +13,37 @@ type RefundRequest = components["schemas"]["RefundRequest"];
 type RefundRequestEnvelope = components["schemas"]["RefundRequestEnvelope"];
 type RefundDecisionBody = components["schemas"]["RefundDecision"];
 type Decision = "approve" | "reject" | "escalate";
+
+/**
+ * refund_class — 新 SoD 端點（POST /tenants/{tenantId}/refunds）必填欄位，
+ * 取代舊 reason_code。tier 由伺服器從 amount 推算（門檻 1k/5k/30k/100k → L1..L5）。
+ */
+type RefundClass = "product" | "labor" | "material" | "travel" | "inspection";
+
+const REFUND_CLASSES: { value: RefundClass; label: string }[] = [
+  { value: "product", label: "商品" },
+  { value: "labor", label: "工資" },
+  { value: "material", label: "材料" },
+  { value: "travel", label: "車馬費" },
+  { value: "inspection", label: "檢測費" },
+];
+
+/**
+ * 新 SoD 端點回應 data 形狀（尚未進 openapi 生成型別，先在頁面本地定義）。
+ * ADR-0040v2 / FR-0014：tenant-scoped + 三維 SoD + 5-tier。
+ */
+interface SoDRefundResult {
+  refund_id: string;
+  work_order_id: string;
+  amount: number;
+  tier: string;
+  refund_class: RefundClass;
+  state: string;
+  initiator_user_id: string;
+  approver_user_ids: string[];
+  executor_user_id: string | null;
+  audit_event_id: string;
+}
 
 const SLA_TIER_2H_MS = 2 * 60 * 60 * 1000;
 const SLA_TIER_8H_MS = 8 * 60 * 60 * 1000;
@@ -57,17 +88,43 @@ export default function RefundReviewPage() {
     work_order_id: string;
     amount: string;
     reason: string;
-    reason_code: string;
+    refund_class: RefundClass;
+    approver: string;
   }) => {
     setActionPending("create");
     setActionError(null);
     try {
-      await api.post<RefundRequestEnvelope>("/api/v1/refunds", {
-        ...form,
-        requested_by_role: "customer_service",
-      });
-      setActionToast("退款申請已建立");
+      // 遷移至 spec-aligned tenant-scoped 三維 SoD 端點（ADR-0040v2 / FR-0014）。
+      // tier 不傳——伺服器從 amount 推算；reason_code / requested_by_role 已不需要。
+      const session = getCurrentSession();
+      const tenantId = session?.tenantId;
+      if (!tenantId) {
+        throw new ApiError(400, {
+          error_code: "NO_TENANT",
+          message: "缺少 tenant，請重新登入",
+        });
+      }
+      const res = await api.post<{ data: SoDRefundResult }>(
+        `/tenants/${encodeURIComponent(tenantId)}/refunds`,
+        {
+          work_order_id: form.work_order_id,
+          amount: Number(form.amount),
+          refund_class: form.refund_class,
+          reason: form.reason,
+        },
+        {
+          headers: {
+            // X-Initiator 須為合法 UUID（session.userId = JWT sub）
+            "X-Initiator": session?.userId ?? "operator",
+            // X-Approver 必填，且須與發起人不同（SoD），後端最終把關
+            "X-Approver": form.approver,
+          },
+        },
+      );
+      const tier = res.data?.tier ?? "—";
+      setActionToast(`退款申請已建立（tier ${tier}）`);
       setCreateModalOpen(false);
+      // list 查詢仍走舊 GET /api/v1/refunds（未遷移），重新 fetch 取最新
       await fetchRefunds();
     } catch (e) {
       setActionError(formatActionError(e));
@@ -463,19 +520,14 @@ interface CreateRefundModalProps {
     work_order_id: string;
     amount: string;
     reason: string;
-    reason_code: string;
+    refund_class: RefundClass;
+    approver: string;
   }) => Promise<void>;
   submitting: boolean;
   error: string | null;
 }
 
-const REASON_CODES: { value: string; label: string }[] = [
-  { value: "defective_product", label: "商品瑕疵" },
-  { value: "service_quality", label: "服務品質" },
-  { value: "customer_dissatisfaction", label: "客戶不滿意" },
-  { value: "billing_error", label: "帳務錯誤" },
-  { value: "other", label: "其他" },
-];
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function CreateRefundModal({
   onCancel,
@@ -486,12 +538,15 @@ function CreateRefundModal({
   const [workOrderId, setWorkOrderId] = useState("");
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
-  const [reasonCode, setReasonCode] = useState("defective_product");
+  const [refundClass, setRefundClass] = useState<RefundClass>("product");
+  const [approver, setApprover] = useState("");
 
   const valid =
-    /^[0-9a-f-]{36}$/i.test(workOrderId.trim()) &&
+    UUID_RE.test(workOrderId.trim()) &&
     /^\d+(\.\d{1,2})?$/.test(amount.trim()) &&
-    reason.trim().length > 0;
+    Number(amount.trim()) > 0 &&
+    reason.trim().length > 0 &&
+    UUID_RE.test(approver.trim());
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
@@ -536,15 +591,15 @@ function CreateRefundModal({
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-[12px] font-medium text-[var(--text-secondary)]">
-              退款原因分類
+              退款類別
             </span>
             <select
-              value={reasonCode}
-              onChange={(e) => setReasonCode(e.target.value)}
+              value={refundClass}
+              onChange={(e) => setRefundClass(e.target.value as RefundClass)}
               disabled={submitting}
               className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
             >
-              {REASON_CODES.map((r) => (
+              {REFUND_CLASSES.map((r) => (
                 <option key={r.value} value={r.value}>
                   {r.label}
                 </option>
@@ -563,6 +618,18 @@ function CreateRefundModal({
               maxLength={500}
               placeholder="例如：商品到貨後 3 天即故障，客戶要求全額退款"
               className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[12px] font-medium text-[var(--text-secondary)]">
+              覆核主管 ID（X-Approver）
+            </span>
+            <input
+              value={approver}
+              onChange={(e) => setApprover(e.target.value)}
+              disabled={submitting}
+              placeholder="須與發起人不同（SoD）"
+              className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] font-mono focus:border-[var(--primary)] focus:outline-none"
             />
           </label>
         </div>
@@ -588,7 +655,8 @@ function CreateRefundModal({
                 work_order_id: workOrderId.trim(),
                 amount: amount.trim(),
                 reason: reason.trim(),
-                reason_code: reasonCode,
+                refund_class: refundClass,
+                approver: approver.trim(),
               })
             }
             className="rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
