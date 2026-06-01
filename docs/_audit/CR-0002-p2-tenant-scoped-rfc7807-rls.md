@@ -176,3 +176,25 @@ P2 觸及**全部** endpoint（path scheme）與**全部** error response（RFC7
 ---
 
 **🛑 Awaiting your decisions on the items in §8 before any code changes.**
+
+---
+
+## 10. 實作進度 + γ 收尾決議（2026-06-01 更新）
+
+### α 路由遷移 — ✅ 完成（dual-mount）
+RFC7807 superset + Deprecation middleware + ~13 模組 tenant-scoped v2（呼既有 service、舊 /api/v1 雙掛）：
+- Stream-A RFC7807（8de19bc2）；Batch1 audit/customers/rbac；Batch2 problem-cards/technicians/dispatch；Batch3 work-orders(核心生命週期)/pricing/consumer(`/consumer/work-orders/{token}` 無 require_tenant)/vouchers。
+- 基線：231 component + 109 unit 全綠。合併衝突全在 main.py APPEND-ANCHOR（keep-all 解）。
+- **D3 Deprecation 改 middleware**（`api/middleware/deprecation.py`）：全 /api/v1 回應蓋 `Deprecation: true`（含 error path），retroactively 覆蓋 ~40 C-11 legacy。
+- 刻意未遷（legacy/P3）：sop-drafts（形狀差異大）、work-orders operational 雜項、pricing rules CRUD、vouchers void、其餘 C-11。
+
+### γ 收尾 — 部分完成 + **型別重生 DEFERRED（Opus 風險裁定）**
+- ✅ **C-01**：main.py SSOT 註記已指向新 spec（早前 commit 已修）。
+- ✅ **spec lint**（spectral）：openapi.yaml 16 errors / companion 58 errors —— 多為 missing response `description`/`operationId`（pre-existing 規格 hygiene）。歸為「spec-polish」獨立工項。
+- ⛔ **D6 型別重生 DEFERRED**（資料佐證的風險裁定，**不在 dual-mount 期間做**）：
+  - TS 從 openapi.yaml 重生＝6994→2165 行（**-70% 型別**），因新 spec 僅 30 paths 且 companion 57 paths 未合併；**83 個 web 檔** import 這些型別 → 覆蓋重生會全面打爆前端。
+  - `api/models/generated.py` 有 **38 個 py importer**，且無 scripted 重生（手動 datamodel-codegen），同樣高風險。
+  - **前置條件**：先合併兩份 spec 成單一完整 spec（D6 namespace）+ legacy 退場（過 Sunset）或 v2 型別獨立 namespace 不覆蓋 legacy。→ 排為獨立 CR（建議 P2 後期 / 與 legacy Sunset 同波）。
+- ⏳ traceability-matrix（tier-5 AI-AUTO）：待 `sunnydata-auto-regen` 重生（未手改）。
+
+> **P2-α 視為完成**（路由遷移 + RFC7807 + Deprecation）。γ 的型別重生與 spec-polish 拆為後續獨立工項（前者需 spec 合併 + legacy 退場前置）。
