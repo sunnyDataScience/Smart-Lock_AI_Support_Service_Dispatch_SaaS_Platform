@@ -44,9 +44,12 @@ CREATE TABLE IF NOT EXISTS webhook_idempotency (
     tenant_id     VARCHAR(50) NOT NULL DEFAULT 'default'
 );
 
+-- 注意：原 partial predicate `WHERE processed_at > NOW() - INTERVAL '7 days'` 不合法
+--   （NOW() 非 IMMUTABLE，Postgres partial index predicate 要求 immutable）→ 在任何 pg
+--   版本都會 `ERROR: functions in index predicate must be marked IMMUTABLE` 並中止整個
+--   schema apply。移除 predicate 改普通 index；7 天 TTL 由 cleanup job 負責（見下方 COMMENT）。
 CREATE INDEX IF NOT EXISTS idx_webhook_idempotency_processed_at
-    ON webhook_idempotency (processed_at)
-    WHERE processed_at > NOW() - INTERVAL '7 days';
+    ON webhook_idempotency (processed_at);
 
 COMMENT ON TABLE webhook_idempotency IS
 'CR-0001 §8 Q5 / Phase C2：LINE webhook 重送防護。'

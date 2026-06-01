@@ -54,13 +54,14 @@ COMMENT ON TABLE  permissions IS '權限定義表：resource + action 組合定�
 COMMENT ON COLUMN permissions.resource IS '資源類型：users, conversations, work_orders, invoices, refunds, complaints, reports, settings';
 
 
-CREATE TABLE IF NOT EXISTS role_permissions (
-    role_id             UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
-    permission_id       UUID NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
-    PRIMARY KEY (role_id, permission_id)
-);
-
-COMMENT ON TABLE  role_permissions IS '角色-權限關聯表 (多對多)';
+-- ⚠️ role_permissions 正典在 SQL/Schema_rbac_dynamic.sql（F-019 動態 RBAC：
+--    tenant_id / role_name / permission_code / granted；role_service.py 與 rbac_v2 實際使用）。
+--    原本此處的 relational 多對多 junction（role_id / permission_id）與正典**同名衝突**：
+--    同名 CREATE TABLE 誰先 apply 誰贏，relational 先建會讓 role_service 寫入報
+--    `column "permission_code" does not exist`，打爆動態 RBAC 寫入路徑（legacy + v2 同壞）。
+--    全 codebase 無任何查詢使用此 relational 版（grep 證實 0 ref、無 seed、無 inbound FK）
+--    → 移除以消除 schema 衝突。roles / permissions 兩張定義表保留（未來若改回 relational 可重用）。
+--    詳見 docs/_audit/spec-code-gap-audit-2026-06-01.md 衍生發現。
 
 
 -- Seed default roles

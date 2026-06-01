@@ -92,6 +92,7 @@ async def test_admin_can_update_reviewer_permissions(client, admin_headers):
     payload = {
         # reviewer 預設沒有 invoices.write — 此處新增
         "permissions": [
+            "audit_logs.read",  # locked+granted：PUT 全覆寫須回填，否則視為撤銷 locked → 403（與前端 RolePermissionsEditor 行為一致）
             "work_orders.read",
             "technicians.read",
             "customers.read",
@@ -258,6 +259,7 @@ async def test_ws_publish_envelope_aligned_with_asyncapi(client, admin_headers):
             PATH.format(role="reviewer"),
             json={
                 "permissions": [
+                    "audit_logs.read",  # locked+granted：full-overwrite 須回填
                     "work_orders.read",
                     "refunds.read",
                     "refunds.write",

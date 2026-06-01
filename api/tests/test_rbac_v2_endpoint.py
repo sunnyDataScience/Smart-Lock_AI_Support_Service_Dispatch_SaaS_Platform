@@ -102,6 +102,7 @@ async def test_update_role_permissions_v2_admin_200(client, admin_headers):
     """PUT /tenants/{tenantId}/rbac/roles/reviewer/permissions → 200。"""
     payload = {
         "permissions": [
+            "audit_logs.read",  # locked+granted：PUT 全覆寫須回填，否則視為撤銷 locked → 403
             "work_orders.read",
             "technicians.read",
             "customers.read",
@@ -186,6 +187,7 @@ async def test_legacy_patch_permissions_has_deprecation_header(client, admin_hea
     """PATCH /api/v1/roles/reviewer/permissions → response 帶 Deprecation: true header（D3）。"""
     payload = {
         "permissions": [
+            "audit_logs.read",  # locked+granted：full-overwrite 須回填
             "work_orders.read",
             "refunds.read",
             "refunds.write",
