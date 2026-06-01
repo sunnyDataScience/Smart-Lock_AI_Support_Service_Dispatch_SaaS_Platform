@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
-import { ApiError } from "@/lib/api";
+import { ApiError, getCurrentSession } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
@@ -64,6 +64,10 @@ export default function CustomersPage() {
   const t = useTranslations("admin.customers.list");
   const [searchQuery, setSearchQuery] = useState("");
 
+  // CR-0002-α：遷移至 tenant-scoped v2 端點
+  const session = getCurrentSession();
+  const tenantId = session?.tenantId ?? "00000000-0000-0000-0000-000000000001";
+
   const {
     items,
     hasMore,
@@ -74,7 +78,7 @@ export default function CustomersPage() {
     loadMore,
     refresh,
   } = usePaginatedFetch<Customer>({
-    path: "/api/v1/customers",
+    path: `/tenants/${encodeURIComponent(tenantId)}/customers`,
     pageSize: PAGE_LIMIT,
     formatError: formatCustomerError,
   });
