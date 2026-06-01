@@ -10,7 +10,7 @@ listDispatchLogs 由 routers/dispatch_logs.py 維護。
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 
 from core.deps import CurrentUser, require_tenant, role_required
 from core.idempotency import IdempotencyContext, idempotency_guard
@@ -40,9 +40,10 @@ router = APIRouter()
 @router.get(
     "/dispatch/candidates",
     operation_id="listDispatchCandidates",
-    summary="查詢候選技師（A37 派工人工介入）",
+    summary="查詢候選技師（A37 派工人工介入）[DEPRECATED — 請遷移至 /tenants/{tenantId}/dispatch:candidates]",
 )
 async def list_dispatch_candidates(
+    response: Response,
     work_order_id: str = Query(...),
     skills: list[str] | None = Query(default=None),
     areas: list[str] | None = Query(default=None),
@@ -51,6 +52,11 @@ async def list_dispatch_candidates(
     rating_min: float | None = Query(default=None, ge=0.0, le=5.0),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
+    # D3：雙掛過渡期 Deprecation header（CR-0002-α）
+    response.headers["Deprecation"] = "true"
+    response.headers["Link"] = (
+        f"</tenants/{user.tenant_id}/dispatch:candidates>; rel=\"successor-version\""
+    )
     return await dispatch_service.list_dispatch_candidates(
         tenant_id=user.tenant_id,
         work_order_id=work_order_id,
@@ -65,14 +71,20 @@ async def list_dispatch_candidates(
 @router.post(
     "/dispatch/auto-match",
     operation_id="autoMatchDispatch",
-    summary="依問題卡自動匹配候選技師（top-N）",
+    summary="依問題卡自動匹配候選技師（top-N）[DEPRECATED — 請遷移至 /tenants/{tenantId}/dispatch:auto-match]",
     response_model=DispatchAutoMatchResponse,
 )
 async def auto_match_dispatch(
     body: DispatchAutoMatchRequest,
+    response: Response,
     user: CurrentUser = Depends(require_tenant),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
+    # D3：雙掛過渡期 Deprecation header（CR-0002-α）
+    response.headers["Deprecation"] = "true"
+    response.headers["Link"] = (
+        f"</tenants/{user.tenant_id}/dispatch:auto-match>; rel=\"successor-version\""
+    )
     urgency_str = (
         body.urgency.value if body.urgency and hasattr(body.urgency, "value") else (body.urgency or "normal")
     )

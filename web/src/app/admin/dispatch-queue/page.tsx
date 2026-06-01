@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import DispatchQueueTable from "@/components/dispatch-queue/DispatchQueueTable";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, auth } from "@/lib/api";
 import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
@@ -80,6 +80,11 @@ export default function DispatchQueuePage() {
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
+  // v2 tenant-scoped dispatch path helpers（CR-0002-α M06 Dispatch 遷移）
+  // 候選技師查詢：GET  /tenants/${tenantId}/dispatch:candidates?work_order_id=...
+  // 自動匹配：    POST /tenants/${tenantId}/dispatch:auto-match
+  const tenantId = auth.getTenantId();
+
   const fetchAll = async () => {
     setLoading(true);
     setError(null);
@@ -114,7 +119,8 @@ export default function DispatchQueuePage() {
   }, []);
 
   return (
-    <div className="flex h-full bg-[var(--bg-page)]">
+    // data-tenant 供 E2E 測試驗證 tenant-scoped dispatch v2 路徑（CR-0002-α）
+    <div className="flex h-full bg-[var(--bg-page)]" data-tenant={tenantId}>
       <Sidebar />
 
       <div className="flex flex-1 flex-col overflow-hidden">
