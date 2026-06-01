@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Check, Lock, RefreshCw, Edit3 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
-import { ApiError, api, getCurrentSession } from "@/lib/api";
+import { ApiError, ApiErrorResponse, api, getCurrentSession } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 import { RolePermissionsEditor } from "@/components/admin/RolePermissionsEditor";
@@ -109,7 +109,18 @@ export default function RolesPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<RolesResponse>("/api/v1/roles");
+      // 遷移至 tenant-scoped v2 端點（CR-0002-α）；legacy /api/v1/roles 仍雙掛但帶 Deprecation header。
+      const session = getCurrentSession();
+      const tenantId = session?.tenantId;
+      if (!tenantId) {
+        throw new ApiError(400, {
+          error_code: "NO_TENANT",
+          message: "缺少 tenant，請重新登入",
+        } as ApiErrorResponse);
+      }
+      const res = await api.get<RolesResponse>(
+        `/tenants/${encodeURIComponent(tenantId)}/rbac/roles`,
+      );
       const items = res.data ?? [];
       setRoles(items);
       if (items.length > 0 && selectedId === null) {

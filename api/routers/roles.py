@@ -10,13 +10,18 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Body, Depends, Path
+from fastapi import APIRouter, Body, Depends, Path, Response
 from pydantic import BaseModel, Field
 
 from core.deps import CurrentUser, require_tenant
 from core.errors import ApiError
 from models.generated import Role, RolesEnvelope
 from services import role_service
+
+# D3：legacy 端點 Deprecation header 常數（successor 為 tenant-scoped v2 路徑）
+_DEPRECATION_HEADER = "true"
+_SUCCESSOR_LINK_ROLES = '</tenants/{tid}/rbac/roles>; rel="successor-version"'
+_SUCCESSOR_LINK_PERMS = '</tenants/{tid}/rbac/roles/{role}/permissions>; rel="successor-version"'
 
 logger = logging.getLogger("api.roles_router")
 
@@ -26,10 +31,17 @@ router = APIRouter()
 @router.get(
     "/roles",
     operation_id="listRoles",
-    summary="角色與權限矩陣（含動態 overrides；本租戶各角色使用者數）",
+    summary="角色與權限矩陣（含動態 overrides；本租戶各角色使用者數）[DEPRECATED → v2]",
     response_model=RolesEnvelope,
 )
-async def list_roles(user: CurrentUser = Depends(require_tenant)) -> dict:
+async def list_roles(
+    response: Response,
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    # D3：標示此端點已棄用，後繼為 tenant-scoped v2
+    tid = user.tenant_id or "{tenantId}"
+    response.headers["Deprecation"] = _DEPRECATION_HEADER
+    response.headers["Link"] = _SUCCESSOR_LINK_ROLES.format(tid=tid)
     roles = await role_service.list_roles(tenant_id=user.tenant_id)
     return {"data": [Role(**r).model_dump(mode="json") for r in roles]}
 
@@ -52,14 +64,19 @@ class _UpdateRolePermissionsBody(BaseModel):
 @router.patch(
     "/roles/{role_name}/permissions",
     operation_id="updateRolePermissions",
-    summary="動態調整角色權限（admin / tenant_admin / super_admin；強制階層）",
+    summary="動態調整角色權限（admin / tenant_admin / super_admin；強制階層）[DEPRECATED → v2]",
 )
 async def update_role_permissions(
+    response: Response,
     role_name: str = Path(..., description="角色 ID"),
     body: _UpdateRolePermissionsBody = Body(...),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
-    """PATCH /api/v1/roles/{role_name}/permissions"""
+    """PATCH /api/v1/roles/{role_name}/permissions — [DEPRECATED: 遷移至 PUT /tenants/{tenantId}/rbac/roles/{roleName}/permissions]"""
+    # D3：標示此端點已棄用
+    tid = user.tenant_id or "{tenantId}"
+    response.headers["Deprecation"] = _DEPRECATION_HEADER
+    response.headers["Link"] = _SUCCESSOR_LINK_PERMS.format(tid=tid, role=role_name)
     # 階層 / 越權檢查在 service 層；這裡只做 thin handler
     try:
         result = await role_service.update_role_permissions(
