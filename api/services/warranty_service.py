@@ -23,7 +23,10 @@ JOIN 1 層即可取 tenant_id 過濾（比 refund_requests 4 層 JOIN 簡單）�
 
 from __future__ import annotations
 
+import calendar
 import logging
+from datetime import date, timedelta
+from typing import Any
 
 import core.db as db_module
 from core.db import _ensure_conn
@@ -34,6 +37,193 @@ logger = logging.getLogger("api.warranty_service")
 
 
 _VALID_API_STATUS = {"filed", "approved", "rejected", "in_progress", "closed"}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Warranty 5-mode 起算（ADR-0044 v2 / FR-0015 / BR-WARRANTY-001..007）
+# Default configurable plane — embed 到 system_config.warranty namespace。
+# ─────────────────────────────────────────────────────────────────────────────
+
+# warranty_start_mode 正典詞彙（ADR-0044 v2，非舊版 purchase/handover/activation）：
+#   purchase_date        — B2C 零售用購買日
+#   install_date         — 零售安裝完工日
+#   handover_date        — 建商點交日（建商案件 default）
+#   brand_warranty_date  — 品牌另計保固起算
+#   contract_date        — B2B 合約起算
+#   manual_override      — 缺資料時人工 + 主管核可
+DEFAULT_WARRANTY_CONFIG: dict[str, Any] = {
+    "version_note": "ADR-0044 v2 defaults (FR-0015 / BR-WARRANTY-001..007)",
+    "default_period_months": 24,
+    # B2B override 上限 5 年 = 60 個月（BR-WARRANTY-006）
+    "b2b_override_max_months": 60,
+    # 換新主鎖獨立保固 buffer（BR-WARRANTY-005）：完工日 + 原期 + 此天數
+    "replaced_main_lock_buffer_days": 90,
+    # 品牌特定保固期 override（月）。未命中 → default_period_months
+    "brand_period_overrides": {
+        "Yale": 36,
+        "Dormakaba": 60,
+    },
+    # mode 預設規則（情境 → 預設 mode），供 router/編排層參考
+    "mode_defaults": {
+        "b2c_retail": "purchase_date",
+        "retail_installed": "install_date",
+        "developer_project": "handover_date",
+        "b2b_contract": "contract_date",
+    },
+    "valid_start_modes": [
+        "purchase_date",
+        "install_date",
+        "handover_date",
+        "brand_warranty_date",
+        "contract_date",
+        "manual_override",
+    ],
+}
+
+# mode → resolve_start_date 取用的 anchor 參數名（manual_override 不在此表）
+_MODE_TO_ANCHOR: dict[str, str] = {
+    "purchase_date": "purchase_date",
+    "install_date": "install_date",
+    "handover_date": "handover_date",
+    "brand_warranty_date": "brand_warranty_date",
+    "contract_date": "contract_date",
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PURE 規則函式（無 DB — 單元測試覆蓋）
+# ─────────────────────────────────────────────────────────────────────────────
+
+def resolve_start_date(
+    mode: str,
+    *,
+    purchase_date: date | None = None,
+    install_date: date | None = None,
+    handover_date: date | None = None,
+    brand_warranty_date: date | None = None,
+    contract_date: date | None = None,
+) -> date:
+    """依 warranty_start_mode 取對應錨點日期（ADR-0044 v2 / BR-WARRANTY-001/002/004）。
+
+    - manual_override：不從錨點推算（需人工 + 主管核可，走 PATCH 流程）→ 422 引導。
+    - 未知 mode → 422 WARRANTY_MODE_UNKNOWN。
+    - mode 對應的錨點缺值 → 422 WARRANTY_ANCHOR_MISSING。
+    """
+    if mode == "manual_override":
+        raise ApiError(
+            "WARRANTY_ANCHOR_MISSING",
+            "manual_override mode requires explicit start_date via supervisor-approved PATCH",
+            422,
+        )
+    anchor_name = _MODE_TO_ANCHOR.get(mode)
+    if anchor_name is None:
+        raise ApiError(
+            "WARRANTY_MODE_UNKNOWN",
+            f"Unknown warranty_start_mode '{mode}'",
+            422,
+        )
+    anchors = {
+        "purchase_date": purchase_date,
+        "install_date": install_date,
+        "handover_date": handover_date,
+        "brand_warranty_date": brand_warranty_date,
+        "contract_date": contract_date,
+    }
+    value = anchors[anchor_name]
+    if value is None:
+        raise ApiError(
+            "WARRANTY_ANCHOR_MISSING",
+            f"warranty_start_mode '{mode}' requires anchor date '{anchor_name}'",
+            422,
+        )
+    return value
+
+
+def _add_months(d: date, months: int) -> date:
+    """日曆月加法，遇月底自動 clamp（避免 day overflow，如 1/31 + 1m → 2/28）。"""
+    total = (d.year * 12 + (d.month - 1)) + months
+    year, month = divmod(total, 12)
+    month += 1
+    last_day = calendar.monthrange(year, month)[1]
+    return date(year, month, min(d.day, last_day))
+
+
+def compute_warranty_end(start_date: date, period_months: int) -> date:
+    """保固到期日 = 起算日 + period_months（取代舊寫死 +90 days）。"""
+    return _add_months(start_date, int(period_months))
+
+
+def is_within_warranty(claim_date: date, end_date: date) -> bool:
+    """保固邊界判定（BR-WARRANTY-003）：claim_date == end_date 仍視為在保固內。"""
+    return claim_date <= end_date
+
+
+def recalc_after_rma(
+    end_date: date,
+    *,
+    rma_in: date,
+    rma_out: date,
+    replaced_main_lock: bool,
+    rma_complete_date: date,
+    period_months: int = 24,
+    config: dict | None = None,
+) -> date:
+    """RMA 重算（BR-WARRANTY-005）。
+
+    - 被修期間延長：end += (rma_out - rma_in) days。
+    - 換新主鎖：從 RMA 完工日起算原期 (period_months) + buffer 天數獨立保固。
+    """
+    if replaced_main_lock:
+        cfg = config or DEFAULT_WARRANTY_CONFIG
+        buffer_days = int(cfg.get("replaced_main_lock_buffer_days", 90))
+        fresh_end = compute_warranty_end(rma_complete_date, period_months)
+        return fresh_end + timedelta(days=buffer_days)
+    repair_days = (rma_out - rma_in).days
+    return end_date + timedelta(days=repair_days)
+
+
+def validate_b2b_override(months: int, config: dict | None = None) -> None:
+    """B2B override 上限驗證（BR-WARRANTY-006）：1 ≤ months ≤ 60，否則 422。"""
+    cfg = config or DEFAULT_WARRANTY_CONFIG
+    cap = int(cfg.get("b2b_override_max_months", 60))
+    if months <= 0:
+        raise ApiError(
+            "WARRANTY_OVERRIDE_INVALID",
+            "warranty_period_months_override must be a positive integer",
+            422,
+        )
+    if months > cap:
+        raise ApiError(
+            "WARRANTY_OVERRIDE_EXCEEDS_CAP",
+            f"warranty_period_months_override {months} exceeds B2B cap {cap} months",
+            422,
+        )
+
+
+def resolve_period_months(brand: str | None, config: dict | None = None) -> int:
+    """依品牌取保固期（月）。品牌 override map 命中用 override，否則 default。"""
+    cfg = config or DEFAULT_WARRANTY_CONFIG
+    overrides = cfg.get("brand_period_overrides", {}) or {}
+    if brand and brand in overrides:
+        return int(overrides[brand])
+    return int(cfg.get("default_period_months", 24))
+
+
+def select_warranty_source(
+    *,
+    inherit_from_site_group: bool,
+    site_group_mode: str | None,
+    device_mode: str | None,
+) -> str | None:
+    """site_group 繼承選擇邏輯（BR-WARRANTY-005 / ADR-0044 §v2.5）。
+
+    建商案件 inherit=True 且 site_group 有設 mode → 採 site_group mode；
+    否則回 device 自身 mode。DB 來源接入見 TODO（本切片僅純函式）。
+    """
+    # TODO(P3): site_group_mode / device_mode 由 device_warranty + site_group 表載入
+    if inherit_from_site_group and site_group_mode:
+        return site_group_mode
+    return device_mode
 
 
 def _coerce_status(raw: str | None) -> str:
@@ -179,8 +369,11 @@ async def create_warranty_claim(
     Idempotency: business unique key (work_order_id, claim_type) — 同 WO 同
     類型若已有 active row（非 rejected/closed），回 200 既存。
 
-    customer_id 必須屬於 tenant；warranty_start_date / warranty_end_date /
-    is_within_warranty 在本實作預設用 90 天試算（後續可改抓 customer 購入紀錄）。
+    customer_id 必須屬於 tenant。warranty_start_date / warranty_end_date /
+    is_within_warranty 改用 5-mode 起算（ADR-0044 v2 / FR-0015）：
+      - 只給 purchase_date 的舊呼叫 → purchase_date mode + default 24 months
+      - 缺 purchase_date → 退回 install_date=today（建單日）作起算 best-effort
+    取代舊寫死的 +90 days；is_within_warranty 採邊界=仍在保（BR-WARRANTY-003）。
 
     Returns: (claim_dict, created_flag)
     """
@@ -214,31 +407,43 @@ async def create_warranty_claim(
             )
             return claim, False
 
-    # 3. 預設保固試算：用 purchase_date + 90 天，缺 purchase_date 則用 today + 90 天
-    #    後續可改抓真實合約日期；此處保持 MVP 簡單預設。
-    purchase_date_clause = "%s::date" if purchase_date else "CURRENT_DATE"
-    purchase_date_arg = [purchase_date] if purchase_date else []
+    # 3. 5-mode 保固起算（ADR-0044 v2 / FR-0015）— 取代舊寫死 +90 days。
+    #    舊呼叫只給 purchase_date → purchase_date mode；缺則用建單日（today）作起算。
+    today = date.today()
+    if purchase_date:
+        purchase_d = date.fromisoformat(purchase_date)
+        start_date = resolve_start_date("purchase_date", purchase_date=purchase_d)
+        start_mode = "purchase_date"
+    else:
+        # 缺 purchase_date：以建單日作 best-effort 起算（install_date 語意）
+        start_date = today
+        purchase_d = None
+        start_mode = "install_date"
+    period_months = resolve_period_months(device_brand, DEFAULT_WARRANTY_CONFIG)
+    end_date = compute_warranty_end(start_date, period_months)
+    within = is_within_warranty(today, end_date)
 
     # 4. INSERT + 自動 doc number
     cur = await db_module._conn.execute(
-        f"INSERT INTO warranty_claims "
-        f"  (work_order_id, customer_id, device_brand, device_model, "
-        f"   purchase_date, warranty_start_date, warranty_end_date, "
-        f"   claim_date, is_within_warranty, status, dispute_reason, "
-        f"   claim_type, requested_by_role, document_number) "
-        f"VALUES (%s, %s::uuid, %s, %s, "
-        f"        {purchase_date_clause}, "
-        f"        COALESCE({purchase_date_clause}, CURRENT_DATE), "
-        f"        COALESCE({purchase_date_clause}, CURRENT_DATE) + INTERVAL '90 days', "
-        f"        CURRENT_DATE, "
-        f"        (COALESCE({purchase_date_clause}, CURRENT_DATE) + INTERVAL '90 days') >= CURRENT_DATE, "
-        f"        'filed', %s, %s, %s, generate_doc_number('WC', 'doc_seq_wc')) "
-        f"RETURNING id",
+        "INSERT INTO warranty_claims "
+        "  (work_order_id, customer_id, device_brand, device_model, "
+        "   purchase_date, warranty_start_date, warranty_end_date, "
+        "   claim_date, is_within_warranty, status, dispute_reason, "
+        "   claim_type, requested_by_role, document_number, "
+        "   warranty_start_mode, warranty_period_months) "
+        "VALUES (%s, %s::uuid, %s, %s, "
+        "        %s::date, %s::date, %s::date, "
+        "        CURRENT_DATE, %s, "
+        "        'filed', %s, %s, %s, generate_doc_number('WC', 'doc_seq_wc'), "
+        "        %s, %s) "
+        "RETURNING id",
         (
             work_order_id, customer_id, device_brand, device_model,
-            *purchase_date_arg, *purchase_date_arg, *purchase_date_arg,
-            *purchase_date_arg,
+            purchase_d.isoformat() if purchase_d else None,
+            start_date.isoformat(), end_date.isoformat(),
+            within,
             dispute_reason, claim_type, requested_by_role,
+            start_mode, period_months,
         ),
     )
     new_row = await cur.fetchone()

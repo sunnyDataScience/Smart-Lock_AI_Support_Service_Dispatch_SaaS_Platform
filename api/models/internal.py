@@ -66,3 +66,63 @@ class CancellationResult(BaseModel):
 
 class CancellationEnvelope(BaseModel):
     data: CancellationResult
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Warranty 5-mode (ADR-0044 v2 / FR-0015 / BR-WARRANTY-001..007)
+# 對應 spec: openapi-smart-lock-saas.yaml DeviceWarranty / DeviceWarrantyPatch。
+# 注意：warranty_mode enum 採 ADR-0044 v2 正典 6 值（覆蓋 spec 描述的舊 5 值），
+# 待 spec 重生對齊後從 generated 取代。
+# ─────────────────────────────────────────────────────────────────────────────
+
+_WARRANTY_START_MODES = (
+    "purchase_date",
+    "install_date",
+    "handover_date",
+    "brand_warranty_date",
+    "contract_date",
+    "manual_override",
+)
+_WARRANTY_SCOPES = ("device", "component")
+_COVERAGE_CLASSES = ("full", "parts_only", "labor_only", "expired")
+
+
+class DeviceWarranty(BaseModel):
+    """GET /tenants/{tenantId}/devices/{deviceId}/warranty 回應。"""
+
+    device_id: str
+    warranty_start_mode: str = Field(..., description="ADR-0044 v2 6-mode enum")
+    warranty_start_date: str  # date isoformat
+    warranty_end_date: str    # date isoformat
+    warranty_period_months: int = Field(default=24)
+    warranty_period_months_override: int | None = Field(default=None, le=60)
+    warranty_scope: str = Field(default="device")
+    warranty_inherit_from_site_group: bool = Field(default=True)
+    coverage_class: str = Field(default="full")
+    is_within_warranty: bool = Field(default=True)
+
+
+class DeviceWarrantyEnvelope(BaseModel):
+    data: DeviceWarranty
+
+
+class DeviceWarrantyPatch(BaseModel):
+    """PATCH .../warranty — manual_override only（走主管核可，回 202）。"""
+
+    new_mode: str = Field(default="manual_override", description="本切片僅支援 manual_override")
+    new_start_date: str | None = Field(default=None, description="manual_override 指定起算日 (date)")
+    period_months_override: int | None = Field(
+        default=None, ge=1, le=60,
+        description="B2B override 上限 60 個月 (BR-WARRANTY-006)",
+    )
+    reason: str = Field(..., min_length=1, max_length=2000, description="manual_override 必填理由 + audit")
+    contract_doc_id: str | None = Field(default=None, description="B2B override 合約 PDF doc id")
+
+
+class WarrantyChangeRequestRef(BaseModel):
+    """PATCH 202 回應 — ChangeRequest 串接標 TODO(P3)，先回 pending 佔位。"""
+
+    change_request_id: str | None = None
+    status: str = "pending_supervisor_approval"
+    device_id: str
+    requested_mode: str

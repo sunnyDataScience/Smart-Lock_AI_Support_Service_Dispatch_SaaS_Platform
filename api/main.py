@@ -59,6 +59,7 @@ from routers import family_reviews as family_reviews_router
 from routers import data_corrections as data_corrections_router  # CR-0001 §3 review queue
 from routers import public as public_router  # Q3=C / Q9=B 共用機制
 from routers import cancellation as cancellation_router  # spec-alignment P1-A (ADR-0102, tenant-scoped)
+from routers import device_warranty as device_warranty_router  # spec-alignment P1-B (ADR-0044 v2, tenant-scoped)
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -150,6 +151,8 @@ app.include_router(kb_export_router.router, prefix="/api/v1", tags=["knowledge_b
 app.include_router(public_router.router, prefix="/api/v1", tags=["public"])
 # spec-alignment P1-A：tenant-scoped 取消端點，無 /api/v1 前綴以對齊 frozen spec path
 app.include_router(cancellation_router.router, tags=["M11 AR / Payment"])
+# spec-alignment P1-B：tenant-scoped 保固端點（5-mode），無 /api/v1 前綴以對齊 frozen spec path
+app.include_router(device_warranty_router.router, tags=["M13 Warranty"])
 
 
 @app.get("/health")
