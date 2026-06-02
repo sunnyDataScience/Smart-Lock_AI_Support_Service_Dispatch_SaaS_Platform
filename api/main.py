@@ -73,6 +73,7 @@ from routers import dispatch_v2 as dispatch_v2_router  # spec-alignment P2-α (C
 from routers import work_orders_v2 as work_orders_v2_router  # spec-alignment P2-α (CR-0002-α, M06 WorkOrder tenant-scoped)
 from routers import pricing_v2 as pricing_v2_router  # spec-alignment P2-α (CR-0002-α, M11 Pricing calculate tenant-scoped)
 from routers import consumer_v2 as consumer_v2_router  # spec-alignment P2-α (CR-0002-α, M16 Consumer public token)
+from routers import settlements_v2 as settlements_v2_router  # spec-alignment P2 (FR-0012, M12 Settlement monthly trigger 501 stub)
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -181,6 +182,7 @@ app.include_router(dispatch_v2_router.router, tags=["M06 Dispatch"])  # spec-ali
 app.include_router(work_orders_v2_router.router, tags=["M06 WorkOrder"])  # spec-alignment P2-α (CR-0002-α, tenant-scoped)
 app.include_router(pricing_v2_router.router, tags=["M11 Pricing"])  # spec-alignment P2-α (CR-0002-α, M11 Pricing calculate tenant-scoped)
 app.include_router(consumer_v2_router.router, tags=["M16 Consumer"])  # spec-alignment P2-α (CR-0002-α, M16 Consumer public token)
+app.include_router(settlements_v2_router.router, tags=["M12 Settlement"])  # spec-alignment P2 (FR-0012, M12 monthly settlement 501 stub)
 
 
 @app.get("/health")
