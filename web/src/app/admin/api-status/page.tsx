@@ -4,15 +4,15 @@
  * /admin/api-status — Backend smoke page.
  *
  * 用於本機驗證 web ↔ api 串接：
- *   - 登入流程（POST /api/v1/auth/login）→ 寫入 localStorage tokens
- *   - 查 system config（GET /api/v1/config）→ 顯示 JSON
- *   - 查通知列表（GET /api/v1/notifications）→ 顯示前 5 筆
+ *   - 登入流程（POST /api/v1/auth/login，flat-keep P4 才扁平化）→ 寫入 localStorage tokens
+ *   - 查 system config（GET /api/v1/config，track-B 待 CR-0004）→ 顯示 JSON
+ *   - 查通知列表（GET /tenants/{tid}/notifications，P3 已遷 v2）→ 顯示前 5 筆
  *
  * 需要：NEXT_PUBLIC_API_BASE_URL 指向跑著的 api/ uvicorn。
  */
 
 import { useState } from "react";
-import { api, auth, login, logout, ApiError } from "@/lib/api";
+import { api, auth, login, logout, ApiError, tenantPath } from "@/lib/api";
 import Sidebar from "@/components/layout/Sidebar";
 
 export default function ApiStatusPage() {
@@ -123,6 +123,7 @@ export default function ApiStatusPage() {
                 disabled={!loggedIn || loading === "config"}
                 onClick={() =>
                   run("config", async () => {
+                    // P3-KEEP: track-B (待 CR-0004)
                     setConfig(await api.get("/api/v1/config"));
                   })
                 }
@@ -139,14 +140,18 @@ export default function ApiStatusPage() {
 
           <section className="rounded-xl border border-[var(--border)] bg-white p-6">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">3. GET /api/v1/notifications</h2>
+              <h2 className="text-lg font-semibold">
+                3. GET /tenants/{"{tid}"}/notifications
+              </h2>
               <button
                 className="rounded border px-3 py-1 text-sm disabled:opacity-50"
                 disabled={!loggedIn || loading === "notifs"}
                 onClick={() =>
                   run("notifs", async () => {
                     setNotifications(
-                      await api.get("/api/v1/notifications", { query: { limit: 5 } }),
+                      await api.get(tenantPath("/notifications"), {
+                        query: { limit: 5 },
+                      }),
                     );
                   })
                 }

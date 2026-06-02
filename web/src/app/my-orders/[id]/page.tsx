@@ -14,7 +14,7 @@ import TechShell from "@/components/tech/TechShell";
 import StatusBadge from "@/components/tech/StatusBadge";
 import UrgencyBadge from "@/components/tech/UrgencyBadge";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
@@ -71,7 +71,7 @@ export default function MyOrderDetailPage() {
     setError(null);
     try {
       const res = await api.get<WorkOrderEnvelope>(
-        `/api/v1/work-orders/${encodeURIComponent(id)}`,
+        tenantPath(`/work-orders/${encodeURIComponent(id)}`),
       );
       setWo(res.data ?? null);
     } catch (e) {
@@ -101,7 +101,7 @@ export default function MyOrderDetailPage() {
       );
       fd.append("work_order_id", wo.id);
       const res = await api.upload<{ id: string; url: string; filename: string }>(
-        "/api/v1/media",
+        tenantPath("/media"),
         fd,
       );
       setCompletionPhotos((prev) => [
@@ -140,7 +140,7 @@ export default function MyOrderDetailPage() {
           .map((p) => p.url),
       };
       const res = await api.post<WorkOrderEnvelope>(
-        `/api/v1/work-orders/${encodeURIComponent(wo.id)}/complete`,
+        tenantPath(`/work-orders/${encodeURIComponent(wo.id)}:complete`),
         body,
       );
       setWo(res.data ?? wo);

@@ -79,8 +79,8 @@ export async function cacheGet<T>(
  * cacheInvalidate — 清掉指定 key 或 prefix-match
  *
  * 用法（mutate 後）：
- *   cacheInvalidate("GET:/api/v1/work-orders");  // prefix 模糊清
- *   cacheInvalidate("GET:/api/v1/work-orders?limit=100:tenant1");  // 精確清
+ *   cacheInvalidate(`GET:${tenantPath("/work-orders")}`);  // prefix 模糊清
+ *   cacheInvalidate(`GET:${tenantPath("/work-orders")}?limit=100:tenant1`);  // 精確清
  */
 export function cacheInvalidate(prefix: string): void {
   for (const key of cache.keys()) {

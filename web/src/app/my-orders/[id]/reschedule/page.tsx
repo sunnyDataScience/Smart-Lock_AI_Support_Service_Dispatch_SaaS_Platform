@@ -14,7 +14,7 @@ import {
 import TechShell from "@/components/tech/TechShell";
 import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
 import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
 import {
   BROADCAST_CHANNELS,
@@ -138,7 +138,7 @@ export default function ReschedulePage() {
     setWoLoading(true);
     try {
       const res = await api.get<WorkOrderEnvelope>(
-        `/api/v1/work-orders/${encodeURIComponent(id)}`,
+        tenantPath(`/work-orders/${encodeURIComponent(id)}`),
       );
       setWo(res.data ?? null);
     } catch (e) {
@@ -154,6 +154,7 @@ export default function ReschedulePage() {
       setSlotsLoading(true);
       setSlotsError(null);
       try {
+        // P3-KEEP: flat（技師自助 availability，無 tenant-scoped v2）
         const res = await api.get<AvailabilityResponse>(
           "/api/v1/technicians/me/availability",
           {
@@ -270,7 +271,7 @@ export default function ReschedulePage() {
           : {}),
       };
       await api.post<WorkOrderEnvelope>(
-        `/api/v1/work-orders/${encodeURIComponent(wo.id)}/reschedule`,
+        tenantPath(`/work-orders/${encodeURIComponent(wo.id)}/reschedule-request`),
         body,
       );
       setSubmitOk(true);

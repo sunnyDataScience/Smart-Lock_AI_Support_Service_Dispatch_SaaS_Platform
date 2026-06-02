@@ -7,7 +7,7 @@ import TechShell from "@/components/tech/TechShell";
 import StatusBadge from "@/components/tech/StatusBadge";
 import UrgencyBadge from "@/components/tech/UrgencyBadge";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api, getCurrentSession } from "@/lib/api";
+import { ApiError, api, getCurrentSession, tenantPath } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import type { components } from "@/types/api.generated";
 
@@ -74,7 +74,7 @@ export default function MyOrdersPage() {
         technician_id: technicianId,
         limit: 50,
       };
-      const res = await api.get<WorkOrderPage>("/api/v1/work-orders", {
+      const res = await api.get<WorkOrderPage>(tenantPath("/work-orders"), {
         query,
       });
       setItems(res.items ?? []);

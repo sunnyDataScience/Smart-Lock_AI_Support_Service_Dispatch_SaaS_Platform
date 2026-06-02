@@ -11,12 +11,11 @@ import {
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import WorkOrdersTable from "@/components/work-orders/WorkOrdersTable";
-import { ApiError } from "@/lib/api";
+import { ApiError, tenantPath } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo } from "react";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
-import { getCurrentSession } from "@/lib/api";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 
@@ -27,23 +26,6 @@ function formatWorkOrderError(e: unknown): string {
   if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
   if (e instanceof Error) return e.message;
   return String(e);
-}
-
-/**
- * useWorkOrdersPath — client-side hook，取 tenant-scoped v2 WO list path。
- * 使用 useState + useEffect 確保在瀏覽器環境（localStorage 可用）後才解析 tenantId，
- * 避免 SSR 階段 window 不存在導致永遠 fallback 到 legacy path。
- * tenantId 不存在時 fallback legacy /api/v1/work-orders（CR-0002-α 雙掛過渡）。
- */
-function useWorkOrdersPath(): string {
-  const [path, setPath] = useState<string>("/api/v1/work-orders");
-  useEffect(() => {
-    const session = getCurrentSession();
-    if (session?.tenantId) {
-      setPath(`/tenants/${session.tenantId}/work-orders`);
-    }
-  }, []);
-  return path;
 }
 
 // Filter / view tabs use stable keys; labels resolved per-render via i18n
@@ -73,11 +55,9 @@ export default function WorkOrdersPage() {
     [tViews],
   );
 
-  // CR-0002-α：使用 tenant-scoped v2 路徑（useEffect 確保 localStorage 可用）；
-  // path 改變時 usePaginatedFetch 自動 re-fetch（fetchPage dep on path）。
-  const workOrdersPath = useWorkOrdersPath();
+  // P3：全 cutover 至 tenant-scoped v2 路徑（tenantPath 同步解析 tenantId）。
   const { items, cursor, hasMore, loading, error, loadMore } = usePaginatedFetch<WorkOrder>({
-    path: workOrdersPath,
+    path: tenantPath("/work-orders"),
     pageSize: PAGE_SIZE,
     formatError: formatWorkOrderError,
   });

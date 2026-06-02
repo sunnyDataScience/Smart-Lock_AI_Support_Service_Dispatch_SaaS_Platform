@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import {
   STATUS_GROUP_MAP,
@@ -82,7 +82,7 @@ export default function ProblemCardDetailSidebar({ card, loading }: Props) {
     setLinked(null);
     (async () => {
       try {
-        const res = await api.get<WorkOrderPage>("/api/v1/work-orders", {
+        const res = await api.get<WorkOrderPage>(tenantPath("/work-orders"), {
           query: { problem_card_id: card.id, limit: 1 },
         });
         if (cancelled) return;

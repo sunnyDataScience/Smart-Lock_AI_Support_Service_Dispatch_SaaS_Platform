@@ -7,7 +7,7 @@ import { CalendarClock, ArrowRight, CheckCircle2 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import SubflowHeader from "@/components/tech/SubflowHeader";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 
 const DURATION_KEYS = [
   { value: 15, key: "min15" },
@@ -71,7 +71,7 @@ export default function DelayPage() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      await api.post(`/api/v1/work-orders/${encodeURIComponent(id)}/delay`, {
+      await api.post(tenantPath(`/work-orders/${encodeURIComponent(id)}/notify-delay`), {
         delay_minutes: delayMinutes,
         reason: REASON_TO_API[reasonKey],
         reason_text: reasonKey === "other" ? reasonText.trim() : undefined,

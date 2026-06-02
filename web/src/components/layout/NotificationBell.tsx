@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Bell } from "lucide-react";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 import NotificationDrawer from "./NotificationDrawer";
 
@@ -36,7 +36,7 @@ export default function NotificationBell({ variant = "light" }: Props) {
   const refreshBadge = useCallback(async () => {
     try {
       const res = await api.get<NotificationListResponse>(
-        "/api/v1/notifications",
+        tenantPath("/notifications"),
         { query: { status: "unread", limit: UNREAD_FETCH_LIMIT } },
       );
       const fromCount =

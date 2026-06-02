@@ -10,7 +10,7 @@ import {
   XCircle,
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 type Status = "pending" | "approved" | "rejected" | "cancelled";
@@ -112,8 +112,10 @@ export default function ScheduleRequestsPage() {
     try {
       const query: Record<string, string | number> = { limit: 100 };
       if (tab !== "all") query.status = tab;
+      // CR-0002-α P3：遷移 GET /admin/schedule-requests → v2 GET tenantPath("/exceptions:inbox")
+      // NOTE: 語意/response shape 重塑（exceptions inbox），欄位對齊待人工確認（ListResponse.items 假設沿用）
       const res = await api.get<ListResponse>(
-        "/api/v1/admin/schedule-requests",
+        tenantPath("/exceptions:inbox"),
         { query },
       );
       setItems(res.items ?? []);
@@ -133,10 +135,20 @@ export default function ScheduleRequestsPage() {
     setBusy(id);
     setError(null);
     try {
-      await api.post(
-        `/api/v1/admin/schedule-requests/${encodeURIComponent(id)}/${decision}`,
-        resolveNote.trim() ? { note: resolveNote.trim() } : {},
-      );
+      const body = resolveNote.trim() ? { note: resolveNote.trim() } : {};
+      if (decision === "approve") {
+        // CR-0002-α P3：approve 遷移至 v2 POST tenantPath(`/exceptions/{id}:approve`)
+        await api.post(
+          tenantPath(`/exceptions/${encodeURIComponent(id)}:approve`),
+          body,
+        );
+      } else {
+        // P3-KEEP: flat（reject 無對應 v2 端點，exceptions_v2 僅有 :approve；待人工確認補建）
+        await api.post(
+          `/api/v1/admin/schedule-requests/${encodeURIComponent(id)}/reject`,
+          body,
+        );
+      }
       setActionMsg(decision === "approve" ? t("toast.approved") : t("toast.rejected"));
       setTimeout(() => setActionMsg(null), 2500);
       setResolveDialog(null);

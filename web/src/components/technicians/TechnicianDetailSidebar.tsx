@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { TrendingUp, TrendingDown } from "lucide-react";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import {
   STATUS_GROUP_MAP,
@@ -177,7 +177,7 @@ function ActiveOrdersCard({ technicianId }: { technicianId?: string }) {
     setOrders([]);
     (async () => {
       try {
-        const res = await api.get<WorkOrderPage>("/api/v1/work-orders", {
+        const res = await api.get<WorkOrderPage>(tenantPath("/work-orders"), {
           query: { technician_id: technicianId, limit: 20 },
         });
         if (cancelled) return;

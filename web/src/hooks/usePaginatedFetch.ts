@@ -18,7 +18,7 @@
  *
  * 用法：
  *   const wo = usePaginatedFetch<WorkOrder>({
- *     path: "/api/v1/work-orders",
+ *     path: tenantPath("/work-orders"),
  *     query: { status: "open" },
  *     pageSize: 20,
  *   });
@@ -29,7 +29,7 @@
  *   wo.loadingMore     // true 時列表底顯示 spinner（含 refresh 場景）
  *
  *   // CRUD 後 optimistic local update：
- *   await api.delete(`/api/v1/work-orders/${id}`);
+ *   await api.delete(tenantPath(`/work-orders/${id}`));
  *   wo.mutate(prev => prev.filter(w => w.id !== id));
  */
 
@@ -45,7 +45,7 @@ export interface PaginatedResponse<T> {
 }
 
 export interface UsePaginatedFetchOptions {
-  /** API path，如 "/api/v1/work-orders" */
+  /** API path，如 tenantPath("/work-orders") */
   path: string;
   /** 每頁筆數，預設 20 */
   pageSize?: number;
@@ -97,7 +97,7 @@ export interface UsePaginatedFetchResult<T> {
    * 外部 CRUD 後就地更新 hook items（不重新打 API）— 對齊 SWR `mutate` 慣例。
    *
    * @example
-   *   // 樂觀 delete
+   *   // 樂觀 delete（manuals 為 KEEP flat，沿用 legacy path）
    *   await api.delete(`/api/v1/manuals/${id}`);
    *   mutate(prev => prev.filter(m => m.id !== id));
    *

@@ -18,7 +18,7 @@ import FmeaDiagnosisCard from "@/components/problem-cards/FmeaDiagnosisCard";
 import LinkedConversationCard from "@/components/problem-cards/LinkedConversationCard";
 import ResolutionTimeline from "@/components/problem-cards/ResolutionTimeline";
 import ProblemCardDetailSidebar from "@/components/problem-cards/ProblemCardDetailSidebar";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
 type ProblemCard = components["schemas"]["ProblemCard"];
@@ -104,7 +104,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
     (async () => {
       try {
         const res = await api.get<ProblemCardEnvelope>(
-          `/api/v1/problem-cards/${encodeURIComponent(id)}`,
+          tenantPath(`/problem-cards/${encodeURIComponent(id)}`),
         );
         if (!cancelled) setCard(res.data ?? null);
       } catch (e) {
@@ -143,7 +143,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
     setActionError(null);
     try {
       const res = await api.post<ProblemCardEnvelope>(
-        `/api/v1/problem-cards/${encodeURIComponent(id)}/confirm`,
+        tenantPath(`/problem-cards/${encodeURIComponent(id)}/confirm`),
       );
       setCard(res.data ?? null);
       setActionToast("問題卡已確認");
@@ -159,7 +159,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
     setActionError(null);
     try {
       const res = await api.patch<ProblemCardEnvelope>(
-        `/api/v1/problem-cards/${encodeURIComponent(id)}`,
+        tenantPath(`/problem-cards/${encodeURIComponent(id)}`),
         patch,
       );
       setCard(res.data ?? null);
@@ -178,6 +178,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
     setActionError(null);
     setExportMenuOpen(false);
     try {
+      // P3-KEEP: flat（無對應 v2）
       const res = await api.get<ProblemCardExport>(
         `/api/v1/problem-cards/${encodeURIComponent(card.id)}/export`,
         { query: { format: fmt } },
@@ -214,7 +215,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
         max_candidates: 5,
       };
       const res = await api.post<DispatchAutoMatchResponse>(
-        "/api/v1/dispatch/auto-match",
+        tenantPath("/dispatch:auto-match"),
         body,
       );
       setMatchResult(res.candidates ?? []);
@@ -235,6 +236,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
     setActionPending("auto");
     setActionError(null);
     try {
+      // P3-KEEP: track-B (待 CR-0004)
       const res = await api.post<ResolveResponse>("/api/v1/resolve", {
         problem_card_id: card.id,
       });
@@ -251,6 +253,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
     setActionPending("convert");
     setActionError(null);
     try {
+      // P3-KEEP: flat（v2 author 明示暫留，convert-to-work-order 屬 sync 範疇）
       const res = await api.post<WorkOrderEnvelope>(
         `/api/v1/problem-cards/${encodeURIComponent(id)}/convert-to-work-order`,
       );
@@ -270,7 +273,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
     setActionError(null);
     try {
       const res = await api.post<ProblemCardEnvelope>(
-        `/api/v1/problem-cards/${encodeURIComponent(id)}/resolve`,
+        tenantPath(`/problem-cards/${encodeURIComponent(id)}/resolve`),
         { resolution_layer: layer },
       );
       setCard(res.data ?? null);

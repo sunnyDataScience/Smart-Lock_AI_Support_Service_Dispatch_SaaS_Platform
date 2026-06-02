@@ -98,20 +98,7 @@ test.describe("@wip work-orders list page — tenant-scoped v2 GET", () => {
 
     let capturedPath: string | null = null;
 
-    // Mock legacy path（初次 SSR fallback 或 path 尚未切換時）
-    await page.route("**/api/v1/work-orders", async (route) => {
-      if (route.request().method() === "GET") {
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify(SAMPLE_LIST),
-        });
-      } else {
-        await route.continue();
-      }
-    });
-
-    // Mock v2 tenant-scoped path
+    // Mock v2 tenant-scoped path（全 cutover：caller 只打 v2，無 legacy fallback）
     await page.route(LIST_PATH, async (route) => {
       if (route.request().method() === "GET") {
         capturedPath = route.request().url();
@@ -149,22 +136,7 @@ test.describe("@wip work-orders list page — tenant-scoped v2 GET", () => {
   test("shows error banner on API 500", async ({ page }) => {
     await injectAdminSession(page);
 
-    // Mock both legacy and v2 paths to return 500
-    await page.route("**/api/v1/work-orders", async (route) => {
-      if (route.request().method() === "GET") {
-        await route.fulfill({
-          status: 500,
-          contentType: "application/json",
-          body: JSON.stringify({
-            error_code: "INTERNAL_ERROR",
-            message: "Database unavailable",
-          }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
-
+    // Mock v2 tenant-scoped path to return 500（全 cutover：無 legacy fallback）
     await page.route(LIST_PATH, async (route) => {
       if (route.request().method() === "GET") {
         await route.fulfill({
@@ -203,20 +175,7 @@ test.describe("@wip work-orders detail page — tenant-scoped v2 GET detail", ()
 
     let capturedV2Path: string | null = null;
 
-    // Mock legacy detail（SSR fallback 或初次 fetch）
-    await page.route(`**/api/v1/work-orders/${WORK_ORDER_ID}`, async (route) => {
-      if (route.request().method() === "GET") {
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify(SAMPLE_DETAIL),
-        });
-      } else {
-        await route.continue();
-      }
-    });
-
-    // Mock v2 tenant-scoped detail endpoint
+    // Mock v2 tenant-scoped detail endpoint（全 cutover：caller 只打 v2）
     await page.route(DETAIL_PATH, async (route) => {
       if (route.request().method() === "GET") {
         capturedV2Path = route.request().url();
@@ -230,8 +189,8 @@ test.describe("@wip work-orders detail page — tenant-scoped v2 GET detail", ()
       }
     });
 
-    // Also mock problem-cards sub-request to avoid noise
-    await page.route("**/api/v1/problem-cards/**", async (route) => {
+    // Also mock problem-cards sub-request to avoid noise（v2 tenant-scoped）
+    await page.route("**/tenants/*/problem-cards/**", async (route) => {
       await route.fulfill({
         status: 404,
         contentType: "application/json",
@@ -267,7 +226,7 @@ test.describe("@wip work-orders detail page — tenant-scoped v2 GET detail", ()
 
     const randomId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 
-    // Mock both v2 and legacy 404
+    // Mock v2 tenant-scoped 404（全 cutover：caller 只打 v2）
     await page.route(`**/tenants/*/work-orders/${randomId}`, async (route) => {
       if (route.request().method() === "GET") {
         await route.fulfill({
@@ -281,14 +240,6 @@ test.describe("@wip work-orders detail page — tenant-scoped v2 GET detail", ()
       } else {
         await route.continue();
       }
-    });
-
-    await page.route(`**/api/v1/work-orders/${randomId}`, async (route) => {
-      await route.fulfill({
-        status: 404,
-        contentType: "application/json",
-        body: JSON.stringify({ error_code: "NOT_FOUND", message: "Work order not found" }),
-      });
     });
 
     await page.goto(`/work-orders/${randomId}`);

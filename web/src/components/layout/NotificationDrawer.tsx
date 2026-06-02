@@ -12,7 +12,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
-import { ApiError, api, auth } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import {
   BROADCAST_CHANNELS,
   NotificationBroadcastEvent,
@@ -85,7 +85,6 @@ export default function NotificationDrawer({
 }: Props) {
   const t = useTranslations("components.layout.notificationDrawer");
   // v2 tenant-scoped path（CR-0003 P2-W2 / ADR-0012）
-  const tenantId = auth.getTenantId();
   const [tab, setTab] = useState<StatusFilter>("unread");
   const [items, setItems] = useState<Notification[]>([]);
   const [hasMore, setHasMore] = useState(false);
@@ -109,9 +108,7 @@ export default function NotificationDrawer({
       try {
         const query: Record<string, string | number> = { limit: PAGE_LIMIT };
         if (status === "unread") query.status = "unread";
-        const listPath = tenantId
-          ? `/tenants/${tenantId}/notifications`
-          : "/api/v1/notifications";
+        const listPath = tenantPath("/notifications");
         const res = await api.get<NotificationListResponse>(listPath, {
           query,
         });
@@ -174,9 +171,9 @@ export default function NotificationDrawer({
     setMarking(n.id);
     setError(null);
     try {
-      const patchPath = tenantId
-        ? `/tenants/${tenantId}/notifications/${encodeURIComponent(n.id)}`
-        : `/api/v1/notifications/${encodeURIComponent(n.id)}`;
+      const patchPath = tenantPath(
+        `/notifications/${encodeURIComponent(n.id)}`,
+      );
       await api.patch(patchPath, {
         read_at: new Date().toISOString(),
       });
@@ -208,9 +205,7 @@ export default function NotificationDrawer({
     setBulkBusy(true);
     setError(null);
     try {
-      const markAllPath = tenantId
-        ? `/tenants/${tenantId}/notifications:mark-all-read`
-        : "/api/v1/notifications/mark-all-read";
+      const markAllPath = tenantPath("/notifications:mark-all-read");
       await api.post(markAllPath, {});
       if (tab === "unread") {
         setItems([]);

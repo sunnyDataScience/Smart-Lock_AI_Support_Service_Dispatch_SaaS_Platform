@@ -6,7 +6,7 @@ import { Plus, Trash2, CheckCircle2, Package } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import SubflowHeader from "@/components/tech/SubflowHeader";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 
 interface MissingItem {
   id: string;
@@ -67,7 +67,7 @@ export default function MaterialRequestPage() {
     setSubmitError(null);
     try {
       await api.post(
-        `/api/v1/work-orders/${encodeURIComponent(id)}/material-request`,
+        tenantPath(`/work-orders/${encodeURIComponent(id)}/material-request`),
         {
           items: items.map((it) => ({
             brand: it.brand.trim(),

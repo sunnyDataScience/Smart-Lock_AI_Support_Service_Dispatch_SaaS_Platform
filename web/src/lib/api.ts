@@ -136,6 +136,24 @@ export const auth = {
   },
 };
 
+/**
+ * tenantPath — 組出 tenant-scoped v2 路徑 `/tenants/{tenantId}/{suffix}`。
+ *
+ * tenantId 來源與 X-Tenant-ID header 一致（auth.getTenantId()：localStorage →
+ * 退回預設租戶）。P3 caller 遷移用：把 legacy `/api/v1/foo` 改成
+ * `tenantPath("/foo")` 即可，header / Idempotency-Key 仍由 client 自動注入。
+ *
+ * 僅用於 tenant-scoped 端點；平台級 flat 端點（/auth, /consumer, /kb/documents,
+ * /sops, /vouchers/{id}/void 等）直接寫新 literal 路徑，不經此 helper。
+ *
+ *   api.get(tenantPath("/work-orders"))            // → /tenants/{tid}/work-orders
+ *   cacheInvalidate(`GET:${tenantPath("/work-orders")}`)
+ */
+export function tenantPath(suffix: string): string {
+  const s = suffix.startsWith("/") ? suffix : `/${suffix}`;
+  return `/tenants/${auth.getTenantId()}${s}`;
+}
+
 export interface CurrentSession {
   userId: string | null;
   role: string | null;
