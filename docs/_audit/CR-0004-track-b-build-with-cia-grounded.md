@@ -213,4 +213,5 @@ S7 [平台級 flat，獨立性最高，但 hash chain+schema 須先裁] ── v
 - ✅ **S2 done**（reconciliations `4c265155` + disputes `b23edabf`）：
   - reconciliations：saas.reconciliation + saas.settlement dual-write；CSM review → ops_manager co-sign（跨兩 call SoD）→ settlement INSERT。19 測試、spec +4 path。
   - disputes：saas.dispute；FR-0013 狀態機 filed→in_review→(mediation)→resolved|escalated|closed_withdrawn；dual-sign close（重用跨兩 call 範式）；reopen→新 dispute parent lineage（AC-05）。33 測試、spec +8 path。回歸 576+1skip。60d cron + 負值 DGS = Phase II。
-- ⏳ S3 inventory（下一個，最難：per-tenant 倉 + row-lock 扣庫存 + 阻塞 wo/material-request + 須簽 ADR-0052/0053 AC）/ S4 pricing-rules / S5 data-corrections / S6 resolution / S7 vouchers-void — 待續，同範式。
+- ✅ **S3 inventory done**（merge `ba42c2ab`）：saas.inventory_item（per-tenant + owner ADR-0052 + serial_required ADR-0053）+ saas.inventory_transaction；6 endpoint；:consume/:return/:restock 用 transaction + FOR UPDATE（FR-0007 AC-05；insufficient→409、serial→422）。29 測試、回歸 605+1skip、spec +6 path。ADR-0052/0053 採推薦值（status frontmatter↔body 不一致已記錄）。follow-up：serial 擋 WO complete / material-request 語意整合（HD-INV-03）/ reorder 通知。
+- ⏳ S4 pricing-rules（路徑C 依賴 config-m18）/ S5 data-corrections / S6 resolution / S7 vouchers-void — 待續，同範式。
