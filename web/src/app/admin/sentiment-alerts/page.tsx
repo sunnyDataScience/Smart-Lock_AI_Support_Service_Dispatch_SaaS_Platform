@@ -8,6 +8,7 @@ import { ApiError, api } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
+import { auth } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
 type SentimentAlert = components["schemas"]["SentimentAlert"];
@@ -70,6 +71,9 @@ export default function SentimentAlertsPage() {
   const [actionTarget, setActionTarget] = useState<ActionTarget | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
 
+  // v2 tenant-scoped path（CR-0003 P2-W2 / FR-0018 / ADR-0048）
+  const tenantId = auth.getTenantId();
+
   const {
     items,
     cursor,
@@ -79,10 +83,10 @@ export default function SentimentAlertsPage() {
     loadMore,
     mutate,
   } = usePaginatedFetch<SentimentAlert>({
-    path: "/api/v1/sentiment/alerts",
+    path: `/tenants/${encodeURIComponent(tenantId)}/sentiment/alerts`,
     pageSize: PAGE_SIZE,
     query: statusFilter ? { status: statusFilter } : undefined,
-    queryKey: `status=${statusFilter}`,
+    queryKey: `tenantId=${tenantId}&status=${statusFilter}`,
     formatError: formatSentimentError,
   });
 
@@ -326,8 +330,10 @@ export default function SentimentAlertsPage() {
           onSubmit={async (note) => {
             setSavingId(actionTarget.alertId);
             try {
+              // v2 tenant-scoped path（CR-0003 P2-W2 / FR-0018）
+              const tId = auth.getTenantId();
               const updated = await api.patch<SentimentAlert>(
-                `/api/v1/sentiment/alerts/${actionTarget.alertId}`,
+                `/tenants/${encodeURIComponent(tId)}/sentiment/alerts/${actionTarget.alertId}`,
                 { status: actionTarget.toStatus, admin_note: note ?? undefined },
               );
               handleUpdated(updated);
