@@ -809,6 +809,9 @@ type ActionMode =
   | "confirm"
   | "signature"
   | "reschedule"
+  | "requestReschedule"
+  | "notifyDelay"
+  | "materialRequest"
   | null;
 type ActionPending =
   | "accept"
@@ -819,6 +822,9 @@ type ActionPending =
   | "confirm"
   | "signature"
   | "reschedule"
+  | "requestReschedule"
+  | "notifyDelay"
+  | "materialRequest"
   | null;
 
 export default function WorkOrderDetailPage({ params }: PageProps) {
@@ -1083,6 +1089,86 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
     }
   };
 
+  // --- Operational v2 handlers（tenant-scoped v2 endpoints, CR-0003 P2-W4） ---
+
+  const handleRequestReschedule = async (newScheduledAt: string, reason: string) => {
+    setActionPending("requestReschedule");
+    setActionError(null);
+    try {
+      const session = getCurrentSession();
+      const tenantId = session?.tenantId;
+      if (!tenantId) {
+        throw new ApiError(400, { error_code: "NO_TENANT", message: "Missing tenant" });
+      }
+      await api.post(
+        `/tenants/${encodeURIComponent(tenantId)}/work-orders/${encodeURIComponent(id)}/reschedule-request`,
+        { new_scheduled_at: newScheduledAt, reason },
+      );
+      // service 回傳 dict（非 WorkOrder envelope），重新 fetch 最新 WO
+      const res = await api.get<WorkOrderEnvelope>(
+        `/tenants/${encodeURIComponent(tenantId)}/work-orders/${encodeURIComponent(id)}`,
+      );
+      setOrder(res.data ?? null);
+      setActionMode(null);
+      setActionToast(tToast("requestRescheduleSent"));
+    } catch (e) {
+      setActionError(formatActionError(e));
+    } finally {
+      setActionPending(null);
+    }
+  };
+
+  const handleNotifyDelay = async (delayMinutes: number, reason: string) => {
+    setActionPending("notifyDelay");
+    setActionError(null);
+    try {
+      const session = getCurrentSession();
+      const tenantId = session?.tenantId;
+      if (!tenantId) {
+        throw new ApiError(400, { error_code: "NO_TENANT", message: "Missing tenant" });
+      }
+      await api.post(
+        `/tenants/${encodeURIComponent(tenantId)}/work-orders/${encodeURIComponent(id)}/notify-delay`,
+        { delay_minutes: delayMinutes, reason },
+      );
+      setActionMode(null);
+      setActionToast(tToast("notifyDelaySent", { minutes: delayMinutes }));
+    } catch (e) {
+      setActionError(formatActionError(e));
+    } finally {
+      setActionPending(null);
+    }
+  };
+
+  const handleMaterialRequest = async (
+    items: Array<{ brand: string; model: string; quantity: number }>,
+    urgency: "now" | "today" | "tomorrow",
+    note: string,
+  ) => {
+    setActionPending("materialRequest");
+    setActionError(null);
+    try {
+      const session = getCurrentSession();
+      const tenantId = session?.tenantId;
+      if (!tenantId) {
+        throw new ApiError(400, { error_code: "NO_TENANT", message: "Missing tenant" });
+      }
+      const body: Record<string, unknown> = { items, urgency };
+      if (note) body.note = note;
+      const res = await api.post<WorkOrderEnvelope>(
+        `/tenants/${encodeURIComponent(tenantId)}/work-orders/${encodeURIComponent(id)}/material-request`,
+        body,
+      );
+      setOrder(res.data ?? null);
+      setActionMode(null);
+      setActionToast(tToast("materialRequestSent"));
+    } catch (e) {
+      setActionError(formatActionError(e));
+    } finally {
+      setActionPending(null);
+    }
+  };
+
   useEffect(() => {
     if (!actionToast) return;
     const t = setTimeout(() => setActionToast(null), 2400);
@@ -1294,6 +1380,42 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
                     {tActions("reschedule")}
                   </button>
                 )}
+                {/* CR-0003 P2-W4 — ops v2 actions */}
+                {canReschedule && (
+                  <button
+                    onClick={() => {
+                      setActionError(null);
+                      setActionMode("requestReschedule");
+                    }}
+                    disabled={actionPending !== null}
+                    className="inline-flex items-center gap-2 rounded-md border border-[#6366F1] bg-white px-4 py-2 text-[13px] font-semibold text-[#4338CA] transition hover:bg-[#EEF2FF] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <CalendarClock className="h-4 w-4" />
+                    {tActions("requestReschedule")}
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setActionError(null);
+                    setActionMode("notifyDelay");
+                  }}
+                  disabled={actionPending !== null}
+                  className="inline-flex items-center gap-2 rounded-md border border-[#F59E0B] bg-white px-4 py-2 text-[13px] font-semibold text-[#92400E] transition hover:bg-[#FEF3C7] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <TriangleAlert className="h-4 w-4" />
+                  {tActions("notifyDelay")}
+                </button>
+                <button
+                  onClick={() => {
+                    setActionError(null);
+                    setActionMode("materialRequest");
+                  }}
+                  disabled={actionPending !== null}
+                  className="inline-flex items-center gap-2 rounded-md border border-[#10B981] bg-white px-4 py-2 text-[13px] font-semibold text-[#065F46] transition hover:bg-[#D1FAE5] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Upload className="h-4 w-4" />
+                  {tActions("materialRequest")}
+                </button>
               </div>
             )}
 
@@ -1396,6 +1518,31 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
           currentScheduled={order?.scheduled_time ?? null}
           onCancel={() => setActionMode(null)}
           onSubmit={handleReschedule}
+        />
+      )}
+
+      {actionMode === "requestReschedule" && (
+        <RequestRescheduleModal
+          pending={actionPending === "requestReschedule"}
+          currentScheduled={order?.scheduled_time ?? null}
+          onCancel={() => setActionMode(null)}
+          onSubmit={handleRequestReschedule}
+        />
+      )}
+
+      {actionMode === "notifyDelay" && (
+        <NotifyDelayModal
+          pending={actionPending === "notifyDelay"}
+          onCancel={() => setActionMode(null)}
+          onSubmit={handleNotifyDelay}
+        />
+      )}
+
+      {actionMode === "materialRequest" && (
+        <MaterialRequestModal
+          pending={actionPending === "materialRequest"}
+          onCancel={() => setActionMode(null)}
+          onSubmit={handleMaterialRequest}
         />
       )}
 
@@ -2289,6 +2436,383 @@ function EscalateModal({
             className="rounded-md bg-[#B45309] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? t("submitting") : t("submit")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Ops v2 Modals (CR-0003 P2-W4) ──────────────────────────────── */
+
+function RequestRescheduleModal({
+  pending,
+  currentScheduled,
+  onCancel,
+  onSubmit,
+}: {
+  pending: boolean;
+  currentScheduled: string | null;
+  onCancel: () => void;
+  onSubmit: (newScheduledAt: string, reason: string) => Promise<void>;
+}) {
+  const base = currentScheduled ? (() => {
+    const d = new Date(currentScheduled);
+    if (Number.isNaN(d.getTime())) return "";
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  })() : "";
+  const [newDateTime, setNewDateTime] = useState(base);
+  const [reason, setReason] = useState("");
+  const trimmedReason = reason.trim();
+  const valid = newDateTime.length > 0 && trimmedReason.length > 0 && trimmedReason.length <= 500 && !pending;
+
+  const handleSubmit = () => {
+    const iso = newDateTime ? new Date(newDateTime).toISOString() : "";
+    if (!iso) return;
+    onSubmit(iso, trimmedReason);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4"
+      onClick={onCancel}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-[480px] rounded-xl bg-white p-6 shadow-xl"
+      >
+        <div className="mb-4 flex items-center gap-2">
+          <CalendarClock className="h-5 w-5 text-[#4338CA]" />
+          <span className="text-[18px] font-semibold text-[var(--text-primary)]">
+            直接改約（通知客戶）
+          </span>
+        </div>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[12px] font-medium text-[var(--text-secondary)]">
+              新約定時間 <span className="text-[var(--error)]">*</span>
+            </label>
+            <input
+              type="datetime-local"
+              value={newDateTime}
+              onChange={(e) => setNewDateTime(e.target.value)}
+              disabled={pending}
+              className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[#6366F1] focus:outline-none disabled:opacity-50"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[12px] font-medium text-[var(--text-secondary)]">
+              改期原因 <span className="text-[var(--error)]">*</span>
+            </label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value.slice(0, 500))}
+              rows={3}
+              maxLength={500}
+              placeholder="請說明改期原因（最多 500 字）"
+              disabled={pending}
+              className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[#6366F1] focus:outline-none disabled:opacity-50"
+            />
+            <span className="text-[11px] text-[var(--text-disabled)]">
+              {trimmedReason.length} / 500
+            </span>
+          </div>
+        </div>
+        <p className="mt-3 rounded-md bg-[#EEF2FF] px-3 py-2 text-[12px] leading-[1.6] text-[#4338CA]">
+          系統將立即 LINE 通知客戶新的約定時間。
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            disabled={pending}
+            className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
+          >
+            取消
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!valid}
+            className="rounded-md bg-[#4338CA] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? "送出中..." : "確認改約"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NotifyDelayModal({
+  pending,
+  onCancel,
+  onSubmit,
+}: {
+  pending: boolean;
+  onCancel: () => void;
+  onSubmit: (delayMinutes: number, reason: string) => Promise<void>;
+}) {
+  const [delayMinutes, setDelayMinutes] = useState("15");
+  const [reason, setReason] = useState("");
+  const trimmedReason = reason.trim();
+  const parsedMinutes = parseInt(delayMinutes, 10);
+  const minutesValid = !Number.isNaN(parsedMinutes) && parsedMinutes >= 5 && parsedMinutes <= 300;
+  const valid = minutesValid && trimmedReason.length > 0 && trimmedReason.length <= 500 && !pending;
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4"
+      onClick={onCancel}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-[480px] rounded-xl bg-white p-6 shadow-xl"
+      >
+        <div className="mb-4 flex items-center gap-2">
+          <TriangleAlert className="h-5 w-5 text-[#B45309]" />
+          <span className="text-[18px] font-semibold text-[var(--text-primary)]">
+            通知客戶延遲
+          </span>
+        </div>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[12px] font-medium text-[var(--text-secondary)]">
+              延遲分鐘數（5–300）<span className="text-[var(--error)]">*</span>
+            </label>
+            <input
+              type="number"
+              min={5}
+              max={300}
+              value={delayMinutes}
+              onChange={(e) => setDelayMinutes(e.target.value)}
+              disabled={pending}
+              className={`rounded-md border px-3 py-2 text-[13px] focus:outline-none disabled:opacity-50 ${
+                minutesValid
+                  ? "border-[var(--border)] focus:border-[#F59E0B]"
+                  : "border-red-300 focus:border-red-400"
+              }`}
+            />
+            {!minutesValid && (
+              <span className="text-[11px] text-red-600">請輸入 5–300 之間的整數分鐘</span>
+            )}
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[12px] font-medium text-[var(--text-secondary)]">
+              延遲原因 <span className="text-[var(--error)]">*</span>
+            </label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value.slice(0, 500))}
+              rows={3}
+              maxLength={500}
+              placeholder="請說明延遲原因（最多 500 字）"
+              disabled={pending}
+              className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[#F59E0B] focus:outline-none disabled:opacity-50"
+            />
+            <span className="text-[11px] text-[var(--text-disabled)]">
+              {trimmedReason.length} / 500
+            </span>
+          </div>
+        </div>
+        <p className="mt-3 rounded-md bg-[#FEF3C7] px-3 py-2 text-[12px] leading-[1.6] text-[#92400E]">
+          系統將 LINE 通知客戶技師到場時間延遲。
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            disabled={pending}
+            className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
+          >
+            取消
+          </button>
+          <button
+            onClick={() => valid && onSubmit(parsedMinutes, trimmedReason)}
+            disabled={!valid}
+            className="rounded-md bg-[#B45309] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? "送出中..." : "發送通知"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type MaterialUrgency = "now" | "today" | "tomorrow";
+
+function MaterialRequestModal({
+  pending,
+  onCancel,
+  onSubmit,
+}: {
+  pending: boolean;
+  onCancel: () => void;
+  onSubmit: (
+    items: Array<{ brand: string; model: string; quantity: number }>,
+    urgency: MaterialUrgency,
+    note: string,
+  ) => Promise<void>;
+}) {
+  const [items, setItems] = useState([{ brand: "", model: "", quantity: 1 }]);
+  const [urgency, setUrgency] = useState<MaterialUrgency>("today");
+  const [note, setNote] = useState("");
+
+  const updateItem = (idx: number, field: "brand" | "model" | "quantity", value: string | number) => {
+    setItems(items.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
+  };
+  const addItem = () => {
+    if (items.length >= 20) return;
+    setItems([...items, { brand: "", model: "", quantity: 1 }]);
+  };
+  const removeItem = (idx: number) => {
+    if (items.length <= 1) return;
+    setItems(items.filter((_, i) => i !== idx));
+  };
+
+  const itemsValid = items.every(
+    (it) => it.brand.trim().length > 0 && it.model.trim().length > 0 && it.quantity >= 1,
+  );
+  const valid = itemsValid && !pending;
+
+  const handleSubmit = () => {
+    if (!valid) return;
+    onSubmit(
+      items.map((it) => ({ brand: it.brand.trim(), model: it.model.trim(), quantity: it.quantity })),
+      urgency,
+      note.trim(),
+    );
+  };
+
+  const urgencyOptions: MaterialUrgency[] = ["now", "today", "tomorrow"];
+  const urgencyLabel: Record<MaterialUrgency, string> = {
+    now: "立即（緊急）",
+    today: "今日內",
+    tomorrow: "明日前",
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4"
+      onClick={onCancel}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-[560px] rounded-xl bg-white p-6 shadow-xl"
+      >
+        <div className="mb-4 flex items-center gap-2">
+          <Upload className="h-5 w-5 text-[#065F46]" />
+          <span className="text-[18px] font-semibold text-[var(--text-primary)]">
+            缺料回報
+          </span>
+        </div>
+        <div className="flex flex-col gap-3">
+          {items.map((it, idx) => (
+            <div key={idx} className="rounded-lg border border-[var(--border)] bg-[var(--bg-page)] p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[12px] font-semibold text-[var(--text-primary)]">
+                  零件 #{idx + 1}
+                </span>
+                {items.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeItem(idx)}
+                    disabled={pending}
+                    className="text-[11px] text-[var(--text-secondary)] hover:text-[var(--error)] disabled:opacity-50"
+                  >
+                    移除
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] text-[var(--text-secondary)]">品牌 *</label>
+                  <input
+                    type="text"
+                    value={it.brand}
+                    onChange={(e) => updateItem(idx, "brand", e.target.value.slice(0, 40))}
+                    disabled={pending}
+                    placeholder="品牌"
+                    className="rounded-md border border-[var(--border)] px-2 py-[6px] text-[13px] focus:border-[#10B981] focus:outline-none disabled:opacity-50"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] text-[var(--text-secondary)]">型號 *</label>
+                  <input
+                    type="text"
+                    value={it.model}
+                    onChange={(e) => updateItem(idx, "model", e.target.value.slice(0, 80))}
+                    disabled={pending}
+                    placeholder="型號"
+                    className="rounded-md border border-[var(--border)] px-2 py-[6px] text-[13px] focus:border-[#10B981] focus:outline-none disabled:opacity-50"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] text-[var(--text-secondary)]">數量 *</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={999}
+                    value={it.quantity}
+                    onChange={(e) => updateItem(idx, "quantity", Math.max(1, parseInt(e.target.value, 10) || 1))}
+                    disabled={pending}
+                    className="rounded-md border border-[var(--border)] px-2 py-[6px] text-[13px] focus:border-[#10B981] focus:outline-none disabled:opacity-50"
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+          {items.length < 20 && (
+            <button
+              type="button"
+              onClick={addItem}
+              disabled={pending}
+              className="rounded-md border border-dashed border-[var(--border)] bg-white px-3 py-2 text-[12px] text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
+            >
+              + 新增零件（{items.length}/20）
+            </button>
+          )}
+          <div className="flex flex-col gap-1">
+            <label className="text-[12px] font-medium text-[var(--text-secondary)]">緊急程度</label>
+            <select
+              value={urgency}
+              onChange={(e) => setUrgency(e.target.value as MaterialUrgency)}
+              disabled={pending}
+              className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[#10B981] focus:outline-none disabled:opacity-50"
+            >
+              {urgencyOptions.map((u) => (
+                <option key={u} value={u}>
+                  {urgencyLabel[u]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[12px] font-medium text-[var(--text-secondary)]">備註</label>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value.slice(0, 500))}
+              rows={3}
+              maxLength={500}
+              placeholder="其他說明（選填）"
+              disabled={pending}
+              className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[#10B981] focus:outline-none disabled:opacity-50"
+            />
+          </div>
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            disabled={pending}
+            className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
+          >
+            取消
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!valid}
+            className="rounded-md bg-[#065F46] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? "送出中..." : "送出缺料申請"}
           </button>
         </div>
       </div>
