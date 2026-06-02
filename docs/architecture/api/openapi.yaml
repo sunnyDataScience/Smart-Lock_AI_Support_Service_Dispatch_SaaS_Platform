@@ -124,6 +124,7 @@ tags:
   - name: Media  # P2-W6: tenant-scoped Media upload/serve/list (CR-0003 P2-W6)
   - name: M10 Inventory  # FR-0007 per-tenant 庫存狀態機 v2 (CR-0004 §8 / ADR-0052 / ADR-0053)
   - name: M11 Pricing Rules  # Track B S4: tenant-scoped Pricing Rules CRUD v2 (CR-0004 §8 C3 / ADR-0046)
+  - name: M09 Data Corrections  # Track B S5: tenant-scoped DataCorrections review queue v2 (CR-0004 §8 / ADR-0029 / ADR-0030)
 
 paths:
   ## --- LINE Bot intake / observability ---
@@ -4040,6 +4041,214 @@ paths:
           description: VALIDATION_ERROR — 必填欄位缺失或格式錯誤
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
 
+  # --- M09 Data Corrections v2 (Track B S5 / CR-0004 §8 / ADR-0029 / ADR-0030) ---
+  /tenants/{tenantId}/data-corrections:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+    get:
+      tags: ['M09 Data Corrections']
+      summary: 資料修正 review queue 列表 v2（tenant-scoped，cursor 分頁）
+      operationId: listDataCorrectionsV2
+      description: |
+        列出租戶的資料修正 review queue（saas.data_corrections），cursor 分頁（newest first）。
+        status 可篩選 pending / approved / resolved / rejected；空值回傳全部。
+        跨租戶讀取（path tenantId ≠ JWT tenant_id）回傳 403 CROSS_TENANT_READ（ADR-0030）。
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, approved, resolved, rejected]
+          description: 過濾狀態：pending / approved / resolved / rejected（空 = 全部）
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataCorrectionPage' }
+        '400':
+          description: INVALID — cursor 格式錯誤或 status 不合法
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '403':
+          description: CROSS_TENANT_READ
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/data-corrections/{correctionId}:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - name: correctionId
+        in: path
+        required: true
+        schema: { type: integer }
+        description: 資料修正 BIGINT PK（非 uuid）
+    get:
+      tags: ['M09 Data Corrections']
+      summary: 資料修正詳情 v2（tenant-scoped）
+      operationId: getDataCorrectionV2
+      description: |
+        取單筆資料修正（saas.data_corrections），含 tenant_id guard。
+        404 NOT_FOUND 若不存在或不屬於此 tenant；403 CROSS_TENANT_READ 若 path tenantId ≠ JWT tenant_id（ADR-0030）。
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataCorrectionEnvelope' }
+        '403':
+          description: CROSS_TENANT_READ
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404':
+          description: NOT_FOUND — 資料修正不存在或不屬於此 tenant
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/data-corrections/{correctionId}:approve:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - name: correctionId
+        in: path
+        required: true
+        schema: { type: integer }
+        description: 資料修正 BIGINT PK（非 uuid）
+    post:
+      tags: ['M09 Data Corrections']
+      summary: 核准資料修正 v2（pending→approved，admin-only）
+      operationId: approveDataCorrectionV2
+      description: |
+        狀態轉換 pending → approved（HD-2 / HD-3）。
+        SOP draft 自動建立延 phase 2（follow-up HD-3）。
+        Idempotency-Key 防重（24h dedup）。
+        409 CONFLICT：correction status 非 pending（不可核准）。
+        403 CROSS_TENANT_WRITE：path tenantId ≠ JWT tenant_id（ADR-0030）。
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                review_note:
+                  type: string
+                  nullable: true
+                  description: 審核備註（選填）
+      responses:
+        '200':
+          description: OK — 資料修正已核准，回傳更新後 correction
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataCorrectionEnvelope' }
+        '403':
+          description: CROSS_TENANT_WRITE
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404':
+          description: NOT_FOUND — 資料修正不存在或不屬於此 tenant
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '409':
+          description: CONFLICT — correction status 非 pending，不可核准
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/data-corrections/{correctionId}:reject:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - name: correctionId
+        in: path
+        required: true
+        schema: { type: integer }
+        description: 資料修正 BIGINT PK（非 uuid）
+    post:
+      tags: ['M09 Data Corrections']
+      summary: 駁回資料修正 v2（pending→rejected，admin-only）
+      operationId: rejectDataCorrectionV2
+      description: |
+        狀態轉換 pending → rejected（HD-2）。
+        Idempotency-Key 防重（24h dedup）。
+        409 CONFLICT：correction status 非 pending（不可駁回）。
+        403 CROSS_TENANT_WRITE：path tenantId ≠ JWT tenant_id（ADR-0030）。
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                review_note:
+                  type: string
+                  nullable: true
+                  description: 駁回原因備註（選填）
+      responses:
+        '200':
+          description: OK — 資料修正已駁回，回傳更新後 correction
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataCorrectionEnvelope' }
+        '403':
+          description: CROSS_TENANT_WRITE
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404':
+          description: NOT_FOUND — 資料修正不存在或不屬於此 tenant
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '409':
+          description: CONFLICT — correction status 非 pending，不可駁回
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/data-corrections/{correctionId}:resolve:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - name: correctionId
+        in: path
+        required: true
+        schema: { type: integer }
+        description: 資料修正 BIGINT PK（非 uuid）
+    post:
+      tags: ['M09 Data Corrections']
+      summary: 標記資料修正已處理 v2（approved→resolved，admin-only）
+      operationId: resolveDataCorrectionV2
+      description: |
+        狀態轉換 approved → resolved（HD-2 第四態）。Knowledge Owner 完成知識螺旋後標記。
+        SOP draft 自動建立留 phase 2（follow-up HD-3）。
+        Idempotency-Key 防重（24h dedup）。
+        409 CONFLICT：correction status 非 approved（不可標記已處理）。
+        403 CROSS_TENANT_WRITE：path tenantId ≠ JWT tenant_id（ADR-0030）。
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                review_note:
+                  type: string
+                  nullable: true
+                  description: 處理備註（選填）
+      responses:
+        '200':
+          description: OK — 資料修正已標記 resolved，回傳更新後 correction
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataCorrectionEnvelope' }
+        '403':
+          description: CROSS_TENANT_WRITE
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404':
+          description: NOT_FOUND — 資料修正不存在或不屬於此 tenant
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '409':
+          description: CONFLICT — correction status 非 approved，不可標記 resolved
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
 
 components:
   parameters:
@@ -4252,6 +4461,9 @@ components:
             # SERIAL_REQUIRED already listed above (openapi-smart-lock-saas.yaml codes)
             - ITEM_INACTIVE             # 409 consume/return/restock: item is_active=false
             - DUPLICATE_PART_NUMBER     # 409 create: same tenant part_number already exists
+            # M09 Data Corrections v2 (Track B S5 / CR-0004 §8 / ADR-0029)
+            - CONFLICT                  # 409 approve/reject/resolve: status not in allowed_from
+            - INVALID                   # 400 invalid query param (cursor/status)
         trace_id:
           type: string
           description: 'W3C trace_id; required on /quote/* and /pricing/* error responses (v2.3 telemetry)'
@@ -6430,5 +6642,81 @@ components:
           type: string
           nullable: true
           description: 下一頁游標（opaque base64）
+        has_more:
+          type: boolean
+
+    # --- M09 Data Corrections v2 schemas (Track B S5 / CR-0004 §8 / ADR-0029) ---
+    DataCorrection:
+      type: object
+      required: [id, user_id, note, status, created_at, tenant_id]
+      description: 資料修正記錄（saas.data_corrections，11 欄對齊 migration 009 / _row_to_dict）
+      properties:
+        id:
+          type: integer
+          description: BIGINT PK（非 uuid）
+        user_id:
+          type: string
+          nullable: true
+          description: LINE user ID（提交修正的終端使用者）
+        note:
+          type: string
+          description: 使用者填寫的修正說明
+        conversation_context:
+          type: object
+          nullable: true
+          description: 對話上下文快照（JSONB；GDPR PII 標 follow-up FR-0053）
+          additionalProperties: true
+        user_facts:
+          type: object
+          nullable: true
+          description: 使用者已知事實快照（JSONB；GDPR PII 標 follow-up FR-0053）
+          additionalProperties: true
+        status:
+          type: string
+          enum: [pending, approved, resolved, rejected]
+          description: 四態狀態機（HD-2）
+        created_at:
+          type: string
+          format: date-time
+          description: 建立時間（ISO 8601）
+        reviewed_by:
+          type: string
+          nullable: true
+          description: 審核人員 user ID（admin）
+        reviewed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 審核時間（ISO 8601）
+        review_note:
+          type: string
+          nullable: true
+          description: 審核備註（approve / reject / resolve 時填入）
+        tenant_id:
+          type: string
+          nullable: true
+          description: 租戶 UUID（tenant_id guard；HD-1 方案 B 就地補欄）
+
+    DataCorrectionEnvelope:
+      type: object
+      description: 單筆資料修正信封（data 包裝，對應 getDataCorrectionV2 / approveDataCorrectionV2 / rejectDataCorrectionV2 / resolveDataCorrectionV2 response）
+      properties:
+        data:
+          $ref: '#/components/schemas/DataCorrection'
+          nullable: true
+
+    DataCorrectionPage:
+      type: object
+      required: [has_more]
+      description: 資料修正分頁（cursor 分頁，對應 listDataCorrectionsV2 200 response）
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/DataCorrection' }
+          nullable: true
+        next_cursor:
+          type: string
+          nullable: true
+          description: 下一頁游標（opaque base64；null 表示已到最後一頁）
         has_more:
           type: boolean
