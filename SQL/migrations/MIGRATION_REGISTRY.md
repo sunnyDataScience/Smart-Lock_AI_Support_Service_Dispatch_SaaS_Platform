@@ -11,7 +11,8 @@
 | 003 | `003-warranty-5mode.sql` | P1-B | ✅ done | warranty_claims 加欄：warranty_start_mode(6) / period_months / B2B override |
 | 004 | `004-config-m18.sql` | Track B S1 | ✅ done | saas schema + M18 config governance 4 表（namespace/version/rollout/audit）+ seed 6 namespaces + 最小 saas.tenant FK target（CR-0004 §8 HD-01~06）|
 | 004-rls | _(reserved, renumbered)_ | P2-β | 🔒 預留 | RLS policy（7 表 tenant_id row-level security）— 須先過 ADR-0030 tier-1 裁決；原佔用 004 編號已被 config-m18 使用，請改用 010 或下一可用編號 |
-| 005 | _(reserved)_ | P2-β | 🔒 預留 | RLS session config（SET ROLE / set_config per-request + non-owner app role）|
+| 005 | `005-reconciliation-v2.sql` | Track B S2 | ✅ done | saas.reconciliation + saas.settlement（dual-sign CSM review → ops_manager co-sign；SoD CHECK constraint；backfill public.reconciliations/settlements → saas.*）FR-0013 / CR-0004 §8 HD-1~HD-3 |
+| 006 | _(reserved)_ | P2-β | 🔒 預留 | RLS session config（SET ROLE / set_config per-request + non-owner app role）|
 | 006 | _(reserved)_ | P3 | 🔒 預留 | master data：site / device / brand / model |
 | 007 | _(reserved)_ | P3 | 🔒 預留 | quote_version（lifecycle 狀態機 + 14d/3d TTL；對照 spec DDL saas.quote_version）|
 | 008 | _(reserved)_ | P3 | 🔒 預留 | M18 config governance 四表（namespace / version / rollout / audit）|
