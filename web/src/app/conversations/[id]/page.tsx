@@ -7,7 +7,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import ChatTimeline from "@/components/conversations/ChatTimeline";
 import DiagnosticReasoningPanel from "@/components/conversations/DiagnosticReasoningPanel";
 import HandoverComposer from "@/components/conversations/HandoverComposer";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, getCurrentSession } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import type { components } from "@/types/api.generated";
 
@@ -53,12 +53,20 @@ const RESOLUTION_LABEL: Record<string, string> = {
   human: "人工",
 };
 
+// Fallback tenant UUID for dev environments without a real session
+const FALLBACK_TENANT_ID = "00000000-0000-0000-0000-000000000001";
+
 export default function ConversationDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+
+  // CR-0003 P2-W2：tenant-scoped v2 端點（FR-0018）
+  const session = getCurrentSession();
+  const tenantId = session?.tenantId ?? FALLBACK_TENANT_ID;
+
   const [conv, setConv] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [problemCards, setProblemCards] = useState<ProblemCard[]>([]);
@@ -115,9 +123,12 @@ export default function ConversationDetailPage({
       setPcError(null);
       setProblemCards([]);
       try {
+        // CR-0003 P2-W2：遷移至 tenant-scoped v2 端點（FR-0018）
+        const convPath = `/tenants/${encodeURIComponent(tenantId)}/conversations/${encodeURIComponent(id)}`;
+        const msgsPath = `/tenants/${encodeURIComponent(tenantId)}/conversations/${encodeURIComponent(id)}/messages`;
         const [envelope, page, pcPage] = await Promise.all([
-          api.get<ConversationEnvelope>(`/api/v1/conversations/${id}`),
-          api.get<MessagePage>(`/api/v1/conversations/${id}/messages`, {
+          api.get<ConversationEnvelope>(convPath),
+          api.get<MessagePage>(msgsPath, {
             query: { limit: 100 },
           }),
           api
@@ -163,7 +174,7 @@ export default function ConversationDetailPage({
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, tenantId]);
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -241,6 +252,7 @@ export default function ConversationDetailPage({
 
               <HandoverComposer
                 conversationId={id}
+                tenantId={tenantId}
                 enabled={conv?.status === "waiting_human"}
                 onSent={(msg) =>
                   // messages 由 API 以 DESC 回傳（新→舊），ChatTimeline 內部

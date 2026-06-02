@@ -114,6 +114,7 @@ tags:
   - name: ACL External Integration
   - name: Dashboard  # M01 Dashboard KPI tenant-scoped (CR-0003 P2-W1, FR-0021)
   - name: Reports  # P2-W1: tenant-scoped KPI / Revenue / Export (FR-0021)
+  - name: Conversations  # P2-W2: tenant-scoped Conversation CRUD + Messages (CR-0003 P2-W2, FR-0018)
 
 paths:
   ## --- LINE Bot intake / observability ---
@@ -2185,6 +2186,170 @@ paths:
         '403': { description: 'Insufficient role or cross-tenant read forbidden' }
         '422': { description: 'Invalid report_type or period parameter' }
 
+  # M01 Conversations — tenant-scoped CRUD（CR-0003 P2-W2, FR-0018）
+  /tenants/{tenantId}/conversations:
+    x-phase: P2-W2
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+    get:
+      tags: [Conversations]
+      summary: 對話列表 v2（tenant-scoped，cursor 分頁）
+      operationId: listConversations
+      description: |
+        取得指定租戶的對話列表，支援 status 篩選與 cursor 分頁。
+        跨租戶讀取（path tenantId ≠ JWT tenant_id）回傳 403 CROSS_TENANT_READ。
+        對應 FR-0018 M01 Conversation。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [active, waiting_human, closed]
+          description: '對話狀態篩選'
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string }
+          description: '分頁游標（上一頁回傳的 next_cursor）'
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: 'OK — tenant-scoped 對話列表（cursor 分頁）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConversationPage' }
+        '401': { description: 'Unauthenticated' }
+        '403': { description: 'Insufficient role or cross-tenant read forbidden' }
+    post:
+      tags: [Conversations]
+      summary: 建立對話 v2（tenant-scoped，F-001 LINE 報修首訊建 ServiceTicket）
+      operationId: createConversation
+      description: |
+        建立新的對話（ServiceTicket）。session_id 為業務冪等鍵；
+        相同 session_id 重複呼叫回傳 200（已存在）。
+        首次建立回傳 201。跨租戶寫入回傳 403 CROSS_TENANT_WRITE。
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConversationCreateRequest' }
+      responses:
+        '201':
+          description: 'Created — 對話建立成功'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConversationEnvelope' }
+        '200':
+          description: 'OK — 對話已存在（session_id 冪等）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConversationEnvelope' }
+        '401': { description: 'Unauthenticated' }
+        '403': { description: 'Insufficient role or cross-tenant write forbidden' }
+        '422': { description: 'Validation error' }
+
+  /tenants/{tenantId}/conversations/{conversationId}:
+    x-phase: P2-W2
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - name: conversationId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Conversations]
+      summary: 對話詳情 v2（tenant-scoped）
+      operationId: getConversation
+      description: |
+        取得指定對話的詳情。對話不屬於 path tenantId 時回傳 404。
+        跨租戶讀取（path tenantId ≠ JWT tenant_id）回傳 403 CROSS_TENANT_READ。
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 'OK — 對話詳情'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConversationEnvelope' }
+        '401': { description: 'Unauthenticated' }
+        '403': { description: 'Insufficient role or cross-tenant read forbidden' }
+        '404': { description: 'Conversation not found' }
+
+  /tenants/{tenantId}/conversations/{conversationId}/messages:
+    x-phase: P2-W2
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - name: conversationId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Conversations]
+      summary: 對話訊息列表 v2（tenant-scoped，cursor 分頁）
+      operationId: listConversationMessages
+      description: |
+        取得指定對話的訊息列表（DESC 排序，新→舊），支援 cursor 分頁。
+        跨租戶讀取（path tenantId ≠ JWT tenant_id）回傳 403 CROSS_TENANT_READ。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string }
+          description: '分頁游標（上一頁回傳的 next_cursor）'
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: 'OK — 訊息列表（cursor 分頁）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessagePage' }
+        '401': { description: 'Unauthenticated' }
+        '403': { description: 'Insufficient role or cross-tenant read forbidden' }
+        '404': { description: 'Conversation not found' }
+    post:
+      tags: [Conversations]
+      summary: 發送訊息 v2（tenant-scoped，人類客服接管後使用）
+      operationId: sendChatMessage
+      description: |
+        客服接管 escalated 對話後送訊息給 LINE 用戶（role: admin / customer_service）。
+        對話狀態必須為 waiting_human（DB: escalated），否則回傳 409。
+        跨租戶寫入（path tenantId ≠ JWT tenant_id）回傳 403 CROSS_TENANT_WRITE。
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SendChatMessageRequest' }
+      responses:
+        '201':
+          description: 'Created — 訊息已寫入並推送'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+        '401': { description: 'Unauthenticated' }
+        '403': { description: 'Insufficient role or cross-tenant write forbidden' }
+        '404': { description: 'Conversation not found' }
+        '409': { description: 'Conversation not in waiting_human state' }
+        '422': { description: 'Validation error' }
+
 
 components:
   parameters:
@@ -3511,3 +3676,161 @@ components:
           $ref: '#/components/schemas/DashboardWorkOrders'
         technicians:
           $ref: '#/components/schemas/DashboardTechnicians'
+
+    # M01 Conversation schemas（CR-0003 P2-W2, FR-0018）
+    ConversationStatus:
+      type: string
+      enum: [active, waiting_human, closed]
+      description: '對話狀態：active=進行中 / waiting_human=等待人工 / closed=已結束'
+
+    Conversation:
+      type: object
+      required: [id, line_user_id, display_name, status, message_count, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        document_number:
+          type: string
+          maxLength: 30
+          nullable: true
+          description: 'ServiceTicket 編號 ST-YYYYMMDD-NNNN（ERP 引用號）'
+        line_user_id:
+          type: string
+          description: 'LINE Platform User ID'
+        display_name:
+          type: string
+          description: 'LINE 顯示名稱'
+        status:
+          $ref: '#/components/schemas/ConversationStatus'
+        resolution_layer:
+          type: string
+          enum: [case_library, rag, human]
+          nullable: true
+          description: '解決層級：case_library=L1 / rag=L2 / human=L3'
+        message_count:
+          type: integer
+          minimum: 0
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ConversationEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Conversation'
+          nullable: true
+        message:
+          type: string
+          nullable: true
+
+    ConversationPage:
+      type: object
+      required: [items, has_more]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Conversation'
+          nullable: true
+        next_cursor:
+          type: string
+          nullable: true
+        has_more:
+          type: boolean
+        total_count:
+          type: integer
+          nullable: true
+
+    ConversationChannel:
+      type: string
+      enum: [line, web, voice]
+
+    ConversationCreateRequest:
+      type: object
+      required: [line_user_id, session_id]
+      properties:
+        line_user_id:
+          type: string
+          maxLength: 255
+          description: 'LINE Platform User ID (U + 32 hex chars)'
+        session_id:
+          type: string
+          maxLength: 255
+          description: '業務 unique key（對 line_user_id + 30 min idle window）'
+        display_name:
+          type: string
+          maxLength: 255
+          nullable: true
+          description: 'LINE 顯示名稱（從 LINE Get Profile API 取得）'
+        channel:
+          $ref: '#/components/schemas/ConversationChannel'
+
+    MessageRole:
+      type: string
+      enum: [user, assistant, system]
+
+    MessageType:
+      type: string
+      enum: [text, image, audio, video, sticker]
+
+    Message:
+      type: object
+      required: [id, conversation_id, role, type, content, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        conversation_id:
+          type: string
+          format: uuid
+        role:
+          $ref: '#/components/schemas/MessageRole'
+        type:
+          $ref: '#/components/schemas/MessageType'
+        content:
+          type: string
+        media_url:
+          type: string
+          format: uri
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    MessagePage:
+      type: object
+      required: [items, has_more]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+          nullable: true
+        next_cursor:
+          type: string
+          nullable: true
+        has_more:
+          type: boolean
+        total_count:
+          type: integer
+          nullable: true
+
+    SendChatMessageRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 5000
+          description: '訊息內容'
+        media_uri:
+          type: string
+          format: uri
+          nullable: true
+          description: '媒體資源 URI（選填）'
