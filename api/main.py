@@ -93,6 +93,7 @@ from routers import disputes_v2 as disputes_v2_router  # Track B S2: Dispute dua
 from routers import inventory_v2 as inventory_v2_router  # Track B S3: Inventory v2 per-tenant 庫存狀態機 (FR-0007 / CR-0004 §8 / ADR-0052 / ADR-0053)
 from routers import pricing_rules_v2 as pricing_rules_v2_router  # Track B S4: Pricing Rules v2 tenant-scoped CRUD + change_request 審計 (CR-0004 §8 C3 / ADR-0046)
 from routers import data_corrections_v2 as data_corrections_v2_router  # Track B S5: DataCorrections v2 tenant-scoped review queue + resolved 第四態 + require_admin (CR-0004 §8 / ADR-0029 / ADR-0030)
+from routers import resolution_v2 as resolution_v2_router  # Track B S6: Resolution engine v2 tenant-scoped suggest (CR-0004 §8 C4)
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -223,6 +224,7 @@ app.include_router(disputes_v2_router.router, tags=["M14 Dispute"])  # Track B S
 app.include_router(inventory_v2_router.router, tags=["M10 Inventory"])  # Track B S3: Inventory v2 per-tenant 庫存狀態機 (FR-0007 / CR-0004 §8)
 app.include_router(pricing_rules_v2_router.router, tags=["M11 Pricing Rules"])  # Track B S4: Pricing Rules v2 tenant-scoped CRUD + change_request 審計 (CR-0004 §8 C3 / ADR-0046)
 app.include_router(data_corrections_v2_router.router, tags=["M09 Data Corrections"])  # Track B S5: DataCorrections v2 tenant-scoped review queue (CR-0004 §8 / ADR-0029 / ADR-0030)
+app.include_router(resolution_v2_router.router, tags=["M03 ProblemCard"])  # Track B S6: Resolution engine v2 tenant-scoped suggest (CR-0004 §8 C4)
 
 
 @app.get("/health")
