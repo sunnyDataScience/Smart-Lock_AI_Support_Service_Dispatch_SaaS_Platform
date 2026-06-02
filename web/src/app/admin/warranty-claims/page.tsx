@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Info, Plus, RefreshCw, Search, ShieldCheck, X } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import WarrantyClaimsTable from "@/components/admin/WarrantyClaimsTable";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, getCurrentSession } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
@@ -73,15 +73,20 @@ export default function WarrantyClaimsPage() {
     setActionPending("create");
     setActionError(null);
     try {
-      await api.post<WarrantyClaimEnvelope>("/api/v1/warranty-claims", {
-        customer_id: form.customer_id,
-        work_order_id: form.work_order_id || undefined,
-        device_brand: form.device_brand,
-        device_model: form.device_model,
-        claim_type: form.claim_type,
-        dispute_reason: form.dispute_reason || undefined,
-        requested_by_role: "customer_service",
-      });
+      const session = getCurrentSession();
+      const tenantId = session?.tenantId ?? "00000000-0000-0000-0000-000000000001";
+      await api.post<WarrantyClaimEnvelope>(
+        `/tenants/${encodeURIComponent(tenantId)}/warranty-claims`,
+        {
+          customer_id: form.customer_id,
+          work_order_id: form.work_order_id || undefined,
+          device_brand: form.device_brand,
+          device_model: form.device_model,
+          claim_type: form.claim_type,
+          dispute_reason: form.dispute_reason || undefined,
+          requested_by_role: "customer_service",
+        },
+      );
       setActionToast("保固申訴已建立");
       setCreateModalOpen(false);
       await fetchClaims();
