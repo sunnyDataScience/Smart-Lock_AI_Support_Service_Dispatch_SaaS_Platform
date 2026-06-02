@@ -2857,6 +2857,7 @@ source = { virtual = "api" }
 dependencies = [
     { name = "bcrypt" },
     { name = "fastapi" },
+    { name = "jsonschema" },
     { name = "passlib", extra = ["bcrypt"] },
     { name = "psycopg", extra = ["binary"] },
     { name = "pydantic", extra = ["email"] },
@@ -2871,6 +2872,7 @@ dependencies = [
 requires-dist = [
     { name = "bcrypt", specifier = "<4.1" },
     { name = "fastapi", specifier = ">=0.110" },
+    { name = "jsonschema", specifier = ">=4.23.0" },
     { name = "passlib", extras = ["bcrypt"], specifier = ">=1.7" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pydantic", specifier = ">=2.6" },
