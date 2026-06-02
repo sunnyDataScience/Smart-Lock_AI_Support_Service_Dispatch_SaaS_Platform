@@ -117,6 +117,8 @@ tags:
   - name: Sentiment Alerts  # P2-W2: tenant-scoped Sentiment Alerts list+update (CR-0003 P2-W2, FR-0018/ADR-0048)
   - name: Notifications  # P2-W2: tenant-scoped Notifications list/update/bulk/mark-all-read (CR-0003 P2-W2, ADR-0012, FR-0018)
   - name: Conversations  # P2-W2: tenant-scoped Conversation CRUD + Messages (CR-0003 P2-W2, FR-0018)
+  - name: M07 WorkOrder Ops  # P2-W4: tenant-scoped WorkOrder operational endpoints (CR-0003 P2-W4)
+  - name: M11 Invoice  # P2-W5: tenant-scoped Invoice read-only (CR-0003 P2-W5, FR-0011)
 
 paths:
   ## --- LINE Bot intake / observability ---
@@ -2379,6 +2381,237 @@ paths:
         '401': { description: 'Unauthenticated' }
         '403': { description: 'Cross-tenant write forbidden (ADR-0030)' }
 
+  ## --- W4 WorkOrder Ops v2 (CR-0003 P2-W4 / M07 WorkOrder Ops) ---
+
+  /tenants/{tenantId}/work-orders/pool:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+    get:
+      tags: ['M07 WorkOrder Ops']
+      summary: 技師案件池 v2（tenant-scoped，可接工單，依 urgency + 建立時間排序）
+      operationId: listWorkOrderPoolV2
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: 'OK'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkOrderPage' }
+        '403':
+          description: CROSS_TENANT_READ
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/dispatch/queue:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+    get:
+      tags: ['M07 WorkOrder Ops']
+      summary: 派工佇列快照 v2（tenant-scoped，即時聚合）
+      operationId: getDispatchQueueV2
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: 'OK'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DispatchQueueSnapshot' }
+        '403':
+          description: CROSS_TENANT_READ
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/work-orders/{id}/reschedule-request:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      tags: ['M07 WorkOrder Ops']
+      summary: 技師 / 管理員直接改約 v2（tenant-scoped，單方變更，附 LINE 通知）
+      operationId: requestRescheduleV2
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RescheduleRequest' }
+      responses:
+        '200':
+          description: Reschedule request recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkOrderEnvelope' }
+        '403':
+          description: CROSS_TENANT_WRITE
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404': { description: Work order not found }
+        '409':
+          description: WO_STATE_INVALID
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/work-orders/{id}/reschedule:approve:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      tags: ['M07 WorkOrder Ops']
+      summary: 管理員核准 / 退回改約申請 v2（tenant-scoped）
+      operationId: approveRescheduleV2
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApproveRescheduleRequest' }
+      responses:
+        '200':
+          description: Reschedule decision applied
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkOrderEnvelope' }
+        '403':
+          description: CROSS_TENANT_WRITE or INSUFFICIENT_AUTHORITY
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404': { description: Work order not found }
+        '409':
+          description: WO_STATE_INVALID
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/work-orders/{id}/notify-delay:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      tags: ['M07 WorkOrder Ops']
+      summary: 技師現場延遲 v2（tenant-scoped，主動 LINE 通知客戶）
+      operationId: notifyDelayV2
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NotifyDelayRequest' }
+      responses:
+        '200':
+          description: Delay notified
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkOrderEnvelope' }
+        '403':
+          description: CROSS_TENANT_WRITE
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404': { description: Work order not found }
+
+  /tenants/{tenantId}/work-orders/{id}/material-request:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      tags: ['M07 WorkOrder Ops']
+      summary: 記錄缺料回報 v2（tenant-scoped，T6；技師作業中→等待調度員補料）
+      operationId: recordMaterialRequestV2
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MaterialRequestBody' }
+      responses:
+        '200':
+          description: Material request recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkOrderEnvelope' }
+        '403':
+          description: CROSS_TENANT_WRITE
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404': { description: Work order not found }
+        '409':
+          description: WO_STATE_INVALID
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/work-orders/{id}/events:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      tags: ['M07 WorkOrder Ops']
+      summary: 列出工單結構化事件 v2（tenant-scoped，subflow timeline）
+      operationId: listWorkOrderEventsV2
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: event_type
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/WorkOrderEventType' }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+      responses:
+        '200':
+          description: 'OK'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkOrderEventList' }
+        '403':
+          description: CROSS_TENANT_READ
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404': { description: Work order not found }
+
+  ## --- W5 Invoices v2 (CR-0003 P2-W5 / M11 Invoice) ---
+
+  /tenants/{tenantId}/accounting/invoices:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+    get:
+      tags: ['M11 Invoice']
+      summary: 發票列表 v2（tenant-scoped，cursor 分頁）
+      operationId: listInvoicesV2
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/InvoiceStatus' }
+        - name: work_order_id
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: 'OK'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InvoicePage' }
+        '403':
+          description: CROSS_TENANT_READ
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/accounting/invoices/{id}:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      tags: ['M11 Invoice']
+      summary: 發票詳情 v2（tenant-scoped）
+      operationId: getInvoiceV2
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: 'OK'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InvoiceEnvelope' }
+        '403':
+          description: CROSS_TENANT_READ
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404': { description: Invoice not found }
+
   ## --- Conversations v2 (P2-W2 / CR-0003 / FR-0018) ---
   /tenants/{tenantId}/conversations:
     x-phase: P2-W2
@@ -4164,3 +4397,285 @@ components:
           format: uri
           nullable: true
           description: '媒體資源 URI（選填）'
+
+    # --- P2-W4 WorkOrder Ops v2 schemas (CR-0003 / M07 WorkOrder Ops) ---
+
+    WorkOrderStatus:
+      type: string
+      description: 工單狀態機
+      enum:
+        - inquiring
+        - qualified
+        - quoted
+        - negotiating
+        - accepted
+        - scheduled
+        - dispatching
+        - assigned
+        - en_route
+        - arrived
+        - in_progress
+        - completed
+        - billed
+        - paid
+        - closed
+        - cancelled
+
+    WorkOrder:
+      type: object
+      required: [id, problem_card_id, status, district, address, brand, model, urgency, created_at, updated_at]
+      description: 工單（tenant-scoped）
+      properties:
+        id: { type: string, format: uuid }
+        document_number:
+          type: string
+          maxLength: 30
+          nullable: true
+          description: 'WorkOrder 編號 WO-YYYYMMDD-NNNN'
+        problem_card_id: { type: string, format: uuid }
+        technician_id: { type: string, format: uuid, nullable: true }
+        status: { $ref: '#/components/schemas/WorkOrderStatus' }
+        district: { type: string }
+        address: { type: string }
+        brand: { type: string }
+        model: { type: string }
+        urgency:
+          type: string
+          enum: [normal, locked_out, trapped_inside, safety_risk, angry_customer_high_risk]
+        estimated_reward:
+          type: string
+          nullable: true
+          description: 'Decimal(10,2) 序列化為字串以避免 JS 浮點誤差'
+        scheduled_time: { type: string, format: date-time, nullable: true }
+        actual_arrival: { type: string, format: date-time, nullable: true }
+        completion_time: { type: string, format: date-time, nullable: true }
+        version:
+          type: integer
+          nullable: true
+          description: '樂觀鎖版本號'
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    WorkOrderEnvelope:
+      type: object
+      description: 單工單信封（data + nullable message）
+      properties:
+        data:
+          $ref: '#/components/schemas/WorkOrder'
+          nullable: true
+        message: { type: string, nullable: true }
+
+    WorkOrderPage:
+      type: object
+      required: [has_more]
+      description: 工單分頁（cursor 分頁）
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/WorkOrder' }
+          nullable: true
+        next_cursor: { type: string, nullable: true }
+        has_more: { type: boolean }
+
+    DispatchQueueSnapshot:
+      type: object
+      description: 派工佇列快照（即時聚合）
+      properties:
+        pending: { type: integer, minimum: 0 }
+        assigning: { type: integer, minimum: 0 }
+        assigned: { type: integer, minimum: 0 }
+        sla_at_risk:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: '2 小時內可能逾期的工單數'
+
+    RescheduleRequest:
+      type: object
+      required: [new_scheduled_at, reason]
+      description: 改約請求（requestRescheduleV2 body）
+      properties:
+        new_scheduled_at:
+          type: string
+          format: date-time
+          description: ISO 8601 future datetime
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+
+    ApproveRescheduleRequest:
+      type: object
+      required: [decision]
+      description: 核准 / 退回改約申請（approveRescheduleV2 body）
+      properties:
+        decision:
+          type: string
+          enum: [approve, reject]
+        comment:
+          type: string
+          maxLength: 500
+          nullable: true
+
+    NotifyDelayRequest:
+      type: object
+      required: [delay_minutes, reason]
+      description: 現場延遲通知（notifyDelayV2 body）
+      properties:
+        delay_minutes:
+          type: integer
+          minimum: 5
+          maximum: 300
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+
+    MaterialItem:
+      type: object
+      required: [brand, model, quantity]
+      description: 缺料品項
+      properties:
+        brand:
+          type: string
+          minLength: 1
+          maxLength: 40
+        model:
+          type: string
+          minLength: 1
+          maxLength: 80
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 999
+
+    MaterialRequestBody:
+      type: object
+      required: [items]
+      description: 缺料回報（recordMaterialRequestV2 body，T6）
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items: { $ref: '#/components/schemas/MaterialItem' }
+        urgency:
+          type: string
+          enum: [now, today, tomorrow]
+          default: today
+        note:
+          type: string
+          maxLength: 500
+          nullable: true
+
+    WorkOrderEventType:
+      type: string
+      description: 工單結構化事件類型
+      enum:
+        - scope_change
+        - material_request
+        - delay
+        - door_check
+        - signature_submitted
+        - reschedule_proposed
+        - other
+
+    WorkOrderEventItem:
+      type: object
+      required: [id, event_type, payload, created_at]
+      description: 單一工單結構化事件
+      properties:
+        id: { type: string, format: uuid }
+        event_type: { $ref: '#/components/schemas/WorkOrderEventType' }
+        payload:
+          type: object
+          description: '事件型別專屬 payload'
+          additionalProperties: true
+        actor_user_id: { type: string, format: uuid, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    WorkOrderEventList:
+      type: object
+      description: 工單事件列表
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/WorkOrderEventItem' }
+          nullable: true
+
+    # --- P2-W5 Invoice v2 schemas (CR-0003 / M11 Invoice) ---
+
+    InvoiceStatus:
+      type: string
+      description: 發票狀態
+      enum:
+        - pending
+        - issued
+        - allowance_pending
+        - voided
+        - reopened
+
+    Invoice:
+      type: object
+      required: [id, work_order_id, invoice_number, amount, status, issued_at, created_at]
+      description: 發票（tenant-scoped，台灣電子發票）
+      properties:
+        id: { type: string, format: uuid }
+        work_order_id: { type: string, format: uuid }
+        invoice_number:
+          type: string
+          pattern: '^[A-Z]{2}\d{8}$'
+          description: '台灣電子發票號碼（如 AB12345678）'
+        tax_id:
+          type: string
+          pattern: '^\d{8}$'
+          nullable: true
+          description: '買方統編（選填）'
+        amount:
+          type: string
+          description: 'Decimal(10,2) 序列化為字串以避免 JS 浮點誤差'
+        tax_type:
+          type: string
+          enum: [taxable, zero_rated, exempt]
+          default: taxable
+        status: { $ref: '#/components/schemas/InvoiceStatus' }
+        issued_at: { type: string, format: date-time }
+        voided_at: { type: string, format: date-time, nullable: true }
+        void_reason: { type: string, nullable: true }
+        allowance_amount:
+          type: string
+          nullable: true
+          description: '折讓金額（退款時部分折讓）'
+        category:
+          type: string
+          enum: [service_fee, travel_fee, parts, other]
+          nullable: true
+          description: '稅務分類 — 車馬費獨立開立，不與工單合併'
+        reopened_from:
+          type: string
+          format: uuid
+          nullable: true
+          description: '重開發票的原發票 ID'
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time, nullable: true }
+
+    InvoiceEnvelope:
+      type: object
+      description: 單發票信封（data + nullable message）
+      properties:
+        data:
+          $ref: '#/components/schemas/Invoice'
+          nullable: true
+        message: { type: string, nullable: true }
+
+    InvoicePage:
+      type: object
+      required: [has_more]
+      description: 發票分頁（cursor 分頁）
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Invoice' }
+          nullable: true
+        next_cursor: { type: string, nullable: true }
+        has_more: { type: boolean }
