@@ -16,7 +16,7 @@ import {
 import Sidebar from "@/components/layout/Sidebar";
 import InvoicesTable from "@/components/accounting/InvoicesTable";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError } from "@/lib/api";
+import { ApiError, auth, getCurrentSession } from "@/lib/api";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
 
@@ -34,6 +34,9 @@ export default function InvoicesPage() {
   const tTabs = useTranslations("accounting.tabs");
   const tCommon = useTranslations("accounting.common");
   const tInv = useTranslations("accounting.invoices");
+
+  const session = getCurrentSession();
+  const tenantId = session?.tenantId ?? auth.getTenantId();
 
   const tabs = useMemo(
     () => [
@@ -62,7 +65,7 @@ export default function InvoicesPage() {
     loadMore,
     refresh,
   } = usePaginatedFetch<Invoice>({
-    path: "/api/v1/accounting/invoices",
+    path: `/tenants/${encodeURIComponent(tenantId)}/accounting/invoices`,
     pageSize: 50,
     formatError: formatInvoiceError,
   });

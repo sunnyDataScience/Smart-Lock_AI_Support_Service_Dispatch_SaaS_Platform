@@ -84,6 +84,7 @@ from routers import conversations_v2 as conversations_v2_router  # spec-alignmen
 from routers import sops_v2 as sops_v2_router  # spec-alignment P2-W3 (CR-0003 P2-W3, SOP Review dual+family flat-path)
 from routers import kb_v2 as kb_v2_router  # spec-alignment P2-W3 (CR-0003 P2-W3, KB documents v2, ADR-0101)
 from routers import work_orders_ops_v2 as work_orders_ops_v2_router  # spec-alignment P2-W4 (CR-0003 P2-W4, M07 WorkOrder Ops tenant-scoped)
+from routers import invoices_v2 as invoices_v2_router  # spec-alignment P2-W5 (CR-0003 P2-W5, M11 Invoice read-only tenant-scoped, FR-0011)
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -189,6 +190,9 @@ app.include_router(audit_v2_router.router, tags=["M17 Audit"])  # spec-alignment
 app.include_router(problem_cards_v2_router.router, tags=["M03 ProblemCard"])  # spec-alignment P2-α (CR-0002-α, M03 ProblemCard tenant-scoped)
 app.include_router(technicians_v2_router.router, tags=["M05 Technician"])  # spec-alignment P2-α (CR-0002-α, tenant-scoped)
 app.include_router(dispatch_v2_router.router, tags=["M06 Dispatch"])  # spec-alignment P2-α (CR-0002-α, tenant-scoped)
+# work_orders_ops_v2 須先於 work_orders_v2 註冊：/work-orders/pool、/dispatch/queue 為 literal 段，
+# 否則被 work_orders_v2 的 /work-orders/{woId} param 路由吃掉（"pool" → uuid 解析失敗）。
+app.include_router(work_orders_ops_v2_router.router, tags=["M07 WorkOrder Ops"])  # spec-alignment P2-W4 (route-order before /{woId})
 app.include_router(work_orders_v2_router.router, tags=["M06 WorkOrder"])  # spec-alignment P2-α (CR-0002-α, tenant-scoped)
 app.include_router(pricing_v2_router.router, tags=["M11 Pricing"])  # spec-alignment P2-α (CR-0002-α, M11 Pricing calculate tenant-scoped)
 app.include_router(consumer_v2_router.router, tags=["M16 Consumer"])  # spec-alignment P2-α (CR-0002-α, M16 Consumer public token)
@@ -202,7 +206,7 @@ app.include_router(notifications_v2_router.router, tags=["Notifications"])  # sp
 app.include_router(conversations_v2_router.router, tags=["Conversations"])  # spec-alignment P2-W2 (CR-0003 P2-W2, FR-0018, Conversations tenant-scoped)
 app.include_router(sops_v2_router.router, tags=["SOP Review"])  # spec-alignment P2-W3 (CR-0003 P2-W3, SOP Review dual+family flat-path)
 app.include_router(kb_v2_router.router, tags=["KB (Agent Knowledge Base)"])  # spec-alignment P2-W3 (CR-0003 P2-W3, KB documents v2, ADR-0101)
-app.include_router(work_orders_ops_v2_router.router, tags=["M07 WorkOrder Ops"])  # spec-alignment P2-W4 (CR-0003 P2-W4, M07 WorkOrder Ops tenant-scoped)
+app.include_router(invoices_v2_router.router, tags=["M11 Invoice"])  # spec-alignment P2-W5 (CR-0003 P2-W5, M11 Invoice read-only tenant-scoped, FR-0011)
 
 
 @app.get("/health")
