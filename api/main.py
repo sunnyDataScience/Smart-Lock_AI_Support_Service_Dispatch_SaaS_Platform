@@ -91,6 +91,7 @@ from routers import config_m18 as config_m18_router  # Track B S1: M18 Runtime C
 from routers import reconciliations_v2 as reconciliations_v2_router  # Track B S2: Reconciliation dual-sign (FR-0013 / CR-0004 §8 HD-1~HD-3)
 from routers import disputes_v2 as disputes_v2_router  # Track B S2: Dispute dual-sign 狀態機 (FR-0013 / CR-0004 §8 HD-1~HD-4)
 from routers import inventory_v2 as inventory_v2_router  # Track B S3: Inventory v2 per-tenant 庫存狀態機 (FR-0007 / CR-0004 §8 / ADR-0052 / ADR-0053)
+from routers import pricing_rules_v2 as pricing_rules_v2_router  # Track B S4: Pricing Rules v2 tenant-scoped CRUD + change_request 審計 (CR-0004 §8 C3 / ADR-0046)
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -219,6 +220,7 @@ app.include_router(config_m18_router.router, tags=["M18 Config Governance"])  # 
 app.include_router(reconciliations_v2_router.router, tags=["M12 Reconciliation"])  # Track B S2: Reconciliation dual-sign (FR-0013 / CR-0004 §8)
 app.include_router(disputes_v2_router.router, tags=["M14 Dispute"])  # Track B S2: Dispute dual-sign 狀態機 (FR-0013 / CR-0004 §8)
 app.include_router(inventory_v2_router.router, tags=["M10 Inventory"])  # Track B S3: Inventory v2 per-tenant 庫存狀態機 (FR-0007 / CR-0004 §8)
+app.include_router(pricing_rules_v2_router.router, tags=["M11 Pricing Rules"])  # Track B S4: Pricing Rules v2 tenant-scoped CRUD + change_request 審計 (CR-0004 §8 C3 / ADR-0046)
 
 
 @app.get("/health")
