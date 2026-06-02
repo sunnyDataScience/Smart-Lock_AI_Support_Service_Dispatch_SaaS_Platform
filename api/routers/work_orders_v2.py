@@ -16,6 +16,10 @@
   - POST /tenants/{tenantId}/work-orders/{id}/signature → submitWorkOrderSignatureV2
   - POST /tenants/{tenantId}/work-orders/{id}/scope-change → recordScopeChangeV2
 
+M07 Onsite（CR-0003 P2）：
+  - POST /tenants/{tenantId}/work-orders/{woId}/onsite/arrival    → onsiteArrival
+  - POST /tenants/{tenantId}/work-orders/{woId}/onsite/completion → onsiteCompletion
+
 取消：已由 P1-A /tenants/{tid}/work-orders/{id}/cancel 完成 → 不在此處理。
 
 Operational 雜項（reschedule / delay / material-request / door-check 等）
@@ -426,4 +430,133 @@ async def record_scope_change_v2(
     payload = {"data": WorkOrder(**order).model_dump(mode="json")}
     if idem is not None:
         await idem.save(200, payload)
+    return payload
+
+
+# ---------------------------------------------------------------------------
+# M07 Onsite — arrival + completion（CR-0003 P2 / spec §M07）
+# ---------------------------------------------------------------------------
+
+
+class _ArrivalGps(BaseModel):
+    lat: float = Field(..., description="緯度")
+    lng: float = Field(..., description="經度")
+    accuracy_m: float | None = Field(default=None, description="GPS 精度（公尺）")
+
+
+class _ArrivalEventRequest(BaseModel):
+    """FR-0006 技師到場事件（GPS + timestamp evidence）。
+
+    對齊 spec ArrivalEvent schema：arrived_at (ISO 8601) + gps。
+    到場後以 record_door_check 寫入結構化事件，狀態機推至 in_progress。
+    """
+
+    arrived_at: str = Field(..., description="到場時間，ISO 8601 格式")
+    gps: _ArrivalGps = Field(..., description="GPS 到場座標")
+
+
+class _CompletionSubmitRequest(BaseModel):
+    """FR-0009 完工送簽（signature evidence + photo evidence）。
+
+    對齊 spec CompletionSubmit schema。
+    呼叫 complete_order（accepted | in_progress → completed），
+    將 signature + photos 打包為 summary 寫入 service_report。
+    """
+
+    signature_evidence_id: str = Field(..., min_length=1, description="簽名媒體 ID")
+    photo_evidence_ids: list[str] = Field(..., min_length=1, description="完工照片媒體 ID 清單（至少 1 張）")
+    notes: str | None = Field(default=None, max_length=1000, description="備註（選填）")
+
+
+@router.post(
+    "/tenants/{tenantId}/work-orders/{woId}/onsite/arrival",
+    operation_id="onsiteArrival",
+    summary="技師到場回報 v2（tenant-scoped，FR-0006 GPS + timestamp；idempotent）",
+    status_code=201,
+    tags=["M07 Onsite"],
+)
+async def onsite_arrival_v2(
+    body: _ArrivalEventRequest,
+    tenantId: str = Path(...),
+    woId: str = Path(...),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    """到場事件：寫入 DOOR_CHECK 結構化事件（GPS checklist），對齊 spec ArrivalEvent。
+
+    service 呼叫：work_order_service.record_door_check
+      - checklist = {"arrived_at": arrived_at, "gps": gps_dict}
+      - photos_before / photos_after = [] (到場時拍照由前端另行上傳)
+      - notes = None
+    狀態機限制：assigned | accepted | in_progress（_SUBFLOW_FROM）。
+    """
+    _cross_tenant_write(user, tenantId)
+
+    gps_dict = body.gps.model_dump(exclude_none=True)
+    checklist = {
+        "arrived_at": body.arrived_at,
+        "gps": gps_dict,
+    }
+    order = await work_order_service.record_door_check(
+        tenant_id=tenantId,
+        wo_id=woId,
+        checklist=checklist,
+        photos_before=[],
+        photos_after=[],
+        notes=None,
+    )
+    payload = {
+        "id": order.get("id"),
+        "work_order_id": order.get("id"),
+        "state": "arrived",
+    }
+    if idem is not None:
+        await idem.save(201, payload)
+    return payload
+
+
+@router.post(
+    "/tenants/{tenantId}/work-orders/{woId}/onsite/completion",
+    operation_id="onsiteCompletion",
+    summary="完工送簽 v2（tenant-scoped，FR-0009 signature + photos；idempotent）",
+    status_code=201,
+    tags=["M07 Onsite"],
+)
+async def onsite_completion_v2(
+    body: _CompletionSubmitRequest,
+    tenantId: str = Path(...),
+    woId: str = Path(...),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    """完工送簽：呼叫 complete_order（accepted | in_progress → completed）。
+
+    service 呼叫：work_order_service.complete_order
+      - summary = "[ONSITE_COMPLETE] sig={signature_evidence_id} photos={...} notes={...}"
+      - actual_amount = None（完工金額由後續 AR/Payment 模組確認）
+    回傳 CompletionResult（spec）：work_order_id + completed_at。
+    """
+    _cross_tenant_write(user, tenantId)
+
+    photos_str = ",".join(body.photo_evidence_ids)
+    summary_parts = [
+        f"[ONSITE_COMPLETE] sig={body.signature_evidence_id}",
+        f"photos=[{photos_str}]",
+    ]
+    if body.notes and body.notes.strip():
+        summary_parts.append(f"notes={body.notes.strip()[:500]}")
+    summary = " ".join(summary_parts)
+
+    order = await work_order_service.complete_order(
+        tenant_id=tenantId,
+        wo_id=woId,
+        summary=summary,
+        actual_amount=None,
+    )
+    payload = {
+        "work_order_id": order.get("id"),
+        "completed_at": order.get("completion_time"),
+    }
+    if idem is not None:
+        await idem.save(201, payload)
     return payload
