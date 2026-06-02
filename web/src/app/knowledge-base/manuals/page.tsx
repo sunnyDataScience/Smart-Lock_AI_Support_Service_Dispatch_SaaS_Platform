@@ -49,21 +49,80 @@ export default function ManualsPage() {
   const [toast, setToast] = useState<string | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
 
+  // P2-W3: 改用 v2 /kb/documents?doc_type=manual（X-Tenant-ID 由 api.ts rawRequest 自動帶）
+  // legacy /api/v1/knowledge-base/manuals 仍保留（Deprecation header，P3 前不移除）
   const {
-    items,
+    items: rawManualItems,
     cursor,
     hasMore,
     loading,
     error,
     loadMore,
-    mutate,
-  } = usePaginatedFetch<Manual>({
-    path: "/api/v1/knowledge-base/manuals",
+    mutate: rawMutate,
+  } = usePaginatedFetch<Record<string, unknown>>({
+    path: "/kb/documents",
     pageSize: PAGE_SIZE,
-    query: brand ? { brand } : undefined,
-    queryKey: `brand=${brand}`,
+    query: brand ? { doc_type: "manual", brand } : { doc_type: "manual" },
+    queryKey: `brand=${brand}|v2`,
     formatError: formatErr,
   });
+
+  // KBDocument → Manual 欄位展開
+  const items = useMemo<Manual[]>(() => {
+    return rawManualItems.map((doc) => {
+      const meta = (doc.meta ?? {}) as Record<string, unknown>;
+      return {
+        id: doc.id as string,
+        title: doc.title as string,
+        brand: (meta.brand ?? "") as string,
+        model: meta.model != null ? String(meta.model) : undefined,
+        file_name: (meta.file_name ?? "") as string,
+        file_size_bytes: Number(meta.file_size_bytes ?? 0),
+        status: (meta.status ?? "processing") as Manual["status"],
+        chunk_count: meta.chunk_count != null ? Number(meta.chunk_count) : null,
+        created_at: (meta.created_at ?? new Date().toISOString()) as string,
+      };
+    });
+  }, [rawManualItems]);
+
+  // 包裝 mutate：讓呼叫端繼續用 Manual[] 型別
+  const mutate = (fn: (prev: Manual[]) => Manual[]) => {
+    rawMutate((prev) => {
+      const manuals = prev.map((doc) => {
+        const meta = (doc.meta ?? {}) as Record<string, unknown>;
+        return {
+          id: doc.id as string,
+          title: doc.title as string,
+          brand: (meta.brand ?? "") as string,
+          model: meta.model != null ? String(meta.model) : undefined,
+          file_name: (meta.file_name ?? "") as string,
+          file_size_bytes: Number(meta.file_size_bytes ?? 0),
+          status: (meta.status ?? "processing") as Manual["status"],
+          chunk_count: meta.chunk_count != null ? Number(meta.chunk_count) : null,
+          created_at: (meta.created_at ?? new Date().toISOString()) as string,
+        };
+      });
+      return fn(manuals).map((m) => ({
+        id: m.id,
+        doc_type: "manual",
+        title: m.title,
+        tenant_scope: [],
+        brand_scope: m.brand ? [m.brand] : [],
+        project_scope: [],
+        version: null,
+        effective_date: null,
+        meta: {
+          brand: m.brand,
+          model: m.model,
+          file_name: m.file_name,
+          file_size_bytes: m.file_size_bytes,
+          status: m.status,
+          chunk_count: m.chunk_count,
+          created_at: m.created_at,
+        },
+      }));
+    });
+  };
 
   useEffect(() => {
     if (!toast) return;

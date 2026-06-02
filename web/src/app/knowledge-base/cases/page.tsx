@@ -76,28 +76,61 @@ export default function CasesPage() {
   const [exportToast, setExportToast] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
 
-  const mainListQuery = useMemo(() => {
-    const q: Record<string, string | number | boolean | undefined> = {};
+  // P2-W3: 改用 v2 /kb/documents?doc_type=case（X-Tenant-ID 由 api.ts rawRequest 自動帶）
+  // legacy /api/v1/knowledge-base/cases 仍保留（Deprecation header，P3 前不移除）
+  const mainListQueryV2 = useMemo(() => {
+    const q: Record<string, string | number | boolean | undefined> = {
+      doc_type: "case",
+    };
     if (brand) q.brand = brand;
-    if (verified !== "") q.verified = verified === "true";
+    // verified filter 為 case-specific 欄位，v2 透過 meta.verified 傳回；
+    // list 端點不支援 verified server-side filter，前端端篩選或待後續 server 端擴充
     return q;
-  }, [brand, verified]);
+  }, [brand]);
 
   const {
-    items,
+    items: rawItems,
     cursor,
     hasMore,
     totalCount,
     loading,
     error,
     loadMore,
-  } = usePaginatedFetch<CaseEntry>({
-    path: "/api/v1/knowledge-base/cases",
+  } = usePaginatedFetch<Record<string, unknown>>({
+    path: "/kb/documents",
     pageSize: PAGE_SIZE,
-    query: mainListQuery,
-    queryKey: `brand=${brand}|verified=${verified}`,
+    query: mainListQueryV2,
+    queryKey: `brand=${brand}|verified=${verified}|v2`,
     formatError: formatCasesError,
   });
+
+  // KBDocument → CaseEntry 欄位展開（meta 子物件攤平回 CaseEntry shape）
+  const items = useMemo<CaseEntry[]>(() => {
+    return rawItems
+      .map((doc) => {
+        const meta = (doc.meta ?? {}) as Record<string, unknown>;
+        return {
+          id: doc.id as string,
+          title: doc.title as string,
+          problem_description: (meta.problem_description ?? "") as string,
+          solution: (meta.solution ?? "") as string,
+          brand: (meta.brand ?? "") as string,
+          model: (meta.model != null ? String(meta.model) : undefined),
+          tags: (meta.tags != null ? (meta.tags as string[]) : undefined),
+          verified: Boolean(meta.verified),
+          embedding_status: (meta.embedding_status ?? "processing") as CaseEntry["embedding_status"],
+          created_at: (meta.created_at ?? new Date().toISOString()) as string,
+          updated_at: (meta.updated_at ?? new Date().toISOString()) as string,
+        };
+      })
+      .filter((c) =>
+        verified === ""
+          ? true
+          : verified === "true"
+            ? c.verified
+            : !c.verified,
+      );
+  }, [rawItems, verified]);
 
   useEffect(() => {
     const t = setTimeout(() => {
