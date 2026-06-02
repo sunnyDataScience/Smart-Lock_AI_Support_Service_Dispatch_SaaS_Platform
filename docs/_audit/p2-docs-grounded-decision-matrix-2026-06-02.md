@@ -1,0 +1,81 @@
+---
+title: P2 docs-grounded 決策矩陣（build-vs-drop，以 docs/ 為事實 + 對抗式驗證）
+date: 2026-06-02
+status: active
+source_of_truth: docs/（merged openapi.yaml / analysis/fr / analysis/br / architecture/adr / architecture/data DDL / _audit/gap-audit）
+related: docs/_audit/CR-0003-full-cutover-wbs.md
+---
+
+# P2 docs-grounded 決策矩陣
+
+> 業主指令「以 docs/ 為事實來源做決策」。Sonnet ×4 逐模組查 docs/ + Opus 對抗式驗證每個 DROP。**結果：DROP=0**（Never break userspace，docs 明文）。
+
+## Summary
+
+33 個 P2 模糊模組總裁決（全程以 docs/ 為事實來源，已 grep 核實 FR statuses / openapi.yaml paths / DDL 53 表 / gap-audit §2.3+C-11 / CR-0003 Q3+L44+L55）：BUILD_TENANT_SCOPED ×25、BUILD_WITH_CIA ×7（config/m18-governance, inventory, data-corrections, reconciliations, disputes, resolution, pricing-rules CRUD）、KEEP_FLAT ×1（vouchers-void，spec flat path + keeperRole platform credential）、DROP ×0。重點：(1) 輸入 0 個 DROP，且對抗式驗證確認本批無任何模組滿足 DROP 三條件（無 spec + 無 active FR/BR + gap-audit 標多餘）——CR-0003 Q3 與 gap-audit C-11/L192 兩處明文『Never break userspace 不靜默刪』，故全數 DROP_CONFIRMED 為『不刪』。(2) cia_required=true 共 7 個：M18(真狀態機4表,opus HIGH)、inventory(DDL 確認無表+row-lock state machine)、data-corrections(ADR-0029 mandate 但表不在 canonical DDL)、reconciliations/disputes(FR-0013 SoD 三維 state machine)、resolution+pricing-rules(CR-0003 標 OWNER_DECIDE，機制/路徑形狀衝突)。(3) 5 大衝突須業主裁：invoices(FR-0011 draft vs CR-0003 排程)、reconciliations/disputes(spec 落後 active FR-0013 SoD)、pricing(spec calculate vs ADR-0067 M18 governance vs code CRUD)、resolution(三種路徑形狀)、DB schema 命名(C-10 saas. vs legacy public+複數，多 legacy 表不在 53 表 DDL)。(4) batch_plan 7 波：W0 先跑 7 份獨立 CIA（gate）→ W1 報表/W2 客服/W3 KB+SOP/W4 work-orders/W5 accounting+tech/W6 dispatch-logs 高度可平行。實作前提醒 CR-0003 L52：agent-coupled 模組(conversations 等) P4-T1 須先遷 agent /api/v1 caller 才能刪 legacy。"
+
+## 決策矩陣
+
+| 模組 | 裁決 | CIA | spec path / 動作 | docs 證據 |
+|---|---|:--:|---|---|
+| conversations | BUILD_TENANT_SCOPED |  | 擴 spec — 建 POST/GET /tenants/{tenantId}/conversations + /{id}/messages（align saa | DDL canonical 有 saas.conversation+saas.message (ddl-migration-001-init.sql L241-275, conversation_state_idx by tenant_id); FR-0018 active P0 (CS 三層接管); ADR-0009 |
+| notifications | BUILD_TENANT_SCOPED |  | 擴 spec — 建 /tenants/{tenantId}/notifications（list/update/bulk/mark-all-read/push | ADR-0012 accepted Notification Channel Strategy (派工/狀態/紅色升級/退款進度/月結爭議) 全需 admin notification surface; FR-0018 active; BR-M06-02 派工通知 P95≤30s; CR-0003 Q3 BUILD_V |
+| sentiment-alerts | BUILD_TENANT_SCOPED |  | 擴 spec — 建 /tenants/{tenantId}/sentiment/alerts（list + PATCH {id}） | FR-0018 active P0 (implicit dissatisfaction conf≥0.85 升級需 admin review surface); FR-0002 active P0 (sentiment=angry → HumanHandoffTriggered); ADR-0048 codifies  |
+| data-corrections | BUILD_TENANT_SCOPED | ✅ | 擴 spec — 建 /tenants/{tenantId}/data-corrections（list/get/approve/reject）；CIA 先定  | ADR-0029 accepted 明文 mandate: 'CR-0001 補：list+approve+reject API (api/routers/data_corrections.py) + web 頁面'，且 §40 列 data_corrections 表現況『無 admin API/Dashboard  |
+| resolution | BUILD_WITH_CIA | ✅ | CIA 裁定：route 合併進 /tenants/{tid}/problem-cards/{id}/resolve（_source 02-ai-chatbot | spec 確認無 resolveProblem/`/resolve`（grep 僅 chatbotAgentRespond L1705 + chatbotDraftProblemCard L1752）; gap-audit §2.3 列 'resolution/resolve' 多餘 + C-11; CR-0003 § |
+| invoices | BUILD_TENANT_SCOPED |  | 擴 spec — 建 /tenants/{tenantId}/accounting/invoices（list+get） | spec 無 invoice path（僅 journal_entry.source_kind enum L2408）; FR-0011 status=draft P0（弱支撐，per context-stability tier-4 draft 不視為硬事實）但 CR-0003 Q3 BUILD_V2 批次 admi |
+| reconciliations | BUILD_TENANT_SCOPED | ✅ | 擴 spec — 建 /tenants/{tenantId}/accounting/reconciliations（list + {id}/approve）含  | spec 無 reconciliation path（/settlements/monthly 是月結觸發非對帳）; FR-0013 active P0 對帳爭議雙簽 → 判定原則2; BR-M17-01 active SoD(create≠approve≠reconcile); gap-audit L212 標 FR |
+| disputes | BUILD_TENANT_SCOPED | ✅ | 擴 spec — 建 /tenants/{tenantId}/disputes（list/get/{id}/decision）含 DisputeOpened/C | spec 無 dispute path; FR-0013 active P0 明文治理 dispute lifecycle（FR-0013 L65 409 dual_sign_required, L69 DisputeEscalated, L72 closed_withdrawn, L76 reopen→dispute |
+| vouchers-void | KEEP_FLAT |  | 照 spec flat path 建 POST /vouchers/{id}/void (voidVoucher, openapi.yaml L816-822, | spec 確認 /vouchers/{id}/void 為 FLAT path（grep L816）+ keeperRole platform credential → 判定原則1（spec 有 path 照 spec 形狀）+ 原則5（platform-level keeper）; ADR-VCH-001 Platf |
+| pricing-rules CRUD | BUILD_WITH_CIA | ✅ | CIA 裁定：(a) 擴 spec 建 tenant-scoped pricing/rules CRUD admin endpoints，或 (b) 改走 M1 | spec 無 /pricing/rules CRUD（grep 僅 /pricing/calculate L250）; gap-audit §2.3 'pricing/rules CRUD(3, spec 只有 calculate)' 多餘; CR-0003 §2 明標 OWNER_DECIDE(pricing-rul |
+| dashboard(/stats) | BUILD_TENANT_SCOPED |  | 擴 spec — 建 /tenants/{tenantId}/dashboard/stats（role-scoped） | FR-0021 active P1 phase I 明文要求 KPI/Revenue/Tech ranking dashboard + role-scoped filtering + export CSV（AC-01~04 active）; BR-M19-NN placeholder（Phase II 拆細非無效）;  |
+| reports/kpi | BUILD_TENANT_SCOPED |  | 擴 spec — 建 /tenants/{tenantId}/reports/kpi | FR-0021 active P1 §1.1 列 KPI 為三類 dashboard 之一，AC-02 驗收 KPI role scope; gap-audit §2.3 多餘 + C-11; CR-0003 Q3 BUILD_V2 批次 admin 明列 'reports'; frontend admin/repor |
+| reports/revenue | BUILD_TENANT_SCOPED |  | 擴 spec — 建 /tenants/{tenantId}/reports/revenue | FR-0021 active P1 列 Revenue 為第二類 dashboard，AC-03 date range filter; CR-0003 Q3 BUILD_V2 批次 admin 'reports'; gap-audit §2.3 多餘 + C-11; frontend accounting/revenu |
+| reports/export | BUILD_TENANT_SCOPED |  | 擴 spec — 建 /tenants/{tenantId}/reports/export（CSV，emit ReportGenerated） | FR-0021 §1.1 step4 render/export CSV + AC-04 tap export→下載 CSV+ReportGenerated emit; CR-0003 Q3 BUILD_V2 'reports'; frontend ReportExportModal:20 標注 exportRepor |
+| inventory | BUILD_WITH_CIA | ✅ | CIA 先定 saas.inventory schema（canonical 53 表確認無 inventory 表，grep 僅 PII comment 命中 | FR-0007 active P1 phase I 要 M10 實時扣庫存 + DB row lock 並發 + reorder_point 通知 + 退料還原 + net_consumption + emit MaterialConsumed/InventoryBelowReorderPoint; ADR-0052  |
+| dispatch-logs | BUILD_TENANT_SCOPED |  | 擴 spec — 建 /tenants/{tenantId}/dispatch-logs（read-side audit 監控）；標 admin-ops ext | FR-0004 active P1 phase I 手動派工+audit log，emit ManualDispatchAssigned+AuditLogWritten; BR-M17-NN audit append-only+trace_id; dispatch-logs 是 M06 派工歷程 read-side;  |
+| media | BUILD_TENANT_SCOPED |  | 擴 spec — 建 /tenants/{tenantId}/media（upload/get）+ /tenants/{tid}/work-orders/{id | FR-0006 active P0 到場拍照存證寫 M09 evidence; FR-0025 active media→M09; FR-0040 active sync evidence-writeback; DDL 有 saas.evidence_attachment (L489 partitioned by re |
+| technicians-POST-onboard (createTechnician) | BUILD_TENANT_SCOPED |  | 照 spec 建 POST /tenants/{tenantId}/technicians (createTechnician, openapi.yaml L1 | spec 已定義 tenant-scoped path → 判定原則1（spec 有 path 照 spec）; FR-0044 placeholder/phase II 但 spec path 已 active 為 source ref; ADR-0102 §C tech 生命週期管理（suspend 對應）; 現行 |
+| kb/cases | BUILD_TENANT_SCOPED |  | 按 spec 統一建 /kb/documents（X-Tenant-Id header per ADR-0101 §2.3, doc_type enum meg | spec 有 /kb/documents (openapi.yaml L1835-1873, listKBDocuments/ingestKBDocument/getKBDocument per ADR-0101) → 原則1; FR-0029 active P0 要 tenant+brand+project scop |
+| kb/manuals | BUILD_TENANT_SCOPED |  | 併入統一 /kb/documents（doc_type=manual filter, X-Tenant-Id per ADR-0101）—與 kb/cases  | spec 統一 manuals 於 /kb/documents (doc_type enum 含 manual, openapi.yaml L1844) → 原則1; gap-audit L174 標 ⚠️ 模型不同; FR-0029 active brand/model scope gating (BR-A04-01 |
+| kb/export | BUILD_TENANT_SCOPED |  | 擴 spec — 於 /kb/documents 下加 tenant-scoped export（自然延伸） | spec 無 /kb/export path 但 FR-0029 active P0 要 RAG doc retrieval+ingestion lifecycle + FR-0017 active SOP publish→index 隱含 export/sync; ADR-0101 §2.3 tenant+brand |
+| sops/sop-drafts | BUILD_TENANT_SCOPED |  | 按 spec 對齊 /sops/{id}/review/dual + /sops/{id}/review/family (openapi.yaml L749-7 | spec 有 /sops/{id}/review/dual + family (L749-763, tag SOP Review) → 原則1; gap-audit L120 形狀不同; FR-0017 active P1 覆蓋 SOP draft review lifecycle 含 dual review (CS  |
+| sops/family-reviews | BUILD_TENANT_SCOPED |  | 併入 /sops/{id}/review/family (POST sopFamilyReview, openapi.yaml L756-763, 425 if | spec 有 /sops/{id}/review/family (L756 sopFamilyReview) → 原則1; gap-audit L121 形狀不同; FR-0017 active step5 family_reviewer final approval 強制 gate (A2.1 bypass→403) |
+| config/m18-governance | BUILD_WITH_CIA | ✅ | 按 spec 建 6 條 tenant-scoped M18 path (openapi.yaml L1570-1665: configs / configs/ | spec 有 6 條 M18 path（grep L1570-1657 confirmed）含 staged rollout/rollback/versioning/ACL → 原則1; FR-0043 active P0 tier-1 'Phase 0 critical path blocker'; ADR-0067 |
+| work-orders/reschedule-family | BUILD_TENANT_SCOPED |  | 擴 spec — 建 /tenants/{tid}/work-orders/{id}/reschedule-request + /reschedule/appr | FR-0010 active P1 §1.1 主流程含 reschedule (reschedule_count<3, 30min penalty 門檻, LINE Flex RSVP, WorkOrderRescheduled) + delay (WorkOrderDelayed if >2h); BR-M06-NN |
+| work-orders/delay | BUILD_TENANT_SCOPED |  | 擴 spec — 建 /tenants/{tid}/work-orders/{id}/notify-delay（與 reschedule-family 同 v2 | FR-0010 active step7 'if delay>2h → emit WorkOrderDelayed'; BR-M16-NN LINE notification; gap-audit §2.3 列 delay 多餘但為對 spec 形狀多餘非對業務需求多餘（FR-0010 active）; CR-0003 |
+| work-orders/material-request | BUILD_TENANT_SCOPED |  | 擴 spec — 建 /tenants/{tid}/work-orders/{id}/material-request（扣庫存依賴 inventory CIA  | FR-0007 active P1 技師 APP 提材料申請+扣庫存 DB row lock (BR-M10-NN) + 寫 wo.material_consumption + emit MaterialRequested/MaterialConsumed; gap-audit L207 FR-0007 ⚠️ + §2 |
+| work-orders/door-check | BUILD_TENANT_SCOPED |  | 按 spec 遷至 /tenants/{tenantId}/work-orders/{woId}/onsite/arrival (onsiteArrival,  | spec 有 /tenants/{tid}/work-orders/{woId}/onsite/arrival (L1299 onsiteArrival, tag M07) → 原則1; work_orders_v2.py 已實作 onsiteArrival 內呼 record_door_check; gap-audi |
+| work-orders/events | BUILD_TENANT_SCOPED |  | 擴 spec — 建 GET /tenants/{tid}/work-orders/{id}/events（event_type filter） | FR-0006(evidence chain)/FR-0007(material audit)/FR-0010(reschedule history) 多 active FR 依賴 event history; DDL saas.onsite_event + work_order_status_history; gap |
+| work-orders/dispatch-queue | BUILD_TENANT_SCOPED |  | 擴 spec — 建 GET /tenants/{tid}/dispatch/queue（read-side snapshot；spec 僅有 POST dis | FR-0003 active P0 自動派工演算法以 dispatch queue 為核心; FR-0039 active P0 Sync Dispatch WO 入 dispatch queue (BR-S-M05-01); BR-M06-01/02 派工 SLA; spec 有 POST dispatch:plan |
+| work-orders/pool | BUILD_TENANT_SCOPED |  | 擴 spec — 建 GET /tenants/{tid}/work-orders/pool（或 filtered by pool state；spec 有 : | FR-0005 active P0 技師接單需見可用工單; spec 有 :accept (L1283 onsiteAccept) 無 pool listing path; gap-audit §2.3 多餘 + advisory Never break userspace; frontend admin/dispat |
+
+## DROP 對抗式驗證
+
+- (none) — input set contained 0 DROP decisions: **DROP_CONFIRMED** — 四組 Sonnet 對 33 個 P2 模糊模組的判定中無任何 DROP；全部為 BUILD_TENANT_SCOPED / BUILD_WITH_CIA / KEEP_FLAT。我仍依任務『預設懷疑 DROP』原則，反向驗證是否有模組被誤判為 BUILD 而其實該 DROP，以及 gap-audit/CR-0003 是否有任何明示 DROP 指令。查 docs/_audit/CR-0003-fu
+- 全 33 模組之 DROP 反證結論: **DROP_CONFIRMED** — CR-0003 Q3 (L31) 業主指引：『純死表面（dashboard/stats 等若無 spec 且無價值）才 DROP』。我逐一核對：本批 33 模組中『無 spec 且無 active FR/BR 且 gap-audit 標多餘』三條全滿足者 = 0。每個模組至少命中：spec 有 path（vouchers-void/technicians-onboard/kb/sops/door-
+
+## 🛑 docs/ 衝突（需業主裁決）
+
+- FR-0011 vs spec/CR-0003（invoices）：FR-0011 status=draft（per context-stability tier-4 draft 不視為硬事實，且 blocked_by Q7=B provider 選擇），但 CR-0003 Q3 L44 將 invoices 排入 BUILD_V2 批次、SOW-0001(Approved) 列 /accounting/invoices V2.0。三者對 invoices 的『現在該不該建』強度不一致 — 建議業主裁：以 CR-0003 排程為準先建 read-only list/get，付款生成寫入留待 FR-0011 active 後補。引用 FR-0011 / CR-0003 L44 / SOW-0001 L279。
+- spec↔FR-0013（reconciliations/disputes SoD 三維）：spec openapi.yaml 無 reconciliation/dispute path，但 FR-0013(active P0) 要 dual-sign+三維 SoD+dispute state machine，且 gap-audit L212 標 reconciliations '無三維' gap。spec 落後於 active FR。建議裁：以 FR-0013 為準擴 spec（補 SoD header X-Initiator/X-Approver/X-Executor 機制，gap-audit L57 標未實作）。引用 FR-0013 / gap-audit L52,L57,L83,L212 / BR-REFUND-006 / BR-M17-01。
+- spec(/pricing/calculate flat) ↔ ADR-0067(M18 governance) ↔ code(/pricing/rules CRUD)：pricing rule 變更機制三方不一致 — spec 只有 calculate、ADR-0067/BR-M18-02/04 要求走 M18 staged rollout governance、現行 code 直接 CRUD。CR-0003 L44 已標 OWNER_DECIDE。須業主裁：pricing rule 變更走 M18 config governance（ADR-0067）還是獨立 tenant-scoped CRUD。引用 ADR-0067 / ADR-0062 / BR-M18-02 / BR-M18-04 / FR-0042 / gap-audit §2.3 L190。
+- resolution route 形狀衝突：gap-audit §2.3 列 'resolution/resolve' 多餘、CR-0003 L44 標 OWNER_DECIDE、_source/02-ai-chatbot-sync.md L382 映射 resolveProblemCard→POST /problem-cards/{id}/resolve、spec 另有 chatbotAgentRespond(L1705)。同一 resolution 語意散落三種路徑形狀（standalone /resolve vs problem-cards 子資源 vs chatbot path）+ caller model（admin vs chatbot）不明。須業主裁定統一形狀。引用 gap-audit §2.3 / CR-0003 L44 / _source 02-ai-chatbot-sync L382 / openapi.yaml L1705。
+- DB schema 命名衝突（C-10，影響多模組落地）：gap-audit C-10 L350 + C-11 L353 標『saas. + spec 表名 vs public + 複數 legacy 名』『會打爆現有資料』須各自 CIA。data_corrections / inventory / invoices / reconciliations / disputes / price_rules 等 legacy 表不在 canonical 53 表 DDL（grep 確認 inventory 完全無、data_corrections 為 ADR-0029 operational 表）。建 v2 前須業主裁 schema 命名遷移策略。引用 gap-audit C-10 L350 / C-11 L351-353 / ddl-migration-001-init.sql。
+
+## Batch 計畫
+
+- **P2-W0 (前置 gate, 序列, 阻塞後續 BUILD_WITH_CIA)** (parallel=True): config/m18-governance, inventory, data-corrections, reconciliations, disputes, resolution, pricing-rules CRUD — 各自獨立跑 sunnydata-change-impact-analysis CIA
+  - 全部 cia_required=true。change-governance hard gate：真設計多表/狀態機/SoD governance + 缺 DDL schema（inventory/data-corrections）或機制衝突（pricing/resolution）須先 CIA 填 §8 Human Decisions 才動 code。CR-0003 L55 明文『每個 P2 新 v2 模組 + config 各自跑 CIA』；config m18 標 (opus, HIGH)。CIA 本身可平行（7 份獨立 CIA），但 code 實作須等對應 CIA §8 業主決策。
+- **P2-W1 admin read 報表批（純讀，零跨模組相依，最易平行）** (parallel=True): dashboard(/stats), reports/kpi, reports/revenue, reports/export
+  - 全由 FR-0021(active) 單一 FR 驅動、皆 read/export 無寫入狀態機、無 DDL 新表、無跨模組相依。4 條可開 4 個 worktree 完全平行；或因高度相似（同 role-scope 過濾邏輯）由 1-2 個 Sonnet 批次做。
+- **P2-W2 conversations/notifications/sentiment 客服面批** (parallel=True): conversations, notifications, sentiment-alerts
+  - 皆 FR-0018(active P0) 客服接管驅動、admin dashboard 消費面。conversations 有 DDL 表（saas.conversation/message），notifications/sentiment 無 DDL 表需實作時定 alert/notification state。3 條相依度低可平行（3 worktree），但同屬 agent-coupled（CR-0003 L52 conversations agent caller 須 P4-T1 先遷）。
+- **P2-W3 KB + SOP 知識庫批（spec 有 path，shape 對齊）** (parallel=True): kb/cases + kb/manuals + kb/export（合併為單一 /kb/documents v2 router）, sops/sop-drafts + sops/family-reviews（合併為 /sops/{id}/review/* v2 router）
+  - CR-0003 L44 明列為兩個合併 item（'kb documents(cases+manuals 統一)' + 'sops(sop-drafts+family-reviews)'）。kb 三模組共用 saas.knowledge_doc + 統一 /kb/documents；sops 兩模組共用 /sops/{id}/review/*。模組內合併不可平行（同 router），但兩 router 間可平行（2 worktree）。
+- **P2-W4 work-orders operational 批（共用 work_order/onsite_event 表）** (parallel=True): work-orders/reschedule-family + work-orders/delay（同 router）, work-orders/material-request, work-orders/door-check（遷 v2 onsiteArrival 已存在）, work-orders/events, work-orders/dispatch-queue, work-orders/pool
+  - CR-0003 L44 'work-orders operational' 單一 P2 module。全部掛 work_order 聚合根、共用 onsite_event/work_order_status_history DDL。reschedule+delay 同 router 不可拆；door-check 已有 v2 onsiteArrival 只需前端遷移；material-request 依賴 inventory CIA(P2-W0) 結果。建議同一 worktree 序列做以避免 work_orders_v2.py 合併衝突；dispatch-queue/pool 讀面可分出第二 worktree 平行。
+- **P2-W5 accounting + technicians 雜項批** (parallel=True): invoices, technicians-POST-onboard, vouchers-void
+  - invoices(擴 spec read-only)、technicians-onboard(spec 已有 createTechnician path 直接實作)、vouchers-void(KEEP_FLAT 照 spec flat path 建, journal_entry append-only INSERT)。三者領域不同、無共用表、相依度低，可開 3 worktree 平行。vouchers-void 是平台級 flat 不走 tenant scope，獨立性最高。
+- **P2-W6 dispatch-logs（OWNER_DECIDE read-side）** (parallel=True): dispatch-logs
+  - CR-0003 L44 標 OWNER_DECIDE 但非 DROP；read-side audit 監控 view，非真設計狀態機故未列 cia_required。可獨立單一 worktree 做，或併入 P2-W1 報表批（同為 read/admin 監控性質）。建議業主先確認 OWNER_DECIDE 傾向（保留 vs 併入 audit-events）再排。
