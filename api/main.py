@@ -85,6 +85,7 @@ from routers import sops_v2 as sops_v2_router  # spec-alignment P2-W3 (CR-0003 P
 from routers import kb_v2 as kb_v2_router  # spec-alignment P2-W3 (CR-0003 P2-W3, KB documents v2, ADR-0101)
 from routers import work_orders_ops_v2 as work_orders_ops_v2_router  # spec-alignment P2-W4 (CR-0003 P2-W4, M07 WorkOrder Ops tenant-scoped)
 from routers import invoices_v2 as invoices_v2_router  # spec-alignment P2-W5 (CR-0003 P2-W5, M11 Invoice read-only tenant-scoped, FR-0011)
+from routers import dispatch_logs_v2 as dispatch_logs_v2_router  # spec-alignment P2-W6 (BUILD_TENANT_SCOPED, M06 DispatchLogs read-only tenant-scoped, admin-only)
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -207,6 +208,7 @@ app.include_router(conversations_v2_router.router, tags=["Conversations"])  # sp
 app.include_router(sops_v2_router.router, tags=["SOP Review"])  # spec-alignment P2-W3 (CR-0003 P2-W3, SOP Review dual+family flat-path)
 app.include_router(kb_v2_router.router, tags=["KB (Agent Knowledge Base)"])  # spec-alignment P2-W3 (CR-0003 P2-W3, KB documents v2, ADR-0101)
 app.include_router(invoices_v2_router.router, tags=["M11 Invoice"])  # spec-alignment P2-W5 (CR-0003 P2-W5, M11 Invoice read-only tenant-scoped, FR-0011)
+app.include_router(dispatch_logs_v2_router.router, tags=["M06 Dispatch"])  # spec-alignment P2-W6 (BUILD_TENANT_SCOPED, M06 DispatchLogs read-only tenant-scoped, admin-only)
 
 
 @app.get("/health")

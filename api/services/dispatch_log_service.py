@@ -142,3 +142,25 @@ async def list_dispatch_logs(
         next_cursor = encode_cursor({"ts": last[10].isoformat(), "id": str(last[0])})
 
     return {"items": items, "next_cursor": next_cursor, "has_more": has_more}
+
+
+async def get_dispatch_log(*, tenant_id: str, log_id: str) -> dict:
+    """取單筆 dispatch log，透過 tenant JOIN 隔離（v2 get-by-id）。
+
+    同 list_dispatch_logs，租戶隔離走
+        dispatch_logs → work_orders → problem_cards → conversations → users
+    四層 JOIN 確保跨租戶無法讀取他人日誌。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    sql = (
+        f"SELECT {_SELECT} {_TENANT_JOIN} "
+        f"WHERE dl.id = %s::uuid AND u.tenant_id = %s::uuid "
+        f"LIMIT 1"
+    )
+    cur = await db_module._conn.execute(sql, (log_id, tenant_id))
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", f"DispatchLog {log_id} not found", 404)
+    return _row_to_dict(row)
