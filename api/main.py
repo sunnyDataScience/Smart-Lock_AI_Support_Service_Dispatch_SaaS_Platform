@@ -81,6 +81,7 @@ from routers import reports_v2 as reports_v2_router  # spec-alignment P2-W1 (CR-
 from routers import sentiment_alerts_v2 as sentiment_alerts_v2_router  # spec-alignment P2-W2 (CR-0003 P2-W2, Sentiment Alerts tenant-scoped, FR-0018/ADR-0048)
 from routers import notifications_v2 as notifications_v2_router  # spec-alignment P2-W2 (CR-0003 P2-W2, ADR-0012, Notifications tenant-scoped)
 from routers import conversations_v2 as conversations_v2_router  # spec-alignment P2-W2 (CR-0003 P2-W2, FR-0018, Conversations tenant-scoped)
+from routers import sops_v2 as sops_v2_router  # spec-alignment P2-W3 (CR-0003 P2-W3, SOP Review dual+family flat-path)
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -197,6 +198,7 @@ app.include_router(reports_v2_router.router, tags=["Reports"])  # spec-alignment
 app.include_router(sentiment_alerts_v2_router.router, tags=["Sentiment Alerts"])  # spec-alignment P2-W2 (CR-0003 P2-W2, FR-0018/ADR-0048, Sentiment Alerts tenant-scoped)
 app.include_router(notifications_v2_router.router, tags=["Notifications"])  # spec-alignment P2-W2 (CR-0003 P2-W2, ADR-0012, Notifications tenant-scoped)
 app.include_router(conversations_v2_router.router, tags=["Conversations"])  # spec-alignment P2-W2 (CR-0003 P2-W2, FR-0018, Conversations tenant-scoped)
+app.include_router(sops_v2_router.router, tags=["SOP Review"])  # spec-alignment P2-W3 (CR-0003 P2-W3, SOP Review dual+family flat-path)
 
 
 @app.get("/health")

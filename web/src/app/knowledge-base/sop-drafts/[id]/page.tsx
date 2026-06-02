@@ -107,8 +107,8 @@ export default function SopReviewPage({
     if (!draft || !canReview) return;
     setSubmitting(decision);
     try {
-      const res = await api.patch<SopDraftEnvelope>(
-        `/api/v1/sop-drafts/${id}/review`,
+      const res = await api.post<SopDraftEnvelope>(
+        `/sops/${id}/review/dual`,
         { decision, comment: comment.trim() || undefined },
       );
       if (res.data) {

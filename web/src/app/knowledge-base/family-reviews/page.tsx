@@ -120,7 +120,7 @@ export default function FamilyReviewsPage() {
     setSubmitting(true);
     setActionError(null);
     try {
-      await api.post("/api/v1/family-reviews", {
+      await api.post(`/sops/${draftId}/review/family`, {
         sop_draft_id: draftId,
         action,
         comment: comment.trim() || undefined,
