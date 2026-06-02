@@ -378,6 +378,9 @@ async def _handle_reschedule_postback(event):
         return
 
     reply_text: str
+    # P3-KEEP: legacy /api/v1/work-orders/{id}/reschedule/customer-{confirm,reject}。
+    # v2 reschedule 流為 reschedule-request + reschedule:approve（operator 側），
+    # 無 customer-confirm/reject 對應端點 → 此客戶回覆提案時段流無 v2，待專屬 CR。
     async with httpx.AsyncClient(timeout=10) as client:
         if parsed["action"] == "reschedule_select":
             res = await client.post(

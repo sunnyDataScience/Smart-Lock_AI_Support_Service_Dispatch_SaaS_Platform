@@ -210,7 +210,7 @@ class AdminAPIClient:
             payload["display_name"] = display_name
 
         result = await self._post(
-            path="/api/v1/conversations",
+            path=f"/tenants/{self.tenant_id}/conversations",  # P3: tenant-scoped v2（createConversation）
             flow_id="F-001-conv",
             payload=payload,
             idempotency_key=idempotency_key,
@@ -246,7 +246,7 @@ class AdminAPIClient:
             payload["media_urls"] = media_urls
 
         result = await self._post(
-            path="/api/v1/problem-cards",
+            path=f"/tenants/{self.tenant_id}/problem-cards",  # P3: tenant-scoped v2（createProblemCardV2）
             flow_id="F-001-pc",
             payload=payload,
             idempotency_key=idempotency_key,
@@ -276,6 +276,9 @@ class AdminAPIClient:
             "requested_by_role": requested_by_role,
         }
         result = await self._post(
+            # P3-KEEP: legacy /api/v1/refunds。v2 createRefundSod 強制三維 SoD
+            # （X-Initiator/X-Approver/X-Executor，ADR-0040 v2），automated agent 無法提供
+            # 三個 human actor → agent 自動建立退款流無 v2 對應，須待專屬 CR（system-actor 路徑）。
             path="/api/v1/refunds",
             flow_id="F-014-refund",
             payload=payload,
@@ -316,7 +319,7 @@ class AdminAPIClient:
             payload["dispute_reason"] = dispute_reason
 
         result = await self._post(
-            path="/api/v1/warranty-claims",
+            path=f"/tenants/{self.tenant_id}/warranty-claims",  # P3: tenant-scoped v2（createWarrantyClaimV2）
             flow_id="F-015-warranty",
             payload=payload,
             idempotency_key=idempotency_key,
@@ -348,6 +351,8 @@ class AdminAPIClient:
             payload["confidence_score"] = confidence_score
 
         result = await self._post(
+            # P3-KEEP: legacy /api/v1/sop-drafts。sops_v2 僅有 review action
+            # （/sops/{id}/review/dual|family），無 create sop-draft 端點 → 無 v2 對應。
             path="/api/v1/sop-drafts",
             flow_id="F-017-sop",
             payload=payload,
