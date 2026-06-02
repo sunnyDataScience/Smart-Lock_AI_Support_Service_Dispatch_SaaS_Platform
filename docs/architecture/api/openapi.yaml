@@ -67,6 +67,7 @@ security:
   - bearerAuth: []
 
 tags:
+  # --- openapi.yaml (quote/pricing/voucher core) ---
   - name: LINE Bot
   - name: ProblemCard
   - name: WorkOrder
@@ -81,6 +82,36 @@ tags:
   - name: Admin / RBAC
   - name: Eval
   - name: Voucher (ADR-VCH-001/002 V1)  # v2.2 added per MoM #2
+  # --- Auth (platform-level) ---
+  - name: Auth
+  # --- openapi-smart-lock-saas.yaml (Phase I MVP modules) ---
+  - name: M01 Channel Intake
+  - name: M02 Brand & Product Master
+  - name: M03 ProblemCard (Bridge — see openapi.yaml)
+  - name: M04 Customer-Site-Device
+  - name: M05 Technician
+  - name: M06 Dispatch
+  - name: M07 Onsite
+  - name: M11 AR / Payment
+  - name: M13 Warranty
+  - name: M14 Partner Portal
+  - name: M15 Exception / ChangeRequest
+  - name: M16 Consumer Tracking
+  - name: M17 RBAC / Audit
+  - name: M18 Config Governance (ADR-0067)
+  - name: M18 Config Read API (ADR-0068 ACL)
+  - name: A01 Chatbot Intake (debounce)
+  - name: A03 ReAct Agent
+  - name: A04 RAG Pipeline
+  - name: A05 Guardrails
+  - name: A06 ProblemCard Bridge
+  - name: A07 Human Handoff
+  - name: A08 Multimodal
+  - name: A09 Eval & Observability
+  - name: A11 Deployment Health
+  - name: KB (Agent Knowledge Base)
+  - name: Sync (ERP ↔ Chatbot)
+  - name: ACL External Integration
 
 paths:
   ## --- LINE Bot intake / observability ---
@@ -198,9 +229,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example:
-                code: ADDRESS_REQUIRED_FOR_CLOSE
-                message: address must not be null when closing a WO
 
   ## --- Onsite (scope change 三件套) ---
   /work-orders/{id}/onsite/scope-change:
@@ -849,12 +877,1247 @@ paths:
                   ttl_seconds: { type: integer }
                   audit_log_hash_head: { type: string, description: 'Latest hash chain head at export time, for downstream verify' }
 
+
+  ## ============================================================
+  ## Auth — platform-level (Q6: collected from api/routers/auth.py)
+  ## ============================================================
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Admin login — issues access + refresh token pair
+      operationId: loginAdmin
+      description: |
+        Authenticates users with roles `admin` or `reviewer`.
+        Returns JWT access token (TTL=1h) and opaque refresh token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+      responses:
+        '200':
+          description: Authenticated; tokens issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '401':
+          description: Invalid credentials
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '403':
+          description: Role not allowed (not admin / reviewer)
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Exchange refresh token for new access token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token: { type: string }
+      responses:
+        '200':
+          description: New access token issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '401':
+          description: Refresh token expired or revoked
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke access + refresh tokens (logout)
+      operationId: logout
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token: { type: string, nullable: true }
+      responses:
+        '204': { description: Logged out; tokens invalidated }
+        '401':
+          description: Bearer token missing or expired
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /auth/change-password:
+    post:
+      tags: [Auth]
+      summary: Change password (requires current password verification)
+      operationId: changePassword
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, new_password]
+              properties:
+                current_password: { type: string, minLength: 8, maxLength: 72 }
+                new_password: { type: string, minLength: 8, maxLength: 72 }
+      responses:
+        '204': { description: Password updated }
+        '401':
+          description: Current password incorrect or token expired
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '422':
+          description: Password policy violation
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /technicians/login:
+    post:
+      tags: [Auth]
+      summary: Technician login — issues access + refresh token pair
+      operationId: loginTechnician
+      description: |
+        Authenticates users with role `technician`.
+        Returns JWT access token (TTL=1h) and opaque refresh token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+      responses:
+        '200':
+          description: Authenticated; tokens issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '401':
+          description: Invalid credentials
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '403':
+          description: Role not allowed (not technician)
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  ## ============================================================
+  ## Phase I MVP paths — merged from openapi-smart-lock-saas.yaml
+  ## ============================================================
+
+  # M01 Channel Intake
+  /tenants/{tenantId}/channels:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - $ref: '#/components/parameters/XTenantId'
+    get:
+      tags: [M01 Channel Intake]
+      summary: List active inbound channels (line / web / hotline)
+      operationId: listChannels
+      responses:
+        '200':
+          description: 'OK'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChannelList' }
+  /tenants/{tenantId}/channels/{channelId}/status:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: channelId, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [M01 Channel Intake]
+      summary: Channel HA status (FR-0024 + A11)
+      operationId: getChannelStatus
+      responses:
+        '200':
+          description: 'OK'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChannelStatus' }
+
+  # M02 Brand & Product Master
+  /tenants/{tenantId}/brands:
+    parameters: [{ $ref: '#/components/parameters/TenantPath' }]
+    get:
+      tags: [M02 Brand & Product Master]
+      summary: List brands (with brand_scope filter)
+      operationId: listBrands
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: 'OK'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BrandList' }
+  /tenants/{tenantId}/brands/{brandId}/models:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: brandId, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [M02 Brand & Product Master]
+      summary: List models under brand
+      operationId: listBrandModels
+      responses:
+        '200':
+          description: 'OK'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ModelList' }
+    post:
+      tags: [M02 Brand & Product Master]
+      summary: Register new model
+      operationId: createBrandModel
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ModelCreate' }
+      responses:
+        '201':
+          description: 'Model created'
+          content: { application/json: { schema: { $ref: '#/components/schemas/Model' } } }
+        '409': { $ref: '#/components/responses/StateConflict' }
+        '422': { $ref: '#/components/responses/SchemaInvalid' }
+
+  # M04 Customer / Site / Device
+  /tenants/{tenantId}/customers:
+    parameters: [{ $ref: '#/components/parameters/TenantPath' }]
+    get:
+      tags: [M04 Customer-Site-Device]
+      summary: List customers (PII redacted)
+      operationId: listCustomers
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: 'OK'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerList' }
+    post:
+      tags: [M04 Customer-Site-Device]
+      summary: Create customer (PII encrypted at rest)
+      operationId: createCustomer
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerCreate' }
+      responses:
+        '201': { description: 'Customer created', content: { application/json: { schema: { $ref: '#/components/schemas/Customer' } } } }
+  /tenants/{tenantId}/customers/{customerId}/sites:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: customerId, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [M04 Customer-Site-Device]
+      summary: List sites for customer
+      operationId: listCustomerSites
+      responses:
+        '200':
+          description: 'OK'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SiteList' }
+    post:
+      tags: [M04 Customer-Site-Device]
+      summary: Create site
+      operationId: createCustomerSite
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SiteCreate' }
+      responses:
+        '201': { description: 'Site created', content: { application/json: { schema: { $ref: '#/components/schemas/Site' } } } }
+  /tenants/{tenantId}/sites/{siteId}/devices:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: siteId, in: path, required: true, schema: { type: string } }
+    post:
+      tags: [M04 Customer-Site-Device]
+      summary: Register device (smart lock) — ADR-0053 serial required for main lock + >1000 NTD
+      operationId: registerDevice
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeviceCreate' }
+      responses:
+        '201': { description: 'Device registered', content: { application/json: { schema: { $ref: '#/components/schemas/Device' } } } }
+        '422':
+          description: SERIAL_REQUIRED — main lock or > NTD 1000 must carry serial (ADR-0053)
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+  /tenants/{tenantId}/devices/{deviceId}/warranty:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: deviceId, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [M13 Warranty]
+      summary: Get device warranty (mode + start_date + expiry)
+      operationId: getDeviceWarranty
+      description: |
+        ADR-0044 warranty_mode enum:
+        - `purchase` — 購買日起算
+        - `handover` — 交屋日起算
+        - `activation` — 啟用日起算
+        - `contract` — 合約日起算
+        - `manual_override` — 客服手動指定（須 reason + audit）
+      responses:
+        '200':
+          description: 'OK'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeviceWarranty' }
+    patch:
+      tags: [M13 Warranty]
+      summary: Adjust warranty (manual_override only; goes through ChangeRequest)
+      operationId: patchDeviceWarranty
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeviceWarrantyPatch' }
+      responses:
+        '202':
+          description: change_request created
+          content: { application/json: { schema: { $ref: '#/components/schemas/ChangeRequestRef' } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # M05 Technician
+  /tenants/{tenantId}/technicians:
+    parameters: [{ $ref: '#/components/parameters/TenantPath' }]
+    get:
+      tags: [M05 Technician]
+      summary: List technicians (active + suspended)
+      operationId: listTechnicians
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [active, onboarding, suspended, terminated] } }
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: 'OK'
+          content: { application/json: { schema: { $ref: '#/components/schemas/TechnicianList' } } }
+    post:
+      tags: [M05 Technician]
+      summary: Onboard technician (FR-0044)
+      operationId: createTechnician
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TechnicianCreate' }
+      responses:
+        '201': { description: 'Technician onboarded', content: { application/json: { schema: { $ref: '#/components/schemas/Technician' } } } }
+  /tenants/{tenantId}/technicians/{techId}:suspend:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: techId, in: path, required: true, schema: { type: string } }
+    post:
+      tags: [M05 Technician]
+      summary: Suspend technician (cumulative cancel ≥ 2/month per ADR-0102 §C tech-initiated)
+      operationId: suspendTechnician
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XInitiator'
+        - $ref: '#/components/parameters/XApprover'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SuspensionRequest' }
+      responses:
+        '200': { description: suspended }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # M06 Dispatch
+  /tenants/{tenantId}/dispatch:plan:
+    parameters: [{ $ref: '#/components/parameters/TenantPath' }]
+    post:
+      tags: [M06 Dispatch]
+      summary: Plan dispatch for a WorkOrder (FR-0003 / ADR-0045)
+      operationId: planDispatch
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DispatchPlanRequest' }
+      responses:
+        '200':
+          description: 'OK'
+          content: { application/json: { schema: { $ref: '#/components/schemas/DispatchPlanResponse' } } }
+  /tenants/{tenantId}/work-orders/{woId}:assign:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: woId, in: path, required: true, schema: { type: string } }
+    post:
+      tags: [M06 Dispatch]
+      summary: Assign technician to WO (manual or post-plan)
+      operationId: assignWorkOrder
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XInitiator'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AssignRequest' }
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOrderRef' } } } }
+        '409': { $ref: '#/components/responses/StateConflict' }
+  /tenants/{tenantId}/work-orders/{woId}:accept:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: woId, in: path, required: true, schema: { type: string } }
+    post:
+      tags: [M06 Dispatch]
+      summary: Technician accepts assignment (FR-0005 / SLA 10/5 min)
+      operationId: acceptWorkOrder
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOrderRef' } } } }
+        '410':
+          description: SLA_WINDOW_EXPIRED — accept window closed; WO re-pooled
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  # M07 Onsite
+  /tenants/{tenantId}/work-orders/{woId}/onsite/arrival:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: woId, in: path, required: true, schema: { type: string } }
+    post:
+      tags: [M07 Onsite]
+      summary: Mark technician arrived (FR-0006, GPS + timestamp evidence)
+      operationId: onsiteArrival
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ArrivalEvent' }
+      responses:
+        '201': { description: 'Arrival recorded', content: { application/json: { schema: { $ref: '#/components/schemas/Onsite' } } } }
+  /tenants/{tenantId}/work-orders/{woId}/onsite/completion:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: woId, in: path, required: true, schema: { type: string } }
+    post:
+      tags: [M07 Onsite]
+      summary: Submit completion sign + photos (FR-0009)
+      operationId: onsiteCompletion
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompletionSubmit' }
+      responses:
+        '201':
+          description: 'Completion submitted'
+          content: { application/json: { schema: { $ref: '#/components/schemas/CompletionResult' } } }
+        '422':
+          description: ADDRESS_REQUIRED_FOR_CLOSE / QUOTE_NOT_CUSTOMER_CONFIRMED / EVIDENCE_INCOMPLETE
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  # M11 AR / Payment
+  /tenants/{tenantId}/work-orders/{woId}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: woId, in: path, required: true, schema: { type: string } }
+    post:
+      tags: [M11 AR / Payment]
+      summary: Cancel WorkOrder — 6-stage cancellation v2 (ADR-0102)
+      operationId: cancelWorkOrder
+      description: |
+        Server-side computes `cancellation_stage` (S1/S1.5/S2/S3/S4/S5) from WO state machine.
+        Caller submits `reason_code` (from `/m18/configs/cancellation_reason_codes` lookup).
+        `goodwill_waiver=true` (CS override per ADR-0102 §A) downgrades fee to 0 + writes audit.
+        Tech-initiated cancel takes alternative branch (`initiator_role=technician`).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XInitiator'
+        - $ref: '#/components/parameters/XApprover'
+        - $ref: '#/components/parameters/XExecutor'
+        - $ref: '#/components/parameters/XConfigVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CancellationRequest' }
+      responses:
+        '200':
+          description: Cancelled; ledger entries posted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CancellationResult' }
+        '403':
+          description: SOD_VIOLATION or INSUFFICIENT_AUTHORITY
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '409':
+          description: WO_STATE_INVALID (cannot cancel completed)
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '422':
+          description: REASON_CODE_UNKNOWN or EVIDENCE_MISSING
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/refunds:
+    parameters: [{ $ref: '#/components/parameters/TenantPath' }]
+    post:
+      tags: [M11 AR / Payment]
+      summary: Submit refund request (ADR-0040 v2 — 5-tier SoD)
+      operationId: createRefund
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XInitiator'
+        - $ref: '#/components/parameters/XApprover'
+        - $ref: '#/components/parameters/XExecutor'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefundRequest' }
+      responses:
+        '202':
+          description: refund accepted into approval chain (async)
+          content: { application/json: { schema: { $ref: '#/components/schemas/RefundReceipt' } } }
+        '403':
+          description: SOD_VIOLATION / INSUFFICIENT_AUTHORITY
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '422':
+          description: REFUND_CLASS_REQUIRED / TIER_AMOUNT_INVALID
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+  /tenants/{tenantId}/refunds/{refundId}:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: refundId, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [M11 AR / Payment]
+      summary: Get refund status (approval chain + ledger trace)
+      operationId: getRefund
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/Refund' } } } }
+
+  /tenants/{tenantId}/payments:
+    parameters: [{ $ref: '#/components/parameters/TenantPath' }]
+    post:
+      tags: [M11 AR / Payment]
+      summary: Record consumer payment (FR-0011 — onsite cash / link / bank transfer)
+      operationId: recordPayment
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PaymentRecord' }
+      responses:
+        '201': { description: 'Payment recorded', content: { application/json: { schema: { $ref: '#/components/schemas/Payment' } } } }
+
+  # M13 Warranty Claim
+  /tenants/{tenantId}/warranty-claims:
+    parameters: [{ $ref: '#/components/parameters/TenantPath' }]
+    post:
+      tags: [M13 Warranty]
+      summary: File warranty claim (FR-0015)
+      operationId: createWarrantyClaim
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WarrantyClaimCreate' }
+      responses:
+        '201': { description: 'Warranty claim created', content: { application/json: { schema: { $ref: '#/components/schemas/WarrantyClaim' } } } }
+        '422':
+          description: WARRANTY_EXPIRED or DEVICE_NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  # M14 Partner Portal
+  /tenants/{tenantId}/partners/{partnerId}/dashboard:
+    x-phase: I-readonly
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: partnerId, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [M14 Partner Portal]
+      summary: Partner dashboard (scope = own brand only — ADR-0043)
+      operationId: getPartnerDashboard
+      responses:
+        '200':
+          description: 'OK'
+          content: { application/json: { schema: { $ref: '#/components/schemas/PartnerDashboard' } } }
+        '403':
+          description: SCOPE_VIOLATION — partner can only read own brand
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  # M15 Exception / ChangeRequest
+  /tenants/{tenantId}/exceptions:inbox:
+    parameters: [{ $ref: '#/components/parameters/TenantPath' }]
+    get:
+      tags: [M15 Exception / ChangeRequest]
+      summary: Exception approval inbox (FR-0049)
+      operationId: listExceptionInbox
+      parameters:
+        - { name: queue, in: query, schema: { type: string, enum: [pending, escalated, all] } }
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: 'OK'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ExceptionList' }
+  /tenants/{tenantId}/exceptions/{exceptionId}:approve:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: exceptionId, in: path, required: true, schema: { type: string } }
+    post:
+      tags: [M15 Exception / ChangeRequest]
+      summary: Approve / reject exception (with audit trail)
+      operationId: approveException
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XInitiator'
+        - $ref: '#/components/parameters/XApprover'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExceptionDecision' }
+      responses:
+        '200': { description: decided }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # M16 Consumer Tracking
+  /consumer/work-orders/{trackingToken}:
+    parameters:
+      - { name: trackingToken, in: path, required: true, schema: { type: string }, description: 'opaque token (signed JWT); no tenant_id exposed' }
+    get:
+      tags: [M16 Consumer Tracking]
+      summary: Consumer-facing case status (FR-0022)
+      operationId: getConsumerWorkOrder
+      security: []
+      description: |
+        Unauthenticated endpoint; identification via signed tracking token (TTL=30d).
+        Returns sanitized WO state + ETA + tech masked name (李師傅), no PII bleed.
+      responses:
+        '200':
+          description: 'OK'
+          content: { application/json: { schema: { $ref: '#/components/schemas/ConsumerWOView' } } }
+        '404': { description: token invalid or expired }
+
+  # M17 RBAC / Audit
+  /tenants/{tenantId}/rbac/roles:
+    parameters: [{ $ref: '#/components/parameters/TenantPath' }]
+    get:
+      tags: [M17 RBAC / Audit]
+      summary: List role matrix (4-tier RBAC, ADR-0042; 18 roles)
+      operationId: getRoleMatrix
+      responses:
+        '200':
+          description: 'OK'
+          content: { application/json: { schema: { $ref: '#/components/schemas/RoleMatrix' } } }
+    put:
+      tags: [M17 RBAC / Audit]
+      summary: Update role matrix (via ChangeRequest)
+      operationId: updateRoleMatrix
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RoleMatrixUpdate' }
+      responses:
+        '202': { description: change_request created; effective on effective_date }
+  /tenants/{tenantId}/audit/events:
+    parameters: [{ $ref: '#/components/parameters/TenantPath' }]
+    get:
+      tags: [M17 RBAC / Audit]
+      summary: Query audit log (FR-0020)
+      operationId: listAuditEvents
+      parameters:
+        - { name: actor, in: query, schema: { type: string } }
+        - { name: event_type, in: query, schema: { type: string } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/AuditEventList' } } } }
+  /tenants/{tenantId}/audit/exports:
+    parameters: [{ $ref: '#/components/parameters/TenantPath' }]
+    post:
+      tags: [M17 RBAC / Audit]
+      summary: Async audit export (CSV / NDJSON)
+      operationId: createAuditExport
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AuditExportRequest' }
+      responses:
+        '202':
+          description: 'Export job queued'
+          content: { application/json: { schema: { $ref: '#/components/schemas/ExportJobRef' } } }
+
+  # M18 Config Governance (ADR-0067)
+  /tenants/{tenantId}/m18/configs:
+    parameters: [{ $ref: '#/components/parameters/TenantPath' }]
+    get:
+      tags: [M18 Config Governance (ADR-0067)]
+      summary: List config namespaces
+      operationId: listConfigNamespaces
+      parameters:
+        - { name: namespace, in: query, schema: { type: string } }
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/ConfigNamespaceList' } } } }
+  /tenants/{tenantId}/m18/configs/{namespace}/{key}:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: namespace, in: path, required: true, schema: { type: string } }
+      - { name: key, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [M18 Config Governance (ADR-0067)]
+      summary: Get current config value + version metadata (admin view)
+      operationId: getConfigValue
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/ConfigValue' } } } }
+    put:
+      tags: [M18 Config Governance (ADR-0067)]
+      summary: Draft new config version (schema validation + audit)
+      operationId: draftConfigVersion
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XInitiator'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfigDraft' }
+      responses:
+        '201': { description: 'Config version drafted', content: { application/json: { schema: { $ref: '#/components/schemas/ConfigVersion' } } } }
+        '422':
+          description: CONFIG_SCHEMA_INVALID
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+  /tenants/{tenantId}/m18/configs/{namespace}/{key}/versions/{versionId}:start-rollout:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: namespace, in: path, required: true, schema: { type: string } }
+      - { name: key, in: path, required: true, schema: { type: string } }
+      - { name: versionId, in: path, required: true, schema: { type: string } }
+    post:
+      tags: [M18 Config Governance (ADR-0067)]
+      summary: Start staged rollout (5% → 50% → 100% per ADR-0067)
+      operationId: startConfigRollout
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XInitiator'
+        - $ref: '#/components/parameters/XApprover'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RolloutRequest' }
+      responses:
+        '202':
+          description: 'Rollout started'
+          content: { application/json: { schema: { $ref: '#/components/schemas/RolloutHandle' } } }
+        '403':
+          description: SOD_VIOLATION or INSUFFICIENT_AUTHORITY
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+  /tenants/{tenantId}/m18/rollouts/{rolloutId}:rollback:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: rolloutId, in: path, required: true, schema: { type: string } }
+    post:
+      tags: [M18 Config Governance (ADR-0067)]
+      summary: Rollback to previous version (≤ 1 min RTO per ADR-0067)
+      operationId: rollbackConfig
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '200': { description: 'Rolled back', content: { application/json: { schema: { $ref: '#/components/schemas/RolloutHandle' } } } }
+  /tenants/{tenantId}/m18/configs/{namespace}/{key}/audit:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: namespace, in: path, required: true, schema: { type: string } }
+      - { name: key, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [M18 Config Governance (ADR-0067)]
+      summary: Config change audit log
+      operationId: listConfigAudit
+      parameters: [{ $ref: '#/components/parameters/Cursor' }]
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/ConfigAuditList' } } } }
+
+  # M18 Config Read API (ADR-0068 ACL)
+  /m18/config-read/{namespace}/{key}:
+    parameters:
+      - { name: namespace, in: path, required: true, schema: { type: string } }
+      - { name: key, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [M18 Config Read API (ADR-0068 ACL)]
+      summary: Resolve current config value (ACL for business modules — ADR-0068)
+      operationId: readConfig
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - { name: version, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: 'OK'
+          headers:
+            X-Config-Version:
+              schema: { type: string }
+            Cache-Control:
+              schema: { type: string }
+          content: { application/json: { schema: { $ref: '#/components/schemas/ConfigReadResult' } } }
+        '404':
+          description: CONFIG_NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '409':
+          description: CONFIG_VERSION_MISMATCH
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  # A01 Chatbot Intake
+  /chatbot/intake:debounce-check:
+    post:
+      tags: [A01 Chatbot Intake (debounce)]
+      summary: Debounce window check (800ms ± 100ms per K-AI-9)
+      operationId: chatbotDebounceCheck
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XTenantId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DebounceCheckRequest' }
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/DebounceCheckResponse' } } } }
+
+  # A03 ReAct Agent + A04 RAG + A05 Guardrails
+  /chatbot/agent:respond:
+    post:
+      tags: [A03 ReAct Agent]
+      summary: Generate AI response (Skill-Gated ReAct + RAG + Guardrails)
+      operationId: chatbotAgentRespond
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XTenantId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AgentRequest' }
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/AgentResponse' } } } }
+        '403':
+          description: AI_FORBIDDEN_ACTION — guardrail rejected
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /chatbot/rag:search:
+    post:
+      tags: [A04 RAG Pipeline]
+      summary: RAG vector search (pgvector top-k + tenant/brand scope filter)
+      operationId: chatbotRagSearch
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - { name: X-Brand-Scope, in: header, schema: { type: array, items: { type: string } } }
+        - { name: X-Project-Scope, in: header, schema: { type: array, items: { type: string } } }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RagSearchRequest' }
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/RagSearchResponse' } } } }
+
+  /chatbot/guardrails:check:
+    post:
+      tags: [A05 Guardrails]
+      summary: Run deterministic guardrail rules (FR-NEW-7 + ADR-0028)
+      operationId: chatbotGuardrailsCheck
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GuardrailCheckRequest' }
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/GuardrailCheckResponse' } } } }
+
+  # A06 ProblemCard Bridge
+  /chatbot/problem-cards:draft:
+    post:
+      tags: [A06 ProblemCard Bridge]
+      summary: AI drafts PC (will require CS 1-click confirm per ADR-0031)
+      operationId: chatbotDraftProblemCard
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XTenantId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PCDraftRequest' }
+      responses:
+        '202':
+          description: Draft accepted; will appear in CS queue
+          content: { application/json: { schema: { $ref: '#/components/schemas/PCDraftReceipt' } } }
+        '403':
+          description: AI_FORBIDDEN_CONVERT_TO_WO
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  # A07 Human Handoff
+  /chatbot/handoff:request:
+    post:
+      tags: [A07 Human Handoff]
+      summary: Request human handoff (FR-0018 + 7 hard rules from ADR-0048)
+      operationId: chatbotRequestHandoff
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XTenantId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HandoffRequest' }
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/HandoffResponse' } } } }
+
+  # A08 Multimodal
+  /chatbot/multimodal:image:
+    post:
+      tags: [A08 Multimodal]
+      summary: Accept image attachment (SOW 2.1(4) — NO image-to-text vision API)
+      operationId: chatbotUploadImage
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XTenantId'
+      requestBody:
+        content:
+          multipart/form-data:
+            schema: { $ref: '#/components/schemas/ImageUpload' }
+      responses:
+        '201': { description: 'Image uploaded', content: { application/json: { schema: { $ref: '#/components/schemas/ImageUploadResult' } } } }
+        '422':
+          description: IMAGE_QUALITY_REJECT or VISION_API_FORBIDDEN
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  # A09 Eval & Observability + A11 Health
+  /chatbot/eval/runs:
+    post:
+      tags: [A09 Eval & Observability]
+      summary: Trigger eval run (200-question forbidden corpus + K-AI-1/7 accuracy)
+      operationId: createEvalRun
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EvalRunRequest' }
+      responses:
+        '202':
+          description: 'Eval run started'
+          content: { application/json: { schema: { $ref: '#/components/schemas/EvalRunHandle' } } }
+  /chatbot/eval/runs/{runId}:
+    parameters: [{ name: runId, in: path, required: true, schema: { type: string } }]
+    get:
+      tags: [A09 Eval & Observability]
+      summary: Get eval run result; pass < 95% → block_deploy=true (FR-NEW-3)
+      operationId: getEvalRun
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/EvalRunResult' } } } }
+  /chatbot/health:
+    get:
+      tags: [A11 Deployment Health]
+      summary: Chatbot system health (FR-0033 + A11)
+      operationId: getChatbotHealth
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/HealthReport' } } } }
+
+  # KB — Agent Knowledge Base (ADR-0101)
+  /kb/documents:
+    get:
+      tags: [KB (Agent Knowledge Base)]
+      summary: List KB documents (tenant + brand + project scope filter per ADR-0101 §2.3)
+      operationId: listKBDocuments
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - { name: X-Brand-Scope, in: header, schema: { type: array, items: { type: string } } }
+        - { name: X-Project-Scope, in: header, schema: { type: array, items: { type: string } } }
+        - { name: doc_type, in: query, schema: { type: string, enum: [mega_doc, manual, sop, faq] } }
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/KBDocumentList' } } } }
+    post:
+      tags: [KB (Agent Knowledge Base)]
+      summary: Ingest KB document (mega-doc per ADR-0008 / ADR-0101)
+      operationId: ingestKBDocument
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XTenantId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/KBDocumentIngest' }
+      responses:
+        '201': { description: 'Document ingested', content: { application/json: { schema: { $ref: '#/components/schemas/KBDocument' } } } }
+  /kb/documents/{docId}:
+    parameters: [{ name: docId, in: path, required: true, schema: { type: string } }]
+    get:
+      tags: [KB (Agent Knowledge Base)]
+      summary: Read KB document (with scope check)
+      operationId: getKBDocument
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/KBDocument' } } } }
+        '403':
+          description: KB_SCOPE_VIOLATION
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+  /kb/dynamic-lookup/serial-warranty:
+    get:
+      tags: [KB (Agent Knowledge Base)]
+      summary: Serial → warranty dynamic lookup (ADR-0101 §2.2 — UC-new-2)
+      operationId: kbSerialWarrantyLookup
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - { name: serial, in: query, required: true, schema: { type: string } }
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/DynamicLookupResult' } } } }
+        '404':
+          description: SERIAL_NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+  /kb/dynamic-lookup/project-unit-model:
+    get:
+      tags: [KB (Agent Knowledge Base)]
+      summary: Project → unit → model dynamic lookup (UC-new-3 / BR-M14-02)
+      operationId: kbProjectUnitModelLookup
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - { name: project_id, in: query, required: true, schema: { type: string } }
+        - { name: unit_id, in: query, schema: { type: string } }
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/DynamicLookupResult' } } } }
+
+  # Sync — ERP ↔ Chatbot
+  /sync/intake-capture:
+    post:
+      tags: [Sync (ERP ↔ Chatbot)]
+      summary: S-M01 Intake capture sync — chatbot → ERP raw intake event
+      operationId: syncIntakeCapture
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XTenantId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SyncEventEnvelope' }
+      responses:
+        '202': { description: 'Accepted', content: { application/json: { schema: { $ref: '#/components/schemas/SyncReceipt' } } } }
+  /sync/facts-master:
+    post:
+      tags: [Sync (ERP ↔ Chatbot)]
+      summary: S-M02 User facts master sync (SCD2 — eternal retention)
+      operationId: syncFactsMaster
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XTenantId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SyncEventEnvelope' }
+      responses:
+        '202': { description: 'Accepted', content: { application/json: { schema: { $ref: '#/components/schemas/SyncReceipt' } } } }
+  /sync/pc-convert:
+    post:
+      tags: [Sync (ERP ↔ Chatbot)]
+      summary: S-M03 PC convert sync — AI draft → ERP PC + CS 1-click queue
+      operationId: syncPcConvert
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XTenantId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SyncEventEnvelope' }
+      responses:
+        '202': { description: 'Accepted', content: { application/json: { schema: { $ref: '#/components/schemas/SyncReceipt' } } } }
+  /sync/convert-to-wo:
+    post:
+      tags: [Sync (ERP ↔ Chatbot)]
+      summary: S-M04 Convert-to-WO (G-Sync-3 — Phase I forced human gate)
+      operationId: syncConvertToWO
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XTenantId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConvertToWORequest' }
+      responses:
+        '201': { description: 'WorkOrder created', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOrderRef' } } } }
+        '403':
+          description: AI_FORBIDDEN_CONVERT_TO_WO
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+  /sync/dispatch:
+    post:
+      tags: [Sync (ERP ↔ Chatbot)]
+      summary: S-M05 Dispatch sync — ERP → chatbot status push
+      operationId: syncDispatch
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XTenantId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SyncEventEnvelope' }
+      responses:
+        '202': { description: 'Accepted', content: { application/json: { schema: { $ref: '#/components/schemas/SyncReceipt' } } } }
+  /sync/evidence-writeback:
+    post:
+      tags: [Sync (ERP ↔ Chatbot)]
+      summary: S-M06 Evidence write-back (ERP photo / sign → chatbot context)
+      operationId: syncEvidenceWriteback
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XTenantId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SyncEventEnvelope' }
+      responses:
+        '202': { description: 'Accepted', content: { application/json: { schema: { $ref: '#/components/schemas/SyncReceipt' } } } }
+
+  # ACL External Integration
+  /acl/serial-control/lookup:
+    post:
+      tags: [ACL External Integration]
+      summary: Brand serial-control system lookup (ADR-0053 + ADR-0068 ACL)
+      operationId: aclSerialControlLookup
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XTenantId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SerialLookupRequest' }
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/SerialLookupResult' } } } }
+        '503':
+          description: EXTERNAL_DEP_DOWN
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+  /acl/brand-warranty/inquire:
+    post:
+      tags: [ACL External Integration]
+      summary: Brand warranty system inquiry (ADR-0044 + ADR-0068 ACL)
+      operationId: aclBrandWarrantyInquire
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XTenantId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WarrantyInquireRequest' }
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/WarrantyInquireResult' } } } }
+  /acl/rma-partner/submit:
+    post:
+      tags: [ACL External Integration]
+      summary: Submit RMA to partner system (FR-0048 quality feedback loop)
+      operationId: aclRmaPartnerSubmit
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XTenantId'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RMASubmitRequest' }
+      responses:
+        '202': { description: 'Accepted', content: { application/json: { schema: { $ref: '#/components/schemas/RMASubmitReceipt' } } } }
+
+  # Phase II placeholders
+  /tenants/{tenantId}/settlements/monthly:
+    x-phase: II
+    parameters: [{ $ref: '#/components/parameters/TenantPath' }]
+    post:
+      tags: [M11 AR / Payment]
+      summary: '[Phase II] Trigger monthly settlement (M12)'
+      operationId: triggerMonthlySettlement
+      description: 'NOT exposed in V1. OAuth scope `phase2.settlement` required.'
+      responses:
+        '200': { description: 'Accepted (Phase II only; V1 returns 501 below)' }
+        '501': { description: NOT_IMPLEMENTED_V1 }
+
+
 components:
+  parameters:
+    TenantPath:
+      name: tenantId
+      in: path
+      required: true
+      schema: { type: string }
+    XTenantId:
+      name: X-Tenant-Id
+      in: header
+      required: true
+      schema: { type: string }
+      description: 'Tenant routing header (ADR-0030 hard-enforced at handler entry)'
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string }
+      description: 'POST/PUT/DELETE only. Hash chain semantics per ADR-0064 / ADR-0066.'
+    XConfigVersion:
+      name: X-Config-Version
+      in: header
+      required: false
+      schema: { type: string }
+      description: 'Config snapshot version at request entry (ADR-0067 §5 + ADR-0068).'
+    XInitiator:
+      name: X-Initiator
+      in: header
+      required: true
+      schema: { type: string }
+      description: 'SoD initiator (BR-M17-01). Must differ from X-Approver / X-Executor.'
+    XApprover:
+      name: X-Approver
+      in: header
+      required: true
+      schema: { type: string }
+      description: 'SoD approver. 403 SOD_VIOLATION if equal to initiator.'
+    XExecutor:
+      name: X-Executor
+      in: header
+      required: false
+      schema: { type: string }
+      description: 'SoD executor (e.g. payment provider system).'
+    Cursor:
+      name: cursor
+      in: query
+      schema: { type: string }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, default: 20, maximum: 100 }
+
+  responses:
+    StateConflict:
+      description: '409 — entity state does not allow this transition'
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    SchemaInvalid:
+      description: '422 — schema validation failed'
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Forbidden:
+      description: '403 — insufficient authority / SoD violation / scope violation'
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: |
+        OAuth2 client_credentials grant. Mint via `/oauth/token`. TTL=1h.
+        JWT carries: `sub` (client_id), `tenant_id`, `roles[]`, `brand_scope[]`,
+        `project_scope[]`, `phase_scope[]` (e.g. `["v1","phase1"]`).
     keeperRole:
       type: apiKey
       in: header
@@ -876,14 +2139,22 @@ components:
       name: X-DPO-Or-Data-Subject
       description: 'DPO or data-subject role (ADR-0061 GDPR); required for forget request'
   schemas:
+    # RFC 7807 problem+json Error — canonical shape (merged from openapi-smart-lock-saas.yaml)
+    # All $ref: '#/components/schemas/Error' across both specs point here.
     Error:
       type: object
-      required: [code, message]
+      required: [type, title, status, code, trace_id]
+      description: RFC 7807 problem+json + trace_id extension
       properties:
+        type: { type: string, format: uri, description: 'URI to error doc' }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string, format: uri }
         code:
           type: string
           enum:
-            # Pre-v2.3 codes
+            # auth / multi-tenant (openapi.yaml legacy codes)
             - CROSS_TENANT_WRITE
             - CROSS_TENANT_READ
             - CONTRACT_VERSION_CONFLICT
@@ -910,6 +2181,69 @@ components:
             - INSUFFICIENT_AUTHORITY            # 403 (ADR-0063)
             - PRICING_ENGINE_DOWN_NO_OVERRIDE   # 422 (ADR-0062)
             - URGENT_WINDOW_EXPIRED             # 409 (ADR-0066)
+            # openapi-smart-lock-saas.yaml codes (Phase I MVP)
+            - SCOPE_VIOLATION
+            - SOD_VIOLATION
+            - AI_FORBIDDEN_CONVERT_TO_WO
+            - CONFIG_NOT_FOUND
+            - CONFIG_SCHEMA_INVALID
+            - CONFIG_VERSION_MISMATCH
+            - REASON_CODE_UNKNOWN
+            - EVIDENCE_MISSING
+            - REFUND_CLASS_REQUIRED
+            - TIER_AMOUNT_INVALID
+            - WO_STATE_INVALID
+            - QUOTE_NOT_CUSTOMER_CONFIRMED
+            - SLA_WINDOW_EXPIRED
+            - SERIAL_REQUIRED
+            - WARRANTY_EXPIRED
+            - DEVICE_NOT_FOUND
+            - KB_SCOPE_VIOLATION
+            - SERIAL_NOT_FOUND
+            - IMAGE_QUALITY_REJECT
+            - VISION_API_FORBIDDEN
+            - EXTERNAL_DEP_DOWN
+            - NOT_IMPLEMENTED_V1
+        trace_id:
+          type: string
+          description: 'W3C trace_id; required on /quote/* and /pricing/* error responses (v2.3 telemetry)'
+        request_id: { type: string }
+
+    # ErrorV1 — preserved for historical reference (openapi.yaml v2.3.0 enum-style shape)
+    # No $ref points here post-merge; kept for audit trail only.
+    ErrorV1:
+      type: object
+      required: [code, message]
+      description: 'Legacy enum-style error (openapi.yaml v2.3.0). Superseded by Error (RFC7807). Do not use in new endpoints.'
+      properties:
+        code:
+          type: string
+          enum:
+            - CROSS_TENANT_WRITE
+            - CROSS_TENANT_READ
+            - CONTRACT_VERSION_CONFLICT
+            - SCOPE_OVERLAP
+            - ADDRESS_REQUIRED_FOR_CLOSE
+            - PC_UNIQUE_VIOLATION
+            - AI_FORBIDDEN_ACTION
+            - DGS_LEGAL_HOLD_ACTIVE
+            - VOUCHER_VOIDED
+            - VOUCHER_ALREADY_VOIDED
+            - LEGAL_HOLD_BLOCKS_FORGET
+            - SOP_DUAL_REVIEW_NOT_DONE
+            - AI_FORBIDDEN_FINAL_QUOTE
+            - AI_FORBIDDEN_WARRANTY_PROJECT
+            - AI_FORBIDDEN_QUOTE_CREATE
+            - QUOTE_NOT_CUSTOMER_SENT
+            - QUOTE_REQUIRED_NON_EMERGENCY
+            - QUOTE_STATE_INVALID
+            - QUOTE_VERSION_STALE
+            - QUOTE_EXPIRED
+            - LIFF_TOKEN_EXPIRED
+            - AUDIT_WINDOW_EXPIRED
+            - INSUFFICIENT_AUTHORITY
+            - PRICING_ENGINE_DOWN_NO_OVERRIDE
+            - URGENT_WINDOW_EXPIRED
         message: { type: string }
         request_id: { type: string }
         trace_id:
@@ -1247,3 +2581,663 @@ components:
           type: string
           enum: [liff_full, flex_simple_fallback]
           description: 'liff_full = full LIFF page consent; flex_simple_fallback = one-tap flex button fallback'
+    # Auth schema (Q6 — platform-level auth endpoints)
+    TokenPair:
+      type: object
+      required: [access_token, token_type, expires_in]
+      properties:
+        access_token: { type: string, description: 'JWT; TTL=1h' }
+        token_type: { type: string, enum: [bearer] }
+        expires_in: { type: integer, description: 'seconds until access_token expiry' }
+        refresh_token: { type: string, description: 'opaque; revocable via /auth/logout' }
+
+    # Phase I MVP schemas (merged from openapi-smart-lock-saas.yaml)
+    ChannelList:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Channel' } }
+        next_cursor: { type: string, nullable: true }
+    Channel:
+      type: object
+      properties:
+        id: { type: string }
+        channel_type: { type: string, enum: [line, web, hotline] }
+        status: { type: string, enum: [active, degraded, down] }
+    ChannelStatus:
+      type: object
+      properties:
+        channel_id: { type: string }
+        status: { type: string }
+        last_ok_at: { type: string, format: date-time }
+        webhook_24h_success_rate: { type: number }
+
+    BrandList: { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/Brand' } }, next_cursor: { type: string, nullable: true } } }
+    Brand: { type: object, properties: { id: { type: string }, name: { type: string }, status: { type: string } } }
+    ModelList: { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/Model' } } } }
+    Model: { type: object, properties: { id: { type: string }, brand_id: { type: string }, sku: { type: string }, category: { type: string } } }
+    ModelCreate: { type: object, required: [sku, category], properties: { sku: { type: string }, category: { type: string } } }
+
+    CustomerList: { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/Customer' } }, next_cursor: { type: string, nullable: true } } }
+    Customer:
+      type: object
+      properties:
+        id: { type: string }
+        tenant_id: { type: string }
+        brand_scope: { type: array, items: { type: string } }
+        line_user_id: { type: string }
+        pii_retention_policy: { type: string, enum: [default, custom] }
+    CustomerCreate:
+      type: object
+      required: [line_user_id]
+      properties:
+        line_user_id: { type: string }
+        brand_scope: { type: array, items: { type: string } }
+        pii_retention_policy: { type: string, enum: [default, custom] }
+
+    SiteList: { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/Site' } } } }
+    Site:
+      type: object
+      properties:
+        id: { type: string }
+        customer_id: { type: string }
+        site_group_id: { type: string, nullable: true }
+        geo_district: { type: string }
+    SiteCreate:
+      type: object
+      required: [customer_id]
+      properties:
+        customer_id: { type: string }
+        site_group_id: { type: string, nullable: true }
+        geo_district: { type: string }
+
+    Device:
+      type: object
+      properties:
+        id: { type: string }
+        serial: { type: string }
+        brand_id: { type: string }
+        model_id: { type: string }
+        purchase_date: { type: string, format: date }
+        warranty_start_date: { type: string, format: date }
+        warranty_mode: { type: string, enum: [purchase, handover, activation, contract, manual_override] }
+        site_id: { type: string }
+    DeviceCreate:
+      type: object
+      required: [brand_id, model_id]
+      properties:
+        serial: { type: string, nullable: true }
+        brand_id: { type: string }
+        model_id: { type: string }
+        main_lock: { type: boolean, default: false }
+        purchase_date: { type: string, format: date }
+        warranty_start_date: { type: string, format: date }
+        warranty_mode: { type: string, enum: [purchase, handover, activation, contract, manual_override] }
+    DeviceWarranty:
+      type: object
+      properties:
+        device_id: { type: string }
+        warranty_mode: { type: string, enum: [purchase, handover, activation, contract, manual_override] }
+        warranty_start_date: { type: string, format: date }
+        warranty_expiry_date: { type: string, format: date }
+        coverage_class: { type: string, enum: [full, parts_only, labor_only, expired] }
+    DeviceWarrantyPatch:
+      type: object
+      required: [reason, new_mode]
+      properties:
+        new_mode: { type: string, enum: [manual_override] }
+        new_start_date: { type: string, format: date }
+        reason: { type: string }
+
+    TechnicianList: { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/Technician' } }, next_cursor: { type: string, nullable: true } } }
+    Technician:
+      type: object
+      properties:
+        id: { type: string }
+        display_name: { type: string }
+        status: { type: string, enum: [active, onboarding, suspended, terminated] }
+        coverage_areas: { type: array, items: { type: string } }
+        cumulative_cancel_this_month: { type: integer }
+    TechnicianCreate:
+      type: object
+      required: [display_name, coverage_areas]
+      properties:
+        display_name: { type: string }
+        coverage_areas: { type: array, items: { type: string } }
+    SuspensionRequest:
+      type: object
+      required: [reason_code, evidence_ids]
+      properties:
+        reason_code: { type: string }
+        evidence_ids: { type: array, items: { type: string } }
+        duration_days: { type: integer }
+
+    DispatchPlanRequest:
+      type: object
+      required: [work_order_id]
+      properties:
+        work_order_id: { type: string }
+        prefer_brand_familiar: { type: boolean, default: true }
+    DispatchPlanResponse:
+      type: object
+      properties:
+        candidates:
+          type: array
+          items:
+            type: object
+            properties:
+              technician_id: { type: string }
+              score: { type: number }
+              eta_minutes: { type: integer }
+              brand_familiar: { type: boolean }
+    AssignRequest:
+      type: object
+      required: [technician_id]
+      properties:
+        technician_id: { type: string }
+        manual_reason: { type: string, nullable: true }
+    WorkOrderRef:
+      type: object
+      properties:
+        id: { type: string }
+        state: { type: string }
+        assigned_technician_id: { type: string, nullable: true }
+
+    ArrivalEvent:
+      type: object
+      required: [arrived_at, gps]
+      properties:
+        arrived_at: { type: string, format: date-time }
+        gps:
+          type: object
+          required: [lat, lng]
+          properties:
+            lat: { type: number }
+            lng: { type: number }
+            accuracy_m: { type: number }
+    Onsite:
+      type: object
+      properties:
+        id: { type: string }
+        work_order_id: { type: string }
+        state: { type: string, enum: [arrived, working, scope_change, pending_quote_v2, completed, customer_not_onsite, customer_disagreed_partial] }
+    CompletionSubmit:
+      type: object
+      required: [signature_evidence_id, photo_evidence_ids]
+      properties:
+        signature_evidence_id: { type: string }
+        photo_evidence_ids: { type: array, items: { type: string }, minItems: 1 }
+        notes: { type: string }
+    CompletionResult:
+      type: object
+      properties:
+        work_order_id: { type: string }
+        completed_at: { type: string, format: date-time }
+
+    CancellationRequest:
+      type: object
+      required: [reason_code, initiator_role]
+      properties:
+        reason_code: { type: string }
+        initiator_role: { type: string, enum: [customer, customer_service, technician, system_auto] }
+        goodwill_waiver: { type: boolean, default: false }
+        evidence_ids: { type: array, items: { type: string } }
+        note: { type: string }
+    CancellationResult:
+      type: object
+      properties:
+        work_order_id: { type: string }
+        cancellation_stage: { type: string, enum: [S1, S1_5, S2, S3, S4, S5] }
+        customer_fee: { type: number }
+        travel_fee: { type: number }
+        technician_penalty: { type: number, nullable: true }
+        reason_code: { type: string }
+        audit_event_id: { type: string }
+
+    RefundRequest:
+      type: object
+      required: [work_order_id, amount, refund_class, reason]
+      properties:
+        work_order_id: { type: string }
+        amount: { type: number }
+        refund_class: { type: string, enum: [product, labor, material, travel, inspection] }
+        reason: { type: string }
+        evidence_ids: { type: array, items: { type: string } }
+    RefundReceipt:
+      type: object
+      properties:
+        id: { type: string }
+        tier: { type: string, enum: [L1, L2, L3, L4, L5] }
+        approval_chain: { type: array, items: { type: string } }
+        state: { type: string, enum: [pending, approved, executed, rejected] }
+    Refund:
+      allOf:
+        - $ref: '#/components/schemas/RefundReceipt'
+        - type: object
+          properties:
+            executed_at: { type: string, format: date-time, nullable: true }
+            ledger_entry_id: { type: string, nullable: true }
+
+    PaymentRecord:
+      type: object
+      required: [work_order_id, method, amount]
+      properties:
+        work_order_id: { type: string }
+        method: { type: string, enum: [onsite_cash, link, bank_transfer] }
+        amount: { type: number }
+        evidence_id: { type: string, nullable: true }
+    Payment:
+      type: object
+      properties:
+        id: { type: string }
+        state: { type: string, enum: [pending, paid, failed] }
+        receipt_url: { type: string, nullable: true }
+
+    WarrantyClaimCreate:
+      type: object
+      required: [device_id, symptom]
+      properties:
+        device_id: { type: string }
+        symptom: { type: string }
+        evidence_ids: { type: array, items: { type: string } }
+    WarrantyClaim:
+      type: object
+      properties:
+        id: { type: string }
+        state: { type: string, enum: [submitted, under_review, approved, rejected, executed] }
+        coverage_class: { type: string, enum: [full, parts_only, labor_only] }
+
+    PartnerDashboard:
+      type: object
+      properties:
+        partner_id: { type: string }
+        brand_scope: { type: array, items: { type: string } }
+        kpi:
+          type: object
+          properties:
+            cases_this_month: { type: integer }
+            avg_resolution_hours: { type: number }
+            customer_csat: { type: number }
+
+    ExceptionList:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Exception' } }
+        next_cursor: { type: string, nullable: true }
+    Exception:
+      type: object
+      properties:
+        id: { type: string }
+        type: { type: string }
+        state: { type: string, enum: [pending, escalated, approved, rejected] }
+        created_at: { type: string, format: date-time }
+    ExceptionDecision:
+      type: object
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [approve, reject, escalate] }
+        rationale: { type: string }
+
+    ConsumerWOView:
+      type: object
+      properties:
+        work_order_state: { type: string }
+        eta_minutes: { type: integer, nullable: true }
+        technician_display_name: { type: string, nullable: true }
+        last_update_at: { type: string, format: date-time }
+
+    RoleMatrix:
+      type: object
+      properties:
+        roles:
+          type: array
+          items:
+            type: object
+            properties:
+              role_id: { type: string }
+              tier: { type: string, enum: [L1, L2, L3, L4] }
+              permissions:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    resource: { type: string }
+                    actions: { type: array, items: { type: string, enum: [view, edit, approve] } }
+                    scope: { type: string, enum: [tenant, brand, project, household] }
+    RoleMatrixUpdate:
+      type: object
+      required: [reason]
+      properties:
+        diff:
+          type: array
+          items: { type: object }
+        reason: { type: string }
+
+    AuditEventList:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/AuditEvent' } }
+        next_cursor: { type: string, nullable: true }
+    AuditEvent:
+      type: object
+      properties:
+        id: { type: string }
+        event_type: { type: string }
+        actor: { type: string }
+        tenant_id: { type: string }
+        ts: { type: string, format: date-time }
+        diff_ref: { type: string }
+    AuditExportRequest:
+      type: object
+      required: [from, to, format]
+      properties:
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+        format: { type: string, enum: [csv, ndjson] }
+        filter:
+          type: object
+          additionalProperties: true
+    ExportJobRef:
+      type: object
+      properties:
+        job_id: { type: string }
+        state: { type: string, enum: [queued, running, done, failed] }
+
+    ConfigNamespaceList:
+      type: object
+      properties:
+        items: { type: array, items: { type: string } }
+    ConfigValue:
+      type: object
+      properties:
+        namespace: { type: string }
+        key: { type: string }
+        active_version_id: { type: string }
+        active_value: { description: 'arbitrary JSON' }
+        active_since: { type: string, format: date-time }
+    ConfigDraft:
+      type: object
+      required: [proposed_value, reason]
+      properties:
+        proposed_value: { description: 'arbitrary JSON; validated against namespace JSON schema' }
+        reason: { type: string }
+        change_request_id: { type: string, nullable: true }
+    ConfigVersion:
+      type: object
+      properties:
+        version_id: { type: string }
+        state: { type: string, enum: [draft, rolling_out, active, retired, rolled_back] }
+        created_at: { type: string, format: date-time }
+    RolloutRequest:
+      type: object
+      required: [strategy]
+      properties:
+        strategy: { type: string, enum: [canary_5_50_100, instant] }
+        observation_minutes_per_stage: { type: integer, minimum: 10, default: 15 }
+    RolloutHandle:
+      type: object
+      properties:
+        rollout_id: { type: string }
+        version_id: { type: string }
+        current_stage: { type: string, enum: ['5%', '50%', '100%', 'rolled_back'] }
+        next_stage_eta: { type: string, format: date-time, nullable: true }
+    ConfigAuditList:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/ConfigAuditEntry' } }
+        next_cursor: { type: string, nullable: true }
+    ConfigAuditEntry:
+      type: object
+      properties:
+        version_id: { type: string }
+        actor: { type: string }
+        ts: { type: string, format: date-time }
+        diff: { type: object }
+        reason: { type: string }
+    ConfigReadResult:
+      type: object
+      properties:
+        namespace: { type: string }
+        key: { type: string }
+        value: { description: 'resolved JSON value' }
+        version_id: { type: string }
+        resolved_at: { type: string, format: date-time }
+        cache: { type: string, enum: [hit, miss] }
+
+    DebounceCheckRequest:
+      type: object
+      required: [conversation_id, message_ts]
+      properties:
+        conversation_id: { type: string }
+        message_ts: { type: string, format: date-time }
+    DebounceCheckResponse:
+      type: object
+      properties:
+        should_process: { type: boolean }
+        window_ms: { type: integer, description: '800 ± 100 per K-AI-9' }
+
+    AgentRequest:
+      type: object
+      required: [conversation_id, message_text]
+      properties:
+        conversation_id: { type: string }
+        message_text: { type: string }
+        media_refs: { type: array, items: { type: string } }
+    AgentResponse:
+      type: object
+      properties:
+        response_text: { type: string }
+        skill_invoked: { type: string }
+        citations:
+          type: array
+          items:
+            type: object
+            properties:
+              doc_id: { type: string }
+              chunk_id: { type: string }
+        guardrail_passed: { type: boolean }
+
+    RagSearchRequest:
+      type: object
+      required: [query]
+      properties:
+        query: { type: string }
+        top_k: { type: integer, default: 5, maximum: 20 }
+    RagSearchResponse:
+      type: object
+      properties:
+        chunks:
+          type: array
+          items:
+            type: object
+            properties:
+              doc_id: { type: string }
+              chunk_id: { type: string }
+              text: { type: string }
+              score: { type: number }
+
+    GuardrailCheckRequest:
+      type: object
+      required: [candidate_text]
+      properties:
+        candidate_text: { type: string }
+        context: { type: object }
+    GuardrailCheckResponse:
+      type: object
+      properties:
+        passed: { type: boolean }
+        rule_triggered_by:
+          type: string
+          enum: [none, hard_rule_quote_ntd, hard_rule_discount, hard_rule_warranty_waiver, hard_rule_off_topic, hard_rule_prompt_injection]
+
+    PCDraftRequest:
+      type: object
+      required: [conversation_id]
+      properties:
+        conversation_id: { type: string }
+        device_id_guess: { type: string, nullable: true }
+        symptom: { type: array, items: { type: string } }
+        urgency:
+          type: string
+          enum: [normal, urgent_locked_out, urgent_trapped_inside, urgent_safety_risk, urgent_angry_customer_high_risk]
+    PCDraftReceipt:
+      type: object
+      properties:
+        problem_card_id: { type: string }
+        cs_queue_position: { type: integer }
+
+    HandoffRequest:
+      type: object
+      required: [conversation_id, trigger]
+      properties:
+        conversation_id: { type: string }
+        trigger:
+          type: string
+          enum: [hard_rule_urgent, hard_rule_warranty, hard_rule_pricing_dispute, hard_rule_repeat_failure, ai_proactive_offer, customer_explicit_request, agent_pickup]
+    HandoffResponse:
+      type: object
+      properties:
+        callback_link: { type: string, format: uri }
+        eta_minutes: { type: integer }
+
+    ImageUpload:
+      type: object
+      required: [image]
+      properties:
+        image: { type: string, format: binary }
+        conversation_id: { type: string }
+    ImageUploadResult:
+      type: object
+      properties:
+        evidence_id: { type: string }
+        quality_passed: { type: boolean }
+        rejected_reason: { type: string, nullable: true }
+
+    EvalRunRequest:
+      type: object
+      required: [corpus]
+      properties:
+        corpus: { type: string, enum: [forbidden_200, accuracy_weekly, multimodal_weekly] }
+        baseline_run_id: { type: string, nullable: true }
+    EvalRunHandle: { type: object, properties: { run_id: { type: string } } }
+    EvalRunResult:
+      type: object
+      properties:
+        run_id: { type: string }
+        corpus: { type: string }
+        pass_rate: { type: number }
+        block_deploy: { type: boolean }
+
+    HealthReport:
+      type: object
+      properties:
+        status: { type: string, enum: [healthy, degraded, down] }
+        components:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              status: { type: string }
+              last_check_at: { type: string, format: date-time }
+
+    KBDocumentList:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/KBDocument' } }
+        next_cursor: { type: string, nullable: true }
+    KBDocument:
+      type: object
+      properties:
+        id: { type: string }
+        doc_type: { type: string, enum: [mega_doc, manual, sop, faq] }
+        tenant_scope: { type: array, items: { type: string } }
+        brand_scope: { type: array, items: { type: string } }
+        project_scope: { type: array, items: { type: string } }
+        title: { type: string }
+        version: { type: string }
+        effective_date: { type: string, format: date }
+    KBDocumentIngest:
+      type: object
+      required: [doc_type, title, source_uri]
+      properties:
+        doc_type: { type: string, enum: [mega_doc, manual, sop, faq] }
+        title: { type: string }
+        source_uri: { type: string, format: uri }
+        tenant_scope: { type: array, items: { type: string } }
+        brand_scope: { type: array, items: { type: string } }
+        project_scope: { type: array, items: { type: string } }
+    DynamicLookupResult:
+      type: object
+      properties:
+        lookup_key: { type: string }
+        resolved_payload: { type: object }
+        source_doc_id: { type: string, nullable: true }
+        cached: { type: boolean }
+
+    SyncEventEnvelope:
+      type: object
+      required: [event_type, event_payload, source_module, target_module]
+      properties:
+        event_type: { type: string }
+        event_payload: { type: object }
+        source_module: { type: string }
+        target_module: { type: string }
+        correlation_id: { type: string }
+    SyncReceipt:
+      type: object
+      properties:
+        receipt_id: { type: string }
+        accepted_at: { type: string, format: date-time }
+    ConvertToWORequest:
+      type: object
+      required: [problem_card_id, human_confirmed, cs_actor_id]
+      properties:
+        problem_card_id: { type: string }
+        human_confirmed: { type: boolean }
+        cs_actor_id: { type: string }
+        quote_id: { type: string, nullable: true }
+
+    SerialLookupRequest:
+      type: object
+      required: [brand_id, serial]
+      properties:
+        brand_id: { type: string }
+        serial: { type: string }
+    SerialLookupResult:
+      type: object
+      properties:
+        device_id: { type: string, nullable: true }
+        warranty_class: { type: string, enum: [full, parts_only, labor_only, expired, unknown] }
+        upstream_partner_id: { type: string, nullable: true }
+
+    WarrantyInquireRequest:
+      type: object
+      required: [brand_id, serial]
+      properties:
+        brand_id: { type: string }
+        serial: { type: string }
+    WarrantyInquireResult:
+      type: object
+      properties:
+        warranty_class: { type: string, enum: [full, parts_only, labor_only, expired] }
+        expiry_date: { type: string, format: date, nullable: true }
+        partner_id: { type: string }
+
+    RMASubmitRequest:
+      type: object
+      required: [partner_id, brand_id, work_order_id]
+      properties:
+        partner_id: { type: string }
+        brand_id: { type: string }
+        work_order_id: { type: string }
+        evidence_ids: { type: array, items: { type: string } }
+    RMASubmitReceipt:
+      type: object
+      properties:
+        rma_id: { type: string }
+        partner_acknowledged_at: { type: string, format: date-time, nullable: true }
+
+    ChangeRequestRef:
+      type: object
+      properties:
+        change_request_id: { type: string }
+        effective_date: { type: string, format: date, nullable: true }
