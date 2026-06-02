@@ -16,7 +16,7 @@ import {
   mapRangeToDashboardPeriod,
   type DateRange,
 } from "@/lib/dateRange";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, auth } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 import { ReportExportModal } from "@/components/admin/reports/ReportExportModal";
 
@@ -108,8 +108,10 @@ export default function KpiDashboardPage() {
     setLoading(true);
     setError(null);
     try {
+      // v2 tenant-scoped path（FR-0021 / CR-0003 P2-W1）
+      const tenantId = auth.getTenantId();
       const res = await api.get<KpiReport>(
-        `/api/v1/reports/kpi?period=${p}`,
+        `/tenants/${encodeURIComponent(tenantId)}/reports/kpi?period=${p}`,
       );
       setReport(res);
     } catch (e) {
