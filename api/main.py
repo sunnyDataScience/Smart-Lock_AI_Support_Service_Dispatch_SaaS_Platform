@@ -89,6 +89,7 @@ from routers import media_v2 as media_v2_router  # spec-alignment P2-W6 (CR-0003
 from routers import dispatch_logs_v2 as dispatch_logs_v2_router  # spec-alignment P2-W6 (BUILD_TENANT_SCOPED, M06 DispatchLogs read-only tenant-scoped, admin-only)
 from routers import config_m18 as config_m18_router  # Track B S1: M18 Runtime Config Governance (ADR-0067 Phase 0 / CR-0004 §8)
 from routers import reconciliations_v2 as reconciliations_v2_router  # Track B S2: Reconciliation dual-sign (FR-0013 / CR-0004 §8 HD-1~HD-3)
+from routers import disputes_v2 as disputes_v2_router  # Track B S2: Dispute dual-sign 狀態機 (FR-0013 / CR-0004 §8 HD-1~HD-4)
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -215,6 +216,7 @@ app.include_router(media_v2_router.router, tags=["Media"])  # spec-alignment P2-
 app.include_router(dispatch_logs_v2_router.router, tags=["M06 Dispatch"])  # spec-alignment P2-W6 (BUILD_TENANT_SCOPED, M06 DispatchLogs read-only tenant-scoped, admin-only)
 app.include_router(config_m18_router.router, tags=["M18 Config Governance"])  # Track B S1: M18 Runtime Config Governance (ADR-0067 Phase 0 / CR-0004 §8)
 app.include_router(reconciliations_v2_router.router, tags=["M12 Reconciliation"])  # Track B S2: Reconciliation dual-sign (FR-0013 / CR-0004 §8)
+app.include_router(disputes_v2_router.router, tags=["M14 Dispute"])  # Track B S2: Dispute dual-sign 狀態機 (FR-0013 / CR-0004 §8)
 
 
 @app.get("/health")
