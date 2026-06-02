@@ -1,0 +1,353 @@
+"""KB documents v2 router — 統一 cases + manuals (CR-0003 P2-W3, ADR-0101).
+
+對齊 frozen spec /kb/documents + /kb/documents/{docId}：
+  operationId: listKBDocuments   → GET  /kb/documents
+  operationId: ingestKBDocument  → POST /kb/documents
+  operationId: getKBDocument     → GET  /kb/documents/{docId}
+
+doc_type 分派策略：
+  doc_type=case   → case_service (case_entries table)
+  doc_type=manual → manual_service (manuals table)
+
+模型映射說明（TODO 與設計取捨）：
+  spec KBDocument schema = {id, doc_type, tenant_scope, brand_scope, project_scope,
+                             title, version, effective_date}
+  case_service 輸出額外欄位 = {problem_description, solution, brand, model, tags,
+                               verified, embedding_status, created_at, updated_at}
+  manual_service 輸出額外欄位 = {brand, model, file_name, file_size_bytes,
+                                 status(processing/ready/failed), chunk_count, created_at}
+
+  mapping 策略：盡量對齊 KBDocument 核心欄位，額外欄位以 meta 子物件掛載；
+  回傳 dict（不用 response_model 嚴格驗證，W1/W2 教訓），確保序列化不 500。
+
+  TODO: spec KBDocument.doc_type enum=[mega_doc, manual, sop, faq] 未含 'case'；
+        本 v2 擴充 doc_type='case' 對應 case_entries；待 spec 下次更新補入
+        enum 值或另走 ADR-0101 §2.3 的 sop 對映決議。
+
+POST /kb/documents (ingestKBDocument) 支援 doc_type=case 與 doc_type=manual：
+  - doc_type=case  → case_service.create_case
+  - doc_type=manual → manual_service.upload_manual 的 metadata-only 路徑
+    （不含 file bytes；若需上傳 PDF 仍走 legacy /api/v1/knowledge-base/manuals/upload）
+
+Deprecation：不改動 legacy router（kb_cases.py、kb_manuals.py），
+  DeprecationMiddleware 統一在 /api/v1/* 掛 header。
+"""
+
+from __future__ import annotations
+
+import uuid
+from datetime import datetime, timezone
+from typing import Any
+
+from fastapi import APIRouter, Depends, Header, Path, Query, status
+
+from core.deps import CurrentUser, require_tenant
+from core.errors import ApiError
+from core.idempotency import IdempotencyContext, idempotency_guard
+from services import case_service, manual_service
+
+router = APIRouter()
+
+
+# ---------------------------------------------------------------------------
+# 內部型別別名（inline，不走 response_model 嚴格驗證 — W1/W2 教訓）
+# ---------------------------------------------------------------------------
+
+_DOC_TYPES = frozenset({"case", "manual"})
+
+# ---------------------------------------------------------------------------
+# 轉換 helpers
+# ---------------------------------------------------------------------------
+
+
+def _case_to_kb_document(case: dict) -> dict:
+    """將 case_service 輸出轉成 KBDocument-compatible dict。
+
+    核心欄位：id / doc_type / title / brand_scope / version / effective_date
+    meta 子物件：附帶 case-specific 欄位（problem_description, solution, 等）
+    TODO: effective_date 對映 created_at；待 case_entries 增 effective_date 欄位後更新。
+    """
+    return {
+        "id": case["id"],
+        "doc_type": "case",
+        "title": case.get("title", ""),
+        "tenant_scope": [],            # spec 欄位；case_entries 無 tenant_scope 陣列，以空陣列回傳
+        "brand_scope": [case["brand"]] if case.get("brand") else [],
+        "project_scope": [],
+        "version": None,               # case_entries 無 version 欄位
+        "effective_date": None,        # TODO: 待 case_entries 增欄
+        "meta": {
+            "problem_description": case.get("problem_description"),
+            "solution": case.get("solution"),
+            "brand": case.get("brand"),
+            "model": case.get("model"),
+            "tags": case.get("tags") or [],
+            "verified": case.get("verified", False),
+            "embedding_status": case.get("embedding_status"),
+            "created_at": case.get("created_at"),
+            "updated_at": case.get("updated_at"),
+        },
+    }
+
+
+def _manual_to_kb_document(manual: dict) -> dict:
+    """將 manual_service 輸出轉成 KBDocument-compatible dict。
+
+    brand_scope 對映 manual.brand；version/effective_date 從 manual 取不到，留 None。
+    TODO: manuals 表增 version + effective_date 欄位後更新。
+    """
+    return {
+        "id": manual["id"],
+        "doc_type": "manual",
+        "title": manual.get("title", ""),
+        "tenant_scope": [],
+        "brand_scope": [manual["brand"]] if manual.get("brand") else [],
+        "project_scope": [],
+        "version": None,
+        "effective_date": None,
+        "meta": {
+            "brand": manual.get("brand"),
+            "model": manual.get("model"),
+            "file_name": manual.get("file_name"),
+            "file_size_bytes": manual.get("file_size_bytes"),
+            "status": manual.get("status"),
+            "chunk_count": manual.get("chunk_count"),
+            "created_at": manual.get("created_at"),
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
+# GET /kb/documents — listKBDocuments
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/kb/documents",
+    operation_id="listKBDocuments",
+    summary="KB 文件列表 v2（tenant-scoped, doc_type 分派, ADR-0101 §2.3）",
+    tags=["KB (Agent Knowledge Base)"],
+)
+async def list_kb_documents(
+    doc_type: str | None = Query(default=None, description="文件類型過濾：case / manual"),
+    brand: str | None = Query(default=None, description="品牌過濾（對映 brand_scope）"),
+    cursor: str | None = Query(default=None),
+    limit: int = Query(default=20, ge=1, le=100),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    """GET /kb/documents — 依 doc_type 分派到 case_service / manual_service。
+
+    doc_type 未給時同時查 case + manual，合併後回傳（分頁為各自 limit/2 再合併）。
+    """
+    if doc_type and doc_type not in _DOC_TYPES:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"doc_type must be one of: {', '.join(sorted(_DOC_TYPES))}",
+            422,
+        )
+
+    tenant_id = user.tenant_id
+    items: list[dict] = []
+    next_cursor: str | None = None
+    has_more = False
+
+    if doc_type == "case" or doc_type is None:
+        sub_limit = limit if doc_type else max(1, limit // 2)
+        case_page = await case_service.list_cases(
+            tenant_id=tenant_id,
+            cursor=cursor if doc_type == "case" else None,
+            limit=sub_limit,
+            brand=brand,
+            verified=None,
+        )
+        for c in case_page["items"]:
+            items.append(_case_to_kb_document(c))
+        if doc_type == "case":
+            next_cursor = case_page["next_cursor"]
+            has_more = case_page["has_more"]
+
+    if doc_type == "manual" or doc_type is None:
+        sub_limit = limit if doc_type else max(1, limit - len(items))
+        manual_page = await manual_service.list_manuals(
+            tenant_id=tenant_id,
+            cursor=cursor if doc_type == "manual" else None,
+            limit=sub_limit,
+            brand=brand,
+        )
+        for m in manual_page["items"]:
+            items.append(_manual_to_kb_document(m))
+        if doc_type == "manual":
+            next_cursor = manual_page["next_cursor"]
+            has_more = manual_page["has_more"]
+
+    return {
+        "items": items,
+        "next_cursor": next_cursor,
+        "has_more": has_more,
+    }
+
+
+# ---------------------------------------------------------------------------
+# POST /kb/documents — ingestKBDocument
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/kb/documents",
+    operation_id="ingestKBDocument",
+    summary="KB 文件建立 v2（doc_type=case/manual, Idempotency-Key, ADR-0101 §2.3）",
+    status_code=status.HTTP_201_CREATED,
+    tags=["KB (Agent Knowledge Base)"],
+)
+async def ingest_kb_document(
+    body: dict[str, Any],
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    """POST /kb/documents — 依 body.doc_type 分派建立。
+
+    doc_type=case：呼叫 case_service.create_case
+      必填 body 欄位：doc_type, title, brand, problem_description, solution
+    doc_type=manual：呼叫 manual_service.upload_manual (metadata-only, 無 file bytes)
+      必填 body 欄位：doc_type, title, brand, source_uri (作為 file_name fallback)
+      注意：此路徑不上傳 PDF 內容；完整 PDF 上傳仍走
+            /api/v1/knowledge-base/manuals/upload（multipart form）。
+    """
+    doc_type = body.get("doc_type")
+    if not doc_type or doc_type not in _DOC_TYPES:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"doc_type is required and must be one of: {', '.join(sorted(_DOC_TYPES))}",
+            422,
+        )
+
+    tenant_id = user.tenant_id
+    payload_out: dict
+
+    if doc_type == "case":
+        # 必填驗證
+        for field in ("title", "brand", "problem_description", "solution"):
+            if not body.get(field):
+                raise ApiError("VALIDATION_ERROR", f"{field} is required for doc_type=case", 422)
+        case = await case_service.create_case(
+            tenant_id=tenant_id,
+            payload={
+                "title": body["title"],
+                "brand": body["brand"],
+                "problem_description": body["problem_description"],
+                "solution": body["solution"],
+                "model": body.get("model"),
+                "tags": body.get("tags") or [],
+            },
+            created_by=user.user_id,
+        )
+        payload_out = _case_to_kb_document(case)
+
+    else:  # doc_type == "manual"
+        # metadata-only 路徑（無 file bytes）
+        for field in ("title", "brand"):
+            if not body.get(field):
+                raise ApiError("VALIDATION_ERROR", f"{field} is required for doc_type=manual", 422)
+        source_uri: str = body.get("source_uri") or body.get("title", "unknown")
+        # 以 source_uri 作為 filename（只取最後一段）
+        filename = source_uri.split("/")[-1] or f"manual-{uuid.uuid4()}.pdf"
+        manual = await manual_service.upload_manual(
+            tenant_id=tenant_id,
+            uploader_user_id=user.user_id,
+            filename=filename,
+            content_type="application/pdf",
+            file_bytes=b"\x00",      # placeholder — pipeline 後續補實際內容
+            brand=body["brand"],
+            title=body["title"],
+            model=body.get("model"),
+        )
+        payload_out = _manual_to_kb_document(manual)
+
+    if idem is not None:
+        await idem.save(201, payload_out)
+    return payload_out
+
+
+# ---------------------------------------------------------------------------
+# GET /kb/documents/{docId} — getKBDocument
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/kb/documents/{docId}",
+    operation_id="getKBDocument",
+    summary="KB 文件詳情 v2（scope check, ADR-0101 §2.3）",
+    tags=["KB (Agent Knowledge Base)"],
+)
+async def get_kb_document(
+    docId: str = Path(..., description="文件 UUID"),
+    doc_type: str | None = Query(
+        default=None,
+        description=(
+            "明確指定文件類型（case / manual）加速查詢；"
+            "若未給則先查 case 再查 manual"
+        ),
+    ),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    """GET /kb/documents/{docId} — 先嘗試 case，再嘗試 manual。
+
+    spec 規定 scope check 403；本實作依 tenant_id 隔離（已含 require_tenant），
+    若查無文件回 404，其他 tenant 的文件因 tenant 過濾不可見，符合 scope 精神。
+    """
+    if doc_type and doc_type not in _DOC_TYPES:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"doc_type must be one of: {', '.join(sorted(_DOC_TYPES))}",
+            422,
+        )
+
+    tenant_id = user.tenant_id
+
+    if doc_type == "case" or doc_type is None:
+        try:
+            case = await case_service.get_case(tenant_id=tenant_id, case_id=docId)
+            return _case_to_kb_document(case)
+        except ApiError as e:
+            if e.status_code != 404 or doc_type == "case":
+                raise
+
+    # doc_type == "manual" or fallthrough from case not found
+    try:
+        manual_page = await manual_service.list_manuals(
+            tenant_id=tenant_id,
+            cursor=None,
+            limit=1,
+            brand=None,
+        )
+        # list_manuals 無 get_by_id；用 ID 過濾（手動掃）
+        # TODO: manual_service 增加 get_manual(tenant_id, manual_id) 以避免 scan
+        # 暫以重試 get_case 失敗後的 manual list 搜尋代替
+        manual = await _get_manual_by_id(tenant_id=tenant_id, manual_id=docId)
+        return _manual_to_kb_document(manual)
+    except ApiError:
+        raise
+
+
+async def _get_manual_by_id(*, tenant_id: str, manual_id: str) -> dict:
+    """從 manual_service 取單筆 manual（manual_service 僅有 list）。
+
+    TODO: manual_service 目前無 get_by_id；此處以 list 掃描代替，待補後直接呼叫。
+    每次最多掃 limit=100 筆，超大 tenant 不適用；僅 MVP 可接受，P3 前需補實作。
+    """
+    import core.db as db_module
+    from core.db import _ensure_conn
+    from services.manual_service import _SELECT_COLUMNS, _row_to_dict
+
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    cur = await db_module._conn.execute(
+        f"SELECT {_SELECT_COLUMNS} FROM manuals "
+        f"WHERE id = %s::uuid AND tenant_id = %s::uuid",
+        (manual_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "Document not found", 404)
+    return _row_to_dict(row)
