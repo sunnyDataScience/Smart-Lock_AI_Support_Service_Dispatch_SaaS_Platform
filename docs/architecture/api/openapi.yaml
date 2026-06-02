@@ -119,6 +119,7 @@ tags:
   - name: Conversations  # P2-W2: tenant-scoped Conversation CRUD + Messages (CR-0003 P2-W2, FR-0018)
   - name: M07 WorkOrder Ops  # P2-W4: tenant-scoped WorkOrder operational endpoints (CR-0003 P2-W4)
   - name: M11 Invoice  # P2-W5: tenant-scoped Invoice read-only (CR-0003 P2-W5, FR-0011)
+  - name: Media  # P2-W6: tenant-scoped Media upload/serve/list (CR-0003 P2-W6)
 
 paths:
   ## --- LINE Bot intake / observability ---
@@ -2776,6 +2777,214 @@ paths:
         '409': { description: 'Conversation not in waiting_human state' }
         '422': { description: 'Validation error' }
 
+  ## --- W6 Media v2 (CR-0003 P2-W6 / Media tenant-scoped upload/serve/list) ---
+
+  /tenants/{tenantId}/media:
+    x-phase: P2-W6
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+    post:
+      tags: [Media]
+      summary: 上傳媒體檔案 v2（tenant-scoped，multipart/form-data）
+      operationId: uploadMediaV2
+      description: |
+        上傳媒體檔案（圖片/影片）並回傳 media_id 與存取 url。
+        multipart/form-data 上傳；不使用冪等性 key（sha256 + media_id UUID 天然去重）。
+        跨租戶寫入（path tenantId ≠ JWT tenant_id）回傳 403 CROSS_TENANT_WRITE。
+        依 ADR-0030 tenant 隔離。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, purpose]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: '上傳檔案（圖片或影片）'
+                purpose:
+                  $ref: '#/components/schemas/MediaPurpose'
+                work_order_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                  description: '關聯工單 UUID（optional）'
+                dispute_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                  description: '關聯爭議 UUID（optional）'
+      responses:
+        '200':
+          description: 'OK — 上傳成功，回傳 media_id 與存取 url'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MediaUploadResponse' }
+        '403':
+          description: CROSS_TENANT_WRITE
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '422': { description: 'Validation error (unsupported content-type or missing required fields)' }
+
+  /tenants/{tenantId}/media/{mediaId}:
+    x-phase: P2-W6
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - name: mediaId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+        description: '媒體 UUID'
+    get:
+      tags: [Media]
+      summary: 下載媒體檔案 v2（tenant-scoped，含 tenant 隔離）
+      operationId: getMediaV2
+      description: |
+        取得指定媒體檔案內容，回傳 binary（inline Content-Disposition，Cache-Control: private, max-age=3600）。
+        跨租戶讀取（path tenantId ≠ JWT tenant_id）回傳 403 CROSS_TENANT_READ。
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 'OK — 媒體檔案內容（binary）'
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '403':
+          description: CROSS_TENANT_READ
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404': { description: 'Media not found' }
+
+  /tenants/{tenantId}/work-orders/{woId}/media:
+    x-phase: P2-W6
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - name: woId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+        description: '工單 UUID'
+    get:
+      tags: [Media]
+      summary: 列出工單所有相關媒體 v2（tenant-scoped，依用途與時間排序）
+      operationId: listMediaForWorkOrderV2
+      description: |
+        取得指定工單的所有媒體檔案清單（依 purpose + created_at 排序）。
+        跨租戶讀取（path tenantId ≠ JWT tenant_id）回傳 403 CROSS_TENANT_READ。
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 'OK — 工單媒體清單'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MediaFilePage' }
+        '403':
+          description: CROSS_TENANT_READ
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404': { description: 'Work order not found' }
+
+  /tenants/{tenantId}/disputes/{disputeId}/media:
+    x-phase: P2-W6
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - name: disputeId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+        description: '爭議 UUID'
+    get:
+      tags: [Media]
+      summary: 列出爭議所有相關證據 v2（tenant-scoped，含雙方上傳）
+      operationId: listMediaForDisputeV2
+      description: |
+        取得指定爭議的所有媒體證據清單（含客戶與技師雙方上傳）。
+        跨租戶讀取（path tenantId ≠ JWT tenant_id）回傳 403 CROSS_TENANT_READ。
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 'OK — 爭議媒體證據清單'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MediaFilePage' }
+        '403':
+          description: CROSS_TENANT_READ
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404': { description: 'Dispute not found' }
+
+  ## --- W6 Dispatch Logs v2 (CR-0003 P2-W6 / M06 Dispatch read-only, admin-only) ---
+
+  /tenants/{tenantId}/dispatch-logs:
+    x-phase: P2-W6
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+    get:
+      tags: ['M06 Dispatch']
+      summary: 派工歷程列表 v2（tenant-scoped，cursor 分頁，admin-only）
+      operationId: listDispatchLogsV2
+      description: |
+        取得指定租戶的派工歷程列表，支援 cursor 分頁與工單 / action 篩選。
+        僅限 admin / operations_manager / tenant_admin 角色存取（監控用途）。
+        跨租戶讀取（path tenantId ≠ JWT tenant_id）回傳 403 CROSS_TENANT_READ。
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: work_order_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+          description: '按工單篩選'
+        - name: action
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/DispatchAction' }
+          description: '按派工動作篩選'
+      responses:
+        '200':
+          description: 'OK — 派工歷程清單（cursor 分頁）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DispatchLogPage' }
+        '403':
+          description: CROSS_TENANT_READ or INSUFFICIENT_AUTHORITY
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/dispatch-logs/{id}:
+    x-phase: P2-W6
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+        description: '派工歷程記錄 UUID'
+    get:
+      tags: ['M06 Dispatch']
+      summary: 派工歷程詳情 v2（tenant-scoped，admin-only）
+      operationId: getDispatchLogV2
+      description: |
+        取得指定派工歷程記錄詳情，回傳 data 信封格式。
+        僅限 admin / operations_manager / tenant_admin 角色存取。
+        跨租戶讀取（path tenantId ≠ JWT tenant_id）回傳 403 CROSS_TENANT_READ。
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 'OK — 派工歷程詳情（data 信封）'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DispatchLogEnvelope' }
+        '403':
+          description: CROSS_TENANT_READ or INSUFFICIENT_AUTHORITY
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404': { description: 'Dispatch log not found' }
+
 
 components:
   parameters:
@@ -4676,6 +4885,118 @@ components:
         items:
           type: array
           items: { $ref: '#/components/schemas/Invoice' }
+          nullable: true
+        next_cursor: { type: string, nullable: true }
+        has_more: { type: boolean }
+
+    # --- P2-W6 Media v2 schemas (CR-0003 / Media tenant-scoped) ---
+
+    MediaPurpose:
+      type: string
+      description: 媒體用途分類
+      enum:
+        - door_check_before
+        - door_check_after
+        - completion_before
+        - completion_after
+        - dispute_evidence_customer
+        - dispute_evidence_technician
+        - other
+
+    MediaFile:
+      type: object
+      required: [id, url, filename, content_type, size_bytes, purpose, created_at]
+      description: 媒體檔案記錄（tenant-scoped）
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string, description: '媒體存取路徑' }
+        filename: { type: string }
+        content_type: { type: string }
+        size_bytes: { type: integer }
+        purpose: { $ref: '#/components/schemas/MediaPurpose' }
+        work_order_id: { type: string, format: uuid, nullable: true }
+        dispute_id: { type: string, format: uuid, nullable: true }
+        sha256: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    MediaUploadResponse:
+      type: object
+      required: [media_id, url]
+      description: 上傳媒體檔案成功回傳（media_id + url）
+      properties:
+        media_id: { type: string, format: uuid }
+        url: { type: string, description: '可存取的媒體 url（相對或絕對路徑）' }
+        filename: { type: string, nullable: true }
+        content_type: { type: string, nullable: true }
+        size_bytes: { type: integer, nullable: true }
+        purpose: { $ref: '#/components/schemas/MediaPurpose' }
+
+    MediaFilePage:
+      type: object
+      required: [items]
+      description: 媒體檔案清單（無分頁，全量回傳）
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/MediaFile' }
+
+    # --- P2-W6 Dispatch Logs v2 schemas (CR-0003 / M06 Dispatch) ---
+
+    DispatchAction:
+      type: string
+      description: 派工動作類型
+      enum:
+        - assign
+        - accept
+        - reject
+        - timeout
+        - reassign
+        - cancel
+
+    DispatchLog:
+      type: object
+      required: [id, work_order_id, action, created_at]
+      description: 派工歷程記錄（tenant-scoped，admin-only）
+      properties:
+        id: { type: string, format: uuid }
+        work_order_id: { type: string, format: uuid }
+        action: { $ref: '#/components/schemas/DispatchAction' }
+        technician_id: { type: string, format: uuid, nullable: true }
+        technician_name:
+          type: string
+          nullable: true
+          description: '技師顯示名稱（technicians 表 JOIN）'
+        match_score:
+          type: number
+          format: float
+          nullable: true
+          description: 'AI 媒合分數（0-100）'
+        match_factors:
+          type: object
+          nullable: true
+          description: '媒合因子（distance/skill/availability 加權結構；jsonb）'
+          additionalProperties: true
+        rejection_reason: { type: string, nullable: true }
+        timeout_seconds: { type: integer, nullable: true }
+        notes: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    DispatchLogEnvelope:
+      type: object
+      description: 派工歷程詳情信封（data 包裝）
+      properties:
+        data:
+          $ref: '#/components/schemas/DispatchLog'
+          nullable: true
+
+    DispatchLogPage:
+      type: object
+      required: [has_more]
+      description: 派工歷程分頁（cursor 分頁）
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/DispatchLog' }
           nullable: true
         next_cursor: { type: string, nullable: true }
         has_more: { type: boolean }
