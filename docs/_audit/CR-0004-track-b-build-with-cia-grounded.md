@@ -206,4 +206,8 @@ S7 [平台級 flat，獨立性最高，但 hash chain+schema 須先裁] ── v
 - vouchers-void：hash chain V1 即補；voided 用**新建反向分錄 + voucher_void_event 事件表**（不 UPDATE 原 row，守 append-only）；keeperRole = platform admin JWT role；schema 遷 saas（dual-write）。
 - **agent refunds SoD gap（P3 發現）**：agent 自動退款流暫續用 legacy /api/v1/refunds；v2 system-actor 退款路徑列入 refunds 後續 CR（與 vouchers 同波評估）。
 
-> **實作順序仍嚴守 §3 S0→S7**；每模組開工前以本決策為基線，遇 grounded CIA 細節衝突再回報。本波次先做 **config-m18（S1）**。
+> **實作順序仍嚴守 §3 S0→S7**；每模組開工前以本決策為基線，遇 grounded CIA 細節衝突再回報。
+
+### 進度
+- ✅ **S1 config-m18 done**（merge `2c4dbf1e`，2026-06-02）：saas.config_* 4 表 + 7 endpoint + SoD/audit/ACL/rollback，25 測試綠、回歸 524+1skip。Opus gate 修 parent-restore + 繁中。Phase II：canary auto-advance/SLO halt（需 scheduler）。
+- ⏳ S2 reconciliations→disputes / S3 inventory / S4 pricing-rules / S5 data-corrections / S6 resolution / S7 vouchers-void — 待續，同範式（feat 分支 + Sonnet 建 + Opus gate + live-DB component）。
