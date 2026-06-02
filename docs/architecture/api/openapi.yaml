@@ -120,6 +120,7 @@ tags:
   - name: M07 WorkOrder Ops  # P2-W4: tenant-scoped WorkOrder operational endpoints (CR-0003 P2-W4)
   - name: M11 Invoice  # P2-W5: tenant-scoped Invoice read-only (CR-0003 P2-W5, FR-0011)
   - name: M12 Settlement  # FR-0013 dual-sign reconciliation v2 (CR-0004 §8 HD-1~HD-3)
+  - name: M14 Dispute  # FR-0013 dual-sign dispute v2 (CR-0004 §8 / disputes_v2.py)
   - name: Media  # P2-W6: tenant-scoped Media upload/serve/list (CR-0003 P2-W6)
 
 paths:
@@ -2760,6 +2761,368 @@ paths:
           description: DUAL_SIGN_REQUIRED — 對帳單非 in_review 狀態，需先完成 review
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
 
+  ## --- Dispute v2 dual-sign 狀態機 (FR-0013 / CR-0004 §8 / M14 Dispute) ---
+
+  /tenants/{tenantId}/disputes:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+    get:
+      tags: ['M14 Dispute']
+      summary: 爭議列表 v2（tenant-scoped，cursor 分頁）
+      operationId: listDisputesV2
+      description: |
+        取得指定租戶的爭議列表，支援多欄位篩選與 cursor 分頁。
+        跨租戶讀取（path tenantId ≠ JWT tenant_id）回傳 403 CROSS_TENANT_READ。
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [filed, in_review, mediation, resolved, escalated, closed_withdrawn]
+          description: 爭議狀態篩選（filed|in_review|mediation|resolved|escalated|closed_withdrawn）
+        - name: dispute_type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pricing, quality, warranty, cancellation_fee, settlement]
+          description: 爭議類型篩選（pricing|quality|warranty|cancellation_fee|settlement）
+        - name: work_order_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+          description: 工單 UUID filter
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DisputePage' }
+        '403':
+          description: CROSS_TENANT_READ
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    post:
+      tags: ['M14 Dispute']
+      summary: 開立爭議（status=filed, sla_deadline=now+60d）
+      operationId: openDisputeV2
+      description: |
+        新建爭議，status=filed，sla_deadline=now+60d。
+        Idempotency-Key 防重（24h dedup）。
+        201 回新建爭議；409 表示幂等重複。
+        跨租戶寫入（path tenantId ≠ JWT tenant_id）回傳 403 CROSS_TENANT_WRITE。
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [filed_by, dispute_type]
+              properties:
+                filed_by:
+                  type: string
+                  format: uuid
+                  description: 提交爭議的使用者 UUID
+                dispute_type:
+                  type: string
+                  enum: [pricing, quality, warranty, cancellation_fee, settlement]
+                  description: 爭議類型
+                description:
+                  type: string
+                  nullable: true
+                  description: 爭議描述（選填）
+                work_order_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                  description: 關聯工單 UUID（選填）
+                invoice_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                  description: 關聯發票 UUID（選填）
+                evidence:
+                  nullable: true
+                  description: 佐證資料（jsonb，選填）
+      responses:
+        '201':
+          description: Created — 爭議已開立，status=filed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DisputeEnvelope' }
+        '403':
+          description: CROSS_TENANT_WRITE
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/disputes/{disputeId}:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: disputeId, in: path, required: true, schema: { type: string, format: uuid }, description: 爭議 UUID }
+    get:
+      tags: ['M14 Dispute']
+      summary: 取單筆爭議 v2（tenant-scoped）
+      operationId: getDisputeV2
+      description: |
+        取得單筆爭議詳情。
+        跨租戶讀取（path tenantId ≠ JWT tenant_id）回傳 403 CROSS_TENANT_READ。
+        404 NOT_FOUND 若爭議不存在或不屬於此 tenant。
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DisputeEnvelope' }
+        '403':
+          description: CROSS_TENANT_READ
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404':
+          description: NOT_FOUND — 爭議不存在或不屬於此 tenant
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/disputes/{disputeId}:review:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: disputeId, in: path, required: true, schema: { type: string, format: uuid }, description: 爭議 UUID }
+    post:
+      tags: ['M14 Dispute']
+      summary: CSM review（step-1，filed → in_review 或 mediation）
+      operationId: reviewDisputeV2
+      description: |
+        dual-sign 第一步：CSM 審核爭議，status 由 filed 轉為 in_review（to_mediation=true 則轉 mediation）。
+        X-Initiator 記為 reviewed_by；Idempotency-Key 防重。
+        409 STATE_CONFLICT：爭議 status 非 filed。
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XInitiator'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [proposed_resolution]
+              properties:
+                proposed_resolution:
+                  type: string
+                  minLength: 1
+                  description: CSM 提案解決方案
+                resolution_amount:
+                  type: number
+                  nullable: true
+                  description: 提案金額（選填）
+                to_mediation:
+                  type: boolean
+                  default: false
+                  description: true 則 status 轉為 mediation 而非 in_review
+      responses:
+        '200':
+          description: OK — 爭議已進入 in_review（或 mediation），回傳更新後爭議
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DisputeEnvelope' }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '409':
+          description: STATE_CONFLICT — 爭議非 filed 狀態，不可 review
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/disputes/{disputeId}:co-sign:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: disputeId, in: path, required: true, schema: { type: string, format: uuid }, description: 爭議 UUID }
+    post:
+      tags: ['M14 Dispute']
+      summary: ops_manager co-sign（step-2，in_review|mediation → resolved）
+      operationId: coSignDisputeV2
+      description: |
+        dual-sign 第二步：ops_manager co-sign，status 由 in_review 或 mediation 轉為 resolved。
+        X-Initiator 記為 cosigned_by；SoD 規則：cosigned_by ≠ reviewed_by，否則 403 SOD_VIOLATION。
+        409 DUAL_SIGN_REQUIRED：爭議 status 非 in_review/mediation（尚未完成第一步 review）。
+        403 SOD_VIOLATION：co-signer 與 reviewer 為同一人（Separation of Duties）。
+        HD-4：resolution_amount < 0 僅記錄 [DEFERRED]，不觸發 DGS/refund cascade（Phase II / ADR-0061/FR-0014）。
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XInitiator'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resolution]
+              properties:
+                resolution:
+                  type: string
+                  minLength: 5
+                  description: 最終解決方案（最少 5 字）
+                resolution_amount:
+                  type: number
+                  nullable: true
+                  description: 最終金額（選填；負值→DGS/refund cascade DEFERRED Phase II）
+      responses:
+        '200':
+          description: OK — 雙簽完成，status=resolved，回傳更新後爭議
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DisputeEnvelope' }
+        '403':
+          description: SOD_VIOLATION — co-signer 與 reviewer 相同（SoD 違反）
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '409':
+          description: DUAL_SIGN_REQUIRED — 爭議非 in_review/mediation 狀態，需先完成 review
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/disputes/{disputeId}:withdraw:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: disputeId, in: path, required: true, schema: { type: string, format: uuid }, description: 爭議 UUID }
+    post:
+      tags: ['M14 Dispute']
+      summary: 撤銷爭議（filed|in_review|mediation → closed_withdrawn）
+      operationId: withdrawDisputeV2
+      description: |
+        客戶撤銷爭議，status 轉為 closed_withdrawn。
+        Idempotency-Key 防重。
+        409 STATE_CONFLICT：爭議已 resolved/escalated/closed_withdrawn，不可撤銷。
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  nullable: true
+                  description: 撤銷原因（選填）
+      responses:
+        '200':
+          description: OK — 爭議已撤銷，status=closed_withdrawn
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DisputeEnvelope' }
+        '403':
+          description: CROSS_TENANT_WRITE
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '409':
+          description: STATE_CONFLICT — 爭議不在可撤銷狀態
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/disputes/{disputeId}:escalate:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: disputeId, in: path, required: true, schema: { type: string, format: uuid }, description: 爭議 UUID }
+    post:
+      tags: ['M14 Dispute']
+      summary: 手動升級爭議（filed|in_review|mediation → escalated）
+      operationId: escalateDisputeV2
+      description: |
+        手動升級爭議至 escalated（escalated_to=ops_director）。
+        60d 自動升級為 Phase II Cloud Scheduler（AC-03）。
+        X-Initiator 記為升級發起人；Idempotency-Key 防重。
+        409 STATE_CONFLICT：爭議已 resolved/escalated/closed_withdrawn，不可升級。
+        emit DisputeEscalated 事件（audit log）。
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XInitiator'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  nullable: true
+                  description: 升級原因（選填）
+      responses:
+        '200':
+          description: OK — 爭議已升級，status=escalated，escalated_to=ops_director
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DisputeEnvelope' }
+        '403':
+          description: CROSS_TENANT_WRITE
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '409':
+          description: STATE_CONFLICT — 爭議不在可升級狀態
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/disputes/{disputeId}:reopen:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: disputeId, in: path, required: true, schema: { type: string, format: uuid }, description: 原爭議 UUID }
+    post:
+      tags: ['M14 Dispute']
+      summary: 重開爭議（resolved|closed_withdrawn → 新 dispute w/ parent_dispute_id）
+      operationId: reopenDisputeV2
+      description: |
+        AC-05 reopen：不可直接重開已關閉爭議，必須新建 dispute 並引用 parent_dispute_id=原 disputeId。
+        原爭議須為 resolved 或 closed_withdrawn，否則 409 STATE_CONFLICT。
+        繼承原 dispute 的 work_order_id / invoice_id / filed_by / dispute_type（caller 可覆寫 description 與 dispute_type）。
+        201 回新建爭議（status=filed, sla_deadline=now+60d）。
+        Idempotency-Key 防重。
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                description:
+                  type: string
+                  nullable: true
+                  description: 新爭議描述（選填，未提供則繼承原 dispute）
+                dispute_type:
+                  type: string
+                  enum: [pricing, quality, warranty, cancellation_fee, settlement]
+                  nullable: true
+                  description: 新爭議類型（選填，未提供則繼承原 dispute）
+      responses:
+        '201':
+          description: Created — 新爭議已建立，status=filed，parent_dispute_id=原 disputeId
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DisputeEnvelope' }
+        '403':
+          description: CROSS_TENANT_WRITE
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404':
+          description: NOT_FOUND — 原爭議不存在
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '409':
+          description: STATE_CONFLICT — 原爭議非 resolved/closed_withdrawn，不可 reopen
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
   ## --- Conversations v2 (P2-W2 / CR-0003 / FR-0018) ---
   /tenants/{tenantId}/conversations:
     x-phase: P2-W2
@@ -5253,3 +5616,75 @@ components:
               $ref: '#/components/schemas/Reconciliation'
             settlement:
               $ref: '#/components/schemas/SettlementV2'
+
+    # --- M14 Dispute — Dispute v2 dual-sign 狀態機 (FR-0013 / CR-0004 §8) ---
+
+    Dispute:
+      type: object
+      description: |
+        saas.dispute 爭議單（v2 tenant-scoped dual-sign）。
+        欄位對應 dispute_v2_service._row_to_dict 輸出形狀。
+      required:
+        - id
+        - tenant_id
+        - filed_by
+        - dispute_type
+        - status
+        - description
+        - filed_at
+        - sla_deadline
+        - created_at
+        - updated_at
+      properties:
+        id: { type: string, format: uuid, description: 爭議 UUID }
+        tenant_id: { type: string, format: uuid, description: 租戶 UUID }
+        work_order_id: { type: string, format: uuid, nullable: true, description: 關聯工單 UUID }
+        invoice_id: { type: string, format: uuid, nullable: true, description: 關聯發票 UUID }
+        filed_by: { type: string, format: uuid, description: 提交人 UUID }
+        dispute_type:
+          type: string
+          enum: [pricing, quality, warranty, cancellation_fee, settlement]
+          description: 爭議類型
+        status:
+          type: string
+          enum: [filed, in_review, mediation, resolved, escalated, closed_withdrawn]
+          description: 爭議狀態
+        description: { type: string, description: 爭議描述 }
+        evidence:
+          nullable: true
+          description: 佐證資料（jsonb）
+        proposed_resolution: { type: string, nullable: true, description: CSM step-1 提案解決方案 }
+        resolution: { type: string, nullable: true, description: 最終解決方案（co-sign 後填入） }
+        resolution_amount: { type: string, nullable: true, description: '最終金額（numeric string，2 位小數；負值表示退款 DEFERRED Phase II）' }
+        reviewed_by: { type: string, format: uuid, nullable: true, description: step-1 CSM reviewer UUID }
+        reviewed_at: { type: string, format: date-time, nullable: true, description: step-1 完成時間 }
+        cosigned_by: { type: string, format: uuid, nullable: true, description: step-2 ops_manager co-signer UUID }
+        cosigned_at: { type: string, format: date-time, nullable: true, description: step-2 完成時間 }
+        escalated_to: { type: string, nullable: true, description: 升級對象（ops_director） }
+        escalated_at: { type: string, format: date-time, nullable: true, description: 升級時間 }
+        parent_dispute_id: { type: string, format: uuid, nullable: true, description: 重開時引用的原爭議 UUID }
+        filed_at: { type: string, format: date-time, description: 爭議開立時間 }
+        sla_deadline: { type: string, format: date-time, description: SLA 截止時間（filed_at + 60d） }
+        resolved_at: { type: string, format: date-time, nullable: true, description: 爭議解決時間 }
+        created_at: { type: string, format: date-time, description: 建立時間 }
+        updated_at: { type: string, format: date-time, description: 更新時間 }
+
+    DisputeEnvelope:
+      type: object
+      description: 單筆爭議信封（data 包裝，對應 getDisputeV2 / openDisputeV2 / action endpoints 回應）
+      properties:
+        data:
+          $ref: '#/components/schemas/Dispute'
+          nullable: true
+
+    DisputePage:
+      type: object
+      required: [has_more]
+      description: 爭議分頁（cursor 分頁，對應 listDisputesV2 200 response）
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Dispute' }
+          nullable: true
+        next_cursor: { type: string, nullable: true, description: 下一頁游標（opaque base64） }
+        has_more: { type: boolean }
