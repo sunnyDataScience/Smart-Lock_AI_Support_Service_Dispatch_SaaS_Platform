@@ -1,8 +1,9 @@
-"""Technicians v2 router — tenant-scoped 技師管理端點（CR-0002-α / spec-alignment P2-α）。
+"""Technicians v2 router — tenant-scoped 技師管理端點（CR-0002-α / spec-alignment P2-α / P2-W1）。
 
 對齊 frozen spec §2.2 M05 Technician：
   - GET  /tenants/{tenantId}/technicians          → listTechniciansV2 (cursor 分頁)
   - GET  /tenants/{tenantId}/technicians/{techId} → getTechnicianV2 (單筆詳情)
+  - POST /tenants/{tenantId}/technicians          → createTechnician (onboard FR-0044)
   - POST /tenants/{tenantId}/technicians/{techId}:suspend → suspendTechnicianV2
 
 舊 flat 路徑 /api/v1/technicians（routers/technicians.py 的 admin 端點）仍保留，
@@ -12,6 +13,7 @@
 
 設計原則：
   - require_tenant + cross-tenant guard（ADR-0030）
+  - idempotency_guard（POST 寫操作）
   - 呼既有 technician_service 函式，不重寫 SQL
   - envelope：{ data } 對齊既有慣例
   - suspend：legacy service 尚無對應實作 → 標 TODO stub（回 501）
@@ -19,11 +21,14 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Path, Query
+from pydantic import BaseModel, Field
+
+from fastapi import APIRouter, Depends, Path, Query, Response
 from fastapi.responses import JSONResponse
 
 from core.deps import CurrentUser, require_tenant
 from core.errors import ApiError
+from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
     Technician,
     TechnicianAvailability,
@@ -32,6 +37,20 @@ from models.generated import (
     TechnicianPage,
 )
 from services import technician_service
+
+
+class _TechnicianCreateRequest(BaseModel):
+    """Inline schema 對齊 spec TechnicianCreate（display_name + coverage_areas）。
+
+    TechnicianCreate 尚未在 generated.py 中生成，故在 router 內 inline 定義。
+    DB technicians.phone 為 NOT NULL；spec 未要求 phone → 接受可選，補空字串佔位。
+    """
+
+    display_name: str = Field(..., description="技師顯示姓名")
+    coverage_areas: list[str] = Field(..., description="服務覆蓋區域代碼清單")
+    phone: str | None = Field(default=None, description="聯絡電話（選填）")
+    email: str | None = Field(default=None, description="電子郵件（選填）")
+    capabilities: list[str] | None = Field(default=None, description="可服務品牌/技能碼")
 
 router = APIRouter()
 
@@ -97,6 +116,45 @@ async def get_technician_v2(
         tenant_id=tenantId, technician_id=techId
     )
     return {"data": Technician(**technician).model_dump(mode="json")}
+
+
+@router.post(
+    "/tenants/{tenantId}/technicians",
+    operation_id="createTechnician",
+    summary="Onboard 新技師 v2（tenant-scoped, FR-0044 / spec-alignment P2-W1）",
+    response_model=TechnicianEnvelope,
+    status_code=201,
+    tags=["M05 Technician"],
+)
+async def create_technician_v2(
+    body: _TechnicianCreateRequest,
+    response: Response,
+    tenantId: str = Path(...),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    # cross-tenant guard（ADR-0030）
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError(
+            "CROSS_TENANT_WRITE",
+            "Path tenantId does not match authenticated tenant",
+            403,
+        )
+
+    technician, created = await technician_service.create_technician(
+        tenant_id=tenantId,
+        display_name=body.display_name,
+        coverage_areas=body.coverage_areas,
+        phone=body.phone,
+        email=body.email,
+        capabilities=body.capabilities,
+    )
+
+    response.status_code = 201 if created else 200
+    payload: dict = {"data": Technician(**technician).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(response.status_code, payload)
+    return payload
 
 
 @router.post(

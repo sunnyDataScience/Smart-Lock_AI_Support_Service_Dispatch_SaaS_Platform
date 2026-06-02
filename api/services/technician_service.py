@@ -262,6 +262,65 @@ async def get_my_availability(
     }
 
 
+async def create_technician(
+    *,
+    tenant_id: str,
+    display_name: str,
+    coverage_areas: list[str],
+    phone: str | None = None,
+    email: str | None = None,
+    capabilities: list[str] | None = None,
+) -> tuple[dict, bool]:
+    """POST /tenants/{tenantId}/technicians — onboard 新技師（operationId: createTechnician）。
+
+    Idempotency（業務唯一鍵）：tenant_id + display_name（name）— 同 tenant 同姓名
+    若已存在（非 suspended/terminated），回 (existing, created=False)（HTTP 200）。
+    created=True → HTTP 201。
+
+    DB constraints:
+      - name NOT NULL
+      - phone NOT NULL → 若呼叫端未提供，填 '' 作為佔位（pending 狀態）
+      - status 預設 'pending_approval'
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    # Idempotency check：同 tenant + 同 name 且非 suspended/terminated
+    cur = await db_module._conn.execute(
+        f"SELECT {_TECH_SELECT} FROM technicians t "
+        "WHERE t.tenant_id = %s::uuid AND t.name = %s "
+        "  AND t.status NOT IN ('suspended', 'terminated') "
+        "ORDER BY t.created_at ASC LIMIT 1",
+        (tenant_id, display_name),
+    )
+    existing_row = await cur.fetchone()
+    if existing_row:
+        return _tech_row_to_dict(existing_row), False
+
+    # INSERT 新技師
+    phone_val = phone if phone else ""
+    capabilities_json = json.dumps(capabilities or [])
+    service_regions_json = json.dumps(coverage_areas)
+
+    cur = await db_module._conn.execute(
+        "INSERT INTO technicians "
+        "  (tenant_id, name, phone, email, capabilities, service_regions, status) "
+        "VALUES (%s::uuid, %s, %s, %s, %s::jsonb, %s::jsonb, 'pending_approval') "
+        "RETURNING id",
+        (tenant_id, display_name, phone_val, email, capabilities_json, service_regions_json),
+    )
+    row = await cur.fetchone()
+    new_id = str(row[0])
+
+    # 重新 SELECT 以取得完整 row（含 created_at 等欄位）
+    cur = await db_module._conn.execute(
+        f"SELECT {_TECH_SELECT} FROM technicians t WHERE t.id = %s::uuid",
+        (new_id,),
+    )
+    new_row = await cur.fetchone()
+    return _tech_row_to_dict(new_row), True
+
+
 async def get_dashboard_stats(*, tenant_id: str) -> dict:
     """Dashboard 技師概況：total_count / online_count / dispatchable_count。
 
