@@ -112,6 +112,7 @@ tags:
   - name: KB (Agent Knowledge Base)
   - name: Sync (ERP ↔ Chatbot)
   - name: ACL External Integration
+  - name: Dashboard  # M01 Dashboard KPI tenant-scoped (CR-0003 P2-W1, FR-0021)
 
 paths:
   ## --- LINE Bot intake / observability ---
@@ -2032,6 +2033,48 @@ paths:
       responses:
         '202': { description: 'Accepted', content: { application/json: { schema: { $ref: '#/components/schemas/RMASubmitReceipt' } } } }
 
+  # M01 Dashboard — tenant-scoped KPI 統計（CR-0003 P2-W1, FR-0021）
+  /tenants/{tenantId}/dashboard/stats:
+    x-phase: I-readonly
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+    get:
+      tags: [Dashboard]
+      summary: Dashboard KPI 統計（tenant-scoped，period filter）
+      operationId: getDashboardStats
+      description: |
+        取得指定租戶在選定時段內的 dashboard KPI 統計，包含對話數、
+        AI 解決率、平均解決時間、熱門議題、Token 用量、工單今日 KPI
+        與技師概況。period 參數映射：today / 7d / 30d / 90d。
+        跨租戶讀取（path tenantId ≠ JWT tenant_id）回傳 403 CROSS_TENANT_READ。
+      parameters:
+        - name: period
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [today, 7d, 30d, 90d]
+            default: 7d
+          description: 統計時段
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 'OK — tenant-scoped dashboard KPI 統計'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardStats'
+        '401':
+          description: Unauthenticated
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '403':
+          description: CROSS_TENANT_READ — path tenantId 與 JWT claim 不符
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '503':
+          description: DB_UNAVAILABLE
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
   # Phase II placeholders
   /tenants/{tenantId}/settlements/monthly:
     x-phase: II
@@ -3241,3 +3284,133 @@ components:
       properties:
         change_request_id: { type: string }
         effective_date: { type: string, format: date, nullable: true }
+
+    # M01 Dashboard schemas（CR-0003 P2-W1, FR-0021）
+    DashboardPeriod:
+      type: string
+      enum: [today, 7d, 30d, 90d]
+      description: Dashboard 統計時段
+
+    DashboardConversations:
+      type: object
+      required: [total, active, resolved, escalated]
+      properties:
+        total: { type: integer, minimum: 0 }
+        active: { type: integer, minimum: 0 }
+        resolved: { type: integer, minimum: 0 }
+        escalated: { type: integer, minimum: 0 }
+
+    DashboardResolution:
+      type: object
+      properties:
+        ai_resolution_rate:
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 1.0
+          nullable: true
+          description: AI 解決率（L1+L2 / 有解層記錄總數）
+        avg_resolution_time_seconds:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: 平均解決時間（秒）
+        by_layer:
+          type: object
+          additionalProperties: { type: integer }
+          nullable: true
+          description: '各解決層數量：case_library / rag / human'
+
+    DashboardHotTopic:
+      type: object
+      properties:
+        topic: { type: string, nullable: true }
+        count: { type: integer, minimum: 0, nullable: true }
+
+    DashboardTokenUsage:
+      type: object
+      properties:
+        total_tokens: { type: integer, nullable: true }
+        prompt_tokens: { type: integer, nullable: true }
+        completion_tokens: { type: integer, nullable: true }
+        estimated_cost_usd:
+          type: number
+          format: float
+          nullable: true
+          description: 估算成本（USD，Gemini 2.5 Pro blended price）
+
+    DashboardTopBrand:
+      type: object
+      properties:
+        brand: { type: string, nullable: true }
+        count: { type: integer, minimum: 0, nullable: true }
+
+    DashboardWorkOrders:
+      type: object
+      description: 派工今日 KPI
+      properties:
+        today_count:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: 今日新建工單數
+        completion_rate:
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 1.0
+          nullable: true
+          description: 今日完工率（today_count == 0 時為 null）
+        overdue_count:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: 排程時間已過且未結案工單數
+
+    DashboardTechnicians:
+      type: object
+      description: 技師概況 KPI
+      properties:
+        total_count:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: 此租戶啟用中（status=active）的技師總數
+        online_count:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: 目前可派遣的技師數
+        dispatchable_count:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: 已上線且可立即指派（保留欄位，目前等同 online_count）
+
+    DashboardStats:
+      type: object
+      required: [period, conversations, resolution]
+      description: Dashboard KPI 統計（tenant-scoped，FR-0021）
+      properties:
+        period:
+          $ref: '#/components/schemas/DashboardPeriod'
+        conversations:
+          $ref: '#/components/schemas/DashboardConversations'
+        resolution:
+          $ref: '#/components/schemas/DashboardResolution'
+        hot_topics:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardHotTopic'
+          nullable: true
+        token_usage:
+          $ref: '#/components/schemas/DashboardTokenUsage'
+        top_brands:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardTopBrand'
+          nullable: true
+        work_orders:
+          $ref: '#/components/schemas/DashboardWorkOrders'
+        technicians:
+          $ref: '#/components/schemas/DashboardTechnicians'
