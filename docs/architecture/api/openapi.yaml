@@ -123,6 +123,7 @@ tags:
   - name: M14 Dispute  # FR-0013 dual-sign dispute v2 (CR-0004 §8 / disputes_v2.py)
   - name: Media  # P2-W6: tenant-scoped Media upload/serve/list (CR-0003 P2-W6)
   - name: M10 Inventory  # FR-0007 per-tenant 庫存狀態機 v2 (CR-0004 §8 / ADR-0052 / ADR-0053)
+  - name: M11 Pricing Rules  # Track B S4: tenant-scoped Pricing Rules CRUD v2 (CR-0004 §8 C3 / ADR-0046)
 
 paths:
   ## --- LINE Bot intake / observability ---
@@ -3829,6 +3830,216 @@ paths:
           description: ITEM_INACTIVE — 品項已停用
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
 
+  ## --- M11 Pricing Rules v2 (Track B S4 / CR-0004 §8 C3 / ADR-0046) ---
+  /tenants/{tenantId}/pricing/rules:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+    get:
+      tags: ['M11 Pricing Rules']
+      summary: 計價規則列表 v2（tenant-scoped，cursor 分頁）
+      operationId: listPricingRulesV2
+      description: |
+        取得指定租戶的計價規則列表，支援 brand / lock_type / is_active 過濾與 cursor 分頁。
+        預設只回傳 is_active=true；明確帶 is_active=false 才列出停用規則。
+        跨租戶讀取（path tenantId ≠ JWT tenant_id）回傳 403 CROSS_TENANT_READ。
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: brand
+          in: query
+          required: false
+          schema: { type: string }
+          description: 品牌過濾（大小寫不敏感）
+        - name: lock_type
+          in: query
+          required: false
+          schema: { type: string }
+          description: 鎖具類型過濾
+        - name: is_active
+          in: query
+          required: false
+          schema: { type: boolean }
+          description: 是否啟用（預設只回傳 true；帶 false 列出停用）
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PricingRulePage' }
+        '403':
+          description: CROSS_TENANT_READ
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    post:
+      tags: ['M11 Pricing Rules']
+      summary: 建立計價規則（tenant-scoped v2，並寫 change_request 審計）
+      operationId: createPricingRuleV2
+      description: |
+        新建計價規則（INSERT saas.price_rule），同時並寫 saas.change_request（type_code='pricing_rule', state='effective'）治理審計軌跡（ADR-0046）。
+        X-Initiator 為必填 header，記入 change_request.created_by。
+        Idempotency-Key 防重（24h dedup）。
+        跨租戶寫入（path tenantId ≠ JWT tenant_id）回傳 403 CROSS_TENANT_WRITE。
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XInitiator'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [brand, lock_type, base_price]
+              properties:
+                brand:
+                  type: string
+                  minLength: 1
+                  description: 品牌（必填）
+                lock_type:
+                  type: string
+                  minLength: 1
+                  description: 鎖具類型（必填）
+                difficulty:
+                  type: string
+                  nullable: true
+                  enum: [easy, medium, hard]
+                  description: 難度（選填）
+                base_price:
+                  type: string
+                  description: 基本費用（decimal string 或 number，非負；例："1200.00"）
+                labor_cost:
+                  type: string
+                  nullable: true
+                  description: 工資（decimal string 或 number，選填；例："300.00"）
+                parts_cost:
+                  type: string
+                  nullable: true
+                  description: 零件費用（decimal string 或 number，選填；例："200.00"）
+                modifiers:
+                  type: array
+                  nullable: true
+                  items:
+                    $ref: '#/components/schemas/PricingSurcharge'
+                  description: 附加費用列表（選填）
+                reason:
+                  type: string
+                  nullable: true
+                  description: 變更原因（選填；記入 change_request）
+      responses:
+        '201':
+          description: Created — 計價規則已建立
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PricingRuleEnvelope' }
+        '403':
+          description: CROSS_TENANT_WRITE
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '422':
+          description: VALIDATION_ERROR — 必填欄位缺失或格式錯誤
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/pricing/rules/{ruleId}:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - name: ruleId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+        description: 計價規則 UUID
+    get:
+      tags: ['M11 Pricing Rules']
+      summary: 取單筆計價規則 v2（tenant-scoped）
+      operationId: getPricingRuleV2
+      description: |
+        取得單筆計價規則詳情。
+        跨租戶讀取（path tenantId ≠ JWT tenant_id）回傳 403 CROSS_TENANT_READ。
+        404 NOT_FOUND 若規則不存在或不屬於此 tenant。
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PricingRuleEnvelope' }
+        '403':
+          description: CROSS_TENANT_READ
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404':
+          description: NOT_FOUND — 計價規則不存在或不屬於此 tenant
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    put:
+      tags: ['M11 Pricing Rules']
+      summary: 更新計價規則（tenant-scoped v2 全量，並寫 change_request 審計）
+      operationId: updatePricingRuleV2
+      description: |
+        全量更新計價規則（UPDATE saas.price_rule），同時並寫 saas.change_request（type_code='pricing_rule', state='effective'）治理審計軌跡（ADR-0046）。
+        payload_diff 含 before/after snapshot。
+        X-Initiator 為必填 header，記入 change_request.created_by。
+        Idempotency-Key 防重（24h dedup）。
+        跨租戶寫入（path tenantId ≠ JWT tenant_id）回傳 403 CROSS_TENANT_WRITE。
+        404 NOT_FOUND 若規則不存在或不屬於此 tenant。
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XInitiator'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [brand, lock_type, base_price]
+              properties:
+                brand:
+                  type: string
+                  minLength: 1
+                  description: 品牌（必填）
+                lock_type:
+                  type: string
+                  minLength: 1
+                  description: 鎖具類型（必填）
+                difficulty:
+                  type: string
+                  nullable: true
+                  enum: [easy, medium, hard]
+                  description: 難度（選填）
+                base_price:
+                  type: string
+                  description: 基本費用（decimal string 或 number，非負；例："1200.00"）
+                labor_cost:
+                  type: string
+                  nullable: true
+                  description: 工資（decimal string 或 number，選填；例："300.00"）
+                parts_cost:
+                  type: string
+                  nullable: true
+                  description: 零件費用（decimal string 或 number，選填；例："200.00"）
+                modifiers:
+                  type: array
+                  nullable: true
+                  items:
+                    $ref: '#/components/schemas/PricingSurcharge'
+                  description: 附加費用列表（選填）
+                reason:
+                  type: string
+                  nullable: true
+                  description: 變更原因（選填；記入 change_request）
+      responses:
+        '200':
+          description: OK — 計價規則已更新
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PricingRuleEnvelope' }
+        '403':
+          description: CROSS_TENANT_WRITE
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404':
+          description: NOT_FOUND — 計價規則不存在或不屬於此 tenant
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '422':
+          description: VALIDATION_ERROR — 必填欄位缺失或格式錯誤
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
 
 components:
   parameters:
@@ -6129,3 +6340,95 @@ components:
             transaction:
               $ref: '#/components/schemas/InventoryTransaction'
               nullable: true
+
+    # --- M11 Pricing Rules v2 schemas (Track B S4 / CR-0004 §8 C3 / ADR-0046) ---
+    PricingSurcharge:
+      type: object
+      required: [name, amount]
+      description: 附加費用項目（modifiers 陣列元素）
+      properties:
+        name:
+          type: string
+          description: 費用名稱（例："夜間服務"）
+        amount:
+          type: string
+          description: 金額（2 位小數字串；例："200.00"）
+        condition:
+          type: string
+          nullable: true
+          description: 觸發條件說明（選填）
+
+    PricingRule:
+      type: object
+      required: [id, tenant_id, brand, lock_type, base_price, labor_cost, parts_cost, surcharges, is_active, created_at]
+      description: 計價規則（saas.price_rule，對應 _row_to_dict 回傳形狀）
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 規則 UUID
+        tenant_id:
+          type: string
+          format: uuid
+          description: 租戶 UUID
+        brand:
+          type: string
+          description: 品牌
+        lock_type:
+          type: string
+          description: 鎖具類型
+        difficulty:
+          type: string
+          nullable: true
+          enum: [easy, medium, hard]
+          description: 難度（選填）
+        base_price:
+          type: string
+          description: 基本費用（2 位小數字串；例："1200.00"）
+        labor_cost:
+          type: string
+          description: 工資（2 位小數字串；例："300.00"）
+        parts_cost:
+          type: string
+          description: 零件費用（2 位小數字串；例："200.00"）
+        surcharges:
+          type: array
+          items:
+            $ref: '#/components/schemas/PricingSurcharge'
+          description: 附加費用列表（對應 DB modifiers jsonb 正規化輸出）
+        is_active:
+          type: boolean
+          description: 是否啟用
+        created_at:
+          type: string
+          format: date-time
+          description: 建立時間
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 更新時間
+
+    PricingRuleEnvelope:
+      type: object
+      description: 單筆計價規則信封（data 包裝，對應 createPricingRuleV2 / getPricingRuleV2 / updatePricingRuleV2 response）
+      properties:
+        data:
+          $ref: '#/components/schemas/PricingRule'
+          nullable: true
+
+    PricingRulePage:
+      type: object
+      required: [has_more]
+      description: 計價規則分頁（cursor 分頁，對應 listPricingRulesV2 200 response）
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PricingRule' }
+          nullable: true
+        next_cursor:
+          type: string
+          nullable: true
+          description: 下一頁游標（opaque base64）
+        has_more:
+          type: boolean
