@@ -83,7 +83,7 @@ test.describe("@wip F-015 createWarrantyClaim dual-trigger CS path", () => {
           body: JSON.stringify(SAMPLE_LIST),
         });
       } else if (route.request().method() === "POST") {
-        postCaptured = route.request().postDataJSON();
+        postCaptured = route.request().postDataJSON() as Record<string, unknown>;
         await route.fulfill({
           status: 201,
           contentType: "application/json",
@@ -130,14 +130,15 @@ test.describe("@wip F-015 createWarrantyClaim dual-trigger CS path", () => {
     });
 
     // POST body 正確
-    expect(postCaptured?.customer_id).toBe(
+    const body = postCaptured as unknown as Record<string, unknown>;
+    expect(body["customer_id"]).toBe(
       "33333333-3333-3333-3333-333333333333",
     );
-    expect(postCaptured?.device_brand).toBe("Yale");
-    expect(postCaptured?.device_model).toBe("YDR-99");
-    expect(postCaptured?.claim_type).toBe("defective");
-    expect(postCaptured?.requested_by_role).toBe("customer_service");
+    expect(body["device_brand"]).toBe("Yale");
+    expect(body["device_model"]).toBe("YDR-99");
+    expect(body["claim_type"]).toBe("defective");
+    expect(body["requested_by_role"]).toBe("customer_service");
     // 無 WO → 後端 expect undefined
-    expect(postCaptured?.work_order_id).toBeUndefined();
+    expect(body["work_order_id"]).toBeUndefined();
   });
 });
