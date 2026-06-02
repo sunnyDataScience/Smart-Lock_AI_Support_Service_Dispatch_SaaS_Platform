@@ -79,6 +79,7 @@ from routers import exceptions_v2 as exceptions_v2_router  # spec-alignment P2 (
 from routers import dashboard_v2 as dashboard_v2_router  # spec-alignment P2-W1 (CR-0003 P2-W1, Dashboard tenant-scoped, FR-0021)
 from routers import reports_v2 as reports_v2_router  # spec-alignment P2-W1 (CR-0003 P2-W1, FR-0021, Reports tenant-scoped)
 from routers import sentiment_alerts_v2 as sentiment_alerts_v2_router  # spec-alignment P2-W2 (CR-0003 P2-W2, Sentiment Alerts tenant-scoped, FR-0018/ADR-0048)
+from routers import notifications_v2 as notifications_v2_router  # spec-alignment P2-W2 (CR-0003 P2-W2, ADR-0012, FR-0018, Notifications tenant-scoped)
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -193,6 +194,7 @@ app.include_router(exceptions_v2_router.router, tags=["M15 Exception"])  # spec-
 app.include_router(dashboard_v2_router.router, tags=["Dashboard"])  # spec-alignment P2-W1 (CR-0003 P2-W1, Dashboard tenant-scoped, FR-0021)
 app.include_router(reports_v2_router.router, tags=["Reports"])  # spec-alignment P2-W1 (CR-0003 P2-W1, FR-0021, Reports kpi/revenue/export tenant-scoped)
 app.include_router(sentiment_alerts_v2_router.router, tags=["Sentiment Alerts"])  # spec-alignment P2-W2 (CR-0003 P2-W2, FR-0018/ADR-0048, Sentiment Alerts tenant-scoped)
+app.include_router(notifications_v2_router.router, tags=["Notifications"])  # spec-alignment P2-W2 (CR-0003 P2-W2, ADR-0012, FR-0018, Notifications tenant-scoped)
 
 
 @app.get("/health")
