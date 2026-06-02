@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, Path
 from core.deps import CurrentUser, SodActors, require_sod_actors, require_tenant
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
+from models.generated import RefundDecision, RefundRequest, RefundRequestEnvelope
 from models.internal import RefundSodEnvelope, RefundSodRequest
 from services import config_service, refund_service
 
@@ -64,6 +65,43 @@ async def create_refund_sod(
     )
 
     payload = {"data": result}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload
+
+
+@router.post(
+    "/tenants/{tenantId}/refunds/{refundId}/decision",
+    operation_id="submitRefundDecisionV2",
+    summary="Refund Decision — tenant-scoped v2（呼既有 submit_decision，cross-tenant guard）",
+    response_model=RefundRequestEnvelope,
+)
+async def submit_refund_decision_v2(
+    body: RefundDecision,
+    tenantId: str = Path(...),
+    refundId: str = Path(...),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    # cross-tenant guard（對齊 create_refund_sod，ADR-0030）
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError(
+            "CROSS_TENANT_WRITE",
+            "Path tenantId does not match authenticated tenant",
+            403,
+        )
+
+    decision_str = body.decision.value if hasattr(body.decision, "value") else str(body.decision)
+
+    refund = await refund_service.submit_decision(
+        tenant_id=tenantId,
+        refund_id=refundId,
+        decision=decision_str,
+        reason=body.reason,
+        decided_by_user_id=user.user_id,
+    )
+
+    payload = {"data": RefundRequest(**refund).model_dump(mode="json")}
     if idem is not None:
         await idem.save(200, payload)
     return payload
