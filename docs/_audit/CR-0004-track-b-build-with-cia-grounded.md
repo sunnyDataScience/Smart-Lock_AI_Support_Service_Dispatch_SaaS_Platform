@@ -213,5 +213,10 @@ S7 [平台級 flat，獨立性最高，但 hash chain+schema 須先裁] ── v
 - ✅ **S2 done**（reconciliations `4c265155` + disputes `b23edabf`）：
   - reconciliations：saas.reconciliation + saas.settlement dual-write；CSM review → ops_manager co-sign（跨兩 call SoD）→ settlement INSERT。19 測試、spec +4 path。
   - disputes：saas.dispute；FR-0013 狀態機 filed→in_review→(mediation)→resolved|escalated|closed_withdrawn；dual-sign close（重用跨兩 call 範式）；reopen→新 dispute parent lineage（AC-05）。33 測試、spec +8 path。回歸 576+1skip。60d cron + 負值 DGS = Phase II。
-- ✅ **S3 inventory done**（merge `ba42c2ab`）：saas.inventory_item（per-tenant + owner ADR-0052 + serial_required ADR-0053）+ saas.inventory_transaction；6 endpoint；:consume/:return/:restock 用 transaction + FOR UPDATE（FR-0007 AC-05；insufficient→409、serial→422）。29 測試、回歸 605+1skip、spec +6 path。ADR-0052/0053 採推薦值（status frontmatter↔body 不一致已記錄）。follow-up：serial 擋 WO complete / material-request 語意整合（HD-INV-03）/ reorder 通知。
-- ⏳ S4 pricing-rules（路徑C 依賴 config-m18）/ S5 data-corrections / S6 resolution / S7 vouchers-void — 待續，同範式。
+- ✅ **S3 inventory done**（merge `ba42c2ab`）：saas.inventory_item（per-tenant + owner ADR-0052 + serial_required ADR-0053）+ saas.inventory_transaction；6 endpoint；:consume/:return/:restock 用 transaction + FOR UPDATE（FR-0007 AC-05；insufficient→409、serial→422）。29 測試、回歸 605+1skip、spec +6 path。
+- ✅ **S4 pricing-rules done**（merge `039f1038`）：saas.price_rule CRUD + saas.change_request 審計（路徑C，state=effective）；4 op、26 測試、spec +4 op。
+- ✅ **S5 data-corrections done**（merge `2e47e904`）：方案 B 就地補 tenant_id + 4 態 + require_admin + ADR-0030 harness 對稱；5 path、15 測試、spec +5 path。
+- ✅ **S6 resolution done**（merge `f19d8485`）：resolveProblemSuggestV2 引擎 v2 + 前端遷移（C4）；3 測試、spec +1 path。
+- ✅ **S7 vouchers-void done**（merge `223f066e`）：紅字沖銷 append-only（reversal + voucher_void_event + hash chain + require_keeper_role）；14 測試。voidVoucher 已在 spec。
+- 🎉 **Track B S1-S7 全部完成（7/7）**，基線 663+1skip 全綠。
+- ⏳ 剩餘（goal 100%）：P3.5 track-B 前端 caller 遷移（pricing/disputes/reconciliations/inventory/data-corrections；config 例外留 Phase II）→ P4 cutover（刪 legacy + 型別重生 + auth 扁平化 + 刪 DeprecationMiddleware）。
