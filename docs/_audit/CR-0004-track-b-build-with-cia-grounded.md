@@ -1,8 +1,9 @@
 ---
 id: CR-0004
 title: Track B — 8 個 BUILD_WITH_CIA 模組 grounded CIA + 跨模組裁決
-status: awaiting-owner-decision
+status: decisions-recorded-owner-delegated
 created: 2026-06-02
+decided: 2026-06-02
 author: Opus 4.8 (adjudication) + Sonnet (per-module grounded CIA)
 supersedes: null
 related:
@@ -177,4 +178,32 @@ S7 [平台級 flat，獨立性最高，但 hash chain+schema 須先裁] ── v
 2. **同步裁 config-m18 HD-01~06** — 解鎖唯一 `READY_AFTER_OWNER` 模組，可立即開 S1 worktree。
 3. 其餘模組依 §3 順序，業主裁完該模組 §8 後逐一開 CIA-approved 實作 worktree（Sonnet 開發 / Opus gate+合併）。
 
-> 🛑 **Awaiting your decisions on §1 (D-C5)、§2 (C1-C4)、§5 (per-module §8) before any Track B code or DB schema changes.**
+---
+
+## 8. ✅ Decisions Recorded（2026-06-02，業主授權「按建議開發」）
+
+業主於 2026-06-02 裁示「按你建議開發」，授權採用本文裁決官的推薦處置作為正式決策。記錄如下（維持 change-governance 稽核軌跡）：
+
+### Master / 跨模組
+- **D-C5（schema 命名遷移）= 採統一範式**：新建 `saas.<canonical表>`（含 `tenant_id`）→ **dual-write 過渡 + backfill** → caller 歸零 + v2 E2E 綠後（**P4 gate**）才 DROP legacy `public.*`。例外照 §1（inventory 先決 tenant scope、data-corrections 可方案 B 就地、vouchers maintenance window、problem_card ADD COLUMN）。**DROP 一律延至 P4**（本波次不做不可逆刪除）。
+- **C1 invoices = 分兩段**：read-only list+get 可建；付款寫入凍結至 FR-0011 active。
+- **C2 reconciliations/disputes = 以 FR-0013 擴 spec**（補三維 SoD header）。
+- **C3 pricing-rules = 路徑 C 混合**：短期 tenant-scoped CRUD + 並寫 `saas.change_request`；Phase II 待 config-m18 就位納入 M18 namespace。
+- **C4 resolution = 統一 sub-resource** `/tenants/{tid}/problem-cards/{id}/resolve` + 引擎 chatbot-internal。
+
+### config-m18-governance（S1，本波次先做）
+- **HD-01 觀察視窗 = BR-M18-04(active)**：standard 30min / fast-track 15min / 硬下限 10min（API min:10）。
+- **HD-02 config_version_used = 暫不改格式**：保留現行 text（整列 version），**新增 namespace 粒度由新 saas.config_version 提供**；既有欄位不 backfill（避免不可逆），P4 再評估統一格式。
+- **HD-03 public.system_config DROP = 延至 P4**：dual-write 過渡（舊 config_service 續用、新 saas.config_version 並行）。
+- **HD-04 pricing 納 M18 = Phase II**（同 C3 路徑 C；本波次 config-m18 不含 pricing namespace）。
+- **HD-05 pub/sub = 短期純 TTL 30s 兜底**（不引入 Redis/NATS infra；invalidation 走 in-process TTL + 重讀，pub/sub 留 Phase II）。
+- **HD-06 高風險雙簽 = API 層 enforce X-Initiator/X-Approver SoD；時段限制（禁半夜）暫只進 admin UI**（API 層 Phase II 補）。
+
+### 其餘模組（S2-S7，依序待各自開工前確認）
+- inventory：**HD-INV-01 tenant scope = per-tenant 獨立倉**（最貼近現行多租戶模型）；ADR-0052 owner enum = platform/brand/locksmith（不含 customer，對齊 ADR-0052 推薦）；ADR-0053 serial 門檻 = NTD 1,000 且缺 serial **阻擋 WO complete**。（開工前 inventory CIA 再確認）
+- reconciliations/disputes：dual-sign 重用 `core/deps.py require_sod_actors`；status enum 對齊 FR-0013；60d cron 用 Cloud Scheduler + Cloud Run Job（與月結共框架）。
+- data-corrections：C-10 採方案 B 就地補 tenant_id 過渡（端態遷 saas）；補 `resolved` 第四態；approve 觸發 SOP draft 延 phase 2；RBAC require_admin；GDPR 納 FR-0053。
+- vouchers-void：hash chain V1 即補；voided 用**新建反向分錄 + voucher_void_event 事件表**（不 UPDATE 原 row，守 append-only）；keeperRole = platform admin JWT role；schema 遷 saas（dual-write）。
+- **agent refunds SoD gap（P3 發現）**：agent 自動退款流暫續用 legacy /api/v1/refunds；v2 system-actor 退款路徑列入 refunds 後續 CR（與 vouchers 同波評估）。
+
+> **實作順序仍嚴守 §3 S0→S7**；每模組開工前以本決策為基線，遇 grounded CIA 細節衝突再回報。本波次先做 **config-m18（S1）**。
