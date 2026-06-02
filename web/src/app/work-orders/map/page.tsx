@@ -14,7 +14,7 @@ import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import MapWorkOrderPanel from "@/components/work-orders/MapWorkOrderPanel";
 import MapView from "@/components/work-orders/MapView";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
@@ -44,7 +44,7 @@ export default function WorkOrdersMapPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<WorkOrderPage>("/api/v1/work-orders", {
+      const res = await api.get<WorkOrderPage>(tenantPath("/work-orders"), {
         query: { limit: PAGE_SIZE },
       });
       const newItems: WorkOrder[] = res.items ?? [];

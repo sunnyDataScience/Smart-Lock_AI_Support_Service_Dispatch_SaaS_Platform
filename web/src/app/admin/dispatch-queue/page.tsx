@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import DispatchQueueTable from "@/components/dispatch-queue/DispatchQueueTable";
-import { ApiError, api, auth } from "@/lib/api";
+import { ApiError, api, auth, tenantPath } from "@/lib/api";
 import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
@@ -90,11 +90,11 @@ export default function DispatchQueuePage() {
     setError(null);
     try {
       const [snap, page, poolPage] = await Promise.all([
-        api.get<DispatchQueueSnapshot>("/api/v1/work-orders/dispatch-queue"),
-        api.get<DispatchLogPage>("/api/v1/dispatch-logs", {
+        api.get<DispatchQueueSnapshot>(tenantPath("/dispatch/queue")),
+        api.get<DispatchLogPage>(tenantPath("/dispatch-logs"), {
           query: { limit: 50 },
         }),
-        api.get<WorkOrderPage>("/api/v1/work-orders/pool"),
+        api.get<WorkOrderPage>(tenantPath("/work-orders/pool")),
       ]);
       setSnapshot(snap);
       const items: DispatchLog[] = page.items ?? [];

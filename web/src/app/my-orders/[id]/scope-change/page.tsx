@@ -6,7 +6,7 @@ import { Plus, Trash2, CheckCircle2 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import SubflowHeader from "@/components/tech/SubflowHeader";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 
 interface ScopeItem {
   id: string;
@@ -69,7 +69,7 @@ export default function ScopeChangePage() {
     setSubmitError(null);
     try {
       await api.post(
-        `/api/v1/work-orders/${encodeURIComponent(id)}/scope-change`,
+        tenantPath(`/work-orders/${encodeURIComponent(id)}/scope-change`),
         {
           reason: reason.trim(),
           items: items.map((it) => ({

@@ -5,7 +5,7 @@ import { Crown, ChevronDown, Download, RefreshCw } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import DateRangePicker from "@/components/ui/DateRangePicker";
 import { getPresetRange, type DateRange } from "@/lib/dateRange";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 import { ReportExportModal } from "@/components/admin/reports/ReportExportModal";
 
@@ -117,7 +117,7 @@ export default function TechnicianRankingPage() {
     setError(null);
     try {
       const res = await api.get<TechnicianPage>(
-        "/api/v1/technicians",
+        tenantPath("/technicians"),
         { query: { limit: 100 } },
       );
       const items: Technician[] = res.items ?? [];

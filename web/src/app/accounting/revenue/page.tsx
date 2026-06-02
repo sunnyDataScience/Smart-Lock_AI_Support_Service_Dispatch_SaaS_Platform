@@ -22,7 +22,7 @@ import RevenueTrendChart from "@/components/accounting/RevenueTrendChart";
 import BrandRevenueChart from "@/components/accounting/BrandRevenueChart";
 import ServiceTypeChart from "@/components/accounting/ServiceTypeChart";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
 type RevenueSummary = components["schemas"]["RevenueSummary"];
@@ -73,7 +73,7 @@ export default function RevenuePage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<RevenueSummary>("/api/v1/reports/revenue", {
+      const res = await api.get<RevenueSummary>(tenantPath("/reports/revenue"), {
         query: { granularity: "month" },
       });
       setData(res);

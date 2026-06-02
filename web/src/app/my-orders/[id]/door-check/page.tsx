@@ -11,7 +11,7 @@ import {
 import TechShell from "@/components/tech/TechShell";
 import SubflowHeader from "@/components/tech/SubflowHeader";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 
 interface UploadedPhoto {
   section: "before" | "after";
@@ -110,7 +110,7 @@ export default function DoorCheckPage() {
         id: string;
         url: string;
         filename: string;
-      }>("/api/v1/media", fd);
+      }>(tenantPath("/media"), fd);
       setPhotos((prev) => [
         ...prev,
         {
@@ -156,6 +156,7 @@ export default function DoorCheckPage() {
         },
         {},
       );
+      // P3-KEEP: flat（無對應 v2 door-check 端點）
       await api.post(
         `/api/v1/work-orders/${encodeURIComponent(id)}/door-check`,
         {

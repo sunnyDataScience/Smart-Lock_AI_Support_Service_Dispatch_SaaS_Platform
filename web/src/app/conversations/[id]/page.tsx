@@ -7,7 +7,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import ChatTimeline from "@/components/conversations/ChatTimeline";
 import DiagnosticReasoningPanel from "@/components/conversations/DiagnosticReasoningPanel";
 import HandoverComposer from "@/components/conversations/HandoverComposer";
-import { ApiError, api, getCurrentSession } from "@/lib/api";
+import { ApiError, api, getCurrentSession, tenantPath } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import type { components } from "@/types/api.generated";
 
@@ -91,7 +91,7 @@ export default function ConversationDetailPage({
     setCreatePcError(null);
     try {
       const res = await api.post<ProblemCardEnvelope>(
-        "/api/v1/problem-cards",
+        tenantPath("/problem-cards"),
         req,
       );
       const created = res.data;
@@ -124,15 +124,15 @@ export default function ConversationDetailPage({
       setProblemCards([]);
       try {
         // CR-0003 P2-W2：遷移至 tenant-scoped v2 端點（FR-0018）
-        const convPath = `/tenants/${encodeURIComponent(tenantId)}/conversations/${encodeURIComponent(id)}`;
-        const msgsPath = `/tenants/${encodeURIComponent(tenantId)}/conversations/${encodeURIComponent(id)}/messages`;
+        const convPath = tenantPath(`/conversations/${encodeURIComponent(id)}`);
+        const msgsPath = tenantPath(`/conversations/${encodeURIComponent(id)}/messages`);
         const [envelope, page, pcPage] = await Promise.all([
           api.get<ConversationEnvelope>(convPath),
           api.get<MessagePage>(msgsPath, {
             query: { limit: 100 },
           }),
           api
-            .get<ProblemCardPage>(`/api/v1/problem-cards`, {
+            .get<ProblemCardPage>(tenantPath("/problem-cards"), {
               query: { conversation_id: id, limit: 10 },
             })
             .catch((e: unknown): ProblemCardPage | null => {

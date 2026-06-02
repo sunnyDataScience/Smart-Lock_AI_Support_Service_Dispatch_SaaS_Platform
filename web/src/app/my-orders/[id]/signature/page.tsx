@@ -6,7 +6,7 @@ import { Eraser, CheckCircle2 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import SubflowHeader from "@/components/tech/SubflowHeader";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
 type SignaturePayload = components["schemas"]["SignaturePayload"];
@@ -167,7 +167,7 @@ export default function SignaturePage() {
         }
       }
       await api.post(
-        `/api/v1/work-orders/${encodeURIComponent(id)}/signature`,
+        tenantPath(`/work-orders/${encodeURIComponent(id)}/signature`),
         body,
       );
       setSubmitOk(true);

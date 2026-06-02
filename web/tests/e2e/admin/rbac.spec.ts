@@ -17,11 +17,10 @@
 
 import { test, expect } from "@playwright/test";
 
-// v2 tenant-scoped 路徑（CR-0002-α 遷移後前端打此路徑）
+// v2 tenant-scoped 路徑（CR-0002-α P3 遷移後前端打此路徑）
 const ROLES_V2_PATH = "**/tenants/*/rbac/roles**";
-// legacy 路徑仍保留（雙掛過渡），既有測試更新為 mock v2 路徑
-const ROLES_PATH = "**/api/v1/roles";
-const UPDATE_PATH = "**/api/v1/roles/reviewer/permissions";
+// 角色權限更新：P3 遷移為 PUT tenantPath(`/rbac/roles/{roleName}/permissions`)
+const UPDATE_PATH = "**/tenants/*/rbac/roles/reviewer/permissions*";
 
 const TENANT_ID = "00000000-0000-0000-0000-000000000001";
 

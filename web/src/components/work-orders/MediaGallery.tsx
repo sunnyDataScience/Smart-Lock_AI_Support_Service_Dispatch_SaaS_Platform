@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Image as ImageIcon, RefreshCw, X } from "lucide-react";
-import { ApiError, api, auth } from "@/lib/api";
+import { ApiError, api, auth, tenantPath } from "@/lib/api";
 
 interface MediaItem {
   id: string;
@@ -37,7 +37,8 @@ interface ThumbProps {
 
 /**
  * 縮圖元件：用 fetch + Authorization Bearer 拉資料，產生 blob URL 顯示。
- * 因為 GET /api/v1/media/{id} 需要 token，img.src 不能直接用 URL。
+ * 因為 GET /tenants/{tid}/media/{id} 需要 token，img.src 不能直接用 URL。
+ * item.url 由後端 v2 response 回傳（已是 tenant-scoped 相對路徑），前端不 hardcode。
  */
 function MediaThumb({ item, onClick }: ThumbProps) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
@@ -134,9 +135,9 @@ function MediaThumb({ item, onClick }: ThumbProps) {
 }
 
 interface Props {
-  /** 工單模式：load /work-orders/{id}/media */
+  /** 工單模式：load /tenants/{tid}/work-orders/{id}/media */
   workOrderId?: string;
-  /** 爭議模式：load /disputes/{id}/media */
+  /** 爭議模式：load /tenants/{tid}/disputes/{id}/media */
   disputeId?: string;
   /** 自動刷新版本號變更時重新拉取（外部上傳成功後 +1）*/
   refreshKey?: number;
@@ -156,9 +157,9 @@ export default function MediaGallery({
   const [previewItem, setPreviewItem] = useState<MediaItem | null>(null);
 
   const fetchPath = workOrderId
-    ? `/api/v1/work-orders/${encodeURIComponent(workOrderId)}/media`
+    ? tenantPath(`/work-orders/${encodeURIComponent(workOrderId)}/media`)
     : disputeId
-      ? `/api/v1/disputes/${encodeURIComponent(disputeId)}/media`
+      ? tenantPath(`/disputes/${encodeURIComponent(disputeId)}/media`)
       : "";
 
   const fetchItems = useCallback(async () => {

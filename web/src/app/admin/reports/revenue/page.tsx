@@ -19,7 +19,7 @@ import {
 import Sidebar from "@/components/layout/Sidebar";
 import DateRangePicker from "@/components/ui/DateRangePicker";
 import { getPresetRange, type DateRange } from "@/lib/dateRange";
-import { ApiError, api, auth } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 import { ReportExportModal } from "@/components/admin/reports/ReportExportModal";
 
@@ -99,9 +99,8 @@ export default function RevenueReportPage() {
     setError(null);
     try {
       // v2 tenant-scoped path（FR-0021 / CR-0003 P2-W1）
-      const tenantId = auth.getTenantId();
       const res = await api.get<RevenueSummary>(
-        `/tenants/${encodeURIComponent(tenantId)}/reports/revenue`,
+        tenantPath("/reports/revenue"),
         { query: { granularity: "month" } },
       );
       setSummary(res);

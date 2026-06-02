@@ -13,7 +13,7 @@ import {
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import KanbanBoard from "@/components/work-orders/KanbanBoard";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
@@ -42,7 +42,7 @@ export default function WorkOrdersKanbanPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<WorkOrderPage>("/api/v1/work-orders", {
+      const res = await api.get<WorkOrderPage>(tenantPath("/work-orders"), {
         query: { limit: PAGE_SIZE },
       });
       const newItems: WorkOrder[] = res.items ?? [];

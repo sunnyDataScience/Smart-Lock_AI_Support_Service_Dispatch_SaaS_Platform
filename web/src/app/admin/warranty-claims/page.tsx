@@ -55,6 +55,7 @@ export default function WarrantyClaimsPage() {
     refresh: fetchClaims,
     mutate,
   } = usePaginatedFetch<WarrantyClaim>({
+    // P3-KEEP: flat（GET list 無對應 v2，warranty_claims_v2 僅 POST create）
     path: "/api/v1/warranty-claims",
     pageSize: 50,
     query: activeTab !== "all" ? { status: activeTab } : undefined,
@@ -124,6 +125,7 @@ export default function WarrantyClaimsPage() {
         body.discount_offered = discountOffered;
       }
       const res = await api.post<WarrantyClaimEnvelope>(
+        // P3-KEEP: flat（warranty_claims_v2 僅 POST create，無 decision 端點）
         `/api/v1/warranty-claims/${encodeURIComponent(modalClaim.id)}/decision`,
         body,
       );

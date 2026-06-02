@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
-import { ApiError, api, getCurrentSession } from "@/lib/api";
+import { ApiError, api, getCurrentSession, tenantPath } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
 import {
@@ -118,9 +118,7 @@ export default function NotificationsPage() {
 
   // v2 tenant-scoped path（CR-0003 P2-W2 / ADR-0012）
   const tenantId = useMemo(() => getCurrentSession()?.tenantId ?? null, []);
-  const notifBasePath = tenantId
-    ? `/tenants/${tenantId}/notifications`
-    : "/api/v1/notifications"; // fallback to legacy if session not ready
+  const notifBasePath = tenantPath("/notifications");
 
   const {
     items,
@@ -229,9 +227,9 @@ export default function NotificationsPage() {
     if (n.read_at || marking) return;
     setMarking(n.id);
     try {
-      const patchPath = tenantId
-        ? `/tenants/${tenantId}/notifications/${encodeURIComponent(n.id)}`
-        : `/api/v1/notifications/${encodeURIComponent(n.id)}`;
+      const patchPath = tenantPath(
+        `/notifications/${encodeURIComponent(n.id)}`,
+      );
       await api.patch(patchPath, {
         read_at: new Date().toISOString(),
       });
@@ -251,9 +249,9 @@ export default function NotificationsPage() {
   async function archiveOne(n: Notification) {
     setMarking(n.id);
     try {
-      const patchPath = tenantId
-        ? `/tenants/${tenantId}/notifications/${encodeURIComponent(n.id)}`
-        : `/api/v1/notifications/${encodeURIComponent(n.id)}`;
+      const patchPath = tenantPath(
+        `/notifications/${encodeURIComponent(n.id)}`,
+      );
       await api.patch(patchPath, {
         archived_at: new Date().toISOString(),
       });
@@ -271,9 +269,7 @@ export default function NotificationsPage() {
     if (bulkBusy) return;
     setBulkBusy(true);
     try {
-      const markAllPath = tenantId
-        ? `/tenants/${tenantId}/notifications:mark-all-read`
-        : "/api/v1/notifications/mark-all-read";
+      const markAllPath = tenantPath("/notifications:mark-all-read");
       await api.post(
         markAllPath,
         typeFilter === "all" ? {} : { filter: { type: [typeFilter] } },
@@ -296,9 +292,7 @@ export default function NotificationsPage() {
     if (bulkBusy || selectedIds.size === 0) return;
     setBulkBusy(true);
     try {
-      const bulkPath = tenantId
-        ? `/tenants/${tenantId}/notifications:bulk`
-        : "/api/v1/notifications/bulk";
+      const bulkPath = tenantPath("/notifications:bulk");
       await api.post(bulkPath, {
         ids: Array.from(selectedIds),
         action,

@@ -32,7 +32,7 @@ import {
   URGENCY_TONE,
 } from "@/components/work-orders/WorkOrdersTable";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api, getCurrentSession } from "@/lib/api";
+import { ApiError, api, getCurrentSession, tenantPath } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
@@ -246,7 +246,7 @@ function ProblemCardSummary({
     (async () => {
       try {
         const res = await api.get<ProblemCardEnvelope>(
-          `/api/v1/problem-cards/${encodeURIComponent(pcId)}`,
+          tenantPath(`/problem-cards/${encodeURIComponent(pcId)}`),
         );
         if (cancelled) return;
         const data = res.data ?? null;
@@ -421,7 +421,7 @@ function LineMediaGallery({ conversationId }: { conversationId?: string }) {
     (async () => {
       try {
         const res = await api.get<MessagePage>(
-          `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages`,
+          tenantPath(`/conversations/${encodeURIComponent(conversationId)}/messages`),
           { query: { limit: 100 } },
         );
         if (cancelled) return;
@@ -853,12 +853,10 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
     setError(null);
     (async () => {
       try {
-        // CR-0002-α：優先打 tenant-scoped v2 路徑；tenantId 未知時 fallback legacy
-        const session = getCurrentSession();
-        const woPath = session?.tenantId
-          ? `/tenants/${encodeURIComponent(session.tenantId)}/work-orders/${encodeURIComponent(id)}`
-          : `/api/v1/work-orders/${encodeURIComponent(id)}`;
-        const res = await api.get<WorkOrderEnvelope>(woPath);
+        // 全 cutover：一律 tenant-scoped v2（tenantPath 由 auth.getTenantId() 解析）
+        const res = await api.get<WorkOrderEnvelope>(
+          tenantPath(`/work-orders/${encodeURIComponent(id)}`),
+        );
         if (!cancelled) setOrder(res.data ?? null);
       } catch (e) {
         if (cancelled) return;
@@ -890,7 +888,7 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
     setActionError(null);
     try {
       const res = await api.post<WorkOrderEnvelope>(
-        `/api/v1/work-orders/${encodeURIComponent(id)}/accept`,
+        tenantPath(`/work-orders/${encodeURIComponent(id)}:accept`),
       );
       setOrder(res.data ?? null);
       setActionToast(tToast("accepted"));
@@ -908,7 +906,7 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
       const body: Record<string, unknown> = { summary, photos_before: [], photos_after: [] };
       if (actualAmount) body.actual_amount = actualAmount;
       const res = await api.post<WorkOrderEnvelope>(
-        `/api/v1/work-orders/${encodeURIComponent(id)}/complete`,
+        tenantPath(`/work-orders/${encodeURIComponent(id)}:complete`),
         body,
       );
       setOrder(res.data ?? null);
@@ -978,7 +976,7 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
       };
       if (reasonText) body.reason_text = reasonText;
       const res = await api.post<WorkOrderEnvelope>(
-        `/api/v1/work-orders/${encodeURIComponent(id)}/assign`,
+        tenantPath(`/work-orders/${encodeURIComponent(id)}:assign`),
         body,
       );
       setOrder(res.data ?? null);
@@ -998,7 +996,7 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
       const body: WorkOrderConfirmRequest = { rating };
       if (feedback) body.feedback = feedback;
       const res = await api.post<WorkOrderEnvelope>(
-        `/api/v1/work-orders/${encodeURIComponent(id)}/confirm`,
+        tenantPath(`/work-orders/${encodeURIComponent(id)}:confirm`),
         body,
       );
       setOrder(res.data ?? null);
@@ -1028,7 +1026,7 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
       if (gpsLat != null) body.gps_lat = gpsLat;
       if (gpsLng != null) body.gps_lng = gpsLng;
       const res = await api.post<ApiResponseGeneric>(
-        `/api/v1/work-orders/${encodeURIComponent(id)}/signature`,
+        tenantPath(`/work-orders/${encodeURIComponent(id)}/signature`),
         body,
       );
       setActionMode(null);
@@ -1046,7 +1044,7 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
     try {
       const body: WorkOrderEscalateRequest = { level, reason };
       const res = await api.post<WorkOrderEnvelope>(
-        `/api/v1/work-orders/${encodeURIComponent(id)}/escalate`,
+        tenantPath(`/work-orders/${encodeURIComponent(id)}:escalate`),
         body,
       );
       setOrder(res.data ?? null);
@@ -1071,6 +1069,9 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
     setActionPending("reschedule");
     setActionError(null);
     try {
+      // P3-KEEP: legacy /reschedule（proposed_slots 多時段提案流）無 drop-in v2。
+      // v2 /reschedule-request 是不同 action（single new_scheduled_at，見 handleRequestReschedule）。
+      // 本流的 v2 對齊待專屬 CR（reschedule 多時段提案 contract 設計）。
       const res = await api.post<WorkOrderEnvelope>(
         `/api/v1/work-orders/${encodeURIComponent(id)}/reschedule`,
         {
@@ -1690,7 +1691,7 @@ function AssignModal({
     (async () => {
       try {
         const res = await api.get<CandidatesResponse>(
-          "/api/v1/dispatch/candidates",
+          tenantPath("/dispatch:candidates"),
           { query: { work_order_id: workOrderId } },
         );
         if (cancelled) return;

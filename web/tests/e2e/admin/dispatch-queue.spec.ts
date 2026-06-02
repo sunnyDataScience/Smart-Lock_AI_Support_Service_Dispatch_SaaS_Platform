@@ -3,8 +3,8 @@
  * /admin/dispatch-queue 頁面 tenant-scoped v2 dispatch 端點 E2E 測試（CR-0002-α）
  *
  * 測試矩陣：
- *   1. /admin/dispatch-queue 頁面渲染 → mock GET /api/v1/work-orders/dispatch-queue
- *      + mock GET /api/v1/dispatch-logs → 表格顯示 + data-tenant 屬性含 tenantId
+ *   1. /admin/dispatch-queue 頁面渲染 → mock GET /tenants/*\/dispatch/queue
+ *      + mock GET /tenants/*\/dispatch-logs → 表格顯示 + data-tenant 屬性含 tenantId
  *   2. v2 dispatch:candidates mock → GET *\/tenants\/*\/dispatch:candidates →
  *      驗證 tenant-scoped path 格式正確
  *   3. v2 dispatch:auto-match mock → POST *\/tenants\/*\/dispatch:auto-match →
@@ -21,9 +21,9 @@ import { test, expect, Page } from "@playwright/test";
 
 const TENANT_ID = "00000000-0000-0000-0000-000000000001";
 
-const DISPATCH_QUEUE_PATH = "**/api/v1/work-orders/dispatch-queue";
-const DISPATCH_LOGS_PATH = "**/api/v1/dispatch-logs**";
-const WORK_ORDERS_POOL_PATH = "**/api/v1/work-orders/pool**";
+const DISPATCH_QUEUE_PATH = "**/tenants/*/dispatch/queue";
+const DISPATCH_LOGS_PATH = "**/tenants/*/dispatch-logs**";
+const WORK_ORDERS_POOL_PATH = "**/tenants/*/work-orders/pool**";
 const CANDIDATES_V2_PATH = `**/tenants/*/dispatch:candidates**`;
 const AUTO_MATCH_V2_PATH = `**/tenants/*/dispatch:auto-match`;
 
@@ -180,8 +180,9 @@ test.describe("@wip dispatch-queue page — render + tenant-scoped data-tenant",
     await expect(page.locator("h1").first()).toBeVisible({ timeout: 15000 });
 
     // snapshot 統計數字：pending=3, assigning=1, assigned=12, sla_at_risk=2
-    await expect(page.getByText("3")).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText("12")).toBeVisible({ timeout: 5000 });
+    // exact:true — 避免與頁面「最後更新：HH:MM:SS」時間戳/日期內含數字的 substring 命中（strict-mode violation）
+    await expect(page.getByText("3", { exact: true })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("12", { exact: true })).toBeVisible({ timeout: 5000 });
   });
 
   test("root container has data-tenant attribute with tenantId", async ({ page }) => {

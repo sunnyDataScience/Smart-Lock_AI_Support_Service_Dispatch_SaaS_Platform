@@ -11,13 +11,13 @@ import {
   ModalTitle,
 } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { ApiError, api, auth } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 /**
  * ReportExportModal — E7x §4.2 P1 報表匯出 UI（KPI / 營收 / 技師排行 / 結算）。
  *
- * 對應 BE GET /api/v1/reports/export（operationId: exportReport），role gate
+ * 對應 BE GET /tenants/{tenantId}/reports/export（operationId: exportReport），role gate
  * admin / operations_manager / accountant。
  *
  * format：
@@ -101,9 +101,8 @@ export function ReportExportModal({
 
     try {
       // v2 tenant-scoped export path（FR-0021 / CR-0003 P2-W1）
-      const tenantId = auth.getTenantId();
       await api.download(
-        `/tenants/${encodeURIComponent(tenantId)}/reports/export`,
+        tenantPath("/reports/export"),
         { query, filename },
       );
       toast({

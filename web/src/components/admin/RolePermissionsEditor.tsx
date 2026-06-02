@@ -11,14 +11,14 @@
  * 邏輯：
  *   - 把 role.permissions 攤平成 desired set（resource.action）
  *   - 顯示 12 resource × 3 action grid，locked=true 的 cell 不可勾
- *   - 提交呼叫 PATCH /api/v1/roles/{role.id}/permissions
+ *   - 提交呼叫 PUT tenantPath(`/rbac/roles/{role.id}/permissions`)（v2，CR-0002-α P3）
  *   - 後端 403 → 顯示「您的角色階層不足以授權此權限」
  *   - 後端 422 → 顯示具體 message
  */
 
 import { useMemo, useState } from "react";
 import { X, Loader2 } from "lucide-react";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
@@ -112,8 +112,9 @@ export function RolePermissionsEditor({
     setSubmitting(true);
     setError(null);
     try {
-      await api.patch<UpdateResponse>(
-        `/api/v1/roles/${role.id}/permissions`,
+      // CR-0002-α P3：遷移至 tenant-scoped v2（method PATCH→PUT，path /roles→/rbac/roles）
+      await api.put<UpdateResponse>(
+        tenantPath(`/rbac/roles/${role.id}/permissions`),
         {
           permissions: Array.from(desired).sort(),
           reason: reason.trim(),

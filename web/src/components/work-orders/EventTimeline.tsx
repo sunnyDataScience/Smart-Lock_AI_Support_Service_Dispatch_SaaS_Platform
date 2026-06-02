@@ -10,7 +10,7 @@ import {
   RefreshCw,
   Wrench,
 } from "lucide-react";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 type EventType =
@@ -237,7 +237,7 @@ export default function EventTimeline({ workOrderId }: Props) {
       const query: Record<string, string | number> = { limit: 200 };
       if (filter !== "all") query.event_type = filter;
       const res = await api.get<{ items: WorkOrderEvent[] }>(
-        `/api/v1/work-orders/${encodeURIComponent(workOrderId)}/events`,
+        tenantPath(`/work-orders/${encodeURIComponent(workOrderId)}/events`),
         { query },
       );
       setItems(res.items ?? []);

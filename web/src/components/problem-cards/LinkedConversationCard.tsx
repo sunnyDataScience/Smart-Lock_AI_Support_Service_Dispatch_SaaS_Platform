@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import type { components } from "@/types/api.generated";
 
@@ -81,10 +81,10 @@ export default function LinkedConversationCard({ conversationId }: Props) {
       try {
         const [envelope, page] = await Promise.all([
           api.get<ConversationEnvelope>(
-            `/api/v1/conversations/${encodeURIComponent(conversationId)}`,
+            tenantPath(`/conversations/${encodeURIComponent(conversationId)}`),
           ),
           api.get<MessagePage>(
-            `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages`,
+            tenantPath(`/conversations/${encodeURIComponent(conversationId)}/messages`),
             { query: { limit: PREVIEW_LIMIT } },
           ),
         ]);

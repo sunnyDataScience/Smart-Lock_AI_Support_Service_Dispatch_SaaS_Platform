@@ -11,7 +11,7 @@ import {
   Star,
   Info,
 } from "lucide-react";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
@@ -65,7 +65,7 @@ export default function WorkOrderDetailSidebar({ workOrder, conversationId }: Pr
     (async () => {
       try {
         const res = await api.get<TechnicianEnvelope>(
-          `/api/v1/technicians/${encodeURIComponent(technicianId)}`,
+          tenantPath(`/technicians/${encodeURIComponent(technicianId)}`),
         );
         if (!cancelled) setTechnician(res.data ?? null);
       } catch (e) {
@@ -96,7 +96,7 @@ export default function WorkOrderDetailSidebar({ workOrder, conversationId }: Pr
     (async () => {
       try {
         const res = await api.get<ConversationEnvelope>(
-          `/api/v1/conversations/${encodeURIComponent(conversationId)}`,
+          tenantPath(`/conversations/${encodeURIComponent(conversationId)}`),
         );
         if (!cancelled) setConversation(res.data ?? null);
       } catch (e) {

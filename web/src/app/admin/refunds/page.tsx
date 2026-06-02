@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, RefreshCw, X } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import RefundReviewTable from "@/components/admin/RefundReviewTable";
-import { ApiError, api, getCurrentSession } from "@/lib/api";
+import { ApiError, api, getCurrentSession, tenantPath } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
@@ -72,6 +72,7 @@ export default function RefundReviewPage() {
     refresh: fetchRefunds,
     mutate,
   } = usePaginatedFetch<RefundRequest>({
+    // P3-KEEP: flat（GET list 無對應 v2，refunds_v2 僅 POST create / decision / GET by-id）
     path: "/api/v1/refunds",
     pageSize: 50,
     formatError: formatActionError,
@@ -165,7 +166,7 @@ export default function RefundReviewPage() {
     setActionError(null);
     try {
       const res = await api.post<RefundRequestEnvelope>(
-        `/api/v1/refunds/${modalRefund.id}/decision`,
+        tenantPath(`/refunds/${modalRefund.id}/decision`),
         { body },
       );
       const updated = res.data;

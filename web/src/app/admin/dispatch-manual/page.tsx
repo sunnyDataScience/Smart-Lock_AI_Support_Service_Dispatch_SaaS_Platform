@@ -18,7 +18,7 @@ import {
 import Sidebar from "@/components/layout/Sidebar";
 import StatusBadge, { statusLabel } from "@/components/tech/StatusBadge";
 import UrgencyBadge from "@/components/tech/UrgencyBadge";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
@@ -123,7 +123,7 @@ export default function DispatchManualPage() {
     setWoLoading(true);
     try {
       const res = await api.get<WorkOrderEnvelope>(
-        `/api/v1/work-orders/${encodeURIComponent(workOrderId)}`,
+        tenantPath(`/work-orders/${encodeURIComponent(workOrderId)}`),
       );
       setWo(res.data ?? null);
     } catch (e) {
@@ -146,7 +146,7 @@ export default function DispatchManualPage() {
       // Note: levels filter is array; api util encodes as single string;
       // 後端應接受 comma-separated。MVP 用單值不過濾 levels server-side，client-side filter。
       const res = await api.get<CandidatesResponse>(
-        "/api/v1/dispatch/candidates",
+        tenantPath("/dispatch:candidates"),
         { query },
       );
       setCandidates(res.candidates ?? []);
@@ -204,7 +204,7 @@ export default function DispatchManualPage() {
     setSubmitError(null);
     try {
       await api.post<WorkOrderEnvelope>(
-        `/api/v1/work-orders/${encodeURIComponent(wo.id)}/assign`,
+        tenantPath(`/work-orders/${encodeURIComponent(wo.id)}:assign`),
         {
           technician_id: selectedTechId,
           reason_code: reasonCode,
@@ -245,7 +245,7 @@ export default function DispatchManualPage() {
     setEscalateBusy(true);
     try {
       await api.post(
-        `/api/v1/work-orders/${encodeURIComponent(wo.id)}/escalate`,
+        tenantPath(`/work-orders/${encodeURIComponent(wo.id)}:escalate`),
         { level: "operations_manager", reason: reason.trim() },
       );
       setActionMsg(t("actionMsg.escalated"));
@@ -261,7 +261,7 @@ export default function DispatchManualPage() {
     if (!window.confirm(t("errors.cancelConfirm"))) return;
     setEscalateBusy(true);
     try {
-      await api.post(`/api/v1/work-orders/${encodeURIComponent(wo.id)}/cancel`, {
+      await api.post(tenantPath(`/work-orders/${encodeURIComponent(wo.id)}/cancel`), {
         reason: "manual_dispatch_cancel",
       });
       setActionMsg(t("actionMsg.cancelled"));

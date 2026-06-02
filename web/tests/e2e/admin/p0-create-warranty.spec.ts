@@ -9,12 +9,15 @@
  *   2. 填表（含可選 work_order_id）+ 提交 → mock 201 → toast「保固申訴已建立」
  *   3. POST body 正確（含 requested_by_role=customer_service）
  *
- * 標 @wip：透過 page.route() 攔 GET + POST /api/v1/warranty-claims 模擬。
+ * 標 @wip：透過 page.route() 攔 GET /api/v1/warranty-claims（list, legacy 不動）
+ * + POST /tenants/*\/warranty-claims（建立, tenant-scoped v2）模擬。
  */
 
 import { test, expect, Page } from "@playwright/test";
 
-const WARRANTY_PATH = "**/api/v1/warranty-claims**";
+// GET list 仍走舊端點（無 v2），POST 建立改打 tenant-scoped v2
+const LIST_PATH = "**/api/v1/warranty-claims**";
+const CREATE_PATH = "**/tenants/*/warranty-claims**";
 
 const SAMPLE_LIST = {
   items: [
@@ -75,14 +78,21 @@ test.describe("@wip F-015 createWarrantyClaim dual-trigger CS path", () => {
     await injectAdminSession(page);
 
     let postCaptured: Record<string, unknown> | null = null;
-    await page.route(WARRANTY_PATH, async (route) => {
+    // GET list → legacy 不動
+    await page.route(LIST_PATH, async (route) => {
       if (route.request().method() === "GET") {
         await route.fulfill({
           status: 200,
           contentType: "application/json",
           body: JSON.stringify(SAMPLE_LIST),
         });
-      } else if (route.request().method() === "POST") {
+      } else {
+        await route.continue();
+      }
+    });
+    // POST 建立 → tenant-scoped v2
+    await page.route(CREATE_PATH, async (route) => {
+      if (route.request().method() === "POST") {
         postCaptured = route.request().postDataJSON() as Record<string, unknown>;
         await route.fulfill({
           status: 201,
