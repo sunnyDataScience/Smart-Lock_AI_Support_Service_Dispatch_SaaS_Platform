@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Image as ImageIcon, ChevronDown, RefreshCw } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import DisputesTable from "@/components/admin/DisputesTable";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
@@ -70,7 +70,7 @@ export default function DisputesPage() {
     try {
       const query: Record<string, string | number> = { limit: 50 };
       if (status !== "all") query.status = status;
-      const res = await api.get<DisputePage>("/api/v1/disputes", { query });
+      const res = await api.get<DisputePage>(tenantPath("/disputes"), { query });
       const newItems: Dispute[] = res.items ?? [];
       setItems(newItems);
       setSelectedId((prev) => (prev && newItems.some((i) => i.id === prev) ? prev : newItems[0]?.id ?? null));
