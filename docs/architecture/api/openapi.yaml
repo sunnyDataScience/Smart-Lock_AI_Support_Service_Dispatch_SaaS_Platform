@@ -4249,6 +4249,45 @@ paths:
           description: CONFLICT — correction status 非 approved，不可標記 resolved
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
 
+  # --- M03 ProblemCard resolution engine (tenant-scoped) ---
+  /tenants/{tenantId}/problem-cards/{problemCardId}:resolve-suggest:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - name: problemCardId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+        description: 問題卡 UUID
+    post:
+      tags: ['M03 ProblemCard (Bridge — see openapi.yaml)']
+      summary: 解決方案引擎建議 v2（tenant-scoped；FAQ/RAG/escalation 階層）
+      operationId: resolveProblemSuggestV2
+      description: |
+        呼叫 resolution_service 階層引擎（L1 faq_match / L2 knowledge_base_rag / L3 llm_generation / L4 escalation）。
+        problemCardId 由 path 帶入（取代 legacy flat /resolve 的 body.problem_card_id）。
+        Idempotency-Key 防重（24h dedup）。
+        403 CROSS_TENANT_READ：path tenantId ≠ JWT tenant_id（ADR-0030）。
+        404 NOT_FOUND：problem card 不存在或不屬於此 tenant。
+        422 VALIDATION_ERROR：問題卡缺少 brand/model/symptom，無法建構查詢。
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK — 回傳解決方案引擎建議（layer/answer/sources/confidence）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResolveResponse' }
+        '403':
+          description: CROSS_TENANT_READ — path tenantId 與 JWT tenant_id 不符
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404':
+          description: NOT_FOUND — 問題卡不存在或不屬於此 tenant
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '422':
+          description: VALIDATION_ERROR — 問題卡缺少 brand/model/symptom，無法建構查詢
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
 
 components:
   parameters:
@@ -6720,3 +6759,48 @@ components:
           description: 下一頁游標（opaque base64；null 表示已到最後一頁）
         has_more:
           type: boolean
+
+    ResolveResponse:
+      type: object
+      required: [layer, answer]
+      description: 解決方案引擎回應（對應 resolveProblemSuggestV2 / legacy resolveProblem 200 response）
+      properties:
+        layer:
+          type: string
+          enum: [faq_match, knowledge_base_rag, llm_generation, escalation]
+          description: 引擎命中層級（L1 faq_match / L2 knowledge_base_rag / L3 llm_generation / L4 escalation）
+        answer:
+          type: string
+          description: 引擎產生的解答文字
+        sources:
+          type: array
+          nullable: true
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [case, manual]
+                nullable: true
+                description: 來源類型
+              id:
+                type: string
+                format: uuid
+                nullable: true
+                description: 來源 UUID
+              snippet:
+                type: string
+                nullable: true
+                description: 摘錄文字
+              score:
+                type: number
+                nullable: true
+                description: 相似度分數
+          description: 引擎引用的來源清單（nullable；escalation 層無 sources）
+        confidence:
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 1.0
+          nullable: true
+          description: 引擎信心度（0.0–1.0；escalation 層無此值）
