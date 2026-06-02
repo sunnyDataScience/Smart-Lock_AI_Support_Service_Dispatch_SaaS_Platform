@@ -114,6 +114,7 @@ tags:
   - name: ACL External Integration
   - name: Dashboard  # M01 Dashboard KPI tenant-scoped (CR-0003 P2-W1, FR-0021)
   - name: Reports  # P2-W1: tenant-scoped KPI / Revenue / Export (FR-0021)
+  - name: Sentiment Alerts  # P2-W2: tenant-scoped Sentiment Alerts list+update (CR-0003 P2-W2, FR-0018/ADR-0048)
 
 paths:
   ## --- LINE Bot intake / observability ---
@@ -2185,6 +2186,75 @@ paths:
         '403': { description: 'Insufficient role or cross-tenant read forbidden' }
         '422': { description: 'Invalid report_type or period parameter' }
 
+  /tenants/{tenantId}/sentiment/alerts:
+    parameters: [{ $ref: '#/components/parameters/TenantPath' }]
+    get:
+      tags: [Sentiment Alerts]
+      summary: '負面情緒告警列表（tenant-scoped v2；cursor 分頁；FR-0018 / CR-0003 P2-W2）'
+      operationId: listSentimentAlerts
+      description: >
+        Returns a cursor-paginated list of sentiment alerts scoped to the
+        authenticated tenant. Supports filtering by status and start_time.
+        Tenant path enforcement per ADR-0030. Replaces legacy
+        GET /api/v1/sentiment/alerts (flat, non-tenant-scoped).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/XTenantId' }
+        - name: status
+          in: query
+          schema: { type: string, enum: [pending, acknowledged, resolved] }
+        - name: start_time
+          in: query
+          schema: { type: string, format: date-time }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200':
+          description: 'Sentiment alert page (cursor-paginated)'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SentimentAlertPage' }
+        '401': { description: 'Unauthenticated' }
+        '403': { description: 'Cross-tenant read forbidden (CROSS_TENANT_READ)' }
+        '422': { description: 'Invalid status value' }
+
+  /tenants/{tenantId}/sentiment/alerts/{id}:
+    parameters:
+      - { $ref: '#/components/parameters/TenantPath' }
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    patch:
+      tags: [Sentiment Alerts]
+      summary: '處理情緒告警（tenant-scoped v2；pending→acknowledged→resolved；FR-0018）'
+      operationId: updateSentimentAlert
+      description: >
+        Transitions a sentiment alert's status (pending → acknowledged → resolved,
+        single-direction only). admin_note is preserved when omitted; empty string
+        clears it. Idempotent via Idempotency-Key header. Cross-tenant write
+        forbidden (ADR-0030). Replaces legacy PATCH /api/v1/sentiment/alerts/{alert_id}.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/XTenantId' }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SentimentAlertUpdateRequest' }
+      responses:
+        '200':
+          description: 'Updated sentiment alert'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SentimentAlert' }
+        '401': { description: 'Unauthenticated' }
+        '403': { description: 'Cross-tenant write forbidden (CROSS_TENANT_WRITE)' }
+        '404': { description: 'Sentiment alert not found' }
+        '409': { description: 'Invalid status transition (INVALID_TRANSITION)' }
+        '422': { description: 'Validation error' }
+
 
 components:
   parameters:
@@ -2279,6 +2349,50 @@ components:
       name: X-DPO-Or-Data-Subject
       description: 'DPO or data-subject role (ADR-0061 GDPR); required for forget request'
   schemas:
+    # --- Sentiment Alerts (CR-0003 P2-W2 / FR-0018 / ADR-0048) ---
+    SentimentAlertStatus:
+      type: string
+      enum: [pending, acknowledged, resolved]
+    SentimentAlert:
+      type: object
+      required: [id, conversation_id, consumer_message, sentiment_label, confidence, detected_keywords, status, notified_admin_ids, created_at]
+      properties:
+        id: { type: string }
+        conversation_id: { type: string }
+        consumer_message: { type: string }
+        sentiment_label:
+          type: string
+          enum: [very_negative, negative, neutral, positive]
+        confidence: { type: number, format: float }
+        detected_keywords:
+          type: array
+          items: { type: string }
+        problem_card_id: { type: string, nullable: true }
+        status: { $ref: '#/components/schemas/SentimentAlertStatus' }
+        notified_admin_ids:
+          type: array
+          items: { type: string }
+        admin_note: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+    SentimentAlertPage:
+      type: object
+      required: [items, has_more]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/SentimentAlert' }
+        next_cursor: { type: string, nullable: true }
+        has_more: { type: boolean }
+    SentimentAlertUpdateRequest:
+      type: object
+      required: [status]
+      properties:
+        status: { $ref: '#/components/schemas/SentimentAlertStatus' }
+        admin_note:
+          type: string
+          maxLength: 1000
+          nullable: true
+
     # RFC 7807 problem+json Error — canonical shape (merged from openapi-smart-lock-saas.yaml)
     # All $ref: '#/components/schemas/Error' across both specs point here.
     Error:
