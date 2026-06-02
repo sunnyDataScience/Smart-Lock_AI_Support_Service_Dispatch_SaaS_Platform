@@ -25,6 +25,13 @@ _keyword: str = "#資料修正"
 _reply: str = "已收到您的回報，我們會盡快處理，謝謝您！"
 _uri_env: str = ""
 
+# ADR-0030：agent harness 寫入 data_corrections 須同步帶 tenant_id，
+# 避免 v2 WHERE tenant_id 過濾掉 NULL 列。
+# 取自 INTERNAL_API_TENANT_ID 環境變數，預設 dev tenant。
+_INTERNAL_TENANT_ID: str = os.getenv(
+    "INTERNAL_API_TENANT_ID", "00000000-0000-0000-0000-000000000001"
+)
+
 
 def get_pool() -> AsyncConnectionPool | None:
     """供 /health 等模組讀取 pool 健康狀態。"""
@@ -75,6 +82,10 @@ async def init_db(config: dict):
                     created_at TIMESTAMP DEFAULT NOW()
                 )
             """)
+            # ADR-0030 對稱：補 tenant_id 欄（migration 009 已保證存在；此為 fail-safe）
+            await conn.execute(
+                "ALTER TABLE data_corrections ADD COLUMN IF NOT EXISTS tenant_id UUID"
+            )
             await conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_dc_user_id ON data_corrections (user_id)"
             )
@@ -132,13 +143,20 @@ async def check_and_save(
     # 擷取用戶資料
     facts = await _extract_facts(profile_mgr, user_id)
 
-    # 寫入 DB
+    # 寫入 DB（ADR-0030：帶 tenant_id 確保 v2 tenant-scoped 過濾可見）
     try:
         async with _pool.connection() as conn:
             await conn.execute(
-                "INSERT INTO data_corrections (user_id, note, conversation_context, user_facts) "
-                "VALUES (%s, %s, %s, %s)",
-                (user_id, note, conversation_context, json.dumps(facts, ensure_ascii=False)),
+                "INSERT INTO data_corrections "
+                "  (user_id, note, conversation_context, user_facts, tenant_id) "
+                "VALUES (%s, %s, %s, %s, %s::uuid)",
+                (
+                    user_id,
+                    note,
+                    conversation_context,
+                    json.dumps(facts, ensure_ascii=False),
+                    _INTERNAL_TENANT_ID,
+                ),
             )
         log.info("data_correction_persisted", user_id=user_id)
     except (psycopg.Error, OSError, RuntimeError) as e:
