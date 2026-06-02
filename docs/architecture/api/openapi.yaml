@@ -119,6 +119,7 @@ tags:
   - name: Conversations  # P2-W2: tenant-scoped Conversation CRUD + Messages (CR-0003 P2-W2, FR-0018)
   - name: M07 WorkOrder Ops  # P2-W4: tenant-scoped WorkOrder operational endpoints (CR-0003 P2-W4)
   - name: M11 Invoice  # P2-W5: tenant-scoped Invoice read-only (CR-0003 P2-W5, FR-0011)
+  - name: M12 Settlement  # FR-0013 dual-sign reconciliation v2 (CR-0004 §8 HD-1~HD-3)
   - name: Media  # P2-W6: tenant-scoped Media upload/serve/list (CR-0003 P2-W6)
 
 paths:
@@ -2613,6 +2614,152 @@ paths:
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
         '404': { description: Invoice not found }
 
+  ## --- Reconciliation v2 dual-sign (FR-0013 / CR-0004 §8 / M12 Settlement) ---
+
+  /tenants/{tenantId}/accounting/reconciliations:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+    get:
+      tags: ['M12 Settlement']
+      summary: 對帳單列表 v2（tenant-scoped，cursor 分頁）
+      operationId: listReconciliationsV2
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, in_review, approved, disputed]
+          description: 對帳單狀態篩選（pending|in_review|approved|disputed）
+        - name: technician_id
+          in: query
+          required: false
+          schema: { type: string }
+          description: 技師 UUID filter
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReconciliationPage' }
+        '403':
+          description: CROSS_TENANT_READ
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/accounting/reconciliations/{reconId}:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: reconId, in: path, required: true, schema: { type: string }, description: 對帳單 UUID }
+    get:
+      tags: ['M12 Settlement']
+      summary: 取單筆對帳單 v2（tenant-scoped）
+      operationId: getReconciliationV2
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReconciliationEnvelope' }
+        '403':
+          description: CROSS_TENANT_READ
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404':
+          description: NOT_FOUND — 對帳單不存在或不屬於此 tenant
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/accounting/reconciliations/{reconId}:review:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: reconId, in: path, required: true, schema: { type: string }, description: 對帳單 UUID }
+    post:
+      tags: ['M12 Settlement']
+      summary: CSM review（step-1，pending → in_review）
+      operationId: reviewReconciliationV2
+      description: |
+        dual-sign 第一步：CSM 審核對帳單，status 由 pending 轉為 in_review。
+        X-Initiator 記為 reviewed_by；Idempotency-Key 防重。
+        409 STATE_CONFLICT：對帳單 status 非 pending。
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XInitiator'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+                  maxLength: 500
+                  nullable: true
+                  description: 審核備註（選填，最多 500 字）
+      responses:
+        '200':
+          description: OK — 對帳單已進入 in_review，回傳更新後對帳單
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReconciliationEnvelope' }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '409':
+          description: STATE_CONFLICT — 對帳單非 pending 狀態，不可 review
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/accounting/reconciliations/{reconId}:co-sign:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: reconId, in: path, required: true, schema: { type: string }, description: 對帳單 UUID }
+    post:
+      tags: ['M12 Settlement']
+      summary: ops_manager co-sign（step-2，in_review → approved + settlement 建立）
+      operationId: coSignReconciliationV2
+      description: |
+        dual-sign 第二步：ops_manager co-sign，status 由 in_review 轉為 approved，
+        同時 INSERT saas.settlement（技師付款記錄）。
+        X-Initiator 記為 approved_by；SoD 規則：approved_by ≠ reviewed_by，否則 403 SOD_VIOLATION。
+        409 DUAL_SIGN_REQUIRED：對帳單 status 非 in_review（尚未完成第一步 review）。
+        403 SOD_VIOLATION：co-signer 與 reviewer 為同一人（Separation of Duties）。
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XInitiator'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+                  maxLength: 500
+                  nullable: true
+                  description: 共簽備註（選填，最多 500 字）
+      responses:
+        '200':
+          description: OK — 雙簽完成，回傳 reconciliation + settlement
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReconciliationCoSignResult' }
+        '403':
+          description: SOD_VIOLATION — co-signer 與 reviewer 相同（SoD 違反）
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '409':
+          description: DUAL_SIGN_REQUIRED — 對帳單非 in_review 狀態，需先完成 review
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
   ## --- Conversations v2 (P2-W2 / CR-0003 / FR-0018) ---
   /tenants/{tenantId}/conversations:
     x-phase: P2-W2
@@ -3188,6 +3335,10 @@ components:
             - VISION_API_FORBIDDEN
             - EXTERNAL_DEP_DOWN
             - NOT_IMPLEMENTED_V1
+            # M12 Reconciliation v2 dual-sign (FR-0013 / CR-0004 §8)
+            - NOT_FOUND
+            - STATE_CONFLICT            # 409 review: status ≠ pending
+            - DUAL_SIGN_REQUIRED        # 409 co-sign: status ≠ in_review
         trace_id:
           type: string
           description: 'W3C trace_id; required on /quote/* and /pricing/* error responses (v2.3 telemetry)'
@@ -5000,3 +5151,105 @@ components:
           nullable: true
         next_cursor: { type: string, nullable: true }
         has_more: { type: boolean }
+
+    # --- M12 Settlement — Reconciliation v2 dual-sign (FR-0013 / CR-0004 §8) ---
+
+    Reconciliation:
+      type: object
+      description: |
+        saas.reconciliation 對帳單（v2 tenant-scoped dual-sign）。
+        欄位對應 reconciliation_v2_service._row_to_dict 輸出形狀。
+      required:
+        - id
+        - tenant_id
+        - technician_id
+        - status
+        - total_orders
+        - total_revenue
+        - platform_fee
+        - technician_payout
+        - created_at
+      properties:
+        id: { type: string, description: 對帳單 UUID }
+        tenant_id: { type: string, description: 租戶 UUID }
+        technician_id: { type: string, description: 技師 UUID }
+        period_start: { type: string, format: date, nullable: true, description: 對帳期間起始日（ISO 8601 date） }
+        period_end: { type: string, format: date, nullable: true, description: 對帳期間截止日（ISO 8601 date） }
+        total_orders: { type: integer, description: 期間總工單數 }
+        total_revenue: { type: string, description: '總收入（numeric string，2 位小數，如 "1234.50"）' }
+        platform_fee: { type: string, description: '平台服務費（numeric string，2 位小數）' }
+        technician_payout: { type: string, description: '技師應付款（numeric string，2 位小數）' }
+        status:
+          type: string
+          enum: [pending, in_review, approved, disputed]
+          description: 對帳單狀態
+        reviewed_by: { type: string, nullable: true, description: step-1 CSM reviewer UUID }
+        reviewed_at: { type: string, format: date-time, nullable: true, description: step-1 完成時間 }
+        approved_by: { type: string, nullable: true, description: step-2 ops_manager co-signer UUID }
+        approved_at: { type: string, format: date-time, nullable: true, description: step-2 完成時間 }
+        note: { type: string, nullable: true, description: 審核備註（最多 500 字） }
+        created_at: { type: string, format: date-time, description: 建立時間 }
+
+    ReconciliationEnvelope:
+      type: object
+      description: 單筆對帳單信封（data 包裝，對應 getReconciliationV2 / reviewReconciliationV2 200 response）
+      properties:
+        data:
+          $ref: '#/components/schemas/Reconciliation'
+          nullable: true
+
+    ReconciliationPage:
+      type: object
+      required: [has_more]
+      description: 對帳單分頁（cursor 分頁，對應 listReconciliationsV2 200 response）
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Reconciliation' }
+          nullable: true
+        next_cursor: { type: string, nullable: true, description: 下一頁游標（opaque base64） }
+        has_more: { type: boolean }
+
+    SettlementV2:
+      type: object
+      description: |
+        saas.settlement 付款記錄（v2 dual-sign 完成時建立）。
+        欄位對應 reconciliation_v2_service._settlement_row_to_dict 輸出形狀。
+        命名加 V2 後綴以區隔 legacy public.settlements。
+      required:
+        - id
+        - tenant_id
+        - reconciliation_id
+        - technician_id
+        - amount
+        - currency
+        - status
+        - created_at
+      properties:
+        id: { type: string, description: settlement UUID }
+        tenant_id: { type: string, description: 租戶 UUID }
+        reconciliation_id: { type: string, description: 對帳單 UUID（FK → Reconciliation.id） }
+        technician_id: { type: string, description: 技師 UUID }
+        amount: { type: string, description: '付款金額（numeric string，2 位小數）' }
+        currency: { type: string, default: TWD, description: 幣別（預設 TWD） }
+        status: { type: string, enum: [pending, paid, failed], description: 付款狀態 }
+        payment_method: { type: string, nullable: true, description: 付款方式 }
+        paid_at: { type: string, format: date-time, nullable: true, description: 實際付款時間 }
+        created_at: { type: string, format: date-time, description: 建立時間 }
+
+    ReconciliationCoSignResult:
+      type: object
+      description: |
+        coSignReconciliationV2 200 回應（dual-sign 完成）。
+        包含更新後的對帳單 + 新建的 settlement。
+      required:
+        - data
+      properties:
+        data:
+          type: object
+          required: [reconciliation, settlement]
+          properties:
+            reconciliation:
+              $ref: '#/components/schemas/Reconciliation'
+            settlement:
+              $ref: '#/components/schemas/SettlementV2'
