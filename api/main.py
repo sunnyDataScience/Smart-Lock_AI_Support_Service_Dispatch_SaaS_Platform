@@ -76,6 +76,7 @@ from routers import consumer_v2 as consumer_v2_router  # spec-alignment P2-α (C
 from routers import settlements_v2 as settlements_v2_router  # spec-alignment P2 (FR-0012, M12 Settlement monthly trigger 501 stub)
 from routers import warranty_claims_v2 as warranty_claims_v2_router  # spec-alignment P2 (CR-0003 P2, M13 Warranty POST create tenant-scoped)
 from routers import exceptions_v2 as exceptions_v2_router  # spec-alignment P2 (CR-0003, M15 Exception tenant-scoped)
+from routers import dashboard_v2 as dashboard_v2_router  # spec-alignment P2-W1 (CR-0003 P2-W1, Dashboard tenant-scoped, FR-0021)
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -187,6 +188,7 @@ app.include_router(consumer_v2_router.router, tags=["M16 Consumer"])  # spec-ali
 app.include_router(settlements_v2_router.router, tags=["M12 Settlement"])  # spec-alignment P2 (FR-0012, M12 monthly settlement 501 stub)
 app.include_router(warranty_claims_v2_router.router, tags=["M13 Warranty"])  # spec-alignment P2 (CR-0003 P2, M13 Warranty POST create tenant-scoped)
 app.include_router(exceptions_v2_router.router, tags=["M15 Exception"])  # spec-alignment P2 (CR-0003, M15 Exception tenant-scoped)
+app.include_router(dashboard_v2_router.router, tags=["Dashboard"])  # spec-alignment P2-W1 (CR-0003 P2-W1, Dashboard tenant-scoped, FR-0021)
 
 
 @app.get("/health")

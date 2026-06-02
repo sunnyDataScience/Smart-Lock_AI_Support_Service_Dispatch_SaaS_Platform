@@ -29,7 +29,7 @@ import {
   mapRangeToDashboardPeriod,
   type DateRange,
 } from "@/lib/dateRange";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, getCurrentSession } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
@@ -103,6 +103,11 @@ export default function DashboardPage() {
   useEffect(() => {
     let cancelled = false;
 
+    // tenantId — 從 JWT 取得；fallback 至 dev 預設值（非 production 情境）
+    const session = getCurrentSession();
+    const tenantId =
+      session?.tenantId ?? "00000000-0000-0000-0000-000000000001";
+
     // 三個並行 fetch（dashboard stats / work-orders / technicians）
     // TODO[E7x §4.3]: 後端 dashboard / work-orders / technicians 尚未支援
     // from/to 自訂範圍 filter；目前先把 range 折回 DashboardPeriod enum，
@@ -110,8 +115,9 @@ export default function DashboardPage() {
     (async () => {
       setError(null);
       try {
+        // v2 tenant-scoped endpoint（CR-0003 P2-W1, FR-0021）
         const data = await api.get<DashboardStats>(
-          "/api/v1/dashboard/stats",
+          `/tenants/${encodeURIComponent(tenantId)}/dashboard/stats`,
           { query: { period } },
         );
         if (!cancelled) setStats(data);
