@@ -210,4 +210,5 @@ S7 [平台級 flat，獨立性最高，但 hash chain+schema 須先裁] ── v
 
 ### 進度
 - ✅ **S1 config-m18 done**（merge `2c4dbf1e`，2026-06-02）：saas.config_* 4 表 + 7 endpoint + SoD/audit/ACL/rollback，25 測試綠、回歸 524+1skip。Opus gate 修 parent-restore + 繁中。Phase II：canary auto-advance/SLO halt（需 scheduler）。
-- ⏳ S2 reconciliations→disputes / S3 inventory / S4 pricing-rules / S5 data-corrections / S6 resolution / S7 vouchers-void — 待續，同範式（feat 分支 + Sonnet 建 + Opus gate + live-DB component）。
+- ✅ **S2 上半 reconciliations done**（merge `4c265155`）：saas.reconciliation + saas.settlement dual-write；CSM review → ops_manager co-sign（跨兩 call SoD，409 DUAL_SIGN_REQUIRED / 403 SOD_VIOLATION）→ settlement INSERT。19 測試、回歸 543+1skip、spec +4 path。
+- ⏳ S2 下半 disputes（下一個）/ S3 inventory / S4 pricing-rules / S5 data-corrections / S6 resolution / S7 vouchers-void — 待續，同範式。
