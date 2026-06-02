@@ -145,7 +145,9 @@ async def _query_kpis(
     outstanding_amt = row[4]
     outstanding_cnt = row[5] or 0
 
-    paid_rate = float(paid_count) / float(issued_or_done) if issued_or_done > 0 else None
+    # 無已開立發票時 paid_rate=0.0（非 None）：RevenueKpis.paid_rate 為 required number，
+    # 回 None 會讓 RevenueSummary 序列化失敗（v2 與 legacy /revenue 同 code 皆受影響）。
+    paid_rate = float(paid_count) / float(issued_or_done) if issued_or_done > 0 else 0.0
 
     return {
         "month_revenue": _coerce_decimal(month_rev),

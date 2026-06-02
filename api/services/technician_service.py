@@ -298,7 +298,9 @@ async def create_technician(
         return _tech_row_to_dict(existing_row), False
 
     # INSERT 新技師
-    phone_val = phone if phone else ""
+    # phone NOT NULL；未提供時填 pattern-valid 佔位（Technician 回應 model phone 規則 ^09\d{8}$，
+    # 空字串會驗證失敗並污染 list 端點序列化）。pending 技師之佔位號碼，待 onboard 補實。
+    phone_val = phone if phone else "0900000000"
     capabilities_json = json.dumps(capabilities or [])
     service_regions_json = json.dumps(coverage_areas)
 

@@ -63,9 +63,11 @@ def test_verify_expired_token_raises():
 def test_verify_tampered_signature_raises():
     token = public_token.generate_token("subj-1", purpose="scope_change")
     payload_b64, sig_b64 = token.split(".", 1)
-    # flip 最後一個字元（保持 base64url 字元）
-    flipped = "A" if sig_b64[-1] != "A" else "B"
-    tampered = f"{payload_b64}.{sig_b64[:-1]}{flipped}"
+    # flip 第一個字元（保持 base64url 字元）。不可 flip 末字元——32-byte 簽章的 base64url
+    # 末字元含 2 個 don't-care padding bits，A↔B 可能解碼成相同 bytes（非竄改）→ flaky。
+    # 首字元編碼 byte0 高 6 significant bits，flip 必改變解碼簽章 → 確定性竄改。
+    flipped = "A" if sig_b64[0] != "A" else "B"
+    tampered = f"{payload_b64}.{flipped}{sig_b64[1:]}"
     with pytest.raises(public_token.TokenInvalidError):
         public_token.verify_token(tampered)
 
