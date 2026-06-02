@@ -16,7 +16,7 @@
 | 007 | `007-inventory-v2.sql` | Track B S3 | ✅ done | saas.inventory_item + saas.inventory_transaction（per-tenant 庫存狀態機；owner enum platform/brand/locksmith ADR-0052；serial_required ADR-0053；consume transaction + FOR UPDATE AC-05；backfill public.inventory_items/transactions → saas.*）FR-0007 / CR-0004 §8 HD-INV-01~03 |
 | 008 | `008-pricing-rules-v2.sql` | Track B S4 | ✅ done | saas.price_rule + saas.change_request_type_dim（6 types seed）+ saas.change_request（governance 審計；created_by plain uuid 無 FK；approval workflow Phase II 省略）+ backfill public.price_rules → saas.price_rule（float→numeric CAST）CR-0004 §8 C3 / ADR-0046 |
 | 008-rls | _(reserved, renumbered)_ | P2-β | 🔒 預留 | RLS session config（SET ROLE / set_config per-request + non-owner app role）— 原佔用 008 編號已被 pricing-rules-v2 使用，請改用 014 或下一可用編號 |
-| 009 | _(reserved)_ | P3 | 🔒 預留 | master data：site / device / brand / model |
+| 009 | `009-data-corrections-v2.sql` | Track B S5 | ✅ done | data_corrections tenant-scoped review queue：CREATE TABLE IF NOT EXISTS + 補 reviewed_by/reviewed_at/review_note + 補 tenant_id（方案 B 就地補）+ backfill NULL→dev tenant + idx_dc_tenant_status_created。resolved 第四態 + require_admin（CR-0004 §8 HD-1~HD-5 / ADR-0029 / ADR-0030）|
 | 010 | _(reserved)_ | P3 | 🔒 預留 | quote_version（lifecycle 狀態機 + 14d/3d TTL；對照 spec DDL saas.quote_version）|
 | 011 | _(reserved)_ | P3 | 🔒 預留 | M18 config governance 四表（namespace / version / rollout / audit）|
 | 012 | _(reserved)_ | P3 | 🔒 預留 | sync 6 模組（outbox + idempotency + human gate）|
