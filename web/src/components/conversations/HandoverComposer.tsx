@@ -12,6 +12,8 @@ const MAX_LENGTH = 5000;
 
 interface HandoverComposerProps {
   conversationId: string;
+  /** tenant UUID（CR-0003 P2-W2 tenant-scoped v2 端點用）*/
+  tenantId: string;
   /** 對話狀態為 waiting_human 時才會啟用送訊；其他狀態整個元件唯讀 */
   enabled: boolean;
   /** 訊息成功送出後通知上層 refetch / append */
@@ -21,13 +23,15 @@ interface HandoverComposerProps {
 /**
  * HandoverComposer — 客服接管後的發訊 input。
  *
- * 對應 BE: POST /api/v1/conversations/{id}/messages（operationId: sendChatMessage）。
+ * 對應 BE: POST /tenants/{tenantId}/conversations/{id}/messages（operationId: sendChatMessage）。
+ * CR-0003 P2-W2：已遷移至 tenant-scoped v2 端點（FR-0018）。
  * - textarea + 5000 字計數
  * - api.post 自動帶 Idempotency-Key（lib/api.ts 預設行為）
  * - useToast 反饋成功 / 失敗
  */
 export default function HandoverComposer({
   conversationId,
+  tenantId,
   enabled,
   onSent,
 }: HandoverComposerProps) {
@@ -43,8 +47,9 @@ export default function HandoverComposer({
     if (!canSend) return;
     setSending(true);
     try {
+      // CR-0003 P2-W2：tenant-scoped v2 端點
       const msg = await api.post<Message>(
-        `/api/v1/conversations/${conversationId}/messages`,
+        `/tenants/${encodeURIComponent(tenantId)}/conversations/${encodeURIComponent(conversationId)}/messages`,
         { content: trimmed },
       );
       onSent(msg);
