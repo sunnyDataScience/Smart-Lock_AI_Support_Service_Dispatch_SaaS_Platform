@@ -153,3 +153,37 @@ def role_required(*roles: str):
             )
         return user
     return _dep
+
+
+# HD-VCH-003：platform keeper role — X-Keeper-Role header + user.role 屬平台管理員集合
+_KEEPER_ROLES: frozenset[str] = frozenset({"admin", "platform_admin", "platform_keeper"})
+
+
+async def require_keeper_role(
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    x_keeper_role: str | None = Header(default=None, alias="X-Keeper-Role"),
+) -> CurrentUser:
+    """Voucher void 專用 dependency（HD-VCH-003）。
+
+    檢查：
+      1. Bearer token 有效（get_current_user）
+      2. X-Keeper-Role header 必填
+      3. user.role 屬 platform admin 集合（_KEEPER_ROLES）
+
+    flat path（/vouchers/{id}/void）不做 tenant 綁定；keeper 可跨租戶操作，
+    voucher 自帶 tenant_id 做隔離。
+    """
+    user = await get_current_user(authorization)
+    if not x_keeper_role:
+        raise ApiError(
+            error_code="KEEPER_ROLE_REQUIRED",
+            message="Missing X-Keeper-Role header",
+            status_code=403,
+        )
+    if user.role not in _KEEPER_ROLES:
+        raise ApiError(
+            error_code="KEEPER_FORBIDDEN",
+            message="Voucher void requires platform keeper role",
+            status_code=403,
+        )
+    return user
