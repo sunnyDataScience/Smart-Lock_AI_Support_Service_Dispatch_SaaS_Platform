@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Calculator, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
-import { ApiError, api, auth } from "@/lib/api";
+import { ApiError, api, auth, tenantPath, getCurrentSession } from "@/lib/api";
 import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
@@ -74,7 +74,8 @@ export default function PricingForm() {
     setError(null);
     try {
       const res = await api.get<PricingRulePage>(
-        "/api/v1/pricing/rules?limit=50",
+        tenantPath("/pricing/rules"),
+        { query: { limit: 50 } },
       );
       setItems(res.items ?? []);
       setUpdatedAt(new Date());
@@ -119,8 +120,9 @@ export default function PricingForm() {
     setEditorError(null);
     try {
       const res = await api.post<PricingRuleEnvelope>(
-        "/api/v1/pricing/rules",
+        tenantPath("/pricing/rules"),
         req,
+        { headers: { "X-Initiator": getCurrentSession()?.userId ?? "" } },
       );
       const created = res.data;
       if (created) {
@@ -150,8 +152,9 @@ export default function PricingForm() {
     setEditorError(null);
     try {
       const res = await api.put<PricingRuleEnvelope>(
-        `/api/v1/pricing/rules/${encodeURIComponent(rule.id)}`,
+        tenantPath(`/pricing/rules/${encodeURIComponent(rule.id)}`),
         req,
+        { headers: { "X-Initiator": getCurrentSession()?.userId ?? "" } },
       );
       const updated = res.data;
       if (updated) {

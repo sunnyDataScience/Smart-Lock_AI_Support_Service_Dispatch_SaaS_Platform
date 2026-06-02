@@ -18,7 +18,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import SettlementTable from "@/components/accounting/SettlementTable";
 import ReconciliationsTable from "@/components/accounting/ReconciliationsTable";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 import { ReportExportModal } from "@/components/admin/reports/ReportExportModal";
 
@@ -146,7 +146,7 @@ export default function AccountingPage() {
         const query: Record<string, string | number> = { limit: 50 };
         if (statusFilter) query.status = statusFilter;
         const res = await api.get<ReconciliationPage>(
-          "/api/v1/accounting/reconciliations",
+          tenantPath("/accounting/reconciliations"),
           { query },
         );
         setRecons(res.items ?? []);
@@ -184,6 +184,7 @@ export default function AccountingPage() {
     try {
       const trimmed = note.trim();
       const body = trimmed ? { note: trimmed } : {};
+      // P3.5-KEEP: v2 對帳改 dual-sign（:review→:co-sign，兩個不同 user），單簽 approve 無 drop-in；需 dual-sign UX rework（two-step review→co-sign UI），屬產品工作。legacy 單簽暫留。
       await api.post<ReconciliationApproveResponse>(
         `/api/v1/accounting/reconciliations/${encodeURIComponent(recon.id)}/approve`,
         body,
