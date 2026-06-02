@@ -112,6 +112,7 @@ tags:
   - name: KB (Agent Knowledge Base)
   - name: Sync (ERP ↔ Chatbot)
   - name: ACL External Integration
+  - name: Reports  # P2-W1: tenant-scoped KPI / Revenue / Export (FR-0021)
 
 paths:
   ## --- LINE Bot intake / observability ---
@@ -2044,6 +2045,102 @@ paths:
       responses:
         '200': { description: 'Accepted (Phase II only; V1 returns 501 below)' }
         '501': { description: NOT_IMPLEMENTED_V1 }
+
+  # P2-W1: Reports tenant-scoped v2 (CR-0003 P2-W1, FR-0021)
+  /tenants/{tenantId}/reports/kpi:
+    parameters: [{ $ref: '#/components/parameters/TenantPath' }]
+    get:
+      tags: [Reports]
+      summary: 'KPI 儀表板（tenant-scoped v2；漏斗 / 異常率 / 技師效率）'
+      operationId: getReportKpi
+      description: >
+        Returns KPI funnel, dispute rates and technician efficiency for the
+        authenticated tenant. Supports `period` enum or explicit `start_date`
+        / `end_date` date range. Replaces legacy GET /api/v1/reports/kpi with
+        tenant path enforcement (ADR-0030 cross-tenant guard).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/XTenantId' }
+        - name: period
+          in: query
+          schema: { type: string, enum: [today, 7d, 30d, 90d], default: 30d }
+        - name: start_date
+          in: query
+          schema: { type: string, format: date }
+        - name: end_date
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: 'KPI report', content: { application/json: { schema: { type: object } } } }
+        '401': { description: 'Unauthenticated' }
+        '403': { description: 'Cross-tenant read forbidden (CROSS_TENANT_READ)' }
+
+  /tenants/{tenantId}/reports/revenue:
+    parameters: [{ $ref: '#/components/parameters/TenantPath' }]
+    get:
+      tags: [Reports]
+      summary: '營收彙整（tenant-scoped v2；KPI + 月度趨勢 + 品牌占比）'
+      operationId: getReportRevenue
+      description: >
+        Returns revenue summary including KPI metrics, monthly trend and
+        per-brand breakdown for the authenticated tenant. Replaces legacy
+        GET /api/v1/reports/revenue with tenant path enforcement (ADR-0030).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/XTenantId' }
+        - name: granularity
+          in: query
+          schema: { type: string, default: month }
+        - name: start_date
+          in: query
+          schema: { type: string, format: date }
+        - name: end_date
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: 'Revenue summary', content: { application/json: { schema: { type: object } } } }
+        '401': { description: 'Unauthenticated' }
+        '403': { description: 'Cross-tenant read forbidden (CROSS_TENANT_READ)' }
+
+  /tenants/{tenantId}/reports/export:
+    parameters: [{ $ref: '#/components/parameters/TenantPath' }]
+    get:
+      tags: [Reports]
+      summary: '匯出 KPI / 營收 / 技師排行 / 結算報表（tenant-scoped v2；CSV stream）'
+      operationId: exportReport
+      description: >
+        Streams a CSV export for the given report_type scoped to the
+        authenticated tenant. Role gate: admin / operations_manager / accountant.
+        Replaces legacy GET /api/v1/reports/export (CSV only; PDF excluded from
+        v2 to align with FR-0021 scope). Tenant path enforcement per ADR-0030.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/XTenantId' }
+        - name: report_type
+          in: query
+          required: true
+          schema: { type: string, enum: [kpi, revenue, technician_ranking, accounting] }
+        - name: period
+          in: query
+          schema: { type: string, enum: [today, 7d, 30d, 90d] }
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: 'CSV stream'
+          content:
+            text/csv:
+              schema: { type: string }
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+        '401': { description: 'Unauthenticated' }
+        '403': { description: 'Insufficient role or cross-tenant read forbidden' }
+        '422': { description: 'Invalid report_type or period parameter' }
 
 
 components:

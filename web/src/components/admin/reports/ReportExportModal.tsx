@@ -11,7 +11,7 @@ import {
   ModalTitle,
 } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, auth } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 /**
@@ -100,7 +100,12 @@ export function ReportExportModal({
     const filename = `${reportType}-${today}.${format}`;
 
     try {
-      await api.download("/api/v1/reports/export", { query, filename });
+      // v2 tenant-scoped export path（FR-0021 / CR-0003 P2-W1）
+      const tenantId = auth.getTenantId();
+      await api.download(
+        `/tenants/${encodeURIComponent(tenantId)}/reports/export`,
+        { query, filename },
+      );
       toast({
         title: t("toast.successTitle"),
         description: filename,
