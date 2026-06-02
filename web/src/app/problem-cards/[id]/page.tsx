@@ -236,10 +236,10 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
     setActionPending("auto");
     setActionError(null);
     try {
-      // P3-KEEP: track-B (待 CR-0004)
-      const res = await api.post<ResolveResponse>("/api/v1/resolve", {
-        problem_card_id: card.id,
-      });
+      // Track B S6: 解決方案引擎 v2（tenant-scoped，problemCardId 走 path）
+      const res = await api.post<ResolveResponse>(
+        tenantPath(`/problem-cards/${encodeURIComponent(card.id)}:resolve-suggest`),
+      );
       setAutoResolveResult(res);
       setActionToast(`自動解決：${RESOLVE_LAYER_BADGE[res.layer].label}`);
     } catch (e) {
