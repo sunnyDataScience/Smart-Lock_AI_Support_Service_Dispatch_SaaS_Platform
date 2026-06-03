@@ -75,8 +75,22 @@ curl "http://localhost:8000/chat?q=門打不開"              # 快速測試端�
 </important>
 
 <important if="動 flow / contract / data / architecture">
-- 先跑 `sunnydata-change-impact-analysis` skill（硬 gate，見 .claude/rules/change-governance.md）
-- 文件衝突或 status: deprecated/superseded → 停下回報，引用具體 ID（BF-/UF-/API-/TC-），勿腦補
+- **7 觸發面向**（命中任一就跑 CIA）：User/Business flow、API contract、Domain model、DB schema、External integration、Test plan、Architecture boundary
+- **豁免**：純 typo / 註解 / format / 單一 function 內 bug fix（無 contract 影響）/ tier-3 process doc 編輯
+- 觸發即跑 `sunnydata-change-impact-analysis` skill → 產出 CIA 至 `docs/4-exploration/CR-NNNN-<short>.md` → 🛑 等業主裁決 §8「Human Decisions Required」→ 依 §9 順序實作
+- 文件衝突或讀到 `status: deprecated`/`superseded` → 停下回報 + **引用具體 ID**（BF-/UF-/API-/TC-/ADR-/CR-），絕不腦補「合理版本」
+- 完整規則：`.claude/rules/change-governance.md`（CIA gate、rewrite vs refactor 打分表、6 tier 衝突仲裁）
+</important>
+
+<important if="完成一個 step / 準備 commit">
+- **三個地方同步更新**（缺一就是 audit trail 斷鏈）：
+  1. `docs/_audit/CR-NNNN-*.md` 對應 §8 `### 進度` 區塊 → 補一行 `✅ Sx done（merge <sha>）：<關鍵成果>`
+  2. `CHANGELOG.md` `[Unreleased]` 段 → Added / Changed / Decisions 對應條目
+  3. 有架構決策 → 新開 ADR（**append-only，舊的標 `status: superseded` + `superseded_by:`，不改舊內容**）
+- Commit message 依 type 分層（見 `.claude/rules/git-workflow.md`）：`feat` 三段 WHY/WHAT/IMPACT；`fix` WHY + root cause；`docs`/`chore` 一行夠
+- **永不在 `main` / `dev_new_arch` 直接 commit** — 先開 `<type>/<short>` 分支
+- **push 由使用者執行**，Claude 只 commit
+- 文件 6 tier 規則：`.claude/rules/context-stability.md`
 </important>
 
 ## 細節路標（漸進式揭露 —— 需要時才展開）
