@@ -33,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `web/src/app/admin/schedule-requests/page.tsx`：reject 從 `POST /api/v1/admin/schedule-requests/{id}/reject` 遷至 v2 `POST /tenants/{tid}/exceptions/{id}:approve`（body.decision="reject" 區分）；移除 P3-KEEP flat 註解（原註解「reject 無對應 v2 端點」與 exceptions_v2.py:33 不符，實為文件 stale）
+- `web/src/components/admin/CustomerForm.tsx`、`web/src/app/admin/customers/[id]/edit/page.tsx`：docstring 同步至 v2 路徑（實際 caller 早已 v2，註解 stale）
 - `web/docs/system-completion-status.md`：P3.5 Track-B caller 補遺改標 ✅ 100%（2026-06-04 取證收尾，原表述 stale）；總體 88% → 89%；架構遷移 85% → 88%；Caller 遷移 v1→v2 80% → 92%；§8 P0 移除已完成的 P3.5 條目、新增 P1「Reconciliation dual-sign UX rework」backlog
 - `docs/_audit/CR-0003-full-cutover-wbs.md`：新增 §5 進度區（append-only），標記 P0/P1/P2/P3/P3.5 ✅、P4 ⏳
 - `MISSION.md`：P3.5 驗收條件改標 ✅ 已收尾；迭代優先順序更新為「P4 Cutover 目前在這」+ 並行 backlog 區段

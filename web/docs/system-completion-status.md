@@ -43,7 +43,7 @@
 | **通知中心**（G1）| **100%** | 全頁面 + Drawer + Bell + BroadcastChannel 跨 tab 同步 |
 | **A32 AI 推理**（SSE）| **100%** | 對話頁逐 token 串流面板 |
 | **PWA / 桌面 guard** | **100%** | manifest + 4 SVG icon + 桌面顯示 QR Code |
-| **Caller 遷移 v1 → v2** | **~92%** | P3 track-A 完成（agent + web 大部分）；**P3.5 Track-B 100%**（disputes / pricing / reconciliations / inventory / data-corrections 4+1 模組之 drop-in caller 已全遷）；剩 30 個 v1 caller 屬 P4 cutover scope（KB / refunds / warranty / technicians 等）+ 1 個 `accounting/page.tsx` recon approve 為產品 backlog（dual-sign UX rework）|
+| **Caller 遷移 v1 → v2** | **~93%** | P3 track-A 完成 + P3.5 Track-B ✅ 100%；**P3 收尾 wave-1（2026-06-04）**：admin/schedule-requests reject 遷 v2、customers docstring 同步。剩 42 個真實 v1 caller，分類：(a) BUILD_V2 前置依賴（KB cases/manuals/sop-drafts、technicians/me self-service、accounting settlements、public scope-change） (b) agent-coupled 待 P4-T1（refunds/warranty/problem-cards） (c) 雜項（settings auth/change-password、api-status debug 頁、accounting recon dual-sign UX backlog）|
 
 ---
 

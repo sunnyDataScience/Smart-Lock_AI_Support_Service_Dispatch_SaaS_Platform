@@ -4,7 +4,7 @@
  * /admin/customers/[id]/edit — 編輯客戶頁面
  *
  * 對應 E7x §4.2 FE UI 缺口 — 客戶 admin 編輯表單。
- * 載入既有客戶資料 → 注入 CustomerForm 預填 → 提交時呼叫 PATCH /api/v1/customers/{id}。
+ * 載入既有客戶資料 → 注入 CustomerForm 預填 → 提交時呼叫 PUT /api/v2/tenants/{tenantId}/customers/{id}。
  */
 
 import { use, useEffect, useState } from "react";

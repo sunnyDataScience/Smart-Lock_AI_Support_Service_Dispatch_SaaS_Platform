@@ -12,8 +12,8 @@
  *   - address：optional，自由文字
  *
  * API 串接：
- *   - mode="create" → POST /api/v1/customers (operationId: createCustomer)
- *   - mode="edit"   → PATCH /api/v1/customers/{id} (operationId: updateCustomer)
+ *   - mode="create" → POST /api/v2/tenants/{tenantId}/customers (operationId: createCustomerV2)
+ *   - mode="edit"   → PUT  /api/v2/tenants/{tenantId}/customers/{id} (operationId: updateCustomerV2)
  *
  * 型別來源：components["schemas"]["CustomerCreateRequest" | "CustomerUpdateRequest"]
  *   由 OpenAPI spec → openapi-typescript regen（於 BE PR #43 merge 後同步）。
@@ -145,7 +145,7 @@ export function CustomerForm({
       } else {
         if (!customerId) throw new Error(t("errors.missingId"));
         const payload: CustomerUpdateRequest = basePayload;
-        // PUT v2（tenant-scoped）；note: legacy PUT /api/v1/customers/{id} 仍可用但已加 Deprecation header
+        // PUT v2（tenant-scoped）— legacy v1 PATCH 將於 P4 cutover 刪除
         await api.put(
           `/tenants/${encodeURIComponent(tenantId)}/customers/${encodeURIComponent(customerId)}`,
           payload,
