@@ -189,15 +189,16 @@
 | FR-0051 | SOP Feedback Spiral 深化 | SOP 螺旋演進 |
 | FR-0053 | DPO Forget / GDPR 遺忘權 | 法規合規（GDPR）|
 
-### 仍處 draft 的 Phase I FR（5 個 — 細節未定）
+### 仍處 draft 的 Phase I FR（4 個 — 細節未定）
 
 | FR | 標題 | 卡在哪 |
 |:---|:---|:---|
 | FR-0011 | 消費者付款 V1.0 升級 | 金流方案 / 串接哪家 |
 | FR-0012 | 技師月結撥款 V1.0 升級 | 同上 + AP 流程 |
-| FR-0019 | 動態 RBAC 角色管理 | 權限模型設計 |
 | FR-0022 | 消費者端工單追蹤 | Web 版規格 |
 | FR-0034 | AI Employee Charter / PRD 治理 | 整體 AI 治理框架 |
+
+> **2026-06-04**：FR-0019 動態 RBAC 角色管理 已 `draft → active`（CR-0010 取證 content-complete + ADR-0042 accepted + code 全部實作；業主拍 HD-01=a）。
 
 ---
 

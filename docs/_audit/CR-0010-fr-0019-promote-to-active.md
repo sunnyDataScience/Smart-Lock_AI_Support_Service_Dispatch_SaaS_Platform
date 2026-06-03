@@ -1,7 +1,8 @@
 ---
 id: CR-0010
 title: "FR-0019 動態 RBAC 角色管理 draft → active（取證顯示 content-complete + code-implemented）"
-status: awaiting-owner-decision
+status: decided-and-implemented
+decided: 2026-06-04
 tier: 4-exploration
 owner: HYBRID
 created: 2026-06-04
@@ -100,8 +101,8 @@ related:
 
 | # | Question | Options | Owner | Status | Decision |
 |---|---|---|---|---|---|
-| **HD-01** | FR-0019 是否真的可 promote？ | (a) 是，content 完整 + code 完整 → flip<br>(b) 否，仍有未說的政治/業務 blocker | Product Owner | open | — |
-| **HD-02** | TM-0000 traceability matrix 補 row 由誰寫？ | (a) 我（自動寫並提 PR）<br>(b) 業主 / Architect 手動<br>(c) 跳過（dev-phase 無 PR review）| Process | open | — |
+| **HD-01** | FR-0019 是否真的可 promote？ | (a) 是，content 完整 + code 完整 → flip<br>(b) 否，仍有未說的政治/業務 blocker | Product Owner | **decided 2026-06-04** | **(a) 是，flip → active** |
+| **HD-02** | TM-0000 traceability matrix 補 row 由誰寫？ | (a) 我（自動寫並提 PR）<br>(b) 業主 / Architect 手動<br>(c) 跳過（dev-phase 無 PR review）| Process | **decided 2026-06-04** | **(c) 跳過**（取證 docs/2-contracts/ 未實例化 TM-0000，本專案無 traceability matrix 實例；dev-phase 無 PR review 流程）|
 | **HD-03** | 是否同步審查其他 4 個 draft FR 真實 blocker？ | (a) 是，逐 FR 起 promotion CIA<br>(b) 否，等業主主動提 | Product | open | — |
 
 ---
@@ -145,9 +146,9 @@ related:
 
 | Role | Name | Date | Approved? |
 |---|---|---|---|
-| Product Owner | | | |
-| Architect | | | |
-| Engineering Lead | | | |
+| Product Owner | sunny@funngo.ai | 2026-06-04 | ✅（裁 HD-01=a, HD-02=c）|
+| Architect | — | — | (dev-phase 簡化，無獨立 architect sign-off) |
+| Engineering Lead | — | — | (同上) |
 
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: FR-0019
 title: 動態 RBAC 角色管理
-status: draft
+status: active
 phase: I
 mapped_to:
   - M17    # Authorization (primary)
@@ -111,4 +111,5 @@ Then 回傳 3 row 含 valid_from / valid_to
 | Date | Change |
 |:-----|:-------|
 | 2026-05-10 | REQ-019→FR-0019 |
+| 2026-06-04 | **status: draft → active**（CR-0010 取證：content-complete + ADR-0042 accepted + code 全部實作；業主裁 HD-01=(a)） |
 | 2026-05-28 | **D5 殼 rewrite** |
