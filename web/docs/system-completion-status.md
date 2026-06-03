@@ -1,28 +1,36 @@
 # Smart Lock 工單系統完成度總覽
 
-> 跨前端 / 後端 / Realtime / Workflow 的整體進度盤點。
-> 每次開發完成後更新本文件，保持與 `report/v*.md` 細粒度紀錄同步。
+> 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
+> 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-05-06（F2 LINE Flex RSVP — Flow 11 客戶端改期）
-**對應分支：** `feat/api-media-upload`（pending merge to dev）
-**對應 reports：** v1.0.0 → v1.36.0
+**最後更新：** 2026-06-02（CR-0004 Track B S1-S7 全部完成 + P3.5 補遺啟動）
+**對應分支：** `dev_new_arch`（HEAD `e094245b`）
+**對應 reports：** v1.0.0 → v1.36.0（產品 MVP）+ CR-0003 P0-P3 + CR-0004 Track B S1-S7
 
 ---
 
-## 總體：**約 98%**
+## 總體：**約 88%**
 
 ```
-██████████████████████████████  98%
+██████████████████████████████  88%
 ```
 
-| Phase | 04-29 | 05-06 早 | **05-06 晚** | 變化 |
+> 比 5/06 的 92% 下調，因為新增了**架構遷移 (CR-0003 + CR-0004)** 與 **Phase II SaaS 模組** 兩個維度進入計算。產品 MVP（Phase 5-7）功能本身沒有退步。
+
+| 維度 | 完成度 | 變化（vs 2026-05-06）|
+|:---|:---:|:---:|
+| **Phase 5-7 產品 MVP**（V2.0 派工 + 會計）| **~95%** | 持平（無新增 MVP 功能）|
+| **Phase 8 UAT 上線** | **0%** | 持平 |
+| **架構遷移**（CR-0003 P0-P3 + CR-0004 Track B）| **~85%** | **新增**（Track B 7/7 done，P3.5 進行中，P4 未啟動）|
+| **Phase II SaaS 模組**（9 個 placeholder FR）| **0%** | **新增** |
+
+| Phase | 04-29 | 05-06 | **06-02** | 變化 |
 |:---|:---:|:---:|:---:|:---:|
-| Phase 5 V2.0 設計（W18–W19）| 85% | 97% | **97%** | — |
-| Phase 6 派工 MVP（W20–W24）| 50% | 92% | **97%** | +5%（完工 photos + admin 媒體瀏覽）|
-| Phase 7 會計+整合（W25–W29）| 70% | 85% | **93%** | +8%（媒體流 + 爭議證據 + inventory 即時告警）|
-| Phase 8 UAT 上線（W30–W31）| 0% | 0% | 0% | — |
-
-> Phase 5–7 平均完成度：**約 95%**；含 Phase 8（未啟動）的 V2.0 上線總進度：**約 92%**。
+| Phase 5 V2.0 設計（W18-W19）| 85% | 97% | **97%** | — |
+| Phase 6 派工 MVP（W20-W24）| 50% | 97% | **97%** | — |
+| Phase 7 會計+整合（W25-W29）| 70% | 93% | **93%** | — |
+| Phase 8 UAT 上線（W30-W31）| 0% | 0% | **0%** | — |
+| **Phase 9 架構遷移**（CR-0003 + CR-0004）| — | — | **~85%** | **新維度** |
 
 ---
 
@@ -30,28 +38,37 @@
 
 | 區域 | 完成度 | 說明 |
 |:---|:---:|:---|
-| **管理員後台**（A0–A37）| **~97%** | 41 admin 頁面 + customers/[id] 聚合面板（v1.34.0）；僅候選詳情 drawer / SOP 績效真實化次要項目缺 |
-| **技師端 PWA**（T0–T11）| **100%** | 12 頁全完成 + 6 個 subflow + 改期日曆 + 排班 |
+| **管理員後台**（A0-A37）| **~98%** | 61 admin/web 頁面（自 41 增至 61，新增 v2 對應視圖）；候選詳情 drawer / SOP 績效真實化次要項仍缺 |
+| **技師端 PWA**（T0-T11）| **100%** | 12 頁全完成 + 6 個 subflow + 改期日曆 + 排班 |
 | **通知中心**（G1）| **100%** | 全頁面 + Drawer + Bell + BroadcastChannel 跨 tab 同步 |
 | **A32 AI 推理**（SSE）| **100%** | 對話頁逐 token 串流面板 |
 | **PWA / 桌面 guard** | **100%** | manifest + 4 SVG icon + 桌面顯示 QR Code |
+| **Caller 遷移 v1 → v2** | **~80%** | P3 track-A 完成（agent + web 大部分）；P3.5 補遺進行中（disputes list 已遷，pricing / reconciliations / inventory / data-corrections 待補）|
 
 ---
 
-## 2. 後端 API（107 REST + 9 WS）
+## 2. 後端 API（73 routers — v1 + v2 雙軌共存）
 
-| 模組 | 完成度 |
-|:---|:---:|
-| 工單狀態機（accept/complete/cancel/assign/escalate/confirm/reschedule）| **100%** |
-| 4 個 subflow endpoints（T5–T8：scope-change/material-request/delay/door-check）| **100%** |
-| 5 個排班 endpoints（T10）+ admin 審核 3 個 | **100%** |
-| Dispute decision | **100%** |
-| Refund decision + 雙簽流程 | **100%**（v1.29.0）|
-| 認證（JWT、tenant、RBAC）| **100%** |
-| WebSocket server + ACL（JWT/tenant/RBAC）| **100%** |
-| **媒體上傳 endpoint**（upload/get/list-by-wo + list-by-dispute + media_files 表）| **100%** ✅ |
-| **Inventory low-stock 背景偵測 job** | **100%** ✅（v1.28.0）|
-| **SLA 引擎**（quote_expiring / dispatch_delay / response_overdue 自動偵測 + WS 推播）| **100%** ✅（v1.33.0）|
+| 模組 | 完成度 | 備註 |
+|:---|:---:|:---|
+| 工單狀態機（accept/complete/cancel/assign/escalate/confirm/reschedule）| **100%** | v2 endpoints 已落地（`work_orders_v2`, `work_orders_ops_v2`）|
+| 4 個 subflow endpoints（T5-T8）| **100%** | scope-change/material-request/delay/door-check |
+| 5 個排班 endpoints（T10）+ admin 審核 3 個 | **100%** | — |
+| Dispute decision | **100%** | **+ v2 dual-sign 狀態機**（Track B S2，FR-0013）|
+| Refund decision + 雙簽流程 | **100%** | v1.29.0；agent 自動退款流暫續用 v1 |
+| 認證（JWT、tenant、RBAC）| **100%** | P4 規劃 auth 扁平化 |
+| WebSocket server + ACL（JWT/tenant/RBAC）| **100%** | — |
+| 媒體上傳 endpoint | **100%** | v1.25.0；含 `media_v2`（P2-W6） |
+| Inventory low-stock 背景偵測 job | **100%** | v1.28.0 |
+| SLA 引擎（quote/dispatch/response）| **100%** | v1.33.0 |
+| **M18 Runtime Config Governance** | **100%** ✅ | Track B S1，saas.config_* 4 表 + 7 endpoints + SoD/ACL/rollback |
+| **Reconciliations v2** | **100%** ✅ | Track B S2 上半，dual-sign（CSM → ops_manager co-sign）+ settlement dual-write |
+| **Disputes v2** | **100%** ✅ | Track B S2 下半，FR-0013 狀態機 + dual-sign close + reopen lineage |
+| **Inventory v2**（row-lock 扣庫存）| **100%** ✅ | Track B S3，FR-0007 + ADR-0052/0053；FOR UPDATE 交易 |
+| **Pricing-rules v2** | **100%** ✅ | Track B S4，路徑 C + change_request 審計 |
+| **Data-corrections v2** | **100%** ✅ | Track B S5，方案 B 就地補 tenant_id + 4 態 |
+| **Resolution v2 suggest** | **100%** ✅ | Track B S6，sub-resource C4 |
+| **Vouchers-void v2** | **100%** ✅ | Track B S7，紅字沖銷 append-only + hash chain（ADR-VCH-001/002）|
 
 ---
 
@@ -72,7 +89,7 @@
 
 ---
 
-## 4. 使用者 Workflow 覆蓋（spec 14 個 Flow）
+## 4. 使用者 Workflow 覆蓋（spec 14 個 Flow + Track B dual-sign）
 
 | Flow | 完成度 | 缺口 |
 |:---|:---:|:---|
@@ -87,58 +104,137 @@
 | Flow 9 客訴升級 | **75%** | SLA 自動觸發 |
 | Flow 10 門面檢核 | **100%** | T8 + admin 縮圖瀏覽完成端到端 |
 | Flow 11 客戶不在場 | **100%** | T11 提案 + LINE Flex RSVP + customer-confirm/reject endpoints + WS 推回技師 |
-| Flow 12–14 | **60–80%** | — |
+| Flow 12-14 | **60-80%** | — |
+| **🆕 Dual-sign Reconciliation**（Track B S2）| **100%** | CSM → ops_manager co-sign 跨兩 call SoD |
+| **🆕 Dual-sign Dispute**（Track B S2）| **100%** | filed → in_review →(mediation)→ resolved\|escalated\|closed_withdrawn |
+| **🆕 Voucher Void 紅字沖銷**（Track B S7）| **100%** | append-only + hash chain + require_keeper_role |
 
 ---
 
-## 5. 基礎設施與品質
+## 5. 架構遷移狀態（CR-0003 + CR-0004）
+
+> 5/06 之後的最大工作量集中於此 — 把 `/api/v1/...` 全面遷至 `/api/v2/tenants/{tid}/...` 以支援 multi-tenant SaaS。
+
+### CR-0003 全面 cutover
+
+| 階段 | 內容 | 狀態 |
+|:---|:---|:---:|
+| **P0** | tenant-scoped v2 殼建立 + RFC7807 + RLS | ✅ 100% |
+| **P1** | 8 大模組 spec 合併 | ✅ 100% |
+| **P2** | tenant-scoped v2 router 落地（含 P2-W3 KB/SOPs、W4 work-orders ops、W5 invoices、W6 media + dispatch-logs）| ✅ 100% |
+| **P3** | Caller 遷移 — track-A（agent + web 大部分）| ✅ 100% |
+| **P3.5** | Track-B drop-in callers 補遺 | 🔄 **進行中**（disputes list 已遷，pricing/reconciliations/inventory/data-corrections 待補）|
+| **P4** | Cutover — 刪 legacy v1 + 型別重生 + auth 扁平化 + 刪 DeprecationMiddleware | ⏳ 0% |
+
+### CR-0004 §8 Track B（8 業務模組建/遷 v2）
+
+| Step | 模組 | 狀態 | Merge SHA |
+|:---|:---|:---:|:---|
+| S1 | config-m18 governance | ✅ | `2c4dbf1e` |
+| S2 上 | reconciliations dual-sign | ✅ | `4c265155` |
+| S2 下 | disputes dual-sign 狀態機 | ✅ | `b23edabf` |
+| S3 | inventory row-lock | ✅ | `ba42c2ab` |
+| S4 | pricing-rules 路徑 C | ✅ | `039f1038` |
+| S5 | data-corrections 方案 B | ✅ | `2e47e904` |
+| S6 | resolution engine v2 | ✅ | `f19d8485` |
+| S7 | vouchers-void 紅字沖銷 | ✅ | `223f066e` |
+
+**Track B 總成果**：7/7 done，**回歸測試 663+1 skip 全綠**，spec +33 path。
+
+### 重大架構決策（5/06 → 6/02 新增）
+
+| ADR | 標題 | 狀態 |
+|:---|:---|:---:|
+| ADR-0024 | Tier 1 戰術級重構 2026 Q2（hands-on 修正版）| accepted（supersedes ADR-0023）|
+| ADR-0025 | Harness branching pipeline + module PHASE 常數 | accepted |
+| ADR-0029 | Data-corrections review queue 治理 | accepted |
+| ADR-0052/0053 | Inventory owner enum + serial_required 門檻 | accepted |
+| ADR-0067 | M18 Runtime Config Governance | accepted（Phase 0）|
+| ADR-0068 | M18 Anti-Corruption Layer | accepted |
+| ADR-0101 | product_info extension final spec | accepted |
+| ADR-0102 | Cancellation fee tiers v2 final spec | accepted |
+| ADR-VCH-001/002 | Platform-as-voucher-keeper + 7y retention | accepted |
+| ADR-PII-002 | Data minimization schema CI double defense | accepted |
+
+---
+
+## 6. 基礎設施與品質
 
 | 項目 | 狀態 | 對應 Report |
 |:---|:---|:---|
 | DB 連線池統一（CloudSQL idle 修復）| ✅ | v1.22.1 / v1.23.0 |
-| Output validator（品牌型號錯配 + 不重複追問）| ✅ | v1.24.1–v1.24.3 |
+| Output validator（品牌型號錯配 + 不重複追問）| ✅ | v1.24.1-v1.24.3 |
 | Quick Reply 首訊推論 | ✅ | v1.24.2 |
 | OpenAPI / TypeScript types 同步 CI | ✅ | — |
 | BroadcastChannel 跨 tab | ✅ | v1.13.0 |
 | WS 認證強化（JWT/tenant/RBAC）| ✅ | v1.22.0 |
+| **architecture-lock.sh hook**（攔截 `from skills` import）| ✅ | ADR-0008 |
+| **回歸測試套件**（pytest 663 cases）| ✅ | Track B S1-S7 全綠 |
 
 ---
 
-## 主要尚未完成（剩 ~10%）
+## 7. Phase II SaaS 模組（9 個 placeholder FR — 全部未啟動）
+
+> Phase II 是「完整 SaaS 平台」級別的功能，當前 V1.0 MVP 不含。
+
+| FR | 標題 | 業務影響 |
+|:---|:---|:---|
+| FR-0044 | Technician Onboarding 與停權 | 技師生命週期（目前需手動加） |
+| FR-0045 | Technician AP 月結 | 技師工資月結（會計手動算） |
+| FR-0046 | 派工人 Commission 月結 | 派工員獎金 |
+| FR-0047 | 品牌月結 + B2B Settlement | 跟品牌商對帳 |
+| FR-0048 | RMA 品質回饋迴圈 | 退換貨資料回饋品牌商 |
+| FR-0049 | Exception Approval Inbox（M15）| 主管核准收件匣 |
+| FR-0050 | AI Governance & PRD Traceability | AI 行為治理 |
+| FR-0051 | SOP Feedback Spiral 深化 | SOP 螺旋演進 |
+| FR-0053 | DPO Forget / GDPR 遺忘權 | 法規合規（GDPR）|
+
+### 仍處 draft 的 Phase I FR（5 個 — 細節未定）
+
+| FR | 標題 | 卡在哪 |
+|:---|:---|:---|
+| FR-0011 | 消費者付款 V1.0 升級 | 金流方案 / 串接哪家 |
+| FR-0012 | 技師月結撥款 V1.0 升級 | 同上 + AP 流程 |
+| FR-0019 | 動態 RBAC 角色管理 | 權限模型設計 |
+| FR-0022 | 消費者端工單追蹤 | Web 版規格 |
+| FR-0034 | AI Employee Charter / PRD 治理 | 整體 AI 治理框架 |
+
+---
+
+## 8. 主要尚未完成（剩 ~12%）
 
 | 優先級 | 項目 | 工時 |
 |:---:|:---|:---|
-| ~~**P0**~~ | ~~媒體上傳 endpoint~~ | ✅ **完成 v1.25.0**（2026-05-06）|
-| ~~P1~~ | ~~完工 photos 上傳 UI~~ | ✅ **完成 v1.26.0**（2026-05-06）|
-| ~~P1~~ | ~~Admin 工單詳情瀏覽 media 縮圖~~ | ✅ **完成 v1.26.0**（2026-05-06）|
-| ~~P1~~ | ~~Dispute evidence 上傳 UI~~ | ✅ **完成 v1.27.0**（2026-05-06）|
-| ~~P1~~ | ~~Inventory low-stock 背景偵測 job~~ | ✅ **完成 v1.28.0**（2026-05-06）|
-| ~~P1~~ | ~~Refund 雙簽流程~~ | ✅ **完成 v1.29.0**（2026-05-06）|
-| ~~P1~~ | ~~work_order_events 表（取代 service_report append）~~ | ✅ **完成 v1.30.0**（2026-05-06）|
-| ~~P1~~ | ~~前端 EventTimeline UI（admin 工單詳情）~~ | ✅ **完成 v1.31.0**（2026-05-06）|
-| 🟡 P0 | 整合測試 / E2E（合約 1.2.7.3）| **MVP 完成 v1.32.0**（pytest 16 項通過：health/auth/media/refund 雙簽）；E2E Playwright 待補 |
+| **P0** | **P3.5 Track-B 前端 caller 補遺** | 4 模組 × 半天 = 2 天 |
+| **P0** | **P4 Cutover**（刪 legacy + 型別重生 + auth 扁平化 + 刪 DeprecationMiddleware）| 3-5 天 |
 | **P0** | UAT（合約 1.2.8）| 計畫期程 |
-| P1 | Inventory low-stock 背景偵測 job | 半天 |
-| ~~P1~~ | ~~SLA 引擎~~ | ✅ **完成 v1.33.0**（2026-05-06）|
-| P1 | Refund 雙簽流程 | 半天 |
+| 🟡 P0 | 整合測試 / E2E Playwright | 持續 |
 | P1 | A37 candidate detail drawer（排班熱力圖）| 半天 |
-| P1 | work_order_events 表（取代 service_report append）| 半天 |
 | P1 | RBAC 權限變更後端推送（前端 banner 已備）| 半天 |
 | P1 | Pool 即時推播觸發（前端訂閱已備）| 半天 |
-| ~~P2~~ | ~~LINE Flex RSVP（Flow 11 客戶端）~~ | ✅ **完成 v1.36.0**（2026-05-06）|
+| P1 | M18 Phase II — canary auto-advance / SLO halt（需 scheduler）| 數天 |
+| P1 | 60d cron + 負值 DGS（reconciliations）| 數天 |
 | P2 | 計價引擎 GUI / SOP 績效真實化 / 報表 metrics 擴充 | 數天 |
+| P3 | Phase II 9 個 FR（commission/AP/B2B settlement/RMA/GDPR/...）| Roadmap |
 
 ---
 
 ## 結論
 
-關鍵剩餘項目集中在：
+**5/06 → 6/02 一個月主要產出**：
 
-1. **媒體上傳** — 阻擋 Flow 7（爭議證據）/ Flow 10（門面照片）/ 完工報告 photos 完成的最後一塊
-2. **整合測試 / UAT** — 合約 Phase 8 的入口
-3. **SLA 引擎** — 自動推送告警的後端基礎建設
+1. ✅ **CR-0003 全面 cutover P0-P3** — tenant-scoped v2 architecture 全面落地
+2. ✅ **CR-0004 §8 Track B S1-S7** — 8 個業務模組搬到 v2（含 dual-sign、row-lock、紅字沖銷等核心邏輯）
+3. ✅ **新增 10+ ADR** 涵蓋治理、庫存、傳票、PII、M18 config
+4. 🔄 **P3.5 補遺進行中**（4 個 web 模組 caller 待遷）
+5. ⏳ **P4 cutover 待啟動**（清掉 v1 殘留 + auth 扁平化）
 
-建議下一輪開發分支優先處理「媒體上傳 endpoint」，可一次解鎖三個 Flow 的最終 1%。
+**接下來的關鍵路徑**：
+
+1. **P3.5 補遺完成** → 解鎖 P4 cutover gate
+2. **P4 cutover** → 真正完成 V2.0 multi-tenant SaaS
+3. **Phase 8 UAT** → 上線
+4. **Phase II 模組規劃** → Roadmap 決策（與業主對齊優先順序）
 
 ---
 
@@ -147,4 +243,5 @@
 - 每次合併 PR / 完成一個 milestone 後，**主 agent 必須更新本文件**
 - 三大維度同步調整：完成度 % / 模組狀態表 / Workflow 覆蓋表
 - 重大 milestone 時更新「最後更新」日期 + Phase 進度表
-- 細粒度變更紀錄請在 `report/v*.md`，本文件只保留高階聚合
+- 細粒度變更紀錄請查 `CHANGELOG.md [Unreleased]` + `docs/_audit/CR-NNNN-*.md` §8 進度區
+- 新功能上線 / 架構決策 → 同步開 ADR（append-only）
