@@ -58,4 +58,15 @@ generated-by: workflow full-cutover-wbs (Sonnet 分析 ×4 + Opus WBS)
 P1-T1 合併 spec（根節點）先做 → 平行 P1-T3 middleware 白名單 + P1-T4 refunds decision → 然後 P2 大規模平行建 v2。
 
 ---
+
+## 5. 進度區（append-only）
+
+- ✅ **P0 業主決策**：完成（dev-phase + 全 tenant-scoped）
+- ✅ **P1 Additive**：完成（spec 合併 / 型別重生 / DeprecationMiddleware 白名單 / refunds_v2 decision）
+- ✅ **P2 v2 router 補齊**：完成（含 W3 KB、W4 work-orders ops、W5 invoices、W6 media + dispatch-logs，全 ~25 條 + CR-0004 Track B 8 模組）
+- ✅ **P3 track-A**：完成（agent admin_api/app.py + web 大部分 caller → v2，merge `27313e90`）
+- ✅ **P3.5 Track-B drop-in**：完成（2026-06-04 取證收尾）— 4+1 模組（disputes/pricing/reconciliations/inventory/data-corrections）web caller 全清；驗收 `grep "api/v1.*\{pricing\|recon\|inventor\|data.correction\}" web/src` = 0；唯一例外 `accounting/page.tsx:189` 為 dual-sign UX rework，列產品 backlog 獨立追蹤
+- ⏳ **P4 Cutover**：未啟動（依賴 P3 track-A 全 web caller 清零 — 目前仍 30 個 v1 caller，集中在 KB/refunds/warranty/technicians，需先收尾）
+
+---
 **🛑 Awaiting owner sign-off on §1 Q1-Q6（或「全照建議」）before P1 code.**

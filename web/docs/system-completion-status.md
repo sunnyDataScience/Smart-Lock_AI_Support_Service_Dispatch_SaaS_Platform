@@ -3,25 +3,25 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-06-02（CR-0004 Track B S1-S7 全部完成 + P3.5 補遺啟動）
+**最後更新：** 2026-06-04（P3.5 Track-B caller 補遺正式收尾 — 取證後確認 4+1 模組 v1 caller 全清，唯一例外 dual-sign UX 列為產品 backlog）
 **對應分支：** `dev_new_arch`（HEAD `e094245b`）
-**對應 reports：** v1.0.0 → v1.36.0（產品 MVP）+ CR-0003 P0-P3 + CR-0004 Track B S1-S7
+**對應 reports：** v1.0.0 → v1.36.0（產品 MVP）+ CR-0003 P0-P3.5 ✅ + CR-0004 Track B S1-S7
 
 ---
 
-## 總體：**約 88%**
+## 總體：**約 89%**
 
 ```
-██████████████████████████████  88%
+██████████████████████████████  89%
 ```
 
-> 比 5/06 的 92% 下調，因為新增了**架構遷移 (CR-0003 + CR-0004)** 與 **Phase II SaaS 模組** 兩個維度進入計算。產品 MVP（Phase 5-7）功能本身沒有退步。
+> 6/04 微幅上修（88% → 89%）— P3.5 經取證收尾，CR-0003 階段往前推進一格；其餘維度持平。產品 MVP 本身沒有退步。
 
 | 維度 | 完成度 | 變化（vs 2026-05-06）|
 |:---|:---:|:---:|
 | **Phase 5-7 產品 MVP**（V2.0 派工 + 會計）| **~95%** | 持平（無新增 MVP 功能）|
 | **Phase 8 UAT 上線** | **0%** | 持平 |
-| **架構遷移**（CR-0003 P0-P3 + CR-0004 Track B）| **~85%** | **新增**（Track B 7/7 done，P3.5 進行中，P4 未啟動）|
+| **架構遷移**（CR-0003 P0-P3.5 + CR-0004 Track B）| **~88%** | **新增**（Track B 7/7 done，**P3.5 ✅ 100%**，P4 未啟動）|
 | **Phase II SaaS 模組**（9 個 placeholder FR）| **0%** | **新增** |
 
 | Phase | 04-29 | 05-06 | **06-02** | 變化 |
@@ -43,7 +43,7 @@
 | **通知中心**（G1）| **100%** | 全頁面 + Drawer + Bell + BroadcastChannel 跨 tab 同步 |
 | **A32 AI 推理**（SSE）| **100%** | 對話頁逐 token 串流面板 |
 | **PWA / 桌面 guard** | **100%** | manifest + 4 SVG icon + 桌面顯示 QR Code |
-| **Caller 遷移 v1 → v2** | **~80%** | P3 track-A 完成（agent + web 大部分）；P3.5 補遺進行中（disputes list 已遷，pricing / reconciliations / inventory / data-corrections 待補）|
+| **Caller 遷移 v1 → v2** | **~92%** | P3 track-A 完成（agent + web 大部分）；**P3.5 Track-B 100%**（disputes / pricing / reconciliations / inventory / data-corrections 4+1 模組之 drop-in caller 已全遷）；剩 30 個 v1 caller 屬 P4 cutover scope（KB / refunds / warranty / technicians 等）+ 1 個 `accounting/page.tsx` recon approve 為產品 backlog（dual-sign UX rework）|
 
 ---
 
@@ -123,7 +123,7 @@
 | **P1** | 8 大模組 spec 合併 | ✅ 100% |
 | **P2** | tenant-scoped v2 router 落地（含 P2-W3 KB/SOPs、W4 work-orders ops、W5 invoices、W6 media + dispatch-logs）| ✅ 100% |
 | **P3** | Caller 遷移 — track-A（agent + web 大部分）| ✅ 100% |
-| **P3.5** | Track-B drop-in callers 補遺 | 🔄 **進行中**（disputes list 已遷，pricing/reconciliations/inventory/data-corrections 待補）|
+| **P3.5** | Track-B drop-in callers 補遺 | ✅ **100%**（取證：`grep "api/v1.*\{pricing\|recon\|inventor\|data.correction\}" web/src` 全 0；唯一例外 `accounting/page.tsx:189` 是 dual-sign UX 重設計，故意保留為產品 backlog）|
 | **P4** | Cutover — 刪 legacy v1 + 型別重生 + auth 扁平化 + 刪 DeprecationMiddleware | ⏳ 0% |
 
 ### CR-0004 §8 Track B（8 業務模組建/遷 v2）
@@ -205,8 +205,8 @@
 
 | 優先級 | 項目 | 工時 |
 |:---:|:---|:---|
-| **P0** | **P3.5 Track-B 前端 caller 補遺** | 4 模組 × 半天 = 2 天 |
-| **P0** | **P4 Cutover**（刪 legacy + 型別重生 + auth 扁平化 + 刪 DeprecationMiddleware）| 3-5 天 |
+| **P0** | **P4 Cutover**（刪 legacy + 型別重生 + auth 扁平化 + 刪 DeprecationMiddleware；含全 web 殘留 30 個 v1 caller 收尾）| 3-5 天 |
+| **P1** | **Reconciliation dual-sign UX rework**（v2 `:review` + `:co-sign` 兩步驟流；目前 `accounting/page.tsx` 仍打 v1 單簽）| 1-2 天 |
 | **P0** | UAT（合約 1.2.8）| 計畫期程 |
 | 🟡 P0 | 整合測試 / E2E Playwright | 持續 |
 | P1 | A37 candidate detail drawer（排班熱力圖）| 半天 |

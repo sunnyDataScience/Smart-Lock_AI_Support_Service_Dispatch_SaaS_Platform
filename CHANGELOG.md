@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `MISSION.md`（root）— Claude Code 持續迭代任務書（北極星 6 條完工條件 + 階段優先 + per-stage 驗收 + 紅線清單），供 `/goal @MISSION.md` 鎖 session 用
 - `docs/4-exploration/WBS-0004-phase-5-flow-index-backlog-2026-q2.md` — Phase 5' Flow INDEX defer 紀錄 + T1-T4 啟動條件 / R1-R2 移除條件
 - `docs/4-exploration/WBS-0003-phase-3.3-backlog-2026-q2.md` — Phase 3.3 backlog 推進紀錄（最終 16/18 page + hook 演化 5→8 features）
 - `docs/1-decisions/ADR-0025-harness-branching-pipeline.md` — Phase 4' 修正版 ADR
@@ -32,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `web/docs/system-completion-status.md`：P3.5 Track-B caller 補遺改標 ✅ 100%（2026-06-04 取證收尾，原表述 stale）；總體 88% → 89%；架構遷移 85% → 88%；Caller 遷移 v1→v2 80% → 92%；§8 P0 移除已完成的 P3.5 條目、新增 P1「Reconciliation dual-sign UX rework」backlog
+- `docs/_audit/CR-0003-full-cutover-wbs.md`：新增 §5 進度區（append-only），標記 P0/P1/P2/P3/P3.5 ✅、P4 ⏳
+- `MISSION.md`：P3.5 驗收條件改標 ✅ 已收尾；迭代優先順序更新為「P4 Cutover 目前在這」+ 並行 backlog 區段
 - `docs/1-decisions/ADR-0023-tactical-refactor-2026-q2.md`：frontmatter `status: superseded`、`superseded_by: [ADR-0024]`；補 §8 變更紀錄
 - `docs/4-exploration/WBS-0002-2026-q2-tactical-refactor.md`：v1 → v2（5 Phase 範圍縮減 50%+；S5 改為 BACKLOG）
 - `.gitignore`：新增 `api/data/`、`web/test-results/` 兩條（runtime 產物，含個資不入版控）
