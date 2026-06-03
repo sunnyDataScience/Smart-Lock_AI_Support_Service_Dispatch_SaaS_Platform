@@ -97,7 +97,7 @@
 | Flow 2 拒單重派 | **100%** | — |
 | Flow 3 範圍變更 | **80%** | 客戶核准流程簡化 |
 | Flow 4 缺料 | **80%** | 調度員補料 UI |
-| Flow 5 延遲通知 | **85%** | LINE Push 實際路徑 |
+| Flow 5 延遲通知 | **100%** | 取證收尾（2026-06-04）：`line_push_service.py:165` 已用 `AsyncMessagingApi.push_message` 真實打 LINE API（含 retry+backoff+audit）；fail-soft 設計（token 缺時 log warn 不 raise）；原 stale 描述「LINE Push 實際路徑」不成立 |
 | Flow 6 退款雙簽 | **100%** | csm_approved 中介態 + 同 user 不可雙簽 + WS 推送 |
 | Flow 7 爭議 | **100%** | 雙方證據上傳 + 縮圖瀏覽 + 仲裁決定全鏈路 |
 | Flow 8 二次派工 | **70%** | 連環銜接 |
