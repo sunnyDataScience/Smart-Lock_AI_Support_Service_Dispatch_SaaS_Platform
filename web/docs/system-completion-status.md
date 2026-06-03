@@ -85,7 +85,7 @@
 | `/realtime/refunds` | ✅ | ✅ | ✅ |
 | `/realtime/disputes` | ✅ | ✅ | ✅ |
 | `/realtime/inventory/low-stock` | ✅ | ✅ | ✅（v1.28.0 背景偵測 job）|
-| `/realtime/rbac` | ✅ | ✅ | ⏳（待權限變更觸發）|
+| `/realtime/rbac` | ✅ | ✅ | ✅（role_service.update_role_permissions:457 已 publish；2026-06-04 補 mount RbacChangedBanner 至 AuthGuard）|
 
 ---
 
@@ -210,7 +210,7 @@
 | **P0** | UAT（合約 1.2.8）| 計畫期程 |
 | 🟡 P0 | 整合測試 / E2E Playwright | 持續 |
 | P1 | A37 candidate detail drawer（排班熱力圖）| 半天 |
-| P1 | RBAC 權限變更後端推送（前端 banner 已備）| 半天 |
+| ~~P1~~ | ~~RBAC 權限變更後端推送~~ ✅ | 2026-06-04 收工（取證後端 publish 已存在，補 mount banner）|
 | P1 | Pool 即時推播觸發（前端訂閱已備）| 半天 |
 | P1 | M18 Phase II — canary auto-advance / SLO halt（需 scheduler）| 數天 |
 | P1 | 60d cron + 負值 DGS（reconciliations）| 數天 |
