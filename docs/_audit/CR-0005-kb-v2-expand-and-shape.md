@@ -1,7 +1,8 @@
 ---
 id: CR-0005
 title: "KB v2 expand — 補齊缺失動作 + 響應 shape 裁決（解鎖 P3 收尾 KB 模組 caller 遷移）"
-status: awaiting-owner-decision
+status: decided-schema-applied-code-pending
+decided: 2026-06-04
 tier: 4-exploration
 owner: HYBRID
 created: 2026-06-04
@@ -140,11 +141,11 @@ related:
 | # | Question | Options | Owner | Status | Decision |
 |---|---|---|---|---|---|
 | **HD-01** | KB v2 響應 shape | (a) 保留 meta-wrapping，UI 改造（多檔修改但保持「統一 abstraction」）<br>(b) 改 flat（drop-in caller swap，UI 零改動，但放棄 ADR-0101 統一意圖）<br>(c) 雙暴露（top-level shortcut + meta；payload 多 30%）| Architect | **decided 2026-06-04** | **(a) 保留 meta-wrapping**（與 ADR-0101 對齊；UI 改造納入實作 §9 步驟 7）|
-| **HD-02** | DELETE 軟刪 vs 硬刪 | (a) 軟刪（加 `deleted_at`，GET list 預設過濾）<br>(b) 硬刪（即時釋放 storage + embedding index）<br>(c) 軟刪 + 30 天後背景 GC 硬刪 | Product | open | — |
-| **HD-03** | KB 操作 audit log | (a) 寫 `kb_audit_log` 表（actor, diff, before/after）<br>(b) 只記 server log 不入 DB<br>(c) 雙寫（DB + log）| Compliance | open | — |
-| **HD-04** | Manuals upload virus scan | (a) 同步 ClamAV（增加 upload 延遲）<br>(b) 非同步 → status='processing' 直到掃完<br>(c) 不掃（依賴客戶端 trust）| Security | open | — |
-| **HD-05** | Search 排序預設 | (a) cosine similarity desc<br>(b) cosine + recency boost（updated_at 加權）<br>(c) cosine + verified=true 優先 | Product | open | — |
-| **HD-06** | Export 格式預設 | (a) CSV 為主，JSON 為可選<br>(b) JSON 為主，CSV 為可選<br>(c) 兩者並列，業主於 UI 選 | Product | open | — |
+| **HD-02** | DELETE 軟刪 vs 硬刪 | (a) 軟刪<br>(b) 硬刪<br>(c) 軟刪 + 30 天 GC | Product | **decided 2026-06-04** | **(a) 軟刪**（加 `deleted_at`；GET list 預設過濾 NULL；migration 015 落地）|
+| **HD-03** | KB 操作 audit log | (a) DB 表<br>(b) server log<br>(c) 雙寫 | Compliance | **decided 2026-06-04** | **(a) DB 表 `saas.kb_audit_log`**（actor + diff + before/after）|
+| **HD-04** | Manuals upload virus scan | (a) 同步 ClamAV<br>(b) 非同步 status<br>(c) 不掃 | Security | **decided 2026-06-04** | **(a) 同步 ClamAV**（schema 不變，service 層整合；dev fail-soft）|
+| **HD-05** | Search 排序預設 | (a) cosine desc<br>(b) cosine + recency<br>(c) cosine + verified | Product | **decided 2026-06-04** | **(a) cosine similarity desc**（pgvector ivfflat 既有 index 重用）|
+| **HD-06** | Export 格式預設 | (a) CSV 為主<br>(b) JSON 為主<br>(c) 兩者並列 | Product | open | — |
 
 ---
 

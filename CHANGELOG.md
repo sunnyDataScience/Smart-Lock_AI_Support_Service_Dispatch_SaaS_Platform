@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **CR-0005 + ADR-0103** ⭐ — KB v2 expand 設計（2026-06-04 業主裁 §8 4/6 HD：HD-01=a meta-wrap / HD-02=a 軟刪 / HD-03=a DB audit / HD-04=a 同步 ClamAV / HD-05=a cosine desc；HD-06 export 格式 open 待裁）。Migration 015 落地（case_entries.deleted_at + manuals.deleted_at + saas.kb_audit_log + 4 indexes 含 90d hot partial）。Service / Endpoints / Web caller 留下兩 commit。詳見 [`docs/architecture/adr/ADR-0103-kb-v2-expand-design.md`](docs/architecture/adr/ADR-0103-kb-v2-expand-design.md)。
 - **CR-0007 + ADR-0105** ⭐⭐ — Door-check + Reschedule v2 contract **全鏈路落地**（schema + service + endpoints + web caller，2026-06-04 一日完工）。業主裁 §8 5 HD 全完，三 step：
   * step 1/3 schema：migration 014 `saas.reschedule_proposal` + ADR-0105
   * step 2/3 backend：`work_order_service.submit_door_check_v2`（arrival 前置 409 guard）+ `propose_reschedule_v2`（INSERT 獨立表）；`work_orders_v2:POST .../door-check` + `work_orders_ops_v2:POST .../reschedule:propose`
@@ -30,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `SQL/migrations/015-kb-v2-expand.sql` — CR-0005 step 1/3：case_entries.deleted_at + manuals.deleted_at + saas.kb_audit_log（pending psql apply）
+- `docs/architecture/adr/ADR-0103-kb-v2-expand-design.md` — CR-0005 §8 4/6 HD 決策 ADR
 - `api/services/work_order_service.py` 新增：
   * `submit_door_check_v2`（HD-01 強制 arrival 前置：查 work_order_events arrival → 409）
   * `propose_reschedule_v2`（INSERT saas.reschedule_proposal；HD-02 slots 1-3 驗證 + send_via line/sms/email）
