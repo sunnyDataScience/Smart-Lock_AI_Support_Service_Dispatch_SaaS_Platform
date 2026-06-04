@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **CR-0012 opened — FR-0012 技師月結撥款 CIA**（branch `docs/cr-0012-fr-0012-monthly-settlement-cia`，2026-06-04）：CR-0010 HD-03=a batch 第 2 件。FR-0012 為 V1.0 金流閉環另一半（CR-0011 客戶付平台 + CR-0012 平台付技師）。取證確認：`settlements_v2.trigger_monthly_settlement` 為 **501 stub**（Phase II 標記）、`settlement_service` 無 monthly trigger / compute_payouts / payout_via_bank、BR-M12-NN 5 條未編號、ADR-0041 (travel fee 80/20) accepted 但 split 邏輯未進計算公式。CIA 列 **6 HD** 待業主裁決：(1) Bank payout provider（台銀 / 第三方 AP / manual CSV / 階段化）、(2) Cron 排程實作（APScheduler / Cloud Scheduler / pg_cron / GitHub Actions）、(3) Bank 3-retry 策略、(4) manual_payout 完結機制、(5) Dispute 排除實作（即時查 / flag-driven / 雙保險）、(6) Escrow 模型（**鏡像 CR-0011 HD-08，須同步裁決避免金流方向矛盾**）。建議 HD-01=(c) manual CSV 階段化 → 解 vendor 契約 review 拖延風險。status: `open-awaiting-decisions`。詳見 [`docs/_audit/CR-0012-fr-0012-monthly-settlement-cia.md`](docs/_audit/CR-0012-fr-0012-monthly-settlement-cia.md)。
+
 - **CR-0009 + ADR-0106** ⭐⭐ — Agent caller migration P4-T1 **全鏈路完工**（2026-06-04 一日內）：4 個 agent v1 caller（app.py 2 + admin_api.py 2）全部遷 v2；新增 2 個 admin reschedule v2 endpoints + 1 個 refunds:agent-initiate single-actor endpoint；ADR-0106 記錄 LangGraph 特例不違背全面 SoD 原則。**agent v1 caller = 0**（解開 P4 cutover 唯一硬 gate per CR-0003 §3）。
 - **CR-0005 / 0006 / 0009 §8 全裁完** ⭐⭐⭐（2026-06-04 業主三輪 AskUserQuestion 拍完 9 個剩餘 HD）：
   * CR-0005 HD-06 = (a) CSV 為主，JSON 可選（query format 切換）→ 6/6 HD 全裁
