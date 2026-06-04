@@ -87,7 +87,7 @@ export default function PublicScopeChangePage({
     (async () => {
       try {
         const res = await fetch(
-          `${API_BASE}/api/v1/public/scope-changes/${encodeURIComponent(token)}`,
+          `${API_BASE}/consumer/scope-changes/${encodeURIComponent(token)}`,
           { cache: "no-store", credentials: "omit" },
         );
         if (cancelled) return;
@@ -156,7 +156,7 @@ export default function PublicScopeChangePage({
 
     try {
       const res = await fetch(
-        `${API_BASE}/api/v1/public/scope-changes/${encodeURIComponent(token)}`,
+        `${API_BASE}/consumer/scope-changes/${encodeURIComponent(token)}`,
         {
           method: "POST",
           credentials: "omit",
@@ -170,7 +170,7 @@ export default function PublicScopeChangePage({
         setSubmitError(t("errors.stateChanged"));
         try {
           const refresh = await fetch(
-            `${API_BASE}/api/v1/public/scope-changes/${encodeURIComponent(token)}`,
+            `${API_BASE}/consumer/scope-changes/${encodeURIComponent(token)}`,
             { cache: "no-store", credentials: "omit" },
           );
           if (refresh.ok) {

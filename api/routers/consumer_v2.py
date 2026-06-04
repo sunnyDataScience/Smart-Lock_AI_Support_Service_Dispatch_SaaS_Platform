@@ -43,13 +43,14 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Path
+from fastapi import APIRouter, Path, Request
 
 from core.errors import ApiError
 from services.public_token import (
     TokenExpiredError,
     TokenInvalidError,
     mask_technician_name,
+    token_hash_for_audit,
     verify_token,
 )
 
@@ -108,3 +109,91 @@ async def get_consumer_work_order(
         "technician_display_name": mask_technician_name(record["technician_name"]),
         "last_update_at": last_update_at,
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Scope-change proposal 消費者匿名查 / 回覆 v2（Q9=B）
+#   遷自 routers/public.py 的 GET/POST /api/v1/public/scope-changes/{token}
+#   無 tenant-scope（公開 token-based）；purpose=scope_change
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _verify_scope_change_token(token: str):
+    """驗 scope_change 用途 token；失敗一律 404 不洩露原因。"""
+    try:
+        payload = verify_token(token)
+    except (TokenInvalidError, TokenExpiredError) as exc:
+        logger.info("scope_change token verify failed: %s", exc)
+        raise ApiError("NOT_FOUND", "token invalid or expired", 404)
+
+    if payload.purpose != "scope_change":
+        logger.info(
+            "scope_change token purpose mismatch: got=%s expected=scope_change",
+            payload.purpose,
+        )
+        raise ApiError("NOT_FOUND", "token purpose mismatch", 404)
+    return payload
+
+
+@router.get(
+    "/consumer/scope-changes/{token}",
+    operation_id="getScopeChangeProposalV2",
+    summary="消費者匿名取得 Scope Change 提案 v2（Q9=B）",
+    tags=["M16 Consumer"],
+)
+async def get_scope_change_proposal_v2(
+    token: str = Path(..., min_length=32, max_length=512),
+) -> dict:
+    from services import scope_change_service
+
+    payload = _verify_scope_change_token(token)
+
+    proposal = await scope_change_service.get_proposal_public(
+        proposal_id=payload.subject_id
+    )
+    if proposal is None:
+        raise ApiError("NOT_FOUND", "scope change proposal not found", 404)
+
+    return {
+        "proposal_id": proposal["proposal_id"],
+        "work_order_id": proposal["work_order_id"],
+        "status": proposal["status"],
+        "reason": proposal["reason"],
+        "items": proposal["items"],
+        "total_delta": proposal["total_delta"],
+        "expires_at": payload.expires_at.isoformat(),
+    }
+
+
+@router.post(
+    "/consumer/scope-changes/{token}",
+    operation_id="respondScopeChangeV2",
+    summary="消費者匿名回覆 Scope Change 提案 v2（Q9=B 同意/拒絕）",
+    tags=["M16 Consumer"],
+)
+async def respond_scope_change_v2(
+    body: dict,
+    request: Request,
+    token: str = Path(..., min_length=32, max_length=512),
+) -> dict:
+    from services import scope_change_service
+
+    payload = _verify_scope_change_token(token)
+
+    decision = (body or {}).get("decision")
+    comment = (body or {}).get("comment")
+    if decision not in {"accept", "reject"}:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "decision must be 'accept' or 'reject'",
+            422,
+        )
+
+    client_ip = request.client.host if request.client else None
+    return await scope_change_service.respond_public(
+        proposal_id=payload.subject_id,
+        decision=decision,
+        comment=comment,
+        token_hash=token_hash_for_audit(token),
+        ip_address=client_ip,
+    )
