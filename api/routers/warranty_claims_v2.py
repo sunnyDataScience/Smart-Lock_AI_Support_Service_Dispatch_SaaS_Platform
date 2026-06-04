@@ -13,7 +13,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Path, Response, Depends
+from fastapi import APIRouter, Depends, Path, Query, Response
 
 from core.deps import CurrentUser, require_tenant
 from core.errors import ApiError
@@ -22,6 +22,7 @@ from models.generated import (
     WarrantyClaim,
     WarrantyClaimCreateRequest,
     WarrantyClaimEnvelope,
+    WarrantyDecision,
 )
 from services import warranty_service
 
@@ -80,4 +81,74 @@ async def create_warranty_claim_v2(
     payload = {"data": WarrantyClaim(**claim).model_dump(mode="json")}
     if idem is not None:
         await idem.save(response.status_code, payload)
+    return payload
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET list + POST decision v2（解 admin/warranty-claims 2 caller）
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/tenants/{tenantId}/warranty-claims",
+    operation_id="listWarrantyClaimsV2",
+    summary="保固申請列表 v2（tenant-scoped）",
+)
+async def list_warranty_claims_v2(
+    tenantId: str = Path(...),
+    user: CurrentUser = Depends(require_tenant),
+    cursor: str | None = Query(default=None),
+    limit: int = Query(default=20, ge=1, le=100),
+    status: str | None = Query(default=None),
+    customer_id: str | None = Query(default=None),
+    work_order_id: str | None = Query(default=None),
+) -> dict:
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError(
+            "CROSS_TENANT_READ",
+            "Path tenantId does not match authenticated tenant",
+            403,
+        )
+    return await warranty_service.list_warranty_claims(
+        tenant_id=tenantId,
+        cursor=cursor,
+        limit=limit,
+        status=status,
+        customer_id=customer_id,
+        work_order_id=work_order_id,
+    )
+
+
+@router.post(
+    "/tenants/{tenantId}/warranty-claims/{id}/decision",
+    operation_id="submitWarrantyDecisionV2",
+    summary="保固審批決策 v2（filed | in_progress → approved/rejected/in_progress）",
+    response_model=WarrantyClaimEnvelope,
+)
+async def submit_warranty_decision_v2(
+    body: WarrantyDecision,
+    tenantId: str = Path(...),
+    id: str = Path(...),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError(
+            "CROSS_TENANT_WRITE",
+            "Path tenantId does not match authenticated tenant",
+            403,
+        )
+    decision_str = (
+        body.decision.value if hasattr(body.decision, "value") else str(body.decision)
+    )
+    claim = await warranty_service.submit_decision(
+        tenant_id=tenantId,
+        claim_id=id,
+        decision=decision_str,
+        resolution=body.resolution,
+        discount_offered=body.discount_offered,
+    )
+    payload = {"data": WarrantyClaim(**claim).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
     return payload

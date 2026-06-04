@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Info, Plus, RefreshCw, Search, ShieldCheck, X } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import WarrantyClaimsTable from "@/components/admin/WarrantyClaimsTable";
-import { ApiError, api, getCurrentSession } from "@/lib/api";
+import { ApiError, api, getCurrentSession, tenantPath } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
@@ -55,8 +55,8 @@ export default function WarrantyClaimsPage() {
     refresh: fetchClaims,
     mutate,
   } = usePaginatedFetch<WarrantyClaim>({
-    // P3-KEEP: flat（GET list 無對應 v2，warranty_claims_v2 僅 POST create）
-    path: "/api/v1/warranty-claims",
+    // CR-0009 step-extend：warranty_claims_v2 補 listWarrantyClaimsV2 endpoint
+    path: tenantPath("/warranty-claims"),
     pageSize: 50,
     query: activeTab !== "all" ? { status: activeTab } : undefined,
     queryKey: `tab=${activeTab}`,
@@ -125,8 +125,8 @@ export default function WarrantyClaimsPage() {
         body.discount_offered = discountOffered;
       }
       const res = await api.post<WarrantyClaimEnvelope>(
-        // P3-KEEP: flat（warranty_claims_v2 僅 POST create，無 decision 端點）
-        `/api/v1/warranty-claims/${encodeURIComponent(modalClaim.id)}/decision`,
+        // CR-0009 step-extend：warranty_claims_v2 補 submitWarrantyDecisionV2
+        tenantPath(`/warranty-claims/${encodeURIComponent(modalClaim.id)}/decision`),
         body,
       );
       const updated = res.data ?? null;
