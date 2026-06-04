@@ -3,8 +3,8 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-06-04（P3.5 Track-B caller 補遺正式收尾 — 取證後確認 4+1 模組 v1 caller 全清，唯一例外 dual-sign UX 列為產品 backlog）
-**對應分支：** `dev_new_arch`（HEAD `e094245b`）
+**最後更新：** 2026-06-04（Flow 3 deep 取證 — 推翻同日 90% 過高估值，下修 65%；發現 scope_changes 表無 INSERT 路徑，proposal 建立全鏈路缺失，consumer 端因此實質無法觸發；CIA gate 待開）
+**對應分支：** `docs/flow-3-deep-取證-correction`（基於 dev_new_arch HEAD `4ff6373c`）
 **對應 reports：** v1.0.0 → v1.36.0（產品 MVP）+ CR-0003 P0-P3.5 ✅ + CR-0004 Track B S1-S7
 
 ---
@@ -95,7 +95,7 @@
 |:---|:---:|:---|
 | Flow 1 Happy Path | **100%** | — |
 | Flow 2 拒單重派 | **100%** | — |
-| Flow 3 範圍變更 | **80%** | 客戶核准流程簡化 |
+| Flow 3 範圍變更 | **65%** | **2026-06-04 deep 取證推翻同日 90% 過高估值**（淺取證只看 endpoint + UI 表面，未追 INSERT 鏈路）。實際 3 個 critical gap：(1) **proposal 建立路徑完全缺失** — `scope_changes` 表 schema 存在（Schema.sql:655）但無任何 `INSERT INTO scope_changes`（grep api/ agent/ 全空）；`work_order_service.record_scope_change` 只寫 work_order_events 加 SCOPE_CHANGE tag，**不寫 scope_changes 表**；agent 端 0 整合；consumer endpoint `respondScopeChangeV2` 因此實質無 row 可回應；(2) **token mint 機制存在但無 caller** — `public_token.py` 支援 `purpose=scope_change` mint，但找不到任何 caller 觸發 mint；(3) **LINE Flex 主動通知 + WS publish** — 原已標 gap，仍真。**結論**：Flow 3 backend/service/UI 表面完整但 proposal 建立鏈路是真實 0%，consumer 流不能用。**待開 CIA**：admin/技師端 proposal 建立 endpoint 設計（POST .../scope-changes:propose）+ 何時自動 mint token + LINE Flex template + WS publish channel。對應 BUILD 工時估 ~2~3 day（contract 設計 + service impl + LINE Flex card + WS publish + e2e test）|
 | Flow 4 缺料 | **80%** | 調度員補料 UI |
 | Flow 5 延遲通知 | **100%** | 取證收尾（2026-06-04）：`line_push_service.py:165` 已用 `AsyncMessagingApi.push_message` 真實打 LINE API（含 retry+backoff+audit）；fail-soft 設計（token 缺時 log warn 不 raise）；原 stale 描述「LINE Push 實際路徑」不成立 |
 | Flow 6 退款雙簽 | **100%** | csm_approved 中介態 + 同 user 不可雙簽 + WS 推送 |

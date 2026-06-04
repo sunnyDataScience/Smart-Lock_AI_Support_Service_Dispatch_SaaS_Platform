@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **Flow 3 範圍變更 deep 取證校正 — 推翻同日淺取證 90% 過高估值，下修 65%**（branch `docs/flow-3-deep-取證-correction`，2026-06-04）：本 session 稍早淺取證只看 endpoint + UI 表面（commit `f53ffbdc`）即估 90%，現補深度 grep 確認 **`scope_changes` 表完全沒有 INSERT 路徑**（`grep -rn "INSERT INTO scope_changes" api/ agent/` 全空；`work_order_service.record_scope_change` 只寫 work_order_events 加 SCOPE_CHANGE tag，不寫 scope_changes 表；agent 端 0 整合）；`public_token.py` 支援 `purpose=scope_change` mint 但無 caller。結論：**consumer endpoint 雖 ready 但實質無 proposal row 可回應**，Flow 3 主流斷裂。3 個 critical gap：(1) proposal 建立路徑（admin/技師端 0%）、(2) token mint caller（mint infra 0% 用）、(3) LINE Flex + WS publish。**WBS 90% → 65%**。後續 BUILD 屬 CIA gate 範圍（新 contract POST .../scope-changes:propose + LINE Flex template + WS channel），工時估 2~3 day。本次取證為「**取證自我修正案例**」：警示淺取證易誤判，深度 grep INSERT 鏈路才能確認 service 真實鏈接性。
+
 - **CR-0009 + ADR-0106** ⭐⭐ — Agent caller migration P4-T1 **全鏈路完工**（2026-06-04 一日內）：4 個 agent v1 caller（app.py 2 + admin_api.py 2）全部遷 v2；新增 2 個 admin reschedule v2 endpoints + 1 個 refunds:agent-initiate single-actor endpoint；ADR-0106 記錄 LangGraph 特例不違背全面 SoD 原則。**agent v1 caller = 0**（解開 P4 cutover 唯一硬 gate per CR-0003 §3）。
 - **CR-0005 / 0006 / 0009 §8 全裁完** ⭐⭐⭐（2026-06-04 業主三輪 AskUserQuestion 拍完 9 個剩餘 HD）：
   * CR-0005 HD-06 = (a) CSV 為主，JSON 可選（query format 切換）→ 6/6 HD 全裁
