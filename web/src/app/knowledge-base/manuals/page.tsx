@@ -8,7 +8,7 @@ import { CloudUpload, Trash2, X } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import ManualsTable from "@/components/knowledge-base/ManualsTable";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
 type Manual = components["schemas"]["Manual"];
@@ -134,7 +134,10 @@ export default function ManualsPage() {
     setDeletingId(manual.id);
     setDeleteError(null);
     try {
-      await api.delete(`/api/v1/knowledge-base/manuals/${encodeURIComponent(manual.id)}`);
+      // CR-0005 step 3/3 partial（業主 2026-06-04 拍 §8 HD-02=a 軟刪 + HD-03=a DB audit）
+      // v2 DELETE manuals 從硬刪改軟刪（UPDATE deleted_at=NOW），audit log INSERT
+      // 返回 204 無 body 無 shape 顧慮
+      await api.delete(tenantPath(`/kb/documents/${encodeURIComponent(manual.id)}?doc_type=manual`));
       // optimistic local update via hook mutate (per Phase 3.3 backlog §C2)
       mutate((prev) => prev.filter((m) => m.id !== manual.id));
       setConfirmTarget(null);
