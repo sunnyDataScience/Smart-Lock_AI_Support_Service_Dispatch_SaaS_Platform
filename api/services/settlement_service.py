@@ -43,7 +43,8 @@ def _coerce_decimal(amount) -> str:
 def _row_to_dict(row: tuple) -> dict:
     """row 順序：
     s.id, s.reconciliation_id, s.technician_id, s.amount, s.currency,
-    s.status, s.payment_method, s.paid_at, s.created_at, t.name
+    s.status, s.payment_method, s.paid_at, s.created_at, t.name,
+    r.period_end
     """
     out: dict = {
         "id": str(row[0]),
@@ -60,17 +61,21 @@ def _row_to_dict(row: tuple) -> dict:
         out["payment_method"] = row[6]
     if row[7] is not None:
         out["paid_at"] = row[7].isoformat()
+    if len(row) > 10 and row[10] is not None:
+        out["period_end"] = row[10].isoformat()
     return out
 
 
 _SELECT = (
     "s.id, s.reconciliation_id, s.technician_id, s.amount, s.currency, "
-    "s.status, s.payment_method, s.paid_at, s.created_at, t.name"
+    "s.status, s.payment_method, s.paid_at, s.created_at, t.name, "
+    "r.period_end"
 )
 
 _JOIN = (
     "FROM settlements s "
-    "JOIN technicians t ON s.technician_id = t.id"
+    "JOIN technicians t ON s.technician_id = t.id "
+    "JOIN reconciliations r ON s.reconciliation_id = r.id"
 )
 
 
@@ -81,7 +86,19 @@ async def list_settlements(
     limit: int,
     status: str | None = None,
     technician_id: str | None = None,
+    period_filter: str | None = None,
+    sort_by: str | None = None,
 ) -> dict:
+    """列 settlements。
+
+    period_filter:
+      - None: 不過濾（v1 預設行為，向後相容）
+      - "last_3_months": 僅取 r.period_end >= NOW() - INTERVAL '3 months'（CR-0008 HD-01 v2 預設）
+      - "last_12_months": 12 個月版
+    sort_by:
+      - None: ORDER BY s.created_at DESC（v1 預設）
+      - "period_end_desc": ORDER BY r.period_end DESC, s.created_at DESC（CR-0008 HD-02 v2 預設）
+    """
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
@@ -102,15 +119,38 @@ async def list_settlements(
         where.append("s.technician_id = %s::uuid")
         args.append(technician_id)
 
+    if period_filter == "last_3_months":
+        where.append("r.period_end >= (NOW() - INTERVAL '3 months')::date")
+    elif period_filter == "last_12_months":
+        where.append("r.period_end >= (NOW() - INTERVAL '12 months')::date")
+    elif period_filter is not None:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"Invalid period_filter: {period_filter}",
+            422,
+        )
+
+    # cursor 跟著 sort 維度走
+    use_period_sort = sort_by == "period_end_desc"
     cur_data = decode_cursor(cursor)
-    if cur_data and "ts" in cur_data and "id" in cur_data:
-        where.append("(s.created_at, s.id) < (%s, %s::uuid)")
-        args.extend([cur_data["ts"], cur_data["id"]])
+    if cur_data:
+        if use_period_sort and "pe" in cur_data and "id" in cur_data:
+            where.append("(r.period_end, s.id) < (%s::date, %s::uuid)")
+            args.extend([cur_data["pe"], cur_data["id"]])
+        elif "ts" in cur_data and "id" in cur_data:
+            where.append("(s.created_at, s.id) < (%s, %s::uuid)")
+            args.extend([cur_data["ts"], cur_data["id"]])
+
+    order_clause = (
+        "ORDER BY r.period_end DESC, s.created_at DESC, s.id DESC"
+        if use_period_sort
+        else "ORDER BY s.created_at DESC, s.id DESC"
+    )
 
     sql = (
         f"SELECT {_SELECT} {_JOIN} "
         f"WHERE {' AND '.join(where)} "
-        f"ORDER BY s.created_at DESC, s.id DESC "
+        f"{order_clause} "
         f"LIMIT %s"
     )
     args.append(limit + 1)
@@ -125,6 +165,9 @@ async def list_settlements(
     next_cursor = None
     if has_more and page_rows:
         last = page_rows[-1]
-        next_cursor = encode_cursor({"ts": last[8].isoformat(), "id": str(last[0])})
+        if use_period_sort:
+            next_cursor = encode_cursor({"pe": last[10].isoformat(), "id": str(last[0])})
+        else:
+            next_cursor = encode_cursor({"ts": last[8].isoformat(), "id": str(last[0])})
 
     return {"items": items, "next_cursor": next_cursor, "has_more": has_more}

@@ -120,8 +120,10 @@ export default function AccountingPage() {
     setLoading(true);
     setError(null);
     try {
+      // CR-0008（2026-06-04 業主裁 HD-01=last_3_months / HD-02=period_end_desc）
+      // 遷 v1 → v2 tenant-scoped；v2 預設過濾「最近 3 個月」+ 排序 period_end desc
       const res = await api.get<SettlementPage>(
-        "/api/v1/accounting/settlements?limit=50",
+        tenantPath("/settlements?limit=50"),
       );
       setItems(res.items ?? []);
       setUpdatedAt(new Date());

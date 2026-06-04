@@ -1,7 +1,8 @@
 ---
 id: CR-0008
 title: "Settlements GET list v2（解 accounting/page 1 caller，最小 CIA）"
-status: awaiting-owner-decision
+status: decided-and-implemented
+decided: 2026-06-04
 tier: 4-exploration
 owner: HYBRID
 created: 2026-06-04
@@ -91,8 +92,8 @@ related:
 
 | # | Question | Options | Owner | Status | Decision |
 |---|---|---|---|---|---|
-| **HD-01** | settlement list 預設過濾範圍 | (a) 最近 3 個月<br>(b) 最近 12 個月<br>(c) 全部（cursor 分頁）| Product | open | — |
-| **HD-02** | 排序欄位 | (a) period_end desc<br>(b) created_at desc<br>(c) 兩者 secondary sort | Product | open | — |
+| **HD-01** | settlement list 預設過濾範圍 | (a) 最近 3 個月<br>(b) 最近 12 個月<br>(c) 全部（cursor 分頁）| Product | **decided 2026-06-04** | **(a) 最近 3 個月** |
+| **HD-02** | 排序欄位 | (a) period_end desc<br>(b) created_at desc<br>(c) 兩者 secondary sort | Product | **decided 2026-06-04** | **(a) period_end desc**（實作含 created_at 作 secondary tie-break）|
 
 ---
 

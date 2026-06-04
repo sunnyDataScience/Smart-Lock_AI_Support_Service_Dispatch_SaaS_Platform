@@ -119,7 +119,7 @@ related:
 
 | # | Question | Options | Owner | Status | Decision |
 |---|---|---|---|---|---|
-| **HD-01** | door-check 是否強制 arrival 前置？ | (a) 必須先 arrival 才能 door-check（狀態機限制）<br>(b) 不限定（任一可獨立呼叫）<br>(c) door-check 隱含 arrival（自動補寫 GPS=null）| Product | open | — |
+| **HD-01** | door-check 是否強制 arrival 前置？ | (a) 必須先 arrival 才能 door-check（狀態機限制）<br>(b) 不限定（任一可獨立呼叫）<br>(c) door-check 隱含 arrival（自動補寫 GPS=null）| Product | **decided 2026-06-04** | **(a) 強制 arrival 前置**（無 arrived_at → 409）|
 | **HD-02** | reschedule:propose 的 proposed_slots 數量上限 | (a) 1-3（避免客戶選擇疲勞）<br>(b) 1-5（與 v1 相容）<br>(c) 1-10（最大彈性）| UX | open | — |
 | **HD-03** | reschedule:propose 推 LINE 後 customer 回應 SLA | (a) 24h（與 v1 一致）<br>(b) 48h<br>(c) 客戶可設定 | Product | open | — |
 | **HD-04** | reschedule_proposals 是否獨立 DB 表 | (a) 獨立表（清楚 lineage）<br>(b) 複用 scope_change_proposals 表（加 type 欄）<br>(c) 只存 work_order_events.payload（不另建表）| Architect | open | — |

@@ -139,7 +139,7 @@ related:
 
 | # | Question | Options | Owner | Status | Decision |
 |---|---|---|---|---|---|
-| **HD-01** | KB v2 響應 shape | (a) 保留 meta-wrapping，UI 改造（多檔修改但保持「統一 abstraction」）<br>(b) 改 flat（drop-in caller swap，UI 零改動，但放棄 ADR-0101 統一意圖）<br>(c) 雙暴露（top-level shortcut + meta；payload 多 30%）| Architect | open | — |
+| **HD-01** | KB v2 響應 shape | (a) 保留 meta-wrapping，UI 改造（多檔修改但保持「統一 abstraction」）<br>(b) 改 flat（drop-in caller swap，UI 零改動，但放棄 ADR-0101 統一意圖）<br>(c) 雙暴露（top-level shortcut + meta；payload 多 30%）| Architect | **decided 2026-06-04** | **(a) 保留 meta-wrapping**（與 ADR-0101 對齊；UI 改造納入實作 §9 步驟 7）|
 | **HD-02** | DELETE 軟刪 vs 硬刪 | (a) 軟刪（加 `deleted_at`，GET list 預設過濾）<br>(b) 硬刪（即時釋放 storage + embedding index）<br>(c) 軟刪 + 30 天後背景 GC 硬刪 | Product | open | — |
 | **HD-03** | KB 操作 audit log | (a) 寫 `kb_audit_log` 表（actor, diff, before/after）<br>(b) 只記 server log 不入 DB<br>(c) 雙寫（DB + log）| Compliance | open | — |
 | **HD-04** | Manuals upload virus scan | (a) 同步 ClamAV（增加 upload 延遲）<br>(b) 非同步 → status='processing' 直到掃完<br>(c) 不掃（依賴客戶端 trust）| Security | open | — |

@@ -123,7 +123,7 @@ related:
 
 | # | Question | Options | Owner | Status | Decision |
 |---|---|---|---|---|---|
-| **HD-01** | 響應 shape 是否複用 CR-0005 HD-01 決策？ | (a) 與 KB 一致<br>(b) SOP 走獨立 shape（理由：欄位差異大） | Architect | open | — |
+| **HD-01** | 響應 shape 是否複用 CR-0005 HD-01 決策？ | (a) 與 KB 一致<br>(b) SOP 走獨立 shape（理由：欄位差異大） | Architect | **decided 2026-06-04** | **(a) 與 KB 一致**（業主 CR-0005 HD-01 拍 meta-wrap，本 CR 跟進）|
 | **HD-02** | SOP draft DELETE 軟/硬刪 | (a) 軟刪（加 `deleted_at`）<br>(b) 硬刪<br>(c) 軟刪 + 90 天 GC（SOP 比 KB case 重要保留更久）| Product | open | — |
 | **HD-03** | sop_audit_log | (a) 與 KB 共用 schema（多模組 audit）<br>(b) 獨立表 | Compliance | open | — |
 | **HD-04** | `POST /sops/family-reviews` 路由保留 | (a) 廢棄（用 `sops_v2.py` 的 `/sops/{id}/review/family`）<br>(b) 雙存（family-reviews list 場景）| Product | open | — |

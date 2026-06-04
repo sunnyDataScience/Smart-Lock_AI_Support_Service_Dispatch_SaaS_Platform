@@ -11,16 +11,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **CR-0008** ⭐ — Settlements GET list v2 落地（2026-06-04 業主裁 HD-01=last_3_months / HD-02=period_end_desc）。`settlement_service.list_settlements` 擴 `period_filter` + `sort_by` 參數，v1 預設不變；`settlements_v2.py` 補 `GET /tenants/{tid}/settlements`；`web/accounting/page.tsx` settlement 列表遷 v2。CR-0008 §8 全裁，status: decided-and-implemented。
 - **CR-0010** ⭐ — FR-0019 動態 RBAC 角色管理 `status: draft → active`（2026-06-04 業主裁 HD-01=a）。取證 content-complete + ADR-0042 accepted + code 全部實作（role_service publish + rbac_v2 endpoint + RbacChangedBanner mount）。Draft FR 5 → 4，北極星 (1) 真實推進。詳見 [`docs/_audit/CR-0010-fr-0019-promote-to-active.md`](docs/_audit/CR-0010-fr-0019-promote-to-active.md)。
+- **跨 CR 部分裁決**（2026-06-04 同 session）：
+  * CR-0005 HD-01 = (a) 保留 meta-wrapping（KB v2 響應 shape，連動 CR-0006 HD-01 = a）
+  * CR-0007 HD-01 = (a) door-check 強制 arrival 前置（無 arrived_at → 409）
+  * CR-0009 HD-02 = (a) 新增 v2 single-actor `refunds:agent-initiate`（保留 agent 自動退款；待 ADR-0106 記 LangGraph 特例）
+  * CR-0010 HD-03 = (a) 同步開 CR-0011~0014 審查其他 4 draft FR
+  CR-0005/0006/0007/0009 仍有其他 HD 未裁，實作仍卡。
 - **ADR-0025** ⭐ — Harness 採 branching pipeline，PIPELINE list 為 introspection-only。Phase 4' hands-on 後從「linear PIPELINE + apply(ctx)」縮減為「結構化 PIPELINE 常數 + 各 layer module PHASE 常數」，零 runtime 變更不需 staging。詳見 [`docs/1-decisions/ADR-0025-harness-branching-pipeline.md`](docs/1-decisions/ADR-0025-harness-branching-pipeline.md)。
 - **ADR-0024** — Tier 1 戰術級重構（2026 Q2）**hands-on 修正版**，supersedes ADR-0023。5 訊號處方修正、3 處事實錯誤修正、工期 2-3 週 → 1 週內。詳見 [`docs/1-decisions/ADR-0024-tier1-refactor-revised.md`](docs/1-decisions/ADR-0024-tier1-refactor-revised.md)。Phase 4' 實作見 §9 修正紀錄。
 - **ADR-0023** — 已 **superseded by ADR-0024**。原文保留作為決策足跡；merge 後 30 分鐘 hands-on 階段發現 4/5 訊號處方不合理 + 3 處事實錯誤（ADR-0010 懸空、UF 系統未實作、`api/agent/integrations/` 空目錄）。
 
 ### Added
 
+- `api/routers/settlements_v2.py:75-130` 新增 `GET /tenants/{tid}/settlements` v2 endpoint（CR-0008 落地；預設 last_3_months + period_end desc）
+- `api/services/settlement_service.py` `list_settlements` 擴 `period_filter` / `sort_by` 參數（v1 預設不變，向後相容）
+- `docs/_audit/CR-0007-door-check-reschedule-contract.md` — door-check + reschedule contract 重設計 CIA（5 HD，HD-01 已裁）
+- `docs/_audit/CR-0008-settlements-get-list-v2.md` — 最小 CIA（2 HD，本 session 全裁完並實作）
+- `docs/_audit/CR-0009-agent-caller-migration-p4-t1.md` — agent caller P4-T1 CIA（5 HD，HD-02 已裁）
+- `docs/_audit/CR-0010-fr-0019-promote-to-active.md` — FR-0019 promotion CIA（3 HD，HD-01/02/03 已裁並實作）
 - `docs/_audit/CR-0005-kb-v2-expand-and-shape.md` — KB v2 expand CIA（PUT/DELETE/search/export/upload + 響應 shape 6 HD），解 9 個 v1 caller 遷移路徑
 - `docs/_audit/CR-0006-sop-v2-list-expand.md` — SOP v2 list expand CIA（sop-drafts + family-reviews list/CRUD 5 HD），解 5 個 v1 caller
 - `web/src/components/layout/AuthGuard.tsx`：mount RbacChangedBanner（之前定義未掛載），補齊 RBAC realtime 全鏈路
+- `web/src/app/accounting/page.tsx:124` settlement list 從 `/api/v1/accounting/settlements?limit=50` 遷至 v2 `tenantPath("/settlements?limit=50")`（CR-0008 落地）
 - `docs/4-exploration/WBS-0004-phase-5-flow-index-backlog-2026-q2.md` — Phase 5' Flow INDEX defer 紀錄 + T1-T4 啟動條件 / R1-R2 移除條件
 - `docs/4-exploration/WBS-0003-phase-3.3-backlog-2026-q2.md` — Phase 3.3 backlog 推進紀錄（最終 16/18 page + hook 演化 5→8 features）
 - `docs/1-decisions/ADR-0025-harness-branching-pipeline.md` — Phase 4' 修正版 ADR
