@@ -3,8 +3,8 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-06-04（P3.5 Track-B caller 補遺正式收尾 — 取證後確認 4+1 模組 v1 caller 全清，唯一例外 dual-sign UX 列為產品 backlog）
-**對應分支：** `dev_new_arch`（HEAD `e094245b`）
+**最後更新：** 2026-06-04（Flow 5 延遲通知 deep audit — 確認 100% 真實，INSERT/UPDATE/audit/LINE push/WS publish/role guard/state machine 全鏈路；無 stale claim）
+**對應分支：** `docs/flow-5-deep-audit`（基於 dev_new_arch HEAD `4ff6373c`）
 **對應 reports：** v1.0.0 → v1.36.0（產品 MVP）+ CR-0003 P0-P3.5 ✅ + CR-0004 Track B S1-S7
 
 ---
@@ -97,7 +97,7 @@
 | Flow 2 拒單重派 | **100%** | — |
 | Flow 3 範圍變更 | **80%** | 客戶核准流程簡化 |
 | Flow 4 缺料 | **80%** | 調度員補料 UI |
-| Flow 5 延遲通知 | **100%** | 取證收尾（2026-06-04）：`line_push_service.py:165` 已用 `AsyncMessagingApi.push_message` 真實打 LINE API（含 retry+backoff+audit）；fail-soft 設計（token 缺時 log warn 不 raise）；原 stale 描述「LINE Push 實際路徑」不成立 |
+| Flow 5 延遲通知 | **100%** | **2026-06-04 deep audit 確認**（複用 Flow 3/6 方法論）：`work_order_service.notify_delay:1553` 全鏈路完整：(1) INSERT work_order_events `event_type='delay'` + delay_minutes payload（line 1611）/ (2) UPDATE work_orders.updated_at（line 1617）/ (3) `_audit_action('work_order.delay_notified')`（line 1622）/ (4) `line_push_service.push_to_work_order_customer` 真實 LINE push（line 1636，`push_message` AsyncMessagingApi 含 retry+backoff+audit）/ (5) `_publish_and_return(event_type='work_order.delay_notified')` WS publish（line 1643）/ (6) role guard（technician 只能 notify 自己單 line 1597）+ state machine guard（_SUBFLOW_FROM line 1590）。Web caller `my-orders/[id]/delay/page.tsx:74` 用 tenantPath v2 |
 | Flow 6 退款雙簽 | **100%** | csm_approved 中介態 + 同 user 不可雙簽 + WS 推送 |
 | Flow 7 爭議 | **100%** | 雙方證據上傳 + 縮圖瀏覽 + 仲裁決定全鏈路 |
 | Flow 8 二次派工 | **70%** | 連環銜接 |

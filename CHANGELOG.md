@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **Flow 5 延遲通知 deep audit — 確認 100% 真實，無 stale claim**（branch `docs/flow-5-deep-audit`，2026-06-04）：複用 Flow 3/6 deep 取證方法論，audit Flow 5 全鏈路（INSERT 鏈 + WS publish + LINE push + state machine + role guard）。**結果與 Flow 6 同類**（真實 100%，未發現 inflation），但與 Flow 6 不同的是 Flow 5 連 stale doc 都沒有（refund_service docstring stale 已於前一輪修）。`work_order_service.notify_delay:1553` 全 6 點鏈路驗證：(1) INSERT work_order_events delay event 完整；(2) UPDATE work_orders.updated_at；(3) `_audit_action('work_order.delay_notified')`；(4) `line_push_service.push_to_work_order_customer` 真實打 LINE Messaging API（含 retry+backoff+audit）；(5) `_publish_and_return` WS publish；(6) role guard（technician 限自己單）+ state machine guard（_SUBFLOW_FROM）。WBS Flow 5 row 補 6 點 audit evidence，取代原僅 LINE Push API 一點的淺取證註記。**Deep audit 累積進度**：Flow 3 (90% → 65% 下修) / Flow 5 (100% 確認) / Flow 6 (100% 確認 + 2 stale doc 修)；剩 Flow 7/10/11 待 audit。
+
 - **CR-0009 + ADR-0106** ⭐⭐ — Agent caller migration P4-T1 **全鏈路完工**（2026-06-04 一日內）：4 個 agent v1 caller（app.py 2 + admin_api.py 2）全部遷 v2；新增 2 個 admin reschedule v2 endpoints + 1 個 refunds:agent-initiate single-actor endpoint；ADR-0106 記錄 LangGraph 特例不違背全面 SoD 原則。**agent v1 caller = 0**（解開 P4 cutover 唯一硬 gate per CR-0003 §3）。
 - **CR-0005 / 0006 / 0009 §8 全裁完** ⭐⭐⭐（2026-06-04 業主三輪 AskUserQuestion 拍完 9 個剩餘 HD）：
   * CR-0005 HD-06 = (a) CSV 為主，JSON 可選（query format 切換）→ 6/6 HD 全裁
