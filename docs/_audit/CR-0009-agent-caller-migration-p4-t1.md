@@ -1,8 +1,9 @@
 ---
 id: CR-0009
 title: "Agent caller migration P4-T1（4 callers + LINE bot 404 風險，agent-coupled legacy 刪除前置）"
-status: decided-implementation-pending
+status: decided-and-implemented
 decided: 2026-06-04
+implemented: 2026-06-04
 tier: 4-exploration
 owner: HYBRID
 created: 2026-06-04

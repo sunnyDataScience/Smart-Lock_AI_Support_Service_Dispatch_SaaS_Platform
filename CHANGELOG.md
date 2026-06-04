@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **CR-0009 + ADR-0106** ⭐⭐ — Agent caller migration P4-T1 **全鏈路完工**（2026-06-04 一日內）：4 個 agent v1 caller（app.py 2 + admin_api.py 2）全部遷 v2；新增 2 個 admin reschedule v2 endpoints + 1 個 refunds:agent-initiate single-actor endpoint；ADR-0106 記錄 LangGraph 特例不違背全面 SoD 原則。**agent v1 caller = 0**（解開 P4 cutover 唯一硬 gate per CR-0003 §3）。
 - **CR-0005 / 0006 / 0009 §8 全裁完** ⭐⭐⭐（2026-06-04 業主三輪 AskUserQuestion 拍完 9 個剩餘 HD）：
   * CR-0005 HD-06 = (a) CSV 為主，JSON 可選（query format 切換）→ 6/6 HD 全裁
   * CR-0006 HD-02=a 軟刪 / HD-03=a 共用 kb_audit_log（doc_type='sop'）/ HD-04=a 廢棄舊 /sops/family-reviews / HD-05=a 即時查 SLA → 5/5 HD 全裁
@@ -36,6 +37,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `docs/architecture/adr/ADR-0106-agent-single-actor-refund-langgraph-exception.md` — agent 自動退款單簽特例正典（CR-0009 HD-02=a）
+- `api/routers/work_orders_ops_v2.py` 新增 2 endpoints：customer-confirm + customer-reject（CR-0009 admin path；agent JWT 呼叫）
+- `api/routers/refunds_v2.py:130+` 新增 POST `:agent-initiate`（HD-02 single-actor，role enforce agent|system）
+- `agent/app.py:387` + `:407` customer-confirm/reject 改 v2 tenant path
+- `agent/integrations/admin_api.py:282` refunds 改 `:agent-initiate`
+- `agent/integrations/admin_api.py:356` sop-drafts 改 v2 tenant-scoped path
 - `SQL/migrations/016-sop-v2-list-expand.sql` — sop_drafts.deleted_at + kb_audit_log doc_type CHECK 擴 'sop'
 - `docs/architecture/adr/ADR-0104-sop-v2-list-design.md` — CR-0006 §8 5 HD 決策 ADR
 - `api/routers/sops_v2.py` 新增 6 endpoints：GET list / GET single / POST create / DELETE soft / GET family-reviews list / GET family-reviews:pending（CR-0006 step 2/3 落地）

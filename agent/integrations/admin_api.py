@@ -276,10 +276,10 @@ class AdminAPIClient:
             "requested_by_role": requested_by_role,
         }
         result = await self._post(
-            # P3-KEEP: legacy /api/v1/refunds。v2 createRefundSod 強制三維 SoD
-            # （X-Initiator/X-Approver/X-Executor，ADR-0040 v2），automated agent 無法提供
-            # 三個 human actor → agent 自動建立退款流無 v2 對應，須待專屬 CR（system-actor 路徑）。
-            path="/api/v1/refunds",
+            # CR-0009（2026-06-04 業主拍 HD-02=a）：agent 自動退款走 v2 single-actor
+            # path :agent-initiate（ADR-0106 LangGraph 特例；伺服器 role check
+            # 必為 agent/system）
+            path=f"/tenants/{self.tenant_id}/refunds:agent-initiate",
             flow_id="F-014-refund",
             payload=payload,
             idempotency_key=idempotency_key,
@@ -351,9 +351,9 @@ class AdminAPIClient:
             payload["confidence_score"] = confidence_score
 
         result = await self._post(
-            # P3-KEEP: legacy /api/v1/sop-drafts。sops_v2 僅有 review action
-            # （/sops/{id}/review/dual|family），無 create sop-draft 端點 → 無 v2 對應。
-            path="/api/v1/sop-drafts",
+            # CR-0006 落地（2026-06-04 業主拍 HD-01=a meta-wrap shape）：
+            # 新增 v2 createSopDraftV2 endpoint，agent 改打 tenant-scoped path
+            path=f"/tenants/{self.tenant_id}/sops/drafts",
             flow_id="F-017-sop",
             payload=payload,
             idempotency_key=idempotency_key,

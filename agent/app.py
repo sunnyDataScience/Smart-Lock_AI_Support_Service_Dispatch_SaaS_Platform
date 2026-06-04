@@ -378,13 +378,14 @@ async def _handle_reschedule_postback(event):
         return
 
     reply_text: str
-    # P3-KEEP: legacy /api/v1/work-orders/{id}/reschedule/customer-{confirm,reject}。
-    # v2 reschedule 流為 reschedule-request + reschedule:approve（operator 側），
-    # 無 customer-confirm/reject 對應端點 → 此客戶回覆提案時段流無 v2，待專屬 CR。
+    # CR-0009（2026-06-04 業主拍 §8 全 5 HD）：customer-confirm/reject 遷 v2
+    # admin path（HD-01=(a) consumer/{token}/... 屬 future browser flow，
+    # 本 agent 流走 admin JWT path）
+    v2_base = f"{api_base}/tenants/{tenant_id}/work-orders/{wo_id}"
     async with httpx.AsyncClient(timeout=10) as client:
         if parsed["action"] == "reschedule_select":
             res = await client.post(
-                f"{api_base}/api/v1/work-orders/{wo_id}/reschedule/customer-confirm",
+                f"{v2_base}/reschedule:customer-confirm",
                 json={
                     "selected_start": parsed.get("start", ""),
                     "selected_end": parsed.get("end", ""),
@@ -404,7 +405,7 @@ async def _handle_reschedule_postback(event):
                 reply_text = "確認時段失敗，請稍後再試或來訊與我們聯繫。"
         elif parsed["action"] == "reschedule_reject":
             await client.post(
-                f"{api_base}/api/v1/work-orders/{wo_id}/reschedule/customer-reject",
+                f"{v2_base}/reschedule:customer-reject",
                 headers=headers,
             )
             reply_text = "已通知技師您不便這幾個時段，我們會儘速重新安排。"
