@@ -153,6 +153,7 @@ related:
 - ✅ **step 2/3 backend endpoints**（`8baa389c` PUT/DELETE/audit、`f909b8b2` :search、`87c6aa5d` :export）
 - ✅ **step 3/3 web caller — cases 多檔遷完**（`76320013` 4 caller + `87c6aa5d` search）
 - ✅ **step 3/3 web caller — cases :export caller 遷 v2**（branch `feat/cr-0005-export-caller-v2`）：移除 v1 async-job 路徑，改打 `POST /kb/documents:export?doc_type=case&format=csv` 同步 CSV stream + 簡化 scope dropdown 為單一 button（HD-06=a MVP scope=case-only）；真實 v1 caller 42 → 41
+- ✅ **step 3/3 web caller — cases :search caller flat-path 修正**（同分支）：commit `87c6aa5d` 寫成 `tenantPath("/kb/documents:search")` 但 kb_v2 router 為 flat 端點，取證 `uv run python` introspect 確認無 tenant-scoped 變體，main.py 無 tenant strip middleware → 該 caller 線上應為 404；改回 flat `"/kb/documents:search"`
 - ⏳ **manuals upload caller 遷 v2**（待 `:upload` ClamAV endpoint 落地，HD-04=a）
 
 ---

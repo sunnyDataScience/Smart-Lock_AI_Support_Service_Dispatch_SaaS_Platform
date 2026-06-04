@@ -7,7 +7,7 @@ import { Search, Plus, Download } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import CaseCardGrid from "@/components/knowledge-base/CaseCardGrid";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api, auth, tenantPath } from "@/lib/api";
+import { ApiError, api, auth } from "@/lib/api";
 import { kbDocumentToCaseEntry, type KBDocument } from "@/lib/kb-adapter";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
@@ -146,10 +146,12 @@ export default function CasesPage() {
         };
         if (brand) body.brand = brand;
         // CR-0005 step 3/3：v2 :search 走 kb_v2.py:searchKBDocuments
+        // /kb/documents 為平台級 flat 端點（per api.ts:tenantPath docstring），
+        // tenant 隔離由 X-Tenant-ID header + 服務端 require_tenant 把關
         // response.hits[].case 為 KBDocument meta-wrap；用 adapter 轉 CaseEntry
         body.doc_type = "case";
         const res = await api.post<{ hits: { case: KBDocument; score: number }[] }>(
-          tenantPath("/kb/documents:search"),
+          "/kb/documents:search",
           body,
         );
         if (!cancelled) {
