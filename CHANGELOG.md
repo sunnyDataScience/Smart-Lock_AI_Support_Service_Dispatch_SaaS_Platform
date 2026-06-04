@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **CR-0007 + ADR-0105** ⭐ — Door-check + Reschedule v2 contract 設計（2026-06-04 業主裁 §8 5 HD 全完）：HD-01=(a) 強制 arrival 前置；HD-02=(a) slots 1-3；HD-03=(a) SLA 24h；HD-04=(a) 獨立表；HD-05=(a) freeform jsonb。Migration 014 落地（saas.reschedule_proposal + CHECK + 3 indexes + updated_at trigger）。Service / Endpoints / Web caller 留下一 commit。詳見 [`docs/architecture/adr/ADR-0105-reschedule-doorcheck-v2-design.md`](docs/architecture/adr/ADR-0105-reschedule-doorcheck-v2-design.md)。
 - **CR-0008** ⭐ — Settlements GET list v2 落地（2026-06-04 業主裁 HD-01=last_3_months / HD-02=period_end_desc）。`settlement_service.list_settlements` 擴 `period_filter` + `sort_by` 參數，v1 預設不變；`settlements_v2.py` 補 `GET /tenants/{tid}/settlements`；`web/accounting/page.tsx` settlement 列表遷 v2。CR-0008 §8 全裁，status: decided-and-implemented。
 - **CR-0010** ⭐ — FR-0019 動態 RBAC 角色管理 `status: draft → active`（2026-06-04 業主裁 HD-01=a）。取證 content-complete + ADR-0042 accepted + code 全部實作（role_service publish + rbac_v2 endpoint + RbacChangedBanner mount）。Draft FR 5 → 4，北極星 (1) 真實推進。詳見 [`docs/_audit/CR-0010-fr-0019-promote-to-active.md`](docs/_audit/CR-0010-fr-0019-promote-to-active.md)。
 - **跨 CR 部分裁決**（2026-06-04 同 session）：
@@ -25,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `SQL/migrations/014-reschedule-proposals.sql` — saas.reschedule_proposal 表（CR-0007 落地步驟 1/3；pending psql apply）
+- `docs/architecture/adr/ADR-0105-reschedule-doorcheck-v2-design.md` — CR-0007 §8 5 HD 決策正式落地 ADR
+- `SQL/migrations/MIGRATION_REGISTRY.md`：014 row 加入（pending-apply 狀態標記）
 - `api/routers/settlements_v2.py:75-130` 新增 `GET /tenants/{tid}/settlements` v2 endpoint（CR-0008 落地；預設 last_3_months + period_end desc）
 - `api/services/settlement_service.py` `list_settlements` 擴 `period_filter` / `sort_by` 參數（v1 預設不變，向後相容）
 - `docs/_audit/CR-0007-door-check-reschedule-contract.md` — door-check + reschedule contract 重設計 CIA（5 HD，HD-01 已裁）

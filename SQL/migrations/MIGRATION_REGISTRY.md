@@ -22,6 +22,7 @@
 | 011 | _(reserved)_ | P3 | 🔒 預留 | M18 config governance 四表（namespace / version / rollout / audit）|
 | 012 | _(reserved)_ | P3 | 🔒 預留 | sync 6 模組（outbox + idempotency + human gate）|
 | 013 | _(reserved)_ | P3 | 🔒 預留 | dgs / change_request / exceptions inbox |
+| 014 | `014-reschedule-proposals.sql` | CR-0007 / ADR-0105 | 🟡 pending-apply | saas.reschedule_proposal 表（業主 2026-06-04 拍 HD-04=a 獨立表；HD-02=a 1-3 slots CHECK；HD-03=a SLA 24h 預設；HD-05=a checklist freeform jsonb；HD-01=a door-check 強制 arrival 前置走 service 驗證 work_order_events）— 解 P3 收尾 2 v1 caller（door-check + reschedule 多時段）|
 
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
 > 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。
