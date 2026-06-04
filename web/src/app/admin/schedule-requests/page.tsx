@@ -135,20 +135,16 @@ export default function ScheduleRequestsPage() {
     setBusy(id);
     setError(null);
     try {
-      const body = resolveNote.trim() ? { note: resolveNote.trim() } : {};
-      if (decision === "approve") {
-        // CR-0002-α P3：approve 遷移至 v2 POST tenantPath(`/exceptions/{id}:approve`)
-        await api.post(
-          tenantPath(`/exceptions/${encodeURIComponent(id)}:approve`),
-          body,
-        );
-      } else {
-        // P3-KEEP: flat（reject 無對應 v2 端點，exceptions_v2 僅有 :approve；待人工確認補建）
-        await api.post(
-          `/api/v1/admin/schedule-requests/${encodeURIComponent(id)}/reject`,
-          body,
-        );
-      }
+      // CR-0003 P3 收尾（2026-06-04）：approve + reject 統一走 v2 :approve
+      // exceptions_v2.py:33 ExceptionDecision body 的 decision 欄位區分 approve/reject
+      const body: { decision: "approve" | "reject"; note?: string } = {
+        decision,
+        ...(resolveNote.trim() ? { note: resolveNote.trim() } : {}),
+      };
+      await api.post(
+        tenantPath(`/exceptions/${encodeURIComponent(id)}:approve`),
+        body,
+      );
       setActionMsg(decision === "approve" ? t("toast.approved") : t("toast.rejected"));
       setTimeout(() => setActionMsg(null), 2500);
       setResolveDialog(null);
