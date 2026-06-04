@@ -85,7 +85,7 @@
 | `/realtime/refunds` | ✅ | ✅ | ✅ |
 | `/realtime/disputes` | ✅ | ✅ | ✅ |
 | `/realtime/inventory/low-stock` | ✅ | ✅ | ✅（v1.28.0 背景偵測 job）|
-| `/realtime/rbac` | ✅ | ✅ | ⏳（待權限變更觸發）|
+| `/realtime/rbac` | ✅ | ✅ | ✅（role_service.update_role_permissions:457 已 publish；2026-06-04 補 mount RbacChangedBanner 至 AuthGuard）|
 
 ---
 
@@ -97,7 +97,7 @@
 | Flow 2 拒單重派 | **100%** | — |
 | Flow 3 範圍變更 | **80%** | 客戶核准流程簡化 |
 | Flow 4 缺料 | **80%** | 調度員補料 UI |
-| Flow 5 延遲通知 | **85%** | LINE Push 實際路徑 |
+| Flow 5 延遲通知 | **100%** | 取證收尾（2026-06-04）：`line_push_service.py:165` 已用 `AsyncMessagingApi.push_message` 真實打 LINE API（含 retry+backoff+audit）；fail-soft 設計（token 缺時 log warn 不 raise）；原 stale 描述「LINE Push 實際路徑」不成立 |
 | Flow 6 退款雙簽 | **100%** | csm_approved 中介態 + 同 user 不可雙簽 + WS 推送 |
 | Flow 7 爭議 | **100%** | 雙方證據上傳 + 縮圖瀏覽 + 仲裁決定全鏈路 |
 | Flow 8 二次派工 | **70%** | 連環銜接 |
@@ -189,15 +189,16 @@
 | FR-0051 | SOP Feedback Spiral 深化 | SOP 螺旋演進 |
 | FR-0053 | DPO Forget / GDPR 遺忘權 | 法規合規（GDPR）|
 
-### 仍處 draft 的 Phase I FR（5 個 — 細節未定）
+### 仍處 draft 的 Phase I FR（4 個 — 細節未定）
 
 | FR | 標題 | 卡在哪 |
 |:---|:---|:---|
 | FR-0011 | 消費者付款 V1.0 升級 | 金流方案 / 串接哪家 |
 | FR-0012 | 技師月結撥款 V1.0 升級 | 同上 + AP 流程 |
-| FR-0019 | 動態 RBAC 角色管理 | 權限模型設計 |
 | FR-0022 | 消費者端工單追蹤 | Web 版規格 |
 | FR-0034 | AI Employee Charter / PRD 治理 | 整體 AI 治理框架 |
+
+> **2026-06-04**：FR-0019 動態 RBAC 角色管理 已 `draft → active`（CR-0010 取證 content-complete + ADR-0042 accepted + code 全部實作；業主拍 HD-01=a）。
 
 ---
 
@@ -210,7 +211,7 @@
 | **P0** | UAT（合約 1.2.8）| 計畫期程 |
 | 🟡 P0 | 整合測試 / E2E Playwright | 持續 |
 | P1 | A37 candidate detail drawer（排班熱力圖）| 半天 |
-| P1 | RBAC 權限變更後端推送（前端 banner 已備）| 半天 |
+| ~~P1~~ | ~~RBAC 權限變更後端推送~~ ✅ | 2026-06-04 收工（取證後端 publish 已存在，補 mount banner）|
 | P1 | Pool 即時推播觸發（前端訂閱已備）| 半天 |
 | P1 | M18 Phase II — canary auto-advance / SLO halt（需 scheduler）| 數天 |
 | P1 | 60d cron + 負值 DGS（reconciliations）| 數天 |

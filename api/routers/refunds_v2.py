@@ -13,7 +13,8 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Path
+from fastapi import APIRouter, Depends, Path, Query
+from pydantic import BaseModel, Field
 
 from core.deps import CurrentUser, SodActors, require_sod_actors, require_tenant
 from core.errors import ApiError
@@ -126,3 +127,106 @@ async def get_refund_sod(
         )
     result = await refund_service.get_refund_sod(tenant_id=tenantId, refund_id=refundId)
     return {"data": result}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CR-0009 HD-02=(a) refunds:agent-initiate — single-actor agent 自動退款路徑
+#   ADR-0106：LangGraph 特例，不違背全面 SoD 原則（agent 自動化受限於 LLM
+#   反應時間，無法即時取得人類 dual-sign；改以 audit log + 金額上限 + 人類
+#   後置 review 防護）
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class _AgentInitiateRefundBody(BaseModel):
+    """agent 自動退款請求 body。"""
+
+    work_order_id: str = Field(..., description="工單 UUID")
+    amount: str = Field(..., description="退款金額（decimal string）")
+    reason: str = Field(..., min_length=1, max_length=500)
+    reason_code: str = Field(..., description="退款分類 code（spec ADR-0040）")
+
+
+@router.post(
+    "/tenants/{tenantId}/refunds:agent-initiate",
+    operation_id="agentInitiateRefundV2",
+    summary="Agent 自動發起退款 v2（CR-0009 HD-02=a single-actor / ADR-0106 LangGraph 特例）",
+    status_code=201,
+    tags=["M14 Refund"],
+)
+async def agent_initiate_refund_v2(
+    body: _AgentInitiateRefundBody,
+    tenantId: str = Path(...),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    """Agent 服務帳號發起退款 — 不走 SoD dual-sign（HD-02 業主裁，LangGraph 特例）。
+
+    安全控制：
+      - actor role 必為 'agent' 或 'system'（人類用戶禁用此 endpoint）
+      - 寫入 refunds 表 + audit log（actor_role='agent'）
+      - amount 上限由 service 層既有檢查 (NT$100,000 dual-sign threshold)
+      - 業主可隨時透過 ops dashboard 後置 review 並 reject
+    """
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError(
+            "CROSS_TENANT_WRITE",
+            "Path tenantId does not match authenticated tenant",
+            403,
+        )
+    if user.role not in {"agent", "system"}:
+        raise ApiError(
+            "FORBIDDEN",
+            "agent-initiate refund requires agent/system service account role",
+            403,
+        )
+
+    refund, _created = await refund_service.create_refund_request(
+        tenant_id=tenantId,
+        work_order_id=body.work_order_id,
+        amount=body.amount,
+        reason=body.reason,
+        reason_code=body.reason_code,
+        requested_by_role="agent",
+        requested_by=user.user_id,
+        requires_dual_sign=False,  # HD-02 single-actor
+    )
+
+    payload = {"data": RefundRequest(**refund).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(201, payload)
+    return payload
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /tenants/{tid}/refunds — list（P3 收尾 admin/refunds web caller 解鎖）
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/tenants/{tenantId}/refunds",
+    operation_id="listRefundsV2",
+    summary="Refund 列表 v2（tenant-scoped，cursor 分頁 + status/work_order_id 過濾）",
+)
+async def list_refunds_v2(
+    tenantId: str = Path(...),
+    user: CurrentUser = Depends(require_tenant),
+    cursor: str | None = Query(default=None),
+    limit: int = Query(default=20, ge=1, le=100),
+    status: str | None = Query(default=None),
+    work_order_id: str | None = Query(default=None),
+) -> dict:
+    """admin/refunds 列表 v2 endpoint。沿用 list_refund_requests service。"""
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError(
+            "CROSS_TENANT_READ",
+            "Path tenantId does not match authenticated tenant",
+            403,
+        )
+
+    return await refund_service.list_refund_requests(
+        tenant_id=tenantId,
+        cursor=cursor,
+        limit=limit,
+        status=status,
+        work_order_id=work_order_id,
+    )

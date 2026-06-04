@@ -961,6 +961,119 @@ async def record_door_check(
     )
 
 
+async def submit_door_check_v2(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    checklist: dict,
+    photos_before: list[str] | None = None,
+    photos_after: list[str] | None = None,
+    notes: str | None = None,
+) -> dict:
+    """CR-0007 HD-01=(a)：door-check 強制 arrival 前置。
+
+    流程：
+      1. 查 work_order_events WHERE event_type='arrival'，不存在 → 409
+      2. 呼叫 record_door_check（沿用既有路徑，HD-05=freeform 不另驗）
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    # tenant + work_order 存在性檢查（順帶確認 tenant scope）
+    await _fetch_status_for_update(wo_id, tenant_id)
+
+    cur = await db_module._conn.execute(
+        "SELECT 1 FROM work_order_events "
+        "WHERE work_order_id = %s::uuid "
+        "  AND tenant_id = %s::uuid "
+        "  AND event_type = 'arrival' "
+        "LIMIT 1",
+        (wo_id, tenant_id),
+    )
+    if not await cur.fetchone():
+        raise ApiError(
+            "STATE_CONFLICT",
+            "door-check requires prior arrival event (CR-0007 HD-01)",
+            409,
+        )
+
+    return await record_door_check(
+        tenant_id=tenant_id,
+        wo_id=wo_id,
+        checklist=checklist,
+        photos_before=photos_before,
+        photos_after=photos_after,
+        notes=notes,
+    )
+
+
+async def propose_reschedule_v2(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    proposed_slots: list[dict],
+    message_to_customer: str | None,
+    send_via: str,
+    proposed_by_user_id: str,
+    proposed_by_role: str,
+) -> dict:
+    """CR-0007 多時段改約提案 v2（寫 saas.reschedule_proposal 獨立表 HD-04=a）。
+
+    HD-02=(a) slots 1-3（DB CHECK 兜底，service 層先驗）
+    HD-03=(a) sla_deadline DEFAULT NOW + 24h
+    """
+    if not isinstance(proposed_slots, list) or not (1 <= len(proposed_slots) <= 3):
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "proposed_slots must be a list of 1-3 items (CR-0007 HD-02)",
+            422,
+        )
+    if send_via not in {"line", "sms", "email"}:
+        raise ApiError("VALIDATION_ERROR", "send_via must be line|sms|email", 422)
+    if proposed_by_role not in {"technician", "operations_manager", "admin"}:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "proposed_by_role must be technician|operations_manager|admin",
+            422,
+        )
+    if message_to_customer and len(message_to_customer) > 500:
+        raise ApiError("VALIDATION_ERROR", "message_to_customer max 500 chars", 422)
+
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    # 確認工單存在 + tenant scope（藉用既有狀態查詢）
+    await _fetch_status_for_update(wo_id, tenant_id)
+
+    cur = await db_module._conn.execute(
+        "INSERT INTO saas.reschedule_proposal "
+        "  (work_order_id, tenant_id, proposed_slots, message_to_customer, "
+        "   send_via, proposed_by_user_id, proposed_by_role) "
+        "VALUES (%s::uuid, %s::uuid, %s::jsonb, %s, %s, %s::uuid, %s) "
+        "RETURNING id, status, sla_deadline, created_at",
+        (
+            wo_id,
+            tenant_id,
+            json.dumps(proposed_slots, ensure_ascii=False),
+            message_to_customer,
+            send_via,
+            proposed_by_user_id,
+            proposed_by_role,
+        ),
+    )
+    row = await cur.fetchone()
+
+    return {
+        "id": str(row[0]),
+        "work_order_id": wo_id,
+        "status": row[1],
+        "sla_deadline": row[2].isoformat() if row[2] else None,
+        "created_at": row[3].isoformat() if row[3] else None,
+        "proposed_slots": proposed_slots,
+        "send_via": send_via,
+    }
+
+
 async def list_work_order_events(
     *,
     tenant_id: str,

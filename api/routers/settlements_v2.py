@@ -18,12 +18,13 @@ legacy GET /api/v1/accounting/settlements（routers/settlements.py，listSettlem
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Path
+from fastapi import APIRouter, Depends, Path, Query
 from fastapi.responses import JSONResponse
 
 from core.deps import CurrentUser, require_tenant
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
+from services import settlement_service
 
 router = APIRouter()
 
@@ -69,4 +70,56 @@ async def trigger_monthly_settlement(
             "message": "Monthly settlement trigger is not yet implemented (Phase II stub)",
         },
         media_type="application/problem+json",
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /tenants/{tenantId}/settlements
+#   CR-0008（業主裁 HD-01=last_3_months / HD-02=period_end_desc）
+#   解 P3 收尾 1 caller（accounting/page.tsx:124）
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/tenants/{tenantId}/settlements",
+    operation_id="listSettlementsV2",
+    summary="Settlement 列表 v2（tenant-scoped；CR-0008 預設過濾最近 3 個月 + period_end desc）",
+    tags=["M12 Settlement"],
+)
+async def list_settlements_v2(
+    tenantId: str = Path(...),
+    user: CurrentUser = Depends(require_tenant),
+    cursor: str | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=100),
+    status: str | None = Query(default=None, description="pending|paid|failed"),
+    technician_id: str | None = Query(default=None),
+    period_filter: str = Query(
+        default="last_3_months",
+        description="預設 last_3_months（CR-0008 HD-01）；可選 last_12_months 或 all",
+    ),
+    sort_by: str = Query(
+        default="period_end_desc",
+        description="預設 period_end_desc（CR-0008 HD-02）；可選 created_at_desc",
+    ),
+) -> dict:
+    # cross-tenant guard（ADR-0030）
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError(
+            "CROSS_TENANT_READ",
+            "Path tenantId does not match authenticated tenant",
+            403,
+        )
+
+    # 對應 service 層的 None 語意（無篩選 / 預設 created_at sort）
+    pf = None if period_filter == "all" else period_filter
+    sb = None if sort_by == "created_at_desc" else sort_by
+
+    return await settlement_service.list_settlements(
+        tenant_id=tenantId,
+        cursor=cursor,
+        limit=limit,
+        status=status,
+        technician_id=technician_id,
+        period_filter=pf,
+        sort_by=sb,
     )

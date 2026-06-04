@@ -12,7 +12,8 @@ import {
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
+import { kbDocumentToSopDraft, type KBDocumentSop } from "@/lib/kb-adapter";
 import type { components } from "@/types/api.generated";
 import { formatRelative } from "@/lib/format";
 
@@ -77,10 +78,11 @@ export default function SopReviewPage({
       setLoading(true);
       setError(null);
       try {
-        const res = await api.get<SopDraftEnvelope>(
-          `/api/v1/sop-drafts/${id}`,
+        // CR-0006 step 3/3：v2 GET → KBDocumentSop → adapter → SopDraft
+        const doc = await api.get<KBDocumentSop>(
+          tenantPath(`/sops/drafts/${encodeURIComponent(id)}`),
         );
-        if (!cancelled) setDraft((res.data as SopDraft) ?? null);
+        if (!cancelled) setDraft(doc?.id ? kbDocumentToSopDraft(doc) : null);
       } catch (e) {
         if (!cancelled) setError(formatApiError(e));
       } finally {
@@ -130,17 +132,19 @@ export default function SopReviewPage({
     if (!draft || !canAdopt) return;
     setSubmitting("adopt");
     try {
+      // CR-0006 step-extend：sops_v2 補 adoptSopDraftV2
       const res = await api.post<CaseEntryEnvelope>(
-        `/api/v1/sop-drafts/${id}/adopt`,
+        tenantPath(`/sops/drafts/${encodeURIComponent(id)}/adopt`),
         {},
       );
       // adopt 成功 → draft 後端已轉 published（API 端 SopDraftStatus 仍映射為 approved）
       // 為了反映「已採納」狀態，重新撈一次 draft；同時提示可前往新案例
       try {
-        const refreshed = await api.get<SopDraftEnvelope>(
-          `/api/v1/sop-drafts/${id}`,
+        // CR-0006 step 3/3：refresh via v2
+        const refreshed = await api.get<KBDocumentSop>(
+          tenantPath(`/sops/drafts/${encodeURIComponent(id)}`),
         );
-        if (refreshed.data) setDraft(refreshed.data as SopDraft);
+        if (refreshed?.id) setDraft(kbDocumentToSopDraft(refreshed));
       } catch {
         // ignore — 採納本身已成功
       }

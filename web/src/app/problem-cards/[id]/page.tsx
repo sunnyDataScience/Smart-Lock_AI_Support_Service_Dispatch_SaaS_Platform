@@ -178,9 +178,9 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
     setActionError(null);
     setExportMenuOpen(false);
     try {
-      // P3-KEEP: flat（無對應 v2）
+      // CR-0009 step-extend：problem_cards_v2 補 exportProblemCardV2
       const res = await api.get<ProblemCardExport>(
-        `/api/v1/problem-cards/${encodeURIComponent(card.id)}/export`,
+        tenantPath(`/problem-cards/${encodeURIComponent(card.id)}/export`),
         { query: { format: fmt } },
       );
       const meta = EXPORT_FORMATS.find((f) => f.value === fmt)!;
@@ -253,9 +253,9 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
     setActionPending("convert");
     setActionError(null);
     try {
-      // P3-KEEP: flat（v2 author 明示暫留，convert-to-work-order 屬 sync 範疇）
+      // CR-0009 step-extend：problem_cards_v2 補 convertProblemCardToWorkOrderV2
       const res = await api.post<WorkOrderEnvelope>(
-        `/api/v1/problem-cards/${encodeURIComponent(id)}/convert-to-work-order`,
+        tenantPath(`/problem-cards/${encodeURIComponent(id)}/convert-to-work-order`),
       );
       const woId = res.data?.id;
       setActionToast(

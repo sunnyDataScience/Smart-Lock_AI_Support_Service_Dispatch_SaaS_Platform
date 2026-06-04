@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ShieldCheck, X, Check, XCircle } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
@@ -75,7 +75,8 @@ export default function FamilyReviewsPage() {
     loadMore: loadMoreHistory,
     refresh: refreshHistory,
   } = usePaginatedFetch<FamilyReview>({
-    path: "/api/v1/family-reviews",
+    // CR-0006 step 3/3：v2 GET sops/family-reviews（list history；無 shape 改造）
+    path: tenantPath("/sops/family-reviews"),
     pageSize: PAGE_SIZE,
     query: actionFilter ? { action: actionFilter } : undefined,
     queryKey: `action=${actionFilter}`,
@@ -96,10 +97,12 @@ export default function FamilyReviewsPage() {
   const fetchPending = useCallback(async () => {
     setPendingLoading(true);
     try {
-      const res = await api.get<FamilyReviewPendingResponse>(
-        "/api/v1/family-reviews/pending",
+      // CR-0006 step 3/3：v2 GET pending（HD-05=a 即時查）
+      // v2 endpoint 直回 {items: [...]}，無 envelope data 層
+      const res = await api.get<{ items: FamilyReviewPendingResponse["data"] }>(
+        tenantPath("/sops/family-reviews:pending"),
       );
-      setPending(res.data ?? []);
+      setPending(res.items ?? []);
       setPendingError(null);
     } catch (e) {
       setPendingError(formatFamilyReviewError(e));

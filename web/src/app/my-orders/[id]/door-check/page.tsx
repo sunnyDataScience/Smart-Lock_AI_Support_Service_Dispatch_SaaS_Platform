@@ -156,9 +156,10 @@ export default function DoorCheckPage() {
         },
         {},
       );
-      // P3-KEEP: flat（無對應 v2 door-check 端點）
+      // CR-0007（2026-06-04 業主拍 §8 全 5 HD）：v2 door-check 強制 arrival 前置
+      // 缺 arrival event → 409 STATE_CONFLICT；checklist freeform jsonb（HD-05）
       await api.post(
-        `/api/v1/work-orders/${encodeURIComponent(id)}/door-check`,
+        tenantPath(`/work-orders/${encodeURIComponent(id)}/door-check`),
         {
           checklist: checklistObj,
           photos_before: photos

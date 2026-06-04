@@ -318,3 +318,120 @@ async def list_work_order_events_v2(
         event_type=event_type,
         limit=limit,
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CR-0007 reschedule:propose v2（多時段提案，獨立表 HD-04；slots 1-3 HD-02；
+#                                 SLA 24h HD-03 由 DB 預設兜底）
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class _ProposedSlot(BaseModel):
+    """單一時段，service 層接受 dict，僅做欄位提示。"""
+
+    start: str = Field(..., description="ISO 8601 timestamp")
+    end: str | None = Field(default=None, description="ISO 8601 timestamp（選填）")
+
+
+class _ProposeRescheduleV2Body(BaseModel):
+    """CR-0007 HD-02=(a) slots 1-3；DB CHECK 兜底，service 層先驗。"""
+
+    proposed_slots: list[_ProposedSlot] = Field(
+        ..., min_length=1, max_length=3, description="1-3 個提案時段"
+    )
+    message_to_customer: str | None = Field(default=None, max_length=500)
+    send_via: Literal["line", "sms", "email"] = Field(default="line")
+
+
+@router.post(
+    "/tenants/{tenantId}/work-orders/{id}/reschedule:propose",
+    operation_id="proposeRescheduleV2",
+    summary="多時段改約提案 v2（CR-0007 / 寫 saas.reschedule_proposal 獨立表 / SLA 24h / LINE Flex RSVP）",
+    status_code=201,
+    tags=["M07 WorkOrder Ops"],
+)
+async def propose_reschedule_v2(
+    body: _ProposeRescheduleV2Body,
+    tenantId: str = Path(...),
+    id: str = Path(...),
+    user: CurrentUser = Depends(_tech_or_admin),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    """CR-0007 多時段改約提案：寫 saas.reschedule_proposal + (LINE Flex 由背景流處理)。"""
+    _cross_tenant_write(user, tenantId)
+
+    result = await work_order_service.propose_reschedule_v2(
+        tenant_id=tenantId,
+        wo_id=id,
+        proposed_slots=[s.model_dump(exclude_none=True) for s in body.proposed_slots],
+        message_to_customer=body.message_to_customer,
+        send_via=body.send_via,
+        proposed_by_user_id=user.user_id,
+        proposed_by_role=user.role,
+    )
+    payload = {"data": result}
+    if idem is not None:
+        await idem.save(201, payload)
+    return payload
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CR-0009 customer reschedule confirm/reject v2（admin JWT path，agent 呼叫用）
+# HD-01=(a) /consumer/work-orders/{token}/... 是 future consumer browser flow；
+#   本兩 endpoint 是 admin-side（tenant-scoped + JWT），agent flow 用
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class _CustomerRescheduleConfirmBody(BaseModel):
+    selected_start: str = Field(..., description="ISO 8601 datetime")
+    selected_end: str = Field(..., description="ISO 8601 datetime")
+
+
+@router.post(
+    "/tenants/{tenantId}/work-orders/{id}/reschedule:customer-confirm",
+    operation_id="confirmCustomerRescheduleV2",
+    summary="客戶 LINE Flex 選定改期時段 v2（CR-0009；admin JWT；agent 呼叫）",
+    tags=["M07 WorkOrder Ops"],
+)
+async def confirm_customer_reschedule_v2(
+    body: _CustomerRescheduleConfirmBody,
+    tenantId: str = Path(...),
+    id: str = Path(...),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    _cross_tenant_write(user, tenantId)
+
+    order = await work_order_service.confirm_reschedule_by_customer(
+        tenant_id=tenantId,
+        wo_id=id,
+        selected_start=body.selected_start,
+        selected_end=body.selected_end,
+    )
+    payload = {"data": WorkOrder(**order).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload
+
+
+@router.post(
+    "/tenants/{tenantId}/work-orders/{id}/reschedule:customer-reject",
+    operation_id="rejectCustomerRescheduleV2",
+    summary="客戶 LINE Flex 點都不方便 v2（CR-0009；admin JWT；agent 呼叫）",
+    tags=["M07 WorkOrder Ops"],
+)
+async def reject_customer_reschedule_v2(
+    tenantId: str = Path(...),
+    id: str = Path(...),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    _cross_tenant_write(user, tenantId)
+
+    order = await work_order_service.reject_reschedule_by_customer(
+        tenant_id=tenantId, wo_id=id,
+    )
+    payload = {"data": WorkOrder(**order).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload

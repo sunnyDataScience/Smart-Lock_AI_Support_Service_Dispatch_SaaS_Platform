@@ -136,7 +136,7 @@ export default function ScheduleRequestsPage() {
     setError(null);
     try {
       // CR-0003 P3 收尾（2026-06-04）：approve + reject 統一走 v2 :approve
-      // v2 ExceptionDecision body 的 decision 欄位區分 approve/reject（exceptions_v2.py:33-40）
+      // exceptions_v2.py:33 ExceptionDecision body 的 decision 欄位區分 approve/reject
       const body: { decision: "approve" | "reject"; note?: string } = {
         decision,
         ...(resolveNote.trim() ? { note: resolveNote.trim() } : {}),
