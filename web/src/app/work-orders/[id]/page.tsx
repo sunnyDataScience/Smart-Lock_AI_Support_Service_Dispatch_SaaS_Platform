@@ -1069,18 +1069,20 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
     setActionPending("reschedule");
     setActionError(null);
     try {
-      // P3-KEEP: legacy /reschedule（proposed_slots 多時段提案流）無 drop-in v2。
-      // v2 /reschedule-request 是不同 action（single new_scheduled_at，見 handleRequestReschedule）。
-      // 本流的 v2 對齊待專屬 CR（reschedule 多時段提案 contract 設計）。
-      const res = await api.post<WorkOrderEnvelope>(
-        `/api/v1/work-orders/${encodeURIComponent(id)}/reschedule`,
+      // CR-0007（2026-06-04 業主拍 §8 全 5 HD）：
+      //   多時段提案改走 v2 :propose；slots 1-3（HD-02）；寫 saas.reschedule_proposal（HD-04）
+      //   返回值是 proposal 紀錄（非更新後的 work_order）— scheduled_at 不變，待客戶 RSVP 後變
+      // send_via 暫把 "line_and_sms" 映射到 "line"（v2 schema 只接 line|sms|email；
+      // 雙通道送由後端 LINE Push 配置處理）。TODO 待 send_via 完整 contract 對齊
+      const v2SendVia = sendVia === "line_and_sms" ? "line" : sendVia;
+      await api.post(
+        tenantPath(`/work-orders/${encodeURIComponent(id)}/reschedule:propose`),
         {
           proposed_slots: slots,
           message_to_customer: message,
-          send_via: sendVia,
+          send_via: v2SendVia,
         },
       );
-      setOrder(res.data ?? null);
       setActionMode(null);
       setActionToast(tToast("rescheduleSent", { count: slots.length }));
     } catch (e) {

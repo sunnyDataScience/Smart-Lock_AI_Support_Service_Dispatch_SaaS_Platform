@@ -1,7 +1,7 @@
 ---
 id: CR-0007
 title: "Door-check + Reschedule v2 contract 重設計（解 P3 收尾 2 caller，FR-0006/FR-0009 對齊）"
-status: decided-schema-applied-code-pending
+status: decided-and-implemented
 decided: 2026-06-04
 tier: 4-exploration
 owner: HYBRID

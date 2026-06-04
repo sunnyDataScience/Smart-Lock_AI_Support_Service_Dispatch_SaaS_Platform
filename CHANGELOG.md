@@ -11,7 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
-- **CR-0007 + ADR-0105** ⭐ — Door-check + Reschedule v2 contract 設計（2026-06-04 業主裁 §8 5 HD 全完）：HD-01=(a) 強制 arrival 前置；HD-02=(a) slots 1-3；HD-03=(a) SLA 24h；HD-04=(a) 獨立表；HD-05=(a) freeform jsonb。Migration 014 落地（saas.reschedule_proposal + CHECK + 3 indexes + updated_at trigger）。Service / Endpoints / Web caller 留下一 commit。詳見 [`docs/architecture/adr/ADR-0105-reschedule-doorcheck-v2-design.md`](docs/architecture/adr/ADR-0105-reschedule-doorcheck-v2-design.md)。
+- **CR-0007 + ADR-0105** ⭐⭐ — Door-check + Reschedule v2 contract **全鏈路落地**（schema + service + endpoints + web caller，2026-06-04 一日完工）。業主裁 §8 5 HD 全完，三 step：
+  * step 1/3 schema：migration 014 `saas.reschedule_proposal` + ADR-0105
+  * step 2/3 backend：`work_order_service.submit_door_check_v2`（arrival 前置 409 guard）+ `propose_reschedule_v2`（INSERT 獨立表）；`work_orders_v2:POST .../door-check` + `work_orders_ops_v2:POST .../reschedule:propose`
+  * step 3/3 frontend：`my-orders/[id]/door-check/page.tsx` + `work-orders/[id]/page.tsx` 改 v2 tenantPath
+  本 branch 真實 v1 caller 43 → 40（door-check + reschedule + settlements 三筆 -3）。詳見 [`docs/architecture/adr/ADR-0105-reschedule-doorcheck-v2-design.md`](docs/architecture/adr/ADR-0105-reschedule-doorcheck-v2-design.md)。
 - **CR-0008** ⭐ — Settlements GET list v2 落地（2026-06-04 業主裁 HD-01=last_3_months / HD-02=period_end_desc）。`settlement_service.list_settlements` 擴 `period_filter` + `sort_by` 參數，v1 預設不變；`settlements_v2.py` 補 `GET /tenants/{tid}/settlements`；`web/accounting/page.tsx` settlement 列表遷 v2。CR-0008 §8 全裁，status: decided-and-implemented。
 - **CR-0010** ⭐ — FR-0019 動態 RBAC 角色管理 `status: draft → active`（2026-06-04 業主裁 HD-01=a）。取證 content-complete + ADR-0042 accepted + code 全部實作（role_service publish + rbac_v2 endpoint + RbacChangedBanner mount）。Draft FR 5 → 4，北極星 (1) 真實推進。詳見 [`docs/_audit/CR-0010-fr-0019-promote-to-active.md`](docs/_audit/CR-0010-fr-0019-promote-to-active.md)。
 - **跨 CR 部分裁決**（2026-06-04 同 session）：
@@ -26,6 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `api/services/work_order_service.py` 新增：
+  * `submit_door_check_v2`（HD-01 強制 arrival 前置：查 work_order_events arrival → 409）
+  * `propose_reschedule_v2`（INSERT saas.reschedule_proposal；HD-02 slots 1-3 驗證 + send_via line/sms/email）
+- `api/routers/work_orders_v2.py:560+` 新增 `POST /tenants/{tid}/work-orders/{id}/door-check`（CR-0007 / `_DoorCheckSubmitRequest`）
+- `api/routers/work_orders_ops_v2.py:330+` 新增 `POST /tenants/{tid}/work-orders/{id}/reschedule:propose`（CR-0007 / `_ProposeRescheduleV2Body` + `_ProposedSlot`）
+- `web/src/app/my-orders/[id]/door-check/page.tsx:161` v1 → v2 `tenantPath(/work-orders/{id}/door-check)`
+- `web/src/app/work-orders/[id]/page.tsx:1076` v1 → v2 `tenantPath(/work-orders/{id}/reschedule:propose)`；移除 setOrder（v2 propose 不變更 scheduled_at，待 RSVP 後 confirm）
 - `SQL/migrations/014-reschedule-proposals.sql` — saas.reschedule_proposal 表（CR-0007 落地步驟 1/3；pending psql apply）
 - `docs/architecture/adr/ADR-0105-reschedule-doorcheck-v2-design.md` — CR-0007 §8 5 HD 決策正式落地 ADR
 - `SQL/migrations/MIGRATION_REGISTRY.md`：014 row 加入（pending-apply 狀態標記）

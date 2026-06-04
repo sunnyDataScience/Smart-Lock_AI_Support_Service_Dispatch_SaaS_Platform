@@ -560,3 +560,48 @@ async def onsite_completion_v2(
     if idem is not None:
         await idem.save(201, payload)
     return payload
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CR-0007 door-check v2（強制 arrival 前置 HD-01；checklist freeform jsonb HD-05）
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class _DoorCheckSubmitRequest(BaseModel):
+    """CR-0007 HD-05=(a) freeform jsonb；BE 不驗 checklist 內部結構。"""
+
+    checklist: dict = Field(..., description="freeform jsonb（service 不驗內部結構）")
+    photos_before: list[str] = Field(default_factory=list, description="到場前媒體 URL/ID")
+    photos_after: list[str] = Field(default_factory=list, description="到場後媒體 URL/ID")
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+@router.post(
+    "/tenants/{tenantId}/work-orders/{woId}/door-check",
+    operation_id="submitDoorCheckV2",
+    summary="門面檢核完整提交 v2（CR-0007 / 強制 arrival 前置 / freeform checklist）",
+    status_code=201,
+    tags=["M07 Onsite"],
+)
+async def submit_door_check_v2(
+    body: _DoorCheckSubmitRequest,
+    tenantId: str = Path(...),
+    woId: str = Path(...),
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    """CR-0007 HD-01=(a)：缺 arrival event → 409 STATE_CONFLICT。"""
+    _cross_tenant_write(user, tenantId)
+
+    result = await work_order_service.submit_door_check_v2(
+        tenant_id=tenantId,
+        wo_id=woId,
+        checklist=body.checklist,
+        photos_before=body.photos_before,
+        photos_after=body.photos_after,
+        notes=body.notes,
+    )
+    payload = {"data": result}
+    if idem is not None:
+        await idem.save(201, payload)
+    return payload
