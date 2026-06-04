@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **CR-0011 opened — FR-0011 消費者付款 CIA**（branch `docs/cr-0011-fr-0011-consumer-payment-cia`，2026-06-04）：執行 CR-0010 HD-03=a「同步開 CR-0011~0014 審查其他 4 draft FR」首件。FR-0011 為 4 剩餘 draft FR 中**最大金流風險**（V1.0 主流 spec、blocked_by Q7=B provider 選型、payments 表/endpoint 0 實作）。CIA 列 **8 HD** 待業主裁決：(1) provider 選型範圍 Line Pay only vs 雙軌/三軌、(2) ≥50000 強制簽章機制、(3) Line Pay fallback 觸發時機、(4) 現金 dispute 介面、(5) 7y voucher retention 實作、(6) webhook idempotency_key 設計、(7) provider 簽章驗證、(8) M11 即時付款 vs M12 月結金流關係。CIA 結構含 §1~12 + §A 取證附錄；implementation 切到後續 CR-0011-BUILD 不在本 CR scope。status: `open-awaiting-decisions`。詳見 [`docs/_audit/CR-0011-fr-0011-consumer-payment-cia.md`](docs/_audit/CR-0011-fr-0011-consumer-payment-cia.md)。
+
 - **CR-0009 + ADR-0106** ⭐⭐ — Agent caller migration P4-T1 **全鏈路完工**（2026-06-04 一日內）：4 個 agent v1 caller（app.py 2 + admin_api.py 2）全部遷 v2；新增 2 個 admin reschedule v2 endpoints + 1 個 refunds:agent-initiate single-actor endpoint；ADR-0106 記錄 LangGraph 特例不違背全面 SoD 原則。**agent v1 caller = 0**（解開 P4 cutover 唯一硬 gate per CR-0003 §3）。
 - **CR-0005 / 0006 / 0009 §8 全裁完** ⭐⭐⭐（2026-06-04 業主三輪 AskUserQuestion 拍完 9 個剩餘 HD）：
   * CR-0005 HD-06 = (a) CSV 為主，JSON 可選（query format 切換）→ 6/6 HD 全裁

@@ -3,8 +3,8 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-06-04（P3.5 Track-B caller 補遺正式收尾 — 取證後確認 4+1 模組 v1 caller 全清，唯一例外 dual-sign UX 列為產品 backlog）
-**對應分支：** `dev_new_arch`（HEAD `e094245b`）
+**最後更新：** 2026-06-04（CR-0011 CIA opened — FR-0011 消費者付款 8 HD 等業主裁；北極星 (1) 4 → 3 路徑啟動，governance 推進不動 code）
+**對應分支：** `docs/cr-0011-fr-0011-consumer-payment-cia`（基於 dev_new_arch HEAD `4ff6373c`）
 **對應 reports：** v1.0.0 → v1.36.0（產品 MVP）+ CR-0003 P0-P3.5 ✅ + CR-0004 Track B S1-S7
 
 ---
@@ -193,12 +193,12 @@
 
 | FR | 標題 | 卡在哪 |
 |:---|:---|:---|
-| FR-0011 | 消費者付款 V1.0 升級 | 金流方案 / 串接哪家 |
+| FR-0011 | 消費者付款 V1.0 升級 | 金流方案 / 串接哪家 — **CR-0011 CIA opened 2026-06-04（8 HD 等業主裁；payments 表/endpoint 0 實作）** |
 | FR-0012 | 技師月結撥款 V1.0 升級 | 同上 + AP 流程 |
 | FR-0022 | 消費者端工單追蹤 | Web 版規格 |
 | FR-0034 | AI Employee Charter / PRD 治理 | 整體 AI 治理框架 |
 
-> **2026-06-04**：FR-0019 動態 RBAC 角色管理 已 `draft → active`（CR-0010 取證 content-complete + ADR-0042 accepted + code 全部實作；業主拍 HD-01=a）。
+> **2026-06-04**：FR-0019 動態 RBAC 角色管理 已 `draft → active`（CR-0010 取證 content-complete + ADR-0042 accepted + code 全部實作；業主拍 HD-01=a）。同日 CR-0011 CIA opened 啟動 FR-0011 review，路徑：CR-0011 §8 8 HD 裁完 → ADR-0107 → BR-M11 編號 → FR-0011 status flip。
 
 ---
 
