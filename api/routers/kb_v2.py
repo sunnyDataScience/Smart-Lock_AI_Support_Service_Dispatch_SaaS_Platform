@@ -556,3 +556,92 @@ async def delete_kb_document(
         actor_user_id=user.user_id,
         actor_role=user.role,
     )
+
+
+# ---------------------------------------------------------------------------
+# CR-0005 step 2/3：search（HD-05=a cosine similarity desc）
+# ---------------------------------------------------------------------------
+#
+# 設計取捨：
+#   - 業主 HD-05 = cosine similarity desc，理想是 pgvector ORDER BY
+#     embedding <=> query_embedding；但需 embedding generation pipeline
+#     接 OpenAI/local model，本 commit 範圍外
+#   - 既有 case_service.search_cases 用 keyword scoring（已上線）；
+#     manual_service 無 search 函式
+#   - 折衷：v2 :search 先 wrap case_service.search_cases（keyword path），
+#     回傳含 _kb_document meta-wrap shape；query_vector 路徑留 TODO
+#   - 結果排序仍以 score desc（keyword 路徑），語義上同 cosine desc 一致
+
+
+@router.post(
+    "/kb/documents:search",
+    operation_id="searchKBDocuments",
+    summary="KB 文件搜尋 v2（CR-0005 HD-05；MVP keyword scoring，pgvector cosine 路徑待 embedding pipeline）",
+    tags=["KB (Agent Knowledge Base)"],
+)
+async def search_kb_documents(
+    body: dict[str, Any],
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    """POST /kb/documents:search — keyword scoring + meta-wrap 響應。
+
+    body：
+      - query: str（必填）
+      - doc_type: case | manual | null（預設 case；MVP manual 暫不支援搜尋）
+      - brand / model: 可選過濾
+      - limit: 1-50（預設 5）
+      - similarity_threshold: float（case_service 內部使用；UI 通常不傳）
+    """
+    if not isinstance(body, dict):
+        raise ApiError("VALIDATION_ERROR", "body must be a JSON object", 422)
+
+    query = body.get("query")
+    if not isinstance(query, str) or not query.strip():
+        raise ApiError("VALIDATION_ERROR", "query is required (non-empty string)", 422)
+
+    doc_type = body.get("doc_type") or "case"
+    if doc_type not in _DOC_TYPES:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"doc_type must be one of: {', '.join(sorted(_DOC_TYPES))}",
+            422,
+        )
+
+    if doc_type == "manual":
+        # MVP：manual 搜尋待 v2 manual_service 補；返回空 hits 不報錯避免 UI 炸
+        return {"hits": [], "doc_type": "manual", "_note": "manual search pending impl"}
+
+    raw_limit = body.get("limit", 5)
+    try:
+        limit = int(raw_limit)
+    except (TypeError, ValueError):
+        raise ApiError("VALIDATION_ERROR", "limit must be integer", 422)
+    if not (1 <= limit <= 50):
+        raise ApiError("VALIDATION_ERROR", "limit must be 1-50", 422)
+
+    brand = body.get("brand")
+    model = body.get("model")
+    threshold = body.get("similarity_threshold", 0.75)
+
+    result = await case_service.search_cases(
+        tenant_id=user.tenant_id,
+        query=query.strip(),
+        brand=brand if isinstance(brand, str) else None,
+        model=model if isinstance(model, str) else None,
+        limit=limit,
+        similarity_threshold=float(threshold) if isinstance(threshold, (int, float)) else 0.75,
+    )
+
+    # meta-wrap shape：將每個 hit 的 case row 套 _case_to_kb_document
+    hits = result.get("hits", [])
+    wrapped = []
+    for h in hits:
+        case = h.get("case") if isinstance(h, dict) and "case" in h else h
+        if not isinstance(case, dict):
+            continue
+        kb_doc = _case_to_kb_document(case)
+        if isinstance(h, dict) and "score" in h:
+            kb_doc["score"] = h["score"]
+        wrapped.append(kb_doc)
+
+    return {"hits": wrapped, "doc_type": "case"}
