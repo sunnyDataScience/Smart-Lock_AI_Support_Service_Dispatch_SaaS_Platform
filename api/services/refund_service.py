@@ -22,10 +22,18 @@ DB ↔ API 對齊：
     JOIN work_orders → problem_cards → conversations → users
 延伸 4 層 JOIN 取 users.tenant_id 過濾（與 invoice_service 同 pattern）。
 
-雙簽限制（MVP 簡化）：
-  本 phase 不實作多步雙簽流程（DB 仍有 csm_approved/ops_approved/dual_signed 狀態，
-  但 OpenAPI 沒對應 enum）。approve 一律單步推進到 'approved'，不再經 csm/ops 兩段。
-  approval_chain 仍會 append 決策紀錄供稽核。後續若要拉雙簽，讀此檔對應 mapping。
+雙簽流程（已實作 v1.29.0+，2026-06-04 docstring 校正）：
+  submit_decision() 完整支援 csm_approved 中介態：
+    pending → approve（!requires_dual_sign）→ approved
+    pending → approve（requires_dual_sign）→ csm_approved（等第二簽）
+    csm_approved → approve（不同 user）→ approved
+    pending|csm_approved → reject → rejected
+    pending → escalate → escalated
+  requires_dual_sign 預設由金額 >= _DUAL_SIGN_THRESHOLD 自動判定（caller 可 override）。
+  同一 user 不可在 approval_chain 中出現第二次（DUAL_SIGN_SAME_USER 409）。
+  approval_chain JSONB append 每次決策紀錄（user_id / decision / reason / decided_at / stage）。
+  agent 自動退款走獨立 single-actor endpoint `:agent-initiate`（CR-0009 ADR-0106
+  LangGraph 特例；refunds_v2.py:150+）。
 """
 
 from __future__ import annotations

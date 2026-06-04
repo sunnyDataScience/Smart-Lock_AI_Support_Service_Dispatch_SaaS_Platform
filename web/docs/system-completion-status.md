@@ -3,8 +3,8 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-06-04（P3.5 Track-B caller 補遺正式收尾 — 取證後確認 4+1 模組 v1 caller 全清，唯一例外 dual-sign UX 列為產品 backlog）
-**對應分支：** `dev_new_arch`（HEAD `e094245b`）
+**最後更新：** 2026-06-04（Flow 6 退款雙簽 deep audit 確認 100% 真實 — INSERT/狀態機/同 user guard/WS publish/agent v2 全鏈路；順手修 refund_service docstring stale + WBS row「agent 自動退款流暫續用 v1」stale claim）
+**對應分支：** `docs/flow-6-deep-audit`（基於 dev_new_arch HEAD `4ff6373c`）
 **對應 reports：** v1.0.0 → v1.36.0（產品 MVP）+ CR-0003 P0-P3.5 ✅ + CR-0004 Track B S1-S7
 
 ---
@@ -55,7 +55,7 @@
 | 4 個 subflow endpoints（T5-T8）| **100%** | scope-change/material-request/delay/door-check |
 | 5 個排班 endpoints（T10）+ admin 審核 3 個 | **100%** | — |
 | Dispute decision | **100%** | **+ v2 dual-sign 狀態機**（Track B S2，FR-0013）|
-| Refund decision + 雙簽流程 | **100%** | v1.29.0；agent 自動退款流暫續用 v1 |
+| Refund decision + 雙簽流程 | **100%** | v1.29.0；**2026-06-04 deep audit 確認**：dual-sign 狀態機 (pending → csm_approved → approved) + 同 user 不可雙簽 (DUAL_SIGN_SAME_USER 409) + approval_chain JSONB audit + WS publish /realtime/refunds + admin/refunds/page.tsx v2 tenantPath；**agent 自動退款已於 CR-0009 ADR-0106 遷 v2**（refunds_v2:150 `:agent-initiate` single-actor，原「暫續用 v1」stale claim 移除）|
 | 認證（JWT、tenant、RBAC）| **100%** | P4 規劃 auth 扁平化 |
 | WebSocket server + ACL（JWT/tenant/RBAC）| **100%** | — |
 | 媒體上傳 endpoint | **100%** | v1.25.0；含 `media_v2`（P2-W6） |

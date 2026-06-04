@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **Flow 6 退款雙簽 deep audit — 確認 100% 真實 + 2 個 stale doc 修正**（branch `docs/flow-6-deep-audit`，2026-06-04）：複用 Flow 3 deep 取證方法論 (INSERT 鏈路 + state machine + WS publish 全鏈路 grep)，**確認 Flow 6 真實 100%**：refund_service.submit_decision 完整 dual-sign 狀態機 (pending → csm_approved → approved 兩段 + 同 user 不可雙簽 DUAL_SIGN_SAME_USER 409 + approval_chain JSONB audit) + WS publish /realtime/refunds + admin/refunds/page.tsx v2 tenantPath + agent 自動退款 CR-0009 ADR-0106 已遷 refunds:agent-initiate single-actor v2。**2 個 stale doc 修正**：(1) `refund_service.py:25-28` docstring 「本 phase 不實作多步雙簽流程」與實際 line 296+ code 矛盾，更新為「v1.29.0 已實作」對齊；(2) WBS 後端表 row 58 「agent 自動退款流暫續用 v1」stale，已被 CR-0009 ADR-0106 (2026-06-04) 修正，更新為「已於 CR-0009 遷 v2」。**Deep audit 方法論驗證**：本輪確認 Flow 6 與 Flow 3 不同（後者 90% → 65% 下修，前者 100% 確認），方法論可區分真假完成度。
+
 - **CR-0009 + ADR-0106** ⭐⭐ — Agent caller migration P4-T1 **全鏈路完工**（2026-06-04 一日內）：4 個 agent v1 caller（app.py 2 + admin_api.py 2）全部遷 v2；新增 2 個 admin reschedule v2 endpoints + 1 個 refunds:agent-initiate single-actor endpoint；ADR-0106 記錄 LangGraph 特例不違背全面 SoD 原則。**agent v1 caller = 0**（解開 P4 cutover 唯一硬 gate per CR-0003 §3）。
 - **CR-0005 / 0006 / 0009 §8 全裁完** ⭐⭐⭐（2026-06-04 業主三輪 AskUserQuestion 拍完 9 個剩餘 HD）：
   * CR-0005 HD-06 = (a) CSV 為主，JSON 可選（query format 切換）→ 6/6 HD 全裁
