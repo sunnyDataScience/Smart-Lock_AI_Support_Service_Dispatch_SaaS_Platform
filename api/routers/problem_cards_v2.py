@@ -26,15 +26,21 @@ from fastapi import APIRouter, Depends, Path, Query
 from core.deps import CurrentUser, require_tenant
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
+from fastapi import Response
+
 from models.generated import (
+    ConvertProblemCardToWorkOrderRequest,
     ProblemCard,
     ProblemCardCreateRequest,
     ProblemCardEnvelope,
+    ProblemCardExport,
     ProblemCardPage,
     ProblemCardResolveRequest,
     ProblemCardUpdateRequest,
+    WorkOrder,
+    WorkOrderEnvelope,
 )
-from services import problem_card_service
+from services import problem_card_service, work_order_service
 
 router = APIRouter()
 
@@ -268,4 +274,67 @@ async def resolve_problem_card_v2(
     payload = {"data": ProblemCard(**card).model_dump(mode="json")}
     if idem is not None:
         await idem.save(200, payload)
+    return payload
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET :export + POST :convert-to-work-order v2（解 problem-cards/[id] 2 caller）
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/tenants/{tenantId}/problem-cards/{id}/export",
+    operation_id="exportProblemCardV2",
+    summary="匯出問題卡 v2（json / csv / pdf；content base64）",
+    response_model=ProblemCardExport,
+)
+async def export_problem_card_v2(
+    tenantId: str = Path(...),
+    id: str = Path(...),
+    format: str = Query(default="pdf", pattern="^(pdf|json|csv)$"),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError(
+            "CROSS_TENANT_READ",
+            "Path tenantId does not match authenticated tenant",
+            403,
+        )
+    return await problem_card_service.export_card(
+        tenant_id=tenantId, pc_id=id, fmt=format,
+    )
+
+
+@router.post(
+    "/tenants/{tenantId}/problem-cards/{id}/convert-to-work-order",
+    operation_id="convertProblemCardToWorkOrderV2",
+    summary="將已確認問題卡轉為工單 v2（F-002 客服審 PC → 開 WO）",
+    response_model=WorkOrderEnvelope,
+)
+async def convert_problem_card_to_work_order_v2(
+    response: Response,
+    tenantId: str = Path(...),
+    id: str = Path(...),
+    body: ConvertProblemCardToWorkOrderRequest | None = None,
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError(
+            "CROSS_TENANT_WRITE",
+            "Path tenantId does not match authenticated tenant",
+            403,
+        )
+    wo, created = await work_order_service.create_from_problem_card(
+        tenant_id=tenantId,
+        pc_id=id,
+        customer_address=body.customer_address if body else None,
+        customer_name=body.customer_name if body else None,
+        customer_phone=body.customer_phone if body else None,
+        created_by=user.user_id,
+    )
+    response.status_code = 201 if created else 200
+    payload = {"data": WorkOrder(**wo).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(response.status_code, payload)
     return payload
