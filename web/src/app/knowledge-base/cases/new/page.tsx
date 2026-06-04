@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
+import type { KBDocument } from "@/lib/kb-adapter";
 import type { components } from "@/types/api.generated";
 
 type CaseEntryEnvelope = components["schemas"]["CaseEntryEnvelope"];
@@ -52,9 +53,14 @@ export default function NewCasePage() {
 
     setSubmitting(true);
     try {
-      const res = await api.post<CaseEntryEnvelope>("/api/v1/knowledge-base/cases", body);
-      if (!res.data) throw new Error(tF("errorNoData"));
-      router.replace(`/knowledge-base/cases/${res.data.id}`);
+      // CR-0005 step 3/3：v2 POST 走 kb_v2.py:ingestKBDocument（doc_type=case）
+      // 返回 KBDocument（meta-wrap）；用 doc.id 導頁
+      const doc = await api.post<KBDocument>(
+        tenantPath("/kb/documents"),
+        { ...body, doc_type: "case" },
+      );
+      if (!doc?.id) throw new Error(tF("errorNoData"));
+      router.replace(`/knowledge-base/cases/${doc.id}`);
     } catch (e) {
       setError(
         e instanceof ApiError

@@ -36,6 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `web/src/lib/kb-adapter.ts` 新增 — `KBDocument` interface + `kbDocumentToCaseEntry` adapter（CR-0005 step 3/3 解 meta-wrap shape 與 UI flat shape 不一致）
+- `web/src/app/knowledge-base/cases/[id]/page.tsx` GET → v2 + adapter
+- `web/src/app/knowledge-base/cases/[id]/edit/page.tsx` GET + PUT → v2 + adapter
+- `web/src/app/knowledge-base/cases/new/page.tsx` POST → v2 + doc.id 導頁
 - `api/routers/kb_v2.py:360+` 新增 CR-0005 step 2/3：
   * `_write_kb_audit_log` helper（best-effort 寫 saas.kb_audit_log，失敗 log warn 不阻擋）
   * `PUT /kb/documents/{docId}`（doc_type 自動 fallback / case 完整支援 / manual 暫 501 待 update_manual impl）

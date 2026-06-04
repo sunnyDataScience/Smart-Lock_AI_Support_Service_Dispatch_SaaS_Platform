@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
+import { kbDocumentToCaseEntry, type KBDocument } from "@/lib/kb-adapter";
 import type { components } from "@/types/api.generated";
 
 type CaseEntry = components["schemas"]["CaseEntry"];
@@ -47,11 +48,14 @@ export default function EditCasePage({ params }: { params: Promise<{ id: string 
     setError(null);
     setNotFound(false);
     try {
-      const res = await api.get<CaseEntryEnvelope>(`/api/v1/knowledge-base/cases/${id}`);
-      if (!res.data) {
+      // CR-0005 step 3/3：v2 GET → KBDocument → adapter → CaseEntry
+      const doc = await api.get<KBDocument>(
+        tenantPath(`/kb/documents/${encodeURIComponent(id)}?doc_type=case`),
+      );
+      if (!doc?.id) {
         setNotFound(true);
       } else {
-        fillForm(res.data);
+        fillForm(kbDocumentToCaseEntry(doc));
       }
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {
@@ -101,7 +105,9 @@ export default function EditCasePage({ params }: { params: Promise<{ id: string 
 
     setSubmitting(true);
     try {
-      await api.put<CaseEntryEnvelope>(`/api/v1/knowledge-base/cases/${id}`, body);
+      // CR-0005 step 3/3：v2 PUT 走 kb_v2.py:updateKBDocument
+      // 返回 KBDocument（meta-wrap），UI 不依賴 response.data，僅 router.replace
+      await api.put(tenantPath(`/kb/documents/${encodeURIComponent(id)}?doc_type=case`), body);
       router.replace(`/knowledge-base/cases/${id}`);
     } catch (e) {
       setError(

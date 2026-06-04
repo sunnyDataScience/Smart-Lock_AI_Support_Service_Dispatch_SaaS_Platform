@@ -7,6 +7,7 @@ import { ChevronLeft, Pencil, Trash2 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api, tenantPath } from "@/lib/api";
+import { kbDocumentToCaseEntry, type KBDocument } from "@/lib/kb-adapter";
 import { formatRelative } from "@/lib/format";
 import type { components } from "@/types/api.generated";
 
@@ -41,11 +42,15 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
     setNotFound(false);
     setError(null);
     try {
-      const res = await api.get<CaseEntryEnvelope>(`/api/v1/knowledge-base/cases/${id}`);
-      if (!res.data) {
+      // CR-0005 step 3/3（業主拍 HD-01=a meta-wrap）：v2 GET 走 kb_v2.py:getKBDocument
+      // 返回 KBDocument shape；用 kbDocumentToCaseEntry adapter 對應既有 UI flat shape
+      const doc = await api.get<KBDocument>(
+        tenantPath(`/kb/documents/${encodeURIComponent(id)}?doc_type=case`),
+      );
+      if (!doc?.id) {
         setNotFound(true);
       } else {
-        setEntry(res.data);
+        setEntry(kbDocumentToCaseEntry(doc));
       }
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {
