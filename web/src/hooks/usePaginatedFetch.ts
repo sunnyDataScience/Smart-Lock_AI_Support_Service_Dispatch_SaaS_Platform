@@ -69,6 +69,15 @@ export interface UsePaginatedFetchOptions {
    * 不指定時不執行任何副作用。
    */
   onSuccess?: <R extends PaginatedResponse<unknown>>(res: R) => void;
+  /**
+   * 響應 item 轉換器（CR-0005/0006 step 3/3：v2 meta-wrap shape → flat UI shape）。
+   * 不指定時 raw items 直接套用泛型 T。
+   *
+   * @example
+   *   path: tenantPath("/sops/drafts"),
+   *   mapItem: (doc: KBDocumentSop) => kbDocumentToSopDraft(doc),
+   */
+  mapItem?: (raw: unknown) => unknown;
 }
 
 export interface UsePaginatedFetchResult<T> {
@@ -133,6 +142,7 @@ export function usePaginatedFetch<T>(
     enabled = true,
     formatError = toUserMessage,
     onSuccess,
+    mapItem,
   } = opts;
 
   const [items, setItems] = useState<T[]>([]);
@@ -160,7 +170,8 @@ export function usePaginatedFetch<T>(
         if (afterCursor) q.cursor = afterCursor;
 
         const res = await api.get<PaginatedResponse<T>>(path, { query: q });
-        const newItems = res.items ?? [];
+        const rawItems = res.items ?? [];
+        const newItems = (mapItem ? rawItems.map(mapItem) : rawItems) as T[];
         setItems((prev) => (append ? [...prev, ...newItems] : newItems));
         const nextCursor = res.next_cursor ?? null;
         setCursor(nextCursor);

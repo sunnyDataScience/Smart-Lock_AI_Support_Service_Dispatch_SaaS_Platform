@@ -1,7 +1,7 @@
 ---
 id: CR-0006
 title: "SOP v2 list expand — sop-drafts + family-reviews 列表/詳情 v2（解 P3 收尾 SOP 模組 caller）"
-status: decided-and-implemented-partial
+status: decided-and-implemented
 decided: 2026-06-04
 tier: 4-exploration
 owner: HYBRID

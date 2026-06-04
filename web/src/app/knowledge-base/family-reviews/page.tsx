@@ -75,7 +75,8 @@ export default function FamilyReviewsPage() {
     loadMore: loadMoreHistory,
     refresh: refreshHistory,
   } = usePaginatedFetch<FamilyReview>({
-    path: "/api/v1/family-reviews",
+    // CR-0006 step 3/3：v2 GET sops/family-reviews（list history；無 shape 改造）
+    path: tenantPath("/sops/family-reviews"),
     pageSize: PAGE_SIZE,
     query: actionFilter ? { action: actionFilter } : undefined,
     queryKey: `action=${actionFilter}`,

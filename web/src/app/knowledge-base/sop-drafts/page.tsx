@@ -5,8 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import SopDraftsList from "@/components/knowledge-base/SopDraftsList";
-import { ApiError } from "@/lib/api";
+import { ApiError, tenantPath } from "@/lib/api";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
+import { kbDocumentToSopDraft, type KBDocumentSop } from "@/lib/kb-adapter";
 import type { components } from "@/types/api.generated";
 
 type SopDraft = components["schemas"]["SopDraft"];
@@ -31,11 +32,13 @@ export default function SopDraftsPage() {
   const [statusFilter, setStatusFilter] = useState<SopDraftStatus | "">("");
 
   const { items, cursor, hasMore, loading, error, loadMore } = usePaginatedFetch<SopDraft>({
-    path: "/api/v1/sop-drafts",
+    // CR-0006 step 3/3：v2 GET sops/drafts + mapItem adapter（HD-01 meta-wrap → flat）
+    path: tenantPath("/sops/drafts"),
     pageSize: PAGE_SIZE,
     query: statusFilter ? { status: statusFilter } : undefined,
     queryKey: `status=${statusFilter}`,
     formatError: formatSopDraftError,
+    mapItem: (doc) => kbDocumentToSopDraft(doc as KBDocumentSop),
   });
 
   const showCount = hasMore ? `${items.length}+` : items.length;
