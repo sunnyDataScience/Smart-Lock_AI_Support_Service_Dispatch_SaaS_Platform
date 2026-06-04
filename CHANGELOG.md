@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `api/routers/kb_v2.py:660+` POST /kb/documents:export（HD-06=a CSV-first，?format=json 切換；MVP case only；EXPORT_MAX=10000）
+- `web/src/app/knowledge-base/cases/page.tsx:161` search caller 從 v1 改打 v2 :search + kbDocumentToCaseEntry adapter
 - `web/src/lib/kb-adapter.ts` 新增 — `KBDocument` interface + `kbDocumentToCaseEntry` adapter（CR-0005 step 3/3 解 meta-wrap shape 與 UI flat shape 不一致）
 - `web/src/app/knowledge-base/cases/[id]/page.tsx` GET → v2 + adapter
 - `web/src/app/knowledge-base/cases/[id]/edit/page.tsx` GET + PUT → v2 + adapter

@@ -7,7 +7,8 @@ import { Search, Plus, Download } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import CaseCardGrid from "@/components/knowledge-base/CaseCardGrid";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api, auth } from "@/lib/api";
+import { ApiError, api, auth, tenantPath } from "@/lib/api";
+import { kbDocumentToCaseEntry, type KBDocument } from "@/lib/kb-adapter";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
 
@@ -157,14 +158,20 @@ export default function CasesPage() {
           similarity_threshold: 0.3,
         };
         if (brand) body.brand = brand;
-        // P3-KEEP: v2 :search 已落地（kb_v2.py:searchKBDocuments）但 response.hits[].case
-        // 走 meta-wrap shape（HD-01=a），與既有 UI flat shape 期望不一致；需配
-        // step 3/3 UI 改造後才切換。本 commit 暫保 v1，待 step 3/3 完成同步遷
-        const res = await api.post<CaseSearchResponse>(
-          "/api/v1/knowledge-base/cases/search",
+        // CR-0005 step 3/3：v2 :search 走 kb_v2.py:searchKBDocuments
+        // response.hits[].case 為 KBDocument meta-wrap；用 adapter 轉 CaseEntry
+        body.doc_type = "case";
+        const res = await api.post<{ hits: { case: KBDocument; score: number }[] }>(
+          tenantPath("/kb/documents:search"),
           body,
         );
-        if (!cancelled) setSearchHits(res.hits ?? []);
+        if (!cancelled) {
+          const adapted: CaseSearchResponse["hits"] = (res.hits ?? []).map((h) => ({
+            case: kbDocumentToCaseEntry(h.case),
+            score: h.score,
+          }));
+          setSearchHits(adapted);
+        }
       } catch (e) {
         if (!cancelled) {
           setSearchError(

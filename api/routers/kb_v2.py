@@ -647,3 +647,94 @@ async def search_kb_documents(
         wrapped.append(out)
 
     return {"hits": wrapped, "doc_type": "case"}
+
+
+# ---------------------------------------------------------------------------
+# CR-0005 step 2/3：:export（HD-06=a CSV 為主，JSON 可選 ?format=json）
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/kb/documents:export",
+    operation_id="exportKBDocuments",
+    summary="KB 文件 export v2（CR-0005 HD-06 預設 CSV；?format=json 切換）",
+    tags=["KB (Agent Knowledge Base)"],
+)
+async def export_kb_documents(
+    user: CurrentUser = Depends(require_tenant),
+    doc_type: str = Query(default="case", description="case 或 manual（manual 暫不支援）"),
+    fmt: str = Query(default="csv", alias="format", description="csv 或 json"),
+    brand: str | None = Query(default=None),
+) -> Any:
+    """匯出 KB 文件清單為 CSV（預設）或 JSON。
+
+    MVP scope：case only。limit 內建 10000 上限避免炸 memory。
+    """
+    if doc_type not in _DOC_TYPES:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"doc_type must be one of: {', '.join(sorted(_DOC_TYPES))}",
+            422,
+        )
+    if fmt not in {"csv", "json"}:
+        raise ApiError("VALIDATION_ERROR", "format must be csv|json", 422)
+    if doc_type == "manual":
+        raise ApiError(
+            "NOT_IMPLEMENTED",
+            "manual export pending implementation",
+            501,
+        )
+
+    tenant_id = user.tenant_id
+    EXPORT_MAX = 10000
+
+    # 取 case 全列（依 list_cases 既有過濾邏輯）
+    page = await case_service.list_cases(
+        tenant_id=tenant_id,
+        cursor=None,
+        limit=EXPORT_MAX,
+        brand=brand,
+        verified=None,
+    )
+    items = page.get("items", [])
+
+    if fmt == "json":
+        # JSON 輸出走 meta-wrap shape 與其他 GET 一致
+        return {
+            "doc_type": "case",
+            "count": len(items),
+            "items": [_case_to_kb_document(c) for c in items],
+        }
+
+    # CSV（預設）
+    import csv
+    import io
+    from fastapi.responses import StreamingResponse
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow([
+        "id", "title", "brand", "model", "problem_description",
+        "solution", "tags", "verified", "embedding_status",
+        "created_at", "updated_at",
+    ])
+    for c in items:
+        writer.writerow([
+            c.get("id", ""),
+            c.get("title", ""),
+            c.get("brand", ""),
+            c.get("model", "") or "",
+            (c.get("problem_description", "") or "").replace("\n", " "),
+            (c.get("solution", "") or "").replace("\n", " "),
+            ",".join(c.get("tags", []) or []),
+            "true" if c.get("verified") else "false",
+            c.get("embedding_status", ""),
+            c.get("created_at", "") or "",
+            c.get("updated_at", "") or "",
+        ])
+    buf.seek(0)
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="kb-cases.csv"'},
+    )
