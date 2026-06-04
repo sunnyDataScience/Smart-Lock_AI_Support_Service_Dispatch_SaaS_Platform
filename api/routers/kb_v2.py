@@ -344,10 +344,215 @@ async def _get_manual_by_id(*, tenant_id: str, manual_id: str) -> dict:
 
     cur = await db_module._conn.execute(
         f"SELECT {_SELECT_COLUMNS} FROM manuals "
-        f"WHERE id = %s::uuid AND tenant_id = %s::uuid",
+        f"WHERE id = %s::uuid AND tenant_id = %s::uuid AND deleted_at IS NULL",
         (manual_id, tenant_id),
     )
     row = await cur.fetchone()
     if not row:
         raise ApiError("NOT_FOUND", "Document not found", 404)
     return _row_to_dict(row)
+
+
+# ---------------------------------------------------------------------------
+# CR-0005 step 2/3：PUT / DELETE + audit log（HD-02 軟刪 / HD-03 DB 表 audit）
+# ---------------------------------------------------------------------------
+
+
+async def _write_kb_audit_log(
+    *,
+    tenant_id: str,
+    doc_id: str,
+    doc_type: str,
+    action: str,
+    before_state: dict | None,
+    after_state: dict | None,
+    actor_user_id: str,
+    actor_role: str,
+) -> None:
+    """寫 saas.kb_audit_log（best-effort，失敗不阻擋主操作；CR-0005 HD-03=a）。"""
+    try:
+        import json as _json
+        import core.db as db_module
+        from core.db import _ensure_conn
+
+        if not await _ensure_conn():
+            return
+        await db_module._conn.execute(
+            "INSERT INTO saas.kb_audit_log "
+            "  (tenant_id, doc_id, doc_type, action, "
+            "   before_state, after_state, actor_user_id, actor_role) "
+            "VALUES (%s::uuid, %s::uuid, %s, %s, "
+            "        %s::jsonb, %s::jsonb, %s::uuid, %s)",
+            (
+                tenant_id,
+                doc_id,
+                doc_type,
+                action,
+                _json.dumps(before_state, ensure_ascii=False) if before_state is not None else None,
+                _json.dumps(after_state, ensure_ascii=False) if after_state is not None else None,
+                actor_user_id,
+                actor_role,
+            ),
+        )
+    except Exception:
+        # best-effort：audit log 失敗不阻擋主操作（CR-0005 §10 風險表）
+        import logging
+        logging.getLogger("kb_v2.audit").warning(
+            "kb_audit_log write failed (non-fatal)", exc_info=True
+        )
+
+
+@router.put(
+    "/kb/documents/{docId}",
+    operation_id="updateKBDocument",
+    summary="KB 文件 PUT v2（CR-0005 HD-02 軟刪 / HD-03 audit；doc_type 分派）",
+    tags=["KB (Agent Knowledge Base)"],
+)
+async def update_kb_document(
+    body: dict[str, Any],
+    docId: str = Path(..., description="文件 UUID"),
+    doc_type: str | None = Query(default=None, description="case 或 manual"),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    if doc_type and doc_type not in _DOC_TYPES:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"doc_type must be one of: {', '.join(sorted(_DOC_TYPES))}",
+            422,
+        )
+    if not isinstance(body, dict):
+        raise ApiError("VALIDATION_ERROR", "body must be a JSON object", 422)
+
+    tenant_id = user.tenant_id
+
+    # 先抓 before_state（doc_type 自動 fallback）
+    before: dict | None = None
+    resolved_type: str | None = doc_type
+    if doc_type == "case" or doc_type is None:
+        try:
+            before = await case_service.get_case(tenant_id=tenant_id, case_id=docId)
+            resolved_type = "case"
+        except ApiError as e:
+            if e.status_code != 404 or doc_type == "case":
+                if doc_type == "case":
+                    raise
+            before = None
+
+    if before is None and (doc_type == "manual" or doc_type is None):
+        manual_page = await manual_service.list_manuals(
+            tenant_id=tenant_id, cursor=None, limit=100, brand=None,
+        )
+        before = next((m for m in manual_page.get("items", []) if m.get("id") == docId), None)
+        if before:
+            resolved_type = "manual"
+
+    if before is None:
+        raise ApiError("NOT_FOUND", "Document not found", 404)
+
+    # 執行更新
+    after: dict
+    if resolved_type == "case":
+        after = await case_service.update_case(
+            tenant_id=tenant_id, case_id=docId, patch=body,
+        )
+        kb_doc = _case_to_kb_document(after)
+    else:
+        # manual update：MVP 僅 title 變更（manual_service 無完整 update；以 audit-only 路徑記）
+        raise ApiError(
+            "NOT_IMPLEMENTED",
+            "manual PUT pending manual_service.update_manual impl",
+            501,
+        )
+
+    await _write_kb_audit_log(
+        tenant_id=tenant_id,
+        doc_id=docId,
+        doc_type=resolved_type,
+        action="update",
+        before_state=before,
+        after_state=after,
+        actor_user_id=user.user_id,
+        actor_role=user.role,
+    )
+    return kb_doc
+
+
+@router.delete(
+    "/kb/documents/{docId}",
+    operation_id="deleteKBDocument",
+    summary="KB 文件 DELETE v2（CR-0005 HD-02 軟刪 deleted_at / HD-03 audit）",
+    status_code=204,
+    tags=["KB (Agent Knowledge Base)"],
+)
+async def delete_kb_document(
+    docId: str = Path(..., description="文件 UUID"),
+    doc_type: str | None = Query(default=None, description="case 或 manual"),
+    user: CurrentUser = Depends(require_tenant),
+) -> None:
+    if doc_type and doc_type not in _DOC_TYPES:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"doc_type must be one of: {', '.join(sorted(_DOC_TYPES))}",
+            422,
+        )
+
+    tenant_id = user.tenant_id
+
+    # before snapshot for audit
+    before: dict | None = None
+    resolved_type: str | None = doc_type
+    if doc_type == "case" or doc_type is None:
+        try:
+            before = await case_service.get_case(tenant_id=tenant_id, case_id=docId)
+            resolved_type = "case"
+        except ApiError as e:
+            if e.status_code != 404 or doc_type == "case":
+                if doc_type == "case":
+                    raise
+            before = None
+
+    if before is None and (doc_type == "manual" or doc_type is None):
+        manual_page = await manual_service.list_manuals(
+            tenant_id=tenant_id, cursor=None, limit=100, brand=None,
+        )
+        before = next((m for m in manual_page.get("items", []) if m.get("id") == docId), None)
+        if before:
+            resolved_type = "manual"
+
+    if before is None:
+        raise ApiError("NOT_FOUND", "Document not found", 404)
+
+    # 軟刪：標 deleted_at + 既有 is_active（case_entries 沿用）
+    if resolved_type == "case":
+        import core.db as db_module
+        from core.db import _ensure_conn
+        if not await _ensure_conn():
+            raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+        await db_module._conn.execute(
+            "UPDATE case_entries SET is_active = FALSE, deleted_at = NOW(), "
+            "  updated_at = NOW() "
+            "WHERE id = %s::uuid AND tenant_id = %s::uuid",
+            (docId, tenant_id),
+        )
+    else:
+        # manual 改軟刪（既有 delete_manual 是硬刪）；本 endpoint 走軟刪路徑
+        import core.db as db_module
+        from core.db import _ensure_conn
+        if not await _ensure_conn():
+            raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+        await db_module._conn.execute(
+            "UPDATE manuals SET deleted_at = NOW() "
+            "WHERE id = %s::uuid AND tenant_id = %s::uuid",
+            (docId, tenant_id),
+        )
+
+    await _write_kb_audit_log(
+        tenant_id=tenant_id,
+        doc_id=docId,
+        doc_type=resolved_type,
+        action="delete",
+        before_state=before,
+        after_state=None,
+        actor_user_id=user.user_id,
+        actor_role=user.role,
+    )

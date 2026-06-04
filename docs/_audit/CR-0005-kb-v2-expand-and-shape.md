@@ -1,7 +1,7 @@
 ---
 id: CR-0005
 title: "KB v2 expand — 補齊缺失動作 + 響應 shape 裁決（解鎖 P3 收尾 KB 模組 caller 遷移）"
-status: decided-schema-applied-code-pending
+status: decided-step-2-partial-implemented
 decided: 2026-06-04
 tier: 4-exploration
 owner: HYBRID

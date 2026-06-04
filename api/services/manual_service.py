@@ -77,7 +77,7 @@ async def list_manuals(
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
-    where = ["tenant_id = %s::uuid"]
+    where = ["tenant_id = %s::uuid", "deleted_at IS NULL"]  # CR-0005 HD-02 軟刪過濾
     args: list = [tenant_id]
 
     if brand:

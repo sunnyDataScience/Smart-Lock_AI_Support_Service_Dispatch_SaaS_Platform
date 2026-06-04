@@ -31,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `api/routers/kb_v2.py:360+` 新增 CR-0005 step 2/3：
+  * `_write_kb_audit_log` helper（best-effort 寫 saas.kb_audit_log，失敗 log warn 不阻擋）
+  * `PUT /kb/documents/{docId}`（doc_type 自動 fallback / case 完整支援 / manual 暫 501 待 update_manual impl）
+  * `DELETE /kb/documents/{docId}`（軟刪 case_entries SET is_active=FALSE + deleted_at=NOW；manuals SET deleted_at=NOW；before-snapshot 寫 audit；204）
+- `api/services/manual_service.py:list_manuals` 加 `deleted_at IS NULL` 過濾（CR-0005 HD-02 軟刪兼容）
+- `api/routers/kb_v2.py:get manual` 加 `deleted_at IS NULL` 過濾
 - `SQL/migrations/015-kb-v2-expand.sql` — CR-0005 step 1/3：case_entries.deleted_at + manuals.deleted_at + saas.kb_audit_log（pending psql apply）
 - `docs/architecture/adr/ADR-0103-kb-v2-expand-design.md` — CR-0005 §8 4/6 HD 決策 ADR
 - `api/services/work_order_service.py` 新增：
