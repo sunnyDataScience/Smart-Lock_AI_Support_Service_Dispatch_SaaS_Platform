@@ -3,7 +3,7 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-06-04（merge chain：CR-0005 export caller + CR-0011/CR-0012 CIA）
+**最後更新：** 2026-06-04（merge chain：CR-0005 export + CR-0011/0012/0013 CIA）
 **對應分支：** `dev_new_arch`（merge chain）
 **對應 reports：** v1.0.0 → v1.36.0（產品 MVP）+ CR-0003 P0-P3.5 ✅ + CR-0004 Track B S1-S7
 
@@ -194,11 +194,11 @@
 | FR | 標題 | 卡在哪 |
 |:---|:---|:---|
 | FR-0011 | 消費者付款 V1.0 升級 | 金流方案 / 串接哪家 — **CR-0011 CIA opened 2026-06-04（8 HD 等業主裁；payments 表/endpoint 0 實作）** |
-| FR-0012 | 技師月結撥款 V1.0 升級 | 同上 + AP 流程 — **CR-0012 CIA opened 2026-06-04（6 HD 等業主裁；settlements_v2.trigger_monthly_settlement 為 501 stub；與 CR-0011 形成金流閉環，HD-06 escrow 模型須鏡像 CR-0011 HD-08）** |
-| FR-0022 | 消費者端工單追蹤 | Web 版規格 |
+| FR-0012 | 技師月結撥款 V1.0 升級 | 同上 + AP 流程 — **CR-0012 CIA opened 2026-06-04（6 HD 等業主裁；`settlements_v2.trigger_monthly_settlement` 501 stub；HD-06 escrow 鏡像 CR-0011 HD-08）** |
+| FR-0022 | 消費者端工單追蹤 | Web 版規格 — **CR-0013 CIA opened 2026-06-04（5 HD 等業主裁；Web 路徑已 100% 實作；ADR-0015 已 accepted → `blocked_by: Q3=C` stale；LINE rich menu 0%；HD-05 解 spec 401 vs code 404 衝突；準完工 status flip 候選）** |
 | FR-0034 | AI Employee Charter / PRD 治理 | 整體 AI 治理框架 |
 
-> **2026-06-04**：FR-0019 動態 RBAC 角色管理 已 `draft → active`（CR-0010 取證 content-complete + ADR-0042 accepted + code 全部實作；業主拍 HD-01=a）。同日 CR-0011 + CR-0012 CIAs opened 啟動 V1.0 金流閉環 review，路徑：兩 CR §8 14 HD 裁完（**HD-06/HD-08 須同步以避免 escrow 模型矛盾**）→ ADR-0107/0108 → BR-M11/M12 編號 → FR-0011/0012 status flip。
+> **2026-06-04**：FR-0019 動態 RBAC 角色管理 已 `draft → active`（CR-0010 取證 content-complete + ADR-0042 accepted + code 全部實作；業主拍 HD-01=a）。同日 CR-0011/0012/0013 CIAs opened：金流閉環（CR-0011 客戶付平台 + CR-0012 平台付技師，HD-06/HD-08 須同步）+ 消費者追蹤（CR-0013，FR-0022 Web 已實作可 status flip 候選）。剩 CR-0014（FR-0034 AI Charter）待開。
 
 ---
 
