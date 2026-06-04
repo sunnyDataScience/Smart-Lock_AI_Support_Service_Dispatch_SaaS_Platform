@@ -157,6 +157,9 @@ export default function CasesPage() {
           similarity_threshold: 0.3,
         };
         if (brand) body.brand = brand;
+        // P3-KEEP: v2 :search 已落地（kb_v2.py:searchKBDocuments）但 response.hits[].case
+        // 走 meta-wrap shape（HD-01=a），與既有 UI flat shape 期望不一致；需配
+        // step 3/3 UI 改造後才切換。本 commit 暫保 v1，待 step 3/3 完成同步遷
         const res = await api.post<CaseSearchResponse>(
           "/api/v1/knowledge-base/cases/search",
           body,

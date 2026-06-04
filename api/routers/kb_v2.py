@@ -632,7 +632,8 @@ async def search_kb_documents(
         similarity_threshold=float(threshold) if isinstance(threshold, (int, float)) else 0.75,
     )
 
-    # meta-wrap shape：將每個 hit 的 case row 套 _case_to_kb_document
+    # hit 結構：{case: KBDocument(meta-wrap), score}（保留 case wrapper 與 v1 兼容
+    # 同時 case 內部走 meta-wrap shape — HD-01=a 對齊）
     hits = result.get("hits", [])
     wrapped = []
     for h in hits:
@@ -640,8 +641,9 @@ async def search_kb_documents(
         if not isinstance(case, dict):
             continue
         kb_doc = _case_to_kb_document(case)
+        out: dict = {"case": kb_doc}
         if isinstance(h, dict) and "score" in h:
-            kb_doc["score"] = h["score"]
-        wrapped.append(kb_doc)
+            out["score"] = h["score"]
+        wrapped.append(out)
 
     return {"hits": wrapped, "doc_type": "case"}
