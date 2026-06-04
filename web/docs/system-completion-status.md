@@ -3,7 +3,7 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-06-04（merge chain：CR-0005 export + CR-0011/0012/0013/0014 CIA batch）
+**最後更新：** 2026-06-04（merge chain：+ Flow 3 取證 wave 1）
 **對應分支：** `dev_new_arch`（merge chain）
 **對應 reports：** v1.0.0 → v1.36.0（產品 MVP）+ CR-0003 P0-P3.5 ✅ + CR-0004 Track B S1-S7
 
@@ -95,7 +95,7 @@
 |:---|:---:|:---|
 | Flow 1 Happy Path | **100%** | — |
 | Flow 2 拒單重派 | **100%** | — |
-| Flow 3 範圍變更 | **80%** | 客戶核准流程簡化 |
+| Flow 3 範圍變更 | **90%** | 取證 2026-06-04：backend v2 全綠（`work_orders_v2:POST .../scope-change` recordScopeChangeV2 + `consumer_v2:GET/POST /consumer/scope-changes/{token}` getScopeChangeProposalV2/respondScopeChangeV2）+ web 全綠（`my-orders/[id]/scope-change/page.tsx` tenant admin 端 + `scope-change/[token]/page.tsx` consumer token 端）+ `scope_change_service` 完整 CRUD + audit log + customer_decision 同步。**剩 2 個明確 gap**：(1) **LINE Flex 主動通知客戶** — scope_change_service 無 line_push_service 整合（對比 Flow 11 reschedule 有 LINE Flex RSVP），客戶須主動開連結而非收到推送；(2) **WS publish** — scope_change_service 無 realtime emit，admin 端工單頁無法即時看到客戶回覆狀態 |
 | Flow 4 缺料 | **80%** | 調度員補料 UI |
 | Flow 5 延遲通知 | **100%** | 取證收尾（2026-06-04）：`line_push_service.py:165` 已用 `AsyncMessagingApi.push_message` 真實打 LINE API（含 retry+backoff+audit）；fail-soft 設計（token 缺時 log warn 不 raise）；原 stale 描述「LINE Push 實際路徑」不成立 |
 | Flow 6 退款雙簽 | **100%** | csm_approved 中介態 + 同 user 不可雙簽 + WS 推送 |
