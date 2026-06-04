@@ -147,6 +147,14 @@ related:
 | **HD-05** | Search 排序預設 | (a) cosine desc<br>(b) cosine + recency<br>(c) cosine + verified | Product | **decided 2026-06-04** | **(a) cosine similarity desc**（pgvector ivfflat 既有 index 重用）|
 | **HD-06** | Export 格式預設 | (a) CSV 為主<br>(b) JSON 為主<br>(c) 不做 export | Product | **decided 2026-06-04** | **(a) CSV 為主，JSON 可選**（query `?format=json` 切換）|
 
+### 進度
+
+- ✅ **step 1/3 schema 落地**（migration 015 + ADR-0103，merge `4a30eb88`）：deleted_at + kb_audit_log + 4 indexes
+- ✅ **step 2/3 backend endpoints**（`8baa389c` PUT/DELETE/audit、`f909b8b2` :search、`87c6aa5d` :export）
+- ✅ **step 3/3 web caller — cases 多檔遷完**（`76320013` 4 caller + `87c6aa5d` search）
+- ✅ **step 3/3 web caller — cases :export caller 遷 v2**（branch `feat/cr-0005-export-caller-v2`）：移除 v1 async-job 路徑，改打 `POST /kb/documents:export?doc_type=case&format=csv` 同步 CSV stream + 簡化 scope dropdown 為單一 button（HD-06=a MVP scope=case-only）；真實 v1 caller 42 → 41
+- ⏳ **manuals upload caller 遷 v2**（待 `:upload` ClamAV endpoint 落地，HD-04=a）
+
 ---
 
 ## 9. Suggested Implementation Order
