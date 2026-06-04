@@ -132,8 +132,9 @@ export default function SopReviewPage({
     if (!draft || !canAdopt) return;
     setSubmitting("adopt");
     try {
+      // CR-0006 step-extend：sops_v2 補 adoptSopDraftV2
       const res = await api.post<CaseEntryEnvelope>(
-        `/api/v1/sop-drafts/${id}/adopt`,
+        tenantPath(`/sops/drafts/${encodeURIComponent(id)}/adopt`),
         {},
       );
       // adopt 成功 → draft 後端已轉 published（API 端 SopDraftStatus 仍映射為 approved）

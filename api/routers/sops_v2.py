@@ -376,3 +376,40 @@ async def list_family_reviews_pending_v2(
         raise ApiError("CROSS_TENANT_READ", "Path tenantId mismatch", 403)
     items = await family_review_service.list_pending(tenant_id=tenantId)
     return {"items": items}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Adopt v2（採納 SOP 草稿 → 入庫成案例）
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@router.post(
+    "/tenants/{tenantId}/sops/drafts/{draftId}/adopt",
+    operation_id="adoptSopDraftV2",
+    summary="採納 SOP 草稿 v2（核准後入庫成案例）",
+    tags=["SOP Drafts"],
+)
+async def adopt_sop_draft_v2(
+    tenantId: str = Path(...),
+    draftId: str = Path(...),
+    body: dict[str, Any] | None = None,
+    user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError("CROSS_TENANT_WRITE", "Path tenantId mismatch", 403)
+
+    target_case_id = None
+    if body and isinstance(body.get("target_case_id"), str):
+        target_case_id = body["target_case_id"]
+
+    case = await sop_draft_service.adopt_draft(
+        tenant_id=tenantId,
+        draft_id=draftId,
+        target_case_id=target_case_id,
+        approver_id=user.user_id,
+    )
+    payload = {"data": case}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload
