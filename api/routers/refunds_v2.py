@@ -13,7 +13,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Path
+from fastapi import APIRouter, Depends, Path, Query
 from pydantic import BaseModel, Field
 
 from core.deps import CurrentUser, SodActors, require_sod_actors, require_tenant
@@ -195,3 +195,38 @@ async def agent_initiate_refund_v2(
     if idem is not None:
         await idem.save(201, payload)
     return payload
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /tenants/{tid}/refunds — list（P3 收尾 admin/refunds web caller 解鎖）
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/tenants/{tenantId}/refunds",
+    operation_id="listRefundsV2",
+    summary="Refund 列表 v2（tenant-scoped，cursor 分頁 + status/work_order_id 過濾）",
+)
+async def list_refunds_v2(
+    tenantId: str = Path(...),
+    user: CurrentUser = Depends(require_tenant),
+    cursor: str | None = Query(default=None),
+    limit: int = Query(default=20, ge=1, le=100),
+    status: str | None = Query(default=None),
+    work_order_id: str | None = Query(default=None),
+) -> dict:
+    """admin/refunds 列表 v2 endpoint。沿用 list_refund_requests service。"""
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError(
+            "CROSS_TENANT_READ",
+            "Path tenantId does not match authenticated tenant",
+            403,
+        )
+
+    return await refund_service.list_refund_requests(
+        tenant_id=tenantId,
+        cursor=cursor,
+        limit=limit,
+        status=status,
+        work_order_id=work_order_id,
+    )

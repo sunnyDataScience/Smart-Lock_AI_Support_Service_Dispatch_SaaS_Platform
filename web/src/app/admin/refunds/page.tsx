@@ -72,8 +72,8 @@ export default function RefundReviewPage() {
     refresh: fetchRefunds,
     mutate,
   } = usePaginatedFetch<RefundRequest>({
-    // P3-KEEP: flat（GET list 無對應 v2，refunds_v2 僅 POST create / decision / GET by-id）
-    path: "/api/v1/refunds",
+    // CR-0009 step-extend：refunds_v2 補 listRefundsV2 endpoint 後可遷 v2
+    path: tenantPath("/refunds"),
     pageSize: 50,
     formatError: formatActionError,
   });
