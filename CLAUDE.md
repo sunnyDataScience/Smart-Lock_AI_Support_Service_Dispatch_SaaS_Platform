@@ -6,65 +6,64 @@
 ## Project Overview
 
 Smart Lock AI Support & Service Dispatch SaaS Platform —— LINE Bot 智慧鎖 AI 客服 agent + Next.js 營運後台。
-核心是 ReAct agent（LangGraph），靠 `product_info/` mega-doc 知識庫（每 brand+model 一份自足 mega-doc，**內容嚴格只源自 `data/storage/bronze/`**），外加 Medallion data pipeline。
 
-本 agent 分支另配一個 optional **Belief-Augmented ReAct（Turn Cycle）** 原型 —— Hypothesize → Decide → Execute → Calibrate —— 由 `agent/config.toml` 的 `[turn_cycle].enabled` 控（預設 `false`）。
+**Agent 核心於 2026-06-04 完成架構重寫**：捨棄 ReAct (LangGraph) + 自製 skill loader，改為 **LockCore**（fork 自上游 `HKUDS/nanobot` 的最小核心套件，位於 `agent/lockcore/`）+ **Agent Skills 標準**（agentskills.io / Claude Skills，knowledge 與 SOP 都走 `lockcore/skills/{name}/SKILL.md` + `references/`）+ **LiteLLM 統一供應商**（單一 `LiteLLMProvider` 用 model 字串路由 Gemini / Vertex / Ollama / Claude / OpenAI 多家）。per-user 記憶移植自 Hermes，位於 `lockcore/agent/user_memory/`，BUILD/SAVE 接 turn 狀態機。詳見 `agent/README.md` + `agent/lockcore/VENDOR.md`。
 
 **user-facing 文字、註解、文件一律繁體中文**；code identifier 與 git message 可中英混用。
 
-## 🔒 Architecture Lock — 知識庫正典（必讀，不可違反）
+## 🔒 Architecture Lock — LockCore + Agent Skills 標準（必讀，不可違反）
 
-**正典是 `product_info/` mega-doc，不是 `skills/` SKILL.md。** 詳見 [ADR-0008](docs/1-decisions/ADR-0008-product-info-architecture-canonical.md)。
+**Agent 核心 = `agent/lockcore/`（fork 自 nanobot）**；知識與 SOP = **Agent Skills 標準** builtin skill（位於 `lockcore/skills/`）。
 
-| 項目 | ✅ 採用（正典）| ❌ 棄用（2026-05-11 A-3b 起）|
+| 項目 | ✅ 採用（2026-06-04 起 lockcore 架構）| ❌ 失效（2026-06-04 agent 重寫已刪）|
 |---|---|---|
-| 知識庫格式 | `agent/product_info/{Brand}/{Model}.md` mega-doc | `agent/skills/data/.../SKILL.md`（已全刪）|
-| Agent tool | `load_product_info(name)` | `load_skill(skill_name)`（已退場）|
-| Tool module | `agent/agent_tools/tools.py` | `agent/skills/tools.py` |
-| Prompt 區塊 | `[可用產品資料]` | `[可用技能]` |
-
-**硬性約束（前兩條已由 `architecture-lock.sh` hook 機械式攔截，不只是建議）：**
-
-1. **不准在 `agent/` 內 import `skills`** —— `from skills ...` / `import skills` / `from skills.tools ...` 全禁。A-3a 退場 load_skill、A-3b 刪 69 個 SKILL.md，code 已對齊；新 import 會破壞此狀態。
-2. **不准重建 `agent/skills/data/*/SKILL.md`** —— 新產品知識一律寫成 `agent/product_info/{Brand}/{Model}.md`。
-3. **任何「想改回 skills/」的提案** → 先讀 ADR-0008、到 issue tracker 徵詢，勿直接 force-push。（ADR-0008 曾於 2026-05-09 被 force-push 改標 SUPERSEDED，後續 A-1~A-3b 系列 commit 走回原決議。）
-
-**Sourcing rule（CRITICAL — bronze-only）**：所有 mega-doc 內容嚴格源自 `data/storage/bronze/`（YouTube 字幕、website、video transcript）。**PDF (GDrive) 不可信，mega-doc 只引 URL 不抄內容。**
-
-## 🧪 Experimental Lock — Belief-Augmented ReAct（Turn Cycle）
-
-本 branch 為 Turn Cycle 實驗 fork，67 共同題對打 **89.6% strict / 100% pass+partial / 0 fails**（vs agent-port baseline 83.6% / 1 fail）。詳見 [ADR-0010](docs/1-decisions/ADR-0010-belief-augmented-react.md)。
+| Agent 核心 | `agent/lockcore/` (LockCore fork 自 nanobot) | `agent/app.py` / `agent/agent.py` / `harness/` / `policy.py`（已刪）|
+| 知識庫格式 | `lockcore/skills/locksmith-product-knowledge/references/{Brand}/{Model}.md`（Agent Skills 標準） | `agent/product_info/{Brand}/{Model}.md` mega-doc（已刪）|
+| Agent tool | `lockcore/agent/tools/` (filesystem / web / shell / cron / message / self) + 工具白名單 `CS_TOOL_ALLOWLIST` | `agent/agent_tools/tools.py` / `agent/skills/tools.py`（已刪）|
+| LLM provider | `lockcore/providers/litellm_provider.py`（單一 LiteLLM） | nanobot 各家 provider（已刪）|
+| Per-user 記憶 | `lockcore/agent/user_memory/`（移植自 Hermes） | `agent/profiles/` / `agent/memory/`（已刪）|
+| Belief-Augmented ReAct (Turn Cycle) | （刪除，roadmap 走 hermes-cs 已收尾為 lockcore 整合） | `agent/belief.py` / `calibrate.py` / `hypothesize.py` / `turn_cycle.py`（已刪）|
 
 **硬性約束：**
 
-1. **預設關**：`[turn_cycle].enabled=false`、`fail_open=true`。production deploy 前須維持，避免 dual-dispatch 上線回退類事件重演。
-2. **Hypothesize / Decide / Calibrate 不准單獨 import** —— 必須走 `harness/turn_cycle_runner.run_belief_cycle()` 入口。
-3. **policy 閾值**（`agent/policy.py` HIGH=0.55 / GAP=0.15）已由 B-fix-v2 調過，調整需附 quality_check 對打數據。見 [Action Policy Thresholds](agent/docs/manuals/action_policy_thresholds.md)。
-4. 本 branch 是否進 production 待路線決議（roadmap 走向 hermes-cs，agent-port 暫為 archive 候選）。
+1. **不准 fork lockcore 之外另寫 agent 核心** —— LockCore 是 fork 自 nanobot 的單一核心套件（見 `lockcore/VENDOR.md`），所有 agent 行為走 `lockcore/agent/runner.py` + `loop.py` + `context.py`。
+2. **不准把 skill 拉到 lockcore/skills/ 之外** —— 兩個 builtin skill (`locksmith-product-knowledge`、`locksmith-cs-sop`) 必須留在 `lockcore/skills/`，且**只用 Agent Skills 標準 frontmatter**（name / description / version / metadata），不綁框架專屬欄位，以保可攜性（複製到 Claude Code / Cursor / nanobot / hermes 直接可用）。
+3. **不准在 lockcore 外再造 LLM provider** —— 多家統一走 `LiteLLMProvider` 用 model 字串路由（`gemini/` / `vertex_ai/` / `ollama_chat/` / `claude-*` / `gpt-4o` 等），不要把 anthropic / google-genai SDK 直接 import 回 agent code。
+4. **工具白名單只能在 `lockcore/app_config.py:CS_TOOL_ALLOWLIST` 統一控** —— 目前客服只開 `read_file / list_dir / find_files / grep / web_search / transfer_to_human`。新增工具屬 architecture change，須走 CIA。
+
+**Sourcing rule（CRITICAL — bronze-only，仍適用）**：產品知識 references 內容嚴格源自 `data/storage/bronze/`（YouTube 字幕、website、video transcript）。**PDF (GDrive) 不可信，references 只引 URL 不抄內容。**
+
+> **已 superseded ADR**：本架構重寫使下列 ADR 狀態失效（待補 superseded 標記）：
+> - ADR-0008（product-info-architecture-canonical）→ skills/ 結構回歸 Agent Skills 標準
+> - ADR-0010（belief-augmented-react）→ Turn Cycle 已刪
+> - ADR-0101（product-info-extension-final-spec）→ references 取代 mega-doc
 
 ## 非預期工具鏈（agent 推不出來，必讀）
 
-- **Python 用 `uv`，不是 pip** —— `uv sync` 裝齊三 module deps；跑任何 script 用 `uv run ...`。`pyproject.toml` 改了就重跑 `uv sync`。
+- **Python 用 `uv`，不是 pip** —— `uv sync` 裝 deps；跑任何 script 用 `uv run ...`。`pyproject.toml` 改了就重跑 `uv sync`。
+- **Agent 採 hatchling build + optional dependencies** —— `pip install -e ".[dev]"`（base + pytest）/ `.[vertex]`（+ Vertex AI SDK）/ `.[line]`（+ LINE webhook 通道）。
 - **Web 用 Node/npm**，與 uv 無關（`cd web && npm install`）。
-- **無自動化 unit test 套件** —— 測試靠 `quality_check`（LLM-as-Judge）、CLI（`python main.py`）、或 `/chat` 端點。別找 pytest 套件。
-- **Config pattern**：TOML 存環境變數**名稱**（如 `postgres_uri_env = "POSTGRES_URI"`），實際值在 `.env`。
+- **測試走 pytest**（agent 重寫後新建 `agent/tests/`，~13 個測試含 `test_e2e_mock_turn.py` / `test_skills_loaded.py` / `test_tool_allowlist.py` / `test_litellm_provider.py` / `test_line_gateway.py` 等）—— **不再有 quality_check / LLM-as-Judge 套件**（已刪）。
+- **Config pattern**：`agent/config.toml` 用 `lockcore/app_config.py:tomllib` 載入；機密（`GEMINI_API_KEY` / `LINE_CHANNEL_*` / `credentials.json`）放 `.env` 或 gitignore 檔，**不入 toml**。
 - **永不手動構建 `POSTGRES_URI`** —— 用 `./scripts/deploy/agent.sh --update-db-uri`（自動 URL-encode + round-trip 驗證）。
 
 ## 最常用指令（完整清單見 `@.claude/docs/commands.md`）
 
 ```bash
-uv sync                                                  # 裝/更新所有 deps
-cd agent && uv run python main.py                        # Agent CLI（驗證 LLM 連線）
-cd agent && uv run uvicorn app:app --reload --port 8000  # Agent server（LINE webhook）
-cd agent && uv run python -m quality.quality_check       # LLM-as-Judge eval
-curl "http://localhost:8000/chat?q=門打不開"              # 快速測試端點
+uv sync                                                  # 裝/更新所有 deps（含 lockcore base）
+cd agent && pip install -e ".[dev]"                      # 裝測試 deps（pytest）
+cd agent && pip install -e ".[vertex]"                   # 若用 Vertex AI（gemini-3.x）
+cd agent && pip install -e ".[line]"                     # 若接 LINE 通道
+cd agent && pytest                                       # 跑全部 unit/integration tests
+cd agent && python scripts/real_turn_demo.py             # Agent demo（真實 turn cycle）
+cd agent && python scripts/line_gateway.py               # LINE webhook 通道（取代舊 app.py）
 ```
 
 <important if="跑測試 / 評估 agent 品質">
-- 唯一的「測試」是 `quality_check`：`cd agent && uv run python -m quality.quality_check`
-- `--no-judge` 只跑 keyword match；`--judge-only` 重評既有報告；`--retry-failed` 只重測非 pass；`--turn-cycle` 做 A/B
-- 調整 `agent/policy.py` 閾值務必附對打數據（見 Experimental Lock §3）
-- 完整指令與 debug 工具：`@.claude/docs/commands.md`
+- 主測試入口：`cd agent && pytest`（agent/tests/ 13 個測試）
+- 關鍵測試：`test_e2e_mock_turn.py`（端到端 mock turn）、`test_skills_loaded.py`（skill loader）、`test_tool_allowlist.py`（CS_TOOL_ALLOWLIST 驗證）、`test_litellm_provider.py`（多家 model 字串路由）
+- 舊的 quality_check / belief_action_judge / replay_check / hypothesis_quality_baseline 全已刪，**不要嘗試呼叫**
+- 完整指令與 debug 工具：`@.claude/docs/commands.md`（待同步更新）
 </important>
 
 <important if="部署 / 動 DB / 改環境">
@@ -95,9 +94,9 @@ curl "http://localhost:8000/chat?q=門打不開"              # 快速測試端�
 
 ## 細節路標（漸進式揭露 —— 需要時才展開）
 
-- **指令全集** → `@.claude/docs/commands.md`（setup, run, test, debug, deploy, env, API 工具）
-- **架構細節** → `@.claude/docs/architecture.md`（request flow 圖、module map、harness 表、web/api/DB/部署）
-- **知識庫 & tools** → `@.claude/docs/knowledge-base.md`（product_info 載入機制、目錄結構、3 個 tool、Turn Cycle module 清單）
+- **指令全集** → `@.claude/docs/commands.md`（setup, run, test, debug, deploy, env, API 工具；**部分內容待同步 lockcore 重寫，2026-06-04**）
+- **架構細節** → `@.claude/docs/architecture.md`（request flow 圖、module map、web/api/DB/部署；**agent 部分待同步 lockcore 重寫**）
+- **Agent 新架構** → `agent/README.md` + `agent/lockcore/VENDOR.md`（LockCore 設計依據、skill 結構、config 載入機制）
 - **開發規則** → `.claude/rules/*`（git-workflow, change-governance, context-stability, testing, security…）
 - **文件中樞** → `docs/HOME.md`（5D 框架 + TR gate）
 

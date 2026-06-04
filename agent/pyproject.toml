@@ -1,43 +1,38 @@
 [project]
-name = "smart-lock-agent"
-version = "0.1.0"
-description = "Smart Lock LINE Bot ReAct Agent (LangGraph + LiteLLM + Vertex AI)"
-requires-python = ">=3.11,<3.12"
+name = "lock-cs-agent"
+version = "0.0.1"
+description = "鎖匠客服機器人 — nanobot 核心 + Hermes 記憶(per-user)− 自我學習"
+requires-python = ">=3.11"
+# LockCore(fork 自 nanobot)核心所需的 runtime deps(僅核心用到的子集;不含 channels)。
+# 供應商層改用 litellm 統一多家(取代 anthropic SDK 等各家 client)。
 dependencies = [
-    # === LangChain / LangGraph 生態 ===
-    "langchain-text-splitters",
-    "langchain-litellm>=0.6.0",
-    "langchain-chroma",
-    "langchain-postgres",
-    "langgraph",
-    "langgraph-checkpoint-sqlite",
-    "langgraph-checkpoint-postgres",
-    # === LLM Provider ===
-    "litellm>=1.80.5",
-    "google-genai",
-    # === Web 框架 ===
-    "fastapi",
-    "uvicorn",
-    "line-bot-sdk",
-    # === DB / Storage ===
-    "psycopg[binary]",
-    "aiosqlite",
-    "google-cloud-storage",
-    # === 雜項 ===
-    "python-dotenv",
-    "duckduckgo-search",
-    "ddgs",
-    "requests",
-    "aiofiles",
-    # === Observability ===
-    "opik",
-    "structlog>=24.4",
-    "opentelemetry-api>=1.27",
-    "opentelemetry-sdk>=1.27",
-    "opentelemetry-instrumentation-fastapi>=0.48b0",
-    "opentelemetry-instrumentation-logging>=0.48b0",
+    "litellm>=1.70",
+    "pydantic>=2.12",
+    "pydantic-settings>=2.12",
+    "httpx>=0.28",
+    "jinja2>=3.1",
+    "pyyaml>=6.0",
+    "tiktoken>=0.7",
+    "loguru>=0.7",
+    "rich>=14.0",
+    "croniter>=6.0",
+    "typer>=0.20",
 ]
 
-# 不打包成 wheel（agent 是 application，不是 library）
-[tool.uv]
-package = false
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+vertex = ["google-cloud-aiplatform>=1.60", "google-genai>=1.0"]  # Vertex AI(Gemini/Claude on Vertex)
+line = ["line-bot-sdk>=3.0", "aiohttp>=3.9"]  # LINE 通道接入(webhook + reply)
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["lockcore"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
