@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **Flow 3 範圍變更取證收尾**（branch `docs/wbs-flow-3-取證`，2026-06-04）：取證確認 Flow 3 backend v2 + 前端 admin/consumer + scope_change_service 全綠，原 WBS「80% — 客戶核准流程簡化」vague 描述精化為兩個具體 gap：(1) **LINE Flex 主動通知客戶 gap**（scope_change_service 無 line_push_service 整合，對比 Flow 11 reschedule 已有 LINE Flex RSVP，客戶須主動開連結）；(2) **WS publish gap**（scope_change_service 無 realtime emit，admin 端工單頁無法即時看到客戶回覆狀態）。WBS Flow 3 行 80% → 90%。取證 grep 證實：3 v2 endpoints (`recordScopeChangeV2` / `getScopeChangeProposalV2` / `respondScopeChangeV2`)、2 web pages 使用 v2 path（`my-orders/[id]/scope-change/page.tsx:72 tenantPath` + `scope-change/[token]/page.tsx:90/159/173 ${API_BASE}/consumer/scope-changes`）、scope_change_service 完整 CRUD + audit + customer_decision 同步、`line_push_service.py` 與 `realtime/` grep `scope.change` 全空（兩 gap 真實）。
+
 - **CR-0009 + ADR-0106** ⭐⭐ — Agent caller migration P4-T1 **全鏈路完工**（2026-06-04 一日內）：4 個 agent v1 caller（app.py 2 + admin_api.py 2）全部遷 v2；新增 2 個 admin reschedule v2 endpoints + 1 個 refunds:agent-initiate single-actor endpoint；ADR-0106 記錄 LangGraph 特例不違背全面 SoD 原則。**agent v1 caller = 0**（解開 P4 cutover 唯一硬 gate per CR-0003 §3）。
 - **CR-0005 / 0006 / 0009 §8 全裁完** ⭐⭐⭐（2026-06-04 業主三輪 AskUserQuestion 拍完 9 個剩餘 HD）：
   * CR-0005 HD-06 = (a) CSV 為主，JSON 可選（query format 切換）→ 6/6 HD 全裁
