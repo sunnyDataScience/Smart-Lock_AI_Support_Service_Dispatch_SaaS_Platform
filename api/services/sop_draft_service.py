@@ -133,7 +133,7 @@ async def list_drafts(
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
-    where = ["tenant_id = %s::uuid"]
+    where = ["tenant_id = %s::uuid", "deleted_at IS NULL"]  # CR-0006 HD-02 軟刪過濾
     args: list = [tenant_id]
 
     if status:
@@ -179,13 +179,27 @@ async def get_draft(*, tenant_id: str, draft_id: str) -> dict:
 
     cur = await db_module._conn.execute(
         f"SELECT {_SELECT_COLUMNS} FROM sop_drafts "
-        f"WHERE id = %s::uuid AND tenant_id = %s::uuid",
+        f"WHERE id = %s::uuid AND tenant_id = %s::uuid AND deleted_at IS NULL",
         (draft_id, tenant_id),
     )
     row = await cur.fetchone()
     if not row:
         raise ApiError("NOT_FOUND", "SOP draft not found", 404)
     return _row_to_dict(row)
+
+
+async def soft_delete_draft(*, tenant_id: str, draft_id: str) -> None:
+    """CR-0006 HD-02=(a) 軟刪。UPDATE deleted_at=NOW；audit log 由 router 寫。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    cur = await db_module._conn.execute(
+        "UPDATE sop_drafts SET deleted_at = NOW(), updated_at = NOW() "
+        "WHERE id = %s::uuid AND tenant_id = %s::uuid AND deleted_at IS NULL",
+        (draft_id, tenant_id),
+    )
+    if cur.rowcount == 0:
+        raise ApiError("NOT_FOUND", "SOP draft not found", 404)
 
 
 async def create_draft(

@@ -36,6 +36,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `SQL/migrations/016-sop-v2-list-expand.sql` — sop_drafts.deleted_at + kb_audit_log doc_type CHECK 擴 'sop'
+- `docs/architecture/adr/ADR-0104-sop-v2-list-design.md` — CR-0006 §8 5 HD 決策 ADR
+- `api/routers/sops_v2.py` 新增 6 endpoints：GET list / GET single / POST create / DELETE soft / GET family-reviews list / GET family-reviews:pending（CR-0006 step 2/3 落地）
+- `api/services/sop_draft_service.py:soft_delete_draft` 新增（HD-02 軟刪）
+- `api/services/sop_draft_service.py:list_drafts / get_draft` 加 `deleted_at IS NULL` 過濾
+- `web/src/lib/kb-adapter.ts:kbDocumentToSopDraft` 新增（meta-wrap → flat SopDraft）
+- `web/src/app/knowledge-base/sop-drafts/[id]/page.tsx` GET + refresh GET 改 v2 + adapter（2 caller 遷完）
 - `api/routers/kb_v2.py:660+` POST /kb/documents:export（HD-06=a CSV-first，?format=json 切換；MVP case only；EXPORT_MAX=10000）
 - `web/src/app/knowledge-base/cases/page.tsx:161` search caller 從 v1 改打 v2 :search + kbDocumentToCaseEntry adapter
 - `web/src/lib/kb-adapter.ts` 新增 — `KBDocument` interface + `kbDocumentToCaseEntry` adapter（CR-0005 step 3/3 解 meta-wrap shape 與 UI flat shape 不一致）

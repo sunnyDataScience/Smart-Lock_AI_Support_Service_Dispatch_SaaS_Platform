@@ -67,3 +67,36 @@ export function kbDocumentToCaseEntry(doc: KBDocument): CaseEntry {
     updated_at: m.updated_at ?? "",
   };
 }
+
+/**
+ * SOP-specific KBDocument shape（CR-0006 / sops_v2._sop_to_kb_document）：
+ *   meta: { status, steps, source_problem_card_id, reviewer_id,
+ *           review_note, created_at, updated_at }
+ */
+export interface KBDocumentSop extends KBDocument {
+  meta?: {
+    status?: string;
+    steps?: unknown[];
+    source_problem_card_id?: string | null;
+    reviewer_id?: string | null;
+    review_note?: string | null;
+    created_at?: string;
+    updated_at?: string;
+  };
+}
+
+type SopDraft = components["schemas"]["SopDraft"];
+
+/** KBDocument (sop doc_type) → SopDraft flat shape（CR-0006 step 3/3）。 */
+export function kbDocumentToSopDraft(doc: KBDocumentSop): SopDraft {
+  const m = doc.meta ?? {};
+  return {
+    id: doc.id,
+    title: doc.title ?? "",
+    steps: (m.steps ?? []) as SopDraft["steps"],
+    status: (m.status ?? "pending_review") as SopDraft["status"],
+    reviewer_id: m.reviewer_id ?? null,
+    review_comment: m.review_note ?? null,
+    created_at: m.created_at ?? "",
+  };
+}
