@@ -3,8 +3,8 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-06-04（P3.5 Track-B caller 補遺正式收尾 — 取證後確認 4+1 模組 v1 caller 全清，唯一例外 dual-sign UX 列為產品 backlog）
-**對應分支：** `dev_new_arch`（HEAD `e094245b`）
+**最後更新：** 2026-06-04（CR-0005 :export caller 遷 v2 — knowledge-base/cases :export 從 v1 async-job 改 v2 同步 CSV stream；真實 v1 caller 42 → 41）
+**對應分支：** `feat/cr-0005-export-caller-v2`（基於 dev_new_arch HEAD `4ff6373c`）
 **對應 reports：** v1.0.0 → v1.36.0（產品 MVP）+ CR-0003 P0-P3.5 ✅ + CR-0004 Track B S1-S7
 
 ---
@@ -43,7 +43,7 @@
 | **通知中心**（G1）| **100%** | 全頁面 + Drawer + Bell + BroadcastChannel 跨 tab 同步 |
 | **A32 AI 推理**（SSE）| **100%** | 對話頁逐 token 串流面板 |
 | **PWA / 桌面 guard** | **100%** | manifest + 4 SVG icon + 桌面顯示 QR Code |
-| **Caller 遷移 v1 → v2** | **~93%** | P3 track-A 完成 + P3.5 Track-B ✅ 100%；**P3 收尾 wave-1（2026-06-04）**：admin/schedule-requests reject 遷 v2、customers docstring 同步。剩 42 個真實 v1 caller，分類：(a) BUILD_V2 前置依賴（KB cases/manuals/sop-drafts、technicians/me self-service、accounting settlements、public scope-change） (b) agent-coupled 待 P4-T1（refunds/warranty/problem-cards） (c) 雜項（settings auth/change-password、api-status debug 頁、accounting recon dual-sign UX backlog）|
+| **Caller 遷移 v1 → v2** | **~93%** | P3 track-A 完成 + P3.5 Track-B ✅ 100%；**P3 收尾 wave-1（2026-06-04）**：admin/schedule-requests reject 遷 v2、customers docstring 同步。**CR-0005 step 3/3 export caller（2026-06-04）**：knowledge-base/cases :export 從 v1 async-job 遷 v2 同步 CSV stream，scope dropdown 簡化為單 button。剩 41 個真實 v1 caller，分類：(a) BUILD_V2 前置依賴（KB manuals upload/sop-drafts、technicians/me self-service、accounting settlements、public scope-change） (b) agent-coupled 待 P4-T1（refunds/warranty/problem-cards） (c) 雜項（settings auth/change-password、api-status debug 頁、accounting recon dual-sign UX backlog）|
 
 ---
 

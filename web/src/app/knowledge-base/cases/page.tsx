@@ -7,16 +7,13 @@ import { Search, Plus, Download } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import CaseCardGrid from "@/components/knowledge-base/CaseCardGrid";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api, auth, tenantPath } from "@/lib/api";
+import { ApiError, api, auth } from "@/lib/api";
 import { kbDocumentToCaseEntry, type KBDocument } from "@/lib/kb-adapter";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
 
 type CaseEntry = components["schemas"]["CaseEntry"];
 type CaseSearchResponse = components["schemas"]["CaseSearchResponse"];
-type KbExportRequest = components["schemas"]["KbExportRequest"];
-type KbExportJob = components["schemas"]["KbExportJob"];
-type KbExportScope = NonNullable<KbExportRequest["scope"]>;
 
 function formatCasesError(e: unknown): string {
   if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
@@ -45,15 +42,6 @@ export default function CasesPage() {
   const tTabs = useTranslations("kb.tabs");
   const tC = useTranslations("kb.cases");
 
-  const EXPORT_SCOPES: { value: KbExportScope; label: string; hint: string }[] = useMemo(
-    () => [
-      { value: "all", label: tC("scopeAll"), hint: tC("scopeAllHint") },
-      { value: "cases_only", label: tC("scopeCases"), hint: tC("scopeCasesHint") },
-      { value: "manuals_only", label: tC("scopeManuals"), hint: tC("scopeManualsHint") },
-    ],
-    [tC],
-  );
-
   const tabs = useMemo(
     () => [
       { label: tTabs("cases"), href: "/knowledge-base/cases", dynamic: true },
@@ -72,7 +60,6 @@ export default function CasesPage() {
   >(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-  const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [exportPending, setExportPending] = useState(false);
   const [exportToast, setExportToast] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -159,10 +146,12 @@ export default function CasesPage() {
         };
         if (brand) body.brand = brand;
         // CR-0005 step 3/3：v2 :search 走 kb_v2.py:searchKBDocuments
+        // /kb/documents 為平台級 flat 端點（per api.ts:tenantPath docstring），
+        // tenant 隔離由 X-Tenant-ID header + 服務端 require_tenant 把關
         // response.hits[].case 為 KBDocument meta-wrap；用 adapter 轉 CaseEntry
         body.doc_type = "case";
         const res = await api.post<{ hits: { case: KBDocument; score: number }[] }>(
-          tenantPath("/kb/documents:search"),
+          "/kb/documents:search",
           body,
         );
         if (!cancelled) {
@@ -198,28 +187,29 @@ export default function CasesPage() {
     return () => clearTimeout(t);
   }, [exportToast]);
 
-  const handleExport = async (scope: KbExportScope) => {
+  // CR-0005 step 3/3：v1 async-job → v2 :export 同步 CSV stream（HD-06=a CSV-first、case-only MVP）
+  const handleExport = async () => {
     setExportPending(true);
     setExportError(null);
-    setExportMenuOpen(false);
     try {
-      const body: KbExportRequest = { scope };
-      if (brand) body.brand = brand;
-      const job = await api.post<KbExportJob>(
-        "/api/v1/knowledge-base/export",
-        body,
-      );
-      if (!job.download_url) {
-        throw new Error(tC("exportNoUrl"));
-      }
+      const qs = new URLSearchParams({ doc_type: "case", format: "csv" });
+      if (brand) qs.set("brand", brand);
       const token = auth.getAccessToken();
       const tenantId = auth.getTenantId();
-      const res = await fetch(job.download_url, {
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          "X-Tenant-ID": tenantId,
+      // /kb/documents 為平台級 flat 端點（per api.ts:tenantPath docstring），
+      // 不套 tenantPath；tenant 隔離由 X-Tenant-ID header + require_tenant 服務端處理
+      const apiBase =
+        process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8001";
+      const res = await fetch(
+        `${apiBase}/kb/documents:export?${qs.toString()}`,
+        {
+          method: "POST",
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            "X-Tenant-ID": tenantId,
+          },
         },
-      });
+      );
       if (!res.ok) {
         throw new Error(tC("exportDownloadFail", { status: res.status }));
       }
@@ -227,14 +217,14 @@ export default function CasesPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `kb-export-${job.job_id.slice(0, 8)}.jsonl`;
+      const ts = new Date().toISOString().slice(0, 10);
+      a.download = `kb-cases-${ts}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      const scopeLabel = EXPORT_SCOPES.find((s) => s.value === scope)?.label ?? scope;
       setExportToast(
-        tC("exportToast", { count: job.item_count ?? 0, scope: scopeLabel }),
+        tC("exportToast", { count: 0, scope: tC("scopeCases") }),
       );
     } catch (e) {
       setExportError(
@@ -348,38 +338,18 @@ export default function CasesPage() {
             </button>
           )}
 
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setExportMenuOpen((v) => !v)}
-              disabled={exportPending}
-              className="flex h-10 items-center gap-2 rounded-lg border border-[var(--border)] bg-white px-4 text-sm font-semibold text-[var(--text-primary)] transition hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
-              title={brand ? tC("exportTitleBrand", { brand }) : tC("exportTitleAll")}
-            >
-              <Download className="h-4 w-4" />
-              {exportPending ? tC("exporting") : tC("exportButton")}
-            </button>
-            {exportMenuOpen && (
-              <div className="absolute right-0 top-full z-30 mt-1 w-48 overflow-hidden rounded-md border border-[var(--border)] bg-white shadow-lg">
-                {EXPORT_SCOPES.map((s) => (
-                  <button
-                    key={s.value}
-                    type="button"
-                    onClick={() => handleExport(s.value)}
-                    className="flex w-full flex-col items-start gap-[2px] px-3 py-2 text-left transition hover:bg-[var(--bg-page)]"
-                  >
-                    <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-                      {s.label}
-                    </span>
-                    <span className="text-[11px] text-[var(--text-secondary)]">
-                      {s.hint}
-                      {brand ? tC("exportLimitedToBrand", { brand }) : ""}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* CR-0005 HD-06=a：v2 :export MVP scope = case-only CSV，故省略 scope dropdown；
+              manual export 待 manual_service search 補完後另開 button */}
+          <button
+            type="button"
+            onClick={() => handleExport()}
+            disabled={exportPending}
+            className="flex h-10 items-center gap-2 rounded-lg border border-[var(--border)] bg-white px-4 text-sm font-semibold text-[var(--text-primary)] transition hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
+            title={brand ? tC("exportTitleBrand", { brand }) : tC("exportTitleAll")}
+          >
+            <Download className="h-4 w-4" />
+            {exportPending ? tC("exporting") : tC("exportButton")}
+          </button>
 
           <Link
             href="/knowledge-base/cases/new"

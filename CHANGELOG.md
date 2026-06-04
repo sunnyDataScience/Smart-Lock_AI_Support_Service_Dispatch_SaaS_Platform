@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **CR-0005 step 3/3 — KB :export caller 遷 v2 + :search caller flat-path 修正**（branch `feat/cr-0005-export-caller-v2`，2026-06-04）：
+  * **:export caller**：`web/src/app/knowledge-base/cases/page.tsx` :export 從 v1 async-job（POST → KbExportJob → fetch download_url → JSONL blob）改為 v2 同步 CSV stream（`POST /kb/documents:export?doc_type=case&format=csv[&brand=X]` → blob → `kb-cases-{YYYY-MM-DD}.csv`）；UI scope dropdown 簡化為單一 button（HD-06=a MVP scope=case-only，manuals export 待 HD-04 ClamAV upload + manual_service search 補完另開）。
+  * **:search caller flat-path 修正**：commit `87c6aa5d` 寫成 `tenantPath("/kb/documents:search")` → 解析為 `/tenants/{tid}/kb/documents:search`，但 kb_v2 router 全部 endpoint 為 flat（取證：`uv run python -c "from routers import kb_v2; [print(r.methods,r.path) for r in kb_v2.router.routes]"` 全部 `/kb/documents...`），且 main.py 無 tenant strip middleware → 該 caller 線上應為 404。本 commit 改回 flat `"/kb/documents:search"`，與 `tenantPath` docstring 對齊；順手移除已無用的 `tenantPath` import。
+  * 同步清理失效 i18n keys（scopeAll / scopeAllHint / scopeManuals / scopeManualsHint / scopeCasesHint / exportLimitedToBrand / exportNoUrl）。
+  * **真實 v1 caller 42 → 41**（:export 推進）。
 - **CR-0009 + ADR-0106** ⭐⭐ — Agent caller migration P4-T1 **全鏈路完工**（2026-06-04 一日內）：4 個 agent v1 caller（app.py 2 + admin_api.py 2）全部遷 v2；新增 2 個 admin reschedule v2 endpoints + 1 個 refunds:agent-initiate single-actor endpoint；ADR-0106 記錄 LangGraph 特例不違背全面 SoD 原則。**agent v1 caller = 0**（解開 P4 cutover 唯一硬 gate per CR-0003 §3）。
 - **CR-0005 / 0006 / 0009 §8 全裁完** ⭐⭐⭐（2026-06-04 業主三輪 AskUserQuestion 拍完 9 個剩餘 HD）：
   * CR-0005 HD-06 = (a) CSV 為主，JSON 可選（query format 切換）→ 6/6 HD 全裁
