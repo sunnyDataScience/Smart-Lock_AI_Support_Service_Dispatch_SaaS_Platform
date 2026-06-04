@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **CR-0013 opened — FR-0022 消費者端工單追蹤 CIA**（branch `docs/cr-0013-fr-0022-consumer-tracking-cia`，2026-06-04）：CR-0010 HD-03=a batch 第 3 件。**FR-0022 為「準完工 status flip 候選」**（類似 FR-0019 經 CR-0010 promote 模式）：取證確認 Web token 路徑已 100% 實作（`consumer_v2.py:80 GET /consumer/work-orders/{trackingToken}` + `web/track/[token]/page.tsx`）+ ADR-0015 (PM-Q3) accepted → `blocked_by: Q3=C` 為 stale；LINE rich menu 路徑 0%（grep richmenu / LINE_RICHMENU 全空，agent webhook 只有 F2 改期 postback 無「查進度」handler）。**取證捕獲 1 個 spec/code 衝突**：FR-0022 §1.2 A1「Web token mismatch → 401」vs `consumer_v2.py:63` 註解「失敗一律 404，不洩露原因」— **HD-05 強制裁決** 401（明確）vs 404（防 enumeration）vs 400（中庸），不允許腦補。CIA 列 **5 HD**：(1) LINE 入口策略（rich menu / ReAct 自然語言 / 雙路 / 純 Web）、(2) 多單顯示策略、(3) LINE binding 機制（自動 / 主動 / 雙路；HD-03=auto 涉 PDPA 同意）、(4) Web token TTL（24h / 7day / 30day / infinite）、(5) 401 vs 404 spec/code 衝突解。status: `open-awaiting-decisions`。詳見 [`docs/_audit/CR-0013-fr-0022-consumer-tracking-cia.md`](docs/_audit/CR-0013-fr-0022-consumer-tracking-cia.md)。
+
 - **CR-0009 + ADR-0106** ⭐⭐ — Agent caller migration P4-T1 **全鏈路完工**（2026-06-04 一日內）：4 個 agent v1 caller（app.py 2 + admin_api.py 2）全部遷 v2；新增 2 個 admin reschedule v2 endpoints + 1 個 refunds:agent-initiate single-actor endpoint；ADR-0106 記錄 LangGraph 特例不違背全面 SoD 原則。**agent v1 caller = 0**（解開 P4 cutover 唯一硬 gate per CR-0003 §3）。
 - **CR-0005 / 0006 / 0009 §8 全裁完** ⭐⭐⭐（2026-06-04 業主三輪 AskUserQuestion 拍完 9 個剩餘 HD）：
   * CR-0005 HD-06 = (a) CSV 為主，JSON 可選（query format 切換）→ 6/6 HD 全裁
