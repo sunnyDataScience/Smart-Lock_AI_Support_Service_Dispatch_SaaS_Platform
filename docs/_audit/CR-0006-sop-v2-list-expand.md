@@ -1,7 +1,8 @@
 ---
 id: CR-0006
 title: "SOP v2 list expand — sop-drafts + family-reviews 列表/詳情 v2（解 P3 收尾 SOP 模組 caller）"
-status: awaiting-owner-decision
+status: decided-implementation-pending
+decided: 2026-06-04
 tier: 4-exploration
 owner: HYBRID
 created: 2026-06-04
@@ -124,10 +125,10 @@ related:
 | # | Question | Options | Owner | Status | Decision |
 |---|---|---|---|---|---|
 | **HD-01** | 響應 shape 是否複用 CR-0005 HD-01 決策？ | (a) 與 KB 一致<br>(b) SOP 走獨立 shape（理由：欄位差異大） | Architect | **decided 2026-06-04** | **(a) 與 KB 一致**（業主 CR-0005 HD-01 拍 meta-wrap，本 CR 跟進）|
-| **HD-02** | SOP draft DELETE 軟/硬刪 | (a) 軟刪（加 `deleted_at`）<br>(b) 硬刪<br>(c) 軟刪 + 90 天 GC（SOP 比 KB case 重要保留更久）| Product | open | — |
-| **HD-03** | sop_audit_log | (a) 與 KB 共用 schema（多模組 audit）<br>(b) 獨立表 | Compliance | open | — |
-| **HD-04** | `POST /sops/family-reviews` 路由保留 | (a) 廢棄（用 `sops_v2.py` 的 `/sops/{id}/review/family`）<br>(b) 雙存（family-reviews list 場景）| Product | open | — |
-| **HD-05** | list pending SLA 視圖 cache | (a) 即時查（SLA 計算每次）<br>(b) 每分鐘 cache <br>(c) WS push driven | Performance | open | — |
+| **HD-02** | SOP draft DELETE 軟/硬刪 | (a) 軟刪<br>(b) 硬刪<br>(c) 軟刪 + 90 天 GC | Product | **decided 2026-06-04** | **(a) 軟刪（deleted_at）**（與 KB CR-0005 HD-02 一致）|
+| **HD-03** | sop_audit_log | (a) 與 KB 共用<br>(b) 獨立表 | Compliance | **decided 2026-06-04** | **(a) 共用 saas.kb_audit_log**（doc_type CHECK 擴 'sop'，需 migration alter）|
+| **HD-04** | `POST /sops/family-reviews` 路由保留 | (a) 廢棄<br>(b) 雙存 | Product | **decided 2026-06-04** | **(a) 廢棄**（只走 sops_v2.py:87 `/sops/{id}/review/family`）|
+| **HD-05** | list pending SLA 視圖 cache | (a) 即時查<br>(b) 每分鐘 cache<br>(c) WS push driven | Performance | **decided 2026-06-04** | **(a) 即時查**（每次 SLA 計算；簡單上手，小表可承擔）|
 
 ---
 

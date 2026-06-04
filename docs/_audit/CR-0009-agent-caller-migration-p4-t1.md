@@ -1,7 +1,8 @@
 ---
 id: CR-0009
 title: "Agent caller migration P4-T1（4 callers + LINE bot 404 風險，agent-coupled legacy 刪除前置）"
-status: awaiting-owner-decision
+status: decided-implementation-pending
+decided: 2026-06-04
 tier: 4-exploration
 owner: HYBRID
 created: 2026-06-04
@@ -116,11 +117,11 @@ related:
 
 | # | Question | Options | Owner | Status | Decision |
 |---|---|---|---|---|---|
-| **HD-01** | consumer_v2 confirm/reject endpoint 位置 | (a) `/consumer/work-orders/{token}/reschedule:{confirm\|reject}`（與 /track 對齊）<br>(b) `/consumer/reschedule-proposals/{token}:respond` body decision 區分<br>(c) 與 CR-0007 reschedule:propose 共用 webhook 設計 | Architect | open | — |
+| **HD-01** | consumer_v2 confirm/reject endpoint 位置 | (a) `/consumer/work-orders/{token}/reschedule:{action}`<br>(b) `/consumer/reschedule-proposals/{token}:respond`<br>(c) 共用 webhook | Architect | **decided 2026-06-04** | **(a) `/consumer/work-orders/{token}/reschedule:{action}`**（與既有 /track 對齊）|
 | **HD-02** | agent 自動退款路徑 | (a) **新增** v2 single-actor `refunds:agent-initiate`（保持 agent 自動退款功能）<br>(b) **重構** agent 走人工 dual-sign（人介入流程，安全但慢）<br>(c) **保留** v1 至 Phase II 重設計（P4 cutover 對 refunds 法外開恩）| Security/Finance | **decided 2026-06-04** | **(a) 新增 v2 single-actor agent-initiate**（保留 agent 自動退款功能；需 ADR-0106 記 LangGraph 特例不違背全面 SoD 原則）|
-| **HD-03** | CR-0009 與 CR-0006 sop-drafts POST 整合時機 | (a) CR-0006 拍板再做 CR-0009（依序）<br>(b) CR-0006/0009 平行起 + 同時 merge<br>(c) CR-0009 sop-drafts 部分等 CR-0006 落地後補 | Eng Lead | open | — |
-| **HD-04** | P4-T1 → P4 cutover 之間是否要 canary 期 | (a) 改完 agent 即 P4 cutover（dev-phase 簡化）<br>(b) Canary 48h 觀察 agent caller 404 = 0<br>(c) Canary 7d（謹慎，但延後 P4）| Ops | open | — |
-| **HD-05** | LINE bot 404 監控告警閾值 | (a) 任何 v1 404 即 PagerDuty<br>(b) 5min 內 ≥ 3 次 → 告警<br>(c) Sentry log only（無主動告警）| Ops | open | — |
+| **HD-03** | CR-0009 與 CR-0006 sop-drafts POST 整合時機 | (a) CR-0006 拍板再做 CR-0009<br>(b) 平行起<br>(c) sop-drafts 部分等 CR-0006 | Eng Lead | **decided 2026-06-04** | **(a) CR-0006 先拍板再做 CR-0009**（依序，CR-0006 §8 全裁完後再起 agent migration）|
+| **HD-04** | P4-T1 → P4 cutover canary 期 | (a) 改完即 cutover<br>(b) Canary 48h<br>(c) Canary 7d | Ops | **decided 2026-06-04** | **(a) 改完即 cutover**（dev-phase 簡化，無 canary；agent caller=0 即 P4 destructive）|
+| **HD-05** | LINE bot 404 監控告警閾值 | (a) 任何 v1 404 即 PagerDuty<br>(b) 5min ≥ 3 次<br>(c) Sentry log only | Ops | **decided 2026-06-04** | **(a) 任何 v1 404 即 PagerDuty**（零容忍，P4 deploy 前必須配置；prod 上線前 dry-run 驗）|
 
 ---
 

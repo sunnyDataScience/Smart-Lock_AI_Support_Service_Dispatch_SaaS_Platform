@@ -11,7 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
-- **CR-0005 + ADR-0103** ⭐ — KB v2 expand 設計（2026-06-04 業主裁 §8 4/6 HD：HD-01=a meta-wrap / HD-02=a 軟刪 / HD-03=a DB audit / HD-04=a 同步 ClamAV / HD-05=a cosine desc；HD-06 export 格式 open 待裁）。Migration 015 落地（case_entries.deleted_at + manuals.deleted_at + saas.kb_audit_log + 4 indexes 含 90d hot partial）。Service / Endpoints / Web caller 留下兩 commit。詳見 [`docs/architecture/adr/ADR-0103-kb-v2-expand-design.md`](docs/architecture/adr/ADR-0103-kb-v2-expand-design.md)。
+- **CR-0005 / 0006 / 0009 §8 全裁完** ⭐⭐⭐（2026-06-04 業主三輪 AskUserQuestion 拍完 9 個剩餘 HD）：
+  * CR-0005 HD-06 = (a) CSV 為主，JSON 可選（query format 切換）→ 6/6 HD 全裁
+  * CR-0006 HD-02=a 軟刪 / HD-03=a 共用 kb_audit_log（doc_type='sop'）/ HD-04=a 廢棄舊 /sops/family-reviews / HD-05=a 即時查 SLA → 5/5 HD 全裁
+  * CR-0009 HD-01=a `/consumer/work-orders/{token}/reschedule:{action}` / HD-03=a CR-0006 先拍板再做 / HD-04=a 無 canary / HD-05=a 任何 v1 404 即 PagerDuty → 5/5 HD 全裁
+  * 累計 6 CR §8 = 26/26 HD 全裁完，CIA gate 全清；後續純實作 work
+- **CR-0005 + ADR-0103** ⭐ — KB v2 expand 設計（2026-06-04 業主裁 §8 6/6 HD 全完）。Migration 015 落地（case_entries.deleted_at + manuals.deleted_at + saas.kb_audit_log + 4 indexes 含 90d hot partial）。Step 2/3：PUT + DELETE + :search endpoints 落地。Step 3/3：2 個 DELETE web caller 遷完；剩 GET/PUT/POST/search UI shape 改造 + :upload (ClamAV) + :export 待後續 commit。詳見 [`docs/architecture/adr/ADR-0103-kb-v2-expand-design.md`](docs/architecture/adr/ADR-0103-kb-v2-expand-design.md)。
 - **CR-0007 + ADR-0105** ⭐⭐ — Door-check + Reschedule v2 contract **全鏈路落地**（schema + service + endpoints + web caller，2026-06-04 一日完工）。業主裁 §8 5 HD 全完，三 step：
   * step 1/3 schema：migration 014 `saas.reschedule_proposal` + ADR-0105
   * step 2/3 backend：`work_order_service.submit_door_check_v2`（arrival 前置 409 guard）+ `propose_reschedule_v2`（INSERT 獨立表）；`work_orders_v2:POST .../door-check` + `work_orders_ops_v2:POST .../reschedule:propose`

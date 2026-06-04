@@ -145,7 +145,7 @@ related:
 | **HD-03** | KB 操作 audit log | (a) DB 表<br>(b) server log<br>(c) 雙寫 | Compliance | **decided 2026-06-04** | **(a) DB 表 `saas.kb_audit_log`**（actor + diff + before/after）|
 | **HD-04** | Manuals upload virus scan | (a) 同步 ClamAV<br>(b) 非同步 status<br>(c) 不掃 | Security | **decided 2026-06-04** | **(a) 同步 ClamAV**（schema 不變，service 層整合；dev fail-soft）|
 | **HD-05** | Search 排序預設 | (a) cosine desc<br>(b) cosine + recency<br>(c) cosine + verified | Product | **decided 2026-06-04** | **(a) cosine similarity desc**（pgvector ivfflat 既有 index 重用）|
-| **HD-06** | Export 格式預設 | (a) CSV 為主<br>(b) JSON 為主<br>(c) 兩者並列 | Product | open | — |
+| **HD-06** | Export 格式預設 | (a) CSV 為主<br>(b) JSON 為主<br>(c) 不做 export | Product | **decided 2026-06-04** | **(a) CSV 為主，JSON 可選**（query `?format=json` 切換）|
 
 ---
 
