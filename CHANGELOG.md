@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **Flow 12-14 deep audit 校正 60-80% 粗估**（branch `docs/flow12-14-deep-audit`，2026-06-05）：執行 Flow 12-14 取證，推翻 WBS 整列 60-80% 粗估 — 三 Flow 真實落差大需獨立評估。**Flow 12 金流支付 60-80% → 0%**：payments 表 + endpoint + LINE Pay webhook + 客戶 LINE 支付頁全 0；對齊 CR-0011 FR-0011 消費者付款 CIA（8 HD 待業主裁決）— BUILD blocked by CR-0011。**Flow 13 帳款異常 EX5 60-80% → 50%**：reconciliation 正常流 (CSM→ops_manager dual-sign Track B S2) ✅ 100% + disputes_v2 客訴流 ✅ 100%，但 EX5 例外流（帳款金額不符 / 缺單 / 雙簽超時）**無獨立 endpoint**，僅靠 admin 手動進 disputes 介面；待開 CIA — Domain model 變動 + Test plan 觸發。**Flow 14 排班衝突 60-80% → 70%**：slot 衝突偵測 `technician_service.py:208` ✅ + `schedule_conflict` enum ✅ + CR-0007 multi-slot reschedule_proposal ✅，但 conflict → WS publish at admin **無觸發** / 自動補救流（建議時段、改派、升級）**無** / A37 衝突告警頁疑似缺；補救流涉 LINE Flex push（與 Flow 11 同病鏈路），等 CR-0017 LINE Flex 重建一併處理。**產出**：(a) `docs/_audit/flow-12-14-deep-audit.md` audit doc / (b) WBS Flow 12-14 整列從單行 60-80% 拆為三列分別 0% / 50% / 70% + 缺口註記補 audit / CR-0011 / CR-0017 引用 / (c) 確認 Flow 12 不需另開新 CR — 走 CR-0011 統一裁決。本 audit 為 Flow 12-14 唯一 SoT 直至各 Flow 對應 CR 開立。
+
 - **Agent 核心架構重寫 → LockCore + Agent Skills 標準**（branch `feat/agent-update`，2026-06-04）⭐⭐⭐ **重大架構決策**：捨棄舊架構（ReAct + LangGraph、自製 skill loader、product_info mega-doc、Belief-Augmented ReAct (Turn Cycle)、quality_check LLM-as-Judge），改為：
   * **核心引擎**：`agent/lockcore/`（fork 自上游 `HKUDS/nanobot` 的最小核心套件，VENDOR.md 記載 fork 來源）
   * **知識 & SOP**：`lockcore/skills/{locksmith-product-knowledge,locksmith-cs-sop}/SKILL.md + references/`（**Agent Skills 標準** agentskills.io / Claude Skills，frontmatter 不綁框架專屬欄位，可攜性：可複製到 Claude Code / Cursor / nanobot / hermes 直接使用）
