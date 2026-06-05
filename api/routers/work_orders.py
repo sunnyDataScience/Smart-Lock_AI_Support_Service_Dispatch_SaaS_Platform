@@ -427,6 +427,7 @@ async def record_scope_change(
         wo_id=id,
         reason=body.reason,
         items=[item.model_dump() for item in body.items],
+        actor_user_id=user.user_id,
         total_estimate=body.total_estimate,
     )
     payload = {"data": WorkOrder(**order).model_dump(mode="json")}
