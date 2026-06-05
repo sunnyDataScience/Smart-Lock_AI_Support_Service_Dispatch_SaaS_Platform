@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **Flow 4 admin material-requests E2E smoke spec**（branch `test/e2e-smoke-flow4-flow9`，2026-06-05）：本 session 完成 e2e 鏈路的 Flow 4（commits `bd95838a` + `7fa67f3b` + `e163c21e`）無對應 E2E 覆蓋，補 smoke spec 作為 Phase 8 UAT 前置（WBS 1.2.7.3.1 E2E Playwright 推進）。**新 `web/tests/e2e/admin/material-requests.spec.ts`** 4 個 test：(1) renders table + urgency badges + 驗證 tenant-scoped GET path / (2) urgency filter chips 切換（all→now Dormakaba 仍在 Yale 消失）/ (3) mark supplied 按鈕 → mock POST `:supplied` 路徑 + optimistic 從列表移除驗證 / (4) API 500 → error banner。**設計取捨**：(a) 標 `@wip` 對齊既有 spec 慣例（本機無真實 DB 走 mock）；(b) sample data 含兩筆涵蓋 urgency=now/tomorrow + multi-item brand 場景；(c) 透過 `page.on("dialog", ...)` 跳過 window.confirm prompt；(d) capturedPath assertion 驗證 client 確實打 tenant-scoped path 而非 flat path。
+
 - **Agent 核心架構重寫 → LockCore + Agent Skills 標準**（branch `feat/agent-update`，2026-06-04）⭐⭐⭐ **重大架構決策**：捨棄舊架構（ReAct + LangGraph、自製 skill loader、product_info mega-doc、Belief-Augmented ReAct (Turn Cycle)、quality_check LLM-as-Judge），改為：
   * **核心引擎**：`agent/lockcore/`（fork 自上游 `HKUDS/nanobot` 的最小核心套件，VENDOR.md 記載 fork 來源）
   * **知識 & SOP**：`lockcore/skills/{locksmith-product-knowledge,locksmith-cs-sop}/SKILL.md + references/`（**Agent Skills 標準** agentskills.io / Claude Skills，frontmatter 不綁框架專屬欄位，可攜性：可複製到 Claude Code / Cursor / nanobot / hermes 直接使用）
