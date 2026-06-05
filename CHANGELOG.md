@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **CLAUDE.md ADR-0107 follow-up：移除「待補 superseded 標記」備註**（branch `docs/adr-index-and-claude-md-followup`，2026-06-05）：承接 commit `d155d971` (ADR-0107) — 移除 CLAUDE.md `Architecture Lock` 表格末尾「待補 superseded 標記」過時備註，改為「ADR-0107 落地，三 ADR frontmatter 已標 superseded_by」+ 新增 ADR-0107 entry 至清單。**Out of Scope（後續）**：ADR INDEX.md 補 ADR-0107 entry — INDEX 為 2026-05-21 初版結構（覆蓋 ADR-0031~0059 + 2026-05-22 會議新增），未跟上後續 ADR-0100~0107 群組；補 0107 需新增 section 屬 scope creep，留另一 commit 處理（亦可一次 catch-up ADR-0100~0107 全段）。
+
 - **Agent 核心架構重寫 → LockCore + Agent Skills 標準**（branch `feat/agent-update`，2026-06-04）⭐⭐⭐ **重大架構決策**：捨棄舊架構（ReAct + LangGraph、自製 skill loader、product_info mega-doc、Belief-Augmented ReAct (Turn Cycle)、quality_check LLM-as-Judge），改為：
   * **核心引擎**：`agent/lockcore/`（fork 自上游 `HKUDS/nanobot` 的最小核心套件，VENDOR.md 記載 fork 來源）
   * **知識 & SOP**：`lockcore/skills/{locksmith-product-knowledge,locksmith-cs-sop}/SKILL.md + references/`（**Agent Skills 標準** agentskills.io / Claude Skills，frontmatter 不綁框架專屬欄位，可攜性：可複製到 Claude Code / Cursor / nanobot / hermes 直接使用）
