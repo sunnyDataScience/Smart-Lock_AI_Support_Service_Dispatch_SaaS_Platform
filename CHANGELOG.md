@@ -12,30 +12,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Decisions
 
 - **Flow 14 schedule_conflict 偵測 component test**（branch `test/e2e-smoke-flow14-conflict`，2026-06-05）：5 個 component pytest。
-
-- **Flow 14 排班衝突 → WS publish → 85%**（branch `feat/flow14-conflict-publish`，2026-06-05）：service helper detect 衝突 + INSERT events + WS publish。
-
+- **Flow 14 排班衝突 → WS publish → 85%**（branch `feat/flow14-conflict-publish`，2026-06-05）。
 - **Flow 12-14 deep audit 校正**（branch `docs/flow12-14-deep-audit`，2026-06-05）：Flow 12 → 0% / Flow 13 → 50% / Flow 14 → 70%。
-
-- **Flow 4 補料 e2e 收尾 → 100%**（branch `feat/flow4-supply-arrived`，2026-06-05）：supply_arrived event_type + mark_supplied service/endpoint + UI 按鈕。
-
-- **Flow 4 admin 補料管理彙整 UI**（branch `feat/admin-material-requests-page`，2026-06-05）：新 page + Sidebar nav + i18n。
-
-- **Flow 4 admin 補料管理彙整 list endpoint**（branch `feat/admin-material-requests-list-endpoint`，2026-06-05）：list_pending_material_requests service + endpoint。
-
-- **Flow 8 二次派工 admin 前端整合 → 100%**（branch `feat/flow8-reassign-frontend`，2026-06-05）：REASSIGN_FROM const + handleAssign 分流 `:reassign` / `:assign`。
-
-- **Flow 8 二次派工 reassign backend → 85%**（branch `feat/flow8-followup-dispatch`，2026-06-05）：service reassign_order + endpoint `:reassign` + 雙表 audit + WS publish。
-
-- **Flow 9 客訴升級 admin 前端按鈕 → 100%**（branch `feat/flow9-escalate-frontend`，2026-06-05）：sentiment-alerts page 加「升級工單」按鈕 + EscalateAlertModal + POST `:escalate-to-work-order` + optimistic update + i18n。**WBS Flow 9** 90% → **100%** ✅。
-
-- **Flow 3 範圍變更 proposal INSERT + token mint → 85%**（branch `feat/flow3-scope-change-proposal`，2026-06-05）：record_scope_change 改寫 INSERT scope_changes 表 + public_token mint caller。**WBS Flow 3** 65% → **85%**。
-
-- **Flow 3 admin override → 90%**（branch `feat/flow3-consumer-respond`，2026-06-05）：scope_change_service.admin_override + endpoint `:admin-override` + 連動 wo→in_progress + audit log。**WBS Flow 3** 85% → **90%**。
-
-- **Flow 11 客戶不在場 deep audit 100% → 80%**（branch `docs/flow11-agent-rewrite-audit`，2026-06-05）：取證 agent 重寫衝擊 — backend + web/track 完整 ✅，LINE Flex push 鏈路 0%。
-
-- **CR-0017 opened — LINE Flex push 重建 CIA**（branch `docs/cr-0017-line-flex-push-rebuild-cia`，2026-06-05）：5 HD 待業主裁決（push 歸屬 / INSERT→push 觸發 / template 歸屬 / Flow 優先 / postback 路由）。影響 Flow 3/11/14 LINE Flex push 段。
+- **Flow 4 補料 e2e 收尾 → 100%**（branch `feat/flow4-supply-arrived`，2026-06-05）。
+- **Flow 4 admin 補料管理彙整 UI**（branch `feat/admin-material-requests-page`，2026-06-05）。
+- **Flow 4 admin 補料管理彙整 list endpoint**（branch `feat/admin-material-requests-list-endpoint`，2026-06-05）。
+- **Flow 8 二次派工 admin 前端整合 → 100%**（branch `feat/flow8-reassign-frontend`，2026-06-05）。
+- **Flow 8 二次派工 reassign backend → 85%**（branch `feat/flow8-followup-dispatch`，2026-06-05）。
+- **Flow 9 客訴升級 admin 前端按鈕 → 100%**（branch `feat/flow9-escalate-frontend`，2026-06-05）✅。
+- **Flow 3 範圍變更 proposal INSERT + token mint → 85%**（branch `feat/flow3-scope-change-proposal`，2026-06-05）。
+- **Flow 3 admin override → 90%**（branch `feat/flow3-consumer-respond`，2026-06-05）。
+- **Flow 11 客戶不在場 deep audit 100% → 80%**（branch `docs/flow11-agent-rewrite-audit`，2026-06-05）：LINE Flex push 鏈路 0% (agent 重寫刪 Flex template)。
+- **CR-0017 opened — LINE Flex push 重建 CIA**（branch `docs/cr-0017-line-flex-push-rebuild-cia`，2026-06-05）：5 HD 待業主裁決，影響 Flow 3/11/14。
+- **ADR-0107 opened — LockCore supersede product_info trio**（branch `docs/adr-supersede-product-info-trio`，2026-06-05）：新 ADR-0107 (status: Accepted, supersedes ADR-0008/0010/0101) + 三 ADR frontmatter 補 `superseded_by`。詳見 [`ADR-0107`](docs/architecture/adr/ADR-0107-lockcore-supersede-product-info-trio.md)。
 
 - **Agent 核心架構重寫 → LockCore + Agent Skills 標準**（branch `feat/agent-update`，2026-06-04）⭐⭐⭐ **重大架構決策**：捨棄舊架構（ReAct + LangGraph、自製 skill loader、product_info mega-doc、Belief-Augmented ReAct (Turn Cycle)、quality_check LLM-as-Judge），改為：
   * **核心引擎**：`agent/lockcore/`（fork 自上游 `HKUDS/nanobot` 的最小核心套件，VENDOR.md 記載 fork 來源）
