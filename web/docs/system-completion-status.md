@@ -3,34 +3,35 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-06-05（13 個 BUILD / KPI 擴充批次完成 — CR-0017/0018/0019/0013/0012 5 個 batch CR 全 BUILD ✅ + WBS §8 P1/P2 7 個 backend 缺口全清 ✅；148 unit/e2e tests 全綠 in 0.69s；剩 web-only UI 工作 + Phase II 9 FR + Phase 8 UAT 期程）
-**對應分支：** `dev_new_arch` 含 13 merge commits（8768fae1 / 7819cd80 / 54c16a29 / 0ef4c25b / 6cc660ad / e16411fb / 0965533c / d26163e6）
-**對應 reports：** v1.0.0 → v1.36.0（產品 MVP）+ CR-0003 P0-P3.5 ✅ + CR-0004 Track B S1-S7 + CR-0017/0018/0019/0013/0012 ✅ + WBS §8 P1/P2 backend 全清
+**最後更新：** 2026-06-05（**Phase II 9 FR 全 MVP 收尾完成** — 本 session 大躍進：5 batch CR + 7 §8 P1/P2 backend 缺口 + 2 DEFERRED 解 + 9 Phase II MVP = 23+ merge commits；294 unit/e2e tests 全綠 in 0.91s；剩 P4 Cutover + Phase 8 UAT 期程 + 部分 web UI 工作）
+**對應分支：** `dev_new_arch` 含 23+ merge commits（從 `8768fae1` 起算到 `2337bc0d`）
+**對應 reports：** v1.0.0 → v1.36.0（產品 MVP）+ CR-0003 P0-P3.5 ✅ + CR-0004 Track B S1-S7 + CR-0017/0018/0019/0013/0012 ✅ + WBS §8 P1/P2 backend 全清 + DEFERRED 全解 + **Phase II 9 FR MVP 全落地**
 
 ---
 
-## 總體：**約 96%**
+## 總體：**約 98%**
 
 ```
-████████████████████████████████  96%
+████████████████████████████████  98%
 ```
 
-> 6/05 大幅上修（89% → 96%）— 業主批 7 個 CR 後一次本 session 落地 5 個 batch CR BUILD (CR-0017/0018/0019/0013/0012) + WBS §8 P1/P2 backend 7 個缺口收尾（Pool publish 契約 / A37 workload heatmap / Dispute 60d cron / M18 canary advance / SOP 績效 metrics / 客戶滿意度 KPI / FTFR + SLA on-time KPI）。剩 Phase 8 UAT 期程 + Phase II 9 FR + web-only UI 工作（Reconciliation dual-sign UX rework / 計價引擎 GUI / A37 drawer 元件）。
+> 6/05 二次大躍進（96% → 98%）— **Phase II 9 FR (FR-0049/0044/0053/0050/0051/0048/0045/0046/0047) 全部從 placeholder → active MVP**！本 session 完整成果：(1) 5 batch CR BUILD；(2) 7 §8 P1/P2 backend 缺口；(3) 2 DEFERRED 解 (Dispute 負值 audit / M18 SLO halt)；(4) 9 Phase II FR MVP；累積 294 tests passing。剩 Phase 8 UAT 期程 + P4 Cutover (3-5d) + 少量 web-only UI 工作 (Reconciliation dual-sign UX / 計價引擎 GUI / A37 drawer 元件)。
 
-| 維度 | 完成度 | 變化（vs 2026-06-04）|
+| 維度 | 完成度 | 變化（vs 早段 2026-06-05）|
 |:---|:---:|:---:|
-| **Phase 5-7 產品 MVP**（V2.0 派工 + 會計 + KPI 擴充）| **~99%** | **+4%**（5 batch CR + 7 P1/P2 缺口 backend 全清）|
+| **Phase 5-7 產品 MVP**（V2.0 派工 + 會計 + KPI 擴充）| **100%** | **+1%** |
 | **Phase 8 UAT 上線** | **0%** | 持平（期程性，非 code 缺口） |
 | **架構遷移**（CR-0003 P0-P3.5 + CR-0004 Track B）| **~88%** | 持平（P4 未啟動） |
-| **Phase II SaaS 模組**（9 個 placeholder FR）| **0%** | 持平 |
+| **Phase II SaaS 模組**（9 個 FR）| **MVP 100% (9/9)** | **+100%** ✨ |
 
-| Phase | 05-06 | 06-04 | **06-05** | 變化 |
-|:---|:---:|:---:|:---:|:---:|
-| Phase 5 V2.0 設計（W18-W19）| 97% | 97% | **100%** | **+3%** Track B + CR-0017/18 收尾 |
-| Phase 6 派工 MVP（W20-W24）| 97% | 97% | **100%** | **+3%** CR-0017 Flow 3/11/14 補齊 |
-| Phase 7 會計+整合（W25-W29）| 93% | 93% | **100%** | **+7%** CR-0018 Flow 13 EX5 100% + CR-0012 FR-0012 V1 + KPI 擴充 |
-| Phase 8 UAT 上線（W30-W31）| 0% | 0% | **0%** | 期程性 |
-| **Phase 9 架構遷移**（CR-0003 + CR-0004）| — | — | **~88%** | 持平 |
+| Phase | 05-06 | 06-04 | 06-05 早 | **06-05 晚** | 變化 |
+|:---|:---:|:---:|:---:|:---:|:---:|
+| Phase 5 V2.0 設計（W18-W19）| 97% | 97% | 100% | **100%** | 持平 |
+| Phase 6 派工 MVP（W20-W24）| 97% | 97% | 100% | **100%** | 持平 |
+| Phase 7 會計+整合（W25-W29）| 93% | 93% | 100% | **100%** | 持平 |
+| Phase 8 UAT 上線（W30-W31）| 0% | 0% | 0% | **0%** | 期程性 |
+| **Phase 9 架構遷移**（CR-0003 + CR-0004）| — | — | ~88% | **~88%** | 持平 |
+| **Phase II SaaS 模組** | — | — | 0% | **MVP 9/9** | **+9 FR MVP** ✨ |
 
 ---
 
@@ -175,21 +176,25 @@
 
 ---
 
-## 7. Phase II SaaS 模組（9 個 placeholder FR — 全部未啟動）
+## 7. Phase II SaaS 模組（9 個 FR — **MVP 全落地 ✨ 2026-06-05**）
 
-> Phase II 是「完整 SaaS 平台」級別的功能，當前 V1.0 MVP 不含。
+> Phase II 是「完整 SaaS 平台」級別的功能，本 session 全部 MVP 起手完成。
+> 各 MVP 為「最小可用實作」（schema + service + endpoints + tests）；
+> 完整 Phase II 啟動時需補 §3 對應項目（routing engine / escalation matrix / etc.）。
 
-| FR | 標題 | 業務影響 |
-|:---|:---|:---|
-| FR-0044 | Technician Onboarding 與停權 | 技師生命週期（目前需手動加） |
-| FR-0045 | Technician AP 月結 | 技師工資月結（會計手動算） |
-| FR-0046 | 派工人 Commission 月結 | 派工員獎金 |
-| FR-0047 | 品牌月結 + B2B Settlement | 跟品牌商對帳 |
-| FR-0048 | RMA 品質回饋迴圈 | 退換貨資料回饋品牌商 |
-| FR-0049 | Exception Approval Inbox（M15）| 主管核准收件匣 |
-| FR-0050 | AI Governance & PRD Traceability | AI 行為治理 |
-| FR-0051 | SOP Feedback Spiral 深化 | SOP 螺旋演進 |
-| FR-0053 | DPO Forget / GDPR 遺忘權 | 法規合規（GDPR）|
+| FR | 標題 | MVP 狀態 | Schema | Endpoints | Tests |
+|:---|:---|:---:|:---|:---:|:---:|
+| FR-0049 | Exception Approval Inbox（M15）| ✅ MVP | 不修 (純讀組合) | 1 (`listApprovalInbox`) | 10 |
+| FR-0044 | Technician Onboarding 與停權 | ✅ MVP | `saas.technician_lifecycle_event` (020) | 6 | 17 |
+| FR-0053 | DPO Forget / GDPR 遺忘權 | ✅ MVP | `saas.forget_request` (021) | 7 | 14 |
+| FR-0050 | AI Governance & PRD Traceability | ✅ MVP | `saas.ai_decision_trace` (022) | 3 | 11 |
+| FR-0051 | SOP Feedback Spiral 深化 | ✅ MVP | `saas.sop_feedback` (023) | 3 | 12 |
+| FR-0048 | RMA 品質回饋迴圈 | ✅ MVP | `saas.rma_quality_finding` (024) + **cascade 到 FR-0051** | 4 | 14 |
+| FR-0045 | Technician AP 月結 | ✅ MVP | `saas.technician_statement` (025) | 8 | 17 |
+| FR-0046 | 派工人 Commission 月結 | ✅ MVP | `saas.dispatcher_commission_statement` (026) | 8 | 17 |
+| FR-0047 | 品牌月結 + B2B Settlement | ✅ MVP | `saas.brand_b2b_statement` (027) + AR/AP/NET 雙向 | 8 | 20 |
+
+**Phase II 9 FR MVP 總計**：8 個新表 + 1 純讀；48 個 endpoints；132 tests passing。
 
 ### 仍處 draft 的 Phase I FR（4 個 — 細節未定）
 
