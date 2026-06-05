@@ -35,17 +35,21 @@ curl http://localhost:8000/health                                  # 健康檢�
 
 > `GET /chat` 不會經過 Quick Reply / multimodal 流程，僅供快速測試。
 
-## Quality testing（LLM-as-Judge eval）
+## ~~Quality testing（LLM-as-Judge eval）~~ 已失效
+
+> ⚠️ **2026-06-04 agent 重寫後 `quality/quality_check` 整套已刪除**（包含 `--turn-cycle` Belief-Augmented A/B、`quality_report.json` 輸出、HTML report、judge-only / retry-failed 旗標）。改走 `pytest` in `agent/tests/`（~13 個 unit/integration），詳見 ADR-0107 + `agent/README.md`。
 
 ```bash
-cd agent && uv run python -m quality.quality_check                 # Full：agent + keyword + LLM judge
-cd agent && uv run python -m quality.quality_check --no-judge      # agent 回答 + keyword match
-cd agent && uv run python -m quality.quality_check --judge-only    # 重新評分既有 quality_report.json
-cd agent && uv run python -m quality.quality_check --retry-failed  # 只重測非 pass 案例
-# --turn-cycle 旗標可做 Belief-Augmented A/B
+cd agent && pip install -e ".[dev]"      # 裝 pytest
+cd agent && pytest                       # 跑全部 (~13 個)
+cd agent && pytest -k e2e_mock_turn     # 端到端 mock turn
+cd agent && pytest -k skills_loaded     # skill loader
+cd agent && pytest -k tool_allowlist    # CS_TOOL_ALLOWLIST
+cd agent && pytest -k litellm_provider  # 多家 model 字串路由
+cd agent && pytest -k line_gateway      # LINE webhook 通道
 ```
 
-> 無自動化 unit test 套件。測試靠 `quality_check`、CLI（`python main.py`）、或 `/chat` 端點。
+> 舊的 `quality_check / belief_action_judge / replay_check / hypothesis_quality_baseline` 全已刪，**不要嘗試呼叫**。
 
 ## Web build / lint
 

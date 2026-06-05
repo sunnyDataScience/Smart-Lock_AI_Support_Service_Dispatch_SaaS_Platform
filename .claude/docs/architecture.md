@@ -3,10 +3,13 @@
 > 主檔 `CLAUDE.md` 只放架構不變量與硬約束。這份是「需要時才展開」的結構導覽。
 > 注意：模組職責、目錄結構大多能直接 `ls` / 讀 code 確認 —— 以 code 為準，本檔僅作地圖。
 
+> ⚠️ **2026-06-04 agent 核心重寫後，下方 §Request Processing Flow / §`agent/` module 細節大多失效**（ReAct + LangGraph + harness/ + Belief-Augmented ReAct + product_info mega-doc + quality_check 全刪）。Agent 部分以 [`agent/README.md`](../../agent/README.md) + [`agent/lockcore/VENDOR.md`](../../agent/lockcore/VENDOR.md) + ADR-0107 為準。本檔保留歷史脈絡供 git blame / audit trail 比對。
+
 ## Major Modules
 
-1. **`agent/`** — ReAct Agent，靠 `product_info/` mega-doc 知識庫（LINE Bot AI 客服）；optional Belief-Augmented ReAct（Turn Cycle），config 控
-2. **`data/`** — Medallion ETL Pipeline（Bronze → Silver SOP drafts；最終 mega-doc 由業主審稿後手動更新 `agent/product_info/`）
+1. **`agent/`** — **LockCore + Agent Skills 標準 agent**（fork 自 `HKUDS/nanobot`，`agent/lockcore/`）；2 個 builtin skill (`locksmith-product-knowledge`、`locksmith-cs-sop`)；LiteLLM 統一供應商；per-user memory 移植自 Hermes。詳見 ADR-0107。
+   ~~原：ReAct Agent，靠 `product_info/` mega-doc 知識庫；optional Belief-Augmented ReAct（Turn Cycle）— **已 superseded**~~
+2. **`data/`** — Medallion ETL Pipeline（Bronze → Silver SOP drafts；bronze-only sourcing rule 仍適用，內容改走 `lockcore/skills/locksmith-product-knowledge/references/{Brand}/{Model}.md`）
 3. **`web/`** — Next.js Admin Dashboard（營運監控、對話審閱）
 4. **`docs/architecture/api/`** — API Contract SSOT（OpenAPI 3.1 + CI validation）
 5. **`web_design_spec_prompt_pipeline/`** — AI 輔助網頁設計 prompt pipeline

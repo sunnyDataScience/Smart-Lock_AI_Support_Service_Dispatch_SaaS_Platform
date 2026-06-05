@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CR-0018 opened — Flow 13 帳款異常 EX5 CIA**（branch `docs/cr-0018-flow13-ex5-reconciliation-exception-cia`，2026-06-05）：5 HD 待業主裁決。
 - **ADR INDEX.md catch-up ADR-0100~0107 + special variants**（branch `docs/adr-index-catchup-0100-0107`，2026-06-05）：新增 Group 5 (ADR-0100~0107) + Group 6 (VCH/PIVOT/PII variants)。
 - **`/realtime/pool/{tech_id}` publish 補完**（branch `feat/realtime-pool-publish-on-assign`，2026-06-05）：assign_order 後 publish `work_order.assigned_to_you` 給技師個人 pool channel。WBS §3 pool ⏳→✅。
+- **commands.md / architecture.md lockcore catch-up**（branch `docs/claude-commands-architecture-lockcore-sync`，2026-06-05）：commands.md Quality testing 段標廢棄 + pytest 替代；architecture.md banner + Major Modules 重寫；CLAUDE.md §細節路標移除「待同步」備註。
 
 - **Agent 核心架構重寫 → LockCore + Agent Skills 標準**（branch `feat/agent-update`，2026-06-04）⭐⭐⭐ **重大架構決策**：捨棄舊架構（ReAct + LangGraph、自製 skill loader、product_info mega-doc、Belief-Augmented ReAct (Turn Cycle)、quality_check LLM-as-Judge），改為：
   * **核心引擎**：`agent/lockcore/`（fork 自上游 `HKUDS/nanobot` 的最小核心套件，VENDOR.md 記載 fork 來源）
