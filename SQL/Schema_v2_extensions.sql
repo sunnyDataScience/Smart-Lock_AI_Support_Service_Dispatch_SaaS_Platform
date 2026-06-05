@@ -400,3 +400,52 @@ COMMENT ON COLUMN llm_usage_log.metadata IS '結構化擴充欄位；禁止寫�
 CREATE INDEX IF NOT EXISTS idx_llm_usage_timestamp ON llm_usage_log (timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_llm_usage_user_id   ON llm_usage_log (user_id, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_llm_usage_call_site ON llm_usage_log (call_site, timestamp DESC);
+
+-- ============================================================================
+-- 12. LINE Flex push outbox（line_push_outbox）— CR-0017 LINE Flex 重建
+-- ============================================================================
+-- 業主裁決 (2026-06-05):
+--   HD-1: 階段化獨立 LINE bot service
+--   HD-2: Outbox table + worker pattern
+--   HD-3: api/templates/ Python flex builders
+-- 設計：
+--   service 端 INSERT outbox row（push_kind + target + payload）；
+--   worker process poll status='pending' → render Flex template → push LINE
+--   → 結果寫 status='sent' | 'failed' + retry_count + last_error。
+--   失敗自動 retry（exponential backoff），超過 max_attempts 標 'dead'。
+CREATE TABLE IF NOT EXISTS line_push_outbox (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id       UUID NOT NULL,
+    push_kind       VARCHAR(40) NOT NULL,           -- 'reschedule_proposal' | 'scope_change_proposal' | 'schedule_conflict' | ...
+    target_line_id  VARCHAR(40),                    -- LINE userId (Uxxxx...) — 可 NULL（worker 從 reference 反查）
+    reference_id    UUID,                           -- 對應業務 row（reschedule_proposal.id / scope_changes.id / work_orders.id 等）
+    reference_table VARCHAR(40),                    -- 'saas.reschedule_proposal' / 'scope_changes' / 'work_orders' ...
+    payload         JSONB NOT NULL DEFAULT '{}'::jsonb, -- 給 Flex builder 的 data
+    status          VARCHAR(20) NOT NULL DEFAULT 'pending', -- 'pending' | 'sent' | 'failed' | 'dead'
+    attempts        INTEGER NOT NULL DEFAULT 0,
+    max_attempts    INTEGER NOT NULL DEFAULT 5,
+    next_attempt_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, -- worker poll 條件：status='pending' AND next_attempt_at <= NOW()
+    last_error      TEXT,
+    sent_at         TIMESTAMP WITH TIME ZONE,
+    created_at      TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_push_status CHECK (status IN ('pending','sent','failed','dead')),
+    CONSTRAINT chk_push_attempts_nonneg CHECK (attempts >= 0)
+);
+
+COMMENT ON TABLE  line_push_outbox IS 'LINE Flex push outbox（CR-0017）：service 寫 row → worker poll 取出 → render Flex → push LINE → 寫狀態回';
+COMMENT ON COLUMN line_push_outbox.push_kind IS '推送類型，決定走哪個 Flex builder（reschedule_proposal/scope_change_proposal/schedule_conflict）';
+COMMENT ON COLUMN line_push_outbox.next_attempt_at IS 'worker 重試排程點：status=pending AND next_attempt_at <= NOW() 才取出';
+COMMENT ON COLUMN line_push_outbox.payload IS 'Flex builder 需要的 data（如 proposed_slots、scope_items、conflict_wo_ids）';
+
+-- Worker poll 主索引
+CREATE INDEX IF NOT EXISTS idx_outbox_pending_next
+    ON line_push_outbox (next_attempt_at)
+    WHERE status = 'pending';
+-- tenant + kind 過濾（debug / 監控）
+CREATE INDEX IF NOT EXISTS idx_outbox_tenant_kind
+    ON line_push_outbox (tenant_id, push_kind, created_at DESC);
+-- reference 反查（從業務 row 找出 push 歷史）
+CREATE INDEX IF NOT EXISTS idx_outbox_reference
+    ON line_push_outbox (reference_table, reference_id)
+    WHERE reference_id IS NOT NULL;

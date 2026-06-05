@@ -43,7 +43,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Path, Request
+from fastapi import APIRouter, Depends, Path, Request
 
 from core.errors import ApiError
 from services.public_token import (
@@ -196,4 +196,68 @@ async def respond_scope_change_v2(
         comment=comment,
         token_hash=token_hash_for_audit(token),
         ip_address=client_ip,
+    )
+
+
+# ============================================================
+# CR-0013 Stage 2 — LINE Binding endpoints (HD-03=b 主動綁定)
+# ============================================================
+
+@router.post(
+    "/consumer/bindings:generate-token",
+    operation_id="generateLineBindingTokenV2",
+    summary="產 24h TTL 一次性 LINE binding link token（需 JWT）",
+    tags=["M16 Consumer"],
+)
+async def generate_line_binding_token(
+    user: "object" = Depends(__import__("core.deps", fromlist=["require_tenant"]).require_tenant),
+) -> dict:
+    """主動 binding 流程 step 1：客戶登入 web/track 後按「綁定」鈕。
+
+    回傳 token 給客戶端 → 跳 LIFF 或 LINE 內瀏覽器顯示綁定 form，
+    收 line_user_id 後呼 `:consume`。
+
+    需要 JWT；user_id + tenant_id 從 token claims 取。
+    """
+    from services import line_binding_service
+
+    tenant_id = getattr(user, "tenant_id", None)
+    user_id = getattr(user, "user_id", None) or getattr(user, "sub", None)
+    if not tenant_id or not user_id:
+        raise ApiError("VALIDATION_ERROR", "tenant_id/user_id missing in token", 422)
+    return await line_binding_service.generate_link_token(
+        tenant_id=tenant_id, user_id=user_id,
+    )
+
+
+@router.post(
+    "/consumer/bindings:consume",
+    operation_id="consumeLineBindingTokenV2",
+    summary="LINE LIFF 端 form 提交 token + line_user_id 完成綁定",
+    tags=["M16 Consumer"],
+)
+async def consume_line_binding_token(body: dict) -> dict:
+    """主動 binding 流程 step 2 — 完成綁定。
+
+    body 必填:
+      - token: 24h TTL one-time
+      - line_user_id: 從 LIFF SDK getProfile() 取得
+
+    Errors:
+      - 404 token 不存在
+      - 410 token 過期或已消費
+      - 409 line_user_id 已綁別 user
+    """
+    from services import line_binding_service
+
+    token = (body or {}).get("token")
+    line_uid = (body or {}).get("line_user_id")
+    if not token or not line_uid:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "token + line_user_id required",
+            422,
+        )
+    return await line_binding_service.consume_link_token(
+        token=token, line_user_id=line_uid,
     )

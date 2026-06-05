@@ -528,6 +528,19 @@ async def _detect_schedule_conflict_and_publish(
             )
         except Exception:  # noqa: BLE001
             logger.exception("ws publish schedule_conflict failed (non-fatal)")
+        # CR-0017 Stage 1.2 — enqueue LINE Flex push (worker render conflict
+        # 通知 admin 或客戶；補救流由業主 admin 決定走 reassign/reschedule)。
+        try:
+            from services import line_push_outbox_service
+            await line_push_outbox_service.enqueue(
+                tenant_id=tenant_id,
+                push_kind="schedule_conflict",
+                payload=payload,
+                reference_id=str(wo_id),
+                reference_table="work_orders",
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("outbox enqueue schedule_conflict failed (non-fatal)")
     except Exception:  # noqa: BLE001
         logger.exception("schedule conflict detection failed (non-fatal)")
 
@@ -1189,13 +1202,34 @@ async def record_scope_change(
         (wo_id,),
     )
 
-    # token mint 結果僅寫入 logger（caller 暫不暴露；待 CR-0017 LINE Flex push
-    # 重建時再決定 surface 機制；目前 admin 可從 scope_changes table 查詢）
+    # token mint log（admin 可從 scope_changes table 查詢；token 由 outbox
+    # payload 帶給 worker render Flex 用）
     if token:
         logger.info(
             "scope_change_id=%s token minted (ttl_days=7)",
             scope_change_id,
         )
+
+    # CR-0017 Stage 1.2 — enqueue LINE Flex push (worker render scope_change
+    # proposal Flex 含 accept/reject 按鈕 + token 連結)。best-effort 不阻擋主流。
+    try:
+        from services import line_push_outbox_service
+        await line_push_outbox_service.enqueue(
+            tenant_id=tenant_id,
+            push_kind="scope_change_proposal",
+            payload={
+                "scope_change_id": scope_change_id,
+                "work_order_id": wo_id,
+                "reason": reason,
+                "items": items,
+                "total_estimate": total_estimate,
+                "public_token": token,
+            },
+            reference_id=scope_change_id,
+            reference_table="scope_changes",
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("outbox enqueue scope_change_proposal failed (non-fatal)")
 
     return await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.subflow.scope_change"
@@ -1463,9 +1497,30 @@ async def propose_reschedule_v2(
         ),
     )
     row = await cur.fetchone()
+    proposal_id = str(row[0])
+
+    # CR-0017 Stage 1.2 — enqueue LINE Flex push (worker 將 render reschedule
+    # carousel + push 客戶 LINE)。best-effort 不阻擋主流；send_via='line' 才推。
+    if send_via == "line":
+        try:
+            from services import line_push_outbox_service
+            await line_push_outbox_service.enqueue(
+                tenant_id=tenant_id,
+                push_kind="reschedule_proposal",
+                payload={
+                    "proposal_id": proposal_id,
+                    "work_order_id": wo_id,
+                    "proposed_slots": proposed_slots,
+                    "message_to_customer": message_to_customer,
+                },
+                reference_id=proposal_id,
+                reference_table="saas.reschedule_proposal",
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("outbox enqueue reschedule_proposal failed (non-fatal)")
 
     return {
-        "id": str(row[0]),
+        "id": proposal_id,
         "work_order_id": wo_id,
         "status": row[1],
         "sla_deadline": row[2].isoformat() if row[2] else None,
@@ -2156,3 +2211,109 @@ async def get_public_status(*, work_order_id: str) -> dict | None:
         "technician_name": row[4],
         "technician_phone": row[5],
     }
+
+
+# ============================================================
+# CR-0017 Stage 4 — postback-driven 改約決議 wrapper
+# ============================================================
+
+async def confirm_reschedule_by_proposal(
+    *, proposal_id: str, slot_idx: int
+) -> dict:
+    """LINE postback 觸發：依 proposal_id + slot_idx 反查 → confirm reschedule。
+
+    1. SELECT proposed_slots, work_order_id, tenant_id, status FROM saas.reschedule_proposal
+    2. 驗 status='pending' + slot_idx 在範圍內
+    3. 呼 confirm_reschedule_by_customer 寫 work_orders
+    4. UPDATE saas.reschedule_proposal SET chosen_slot_index, customer_responded_at,
+       status='customer_confirmed'
+
+    Raises:
+        ApiError(404): proposal 不存在
+        ApiError(409): proposal 已決議
+        ApiError(422): slot_idx 越界
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    cur = await db_module._conn.execute(
+        "SELECT work_order_id, tenant_id, proposed_slots, status "
+        "FROM saas.reschedule_proposal WHERE id = %s::uuid",
+        (proposal_id,),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "reschedule proposal not found", 404)
+    wo_id = str(row[0])
+    tenant_id = str(row[1])
+    proposed_slots = row[2] if isinstance(row[2], list) else json.loads(row[2] or "[]")
+    current_status = row[3]
+    if current_status != "pending":
+        raise ApiError(
+            "CONFLICT", f"proposal already decided: {current_status}", 409,
+        )
+    if slot_idx < 0 or slot_idx >= len(proposed_slots):
+        raise ApiError("VALIDATION_ERROR", "slot_idx out of range", 422)
+
+    slot = proposed_slots[slot_idx]
+    selected_start = slot.get("start")
+    selected_end = slot.get("end") or selected_start
+    if not selected_start:
+        raise ApiError("VALIDATION_ERROR", "proposed slot missing 'start'", 422)
+
+    # 1. 寫 work_orders（既有 service）
+    result = await confirm_reschedule_by_customer(
+        tenant_id=tenant_id,
+        wo_id=wo_id,
+        selected_start=selected_start,
+        selected_end=selected_end,
+    )
+
+    # 2. CAS update saas.reschedule_proposal
+    upd = await db_module._conn.execute(
+        "UPDATE saas.reschedule_proposal SET "
+        "  status = 'customer_confirmed', "
+        "  chosen_slot_index = %s, "
+        "  customer_responded_at = NOW(), "
+        "  updated_at = NOW() "
+        "WHERE id = %s::uuid AND status = 'pending' "
+        "RETURNING id",
+        (slot_idx, proposal_id),
+    )
+    if not await upd.fetchone():
+        # race 不阻斷主流程（work_orders 已寫）
+        logger.warning(
+            "reschedule_proposal CAS race: id=%s already decided after wo update",
+            proposal_id,
+        )
+    return result
+
+
+async def reject_reschedule_by_proposal(*, proposal_id: str) -> dict:
+    """LINE postback「都不方便」→ reject reschedule + 寫 reschedule_proposal。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    cur = await db_module._conn.execute(
+        "SELECT work_order_id, tenant_id, status "
+        "FROM saas.reschedule_proposal WHERE id = %s::uuid",
+        (proposal_id,),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "reschedule proposal not found", 404)
+    wo_id = str(row[0])
+    tenant_id = str(row[1])
+    if row[2] != "pending":
+        raise ApiError("CONFLICT", f"proposal already decided: {row[2]}", 409)
+
+    result = await reject_reschedule_by_customer(tenant_id=tenant_id, wo_id=wo_id)
+    await db_module._conn.execute(
+        "UPDATE saas.reschedule_proposal SET "
+        "  status = 'customer_rejected', "
+        "  customer_responded_at = NOW(), "
+        "  updated_at = NOW() "
+        "WHERE id = %s::uuid AND status = 'pending'",
+        (proposal_id,),
+    )
+    return result
