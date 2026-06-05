@@ -345,6 +345,48 @@ async def _publish_and_return(
     return order
 
 
+async def _publish_pool_change(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    technician_id: str,
+    event: str,  # "added" / "taken" / "cancelled"
+) -> None:
+    """推 `/realtime/pool/{technician_id}` event 對齊前端 pool/page.tsx 契約。
+
+    前端 useRealtimeChannel 期待 payload:
+      - added: 帶完整 work_order 物件（prepend 到列表）
+      - taken: 帶 work_order_id（從列表移除）
+      - cancelled: 帶 work_order_id（從列表移除）
+    """
+    if not technician_id:
+        return
+    try:
+        from realtime.ws_hub import hub
+
+        payload: dict = {"event": event, "work_order_id": wo_id}
+        if event == "added":
+            # added 需帶完整 wo 物件供 prepend
+            try:
+                payload["work_order"] = await get_order(
+                    tenant_id=tenant_id, wo_id=wo_id,
+                )
+            except Exception:  # noqa: BLE001
+                logger.exception("get_order failed for pool publish added")
+        await hub.publish(
+            f"/realtime/pool/{technician_id}",
+            {
+                "type": f"work_order.pool_{event}",
+                "payload": payload,
+            },
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception(
+            "ws publish pool/%s event=%s failed (non-fatal)",
+            technician_id[:8] if technician_id else "?", event,
+        )
+
+
 async def _fetch_status_for_update(wo_id: str, tenant_id: str) -> str:
     """Fetch current DB status with tenant guard. Raises NOT_FOUND if missing."""
     cur = await db_module._conn.execute(
@@ -369,11 +411,24 @@ async def accept_order(*, tenant_id: str, wo_id: str) -> dict:
             f"Cannot accept work order in status '{current}'; expected one of {sorted(_ACCEPT_FROM)}",
             409,
         )
+    # 取 technician_id 給 pool publish
+    cur = await db_module._conn.execute(
+        "SELECT technician_id FROM work_orders WHERE id = %s::uuid",
+        (wo_id,),
+    )
+    tech_row = await cur.fetchone()
+    tech_id = str(tech_row[0]) if tech_row and tech_row[0] else None
     await db_module._conn.execute(
         "UPDATE work_orders SET status = 'accepted', accepted_at = NOW(), updated_at = NOW() "
         "WHERE id = %s::uuid",
         (wo_id,),
     )
+    # event=taken 從技師個人 pool 列表移除（已進 my-orders）
+    if tech_id:
+        await _publish_pool_change(
+            tenant_id=tenant_id, wo_id=wo_id, technician_id=tech_id,
+            event="taken",
+        )
     return await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.accepted"
     )
@@ -434,6 +489,13 @@ async def cancel_order(
             f"Cannot cancel work order in status '{current}'; expected non-terminal",
             409,
         )
+    # 取 technician_id 給 pool publish (若已派)
+    cur = await db_module._conn.execute(
+        "SELECT technician_id FROM work_orders WHERE id = %s::uuid",
+        (wo_id,),
+    )
+    tech_row = await cur.fetchone()
+    tech_id = str(tech_row[0]) if tech_row and tech_row[0] else None
     if reason:
         await db_module._conn.execute(
             "UPDATE work_orders SET "
@@ -448,6 +510,12 @@ async def cancel_order(
             "UPDATE work_orders SET status = 'cancelled', updated_at = NOW() "
             "WHERE id = %s::uuid",
             (wo_id,),
+        )
+    # event=cancelled 把該 tech pool 該 wo 移除（若已派）
+    if tech_id:
+        await _publish_pool_change(
+            tenant_id=tenant_id, wo_id=wo_id, technician_id=tech_id,
+            event="cancelled",
         )
     return await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.cancelled"
@@ -603,21 +671,12 @@ async def assign_order(
     await _detect_schedule_conflict_and_publish(
         tenant_id=tenant_id, wo_id=wo_id, technician_id=technician_id,
     )
-    # /realtime/pool/{tech_id} publish — 技師個人 pool 收到新指派通知
-    try:
-        from realtime.ws_hub import hub
-        await hub.publish(
-            f"/realtime/pool/{technician_id}",
-            {
-                "type": "work_order.assigned_to_you",
-                "payload": {
-                    "work_order_id": wo_id,
-                    "reason_code": reason_code,
-                },
-            },
-        )
-    except Exception:  # noqa: BLE001
-        logger.exception("ws publish pool/{tech_id} failed (non-fatal)")
+    # /realtime/pool/{tech_id} publish — 對齊前端 pool/page.tsx 契約
+    # event=added 帶完整 wo 物件 → 前端列表 prepend
+    await _publish_pool_change(
+        tenant_id=tenant_id, wo_id=wo_id, technician_id=technician_id,
+        event="added",
+    )
     return await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.assigned"
     )
