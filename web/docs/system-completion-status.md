@@ -101,7 +101,7 @@
 | Flow 6 退款雙簽 | **100%** | csm_approved 中介態 + 同 user 不可雙簽 + WS 推送 |
 | Flow 7 爭議 | **100%** | 雙方證據上傳 + 縮圖瀏覽 + 仲裁決定全鏈路 |
 | Flow 8 二次派工 | **70%** | 連環銜接 |
-| Flow 9 客訴升級 | **75%** | SLA 自動觸發 |
+| Flow 9 客訴升級 | **100%** | **2026-06-05 兩輪 e2e 完成**：(1) prior commit `e4afd80b` 後端 service+endpoint (`escalateSentimentAlertToWorkOrderV2` admin/ops_mgr/tenant_admin/customer_service 守門 + JOIN tenant 驗證 + 自動 acknowledge + admin_note 軌跡) / (2) 本輪 admin sentiment-alerts page 加「升級工單」按鈕（pending 狀態才顯示）+ `EscalateAlertModal`（level select + reason textarea + char limit + optimistic alert→acknowledged）+ POST `:escalate-to-work-order` caller + success alert 顯示對應 WO id 8 字頭 + i18n zh-TW/en 同步 `escalate.*` 區段（11 keys：button/tooltip/modalTitle/modalHint/levelLabel/level.*/reasonLabel/reasonPlaceholder/reasonOverLimit/submitButton/successAlert）|
 | Flow 10 門面檢核 | **100%** | T8 + admin 縮圖瀏覽完成端到端 |
 | Flow 11 客戶不在場 | **100%** | T11 提案 + LINE Flex RSVP + customer-confirm/reject endpoints + WS 推回技師 |
 | Flow 12-14 | **60-80%** | — |

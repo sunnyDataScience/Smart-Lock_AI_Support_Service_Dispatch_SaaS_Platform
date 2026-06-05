@@ -1285,6 +1285,22 @@
         "required": "必填",
         "submitResolve": "確認結案",
         "submitAcknowledge": "確認"
+      },
+      "escalate": {
+        "button": "升級工單",
+        "tooltip": "升級對應工單 (Flow 9)",
+        "modalTitle": "升級對應工單",
+        "modalHint": "將呼叫對應工單的 escalate；告警會自動標為「已確認」並寫入升級軌跡至備註。",
+        "levelLabel": "升級層級",
+        "level": {
+          "operations_manager": "Operations Manager",
+          "tenant_admin": "Tenant Admin"
+        },
+        "reasonLabel": "升級原因",
+        "reasonPlaceholder": "說明為何此告警需立即升級（將寫入工單 escalation log + sentiment alert 備註）",
+        "reasonOverLimit": "超過 500 字上限",
+        "submitButton": "確認升級",
+        "successAlert": "已升級對應工單 {woId}…"
       }
     },
     "inventory": {

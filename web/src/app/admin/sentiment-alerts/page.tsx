@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle, X, TrendingUp } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { ApiError, api } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
@@ -64,11 +64,25 @@ interface ActionTarget {
   toStatus: SentimentAlertStatus;
 }
 
+interface EscalateTarget {
+  alertId: string;
+}
+
+type EscalateLevel = "operations_manager" | "tenant_admin";
+
+interface EscalateResponse {
+  alert_id: string;
+  work_order_id: string;
+  escalated_to_level: string;
+  escalated_at: string;
+}
+
 export default function SentimentAlertsPage() {
   const t = useTranslations("admin.sentiment");
   const tc = useTranslations("admin.common");
   const [statusFilter, setStatusFilter] = useState<SentimentAlertStatus | "">("");
   const [actionTarget, setActionTarget] = useState<ActionTarget | null>(null);
+  const [escalateTarget, setEscalateTarget] = useState<EscalateTarget | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
 
   // v2 tenant-scoped path（CR-0003 P2-W2 / FR-0018 / ADR-0048）
@@ -285,22 +299,35 @@ export default function SentimentAlertsPage() {
                     {NEXT_STATUS_OPTIONS[status].length === 0 ? (
                       <span className="text-xs text-[var(--text-disabled)]">{t("alreadyResolved")}</span>
                     ) : (
-                      NEXT_STATUS_OPTIONS[status].map((next) => (
-                        <button
-                          key={next}
-                          disabled={savingId === row.id}
-                          onClick={() =>
-                            setActionTarget({ alertId: row.id, toStatus: next })
-                          }
-                          className={`rounded-md border px-3 py-1 text-xs font-medium transition disabled:opacity-50 ${
-                            next === "resolved"
-                              ? "border-green-300 bg-green-50 text-green-700 hover:bg-green-100"
-                              : "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
-                          }`}
-                        >
-                          {actionLabel[next]}
-                        </button>
-                      ))
+                      <>
+                        {NEXT_STATUS_OPTIONS[status].map((next) => (
+                          <button
+                            key={next}
+                            disabled={savingId === row.id}
+                            onClick={() =>
+                              setActionTarget({ alertId: row.id, toStatus: next })
+                            }
+                            className={`rounded-md border px-3 py-1 text-xs font-medium transition disabled:opacity-50 ${
+                              next === "resolved"
+                                ? "border-green-300 bg-green-50 text-green-700 hover:bg-green-100"
+                                : "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                            }`}
+                          >
+                            {actionLabel[next]}
+                          </button>
+                        ))}
+                        {status === "pending" && (
+                          <button
+                            disabled={savingId === row.id}
+                            onClick={() => setEscalateTarget({ alertId: row.id })}
+                            className="inline-flex items-center gap-1 rounded-md border border-red-300 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                            title={t("escalate.tooltip")}
+                          >
+                            <TrendingUp className="h-3 w-3" />
+                            {t("escalate.button")}
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -346,6 +373,141 @@ export default function SentimentAlertsPage() {
           }}
         />
       )}
+
+      {escalateTarget && (
+        <EscalateAlertModal
+          target={escalateTarget}
+          saving={savingId === escalateTarget.alertId}
+          onClose={() => setEscalateTarget(null)}
+          onSubmit={async (level, reason) => {
+            setSavingId(escalateTarget.alertId);
+            try {
+              const tId = auth.getTenantId();
+              const result = await api.post<EscalateResponse>(
+                `/tenants/${encodeURIComponent(tId)}/sentiment/alerts/${escalateTarget.alertId}:escalate-to-work-order`,
+                { level, reason },
+              );
+              // 後端會把 alert 從 pending 升 acknowledged — optimistic 反映
+              mutate((prev) =>
+                prev.map((it) =>
+                  it.id === escalateTarget.alertId
+                    ? { ...it, status: "acknowledged" as SentimentAlertStatus }
+                    : it,
+                ),
+              );
+              setEscalateTarget(null);
+              // 提示已升級的工單 — 用 alert 暫代（避免新增 toast 系統）
+              window.alert(
+                t("escalate.successAlert", { woId: result.work_order_id.slice(0, 8) }),
+              );
+            } catch (e) {
+              setActionError(formatSentimentError(e));
+            } finally {
+              setSavingId(null);
+            }
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+interface EscalateAlertModalProps {
+  target: EscalateTarget;
+  saving: boolean;
+  onClose: () => void;
+  onSubmit: (level: EscalateLevel, reason: string) => Promise<void>;
+}
+
+function EscalateAlertModal({ target: _target, saving, onClose, onSubmit }: EscalateAlertModalProps) {
+  const t = useTranslations("admin.sentiment");
+  const tc = useTranslations("admin.common");
+  const [level, setLevel] = useState<EscalateLevel>("operations_manager");
+  const [reason, setReason] = useState("");
+  const trimmed = reason.trim();
+  const tooLong = trimmed.length > 500;
+  const canSubmit = !saving && trimmed.length > 0 && !tooLong;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+      onClick={onClose}
+    >
+      <div
+        className="flex w-full max-w-md flex-col gap-4 rounded-lg bg-white p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+            {t("escalate.modalTitle")}
+          </h2>
+          <button
+            onClick={onClose}
+            className="rounded p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
+            aria-label={t("modal.closeAria")}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <p className="text-xs text-[var(--text-secondary)]">
+          {t("escalate.modalHint")}
+        </p>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium text-[var(--text-primary)]">
+            {t("escalate.levelLabel")}
+          </label>
+          <select
+            value={level}
+            onChange={(e) => setLevel(e.target.value as EscalateLevel)}
+            className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm"
+          >
+            <option value="operations_manager">{t("escalate.level.operations_manager")}</option>
+            <option value="tenant_admin">{t("escalate.level.tenant_admin")}</option>
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium text-[var(--text-primary)]">
+            {t("escalate.reasonLabel")}
+            <span className="ml-1 text-red-500">*</span>
+          </label>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder={t("escalate.reasonPlaceholder")}
+            rows={4}
+            className="rounded-md border border-[var(--border)] px-3 py-2 text-sm focus:border-[var(--primary)] focus:outline-none"
+          />
+          <div className="flex justify-between text-xs text-[var(--text-secondary)]">
+            <span className={tooLong ? "text-red-600" : ""}>
+              {tooLong ? t("escalate.reasonOverLimit") : `${trimmed.length}/500`}
+            </span>
+            {trimmed.length === 0 && (
+              <span className="text-red-500">{t("modal.required")}</span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            disabled={saving}
+            className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
+          >
+            {tc("cancel")}
+          </button>
+          <button
+            onClick={() => onSubmit(level, trimmed)}
+            disabled={!canSubmit}
+            className="inline-flex items-center gap-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+          >
+            <TrendingUp className="h-3.5 w-3.5" />
+            {saving ? tc("submitting") : t("escalate.submitButton")}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
