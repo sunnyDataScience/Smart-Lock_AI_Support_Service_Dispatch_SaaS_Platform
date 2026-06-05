@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **WBS 1.2.7.3.2 / 3 / 4 取證 audit — 校正全 ⬜ 真實 ~52%**（branch `docs/wbs-1.2.7.3-audit-remaining`，2026-06-05）：續推 1.2.7.3 整合測試段剩 3 項。**取證**：(1) **1.2.7.3.2 V1/V2 資料流驗證 → ~30%**：grep parity/dual_write 全空無 automated test，但 v1/v2 共用 service+DB 隱含一致 + Deprecation header middleware + cross-tenant guard 對齊 = code-level 一致性已保證；無 black-box parity test。**不立即補**：P3.5 cutover 完成 + 剩 41 個 v1 caller P4 階段廢除 → 寫 parity test 在「即將廢棄」雙軌期反向消耗。/ (2) **1.2.7.3.3 100 人併發壓測 → 0%**：find k6/locust/artillery 配置全空，無工具/scenario/SLA baseline。**建議開 CR-0019** 工具選型 + SLA 目標 CIA。**不立即做**：需業主裁決 SLA + 工具引入觸發 Architecture boundary CIA。/ (3) **1.2.7.3.4 行動裝置相容 → ~50%**：playwright.config.ts tech project Pixel 7 viewport ✅ + PWA manifest + responsive Tailwind ✅；但 iOS Safari 實機 / BrowserStack 帳號 / 多機型矩陣 ❌。**不立即補**：需業主提供 cloud testing 帳號（採購決策）+ 屬上線前 manual QA 性質。**1.2.7.3 整合測試段真實平均 ~52%**（校正前報告標全 ⬜ 0%）：1.2.7.3.1 ✅ 80%+ / 1.2.7.3.2 ⚠️ 30% / 1.2.7.3.3 ❌ 0% / 1.2.7.3.4 ⚠️ 50% / 1.2.7.3.5 ✅ 100%。**P0 段（E2E + 會計）達 UAT 前置要求**；P1 段（V1/V2 parity + load + 跨裝置）需業主資源解凍。詳見 [`docs/_audit/wbs-1.2.7.3-2-3-4-audit.md`](docs/_audit/wbs-1.2.7.3-2-3-4-audit.md)。
+
 - **Agent 核心架構重寫 → LockCore + Agent Skills 標準**（branch `feat/agent-update`，2026-06-04）⭐⭐⭐ **重大架構決策**：捨棄舊架構（ReAct + LangGraph、自製 skill loader、product_info mega-doc、Belief-Augmented ReAct (Turn Cycle)、quality_check LLM-as-Judge），改為：
   * **核心引擎**：`agent/lockcore/`（fork 自上游 `HKUDS/nanobot` 的最小核心套件，VENDOR.md 記載 fork 來源）
   * **知識 & SOP**：`lockcore/skills/{locksmith-product-knowledge,locksmith-cs-sop}/SKILL.md + references/`（**Agent Skills 標準** agentskills.io / Claude Skills，frontmatter 不綁框架專屬欄位，可攜性：可複製到 Claude Code / Cursor / nanobot / hermes 直接使用）
