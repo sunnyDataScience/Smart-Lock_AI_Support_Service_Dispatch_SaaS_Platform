@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **CR-0017 opened — LINE Flex push 重建 CIA**（branch `docs/cr-0017-line-flex-push-rebuild-cia`，2026-06-05）：對應 agent 重寫 (commit `0f037f45`) 刪除 LINE Flex template render module 的後遺症 — 影響 Flow 3 最後 10% / Flow 11 最後 20% / Flow 14 補救流 全 blocked on rebuild 路徑決議。**取證**：(a) backend `line_push_service` 仍存在但只支援 text push 無 Flex template；(b) `saas.reschedule_proposal` + `scope_changes` INSERT 路徑就緒（後者 commit `239dff9c` 補完）；(c) `public_token` mint 健全；(d) lockcore agent 端 0 LINE 整合（`CS_TOOL_ALLOWLIST` 不含 push 工具）；(e) 無 outbox pattern。**5 HD 待業主裁決**：(1) Flex push 歸屬（lockcore 工具 / 純 web only / 獨立 LINE bot service / 階段化）/ (2) INSERT → push 觸發機制（DB trigger / service hook / outbox+worker / background task）/ (3) Flex template 歸屬（lockcore skill / api/templates / runtime config）/ (4) 多 Flow 整合 vs 分批優先 Flow 11 / (5) postback handler 路由（agent webhook / api router / 雙路）。**推薦立場**：階段化 (c)→(a) outbox+worker；Python flex builders；優先 Flow 11；雙路 postback 路由。預估 BUILD Flow 11 階段 4-5 day。status: `open-awaiting-decisions`。詳見 [`docs/_audit/CR-0017-line-flex-push-rebuild-cia.md`](docs/_audit/CR-0017-line-flex-push-rebuild-cia.md)。
+
 - **Agent 核心架構重寫 → LockCore + Agent Skills 標準**（branch `feat/agent-update`，2026-06-04）⭐⭐⭐ **重大架構決策**：捨棄舊架構（ReAct + LangGraph、自製 skill loader、product_info mega-doc、Belief-Augmented ReAct (Turn Cycle)、quality_check LLM-as-Judge），改為：
   * **核心引擎**：`agent/lockcore/`（fork 自上游 `HKUDS/nanobot` 的最小核心套件，VENDOR.md 記載 fork 來源）
   * **知識 & SOP**：`lockcore/skills/{locksmith-product-knowledge,locksmith-cs-sop}/SKILL.md + references/`（**Agent Skills 標準** agentskills.io / Claude Skills，frontmatter 不綁框架專屬欄位，可攜性：可複製到 Claude Code / Cursor / nanobot / hermes 直接使用）
