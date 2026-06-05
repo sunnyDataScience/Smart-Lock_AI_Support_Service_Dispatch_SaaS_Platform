@@ -108,6 +108,7 @@ from routers import ai_governance_trace_v2 as ai_gov_v2_router  # FR-0050 MVP: A
 from routers import sop_feedback_v2 as sop_feedback_v2_router  # FR-0051 MVP: SOP Feedback Spiral
 from routers import rma_quality_v2 as rma_quality_v2_router  # FR-0048 MVP: RMA Quality Feedback Loop
 from routers import technician_statement_v2 as tech_statement_v2_router  # FR-0045 MVP: Technician AP Statement
+from routers import dispatcher_commission_v2 as disp_comm_v2_router  # FR-0046 MVP: Dispatcher Commission
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -265,6 +266,7 @@ app.include_router(ai_gov_v2_router.router, tags=["A12 AI Governance"])  # FR-00
 app.include_router(sop_feedback_v2_router.router, tags=["A10 SOP Feedback"])  # FR-0051 MVP: SOP Feedback Spiral
 app.include_router(rma_quality_v2_router.router, tags=["M13 RMA Quality"])  # FR-0048 MVP: RMA Quality Feedback Loop
 app.include_router(tech_statement_v2_router.router, tags=["M12 Tech AP Statement"])  # FR-0045 MVP: Technician AP Statement
+app.include_router(disp_comm_v2_router.router, tags=["M12 Dispatcher Commission"])  # FR-0046 MVP: Dispatcher Commission
 
 
 @app.get("/health")
