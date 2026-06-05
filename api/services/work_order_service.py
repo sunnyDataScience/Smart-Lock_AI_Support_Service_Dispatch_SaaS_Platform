@@ -590,6 +590,21 @@ async def assign_order(
     await _detect_schedule_conflict_and_publish(
         tenant_id=tenant_id, wo_id=wo_id, technician_id=technician_id,
     )
+    # /realtime/pool/{tech_id} publish — 技師個人 pool 收到新指派通知
+    try:
+        from realtime.ws_hub import hub
+        await hub.publish(
+            f"/realtime/pool/{technician_id}",
+            {
+                "type": "work_order.assigned_to_you",
+                "payload": {
+                    "work_order_id": wo_id,
+                    "reason_code": reason_code,
+                },
+            },
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("ws publish pool/{tech_id} failed (non-fatal)")
     return await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.assigned"
     )
