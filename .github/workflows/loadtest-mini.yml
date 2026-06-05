@@ -1,0 +1,81 @@
+name: Loadtest Mini Smoke (CR-0019 PR-level)
+
+# 觸發：PR 改動 api/ 或 loadtest/ 時跑 mini smoke
+# HD-5=(b) 前段 — 防退步；不期待達 full SLA 門檻
+
+on:
+  pull_request:
+    paths:
+      - 'api/**'
+      - 'loadtest/**'
+      - '.github/workflows/loadtest-mini.yml'
+  workflow_dispatch:
+    inputs:
+      vu_count:
+        description: '並發 VU 數（mini=10, full=100）'
+        required: false
+        default: '10'
+      duration:
+        description: '跑時長 (e.g. 60s / 5m / 30m)'
+        required: false
+        default: '60s'
+
+jobs:
+  loadtest-mini:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # 預設 PR 跑 mini，manual trigger 可指定參數
+    env:
+      VU_COUNT: ${{ inputs.vu_count || '10' }}
+      DURATION: ${{ inputs.duration || '60s' }}
+      STAGING_HOST: ${{ secrets.LOADTEST_STAGING_HOST }}
+      TECH_TOKENS: ${{ secrets.LOADTEST_TECH_TOKENS }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Locust
+        run: pip install 'locust==2.31.5'
+
+      - name: Verify staging host available
+        run: |
+          if [ -z "$STAGING_HOST" ]; then
+            echo "::warning::STAGING_HOST secret not set — skip loadtest"
+            echo "skipped=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "Target: $STAGING_HOST"
+        id: precheck
+
+      - name: Run Locust mini smoke
+        if: steps.precheck.outputs.skipped != 'true'
+        env:
+          LOADTEST_TECH_TOKENS: ${{ env.TECH_TOKENS }}
+        run: |
+          mkdir -p loadtest/results
+          locust -f loadtest/locustfile.py --headless \
+            -u "$VU_COUNT" -r 2 -t "$DURATION" \
+            --host "$STAGING_HOST" \
+            --csv loadtest/results/mini \
+            --only-summary
+          ls -la loadtest/results/
+
+      - name: Evaluate SLA (PR 寬鬆模式 — 只警示，不 fail PR)
+        if: steps.precheck.outputs.skipped != 'true'
+        continue-on-error: true
+        run: |
+          python loadtest/sla.py loadtest/results/mini_stats.csv || true
+          # PR 階段門檻寬鬆 — 真 fail 留給 pre-release full run
+
+      - name: Upload Locust report
+        if: steps.precheck.outputs.skipped != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: loadtest-results-${{ github.sha }}
+          path: loadtest/results/
+          retention-days: 30
