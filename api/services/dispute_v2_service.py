@@ -18,7 +18,8 @@
   - reopen：不可直接重開，必須新建 dispute 引用 parent_dispute_id（AC-05）
   - decimal：numeric(12,2) → 2 位小數 string（_coerce_decimal），對齊 legacy dispute_service
   - evidence：jsonb → 直通，str 嘗試 json.loads（_coerce_evidence，仿 legacy）
-  - HD-4 resolution_amount 負值 DGS/refund cascade：本波次僅記錄，不觸發 cascade
+  - HD-4 resolution_amount 負值：寫 audit_log + WS publish 觸發 admin manual
+    review；不自動退款（避免無人監督的退款風險），保留人工 trail
     （ADR-0061/FR-0014 下游出口，follow-up Phase II）
   - 60d escalation cron（AC-03）：Phase II Cloud Scheduler；
     _escalate_overdue_disputes() 已留好 helper，不接 cron，logger.info 標 DEFERRED
@@ -364,14 +365,12 @@ async def co_sign_dispute(
             403,
         )
 
-    # HD-4：resolution_amount < 0 → 僅記錄，不觸發 DGS/refund cascade（Phase II follow-up）
+    # HD-4：resolution_amount < 0 → 觸發 admin manual review trail（不自動退款）
+    # 寫 audit_events + WS publish；refund 動作由 admin 後續手動觸發避免風險
     if resolution_amount is not None and resolution_amount < 0:
-        logger.info(
-            "[DEFERRED] Dispute %s co-sign: resolution_amount=%.2f < 0；"
-            "負值紅字 DGS/refund cascade 留 follow-up（ADR-0061/FR-0014）；"
-            "本波次不觸發 cascade。",
-            dispute_id,
-            resolution_amount,
+        await _emit_negative_resolution_event(
+            tenant_id=tenant_id, dispute_id=dispute_id,
+            co_signer_id=co_signer_id, amount=resolution_amount,
         )
 
     await db_module._conn.execute(
@@ -570,6 +569,67 @@ async def reopen_dispute(
 # ─────────────────────────────────────────────────────────────────────────────
 # Phase II helper（不接 cron，留 Cloud Scheduler）
 # ─────────────────────────────────────────────────────────────────────────────
+
+async def _emit_negative_resolution_event(
+    *,
+    tenant_id: str,
+    dispute_id: str,
+    co_signer_id: str,
+    amount: float,
+) -> None:
+    """resolution_amount < 0 → 寫 audit event + WS publish 觸發 admin manual review。
+
+    不自動退款 — 風險過高。admin dashboard 從 audit log + WS notification 取得
+    pending review 列表後手動觸發 refund / voucher reverse。
+
+    Best-effort：失敗只 log 不 raise（不阻 dispute co-sign 主流程）。
+    """
+    payload = {
+        "dispute_id": dispute_id,
+        "resolution_amount": round(float(amount), 2),
+        "co_signer_id": co_signer_id,
+        "action_required": "manual_refund_review",
+        "note": (
+            "Negative resolution_amount detected. Admin must manually review "
+            "and decide on refund / voucher_reverse action."
+        ),
+    }
+    try:
+        from services import audit_log_service
+        await audit_log_service.log_event(
+            event_type="dispute.negative_resolution_pending",
+            actor_id=co_signer_id,
+            actor_role="ops_manager",
+            action="negative_resolution_audit",
+            target_type="dispute",
+            target_id=dispute_id,
+            payload=payload,
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception(
+            "audit_log_service.log_event failed for negative resolution dispute=%s",
+            dispute_id,
+        )
+
+    try:
+        from realtime.ws_hub import hub
+        await hub.publish(
+            f"/realtime/disputes/{tenant_id}",
+            {
+                "type": "dispute.negative_resolution_pending",
+                "payload": payload,
+            },
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception(
+            "WS publish failed for negative resolution dispute=%s", dispute_id,
+        )
+
+    logger.info(
+        "Negative resolution audit: dispute=%s amount=%.2f → admin manual review pending",
+        dispute_id, amount,
+    )
+
 
 async def _escalate_overdue_disputes(*, tenant_id: str | None = None) -> int:
     """AC-03 60d 自動 escalation helper（Phase II Cloud Scheduler）。
