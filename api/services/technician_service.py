@@ -359,3 +359,121 @@ async def get_dashboard_stats(*, tenant_id: str) -> dict:
         "online_count": online_count,
         "dispatchable_count": online_count,
     }
+
+
+# ============================================================
+# A37 candidate detail drawer — 30 日 workload heatmap
+# ============================================================
+
+async def get_technician_workload_heatmap(
+    *,
+    tenant_id: str,
+    technician_id: str,
+    days: int = 30,
+) -> dict:
+    """取技師近 N 日（預設 30）每日 workload 統計 — A37 排班熱力圖用。
+
+    回傳：
+      {
+        "technician_id": str,
+        "window_days": 30,
+        "daily": [
+          {"date": "2026-05-06", "total": 3, "in_progress": 1,
+           "completed": 2, "cancelled": 0, "load_intensity": "medium"},
+          ...
+        ],
+        "summary": {
+          "total_completed": int,
+          "total_cancelled": int,
+          "completion_rate_pct": float,  # completed / (completed+cancelled)
+          "peak_day": "2026-05-15",
+          "avg_per_day": float,
+        }
+      }
+
+    load_intensity 分級（基於 daily total）：
+      0 → "idle"，1 → "low"，2-3 → "medium"，4-5 → "high"，6+ → "saturated"
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    if days < 1 or days > 90:
+        raise ApiError("VALIDATION_ERROR", "days must be 1..90", 422)
+
+    # 查 work_orders 該 tech 在 window 內按 scheduled_at::date GROUP
+    cur = await db_module._conn.execute(
+        "SELECT DATE(wo.scheduled_at) AS day, wo.status, COUNT(*) "
+        "FROM work_orders wo "
+        "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
+        "JOIN conversations c ON pc.conversation_id = c.id "
+        "JOIN users u ON c.user_id = u.id "
+        "WHERE wo.technician_id = %s::uuid "
+        "  AND u.tenant_id = %s::uuid "
+        "  AND wo.scheduled_at IS NOT NULL "
+        "  AND wo.scheduled_at >= NOW() - (%s || ' days')::interval "
+        "GROUP BY DATE(wo.scheduled_at), wo.status "
+        "ORDER BY day DESC",
+        (technician_id, tenant_id, str(days)),
+    )
+    rows = await cur.fetchall()
+
+    # 聚合到 daily dict
+    daily_map: dict[str, dict] = {}
+    for day, status, count in rows:
+        key = day.isoformat() if day else "unknown"
+        bucket = daily_map.setdefault(
+            key,
+            {
+                "date": key, "total": 0, "in_progress": 0,
+                "completed": 0, "cancelled": 0,
+            },
+        )
+        bucket["total"] += int(count)
+        if status == "in_progress":
+            bucket["in_progress"] += int(count)
+        elif status == "completed":
+            bucket["completed"] += int(count)
+        elif status == "cancelled":
+            bucket["cancelled"] += int(count)
+
+    # 加 load_intensity
+    for d in daily_map.values():
+        d["load_intensity"] = _classify_load(d["total"])
+
+    daily = sorted(daily_map.values(), key=lambda x: x["date"], reverse=True)
+
+    total_completed = sum(d["completed"] for d in daily)
+    total_cancelled = sum(d["cancelled"] for d in daily)
+    decided = total_completed + total_cancelled
+    completion_rate = (
+        round(100.0 * total_completed / decided, 2) if decided > 0 else 0.0
+    )
+    peak_day = max(daily, key=lambda x: x["total"], default=None)
+    avg_per_day = (
+        round(sum(d["total"] for d in daily) / len(daily), 2) if daily else 0.0
+    )
+
+    return {
+        "technician_id": technician_id,
+        "window_days": days,
+        "daily": daily,
+        "summary": {
+            "total_completed": total_completed,
+            "total_cancelled": total_cancelled,
+            "completion_rate_pct": completion_rate,
+            "peak_day": peak_day["date"] if peak_day else None,
+            "avg_per_day": avg_per_day,
+        },
+    }
+
+
+def _classify_load(total: int) -> str:
+    """0/1/2-3/4-5/6+ → idle / low / medium / high / saturated。"""
+    if total == 0:
+        return "idle"
+    if total == 1:
+        return "low"
+    if total <= 3:
+        return "medium"
+    if total <= 5:
+        return "high"
+    return "saturated"
