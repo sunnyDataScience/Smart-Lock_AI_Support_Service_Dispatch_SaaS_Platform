@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
-<<<<<<< HEAD
 - **Flow 14 schedule_conflict 偵測 component test**（branch `test/e2e-smoke-flow14-conflict`，2026-06-05）：5 個 component pytest。
 
 - **Flow 14 排班衝突 → WS publish → 85%**（branch `feat/flow14-conflict-publish`，2026-06-05）：service helper detect 衝突 + INSERT events + WS publish。
@@ -31,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Flow 9 客訴升級 admin 前端按鈕 → 100%**（branch `feat/flow9-escalate-frontend`，2026-06-05）：sentiment-alerts page 加「升級工單」按鈕 + EscalateAlertModal + POST `:escalate-to-work-order` + optimistic update + i18n。**WBS Flow 9** 90% → **100%** ✅。
 
 - **Flow 3 範圍變更 proposal INSERT + token mint → 85%**（branch `feat/flow3-scope-change-proposal`，2026-06-05）：record_scope_change 改寫 INSERT scope_changes 表 + public_token mint caller。**WBS Flow 3** 65% → **85%**。
+
+- **Flow 3 admin override → 90%**（branch `feat/flow3-consumer-respond`，2026-06-05）：scope_change_service.admin_override + endpoint `:admin-override` + 連動 wo→in_progress + audit log。**WBS Flow 3** 85% → **90%**。
 
 - **Agent 核心架構重寫 → LockCore + Agent Skills 標準**（branch `feat/agent-update`，2026-06-04）⭐⭐⭐ **重大架構決策**：捨棄舊架構（ReAct + LangGraph、自製 skill loader、product_info mega-doc、Belief-Augmented ReAct (Turn Cycle)、quality_check LLM-as-Judge），改為：
   * **核心引擎**：`agent/lockcore/`（fork 自上游 `HKUDS/nanobot` 的最小核心套件，VENDOR.md 記載 fork 來源）

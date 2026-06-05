@@ -95,7 +95,7 @@
 |:---|:---:|:---|
 | Flow 1 Happy Path | **100%** | — |
 | Flow 2 拒單重派 | **100%** | — |
-| Flow 3 範圍變更 | **85%** | proposal INSERT scope_changes + token mint 落地 (gap #1+#2 解)；剩 15% LINE Flex push 待 CR-0017 |
+| Flow 3 範圍變更 | **90%** | proposal INSERT scope_changes + token mint + admin_override endpoint 落地；剩 10% LINE Flex push 待 CR-0017 |
 | Flow 4 缺料 | **100%** | e2e 完成：list endpoint + admin page + supply_arrived 收尾 + UI 標記按鈕 |
 | Flow 5 延遲通知 | **100%** | **2026-06-04 deep audit 確認**（複用 Flow 3/6 方法論）：`work_order_service.notify_delay:1553` 全鏈路完整：(1) INSERT work_order_events `event_type='delay'` + delay_minutes payload（line 1611）/ (2) UPDATE work_orders.updated_at（line 1617）/ (3) `_audit_action('work_order.delay_notified')`（line 1622）/ (4) `line_push_service.push_to_work_order_customer` 真實 LINE push（line 1636，`push_message` AsyncMessagingApi 含 retry+backoff+audit）/ (5) `_publish_and_return(event_type='work_order.delay_notified')` WS publish（line 1643）/ (6) role guard（technician 只能 notify 自己單 line 1597）+ state machine guard（_SUBFLOW_FROM line 1590）。Web caller `my-orders/[id]/delay/page.tsx:74` 用 tenantPath v2 |
 | Flow 6 退款雙簽 | **100%** | csm_approved 中介態 + 同 user 不可雙簽 + WS 推送 |
