@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CR-0017 opened — LINE Flex push 重建 CIA**（branch `docs/cr-0017-line-flex-push-rebuild-cia`，2026-06-05）：5 HD 待業主裁決，影響 Flow 3/11/14。
 - **ADR-0107 opened — LockCore supersede product_info trio**（branch `docs/adr-supersede-product-info-trio`，2026-06-05）。
 - **CLAUDE.md ADR-0107 follow-up**（branch `docs/adr-index-and-claude-md-followup`，2026-06-05）：移除 CLAUDE.md `Architecture Lock` 表格末尾「待補 superseded 標記」備註，補 ADR-0107 entry。
+- **CR-0018 opened — Flow 13 帳款異常 EX5 CIA**（branch `docs/cr-0018-flow13-ex5-reconciliation-exception-cia`，2026-06-05）：5 HD 待業主裁決（表結構 / 狀態機 / 三路徑 / SoD / 觸發）。預估 BUILD 5-7 day。
 
 - **Agent 核心架構重寫 → LockCore + Agent Skills 標準**（branch `feat/agent-update`，2026-06-04）⭐⭐⭐ **重大架構決策**：捨棄舊架構（ReAct + LangGraph、自製 skill loader、product_info mega-doc、Belief-Augmented ReAct (Turn Cycle)、quality_check LLM-as-Judge），改為：
   * **核心引擎**：`agent/lockcore/`（fork 自上游 `HKUDS/nanobot` 的最小核心套件，VENDOR.md 記載 fork 來源）
