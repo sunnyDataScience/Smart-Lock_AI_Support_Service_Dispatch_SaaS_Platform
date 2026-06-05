@@ -697,22 +697,129 @@ async def list_audit(
 # Phase II placeholder — canary stage advance helper (not wired to cron)
 # ─────────────────────────────────────────────────────────────────────────────
 
-async def _advance_canary_stage(rollout_id: str, actor_user_id: str) -> dict:
-    """Internal helper to advance canary stage: 5%→50%→100%→activate.
+async def _advance_canary_stage(rollout_id: str) -> dict:
+    """Advance one canary rollout: 5%→50%→100%+activate。
 
-    NOT connected to any cron/scheduler — Phase II responsibility.
-    Call this from a scheduler task in Phase II.
+    cron 接入：`api/realtime/config_canary_advance_cron.py` 每 5 分鐘掃所有
+    `current_stage IN ('5%','50%') AND next_stage_eta < NOW` 的 rollout 呼此函式。
 
-    NOTE: This function is provided as a Phase II integration surface.
-    It is NOT called anywhere in Phase 0.
+    流程：
+      - 5% → 50%：UPDATE rollout SET current_stage='50%' + stage_started_at=NOW
+        + next_stage_eta=NOW+(原 observation duration)；audit stage_advanced
+      - 50% → 100%：UPDATE rollout SET current_stage='100%' + next_stage_eta=NULL
+        + _dethrone_active 舊版 + UPDATE config_version state='active'；
+        audit stage_advanced + activated；cache invalidate
+
+    Returns: {rollout_id, version_id, new_stage, next_stage_eta}
     """
-    # Phase II deferred — log and return
-    logger.info(
-        "[config_m18] DEFERRED (Phase II): _advance_canary_stage called for rollout_id=%s "
-        "— auto stage-advance not active until Phase II scheduler is wired.",
-        rollout_id,
+    cur = await db_module._conn.execute(
+        """
+        SELECT cr.id, cr.config_version_id, cr.current_stage,
+               cr.stage_started_at, cr.next_stage_eta,
+               cv.tenant_id, cv.namespace, cv.key,
+               cr.initiator_user_id, cr.approver_user_id
+        FROM saas.config_rollout cr
+        JOIN saas.config_version cv ON cv.id = cr.config_version_id
+        WHERE cr.id = %s::uuid
+        """,
+        (rollout_id,),
     )
-    raise NotImplementedError(
-        "canary stage auto-advance is a Phase II feature (requires scheduler). "
-        "See config_m18_service.py docstring."
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("CONFIG_NOT_FOUND", f"rollout {rollout_id} 不存在", 404)
+    (
+        _, version_id, current_stage, stage_started_at, next_stage_eta,
+        tenant_id, namespace, key, initiator_user_id, approver_user_id,
+    ) = row
+    version_id = str(version_id)
+    if current_stage not in ("5%", "50%"):
+        raise ApiError(
+            "CONFLICT",
+            f"rollout current_stage={current_stage} 非 advance-able stage",
+            409,
+        )
+
+    now = datetime.now(timezone.utc)
+    # 推算 observation 時長（5%→50% 寫入時的 next_stage_eta - stage_started_at）
+    if next_stage_eta and stage_started_at:
+        observation_seconds = (next_stage_eta - stage_started_at).total_seconds()
+    else:
+        observation_seconds = 600  # fallback 10 min
+
+    if current_stage == "5%":
+        new_stage = "50%"
+        new_next_eta = now + timedelta(seconds=observation_seconds)
+        await db_module._conn.execute(
+            """
+            UPDATE saas.config_rollout SET
+              current_stage = %s,
+              stage_started_at = %s,
+              next_stage_eta = %s
+            WHERE id = %s::uuid
+            """,
+            (new_stage, now, new_next_eta, rollout_id),
+        )
+        await _append_audit(
+            tenant_id=str(tenant_id) if tenant_id else None,
+            config_version_id=version_id,
+            actor_user_id=str(approver_user_id),  # auto-advance 視為 approver 推
+            action="stage_advanced",
+            diff={
+                "from": "5%", "to": "50%",
+                "auto_advanced": True,
+                "next_stage_eta": new_next_eta.isoformat(),
+            },
+        )
+        return {
+            "rollout_id": rollout_id,
+            "version_id": version_id,
+            "new_stage": new_stage,
+            "next_stage_eta": new_next_eta.isoformat(),
+        }
+
+    # current_stage == "50%": 推進至 100% + activate
+    new_stage = "100%"
+    dethroned_id = await _dethrone_active(
+        str(tenant_id) if tenant_id else None, namespace, key,
     )
+    await db_module._conn.execute(
+        """
+        UPDATE saas.config_version
+        SET state = 'active', activated_at = %s,
+            parent_version_id = COALESCE(parent_version_id, %s::uuid)
+        WHERE id = %s::uuid
+        """,
+        (now, dethroned_id, version_id),
+    )
+    await db_module._conn.execute(
+        """
+        UPDATE saas.config_rollout SET
+          current_stage = %s, stage_started_at = %s,
+          next_stage_eta = NULL
+        WHERE id = %s::uuid
+        """,
+        (new_stage, now, rollout_id),
+    )
+    await _append_audit(
+        tenant_id=str(tenant_id) if tenant_id else None,
+        config_version_id=version_id,
+        actor_user_id=str(approver_user_id),
+        action="stage_advanced",
+        diff={"from": "50%", "to": "100%", "auto_advanced": True},
+    )
+    await _append_audit(
+        tenant_id=str(tenant_id) if tenant_id else None,
+        config_version_id=version_id,
+        actor_user_id=str(approver_user_id),
+        action="activated",
+        diff={"rollout_id": rollout_id, "auto_advanced": True},
+    )
+    _cache_invalidate(
+        str(tenant_id) if tenant_id else None, namespace, key,
+    )
+    return {
+        "rollout_id": rollout_id,
+        "version_id": version_id,
+        "new_stage": new_stage,
+        "next_stage_eta": None,
+    }
