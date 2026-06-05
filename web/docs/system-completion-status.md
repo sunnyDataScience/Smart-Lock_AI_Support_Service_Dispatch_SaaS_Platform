@@ -103,10 +103,10 @@
 | Flow 8 二次派工 | **100%** | reassign backend + frontend e2e 完成 (`_REASSIGN_FROM={assigned,accepted,in_progress}` + service + endpoint + 雙表 audit + WS publish + 前端分流) |
 | Flow 9 客訴升級 | **100%** | escalate-to-work-order endpoint + 前端 EscalateAlertModal + i18n e2e 完成 |
 | Flow 10 門面檢核 | **100%** | T8 + admin 縮圖瀏覽完成端到端 |
-| Flow 11 客戶不在場 | **100%** | T11 提案 + LINE Flex RSVP + customer-confirm/reject endpoints + WS 推回技師 |
-| Flow 12 金流支付 | **0%** | **2026-06-05 deep audit 校正**（推翻 60-80% 粗估）：payments 表 + endpoint + LINE Pay webhook + 客戶 LINE 支付頁全 0；對齊 [`CR-0011-fr-0011-consumer-payment-cia.md`](../../docs/_audit/CR-0011-fr-0011-consumer-payment-cia.md) 8 HD 待業主裁決。**Build blocked by CR-0011**。詳見 [`docs/_audit/flow-12-14-deep-audit.md`](../../docs/_audit/flow-12-14-deep-audit.md) |
-| Flow 13 帳款異常 EX5 | **50%** | **2026-06-05 deep audit 校正**（推翻 60-80% 粗估）：reconciliation 正常流 (CSM→ops_manager dual-sign Track B S2) 100% ✅；disputes_v2 客訴流 100% ✅；但 EX5 例外流（帳款金額不符 / 缺單 / 雙簽超時）**無獨立 endpoint**，僅靠 admin 手動進 disputes 介面。待開 CIA — Domain model 變動 + Test plan 觸發。詳見 [`docs/_audit/flow-12-14-deep-audit.md`](../../docs/_audit/flow-12-14-deep-audit.md) |
-| Flow 14 排班衝突 | **85%** | **2026-06-05 兩輪推進**：(1) deep audit 校正粗估 60-80%→70% / (2) **本輪 conflict → WS publish 鏈路落地**：新 service helper `_detect_schedule_conflict_and_publish(*, tenant_id, wo_id, technician_id, window_hours=2)` — 同技師 ±2hr 內 active wo（排除 completed/confirmed/cancelled + 排除自身）偵測 → INSERT `work_order_events event_type='schedule_conflict'` payload（含 conflicting_wo_ids / technician_id / window_hours / scheduled_at）→ WS publish `/realtime/dispatch-queue` type='schedule_conflict_detected'；接於 `assign_order` UPDATE 後 best-effort 呼叫（不阻擋 assign，DB/WS 失敗 swallow）；admin 已訂閱 dispatch-queue channel 無需新前端訂閱碼。**剩 15% 缺口**：補救流（建議時段 / 改派建議 / 升級）涉 LINE Flex push 與 Flow 11 同病 — 待 CR-0017 LINE Flex 重建一併處理；A37 衝突告警頁屬前端 admin UI follow-up。詳見 [`docs/_audit/flow-12-14-deep-audit.md`](../../docs/_audit/flow-12-14-deep-audit.md) |
+| Flow 11 客戶不在場 | **80%** | backend + web/track 完整；LINE Flex 主動 push 鏈路 0%（agent 重寫刪 Flex template），待 CR-0017 |
+| Flow 12 金流支付 | **0%** | payments / endpoint / LINE Pay webhook / 客戶 LINE 支付頁全 0；blocked by CR-0011 |
+| Flow 13 帳款異常 EX5 | **50%** | reconciliation 正常流 + dispute 客訴流 100% ✅；但 EX5 例外流無獨立 endpoint，待 CR-0018 |
+| Flow 14 排班衝突 | **85%** | conflict → WS publish 鏈路落地（service helper detect 同技師 ±2hr 衝突）；剩 15% 補救流待 CR-0017 |
 | **🆕 Dual-sign Reconciliation**（Track B S2）| **100%** | CSM → ops_manager co-sign 跨兩 call SoD |
 | **🆕 Dual-sign Dispute**（Track B S2）| **100%** | filed → in_review →(mediation)→ resolved\|escalated\|closed_withdrawn |
 | **🆕 Voucher Void 紅字沖銷**（Track B S7）| **100%** | append-only + hash chain + require_keeper_role |
