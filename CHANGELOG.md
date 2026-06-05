@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
-<<<<<<< HEAD
 - **Flow 14 schedule_conflict 偵測 component test**（branch `test/e2e-smoke-flow14-conflict`，2026-06-05）：5 個 component pytest。
 
 - **Flow 14 排班衝突 → WS publish → 85%**（branch `feat/flow14-conflict-publish`，2026-06-05）：service helper detect 衝突 + INSERT events + WS publish。
