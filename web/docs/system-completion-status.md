@@ -9,13 +9,13 @@
 
 ---
 
-## 總體：**約 98%**
+## 總體：**約 98.5%**
 
 ```
-████████████████████████████████  98%
+█████████████████████████████████  98.5%
 ```
 
-> 6/05 二次大躍進（96% → 98%）— **Phase II 9 FR (FR-0049/0044/0053/0050/0051/0048/0045/0046/0047) 全部從 placeholder → active MVP**！本 session 完整成果：(1) 5 batch CR BUILD；(2) 7 §8 P1/P2 backend 缺口；(3) 2 DEFERRED 解 (Dispute 負值 audit / M18 SLO halt)；(4) 9 Phase II FR MVP；累積 294 tests passing。剩 Phase 8 UAT 期程 + P4 Cutover (3-5d) + 少量 web-only UI 工作 (Reconciliation dual-sign UX / 計價引擎 GUI / A37 drawer 元件)。
+> 6/05 三段躍進（89% → 96% → 98% → **98.5%**）— **P4 Cutover Stage 1 backend 工作完成** (Task 1-5 done / Task 6 留 ops)！session 總成果：(1) 5 batch CR BUILD；(2) 7 §8 P1/P2 backend；(3) 2 DEFERRED 解；(4) 9 Phase II FR MVP；(5) 2 cron 補強；(6) P4 Stage 1 + tooling 鏈完整 (deprecation hit metrics / v1 inventory / lifespan health / ops runbook / smoke script / CI workflow)；累積 342 tests passing。**剩 ~1.5%**：Phase 8 UAT 期程 + P4 Stage 2-7 (3-4d，需 web e2e) + Reconciliation dual-sign UX rework (產品工作) + 計價引擎 GUI / A37 drawer 元件。
 
 | 維度 | 完成度 | 變化（vs 早段 2026-06-05）|
 |:---|:---:|:---:|
