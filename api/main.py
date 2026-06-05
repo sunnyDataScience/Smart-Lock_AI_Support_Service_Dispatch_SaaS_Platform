@@ -127,6 +127,7 @@ async def lifespan(app: FastAPI):
     from realtime.inventory_monitor import monitor as inventory_monitor
     from realtime.line_push_outbox_worker import worker as line_push_worker
     from realtime.reconciliation_exception_detector import worker as recon_exc_detector
+    from realtime.gdpr_hard_delete_cron import worker as gdpr_hard_delete
     from realtime.sla_monitor import monitor as sla_monitor
     from realtime.statement_auto_approval_cron import worker as statement_auto_approval
 
@@ -137,8 +138,10 @@ async def lifespan(app: FastAPI):
     dispute_escalation_cron.start()  # WBS §8 P1: 60d dispute 自動 escalation
     canary_advance_cron.start()  # WBS §8 P1: M18 canary 5%→50%→100% 自動推進
     statement_auto_approval.start()  # Phase II: 3 statement 表 dispute window 過期 auto-approve
+    gdpr_hard_delete.start()  # FR-0053: T+30 GDPR forget 自動硬刪
     logger.info("API service ready (port=%s)", cfg.system["port"])
     yield
+    await gdpr_hard_delete.stop()
     await statement_auto_approval.stop()
     await canary_advance_cron.stop()
     await dispute_escalation_cron.stop()
