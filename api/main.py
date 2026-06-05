@@ -107,6 +107,7 @@ from routers import gdpr_forget_v2 as gdpr_forget_v2_router  # FR-0053 MVP: GDPR
 from routers import ai_governance_trace_v2 as ai_gov_v2_router  # FR-0050 MVP: AI Governance Trace
 from routers import sop_feedback_v2 as sop_feedback_v2_router  # FR-0051 MVP: SOP Feedback Spiral
 from routers import rma_quality_v2 as rma_quality_v2_router  # FR-0048 MVP: RMA Quality Feedback Loop
+from routers import technician_statement_v2 as tech_statement_v2_router  # FR-0045 MVP: Technician AP Statement
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -263,6 +264,7 @@ app.include_router(gdpr_forget_v2_router.router, tags=["M17 GDPR Forget"])  # FR
 app.include_router(ai_gov_v2_router.router, tags=["A12 AI Governance"])  # FR-0050 MVP: AI Governance Trace Store
 app.include_router(sop_feedback_v2_router.router, tags=["A10 SOP Feedback"])  # FR-0051 MVP: SOP Feedback Spiral
 app.include_router(rma_quality_v2_router.router, tags=["M13 RMA Quality"])  # FR-0048 MVP: RMA Quality Feedback Loop
+app.include_router(tech_statement_v2_router.router, tags=["M12 Tech AP Statement"])  # FR-0045 MVP: Technician AP Statement
 
 
 @app.get("/health")
