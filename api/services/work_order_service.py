@@ -300,6 +300,9 @@ _ACCEPT_FROM = {"assigned"}
 _COMPLETE_FROM = {"accepted", "in_progress"}
 _CANCEL_FROM = {"created", "assigned", "accepted", "in_progress"}
 _ASSIGN_FROM = {"created", "assigned"}  # 允許重派（assigned → assigned 換人）
+# Flow 8 二次派工：admin 強制改派可從 accepted / in_progress 收回（含 assigned，
+# 與 assign_order 重疊但語意不同：reassign 明確記錄 old→new + dispatch_log action='reassign'）
+_REASSIGN_FROM = {"assigned", "accepted", "in_progress"}
 # 升級可從任何「未結案」狀態觸發；completed/confirmed/cancelled 視為終局不可升級
 _ESCALATE_FROM = {"created", "assigned", "accepted", "in_progress"}
 _ESCALATE_LEVELS = {"operations_manager", "tenant_admin"}
@@ -507,6 +510,116 @@ async def assign_order(
     )
     return await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.assigned"
+    )
+
+
+async def reassign_order(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    new_technician_id: str,
+    reason: str,
+    actor_user_id: str | None = None,
+) -> dict:
+    """Flow 8 二次派工 — admin 強制改派（不破壞 wo_id / events / customer history）。
+
+    與 assign_order 差異：
+      - 接受 _REASSIGN_FROM = {assigned, accepted, in_progress}（涵蓋 accepted/
+        in_progress，後兩者 assign_order 拒絕）
+      - 強制收回後 status 回到 'assigned'（即使原本 accepted/in_progress）
+      - 寫 dispatch_logs.action='reassign' 留 audit 軌跡
+      - 422 NO_OP_SAME_TECHNICIAN 若新舊技師相同
+
+    使用情境：
+      - admin 發現指派錯誤但工單已 accepted
+      - 客戶要求換技師
+      - 原技師臨時無法執行（病假 / 排程衝突）但 wo 已開始
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    current = await _fetch_status_for_update(wo_id, tenant_id)
+    if current not in _REASSIGN_FROM:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot reassign work order in status '{current}'; "
+            f"expected one of {sorted(_REASSIGN_FROM)}",
+            409,
+        )
+
+    # 取得原技師
+    cur = await db_module._conn.execute(
+        "SELECT technician_id FROM work_orders WHERE id = %s::uuid",
+        (wo_id,),
+    )
+    row = await cur.fetchone()
+    old_technician_id = str(row[0]) if row and row[0] else None
+    if old_technician_id == str(new_technician_id):
+        raise ApiError(
+            "NO_OP_SAME_TECHNICIAN",
+            "new_technician_id is the same as current technician",
+            422,
+        )
+
+    # 驗新技師同 tenant + active
+    cur = await db_module._conn.execute(
+        "SELECT id, status FROM technicians "
+        "WHERE id = %s::uuid AND tenant_id = %s::uuid",
+        (new_technician_id, tenant_id),
+    )
+    tech_row = await cur.fetchone()
+    if not tech_row:
+        raise ApiError(
+            "TECHNICIAN_NOT_FOUND",
+            "new technician not found in this tenant",
+            404,
+        )
+    if tech_row[1] != "active":
+        raise ApiError(
+            "TECHNICIAN_NOT_AVAILABLE",
+            f"new technician status is '{tech_row[1]}'; only 'active' can be reassigned",
+            409,
+        )
+
+    note = f"[REASSIGN] {old_technician_id or 'unassigned'} → {new_technician_id}: {reason}"
+    await db_module._conn.execute(
+        "UPDATE work_orders SET "
+        "  technician_id = %s::uuid, "
+        "  status = 'assigned', "
+        "  service_report = COALESCE(service_report, '') || E'\\n' || %s, "
+        "  updated_at = NOW() "
+        "WHERE id = %s::uuid",
+        (new_technician_id, note, wo_id),
+    )
+    # dispatch_logs audit（schema: 無 tenant_id；隔離靠 join）
+    await db_module._conn.execute(
+        "INSERT INTO dispatch_logs "
+        "  (work_order_id, action, technician_id, notes) "
+        "VALUES (%s::uuid, 'reassign', %s::uuid, %s)",
+        (wo_id, new_technician_id, reason),
+    )
+    # 也寫一筆 work_order_events 對齊 subflow timeline 觀感
+    await db_module._conn.execute(
+        "INSERT INTO work_order_events "
+        "  (work_order_id, tenant_id, actor_user_id, event_type, payload) "
+        "VALUES (%s::uuid, %s::uuid, %s, 'reassign', %s::jsonb)",
+        (
+            wo_id,
+            tenant_id,
+            actor_user_id,
+            json.dumps(
+                {
+                    "old_technician_id": old_technician_id,
+                    "new_technician_id": str(new_technician_id),
+                    "reason": reason,
+                    "from_status": current,
+                },
+                ensure_ascii=False,
+            ),
+        ),
+    )
+    return await _publish_and_return(
+        tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.reassigned"
     )
 
 
