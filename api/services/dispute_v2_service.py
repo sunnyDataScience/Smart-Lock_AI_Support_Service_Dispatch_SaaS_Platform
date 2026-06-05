@@ -578,14 +578,10 @@ async def _escalate_overdue_disputes(*, tenant_id: str | None = None) -> int:
     → 更新 status=escalated, escalated_to='ops_director', escalated_at=NOW()。
     回傳升級筆數。
 
-    [DEFERRED] 本函式已實作但不接 cron；Phase II 接入 Cloud Scheduler 呼叫即可。
-    logger.info 明標 DEFERRED，不應在 production phase I 被自動排程呼叫。
+    cron 接入：`api/realtime/dispute_escalation_cron.py` 已 wrap 此邏輯為
+    in-process cron（86400s interval）；此 helper 保留供 admin manual
+    trigger / 測試用。
     """
-    logger.info(
-        "[DEFERRED] _escalate_overdue_disputes called: "
-        "Phase II Cloud Scheduler 才接此 helper；tenant_id=%s",
-        tenant_id,
-    )
 
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
@@ -613,7 +609,7 @@ async def _escalate_overdue_disputes(*, tenant_id: str | None = None) -> int:
     count = cur.rowcount if hasattr(cur, "rowcount") else 0
 
     logger.info(
-        "[DEFERRED] _escalate_overdue_disputes: escalated %d disputes (tenant=%s)",
+        "_escalate_overdue_disputes: escalated %d disputes (tenant=%s)",
         count, tenant_id,
     )
     return count
