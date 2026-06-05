@@ -30,6 +30,7 @@
 | 019 | `019-monthly-settlement.sql` | CR-0012 | 🟡 pending-apply | settlement status enum 加 csv_exported/manual_paid（HD-1 Manual CSV 階段化）+ settled_eligible flag（HD-5 dispute 排除）+ receipt_url/manual_paid_at/manual_paid_by audit（HD-4）+ retry_count（HD-3）+ 新表 saas.monthly_settlement_batch（HD-2 cron tick 審計）+ settlement.monthly_batch_id FK + 3 新 indexes |
 | 020 | `020-tech-lifecycle.sql` | FR-0044 | 🟡 pending-apply | saas.technician_lifecycle_event 新表（FR-0044 Phase II MVP）+ 7 event_type (onboarding_approved/rejected, suspended, reactivated, terminated, rating_threshold_breach, cert_expired) + previous_status/new_status/reason/notes/actor + 2 indexes |
 | 021 | `021-gdpr-forget-requests.sql` | FR-0053 | 🟡 pending-apply | saas.forget_request 新表 GDPR 兩階段刪除（FR-0053 Phase II MVP）+ 5 狀態 (received/legal_hold_denied/soft_deleted/hard_deleted/cancelled) + 3 requested_by + legal_hold_reason/expected_release_at + soft_deleted_at + hard_delete_eligible_at 30d cooldown + 3 indexes (含 hard_delete due partial) |
+| 022 | `022-ai-decision-trace.sql` | FR-0050 | 🟡 pending-apply | saas.ai_decision_trace 新表（FR-0050 Phase II MVP AI Governance Trace Store）+ 5 decision_type (reasoning/tool_call/output/guardrail_block/human_handoff) + PRD source / charter_rule / owner_decision_ref 三軸 traceability + guardrail_triggered/action + input/output payload jsonb + 6 indexes |
 
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
 > 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。
