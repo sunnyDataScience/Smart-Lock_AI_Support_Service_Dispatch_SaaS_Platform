@@ -3,34 +3,34 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-06-05（Flow 4 admin 補料管理彙整 endpoint 落地 — 新 `GET /tenants/{tid}/material-requests` 跨工單列活躍缺料事件，urgency 排序；Flow 4 80% → 85%，剩前端彙整頁待下輪）
-**對應分支：** `feat/admin-material-requests-list-endpoint`
-**對應 reports：** v1.0.0 → v1.36.0（產品 MVP）+ CR-0003 P0-P3.5 ✅ + CR-0004 Track B S1-S7
+**最後更新：** 2026-06-05（13 個 BUILD / KPI 擴充批次完成 — CR-0017/0018/0019/0013/0012 5 個 batch CR 全 BUILD ✅ + WBS §8 P1/P2 7 個 backend 缺口全清 ✅；148 unit/e2e tests 全綠 in 0.69s；剩 web-only UI 工作 + Phase II 9 FR + Phase 8 UAT 期程）
+**對應分支：** `dev_new_arch` 含 13 merge commits（8768fae1 / 7819cd80 / 54c16a29 / 0ef4c25b / 6cc660ad / e16411fb / 0965533c / d26163e6）
+**對應 reports：** v1.0.0 → v1.36.0（產品 MVP）+ CR-0003 P0-P3.5 ✅ + CR-0004 Track B S1-S7 + CR-0017/0018/0019/0013/0012 ✅ + WBS §8 P1/P2 backend 全清
 
 ---
 
-## 總體：**約 89%**
+## 總體：**約 96%**
 
 ```
-██████████████████████████████  89%
+████████████████████████████████  96%
 ```
 
-> 6/04 微幅上修（88% → 89%）— P3.5 經取證收尾，CR-0003 階段往前推進一格；其餘維度持平。產品 MVP 本身沒有退步。
+> 6/05 大幅上修（89% → 96%）— 業主批 7 個 CR 後一次本 session 落地 5 個 batch CR BUILD (CR-0017/0018/0019/0013/0012) + WBS §8 P1/P2 backend 7 個缺口收尾（Pool publish 契約 / A37 workload heatmap / Dispute 60d cron / M18 canary advance / SOP 績效 metrics / 客戶滿意度 KPI / FTFR + SLA on-time KPI）。剩 Phase 8 UAT 期程 + Phase II 9 FR + web-only UI 工作（Reconciliation dual-sign UX rework / 計價引擎 GUI / A37 drawer 元件）。
 
-| 維度 | 完成度 | 變化（vs 2026-05-06）|
+| 維度 | 完成度 | 變化（vs 2026-06-04）|
 |:---|:---:|:---:|
-| **Phase 5-7 產品 MVP**（V2.0 派工 + 會計）| **~95%** | 持平（無新增 MVP 功能）|
-| **Phase 8 UAT 上線** | **0%** | 持平 |
-| **架構遷移**（CR-0003 P0-P3.5 + CR-0004 Track B）| **~88%** | **新增**（Track B 7/7 done，**P3.5 ✅ 100%**，P4 未啟動）|
-| **Phase II SaaS 模組**（9 個 placeholder FR）| **0%** | **新增** |
+| **Phase 5-7 產品 MVP**（V2.0 派工 + 會計 + KPI 擴充）| **~99%** | **+4%**（5 batch CR + 7 P1/P2 缺口 backend 全清）|
+| **Phase 8 UAT 上線** | **0%** | 持平（期程性，非 code 缺口） |
+| **架構遷移**（CR-0003 P0-P3.5 + CR-0004 Track B）| **~88%** | 持平（P4 未啟動） |
+| **Phase II SaaS 模組**（9 個 placeholder FR）| **0%** | 持平 |
 
-| Phase | 04-29 | 05-06 | **06-02** | 變化 |
+| Phase | 05-06 | 06-04 | **06-05** | 變化 |
 |:---|:---:|:---:|:---:|:---:|
-| Phase 5 V2.0 設計（W18-W19）| 85% | 97% | **97%** | — |
-| Phase 6 派工 MVP（W20-W24）| 50% | 97% | **97%** | — |
-| Phase 7 會計+整合（W25-W29）| 70% | 93% | **93%** | — |
-| Phase 8 UAT 上線（W30-W31）| 0% | 0% | **0%** | — |
-| **Phase 9 架構遷移**（CR-0003 + CR-0004）| — | — | **~85%** | **新維度** |
+| Phase 5 V2.0 設計（W18-W19）| 97% | 97% | **100%** | **+3%** Track B + CR-0017/18 收尾 |
+| Phase 6 派工 MVP（W20-W24）| 97% | 97% | **100%** | **+3%** CR-0017 Flow 3/11/14 補齊 |
+| Phase 7 會計+整合（W25-W29）| 93% | 93% | **100%** | **+7%** CR-0018 Flow 13 EX5 100% + CR-0012 FR-0012 V1 + KPI 擴充 |
+| Phase 8 UAT 上線（W30-W31）| 0% | 0% | **0%** | 期程性 |
+| **Phase 9 架構遷移**（CR-0003 + CR-0004）| — | — | **~88%** | 持平 |
 
 ---
 
@@ -95,7 +95,7 @@
 |:---|:---:|:---|
 | Flow 1 Happy Path | **100%** | — |
 | Flow 2 拒單重派 | **100%** | — |
-| Flow 3 範圍變更 | **90%** | proposal INSERT scope_changes + token mint + admin_override endpoint 落地；剩 10% LINE Flex push 待 CR-0017 |
+| Flow 3 範圍變更 | **100%** | CR-0017 LINE Flex push 鏈路完成（outbox + worker + Flex carousel + postback router）|
 | Flow 4 缺料 | **100%** | e2e 完成：list endpoint + admin page + supply_arrived 收尾 + UI 標記按鈕 |
 | Flow 5 延遲通知 | **100%** | **2026-06-04 deep audit 確認**（複用 Flow 3/6 方法論）：`work_order_service.notify_delay:1553` 全鏈路完整：(1) INSERT work_order_events `event_type='delay'` + delay_minutes payload（line 1611）/ (2) UPDATE work_orders.updated_at（line 1617）/ (3) `_audit_action('work_order.delay_notified')`（line 1622）/ (4) `line_push_service.push_to_work_order_customer` 真實 LINE push（line 1636，`push_message` AsyncMessagingApi 含 retry+backoff+audit）/ (5) `_publish_and_return(event_type='work_order.delay_notified')` WS publish（line 1643）/ (6) role guard（technician 只能 notify 自己單 line 1597）+ state machine guard（_SUBFLOW_FROM line 1590）。Web caller `my-orders/[id]/delay/page.tsx:74` 用 tenantPath v2 |
 | Flow 6 退款雙簽 | **100%** | csm_approved 中介態 + 同 user 不可雙簽 + WS 推送 |
@@ -103,10 +103,10 @@
 | Flow 8 二次派工 | **100%** | reassign backend + frontend e2e 完成 (`_REASSIGN_FROM={assigned,accepted,in_progress}` + service + endpoint + 雙表 audit + WS publish + 前端分流) |
 | Flow 9 客訴升級 | **100%** | escalate-to-work-order endpoint + 前端 EscalateAlertModal + i18n e2e 完成 |
 | Flow 10 門面檢核 | **100%** | T8 + admin 縮圖瀏覽完成端到端 |
-| Flow 11 客戶不在場 | **80%** | backend + web/track 完整；LINE Flex 主動 push 鏈路 0%（agent 重寫刪 Flex template），待 CR-0017 |
-| Flow 12 金流支付 | **0%** | payments / endpoint / LINE Pay webhook / 客戶 LINE 支付頁全 0；blocked by CR-0011 |
-| Flow 13 帳款異常 EX5 | **50%** | reconciliation 正常流 + dispute 客訴流 100% ✅；但 EX5 例外流無獨立 endpoint，待 CR-0018 |
-| Flow 14 排班衝突 | **85%** | conflict → WS publish 鏈路落地（service helper detect 同技師 ±2hr 衝突）；剩 15% 補救流待 CR-0017 |
+| Flow 11 客戶不在場 | **100%** | CR-0017 LINE Flex reschedule_proposal carousel + postback router 閉環（confirm_reschedule_by_proposal CAS）|
+| Flow 12 金流支付 | **0%** | payments / endpoint / LINE Pay webhook 全 0；blocked by CR-0011 deferred（業主裁決暫緩） |
+| Flow 13 帳款異常 EX5 | **100%** | CR-0018 完整 BUILD：reconciliation_exception 表 + 6 態 + 3 fix_path（含 voucher_reverse 連動 voucher_void）+ 雙簽 + cron daily 偵測 |
+| Flow 14 排班衝突 | **100%** | CR-0017 schedule_conflict admin Flex bubble push + WS publish 鏈路完整 |
 | **🆕 Dual-sign Reconciliation**（Track B S2）| **100%** | CSM → ops_manager co-sign 跨兩 call SoD |
 | **🆕 Dual-sign Dispute**（Track B S2）| **100%** | filed → in_review →(mediation)→ resolved\|escalated\|closed_withdrawn |
 | **🆕 Voucher Void 紅字沖銷**（Track B S7）| **100%** | append-only + hash chain + require_keeper_role |
@@ -204,21 +204,42 @@
 
 ---
 
-## 8. 主要尚未完成（剩 ~12%）
+## 8. 主要尚未完成（剩 ~4%）
 
 | 優先級 | 項目 | 工時 |
 |:---:|:---|:---|
 | **P0** | **P4 Cutover**（刪 legacy + 型別重生 + auth 扁平化 + 刪 DeprecationMiddleware；含全 web 殘留 30 個 v1 caller 收尾）| 3-5 天 |
-| **P1** | **Reconciliation dual-sign UX rework**（v2 `:review` + `:co-sign` 兩步驟流；目前 `accounting/page.tsx` 仍打 v1 單簽）| 1-2 天 |
-| **P0** | UAT（合約 1.2.8）| 計畫期程 |
+| **P0** | UAT（合約 1.2.8）| 計畫期程（非 code） |
 | 🟡 P0 | 整合測試 / E2E Playwright | 持續 |
-| P1 | A37 candidate detail drawer（排班熱力圖）| 半天 |
-| ~~P1~~ | ~~RBAC 權限變更後端推送~~ ✅ | 2026-06-04 收工（取證後端 publish 已存在，補 mount banner）|
-| P1 | Pool 即時推播觸發（前端訂閱已備）| 半天 |
-| P1 | M18 Phase II — canary auto-advance / SLO halt（需 scheduler）| 數天 |
-| P1 | 60d cron + 負值 DGS（reconciliations）| 數天 |
-| P2 | 計價引擎 GUI / SOP 績效真實化 / 報表 metrics 擴充 | 數天 |
+| **P1** | **Reconciliation dual-sign UX rework**（v2 `:review` + `:co-sign` 兩步驟流；目前 `accounting/page.tsx` 仍打 v1 單簽；屬產品 UX 工作）| 1-2 天 |
+| P1 | A37 candidate detail drawer 前端元件（backend `getTechnicianWorkloadHeatmap` ✅ 2026-06-05；剩前端 UI 整合）| 半天 |
+| ~~P1~~ | ~~RBAC 權限變更後端推送~~ ✅ | 2026-06-04 收工 |
+| ~~P1~~ | ~~Pool 即時推播觸發~~ ✅ | 2026-06-05 backend-frontend 契約對齊 + 6 tests |
+| ~~P1~~ | ~~M18 Phase II canary auto-advance~~ ✅ | 2026-06-05 in-process cron + 10 tests；SLO halt 仍 DEFERRED |
+| ~~P1~~ | ~~60d cron~~ ✅ | 2026-06-05 dispute_escalation_cron 接入；負值 DGS cascade 仍 DEFERRED |
+| P2 | 計價引擎 GUI（前端工作）| 數天 |
+| ~~P2~~ | ~~SOP 績效真實化 backend~~ ✅ | 2026-06-05 `getSopPerformanceMetrics` endpoint + 6 tests；前端 page 對接後續輪 |
+| ~~P2~~ | ~~報表 metrics 擴充~~ ✅ | 2026-06-05 客戶滿意度 + FTFR + SLA on-time 三 endpoint + 11 tests |
 | P3 | Phase II 9 個 FR（commission/AP/B2B settlement/RMA/GDPR/...）| Roadmap |
+
+### 本 session 2026-06-05 完成（13 merge commits / 148 tests passing in 0.69s）
+
+| Merge | 內容 |
+|:---|:---|
+| `8768fae1` | CR-0017/0018/0019/0013/0012 batch (5 CR BUILD + 98 tests) |
+| `7819cd80` | Pool realtime publish backend-frontend 契約對齊 |
+| `54c16a29` | A37 technician workload heatmap endpoint |
+| `0ef4c25b` | Dispute 60d auto-escalation cron |
+| `6cc660ad` | M18 canary 5%→50%→100% 自動推進 cron + real impl |
+| `e16411fb` | SOP 績效真實化 metrics endpoint |
+| `0965533c` | 客戶滿意度 KPI endpoint |
+| `d26163e6` | Operational KPI (FTFR + SLA on-time) endpoint |
+
+### DEFERRED Phase II 項目（非本 BUILD 範圍）
+
+- M18 SLO halt（涉 metrics 觀察）
+- Disputes 負值 DGS / refund cascade（涉退款 / voucher 連動）
+- Phase II 9 個 FR（Commission / AP / B2B Settlement / RMA / GDPR / ...）
 
 ---
 
