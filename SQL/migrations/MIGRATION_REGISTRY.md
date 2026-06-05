@@ -28,6 +28,7 @@
 | 017 | `017-reconciliation-exceptions.sql` | CR-0018 | 🟡 pending-apply | saas.reconciliation_exception 新表（HD-1=a 獨立）+ 六態狀態機 detected→ops_review→fix_proposed→fix_approved→applied→closed（HD-2=b）+ 三 fix_path invoice_supplement/recon_void/voucher_reverse（HD-3=c）+ 雙簽 proposed_by/approved_by CHECK 相異（HD-4=a）+ detected_by upload_realtime/cron_daily/manual（HD-5=c 雙保險）+ 3 indexes |
 | 018 | `018-line-bindings.sql` | CR-0013 | 🟡 pending-apply | saas.line_binding 新表（HD-03=b 主動 binding）+ bind_method auto/manual + unbound_at 軟解綁 + link_token_hash + 3 indexes (active partial / user / token) — 不取代 users.line_user_id 自動路徑 |
 | 019 | `019-monthly-settlement.sql` | CR-0012 | 🟡 pending-apply | settlement status enum 加 csv_exported/manual_paid（HD-1 Manual CSV 階段化）+ settled_eligible flag（HD-5 dispute 排除）+ receipt_url/manual_paid_at/manual_paid_by audit（HD-4）+ retry_count（HD-3）+ 新表 saas.monthly_settlement_batch（HD-2 cron tick 審計）+ settlement.monthly_batch_id FK + 3 新 indexes |
+| 020 | `020-tech-lifecycle.sql` | FR-0044 | 🟡 pending-apply | saas.technician_lifecycle_event 新表（FR-0044 Phase II MVP）+ 7 event_type (onboarding_approved/rejected, suspended, reactivated, terminated, rating_threshold_breach, cert_expired) + previous_status/new_status/reason/notes/actor + 2 indexes |
 
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
 > 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。
