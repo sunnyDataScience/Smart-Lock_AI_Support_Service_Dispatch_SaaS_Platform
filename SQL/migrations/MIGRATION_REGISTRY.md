@@ -34,6 +34,7 @@
 | 023 | `023-sop-feedback.sql` | FR-0051 | 🟡 pending-apply | saas.sop_feedback 新表（FR-0051 Phase II MVP SOP Feedback Spiral）+ 5 source (customer_thumbs/technician_onsite/rma_finding/ai_eval/csm_manual) + sop_type draft/case_entry + sentiment 3 enum + score 1-5 + metadata jsonb + 3 indexes |
 | 024 | `024-rma-quality-feedback.sql` | FR-0048 | 🟡 pending-apply | saas.rma_quality_finding 新表（FR-0048 Phase II MVP RMA Quality Feedback Loop）+ warranty_claim_id/work_order_id/technician_id/brand 關聯 + failure_mode/root_cause/is_repeat_failure + 4 cascade 評分 (brand_quality/technician_quality/ai_diagnosis_accuracy/customer_satisfaction) + 5 indexes |
 | 025 | `025-tech-ap-statements.sql` | FR-0045 | 🟡 pending-apply | saas.technician_statement 新表（FR-0045 Phase II MVP Technician AP Statement）+ 6 狀態 (draft/pending_review/disputed/approved/paid/rejected) + gross/travel_fee/cash_collection/dispute_hold/other_deductions/net + dispute_window_ends_at + UNIQUE(tenant+tech+year+month) + 3 indexes |
+| 026 | `026-dispatcher-commission.sql` | FR-0046 | 🟡 pending-apply | saas.dispatcher_commission_statement 新表（FR-0046 Phase II MVP Dispatcher Commission）+ 派工指標 (dispatched/completed/completion_rate/avg_csat) + 抽成 (base/performance_bonus/penalty/net) + 同 FR-0045 6 狀態機 + UNIQUE(tenant+user+year+month) + 3 indexes |
 
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
 > 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。
