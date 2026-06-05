@@ -217,6 +217,7 @@
       "dispatch": "Dispatch",
       "workOrders": "Work orders",
       "dispatchQueue": "Dispatch queue",
+      "materialRequests": "Material requests",
       "technicians": "Technicians",
       "customers": "Customers",
       "accounting": "Accounting",
@@ -1569,6 +1570,33 @@
         "high": "High",
         "medium": "Medium",
         "low": "Low"
+      }
+    },
+    "materialRequests": {
+      "breadcrumb": "Home > Dispatch > Material requests",
+      "title": "Material requests",
+      "count": "{n} active reports",
+      "lastUpdated": "Last updated: {time}",
+      "notLoaded": "Not loaded",
+      "refresh": "Refresh",
+      "loading": "Loading…",
+      "empty": "No active material requests",
+      "noItems": "(no items)",
+      "filter": {
+        "all": "All",
+        "now": "Now",
+        "today": "Today",
+        "tomorrow": "Tomorrow",
+        "other": "Other"
+      },
+      "col": {
+        "urgency": "Urgency",
+        "reportedAt": "Reported at",
+        "workOrder": "Work order",
+        "woStatus": "WO status",
+        "scheduledAt": "Scheduled at",
+        "items": "Items",
+        "note": "Note"
       }
     },
     "customers": {
