@@ -109,7 +109,7 @@ export default function RolesPage() {
     setLoading(true);
     setError(null);
     try {
-      // 遷移至 tenant-scoped v2 端點（CR-0002-α）；legacy /api/v1/roles 仍雙掛但帶 Deprecation header。
+      // 已遷移至 tenant-scoped v2 端點（CR-0002-α）；legacy /api/v1/roles 仍雙掛但帶 Deprecation header，P4 Stage 7 可刪。
       const session = getCurrentSession();
       const tenantId = session?.tenantId;
       if (!tenantId) {
