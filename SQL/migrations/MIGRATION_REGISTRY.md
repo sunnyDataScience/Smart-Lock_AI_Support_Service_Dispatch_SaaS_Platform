@@ -32,6 +32,7 @@
 | 021 | `021-gdpr-forget-requests.sql` | FR-0053 | 🟡 pending-apply | saas.forget_request 新表 GDPR 兩階段刪除（FR-0053 Phase II MVP）+ 5 狀態 (received/legal_hold_denied/soft_deleted/hard_deleted/cancelled) + 3 requested_by + legal_hold_reason/expected_release_at + soft_deleted_at + hard_delete_eligible_at 30d cooldown + 3 indexes (含 hard_delete due partial) |
 | 022 | `022-ai-decision-trace.sql` | FR-0050 | 🟡 pending-apply | saas.ai_decision_trace 新表（FR-0050 Phase II MVP AI Governance Trace Store）+ 5 decision_type (reasoning/tool_call/output/guardrail_block/human_handoff) + PRD source / charter_rule / owner_decision_ref 三軸 traceability + guardrail_triggered/action + input/output payload jsonb + 6 indexes |
 | 023 | `023-sop-feedback.sql` | FR-0051 | 🟡 pending-apply | saas.sop_feedback 新表（FR-0051 Phase II MVP SOP Feedback Spiral）+ 5 source (customer_thumbs/technician_onsite/rma_finding/ai_eval/csm_manual) + sop_type draft/case_entry + sentiment 3 enum + score 1-5 + metadata jsonb + 3 indexes |
+| 024 | `024-rma-quality-feedback.sql` | FR-0048 | 🟡 pending-apply | saas.rma_quality_finding 新表（FR-0048 Phase II MVP RMA Quality Feedback Loop）+ warranty_claim_id/work_order_id/technician_id/brand 關聯 + failure_mode/root_cause/is_repeat_failure + 4 cascade 評分 (brand_quality/technician_quality/ai_diagnosis_accuracy/customer_satisfaction) + 5 indexes |
 
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
 > 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。
