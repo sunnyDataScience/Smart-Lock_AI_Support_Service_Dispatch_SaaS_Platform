@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **CR-0018 opened — Flow 13 帳款異常 EX5 CIA**（branch `docs/cr-0018-flow13-ex5-reconciliation-exception-cia`，2026-06-05）：執行 Flow 12-14 deep audit (`72d0df19`) 標示「Flow 13 EX5 待開 CIA」後續工作 — EX5 異常與 dispute 性質不同（EX5 是帳務技術錯誤需 ops 補單/註銷/衝銷，無消費者參與；dispute 是兩造爭執需仲裁），不開立獨立例外流則 admin 借用 disputes 表處理會污染 dispute 統計。**取證**：(a) reconciliation 雙簽 + dispute 客訴 + voucher 紅字沖銷 100% 落地可 leverage / (b) `grep reconciliation_exception\|EX5` 全空無相關 schema/service / (c) 業務觸發 5 場景（金額不符 / 缺單 / 雙簽超時 / approved 後查錯 / 對帳檔空 invoice_id）目前全無柔性處置。**5 HD 待業主裁決**：(1) EX5 表獨立 vs 共用 disputes vs reconciliation 內嵌 / (2) 狀態機 3 態最小 vs 6 態金融慣例 vs incident-style / (3) 三路徑（補單/註銷/衝銷）endpoint 拆分 vs 共用 vs 路徑 3 走 voucher reverse / (4) SoD 雙簽要求 / (5) 觸發偵測時機（upload 即時 / cron / 雙保險）。**推薦立場**：新表 reconciliation_exceptions + 六態狀態機 + 補單/註銷單 endpoint + 衝銷走 voucher reverse + 雙簽 + 雙保險偵測。預估 BUILD 5-7 day。status: `open-awaiting-decisions`。詳見 [`docs/_audit/CR-0018-flow13-ex5-reconciliation-exception-cia.md`](docs/_audit/CR-0018-flow13-ex5-reconciliation-exception-cia.md)。
+
 - **Agent 核心架構重寫 → LockCore + Agent Skills 標準**（branch `feat/agent-update`，2026-06-04）⭐⭐⭐ **重大架構決策**：捨棄舊架構（ReAct + LangGraph、自製 skill loader、product_info mega-doc、Belief-Augmented ReAct (Turn Cycle)、quality_check LLM-as-Judge），改為：
   * **核心引擎**：`agent/lockcore/`（fork 自上游 `HKUDS/nanobot` 的最小核心套件，VENDOR.md 記載 fork 來源）
   * **知識 & SOP**：`lockcore/skills/{locksmith-product-knowledge,locksmith-cs-sop}/SKILL.md + references/`（**Agent Skills 標準** agentskills.io / Claude Skills，frontmatter 不綁框架專屬欄位，可攜性：可複製到 Claude Code / Cursor / nanobot / hermes 直接使用）
