@@ -128,6 +128,7 @@ async def lifespan(app: FastAPI):
     from realtime.line_push_outbox_worker import worker as line_push_worker
     from realtime.reconciliation_exception_detector import worker as recon_exc_detector
     from realtime.sla_monitor import monitor as sla_monitor
+    from realtime.statement_auto_approval_cron import worker as statement_auto_approval
 
     inventory_monitor.start()
     sla_monitor.start()
@@ -135,8 +136,10 @@ async def lifespan(app: FastAPI):
     recon_exc_detector.start()  # CR-0018 Stage 3 cron daily 對帳異常偵測
     dispute_escalation_cron.start()  # WBS §8 P1: 60d dispute 自動 escalation
     canary_advance_cron.start()  # WBS §8 P1: M18 canary 5%→50%→100% 自動推進
+    statement_auto_approval.start()  # Phase II: 3 statement 表 dispute window 過期 auto-approve
     logger.info("API service ready (port=%s)", cfg.system["port"])
     yield
+    await statement_auto_approval.stop()
     await canary_advance_cron.stop()
     await dispute_escalation_cron.stop()
     await recon_exc_detector.stop()
