@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Flow 9 sentiment-alerts escalate E2E smoke spec**（branch `test/e2e-smoke-flow8-flow9-escalate`，2026-06-05）：3 個 test（渲染 / 升級流程 / error）。
 - **Flow 8 work-orders :reassign endpoint routing E2E smoke spec**（branch `test/e2e-smoke-flow8-reassign`，2026-06-05）：2 個 test。
 - **WBS 1.2.7.3.2 / 3 / 4 取證 audit**（branch `docs/wbs-1.2.7.3-audit-remaining`，2026-06-05）：1.2.7.3.2 → 30% / 1.2.7.3.3 → 0% (建議 CR-0019) / 1.2.7.3.4 → 50%；1.2.7.3 整合測試段平均 ~52%。
+- **CR-0019 opened — 100 人技師併發壓測 CIA**（branch `docs/cr-0019-load-testing-cia`，2026-06-05）：5 HD 待業主裁決（工具/SLA/模擬深度/環境/CI整合）。預估 BUILD 5-7 day。
 
 - **Agent 核心架構重寫 → LockCore + Agent Skills 標準**（branch `feat/agent-update`，2026-06-04）⭐⭐⭐ **重大架構決策**：捨棄舊架構（ReAct + LangGraph、自製 skill loader、product_info mega-doc、Belief-Augmented ReAct (Turn Cycle)、quality_check LLM-as-Judge），改為：
   * **核心引擎**：`agent/lockcore/`（fork 自上游 `HKUDS/nanobot` 的最小核心套件，VENDOR.md 記載 fork 來源）
