@@ -1582,6 +1582,8 @@
       "loading": "Loading…",
       "empty": "No active material requests",
       "noItems": "(no items)",
+      "supplyAction": "Mark supplied",
+      "supplyConfirm": "Confirm this material request is supplied? The row will be removed from the list.",
       "filter": {
         "all": "All",
         "now": "Now",
@@ -1596,7 +1598,8 @@
         "woStatus": "WO status",
         "scheduledAt": "Scheduled at",
         "items": "Items",
-        "note": "Note"
+        "note": "Note",
+        "action": "Action"
       }
     },
     "customers": {

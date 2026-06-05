@@ -2,17 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { RefreshCw, Package, ExternalLink } from "lucide-react";
+import { RefreshCw, Package, ExternalLink, CheckCircle2, Loader2 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { ApiError, api, auth, tenantPath } from "@/lib/api";
 import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 
 /**
  * Flow 4 admin 補料管理彙整視圖 — 跨工單列出活躍的缺料回報。
- * 端點：GET /tenants/{tenantId}/material-requests (listPendingMaterialRequestsV2)
+ * 端點：
+ *   GET  /tenants/{tenantId}/material-requests (listPendingMaterialRequestsV2)
+ *   POST /tenants/{tid}/work-orders/{id}/material-request/{eventId}:supplied
+ *        (markMaterialRequestSuppliedV2)
  *
- * MVP 不分 pending vs supplied（後端尚無 supply_arrived event_type 機制）；
- * 此頁提供「最近活躍的缺料事件」清單，admin 點工單 ID 進詳情頁進一步處理。
+ * 後端 list 已 LEFT JOIN supply_arrived 過濾掉已收尾的回報；此頁僅顯示
+ * pending 條目，admin 可「標記補料完成」收尾，或點工單 ID 進詳情頁。
  */
 
 type Urgency = "now" | "today" | "tomorrow" | "other";
@@ -89,6 +92,7 @@ export default function AdminMaterialRequestsPage() {
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [urgencyFilter, setUrgencyFilter] = useState<Urgency | "all">("all");
+  const [supplyingId, setSupplyingId] = useState<string | null>(null);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -110,6 +114,33 @@ export default function AdminMaterialRequestsPage() {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const markSupplied = async (row: MaterialRequestRow) => {
+    if (supplyingId) return;
+    if (!window.confirm(t("supplyConfirm"))) return;
+    setSupplyingId(row.event_id);
+    setError(null);
+    try {
+      await api.post(
+        tenantPath(
+          `/work-orders/${row.work_order_id}/material-request/${row.event_id}:supplied`,
+        ),
+        {},
+      );
+      // optimistic 從列表移除（後端 list 也已過濾，這裡避免再 round-trip）
+      setRows((prev) => prev.filter((r) => r.event_id !== row.event_id));
+    } catch (e) {
+      setError(
+        e instanceof ApiError
+          ? `${e.errorCode} (${e.status})：${e.message}`
+          : e instanceof Error
+            ? e.message
+            : String(e),
+      );
+    } finally {
+      setSupplyingId(null);
     }
   };
 
@@ -216,6 +247,7 @@ export default function AdminMaterialRequestsPage() {
                     <th className="px-4 py-3 text-left">{t("col.scheduledAt")}</th>
                     <th className="px-4 py-3 text-left">{t("col.items")}</th>
                     <th className="px-4 py-3 text-left">{t("col.note")}</th>
+                    <th className="px-4 py-3 text-right">{t("col.action")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -258,6 +290,20 @@ export default function AdminMaterialRequestsPage() {
                         </td>
                         <td className="px-4 py-3 text-[var(--text-secondary)]">
                           {r.payload.note || "—"}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => markSupplied(r)}
+                            disabled={supplyingId === r.event_id || supplyingId !== null}
+                            className="inline-flex items-center gap-1.5 rounded-md border border-green-200 bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {supplyingId === r.event_id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                            )}
+                            {t("supplyAction")}
+                          </button>
                         </td>
                       </tr>
                     );

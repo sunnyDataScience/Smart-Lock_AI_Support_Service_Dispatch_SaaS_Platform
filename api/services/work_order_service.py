@@ -910,6 +910,97 @@ async def record_material_request(
     )
 
 
+async def mark_material_request_supplied(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    material_request_event_id: str,
+    supplied_by_user_id: str,
+    note: str | None = None,
+) -> dict:
+    """admin 標記某筆 material_request 已補料完成（Flow 4 收尾）。
+
+    寫 event_type='supply_arrived' 事件，payload 含 material_request_event_id
+    指回原回報事件（join 關係）；list_pending_material_requests 以此過濾掉
+    已收尾的回報。
+
+    驗證：
+      - material_request_event_id 必須存在且同 tenant 且 event_type='material_request'
+        且屬於該 wo（防 admin 誤標他單）
+      - 同 material_request 不可重複 supplied（DUP_SUPPLY 409）
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    # 確認 wo 存在 + tenant 隔離
+    await _fetch_status_for_update(wo_id, tenant_id)
+    # 驗 material_request_event
+    cur = await db_module._conn.execute(
+        "SELECT event_type, work_order_id FROM work_order_events "
+        "WHERE id = %s::uuid AND tenant_id = %s::uuid",
+        (material_request_event_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    if row is None:
+        raise ApiError(
+            "EVENT_NOT_FOUND",
+            "material_request_event_id not found in this tenant",
+            404,
+        )
+    if row[0] != "material_request":
+        raise ApiError(
+            "INVALID_EVENT_TYPE",
+            f"event {material_request_event_id} is '{row[0]}', expected 'material_request'",
+            422,
+        )
+    if str(row[1]) != str(wo_id):
+        raise ApiError(
+            "EVENT_WO_MISMATCH",
+            "material_request event does not belong to this work order",
+            422,
+        )
+    # 防重複 supplied
+    cur = await db_module._conn.execute(
+        "SELECT 1 FROM work_order_events "
+        "WHERE tenant_id = %s::uuid "
+        "  AND event_type = 'supply_arrived' "
+        "  AND (payload->>'material_request_event_id')::uuid = %s::uuid "
+        "LIMIT 1",
+        (tenant_id, material_request_event_id),
+    )
+    if await cur.fetchone() is not None:
+        raise ApiError(
+            "DUP_SUPPLY",
+            "this material_request has already been marked supplied",
+            409,
+        )
+    # INSERT supply_arrived event
+    payload = {
+        "material_request_event_id": material_request_event_id,
+        "note": note,
+    }
+    await db_module._conn.execute(
+        "INSERT INTO work_order_events "
+        "  (work_order_id, tenant_id, actor_user_id, event_type, payload) "
+        "VALUES (%s::uuid, %s::uuid, %s, %s, %s::jsonb)",
+        (
+            wo_id,
+            tenant_id,
+            supplied_by_user_id,
+            "supply_arrived",
+            json.dumps(payload, ensure_ascii=False),
+        ),
+    )
+    await db_module._conn.execute(
+        "UPDATE work_orders SET updated_at = NOW() WHERE id = %s::uuid",
+        (wo_id,),
+    )
+    return await _publish_and_return(
+        tenant_id=tenant_id,
+        wo_id=wo_id,
+        event_type="work_order.subflow.supply_arrived",
+    )
+
+
 async def record_delay(
     *,
     tenant_id: str,
@@ -1135,15 +1226,22 @@ async def list_pending_material_requests(
     if limit < 1 or limit > 500:
         raise ApiError("VALIDATION_ERROR", "limit must be 1..500", 422)
 
+    # LEFT JOIN supply_arrived events 過濾掉已收尾的 material_request（後者
+    # 透過 payload->>'material_request_event_id' 指回原 material_request.id）。
     sql = (
         "SELECT "
         "  e.id, e.created_at, e.payload, e.actor_user_id, "
         "  e.work_order_id, wo.status, wo.scheduled_at, wo.technician_id "
         "FROM work_order_events e "
         "JOIN work_orders wo ON e.work_order_id = wo.id "
+        "LEFT JOIN work_order_events sa "
+        "  ON sa.tenant_id = e.tenant_id "
+        "  AND sa.event_type = 'supply_arrived' "
+        "  AND (sa.payload->>'material_request_event_id')::uuid = e.id "
         "WHERE e.tenant_id = %s::uuid "
         "  AND e.event_type = 'material_request' "
         "  AND wo.status NOT IN ('completed', 'confirmed', 'cancelled') "
+        "  AND sa.id IS NULL "
         "ORDER BY "
         # urgency 優先：now=0 / today=1 / tomorrow=2 / 其他=9
         "  CASE COALESCE(e.payload->>'urgency', '') "

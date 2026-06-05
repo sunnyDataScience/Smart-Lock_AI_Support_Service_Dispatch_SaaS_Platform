@@ -1582,6 +1582,8 @@
       "loading": "載入中…",
       "empty": "目前沒有活躍的缺料回報",
       "noItems": "（無細項）",
+      "supplyAction": "標記補料完成",
+      "supplyConfirm": "確認此筆缺料已補齊？此操作會將該回報從清單移除。",
       "filter": {
         "all": "全部",
         "now": "立即",
@@ -1596,7 +1598,8 @@
         "woStatus": "工單狀態",
         "scheduledAt": "排定時間",
         "items": "缺料項目",
-        "note": "備註"
+        "note": "備註",
+        "action": "操作"
       }
     },
     "customers": {
