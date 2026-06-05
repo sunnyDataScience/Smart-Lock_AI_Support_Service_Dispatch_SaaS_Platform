@@ -100,6 +100,7 @@ from routers import reconciliation_exceptions_v2 as recon_exceptions_v2_router  
 from routers import monthly_settlements_v2 as monthly_settlements_v2_router  # CR-0012 Stage 2: Manual CSV 月結撥款
 from routers import sop_performance_v2 as sop_performance_v2_router  # WBS §8 P1: SOP 績效真實化 metrics
 from routers import reports_customer_satisfaction as reports_cs_router  # WBS §8 P2: 客戶滿意度 KPI 擴充
+from routers import reports_operational_kpi as reports_okpi_router  # WBS §8 P2: FTFR + SLA on-time KPI
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -249,6 +250,7 @@ app.include_router(recon_exceptions_v2_router.router, tags=["M12 Reconciliation 
 app.include_router(monthly_settlements_v2_router.router, tags=["M12 Monthly Settlement"])  # CR-0012 Stage 2: Manual CSV 月結 5 endpoints (HD-1 V1)
 app.include_router(sop_performance_v2_router.router, tags=["M14 SOP Performance"])  # WBS §8 P1: SOP 績效真實化
 app.include_router(reports_cs_router.router, prefix="/api/v1", tags=["Reports"])  # WBS §8 P2: 客戶滿意度 KPI
+app.include_router(reports_okpi_router.router, prefix="/api/v1", tags=["Reports"])  # WBS §8 P2: FTFR + SLA on-time KPI
 
 
 @app.get("/health")
