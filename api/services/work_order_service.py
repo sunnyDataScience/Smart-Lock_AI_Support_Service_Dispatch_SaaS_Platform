@@ -528,6 +528,19 @@ async def _detect_schedule_conflict_and_publish(
             )
         except Exception:  # noqa: BLE001
             logger.exception("ws publish schedule_conflict failed (non-fatal)")
+        # CR-0017 Stage 1.2 — enqueue LINE Flex push (worker render conflict
+        # 通知 admin 或客戶；補救流由業主 admin 決定走 reassign/reschedule)。
+        try:
+            from services import line_push_outbox_service
+            await line_push_outbox_service.enqueue(
+                tenant_id=tenant_id,
+                push_kind="schedule_conflict",
+                payload=payload,
+                reference_id=str(wo_id),
+                reference_table="work_orders",
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("outbox enqueue schedule_conflict failed (non-fatal)")
     except Exception:  # noqa: BLE001
         logger.exception("schedule conflict detection failed (non-fatal)")
 
@@ -1189,13 +1202,34 @@ async def record_scope_change(
         (wo_id,),
     )
 
-    # token mint 結果僅寫入 logger（caller 暫不暴露；待 CR-0017 LINE Flex push
-    # 重建時再決定 surface 機制；目前 admin 可從 scope_changes table 查詢）
+    # token mint log（admin 可從 scope_changes table 查詢；token 由 outbox
+    # payload 帶給 worker render Flex 用）
     if token:
         logger.info(
             "scope_change_id=%s token minted (ttl_days=7)",
             scope_change_id,
         )
+
+    # CR-0017 Stage 1.2 — enqueue LINE Flex push (worker render scope_change
+    # proposal Flex 含 accept/reject 按鈕 + token 連結)。best-effort 不阻擋主流。
+    try:
+        from services import line_push_outbox_service
+        await line_push_outbox_service.enqueue(
+            tenant_id=tenant_id,
+            push_kind="scope_change_proposal",
+            payload={
+                "scope_change_id": scope_change_id,
+                "work_order_id": wo_id,
+                "reason": reason,
+                "items": items,
+                "total_estimate": total_estimate,
+                "public_token": token,
+            },
+            reference_id=scope_change_id,
+            reference_table="scope_changes",
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("outbox enqueue scope_change_proposal failed (non-fatal)")
 
     return await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.subflow.scope_change"
@@ -1463,9 +1497,30 @@ async def propose_reschedule_v2(
         ),
     )
     row = await cur.fetchone()
+    proposal_id = str(row[0])
+
+    # CR-0017 Stage 1.2 — enqueue LINE Flex push (worker 將 render reschedule
+    # carousel + push 客戶 LINE)。best-effort 不阻擋主流；send_via='line' 才推。
+    if send_via == "line":
+        try:
+            from services import line_push_outbox_service
+            await line_push_outbox_service.enqueue(
+                tenant_id=tenant_id,
+                push_kind="reschedule_proposal",
+                payload={
+                    "proposal_id": proposal_id,
+                    "work_order_id": wo_id,
+                    "proposed_slots": proposed_slots,
+                    "message_to_customer": message_to_customer,
+                },
+                reference_id=proposal_id,
+                reference_table="saas.reschedule_proposal",
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("outbox enqueue reschedule_proposal failed (non-fatal)")
 
     return {
-        "id": str(row[0]),
+        "id": proposal_id,
         "work_order_id": wo_id,
         "status": row[1],
         "sla_deadline": row[2].isoformat() if row[2] else None,

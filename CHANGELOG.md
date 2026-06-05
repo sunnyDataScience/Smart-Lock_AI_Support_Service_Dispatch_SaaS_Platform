@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **CR-0017 Stage 1.2 BUILD — 3 個 service caller 整合 outbox enqueue**（branch `feat/cr-0017-stage1.2-caller-integration`，2026-06-05）：承接 Stage 1.1 (`3684540a`)，整合 `propose_reschedule_v2` (Flow 11, send_via='line' 才 enqueue) + `record_scope_change` (Flow 3, payload 含 public_token) + `_detect_schedule_conflict_and_publish` (Flow 14)。全 best-effort try/except + 延遲 import 避 circular。**CR-0017 BUILD 進度**：Stage 1.1 ✅ + 1.2 ✅。**Out of Scope**：Stage 2 worker / Stage 3 flex builders / Stage 4 postback / Stage 5 e2e。
+
 - **CR-0017 Stage 1.1 BUILD — line_push_outbox schema + service write API**（branch `feat/cr-0017-stage1-outbox-schema`，2026-06-05）：CR-0017 業主裁決後 BUILD P1 第一步 — 落地 outbox 表 schema + write API（HD-2 Outbox+worker pattern）。**新表 `line_push_outbox`** (SQL/Schema_v2_extensions.sql §12): id / tenant_id / push_kind (`reschedule_proposal/scope_change_proposal/schedule_conflict`) / target_line_id / reference_id / reference_table / payload JSONB / status (`pending|sent|failed|dead`) / attempts / max_attempts (預設5) / next_attempt_at / last_error / sent_at + 3 indexes (partial pending poll / tenant+kind monitor / reference 反查)。**新 service** `api/services/line_push_outbox_service.py`: `enqueue / get / count_by_status`。**設計取捨**: service 不做 push（Stage 1.1 純 write）；partial index 只索引 pending 減少累積影響；push_kind VARCHAR + Literal 型別 dispatch（避免 enum migration 限制）。**Out of Scope（後續）**: Stage 1.2 caller 整合 / Stage 2 worker+retry / Stage 3 flex builders / Stage 4 postback router / Stage 5 e2e。
 
 - **Flow 14 schedule_conflict 偵測 component test**（branch `test/e2e-smoke-flow14-conflict`，2026-06-05）：5 個 component pytest。
