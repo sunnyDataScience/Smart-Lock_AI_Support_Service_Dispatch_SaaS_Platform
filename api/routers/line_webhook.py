@@ -28,7 +28,7 @@ from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Request
 
-from services import scope_change_service, work_order_service
+from services import line_binding_service, scope_change_service, work_order_service
 
 logger = logging.getLogger("api.line_webhook")
 
@@ -48,6 +48,85 @@ def _verify_signature(body_bytes: bytes, signature: str | None) -> bool:
     return hmac.compare_digest(expected, signature)
 
 
+async def _push_text(line_uid: str, text: str) -> None:
+    """簡易 LINE push text helper（postback handler 內部用）。
+    失敗只 log 不 raise — postback 失敗不阻斷 webhook ack。
+    """
+    access_token = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
+    if not access_token:
+        logger.warning("LINE_CHANNEL_ACCESS_TOKEN missing, skip push")
+        return
+    try:
+        from linebot.v3.messaging import (
+            AsyncApiClient, AsyncMessagingApi, Configuration,
+            PushMessageRequest, TextMessage,
+        )
+        cfg = Configuration(access_token=access_token)
+        async with AsyncApiClient(cfg) as api_client:
+            api = AsyncMessagingApi(api_client)
+            await api.push_message(
+                PushMessageRequest(
+                    to=line_uid,
+                    messages=[TextMessage(text=text[:5000])],
+                ),
+            )
+    except Exception:  # noqa: BLE001
+        logger.exception("_push_text failed line=%s", line_uid[:8])
+
+
+# CR-0013 Stage 2: 預設 tenant id（無 multi-tenant lookup hint 時 fallback）
+_DEFAULT_TENANT_FOR_LINE_LOOKUP = os.getenv(
+    "LINE_DEFAULT_TENANT_ID", "00000000-0000-0000-0000-000000000001",
+)
+# CR-0013 Stage 2: web binding consume 頁面 base url
+_WEB_BASE_URL_FOR_BINDING = os.getenv(
+    "WEB_BASE_URL", "https://lock-ai-web.example.com",
+)
+
+
+async def _handle_get_progress(*, line_uid: str) -> None:
+    """rich menu「查進度」postback：line_uid → user → active wo list → push。
+
+    Multi-tenant 處理：先用 default tenant 查 binding，找不到再 fallback
+    users.line_user_id（同 service.resolve_user_by_line_uid）。
+    """
+    user_id = await line_binding_service.resolve_user_by_line_uid(
+        tenant_id=_DEFAULT_TENANT_FOR_LINE_LOOKUP, line_user_id=line_uid,
+    )
+    if not user_id:
+        await _push_text(
+            line_uid,
+            "尚未綁定客戶資料。請先點選「綁定」選單完成綁定後再查詢進度。",
+        )
+        return
+    # 簡化：發提示文字 + 客戶後續可在 web 看完整 list
+    await _push_text(
+        line_uid,
+        f"查詢您的工單進度：{_WEB_BASE_URL_FOR_BINDING}/track/orders\n"
+        "（含目前所有未完工工單）",
+    )
+
+
+async def _handle_binding_start(*, line_uid: str) -> None:
+    """rich menu「綁定」postback：推 reply 含 web 端表單連結。
+
+    流程：
+      1. 客戶點 web 連結 → 看到 wo 詳情頁 + 「綁定 LINE 接收通知」鈕
+      2. web 後端呼 generate_link_token 拿 token
+      3. web 跳 LINE LIFF or 自家 form 帶 token + line_user_id 呼
+         POST /api/v1/consumer/bindings:consume
+
+    本函式只負責 push 訊息引導，不直接產 token（避免無 user_id 先 INSERT
+    無對應的孤兒 row）。
+    """
+    await _push_text(
+        line_uid,
+        "綁定 LINE 接收工單通知\n"
+        f"請開啟 web 端 {_WEB_BASE_URL_FOR_BINDING}/track/binding-start\n"
+        "登入後點「綁定」即可。完成後您將自動收到工單派工、改期等通知。",
+    )
+
+
 async def _handle_postback(event: dict[str, Any]) -> None:
     """單一 postback event → dispatch 到對應 service。"""
     data = (event.get("postback") or {}).get("data") or ""
@@ -55,13 +134,22 @@ async def _handle_postback(event: dict[str, Any]) -> None:
     line_uid = source.get("userId") or "?"
 
     parts = data.split("|")
-    if not parts or len(parts) < 2:
+    if not parts:
         logger.warning("postback data malformed: %s", data)
         return
 
     kind = parts[0]
     try:
-        if kind == "r:c" and len(parts) == 3:
+        if kind == "g:p" and len(parts) == 1:
+            # CR-0013 Stage 2: 「查進度」rich menu postback
+            await _handle_get_progress(line_uid=line_uid)
+            logger.info("postback get progress: line=%s", line_uid[:8])
+        elif kind == "b:s" and len(parts) == 1:
+            # CR-0013 Stage 2: 「綁定」rich menu postback —
+            # 啟動 binding 流程，回 reply 含 web link
+            await _handle_binding_start(line_uid=line_uid)
+            logger.info("postback binding start: line=%s", line_uid[:8])
+        elif kind == "r:c" and len(parts) == 3:
             proposal_id, slot_idx_str = parts[1], parts[2]
             slot_idx = int(slot_idx_str)
             await work_order_service.confirm_reschedule_by_proposal(
