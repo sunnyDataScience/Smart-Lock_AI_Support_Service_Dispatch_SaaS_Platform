@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **commands.md / architecture.md lockcore catch-up**（branch `docs/claude-commands-architecture-lockcore-sync`，2026-06-05）：commands.md Quality testing 段標廢棄 + pytest 替代；architecture.md banner + Major Modules 重寫；CLAUDE.md §細節路標移除「待同步」備註。
 - **Flow 4 admin material-requests E2E smoke spec**（branch `test/e2e-smoke-flow4-flow9`，2026-06-05）：4 個 test。
 - **Flow 9 sentiment-alerts escalate E2E smoke spec**（branch `test/e2e-smoke-flow8-flow9-escalate`，2026-06-05）：3 個 test（渲染 / 升級流程 / error）。
+- **Flow 8 work-orders :reassign endpoint routing E2E smoke spec**（branch `test/e2e-smoke-flow8-reassign`，2026-06-05）：2 個 test（accepted→:reassign / assigned→:assign）。
 
 - **Agent 核心架構重寫 → LockCore + Agent Skills 標準**（branch `feat/agent-update`，2026-06-04）⭐⭐⭐ **重大架構決策**：捨棄舊架構（ReAct + LangGraph、自製 skill loader、product_info mega-doc、Belief-Augmented ReAct (Turn Cycle)、quality_check LLM-as-Judge），改為：
   * **核心引擎**：`agent/lockcore/`（fork 自上游 `HKUDS/nanobot` 的最小核心套件，VENDOR.md 記載 fork 來源）
