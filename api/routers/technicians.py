@@ -34,6 +34,26 @@ _technician_only = role_required("technician")
 
 
 @router.get(
+    "/technicians/{technician_id}/workload-heatmap",
+    operation_id="getTechnicianWorkloadHeatmap",
+    summary="取技師近 N 日 workload heatmap（A37 候選詳情 drawer）",
+    response_model=dict,
+)
+async def get_workload_heatmap(
+    technician_id: str = Path(...),
+    days: int = Query(default=30, ge=1, le=90),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    """A37 排班熱力圖端點 — admin 看候選技師近 30 日 daily workload + load_intensity 分級。"""
+    data = await technician_service.get_technician_workload_heatmap(
+        tenant_id=user.tenant_id,
+        technician_id=technician_id,
+        days=days,
+    )
+    return {"data": data}
+
+
+@router.get(
     "/technicians/me",
     operation_id="getMyProfile",
     summary="取得目前登入技師個人資料",
