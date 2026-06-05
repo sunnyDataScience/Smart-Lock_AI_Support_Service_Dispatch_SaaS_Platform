@@ -110,6 +110,7 @@ async def lifespan(app: FastAPI):
     """Application lifecycle: 連線 DB → 啟動 monitors → 關閉。"""
     await init_db(cfg.database)
     # 啟動背景監測（單機 in-memory；多 worker 須改 distributed scheduler）
+    from realtime.config_canary_advance_cron import worker as canary_advance_cron
     from realtime.dispute_escalation_cron import worker as dispute_escalation_cron
     from realtime.inventory_monitor import monitor as inventory_monitor
     from realtime.line_push_outbox_worker import worker as line_push_worker
@@ -121,8 +122,10 @@ async def lifespan(app: FastAPI):
     line_push_worker.start()  # CR-0017 Stage 2 outbox poll → push LINE
     recon_exc_detector.start()  # CR-0018 Stage 3 cron daily 對帳異常偵測
     dispute_escalation_cron.start()  # WBS §8 P1: 60d dispute 自動 escalation
+    canary_advance_cron.start()  # WBS §8 P1: M18 canary 5%→50%→100% 自動推進
     logger.info("API service ready (port=%s)", cfg.system["port"])
     yield
+    await canary_advance_cron.stop()
     await dispute_escalation_cron.stop()
     await recon_exc_detector.stop()
     await line_push_worker.stop()
