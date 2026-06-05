@@ -103,7 +103,7 @@
 | Flow 8 二次派工 | **70%** | 連環銜接 |
 | Flow 9 客訴升級 | **75%** | SLA 自動觸發 |
 | Flow 10 門面檢核 | **100%** | T8 + admin 縮圖瀏覽完成端到端 |
-| Flow 11 客戶不在場 | **100%** | T11 提案 + LINE Flex RSVP + customer-confirm/reject endpoints + WS 推回技師 |
+| Flow 11 客戶不在場 | **80%** | **2026-06-05 deep audit 校正**（推翻 100% 過高 claim — agent 重寫衝擊未進前次盤點）：backend `propose_reschedule_v2` 寫 `saas.reschedule_proposal` ✅ / `customer-confirm` `customer-reject` endpoints ✅ / web/track 客戶端 web 路徑 ✅；**但 LINE Flex 主動 push 鏈路 0%** — agent 重寫前 ReAct LangGraph node 監聽 reschedule_proposal INSERT → render Flex template → push 客戶 LINE 整段已刪（commit `0f037f45` LockCore 落地刪 200+ 檔），lockcore 無對等實作，`line_push_service` 只支援 text push 無 Flex template，`grep -rn "reschedule_proposal\|push_reschedule" agent/` 全空。**影響**：admin propose 後客戶不會收 LINE 通知，endpoint 形同孤兒；改期工作流退化為「admin 必須打電話通知客戶」+「客戶主動進 web/track 查看」。**待開 CR-0017 CIA**：LINE Flex push 重建決議（HD: lockcore 重建 / 純 web only / 另起獨立 LINE bot service；reschedule_proposal INSERT 觸發機制；Flex template 歸屬）。詳見 [`docs/_audit/flow-11-agent-rewrite-impact.md`](../../docs/_audit/flow-11-agent-rewrite-impact.md) |
 | Flow 12-14 | **60-80%** | — |
 | **🆕 Dual-sign Reconciliation**（Track B S2）| **100%** | CSM → ops_manager co-sign 跨兩 call SoD |
 | **🆕 Dual-sign Dispute**（Track B S2）| **100%** | filed → in_review →(mediation)→ resolved\|escalated\|closed_withdrawn |
