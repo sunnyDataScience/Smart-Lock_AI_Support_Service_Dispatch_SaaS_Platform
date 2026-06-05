@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **Flow 9 sentiment-alerts escalate E2E smoke spec**（branch `test/e2e-smoke-flow8-flow9-escalate`，2026-06-05）：承接 Flow 4 spec commit `91a769ac` 的 E2E catch-up — Flow 9 客訴升級 e2e 鏈路（commits `e4afd80b` backend + `c23b3525` frontend）無 E2E 覆蓋，補 smoke spec。**新 `web/tests/e2e/admin/sentiment-alerts-escalate.spec.ts`** 3 個 test：(1) 渲染表 + 升級按鈕只在 pending row 顯示（resolved row 應無按鈕，計數 1 而非 2）/ (2) 升級流程：點按鈕 → Modal 開啟 → 填 reason → 提交 → 驗證 POST `:escalate-to-work-order` path + body `{level, reason}` / (3) API 500 → error banner。**設計取捨**：(a) 標 @wip 對齊既有 spec 慣例；(b) sample data 涵蓋 pending（有 problem_card_id 可升級）+ resolved（無 problem_card_id）兩種；(c) `page.on("dialog", accept)` 處理升級成功 window.alert；(d) postDataJSON 驗證 client 傳對 body shape。**推進 WBS 1.2.7.3.1** E2E test 覆蓋（UAT 前置）。
+
 - **Agent 核心架構重寫 → LockCore + Agent Skills 標準**（branch `feat/agent-update`，2026-06-04）⭐⭐⭐ **重大架構決策**：捨棄舊架構（ReAct + LangGraph、自製 skill loader、product_info mega-doc、Belief-Augmented ReAct (Turn Cycle)、quality_check LLM-as-Judge），改為：
   * **核心引擎**：`agent/lockcore/`（fork 自上游 `HKUDS/nanobot` 的最小核心套件，VENDOR.md 記載 fork 來源）
   * **知識 & SOP**：`lockcore/skills/{locksmith-product-knowledge,locksmith-cs-sop}/SKILL.md + references/`（**Agent Skills 標準** agentskills.io / Claude Skills，frontmatter 不綁框架專屬欄位，可攜性：可複製到 Claude Code / Cursor / nanobot / hermes 直接使用）
