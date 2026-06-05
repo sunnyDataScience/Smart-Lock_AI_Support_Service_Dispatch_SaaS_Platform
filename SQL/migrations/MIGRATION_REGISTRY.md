@@ -26,6 +26,7 @@
 | 015 | `015-kb-v2-expand.sql` | CR-0005 / ADR-0103 | 🟡 pending-apply | case_entries / manuals 加 `deleted_at`（HD-02=a 軟刪 + partial index `WHERE deleted_at IS NULL`）+ saas.kb_audit_log 表（HD-03=a actor/diff/before/after）+ 3 indexes（tenant+doc / actor / 90d hot partial）— step 1/3 解鎖 CR-0005 KB v2 expand 共 9 v1 caller |
 | 016 | `016-sop-v2-list-expand.sql` | CR-0006 / ADR-0104 | 🟡 pending-apply | sop_drafts.deleted_at（HD-02=a 軟刪 + partial index）+ kb_audit_log doc_type CHECK 擴 'sop'（HD-03=a 共用 schema）— 解 SOP module 5 v1 caller |
 | 017 | `017-reconciliation-exceptions.sql` | CR-0018 | 🟡 pending-apply | saas.reconciliation_exception 新表（HD-1=a 獨立）+ 六態狀態機 detected→ops_review→fix_proposed→fix_approved→applied→closed（HD-2=b）+ 三 fix_path invoice_supplement/recon_void/voucher_reverse（HD-3=c）+ 雙簽 proposed_by/approved_by CHECK 相異（HD-4=a）+ detected_by upload_realtime/cron_daily/manual（HD-5=c 雙保險）+ 3 indexes |
+| 018 | `018-line-bindings.sql` | CR-0013 | 🟡 pending-apply | saas.line_binding 新表（HD-03=b 主動 binding）+ bind_method auto/manual + unbound_at 軟解綁 + link_token_hash + 3 indexes (active partial / user / token) — 不取代 users.line_user_id 自動路徑 |
 
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
 > 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。
