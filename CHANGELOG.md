@@ -11,17 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
-- **Flow 14 schedule_conflict 偵測 component test**（branch `test/e2e-smoke-flow14-conflict`，2026-06-05）：5 個 component pytest 驗 helper 路徑 / window / 技師 / wo 狀態 / NULL 5 情境。
+- **Flow 14 schedule_conflict 偵測 component test**（branch `test/e2e-smoke-flow14-conflict`，2026-06-05）：5 個 component pytest。
 
-- **Flow 14 排班衝突 → WS publish 鏈路落地 → 85%**（branch `feat/flow14-conflict-publish`，2026-06-05）：新 service helper detect 同技師 ±2hr 衝突 → INSERT events + WS publish。**WBS Flow 14** 70% → **85%**。
+- **Flow 14 排班衝突 → WS publish → 85%**（branch `feat/flow14-conflict-publish`，2026-06-05）：service helper detect 衝突 + INSERT events + WS publish。
 
-- **Flow 12-14 deep audit 校正 60-80% 粗估**（branch `docs/flow12-14-deep-audit`，2026-06-05）：拆三列 Flow 12 → 0% / Flow 13 → 50% / Flow 14 → 70%。
+- **Flow 12-14 deep audit 校正 60-80% 粗估**（branch `docs/flow12-14-deep-audit`，2026-06-05）：Flow 12 → 0% / Flow 13 → 50% / Flow 14 → 70%。
 
-- **Flow 4 補料 e2e 收尾 → 100%**（branch `feat/flow4-supply-arrived`，2026-06-05）：新 supply_arrived event_type + mark_supplied service/endpoint + list 過濾 + 前端「標記補料完成」按鈕。**WBS Flow 4** 90% → **100%** ✅。
+- **Flow 4 補料 e2e 收尾 → 100%**（branch `feat/flow4-supply-arrived`，2026-06-05）：supply_arrived event_type + mark_supplied service/endpoint + UI 按鈕。
 
-- **Flow 4 admin 補料管理彙整 UI**（branch `feat/admin-material-requests-page`，2026-06-05）：新 page table + urgency chips + WO 鏈結 + i18n + Sidebar nav。**WBS Flow 4** 80% → 90%。
+- **Flow 4 admin 補料管理彙整 UI**（branch `feat/admin-material-requests-page`，2026-06-05）：新 page + Sidebar nav + i18n。
 
-- **Flow 4 admin 補料管理彙整 list endpoint**（branch `feat/admin-material-requests-list-endpoint`，2026-06-05）：新 `list_pending_material_requests` service + endpoint `GET /tenants/{tid}/material-requests`。**WBS Flow 4** 80% → 85%。
+- **Flow 4 admin 補料管理彙整 list endpoint**（branch `feat/admin-material-requests-list-endpoint`，2026-06-05）：list_pending_material_requests service + endpoint。
+
+- **Flow 8 二次派工 admin 前端整合 → 100%**（branch `feat/flow8-reassign-frontend`，2026-06-05）：REASSIGN_FROM const + handleAssign 分流 `:reassign` / `:assign`。
+
+- **Flow 8 二次派工 reassign backend → 85%**（branch `feat/flow8-followup-dispatch`，2026-06-05）：service reassign_order + endpoint `:reassign` + 雙表 audit + WS publish。
 
 - **Agent 核心架構重寫 → LockCore + Agent Skills 標準**（branch `feat/agent-update`，2026-06-04）⭐⭐⭐ **重大架構決策**：捨棄舊架構（ReAct + LangGraph、自製 skill loader、product_info mega-doc、Belief-Augmented ReAct (Turn Cycle)、quality_check LLM-as-Judge），改為：
   * **核心引擎**：`agent/lockcore/`（fork 自上游 `HKUDS/nanobot` 的最小核心套件，VENDOR.md 記載 fork 來源）

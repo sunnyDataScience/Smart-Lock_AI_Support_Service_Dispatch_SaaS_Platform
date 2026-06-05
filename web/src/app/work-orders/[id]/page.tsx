@@ -97,6 +97,8 @@ type Technician = components["schemas"]["Technician"];
 
 const ACCEPT_FROM: ReadonlySet<WorkOrderStatus> = new Set(["assigned"]);
 const ASSIGN_FROM: ReadonlySet<WorkOrderStatus> = new Set(["inquiring", "assigned"]);
+// Flow 8 reassign — accepted/in_progress 階段強制改派（不破壞 wo_id）
+const REASSIGN_FROM: ReadonlySet<WorkOrderStatus> = new Set(["accepted", "in_progress"]);
 const COMPLETE_FROM: ReadonlySet<WorkOrderStatus> = new Set(["accepted", "in_progress"]);
 const CANCEL_FROM: ReadonlySet<WorkOrderStatus> = new Set([
   "inquiring",
@@ -970,15 +972,28 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
     setActionPending("assign");
     setActionError(null);
     try {
-      const body: Record<string, unknown> = {
-        technician_id: technicianId,
-        reason_code: reasonCode,
-      };
-      if (reasonText) body.reason_text = reasonText;
-      const res = await api.post<WorkOrderEnvelope>(
-        tenantPath(`/work-orders/${encodeURIComponent(id)}:assign`),
-        body,
-      );
+      // Flow 8 reassign — accepted/in_progress 走 :reassign（不破壞 wo_id，
+      // backend force-back status to 'assigned'）；其他狀態走 :assign。
+      const isReassign = order ? REASSIGN_FROM.has(order.status) : false;
+      let res: WorkOrderEnvelope;
+      if (isReassign) {
+        // :reassign body 需 technician_id + reason 必填（min_length=1）
+        const reason = reasonText.trim() || "強制改派（admin override）";
+        res = await api.post<WorkOrderEnvelope>(
+          tenantPath(`/work-orders/${encodeURIComponent(id)}:reassign`),
+          { technician_id: technicianId, reason },
+        );
+      } else {
+        const body: Record<string, unknown> = {
+          technician_id: technicianId,
+          reason_code: reasonCode,
+        };
+        if (reasonText) body.reason_text = reasonText;
+        res = await api.post<WorkOrderEnvelope>(
+          tenantPath(`/work-orders/${encodeURIComponent(id)}:assign`),
+          body,
+        );
+      }
       setOrder(res.data ?? null);
       setActionMode(null);
       setActionToast(tToast("assigned"));
@@ -1191,7 +1206,12 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
     : dash;
 
   const canAccept = order ? ACCEPT_FROM.has(order.status) : false;
-  const canAssign = order ? ASSIGN_FROM.has(order.status) : false;
+  // Flow 8 — assign 按鈕同時涵蓋原 :assign (inquiring/assigned) 與
+  // :reassign (accepted/in_progress) 兩條路徑；handleAssign 內以
+  // REASSIGN_FROM 判斷實際 endpoint。
+  const canAssign = order
+    ? ASSIGN_FROM.has(order.status) || REASSIGN_FROM.has(order.status)
+    : false;
   const canComplete = order ? COMPLETE_FROM.has(order.status) : false;
   const canCancel = order ? CANCEL_FROM.has(order.status) : false;
   const canEscalate = order ? ESCALATE_FROM.has(order.status) : false;

@@ -370,6 +370,74 @@ async def escalate_work_order_v2(
 
 
 # ---------------------------------------------------------------------------
+# Flow 8 二次派工：admin 強制改派（accepted/in_progress 也可收回，不破壞 wo_id）
+# ---------------------------------------------------------------------------
+
+
+class _ReassignWorkOrderBodyV2(BaseModel):
+    """Flow 8 reassign body — 強制改派理由必填以利後續 Q&A 追溯。"""
+
+    technician_id: str = Field(..., description="新指派技師 ID")
+    reason: str = Field(..., min_length=1, max_length=500, description="改派原因")
+
+
+@router.post(
+    "/tenants/{tenantId}/work-orders/{id}:reassign",
+    operation_id="reassignWorkOrderV2",
+    summary="強制改派 v2（Flow 8；assigned | accepted | in_progress 收回 → assigned）",
+    response_model=WorkOrderEnvelope,
+    tags=["M06 WorkOrder"],
+)
+async def reassign_work_order_v2(
+    body: _ReassignWorkOrderBodyV2,
+    tenantId: str = Path(...),
+    id: str = Path(...),
+    user: CurrentUser = Depends(role_required(*_DISPATCH_ALLOWED_ROLES)),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    """Flow 8 二次派工：admin / dispatcher 強制改派工單。
+
+    與 :assign 差異：
+      - :assign 只允許 created | assigned → assigned
+      - :reassign 允許 assigned | accepted | in_progress → assigned
+        （accepted/in_progress 為新增能力，避免 cancel-and-rebuild 破壞性流程）
+
+    錯誤：
+      - 409 STATE_CONFLICT 若 wo 已 completed/confirmed/cancelled
+      - 422 NO_OP_SAME_TECHNICIAN 若新舊技師相同
+      - 404 TECHNICIAN_NOT_FOUND / 409 TECHNICIAN_NOT_AVAILABLE
+    """
+    _cross_tenant_write(user, tenantId)
+
+    order = await work_order_service.reassign_order(
+        tenant_id=tenantId,
+        wo_id=id,
+        new_technician_id=body.technician_id,
+        reason=body.reason,
+        actor_user_id=user.user_id,
+    )
+    # bypass role 留 audit 軌跡（同 assign 路徑）
+    if user.role in _BYPASS_ROLES:
+        await audit_log_service.log_event(
+            event_type="dispatch_decision",
+            actor_id=user.user_id,
+            actor_role=user.role,
+            action="manual_reassign_bypass",
+            target_type="work_order",
+            target_id=id,
+            payload={
+                "endpoint": "reassignWorkOrderV2",
+                "new_technician_id": body.technician_id,
+                "reason": body.reason,
+            },
+        )
+    payload = {"data": WorkOrder(**order).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload
+
+
+# ---------------------------------------------------------------------------
 # Signature & scope-change
 # ---------------------------------------------------------------------------
 
