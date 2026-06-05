@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **WBS 1.2.7.3.5 會計驗算 — 既有 test 覆蓋取證 ✅**（branch `test/accounting-validation-pytest`，2026-06-05）：續推 WBS 1.2.7.3 整合測試段 — 取證 1.2.7.3.5 「會計驗算」是否需新寫 test。**取證結果**：既有 4 個 pytest 已 cover 100% 核心驗算：(1) `test_vouchers_void.py` 11 tests（紅字沖銷對沖 + hash chain prev→self 連續性 + append-only invariant + 防重複/鏈式沖銷 + RBAC keeper 守門 + audit trail + hash 算法 4 tests）/ (2) `test_reconciliations_v2.py` 13+ tests（金額精度 normalize 4 tests + 雙簽狀態機 + SoD 同人禁止 + 連動 settlement + tenant isolation）/ (3) `test_vouchers_v2_endpoint.py` + `test_settlements_v2_endpoint.py` 補列表/查詢層。**結論**：1.2.7.3.5 既有覆蓋完整，不應重複寫 test。WBS `wbs-completion-report.md:210` 「1.2.7.3 整合測試全段 5 項全 ⬜」為 2026 年初快照，本 audit 校正 1.2.7.3.5 → ✅。**產出**：(a) `docs/_audit/wbs-1.2.7.3.5-accounting-validation-audit.md` 詳細覆蓋對照表 / (b) 9 項預期驗算項全對應到具體 test 名稱 / (c) 1.2.7.3 其他 4 項 E2E 已於本 session 補完（material-requests / sentiment-escalate / work-orders-reassign / schedule-conflict-detection）。**1.2.7.3 整合測試全段** 真實狀態：5 項全部 ✅。UAT 前置條件達成。
+
 - **Agent 核心架構重寫 → LockCore + Agent Skills 標準**（branch `feat/agent-update`，2026-06-04）⭐⭐⭐ **重大架構決策**：捨棄舊架構（ReAct + LangGraph、自製 skill loader、product_info mega-doc、Belief-Augmented ReAct (Turn Cycle)、quality_check LLM-as-Judge），改為：
   * **核心引擎**：`agent/lockcore/`（fork 自上游 `HKUDS/nanobot` 的最小核心套件，VENDOR.md 記載 fork 來源）
   * **知識 & SOP**：`lockcore/skills/{locksmith-product-knowledge,locksmith-cs-sop}/SKILL.md + references/`（**Agent Skills 標準** agentskills.io / Claude Skills，frontmatter 不綁框架專屬欄位，可攜性：可複製到 Claude Code / Cursor / nanobot / hermes 直接使用）
