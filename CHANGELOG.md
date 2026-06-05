@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Flow 14 排班衝突 → WS publish → 85%**（branch `feat/flow14-conflict-publish`，2026-06-05）：service helper detect 衝突 + INSERT events + WS publish。
 
-- **Flow 12-14 deep audit 校正 60-80% 粗估**（branch `docs/flow12-14-deep-audit`，2026-06-05）：Flow 12 → 0% / Flow 13 → 50% / Flow 14 → 70%。
+- **Flow 12-14 deep audit 校正**（branch `docs/flow12-14-deep-audit`，2026-06-05）：Flow 12 → 0% / Flow 13 → 50% / Flow 14 → 70%。
 
 - **Flow 4 補料 e2e 收尾 → 100%**（branch `feat/flow4-supply-arrived`，2026-06-05）：supply_arrived event_type + mark_supplied service/endpoint + UI 按鈕。
 
@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Flow 8 二次派工 admin 前端整合 → 100%**（branch `feat/flow8-reassign-frontend`，2026-06-05）：REASSIGN_FROM const + handleAssign 分流 `:reassign` / `:assign`。
 
 - **Flow 8 二次派工 reassign backend → 85%**（branch `feat/flow8-followup-dispatch`，2026-06-05）：service reassign_order + endpoint `:reassign` + 雙表 audit + WS publish。
+
+- **Flow 9 客訴升級 admin 前端按鈕 → 100%**（branch `feat/flow9-escalate-frontend`，2026-06-05）：sentiment-alerts page 加「升級工單」按鈕 + EscalateAlertModal + POST `:escalate-to-work-order` + optimistic update + i18n。**WBS Flow 9** 90% → **100%** ✅。
 
 - **Agent 核心架構重寫 → LockCore + Agent Skills 標準**（branch `feat/agent-update`，2026-06-04）⭐⭐⭐ **重大架構決策**：捨棄舊架構（ReAct + LangGraph、自製 skill loader、product_info mega-doc、Belief-Augmented ReAct (Turn Cycle)、quality_check LLM-as-Judge），改為：
   * **核心引擎**：`agent/lockcore/`（fork 自上游 `HKUDS/nanobot` 的最小核心套件，VENDOR.md 記載 fork 來源）

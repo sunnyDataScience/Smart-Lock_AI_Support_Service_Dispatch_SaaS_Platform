@@ -1286,6 +1286,22 @@
         "required": "Required",
         "submitResolve": "Confirm resolve",
         "submitAcknowledge": "Confirm"
+      },
+      "escalate": {
+        "button": "Escalate WO",
+        "tooltip": "Escalate linked work order (Flow 9)",
+        "modalTitle": "Escalate linked work order",
+        "modalHint": "Calls escalate on the linked work order; the alert will auto-mark as acknowledged and append the escalation trail to the note.",
+        "levelLabel": "Escalation level",
+        "level": {
+          "operations_manager": "Operations Manager",
+          "tenant_admin": "Tenant Admin"
+        },
+        "reasonLabel": "Reason",
+        "reasonPlaceholder": "Why does this alert need immediate escalation? (saved to WO escalation log + sentiment alert note)",
+        "reasonOverLimit": "Exceeds 500-char limit",
+        "submitButton": "Confirm escalate",
+        "successAlert": "Linked work order {woId} escalated."
       }
     },
     "inventory": {
