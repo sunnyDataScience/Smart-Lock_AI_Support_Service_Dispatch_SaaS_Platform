@@ -320,6 +320,76 @@ async def list_work_order_events_v2(
     )
 
 
+# ---------------------------------------------------------------------------
+# Flow 4 admin 補料管理彙整視圖（跨工單列出活躍的缺料回報）
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/tenants/{tenantId}/material-requests",
+    operation_id="listPendingMaterialRequestsV2",
+    summary="跨工單列出活躍的缺料回報 v2（Flow 4 admin 補料管理彙整視圖）",
+    tags=["M07 WorkOrder Ops"],
+)
+async def list_pending_material_requests_v2(
+    tenantId: str = Path(...),
+    limit: int = Query(default=100, ge=1, le=500),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    """跨工單列出近期 material_request 事件（排除 completed/confirmed/cancelled WO）。
+
+    排序：urgency (now > today > tomorrow) → created_at DESC。
+    每 row 含 event_id / payload (items[], urgency, note) / work_order_id / wo_status /
+    scheduled_at / technician_id / actor_user_id（subflow actor_user_id 鏈路 per fix CR）。
+    MVP 不分 pending vs supplied；admin 進工單詳情頁進一步處理。
+    """
+    _cross_tenant_read(user, tenantId)
+
+    return await work_order_service.list_pending_material_requests(
+        tenant_id=tenantId,
+        limit=limit,
+    )
+
+
+class _MarkMaterialSuppliedBodyV2(BaseModel):
+    """admin 標記補料完成 body。"""
+
+    note: str | None = Field(default=None, max_length=500, description="補料完成備註")
+
+
+@router.post(
+    "/tenants/{tenantId}/work-orders/{id}/material-request/{eventId}:supplied",
+    operation_id="markMaterialRequestSuppliedV2",
+    summary="標記某筆 material_request 已補料完成 v2（Flow 4 admin 收尾）",
+    tags=["M07 WorkOrder Ops"],
+)
+async def mark_material_request_supplied_v2(
+    body: _MarkMaterialSuppliedBodyV2,
+    tenantId: str = Path(...),
+    id: str = Path(..., description="work order id"),
+    eventId: str = Path(..., description="material_request event id"),
+    user: CurrentUser = Depends(_admin_only),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    """admin 標記某筆 material_request 已補料完成（寫 supply_arrived 事件 + WS publish）。
+
+    404 EVENT_NOT_FOUND / 422 INVALID_EVENT_TYPE / 422 EVENT_WO_MISMATCH /
+    409 DUP_SUPPLY。
+    """
+    _cross_tenant_write(user, tenantId)
+
+    result = await work_order_service.mark_material_request_supplied(
+        tenant_id=tenantId,
+        wo_id=id,
+        material_request_event_id=eventId,
+        supplied_by_user_id=user.user_id,
+        note=body.note,
+    )
+    if idem is not None:
+        await idem.save(200, result)
+    return result
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # CR-0007 reschedule:propose v2（多時段提案，獨立表 HD-04；slots 1-3 HD-02；
 #                                 SLA 24h HD-03 由 DB 預設兜底）

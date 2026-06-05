@@ -11,11 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
-- **Flow 14 schedule_conflict 偵測 component test**（branch `test/e2e-smoke-flow14-conflict`，2026-06-05）：對應 commit `bd492059` `_detect_schedule_conflict_and_publish` helper — Flow 14 backend 內部觸發，無對應前端 conflict UI handler（E2E 無法走），改寫 component pytest 驗 5 個情境。**新 `api/tests/test_schedule_conflict_detection.py`** 5 個 test：(1) 同技師 + 同時段內 → publish 呼叫 + events INSERT + payload conflicting_wo_ids 含舊 wo / (2) 同技師但時段差 > 2hr → 無 publish 無 INSERT / (3) 同時段但不同技師 → 無 publish / (4) 同技師同時段但另一 wo 已 completed → 排除（驗 `status NOT IN completed/confirmed/cancelled` 過濾正確）/ (5) wo.scheduled_at NULL → 無聲返回。
+- **Flow 14 schedule_conflict 偵測 component test**（branch `test/e2e-smoke-flow14-conflict`，2026-06-05）：5 個 component pytest 驗 helper 路徑 / window / 技師 / wo 狀態 / NULL 5 情境。
 
-- **Flow 14 排班衝突 → WS publish 鏈路落地 → 85%**（branch `feat/flow14-conflict-publish`，2026-06-05）：承接同日 Flow 12-14 deep audit (`72d0df19`) 揪出的「conflict → WS publish at admin 無觸發」gap — 純後端 BUILD，不涉 LINE Flex（與 CR-0017 解耦）。**新 service helper** `_detect_schedule_conflict_and_publish` 接於 `assign_order` UPDATE 後 best-effort 呼叫，detect 同技師 ±2hr 內其他 active wo → INSERT events + WS publish `/realtime/dispatch-queue` type='schedule_conflict_detected'。**WBS Flow 14** 70% → **85%**。
+- **Flow 14 排班衝突 → WS publish 鏈路落地 → 85%**（branch `feat/flow14-conflict-publish`，2026-06-05）：新 service helper detect 同技師 ±2hr 衝突 → INSERT events + WS publish。**WBS Flow 14** 70% → **85%**。
 
-- **Flow 12-14 deep audit 校正 60-80% 粗估**（branch `docs/flow12-14-deep-audit`，2026-06-05）：取證推翻 WBS 整列 60-80% 粗估，拆三列：Flow 12 金流支付 → 0%（blocked CR-0011）/ Flow 13 帳款異常 EX5 → 50%（待開 CIA）/ Flow 14 排班衝突 → 70%（conflict → WS publish 缺、A37 告警頁缺）。產出 `docs/_audit/flow-12-14-deep-audit.md`。
+- **Flow 12-14 deep audit 校正 60-80% 粗估**（branch `docs/flow12-14-deep-audit`，2026-06-05）：拆三列 Flow 12 → 0% / Flow 13 → 50% / Flow 14 → 70%。
+
+- **Flow 4 補料 e2e 收尾 → 100%**（branch `feat/flow4-supply-arrived`，2026-06-05）：新 supply_arrived event_type + mark_supplied service/endpoint + list 過濾 + 前端「標記補料完成」按鈕。**WBS Flow 4** 90% → **100%** ✅。
+
+- **Flow 4 admin 補料管理彙整 UI**（branch `feat/admin-material-requests-page`，2026-06-05）：新 page table + urgency chips + WO 鏈結 + i18n + Sidebar nav。**WBS Flow 4** 80% → 90%。
+
+- **Flow 4 admin 補料管理彙整 list endpoint**（branch `feat/admin-material-requests-list-endpoint`，2026-06-05）：新 `list_pending_material_requests` service + endpoint `GET /tenants/{tid}/material-requests`。**WBS Flow 4** 80% → 85%。
 
 - **Agent 核心架構重寫 → LockCore + Agent Skills 標準**（branch `feat/agent-update`，2026-06-04）⭐⭐⭐ **重大架構決策**：捨棄舊架構（ReAct + LangGraph、自製 skill loader、product_info mega-doc、Belief-Augmented ReAct (Turn Cycle)、quality_check LLM-as-Judge），改為：
   * **核心引擎**：`agent/lockcore/`（fork 自上游 `HKUDS/nanobot` 的最小核心套件，VENDOR.md 記載 fork 來源）

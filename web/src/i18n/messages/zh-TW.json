@@ -217,6 +217,7 @@
       "dispatch": "派工管理",
       "workOrders": "工單列表",
       "dispatchQueue": "派工佇列監控",
+      "materialRequests": "補料管理",
       "technicians": "技師管理",
       "customers": "客戶主檔",
       "accounting": "帳務與結算",
@@ -1569,6 +1570,36 @@
         "high": "高",
         "medium": "中",
         "low": "低"
+      }
+    },
+    "materialRequests": {
+      "breadcrumb": "首頁 > 派工管理 > 補料管理",
+      "title": "補料管理",
+      "count": "共 {n} 筆缺料回報",
+      "lastUpdated": "最後更新：{time}",
+      "notLoaded": "尚未載入",
+      "refresh": "重新整理",
+      "loading": "載入中…",
+      "empty": "目前沒有活躍的缺料回報",
+      "noItems": "（無細項）",
+      "supplyAction": "標記補料完成",
+      "supplyConfirm": "確認此筆缺料已補齊？此操作會將該回報從清單移除。",
+      "filter": {
+        "all": "全部",
+        "now": "立即",
+        "today": "今天",
+        "tomorrow": "明天",
+        "other": "其他"
+      },
+      "col": {
+        "urgency": "急迫度",
+        "reportedAt": "回報時間",
+        "workOrder": "工單",
+        "woStatus": "工單狀態",
+        "scheduledAt": "排定時間",
+        "items": "缺料項目",
+        "note": "備註",
+        "action": "操作"
       }
     },
     "customers": {

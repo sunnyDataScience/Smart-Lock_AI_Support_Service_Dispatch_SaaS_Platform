@@ -3,8 +3,8 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-06-04（**Agent 核心架構重寫** — 舊 ReAct/LangGraph/Turn Cycle/product_info mega-doc/quality_check 全刪，改為 LockCore (fork 自 nanobot) + Agent Skills 標準 builtin skill + LiteLLM 統一供應商 + per-user memory 移植自 Hermes；超過 200 個檔案刪除/新增；ADR-0008/0010/0101 待標 superseded）
-**對應分支：** `feat/agent-update`
+**最後更新：** 2026-06-05（Flow 4 admin 補料管理彙整 endpoint 落地 — 新 `GET /tenants/{tid}/material-requests` 跨工單列活躍缺料事件，urgency 排序；Flow 4 80% → 85%，剩前端彙整頁待下輪）
+**對應分支：** `feat/admin-material-requests-list-endpoint`
 **對應 reports：** v1.0.0 → v1.36.0（產品 MVP）+ CR-0003 P0-P3.5 ✅ + CR-0004 Track B S1-S7
 
 ---
@@ -96,7 +96,7 @@
 | Flow 1 Happy Path | **100%** | — |
 | Flow 2 拒單重派 | **100%** | — |
 | Flow 3 範圍變更 | **65%** | **2026-06-04 deep 取證推翻同日 90% 過高估值**（淺取證只看 endpoint + UI 表面，未追 INSERT 鏈路）。實際 3 個 critical gap：(1) **proposal 建立路徑完全缺失** — `scope_changes` 表 schema 存在（Schema.sql:655）但無任何 `INSERT INTO scope_changes`（grep api/ agent/ 全空）；`work_order_service.record_scope_change` 只寫 work_order_events 加 SCOPE_CHANGE tag，**不寫 scope_changes 表**；agent 端 0 整合；consumer endpoint `respondScopeChangeV2` 因此實質無 row 可回應；(2) **token mint 機制存在但無 caller** — `public_token.py` 支援 `purpose=scope_change` mint，但找不到任何 caller 觸發 mint；(3) **LINE Flex 主動通知 + WS publish** — 原已標 gap，仍真。**結論**：Flow 3 backend/service/UI 表面完整但 proposal 建立鏈路是真實 0%，consumer 流不能用。**待開 CIA**：admin/技師端 proposal 建立 endpoint 設計（POST .../scope-changes:propose）+ 何時自動 mint token + LINE Flex template + WS publish channel。對應 BUILD 工時估 ~2~3 day（contract 設計 + service impl + LINE Flex card + WS publish + e2e test）|
-| Flow 4 缺料 | **80%** | 調度員補料 UI |
+| Flow 4 缺料 | **100%** | **2026-06-05 e2e 完成**：(1) endpoint `GET /tenants/{tid}/material-requests` (listPendingMaterialRequestsV2，跨工單 SELECT JOIN + LEFT JOIN supply_arrived 過濾) / (2) endpoint `POST /tenants/{tid}/work-orders/{id}/material-request/{eventId}:supplied` (markMaterialRequestSuppliedV2，admin only + DUP_SUPPLY 409 防重 + INVALID_EVENT_TYPE/EVENT_WO_MISMATCH 422 guard + WS publish work_order.subflow.supply_arrived) / (3) service `mark_material_request_supplied` 寫 `event_type='supply_arrived'` event 含 `material_request_event_id` 反向指標 / (4) Next.js page `/admin/material-requests` table view + urgency filter chips + WO 鏈結 + 「標記補料完成」按鈕（confirm modal + optimistic UI 移除 + i18n zh-TW/en）+ Sidebar nav |
 | Flow 5 延遲通知 | **100%** | **2026-06-04 deep audit 確認**（複用 Flow 3/6 方法論）：`work_order_service.notify_delay:1553` 全鏈路完整：(1) INSERT work_order_events `event_type='delay'` + delay_minutes payload（line 1611）/ (2) UPDATE work_orders.updated_at（line 1617）/ (3) `_audit_action('work_order.delay_notified')`（line 1622）/ (4) `line_push_service.push_to_work_order_customer` 真實 LINE push（line 1636，`push_message` AsyncMessagingApi 含 retry+backoff+audit）/ (5) `_publish_and_return(event_type='work_order.delay_notified')` WS publish（line 1643）/ (6) role guard（technician 只能 notify 自己單 line 1597）+ state machine guard（_SUBFLOW_FROM line 1590）。Web caller `my-orders/[id]/delay/page.tsx:74` 用 tenantPath v2 |
 | Flow 6 退款雙簽 | **100%** | csm_approved 中介態 + 同 user 不可雙簽 + WS 推送 |
 | Flow 7 爭議 | **100%** | 雙方證據上傳 + 縮圖瀏覽 + 仲裁決定全鏈路 |

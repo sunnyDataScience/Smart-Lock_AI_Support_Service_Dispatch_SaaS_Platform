@@ -62,6 +62,7 @@ const navItems: NavItem[] = [
     children: [
       { id: "workOrders", href: "/work-orders" },
       { id: "dispatchQueue", href: "/admin/dispatch-queue" },
+      { id: "materialRequests", href: "/admin/material-requests" },
     ],
   },
   { icon: Users, id: "technicians", href: "/technicians" },
