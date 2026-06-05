@@ -218,3 +218,98 @@ async def respond_public(
         "recorded_at": datetime.now(timezone.utc).isoformat(),
         "next_step": next_step,
     }
+
+
+async def admin_override(
+    *,
+    tenant_id: str,
+    proposal_id: str,
+    approved_by_user_id: str,
+    reason: str,
+) -> dict:
+    """admin 強制覆寫 scope_change proposal（客戶不回應 / 超時 / 業務裁決）。
+
+    寫 status='admin_override' + approved_by + 連動 wo.status='in_progress'。
+    對齊 _PUBLIC_STATUS_MAP（admin_override 視為已決議）。
+
+    錯誤：
+      - 404 NOT_FOUND proposal
+      - 409 CONFLICT proposal 非 pending
+      - 403 CROSS_TENANT_WRITE proposal 不屬此 tenant
+
+    驗 tenant：proposal → work_order → tenant_id 三段 join。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    # 取 proposal + tenant 驗證
+    cur = await db_module._conn.execute(
+        "SELECT sc.status, sc.work_order_id, wo.tenant_id "
+        "FROM scope_changes sc "
+        "JOIN work_orders wo ON sc.work_order_id = wo.id "
+        "WHERE sc.id = %s::uuid",
+        (proposal_id,),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "scope change proposal not found", 404)
+    current_status, wo_id, wo_tenant = row[0], row[1], str(row[2])
+    if wo_tenant != tenant_id:
+        raise ApiError(
+            "CROSS_TENANT_WRITE",
+            "proposal does not belong to this tenant",
+            403,
+        )
+    if current_status != "pending":
+        raise ApiError(
+            "CONFLICT",
+            f"proposal already decided: {current_status}",
+            409,
+        )
+
+    # CAS update
+    upd = await db_module._conn.execute(
+        "UPDATE scope_changes "
+        "SET status = 'admin_override', "
+        "    customer_decision = 'continue', "
+        "    approved_by = %s::uuid, "
+        "    updated_at = NOW() "
+        "WHERE id = %s::uuid AND status = 'pending' "
+        "RETURNING id",
+        (approved_by_user_id, proposal_id),
+    )
+    if not await upd.fetchone():
+        raise ApiError("CONFLICT", "proposal already decided (race)", 409)
+
+    # 連動 wo（accepted/in_progress → in_progress；保證可繼續施工）
+    try:
+        await db_module._conn.execute(
+            "UPDATE work_orders SET status = 'in_progress', updated_at = NOW() "
+            "WHERE id = %s::uuid AND status IN ('accepted', 'in_progress')",
+            (str(wo_id),),
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("scope_change admin_override wo update failed: %s", exc)
+
+    # Audit
+    try:
+        await audit_log_service.log_event(
+            event_type="scope_change",
+            actor_id=approved_by_user_id,
+            actor_role="admin",
+            action="scope_change_admin_override",
+            target_type="scope_changes",
+            target_id=proposal_id,
+            payload={
+                "reason": reason,
+                "work_order_id": str(wo_id),
+            },
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("scope_change admin_override audit failed: %s", exc)
+
+    return {
+        "proposal_id": proposal_id,
+        "decision": "admin_override",
+        "approved_by": approved_by_user_id,
+        "recorded_at": datetime.now(timezone.utc).isoformat(),
+    }

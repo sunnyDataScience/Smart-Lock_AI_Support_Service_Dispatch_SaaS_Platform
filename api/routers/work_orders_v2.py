@@ -434,6 +434,52 @@ async def record_scope_change_v2(
 
 
 # ---------------------------------------------------------------------------
+# Flow 3 admin override scope_change proposal
+# ---------------------------------------------------------------------------
+
+
+class _ScopeChangeOverrideBody(BaseModel):
+    """admin 強制覆寫 scope_change proposal body。"""
+
+    reason: str = Field(..., min_length=1, max_length=500, description="覆寫原因")
+
+
+@router.post(
+    "/tenants/{tenantId}/scope-changes/{proposalId}:admin-override",
+    operation_id="adminOverrideScopeChangeV2",
+    summary="admin 強制覆寫 scope_change proposal v2（Flow 3；客戶不回應/超時/業務裁決）",
+    tags=["M06 WorkOrder"],
+)
+async def admin_override_scope_change_v2(
+    body: _ScopeChangeOverrideBody,
+    tenantId: str = Path(...),
+    proposalId: str = Path(..., description="scope_changes.id"),
+    user: CurrentUser = Depends(role_required(*_DISPATCH_ALLOWED_ROLES)),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    """Flow 3 admin override：客戶不回應 / 超時 / 業務裁決 → admin 強制視同核准。
+
+    錯誤：
+      - 404 NOT_FOUND proposal
+      - 403 CROSS_TENANT_WRITE proposal 不屬此 tenant
+      - 409 CONFLICT proposal 已決議
+    """
+    _cross_tenant_write(user, tenantId)
+    # 延遲 import 避 circular
+    from services import scope_change_service
+
+    result = await scope_change_service.admin_override(
+        tenant_id=tenantId,
+        proposal_id=proposalId,
+        approved_by_user_id=user.user_id,
+        reason=body.reason,
+    )
+    if idem is not None:
+        await idem.save(200, result)
+    return result
+
+
+# ---------------------------------------------------------------------------
 # M07 Onsite — arrival + completion（CR-0003 P2 / spec §M07）
 # ---------------------------------------------------------------------------
 
