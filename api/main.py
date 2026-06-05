@@ -97,6 +97,7 @@ from routers import resolution_v2 as resolution_v2_router  # Track B S6: Resolut
 from routers import vouchers_void as vouchers_void_router  # Track B S7: Voucher Void v2 紅字沖銷 flat path (ADR-VCH-001/002 / CR-0004 §8)
 from routers import line_webhook as line_webhook_router  # CR-0017 Stage 4: LINE postback → reschedule/scope_change wrapper
 from routers import reconciliation_exceptions_v2 as recon_exceptions_v2_router  # CR-0018 Stage 2: Flow 13 EX5 對帳異常 dual-sign + 3 fix_path
+from routers import monthly_settlements_v2 as monthly_settlements_v2_router  # CR-0012 Stage 2: Manual CSV 月結撥款
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -237,6 +238,7 @@ app.include_router(resolution_v2_router.router, tags=["M03 ProblemCard"])  # Tra
 app.include_router(vouchers_void_router.router, tags=["M17 Voucher"])  # Track B S7: Voucher Void v2 紅字沖銷 flat path (ADR-VCH-001/002 / CR-0004 §8)
 app.include_router(line_webhook_router.router, prefix="/api/v1", tags=["LINE Webhook"])  # CR-0017 Stage 4: LINE postback handler
 app.include_router(recon_exceptions_v2_router.router, tags=["M12 Reconciliation Exception"])  # CR-0018 Stage 2: Flow 13 EX5 reconciliation_exception 7 endpoints
+app.include_router(monthly_settlements_v2_router.router, tags=["M12 Monthly Settlement"])  # CR-0012 Stage 2: Manual CSV 月結 5 endpoints (HD-1 V1)
 
 
 @app.get("/health")
