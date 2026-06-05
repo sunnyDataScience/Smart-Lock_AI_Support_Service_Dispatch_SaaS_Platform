@@ -111,13 +111,16 @@ async def lifespan(app: FastAPI):
     # 啟動背景監測（單機 in-memory；多 worker 須改 distributed scheduler）
     from realtime.inventory_monitor import monitor as inventory_monitor
     from realtime.line_push_outbox_worker import worker as line_push_worker
+    from realtime.reconciliation_exception_detector import worker as recon_exc_detector
     from realtime.sla_monitor import monitor as sla_monitor
 
     inventory_monitor.start()
     sla_monitor.start()
     line_push_worker.start()  # CR-0017 Stage 2 outbox poll → push LINE
+    recon_exc_detector.start()  # CR-0018 Stage 3 cron daily 對帳異常偵測
     logger.info("API service ready (port=%s)", cfg.system["port"])
     yield
+    await recon_exc_detector.stop()
     await line_push_worker.stop()
     await sla_monitor.stop()
     await inventory_monitor.stop()
