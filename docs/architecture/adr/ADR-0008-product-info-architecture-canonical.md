@@ -2,9 +2,11 @@
 id: ADR-0008
 title: Agent 知識庫架構以 `product_info/` 為唯一正典（Architecture Lock）
 tier: 1
-status: Active + partially_superseded_by ADR-0101 (§2.1-§2.4)
+status: superseded
 date: 2026-05-09
-last_updated: 2026-05-28
+last_updated: 2026-06-05
+superseded_by: ADR-0107
+superseded_reason: "Agent 核心重寫 (commit 0f037f45) 刪除 product_info mega-doc 結構並改採 lockcore + Agent Skills 標準；本 ADR §1 mega-doc canonical / §3 反 revert 立場 / §4.4 quality_check baseline 全失效。詳見 ADR-0107。"
 partially_superseded_by: ADR-0101
 partially_superseded_scope: "§1 工具集封閉性 (僅 3 個 static/write tool 不夠涵蓋 UC-new-2 serial→warranty / UC-new-3 project→unit→model / UC-new-1 cross-brand compatibility) + §1 mega-doc 結構維度 (Brand/Model 雙層不夠，缺 Project/Site/Unit 維度) + §5 例外清單 (未涵蓋 multi-tenant data scope governance M14 / BR-M14-01 / G007)"
 scope_clarification: "本 ADR 鎖 agent runtime KB (A03/A04 bounded context)，不是 ERP M10 master data。M10 master 為 source of truth，product_info mega-doc 為 derived view。"

@@ -1,8 +1,11 @@
 ---
 id: ADR-0101
 title: Agent Knowledge Base × Final Spec Integration Contract — Data Lineage + Tool Extension + Multi-tenant Scope + Custom SKU Fallback
-status: Accepted
+status: superseded
 date: 2026-05-28
+last_updated: 2026-06-05
+superseded_by: ADR-0107
+superseded_reason: "Agent 核心重寫 (commit 0f037f45) 改採 lockcore + Agent Skills 標準扁平 references 結構；本 ADR §2.2 dynamic lookup tool / §2.3 multi-tenant scope filter / §2.4 custom SKU fallback 均未在 lockcore 實作；CS_TOOL_ALLOWLIST 為固定 6 工具 (read_file / list_dir / find_files / grep / web_search / transfer_to_human)。詳見 ADR-0107。"
 deciders: [業主 (2026-05-28 value decision)]
 related:
   - "./ADR-0008-product-info-architecture-canonical.md"  # partially_superseded by ADR-0101 §2.1-§2.4

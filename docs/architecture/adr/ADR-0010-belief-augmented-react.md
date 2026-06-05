@@ -2,8 +2,11 @@
 id: ADR-0010
 title: Belief-Augmented ReAct（Turn Cycle 實驗）
 tier: 1
-status: experimental
+status: superseded
 date: 2026-05-11
+last_updated: 2026-06-05
+superseded_by: ADR-0107
+superseded_reason: "Agent 核心重寫 (commit 0f037f45) 刪除 belief*.py / calibrate.py / hypothesize.py / turn_cycle.py 全部；Turn Cycle 狀態機與 Belief-Augmented ReAct 不再存在。lockcore 採 nanobot 標準 loop 取代。詳見 ADR-0107。"
 deciders: [Imding1211, Claude（implementor）]
 ---
 
