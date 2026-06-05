@@ -36,30 +36,33 @@ Stage 1 範圍：清掉「v1 caller 為 stale comment 或 reports/roles/refunds 
 - [ ] 預期：全 `tenantPath("/refunds")` v2
 - [ ] 已驗證（commit `e049de22`）
 
-### Task 3: 檢查 admin/reports/revenue page
+### Task 3: 檢查 admin/reports/revenue page ✅
 
-- [ ] 看 `web/src/app/admin/reports/revenue/page.tsx` line 88 TODO[E7x §4.3]
-- [ ] 確認 `/api/v1/reports/revenue` 是否已有 v2 替代
-- [ ] 若有 v2 → 改 caller；若無 → 保留 TODO
+- ✅ Status: done in `2d6ff10e` (2026-06-05)
+- ✅ caller 已 v2 (line 103 `tenantPath("/reports/revenue")`)
+- ✅ stale TODO comment line 88 改為 `/tenants/{tid}/reports/revenue`
+- 註：TODO 內容（date filter 限制）仍 valid 保留
 
-### Task 4: 檢查 admin/reports/technician-ranking page
+### Task 4: 檢查 admin/reports/technician-ranking page ✅
 
-- [ ] 看 `web/src/app/admin/reports/technician-ranking/page.tsx` 全 caller
-- [ ] 確認 v2 對應 endpoint 已存在
-- [ ] 改 caller
+- ✅ Status: done in `2d6ff10e` (與 Task 3 同 commit)
+- ✅ caller 已 v2 (line 120 `tenantPath("/technicians")`)
+- ✅ stale TODO comment line 106 改為 `/tenants/{tid}/technicians`
 
-### Task 5: roles page 確認
+### Task 5: roles page 確認 ✅
 
-- [ ] 看 `web/src/app/admin/roles/page.tsx` line 112 註解
-- [ ] 註解標「v2 已遷 + legacy 雙掛」— 確認 line 112-130 caller 確實全 v2
-- [ ] 若 caller 已 v2 → 清掉 line 112 註解中「legacy /api/v1/roles」refer
-- [ ] 若未遷 → 改
+- ✅ Status: done in `70e32a46` (2026-06-05)
+- ✅ caller 已 100% v2 (line 121 `/tenants/${tenantId}/rbac/roles`)
+- ✅ comment 精確化（動詞時態 + P4 Stage 7 reference）
+- 註：全 file 只有 1 個 api caller，已 v2
 
-### Task 6: refresh DeprecationMiddleware metrics
+### Task 6: refresh DeprecationMiddleware metrics 🟡 待 prod
 
-- [ ] 部署 Stage 1 後跑 `POST /api/v1/admin/deprecation/v1-metrics:reset`
-- [ ] 流量觀察 7 天
-- [ ] 跑 `GET /api/v1/admin/v1-inventory/no-traffic` 看新候選清單
+- 🟡 Status: 需 prod 環境跑（非 backend-coder 範圍）
+- 部署 Stage 1 後跑 `POST /api/v1/admin/deprecation/v1-metrics:reset`
+- 流量觀察 7 天
+- 跑 `GET /api/v1/admin/v1-inventory/no-traffic` 看新候選清單
+- 對應 release-checklist-2026-06-05.md §7 step 6
 
 ## §3 驗證
 
@@ -70,9 +73,16 @@ Stage 1 範圍：清掉「v1 caller 為 stale comment 或 reports/roles/refunds 
 
 ## §4 Stage 1 完成後
 
-- WBS 完成度 +0.5% (98% → 98.5%)
+- WBS 完成度 +0.5% (98% → 98.5%) ✅
 - 解鎖 Stage 2 (auth/knowledge-base/manuals 遷移，半天)
-- P4 整體完成度 1/7
+- P4 整體完成度 1/7 ✅
+
+### Stage 1 完成 marker (2026-06-05)
+
+- ✅ 5/6 tasks done in code (Task 6 待 prod 跑)
+- ✅ 4 merge commits: `e049de22` + `2d6ff10e` + `70e32a46` + (本 doc 更新)
+- ✅ 0 v1 real callers (僅 stale comments cleanup)
+- 🟡 Task 6 metrics reset 為 ops 任務（release-checklist §7）
 
 ## §5 Out of Scope (留 Stage 2-7)
 
