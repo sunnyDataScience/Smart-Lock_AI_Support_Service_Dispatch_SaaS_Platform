@@ -94,8 +94,8 @@ cd agent && python scripts/line_gateway.py               # LINE webhook 通道�
 
 ## 細節路標（漸進式揭露 —— 需要時才展開）
 
-- **指令全集** → `@.claude/docs/commands.md`（setup, run, test, debug, deploy, env, API 工具；**部分內容待同步 lockcore 重寫，2026-06-04**）
-- **架構細節** → `@.claude/docs/architecture.md`（request flow 圖、module map、web/api/DB/部署；**agent 部分待同步 lockcore 重寫**）
+- **指令全集** → `@.claude/docs/commands.md`（setup, run, test, debug, deploy, env, API 工具；2026-06-05 quality_check 段已標廢棄 + pytest 取代）
+- **架構細節** → `@.claude/docs/architecture.md`（request flow 圖、module map、web/api/DB/部署；2026-06-05 agent module 段已標 superseded by ADR-0107，指向 agent/README.md + lockcore/VENDOR.md）
 - **Agent 新架構** → `agent/README.md` + `agent/lockcore/VENDOR.md`（LockCore 設計依據、skill 結構、config 載入機制）
 - **開發規則** → `.claude/rules/*`（git-workflow, change-governance, context-stability, testing, security…）
 - **文件中樞** → `docs/HOME.md`（5D 框架 + TR gate）

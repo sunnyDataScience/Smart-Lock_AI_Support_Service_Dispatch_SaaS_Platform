@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **commands.md / architecture.md lockcore 重寫 catch-up**（branch `docs/claude-commands-architecture-lockcore-sync`，2026-06-05）：承接 CLAUDE.md §細節路標標示的 OOSCope 後續工作 — `commands.md`（Quality testing 段呼叫已刪 `quality.quality_check` + `--turn-cycle` Belief-Augmented A/B）與 `architecture.md`（§Major Modules 第 1 條 + §Request Processing Flow 描述 ReAct + harness/ + Belief-Augmented + product_info mega-doc 全失效）catch-up。**WHAT**：(a) `commands.md` Quality testing 段標 ⚠️ 已失效 + 替代 `pytest` 7 行常用指令（base / e2e_mock_turn / skills_loaded / tool_allowlist / litellm_provider / line_gateway）+ 警告舊套件「不要嘗試呼叫」/ (b) `architecture.md` 頂部加 ⚠️ banner 標 §Request Processing Flow / §agent module 細節 superseded，指向 agent/README.md + lockcore/VENDOR.md + ADR-0107 / (c) §Major Modules 第 1 條重寫為 LockCore 描述 + 保留 ~~舊描述~~ strikethrough 供 audit trail / (d) CLAUDE.md §細節路標移除「待同步」備註，改記錄已 catch-up 段落。**設計取捨**：(a) banner 加在文件頂部立即可見；(b) 保留 strikethrough 舊文供 git history 比對；(c) 不重寫 350 行 architecture full doc — 既已指向 agent/README.md + ADR-0107 為 SoT，本檔退化為歷史脈絡參考。
+
 - **Agent 核心架構重寫 → LockCore + Agent Skills 標準**（branch `feat/agent-update`，2026-06-04）⭐⭐⭐ **重大架構決策**：捨棄舊架構（ReAct + LangGraph、自製 skill loader、product_info mega-doc、Belief-Augmented ReAct (Turn Cycle)、quality_check LLM-as-Judge），改為：
   * **核心引擎**：`agent/lockcore/`（fork 自上游 `HKUDS/nanobot` 的最小核心套件，VENDOR.md 記載 fork 來源）
   * **知識 & SOP**：`lockcore/skills/{locksmith-product-knowledge,locksmith-cs-sop}/SKILL.md + references/`（**Agent Skills 標準** agentskills.io / Claude Skills，frontmatter 不綁框架專屬欄位，可攜性：可複製到 Claude Code / Cursor / nanobot / hermes 直接使用）
