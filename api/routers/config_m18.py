@@ -261,6 +261,54 @@ async def rollback_config(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 5.5 POST /tenants/{tenantId}/m18/rollouts/{rolloutId}:slo-check (WBS §8 P1)
+#     admin manual SLO halt decision — 不真 halt 只回 decision
+# ─────────────────────────────────────────────────────────────────────────────
+
+class SloCheckRequest(BaseModel):
+    error_rate_pct: float = Field(..., description="觀察 error rate (5xx/total)")
+    p99_latency_ms: float | None = Field(default=None)
+    error_rate_slo_pct: float | None = Field(
+        default=None, description="自訂門檻（不給 = 1% 預設）",
+    )
+    p99_latency_slo_ms: float | None = Field(
+        default=None, description="自訂門檻（不給 = 1000ms 預設）",
+    )
+
+
+@router.post(
+    "/tenants/{tenantId}/m18/rollouts/{rolloutId}:slo-check",
+    operation_id="checkConfigRolloutSlo",
+    summary="SLO halt decision — admin 觀察 metrics 後請求是否該 halt rollout (M18)",
+    status_code=200,
+    response_model=dict,
+)
+async def slo_check(
+    body: SloCheckRequest,
+    tenantId: str = Path(...),
+    rolloutId: str = Path(...),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    """admin 觀察線上 SLO 後請求 decision；本 endpoint 只回 should_halt 不真 halt。
+
+    若 should_halt=true 建議：admin 顯式呼 `:rollback` 端點（避免自動 halt 風險，
+    對齊 dispute 負值 resolution 人工 trail 精神）。
+    """
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError("CROSS_TENANT_WRITE", "Path tenantId 與 token claim 不符", 403)
+
+    return await svc.check_slo_halt(
+        tenant_id=tenantId,
+        rollout_id=rolloutId,
+        error_rate_pct=body.error_rate_pct,
+        p99_latency_ms=body.p99_latency_ms,
+        error_rate_slo_pct=body.error_rate_slo_pct,
+        p99_latency_slo_ms=body.p99_latency_slo_ms,
+        actor_user_id=user.user_id,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # 6. GET /tenants/{tenantId}/m18/configs/{namespace}/{key}/audit
 # ─────────────────────────────────────────────────────────────────────────────
 

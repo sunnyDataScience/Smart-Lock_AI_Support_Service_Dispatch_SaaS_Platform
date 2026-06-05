@@ -823,3 +823,157 @@ async def _advance_canary_stage(rollout_id: str) -> dict:
         "new_stage": new_stage,
         "next_stage_eta": None,
     }
+
+
+# ============================================================
+# SLO halt decision (HD-: WBS §8 P1 解 DEFERRED — manual trigger mode)
+# ============================================================
+# 預設 SLO threshold 對齊金融 99.9% / 99% 慣例：
+#   error_rate ≤ 1% / p99_latency ≤ 1000ms（與 CR-0019 保守 SLA 一致）
+_DEFAULT_ERROR_RATE_SLO_PCT = 1.0
+_DEFAULT_P99_LATENCY_SLO_MS = 1000
+
+
+async def check_slo_halt(
+    *,
+    tenant_id: str,
+    rollout_id: str,
+    error_rate_pct: float,
+    p99_latency_ms: float | None = None,
+    error_rate_slo_pct: float | None = None,
+    p99_latency_slo_ms: float | None = None,
+    actor_user_id: str | None = None,
+) -> dict:
+    """SLO halt decision endpoint — admin 觀察 metrics 後請求是否該 halt rollout。
+
+    本函式只回 decision，不真實 halt（halt 動作由 admin 顯式呼 rollback —
+    對齊 dispute 負值 resolution 人工 trail 精神，避免自動 trigger 風險）。
+
+    Args:
+      error_rate_pct: 觀察到的 error rate (e.g. 5xx / total req)
+      p99_latency_ms: 觀察到的 p99 latency (optional)
+      error_rate_slo_pct / p99_latency_slo_ms: 自訂 SLO 門檻
+      actor_user_id: 若提供，audit 寫入 actor
+
+    Returns:
+      {
+        "rollout_id": str,
+        "current_stage": str,
+        "decision": {
+          "should_halt": bool,
+          "exceeded": [str, ...]  # 列出哪個指標破門檻
+        },
+        "thresholds": {
+          "error_rate_slo_pct": float,
+          "p99_latency_slo_ms": float | None,
+        },
+        "observed": {
+          "error_rate_pct": float,
+          "p99_latency_ms": float | None,
+        },
+        "recommendation": str  # 給 admin 看的下一步
+      }
+
+    Raises:
+      ApiError(404): rollout 不存在
+      ApiError(409): rollout 已 100% / rolled_back（不需 halt 決策）
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    if error_rate_pct < 0:
+        raise ApiError("VALIDATION_ERROR", "error_rate_pct must >= 0", 422)
+
+    err_threshold = (
+        error_rate_slo_pct if error_rate_slo_pct is not None
+        else _DEFAULT_ERROR_RATE_SLO_PCT
+    )
+    lat_threshold = (
+        p99_latency_slo_ms if p99_latency_slo_ms is not None
+        else _DEFAULT_P99_LATENCY_SLO_MS
+    )
+
+    cur = await db_module._conn.execute(
+        """
+        SELECT cr.id, cr.current_stage, cr.config_version_id,
+               cv.tenant_id, cv.namespace, cv.key
+        FROM saas.config_rollout cr
+        JOIN saas.config_version cv ON cv.id = cr.config_version_id
+        WHERE cr.id = %s::uuid
+        """,
+        (rollout_id,),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("CONFIG_NOT_FOUND", f"rollout {rollout_id} 不存在", 404)
+    _, current_stage, version_id, _, namespace, key = row
+    if current_stage in ("100%", "rolled_back"):
+        raise ApiError(
+            "CONFLICT",
+            f"rollout current_stage={current_stage}：不需 SLO halt 決策",
+            409,
+        )
+
+    exceeded: list[str] = []
+    if error_rate_pct > err_threshold:
+        exceeded.append(
+            f"error_rate {error_rate_pct:.2f}% > {err_threshold}%"
+        )
+    if p99_latency_ms is not None and p99_latency_ms > lat_threshold:
+        exceeded.append(
+            f"p99_latency {p99_latency_ms:.0f}ms > {lat_threshold}ms"
+        )
+
+    should_halt = bool(exceeded)
+    recommendation = (
+        f"建議：立即呼 rollback endpoint 將 rollout 退回前一版（exceeded: {', '.join(exceeded)}）"
+        if should_halt
+        else "SLO 通過：rollout 可繼續推進；建議等 next_stage_eta 自動 advance"
+    )
+
+    # audit 寫一條 slo_check 記錄（不論 should_halt true/false 都留 trail）
+    try:
+        await _append_audit(
+            tenant_id=tenant_id,
+            config_version_id=str(version_id),
+            actor_user_id=actor_user_id or "00000000-0000-0000-0000-000000000000",
+            action="rollout_started",  # 沿用 audit action enum；diff 標識為 slo_check
+            diff={
+                "slo_check": True,
+                "should_halt": should_halt,
+                "exceeded": exceeded,
+                "observed": {
+                    "error_rate_pct": round(error_rate_pct, 2),
+                    "p99_latency_ms": (
+                        round(p99_latency_ms, 0)
+                        if p99_latency_ms is not None else None
+                    ),
+                },
+                "thresholds": {
+                    "error_rate_slo_pct": err_threshold,
+                    "p99_latency_slo_ms": lat_threshold,
+                },
+            },
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("audit slo_check failed for rollout=%s", rollout_id)
+
+    return {
+        "rollout_id": rollout_id,
+        "current_stage": current_stage,
+        "decision": {
+            "should_halt": should_halt,
+            "exceeded": exceeded,
+        },
+        "thresholds": {
+            "error_rate_slo_pct": err_threshold,
+            "p99_latency_slo_ms": lat_threshold,
+        },
+        "observed": {
+            "error_rate_pct": round(error_rate_pct, 2),
+            "p99_latency_ms": (
+                round(p99_latency_ms, 0)
+                if p99_latency_ms is not None else None
+            ),
+        },
+        "recommendation": recommendation,
+    }
