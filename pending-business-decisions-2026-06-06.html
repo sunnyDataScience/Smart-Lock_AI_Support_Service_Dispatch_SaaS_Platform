@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>業主待裁決事項 — 2026-06-06</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Helvetica Neue", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    background: #f5f5f7;
+    color: #1d1d1f;
+    margin: 0;
+    padding: 32px 24px;
+    line-height: 1.6;
+  }
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 28px;
+    margin: 0 0 8px;
+    color: #1d1d1f;
+  }
+  .subtitle {
+    color: #6e6e73;
+    margin-bottom: 32px;
+    font-size: 15px;
+  }
+  .summary {
+    background: white;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 28px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .summary h2 {
+    margin: 0 0 12px;
+    font-size: 18px;
+  }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .summary-card {
+    padding: 12px 16px;
+    background: #f5f5f7;
+    border-radius: 8px;
+  }
+  .summary-card .label {
+    font-size: 12px;
+    color: #6e6e73;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .summary-card .value {
+    font-size: 20px;
+    font-weight: 600;
+    margin-top: 4px;
+  }
+  .decision {
+    background: white;
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    border-left: 4px solid #007aff;
+  }
+  .decision.critical { border-left-color: #ff3b30; }
+  .decision.major { border-left-color: #ff9500; }
+  .decision.minor { border-left-color: #34c759; }
+  .decision h3 {
+    margin: 0 0 4px;
+    font-size: 20px;
+  }
+  .decision .meta {
+    font-size: 13px;
+    color: #6e6e73;
+    margin-bottom: 16px;
+  }
+  .decision .meta span {
+    display: inline-block;
+    margin-right: 16px;
+  }
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-right: 6px;
+  }
+  .badge.critical { background: #fef0ef; color: #d70015; }
+  .badge.major { background: #fff4e5; color: #c5510b; }
+  .badge.minor { background: #e8f5e9; color: #15803d; }
+  .badge.blocker { background: #f0f0f0; color: #424245; }
+  .section-label {
+    font-size: 12px;
+    color: #6e6e73;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    margin-top: 16px;
+    margin-bottom: 8px;
+  }
+  .source-list, .impact-list, .options-list {
+    margin: 8px 0 0;
+    padding-left: 20px;
+  }
+  .source-list li, .impact-list li, .options-list li {
+    margin-bottom: 6px;
+    font-size: 14px;
+  }
+  .options-list li {
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    background: #f5f5f7;
+    border-radius: 6px;
+    list-style: none;
+    position: relative;
+    padding-left: 32px;
+  }
+  .options-list li::before {
+    content: counter(option);
+    counter-increment: option;
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #007aff;
+    color: white;
+    text-align: center;
+    font-size: 11px;
+    line-height: 18px;
+    font-weight: 600;
+  }
+  .options-list { counter-reset: option; }
+  .options-list li.recommended {
+    border-left: 3px solid #34c759;
+    background: #f0fdf4;
+  }
+  .recommend-tag {
+    display: inline-block;
+    background: #34c759;
+    color: white;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  code {
+    font-family: "SF Mono", Menlo, Monaco, monospace;
+    font-size: 13px;
+    background: #f5f5f7;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .source-list code { background: #fff5e6; }
+  .footer {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid #e0e0e0;
+    color: #86868b;
+    font-size: 13px;
+    text-align: center;
+  }
+  table.impact-matrix {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+    font-size: 13px;
+  }
+  table.impact-matrix th, table.impact-matrix td {
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  table.impact-matrix th {
+    background: #f5f5f7;
+    font-weight: 600;
+    font-size: 12px;
+    color: #6e6e73;
+    text-transform: uppercase;
+  }
+  .owner-only-banner {
+    background: linear-gradient(135deg, #fef0ef 0%, #fff5f5 100%);
+    border: 2px solid #ff3b30;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin: 28px 0;
+  }
+  .owner-only-banner h2 {
+    color: #d70015;
+    margin: 0 0 8px;
+    font-size: 18px;
+  }
+  .owner-only-banner p {
+    margin: 0 0 12px;
+    color: #424245;
+    font-size: 14px;
+  }
+  .owner-only-banner ol {
+    margin: 0;
+    padding-left: 22px;
+  }
+  .owner-only-banner li {
+    margin-bottom: 6px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .owner-only-tag {
+    display: inline-block;
+    background: #ff3b30;
+    color: white;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 700;
+    margin-left: 8px;
+    letter-spacing: 0.5px;
+  }
+  .wbs-impact {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-top: 12px;
+    font-size: 14px;
+  }
+  .wbs-impact b { color: #0369a1; }
+  .wbs-flow {
+    background: white;
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin: 28px 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .wbs-flow h2 { margin: 0 0 12px; font-size: 18px; }
+  .wbs-bar {
+    height: 28px;
+    background: #f5f5f7;
+    border-radius: 14px;
+    overflow: hidden;
+    margin: 16px 0 8px;
+    position: relative;
+    display: flex;
+  }
+  .wbs-bar .done {
+    background: linear-gradient(90deg, #34c759 0%, #30b14a 100%);
+    color: white;
+    text-align: center;
+    line-height: 28px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .wbs-bar .stage-1 {
+    background: linear-gradient(90deg, #ff9500 0%, #ffa726 100%);
+    color: white;
+    text-align: center;
+    line-height: 28px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .wbs-bar .stage-2 {
+    background: linear-gradient(90deg, #ffcc00 0%, #ffd633 100%);
+    color: #6b4500;
+    text-align: center;
+    line-height: 28px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .wbs-bar .stage-3 {
+    background: linear-gradient(90deg, #5ac8fa 0%, #6bd2fc 100%);
+    color: white;
+    text-align: center;
+    line-height: 28px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .wbs-bar .remain {
+    background: #f5f5f7;
+    color: #86868b;
+    text-align: center;
+    line-height: 28px;
+    font-size: 12px;
+  }
+  .wbs-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 12px;
+    color: #6e6e73;
+    margin-top: 8px;
+  }
+  .wbs-legend .swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    vertical-align: middle;
+    margin-right: 4px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <h1>業主待裁決事項清單</h1>
+  <div class="subtitle">
+    backend-coder agent 已飽和（73 merges / WBS 98.5%）。剩 1.5% gap 中，以下 4 項待業主 sign-off。
+    其中 <b>2 項只能業主親自決定</b>（合規/業務 scope 取捨，AI 不能建議），另 2 項 AI 可推薦選項但仍需業主簽。
+  </div>
+
+  <!-- ⚠️ 只能業主親自決定的項目 -->
+  <div class="owner-only-banner">
+    <h2>⚠️ 只能業主親自決定的項目（AI 不能建議）</h2>
+    <p>以下 2 項屬<b>合規 / 業務 scope 取捨</b>，沒有技術最佳解，AI 不能替業主決定。其餘 2 項 AI 可推薦選項。</p>
+    <ol>
+      <li>
+        <b>事項 2 — Reconciliation 雙簽 UX rework</b>
+        <span class="owner-only-tag">業主 ONLY</span><br>
+        <span style="font-size: 13px; font-weight: normal; color: #6e6e73;">
+          合規取捨：同人 vs 不同人 vs cooling-off — 涉及法務 / 內控 / Sox-like 規範，業主 + legal 共識決定
+        </span>
+      </li>
+      <li>
+        <b>事項 3 — 計價引擎 GUI</b>
+        <span class="owner-only-tag">業主 ONLY</span><br>
+        <span style="font-size: 13px; font-weight: normal; color: #6e6e73;">
+          業務 scope 取捨：維持 SQL config / 最小 GUI / 全功能編輯器 — 涉及業務操作門檻 + 投資回報，業主 + 產品共識決定
+        </span>
+      </li>
+    </ol>
+  </div>
+
+  <div class="summary">
+    <h2>📊 總覽</h2>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="label">待決事項</div>
+        <div class="value">4 項</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">業主 ONLY</div>
+        <div class="value" style="color: #ff3b30;">2 項</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">阻擋 WBS</div>
+        <div class="value">+0.5%</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">產生日期</div>
+        <div class="value">2026-06-06</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WBS 完成度流程圖 -->
+  <div class="wbs-flow">
+    <h2>📈 WBS 完成度推進路徑（98.5% → 100%）</h2>
+    <p style="font-size: 14px; color: #6e6e73; margin: 0;">
+      backend-coder 已推到 98.5%。剩 1.5% 拆成 4 區段，每段需要不同 owner 解決：
+    </p>
+    <div class="wbs-bar">
+      <div class="done" style="width: 98.5%;">已完成 98.5%（backend MVP + 工具鏈）</div>
+      <div class="stage-1" style="width: 0.5%;"></div>
+      <div class="stage-2" style="width: 0.5%;"></div>
+      <div class="stage-3" style="width: 0.5%;"></div>
+    </div>
+    <div class="wbs-legend">
+      <span><span class="swatch" style="background:#34c759;"></span>98.5% 完成（73 merges / 372 tests）</span>
+      <span><span class="swatch" style="background:#ff9500;"></span>+0.5% 業主 4 項裁決</span>
+      <span><span class="swatch" style="background:#ffcc00;"></span>+0.5% Web Sprint 1-5 + Production env</span>
+      <span><span class="swatch" style="background:#5ac8fa;"></span>+0.5% UAT 期程 + 業務 sign-off</span>
+    </div>
+
+    <table class="impact-matrix" style="margin-top: 20px;">
+      <tr><th>區段</th><th>解鎖條件</th><th>WBS 推進</th><th>Owner</th></tr>
+      <tr>
+        <td><b>業主 4 項裁決</b></td>
+        <td>本檔 §1-4 全部 sign-off</td>
+        <td>98.5% → <b>99.0%</b></td>
+        <td>👤 業主</td>
+      </tr>
+      <tr>
+        <td><b>Web Sprint 1-5 BUILD</b></td>
+        <td>9 FR page 對接 + e2e active</td>
+        <td>99.0% → <b>99.3%</b></td>
+        <td>💻 Web dev</td>
+      </tr>
+      <tr>
+        <td><b>Production env 部署</b></td>
+        <td>Migration apply + Lifespan + 30 day 觀察</td>
+        <td>99.3% → <b>99.7%</b></td>
+        <td>🛠 DBA + Ops</td>
+      </tr>
+      <tr>
+        <td><b>UAT 10 案執行</b></td>
+        <td>9 FR + Ops drill 全 Pass + 業主簽</td>
+        <td>99.7% → <b>100%</b></td>
+        <td>📋 業務 + QA</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- Decision 1: P4 Stage 7 -->
+  <div class="decision critical">
+    <h3>1. P4 Stage 7 — v1 router 刪除批准</h3>
+    <div class="meta">
+      <span class="badge critical">CRITICAL</span>
+      <span class="badge blocker">阻擋 WBS 1%</span>
+      <span>Owner: 業主 + Tech Lead</span>
+      <span>狀態: blocked — 需 30 day production 0-traffic 觀察 + 業主簽</span>
+    </div>
+
+    <div class="section-label">📂 來源文件</div>
+    <ul class="source-list">
+      <li><code>docs/_audit/P4-cutover-v1-caller-inventory-2026-06-05.md</code> — v1 caller 清查盤點</li>
+      <li><code>docs/_audit/P4-stage-2-7-prep-checklists.md</code> §7 — Stage 7 進入條件</li>
+      <li><code>docs/_audit/P4-progress-dashboard.md</code> — 階段進度總覽</li>
+      <li><code>docs/_ops/wbs-100-closeout-plan.md</code> §2.1</li>
+      <li>Production deprecation hit log — 待 Stage 6 部署後 30 day 收集</li>
+    </ul>
+
+    <div class="section-label">⚡ 影響範圍</div>
+    <table class="impact-matrix">
+      <tr><th>層面</th><th>影響</th></tr>
+      <tr><td>v1 API endpoint</td><td>~41 個 endpoint 命運 — 刪除 / 永久 410 / 延期</td></tr>
+      <tr><td>Backend code</td><td><code>api/routers/*_v1.py</code> 整批檔案命運 + auth flattening</td></tr>
+      <tr><td>Web 端</td><td>剩 41 個 v1 caller 必須完成遷 v2 才能執行</td></tr>
+      <tr><td>Agent</td><td>P4-T1 batch (refunds/warranty/problem-cards) 需確認 0 traffic</td></tr>
+      <tr><td>對外文件</td><td>OpenAPI / API 文件 v1 段全廢</td></tr>
+      <tr><td>監控</td><td>deprecation middleware + hit metrics endpoint 可一併撤</td></tr>
+    </table>
+
+    <div class="section-label">🎯 決策選項</div>
+    <ol class="options-list">
+      <li class="recommended">
+        <b>直接刪 v1 router</b> <span class="recommend-tag">推薦</span><br>
+        前提：30 day production 觀察真正 0 traffic。完成 P4 全部 cutover，架構 v2 single-track。
+      </li>
+      <li>
+        <b>留 v1 router 但永久 410 Gone</b><br>
+        保險作法：仍保留 routing 表但所有 v1 endpoint 直接回 <code>410 Gone</code> + log。可隨時恢復若客戶投訴。
+      </li>
+      <li>
+        <b>延期觀察至 60 day</b><br>
+        保守選項：若 30 day 觀察期有 sporadic traffic，延長至 60 day 確認真停。
+      </li>
+    </ol>
+
+    <div class="wbs-impact">
+      <b>📈 完成後 WBS 推進</b>：架構遷移從 ~88% → 95%（Phase 9 P4 收尾），整體 +0.2% 至約 98.7%
+    </div>
+  </div>
+
+  <!-- Decision 2: Reconciliation 雙簽 UX -->
+  <div class="decision major">
+    <h3>2. Reconciliation 雙簽 UX rework</h3>
+    <div class="meta">
+      <span class="badge major">MAJOR</span>
+      <span class="badge blocker">阻擋 Flow 6 收尾</span>
+      <span>Owner: 業主 + UX</span>
+      <span>狀態: blocked — 需業務 + UX 共識</span>
+    </div>
+
+    <div class="section-label">📂 來源文件</div>
+    <ul class="source-list">
+      <li><code>docs/_audit/CR-0018-flow13-ex5-reconciliation-exception-cia.md</code> — recon 例外 CIA</li>
+      <li><code>docs/_ops/wbs-100-closeout-plan.md</code> §2.2</li>
+      <li>Flow 6 reconciliation deep audit（業主早期表態 dual-sign UI 缺口）</li>
+      <li><code>api/services/reconciliation_service.py</code> — 現行 dual-sign 邏輯</li>
+    </ul>
+
+    <div class="section-label">⚡ 影響範圍</div>
+    <table class="impact-matrix">
+      <tr><th>層面</th><th>影響</th></tr>
+      <tr><td>合規 / 內控</td><td>Sox-like 雙簽是否真正落實「不同人」原則 — legal 依據</td></tr>
+      <tr><td>Web UI</td><td><code>web/src/app/admin/recon-exceptions/*</code> 整段 UX 重做或維持</td></tr>
+      <tr><td>Backend</td><td><code>reconciliation_service.py</code> dual-sign 邏輯可能加 <code>same_user_forbidden</code> 強制驗證</td></tr>
+      <tr><td>稽核</td><td><code>approval_chain</code> JSONB audit 既有，但若加 cooling-off 需新 timestamp 欄</td></tr>
+      <tr><td>WBS</td><td>影響 Phase II 7 + Flow 13 EX5 完成度認定</td></tr>
+    </table>
+
+    <div class="section-label">🎯 決策選項</div>
+    <ol class="options-list">
+      <li>
+        <b>維持現狀（同人雙簽 + audit log）</b><br>
+        Status quo：技術上允許同人簽，audit_log 保留 trail。最便宜，但合規風險。
+      </li>
+      <li>
+        <b>強制不同人（A 提案 → B 核准）+ 改 UI 流程</b><br>
+        合規嚴格：backend <code>DUAL_SIGN_SAME_USER 409</code> 強制驗 actor_user_id 不同。Web UI 重做為兩階段表單。
+      </li>
+      <li>
+        <b>加 timestamp gap（最少 5 分鐘）模擬 cooling-off</b><br>
+        折衷：同人仍可但需間隔。技術簡單但合規效果弱於選項 2。
+      </li>
+    </ol>
+
+    <div class="wbs-impact">
+      <b>📈 完成後 WBS 推進</b>：Flow 6 / Flow 13 EX5 收尾 100%，整體 +0.1% 至約 98.6%
+    </div>
+  </div>
+
+  <!-- Decision 3: 計價引擎 GUI -->
+  <div class="decision major">
+    <h3>3. 計價引擎 GUI</h3>
+    <div class="meta">
+      <span class="badge major">MAJOR</span>
+      <span class="badge blocker">scope expansion 風險</span>
+      <span>Owner: 業主 + 產品</span>
+      <span>狀態: blocked — 規格未定（SQL config → GUI 屬 scope expansion）</span>
+    </div>
+
+    <div class="section-label">📂 來源文件</div>
+    <ul class="source-list">
+      <li><code>SQL/migrations/004-config-m18.sql</code> — pricing_rule_canary 現行機制</li>
+      <li><code>api/routers/pricing_rules_v2.py</code> — Track B S4 已建 CRUD + change_request 審計</li>
+      <li><code>api/services/pricing_v2_service.py</code> — 計算邏輯</li>
+      <li><code>docs/_ops/wbs-100-closeout-plan.md</code> §2.3</li>
+      <li><code>docs/architecture/adr/ADR-0046-pricing-rules.md</code></li>
+    </ul>
+
+    <div class="section-label">⚡ 影響範圍</div>
+    <table class="impact-matrix">
+      <tr><th>層面</th><th>影響</th></tr>
+      <tr><td>Web 工時</td><td>10 天（最小 GUI）/ 30 天（全功能編輯器）</td></tr>
+      <tr><td>業務操作</td><td>規則調整門檻 — DBA SQL（高） vs admin GUI（低）</td></tr>
+      <tr><td>變更風險</td><td>GUI 越強大 → 業務誤改規則風險越大 → 需 canary % slider + 預檢</td></tr>
+      <tr><td>稽核</td><td>change_request audit 已就緒，GUI 介面同等需求</td></tr>
+      <tr><td>WBS</td><td>Phase 7 會計 / Phase 9 P4 都不依賴；屬於獨立增量</td></tr>
+    </table>
+
+    <div class="section-label">🎯 決策選項</div>
+    <ol class="options-list">
+      <li class="recommended">
+        <b>維持 SQL config + audit log</b> <span class="recommend-tag">推薦（MVP）</span><br>
+        最便宜：規則由 DBA 透過 SQL 改，change_request 記錄。適合「規則改動頻率低」場景。
+      </li>
+      <li>
+        <b>開最小 GUI（rule list + canary % slider）</b><br>
+        ~10 天 web dev。業務人員可看清單 + 微調 canary 比例，但不能新增/刪除規則。中等平衡。
+      </li>
+      <li>
+        <b>全功能規則編輯器</b><br>
+        ~30 天 web dev。業務可完全自編規則 + 預覽 + canary。最強大但開發成本高 + 誤改風險高。
+      </li>
+    </ol>
+
+    <div class="wbs-impact">
+      <b>📈 完成後 WBS 推進</b>：選項 1 維持 +0.1%（標 deferred）/ 選項 2-3 +0.1-0.3%（GUI BUILD 完成計入）
+    </div>
+  </div>
+
+  <!-- Decision 4: A37 drawer 元件 -->
+  <div class="decision minor">
+    <h3>4. A37 candidate-detail drawer 元件</h3>
+    <div class="meta">
+      <span class="badge minor">MINOR</span>
+      <span class="badge blocker">阻擋 A37 收尾 100%</span>
+      <span>Owner: UX + Web dev</span>
+      <span>狀態: blocked — 設計稿未定</span>
+    </div>
+
+    <div class="section-label">📂 來源文件</div>
+    <ul class="source-list">
+      <li><code>web/src/app/admin/dispatch-manual/page.tsx</code> — A37 主頁面（已 100% 但 drawer 缺）</li>
+      <li><code>docs/_audit/flow-12-14-deep-audit.md</code> — A37 deep audit</li>
+      <li><code>docs/_ops/wbs-100-closeout-plan.md</code> §2.4</li>
+      <li>對應 PRD（待業主指明確切設計稿來源）</li>
+    </ul>
+
+    <div class="section-label">⚡ 影響範圍</div>
+    <table class="impact-matrix">
+      <tr><th>層面</th><th>影響</th></tr>
+      <tr><td>Web UI</td><td>A37 dispatch-manual 候選技師詳情顯示方式（drawer / sheet / modal）</td></tr>
+      <tr><td>Design system</td><td>是否引入新 drawer pattern 影響其他 admin 頁面一致性</td></tr>
+      <tr><td>WBS</td><td><code>system-completion-status.md</code> A37 從「~98%」推到 100% 的最後缺口</td></tr>
+      <tr><td>Web dev 工時</td><td>1-3 天（依選項）</td></tr>
+    </table>
+
+    <div class="section-label">🎯 決策選項</div>
+    <ol class="options-list">
+      <li class="recommended">
+        <b>用 shadcn <code>&lt;Sheet&gt;</code> 直接套</b> <span class="recommend-tag">推薦（MVP）</span><br>
+        最快：1 天 web dev。專案已用 shadcn，零新 dependency。
+      </li>
+      <li>
+        <b>自客製化 drawer 元件</b><br>
+        2-3 天。Design system 一致性最高，但需先定 design token / animation curve。
+      </li>
+      <li>
+        <b>暫不做，先用 modal 替代</b><br>
+        0 天 — 接受 A37 停在 98%，等正式 design review 後再 BUILD。
+      </li>
+    </ol>
+
+    <div class="wbs-impact">
+      <b>📈 完成後 WBS 推進</b>：A37 從 98% → 100%（管理員後台收尾），整體 +0.1% 至約 98.6%
+    </div>
+  </div>
+
+  <div class="footer">
+    📄 對應 WBS 收尾計畫：<code>docs/_ops/wbs-100-closeout-plan.md</code> §2<br>
+    📄 對應 UAT 期程：<code>docs/_ops/uat-plan-2026-q3.md</code><br>
+    📄 對應 session 統計：<code>docs/_audit/session-2026-06-05-final-stats.md</code><br>
+    本檔由 AI agent 生成 — 4 項皆 <b>需業主 sign-off</b>，AI 僅整理選項與影響，不替業主決策。
+  </div>
+
+</div>
+</body>
+</html>
