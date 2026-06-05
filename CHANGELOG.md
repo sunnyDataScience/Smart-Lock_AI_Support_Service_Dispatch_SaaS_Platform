@@ -33,7 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Flow 3 admin override → 90%**（branch `feat/flow3-consumer-respond`，2026-06-05）：scope_change_service.admin_override + endpoint `:admin-override` + 連動 wo→in_progress + audit log。**WBS Flow 3** 85% → **90%**。
 
-- **Flow 11 客戶不在場 deep audit 100% → 80%**（branch `docs/flow11-agent-rewrite-audit`，2026-06-05）：取證 agent 重寫衝擊 — backend + web/track 完整 ✅，LINE Flex push 鏈路 0%（agent 重寫刪 Flex template module）。產出 `docs/_audit/flow-11-agent-rewrite-impact.md`，建議開 CR-0017。
+- **Flow 11 客戶不在場 deep audit 100% → 80%**（branch `docs/flow11-agent-rewrite-audit`，2026-06-05）：取證 agent 重寫衝擊 — backend + web/track 完整 ✅，LINE Flex push 鏈路 0%。
+
+- **CR-0017 opened — LINE Flex push 重建 CIA**（branch `docs/cr-0017-line-flex-push-rebuild-cia`，2026-06-05）：5 HD 待業主裁決（push 歸屬 / INSERT→push 觸發 / template 歸屬 / Flow 優先 / postback 路由）。影響 Flow 3/11/14 LINE Flex push 段。
 
 - **Agent 核心架構重寫 → LockCore + Agent Skills 標準**（branch `feat/agent-update`，2026-06-04）⭐⭐⭐ **重大架構決策**：捨棄舊架構（ReAct + LangGraph、自製 skill loader、product_info mega-doc、Belief-Augmented ReAct (Turn Cycle)、quality_check LLM-as-Judge），改為：
   * **核心引擎**：`agent/lockcore/`（fork 自上游 `HKUDS/nanobot` 的最小核心套件，VENDOR.md 記載 fork 來源）
