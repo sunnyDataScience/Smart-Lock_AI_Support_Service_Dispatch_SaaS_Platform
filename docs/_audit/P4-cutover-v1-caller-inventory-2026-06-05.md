@@ -59,6 +59,27 @@ Total               38 refs across 12 v1 prefixes
 | `config` | 7 | `settings/page.tsx` 等管 system config；v2 部分 config 已 M18 governance，但仍有 7 個 v1 ref 須一個個檢查 |
 | `public` | 4 | `scope-change/[token]` + `track/[token]` 各有獨立 token endpoint；consumer_v2 涵蓋部分但不全；deprecation 須確認消費者 LINE Flex / Web tunnel 全已遷 |
 
+### 🟢 **永久保留 v1**（user-scoped 不適合 tenant-scoping）— **2026-06-05 補充**
+
+session 末段重新分析發現：原統計的 38 v1 refs 中部分為 **user-scoped 設計**（依 JWT 取 user_id），
+非 tenant-scoped business logic，**不該強行遷 v2**。這些屬永久 v1 保留範圍：
+
+| Caller | v1 Endpoint | 為何留 v1 |
+|:---|:---|:---|
+| `settings/page.tsx` | `POST /api/v1/auth/change-password` | user 改密碼為 user-scoped；無需 tenant path |
+| `account/page.tsx` | `GET /api/v1/technicians/me` | 技師 self profile；JWT 取 user_id 即可 |
+| `account/schedule/page.tsx` | `PATCH /api/v1/technicians/me/availability` | 同上 |
+| `lib/api.ts` | `POST /api/v1/auth/refresh` (line 198) | token refresh 為 auth flow；user-scoped |
+
+v1 docstring 已明示：`api/routers/technicians.py:8` 「只允許登入技師讀寫自己的 profile；admin list/get 僅需 tenant 隔離」— 確認 me/availability 為設計上的 v1。
+
+**結論修正**：原統計 38 refs / 12 prefix → 扣掉 ~6 個 user-scoped refs 後實際 **待遷 ~32 refs / ~10 prefix**。
+
+P4 Stage 7 (刪 v1 router) **必須保留**：`auth.py` / `technicians.py` 內 me/availability 系列。新 P4 計畫表：
+- 刪 v1 router 改為「刪沒有合法 user-scoped 路徑的 v1 router」
+- `technicians.py` v1：保留 `me / me/availability / me/profile`；刪 admin list/get/update（v2 已替代）
+- `auth.py` v1：全保留（user-scoped）
+
 **P4 Step 2 — 業務 UX 決策**：上述 3 個 prefix / 12 refs；需業主裁決或設計回顧。
 
 ### 🟢 已知無 web caller 的 v1 router（可直接刪）
