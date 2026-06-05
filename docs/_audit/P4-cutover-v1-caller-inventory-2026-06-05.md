@@ -73,7 +73,13 @@ session 末段重新分析發現：原統計的 38 v1 refs 中部分為 **user-s
 
 v1 docstring 已明示：`api/routers/technicians.py:8` 「只允許登入技師讀寫自己的 profile；admin list/get 僅需 tenant 隔離」— 確認 me/availability 為設計上的 v1。
 
-**結論修正**：原統計 38 refs / 12 prefix → 扣掉 ~6 個 user-scoped refs 後實際 **待遷 ~32 refs / ~10 prefix**。
+**追加 (2026-06-05 session 後段)**：
+
+| Caller | v1 Endpoint | 為何留 v1 |
+|:---|:---|:---|
+| `web/src/app/knowledge-base/manuals/page.tsx:421` | `POST /api/v1/knowledge-base/manuals/upload` | **multipart form 設計上保留 v1**；`api/routers/kb_v2.py:30` + `:214` 明示「若需上傳 PDF 仍走 legacy /api/v1/knowledge-base/manuals/upload」 |
+
+**結論修正**：原統計 38 refs / 12 prefix → 扣掉 ~6 個 user-scoped + 1 multipart upload = ~7 refs 後實際 **待遷 ~31 refs / ~10 prefix**。
 
 P4 Stage 7 (刪 v1 router) **必須保留**：`auth.py` / `technicians.py` 內 me/availability 系列。新 P4 計畫表：
 - 刪 v1 router 改為「刪沒有合法 user-scoped 路徑的 v1 router」
