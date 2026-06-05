@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **Flow 14 schedule_conflict 偵測 component test**（branch `test/e2e-smoke-flow14-conflict`，2026-06-05）：對應 commit `bd492059` `_detect_schedule_conflict_and_publish` helper — Flow 14 backend 內部觸發，無對應前端 conflict UI handler（E2E 無法走），改寫 component pytest 驗 5 個情境。**新 `api/tests/test_schedule_conflict_detection.py`** 5 個 test：(1) 同技師 + 同時段內 → publish 呼叫 + events INSERT + payload conflicting_wo_ids 含舊 wo / (2) 同技師但時段差 > 2hr → 無 publish 無 INSERT / (3) 同時段但不同技師 → 無 publish / (4) 同技師同時段但另一 wo 已 completed → 排除（驗 `status NOT IN completed/confirmed/cancelled` 過濾正確）/ (5) wo.scheduled_at NULL → 無聲返回。**設計取捨**：(a) 新 `insert_wo_min` factory fixture 不依賴 line_user 完整鏈，最小化 seed；(b) `unittest.mock.patch("realtime.ws_hub.hub.publish", new=AsyncMock())` mock WS 避免依賴真實 hub；(c) cleanup 處理 wo/pc/conv/user/tech 5 表 reverse FK order；(d) 用 `await mock_pub.await_count` 驗 publish 呼叫次數，`await_args_list[0].args` 驗 channel + message 內容。**驗證**：python3 ast.parse OK；無 schema 變更。**完成 WBS 1.2.7.3.1** E2E catch-up 四件套（material-requests + sentiment-escalate + work-orders-reassign + schedule-conflict-detection — 對應本 session 所有 Flow 推進的 e2e 鏈路 + 單元測試覆蓋）。
+
 - **Agent 核心架構重寫 → LockCore + Agent Skills 標準**（branch `feat/agent-update`，2026-06-04）⭐⭐⭐ **重大架構決策**：捨棄舊架構（ReAct + LangGraph、自製 skill loader、product_info mega-doc、Belief-Augmented ReAct (Turn Cycle)、quality_check LLM-as-Judge），改為：
   * **核心引擎**：`agent/lockcore/`（fork 自上游 `HKUDS/nanobot` 的最小核心套件，VENDOR.md 記載 fork 來源）
   * **知識 & SOP**：`lockcore/skills/{locksmith-product-knowledge,locksmith-cs-sop}/SKILL.md + references/`（**Agent Skills 標準** agentskills.io / Claude Skills，frontmatter 不綁框架專屬欄位，可攜性：可複製到 Claude Code / Cursor / nanobot / hermes 直接使用）
