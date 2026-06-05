@@ -64,6 +64,23 @@ jobs:
             --token "$TOKEN" \
             --timeout 15
 
+      - name: Run alert pipeline (auto severity + routed alert)
+        if: failure() && steps.secrets_check.outputs.skipped != 'true'
+        env:
+          API_HOST: ${{ secrets[matrix.environment.host_secret] }}
+          API_TOKEN: ${{ secrets[matrix.environment.token_secret] }}
+          ENVIRONMENT: ${{ matrix.environment.name }}
+          PD_ROUTING_KEY: ${{ secrets.PD_ROUTING_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_CHANNEL_ALERTS: '#ops-alerts'
+          SLACK_CHANNEL_INFO: '#ops-info'
+        # 接續 health check fail → 跑 alert_pipeline.sh 自動 classify + route
+        # 對齊 docs/_ops/alert-receivers-comparison.md §2.2
+        run: |
+          bash scripts/ops/alert_pipeline.sh || true
+          # || true 防 alert script exit 1 (alert sent 是預期) 讓 workflow
+          # 結束時仍 fail 由原始 health check 的 fail 主導
+
       - name: Notify on failure
         if: failure() && steps.secrets_check.outputs.skipped != 'true'
         env:
