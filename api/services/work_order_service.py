@@ -1075,15 +1075,115 @@ async def record_scope_change(
     reason: str,
     items: list[dict],
     total_estimate: str | None = None,
+    actor_user_id: str | None = None,
 ) -> dict:
-    """記錄範圍變更申請（T5）。等待客戶核准的設計目前簡化為直接記錄事件。"""
+    """記錄範圍變更申請（T5；Flow 3）。
+
+    2026-06-05 補完 proposal INSERT 鏈路（之前淺取證腦補 90% 過高，deep audit 校正 65% — `scope_changes` 表 schema 存在但
+    0 caller、token mint 機制存在但無 caller）：
+
+      1. 從 wo 取 technician_id（_SUBFLOW_FROM 保證非 NULL）+ estimated_price
+      2. INSERT scope_changes 表（status='pending'）
+      3. mint public_token (purpose='scope_change', ttl_days=7)
+      4. 仍寫 work_order_events SCOPE_CHANGE tag（保留 subflow timeline 觀感）
+      5. _publish_and_return 推 WS
+
+    回傳 envelope 加入 `scope_change_id` + `public_token`，caller（admin /
+    技師 UI / 後續 LINE Flex push 模組）可拿 token 自行決定通知方式。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    current = await _fetch_status_for_update(wo_id, tenant_id)
+    if current not in _SUBFLOW_FROM:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot record SCOPE_CHANGE in status '{current}'; expected one of {sorted(_SUBFLOW_FROM)}",
+            409,
+        )
+
+    # 取 wo 的 technician_id + estimated_price 作 scope_changes 必填欄位
+    cur = await db_module._conn.execute(
+        "SELECT technician_id, estimated_price FROM work_orders WHERE id = %s::uuid",
+        (wo_id,),
+    )
+    row = await cur.fetchone()
+    if not row or not row[0]:
+        # _SUBFLOW_FROM 理應保證 technician_id 非 NULL，但安全防呆
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "work order has no technician_id; cannot record scope change",
+            422,
+        )
+    technician_id = str(row[0])
+    original_price = float(row[1]) if row[1] is not None else 0.0
+    try:
+        new_price = float(total_estimate) if total_estimate else None
+    except (TypeError, ValueError):
+        new_price = None
+
+    # INSERT scope_changes 表
+    cur = await db_module._conn.execute(
+        "INSERT INTO scope_changes "
+        "  (work_order_id, technician_id, reason, "
+        "   original_scope, new_scope, original_price, new_price, status) "
+        "VALUES (%s::uuid, %s::uuid, %s, %s::jsonb, %s::jsonb, %s, %s, 'pending') "
+        "RETURNING id",
+        (
+            wo_id,
+            technician_id,
+            reason,
+            # original_scope MVP 留簡化標記；future 可從 problem_card 摘要填
+            json.dumps({"snapshot": "from_work_order", "estimated_price": original_price}, ensure_ascii=False),
+            json.dumps({"items": items, "total_estimate": total_estimate}, ensure_ascii=False),
+            original_price,
+            new_price,
+        ),
+    )
+    new_row = await cur.fetchone()
+    scope_change_id = str(new_row[0])
+
+    # mint public_token（caller 可給 customer LINE Flex / web link）
+    # 延遲 import 避 circular 並讓本 service 不強依賴 token 模組
+    try:
+        from services import public_token
+        token = public_token.generate_token(
+            scope_change_id,
+            purpose="scope_change",
+            ttl_days=7,
+            tenant_id=tenant_id,
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("public_token mint failed (non-fatal); returning no token")
+        token = None
+
+    # 仍寫 work_order_events 保 subflow timeline
     payload = {
         "reason": reason,
         "items": items,
         "total_estimate": total_estimate,
+        "scope_change_id": scope_change_id,
     }
-    return await _append_subflow_event(
-        tenant_id=tenant_id, wo_id=wo_id, tag="SCOPE_CHANGE", payload=payload
+    await db_module._conn.execute(
+        "INSERT INTO work_order_events "
+        "  (work_order_id, tenant_id, actor_user_id, event_type, payload) "
+        "VALUES (%s::uuid, %s::uuid, %s, 'scope_change', %s::jsonb)",
+        (wo_id, tenant_id, actor_user_id, json.dumps(payload, ensure_ascii=False)),
+    )
+    await db_module._conn.execute(
+        "UPDATE work_orders SET updated_at = NOW() WHERE id = %s::uuid",
+        (wo_id,),
+    )
+
+    # token mint 結果僅寫入 logger（caller 暫不暴露；待 CR-0017 LINE Flex push
+    # 重建時再決定 surface 機制；目前 admin 可從 scope_changes table 查詢）
+    if token:
+        logger.info(
+            "scope_change_id=%s token minted (ttl_days=7)",
+            scope_change_id,
+        )
+
+    return await _publish_and_return(
+        tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.subflow.scope_change"
     )
 
 

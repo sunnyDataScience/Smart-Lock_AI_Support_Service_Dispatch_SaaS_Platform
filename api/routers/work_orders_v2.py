@@ -494,6 +494,7 @@ async def record_scope_change_v2(
         reason=body.reason,
         items=[item.model_dump() for item in body.items],
         total_estimate=body.total_estimate,
+        actor_user_id=user.user_id,
     )
     payload = {"data": WorkOrder(**order).model_dump(mode="json")}
     if idem is not None:
