@@ -95,6 +95,7 @@ from routers import pricing_rules_v2 as pricing_rules_v2_router  # Track B S4: P
 from routers import data_corrections_v2 as data_corrections_v2_router  # Track B S5: DataCorrections v2 tenant-scoped review queue + resolved 第四態 + require_admin (CR-0004 §8 / ADR-0029 / ADR-0030)
 from routers import resolution_v2 as resolution_v2_router  # Track B S6: Resolution engine v2 tenant-scoped suggest (CR-0004 §8 C4)
 from routers import vouchers_void as vouchers_void_router  # Track B S7: Voucher Void v2 紅字沖銷 flat path (ADR-VCH-001/002 / CR-0004 §8)
+from routers import line_webhook as line_webhook_router  # CR-0017 Stage 4: LINE postback → reschedule/scope_change wrapper
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -230,6 +231,7 @@ app.include_router(pricing_rules_v2_router.router, tags=["M11 Pricing Rules"])  
 app.include_router(data_corrections_v2_router.router, tags=["M09 Data Corrections"])  # Track B S5: DataCorrections v2 tenant-scoped review queue (CR-0004 §8 / ADR-0029 / ADR-0030)
 app.include_router(resolution_v2_router.router, tags=["M03 ProblemCard"])  # Track B S6: Resolution engine v2 tenant-scoped suggest (CR-0004 §8 C4)
 app.include_router(vouchers_void_router.router, tags=["M17 Voucher"])  # Track B S7: Voucher Void v2 紅字沖銷 flat path (ADR-VCH-001/002 / CR-0004 §8)
+app.include_router(line_webhook_router.router, prefix="/api/v1", tags=["LINE Webhook"])  # CR-0017 Stage 4: LINE postback handler
 
 
 @app.get("/health")

@@ -221,14 +221,25 @@ class LinePushOutboxWorker:
                 AsyncApiClient,
                 AsyncMessagingApi,
                 Configuration,
+                FlexContainer,
+                FlexMessage,
                 PushMessageRequest,
                 TextMessage,
             )
             cfg = Configuration(access_token=access_token)
-            # Stage 2: messages 全是 TextMessage dict → 轉 TextMessage obj
-            sdk_messages = [
-                TextMessage(text=m["text"]) for m in messages if m.get("type") == "text"
-            ]
+            # Stage 3：messages 含 text 與 flex 兩型 → 各自轉 SDK obj
+            sdk_messages = []
+            for m in messages:
+                mtype = m.get("type")
+                if mtype == "text":
+                    sdk_messages.append(TextMessage(text=m["text"]))
+                elif mtype == "flex":
+                    sdk_messages.append(FlexMessage(
+                        alt_text=m.get("altText", ""),
+                        contents=FlexContainer.from_dict(m["contents"]),
+                    ))
+                else:
+                    logger.warning("unknown message type: %s", mtype)
             if not sdk_messages:
                 return False, "no valid messages in builder output"
             async with AsyncApiClient(cfg) as api_client:

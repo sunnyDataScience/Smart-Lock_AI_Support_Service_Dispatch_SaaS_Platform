@@ -1,143 +1,304 @@
-"""LINE Flex message builders — CR-0017 HD-3。
+"""LINE Flex message builders — CR-0017 HD-3 (Stage 3 升級為 real Flex)。
 
-Stage 2 階段：先回 TextMessage placeholder（rich text 含 token / proposal_id），
-讓 worker→push 鏈路可端到端跑通；Stage 3 將每個 builder 升級為 real Flex
-carousel/bubble（含按鈕 → postback → customer-confirm/reject）。
+Stage 3：3 個 builder 改回 FlexMessage carousel/bubble + postback button。
 
-Builder 介面：`(payload: dict) -> list` 回傳 LINE Messaging API 接受的
-messages list。Stage 2 回 `[TextMessage(text=...)]`；Stage 3 改回
-`[FlexMessage(alt_text=..., contents=...)]`。
+Builder 介面：`(payload: dict) -> list[dict]` 回 LINE Messaging API
+messages list (dict 形式，worker 端轉 SDK obj)。
+
+Stage 3 起 messages 型別包含：
+  - {"type": "text", "text": ...}（fallback）
+  - {"type": "flex", "altText": ..., "contents": {...}}（主路徑）
+
+postback data 格式（短碼節省 LINE 300/1000 字限）：
+  - "r:c|<proposal_id>|<slot_idx>" — reschedule confirm
+  - "r:r|<proposal_id>"             — reschedule reject
+  - "s:a|<scope_change_id>"         — scope_change accept
+  - "s:r|<scope_change_id>"         — scope_change reject
+  - schedule_conflict 為 admin-only，無 postback（含 URI button 跳 web）
 """
 
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any, Callable
 
 logger = logging.getLogger("api.templates.line_flex")
 
+# Web 連結 fallback 用（scope_change 的 public_token 跳 web/track）
+_WEB_BASE_URL = os.getenv("WEB_BASE_URL", "https://lock-ai-web.example.com")
+
 
 def _make_text_message(text: str) -> dict:
-    """產生 LINE Messaging API v3 TextMessage dict。
+    """fallback：純文字訊息（Flex 建構失敗時 worker 仍能送）。"""
+    return {"type": "text", "text": text[:5000]}
 
-    Worker 端把 dict 轉成 SDK 物件（TextMessage(**dict)）；目前 placeholder
-    階段先用 dict 簡化。Stage 3 升 Flex 時改回 builder 用 SDK objects。
-    """
-    return {"type": "text", "text": text[:5000]}  # LINE 單訊息 5000 字限
+
+def _make_flex_message(alt_text: str, contents: dict) -> dict:
+    """產生 FlexMessage dict（worker 端轉 FlexMessage(alt_text, contents=FlexContainer)）。"""
+    return {"type": "flex", "altText": alt_text[:400], "contents": contents}
 
 
 def render_reschedule_proposal(payload: dict) -> list[dict]:
-    """Flow 11 改約提案 placeholder。
+    """Flow 11 改約提案 — Flex carousel of slot bubbles + 都不方便 bubble。
 
-    payload 對應 outbox.payload schema (work_order_service.propose_reschedule_v2
-    enqueue 寫入):
+    payload schema (work_order_service.propose_reschedule_v2 enqueue):
       - proposal_id (uuid str)
       - work_order_id (uuid str)
       - proposed_slots (list of {start, end?})
       - message_to_customer (str | None)
 
-    Stage 3 將升級為 Flex carousel：每個 slot 一個 bubble + postback button
-    (action=reschedule:confirm, payload=proposal_id+slot_idx)，外加「都不方便」
-    bubble (action=reschedule:reject)。
+    每個 slot → bubble 含「選擇此時段」postback。末 bubble 含「都不方便」postback。
     """
-    proposal_id = payload.get("proposal_id", "?")
-    wo_id = payload.get("work_order_id", "?")
-    slots = payload.get("proposed_slots", [])
-    msg = payload.get("message_to_customer") or "請問哪個時段方便施工？"
+    proposal_id = str(payload.get("proposal_id", ""))
+    wo_id = str(payload.get("work_order_id", ""))
+    slots = payload.get("proposed_slots", []) or []
+    msg = payload.get("message_to_customer") or "請問哪個時段方便？"
 
-    lines = [
-        f"📅 改約時段請選擇（工單 {str(wo_id)[:8]}）",
-        "",
-        msg,
-        "",
-        "可選時段：",
-    ]
-    for i, slot in enumerate(slots, 1):
-        start = slot.get("start", "?")
-        end = slot.get("end")
-        lines.append(f"{i}. {start}" + (f" ~ {end}" if end else ""))
-    lines.append("")
-    lines.append(f"（proposal: {proposal_id[:8]}）")
+    if not proposal_id or not slots:
+        return [_make_text_message(f"改約提案參數不完整（wo {wo_id[:8]}）")]
 
-    return [_make_text_message("\n".join(lines))]
+    bubbles: list[dict] = []
+    for i, slot in enumerate(slots[:3]):  # LINE Flex carousel 上限 12，但業務上限 3
+        start = str(slot.get("start", ""))
+        end = str(slot.get("end", "")) if slot.get("end") else None
+        display = start[:16].replace("T", " ")
+        if end:
+            display += f"\n～ {end[:16].replace('T', ' ')}"
+        bubbles.append({
+            "type": "bubble",
+            "size": "kilo",
+            "header": {
+                "type": "box", "layout": "vertical",
+                "contents": [{
+                    "type": "text",
+                    "text": f"時段 {i + 1}",
+                    "weight": "bold", "color": "#1DB446", "size": "sm",
+                }],
+            },
+            "body": {
+                "type": "box", "layout": "vertical", "spacing": "sm",
+                "contents": [
+                    {"type": "text", "text": display, "wrap": True, "weight": "bold", "size": "md"},
+                    {"type": "text", "text": msg, "wrap": True, "size": "xs", "color": "#888888"},
+                ],
+            },
+            "footer": {
+                "type": "box", "layout": "vertical",
+                "contents": [{
+                    "type": "button", "style": "primary", "color": "#1DB446",
+                    "action": {
+                        "type": "postback",
+                        "label": "選擇此時段",
+                        "data": f"r:c|{proposal_id}|{i}",
+                        "displayText": f"選擇時段 {i + 1}",
+                    },
+                }],
+            },
+        })
+
+    # 末 bubble：都不方便
+    bubbles.append({
+        "type": "bubble", "size": "kilo",
+        "body": {
+            "type": "box", "layout": "vertical", "spacing": "sm",
+            "contents": [
+                {"type": "text", "text": "❌", "size": "xxl", "align": "center"},
+                {"type": "text", "text": "都不方便", "weight": "bold", "align": "center"},
+                {"type": "text", "text": "客服將另行聯絡", "wrap": True,
+                 "size": "xs", "color": "#888888", "align": "center"},
+            ],
+        },
+        "footer": {
+            "type": "box", "layout": "vertical",
+            "contents": [{
+                "type": "button", "style": "secondary",
+                "action": {
+                    "type": "postback",
+                    "label": "都不方便",
+                    "data": f"r:r|{proposal_id}",
+                    "displayText": "都不方便",
+                },
+            }],
+        },
+    })
+
+    return [_make_flex_message(
+        alt_text=f"改約時段提案（工單 {wo_id[:8]}）",
+        contents={"type": "carousel", "contents": bubbles},
+    )]
 
 
 def render_scope_change_proposal(payload: dict) -> list[dict]:
-    """Flow 3 範圍變更 proposal placeholder。
+    """Flow 3 範圍變更 — Flex bubble 含 reason / items / 估價 + accept/reject + web fallback。
 
-    payload schema (work_order_service.record_scope_change enqueue):
+    payload schema (record_scope_change enqueue):
       - scope_change_id (uuid str)
       - work_order_id (uuid str)
       - reason (str)
       - items (list of {name, unit_price, quantity})
       - total_estimate (str | None)
-      - public_token (str | None) — 7-day TTL，連 web/track 用
-
-    Stage 3 升級：Flex bubble 含 reason / items 列表 / 估價 + 兩個 button
-    (action=scope_change:accept|reject, payload=scope_change_id)。token 嵌
-    button URI 跳 web/track/scope-change/{token} 作 fallback。
+      - public_token (str | None) — 7-day TTL，web/track fallback
     """
-    sc_id = payload.get("scope_change_id", "?")
-    wo_id = payload.get("work_order_id", "?")
-    reason = payload.get("reason", "?")
-    items = payload.get("items", [])
+    sc_id = str(payload.get("scope_change_id", ""))
+    wo_id = str(payload.get("work_order_id", ""))
+    reason = str(payload.get("reason") or "技師現場評估後須變更項目")
+    items = payload.get("items") or []
     total = payload.get("total_estimate") or "—"
     token = payload.get("public_token")
 
-    lines = [
-        f"⚠️ 工單範圍變更通知（{str(wo_id)[:8]}）",
-        "",
-        f"變更原因：{reason}",
-        "",
-        "新增項目：",
-    ]
-    for it in items:
-        nm = it.get("name", "?")
+    if not sc_id:
+        return [_make_text_message(f"範圍變更提案參數不完整（wo {wo_id[:8]}）")]
+
+    item_rows: list[dict] = []
+    for it in items[:8]:
+        nm = str(it.get("name", "?"))[:40]
         qty = it.get("quantity", 1)
         price = it.get("unit_price", "?")
-        lines.append(f"  • {nm} ×{qty} @ {price}")
-    lines.append(f"\n預估金額：{total}")
-    if token:
-        lines.append(f"\n詳情/確認：https://track.example/scope/{token[:16]}...")
-    lines.append(f"\n（scope: {sc_id[:8]}）")
+        item_rows.append({
+            "type": "box", "layout": "horizontal", "spacing": "sm",
+            "contents": [
+                {"type": "text", "text": f"• {nm}", "size": "sm",
+                 "color": "#555555", "flex": 4, "wrap": True},
+                {"type": "text", "text": f"×{qty}", "size": "sm",
+                 "color": "#999999", "flex": 1, "align": "end"},
+                {"type": "text", "text": str(price), "size": "sm",
+                 "color": "#111111", "flex": 2, "align": "end"},
+            ],
+        })
 
-    return [_make_text_message("\n".join(lines))]
+    footer_buttons: list[dict] = [
+        {
+            "type": "button", "style": "primary", "color": "#1DB446", "height": "sm",
+            "action": {
+                "type": "postback", "label": "同意變更",
+                "data": f"s:a|{sc_id}", "displayText": "同意變更",
+            },
+        },
+        {
+            "type": "button", "style": "secondary", "height": "sm",
+            "action": {
+                "type": "postback", "label": "不同意",
+                "data": f"s:r|{sc_id}", "displayText": "不同意",
+            },
+        },
+    ]
+    if token:
+        footer_buttons.append({
+            "type": "button", "style": "link", "height": "sm",
+            "action": {
+                "type": "uri", "label": "查看詳情",
+                "uri": f"{_WEB_BASE_URL}/track/scope/{token}",
+            },
+        })
+
+    bubble = {
+        "type": "bubble",
+        "header": {
+            "type": "box", "layout": "vertical",
+            "contents": [
+                {"type": "text", "text": "⚠️ 工單變更通知", "weight": "bold",
+                 "color": "#E97600", "size": "md"},
+                {"type": "text", "text": f"工單 {wo_id[:8]}", "size": "xs", "color": "#888888"},
+            ],
+        },
+        "body": {
+            "type": "box", "layout": "vertical", "spacing": "md",
+            "contents": [
+                {"type": "text", "text": "變更原因", "size": "xs", "color": "#999999"},
+                {"type": "text", "text": reason, "wrap": True, "size": "sm"},
+                {"type": "separator", "margin": "md"},
+                {"type": "text", "text": "新增項目", "size": "xs", "color": "#999999"},
+                *item_rows,
+                {"type": "separator", "margin": "md"},
+                {"type": "box", "layout": "horizontal",
+                 "contents": [
+                     {"type": "text", "text": "預估金額", "size": "sm", "color": "#555555"},
+                     {"type": "text", "text": str(total), "weight": "bold",
+                      "size": "md", "align": "end"},
+                 ]},
+            ],
+        },
+        "footer": {
+            "type": "box", "layout": "vertical", "spacing": "sm",
+            "contents": footer_buttons,
+        },
+    }
+
+    return [_make_flex_message(
+        alt_text=f"工單變更通知（{wo_id[:8]}） 預估 {total}",
+        contents=bubble,
+    )]
 
 
 def render_schedule_conflict(payload: dict) -> list[dict]:
-    """Flow 14 排班衝突 placeholder。
+    """Flow 14 排班衝突 — admin Flex bubble (紅色警示)。
 
     payload schema (_detect_schedule_conflict_and_publish enqueue):
       - conflicting_wo_ids (list of uuid str)
       - technician_id (uuid str)
       - window_hours (int)
       - scheduled_at (iso str)
-
-    Stage 3 升級：Flex bubble 給 admin（非客戶）— 紅色警示 + 衝突 wo 列表 +
-    跳轉「派工佇列」鈕。本通知本質是 admin-facing 而非 customer-facing。
     """
-    tech_id = payload.get("technician_id", "?")
+    tech_id = str(payload.get("technician_id", ""))
     win = payload.get("window_hours", 2)
-    sched = payload.get("scheduled_at", "?")
-    conflicts = payload.get("conflicting_wo_ids", [])
+    sched = str(payload.get("scheduled_at", ""))
+    conflicts = payload.get("conflicting_wo_ids") or []
 
-    lines = [
-        "⚠️ 派工衝突警示",
-        "",
-        f"技師 {str(tech_id)[:8]} 在 ±{win}hr 視窗有衝突排班",
-        f"排定時間：{sched}",
-        f"衝突工單數：{len(conflicts)}",
+    conflict_rows: list[dict] = [
+        {"type": "text", "text": f"• {str(w)[:8]}", "size": "sm", "color": "#555555"}
+        for w in conflicts[:5]
     ]
-    for wid in conflicts[:5]:
-        lines.append(f"  • {str(wid)[:8]}")
     if len(conflicts) > 5:
-        lines.append(f"  ...等 {len(conflicts)} 筆")
+        conflict_rows.append({
+            "type": "text", "text": f"...等 {len(conflicts)} 筆",
+            "size": "xs", "color": "#999999",
+        })
 
-    return [_make_text_message("\n".join(lines))]
+    bubble = {
+        "type": "bubble",
+        "header": {
+            "type": "box", "layout": "vertical",
+            "backgroundColor": "#DC3545",
+            "contents": [{
+                "type": "text", "text": "🚨 派工衝突警示",
+                "weight": "bold", "color": "#FFFFFF", "size": "md",
+            }],
+        },
+        "body": {
+            "type": "box", "layout": "vertical", "spacing": "md",
+            "contents": [
+                {"type": "text", "text": f"技師 {tech_id[:8]}",
+                 "weight": "bold", "size": "sm"},
+                {"type": "text",
+                 "text": f"在 ±{win}hr 視窗有 {len(conflicts)} 筆衝突",
+                 "size": "sm", "color": "#555555"},
+                {"type": "text", "text": f"排定：{sched[:16].replace('T', ' ')}",
+                 "size": "xs", "color": "#888888"},
+                {"type": "separator", "margin": "md"},
+                {"type": "text", "text": "衝突工單", "size": "xs", "color": "#999999"},
+                *conflict_rows,
+            ],
+        },
+        "footer": {
+            "type": "box", "layout": "vertical",
+            "contents": [{
+                "type": "button", "style": "primary", "color": "#DC3545", "height": "sm",
+                "action": {
+                    "type": "uri", "label": "前往派工佇列",
+                    "uri": f"{_WEB_BASE_URL}/admin/dispatch",
+                },
+            }],
+        },
+    }
+
+    return [_make_flex_message(
+        alt_text=f"派工衝突警示：技師 {tech_id[:8]} 有 {len(conflicts)} 筆衝突",
+        contents=bubble,
+    )]
 
 
-# Dispatch table（worker 用 push_kind 路由）— 對齊
-# line_push_outbox_service.PushKind Literal
+# Dispatch table（worker 用 push_kind 路由）
 BUILDERS: dict[str, Callable[[dict], list[dict]]] = {
     "reschedule_proposal": render_reschedule_proposal,
     "scope_change_proposal": render_scope_change_proposal,
@@ -146,9 +307,9 @@ BUILDERS: dict[str, Callable[[dict], list[dict]]] = {
 
 
 def build_messages(push_kind: str, payload: dict) -> list[dict] | None:
-    """Worker entry：dispatch by push_kind → render 訊息 list。
+    """Worker entry：dispatch by push_kind → render messages list。
 
-    回傳 None 若 push_kind 未支援（worker 應標 status='dead'）。
+    回 None 若 push_kind 未支援（worker 標 status='dead'）。
     """
     builder = BUILDERS.get(push_kind)
     if not builder:

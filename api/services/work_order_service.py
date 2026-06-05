@@ -2211,3 +2211,109 @@ async def get_public_status(*, work_order_id: str) -> dict | None:
         "technician_name": row[4],
         "technician_phone": row[5],
     }
+
+
+# ============================================================
+# CR-0017 Stage 4 — postback-driven 改約決議 wrapper
+# ============================================================
+
+async def confirm_reschedule_by_proposal(
+    *, proposal_id: str, slot_idx: int
+) -> dict:
+    """LINE postback 觸發：依 proposal_id + slot_idx 反查 → confirm reschedule。
+
+    1. SELECT proposed_slots, work_order_id, tenant_id, status FROM saas.reschedule_proposal
+    2. 驗 status='pending' + slot_idx 在範圍內
+    3. 呼 confirm_reschedule_by_customer 寫 work_orders
+    4. UPDATE saas.reschedule_proposal SET chosen_slot_index, customer_responded_at,
+       status='customer_confirmed'
+
+    Raises:
+        ApiError(404): proposal 不存在
+        ApiError(409): proposal 已決議
+        ApiError(422): slot_idx 越界
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    cur = await db_module._conn.execute(
+        "SELECT work_order_id, tenant_id, proposed_slots, status "
+        "FROM saas.reschedule_proposal WHERE id = %s::uuid",
+        (proposal_id,),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "reschedule proposal not found", 404)
+    wo_id = str(row[0])
+    tenant_id = str(row[1])
+    proposed_slots = row[2] if isinstance(row[2], list) else json.loads(row[2] or "[]")
+    current_status = row[3]
+    if current_status != "pending":
+        raise ApiError(
+            "CONFLICT", f"proposal already decided: {current_status}", 409,
+        )
+    if slot_idx < 0 or slot_idx >= len(proposed_slots):
+        raise ApiError("VALIDATION_ERROR", "slot_idx out of range", 422)
+
+    slot = proposed_slots[slot_idx]
+    selected_start = slot.get("start")
+    selected_end = slot.get("end") or selected_start
+    if not selected_start:
+        raise ApiError("VALIDATION_ERROR", "proposed slot missing 'start'", 422)
+
+    # 1. 寫 work_orders（既有 service）
+    result = await confirm_reschedule_by_customer(
+        tenant_id=tenant_id,
+        wo_id=wo_id,
+        selected_start=selected_start,
+        selected_end=selected_end,
+    )
+
+    # 2. CAS update saas.reschedule_proposal
+    upd = await db_module._conn.execute(
+        "UPDATE saas.reschedule_proposal SET "
+        "  status = 'customer_confirmed', "
+        "  chosen_slot_index = %s, "
+        "  customer_responded_at = NOW(), "
+        "  updated_at = NOW() "
+        "WHERE id = %s::uuid AND status = 'pending' "
+        "RETURNING id",
+        (slot_idx, proposal_id),
+    )
+    if not await upd.fetchone():
+        # race 不阻斷主流程（work_orders 已寫）
+        logger.warning(
+            "reschedule_proposal CAS race: id=%s already decided after wo update",
+            proposal_id,
+        )
+    return result
+
+
+async def reject_reschedule_by_proposal(*, proposal_id: str) -> dict:
+    """LINE postback「都不方便」→ reject reschedule + 寫 reschedule_proposal。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    cur = await db_module._conn.execute(
+        "SELECT work_order_id, tenant_id, status "
+        "FROM saas.reschedule_proposal WHERE id = %s::uuid",
+        (proposal_id,),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "reschedule proposal not found", 404)
+    wo_id = str(row[0])
+    tenant_id = str(row[1])
+    if row[2] != "pending":
+        raise ApiError("CONFLICT", f"proposal already decided: {row[2]}", 409)
+
+    result = await reject_reschedule_by_customer(tenant_id=tenant_id, wo_id=wo_id)
+    await db_module._conn.execute(
+        "UPDATE saas.reschedule_proposal SET "
+        "  status = 'customer_rejected', "
+        "  customer_responded_at = NOW(), "
+        "  updated_at = NOW() "
+        "WHERE id = %s::uuid AND status = 'pending'",
+        (proposal_id,),
+    )
+    return result
