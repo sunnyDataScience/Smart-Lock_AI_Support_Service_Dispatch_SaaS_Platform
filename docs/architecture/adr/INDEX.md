@@ -70,6 +70,31 @@ source: dev_docs/archive/strategy/PAIN-POINTS-SUMMARY-2026-05-21.md §F + dev_do
 | [ADR-0058](./ADR-0058-external-knowledge-platform-ingestion-contract.md) | 外部知識傳承平台 ingestion contract | F6 / MATTER-07 | Eternal Contract (B3+C4) | 外部知識走 ADR-0038 雙審入 SOP 庫 |
 | [ADR-0059](./ADR-0059-smart-lock-iot-signal-ingestion-spec.md) | 電子鎖 IoT 狀態訊號接入規格 | F7 / MATTER-08 | Eternal Event Schema (B5+C1) | 6 類 event + Ingestion Gateway + AI 預填 PC |
 
+### Group 5 — 2026-05-28 至 2026-06-05 新增（CR / Final Spec 整合）
+
+| ADR | 主題 | 來源 | 阻擋層 | 摘要 |
+|-----|------|------|--------|------|
+| [ADR-0100](./ADR-0100-legacy-adr-supersede-index.md) | Legacy ADR supersede 索引 | governance | meta | 一站式追溯 legacy ADR 狀態 |
+| [ADR-0101](./ADR-0101-product-info-extension-final-spec.md) ⚠️ | Agent KB × Final Spec 整合 | 2026-05-28 業主 | Eternal | **superseded by ADR-0107**（lockcore 取代）|
+| [ADR-0102](./ADR-0102-cancellation-fee-tiers-v2-final-spec.md) | 取消費 v2 final spec | CR-0004 Track B | Eternal Policy (B3) | 5 階段 + Configurable |
+| [ADR-0103](./ADR-0103-kb-v2-expand-design.md) | KB v2 expand design | CR-0005 | Eternal API contract | tenant-scoped + cursor 分頁 |
+| [ADR-0104](./ADR-0104-sop-v2-list-design.md) | SOP v2 list design | CR-0006 | Eternal API contract | tenant-scoped + cursor 分頁 |
+| [ADR-0105](./ADR-0105-reschedule-doorcheck-v2-design.md) | Reschedule + DoorCheck v2 | CR-0007 | Eternal API contract | multi-slot 提案 + 簽章證據 |
+| [ADR-0106](./ADR-0106-agent-single-actor-refund-langgraph-exception.md) | Agent single-actor refund 特例 | CR-0009 HD-02=a | Eternal Policy (B3) | LangGraph 自動退款例外（vs ADR-0040 SoD）|
+| [ADR-0107](./ADR-0107-lockcore-supersede-product-info-trio.md) ⭐ | **LockCore supersede product_info trio** | feat/agent-update (2026-06-04) | Eternal Architecture lock | 取代 ADR-0008/0010/0101；lockcore + Agent Skills 標準唯一正典 |
+
+### Group 6 — Special variants（非 NNNN 編號）
+
+| ADR | 主題 | 來源 | 阻擋層 | 摘要 |
+|-----|------|------|--------|------|
+| [ADR-VCH-001](./ADR-VCH-001-platform-as-voucher-keeper.md) | 平台為 voucher keeper | Track B S7 | Eternal Role (B3) | append-only + hash chain |
+| [ADR-VCH-002](./ADR-VCH-002-voucher-retention-7y.md) | Voucher 保存 7 年 | Track B S7 | Eternal Policy (B3) | 法律合規 |
+| [ADR-PIVOT-001](./ADR-PIVOT-001-v2-restart-trigger.md) | V2 restart 觸發條件 | CR-0003 P0 | meta | architecture pivot 治理 |
+| [ADR-PII-002](./ADR-PII-002-data-minimization-schema-ci-double-defense.md) | PII data minimization + CI 雙保險 | governance | Eternal Security (B3+E3) | schema 級 + CI 雙重防護 |
+
+⚠️ 已 superseded ADR：見對應 frontmatter `superseded_by`。
+⭐ 重大架構決策（Architecture lock）。
+
 ---
 
 ## 重複合併規則（避免一事二議）
