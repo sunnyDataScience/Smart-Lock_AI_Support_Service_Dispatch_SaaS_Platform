@@ -451,6 +451,84 @@ async def cancel_order(
     )
 
 
+async def _detect_schedule_conflict_and_publish(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    technician_id: str,
+    window_hours: int = 2,
+) -> None:
+    """Flow 14 排班衝突偵測 — 同技師 ±window_hours 是否已有其他 active wo。
+
+    偵測到衝突時：
+      - INSERT work_order_events `event_type='schedule_conflict'`，
+        payload 含 conflicting_wo_ids / technician_id / window_hours
+      - WS publish 至 `/realtime/dispatch-queue`（admin 已訂閱）
+        type='schedule_conflict_detected'
+
+    不 raise — 衝突偵測為「軟訊號」，admin 可決定是否 reassign / reschedule；
+    不阻擋既有 assign 路徑。失敗（DB / WS）也 swallow，避免影響主流。
+    """
+    if not await _ensure_conn():
+        return
+    try:
+        cur = await db_module._conn.execute(
+            "SELECT scheduled_at FROM work_orders WHERE id = %s::uuid",
+            (wo_id,),
+        )
+        row = await cur.fetchone()
+        if not row or not row[0]:
+            return
+        scheduled_at = row[0]
+
+        cur = await db_module._conn.execute(
+            "SELECT id, scheduled_at FROM work_orders "
+            "WHERE tenant_id = %s::uuid "
+            "  AND technician_id = %s::uuid "
+            "  AND id != %s::uuid "
+            "  AND status NOT IN ('completed', 'confirmed', 'cancelled') "
+            "  AND scheduled_at IS NOT NULL "
+            "  AND scheduled_at BETWEEN "
+            "      %s::timestamptz - (INTERVAL '1 hour' * %s) "
+            "      AND %s::timestamptz + (INTERVAL '1 hour' * %s)",
+            (tenant_id, technician_id, wo_id,
+             scheduled_at, window_hours, scheduled_at, window_hours),
+        )
+        rows = await cur.fetchall()
+        if not rows:
+            return
+
+        conflicting_ids = [str(r[0]) for r in rows]
+        payload = {
+            "conflicting_wo_ids": conflicting_ids,
+            "technician_id": str(technician_id),
+            "window_hours": window_hours,
+            "scheduled_at": scheduled_at.isoformat() if hasattr(scheduled_at, "isoformat") else str(scheduled_at),
+        }
+        await db_module._conn.execute(
+            "INSERT INTO work_order_events "
+            "  (work_order_id, tenant_id, actor_user_id, event_type, payload) "
+            "VALUES (%s::uuid, %s::uuid, NULL, 'schedule_conflict', %s::jsonb)",
+            (wo_id, tenant_id, json.dumps(payload, ensure_ascii=False)),
+        )
+        try:
+            from realtime.ws_hub import hub
+            await hub.publish(
+                "/realtime/dispatch-queue",
+                {
+                    "type": "schedule_conflict_detected",
+                    "payload": {
+                        "work_order_id": str(wo_id),
+                        **payload,
+                    },
+                },
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("ws publish schedule_conflict failed (non-fatal)")
+    except Exception:  # noqa: BLE001
+        logger.exception("schedule conflict detection failed (non-fatal)")
+
+
 async def assign_order(
     *,
     tenant_id: str,
@@ -504,6 +582,10 @@ async def assign_order(
         "  updated_at = NOW() "
         "WHERE id = %s::uuid",
         (technician_id, note, wo_id),
+    )
+    # Flow 14 排班衝突軟偵測（best-effort，不阻擋 assign）
+    await _detect_schedule_conflict_and_publish(
+        tenant_id=tenant_id, wo_id=wo_id, technician_id=technician_id,
     )
     return await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.assigned"
