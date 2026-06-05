@@ -77,7 +77,7 @@
 | 頻道 | 前端訂閱 | 後端 server | 後端 publish |
 |:---|:---:|:---:|:---:|
 | `/realtime/notifications/{user_id}` | ✅ | ✅ | ✅（schedule resolve）|
-| `/realtime/pool/{tech_id}` | ✅ | ✅ | ⏳（無觸發 service）|
+| `/realtime/pool/{tech_id}` | ✅ | ✅ | ✅（2026-06-05 assign_order 補 publish `work_order.assigned_to_you`）|
 | `/realtime/dispatch-queue` | ✅ | ✅ | ✅（8 個 wo events）|
 | `/realtime/work-orders/{id}` | ✅ | ✅ | ✅（同上）|
 | `/realtime/diagnostics/{conv_id}`（SSE）| ✅ | ⏳ | ⏳ |

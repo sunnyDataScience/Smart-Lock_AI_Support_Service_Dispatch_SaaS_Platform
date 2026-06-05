@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **`/realtime/pool/{tech_id}` publish 補完**（branch `feat/realtime-pool-publish-on-assign`，2026-06-05）：解 WBS §3 即時通訊表 `/realtime/pool/{tech_id}` 標 ⏳「無觸發 service」缺口 — 前端訂閱、後端 server 就緒已久但無 service 推送。**WHY**：assign_order 完成後唯一推送對象是 `/realtime/work-orders/{id}` + `/realtime/dispatch-queue`（admin/dispatch 視角），技師個人 pool channel 從未被推送，技師 PWA 不會即時收到「你被指派新單」。**WHAT**：在 `work_order_service.assign_order` UPDATE 後、`_publish_and_return` 前加 try/except 包裝的 `hub.publish(f"/realtime/pool/{technician_id}", {type: "work_order.assigned_to_you", payload: {work_order_id, reason_code}})`；失敗 swallow non-fatal 不影響主流。**設計取捨**：(a) publish 在 `_publish_and_return` 前 — 技師先收到 pool 通知（自己被指派）再讓 admin/dispatch 看到狀態流轉；(b) payload 簡略只含 wo_id + reason_code — 前端可自行 fetch 詳情，避免訊息肥大；(c) `assigned_to_you` event_type 區別於既有 `work_order.assigned`（admin 視角）。**驗證**：python3 ast.parse OK；無 schema 變更（WS server 既存）；前端 pool 訂閱已就緒可立即接收。**WBS §3 影響**：pool channel ⏳ → ✅。
+
 - **Agent 核心架構重寫 → LockCore + Agent Skills 標準**（branch `feat/agent-update`，2026-06-04）⭐⭐⭐ **重大架構決策**：捨棄舊架構（ReAct + LangGraph、自製 skill loader、product_info mega-doc、Belief-Augmented ReAct (Turn Cycle)、quality_check LLM-as-Judge），改為：
   * **核心引擎**：`agent/lockcore/`（fork 自上游 `HKUDS/nanobot` 的最小核心套件，VENDOR.md 記載 fork 來源）
   * **知識 & SOP**：`lockcore/skills/{locksmith-product-knowledge,locksmith-cs-sop}/SKILL.md + references/`（**Agent Skills 標準** agentskills.io / Claude Skills，frontmatter 不綁框架專屬欄位，可攜性：可複製到 Claude Code / Cursor / nanobot / hermes 直接使用）
