@@ -125,7 +125,7 @@ export default function RefundReviewPage() {
       const tier = res.data?.tier ?? "—";
       setActionToast(`退款申請已建立（tier ${tier}）`);
       setCreateModalOpen(false);
-      // list 查詢仍走舊 GET /api/v1/refunds（未遷移），重新 fetch 取最新
+      // 重新 fetch 取最新（usePaginatedFetch 走 v2 tenantPath('/refunds')）
       await fetchRefunds();
     } catch (e) {
       setActionError(formatActionError(e));
