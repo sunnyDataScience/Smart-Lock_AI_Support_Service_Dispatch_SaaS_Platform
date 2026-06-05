@@ -33,10 +33,11 @@ Smart Lock AI Support & Service Dispatch SaaS Platform —— LINE Bot 智慧鎖
 
 **Sourcing rule（CRITICAL — bronze-only，仍適用）**：產品知識 references 內容嚴格源自 `data/storage/bronze/`（YouTube 字幕、website、video transcript）。**PDF (GDrive) 不可信，references 只引 URL 不抄內容。**
 
-> **已 superseded ADR**：本架構重寫使下列 ADR 狀態失效（待補 superseded 標記）：
+> **已 superseded ADR**（2026-06-05 ADR-0107 落地，三 ADR frontmatter 已標 `status: superseded` + `superseded_by: ADR-0107`）：
 > - ADR-0008（product-info-architecture-canonical）→ skills/ 結構回歸 Agent Skills 標準
 > - ADR-0010（belief-augmented-react）→ Turn Cycle 已刪
 > - ADR-0101（product-info-extension-final-spec）→ references 取代 mega-doc
+> - **ADR-0107**（lockcore-supersede-product-info-trio，2026-06-05 新立）— governance 層 catch-up，新唯一正典
 
 ## 非預期工具鏈（agent 推不出來，必讀）
 

@@ -24,7 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Flow 3 admin override → 90%**（branch `feat/flow3-consumer-respond`，2026-06-05）。
 - **Flow 11 客戶不在場 deep audit 100% → 80%**（branch `docs/flow11-agent-rewrite-audit`，2026-06-05）：LINE Flex push 鏈路 0% (agent 重寫刪 Flex template)。
 - **CR-0017 opened — LINE Flex push 重建 CIA**（branch `docs/cr-0017-line-flex-push-rebuild-cia`，2026-06-05）：5 HD 待業主裁決，影響 Flow 3/11/14。
-- **ADR-0107 opened — LockCore supersede product_info trio**（branch `docs/adr-supersede-product-info-trio`，2026-06-05）：新 ADR-0107 (status: Accepted, supersedes ADR-0008/0010/0101) + 三 ADR frontmatter 補 `superseded_by`。詳見 [`ADR-0107`](docs/architecture/adr/ADR-0107-lockcore-supersede-product-info-trio.md)。
+- **ADR-0107 opened — LockCore supersede product_info trio**（branch `docs/adr-supersede-product-info-trio`，2026-06-05）。
+- **CLAUDE.md ADR-0107 follow-up**（branch `docs/adr-index-and-claude-md-followup`，2026-06-05）：移除 CLAUDE.md `Architecture Lock` 表格末尾「待補 superseded 標記」備註，補 ADR-0107 entry。
 
 - **Agent 核心架構重寫 → LockCore + Agent Skills 標準**（branch `feat/agent-update`，2026-06-04）⭐⭐⭐ **重大架構決策**：捨棄舊架構（ReAct + LangGraph、自製 skill loader、product_info mega-doc、Belief-Augmented ReAct (Turn Cycle)、quality_check LLM-as-Judge），改為：
   * **核心引擎**：`agent/lockcore/`（fork 自上游 `HKUDS/nanobot` 的最小核心套件，VENDOR.md 記載 fork 來源）
