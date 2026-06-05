@@ -1,0 +1,73 @@
+name: Monitors Health Check (background workers)
+
+# 自動跑 scripts/ops/check_monitors_health.py 檢查 8-monitor 狀態
+# 對齊 docs/_ops/background-monitors-runbook.md
+#
+# 觸發：
+#   - schedule: 每 30 分鐘 staging + production
+#   - workflow_dispatch: manual trigger
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # 每 30 分鐘
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'staging | production'
+        required: false
+        default: 'staging'
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - name: staging
+            host_secret: STAGING_API_HOST
+            token_secret: STAGING_ADMIN_JWT
+          - name: production
+            host_secret: PROD_API_HOST
+            token_secret: PROD_ADMIN_JWT
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Skip if secrets not set
+        id: secrets_check
+        env:
+          HOST: ${{ secrets[matrix.environment.host_secret] }}
+          TOKEN: ${{ secrets[matrix.environment.token_secret] }}
+        run: |
+          if [ -z "$HOST" ] || [ -z "$TOKEN" ]; then
+            echo "::warning::secrets for ${{ matrix.environment.name }} not set — skip"
+            echo "skipped=true" >> $GITHUB_OUTPUT
+          else
+            echo "skipped=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check monitors health
+        if: steps.secrets_check.outputs.skipped != 'true'
+        env:
+          HOST: ${{ secrets[matrix.environment.host_secret] }}
+          TOKEN: ${{ secrets[matrix.environment.token_secret] }}
+        run: |
+          python scripts/ops/check_monitors_health.py \
+            --host "$HOST" \
+            --token "$TOKEN" \
+            --timeout 15
+
+      - name: Notify on failure
+        if: failure() && steps.secrets_check.outputs.skipped != 'true'
+        env:
+          ENV: ${{ matrix.environment.name }}
+        run: |
+          echo "::error::Monitors health check failed for $ENV"
+          echo "See runbook: docs/_ops/background-monitors-runbook.md §4"
