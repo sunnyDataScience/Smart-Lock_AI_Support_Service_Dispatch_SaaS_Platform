@@ -110,6 +110,7 @@ from routers import rma_quality_v2 as rma_quality_v2_router  # FR-0048 MVP: RMA 
 from routers import technician_statement_v2 as tech_statement_v2_router  # FR-0045 MVP: Technician AP Statement
 from routers import dispatcher_commission_v2 as disp_comm_v2_router  # FR-0046 MVP: Dispatcher Commission
 from routers import brand_b2b_statement_v2 as brand_b2b_v2_router  # FR-0047 MVP: Brand B2B Settlement
+from routers import deprecation_metrics as deprecation_metrics_router  # P4 Cutover 規劃: v1 hit metrics
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -275,6 +276,7 @@ app.include_router(rma_quality_v2_router.router, tags=["M13 RMA Quality"])  # FR
 app.include_router(tech_statement_v2_router.router, tags=["M12 Tech AP Statement"])  # FR-0045 MVP: Technician AP Statement
 app.include_router(disp_comm_v2_router.router, tags=["M12 Dispatcher Commission"])  # FR-0046 MVP: Dispatcher Commission
 app.include_router(brand_b2b_v2_router.router, tags=["M12 Brand B2B Settlement"])  # FR-0047 MVP: Brand B2B Settlement
+app.include_router(deprecation_metrics_router.router, prefix="/api/v1", tags=["Admin Deprecation Metrics"])  # P4 Cutover 規劃
 
 
 @app.get("/health")
