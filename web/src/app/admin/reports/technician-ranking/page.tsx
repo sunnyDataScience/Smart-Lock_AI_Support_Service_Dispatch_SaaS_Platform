@@ -103,7 +103,7 @@ const podiumDecor: Record<number, PodiumDecor> = {
 
 export default function TechnicianRankingPage() {
   // 日期範圍 — 預設「本月」（與 segments 內被選中的「本月」一致）。
-  // TODO[E7x §4.3]: /api/v1/technicians 尚無 date filter，
+  // TODO[E7x §4.3]: /tenants/{tid}/technicians 尚無 date filter，
   // range state 暫時只控制 UI；技師排名仍以全 100 筆 sample 計算。
   const [range, setRange] = useState<DateRange>(() => getPresetRange("thisMonth"));
   const [technicians, setTechnicians] = useState<Technician[]>([]);

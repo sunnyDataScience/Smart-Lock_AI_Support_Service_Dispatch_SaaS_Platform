@@ -85,7 +85,7 @@ function buildBrandRows(byBrand: RevenueByBrandPoint[]) {
 
 export default function RevenueReportPage() {
   // 日期範圍 — 預設「過去 30 日」。
-  // TODO[E7x §4.3]: /api/v1/reports/revenue 目前只支援 granularity=month，
+  // TODO[E7x §4.3]: /tenants/{tid}/reports/revenue 目前只支援 granularity=month，
   // 還沒有 from/to 參數；range state 暫時只控制 UI，實際 API 仍 fetch 近 12 月。
   const [range, setRange] = useState<DateRange>(() => getPresetRange("last30"));
   const [summary, setSummary] = useState<RevenueSummary | null>(null);
