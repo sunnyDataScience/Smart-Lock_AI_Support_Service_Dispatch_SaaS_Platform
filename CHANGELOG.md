@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **Flow 4 admin 補料管理彙整 list endpoint 落地**（branch `feat/admin-material-requests-list-endpoint`，2026-06-05）：執行 Flow 4 deep audit (commit `e4bfff32`) 揪出的「調度員補料 UI」彙整視圖 gap 後端段。**新 service**：`api/services/work_order_service.py:1116 list_pending_material_requests`（跨工單 SELECT work_order_events JOIN work_orders WHERE event_type='material_request' AND wo.status NOT IN completed/confirmed/cancelled，CASE 排序 urgency now=0 / today=1 / tomorrow=2 / 其他=9 → created_at DESC，limit 1-500）。**新 endpoint**：`api/routers/work_orders_ops_v2.py:329 GET /tenants/{tid}/material-requests` (operation_id listPendingMaterialRequestsV2, cross-tenant read guard)。Response shape: `{items: [{event_id, created_at, payload (items[]/urgency/note), actor_user_id, work_order_id, wo_status, scheduled_at, technician_id}], count}`。**驗證**：python3 ast.parse 兩檔語法 OK，service + endpoint 對齊 grep 確認。**Out of Scope（下輪續做）**：(a) 前端彙整頁 `web/src/app/admin/material-requests/page.tsx` table view + urgency badge + 鏈接工單；(b) 「supply_arrived」event_type 新增 + 「pending vs supplied」狀態分組（需新增 event_type 機制）；(c) admin 補料完成標記 endpoint。WBS Flow 4 80% → 85%。
+
 - **Agent 核心架構重寫 → LockCore + Agent Skills 標準**（branch `feat/agent-update`，2026-06-04）⭐⭐⭐ **重大架構決策**：捨棄舊架構（ReAct + LangGraph、自製 skill loader、product_info mega-doc、Belief-Augmented ReAct (Turn Cycle)、quality_check LLM-as-Judge），改為：
   * **核心引擎**：`agent/lockcore/`（fork 自上游 `HKUDS/nanobot` 的最小核心套件，VENDOR.md 記載 fork 來源）
   * **知識 & SOP**：`lockcore/skills/{locksmith-product-knowledge,locksmith-cs-sop}/SKILL.md + references/`（**Agent Skills 標準** agentskills.io / Claude Skills，frontmatter 不綁框架專屬欄位，可攜性：可複製到 Claude Code / Cursor / nanobot / hermes 直接使用）

@@ -3,8 +3,8 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-06-04（**Agent 核心架構重寫** — 舊 ReAct/LangGraph/Turn Cycle/product_info mega-doc/quality_check 全刪，改為 LockCore (fork 自 nanobot) + Agent Skills 標準 builtin skill + LiteLLM 統一供應商 + per-user memory 移植自 Hermes；超過 200 個檔案刪除/新增；ADR-0008/0010/0101 待標 superseded）
-**對應分支：** `feat/agent-update`
+**最後更新：** 2026-06-05（Flow 4 admin 補料管理彙整 endpoint 落地 — 新 `GET /tenants/{tid}/material-requests` 跨工單列活躍缺料事件，urgency 排序；Flow 4 80% → 85%，剩前端彙整頁待下輪）
+**對應分支：** `feat/admin-material-requests-list-endpoint`
 **對應 reports：** v1.0.0 → v1.36.0（產品 MVP）+ CR-0003 P0-P3.5 ✅ + CR-0004 Track B S1-S7
 
 ---

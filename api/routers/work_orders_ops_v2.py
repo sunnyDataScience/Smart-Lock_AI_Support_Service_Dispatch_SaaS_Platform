@@ -320,6 +320,37 @@ async def list_work_order_events_v2(
     )
 
 
+# ---------------------------------------------------------------------------
+# Flow 4 admin 補料管理彙整視圖（跨工單列出活躍的缺料回報）
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/tenants/{tenantId}/material-requests",
+    operation_id="listPendingMaterialRequestsV2",
+    summary="跨工單列出活躍的缺料回報 v2（Flow 4 admin 補料管理彙整視圖）",
+    tags=["M07 WorkOrder Ops"],
+)
+async def list_pending_material_requests_v2(
+    tenantId: str = Path(...),
+    limit: int = Query(default=100, ge=1, le=500),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    """跨工單列出近期 material_request 事件（排除 completed/confirmed/cancelled WO）。
+
+    排序：urgency (now > today > tomorrow) → created_at DESC。
+    每 row 含 event_id / payload (items[], urgency, note) / work_order_id / wo_status /
+    scheduled_at / technician_id / actor_user_id（subflow actor_user_id 鏈路 per fix CR）。
+    MVP 不分 pending vs supplied；admin 進工單詳情頁進一步處理。
+    """
+    _cross_tenant_read(user, tenantId)
+
+    return await work_order_service.list_pending_material_requests(
+        tenant_id=tenantId,
+        limit=limit,
+    )
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # CR-0007 reschedule:propose v2（多時段提案，獨立表 HD-04；slots 1-3 HD-02；
 #                                 SLA 24h HD-03 由 DB 預設兜底）

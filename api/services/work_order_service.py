@@ -1113,6 +1113,66 @@ async def list_work_order_events(
     return {"items": items}
 
 
+async def list_pending_material_requests(
+    *,
+    tenant_id: str,
+    limit: int = 100,
+) -> dict:
+    """跨工單列出近期的缺料回報（Flow 4 admin 補料管理彙整視圖）。
+
+    每 row 為一筆 material_request 事件 + 對應工單上下文：
+      - event_id / created_at / payload (items[], urgency, note)
+      - work_order_id / wo_status / scheduled_at / technician_id
+
+    排序：urgency 急迫度（now > today > tomorrow）→ created_at DESC。
+    MVP 不分 pending vs supplied（後者需新 event_type 'supply_arrived'
+    機制，本 commit OOSCope）；本 endpoint 提供「最近活躍的缺料事件」清單，
+    admin 進入工單詳情頁進一步處理。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    if limit < 1 or limit > 500:
+        raise ApiError("VALIDATION_ERROR", "limit must be 1..500", 422)
+
+    sql = (
+        "SELECT "
+        "  e.id, e.created_at, e.payload, e.actor_user_id, "
+        "  e.work_order_id, wo.status, wo.scheduled_at, wo.technician_id "
+        "FROM work_order_events e "
+        "JOIN work_orders wo ON e.work_order_id = wo.id "
+        "WHERE e.tenant_id = %s::uuid "
+        "  AND e.event_type = 'material_request' "
+        "  AND wo.status NOT IN ('completed', 'confirmed', 'cancelled') "
+        "ORDER BY "
+        # urgency 優先：now=0 / today=1 / tomorrow=2 / 其他=9
+        "  CASE COALESCE(e.payload->>'urgency', '') "
+        "    WHEN 'now' THEN 0 "
+        "    WHEN 'today' THEN 1 "
+        "    WHEN 'tomorrow' THEN 2 "
+        "    ELSE 9 END, "
+        "  e.created_at DESC "
+        "LIMIT %s"
+    )
+    cur = await db_module._conn.execute(sql, (tenant_id, limit))
+    rows = await cur.fetchall()
+
+    items = [
+        {
+            "event_id": str(r[0]),
+            "created_at": r[1].isoformat() if hasattr(r[1], "isoformat") else str(r[1]),
+            "payload": r[2] if isinstance(r[2], dict) else (json.loads(r[2]) if r[2] else {}),
+            "actor_user_id": str(r[3]) if r[3] else None,
+            "work_order_id": str(r[4]),
+            "wo_status": r[5],
+            "scheduled_at": r[6].isoformat() if hasattr(r[6], "isoformat") else None,
+            "technician_id": str(r[7]) if r[7] else None,
+        }
+        for r in rows
+    ]
+    return {"items": items, "count": len(items)}
+
+
 async def confirm_reschedule_by_customer(
     *,
     tenant_id: str,
