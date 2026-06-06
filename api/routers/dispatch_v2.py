@@ -79,6 +79,32 @@ async def list_dispatch_candidates_v2(
     )
 
 
+@router.get(
+    "/tenants/{tenantId}/dispatch:candidate-detail",
+    operation_id="getDispatchCandidateDetailV2",
+    summary="候選技師詳情 v2（A37 派工 drawer 用，含工單脈絡 + 負載熱圖）",
+    tags=["M06 Dispatch"],
+)
+async def get_dispatch_candidate_detail_v2(
+    tenantId: str = Path(...),
+    work_order_id: str = Query(...),
+    technician_id: str = Query(...),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    """A37 派工人工介入 — drawer 顯示單一候選詳細資料。"""
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError(
+            "CROSS_TENANT_READ",
+            "Path tenantId does not match authenticated tenant",
+            403,
+        )
+    return await dispatch_service.get_candidate_detail(
+        tenant_id=tenantId,
+        work_order_id=work_order_id,
+        technician_id=technician_id,
+    )
+
+
 @router.post(
     "/tenants/{tenantId}/dispatch:auto-match",
     operation_id="planDispatchAutoMatchV2",
