@@ -9,13 +9,15 @@
 
 ---
 
-## 總體：**約 99.7%**
+## 總體：**約 99.8%**
 
 ```
-█████████████████████████████████  99.7%
+█████████████████████████████████  99.8%
 ```
 
-> **6/07 Sprint 1-5 全 BUILD + A37 drawer 完成（98.7% → 99.7%）** — Phase II 9 FR 對應 9 個 web page (admin/approval-inbox / admin/technicians-lifecycle / account/statements / account/commission-statements / admin/brand-b2b / admin/gdpr-forget-queue / admin/ai-governance / admin/sop-feedback / admin/rma-quality) + A37 candidate detail drawer 全部 BUILD 完成，TS compile 0 errors。重用 `phase-ii/types.ts` + `phase-ii/labels.ts` + `phase-ii/api-client.ts` pre-build asset。⚠️ 未 dev server verify, 需 user 跑 `npm run dev` 視覺驗收。
+> **6/07 後段 Playwright 真人驗證 9/9 全綠（99.7% → 99.8%）** — 用 Playwright 模擬 admin login → 9 page 逐一渲染 + 截圖 + 抓 console/page error。9/9 tests passed (20.8s)。發現並修兩個真實 bug：(a) `approval_inbox_service.py` 查 `saas.dispute` 用錯欄位名 (`summary`/`created_at` → `description`/`filed_at`)；(b) `SQL/migrations/023-sop-feedback.sql` sentiment CHECK 結尾多 comma → table 未建。Fix commit `e1475e26`。**前端 + 後端 + DB schema 全鏈路 verify pass**。
+>
+> **6/07 Sprint 1-5 全 BUILD + A37 drawer 完成（98.7% → 99.7%）** — Phase II 9 FR 對應 9 個 web page (admin/approval-inbox / admin/technicians-lifecycle / account/statements / account/commission-statements / admin/brand-b2b / admin/gdpr-forget-queue / admin/ai-governance / admin/sop-feedback / admin/rma-quality) + A37 candidate detail drawer 全部 BUILD 完成，TS compile 0 errors。重用 `phase-ii/types.ts` + `phase-ii/labels.ts` + `phase-ii/api-client.ts` pre-build asset。
 >
 > 6/06 業主裁決推進（98.5% → 98.7%）— Recon UX + 計價 GUI 兩項裁決均選**維持現狀（deferred-accepted）**：(a) recon 雙簽以 audit_log + change_request 作合規補強，不重做 UI（Flow 6 / Flow 13 EX5 收 100%）；(b) 計價規則維持 SQL config + change_request 流程，不開 GUI（Phase 7 不依賴 GUI 標 100%）。詳見 `docs/_ops/wbs-100-closeout-plan.md` §2.2 + §2.3。
 >
