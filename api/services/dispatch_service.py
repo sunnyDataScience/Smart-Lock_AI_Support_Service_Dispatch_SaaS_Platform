@@ -329,3 +329,84 @@ async def assign_dispatch(
         reason_code="other",
         reason_text=override_reason,
     )
+
+
+async def get_candidate_detail(
+    *,
+    tenant_id: str,
+    work_order_id: str,
+    technician_id: str,
+) -> dict:
+    """A37 派工人工介入 — 單一候選技師詳情。
+
+    給 admin drawer 顯示，組合：
+    - 基本資料 (get_technician)
+    - 當週負載熱圖 (get_technician_workload_heatmap, 若可用)
+    - 對該工單的 dispatch context (distance_km / score / eta)
+
+    無新 SQL — 重用既有 service。
+    """
+    from services.technician_service import get_technician
+    try:
+        from services.technician_service import get_technician_workload_heatmap
+    except ImportError:
+        get_technician_workload_heatmap = None  # type: ignore
+
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    # 基本資料
+    tech = await get_technician(
+        tenant_id=tenant_id, technician_id=technician_id,
+    )
+
+    # 取工單 brand/district 作 dispatch context
+    cur = await db_module._conn.execute(
+        "SELECT pc.brand, wo.customer_address "
+        "FROM work_orders wo "
+        "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
+        "JOIN conversations c ON pc.conversation_id = c.id "
+        "JOIN users u ON c.user_id = u.id "
+        "WHERE wo.id = %s::uuid AND u.tenant_id = %s::uuid",
+        (work_order_id, tenant_id),
+    )
+    wo_row = await cur.fetchone()
+    if not wo_row:
+        raise ApiError("NOT_FOUND", "Work order not found", 404)
+    wo_brand = wo_row[0]
+    wo_address = wo_row[1] or ""
+
+    from services.work_order_service import _parse_district
+    wo_district = _parse_district(wo_address)
+
+    skills = tech.get("capabilities") or tech.get("skills") or []
+    regions = tech.get("regions") or tech.get("areas") or []
+    rating = tech.get("rating")
+    status = tech.get("status")
+
+    dispatch_context = {
+        "work_order_id": work_order_id,
+        "wo_brand": wo_brand,
+        "wo_district": wo_district,
+        "skill_match": _explain_skill(skills, wo_brand),
+        "distance_explain": _explain_distance(None, wo_district, regions),
+        "rating_explain": _explain_rating(rating),
+        "excluded_by_circuit": _is_excluded_by_circuit(status),
+        "eta_minutes": _availability_eta(status),
+    }
+
+    # 當週負載 (best-effort, 失敗不影響主資料)
+    workload = None
+    if get_technician_workload_heatmap is not None:
+        try:
+            workload = await get_technician_workload_heatmap(
+                tenant_id=tenant_id, technician_id=technician_id,
+            )
+        except Exception:  # noqa: BLE001
+            workload = None
+
+    return {
+        "technician": tech,
+        "dispatch_context": dispatch_context,
+        "workload_heatmap": workload,
+    }
