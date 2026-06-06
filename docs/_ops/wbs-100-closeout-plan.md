@@ -75,25 +75,37 @@ Backend-coder agent 已在 2026-06-05 session 完成所有可獨立達成工作�
 
 ### 2.2 Reconciliation 雙簽 UX rework
 
-**Status**: blocked — 需業務 + UX 共識
+**Status**: ✅ **deferred-accepted (2026-06-06 業主裁決)**
 **Owner**: 業主 + UX
 **Decision input**: `docs/_audit/flow-6-recon-deep-audit.md`
 
-**Decision options**:
-1. 維持現狀（同人雙簽 + audit log）
+**業主決議 (2026-06-06)**: **選項 1 — 維持現狀（同人雙簽 + audit log）**
+
+**接受合規取捨**: 技術上允許同人雙簽，audit_log 完整 trail。業主接受 Sox-like 雙簽「不嚴格落實不同人」的合規風險，以 audit_log + change_request 作為稽核補強。
+
+**Decision options（歷史紀錄）**:
+1. ✅ **維持現狀（同人雙簽 + audit log）** ← 業主選定
 2. 強制不同人（A 提案 → B 核准）+ 改 UI 流程
 3. 加 timestamp gap（最少 5 分鐘）模擬 cooling-off
 
+**WBS 影響**: Flow 6 / Flow 13 EX5 標 100%（合規以 audit log 代）。
+
 ### 2.3 計價引擎 GUI
 
-**Status**: blocked — 規格未定（從 SQL config 改 GUI 是 scope expansion）
+**Status**: ✅ **deferred-accepted (2026-06-06 業主裁決)**
 **Owner**: 業主 + 產品
 **Decision input**: 現行 `pricing_rule_canary` config 機制（已運作）
 
-**Decision options**:
-1. 維持 SQL config + audit log（最便宜）
+**業主決議 (2026-06-06)**: **選項 1 — 維持 SQL config + audit log**
+
+**接受 scope 取捨**: 規則由 DBA 透過 SQL + change_request 維護。業主接受「不開 GUI」的業務操作門檻，認定規則改動頻率低 + DBA 走 change_request 流程已足夠。
+
+**Decision options（歷史紀錄）**:
+1. ✅ **維持 SQL config + audit log（最便宜）** ← 業主選定
 2. 開最小 GUI（rule list + canary % slider，~10 天 web dev）
 3. 全功能規則編輯器（複雜，~30 天）
+
+**WBS 影響**: Phase 7 不依賴 GUI，標 100%。
 
 ### 2.4 A37 drawer 元件
 
