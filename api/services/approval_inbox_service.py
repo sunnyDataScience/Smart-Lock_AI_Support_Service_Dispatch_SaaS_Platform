@@ -152,11 +152,11 @@ async def list_pending_approvals(
     # 3. saas.dispute filed / in_review
     if _want("dispute"):
         cur = await db_module._conn.execute(
-            "SELECT id, work_order_id, status, summary, created_at "
+            "SELECT id, work_order_id, status, description, filed_at "
             "FROM saas.dispute "
             "WHERE tenant_id = %s::uuid "
             "  AND status IN ('filed', 'in_review', 'mediation') "
-            "ORDER BY created_at LIMIT %s",
+            "ORDER BY filed_at LIMIT %s",
             (tenant_id, limit),
         )
         for r in await cur.fetchall():

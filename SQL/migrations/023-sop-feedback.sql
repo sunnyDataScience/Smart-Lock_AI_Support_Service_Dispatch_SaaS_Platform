@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS saas.sop_feedback (
 
   -- 評分維度
   sentiment           text        NOT NULL CHECK (sentiment IN (
-    'positive', 'neutral', 'negative',
+    'positive', 'neutral', 'negative'
   )),
   score               numeric(3,1) NULL CHECK (
     score IS NULL OR (score >= 1.0 AND score <= 5.0)
