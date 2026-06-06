@@ -9,13 +9,15 @@
 
 ---
 
-## 總體：**約 98.5%**
+## 總體：**約 98.7%**
 
 ```
-█████████████████████████████████  98.5%
+█████████████████████████████████  98.7%
 ```
 
-> 6/05 三段躍進（89% → 96% → 98% → **98.5%**）— **P4 Cutover Stage 1 backend 工作完成** (Task 1-5 done / Task 6 留 ops)！session 總成果：(1) 5 batch CR BUILD；(2) 7 §8 P1/P2 backend；(3) 2 DEFERRED 解；(4) 9 Phase II FR MVP；(5) 2 cron 補強；(6) P4 Stage 1 + tooling 鏈完整 (deprecation hit metrics / v1 inventory / lifespan health / ops runbook / smoke script / CI workflow)；累積 342 tests passing。**剩 ~1.5%**：Phase 8 UAT 期程 + P4 Stage 2-7 (3-4d，需 web e2e) + Reconciliation dual-sign UX rework (產品工作) + 計價引擎 GUI / A37 drawer 元件。
+> **6/06 業主裁決推進（98.5% → 98.7%）** — 業主對「Reconciliation 雙簽 UX rework」與「計價引擎 GUI」兩項裁決均選**維持現狀（deferred-accepted）**：(a) recon 雙簽以 audit_log + change_request 作合規補強，不重做 UI（Flow 6 / Flow 13 EX5 收 100%）；(b) 計價規則維持 SQL config + change_request 流程，不開 GUI（Phase 7 不依賴 GUI 標 100%）。詳見 `docs/_ops/wbs-100-closeout-plan.md` §2.2 + §2.3。
+>
+> 6/05 三段躍進（89% → 96% → 98% → 98.5%）— **P4 Cutover Stage 1 backend 工作完成** (Task 1-5 done / Task 6 留 ops)！session 總成果：(1) 5 batch CR BUILD；(2) 7 §8 P1/P2 backend；(3) 2 DEFERRED 解；(4) 9 Phase II FR MVP；(5) 2 cron 補強；(6) P4 Stage 1 + tooling 鏈完整 (deprecation hit metrics / v1 inventory / lifespan health / ops runbook / smoke script / CI workflow)；累積 342 tests passing。**剩 ~1.3%**：Phase 8 UAT 期程 + P4 Stage 2-7 (3-4d，需 web e2e) + A37 drawer 元件 (待 UX) + P4 Stage 7 v1 router 刪除 (待 30 day 觀察 + 業主簽)。
 
 | 維度 | 完成度 | 變化（vs 早段 2026-06-05）|
 |:---|:---:|:---:|
