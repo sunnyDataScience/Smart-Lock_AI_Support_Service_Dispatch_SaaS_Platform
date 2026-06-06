@@ -269,6 +269,53 @@
 
 ---
 
+## 2026-06-06 後段推進記錄（業主裁決推動 + backend tooling 完整）
+
+本日下午 user push 後 backend 推進範圍（10 merges, dev_new_arch ahead origin by 10）：
+
+### A. 業主裁決事項 2 + 3 落地 → +0.2% WBS
+
+- 業主簽核選項 1 維持現狀（兩項皆 deferred-accepted）：
+  - 事項 2 Recon 雙簽 UX → audit_log + change_request 作合規補強
+  - 事項 3 計價引擎 GUI → SQL config + change_request 流程
+- 新立 `ADR-0108-business-decisions-recon-pricing-defer.md` append-only 留檔
+- 對應 closeout plan §2.2 + §2.3 標 deferred-accepted
+- HTML `pending-business-decisions-2026-06-06.html` 標 ✅ 業主已決
+
+### B. A37 drawer backend 補強 → A37 backend 缺口 0% → 50%
+
+- 新增 `GET /tenants/{tid}/dispatch:candidate-detail` (operation_id `getDispatchCandidateDetailV2`)
+- 重用 `get_technician` + `get_technician_workload_heatmap` + dispatch context 三段組合
+- 3 unit tests 全綠（mocked DB）
+- 等業主簽事項 4 drawer 方案，web Sprint 可直接接
+
+### C. P4 Stage 7 backend tooling chain → 100% backend ready
+
+四階段：
+1. **`scripts/ops/snapshot_v1_metrics.py`** — hourly cron snapshot persist file
+2. **`scripts/ops/aggregate_v1_metrics.py`** — 30 day aggregate → markdown report ✅/❌/⚠️ 建議
+3. **`scripts/ops/p4_stage7_delete_v1_dry_run.py`** — 業主簽完 ops 跑 audit blast radius
+4. **`docs/_ops/p4-stage7-readiness-runbook.md`** — 部署 + 業主簽核流程
+5. **`ADR-0109-p4-stage7-tooling-chain.md`** — 4 個設計取捨 rationale 留檔
+
+合計 **16 新 tests**（snapshot 9 + dry-run 7），對應業主待裁決事項 1。
+
+### D. 本日累計 backend tests
+
+- backend 純 unit/pure-function tests: 596 → 612 (+16)
+- 業主待裁決事項從 4 項 → 剩 2 項（事項 1 P4 Stage 7 + 事項 4 A37 drawer 最終方案）
+
+### E. 剩 ~1.2% gap（結構性需外部角色推進）
+
+- 業主簽剩 2 項裁決（+0.3%）
+- Web Sprint 1-5 BUILD（+0.3%）
+- Production env deploy + 30 day 觀察（+0.4%）
+- UAT 10 案執行（+0.3%）
+
+詳見 `docs/_ops/wbs-100-closeout-plan.md` 完整 unblocking flowchart。
+
+---
+
 ## 維護規則
 
 - 每次合併 PR / 完成一個 milestone 後，**主 agent 必須更新本文件**
