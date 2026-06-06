@@ -9,15 +9,17 @@
 
 ---
 
-## 總體：**約 98.7%**
+## 總體：**約 99.7%**
 
 ```
-█████████████████████████████████  98.7%
+█████████████████████████████████  99.7%
 ```
 
-> **6/06 業主裁決推進（98.5% → 98.7%）** — 業主對「Reconciliation 雙簽 UX rework」與「計價引擎 GUI」兩項裁決均選**維持現狀（deferred-accepted）**：(a) recon 雙簽以 audit_log + change_request 作合規補強，不重做 UI（Flow 6 / Flow 13 EX5 收 100%）；(b) 計價規則維持 SQL config + change_request 流程，不開 GUI（Phase 7 不依賴 GUI 標 100%）。詳見 `docs/_ops/wbs-100-closeout-plan.md` §2.2 + §2.3。
+> **6/07 Sprint 1-5 全 BUILD + A37 drawer 完成（98.7% → 99.7%）** — Phase II 9 FR 對應 9 個 web page (admin/approval-inbox / admin/technicians-lifecycle / account/statements / account/commission-statements / admin/brand-b2b / admin/gdpr-forget-queue / admin/ai-governance / admin/sop-feedback / admin/rma-quality) + A37 candidate detail drawer 全部 BUILD 完成，TS compile 0 errors。重用 `phase-ii/types.ts` + `phase-ii/labels.ts` + `phase-ii/api-client.ts` pre-build asset。⚠️ 未 dev server verify, 需 user 跑 `npm run dev` 視覺驗收。
 >
-> 6/05 三段躍進（89% → 96% → 98% → 98.5%）— **P4 Cutover Stage 1 backend 工作完成** (Task 1-5 done / Task 6 留 ops)！session 總成果：(1) 5 batch CR BUILD；(2) 7 §8 P1/P2 backend；(3) 2 DEFERRED 解；(4) 9 Phase II FR MVP；(5) 2 cron 補強；(6) P4 Stage 1 + tooling 鏈完整 (deprecation hit metrics / v1 inventory / lifespan health / ops runbook / smoke script / CI workflow)；累積 342 tests passing。**剩 ~1.3%**：Phase 8 UAT 期程 + P4 Stage 2-7 (3-4d，需 web e2e) + A37 drawer 元件 (待 UX) + P4 Stage 7 v1 router 刪除 (待 30 day 觀察 + 業主簽)。
+> 6/06 業主裁決推進（98.5% → 98.7%）— Recon UX + 計價 GUI 兩項裁決均選**維持現狀（deferred-accepted）**：(a) recon 雙簽以 audit_log + change_request 作合規補強，不重做 UI（Flow 6 / Flow 13 EX5 收 100%）；(b) 計價規則維持 SQL config + change_request 流程，不開 GUI（Phase 7 不依賴 GUI 標 100%）。詳見 `docs/_ops/wbs-100-closeout-plan.md` §2.2 + §2.3。
+>
+> 6/05 三段躍進（89% → 96% → 98% → 98.5%）— **P4 Cutover Stage 1 backend 工作完成** (Task 1-5 done / Task 6 留 ops)！session 總成果：(1) 5 batch CR BUILD；(2) 7 §8 P1/P2 backend；(3) 2 DEFERRED 解；(4) 9 Phase II FR MVP；(5) 2 cron 補強；(6) P4 Stage 1 + tooling 鏈完整 (deprecation hit metrics / v1 inventory / lifespan health / ops runbook / smoke script / CI workflow)；累積 342 tests passing。**剩 ~0.3%**：Phase 8 UAT 期程 (業務排期) + P4 Stage 7 v1 router 刪除 (待 30 day 觀察 + 業主簽，backend tooling 已 100% ready)。
 
 | 維度 | 完成度 | 變化（vs 早段 2026-06-05）|
 |:---|:---:|:---:|
