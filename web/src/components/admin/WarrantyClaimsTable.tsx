@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import type { components } from "@/types/api.generated";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 
@@ -194,13 +195,12 @@ export default function WarrantyClaimsTable({
             </div>
 
             <div className="flex min-w-0 flex-1 items-center justify-end gap-[6px] px-3">
-              <button
-                disabled
-                title={t("actions.comingSoon")}
-                className="cursor-not-allowed rounded-md border border-[var(--border)] px-2 py-1 text-[11px] font-medium text-[var(--text-secondary)] opacity-60"
+              <Link
+                href={`/admin/warranty-claims/${row.id}`}
+                className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
               >
                 {t("actions.viewDetails")}
-              </button>
+              </Link>
               {(row.status === "filed" || row.status === "in_progress") && onDecide ? (
                 <button
                   onClick={() => onDecide(row)}
