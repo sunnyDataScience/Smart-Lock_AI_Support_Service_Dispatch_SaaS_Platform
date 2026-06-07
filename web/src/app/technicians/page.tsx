@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Search, ChevronDown, Wrench, Plus } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import TechniciansTable from "@/components/technicians/TechniciansTable";
@@ -35,20 +35,40 @@ export default function TechniciansPage() {
   const session = getCurrentSession();
   const tenantId = session?.tenantId ?? "00000000-0000-0000-0000-000000000001";
 
-  const filterDropdowns = useMemo(
-    () =>
-      FILTER_DROPDOWN_KEYS.map((key) => ({
-        key,
-        label: tFilters(key),
-        hasChevron: true,
-      })),
-    [tFilters],
-  );
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [capabilityFilter, setCapabilityFilter] = useState<string>("");
+  const [regionFilter, setRegionFilter] = useState<string>("");
+  const [ratingMinFilter, setRatingMinFilter] = useState<string>("");
+
+  const queryString = useMemo(() => {
+    const p = new URLSearchParams();
+    if (statusFilter) p.set("status", statusFilter);
+    if (capabilityFilter) p.set("capability", capabilityFilter);
+    if (regionFilter) p.set("service_region", regionFilter);
+    if (ratingMinFilter) p.set("rating_min", ratingMinFilter);
+    const qs = p.toString();
+    return qs ? `?${qs}` : "";
+  }, [statusFilter, capabilityFilter, regionFilter, ratingMinFilter]);
+
   const { items, cursor, hasMore, loading, error, loadMore } = usePaginatedFetch<Technician>({
-    path: `/tenants/${encodeURIComponent(tenantId)}/technicians`,
+    path: `/tenants/${encodeURIComponent(tenantId)}/technicians${queryString}`,
     pageSize: PAGE_SIZE,
     formatError: formatTechnicianError,
   });
+
+  // 從 items 抽 distinct capabilities + service areas
+  const { capabilityOptions, regionOptions } = useMemo(() => {
+    const caps = new Set<string>();
+    const regs = new Set<string>();
+    items.forEach((tech: any) => {
+      (tech.skills ?? []).forEach((s: string) => caps.add(s));
+      (tech.service_areas ?? []).forEach((r: string) => regs.add(r));
+    });
+    return {
+      capabilityOptions: Array.from(caps).sort(),
+      regionOptions: Array.from(regs).sort(),
+    };
+  }, [items]);
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -96,22 +116,51 @@ export default function TechniciansPage() {
             />
           </div>
 
-          {/* Filter Dropdowns disabled */}
-          {filterDropdowns.map((dd) => (
-            <button
-              key={dd.key}
-              disabled
-              title={t("comingSoonTitle")}
-              className="flex h-[38px] items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60 cursor-not-allowed"
-            >
-              <span className="text-[13px] text-[var(--text-primary)]">
-                {dd.label}
-              </span>
-              {dd.hasChevron && (
-                <ChevronDown className="h-[14px] w-[14px] text-[var(--text-secondary)]" />
-              )}
-            </button>
-          ))}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-[38px] rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
+          >
+            <option value="">{tFilters("status")}</option>
+            <option value="pending_approval">待審核</option>
+            <option value="active">在職</option>
+            <option value="suspended">停權</option>
+            <option value="terminated">終止</option>
+            <option value="inactive">離職</option>
+          </select>
+
+          <select
+            value={capabilityFilter}
+            onChange={(e) => setCapabilityFilter(e.target.value)}
+            className="h-[38px] rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
+          >
+            <option value="">{tFilters("brandSpecialty")}</option>
+            {capabilityOptions.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+
+          <select
+            value={regionFilter}
+            onChange={(e) => setRegionFilter(e.target.value)}
+            className="h-[38px] rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
+          >
+            <option value="">{tFilters("serviceArea")}</option>
+            {regionOptions.map((r) => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+
+          <select
+            value={ratingMinFilter}
+            onChange={(e) => setRatingMinFilter(e.target.value)}
+            className="h-[38px] rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
+          >
+            <option value="">{tFilters("rating")}</option>
+            <option value="3.0">≥ 3.0</option>
+            <option value="4.0">≥ 4.0</option>
+            <option value="4.5">≥ 4.5</option>
+          </select>
         </div>
 
         {/* Table Area */}

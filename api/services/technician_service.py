@@ -80,18 +80,38 @@ async def list_technicians(
     limit: int,
     availability: str | None = None,
     level: str | None = None,
+    status: str | None = None,
+    capability: str | None = None,
+    service_region: str | None = None,
+    rating_min: float | None = None,
 ) -> dict:
     """GET /technicians — 管理員視角，cursor 分頁。
 
-    availability / level 為 OpenAPI 欄位但 DB 沒對應實值；本 phase 不做實際過濾，
-    僅在 service 層校驗值在 enum 內並原樣回，UI 端可接但不影響資料筆數。
-    後續若要真實過濾，需在 technicians 表新增 level + availability 欄位。
+    availability / level 為 OpenAPI 欄位但 DB 沒對應實值；本 phase 不做實際過濾。
+    新增 4 個實際 DB-backed filter (status/capability/service_region/rating_min)。
     """
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
     where = ["t.tenant_id = %s::uuid"]
     args: list = [tenant_id]
+
+    if status:
+        where.append("t.status = %s")
+        args.append(status)
+
+    if capability:
+        # capabilities 是 jsonb array, 用 @> 檢查包含
+        where.append("t.capabilities @> %s::jsonb")
+        args.append(f'["{capability}"]')
+
+    if service_region:
+        where.append("t.service_regions @> %s::jsonb")
+        args.append(f'["{service_region}"]')
+
+    if rating_min is not None:
+        where.append("t.rating >= %s")
+        args.append(rating_min)
 
     cur_data = decode_cursor(cursor)
     if cur_data and "ts" in cur_data and "id" in cur_data:
