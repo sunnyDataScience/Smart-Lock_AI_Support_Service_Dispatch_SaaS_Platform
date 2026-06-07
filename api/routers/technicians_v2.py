@@ -68,6 +68,10 @@ async def list_technicians_v2(
     limit: int = Query(default=20, ge=1, le=100),
     availability: TechnicianAvailability | None = Query(default=None),
     level: TechnicianLevel | None = Query(default=None),
+    status: str | None = Query(default=None, description="技師狀態（pending_approval/active/suspended）"),
+    capability: str | None = Query(default=None, description="專長品牌（capabilities jsonb 包含）"),
+    service_region: str | None = Query(default=None, description="服務區域"),
+    rating_min: float | None = Query(default=None, ge=0.0, le=5.0, description="最低評分"),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
@@ -84,6 +88,10 @@ async def list_technicians_v2(
         limit=limit,
         availability=availability.value if availability else None,
         level=level.value if level else None,
+        status=status,
+        capability=capability,
+        service_region=service_region,
+        rating_min=rating_min,
     )
     return {
         "items": [Technician(**t).model_dump(mode="json") for t in page["items"]],
