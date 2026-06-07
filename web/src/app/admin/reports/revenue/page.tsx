@@ -22,6 +22,7 @@ import { getPresetRange, type DateRange } from "@/lib/dateRange";
 import { ApiError, api, tenantPath } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 import { ReportExportModal } from "@/components/admin/reports/ReportExportModal";
+import ScheduleReportModal from "@/components/admin/ScheduleReportModal";
 
 type RevenueSummary = components["schemas"]["RevenueSummary"];
 type RevenueTrendPoint = components["schemas"]["RevenueTrendPoint"];
@@ -93,6 +94,7 @@ export default function RevenueReportPage() {
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const [granularity, setGranularity] = useState<"day" | "week" | "month" | "quarter">("month");
 
   const fetchSummary = async () => {
@@ -231,12 +233,11 @@ export default function RevenueReportPage() {
             </button>
 
             <button
-              disabled
-              title="即將推出"
-              className="flex cursor-not-allowed items-center gap-[6px] rounded-lg border border-[#CBD5E1] bg-[var(--bg-page)] px-[14px] py-[7px] opacity-60"
+              onClick={() => setScheduleOpen(true)}
+              className="flex items-center gap-[6px] rounded-lg border border-[#CBD5E1] bg-[var(--bg-page)] px-[14px] py-[7px] hover:bg-white"
             >
-              <Calendar className="h-[14px] w-[14px] text-[var(--text-disabled)]" />
-              <span className="text-[13px] text-[var(--text-disabled)]">
+              <Calendar className="h-[14px] w-[14px] text-[var(--text-secondary)]" />
+              <span className="text-[13px] text-[var(--text-primary)]">
                 排程發送
               </span>
             </button>
@@ -448,6 +449,13 @@ export default function RevenueReportPage() {
           from: range.from ? toDateOnly(range.from) : undefined,
           to: range.to ? toDateOnly(range.to) : undefined,
         }}
+      />
+
+      <ScheduleReportModal
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
+        reportType="revenue"
+        filters={{ granularity }}
       />
     </div>
   );
