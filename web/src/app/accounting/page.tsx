@@ -83,14 +83,16 @@ export default function AccountingPage() {
     [tTabs],
   );
 
-  const segments = useMemo(
+  const SEGMENTS = useMemo(
     () => [
-      { label: tS("segMonth"), active: true },
-      { label: tS("segBiweek"), active: false },
-      { label: tS("segWeek"), active: false },
+      { value: "month", label: tS("segMonth") },
+      { value: "biweek", label: tS("segBiweek") },
+      { value: "week", label: tS("segWeek") },
     ],
     [tS],
   );
+  const [settlementCycle, setSettlementCycle] = useState<"month" | "biweek" | "week">("month");
+  const [periodFilter, setPeriodFilter] = useState<"last3m" | "last6m" | "all">("last3m");
   const [items, setItems] = useState<Settlement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -316,35 +318,26 @@ export default function AccountingPage() {
           </div>
         </div>
 
-        {/* Settlement Period Selector — disabled until period filter API lands */}
         <div className="flex items-center gap-4 px-8 py-4">
-          {/* Month Dropdown — disabled */}
-          <button
-            disabled
-            title={tCommon("comingSoon")}
-            className="flex cursor-not-allowed items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-[14px] py-2 opacity-60"
+          <select
+            value={periodFilter}
+            onChange={(e) => setPeriodFilter(e.target.value as any)}
+            className="flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-[14px] py-2 text-sm text-[var(--text-primary)] outline-none"
           >
-            <Calendar className="h-4 w-4 text-[var(--text-disabled)]" />
-            <span className="text-sm font-medium text-[var(--text-disabled)]">
-              {tS("allPeriods")}
-            </span>
-            <ChevronDown className="h-4 w-4 text-[var(--text-disabled)]" />
-          </button>
+            <option value="last3m">最近 3 個月</option>
+            <option value="last6m">最近 6 個月</option>
+            <option value="all">{tS("allPeriods")}</option>
+          </select>
 
-          {/* Segmented Control — disabled */}
-          <div
-            className="flex rounded-md bg-[#F1F5F9] p-[3px] opacity-60"
-            title={tCommon("comingSoon")}
-          >
-            {segments.map((seg) => (
+          <div className="flex rounded-md bg-[#F1F5F9] p-[3px]">
+            {SEGMENTS.map((seg) => (
               <button
-                key={seg.label}
-                disabled
-                title={tCommon("comingSoon")}
-                className={`cursor-not-allowed rounded px-[14px] py-[6px] text-[13px] ${
-                  seg.active
-                    ? "bg-[var(--bg-surface)] font-semibold text-[var(--text-disabled)] shadow-sm"
-                    : "font-medium text-[var(--text-disabled)]"
+                key={seg.value}
+                onClick={() => setSettlementCycle(seg.value as any)}
+                className={`rounded px-[14px] py-[6px] text-[13px] ${
+                  seg.value === settlementCycle
+                    ? "bg-[var(--bg-surface)] font-semibold text-[var(--text-primary)] shadow-sm"
+                    : "font-medium text-[var(--text-secondary)] hover:bg-white"
                 }`}
               >
                 {seg.label}
