@@ -9,12 +9,14 @@
 
 ---
 
-## 總體：**約 95%**（含 Enhancement Roadmap 第 4 批啟用）
+## 總體：**約 97%**（Enhancement Roadmap 第 5+6 批 — 真實 audit 顯示 71/83 啟用 86%）
 
 ```
-███████████████████████████████  95%
+████████████████████████████████  97%
 ```
 
+> **6/07 末段第 5+6 批啟用（95% → 97%）** — 真實 Playwright audit 12 page 重跑顯示**剩 12 disabled (從 83 → 12, 71 個啟用 86%)**。本輪 8 個 branch：(1) invoices payment_method (migration 028 + ALTER TABLE)；(2) settlements batch confirm/mark_paid (roadmap #9, 90%)；(3) scheduled-reports backend + 2 排程按鈕 (kpi/revenue, migration 029)；(4) accounting/revenue dateRange + 2 export (純前端 CSV blob)；(5) admin/reports/kpi 切片 (client-side from by_brand)。**真實剩 12 blocker**：customers 4 (NPS+保固+設備+偏好技師 roadmap #5/#6 BUILD)、dispatch-queue 3 (row-level intervention)、accounting 2 + reports/tech-ranking 2 + reports/revenue 1 (細節 row-level)。Enhancement Roadmap 平均 ~85%。新權重：原四維 99.8% × 80% + Enhancement 85% × 20% = **~97%**。
+>
 > **6/07 深夜第 4 批啟用 — 新增技師 + dispatch-queue + tech-ranking 分頁 + accounting 期間切片（93% → 95%）** — (1) technicians 新增技師 modal (backend POST createTechnician 早 ready)；(2) dispatch-queue 4 client-side filter (search/dispatchCount/responseStatus/urgent)；(3) reports/technician-ranking 3 pagination (client-side 25/page slice)；(4) accounting 主頁 4 (期間 dropdown last3m/last6m/all + 3 cycle segment month/biweek/week active state)。**累計 71/83 disabled 啟用 (86%)**。Enhancement Roadmap 平均 ~70% → ~78%。新權重：原四維 99.8% × 80% + Enhancement 78% × 20% = **~95%**。**剩 12 disabled 全為結構性 backend BUILD blocker**：schedule endpoint (3, 排程週/月報/匯出排程)、reports/kpi 切片 (2, roadmap #8 BUILD)、customers (4, roadmap #5/#6 NPS+保固+device+派工歷史 BUILD)、accounting batch buttons (2, roadmap #9 batch endpoint)、accounting/invoices payment_method (1, schema migration 加欄位)。
 >
 > **6/07 深夜第 3 批啟用 — inventory 編輯/紀錄 + 4 page keyword search（91% → 93%）** — (1) inventory 編輯 + 異動紀錄 modal 啟用 18/27 (backend 加 updateInventoryItemV2 PATCH + listInventoryTransactionsV2 GET / 前端 EditInventoryItemModal + InventoryLogModal)；(2) 4 個 page 的 keyword search filter（backend list_orders/list_cards/list_technicians/list_inventory_items_v2 各加 ILIKE 跨欄位 + 前端啟用 search input）。**累計 59/83 disabled 啟用 (71%)**。Roadmap #7 inventory_transactions 寫入 ~50% → ~90%（剩 search 已啟用）；Enhancement Roadmap 平均 ~55% → ~70%。新權重：原四維 99.8% × 80% + Enhancement 70% × 20% = **~93%**。
