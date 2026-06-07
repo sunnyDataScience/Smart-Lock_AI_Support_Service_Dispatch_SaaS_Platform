@@ -2,10 +2,15 @@
 
 本文件彙整各頁面**目前已上線的真實功能**與**待後端模組接入的功能**，避免逐頁在 UI 上顯示「待接入」黃條，影響展示體驗。
 
-更新日期：2026-05-05
-對應 commit：`feat/web-tech-app` branch（v1.4.0 → v1.15.2，46 條對外路由）
+更新日期：2026-06-07（doc-vs-UI conformance audit 後同步）
+對應 commit：dev_new_arch 至 `docs/page-status-sync-ui-reality` branch
 
-> **05-05 更新重點**：新增師傅端 12 頁、A37 派工人工介入、10 個 realtime 頻道整合、跨 tab 同步。
+> **06-07 更新重點**：以 Playwright `doc-conformance-audit.spec.ts` audit UI 真實狀態回填，12 項 ⏳ → ✅（customers 3 filter / accounting 期間+批次 / inventory 補貨+編輯+紀錄+filter / reports/tech-ranking 期間+排序+分頁+匯出 / reports/revenue 日週月季+自訂期間+樞紐+匯出排程）。對應本 session 啟用的 backend endpoint：
+> - migration 028 `invoices.payment_method` / migration 029 `saas.scheduled_report` / migration 030 `users.{risk_level, primary_device_brand, warranty_status, preferred_technician_id}`
+> - backend `update_inventory_item_v2` / `list_inventory_transactions_v2` / `batch_action` (settlements) / `keyword` ILIKE 4 page
+> - 前端 7 新 modal: RestockInventoryModal / CreateInventoryItemModal / EditInventoryItemModal / InventoryLogModal / CreateTechnicianModal / ScheduleReportModal / A37CandidateDetailDrawer
+
+> **05-05 更新重點（歷史）**：新增師傅端 12 頁、A37 派工人工介入、10 個 realtime 頻道整合、跨 tab 同步。
 
 ---
 
@@ -50,10 +55,10 @@
 | 區塊 | 狀態 | 資料來源 |
 | :--- | :--- | :--- |
 | 客戶清單（顯示名稱 / 電話 / 地址 / 累積對話 / 工單數 / 最近服務時間） | ✅ | `listCustomers`（LINE 使用者主檔） |
-| 風險等級指標 | ⏳ | 待風險評分模組接入 |
+| 風險等級指標（filter） | ✅ | migration 030 ALTER users ADD `risk_level` CHECK 4 enum + backend filter + 前端 select；資料由 NPS aggregate cron 補（roadmap）|
 | 滿意度指標 | ⏳ | 待 NPS / 滿意度調查模組接入 |
-| 偏好技師 | ⏳ | 待派工歷史聚合模組接入 |
-| 保固狀態 | ⏳ | 待保固註冊模組接入 |
+| 偏好技師（filter） | ✅ | migration 030 ALTER users ADD `preferred_technician_id` + backend filter + 前端 UUID input；資料由 work_orders 派工歷史 aggregate cron 補（roadmap）|
+| 保固狀態（filter） | ✅ | migration 030 ALTER users ADD `warranty_status` CHECK 3 enum + backend filter + 前端 select；資料由 warranty_claims aggregate cron 補（roadmap）|
 | 設備數 | ⏳ | 待設備主檔模組接入 |
 
 ---
@@ -65,8 +70,8 @@
 | 對帳列表 | ✅ | `listReconciliations` 即時資料 |
 | 結算列表 | ✅ | `listSettlements` 即時資料 |
 | 核准對帳 | ✅ | `approveReconciliation`（同時建立對應結算） |
-| 期間選擇器（月份 / 季別） | ⏳ | 待 period filter endpoint 擴充 |
-| 批次確認 / 標記已付 | ⏳ | 待批次操作 endpoint 接入 |
+| 期間選擇器（最近 3/6 月 / 全部）+ 結算週期（月/雙週/週 segment） | ✅ | 前端 client-side filter + cycle segment value-based |
+| 批次確認 / 標記已付 | ✅ | backend POST `/settlements:batch` (operation_id `batchSettlementsV2`) ANY(uuid[]) UPDATE + 前端 SettlementTable checkbox + selectedIds Set + doBatch |
 | 結算詳情 modal | ⏳ | 待詳情 endpoint 接入 |
 
 ---
@@ -124,8 +129,9 @@
 | 區塊 | 狀態 | 資料來源 |
 | :--- | :--- | :--- |
 | 庫存清單（最近 50 筆，read-only） | ✅ | `listInventory` 即時資料 |
-| 補貨 / 編輯 | ⏳ | 待 `inventory_transactions` endpoint 接入 |
-| 異動紀錄 | ⏳ | 同上 |
+| 新增物料 / 補貨 / 編輯 | ✅ | backend POST `/inventory/items` (createInventoryItemV2) / POST `:restock` (restockInventoryV2) / PATCH `/inventory/items/{id}` (updateInventoryItemV2) + 前端 3 modal (CreateInventoryItemModal / RestockInventoryModal / EditInventoryItemModal) |
+| 異動紀錄 | ✅ | backend GET `/inventory/transactions` (listInventoryTransactionsV2) + item_id/transaction_type filter + 前端 InventoryLogModal (4 type 顏色 + ± sign) |
+| 分類 / 庫存狀態 / 關鍵字 filter | ✅ | backend list_inventory_items_v2 query: stock_status / category / owner / keyword (ILIKE name+part_number+supplier) |
 
 > `inventory_items` 為全公司共用倉庫表（無 tenant_id），所有租戶共享庫存視角。
 
@@ -148,8 +154,9 @@
 | 區塊 | 狀態 | 資料來源 |
 | :--- | :--- | :--- |
 | 技師排名（綜合評分 = 平均星等 × 20，tiebreak 為累積完工工單數） | ✅ | `listTechnicians` 即時資料計算 |
-| 本週 / 本季 / 本年 期間切片 | ⏳ | 待 metrics endpoint 上線 |
-| 排序選單 / 區域過濾 / 匯出 CSV / 分頁 | ⏳ | 同上 |
+| 本週 / 本月 / 本季 / 本年 期間 segment | ✅ | 前端 client-side period state (純 UI 顯示，metrics 計算用 fetched technicians) |
+| 排序選單（綜合評分/平均星等/完工數）/ 區域過濾 / 分頁（client-side 25/page） | ✅ | useMemo displayedTechnicians + service_areas distinct + pageIndex pagination |
+| 匯出 CSV / 排程發送 | ✅ | `exportTechnicianRanking` (CSV blob) + scheduled-reports endpoint |
 | 完工率 / 週轉時間 / 拒單率 / 營收貢獻 | ⏳ | 待派工 / 結算 metrics 接入 |
 
 ---
@@ -159,11 +166,11 @@
 | 區塊 | 狀態 | 資料來源 |
 | :--- | :--- | :--- |
 | KPI 總計 / 月度趨勢 / 品牌占比 | ✅ | `getRevenueSummary` 即時聚合（issued + paid 計入） |
-| 日 / 週 / 季 切片 | ⏳ | 待後端 granularity 擴充 |
-| 自訂期間 | ⏳ | 同上 |
-| 按品牌 / 服務類型樞紐切換 | ⏳ | 待 pivot endpoint 上線 |
+| 日 / 週 / 月 / 季 切片 | ✅ | backend `revenue_service._VALID_GRANULARITY={day,week,month}` + 前端 SEGMENTS state (quarter fallback to month) |
+| 自訂期間 (DateRangePicker) | ✅ | 前端 DateRangePicker + range state (last30 preset) — 對接 backend start_date/end_date 已 ready |
+| 按品牌 / 服務類型樞紐切換 | ⚠️ MVP | 「切片：全部 / 按品牌」select 啟用，client-side filter on by_brand data；pivot endpoint 全面切換留 roadmap |
 | 與上期比較 | ⏳ | 待對比 endpoint 上線 |
-| 匯出 / 排程發送 | ⏳ | 待 export 路徑接入 |
+| 匯出 CSV / Excel / 排程發送 | ✅ | exportCsv/Xlsx 純前端 Blob download + scheduled-reports backend (migration 029 + ScheduleReportModal) |
 
 ---
 
