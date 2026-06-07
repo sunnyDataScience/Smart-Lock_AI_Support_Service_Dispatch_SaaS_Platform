@@ -119,6 +119,29 @@ async def list_warranty_claims_v2(
     )
 
 
+@router.get(
+    "/tenants/{tenantId}/warranty-claims/{id}",
+    operation_id="getWarrantyClaimV2",
+    summary="保固申請詳情 v2（tenant-scoped；admin 檢視詳情頁用）",
+    response_model=WarrantyClaimEnvelope,
+)
+async def get_warranty_claim_v2(
+    tenantId: str = Path(...),
+    id: str = Path(...),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError(
+            "CROSS_TENANT_READ",
+            "Path tenantId does not match authenticated tenant",
+            403,
+        )
+    claim = await warranty_service.get_warranty_claim(
+        tenant_id=tenantId, claim_id=id,
+    )
+    return {"data": claim}
+
+
 @router.post(
     "/tenants/{tenantId}/warranty-claims/{id}/decision",
     operation_id="submitWarrantyDecisionV2",
