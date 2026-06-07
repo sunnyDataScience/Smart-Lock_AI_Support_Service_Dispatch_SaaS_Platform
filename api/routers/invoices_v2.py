@@ -46,6 +46,9 @@ async def list_invoices_v2(
     limit: int = Query(default=20, ge=1, le=100),
     status: InvoiceStatus | None = Query(default=None),
     work_order_id: str | None = Query(default=None),
+    keyword: str | None = Query(default=None, description="發票號碼模糊搜尋"),
+    created_after: str | None = Query(default=None, description="建立時間下限 ISO 8601"),
+    created_before: str | None = Query(default=None, description="建立時間上限 ISO 8601"),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
@@ -62,6 +65,9 @@ async def list_invoices_v2(
         limit=limit,
         status=status.value if status else None,
         work_order_id=work_order_id,
+        keyword=keyword,
+        created_after=created_after,
+        created_before=created_before,
     )
     return {
         "items": [Invoice(**inv).model_dump(mode="json") for inv in page["items"]],

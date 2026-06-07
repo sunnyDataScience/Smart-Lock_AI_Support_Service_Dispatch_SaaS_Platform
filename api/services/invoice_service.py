@@ -99,6 +99,9 @@ async def list_invoices(
     limit: int,
     status: str | None = None,
     work_order_id: str | None = None,
+    keyword: str | None = None,
+    created_after: str | None = None,
+    created_before: str | None = None,
 ) -> dict:
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
@@ -123,6 +126,18 @@ async def list_invoices(
     if work_order_id:
         where.append("i.work_order_id = %s::uuid")
         args.append(work_order_id)
+
+    if keyword:
+        where.append("i.invoice_number ILIKE %s")
+        args.append(f"%{keyword}%")
+
+    if created_after:
+        where.append("i.created_at >= %s::timestamptz")
+        args.append(created_after)
+
+    if created_before:
+        where.append("i.created_at <= %s::timestamptz")
+        args.append(created_before)
 
     cur_data = decode_cursor(cursor)
     if cur_data and "ts" in cur_data and "id" in cur_data:
