@@ -9,12 +9,14 @@
 
 ---
 
-## 總體：**約 91%**（含 Enhancement Roadmap 第 2 批啟用）
+## 總體：**約 93%**（含 Enhancement Roadmap 第 3 批啟用）
 
 ```
-████████████████████████████  91%
+█████████████████████████████  93%
 ```
 
+> **6/07 深夜第 3 批啟用 — inventory 編輯/紀錄 + 4 page keyword search（91% → 93%）** — (1) inventory 編輯 + 異動紀錄 modal 啟用 18/27 (backend 加 updateInventoryItemV2 PATCH + listInventoryTransactionsV2 GET / 前端 EditInventoryItemModal + InventoryLogModal)；(2) 4 個 page 的 keyword search filter（backend list_orders/list_cards/list_technicians/list_inventory_items_v2 各加 ILIKE 跨欄位 + 前端啟用 search input）。**累計 59/83 disabled 啟用 (71%)**。Roadmap #7 inventory_transactions 寫入 ~50% → ~90%（剩 search 已啟用）；Enhancement Roadmap 平均 ~55% → ~70%。新權重：原四維 99.8% × 80% + Enhancement 70% × 20% = **~93%**。
+>
 > **6/07 晚段第 2 批啟用 4 page disabled（89.5% → 91%）** — invoices 3/4 + accounting/revenue 3/5 + admin/reports/revenue 4/5 + admin/reports/technician-ranking 5/8 啟用。**累計 38/83（46%）**。新發現 backend 部分 endpoint 早 ready (revenue granularity day/week/month) 但前端硬寫 disabled，純前端啟用即可。剩 45 disabled 主要靠：(a) 排程/匯出 schedule endpoint；(b) reports/kpi 切片 (品牌/區域 metrics 需 backend BUILD)；(c) inventory 編輯/紀錄 (需 updateItem + transactions GET endpoint)；(d) customers 4 filter (roadmap #5/#6 NPS+保固 BUILD)；(e) dispatch-queue 7 disabled (聚合 page，複雜度高)。
 >
 > **6/07 下午 4 個 page disabled placeholder 啟用（87% → 89.5%）** — 4 個 branch 連續 commit + merge：(1) feat/inventory-transactions-write（新增物料 + 補貨 modal，10/27 disabled 啟用 + Roadmap #7 推進）；(2) feat/inventory-category-status-filter（2/27）；(3) feat/work-orders-filters（backend 加 status/brand/created_after 3 query + 前端 3 select，3/4）；(4) feat/problem-cards-filters（backend 加 4 query + 前端 4 select，4/5）；(5) feat/technicians-filters（backend 加 status/capability/region/rating_min 4 query + 前端 4 select，4/6）。**累計 23/83 disabled 啟用（28%）**。Enhancement Roadmap 平均 37.5% → ~50%。新權重：原四維 99.8% × 80% + Enhancement 50% × 20% = **~89.5%**。
