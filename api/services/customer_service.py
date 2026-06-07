@@ -88,6 +88,10 @@ async def list_customers(
     tenant_id: str,
     cursor: str | None,
     limit: int,
+    risk_level: str | None = None,
+    device_brand: str | None = None,
+    warranty_status: str | None = None,
+    preferred_technician_id: str | None = None,
 ) -> dict:
     """GET /customers — 管理員視角，cursor 分頁。"""
     if not await _ensure_conn():
@@ -95,6 +99,26 @@ async def list_customers(
 
     where = ["u.tenant_id = %s::uuid", "u.role = 'line_user'"]
     args: list = [tenant_id]
+
+    if risk_level:
+        if risk_level not in {"low", "medium", "high", "critical"}:
+            raise ApiError("VALIDATION_ERROR", f"Invalid risk_level: {risk_level}", 422)
+        where.append("u.risk_level = %s")
+        args.append(risk_level)
+
+    if device_brand:
+        where.append("u.primary_device_brand = %s")
+        args.append(device_brand)
+
+    if warranty_status:
+        if warranty_status not in {"active", "expired", "none"}:
+            raise ApiError("VALIDATION_ERROR", f"Invalid warranty_status: {warranty_status}", 422)
+        where.append("u.warranty_status = %s")
+        args.append(warranty_status)
+
+    if preferred_technician_id:
+        where.append("u.preferred_technician_id = %s::uuid")
+        args.append(preferred_technician_id)
 
     cur_data = decode_cursor(cursor)
     if cur_data and "ts" in cur_data and "id" in cur_data:
