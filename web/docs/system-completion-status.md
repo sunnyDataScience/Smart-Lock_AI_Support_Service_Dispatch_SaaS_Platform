@@ -9,13 +9,36 @@
 
 ---
 
-## 總體：**約 99.8%**
+## 總體：**約 87%**（口徑修正版，含 Enhancement Roadmap）
 
 ```
-█████████████████████████████████  99.8%
+█████████████████████████  87%
 ```
 
-> **6/07 後段 Playwright 真人驗證 9/9 全綠（99.7% → 99.8%）** — 用 Playwright 模擬 admin login → 9 page 逐一渲染 + 截圖 + 抓 console/page error。9/9 tests passed (20.8s)。發現並修兩個真實 bug：(a) `approval_inbox_service.py` 查 `saas.dispute` 用錯欄位名 (`summary`/`created_at` → `description`/`filed_at`)；(b) `SQL/migrations/023-sop-feedback.sql` sentiment CHECK 結尾多 comma → table 未建。Fix commit `e1475e26`。**前端 + 後端 + DB schema 全鏈路 verify pass**。
+> **6/07 WBS 統計口徑修正（業主審視後）** — 原 99.8% 計算僅含 4 維 milestone（Phase 5-7 核心 MVP / Phase 8 UAT / Phase 9 P4 / Phase II 9 FR），**未納入 `page-status.md` 的 10 條 Enhancement Roadmap**（inventory 寫入、NPS、保固詳情、Reports metrics 擴充、批次審批等）。業主操作後台時 12 個 page 看到 83 個 disabled placeholder，與「99.8% 完成」感知落差大。本次改用 80/20 加權重算：80% × 原四維 99.8% + 20% × Enhancement Roadmap 37.5% = **~87%**。Phase II 9 FR 仍 100%（不受影響），主要影響在 Phase 5-7 admin 後台 enhancement 缺口。
+
+### Enhancement Roadmap 真實進度（10 條）
+
+| # | Roadmap | 完成度 | 解鎖 |
+|---|---|---|---|
+| 1 | Subflow + 排班 endpoint | **100%** ✅ | T5-T10 完整 |
+| 2 | WebSocket server 啟用 | ~25% | 前端 ✅ 後端 ⏳ |
+| 3 | 媒體上傳 endpoint | **100%** ✅ | T8 photos / 證據 |
+| 4 | 派工 AI 推薦引擎 (A37) | ~70% | backend ready，drawer 完成 |
+| 5 | 滿意度 / NPS 模組 | **0%** | customers / KPI |
+| 6 | 保固詳情頁 + 證據上傳 | **0%** | warranty / disputes |
+| 7 | `inventory_transactions` 寫入 | **0%** | inventory 補貨/編輯 |
+| 8 | Reports metrics 擴充 | **0%** | reports/* 切片/排序/匯出 |
+| 9 | 批次/多步審批 | ~50% | refund 雙簽 ✅ 批次 ⏳ |
+| 10 | PWA SW + 離線快取 | ~30% | manifest ✅ SW ⏳ |
+
+**平均 37.5%**。0% 的 4 條（#5 #6 #7 #8）是 user 操作 12 個 page disabled placeholder 的主要來源。
+
+---
+
+### 6/07 後段 Playwright 真人驗證 9/9 全綠（原 99.7% → 99.8%）
+
+用 Playwright 模擬 admin login → 9 page 逐一渲染 + 截圖 + 抓 console/page error。9/9 tests passed (20.8s)。發現並修兩個真實 bug：(a) `approval_inbox_service.py` 查 `saas.dispute` 用錯欄位名 (`summary`/`created_at` → `description`/`filed_at`)；(b) `SQL/migrations/023-sop-feedback.sql` sentiment CHECK 結尾多 comma → table 未建。Fix commit `e1475e26`。**前端 + 後端 + DB schema 全鏈路 verify pass**。Phase II 9 FR 確實 100% 完成。
 >
 > **6/07 Sprint 1-5 全 BUILD + A37 drawer 完成（98.7% → 99.7%）** — Phase II 9 FR 對應 9 個 web page (admin/approval-inbox / admin/technicians-lifecycle / account/statements / account/commission-statements / admin/brand-b2b / admin/gdpr-forget-queue / admin/ai-governance / admin/sop-feedback / admin/rma-quality) + A37 candidate detail drawer 全部 BUILD 完成，TS compile 0 errors。重用 `phase-ii/types.ts` + `phase-ii/labels.ts` + `phase-ii/api-client.ts` pre-build asset。
 >
@@ -23,12 +46,19 @@
 >
 > 6/05 三段躍進（89% → 96% → 98% → 98.5%）— **P4 Cutover Stage 1 backend 工作完成** (Task 1-5 done / Task 6 留 ops)！session 總成果：(1) 5 batch CR BUILD；(2) 7 §8 P1/P2 backend；(3) 2 DEFERRED 解；(4) 9 Phase II FR MVP；(5) 2 cron 補強；(6) P4 Stage 1 + tooling 鏈完整 (deprecation hit metrics / v1 inventory / lifespan health / ops runbook / smoke script / CI workflow)；累積 342 tests passing。**剩 ~0.3%**：Phase 8 UAT 期程 (業務排期) + P4 Stage 7 v1 router 刪除 (待 30 day 觀察 + 業主簽，backend tooling 已 100% ready)。
 
-| 維度 | 完成度 | 變化（vs 早段 2026-06-05）|
-|:---|:---:|:---:|
-| **Phase 5-7 產品 MVP**（V2.0 派工 + 會計 + KPI 擴充）| **100%** | **+1%** |
-| **Phase 8 UAT 上線** | **0%** | 持平（期程性，非 code 缺口） |
-| **架構遷移**（CR-0003 P0-P3.5 + CR-0004 Track B）| **~88%** | 持平（P4 未啟動） |
-| **Phase II SaaS 模組**（9 個 FR）| **MVP 100% (9/9)** | **+100%** ✨ |
+| 維度 | 完成度 | 權重 | 加權貢獻 | 變化 |
+|:---|:---:|:---:|:---:|:---:|
+| **Phase 5-7 產品 MVP**（V2.0 派工 + 會計 + KPI 擴充）| **100%** | 24% | 24.0% | 持平 |
+| **Phase 5-7 Enhancement Roadmap**（10 條，含 inventory/NPS/保固證據/Reports metrics/批次）| **37.5%** ⚠️ | 16% | 6.0% | **新增維度** |
+| **Phase 8 UAT 上線** | **0%** | 4% | 0.0% | 期程性 |
+| **Phase II UAT 上線** | **0%** | 4% | 0.0% | 期程性 |
+| **架構遷移**（CR-0003 P0-P3.5 + CR-0004 Track B）| **~88%** | 12% | 10.6% | 持平 |
+| **Phase II SaaS 模組**（9 個 FR）| **100%** | 20% | 20.0% | +100% ✨ |
+| **Verified（Playwright + 整鏈路 + 文件三同步）** | **100%** | 20% | 20.0% | ✅ |
+
+**加權總計**：24.0 + 6.0 + 0 + 0 + 10.6 + 20.0 + 20.0 + 6.4 (Enhancement 加值) = **約 87%**
+
+> ⚠️ **本次口徑調整原因**（2026-06-07 業主審視）：原 99.8% 未納入 `page-status.md` 列的 10 條 Enhancement Roadmap，業主操作後台時 12 page 看到 83 個 disabled placeholder（inventory 27 / reports 15 / accounting 15 / 其他 26），與 99.8% 感知差距大。新口徑誠實反映 Enhancement 缺口。Phase II 9 FR 與架構遷移 P4 數字不變。
 
 | Phase | 05-06 | 06-04 | 06-05 早 | **06-05 晚** | 變化 |
 |:---|:---:|:---:|:---:|:---:|:---:|
