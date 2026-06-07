@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, Search, ChevronDown, RefreshCw } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import InventoryTable from "@/components/admin/InventoryTable";
+import CreateInventoryItemModal from "@/components/admin/CreateInventoryItemModal";
 import { ApiError, api, tenantPath } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
@@ -27,6 +28,7 @@ export default function InventoryPage() {
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [keyword, setKeyword] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
 
   async function fetchItems() {
     setLoading(true);
@@ -121,9 +123,9 @@ export default function InventoryPage() {
                 />
               </button>
               <button
-                disabled
-                title={t("addItemTooltip")}
-                className="flex cursor-not-allowed items-center gap-[6px] rounded-lg bg-[var(--primary)] px-4 py-[10px] text-sm font-medium text-white opacity-50"
+                onClick={() => setCreateOpen(true)}
+                title={t("addItem")}
+                className="flex items-center gap-[6px] rounded-lg bg-[var(--primary)] px-4 py-[10px] text-sm font-medium text-white hover:opacity-90"
               >
                 <Plus className="h-4 w-4" />
                 {t("addItem")}
@@ -196,9 +198,22 @@ export default function InventoryPage() {
             </button>
           </div>
 
-          <InventoryTable items={filtered} loading={loading} />
+          <InventoryTable
+            items={filtered}
+            loading={loading}
+            onItemsChanged={fetchItems}
+          />
         </div>
       </div>
+
+      <CreateInventoryItemModal
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onSuccess={() => {
+          setCreateOpen(false);
+          fetchItems();
+        }}
+      />
     </div>
   );
 }

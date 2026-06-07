@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { components } from "@/types/api.generated";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
+import RestockInventoryModal from "./RestockInventoryModal";
 
 type InventoryItem = components["schemas"]["InventoryItem"];
 type StockStatus = components["schemas"]["InventoryStockStatus"];
@@ -10,6 +11,7 @@ type StockStatus = components["schemas"]["InventoryStockStatus"];
 interface Props {
   items: InventoryItem[];
   loading?: boolean;
+  onItemsChanged?: () => void;
 }
 
 function formatDate(iso: string | null | undefined): string {
@@ -18,8 +20,9 @@ function formatDate(iso: string | null | undefined): string {
   return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export default function InventoryTable({ items, loading }: Props) {
+export default function InventoryTable({ items, loading, onItemsChanged }: Props) {
   const t = useTranslations("components.admin.inventory");
+  const [restockItem, setRestockItem] = useState<InventoryItem | null>(null);
 
   const columns = useMemo(
     () => [
@@ -133,9 +136,8 @@ export default function InventoryTable({ items, loading }: Props) {
 
               <div className="flex min-w-0 flex-1 items-center justify-end gap-[6px] px-3">
                 <button
-                  disabled
-                  title={t("actions.restockComingSoon")}
-                  className="cursor-not-allowed rounded-md bg-[var(--primary)] px-3 py-[5px] text-xs font-medium text-white opacity-50"
+                  onClick={() => setRestockItem(row)}
+                  className="rounded-md bg-[var(--primary)] px-3 py-[5px] text-xs font-medium text-white hover:opacity-90"
                 >
                   {t("actions.restock")}
                 </button>
@@ -158,6 +160,20 @@ export default function InventoryTable({ items, loading }: Props) {
           );
         })
       )}
+
+      <RestockInventoryModal
+        open={!!restockItem}
+        onOpenChange={(o) => {
+          if (!o) setRestockItem(null);
+        }}
+        itemId={restockItem?.id ?? null}
+        itemName={restockItem?.name ?? ""}
+        currentQuantity={restockItem?.quantity_on_hand ?? 0}
+        onSuccess={() => {
+          setRestockItem(null);
+          onItemsChanged?.();
+        }}
+      />
     </div>
   );
 }
