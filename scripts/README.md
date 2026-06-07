@@ -54,6 +54,13 @@ cp .env.local.example .env.local
 ### 啟動方式（依用途選一）
 
 ```bash
+# 🚀 一鍵啟動本地展示環境（DB + schema + 大量真實感假資料 + 前後端）
+#    給業主/PM/合作方看 demo 用；新人 onboarding 第一步
+./scripts/dev/quickstart.sh            # 完整啟動
+./scripts/dev/quickstart.sh --fresh    # 砍 DB 重來
+./scripts/dev/quickstart.sh --no-seed  # 跳過假資料
+# 📘 操作手冊：scripts/dev/QUICKSTART.md
+
 # 單 agent 開發（前景跑、Ctrl+C 即停，最常用）
 ./scripts/dev/dev-up.sh                # DB + ngrok + agent (foreground)
 ./scripts/dev/dev-up.sh --no-ngrok     # 跳過 ngrok（純本地測試）
