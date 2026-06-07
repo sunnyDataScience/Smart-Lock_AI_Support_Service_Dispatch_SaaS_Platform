@@ -126,6 +126,9 @@ export default function TechnicianRankingPage() {
   const [period, setPeriod] = useState<"week" | "month" | "quarter" | "year">("month");
   const [sortKey, setSortKey] = useState<SortKey>("composite");
   const [regionFilter, setRegionFilter] = useState<string>("");
+  const [pageIndex, setPageIndex] = useState(0);
+
+  const PAGE_SIZE = 25;
 
   const fetchTechnicians = async () => {
     setLoading(true);
@@ -155,14 +158,21 @@ export default function TechnicianRankingPage() {
     fetchTechnicians();
   }, []);
 
-  const displayedTechnicians = useMemo(() => {
+  const allDisplayed = useMemo(() => {
     const filtered = regionFilter
       ? technicians.filter((t) => (t.service_areas ?? []).includes(regionFilter))
       : technicians;
     return sortTechnicians(filtered, sortKey);
   }, [technicians, regionFilter, sortKey]);
 
-  const podium = displayedTechnicians.slice(0, 3);
+  const totalPages = Math.max(1, Math.ceil(allDisplayed.length / PAGE_SIZE));
+  const safePage = Math.min(pageIndex, totalPages - 1);
+  const displayedTechnicians = useMemo(
+    () => allDisplayed.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE),
+    [allDisplayed, safePage],
+  );
+
+  const podium = allDisplayed.slice(0, 3);
   const updatedLabel = updatedAt
     ? `資料更新於 ${updatedAt.toLocaleTimeString("zh-TW", { hour12: false })}`
     : "尚未載入";
@@ -446,26 +456,23 @@ export default function TechnicianRankingPage() {
 
             <div className="flex items-center justify-between px-4 py-3">
               <span className="text-[13px] text-[var(--text-secondary)]">
-                顯示 {displayedTechnicians.length} 位技師
+                顯示 {allDisplayed.length} 位技師（第 {safePage + 1}/{totalPages} 頁）
               </span>
               <div className="flex gap-1">
                 <button
-                  disabled
-                  title="即將推出"
-                  className="cursor-not-allowed rounded-md border border-[var(--border)] px-[10px] py-[6px] text-xs text-[var(--text-disabled)] opacity-60"
+                  onClick={() => setPageIndex(Math.max(0, safePage - 1))}
+                  disabled={safePage === 0}
+                  className="rounded-md border border-[var(--border)] px-[10px] py-[6px] text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   上一頁
                 </button>
+                <span className="rounded-md bg-[var(--primary)] px-[10px] py-[6px] text-xs font-semibold text-white">
+                  {safePage + 1}
+                </span>
                 <button
-                  disabled
-                  className="cursor-not-allowed rounded-md bg-[var(--primary)] px-[10px] py-[6px] text-xs font-semibold text-white opacity-80"
-                >
-                  1
-                </button>
-                <button
-                  disabled
-                  title="即將推出"
-                  className="cursor-not-allowed rounded-md border border-[var(--border)] px-[10px] py-[6px] text-xs text-[var(--text-disabled)] opacity-60"
+                  onClick={() => setPageIndex(Math.min(totalPages - 1, safePage + 1))}
+                  disabled={safePage >= totalPages - 1}
+                  className="rounded-md border border-[var(--border)] px-[10px] py-[6px] text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   下一頁
                 </button>
