@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
+import { ApiError, api, tenantPath } from "@/lib/api";
+import { useToast } from "@/components/ui/Toast";
 
 type Settlement = components["schemas"]["Settlement"];
 type SettlementStatus = components["schemas"]["SettlementStatus"];
@@ -11,6 +13,7 @@ type PaymentMethod = NonNullable<Settlement["payment_method"]>;
 interface Props {
   items: Settlement[];
   loading?: boolean;
+  onItemsChanged?: () => void;
 }
 
 // Tone（顏色）固定；label 由 i18n 提供
@@ -36,8 +39,57 @@ function formatDateTime(iso: string | null | undefined): string {
   return d.toLocaleString("zh-TW", { hour12: false });
 }
 
-export default function SettlementTable({ items, loading }: Props) {
+export default function SettlementTable({ items, loading, onItemsChanged }: Props) {
   const t = useTranslations("components.accounting.settlementTable");
+  const { toast } = useToast();
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [batchSubmitting, setBatchSubmitting] = useState(false);
+
+  function toggleId(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    if (selectedIds.size === items.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(items.map((i) => i.id)));
+    }
+  }
+
+  async function doBatch(action: "confirm" | "mark_paid") {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setBatchSubmitting(true);
+    try {
+      const res = await api.post<{ data: { updated: number; skipped: number } }>(
+        tenantPath("/settlements:batch"),
+        { settlement_ids: ids, action },
+      );
+      toast({
+        variant: "success",
+        title: action === "confirm" ? "批次確認完成" : "批次標記已付完成",
+        description: `更新 ${res.data.updated} 筆 / 略過 ${res.data.skipped} 筆`,
+      });
+      setSelectedIds(new Set());
+      onItemsChanged?.();
+    } catch (e) {
+      const msg =
+        e instanceof ApiError
+          ? `${e.errorCode} (${e.status})：${e.message}`
+          : e instanceof Error
+            ? e.message
+            : String(e);
+      toast({ variant: "error", title: "批次操作失敗", description: msg });
+    } finally {
+      setBatchSubmitting(false);
+    }
+  }
 
   const columns = useMemo(
     () => [
@@ -72,24 +124,28 @@ export default function SettlementTable({ items, loading }: Props) {
 
   return (
     <div className="flex min-w-0 flex-1 flex-col bg-[var(--bg-surface)]">
-      {/* Batch Action Bar — disabled until write endpoints land */}
-      <div
-        className="flex items-center gap-3 border-b border-[var(--border)] px-8 py-3 opacity-60"
-        title={comingSoon}
-      >
-        <div className="h-4 w-4 cursor-not-allowed rounded border-[1.5px] border-[var(--border)]" />
-        <span className="text-[13px] text-[var(--text-disabled)]">{t("batchSelectAll")}</span>
+      {/* Batch Action Bar */}
+      <div className="flex items-center gap-3 border-b border-[var(--border)] px-8 py-3">
+        <input
+          type="checkbox"
+          checked={selectedIds.size === items.length && items.length > 0}
+          onChange={toggleAll}
+          className="h-4 w-4 rounded border-[1.5px] border-[var(--border)]"
+        />
+        <span className="text-[13px] text-[var(--text-secondary)]">
+          {t("batchSelectAll")}（已選 {selectedIds.size}）
+        </span>
         <button
-          disabled
-          title={comingSoon}
-          className="cursor-not-allowed rounded-md bg-[var(--primary)] px-4 py-[7px] text-[13px] font-semibold text-white"
+          onClick={() => doBatch("confirm")}
+          disabled={selectedIds.size === 0 || batchSubmitting}
+          className="rounded-md bg-[var(--primary)] px-4 py-[7px] text-[13px] font-semibold text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {t("batchConfirm")}
         </button>
         <button
-          disabled
-          title={comingSoon}
-          className="cursor-not-allowed rounded-md border border-[var(--border)] px-4 py-[7px] text-[13px] font-medium text-[var(--text-disabled)]"
+          onClick={() => doBatch("mark_paid")}
+          disabled={selectedIds.size === 0 || batchSubmitting}
+          className="rounded-md border border-[var(--border)] px-4 py-[7px] text-[13px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {t("batchMarkPaid")}
         </button>
@@ -132,6 +188,13 @@ export default function SettlementTable({ items, loading }: Props) {
             key={s.id}
             className="flex h-[48px] items-center border-b border-[var(--border)] px-8"
           >
+            <input
+              type="checkbox"
+              checked={selectedIds.has(s.id)}
+              onChange={() => toggleId(s.id)}
+              className="mr-2 h-4 w-4 rounded border-[1.5px] border-[var(--border)]"
+            />
+
             {/* Technician */}
             <div className="flex w-[150px] shrink-0 items-center px-2">
               <span className="text-[13px] font-medium text-[var(--text-primary)]">

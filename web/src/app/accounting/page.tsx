@@ -423,7 +423,11 @@ export default function AccountingPage() {
                 {tCommon("totalCount", { count: items.length })}
               </span>
             </div>
-            <SettlementTable items={items} loading={loading} />
+            <SettlementTable
+              items={items}
+              loading={loading}
+              onItemsChanged={fetchSettlements}
+            />
           </section>
         </div>
       </div>
