@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import type { components } from "@/types/api.generated";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import RestockInventoryModal from "./RestockInventoryModal";
+import EditInventoryItemModal from "./EditInventoryItemModal";
+import InventoryLogModal from "./InventoryLogModal";
 
 type InventoryItem = components["schemas"]["InventoryItem"];
 type StockStatus = components["schemas"]["InventoryStockStatus"];
@@ -23,6 +25,8 @@ function formatDate(iso: string | null | undefined): string {
 export default function InventoryTable({ items, loading, onItemsChanged }: Props) {
   const t = useTranslations("components.admin.inventory");
   const [restockItem, setRestockItem] = useState<InventoryItem | null>(null);
+  const [editItem, setEditItem] = useState<InventoryItem | null>(null);
+  const [logItem, setLogItem] = useState<InventoryItem | null>(null);
 
   const columns = useMemo(
     () => [
@@ -142,16 +146,14 @@ export default function InventoryTable({ items, loading, onItemsChanged }: Props
                   {t("actions.restock")}
                 </button>
                 <button
-                  disabled
-                  title={t("actions.comingSoon")}
-                  className="cursor-not-allowed rounded-md border border-[var(--border)] px-3 py-[5px] text-xs font-medium text-[var(--text-secondary)] opacity-50"
+                  onClick={() => setEditItem(row)}
+                  className="rounded-md border border-[var(--border)] px-3 py-[5px] text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
                 >
                   {t("actions.edit")}
                 </button>
                 <button
-                  disabled
-                  title={t("actions.comingSoon")}
-                  className="cursor-not-allowed rounded-md border border-[var(--border)] px-3 py-[5px] text-xs font-medium text-[var(--text-secondary)] opacity-50"
+                  onClick={() => setLogItem(row)}
+                  className="rounded-md border border-[var(--border)] px-3 py-[5px] text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
                 >
                   {t("actions.log")}
                 </button>
@@ -173,6 +175,27 @@ export default function InventoryTable({ items, loading, onItemsChanged }: Props
           setRestockItem(null);
           onItemsChanged?.();
         }}
+      />
+
+      <EditInventoryItemModal
+        open={!!editItem}
+        onOpenChange={(o) => {
+          if (!o) setEditItem(null);
+        }}
+        item={editItem}
+        onSuccess={() => {
+          setEditItem(null);
+          onItemsChanged?.();
+        }}
+      />
+
+      <InventoryLogModal
+        open={!!logItem}
+        onOpenChange={(o) => {
+          if (!o) setLogItem(null);
+        }}
+        itemId={logItem?.id ?? null}
+        itemName={logItem?.name ?? ""}
       />
     </div>
   );

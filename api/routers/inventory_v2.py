@@ -331,3 +331,76 @@ async def restock_inventory_v2(
     if idem is not None:
         await idem.save(200, payload)
     return payload
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 7. PATCH /tenants/{tenantId}/inventory/items/{itemId}
+# ─────────────────────────────────────────────────────────────────────────────
+
+class UpdateInventoryItemBody(BaseModel):
+    name: str | None = Field(default=None, min_length=1)
+    category: str | None = Field(default=None)
+    unit_cost: float | None = Field(default=None, ge=0)
+    reorder_point: int | None = Field(default=None, ge=0)
+    supplier: str | None = Field(default=None)
+    owner: str | None = Field(default=None, description="platform/brand/locksmith")
+    serial_required: bool | None = Field(default=None)
+
+
+@router.patch(
+    "/tenants/{tenantId}/inventory/items/{itemId}",
+    operation_id="updateInventoryItemV2",
+    summary="部分更新物料品項 (不動 quantity_on_hand)",
+    response_model=dict,
+)
+async def update_inventory_item_v2(
+    body: UpdateInventoryItemBody,
+    tenantId: str = Path(...),
+    itemId: str = Path(...),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError(
+            "CROSS_TENANT_WRITE",
+            "Path tenantId does not match authenticated tenant",
+            403,
+        )
+    patch = {k: v for k, v in body.model_dump(exclude_unset=True).items() if v is not None}
+    result = await svc.update_inventory_item_v2(
+        tenant_id=tenantId, item_id=itemId, patch=patch,
+    )
+    return {"data": result}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 8. GET /tenants/{tenantId}/inventory/transactions
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get(
+    "/tenants/{tenantId}/inventory/transactions",
+    operation_id="listInventoryTransactionsV2",
+    summary="物料異動紀錄 (ledger) — 可選 item_id / transaction_type filter",
+    response_model=dict,
+)
+async def list_inventory_transactions_v2(
+    tenantId: str = Path(...),
+    item_id: str | None = Query(default=None, description="只回此 item 的異動"),
+    transaction_type: str | None = Query(
+        default=None,
+        description="purchase / consume / return / adjust",
+    ),
+    limit: int = Query(default=50, ge=1, le=200),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError(
+            "CROSS_TENANT_READ",
+            "Path tenantId does not match authenticated tenant",
+            403,
+        )
+    return await svc.list_inventory_transactions_v2(
+        tenant_id=tenantId,
+        item_id=item_id,
+        transaction_type=transaction_type,
+        limit=limit,
+    )
