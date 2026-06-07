@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -48,13 +48,25 @@ export default function InvoicesPage() {
     [tTabs],
   );
 
-  const filterDropdowns = useMemo(
-    () => [
-      { label: tInv("filterAllStatus") },
-      { label: tInv("filterPaymentMethod") },
-    ],
-    [tInv],
-  );
+  const [keyword, setKeyword] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [periodFilter, setPeriodFilter] = useState<string>("");
+
+  const queryString = useMemo(() => {
+    const p = new URLSearchParams();
+    if (keyword) p.set("keyword", keyword);
+    if (statusFilter) p.set("status", statusFilter);
+    if (periodFilter) {
+      const days = parseInt(periodFilter, 10);
+      if (!Number.isNaN(days)) {
+        const since = new Date(Date.now() - days * 24 * 3600 * 1000);
+        p.set("created_after", since.toISOString());
+      }
+    }
+    const qs = p.toString();
+    return qs ? `?${qs}` : "";
+  }, [keyword, statusFilter, periodFilter]);
+
   const {
     items,
     cursor: nextCursor,
@@ -65,7 +77,7 @@ export default function InvoicesPage() {
     loadMore,
     refresh,
   } = usePaginatedFetch<Invoice>({
-    path: `/tenants/${encodeURIComponent(tenantId)}/accounting/invoices`,
+    path: `/tenants/${encodeURIComponent(tenantId)}/accounting/invoices${queryString}`,
     pageSize: 50,
     formatError: formatInvoiceError,
   });
@@ -172,44 +184,49 @@ export default function InvoicesPage() {
         {/* Filter Toolbar */}
         <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-3">
           {/* Search */}
-          <div
-            className="flex h-[38px] w-[320px] items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60"
-            title={tCommon("comingSoon")}
-          >
-            <Search className="h-4 w-4 text-[var(--text-disabled)]" />
+          <div className="flex h-[38px] w-[320px] items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3">
+            <Search className="h-4 w-4 text-[var(--text-secondary)]" />
             <input
-              disabled
               type="text"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
               placeholder={tInv("searchPlaceholder")}
-              className="flex-1 cursor-not-allowed bg-transparent text-[13px] outline-none placeholder:text-[var(--text-disabled)]"
+              className="flex-1 bg-transparent text-[13px] outline-none"
             />
           </div>
 
-          {filterDropdowns.map((dd) => (
-            <button
-              key={dd.label}
-              disabled
-              title={tCommon("comingSoon")}
-              className="flex h-[38px] cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60"
-            >
-              <span className="text-[13px] text-[var(--text-disabled)]">
-                {dd.label}
-              </span>
-              <ChevronDown className="h-[14px] w-[14px] text-[var(--text-disabled)]" />
-            </button>
-          ))}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-[38px] rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
+          >
+            <option value="">{tInv("filterAllStatus")}</option>
+            <option value="paid">已付款</option>
+            <option value="pending">未付款</option>
+            <option value="overdue">逾期</option>
+          </select>
 
           <button
             disabled
             title={tCommon("comingSoon")}
             className="flex h-[38px] cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60"
           >
-            <Calendar className="h-4 w-4 text-[var(--text-disabled)]" />
             <span className="text-[13px] text-[var(--text-disabled)]">
-              {tInv("dateRange")}
+              {tInv("filterPaymentMethod")}
             </span>
             <ChevronDown className="h-[14px] w-[14px] text-[var(--text-disabled)]" />
           </button>
+
+          <select
+            value={periodFilter}
+            onChange={(e) => setPeriodFilter(e.target.value)}
+            className="h-[38px] rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
+          >
+            <option value="">{tInv("dateRange")}</option>
+            <option value="7">最近 7 天</option>
+            <option value="30">最近 30 天</option>
+            <option value="90">最近 90 天</option>
+          </select>
 
           <div className="flex-1" />
 
