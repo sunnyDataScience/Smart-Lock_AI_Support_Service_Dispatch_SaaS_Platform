@@ -18,6 +18,8 @@ interface Props {
   loading?: boolean;
   selectedId: string | null;
   onSelect: (id: string) => void;
+  slaSort?: boolean;
+  onToggleSlaSort?: () => void;
 }
 
 function shortId(id: string): string {
@@ -57,6 +59,8 @@ export default function MapWorkOrderPanel({
   loading,
   selectedId,
   onSelect,
+  slaSort = false,
+  onToggleSlaSort,
 }: Props) {
   const t = useTranslations("components.workOrders.mapPanel");
   const tGroup = useTranslations("status.workOrderGroup");
@@ -84,12 +88,16 @@ export default function MapWorkOrderPanel({
           </span>
         </div>
         <button
-          disabled
-          title={t("comingSoon")}
-          className="flex cursor-not-allowed items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-2 py-1 opacity-60"
+          type="button"
+          onClick={onToggleSlaSort}
+          className={`flex items-center gap-1 rounded-md border border-[var(--border)] px-2 py-1 ${
+            slaSort
+              ? "bg-[var(--primary)] text-white"
+              : "bg-[var(--bg-page)] text-[var(--text-secondary)] hover:bg-[#F8FAFC]"
+          }`}
         >
-          <ArrowUpDown className="h-[14px] w-[14px] text-[var(--text-disabled)]" />
-          <span className="text-[12px] text-[var(--text-disabled)]">
+          <ArrowUpDown className={`h-[14px] w-[14px] ${slaSort ? "text-white" : "text-[var(--text-secondary)]"}`} />
+          <span className="text-[12px]">
             {t("slaSort")}
           </span>
         </button>
@@ -107,7 +115,17 @@ export default function MapWorkOrderPanel({
           </div>
         )}
 
-        {items.map((item) => {
+        {(slaSort
+          ? [...items].sort((a, b) => {
+              const sa = (a as any).scheduled_at ?? null;
+              const sb = (b as any).scheduled_at ?? null;
+              if (!sa && !sb) return 0;
+              if (!sa) return 1;
+              if (!sb) return -1;
+              return new Date(sa).getTime() - new Date(sb).getTime();
+            })
+          : items
+        ).map((item) => {
           const isActive = item.id === selectedId;
           const group = STATUS_GROUP_MAP[item.status];
           const tone = STATUS_GROUP_TONE[group];
