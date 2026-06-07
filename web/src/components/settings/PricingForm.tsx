@@ -291,7 +291,7 @@ export default function PricingForm() {
 
         {/* Data Rows */}
         {items.map((rule) => {
-          const diffColor = difficultyColor[rule.difficulty];
+          const diffColor = difficultyColor[rule.difficulty] ?? { textColor: "#64748B", bgColor: "#F1F5F9" };
           const surcharges = rule.surcharges ?? [];
           return (
             <div
