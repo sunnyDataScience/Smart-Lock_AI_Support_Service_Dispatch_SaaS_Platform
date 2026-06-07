@@ -29,12 +29,16 @@ export default function InventoryPage() {
   const [hasMore, setHasMore] = useState(false);
   const [keyword, setKeyword] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string>("");
+  const [stockStatusFilter, setStockStatusFilter] = useState<string>("");
 
   async function fetchItems() {
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams({ limit: String(PAGE_LIMIT) });
+      if (categoryFilter) params.set("category", categoryFilter);
+      if (stockStatusFilter) params.set("stock_status", stockStatusFilter);
       const res = await api.get<InventoryItemPage>(
         tenantPath(`/inventory/items?${params.toString()}`),
       );
@@ -56,7 +60,16 @@ export default function InventoryPage() {
   useEffect(() => {
     fetchItems();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [categoryFilter, stockStatusFilter]);
+
+  // 從目前 items 抽 distinct categories（MVP — 完整版需 backend listCategories endpoint）
+  const categoryOptions = useMemo(() => {
+    const set = new Set<string>();
+    items.forEach((i) => {
+      if (i.category) set.add(i.category);
+    });
+    return Array.from(set).sort();
+  }, [items]);
 
   const filtered = useMemo(() => {
     if (!keyword.trim()) return items;
@@ -176,26 +189,28 @@ export default function InventoryPage() {
                 className="flex-1 bg-transparent text-[13px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-disabled)]"
               />
             </div>
-            <button
-              disabled
-              title={t("categoryTooltip")}
-              className="flex w-[160px] cursor-not-allowed items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 opacity-50"
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="w-[160px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] text-[var(--text-primary)] outline-none"
             >
-              <span className="text-[13px] text-[var(--text-secondary)]">
-                {t("categoryLabel")}
-              </span>
-              <ChevronDown className="h-4 w-4 text-[var(--text-secondary)]" />
-            </button>
-            <button
-              disabled
-              title={t("stockStatusTooltip")}
-              className="flex w-[160px] cursor-not-allowed items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 opacity-50"
+              <option value="">{t("categoryLabel")}</option>
+              {categoryOptions.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+            <select
+              value={stockStatusFilter}
+              onChange={(e) => setStockStatusFilter(e.target.value)}
+              className="w-[160px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] text-[var(--text-primary)] outline-none"
             >
-              <span className="text-[13px] text-[var(--text-secondary)]">
-                {t("stockStatusLabel")}
-              </span>
-              <ChevronDown className="h-4 w-4 text-[var(--text-secondary)]" />
-            </button>
+              <option value="">{t("stockStatusLabel")}</option>
+              <option value="in_stock">充足</option>
+              <option value="low_stock">低於安全量</option>
+              <option value="out_of_stock">缺貨</option>
+            </select>
           </div>
 
           <InventoryTable
