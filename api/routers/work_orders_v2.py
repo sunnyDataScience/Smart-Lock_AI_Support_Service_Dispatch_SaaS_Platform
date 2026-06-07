@@ -137,6 +137,7 @@ async def list_work_orders_v2(
     status: str | None = Query(default=None, description="工單狀態（dispatched/completed/refunded/disputed 等）"),
     brand: str | None = Query(default=None, description="品牌過濾（透過 problem_cards.brand）"),
     created_after: str | None = Query(default=None, description="建立時間下限 ISO 8601（例：最近 7 天）"),
+    keyword: str | None = Query(default=None, description="關鍵字搜尋（客戶姓名/地址/電話模糊）"),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
     _cross_tenant_read(user, tenantId)
@@ -150,6 +151,7 @@ async def list_work_orders_v2(
         status=status,
         brand=brand,
         created_after=created_after,
+        keyword=keyword,
     )
     return {
         "items": [WorkOrder(**w).model_dump(mode="json") for w in page["items"]],

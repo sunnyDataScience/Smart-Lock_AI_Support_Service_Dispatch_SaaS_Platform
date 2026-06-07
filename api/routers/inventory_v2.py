@@ -113,6 +113,10 @@ async def list_inventory_items_v2(
         default=None,
         description="platform | brand | locksmith（ADR-0052）",
     ),
+    keyword: str | None = Query(
+        default=None,
+        description="關鍵字搜尋 (name/part_number/supplier 模糊)",
+    ),
     cursor: str | None = Query(default=None, description="上頁末 cursor（opaque base64）"),
     limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(require_tenant),
@@ -131,6 +135,7 @@ async def list_inventory_items_v2(
         stock_status=stock_status,
         category=category,
         owner=owner,
+        keyword=keyword,
     )
 
 

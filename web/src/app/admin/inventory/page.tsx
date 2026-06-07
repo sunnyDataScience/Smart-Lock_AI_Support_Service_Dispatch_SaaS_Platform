@@ -39,6 +39,7 @@ export default function InventoryPage() {
       const params = new URLSearchParams({ limit: String(PAGE_LIMIT) });
       if (categoryFilter) params.set("category", categoryFilter);
       if (stockStatusFilter) params.set("stock_status", stockStatusFilter);
+      if (keyword.trim()) params.set("keyword", keyword.trim());
       const res = await api.get<InventoryItemPage>(
         tenantPath(`/inventory/items?${params.toString()}`),
       );

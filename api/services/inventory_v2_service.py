@@ -167,6 +167,7 @@ async def list_inventory_items_v2(
     stock_status: str | None = None,
     category: str | None = None,
     owner: str | None = None,
+    keyword: str | None = None,
 ) -> dict:
     """cursor 分頁列出 saas.inventory_item，tenant_id 直接過濾。
 
@@ -207,6 +208,13 @@ async def list_inventory_items_v2(
     if owner:
         where.append("i.owner = %s")
         args.append(owner)
+
+    if keyword:
+        where.append(
+            "(i.name ILIKE %s OR i.part_number ILIKE %s OR i.supplier ILIKE %s)"
+        )
+        like = f"%{keyword}%"
+        args.extend([like, like, like])
 
     cur_data = decode_cursor(cursor)
     if cur_data and "ts" in cur_data and "id" in cur_data:

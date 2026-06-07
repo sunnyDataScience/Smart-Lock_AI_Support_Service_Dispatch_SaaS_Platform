@@ -72,6 +72,7 @@ async def list_technicians_v2(
     capability: str | None = Query(default=None, description="專長品牌（capabilities jsonb 包含）"),
     service_region: str | None = Query(default=None, description="服務區域"),
     rating_min: float | None = Query(default=None, ge=0.0, le=5.0, description="最低評分"),
+    keyword: str | None = Query(default=None, description="關鍵字搜尋（name/phone/email 模糊）"),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
@@ -92,6 +93,7 @@ async def list_technicians_v2(
         capability=capability,
         service_region=service_region,
         rating_min=rating_min,
+        keyword=keyword,
     )
     return {
         "items": [Technician(**t).model_dump(mode="json") for t in page["items"]],

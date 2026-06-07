@@ -33,12 +33,14 @@ export default function ProblemCardsPage() {
   const [urgencyFilter, setUrgencyFilter] = useState<string>("");
   const [brandFilter, setBrandFilter] = useState<string>("");
   const [periodFilter, setPeriodFilter] = useState<string>("");
+  const [keyword, setKeyword] = useState<string>("");
 
   const queryString = useMemo(() => {
     const p = new URLSearchParams();
     if (statusFilter) p.set("status", statusFilter);
     if (urgencyFilter) p.set("urgency", urgencyFilter);
     if (brandFilter) p.set("brand", brandFilter);
+    if (keyword.trim()) p.set("keyword", keyword.trim());
     if (periodFilter) {
       const days = parseInt(periodFilter, 10);
       if (!Number.isNaN(days)) {
@@ -48,7 +50,7 @@ export default function ProblemCardsPage() {
     }
     const qs = p.toString();
     return qs ? `?${qs}` : "";
-  }, [statusFilter, urgencyFilter, brandFilter, periodFilter]);
+  }, [statusFilter, urgencyFilter, brandFilter, periodFilter, keyword]);
 
   const { items, cursor, hasMore, loading, error, loadMore } = usePaginatedFetch<ProblemCard>({
     path: `/tenants/${encodeURIComponent(tenantId)}/problem-cards${queryString}`,
@@ -138,13 +140,14 @@ export default function ProblemCardsPage() {
             <option value="90">最近 90 天</option>
           </select>
 
-          <div className="flex h-9 flex-1 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60">
-            <Search className="h-4 w-4 text-[var(--text-disabled)]" />
+          <div className="flex h-9 flex-1 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3">
+            <Search className="h-4 w-4 text-[var(--text-secondary)]" />
             <input
               type="text"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
               placeholder={t("searchPlaceholder")}
-              disabled
-              className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-[var(--text-disabled)] cursor-not-allowed"
+              className="flex-1 bg-transparent text-[13px] outline-none"
             />
           </div>
         </div>
