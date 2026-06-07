@@ -84,6 +84,7 @@ async def list_technicians(
     capability: str | None = None,
     service_region: str | None = None,
     rating_min: float | None = None,
+    keyword: str | None = None,
 ) -> dict:
     """GET /technicians — 管理員視角，cursor 分頁。
 
@@ -112,6 +113,13 @@ async def list_technicians(
     if rating_min is not None:
         where.append("t.rating >= %s")
         args.append(rating_min)
+
+    if keyword:
+        where.append(
+            "(t.name ILIKE %s OR t.phone ILIKE %s OR t.email ILIKE %s)"
+        )
+        like = f"%{keyword}%"
+        args.extend([like, like, like])
 
     cur_data = decode_cursor(cursor)
     if cur_data and "ts" in cur_data and "id" in cur_data:

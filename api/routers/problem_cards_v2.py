@@ -61,6 +61,7 @@ async def list_problem_cards_v2(
     urgency: str | None = Query(default=None, description="緊急度（low/normal/high/critical）"),
     brand: str | None = Query(default=None, description="品牌過濾"),
     created_after: str | None = Query(default=None, description="建立時間下限 ISO 8601"),
+    keyword: str | None = Query(default=None, description="關鍵字搜尋（location/brand/model 模糊）"),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
@@ -80,6 +81,7 @@ async def list_problem_cards_v2(
         urgency=urgency,
         brand=brand,
         created_after=created_after,
+        keyword=keyword,
     )
     return {
         "items": [ProblemCard(**c).model_dump(mode="json") for c in page["items"]],

@@ -39,6 +39,7 @@ export default function TechniciansPage() {
   const [capabilityFilter, setCapabilityFilter] = useState<string>("");
   const [regionFilter, setRegionFilter] = useState<string>("");
   const [ratingMinFilter, setRatingMinFilter] = useState<string>("");
+  const [keyword, setKeyword] = useState<string>("");
 
   const queryString = useMemo(() => {
     const p = new URLSearchParams();
@@ -46,9 +47,10 @@ export default function TechniciansPage() {
     if (capabilityFilter) p.set("capability", capabilityFilter);
     if (regionFilter) p.set("service_region", regionFilter);
     if (ratingMinFilter) p.set("rating_min", ratingMinFilter);
+    if (keyword.trim()) p.set("keyword", keyword.trim());
     const qs = p.toString();
     return qs ? `?${qs}` : "";
-  }, [statusFilter, capabilityFilter, regionFilter, ratingMinFilter]);
+  }, [statusFilter, capabilityFilter, regionFilter, ratingMinFilter, keyword]);
 
   const { items, cursor, hasMore, loading, error, loadMore } = usePaginatedFetch<Technician>({
     path: `/tenants/${encodeURIComponent(tenantId)}/technicians${queryString}`,
@@ -105,14 +107,14 @@ export default function TechniciansPage() {
 
         {/* Filter Toolbar */}
         <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-3">
-          {/* Search disabled */}
-          <div className="flex h-[38px] w-[280px] items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60">
-            <Search className="h-4 w-4 text-[var(--text-disabled)]" />
+          <div className="flex h-[38px] w-[280px] items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3">
+            <Search className="h-4 w-4 text-[var(--text-secondary)]" />
             <input
               type="text"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
               placeholder={t("searchPlaceholder")}
-              disabled
-              className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-[var(--text-disabled)] cursor-not-allowed"
+              className="flex-1 bg-transparent text-[13px] outline-none"
             />
           </div>
 

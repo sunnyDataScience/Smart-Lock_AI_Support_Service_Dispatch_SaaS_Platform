@@ -119,6 +119,7 @@ async def list_orders(
     status: str | None = None,
     brand: str | None = None,
     created_after: str | None = None,
+    keyword: str | None = None,
 ) -> dict:
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
@@ -145,6 +146,14 @@ async def list_orders(
     if created_after:
         where.append("wo.created_at >= %s::timestamptz")
         args.append(created_after)
+
+    if keyword:
+        where.append(
+            "(wo.customer_name ILIKE %s OR wo.customer_address ILIKE %s "
+            "OR wo.customer_phone ILIKE %s)"
+        )
+        like = f"%{keyword}%"
+        args.extend([like, like, like])
 
     cur_data = decode_cursor(cursor)
     if cur_data and "ts" in cur_data and "id" in cur_data:

@@ -49,6 +49,7 @@ export default function WorkOrdersPage() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [brandFilter, setBrandFilter] = useState<string>("");
   const [periodFilter, setPeriodFilter] = useState<string>(""); // 7/30/all
+  const [keyword, setKeyword] = useState<string>("");
 
   const filterDropdowns = useMemo(
     () => FILTER_DROPDOWN_DEFS.map((d) => ({ ...d, label: tFilters(d.key) })),
@@ -63,6 +64,7 @@ export default function WorkOrdersPage() {
     const p = new URLSearchParams();
     if (statusFilter) p.set("status", statusFilter);
     if (brandFilter) p.set("brand", brandFilter);
+    if (keyword.trim()) p.set("keyword", keyword.trim());
     if (periodFilter) {
       const days = parseInt(periodFilter, 10);
       if (!Number.isNaN(days)) {
@@ -72,7 +74,7 @@ export default function WorkOrdersPage() {
     }
     const qs = p.toString();
     return qs ? `?${qs}` : "";
-  }, [statusFilter, brandFilter, periodFilter]);
+  }, [statusFilter, brandFilter, periodFilter, keyword]);
 
   // P3：全 cutover 至 tenant-scoped v2 路徑（tenantPath 同步解析 tenantId）。
   const { items, cursor, hasMore, loading, error, loadMore } = usePaginatedFetch<WorkOrder>({
@@ -116,14 +118,14 @@ export default function WorkOrdersPage() {
 
         {/* Toolbar */}
         <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-3">
-          {/* Search (client-side filter on item.brand + customer，留待 backend keyword endpoint) */}
-          <div className="flex h-9 w-[280px] items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60">
-            <Search className="h-4 w-4 text-[var(--text-disabled)]" />
+          <div className="flex h-9 w-[280px] items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3">
+            <Search className="h-4 w-4 text-[var(--text-secondary)]" />
             <input
               type="text"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
               placeholder={t("searchPlaceholder")}
-              disabled
-              className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-[var(--text-disabled)] cursor-not-allowed"
+              className="flex-1 bg-transparent text-[13px] outline-none"
             />
           </div>
 
