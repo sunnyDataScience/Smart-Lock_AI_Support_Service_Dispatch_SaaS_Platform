@@ -50,15 +50,15 @@
 
 ---
 
-## 1C. 工單管理 view（列表 / 看板 / 地圖）（**06-07 新增工單 modal**）
+## 1C. 工單管理 view（列表 / 看板 / 地圖）（**06-07 新增工單 modal + filter wire-up**）
 
 | 區塊 | 狀態 | 資料來源 |
 | :--- | :--- | :--- |
 | 工單列表 `/work-orders`（cursor 分頁 + status / brand / period / keyword filter） | ✅ | `listWorkOrdersV2` |
-| 工單看板 `/work-orders/kanban`（依 status 分欄） | ✅ | 同上 client-side group |
-| 工單地圖 `/work-orders/map`（地址 → 標記 + side panel） | ✅ | 同上 + Google Maps |
+| 工單看板 `/work-orders/kanban`（依 status 分欄）+ 4 filter (keyword/status/period/brand) | ✅ | 同 listWorkOrdersV2 + 前端 useMemo queryObj |
+| 工單地圖 `/work-orders/map`（地址 → 標記 + side panel）+ 4 filter | ✅ | 同上 + Google Maps |
+| 地圖 SLA 排序 toggle | ✅ | 前端 client-side sort by `scheduled_at` ASC (null 排最後) |
 | 新增工單 modal（3 view 共用） | ✅ | backend `createWorkOrderV2` POST `/tenants/{tid}/work-orders` + 前端 `CreateWorkOrderModal`：兩步驟 flow（pick problem card → 填客戶資訊）+ keyword 搜尋（listProblemCardsV2 ILIKE location/brand/model）+ urgency badge + symptom preview |
-| 看板 / 地圖 view 上方 filter（狀態 / 期間 / 品牌） | 🟡 | 列表 view 已啟用；看板 / 地圖共用 data 但需 wire up sticker（UX polish） |
 | 地圖「指派技師」row-level CTA | 🟡 | 與 dispatch-manual 重複，留待 view 內 quick action 設計 |
 
 ---

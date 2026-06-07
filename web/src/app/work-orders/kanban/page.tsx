@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
-  ChevronDown,
-  Calendar,
   List,
   Columns3,
   Map,
@@ -22,12 +20,6 @@ type WorkOrderPage = components["schemas"]["WorkOrderPage"];
 
 const PAGE_SIZE = 100;
 
-const filterDropdowns = [
-  { label: "狀態", icon: null },
-  { label: "最近 7 天", icon: Calendar },
-  { label: "品牌", icon: null },
-];
-
 const viewTabs = [
   { label: "列表", icon: List, active: false, href: "/work-orders" },
   { label: "看板", icon: Columns3, active: true, href: "/work-orders/kanban" },
@@ -40,12 +32,33 @@ export default function WorkOrdersKanbanPage() {
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [periodFilter, setPeriodFilter] = useState<string>("");
+  const [brandFilter, setBrandFilter] = useState<string>("");
+  const [keyword, setKeyword] = useState<string>("");
+
+  const queryObj = useMemo(() => {
+    const q: Record<string, string | number> = { limit: PAGE_SIZE };
+    if (statusFilter) q.status = statusFilter;
+    if (brandFilter) q.brand = brandFilter;
+    if (keyword.trim()) q.keyword = keyword.trim();
+    if (periodFilter) {
+      const days = parseInt(periodFilter, 10);
+      if (!Number.isNaN(days)) {
+        q.created_after = new Date(
+          Date.now() - days * 24 * 3600 * 1000,
+        ).toISOString();
+      }
+    }
+    return q;
+  }, [statusFilter, periodFilter, brandFilter, keyword]);
+
   const fetchOrders = async () => {
     setLoading(true);
     setError(null);
     try {
       const res = await api.get<WorkOrderPage>(tenantPath("/work-orders"), {
-        query: { limit: PAGE_SIZE },
+        query: queryObj,
       });
       const newItems: WorkOrder[] = res.items ?? [];
       setItems(newItems);
@@ -64,7 +77,16 @@ export default function WorkOrdersKanbanPage() {
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter, periodFilter, brandFilter, keyword]);
+
+  const brandOptions = useMemo(() => {
+    const set = new Set<string>();
+    items.forEach((wo: any) => {
+      if (wo.brand) set.add(wo.brand);
+    });
+    return Array.from(set).sort();
+  }, [items]);
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -92,32 +114,52 @@ export default function WorkOrdersKanbanPage() {
         </div>
 
         <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-3">
-          <div className="flex h-9 w-[280px] items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60">
-            <Search className="h-4 w-4 text-[var(--text-disabled)]" />
+          <div className="flex h-9 w-[280px] items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3">
+            <Search className="h-4 w-4 text-[var(--text-secondary)]" />
             <input
               type="text"
-              disabled
-              placeholder="搜尋功能即將推出"
-              className="flex-1 cursor-not-allowed bg-transparent text-[13px] outline-none placeholder:text-[var(--text-disabled)]"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              placeholder="搜尋客戶 / 地址 / 電話"
+              className="flex-1 bg-transparent text-[13px] outline-none"
             />
           </div>
 
-          {filterDropdowns.map((dd) => (
-            <button
-              key={dd.label}
-              disabled
-              title="即將推出"
-              className="flex h-9 cursor-not-allowed items-center gap-[6px] rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60"
-            >
-              {dd.icon && (
-                <dd.icon className="h-[14px] w-[14px] text-[var(--text-disabled)]" />
-              )}
-              <span className="text-[13px] text-[var(--text-disabled)]">
-                {dd.label}
-              </span>
-              <ChevronDown className="h-[14px] w-[14px] text-[var(--text-disabled)]" />
-            </button>
-          ))}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-9 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
+          >
+            <option value="">狀態</option>
+            <option value="dispatched">已派工</option>
+            <option value="completed">已完工</option>
+            <option value="refunded">已退款</option>
+            <option value="disputed">爭議中</option>
+          </select>
+
+          <select
+            value={periodFilter}
+            onChange={(e) => setPeriodFilter(e.target.value)}
+            className="h-9 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
+          >
+            <option value="">最近 7 天</option>
+            <option value="7">最近 7 天</option>
+            <option value="30">最近 30 天</option>
+            <option value="90">最近 90 天</option>
+          </select>
+
+          <select
+            value={brandFilter}
+            onChange={(e) => setBrandFilter(e.target.value)}
+            className="h-9 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
+          >
+            <option value="">品牌</option>
+            {brandOptions.map((b) => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
+          </select>
 
           <div className="flex-1" />
 
