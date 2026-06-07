@@ -57,6 +57,10 @@ async def list_problem_cards_v2(
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     conversation_id: str | None = Query(default=None, description="過濾特定對話下的問題卡"),
+    status: str | None = Query(default=None, description="狀態（incomplete/complete/resolved 等）"),
+    urgency: str | None = Query(default=None, description="緊急度（low/normal/high/critical）"),
+    brand: str | None = Query(default=None, description="品牌過濾"),
+    created_after: str | None = Query(default=None, description="建立時間下限 ISO 8601"),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
@@ -72,6 +76,10 @@ async def list_problem_cards_v2(
         cursor=cursor,
         limit=limit,
         conversation_id=conversation_id,
+        status=status,
+        urgency=urgency,
+        brand=brand,
+        created_after=created_after,
     )
     return {
         "items": [ProblemCard(**c).model_dump(mode="json") for c in page["items"]],

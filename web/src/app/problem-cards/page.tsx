@@ -7,6 +7,7 @@ import { ApiError, getCurrentSession } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
+import { useMemo, useState } from "react";
 
 type ProblemCard = components["schemas"]["ProblemCard"];
 
@@ -28,11 +29,40 @@ export default function ProblemCardsPage() {
   const session = getCurrentSession();
   const tenantId = session?.tenantId ?? "00000000-0000-0000-0000-000000000001";
 
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [urgencyFilter, setUrgencyFilter] = useState<string>("");
+  const [brandFilter, setBrandFilter] = useState<string>("");
+  const [periodFilter, setPeriodFilter] = useState<string>("");
+
+  const queryString = useMemo(() => {
+    const p = new URLSearchParams();
+    if (statusFilter) p.set("status", statusFilter);
+    if (urgencyFilter) p.set("urgency", urgencyFilter);
+    if (brandFilter) p.set("brand", brandFilter);
+    if (periodFilter) {
+      const days = parseInt(periodFilter, 10);
+      if (!Number.isNaN(days)) {
+        const since = new Date(Date.now() - days * 24 * 3600 * 1000);
+        p.set("created_after", since.toISOString());
+      }
+    }
+    const qs = p.toString();
+    return qs ? `?${qs}` : "";
+  }, [statusFilter, urgencyFilter, brandFilter, periodFilter]);
+
   const { items, cursor, hasMore, loading, error, loadMore } = usePaginatedFetch<ProblemCard>({
-    path: `/tenants/${encodeURIComponent(tenantId)}/problem-cards`,
+    path: `/tenants/${encodeURIComponent(tenantId)}/problem-cards${queryString}`,
     pageSize: PAGE_SIZE,
     formatError: formatProblemCardError,
   });
+
+  const brandOptions = useMemo(() => {
+    const set = new Set<string>();
+    items.forEach((c: any) => {
+      if (c.brand) set.add(c.brand);
+    });
+    return Array.from(set).sort();
+  }, [items]);
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -61,27 +91,52 @@ export default function ProblemCardsPage() {
         </div>
 
         <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-4">
-          {FILTER_KEYS.map((key) => (
-            <button
-              key={key}
-              disabled
-              title={t("comingSoonTitle")}
-              className="flex h-9 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60 cursor-not-allowed"
-            >
-              <span className="text-[13px] text-[var(--text-secondary)]">{tFilters(key)}</span>
-              <ChevronDown className="h-4 w-4 text-[var(--text-secondary)]" />
-            </button>
-          ))}
-
-          <button
-            disabled
-            title={t("comingSoonTitle")}
-            className="flex h-9 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60 cursor-not-allowed"
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-9 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
           >
-            <Calendar className="h-4 w-4 text-[var(--text-secondary)]" />
-            <span className="text-[13px] text-[var(--text-secondary)]">{tFilters("dateRange")}</span>
-            <ChevronDown className="h-4 w-4 text-[var(--text-secondary)]" />
-          </button>
+            <option value="">{tFilters("status")}</option>
+            <option value="incomplete">未完成</option>
+            <option value="complete">已完成</option>
+            <option value="resolved">已處理</option>
+          </select>
+
+          <select
+            value={urgencyFilter}
+            onChange={(e) => setUrgencyFilter(e.target.value)}
+            className="h-9 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
+          >
+            <option value="">{tFilters("urgency")}</option>
+            <option value="low">低</option>
+            <option value="normal">一般</option>
+            <option value="high">高</option>
+            <option value="critical">緊急</option>
+          </select>
+
+          <select
+            value={brandFilter}
+            onChange={(e) => setBrandFilter(e.target.value)}
+            className="h-9 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
+          >
+            <option value="">{tFilters("brand")}</option>
+            {brandOptions.map((b) => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={periodFilter}
+            onChange={(e) => setPeriodFilter(e.target.value)}
+            className="h-9 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
+          >
+            <option value="">{tFilters("dateRange")}</option>
+            <option value="7">最近 7 天</option>
+            <option value="30">最近 30 天</option>
+            <option value="90">最近 90 天</option>
+          </select>
 
           <div className="flex h-9 flex-1 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60">
             <Search className="h-4 w-4 text-[var(--text-disabled)]" />
