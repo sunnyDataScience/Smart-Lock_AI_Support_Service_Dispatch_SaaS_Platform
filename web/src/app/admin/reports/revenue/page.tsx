@@ -27,12 +27,12 @@ type RevenueSummary = components["schemas"]["RevenueSummary"];
 type RevenueTrendPoint = components["schemas"]["RevenueTrendPoint"];
 type RevenueByBrandPoint = components["schemas"]["RevenueByBrandPoint"];
 
-const segments = [
-  { label: "日", active: false },
-  { label: "週", active: false },
-  { label: "月", active: true },
-  { label: "季", active: false },
-];
+const SEGMENTS = [
+  { label: "日", value: "day" },
+  { label: "週", value: "week" },
+  { label: "月", value: "month" },
+  { label: "季", value: "quarter" },
+] as const;
 
 const formatRevenueAxis = (value: number) => {
   if (value === 0) return "0";
@@ -93,15 +93,18 @@ export default function RevenueReportPage() {
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const [granularity, setGranularity] = useState<"day" | "week" | "month" | "quarter">("month");
 
   const fetchSummary = async () => {
     setLoading(true);
     setError(null);
     try {
       // v2 tenant-scoped path（FR-0021 / CR-0003 P2-W1）
+      // backend 支援 day/week/month；quarter fallback 至 month
+      const apiGranularity = granularity === "quarter" ? "month" : granularity;
       const res = await api.get<RevenueSummary>(
         tenantPath("/reports/revenue"),
-        { query: { granularity: "month" } },
+        { query: { granularity: apiGranularity } },
       );
       setSummary(res);
       setUpdatedAt(new Date());
@@ -120,7 +123,8 @@ export default function RevenueReportPage() {
 
   useEffect(() => {
     fetchSummary();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [granularity]);
 
   const trend = summary?.trend ?? [];
   const byBrand = summary?.by_brand ?? [];
@@ -174,15 +178,15 @@ export default function RevenueReportPage() {
 
           <div className="flex items-center gap-3">
             <div className="flex rounded-lg bg-[#E2E8F0] p-[3px]">
-              {segments.map((seg) => (
+              {SEGMENTS.map((seg) => (
                 <button
-                  key={seg.label}
-                  disabled={!seg.active}
-                  title={seg.active ? "" : "即將推出"}
+                  key={seg.value}
+                  onClick={() => setGranularity(seg.value)}
+                  title={seg.value === "quarter" ? "後端 fallback 至月" : undefined}
                   className={`rounded-md px-[14px] py-[6px] text-[13px] ${
-                    seg.active
+                    seg.value === granularity
                       ? "bg-[var(--primary)] font-semibold text-white"
-                      : "cursor-not-allowed text-[var(--text-disabled)] opacity-60"
+                      : "text-[var(--text-secondary)] hover:bg-white"
                   }`}
                 >
                   {seg.label}
