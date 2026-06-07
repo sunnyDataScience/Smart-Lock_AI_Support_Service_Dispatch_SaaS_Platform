@@ -58,8 +58,8 @@ export default function RevenuePage() {
 
   const segments = useMemo(
     () => [
-      { label: tR("segDay"), value: "day", enabled: false },
-      { label: tR("segWeek"), value: "week", enabled: false },
+      { label: tR("segDay"), value: "day", enabled: true },
+      { label: tR("segWeek"), value: "week", enabled: true },
       { label: tR("segMonth"), value: "month", enabled: true },
     ],
     [tR],
@@ -68,13 +68,14 @@ export default function RevenuePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [granularity, setGranularity] = useState<"day" | "week" | "month">("month");
 
   const fetchSummary = async () => {
     setLoading(true);
     setError(null);
     try {
       const res = await api.get<RevenueSummary>(tenantPath("/reports/revenue"), {
-        query: { granularity: "month" },
+        query: { granularity },
       });
       setData(res);
       setUpdatedAt(new Date());
@@ -93,7 +94,8 @@ export default function RevenuePage() {
 
   useEffect(() => {
     fetchSummary();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [granularity]);
 
   const kpis = data?.kpis;
   const kpiCards = [
@@ -263,14 +265,11 @@ export default function RevenuePage() {
                 {segments.map((seg) => (
                   <button
                     key={seg.label}
-                    disabled={!seg.enabled}
-                    title={seg.enabled ? undefined : tCommon("comingSoon")}
+                    onClick={() => setGranularity(seg.value as "day" | "week" | "month")}
                     className={`rounded-md px-4 py-2 text-[13px] ${
-                      seg.enabled && seg.value === data?.granularity
+                      seg.value === granularity
                         ? "bg-[var(--primary)] font-semibold text-white"
-                        : seg.enabled
-                          ? "font-medium text-[var(--text-secondary)]"
-                          : "cursor-not-allowed font-medium text-[var(--text-disabled)] opacity-60"
+                        : "font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
                     }`}
                   >
                     {seg.label}
