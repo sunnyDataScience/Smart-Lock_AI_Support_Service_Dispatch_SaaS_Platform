@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Image as ImageIcon, ChevronDown, RefreshCw } from "lucide-react";
+import { Image as ImageIcon, RefreshCw, FileText, AlertCircle } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import DisputesTable from "@/components/admin/DisputesTable";
 import { ApiError, api, tenantPath } from "@/lib/api";
+import { useToast } from "@/components/ui/Toast";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
@@ -12,6 +13,19 @@ type Dispute = components["schemas"]["Dispute"];
 type DisputePage = components["schemas"]["DisputePage"];
 type DisputeStatus = components["schemas"]["DisputeStatus"];
 type DisputeType = components["schemas"]["DisputeType"];
+
+type DisputeMediaFile = {
+  id: string;
+  url: string;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+  purpose: string;
+  dispute_id: string | null;
+  created_at: string;
+};
+
+type DisputeMediaPage = { items?: DisputeMediaFile[]; next_cursor?: string | null };
 
 interface StatusTab {
   value: DisputeStatus | "all";
@@ -33,47 +47,54 @@ const typeBadges: { value: DisputeType; textColor: string; bgColor: string }[] =
   { value: "settlement", textColor: "#DB2777", bgColor: "#FCE7F3" },
 ];
 
-function formatTwd(amount: string | null | undefined): string {
-  if (!amount) return "—";
+function formatTwd(amount: string | number | null | undefined): string {
+  if (amount == null || amount === "") return "—";
   const n = Number(amount);
   if (!Number.isFinite(n)) return `NT$ ${amount}`;
   return `NT$ ${n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
-function ImagePlaceholder() {
-  return (
-    <div className="flex h-[90px] w-[120px] items-center justify-center rounded-md bg-[#E2E8F0]">
-      <ImageIcon className="h-6 w-6 text-[var(--text-disabled)]" />
-    </div>
-  );
-}
-
-function evidenceItems(evidence: Dispute["evidence"], side: "customer" | "technician"): unknown[] {
-  if (!evidence || typeof evidence !== "object" || Array.isArray(evidence)) return [];
-  const node = (evidence as Record<string, unknown>)[side];
-  return Array.isArray(node) ? node : [];
+function isImage(contentType: string): boolean {
+  return contentType.startsWith("image/");
 }
 
 export default function DisputesPage() {
   const t = useTranslations("admin.disputes");
   const tc = useTranslations("admin.common");
+  const { toast } = useToast();
+
   const [activeTab, setActiveTab] = useState<StatusTab["value"]>("all");
+  const [typeFilter, setTypeFilter] = useState<DisputeType | null>(null);
   const [items, setItems] = useState<Dispute[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const fetchDisputes = async (status: StatusTab["value"]) => {
+  const [media, setMedia] = useState<DisputeMediaFile[]>([]);
+
+  const [resolutionNote, setResolutionNote] = useState("");
+  const [resolutionAmount, setResolutionAmount] = useState<string>("");
+  const [toMediation, setToMediation] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const fetchDisputes = async (
+    status: StatusTab["value"],
+    type: DisputeType | null,
+  ) => {
     setLoading(true);
     setError(null);
     try {
       const query: Record<string, string | number> = { limit: 50 };
       if (status !== "all") query.status = status;
+      if (type) query.dispute_type = type;
       const res = await api.get<DisputePage>(tenantPath("/disputes"), { query });
       const newItems: Dispute[] = res.items ?? [];
       setItems(newItems);
-      setSelectedId((prev) => (prev && newItems.some((i) => i.id === prev) ? prev : newItems[0]?.id ?? null));
+      setSelectedId((prev) =>
+        prev && newItems.some((i) => i.id === prev) ? prev : newItems[0]?.id ?? null,
+      );
       setUpdatedAt(new Date());
     } catch (e) {
       setError(
@@ -89,13 +110,114 @@ export default function DisputesPage() {
   };
 
   useEffect(() => {
-    fetchDisputes(activeTab);
-  }, [activeTab]);
+    fetchDisputes(activeTab, typeFilter);
+  }, [activeTab, typeFilter]);
 
   const selected = useMemo(
     () => items.find((i) => i.id === selectedId) ?? null,
     [items, selectedId],
   );
+
+  // load media for selected dispute
+  useEffect(() => {
+    if (!selectedId) {
+      setMedia([]);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      try {
+        const res = await api.get<DisputeMediaPage>(
+          tenantPath(`/disputes/${encodeURIComponent(selectedId)}/media`),
+        );
+        if (alive) setMedia(res.items ?? []);
+      } catch {
+        if (alive) setMedia([]);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [selectedId]);
+
+  // reset form when selection changes
+  useEffect(() => {
+    setResolutionNote("");
+    setResolutionAmount(selected?.resolution_amount ? String(selected.resolution_amount) : "");
+    setToMediation(false);
+    setFormError(null);
+  }, [selectedId, selected?.resolution_amount]);
+
+  const customerEvidence = media.filter((m) => m.purpose === "dispute_evidence_customer");
+  const technicianEvidence = media.filter((m) => m.purpose === "dispute_evidence_technician");
+
+  // 決定可下動作
+  const selStatus = selected?.status as string | undefined;
+  const canReview = selStatus === "filed";
+  const canCoSign = selStatus === "in_review" || selStatus === "mediation";
+  const canAct = canReview || canCoSign;
+
+  async function handleSubmit() {
+    if (!selected) return;
+    setFormError(null);
+
+    const note = resolutionNote.trim();
+    const amountStr = resolutionAmount.trim();
+    const amount = amountStr ? Number(amountStr) : null;
+    if (amount != null && !Number.isFinite(amount)) {
+      setFormError("金額格式錯誤");
+      return;
+    }
+
+    if (canCoSign && note.length < 5) {
+      setFormError("最終決議至少 5 字");
+      return;
+    }
+    if (canReview && note.length < 1) {
+      setFormError("CSM 提案不可為空");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      if (canCoSign) {
+        await api.post(
+          tenantPath(`/disputes/${encodeURIComponent(selected.id)}:co-sign`),
+          { resolution: note, resolution_amount: amount },
+        );
+        toast({
+          variant: "success",
+          title: "已 co-sign 結案",
+          description: `${selected.id.slice(0, 8)} → resolved`,
+        });
+      } else if (canReview) {
+        await api.post(
+          tenantPath(`/disputes/${encodeURIComponent(selected.id)}:review`),
+          {
+            proposed_resolution: note,
+            resolution_amount: amount,
+            to_mediation: toMediation,
+          },
+        );
+        toast({
+          variant: "success",
+          title: toMediation ? "已轉調解" : "已送 CSM 提案",
+          description: `${selected.id.slice(0, 8)} → ${toMediation ? "mediation" : "in_review"}`,
+        });
+      }
+      await fetchDisputes(activeTab, typeFilter);
+    } catch (e) {
+      const msg =
+        e instanceof ApiError
+          ? `${e.errorCode} (${e.status})：${e.message}`
+          : e instanceof Error
+            ? e.message
+            : String(e);
+      setFormError(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -108,7 +230,7 @@ export default function DisputesPage() {
               {t("title")}
             </h1>
             <button
-              onClick={() => fetchDisputes(activeTab)}
+              onClick={() => fetchDisputes(activeTab, typeFilter)}
               disabled={loading}
               className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
               title={tc("refresh")}
@@ -154,18 +276,36 @@ export default function DisputesPage() {
                 {t("type.label")}
               </span>
               <div className="flex items-center gap-2">
-                {typeBadges.map((badge) => (
-                  <span
-                    key={badge.value}
-                    className="rounded-xl px-3 py-1 text-xs font-medium"
-                    style={{
-                      color: badge.textColor,
-                      backgroundColor: badge.bgColor,
-                    }}
+                {typeBadges.map((badge) => {
+                  const active = typeFilter === badge.value;
+                  return (
+                    <button
+                      key={badge.value}
+                      type="button"
+                      onClick={() =>
+                        setTypeFilter(active ? null : badge.value)
+                      }
+                      className={`rounded-xl px-3 py-1 text-xs font-medium transition ${
+                        active ? "ring-2 ring-[var(--primary)] ring-offset-1" : "hover:opacity-80"
+                      }`}
+                      style={{
+                        color: badge.textColor,
+                        backgroundColor: badge.bgColor,
+                      }}
+                    >
+                      {t(`type.${badge.value}`)}
+                    </button>
+                  );
+                })}
+                {typeFilter && (
+                  <button
+                    type="button"
+                    onClick={() => setTypeFilter(null)}
+                    className="ml-1 rounded-xl border border-[var(--border)] bg-white px-2 py-1 text-[11px] text-[var(--text-secondary)] hover:bg-[#F8FAFC]"
                   >
-                    {t(`type.${badge.value}`)}
-                  </span>
-                ))}
+                    清除類型
+                  </button>
+                )}
               </div>
             </div>
 
@@ -220,120 +360,173 @@ export default function DisputesPage() {
             </div>
           )}
 
-          {/* Evidence Panel — UI 示意（待證據上傳路徑上線） */}
-          <div className="flex overflow-hidden rounded-lg border-l-4 border-l-[#BFDBFE] bg-[var(--bg-surface)] opacity-90">
-            <div className="flex flex-1 flex-col gap-3 p-5">
-              <div className="flex items-center justify-between">
-                <span className="text-[15px] font-semibold text-[#2563EB]">
-                  {t("evidence.customer")}
-                </span>
-                <span className="text-[11px] text-[var(--text-disabled)]">
-                  {selected
-                    ? t("evidence.countComing", { count: evidenceItems(selected.evidence, "customer").length })
-                    : "—"}
-                </span>
-              </div>
-              <div className="flex gap-[10px]">
-                <ImagePlaceholder />
-                <ImagePlaceholder />
-              </div>
-              <p className="text-[13px] leading-[1.5] text-[var(--text-disabled)]">
-                {t("evidence.thumbnailPending")}
-              </p>
-            </div>
-
-            <div className="w-px bg-[var(--border)]" />
-
-            <div className="flex flex-1 flex-col gap-3 p-5">
-              <div className="flex items-center justify-between">
-                <span className="text-[15px] font-semibold text-[#D97706]">
-                  {t("evidence.technician")}
-                </span>
-                <span className="text-[11px] text-[var(--text-disabled)]">
-                  {selected
-                    ? t("evidence.countComing", { count: evidenceItems(selected.evidence, "technician").length })
-                    : "—"}
-                </span>
-              </div>
-              <div className="flex gap-[10px]">
-                <ImagePlaceholder />
-                <ImagePlaceholder />
-              </div>
-              <p className="text-[13px] leading-[1.5] text-[var(--text-disabled)]">
-                {t("evidence.thumbnailPending")}
-              </p>
-            </div>
-          </div>
-
-          {/* Resolution Form — disabled until submitDisputeResolution */}
-          <div className="flex flex-col gap-4 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-5">
-            <div className="flex items-center justify-between">
-              <span className="text-base font-semibold text-[var(--text-primary)]">
-                {t("form.title")}
-              </span>
-              <span className="rounded-full bg-[#F1F5F9] px-3 py-1 text-[11px] font-medium text-[var(--text-secondary)]">
-                {tc("comingSoon")}
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-[6px]">
-              <span className="text-[13px] font-medium text-[var(--text-primary)]">
-                {t("form.noteLabel")}
-              </span>
-              <textarea
-                disabled
-                placeholder={t("form.notePlaceholder")}
-                className="h-[100px] resize-none cursor-not-allowed rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 py-3 text-[13px] text-[var(--text-disabled)] outline-none placeholder:text-[var(--text-disabled)] opacity-60"
+          {/* Evidence Panel — 接 listMediaForDisputeV2 */}
+          {selected && (
+            <div className="flex overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
+              <EvidenceSection
+                titleColor="#2563EB"
+                title={t("evidence.customer")}
+                files={customerEvidence}
+              />
+              <div className="w-px bg-[var(--border)]" />
+              <EvidenceSection
+                titleColor="#D97706"
+                title={t("evidence.technician")}
+                files={technicianEvidence}
               />
             </div>
+          )}
 
-            <div className="flex gap-4">
-              <div className="flex flex-1 flex-col gap-[6px]">
-                <span className="text-[13px] font-medium text-[var(--text-primary)]">
-                  {t("form.amountLabel")}
+          {/* Resolution Form */}
+          {selected && (
+            <div className="flex flex-col gap-4 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-5">
+              <div className="flex items-center justify-between">
+                <span className="text-base font-semibold text-[var(--text-primary)]">
+                  {t("form.title")}
                 </span>
-                <input
-                  disabled
-                  type="text"
-                  defaultValue={selected?.resolution_amount ?? ""}
-                  className="h-10 cursor-not-allowed rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-disabled)] outline-none opacity-60"
+                {canAct ? (
+                  <span className="rounded-full bg-[#DBEAFE] px-3 py-1 text-[11px] font-medium text-[#1E40AF]">
+                    {canCoSign ? "step-2 Ops Manager co-sign" : "step-1 CSM review"}
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-[#F1F5F9] px-3 py-1 text-[11px] font-medium text-[var(--text-secondary)]">
+                    {selected.status === "resolved" ? "已結案" : selected.status === "rejected" ? "已駁回" : "不可在此狀態送出"}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-[6px]">
+                <span className="text-[13px] font-medium text-[var(--text-primary)]">
+                  {canCoSign ? "最終決議（≥ 5 字）" : "CSM 提案"}
+                </span>
+                <textarea
+                  value={resolutionNote}
+                  onChange={(e) => setResolutionNote(e.target.value)}
+                  disabled={!canAct || submitting}
+                  placeholder={canCoSign ? "說明最終處理方案..." : "說明 CSM 提案..."}
+                  className="h-[100px] resize-none rounded-md border border-[var(--border)] bg-white px-3 py-3 text-[13px] outline-none disabled:cursor-not-allowed disabled:bg-[var(--bg-page)] disabled:text-[var(--text-disabled)]"
                 />
               </div>
-              <div className="flex flex-1 flex-col gap-[6px]">
-                <span className="text-[13px] font-medium text-[var(--text-primary)]">
-                  {t("form.methodLabel")}
-                </span>
-                <button
-                  disabled
-                  className="flex h-10 cursor-not-allowed items-center justify-between rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60"
-                >
-                  <span className="text-[13px] text-[var(--text-disabled)]">
-                    {t("form.methodPlaceholder")}
+
+              <div className="flex gap-4">
+                <div className="flex flex-1 flex-col gap-[6px]">
+                  <span className="text-[13px] font-medium text-[var(--text-primary)]">
+                    解決金額（選填）
                   </span>
-                  <ChevronDown className="h-4 w-4 text-[var(--text-disabled)]" />
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={resolutionAmount}
+                    onChange={(e) => setResolutionAmount(e.target.value)}
+                    disabled={!canAct || submitting}
+                    placeholder="正值補償客戶；負值記為平台應收"
+                    className="h-10 rounded-md border border-[var(--border)] bg-white px-3 text-[13px] outline-none disabled:cursor-not-allowed disabled:bg-[var(--bg-page)] disabled:text-[var(--text-disabled)]"
+                  />
+                </div>
+
+                {canReview && (
+                  <div className="flex flex-1 flex-col gap-[6px]">
+                    <span className="text-[13px] font-medium text-[var(--text-primary)]">
+                      Review 結果
+                    </span>
+                    <label className="flex h-10 items-center gap-2 rounded-md border border-[var(--border)] bg-white px-3">
+                      <input
+                        type="checkbox"
+                        checked={toMediation}
+                        onChange={(e) => setToMediation(e.target.checked)}
+                        disabled={submitting}
+                      />
+                      <span className="text-[13px] text-[var(--text-primary)]">
+                        進入調解（不勾則 in_review）
+                      </span>
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              {formError && (
+                <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-2 text-sm text-red-700">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{formError}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={!canAct || submitting}
+                  className="rounded-md bg-[var(--primary)] px-5 py-[10px] text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {submitting
+                    ? "送出中…"
+                    : canCoSign
+                      ? "Co-Sign 結案"
+                      : toMediation
+                        ? "送 CSM 提案 + 轉調解"
+                        : "送 CSM 提案"}
                 </button>
               </div>
             </div>
-
-            <div className="flex items-center justify-end gap-3">
-              <button
-                disabled
-                title={tc("comingSoon")}
-                className="cursor-not-allowed rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-5 py-[10px] text-sm font-medium text-[var(--text-secondary)] opacity-60"
-              >
-                {t("form.saveDraft")}
-              </button>
-              <button
-                disabled
-                title={tc("comingSoon")}
-                className="cursor-not-allowed rounded-md bg-[var(--primary)] px-5 py-[10px] text-sm font-medium text-white opacity-60"
-              >
-                {t("form.confirmResolution")}
-              </button>
-            </div>
-          </div>
+          )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function EvidenceSection({
+  title,
+  titleColor,
+  files,
+}: {
+  title: string;
+  titleColor: string;
+  files: DisputeMediaFile[];
+}) {
+  return (
+    <div className="flex flex-1 flex-col gap-3 p-5">
+      <div className="flex items-center justify-between">
+        <span className="text-[15px] font-semibold" style={{ color: titleColor }}>
+          {title}
+        </span>
+        <span className="text-[11px] text-[var(--text-secondary)]">
+          {files.length} 個檔案
+        </span>
+      </div>
+      {files.length === 0 ? (
+        <div className="flex h-[90px] items-center justify-center rounded-md bg-[#F8FAFC]">
+          <span className="text-[12px] text-[var(--text-secondary)]">尚無證據檔案</span>
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-2">
+          {files.map((f) => (
+            <a
+              key={f.id}
+              href={f.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex flex-col overflow-hidden rounded-md border border-[var(--border)] bg-white hover:bg-[#F8FAFC]"
+            >
+              <div className="flex h-[90px] items-center justify-center bg-[#F1F5F9]">
+                {isImage(f.content_type) ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={f.url}
+                    alt={f.filename}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <FileText className="h-6 w-6 text-[var(--text-disabled)]" />
+                )}
+              </div>
+              <span className="truncate px-2 py-1 text-[11px] text-[var(--text-primary)]">
+                {f.filename}
+              </span>
+            </a>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
