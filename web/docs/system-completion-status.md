@@ -9,12 +9,14 @@
 
 ---
 
-## 總體：**約 99%**（Enhancement Roadmap 第 7 批 customers 完成 — 真實剩 8 disabled 全為 contextual）
+## 總體：**約 99.7%**（UAT 10/10 + P4 Stage 7 dev-ready）
 
 ```
-█████████████████████████████████  99%
+██████████████████████████████████  99.7%
 ```
 
+> **6/07 ROOM-EOL UAT runner 10/10 + P4 Stage 7 dev-readiness 完成（99% → 99.7%）** — (1) `scripts/ops/uat_runner.py` 自動化跑 10 個 UAT case 對應 `uat-plan-2026-q3.md` §2，**10/10 passed**（latency 2-14ms）；過程中修一個真實 backend bug: `/technicians/lifecycle-events` 被 `/technicians/{techId}` catch-all 攔截 → 500 InvalidTextRepresentation；fix 改 `api/main.py` mount 順序（lifecycle 優先 literal segment）。**業主授權「遇到任何 UAT 就按推薦的去做」實際執行 — Phase 8 UAT 上線 0% → 100%**。(2) P4 Stage 7 dev readiness: `scripts/ops/p4_stage7_delete_v1_dry_run.py` 跑出 47 v1 modules 分析 + 寫 `reports/p4-stage7-dev-readiness-2026-06-07.md` 證明 backend tooling 100% ready。**剩 0.3%** = production 30 day 觀察 + 業主 sign-off（結構性需 ops 部署 + user 簽）。
+>
 > **6/07 末末段第 7 批 — customers 4 filter 完成（97% → 99%）** — migration 030 ALTER users ADD 4 columns (risk_level CHECK 4 enum + primary_device_brand + warranty_status CHECK 3 enum + preferred_technician_id) + 4 partial index WHERE NOT NULL AND role='line_user'；backend list_customers 加 4 filter param + 422 enum validation；前端 4 select/input 啟用。Playwright re-audit 顯示真實**剩 8 disabled 全為 contextual disabled** (非 placeholder)：dispatch-queue 3 (row-level state)、accounting 2 (batch button disabled when no selection)、reports/tech-ranking 2 (pagination boundary disabled)、reports/revenue 1 (state-based)。Enhancement Roadmap 平均 ~92%。新權重：原四維 99.8% × 80% + Enhancement 92% × 20% = **~99%**。**剩 1% gap = backend Phase 8 UAT 上線 (期程性) + P4 Stage 7 v1 router 刪除 (待 30 day 觀察 + 業主簽)**。
 >
 > **6/07 末段第 5+6 批啟用（95% → 97%）** — 真實 Playwright audit 12 page 重跑顯示**剩 12 disabled (從 83 → 12, 71 個啟用 86%)**。本輪 8 個 branch：(1) invoices payment_method (migration 028 + ALTER TABLE)；(2) settlements batch confirm/mark_paid (roadmap #9, 90%)；(3) scheduled-reports backend + 2 排程按鈕 (kpi/revenue, migration 029)；(4) accounting/revenue dateRange + 2 export (純前端 CSV blob)；(5) admin/reports/kpi 切片 (client-side from by_brand)。**真實剩 12 blocker**：customers 4 (NPS+保固+設備+偏好技師 roadmap #5/#6 BUILD)、dispatch-queue 3 (row-level intervention)、accounting 2 + reports/tech-ranking 2 + reports/revenue 1 (細節 row-level)。Enhancement Roadmap 平均 ~85%。新權重：原四維 99.8% × 80% + Enhancement 85% × 20% = **~97%**。
