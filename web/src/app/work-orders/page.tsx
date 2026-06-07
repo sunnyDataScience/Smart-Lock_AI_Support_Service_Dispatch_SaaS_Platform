@@ -13,7 +13,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import WorkOrdersTable from "@/components/work-orders/WorkOrdersTable";
 import { ApiError, tenantPath } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
 
@@ -46,6 +46,10 @@ export default function WorkOrdersPage() {
   const tFilters = useTranslations("pages.workOrders.filters");
   const tViews = useTranslations("pages.workOrders.views");
 
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [brandFilter, setBrandFilter] = useState<string>("");
+  const [periodFilter, setPeriodFilter] = useState<string>(""); // 7/30/all
+
   const filterDropdowns = useMemo(
     () => FILTER_DROPDOWN_DEFS.map((d) => ({ ...d, label: tFilters(d.key) })),
     [tFilters],
@@ -55,12 +59,36 @@ export default function WorkOrdersPage() {
     [tViews],
   );
 
+  const queryParams = useMemo(() => {
+    const p = new URLSearchParams();
+    if (statusFilter) p.set("status", statusFilter);
+    if (brandFilter) p.set("brand", brandFilter);
+    if (periodFilter) {
+      const days = parseInt(periodFilter, 10);
+      if (!Number.isNaN(days)) {
+        const since = new Date(Date.now() - days * 24 * 3600 * 1000);
+        p.set("created_after", since.toISOString());
+      }
+    }
+    const qs = p.toString();
+    return qs ? `?${qs}` : "";
+  }, [statusFilter, brandFilter, periodFilter]);
+
   // P3：全 cutover 至 tenant-scoped v2 路徑（tenantPath 同步解析 tenantId）。
   const { items, cursor, hasMore, loading, error, loadMore } = usePaginatedFetch<WorkOrder>({
-    path: tenantPath("/work-orders"),
+    path: `${tenantPath("/work-orders")}${queryParams}`,
     pageSize: PAGE_SIZE,
     formatError: formatWorkOrderError,
   });
+
+  // 從 items 抽 distinct brands
+  const brandOptions = useMemo(() => {
+    const set = new Set<string>();
+    items.forEach((wo: any) => {
+      if (wo.brand) set.add(wo.brand);
+    });
+    return Array.from(set).sort();
+  }, [items]);
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -88,7 +116,7 @@ export default function WorkOrdersPage() {
 
         {/* Toolbar */}
         <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-3">
-          {/* Search disabled */}
+          {/* Search (client-side filter on item.brand + customer，留待 backend keyword endpoint) */}
           <div className="flex h-9 w-[280px] items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60">
             <Search className="h-4 w-4 text-[var(--text-disabled)]" />
             <input
@@ -99,21 +127,41 @@ export default function WorkOrdersPage() {
             />
           </div>
 
-          {/* Filter Dropdowns disabled */}
-          {filterDropdowns.map((dd) => (
-            <button
-              key={dd.key}
-              disabled
-              title={t("comingSoonTitle")}
-              className="flex h-9 items-center gap-[6px] rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60 cursor-not-allowed"
-            >
-              {dd.icon && (
-                <dd.icon className="h-[14px] w-[14px] text-[var(--text-secondary)]" />
-              )}
-              <span className="text-[13px] text-[var(--text-primary)]">{dd.label}</span>
-              <ChevronDown className="h-[14px] w-[14px] text-[var(--text-secondary)]" />
-            </button>
-          ))}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-9 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
+          >
+            <option value="">{tFilters("status")}</option>
+            <option value="dispatched">已派工</option>
+            <option value="completed">已完工</option>
+            <option value="refunded">已退款</option>
+            <option value="disputed">爭議中</option>
+          </select>
+
+          <select
+            value={periodFilter}
+            onChange={(e) => setPeriodFilter(e.target.value)}
+            className="h-9 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
+          >
+            <option value="">{tFilters("last7Days")}</option>
+            <option value="7">最近 7 天</option>
+            <option value="30">最近 30 天</option>
+            <option value="90">最近 90 天</option>
+          </select>
+
+          <select
+            value={brandFilter}
+            onChange={(e) => setBrandFilter(e.target.value)}
+            className="h-9 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
+          >
+            <option value="">{tFilters("brand")}</option>
+            {brandOptions.map((b) => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
+          </select>
 
           <div className="flex-1" />
 

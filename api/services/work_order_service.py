@@ -116,6 +116,9 @@ async def list_orders(
     limit: int,
     problem_card_id: str | None = None,
     technician_id: str | None = None,
+    status: str | None = None,
+    brand: str | None = None,
+    created_after: str | None = None,
 ) -> dict:
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
@@ -130,6 +133,18 @@ async def list_orders(
     if technician_id:
         where.append("wo.technician_id = %s::uuid")
         args.append(technician_id)
+
+    if status:
+        where.append("wo.status = %s")
+        args.append(status)
+
+    if brand:
+        where.append("pc.brand = %s")
+        args.append(brand)
+
+    if created_after:
+        where.append("wo.created_at >= %s::timestamptz")
+        args.append(created_after)
 
     cur_data = decode_cursor(cursor)
     if cur_data and "ts" in cur_data and "id" in cur_data:
