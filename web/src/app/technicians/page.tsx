@@ -8,6 +8,7 @@ import { ApiError, getCurrentSession } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
+import CreateTechnicianModal from "@/components/admin/CreateTechnicianModal";
 
 type Technician = components["schemas"]["Technician"];
 
@@ -40,6 +41,7 @@ export default function TechniciansPage() {
   const [regionFilter, setRegionFilter] = useState<string>("");
   const [ratingMinFilter, setRatingMinFilter] = useState<string>("");
   const [keyword, setKeyword] = useState<string>("");
+  const [createOpen, setCreateOpen] = useState(false);
 
   const queryString = useMemo(() => {
     const p = new URLSearchParams();
@@ -52,7 +54,7 @@ export default function TechniciansPage() {
     return qs ? `?${qs}` : "";
   }, [statusFilter, capabilityFilter, regionFilter, ratingMinFilter, keyword]);
 
-  const { items, cursor, hasMore, loading, error, loadMore } = usePaginatedFetch<Technician>({
+  const { items, cursor, hasMore, loading, error, loadMore, refresh } = usePaginatedFetch<Technician>({
     path: `/tenants/${encodeURIComponent(tenantId)}/technicians${queryString}`,
     pageSize: PAGE_SIZE,
     formatError: formatTechnicianError,
@@ -96,9 +98,8 @@ export default function TechniciansPage() {
           </div>
 
           <button
-            disabled
-            title={t("comingSoonTitle")}
-            className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-5 py-[10px] opacity-60 cursor-not-allowed"
+            onClick={() => setCreateOpen(true)}
+            className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-5 py-[10px] hover:opacity-90"
           >
             <Plus className="h-4 w-4 text-white" />
             <span className="text-sm font-semibold text-white">{t("addTechnician")}</span>
@@ -188,6 +189,15 @@ export default function TechniciansPage() {
           )}
         </main>
       </div>
+
+      <CreateTechnicianModal
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onSuccess={() => {
+          setCreateOpen(false);
+          refresh();
+        }}
+      />
     </div>
   );
 }
