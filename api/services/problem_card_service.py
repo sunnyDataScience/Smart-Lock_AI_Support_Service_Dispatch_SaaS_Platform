@@ -105,6 +105,10 @@ async def list_cards(
     cursor: str | None,
     limit: int,
     conversation_id: str | None = None,
+    status: str | None = None,
+    urgency: str | None = None,
+    brand: str | None = None,
+    created_after: str | None = None,
 ) -> dict:
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
@@ -115,6 +119,22 @@ async def list_cards(
     if conversation_id:
         where.append("pc.conversation_id = %s::uuid")
         args.append(conversation_id)
+
+    if status:
+        where.append("pc.status = %s")
+        args.append(status)
+
+    if urgency:
+        where.append("pc.urgency = %s")
+        args.append(urgency)
+
+    if brand:
+        where.append("pc.brand = %s")
+        args.append(brand)
+
+    if created_after:
+        where.append("pc.created_at >= %s::timestamptz")
+        args.append(created_after)
 
     cur_data = decode_cursor(cursor)
     if cur_data and "ts" in cur_data and "id" in cur_data:
