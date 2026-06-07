@@ -19,6 +19,7 @@ import {
 import { ApiError, api, auth } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 import { ReportExportModal } from "@/components/admin/reports/ReportExportModal";
+import ScheduleReportModal from "@/components/admin/ScheduleReportModal";
 
 type KpiReport = components["schemas"]["KpiReport"];
 type Period = components["schemas"]["DashboardPeriod"];
@@ -75,6 +76,7 @@ function PendingTag({ note }: { note: string }) {
 export default function KpiDashboardPage() {
   // 預設「過去 30 日」，與舊行為一致；DateRangePicker 與 segment 共享同一 range state
   const [range, setRange] = useState<DateRange>(() => getPresetRange("last30"));
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const period = useMemo<Period>(() => mapRangeToDashboardPeriod(range), [range]);
   const [report, setReport] = useState<KpiReport | null>(null);
   const [loading, setLoading] = useState(true);
@@ -216,9 +218,8 @@ export default function KpiDashboardPage() {
             </button>
 
             <button
-              disabled
-              title="即將推出（排程週/月報）"
-              className="flex cursor-not-allowed items-center gap-[6px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-[14px] py-[7px] opacity-50"
+              onClick={() => setScheduleOpen(true)}
+              className="flex items-center gap-[6px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-[14px] py-[7px] hover:bg-[var(--bg-page)]"
             >
               <Timer className="h-4 w-4 text-[var(--text-secondary)]" />
               <span className="text-[13px] text-[var(--text-primary)]">排程週/月報</span>
@@ -385,6 +386,13 @@ export default function KpiDashboardPage() {
       <ReportExportModal
         open={exportOpen}
         onOpenChange={setExportOpen}
+        reportType="kpi"
+        filters={{ period }}
+      />
+
+      <ScheduleReportModal
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
         reportType="kpi"
         filters={{ period }}
       />

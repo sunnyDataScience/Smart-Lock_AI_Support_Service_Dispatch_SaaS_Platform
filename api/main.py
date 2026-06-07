@@ -102,6 +102,7 @@ from routers import sop_performance_v2 as sop_performance_v2_router  # WBS §8 P
 from routers import reports_customer_satisfaction as reports_cs_router  # WBS §8 P2: 客戶滿意度 KPI 擴充
 from routers import reports_operational_kpi as reports_okpi_router  # WBS §8 P2: FTFR + SLA on-time KPI
 from routers import approval_inbox_v2 as approval_inbox_v2_router  # FR-0049 MVP: Exception Approval Inbox
+from routers import scheduled_reports_v2 as scheduled_reports_v2_router  # 報表排程 (migration 029)
 from routers import technician_lifecycle_v2 as tech_lifecycle_v2_router  # FR-0044 MVP: Technician Lifecycle
 from routers import gdpr_forget_v2 as gdpr_forget_v2_router  # FR-0053 MVP: GDPR Right-to-be-Forgotten
 from routers import ai_governance_trace_v2 as ai_gov_v2_router  # FR-0050 MVP: AI Governance Trace
@@ -270,6 +271,7 @@ app.include_router(sop_performance_v2_router.router, tags=["M14 SOP Performance"
 app.include_router(reports_cs_router.router, prefix="/api/v1", tags=["Reports"])  # WBS §8 P2: 客戶滿意度 KPI
 app.include_router(reports_okpi_router.router, prefix="/api/v1", tags=["Reports"])  # WBS §8 P2: FTFR + SLA on-time KPI
 app.include_router(approval_inbox_v2_router.router, tags=["M15 Approval Inbox"])  # FR-0049 MVP: Exception Approval Inbox
+app.include_router(scheduled_reports_v2_router.router, tags=["Reports"])  # Admin 報表排程
 app.include_router(tech_lifecycle_v2_router.router, tags=["M07 Technician Lifecycle"])  # FR-0044 MVP: Technician Lifecycle
 app.include_router(gdpr_forget_v2_router.router, tags=["M17 GDPR Forget"])  # FR-0053 MVP: GDPR Right-to-be-Forgotten
 app.include_router(ai_gov_v2_router.router, tags=["A12 AI Governance"])  # FR-0050 MVP: AI Governance Trace Store
