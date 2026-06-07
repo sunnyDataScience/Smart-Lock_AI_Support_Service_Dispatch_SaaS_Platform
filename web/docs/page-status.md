@@ -105,8 +105,8 @@
 | 保固索賠列表 | ✅ | `listWarrantyClaims` 即時資料 |
 | 保固期狀態（有效 / 寬限期 / 已過期） | ✅ | 前端依 `warranty_end_date` + `is_within_warranty` 即時計算 |
 | 審批決策（filed / in_progress 可下 approve / reject / start_review） | ✅ | `submitWarrantyDecision` |
-| 檢視詳情頁 | ⏳ | 待 warranty 詳情頁與證據上傳路徑上線 |
-| 證據縮圖 | ⏳ | 同上 |
+| 檢視詳情頁 `/admin/warranty-claims/[id]` | ✅ | backend `getWarrantyClaimV2` GET `/tenants/{tid}/warranty-claims/{id}` + 前端 detail page (~300L)：4 status badge / 保固期內外 chip / 設備資訊 / 保固期間 / 處理結果 / 申報原因 / 關聯工單 (getWorkOrderV2) / 證據與媒體 (listMediaForWorkOrderV2 分 4 purpose enum) / 時間紀錄 |
+| 證據縮圖 | ✅ | listMediaForWorkOrderV2 拉取關聯工單上傳檔案：image 顯縮圖，非 image 顯 icon；點開新分頁 |
 
 > 系統核心規則：保固起算日以「**交屋日期**」為準，非「入住日期」。所有保固計算均依據此原則。
 
