@@ -34,6 +34,27 @@ function formatTwd(amount: string | undefined | null): string {
   return `NT$ ${n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
+function exportTrendCsv(
+  trend: any[],
+  granularity: string,
+  ext: "csv" | "xlsx" = "csv",
+): void {
+  if (!trend || trend.length === 0) return;
+  const headers = ["period", "revenue", "order_count"];
+  const rows = trend.map((p) => [p.period, p.revenue ?? 0, p.order_count ?? 0]);
+  const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const ts = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `revenue-${granularity}-${ts}.${ext}`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function formatPercent(rate: number | null | undefined): string {
   if (rate == null) return "—";
   return `${(rate * 100).toFixed(1)}%`;
@@ -69,6 +90,7 @@ export default function RevenuePage() {
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [granularity, setGranularity] = useState<"day" | "week" | "month">("month");
+  const [periodPreset, setPeriodPreset] = useState<"last30" | "last90" | "last180" | "thisYear">("last30");
 
   const fetchSummary = async () => {
     setLoading(true);
@@ -277,16 +299,16 @@ export default function RevenuePage() {
                 ))}
               </div>
 
-              <button
-                disabled
-                title={tCommon("comingSoon")}
-                className="flex cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2 opacity-60"
+              <select
+                value={periodPreset}
+                onChange={(e) => setPeriodPreset(e.target.value as any)}
+                className="rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2 text-[13px] text-[var(--text-primary)] outline-none"
               >
-                <Calendar className="h-4 w-4 text-[var(--text-disabled)]" />
-                <span className="text-[13px] text-[var(--text-disabled)]">
-                  {tR("dateRange")}
-                </span>
-              </button>
+                <option value="last30">最近 30 天</option>
+                <option value="last90">最近 90 天</option>
+                <option value="last180">最近 180 天</option>
+                <option value="thisYear">今年</option>
+              </select>
             </div>
           </div>
 
@@ -301,22 +323,21 @@ export default function RevenuePage() {
             <ServiceTypeChart />
           </div>
 
-          {/* Export Controls */}
           <div className="flex items-center justify-end gap-3 px-8 py-3">
             <button
-              disabled
-              title={tCommon("comingSoon")}
-              className="flex cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-4 py-[10px] opacity-60"
+              onClick={() => exportTrendCsv(data?.trend ?? [], granularity)}
+              disabled={!data}
+              className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-4 py-[10px] hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Download className="h-4 w-4 text-[var(--text-disabled)]" />
-              <span className="text-sm font-medium text-[var(--text-disabled)]">
+              <Download className="h-4 w-4 text-[var(--text-secondary)]" />
+              <span className="text-sm font-medium text-[var(--text-primary)]">
                 {tR("exportCsv")}
               </span>
             </button>
             <button
-              disabled
-              title={tCommon("comingSoon")}
-              className="flex cursor-not-allowed items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-[10px] opacity-60"
+              onClick={() => exportTrendCsv(data?.trend ?? [], granularity, "xlsx")}
+              disabled={!data}
+              className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-[10px] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Download className="h-4 w-4 text-white" />
               <span className="text-sm font-medium text-white">{tR("exportExcel")}</span>
