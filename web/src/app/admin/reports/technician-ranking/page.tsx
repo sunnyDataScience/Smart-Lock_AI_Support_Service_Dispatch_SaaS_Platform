@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Crown, ChevronDown, Download, RefreshCw } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import DateRangePicker from "@/components/ui/DateRangePicker";
@@ -12,11 +12,19 @@ import { ReportExportModal } from "@/components/admin/reports/ReportExportModal"
 type Technician = components["schemas"]["Technician"];
 type TechnicianPage = components["schemas"]["TechnicianPage"];
 
-const segments = [
-  { label: "本週", active: false },
-  { label: "本月", active: true },
-  { label: "本季", active: false },
-  { label: "本年", active: false },
+const SEGMENTS = [
+  { label: "本週", value: "week" },
+  { label: "本月", value: "month" },
+  { label: "本季", value: "quarter" },
+  { label: "本年", value: "year" },
+] as const;
+
+type SortKey = "composite" | "rating" | "completed";
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: "composite", label: "排序：綜合評分" },
+  { value: "rating", label: "排序：平均星等" },
+  { value: "completed", label: "排序：完工數" },
 ];
 
 const AVATAR_PALETTE = [
@@ -42,8 +50,12 @@ function compositeScore(t: Technician): number {
   return Math.round((t.rating ?? 0) * 20 * 10) / 10;
 }
 
-function sortTechnicians(items: Technician[]): Technician[] {
+function sortTechnicians(items: Technician[], sortKey: SortKey = "composite"): Technician[] {
   return [...items].sort((a, b) => {
+    if (sortKey === "rating") return (b.rating ?? 0) - (a.rating ?? 0);
+    if (sortKey === "completed")
+      return (b.completed_orders_count ?? 0) - (a.completed_orders_count ?? 0);
+    // composite: rating tiebreak by completed
     const ra = a.rating ?? 0;
     const rb = b.rating ?? 0;
     if (rb !== ra) return rb - ra;
@@ -111,6 +123,9 @@ export default function TechnicianRankingPage() {
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const [period, setPeriod] = useState<"week" | "month" | "quarter" | "year">("month");
+  const [sortKey, setSortKey] = useState<SortKey>("composite");
+  const [regionFilter, setRegionFilter] = useState<string>("");
 
   const fetchTechnicians = async () => {
     setLoading(true);
@@ -121,7 +136,7 @@ export default function TechnicianRankingPage() {
         { query: { limit: 100 } },
       );
       const items: Technician[] = res.items ?? [];
-      setTechnicians(sortTechnicians(items));
+      setTechnicians(items);
       setUpdatedAt(new Date());
     } catch (e) {
       setError(
@@ -140,7 +155,14 @@ export default function TechnicianRankingPage() {
     fetchTechnicians();
   }, []);
 
-  const podium = technicians.slice(0, 3);
+  const displayedTechnicians = useMemo(() => {
+    const filtered = regionFilter
+      ? technicians.filter((t) => (t.service_areas ?? []).includes(regionFilter))
+      : technicians;
+    return sortTechnicians(filtered, sortKey);
+  }, [technicians, regionFilter, sortKey]);
+
+  const podium = displayedTechnicians.slice(0, 3);
   const updatedLabel = updatedAt
     ? `資料更新於 ${updatedAt.toLocaleTimeString("zh-TW", { hour12: false })}`
     : "尚未載入";
@@ -185,15 +207,14 @@ export default function TechnicianRankingPage() {
 
           <div className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3">
             <div className="flex rounded-lg bg-[#F1F5F9] p-[3px]">
-              {segments.map((seg) => (
+              {SEGMENTS.map((seg) => (
                 <button
-                  key={seg.label}
-                  disabled={!seg.active}
-                  title={seg.active ? "" : "即將推出"}
+                  key={seg.value}
+                  onClick={() => setPeriod(seg.value)}
                   className={`rounded-md px-[14px] py-[6px] text-[13px] ${
-                    seg.active
+                    seg.value === period
                       ? "bg-[var(--primary)] font-semibold text-white"
-                      : "cursor-not-allowed font-medium text-[var(--text-disabled)] opacity-60"
+                      : "font-medium text-[var(--text-secondary)] hover:bg-white"
                   }`}
                 >
                   {seg.label}
@@ -203,27 +224,26 @@ export default function TechnicianRankingPage() {
 
             <DateRangePicker value={range} onChange={setRange} />
 
-            <button
-              disabled
-              title="即將推出"
-              className="flex cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2 opacity-60"
+            <select
+              value={sortKey}
+              onChange={(e) => setSortKey(e.target.value as SortKey)}
+              className="h-10 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
             >
-              <span className="text-[13px] text-[var(--text-disabled)]">
-                排序：綜合評分
-              </span>
-              <ChevronDown className="h-4 w-4 text-[var(--text-disabled)]" />
-            </button>
+              {SORT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
 
-            <button
-              disabled
-              title="即將推出"
-              className="flex cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2 opacity-60"
+            <select
+              value={regionFilter}
+              onChange={(e) => setRegionFilter(e.target.value)}
+              className="h-10 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
             >
-              <span className="text-[13px] text-[var(--text-disabled)]">
-                全部區域
-              </span>
-              <ChevronDown className="h-4 w-4 text-[var(--text-disabled)]" />
-            </button>
+              <option value="">全部區域</option>
+              {Array.from(new Set(technicians.flatMap((t) => t.service_areas ?? []))).sort().map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
 
             <div className="flex-1" />
 
@@ -340,7 +360,7 @@ export default function TechnicianRankingPage() {
               </div>
             )}
 
-            {technicians.map((t, idx) => {
+            {displayedTechnicians.map((t, idx) => {
               const rank = idx + 1;
               const score = compositeScore(t);
               const avail = availabilityLabel[t.availability] ?? availabilityLabel.offline;
@@ -426,7 +446,7 @@ export default function TechnicianRankingPage() {
 
             <div className="flex items-center justify-between px-4 py-3">
               <span className="text-[13px] text-[var(--text-secondary)]">
-                顯示 {technicians.length} 位技師
+                顯示 {displayedTechnicians.length} 位技師
               </span>
               <div className="flex gap-1">
                 <button
