@@ -9,12 +9,14 @@
 
 ---
 
-## 總體：**約 89.5%**（含 Enhancement Roadmap 持續推進）
+## 總體：**約 91%**（含 Enhancement Roadmap 第 2 批啟用）
 
 ```
-███████████████████████████  89.5%
+████████████████████████████  91%
 ```
 
+> **6/07 晚段第 2 批啟用 4 page disabled（89.5% → 91%）** — invoices 3/4 + accounting/revenue 3/5 + admin/reports/revenue 4/5 + admin/reports/technician-ranking 5/8 啟用。**累計 38/83（46%）**。新發現 backend 部分 endpoint 早 ready (revenue granularity day/week/month) 但前端硬寫 disabled，純前端啟用即可。剩 45 disabled 主要靠：(a) 排程/匯出 schedule endpoint；(b) reports/kpi 切片 (品牌/區域 metrics 需 backend BUILD)；(c) inventory 編輯/紀錄 (需 updateItem + transactions GET endpoint)；(d) customers 4 filter (roadmap #5/#6 NPS+保固 BUILD)；(e) dispatch-queue 7 disabled (聚合 page，複雜度高)。
+>
 > **6/07 下午 4 個 page disabled placeholder 啟用（87% → 89.5%）** — 4 個 branch 連續 commit + merge：(1) feat/inventory-transactions-write（新增物料 + 補貨 modal，10/27 disabled 啟用 + Roadmap #7 推進）；(2) feat/inventory-category-status-filter（2/27）；(3) feat/work-orders-filters（backend 加 status/brand/created_after 3 query + 前端 3 select，3/4）；(4) feat/problem-cards-filters（backend 加 4 query + 前端 4 select，4/5）；(5) feat/technicians-filters（backend 加 status/capability/region/rating_min 4 query + 前端 4 select，4/6）。**累計 23/83 disabled 啟用（28%）**。Enhancement Roadmap 平均 37.5% → ~50%。新權重：原四維 99.8% × 80% + Enhancement 50% × 20% = **~89.5%**。
 >
 > **6/07 WBS 統計口徑修正（業主審視後）** — 原 99.8% 計算僅含 4 維 milestone（Phase 5-7 核心 MVP / Phase 8 UAT / Phase 9 P4 / Phase II 9 FR），**未納入 `page-status.md` 的 10 條 Enhancement Roadmap**（inventory 寫入、NPS、保固詳情、Reports metrics 擴充、批次審批等）。業主操作後台時 12 個 page 看到 83 個 disabled placeholder，與「99.8% 完成」感知落差大。本次改用 80/20 加權重算：80% × 原四維 99.8% + 20% × Enhancement Roadmap 37.5% = **~87%**。Phase II 9 FR 仍 100%（不受影響），主要影響在 Phase 5-7 admin 後台 enhancement 缺口。
