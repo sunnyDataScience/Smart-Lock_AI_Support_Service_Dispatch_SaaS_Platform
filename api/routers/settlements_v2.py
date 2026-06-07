@@ -123,3 +123,46 @@ async def list_settlements_v2(
         period_filter=pf,
         sort_by=sb,
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Batch action endpoint (POST /settlements:batch — confirm / mark_paid)
+# ─────────────────────────────────────────────────────────────────────────────
+
+from pydantic import BaseModel, Field
+from typing import Literal
+
+
+class BatchSettlementBody(BaseModel):
+    settlement_ids: list[str] = Field(..., min_length=1, max_length=200)
+    action: Literal["confirm", "mark_paid"]
+    payment_method: str | None = Field(default=None)
+    notes: str | None = Field(default=None)
+
+
+@router.post(
+    "/tenants/{tenantId}/settlements:batch",
+    operation_id="batchSettlementsV2",
+    summary="批次操作 settlements (confirm / mark_paid)",
+    response_model=dict,
+)
+async def batch_settlements_v2(
+    body: BatchSettlementBody,
+    tenantId: str = Path(...),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError(
+            "CROSS_TENANT_WRITE",
+            "Path tenantId does not match authenticated tenant",
+            403,
+        )
+
+    result = await settlement_service.batch_action(
+        tenant_id=tenantId,
+        settlement_ids=body.settlement_ids,
+        action=body.action,
+        payment_method=body.payment_method,
+        notes=body.notes,
+    )
+    return {"data": result}

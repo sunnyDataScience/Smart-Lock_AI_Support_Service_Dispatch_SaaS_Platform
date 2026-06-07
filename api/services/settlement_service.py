@@ -171,3 +171,68 @@ async def list_settlements(
             next_cursor = encode_cursor({"ts": last[8].isoformat(), "id": str(last[0])})
 
     return {"items": items, "next_cursor": next_cursor, "has_more": has_more}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# batch_action — 批次 confirm / mark_paid
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def batch_action(
+    *,
+    tenant_id: str,
+    settlement_ids: list[str],
+    action: str,
+    payment_method: str | None = None,
+    notes: str | None = None,
+) -> dict:
+    """批次 settlement 操作.
+
+    action='confirm': pending → confirmed (僅當前 pending 才會生效)
+    action='mark_paid': confirmed → paid + paid_at=NOW + payment_method
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    if action not in {"confirm", "mark_paid"}:
+        raise ApiError(
+            "VALIDATION_ERROR", f"Invalid action: {action}", 422,
+        )
+
+    if not settlement_ids:
+        return {"updated": 0, "skipped": 0}
+
+    # 用 ANY (uuid[]) 一次 UPDATE
+    if action == "confirm":
+        sql = (
+            "UPDATE saas.settlement "
+            "SET status = 'confirmed' "
+            "WHERE tenant_id = %s::uuid "
+            "  AND id = ANY(%s::uuid[]) "
+            "  AND status = 'pending'"
+        )
+        cur = await db_module._conn.execute(
+            sql, (tenant_id, settlement_ids),
+        )
+        updated = cur.rowcount
+    else:  # mark_paid
+        sql = (
+            "UPDATE saas.settlement "
+            "SET status = 'paid', "
+            "    paid_at = NOW(), "
+            "    manual_paid_at = NOW(), "
+            "    payment_method = COALESCE(%s, payment_method) "
+            "WHERE tenant_id = %s::uuid "
+            "  AND id = ANY(%s::uuid[]) "
+            "  AND status IN ('confirmed', 'pending')"
+        )
+        cur = await db_module._conn.execute(
+            sql, (payment_method, tenant_id, settlement_ids),
+        )
+        updated = cur.rowcount
+
+    skipped = len(settlement_ids) - updated
+    return {
+        "updated": updated,
+        "skipped": skipped,
+        "action": action,
+    }
