@@ -73,6 +73,9 @@ export default function DispatchQueuePage() {
     [locale],
   );
   const [urgentOnly, setUrgentOnly] = useState(false);
+  const [keyword, setKeyword] = useState("");
+  const [dispatchCountFilter, setDispatchCountFilter] = useState<string>("");
+  const [responseStatusFilter, setResponseStatusFilter] = useState<string>("");
   const [snapshot, setSnapshot] = useState<DispatchQueueSnapshot | null>(null);
   const [logs, setLogs] = useState<DispatchLog[]>([]);
   const [pool, setPool] = useState<WorkOrder[]>([]);
@@ -117,6 +120,40 @@ export default function DispatchQueuePage() {
   useEffect(() => {
     fetchAll();
   }, []);
+
+  // client-side filter for pool
+  const filteredPool = useMemo(() => {
+    const dispatchCounts = new Map<string, number>();
+    logs.forEach((log: any) => {
+      if (log.work_order_id) {
+        dispatchCounts.set(log.work_order_id, (dispatchCounts.get(log.work_order_id) ?? 0) + 1);
+      }
+    });
+
+    return pool.filter((wo: any) => {
+      // keyword: id / customer / address
+      if (keyword.trim()) {
+        const q = keyword.trim().toLowerCase();
+        const matchId = wo.id?.toLowerCase().includes(q);
+        const matchName = wo.customer_name?.toLowerCase().includes(q);
+        const matchAddr = wo.customer_address?.toLowerCase().includes(q);
+        if (!matchId && !matchName && !matchAddr) return false;
+      }
+      // dispatch count
+      if (dispatchCountFilter) {
+        const n = dispatchCounts.get(wo.id) ?? 0;
+        const threshold = parseInt(dispatchCountFilter, 10);
+        if (dispatchCountFilter === "1") {
+          if (n !== 1) return false;
+        } else if (n < threshold) return false;
+      }
+      // response status
+      if (responseStatusFilter && wo.status !== responseStatusFilter) return false;
+      // urgent
+      if (urgentOnly && !wo.urgent && wo.priority !== "high") return false;
+      return true;
+    });
+  }, [pool, logs, keyword, dispatchCountFilter, responseStatusFilter, urgentOnly]);
 
   return (
     // data-tenant 供 E2E 測試驗證 tenant-scoped dispatch v2 路徑（CR-0002-α）
@@ -214,43 +251,44 @@ export default function DispatchQueuePage() {
         </div>
 
         <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-3">
-          <div className="flex flex-1 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60">
-            <Search className="h-[18px] w-[18px] text-[var(--text-disabled)]" />
+          <div className="flex flex-1 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3">
+            <Search className="h-[18px] w-[18px] text-[var(--text-secondary)]" />
             <input
               type="text"
-              disabled
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
               placeholder={t("search.placeholder")}
-              className="h-9 flex-1 cursor-not-allowed bg-transparent text-sm text-[var(--text-disabled)] outline-none placeholder:text-[var(--text-disabled)]"
-              title={t("search.comingSoon")}
+              className="h-9 flex-1 bg-transparent text-sm outline-none"
             />
           </div>
 
-          <button
-            disabled
-            title={t("search.comingSoon")}
-            className="flex cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2 text-sm text-[var(--text-disabled)] opacity-60"
+          <select
+            value={dispatchCountFilter}
+            onChange={(e) => setDispatchCountFilter(e.target.value)}
+            className="h-9 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 text-sm outline-none"
           >
-            {t("filters.dispatchCount")}
-            <ChevronDown className="h-[14px] w-[14px] text-[var(--text-disabled)]" />
-          </button>
+            <option value="">{t("filters.dispatchCount")}</option>
+            <option value="1">派工 1 次</option>
+            <option value="2">派工 ≥ 2 次</option>
+            <option value="3">派工 ≥ 3 次（多次重派）</option>
+          </select>
 
-          <button
-            disabled
-            title={t("search.comingSoon")}
-            className="flex cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2 text-sm text-[var(--text-disabled)] opacity-60"
+          <select
+            value={responseStatusFilter}
+            onChange={(e) => setResponseStatusFilter(e.target.value)}
+            className="h-9 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 text-sm outline-none"
           >
-            {t("filters.responseStatus")}
-            <ChevronDown className="h-[14px] w-[14px] text-[var(--text-disabled)]" />
-          </button>
+            <option value="">{t("filters.responseStatus")}</option>
+            <option value="dispatched">已派工</option>
+            <option value="accepted">技師已接</option>
+            <option value="declined">技師婉拒</option>
+            <option value="completed">已完工</option>
+          </select>
 
-          <div
-            className="flex items-center gap-2 opacity-60"
-            title={t("search.comingSoon")}
-          >
+          <div className="flex items-center gap-2">
             <button
-              disabled
               onClick={() => setUrgentOnly((prev) => !prev)}
-              className={`relative h-5 w-9 cursor-not-allowed rounded-full transition-colors ${
+              className={`relative h-5 w-9 rounded-full transition-colors ${
                 urgentOnly ? "bg-[var(--primary)]" : "bg-[#CBD5E1]"
               }`}
             >
@@ -260,7 +298,7 @@ export default function DispatchQueuePage() {
                 }`}
               />
             </button>
-            <span className="text-sm text-[var(--text-disabled)]">
+            <span className="text-sm text-[var(--text-secondary)]">
               {t("filters.needIntervention")}
             </span>
           </div>
@@ -273,16 +311,16 @@ export default function DispatchQueuePage() {
                 {t("pool.title")}
               </span>
               <span className="text-xs text-[var(--text-secondary)]">
-                {t("pool.summary", { count: String(pool.length) })}
+                {t("pool.summary", { count: String(filteredPool.length) })}
               </span>
             </div>
-            {pool.length === 0 ? (
+            {filteredPool.length === 0 ? (
               <div className="flex h-20 items-center justify-center text-sm text-[var(--text-secondary)]">
                 {t("pool.empty")}
               </div>
             ) : (
               <div className="divide-y divide-[var(--border)]">
-                {pool.slice(0, 10).map((wo) => {
+                {filteredPool.slice(0, 10).map((wo) => {
                   const urgency = wo.urgency ?? "low";
                   const color = URGENCY_TONE[urgency];
                   return (
@@ -320,9 +358,9 @@ export default function DispatchQueuePage() {
                 })}
               </div>
             )}
-            {pool.length > 10 && (
+            {filteredPool.length > 10 && (
               <div className="border-t border-[var(--border)] px-4 py-2 text-center text-[12px] text-[var(--text-secondary)]">
-                {t("pool.more", { count: String(pool.length - 10) })}
+                {t("pool.more", { count: String(filteredPool.length - 10) })}
               </div>
             )}
           </div>
