@@ -235,6 +235,7 @@ app.include_router(rbac_v2_router.router, tags=["M17 RBAC"])  # spec-alignment P
 app.include_router(vouchers_v2_router.router, tags=["M17 Voucher"])  # spec-alignment P2-α (CR-0002-α, M17 Voucher tenant-scoped)
 app.include_router(audit_v2_router.router, tags=["M17 Audit"])  # spec-alignment P2-α (CR-0002-α)
 app.include_router(problem_cards_v2_router.router, tags=["M03 ProblemCard"])  # spec-alignment P2-α (CR-0002-α, M03 ProblemCard tenant-scoped)
+app.include_router(tech_lifecycle_v2_router.router, tags=["M07 Technician Lifecycle"])  # 必須先於 technicians_v2_router (lifecycle-events literal segment vs {techId} catch-all)
 app.include_router(technicians_v2_router.router, tags=["M05 Technician"])  # spec-alignment P2-α (CR-0002-α, tenant-scoped)
 app.include_router(dispatch_v2_router.router, tags=["M06 Dispatch"])  # spec-alignment P2-α (CR-0002-α, tenant-scoped)
 # work_orders_ops_v2 須先於 work_orders_v2 註冊：/work-orders/pool、/dispatch/queue 為 literal 段，
@@ -272,7 +273,7 @@ app.include_router(reports_cs_router.router, prefix="/api/v1", tags=["Reports"])
 app.include_router(reports_okpi_router.router, prefix="/api/v1", tags=["Reports"])  # WBS §8 P2: FTFR + SLA on-time KPI
 app.include_router(approval_inbox_v2_router.router, tags=["M15 Approval Inbox"])  # FR-0049 MVP: Exception Approval Inbox
 app.include_router(scheduled_reports_v2_router.router, tags=["Reports"])  # Admin 報表排程
-app.include_router(tech_lifecycle_v2_router.router, tags=["M07 Technician Lifecycle"])  # FR-0044 MVP: Technician Lifecycle
+# tech_lifecycle_v2_router 已上移至 M05 Technician 之前 (避免 /technicians/{techId} 攔截 /lifecycle-events)
 app.include_router(gdpr_forget_v2_router.router, tags=["M17 GDPR Forget"])  # FR-0053 MVP: GDPR Right-to-be-Forgotten
 app.include_router(ai_gov_v2_router.router, tags=["A12 AI Governance"])  # FR-0050 MVP: AI Governance Trace Store
 app.include_router(sop_feedback_v2_router.router, tags=["A10 SOP Feedback"])  # FR-0051 MVP: SOP Feedback Spiral
