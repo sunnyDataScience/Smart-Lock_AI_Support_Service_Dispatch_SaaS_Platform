@@ -552,3 +552,100 @@ async def restock_inventory_v2(
     txn = _row_to_txn(txn_row) if txn_row else None
 
     return {"item": item, "transaction": txn}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# update_inventory_item_v2 — PATCH 部分更新（不動 quantity_on_hand）
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def update_inventory_item_v2(
+    *,
+    tenant_id: str,
+    item_id: str,
+    patch: dict,
+) -> dict:
+    """PATCH /tenants/{tid}/inventory/items/{itemId}.
+
+    允許更新欄位: name / category / unit_cost / reorder_point / supplier /
+    owner / serial_required. 不允許動 quantity_on_hand (走 :restock/:consume).
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    allowed = {
+        "name", "category", "unit_cost", "reorder_point",
+        "supplier", "owner", "serial_required",
+    }
+    sets: list[str] = []
+    args: list = []
+    for k, v in patch.items():
+        if k not in allowed:
+            continue
+        if v is None and k in ("name",):
+            continue
+        sets.append(f"{k} = %s")
+        args.append(v)
+
+    if not sets:
+        # nothing to update — 直接回現有
+        return await get_inventory_item_v2(tenant_id=tenant_id, item_id=item_id)
+
+    args.extend([item_id, tenant_id])
+    sql = (
+        f"UPDATE saas.inventory_item "
+        f"SET {', '.join(sets)} "
+        f"WHERE id = %s::uuid AND tenant_id = %s::uuid"
+    )
+    cur = await db_module._conn.execute(sql, args)
+    if cur.rowcount == 0:
+        raise ApiError("NOT_FOUND", f"Inventory item {item_id} not found", 404)
+
+    return await get_inventory_item_v2(tenant_id=tenant_id, item_id=item_id)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# list_inventory_transactions_v2 — GET ledger (item 異動紀錄)
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def list_inventory_transactions_v2(
+    *,
+    tenant_id: str,
+    item_id: str | None = None,
+    transaction_type: str | None = None,
+    limit: int = 50,
+) -> dict:
+    """GET /tenants/{tid}/inventory/transactions
+
+    Filter by item_id + transaction_type. 按 created_at DESC.
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    where = ["t.tenant_id = %s::uuid"]
+    args: list = [tenant_id]
+
+    if item_id:
+        where.append("t.item_id = %s::uuid")
+        args.append(item_id)
+
+    if transaction_type:
+        if transaction_type not in {"purchase", "consume", "return", "adjust"}:
+            raise ApiError(
+                "VALIDATION_ERROR",
+                f"Invalid transaction_type: {transaction_type}",
+                422,
+            )
+        where.append("t.transaction_type = %s")
+        args.append(transaction_type)
+
+    sql = (
+        f"SELECT {_TXN_SELECT} FROM saas.inventory_transaction t "
+        f"WHERE {' AND '.join(where)} "
+        f"ORDER BY t.created_at DESC "
+        f"LIMIT %s"
+    )
+    args.append(limit)
+
+    cur = await db_module._conn.execute(sql, args)
+    rows = await cur.fetchall()
+    return {"items": [_row_to_txn(r) for r in rows]}
