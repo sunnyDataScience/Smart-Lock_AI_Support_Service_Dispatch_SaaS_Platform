@@ -51,11 +51,13 @@ export default function InvoicesPage() {
   const [keyword, setKeyword] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [periodFilter, setPeriodFilter] = useState<string>("");
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>("");
 
   const queryString = useMemo(() => {
     const p = new URLSearchParams();
     if (keyword) p.set("keyword", keyword);
     if (statusFilter) p.set("status", statusFilter);
+    if (paymentMethodFilter) p.set("payment_method", paymentMethodFilter);
     if (periodFilter) {
       const days = parseInt(periodFilter, 10);
       if (!Number.isNaN(days)) {
@@ -65,7 +67,7 @@ export default function InvoicesPage() {
     }
     const qs = p.toString();
     return qs ? `?${qs}` : "";
-  }, [keyword, statusFilter, periodFilter]);
+  }, [keyword, statusFilter, periodFilter, paymentMethodFilter]);
 
   const {
     items,
@@ -206,16 +208,18 @@ export default function InvoicesPage() {
             <option value="overdue">逾期</option>
           </select>
 
-          <button
-            disabled
-            title={tCommon("comingSoon")}
-            className="flex h-[38px] cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 opacity-60"
+          <select
+            value={paymentMethodFilter}
+            onChange={(e) => setPaymentMethodFilter(e.target.value)}
+            className="h-[38px] rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
           >
-            <span className="text-[13px] text-[var(--text-disabled)]">
-              {tInv("filterPaymentMethod")}
-            </span>
-            <ChevronDown className="h-[14px] w-[14px] text-[var(--text-disabled)]" />
-          </button>
+            <option value="">{tInv("filterPaymentMethod")}</option>
+            <option value="credit_card">信用卡</option>
+            <option value="bank_transfer">銀行轉帳</option>
+            <option value="cash">現金</option>
+            <option value="line_pay">LINE Pay</option>
+            <option value="other">其他</option>
+          </select>
 
           <select
             value={periodFilter}

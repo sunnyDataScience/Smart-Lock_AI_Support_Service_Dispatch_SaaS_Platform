@@ -102,6 +102,7 @@ async def list_invoices(
     keyword: str | None = None,
     created_after: str | None = None,
     created_before: str | None = None,
+    payment_method: str | None = None,
 ) -> dict:
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
@@ -138,6 +139,18 @@ async def list_invoices(
     if created_before:
         where.append("i.created_at <= %s::timestamptz")
         args.append(created_before)
+
+    if payment_method:
+        if payment_method not in {
+            "credit_card", "bank_transfer", "cash", "line_pay", "other",
+        }:
+            raise ApiError(
+                "VALIDATION_ERROR",
+                f"Invalid payment_method: {payment_method}",
+                422,
+            )
+        where.append("i.payment_method = %s")
+        args.append(payment_method)
 
     cur_data = decode_cursor(cursor)
     if cur_data and "ts" in cur_data and "id" in cur_data:
