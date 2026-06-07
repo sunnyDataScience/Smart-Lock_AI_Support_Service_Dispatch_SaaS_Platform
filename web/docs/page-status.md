@@ -122,6 +122,8 @@
 | 調解處理表單 | 🟡 | 同上 |
 | 證據縮圖 | ⏳ | 待證據檔案上傳路徑上線 |
 
+> **06-07 hotfix**：DisputesTable `TYPE_TONE` / `STATUS_TONE` lookup 未防 undefined，遇到後端回傳非 enum 值會 `Cannot read properties of undefined (reading 'textColor')` 整頁炸；已加 `??` 中性灰 fallback (`fix/disputes-textColor-bug`).
+
 ---
 
 ## 8. 庫存 `/admin/inventory`
@@ -158,6 +160,20 @@
 | 排序選單（綜合評分/平均星等/完工數）/ 區域過濾 / 分頁（client-side 25/page） | ✅ | useMemo displayedTechnicians + service_areas distinct + pageIndex pagination |
 | 匯出 CSV / 排程發送 | ✅ | `exportTechnicianRanking` (CSV blob) + scheduled-reports endpoint |
 | 完工率 / 週轉時間 / 拒單率 / 營收貢獻 | ⏳ | 待派工 / 結算 metrics 接入 |
+
+---
+
+## 10.5 SOP 績效 `/admin/knowledge-base/sop-performance`（**06-07 上線**）
+
+| 區塊 | 狀態 | 資料來源 |
+| :--- | :--- | :--- |
+| 4 KPI 卡（SOP 總數 / 核准率 / 發布率 / 停用候選） | ✅ | backend `getSopPerformanceMetrics` (M14, `/tenants/{tid}/sop-performance/metrics`) |
+| 狀態分佈 bar 圖（6 enum: draft/in_review/approved/published/retired/deleted） | ✅ | metrics.status_distribution |
+| {window_days} 日內活動（新草稿 / 新發布） | ✅ | metrics.window |
+| 近期發布 SOP Top N（標題 / 版本 / 發布日期） | ✅ | metrics.top_recent_published |
+| 7 / 30 / 90 日 window 切換 + 手動 refresh | ✅ | 前端 useState windowDays + useEffect refetch |
+
+> 從原 placeholder「開發中」升級為完整 dashboard；backend M14 router 在 2026-06-05 已 ready，本次補前端接線。
 
 ---
 

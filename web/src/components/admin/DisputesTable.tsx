@@ -101,8 +101,10 @@ export default function DisputesTable({ items, loading, selectedId, onSelect }: 
       )}
 
       {items.map((row, idx) => {
-        const typeTone = TYPE_TONE[row.dispute_type];
-        const statusTone = STATUS_TONE[row.status];
+        const typeTone = TYPE_TONE[row.dispute_type] ?? { textColor: "#64748B", bgColor: "#F1F5F9" };
+        const statusTone = STATUS_TONE[row.status] ?? { textColor: "#64748B", bgColor: "#F1F5F9" };
+        const typeLabel = TYPE_KEY[row.dispute_type] ? t(TYPE_KEY[row.dispute_type]) : (row.dispute_type ?? "—");
+        const statusLabel = STATUS_KEY[row.status] ? t(STATUS_KEY[row.status]) : (row.status ?? "—");
         const isSelected = selectedId === row.id;
         const linkedRef = row.work_order_id
           ? t("ref.workOrder", { id: row.work_order_id.slice(0, 8) })
@@ -129,7 +131,7 @@ export default function DisputesTable({ items, loading, selectedId, onSelect }: 
                 className="rounded-[10px] px-2 py-[2px] text-[11px] font-medium"
                 style={{ color: typeTone.textColor, backgroundColor: typeTone.bgColor }}
               >
-                {t(TYPE_KEY[row.dispute_type])}
+                {typeLabel}
               </span>
             </div>
 
@@ -156,7 +158,7 @@ export default function DisputesTable({ items, loading, selectedId, onSelect }: 
                 className="rounded-[10px] px-2 py-[2px] text-[11px] font-medium"
                 style={{ color: statusTone.textColor, backgroundColor: statusTone.bgColor }}
               >
-                {t(STATUS_KEY[row.status])}
+                {statusLabel}
               </span>
             </div>
           </button>
