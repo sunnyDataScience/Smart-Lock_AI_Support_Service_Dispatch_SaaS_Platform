@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Search,
   UserPlus,
@@ -63,6 +63,20 @@ const COLUMN_KEYS = [
 export default function CustomersPage() {
   const t = useTranslations("admin.customers.list");
   const [searchQuery, setSearchQuery] = useState("");
+  const [riskFilter, setRiskFilter] = useState<string>("");
+  const [brandFilter, setBrandFilter] = useState<string>("");
+  const [warrantyFilter, setWarrantyFilter] = useState<string>("");
+  const [preferredTechFilter, setPreferredTechFilter] = useState<string>("");
+
+  const queryString = useMemo(() => {
+    const p = new URLSearchParams();
+    if (riskFilter) p.set("risk_level", riskFilter);
+    if (brandFilter) p.set("device_brand", brandFilter);
+    if (warrantyFilter) p.set("warranty_status", warrantyFilter);
+    if (preferredTechFilter) p.set("preferred_technician_id", preferredTechFilter);
+    const qs = p.toString();
+    return qs ? `?${qs}` : "";
+  }, [riskFilter, brandFilter, warrantyFilter, preferredTechFilter]);
 
   // CR-0002-α：遷移至 tenant-scoped v2 端點
   const session = getCurrentSession();
@@ -78,7 +92,7 @@ export default function CustomersPage() {
     loadMore,
     refresh,
   } = usePaginatedFetch<Customer>({
-    path: `/tenants/${encodeURIComponent(tenantId)}/customers`,
+    path: `/tenants/${encodeURIComponent(tenantId)}/customers${queryString}`,
     pageSize: PAGE_LIMIT,
     formatError: formatCustomerError,
   });
@@ -227,19 +241,49 @@ export default function CustomersPage() {
             </div>
           </div>
 
-          {/* Filter Bar — disabled */}
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 opacity-60">
-            {(["risk", "brand", "warranty", "preferredTech"] as const).map((key) => (
-              <button
-                key={key}
-                disabled
-                title={t("comingSoon")}
-                className="flex cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-[7px] text-[13px] text-[var(--text-disabled)]"
-              >
-                {t(`filterChips.${key}`)}
-                <ChevronDown className="h-3 w-3 text-[var(--text-disabled)]" />
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
+            <select
+              value={riskFilter}
+              onChange={(e) => setRiskFilter(e.target.value)}
+              className="rounded-lg border border-[var(--border)] px-3 py-[7px] text-[13px] text-[var(--text-primary)] outline-none"
+            >
+              <option value="">{t("filterChips.risk")}</option>
+              <option value="low">低風險</option>
+              <option value="medium">中風險</option>
+              <option value="high">高風險</option>
+              <option value="critical">緊急</option>
+            </select>
+
+            <select
+              value={brandFilter}
+              onChange={(e) => setBrandFilter(e.target.value)}
+              className="rounded-lg border border-[var(--border)] px-3 py-[7px] text-[13px] text-[var(--text-primary)] outline-none"
+            >
+              <option value="">{t("filterChips.brand")}</option>
+              <option value="Yale">Yale</option>
+              <option value="Dormakaba">Dormakaba</option>
+              <option value="Samsung">Samsung</option>
+              <option value="Other">其他</option>
+            </select>
+
+            <select
+              value={warrantyFilter}
+              onChange={(e) => setWarrantyFilter(e.target.value)}
+              className="rounded-lg border border-[var(--border)] px-3 py-[7px] text-[13px] text-[var(--text-primary)] outline-none"
+            >
+              <option value="">{t("filterChips.warranty")}</option>
+              <option value="active">保固中</option>
+              <option value="expired">已過期</option>
+              <option value="none">無保固</option>
+            </select>
+
+            <input
+              type="text"
+              value={preferredTechFilter}
+              onChange={(e) => setPreferredTechFilter(e.target.value)}
+              placeholder={t("filterChips.preferredTech") + "（技師 UUID）"}
+              className="rounded-lg border border-[var(--border)] px-3 py-[7px] text-[13px] text-[var(--text-primary)] outline-none w-[300px]"
+            />
           </div>
 
           {/* Data Table */}

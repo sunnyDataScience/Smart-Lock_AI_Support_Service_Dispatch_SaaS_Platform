@@ -46,6 +46,10 @@ async def list_customers_v2(
     tenantId: str = Path(...),
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
+    risk_level: str | None = Query(default=None, description="風險等級 low/medium/high/critical"),
+    device_brand: str | None = Query(default=None, description="主要設備品牌"),
+    warranty_status: str | None = Query(default=None, description="保固狀態 active/expired/none"),
+    preferred_technician_id: str | None = Query(default=None, description="偏好技師 UUID"),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
@@ -60,6 +64,10 @@ async def list_customers_v2(
         tenant_id=tenantId,
         cursor=cursor,
         limit=limit,
+        risk_level=risk_level,
+        device_brand=device_brand,
+        warranty_status=warranty_status,
+        preferred_technician_id=preferred_technician_id,
     )
     return {
         "items": [Customer(**c).model_dump(mode="json") for c in page["items"]],
