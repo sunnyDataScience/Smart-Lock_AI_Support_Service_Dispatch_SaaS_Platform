@@ -77,6 +77,7 @@ export default function KpiDashboardPage() {
   // 預設「過去 30 日」，與舊行為一致；DateRangePicker 與 segment 共享同一 range state
   const [range, setRange] = useState<DateRange>(() => getPresetRange("last30"));
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [sliceBy, setSliceBy] = useState<"all" | "brand">("all");
   const period = useMemo<Period>(() => mapRangeToDashboardPeriod(range), [range]);
   const [report, setReport] = useState<KpiReport | null>(null);
   const [loading, setLoading] = useState(true);
@@ -197,14 +198,14 @@ export default function KpiDashboardPage() {
 
             <DateRangePicker value={range} onChange={setRange} />
 
-            <button
-              disabled
-              title="即將推出（品牌 / 區域切片）"
-              className="flex cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-[7px] opacity-50"
+            <select
+              value={sliceBy}
+              onChange={(e) => setSliceBy(e.target.value as "all" | "brand")}
+              className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-[7px] text-[13px] text-[var(--text-primary)] outline-none"
             >
-              <span className="text-[13px] text-[var(--text-primary)]">切片：全部</span>
-              <ChevronDown className="h-4 w-4 text-[var(--text-secondary)]" />
-            </button>
+              <option value="all">切片：全部</option>
+              <option value="brand">切片：按品牌</option>
+            </select>
 
             <div className="flex-1" />
 
