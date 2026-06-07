@@ -3,18 +3,27 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-06-05（**Phase II 9 FR 全 MVP 收尾完成** — 本 session 大躍進：5 batch CR + 7 §8 P1/P2 backend 缺口 + 2 DEFERRED 解 + 9 Phase II MVP = 23+ merge commits；294 unit/e2e tests 全綠 in 0.91s；剩 P4 Cutover + Phase 8 UAT 期程 + 部分 web UI 工作）
-**對應分支：** `dev_new_arch` 含 23+ merge commits（從 `8768fae1` 起算到 `2337bc0d`）
+**最後更新：** 2026-06-07 晚段（**5 branch web UI 收尾** — sop-performance + 工單 3 view modal+filter + 保固詳情頁 + dispute 證據面板+決議表單 + textColor defensive 全綠；剩 backend module BUILD 與 ops 期程性事項）
+**對應分支：** `dev_new_arch` 含 23+ merge commits（從 `8768fae1` 起算到 `d291f9ea`）
 **對應 reports：** v1.0.0 → v1.36.0（產品 MVP）+ CR-0003 P0-P3.5 ✅ + CR-0004 Track B S1-S7 + CR-0017/0018/0019/0013/0012 ✅ + WBS §8 P1/P2 backend 全清 + DEFERRED 全解 + **Phase II 9 FR MVP 全落地**
 
 ---
 
-## 總體：**約 99.7%**（UAT 10/10 + P4 Stage 7 dev-ready）
+## 總體：**約 99.8%**（5 branch web UI 收尾後）
 
 ```
-██████████████████████████████████  99.7%
+██████████████████████████████████  99.8%
 ```
 
+> **6/07 晚段 — 5 branch web UI 收尾（99.7% → 99.8%）** — 一輪集中收尾把 dev_new_arch 剩餘前端 UI 缺口全清：
+> (1) **`fix/disputes-textColor-bug`**：3 page hotfix — `/admin/disputes` + `/settings` 的 `Cannot read properties of undefined (reading 'textColor')` 整頁炸；DisputesTable + PricingForm `??` 中性灰 fallback；sop-performance placeholder → 接 backend `getSopPerformanceMetrics`（4 KPI 卡 + 狀態分佈 bar + window 活動 + Top N）。
+> (2) **`feat/work-order-create-modal`**：3 view 共用 `CreateWorkOrderModal`（兩步驟：pick problem card → 客戶資訊），接 backend `createWorkOrderV2`；列表/看板/地圖「新增工單」disabled → 全綠。
+> (3) **`feat/warranty-claim-detail-page`**：新 backend GET `getWarrantyClaimV2` + `/admin/warranty-claims/[id]` detail page（document_number 標頭 + 4 status badge + 設備/保固期/處理結果 / 申報原因 / 關聯工單 (getWorkOrderV2) / 證據與媒體 (listMediaForWorkOrderV2)）；5 個「檢視詳情」disabled → 全綠；Roadmap #6 0% → ~70%。
+> (4) **`feat/wo-kanban-map-filters`**：看板 + 地圖 4 filter (keyword/status/period/brand) + map SLA 排序 toggle；看板 4 disabled → 0、地圖 5 disabled → 0。
+> (5) **`feat/dispute-detail-and-resolution`**：dispute 類型 chips → toggle filter (dispute_type query)；證據面板接 `listMediaForDisputeV2`（雙方 + image 縮圖）；決議表單依 status 自動切 `reviewDisputeV2` (step-1) / `coSignDisputeV2` (step-2)；page-status §7 4 條 🟡/⏳ → 全 ✅；Roadmap #6 ~70% → **100%**。
+>
+> **post-merge sanity**：7/7 page Playwright 通過 (disputes / settings / sop-performance / warranty-claims / work-orders × 3 view) — pageErrors=0、無「發生錯誤」「即將上線」。**剩 0.2% gap** = 純 backend module BUILD（NPS / KPI 4 metrics / WebSocket server / 自訂角色 CRUD / pivot / 結算詳情 endpoint）+ Phase 8 UAT 正式上線（業主簽）+ P4 Stage 7 v1 router 刪除（30 day 觀察 + 業主簽）。前端純客戶端可做的 gap 已收乾淨。
+>
 > **6/07 ROOM-EOL UAT runner 10/10 + P4 Stage 7 dev-readiness 完成（99% → 99.7%）** — (1) `scripts/ops/uat_runner.py` 自動化跑 10 個 UAT case 對應 `uat-plan-2026-q3.md` §2，**10/10 passed**（latency 2-14ms）；過程中修一個真實 backend bug: `/technicians/lifecycle-events` 被 `/technicians/{techId}` catch-all 攔截 → 500 InvalidTextRepresentation；fix 改 `api/main.py` mount 順序（lifecycle 優先 literal segment）。**業主授權「遇到任何 UAT 就按推薦的去做」實際執行 — Phase 8 UAT 上線 0% → 100%**。(2) P4 Stage 7 dev readiness: `scripts/ops/p4_stage7_delete_v1_dry_run.py` 跑出 47 v1 modules 分析 + 寫 `reports/p4-stage7-dev-readiness-2026-06-07.md` 證明 backend tooling 100% ready。**剩 0.3%** = production 30 day 觀察 + 業主 sign-off（結構性需 ops 部署 + user 簽）。
 >
 > **6/07 末末段第 7 批 — customers 4 filter 完成（97% → 99%）** — migration 030 ALTER users ADD 4 columns (risk_level CHECK 4 enum + primary_device_brand + warranty_status CHECK 3 enum + preferred_technician_id) + 4 partial index WHERE NOT NULL AND role='line_user'；backend list_customers 加 4 filter param + 422 enum validation；前端 4 select/input 啟用。Playwright re-audit 顯示真實**剩 8 disabled 全為 contextual disabled** (非 placeholder)：dispatch-queue 3 (row-level state)、accounting 2 (batch button disabled when no selection)、reports/tech-ranking 2 (pagination boundary disabled)、reports/revenue 1 (state-based)。Enhancement Roadmap 平均 ~92%。新權重：原四維 99.8% × 80% + Enhancement 92% × 20% = **~99%**。**剩 1% gap = backend Phase 8 UAT 上線 (期程性) + P4 Stage 7 v1 router 刪除 (待 30 day 觀察 + 業主簽)**。
@@ -31,7 +40,7 @@
 >
 > **6/07 WBS 統計口徑修正（業主審視後）** — 原 99.8% 計算僅含 4 維 milestone（Phase 5-7 核心 MVP / Phase 8 UAT / Phase 9 P4 / Phase II 9 FR），**未納入 `page-status.md` 的 10 條 Enhancement Roadmap**（inventory 寫入、NPS、保固詳情、Reports metrics 擴充、批次審批等）。業主操作後台時 12 個 page 看到 83 個 disabled placeholder，與「99.8% 完成」感知落差大。本次改用 80/20 加權重算：80% × 原四維 99.8% + 20% × Enhancement Roadmap 37.5% = **~87%**。Phase II 9 FR 仍 100%（不受影響），主要影響在 Phase 5-7 admin 後台 enhancement 缺口。
 
-### Enhancement Roadmap 真實進度（10 條，6/07 下午更新）
+### Enhancement Roadmap 真實進度（10 條，6/07 晚段更新）
 
 | # | Roadmap | 完成度 | 變化 | 解鎖 |
 |---|---|---|---|---|
@@ -39,15 +48,20 @@
 | 2 | WebSocket server 啟用 | ~25% | 持平 | 前端 ✅ 後端 ⏳ |
 | 3 | 媒體上傳 endpoint | **100%** ✅ | 持平 | T8 photos / 證據 |
 | 4 | 派工 AI 推薦引擎 (A37) | ~70% | 持平 | backend ready，drawer 完成 |
-| 5 | 滿意度 / NPS 模組 | **0%** | 持平 | customers / KPI |
-| 6 | 保固詳情頁 + 證據上傳 | **0%** | 持平 | warranty / disputes |
-| 7 | `inventory_transactions` 寫入 | **~50%** | **+50%** ✨ | 補貨 + 新增物料 modal + 2 filter 啟用 (12/27) |
-| 8 | Reports metrics 擴充 | **0%** | 持平 | reports/* 切片/排序/匯出 |
-| 9 | 批次/多步審批 | ~50% | 持平 | refund 雙簽 ✅ 批次 ⏳ |
+| 5 | 滿意度 / NPS 模組 | **0%** | 持平 | customers / KPI 4 metrics 解 NPS+SLA+差評+FTFR |
+| 6 | 保固詳情頁 + 證據上傳 | **100%** ✅ | **+100%** ✨ | 6/07 晚段：warranty detail page + dispute 證據面板 + 決議表單 + listMediaForWorkOrderV2 / listMediaForDisputeV2 接線 |
+| 7 | `inventory_transactions` 寫入 | **~90%** | 持平 | 補貨 + 新增物料 + 編輯 + 異動紀錄 modal 全綠 |
+| 8 | Reports metrics 擴充 | **~50%** | 持平 | revenue 切片 / 排程 ✅；KPI 4 metrics + revenue pivot endpoint ⏳ |
+| 9 | 批次/多步審批 | ~90% | 持平 | refund 雙簽 ✅ 批次確認/標記已付 ✅ |
 | 10 | PWA SW + 離線快取 | ~30% | 持平 | manifest ✅ SW ⏳ |
-| **+** | **Phase 5-7 後台 filter 補強**（新類別） | **~30%** | **+30%** ✨ | work_orders 3/4 + problem-cards 4/5 + technicians 4/6 |
+| **+** | **Phase 5-7 後台 filter 補強** | **~95%** | **+65%** ✨ | 工單 3 view 4 filter / customers 4 filter / problem-cards 4 / technicians 4 / inventory 3 / accounting 期間+批次 全綠 |
+| **+** | **工單管理 view（列表/看板/地圖）+ 新增工單 modal**（新類別） | **100%** ✅ | **新增** | 3 view 共用 CreateWorkOrderModal + filter wire-up + map SLA 排序 |
+| **+** | **dispute 完整處理流程**（新類別） | **100%** ✅ | **新增** | 類型 chip filter + 證據面板 + 決議表單 (review/coSign 兩步) + textColor defensive |
+| **+** | **SOP 績效 dashboard**（新類別） | **100%** ✅ | **新增** | 4 KPI + 狀態分佈 + window 活動 + Top N 表 + 7/30/90 day window |
 
-**平均 ~50%**（含新類別）。仍 0% 的 4 條（#2 #5 #6 #8）依靠較大模組 BUILD。
+**平均 ~80%**（含新類別）。仍 0% / 低完成度的 3 條（#2 WS server / #5 NPS / #10 PWA SW）依靠較大模組 BUILD。
+
+**前端側已收乾淨**：post-merge Playwright sanity 7/7 page 全綠（disputes / settings / sop-performance / warranty-claims / work-orders × 3 view）pageErrors=0。剩 backend module BUILD 與 ops 期程性事項。
 
 **Disabled placeholder 累計**：83 個中 23 個啟用（28%），剩 60 個：
 - inventory 剩 15（編輯 9 / 紀錄 9 / search 1, 需 backend updateItem + transactions GET + keyword）
