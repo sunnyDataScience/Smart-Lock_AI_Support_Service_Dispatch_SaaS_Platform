@@ -50,6 +50,16 @@
 
 ---
 
+## 1D. 工單看板 + 地圖（**06-07 新增 filter wire-up**）
+
+| 區塊 | 狀態 | 資料來源 |
+| :--- | :--- | :--- |
+| 看板 `/work-orders/kanban` 4 filter (keyword / status / period / brand) | ✅ | 同列表 view 對接 listWorkOrdersV2 + 前端 useMemo queryObj |
+| 地圖 `/work-orders/map` 4 filter (同上) | ✅ | 同上 |
+| 地圖 SLA 排序 toggle | ✅ | 前端 client-side sort by `scheduled_at` ASC (null 排最後) |
+
+---
+
 ## 2. 客戶主檔 `/admin/customers`
 
 | 區塊 | 狀態 | 資料來源 |
