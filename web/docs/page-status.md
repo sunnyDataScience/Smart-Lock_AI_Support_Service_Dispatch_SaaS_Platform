@@ -130,12 +130,12 @@
 | 區塊 | 狀態 | 資料來源 |
 | :--- | :--- | :--- |
 | 爭議列表 | ✅ | `listDisputes` 即時資料 |
-| 類型 chips（視覺索引） | 🟡 | 尚未連動 `dispute_type` filter（純視覺） |
-| 雙方證據面板 | 🟡 | 示意 UI，待 `submitDisputeResolution` 寫入 + 證據上傳路徑上線 |
-| 調解處理表單 | 🟡 | 同上 |
-| 證據縮圖 | ⏳ | 待證據檔案上傳路徑上線 |
+| 類型 chips（可 filter） | ✅ | 06-07 wire up — toggle button + 「清除類型」+ `?dispute_type=` 串 listDisputesV2 |
+| 雙方證據面板 | ✅ | 06-07 接 `listMediaForDisputeV2` — 分 `dispute_evidence_customer` / `dispute_evidence_technician` 兩段；image 縮圖、其他 icon；點開新分頁 |
+| 調解處理表單 | ✅ | 06-07 wire up：filed → `reviewDisputeV2`（CSM 提案 + 可勾「轉調解」）；in_review/mediation → `coSignDisputeV2`（最終 ≥ 5 字 + amount） |
+| 證據縮圖 | ✅ | 同雙方證據面板 (listMediaForDisputeV2) |
 
-> **06-07 hotfix**：DisputesTable `TYPE_TONE` / `STATUS_TONE` lookup 未防 undefined，遇到後端回傳非 enum 值會 `Cannot read properties of undefined (reading 'textColor')` 整頁炸；已加 `??` 中性灰 fallback (`fix/disputes-textColor-bug`).
+> **06-07 hotfix**：DisputesTable `TYPE_TONE` / `STATUS_TONE` lookup 加 `??` 中性灰 fallback 避免 backend 回傳非預期 enum 值 `Cannot read properties of undefined (reading 'textColor')` 整頁炸（branches: `fix/disputes-textColor-bug` + `feat/dispute-detail-and-resolution`，內容相同的獨立 defensive 修正）。
 
 ---
 
