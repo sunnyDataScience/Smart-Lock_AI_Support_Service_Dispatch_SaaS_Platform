@@ -7,10 +7,12 @@ import {
   List,
   Columns3,
   Map,
+  Plus,
 } from "lucide-react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import WorkOrdersTable from "@/components/work-orders/WorkOrdersTable";
+import CreateWorkOrderModal from "@/components/work-orders/CreateWorkOrderModal";
 import { ApiError, tenantPath } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { useMemo, useState } from "react";
@@ -77,7 +79,9 @@ export default function WorkOrdersPage() {
   }, [statusFilter, brandFilter, periodFilter, keyword]);
 
   // P3：全 cutover 至 tenant-scoped v2 路徑（tenantPath 同步解析 tenantId）。
-  const { items, cursor, hasMore, loading, error, loadMore } = usePaginatedFetch<WorkOrder>({
+  const [createOpen, setCreateOpen] = useState(false);
+
+  const { items, cursor, hasMore, loading, error, loadMore, refresh } = usePaginatedFetch<WorkOrder>({
     path: `${tenantPath("/work-orders")}${queryParams}`,
     pageSize: PAGE_SIZE,
     formatError: formatWorkOrderError,
@@ -186,6 +190,15 @@ export default function WorkOrdersPage() {
               </Link>
             ))}
           </div>
+
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            className="flex h-9 items-center gap-[6px] rounded-md bg-[var(--primary)] px-4 hover:opacity-90"
+          >
+            <Plus className="h-4 w-4 text-white" />
+            <span className="text-[13px] font-medium text-white">新增工單</span>
+          </button>
         </div>
 
         {/* Table Area */}
@@ -215,6 +228,12 @@ export default function WorkOrdersPage() {
           )}
         </main>
       </div>
+
+      <CreateWorkOrderModal
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onSuccess={() => refresh()}
+      />
     </div>
   );
 }
