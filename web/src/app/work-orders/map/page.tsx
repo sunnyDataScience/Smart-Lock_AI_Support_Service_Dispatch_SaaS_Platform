@@ -14,6 +14,7 @@ import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import MapWorkOrderPanel from "@/components/work-orders/MapWorkOrderPanel";
 import MapView from "@/components/work-orders/MapView";
+import CreateWorkOrderModal from "@/components/work-orders/CreateWorkOrderModal";
 import { ApiError, api, tenantPath } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
@@ -39,6 +40,7 @@ export default function WorkOrdersMapPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -149,9 +151,9 @@ export default function WorkOrdersMapPage() {
           </div>
 
           <button
-            disabled
-            title="即將推出"
-            className="flex h-9 cursor-not-allowed items-center gap-[6px] rounded-md bg-[#CBD5E1] px-4 opacity-70"
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            className="flex h-9 items-center gap-[6px] rounded-md bg-[var(--primary)] px-4 hover:opacity-90"
           >
             <Plus className="h-4 w-4 text-white" />
             <span className="text-[13px] font-medium text-white">新增工單</span>
@@ -178,6 +180,12 @@ export default function WorkOrdersMapPage() {
           />
         </div>
       </div>
+
+      <CreateWorkOrderModal
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onSuccess={() => fetchOrders()}
+      />
     </div>
   );
 }
