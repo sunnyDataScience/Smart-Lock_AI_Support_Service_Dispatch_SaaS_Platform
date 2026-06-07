@@ -49,6 +49,7 @@ async def list_invoices_v2(
     keyword: str | None = Query(default=None, description="發票號碼模糊搜尋"),
     created_after: str | None = Query(default=None, description="建立時間下限 ISO 8601"),
     created_before: str | None = Query(default=None, description="建立時間上限 ISO 8601"),
+    payment_method: str | None = Query(default=None, description="付款方式 (credit_card/bank_transfer/cash/line_pay/other)"),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
@@ -68,6 +69,7 @@ async def list_invoices_v2(
         keyword=keyword,
         created_after=created_after,
         created_before=created_before,
+        payment_method=payment_method,
     )
     return {
         "items": [Invoice(**inv).model_dump(mode="json") for inv in page["items"]],
