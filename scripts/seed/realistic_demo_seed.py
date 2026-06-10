@@ -143,7 +143,9 @@ def name(idx: int) -> str:
 
 
 def phone(idx: int) -> str:
-    return f"09{(11 + idx * 7) % 90 + 10:02d}-{(123 + idx * 31) % 1000:03d}-{(456 + idx * 71) % 1000:03d}"
+    # 純數字 10 碼,對齊 Technician/Customer pydantic 的 `^09\d{8}$` regex。
+    # 之前格式 09NN-NNN-NNN 帶 dash 會讓 GET /tenants/{tid}/technicians 反序列化炸 500。
+    return f"09{(11 + idx * 7) % 90 + 10:02d}{(123 + idx * 31) % 1000:03d}{(456 + idx * 71) % 1000:03d}"
 
 
 def address(idx: int) -> str:
