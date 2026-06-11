@@ -376,10 +376,15 @@ def emit_invoices(wo_ids: list[str], n: int = 60) -> list[str]:
             '[{"name":"基本服務費","price":' + str(amt - 500)
             + ',"qty":1},{"name":"零件成本","price":500,"qty":1}]'
         )
+        # 台灣電子發票號碼格式：2 大寫字母 + 8 碼數字,對齊 Invoice model 的
+        # `^[A-Z]{2}\d{8}$`（api/models/generated.py:614,描述「台灣電子發票號碼（如 AB12345678）」）。
+        # 之前的 INV-2026-NNNNN 格式會讓 GET /accounting/invoices 反序列化炸 500（瀏覽器顯示 CORS）。
+        # 數字 band 用 2000xxxx,避開 SQL/seeds/invoices.sql 的 AB1000000x。
+        invoice_number = f"AB{20_000_000 + i:08d}"
         print(
             "INSERT INTO invoices (id, work_order_id, invoice_number, amount, tax, total, status, "
             "line_items, payment_method, issued_at, paid_at, created_at) VALUES ("
-            f"{q(inv_id)}::uuid, {q(wo)}::uuid, {q(f'INV-2026-{(i + 1000):05d}')}, "
+            f"{q(inv_id)}::uuid, {q(wo)}::uuid, {q(invoice_number)}, "
             f"{amt}, {tax}, {total}, {q(status)}, {q(line_items)}::jsonb, "
             f"{q(pm)}, {q(issued)}, {q(paid)}, {q(ts(days=-days_ago - 1))}"
             ") ON CONFLICT (id) DO NOTHING;"
