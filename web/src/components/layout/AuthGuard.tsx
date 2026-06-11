@@ -6,12 +6,21 @@ import { auth } from "@/lib/api";
 import { SidebarProvider } from "./SidebarContext";
 import RbacChangedBanner from "@/components/realtime/RbacChangedBanner";
 
-const PUBLIC_PATHS = new Set(["/login"]);
+// 完整公開頁清單（AuthGuard 掛在 root layout 包整個 app，漏列就會被踢去 /login）：
+//  - /login          admin/客服登入
+//  - /tech-login     技師登入（漏列 → 技師永遠到不了自己的登入頁）
+// 動態 token 公開頁用 prefix 比對（pathname 會帶 token segment）：
+//  - /track/{token}         客戶查工單進度（public endpoint,token 簽章驗證）
+//  - /scope-change/{token}  客戶確認加價/變更（public endpoint）
+const PUBLIC_PATHS = new Set(["/login", "/tech-login"]);
+const PUBLIC_PREFIXES = ["/track/", "/scope-change/"];
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const isPublic = PUBLIC_PATHS.has(pathname);
+  const isPublic =
+    PUBLIC_PATHS.has(pathname) ||
+    PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
@@ -30,10 +39,13 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
+      const pathIsPublic =
+        PUBLIC_PATHS.has(pathname) ||
+        PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
       if (
         e.key === "smartlock.access_token" &&
         !e.newValue &&
-        !PUBLIC_PATHS.has(pathname)
+        !pathIsPublic
       ) {
         router.replace("/login");
       }

@@ -479,15 +479,21 @@ export async function login(email: string, password: string): Promise<LoginRespo
   return res;
 }
 
-// Tech-login PWA stub (`tech-login/page.tsx` is v0.1 WIP).  No dedicated tech
-// auth endpoint exists yet; for now treat `identifier` (phone or email) as the
-// admin login key so the build passes.  Replace with a real
-// `/api/v1/auth/tech-login` endpoint when the technician auth track lands.
+// 技師登入走專用端點 POST /api/v1/technicians/login（auth.py:58,回傳與 admin
+// login 相同的 {data:{access_token,refresh_token,...}} 信封,token 內 role=technician）。
+// 之前暫接 admin login() 是 WIP stub,demo-tech 密碼存技師庫 → admin 端點必 401。
+// identifier 可為 email 或手機;後端以 email 欄位接收。
 export async function loginTechnician(
   identifier: string,
   password: string,
 ): Promise<LoginResponse> {
-  return login(identifier, password);
+  const res = await request<LoginResponse>("POST", "/api/v1/technicians/login", {
+    body: { email: identifier, password },
+    skipAuth: true,
+  });
+  auth.setTokens(res.data.access_token, res.data.refresh_token);
+  auth.setEmail(identifier);
+  return res;
 }
 
 export async function logout(): Promise<void> {
