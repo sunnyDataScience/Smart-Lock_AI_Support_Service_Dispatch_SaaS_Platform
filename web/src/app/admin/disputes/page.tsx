@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Image as ImageIcon, RefreshCw, FileText, AlertCircle } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import DisputesTable from "@/components/admin/DisputesTable";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { ApiError, api, getCurrentSession, tenantPath } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
@@ -178,12 +178,16 @@ export default function DisputesPage() {
       return;
     }
 
+    // co-sign / review 端點都要求 X-Initiator header（行為人身份,缺則 422）。
+    // co-sign 的 SoD：X-Initiator(co-signer) 必須 ≠ reviewed_by,否則 403。
+    const initiator = getCurrentSession()?.userId ?? "";
     setSubmitting(true);
     try {
       if (canCoSign) {
         await api.post(
           tenantPath(`/disputes/${encodeURIComponent(selected.id)}:co-sign`),
           { resolution: note, resolution_amount: amount },
+          { headers: { "X-Initiator": initiator } },
         );
         toast({
           variant: "success",
@@ -198,6 +202,7 @@ export default function DisputesPage() {
             resolution_amount: amount,
             to_mediation: toMediation,
           },
+          { headers: { "X-Initiator": initiator } },
         );
         toast({
           variant: "success",
