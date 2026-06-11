@@ -57,6 +57,7 @@ data/storage/skill_drafts/
 
 # Playwright E2E 測試輸出（本地產物，不進版控）
 web/test-results/
+web/playwright-report/
 
 # 鎖匠方資料（大型二進位 / 含個資，僅保留 INDEX.md）
 docs/Locksmith_Preparation_Checklist/01_各品牌電子鎖維修手冊/*.pdf
