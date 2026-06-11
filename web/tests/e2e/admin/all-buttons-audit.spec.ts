@@ -33,6 +33,7 @@ const SIDEBAR_TARGETS = [
 ];
 
 test("sidebar 12+ nav 跳轉全綠 + 無 5xx", async ({ page }) => {
+  test.setTimeout(90_000);
   await login(page);
 
   const failures: string[] = [];
@@ -43,7 +44,9 @@ test("sidebar 12+ nav 跳轉全綠 + 無 5xx", async ({ page }) => {
     });
     const status = res?.status() ?? 0;
     if (status >= 500) failures.push(`${target} → ${status}`);
-    await page.waitForLoadState("networkidle").catch(() => {});
+    // 不等 networkidle：dev 模式 HMR websocket 讓 network 永不 idle,
+    // waitForLoadState('networkidle') 會卡到 timeout 拖爆整個 test 預算。
+    // status 已由 goto response 取得,5xx 判斷不需要再等 idle。
   }
   expect(failures, `Failed navs:\n${failures.join("\n")}`).toHaveLength(0);
 });

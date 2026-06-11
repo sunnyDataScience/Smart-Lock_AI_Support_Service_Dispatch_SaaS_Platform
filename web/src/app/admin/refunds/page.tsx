@@ -165,9 +165,11 @@ export default function RefundReviewPage() {
     setActionPending(modalRefund.id);
     setActionError(null);
     try {
+      // api.post 第二參數本身即 request body;直傳 body,勿多包一層 { body }
+      // （多包會送出 {"body":{...}} → 後端 decision/reason 頂層欄位缺失 422）
       const res = await api.post<RefundRequestEnvelope>(
         tenantPath(`/refunds/${modalRefund.id}/decision`),
-        { body },
+        body,
       );
       const updated = res.data;
       if (updated) {

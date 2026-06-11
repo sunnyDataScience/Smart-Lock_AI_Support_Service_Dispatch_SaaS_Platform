@@ -143,7 +143,9 @@ def name(idx: int) -> str:
 
 
 def phone(idx: int) -> str:
-    return f"09{(11 + idx * 7) % 90 + 10:02d}-{(123 + idx * 31) % 1000:03d}-{(456 + idx * 71) % 1000:03d}"
+    # 純數字 10 碼,對齊 Technician/Customer pydantic 的 `^09\d{8}$` regex。
+    # 之前格式 09NN-NNN-NNN 帶 dash 會讓 GET /tenants/{tid}/technicians 反序列化炸 500。
+    return f"09{(11 + idx * 7) % 90 + 10:02d}{(123 + idx * 31) % 1000:03d}{(456 + idx * 71) % 1000:03d}"
 
 
 def address(idx: int) -> str:
@@ -289,6 +291,12 @@ def emit_problem_cards_and_work_orders(
     pc_ids: list[str] = []
     wo_ids: list[str] = []
 
+    # demo-tech（技師端 demo 帳號,SQL/seeds/technicians.sql 的 demo-tech@example.com）
+    # 跨狀態配額：保證 /my-orders 的 active(accepted/assigned/in_progress)、
+    # pending(completed)、history(cancelled) 三 tab 都有資料,不會整頁 empty。
+    demo_tech_id = "77777777-aaaa-4aaa-aaaa-aaaaaaaaaa01"
+    demo_remaining = {"in_progress": 3, "assigned": 2, "accepted": 1, "completed": 2, "cancelled": 1}
+
     for i in range(n):
         cust = customer_ids[i % len(customer_ids)]
         brand, model = device(i)
@@ -324,8 +332,14 @@ def emit_problem_cards_and_work_orders(
         wo_id = f"abc2{i:04d}-0001-4abe-8abe-{i:012d}"
         wo_ids.append(wo_id)
         status = status_pool[i]
-        # only assign tech if past 'created'
-        tech_id = technician_ids[i % len(technician_ids)] if status not in ("created", "cancelled") else None
+        # demo-tech 優先吃配額（含 cancelled,給 history tab）;其餘照 round-robin
+        if demo_remaining.get(status, 0) > 0:
+            tech_id = demo_tech_id
+            demo_remaining[status] -= 1
+        elif status not in ("created", "cancelled"):
+            tech_id = technician_ids[i % len(technician_ids)]
+        else:
+            tech_id = None
         priority = "urgent" if urg == "critical" else ("high" if urg == "high" else "normal")
         scheduled = ts(days=-days_ago + 1) if status not in ("created",) else None
         completed_at = ts(days=-days_ago + 2) if status in ("completed", "confirmed") else None
@@ -374,10 +388,15 @@ def emit_invoices(wo_ids: list[str], n: int = 60) -> list[str]:
             '[{"name":"基本服務費","price":' + str(amt - 500)
             + ',"qty":1},{"name":"零件成本","price":500,"qty":1}]'
         )
+        # 台灣電子發票號碼格式：2 大寫字母 + 8 碼數字,對齊 Invoice model 的
+        # `^[A-Z]{2}\d{8}$`（api/models/generated.py:614,描述「台灣電子發票號碼（如 AB12345678）」）。
+        # 之前的 INV-2026-NNNNN 格式會讓 GET /accounting/invoices 反序列化炸 500（瀏覽器顯示 CORS）。
+        # 數字 band 用 2000xxxx,避開 SQL/seeds/invoices.sql 的 AB1000000x。
+        invoice_number = f"AB{20_000_000 + i:08d}"
         print(
             "INSERT INTO invoices (id, work_order_id, invoice_number, amount, tax, total, status, "
             "line_items, payment_method, issued_at, paid_at, created_at) VALUES ("
-            f"{q(inv_id)}::uuid, {q(wo)}::uuid, {q(f'INV-2026-{(i + 1000):05d}')}, "
+            f"{q(inv_id)}::uuid, {q(wo)}::uuid, {q(invoice_number)}, "
             f"{amt}, {tax}, {total}, {q(status)}, {q(line_items)}::jsonb, "
             f"{q(pm)}, {q(issued)}, {q(paid)}, {q(ts(days=-days_ago - 1))}"
             ") ON CONFLICT (id) DO NOTHING;"
@@ -419,32 +438,52 @@ def emit_warranty_claims(customer_ids: list[str], wo_ids: list[str], n: int = 30
     print()
 
 
+# dispatcher（≠ 登入的 admin）當 step-1 reviewed_by,以滿足 saas.dispute 的
+# SoD CHECK (reviewed_by <> cosigned_by),讓 in_review 爭議能被 admin co-sign 結案。
+_DISPATCHER_ID = "d1893a7f-1c2e-4a6b-9e4d-2f5b8c6a1e02"
+
+
 def emit_disputes(customer_ids: list[str], wo_ids: list[str], n: int = 18):
-    print("-- ── disputes ──")
+    # v2 爭議端點（前端 /admin/disputes 走 tenant-scoped v2）讀 **saas.dispute**
+    # （直接 tenant_id 欄）,不是 legacy public.disputes。之前 seed 寫進 disputes
+    # → 前端 v2 清單永遠空。改寫進 saas.dispute,並帶 tenant_id。
+    # status 對齊 saas.dispute CHECK：filed/in_review/mediation/resolved/escalated/
+    # closed_withdrawn（舊的 rejected 不在白名單,改 escalated）。
+    print("-- ── disputes (saas.dispute, v2) ──")
     types = ["pricing", "quality", "warranty", "cancellation_fee", "settlement"]
-    statuses = ["filed"] * 4 + ["in_review"] * 6 + ["resolved"] * 5 + ["rejected"] * 3
+    statuses = ["filed"] * 4 + ["in_review"] * 6 + ["resolved"] * 5 + ["escalated"] * 3
+    descs = {
+        "pricing": "完工金額與報價落差過大，要求說明",
+        "quality": "完工後 3 日內仍出現原問題",
+        "warranty": "保固期內維修被要求收費，需澄清",
+        "cancellation_fee": "前一日已通知取消，仍被收取出工費",
+        "settlement": "結算明細與實際工單數不符",
+    }
     for i in range(n):
         d_id = f"abc5{i:04d}-0001-4ace-8ace-{i:012d}"
         dt = types[i % len(types)]
         st = statuses[i % len(statuses)]
         wo = wo_ids[i % len(wo_ids)]
         cust = customer_ids[i % len(customer_ids)]
-        desc = {
-            "pricing": "完工金額與報價落差過大，要求說明",
-            "quality": "完工後 3 日內仍出現原問題",
-            "warranty": "保固期內維修被要求收費，需澄清",
-            "cancellation_fee": "前一日已通知取消，仍被收取出工費",
-            "settlement": "結算明細與實際工單數不符",
-        }[dt]
-        res_amount = (i * 200 + 100) if st in ("resolved",) else None
+        desc = descs[dt]
+        filed = ts(days=-(i * 2 + 1))
+        sla = ts(days=-(i * 2 + 1) + 7)
+        # in_review/resolved/escalated 視為 step-1 已審,設 reviewed_by=dispatcher
+        reviewed = st in ("in_review", "resolved", "escalated")
+        reviewed_by = f"{q(_DISPATCHER_ID)}::uuid" if reviewed else "NULL"
+        reviewed_at = q(ts(days=-(i * 2))) if reviewed else "NULL"
+        resolved_at = q(ts(days=-(i * 2 - 1))) if st == "resolved" else "NULL"
+        res_amount = (i * 200 + 100) if st == "resolved" else None
         resolution = "雙方協商給予 20% 折扣補償" if st == "resolved" else None
         print(
-            "INSERT INTO disputes (id, work_order_id, filed_by, dispute_type, status, "
-            "description, resolution, resolution_amount, filed_at, created_at) VALUES ("
-            f"{q(d_id)}::uuid, {q(wo)}::uuid, {q(cust)}::uuid, "
+            "INSERT INTO saas.dispute (id, tenant_id, work_order_id, invoice_id, filed_by, "
+            "dispute_type, status, description, resolution, resolution_amount, "
+            "reviewed_by, reviewed_at, resolved_at, filed_at, sla_deadline, created_at) VALUES ("
+            f"{q(d_id)}::uuid, {q(TENANT_ID)}::uuid, {q(wo)}::uuid, NULL, {q(cust)}::uuid, "
             f"{q(dt)}, {q(st)}, {q(desc)}, "
             f"{q(resolution)}, {res_amount if res_amount is not None else 'NULL'}, "
-            f"{q(ts(days=-(i * 2 + 1)))}, {q(ts(days=-(i * 2 + 1)))}"
+            f"{reviewed_by}, {reviewed_at}, {resolved_at}, "
+            f"{q(filed)}, {q(sla)}, {q(filed)}"
             ") ON CONFLICT (id) DO NOTHING;"
         )
     print()

@@ -157,6 +157,13 @@ export function usePaginatedFetch<T>(
   const queryRef = useRef(query);
   queryRef.current = query;
 
+  // onSuccess 多由 caller 以 inline arrow 傳入（每 render 新 reference）。
+  // 若放進 fetchPage 的 useCallback deps，會讓 fetchPage 每 render 重建 →
+  // 觸發下方 useEffect 重新 fetch → setState → re-render → 無限迴圈
+  // （Maximum update depth exceeded，例：/notifications）。用 ref 穩定身份。
+  const onSuccessRef = useRef(onSuccess);
+  onSuccessRef.current = onSuccess;
+
   const fetchPage = useCallback(
     async (afterCursor: string | null, append: boolean) => {
       if (!enabled) return;
@@ -181,7 +188,7 @@ export function usePaginatedFetch<T>(
         if (typeof res.total_count === "number") setTotalCount(res.total_count);
         setLastFetchedAt(new Date());
         // caller 可訪問 raw response 訪問 hook 標準信封外的自訂 field
-        onSuccess?.(res);
+        onSuccessRef.current?.(res);
       } catch (err) {
         setError(formatError(err));
         // 失敗保留現有 items；hasMore 不變（讓 user 重試 loadMore 或 refresh）
@@ -189,7 +196,7 @@ export function usePaginatedFetch<T>(
         setLoading(false);
       }
     },
-    [path, pageSize, enabled, formatError, onSuccess],
+    [path, pageSize, enabled, formatError],
   );
 
   const loadMore = useCallback(async () => {

@@ -271,6 +271,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.gitignore`：新增 `api/data/`、`web/test-results/` 兩條（runtime 產物，含個資不入版控）
 - `web/src/lib/api.ts`：檔頭註解路徑指向新位置 `web/types/api.generated.ts`（取代舊路徑 `docs/02-design/specs/generated/...`）
 
+### Fixed
+
+- **2026-06-11 E2E 揪出的 5 個產品 bug**（branch `test/ui-interaction-sweep`）：
+  - `web/src/app/admin/refunds/page.tsx`：退款決策送出 `api.post(path, { body })` 多包一層 → decision/reason 不在頂層、後端 422，approve/reject/escalate 全失敗。改直傳 body。
+  - `web/src/components/layout/AuthGuard.tsx`：`PUBLIC_PATHS` 漏 `/tech-login`（連 `/track`、`/scope-change` 客戶公開頁一起被踢去 /login）→ 技師永遠到不了登入頁。補公開頁清單 + 動態 token 頁 prefix。
+  - `web/src/lib/api.ts`：`loginTechnician` WIP stub 打 admin `/api/v1/auth/login` 必 401；改打 `/api/v1/technicians/login`（後端早 ready）。
+  - `web/src/app/admin/disputes/page.tsx`：`:co-sign` / `:review` 漏帶 v2 強制的 `X-Initiator` header → 422，co-sign UI 永遠失敗。補 X-Initiator（取 session.userId）。
+  - `web/src/hooks/usePaginatedFetch.ts`：`onSuccess` 在 fetchPage deps 且 caller 傳 inline arrow → 無限 render 迴圈（Maximum update depth），凍結 /notifications。改 onSuccessRef 穩定身份。
+- `scripts/seed/realistic_demo_seed.py`：
+  - 發票號 `INV-YYYY-NNNNN` → 台灣電子發票格式 `^[A-Z]{2}\d{8}$`，修 `GET /accounting/invoices` 反序列化 500。
+  - 爭議改寫入 `saas.dispute`（v2 前端實際讀的表）而非 legacy `public.disputes`，修 v2 清單永遠空；demo-tech 加跨狀態工單配額，技師端 my-orders 三 tab 不再 empty。
+- `web/src/app/work-orders/page.tsx`、`web/src/app/admin/dispatch-queue/page.tsx`：捲動容器補 `min-h-0`，修 flex column 下 overflow-auto 失效（滾輪失效）。
+
+### Added (tests)
+
+- `web/tests/e2e/admin/ui-sweep.spec.ts`：45 admin-shell 路由互動健檢（render + 通用捲軸 bug 偵測 + 按鈕/篩選清點）。
+- 5 條 P0 user-flow E2E：`refund-sod`、`dispute-cosign`、`gdpr-and-config`、`wo-cancel-cascade`（admin）、`tech/tech-flow`（tech project, Pixel 7，技師端從 0 → 有覆蓋）。
+
 ### Notes
 
 本章節為 Q2 戰術級重構期間累積，待全部 Phase 1'-4' 完成後另開 release tag。

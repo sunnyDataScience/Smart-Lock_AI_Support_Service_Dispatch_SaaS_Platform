@@ -3,7 +3,8 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-06-07 晚段（**5 branch web UI 收尾** — sop-performance + 工單 3 view modal+filter + 保固詳情頁 + dispute 證據面板+決議表單 + textColor defensive 全綠；剩 backend module BUILD 與 ops 期程性事項）
+**最後更新：** 2026-06-11（**E2E 互動 sweep + user-flow 驗證**，branch `test/ui-interaction-sweep` — Playwright 掃 45 admin-shell 路由 + 新增 6 條 P0 user-flow E2E，揪出並修復 **5 個「實作了但端到端是壞的」產品 bug**：退款決策 422、技師登入死鎖+接錯端點、爭議 co-sign 漏 X-Initiator、發票號格式 500、notifications 無限 render 迴圈；另修 2 處捲軸 min-h-0 + 補齊 demo 資料 saas.dispute/demo-tech 工單。詳見文末 2026-06-11 記錄）
+**前一次更新：** 2026-06-07 晚段（5 branch web UI 收尾 — sop-performance + 工單 3 view modal+filter + 保固詳情頁 + dispute 證據面板+決議表單 + textColor defensive 全綠）
 **對應分支：** `dev_new_arch` 含 23+ merge commits（從 `8768fae1` 起算到 `d291f9ea`）
 **對應 reports：** v1.0.0 → v1.36.0（產品 MVP）+ CR-0003 P0-P3.5 ✅ + CR-0004 Track B S1-S7 + CR-0017/0018/0019/0013/0012 ✅ + WBS §8 P1/P2 backend 全清 + DEFERRED 全解 + **Phase II 9 FR MVP 全落地**
 
@@ -171,8 +172,8 @@
 | Flow 3 範圍變更 | **100%** | CR-0017 LINE Flex push 鏈路完成（outbox + worker + Flex carousel + postback router）|
 | Flow 4 缺料 | **100%** | e2e 完成：list endpoint + admin page + supply_arrived 收尾 + UI 標記按鈕 |
 | Flow 5 延遲通知 | **100%** | **2026-06-04 deep audit 確認**（複用 Flow 3/6 方法論）：`work_order_service.notify_delay:1553` 全鏈路完整：(1) INSERT work_order_events `event_type='delay'` + delay_minutes payload（line 1611）/ (2) UPDATE work_orders.updated_at（line 1617）/ (3) `_audit_action('work_order.delay_notified')`（line 1622）/ (4) `line_push_service.push_to_work_order_customer` 真實 LINE push（line 1636，`push_message` AsyncMessagingApi 含 retry+backoff+audit）/ (5) `_publish_and_return(event_type='work_order.delay_notified')` WS publish（line 1643）/ (6) role guard（technician 只能 notify 自己單 line 1597）+ state machine guard（_SUBFLOW_FROM line 1590）。Web caller `my-orders/[id]/delay/page.tsx:74` 用 tenantPath v2 |
-| Flow 6 退款雙簽 | **100%** | csm_approved 中介態 + 同 user 不可雙簽 + WS 推送 |
-| Flow 7 爭議 | **100%** | 雙方證據上傳 + 縮圖瀏覽 + 仲裁決定全鏈路 |
+| Flow 6 退款雙簽 | **100%** | csm_approved 中介態 + 同 user 不可雙簽 + WS 推送。⚠️ 2026-06-11 E2E 揪出決策送出多包 body → 422,審核全壞,已修（commit ab8d9d8c）|
+| Flow 7 爭議 | **100%** | 雙方證據上傳 + 縮圖瀏覽 + 仲裁決定全鏈路。⚠️ 2026-06-11 E2E 揪出 co-sign/review 漏 X-Initiator → 422，且 seed 寫錯表(public.disputes vs v2 saas.dispute)導致清單空,均已修（commit 5ec8127e / 6328d7c3）|
 | Flow 8 二次派工 | **100%** | reassign backend + frontend e2e 完成 (`_REASSIGN_FROM={assigned,accepted,in_progress}` + service + endpoint + 雙表 audit + WS publish + 前端分流) |
 | Flow 9 客訴升級 | **100%** | escalate-to-work-order endpoint + 前端 EscalateAlertModal + i18n e2e 完成 |
 | Flow 10 門面檢核 | **100%** | T8 + admin 縮圖瀏覽完成端到端 |
@@ -383,6 +384,41 @@
 - UAT 10 案執行（+0.3%）
 
 詳見 `docs/_ops/wbs-100-closeout-plan.md` 完整 unblocking flowchart。
+
+---
+
+## 2026-06-11 E2E 互動 sweep + user-flow 驗證記錄（branch `test/ui-interaction-sweep`）
+
+> 起因：demo 前要求「Playwright 測畫面所有按鈕/篩選/捲動」。從廣度 sweep 延伸到 P0 user-flow 深度驗證，揪出多個「功能已實作、完成度標 100%，但端到端實際是壞的」缺陷——正是 change-governance 警告的 AI slop 型風險。
+
+### A. 廣度 sweep（45 admin-shell 路由）
+- 新增 `web/tests/e2e/admin/ui-sweep.spec.ts`：每路由驗 render（無 5xx/pageerror/error overlay）+ 捲軸健康（通用偵測 overflow 容器內容被困的 min-h-0 bug）+ 按鈕/篩選清點。
+- 結果：45 路由全綠（修復後）。
+
+### B. 深度 user-flow E2E（6 條，對應 test-plan §A.1 缺口）
+| Spec | Flow | 狀態 |
+|:---|:---|:---|
+| `refund-sod.spec.ts` | 退款 SoD 三維（FR-0014）| 3/3 ✅ |
+| `dispute-cosign.spec.ts` | 爭議 dual-sign 仲裁（FR-0013）| 2/2 ✅（co-sign 端到端結案）|
+| `gdpr-and-config.spec.ts` | GDPR 佇列 + M18 系統設定（FR-0053/0043）| 4/4 ✅ |
+| `wo-cancel-cascade.spec.ts` | 工單 6-stage 取消費分層（FR-0010/0052）| 2/2 ✅ |
+| `tech/tech-flow.spec.ts` | 技師手機端（tech project, Pixel 7）| 6/6 ✅ |
+
+### C. 揪出並修復的 5 個產品 bug
+1. **退款決策 422**（`admin/refunds`）— `api.post(path, { body })` 多包一層 → decision/reason 不在頂層，approve/reject/escalate 全失敗。修：直傳 body（ab8d9d8c）。
+2. **技師登入死鎖**（`AuthGuard`）— `PUBLIC_PATHS` 漏 `/tech-login`（連 `/track`、`/scope-change` 客戶公開頁一起被踢去 /login）。修：補公開頁清單（d423aacf）。
+3. **技師登入接錯端點**（`lib/api.ts`）— `loginTechnician` WIP stub 打 admin 端點必 401；後端早有 `/api/v1/technicians/login`。修：改打正確端點（d423aacf）。
+4. **爭議 co-sign/review 漏 X-Initiator**（`admin/disputes`）— v2 端點強制要求該 header，缺則 422 → co-sign UI 永遠失敗。修：補 X-Initiator（5ec8127e）。
+5. **發票號格式 500 + notifications 無限迴圈**（前一段同分支）— 發票號不符 `^[A-Z]{2}\d{8}$`、`usePaginatedFetch` onSuccess 不穩定身份。已修。
+
+### D. demo 資料對齊（修復「看似完成卻空白」）
+- **爭議**：seed 改寫進 `saas.dispute`（v2 前端實際讀的表，直接 tenant_id），原本只寫 legacy `public.disputes` → v2 清單永遠空。現 18 筆可見（6 in_review 可 co-sign）。
+- **技師工單**：seed 加 demo-tech 跨狀態配額（in_progress/assigned/accepted/completed/cancelled），技師端 my-orders active/pending/history 三 tab 都有資料（現 10 筆）。
+
+### E. 影響評估
+- 完成度 % 不上調（功能本就標 100%，本輪是把「實作了但壞的」修成「真的能跑」——品質校正，非新增完成）。
+- 但 §4 Flow 6 / Flow 7 已標注 ⚠️ E2E 揪出的缺陷與修復 commit，供日後追溯。
+- E2E 自動化覆蓋實質提升：新增 1 支 sweep + 6 支 user-flow spec（含技師端 tech project 從 0 → 有覆蓋）。
 
 ---
 

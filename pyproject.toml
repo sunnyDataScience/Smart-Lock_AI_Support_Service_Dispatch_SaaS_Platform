@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11,<3.12"
 # 把三個 workspace member 列為 deps，`uv sync` 才會把它們的 deps 拉進共用 venv
 dependencies = [
-    "smart-lock-agent",
+    "lock-cs-agent",
     "smart-lock-api",
     "smart-lock-data",
 ]
@@ -44,7 +44,7 @@ test = [
 members = ["agent", "api", "data"]
 
 [tool.uv.sources]
-smart-lock-agent = { workspace = true }
+lock-cs-agent = { workspace = true }
 smart-lock-api = { workspace = true }
 smart-lock-data = { workspace = true }
 

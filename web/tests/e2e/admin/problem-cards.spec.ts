@@ -16,7 +16,9 @@ import { test, expect, Page } from "@playwright/test";
 
 const TENANT_ID = "00000000-0000-0000-0000-000000000001";
 
-const LIST_PATH = "**/tenants/*/problem-cards";
+// 攔截 glob 須帶尾隨 * 以涵蓋 query string（usePaginatedFetch 一律附加 ?limit=20）；
+// 缺少尾隨 wildcard 時 Playwright glob 不會匹配帶 query 的 URL，route 不觸發 → capturedPath 為 null。
+const LIST_PATH = "**/tenants/*/problem-cards*";
 
 const SAMPLE_PROBLEM_CARD = {
   id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",

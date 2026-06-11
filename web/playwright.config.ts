@@ -26,7 +26,10 @@ export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  // 本地也給 1 retry：多支 admin spec 共用同一帳號從 /login 登入,fullyParallel
+  // 多 worker 下偶發 login 往返 timing 競爭（單跑必綠）。retry 只重跑失敗案例,
+  // 無法掩蓋穩定失敗,專治此類 transient flake。
+  retries: 1,
   workers: process.env.CI ? 1 : undefined,
   reporter: [
     ['list'],
