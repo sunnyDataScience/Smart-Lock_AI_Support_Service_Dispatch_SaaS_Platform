@@ -304,7 +304,7 @@ export default function DispatchQueuePage() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 px-8 py-5">
+        <div className="flex flex-1 min-h-0 flex-col gap-4 overflow-auto px-8 py-5">
           <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]">
             <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
               <span className="text-sm font-semibold text-[var(--text-primary)]">

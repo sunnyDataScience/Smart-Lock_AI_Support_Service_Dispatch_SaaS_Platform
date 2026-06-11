@@ -205,7 +205,7 @@ export default function WorkOrdersPage() {
         <main
           id="main-content"
           tabIndex={-1}
-          className="flex flex-1 flex-col gap-4 overflow-auto bg-[var(--bg-page)] px-8 py-5"
+          className="flex flex-1 min-h-0 flex-col gap-4 overflow-auto bg-[var(--bg-page)] px-8 py-5"
         >
           {error && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
