@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Check, Lock, RefreshCw, Edit3 } from "lucide-react";
+import { Plus, Check, Lock, RefreshCw, Edit3, KeyRound } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { ApiError, ApiErrorResponse, api, getCurrentSession } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 import { RolePermissionsEditor } from "@/components/admin/RolePermissionsEditor";
+import AdminResetPasswordModal from "@/components/admin/AdminResetPasswordModal";
 import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
 
 type Role = components["schemas"]["Role"];
@@ -86,6 +87,7 @@ export default function RolesPage() {
   const [editing, setEditing] = useState<Role | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [actorRole, setActorRole] = useState<string | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
 
   const resourceLabels = useMemo<Record<RoleResource, string>>(
     () => ({
@@ -194,6 +196,18 @@ export default function RolesPage() {
                   }`}
                 />
               </button>
+              {actorRole && RBAC_ADMIN_ROLES.has(actorRole) && (
+                <button
+                  onClick={() => setResetOpen(true)}
+                  title="管理員代為重設使用者密碼"
+                  className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-[10px] hover:bg-[var(--bg-page)]"
+                >
+                  <KeyRound className="h-4 w-4 text-[var(--text-secondary)]" />
+                  <span className="text-sm font-medium text-[var(--text-primary)]">
+                    重設使用者密碼
+                  </span>
+                </button>
+              )}
               <button
                 disabled
                 title={t("createCustomTooltip")}
@@ -364,6 +378,10 @@ export default function RolesPage() {
             setTimeout(() => setToast(null), 4000);
           }}
         />
+      )}
+
+      {resetOpen && (
+        <AdminResetPasswordModal onClose={() => setResetOpen(false)} />
       )}
     </div>
   );

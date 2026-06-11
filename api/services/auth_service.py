@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import secrets
 import uuid
 from datetime import datetime, timezone
 
@@ -170,6 +171,40 @@ async def change_password(*, user_id: str, current_password: str, new_password: 
         "UPDATE users SET password_hash = %s, updated_at = NOW() WHERE id = %s::uuid",
         (new_hash, user_id),
     )
+
+
+async def admin_reset_password(*, email: str, tenant_id: str) -> str:
+    """管理員代為重設：把同租戶指定 email 的密碼重設為隨機臨時密碼,回傳明文。
+
+    機制由業主裁決（2026-06-10 會議 Action #7）：免 email 基礎設施,admin 在後台
+    重設後把臨時密碼轉達使用者,使用者登入後自行用 change_password 改回。
+
+    規則：
+      - 不驗 current_password（admin 權限由 router 的 role guard 把關）
+      - 限同租戶（tenant_id 來自已認證 admin,防跨租戶重設）
+      - 帳號需存在；停用帳號也可重設（由 admin 自行判斷是否同時啟用）
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    cur = await db_module._conn.execute(
+        "SELECT id FROM users WHERE email = %s AND tenant_id = %s::uuid LIMIT 1",
+        (email, tenant_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError(
+            "USER_NOT_FOUND", f"No user with email {email} in this tenant", 404
+        )
+
+    # token_urlsafe(9) → 12 字元 url-safe 臨時密碼（>= 8,滿足 bcrypt 與前端規則）
+    temp_password = secrets.token_urlsafe(9)
+    new_hash = hash_password(temp_password)
+    await db_module._conn.execute(
+        "UPDATE users SET password_hash = %s, updated_at = NOW() WHERE id = %s::uuid",
+        (new_hash, row[0]),
+    )
+    return temp_password
 
 
 async def register_technician(req: dict) -> dict:

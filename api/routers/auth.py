@@ -7,7 +7,7 @@ import logging
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, EmailStr, Field
 
-from core.deps import CurrentUser, get_current_user
+from core.deps import CurrentUser, get_current_user, role_required
 from core.idempotency import idempotency_guard, IdempotencyContext
 from services import auth_service
 
@@ -31,6 +31,10 @@ class LogoutBody(BaseModel):
 class ChangePasswordBody(BaseModel):
     current_password: str = Field(min_length=8, max_length=72)
     new_password: str = Field(min_length=8, max_length=72)
+
+
+class AdminResetPasswordBody(BaseModel):
+    email: EmailStr
 
 
 class TechnicianRegisterBody(BaseModel):
@@ -111,6 +115,27 @@ async def change_password(
         new_password=body.new_password,
     )
     return Response(status_code=204)
+
+
+@router.post(
+    "/auth/admin-reset-password",
+    operation_id="adminResetPassword",
+    summary="管理員代為重設使用者密碼（回傳臨時密碼,免 email）",
+    status_code=200,
+)
+async def admin_reset_password(
+    body: AdminResetPasswordBody,
+    user: CurrentUser = Depends(role_required("admin")),
+) -> dict:
+    """admin 限定：重設同租戶使用者密碼為臨時密碼,回傳明文供轉達。
+
+    機制由 2026-06-10 會議裁決（Action #7）：免 email 基礎設施。tenant_id 取自
+    已認證 admin（role_required 已綁 require_tenant）,service 層限同租戶。
+    """
+    temp = await auth_service.admin_reset_password(
+        email=body.email, tenant_id=user.tenant_id
+    )
+    return {"data": {"email": body.email, "temp_password": temp}}
 
 
 @router.post(
