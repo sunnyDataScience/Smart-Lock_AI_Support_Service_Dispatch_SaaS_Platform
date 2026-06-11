@@ -18,7 +18,10 @@ import { test, expect, Page } from "@playwright/test";
 const TENANT_ID = "00000000-0000-0000-0000-000000000001";
 const TECH_ID = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 
-const LIST_PATH = "**/tenants/*/technicians";
+// glob 尾端加 `*` 以同時涵蓋分頁 query string（usePaginatedFetch 會自動
+// 附 `?limit=20`）；否則 `**/tenants/*/technicians` 比對不到帶 query 的 URL，
+// mock 不觸發 → 真實後端回 401。
+const LIST_PATH = "**/tenants/*/technicians*";
 const DETAIL_PATH = `**/tenants/*/technicians/${TECH_ID}`;
 
 const SAMPLE_TECHNICIAN = {
@@ -101,8 +104,10 @@ test.describe("@wip technicians list page — tenant-scoped v2 GET", () => {
     // 頁面 title 顯示
     await expect(page.locator("h1").first()).toBeVisible({ timeout: 15000 });
 
-    // 表格中有技師名稱
-    await expect(page.getByText("陳大明")).toBeVisible({ timeout: 10000 });
+    // 表格中至少渲染出一列技師（不綁特定姓名/數字 — 對 seed 穩健）
+    await expect(page.getByText(SAMPLE_TECHNICIAN.name).first()).toBeVisible({
+      timeout: 10000,
+    });
 
     // 驗證打的是 tenant-scoped path（含 tenantId）
     expect(capturedPath).not.toBeNull();
@@ -163,8 +168,10 @@ test.describe("@wip technicians detail page — tenant-scoped v2 GET detail", ()
 
     await page.goto(`/technicians/${TECH_ID}`);
 
-    // 顯示技師姓名
-    await expect(page.getByText("陳大明")).toBeVisible({ timeout: 15000 });
+    // 顯示技師姓名（詳情頁姓名出現在 h1 + sidebar 多處 → 用 .first() 避開 strict mode）
+    await expect(page.getByText(SAMPLE_TECHNICIAN.name).first()).toBeVisible({
+      timeout: 15000,
+    });
 
     // 驗證打的是 tenant-scoped path
     expect(capturedPath).not.toBeNull();

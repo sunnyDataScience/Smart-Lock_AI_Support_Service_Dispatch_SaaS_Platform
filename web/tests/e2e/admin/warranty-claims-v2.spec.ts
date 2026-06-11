@@ -4,7 +4,8 @@
  *
  * 測試矩陣:
  *   1. POST 建立保固申訴 → mock 201 → toast 出現 + POST 打 /tenants/{tenantId}/warranty-claims
- *   2. GET list 打 /api/v1/warranty-claims（legacy 不動）
+ *   2. GET list 打 v2 tenant-scoped /tenants/{tenantId}/warranty-claims
+ *      （CR-0009 step-extend：list 已從 legacy /api/v1/warranty-claims 遷移）
  *   3. POST body 含正確欄位（customer_id, claim_type, requested_by_role）
  *
  * 透過 page.route() 攔截所有 warranty-claims 路徑，分 method 回應。
@@ -17,10 +18,10 @@ import { test, expect, Page } from "@playwright/test";
 
 const TENANT_ID = "00000000-0000-0000-0000-000000000001";
 
-// v2 tenant-scoped POST path（測試核心目標）
-const V2_POST_PATH = `**/tenants/${TENANT_ID}/warranty-claims`;
-// legacy GET list path（不動）
-const LEGACY_LIST_PATH = "**/api/v1/warranty-claims**";
+// v2 tenant-scoped path（list GET + create POST 共用；CR-0009 step-extend：list 已遷移至 listWarrantyClaimsV2，
+// page 用 tenantPath("/warranty-claims") → /tenants/{tid}/warranty-claims?limit=50；
+// 不再走 legacy /api/v1/warranty-claims）。尾隨 * 涵蓋 ?limit / ?status query string。
+const V2_LIST_PATH = `**/tenants/${TENANT_ID}/warranty-claims*`;
 
 const SAMPLE_CLAIM = {
   id: "11111111-1111-1111-1111-111111111111",
@@ -97,22 +98,17 @@ test.describe("@wip warranty-claims v2 POST — tenant-scoped path（CR-0003 P2�
     let capturedPostPath: string | null = null;
     let capturedPostBody: Record<string, unknown> | null = null;
 
-    // mock GET /api/v1/warranty-claims → list
-    await page.route(LEGACY_LIST_PATH, async (route) => {
-      if (route.request().method() === "GET") {
+    // list 與 create 現皆走同一條 v2 tenant-scoped path（CR-0009 step-extend），
+    // 以單一 route 依 method 分流：GET → list、POST → 捕捉 body + 201。
+    await page.route(V2_LIST_PATH, async (route) => {
+      const method = route.request().method();
+      if (method === "GET") {
         await route.fulfill({
           status: 200,
           contentType: "application/json",
           body: JSON.stringify(SAMPLE_LIST),
         });
-      } else {
-        await route.continue();
-      }
-    });
-
-    // mock POST /tenants/{tenantId}/warranty-claims → 201
-    await page.route(V2_POST_PATH, async (route) => {
-      if (route.request().method() === "POST") {
+      } else if (method === "POST") {
         capturedPostPath = route.request().url();
         capturedPostBody = route.request().postDataJSON() as Record<string, unknown>;
         await route.fulfill({
@@ -173,14 +169,14 @@ test.describe("@wip warranty-claims v2 POST — tenant-scoped path（CR-0003 P2�
     expect(body["work_order_id"]).toBeUndefined();
   });
 
-  test("legacy GET /api/v1/warranty-claims still fetches list correctly", async ({
+  test("GET list fetches v2 tenant-scoped /tenants/{tenantId}/warranty-claims", async ({
     page,
   }) => {
     await injectAdminSession(page);
 
     let capturedGetPath: string | null = null;
 
-    await page.route(LEGACY_LIST_PATH, async (route) => {
+    await page.route(V2_LIST_PATH, async (route) => {
       if (route.request().method() === "GET") {
         capturedGetPath = route.request().url();
         await route.fulfill({
@@ -196,8 +192,10 @@ test.describe("@wip warranty-claims v2 POST — tenant-scoped path（CR-0003 P2�
     await page.goto("/admin/warranty-claims");
     await expect(page.locator("h1").first()).toBeVisible({ timeout: 15000 });
 
-    // 確認 GET 打了 legacy list path（legacy 不動）
+    // 確認 GET 打了 v2 tenant-scoped list path（CR-0009 step-extend：list 已遷移）
     expect(capturedGetPath).not.toBeNull();
-    expect(capturedGetPath!).toContain("/api/v1/warranty-claims");
+    expect(capturedGetPath!).toContain(
+      `/tenants/${TENANT_ID}/warranty-claims`,
+    );
   });
 });

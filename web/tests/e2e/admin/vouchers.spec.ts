@@ -17,12 +17,18 @@ import { test, expect, Page } from "@playwright/test";
 const TENANT_ID = "00000000-0000-0000-0000-000000000001";
 const VOUCHER_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 
-const LIST_PATH = "**/tenants/*/vouchers";
-const LIST_PATH_EXCL_EXPORT = "**/tenants/*/vouchers?**";
+// 傳票號格式 regex（對齊現行 seed：V + YYYYMMDD + - + NNNN）。
+// 測試只驗結構，不綁特定號碼，避免 seed 變動時 hardcode 失效。
+const VOUCHER_NUMBER_RE = /V\d{8}-\d{4}/;
+
+// 傳票列表 GET 走 /tenants/{id}/vouchers?posting_date_start=...&...&limit=...
+// page.route 的 glob `**/tenants/*/vouchers` 無法匹配帶 query string 的 URL，
+// 故改用 regex 攔截「以 /vouchers 結尾、後接可選 query」且排除 /vouchers/{id}/export。
+const LIST_PATH = /\/tenants\/[^/]+\/vouchers(\?[^/]*)?$/;
 
 const SAMPLE_VOUCHER = {
   id: VOUCHER_ID,
-  voucher_number: "VCH-2026-00001",
+  voucher_number: "V20260427-0001",
   related_entity_type: "settlement",
   related_entity_id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
   debit_account: "應收帳款",
@@ -96,8 +102,8 @@ test.describe("@wip vouchers list page — tenant-scoped v2 GET", () => {
     // 頁面 title 顯示
     await expect(page.locator("h1").first()).toBeVisible({ timeout: 15000 });
 
-    // 表格中有傳票號碼
-    await expect(page.getByText("VCH-2026-00001")).toBeVisible({
+    // 傳票號碼以格式驗結構（不綁特定號碼），mock 回的 voucher_number 應渲染出來
+    await expect(page.getByText(VOUCHER_NUMBER_RE).first()).toBeVisible({
       timeout: 10000,
     });
 

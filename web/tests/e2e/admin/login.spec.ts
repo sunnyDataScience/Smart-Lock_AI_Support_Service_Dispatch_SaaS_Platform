@@ -30,14 +30,23 @@ test.describe('Login Page Smoke', () => {
     ).toBeVisible();
   });
 
-  test('submit button is present and enabled', async ({ page }) => {
+  test('submit button is present; disabled on empty form, enabled once filled', async ({ page }) => {
     await page.goto('/login');
 
     const submitButton = page.locator(
       'button[type="submit"], button:has-text("登入"), button:has-text("Sign in"), button:has-text("Login")'
     ).first();
 
+    // submit 存在
     await expect(submitButton).toBeVisible({ timeout: 10_000 });
+
+    // 刻意設計（login/page.tsx:106 `disabled={loading || !email || !password}`）：
+    // 空表單時 submit 應 disabled，避免空送出（正確 UX，非 bug）。
+    await expect(submitButton).toBeDisabled();
+
+    // 填入 email + password 後，submit 應變 enabled。
+    await page.locator('input[type="email"], input[name="email"]').first().fill('admin@example.com');
+    await page.locator('input[type="password"], input[name="password"]').first().fill('changeme123');
     await expect(submitButton).toBeEnabled();
   });
 });

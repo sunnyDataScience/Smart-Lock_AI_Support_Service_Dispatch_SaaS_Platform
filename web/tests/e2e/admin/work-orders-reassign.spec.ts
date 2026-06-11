@@ -49,26 +49,33 @@ function makeWorkOrder(status: string, technicianId: string | null) {
   };
 }
 
+// 候選技師 mock — 對齊現行 CandidateItem / Technician schema（AssignModal 讀
+// technician.name / rating / skills，並用 score / distance_km / skill_match /
+// availability_eta_minutes 渲染）。舊 fixture 用 full_name / eta_minutes 等
+// 不存在的欄位，導致 modal 渲染時讀 undefined 失敗、候選列永遠空白。
+// 不綁特定技師名，測試改以「候選選項數 ≥ 1」驗結構。
 const CANDIDATES_RESPONSE = {
   candidates: [
     {
       technician: {
         id: TECH_ID_NEW,
-        full_name: "李技師",
+        name: "候選技師甲",
         phone: "0922333444",
-        status: "active",
+        level: "senior",
+        availability: "available",
+        skills: ["TLJ", "Yale"],
+        service_areas: ["信義區"],
+        rating: 4.7,
+        completed_orders_count: 120,
+        created_at: "2026-01-01T00:00:00Z",
       },
       score: 85.0,
       distance_km: 2.5,
-      eta_minutes: 15,
-      ranking_factors: {
-        brand_score: 0.9,
-        distance_score: 0.8,
-        rating_score: 0.85,
-        availability_score: 1.0,
-      },
+      skill_match: 0.9,
+      availability_eta_minutes: 15,
     },
   ],
+  total: 1,
 };
 
 async function injectAdminSession(page: Page) {
@@ -167,8 +174,15 @@ test.describe("@wip Flow 8 work-orders reassign endpoint routing", () => {
       .first();
     await reassignTrigger.click();
 
-    // AssignDialog 開啟 — 候選技師可見
-    await expect(page.getByText(/李技師/)).toBeVisible({ timeout: 5000 });
+    // AssignModal 開啟 — 驗候選技師選項可見（結構，不綁特定技師名）。
+    // 候選 label「候選技師（依綜合分排序）」標示候選區塊。
+    await expect(page.getByText(/候選技師/).first()).toBeVisible({ timeout: 5000 });
+
+    // 候選選項以分數徽章呈現（toFixed(1) → 例如 85.0），至少一筆可選。
+    const candidateScore = page.getByText(/^\d+\.\d$/).first();
+    await expect(candidateScore).toBeVisible({ timeout: 5000 });
+    // 點第一個候選選項（AssignModal 已 auto-select 異於現任的候選，這裡再點確保選取）
+    await candidateScore.click();
 
     // 確認送出（dialog 內的 submit / 確認按鈕；對應行為見 page.tsx）
     const submitButton = page
@@ -256,7 +270,11 @@ test.describe("@wip Flow 8 work-orders reassign endpoint routing", () => {
       .first();
     await reassignTrigger.click();
 
-    await expect(page.getByText(/李技師/)).toBeVisible({ timeout: 5000 });
+    // AssignModal 開啟 — 驗候選技師選項可見（結構，不綁特定技師名）。
+    await expect(page.getByText(/候選技師/).first()).toBeVisible({ timeout: 5000 });
+    const candidateScore = page.getByText(/^\d+\.\d$/).first();
+    await expect(candidateScore).toBeVisible({ timeout: 5000 });
+    await candidateScore.click();
 
     const submitButton = page
       .getByRole("button", { name: /確認|Confirm|送出|Submit|指派/i })

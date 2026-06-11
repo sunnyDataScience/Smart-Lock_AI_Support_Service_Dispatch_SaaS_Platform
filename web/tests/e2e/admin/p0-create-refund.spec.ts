@@ -4,7 +4,8 @@
  *
  * 對應 ADR-0040v2 / FR-0014：建立退款改打 POST /tenants/{tenantId}/refunds，
  * 帶 X-Initiator / X-Approver headers；tier 由伺服器從 amount 推算。
- * list 查詢仍走舊 GET /api/v1/refunds（未遷移，雙掛過渡）。
+ * list 查詢已遷移至 v2 GET /tenants/{tenantId}/refunds（page.tsx usePaginatedFetch
+ * path: tenantPath("/refunds")，見 CR-0009 step-extend）——與建立同 path、靠 method 區分。
  *
  * 測試矩陣:
  *   1. 點「建立退款申請」按鈕 → Modal 顯示
@@ -18,7 +19,7 @@
 
 import { test, expect, Page } from "@playwright/test";
 
-const LIST_PATH = "**/api/v1/refunds**";
+// list 與建立同 path（v2 tenant-scoped），靠 HTTP method 區分：GET=list、POST=建立。
 const CREATE_PATH = "**/tenants/*/refunds**";
 
 const APPROVER_UUID = "a0000000-0000-4000-8000-000000000002";
@@ -71,9 +72,14 @@ async function injectAdminSession(page: Page) {
   }, fakeToken);
 }
 
-/** GET list 仍走舊端點 — 統一在每個 test 開頭掛上。 */
+/**
+ * GET list 已遷至 v2 tenant-scoped path（與建立同 path）——攔 GET 回 mock list，
+ * 非 GET（建立 POST）交給後續註冊、更專一的 POST handler 處理。
+ * 統一在每個 test 開頭掛上；須在 per-test POST route 之「前」註冊
+ * （Playwright route 後註冊者優先，POST handler 對 GET 會 fallthrough 到此）。
+ */
 async function mockList(page: Page) {
-  await page.route(LIST_PATH, async (route) => {
+  await page.route(CREATE_PATH, async (route) => {
     if (route.request().method() === "GET") {
       await route.fulfill({
         status: 200,
@@ -81,7 +87,7 @@ async function mockList(page: Page) {
         body: JSON.stringify(SAMPLE_LIST),
       });
     } else {
-      await route.continue();
+      await route.fallback();
     }
   });
 }
@@ -107,9 +113,9 @@ test.describe("@wip createRefund tenant-scoped SoD + 5-tier path", () => {
     let postHeaders: Record<string, string> | null = null;
     let postBody: Record<string, unknown> | null = null;
     await page.route(CREATE_PATH, async (route) => {
-      // 只攔建立 POST；tenant-scoped path 沒有 GET list 行為
+      // 只攔建立 POST；GET（list）fallback 給先前註冊的 mockList handler
       if (route.request().method() !== "POST") {
-        await route.continue();
+        await route.fallback();
         return;
       }
       postHeaders = route.request().headers();
@@ -176,7 +182,7 @@ test.describe("@wip createRefund tenant-scoped SoD + 5-tier path", () => {
 
     await page.route(CREATE_PATH, async (route) => {
       if (route.request().method() !== "POST") {
-        await route.continue();
+        await route.fallback();
         return;
       }
       await route.fulfill({
@@ -219,7 +225,7 @@ test.describe("@wip createRefund tenant-scoped SoD + 5-tier path", () => {
 
     await page.route(CREATE_PATH, async (route) => {
       if (route.request().method() !== "POST") {
-        await route.continue();
+        await route.fallback();
         return;
       }
       await route.fulfill({
