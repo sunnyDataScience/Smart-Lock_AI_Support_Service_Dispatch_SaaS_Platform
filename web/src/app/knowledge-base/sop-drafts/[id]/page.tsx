@@ -184,12 +184,12 @@ export default function SopReviewPage({
             <h1 className="text-xl font-bold text-[var(--text-primary)]">
               {loading ? tR("loading") : (draft?.title ?? "—")}
             </h1>
-            {draft && (
-              <span
-                className="font-mono text-[12px] font-medium text-[var(--text-secondary)]"
-                title={draft.id}
-              >
-                {draft.document_number ?? draft.id.slice(0, 8)}
+            {/* 只顯示人類可讀的公開編號 document_number；不可 fallback 露出內部 UUID
+                （draft.id），title 也不掛 id（hover 會洩漏完整內部 ID）。
+                會議 2026-06-10 Action #6：系統內部欄位要過濾,消費者不該看到。 */}
+            {draft?.document_number && (
+              <span className="font-mono text-[12px] font-medium text-[var(--text-secondary)]">
+                {draft.document_number}
               </span>
             )}
             {statusInfo && (

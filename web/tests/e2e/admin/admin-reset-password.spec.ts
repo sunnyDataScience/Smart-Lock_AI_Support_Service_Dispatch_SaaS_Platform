@@ -18,15 +18,17 @@ async function login(page: Page) {
 const RESET_PATH = "**/api/v1/auth/admin-reset-password";
 
 test("admin 可開重設密碼 modal、email 驗證、送出顯示臨時密碼", async ({ page }) => {
-  let captured: { email?: string } | null = null;
+  // const holder 就地 mutate,避開 TS 對 closure 內賦值的 CFA narrowing
+  const captured: { email?: string } = {};
   await page.route(RESET_PATH, async (route) => {
     if (route.request().method() === "POST") {
-      captured = route.request().postDataJSON();
+      const reqBody = route.request().postDataJSON() as { email?: string };
+      captured.email = reqBody?.email;
       await route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
-          data: { email: captured?.email, temp_password: "Tmp_9aZ4kQ2x" },
+          data: { email: captured.email, temp_password: "Tmp_9aZ4kQ2x" },
         }),
       });
     } else {
@@ -61,5 +63,5 @@ test("admin 可開重設密碼 modal、email 驗證、送出顯示臨時密碼",
 
   // 顯示臨時密碼
   await expect(page.getByText("Tmp_9aZ4kQ2x")).toBeVisible({ timeout: 10_000 });
-  expect(captured?.email).toBe("dispatcher@example.com");
+  expect(captured.email).toBe("dispatcher@example.com");
 });
