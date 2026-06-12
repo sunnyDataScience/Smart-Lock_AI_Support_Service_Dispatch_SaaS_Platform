@@ -286,6 +286,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **5 角色帳號 + 前端 route 權限隔離（CR-0021 / ADR-0111）** — 2026-06-10 會議決議 #9 上線前必做。
+  - 後端 `/auth/login` allowed_roles 放寬收後台角色（admin/reviewer/operations_manager/dispatcher/customer_service）;technician 維持 tech-login。
+  - seed `SQL/seeds/rbac_role_users.sql` 補 ops/cs/reviewer 登入帳號（changeme123）。
+  - 前端 `web/src/lib/rolePolicy.ts`（route→role 單一真相源）+ `AuthGuard` 認證後 route gate（無權限導 /dashboard）+ `Sidebar` 依角色過濾 nav。
+  - 前端 gating 為 UX 層、以後端 `role_required` 為準;真正強制仍在 API。
+  - 測試：pytest `test_login_roles`（6）+ Playwright `role-ui-isolation`（4 角色 route gate + sidebar 過濾）。
+  - 修：A4 `test_admin_reset_password` 加密碼自我還原（原會污染 dispatcher 共用種子帳號）。
 - **公單號改地區前綴 + per-region 流水（A8 / CR-0020 / ADR-0110）** — 2026-06-10 會議 Action #8 + Sunny 裁決。
   - 格式 `{2碼地區}-{6碼流水}`（如 `TP-000001`），工單建立時依 `customer_address` 縣市發號。
   - `SQL/migrations/031`：`wo_region_counter` 表 + `wo_region_code(addr)` + `generate_wo_number(addr)`（per-region 原子遞增）。

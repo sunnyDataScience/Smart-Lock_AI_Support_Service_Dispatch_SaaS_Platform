@@ -119,6 +119,7 @@ log "套用既有 seeds (admin + dispatcher + demo tech + ...)"
 SEED_ORDER=(
   _admin_user.sql
   dispatcher_user.sql
+  rbac_role_users.sql
   technicians.sql
   pricing_rules.sql
   inventory_items.sql

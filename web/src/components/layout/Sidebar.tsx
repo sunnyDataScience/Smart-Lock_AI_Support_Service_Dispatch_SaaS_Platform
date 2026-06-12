@@ -20,6 +20,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getCurrentSession, logout, type CurrentSession } from "@/lib/api";
+import { canAccessRoute } from "@/lib/rolePolicy";
 import NotificationBell from "./NotificationBell";
 import Hamburger from "./Hamburger";
 import { useSidebar } from "./SidebarContext";
@@ -161,6 +162,18 @@ export default function Sidebar() {
     return tRole(session.role);
   }
 
+  // CR-0021：依角色過濾 nav（父項可存取、或有任一可見子項才顯示）。
+  const role = session?.role ?? null;
+  const visibleNavItems = navItems
+    .map((item) => ({
+      ...item,
+      children: item.children?.filter((c) => canAccessRoute(c.href, role)),
+    }))
+    .filter(
+      (item) =>
+        canAccessRoute(item.href, role) || (item.children?.length ?? 0) > 0,
+    );
+
   return (
     <>
       {/* Mobile floating hamburger — 任何 page 不論用不用 <Header /> 都有 */}
@@ -197,7 +210,7 @@ export default function Sidebar() {
         className="flex flex-1 flex-col gap-[2px] overflow-y-auto px-3 py-2"
         aria-label={tSidebar("pageNavAria")}
       >
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const active = isParentActive(item, pathname);
           const hasChildren = !!item.children;
           const submenuId = hasChildren ? `submenu-${item.href.replace(/\//g, "-")}` : undefined;
