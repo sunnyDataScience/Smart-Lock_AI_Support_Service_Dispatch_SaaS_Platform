@@ -130,7 +130,7 @@
 | 5 個排班 endpoints（T10）+ admin 審核 3 個 | **100%** | — |
 | Dispute decision | **100%** | **+ v2 dual-sign 狀態機**（Track B S2，FR-0013）|
 | Refund decision + 雙簽流程 | **100%** | v1.29.0；**2026-06-04 deep audit 確認**：dual-sign 狀態機 (pending → csm_approved → approved) + 同 user 不可雙簽 (DUAL_SIGN_SAME_USER 409) + approval_chain JSONB audit + WS publish /realtime/refunds + admin/refunds/page.tsx v2 tenantPath；**agent 自動退款已於 CR-0009 ADR-0106 遷 v2**（refunds_v2:150 `:agent-initiate` single-actor，原「暫續用 v1」stale claim 移除）|
-| 認證（JWT、tenant、RBAC）| **100%** | P4 規劃 auth 扁平化 |
+| 認證（JWT、tenant、RBAC）| **100%** | P4 規劃 auth 扁平化；2026-06-12 補忘記密碼（admin 代為重設）+ 5 角色 RBAC 隔離測試 |
 | WebSocket server + ACL（JWT/tenant/RBAC）| **100%** | — |
 | 媒體上傳 endpoint | **100%** | v1.25.0；含 `media_v2`（P2-W6） |
 | Inventory low-stock 背景偵測 job | **100%** | v1.28.0 |
@@ -419,6 +419,24 @@
 - 完成度 % 不上調（功能本就標 100%，本輪是把「實作了但壞的」修成「真的能跑」——品質校正，非新增完成）。
 - 但 §4 Flow 6 / Flow 7 已標注 ⚠️ E2E 揪出的缺陷與修復 commit，供日後追溯。
 - E2E 自動化覆蓋實質提升：新增 1 支 sweep + 6 支 user-flow spec（含技師端 tech project 從 0 → 有覆蓋）。
+
+---
+
+## 2026-06-12 會議跟進：忘記密碼 + 5 角色 RBAC 測試（branch `feat/forgot-password-rbac`）
+
+> 對應 2026-06-10 lock-AI 會議 Action #7 + 決議 #9「5 種角色帳號權限必須在上線前完成測試」+ 忘記密碼功能。會議評估後挑出與工單系統直接相關、且上線前必做的兩項。
+
+### A4 — 忘記密碼（管理員代為重設）✅
+- 機制經業主裁決採「管理員代為重設」（免 email 基礎設施）。
+- 後端：`POST /api/v1/auth/admin-reset-password`（admin 限定、限同租戶）→ 產隨機臨時密碼回傳明文。pytest 3/3。已登錄 OpenAPI。
+- 前端：`AdminResetPasswordModal` 掛 `/admin/roles`（按鈕僅 RBAC admin 可見）。Playwright 1/1。
+- 缺口備註：email 自助式重設留待 email 服務就緒；未做強制改密（避免 users 表 migration）。
+
+### A3 — 5 角色 RBAC 權限隔離測試 ✅
+- `api/tests/test_rbac_role_isolation.py`：5 操作角色（admin / operations_manager / dispatcher / customer_service / technician）× 4 守衛端點 = 20 條授權斷言全綠。取代原 `rbac.spec.ts`（@wip + mock 假 JWT）。
+
+### Finding（產品決策待定）
+- 前端 `AuthGuard` 僅檢查 token、**無 route-level role gating**；授權實際在 API 層強制（role_required / require_keeper）。非 admin 角色持有效 token 仍可在瀏覽器**載入** /admin 頁（API 會 403）。是否補前端 route 角色守衛屬 UX 強化的產品決策。
 
 ---
 
