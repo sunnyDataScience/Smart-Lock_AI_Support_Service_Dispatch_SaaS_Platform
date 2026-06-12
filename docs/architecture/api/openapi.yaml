@@ -996,6 +996,46 @@ paths:
           description: Password policy violation
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
 
+  /auth/admin-reset-password:
+    post:
+      tags: [Auth]
+      summary: Admin resets a user's password (returns a temp password; no email)
+      description: >-
+        管理員代為重設（2026-06-10 會議 Action #7）。admin 限定,限同租戶。
+        重設目標 email 的密碼為隨機臨時密碼,回傳明文供轉達;使用者登入後自行
+        change-password 改回。免 email 基礎設施。
+      operationId: adminResetPassword
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '200':
+          description: Password reset; temp password returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      email: { type: string, format: email }
+                      temp_password: { type: string }
+        '403':
+          description: Caller is not an admin
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404':
+          description: No user with that email in this tenant
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
   /technicians/login:
     post:
       tags: [Auth]

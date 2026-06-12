@@ -284,10 +284,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 爭議改寫入 `saas.dispute`（v2 前端實際讀的表）而非 legacy `public.disputes`，修 v2 清單永遠空；demo-tech 加跨狀態工單配額，技師端 my-orders 三 tab 不再 empty。
 - `web/src/app/work-orders/page.tsx`、`web/src/app/admin/dispatch-queue/page.tsx`：捲動容器補 `min-h-0`，修 flex column 下 overflow-auto 失效（滾輪失效）。
 
+### Added
+
+- **忘記密碼（管理員代為重設，A4）** — 2026-06-10 會議 Action #7 / 決議 #9 上線前必做。
+  - 後端新增 `POST /api/v1/auth/admin-reset-password`（`adminResetPassword`，admin 限定、限同租戶）→ 產隨機臨時密碼回傳明文;免 email 基礎設施（業主裁決）。已登錄 `docs/architecture/api/openapi.yaml`。
+  - 前端 `AdminResetPasswordModal`（自包含）掛在 `/admin/roles`,按鈕僅 RBAC admin 角色可見。
+  - 機制備註：使用者拿臨時密碼登入後沿用既有 `change-password` 改回（未做強制改密,users 表不加欄,避免 migration）；email 自助式留待 email 服務就緒再補。
+
 ### Added (tests)
 
 - `web/tests/e2e/admin/ui-sweep.spec.ts`：45 admin-shell 路由互動健檢（render + 通用捲軸 bug 偵測 + 按鈕/篩選清點）。
 - 5 條 P0 user-flow E2E：`refund-sod`、`dispute-cosign`、`gdpr-and-config`、`wo-cancel-cascade`（admin）、`tech/tech-flow`（tech project, Pixel 7，技師端從 0 → 有覆蓋）。
+- A4 測試：`api/tests/test_admin_reset_password.py`（pytest 3 條）+ `web/tests/e2e/admin/admin-reset-password.spec.ts`（Playwright 1 條）。
+- **A3 5 角色 RBAC 權限隔離矩陣**：`api/tests/test_rbac_role_isolation.py`（5 操作角色 × 4 守衛端點 = 20 條授權斷言）。取代原 `rbac.spec.ts`（@wip + mock 假 JWT）。發現前端 AuthGuard 無 route-level role gating（授權實際在 API 層強制）。
 
 ### Notes
 
