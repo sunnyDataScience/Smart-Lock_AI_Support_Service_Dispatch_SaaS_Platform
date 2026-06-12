@@ -79,6 +79,8 @@ def _wo_row_to_dict(row: tuple) -> dict:
         "urgency": _coerce_urgency(row[4]),
         "created_at": row[12].isoformat() if row[12] else None,
         "updated_at": row[13].isoformat() if row[13] else None,
+        # CR-0020 公單號（{2碼地區}-{6碼流水}）;nullable
+        "document_number": row[14] if len(row) > 14 else None,
     }
     if row[2] is not None:
         out["technician_id"] = str(row[2])
@@ -98,7 +100,7 @@ _WO_SELECT = (
     "wo.id, wo.problem_card_id, wo.technician_id, wo.status, wo.priority, "
     "wo.customer_address, pc.brand, pc.model, "
     "wo.estimated_price, wo.scheduled_at, wo.started_at, wo.completed_at, "
-    "wo.created_at, wo.updated_at"
+    "wo.created_at, wo.updated_at, wo.document_number"
 )
 
 _WO_JOIN = (
@@ -298,15 +300,15 @@ async def create_from_problem_card(
     # PC.urgency 與 WO.priority 共用 DB enum (low/normal/high/urgent)，直接 pass-through
     priority = pc_urgency or "normal"
 
-    # 4. INSERT
+    # 4. INSERT（CR-0020：建立時依地址發公單號 {2碼地區}-{6碼流水}，per-region 原子遞增）
     insert_cur = await db_module._conn.execute(
         "INSERT INTO work_orders "
         "  (problem_card_id, status, priority, "
-        "   customer_name, customer_phone, customer_address, created_by) "
+        "   customer_name, customer_phone, customer_address, created_by, document_number) "
         "VALUES (%s::uuid, 'created', %s, %s, %s, %s, "
-        "        %s::uuid) "
+        "        %s::uuid, generate_wo_number(%s)) "
         "RETURNING id",
-        (pc_id, priority, final_name, final_phone, final_address, created_by),
+        (pc_id, priority, final_name, final_phone, final_address, created_by, final_address),
     )
     new_row = await insert_cur.fetchone()
     if not new_row:
