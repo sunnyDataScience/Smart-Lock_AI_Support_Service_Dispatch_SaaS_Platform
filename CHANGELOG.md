@@ -286,6 +286,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **公單號改地區前綴 + per-region 流水（A8 / CR-0020 / ADR-0110）** — 2026-06-10 會議 Action #8 + Sunny 裁決。
+  - 格式 `{2碼地區}-{6碼流水}`（如 `TP-000001`），工單建立時依 `customer_address` 縣市發號。
+  - `SQL/migrations/031`：`wo_region_counter` 表 + `wo_region_code(addr)` + `generate_wo_number(addr)`（per-region 原子遞增）。
+  - 接進 `work_order_service` 建立 INSERT + realistic_demo_seed;前端 work-orders 列表/詳情顯示公單號（並順手移除列表 `title={order.id}` 內部 UUID 洩漏，同 A6）。
+  - 地區前綴僅用工單;ST/RM/WC/SOP 維持類型前綴 `generate_doc_number`。pytest 3 條（格式/per-region 遞增/fallback ZZ）。
 - **忘記密碼（管理員代為重設，A4）** — 2026-06-10 會議 Action #7 / 決議 #9 上線前必做。
   - 後端新增 `POST /api/v1/auth/admin-reset-password`（`adminResetPassword`，admin 限定、限同租戶）→ 產隨機臨時密碼回傳明文;免 email 基礎設施（業主裁決）。已登錄 `docs/architecture/api/openapi.yaml`。
   - 前端 `AdminResetPasswordModal`（自包含）掛在 `/admin/roles`,按鈕僅 RBAC admin 角色可見。

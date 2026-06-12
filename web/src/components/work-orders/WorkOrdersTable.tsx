@@ -107,8 +107,10 @@ function WorkOrderRow({
       }`}
     >
       <div role="cell" className="w-[120px]">
-        <span className="font-mono text-[12px] text-[var(--primary)]" title={order.id}>
-          {shortId(order.id)}
+        {/* CR-0020：顯示公單號 document_number（{2碼地區}-{6碼流水}）;
+            不掛 title={order.id}（避免洩漏內部 UUID,同 A6）。 */}
+        <span className="font-mono text-[12px] text-[var(--primary)]">
+          {order.document_number ?? shortId(order.id)}
         </span>
       </div>
       <div role="cell" className="flex-1 truncate pr-4">

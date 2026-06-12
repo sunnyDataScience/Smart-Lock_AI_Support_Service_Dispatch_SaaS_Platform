@@ -5995,6 +5995,9 @@ components:
           type: string
           maxLength: 30
           nullable: true
+          description: >-
+            公單號 {2碼地區}-{6碼流水}（如 TP-000001），工單建立時依 customer_address
+            的縣市發 per-region 流水（CR-0020 / ADR-0110）。地址解析不到地區 → ZZ。
           description: 'WorkOrder 編號 WO-YYYYMMDD-NNNN'
         problem_card_id: { type: string, format: uuid }
         technician_id: { type: string, format: uuid, nullable: true }

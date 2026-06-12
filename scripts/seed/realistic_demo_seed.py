@@ -351,12 +351,14 @@ def emit_problem_cards_and_work_orders(
         customer_phone_str = phone(i % 50)
 
         print(
+            # CR-0020：公單號依地址 generate_wo_number({2碼地區}-{6碼流水})。
             "INSERT INTO work_orders (id, problem_card_id, technician_id, created_by, status, priority, "
-            "customer_name, customer_phone, customer_address, scheduled_at, completed_at, "
+            "customer_name, customer_phone, customer_address, document_number, scheduled_at, completed_at, "
             "estimated_price, final_price, rating, feedback, created_at, updated_at) VALUES ("
             f"{q(wo_id)}::uuid, {q(pc_id)}::uuid, "
             f"{q(tech_id) + '::uuid' if tech_id else 'NULL'}, {q(ADMIN_USER_ID)}::uuid, "
             f"{q(status)}, {q(priority)}, {q(customer_name)}, {q(customer_phone_str)}, {q(addr)}, "
+            f"generate_wo_number({q(addr)}), "
             f"{q(scheduled)}, {q(completed_at)}, "
             f"{est_price}, {final_price if final_price is not None else 'NULL'}, "
             f"{rating if rating is not None else 'NULL'}, {q(feedback)}, "
