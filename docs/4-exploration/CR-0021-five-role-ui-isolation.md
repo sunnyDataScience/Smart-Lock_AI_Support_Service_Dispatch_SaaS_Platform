@@ -74,7 +74,9 @@ superseded-by: null
 
 ## 8. Human Decisions Required
 
-🛑 **每列裁決後才動 code。**
+✅ **2026-06-12 Sunny 裁決：Q1–Q5 全照「建議」欄。** 已實作（見 ADR-0111）。
+
+🛑 ~~每列裁決後才動 code。~~（已解除）
 
 | # | 問題 | 選項 | 建議 |
 |---|---|---|---|

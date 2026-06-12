@@ -38,6 +38,17 @@ async def test_admin_reset_returns_temp_password_and_new_password_works(
     )
     assert login["data"]["access_token"]
 
+    # 還原 dispatcher 密碼為 changeme123,避免污染其他測試 / demo 登入
+    # （此為共用種子帳號;admin-reset 機制本身已於上方驗證）。
+    import core.db as db_module
+    from core.db import _ensure_conn
+
+    assert await _ensure_conn()
+    await db_module._conn.execute(
+        "UPDATE users SET password_hash = %s WHERE email = %s",
+        ("$2b$12$Hdfo2ixXxQXkAIYXaDz23.HSP8MD1TrkD3CvpwtdSqvDWSq.BAui6", TARGET_EMAIL),
+    )
+
 
 @pytest.mark.asyncio
 async def test_non_admin_cannot_reset(client, technician_headers):

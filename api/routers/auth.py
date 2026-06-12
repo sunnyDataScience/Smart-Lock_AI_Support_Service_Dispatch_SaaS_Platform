@@ -46,6 +46,17 @@ class TechnicianRegisterBody(BaseModel):
     regions: list[str] | None = None
 
 
+# admin web 可登入的後台角色（CR-0021 Q2）。technician 走 /technicians/login。
+# 放寬只是讓這些後台角色能取得 admin-web token;各 endpoint 仍受後端 role_required 守衛。
+_ADMIN_WEB_ROLES = [
+    "admin",
+    "reviewer",
+    "operations_manager",
+    "dispatcher",
+    "customer_service",
+]
+
+
 @router.post(
     "/auth/login",
     operation_id="loginAdmin",
@@ -54,7 +65,7 @@ class TechnicianRegisterBody(BaseModel):
 )
 async def login_admin(body: LoginBody) -> dict:
     return await auth_service.login(
-        email=body.email, password=body.password, allowed_roles=["admin", "reviewer"]
+        email=body.email, password=body.password, allowed_roles=_ADMIN_WEB_ROLES
     )
 
 
