@@ -98,7 +98,7 @@ max_turns: 6
 | 階段 | 內容 | 依賴 | 可獨立做? |
 |---|---|---|---|
 | **P0** ✅ | L0 紅線確定性 gate — **已實作** `agent/scripts/redline_gate.py`（9 案例,金錢/要真人→必觸發 transfer_to_human + 不得報價;9/9 通過,exit 1 當門檻）| 無 | ✅ 已完成 |
-| **P1** | L1 多輪 user-simulator 雛形（先 5–10 劇本）| 劇本種子 | ✅ 工程可先搭框架 |
+| **P1** ✅ | L1 多輪 user-simulator — **雛形已實作** `agent/scripts/multiturn_sim_eval.py`（5 劇本,customer-sim×agent 多輪×任務 rubric;首測 overall 0.80,redline 1.0,outcome_correct 0.60 揭露 agent 過度轉真人傾向）| 劇本種子 | ✅ 雛形完成 |
 | **P2** | 987 → rubric/劇本轉化 + L2 強 judge | **專家 review** | ⚠️ 需人 |
 | **P3** | judge 人工校準（kappa）| 資深客服 | ⚠️ 需人 |
 | **P4** | L3 shadow mode | 真人客服 + 上線通道 | ⚠️ 需人 |
