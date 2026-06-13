@@ -36,3 +36,23 @@ auth application-default login`（ADC）+ Vertex aiplatform API 啟用 + `openpy
 
 **轉進 NanoBot 前建議**：優先補「多輪追問 SOP」與弱分類（B2B/緊急開鎖/多意圖）的
 knowledge/SOP;safety 與 escalation 已達可用水準。
+
+## A/B：強化 CS SOP 追問收尾（v1.0.0 → v1.1.0，同 84 題 seed=42）
+
+`after_sop.csv`。在 SKILL.md Step 3 加「回答型問題也要精簡收尾追問品牌型號+邀請照片」。
+
+| 維度 | before | after | Δ |
+|---|---|---|---|
+| escalation_correct | 0.774 | 0.804 | **+0.030** |
+| intent_match | 0.768 | 0.780 | +0.012 |
+| key_info_coverage | 0.440 | 0.452 | +0.012 |
+| followup_correct | 0.149 | 0.143 | −0.006 |
+| overall | 0.608 | 0.618 | +0.010 |
+
+**結論（重要）**：84/84 回覆都改變、agent 確實開始追問品牌型號（SOP 有生效），但
+**followup 分數不動**。根因：judge 的 `followup_correct` 是**逐題比對該題的「缺資料追問規範」**
+（有的要照片、有的僅問門型、有的要聯絡人、有的不需追問——彼此矛盾），**單一 SOP 規則
+無法滿足逐題分歧的要求**;硬調 = 過擬合 benchmark。
+
+→ **followup 卡 0.15 一半是 benchmark 設計問題（單輪測多輪 + 比固定話術 + 自評）**,
+不是 agent 做差。驗證方式需重新設計,見 `docs/qa/cs-agent-eval-framework.md`。

@@ -1,7 +1,7 @@
 ---
 name: locksmith-cs-sop
 description: "Customer-service routing & handoff SOP for 鎖市 LockSmart locksmith bot — decide whether to answer, transfer to a human (transfer_to_human), or dispatch a technician, plus booking and warranty handling. Use on EVERY customer turn to classify intent and apply the red-line decision tree before answering: pricing/refund/explicit human request → transfer to human (never quote prices); structural/motor/admin-lost faults → dispatch; install/repair booking → collect required info; warranty → answer as knowledge; out-of-domain → decline. Pairs with locksmith-product-knowledge (facts)."
-version: 1.0.0
+version: 1.1.0
 metadata:
   tags: [customer-service, routing, handoff, dispatch, 派工, 轉真人, sop, locksmith, locksmart]
   pairs-with: [locksmith-product-knowledge]
@@ -42,6 +42,7 @@ and portable — all rules are in `references/` (no database or runtime needed).
 - **缺資料時,把該情境所有缺的關鍵項目「一次列給客人」**(條列、簡短、易回);不要每次只問一條再等回覆,也不要用「問三次仍缺就轉真人」這種硬規則。
 - 列項要點:① 用一兩句白話開頭(我幫您整理 / 為了讓師傅評估),② 條列只列**該情境關鍵必抓**(別把所有可選項目都列上,客人會疲乏),③ 末句可加「以上若有不方便提供的請告訴我」。
 - 範例(預約安裝):「為了讓師傅評估,麻煩您一併提供:① 門的正/背/側 + 門框照片 ② 鎖的品牌型號 ③ 聯絡電話。以上若有不方便提供的請告訴我。」(一次問完,而非追三次)。
+- **回答型問題(操作/故障排除/規格說明)也要收尾追問**:就算已給出說明,只要客戶**未提供品牌型號**,結尾必須**簡短追問品牌型號**,並補一句「**如果方便,請拍張照片或截圖給我們,會更好判斷**」。此收尾**務必精簡**——只問品牌型號 + 邀請照片即可,**不要再列一整張表單**(避免過度追問)。例外:紅線轉真人 / 領域外婉拒不適用。
 
 ## 話術原則(務必遵守)
 
