@@ -133,6 +133,19 @@ max_turns: 6
 **結論**:L1 的價值是**揪出可操作的真缺口**(過度轉真人、編造品牌型號),不是用來刷分數。
 後續修這些缺口應走「模型層 grounding」而非繼續改 SOP 文字。
 
+## 8.6 生成後 grounding guardrail（驗證有效,2026-06-13）
+
+針對 §8.5 揪出的「編造品牌型號」幻覺,做生成後 guardrail（`agent/scripts/grounding_guard.py`）：
+偵測回覆出現、但客戶對話**從未提到的具體型號代碼**(regex,確定性)→ LLM sanitize 改寫移除。
+
+**結果(確定性幻覺率,非 noisy judge 分)**：raw 16.7%(1/6 turns) → guard 後 **0.0%**。
+elock-conn 的「您的 Yale YDM4109」被成功移除。**證明:同一幻覺 SOP 文字擋不住,
+guardrail 一次清掉 → 幻覺類缺口的正解是模型層 guardrail,不是 prompt 文字。**
+
+限制(誠實)：① guard 目前只抓品牌/型號代碼;另一種幻覺「虛構歷史/預約」(如『您之前已
+預約週三維修』)未涵蓋,需 conversation-grounding。② 整合進 production loop 屬
+architecture change(需 CIA)。③ n=5 overall 分數噪音大,信確定性幻覺率即可。
+
 ## 9. 對現況的即時取捨
 
 - **保留** SOP v1.1.0（escalation +0.03、行為更像真客服、無 regression）。

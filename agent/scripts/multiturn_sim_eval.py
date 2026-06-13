@@ -34,6 +34,10 @@ from lockcore.app_config import (  # noqa: E402
 from lockcore.bus.events import InboundMessage  # noqa: E402
 from lockcore.bus.queue import MessageBus  # noqa: E402
 
+import grounding_guard  # noqa: E402  (生成後 grounding guardrail)
+
+GUARD = "--guard" in sys.argv  # 開啟:偵測到品牌型號幻覺 → LLM sanitize 改寫
+
 # ── 劇本（hidden_facts 客戶不主動全講;expected_outcome=answer|dispatch|transfer|decline）──
 SCENARIOS = [
     {
@@ -135,6 +139,22 @@ async def _agent_turn(loop, tenant, user_id, msg) -> str:
     return _content(out)
 
 
+async def _sanitize(provider, model, reply: str, viol: dict) -> str:
+    """生成後 guardrail：移除客戶未提供的品牌型號假設,改為詢問/通用說法,其餘保留。"""
+    bad = ", ".join(viol["model_codes"] + viol["brands"])
+    prompt = (
+        f"以下客服回覆把客戶『未提供』的品牌型號當成已知講出來(問題項:{bad})。\n"
+        "請改寫:① 移除對該品牌型號的假設(沒問到就是不知道)② 改為簡短詢問客戶品牌型號,"
+        "或用『不同品牌略有差異』的通用說法 ③ 其餘內容、步驟與語氣盡量保留。\n"
+        "只輸出改寫後的回覆,不要加說明。\n\n原回覆:\n" + reply
+    )
+    resp = await provider.chat(
+        messages=[{"role": "user", "content": prompt}], model=model,
+        max_tokens=600, temperature=0.0,
+    )
+    return (resp.content or reply).strip()
+
+
 async def _customer_next(provider, model, facts, transcript) -> str:
     sys_p = CUST_SYS.format(facts=json.dumps(facts, ensure_ascii=False))
     convo = "\n".join(f"{'客服' if r=='agent' else '你'}: {c}" for r, c in transcript)
@@ -183,6 +203,8 @@ async def main_async() -> int:
 
     rows = []
     all_dumps: list[dict] = []
+    fab_raw = fab_final = guard_fired = agent_turns = 0
+    print(f"  (grounding guard: {'ON' if GUARD else 'OFF'})\n")
     for sc in SCENARIOS:
         uid = f"sim-{sc['id']}"
         loop = AgentLoop(
@@ -199,6 +221,17 @@ async def main_async() -> int:
                 reply = await _agent_turn(loop, cfg.tenant, uid, cust)
             except Exception as e:  # noqa: BLE001
                 reply = f"(agent error: {type(e).__name__})"
+            # ── 生成後 grounding guardrail ──
+            agent_turns += 1
+            cust_so_far = " ".join(c for r, c in transcript if r == "customer")
+            viol = grounding_guard.check(reply, cust_so_far)
+            if viol["fabricated"]:
+                fab_raw += 1
+                if GUARD:
+                    reply = await _sanitize(provider, cfg.model, reply, viol)
+                    guard_fired += 1
+            if grounding_guard.check(reply, cust_so_far)["fabricated"]:
+                fab_final += 1
             transcript.append(("agent", reply))
             transferred = bool(esc.list_for_user(cfg.tenant, uid, limit=1))
             if transferred:
@@ -233,6 +266,11 @@ async def main_async() -> int:
         avg = sum(float(r[5].get(d, 0) or 0) for r in rows) / len(rows)
         print(f"  {d:<18}: {avg:.3f}")
     print(f"  {'overall':<18}: {sum(r[4] for r in rows)/len(rows):.3f}")
+    print("\n=== grounding guard ===")
+    print(f"  guard: {'ON' if GUARD else 'OFF'}  agent turns: {agent_turns}")
+    print(f"  raw 幻覺(原始回覆): {fab_raw}/{agent_turns} = {fab_raw/agent_turns:.1%}" if agent_turns else "")
+    print(f"  最終幻覺(guard 後): {fab_final}/{agent_turns} = {fab_final/agent_turns:.1%}" if agent_turns else "")
+    print(f"  guard 觸發 sanitize: {guard_fired}")
     dump_path = ROOT / "evals" / "sim_transcripts.json"
     dump_path.parent.mkdir(exist_ok=True)
     dump_path.write_text(json.dumps(all_dumps, ensure_ascii=False, indent=2), encoding="utf-8")
