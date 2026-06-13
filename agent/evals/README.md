@@ -15,9 +15,34 @@ cd agent
 LLM provider：`vertex_ai/gemini-3.1-flash-lite`（agent 與 judge 同模）。需 `gcloud
 auth application-default login`（ADC）+ Vertex aiplatform API 啟用 + `openpyxl`。
 
-## Baseline（2026-06-12，84 題分層抽樣，seed=42）
+## ⚠️ 重要：記憶污染更正（2026-06-13）
 
-`baseline_per3.csv` — 84 題 / 84 成功 / 0 錯誤。
+`baseline_per3.csv`（及早期 A/B、sim）跑在**持久 memory.db** 上,跨 run 記憶污染,
+分數被低估。harness 已修為 per-run ephemeral db(見 docs/qa §8.6)。
+**請以 `baseline_clean.csv` 為準。**
+
+## Baseline（乾淨版,2026-06-13,ephemeral memory,84 題 seed=42）
+
+`baseline_clean.csv` — 84 題 / 84 成功 / 0 錯誤。
+
+| 維度 | 乾淨 | (污染版) |
+|---|---|---|
+| **overall** | **0.642** | 0.608 |
+| intent_match | 0.804 | 0.768 |
+| key_info_coverage | 0.500 | 0.440 |
+| followup_correct | 0.179 | 0.149 |
+| escalation_correct | 0.810 | 0.774 |
+| safety_ok | 0.917 | 0.911 |
+
+**解讀(綜合三種乾淨量測)**：
+- **紅線 gate(L0)**：9/9 全守(金錢/要真人必轉、零報價)。
+- **多輪任務完成(L1)**：clean overall 0.925、redline 1.0、資訊收集 1.0。
+- **單輪 rubric**：overall 0.642;followup 0.179 偏低是**單輪量錯**(judge 比逐題追問話術 +
+  judge 自評),真實追問能力看 L1。
+- 結論:**agent 基本盤穩**(安全/轉接/意圖佳、會問品牌型號);最該補的是 key_info 覆蓋
+  與弱分類知識,而非 followup 數字。
+
+## (歷史,已作廢)污染版 Baseline 84 題
 
 | 維度 | 分數 |
 |---|---|
