@@ -18,6 +18,7 @@ import json
 import re
 import sys
 import tempfile
+from dataclasses import replace
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -195,6 +196,10 @@ async def _judge(provider, model, sc, transcript, transferred) -> dict:
 
 async def main_async() -> int:
     cfg = load_config(None)
+    # 每 run 用 ephemeral memory db,避免跨 run/scenario 的記憶與 escalation 污染
+    # （persistent memory.db + 穩定 user_id 會讓前次「預約/品牌型號」洩漏回本次,
+    #   污染評測——曾誤判為幻覺）。
+    cfg = replace(cfg, db_path=str(Path(tempfile.mkdtemp(prefix="lockcore-mem-")) / "eval.db"))
     provider = build_provider(cfg)
     mgr = build_memory_manager(cfg, provider)
     esc = build_escalation_store(cfg)

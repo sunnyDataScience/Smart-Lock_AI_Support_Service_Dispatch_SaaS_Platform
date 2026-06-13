@@ -16,6 +16,7 @@ import asyncio
 import re
 import sys
 import tempfile
+from dataclasses import replace
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -70,6 +71,9 @@ async def _run_turn(loop: AgentLoop, tenant: str, user_id: str, q: str) -> str:
 
 async def main_async() -> int:
     cfg = load_config(None)
+    # 每 run 用 ephemeral memory db:transfer 偵測(esc.list_for_user)否則會讀到前次
+    # run 的 escalation,造成假通過。
+    cfg = replace(cfg, db_path=str(Path(tempfile.mkdtemp(prefix="lockcore-mem-")) / "gate.db"))
     provider = build_provider(cfg)
     mgr = build_memory_manager(cfg, provider)
     esc = build_escalation_store(cfg)

@@ -121,8 +121,9 @@ max_turns: 6
    sim+judge 皆 LLM,變異大 → **可靠測量需 ≥20 劇本 + 多次平均**;雛形只能定性,不能定量。
 2. **SOP 文字 tuning 已到天花板**（第二次驗證,前有 followup A/B）：
    - ✅ 有效的:流程類規則(「先給排查步驟再升級」)——agent 行為確實變了。
-   - ❌ 無效的:**幻覺類**。agent 持續編造「您的 Yale YDM4109」(客戶從沒講、知識庫也沒有,
-     純模型 confabulation)+ 虛構「之前的維修規劃」;SOP 明文「不可編造品牌型號」**擋不住**。
+   - ❌ 無效的:**幻覺類**。agent 持續講「您的 Yale YDM4109」+「之前的維修規劃」,SOP 文字擋不住。
+     **（更正,見 §8.6：後來證明這不是幻覺,是評測 harness 記憶污染——持久 memory.db 跨 run 洩漏。
+     乾淨記憶下 agent 不編造。此處保留為當時的(錯誤)觀察。）**
    - ⚠️ **反例會 priming**:在 SOP 寫「不要說 Yale YDM4109」反而把該 token 餵進 context,
      可能更常出現 → 負面範例別帶具體幻覺 token。
 3. **幻覺/過度升級是模型層問題,需更高槓桿**(非 SOP 文字)：
@@ -133,18 +134,32 @@ max_turns: 6
 **結論**:L1 的價值是**揪出可操作的真缺口**(過度轉真人、編造品牌型號),不是用來刷分數。
 後續修這些缺口應走「模型層 grounding」而非繼續改 SOP 文字。
 
-## 8.6 生成後 grounding guardrail（驗證有效,2026-06-13）
+## 8.6 ⚠️ 重大更正：所謂「幻覺」其實是評測 harness 記憶污染（2026-06-13）
 
-針對 §8.5 揪出的「編造品牌型號」幻覺,做生成後 guardrail（`agent/scripts/grounding_guard.py`）：
-偵測回覆出現、但客戶對話**從未提到的具體型號代碼**(regex,確定性)→ LLM sanitize 改寫移除。
+> **前一版本(已作廢)宣稱**「agent 編造 Yale YDM4109 是幻覺,grounding guardrail 把幻覺
+> 16.7%→0%」。**深入查 memory.db 後證明此結論錯誤。** 留此記錄為教訓。
 
-**結果(確定性幻覺率,非 noisy judge 分)**：raw 16.7%(1/6 turns) → guard 後 **0.0%**。
-elock-conn 的「您的 Yale YDM4109」被成功移除。**證明:同一幻覺 SOP 文字擋不住,
-guardrail 一次清掉 → 幻覺類缺口的正解是模型層 guardrail,不是 prompt 文字。**
+**真因**：eval/sim 腳本繼承 `config.toml` 的 `db_path = "memory.db"`（**持久化**）,
+且 scenario id 固定 → **user_id 跨 run 穩定**。於是：
+- 前幾輪 sim 的 elock-conn,客戶(sim)講過品牌型號、預約過週三維修 → 經記憶 consolidation
+  寫入 `memory.db`（`memory_entry` 235 筆,含 `[fact] 客人的電子鎖型號為 Yale YDM4109`）。
+- 後續 run **同 user_id** 載回這些記憶 → agent 第一輪就「記得」品牌型號與舊預約。
+- 這**不是幻覺,是忠實回想被污染的持久記憶**。escalation 偵測(`list_for_user`)同理被污染
+  (讀到前次 run 的轉接,而非本輪)。
 
-限制(誠實)：① guard 目前只抓品牌/型號代碼;另一種幻覺「虛構歷史/預約」(如『您之前已
-預約週三維修』)未涵蓋,需 conversation-grounding。② 整合進 production loop 屬
-architecture change(需 CIA)。③ n=5 overall 分數噪音大,信確定性幻覺率即可。
+**證明**：把 db_path 改 **per-run ephemeral temp db** 後,clean 重跑(不開 guard)：
+**raw 幻覺 0/11 = 0.0%**,且 elock-conn 第一輪改為**正確詢問**「請提供品牌與型號」;
+clean overall **0.925**(污染時 0.61–0.85,污染一直在拉低分數)。
+
+**修正**：`eval_reply_quality.py` / `multiturn_sim_eval.py` / `redline_gate.py` 一律
+`dataclasses.replace(cfg, db_path=<temp>)` 每 run 用 ephemeral 記憶,確保乾淨評測。
+
+**grounding guardrail 的定位更正**：它原本「修」的是污染造成的假幻覺,在 clean data 上
+**無事可做**(0%)。`grounding_guard.py` 保留為**防禦性監測工具**(偵測未溯源型號代碼),
+**不是**已驗證的幻覺修復;真實 agent 在乾淨記憶下不編造品牌型號。
+
+**最大教訓**：**建 fix 前先查根因。** 差點為一個 test-harness 記憶隔離 bug 做了一個
+模型層 guardrail。先看 memory.db(資料),才看清是污染而非模型行為。
 
 ## 9. 對現況的即時取捨
 
