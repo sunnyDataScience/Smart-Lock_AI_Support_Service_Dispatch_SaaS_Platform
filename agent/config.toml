@@ -7,7 +7,7 @@
 #   gemini/gemini-2.5-flash         → Google AI Studio(只需 .env 設 GEMINI_API_KEY,不用 GCP)
 #   vertex_ai/gemini-3.1-flash-lite → Vertex AI(需 project + credentials.json,location 自動 global)
 #   ollama_chat/gemma4:latest       → 本機 Ollama(http://localhost:11434,無需金鑰)
-model = "gemini/gemini-3.1-flash-lite"
+model = "vertex_ai/gemini-3.1-flash-lite"
 temperature = 0.7
 max_tokens = 4096
 
