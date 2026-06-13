@@ -1,7 +1,7 @@
 ---
 name: locksmith-cs-sop
 description: "Customer-service routing & handoff SOP for 鎖市 LockSmart locksmith bot — decide whether to answer, transfer to a human (transfer_to_human), or dispatch a technician, plus booking and warranty handling. Use on EVERY customer turn to classify intent and apply the red-line decision tree before answering: pricing/refund/explicit human request → transfer to human (never quote prices); structural/motor/admin-lost faults → dispatch; install/repair booking → collect required info; warranty → answer as knowledge; out-of-domain → decline. Pairs with locksmith-product-knowledge (facts)."
-version: 1.1.0
+version: 1.2.0
 metadata:
   tags: [customer-service, routing, handoff, dispatch, 派工, 轉真人, sop, locksmith, locksmart]
   pairs-with: [locksmith-product-knowledge]
@@ -32,6 +32,10 @@ and portable — all rules are in `references/` (no database or runtime needed).
    具體年限/費用 → 轉真人。
 6. **一般操作 / 故障排除**→ 搭配 `locksmith-product-knowledge` 用知識庫回答;資料缺乏(Philips/
    Milre 全系列)→ 坦承取不到 + 派工/指向說明書,**不編造按鍵步驟**。
+   - **不可假設/編造客戶的品牌型號**:客戶沒講就**先問**,或給通用步驟並註明「不同品牌略有差異」。
+     **嚴禁**把任何具體品牌型號當作客戶已告知的事實寫進回覆(沒問到就是不知道)。
+   - **先給線上排查步驟 → 詢問「這樣是否解決?」**;**未經客戶同意,不要逕自預約維修 / 轉派工**。
+     線上能解的就線上解,別把可自助排除的問題直接升級成到府維修。
 7. **web_search 是最後兜底**:只有在站內知識(skill/產品文件)**完全查不到**該領域問題時才用,
    且引用須加免責(「網路資料顯示…」)。**報價/保固/售後/付款/客戶私人資料一律 transfer_to_human**
    (不可用網路資訊當商業承諾);純領域外閒聊(美食/股票)仍照第 1 點婉拒,不要 web_search。

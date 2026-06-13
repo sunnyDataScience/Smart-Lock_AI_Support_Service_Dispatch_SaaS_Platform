@@ -69,7 +69,8 @@ SCENARIOS = [
         "opening": "我被反鎖在門外了,現在進不去怎麼辦",
         "hidden_facts": {"address": "台北市大安區", "urgency": "high"},
         "required_info": ["address"],
-        "expected_outcome": "dispatch",
+        # SOP Step 2.2：急迫派工 → transfer_to_human(真人安排緊急派工),故 expected=transfer
+        "expected_outcome": "transfer",
         "max_turns": 5,
     },
     {
@@ -181,6 +182,7 @@ async def main_async() -> int:
     print(f"多輪 user-simulator 評測 — model={cfg.model}  ({len(SCENARIOS)} 劇本)\n")
 
     rows = []
+    all_dumps: list[dict] = []
     for sc in SCENARIOS:
         uid = f"sim-{sc['id']}"
         loop = AgentLoop(
@@ -218,6 +220,11 @@ async def main_async() -> int:
         vals = [float(j.get(d, 0) or 0) for d in dims]
         overall = sum(vals) / len(dims)
         rows.append((sc["id"], sc["expected_outcome"], transferred, len(transcript) // 2, overall, j))
+        all_dumps.append({
+            "id": sc["id"], "intent": sc["intent"], "expected": sc["expected_outcome"],
+            "transferred": transferred, "overall": overall, "judge": j,
+            "transcript": [{"role": r, "text": c} for r, c in transcript],
+        })
         print(f"  {sc['id']:<16} outcome={sc['expected_outcome']:<8} transfer={transferred} "
               f"turns={len(transcript)//2} overall={overall:.2f}  {j.get('comment','')[:40]}")
 
@@ -226,6 +233,10 @@ async def main_async() -> int:
         avg = sum(float(r[5].get(d, 0) or 0) for r in rows) / len(rows)
         print(f"  {d:<18}: {avg:.3f}")
     print(f"  {'overall':<18}: {sum(r[4] for r in rows)/len(rows):.3f}")
+    dump_path = ROOT / "evals" / "sim_transcripts.json"
+    dump_path.parent.mkdir(exist_ok=True)
+    dump_path.write_text(json.dumps(all_dumps, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"\n對話記錄: {dump_path}")
     return 0
 
 
