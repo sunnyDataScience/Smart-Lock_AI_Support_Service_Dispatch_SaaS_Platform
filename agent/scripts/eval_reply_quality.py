@@ -31,7 +31,7 @@ import random
 import sys
 import tempfile
 from collections import defaultdict
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -321,6 +321,9 @@ async def main_async(args: argparse.Namespace) -> int:
 
     print(f"[3/4] 載入 LockCore config: {args.config or '<default>'}")
     cfg = load_config(args.config)
+    # 每 run 用 ephemeral memory db,避免持久 memory.db + 穩定 user_id 造成跨 run 記憶/
+    # escalation 污染（會把前次對話的品牌型號/預約洩漏回本次,污染評測分數）。
+    cfg = replace(cfg, db_path=str(Path(tempfile.mkdtemp(prefix="lockcore-mem-")) / "eval.db"))
     provider = build_provider(cfg)
     mgr = build_memory_manager(cfg, provider)
     esc = build_escalation_store(cfg)
