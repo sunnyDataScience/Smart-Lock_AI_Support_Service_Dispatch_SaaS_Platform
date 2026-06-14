@@ -699,24 +699,145 @@ function WorkTimeline({ order }: { order: WorkOrder | null }) {
 
 /* ── Conversation Thread (mock) ──────────────────── */
 
-function ConversationThread() {
+/** 對話角色 → 氣泡樣式（user=客人左、assistant=客服/AI 右、system=系統置中）。 */
+function _roleLabel(
+  role: Message["role"],
+  t: ReturnType<typeof useTranslations>,
+): string {
+  if (role === "user") return t("roleCustomer");
+  if (role === "assistant") return t("roleAgent");
+  return t("roleSystem");
+}
+
+function ConversationThread({ conversationId }: { conversationId?: string }) {
   const t = useTranslations("pages.workOrderDetail.conversation");
+  const [items, setItems] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!conversationId) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setItems([]);
+    (async () => {
+      try {
+        const res = await api.get<MessagePage>(
+          tenantPath(`/conversations/${encodeURIComponent(conversationId)}/messages`),
+          { query: { limit: 100 } },
+        );
+        if (cancelled) return;
+        // API 依 created_at DESC 回傳；逐字稿需正序（舊→新）顯示。
+        const all = ((res.items ?? []) as Message[]).slice().reverse();
+        setItems(all);
+      } catch (e) {
+        if (cancelled) return;
+        setError(
+          e instanceof ApiError
+            ? `${e.errorCode} (${e.status})：${e.message}`
+            : e instanceof Error
+              ? e.message
+              : String(e),
+        );
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [conversationId]);
+
   return (
     <div className="flex flex-col gap-4 bg-[var(--bg-surface)] px-8 py-5">
       <div className="flex items-center justify-between">
         <span className="text-[20px] font-semibold text-[var(--text-primary)]">
           {t("title")}
         </span>
-        <div className="flex items-center gap-[6px] opacity-60">
-          <span className="text-[13px] text-[var(--primary)]">{t("openInNewWindow")}</span>
-          <ExternalLink className="h-[14px] w-[14px] text-[var(--primary)]" />
+        {conversationId && (
+          <a
+            href={`/conversations/${encodeURIComponent(conversationId)}`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-[6px] hover:opacity-80"
+          >
+            <span className="text-[13px] text-[var(--primary)]">{t("openInNewWindow")}</span>
+            <ExternalLink className="h-[14px] w-[14px] text-[var(--primary)]" />
+          </a>
+        )}
+      </div>
+
+      {!conversationId && (
+        <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--bg-page)] px-4 py-6 text-center text-[13px] text-[var(--text-disabled)]">
+          {t("noConversation")}
         </div>
-      </div>
-      <div className="flex max-h-[160px] items-center justify-center rounded-lg bg-[var(--bg-page)] p-4">
-        <span className="text-[13px] text-[var(--text-disabled)]">
-          {t("placeholder")}
-        </span>
-      </div>
+      )}
+
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+          {t("loadFailed", { error })}
+        </div>
+      )}
+
+      {conversationId && loading && items.length === 0 && (
+        <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--bg-page)] px-4 py-6 text-center text-[13px] text-[var(--text-disabled)]">
+          {t("loading")}
+        </div>
+      )}
+
+      {conversationId && !loading && items.length === 0 && !error && (
+        <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--bg-page)] px-4 py-6 text-center text-[13px] text-[var(--text-disabled)]">
+          {t("empty")}
+        </div>
+      )}
+
+      {items.length > 0 && (
+        <div className="flex max-h-[420px] flex-col gap-3 overflow-y-auto rounded-lg bg-[var(--bg-page)] p-4">
+          {items.map((m) => {
+            if (m.role === "system") {
+              return (
+                <div key={m.id} className="flex justify-center">
+                  <span className="rounded-full bg-[#E2E8F0] px-3 py-1 text-[11px] text-[var(--text-secondary)]">
+                    {m.content}
+                  </span>
+                </div>
+              );
+            }
+            const isCustomer = m.role === "user";
+            return (
+              <div
+                key={m.id}
+                className={`flex flex-col gap-1 ${isCustomer ? "items-start" : "items-end"}`}
+              >
+                <span className="text-[11px] text-[var(--text-secondary)]">
+                  {_roleLabel(m.role, t)}・{formatDateTime(m.created_at)}
+                </span>
+                <div
+                  className={`max-w-[78%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-[13px] leading-[1.6] ${
+                    isCustomer
+                      ? "rounded-tl-sm bg-white text-[var(--text-primary)] border border-[var(--border)]"
+                      : "rounded-tr-sm bg-[var(--primary)] text-white"
+                  }`}
+                >
+                  {m.content}
+                  {m.media_url && (
+                    <a
+                      href={m.media_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={`mt-1 block text-[12px] underline ${isCustomer ? "text-[var(--primary)]" : "text-white"}`}
+                    >
+                      {t("attachment")}
+                    </a>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <div className="flex items-center justify-center gap-[6px] rounded-b-lg bg-[#F1F5F9] px-4 py-2">
         <Lock className="h-3 w-3 text-[var(--text-disabled)]" />
         <span className="text-[12px] text-[var(--text-disabled)]">
@@ -1474,7 +1595,7 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
           />
           <LineMediaGallery conversationId={problemCard?.conversation_id} />
           <WorkTimeline order={order} />
-          <ConversationThread />
+          <ConversationThread conversationId={problemCard?.conversation_id ?? undefined} />
           <CompletionReport />
           <ExceptionRecords />
         </div>
