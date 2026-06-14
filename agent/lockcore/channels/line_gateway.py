@@ -29,6 +29,43 @@ _LINE_TEXT_LIMIT = 4900
 _ERROR_SENTINEL = "[litellm error]"
 _FALLBACK_REPLY = "不好意思,系統忙線中,請稍後再試,或留言由專員與您聯繫 🙏"
 
+# 方案 A:對話旁路持久化。把每輪「客人訊息 + AI 回覆」POST 給 API,寫進
+# conversations/messages,使工單/對話後台能重新渲染對話歷史。env 未設 → 略過
+# (不破壞無此設定的既有部署);失敗一律 fail-soft(只 log,絕不阻斷回客人)。
+_PERSIST_TIMEOUT_SEC = 5.0
+
+
+async def _persist_turn_safe(
+    tenant: str, user_id: str, user_text: str, assistant_text: str
+) -> None:
+    """Fire-and-forget 旁路持久化一輪對話到 API。任何失敗只 log,不 raise。"""
+    base_url = os.environ.get("LOCK_API_BASE_URL")
+    token = os.environ.get("INTERNAL_API_TOKEN")
+    if not (base_url and token):
+        return  # 未設定 bridge → 安靜略過
+    payload = {
+        "tenant_id": tenant,
+        "line_user_id": user_id,
+        "session_id": f"{tenant}:{user_id}",
+        "user_text": user_text or "",
+        "assistant_text": assistant_text or "",
+    }
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=_PERSIST_TIMEOUT_SEC) as client:
+            resp = await client.post(
+                f"{base_url.rstrip('/')}/api/v1/internal/conversations/ingest",
+                json=payload,
+                headers={"X-Internal-Token": token},
+            )
+            if resp.status_code >= 400:
+                logger.warning(
+                    "對話持久化回 {}:{}", resp.status_code, resp.text[:160]
+                )
+    except Exception:  # noqa: BLE001 — 持久化絕不可影響客服回覆
+        logger.warning("對話持久化失敗(已略過,不影響客人)", exc_info=True)
+
 
 def load_dotenv(path: str | Path) -> dict[str, str]:
     """極簡 .env 載入器(無外部依賴):把 KEY="value" 設進 os.environ(不覆蓋既有)。"""
@@ -110,8 +147,9 @@ def build_webapp(loop: Any, tenant: str, channel_secret: str, channel_access_tok
                 if not native_id:
                     continue
                 _, user_id = resolve_identity("line", native_id, tenant)
+                user_text = event.message.text
                 try:
-                    reply = await handle_text_turn(loop, tenant, user_id, event.message.text)
+                    reply = await handle_text_turn(loop, tenant, user_id, user_text)
                 except Exception:
                     logger.exception("LINE turn 失敗")
                     reply = "不好意思,系統忙線中,請稍後再試,或留言由專員與您聯繫 🙏"
@@ -122,6 +160,8 @@ def build_webapp(loop: Any, tenant: str, channel_secret: str, channel_access_tok
                             messages=[TextMessage(text=reply)],
                         )
                     )
+                # 方案 A:回覆送出後再旁路持久化(不影響客人回覆延遲;fail-soft)。
+                await _persist_turn_safe(tenant, user_id, user_text, reply)
         return web.Response(text="OK")
 
     app = web.Application()

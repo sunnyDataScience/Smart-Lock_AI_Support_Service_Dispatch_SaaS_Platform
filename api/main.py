@@ -88,6 +88,7 @@ from routers import invoices_v2 as invoices_v2_router  # spec-alignment P2-W5 (C
 from routers import media_v2 as media_v2_router  # spec-alignment P2-W6 (CR-0003 P2-W6, Media tenant-scoped upload/serve/list)
 from routers import dispatch_logs_v2 as dispatch_logs_v2_router  # spec-alignment P2-W6 (BUILD_TENANT_SCOPED, M06 DispatchLogs read-only tenant-scoped, admin-only)
 from routers import config_m18 as config_m18_router  # Track B S1: M18 Runtime Config Governance (ADR-0067 Phase 0 / CR-0004 §8)
+from routers import internal_ingest as internal_ingest_router  # 方案 A：LINE agent gateway 對話旁路持久化（service-to-service internal token）
 from routers import reconciliations_v2 as reconciliations_v2_router  # Track B S2: Reconciliation dual-sign (FR-0013 / CR-0004 §8 HD-1~HD-3)
 from routers import disputes_v2 as disputes_v2_router  # Track B S2: Dispute dual-sign 狀態機 (FR-0013 / CR-0004 §8 HD-1~HD-4)
 from routers import inventory_v2 as inventory_v2_router  # Track B S3: Inventory v2 per-tenant 庫存狀態機 (FR-0007 / CR-0004 §8 / ADR-0052 / ADR-0053)
@@ -193,6 +194,7 @@ app.include_router(family_reviews_router.router, prefix="/api/v1", tags=["knowle
 app.include_router(audit_logs_router.router, prefix="/api/v1", tags=["observability"])
 app.include_router(data_corrections_router.router, prefix="/api/v1", tags=["knowledge_base"])
 app.include_router(conversations_router.router, prefix="/api/v1", tags=["customer_service"])
+app.include_router(internal_ingest_router.router, prefix="/api/v1", tags=["internal"])  # 方案 A：對話旁路持久化（agent gateway → conversations/messages）
 app.include_router(sentiment_alerts_router.router, prefix="/api/v1", tags=["customer_service"])
 app.include_router(dashboard_router.router, prefix="/api/v1", tags=["reports"])
 app.include_router(problem_cards_router.router, prefix="/api/v1", tags=["customer_service"])

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hmac
 import logging
+import os
 from dataclasses import dataclass
 
 from fastapi import Header, Request
@@ -157,6 +159,33 @@ def role_required(*roles: str):
 
 # HD-VCH-003：platform keeper role — X-Keeper-Role header + user.role 屬平台管理員集合
 _KEEPER_ROLES: frozenset[str] = frozenset({"admin", "platform_admin", "platform_keeper"})
+
+
+async def require_internal_token(
+    x_internal_token: str | None = Header(default=None, alias="X-Internal-Token"),
+) -> None:
+    """服務間（service-to-service）internal token 驗證。
+
+    用於非人類發動、無 JWT 的內部寫入路徑（如 LINE agent gateway 把對話旁路
+    持久化到 conversations/messages，方案 A）。期望 token 來自環境變數
+    `INTERNAL_API_TOKEN`。
+
+    **Fail closed**：env 未設定時一律拒絕（503），絕不放行無認證的 DB 寫入端點。
+    比對用 `hmac.compare_digest` 做常數時間比較，避免 timing attack。
+    """
+    expected = os.getenv("INTERNAL_API_TOKEN")
+    if not expected:
+        raise ApiError(
+            error_code="INTERNAL_AUTH_NOT_CONFIGURED",
+            message="Internal API token not configured on server",
+            status_code=503,
+        )
+    if not x_internal_token or not hmac.compare_digest(x_internal_token, expected):
+        raise ApiError(
+            error_code="INTERNAL_AUTH_FAILED",
+            message="Missing or invalid X-Internal-Token",
+            status_code=401,
+        )
 
 
 async def require_keeper_role(

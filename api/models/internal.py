@@ -20,6 +20,22 @@ class JwtClaims(BaseModel):
     jti: str
 
 
+class IngestTurnRequest(BaseModel):
+    """LINE agent gateway 旁路持久化一輪對話的 request body（方案 A）。
+
+    對應 POST /api/v1/internal/conversations/ingest（require_internal_token）。
+    把「客人訊息 + AI 回覆」寫進 conversations/messages，使工單/對話後台可重新
+    渲染對話歷史。session_id 為冪等鍵（同 user 同 tenant 穩定 → 復用同一對話）。
+    """
+
+    tenant_id: str = Field(..., min_length=1)
+    line_user_id: str = Field(..., min_length=1)
+    session_id: str = Field(..., min_length=1, max_length=255)
+    user_text: str = Field(default="", max_length=5000)
+    assistant_text: str = Field(default="", max_length=5000)
+    display_name: str | None = Field(default=None, max_length=255)
+
+
 class SendChatMessageRequest(BaseModel):
     """客服接管後發送訊息的 request body（OpenAPI: SendChatMessageRequest）。
 

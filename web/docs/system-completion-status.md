@@ -3,7 +3,8 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-06-11（**E2E 互動 sweep + user-flow 驗證**，branch `test/ui-interaction-sweep` — Playwright 掃 45 admin-shell 路由 + 新增 6 條 P0 user-flow E2E，揪出並修復 **5 個「實作了但端到端是壞的」產品 bug**：退款決策 422、技師登入死鎖+接錯端點、爭議 co-sign 漏 X-Initiator、發票號格式 500、notifications 無限 render 迴圈；另修 2 處捲軸 min-h-0 + 補齊 demo 資料 saas.dispute/demo-tech 工單。詳見文末 2026-06-11 記錄）
+**最後更新：** 2026-06-14（**對話旁路持久化**，branch `feat/agent-conversation-bridge` — LINE agent 對話經 internal-token ingest 端點寫入 conversations/messages，使工單/對話後台可重新渲染對話歷史；不碰 agent 核心與工具白名單，符合架構鎖；測試 5/5 + 回歸 33/33。詳見文末 2026-06-14 記錄）
+**前一次更新：** 2026-06-11（**E2E 互動 sweep + user-flow 驗證**，branch `test/ui-interaction-sweep` — Playwright 掃 45 admin-shell 路由 + 新增 6 條 P0 user-flow E2E，揪出並修復 **5 個「實作了但端到端是壞的」產品 bug**：退款決策 422、技師登入死鎖+接錯端點、爭議 co-sign 漏 X-Initiator、發票號格式 500、notifications 無限 render 迴圈；另修 2 處捲軸 min-h-0 + 補齊 demo 資料 saas.dispute/demo-tech 工單。詳見文末 2026-06-11 記錄）
 **前一次更新：** 2026-06-07 晚段（5 branch web UI 收尾 — sop-performance + 工單 3 view modal+filter + 保固詳情頁 + dispute 證據面板+決議表單 + textColor defensive 全綠）
 **對應分支：** `dev_new_arch` 含 23+ merge commits（從 `8768fae1` 起算到 `d291f9ea`）
 **對應 reports：** v1.0.0 → v1.36.0（產品 MVP）+ CR-0003 P0-P3.5 ✅ + CR-0004 Track B S1-S7 + CR-0017/0018/0019/0013/0012 ✅ + WBS §8 P1/P2 backend 全清 + DEFERRED 全解 + **Phase II 9 FR MVP 全落地**
@@ -437,6 +438,24 @@
 
 ### Finding（產品決策待定）
 - 前端 `AuthGuard` 僅檢查 token、**無 route-level role gating**；授權實際在 API 層強制（role_required / require_keeper）。非 admin 角色持有效 token 仍可在瀏覽器**載入** /admin 頁（API 會 403）。是否補前端 route 角色守衛屬 UX 強化的產品決策。
+
+---
+
+## 2026-06-14 對話旁路持久化：LINE agent 對話 → 工單/對話後台可見（branch `feat/agent-conversation-bridge`）
+
+> 對應業主提問「工單系統能不能看到對話紀錄」。先盤點：後台**渲染端早已具備**（`WorkOrderDetailSidebar` 會 fetch `/conversations/{id}` + `ChatTimeline` 渲染、`conversations`/`messages` schema 齊全），唯一缺口是 **agent (LockCore) 是資料孤島** —— 對話只寫自己的 SQLite memory.db，從不寫 API 的 PostgreSQL，所以「有畫布、無資料」。
+
+### 方案 A — 通道旁路寫入（不碰 agent 核心 / 工具白名單，符合架構鎖）✅
+- **API**：新增 `POST /api/v1/internal/conversations/ingest`（`routers/internal_ingest.py`）；認證 `require_internal_token`（`core/deps.py`，比對 `INTERNAL_API_TOKEN`，**fail closed** 未設→503，常數時間比較）。
+- **Service**：`conversation_service.ingest_turn()` 復用既有 session_id 冪等 `create_conversation` + 寫 `user`/`assistant` 兩則 message（metadata.sender_role = line_user / ai），空字串不寫，message_count 累加。
+- **Agent gateway**：`lockcore/channels/line_gateway.py` 回覆送出後 fire-and-forget POST（既有 httpx 依賴；`INTERNAL_API_TOKEN`/`LOCK_API_BASE_URL` 未設則安靜略過、不破壞既有部署；失敗 fail-soft 只 log，絕不阻斷客人回覆）。
+- **測試**：`api/tests/test_internal_ingest.py` 5/5 全綠（503/401 認證邊界 + 真實 DB happy-path + session 冪等復用 + 空訊息略過）；回歸 conversations_v2 / line_webhook / auth_guards 33/33 無破壞。
+- **env**：`.env.example` 加 `INTERNAL_API_TOKEN` + `LOCK_API_BASE_URL`。
+
+### 缺口備註（後續 CR）
+- 對話寫進 DB 後，立即可在 `/conversations` 後台看到；**但 work_order ↔ conversation 的關聯渲染**需經 problem_card 鏈，尚未自動建立。
+- 「LINE 對話 → 自動生工單」（escalation → draft 問題卡 → 客服 1-click 轉工單，ADR-0031 人審路線）仍為斷層，屬下一個 CR。
+- 本變更觸及 API contract + 整合邊界（CIA 範圍）；業主已直接圈定方案 A，先實作並登錄 CHANGELOG。
 
 ---
 
