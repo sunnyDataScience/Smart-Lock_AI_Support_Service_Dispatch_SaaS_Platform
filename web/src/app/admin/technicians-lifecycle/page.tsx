@@ -4,7 +4,7 @@
  * FR-0044 Technician Lifecycle — events audit log + 5 lifecycle actions。
  *
  * 對應 backend (api/routers/technician_lifecycle_v2.py):
- *   GET   /tenants/{tid}/technicians/lifecycle/events
+ *   GET   /tenants/{tid}/technicians/lifecycle-events
  *   POST  /tenants/{tid}/technicians/{tid}/approve
  *   POST  /tenants/{tid}/technicians/{tid}/reject
  *   POST  /tenants/{tid}/technicians/{tid}/suspend
@@ -77,8 +77,8 @@ export default function TechniciansLifecyclePage() {
         eventFilter === "all" ? "" : `?event_type=${eventFilter}&limit=100`;
       const path = tenantPath(
         eventFilter === "all"
-          ? "/technicians/lifecycle/events?limit=100"
-          : `/technicians/lifecycle/events${q}`,
+          ? "/technicians/lifecycle-events?limit=100"
+          : `/technicians/lifecycle-events${q}`,
       );
       const res = await api.get<EventEnvelope | TechnicianLifecycleEvent[]>(
         path,
