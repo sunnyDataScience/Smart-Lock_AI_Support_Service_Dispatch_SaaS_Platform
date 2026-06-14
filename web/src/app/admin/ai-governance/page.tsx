@@ -4,8 +4,8 @@
  * FR-0050 AI Governance Trace — agent 決策 lineage + guardrail block stats。
  *
  * 對應 backend:
- *   GET /tenants/{tid}/ai/governance/traces
- *   GET /tenants/{tid}/ai/governance/summary
+ *   GET /tenants/{tid}/ai-governance/traces
+ *   GET /tenants/{tid}/ai-governance/traces/summary
  */
 
 import { useEffect, useState } from "react";
@@ -50,9 +50,9 @@ export default function AiGovernancePage() {
     try {
       const [t, s] = await Promise.all([
         api.get<AiDecisionTrace[] | { items: AiDecisionTrace[] }>(
-          tenantPath("/ai/governance/traces?limit=100"),
+          tenantPath("/ai-governance/traces?limit=100"),
         ),
-        api.get<AiGovernanceSummary>(tenantPath("/ai/governance/summary")),
+        api.get<AiGovernanceSummary>(tenantPath("/ai-governance/traces/summary")),
       ]);
       setTraces(Array.isArray(t) ? t : t.items ?? []);
       setSummary(s);

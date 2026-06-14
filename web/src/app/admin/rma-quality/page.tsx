@@ -3,7 +3,7 @@
 /**
  * FR-0048 RMA Quality Findings — 失效模式 + repeat failure + AI 診斷準確度。
  *
- * 對應 backend: GET /tenants/{tid}/rma/quality-findings
+ * 對應 backend: GET /tenants/{tid}/rma-quality-findings
  */
 
 import { useEffect, useState } from "react";
@@ -46,7 +46,7 @@ export default function RmaQualityPage() {
     try {
       const q = repeatOnly ? "?is_repeat_failure=true&limit=100" : "?limit=100";
       const res = await api.get<RmaQualityFinding[] | { items: RmaQualityFinding[] }>(
-        tenantPath(`/rma/quality-findings${q}`),
+        tenantPath(`/rma-quality-findings${q}`),
       );
       setItems(Array.isArray(res) ? res : res.items ?? []);
     } catch (e) {
