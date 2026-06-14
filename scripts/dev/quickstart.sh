@@ -61,6 +61,10 @@ need uv
 [ "$BACKEND_ONLY" -eq 1 ] || need npm
 [ -f "$PROJECT_ROOT/.env" ] || { err ".env 不存在，請從 .env.example 複製"; exit 1; }
 
+# CR-0022：internal service token，讓 backend 的 /internal/* ingest 端點可用（否則回 503）。
+# 可用環境變數覆蓋；export 讓背景啟動的 backend 子行程繼承。
+export INTERNAL_API_TOKEN="${INTERNAL_API_TOKEN:-dev-internal-token}"
+
 # ── 1. DB ──────────────────────────────────────────────────────────────────
 db_exec() { docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" "$@"; }
 db_apply_file() {

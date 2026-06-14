@@ -5,9 +5,14 @@
 #   1. PostgreSQL 容器 (pgvector/pg17) — 冪等 (run / start / no-op)
 #   2. 等待 DB 就緒 (pg_isready)
 #   3. ngrok HTTP tunnel — 背景執行，自動偵測 public URL
-#   4. uvicorn (agent/app.py) — 預設前景（Ctrl+C 即停止），多服務模式自動切背景
+#   4. agent LINE gateway (agent/scripts/line_gateway.py) — LockCore 架構入口（取代已刪的
+#      agent/app.py）；aiohttp webhook :8000/callback。需 LINE_CHANNEL_SECRET/TOKEN，
+#      缺則自動略過 agent（仍可只跑 api/web）。
 #   5. （選用）uvicorn (api/main.py) on :8001
 #   6. （選用）next dev (web/) on :3000
+#
+# CR-0022：agent 轉真人會旁路建 AI 草擬問題卡。本 script 會把 INTERNAL_API_TOKEN
+# 同步給 api 與 agent（預設 dev-internal-token，可用環境變數覆蓋）。
 #
 # 收尾：./scripts/dev/dev-down.sh（多服務模式請用 --gcp 或 PID file 收）
 #
@@ -39,6 +44,11 @@ AGENT_PORT="8000"
 API_PORT="8001"
 WEB_PORT="3000"
 NGROK_API="http://127.0.0.1:4040/api/tunnels"
+
+# CR-0022：service-to-service internal token（api 驗證 / agent 旁路同步用同一把）。
+# 可用環境變數覆蓋；export 讓背景啟動的 api / agent 子行程都繼承到同一值。
+export INTERNAL_API_TOKEN="${INTERNAL_API_TOKEN:-dev-internal-token}"
+export LOCK_API_BASE_URL="${LOCK_API_BASE_URL:-http://127.0.0.1:$API_PORT}"
 
 # ── CLI flags ──────────────────────────────────────────────────────────────
 NO_NGROK=0
@@ -177,7 +187,9 @@ start_bg_service() {
     echo $! > "$LOG_DIR/${name}.pid"
   )
   for i in $(seq 1 60); do
-    if curl -sf "http://127.0.0.1:$port" >/dev/null 2>&1 \
+    # 連得上即算 ready（不限 2xx）—— agent LINE gateway 只有 POST /callback，
+    # GET / 會回 404，故用 -s 不用 -f（404 也代表 port 已起）。
+    if curl -s -o /dev/null "http://127.0.0.1:$port" 2>/dev/null \
        || curl -sf "http://127.0.0.1:$port/health" >/dev/null 2>&1; then
       log "  ✓ $name ready ($i sec)"
       return 0
@@ -213,19 +225,36 @@ fi
 
 [ "$NO_NGROK" -eq 0 ] && start_ngrok
 
-# ── 5a. 單一服務模式：agent 前景跑（與舊行為一致）─────────────────────
+# agent LINE gateway 需 LINE_CHANNEL_SECRET（env 或 agent/.env）。缺則無法起 gateway。
+agent_has_line_creds() {
+  [ -n "${LINE_CHANNEL_SECRET:-}" ] && return 0
+  grep -qE '^LINE_CHANNEL_SECRET=.+' "$AGENT_DIR/.env" 2>/dev/null
+}
+AGENT_CMD="PORT=$AGENT_PORT uv run python scripts/line_gateway.py"
+
+# ── 5a. 單一服務模式：agent 前景跑（LockCore LINE gateway）─────────────
 if [ "$MULTI_SERVICE" -eq 0 ]; then
-  log "starting uvicorn — http://127.0.0.1:$AGENT_PORT  (Ctrl+C to stop)"
-  log "  health:  curl http://127.0.0.1:$AGENT_PORT/health"
-  log "  test:    curl 'http://127.0.0.1:$AGENT_PORT/chat?q=門打不開'"
+  if ! agent_has_line_creds; then
+    err "agent LINE gateway 需 LINE_CHANNEL_SECRET / LINE_CHANNEL_ACCESS_TOKEN（放 agent/.env）。"
+    err "若只想跑 api/web，用：./scripts/dev/dev-up.sh --full（無 LINE 憑證會自動略過 agent）。"
+    exit 1
+  fi
+  log "starting agent LINE gateway — http://127.0.0.1:$AGENT_PORT/callback  (Ctrl+C to stop)"
+  log "  webhook: 把 ngrok https URL + /callback 填進 LINE Developers ▸ Messaging API"
+  log "  測試:    用 LINE 對官方帳號傳「請派師傅來修」即可觸發轉真人 → AI 草擬問題卡"
   echo
   cd "$AGENT_DIR"
-  exec uv run uvicorn app:app --reload --port "$AGENT_PORT"
+  exec env PORT="$AGENT_PORT" uv run python scripts/line_gateway.py
 fi
 
 # ── 5b. 多服務模式：全部背景 + summary ────────────────────────────────
-start_bg_service agent "$AGENT_DIR" \
-  "uv run uvicorn app:app --host 127.0.0.1 --port $AGENT_PORT" "$AGENT_PORT"
+AGENT_STARTED=0
+if agent_has_line_creds; then
+  start_bg_service agent "$AGENT_DIR" "$AGENT_CMD" "$AGENT_PORT"
+  AGENT_STARTED=1
+else
+  log "⚠ 未偵測到 LINE_CHANNEL_SECRET（agent/.env）— 略過 agent LINE gateway，只起 api/web。"
+fi
 
 if [ "$WITH_API" -eq 1 ]; then
   start_bg_service api "$API_DIR" \
@@ -247,12 +276,13 @@ log "═════════════════════════
 log " 情境 A 啟動完成（本機 docker DB）"
 log "═══════════════════════════════════════════════"
 log "  db (docker)     : $DB_CONTAINER on :$DB_PORT"
-log "  agent           : pid $(cat "$LOG_DIR/agent.pid")  http://127.0.0.1:$AGENT_PORT"
+[ "$AGENT_STARTED" -eq 1 ] && log "  agent (gateway) : pid $(cat "$LOG_DIR/agent.pid")  http://127.0.0.1:$AGENT_PORT/callback"
 [ "$WITH_API" -eq 1 ] && log "  api             : pid $(cat "$LOG_DIR/api.pid")  http://127.0.0.1:$API_PORT"
 [ "$WITH_WEB" -eq 1 ] && log "  web             : pid $(cat "$LOG_DIR/web.pid")  http://127.0.0.1:$WEB_PORT"
+log "  internal token  : INTERNAL_API_TOKEN=$INTERNAL_API_TOKEN（api / agent 共用）"
 log ""
 log "驗證："
-log "  curl 'http://127.0.0.1:$AGENT_PORT/chat?q=門打不開'"
+[ "$AGENT_STARTED" -eq 1 ] && log "  agent 用 LINE 傳「請派師傅來修」→ 後台 /problem-cards 選「AI 草擬」看草擬卡"
 [ "$WITH_API" -eq 1 ] && log "  open http://127.0.0.1:$API_PORT/docs"
 [ "$WITH_API" -eq 1 ] && log "  ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=changeme123 ./tests/smoke/api.sh"
 [ "$WITH_WEB" -eq 1 ] && log "  open http://127.0.0.1:$WEB_PORT/dashboard"
