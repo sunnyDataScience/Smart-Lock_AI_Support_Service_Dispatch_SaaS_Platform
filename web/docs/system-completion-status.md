@@ -3,7 +3,8 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-06-14（**對話旁路持久化**，branch `feat/agent-conversation-bridge` — LINE agent 對話經 internal-token ingest 端點寫入 conversations/messages，使工單/對話後台可重新渲染對話歷史；不碰 agent 核心與工具白名單，符合架構鎖；測試 5/5 + 回歸 33/33。詳見文末 2026-06-14 記錄）
+**最後更新：** 2026-06-14（**工單詳情頁內嵌對話逐字稿**，branch `feat/wo-conversation-thread` — 把工單詳情頁原 placeholder 的「LINE 對話記錄」改為真實渲染（沿用 work_order→problem_card→conversation 鏈 fetch messages、氣泡逐字稿 user/assistant/system 三角色 + 四態 + media 附件）；tsc 0 error + 資料鏈實證。與 `feat/agent-conversation-bridge`（旁路持久化）合起來打通「LINE 對話 → DB → 工單後台可見」全鏈。詳見文末 2026-06-14 記錄）
+**前一次更新：** 2026-06-14（**對話旁路持久化**，branch `feat/agent-conversation-bridge` — LINE agent 對話經 internal-token ingest 端點寫入 conversations/messages，使工單/對話後台可重新渲染對話歷史；不碰 agent 核心與工具白名單，符合架構鎖；測試 5/5 + 回歸 33/33。詳見文末 2026-06-14 記錄）
 **前一次更新：** 2026-06-11（**E2E 互動 sweep + user-flow 驗證**，branch `test/ui-interaction-sweep` — Playwright 掃 45 admin-shell 路由 + 新增 6 條 P0 user-flow E2E，揪出並修復 **5 個「實作了但端到端是壞的」產品 bug**：退款決策 422、技師登入死鎖+接錯端點、爭議 co-sign 漏 X-Initiator、發票號格式 500、notifications 無限 render 迴圈；另修 2 處捲軸 min-h-0 + 補齊 demo 資料 saas.dispute/demo-tech 工單。詳見文末 2026-06-11 記錄）
 **前一次更新：** 2026-06-07 晚段（5 branch web UI 收尾 — sop-performance + 工單 3 view modal+filter + 保固詳情頁 + dispute 證據面板+決議表單 + textColor defensive 全綠）
 **對應分支：** `dev_new_arch` 含 23+ merge commits（從 `8768fae1` 起算到 `d291f9ea`）
@@ -456,6 +457,25 @@
 - 對話寫進 DB 後，立即可在 `/conversations` 後台看到；**但 work_order ↔ conversation 的關聯渲染**需經 problem_card 鏈，尚未自動建立。
 - 「LINE 對話 → 自動生工單」（escalation → draft 問題卡 → 客服 1-click 轉工單，ADR-0031 人審路線）仍為斷層，屬下一個 CR。
 - 本變更觸及 API contract + 整合邊界（CIA 範圍）；業主已直接圈定方案 A，先實作並登錄 CHANGELOG。
+
+---
+
+## 2026-06-14 工單詳情頁內嵌對話逐字稿（branch `feat/wo-conversation-thread`）
+
+> 承上：方案 A 把對話寫進 DB 後，工單詳情頁原本的「LINE 對話記錄」區塊卻是 **placeholder**（只顯示「示意：…將顯示於此」靜態文字）。本輪把它換成真實渲染，補上「工單後台看得到對話」的最後一哩。
+
+### 真實渲染（取代 placeholder）✅
+- **資料鏈無需新建**：工單詳情頁早已透過 `ProblemCardSummary onLoaded` 取得 `problemCard.conversation_id`（work_order → problem_card → conversation 結構鏈），sidebar 與 media gallery 都已用它。本輪讓 `ConversationThread` 也吃同一個 conversation_id。
+- **`ConversationThread` 重寫**：fetch `/conversations/{id}/messages`（與 `LineMediaGallery` 同 pattern），正序氣泡逐字稿 —— `user`=客人（左/白底）、`assistant`=客服/AI（右/主色）、`system`=系統（置中）；media 附件連結；「在新視窗開啟」改真實連結；loading / empty / error / no-conversation 四態；唯讀提示保留。
+- **i18n**：zh-TW + en 移除 `placeholder` key、補 8 個新 key（noConversation / loading / empty / loadFailed / roleCustomer / roleAgent / roleSystem / attachment）。
+
+### 驗證
+- `npx tsc --noEmit` 0 error；zh-TW / en JSON 合法。
+- **資料鏈實證**（dev DB）：seed 工單 `55555555` → pc `44444444` → conv `22222222` → user/assistant 訊息正確；無對話的工單顯「尚無對話訊息」空狀態。
+
+### 全鏈狀態
+- **「LINE 對話 → DB → 工單後台可見」已打通**（方案 A 寫入 + 本輪渲染）。
+- 仍缺：「LINE 對話 → 自動生工單」（escalation → draft 問題卡 → 1-click 轉工單，ADR-0031 人審路線）為獨立後續 CR。
 
 ---
 

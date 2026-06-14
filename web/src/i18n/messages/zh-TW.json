@@ -504,11 +504,18 @@
         }
       },
       "conversation": {
-        "title": "LINE 對話記錄（示意）",
+        "title": "LINE 對話記錄",
         "openInNewWindow": "在新視窗開啟",
-        "placeholder": "示意：問題卡關聯對話將顯示於此",
         "readOnly": "唯讀模式 — 此為 LINE 對話備份",
-        "readOnlyNotice": "唯讀模式 — 此為 LINE 對話備份"
+        "readOnlyNotice": "唯讀模式 — 此為 LINE 對話備份",
+        "noConversation": "此工單尚未關聯對話",
+        "loading": "載入對話中…",
+        "empty": "尚無對話訊息",
+        "loadFailed": "載入失敗：{error}",
+        "roleCustomer": "客人",
+        "roleAgent": "客服",
+        "roleSystem": "系統",
+        "attachment": "查看附件"
       },
       "completionReport": {
         "title": "完工報告（示意）",

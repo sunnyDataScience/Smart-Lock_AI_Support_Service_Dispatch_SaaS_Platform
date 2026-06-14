@@ -504,11 +504,18 @@
         }
       },
       "conversation": {
-        "title": "LINE conversation log (placeholder)",
+        "title": "LINE conversation log",
         "openInNewWindow": "Open in new window",
-        "placeholder": "Placeholder: linked conversation will appear here",
         "readOnly": "Read-only — LINE conversation backup",
-        "readOnlyNotice": "Read-only — this is a backup of the LINE conversation"
+        "readOnlyNotice": "Read-only — this is a backup of the LINE conversation",
+        "noConversation": "No conversation linked to this work order yet",
+        "loading": "Loading conversation…",
+        "empty": "No messages yet",
+        "loadFailed": "Load failed: {error}",
+        "roleCustomer": "Customer",
+        "roleAgent": "Agent",
+        "roleSystem": "System",
+        "attachment": "View attachment"
       },
       "completionReport": {
         "title": "Completion report (placeholder)",
