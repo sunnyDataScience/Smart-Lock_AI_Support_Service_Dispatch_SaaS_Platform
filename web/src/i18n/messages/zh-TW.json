@@ -311,7 +311,8 @@
         "status": "狀態篩選",
         "urgency": "緊急度",
         "brand": "品牌",
-        "dateRange": "日期範圍"
+        "dateRange": "日期範圍",
+        "source": "來源"
       },
       "comingSoonTitle": "即將推出",
       "searchPlaceholder": "搜尋功能即將推出",

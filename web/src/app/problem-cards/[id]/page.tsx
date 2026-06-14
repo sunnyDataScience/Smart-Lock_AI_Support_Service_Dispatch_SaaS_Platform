@@ -92,6 +92,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
   const [actionToast, setActionToast] = useState<string | null>(null);
   const [resolveModalOpen, setResolveModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [convertModalOpen, setConvertModalOpen] = useState(false);
   const [autoResolveResult, setAutoResolveResult] = useState<ResolveResponse | null>(null);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [matchResult, setMatchResult] = useState<DispatchCandidate[] | null>(null);
@@ -249,15 +250,26 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
     }
   };
 
-  const handleConvertToWO = async () => {
+  const handleConvertToWO = async (info: {
+    customer_address: string;
+    customer_name?: string;
+    customer_phone?: string;
+  }) => {
     setActionPending("convert");
     setActionError(null);
     try {
       // CR-0009 step-extend：problem_cards_v2 補 convertProblemCardToWorkOrderV2
+      // CR-0022：AI 草擬卡無 profile 地址，必須在開單時由客服填服務地址（HITL）。
       const res = await api.post<WorkOrderEnvelope>(
         tenantPath(`/problem-cards/${encodeURIComponent(id)}/convert-to-work-order`),
+        {
+          customer_address: info.customer_address,
+          ...(info.customer_name ? { customer_name: info.customer_name } : {}),
+          ...(info.customer_phone ? { customer_phone: info.customer_phone } : {}),
+        },
       );
       const woId = res.data?.id;
+      setConvertModalOpen(false);
       setActionToast(
         woId ? `工單已建立：${woId.slice(0, 8)}` : "工單已建立",
       );
@@ -418,7 +430,10 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
               )}
               {canConvertToWO && (
                 <button
-                  onClick={handleConvertToWO}
+                  onClick={() => {
+                    setActionError(null);
+                    setConvertModalOpen(true);
+                  }}
                   disabled={actionPending !== null}
                   className="inline-flex items-center gap-2 rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                   title="將此問題卡轉為工單，進入派工流程"
@@ -566,6 +581,14 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
           pending={actionPending === "update"}
           onCancel={() => setEditModalOpen(false)}
           onSubmit={handleUpdate}
+        />
+      )}
+
+      {convertModalOpen && (
+        <ConvertModal
+          pending={actionPending === "convert"}
+          onCancel={() => setConvertModalOpen(false)}
+          onSubmit={handleConvertToWO}
         />
       )}
 
@@ -826,6 +849,100 @@ function ResolveModal({
             className="rounded-md bg-[var(--success)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? "送出中…" : "確認結案"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConvertModal({
+  pending,
+  onCancel,
+  onSubmit,
+}: {
+  pending: boolean;
+  onCancel: () => void;
+  onSubmit: (info: {
+    customer_address: string;
+    customer_name?: string;
+    customer_phone?: string;
+  }) => Promise<void>;
+}) {
+  const [address, setAddress] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const canSubmit = address.trim().length > 0 && !pending;
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-[480px] rounded-xl bg-white p-6 shadow-xl">
+        <div className="mb-4 flex items-center gap-2">
+          <ClipboardList className="h-5 w-5 text-[var(--primary)]" />
+          <span className="text-[18px] font-semibold text-[var(--text-primary)]">
+            轉為工單
+          </span>
+        </div>
+        <p className="mb-3 text-[13px] text-[var(--text-secondary)]">
+          請填寫服務地址後開單（AI 草擬卡未含地址，需客服確認）。地址為必填，缺地址無法派工。
+        </p>
+        <div className="flex flex-col gap-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-[13px] font-medium text-[var(--text-primary)]">
+              服務地址 <span className="text-[var(--error)]">*</span>
+            </span>
+            <input
+              type="text"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              maxLength={300}
+              placeholder="例：新北市林口區民富街 83 號 1 樓"
+              className="rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2 text-[13px] outline-none focus:border-[var(--primary)]"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[13px] font-medium text-[var(--text-primary)]">聯絡人（選填）</span>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={80}
+              placeholder="客戶姓名"
+              className="rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2 text-[13px] outline-none focus:border-[var(--primary)]"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[13px] font-medium text-[var(--text-primary)]">聯絡電話（選填）</span>
+            <input
+              type="text"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              maxLength={30}
+              placeholder="09xx-xxx-xxx"
+              className="rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2 text-[13px] outline-none focus:border-[var(--primary)]"
+            />
+          </label>
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            disabled={pending}
+            className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
+          >
+            取消
+          </button>
+          <button
+            onClick={() =>
+              onSubmit({
+                customer_address: address.trim(),
+                customer_name: name.trim() || undefined,
+                customer_phone: phone.trim() || undefined,
+              })
+            }
+            disabled={!canSubmit}
+            className="rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? "建立中…" : "確認開單"}
           </button>
         </div>
       </div>

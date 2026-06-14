@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CR-0022 真人測試指南 — LINE 對話 → 工單</title>
+<style>
+  :root{
+    --bg:#0f1419; --card:#1a212b; --card2:#222c39; --ink:#e6edf3; --muted:#9aa7b5;
+    --line:#2d3845; --accent:#4ea1ff; --good:#3fb950; --warn:#d29922; --bad:#f85149;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,"Segoe UI","PingFang TC","Noto Sans TC",Roboto,sans-serif;
+    line-height:1.75;font-size:15px}
+  .wrap{max-width:920px;margin:0 auto;padding:40px 24px 90px}
+  header{border-bottom:1px solid var(--line);padding-bottom:22px;margin-bottom:30px}
+  h1{font-size:26px;margin:0 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  .meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .chip{background:#243140;border:1px solid var(--line);border-radius:20px;padding:3px 13px;font-size:12px;color:var(--muted)}
+  h2{font-size:20px;margin:38px 0 12px;border-top:1px solid var(--line);padding-top:26px}
+  h2 .n{display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;
+    background:var(--accent);color:#fff;border-radius:8px;font-size:15px;margin-right:10px}
+  h3{font-size:16px;margin:22px 0 8px;color:#cdd9e5}
+  p{margin:9px 0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0}
+  pre{background:#0c1117;border:1px solid var(--line);border-radius:10px;padding:14px 16px;
+    overflow-x:auto;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13px;line-height:1.6;color:#c9d4e0;margin:10px 0}
+  pre .c{color:#6b7785}
+  pre .k{color:#79c0ff}
+  pre .s{color:#7ee787}
+  code{background:#0c1117;border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13px;color:#79c0ff}
+  .callout{border-left:3px solid var(--accent);background:rgba(78,161,255,.07);padding:13px 17px;border-radius:0 10px 10px 0;margin:14px 0}
+  .callout.warn{border-color:var(--warn);background:rgba(210,153,34,.08)}
+  .callout.good{border-color:var(--good);background:rgba(63,185,80,.07)}
+  .callout.bad{border-color:var(--bad);background:rgba(248,81,73,.08)}
+  .callout b{color:var(--ink)}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:13px}
+  .tag{display:inline-block;padding:2px 9px;border-radius:6px;font-size:12px;font-weight:600}
+  .tag.a{background:rgba(78,161,255,.15);color:var(--accent)}
+  .tag.b{background:rgba(63,185,80,.15);color:var(--good)}
+  ol,ul{margin:8px 0;padding-left:22px}
+  li{margin:6px 0}
+  .step{display:flex;gap:14px;margin:12px 0;align-items:flex-start}
+  .step .num{flex:0 0 26px;height:26px;line-height:26px;text-align:center;background:#243140;
+    border:1px solid var(--line);border-radius:50%;font-size:13px;font-weight:700;color:var(--accent)}
+  .kbd{background:#243140;border:1px solid var(--line);border-radius:5px;padding:1px 7px;font-size:12px}
+  footer{margin-top:46px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;text-align:center}
+  .pill{display:inline-block;background:#2a1a1a;border:1px solid #4a2a2a;color:#ffb4ab;border-radius:6px;padding:1px 7px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>CR-0022 真人測試指南</h1>
+  <div class="sub">LINE 對話 → AI 草擬問題卡 → 客服人審 → 工單（HITL 全鏈）</div>
+  <div class="meta">
+    <span class="chip">📅 2026-06-14</span>
+    <span class="chip">🌿 feat/cr-0022-escalation-to-draft-pc</span>
+    <span class="chip">ADR-0112 / ADR-0031</span>
+  </div>
+</header>
+
+<div class="callout">
+  <b>這份指南帶你親手驗證：</b>在 LINE 對客服 bot 說一句「要報修/要真人」的話 → 系統自動在後台
+  生出一張「AI 草擬」問題卡 → 客服在後台補資料、確認、一鍵轉成工單。
+  <br><br>
+  提供 <b>兩條路徑</b>：<span class="tag a">路徑 A</span> 完整真實 LINE 流程（需 LINE 官方帳號 + ngrok）；
+  <span class="tag b">路徑 B</span> 免 LINE 快速驗證（用一行指令模擬 agent 轉真人）。趕時間先走 B。
+</div>
+
+<!-- ───────── 0 前置 ───────── -->
+<h2><span class="n">0</span>前置需求</h2>
+<div class="card">
+<table>
+  <tr><th>項目</th><th>說明</th></tr>
+  <tr><td>Python / uv</td><td>後端 + agent 用 <code>uv</code>（非 pip）。<code>uv sync</code> 裝依賴。</td></tr>
+  <tr><td>Node / npm</td><td>前端用。<code>cd web && npm install</code></td></tr>
+  <tr><td>PostgreSQL</td><td>dev DB（<code>.env</code> 的 <code>POSTGRES_URI</code>，本機 :5433/lock_AI_data）。</td></tr>
+  <tr><td>migration 032</td><td>本 CR 的 schema。需先套用（見步驟 1）。</td></tr>
+  <tr><td>Vertex 認證<br>（僅路徑 A）</td><td>agent 用 <code>vertex_ai/gemini-3.1-flash-lite</code>。<b>二選一</b>：服務帳號憑證檔 <code>agent/credentials.json</code>（推薦）<b>或</b> <code>gcloud auth application-default login</code>。路徑 B 不需要。</td></tr>
+  <tr><td>LINE 官方帳號 + ngrok<br>（僅路徑 A）</td><td>真實 LINE webhook 用。路徑 B 不需要。</td></tr>
+</table>
+</div>
+
+<!-- ───────── 1 啟動三服務 ───────── -->
+<h2><span class="n">1</span>啟動服務 + 套 migration</h2>
+
+<h3>1-1　套用 migration 032</h3>
+<pre><span class="c"># 在專案根目錄</span>
+URI=$(grep <span class="s">'^POSTGRES_URI='</span> .env | cut -d= -f2- | tr -d <span class="s">'"'</span>)
+psql <span class="s">"$URI"</span> -f SQL/migrations/032-problem-card-ai-draft.sql</pre>
+
+<h3>1-2　啟動 API（:8001）</h3>
+<div class="callout warn">
+  <b>關鍵：</b><code>INTERNAL_API_TOKEN</code> 必填，且要和 agent 端設成<b>同一把</b>（agent 靠它把 escalation
+  送進來）。未設 → ingest 端點一律回 503（fail closed）。
+</div>
+<pre>cd api
+INTERNAL_API_TOKEN=<span class="s">my-secret-token</span> uv run uvicorn main:app --port 8001 --reload
+<span class="c"># API_JWT_SECRET_KEY、POSTGRES_URI 由根目錄 .env 提供</span></pre>
+
+<h3>1-3　啟動前端（:3000）</h3>
+<pre>cd web
+npm run dev
+<span class="c"># 預設打 http://localhost:8001（NEXT_PUBLIC_API_BASE_URL）</span>
+<span class="c"># 瀏覽器開 http://localhost:3000/login</span>
+<span class="c"># 測試帳號：admin@example.com / changeme123</span></pre>
+
+<!-- ───────── 路徑 B ───────── -->
+<h2><span class="n">B</span>快速驗證（免 LINE，1 分鐘）</h2>
+<p>不想架 LINE？用一行 <code>curl</code> 模擬「agent 判定要轉真人」這個動作，直接把 escalation 送進 API。</p>
+<div class="callout">
+  <b>租戶要對齊：</b><code>tenant_id</code> 用後台預設租戶 UUID
+  <code>00000000-0000-0000-0000-000000000001</code>（就是 admin 登入看到的那個），這樣建出來的卡才會出現在你登入的後台。
+</div>
+<pre><span class="c"># INTERNAL_API_TOKEN 要和步驟 1-2 啟 API 時設的同一把</span>
+curl -X POST http://localhost:8001/api/v1/internal/escalations/ingest \
+  -H <span class="s">"Content-Type: application/json"</span> \
+  -H <span class="s">"X-Internal-Token: my-secret-token"</span> \
+  -d <span class="s">'{
+    "tenant_id": "00000000-0000-0000-0000-000000000001",
+    "line_user_id": "Utest-manual-001",
+    "session_id": "manual:Utest-manual-001",
+    "reason": "客人電子鎖故障，要求派師傅",
+    "is_explicit": true,
+    "facts_snapshot": {"user_input_excerpt": "我家的 Yale 鎖打不開，請派師傅來修"}
+  }'</span></pre>
+<div class="callout good">
+  <b>預期回應：</b><code>{"data":{"created":true,"card":{"source":"ai_line","status":"draft",
+  "ai_missing_fields":["brand","model","location"], ...}}}</code> →
+  直接跳到 <a href="#confirm" style="color:var(--accent)">步驟 3「哪裡確認」</a>。
+</div>
+
+<!-- ───────── 路徑 A ───────── -->
+<h2><span class="n">A</span>完整真實流程（真 LINE + agent gateway）</h2>
+
+<h3>A-1　裝 agent 依賴 + Vertex 憑證</h3>
+<pre>uv sync
+cd agent && uv pip install -e <span class="s">".[line]"</span>   <span class="c"># LINE 通道依賴</span></pre>
+<p><b>Vertex 認證（二選一，推薦憑證檔）：</b></p>
+<div class="callout good">
+  <b>方式一 — 服務帳號憑證檔（推薦，免 gcloud 登入，等同 production）：</b>
+  <ol style="margin-top:6px">
+    <li>GCP Console ▸ IAM ▸ 服務帳號（需 <b>Vertex AI User</b> 角色）▸ 金鑰 ▸ 建立 JSON。</li>
+    <li>把 JSON 放成 <code>agent/credentials.json</code>（已 gitignore，不會入 git）。</li>
+    <li>完成 —— <code>config.toml [llm.vertex] credentials = "credentials.json"</code> 已指向它，
+      <code>build_provider()</code> 會自動設成 <code>GOOGLE_APPLICATION_CREDENTIALS</code>。</li>
+  </ol>
+</div>
+<div class="callout">
+  <b>方式二 — ADC（本機開發最省事）：</b> <code>gcloud auth application-default login</code>。
+  <br><span class="sub">註：若 shell 已 export <code>GOOGLE_APPLICATION_CREDENTIALS</code>，會以該值為準（<code>setdefault</code>）—— 別兩種同時設。</span>
+</div>
+
+<h3>A-2　設定 agent/.env</h3>
+<div class="callout bad">
+  <b>最容易踩的雷 — 租戶必須改成 UUID：</b>
+  agent <code>config.toml</code> 預設 <code>tenant = "locksmart"</code>，但 API 的租戶是 <b>UUID</b>，
+  且 API 會做 <code>::uuid</code> 轉型。若不改，escalation 送進 API 會因 <span class="pill">invalid uuid</span>
+  靜默失敗（fail-soft），後台看不到卡。
+  <br>→ 把 <code>agent/config.toml</code> 的 <code>tenant</code> 改為
+  <code>00000000-0000-0000-0000-000000000001</code>。
+</div>
+<pre><span class="c"># agent/.env</span>
+LINE_CHANNEL_SECRET=<span class="s">你的_channel_secret</span>
+LINE_CHANNEL_ACCESS_TOKEN=<span class="s">你的_channel_access_token</span>
+<span class="c"># ↓ CR-0022 旁路同步：兩個都要設，且 token 與 API 端同一把</span>
+INTERNAL_API_TOKEN=<span class="s">my-secret-token</span>
+LOCK_API_BASE_URL=<span class="s">http://localhost:8001</span></pre>
+<div class="callout warn">
+  <code>INTERNAL_API_TOKEN</code> 或 <code>LOCK_API_BASE_URL</code> 任一沒設 → gateway 會<b>安靜略過</b>
+  同步（設計上不破壞既有部署），你就不會看到草擬卡。要測這功能兩個都得設。
+</div>
+
+<h3>A-3　啟動 agent gateway + ngrok</h3>
+<pre>cd agent
+uv run python scripts/line_gateway.py          <span class="c"># 預設監聽 :8000/callback</span>
+
+<span class="c"># 另開一個終端</span>
+ngrok http 8000
+<span class="c"># 把 ngrok 的 https URL + /callback 填到</span>
+<span class="c"># LINE Developers ▸ Messaging API ▸ Webhook URL，並開啟 Use webhook</span></pre>
+
+<h3>A-4　用 LINE 傳訊息（觸發轉真人）</h3>
+<p>把官方帳號加好友，傳一句會觸發 <code>transfer_to_human</code> 的話。觸發靠關鍵字命中：</p>
+<div class="card">
+<table>
+  <tr><th>類別</th><th>關鍵字（命中即觸發）</th></tr>
+  <tr><td>要真人 / 派工</td><td>轉真人、找真人、找專員、人工客服、請師傅來、<b>派師傅</b></td></tr>
+  <tr><td>金錢相關</td><td>報價、價錢、多少錢、費用、收費、付款、退費、退款、訂金…</td></tr>
+</table>
+</div>
+<div class="callout good">
+  <b>建議測試訊息：</b><br>
+  「<b>我家的電子鎖打不開了，請派師傅來修</b>」 ← 命中「派師傅」<br>
+  或 「<b>我要找真人客服</b>」 ← 命中「找真人」（is_explicit=true）
+</div>
+<p class="sub">註：閒聊/單純問知識（如「Yale 怎麼換電池」）<b>不會</b>觸發轉真人，也就不會建草擬卡 —— 這是刻意設計（CR-0022 §8 #1：只在明確要真人/需派工時才建，避免佇列被灌爆）。</p>
+
+<!-- ───────── 確認 ───────── -->
+<h2 id="confirm"><span class="n">3</span>哪裡確認（後台走完 → 變工單）</h2>
+
+<div class="step"><div class="num">1</div><div>
+  <b>看待處理佇列</b> — 瀏覽器開 <code>http://localhost:3000/problem-cards</code>，登入後
+  把「<b>來源</b>」下拉選成「<b>AI 草擬（待轉工單）</b>」。
+  <br>→ 應看到剛才那句話變成一張卡：紫色 <span class="tag a">AI 草擬</span> badge、狀態
+  <b>待確認</b>、品牌/型號為「—」、後面有「<b>待補：brand、model、location</b>」提示。
+</div></div>
+
+<div class="step"><div class="num">2</div><div>
+  <b>點進卡片補資料</b> — 點該列進詳情頁，把品牌、型號、<b>服務地址</b>補上
+  （地址是轉工單的必要欄位，ADR-0032 缺地址會擋）。
+</div></div>
+
+<div class="step"><div class="num">3</div><div>
+  <b>確認問題卡</b> — 按「<b>確認</b>」（confirm），狀態 draft → confirmed。
+</div></div>
+
+<div class="step"><div class="num">4</div><div>
+  <b>轉工單</b> — 按「<b>轉為工單</b>」（convert-to-work-order）。
+  <span class="pill">AI 不能自己做這步</span> 這是 charter 鎖死的人審關卡。
+</div></div>
+
+<div class="step"><div class="num">5</div><div>
+  <b>看工單</b> — 開 <code>http://localhost:3000/work-orders</code>，剛轉出的工單會出現在列表，
+  點進去可看公單號、客戶/地址、狀態。✅ 全鏈完成。
+</div></div>
+
+<div class="callout">
+  <b>對話紀錄在哪看？</b> 對話持久化（方案 A）在本分支已含。客服可在
+  <code>/conversations</code> 看到該客人的對話逐字稿。<b>工單詳情頁內嵌對話逐字稿</b>是另一支分支
+  <code>feat/wo-conversation-thread</code> 的功能，merge 後工單頁也會直接顯示。
+</div>
+
+<!-- ───────── 疑難排解 ───────── -->
+<h2><span class="n">4</span>疑難排解</h2>
+<div class="card">
+<table>
+  <tr><th>症狀</th><th>原因 / 解法</th></tr>
+  <tr><td>佇列看不到草擬卡</td><td>① agent <code>tenant</code> 沒改成 UUID（最常見，見 A-2）<br>② API 與 agent 的 <code>INTERNAL_API_TOKEN</code> 不一致<br>③ agent 端 <code>LOCK_API_BASE_URL</code> 沒設</td></tr>
+  <tr><td>curl 回 503</td><td>啟 API 時沒設 <code>INTERNAL_API_TOKEN</code>（fail closed）。</td></tr>
+  <tr><td>curl 回 401</td><td><code>X-Internal-Token</code> 與啟 API 時的值不符。</td></tr>
+  <tr><td>傳訊息沒反應 / 沒建卡</td><td>① 訊息沒命中轉真人關鍵字（閒聊不建卡，正常）<br>② Vertex ADC 沒登入（agent 回覆會失敗）<br>③ 看 agent 終端 log 有無「escalation 轉發」字樣</td></tr>
+  <tr><td>轉工單按鈕擋住</td><td>地址沒補（ADR-0032 缺地址 hard stop）。先補地址再 confirm → convert。</td></tr>
+  <tr><td>同一人傳很多次只有一張卡</td><td>正常 —— 一對話一卡（conversation_id UNIQUE），再 escalation 只更新既有卡（CR-0022 §8 #6）。</td></tr>
+</table>
+</div>
+
+<div class="callout good">
+  <b>已驗證基準（2026-06-14 實測）：</b>真實 uvicorn + curl + JWT 後端全綠；真 Playwright 瀏覽器
+  登入 → /problem-cards 篩 AI 草擬 → 9 張卡正確顯示 badge + 待補 hint、0 page error。
+</div>
+
+<footer>
+  CR-0022 真人測試指南 · 2026-06-14 · 對應 ADR-0112 / ADR-0031 · docs/4-exploration/CR-0022-line-to-work-order-hitl.md
+</footer>
+
+</div>
+</body>
+</html>

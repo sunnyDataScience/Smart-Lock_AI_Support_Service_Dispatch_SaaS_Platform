@@ -57,7 +57,7 @@ def main() -> None:
         tool_allowlist=CS_TOOL_ALLOWLIST,
     )
 
-    app = build_webapp(loop, cfg.tenant, secret, token)
+    app = build_webapp(loop, cfg.tenant, secret, token, escalation_store=esc)
     port = int(os.environ.get("PORT", "8000"))
     print(f"模型:{cfg.model}  租戶:{cfg.tenant}")
     print(f"LINE webhook 監聽 :{port}/callback")

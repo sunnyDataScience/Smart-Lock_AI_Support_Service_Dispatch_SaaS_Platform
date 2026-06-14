@@ -91,9 +91,29 @@ export default function ProblemCardsTable({ items, loading }: Props) {
               </span>
             </div>
             <div className="flex-1 min-w-0 truncate pr-4">
-              <span className="text-[13px] text-[var(--text-primary)]">
+              {card.source === "ai_line" && (
+                <span
+                  className="mr-2 rounded px-[6px] py-[2px] text-[10px] font-semibold align-middle"
+                  style={{ color: "#7C3AED", backgroundColor: "#F3E8FF" }}
+                  title={
+                    card.ai_missing_fields && card.ai_missing_fields.length > 0
+                      ? `AI 草擬，待補：${card.ai_missing_fields.join("、")}`
+                      : "AI 草擬，待客服人審轉工單"
+                  }
+                >
+                  AI 草擬
+                </span>
+              )}
+              <span className="text-[13px] text-[var(--text-primary)] align-middle">
                 {card.symptom || "—"}
               </span>
+              {card.source === "ai_line" &&
+                card.ai_missing_fields &&
+                card.ai_missing_fields.length > 0 && (
+                  <span className="ml-2 text-[11px] text-[var(--text-disabled)] align-middle">
+                    待補：{card.ai_missing_fields.join("、")}
+                  </span>
+                )}
             </div>
             <div className="w-[90px] shrink-0">
               <span

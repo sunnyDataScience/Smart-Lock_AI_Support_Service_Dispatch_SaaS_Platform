@@ -36,6 +36,23 @@ class IngestTurnRequest(BaseModel):
     display_name: str | None = Field(default=None, max_length=255)
 
 
+class EscalationIngestRequest(BaseModel):
+    """LINE agent escalation → AI 草擬問題卡的 request body（CR-0022 / ADR-0112）。
+
+    對應 POST /api/v1/internal/escalations/ingest（require_internal_token）。
+    agent gateway 在 transfer_to_human 後旁路 POST：建一張 source='ai_line' 的草擬問題卡，
+    供客服在既有問題卡頁人審補全 → confirm → convert。AI 永不自轉工單。
+    """
+
+    tenant_id: str = Field(..., min_length=1)
+    line_user_id: str = Field(..., min_length=1)
+    session_id: str = Field(..., min_length=1, max_length=255)
+    reason: str = Field(default="", max_length=2000)
+    is_explicit: bool = False
+    facts_snapshot: dict | None = None
+    display_name: str | None = Field(default=None, max_length=255)
+
+
 class SendChatMessageRequest(BaseModel):
     """客服接管後發送訊息的 request body（OpenAPI: SendChatMessageRequest）。
 
