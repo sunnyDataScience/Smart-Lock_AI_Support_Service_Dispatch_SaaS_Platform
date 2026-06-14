@@ -83,7 +83,7 @@
   <tr><td>Node / npm</td><td>前端用。<code>cd web && npm install</code></td></tr>
   <tr><td>PostgreSQL</td><td>dev DB（<code>.env</code> 的 <code>POSTGRES_URI</code>，本機 :5433/lock_AI_data）。</td></tr>
   <tr><td>migration 032</td><td>本 CR 的 schema。需先套用（見步驟 1）。</td></tr>
-  <tr><td>Vertex ADC<br>（僅路徑 A）</td><td>agent 用 <code>vertex_ai/gemini-3.1-flash-lite</code>，要 <code>gcloud auth application-default login</code>。路徑 B 不需要。</td></tr>
+  <tr><td>Vertex 認證<br>（僅路徑 A）</td><td>agent 用 <code>vertex_ai/gemini-3.1-flash-lite</code>。<b>二選一</b>：服務帳號憑證檔 <code>agent/credentials.json</code>（推薦）<b>或</b> <code>gcloud auth application-default login</code>。路徑 B 不需要。</td></tr>
   <tr><td>LINE 官方帳號 + ngrok<br>（僅路徑 A）</td><td>真實 LINE webhook 用。路徑 B 不需要。</td></tr>
 </table>
 </div>
@@ -140,10 +140,23 @@ curl -X POST http://localhost:8001/api/v1/internal/escalations/ingest \
 <!-- ───────── 路徑 A ───────── -->
 <h2><span class="n">A</span>完整真實流程（真 LINE + agent gateway）</h2>
 
-<h3>A-1　裝 agent 依賴</h3>
+<h3>A-1　裝 agent 依賴 + Vertex 憑證</h3>
 <pre>uv sync
-cd agent && uv pip install -e <span class="s">".[line]"</span>   <span class="c"># LINE 通道依賴</span>
-gcloud auth application-default login          <span class="c"># Vertex ADC（model 用）</span></pre>
+cd agent && uv pip install -e <span class="s">".[line]"</span>   <span class="c"># LINE 通道依賴</span></pre>
+<p><b>Vertex 認證（二選一，推薦憑證檔）：</b></p>
+<div class="callout good">
+  <b>方式一 — 服務帳號憑證檔（推薦，免 gcloud 登入，等同 production）：</b>
+  <ol style="margin-top:6px">
+    <li>GCP Console ▸ IAM ▸ 服務帳號（需 <b>Vertex AI User</b> 角色）▸ 金鑰 ▸ 建立 JSON。</li>
+    <li>把 JSON 放成 <code>agent/credentials.json</code>（已 gitignore，不會入 git）。</li>
+    <li>完成 —— <code>config.toml [llm.vertex] credentials = "credentials.json"</code> 已指向它，
+      <code>build_provider()</code> 會自動設成 <code>GOOGLE_APPLICATION_CREDENTIALS</code>。</li>
+  </ol>
+</div>
+<div class="callout">
+  <b>方式二 — ADC（本機開發最省事）：</b> <code>gcloud auth application-default login</code>。
+  <br><span class="sub">註：若 shell 已 export <code>GOOGLE_APPLICATION_CREDENTIALS</code>，會以該值為準（<code>setdefault</code>）—— 別兩種同時設。</span>
+</div>
 
 <h3>A-2　設定 agent/.env</h3>
 <div class="callout bad">
