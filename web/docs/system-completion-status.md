@@ -472,9 +472,16 @@
 - **agent gateway**：transfer 後旁路 POST escalation（偵測本輪 escalation id 變化；fail-soft）。
 - **測試**：`test_escalation_to_draft_pc.py` 6/6（含 charter lock：AI 卡僅 draft 不得 confirmed）；回歸 problem_card/work_order 74 + 全套 44 無破壞。
 
-### 待續
-- §9 step 8 前端佇列 UI（問題卡頁加「AI 草擬」badge + draft 篩選 + 缺漏 hint + 補全→convert）。
-- ADR-0031 標 implemented。
+### 前端佇列 UI ✅（§9 step 8，同分支）
+- `/problem-cards` 加「來源」篩選（AI 草擬（待轉工單）/ 客服手建，串 `?source=`）。
+- `ProblemCardsTable` 對 ai_line 卡顯「AI 草擬」badge + 缺漏欄位 hint。
+- 補全→confirm→convert 沿用詳情頁既有 handleUpdate/handleConfirm/handleConvertToWO（無需新造）。
+- `api.generated.ts` ProblemCard 加 optional source/ai_missing_fields；tsc 0 error。
+
+### 全鏈狀態
+- **「LINE 對話 → escalation → AI 草擬問題卡 → 客服人審 → 工單」backend + 前端佇列已打通**。
+- AI 永不自轉工單（charter）；轉換用既有 convert 端點。
+- 待續：ADR-0031 標 implemented；建議補 Playwright e2e（需同時起 web+api）。
 
 ---
 

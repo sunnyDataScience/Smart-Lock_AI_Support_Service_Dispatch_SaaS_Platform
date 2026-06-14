@@ -33,6 +33,7 @@ export default function ProblemCardsPage() {
   const [urgencyFilter, setUrgencyFilter] = useState<string>("");
   const [brandFilter, setBrandFilter] = useState<string>("");
   const [periodFilter, setPeriodFilter] = useState<string>("");
+  const [sourceFilter, setSourceFilter] = useState<string>("");
   const [keyword, setKeyword] = useState<string>("");
 
   const queryString = useMemo(() => {
@@ -40,6 +41,7 @@ export default function ProblemCardsPage() {
     if (statusFilter) p.set("status", statusFilter);
     if (urgencyFilter) p.set("urgency", urgencyFilter);
     if (brandFilter) p.set("brand", brandFilter);
+    if (sourceFilter) p.set("source", sourceFilter);
     if (keyword.trim()) p.set("keyword", keyword.trim());
     if (periodFilter) {
       const days = parseInt(periodFilter, 10);
@@ -50,7 +52,7 @@ export default function ProblemCardsPage() {
     }
     const qs = p.toString();
     return qs ? `?${qs}` : "";
-  }, [statusFilter, urgencyFilter, brandFilter, periodFilter, keyword]);
+  }, [statusFilter, urgencyFilter, brandFilter, periodFilter, sourceFilter, keyword]);
 
   const { items, cursor, hasMore, loading, error, loadMore } = usePaginatedFetch<ProblemCard>({
     path: `/tenants/${encodeURIComponent(tenantId)}/problem-cards${queryString}`,
@@ -138,6 +140,17 @@ export default function ProblemCardsPage() {
             <option value="7">最近 7 天</option>
             <option value="30">最近 30 天</option>
             <option value="90">最近 90 天</option>
+          </select>
+
+          {/* CR-0022：來源篩選 — 「AI 草擬」即 LINE agent 轉真人待客服人審轉工單的佇列 */}
+          <select
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+            className="h-9 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
+          >
+            <option value="">{tFilters("source")}</option>
+            <option value="ai_line">AI 草擬（待轉工單）</option>
+            <option value="human">客服手建</option>
           </select>
 
           <div className="flex h-9 flex-1 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3">

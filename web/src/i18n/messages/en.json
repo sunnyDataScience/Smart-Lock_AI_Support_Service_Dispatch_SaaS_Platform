@@ -311,7 +311,8 @@
         "status": "Status",
         "urgency": "Urgency",
         "brand": "Brand",
-        "dateRange": "Date range"
+        "dateRange": "Date range",
+        "source": "Source"
       },
       "comingSoonTitle": "Coming soon",
       "searchPlaceholder": "Search coming soon",

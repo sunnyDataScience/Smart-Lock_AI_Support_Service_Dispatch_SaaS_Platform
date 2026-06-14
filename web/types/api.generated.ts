@@ -1837,6 +1837,10 @@ export interface components {
             created_at: string;
             /** Format: date-time */
             updated_at: string;
+            /** @description CR-0022/ADR-0112 問題卡來源：human（手建）/ ai_line（LINE agent AI 草擬） */
+            source?: string;
+            /** @description CR-0022/ADR-0112 AI 草擬卡尚缺欄位清單（客服佇列 hint） */
+            ai_missing_fields?: string[] | null;
         };
         ProblemCardPage: components["schemas"]["CursorPage"] & {
             items?: components["schemas"]["ProblemCard"][];
