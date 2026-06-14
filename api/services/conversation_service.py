@@ -237,6 +237,75 @@ async def create_conversation(
     return conv, True
 
 
+async def _append_message(
+    *, conv_id: str, role: str, content: str, sender_role: str
+) -> None:
+    """內部 helper：寫一則 message（content_type=text）。空字串不寫。"""
+    if not (content or "").strip():
+        return
+    metadata = {"sender_role": sender_role}
+    await db_module._conn.execute(
+        "INSERT INTO messages (conversation_id, role, content_type, content, metadata) "
+        "VALUES (%s::uuid, %s, 'text', %s, %s::jsonb)",
+        (conv_id, role, content, json.dumps(metadata)),
+    )
+
+
+async def ingest_turn(
+    *,
+    tenant_id: str,
+    line_user_id: str,
+    session_id: str,
+    user_text: str = "",
+    assistant_text: str = "",
+    display_name: str | None = None,
+) -> dict:
+    """旁路持久化一輪 LINE 對話（方案 A，由 agent gateway 經 internal token 呼叫）。
+
+    流程：
+      1. ensure conversation（復用 create_conversation 的 session_id 冪等 upsert）
+      2. append 客人訊息（role='user'，metadata.sender_role='line_user'）
+      3. append AI 回覆（role='assistant'，metadata.sender_role='ai'）
+      4. message_count += 實際寫入則數（空字串不計）
+      5. 回 {conversation_id, messages_appended}
+
+    與 send_message 的差異：send_message 是「客服人工接管」且要求 escalated 狀態並
+    觸發 LINE push；ingest_turn 是「AI 自動對話流水帳」，不限狀態、不 push（訊息
+    本來就已由 gateway 回給客人）。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    conv, _created = await create_conversation(
+        tenant_id=tenant_id,
+        line_user_id=line_user_id,
+        session_id=session_id,
+        display_name=display_name,
+    )
+    conv_id = conv["id"]
+
+    appended = 0
+    if (user_text or "").strip():
+        await _append_message(
+            conv_id=conv_id, role="user", content=user_text, sender_role="line_user"
+        )
+        appended += 1
+    if (assistant_text or "").strip():
+        await _append_message(
+            conv_id=conv_id, role="assistant", content=assistant_text, sender_role="ai"
+        )
+        appended += 1
+
+    if appended:
+        await db_module._conn.execute(
+            "UPDATE conversations SET message_count = message_count + %s "
+            "WHERE id = %s::uuid",
+            (appended, conv_id),
+        )
+
+    return {"conversation_id": conv_id, "messages_appended": appended}
+
+
 async def list_messages(
     *,
     tenant_id: str,
