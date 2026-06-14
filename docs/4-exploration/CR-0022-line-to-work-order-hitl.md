@@ -108,31 +108,47 @@ convert-to-work-order。**AI 全程不可自行轉工單**（ADR-0028 charter / 
 
 ## 8. Human Decisions Required
 
-🛑 **CIA 未對每列記錄決策前，不動 code。**
+✅ **業主已裁決（2026-06-14）。可進入 §9 實作。**
 
 | # | 問題 | 選項 | Owner | Status | Decision |
 |---|---|---|---|---|---|
-| 1 | **何時**建草擬 PC？ | (a) 每次 escalation（轉真人即建）(b) 僅「明確要真人 / 需派工」才建（is_explicit 或 intent=repair）(c) AI 主動判定「資訊足夠開單」才建 | Product/CS 主管 | open | — |
-| 2 | **缺必填欄位**怎麼辦？create_card 現要 brand/model/symptom | (a) 新增寬鬆 'draft' 狀態允許 null（schema+ADR）(b) 缺欄位就**不建 PC**，只建「待跟進 alert」(c) AI 用 placeholder 佔位、客服補 | Architect/CS | open | — |
-| 3 | **同步機制** | (a) gateway 旁路即時 POST（沿用方案 A，推薦）(b) 背景 job 輪詢 escalation.db (c) escalation store 直寫 PG | Architect | open | — |
-| 4 | **佇列 UI** | (a) 新獨立頁 `/admin/pending-work-orders`（b) 擴充既有 `/admin/problem-cards` 加 source/status filter（推薦，省一頁）| UX/CS | open | — |
-| 5 | **AI 信心分數 + 缺漏 hint** | (a) 本 CR 一起做（ADR-0031 原意）(b) 先只做來源標記，信心分數延後 | Product | open | — |
-| 6 | **去重粒度** | 一對話一 PC（UNIQUE 已保證）夠嗎？同對話多次 escalation 是否更新既有 PC 的 reason/facts？ | Architect | open | — |
-| 7 | **客服身分**：旁路同步無 JWT，建出的 PC `created_by` 記誰？ | (a) 系統帳號 'ai-agent'（b) null + source 標記 | Architect/CS | open | — |
+| 1 | **何時**建草擬 PC？ | (a) 每次 escalation (b) 僅「明確要真人 / 需派工」(c) AI 判定資訊足夠 | Product/CS 主管 | ✅ decided | **(b) 僅 is_explicit 或 intent=repair/installation 才建**，避免佇列被閒聊/查詢淹沒 |
+| 2 | **缺必填欄位**怎麼辦？create_card 現要 brand/model/symptom | (a) 新增寬鬆 draft 狀態允許 null（schema+ADR）(b) 不建 PC 只記 alert (c) placeholder | Architect/CS | ✅ decided | **(a) 新增寬鬆 draft 狀態**允許 brand/model/symptom 為 null，客服佇列補全 → 需開 ADR + migration |
+| 3 | **同步機制** | (a) gateway 旁路即時 POST（方案 A）(b) 背景 job 輪詢 (c) 直寫 PG | Architect | ✅ decided | **(a) gateway 旁路即時 POST**，沿用方案 A `require_internal_token` + fail-soft（架構預設，業主未反對） |
+| 4 | **佇列 UI** | (a) 新獨立頁 (b) 擴充既有 `/admin/problem-cards` 加 source/status filter | UX/CS | ✅ decided | **(b) 擴充既有問題卡頁**：加 source=ai_line + status 篩選，省一頁、復用既有表格 |
+| 5 | **AI 信心分數 + 缺漏 hint** | (a) 本 CR 一起做 (b) 先只做來源標記 | Product | ✅ decided | **(b) 先只做來源標記**（source=ai_line + 列出缺漏欄位），信心分數延後另案 |
+| 6 | **去重粒度** | 一對話一 PC 夠嗎？同對話多次 escalation 是否更新既有 PC？ | Architect | ✅ decided | **一對話一 PC（UNIQUE 保證）；同對話再 escalation → 更新既有 PC 的 reason/facts**，不重建（架構預設，業主未反對） |
+| 7 | **客服身分**：旁路同步無 JWT，PC `created_by` 記誰？ | (a) 系統帳號 'ai-agent' (b) null + source | Architect/CS | ✅ decided | **(a) 系統帳號 `ai-agent`**（需 seed 一個系統 user）+ source=ai_line 雙重標記（架構預設，業主未反對） |
 
-## 9. Suggested Implementation Order
+> **裁決摘要**：收緊觸發（僅明確轉真人/需派工）+ 新增寬鬆 draft 狀態（缺欄位可建、客服補）+
+> 擴充既有問題卡頁當佇列 + 先只標來源（信心分數延後）+ 旁路即時同步 + 同對話更新去重 +
+> created_by=系統帳號。**#2 需開 ADR（新狀態 + 放寬必填）。**
 
-§8 全部裁決後，依相依順序：
+## 9. Suggested Implementation Order（依 §8 裁決定稿）
 
-1. **Decisions** → 若 #2/#5 決議改 schema/狀態，先寫 ADR-NNNN 記錄
-2. **Schema** → migration：`problem_cards.source` + `ai_confidence` + `ai_missing_fields`（依 #5）
-3. **API** → 新 `POST /internal/escalations/ingest`（沿用 `require_internal_token`）+ `escalation_to_draft_pc` service（含去重、缺漏處理依 #2/#6）
-4. **API** → `listProblemCardsV2` 加 source/status filter（#4）
-5. **Agent gateway** → transfer/需派工時旁路 POST escalation（沿用方案 A fail-soft；依 #1 觸發條件）
-6. **Tests** → §6 的 6~7 個 TC（charter lock 回歸測試必做）
-7. **UI** → 佇列頁（#4）：列 AI 草擬 PC + 信心/缺漏 + 1-click「補全→confirm→convert」
-8. **Traceability** → 更新 TM matrix；CHANGELOG + system-completion-status 同步
-9. **Docs sync** → 確認 ADR-0031 由「decided 未實作」更新為「implemented」
+可拆 2~3 個 branch（backend 先、前端後），依相依順序：
+
+1. **ADR**（#2）→ 新開 ADR：problem_cards 新增寬鬆 `draft` 狀態（brand/model/symptom 可 null）+
+   `source` 欄位語意；引用 ADR-0031 / ADR-0028。
+2. **Schema**（#2/#5）→ migration：
+   - `problem_cards.source TEXT NOT NULL DEFAULT 'human'`（值 'human' / 'ai_line'）
+   - `problem_cards.ai_missing_fields JSONB NULL`（缺欄位清單，供客服 hint）
+   - 放寬 `draft` 狀態下 brand/model/symptom 的 NOT NULL（或於 service 層放行 draft）
+   - seed 系統帳號 user `ai-agent`（#7，created_by 用）
+3. **API service**（#1/#2/#6）→ `escalation_to_draft_pc`：
+   - 觸發條件：is_explicit 或 intent ∈ {repair, installation}（#1）
+   - 去重：依 conversation_id，已存在 PC → 更新 reason/facts，否則建 draft（#6）
+   - 缺欄位 → 寫 `ai_missing_fields`，status='draft'，created_by='ai-agent' user id
+4. **API router**（#3）→ 新 `POST /api/v1/internal/escalations/ingest`（沿用 `require_internal_token`）
+   → 呼 `escalation_to_draft_pc`。
+5. **API**（#4）→ `listProblemCardsV2` 加 `source` + `status=draft` filter param。
+6. **Agent gateway**（#1/#3）→ transfer tool 觸發時，旁路 POST escalation 到上述端點
+   （沿用方案 A fail-soft；帶 reason/is_explicit/facts_snapshot）。
+7. **Tests** → §6 的 TC（**`TC-hitl-no-ai-convert` charter 回歸必做** + ingest auth + dedup +
+   draft 缺欄位 + queue filter + e2e）。
+8. **UI**（#4/#5）→ `/admin/problem-cards`：加「AI 草擬」來源 badge + status=draft 篩選 +
+   缺漏欄位 hint；客服補全 → 既有 confirm → 既有 convert-to-work-order（**不新造轉換**）。
+9. **Docs** → CHANGELOG + system-completion-status 同步；ADR-0031 標 implemented；更新 TM matrix。
 
 ## 10. Risks & Rollback
 
