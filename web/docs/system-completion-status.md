@@ -459,6 +459,25 @@
 
 ---
 
+## 2026-06-14 CR-0022 LINE→工單 HITL backend（branch `feat/cr-0022-escalation-to-draft-pc`）
+
+> 落地 ADR-0031「AI 草擬 + 客服 1-click 人審」（先前 decided 未實作）。承方案 A 補反向缺口：
+> LINE agent 轉真人 → 旁路建 AI 草擬問題卡 → 客服在既有問題卡頁人審 → 既有 confirm → 既有 convert。
+
+### Backend ✅（§9 step 1-7）
+- **ADR-0112**：不新增 DB status（incomplete 已映射 API draft，零狀態機變更）；新增 source 標記 + 寬鬆建立；AI 永不自轉。
+- **migration 032**：problem_cards 加 `source`(human/ai_line) + `ai_missing_fields` + 部分索引。
+- **service**：`escalation_to_draft_pc`（session 冪等 + conversation_id UNIQUE 去重 + 寬鬆缺欄位）；`list_cards` 加 source filter。
+- **API**：`POST /internal/escalations/ingest`（require_internal_token）；`listProblemCardsV2` 加 source param。
+- **agent gateway**：transfer 後旁路 POST escalation（偵測本輪 escalation id 變化；fail-soft）。
+- **測試**：`test_escalation_to_draft_pc.py` 6/6（含 charter lock：AI 卡僅 draft 不得 confirmed）；回歸 problem_card/work_order 74 + 全套 44 無破壞。
+
+### 待續
+- §9 step 8 前端佇列 UI（問題卡頁加「AI 草擬」badge + draft 篩選 + 缺漏 hint + 補全→convert）。
+- ADR-0031 標 implemented。
+
+---
+
 ## 維護規則
 
 - 每次合併 PR / 完成一個 milestone 後，**主 agent 必須更新本文件**

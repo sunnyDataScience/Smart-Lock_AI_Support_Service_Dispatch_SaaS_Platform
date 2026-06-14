@@ -90,12 +90,16 @@ def _pc_row_to_dict(row: tuple) -> dict:
         "media_urls": _coerce_media_urls(row[8]),
         "created_at": row[9].isoformat() if row[9] else None,
         "updated_at": row[10].isoformat() if row[10] else None,
+        # CR-0022/ADR-0112：來源（human / ai_line）+ AI 草擬待補欄位 hint
+        "source": row[11] if len(row) > 11 else "human",
+        "ai_missing_fields": (row[12] if len(row) > 12 else None) or None,
     }
 
 
 _PC_SELECT = (
     "pc.id, pc.conversation_id, pc.brand, pc.model, pc.symptoms, pc.category, "
-    "pc.urgency, pc.status, pc.media_urls, pc.created_at, pc.updated_at"
+    "pc.urgency, pc.status, pc.media_urls, pc.created_at, pc.updated_at, "
+    "pc.source, pc.ai_missing_fields"
 )
 
 
@@ -110,6 +114,7 @@ async def list_cards(
     brand: str | None = None,
     created_after: str | None = None,
     keyword: str | None = None,
+    source: str | None = None,
 ) -> dict:
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
@@ -124,6 +129,11 @@ async def list_cards(
     if status:
         where.append("pc.status = %s")
         args.append(status)
+
+    # CR-0022：後台「待轉 WO 佇列」依來源篩 AI 草擬卡（source=ai_line）
+    if source:
+        where.append("pc.source = %s")
+        args.append(source)
 
     if urgency:
         where.append("pc.urgency = %s")
@@ -404,6 +414,95 @@ async def create_card(
     row = await cur.fetchone()
     new_id = str(row[0])
     return await get_card(tenant_id=tenant_id, pc_id=new_id)
+
+
+# CR-0022/ADR-0112：AI 草擬卡預設待補欄位（客服在佇列補全；location 為 convert 前置硬需求）
+_AI_DRAFT_MISSING_FIELDS = ["brand", "model", "location"]
+
+
+async def escalation_to_draft_pc(
+    *,
+    tenant_id: str,
+    line_user_id: str,
+    session_id: str,
+    reason: str,
+    is_explicit: bool = False,
+    facts_snapshot: dict | None = None,
+    display_name: str | None = None,
+) -> dict:
+    """LINE agent escalation → AI 草擬問題卡（HITL，CR-0022 / ADR-0112）。
+
+    流程：
+      1. ensure conversation（復用 conversation_service.create_conversation，session_id 冪等）
+      2. 依 conversation_id（UNIQUE）去重：
+         - 已有 PC → 附記 reason 到 symptoms + 更新 ai_missing_fields + updated_at（不重建）
+         - 無 → 建 source='ai_line' 草擬卡，status='incomplete'（=API draft），寬鬆（缺
+           brand/model 不擋），ai_missing_fields 記待補欄位
+      3. 回 {problem_card_id, conversation_id, created}
+
+    **AI 永不自轉工單**：本函式最多建草擬卡；confirm + convert 一律由客服經認證端點觸發
+    （ADR-0028 charter / ADR-0031）。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    from services import conversation_service  # 避免模組級循環 import
+
+    conv, _ = await conversation_service.create_conversation(
+        tenant_id=tenant_id,
+        line_user_id=line_user_id,
+        session_id=session_id,
+        display_name=display_name,
+    )
+    conv_id = conv["id"]
+
+    snapshot = facts_snapshot or {}
+    excerpt = (snapshot.get("user_input_excerpt") or "").strip()
+    # 症狀文字優先取客人原話摘要，否則用 agent 轉接理由
+    symptom_text = (excerpt or reason or "").strip()[:1000] or "（客人轉真人，詳見對話）"
+
+    # 去重：conversation_id UNIQUE
+    cur = await db_module._conn.execute(
+        "SELECT id, symptoms FROM problem_cards WHERE conversation_id = %s::uuid",
+        (conv_id,),
+    )
+    existing = await cur.fetchone()
+
+    if existing:
+        pc_id = str(existing[0])
+        prev = existing[1] if isinstance(existing[1], list) else []
+        merged = list(prev)
+        if symptom_text not in merged:
+            merged.append(symptom_text)
+        await db_module._conn.execute(
+            "UPDATE problem_cards SET symptoms = %s::jsonb, updated_at = NOW() "
+            "WHERE id = %s::uuid",
+            (json.dumps(merged, ensure_ascii=False), pc_id),
+        )
+        card = await get_card(tenant_id=tenant_id, pc_id=pc_id)
+        return {"problem_card_id": pc_id, "conversation_id": conv_id, "created": False, "card": card}
+
+    # 新建寬鬆草擬卡（brand/model 留空，待客服補；urgency 依 is_explicit）
+    urgency = "high" if is_explicit else "normal"
+    cur = await db_module._conn.execute(
+        "INSERT INTO problem_cards "
+        "  (conversation_id, category, symptoms, urgency, intent, status, "
+        "   source, ai_missing_fields) "
+        "VALUES (%s::uuid, %s, %s::jsonb, %s, 'repair', 'incomplete', "
+        "        'ai_line', %s::jsonb) "
+        "RETURNING id",
+        (
+            conv_id,
+            "其他",
+            json.dumps([symptom_text], ensure_ascii=False),
+            urgency,
+            json.dumps(_AI_DRAFT_MISSING_FIELDS),
+        ),
+    )
+    row = await cur.fetchone()
+    pc_id = str(row[0])
+    card = await get_card(tenant_id=tenant_id, pc_id=pc_id)
+    return {"problem_card_id": pc_id, "conversation_id": conv_id, "created": True, "card": card}
 
 
 _EXPORT_FIELDS = (

@@ -123,6 +123,9 @@ class ProblemCard(BaseModel):
     media_urls: list[AnyUrl] | None = None
     created_at: AwareDatetime
     updated_at: AwareDatetime
+    # CR-0022/ADR-0112：問題卡來源 + AI 草擬待補欄位 hint（optional，反相容；regen 後須重加）
+    source: str | None = None
+    ai_missing_fields: list[str] | None = None
 
 
 class ProblemCardPage(CursorPage):
