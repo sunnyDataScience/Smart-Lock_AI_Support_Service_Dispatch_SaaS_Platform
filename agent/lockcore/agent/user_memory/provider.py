@@ -43,10 +43,15 @@ class MemoryProvider(ABC):
         return 0
 
 
-class SqliteMemoryProvider(MemoryProvider):
-    def __init__(self, db_path: str | Path = ":memory:", extractor: Extractor = default_extractor):
-        self.store = MemoryStore(db_path)
-        self.extractor = extractor
+class _StoreBackedProvider(MemoryProvider):
+    """共用的 provider 邏輯;子類只負責決定 self.store(SQLite / Postgres 皆可)。
+
+    store 介面契約:add / list_for_user / search / forget —— 兩後端同簽名,
+    故此處所有方法皆 store-agnostic。
+    """
+
+    store: object
+    extractor: Extractor
 
     def prefetch(self, tenant, user_id, query, kinds=None, limit=8) -> list[MemoryEntry]:
         # 先做相關性檢索;查不到(或整句 query 比不中)就退回該客人近期記憶 ——
@@ -83,3 +88,22 @@ class SqliteMemoryProvider(MemoryProvider):
 
     def forget(self, tenant, user_id) -> int:
         return self.store.forget(tenant, user_id)
+
+
+class SqliteMemoryProvider(_StoreBackedProvider):
+    def __init__(self, db_path: str | Path = ":memory:", extractor: Extractor = default_extractor):
+        self.store = MemoryStore(db_path)
+        self.extractor = extractor
+
+
+class PostgresMemoryProvider(_StoreBackedProvider):
+    """Postgres 後端記憶 provider(agent.memory_entry / pg_trgm)。
+
+    uri=None 時讀 POSTGRES_URI 環境變數(與 API 共用 lock-ai Cloud SQL,見 CR-0023)。
+    """
+
+    def __init__(self, uri: str | None = None, extractor: Extractor = default_extractor):
+        from .postgres_store import PostgresMemoryStore
+
+        self.store = PostgresMemoryStore(uri)
+        self.extractor = extractor

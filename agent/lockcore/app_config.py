@@ -38,7 +38,9 @@ class AppConfig:
     credentials_path: Path | None
     # memory
     tenant: str
-    db_path: str
+    backend: str  # "sqlite"(本地檔案,預設)或 "postgres"(lock-ai Cloud SQL，agent schema)
+    db_path: str  # backend="sqlite" 時的檔案路徑;":memory:" = 暫存
+    postgres_uri_env: str  # backend="postgres" 時讀此環境變數取連線字串(預設 POSTGRES_URI)
     extractor: str  # "llm"(用 LLM 抽乾淨事實)或 "raw"(整句存,PoC fallback)
 
 
@@ -72,7 +74,9 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         vertex_location=_auto_vertex_location(model, vx.get("location", "")),
         credentials_path=creds_path,
         tenant=mem.get("tenant", "locksmart"),
+        backend=str(mem.get("backend", "sqlite")).strip().lower(),
         db_path=mem.get("db_path", ":memory:"),
+        postgres_uri_env=mem.get("postgres_uri_env", "POSTGRES_URI"),
         extractor=str(mem.get("extractor", "llm")).strip().lower(),
     )
 
@@ -98,9 +102,22 @@ def build_provider(cfg: AppConfig):
     return provider
 
 
+def _pg_uri(cfg: AppConfig) -> str:
+    uri = os.getenv(cfg.postgres_uri_env, "")
+    if not uri:
+        raise RuntimeError(
+            f"memory.backend='postgres' 但環境變數 {cfg.postgres_uri_env} 未設定;"
+            "請設定連線字串或改回 backend='sqlite'。"
+        )
+    return uri
+
+
 def build_memory_manager(cfg: AppConfig, provider=None):
     """記憶管理器。extractor="llm" 且有 provider 時用 LLMExtractor 抽乾淨事實,
-    否則退回 default_extractor(整句存,PoC fallback)。"""
+    否則退回 default_extractor(整句存,PoC fallback)。
+
+    backend="postgres" 走 PostgresMemoryProvider(agent.memory_entry / pg_trgm),
+    否則 SqliteMemoryProvider(本地檔案 / FTS5)。"""
     from lockcore.agent.user_memory import (
         LLMExtractor,
         MemoryManager,
@@ -112,11 +129,23 @@ def build_memory_manager(cfg: AppConfig, provider=None):
         extractor = LLMExtractor(provider, cfg.model)
     else:
         extractor = default_extractor
-    return MemoryManager(SqliteMemoryProvider(cfg.db_path, extractor=extractor))
+
+    if cfg.backend == "postgres":
+        from lockcore.agent.user_memory.provider import PostgresMemoryProvider
+
+        mem_provider = PostgresMemoryProvider(_pg_uri(cfg), extractor=extractor)
+    else:
+        mem_provider = SqliteMemoryProvider(cfg.db_path, extractor=extractor)
+    return MemoryManager(mem_provider)
 
 
 def build_escalation_store(cfg: AppConfig):
-    """轉真人稽核紀錄(transfer_to_human 用)。與記憶共用 db_path,各自獨立 table。"""
+    """轉真人稽核紀錄(transfer_to_human 用)。與記憶同後端,各自獨立 table。"""
+    if cfg.backend == "postgres":
+        from lockcore.agent.user_memory.postgres_store import PostgresEscalationStore
+
+        return PostgresEscalationStore(_pg_uri(cfg))
+
     from lockcore.agent.user_memory import EscalationStore
 
     return EscalationStore(cfg.db_path)
