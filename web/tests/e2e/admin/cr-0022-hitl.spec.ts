@@ -138,7 +138,8 @@ test.describe("@wip CR-0022 開單 address modal", () => {
 
     // convert 必須帶 customer_address（修 422 缺口的回歸守線）
     await expect.poll(() => convertBody, { timeout: 8000 }).not.toBeNull();
-    expect(convertBody!).toHaveProperty("customer_address");
-    expect((convertBody as { customer_address: string }).customer_address).toContain("林口");
+    const body = convertBody!;
+    expect(body).toHaveProperty("customer_address");
+    expect(String(body.customer_address)).toContain("林口");
   });
 });

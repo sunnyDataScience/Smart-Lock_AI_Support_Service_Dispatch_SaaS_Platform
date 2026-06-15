@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 2026-Q2 Tactical Refactor
 
+### Fixed
+
+- **側欄子選單雙亮修正（branch `fix/sidebar-double-active`，2026-06-15）**：「帳務與結算」展開時，「月結算總覽」(`/accounting`) 與「會計傳票」(`/accounting/vouchers`) 在子頁同時亮起。根因 `Sidebar.isChildActive` 用 `pathname.startsWith(child.href + "/")`，區段根頁 `/accounting` 前綴命中所有子頁。修為前綴命中時，若有更精確（href 更長）的 sibling 也命中則本項不亮。Playwright MCP 驗證：`/accounting` 只亮月結算總覽、`/accounting/vouchers` 只亮會計傳票。順手修 `cr-0022-hitl.spec.ts` 一個 `convertBody` 型別 cast（tsc 0 error）。
+
 ### Added
 
 - **HTML 文件統一收進 `docs/html/` + 導覽中心連結（branch `docs/html-consolidation`，2026-06-15）**：把分散的自包含 HTML（`docs/index.html`、`agent/evals/agent-eval-report.html`、`docs/qa/cr-0022-manual-test-guide.html`）`git mv` 統一到 `docs/html/`。導覽中心（index.html）新增「📑 本專案 HTML 報告」區塊以相對連結指向兩份現行報告（CS Agent 評測報告、CR-0022 真人測試指南），並在 header 註明本頁兩類連結（本 repo 現行 HTML 報告 vs 外部 spec repo `chatlock_dev_docs` 2026-05-24 凍結快照）。Playwright 驗證相對連結可導航、報告渲染正常。**註**：index 的角色導覽/文件一覽仍指向外部 spec repo（歷史快照，非本 repo 文件）。

@@ -112,8 +112,21 @@ function isParentActive(item: NavItem, pathname: string): boolean {
   return pathname.startsWith(item.href);
 }
 
-function isChildActive(child: NavChild, pathname: string): boolean {
-  return pathname === child.href || pathname.startsWith(child.href + "/");
+function isChildActive(
+  child: NavChild,
+  pathname: string,
+  siblings: NavChild[],
+): boolean {
+  if (pathname === child.href) return true;
+  if (!pathname.startsWith(child.href + "/")) return false;
+  // 前綴命中（深層子路由）：若有更精確（href 更長）的 sibling 也命中，
+  // 讓那個 sibling 亮，本項不亮 —— 避免區段根頁（如 /accounting）把
+  // 子頁（/accounting/vouchers）一起點亮造成雙亮。
+  return !siblings.some(
+    (s) =>
+      s.href.length > child.href.length &&
+      (pathname === s.href || pathname.startsWith(s.href + "/")),
+  );
 }
 
 function displayName(session: CurrentSession | null): string {
@@ -247,7 +260,7 @@ export default function Sidebar() {
                   className="flex flex-col gap-[2px] py-1 pl-[44px]"
                 >
                   {item.children!.map((child) => {
-                    const childActive = isChildActive(child, pathname);
+                    const childActive = isChildActive(child, pathname, item.children!);
                     return (
                       <li key={child.href} role="none">
                         <Link
