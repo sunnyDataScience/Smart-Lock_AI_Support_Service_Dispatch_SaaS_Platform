@@ -22,6 +22,13 @@ eternal_transient: Eternal Policy (B3) + Transient UI (C4)
 > **Module scope**: M03, S-M04
 > **Per ADR-0100 §1 classification** (.claude/context/devteam/meetings/2026-05-27-1130-final-spec-migration-strategy/MoM.md)
 
+> ✅ **Implemented (2026-06-14, CR-0022 / ADR-0112)**：本 ADR 推薦方案（AI 草擬 ProblemCard
+> → 客服 1-click 人審後 convert，AI 永不自轉）已落地。LINE agent `transfer_to_human` 旁路建
+> `source='ai_line'` 草擬卡（`POST /internal/escalations/ingest`）→ 客服在 `/problem-cards`
+> 佇列補全 → confirm → 既有 `convert-to-work-order`。charter 由 `test_escalation_to_draft_pc.py`
+> 的 `test_charter_ai_draft_not_confirmed` + 前端 e2e `cr-0022-hitl.spec.ts` 守線。詳見
+> `docs/4-exploration/CR-0022-line-to-work-order-hitl.md` 與 ADR-0112。
+
 
 # ADR-0031 — AI 是否可自動 `convert_to_work_order`
 
