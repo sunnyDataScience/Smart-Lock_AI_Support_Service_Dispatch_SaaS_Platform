@@ -108,3 +108,45 @@ async def test_ingest_skips_empty_text(client, monkeypatch):
     )
     assert resp.status_code == 200, resp.text
     assert resp.json()["data"]["messages_appended"] == 1
+
+
+# ---------------------------------------------------------------------------
+# tenant_id 別名解析（_resolve_tenant_id）—— 純函式，免 DB。
+# agent gateway 送 tenant_id="locksmart"（別名）而非 UUID，需對應到實際租戶 UUID，
+# 否則 psycopg 對 uuid 欄位丟 500（修復前的真實 bug）。
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_tenant_id_passthrough_uuid():
+    from routers.internal_ingest import _resolve_tenant_id
+
+    assert _resolve_tenant_id(DEFAULT_TENANT_ID) == DEFAULT_TENANT_ID
+
+
+def test_resolve_tenant_id_alias_uses_env(monkeypatch):
+    from routers.internal_ingest import _resolve_tenant_id
+
+    monkeypatch.setenv("AGENT_TENANT_ID", DEFAULT_TENANT_ID)
+    assert _resolve_tenant_id("locksmart") == DEFAULT_TENANT_ID
+
+
+def test_resolve_tenant_id_alias_without_env_400(monkeypatch):
+    from fastapi import HTTPException
+
+    from routers.internal_ingest import _resolve_tenant_id
+
+    monkeypatch.delenv("AGENT_TENANT_ID", raising=False)
+    with pytest.raises(HTTPException) as ei:
+        _resolve_tenant_id("locksmart")
+    assert ei.value.status_code == 400
+
+
+def test_resolve_tenant_id_bad_env_500(monkeypatch):
+    from fastapi import HTTPException
+
+    from routers.internal_ingest import _resolve_tenant_id
+
+    monkeypatch.setenv("AGENT_TENANT_ID", "not-a-uuid")
+    with pytest.raises(HTTPException) as ei:
+        _resolve_tenant_id("locksmart")
+    assert ei.value.status_code == 500

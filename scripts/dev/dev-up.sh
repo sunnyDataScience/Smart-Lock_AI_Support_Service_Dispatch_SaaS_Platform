@@ -49,6 +49,9 @@ NGROK_API="http://127.0.0.1:4040/api/tunnels"
 # 可用環境變數覆蓋；export 讓背景啟動的 api / agent 子行程都繼承到同一值。
 export INTERNAL_API_TOKEN="${INTERNAL_API_TOKEN:-dev-internal-token}"
 export LOCK_API_BASE_URL="${LOCK_API_BASE_URL:-http://127.0.0.1:$API_PORT}"
+# CR-0022/方案A：agent 送的 tenant 是別名（如 "locksmart"），API ingest 端據此對應到
+# 實際租戶 UUID（否則 psycopg 對 uuid 欄位丟 500）。dev 預設指向 seed 租戶。
+export AGENT_TENANT_ID="${AGENT_TENANT_ID:-00000000-0000-0000-0000-000000000001}"
 
 # ── CLI flags ──────────────────────────────────────────────────────────────
 NO_NGROK=0

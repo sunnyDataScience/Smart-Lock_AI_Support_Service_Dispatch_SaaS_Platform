@@ -18,8 +18,10 @@
 from __future__ import annotations
 
 import logging
+import os
+import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 from core.deps import require_internal_token
 from models.internal import EscalationIngestRequest, IngestTurnRequest
@@ -28,6 +30,33 @@ from services import conversation_service, problem_card_service
 logger = logging.getLogger("api.internal_ingest")
 
 router = APIRouter()
+
+
+def _resolve_tenant_id(raw: str) -> str:
+    """agent 送來的 tenant 可能是人類可讀別名（如 'locksmart'）而非 UUID。
+
+    - 合法 UUID → 原樣使用。
+    - 別名 → 用 `AGENT_TENANT_ID` 環境變數對應到實際租戶 UUID（未設則 400，明確報錯而非 500）。
+
+    單租戶 dev：所有別名對應同一個 `AGENT_TENANT_ID`；多租戶日後需改為 saas.tenant slug→UUID 查表。
+    （agent 端記憶層仍以字串 tenant 為 scope key，見 CR-0023；此處只負責 API 寫入的租戶身分解析。）
+    """
+    try:
+        return str(uuid.UUID(str(raw)))
+    except (ValueError, AttributeError, TypeError):
+        pass
+    mapped = os.getenv("AGENT_TENANT_ID")
+    if not mapped:
+        raise HTTPException(
+            status_code=400,
+            detail=f"tenant_id '{raw}' 非 UUID，且未設定 AGENT_TENANT_ID 對應別名→租戶 UUID",
+        )
+    try:
+        return str(uuid.UUID(mapped))
+    except (ValueError, AttributeError, TypeError) as e:
+        raise HTTPException(
+            status_code=500, detail="AGENT_TENANT_ID 設定值不是合法 UUID"
+        ) from e
 
 
 @router.post(
@@ -41,7 +70,7 @@ async def ingest_conversation_turn(
     _auth: None = Depends(require_internal_token),
 ) -> dict:
     result = await conversation_service.ingest_turn(
-        tenant_id=body.tenant_id,
+        tenant_id=_resolve_tenant_id(body.tenant_id),
         line_user_id=body.line_user_id,
         session_id=body.session_id,
         user_text=body.user_text,
@@ -68,7 +97,7 @@ async def ingest_escalation(
     _auth: None = Depends(require_internal_token),
 ) -> dict:
     result = await problem_card_service.escalation_to_draft_pc(
-        tenant_id=body.tenant_id,
+        tenant_id=_resolve_tenant_id(body.tenant_id),
         line_user_id=body.line_user_id,
         session_id=body.session_id,
         reason=body.reason,
