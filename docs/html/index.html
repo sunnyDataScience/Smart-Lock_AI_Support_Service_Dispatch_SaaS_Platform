@@ -368,8 +368,9 @@ footer a { color: var(--ink-soft); }
     <span>🚀 V2.0 W31 派工 + 帳務</span>
     <span>📊 66 ADR · 25 FR · 9 NFR 維度</span>
   </div>
-  <div style="margin-top:16px; font-size:13px; opacity:0.85; background:rgba(255,255,255,0.1); padding:10px 14px; border-radius:6px;">
-    💡 <strong>點任何文件連結</strong> → 自動跳 GitHub 開新分頁 render markdown（含 TOC + syntax highlight）。本頁不會被取代。
+  <div style="margin-top:16px; font-size:13px; opacity:0.9; background:rgba(255,255,255,0.1); padding:10px 14px; border-radius:6px;">
+    💡 本頁有<strong>兩類連結</strong>：① <strong>本專案 HTML 報告</strong>（下方第一區，同資料夾相對連結，瀏覽器直接開）；
+    ② <strong>規格快照</strong>（角色導覽 / 文件一覽，指向外部 spec repo <code>chatlock_dev_docs</code>，2026-05-24 PRD v2.2 凍結版）。
   </div>
 </header>
 
@@ -406,6 +407,33 @@ footer a { color: var(--ink-soft); }
     <div class="hint">含 baseline + roundtable + cascade</div>
   </div>
 </div>
+
+<!-- Local HTML reports (本 repo 現行產出) -->
+<section style="border-top: 4px solid var(--green);">
+  <h2><span class="emoji">📑</span>本專案 HTML 報告（現行・瀏覽器直接開）</h2>
+  <p style="margin-bottom: 16px; color: var(--ink-soft); font-size: 14px;">
+    以下是本 repo（<code>Smart-Lock_AI_Support…</code>）開發過程產出的自包含 HTML 報告，
+    與本頁同在 <code>docs/html/</code>，點擊即相對開啟。<strong>這些反映目前實作狀態</strong>，
+    有別於下方角色導覽指向的外部規格快照。
+  </p>
+  <div class="doc-grid">
+
+    <div class="doc-card">
+      <span class="badge baseline">CS AGENT</span>
+      <h4><a href="./agent-eval-report.html">鎖匠 CS Agent 評測報告 ↗</a></h4>
+      <div class="desc">baseline（84 題 overall 0.642）+ 五層驗證框架（L0 紅線 / L1 多輪 / L2 rubric / L3 shadow / L4 KPI）+ 強模型實驗 + 記憶污染教訓。對應會議 Action #5。</div>
+      <div class="path">docs/html/agent-eval-report.html</div>
+    </div>
+
+    <div class="doc-card">
+      <span class="badge wip">CR-0022 測試</span>
+      <h4><a href="./cr-0022-manual-test-guide.html">CR-0022 真人測試指南 ↗</a></h4>
+      <div class="desc">LINE 對話 → AI 草擬問題卡 → 客服人審 → 工單 的 HITL 全鏈手動測試：agent 地端啟動（含 Vertex 憑證）、該傳什麼訊息觸發轉真人、後台哪裡確認、疑難排解。</div>
+      <div class="path">docs/html/cr-0022-manual-test-guide.html</div>
+    </div>
+
+  </div>
+</section>
 
 <!-- Product positioning -->
 <section>
