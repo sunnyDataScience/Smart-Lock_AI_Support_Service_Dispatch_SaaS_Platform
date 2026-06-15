@@ -23,7 +23,11 @@ credentials = "credentials.json"
 [memory]
 # per-user 記憶
 tenant = "locksmart"
-# DB 路徑;":memory:" = 暫存(重啟清空),正式可改檔案路徑如 "memory.db"
+# 後端:"sqlite"(本地檔案,預設)或 "postgres"(lock-ai Cloud SQL、agent schema,見 CR-0023)
+backend = "sqlite"
+# backend="sqlite" 用:DB 路徑;":memory:" = 暫存(重啟清空),正式可改檔案路徑如 "memory.db"
 db_path = "memory.db"
+# backend="postgres" 用:讀此環境變數取連線字串(機密不入 toml)。需先跑 SQL/migrations/033。
+postgres_uri_env = "POSTGRES_URI"
 # 抽取器:"llm" = 用 LLM 抽乾淨事實(客人鎖=AS701);"raw" = 整句存(PoC fallback)
 extractor = "llm"
