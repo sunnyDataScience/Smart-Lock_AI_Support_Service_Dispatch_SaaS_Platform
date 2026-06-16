@@ -39,42 +39,67 @@ gcloud artifacts repositories create lock-ai-repo \
 
 ### 步驟 2：建立 Secret Manager 中的所有 secret
 
+> ⚠️ **建 secret 千萬別讓值帶尾換行**。`openssl rand -hex 32 | gcloud secrets create`
+> 會把 openssl 的尾 `\n` 一起存進去 —— `INTERNAL_API_TOKEN` 帶換行會讓 agent 放進
+> `X-Internal-Token` header 時被 httpx 拒（`Illegal header value`），橋接全失敗。
+> 一律用 `tr -d '\n'`（或 `printf '%s'`）去尾換行。（2026-06-16 首次部署踩雷。）
+
 ```bash
 # agent 與 api 都會用到的 DB 密碼
-echo -n "<ACTUAL_PROD_DB_PASSWORD>" | gcloud secrets create DB_PASSWORD --data-file=-
+printf '%s' "<ACTUAL_PROD_DB_PASSWORD>" | gcloud secrets create DB_PASSWORD --data-file=-
 
 # agent 從 DB_PASSWORD 自動拼接 POSTGRES_URI（用 --update-db-uri）
 ./scripts/deploy/agent.sh --update-db-uri
 
 # LINE Bot
-echo -n "<LINE_CHANNEL_SECRET>" | gcloud secrets create LINE_CHANNEL_SECRET --data-file=-
-echo -n "<LINE_CHANNEL_ACCESS_TOKEN>" | gcloud secrets create LINE_CHANNEL_ACCESS_TOKEN --data-file=-
+printf '%s' "<LINE_CHANNEL_SECRET>" | gcloud secrets create LINE_CHANNEL_SECRET --data-file=-
+printf '%s' "<LINE_CHANNEL_ACCESS_TOKEN>" | gcloud secrets create LINE_CHANNEL_ACCESS_TOKEN --data-file=-
 
 # OPIK（觀察性，可選）
-echo -n "<OPIK_API_KEY>" | gcloud secrets create OPIK_API_KEY --data-file=-
-echo -n "<OPIK_WORKSPACE>" | gcloud secrets create OPIK_WORKSPACE --data-file=-
+printf '%s' "<OPIK_API_KEY>" | gcloud secrets create OPIK_API_KEY --data-file=-
+printf '%s' "<OPIK_WORKSPACE>" | gcloud secrets create OPIK_WORKSPACE --data-file=-
 
-# api 的 JWT
-echo -n "$(openssl rand -hex 32)" | gcloud secrets create API_JWT_SECRET_KEY --data-file=-
+# api 的 JWT（記得 tr -d 去換行）
+openssl rand -hex 32 | tr -d '\n' | gcloud secrets create API_JWT_SECRET_KEY --data-file=-
+
+# agent ↔ api 內部橋接認證（兩服務共用同一值；必須去尾換行）
+openssl rand -hex 32 | tr -d '\n' | gcloud secrets create INTERNAL_API_TOKEN --data-file=-
+
+# 授權 service account 讀所有 secret（每個都要）
+SA="lock-ai@cedar-scope-489604-g3.iam.gserviceaccount.com"
+for s in DB_PASSWORD POSTGRES_URI LINE_CHANNEL_SECRET LINE_CHANNEL_ACCESS_TOKEN \
+         OPIK_API_KEY OPIK_WORKSPACE API_JWT_SECRET_KEY INTERNAL_API_TOKEN; do
+  gcloud secrets add-iam-policy-binding "$s" \
+    --member="serviceAccount:${SA}" --role=roles/secretmanager.secretAccessor
+done
 ```
+
+> deploy 腳本會自動帶入：api 用 `POSTGRES_URI / API_JWT_SECRET_KEY / INTERNAL_API_TOKEN /
+> LINE_CHANNEL_ACCESS_TOKEN` + env `AGENT_TENANT_ID` + 解析 web URL → `CORS_ORIGINS`；
+> agent 用 `LINE_* / POSTGRES_URI / OPIK_* / INTERNAL_API_TOKEN` + 解析 api URL →
+> `LOCK_API_BASE_URL`；web build 時烤入 `NEXT_PUBLIC_API_BASE_URL` + `NEXT_PUBLIC_REALTIME_BASE_URL`。
 
 ### 步驟 3：DB schema 初始化
 
 ```bash
+# 先建 on-demand 備份（動 prod DB 前的保險）
+gcloud sql backups create --instance=lock-ai --description="pre-schema-$(git rev-parse --short HEAD)"
+
 # 透過 cloud-sql-proxy 連 prod DB（保護 prod，不直接暴露 5432）
-./scripts/dev/proxy-up.sh
+./scripts/dev/proxy-up.sh   # → 127.0.0.1:5432（需 ADC：gcloud auth application-default login）
 
-# 套用 schema（依序執行）
-psql "$POSTGRES_URI" -f SQL/Schema.sql
-psql "$POSTGRES_URI" -f SQL/Schema_harness_migration.sql
-psql "$POSTGRES_URI" -f SQL/Schema_v2_extensions.sql
-psql "$POSTGRES_URI" -f SQL/Schema_api_phase1.sql
+# 一鍵套用完整 schema（Schema.sql → Schema_*.sql → migrations/*.sql，全 idempotent、不灌 demo seed）
+export POSTGRES_URI="postgresql://lock-ai:<DB_PASSWORD>@127.0.0.1:5432/lock-ai-db"
+./scripts/db/apply-schema-prod.sh   # 結尾會掃 log 攔真錯誤
 
-# admin 種子（讓 api 能登入）
+# admin 種子（讓 api 能登入；首次才需）
 psql "$POSTGRES_URI" -f SQL/seeds/_admin_user.sql
 
 ./scripts/dev/proxy-down.sh
 ```
+
+> 註：舊版手動逐檔 `psql -f Schema_*.sql` 已被 `apply-schema-prod.sh` 取代（順序對齊
+> `scripts/dev/quickstart.sh`，且涵蓋全部 10 個 Schema 檔 + migrations 000~034，不再漏檔）。
 
 ### 步驟 4：部署服務（順序：agent → api → web）
 
