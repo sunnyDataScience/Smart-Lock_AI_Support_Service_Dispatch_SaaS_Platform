@@ -456,6 +456,16 @@ async def escalation_to_draft_pc(
     )
     conv_id = conv["id"]
 
+    # escalation = 進入「等待人工」：把對話翻成 escalated（DB）/ waiting_human（API），
+    # 這是 F-018 客服接管發訊（HandoverComposer + send_message）的啟用前提。
+    # 無此步驟，AI 雖已草擬問題卡，但對話管理發訊框永遠唯讀（誰都回不了 LINE）。
+    # 不限原狀態（含 resolved 後客人再次轉真人）一律 re-escalate；message_count 不變。
+    await db_module._conn.execute(
+        "UPDATE conversations SET status = 'escalated', updated_at = NOW() "
+        "WHERE id = %s::uuid AND status IS DISTINCT FROM 'escalated'",
+        (conv_id,),
+    )
+
     snapshot = facts_snapshot or {}
     excerpt = (snapshot.get("user_input_excerpt") or "").strip()
     # 症狀文字優先取客人原話摘要，否則用 agent 轉接理由
