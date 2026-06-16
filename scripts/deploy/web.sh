@@ -20,6 +20,7 @@ set -euo pipefail
 PROJECT_ID="cedar-scope-489604-g3"
 REGION="asia-east1"
 SERVICE_NAME="smart-lock-web"
+API_SERVICE_NAME="${API_SERVICE_NAME:-smart-lock-api}"   # 解析 api URL 烤入前端
 REPO="lock-ai-repo"
 
 # Image tag: git short SHA + timestamp（支援 rollback）
@@ -121,7 +122,26 @@ build_and_push() {
     echo "=========================================="
     echo " Building image: ${IMAGE}"
     echo "=========================================="
-    docker build --platform linux/amd64 -f web/Dockerfile -t "${IMAGE}" .
+
+    # NEXT_PUBLIC_* 在 build time 烤入 bundle：解析 api 的 Cloud Run URL，
+    # 前端瀏覽器端 API base = https；即時推送 WebSocket = wss（同網域）。
+    local api_url realtime_url
+    api_url=$(gcloud run services describe "${API_SERVICE_NAME}" \
+        --region="${REGION}" --format='value(status.url)' 2>/dev/null || true)
+    if [[ -z "${api_url}" ]]; then
+        echo "  WARN: 找不到 ${API_SERVICE_NAME} URL —— web 會 fallback 到 localhost、即時推送停用。"
+        echo "        請先部署 api 再部 web。"
+        realtime_url=""
+    else
+        realtime_url="${api_url/https:\/\//wss://}"
+        echo "  NEXT_PUBLIC_API_BASE_URL=${api_url}"
+        echo "  NEXT_PUBLIC_REALTIME_BASE_URL=${realtime_url}"
+    fi
+
+    docker build --platform linux/amd64 -f web/Dockerfile \
+        --build-arg NEXT_PUBLIC_API_BASE_URL="${api_url}" \
+        --build-arg NEXT_PUBLIC_REALTIME_BASE_URL="${realtime_url}" \
+        -t "${IMAGE}" .
 
     echo ""
     echo "=========================================="

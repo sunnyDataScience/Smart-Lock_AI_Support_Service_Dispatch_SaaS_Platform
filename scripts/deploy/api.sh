@@ -36,11 +36,19 @@ MAX_INSTANCES=3
 TIMEOUT=300
 
 # ── 環境變數 ──
+# AGENT_TENANT_ID：把 agent 送來的別名 tenant（如 "locksmart"）對應到真實租戶 UUID
+#   （internal_ingest._resolve_tenant_id 用）。預設 seed 租戶，prod 不同需覆蓋此值。
+AGENT_TENANT_ID="${AGENT_TENANT_ID:-00000000-0000-0000-0000-000000000001}"
 ENV_VARS="VERTEX_PROJECT_ID=${PROJECT_ID},VERTEX_LOCATION=asia-northeast1"
+ENV_VARS="${ENV_VARS},AGENT_TENANT_ID=${AGENT_TENANT_ID}"
 
 # ── Secrets（Secret Manager → 環境變數）──
 SECRETS="POSTGRES_URI=POSTGRES_URI:latest"
 SECRETS="${SECRETS},JWT_SECRET_KEY=API_JWT_SECRET_KEY:latest"
+# INTERNAL_API_TOKEN：agent gateway 旁路寫入 + 查接管狀態的內部認證（與 agent 同值）
+SECRETS="${SECRETS},INTERNAL_API_TOKEN=INTERNAL_API_TOKEN:latest"
+# LINE_CHANNEL_ACCESS_TOKEN：客服接管後 push 訊息回 LINE（CR-0024 / line_push_service）
+SECRETS="${SECRETS},LINE_CHANNEL_ACCESS_TOKEN=LINE_CHANNEL_ACCESS_TOKEN:latest"
 
 # ── 切到 PROJECT_ROOT（uv workspace 根，docker build context）──
 # 新 Dockerfile 是 multi-stage uv build，需要 PROJECT_ROOT 才能拿到
@@ -103,7 +111,7 @@ preflight_checks() {
         echo "  OK: uv.lock 與 pyproject.toml 同步"
     fi
 
-    local required_secrets=("POSTGRES_URI" "API_JWT_SECRET_KEY")
+    local required_secrets=("POSTGRES_URI" "API_JWT_SECRET_KEY" "INTERNAL_API_TOKEN" "LINE_CHANNEL_ACCESS_TOKEN")
     for secret in "${required_secrets[@]}"; do
         if gcloud secrets describe "${secret}" &>/dev/null; then
             echo "  OK: Secret ${secret}"

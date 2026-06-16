@@ -49,6 +49,11 @@ RUN mkdir -p public
 ARG NEXT_PUBLIC_REALTIME_BASE_URL=""
 ENV NEXT_PUBLIC_REALTIME_BASE_URL=${NEXT_PUBLIC_REALTIME_BASE_URL}
 
+# API base URL：未傳（本機 compose）→ 空字串 → 前端 code 以 || fallback 到 localhost:8001；
+# Cloud Run：web.sh 傳入 api 的 https URL（瀏覽器端呼叫）。
+ARG NEXT_PUBLIC_API_BASE_URL=""
+ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
+
 # 跑 next build（next.config.ts 設了 output: standalone）
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
