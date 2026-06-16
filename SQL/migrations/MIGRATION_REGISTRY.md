@@ -38,6 +38,7 @@
 | 026 | `026-dispatcher-commission.sql` | FR-0046 | 🟡 pending-apply | saas.dispatcher_commission_statement 新表（FR-0046 Phase II MVP Dispatcher Commission）+ 派工指標 (dispatched/completed/completion_rate/avg_csat) + 抽成 (base/performance_bonus/penalty/net) + 同 FR-0045 6 狀態機 + UNIQUE(tenant+user+year+month) + 3 indexes |
 | 027 | `027-brand-b2b-statements.sql` | FR-0047 | 🟡 pending-apply | saas.brand_b2b_statement 新表（FR-0047 Phase II MVP Brand B2B Settlement）+ direction AR/AP/NET + service 量指標 (orders/warranty_claims/sla_breach) + 4 金額 (ar_service_fee/ap_commission/warranty_deduction/sla_penalty/net) + net_payable_to + 同 6 狀態機 + UNIQUE(tenant+brand+year+month+direction) + 4 indexes |
 | 033 | `033-agent-memory-schema.sql` | CR-0023 / ADR-0113 | 🟡 pending-apply | LockCore CS agent per-user 記憶 SQLite→Postgres：新 schema `agent` + pg_trgm extension + `agent.memory_entry`（tenant 字串不對齊 saas UUID；trigram GIN 取代 FTS5；created/updated BIGINT epoch）+ `agent.escalation`（轉真人稽核，JSONB facts_snapshot）+ 4 indexes。本機 lock_AI_data 已套用驗證 |
+| 034 | `034-role-permissions-tenant-id.sql` | 部署修復 | 🟢 idempotent | 首次 Cloud Run 部署修復：prod 既有「舊版 role_permissions join 表（role_id/permission_id）」與 F-019（role_name/permission_code）衝突。空舊表 → DROP 重建為 F-019 spec（安全閥：非空則 RAISE 中止）。並同步修：(a) `015` kb_audit_log partial index 移除非法 `NOW()` predicate 改全索引；(b) `Schema_v2_extensions.sql` 移除舊 RBAC join 索引死碼。prod 經 cloud-sql-proxy 套用、完整重跑零錯誤 |
 
 > 註：028-032 為 agent/CR-0020~0022 波次 migration（已實作於分支，registry 待補登）。
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。

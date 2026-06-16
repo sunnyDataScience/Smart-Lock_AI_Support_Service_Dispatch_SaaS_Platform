@@ -71,9 +71,11 @@ CREATE INDEX IF NOT EXISTS idx_kb_audit_log_tenant_doc
 CREATE INDEX IF NOT EXISTS idx_kb_audit_log_actor
     ON saas.kb_audit_log(actor_user_id, created_at DESC);
 
+-- 註：原想用 `WHERE created_at > NOW() - INTERVAL '90 days'` 做熱資料 partial index，
+-- 但 NOW() 非 IMMUTABLE，PG 拒絕（index predicate 須 immutable）→ 任何版本都建不起來。
+-- 改全索引（created_at DESC 已足以支援近期範圍掃描），移除非法 predicate。
 CREATE INDEX IF NOT EXISTS idx_kb_audit_log_action_recent
-    ON saas.kb_audit_log(tenant_id, action, created_at DESC)
-    WHERE created_at > (NOW() - INTERVAL '90 days');  -- 90 天熱資料 partial index
+    ON saas.kb_audit_log(tenant_id, action, created_at DESC);
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 註記：HD-04 virus scan
