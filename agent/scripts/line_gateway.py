@@ -59,9 +59,26 @@ def main() -> None:
 
     app = build_webapp(loop, cfg.tenant, secret, token, escalation_store=esc)
     port = int(os.environ.get("PORT", "8000"))
-    print(f"模型:{cfg.model}  租戶:{cfg.tenant}")
-    print(f"LINE webhook 監聽 :{port}/callback")
-    print(f"→ 另開終端跑:ngrok http {port},把 https URL + /callback 填進 LINE webhook 設定")
+    print(f"模型:{cfg.model}  租戶:{cfg.tenant}  記憶後端:{cfg.backend}", flush=True)
+    # 方案 A / CR-0022 旁路橋接狀態 —— 明示開/關,避免「對話/工單沒進 DB」被靜默略過害人 debug。
+    bridge_base = os.environ.get("LOCK_API_BASE_URL")
+    bridge_token = os.environ.get("INTERNAL_API_TOKEN")
+    if bridge_base and bridge_token:
+        print(
+            f"API 橋接:✅ 啟用 → 對話/轉真人草擬卡會寫入 {bridge_base}（conversations + escalations ingest）",
+            flush=True,
+        )
+    else:
+        missing = " / ".join(
+            n for n, v in (("LOCK_API_BASE_URL", bridge_base), ("INTERNAL_API_TOKEN", bridge_token)) if not v
+        )
+        print(f"API 橋接:⚠️ 停用（缺 {missing}）→ 對話與轉真人【不會】進 DB / 工單系統，僅本機回覆。", flush=True)
+        print(
+            "   要讓後台看得到對話/長出工單卡:在 agent/.env 補這兩個變數（見 agent/.env.example）後重啟。",
+            flush=True,
+        )
+    print(f"LINE webhook 監聽 :{port}/callback", flush=True)
+    print(f"→ 另開終端跑:ngrok http {port},把 https URL + /callback 填進 LINE webhook 設定", flush=True)
     web.run_app(app, host="0.0.0.0", port=port)
 
 
