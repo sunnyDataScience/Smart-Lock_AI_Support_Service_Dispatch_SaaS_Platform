@@ -250,6 +250,40 @@ async def send_chat_message_v2(
     return payload
 
 
+@router.post(
+    "/tenants/{tenantId}/conversations/{id}/resolve-handover",
+    operation_id="resolveConversationHandover",
+    summary="結束接管 / 交還 AI（CR-0024，escalated → active）",
+    response_model=Conversation,
+    tags=["Conversations"],
+)
+async def resolve_conversation_handover_v2(
+    tenantId: str = Path(..., description="租戶 UUID（ADR-0030）"),
+    id: str = Path(..., description="對話 UUID"),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    """客服結束人工接管，把對話交還 AI（status escalated → active）。
+
+    僅 admin / customer_service / manager / supervisor 可操作（其他 → 403）。
+    非 escalated → 409（沒有接管可結束）。
+    """
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError(
+            "CROSS_TENANT_WRITE",
+            "Path tenantId does not match authenticated tenant",
+            403,
+        )
+    if user.role not in {"admin", "customer_service", "manager", "supervisor"}:
+        raise ApiError(
+            "FORBIDDEN",
+            "Only customer service or supervisor roles can resolve handover",
+            403,
+        )
+
+    conv = await conversation_service.resolve_handover(tenant_id=tenantId, conv_id=id)
+    return _safe_conv(conv)
+
+
 # ---------------------------------------------------------------------------
 # Private helpers — W1 教訓：寬鬆 model_dump 避免嚴格 pattern 卡住
 # ---------------------------------------------------------------------------

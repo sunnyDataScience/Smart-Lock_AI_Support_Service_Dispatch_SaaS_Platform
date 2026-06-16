@@ -463,3 +463,75 @@ async def send_message(
     #    action=send_handover_message、entity=message:<id>）
 
     return _msg_row_to_dict(msg_row)
+
+
+async def resolve_handover(*, tenant_id: str, conv_id: str) -> dict:
+    """結束接管 / 交還 AI：對話 escalated → active（CR-0024 Phase 1，D3）。
+
+    流程：
+      1. tenant 隔離 + 撈狀態（404 if 不屬該 tenant）
+      2. 非 escalated → 409（無接管可結束，避免誤翻其他狀態）
+      3. UPDATE conversations.status='active'（AI 接手），回更新後 conversation dict
+
+    交還後 agent gateway 下次查 handover-state 得 escalated=false → AI 恢復正常接待。
+    冪等性由呼叫端語意保證（已 active 再呼叫會收 409，符合「沒有接管可結束」）。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    cur = await db_module._conn.execute(
+        "SELECT c.status FROM conversations c JOIN users u ON c.user_id = u.id "
+        "WHERE c.id = %s::uuid AND u.tenant_id = %s::uuid",
+        (conv_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "Conversation not found", 404)
+    if row[0] not in _HANDOVER_ALLOWED_DB_STATUSES:
+        raise ApiError(
+            "CONVERSATION_NOT_ESCALATED",
+            f"Conversation is not under human handover (current DB status: {row[0]})",
+            409,
+        )
+
+    await db_module._conn.execute(
+        "UPDATE conversations SET status = 'active', updated_at = NOW() "
+        "WHERE id = %s::uuid",
+        (conv_id,),
+    )
+    return await get_conversation(tenant_id=tenant_id, conv_id=conv_id)
+
+
+async def get_handover_state(*, tenant_id: str, session_id: str) -> dict:
+    """供 agent gateway 查某對話是否處於人工接管中（CR-0024 Phase 1）。
+
+    以 session_id（= conversation external 冪等鍵）定位對話，回
+    {escalated: bool, reason: str|None}。reason 取該對話最新 AI 草擬問題卡的
+    症狀摘要（Phase 2 relatedness 分類會用到；Phase 1 gateway 只看 escalated）。
+    查無對話 → escalated=false（agent 照常回，fail-soft 友善預設）。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    cur = await db_module._conn.execute(
+        "SELECT c.id, c.status FROM conversations c JOIN users u ON c.user_id = u.id "
+        "WHERE c.session_id = %s AND u.tenant_id = %s::uuid LIMIT 1",
+        (session_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        return {"escalated": False, "reason": None}
+
+    conv_id, status = row[0], row[1]
+    escalated = status in _HANDOVER_ALLOWED_DB_STATUSES
+    reason: str | None = None
+    if escalated:
+        pc_cur = await db_module._conn.execute(
+            "SELECT symptoms FROM problem_cards WHERE conversation_id = %s::uuid "
+            "ORDER BY updated_at DESC LIMIT 1",
+            (conv_id,),
+        )
+        pc_row = await pc_cur.fetchone()
+        if pc_row and isinstance(pc_row[0], list) and pc_row[0]:
+            reason = str(pc_row[0][-1])[:500]
+    return {"escalated": escalated, "reason": reason}

@@ -79,6 +79,28 @@ export default function ConversationDetailPage({
   const [creatingPc, setCreatingPc] = useState(false);
   const [createPcError, setCreatePcError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [resolvingHandover, setResolvingHandover] = useState(false);
+
+  const handleResolveHandover = async () => {
+    if (resolvingHandover) return;
+    setResolvingHandover(true);
+    try {
+      // CR-0024：結束接管 → 對話 escalated → active，AI 恢復接待
+      const updated = await api.post<Conversation>(
+        tenantPath(`/conversations/${encodeURIComponent(id)}/resolve-handover`),
+      );
+      setConv(updated);
+      setToast("已結束接管，對話交還 AI");
+    } catch (e) {
+      setToast(
+        e instanceof ApiError
+          ? `結束接管失敗：${e.errorCode} (${e.status})`
+          : "結束接管失敗",
+      );
+    } finally {
+      setResolvingHandover(false);
+    }
+  };
 
   useEffect(() => {
     if (!toast) return;
@@ -240,9 +262,20 @@ export default function ConversationDetailPage({
           <div className="flex flex-1 overflow-hidden">
             <div className="flex flex-1 flex-col overflow-hidden">
               {conv?.status === "waiting_human" && (
-                <div className="flex items-center gap-2 border-b border-[#FECACA] bg-[#FEF2F2] px-4 py-2 text-[13px] font-medium text-[#B91C1C]">
-                  <Headphones className="h-4 w-4" />
-                  接管模式：此對話已升級為人工，您發送的訊息將直接推送給用戶
+                <div className="flex items-center justify-between gap-2 border-b border-[#FECACA] bg-[#FEF2F2] px-4 py-2 text-[13px] font-medium text-[#B91C1C]">
+                  <span className="flex items-center gap-2">
+                    <Headphones className="h-4 w-4" />
+                    接管模式：此對話已升級為人工，您發送的訊息將直接推送給用戶
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleResolveHandover}
+                    disabled={resolvingHandover}
+                    title="把對話交還 AI，AI 將恢復自動接待"
+                    className="shrink-0 rounded-md bg-[#B91C1C] px-3 py-[5px] text-[12px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {resolvingHandover ? "處理中…" : "結束接管 / 交還 AI"}
+                  </button>
                 </div>
               )}
 

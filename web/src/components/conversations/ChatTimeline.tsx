@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { Sparkles } from "lucide-react";
 import { formatRelative } from "@/lib/format";
 import type { components } from "@/types/api.generated";
@@ -87,6 +88,17 @@ interface Props {
 }
 
 export default function ChatTimeline({ messages, loading = false }: Props) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // API returns DESC; render ASC for natural chat flow.
+  const ordered = [...messages].reverse();
+  // 自動捲到最底：初次載入、refetch、客服送出新訊息（messages 變動）都觸發。
+  // 依「訊息數 + 最後一則 id」當 key，避免同筆資料重複捲動。
+  const lastId = ordered.length ? ordered[ordered.length - 1].id : null;
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages.length, lastId]);
+
   if (loading && messages.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center bg-[var(--bg-page)] text-sm text-[var(--text-secondary)]">
@@ -101,10 +113,9 @@ export default function ChatTimeline({ messages, loading = false }: Props) {
       </div>
     );
   }
-  // API returns DESC; render ASC for natural chat flow.
-  const ordered = [...messages].reverse();
   return (
     <div
+      ref={scrollRef}
       role="log"
       aria-label="對話訊息列表"
       aria-live="polite"

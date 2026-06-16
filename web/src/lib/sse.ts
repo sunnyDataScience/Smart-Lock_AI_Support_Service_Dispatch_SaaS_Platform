@@ -5,12 +5,19 @@
  *   - 使用瀏覽器原生 EventSource，自動重連由瀏覽器處理
  *   - JWT 透過 query param 帶上（EventSource 不支援 custom header）
  *   - 預設訂閱 default channel；spec 定義的 message name 透過 onMessage 收
- *   - NEXT_PUBLIC_REALTIME_BASE_URL 未設 → silent disabled
+ *   - NEXT_PUBLIC_DIAGNOSTICS_SSE_BASE_URL 未設 → silent disabled
+ *
+ * 注意（CR-0024）：診斷推理 SSE 端點 `/realtime/diagnostics/{id}` 後端**尚未實作**
+ * （api/main.py 只有 WS 頻道）。故本層獨立用 `NEXT_PUBLIC_DIAGNOSTICS_SSE_BASE_URL`，
+ * 與 WebSocket 頻道（realtime.ts，用 `NEXT_PUBLIC_REALTIME_BASE_URL`）解耦：
+ * 開了 WS 不會連帶把不存在的 diagnostics SSE 打開造成 EventSource 404 無限重連。
+ * 待後端實作 diagnostics 串流後，再設此 env 啟用。
  */
 
 import { auth } from "./api";
 
-const REALTIME_BASE_URL = process.env.NEXT_PUBLIC_REALTIME_BASE_URL ?? "";
+const REALTIME_BASE_URL =
+  process.env.NEXT_PUBLIC_DIAGNOSTICS_SSE_BASE_URL ?? "";
 
 export type SSEStatus =
   | "idle"
