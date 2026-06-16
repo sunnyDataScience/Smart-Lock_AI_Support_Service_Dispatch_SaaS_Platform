@@ -419,6 +419,13 @@ footer a { color: var(--ink-soft); }
   <div class="doc-grid">
 
     <div class="doc-card">
+      <span class="badge policy">操作手冊</span>
+      <h4><a href="./agent-line-runbook.html">LINE 啟動 + 工單觸發手冊 ↗</a></h4>
+      <div class="desc">本機把 agent 接到 LINE 的完整 runbook：API（INTERNAL_API_TOKEN / AGENT_TENANT_ID）+ Gateway（agent/.env 橋接 + banner 判讀）+ ngrok + LINE Console；含「LINE 一句話 → AI 草擬卡 → 客服 convert → 工單 NT-xxxxxx」全鏈與 500/400/503/401 排錯表。記憶後端 sqlite/postgres 切換。</div>
+      <div class="path">docs/html/agent-line-runbook.html</div>
+    </div>
+
+    <div class="doc-card">
       <span class="badge baseline">CS AGENT</span>
       <h4><a href="./agent-eval-report.html">鎖匠 CS Agent 評測報告 ↗</a></h4>
       <div class="desc">baseline（84 題 overall 0.642）+ 五層驗證框架（L0 紅線 / L1 多輪 / L2 rubric / L3 shadow / L4 KPI）+ 強模型實驗 + 記憶污染教訓。對應會議 Action #5。</div>
