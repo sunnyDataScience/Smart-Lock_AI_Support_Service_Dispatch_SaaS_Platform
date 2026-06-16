@@ -51,10 +51,13 @@ COPY --from=builder /app/agent /app/agent
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
-    PORT=8080
+    PORT=8080 \
+    PYTHONPATH=/app/agent
 
 WORKDIR /app/agent
 EXPOSE 8080
 
-# line_gateway 讀 PORT（Cloud Run 注入），綁 0.0.0.0:$PORT/callback。
+# line_gateway 以「腳本」方式跑（非安裝的套件），sys.path[0]=scripts/ 不含 /app/agent，
+# 故 PYTHONPATH=/app/agent 讓 `import lockcore` 從 COPY 進來的原始碼解析
+# （workspace 套件在 build 階段 wheel 不含 lockcore 原始碼，改由原始碼樹提供）。
 CMD ["python", "scripts/line_gateway.py"]
