@@ -1,0 +1,76 @@
+# docker-compose.yml — 本機「全 docker」開發編排（api + agent + web）
+#
+# 設計（見對話 2026-06-16）：
+#   - DB 不在此 compose：沿用你既有、已灌好資料的 `lock_AI` 容器（pgvector/pg17 :5433）。
+#     三個服務透過 host.docker.internal:5433 連它 → 零資料遷移風險。
+#     （若日後要把 DB 也納 compose，再加一個 db service + named volume + 灌 schema/seed。）
+#   - ngrok 不在此 compose：維持你自己在 host 跑 `ngrok http 8000` → 打 agent 的 published 8000。
+#   - 機密讀專案根 .env（env_file）；host 專屬值（POSTGRES_URI / LOCK_API_BASE_URL 等）在
+#     environment 覆蓋（compose 中 environment 優先於 env_file）。
+#
+# 用法：
+#   docker compose up -d --build          # 起 api/agent/web（背景）
+#   ngrok http 8000                       # 另開：對外接 LINE（webhook = <ngrok>/callback）
+#   docker compose logs -f agent          # 看 agent log（橋接 banner / turn）
+#   docker compose down                   # 停（不影響 lock_AI DB 容器）
+#
+# 連線埠（host:container）：api 8001:8080 / agent 8000:8080 / web 3000:8080。
+# web 的 NEXT_PUBLIC_API_BASE_URL 在 build 時烤成預設 http://localhost:8001（瀏覽器端），
+# 故 api 必須 published 在 host 8001 才接得到。
+
+x-host-db: &host-db
+  # 三服務共用：連既有 lock_AI DB（host 上的 docker 容器，:5433）。
+  POSTGRES_URI: "postgresql://lock:0000@host.docker.internal:5433/lock_AI_data"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    ports:
+      - "8001:8080"
+    env_file:
+      - .env                      # API_JWT_SECRET_KEY / GEMINI / OPIK 等
+    environment:
+      <<: *host-db
+      INTERNAL_API_TOKEN: "${INTERNAL_API_TOKEN:-dev-internal-token}"
+      AGENT_TENANT_ID: "${AGENT_TENANT_ID:-00000000-0000-0000-0000-000000000001}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/health').status==200 else 1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    restart: unless-stopped
+
+  agent:
+    build:
+      context: .
+      dockerfile: agent/Dockerfile
+    ports:
+      - "8000:8080"
+    env_file:
+      - .env                      # LINE_CHANNEL_SECRET / LINE_CHANNEL_ACCESS_TOKEN
+    environment:
+      <<: *host-db
+      INTERNAL_API_TOKEN: "${INTERNAL_API_TOKEN:-dev-internal-token}"
+      # 容器內走 compose 網路用 service 名連 api（非 host port）。
+      LOCK_API_BASE_URL: "http://api:8080"
+    volumes:
+      # Vertex 認證：本機用 credentials.json（雲端才走 SA ADC）。唯讀掛載，不入映像。
+      - ./agent/credentials.json:/app/agent/credentials.json:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    ports:
+      - "3000:8080"
+    restart: unless-stopped
