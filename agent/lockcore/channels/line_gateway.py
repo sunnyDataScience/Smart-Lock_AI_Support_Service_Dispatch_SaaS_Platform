@@ -32,7 +32,14 @@ _FALLBACK_REPLY = "不好意思,系統忙線中,請稍後再試,或留言由專�
 # 方案 A:對話旁路持久化。把每輪「客人訊息 + AI 回覆」POST 給 API,寫進
 # conversations/messages,使工單/對話後台能重新渲染對話歷史。env 未設 → 略過
 # (不破壞無此設定的既有部署);失敗一律 fail-soft(只 log,絕不阻斷回客人)。
-_PERSIST_TIMEOUT_SEC = 5.0
+#
+# 逾時分兩種：
+# - persist POST 在「回覆送出後」fire-and-forget，拉長到 20s 以撐過 API 冷啟動
+#   （Cloud Run min-instances=0 時冷啟 ~10s），不影響客人回覆延遲。
+# - handover 查詢在「回覆前」會阻塞回覆，維持短逾時 + fail-soft（查不到就 AI 照常回），
+#   避免冷啟動拖慢客人首次回覆。
+_PERSIST_TIMEOUT_SEC = 20.0
+_HANDOVER_CHECK_TIMEOUT_SEC = 5.0
 
 
 async def _persist_turn_safe(
@@ -80,7 +87,7 @@ async def _handover_active_safe(tenant: str, user_id: str) -> bool:
     try:
         import httpx
 
-        async with httpx.AsyncClient(timeout=_PERSIST_TIMEOUT_SEC) as client:
+        async with httpx.AsyncClient(timeout=_HANDOVER_CHECK_TIMEOUT_SEC) as client:
             resp = await client.get(
                 f"{base_url.rstrip('/')}/api/v1/internal/conversations/handover-state",
                 params={"tenant_id": tenant, "session_id": f"{tenant}:{user_id}"},
