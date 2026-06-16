@@ -6,6 +6,7 @@
 
 | 編號 | 檔名 | 波次 | 狀態 | 說明 |
 |---|---|---|---|---|
+| 000 | `000-extensions.sql` | 部署 bootstrap | 🟢 idempotent | Postgres extension 開齊（vector / pg_trgm / pgcrypto / uuid-ossp）— 全新環境（Cloud SQL）最先跑；既有 DB no-op。對應 KB 向量 + trigram 索引 + gen_random_uuid |
 | 001 | `001-cancellation-6stage.sql` | P1-A | ✅ done | cancellation 表（6 階段費用 + SoD + audit）|
 | 002 | `002-refund-sod-5tier.sql` | P1-B | ✅ done | refund_requests 加欄：tier / refund_class / 三維 SoD + CHECK |
 | 003 | `003-warranty-5mode.sql` | P1-B | ✅ done | warranty_claims 加欄：warranty_start_mode(6) / period_months / B2B override |

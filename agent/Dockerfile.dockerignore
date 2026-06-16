@@ -1,0 +1,38 @@
+# BuildKit per-Dockerfile ignore（只在 docker build -f agent/Dockerfile . 時生效）
+# build context 是專案根；以下路徑相對根目錄。
+# 重點：擋機密 / 本機 DB 進映像；保留各 workspace member 的 pyproject + uv.lock（uv resolve 需要）。
+
+# 版控 / IDE
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# 機密 / 本機資料（嚴禁進映像）
+**/.env
+**/.env.*
+!**/.env.example
+**/credentials.json
+**/*.db
+
+# 大型 / 無關目錄（縮小 context；不動 agent/api/data 的 pyproject）
+web/
+docs/
+.claude/
+SQL/
+tests/
+.dev-logs/
+tmp/
+
+# Python 殘留
+.venv/
+**/__pycache__/
+**/*.py[cod]
+
+# Node.js
+**/node_modules/
+
+# Docker / OS 雜物
+**/Dockerfile.dockerignore
+.DS_Store
+Thumbs.db
