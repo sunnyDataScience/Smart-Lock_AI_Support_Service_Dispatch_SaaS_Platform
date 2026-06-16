@@ -207,8 +207,17 @@ if $DEPLOY; then
     web_url=$(gcloud run services describe "${WEB_SERVICE_NAME}" \
         --region="${REGION}" --format='value(status.url)' 2>/dev/null || true)
     if [[ -n "${web_url}" ]]; then
-        deploy_env_vars="${deploy_env_vars},CORS_ORIGINS=${web_url}"
-        echo "  CORS_ORIGINS=${web_url}"
+        # Cloud Run 每個服務有兩個等價網址：status.url（-<hash>-<gw>.a.run.app）
+        # 與 projectnumber 形式（<svc>-<projnum>.<region>.run.app）。瀏覽器從哪個進來
+        # 就帶哪個 Origin，故 CORS 兩個都要放行（只放一個會讓另一個網址登入 Failed to fetch）。
+        # 多個 origin 以「空白」分隔（不可用逗號 —— gcloud --set-env-vars 以逗號拆 env）。
+        proj_num=$(gcloud projects describe "${PROJECT_ID}" --format='value(projectNumber)' 2>/dev/null || true)
+        cors="${web_url}"
+        if [[ -n "${proj_num}" ]]; then
+            cors="${cors} https://${WEB_SERVICE_NAME}-${proj_num}.${REGION}.run.app"
+        fi
+        deploy_env_vars="${deploy_env_vars},CORS_ORIGINS=${cors}"
+        echo "  CORS_ORIGINS=${cors}"
     else
         echo "  WARN: 找不到 ${WEB_SERVICE_NAME} URL —— CORS 用預設（localhost）。web 部署後重跑 api 補上。"
     fi
