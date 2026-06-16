@@ -83,6 +83,10 @@ services:
     build:
       context: .
       dockerfile: web/Dockerfile
+      args:
+        # 即時推送 WebSocket base（build-time 烤入 bundle）。瀏覽器直連 api 的
+        # published port 8001；後端 WS server 內建於 api（/realtime/* endpoints）。
+        NEXT_PUBLIC_REALTIME_BASE_URL: "${NEXT_PUBLIC_REALTIME_BASE_URL:-ws://localhost:8001}"
     ports:
       - "3000:8080"
     restart: unless-stopped

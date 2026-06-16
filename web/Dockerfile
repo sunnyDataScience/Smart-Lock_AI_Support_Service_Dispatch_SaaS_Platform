@@ -41,6 +41,14 @@ COPY web/ ./
 # 確保 public/ 至少存在（Next.js 不一定有，但 standalone runtime 要 copy）
 RUN mkdir -p public
 
+# NEXT_PUBLIC_* 變數在 next build 時「烤」進前端 bundle（standalone 後無法再改），
+# 故必須是 build-time ARG → ENV。即時推送（WebSocket）base：未傳則留空 = 前端顯示
+# 「未配置」並走優雅降級（不訂閱、頁面仍以一般 fetch 運作）。
+# 本機 docker：ws://localhost:8001（瀏覽器直連 api published port）；
+# Cloud Run：wss://<api 網域>（同 arg 換值即可）。
+ARG NEXT_PUBLIC_REALTIME_BASE_URL=""
+ENV NEXT_PUBLIC_REALTIME_BASE_URL=${NEXT_PUBLIC_REALTIME_BASE_URL}
+
 # 跑 next build（next.config.ts 設了 output: standalone）
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
