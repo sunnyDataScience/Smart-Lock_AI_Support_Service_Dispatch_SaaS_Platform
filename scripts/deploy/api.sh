@@ -16,6 +16,7 @@ set -euo pipefail
 PROJECT_ID="cedar-scope-489604-g3"
 REGION="asia-east1"
 SERVICE_NAME="smart-lock-api"
+WEB_SERVICE_NAME="${WEB_SERVICE_NAME:-smart-lock-web}"   # 解析 web URL → CORS_ORIGINS
 REPO="lock-ai-repo"
 
 # Image tag: git short SHA + timestamp（支援 rollback）
@@ -200,6 +201,18 @@ if $DEPLOY; then
         local_image="${IMAGE_BASE}:latest"
     fi
 
+    # 動態解析 web 的 Cloud Run URL → CORS_ORIGINS（瀏覽器跨網域呼叫 api 必需）。
+    # web 尚未部署時（首次）falls back 到 config/localhost；web 部好後重跑 api 即補上。
+    deploy_env_vars="${ENV_VARS}"
+    web_url=$(gcloud run services describe "${WEB_SERVICE_NAME}" \
+        --region="${REGION}" --format='value(status.url)' 2>/dev/null || true)
+    if [[ -n "${web_url}" ]]; then
+        deploy_env_vars="${deploy_env_vars},CORS_ORIGINS=${web_url}"
+        echo "  CORS_ORIGINS=${web_url}"
+    else
+        echo "  WARN: 找不到 ${WEB_SERVICE_NAME} URL —— CORS 用預設（localhost）。web 部署後重跑 api 補上。"
+    fi
+
     echo ""
     echo "=========================================="
     echo " Deploying to Cloud Run: ${SERVICE_NAME}"
@@ -221,7 +234,7 @@ if $DEPLOY; then
         --max-instances="${MAX_INSTANCES}" \
         --timeout="${TIMEOUT}" \
         --add-cloudsql-instances="${CLOUDSQL_INSTANCE}" \
-        --set-env-vars="${ENV_VARS}" \
+        --set-env-vars="${deploy_env_vars}" \
         --set-secrets="${SECRETS}"
 
     SERVICE_URL=$(gcloud run services describe "${SERVICE_NAME}" \

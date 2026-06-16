@@ -170,9 +170,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# CORS allow_origins：env `CORS_ORIGINS`（逗號分隔）優先，否則用 config，再否則 localhost。
+# Cloud Run 部署時由 deploy 腳本解析 web 的 service URL 帶入（跨網域瀏覽器呼叫必需）。
+_cors_env = os.environ.get("CORS_ORIGINS", "").strip()
+_cors_origins = (
+    [o.strip() for o in _cors_env.split(",") if o.strip()]
+    if _cors_env
+    else cfg.system.get("cors_origins", ["http://localhost:3000"])
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cfg.system.get("cors_origins", ["http://localhost:3000"]),
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
