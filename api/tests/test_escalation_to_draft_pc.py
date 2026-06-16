@@ -107,6 +107,52 @@ async def test_charter_ai_draft_not_confirmed(client, monkeypatch):
     assert card["status"] != "confirmed"
 
 
+# --------------------------- 對話狀態翻轉（F-018 handover 啟用前提）---------------------------
+
+
+@pytest.mark.asyncio
+async def test_escalation_flips_conversation_to_waiting_human(client, monkeypatch):
+    """escalation → 對話狀態必須翻成 escalated（API: waiting_human），
+
+    否則對話管理 HandoverComposer 永遠唯讀、send_message 回 409，客服無法回 LINE。
+    """
+    monkeypatch.setenv("INTERNAL_API_TOKEN", _TOKEN)
+    resp = await client.post(INGEST_PATH, json=_body(), headers={"X-Internal-Token": _TOKEN})
+    assert resp.status_code == 200, resp.text
+    conv_id = resp.json()["data"]["conversation_id"]
+
+    from services import conversation_service
+
+    conv = await conversation_service.get_conversation(
+        tenant_id=DEFAULT_TENANT_ID, conv_id=conv_id
+    )
+    # _coerce_status：DB 'escalated' → API 'waiting_human'
+    assert conv["status"] == "waiting_human", conv
+
+
+@pytest.mark.asyncio
+async def test_re_escalation_keeps_waiting_human(client, monkeypatch):
+    """同 session 再次 escalation（dedup 路徑）仍維持 escalated。"""
+    monkeypatch.setenv("INTERNAL_API_TOKEN", _TOKEN)
+    body = _body()
+    r1 = await client.post(INGEST_PATH, json=body, headers={"X-Internal-Token": _TOKEN})
+    assert r1.status_code == 200
+    conv_id = r1.json()["data"]["conversation_id"]
+
+    r2 = await client.post(
+        INGEST_PATH, json={**body, "reason": "再次催促"}, headers={"X-Internal-Token": _TOKEN}
+    )
+    assert r2.status_code == 200
+    assert r2.json()["data"]["created"] is False
+
+    from services import conversation_service
+
+    conv = await conversation_service.get_conversation(
+        tenant_id=DEFAULT_TENANT_ID, conv_id=conv_id
+    )
+    assert conv["status"] == "waiting_human", conv
+
+
 # --------------------------- source filter（service 層，免 JWT）---------------------------
 
 
