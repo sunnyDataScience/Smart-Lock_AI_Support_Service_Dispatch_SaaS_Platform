@@ -162,6 +162,20 @@ LINE 客人訊息
   <li>生出工單 <strong><code>NT-000xxx</code></strong>；工單詳情頁可看到關聯的 LINE 對話逐字稿</li>
 </ol>
 
+<h3>③ 客服直接接管回覆 + 交還 AI（CR-0024）</h3>
+<p>轉真人後，<strong>對話會自動進入「等待人工」（DB <code>escalated</code>）</strong>，這時：</p>
+<ul>
+  <li><strong>AI 自動暫停</strong> — gateway 每輪回覆前查接管狀態，escalated 時 AI 不回（只把客人訊息存進後台），避免 AI 與真人同時回。</li>
+  <li><strong>客服在對話管理回覆</strong> — <code>/conversations</code> → 點該對話 → 底部發訊框（此時才會亮）打字 → <strong>發送</strong> → 直接 push 到客人 LINE。</li>
+  <li><strong>處理完交還 AI</strong> — 兩種方式（任一即可，對話回 <code>active</code>、AI 恢復自動接待）：
+    <ol class="steps">
+      <li>對話詳情頁接管橫幅點「<strong>結束接管 / 交還 AI</strong>」按鈕</li>
+      <li>或：關聯<strong>工單結案（完成 / 取消）時自動連動</strong>交還</li>
+    </ol>
+  </li>
+</ul>
+<div class="note"><strong>前提：</strong>客服 push 回 LINE 需要 api 服務有 <code>LINE_CHANNEL_ACCESS_TOKEN</code>（compose 讀根 <code>.env</code> 已含）；發訊框只在 <code>escalated</code> 狀態亮起；角色需 admin / 客服 / 主管。</div>
+
 <h2><span class="n">6</span>驗證有沒有寫進去</h2>
 <p>不靠 LINE 也能驗證橋接通：對 ingest 端點帶 token 送一筆（會真的寫 DB）：</p>
 <pre><code>curl -s -X POST http://localhost:8001/api/v1/internal/conversations/ingest \
@@ -176,7 +190,7 @@ LINE 客人訊息
 <table>
   <tr><th>步驟</th><th>動作</th></tr>
   <tr><td>1</td><td><code>agent/config.toml</code> → <code>[memory] backend = "postgres"</code></td></tr>
-  <tr><td>2（換新環境才需）</td><td><code>docker exec -i lock_AI psql -U lock -d lock_AI_data &lt; SQL/migrations/033-agent-memory-schema.sql</code></td></tr>
+  <tr><td>2（換新環境才需）</td><td><code>docker compose exec -T db psql -U lock -d lock_AI_data &lt; SQL/migrations/033-agent-memory-schema.sql</code></td></tr>
   <tr><td>3</td><td>啟動前 <code>export POSTGRES_URI="postgresql://lock:0000@localhost:5433/lock_AI_data"</code></td></tr>
 </table>
 <p>啟動 banner 的「記憶後端」欄會顯示目前用哪個。</p>
@@ -190,10 +204,14 @@ LINE 客人訊息
   <tr><td>啟動即 <code>缺 LINE_CHANNEL_*</code> 退出</td><td>憑證沒在 <code>agent/.env</code>。</td></tr>
   <tr><td>傳訊息只回罐頭</td><td>Auto-reply / Greeting 沒關。</td></tr>
   <tr><td>重啟後 LINE 收不到</td><td><strong>ngrok-free URL 每次重啟都會變</strong>，回 Console 重貼 + Verify。</td></tr>
+  <tr><td>客服在對話管理「發送」了，客人 LINE 沒收到</td><td>api 容器缺 <code>line-bot-sdk</code> 或 <code>LINE_CHANNEL_ACCESS_TOKEN</code> → push fail-soft 靜默（訊息只進 DB）。已修：sdk 納 api 正式依賴；token 在根 <code>.env</code>。查 api log <code>line_push ok/skipped</code>。</td></tr>
+  <tr><td>轉真人了，但對話管理發訊框是灰的</td><td>對話沒進 <code>escalated</code>。已修（escalation 會翻狀態）；舊對話可由後台重新觸發或確認狀態。</td></tr>
+  <tr><td>對話詳情頁狂噴 <span class="bad">404 /realtime/diagnostics</span></td><td>診斷 SSE 後端未實作，已與 WS 頻道解耦（獨立 env，預設停用）。WS 即時推送（通知/接單池）不受影響。</td></tr>
+  <tr><td>後台多頁顯示「Realtime 未配置」</td><td>web build 沒帶 <code>NEXT_PUBLIC_REALTIME_BASE_URL</code>（NEXT_PUBLIC_* 是 build-time 烤入）。compose 已預設 <code>ws://localhost:8001</code>；雲端傳 <code>wss://&lt;api 網域&gt;</code>。</td></tr>
 </table>
 
 <h2><span class="n">9</span>本機全 docker（docker compose）</h2>
-<p>不想一個個開終端，可用 <code>docker-compose.yml</code> 一鍵起 <strong>api / agent / web</strong>（沿用三個 Dockerfile）。<strong>DB 不在 compose</strong>——沿用既有 <code>lock_AI</code> 容器（透過 <code>host.docker.internal:5433</code> 連），<strong>ngrok 也不在</strong>——維持 host 上自己跑。</p>
+<p>用 <code>docker-compose.yml</code> 一鍵起 <strong>db / api / agent / web</strong>（沿用各自 Dockerfile）。<strong>DB 已納入 compose</strong>（<code>feat/compose-db-service</code>）——pgvector/pg17 + named volume <code>pgdata</code>，自包含、零外部依賴；<strong>ngrok 不在 compose</strong>——維持 host 上自己跑。</p>
 <pre><code><span class="cmt"># 0) 先停掉佔用 8000/8001 的原生進程（否則埠衝突）</span>
 <span class="cmt"># 1) 一鍵起三服務（背景）</span>
 docker compose up -d --build
@@ -201,12 +219,14 @@ docker compose up -d --build
 ngrok http 8000
 <span class="cmt"># 看 log / 停</span>
 docker compose logs -f agent
-docker compose down            <span class="cmt"># 不影響 lock_AI DB 容器</span></code></pre>
+docker compose down            <span class="cmt"># 停（保留 pgdata 資料）</span>
+docker compose down -v         <span class="cmt"># ⚠️ 連 pgdata 一起刪 — 會清空資料庫！平時別加 -v</span></code></pre>
 <table>
   <tr><th>服務</th><th>host 埠</th><th>連線</th></tr>
-  <tr><td>api</td><td>8001 → 8080</td><td>連 DB <code>host.docker.internal:5433</code></td></tr>
+  <tr><td>db</td><td>5433 → 5432</td><td>pgvector/pg17 + volume <code>pgdata</code>（compose 內部 <code>db:5432</code>）</td></tr>
+  <tr><td>api</td><td>8001 → 8080</td><td>連 DB compose 內網 <code>db:5432</code></td></tr>
   <tr><td>agent</td><td>8000 → 8080</td><td>連 api <code>http://api:8080</code>（compose 網路）；Vertex 用掛載的 <code>credentials.json</code></td></tr>
-  <tr><td>web</td><td>3000 → 8080</td><td>瀏覽器打 <code>http://localhost:8001</code>（build 時烤入）</td></tr>
+  <tr><td>web</td><td>3000 → 8080</td><td>瀏覽器打 <code>http://localhost:8001</code>（build 時烤入）；即時推送 <code>ws://localhost:8001</code></td></tr>
 </table>
 <div class="note"><strong>機密 / 設定：</strong>compose 讀根 <code>.env</code>（env_file），host 專屬值（<code>POSTGRES_URI</code>/<code>LOCK_API_BASE_URL</code>/<code>INTERNAL_API_TOKEN</code>/<code>AGENT_TENANT_ID</code>）在 compose 的 <code>environment</code> 覆蓋，不必手動 export。</div>
 <div class="danger"><strong>Cloud Run 不吃 docker-compose。</strong>compose <strong>只供本機</strong>。上雲是「一個 service = 一個容器映像」，各自用 <code>scripts/deploy/{api,agent,web}.sh</code>（<code>docker build</code> 同一份 Dockerfile + <code>gcloud run deploy</code>）。共用的是 <strong>Dockerfile</strong>，不是 compose；服務間連線改各自的 Cloud Run HTTPS URL、DB 改 Cloud SQL、機密改 Secret Manager。</div>
