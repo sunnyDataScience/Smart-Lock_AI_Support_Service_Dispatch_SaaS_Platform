@@ -21,7 +21,7 @@ import logging
 import os
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from core.deps import require_internal_token
 from models.internal import EscalationIngestRequest, IngestTurnRequest
@@ -82,6 +82,28 @@ async def ingest_conversation_turn(
         str(result.get("conversation_id"))[:8],
         result.get("messages_appended", 0),
         body.line_user_id[:8],
+    )
+    return {"data": result, "error": None}
+
+
+@router.get(
+    "/internal/conversations/handover-state",
+    operation_id="getConversationHandoverState",
+    summary="內部：查對話是否處於人工接管中（CR-0024，agent gateway 回覆前判斷用）",
+    tags=["internal"],
+)
+async def get_handover_state(
+    tenant_id: str = Query(..., description="租戶 UUID 或別名"),
+    session_id: str = Query(..., description="對話 session_id（外部冪等鍵）"),
+    _auth: None = Depends(require_internal_token),
+) -> dict:
+    """gateway 在跑 turn 前查此端點：escalated=true 時 AI 暫停（Phase 1 全暫停）。
+
+    查無對話 → escalated=false（agent 照常回，fail-soft 友善預設）。
+    """
+    result = await conversation_service.get_handover_state(
+        tenant_id=_resolve_tenant_id(tenant_id),
+        session_id=session_id,
     )
     return {"data": result, "error": None}
 

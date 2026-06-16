@@ -460,6 +460,36 @@ async def accept_order(*, tenant_id: str, wo_id: str) -> dict:
     )
 
 
+async def _unescalate_linked_conversation(*, tenant_id: str, wo_id: str) -> None:
+    """工單結案連動：把關聯對話從 escalated 交還 AI（CR-0024 Phase 1，D2-b）。
+
+    鏈：work_order.problem_card_id → problem_cards.conversation_id。
+    **fail-soft**：找不到鏈、對話非 escalated、或任何錯誤都只 log，絕不阻斷工單結案。
+    """
+    try:
+        cur = await db_module._conn.execute(
+            "SELECT pc.conversation_id FROM work_orders wo "
+            "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
+            "WHERE wo.id = %s::uuid AND pc.conversation_id IS NOT NULL",
+            (wo_id,),
+        )
+        row = await cur.fetchone()
+        if not row or not row[0]:
+            return
+        upd = await db_module._conn.execute(
+            "UPDATE conversations SET status = 'active', updated_at = NOW() "
+            "WHERE id = %s::uuid AND status = 'escalated'",
+            (str(row[0]),),
+        )
+        if getattr(upd, "rowcount", 0):
+            logger.info(
+                "WO 結案連動交還 AI: wo=%s conv=%s escalated→active",
+                wo_id[:8], str(row[0])[:8],
+            )
+    except Exception:  # noqa: BLE001 — 連動失敗不可阻斷結案
+        logger.warning("WO 結案連動交還對話失敗 (wo=%s)", wo_id, exc_info=True)
+
+
 async def complete_order(
     *,
     tenant_id: str,
@@ -494,6 +524,7 @@ async def complete_order(
         "WHERE id = %s::uuid",
         (summary, final_price, wo_id),
     )
+    await _unescalate_linked_conversation(tenant_id=tenant_id, wo_id=wo_id)
     return await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.completed"
     )
@@ -543,6 +574,7 @@ async def cancel_order(
             tenant_id=tenant_id, wo_id=wo_id, technician_id=tech_id,
             event="cancelled",
         )
+    await _unescalate_linked_conversation(tenant_id=tenant_id, wo_id=wo_id)
     return await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.cancelled"
     )
