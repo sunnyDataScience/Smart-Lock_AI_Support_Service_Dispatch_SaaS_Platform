@@ -173,14 +173,17 @@ async def require_internal_token(
     **Fail closed**：env 未設定時一律拒絕（503），絕不放行無認證的 DB 寫入端點。
     比對用 `hmac.compare_digest` 做常數時間比較，避免 timing attack。
     """
-    expected = os.getenv("INTERNAL_API_TOKEN")
+    # .strip()：secret 值可能帶尾換行（openssl rand | gcloud secrets create 留 \n）；
+    # 兩邊都 strip 才能正確比對（agent 端送 header 前亦 strip）。
+    expected = (os.getenv("INTERNAL_API_TOKEN") or "").strip()
     if not expected:
         raise ApiError(
             error_code="INTERNAL_AUTH_NOT_CONFIGURED",
             message="Internal API token not configured on server",
             status_code=503,
         )
-    if not x_internal_token or not hmac.compare_digest(x_internal_token, expected):
+    incoming = (x_internal_token or "").strip()
+    if not incoming or not hmac.compare_digest(incoming, expected):
         raise ApiError(
             error_code="INTERNAL_AUTH_FAILED",
             message="Missing or invalid X-Internal-Token",
