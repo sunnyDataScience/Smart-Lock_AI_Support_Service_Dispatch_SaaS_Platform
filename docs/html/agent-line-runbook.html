@@ -192,12 +192,31 @@ LINE 客人訊息
   <tr><td>重啟後 LINE 收不到</td><td><strong>ngrok-free URL 每次重啟都會變</strong>，回 Console 重貼 + Verify。</td></tr>
 </table>
 
-<h2><span class="n">9</span>停止</h2>
-<p>三個終端各按 <kbd>Ctrl</kbd>+<kbd>C</kbd>。確認 port 釋放：<code>lsof -nP -iTCP:8000 -sTCP:LISTEN</code> / <code>:8001</code>（無輸出 = 已停）。</p>
+<h2><span class="n">9</span>本機全 docker（docker compose）</h2>
+<p>不想一個個開終端，可用 <code>docker-compose.yml</code> 一鍵起 <strong>api / agent / web</strong>（沿用三個 Dockerfile）。<strong>DB 不在 compose</strong>——沿用既有 <code>lock_AI</code> 容器（透過 <code>host.docker.internal:5433</code> 連），<strong>ngrok 也不在</strong>——維持 host 上自己跑。</p>
+<pre><code><span class="cmt"># 0) 先停掉佔用 8000/8001 的原生進程（否則埠衝突）</span>
+<span class="cmt"># 1) 一鍵起三服務（背景）</span>
+docker compose up -d --build
+<span class="cmt"># 2) 對外接 LINE（照舊在 host 跑）</span>
+ngrok http 8000
+<span class="cmt"># 看 log / 停</span>
+docker compose logs -f agent
+docker compose down            <span class="cmt"># 不影響 lock_AI DB 容器</span></code></pre>
+<table>
+  <tr><th>服務</th><th>host 埠</th><th>連線</th></tr>
+  <tr><td>api</td><td>8001 → 8080</td><td>連 DB <code>host.docker.internal:5433</code></td></tr>
+  <tr><td>agent</td><td>8000 → 8080</td><td>連 api <code>http://api:8080</code>（compose 網路）；Vertex 用掛載的 <code>credentials.json</code></td></tr>
+  <tr><td>web</td><td>3000 → 8080</td><td>瀏覽器打 <code>http://localhost:8001</code>（build 時烤入）</td></tr>
+</table>
+<div class="note"><strong>機密 / 設定：</strong>compose 讀根 <code>.env</code>（env_file），host 專屬值（<code>POSTGRES_URI</code>/<code>LOCK_API_BASE_URL</code>/<code>INTERNAL_API_TOKEN</code>/<code>AGENT_TENANT_ID</code>）在 compose 的 <code>environment</code> 覆蓋，不必手動 export。</div>
+<div class="danger"><strong>Cloud Run 不吃 docker-compose。</strong>compose <strong>只供本機</strong>。上雲是「一個 service = 一個容器映像」，各自用 <code>scripts/deploy/{api,agent,web}.sh</code>（<code>docker build</code> 同一份 Dockerfile + <code>gcloud run deploy</code>）。共用的是 <strong>Dockerfile</strong>，不是 compose；服務間連線改各自的 Cloud Run HTTPS URL、DB 改 Cloud SQL、機密改 Secret Manager。</div>
+
+<h2><span class="n">10</span>停止</h2>
+<p>原生模式：各終端 <kbd>Ctrl</kbd>+<kbd>C</kbd>。docker 模式：<code>docker compose down</code>。確認 port 釋放：<code>lsof -nP -iTCP:8000 -sTCP:LISTEN</code> / <code>:8001</code>（無輸出 = 已停）。</p>
 
 <footer>
-  LockCore CS Agent · LINE 啟動 + 工單觸發手冊　|　Gateway: <code>agent/scripts/line_gateway.py</code>　|　橋接 fix: <code>fix/agent-api-bridge-visibility</code>（CHANGELOG 2026-06-15）<br>
-  相關：方案 A 對話旁路 · CR-0022/ADR-0112 HITL 草擬卡 · CR-0023/ADR-0113 記憶 Postgres。架構鎖細節見 <code>CLAUDE.md</code>。
+  LockCore CS Agent · LINE 啟動 + 工單觸發手冊　|　Gateway: <code>agent/scripts/line_gateway.py</code>　|　本機 docker: <code>docker-compose.yml</code> · 雲端: <code>scripts/deploy/{api,agent,web}.sh</code><br>
+  相關：方案 A 對話旁路 · CR-0022/ADR-0112 HITL 草擬卡 · CR-0023/ADR-0113 記憶 Postgres · agent/Dockerfile + 000-extensions（部署容器化）。架構鎖細節見 <code>CLAUDE.md</code>。
 </footer>
 
 </div>
