@@ -2199,9 +2199,11 @@ name = "smart-lock-api"
 version = "0.1.0"
 source = { virtual = "api" }
 dependencies = [
+    { name = "aiohttp" },
     { name = "bcrypt" },
     { name = "fastapi" },
     { name = "jsonschema" },
+    { name = "line-bot-sdk" },
     { name = "passlib", extra = ["bcrypt"] },
     { name = "psycopg", extra = ["binary"] },
     { name = "pydantic", extra = ["email"] },
@@ -2214,9 +2216,11 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "aiohttp", specifier = ">=3.9" },
     { name = "bcrypt", specifier = "<4.1" },
     { name = "fastapi", specifier = ">=0.110" },
     { name = "jsonschema", specifier = ">=4.23.0" },
+    { name = "line-bot-sdk", specifier = ">=3.0" },
     { name = "passlib", extras = ["bcrypt"], specifier = ">=1.7" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pydantic", specifier = ">=2.6" },

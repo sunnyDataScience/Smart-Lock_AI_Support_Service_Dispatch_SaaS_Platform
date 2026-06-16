@@ -19,6 +19,11 @@ dependencies = [
     "bcrypt<4.1",
     # === PDF generation (vouchers / reports) ===
     "reportlab>=4.0",
+    # === LINE 通道（webhook 接收 + 客服接管 push + push outbox worker）===
+    # line_webhook.py / line_push_service.py / line_push_outbox_worker.py 皆 import linebot.v3；
+    # 為常駐 API 功能（非 optional），缺它 → handover 發訊 fail-soft 靜默不送（誰都回不了 LINE）。
+    "line-bot-sdk>=3.0",
+    "aiohttp>=3.9",
     # === 雜項 ===
     "python-dotenv>=1.0",
     "jsonschema>=4.23.0",
