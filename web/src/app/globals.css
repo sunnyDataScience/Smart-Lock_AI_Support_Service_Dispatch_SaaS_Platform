@@ -163,6 +163,35 @@ html { color-scheme: light dark; }
 [data-theme="light"] { color-scheme: light; }
 [data-theme="dark"] { color-scheme: dark; }
 
+/* ─────────────────────────────────────────────────────────────────────────
+ * 深色模式相容補丁（過渡）
+ *
+ * 問題：全站約 68 個元件硬編了「中性淺色 surface」與「中性深色 text」的
+ *   Tailwind arbitrary 值（如 bg-[#F8FAFC] / text-[#18181B]），這些硬編色不會
+ *   隨 data-theme 翻轉 → 深色模式下文字色（主題變數）翻成淺色、但卡片背景仍是
+ *   硬編淺色 → 白字白底、看不到字（settings / 各卡片區塊最明顯）。
+ *
+ * 正解：元件改用 var(--…)。但量大，先以此單檔補丁把「中性」硬編色在深色模式
+ *   重映射到主題變數，立即消除白字白底。語意色 badge（warn/info/danger/success）
+ *   的 bg+fg 是成對硬編、本身可讀，故不動。
+ * ───────────────────────────────────────────────────────────────────────── */
+[data-theme="dark"] .bg-\[\#FFFFFF\] { background-color: var(--bg-surface) !important; }
+[data-theme="dark"] .bg-\[\#F8FAFC\] { background-color: var(--surface-subtle) !important; }
+[data-theme="dark"] .bg-\[\#F1F5F9\] { background-color: var(--surface-strong) !important; }
+[data-theme="dark"] .bg-\[\#E2E8F0\] { background-color: var(--surface-strong) !important; }
+[data-theme="dark"] .bg-\[\#EFF6FF\],
+[data-theme="dark"] .bg-\[\#F0F9FF\] { background-color: var(--primary-light) !important; }
+[data-theme="dark"] .bg-\[\#FEF2F2\] { background-color: var(--badge-danger-bg) !important; }
+
+[data-theme="dark"] .text-\[\#18181B\],
+[data-theme="dark"] .text-\[\#0F172A\] { color: var(--text-primary) !important; }
+[data-theme="dark"] .text-\[\#71717A\],
+[data-theme="dark"] .text-\[\#A1A1AA\] { color: var(--text-tertiary) !important; }
+
+[data-theme="dark"] .border-\[\#E4E4E7\],
+[data-theme="dark"] .border-\[\#E2E8F0\],
+[data-theme="dark"] .border-\[\#CBD5E1\] { border-color: var(--border) !important; }
+
 @layer base {
   html, body {
     height: 100%;
