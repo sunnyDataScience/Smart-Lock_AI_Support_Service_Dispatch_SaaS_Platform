@@ -67,6 +67,34 @@ async def _persist_turn_safe(
         logger.warning("對話持久化失敗(已略過,不影響客人)", exc_info=True)
 
 
+async def _handover_active_safe(tenant: str, user_id: str) -> bool:
+    """查該對話是否處於人工接管中（CR-0024 Phase 1）。escalated → True 表 AI 應暫停。
+
+    **fail-soft**：bridge env 未設、查不到、逾時或任何錯誤 → 回 False（AI 照常回，
+    絕不因為查詢失敗就把客人晾著）。Phase 1 只看 escalated 旗標（全暫停）。
+    """
+    base_url = os.environ.get("LOCK_API_BASE_URL")
+    token = os.environ.get("INTERNAL_API_TOKEN")
+    if not (base_url and token):
+        return False
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=_PERSIST_TIMEOUT_SEC) as client:
+            resp = await client.get(
+                f"{base_url.rstrip('/')}/api/v1/internal/conversations/handover-state",
+                params={"tenant_id": tenant, "session_id": f"{tenant}:{user_id}"},
+                headers={"X-Internal-Token": token},
+            )
+            if resp.status_code >= 400:
+                logger.warning("查接管狀態回 {}:{}", resp.status_code, resp.text[:160])
+                return False
+            return bool(resp.json().get("data", {}).get("escalated", False))
+    except Exception:  # noqa: BLE001 — 查詢失敗不可阻斷客人，預設 AI 照常回
+        logger.warning("查接管狀態失敗（已略過，AI 照常回）", exc_info=True)
+        return False
+
+
 def _latest_escalation_id(esc: Any, tenant: str, user_id: str) -> int:
     """取該 user 最新 escalation id(無則 0)。用來偵測本輪是否新增轉真人紀錄。"""
     if esc is None:
@@ -208,6 +236,15 @@ def build_webapp(
                     continue
                 _, user_id = resolve_identity("line", native_id, tenant)
                 user_text = event.message.text
+
+                # CR-0024 Phase 1:對話處於人工接管中 → AI 全暫停(不跑 turn、不回覆),
+                # 只把客人這句旁路持久化讓客服在對話管理看得到;由真人回覆。
+                # 交還(對話管理按鈕 / 工單結案)把對話翻回 active 後,AI 自動恢復。
+                if await _handover_active_safe(tenant, user_id):
+                    logger.info("對話接管中,AI 暫停回覆 user={}", user_id[:8])
+                    await _persist_turn_safe(tenant, user_id, user_text, "")
+                    continue
+
                 # CR-0022:記本輪前的最新 escalation id,turn 後比對是否新增(觸發轉真人)。
                 esc_before = _latest_escalation_id(escalation_store, tenant, user_id)
                 try:
