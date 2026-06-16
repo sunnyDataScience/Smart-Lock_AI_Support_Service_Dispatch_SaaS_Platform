@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 2026-Q2 Tactical Refactor
 
+### Added
+
+- **即時推送（WebSocket）docker 部署接線（branch `feat/web-realtime-enable`，2026-06-16）**：後台通知中心 / 接單池 / 改約頁 / 角色權限變更橫幅顯示「Realtime 未配置」。**根因**：後端 WS server 早已內建於 api（`api/main.py` `@app.websocket("/realtime/notifications/{user_id}")` / `/work-orders/{wo_id}` 等 + `realtime/ws_hub.py`，query 帶 `access_token`+`tenant_id` 驗證），缺的只是前端環境變數 `NEXT_PUBLIC_REALTIME_BASE_URL` —— Next.js `NEXT_PUBLIC_*` 是 **build-time inline**、預設空字串 → `realtime.ts` 走 `disabled` 降級（頁面仍以一般 fetch 運作、僅無即時 push）。對比 `NEXT_PUBLIC_API_BASE_URL` 因 code 內有 `?? "http://localhost:8001"` 預設值故一直能用。**修復**：(a) `web/Dockerfile` builder stage 加 `ARG NEXT_PUBLIC_REALTIME_BASE_URL` → `ENV`（next build 前烤入 bundle）；(b) `docker-compose.yml` web `build.args` 帶 `${NEXT_PUBLIC_REALTIME_BASE_URL:-ws://localhost:8001}`（瀏覽器直連 api published port 8001）。**驗證**：重建 web → bundle 內確認含 `ws://localhost:8001`；Playwright 登入通知頁 → 指示燈由「未配置」(disabled) 變 open「即時連線」(綠燈) —— WS 連上且通過 token 驗證。**Cloud Run**：換 `wss://<api 網域>` 同 build-arg 即可（雲端 web build 時傳入）。
+
 ### Fixed
 
 - **客服接管發訊不到 LINE — api 缺 line-bot-sdk 依賴（branch `fix/escalation-set-conversation-status`，2026-06-16）**：對話翻 escalated 後，客服在對話管理打字「發送」→ 訊息有寫進 DB（handover write 成功），但 **push 不到 LINE**。根因：`api/services/line_push_service.py`（含 `line_webhook.py` / `line_push_outbox_worker.py`）`import linebot.v3` 但 **`api/pyproject.toml` 從未宣告 `line-bot-sdk` 依賴** → 容器內 `No module named 'linebot'` → `_get_configuration()` 回 None → push fail-soft 靜默略過（log 誤報 `LINE_CHANNEL_ACCESS_TOKEN missing`，實際 token 有設、是 SDK 缺）。**修復**：`line-bot-sdk>=3.0` + `aiohttp>=3.9` 加進 api **正式依賴**（非 optional —— webhook 接收 / handover push / outbox worker 皆 API 常駐功能），重生 `uv.lock`。**驗證**：重建 docker api → 容器內 `import linebot.v3.messaging` OK、token printenv 確認在位。**註**：實際對外 push 由使用者從 UI 自測（避免自動發訊給真實 LINE 用戶）;Cloud Run 部署同步受惠（雲端 api 映像本來也缺此 SDK）。
