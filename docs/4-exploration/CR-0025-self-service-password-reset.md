@@ -139,7 +139,21 @@ State machine：reset token 狀態 `pending → used`（或 `expired`，由 `exp
 
 | Role | Name | Date | Approved? |
 |---|---|---|---|
-| Product（業主）| | | |
+| Product（業主）| Sunny | 2026-06-17 | ✅（§8 全裁決）|
 | Architect | | | |
 | Engineering Lead | | | |
 | QA Lead | | | |
+
+## 13. 實作進度
+
+- ✅ S1 Decisions → `ADR-0114`（merge 待）
+- ✅ S2 Schema → migration `035-password-reset-tokens.sql`
+- ⏳ S3 送達管道整合 → `email_provider.py`（SMTP 抽象）已寫；**prod 待配 SMTP secret + api.sh 接線**
+- ✅ S4 Domain/Service → `password_reset_service.py`（request/confirm）
+- ✅ S5 API → `request/confirm-password-reset` 端點（openapi 正式 yaml 待補登）
+- ✅ S6 Tests → `test_password_reset.py` 8 案（**需 dev stack：DB + migration 035 才能跑**，尚未執行）
+- ✅ S7 UI → `/forgot-password` + `/reset-password` + 兩登入頁連結 + i18n（tsc 0 error）
+- ⏳ S8 Traceability matrix → 待補
+- ⏳ S9 Docs sync → CHANGELOG ✅ / completion-status ✅ / auth.py 註解 ✅ / doc-freshness 待跑
+
+**已知 follow-up（§10）**：confirm 後未全域撤該 user refresh token（需 `users.password_changed_at` epoch 檢查，另開 CR）。

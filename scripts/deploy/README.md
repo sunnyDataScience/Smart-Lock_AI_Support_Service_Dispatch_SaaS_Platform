@@ -223,6 +223,26 @@ docker run --rm -it --entrypoint sh asia-east1-docker.pkg.dev/.../smart-lock-age
 ls /app/.venv/lib/python3.11/site-packages/
 ```
 
+### Q: 啟用自助忘記密碼 email（CR-0025 / ADR-0114）
+
+自助重設預設**未送信**（`email_provider` 未配置 SMTP 時 fail-safe：token 仍建、`/auth/request-password-reset` 仍回 200，但信不送）。要實際送信：
+
+```bash
+# 1. 建 SMTP secret（用信譽 provider 的 SMTP endpoint：SendGrid / SES / ...）
+printf '%s' "<SMTP_HOST>"     | gcloud secrets create SMTP_HOST --data-file=-
+printf '%s' "<SMTP_USER>"     | gcloud secrets create SMTP_USER --data-file=-
+printf '%s' "<SMTP_PASSWORD>" | gcloud secrets create SMTP_PASSWORD --data-file=-
+# 授權 SA 讀（同既有 secret 迴圈）
+
+# 2. api.sh 部署時帶入這些 secret 為 env（SMTP_HOST/SMTP_USER/SMTP_PASSWORD/
+#    SMTP_PORT/SMTP_FROM/SMTP_USE_TLS）+ env PASSWORD_RESET_WEB_URL=<web Cloud Run URL>
+#    （未設 PASSWORD_RESET_WEB_URL 時 fallback 取 CORS_ORIGINS[0]）
+
+# 3. 套 migration 035（apply-schema-prod.sh 已涵蓋 migrations/*.sql，會自動帶到）
+```
+
+> 未配 SMTP 不會壞：request 照常 200、token 建但信不送（log 留警告）。確認 prod 真能收信再放給使用者用。
+
 ### Q: 想看 prod 對話 / audit log
 
 **不要**直接連 prod DB query。改走情境 B：

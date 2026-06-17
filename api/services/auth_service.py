@@ -176,8 +176,12 @@ async def change_password(*, user_id: str, current_password: str, new_password: 
 async def admin_reset_password(*, email: str, tenant_id: str) -> str:
     """管理員代為重設：把同租戶指定 email 的密碼重設為隨機臨時密碼,回傳明文。
 
-    機制由業主裁決（2026-06-10 會議 Action #7）：免 email 基礎設施,admin 在後台
-    重設後把臨時密碼轉達使用者,使用者登入後自行用 change_password 改回。
+    機制原由 2026-06-10 會議 Action #7（免 email、admin 代重設）裁定。
+    **2026-06-17 CR-0025 / ADR-0114 已上線自助 email 重設**（見
+    password_reset_service.py），本端點**保留為後備**（離線/緊急 break-glass），
+    非唯一路徑。
+
+    admin 在後台重設後把臨時密碼轉達使用者,使用者登入後自行用 change_password 改回。
 
     規則：
       - 不驗 current_password（admin 權限由 router 的 role guard 把關）
