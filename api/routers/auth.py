@@ -9,7 +9,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from core.deps import CurrentUser, get_current_user, role_required
 from core.idempotency import idempotency_guard, IdempotencyContext
-from services import auth_service
+from services import auth_service, password_reset_service
 
 logger = logging.getLogger("api.routers.auth")
 router = APIRouter()
@@ -35,6 +35,15 @@ class ChangePasswordBody(BaseModel):
 
 class AdminResetPasswordBody(BaseModel):
     email: EmailStr
+
+
+class RequestPasswordResetBody(BaseModel):
+    email: EmailStr
+
+
+class ConfirmPasswordResetBody(BaseModel):
+    token: str = Field(min_length=10, max_length=128)
+    new_password: str = Field(min_length=8, max_length=72)  # bcrypt 72 byte 上限
 
 
 class TechnicianRegisterBody(BaseModel):
@@ -147,6 +156,35 @@ async def admin_reset_password(
         email=body.email, tenant_id=user.tenant_id
     )
     return {"data": {"email": body.email, "temp_password": temp}}
+
+
+@router.post(
+    "/auth/request-password-reset",
+    operation_id="requestPasswordReset",
+    summary="申請密碼重設（自助，寄送重設連結到 email）",
+    status_code=200,
+)
+async def request_password_reset(body: RequestPasswordResetBody, request: Request) -> dict:
+    """自助忘記密碼 step 1（CR-0025 / ADR-0114）。
+
+    **帳號枚舉防護**：不論 email 是否存在，一律回 200 同一訊息；實際是否寄出由
+    service 端決定（不存在 / 停用 / rate-limit / SMTP 未配置皆安靜略過）。
+    """
+    client_ip = request.client.host if request.client else None
+    await password_reset_service.request_reset(email=body.email, request_ip=client_ip)
+    return {"data": None, "message": "若該帳號存在，重設連結已寄出，請於 30 分鐘內使用"}
+
+
+@router.post(
+    "/auth/confirm-password-reset",
+    operation_id="confirmPasswordReset",
+    summary="以重設 token 設定新密碼",
+    status_code=204,
+)
+async def confirm_password_reset(body: ConfirmPasswordResetBody) -> Response:
+    """自助忘記密碼 step 2：驗 token（未過期/未用）→ 設新密碼 → 標 token 已用。"""
+    await password_reset_service.confirm_reset(token=body.token, new_password=body.new_password)
+    return Response(status_code=204)
 
 
 @router.post(
