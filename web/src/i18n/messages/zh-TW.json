@@ -2036,8 +2036,8 @@
       "passwordPlaceholder": "••••••",
       "submit": "登入",
       "submitting": "登入中…",
-      "forgotPassword": "忘記密碼（待補）",
-      "forgotPasswordTitle": "V2.0 規劃",
+      "forgotPassword": "忘記密碼？請聯絡管理員重設",
+      "forgotPasswordTitle": "目前不支援自助重設，請聯絡管理員代為重設密碼",
       "adminLink": "我是管理員 →",
       "footerVersion": "v0.1 — 技師端 PWA"
     },

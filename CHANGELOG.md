@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **技師登入頁「忘記密碼」死按鈕收尾（branch `fix/tech-login-forgot-hint`，2026-06-17）**：20260610 會議 Action #7「忘記密碼功能」**已由 `admin-reset-password`（admin 代重設、回臨時密碼、免 email 基礎設施）實作完成**；但 `tech-login` 頁仍留一顆 `disabled` 的「忘記密碼（待補）/ V2.0 規劃」按鈕——看似可點卻無作用，誤導使用者以為有自助流程。經業主裁決（2026-06-17）**不建自助重設**（會用到的後台 staff/技師無現成送達管道、寄信基礎建設從零，成本不划算）。**修復**：把該 `<button disabled>` 改為純資訊 `<span>`，文案改「忘記密碼？請聯絡管理員重設」（tooltip 說明「目前不支援自助重設，請聯絡管理員代為重設密碼」）。**性質**：純前端文案/標記調整，無 schema / API contract / flow 變動 → 不觸發 CIA。自助重設（email/LINE/SMS OTP，需 reset_token 表 + 管道 + CIA）列為未來可選增強，現階段不做。
+
 - **對話管理聊天捲軸自動跳到最底（branch `feat/handover-lifecycle-phase1`，2026-06-16）**：`ChatTimeline` 原本載入後停在最舊訊息，要手動往下捲才看到最新對話。加 `scrollRef` + `useEffect`（依「訊息數 + 最後一則 id」觸發 `scrollTop = scrollHeight`），涵蓋初次載入 / refetch / 客服送出新訊息三種情境。Playwright 實證 8 則訊息對話開啟即停在底部（`atBottom: true`）。
 
 - **診斷 SSE `/realtime/diagnostics/{id}` 404 無限重連 — 與 WS 頻道解耦（branch `feat/handover-lifecycle-phase1`，2026-06-16）**：`feat/web-realtime-enable` 開了 `NEXT_PUBLIC_REALTIME_BASE_URL` 後,對話詳情頁 `DiagnosticReasoningPanel` 經 `lib/sse.ts`（EventSource）連 `/realtime/diagnostics/{conv_id}`,但**後端從未實作此 SSE 端點**（`api/main.py` 只有 WS 頻道,diagnostics 標「另開」）→ EventSource 拿 404 後自動無限重連,單一對話頁累積 180+ console error。根因:`sse.ts`（diagnostics）與 `realtime.ts`（WS 頻道）**共用同一個 env**,開 WS 連帶把不存在的 SSE 打開。**修復**:`sse.ts` 改用獨立 env `NEXT_PUBLIC_DIAGNOSTICS_SSE_BASE_URL`（預設不設 = 停用,待後端實作再開）,WS 頻道不受影響。**驗證**:重建 web → 對話詳情頁停留 4s **0 console error**（原 180+）;通知頁 WS 指示燈仍「即時連線」。
