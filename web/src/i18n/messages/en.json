@@ -1786,7 +1786,6 @@
         "solutionTitle": "Solution",
         "createdAt": "Created {time}",
         "updatedAt": "Updated {time}",
-        "id": "ID: {id}",
         "embedProcessing": "Indexing",
         "embedReady": "Indexed",
         "embedFailed": "Index failed"

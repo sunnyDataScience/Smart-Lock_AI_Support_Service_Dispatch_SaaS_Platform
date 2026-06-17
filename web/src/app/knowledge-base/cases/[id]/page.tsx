@@ -205,10 +205,11 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
                 </p>
               </section>
 
+              {/* 不顯示內部 UUID（entry.id）—— 內部欄位不外露（20260610 會議 #6）。
+                  路由已用 id，畫面上不再重複露出。 */}
               <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-[var(--text-secondary)]">
                 <span>{tD("createdAt", { time: new Date(entry.created_at).toLocaleString("zh-TW") })}</span>
                 <span>{tD("updatedAt", { time: formatRelative(entry.updated_at) })}</span>
-                <span className="font-mono text-[11px]">{tD("id", { id: entry.id })}</span>
               </div>
             </div>
           ) : null}
