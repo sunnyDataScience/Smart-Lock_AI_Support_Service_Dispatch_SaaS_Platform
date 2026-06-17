@@ -114,9 +114,11 @@ INSERT INTO permissions (resource, action, description) VALUES
     ('settings', 'update', '修改系統設定')
 ON CONFLICT (resource, action) DO NOTHING;
 
--- Indexes
-CREATE INDEX IF NOT EXISTS idx_role_permissions_role ON role_permissions (role_id);
-CREATE INDEX IF NOT EXISTS idx_role_permissions_perm ON role_permissions (permission_id);
+-- 註：以下兩個索引針對「舊版 role_permissions join 表（role_id/permission_id）」，
+-- 已被 F-019 的 Schema_rbac_dynamic.sql（flat role_permissions：role_name/permission_code）
+-- 取代。全新 DB 上 rbac_dynamic 先建 F-019 結構，這兩行必失敗（欄位不存在）→ 移除死碼。
+-- roles / permissions 種子表仍保留（/rbac/roles 端點使用）。
+-- （移除日期 2026-06-16，CR-deploy；歷史見 git blame）
 
 
 -- ============================================================================

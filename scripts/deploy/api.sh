@@ -16,6 +16,7 @@ set -euo pipefail
 PROJECT_ID="cedar-scope-489604-g3"
 REGION="asia-east1"
 SERVICE_NAME="smart-lock-api"
+WEB_SERVICE_NAME="${WEB_SERVICE_NAME:-smart-lock-web}"   # 解析 web URL → CORS_ORIGINS
 REPO="lock-ai-repo"
 
 # Image tag: git short SHA + timestamp（支援 rollback）
@@ -36,11 +37,19 @@ MAX_INSTANCES=3
 TIMEOUT=300
 
 # ── 環境變數 ──
+# AGENT_TENANT_ID：把 agent 送來的別名 tenant（如 "locksmart"）對應到真實租戶 UUID
+#   （internal_ingest._resolve_tenant_id 用）。預設 seed 租戶，prod 不同需覆蓋此值。
+AGENT_TENANT_ID="${AGENT_TENANT_ID:-00000000-0000-0000-0000-000000000001}"
 ENV_VARS="VERTEX_PROJECT_ID=${PROJECT_ID},VERTEX_LOCATION=asia-northeast1"
+ENV_VARS="${ENV_VARS},AGENT_TENANT_ID=${AGENT_TENANT_ID}"
 
 # ── Secrets（Secret Manager → 環境變數）──
 SECRETS="POSTGRES_URI=POSTGRES_URI:latest"
-SECRETS="${SECRETS},JWT_SECRET_KEY=API_JWT_SECRET_KEY:latest"
+SECRETS="${SECRETS},API_JWT_SECRET_KEY=API_JWT_SECRET_KEY:latest"
+# INTERNAL_API_TOKEN：agent gateway 旁路寫入 + 查接管狀態的內部認證（與 agent 同值）
+SECRETS="${SECRETS},INTERNAL_API_TOKEN=INTERNAL_API_TOKEN:latest"
+# LINE_CHANNEL_ACCESS_TOKEN：客服接管後 push 訊息回 LINE（CR-0024 / line_push_service）
+SECRETS="${SECRETS},LINE_CHANNEL_ACCESS_TOKEN=LINE_CHANNEL_ACCESS_TOKEN:latest"
 
 # ── 切到 PROJECT_ROOT（uv workspace 根，docker build context）──
 # 新 Dockerfile 是 multi-stage uv build，需要 PROJECT_ROOT 才能拿到
@@ -103,7 +112,7 @@ preflight_checks() {
         echo "  OK: uv.lock 與 pyproject.toml 同步"
     fi
 
-    local required_secrets=("POSTGRES_URI" "API_JWT_SECRET_KEY")
+    local required_secrets=("POSTGRES_URI" "API_JWT_SECRET_KEY" "INTERNAL_API_TOKEN" "LINE_CHANNEL_ACCESS_TOKEN")
     for secret in "${required_secrets[@]}"; do
         if gcloud secrets describe "${secret}" &>/dev/null; then
             echo "  OK: Secret ${secret}"
@@ -192,6 +201,27 @@ if $DEPLOY; then
         local_image="${IMAGE_BASE}:latest"
     fi
 
+    # 動態解析 web 的 Cloud Run URL → CORS_ORIGINS（瀏覽器跨網域呼叫 api 必需）。
+    # web 尚未部署時（首次）falls back 到 config/localhost；web 部好後重跑 api 即補上。
+    deploy_env_vars="${ENV_VARS}"
+    web_url=$(gcloud run services describe "${WEB_SERVICE_NAME}" \
+        --region="${REGION}" --format='value(status.url)' 2>/dev/null || true)
+    if [[ -n "${web_url}" ]]; then
+        # Cloud Run 每個服務有兩個等價網址：status.url（-<hash>-<gw>.a.run.app）
+        # 與 projectnumber 形式（<svc>-<projnum>.<region>.run.app）。瀏覽器從哪個進來
+        # 就帶哪個 Origin，故 CORS 兩個都要放行（只放一個會讓另一個網址登入 Failed to fetch）。
+        # 多個 origin 以「空白」分隔（不可用逗號 —— gcloud --set-env-vars 以逗號拆 env）。
+        proj_num=$(gcloud projects describe "${PROJECT_ID}" --format='value(projectNumber)' 2>/dev/null || true)
+        cors="${web_url}"
+        if [[ -n "${proj_num}" ]]; then
+            cors="${cors} https://${WEB_SERVICE_NAME}-${proj_num}.${REGION}.run.app"
+        fi
+        deploy_env_vars="${deploy_env_vars},CORS_ORIGINS=${cors}"
+        echo "  CORS_ORIGINS=${cors}"
+    else
+        echo "  WARN: 找不到 ${WEB_SERVICE_NAME} URL —— CORS 用預設（localhost）。web 部署後重跑 api 補上。"
+    fi
+
     echo ""
     echo "=========================================="
     echo " Deploying to Cloud Run: ${SERVICE_NAME}"
@@ -213,7 +243,7 @@ if $DEPLOY; then
         --max-instances="${MAX_INSTANCES}" \
         --timeout="${TIMEOUT}" \
         --add-cloudsql-instances="${CLOUDSQL_INSTANCE}" \
-        --set-env-vars="${ENV_VARS}" \
+        --set-env-vars="${deploy_env_vars}" \
         --set-secrets="${SECRETS}"
 
     SERVICE_URL=$(gcloud run services describe "${SERVICE_NAME}" \

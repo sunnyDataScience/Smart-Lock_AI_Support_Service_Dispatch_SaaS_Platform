@@ -39,7 +39,14 @@ DB_NAME="lock-ai-db"
 DB_SOCKET="/cloudsql/${CLOUDSQL_INSTANCE}"
 
 # ── 環境變數 ──
+# AGENT_TENANT_ID：agent 送 API 的 tenant 別名（"locksmart"）→ 真實租戶 UUID。
+#   api 端 _resolve_tenant_id 解析；兩邊需一致。prod 不同需覆蓋此值。
+AGENT_TENANT_ID="${AGENT_TENANT_ID:-00000000-0000-0000-0000-000000000001}"
+# API_SERVICE_NAME：用來在 deploy 時自動解析 api 的 Cloud Run URL（→ LOCK_API_BASE_URL）。
+API_SERVICE_NAME="${API_SERVICE_NAME:-smart-lock-api}"
 ENV_VARS="VERTEX_PROJECT_ID=${PROJECT_ID},VERTEX_LOCATION=asia-northeast1"
+ENV_VARS="${ENV_VARS},AGENT_TENANT_ID=${AGENT_TENANT_ID}"
+# LOCK_API_BASE_URL（橋接/查接管狀態目標）在 deploy 時動態解析 api 的 Cloud Run URL 後追加。
 
 # ── Secrets（Secret Manager → 環境變數）──
 SECRETS="LINE_CHANNEL_SECRET=LINE_CHANNEL_SECRET:latest"
@@ -47,6 +54,8 @@ SECRETS="${SECRETS},LINE_CHANNEL_ACCESS_TOKEN=LINE_CHANNEL_ACCESS_TOKEN:latest"
 SECRETS="${SECRETS},POSTGRES_URI=POSTGRES_URI:latest"
 SECRETS="${SECRETS},OPIK_API_KEY=OPIK_API_KEY:latest"
 SECRETS="${SECRETS},OPIK_WORKSPACE=OPIK_WORKSPACE:latest"
+# INTERNAL_API_TOKEN：agent 旁路寫 api + 查接管狀態的內部認證（與 api 同值）
+SECRETS="${SECRETS},INTERNAL_API_TOKEN=INTERNAL_API_TOKEN:latest"
 
 # ── 切到 PROJECT_ROOT（uv workspace 根，docker build context）──
 # 新 Dockerfile 是 multi-stage uv build，需要 PROJECT_ROOT 才能拿到
@@ -177,7 +186,7 @@ preflight_checks() {
     fi
 
     # 檢查必要 secrets 存在
-    local required_secrets=("LINE_CHANNEL_SECRET" "LINE_CHANNEL_ACCESS_TOKEN" "POSTGRES_URI" "OPIK_API_KEY" "OPIK_WORKSPACE")
+    local required_secrets=("LINE_CHANNEL_SECRET" "LINE_CHANNEL_ACCESS_TOKEN" "POSTGRES_URI" "OPIK_API_KEY" "OPIK_WORKSPACE" "INTERNAL_API_TOKEN")
     for secret in "${required_secrets[@]}"; do
         if gcloud secrets describe "${secret}" &>/dev/null; then
             echo "  OK: Secret ${secret}"
@@ -292,6 +301,17 @@ if $DEPLOY; then
     local_image="${IMAGE}"
     if ! $BUILD; then
         local_image="${IMAGE_BASE}:latest"
+    fi
+
+    # 動態解析 api 的 Cloud Run URL → LOCK_API_BASE_URL（橋接/查接管狀態目標）
+    api_url=$(gcloud run services describe "${API_SERVICE_NAME}" \
+        --region="${REGION}" --format='value(status.url)' 2>/dev/null || true)
+    if [[ -z "${api_url}" ]]; then
+        echo "  WARN: 找不到 ${API_SERVICE_NAME} 的 Cloud Run URL —— LOCK_API_BASE_URL 未設，"
+        echo "        agent 的對話橋接 / AI 暫停會靜默略過。請先部署 api 再部 agent。"
+    else
+        ENV_VARS="${ENV_VARS},LOCK_API_BASE_URL=${api_url}"
+        echo "  LOCK_API_BASE_URL=${api_url}"
     fi
 
     echo ""

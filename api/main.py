@@ -170,9 +170,20 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# CORS allow_origins：env `CORS_ORIGINS`（逗號分隔）優先，否則用 config，再否則 localhost。
+# Cloud Run 部署時由 deploy 腳本解析 web 的 service URL 帶入（跨網域瀏覽器呼叫必需）。
+_cors_env = os.environ.get("CORS_ORIGINS", "").strip()
+# 同時支援逗號或空白分隔：gcloud --set-env-vars 以逗號分隔多個 env var，故含多個 origin
+# 的 CORS_ORIGINS 值需以空白分隔（避免被 gcloud 誤拆）；此處兩種都接。
+_cors_origins = (
+    _cors_env.replace(",", " ").split()
+    if _cors_env
+    else cfg.system.get("cors_origins", ["http://localhost:3000"])
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cfg.system.get("cors_origins", ["http://localhost:3000"]),
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

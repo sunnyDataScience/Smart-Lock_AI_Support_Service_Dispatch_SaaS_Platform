@@ -21,7 +21,9 @@
 
 import { cacheGet, cacheClear } from "./cache";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8001";
+// 用 || 而非 ??：Docker build-arg 未傳時 ENV 會是空字串 ""（非 undefined），
+// 需讓空字串也 fallback 到本機預設（?? 只攔 null/undefined，會放過 ""）。
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8001";
 
 const STORAGE_KEYS = {
   access: "smartlock.access_token",

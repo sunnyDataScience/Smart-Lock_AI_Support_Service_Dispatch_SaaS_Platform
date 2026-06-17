@@ -32,7 +32,14 @@ _FALLBACK_REPLY = "不好意思,系統忙線中,請稍後再試,或留言由專�
 # 方案 A:對話旁路持久化。把每輪「客人訊息 + AI 回覆」POST 給 API,寫進
 # conversations/messages,使工單/對話後台能重新渲染對話歷史。env 未設 → 略過
 # (不破壞無此設定的既有部署);失敗一律 fail-soft(只 log,絕不阻斷回客人)。
-_PERSIST_TIMEOUT_SEC = 5.0
+#
+# 逾時分兩種：
+# - persist POST 在「回覆送出後」fire-and-forget，拉長到 20s 以撐過 API 冷啟動
+#   （Cloud Run min-instances=0 時冷啟 ~10s），不影響客人回覆延遲。
+# - handover 查詢在「回覆前」會阻塞回覆，維持短逾時 + fail-soft（查不到就 AI 照常回），
+#   避免冷啟動拖慢客人首次回覆。
+_PERSIST_TIMEOUT_SEC = 20.0
+_HANDOVER_CHECK_TIMEOUT_SEC = 5.0
 
 
 async def _persist_turn_safe(
@@ -40,7 +47,9 @@ async def _persist_turn_safe(
 ) -> None:
     """Fire-and-forget 旁路持久化一輪對話到 API。任何失敗只 log,不 raise。"""
     base_url = os.environ.get("LOCK_API_BASE_URL")
-    token = os.environ.get("INTERNAL_API_TOKEN")
+    # .strip()：secret 值可能帶尾換行（openssl rand | gcloud secrets create 會留 \n），
+    # 含換行的 token 放進 HTTP header 會被 httpx 拒（Illegal header value）。
+    token = (os.environ.get("INTERNAL_API_TOKEN") or "").strip()
     if not (base_url and token):
         return  # 未設定 bridge → 安靜略過
     payload = {
@@ -63,8 +72,8 @@ async def _persist_turn_safe(
                 logger.warning(
                     "對話持久化回 {}:{}", resp.status_code, resp.text[:160]
                 )
-    except Exception:  # noqa: BLE001 — 持久化絕不可影響客服回覆
-        logger.warning("對話持久化失敗(已略過,不影響客人)", exc_info=True)
+    except Exception as e:  # noqa: BLE001 — 持久化絕不可影響客服回覆
+        logger.warning("對話持久化失敗(已略過,不影響客人): {!r}", e)
 
 
 async def _handover_active_safe(tenant: str, user_id: str) -> bool:
@@ -74,13 +83,15 @@ async def _handover_active_safe(tenant: str, user_id: str) -> bool:
     絕不因為查詢失敗就把客人晾著）。Phase 1 只看 escalated 旗標（全暫停）。
     """
     base_url = os.environ.get("LOCK_API_BASE_URL")
-    token = os.environ.get("INTERNAL_API_TOKEN")
+    # .strip()：secret 值可能帶尾換行（openssl rand | gcloud secrets create 會留 \n），
+    # 含換行的 token 放進 HTTP header 會被 httpx 拒（Illegal header value）。
+    token = (os.environ.get("INTERNAL_API_TOKEN") or "").strip()
     if not (base_url and token):
         return False
     try:
         import httpx
 
-        async with httpx.AsyncClient(timeout=_PERSIST_TIMEOUT_SEC) as client:
+        async with httpx.AsyncClient(timeout=_HANDOVER_CHECK_TIMEOUT_SEC) as client:
             resp = await client.get(
                 f"{base_url.rstrip('/')}/api/v1/internal/conversations/handover-state",
                 params={"tenant_id": tenant, "session_id": f"{tenant}:{user_id}"},
@@ -90,8 +101,8 @@ async def _handover_active_safe(tenant: str, user_id: str) -> bool:
                 logger.warning("查接管狀態回 {}:{}", resp.status_code, resp.text[:160])
                 return False
             return bool(resp.json().get("data", {}).get("escalated", False))
-    except Exception:  # noqa: BLE001 — 查詢失敗不可阻斷客人，預設 AI 照常回
-        logger.warning("查接管狀態失敗（已略過，AI 照常回）", exc_info=True)
+    except Exception as e:  # noqa: BLE001 — 查詢失敗不可阻斷客人，預設 AI 照常回
+        logger.warning("查接管狀態失敗（已略過，AI 照常回）: {!r}", e)
         return False
 
 
@@ -113,7 +124,9 @@ async def _forward_escalation_safe(esc: Any, tenant: str, user_id: str, before_i
     **AI 不自轉工單**:這裡只送 escalation,API 端最多建 draft PC;confirm/convert 走客服。
     """
     base_url = os.environ.get("LOCK_API_BASE_URL")
-    token = os.environ.get("INTERNAL_API_TOKEN")
+    # .strip()：secret 值可能帶尾換行（openssl rand | gcloud secrets create 會留 \n），
+    # 含換行的 token 放進 HTTP header 會被 httpx 拒（Illegal header value）。
+    token = (os.environ.get("INTERNAL_API_TOKEN") or "").strip()
     if not (base_url and token) or esc is None:
         return
     try:
