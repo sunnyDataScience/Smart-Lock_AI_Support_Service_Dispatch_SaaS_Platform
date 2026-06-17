@@ -91,17 +91,17 @@ State machine：reset token 狀態 `pending → used`（或 `expired`，由 `exp
 
 ## 8. Human Decisions Required
 
-🛑 **CIA 凍結 code 變更，直到每列都有裁決。**
+✅ **業主已裁決（2026-06-17）—— gate 解除，依 §9 實作。**
 
-| # | Question | Options | Owner | Status | Decision |
-|---|---|---|---|---|---|
-| 1 | **送達管道**（最關鍵） | (a) Email — 慣例做法，但**寄信 infra 從零**（接 provider + secret + email 模板）(b) LINE OTP — 有推播 infra，但**後台 staff 未綁 LINE**、需先建 staff↔LINE 綁定 (c) SMS OTP — 技師有手機，但**無 SMS infra** | 業主/架構 | open | — |
-| 2 | **範圍**：兩個登入頁都做還是只做一個？ | (a) 管理員 + 技師都做 (b) 只技師 (c) 只管理員 | 業主 | open | — |
-| 3 | **Admin 雞生蛋 break-glass**：唯一 admin 忘記密碼怎麼自救？ | (a) Q1 選 email 即解（admin 自助）(b) 另寫 DB/seed 救援 runbook (c) 強制多 admin | 業主/維運 | open | — |
-| 4 | **Token TTL + 一次性** | (a) 30 分鐘、單次用 (b) 其他 | 架構 | open | — |
-| 5 | **email 信任度**：users email 目前**未驗證**，直接拿來收 reset 信安全嗎？ | (a) 先做 email 驗證 (b) 接受現狀（首次重設視同驗證）| 業主/安全 | open | — |
-| 6 | **帳號枚舉防護**：request 一律回 200「若帳號存在已寄出」？ | (a) 是（建議）(b) 明確回不存在 | 安全 | open | — |
-| 7 | **保留 `admin-reset-password` 後備**？ | (a) 保留（建議）(b) 移除 | 業主 | open | — |
+| # | Question | Owner | Status | Decision（2026-06-17）|
+|---|---|---|---|---|
+| 1 | **送達管道** | 業主 | ✅ resolved | **(a) Email** —— staff/技師都有 email、都用 email 登入，單管道涵蓋兩端。接寄信 provider（抽象化 `EmailProvider`，預設 SMTP，可配 SendGrid/SES）+ secret |
+| 2 | **範圍** | 業主 | ✅ resolved | **(a) 管理員 + 技師兩頁都做** |
+| 3 | **Admin 雞生蛋 break-glass** | 業主 | ✅ resolved | **(a)** —— Q1=email 即解，admin 可自助重設（仍保留 seed/DB 為終極 break-glass） |
+| 4 | **Token TTL + 一次性** | 架構 | ✅ resolved | **30 分鐘、單次用**；confirm 後撤銷該 user 既有 refresh token |
+| 5 | **email 信任度（未驗證）** | 業主 | ✅ resolved | **(b) 接受現狀**，首次重設視同驗證；完整 email 驗證另開 CR |
+| 6 | **帳號枚舉防護** | 安全 | ✅ resolved | **(a) 是** —— request 一律回 200「若帳號存在已寄出」 |
+| 7 | **保留 `admin-reset-password` 後備** | 業主 | ✅ resolved | **(a) 保留** |
 
 ## 9. Suggested Implementation Order
 
