@@ -101,7 +101,31 @@
     "passwordPlaceholder": "••••••••",
     "submit": "Sign in",
     "submitting": "Signing in…",
+    "forgotPassword": "Forgot password?",
     "devHint": "Test account: admin@example.com / changeme123"
+  },
+  "passwordReset": {
+    "requestTitle": "Forgot password",
+    "requestSubtitle": "Enter your account email and we'll send a reset link",
+    "emailLabel": "Email",
+    "emailPlaceholder": "you@example.com",
+    "requestSubmit": "Send reset link",
+    "requestSubmitting": "Sending…",
+    "requestSent": "If an account exists, a reset link has been sent. Check your inbox (valid for 30 minutes).",
+    "backToLogin": "Back to sign in",
+    "confirmTitle": "Set a new password",
+    "confirmSubtitle": "Enter your new password",
+    "newPasswordLabel": "New password",
+    "newPasswordPlaceholder": "At least 8 characters",
+    "confirmPasswordLabel": "Confirm new password",
+    "confirmSubmit": "Set new password",
+    "confirmSubmitting": "Saving…",
+    "confirmSuccess": "Password reset. Please sign in with your new password.",
+    "mismatch": "The two passwords do not match",
+    "tooShort": "Password must be at least 8 characters",
+    "missingToken": "The reset link is invalid or missing a token. Please request a new one.",
+    "expiredOrUsed": "This reset link has expired or already been used. Please request a new one.",
+    "goLogin": "Go to sign in"
   },
   "status": {
     "workOrder": {
@@ -2035,8 +2059,8 @@
       "passwordPlaceholder": "••••••",
       "submit": "Sign in",
       "submitting": "Signing in…",
-      "forgotPassword": "Forgot password? Contact your administrator",
-      "forgotPasswordTitle": "Self-service reset is not available; ask an administrator to reset your password",
+      "forgotPassword": "Forgot password?",
+      "forgotPasswordTitle": "Go to self-service password reset",
       "adminLink": "I'm an admin →",
       "footerVersion": "v0.1 — Technician PWA"
     },

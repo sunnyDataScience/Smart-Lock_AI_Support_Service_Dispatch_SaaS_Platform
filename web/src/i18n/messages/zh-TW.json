@@ -101,7 +101,31 @@
     "passwordPlaceholder": "••••••••",
     "submit": "登入",
     "submitting": "登入中…",
+    "forgotPassword": "忘記密碼？",
     "devHint": "測試帳號：admin@example.com / changeme123"
+  },
+  "passwordReset": {
+    "requestTitle": "忘記密碼",
+    "requestSubtitle": "輸入帳號 Email，我們會寄送重設連結",
+    "emailLabel": "Email",
+    "emailPlaceholder": "you@example.com",
+    "requestSubmit": "寄送重設連結",
+    "requestSubmitting": "寄送中…",
+    "requestSent": "若該帳號存在，重設連結已寄出，請至信箱查收（30 分鐘內有效）。",
+    "backToLogin": "返回登入",
+    "confirmTitle": "設定新密碼",
+    "confirmSubtitle": "請輸入您的新密碼",
+    "newPasswordLabel": "新密碼",
+    "newPasswordPlaceholder": "至少 8 碼",
+    "confirmPasswordLabel": "確認新密碼",
+    "confirmSubmit": "設定新密碼",
+    "confirmSubmitting": "設定中…",
+    "confirmSuccess": "密碼已重設，請使用新密碼登入。",
+    "mismatch": "兩次輸入的密碼不一致",
+    "tooShort": "密碼長度至少 8 碼",
+    "missingToken": "重設連結無效或缺少 token，請重新申請。",
+    "expiredOrUsed": "此重設連結已過期或已使用，請重新申請。",
+    "goLogin": "前往登入"
   },
   "status": {
     "workOrder": {
@@ -2035,8 +2059,8 @@
       "passwordPlaceholder": "••••••",
       "submit": "登入",
       "submitting": "登入中…",
-      "forgotPassword": "忘記密碼？請聯絡管理員重設",
-      "forgotPasswordTitle": "目前不支援自助重設，請聯絡管理員代為重設密碼",
+      "forgotPassword": "忘記密碼？",
+      "forgotPasswordTitle": "前往自助密碼重設",
       "adminLink": "我是管理員 →",
       "footerVersion": "v0.1 — 技師端 PWA"
     },

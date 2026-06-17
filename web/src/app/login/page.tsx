@@ -1,6 +1,7 @@
 "use client";
 
 import { Lock } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { ApiError, login } from "@/lib/api";
@@ -108,6 +109,13 @@ export default function LoginPage() {
           >
             {loading ? t("submitting") : t("submit")}
           </button>
+
+          <Link
+            href="/forgot-password"
+            className="text-center text-[13px] font-medium text-[var(--primary)] hover:underline"
+          >
+            {t("forgotPassword")}
+          </Link>
         </form>
 
         {/* TODO: remove dev hint before prod */}

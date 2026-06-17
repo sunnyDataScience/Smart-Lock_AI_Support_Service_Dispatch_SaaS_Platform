@@ -111,11 +111,10 @@ export default function TechLoginPage() {
             </button>
 
             <div className="mt-2 flex items-center justify-between text-[12px]">
-              {/* 無自助重設：忘記密碼一律由管理員代為重設（20260610 會議 Action #7，
-                  免 email 基礎設施）。改為純資訊提示，不再是看似可點卻無作用的死按鈕。 */}
-              <span className="text-[var(--text-tertiary)]" title={t("forgotPasswordTitle")}>
+              {/* CR-0025：自助忘記密碼上線後改回可點連結 → /forgot-password（email 重設）。 */}
+              <Link href="/forgot-password" className="text-[var(--primary)] hover:underline">
                 {t("forgotPassword")}
-              </span>
+              </Link>
               <Link href="/login" className="text-[var(--primary)] hover:underline">
                 {t("adminLink")}
               </Link>

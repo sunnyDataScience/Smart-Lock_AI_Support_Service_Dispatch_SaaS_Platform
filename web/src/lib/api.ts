@@ -498,6 +498,22 @@ export async function loginTechnician(
   return res;
 }
 
+// 自助忘記密碼（CR-0025 / ADR-0114）。兩端皆 skipAuth（登入前）。
+// request 一律 200（不洩漏帳號是否存在）；confirm 成功 204、token 無效/過期/已用拋 ApiError。
+export async function requestPasswordReset(email: string): Promise<{ message: string }> {
+  return request<{ message: string }>("POST", "/api/v1/auth/request-password-reset", {
+    body: { email },
+    skipAuth: true,
+  });
+}
+
+export async function confirmPasswordReset(token: string, newPassword: string): Promise<void> {
+  await request<void>("POST", "/api/v1/auth/confirm-password-reset", {
+    body: { token, new_password: newPassword },
+    skipAuth: true,
+  });
+}
+
 export async function logout(): Promise<void> {
   const refresh = auth.getRefreshToken();
   try {
