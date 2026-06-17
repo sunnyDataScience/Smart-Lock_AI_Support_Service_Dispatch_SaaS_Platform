@@ -1786,7 +1786,6 @@
         "solutionTitle": "解決方案",
         "createdAt": "建立於 {time}",
         "updatedAt": "更新於 {time}",
-        "id": "ID: {id}",
         "embedProcessing": "索引中",
         "embedReady": "已索引",
         "embedFailed": "索引失敗"

@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **知識庫案例詳情頁洩漏內部 UUID（branch `fix/kb-cases-hide-internal-id`，2026-06-17）**：`knowledge-base/cases/[id]` 詳情頁頁尾把案例的內部 UUID（`entry.id`）以 `ID: {uuid}` 直接顯示在畫面上（20260610 會議 Action #6「系統內部欄位要過濾掉，消費者不該看到」；sop-drafts 頁先前已只顯示人類可讀 `document_number`，此頁漏修）。**修復**：移除該 `<span>` 顯示，並清掉兩語系 `kb.cases.detail.id` 孤兒 key（`zh-TW.json` / `en.json`）。內部 id 仍用於路由（網址列），畫面不再重複外露。**性質**：純前端移除已洩漏欄位顯示，無 schema / API contract / flow 變動 → 不觸發 CIA。**註**：case_entries 是否要比照 work_orders/sop_drafts 補人類可讀 `document_number`（需 schema 變更 + CIA）列為後續可選增強，本次不做（會議要求是「過濾掉」而非「給編號」）。
+
 - **Cloud Run 首次部署踩到的一連串 prod 問題（branch `chore/deploy-cloud-run-wiring`，2026-06-16）**：部署/實測逐一暴露並修復（compose DB 走 dump/restore 故本機從未暴露）——
   1. **登入 500**：`api.sh` 把 secret 映成 env 名 `JWT_SECRET_KEY`，但 code 讀 `API_JWT_SECRET_KEY` → 容器內該名未設。改 `API_JWT_SECRET_KEY=API_JWT_SECRET_KEY:latest`。
   2. **跨網域登入 Failed to fetch（CORS）**：api `allow_origins` 預設只 localhost。`main.py` 改讀 env `CORS_ORIGINS`（逗號或空白分隔）、`api.sh` 部署時帶入 web 的**兩個** Cloud Run 網址形式（status.url 的 `-de` 形式 + projectnumber 形式；以空白分隔避免被 gcloud `--set-env-vars` 逗號拆掉）。
