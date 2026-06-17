@@ -2035,8 +2035,8 @@
       "passwordPlaceholder": "••••••",
       "submit": "Sign in",
       "submitting": "Signing in…",
-      "forgotPassword": "Forgot password (TBD)",
-      "forgotPasswordTitle": "Planned for V2.0",
+      "forgotPassword": "Forgot password? Contact your administrator",
+      "forgotPasswordTitle": "Self-service reset is not available; ask an administrator to reset your password",
       "adminLink": "I'm an admin →",
       "footerVersion": "v0.1 — Technician PWA"
     },
