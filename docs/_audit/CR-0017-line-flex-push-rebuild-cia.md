@@ -1,12 +1,15 @@
 ---
 title: CR-0017 — LINE Flex push 重建 CIA
 date: 2026-06-05
-status: open-awaiting-decisions
+status: built
 tier: 4
 blocks: [Flow 3 last 10%, Flow 11 last 20%, Flow 14 補救流]
 ---
 
 # CR-0017 — LINE Flex push 重建 CIA
+
+> **狀態補正（2026-06-18，CR-0028）**：本 CR 原誤標 `open-awaiting-decisions`，但 Stage 1-4 已完整 BUILD —— `line_push_outbox_service`（enqueue）+ `line_push_outbox_worker`（main.py 啟動、10s poll）+ `api/templates/line_flex/builders.py`（3 builder + dispatch）+ postback router 皆已落地，並有 `test_cr_0017_outbox_worker.py` / `test_cr_0017_flex_builders.py` 覆蓋。故 status 更正為 `built`。
+> CR-0028 接續本基礎建設：(a) 修復 worker resolver 對不存在欄 `work_orders.tenant_id` / `scope_changes.tenant_id` 的 bug（改走 `users.tenant_id`，此前 scope_change push 反查 LINE uid 一直靜默失敗）；(b) 新增 `work_order_assigned` / `work_order_accepted` / `scope_change_result` 三個 push_kind，接通「派工→接單→報價決議」回傳客戶 LINE 的斷鏈。
 
 ## 1. 動機
 

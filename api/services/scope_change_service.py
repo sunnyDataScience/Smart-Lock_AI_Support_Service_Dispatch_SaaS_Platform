@@ -206,6 +206,34 @@ async def respond_public(
     except Exception as exc:  # noqa: BLE001 — 不影響主流程
         logger.warning("scope_change audit log failed: %s", exc)
 
+    # CR-0028 斷點 2 — 客戶決議後回推確認給客戶（best-effort，複用 CR-0017 outbox）。
+    # respond_public 為消費者端入口、無 tenant 上下文 → 從 work_order join 推導 tenant_id。
+    try:
+        from services import line_push_outbox_service
+        t_cur = await db_module._conn.execute(
+            "SELECT u.tenant_id FROM work_orders wo "
+            "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
+            "JOIN conversations c ON pc.conversation_id = c.id "
+            "JOIN users u ON c.user_id = u.id "
+            "WHERE wo.id = %s::uuid",
+            (str(work_order_id),),
+        )
+        t_row = await t_cur.fetchone()
+        if t_row and t_row[0]:
+            await line_push_outbox_service.enqueue(
+                tenant_id=str(t_row[0]),
+                push_kind="scope_change_result",
+                payload={
+                    "scope_change_id": proposal_id,
+                    "work_order_id": str(work_order_id),
+                    "decision": decision,
+                },
+                reference_id=proposal_id,
+                reference_table="scope_changes",
+            )
+    except Exception:  # noqa: BLE001
+        logger.exception("outbox enqueue scope_change_result failed (non-fatal)")
+
     next_step = (
         "技師將於 5 分鐘內收到通知並繼續施工。"
         if decision == "accept"

@@ -164,15 +164,18 @@ class LinePushOutboxWorker:
             return None
         try:
             if reference_table == "work_orders":
+                # 注意：work_orders 無 tenant_id 欄，租戶過濾走 users.tenant_id
+                # （與 work_order_service._WO_JOIN 一致）。CR-0028 修正原 wo.tenant_id bug。
                 sql = (
                     "SELECT u.line_user_id "
                     "FROM work_orders wo "
                     "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
                     "JOIN conversations c ON pc.conversation_id = c.id "
                     "JOIN users u ON c.user_id = u.id "
-                    "WHERE wo.id = %s::uuid AND wo.tenant_id = %s::uuid"
+                    "WHERE wo.id = %s::uuid AND u.tenant_id = %s::uuid"
                 )
             elif reference_table == "scope_changes":
+                # 同上：scope_changes 與 work_orders 皆無 tenant_id 欄，走 users.tenant_id。
                 sql = (
                     "SELECT u.line_user_id "
                     "FROM scope_changes sc "
@@ -180,7 +183,7 @@ class LinePushOutboxWorker:
                     "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
                     "JOIN conversations c ON pc.conversation_id = c.id "
                     "JOIN users u ON c.user_id = u.id "
-                    "WHERE sc.id = %s::uuid AND wo.tenant_id = %s::uuid"
+                    "WHERE sc.id = %s::uuid AND u.tenant_id = %s::uuid"
                 )
             elif reference_table == "saas.reschedule_proposal":
                 sql = (

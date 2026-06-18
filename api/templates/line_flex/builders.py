@@ -298,11 +298,125 @@ def render_schedule_conflict(payload: dict) -> list[dict]:
     )]
 
 
+def render_work_order_assigned(payload: dict) -> list[dict]:
+    """CR-0028 斷點 1 — 派工完成通知客戶（assign_order enqueue）。
+
+    payload schema:
+      - work_order_id (uuid str)
+      - document_number (str | None) — 公單號（有則顯示，無則略）
+
+    客戶端通知（無 postback，純告知）：已為您安排技師。
+    """
+    wo_id = str(payload.get("work_order_id", ""))
+    doc = payload.get("document_number")
+    sub = [{"type": "text", "text": f"工單 {doc}", "size": "xs", "color": "#888888"}] if doc else []
+    bubble = {
+        "type": "bubble",
+        "header": {
+            "type": "box", "layout": "vertical",
+            "contents": [
+                {"type": "text", "text": "🔧 已為您安排技師", "weight": "bold",
+                 "color": "#1DB446", "size": "md"},
+                *sub,
+            ],
+        },
+        "body": {
+            "type": "box", "layout": "vertical", "spacing": "sm",
+            "contents": [{
+                "type": "text",
+                "text": "您的維修工單已指派專業技師，技師將盡快與您聯繫安排到府時間。",
+                "wrap": True, "size": "sm",
+            }],
+        },
+    }
+    if not wo_id:
+        return [_make_text_message("您的維修工單已指派技師，技師將盡快與您聯繫。")]
+    return [_make_flex_message(alt_text="已為您安排技師", contents=bubble)]
+
+
+def render_work_order_accepted(payload: dict) -> list[dict]:
+    """CR-0028 斷點 3 — 技師接單通知客戶（accept_order enqueue）。
+
+    payload schema:
+      - work_order_id (uuid str)
+      - document_number (str | None)
+
+    客戶端通知（無 postback）：技師已接單、即將為您服務。
+    """
+    wo_id = str(payload.get("work_order_id", ""))
+    doc = payload.get("document_number")
+    sub = [{"type": "text", "text": f"工單 {doc}", "size": "xs", "color": "#888888"}] if doc else []
+    bubble = {
+        "type": "bubble",
+        "header": {
+            "type": "box", "layout": "vertical",
+            "contents": [
+                {"type": "text", "text": "✅ 技師已接單", "weight": "bold",
+                 "color": "#1DB446", "size": "md"},
+                *sub,
+            ],
+        },
+        "body": {
+            "type": "box", "layout": "vertical", "spacing": "sm",
+            "contents": [{
+                "type": "text",
+                "text": "技師已接受您的維修工單，將依約定時間前往為您服務。",
+                "wrap": True, "size": "sm",
+            }],
+        },
+    }
+    if not wo_id:
+        return [_make_text_message("技師已接受您的工單，將依約定時間前往服務。")]
+    return [_make_flex_message(alt_text="技師已接單", contents=bubble)]
+
+
+def render_scope_change_result(payload: dict) -> list[dict]:
+    """CR-0028 斷點 2 — 客戶報價決議後回推確認（respond_public enqueue）。
+
+    payload schema:
+      - scope_change_id (uuid str)
+      - work_order_id (uuid str)
+      - decision ('accept' | 'reject')
+
+    accept → 告知技師將繼續施工；reject → 告知客服將聯繫。
+    """
+    decision = str(payload.get("decision") or "")
+    if decision == "accept":
+        title, color, text = (
+            "✅ 已收到您的同意",
+            "#1DB446",
+            "感謝您確認變更項目，技師將繼續為您施工。",
+        )
+    else:
+        title, color, text = (
+            "📋 已收到您的回覆",
+            "#E97600",
+            "我們已收到您的回覆，客服將盡快與您聯繫後續安排。",
+        )
+    bubble = {
+        "type": "bubble",
+        "header": {
+            "type": "box", "layout": "vertical",
+            "contents": [{"type": "text", "text": title, "weight": "bold",
+                          "color": color, "size": "md"}],
+        },
+        "body": {
+            "type": "box", "layout": "vertical", "spacing": "sm",
+            "contents": [{"type": "text", "text": text, "wrap": True, "size": "sm"}],
+        },
+    }
+    return [_make_flex_message(alt_text=title, contents=bubble)]
+
+
 # Dispatch table（worker 用 push_kind 路由）
 BUILDERS: dict[str, Callable[[dict], list[dict]]] = {
     "reschedule_proposal": render_reschedule_proposal,
     "scope_change_proposal": render_scope_change_proposal,
     "schedule_conflict": render_schedule_conflict,
+    # CR-0028 LINE 公單回傳斷鏈
+    "work_order_assigned": render_work_order_assigned,
+    "work_order_accepted": render_work_order_accepted,
+    "scope_change_result": render_scope_change_result,
 }
 
 

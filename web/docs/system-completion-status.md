@@ -30,6 +30,8 @@
 ██████████████████████████████████  99.8%
 ```
 
+> **6/18 — 工單系統修復 Phase 1：LINE 公單回傳斷鏈（CR-0028）** — 2026-06-17 會議最痛工單問題「公單派出→派工→報價回 LINE 斷在後台」(Action 6) 修復。根因：(1) assign/accept/scope 決議三節點不推 LINE；(2) outbox worker resolver 用了不存在的 `work_orders.tenant_id` → 反查客戶 LINE uid 靜默失敗（連既有 scope_change push 也送不出）。修復：resolver 改走 `users.tenant_id`、複用 CR-0017 outbox 新增 3 個 push_kind + Flex builder、三處 service best-effort enqueue。test_cr_0028 6 pass + CR-0017 回歸 17 pass。順帶補正 CR-0017 文件 status→built。工單三階段修復計畫進行中（Phase 2 公單欄位 CR-0026、Phase 3 成本+電子工單 CR-0027 待續）。整合驗證（LINE 真送）待 stack 起來。
+>
 > **6/07 晚段 — 5 branch web UI 收尾（99.7% → 99.8%）** — 一輪集中收尾把 dev_new_arch 剩餘前端 UI 缺口全清：
 > (1) **`fix/disputes-textColor-bug`**：3 page hotfix — `/admin/disputes` + `/settings` 的 `Cannot read properties of undefined (reading 'textColor')` 整頁炸；DisputesTable + PricingForm `??` 中性灰 fallback；sop-performance placeholder → 接 backend `getSopPerformanceMetrics`（4 KPI 卡 + 狀態分佈 bar + window 活動 + Top N）。
 > (2) **`feat/work-order-create-modal`**：3 view 共用 `CreateWorkOrderModal`（兩步驟：pick problem card → 客戶資訊），接 backend `createWorkOrderV2`；列表/看板/地圖「新增工單」disabled → 全綠。

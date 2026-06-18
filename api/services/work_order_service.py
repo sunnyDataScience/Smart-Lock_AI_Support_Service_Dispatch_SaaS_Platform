@@ -455,6 +455,25 @@ async def accept_order(*, tenant_id: str, wo_id: str) -> dict:
             tenant_id=tenant_id, wo_id=wo_id, technician_id=tech_id,
             event="taken",
         )
+    # CR-0028 斷點 3 — 技師接單推 LINE 給客戶（best-effort，複用 CR-0017 outbox）
+    try:
+        from services import line_push_outbox_service
+        doc_cur = await db_module._conn.execute(
+            "SELECT document_number FROM work_orders WHERE id = %s::uuid", (wo_id,)
+        )
+        doc_row = await doc_cur.fetchone()
+        await line_push_outbox_service.enqueue(
+            tenant_id=tenant_id,
+            push_kind="work_order_accepted",
+            payload={
+                "work_order_id": wo_id,
+                "document_number": doc_row[0] if doc_row else None,
+            },
+            reference_id=wo_id,
+            reference_table="work_orders",
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("outbox enqueue work_order_accepted failed (non-fatal)")
     return await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.accepted"
     )
@@ -735,6 +754,25 @@ async def assign_order(
         tenant_id=tenant_id, wo_id=wo_id, technician_id=technician_id,
         event="added",
     )
+    # CR-0028 斷點 1 — 派工完成推 LINE 給客戶（best-effort，複用 CR-0017 outbox）
+    try:
+        from services import line_push_outbox_service
+        doc_cur = await db_module._conn.execute(
+            "SELECT document_number FROM work_orders WHERE id = %s::uuid", (wo_id,)
+        )
+        doc_row = await doc_cur.fetchone()
+        await line_push_outbox_service.enqueue(
+            tenant_id=tenant_id,
+            push_kind="work_order_assigned",
+            payload={
+                "work_order_id": wo_id,
+                "document_number": doc_row[0] if doc_row else None,
+            },
+            reference_id=wo_id,
+            reference_table="work_orders",
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("outbox enqueue work_order_assigned failed (non-fatal)")
     return await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.assigned"
     )

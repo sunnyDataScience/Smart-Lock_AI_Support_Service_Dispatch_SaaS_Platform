@@ -29,10 +29,15 @@ from core.errors import ApiError
 logger = logging.getLogger("api.line_push_outbox_service")
 
 # 對齊 SQL/Schema_v2_extensions.sql §12 line_push_outbox.push_kind
+# 註：push_kind 為 VARCHAR(40) 無 CHECK 約束，新增 kind 不需 migration。
 PushKind = Literal[
     "reschedule_proposal",
     "scope_change_proposal",
     "schedule_conflict",
+    # CR-0028 LINE 公單回傳斷鏈
+    "work_order_assigned",
+    "work_order_accepted",
+    "scope_change_result",
 ]
 
 # 對齊 chk_push_status CHECK
