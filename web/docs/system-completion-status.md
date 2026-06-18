@@ -30,6 +30,8 @@
 ██████████████████████████████████  99.8%
 ```
 
+> **6/18 — 工項缺口盤點 + 補完啟動（roadmap + CR-0032 CIA + 廠商核准 UI）** — 5 源平行盤點(程式碼 vs 20260617資料)：廣度夠深度淺,大缺口=金流結算/報價引擎/報價主檔/免責合規/報表KPI/Partner Portal/測試;產 `docs/_audit/gap-audit-20260617-completion-roadmap.md`(S1-S8 計劃)。**啟動 S1+S2**：(1) **廠商核准 UI**(CR-0029 收尾)`vendor_service` + `vendors_v2` router(approve/reject,限管理角色)+ 後台 `/admin/vendor-approvals` 頁 + Sidebar 入口 → 收完註冊閉環(test 2 pass);(2) **CR-0032 報價引擎 CIA**(saas.quote 主表+核准 gate+snapshot 凍結)停 §8 等裁決。其餘 S1(SMTP/QR=ops)、S3-S8 依序。
+>
 > **6/18 — 派工模式切換（CR-0030，會議 Action #7）** — 三檔(manual/platform_paid/auto_match)本輪做前兩檔(自動媒合留 Report 2)。migration 039:`saas.tenant.dispatch_mode` + `work_orders.dispatched_via`(platform=可計費)。`dispatch_mode_service`(get/set)+ assign_order 依模式標記 dispatched_via。`GET/POST /tenants/{tid}/dispatch-mode`(管理角色 + audit)。dispatch-queue 頁 header 加派工模式下拉切換。平台代派只標記 billable、本輪不硬扣 credit(計費規則待業主)。test_cr_0030 3 pass + 回歸 + tsc 0。follow-up:計費引擎 / 自動媒合執行 / CR-0031 派工權隔離。**會議 Action 3+7 兩大 BUILD 完成；剩 Action 12/13 multi-tenant(會議定調 Beta 後下一輪)。**
 >
 > **6/18 — 廠商/師傅雙路註冊（CR-0029，會議 Action #3）** — 平台轉外包仲介:發案者(廠商/品牌商/鎖店)+接案者(師傅)兩路註冊。新表 `vendors`(migration 038)+ `users.tenant_type`(requestor/technician/platform 預留 CR-0031)。`auth_service.register_vendor` + `POST /vendors/register` + `POST /vendors/login`(與後台角色隔離)。前端新 `/register` 頁(技師/廠商切換)+ 登入頁註冊連結。single-tenant 可逆版(tenant_type 預留、未真分庫)。test_cr_0029 4 pass + auth 回歸 14 pass + tsc 0。follow-up:vendor 審核 UI / 營業執照 / CR-0031 分庫。

@@ -276,6 +276,7 @@
       "dispatchQueue": "Dispatch queue",
       "materialRequests": "Material requests",
       "technicians": "Technicians",
+      "vendorApprovals": "Vendor approvals",
       "customers": "Customers",
       "accounting": "Accounting",
       "settlements": "Settlements",
@@ -2317,6 +2318,19 @@
   },
   "components": {
     "admin": {
+      "vendorApprovals": {
+        "title": "Vendor approvals",
+        "pendingCount": "{n} pending",
+        "loading": "Loading…",
+        "empty": "No vendors pending approval",
+        "colName": "Vendor",
+        "colType": "Type",
+        "colContact": "Contact",
+        "colAction": "Action",
+        "approve": "Approve",
+        "reject": "Reject",
+        "rejectReasonPrompt": "Enter rejection reason (optional)"
+      },
       "refundReview": {
         "cols": {
           "id": "Refund ID",

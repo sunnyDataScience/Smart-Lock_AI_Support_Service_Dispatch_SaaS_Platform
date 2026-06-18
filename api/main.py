@@ -71,6 +71,7 @@ from routers import problem_cards_v2 as problem_cards_v2_router  # spec-alignmen
 from routers import technicians_v2 as technicians_v2_router  # spec-alignment P2-α (CR-0002-α, M05 Technician tenant-scoped)
 from routers import dispatch_v2 as dispatch_v2_router  # spec-alignment P2-α (CR-0002-α, M06 Dispatch tenant-scoped)
 from routers import work_orders_v2 as work_orders_v2_router  # spec-alignment P2-α (CR-0002-α, M06 WorkOrder tenant-scoped)
+from routers import vendors_v2 as vendors_v2_router  # CR-0029 收尾：廠商核准管理
 from routers import pricing_v2 as pricing_v2_router  # spec-alignment P2-α (CR-0002-α, M11 Pricing calculate tenant-scoped)
 from routers import consumer_v2 as consumer_v2_router  # spec-alignment P2-α (CR-0002-α, M16 Consumer public token)
 from routers import settlements_v2 as settlements_v2_router  # spec-alignment P2 (FR-0012, M12 Settlement monthly trigger 501 stub)
@@ -251,6 +252,7 @@ app.include_router(problem_cards_v2_router.router, tags=["M03 ProblemCard"])  # 
 app.include_router(tech_lifecycle_v2_router.router, tags=["M07 Technician Lifecycle"])  # 必須先於 technicians_v2_router (lifecycle-events literal segment vs {techId} catch-all)
 app.include_router(technicians_v2_router.router, tags=["M05 Technician"])  # spec-alignment P2-α (CR-0002-α, tenant-scoped)
 app.include_router(dispatch_v2_router.router, tags=["M06 Dispatch"])  # spec-alignment P2-α (CR-0002-α, tenant-scoped)
+app.include_router(vendors_v2_router.router, tags=["M14 Vendor"])  # CR-0029 收尾：廠商核准管理
 # work_orders_ops_v2 須先於 work_orders_v2 註冊：/work-orders/pool、/dispatch/queue 為 literal 段，
 # 否則被 work_orders_v2 的 /work-orders/{woId} param 路由吃掉（"pool" → uuid 解析失敗）。
 app.include_router(work_orders_ops_v2_router.router, tags=["M07 WorkOrder Ops"])  # spec-alignment P2-W4 (route-order before /{woId})

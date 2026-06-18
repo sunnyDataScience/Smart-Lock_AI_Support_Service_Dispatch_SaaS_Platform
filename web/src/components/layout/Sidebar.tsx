@@ -9,6 +9,7 @@ import {
   Truck,
   Users,
   CircleUserRound,
+  Store,
   Receipt,
   Package,
   BarChart3,
@@ -67,6 +68,7 @@ const navItems: NavItem[] = [
     ],
   },
   { icon: Users, id: "technicians", href: "/technicians" },
+  { icon: Store, id: "vendorApprovals", href: "/admin/vendor-approvals" },
   { icon: CircleUserRound, id: "customers", href: "/admin/customers" },
   {
     icon: Receipt,
