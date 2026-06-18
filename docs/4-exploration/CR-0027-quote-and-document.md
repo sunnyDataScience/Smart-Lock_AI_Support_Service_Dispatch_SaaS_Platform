@@ -104,8 +104,8 @@ superseded-by: null
 
 ## 11. Out of Scope（follow-up）
 
-- **客戶端 track 頁 PDF 下載**：需 public document 端點（token 授權，免登入）—— 本輪客戶經完工 LINE 通知最終金額，PDF 下載入口列 follow-up。
-- **後台 PDF 下載按鈕**（fetch→blob）—— 端點已備（`getWorkOrderDocumentV2`），UI 按鈕 follow-up。
+- ✅ ~~客戶端 track 頁 PDF 下載~~ —— **已於 `feat/cr-0027-document-followup` 補完**（public `getConsumerWorkOrderDocumentV2` token 端點 + track 頁完工後下載連結）。
+- ✅ ~~後台 PDF 下載按鈕~~ —— **已補完**（側邊欄成本面板「下載電子工單 PDF」，走 `api.download` authed）。
 - service_catalog / material_catalog / 完整報價引擎、Phase II 財務結算（esales sheet 24-33）。
 - 報價快照不可變 ADR / 稅務含未稅 / 訂金規則。
 
@@ -118,6 +118,7 @@ superseded-by: null
 ## 13. 實作進度
 
 - ✅ migration 037 + quote_service + work_order_document_service + 3 端點 + 完工推送 + 後台成本面板
-- ✅ `test_cr_0027_quote_document.py` 3 pass + builder 2 pass + tsc 0 error + 套 migration 037 至 dev DB 驗證
-- ⏳ follow-up（§11）：客戶端 track PDF（public 端點）、後台 PDF 下載按鈕、報價引擎完整版
-- 分支：`feat/cr-0027-quote-and-document`（接 CR-0026 之後）
+- ✅ **follow-up 補完（`feat/cr-0027-document-followup`）**：public `getConsumerWorkOrderDocumentV2` token 端點 + track 頁完工後 PDF 下載連結 + 後台側邊欄「下載電子工單 PDF」按鈕
+- ✅ `test_cr_0027_quote_document.py` 4 pass（含 consumer doc 端點）+ builder 2 pass + tsc 0 error + 套 migration 037 至 dev DB 驗證
+- ⏳ 仍 follow-up：報價引擎完整版 / service_catalog / Phase II 財務結算
+- 分支：`feat/cr-0027-quote-and-document` → `feat/cr-0027-document-followup`（接 CR-0026 之後）

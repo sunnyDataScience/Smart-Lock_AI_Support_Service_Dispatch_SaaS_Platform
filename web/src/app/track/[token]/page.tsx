@@ -147,7 +147,7 @@ export default function PublicTrackPage({
           <ErrorPanel message={state.message} code={state.code} />
         )}
 
-        {state.kind === "ok" && <StatusPanel data={state.data} />}
+        {state.kind === "ok" && <StatusPanel data={state.data} token={token} />}
       </div>
     </main>
   );
@@ -191,12 +191,14 @@ function ErrorPanel({
   );
 }
 
-function StatusPanel({ data }: { data: ConsumerWorkOrderView }) {
+function StatusPanel({ data, token }: { data: ConsumerWorkOrderView; token: string }) {
   const t = useTranslations("pages.track");
   const tStatus = useTranslations("pages.track.status");
   const showEta =
     data.work_order_state === "on_the_way" && data.eta_minutes != null;
   const statusColor = STATUS_COLOR[data.work_order_state] ?? STATUS_COLOR["pending"];
+  // 完工後提供電子工單 PDF 下載（CR-0027；public token endpoint，只露最終價）
+  const showDocument = data.work_order_state === "completed";
 
   return (
     <div className="mt-6 space-y-4" data-testid="track-status">
@@ -220,6 +222,18 @@ function StatusPanel({ data }: { data: ConsumerWorkOrderView }) {
 
       <InfoRow label={t("fields.lastUpdate")} value={formatDateTime(data.last_update_at)} />
       <InfoRow label={t("fields.technician")} value={data.technician_display_name ?? "—"} />
+
+      {showDocument && (
+        <a
+          href={`${API_BASE}/consumer/work-orders/${encodeURIComponent(token)}/document`}
+          target="_blank"
+          rel="noopener noreferrer"
+          data-testid="download-document"
+          className="mt-2 flex items-center justify-center rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
+        >
+          {t("downloadDocument")}
+        </a>
+      )}
     </div>
   );
 }

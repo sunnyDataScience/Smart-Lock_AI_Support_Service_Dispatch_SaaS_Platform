@@ -115,6 +115,28 @@ async def test_render_document_pdf_no_cost_leak(client):
 
 
 @pytest.mark.asyncio
+async def test_consumer_document_endpoint_pdf(client):
+    """消費者用 tracking token 下載電子工單 PDF（public，無 JWT）→ 200 application/pdf。"""
+    from services.public_token import generate_token
+    assert await db_module._ensure_conn()
+    woid, ids = await _seed_work_order()
+    try:
+        await quote_service.add_line_item(
+            tenant_id=DEFAULT_TENANT_ID, work_order_id=woid,
+            item_name="主機板", category="material",
+            unit_price=1000, quantity=1, customer_price=800, is_mock=True,
+        )
+        token = generate_token(
+            woid, purpose="work_order_status", tenant_id=DEFAULT_TENANT_ID)
+        res = await client.get(f"/consumer/work-orders/{token}/document")
+        assert res.status_code == 200, res.text
+        assert res.headers["content-type"].startswith("application/pdf")
+        assert res.content[:4] == b"%PDF"
+    finally:
+        await _cleanup(ids)
+
+
+@pytest.mark.asyncio
 async def test_quote_cross_tenant_404(client):
     """別的 tenant 不能讀/寫本 tenant 的 work_order line items。"""
     from core.errors import ApiError

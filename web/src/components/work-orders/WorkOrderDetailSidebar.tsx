@@ -348,6 +348,19 @@ function CostDetailPanel({ workOrderId }: { workOrderId?: string }) {
           )}
         </>
       )}
+      <button
+        type="button"
+        onClick={() =>
+          api
+            .download(tenantPath(`/work-orders/${encodeURIComponent(workOrderId)}/document`), {
+              filename: `work-order-${workOrderId}.pdf`,
+            })
+            .catch(() => undefined)
+        }
+        className="mt-1 flex h-9 items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-[13px] font-semibold text-[var(--primary)] hover:bg-[var(--bg-page)]"
+      >
+        {t("downloadDocument")}
+      </button>
     </div>
   );
 }

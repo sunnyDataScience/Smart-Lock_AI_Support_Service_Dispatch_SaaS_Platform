@@ -905,6 +905,7 @@
     },
     "track": {
       "title": "工單即時追蹤",
+      "downloadDocument": "下載電子工單 PDF",
       "skeletonLabel": "載入工單狀態中",
       "errorTitle": "無法載入工單資訊",
       "errors": {
@@ -2780,6 +2781,7 @@
         "costInternal": "成本",
         "costFinal": "對外總額",
         "costHidden": "（成本明細僅後台角色可見）",
+        "downloadDocument": "下載電子工單 PDF",
         "customerTitle": "客戶資訊",
         "loadFailed": "載入失敗",
         "noConversation": "無關聯對話",

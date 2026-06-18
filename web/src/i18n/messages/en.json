@@ -905,6 +905,7 @@
     },
     "track": {
       "title": "Work order tracking",
+      "downloadDocument": "Download work order PDF",
       "skeletonLabel": "Loading work order status",
       "errorTitle": "Cannot load work order info",
       "errors": {
@@ -2780,6 +2781,7 @@
         "costInternal": "cost",
         "costFinal": "Customer total",
         "costHidden": "(Cost details visible to back-office roles only)",
+        "downloadDocument": "Download work order PDF",
         "customerTitle": "Customer",
         "loadFailed": "Load failed",
         "noConversation": "No linked conversation",

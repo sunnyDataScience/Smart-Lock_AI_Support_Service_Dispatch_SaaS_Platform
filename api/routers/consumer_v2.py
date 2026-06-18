@@ -43,7 +43,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, Path, Request
+from fastapi import APIRouter, Depends, Path, Request, Response
 
 from core.errors import ApiError
 from services.public_token import (
@@ -109,6 +109,35 @@ async def get_consumer_work_order(
         "technician_display_name": mask_technician_name(record["technician_name"]),
         "last_update_at": last_update_at,
     }
+
+
+@router.get(
+    "/consumer/work-orders/{trackingToken}/document",
+    operation_id="getConsumerWorkOrderDocumentV2",
+    summary="消費者匿名下載電子工單 PDF（M16 / CR-0027；只露最終價 + 關防）",
+    tags=["M16 Consumer"],
+)
+async def get_consumer_work_order_document(
+    trackingToken: str = Path(..., min_length=32, max_length=512),
+) -> Response:
+    """消費者用同一 tracking token 下載電子工單 PDF（決議 4：客戶只看最終價）。
+
+    公開 token-based，無 JWT；tenant_id + work_order_id 封在 token。
+    PDF 由 work_order_document_service 產（結構上不含成本 unit_price）。
+    """
+    from services import work_order_document_service
+
+    payload = _verify_consumer_token(trackingToken)
+    if not payload.tenant_id:
+        raise ApiError("NOT_FOUND", "token missing tenant scope", 404)
+    pdf = await work_order_document_service.render_document(
+        tenant_id=payload.tenant_id, work_order_id=payload.subject_id,
+    )
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'inline; filename="work-order.pdf"'},
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
