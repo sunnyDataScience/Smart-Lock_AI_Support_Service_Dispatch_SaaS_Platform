@@ -116,6 +116,12 @@ export default function LoginPage() {
           >
             {t("forgotPassword")}
           </Link>
+          <Link
+            href="/register"
+            className="text-center text-[13px] font-medium text-[var(--primary)] hover:underline"
+          >
+            {t("registerLink")}
+          </Link>
         </form>
 
         {/* TODO: remove dev hint before prod */}

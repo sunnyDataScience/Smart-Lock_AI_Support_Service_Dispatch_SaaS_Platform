@@ -237,8 +237,8 @@ async def register_technician(req: dict) -> dict:
 
     async with db_module._conn.transaction():
         await db_module._conn.execute(
-            "INSERT INTO users (id, tenant_id, display_name, phone, email, password_hash, role, is_active) "
-            "VALUES (%s::uuid, %s::uuid, %s, %s, %s, %s, 'technician', TRUE)",
+            "INSERT INTO users (id, tenant_id, tenant_type, display_name, phone, email, password_hash, role, is_active) "
+            "VALUES (%s::uuid, %s::uuid, 'technician', %s, %s, %s, %s, 'technician', TRUE)",
             (user_id, tenant_id, name, phone, email, pw_hash),
         )
         await db_module._conn.execute(
@@ -261,4 +261,71 @@ async def register_technician(req: dict) -> dict:
             "created_at": datetime.now(timezone.utc).isoformat(),
         },
         "message": "Technician registered, pending admin approval",
+    }
+
+
+_VENDOR_TYPES = {"brand", "locksmith", "distributor"}
+
+
+async def register_vendor(req: dict) -> dict:
+    """建立 users(role='vendor', tenant_type='requestor') + vendors 兩列（CR-0029 發案者）。
+
+    鏡像 register_technician：email 全域去重、bcrypt hash、transaction、single-tenant 硬綁。
+    vendor 不簽 token（待首次 login）；status=pending_approval 待管理員核准。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    email = req["email"]
+    name = req["name"]
+    phone = req["phone"]
+    password = req["password"]
+    vendor_type = req["vendor_type"]
+    company_name = req.get("company_name")
+    address = req.get("address")
+
+    if vendor_type not in _VENDOR_TYPES:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"vendor_type must be one of {sorted(_VENDOR_TYPES)}",
+            422,
+        )
+
+    cur = await db_module._conn.execute(
+        "SELECT 1 FROM users WHERE email = %s LIMIT 1", (email,)
+    )
+    if await cur.fetchone():
+        raise ApiError("EMAIL_TAKEN", f"Email {email} is already registered", 409)
+
+    user_id = str(uuid.uuid4())
+    vendor_id = str(uuid.uuid4())
+    pw_hash = hash_password(password)
+    tenant_id = "00000000-0000-0000-0000-000000000001"
+
+    async with db_module._conn.transaction():
+        await db_module._conn.execute(
+            "INSERT INTO users (id, tenant_id, tenant_type, display_name, phone, email, password_hash, role, is_active) "
+            "VALUES (%s::uuid, %s::uuid, 'requestor', %s, %s, %s, %s, 'vendor', TRUE)",
+            (user_id, tenant_id, name, phone, email, pw_hash),
+        )
+        await db_module._conn.execute(
+            "INSERT INTO vendors (id, tenant_id, user_id, vendor_type, name, company_name, phone, email, address, status) "
+            "VALUES (%s::uuid, %s::uuid, %s::uuid, %s, %s, %s, %s, %s, %s, 'pending_approval')",
+            (vendor_id, tenant_id, user_id, vendor_type, name, company_name, phone, email, address),
+        )
+
+    return {
+        "data": {
+            "id": vendor_id,
+            "user_id": user_id,
+            "tenant_id": tenant_id,
+            "vendor_type": vendor_type,
+            "name": name,
+            "company_name": company_name,
+            "phone": phone,
+            "email": email,
+            "status": "pending_approval",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        },
+        "message": "Vendor registered, pending admin approval",
     }

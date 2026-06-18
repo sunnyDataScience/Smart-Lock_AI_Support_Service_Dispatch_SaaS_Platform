@@ -202,3 +202,44 @@ async def register_technician(
     if idem is not None:
         await idem.save(201, payload)
     return payload
+
+
+class VendorRegisterBody(BaseModel):
+    """發案者（品牌商/鎖店/經銷商）註冊（CR-0029）。"""
+
+    vendor_type: str = Field(description="brand/locksmith/distributor")
+    name: str = Field(min_length=1, max_length=150)
+    company_name: str | None = Field(default=None, max_length=150)
+    phone: str = Field(pattern=r"^09\d{8}$")
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=72)  # bcrypt 72 byte 上限
+    address: str | None = Field(default=None, max_length=300)
+
+
+@router.post(
+    "/vendors/register",
+    operation_id="registerVendor",
+    summary="廠商/品牌商註冊（發案者，CR-0029）",
+    status_code=201,
+)
+async def register_vendor(
+    request: Request,
+    body: VendorRegisterBody,
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    payload = await auth_service.register_vendor(body.model_dump())
+    if idem is not None:
+        await idem.save(201, payload)
+    return payload
+
+
+@router.post(
+    "/vendors/login",
+    operation_id="loginVendor",
+    summary="廠商/品牌商登入（發案者，CR-0029；與後台角色隔離）",
+    status_code=200,
+)
+async def login_vendor(body: LoginBody) -> dict:
+    return await auth_service.login(
+        email=body.email, password=body.password, allowed_roles=["vendor"]
+    )

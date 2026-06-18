@@ -30,6 +30,8 @@
 ██████████████████████████████████  99.8%
 ```
 
+> **6/18 — 廠商/師傅雙路註冊（CR-0029，會議 Action #3）** — 平台轉外包仲介:發案者(廠商/品牌商/鎖店)+接案者(師傅)兩路註冊。新表 `vendors`(migration 038)+ `users.tenant_type`(requestor/technician/platform 預留 CR-0031)。`auth_service.register_vendor` + `POST /vendors/register` + `POST /vendors/login`(與後台角色隔離)。前端新 `/register` 頁(技師/廠商切換)+ 登入頁註冊連結。single-tenant 可逆版(tenant_type 預留、未真分庫)。test_cr_0029 4 pass + auth 回歸 14 pass + tsc 0。follow-up:vendor 審核 UI / 營業執照 / CR-0031 分庫。
+>
 > **6/18 — 工單系統修復 Phase 3：成本明細 + 客戶版電子工單（CR-0027）** — 會議決議 4/5 + §4.1。新表 `quote_line_items`（migration 037：unit_price 內部成本僅後台/customer_price 對外/is_mock 待覆核）+ `quote_service`（CRUD + 重算 customer_final_amount + RBAC 成本遮蔽）+ `work_order_document_service`（客戶版電子工單 PDF，複用 reportlab 中文字型，結構隔離成本、含關防 placeholder）。API：quote-items GET/POST（RBAC）+ document GET（PDF）。完工複用 CR-0028 outbox 推 LINE「服務完成+應付總額」。後台側邊欄成本明細面板。test_cr_0027 3 pass + builder 2 pass + tsc 0。follow-up：客戶端 track PDF 下載（public token 端點）、後台 PDF 下載按鈕。**工單三階段修復完成（CR-0028 回傳 + CR-0026 欄位 + CR-0027 成本/電子工單）。**
 >
 > **6/18 — 工單系統修復 Phase 2：公單欄位補洞（CR-0026）** — 會議 Action #1 + 決議 3（schema 先補）。work_orders 從扁平結構補上設備辨識/服務類別/保固/完工細狀態/status_reason/parent/customer_final_amount 共 16 欄（migration 036，全 nullable + tenant_id backfill 84 列）。service：建單從 PC 複製 brand/model/problem_type/photos；派工前必填 gate（缺品牌/型號/地址/問題類型→422，BR-M05-03）；取消必填 status_reason（BR-M05-01）。API：WorkOrder model + TS 型別 + serializer 補 13 欄。後台詳情側邊欄新增「公單資訊」面板 + 綁真實 S/N。test_cr_0026 4 pass + 回歸 55 pass + tsc 0 error。採會議授權預設（免責佔位/完工六段/保固人工填/成本切 CR-0027），標待業主確認。
