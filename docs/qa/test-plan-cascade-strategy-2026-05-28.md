@@ -215,7 +215,7 @@ def generate_stub(fr_path):
 
 - 既有 test plan: [`docs/qa/test-plan-smart-lock-saas.md`](test-plan-smart-lock-saas.md)
 - FR 範本: [`devteam_knowledge_base/templates/fr-skeleton.md`](../../devteam_knowledge_base/templates/fr-skeleton.md) §2 G/W/T 為 test source
-- Traceability matrix: [`docs/_index/traceability-matrix.md`](../_index/traceability-matrix.md) §2 FR → events
+- Traceability matrix: [`docs/_archive/index/traceability-matrix.md`](../_archive/index/traceability-matrix.md)（已歸檔，生成器待重建）§2 FR → events
 - ADR-0067/0068: 新 test class 來源
 - KB: [[06_quality_attributes_catalog]] §1 9 維度 / [[09_observability_catalog]] §3 SLI test mapping
 

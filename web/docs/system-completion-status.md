@@ -365,7 +365,7 @@
   - 事項 3 計價引擎 GUI → SQL config + change_request 流程
 - 新立 `ADR-0108-business-decisions-recon-pricing-defer.md` append-only 留檔
 - 對應 closeout plan §2.2 + §2.3 標 deferred-accepted
-- HTML `pending-business-decisions-2026-06-06.html` 標 ✅ 業主已決
+- HTML `docs/_archive/governance/pending-business-decisions-2026-06-06.html`（已歸檔）標 ✅ 業主已決
 
 ### B. A37 drawer backend 補強 → A37 backend 缺口 0% → 50%
 

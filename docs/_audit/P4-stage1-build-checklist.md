@@ -62,7 +62,7 @@ Stage 1 範圍：清掉「v1 caller 為 stale comment 或 reports/roles/refunds 
 - 部署 Stage 1 後跑 `POST /api/v1/admin/deprecation/v1-metrics:reset`
 - 流量觀察 7 天
 - 跑 `GET /api/v1/admin/v1-inventory/no-traffic` 看新候選清單
-- 對應 release-checklist-2026-06-05.md §7 step 6
+- 對應 docs/_archive/_ops/release-checklist-2026-06-05.md（已歸檔）§7 step 6
 
 ## §3 驗證
 

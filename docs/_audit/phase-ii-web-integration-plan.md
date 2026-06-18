@@ -4,7 +4,7 @@ title: Phase II 9 FR MVP — Web Integration Plan
 status: open
 created_at: 2026-06-05
 related:
-  - session-summary-2026-06-05.md
+  - ../_archive/_audit/session-summary-2026-06-05.md
   - 9 FR MVP commits
 purpose: 給未來 BUILD web 端對接 Phase II 9 FR MVP backend endpoints 的完整 plan。
 ---

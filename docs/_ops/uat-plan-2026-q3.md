@@ -236,14 +236,14 @@
 - [ ] 寫 UAT report 到 `docs/_audit/uat-report-2026-q3.md`
 - [ ] 更新 `web/docs/system-completion-status.md` 標 UAT 通過
 - [ ] 通知業主可進 production cutover
-- [ ] 走 `docs/_ops/release-checklist-2026-06-05.md` production 部署
+- [ ] 走 `docs/_archive/_ops/release-checklist-2026-06-05.md`（已歸檔）production 部署
 
 ---
 
 ## §A Reference
 
 - `docs/_ops/wbs-100-closeout-plan.md` — 整體收尾計畫
-- `docs/_audit/session-2026-06-05-final-stats.md` — backend 完成度
+- `docs/_archive/_audit/session-2026-06-05-final-stats.md`（已歸檔）— backend 完成度
 - `docs/_ops/phase-ii-web-integration-plan.md` — Sprint 1-5 對應
 - `docs/_ops/background-monitors-runbook.md` — lifespan + cron 維運
 - `docs/_ops/alert-receivers-comparison.md` — PD + Slack 設定

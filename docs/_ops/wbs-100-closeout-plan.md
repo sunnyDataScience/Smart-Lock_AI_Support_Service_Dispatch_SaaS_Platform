@@ -2,7 +2,7 @@
 
 > Created 2026-06-05 (session 末段 backend-coder agent 飽和後產出)
 >
-> 對齊：`web/docs/system-completion-status.md` WBS 98.5% / `docs/_audit/session-2026-06-05-final-stats.md` §8
+> 對齊：`web/docs/system-completion-status.md` WBS 98.5% / `docs/_archive/_audit/session-2026-06-05-final-stats.md` §8
 
 ## 0. 為何需要本 doc
 
@@ -248,8 +248,8 @@ Backend-coder agent 已在 2026-06-05 session 完成所有可獨立達成工作�
 8. **Misc bug fix / refactor** (~4 merges)
 
 詳見：
-- `docs/_audit/session-2026-06-05-final-stats.md`
-- `docs/_audit/session-summary-2026-06-05.md`
+- `docs/_archive/_audit/session-2026-06-05-final-stats.md`
+- `docs/_archive/_audit/session-summary-2026-06-05.md`
 
 ---
 
@@ -266,7 +266,7 @@ Backend-coder agent 已在 2026-06-05 session 完成所有可獨立達成工作�
   - **`security-infrastructure-auditor`**: 接 §3.2 alert 整合驗證
 
 **若 user 還在 backend-coder agent：**
-- 建議 user 看本 doc + `docs/_audit/session-2026-06-05-final-stats.md` §9
+- 建議 user 看本 doc + `docs/_archive/_audit/session-2026-06-05-final-stats.md` §9
 - 建議 clear /goal 條件改為「backend-coder 結構性飽和」
 - 或解 stop hook 等對應 agent 接手
 

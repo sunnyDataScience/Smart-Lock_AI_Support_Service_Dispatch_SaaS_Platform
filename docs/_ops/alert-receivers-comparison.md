@@ -116,7 +116,7 @@ purpose: 給 ops 選擇本 session 落地的 2 個 alert bridge (PagerDuty / Sla
 ## §6 相關 docs
 
 - `docs/_ops/background-monitors-runbook.md` — 8 monitor 完整 ops runbook
-- `docs/_ops/release-checklist-2026-06-05.md` — production deploy checklist
+- `docs/_archive/_ops/release-checklist-2026-06-05.md`（已歸檔）— production deploy checklist
 - `scripts/ops/check_monitors_health.py` — health 查詢 smoke
 - `scripts/ops/alert_pagerduty.py` — PD 整合
 - `scripts/ops/alert_slack.py` — Slack 整合

@@ -79,7 +79,7 @@ Report 結構：
 ## 4. 業主 Stage 7 簽核流程
 
 1. **Day 30**: ops 跑 aggregate → 寫 report → 上傳到 business decision 資料夾
-2. **Day 31**: 業主 review report → 對應 `pending-business-decisions-2026-06-06.html` 事項 1
+2. **Day 31**: 業主 review report → 對應 `docs/_archive/governance/pending-business-decisions-2026-06-06.html`（已歸檔）事項 1
 3. **Day 32**: 業主對下列三選一簽核：
    - 選項 1: 直接刪 v1 router（推薦，若 §1 全綠）
    - 選項 2: 留 v1 但永久 410 Gone（若有零星 traffic 想保險）
@@ -116,5 +116,5 @@ Report 結構：
 - `api/middleware/deprecation.py` — counter implementation
 - `docs/_audit/P4-stage-2-7-prep-checklists.md` Stage 7 條件
 - `docs/_ops/wbs-100-closeout-plan.md` §2.1 + §3.3
-- `pending-business-decisions-2026-06-06.html` 事項 1
+- `docs/_archive/governance/pending-business-decisions-2026-06-06.html`（已歸檔）事項 1
 - `docs/architecture/adr/ADR-0108-business-decisions-recon-pricing-defer.md` 業主裁決範式
