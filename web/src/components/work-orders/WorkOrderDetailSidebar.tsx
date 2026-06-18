@@ -194,6 +194,9 @@ export default function WorkOrderDetailSidebar({ workOrder, conversationId }: Pr
         </div>
       </div>
 
+      {/* 成本明細 — CR-0027 後台成本拆項（unit_price 僅後台可見；客戶端不顯示） */}
+      <CostDetailPanel workOrderId={workOrder?.id} />
+
       {/* 公單資訊 — CR-0026 標準化欄位（服務類別/保固/完工狀態/狀態原因，真實） */}
       <WorkOrderFieldsPanel workOrder={workOrder} />
 
@@ -250,6 +253,104 @@ const COMPLETION_STATUS_LABEL: Record<string, string> = {
   completed: "已完工",
   closed: "已結案",
 };
+
+interface QuoteLineItem {
+  id: string;
+  item_name: string;
+  category: string;
+  quantity: number;
+  customer_price: string | null;
+  unit_price?: string | null;
+  is_mock: boolean;
+}
+interface QuoteItemsResponse {
+  items: QuoteLineItem[];
+  customer_final_amount: string | null;
+  cost_visible: boolean;
+}
+
+function CostDetailPanel({ workOrderId }: { workOrderId?: string }) {
+  const t = useTranslations("components.workOrders.detailSidebar");
+  const [data, setData] = useState<QuoteItemsResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!workOrderId) {
+      setData(null);
+      return;
+    }
+    let cancelled = false;
+    setError(null);
+    (async () => {
+      try {
+        const res = await api.get<QuoteItemsResponse>(
+          tenantPath(`/work-orders/${encodeURIComponent(workOrderId)}/quote-items`),
+        );
+        if (!cancelled) setData(res);
+      } catch (e) {
+        if (cancelled) return;
+        setError(e instanceof ApiError ? `${e.errorCode} (${e.status})` : String(e));
+        setData(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [workOrderId]);
+
+  if (!workOrderId) return null;
+
+  return (
+    <div className="flex flex-col gap-[10px] rounded-lg bg-[var(--bg-surface)] p-4 shadow-sm">
+      <div className="flex items-center justify-between">
+        <span className="text-[16px] font-semibold text-[var(--text-primary)]">
+          {t("costTitle")}
+        </span>
+        {data?.items.some((i) => i.is_mock) && (
+          <span className="rounded bg-[#FEF3C7] px-2 py-[2px] text-[11px] text-[#92400E]">
+            {t("costMock")}
+          </span>
+        )}
+      </div>
+      {error ? (
+        <span className="text-[12px] text-[var(--text-disabled)]">{error}</span>
+      ) : !data ? (
+        <span className="text-[13px] text-[var(--text-secondary)]">{t("loading")}</span>
+      ) : data.items.length === 0 ? (
+        <span className="text-[13px] text-[var(--text-disabled)]">{t("costEmpty")}</span>
+      ) : (
+        <>
+          {data.items.map((it) => (
+            <div key={it.id} className="flex items-center justify-between gap-2 text-[13px]">
+              <span className="flex-1 text-[var(--text-secondary)]">
+                {it.item_name} ×{it.quantity}
+              </span>
+              {it.unit_price != null && (
+                <span className="font-mono text-[12px] text-[var(--text-disabled)]">
+                  {t("costInternal")} {it.unit_price}
+                </span>
+              )}
+              <span className="font-mono font-medium text-[var(--text-primary)]">
+                {formatPrice(it.customer_price)}
+              </span>
+            </div>
+          ))}
+          <div className="flex items-center justify-between border-t border-[var(--border)] pt-2">
+            <span className="text-[13px] font-semibold text-[var(--text-primary)]">
+              {t("costFinal")}
+            </span>
+            <span className="font-mono text-[14px] font-semibold text-[var(--text-primary)]">
+              {formatPrice(data.customer_final_amount)}
+            </span>
+          </div>
+          {!data.cost_visible && (
+            <span className="text-[11px] text-[var(--text-disabled)]">{t("costHidden")}</span>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 function WorkOrderFieldsPanel({ workOrder }: { workOrder?: WorkOrder }) {
   const t = useTranslations("components.workOrders.detailSidebar");

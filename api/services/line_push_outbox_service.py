@@ -38,6 +38,8 @@ PushKind = Literal[
     "work_order_assigned",
     "work_order_accepted",
     "scope_change_result",
+    # CR-0027 完工電子工單通知
+    "work_order_document",
 ]
 
 # 對齊 chk_push_status CHECK

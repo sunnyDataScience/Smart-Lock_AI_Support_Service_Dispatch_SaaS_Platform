@@ -612,6 +612,27 @@ async def complete_order(
         (summary, final_price, wo_id),
     )
     await _unescalate_linked_conversation(tenant_id=tenant_id, wo_id=wo_id)
+    # CR-0027：完工推 LINE 給客戶（電子工單已開立 + 最終金額，只露對外價）。best-effort。
+    try:
+        from services import line_push_outbox_service
+        dcur = await db_module._conn.execute(
+            "SELECT document_number, customer_final_amount FROM work_orders WHERE id = %s::uuid",
+            (wo_id,),
+        )
+        drow = await dcur.fetchone()
+        await line_push_outbox_service.enqueue(
+            tenant_id=tenant_id,
+            push_kind="work_order_document",
+            payload={
+                "work_order_id": wo_id,
+                "document_number": drow[0] if drow else None,
+                "final_amount": (f"{float(drow[1]):,.0f}" if drow and drow[1] is not None else None),
+            },
+            reference_id=wo_id,
+            reference_table="work_orders",
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("outbox enqueue work_order_document failed (non-fatal)")
     return await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.completed"
     )

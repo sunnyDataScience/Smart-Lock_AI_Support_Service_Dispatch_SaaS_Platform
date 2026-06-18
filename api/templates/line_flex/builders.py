@@ -408,6 +408,47 @@ def render_scope_change_result(payload: dict) -> list[dict]:
     return [_make_flex_message(alt_text=title, contents=bubble)]
 
 
+def render_work_order_document(payload: dict) -> list[dict]:
+    """CR-0027 — 服務完成、電子工單開立通知客戶（complete_order enqueue）。
+
+    payload schema:
+      - work_order_id (uuid str)
+      - document_number (str | None)
+      - final_amount (str | None) — 對外最終金額（只露此值，不含成本明細）
+
+    客戶端通知：服務已完成 + 電子工單已開立 + 應付總額（決議 4：只露最終價）。
+    """
+    doc = payload.get("document_number")
+    amount = payload.get("final_amount")
+    amount_text = f"NT$ {amount}" if amount else "請洽客服"
+    sub = [{"type": "text", "text": f"工單 {doc}", "size": "xs", "color": "#888888"}] if doc else []
+    bubble = {
+        "type": "bubble",
+        "header": {
+            "type": "box", "layout": "vertical",
+            "contents": [
+                {"type": "text", "text": "✅ 服務已完成", "weight": "bold",
+                 "color": "#1DB446", "size": "md"},
+                *sub,
+            ],
+        },
+        "body": {
+            "type": "box", "layout": "vertical", "spacing": "md",
+            "contents": [
+                {"type": "text", "text": "您的維修服務已完成，電子工單已開立。",
+                 "wrap": True, "size": "sm"},
+                {"type": "separator", "margin": "sm"},
+                {"type": "box", "layout": "horizontal", "contents": [
+                    {"type": "text", "text": "應付總額", "size": "sm", "color": "#555555"},
+                    {"type": "text", "text": amount_text, "weight": "bold",
+                     "size": "md", "align": "end"},
+                ]},
+            ],
+        },
+    }
+    return [_make_flex_message(alt_text="服務已完成，電子工單已開立", contents=bubble)]
+
+
 # Dispatch table（worker 用 push_kind 路由）
 BUILDERS: dict[str, Callable[[dict], list[dict]]] = {
     "reschedule_proposal": render_reschedule_proposal,
@@ -417,6 +458,8 @@ BUILDERS: dict[str, Callable[[dict], list[dict]]] = {
     "work_order_assigned": render_work_order_assigned,
     "work_order_accepted": render_work_order_accepted,
     "scope_change_result": render_scope_change_result,
+    # CR-0027 完工電子工單通知
+    "work_order_document": render_work_order_document,
 }
 
 

@@ -34,7 +34,7 @@ Operational 雜項（reschedule / delay / material-request / door-check 等）
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Path, Query
+from fastapi import APIRouter, Depends, Path, Query, Response
 from pydantic import BaseModel, Field
 
 from core.deps import CurrentUser, require_tenant, role_required
@@ -51,9 +51,18 @@ from models.generated import (
     WorkOrderEscalateRequest,
     WorkOrderPage,
 )
-from services import audit_log_service, signature_service, work_order_service
+from services import (
+    audit_log_service,
+    quote_service,
+    signature_service,
+    work_order_document_service,
+    work_order_service,
+)
 
 router = APIRouter()
+
+# CR-0027：成本（unit_price）僅後台管理角色可見（server 端 RBAC 遮蔽）
+_COST_VISIBLE_ROLES = {"admin", "operations_manager", "tenant_admin"}
 
 # F-004 manual dispatch — 允許角色（與 legacy 對齊）
 _DISPATCH_ALLOWED_ROLES = (
@@ -728,3 +737,85 @@ async def submit_door_check_v2(
     if idem is not None:
         await idem.save(201, payload)
     return payload
+
+
+# ---------------------------------------------------------------------------
+# CR-0027 成本拆項（quote line items）+ 客戶版電子工單 PDF
+# ---------------------------------------------------------------------------
+
+
+class _QuoteLineItemRequest(BaseModel):
+    """新增公單成本拆項（unit_price 內部成本僅後台；數值預設 mock 待財務覆核）。"""
+
+    item_name: str = Field(..., min_length=1, max_length=120)
+    category: str = Field(default="other", description="labor/material/other")
+    unit_price: str = Field(..., max_length=20, description="內部成本（僅後台）")
+    quantity: int = Field(default=1, ge=1, le=999)
+    customer_price: str = Field(..., max_length=20, description="對外金額")
+    is_mock: bool = Field(default=True, description="決議 5：mock（打 8 成）待財務覆核")
+
+
+@router.get(
+    "/tenants/{tenantId}/work-orders/{id}/quote-items",
+    operation_id="listQuoteItemsV2",
+    summary="公單成本拆項列表 v2（unit_price 僅後台角色可見）",
+    tags=["M06 WorkOrder"],
+)
+async def list_quote_items_v2(
+    tenantId: str = Path(...),
+    id: str = Path(...),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    _cross_tenant_read(user, tenantId)
+    include_cost = (user.role or "") in _COST_VISIBLE_ROLES
+    return await quote_service.list_line_items(
+        tenant_id=tenantId, work_order_id=id, include_cost=include_cost,
+    )
+
+
+@router.post(
+    "/tenants/{tenantId}/work-orders/{id}/quote-items",
+    operation_id="addQuoteItemV2",
+    summary="新增公單成本拆項 v2（後台管理角色；重算對外總額）",
+    tags=["M06 WorkOrder"],
+)
+async def add_quote_item_v2(
+    body: _QuoteLineItemRequest,
+    tenantId: str = Path(...),
+    id: str = Path(...),
+    user: CurrentUser = Depends(role_required("admin", "operations_manager", "tenant_admin")),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    _cross_tenant_write(user, tenantId)
+    result = await quote_service.add_line_item(
+        tenant_id=tenantId, work_order_id=id,
+        item_name=body.item_name, category=body.category,
+        unit_price=body.unit_price, quantity=body.quantity,
+        customer_price=body.customer_price, is_mock=body.is_mock,
+    )
+    payload = {"data": result}
+    if idem is not None:
+        await idem.save(201, payload)
+    return payload
+
+
+@router.get(
+    "/tenants/{tenantId}/work-orders/{id}/document",
+    operation_id="getWorkOrderDocumentV2",
+    summary="客戶版電子工單 PDF v2（只露最終價 + 關防，不含成本明細）",
+    tags=["M06 WorkOrder"],
+)
+async def get_work_order_document_v2(
+    tenantId: str = Path(...),
+    id: str = Path(...),
+    user: CurrentUser = Depends(require_tenant),
+) -> Response:
+    _cross_tenant_read(user, tenantId)
+    pdf = await work_order_document_service.render_document(
+        tenant_id=tenantId, work_order_id=id,
+    )
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="work-order-{id}.pdf"'},
+    )

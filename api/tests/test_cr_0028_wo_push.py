@@ -62,11 +62,24 @@ def test_scope_change_result_accept_vs_reject_differ():
 
 
 def test_build_messages_dispatches_new_kinds():
-    for kind in ("work_order_assigned", "work_order_accepted", "scope_change_result"):
+    # work_order_document（CR-0027）一併驗證 dispatch
+    kinds = ("work_order_assigned", "work_order_accepted", "scope_change_result",
+             "work_order_document")
+    for kind in kinds:
         assert kind in BUILDERS
-        out = build_messages(kind, {"work_order_id": "wo1", "decision": "accept"})
+        out = build_messages(kind, {"work_order_id": "wo1", "decision": "accept",
+                                    "final_amount": "2000"})
         assert out is not None
         assert isinstance(out, list) and len(out) >= 1
+
+
+def test_work_order_document_shows_final_amount_only():
+    out = build_messages("work_order_document",
+                         {"work_order_id": "wo1", "document_number": "PB-000123",
+                          "final_amount": "2000"})
+    s = str(out)
+    assert "2000" in s and "PB-000123" in s
+    assert "完成" in s
 
 
 def test_pushkind_literal_includes_new_values():

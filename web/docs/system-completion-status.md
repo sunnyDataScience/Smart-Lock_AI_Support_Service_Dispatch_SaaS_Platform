@@ -30,6 +30,8 @@
 ██████████████████████████████████  99.8%
 ```
 
+> **6/18 — 工單系統修復 Phase 3：成本明細 + 客戶版電子工單（CR-0027）** — 會議決議 4/5 + §4.1。新表 `quote_line_items`（migration 037：unit_price 內部成本僅後台/customer_price 對外/is_mock 待覆核）+ `quote_service`（CRUD + 重算 customer_final_amount + RBAC 成本遮蔽）+ `work_order_document_service`（客戶版電子工單 PDF，複用 reportlab 中文字型，結構隔離成本、含關防 placeholder）。API：quote-items GET/POST（RBAC）+ document GET（PDF）。完工複用 CR-0028 outbox 推 LINE「服務完成+應付總額」。後台側邊欄成本明細面板。test_cr_0027 3 pass + builder 2 pass + tsc 0。follow-up：客戶端 track PDF 下載（public token 端點）、後台 PDF 下載按鈕。**工單三階段修復完成（CR-0028 回傳 + CR-0026 欄位 + CR-0027 成本/電子工單）。**
+>
 > **6/18 — 工單系統修復 Phase 2：公單欄位補洞（CR-0026）** — 會議 Action #1 + 決議 3（schema 先補）。work_orders 從扁平結構補上設備辨識/服務類別/保固/完工細狀態/status_reason/parent/customer_final_amount 共 16 欄（migration 036，全 nullable + tenant_id backfill 84 列）。service：建單從 PC 複製 brand/model/problem_type/photos；派工前必填 gate（缺品牌/型號/地址/問題類型→422，BR-M05-03）；取消必填 status_reason（BR-M05-01）。API：WorkOrder model + TS 型別 + serializer 補 13 欄。後台詳情側邊欄新增「公單資訊」面板 + 綁真實 S/N。test_cr_0026 4 pass + 回歸 55 pass + tsc 0 error。採會議授權預設（免責佔位/完工六段/保固人工填/成本切 CR-0027），標待業主確認。
 >
 > **6/18 — 工單系統修復 Phase 1：LINE 公單回傳斷鏈（CR-0028）** — 2026-06-17 會議最痛工單問題「公單派出→派工→報價回 LINE 斷在後台」(Action 6) 修復。根因：(1) assign/accept/scope 決議三節點不推 LINE；(2) outbox worker resolver 用了不存在的 `work_orders.tenant_id` → 反查客戶 LINE uid 靜默失敗（連既有 scope_change push 也送不出）。修復：resolver 改走 `users.tenant_id`、複用 CR-0017 outbox 新增 3 個 push_kind + Flex builder、三處 service best-effort enqueue。test_cr_0028 6 pass + CR-0017 回歸 17 pass。順帶補正 CR-0017 文件 status→built。工單三階段修復計畫進行中（Phase 2 公單欄位 CR-0026、Phase 3 成本+電子工單 CR-0027 待續）。整合驗證（LINE 真送）待 stack 起來。
