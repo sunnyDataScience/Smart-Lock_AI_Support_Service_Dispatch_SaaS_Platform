@@ -73,6 +73,7 @@ from routers import dispatch_v2 as dispatch_v2_router  # spec-alignment P2-α (C
 from routers import work_orders_v2 as work_orders_v2_router  # spec-alignment P2-α (CR-0002-α, M06 WorkOrder tenant-scoped)
 from routers import vendors_v2 as vendors_v2_router  # CR-0029 收尾：廠商核准管理
 from routers import catalog_v2 as catalog_v2_router  # CR-0034：報價主檔（service/material/surcharge）
+from routers import quote_v2 as quote_v2_router  # CR-0032：報價引擎（quote 主表狀態機 + 核准 + snapshot）
 from routers import pricing_v2 as pricing_v2_router  # spec-alignment P2-α (CR-0002-α, M11 Pricing calculate tenant-scoped)
 from routers import consumer_v2 as consumer_v2_router  # spec-alignment P2-α (CR-0002-α, M16 Consumer public token)
 from routers import settlements_v2 as settlements_v2_router  # spec-alignment P2 (FR-0012, M12 Settlement monthly trigger 501 stub)
@@ -255,6 +256,7 @@ app.include_router(technicians_v2_router.router, tags=["M05 Technician"])  # spe
 app.include_router(dispatch_v2_router.router, tags=["M06 Dispatch"])  # spec-alignment P2-α (CR-0002-α, tenant-scoped)
 app.include_router(vendors_v2_router.router, tags=["M14 Vendor"])  # CR-0029 收尾：廠商核准管理
 app.include_router(catalog_v2_router.router, tags=["M04 Quote"])  # CR-0034：報價主檔
+app.include_router(quote_v2_router.router, tags=["M04 Quote"])  # CR-0032：報價引擎
 # work_orders_ops_v2 須先於 work_orders_v2 註冊：/work-orders/pool、/dispatch/queue 為 literal 段，
 # 否則被 work_orders_v2 的 /work-orders/{woId} param 路由吃掉（"pool" → uuid 解析失敗）。
 app.include_router(work_orders_ops_v2_router.router, tags=["M07 WorkOrder Ops"])  # spec-alignment P2-W4 (route-order before /{woId})

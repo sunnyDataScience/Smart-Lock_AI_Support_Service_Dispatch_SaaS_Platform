@@ -278,6 +278,7 @@
       "technicians": "技師管理",
       "vendorApprovals": "廠商審核",
       "quoteCatalog": "報價主檔",
+      "quotes": "報價單",
       "customers": "客戶主檔",
       "accounting": "帳務與結算",
       "settlements": "月結算總覽",
@@ -2334,6 +2335,42 @@
         "ruleType": "規則類型",
         "value": "數值 / 規則",
         "status": "狀態"
+      },
+      "quotes": {
+        "title": "報價單",
+        "mockBadge": "mock（金額待業主覆核正式價）",
+        "woId": "工單 ID",
+        "createDraft": "建立報價草稿",
+        "quoteId": "報價單號",
+        "item": "項目",
+        "pickItem": "— 選擇服務 / 材料 —",
+        "services": "服務",
+        "materials": "材料",
+        "qty": "數量",
+        "addLine": "加入項目",
+        "name": "名稱",
+        "category": "類別",
+        "cost": "內部成本",
+        "custPrice": "客戶價",
+        "noLines": "尚無報價項目",
+        "snapshot": "凍結快照",
+        "note": "金額來自 mock 主檔；核准門檻、訂金、稅務等正式值待業主確認（esales Q-01~Q-12）。",
+        "state": {
+          "draft": "草稿",
+          "pending_approval": "待核准",
+          "approved": "已核准",
+          "sent": "已送客戶",
+          "accepted": "客戶已接受",
+          "rejected": "已駁回",
+          "expired": "已過期"
+        },
+        "action": {
+          "submit": "送審核准",
+          "approve": "核准",
+          "reject": "駁回",
+          "send": "送給客戶",
+          "accept": "標記客戶接受"
+        }
       },
       "vendorApprovals": {
         "title": "廠商審核",

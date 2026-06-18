@@ -278,6 +278,7 @@
       "technicians": "Technicians",
       "vendorApprovals": "Vendor approvals",
       "quoteCatalog": "Price catalog",
+      "quotes": "Quotes",
       "customers": "Customers",
       "accounting": "Accounting",
       "settlements": "Settlements",
@@ -2334,6 +2335,42 @@
         "ruleType": "Rule type",
         "value": "Value / rule",
         "status": "Status"
+      },
+      "quotes": {
+        "title": "Quotes",
+        "mockBadge": "mock (amounts pending owner price review)",
+        "woId": "Work order ID",
+        "createDraft": "Create draft quote",
+        "quoteId": "Quote ID",
+        "item": "Item",
+        "pickItem": "— pick a service / material —",
+        "services": "Services",
+        "materials": "Materials",
+        "qty": "Qty",
+        "addLine": "Add line",
+        "name": "Name",
+        "category": "Category",
+        "cost": "Internal cost",
+        "custPrice": "Customer price",
+        "noLines": "No line items yet",
+        "snapshot": "Frozen snapshot",
+        "note": "Amounts come from the mock catalog; approval threshold, deposit, tax etc. pending owner confirmation (esales Q-01~Q-12).",
+        "state": {
+          "draft": "Draft",
+          "pending_approval": "Pending approval",
+          "approved": "Approved",
+          "sent": "Sent to customer",
+          "accepted": "Customer accepted",
+          "rejected": "Rejected",
+          "expired": "Expired"
+        },
+        "action": {
+          "submit": "Submit for approval",
+          "approve": "Approve",
+          "reject": "Reject",
+          "send": "Send to customer",
+          "accept": "Mark customer accepted"
+        }
       },
       "vendorApprovals": {
         "title": "Vendor approvals",

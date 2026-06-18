@@ -88,6 +88,46 @@ async def test_state_machine_and_snapshot_freeze(client):
 
 
 @pytest.mark.asyncio
+async def test_approval_threshold_blocks_draft_send(client):
+    """總額超 _APPROVAL_THRESHOLD 不可從 draft 直送，須先 submit→approve（esales Q-11 mock 門檻）。"""
+    assert await db_module._ensure_conn()
+    woid, ids = await _seed_wo()
+    try:
+        q = await qe.create_quote(tenant_id=DEFAULT_TENANT_ID, work_order_id=woid, created_by=ADMIN_USER_ID)
+        qid = q["id"]
+        # SVC-RES-001 售價 800 × 20 = 16000 > 10000 門檻
+        q = await qe.add_line(tenant_id=DEFAULT_TENANT_ID, quote_id=qid, service_code="SVC-RES-001", quantity=20)
+        assert float(q["total_amount"]) > qe._APPROVAL_THRESHOLD
+        # draft 直送 → 擋
+        with pytest.raises(ApiError) as ei:
+            await qe.transition(tenant_id=DEFAULT_TENANT_ID, quote_id=qid, action="send", actor_id=ADMIN_USER_ID)
+        assert ei.value.status_code == 409 and ei.value.error_code == "APPROVAL_REQUIRED"
+        # 走 submit→approve→send 則放行
+        await qe.transition(tenant_id=DEFAULT_TENANT_ID, quote_id=qid, action="submit")
+        await qe.transition(tenant_id=DEFAULT_TENANT_ID, quote_id=qid, action="approve", actor_id=ADMIN_USER_ID)
+        sent = await qe.transition(tenant_id=DEFAULT_TENANT_ID, quote_id=qid, action="send", actor_id=ADMIN_USER_ID)
+        assert sent["state"] == "sent"
+    finally:
+        await _cleanup(ids)
+
+
+@pytest.mark.asyncio
+async def test_under_threshold_draft_send_ok(client):
+    """總額在門檻內 → draft 可直送（免核）。"""
+    assert await db_module._ensure_conn()
+    woid, ids = await _seed_wo()
+    try:
+        q = await qe.create_quote(tenant_id=DEFAULT_TENANT_ID, work_order_id=woid, created_by=ADMIN_USER_ID)
+        qid = q["id"]
+        q = await qe.add_line(tenant_id=DEFAULT_TENANT_ID, quote_id=qid, service_code="SVC-RES-001", quantity=1)
+        assert float(q["total_amount"]) <= qe._APPROVAL_THRESHOLD
+        sent = await qe.transition(tenant_id=DEFAULT_TENANT_ID, quote_id=qid, action="send", actor_id=ADMIN_USER_ID)
+        assert sent["state"] == "sent"
+    finally:
+        await _cleanup(ids)
+
+
+@pytest.mark.asyncio
 async def test_get_quote_cost_rbac(client):
     assert await db_module._ensure_conn()
     woid, ids = await _seed_wo()

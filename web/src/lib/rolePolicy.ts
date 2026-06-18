@@ -36,6 +36,7 @@ const ROUTE_POLICY: { prefix: string; roles: string[] }[] = [
   { prefix: "/admin/customers", roles: ["admin", "operations_manager", "customer_service"] },
   { prefix: "/admin/vendor-approvals", roles: ["admin", "operations_manager"] },
   { prefix: "/admin/quote-catalog", roles: ["admin", "operations_manager"] },
+  { prefix: "/admin/quotes", roles: ["admin", "operations_manager"] },
   { prefix: "/accounting", roles: ["admin", "operations_manager"] },
   { prefix: "/admin/refunds", roles: ["admin", "operations_manager"] },
   { prefix: "/admin/warranty-claims", roles: ["admin", "operations_manager"] },

@@ -30,6 +30,8 @@
 ██████████████████████████████████  99.8%
 ```
 
+> **6/19 — S2 報價引擎 Phase B（CR-0032）報價畫面到 DB 全通** — 把 Phase A 引擎接上 API + 後台 UI。(1) **核准門檻 enforcement**(`_APPROVAL_THRESHOLD` mock 10000):總額超門檻不可從 draft 直送,須先 submit→approve,否則 409 `APPROVAL_REQUIRED`(正式門檻待 esales Q-11)。(2) **API** `quote_v2` router:建 draft / 詳情(cost RBAC) / 加項(catalog 帶價) / 狀態機 `:submit`/`:send`/`:accept`(一般角色)+`:approve`/`:reject`(管理角色);全端點 cross-tenant guard。(3) **後台報價編輯頁** `/admin/quotes`:輸入工單 ID 建草稿→catalog 下拉加項→即時 total→狀態機按鈕,成本欄依角色顯示;i18n+rolePolicy+Sidebar 入口。test 補 2 案(超門檻擋/門檻內放行)共 5 pass,tsc 0 error。Phase C(follow-up):客戶端報價查看(/consumer/quotes/{token} 只露最終價)+ ADR(快照不可變)。
+>
 > **6/18 — S2 報價引擎 Phase A（CR-0032，mock-first）** — 接 CR-0034 catalog。migration 041:`quote` 主表(狀態機 draft→pending→approved→sent→accepted/expired/superseded + 版本鏈 + 有效期 + snapshot_hash)+ quote_approval + pricing_rule_snapshot(append-only)+ quote_line_items 加 quote_id/service_code。`quote_engine_service`:create(有效期 14d/急件3d)、add_line **從 catalog 帶價**、狀態機、送單**凍結 snapshot+sha256**、過期擋 accept、cost RBAC。test 3 pass。Phase B:API 端點 + 後台/客戶報價 UI + 核准門檻 + ADR。報價主軸 主檔(CR-0034)→引擎(CR-0032 Phase A)接通,數值 mock 待 esales Q-01~12 轉正式。
 >
 > **6/18 — S4 報價基礎主檔 Phase A（CR-0034）** — 報價主檔(報價引擎/金流上游)在 code 全缺。依會議決議 5 把 esales 報價資料庫灌為 mock:migration 040 建 service_catalog(29 服務)+material_catalog(20 材料)+surcharge_rule(12 規則)+seed(全 is_mock,人工轉寫;區域/取消費=已知規格 ADR-0102,急件/夜間/假日/S5=待決策 esales Q-03~06)。`quote_catalog_service`(internal 成本 RBAC 遮蔽)+ `GET /tenants/{tid}/quote-catalog`。test 2 pass。**確認:報價資料確實在 esales 內、決議 5 授權當 mock,故不卡業主裁決即可建。** follow-up:前端主檔頁、Phase B(BOM/拆帳/供應商)、mock→正式價(esales Q-01~12)、CR-0032 報價引擎接此主檔。

@@ -33,6 +33,9 @@ _TRANSITIONS = {
 _VALIDITY_DAYS_NORMAL = 14
 _VALIDITY_DAYS_URGENT = 3
 
+# 核准門檻（mock 預設；正式值待業主 esales Q-11）：總額超此值不可從 draft 直送，須先核准
+_APPROVAL_THRESHOLD = 10000.0
+
 
 def _dec(v) -> str | None:
     return None if v is None else f"{float(v):.2f}"
@@ -158,6 +161,17 @@ async def transition(
         raise ApiError("NOT_FOUND", "quote not found", 404)
     if cur[0] not in from_states:
         raise ApiError("STATE_CONFLICT", f"cannot {action} quote in '{cur[0]}'", 409)
+
+    # 核准門檻（esales Q-11，mock 預設）：總額超門檻不可從 draft 直送，須先 submit→approve
+    if action == "send" and cur[0] == "draft":
+        tot = await (await conn.execute(
+            "SELECT COALESCE(total_amount, 0) FROM quote WHERE id = %s::uuid", (quote_id,))).fetchone()
+        if float(tot[0]) > _APPROVAL_THRESHOLD:
+            raise ApiError(
+                "APPROVAL_REQUIRED",
+                f"報價總額超過 {_APPROVAL_THRESHOLD:.0f}（門檻待 esales Q-11 確認），須先送審核准",
+                409,
+            )
 
     # 過期檢查：sent 後逾 expiry 不可 accept
     if action == "accept":
