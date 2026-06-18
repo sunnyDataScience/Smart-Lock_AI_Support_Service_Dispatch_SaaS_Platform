@@ -30,6 +30,8 @@
 ██████████████████████████████████  99.8%
 ```
 
+> **6/18 — S4 報價基礎主檔 Phase A（CR-0034）** — 報價主檔(報價引擎/金流上游)在 code 全缺。依會議決議 5 把 esales 報價資料庫灌為 mock:migration 040 建 service_catalog(29 服務)+material_catalog(20 材料)+surcharge_rule(12 規則)+seed(全 is_mock,人工轉寫;區域/取消費=已知規格 ADR-0102,急件/夜間/假日/S5=待決策 esales Q-03~06)。`quote_catalog_service`(internal 成本 RBAC 遮蔽)+ `GET /tenants/{tid}/quote-catalog`。test 2 pass。**確認:報價資料確實在 esales 內、決議 5 授權當 mock,故不卡業主裁決即可建。** follow-up:前端主檔頁、Phase B(BOM/拆帳/供應商)、mock→正式價(esales Q-01~12)、CR-0032 報價引擎接此主檔。
+>
 > **6/18 — 工項缺口盤點 + 補完啟動（roadmap + CR-0032 CIA + 廠商核准 UI）** — 5 源平行盤點(程式碼 vs 20260617資料)：廣度夠深度淺,大缺口=金流結算/報價引擎/報價主檔/免責合規/報表KPI/Partner Portal/測試;產 `docs/_audit/gap-audit-20260617-completion-roadmap.md`(S1-S8 計劃)。**啟動 S1+S2**：(1) **廠商核准 UI**(CR-0029 收尾)`vendor_service` + `vendors_v2` router(approve/reject,限管理角色)+ 後台 `/admin/vendor-approvals` 頁 + Sidebar 入口 → 收完註冊閉環(test 2 pass);(2) **CR-0032 報價引擎 CIA**(saas.quote 主表+核准 gate+snapshot 凍結)停 §8 等裁決。其餘 S1(SMTP/QR=ops)、S3-S8 依序。
 >
 > **6/18 — 派工模式切換（CR-0030，會議 Action #7）** — 三檔(manual/platform_paid/auto_match)本輪做前兩檔(自動媒合留 Report 2)。migration 039:`saas.tenant.dispatch_mode` + `work_orders.dispatched_via`(platform=可計費)。`dispatch_mode_service`(get/set)+ assign_order 依模式標記 dispatched_via。`GET/POST /tenants/{tid}/dispatch-mode`(管理角色 + audit)。dispatch-queue 頁 header 加派工模式下拉切換。平台代派只標記 billable、本輪不硬扣 credit(計費規則待業主)。test_cr_0030 3 pass + 回歸 + tsc 0。follow-up:計費引擎 / 自動媒合執行 / CR-0031 派工權隔離。**會議 Action 3+7 兩大 BUILD 完成；剩 Action 12/13 multi-tenant(會議定調 Beta 後下一輪)。**
