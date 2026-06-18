@@ -211,9 +211,6 @@ export default function FamilyReviewsPage() {
                 >
                   <div className="flex-1 text-[13px] font-medium text-[var(--text-primary)]">
                     {item.title}
-                    <div className="font-['IBM_Plex_Mono'] text-[11px] text-[var(--text-secondary)]">
-                      {item.sop_draft_id.slice(0, 8)}…
-                    </div>
                   </div>
                   <div className="w-[180px] text-[13px] text-[var(--text-secondary)]">
                     {item.admin_reviewer || "—"}

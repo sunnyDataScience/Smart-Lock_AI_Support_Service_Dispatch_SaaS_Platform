@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **知識庫殘留內部 UUID 收尾（會議 Action #5 延續，branch `fix/kb-residual-internal-id`，2026-06-18）**：先前 `fix/kb-cases-hide-internal-id` 已修 cases/[id] + sop-drafts header；本次清掉兩處殘留——(a) `knowledge-base/family-reviews/page.tsx` 家族覆核清單把 `sop_draft_id.slice(0,8)` 顯示在 title 下方（title 已足夠 → 移除冗餘 UUID）；(b) `knowledge-base/sop-drafts/[id]/page.tsx`「來源問題卡」連結原以 `problem_card_id.slice(0,8)` 當連結文字（露 PC 內部 UUID）→ 改為標籤「來源問題卡 →」、保留 href 導航。**刻意保留**：family-reviews 稽核 log 表格欄（sop_draft_id/reviewer_id 短碼）屬 admin 內部稽核追溯，非會議針對的消費者面向洩漏。**性質**：純前端顯示調整，無 schema/contract/flow 變動 → 不觸發 CIA；tsc 0 error。
+
 - **技師登入頁「忘記密碼」死按鈕收尾（branch `fix/tech-login-forgot-hint`，2026-06-17）**：20260610 會議 Action #7「忘記密碼功能」**已由 `admin-reset-password`（admin 代重設、回臨時密碼、免 email 基礎設施）實作完成**；但 `tech-login` 頁仍留一顆 `disabled` 的「忘記密碼（待補）/ V2.0 規劃」按鈕——看似可點卻無作用，誤導使用者以為有自助流程。經業主裁決（2026-06-17）**不建自助重設**（會用到的後台 staff/技師無現成送達管道、寄信基礎建設從零，成本不划算）。**修復**：把該 `<button disabled>` 改為純資訊 `<span>`，文案改「忘記密碼？請聯絡管理員重設」（tooltip 說明「目前不支援自助重設，請聯絡管理員代為重設密碼」）。**性質**：純前端文案/標記調整，無 schema / API contract / flow 變動 → 不觸發 CIA。自助重設（email/LINE/SMS OTP，需 reset_token 表 + 管道 + CIA）列為未來可選增強，現階段不做。
 
 - **知識庫案例詳情頁洩漏內部 UUID（branch `fix/kb-cases-hide-internal-id`，2026-06-17）**：`knowledge-base/cases/[id]` 詳情頁頁尾把案例的內部 UUID（`entry.id`）以 `ID: {uuid}` 直接顯示在畫面上（20260610 會議 Action #6「系統內部欄位要過濾掉，消費者不該看到」；sop-drafts 頁先前已只顯示人類可讀 `document_number`，此頁漏修）。**修復**：移除該 `<span>` 顯示，並清掉兩語系 `kb.cases.detail.id` 孤兒 key（`zh-TW.json` / `en.json`）。內部 id 仍用於路由（網址列），畫面不再重複外露。**性質**：純前端移除已洩漏欄位顯示，無 schema / API contract / flow 變動 → 不觸發 CIA。**註**：case_entries 是否要比照 work_orders/sop_drafts 補人類可讀 `document_number`（需 schema 變更 + CIA）列為後續可選增強，本次不做（會議要求是「過濾掉」而非「給編號」）。
