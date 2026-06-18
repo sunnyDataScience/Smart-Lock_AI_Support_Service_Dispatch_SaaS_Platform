@@ -121,6 +121,12 @@ quote 狀態機轉換；核准 gate（超門檻擋）；14d/3d 過期；snapshot
   - **API（`routers/quote_v2.py`，掛 `main.py`）**：`POST .../work-orders/{woId}/quotes`（建 draft）、`GET .../quotes/{id}`（cost RBAC 遮蔽）、`POST .../quotes/{id}/lines`（從 catalog 帶價）、狀態機 `:submit`/`:send`/`:accept`（一般角色）+ `:approve`/`:reject`（管理角色 `role_required`）；cross-tenant guard。
   - **後台報價編輯頁（`web/src/app/admin/quotes`）**：輸入工單 ID 建草稿 → 從 catalog 下拉加項（服務/材料 × 數量）→ 即時 total → 狀態機按鈕（送審/核准/駁回/送客戶/客戶接受），成本欄依角色顯示；i18n（zh-TW/en `components.admin.quotes` + `sidebar.nav.quotes`）+ rolePolicy（admin/operations_manager）+ Sidebar 連結。
   - **測試**：`test_cr_0032_quote_engine.py` 補 2 案（超門檻擋 draft 直送→走 submit/approve 放行；門檻內 draft 可直送），共 5 pass；`npx tsc --noEmit` 0 error。
-- ⏳ **Phase C（延後）**：客戶端報價查看（`/consumer/quotes/{token}` 只露最終價，複用 public_token）+ ADR（報價快照不可變 + 狀態機）。
+- ✅ **Phase C（客戶端報價查看 + ADR，`feat/cr-0032-quote-engine`）**：報價主軸最後一段。
+  - **複用 stateless `public_token`**（新增 `purpose='quote_view'`，不建 token 表/不加 quote 欄）：`public_token.py` Literal + `verify_token` allowlist 加 `quote_view`；`quote_engine_service.mint_view_token`（TTL 對齊 `quote.expiry_at`，fallback 7d），`:send` 成功即鑄 token 回 `public_token`/`public_path`。
+  - **消費端點（`consumer_v2.py`）**：`GET /consumer/quotes/{token}`（`include_cost=False` **結構性零成本外洩**，回最終價/明細/狀態/有效期/snapshot_hash）+ `POST /consumer/quotes/{token} {decision}`（accept→accepted、reject→decline→rejected，走既有狀態機，過期擋 accept 409，非法 decision 422）；失敗一律 404 不洩露。後台 `GET .../quotes/{id}/public-link` 可重鑄連結供複製。
+  - **前端客戶頁（`web/src/app/quotes/[token]`）**：mobile-first CSR、bare fetch（不帶 JWT）、三態機、只露客戶價、同意/拒絕鈕；i18n `pages.quotesPublic`（zh-TW/en）+ AuthGuard `PUBLIC_PREFIXES` 加 `/quotes/`。後台報價頁（`/admin/quotes`）送客戶後顯示「客戶查看連結」框（複製 / 重取 public-link）。
+  - **對抗式審查（3 lens）後修正**：TTL 改 ceil 小時粒度（避免 token 比報價長命）；consumer GET 移除客戶無用的 `work_order_id`（最小資料）；token 驗證失敗訊息統一（不洩露 invalid vs purpose-mismatch）；mint 回傳 `token_expires_at` 正名（不與 `expiry_at` 混淆）。治理 lens：clean。
+  - **ADR-0115**（accepted）：客戶端報價查看走 stateless public_token + 結構性零成本外洩；**不重複** ADR-0064（快照不可變）/ ADR-0066（狀態機）/ ADR-0062（pricing BC），只記新存取決策。
+  - **測試**：`test_cr_0032_phasec_consumer.py`（quote_view token roundtrip、GET 無 unit_price + include_cost=False、purpose 不符 404、accept/decline 映射、bad decision 422）+ `test_cr_0032_quote_engine.py` 加 send 鑄真 token 整合案；報價/consumer 全套 pass，`tsc --noEmit` 0 error。
 - ⏳ §8 正式值：核准門檻/訂金/稅務/有效期（綁 esales Q-03~Q-11）—— mock-first 不卡，待業主一次確認。
 - 分支：`feat/cr-0032-quote-engine`

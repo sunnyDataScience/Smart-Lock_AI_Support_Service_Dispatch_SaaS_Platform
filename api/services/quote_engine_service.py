@@ -11,13 +11,18 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 from datetime import datetime, timedelta, timezone
 
 import core.db as db_module
 from core.db import _ensure_conn
 from core.errors import ApiError
+from services import public_token
 
 logger = logging.getLogger("api.quote_engine_service")
+
+# 客戶端報價查看 public_token TTL fallback（無 expiry_at 時）；正常以 quote.expiry_at 為準
+_VIEW_TOKEN_FALLBACK_DAYS = 7
 
 # 允許的狀態轉換（action → (from_states, to_state)）
 _TRANSITIONS = {
@@ -189,7 +194,46 @@ async def transition(
             (quote_id, actor_id, "approved" if action == "approve" else "rejected", comment))
     if action == "send":
         await _freeze_snapshot(quote_id, tenant_id)
-    return await get_quote(quote_id=quote_id, tenant_id=tenant_id, include_cost=True)
+    result = await get_quote(quote_id=quote_id, tenant_id=tenant_id, include_cost=True)
+    # 送客戶 → 一併鑄客戶端查看連結（stateless public_token，quote_view purpose）
+    if action == "send":
+        link = await mint_view_token(tenant_id=tenant_id, quote_id=quote_id)
+        result = {**result, **link}
+    return result
+
+
+def _ttl_days_from(expiry: datetime | None) -> int:
+    """token TTL 對齊報價有效期；無 expiry 則 fallback。至少 1 天。
+
+    用小時粒度 ceil（非 .days 整日截斷）—— 報價剩 6h 時應給能完整覆蓋的天數，
+    避免 token 反而比報價長命；已過期報價（remaining ≤ 0）給最小 1 天供唯讀查看。
+    """
+    if not expiry:
+        return _VIEW_TOKEN_FALLBACK_DAYS
+    remaining_days = (expiry - datetime.now(timezone.utc)).total_seconds() / 86400
+    return max(1, math.ceil(remaining_days))
+
+
+async def mint_view_token(*, tenant_id: str, quote_id: str) -> dict:
+    """鑄客戶端報價查看連結（已送客戶的報價才有意義）。
+
+    複用 public_token（HMAC stateless，purpose=quote_view），不另建 token 表
+    —— 報價快照已凍結（ADR-0064），token 只是無狀態的查看授權。
+    """
+    conn = await _conn()
+    r = await (await conn.execute(
+        "SELECT state, expiry_at FROM quote WHERE id = %s::uuid "
+        "AND (tenant_id = %s::uuid OR tenant_id IS NULL)",
+        (quote_id, tenant_id))).fetchone()
+    if not r:
+        raise ApiError("NOT_FOUND", "quote not found", 404)
+    if r[0] not in ("sent", "accepted", "rejected", "expired"):
+        raise ApiError("STATE_CONFLICT", f"quote in '{r[0]}' has no customer link (send it first)", 409)
+    token = public_token.generate_token(
+        quote_id, purpose="quote_view", ttl_days=_ttl_days_from(r[1]), tenant_id=tenant_id)
+    # token_expires_at 明確命名（token 的過期，非報價的 expiry_at），避免與 get_quote 欄位混淆
+    return {"public_token": token, "public_path": f"/quotes/{token}",
+            "token_expires_at": r[1].isoformat() if r[1] else None}
 
 
 async def _freeze_snapshot(quote_id: str, tenant_id: str) -> None:

@@ -32,6 +32,7 @@ interface Quote {
   is_mock: boolean;
   lines: QuoteLine[];
   cost_visible: boolean;
+  public_path?: string | null; // 送客戶後回傳的客戶端查看連結（CR-0032 Phase C）
 }
 
 const STATE_COLORS: Record<string, string> = {
@@ -60,6 +61,8 @@ export default function QuotesPage() {
 
   const [pick, setPick] = useState("");
   const [qty, setQty] = useState(1);
+  const [linkPath, setLinkPath] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -126,6 +129,8 @@ export default function QuotesPage() {
         ? await api.post<{ data: Quote }>(path, { comment: null })
         : await api.post<{ data: Quote }>(path, {});
       setQuote(res.data);
+      // 送客戶成功 → 後端回傳客戶端查看連結
+      if (res.data.public_path) setLinkPath(res.data.public_path);
     } catch (e) {
       fail(e);
     } finally {
@@ -133,7 +138,35 @@ export default function QuotesPage() {
     }
   }
 
+  async function fetchLink() {
+    if (!quote) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await api.get<{ data: { public_path: string } }>(tenantPath(`/quotes/${quote.id}/public-link`));
+      setLinkPath(res.data.public_path);
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copyLink() {
+    if (!linkPath) return;
+    const url = `${window.location.origin}${linkPath}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard 不可用時忽略（使用者可手動選取輸入框複製）
+    }
+  }
+
   const actions = quote ? nextActions(quote.state) : [];
+  // 已送客戶（含後續狀態）才有客戶連結
+  const hasCustomerLink = quote != null && ["sent", "accepted", "rejected", "expired"].includes(quote.state);
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -284,6 +317,36 @@ export default function QuotesPage() {
                       {t(`action.${a}`)}
                     </button>
                   ))}
+                </div>
+              )}
+
+              {/* 客戶端查看連結（已送客戶才有） */}
+              {hasCustomerLink && (
+                <div className="rounded-lg border border-[var(--border)] bg-[#F8FAFC] p-4">
+                  <div className="mb-2 text-sm font-medium text-[var(--text-primary)]">{t("customerLink")}</div>
+                  {linkPath ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        readOnly
+                        value={`${typeof window !== "undefined" ? window.location.origin : ""}${linkPath}`}
+                        className="min-w-0 flex-1 rounded border border-[var(--border)] bg-white px-3 py-2 font-mono text-[12px] text-[var(--text-secondary)]"
+                      />
+                      <button
+                        onClick={copyLink}
+                        className="rounded border border-[var(--primary)] px-3 py-2 text-sm font-medium text-[var(--primary)]"
+                      >
+                        {copied ? t("copied") : t("copyLink")}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={fetchLink}
+                      disabled={busy}
+                      className="rounded border border-[var(--primary)] px-3 py-2 text-sm font-medium text-[var(--primary)] disabled:opacity-50"
+                    >
+                      {t("getLink")}
+                    </button>
+                  )}
                 </div>
               )}
 

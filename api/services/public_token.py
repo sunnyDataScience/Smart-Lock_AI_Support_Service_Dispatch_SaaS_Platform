@@ -52,7 +52,7 @@ from typing import Literal
 
 logger = logging.getLogger("api.public_token")
 
-TokenPurpose = Literal["work_order_status", "scope_change"]
+TokenPurpose = Literal["work_order_status", "scope_change", "quote_view"]
 
 # secret 來源：env var → 生產 GCP Secret Manager 注入；dev 用固定 fallback
 _DEV_SECRET = "dev-secret-do-not-use-in-prod"  # noqa: S105 — explicit dev fallback
@@ -174,7 +174,7 @@ def verify_token(token: str) -> TokenPayload:
     sub = payload.get("sub")
     purpose = payload.get("purpose")
     exp = payload.get("exp")
-    if not sub or purpose not in {"work_order_status", "scope_change"} or not exp:
+    if not sub or purpose not in {"work_order_status", "scope_change", "quote_view"} or not exp:
         raise TokenInvalidError("payload missing required fields")
 
     expires_at = datetime.fromtimestamp(int(exp), tz=timezone.utc)

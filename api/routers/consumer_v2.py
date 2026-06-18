@@ -228,6 +228,97 @@ async def respond_scope_change_v2(
     )
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 報價 消費者匿名查看 / 回覆 v2（CR-0032 Phase C；purpose=quote_view）
+#   客戶從 LINE 短連結開 /quotes/{token} → 看最終價（無內部成本）→ 同意/拒絕
+#   結構性零成本外洩：get_quote(include_cost=False) 不回 unit_price
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _verify_quote_token(token: str):
+    """驗 quote_view 用途 token；失敗一律 404 不洩露原因。"""
+    try:
+        payload = verify_token(token)
+    except (TokenInvalidError, TokenExpiredError) as exc:
+        logger.info("quote_view token verify failed: %s", exc)
+        raise ApiError("NOT_FOUND", "token invalid or expired", 404)
+
+    # 失敗訊息一律統一（不洩露 invalid vs purpose-mismatch vs missing-tenant 差異）；
+    # 內部用 logger 區分（不對外）
+    if payload.purpose != "quote_view":
+        logger.info(
+            "quote_view token purpose mismatch: got=%s expected=quote_view",
+            payload.purpose,
+        )
+        raise ApiError("NOT_FOUND", "token invalid or expired", 404)
+    if not payload.tenant_id:
+        logger.info("quote_view token missing tenant scope")
+        raise ApiError("NOT_FOUND", "token invalid or expired", 404)
+    return payload
+
+
+@router.get(
+    "/consumer/quotes/{token}",
+    operation_id="getConsumerQuoteV2",
+    summary="消費者匿名查看報價 v2（CR-0032 Phase C；只露最終價，不露成本）",
+    tags=["M16 Consumer"],
+)
+async def get_consumer_quote(
+    token: str = Path(..., min_length=32, max_length=512),
+) -> dict:
+    """客戶用 quote_view token 查報價 —— include_cost=False 結構上不回 unit_price。"""
+    from services import quote_engine_service
+
+    payload = _verify_quote_token(token)
+    quote = await quote_engine_service.get_quote(
+        tenant_id=payload.tenant_id, quote_id=payload.subject_id, include_cost=False,
+    )
+    # 客戶端只需金額/明細/狀態/有效期 —— 不回 work_order_id（客戶無用且為最小資料原則）
+    return {
+        "quote_id": quote["id"],
+        "state": quote["state"],
+        "total_amount": quote["total_amount"],
+        "lines": quote["lines"],  # include_cost=False → 無 unit_price
+        "expires_at": quote["expiry_at"],
+        "snapshot_hash": quote["snapshot_hash"],
+    }
+
+
+@router.post(
+    "/consumer/quotes/{token}",
+    operation_id="respondConsumerQuoteV2",
+    summary="消費者匿名回覆報價 v2（CR-0032 Phase C；同意/拒絕）",
+    tags=["M16 Consumer"],
+)
+async def respond_consumer_quote(
+    body: dict,
+    request: Request,
+    token: str = Path(..., min_length=32, max_length=512),
+) -> dict:
+    """客戶同意（accept→accepted）/ 拒絕（reject→decline→rejected）報價。
+
+    狀態機 transition 會檢查只有 sent 狀態可回覆、過期擋 accept（→ 409）。
+    """
+    from services import quote_engine_service
+
+    payload = _verify_quote_token(token)
+
+    decision = (body or {}).get("decision")
+    if decision not in {"accept", "reject"}:
+        raise ApiError("VALIDATION_ERROR", "decision must be 'accept' or 'reject'", 422)
+    action = "accept" if decision == "accept" else "decline"
+
+    logger.info(
+        "consumer quote response: decision=%s token_hash=%s ip=%s",
+        decision, token_hash_for_audit(token),
+        request.client.host if request.client else None,
+    )
+    result = await quote_engine_service.transition(
+        tenant_id=payload.tenant_id, quote_id=payload.subject_id, action=action,
+    )
+    return {"quote_id": result["id"], "state": result["state"]}
+
+
 # ============================================================
 # CR-0013 Stage 2 — LINE Binding endpoints (HD-03=b 主動綁定)
 # ============================================================

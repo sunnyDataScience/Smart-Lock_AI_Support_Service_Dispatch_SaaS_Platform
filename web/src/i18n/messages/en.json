@@ -1008,6 +1008,49 @@
         "superseded": "Superseded by a new proposal"
       }
     },
+    "quotesPublic": {
+      "title": "Quote confirmation",
+      "skeletonLabel": "Loading quote",
+      "errorTitle": "Unable to load quote",
+      "errors": {
+        "notFound": "Link invalid or expired. Please contact support.",
+        "expired": "This quote link has expired. Please contact support for an updated quote.",
+        "rateLimit": "Too many requests, please try again shortly.",
+        "fail": "Request failed ({status}), please try again later.",
+        "network": "Network error, please try again later."
+      },
+      "fields": {
+        "item": "Item",
+        "qty": "Qty",
+        "price": "Amount",
+        "total": "Total",
+        "validUntil": "Valid until",
+        "snapshot": "Quote ref"
+      },
+      "buttons": {
+        "accept": "Accept quote",
+        "decline": "Decline quote",
+        "accepting": "Processing…",
+        "declining": "Processing…"
+      },
+      "state": {
+        "draft": "Draft",
+        "pending_approval": "Pending approval",
+        "approved": "Approved",
+        "sent": "Awaiting confirmation",
+        "accepted": "Accepted",
+        "rejected": "Declined",
+        "expired": "Expired"
+      },
+      "statusHint": {
+        "draft": "This quote is still being prepared.",
+        "pending_approval": "This quote is under internal approval.",
+        "approved": "This quote is approved and will be sent to you shortly.",
+        "accepted": "You have accepted this quote. We will arrange the service soon.",
+        "rejected": "This quote was declined. Contact support for a re-quote.",
+        "expired": "This quote has expired. Please contact support for an updated quote."
+      }
+    },
     "notifications": {
       "title": "Notifications",
       "unreadBadge": "Unread {count}",
@@ -2353,6 +2396,10 @@
         "cost": "Internal cost",
         "custPrice": "Customer price",
         "noLines": "No line items yet",
+        "customerLink": "Customer view link",
+        "getLink": "Get customer link",
+        "copyLink": "Copy link",
+        "copied": "Copied",
         "snapshot": "Frozen snapshot",
         "note": "Amounts come from the mock catalog; approval threshold, deposit, tax etc. pending owner confirmation (esales Q-01~Q-12).",
         "state": {

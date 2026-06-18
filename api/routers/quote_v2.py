@@ -75,6 +75,19 @@ async def get_quote_v2(
     return {"data": await qe.get_quote(tenant_id=tenantId, quote_id=id, include_cost=_cost(user))}
 
 
+@router.get(
+    "/tenants/{tenantId}/quotes/{id}/public-link",
+    operation_id="getQuotePublicLinkV2",
+    summary="取得客戶端報價查看連結 v2（已送報價才有）", tags=["M04 Quote"],
+)
+async def get_quote_public_link_v2(
+    tenantId: str = Path(...), id: str = Path(...),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    _xt(user, tenantId)
+    return {"data": await qe.mint_view_token(tenant_id=tenantId, quote_id=id)}
+
+
 @router.post(
     "/tenants/{tenantId}/quotes/{id}/lines",
     operation_id="addQuoteLineV2", status_code=201,

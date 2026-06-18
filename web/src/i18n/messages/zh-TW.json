@@ -1008,6 +1008,49 @@
         "superseded": "已被新提案取代"
       }
     },
+    "quotesPublic": {
+      "title": "報價確認",
+      "skeletonLabel": "載入報價中",
+      "errorTitle": "無法載入報價",
+      "errors": {
+        "notFound": "連結無效或已過期，請聯絡客服協助。",
+        "expired": "報價連結已失效，請聯絡客服取得最新報價。",
+        "rateLimit": "查詢過於頻繁，請稍候再試。",
+        "fail": "查詢失敗（{status}），請稍後再試。",
+        "network": "網路連線失敗，請稍後再試。"
+      },
+      "fields": {
+        "item": "項目",
+        "qty": "數量",
+        "price": "金額",
+        "total": "報價總額",
+        "validUntil": "報價有效期至",
+        "snapshot": "報價憑證"
+      },
+      "buttons": {
+        "accept": "同意報價",
+        "decline": "拒絕報價",
+        "accepting": "處理中…",
+        "declining": "處理中…"
+      },
+      "state": {
+        "draft": "草稿",
+        "pending_approval": "待核准",
+        "approved": "已核准",
+        "sent": "待確認",
+        "accepted": "已同意",
+        "rejected": "已拒絕",
+        "expired": "已逾期"
+      },
+      "statusHint": {
+        "draft": "此報價尚在準備中。",
+        "pending_approval": "此報價正在內部核准中。",
+        "approved": "此報價已核准，即將寄送給您。",
+        "accepted": "您已同意此報價，我們將盡快安排後續服務。",
+        "rejected": "此報價已被拒絕，如需重新報價請聯絡客服。",
+        "expired": "此報價已逾期，請聯絡客服取得最新報價。"
+      }
+    },
     "notifications": {
       "title": "通知中心",
       "unreadBadge": "未讀 {count}",
@@ -2353,6 +2396,10 @@
         "cost": "內部成本",
         "custPrice": "客戶價",
         "noLines": "尚無報價項目",
+        "customerLink": "客戶查看連結",
+        "getLink": "取得客戶連結",
+        "copyLink": "複製連結",
+        "copied": "已複製",
         "snapshot": "凍結快照",
         "note": "金額來自 mock 主檔；核准門檻、訂金、稅務等正式值待業主確認（esales Q-01~Q-12）。",
         "state": {

@@ -128,6 +128,30 @@ async def test_under_threshold_draft_send_ok(client):
 
 
 @pytest.mark.asyncio
+async def test_send_mints_public_view_token(client):
+    """送客戶 → 回傳客戶端查看連結（真 public_token，purpose=quote_view，CR-0032 Phase C）。"""
+    assert await db_module._ensure_conn()
+    woid, ids = await _seed_wo()
+    try:
+        q = await qe.create_quote(tenant_id=DEFAULT_TENANT_ID, work_order_id=woid, created_by=ADMIN_USER_ID)
+        await qe.add_line(tenant_id=DEFAULT_TENANT_ID, quote_id=q["id"], service_code="SVC-RES-001")
+        sent = await qe.transition(tenant_id=DEFAULT_TENANT_ID, quote_id=q["id"], action="send", actor_id=ADMIN_USER_ID)
+        assert sent["state"] == "sent"
+        assert sent["public_token"] and sent["public_path"].startswith("/quotes/")
+        # 真 token 可被 verify_token 驗（allowlist 已含 quote_view），且綁回此報價
+        from services import public_token
+        payload = public_token.verify_token(sent["public_token"])
+        assert payload.purpose == "quote_view"
+        assert payload.subject_id == q["id"]
+        assert payload.tenant_id == DEFAULT_TENANT_ID
+        # 已送報價可重新取連結（後台複製用）
+        relink = await qe.mint_view_token(tenant_id=DEFAULT_TENANT_ID, quote_id=q["id"])
+        assert relink["public_token"]
+    finally:
+        await _cleanup(ids)
+
+
+@pytest.mark.asyncio
 async def test_get_quote_cost_rbac(client):
     assert await db_module._ensure_conn()
     woid, ids = await _seed_wo()
