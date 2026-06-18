@@ -113,4 +113,9 @@ quote 狀態機轉換；核准 gate（超門檻擋）；14d/3d 過期；snapshot
 
 ## 13. 實作進度
 
-（尚未開始 —— 🛑 卡在 §8；§8-Q2/5 綁 esales Q-01~Q-12，建議與 S4 一起裁決）
+**改採 mock-first（同 CR-0034）**：報價資料已在 esales、決議 5 授權當 mock，故結構先建、§8 門檻用 esales 草稿當預設，正式值待業主回 esales Q-01~Q-12（不卡建置）。
+
+- ✅ **Phase A（schema + service 核心，`feat/cr-0032-quote-engine`）**：migration 041（`quote` 主表狀態機 + `quote_approval` + `pricing_rule_snapshot` append-only + `quote_line_items.quote_id`/`service_code`/`material_code`）；`quote_engine_service`（create_quote 有效期 14d/3d、add_line **從 CR-0034 catalog 帶價**、recompute total、狀態機 submit→approve→send→accept、送單**凍結 pricing snapshot + sha256 hash**、過期擋 accept、cost RBAC 遮蔽）。`test_cr_0032_quote_engine.py` 3 pass（catalog 帶價 total / 狀態機+snapshot / RBAC）+ migration 041 套 dev DB。
+- ⏳ **Phase B**：API 端點（quote CRUD/submit/approve/send + consumer view）+ 後台報價編輯 UI + 客戶報價查看 + **核准門檻 enforcement**（金額/服務類別，esales Q-11）+ ADR（快照不可變）。
+- ⏳ §8 正式值：核准門檻/訂金/稅務/有效期（綁 esales Q-03~Q-11）—— mock-first 不卡，待業主一次確認。
+- 分支：`feat/cr-0032-quote-engine`

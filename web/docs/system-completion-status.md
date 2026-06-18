@@ -30,6 +30,8 @@
 ██████████████████████████████████  99.8%
 ```
 
+> **6/18 — S2 報價引擎 Phase A（CR-0032，mock-first）** — 接 CR-0034 catalog。migration 041:`quote` 主表(狀態機 draft→pending→approved→sent→accepted/expired/superseded + 版本鏈 + 有效期 + snapshot_hash)+ quote_approval + pricing_rule_snapshot(append-only)+ quote_line_items 加 quote_id/service_code。`quote_engine_service`:create(有效期 14d/急件3d)、add_line **從 catalog 帶價**、狀態機、送單**凍結 snapshot+sha256**、過期擋 accept、cost RBAC。test 3 pass。Phase B:API 端點 + 後台/客戶報價 UI + 核准門檻 + ADR。報價主軸 主檔(CR-0034)→引擎(CR-0032 Phase A)接通,數值 mock 待 esales Q-01~12 轉正式。
+>
 > **6/18 — S4 報價基礎主檔 Phase A（CR-0034）** — 報價主檔(報價引擎/金流上游)在 code 全缺。依會議決議 5 把 esales 報價資料庫灌為 mock:migration 040 建 service_catalog(29 服務)+material_catalog(20 材料)+surcharge_rule(12 規則)+seed(全 is_mock,人工轉寫;區域/取消費=已知規格 ADR-0102,急件/夜間/假日/S5=待決策 esales Q-03~06)。`quote_catalog_service`(internal 成本 RBAC 遮蔽)+ `GET /tenants/{tid}/quote-catalog`。test 2 pass。**確認:報價資料確實在 esales 內、決議 5 授權當 mock,故不卡業主裁決即可建。** follow-up:前端主檔頁、Phase B(BOM/拆帳/供應商)、mock→正式價(esales Q-01~12)、CR-0032 報價引擎接此主檔。
 >
 > **6/18 — 工項缺口盤點 + 補完啟動（roadmap + CR-0032 CIA + 廠商核准 UI）** — 5 源平行盤點(程式碼 vs 20260617資料)：廣度夠深度淺,大缺口=金流結算/報價引擎/報價主檔/免責合規/報表KPI/Partner Portal/測試;產 `docs/_audit/gap-audit-20260617-completion-roadmap.md`(S1-S8 計劃)。**啟動 S1+S2**：(1) **廠商核准 UI**(CR-0029 收尾)`vendor_service` + `vendors_v2` router(approve/reject,限管理角色)+ 後台 `/admin/vendor-approvals` 頁 + Sidebar 入口 → 收完註冊閉環(test 2 pass);(2) **CR-0032 報價引擎 CIA**(saas.quote 主表+核准 gate+snapshot 凍結)停 §8 等裁決。其餘 S1(SMTP/QR=ops)、S3-S8 依序。
