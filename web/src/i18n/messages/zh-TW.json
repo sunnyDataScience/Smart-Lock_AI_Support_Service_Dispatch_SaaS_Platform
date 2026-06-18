@@ -127,6 +127,16 @@
     "haveAccount": "已有帳號？",
     "toLogin": "前往登入"
   },
+  "vendorLogin": {
+    "title": "廠商 / 品牌商登入",
+    "subtitle": "發案者專用登入（廠商專區建置中）",
+    "email": "Email",
+    "password": "密碼",
+    "submit": "登入",
+    "submitting": "登入中…",
+    "forgotPassword": "忘記密碼？",
+    "registerLink": "還沒有帳號？註冊"
+  },
   "passwordReset": {
     "requestTitle": "忘記密碼",
     "requestSubtitle": "輸入帳號 Email，我們會寄送重設連結",
@@ -2093,6 +2103,7 @@
       "forgotPassword": "忘記密碼？",
       "forgotPasswordTitle": "前往自助密碼重設",
       "adminLink": "我是管理員 →",
+      "registerLink": "還沒有帳號？技師 / 廠商註冊",
       "footerVersion": "v0.1 — 技師端 PWA"
     },
     "pool": {

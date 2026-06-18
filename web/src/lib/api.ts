@@ -498,6 +498,21 @@ export async function loginTechnician(
   return res;
 }
 
+// 廠商/品牌商登入走專用端點 POST /api/v1/vendors/login（CR-0029；role=vendor，
+// 與後台角色隔離）。回傳同 admin/technician 信封。
+export async function loginVendor(
+  email: string,
+  password: string,
+): Promise<LoginResponse> {
+  const res = await request<LoginResponse>("POST", "/api/v1/vendors/login", {
+    body: { email, password },
+    skipAuth: true,
+  });
+  auth.setTokens(res.data.access_token, res.data.refresh_token);
+  auth.setEmail(email);
+  return res;
+}
+
 // 自助忘記密碼（CR-0025 / ADR-0114）。兩端皆 skipAuth（登入前）。
 // request 一律 200（不洩漏帳號是否存在）；confirm 成功 204、token 無效/過期/已用拋 ApiError。
 export async function requestPasswordReset(email: string): Promise<{ message: string }> {

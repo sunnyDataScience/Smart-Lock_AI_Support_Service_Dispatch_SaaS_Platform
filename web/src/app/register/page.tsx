@@ -26,6 +26,9 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
+  // 依註冊身分導向正確登入頁（技師→/tech-login，廠商→/vendor-login；非管理員 /login）
+  const loginHref = tab === "vendor" ? "/vendor-login" : "/tech-login";
+
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -82,7 +85,7 @@ export default function RegisterPage() {
             <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-center text-sm text-green-700">
               {t("successPending")}
             </div>
-            <Link href="/login" className="text-sm font-medium text-[var(--primary)] hover:underline">
+            <Link href={loginHref} className="text-sm font-medium text-[var(--primary)] hover:underline">
               {t("toLogin")}
             </Link>
           </div>
@@ -182,7 +185,7 @@ export default function RegisterPage() {
 
             <p className="mt-4 text-center text-sm text-[var(--text-secondary)]">
               {t("haveAccount")}{" "}
-              <Link href="/login" className="font-medium text-[var(--primary)] hover:underline">
+              <Link href={loginHref} className="font-medium text-[var(--primary)] hover:underline">
                 {t("toLogin")}
               </Link>
             </p>

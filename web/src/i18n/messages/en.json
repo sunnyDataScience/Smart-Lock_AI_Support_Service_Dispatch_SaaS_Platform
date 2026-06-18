@@ -127,6 +127,16 @@
     "haveAccount": "Already have an account?",
     "toLogin": "Go to login"
   },
+  "vendorLogin": {
+    "title": "Vendor / Brand sign in",
+    "subtitle": "For requestors (vendor portal under construction)",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "forgotPassword": "Forgot password?",
+    "registerLink": "No account? Register"
+  },
   "passwordReset": {
     "requestTitle": "Forgot password",
     "requestSubtitle": "Enter your account email and we'll send a reset link",
@@ -2093,6 +2103,7 @@
       "forgotPassword": "Forgot password?",
       "forgotPasswordTitle": "Go to self-service password reset",
       "adminLink": "I'm an admin →",
+      "registerLink": "No account? Technician / vendor register",
       "footerVersion": "v0.1 — Technician PWA"
     },
     "pool": {

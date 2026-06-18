@@ -119,6 +119,12 @@ export default function TechLoginPage() {
                 {t("adminLink")}
               </Link>
             </div>
+            <Link
+              href="/register"
+              className="mt-1 text-center text-[12px] text-[var(--primary)] hover:underline"
+            >
+              {t("registerLink")}
+            </Link>
           </form>
         </main>
 

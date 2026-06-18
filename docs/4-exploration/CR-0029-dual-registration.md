@@ -107,6 +107,7 @@ superseded-by: null
 
 ## 13. 實作進度
 
-- ✅ migration 038 + register_vendor + vendor login + 前端 /register + 測試 4 pass + auth 回歸 + tsc 0；migration 038 套 dev DB 驗證
-- ⏳ follow-up：vendor 審核 UI（approve/reject）、營業執照上傳、CR-0031 multi-tenant 分庫
-- 分支：`feat/cr-0029-dual-registration`
+- ✅ migration 038 + register_vendor + vendor login 端點 + 前端 /register + 測試 4 pass + auth 回歸 + tsc 0；migration 038 套 dev DB 驗證
+- ✅ **登入路由收尾（`fix/cr-0029-vendor-login-routing`）**：補 `loginVendor` api helper + 新 `/vendor-login` 前端頁（廠商登入，原本只有後端端點）；`/register` 註冊成功「前往登入」依身分導向（技師→`/tech-login`、廠商→`/vendor-login`，原誤連管理員 `/login`）；`/tech-login` 加註冊連結。**註**：師傅登入頁 `/tech-login` 本即存在（非本 CR 新作）。
+- ⏳ follow-up：vendor 審核 UI（approve/reject）、營業執照上傳、**vendor 登入後的廠商專區/RBAC（現暫導 /dashboard）→ CR-0031**
+- 分支：`feat/cr-0029-dual-registration` → `fix/cr-0029-vendor-login-routing`
