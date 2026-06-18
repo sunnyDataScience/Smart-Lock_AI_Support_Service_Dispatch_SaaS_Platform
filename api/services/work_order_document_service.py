@@ -141,6 +141,21 @@ def _render(view: dict) -> bytes:
     else:
         story.append(Paragraph("（公司關防｜待用印）", normal))
 
+    # 施工免責與合規（CR-0033，藍圖模組 4 三段佔位文本，待法務 sign-off）
+    # 法律文本「永遠顯示」（以 consent_service.CONSENT_TEXTS 為底），同意狀態由 view 疊加；
+    # 即使取不到同意紀錄，三段聲明仍出（全 ☐），不因 fetch 失敗而整段消失。
+    from services.consent_service import CONSENT_TEXTS
+
+    accepted_map = {c.get("consent_type"): c.get("accepted") for c in (view.get("consents") or [])}
+    story.append(Spacer(1, 8 * mm))
+    story.append(Paragraph("<b>施工免責與合規聲明</b>", normal))
+    story.append(Spacer(1, 2 * mm))
+    for c in CONSENT_TEXTS:
+        mark = "☑" if accepted_map.get(c["consent_type"]) else "☐"
+        story.append(Paragraph(f"{mark} <b>{c['title']}</b>", foot))
+        story.append(Paragraph(f"　　{c['body']}", foot))
+        story.append(Spacer(1, 1 * mm))
+
     story.append(Paragraph(
         "本電子工單僅顯示最終金額；成本明細與內部估價不對客戶揭露。", foot))
     doc.build(story)
@@ -148,8 +163,21 @@ def _render(view: dict) -> bytes:
 
 
 async def render_document(*, tenant_id: str, work_order_id: str) -> bytes:
-    """產生客戶版電子工單 PDF bytes（只露最終價 + 關防，無成本明細）。"""
+    """產生客戶版電子工單 PDF bytes（只露最終價 + 關防 + 免責段，無成本明細）。"""
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
     view = await _fetch_customer_view(tenant_id=tenant_id, work_order_id=work_order_id)
+    # 免責段（CR-0033）：best-effort 取三段同意狀態，失敗不阻斷 PDF（_render 仍出三段法律文本，全 ☐）
+    try:
+        from services import consent_service
+        consent_data = await consent_service.get_consents(
+            work_order_id=work_order_id, tenant_id=tenant_id)
+        # 白名單欄位（防未來 consent_service 回傳意外欄位混入客戶 PDF）
+        view = {**view, "consents": [
+            {"consent_type": c["consent_type"], "accepted": c["accepted"]}
+            for c in consent_data["consents"]
+        ]}
+    except Exception as exc:  # noqa: BLE001 — 免責段同意狀態取不到仍出法律文本（全 ☐）
+        logger.warning("disclaimer status fetch failed for wo=%s (texts still rendered): %s",
+                       work_order_id, exc)
     return _render(view)

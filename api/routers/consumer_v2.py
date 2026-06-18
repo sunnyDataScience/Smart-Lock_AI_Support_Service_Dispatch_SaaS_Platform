@@ -319,6 +319,57 @@ async def respond_consumer_quote(
     return {"quote_id": result["id"], "state": result["state"]}
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 免責同意 消費者匿名查 / 提交 v2（CR-0033；複用 work_order_status token）
+#   客戶開 /consent/{token} → 看三段免責文本（藍圖模組 4 佔位）→ 勾選同意 → 提交
+#   只處理法律文字 + 同意旗標，不接觸金額/成本
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/consumer/consents/{token}",
+    operation_id="getConsumerConsentsV2",
+    summary="消費者匿名取得三段免責文本 + 同意狀態 v2（CR-0033）",
+    tags=["M16 Consumer"],
+)
+async def get_consumer_consents(
+    token: str = Path(..., min_length=32, max_length=512),
+) -> dict:
+    from services import consent_service
+
+    payload = _verify_consumer_token(token)  # purpose=work_order_status
+    return await consent_service.get_consents(
+        work_order_id=payload.subject_id, tenant_id=payload.tenant_id)
+
+
+@router.post(
+    "/consumer/consents/{token}",
+    operation_id="submitConsumerConsentsV2",
+    summary="消費者匿名提交三段免責同意 v2（CR-0033；upsert + IP 留痕）",
+    tags=["M16 Consumer"],
+)
+async def submit_consumer_consents(
+    body: dict,
+    request: Request,
+    token: str = Path(..., min_length=32, max_length=512),
+) -> dict:
+    """客戶勾選同意三段免責 —— body: {"consents": {"new_installation": true, ...}}。"""
+    from services import consent_service
+
+    payload = _verify_consumer_token(token)
+    consents = (body or {}).get("consents")
+    if not isinstance(consents, dict) or not consents:
+        raise ApiError("VALIDATION_ERROR", "consents map required", 422)
+    # 嚴格 bool（防 JSON 字串/數字被 bool() 誤判為同意）
+    if any(not isinstance(v, bool) for v in consents.values()):
+        raise ApiError("VALIDATION_ERROR", "consent values must be boolean", 422)
+    client_ip = request.client.host if request.client else None
+    return await consent_service.record_consents(
+        work_order_id=payload.subject_id, consents=consents, ip_address=client_ip,
+        tenant_id=payload.tenant_id,
+    )
+
+
 # ============================================================
 # CR-0013 Stage 2 — LINE Binding endpoints (HD-03=b 主動綁定)
 # ============================================================

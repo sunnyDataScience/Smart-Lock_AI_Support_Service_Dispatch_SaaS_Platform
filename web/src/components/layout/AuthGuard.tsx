@@ -14,8 +14,9 @@ import RbacChangedBanner from "@/components/realtime/RbacChangedBanner";
 //  - /track/{token}         客戶查工單進度（public endpoint,token 簽章驗證）
 //  - /scope-change/{token}  客戶確認加價/變更（public endpoint）
 //  - /quotes/{token}        客戶查看/確認報價（public endpoint,purpose=quote_view,CR-0032 Phase C）
+//  - /consent/{token}       客戶簽署三段施工免責同意（public endpoint,CR-0033）
 const PUBLIC_PATHS = new Set(["/login", "/tech-login"]);
-const PUBLIC_PREFIXES = ["/track/", "/scope-change/", "/quotes/"];
+const PUBLIC_PREFIXES = ["/track/", "/scope-change/", "/quotes/", "/consent/"];
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();

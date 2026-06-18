@@ -1008,6 +1008,24 @@
         "superseded": "Superseded by a new proposal"
       }
     },
+    "consentPublic": {
+      "title": "Service disclaimer consent",
+      "intro": "Please read and agree to the three statements below before service.",
+      "skeletonLabel": "Loading disclaimers",
+      "errorTitle": "Unable to load disclaimers",
+      "errors": {
+        "notFound": "Link invalid or expired. Please contact support.",
+        "expired": "This link has expired. Please contact support for a new one.",
+        "rateLimit": "Too many requests, please try again shortly.",
+        "fail": "Failed to load ({status}), please try again later.",
+        "network": "Network error, please try again later."
+      },
+      "submit": "I have read and agree to all of the above",
+      "submitHint": "Please check all three statements",
+      "submitting": "Submitting…",
+      "done": "Consent recorded. Thank you for your cooperation.",
+      "versionNote": "Terms version: {v}"
+    },
     "quotesPublic": {
       "title": "Quote confirmation",
       "skeletonLabel": "Loading quote",
