@@ -173,6 +173,26 @@ class WorkOrder(BaseModel):
     version: int | None = Field(None, description='樂觀鎖版本號，更新時 server 比對')
     created_at: AwareDatetime
     updated_at: AwareDatetime
+    # CR-0026 公單標準化欄位（全 Optional，向後相容；對應 migration 036）
+    service_category: str | None = Field(None, description='install/warranty_in/warranty_out/repair')
+    problem_type: str | None = None
+    serial_number: str | None = None
+    door_type: str | None = None
+    door_thickness: str | None = None
+    is_interior_door: bool | None = None
+    warranty_status: str | None = Field(None, description='in_warranty/out_warranty/not_applicable')
+    purchase_date: str | None = Field(None, description='購買日 ISO date')
+    invoice_no: str | None = None
+    completion_status: str | None = Field(
+        None,
+        description='M05 Q052 六段：pending_report/pending_photos/pending_customer_confirm/'
+                    'pending_cs_review/completed/closed',
+    )
+    status_reason: str | None = Field(None, description='狀態變更原因（cancel/reopen/reschedule 必填）')
+    parent_work_order_id: UUID | None = Field(None, description='返修/reopen 連回原工單')
+    customer_final_amount: constr(pattern=r'^-?\d+(\.\d{1,2})?$') | None = Field(
+        None, description='對外單一最終金額（客戶端電子工單只露此值）'
+    )
 
 
 class WorkOrderEnvelope(ApiResponseGeneric):

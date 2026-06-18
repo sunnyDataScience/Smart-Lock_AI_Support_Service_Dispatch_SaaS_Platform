@@ -93,14 +93,40 @@ def _wo_row_to_dict(row: tuple) -> dict:
         out["actual_arrival"] = row[10].isoformat()
     if row[11] is not None:
         out["completion_time"] = row[11].isoformat()
+    # CR-0026 公單標準化欄位（index 15+，None 不輸出保 response 精簡）
+    _STR_FIELDS = {
+        15: "service_category", 16: "problem_type", 17: "serial_number",
+        18: "door_type", 19: "door_thickness", 21: "warranty_status",
+        23: "invoice_no", 24: "completion_status", 25: "status_reason",
+    }
+    for idx, key in _STR_FIELDS.items():
+        if len(row) > idx and row[idx] is not None:
+            out[key] = row[idx]
+    if len(row) > 20 and row[20] is not None:
+        out["is_interior_door"] = bool(row[20])
+    if len(row) > 22 and row[22] is not None:
+        out["purchase_date"] = row[22].isoformat()
+    if len(row) > 26 and row[26] is not None:
+        out["parent_work_order_id"] = str(row[26])
+    if len(row) > 27:
+        cfa = _coerce_decimal(row[27])
+        if cfa is not None:
+            out["customer_final_amount"] = cfa
     return out
 
 
 _WO_SELECT = (
     "wo.id, wo.problem_card_id, wo.technician_id, wo.status, wo.priority, "
-    "wo.customer_address, pc.brand, pc.model, "
+    "wo.customer_address, "
+    # brand/model：優先 work_orders 自有副本（CR-0026），fallback problem_cards
+    "COALESCE(wo.brand, pc.brand), COALESCE(wo.model, pc.model), "
     "wo.estimated_price, wo.scheduled_at, wo.started_at, wo.completed_at, "
-    "wo.created_at, wo.updated_at, wo.document_number"
+    "wo.created_at, wo.updated_at, wo.document_number, "
+    # CR-0026 公單標準化欄位（index 15+，append-only 保既有索引不變）
+    "wo.service_category, wo.problem_type, wo.serial_number, wo.door_type, "
+    "wo.door_thickness, wo.is_interior_door, wo.warranty_status, wo.purchase_date, "
+    "wo.invoice_no, wo.completion_status, wo.status_reason, wo.parent_work_order_id, "
+    "wo.customer_final_amount"
 )
 
 _WO_JOIN = (
@@ -254,7 +280,9 @@ async def create_from_problem_card(
     # 1. 取 PC + 同 transaction lock 防止 race（兩個並發 convert 同一張 PC）
     cur = await db_module._conn.execute(
         "SELECT pc.status, pc.urgency, "
-        "       u.address, u.display_name, u.phone "
+        "       u.address, u.display_name, u.phone, "
+        # CR-0026：建單時把設備辨識 + 問題類型 + 媒體從 PC 複製進 work_order
+        "       pc.brand, pc.model, pc.category, pc.media_urls "
         "FROM problem_cards pc "
         "JOIN conversations c ON pc.conversation_id = c.id "
         "JOIN users u ON c.user_id = u.id "
@@ -266,7 +294,8 @@ async def create_from_problem_card(
     if not row:
         raise ApiError("NOT_FOUND", "Problem card not found", 404)
 
-    pc_status, pc_urgency, user_address, user_name, user_phone = row
+    (pc_status, pc_urgency, user_address, user_name, user_phone,
+     pc_brand, pc_model, pc_category, pc_media) = row
 
     if pc_status != "confirmed":
         raise ApiError(
@@ -301,14 +330,19 @@ async def create_from_problem_card(
     priority = pc_urgency or "normal"
 
     # 4. INSERT（CR-0020：建立時依地址發公單號 {2碼地區}-{6碼流水}，per-region 原子遞增）
+    #    CR-0026：複製設備辨識(brand/model)/問題類型(problem_type)/媒體(photos)，並寫 tenant_id
     insert_cur = await db_module._conn.execute(
         "INSERT INTO work_orders "
         "  (problem_card_id, status, priority, "
-        "   customer_name, customer_phone, customer_address, created_by, document_number) "
+        "   customer_name, customer_phone, customer_address, created_by, document_number, "
+        "   brand, model, problem_type, photos, tenant_id) "
         "VALUES (%s::uuid, 'created', %s, %s, %s, %s, "
-        "        %s::uuid, generate_wo_number(%s)) "
+        "        %s::uuid, generate_wo_number(%s), "
+        "        %s, %s, %s, %s::jsonb, %s::uuid) "
         "RETURNING id",
-        (pc_id, priority, final_name, final_phone, final_address, created_by, final_address),
+        (pc_id, priority, final_name, final_phone, final_address, created_by, final_address,
+         pc_brand, pc_model, pc_category,
+         json.dumps(pc_media, ensure_ascii=False) if pc_media else None, tenant_id),
     )
     new_row = await insert_cur.fetchone()
     if not new_row:
@@ -338,6 +372,40 @@ _CONFIRM_FROM = {"completed"}
 _RESCHEDULE_FROM = {"assigned", "accepted", "in_progress"}
 # 24h 內改期次數上限（業務規則：避免技師連續推遲）
 _RESCHEDULE_LIMIT_24H = 3
+
+# CR-0026 / BR-M05-03：派工前必填欄位（三級必填的「派工前必填」級；預設值待業主確認）
+_DISPATCH_REQUIRED = (
+    ("brand", "品牌"),
+    ("model", "型號"),
+    ("customer_address", "地址"),
+    ("problem_type", "問題類型"),
+)
+
+
+async def _assert_dispatch_ready(wo_id: str) -> None:
+    """派工 gate（BR-M05-03）：派工前必填欄位缺 → 422。
+
+    依 CR-0026 §8 預設三級必填分類：品牌/型號/地址/問題類型 為「派工前必填」。
+    照片 photos 列為建議（非硬擋），避免無媒體案件卡死派工；可後續調整。
+    """
+    cols = ", ".join(f[0] for f in _DISPATCH_REQUIRED)
+    cur = await db_module._conn.execute(
+        f"SELECT {cols} FROM work_orders WHERE id = %s::uuid",
+        (wo_id,),
+    )
+    row = await cur.fetchone()
+    if not row:
+        return  # not-found 交由後續 status 流程處理
+    missing = [
+        label for (_key, label), val in zip(_DISPATCH_REQUIRED, row)
+        if val is None or (isinstance(val, str) and not val.strip())
+    ]
+    if missing:
+        raise ApiError(
+            "DISPATCH_PRECONDITION_FAILED",
+            f"派工前必填欄位未齊（缺：{'、'.join(missing)}）",
+            422,
+        )
 
 
 async def _publish_and_return(
@@ -565,6 +633,13 @@ async def cancel_order(
             f"Cannot cancel work order in status '{current}'; expected non-terminal",
             409,
         )
+    # CR-0026 / BR-M05-01：取消必填原因（status_reason gate）
+    if not reason or not reason.strip():
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "取消工單必須填寫原因（status_reason 必填，BR-M05-01）",
+            422,
+        )
     # 取 technician_id 給 pool publish (若已派)
     cur = await db_module._conn.execute(
         "SELECT technician_id FROM work_orders WHERE id = %s::uuid",
@@ -572,21 +647,16 @@ async def cancel_order(
     )
     tech_row = await cur.fetchone()
     tech_id = str(tech_row[0]) if tech_row and tech_row[0] else None
-    if reason:
-        await db_module._conn.execute(
-            "UPDATE work_orders SET "
-            "  status = 'cancelled', "
-            "  service_report = COALESCE(service_report, '') || E'\\n[CANCELLED] ' || %s, "
-            "  updated_at = NOW() "
-            "WHERE id = %s::uuid",
-            (reason, wo_id),
-        )
-    else:
-        await db_module._conn.execute(
-            "UPDATE work_orders SET status = 'cancelled', updated_at = NOW() "
-            "WHERE id = %s::uuid",
-            (wo_id,),
-        )
+    # 寫入結構化 status_reason 欄（同步保留 service_report 字串軌跡）
+    await db_module._conn.execute(
+        "UPDATE work_orders SET "
+        "  status = 'cancelled', "
+        "  status_reason = %s, "
+        "  service_report = COALESCE(service_report, '') || E'\\n[CANCELLED] ' || %s, "
+        "  updated_at = NOW() "
+        "WHERE id = %s::uuid",
+        (reason, reason, wo_id),
+    )
     # event=cancelled 把該 tech pool 該 wo 移除（若已派）
     if tech_id:
         await _publish_pool_change(
@@ -714,6 +784,9 @@ async def assign_order(
             f"Cannot assign work order in status '{current}'; expected one of {sorted(_ASSIGN_FROM)}",
             409,
         )
+
+    # CR-0026 / BR-M05-03：派工前必填欄位 gate（缺品牌/型號/地址/問題類型 → 422）
+    await _assert_dispatch_ready(wo_id)
 
     # Verify technician exists, same tenant, active
     cur = await db_module._conn.execute(

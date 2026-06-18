@@ -1879,6 +1879,21 @@ export interface components {
             created_at: string;
             /** Format: date-time */
             updated_at: string;
+            /** @description CR-0026 公單標準化欄位（全 optional，對應 migration 036） */
+            service_category?: string | null;
+            problem_type?: string | null;
+            serial_number?: string | null;
+            door_type?: string | null;
+            door_thickness?: string | null;
+            is_interior_door?: boolean | null;
+            warranty_status?: string | null;
+            purchase_date?: string | null;
+            invoice_no?: string | null;
+            completion_status?: string | null;
+            status_reason?: string | null;
+            /** Format: uuid */
+            parent_work_order_id?: string | null;
+            customer_final_amount?: string | null;
         };
         WorkOrderEnvelope: components["schemas"]["ApiResponseGeneric"] & {
             data?: components["schemas"]["WorkOrder"];

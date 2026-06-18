@@ -131,7 +131,7 @@ export default function WorkOrderDetailSidebar({ workOrder, conversationId }: Pr
           {brandModel || "—"}
         </span>
         <span className="text-[12px] text-[var(--text-secondary)]">
-          {t("deviceSnLabel")}
+          {workOrder?.serial_number ? `S/N: ${workOrder.serial_number}` : t("deviceSnLabel")}
         </span>
 
         <div className="flex gap-2 opacity-70">
@@ -194,6 +194,9 @@ export default function WorkOrderDetailSidebar({ workOrder, conversationId }: Pr
         </div>
       </div>
 
+      {/* 公單資訊 — CR-0026 標準化欄位（服務類別/保固/完工狀態/狀態原因，真實） */}
+      <WorkOrderFieldsPanel workOrder={workOrder} />
+
       {/* Customer Info — display_name + line_user_id 真實，phone 待 facts 模組 */}
       <CustomerInfoPanel
         conversation={conversation}
@@ -223,6 +226,69 @@ export default function WorkOrderDetailSidebar({ workOrder, conversationId }: Pr
           {t("modulePending")}
         </span>
       </div>
+    </div>
+  );
+}
+
+// CR-0026 enum → 顯示映射（繁中；enum 值由 backend 驗證）
+const SERVICE_CATEGORY_LABEL: Record<string, string> = {
+  install: "安裝",
+  warranty_in: "保內",
+  warranty_out: "保外",
+  repair: "維修",
+};
+const WARRANTY_STATUS_LABEL: Record<string, string> = {
+  in_warranty: "保固內",
+  out_warranty: "保固外",
+  not_applicable: "不適用",
+};
+const COMPLETION_STATUS_LABEL: Record<string, string> = {
+  pending_report: "待完工回報",
+  pending_photos: "待照片",
+  pending_customer_confirm: "待客戶確認",
+  pending_cs_review: "待客服審核",
+  completed: "已完工",
+  closed: "已結案",
+};
+
+function WorkOrderFieldsPanel({ workOrder }: { workOrder?: WorkOrder }) {
+  const t = useTranslations("components.workOrders.detailSidebar");
+  if (!workOrder) return null;
+
+  const rows: { label: string; value: string }[] = [];
+  const push = (label: string, value?: string | null) => {
+    if (value) rows.push({ label, value });
+  };
+  push(t("woServiceCategory"), workOrder.service_category
+    ? SERVICE_CATEGORY_LABEL[workOrder.service_category] ?? workOrder.service_category
+    : null);
+  push(t("woProblemType"), workOrder.problem_type);
+  push(t("woWarranty"), workOrder.warranty_status
+    ? WARRANTY_STATUS_LABEL[workOrder.warranty_status] ?? workOrder.warranty_status
+    : null);
+  push(t("woDoorType"), workOrder.door_type);
+  push(t("woCompletion"), workOrder.completion_status
+    ? COMPLETION_STATUS_LABEL[workOrder.completion_status] ?? workOrder.completion_status
+    : null);
+  push(t("woStatusReason"), workOrder.status_reason);
+
+  return (
+    <div className="flex flex-col gap-[10px] rounded-lg bg-[var(--bg-surface)] p-4 shadow-sm">
+      <span className="text-[16px] font-semibold text-[var(--text-primary)]">
+        {t("woFieldsTitle")}
+      </span>
+      {rows.length === 0 ? (
+        <span className="text-[13px] text-[var(--text-disabled)]">{t("woFieldsEmpty")}</span>
+      ) : (
+        rows.map((r) => (
+          <div key={r.label} className="flex items-start justify-between gap-3">
+            <span className="text-[13px] text-[var(--text-secondary)]">{r.label}</span>
+            <span className="text-[13px] font-medium text-[var(--text-primary)] text-right">
+              {r.value}
+            </span>
+          </div>
+        ))
+      )}
     </div>
   );
 }

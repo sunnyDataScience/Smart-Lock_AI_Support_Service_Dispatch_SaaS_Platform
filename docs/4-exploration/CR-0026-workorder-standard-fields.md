@@ -97,17 +97,17 @@ State machine impact：`work_orders` 完工段細狀態機（待完工回報→�
 
 ## 8. Human Decisions Required
 
-🛑 **CIA blocks code changes until every row here has a recorded decision.**（停在此等業主 Sunny 裁決）
+✅ **以 2026-06-17 會議為主文件授權「用藍圖/PDF 語意當合理預設先做」（業主 Sunny 同意，日後可微調）。** 各項採用預設如下，code 標「預設值待業主確認」。
 
-| # | Question | Options | Owner | Status | Decision |
-|---|---|---|---|---|---|
-| 1 | **成本明細邊界**：本 CR 只在 work_orders 留單一 `customer_final_amount`、結構化成本拆項全切 CR-0027？ | (a) 是，分兩 CR（建議）(b) 合併成一張大 CR | 業主/架構 | open | — |
-| 2 | **三級必填（必填/可後補/派工前必填）落地**：併入本 CR（動 problem_cards）還是另案？ | (a) 併入本 CR (b) 另開 CR | 業主 | open | — |
-| 3 | **免責條款內容**：新機安裝同意/破壞鎖免責/個資三類條款文字需法務確認，本輪先放佔位還是等法務定稿？ | (a) 先佔位、條款文字 follow-up (b) 等法務定稿才做 | 業主/法務 | open | — |
-| 4 | **客戶端電子工單呈現**：只露 `customer_final_amount` 是否足夠？是否要列品項（不露單價）？關防/公司印章來源？ | (a) 只露總價 (b) 列品項不露成本 | 業主 | open | — |
-| 5 | **完工細狀態機**：採藍圖 M05 Q052 六段（待完工回報/待照片/待客戶確認/待客服審核/已完工/已結案）全做還是精簡？ | (a) 全做 (b) 精簡版 | 業主/派工 | open | — |
-| 6 | **報價數字來源**：esales xlsx 全標 Draft/打 8 成，本 CR 的 `customer_final_amount` 先當 mock 還是等正式價？ | (a) mock seed、標待財務覆核（會議共識）(b) 等正式價 | 業主 | open | — |
-| 7 | **序號綁保固**：保固期動態判定的保固規則（年限/起算）來源？藍圖未枚舉 | (a) 本輪硬編預設、規則另案 (b) 等品牌保固表 | 業主 | open | — |
+| # | Question | Owner | Status | Decision（預設，2026-06-18）|
+|---|---|---|---|---|
+| 1 | **成本明細邊界** | 業主/架構 | ✅ 預設 | **(a) 分兩 CR** —— 本 CR 只留 `customer_final_amount`，結構化拆項切 CR-0027 |
+| 2 | **三級必填落地** | 業主 | ✅ 預設 | 派工前必填=品牌/型號/地址/問題類型（dispatch gate 已實作）；problem_cards 三級分類另案 |
+| 3 | **免責條款內容** | 業主/法務 | ✅ 預設 | **(a) 先佔位** —— `work_order_consents` 暫不建、客戶版不出免責段（法務文字 follow-up，移 CR-0027 電子工單一併處理）|
+| 4 | **客戶端電子工單呈現** | 業主 | ⏳ 留 CR-0027 | 屬 CR-0027 範圍（本 CR 只補欄位）|
+| 5 | **完工細狀態機** | 業主/派工 | ✅ 預設 | **(a) 全做** —— M05 Q052 六段（app 層驗證 enum）|
+| 6 | **報價數字來源** | 業主 | ✅ 預設 | **(a) mock seed、標待財務覆核**（CR-0027 落地）|
+| 7 | **序號綁保固** | 業主 | ✅ 預設 | **(a) 本輪人工填 `warranty_status`**；序號自動判定規則另案 |
 
 ## 9. Suggested Implementation Order
 
@@ -145,11 +145,18 @@ State machine impact：`work_orders` 完工段細狀態機（待完工回報→�
 
 | Role | Name | Date | Approved? |
 |---|---|---|---|
-| Product（業主）| Sunny | | 🛑 待 §8 裁決 |
+| Product（業主）| Sunny | 2026-06-17 | ✅ 會議授權用預設先做 |
 | Architect | | | |
 | Engineering Lead | | | |
 | QA Lead | | | |
 
 ## 13. 實作進度
 
-（尚未開始 —— 🛑 卡在 §8 業主裁決）
+- ✅ S2 Schema → migration `036-workorder-standard-fields.sql`（work_orders 16 欄 + scope_changes.tenant_id + backfill 84 列 + 3 index；Schema.sql 同步）
+- ✅ S3 Domain/Service → `create_from_problem_card` 複製 brand/model/problem_type/photos + tenant_id；`assign_order` dispatch gate（BR-M05-03 `_assert_dispatch_ready`）；`cancel_order` status_reason 必填 gate（BR-M05-01）+ 寫結構化欄
+- ✅ S4 API → `WorkOrder` pydantic model + TS 型別 + `_WO_SELECT`/`_wo_row_to_dict` 補 13 新欄（response 自動帶出）
+- ✅ S5 Tests → `test_cr_0026_wo_fields.py` 4 pass（serializer 映射 ×3 + dispatch gate）；work_order 相關回歸 55 pass
+- ✅ S6 UI → 後台詳情側邊欄「公單資訊」面板（服務類別/問題類型/保固/門型/完工狀態/狀態原因）+ 綁真實 S/N；tsc 0 error；i18n zh-TW/en
+- ⏳ S1 ADR / S7 traceability matrix → 待補（後續）
+- ⏳ 客戶端電子工單 + 結構化成本 → CR-0027（Phase 3）
+- **採用預設**（§8）：免責先佔位、完工六段、保固人工填、成本切 CR-0027 —— 標「預設待業主確認」

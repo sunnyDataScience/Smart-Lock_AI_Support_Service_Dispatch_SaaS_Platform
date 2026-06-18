@@ -477,6 +477,23 @@ CREATE TABLE work_orders (
     rating              INTEGER CHECK (rating >= 1 AND rating <= 5),
     feedback            TEXT,
     confirmed_at        TIMESTAMP WITH TIME ZONE,
+    -- CR-0026 公單標準化欄位（migration 036；全 nullable）
+    brand               VARCHAR(100),                   -- 建單時從 problem_cards 複製
+    model               VARCHAR(100),
+    serial_number       VARCHAR(100),                   -- 序號（綁保固）
+    door_type           VARCHAR(50),
+    door_thickness      VARCHAR(50),
+    is_interior_door    BOOLEAN,
+    service_category    VARCHAR(30),                    -- install/warranty_in/warranty_out/repair
+    problem_type        VARCHAR(100),
+    warranty_status     VARCHAR(30),                    -- in_warranty/out_warranty/not_applicable
+    purchase_date       DATE,
+    invoice_no          VARCHAR(100),
+    completion_status   VARCHAR(40),                    -- M05 Q052 六段（pending_report…closed）
+    status_reason       TEXT,                           -- BR-M05-01 狀態變更原因
+    parent_work_order_id UUID REFERENCES work_orders(id) ON DELETE SET NULL,  -- BR-M05-02 返修連回
+    customer_final_amount NUMERIC(12,2),               -- 對外單一最終金額（成本拆項見 CR-0027）
+    tenant_id           UUID,                           -- multi-tenant 預留（CR-0031）；目前 single-tenant
     created_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
