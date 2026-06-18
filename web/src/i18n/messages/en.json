@@ -277,6 +277,7 @@
       "materialRequests": "Material requests",
       "technicians": "Technicians",
       "vendorApprovals": "Vendor approvals",
+      "quoteCatalog": "Price catalog",
       "customers": "Customers",
       "accounting": "Accounting",
       "settlements": "Settlements",
@@ -2318,6 +2319,22 @@
   },
   "components": {
     "admin": {
+      "quoteCatalog": {
+        "title": "Price catalog",
+        "mockBadge": "mock (pending owner price review)",
+        "loading": "Loading…",
+        "services": "Services ({n})",
+        "materials": "Materials ({n})",
+        "surcharges": "Surcharge / cancellation rules ({n})",
+        "code": "Code",
+        "name": "Name",
+        "type": "Type",
+        "cost": "Internal cost",
+        "custPrice": "Suggested price",
+        "ruleType": "Rule type",
+        "value": "Value / rule",
+        "status": "Status"
+      },
       "vendorApprovals": {
         "title": "Vendor approvals",
         "pendingCount": "{n} pending",

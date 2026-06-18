@@ -277,6 +277,7 @@
       "materialRequests": "補料管理",
       "technicians": "技師管理",
       "vendorApprovals": "廠商審核",
+      "quoteCatalog": "報價主檔",
       "customers": "客戶主檔",
       "accounting": "帳務與結算",
       "settlements": "月結算總覽",
@@ -2318,6 +2319,22 @@
   },
   "components": {
     "admin": {
+      "quoteCatalog": {
+        "title": "報價主檔",
+        "mockBadge": "mock（待業主覆核正式價）",
+        "loading": "載入中…",
+        "services": "服務項目（{n}）",
+        "materials": "材料（{n}）",
+        "surcharges": "加價 / 取消費規則（{n}）",
+        "code": "代碼",
+        "name": "名稱",
+        "type": "類型",
+        "cost": "內部成本",
+        "custPrice": "建議客戶價",
+        "ruleType": "規則類型",
+        "value": "數值 / 規則",
+        "status": "狀態"
+      },
       "vendorApprovals": {
         "title": "廠商審核",
         "pendingCount": "待審核 {n} 家",

@@ -52,7 +52,7 @@ superseded-by: null
 - ✅ migration 040（service_catalog 29 / material_catalog 20 / surcharge_rule 12 + seed mock）；套 dev DB 驗證
 - ✅ `quote_catalog_service`（list/get + internal cost RBAC 遮蔽）+ `catalog_v2` router（GET /quote-catalog）+ main.py 註冊
 - ✅ `test_cr_0034_quote_catalog.py` 2 pass + py_compile
-- ⏳ 前端報價主檔檢視頁（admin）— 下一步
+- ✅ 前端報價主檔檢視頁 `/admin/quote-catalog`（服務/材料/規則三表 + mock badge + internal cost RBAC 遮蔽）+ Sidebar 入口 + rolePolicy + i18n；tsc 0
 - ⏳ Phase B：BOM / 拆帳 / 供應商 / finance_config；mock→正式價（待 esales Q-01~Q-12）
 - 分支：`feat/cr-0034-quote-catalog`
 

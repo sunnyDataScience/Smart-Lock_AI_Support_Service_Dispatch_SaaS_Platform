@@ -10,6 +10,7 @@ import {
   Users,
   CircleUserRound,
   Store,
+  Tag,
   Receipt,
   Package,
   BarChart3,
@@ -69,6 +70,7 @@ const navItems: NavItem[] = [
   },
   { icon: Users, id: "technicians", href: "/technicians" },
   { icon: Store, id: "vendorApprovals", href: "/admin/vendor-approvals" },
+  { icon: Tag, id: "quoteCatalog", href: "/admin/quote-catalog" },
   { icon: CircleUserRound, id: "customers", href: "/admin/customers" },
   {
     icon: Receipt,
