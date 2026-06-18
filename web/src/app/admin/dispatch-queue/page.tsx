@@ -187,6 +187,7 @@ export default function DispatchQueuePage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <DispatchModeSelector />
               <span className="text-sm text-[var(--text-secondary)]">
                 {updatedAt
                   ? t("lastUpdated", { time: formatTime(updatedAt) })
@@ -371,5 +372,59 @@ export default function DispatchQueuePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+
+// CR-0030 派工模式切換（manual / platform_paid / auto_match）— 管理角色
+function DispatchModeSelector() {
+  const t = useTranslations("admin.dispatchQueue.dispatchMode");
+  const [mode, setMode] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get<{ dispatch_mode: string }>(tenantPath("/dispatch-mode"));
+        if (!cancelled) setMode(res.dispatch_mode);
+      } catch {
+        if (!cancelled) setMode("manual");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function onChange(next: string) {
+    const prev = mode;
+    setMode(next);
+    setSaving(true);
+    try {
+      await api.post(tenantPath("/dispatch-mode"), { mode: next });
+    } catch {
+      setMode(prev ?? "manual"); // rollback on failure
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (mode === null) return null;
+
+  return (
+    <label className="flex items-center gap-2 text-sm" title={t("hint")}>
+      <span className="text-[var(--text-secondary)]">{t("label")}</span>
+      <select
+        value={mode}
+        disabled={saving}
+        onChange={(e) => onChange(e.target.value)}
+        className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1 text-sm text-[var(--text-primary)] disabled:opacity-60"
+      >
+        <option value="manual">{t("manual")}</option>
+        <option value="platform_paid">{t("platformPaid")}</option>
+        <option value="auto_match">{t("autoMatch")}</option>
+      </select>
+    </label>
   );
 }

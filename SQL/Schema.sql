@@ -494,6 +494,7 @@ CREATE TABLE work_orders (
     parent_work_order_id UUID REFERENCES work_orders(id) ON DELETE SET NULL,  -- BR-M05-02 返修連回
     customer_final_amount NUMERIC(12,2),               -- 對外單一最終金額（成本拆項見 CR-0027）
     tenant_id           UUID,                           -- multi-tenant 預留（CR-0031）；目前 single-tenant
+    dispatched_via      VARCHAR(20),                    -- CR-0030 派工來源 manual/platform/auto_match（platform=可計費）
     created_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

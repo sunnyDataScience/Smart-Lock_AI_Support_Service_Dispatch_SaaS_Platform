@@ -829,14 +829,21 @@ async def assign_order(
     if reason_text:
         note += f" {reason_text}"
 
+    # CR-0030：依租戶派工模式標記 dispatched_via（platform_paid → 'platform' 可計費事件）
+    from services import dispatch_mode_service
+    _via = dispatch_mode_service.via_for_mode(
+        await dispatch_mode_service.get_dispatch_mode(tenant_id)
+    )
+
     await db_module._conn.execute(
         "UPDATE work_orders SET "
         "  technician_id = %s::uuid, "
         "  status = 'assigned', "
+        "  dispatched_via = %s, "
         "  service_report = COALESCE(service_report, '') || E'\\n' || %s, "
         "  updated_at = NOW() "
         "WHERE id = %s::uuid",
-        (technician_id, note, wo_id),
+        (technician_id, _via, note, wo_id),
     )
     # Flow 14 排班衝突軟偵測（best-effort，不阻擋 assign）
     await _detect_schedule_conflict_and_publish(

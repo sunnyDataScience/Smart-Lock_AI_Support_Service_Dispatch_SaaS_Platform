@@ -1601,6 +1601,13 @@
       "lastUpdated": "最後更新：{time}",
       "notLoaded": "尚未載入",
       "refresh": "重新整理",
+      "dispatchMode": {
+        "label": "派工模式",
+        "hint": "manual＝租戶手動派 / platform_paid＝平台代派（付費）/ auto_match＝自動媒合（下一階段）",
+        "manual": "租戶手動派",
+        "platformPaid": "平台代派（付費）",
+        "autoMatch": "自動媒合"
+      },
       "connection": {
         "ok": "已連線",
         "fail": "連線失敗"

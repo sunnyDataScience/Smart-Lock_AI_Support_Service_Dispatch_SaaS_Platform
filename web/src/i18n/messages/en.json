@@ -1601,6 +1601,13 @@
       "lastUpdated": "Updated: {time}",
       "notLoaded": "Not loaded",
       "refresh": "Refresh",
+      "dispatchMode": {
+        "label": "Dispatch mode",
+        "hint": "manual = tenant self-assign / platform_paid = platform-assisted (billable) / auto_match = auto-match (next phase)",
+        "manual": "Tenant manual",
+        "platformPaid": "Platform-assisted (paid)",
+        "autoMatch": "Auto-match"
+      },
       "connection": {
         "ok": "Connected",
         "fail": "Disconnected"

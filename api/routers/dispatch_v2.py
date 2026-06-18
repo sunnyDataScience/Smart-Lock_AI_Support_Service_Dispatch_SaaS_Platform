@@ -28,7 +28,9 @@ from models.generated import (
     WorkOrder,
     WorkOrderEnvelope,
 )
-from services import audit_log_service, dispatch_service
+from pydantic import BaseModel, Field
+
+from services import audit_log_service, dispatch_mode_service, dispatch_service
 
 router = APIRouter()
 
@@ -194,3 +196,55 @@ async def plan_dispatch_v2(
     if idem is not None:
         await idem.save(200, payload)
     return payload
+
+
+# ---------------------------------------------------------------------------
+# CR-0030 派工模式切換（manual / platform_paid / auto_match）
+# ---------------------------------------------------------------------------
+
+
+class _DispatchModeBody(BaseModel):
+    """設定租戶派工模式。"""
+
+    mode: str = Field(description="manual / platform_paid / auto_match")
+
+
+@router.get(
+    "/tenants/{tenantId}/dispatch-mode",
+    operation_id="getDispatchModeV2",
+    summary="取得租戶派工模式 v2（CR-0030）",
+    tags=["M06 Dispatch"],
+)
+async def get_dispatch_mode_v2(
+    tenantId: str = Path(...),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError("CROSS_TENANT_READ", "Path tenantId does not match authenticated tenant", 403)
+    mode = await dispatch_mode_service.get_dispatch_mode(tenantId)
+    return {"tenant_id": tenantId, "dispatch_mode": mode}
+
+
+@router.post(
+    "/tenants/{tenantId}/dispatch-mode",
+    operation_id="setDispatchModeV2",
+    summary="切換租戶派工模式 v2（CR-0030；管理角色）",
+    tags=["M06 Dispatch"],
+)
+async def set_dispatch_mode_v2(
+    body: _DispatchModeBody,
+    tenantId: str = Path(...),
+    user: CurrentUser = Depends(role_required("admin", "operations_manager", "tenant_admin")),
+) -> dict:
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError("CROSS_TENANT_WRITE", "Path tenantId does not match authenticated tenant", 403)
+    result = await dispatch_mode_service.set_dispatch_mode(tenant_id=tenantId, mode=body.mode)
+    try:
+        await audit_log_service.log_event(
+            event_type="dispatch_mode_switched", actor_id=user.user_id,
+            actor_role=user.role, action=f"set_dispatch_mode:{body.mode}",
+            target_type="tenant", target_id=tenantId, payload={"mode": body.mode},
+        )
+    except Exception:  # noqa: BLE001 — audit best-effort
+        pass
+    return result
