@@ -19,8 +19,9 @@ NOTE：
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Path, Query
+from pydantic import BaseModel, Field
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from models.generated import (
     Invoice,
@@ -31,6 +32,12 @@ from models.generated import (
 from services import invoice_service
 
 router = APIRouter()
+
+_BILLING_ROLES = ("admin", "operations_manager", "tenant_admin")
+
+
+class _FromQuoteBody(BaseModel):
+    quote_id: str = Field(..., description="來源報價（須為 accepted 狀態）")
 
 
 @router.get(
@@ -99,4 +106,26 @@ async def get_invoice_v2(
         )
 
     inv = await invoice_service.get_invoice(tenant_id=tenantId, invoice_id=id)
+    return {"data": Invoice(**inv).model_dump(mode="json")}
+
+
+@router.post(
+    "/tenants/{tenantId}/accounting/invoices:from-quote",
+    operation_id="createInvoiceFromQuoteV2", status_code=201,
+    summary="從 accepted 報價開立應收發票 v2（CR-0035；管理角色）",
+    response_model=InvoiceEnvelope,
+    tags=["M11 Invoice"],
+)
+async def create_invoice_from_quote_v2(
+    body: _FromQuoteBody,
+    tenantId: str = Path(...),
+    user: CurrentUser = Depends(role_required(*_BILLING_ROLES)),
+) -> dict:
+    """後台手動補開應收發票（accept 自動開立失敗 / 需人工控管時）。
+
+    冪等：work_order_id UNIQUE —— 同工單已有發票回既有（200 語意但回 201 + 既有 row）。
+    """
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError("CROSS_TENANT_WRITE", "Path tenantId does not match authenticated tenant", 403)
+    inv = await invoice_service.create_from_quote(tenant_id=tenantId, quote_id=body.quote_id)
     return {"data": Invoice(**inv).model_dump(mode="json")}

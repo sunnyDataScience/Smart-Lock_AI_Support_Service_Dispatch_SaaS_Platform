@@ -39,6 +39,8 @@ async def _cleanup(ids: list, quote_id: str | None = None) -> None:
     if quote_id:
         await db_module._conn.execute("DELETE FROM quote WHERE id = %s::uuid", (quote_id,))  # cascade lines/approval/snapshot
     woid, pcid, cid, uid = ids
+    # CR-0035：accept 會 best-effort 開發票（invoices FK work_orders ON DELETE RESTRICT），先刪
+    await db_module._conn.execute("DELETE FROM invoices WHERE work_order_id = %s::uuid", (woid,))
     await db_module._conn.execute("DELETE FROM quote WHERE work_order_id = %s::uuid", (woid,))
     await db_module._conn.execute("DELETE FROM work_orders WHERE id = %s::uuid", (woid,))
     await db_module._conn.execute("DELETE FROM problem_cards WHERE id = %s::uuid", (pcid,))

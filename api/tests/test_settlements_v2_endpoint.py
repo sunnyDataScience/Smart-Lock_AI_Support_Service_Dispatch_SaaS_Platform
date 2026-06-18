@@ -54,29 +54,25 @@ def _make_cross_tenant_headers(
 
 
 # ---------------------------------------------------------------------------
-# TC-1: POST monthly 帶 Idempotency-Key → 501 NOT_IMPLEMENTED（stub）
+# TC-1: POST monthly 帶 Idempotency-Key → 202 接通 CR-0012 月結批次（CR-0035）
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_post_monthly_settlement_501_stub(client, admin_headers):
-    """POST /tenants/{tenantId}/settlements/monthly 帶 Idempotency-Key → 501 NOT_IMPLEMENTED。
+async def test_post_monthly_settlement_wired_202(client, admin_headers):
+    """POST /tenants/{tenantId}/settlements/monthly → 202 + batch（CR-0035 接通既有 generate_monthly_batch）。
 
-    Phase II stub：服務層尚未實作，預期永遠回 501。
+    不再 501；底層 UPSERT (tenant, year, month) 冪等。
     """
     headers = dict(admin_headers)
     headers["Idempotency-Key"] = str(uuid.uuid4())
 
-    res = await client.post(_path(), headers=headers)
-    assert res.status_code == 501, f"Expected 501 stub, got {res.status_code}: {res.text}"
-
+    res = await client.post(_path(), headers=headers, json={"period_year": 2026, "period_month": 1})
+    assert res.status_code == 202, f"Expected 202, got {res.status_code}: {res.text}"
     body = res.json()
-    assert body.get("error_code") == "NOT_IMPLEMENTED", (
-        f"Expected error_code=NOT_IMPLEMENTED, got: {body}"
-    )
-    # RFC7807-friendly body 驗證
-    assert body.get("status") == 501
-    assert "detail" in body or "message" in body
+    assert "data" in body
+    batch = body["data"]
+    assert batch.get("period_year") == 2026 and batch.get("period_month") == 1
 
 
 # ---------------------------------------------------------------------------

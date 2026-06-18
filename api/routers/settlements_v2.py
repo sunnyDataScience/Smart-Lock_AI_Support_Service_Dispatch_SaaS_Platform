@@ -3,8 +3,11 @@
 spec（frozen V1.1 openapi.yaml）:
   POST /tenants/{tenantId}/settlements/monthly → triggerMonthlySettlement
 
-gap-audit（docs/_audit/spec-code-gap-audit-2026-06-01.md）:
-  Phase II → 回 501 stub。service 層尚無對應 monthly settlement 觸發實作。
+CR-0035（金流結算收尾）:
+  POST /settlements/monthly 由 501 stub **接通**既有 CR-0012 月結批次服務
+  （monthly_settlement_service.generate_monthly_batch），回 202 + batch。
+  盤點修正：技師撥款月結 CR-0012 已完整做（generate/CSV/水單）；此端點只是 frozen spec
+  的觸發殼，接同一個已測 service。
 
 legacy GET /api/v1/accounting/settlements（routers/settlements.py，listSettlements）
 仍保留，路徑語意不同（list vs. trigger），不重疊，本模組不影響。
@@ -13,42 +16,48 @@ legacy GET /api/v1/accounting/settlements（routers/settlements.py，listSettlem
   - tenant-scoped path，無 /api/v1 前綴（對齊 frozen spec path）
   - require_tenant + cross-tenant guard（ADR-0030）
   - idempotency_guard（POST 端點必帶，防止重複觸發）
-  - Phase II：501 stub，不接 service，待 M12 service 層實作後接入
+  - 接 generate_monthly_batch（UPSERT tenant+year+month，冪等）；period 預設當月
 """
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, Path, Query
-from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 
 from core.deps import CurrentUser, require_tenant
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
-from services import settlement_service
+from services import monthly_settlement_service, settlement_service
 
 router = APIRouter()
+
+
+class _MonthlyTriggerBody(BaseModel):
+    period_year: int | None = Field(default=None, ge=2020, le=2100)
+    period_month: int | None = Field(default=None, ge=1, le=12)
 
 
 @router.post(
     "/tenants/{tenantId}/settlements/monthly",
     operation_id="triggerMonthlySettlement",
-    summary="月結觸發 v2（tenant-scoped）— Phase II 501 stub（M12 / FR-0012）",
-    status_code=501,
+    summary="月結觸發 v2（tenant-scoped）— 接 CR-0012 generate_monthly_batch（M12 / FR-0012）",
+    status_code=202,
     tags=["M12 Settlement"],
 )
 async def trigger_monthly_settlement(
+    body: _MonthlyTriggerBody | None = None,
     tenantId: str = Path(...),
     user: CurrentUser = Depends(require_tenant),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
-) -> JSONResponse:
-    """月結觸發端點 — Phase II 501 stub。
+) -> dict:
+    """月結觸發端點（CR-0035：接通既有 CR-0012 月結批次服務，不再 501）。
 
     cross-tenant guard（ADR-0030）：path tenantId 必須等於 JWT claim。
     idempotency_guard：帶 Idempotency-Key 的 POST 請求防重複觸發。
-
-    TODO（M12 monthly-settlement）:
-      待 settlement_service 新增 trigger_monthly_settlement(tenant_id, period) 後接入。
-      接入時移除 stub，回 202 Accepted + job_id envelope。
+    period 預設當月（UTC）；body 可指定 period_year/period_month 補跑歷史月。
+    底層 generate_monthly_batch 對 (tenant, year, month) UPSERT —— 重複觸發回既有 batch（冪等）。
     """
     # cross-tenant guard（ADR-0030）
     if user.tenant_id and user.tenant_id != tenantId:
@@ -58,19 +67,14 @@ async def trigger_monthly_settlement(
             403,
         )
 
-    # Phase II stub：服務層尚未實作 monthly settlement 觸發
-    return JSONResponse(
-        status_code=501,
-        content={
-            "type": "urn:smartlock:error:not_implemented",
-            "title": "Not Implemented",
-            "status": 501,
-            "detail": "Monthly settlement trigger is not yet implemented (Phase II stub)",
-            "error_code": "NOT_IMPLEMENTED",
-            "message": "Monthly settlement trigger is not yet implemented (Phase II stub)",
-        },
-        media_type="application/problem+json",
+    now = datetime.now(timezone.utc)
+    year = (body.period_year if body else None) or now.year
+    month = (body.period_month if body else None) or now.month
+    batch = await monthly_settlement_service.generate_monthly_batch(
+        tenant_id=tenantId, period_year=year, period_month=month,
+        triggered_by="manual",
     )
+    return {"data": batch}
 
 
 # ─────────────────────────────────────────────────────────────────────────────

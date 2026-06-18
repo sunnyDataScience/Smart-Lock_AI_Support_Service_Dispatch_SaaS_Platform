@@ -41,7 +41,9 @@
 | 034 | `034-role-permissions-tenant-id.sql` | 部署修復 | 🟢 idempotent | 首次 Cloud Run 部署修復：prod 既有「舊版 role_permissions join 表（role_id/permission_id）」與 F-019（role_name/permission_code）衝突。空舊表 → DROP 重建為 F-019 spec（安全閥：非空則 RAISE 中止）。並同步修：(a) `015` kb_audit_log partial index 移除非法 `NOW()` predicate 改全索引；(b) `Schema_v2_extensions.sql` 移除舊 RBAC join 索引死碼。prod 經 cloud-sql-proxy 套用、完整重跑零錯誤 |
 
 | 035 | `035-password-reset-tokens.sql` | CR-0025 / ADR-0114 | 🟢 idempotent | 使用者自助忘記密碼：新 `password_reset_tokens` 表（token 只存 SHA-256 雜湊、明文不入庫；TTL 30 分鐘 + used_at 單次用；ON DELETE CASCADE）+ 3 indexes（token_hash UNIQUE / user_id / expires_at）。全 IF NOT EXISTS 可重套 |
+| 042 | `042-invoice-from-quote.sql` | CR-0035 | 🟢 idempotent | 金流結算收尾：invoices 加 `quote_id`（追溯來源報價，nullable，FK quote ON DELETE SET NULL）+ `is_mock`（金額來自 esales mock 草稿旗標）+ idx_invoices_quote。為「報價 accepted→應收發票」接線（invoice_service.create_from_quote；work_order_id UNIQUE 冪等）。全 ADD COLUMN IF NOT EXISTS 可重套 |
 
 > 註：028-032 為 agent/CR-0020~0022 波次 migration（已實作於分支，registry 待補登）。
+> 註：036-041 為 CR-0026~0034 波次 migration（已實作於分支，registry 待補登）。
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
 > 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。

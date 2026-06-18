@@ -26,6 +26,7 @@ DB ↔ API 對齊：
 
 from __future__ import annotations
 
+import json
 import logging
 
 import core.db as db_module
@@ -178,6 +179,76 @@ async def list_invoices(
         next_cursor = encode_cursor({"ts": last[6].isoformat(), "id": str(last[0])})
 
     return {"items": items, "next_cursor": next_cursor, "has_more": has_more}
+
+
+def _gen_invoice_number(work_order_id: str) -> str:
+    """發票號（mock-first）：IV + 8 數字，符合 Invoice schema 規範 `^[A-Z]{2}\\d{8}$`。
+
+    8 數字取 uuid 整數 mod 10^8；唯一性由 invoices.invoice_number UNIQUE 約束最終保證
+    （碰撞機率 ~1/10^8，極低）。正式發票字軌/序列規則待 esales（§8 Q-3）。
+    """
+    import uuid as _uuid
+    return f"IV{_uuid.uuid4().int % 100_000_000:08d}"
+
+
+async def create_from_quote(*, tenant_id: str, quote_id: str) -> dict:
+    """從 accepted 報價開立客戶應收發票（CR-0035，mock-first）。
+
+    冪等：invoices.work_order_id UNIQUE + INSERT ON CONFLICT DO NOTHING —— 並發/重複呼叫
+    皆回既有發票（race-safe，不丟 UNIQUE 例外）。
+    金額取報價客戶價（不含內部成本 unit_price）；稅 mock 0（待 esales Q-07）；is_mock 沿報價旗標。
+    line_items 結構：[{item_name, category, quantity, customer_price}] —— **不含 unit_price**（成本不外洩）。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    # 取報價（嚴格限本租戶；財務寫入不容 tenant_id IS NULL 鬆綁）+ 客戶價明細
+    q = await (await db_module._conn.execute(
+        "SELECT id, work_order_id, state, total_amount, is_mock FROM quote "
+        "WHERE id = %s::uuid AND tenant_id = %s::uuid",
+        (quote_id, tenant_id))).fetchone()
+    if not q:
+        raise ApiError("NOT_FOUND", "quote not found", 404)
+    if q[1] is None:
+        raise ApiError("VALIDATION_ERROR", "quote has no work_order to bill", 422)
+    if q[2] != "accepted":
+        raise ApiError("STATE_CONFLICT", f"cannot invoice quote in '{q[2]}' (must be accepted)", 409)
+    if q[3] is None or float(q[3]) <= 0:
+        raise ApiError("VALIDATION_ERROR", "quote has no billable amount (no line items)", 422)
+    work_order_id = str(q[1])
+
+    # 客戶價明細（不含 unit_price 內部成本）
+    line_rows = await (await db_module._conn.execute(
+        "SELECT item_name, category, quantity, customer_price FROM quote_line_items "
+        "WHERE quote_id = %s::uuid ORDER BY created_at", (quote_id,))).fetchall()
+    line_items = [{
+        "item_name": r[0], "category": r[1], "quantity": int(r[2]),
+        "customer_price": _coerce_decimal(r[3]),
+    } for r in line_rows]
+
+    amount = float(q[3])
+    tax = 0.0  # mock：未稅（待 esales Q-07）
+    total = amount + tax
+    invoice_number = _gen_invoice_number(work_order_id)
+    is_mock = bool(q[4])
+
+    # 原子冪等：work_order_id UNIQUE 衝突 → DO NOTHING（不丟例外）→ RETURNING 為空 → 回既有
+    row = await (await db_module._conn.execute(
+        "INSERT INTO invoices (work_order_id, quote_id, invoice_number, amount, tax, total, "
+        "  status, line_items, issued_at, is_mock) "
+        "VALUES (%s::uuid, %s::uuid, %s, %s, %s, %s, 'issued', %s::jsonb, NOW(), %s) "
+        "ON CONFLICT (work_order_id) DO NOTHING RETURNING id",
+        (work_order_id, quote_id, invoice_number, amount, tax, total,
+         json.dumps(line_items, ensure_ascii=False), is_mock))).fetchone()
+    if row is None:
+        # 已有發票（並發或重複 accept）→ 回既有，不重開
+        existing = await (await db_module._conn.execute(
+            "SELECT id FROM invoices WHERE work_order_id = %s::uuid", (work_order_id,))).fetchone()
+        logger.info("invoice already exists for wo=%s (idempotent return)", work_order_id)
+        return await get_invoice(tenant_id=tenant_id, invoice_id=str(existing[0]))
+    logger.info("invoice created from quote: invoice=%s quote=%s wo=%s amount=%.2f mock=%s",
+                row[0], quote_id, work_order_id, amount, is_mock)
+    return await get_invoice(tenant_id=tenant_id, invoice_id=str(row[0]))
 
 
 async def get_invoice(*, tenant_id: str, invoice_id: str) -> dict:

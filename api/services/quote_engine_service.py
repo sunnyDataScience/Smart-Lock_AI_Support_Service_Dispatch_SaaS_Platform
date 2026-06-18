@@ -194,6 +194,18 @@ async def transition(
             (quote_id, actor_id, "approved" if action == "approve" else "rejected", comment))
     if action == "send":
         await _freeze_snapshot(quote_id, tenant_id)
+    # 客戶接受 → best-effort 開立客戶應收發票（CR-0035；work_order_id UNIQUE 天然冪等，
+    # 失敗不阻斷 accept —— 報價接受是客戶動作，發票開立是下游帳務，解耦）
+    if action == "accept":
+        try:
+            from services import invoice_service
+            inv = await invoice_service.create_from_quote(tenant_id=tenant_id, quote_id=quote_id)
+            logger.info("quote accepted → invoice %s", inv.get("id"))
+        except Exception as exc:  # noqa: BLE001 — best-effort 解耦：開票失敗不阻斷客戶接受報價
+            # ERROR 級（可告警）：金流斷層需人工補開 —— 後台 POST .../accounting/invoices:from-quote
+            logger.error("quote %s accepted but invoice creation FAILED (manual from-quote needed): %s",
+                         quote_id, exc)
+
     result = await get_quote(quote_id=quote_id, tenant_id=tenant_id, include_cost=True)
     # 送客戶 → 一併鑄客戶端查看連結（stateless public_token，quote_view purpose）
     if action == "send":
