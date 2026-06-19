@@ -626,6 +626,24 @@ async def _publish_and_return(
     return order
 
 
+async def _auto_notify(tenant_id: str, user_id, ntype: str, title: str, body: str = "") -> None:
+    """CR-0062：事件驅動自動通知（best-effort 非致命；user_id 缺則略過）。
+
+    把生命週期事件接到通知中心自動產生（原通知只能手動 push）。
+    """
+    if not user_id:
+        return
+    try:
+        from services import notification_service
+        await notification_service.push_notification(
+            {"target_type": "user", "target_id": str(user_id),
+             "type": ntype, "title": title, "body": body},
+            tenant_id=tenant_id,
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("auto-notify failed (non-fatal)")
+
+
 async def _publish_pool_change(
     *,
     tenant_id: str,
@@ -1014,6 +1032,19 @@ async def complete_order(
             )
     except Exception:  # noqa: BLE001
         logger.exception("completion email failed (non-fatal)")
+    # CR-0062：事件驅動通知 — 通知開單者（客服/管理）工單已完工待審核
+    try:
+        ccur = await db_module._conn.execute(
+            "SELECT created_by, document_number FROM work_orders WHERE id = %s::uuid", (wo_id,))
+        crow = await ccur.fetchone()
+        if crow and crow[0]:
+            await _auto_notify(
+                tenant_id, crow[0], "work_order_completed",
+                f"工單 {crow[1] or wo_id} 已完工",
+                "技師已回報完工，待客服/客戶確認結案。",
+            )
+    except Exception:  # noqa: BLE001
+        logger.exception("completion auto-notify failed (non-fatal)")
     return await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.completed"
     )
@@ -1275,6 +1306,18 @@ async def assign_order(
         )
     except Exception:  # noqa: BLE001
         logger.exception("outbox enqueue work_order_assigned failed (non-fatal)")
+    # CR-0062：事件驅動通知 — 通知被指派技師（其登入帳號 technicians.user_id）
+    try:
+        tcur = await db_module._conn.execute(
+            "SELECT user_id FROM technicians WHERE id = %s::uuid", (technician_id,))
+        trow = await tcur.fetchone()
+        if trow and trow[0]:
+            await _auto_notify(
+                tenant_id, trow[0], "work_order_assigned",
+                "新工單已派給你", "請至『我的工單』查看並接單。",
+            )
+    except Exception:  # noqa: BLE001
+        logger.exception("assign auto-notify failed (non-fatal)")
     return await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.assigned"
     )

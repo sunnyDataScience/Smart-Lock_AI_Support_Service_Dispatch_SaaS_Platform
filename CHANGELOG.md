@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CR-0062 事件驅動通知自動生成（branch `feat/cr-0062-event-driven-notifications`，2026-06-20）**：審計 #6（最後一項）/ M16。通知中心原只能手動 push，生命週期事件未接通知產生。work_order_service 加 `_auto_notify`（best-effort，接 notification_service.push_notification）+ 接兩個關鍵事件：**派工→通知被指派技師**（technicians.user_id）、**完工→通知開單者**（created_by）「待審核結案」。test_cr_0062 1/1 + 回歸 0 fail。**審計 15 項待做 in-scope 全數閉環。**
+
+### Added
+
 - **CR-0061 媒合 GIS 距離 + 多維績效排序（branch `feat/cr-0061-gis-performance-matching`，2026-06-20）**：審計 #10 #11 / BR-M06 / BR-M07-03。媒合 distance 原示意值非真實、排序只用單一 rating。**migration 064** technicians +latitude/longitude/on_time_rate/acceptance_rate（mock seed active）。dispatch_service 加 `_haversine_km` + 服務區中心點（無 PostGIS，純數學近似）算真距離、`_enrich_gis_performance` 把 on-time/acceptance 多維績效以 bonus 進排序（候選清單+auto_match）。test_cr_0061 3/3 + 回歸 0 fail。
 
 ### Added
