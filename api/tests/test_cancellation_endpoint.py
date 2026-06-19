@@ -176,7 +176,7 @@ async def test_cancel_persists_config_version_and_stage(make_wo, client, admin_h
     assert res.status_code == 200, res.text
     data = res.json()["data"]
     assert data["cancellation_stage"] == "S3"
-    assert data["customer_fee"] == 300.0
+    assert data["customer_fee"] == 500.0  # CR-0044：S3 取消費校正 300→500（esales 已知規格 ADR-0102）
     assert data["travel_fee"] == 600.0  # min 500 + 20*5
 
     import core.db as db_module

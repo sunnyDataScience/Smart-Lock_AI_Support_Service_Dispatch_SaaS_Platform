@@ -63,6 +63,7 @@
 | 051 | `051-problemcard-completeness-config.sql` | CR-0042 | 🟢 idempotent ✅ 2026-06-19 套 dev | Alpha Exit #1：M18 config `problemcard_policy`（min_completeness=0.8 + key_fields 5 欄）。`problem_card_service.assert_completeness` 讀此 config 在轉 WO 前擋完整度不足（422 + 主管 override）。namespace ON CONFLICT DO NOTHING + config_version NOT EXISTS 可重套 |
 | 052 | `052-workorder-fields-phase2.sql` | CR-0043 | 🟢 idempotent ✅ 2026-06-19 套 dev | 公單欄位 Phase 2：`work_orders` +5 欄（dealer/install_date/rain_exposure/special_door_surcharge/payment_method，全 nullable）+ `service_catalog` seed 3 計費費目（dispatch/destruct/removal）+ M18 config（`completion_policy.require_consents` merge 預設 false、新 `quote_policy.apply_surcharge` 預設 false）。純 ADD COLUMN + seed + config，ON CONFLICT/NOT EXISTS 可重套 |
 | 053 | `053-scope-tier-autoconfirm-config.sql` | CR-0038 桶4 | 🟢 idempotent ✅ 2026-06-19 套 dev | M18 config 兩 namespace：`scope_change_policy`（BR-M08-02 分級門檻 minor_max=500/standard_max=2000/major_pct=0.5，major 需主管）+ `auto_confirm_policy`（Q063 enabled/hours=48）。code 讀 read_global_value 帶 fallback，純 config seed 可重套 |
+| 054 | `054-esales-decided-config.sql` | CR-0044 | 🟢 idempotent ✅ 2026-06-19 套 dev | esales 已決定值 de-hardcode：(1) `system_config.cancellation.fees` S3/S4 由 300/300 校正為 **500/800**（業主 2026-06-19 裁 SoT 衝突採 esales ADR-0102）；(2) `quote_validity_policy` M18 config（14/3 已知規格）。UPDATE 加防呆（值已正確不重覆寫）+ ON CONFLICT/NOT EXISTS 可重套 |
 
 > 註：028-032 為 agent/CR-0020~0022 波次 migration（已實作於分支，registry 待補登）。
 > 註：036-041 為 CR-0026~0034 波次 migration（已實作於分支，registry 待補登）。

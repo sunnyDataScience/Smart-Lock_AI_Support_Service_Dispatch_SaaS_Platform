@@ -34,9 +34,23 @@ _TRANSITIONS = {
     "decline": ({"sent"}, "rejected"),
 }
 
-# 有效期（BR-M04-05）：一般 14d、急件 3d
+# 有效期（BR-M04-05）：一般 14d、急件 3d（CR-0044 已知規格；以下為 config fallback 預設）
 _VALIDITY_DAYS_NORMAL = 14
 _VALIDITY_DAYS_URGENT = 3
+
+
+async def _validity_days(urgent: bool) -> int:
+    """CR-0044：有效期讀 M18 config quote_validity_policy（缺則 fallback 14/3，不寫死）。"""
+    from services import config_m18_service
+
+    cfg = await config_m18_service.read_global_value(namespace="quote_validity_policy")
+    if isinstance(cfg, dict):
+        key = "urgent_days" if urgent else "normal_days"
+        try:
+            return int(cfg.get(key, _VALIDITY_DAYS_URGENT if urgent else _VALIDITY_DAYS_NORMAL))
+        except (TypeError, ValueError):
+            pass
+    return _VALIDITY_DAYS_URGENT if urgent else _VALIDITY_DAYS_NORMAL
 
 # 核准門檻（mock 預設；正式值待業主 esales Q-11）：總額超此值不可從 draft 直送，須先核准
 _APPROVAL_THRESHOLD = 10000.0
@@ -64,7 +78,7 @@ async def create_quote(
     )).fetchone()
     if not pc:
         raise ApiError("NOT_FOUND", "work order not found", 404)
-    days = _VALIDITY_DAYS_URGENT if urgent else _VALIDITY_DAYS_NORMAL
+    days = await _validity_days(urgent)
     expiry = datetime.now(timezone.utc) + timedelta(days=days)
     row = await (await conn.execute(
         "INSERT INTO quote (work_order_id, problem_card_id, state, expiry_at, tenant_id, created_by) "

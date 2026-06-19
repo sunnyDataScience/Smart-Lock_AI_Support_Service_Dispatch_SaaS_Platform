@@ -88,7 +88,7 @@ def test_fee_s3_travel_plus_cancel():
     customer_fee, travel = cs.compute_fees(
         "S3", cs.get_reason_entry("en_route_cancelled", CFG), CFG, base_amount=2000, distance_km=None
     )
-    assert customer_fee == 300.0
+    assert customer_fee == 500.0  # CR-0044：S3 取消費 300→500（esales 已知規格）
     assert travel == 500.0  # travel_fee_min default
 
 
@@ -96,8 +96,8 @@ def test_fee_s4_inspection_plus_cancel():
     customer_fee, travel = cs.compute_fees(
         "S4", cs.get_reason_entry("onsite_not_executed", CFG), CFG, base_amount=2000
     )
-    # 檢測費 300 + 取消費 300 = 600
-    assert customer_fee == 600.0
+    # CR-0044：檢測費 300 + 取消費 800（S4，esales 已知規格）= 1100
+    assert customer_fee == 1100.0
     assert travel == 500.0
 
 

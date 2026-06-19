@@ -37,11 +37,13 @@ logger = logging.getLogger("api.cancellation_service")
 #   travel_plus_inspection_plus_cancel    → 車馬費 + 檢測費 + 取消費
 #   partial_formula                       → 工項總額 × 完工比例 + 車馬費
 DEFAULT_CANCELLATION_CONFIG: dict[str, Any] = {
-    "version_note": "ADR-0102 v2 defaults (2026-05-28 業主 Q1/Q2/Q3)",
+    # CR-0044：S3/S4 取消費校正為 esales 已決定值（SoT 衝突業主 2026-06-19 裁決採 esales）。
+    # 來源：esales『03 區域與加價規則』CNL-S2/S3/S4=300/500/800（已知規格 ADR-0102，2026-06-03，較新）。
+    "version_note": "ADR-0102 / esales 03 加價規則 2026-06-03（CR-0044 業主 2026-06-19 裁決 S3=500/S4=800）",
     "fees": {
         "s2_cancellation_fee": 300,
-        "s3_cancellation_fee": 300,
-        "s4_cancellation_fee": 300,
+        "s3_cancellation_fee": 500,
+        "s4_cancellation_fee": 800,
         "inspection_fee": 300,
         "travel_fee_min": 500,
         "travel_fee_max": 1200,
