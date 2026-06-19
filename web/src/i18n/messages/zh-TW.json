@@ -291,6 +291,7 @@
       "dispatchQueue": "派工佇列監控",
       "materialRequests": "補料管理",
       "technicians": "技師管理",
+      "exceptions": "異常管理",
       "vendorApprovals": "廠商審核",
       "quoteCatalog": "報價主檔",
       "quotes": "報價單",

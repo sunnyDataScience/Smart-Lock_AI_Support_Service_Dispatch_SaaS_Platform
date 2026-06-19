@@ -291,6 +291,7 @@
       "dispatchQueue": "Dispatch queue",
       "materialRequests": "Material requests",
       "technicians": "Technicians",
+      "exceptions": "Exceptions",
       "vendorApprovals": "Vendor approvals",
       "quoteCatalog": "Price catalog",
       "quotes": "Quotes",

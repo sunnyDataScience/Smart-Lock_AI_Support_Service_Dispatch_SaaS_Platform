@@ -17,6 +17,7 @@ import {
   BarChart3,
   ShieldCheck,
   Settings,
+  AlertTriangle,
   LogOut,
 } from "lucide-react";
 import Link from "next/link";
@@ -70,6 +71,7 @@ const navItems: NavItem[] = [
     ],
   },
   { icon: Users, id: "technicians", href: "/technicians" },
+  { icon: AlertTriangle, id: "exceptions", href: "/admin/exceptions" },
   { icon: Store, id: "vendorApprovals", href: "/admin/vendor-approvals" },
   { icon: Tag, id: "quoteCatalog", href: "/admin/quote-catalog" },
   { icon: FileText, id: "quotes", href: "/admin/quotes" },
