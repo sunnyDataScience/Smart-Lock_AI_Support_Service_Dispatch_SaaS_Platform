@@ -132,6 +132,63 @@ def _is_dispatch_eligible(status: str | None) -> bool:
     return status not in _DISPATCH_INELIGIBLE_STATUSES
 
 
+# CR-0061 / 審計#10：服務區中心點近似（無 PostGIS，用純 Haversine）。未知區 → 不算 GIS 距離。
+_DISTRICT_CENTROIDS: dict[str, tuple[float, float]] = {
+    "林口區": (25.0775, 121.3917), "新莊區": (25.0359, 121.4503),
+    "板橋區": (25.0098, 121.4595), "三重區": (25.0617, 121.4870),
+    "信義區": (25.0330, 121.5654), "大安區": (25.0263, 121.5436),
+    "中山區": (25.0637, 121.5260), "中正區": (25.0320, 121.5180),
+    "桃園區": (24.9937, 121.3010), "新北市": (25.0169, 121.4628),
+    "台北市": (25.0330, 121.5654), "台北": (25.0330, 121.5654),
+}
+
+
+def _haversine_km(lat1, lng1, lat2, lng2) -> float:
+    """兩經緯度球面距離（km）。"""
+    import math
+    r = 6371.0
+    p1, p2 = math.radians(float(lat1)), math.radians(float(lat2))
+    dphi = math.radians(float(lat2) - float(lat1))
+    dlmb = math.radians(float(lng2) - float(lng1))
+    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlmb / 2) ** 2
+    return round(2 * r * math.asin(math.sqrt(a)), 2)
+
+
+async def _enrich_gis_performance(candidates: list[dict], wo_district: str | None) -> list[dict]:
+    """CR-0061 審計#10#11：補真實 GIS 距離（Haversine 到區中心）+ 多維績效（on-time/acceptance），
+    並以「績效加成」重排（主分數 + 小幅績效 bonus）。無座標/無區中心 → gis_distance 留 None，不破。"""
+    if not candidates or not await _ensure_conn():
+        return candidates
+    ids = [c["technician"].get("id") for c in candidates if c.get("technician", {}).get("id")]
+    if not ids:
+        return candidates
+    cur = await db_module._conn.execute(
+        "SELECT id, latitude, longitude, on_time_rate, acceptance_rate FROM technicians "
+        "WHERE id = ANY(%s::uuid[])", (ids,),
+    )
+    perf = {str(r[0]): r for r in await cur.fetchall()}
+    centroid = _DISTRICT_CENTROIDS.get(wo_district or "")
+    for c in candidates:
+        tid = c["technician"].get("id")
+        row = perf.get(tid)
+        if not row:
+            continue
+        lat, lng, on_time, accept = row[1], row[2], row[3], row[4]
+        gis_km = None
+        if centroid is not None and lat is not None and lng is not None:
+            gis_km = _haversine_km(centroid[0], centroid[1], lat, lng)
+        on_time_f = float(on_time) if on_time is not None else None
+        accept_f = float(accept) if accept is not None else None
+        c["gis_distance_km"] = gis_km
+        c["performance"] = {"on_time_rate": on_time_f, "acceptance_rate": accept_f}
+        # 多維績效進排序：主分數 + 績效 bonus（最多 +20）；BR-M07-03
+        if on_time_f is not None and accept_f is not None:
+            c["performance_bonus"] = round(20 * (on_time_f + accept_f) / 2, 2)
+            c["score"] = round(c.get("score", 0) + c["performance_bonus"], 2)
+    candidates.sort(key=lambda x: x.get("score", 0), reverse=True)
+    return candidates
+
+
 async def _brand_authorized_ids(brand: str | None) -> set[str] | None:
     """CR-0060 / BR-M07-01：回授權該品牌（未過期）的技師 id 集合。
 
@@ -278,6 +335,8 @@ async def list_dispatch_candidates(
     auth_ids = await _brand_authorized_ids(wo_brand)
     if auth_ids is not None:
         candidates = [c for c in candidates if c["technician"].get("id") in auth_ids]
+    # CR-0061 審計#10#11：補真實 GIS 距離 + 多維績效並重排
+    candidates = await _enrich_gis_performance(candidates, wo_district)
     return {
         "candidates": candidates,
         "total": len(candidates),
@@ -333,6 +392,8 @@ async def auto_match_dispatch(
     _auth_ids = await _brand_authorized_ids(pc_brand)
     if _auth_ids is not None:
         scored = [c for c in scored if c["technician"].get("id") in _auth_ids]
+    # CR-0061：GIS 距離 + 多維績效重排
+    scored = await _enrich_gis_performance(scored, pc_district)
 
     boost = 1.05 if urgency == "emergency" else 1.0
     candidates: list[dict] = []

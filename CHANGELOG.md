@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CR-0061 媒合 GIS 距離 + 多維績效排序（branch `feat/cr-0061-gis-performance-matching`，2026-06-20）**：審計 #10 #11 / BR-M06 / BR-M07-03。媒合 distance 原示意值非真實、排序只用單一 rating。**migration 064** technicians +latitude/longitude/on_time_rate/acceptance_rate（mock seed active）。dispatch_service 加 `_haversine_km` + 服務區中心點（無 PostGIS，純數學近似）算真距離、`_enrich_gis_performance` 把 on-time/acceptance 多維績效以 bonus 進排序（候選清單+auto_match）。test_cr_0061 3/3 + 回歸 0 fail。
+
+### Added
+
 - **CR-0060 技師技能矩陣 + 品牌授權（branch `feat/cr-0060-tech-skill-brand-auth`，2026-06-20）**：審計 #12 #13 / BR-M07-01。技師原僅 capabilities JSONB 自由清單，無結構化技能矩陣/品牌授權。沿會議 mock-first 授權建資料模型：**migration 063** `technician_skill`（skill_code + A/B/C level）+ `technician_brand_authorization`（brand + authorized + cert_expires_at）+ seed 示範（is_mock）。`dispatch_service` 候選清單/auto_match 加品牌授權過濾（`_brand_authorized_ids`：未授權/認證過期技師排除；無授權資料保守不過濾）。test_cr_0060 2/2 + 回歸 0 fail。
 
 ### Added
