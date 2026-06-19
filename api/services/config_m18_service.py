@@ -48,6 +48,23 @@ def _cache_key(tenant_id: str | None, namespace: str, key: str) -> tuple:
     return (tenant_id, namespace, key)
 
 
+async def read_global_value(*, namespace: str, key: str = "default") -> dict | None:
+    """讀全域（tenant_id=NULL）active config 的 value dict（無則回 None，不丟 404）。
+
+    供 code 內部讀治理參數（如 deposit_policy / dispatch_commission，CR-0036）；
+    與 read_config_acl（ACL/404/cache）區隔：此為內部 best-effort 讀，缺失由呼叫端 fallback。
+    """
+    if not await _ensure_conn():
+        return None
+    cur = await db_module._conn.execute(
+        "SELECT value FROM saas.config_version "
+        "WHERE tenant_id IS NULL AND namespace = %s AND key = %s AND state = 'active'",
+        (namespace, key),
+    )
+    row = await cur.fetchone()
+    return row[0] if row and isinstance(row[0], dict) else None
+
+
 def _cache_get(
     tenant_id: str | None, namespace: str, key: str
 ) -> dict | None:

@@ -43,6 +43,7 @@
 | 035 | `035-password-reset-tokens.sql` | CR-0025 / ADR-0114 | 🟢 idempotent | 使用者自助忘記密碼：新 `password_reset_tokens` 表（token 只存 SHA-256 雜湊、明文不入庫；TTL 30 分鐘 + used_at 單次用；ON DELETE CASCADE）+ 3 indexes（token_hash UNIQUE / user_id / expires_at）。全 IF NOT EXISTS 可重套 |
 | 042 | `042-invoice-from-quote.sql` | CR-0035 | 🟢 idempotent | 金流結算收尾：invoices 加 `quote_id`（追溯來源報價，nullable，FK quote ON DELETE SET NULL）+ `is_mock`（金額來自 esales mock 草稿旗標）+ idx_invoices_quote。為「報價 accepted→應收發票」接線（invoice_service.create_from_quote；work_order_id UNIQUE 冪等）。全 ADD COLUMN IF NOT EXISTS 可重套 |
 | 043 | `043-work-order-consents.sql` | CR-0033 | 🟢 idempotent | 免責合規：新 `work_order_consents`（三段 consent_type=new_installation/lock_destruction/personal_data + accepted/accepted_at + text_version 文本版本快照 + ip_address 留痕；UNIQUE(work_order_id, consent_type) 冪等 upsert）+ idx。藍圖模組 4 施工免責；文本以 consent_service 常數存（佔位待法務）。全 IF NOT EXISTS 可重套 |
+| 044 | `044-finance-config.sql` | CR-0036 | 🟢 idempotent | 金流參數入 M18 config 治理：config_namespace ×3（deposit_policy / dispatch_commission / monthly_close_schedule）+ seed 三筆 global active config_version（esales sheet24 值：訂金 0.3/min 1000、佣金 0.08、月結 3/5/10；value 內標 is_mock/esales_status/source）+ invoices 加 deposit_required。符 sheet24「規則版本化不可寫死」（值入 config 非 code）。namespace ON CONFLICT DO NOTHING + config_version NOT EXISTS + ADD COLUMN IF NOT EXISTS 可重套 |
 
 > 註：028-032 為 agent/CR-0020~0022 波次 migration（已實作於分支，registry 待補登）。
 > 註：036-041 為 CR-0026~0034 波次 migration（已實作於分支，registry 待補登）。

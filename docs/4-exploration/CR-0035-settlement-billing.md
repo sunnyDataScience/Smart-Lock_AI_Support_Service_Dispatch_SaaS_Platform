@@ -121,3 +121,5 @@ invoice create_from_quote（金額/line_items 帶客戶價不含成本 / invoice
 - ⏳ **待 migration 042 套 dev DB**：`test_cr_0035_invoice_billing.py`（create_from_quote / 冪等 / 非 accepted 409 / 無成本外洩 + is_mock）—— 需新欄位，待套用後跑。
 - ⏳ §8 正式值：自動開票/訂金/稅務/傳票/月結來源/SoD（綁 esales Q-07/08）—— mock-first 不卡。
 - 分支：`feat/cr-0035-settlement-billing`
+
+> **Related — CR-0036**：本 CR §8-Q2「訂金暫不做」經業主指正（esales sheet 24 已有訂金草稿值）後，由 **CR-0036** 補洞：訂金/佣金/月結時程參數入 M18 config 治理 + `invoice.deposit_required` 從 config 算。本 CR 的「訂金 deferred」已被 CR-0036 取代。

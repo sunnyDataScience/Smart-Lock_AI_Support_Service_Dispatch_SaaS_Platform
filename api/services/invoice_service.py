@@ -191,6 +191,35 @@ def _gen_invoice_number(work_order_id: str) -> str:
     return f"IV{_uuid.uuid4().int % 100_000_000:08d}"
 
 
+# 訂金 fallback（config 缺失時；對齊 esales sheet24 CFG-DEPOSIT-RATE/MIN）
+_DEPOSIT_RATE_FALLBACK = 0.3
+_DEPOSIT_MIN_FALLBACK = 1000.0
+
+
+async def _resolve_deposit(amount: float) -> float:
+    """從 deposit_policy config 算訂金（CR-0036）：round(min(amount, max(amount×rate, min_twd)), 2)。
+
+    即「rate/min 取高，但不超過 total」。值走 M18 config 治理（sheet 24「不可寫死」）；
+    config 缺失或壞值 → fallback 常數（不破，並 logger.warning 可追蹤 fallback 觸發）。
+    amount ≤ 0 → 0（守會計不變式，不產生負/誤訂金）。
+    """
+    from services import config_m18_service
+    cfg = await config_m18_service.read_global_value(namespace="deposit_policy")
+    if not cfg:
+        logger.warning("deposit_policy config missing — fallback rate=%.2f min=%.0f",
+                       _DEPOSIT_RATE_FALLBACK, _DEPOSIT_MIN_FALLBACK)
+        cfg = {}
+    try:
+        rate = float(cfg.get("rate", _DEPOSIT_RATE_FALLBACK))
+        min_twd = float(cfg.get("min_twd", _DEPOSIT_MIN_FALLBACK))
+    except (ValueError, TypeError):
+        logger.warning("deposit_policy config malformed (%r) — using fallback", cfg)
+        rate, min_twd = _DEPOSIT_RATE_FALLBACK, _DEPOSIT_MIN_FALLBACK
+    if amount <= 0:
+        return 0.0
+    return round(min(amount, max(amount * rate, min_twd)), 2)
+
+
 async def create_from_quote(*, tenant_id: str, quote_id: str) -> dict:
     """從 accepted 報價開立客戶應收發票（CR-0035，mock-first）。
 
@@ -229,17 +258,18 @@ async def create_from_quote(*, tenant_id: str, quote_id: str) -> dict:
     amount = float(q[3])
     tax = 0.0  # mock：未稅（待 esales Q-07）
     total = amount + tax
+    deposit_required = await _resolve_deposit(total)  # CR-0036：從 deposit_policy config 算
     invoice_number = _gen_invoice_number(work_order_id)
     is_mock = bool(q[4])
 
     # 原子冪等：work_order_id UNIQUE 衝突 → DO NOTHING（不丟例外）→ RETURNING 為空 → 回既有
     row = await (await db_module._conn.execute(
         "INSERT INTO invoices (work_order_id, quote_id, invoice_number, amount, tax, total, "
-        "  status, line_items, issued_at, is_mock) "
-        "VALUES (%s::uuid, %s::uuid, %s, %s, %s, %s, 'issued', %s::jsonb, NOW(), %s) "
+        "  status, line_items, issued_at, is_mock, deposit_required) "
+        "VALUES (%s::uuid, %s::uuid, %s, %s, %s, %s, 'issued', %s::jsonb, NOW(), %s, %s) "
         "ON CONFLICT (work_order_id) DO NOTHING RETURNING id",
         (work_order_id, quote_id, invoice_number, amount, tax, total,
-         json.dumps(line_items, ensure_ascii=False), is_mock))).fetchone()
+         json.dumps(line_items, ensure_ascii=False), is_mock, deposit_required))).fetchone()
     if row is None:
         # 已有發票（並發或重複 accept）→ 回既有，不重開
         existing = await (await db_module._conn.execute(
