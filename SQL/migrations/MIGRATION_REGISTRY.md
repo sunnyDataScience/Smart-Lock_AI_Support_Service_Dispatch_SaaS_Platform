@@ -58,6 +58,7 @@
 | 046 | `046-schema-migrations-tracking.sql` | CR-0038 階段0 | 🟢 idempotent ✅ 2026-06-19 套 dev | 建 `public.schema_migrations`（version PK / filename / applied_at / note）—— migration 套用真實狀態追蹤，根治 registry 標記 ≠ 各環境實際的雙向漂移。apply-schema-prod.sh 套完即 INSERT 留痕（ON CONFLICT DO NOTHING）。本表為「是否已套用」唯一真實來源 |
 | 047 | `047-completion-policy-config.sql` | CR-0039 | 🟢 idempotent ✅ 2026-06-19 套 dev | 完工硬閘門檻入 M18 config：namespace `completion_policy` + 全域 active config（min_photos=3 / require_signature / serial_required_categories=["install"] / allow_supervisor_override；業主裁決 is_mock:false）。complete_order 讀此 config 強制照片≥N/簽名/序號，不寫死。namespace ON CONFLICT DO NOTHING + config_version NOT EXISTS 可重套 |
 | 048 | `048-media-evidence-governance.sql` | CR-0040 | 🟢 idempotent ✅ 2026-06-19 套 dev | Evidence 治理：media_files 加 `retention_until`（保存期 1yr/客訴保固 2yr，Q027）+ `deleted_at`（軟刪 HD-4）+ backfill 既有 7 筆 + 清除 partial index。角色可見性（BR-M09-02）走 service 規則式過濾不加欄位。ADD COLUMN IF NOT EXISTS 可重套 |
+| 049 | `049-exception-framework.sql` | CR-0041 | 🟢 idempotent ✅ 2026-06-19 套 dev | M15 異常框架：新 `saas.exception_case`（對齊 generated.py Exception model + `return_path` action 欄 + status/severity CHECK）+ `work_orders.high_risk_hold` 旗標（BR-M15-03 暫停，dispatch/complete gate 檢查）。CREATE TABLE IF NOT EXISTS + ADD COLUMN IF NOT EXISTS 可重套 |
 
 > 註：028-032 為 agent/CR-0020~0022 波次 migration（已實作於分支，registry 待補登）。
 > 註：036-041 為 CR-0026~0034 波次 migration（已實作於分支，registry 待補登）。

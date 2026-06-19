@@ -684,6 +684,8 @@ async def complete_order(
             f"Cannot complete work order in status '{current}'; expected one of {sorted(_COMPLETE_FROM)}",
             409,
         )
+    # CR-0041 / BR-M15-03：high_risk_hold 擋完工（含 override，須先 resolve 異常解除 hold）
+    await _assert_not_high_risk_hold(wo_id)
     # CR-0039 完工硬閘 — 通過回（可能被 override 註記的）summary，違反 → 422
     summary = await _enforce_completion_gate(
         wo_id=wo_id,
@@ -881,6 +883,24 @@ async def _detect_schedule_conflict_and_publish(
         logger.exception("schedule conflict detection failed (non-fatal)")
 
 
+async def _assert_not_high_risk_hold(wo_id: str) -> None:
+    """CR-0041 BR-M15-03：high_risk_hold 旗標為 TRUE → 擋派工/完工（422）。
+
+    工單因 high/critical 異常被暫停；須先 resolve 該異常（exception_service）解除 hold 才能繼續。
+    """
+    cur = await db_module._conn.execute(
+        "SELECT high_risk_hold FROM work_orders WHERE id = %s::uuid",
+        (wo_id,),
+    )
+    row = await cur.fetchone()
+    if row and row[0]:
+        raise ApiError(
+            "HIGH_RISK_HOLD",
+            "工單處於高風險暫停（high_risk_hold）；須先處理對應異常案件才能繼續（BR-M15-03）",
+            422,
+        )
+
+
 async def assign_order(
     *,
     tenant_id: str,
@@ -908,6 +928,8 @@ async def assign_order(
 
     # CR-0026 / BR-M05-03：派工前必填欄位 gate（缺品牌/型號/地址/問題類型 → 422）
     await _assert_dispatch_ready(wo_id)
+    # CR-0041 / BR-M15-03：high_risk_hold 擋派工
+    await _assert_not_high_risk_hold(wo_id)
 
     # Verify technician exists, same tenant, active
     cur = await db_module._conn.execute(
