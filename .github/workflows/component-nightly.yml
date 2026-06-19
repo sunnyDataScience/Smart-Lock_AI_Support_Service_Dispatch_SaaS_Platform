@@ -1,0 +1,82 @@
+# .github/workflows/component-nightly.yml — Python component tests（真 DB nightly）
+#
+# CR-0038 假綠根源 #3 收尾：557 個 component 測試原本 CI 0 執行（PR-gate 只跑 226 unit）。
+# 本 job 起一個 postgres service container，依正規順序灌 schema + migrations + seeds，
+# 再跑 `pytest -m component`。配合 conftest `_isolate_db_conn` autouse fixture（修 FakeConn
+# 跨檔污染），整套可一個 process 內可靠全綠。
+#
+# 觸發：每日排程 + 手動（不進 PR-gate，避免每次 PR 等 docker postgres）。
+# DB bootstrap 順序對齊 scripts/db/apply-schema-prod.sh：Schema.sql → Schema_*.sql →
+#   migrations/*.sql →（CI 額外）seeds/*.sql（_admin_user.sql 因底線排序最前，先建種子帳號）。
+
+name: component-nightly
+
+on:
+  schedule:
+    - cron: "0 18 * * *"      # 每日 02:00 台灣時間（UTC 18:00）
+  workflow_dispatch: {}        # 允許手動觸發
+  push:
+    branches: [dev, main]
+    paths:                     # schema/測試基建變動時也跑一次，及早抓 migration 漂移
+      - "SQL/**"
+      - "api/tests/conftest.py"
+      - ".github/workflows/component-nightly.yml"
+
+jobs:
+  component:
+    name: Python component tests (real DB)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17    # 對齊 docker-compose db（含 vector extension）
+        env:
+          POSTGRES_USER: lock
+          POSTGRES_PASSWORD: "0000"
+          POSTGRES_DB: lock_AI_data
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lock -d lock_AI_data"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+
+      - name: Sync test dep group
+        run: uv sync --group test
+
+      - name: Bootstrap DB (schema + migrations + seeds)
+        env:
+          PGPASSWORD: "0000"
+        run: |
+          set -uo pipefail
+          PSQL="psql -h localhost -p 5432 -U lock -d lock_AI_data -v ON_ERROR_STOP=0 -q"
+          echo "== 1) Schema.sql =="
+          $PSQL -f SQL/Schema.sql
+          echo "== 2) Schema_*.sql =="
+          for f in SQL/Schema_*.sql; do echo "-- $f"; $PSQL -f "$f"; done
+          echo "== 3) migrations/*.sql =="
+          for f in SQL/migrations/*.sql; do
+            case "$f" in *MIGRATION_REGISTRY.md) continue;; esac
+            echo "-- $f"; $PSQL -f "$f"
+          done
+          echo "== 4) seeds/*.sql（_admin_user.sql 底線排序最前）=="
+          for f in SQL/seeds/*.sql; do echo "-- $f"; $PSQL -f "$f"; done
+          echo "== migration 追蹤數 =="
+          $PSQL -t -A -c "SELECT '已追蹤 migration：'||count(*) FROM public.schema_migrations;" || true
+
+      - name: Run component tests
+        env:
+          POSTGRES_URI: "postgresql://lock:0000@localhost:5432/lock_AI_data"
+          API_JWT_SECRET_KEY: "test-secret-ci-component"
+        run: cd api && uv run pytest -m component -v --tb=short

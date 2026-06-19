@@ -87,6 +87,23 @@ def _make_token(*, user_id: str, role: str, tenant_id: str = DEFAULT_TENANT_ID) 
     return token
 
 
+@pytest.fixture(autouse=True)
+def _isolate_db_conn():
+    """防止 FakeConn 跨檔污染全域 db._conn（CR-0038 假綠根源之一）。
+
+    ~21 個 Phase II 測試在 body 直接 `db_module._conn = FakeConn(...)` 且不還原，
+    monkeypatch 只還原 `_ensure_conn` 不還原 `_conn` → 殘留 fake 被後續真 DB 測試撈到，
+    導致併跑 21 fail（單檔過）。每測試後：若 `_conn` 不是真 psycopg AsyncConnection
+    （即殘留 fake），清空 → 下個真 DB 測試 `_ensure_conn()` 重連；真連線則保留（快）。
+    """
+    yield
+    import core.db as _db
+    from psycopg import AsyncConnection
+
+    if _db._conn is not None and not isinstance(_db._conn, AsyncConnection):
+        _db._conn = None
+
+
 @pytest.fixture
 def admin_token() -> str:
     """admin 角色 access token。"""

@@ -10,7 +10,7 @@
 # NOTE: asyncapi job 已移除 — asyncapi.yaml 於 dev_new_arch 文件重構退場（f00ac91）。
 #
 # 不在 PR-gate：
-#   - component test（需 docker postgres + seeds，留給 nightly）
+#   - component test（需 docker postgres + seeds）→ 已建 component-nightly.yml（CR-0038 桶3b）
 #   - contract test 真打（需 api 起著，留給 nightly / staging smoke）
 #   - playwright e2e（CI 跑要先 install chromium ~150MB，留給 nightly）
 
