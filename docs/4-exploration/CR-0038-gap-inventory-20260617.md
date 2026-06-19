@@ -322,3 +322,29 @@ sources:
 4. **完工硬閘是公單的真實風險點**。`complete_order` 把簽名/照片串成字串塞 service_report,不驗照片數/簽名/serial — 意味師傅可無照片無簽名完工。這是 Beta §46 明列驗收項,且是客訴/帳務爭議的源頭,階段 1 優先。
 
 5. **測試 infra 的 `_conn` 全域污染要修**。`core/db.py` 全域 `_conn` 單例被 FakeConn 跨檔污染,導致 disputes_v2/warranty 等真實完成的模組**併跑 21 fail**（單檔過）。這讓即使做對的模組在套件層也顯紅,在 conftest 加 `_conn` fixture reset 是低成本高回報。
+
+---
+
+## 7. Playwright 實機驗證新增發現（2026-06-19，階段0 收尾）
+
+業主要求「補完前先用 Playwright 確認一次流程」。實跑揪出**兩個本盤點未涵蓋的系統性問題**——皆屬「code 已 commit 但實際不可用」,正是會議警告的核心型態：
+
+### 7.1 【第 4 大假綠根源】本機/prod stack 落後 HEAD 約 12 個 CR（部署落差）
+
+- 跑著的 docker 三容器（web/api/agent）**全是 2026-06-16 build**,從未重建。CR-0025（忘記密碼）→ CR-0037 共 ~12 個 CR 的成果**一個都沒部署**（連本機都沒有,prod 也停在 6-16 首次上線）。
+- 鐵證:重建前 `/auth/request-password-reset`、`/payout-rules` 實機 **404**;web bundle 只有 `login`/`tech-login`,無 `register`/`forgot-password`/`vendor-login`/`reset-password`。
+- **這與 migration drift 同源**:團隊一直 commit code,但**無任何自動部署**,「完成度」算的是 commit 數,不是「跑得到的東西」。
+- **建議**:把「rebuild + 套 migration + smoke」納入每輪收尾 checklist;否則 Beta 點測永遠在測舊畫面。重建後 `/payout-rules`(CR-0037)+`request-password-reset`(CR-0025) 實機已 **200**。
+
+### 7.2 【真 bug 已修 commit d94ba262】AuthGuard 公開白名單漏列 → 註冊/忘記密碼 100% 不可達
+
+- `AuthGuard.tsx` 的 `PUBLIC_PATHS` 只有 `/login`+`/tech-login`。CR-0029 的 `/register`、`/vendor-login` 與 CR-0025 的 `/forgot-password`、`/reset-password` **從未加入** → 未登入者一進就 `router.replace("/login")` 彈回。
+- 致命處:這些頁的使用者（新師傅/廠商、忘記密碼者、點 email 連結者）**本就未登入** → 功能對目標使用者 100% 不可達。頁面與後端端點都做好了,只差白名單一行。
+- 與 2026-06-11 補 `/tech-login` 是**同一類 bug**(漏列公開頁),當時補一條卻沒補齊其餘四條。
+- **修復+驗證**:四條加入 `PUBLIC_PATHS`;rebuild web 後 Playwright 實證 `/register`(師傅/廠商切換+表單)、`/forgot-password`(提交→enumeration-safe 訊息)皆可達且端到端可動。
+
+### 7.3 確認可信賴的綠燈（fresh login，0 console error）
+
+- admin 登入 → dashboard（真實 KPI/圖表/最近工單）→ `/work-orders`（20+ 真實工單,0 error）。
+- 後端 v2 API 帶正確 token + `X-Tenant-ID` 全 200;缺 header 是 400 非 401。
+- 初載的 v2 401 查清為**測試瀏覽器殘留過期 token**,非產品 bug（minor UX:token 過期應導回登入而非顯示舊資料+靜默 401,可列 backlog）。WS realtime 403 為 localhost 未配 WS,屬部署面。
