@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CR-0052 完整度 422 結構化缺漏欄位（branch `feat/cr-0052-completeness-hint`，2026-06-20）**：CR-0042 follow-up。`assert_completeness` 的 `INCOMPLETE_PROBLEM_CARD` 422 原僅在 message 字串列缺漏欄位；補 `details=[{field, issue:missing}]` 結構化（前端可逐欄高亮，不必 parse 字串）。test_cr_0052 1/1 + 回歸 808 passed 0 fail。
+
+### Added
+
 - **CR-0051 派工資格 gate（branch `feat/cr-0051-dispatch-eligibility`，2026-06-20）**：BR-M06 / G004-G005（CR-0038 標 MISSING：「只剔 3 態，不擋 pending/suspended」）。`assign_order` 本已 gate `status='active'`，但**候選清單/自動媒合**只排除 circuit（inactive/on_leave/circuit_breaker_open），未排除生命週期不可派工狀態（pending_approval/suspended/terminated/rejected）→ 停權/未核准技師會出現在派工候選。**實作**：`_is_dispatch_eligible` 硬排除 4 種生命週期狀態，接 `_score_rows`（候選清單 + auto_match 共用）+ `get_candidate_detail` 露 `dispatch_eligible`。test_cr_0051 8/8 + 回歸 807 passed 0 fail。
 
 ### Added

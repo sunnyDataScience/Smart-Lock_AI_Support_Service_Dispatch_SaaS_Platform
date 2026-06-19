@@ -361,6 +361,8 @@ async def assert_completeness(
             "INCOMPLETE_PROBLEM_CARD",
             f"問題卡完整度 {score} < {min_c}（缺：{', '.join(missing) or '—'}）；補齊欄位或主管 override",
             422,
+            # CR-0052：缺漏欄位結構化（前端可逐欄高亮，不必 parse message 字串）
+            details=[{"field": f, "issue": "missing"} for f in missing],
         )
     return {"score": score, "missing": missing, "threshold": min_c, "overridden": overridden}
 
