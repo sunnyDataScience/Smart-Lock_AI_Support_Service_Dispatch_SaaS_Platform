@@ -61,6 +61,7 @@
 | 049 | `049-exception-framework.sql` | CR-0041 | 🟢 idempotent ✅ 2026-06-19 套 dev | M15 異常框架：新 `saas.exception_case`（對齊 generated.py Exception model + `return_path` action 欄 + status/severity CHECK）+ `work_orders.high_risk_hold` 旗標（BR-M15-03 暫停，dispatch/complete gate 檢查）。CREATE TABLE IF NOT EXISTS + ADD COLUMN IF NOT EXISTS 可重套 |
 | 050 | `050-wo-events-schedule-conflict.sql` | 階段2 Alpha bug 修 | 🟢 idempotent ✅ 2026-06-19 套 dev | **階段2 Alpha 執行揪出真 bug**：work_order_events CHECK 不含 `'schedule_conflict'` → `_detect_schedule_conflict_and_publish` INSERT CheckViolation 被吞 non-fatal → 排班衝突事件靜默寫不進/不推播。CHECK 加 schedule_conflict。DROP IF EXISTS + ADD 可重套 |
 | 051 | `051-problemcard-completeness-config.sql` | CR-0042 | 🟢 idempotent ✅ 2026-06-19 套 dev | Alpha Exit #1：M18 config `problemcard_policy`（min_completeness=0.8 + key_fields 5 欄）。`problem_card_service.assert_completeness` 讀此 config 在轉 WO 前擋完整度不足（422 + 主管 override）。namespace ON CONFLICT DO NOTHING + config_version NOT EXISTS 可重套 |
+| 052 | `052-workorder-fields-phase2.sql` | CR-0043 | 🟢 idempotent ✅ 2026-06-19 套 dev | 公單欄位 Phase 2：`work_orders` +5 欄（dealer/install_date/rain_exposure/special_door_surcharge/payment_method，全 nullable）+ `service_catalog` seed 3 計費費目（dispatch/destruct/removal）+ M18 config（`completion_policy.require_consents` merge 預設 false、新 `quote_policy.apply_surcharge` 預設 false）。純 ADD COLUMN + seed + config，ON CONFLICT/NOT EXISTS 可重套 |
 
 > 註：028-032 為 agent/CR-0020~0022 波次 migration（已實作於分支，registry 待補登）。
 > 註：036-041 為 CR-0026~0034 波次 migration（已實作於分支，registry 待補登）。

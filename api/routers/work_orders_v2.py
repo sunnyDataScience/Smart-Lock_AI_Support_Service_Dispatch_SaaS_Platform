@@ -89,6 +89,35 @@ class WorkOrderCreateRequest(BaseModel):
     customer_phone: str | None = Field(default=None, max_length=30)
 
 
+class WorkOrderFieldsPatchRequest(BaseModel):
+    """CR-0043 Tier①：後台設定工單欄位（白名單/enum 驗證由 service 控）。"""
+
+    service_category: str | None = None
+    serial_number: str | None = Field(None, max_length=100)
+    brand: str | None = Field(None, max_length=100)
+    model: str | None = Field(None, max_length=100)
+    door_type: str | None = Field(None, max_length=50)
+    door_thickness: str | None = Field(None, max_length=50)
+    is_interior_door: bool | None = None
+    warranty_status: str | None = None
+    purchase_date: str | None = None
+    install_date: str | None = None
+    invoice_no: str | None = Field(None, max_length=100)
+    dealer: str | None = Field(None, max_length=150)
+    rain_exposure: str | None = None
+    special_door_surcharge: bool | None = None
+    payment_method: str | None = None
+    customer_name: str | None = Field(None, max_length=100)
+    customer_phone: str | None = Field(None, max_length=50)
+    customer_address: str | None = Field(None, max_length=300)
+
+
+class WorkOrderReopenRequest(BaseModel):
+    """CR-0043 Tier②：返修/reopen — 建子單連回原單（BR-M05-02）。"""
+
+    reason: str = Field(..., min_length=4, max_length=500, description="返修原因（BR-M05-01 必填）")
+
+
 class _ScopeItem(BaseModel):
     name: str = Field(..., min_length=1, max_length=80)
     unit_price: str = Field(..., max_length=20)
@@ -187,6 +216,54 @@ async def get_work_order_v2(
         tenant_id=tenantId, wo_id=id,
     )
     return {"data": WorkOrder(**order).model_dump(mode="json")}
+
+
+@router.patch(
+    "/tenants/{tenantId}/work-orders/{id}/fields",
+    operation_id="patchWorkOrderFieldsV2",
+    summary="後台設定工單欄位 v2（CR-0043；service_category/serial/door/warranty/payment 等）",
+    response_model=WorkOrderEnvelope,
+    tags=["M06 WorkOrder"],
+)
+async def patch_work_order_fields_v2(
+    body: WorkOrderFieldsPatchRequest,
+    tenantId: str = Path(...),
+    id: str = Path(...),
+    user: CurrentUser = Depends(role_required(*_DISPATCH_ALLOWED_ROLES)),
+) -> dict:
+    _cross_tenant_write(user, tenantId)
+
+    fields = body.model_dump(exclude_unset=True)
+    order = await work_order_service.update_wo_fields(
+        tenant_id=tenantId, wo_id=id, fields=fields,
+    )
+    return {"data": WorkOrder(**order).model_dump(mode="json")}
+
+
+@router.post(
+    "/tenants/{tenantId}/work-orders/{id}:reopen",
+    operation_id="reopenWorkOrderV2",
+    summary="返修/reopen — 建子單連回原單 v2（CR-0043 / BR-M05-02）",
+    response_model=WorkOrderEnvelope,
+    status_code=201,
+    tags=["M06 WorkOrder"],
+)
+async def reopen_work_order_v2(
+    body: WorkOrderReopenRequest,
+    tenantId: str = Path(...),
+    id: str = Path(...),
+    user: CurrentUser = Depends(role_required(*_DISPATCH_ALLOWED_ROLES)),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    _cross_tenant_write(user, tenantId)
+
+    child = await work_order_service.reopen_order(
+        tenant_id=tenantId, wo_id=id, reason=body.reason, created_by=user.user_id,
+    )
+    payload = {"data": WorkOrder(**child).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(201, payload)
+    return payload
 
 
 # ---------------------------------------------------------------------------

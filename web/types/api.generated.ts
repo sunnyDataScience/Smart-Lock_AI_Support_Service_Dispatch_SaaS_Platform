@@ -1894,6 +1894,17 @@ export interface components {
             /** Format: uuid */
             parent_work_order_id?: string | null;
             customer_final_amount?: string | null;
+            /** @description CR-0043 公單欄位 Phase 2（全 optional，對應 migration 052） */
+            customer_name?: string | null;
+            customer_phone?: string | null;
+            dealer?: string | null;
+            /** Format: date */
+            install_date?: string | null;
+            /** @description indoor/outdoor_covered/outdoor_exposed */
+            rain_exposure?: string | null;
+            special_door_surcharge?: boolean | null;
+            /** @description cash/bank_transfer/credit_card/line_pay */
+            payment_method?: string | null;
         };
         WorkOrderEnvelope: components["schemas"]["ApiResponseGeneric"] & {
             data?: components["schemas"]["WorkOrder"];

@@ -112,6 +112,21 @@ def _wo_row_to_dict(row: tuple) -> dict:
         cfa = _coerce_decimal(row[27])
         if cfa is not None:
             out["customer_final_amount"] = cfa
+    # CR-0043 Phase 2：客名/電話接回 + 設備/計費新欄（None 不輸出保 response 精簡）
+    if len(row) > 28 and row[28] is not None:
+        out["customer_name"] = row[28]
+    if len(row) > 29 and row[29] is not None:
+        out["customer_phone"] = row[29]
+    if len(row) > 30 and row[30] is not None:
+        out["dealer"] = row[30]
+    if len(row) > 31 and row[31] is not None:
+        out["install_date"] = row[31].isoformat()
+    if len(row) > 32 and row[32] is not None:
+        out["rain_exposure"] = row[32]
+    if len(row) > 33 and row[33] is not None:
+        out["special_door_surcharge"] = bool(row[33])
+    if len(row) > 34 and row[34] is not None:
+        out["payment_method"] = row[34]
     return out
 
 
@@ -126,7 +141,10 @@ _WO_SELECT = (
     "wo.service_category, wo.problem_type, wo.serial_number, wo.door_type, "
     "wo.door_thickness, wo.is_interior_door, wo.warranty_status, wo.purchase_date, "
     "wo.invoice_no, wo.completion_status, wo.status_reason, wo.parent_work_order_id, "
-    "wo.customer_final_amount"
+    "wo.customer_final_amount, "
+    # CR-0043 Phase 2（index 28+，append-only）：客名/電話接回 + migration 052 五欄
+    "wo.customer_name, wo.customer_phone, wo.dealer, wo.install_date, "
+    "wo.rain_exposure, wo.special_door_surcharge, wo.payment_method"
 )
 
 _WO_JOIN = (
@@ -253,6 +271,21 @@ async def get_order(*, tenant_id: str, wo_id: str) -> dict:
     return _wo_row_to_dict(row)
 
 
+def _map_service_category(pc_category: str | None) -> str:
+    """CR-0043 HD-1：pc.category（自由字串，可中/英）→ work_orders.service_category
+    enum（install/warranty_in/warranty_out/repair）。無法判定預設 repair，可後台 PATCH 改。"""
+    c = (pc_category or "").strip().lower()
+    if not c:
+        return "repair"
+    if any(k in c for k in ("install", "安裝", "新裝", "新機", "裝機")):
+        return "install"
+    if any(k in c for k in ("warranty_in", "保內", "保内")):
+        return "warranty_in"
+    if any(k in c for k in ("warranty_out", "保外")):
+        return "warranty_out"
+    return "repair"
+
+
 async def create_from_problem_card(
     *,
     tenant_id: str,
@@ -335,13 +368,14 @@ async def create_from_problem_card(
         "INSERT INTO work_orders "
         "  (problem_card_id, status, priority, "
         "   customer_name, customer_phone, customer_address, created_by, document_number, "
-        "   brand, model, problem_type, photos, tenant_id) "
+        "   brand, model, problem_type, service_category, photos, tenant_id) "
         "VALUES (%s::uuid, 'created', %s, %s, %s, %s, "
         "        %s::uuid, generate_wo_number(%s), "
-        "        %s, %s, %s, %s::jsonb, %s::uuid) "
+        "        %s, %s, %s, %s, %s::jsonb, %s::uuid) "
         "RETURNING id",
+        # CR-0043：problem_type 留 pc.category（問題本質）；service_category 另映射 enum（修死欄 bug）
         (pc_id, priority, final_name, final_phone, final_address, created_by, final_address,
-         pc_brand, pc_model, pc_category,
+         pc_brand, pc_model, pc_category, _map_service_category(pc_category),
          json.dumps(pc_media, ensure_ascii=False) if pc_media else None, tenant_id),
     )
     new_row = await insert_cur.fetchone()
@@ -354,6 +388,112 @@ async def create_from_problem_card(
         tenant_id=tenant_id, wo_id=new_wo_id, event_type="work_order.created"
     )
     return wo, True
+
+
+# CR-0043 Tier①：PATCH 可設欄位白名單（補「寫入路徑稀薄」缺口；enum 由 app 驗證）
+_PATCHABLE_FIELDS: dict[str, set | None] = {
+    "service_category": {"install", "warranty_in", "warranty_out", "repair"},
+    "serial_number": None,
+    "brand": None,
+    "model": None,
+    "door_type": None,
+    "door_thickness": None,
+    "is_interior_door": None,           # bool
+    "warranty_status": {"in_warranty", "out_warranty", "not_applicable"},
+    "purchase_date": None,              # ISO date
+    "install_date": None,              # ISO date
+    "invoice_no": None,
+    "dealer": None,
+    "rain_exposure": {"indoor", "outdoor_covered", "outdoor_exposed"},
+    "special_door_surcharge": None,     # bool
+    "payment_method": {"cash", "bank_transfer", "credit_card", "line_pay"},
+    "customer_name": None,
+    "customer_phone": None,
+    "customer_address": None,
+}
+
+
+async def update_wo_fields(*, tenant_id: str, wo_id: str, fields: dict) -> dict:
+    """CR-0043 Tier①：後台設定工單欄位（service_category/serial/door/warranty/payment 等）。
+
+    只允許 _PATCHABLE_FIELDS 白名單；enum 欄位驗值；未知/空 → 422。
+    租戶隔離走 users join（與 get_order 一致）。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    # 過濾白名單 + 驗 enum
+    sets: list[str] = []
+    args: list = []
+    for key, val in fields.items():
+        if key not in _PATCHABLE_FIELDS:
+            continue
+        allowed = _PATCHABLE_FIELDS[key]
+        if val is not None and allowed is not None and str(val) not in allowed:
+            raise ApiError(
+                "VALIDATION_ERROR",
+                f"Invalid value for {key}: {val!r}; allowed={sorted(allowed)}",
+                422,
+            )
+        sets.append(f"{key} = %s")
+        args.append(val)
+
+    if not sets:
+        raise ApiError("VALIDATION_ERROR", "No patchable field provided", 422)
+
+    # 確認 WO 存在且屬本租戶（get_order 會 404；先驗再 UPDATE 避免跨租戶寫）
+    await get_order(tenant_id=tenant_id, wo_id=wo_id)
+
+    args.extend([wo_id, tenant_id])
+    await db_module._conn.execute(
+        f"UPDATE work_orders wo SET {', '.join(sets)}, updated_at = now() "
+        "FROM problem_cards pc, conversations c, users u "
+        "WHERE wo.id = %s::uuid AND wo.problem_card_id = pc.id "
+        "  AND pc.conversation_id = c.id AND c.user_id = u.id "
+        "  AND u.tenant_id = %s::uuid",
+        args,
+    )
+    return await _publish_and_return(
+        tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.updated"
+    )
+
+
+async def reopen_order(
+    *, tenant_id: str, wo_id: str, reason: str, created_by: str | None = None
+) -> dict:
+    """CR-0043 Tier②／BR-M05-02：返修/reopen — 建「子單」連回原工單，不覆蓋原單歷史。
+
+    原單須存在（任意狀態）；reason 必填（BR-M05-01）。子單複製原單設備/客戶欄位，
+    parent_work_order_id 連回原單、發新公單號、status='created' 重新進派工流程。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    if not reason or not reason.strip():
+        raise ApiError("VALIDATION_ERROR", "reason required for reopen (BR-M05-01)", 422)
+
+    # 確認原單存在且屬本租戶（get_order 會 404 / 跨租戶擋）
+    await get_order(tenant_id=tenant_id, wo_id=wo_id)
+
+    insert_cur = await db_module._conn.execute(
+        "INSERT INTO work_orders "
+        "  (problem_card_id, status, priority, customer_name, customer_phone, "
+        "   customer_address, created_by, document_number, brand, model, serial_number, "
+        "   door_type, door_thickness, is_interior_door, service_category, problem_type, "
+        "   parent_work_order_id, status_reason, tenant_id) "
+        "SELECT problem_card_id, 'created', priority, customer_name, customer_phone, "
+        "   customer_address, %s::uuid, generate_wo_number(customer_address), brand, model, "
+        "   serial_number, door_type, door_thickness, is_interior_door, service_category, "
+        "   problem_type, id, %s, tenant_id "
+        "FROM work_orders WHERE id = %s::uuid "
+        "RETURNING id",
+        (created_by, reason.strip(), wo_id),
+    )
+    new_row = await insert_cur.fetchone()
+    if not new_row:
+        raise ApiError("INTERNAL_ERROR", "Failed to reopen work order", 500)
+    return await _publish_and_return(
+        tenant_id=tenant_id, wo_id=str(new_row[0]), event_type="work_order.reopened"
+    )
 
 
 _ACCEPT_FROM = {"assigned"}
@@ -513,7 +653,9 @@ async def accept_order(*, tenant_id: str, wo_id: str) -> dict:
     tech_row = await cur.fetchone()
     tech_id = str(tech_row[0]) if tech_row and tech_row[0] else None
     await db_module._conn.execute(
-        "UPDATE work_orders SET status = 'accepted', accepted_at = NOW(), updated_at = NOW() "
+        # CR-0043 Tier②：技師接單後完工細狀態進「待完工回報」（M05 Q052 起點）
+        "UPDATE work_orders SET status = 'accepted', accepted_at = NOW(), "
+        "  completion_status = 'pending_report', updated_at = NOW() "
         "WHERE id = %s::uuid",
         (wo_id,),
     )
@@ -583,7 +725,24 @@ _COMPLETION_POLICY_DEFAULTS = {
     "require_signature": True,
     "serial_required_categories": ["install"],
     "allow_supervisor_override": True,
+    # CR-0043 Tier④：完工前是否強制三段免責同意（預設 off 避免回歸破壞；config 開才擋）
+    "require_consents": False,
 }
+
+# CR-0043 Tier④：三段免責同意（對 PDF §4 / consent_service CONSENT_TEXTS）
+_REQUIRED_CONSENTS = ("new_installation", "lock_destruction", "personal_data")
+
+
+async def _consents_satisfied(wo_id: str) -> bool:
+    """三段免責是否皆已 accepted（work_order_consents）。"""
+    cur = await db_module._conn.execute(
+        "SELECT consent_type FROM work_order_consents "
+        "WHERE work_order_id = %s::uuid AND accepted = TRUE",
+        (wo_id,),
+    )
+    rows = await cur.fetchall()
+    accepted = {r[0] for r in rows}
+    return all(c in accepted for c in _REQUIRED_CONSENTS)
 
 
 async def _signature_exists(wo_id: str) -> bool:
@@ -655,6 +814,14 @@ async def _enforce_completion_gate(
                 "此安裝案需登錄鎖體序號才可完工（BR-M10-03）",
                 422,
             )
+    # CR-0043 Tier④：三段免責 gate（config require_consents 開才擋；PDF §4 / 法律合規）
+    if policy.get("require_consents", False):
+        if not await _consents_satisfied(wo_id):
+            raise ApiError(
+                "CONSENTS_REQUIRED",
+                "完工前須完成三段免責同意（新機安裝/破壞鎖/個資）",
+                422,
+            )
     return summary
 
 
@@ -709,6 +876,8 @@ async def complete_order(
         "  started_at = COALESCE(started_at, NOW()), "
         "  service_report = %s, "
         "  final_price = COALESCE(%s, final_price), "
+        # CR-0043 Tier②：技師完工回報+照片+簽名後，完工細狀態進「待客戶確認」（M05 Q052）
+        "  completion_status = 'pending_customer_confirm', "
         "  updated_at = NOW() "
         "WHERE id = %s::uuid",
         (summary, final_price, wo_id),
@@ -1197,6 +1366,8 @@ async def confirm_order(
         "  confirmed_at = NOW(), "
         "  rating = %s, "
         "  feedback = COALESCE(%s, feedback), "
+        # CR-0043 Tier②：客戶確認結案 → 完工細狀態進「已結案」（M05 Q052 終點）
+        "  completion_status = 'closed', "
         "  updated_at = NOW() "
         "WHERE id = %s::uuid",
         (rating, feedback_clean, wo_id),

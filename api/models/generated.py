@@ -193,6 +193,18 @@ class WorkOrder(BaseModel):
     customer_final_amount: constr(pattern=r'^-?\d+(\.\d{1,2})?$') | None = Field(
         None, description='對外單一最終金額（客戶端電子工單只露此值）'
     )
+    # CR-0043 Phase 2（全 Optional，向後相容；對應 migration 052）
+    customer_name: str | None = Field(None, description='客戶姓名（M1.1，接回 response）')
+    customer_phone: str | None = Field(None, description='聯絡電話（M1.2，接回 response）')
+    dealer: str | None = Field(None, description='M2.3 購買地點/經銷商')
+    install_date: str | None = Field(None, description='M2.4 安裝日期 ISO date')
+    rain_exposure: str | None = Field(
+        None, description='M2.5 indoor/outdoor_covered/outdoor_exposed'
+    )
+    special_door_surcharge: bool | None = Field(None, description='M4.1 特殊門型加價確認')
+    payment_method: str | None = Field(
+        None, description='M5.5 cash/bank_transfer/credit_card/line_pay'
+    )
 
 
 class WorkOrderEnvelope(ApiResponseGeneric):

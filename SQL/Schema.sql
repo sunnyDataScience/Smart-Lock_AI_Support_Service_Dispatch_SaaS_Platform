@@ -495,6 +495,12 @@ CREATE TABLE work_orders (
     customer_final_amount NUMERIC(12,2),               -- 對外單一最終金額（成本拆項見 CR-0027）
     tenant_id           UUID,                           -- multi-tenant 預留（CR-0031）；目前 single-tenant
     dispatched_via      VARCHAR(20),                    -- CR-0030 派工來源 manual/platform/auto_match（platform=可計費）
+    -- CR-0043 公單欄位 Phase 2（migration 052；全 nullable）
+    dealer              VARCHAR(150),                   -- M2.3 購買地點/經銷商
+    install_date        DATE,                           -- M2.4 安裝日期（回溯判保固；與 purchase_date 區分）
+    rain_exposure       VARCHAR(20),                    -- M2.5 indoor/outdoor_covered/outdoor_exposed
+    special_door_surcharge BOOLEAN,                     -- M4.1 特殊門型加價確認旗標
+    payment_method      VARCHAR(20),                    -- M5.5 cash/bank_transfer/credit_card/line_pay
     created_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

@@ -253,6 +253,18 @@ const COMPLETION_STATUS_LABEL: Record<string, string> = {
   completed: "已完工",
   closed: "已結案",
 };
+// CR-0043 Phase 2 標籤映射
+const RAIN_EXPOSURE_LABEL: Record<string, string> = {
+  indoor: "室內",
+  outdoor_covered: "室外有遮雨",
+  outdoor_exposed: "室外無遮雨",
+};
+const PAYMENT_METHOD_LABEL: Record<string, string> = {
+  cash: "現金",
+  bank_transfer: "轉帳",
+  credit_card: "刷卡",
+  line_pay: "LINE Pay",
+};
 
 interface QuoteLineItem {
   id: string;
@@ -373,6 +385,9 @@ function WorkOrderFieldsPanel({ workOrder }: { workOrder?: WorkOrder }) {
   const push = (label: string, value?: string | null) => {
     if (value) rows.push({ label, value });
   };
+  // CR-0043 Tier①：客名/電話接回顯示（基礎案件資訊）
+  push("客戶姓名", workOrder.customer_name);
+  push("聯絡電話", workOrder.customer_phone);
   push(t("woServiceCategory"), workOrder.service_category
     ? SERVICE_CATEGORY_LABEL[workOrder.service_category] ?? workOrder.service_category
     : null);
@@ -381,6 +396,17 @@ function WorkOrderFieldsPanel({ workOrder }: { workOrder?: WorkOrder }) {
     ? WARRANTY_STATUS_LABEL[workOrder.warranty_status] ?? workOrder.warranty_status
     : null);
   push(t("woDoorType"), workOrder.door_type);
+  // CR-0043：門厚 + 設備/計費新欄位
+  push("門厚", workOrder.door_thickness);
+  push("購買地點/經銷商", workOrder.dealer);
+  push("安裝日期", workOrder.install_date);
+  push("安裝環境", workOrder.rain_exposure
+    ? RAIN_EXPOSURE_LABEL[workOrder.rain_exposure] ?? workOrder.rain_exposure
+    : null);
+  push("付款方式", workOrder.payment_method
+    ? PAYMENT_METHOD_LABEL[workOrder.payment_method] ?? workOrder.payment_method
+    : null);
+  if (workOrder.special_door_surcharge) push("特殊門型加價", "是");
   push(t("woCompletion"), workOrder.completion_status
     ? COMPLETION_STATUS_LABEL[workOrder.completion_status] ?? workOrder.completion_status
     : null);
