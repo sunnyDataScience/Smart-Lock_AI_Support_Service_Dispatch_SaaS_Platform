@@ -71,6 +71,7 @@
 | 059 | `059-wo-events-arrival-reassign.sql` | CR-0053 | 🟢 idempotent ✅ 2026-06-20 套 dev | 審計揪 bug（同 050 schedule_conflict 類）：work_order_events_event_type_check 漏 `arrival`/`reassign` → record_arrival 寫 arrival 違反 CHECK 致 door-check 前置閘恆 409、reassign_order 寫 reassign 違反 CHECK 致成功改派 500。CHECK 補兩值。DROP+ADD 可重套 |
 | 060 | `060-media-completion-during.sql` | CR-0054 | 🟢 idempotent ✅ 2026-06-20 套 dev | 施工中照片分類（PDF §四 施工前/中/後三類）：media_files purpose CHECK 補 `completion_during`。media_service _ALLOWED_PURPOSES + _ENV_PURPOSES（品牌/會計不可見環境照）同補。DROP+ADD 可重套 |
 | 061 | `061-completion-materials-payment.sql` | CR-0058 | 🟢 idempotent ✅ 2026-06-20 套 dev | 完工套件 ④⑤：work_orders +materials_used/payment_proof TEXT + completion_policy merge require_materials/require_payment_proof（預設 false 不擋無料檢測單）。付款核銷仍 P2。可重套 |
+| 062 | `062-config-effective-date.sql` | CR-0059 | 🟢 idempotent ✅ 2026-06-20 套 dev | M18 config 排程生效（BR-M18-02）：saas.config_version +effective_at。draft+effective_at<=now → config_m18_service.activate_due_scheduled() 自動 active 並退役舊 active（接 canary cron run_once）。純 ADD COLUMN 可重套 |
 
 > 註：028-032 為 agent/CR-0020~0022 波次 migration（已實作於分支，registry 待補登）。
 > 註：036-041 為 CR-0026~0034 波次 migration（已實作於分支，registry 待補登）。

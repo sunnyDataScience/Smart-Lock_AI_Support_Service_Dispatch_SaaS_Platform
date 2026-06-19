@@ -994,3 +994,31 @@ async def check_slo_halt(
         },
         "recommendation": recommendation,
     }
+
+
+async def activate_due_scheduled() -> int:
+    """CR-0059 / BR-M18-02：把到期的排程 config（state='draft' 且 effective_at<=now）自動 activate，
+    並退役同 (tenant,namespace,key) 的舊 active。回啟用筆數。cron 週期呼叫。"""
+    if not await _ensure_conn():
+        return 0
+    cur = await db_module._conn.execute(
+        "SELECT id, tenant_id, namespace, key FROM saas.config_version "
+        "WHERE state = 'draft' AND effective_at IS NOT NULL AND effective_at <= now()"
+    )
+    due = await cur.fetchall()
+    n = 0
+    for vid, tid, ns, key in due:
+        # 退役同 ns/key/tenant 的現行 active（NOT DISTINCT FROM 處理 tenant_id NULL）
+        await db_module._conn.execute(
+            "UPDATE saas.config_version SET state = 'retired' "
+            "WHERE namespace = %s AND key = %s AND state = 'active' "
+            "  AND tenant_id IS NOT DISTINCT FROM %s",
+            (ns, key, tid),
+        )
+        await db_module._conn.execute(
+            "UPDATE saas.config_version SET state = 'active', activated_at = now() "
+            "WHERE id = %s::uuid",
+            (vid,),
+        )
+        n += 1
+    return n

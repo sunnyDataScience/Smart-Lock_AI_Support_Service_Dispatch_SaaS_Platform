@@ -57,7 +57,7 @@ async def test_run_once_no_due_rollouts(monkeypatch):
 
     w = ConfigCanaryAdvanceCron()
     result = await w.run_once()
-    assert result == {"advanced": 0, "errors": 0}
+    assert result["advanced"] == 0 and result["errors"] == 0
 
 
 @pytest.mark.asyncio
@@ -94,7 +94,7 @@ async def test_run_once_advances_due_rollouts(monkeypatch):
 
     w = ConfigCanaryAdvanceCron()
     result = await w.run_once()
-    assert result == {"advanced": 2, "errors": 0}
+    assert result["advanced"] == 2 and result["errors"] == 0
     assert advanced_ids == ["rollout-1", "rollout-2"]
 
 
@@ -131,7 +131,7 @@ async def test_run_once_per_rollout_error_isolated(monkeypatch):
 
     w = ConfigCanaryAdvanceCron()
     result = await w.run_once()
-    assert result == {"advanced": 2, "errors": 1}
+    assert result["advanced"] == 2 and result["errors"] == 1
 
 
 # ----------------------------- service _advance_canary_stage logic -----------------------------

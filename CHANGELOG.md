@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CR-0059 M18 config 排程生效日（branch `feat/cr-0059-config-effective-date`，2026-06-20）**：審計 #9 / BR-M18-02。config 變更原僅即時生效，無未來排程。**migration 062** saas.config_version +effective_at；`config_m18_service.activate_due_scheduled()`（draft+effective_at<=now → active + 退役同 ns/key 舊 active）接 canary cron run_once 週期執行。test_cr_0059 1/1 + 回歸 0 fail。
+
+### Added
+
 - **CR-0058 完工套件 ④⑤ materials_used + payment_proof（branch `feat/cr-0058-completion-materials-payment`，2026-06-20）**：審計 #8 / BR-M08-03。完工套件五件補到全（照片/簽名/序號/教學/用料/付款證明）。**migration 061** work_orders +materials_used/payment_proof + completion_policy config require_materials/require_payment_proof（預設 false，避免擋無料檢測單）；complete_order 接 2 參數 + 選用閘（config 開才硬擋）。付款核銷子系統仍 P2。test_cr_0058 2/2 + 回歸 0 fail。
 
 ### Added

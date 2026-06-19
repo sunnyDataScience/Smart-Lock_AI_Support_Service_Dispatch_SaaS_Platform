@@ -123,7 +123,16 @@ class ConfigCanaryAdvanceCron:
             except Exception:  # noqa: BLE001
                 errors += 1
                 logger.exception("canary advance failed: rollout=%s", rollout_id)
-        return {"advanced": advanced, "errors": errors}
+        # CR-0059 / BR-M18-02：順帶啟用到期的排程 config（effective_at<=now 的 draft）
+        scheduled = 0
+        try:
+            from services import config_m18_service
+            scheduled = await config_m18_service.activate_due_scheduled()
+            if scheduled:
+                logger.info("scheduled config activated: %d", scheduled)
+        except Exception:  # noqa: BLE001
+            logger.exception("activate_due_scheduled failed")
+        return {"advanced": advanced, "errors": errors, "scheduled_activated": scheduled}
 
 
 # Singleton — main.py lifespan 引用
