@@ -790,6 +790,15 @@ async def _consents_satisfied(wo_id: str) -> bool:
     return all(c in accepted for c in _REQUIRED_CONSENTS)
 
 
+async def _has_pending_scope_change(wo_id: str) -> bool:
+    """CR-0049 / BR-M08-02：是否有未決（status='pending'）範圍變更（報價/加價未經客戶確認）。"""
+    cur = await db_module._conn.execute(
+        "SELECT 1 FROM scope_changes WHERE work_order_id = %s::uuid AND status = 'pending' LIMIT 1",
+        (wo_id,),
+    )
+    return await cur.fetchone() is not None
+
+
 async def _signature_exists(wo_id: str) -> bool:
     """完工是否已有客戶簽名（digital_signatures；CR-0039 HD-4 驗證簽名真存在，非僅非空字串）。"""
     cur = await db_module._conn.execute(
@@ -867,6 +876,13 @@ async def _enforce_completion_gate(
                 "完工前須完成三段免責同意（新機安裝/破壞鎖/個資）",
                 422,
             )
+    # CR-0049 / BR-M08-02：報價變更未經客戶確認（pending scope）→ 不可完工（安全閘，admin override 路徑可繞）
+    if await _has_pending_scope_change(wo_id):
+        raise ApiError(
+            "PENDING_SCOPE_CHANGE",
+            "有未經客戶確認的範圍/加價變更，須客戶確認或主管覆寫後才可完工",
+            409,
+        )
     return summary
 
 

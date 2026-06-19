@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CR-0049 pending scope change 阻擋完工（branch `feat/cr-0049-pending-scope-gate`，2026-06-20）**：BR-M08-02 安全閘（CR-0038 標 PARTIAL — complete_order 無 pending scope 硬阻擋）。報價/加價變更未經客戶確認（scope_changes.status='pending'）時技師不可完工。**實作**：`_has_pending_scope_change` + `_enforce_completion_gate` 技師路徑加 409 `PENDING_SCOPE_CHANGE`（客戶確認/主管覆寫後放行；admin override :complete 路徑可繞）。test_cr_0049 2/2 + 回歸 798 passed 0 fail。
+
+### Added
+
 - **CR-0048 改派/改期強制原因 + 落 status_reason（branch `feat/cr-0048-reason-gate`，2026-06-20）**：BR-M05-01 收尾（CR-0038 標 PARTIAL）。原 cancel/escalate 已強制 reason，但 reassign 只寫 service_report note 未落 status_reason、reschedule 同。**實作**：`reassign_order` 加空原因 422 gate + 寫結構化 `status_reason`；`request_reschedule` UPDATE 補 `status_reason`（reason gate 本已有）。test_cr_0048 2/2 + 回歸 796 passed 0 fail。
 
 ### Added
