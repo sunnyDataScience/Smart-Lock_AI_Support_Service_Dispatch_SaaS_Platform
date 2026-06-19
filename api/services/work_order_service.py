@@ -970,6 +970,33 @@ async def complete_order(
         )
     except Exception:  # noqa: BLE001
         logger.exception("outbox enqueue work_order_document failed (non-fatal)")
+    # CR-0056：完工結案 Email 通道（PDF §四 三聯數位化「結案發 PDF 至 Email/LINE」；LINE 已有）。
+    # best-effort：SMTP 未配置時 send_email 回 False 不丟例外；客戶無 email 則略過。
+    try:
+        import asyncio
+        from services import email_provider
+        ecur = await db_module._conn.execute(
+            "SELECT u.email, wo.document_number FROM work_orders wo "
+            "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
+            "JOIN conversations c ON pc.conversation_id = c.id "
+            "JOIN users u ON c.user_id = u.id WHERE wo.id = %s::uuid",
+            (wo_id,),
+        )
+        erow = await ecur.fetchone()
+        cust_email = (erow[0] if erow else None) or None
+        if cust_email:
+            doc_no = (erow[1] if erow else None) or wo_id
+            await asyncio.to_thread(
+                email_provider.send_email,
+                to=cust_email,
+                subject=f"您的服務已完工（工單 {doc_no}）",
+                body_text=(
+                    f"您好，您的智慧鎖服務已完工。工單編號：{doc_no}。\n"
+                    "電子工單與費用明細請見 LINE 通知或洽客服。感謝您的支持。"
+                ),
+            )
+    except Exception:  # noqa: BLE001
+        logger.exception("completion email failed (non-fatal)")
     return await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.completed"
     )

@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CR-0056 完工結案 Email 通道（branch `feat/cr-0056-completion-email`，2026-06-20）**：審計 #4。派工單 PDF §四「三聯數位化：結案發 PDF 至 Email/LINE」—— LINE 已有（CR-0027），Email 未接。`complete_order` 加 best-effort Email（查客戶 users.email → email_provider.send_email；SMTP 未配置 send_email 回 False 不丟例外、客戶無 email 則略過）。test_cr_0056 1/1（monkeypatch 驗寄給客戶）+ 回歸全套 0 fail。註：SMTP 由 ops 配置（SMTP_HOST 等 env）後真寄。
+
+### Added
+
 - **CR-0055 Evidence package 聚合端點（branch `feat/cr-0055-evidence-package`，2026-06-20）**：審計 #5（Q022-Q024/BR-M09）。單一 WO 完工證據（照片/雙方簽名/到場+門檢事件）原分散在 media/digital_signatures/work_order_events 三處，無聚合檢視。新增 `evidence_package_service.get_evidence_package`（媒體依角色可見性過濾 + 簽名 + arrival/door_check 事件 + summary 計數）+ `GET /work-orders/{id}/evidence-package` 唯讀端點。test_cr_0055 1/1 + 回歸全套 0 fail。
 
 ### Added
