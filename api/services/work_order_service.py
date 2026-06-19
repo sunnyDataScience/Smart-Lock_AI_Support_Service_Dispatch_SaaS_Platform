@@ -1240,6 +1240,10 @@ async def reassign_order(
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
+    # CR-0048 / BR-M05-01：改派必填原因（status_reason gate，與 cancel/escalate 一致）
+    if not reason or not reason.strip():
+        raise ApiError("VALIDATION_ERROR", "改派工單必須填寫原因（BR-M05-01）", 422)
+
     current = await _fetch_status_for_update(wo_id, tenant_id)
     if current not in _REASSIGN_FROM:
         raise ApiError(
@@ -1289,9 +1293,11 @@ async def reassign_order(
         "  technician_id = %s::uuid, "
         "  status = 'assigned', "
         "  service_report = COALESCE(service_report, '') || E'\\n' || %s, "
+        # CR-0048 / BR-M05-01：改派原因落結構化 status_reason（不只塞 service_report 字串）
+        "  status_reason = %s, "
         "  updated_at = NOW() "
         "WHERE id = %s::uuid",
-        (new_technician_id, note, wo_id),
+        (new_technician_id, note, reason.strip(), wo_id),
     )
     # dispatch_logs audit（schema: 無 tenant_id；隔離靠 join）
     await db_module._conn.execute(
@@ -2549,9 +2555,11 @@ async def request_reschedule(
         "UPDATE work_orders SET "
         "  scheduled_at = %s::timestamptz, "
         "  service_report = COALESCE(service_report, '') || E'\\n' || %s, "
+        # CR-0048 / BR-M05-01：改期原因落結構化 status_reason
+        "  status_reason = %s, "
         "  updated_at = NOW() "
         "WHERE id = %s::uuid",
-        (new_dt, note, wo_id),
+        (new_dt, note, reason.strip()[:_RESCHEDULE_REASON_MAX], wo_id),
     )
 
     # ─── audit + LINE push ────────────────────────────────────────────────
