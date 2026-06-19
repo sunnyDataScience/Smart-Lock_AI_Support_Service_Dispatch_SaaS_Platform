@@ -8,14 +8,25 @@ import { SidebarProvider } from "./SidebarContext";
 import RbacChangedBanner from "@/components/realtime/RbacChangedBanner";
 
 // 完整公開頁清單（AuthGuard 掛在 root layout 包整個 app，漏列就會被踢去 /login）：
-//  - /login          admin/客服登入
-//  - /tech-login     技師登入（漏列 → 技師永遠到不了自己的登入頁）
+//  - /login            admin/客服登入
+//  - /tech-login       技師登入（漏列 → 技師永遠到不了自己的登入頁）
+//  - /vendor-login     廠商登入（CR-0029；漏列 → 廠商到不了登入頁）
+//  - /register         師傅/廠商雙路註冊（CR-0029；漏列 → 新註冊者本就未登入，會被踢回 /login，註冊完全不可達）
+//  - /forgot-password  自助忘記密碼申請（CR-0025；漏列 → 忘記密碼者本就未登入，功能不可達）
+//  - /reset-password   email 重設連結 ?token=...（CR-0025；漏列 → 信件連結點開被踢回 /login）
 // 動態 token 公開頁用 prefix 比對（pathname 會帶 token segment）：
 //  - /track/{token}         客戶查工單進度（public endpoint,token 簽章驗證）
 //  - /scope-change/{token}  客戶確認加價/變更（public endpoint）
 //  - /quotes/{token}        客戶查看/確認報價（public endpoint,purpose=quote_view,CR-0032 Phase C）
 //  - /consent/{token}       客戶簽署三段施工免責同意（public endpoint,CR-0033）
-const PUBLIC_PATHS = new Set(["/login", "/tech-login"]);
+const PUBLIC_PATHS = new Set([
+  "/login",
+  "/tech-login",
+  "/vendor-login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+]);
 const PUBLIC_PREFIXES = ["/track/", "/scope-change/", "/quotes/", "/consent/"];
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
