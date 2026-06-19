@@ -205,6 +205,9 @@ class WorkOrder(BaseModel):
     payment_method: str | None = Field(
         None, description='M5.5 cash/bank_transfer/credit_card/line_pay'
     )
+    warranty_expiry_date: str | None = Field(
+        None, description='CR-0047 保固到期日 ISO date（由 serial/購買日自動算）'
+    )
 
 
 class WorkOrderEnvelope(ApiResponseGeneric):

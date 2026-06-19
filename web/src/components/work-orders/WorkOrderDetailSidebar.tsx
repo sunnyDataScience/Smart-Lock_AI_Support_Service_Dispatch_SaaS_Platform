@@ -395,6 +395,7 @@ function WorkOrderFieldsPanel({ workOrder }: { workOrder?: WorkOrder }) {
   push(t("woWarranty"), workOrder.warranty_status
     ? WARRANTY_STATUS_LABEL[workOrder.warranty_status] ?? workOrder.warranty_status
     : null);
+  push("保固到期日", workOrder.warranty_expiry_date);  // CR-0047 自動算
   push(t("woDoorType"), workOrder.door_type);
   // CR-0043：門厚 + 設備/計費新欄位
   push("門厚", workOrder.door_thickness);

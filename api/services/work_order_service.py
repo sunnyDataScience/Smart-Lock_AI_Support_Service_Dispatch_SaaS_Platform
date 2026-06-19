@@ -127,6 +127,8 @@ def _wo_row_to_dict(row: tuple) -> dict:
         out["special_door_surcharge"] = bool(row[33])
     if len(row) > 34 and row[34] is not None:
         out["payment_method"] = row[34]
+    if len(row) > 35 and row[35] is not None:
+        out["warranty_expiry_date"] = row[35].isoformat()
     return out
 
 
@@ -144,7 +146,9 @@ _WO_SELECT = (
     "wo.customer_final_amount, "
     # CR-0043 Phase 2（index 28+，append-only）：客名/電話接回 + migration 052 五欄
     "wo.customer_name, wo.customer_phone, wo.dealer, wo.install_date, "
-    "wo.rain_exposure, wo.special_door_surcharge, wo.payment_method"
+    "wo.rain_exposure, wo.special_door_surcharge, wo.payment_method, "
+    # CR-0047（index 35）：保固到期日
+    "wo.warranty_expiry_date"
 )
 
 _WO_JOIN = (
@@ -413,6 +417,35 @@ _PATCHABLE_FIELDS: dict[str, set | None] = {
 }
 
 
+def _auto_warranty(brand, purchase_date, install_date):
+    """CR-0047：序號/購買日/裝機日 → 保固到期日 + 保內/保外（接 warranty_service 引擎）。
+
+    錨點優先 purchase_date，缺則 install_date；兩者皆無 → (None, None) 不自動算。
+    期間由 warranty_service.resolve_period_months（brand override，預設 24 月）。回 (expiry_date, status)。
+    """
+    from datetime import date as _date
+    from services.warranty_service import (
+        DEFAULT_WARRANTY_CONFIG, compute_warranty_end, is_within_warranty, resolve_period_months,
+    )
+
+    def _to_date(v):
+        if v is None:
+            return None
+        if isinstance(v, _date):
+            return v
+        try:
+            return _date.fromisoformat(str(v)[:10])
+        except ValueError:
+            return None
+
+    start = _to_date(purchase_date) or _to_date(install_date)
+    if start is None:
+        return None, None
+    period = resolve_period_months(brand, DEFAULT_WARRANTY_CONFIG)
+    end = compute_warranty_end(start, period)
+    return end, ("in_warranty" if is_within_warranty(_date.today(), end) else "out_warranty")
+
+
 async def update_wo_fields(*, tenant_id: str, wo_id: str, fields: dict) -> dict:
     """CR-0043 Tier①：後台設定工單欄位（service_category/serial/door/warranty/payment 等）。
 
@@ -441,8 +474,20 @@ async def update_wo_fields(*, tenant_id: str, wo_id: str, fields: dict) -> dict:
     if not sets:
         raise ApiError("VALIDATION_ERROR", "No patchable field provided", 422)
 
-    # 確認 WO 存在且屬本租戶（get_order 會 404；先驗再 UPDATE 避免跨租戶寫）
-    await get_order(tenant_id=tenant_id, wo_id=wo_id)
+    # 確認 WO 存在且屬本租戶（get_order 會 404；先驗再 UPDATE 避免跨租戶寫）+ 取既有值供自動保固
+    existing = await get_order(tenant_id=tenant_id, wo_id=wo_id)
+
+    # CR-0047：自動保固計算（patch 動到 serial/購買日/裝機日/brand 且未手動指定 warranty_status）
+    if "warranty_status" not in fields and {"serial_number", "purchase_date", "install_date", "brand"} & fields.keys():
+        eff_brand = fields.get("brand", existing.get("brand"))
+        eff_purchase = fields.get("purchase_date", existing.get("purchase_date"))
+        eff_install = fields.get("install_date", existing.get("install_date"))
+        w_end, w_status = _auto_warranty(eff_brand, eff_purchase, eff_install)
+        if w_status:
+            sets.append("warranty_status = %s")
+            args.append(w_status)
+            sets.append("warranty_expiry_date = %s")
+            args.append(w_end)
 
     args.extend([wo_id, tenant_id])
     await db_module._conn.execute(

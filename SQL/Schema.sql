@@ -501,6 +501,7 @@ CREATE TABLE work_orders (
     rain_exposure       VARCHAR(20),                    -- M2.5 indoor/outdoor_covered/outdoor_exposed
     special_door_surcharge BOOLEAN,                     -- M4.1 特殊門型加價確認旗標
     payment_method      VARCHAR(20),                    -- M5.5 cash/bank_transfer/credit_card/line_pay
+    warranty_expiry_date DATE,                          -- CR-0047 保固到期日（warranty_service 自動算）
     created_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

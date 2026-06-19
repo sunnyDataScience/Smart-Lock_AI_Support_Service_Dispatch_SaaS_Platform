@@ -1905,6 +1905,11 @@ export interface components {
             special_door_surcharge?: boolean | null;
             /** @description cash/bank_transfer/credit_card/line_pay */
             payment_method?: string | null;
+            /**
+             * Format: date
+             * @description CR-0047 保固到期日（由 serial/購買日自動算）
+             */
+            warranty_expiry_date?: string | null;
         };
         WorkOrderEnvelope: components["schemas"]["ApiResponseGeneric"] & {
             data?: components["schemas"]["WorkOrder"];

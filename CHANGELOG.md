@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CR-0047 保固期動態計算（branch `feat/cr-0047-warranty-auto-compute`，2026-06-20）**：兌現 CR-0043 延後項 + 派工單 PDF §四優化建議「保固期動態計算（序號→保固截止→保內/外自動）」。現況 `work_orders.warranty_status` 為人工填、無到期日欄；`warranty_service` 已有 5-mode 起算 + brand override + compute_warranty_end 引擎但**未接 work_order**。**實作**：(a) **migration 057** `work_orders.warranty_expiry_date` DATE。(b) `work_order_service._auto_warranty`：購買日/裝機日（錨點 fallback）+ brand 期間（`resolve_period_months` brand override：Yale 36/Dormakaba 60/預設 24 月）→ 算到期日 + 保內/保外。(c) `update_wo_fields` 設 serial/購買日/裝機日/brand 時自動回填 `warranty_status` + `warranty_expiry_date`（**手動 warranty_status 優先不覆蓋**）。(d) API 補 `warranty_expiry_date`（_WO_SELECT index 35 + model + TS 型別 + sidebar「保固到期日」）。test_cr_0047 6/6（含 Yale 36 月 brand override 端到端驗證）+ 回歸全套 **794 passed 0 fail** + 前端 tsc 0。
+
 - **CR-0046 Q-11/Q-12 假資料生成（branch `feat/cr-0046-quote-text-discount-mock`，2026-06-19）**：翻遍 `20260617資料/` 後確認 Q-11（客服優惠權限）/Q-12（公司抬頭/客服電話/保固+取消+追加價條款文字）資料夾確實沒有（屬公司專屬）。業主指示「先生成假資料，確認後再替換」（同決議 5 mock 模式）。**migration 056** 兩 M18 config namespace（全 is_mock，業主動態改 config 即替換、不需改 code）：(a) `company_profile`（公司抬頭/客服電話 + 保固/取消費/追加價三段條款，文字內含「（範例…）」便於辨識）→ `work_order_document_service` 客戶電子工單 PDF 渲染抬頭+客服電話+服務條款段；(b) `discount_policy`（核准門檻 10000 + 客服折扣上限 10%）→ `quote_engine_service._approval_threshold` 讀 config 取代 hardcode 10000。test_cr_0046 3/3 + 回歸全套 **792 passed 0 fail**（PDF render + quote engine 不破）。**待業主確認後替換真值**（改 config_version 即可）。
 
 ### Fixed
