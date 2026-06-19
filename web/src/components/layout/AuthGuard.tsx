@@ -8,6 +8,7 @@ import { SidebarProvider } from "./SidebarContext";
 import RbacChangedBanner from "@/components/realtime/RbacChangedBanner";
 
 // 完整公開頁清單（AuthGuard 掛在 root layout 包整個 app，漏列就會被踢去 /login）：
+//  - /                 角色導向 landing 主頁（未登入也要看得到，否則一進站就被踢 admin 登入）
 //  - /login            admin/客服登入
 //  - /tech-login       技師登入（漏列 → 技師永遠到不了自己的登入頁）
 //  - /vendor-login     廠商登入（CR-0029；漏列 → 廠商到不了登入頁）
@@ -20,6 +21,7 @@ import RbacChangedBanner from "@/components/realtime/RbacChangedBanner";
 //  - /quotes/{token}        客戶查看/確認報價（public endpoint,purpose=quote_view,CR-0032 Phase C）
 //  - /consent/{token}       客戶簽署三段施工免責同意（public endpoint,CR-0033）
 const PUBLIC_PATHS = new Set([
+  "/",
   "/login",
   "/tech-login",
   "/vendor-login",

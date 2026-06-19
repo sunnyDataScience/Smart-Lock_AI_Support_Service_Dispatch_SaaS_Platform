@@ -92,6 +92,20 @@
     "brand_oem": "Brand OEM",
     "line_user": "LINE User"
   },
+  "landing": {
+    "tagline": "Smart Lock AI Support × Dispatch Platform",
+    "subtitle": "Choose how you'd like to sign in",
+    "backendTitle": "Operations Console",
+    "backendDesc": "Admin / CS / Dispatch / Accounting",
+    "techTitle": "Technician Sign-in",
+    "techDesc": "Field jobs — view dispatch, on-site reporting",
+    "vendorTitle": "Vendor / Brand Sign-in",
+    "vendorDesc": "Brand / Locksmith shop / Dealer (requestor)",
+    "registerTitle": "Create Account",
+    "registerDesc": "Technician or vendor — pending admin approval",
+    "enterBackend": "Signed in — enter console",
+    "footer": "SmartLock — Smart Lock AI Support & Dispatch"
+  },
   "login": {
     "title": "Sign in to SmartLock Admin",
     "subtitle": "Enter your credentials to continue",
