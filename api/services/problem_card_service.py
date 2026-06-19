@@ -289,6 +289,82 @@ _API_INTENT_TO_DB = {
 }
 
 
+# ── CR-0042 ProblemCard 完整度 gate（BR-M03，業主裁決 0.8 硬擋+主管 override；門檻入 M18 config）──
+_COMPLETENESS_DEFAULTS = {
+    "min_completeness": 0.8,
+    "key_fields": ["brand", "model", "symptom", "urgency", "customer_address"],
+}
+_COMPLETENESS_OVERRIDE_ROLES = {"admin", "operations_manager"}
+
+
+def _field_filled(v) -> bool:
+    if v is None:
+        return False
+    if isinstance(v, str):
+        return bool(v.strip())
+    if isinstance(v, (list, tuple)):
+        return len(v) > 0
+    return True
+
+
+async def assert_completeness(
+    *,
+    tenant_id: str,
+    pc_id: str,
+    customer_address: str | None = None,
+    actor_role: str | None = None,
+    override_reason: str | None = None,
+) -> dict:
+    """CR-0042：轉 WO 前檢查 ProblemCard 完整度達門檻，否則 422（主管帶 reason 可 override）。
+
+    完整度 = 已填 key 欄 / key 欄總數；門檻讀 M18 config problemcard_policy（缺則 fallback 0.8）。
+    回 {score, missing, threshold, overridden}。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    from services import config_m18_service
+
+    policy = dict(_COMPLETENESS_DEFAULTS)
+    cfg = await config_m18_service.read_global_value(namespace="problemcard_policy")
+    if isinstance(cfg, dict):
+        policy.update(cfg)
+    key_fields = policy.get("key_fields") or _COMPLETENESS_DEFAULTS["key_fields"]
+    min_c = float(policy.get("min_completeness", 0.8))
+
+    cur = await db_module._conn.execute(
+        "SELECT brand, model, symptoms, symptom_summary, urgency "
+        "FROM problem_cards WHERE id = %s::uuid",
+        (pc_id,),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "Problem card not found", 404)
+    symptom_ok = _field_filled(row[2]) or _field_filled(row[3])
+    values = {
+        "brand": row[0],
+        "model": row[1],
+        "symptom": "x" if symptom_ok else None,
+        "urgency": row[4],
+        "customer_address": customer_address,
+    }
+    missing = [f for f in key_fields if not _field_filled(values.get(f))]
+    score = round((len(key_fields) - len(missing)) / max(len(key_fields), 1), 2)
+
+    overridden = bool(
+        override_reason
+        and override_reason.strip()
+        and (actor_role or "").lower() in _COMPLETENESS_OVERRIDE_ROLES
+    )
+    if score < min_c and not overridden:
+        raise ApiError(
+            "INCOMPLETE_PROBLEM_CARD",
+            f"問題卡完整度 {score} < {min_c}（缺：{', '.join(missing) or '—'}）；補齊欄位或主管 override",
+            422,
+        )
+    return {"score": score, "missing": missing, "threshold": min_c, "overridden": overridden}
+
+
 async def create_card(
     *,
     tenant_id: str,

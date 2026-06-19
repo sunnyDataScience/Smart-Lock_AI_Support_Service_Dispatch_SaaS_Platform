@@ -332,6 +332,22 @@ async def create_customer(*, tenant_id: str, payload: dict) -> dict:
                 422,
             )
 
+    # CR-0042 #6 / BR-M02-01：phone 去重（duplicate key = phone + LINE ID）。同租戶同電話客戶
+    # 視為重複（避免同人不同來源誤建雙主檔）。normalize：去頭尾空白。
+    phone = data.get("phone")
+    if phone and str(phone).strip():
+        cur = await db_module._conn.execute(
+            "SELECT id FROM users "
+            "WHERE phone = %s AND tenant_id = %s::uuid AND role = 'line_user'",
+            (str(phone).strip(), tenant_id),
+        )
+        if await cur.fetchone():
+            raise ApiError(
+                "DUPLICATE_CUSTOMER",
+                "phone already exists（同電話客戶已存在，BR-M02-01 去重）",
+                422,
+            )
+
     cols = ["tenant_id", "role", *data.keys()]
     placeholders = ["%s::uuid", "%s", *(["%s"] * len(data))]
     args = [tenant_id, "line_user", *data.values()]

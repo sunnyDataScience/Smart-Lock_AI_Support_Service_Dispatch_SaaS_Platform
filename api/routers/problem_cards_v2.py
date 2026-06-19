@@ -328,6 +328,10 @@ async def convert_problem_card_to_work_order_v2(
     tenantId: str = Path(...),
     id: str = Path(...),
     body: ConvertProblemCardToWorkOrderRequest | None = None,
+    override_reason: str | None = Query(
+        default=None,
+        description="CR-0042：完整度不足時，admin/ops 帶 reason 可 override 強制轉單",
+    ),
     user: CurrentUser = Depends(require_tenant),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
@@ -337,6 +341,14 @@ async def convert_problem_card_to_work_order_v2(
             "Path tenantId does not match authenticated tenant",
             403,
         )
+    # CR-0042 BR-M03：轉 WO 前完整度 gate（<門檻 → 422，主管帶 reason 可 override）
+    await problem_card_service.assert_completeness(
+        tenant_id=tenantId,
+        pc_id=id,
+        customer_address=body.customer_address if body else None,
+        actor_role=user.role,
+        override_reason=override_reason,
+    )
     wo, created = await work_order_service.create_from_problem_card(
         tenant_id=tenantId,
         pc_id=id,
