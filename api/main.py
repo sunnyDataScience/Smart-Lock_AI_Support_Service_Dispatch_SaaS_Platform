@@ -138,6 +138,7 @@ async def lifespan(app: FastAPI):
     from realtime.reconciliation_exception_detector import worker as recon_exc_detector
     from realtime.gdpr_hard_delete_cron import worker as gdpr_hard_delete
     from realtime.media_retention_cron import worker as media_retention_cron
+    from realtime.auto_confirm_cron import worker as auto_confirm_cron
     from realtime.sla_monitor import monitor as sla_monitor
     from realtime.statement_auto_approval_cron import worker as statement_auto_approval
 
@@ -150,8 +151,10 @@ async def lifespan(app: FastAPI):
     statement_auto_approval.start()  # Phase II: 3 statement 表 dispute window 過期 auto-approve
     gdpr_hard_delete.start()  # FR-0053: T+30 GDPR forget 自動硬刪
     media_retention_cron.start()  # CR-0040: 每日軟刪過期 evidence（保存期 BR-M09-03）
+    auto_confirm_cron.start()  # CR-0038 桶4/Q063: 客戶未回 48h 自動結案（排除 hold/異常）
     logger.info("API service ready (port=%s)", cfg.system["port"])
     yield
+    await auto_confirm_cron.stop()
     await media_retention_cron.stop()
     await gdpr_hard_delete.stop()
     await statement_auto_approval.stop()

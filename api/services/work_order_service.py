@@ -1645,6 +1645,40 @@ async def _append_subflow_event(
     )
 
 
+# CR-0038 桶4 / BR-M08-02：scope change 金額分級閘預設（門檻入 M18 config 不寫死）
+_SCOPE_TIER_DEFAULTS = {
+    "minor_max": 500,       # ≤500 視為 minor（可後續做自動核准）
+    "standard_max": 2000,   # 501-2000 為 standard
+    "major_pct": 0.5,       # 增幅 ≥ 原價 50% → major（需主管核准），無視金額
+}
+
+
+async def _classify_scope_tier(original_price: float, new_price: float | None) -> dict:
+    """BR-M08-02：依增幅金額/比例分級 minor/standard/major。門檻讀 M18 config
+    scope_change_policy（缺則 fallback _SCOPE_TIER_DEFAULTS）。major → requires_supervisor。"""
+    from services import config_m18_service
+
+    policy = dict(_SCOPE_TIER_DEFAULTS)
+    cfg = await config_m18_service.read_global_value(namespace="scope_change_policy")
+    if isinstance(cfg, dict):
+        policy.update(cfg)
+
+    delta = max(0.0, (new_price or 0.0) - (original_price or 0.0))
+    pct = (delta / original_price) if original_price and original_price > 0 else (1.0 if delta else 0.0)
+    if delta > float(policy["standard_max"]) or pct >= float(policy["major_pct"]):
+        tier = "major"
+    elif delta > float(policy["minor_max"]):
+        tier = "standard"
+    else:
+        tier = "minor"
+    return {
+        "tier": tier,
+        "delta": round(delta, 2),
+        "pct": round(pct, 4),
+        "requires_supervisor": tier == "major",
+    }
+
+
 async def record_scope_change(
     *,
     tenant_id: str,
@@ -1698,6 +1732,9 @@ async def record_scope_change(
     except (TypeError, ValueError):
         new_price = None
 
+    # CR-0038 桶4 / BR-M08-02：金額分級（config 驅動）；major 標 requires_supervisor
+    tier_info = await _classify_scope_tier(original_price, new_price)
+
     # INSERT scope_changes 表
     cur = await db_module._conn.execute(
         "INSERT INTO scope_changes "
@@ -1711,7 +1748,8 @@ async def record_scope_change(
             reason,
             # original_scope MVP 留簡化標記；future 可從 problem_card 摘要填
             json.dumps({"snapshot": "from_work_order", "estimated_price": original_price}, ensure_ascii=False),
-            json.dumps({"items": items, "total_estimate": total_estimate}, ensure_ascii=False),
+            # CR-0038 桶4：tier 分級存入 new_scope（無 migration；admin override 可讀）
+            json.dumps({"items": items, "total_estimate": total_estimate, "tier": tier_info}, ensure_ascii=False),
             original_price,
             new_price,
         ),
@@ -1739,6 +1777,7 @@ async def record_scope_change(
         "items": items,
         "total_estimate": total_estimate,
         "scope_change_id": scope_change_id,
+        "tier": tier_info,  # CR-0038 桶4：分級閘結果入 timeline
     }
     await db_module._conn.execute(
         "INSERT INTO work_order_events "
@@ -2866,3 +2905,42 @@ async def reject_reschedule_by_proposal(*, proposal_id: str) -> dict:
         (proposal_id,),
     )
     return result
+
+
+# CR-0038 桶4 / Q063：客戶未回 N 小時自動結案（cron 呼叫）
+_AUTO_CONFIRM_DEFAULTS = {"enabled": True, "hours": 48}
+
+
+async def auto_confirm_stale_completed() -> int:
+    """Q063：completed 超過 N 小時（config auto_confirm_policy.hours，預設 48）客戶未確認
+    → 自動 confirmed/closed。排除 high_risk_hold 與有 open exception_case 的單（客訴/爭議/保固）。
+    回傳自動結案筆數。cron 全租戶掃。"""
+    if not await _ensure_conn():
+        return 0
+    from services import config_m18_service
+
+    policy = dict(_AUTO_CONFIRM_DEFAULTS)
+    cfg = await config_m18_service.read_global_value(namespace="auto_confirm_policy")
+    if isinstance(cfg, dict):
+        policy.update(cfg)
+    if not policy.get("enabled", True):
+        return 0
+    hours = int(policy.get("hours", 48))
+
+    cur = await db_module._conn.execute(
+        "UPDATE work_orders SET "
+        "  status = 'confirmed', confirmed_at = NOW(), "
+        "  completion_status = 'closed', updated_at = NOW() "
+        "WHERE status = 'completed' "
+        "  AND completed_at < NOW() - make_interval(hours => %s) "
+        "  AND COALESCE(high_risk_hold, FALSE) = FALSE "
+        "  AND NOT EXISTS ("
+        "    SELECT 1 FROM saas.exception_case ec "
+        "    WHERE ec.work_order_id = work_orders.id "
+        "      AND ec.status IN ('open', 'investigating', 'escalated')"
+        "  ) "
+        "RETURNING id",
+        (hours,),
+    )
+    rows = await cur.fetchall()
+    return len(rows or [])
