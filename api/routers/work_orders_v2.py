@@ -316,12 +316,23 @@ async def complete_work_order_v2(
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     _cross_tenant_write(user, tenantId)
+    # CR-0039：:complete 為後台 admin/dispatcher 完工 override 路徑（記 summary 為 reason、跳過證據閘）；
+    # 技師必須走 /onsite/completion 正規硬閘，否則可繞過照片/簽名/序號驗證。
+    if (user.role or "") == "technician":
+        raise ApiError(
+            "FORBIDDEN",
+            "技師請走現場完工送簽端點 /onsite/completion（含照片/簽名硬閘）",
+            403,
+        )
 
     order = await work_order_service.complete_order(
         tenant_id=tenantId,
         wo_id=id,
         summary=body.summary,
         actual_amount=body.actual_amount,
+        is_override=True,
+        override_reason=body.summary,
+        actor_role=user.role,
     )
     payload = {"data": WorkOrder(**order).model_dump(mode="json")}
     if idem is not None:
@@ -684,6 +695,10 @@ async def onsite_completion_v2(
         wo_id=woId,
         summary=summary,
         actual_amount=None,
+        # CR-0039 完工硬閘：技師現場送簽走正規閘（照片≥config / 簽名存在 / 安裝案序號）
+        photo_evidence_ids=body.photo_evidence_ids,
+        signature_evidence_id=body.signature_evidence_id,
+        is_override=False,
     )
     payload = {
         "work_order_id": order.get("id"),

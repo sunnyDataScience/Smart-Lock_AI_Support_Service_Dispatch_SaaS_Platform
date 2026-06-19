@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, Path, Query
 from pydantic import BaseModel, Field
 
 from core.deps import CurrentUser, require_tenant, role_required
+from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
     ApiResponseGeneric,
@@ -217,11 +218,21 @@ async def complete_work_order(
     user: CurrentUser = Depends(require_tenant),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
+    # CR-0039：v1 :complete 同 v2，為後台 override 路徑；技師須走現場完工送簽硬閘端點
+    if (user.role or "") == "technician":
+        raise ApiError(
+            "FORBIDDEN",
+            "技師請走現場完工送簽端點（含照片/簽名硬閘）",
+            403,
+        )
     order = await work_order_service.complete_order(
         tenant_id=user.tenant_id,
         wo_id=id,
         summary=body.summary,
         actual_amount=body.actual_amount,
+        is_override=True,
+        override_reason=body.summary,
+        actor_role=user.role,
     )
     payload = {"data": WorkOrder(**order).model_dump(mode="json")}
     if idem is not None:
