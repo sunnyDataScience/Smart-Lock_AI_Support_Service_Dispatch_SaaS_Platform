@@ -132,6 +132,26 @@ def _is_dispatch_eligible(status: str | None) -> bool:
     return status not in _DISPATCH_INELIGIBLE_STATUSES
 
 
+async def _brand_authorized_ids(brand: str | None) -> set[str] | None:
+    """CR-0060 / BR-M07-01：回授權該品牌（未過期）的技師 id 集合。
+
+    brand 為空、無連線、或該品牌「無任何授權資料」→ None（不過濾，保守避免空候選；mock 階段）。
+    有授權資料 → 只回授權者，未授權技師將被候選過濾掉。
+    """
+    if not brand or not await _ensure_conn():
+        return None
+    cur = await db_module._conn.execute(
+        "SELECT technician_id FROM technician_brand_authorization "
+        "WHERE brand = %s AND authorized = TRUE "
+        "  AND (cert_expires_at IS NULL OR cert_expires_at >= CURRENT_DATE)",
+        (brand,),
+    )
+    rows = await cur.fetchall()
+    if not rows:
+        return None
+    return {str(r[0]) for r in rows}
+
+
 def _is_excluded_by_circuit(status: str | None) -> bool:
     """暫無 circuit_breaker_until 欄；以 status 排除明顯不可派的狀態。"""
     return status in {"inactive", "on_leave", "circuit_breaker_open"}
@@ -254,6 +274,10 @@ async def list_dispatch_candidates(
         rating_min=rating_min,
         exclude_circuit=exclude_circuit,
     )
+    # CR-0060 / BR-M07-01：品牌授權過濾（該品牌有授權資料時，只留授權技師）
+    auth_ids = await _brand_authorized_ids(wo_brand)
+    if auth_ids is not None:
+        candidates = [c for c in candidates if c["technician"].get("id") in auth_ids]
     return {
         "candidates": candidates,
         "total": len(candidates),
@@ -305,6 +329,10 @@ async def auto_match_dispatch(
 
     rows = await _fetch_tenant_technicians(tenant_id)
     scored = _score_rows(rows, brand=pc_brand, district=pc_district)
+    # CR-0060 / BR-M07-01：品牌授權過濾（同 list_dispatch_candidates）
+    _auth_ids = await _brand_authorized_ids(pc_brand)
+    if _auth_ids is not None:
+        scored = [c for c in scored if c["technician"].get("id") in _auth_ids]
 
     boost = 1.05 if urgency == "emergency" else 1.0
     candidates: list[dict] = []

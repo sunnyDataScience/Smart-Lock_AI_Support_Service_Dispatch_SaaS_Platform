@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CR-0060 技師技能矩陣 + 品牌授權（branch `feat/cr-0060-tech-skill-brand-auth`，2026-06-20）**：審計 #12 #13 / BR-M07-01。技師原僅 capabilities JSONB 自由清單，無結構化技能矩陣/品牌授權。沿會議 mock-first 授權建資料模型：**migration 063** `technician_skill`（skill_code + A/B/C level）+ `technician_brand_authorization`（brand + authorized + cert_expires_at）+ seed 示範（is_mock）。`dispatch_service` 候選清單/auto_match 加品牌授權過濾（`_brand_authorized_ids`：未授權/認證過期技師排除；無授權資料保守不過濾）。test_cr_0060 2/2 + 回歸 0 fail。
+
+### Added
+
 - **CR-0059 M18 config 排程生效日（branch `feat/cr-0059-config-effective-date`，2026-06-20）**：審計 #9 / BR-M18-02。config 變更原僅即時生效，無未來排程。**migration 062** saas.config_version +effective_at；`config_m18_service.activate_due_scheduled()`（draft+effective_at<=now → active + 退役同 ns/key 舊 active）接 canary cron run_once 週期執行。test_cr_0059 1/1 + 回歸 0 fail。
 
 ### Added
