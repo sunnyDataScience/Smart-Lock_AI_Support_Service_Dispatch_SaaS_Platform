@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS media_files (
                                 'door_check_before',
                                 'door_check_after',
                                 'completion_before',
+                                'completion_during',  -- CR-0054 施工中拓孔結構照
                                 'completion_after',
                                 'dispute_evidence_customer',
                                 'dispute_evidence_technician',

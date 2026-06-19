@@ -32,6 +32,7 @@ _ALLOWED_PURPOSES = {
     "door_check_before",
     "door_check_after",
     "completion_before",
+    "completion_during",   # CR-0054：施工中拓孔結構照（PDF §四 施工前/中/後三類）
     "completion_after",
     "dispute_evidence_customer",
     "dispute_evidence_technician",
@@ -68,7 +69,7 @@ def _build_storage_path(*, tenant_id: str, media_id: str, content_type: str) -> 
 # ── CR-0040 Evidence 角色可見性（BR-M09-02 / Q026；規則式過濾，HD-1，不加欄位）──────
 # 客戶家中環境照 = 門檢照 + 完工前照。品牌不可看（隱私）；會計只需完工/付款必要照。
 # 其餘內部 staff（admin/ops/dispatcher/customer_service/technician）看全部。
-_ENV_PURPOSES = ("door_check_before", "door_check_after", "completion_before")
+_ENV_PURPOSES = ("door_check_before", "door_check_after", "completion_before", "completion_during")
 _HIDDEN_PURPOSES_BY_ROLE = {
     "brand_oem": set(_ENV_PURPOSES),                          # 品牌：不看客戶家中環境照
     "brand": set(_ENV_PURPOSES),                              # 角色別名相容
