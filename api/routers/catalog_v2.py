@@ -9,9 +9,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Path
 
+from fastapi import Query
+
 from core.deps import CurrentUser, require_tenant
 from core.errors import ApiError
-from services import quote_catalog_service
+from services import payout_rule_service, quote_catalog_service
 
 router = APIRouter()
 
@@ -32,3 +34,23 @@ async def get_quote_catalog_v2(
         raise ApiError("CROSS_TENANT_READ", "Path tenantId does not match authenticated tenant", 403)
     include_cost = (user.role or "") in _COST_VISIBLE_ROLES
     return await quote_catalog_service.get_catalog(tenant_id=tenantId, include_cost=include_cost)
+
+
+@router.get(
+    "/tenants/{tenantId}/payout-rules",
+    operation_id="listPayoutRulesV2",
+    summary="師傅拆帳規則主檔 v2（CR-0037；base_payout 僅後台可見）",
+    tags=["M12 Settlement"],
+)
+async def list_payout_rules_v2(
+    tenantId: str = Path(...),
+    service_code: str | None = Query(default=None, description="篩選單一服務"),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError("CROSS_TENANT_READ", "Path tenantId does not match authenticated tenant", 403)
+    include_cost = (user.role or "") in _COST_VISIBLE_ROLES
+    rules = await payout_rule_service.list_rules(
+        tenant_id=tenantId, include_cost=include_cost, service_code=service_code)
+    return {"data": rules, "cost_visible": include_cost,
+            "note": "esales sheet21 mock；base_payout 為內部拆帳成本，正式值待 Q-09 師傅分潤"}
