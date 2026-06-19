@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CR-0058 完工套件 ④⑤ materials_used + payment_proof（branch `feat/cr-0058-completion-materials-payment`，2026-06-20）**：審計 #8 / BR-M08-03。完工套件五件補到全（照片/簽名/序號/教學/用料/付款證明）。**migration 061** work_orders +materials_used/payment_proof + completion_policy config require_materials/require_payment_proof（預設 false，避免擋無料檢測單）；complete_order 接 2 參數 + 選用閘（config 開才硬擋）。付款核銷子系統仍 P2。test_cr_0058 2/2 + 回歸 0 fail。
+
+### Added
+
 - **CR-0057 M03 三級必填分類落地（branch `feat/cr-0057-pc-field-tiers`，2026-06-20）**：審計 #7 / Q015 / BR-M05-03（CR-0026 §8 三層裁決落地）。problem_card_service 加 `_PC_FIELD_TIERS`（required 建卡必填 / pre_dispatch 派工前必填 / optional 可後補）+ `required_field_tiers()` 揭露 + `_field_tier()`；assert_completeness 422 details 加 `tier`、回傳加 `missing_by_tier`。test_cr_0057 2/2 + 回歸 0 fail。
 
 ### Added

@@ -900,6 +900,8 @@ async def complete_order(
     override_reason: str | None = None,
     actor_role: str | None = None,
     teaching_note: str | None = None,
+    materials_used: str | None = None,
+    payment_proof: str | None = None,
 ) -> dict:
     """accepted | in_progress → completed, set completed_at = NOW (auto-fill started_at).
 
@@ -927,6 +929,15 @@ async def complete_order(
         override_reason=override_reason,
         actor_role=actor_role,
     )
+    # CR-0058 / BR-M08-03 完工套件 ④⑤：用料 + 付款證明（config 開才硬擋；技師正規路徑）
+    if not is_override:
+        from services import config_m18_service
+        cpol = await config_m18_service.read_global_value(namespace="completion_policy") or {}
+        if cpol.get("require_materials") and not (materials_used and materials_used.strip()):
+            raise ApiError("MATERIALS_REQUIRED", "完工須登錄現場用料（completion_policy.require_materials）", 422)
+        if cpol.get("require_payment_proof") and not (payment_proof and payment_proof.strip()):
+            raise ApiError("PAYMENT_PROOF_REQUIRED", "完工須登錄付款證明（completion_policy.require_payment_proof）", 422)
+
     final_price: float | None = None
     if actual_amount is not None:
         try:
@@ -942,11 +953,17 @@ async def complete_order(
         "  final_price = COALESCE(%s, final_price), "
         # CR-0043 Tier②：技師完工回報+照片+簽名後，完工細狀態進「待客戶確認」（M05 Q052）
         "  completion_status = 'pending_customer_confirm', "
-        # CR-0050 BR-M08-03：教學紀錄（完工套件其一；空則保留既有）
+        # CR-0050 教學 + CR-0058 用料/付款證明（完工套件；空則保留既有）
         "  teaching_note = COALESCE(%s, teaching_note), "
+        "  materials_used = COALESCE(%s, materials_used), "
+        "  payment_proof = COALESCE(%s, payment_proof), "
         "  updated_at = NOW() "
         "WHERE id = %s::uuid",
-        (summary, final_price, (teaching_note.strip() if teaching_note and teaching_note.strip() else None), wo_id),
+        (summary, final_price,
+         (teaching_note.strip() if teaching_note and teaching_note.strip() else None),
+         (materials_used.strip() if materials_used and materials_used.strip() else None),
+         (payment_proof.strip() if payment_proof and payment_proof.strip() else None),
+         wo_id),
     )
     await _unescalate_linked_conversation(tenant_id=tenant_id, wo_id=wo_id)
     # CR-0027：完工推 LINE 給客戶（電子工單已開立 + 最終金額，只露對外價）。best-effort。
