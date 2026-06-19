@@ -1,5 +1,10 @@
 """M15 Exceptions inbox / approve v2 — tenant-scoped（CR-0003 P2）。
 
+⚠️ DEPRECATED（CR-0041，2026-06-19）：本檔**誤命名** —— 路徑叫 `/exceptions` 但實際 delegate
+`technician_schedule_service`（師傅排班請假/待命核准），與 M15 異常無關。真 M15 異常框架已移至
+`exception_cases_v2.py`（`/exception-cases`，exception_case control tower）。保留 30 天 deprecation
+供既有前端（admin/schedule-requests）過渡，follow-up 改名 `technician_schedule_v2` + 遷前端後移除。
+
 spec 對齊：
   GET  /tenants/{tenantId}/exceptions:inbox
        → listExceptionsInbox（整併 legacy GET /api/v1/admin/schedule-requests）

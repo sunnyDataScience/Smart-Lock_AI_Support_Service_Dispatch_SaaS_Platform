@@ -78,7 +78,8 @@ from routers import pricing_v2 as pricing_v2_router  # spec-alignment P2-α (CR-
 from routers import consumer_v2 as consumer_v2_router  # spec-alignment P2-α (CR-0002-α, M16 Consumer public token)
 from routers import settlements_v2 as settlements_v2_router  # spec-alignment P2 (FR-0012, M12 Settlement monthly trigger 501 stub)
 from routers import warranty_claims_v2 as warranty_claims_v2_router  # spec-alignment P2 (CR-0003 P2, M13 Warranty POST create tenant-scoped)
-from routers import exceptions_v2 as exceptions_v2_router  # spec-alignment P2 (CR-0003, M15 Exception tenant-scoped)
+from routers import exceptions_v2 as exceptions_v2_router  # spec-alignment P2 (CR-0003, M15 Exception tenant-scoped) — ⚠️ 實為師傅排班別名，CR-0041 deprecated 待遷 technician_schedule_v2
+from routers import exception_cases_v2 as exception_cases_v2_router  # CR-0041 真 M15 異常框架（exception_case control tower）
 from routers import dashboard_v2 as dashboard_v2_router  # spec-alignment P2-W1 (CR-0003 P2-W1, Dashboard tenant-scoped, FR-0021)
 from routers import reports_v2 as reports_v2_router  # spec-alignment P2-W1 (CR-0003 P2-W1, FR-0021, Reports tenant-scoped)
 from routers import sentiment_alerts_v2 as sentiment_alerts_v2_router  # spec-alignment P2-W2 (CR-0003 P2-W2, Sentiment Alerts tenant-scoped, FR-0018/ADR-0048)
@@ -136,6 +137,7 @@ async def lifespan(app: FastAPI):
     from realtime.line_push_outbox_worker import worker as line_push_worker
     from realtime.reconciliation_exception_detector import worker as recon_exc_detector
     from realtime.gdpr_hard_delete_cron import worker as gdpr_hard_delete
+    from realtime.media_retention_cron import worker as media_retention_cron
     from realtime.sla_monitor import monitor as sla_monitor
     from realtime.statement_auto_approval_cron import worker as statement_auto_approval
 
@@ -147,8 +149,10 @@ async def lifespan(app: FastAPI):
     canary_advance_cron.start()  # WBS §8 P1: M18 canary 5%→50%→100% 自動推進
     statement_auto_approval.start()  # Phase II: 3 statement 表 dispute window 過期 auto-approve
     gdpr_hard_delete.start()  # FR-0053: T+30 GDPR forget 自動硬刪
+    media_retention_cron.start()  # CR-0040: 每日軟刪過期 evidence（保存期 BR-M09-03）
     logger.info("API service ready (port=%s)", cfg.system["port"])
     yield
+    await media_retention_cron.stop()
     await gdpr_hard_delete.stop()
     await statement_auto_approval.stop()
     await canary_advance_cron.stop()
@@ -265,7 +269,8 @@ app.include_router(pricing_v2_router.router, tags=["M11 Pricing"])  # spec-align
 app.include_router(consumer_v2_router.router, tags=["M16 Consumer"])  # spec-alignment P2-α (CR-0002-α, M16 Consumer public token)
 app.include_router(settlements_v2_router.router, tags=["M12 Settlement"])  # spec-alignment P2 (FR-0012, M12 monthly settlement 501 stub)
 app.include_router(warranty_claims_v2_router.router, tags=["M13 Warranty"])  # spec-alignment P2 (CR-0003 P2, M13 Warranty POST create tenant-scoped)
-app.include_router(exceptions_v2_router.router, tags=["M15 Exception"])  # spec-alignment P2 (CR-0003, M15 Exception tenant-scoped)
+app.include_router(exceptions_v2_router.router, tags=["M15 Exception"])  # ⚠️ 實為師傅排班別名（CR-0041 deprecated，30d 後遷 technician_schedule_v2）
+app.include_router(exception_cases_v2_router.router, tags=["M15 Exception"])  # CR-0041 真 M15 異常框架 exception_case
 app.include_router(dashboard_v2_router.router, tags=["Dashboard"])  # spec-alignment P2-W1 (CR-0003 P2-W1, Dashboard tenant-scoped, FR-0021)
 app.include_router(reports_v2_router.router, tags=["Reports"])  # spec-alignment P2-W1 (CR-0003 P2-W1, FR-0021, Reports kpi/revenue/export tenant-scoped)
 app.include_router(sentiment_alerts_v2_router.router, tags=["Sentiment Alerts"])  # spec-alignment P2-W2 (CR-0003 P2-W2, FR-0018/ADR-0048, Sentiment Alerts tenant-scoped)

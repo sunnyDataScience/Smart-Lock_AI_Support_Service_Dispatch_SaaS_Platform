@@ -114,7 +114,7 @@ async def get_media_v2(
         )
 
     data, content_type, filename = await media_service.get_media(
-        tenant_id=tenantId, media_id=mediaId
+        tenant_id=tenantId, media_id=mediaId, role=user.role
     )
     safe_name = filename.replace('"', "")
     return Response(
@@ -152,7 +152,7 @@ async def list_media_for_work_order_v2(
         )
 
     return await media_service.list_media_for_work_order(
-        tenant_id=tenantId, work_order_id=woId
+        tenant_id=tenantId, work_order_id=woId, role=user.role
     )
 
 

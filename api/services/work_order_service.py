@@ -577,14 +577,104 @@ async def _unescalate_linked_conversation(*, tenant_id: str, wo_id: str) -> None
         logger.warning("WO 結案連動交還對話失敗 (wo=%s)", wo_id, exc_info=True)
 
 
+# ── CR-0039 完工硬閘（BR-M08-03，業主裁決 §8；門檻入 M18 config completion_policy，不寫死）──
+_COMPLETION_POLICY_DEFAULTS = {
+    "min_photos": 3,
+    "require_signature": True,
+    "serial_required_categories": ["install"],
+    "allow_supervisor_override": True,
+}
+
+
+async def _signature_exists(wo_id: str) -> bool:
+    """完工是否已有客戶簽名（digital_signatures；CR-0039 HD-4 驗證簽名真存在，非僅非空字串）。"""
+    cur = await db_module._conn.execute(
+        "SELECT 1 FROM digital_signatures "
+        "WHERE document_type = 'work_order' AND document_id = %s::uuid "
+        "  AND signer_role = 'customer' LIMIT 1",
+        (wo_id,),
+    )
+    return (await cur.fetchone()) is not None
+
+
+async def _enforce_completion_gate(
+    *,
+    wo_id: str,
+    summary: str,
+    photo_evidence_ids: list[str] | None,
+    signature_evidence_id: str | None,
+    is_override: bool,
+    override_reason: str | None,
+    actor_role: str | None,
+) -> str:
+    """CR-0039 完工硬閘。回傳（override 時加稽核註記的）summary；違反任一閘 → 422。
+
+    門檻讀 M18 config completion_policy（缺失 fallback 預設）。
+    is_override（admin/dispatcher 走 :complete）跳過證據閘，但須填 reason 並留稽核註記（HD-2）。
+    """
+    from services import config_m18_service
+
+    policy = dict(_COMPLETION_POLICY_DEFAULTS)
+    cfg = await config_m18_service.read_global_value(namespace="completion_policy")
+    if isinstance(cfg, dict):
+        policy.update(cfg)
+
+    if is_override:
+        if not policy.get("allow_supervisor_override", True):
+            raise ApiError("OVERRIDE_NOT_ALLOWED", "完工 override 已停用", 403)
+        if not (override_reason and override_reason.strip()):
+            raise ApiError("VALIDATION_ERROR", "主管 override 完工必須填寫原因", 422)
+        return (
+            f"[COMPLETE_OVERRIDE by {actor_role or 'supervisor'}: "
+            f"{override_reason.strip()[:300]}] {summary}"
+        )
+
+    # 技師正規完工 — 三道硬閘
+    min_photos = int(policy.get("min_photos", 3))
+    n_photos = len(photo_evidence_ids or [])
+    if n_photos < min_photos:
+        raise ApiError(
+            "INSUFFICIENT_PHOTOS",
+            f"完工照片至少 {min_photos} 張（目前 {n_photos} 張）",
+            422,
+        )
+    if policy.get("require_signature", True):
+        if not signature_evidence_id or not await _signature_exists(wo_id):
+            raise ApiError("SIGNATURE_REQUIRED", "完工需客戶簽名（簽名紀錄不存在）", 422)
+    serial_cats = policy.get("serial_required_categories") or []
+    if serial_cats:
+        cur = await db_module._conn.execute(
+            "SELECT service_category, serial_number FROM work_orders WHERE id = %s::uuid",
+            (wo_id,),
+        )
+        row = await cur.fetchone()
+        svc_cat, serial = (row[0], row[1]) if row else (None, None)
+        if svc_cat in serial_cats and not (serial and str(serial).strip()):
+            raise ApiError(
+                "SERIAL_REQUIRED",
+                "此安裝案需登錄鎖體序號才可完工（BR-M10-03）",
+                422,
+            )
+    return summary
+
+
 async def complete_order(
     *,
     tenant_id: str,
     wo_id: str,
     summary: str,
     actual_amount: str | None = None,
+    photo_evidence_ids: list[str] | None = None,
+    signature_evidence_id: str | None = None,
+    is_override: bool = False,
+    override_reason: str | None = None,
+    actor_role: str | None = None,
 ) -> dict:
-    """accepted | in_progress → completed, set completed_at = NOW (auto-fill started_at)."""
+    """accepted | in_progress → completed, set completed_at = NOW (auto-fill started_at).
+
+    CR-0039 完工硬閘（BR-M08-03）：技師正規完工強制 照片≥config / 客戶簽名存在 / 安裝案序號；
+    admin/dispatcher 走 :complete 為 is_override 路徑（記 reason、跳過證據閘）。門檻入 M18 config。
+    """
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
     current = await _fetch_status_for_update(wo_id, tenant_id)
@@ -594,6 +684,18 @@ async def complete_order(
             f"Cannot complete work order in status '{current}'; expected one of {sorted(_COMPLETE_FROM)}",
             409,
         )
+    # CR-0041 / BR-M15-03：high_risk_hold 擋完工（含 override，須先 resolve 異常解除 hold）
+    await _assert_not_high_risk_hold(wo_id)
+    # CR-0039 完工硬閘 — 通過回（可能被 override 註記的）summary，違反 → 422
+    summary = await _enforce_completion_gate(
+        wo_id=wo_id,
+        summary=summary,
+        photo_evidence_ids=photo_evidence_ids,
+        signature_evidence_id=signature_evidence_id,
+        is_override=is_override,
+        override_reason=override_reason,
+        actor_role=actor_role,
+    )
     final_price: float | None = None
     if actual_amount is not None:
         try:
@@ -781,6 +883,24 @@ async def _detect_schedule_conflict_and_publish(
         logger.exception("schedule conflict detection failed (non-fatal)")
 
 
+async def _assert_not_high_risk_hold(wo_id: str) -> None:
+    """CR-0041 BR-M15-03：high_risk_hold 旗標為 TRUE → 擋派工/完工（422）。
+
+    工單因 high/critical 異常被暫停；須先 resolve 該異常（exception_service）解除 hold 才能繼續。
+    """
+    cur = await db_module._conn.execute(
+        "SELECT high_risk_hold FROM work_orders WHERE id = %s::uuid",
+        (wo_id,),
+    )
+    row = await cur.fetchone()
+    if row and row[0]:
+        raise ApiError(
+            "HIGH_RISK_HOLD",
+            "工單處於高風險暫停（high_risk_hold）；須先處理對應異常案件才能繼續（BR-M15-03）",
+            422,
+        )
+
+
 async def assign_order(
     *,
     tenant_id: str,
@@ -808,6 +928,8 @@ async def assign_order(
 
     # CR-0026 / BR-M05-03：派工前必填欄位 gate（缺品牌/型號/地址/問題類型 → 422）
     await _assert_dispatch_ready(wo_id)
+    # CR-0041 / BR-M15-03：high_risk_hold 擋派工
+    await _assert_not_high_risk_hold(wo_id)
 
     # Verify technician exists, same tenant, active
     cur = await db_module._conn.execute(

@@ -1,14 +1,13 @@
 ---
 title: CR-0039 完工硬閘 — 照片≥N / 簽名 / serial gate（BR-M08-03）
-status: decided-ready-to-implement
+status: implemented
 tier: 4-exploration
 created: 2026-06-19
 owner-decision: ✅ 2026-06-19 業主裁決全採建議預設（見 §8）
 related: CR-0026(公單欄位) / CR-0027(電子工單) / BR-M08-03 / test-plan §46 / ADR-0053(serial_required)
-note: 2026-06-19 業主裁決後，因「主頁重設計」插單暫停於實作前；§9 順序待續。
 ---
 
-> ✅ **§8 已裁決（2026-06-19，全採建議預設）。** 因主頁重設計插單，暫停於實作前（code 未動）。屬 CR-0038 階段1「公單收尾」首要項。
+> ✅ **§8 已裁決（2026-06-19，全採建議預設）+ 已實作（見 §10 進度）。** 屬 CR-0038 階段1「公單收尾」首要項。
 
 ## 1. 動機（WHY）
 
@@ -91,3 +90,16 @@ CR-0038 風險 #4 + 會議「公單收尾」：**師傅目前可以無照片、�
 4. `test_cr_0039_completion_gate.py` component 測試。
 5. 前端完工頁：張數提示 + serial 欄 + 422 錯誤對應（同 CR 或 follow-up）。
 6. `redeploy-local.sh` smoke + 更新 CHANGELOG / 完成度 / 本 CR §進度。
+
+---
+
+## 10. 進度
+
+✅ **S1-S4 done（2026-06-19，branch `feat/cr-0039-completion-gate`）**：
+- **migration 047** `completion_policy` config（min_photos=3 / require_signature / serial_required_categories=["install"] / allow_supervisor_override；is_mock:false 業主裁決定案）— 套 dev + 記 schema_migrations。
+- **`work_order_service`**：`_enforce_completion_gate`（讀 config + fallback 預設）三道閘 + `_signature_exists`（查 digital_signatures 客戶簽名真存在，HD-4）；`complete_order` 加 5 參數（photo_evidence_ids / signature_evidence_id / is_override / override_reason / actor_role），gate 置於狀態檢查後。
+- **routers**：技師 `/onsite/completion` 走正規閘（is_override=False，傳結構化證據）；`:complete` v2 + v1 為 admin/dispatcher **override 路徑**（記 summary 為 reason）+ **技師角色 403 guard**（防繞過 onsite 閘）。
+- **error codes**：`INSUFFICIENT_PHOTOS` / `SIGNATURE_REQUIRED` / `SERIAL_REQUIRED`（422）+ override `VALIDATION_ERROR`（422，缺 reason）。
+- **測試** `test_cr_0039_completion_gate.py` **8/8 pass**（照片<3 / 簽名缺/空 / 維修放行 / 安裝缺序號擋 / 安裝有序號放行 / override 缺reason擋 / override放行）；回歸 50 完工相關 component + 226 unit 全綠、0 破壞。
+
+⏳ **follow-up（S5，未做）**：前端技師完工頁配合（照片≥3 提示 + serial 欄 + 422 友善訊息）；目前後端已硬擋，前端送 <3 照片會收 422（行為正確、訊息為中文 error）。**HD-5 不回溯**：既有 completed 工單不受影響（gate 只在 complete 動作時跑）。
