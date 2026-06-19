@@ -100,7 +100,14 @@ def _render(view: dict) -> bytes:
     svc = _SERVICE_LABEL.get(view.get("service_category"), view.get("service_category") or "")
     device = f"{view.get('brand') or ''} {view.get('model') or ''}".strip() or "—"
 
+    # CR-0046 Q-12：公司抬頭/電話（config company_profile，範例待業主替換；缺則佔位）
+    company = view.get("company") or {}
+    company_name = company.get("company_name") or "（公司抬頭｜待業主提供）"
+    cs_phone = company.get("customer_service_phone") or "（客服電話｜待提供）"
+
     story: list = [
+        Paragraph(company_name, title_style),
+        Paragraph(f"客服專線：{cs_phone}", sub),
         Paragraph("電子工單", title_style),
         Paragraph(f"工單編號：{doc_no}", sub),
         Paragraph(f"客戶：{view.get('customer_name') or '—'}", normal),
@@ -141,6 +148,22 @@ def _render(view: dict) -> bytes:
     else:
         story.append(Paragraph("（公司關防｜待用印）", normal))
 
+    # CR-0046 Q-12：保固/取消費/追加價條款（config company_profile，範例待業主替換；缺則佔位）
+    _clauses = [
+        ("保固說明", company.get("warranty_text")),
+        ("取消費規則", company.get("cancellation_clause")),
+        ("追加價處理方式", company.get("surcharge_clause")),
+    ]
+    if any(body for _t, body in _clauses):
+        story.append(Spacer(1, 8 * mm))
+        story.append(Paragraph("<b>服務條款</b>", normal))
+        story.append(Spacer(1, 2 * mm))
+        for title, body in _clauses:
+            if body:
+                story.append(Paragraph(f"<b>{title}</b>", foot))
+                story.append(Paragraph(f"　　{body}", foot))
+                story.append(Spacer(1, 1 * mm))
+
     # 施工免責與合規（CR-0033，藍圖模組 4 三段佔位文本，待法務 sign-off）
     # 法律文本「永遠顯示」（以 consent_service.CONSENT_TEXTS 為底），同意狀態由 view 疊加；
     # 即使取不到同意紀錄，三段聲明仍出（全 ☐），不因 fetch 失敗而整段消失。
@@ -167,6 +190,15 @@ async def render_document(*, tenant_id: str, work_order_id: str) -> bytes:
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
     view = await _fetch_customer_view(tenant_id=tenant_id, work_order_id=work_order_id)
+    # CR-0046 Q-12：公司抬頭/電話 + 保固/取消費/追加價條款（M18 config company_profile，範例待業主替換）。
+    # best-effort：取不到不阻斷 PDF（_render 用 fallback 佔位）。
+    try:
+        from services import config_m18_service
+        company = await config_m18_service.read_global_value(namespace="company_profile")
+        if isinstance(company, dict):
+            view = {**view, "company": company}
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("company_profile fetch failed for wo=%s: %s", work_order_id, exc)
     # 免責段（CR-0033）：best-effort 取三段同意狀態，失敗不阻斷 PDF（_render 仍出三段法律文本，全 ☐）
     try:
         from services import consent_service

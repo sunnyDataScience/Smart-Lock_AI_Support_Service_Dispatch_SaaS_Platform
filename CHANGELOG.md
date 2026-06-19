@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 2026-Q2 Tactical Refactor
 
+### Added
+
+- **CR-0046 Q-11/Q-12 假資料生成（branch `feat/cr-0046-quote-text-discount-mock`，2026-06-19）**：翻遍 `20260617資料/` 後確認 Q-11（客服優惠權限）/Q-12（公司抬頭/客服電話/保固+取消+追加價條款文字）資料夾確實沒有（屬公司專屬）。業主指示「先生成假資料，確認後再替換」（同決議 5 mock 模式）。**migration 056** 兩 M18 config namespace（全 is_mock，業主動態改 config 即替換、不需改 code）：(a) `company_profile`（公司抬頭/客服電話 + 保固/取消費/追加價三段條款，文字內含「（範例…）」便於辨識）→ `work_order_document_service` 客戶電子工單 PDF 渲染抬頭+客服電話+服務條款段；(b) `discount_policy`（核准門檻 10000 + 客服折扣上限 10%）→ `quote_engine_service._approval_threshold` 讀 config 取代 hardcode 10000。test_cr_0046 3/3 + 回歸全套 **792 passed 0 fail**（PDF render + quote engine 不破）。**待業主確認後替換真值**（改 config_version 即可）。
+
 ### Fixed
 
 - **CR-0045 發票稅 de-hardcode（esales Q-07，branch `feat/cr-0045-invoice-tax-default`，2026-06-19）**：窮盡翻 `20260617資料/` 後確認——先前列為「待業主」的 Q-01~Q-12 多數其實在資料夾且已 seed（catalog 價 migration 040、payout 表 migration 045、加價 surcharge_rule），業主決議 5 已授權當 mock 用；真正待業主只剩 Q-07 稅顯示/Q-11 優惠權限/Q-12 公司文案。本 CR 接 Q-07：`invoice_service` 稅原 hardcode mock 0 → `_resolve_tax` 讀 M18 config `tax_policy`（**migration 055**，業主預設**台灣 VAT 5% 含稅**，可動態改）。含稅語意：對外 amount/total 不變（客戶含稅總價），僅拆出內含稅額（tax，帳務 DB-only）。test_cr_0045 3/3 + 回歸全套 **789 passed 0 fail**。**仍待業主**：Q-11 客服優惠權限幅度、Q-12 公司抬頭/客服電話/保固+取消條款文字（資料夾無）。**P2 守界線**：報價自動帶價/加價套用/payout reconciliation 讀 045 表 = 會議定調下輪金流引擎（資料已備）。

@@ -65,6 +65,7 @@
 | 053 | `053-scope-tier-autoconfirm-config.sql` | CR-0038 桶4 | 🟢 idempotent ✅ 2026-06-19 套 dev | M18 config 兩 namespace：`scope_change_policy`（BR-M08-02 分級門檻 minor_max=500/standard_max=2000/major_pct=0.5，major 需主管）+ `auto_confirm_policy`（Q063 enabled/hours=48）。code 讀 read_global_value 帶 fallback，純 config seed 可重套 |
 | 054 | `054-esales-decided-config.sql` | CR-0044 | 🟢 idempotent ✅ 2026-06-19 套 dev | esales 已決定值 de-hardcode：(1) `system_config.cancellation.fees` S3/S4 由 300/300 校正為 **500/800**（業主 2026-06-19 裁 SoT 衝突採 esales ADR-0102）；(2) `quote_validity_policy` M18 config（14/3 已知規格）。UPDATE 加防呆（值已正確不重覆寫）+ ON CONFLICT/NOT EXISTS 可重套 |
 | 055 | `055-tax-policy-config.sql` | CR-0045 | 🟢 idempotent ✅ 2026-06-19 套 dev | 發票稅 de-hardcode（esales Q-07）：`tax_policy` M18 config（rate=0.05/mode=inclusive 含稅；業主 2026-06-19 預設台灣 VAT 5% 含稅，可動態改）。`invoice_service._resolve_tax` 讀此 config 取代 hardcode mock 0；含稅語意下對外 amount 不變、僅拆內含稅額。ON CONFLICT/NOT EXISTS 可重套 |
+| 056 | `056-company-profile-discount-mock.sql` | CR-0046 | 🟢 idempotent ✅ 2026-06-19 套 dev | Q-11/Q-12 假資料（業主「先生成假資料再替換」）：`company_profile`（公司抬頭/客服電話/保固+取消+追加價條款，文字含「（範例…）」）+ `discount_policy`（核准門檻 10000/客服折扣上限 10%）。全 is_mock=true。`work_order_document_service` 客戶 PDF 渲染公司抬頭+條款、`quote_engine._approval_threshold` 讀 discount_policy。業主動態改 config 即替換，不需改 code。可重套 |
 
 > 註：028-032 為 agent/CR-0020~0022 波次 migration（已實作於分支，registry 待補登）。
 > 註：036-041 為 CR-0026~0034 波次 migration（已實作於分支，registry 待補登）。

@@ -52,8 +52,21 @@ async def _validity_days(urgent: bool) -> int:
             pass
     return _VALIDITY_DAYS_URGENT if urgent else _VALIDITY_DAYS_NORMAL
 
-# 核准門檻（mock 預設；正式值待業主 esales Q-11）：總額超此值不可從 draft 直送，須先核准
+# 核准門檻（fallback 預設；正式值 esales Q-11，CR-0046 入 config discount_policy）
 _APPROVAL_THRESHOLD = 10000.0
+
+
+async def _approval_threshold() -> float:
+    """CR-0046：報價核准門檻讀 M18 config discount_policy（fallback 10000，不寫死）。"""
+    from services import config_m18_service
+
+    cfg = await config_m18_service.read_global_value(namespace="discount_policy")
+    if isinstance(cfg, dict):
+        try:
+            return float(cfg.get("approval_threshold", _APPROVAL_THRESHOLD))
+        except (TypeError, ValueError):
+            pass
+    return _APPROVAL_THRESHOLD
 
 
 def _dec(v) -> str | None:
@@ -181,14 +194,16 @@ async def transition(
     if cur[0] not in from_states:
         raise ApiError("STATE_CONFLICT", f"cannot {action} quote in '{cur[0]}'", 409)
 
-    # 核准門檻（esales Q-11，mock 預設）：總額超門檻不可從 draft 直送，須先 submit→approve
+    # 核准門檻（esales Q-11）：總額超門檻不可從 draft 直送，須先 submit→approve。
+    # CR-0046：門檻讀 M18 config discount_policy.approval_threshold（mock 範例待業主確認，可動態改）。
     if action == "send" and cur[0] == "draft":
+        threshold = await _approval_threshold()
         tot = await (await conn.execute(
             "SELECT COALESCE(total_amount, 0) FROM quote WHERE id = %s::uuid", (quote_id,))).fetchone()
-        if float(tot[0]) > _APPROVAL_THRESHOLD:
+        if float(tot[0]) > threshold:
             raise ApiError(
                 "APPROVAL_REQUIRED",
-                f"報價總額超過 {_APPROVAL_THRESHOLD:.0f}（門檻待 esales Q-11 確認），須先送審核准",
+                f"報價總額超過 {threshold:.0f}（discount_policy 門檻），須先送審核准",
                 409,
             )
 
