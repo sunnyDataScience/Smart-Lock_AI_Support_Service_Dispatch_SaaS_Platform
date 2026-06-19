@@ -334,7 +334,7 @@ sources:
 - 跑著的 docker 三容器（web/api/agent）**全是 2026-06-16 build**,從未重建。CR-0025（忘記密碼）→ CR-0037 共 ~12 個 CR 的成果**一個都沒部署**（連本機都沒有,prod 也停在 6-16 首次上線）。
 - 鐵證:重建前 `/auth/request-password-reset`、`/payout-rules` 實機 **404**;web bundle 只有 `login`/`tech-login`,無 `register`/`forgot-password`/`vendor-login`/`reset-password`。
 - **這與 migration drift 同源**:團隊一直 commit code,但**無任何自動部署**,「完成度」算的是 commit 數,不是「跑得到的東西」。
-- **建議**:把「rebuild + 套 migration + smoke」納入每輪收尾 checklist;否則 Beta 點測永遠在測舊畫面。重建後 `/payout-rules`(CR-0037)+`request-password-reset`(CR-0025) 實機已 **200**。
+- **建議 → 已交付**:`scripts/dev/redeploy-local.sh`（一鍵 rebuild→up→套 migration（記 schema_migrations）→ **12 項 smoke gate**;任一失敗 exit≠0,可當收尾 / CI gate）。實跑 12 passed / 0 failed,涵蓋 payout-rules / 忘記密碼端點 / register·forgot-password·vendor-login 公開頁 / migration 無漂移。把它納入每輪收尾,否則 Beta 點測永遠在測舊畫面。重建後 `/payout-rules`(CR-0037)+`request-password-reset`(CR-0025) 實機已 **200**。
 
 ### 7.2 【真 bug 已修 commit d94ba262】AuthGuard 公開白名單漏列 → 註冊/忘記密碼 100% 不可達
 
