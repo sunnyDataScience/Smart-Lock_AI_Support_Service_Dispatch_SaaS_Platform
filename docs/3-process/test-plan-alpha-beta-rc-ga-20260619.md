@@ -325,3 +325,25 @@ cd web && npx playwright test tests/e2e/admin/role-ui-isolation.spec.ts \
 - 缺口依據：`/Users/imding1211/project/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/docs/4-exploration/CR-0038-gap-inventory-20260617.md`
 - 部署冒煙：`/Users/imding1211/project/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/scripts/dev/redeploy-local.sh`
 - CI：`/Users/imding1211/project/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/.github/workflows/test-suite.yml`
+
+---
+
+## 8. Alpha 執行結果（2026-06-19 實跑）
+
+實際跑 §7.1，**誠實結果**：
+
+| 套件 | 結果 |
+|---|---|
+| **unit**（`pytest -m unit`）| **226 passed**（0 fail、無 collection ERROR）|
+| **重點 CR/硬閘/SoD component** | **61 passed**（CR-0039/0040/0041 + payout + password_reset + rbac + config）|
+| **更廣 ready 集** | **186 passed**（報價/工單/退款/取消/爭議/保固/發票/客戶/PC）|
+| **完整 component 套件** | 初跑 **544 passed / 3 failed / 1 skip** → 修後 **546 passed / 0 failed / 1 skip** |
+
+> gap 報告擔心的「`_conn` 併跑污染 21 fail」**未發生**（3 失敗單跑仍 fail＝真失敗，非污染）。
+
+### 揪出並修復（Alpha 執行的價值）
+1. **🐛 真 bug（migration 050）**：`work_order_events` CHECK 約束不含 `'schedule_conflict'` → `_detect_schedule_conflict_and_publish` 的 INSERT 觸發 CheckViolation、被 except 吞成 non-fatal → **排班衝突事件永遠寫不進、WS 不推播**（靜默壞，正式環境無人察覺）。`test_schedule_conflict_detection` 正確抓到。修：CHECK 加 schedule_conflict。
+2. **stale 測試 ×2**（`test_technicians_v2_endpoint.py`）：suspend 由 501 stub 改為 FR-0044 dual-sign 端點（需 X-Initiator + body），但測試仍斷言 501。更新 1 個為 requires-initiator（422），移除 1 個冗餘 cross-tenant（由 `test_technician_lifecycle.py` 覆蓋）。
+
+### 結論
+**Alpha 自動套件可信綠燈**：226 unit + 546 component，0 fail。Alpha Exit 唯一零依賴硬阻塞仍為 §5 #1（completeness gate，待補）；付款 gate / SLA 為金流依賴（會議定調 Beta 後）。Beta 點測腳本（§6）可交 Irene+Johnson 執行。

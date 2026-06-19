@@ -129,30 +129,25 @@ async def test_get_technician_v2_cross_tenant_403(client):
 
 
 @pytest.mark.asyncio
-async def test_suspend_technician_v2_501_stub(client, admin_headers):
-    """POST /tenants/{tenantId}/technicians/{techId}:suspend → 501 NOT_IMPLEMENTED（stub）。"""
+async def test_suspend_technician_v2_requires_initiator(client, admin_headers):
+    """POST /tenants/{tenantId}/technicians/{techId}:suspend 無 X-Initiator → 422。
+
+    註：suspend 原為 501 stub，FR-0044（technician lifecycle，migration 020）已實作為 dual-sign
+    端點，須帶 X-Initiator header（缺則 422）。完整生命週期覆蓋見 test_technician_lifecycle.py。
+    """
     fake_id = str(uuid.uuid4())
     res = await client.post(
         f"/tenants/{DEFAULT_TENANT_ID}/technicians/{fake_id}:suspend",
         headers=admin_headers,
     )
-    assert res.status_code == 501, res.text
-    body = res.json()
-    assert body.get("error_code") == "NOT_IMPLEMENTED"
+    assert res.status_code == 422, res.text
+    assert res.json().get("error_code") == "VALIDATION_ERROR"
 
 
-@pytest.mark.asyncio
-async def test_suspend_technician_v2_cross_tenant_403(client):
-    """cross-tenant suspend → 403 CROSS_TENANT_WRITE。"""
-    headers = _make_other_tenant_path_headers()
-    fake_id = str(uuid.uuid4())
-    res = await client.post(
-        f"/tenants/{OTHER_TENANT_ID}/technicians/{fake_id}:suspend",
-        headers=headers,
-    )
-    assert res.status_code == 403, res.text
-    body = res.json()
-    assert body.get("error_code") == "CROSS_TENANT_WRITE"
+# 註：原 test_suspend_technician_v2_cross_tenant_403 已移除。suspend 由 501 stub 改為 FR-0044
+# dual-sign 端點（需 X-Initiator + body）；FastAPI body 驗證先於 handler 內 cross-tenant guard，
+# 故無 body 的 cross-tenant 請求得 422 而非 403。suspend 的 cross-tenant + 完整生命週期由
+# test_technician_lifecycle.py 覆蓋，此處不重複維護 stale stub。
 
 
 # ---------------------------------------------------------------------------
