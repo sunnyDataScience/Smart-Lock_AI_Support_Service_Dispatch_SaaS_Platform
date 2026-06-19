@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CR-0050 完工套件補教學紀錄（branch `feat/cr-0050-completion-teaching-note`，2026-06-20）**：BR-M08-03 完工套件 spec 列 photos+materials+payment+sign-off+**teaching note** 五件，CR-0039 已做照片≥3/簽名/序號，本 CR 補教學紀錄。**migration 058** `work_orders.teaching_note` TEXT；`complete_order` 加 teaching_note 參數 + onsite/completion 端點 body 補欄位 + API 露（_WO_SELECT index 36 + model）。test_cr_0050 1/1 + 回歸 799 passed 0 fail。
+
+### Added
+
 - **CR-0049 pending scope change 阻擋完工（branch `feat/cr-0049-pending-scope-gate`，2026-06-20）**：BR-M08-02 安全閘（CR-0038 標 PARTIAL — complete_order 無 pending scope 硬阻擋）。報價/加價變更未經客戶確認（scope_changes.status='pending'）時技師不可完工。**實作**：`_has_pending_scope_change` + `_enforce_completion_gate` 技師路徑加 409 `PENDING_SCOPE_CHANGE`（客戶確認/主管覆寫後放行；admin override :complete 路徑可繞）。test_cr_0049 2/2 + 回歸 798 passed 0 fail。
 
 ### Added

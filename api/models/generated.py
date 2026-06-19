@@ -208,6 +208,7 @@ class WorkOrder(BaseModel):
     warranty_expiry_date: str | None = Field(
         None, description='CR-0047 保固到期日 ISO date（由 serial/購買日自動算）'
     )
+    teaching_note: str | None = Field(None, description='CR-0050 BR-M08-03 完工套件：技師教學紀錄')
 
 
 class WorkOrderEnvelope(ApiResponseGeneric):

@@ -129,6 +129,8 @@ def _wo_row_to_dict(row: tuple) -> dict:
         out["payment_method"] = row[34]
     if len(row) > 35 and row[35] is not None:
         out["warranty_expiry_date"] = row[35].isoformat()
+    if len(row) > 36 and row[36] is not None:
+        out["teaching_note"] = row[36]
     return out
 
 
@@ -147,8 +149,8 @@ _WO_SELECT = (
     # CR-0043 Phase 2（index 28+，append-only）：客名/電話接回 + migration 052 五欄
     "wo.customer_name, wo.customer_phone, wo.dealer, wo.install_date, "
     "wo.rain_exposure, wo.special_door_surcharge, wo.payment_method, "
-    # CR-0047（index 35）：保固到期日
-    "wo.warranty_expiry_date"
+    # CR-0047（index 35）：保固到期日；CR-0050（index 36）：教學紀錄
+    "wo.warranty_expiry_date, wo.teaching_note"
 )
 
 _WO_JOIN = (
@@ -897,6 +899,7 @@ async def complete_order(
     is_override: bool = False,
     override_reason: str | None = None,
     actor_role: str | None = None,
+    teaching_note: str | None = None,
 ) -> dict:
     """accepted | in_progress → completed, set completed_at = NOW (auto-fill started_at).
 
@@ -939,9 +942,11 @@ async def complete_order(
         "  final_price = COALESCE(%s, final_price), "
         # CR-0043 Tier②：技師完工回報+照片+簽名後，完工細狀態進「待客戶確認」（M05 Q052）
         "  completion_status = 'pending_customer_confirm', "
+        # CR-0050 BR-M08-03：教學紀錄（完工套件其一；空則保留既有）
+        "  teaching_note = COALESCE(%s, teaching_note), "
         "  updated_at = NOW() "
         "WHERE id = %s::uuid",
-        (summary, final_price, wo_id),
+        (summary, final_price, (teaching_note.strip() if teaching_note and teaching_note.strip() else None), wo_id),
     )
     await _unescalate_linked_conversation(tenant_id=tenant_id, wo_id=wo_id)
     # CR-0027：完工推 LINE 給客戶（電子工單已開立 + 最終金額，只露對外價）。best-effort。

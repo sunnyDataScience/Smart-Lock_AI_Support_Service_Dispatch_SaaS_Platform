@@ -686,6 +686,7 @@ class _CompletionSubmitRequest(BaseModel):
     signature_evidence_id: str = Field(..., min_length=1, description="簽名媒體 ID")
     photo_evidence_ids: list[str] = Field(..., min_length=1, description="完工照片媒體 ID 清單（至少 1 張）")
     notes: str | None = Field(default=None, max_length=1000, description="備註（選填）")
+    teaching_note: str | None = Field(default=None, max_length=1000, description="教學紀錄（BR-M08-03 完工套件，選填）")
 
 
 @router.post(
@@ -776,6 +777,7 @@ async def onsite_completion_v2(
         photo_evidence_ids=body.photo_evidence_ids,
         signature_evidence_id=body.signature_evidence_id,
         is_override=False,
+        teaching_note=body.teaching_note,  # CR-0050 BR-M08-03 完工套件
     )
     payload = {
         "work_order_id": order.get("id"),
