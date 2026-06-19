@@ -296,6 +296,29 @@ _COMPLETENESS_DEFAULTS = {
 }
 _COMPLETENESS_OVERRIDE_ROLES = {"admin", "operations_manager"}
 
+# CR-0057 / Q015 / BR-M05-03：ProblemCard 三級必填分類落地（CR-0026 §8 裁決的三層）。
+#   required      = 建卡即必填（缺則 PC 不成立）
+#   pre_dispatch  = 派工前必填（缺則不可轉 WO/派工，對齊 work_order _DISPATCH_REQUIRED）
+#   optional      = 可後補（不擋流程，現場/事後補齊）
+_PC_FIELD_TIERS = {
+    "required": ["brand", "model", "symptom", "urgency"],
+    "pre_dispatch": ["customer_address", "problem_type"],
+    "optional": ["serial_number", "door_type", "door_status", "network_status"],
+}
+
+
+def _field_tier(field: str) -> str:
+    """欄位所屬必填層（required/pre_dispatch/optional）；未分類視為 optional。"""
+    for tier, fields in _PC_FIELD_TIERS.items():
+        if field in fields:
+            return tier
+    return "optional"
+
+
+def required_field_tiers() -> dict:
+    """對外揭露三級必填分類定義（前端/agent 可據此標示欄位層級）。"""
+    return {k: list(v) for k, v in _PC_FIELD_TIERS.items()}
+
 
 def _field_filled(v) -> bool:
     if v is None:
@@ -361,10 +384,17 @@ async def assert_completeness(
             "INCOMPLETE_PROBLEM_CARD",
             f"問題卡完整度 {score} < {min_c}（缺：{', '.join(missing) or '—'}）；補齊欄位或主管 override",
             422,
-            # CR-0052：缺漏欄位結構化（前端可逐欄高亮，不必 parse message 字串）
-            details=[{"field": f, "issue": "missing"} for f in missing],
+            # CR-0052 結構化 + CR-0057 三級必填分層（前端可依 tier 標示緊急度）
+            details=[{"field": f, "issue": "missing", "tier": _field_tier(f)} for f in missing],
         )
-    return {"score": score, "missing": missing, "threshold": min_c, "overridden": overridden}
+    return {
+        "score": score, "missing": missing, "threshold": min_c, "overridden": overridden,
+        # CR-0057：缺漏欄位依三級分層（required/pre_dispatch/optional）
+        "missing_by_tier": {
+            tier: [f for f in missing if _field_tier(f) == tier]
+            for tier in ("required", "pre_dispatch", "optional")
+        },
+    }
 
 
 async def create_card(
