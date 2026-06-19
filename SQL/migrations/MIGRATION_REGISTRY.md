@@ -4,6 +4,16 @@
 > forward-only、可重跑（`ADD COLUMN IF NOT EXISTS` / `DO $$ ... pg_constraint 查存在 ... $$`）。
 > 套用：`psql "$POSTGRES_URI" -f SQL/migrations/NNN-*.sql`。
 
+> ⚠️ **本表的「狀態」欄是人工維護的「意圖」，不是「事實」（CR-0038 階段0 2026-06-19）。**
+> 「是否已套用某環境」的**唯一真實來源 = `public.schema_migrations` 表**（由 046 建立、apply 腳本每套即留痕）。
+> 查某環境真實狀態：`SELECT version, applied_at, note FROM schema_migrations ORDER BY version;`。
+>
+> 釐清語意：**🟢 idempotent = 「設計可安全重套」，≠「已套用」**。
+> 已確認的漂移（盤點實測 dev DB）：
+> - **035 / 045** 先前標 🟢 idempotent 但 dev DB **未套用** → `test_password_reset` / `test_cr_0037` 直接 `UndefinedTable` FAIL；**2026-06-19 已補套** dev 並記入 schema_migrations。
+> - **017–027**（含 line_binding / 三表月結 statement / rma_quality / ai_decision_trace 等）標 🟡 pending-apply 但 dev DB **實際已存在**；prod 套用狀態請以各環境 `schema_migrations` 為準。
+> - 028–032 / 036–044「registry 待補登」者多已套 dev；逐表 reconcile 待後續輪（非阻塞）。
+
 | 編號 | 檔名 | 波次 | 狀態 | 說明 |
 |---|---|---|---|---|
 | 000 | `000-extensions.sql` | 部署 bootstrap | 🟢 idempotent | Postgres extension 開齊（vector / pg_trgm / pgcrypto / uuid-ossp）— 全新環境（Cloud SQL）最先跑；既有 DB no-op。對應 KB 向量 + trigram 索引 + gen_random_uuid |
@@ -44,7 +54,8 @@
 | 042 | `042-invoice-from-quote.sql` | CR-0035 | 🟢 idempotent | 金流結算收尾：invoices 加 `quote_id`（追溯來源報價，nullable，FK quote ON DELETE SET NULL）+ `is_mock`（金額來自 esales mock 草稿旗標）+ idx_invoices_quote。為「報價 accepted→應收發票」接線（invoice_service.create_from_quote；work_order_id UNIQUE 冪等）。全 ADD COLUMN IF NOT EXISTS 可重套 |
 | 043 | `043-work-order-consents.sql` | CR-0033 | 🟢 idempotent | 免責合規：新 `work_order_consents`（三段 consent_type=new_installation/lock_destruction/personal_data + accepted/accepted_at + text_version 文本版本快照 + ip_address 留痕；UNIQUE(work_order_id, consent_type) 冪等 upsert）+ idx。藍圖模組 4 施工免責；文本以 consent_service 常數存（佔位待法務）。全 IF NOT EXISTS 可重套 |
 | 044 | `044-finance-config.sql` | CR-0036 | 🟢 idempotent | 金流參數入 M18 config 治理：config_namespace ×3（deposit_policy / dispatch_commission / monthly_close_schedule）+ seed 三筆 global active config_version（esales sheet24 值：訂金 0.3/min 1000、佣金 0.08、月結 3/5/10；value 內標 is_mock/esales_status/source）+ invoices 加 deposit_required。符 sheet24「規則版本化不可寫死」（值入 config 非 code）。namespace ON CONFLICT DO NOTHING + config_version NOT EXISTS + ADD COLUMN IF NOT EXISTS 可重套 |
-| 045 | `045-technician-payout-rule.sql` | CR-0037 | 🟢 idempotent | 師傅拆帳規則主檔：新 `technician_payout_rule`（rule_id PK / service_code / level_id LV-A·B·C / base_payout 內部成本 / 夜間·急件加成率 / decision_status / is_mock / tenant_id）+ 69 筆 mock seed（esales sheet21 人工轉寫 via python，23 服務×3 級別，夜間 0.2/急件 0.15）+ idx。仿 CR-0034 catalog；NOT wired 進 reconciliation 重算（Phase II）。ON CONFLICT(rule_id) DO NOTHING 可重套 |
+| 045 | `045-technician-payout-rule.sql` | CR-0037 | 🟢 idempotent ✅ 2026-06-19 套 dev | 師傅拆帳規則主檔：新 `technician_payout_rule`（rule_id PK / service_code / level_id LV-A·B·C / base_payout 內部成本 / 夜間·急件加成率 / decision_status / is_mock / tenant_id）+ 69 筆 mock seed（esales sheet21 人工轉寫 via python，23 服務×3 級別，夜間 0.2/急件 0.15）+ idx。仿 CR-0034 catalog；NOT wired 進 reconciliation 重算（Phase II）。ON CONFLICT(rule_id) DO NOTHING 可重套 |
+| 046 | `046-schema-migrations-tracking.sql` | CR-0038 階段0 | 🟢 idempotent ✅ 2026-06-19 套 dev | 建 `public.schema_migrations`（version PK / filename / applied_at / note）—— migration 套用真實狀態追蹤，根治 registry 標記 ≠ 各環境實際的雙向漂移。apply-schema-prod.sh 套完即 INSERT 留痕（ON CONFLICT DO NOTHING）。本表為「是否已套用」唯一真實來源 |
 
 > 註：028-032 為 agent/CR-0020~0022 波次 migration（已實作於分支，registry 待補登）。
 > 註：036-041 為 CR-0026~0034 波次 migration（已實作於分支，registry 待補登）。

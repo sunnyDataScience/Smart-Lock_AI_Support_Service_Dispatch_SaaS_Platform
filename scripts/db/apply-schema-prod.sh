@@ -56,6 +56,20 @@ for f in SQL/migrations/*.sql; do
     apply "$f"
 done
 
+# CR-0038 階段0：記錄已套用 migration 到 public.schema_migrations（由 046 建表）。
+# 必須在 migration 迴圈「之後」做，因 046 在迴圈中才建出 schema_migrations 表。
+# ON CONFLICT DO NOTHING：保留既有 applied_at（如 035/045 首套的真實時間），重跑不覆寫。
+echo "== 4) 記錄已套用 migration → schema_migrations（CR-0038 漂移追蹤）=="
+for f in SQL/migrations/*.sql; do
+    case "$f" in *MIGRATION_REGISTRY*) continue;; esac
+    base="$(basename "$f")"
+    ver="${base%%-*}"
+    psql "${POSTGRES_URI}" -v ON_ERROR_STOP=0 -c \
+        "INSERT INTO public.schema_migrations(version, filename, note) VALUES ('${ver}', '${base}', 'applied') ON CONFLICT (version) DO NOTHING;" \
+        >> "${LOG_FILE}" 2>&1
+done
+psql "${POSTGRES_URI}" -t -A -c "SELECT '已追蹤 migration 數：'||count(*) FROM public.schema_migrations;" 2>/dev/null || true
+
 echo ""
 echo "== 完成。掃描 log 中的 ERROR（忽略 'already exists' 類 NOTICE）=="
 grep -iE "^ERROR|ERROR:" "${LOG_FILE}" | grep -viE "already exists|does not exist, skipping" | head -40 || true

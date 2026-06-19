@@ -41,7 +41,10 @@ jobs:
         run: uv sync --group test
 
       - name: Run unit tests
-        run: uv run pytest tests/unit -m unit -v --tb=short
+        # CR-0038 階段0 修復：原 `pytest tests/unit` 指向不存在的目錄（harness 已於 dev_new_arch 退場），
+        # 5 collection ERROR 讓此 job 形同虛設。改為 `cd api`（用 api/pytest.ini testpaths=tests）
+        # + `-m unit` 過濾，收集 226 個純函式 unit（component 945 留 nightly，需 docker postgres + seeds）。
+        run: cd api && uv run pytest -m unit -v --tb=short
 
   contract-check:
     name: OpenAPI structural validation

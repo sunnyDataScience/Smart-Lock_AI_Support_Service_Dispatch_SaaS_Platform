@@ -53,4 +53,4 @@ async def list_payout_rules_v2(
     rules = await payout_rule_service.list_rules(
         tenant_id=tenantId, include_cost=include_cost, service_code=service_code)
     return {"data": rules, "cost_visible": include_cost,
-            "note": "esales sheet21 mock；base_payout 為內部拆帳成本，正式值待 Q-09 師傅分潤"}
+            "note": "esales sheet21 mock；內部拆帳成本僅後台角色可見，正式值待 esales Q-09 師傅分潤"}
