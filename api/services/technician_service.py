@@ -298,6 +298,7 @@ async def create_technician(
     phone: str | None = None,
     email: str | None = None,
     capabilities: list[str] | None = None,
+    user_id: str | None = None,
 ) -> tuple[dict, bool]:
     """POST /tenants/{tenantId}/technicians — onboard 新技師（operationId: createTechnician）。
 
@@ -332,12 +333,14 @@ async def create_technician(
     capabilities_json = json.dumps(capabilities or [])
     service_regions_json = json.dumps(coverage_areas)
 
+    # CR-0038 桶5 / FR-0044：寫 user_id（連結登入帳號 → 修 _fetch_status JOIN users 永遠 404
+    # 的斷鏈；註冊流程建 user 後傳入；NULL::uuid 相容舊呼叫端）
     cur = await db_module._conn.execute(
         "INSERT INTO technicians "
-        "  (tenant_id, name, phone, email, capabilities, service_regions, status) "
-        "VALUES (%s::uuid, %s, %s, %s, %s::jsonb, %s::jsonb, 'pending_approval') "
+        "  (tenant_id, user_id, name, phone, email, capabilities, service_regions, status) "
+        "VALUES (%s::uuid, %s::uuid, %s, %s, %s, %s::jsonb, %s::jsonb, 'pending_approval') "
         "RETURNING id",
-        (tenant_id, display_name, phone_val, email, capabilities_json, service_regions_json),
+        (tenant_id, user_id, display_name, phone_val, email, capabilities_json, service_regions_json),
     )
     row = await cur.fetchone()
     new_id = str(row[0])
