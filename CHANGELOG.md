@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CR-0055 Evidence package 聚合端點（branch `feat/cr-0055-evidence-package`，2026-06-20）**：審計 #5（Q022-Q024/BR-M09）。單一 WO 完工證據（照片/雙方簽名/到場+門檢事件）原分散在 media/digital_signatures/work_order_events 三處，無聚合檢視。新增 `evidence_package_service.get_evidence_package`（媒體依角色可見性過濾 + 簽名 + arrival/door_check 事件 + summary 計數）+ `GET /work-orders/{id}/evidence-package` 唯讀端點。test_cr_0055 1/1 + 回歸全套 0 fail。
+
+### Added
+
 - **CR-0054 施工中照片分類（branch `feat/cr-0054-photos-during`，2026-06-20）**：審計 #3。派工單 PDF §四明列存證需施工前/中/後三類，現 media_files purpose 只 completion_before/after。**migration 060** purpose CHECK 補 `completion_during`；media_service `_ALLOWED_PURPOSES` + `_ENV_PURPOSES`（品牌/會計不可見環境照）同補。test_cr_0054 2/2 + 回歸全套 0 fail。
 
 ### Fixed

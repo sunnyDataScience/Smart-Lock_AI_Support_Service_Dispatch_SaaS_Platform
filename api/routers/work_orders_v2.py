@@ -53,6 +53,7 @@ from models.generated import (
 )
 from services import (
     audit_log_service,
+    evidence_package_service,
     quote_service,
     signature_service,
     work_order_document_service,
@@ -905,3 +906,21 @@ async def get_work_order_document_v2(
         media_type="application/pdf",
         headers={"Content-Disposition": f'inline; filename="work-order-{id}.pdf"'},
     )
+
+
+@router.get(
+    "/tenants/{tenantId}/work-orders/{id}/evidence-package",
+    operation_id="getWorkOrderEvidencePackageV2",
+    summary="工單完工證據包聚合 v2（CR-0055；照片+簽名+到場/門檢事件，唯讀）",
+    tags=["M09 Evidence"],
+)
+async def get_work_order_evidence_package_v2(
+    tenantId: str = Path(...),
+    id: str = Path(...),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    _cross_tenant_read(user, tenantId)
+    pkg = await evidence_package_service.get_evidence_package(
+        tenant_id=tenantId, wo_id=id, role=user.role,
+    )
+    return {"data": pkg}
