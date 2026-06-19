@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **CR-0045 發票稅 de-hardcode（esales Q-07，branch `feat/cr-0045-invoice-tax-default`，2026-06-19）**：窮盡翻 `20260617資料/` 後確認——先前列為「待業主」的 Q-01~Q-12 多數其實在資料夾且已 seed（catalog 價 migration 040、payout 表 migration 045、加價 surcharge_rule），業主決議 5 已授權當 mock 用；真正待業主只剩 Q-07 稅顯示/Q-11 優惠權限/Q-12 公司文案。本 CR 接 Q-07：`invoice_service` 稅原 hardcode mock 0 → `_resolve_tax` 讀 M18 config `tax_policy`（**migration 055**，業主預設**台灣 VAT 5% 含稅**，可動態改）。含稅語意：對外 amount/total 不變（客戶含稅總價），僅拆出內含稅額（tax，帳務 DB-only）。test_cr_0045 3/3 + 回歸全套 **789 passed 0 fail**。**仍待業主**：Q-11 客服優惠權限幅度、Q-12 公司抬頭/客服電話/保固+取消條款文字（資料夾無）。**P2 守界線**：報價自動帶價/加價套用/payout reconciliation 讀 045 表 = 會議定調下輪金流引擎（資料已備）。
+
 - **CR-0044 esales 已決定值 de-hardcode + 取消費 SoT 衝突裁決（branch `feat/cr-0044-esales-decided-config`，2026-06-19）**：盤點 `20260617資料/` esales 報價資料庫後校正一個誤判——先前把「正式價待業主」過度推廣成「整個 finance 待業主」；實際 esales `13 待決策 Q&A` 只列 Q-01~Q-12 待回答，其餘標「已知規格/Accepted default」（已決定）。**🛑 揪出 Source-of-Truth 衝突**：`cancellation_service.py:43-44`（code，ADR-0102 v2 2026-05-28）S3/S4=300/300 vs esales `03 加價規則`（2026-06-03，標 ADR-0102）S3/S4=**500/800**；業主裁決採 esales。**實作**（只動「已決定 ∩ 仍寫死」者）：(a) 取消費 S3/S4 校正 300→500/800（`DEFAULT_CANCELLATION_CONFIG` + **migration 054** 修 DB `system_config.cancellation` override）；(b) 報價有效期 14/3 de-hardcode 入 M18 config `quote_validity_policy`（`quote_engine_service._validity_days` 讀 config 帶 fallback）。**test_cr_0044 3/3** + 修 3 個 stale 取消費斷言（S3 300→500、S4 600→1100）+ 全套 **786 passed 0 fail**。**仍 P2 下輪**：區域加價（已在 surcharge_rule 表）+ 佣金 0.08（已在 dispatch_commission config）缺的是**計算引擎**非 config；急件/夜間/假日加價方法（Q-03/04/05）+ 服務基礎價（Q-01/02）+ 稅（Q-07）+ 報價文字（Q-12）真待業主。
 
 ### Added

@@ -64,6 +64,7 @@
 | 052 | `052-workorder-fields-phase2.sql` | CR-0043 | 🟢 idempotent ✅ 2026-06-19 套 dev | 公單欄位 Phase 2：`work_orders` +5 欄（dealer/install_date/rain_exposure/special_door_surcharge/payment_method，全 nullable）+ `service_catalog` seed 3 計費費目（dispatch/destruct/removal）+ M18 config（`completion_policy.require_consents` merge 預設 false、新 `quote_policy.apply_surcharge` 預設 false）。純 ADD COLUMN + seed + config，ON CONFLICT/NOT EXISTS 可重套 |
 | 053 | `053-scope-tier-autoconfirm-config.sql` | CR-0038 桶4 | 🟢 idempotent ✅ 2026-06-19 套 dev | M18 config 兩 namespace：`scope_change_policy`（BR-M08-02 分級門檻 minor_max=500/standard_max=2000/major_pct=0.5，major 需主管）+ `auto_confirm_policy`（Q063 enabled/hours=48）。code 讀 read_global_value 帶 fallback，純 config seed 可重套 |
 | 054 | `054-esales-decided-config.sql` | CR-0044 | 🟢 idempotent ✅ 2026-06-19 套 dev | esales 已決定值 de-hardcode：(1) `system_config.cancellation.fees` S3/S4 由 300/300 校正為 **500/800**（業主 2026-06-19 裁 SoT 衝突採 esales ADR-0102）；(2) `quote_validity_policy` M18 config（14/3 已知規格）。UPDATE 加防呆（值已正確不重覆寫）+ ON CONFLICT/NOT EXISTS 可重套 |
+| 055 | `055-tax-policy-config.sql` | CR-0045 | 🟢 idempotent ✅ 2026-06-19 套 dev | 發票稅 de-hardcode（esales Q-07）：`tax_policy` M18 config（rate=0.05/mode=inclusive 含稅；業主 2026-06-19 預設台灣 VAT 5% 含稅，可動態改）。`invoice_service._resolve_tax` 讀此 config 取代 hardcode mock 0；含稅語意下對外 amount 不變、僅拆內含稅額。ON CONFLICT/NOT EXISTS 可重套 |
 
 > 註：028-032 為 agent/CR-0020~0022 波次 migration（已實作於分支，registry 待補登）。
 > 註：036-041 為 CR-0026~0034 波次 migration（已實作於分支，registry 待補登）。

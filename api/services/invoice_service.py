@@ -220,6 +220,40 @@ async def _resolve_deposit(amount: float) -> float:
     return round(min(amount, max(amount * rate, min_twd)), 2)
 
 
+_TAX_RATE_FALLBACK = 0.05         # 台灣 VAT 5%
+_TAX_MODE_FALLBACK = "inclusive"  # 含稅（Q-07 業主 2026-06-19 預設；客戶價已含稅）
+
+
+async def _resolve_tax(gross: float) -> tuple[float, float, float]:
+    """從 tax_policy config 拆/加稅（CR-0045 / Q-07，預設台灣 5% 含稅，可動態改）。回 (amount_net, tax, total)。
+
+    inclusive 含稅：gross 為含稅總額 → 拆出稅（total 不變，customer 付的總額不動）；
+    exclusive 未稅：gross 為未稅 → 加稅。值走 M18 config（不寫死）；缺/壞 fallback 5% 含稅。
+    """
+    from services import config_m18_service
+    rate, mode = _TAX_RATE_FALLBACK, _TAX_MODE_FALLBACK
+    cfg = await config_m18_service.read_global_value(namespace="tax_policy")
+    if isinstance(cfg, dict):
+        try:
+            rate = float(cfg.get("rate", rate))
+        except (ValueError, TypeError):
+            logger.warning("tax_policy config malformed (%r) — using fallback 5%%", cfg)
+        mode = cfg.get("mode", mode) or mode
+    if gross <= 0:
+        return 0.0, 0.0, 0.0
+    if mode == "inclusive":
+        # 含稅：客戶價已含稅 → amount/total 維持原值（對外不變），tax 為內含稅額（帳務用，DB-only）
+        amount = round(gross, 2)
+        total = round(gross, 2)
+        tax = round(gross * rate / (1 + rate), 2)
+    else:
+        # 未稅：gross 為未稅 → 外加稅
+        amount = round(gross, 2)
+        tax = round(amount * rate, 2)
+        total = round(amount + tax, 2)
+    return amount, tax, total
+
+
 async def create_from_quote(*, tenant_id: str, quote_id: str) -> dict:
     """從 accepted 報價開立客戶應收發票（CR-0035，mock-first）。
 
@@ -255,9 +289,9 @@ async def create_from_quote(*, tenant_id: str, quote_id: str) -> dict:
         "customer_price": _coerce_decimal(r[3]),
     } for r in line_rows]
 
-    amount = float(q[3])
-    tax = 0.0  # mock：未稅（待 esales Q-07）
-    total = amount + tax
+    # CR-0045 / Q-07：稅讀 tax_policy config（預設台灣 5% 含稅）。quote.total_amount 為客戶含稅總價，
+    # inclusive 模式下 total 不變（customer 付的不動），僅拆出 amount(未稅)/tax 供帳務明細。
+    amount, tax, total = await _resolve_tax(float(q[3]))
     deposit_required = await _resolve_deposit(total)  # CR-0036：從 deposit_policy config 算
     invoice_number = _gen_invoice_number(work_order_id)
     is_mock = bool(q[4])
