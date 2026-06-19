@@ -4,11 +4,14 @@ import { Wrench } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
-import DesktopMobileGuard from "@/components/tech/DesktopMobileGuard";
 import BackToHome from "@/components/layout/BackToHome";
+import LocaleToggle from "@/components/i18n/LocaleToggle";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, loginTechnician } from "@/lib/api";
 
+// 2026-06-19：移除 DesktopMobileGuard（原桌面顯示「請使用手機開啟」太不便）+ 藍漸層手機版型，
+// 改為與 vendor-login / login 一致的置中卡片，桌面/手機皆可直接登入。
+// 技師工作頁（/pool 等）本就無 guard，故此頁解鎖後整條技師流程桌面可用。
 export default function TechLoginPage() {
   const router = useRouter();
   const t = useTranslations("techPortal.techLogin");
@@ -37,105 +40,103 @@ export default function TechLoginPage() {
   }
 
   return (
-    <DesktopMobileGuard>
-    <div
-      className="flex min-h-screen w-full justify-center"
-      style={{
-        background:
-          "linear-gradient(180deg, #2563EB 0%, #1E40AF 60%, #F8FAFC 60%)",
-      }}
-    >
-      <div className="flex min-h-screen w-full max-w-[480px] flex-col bg-transparent px-6 pt-[env(safe-area-inset-top,0)]">
-        <BackToHome tone="onDark" className="mt-4 self-start" />
-        {/* brand_header_mobile */}
-        <header className="mt-12 flex flex-col items-center gap-2 text-white">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 backdrop-blur">
-            <Wrench className="h-7 w-7 text-white" />
+    <div className="relative flex min-h-screen items-center justify-center bg-[var(--bg-page)] px-4">
+      <div className="absolute right-4 top-4">
+        <LocaleToggle />
+      </div>
+      <BackToHome className="absolute left-4 top-4" />
+
+      <div className="w-full max-w-[400px] rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-8 shadow-sm">
+        <div className="mb-6 flex flex-col items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--primary)]">
+            <Wrench className="h-6 w-6 text-white" />
           </div>
-          <h1 className="mt-1 text-[20px] font-bold">{t("brandName")}</h1>
-          <p className="text-[14px] opacity-90">{t("subtitle")}</p>
-        </header>
+          <div className="flex flex-col items-center gap-1">
+            <h1 className="text-xl font-bold text-[var(--text-primary)]">
+              {t("brandName")}
+            </h1>
+            <p className="text-sm text-[var(--text-secondary)]">{t("subtitle")}</p>
+          </div>
+        </div>
 
-        {/* tech_login_form */}
-        <main className="mt-10 flex-1">
-          <form
-            onSubmit={onSubmit}
-            className="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow-2xl"
-          >
-            <h2 className="text-[16px] font-semibold text-[var(--text-primary)]">
-              {t("title")}
-            </h2>
+        <form onSubmit={onSubmit} className="flex flex-col gap-4">
+          <label className="flex flex-col gap-[6px]">
+            <span className="text-[13px] font-semibold text-[var(--text-primary)]">
+              {t("identifierLabel")}
+            </span>
+            <input
+              type="text"
+              inputMode="email"
+              autoComplete="username"
+              required
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              disabled={loading}
+              className="h-10 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--border-focus)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 disabled:opacity-50"
+              placeholder={t("identifierPlaceholder")}
+            />
+          </label>
 
-            <label className="flex flex-col gap-[6px]">
-              <span className="text-[12px] font-medium text-[var(--text-secondary)]">
-                {t("identifierLabel")}
-              </span>
-              <input
-                type="text"
-                inputMode="email"
-                autoComplete="username"
-                required
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                className="h-12 rounded-lg border border-[var(--border)] px-3 text-[15px] focus:border-[var(--primary)] focus:outline-none"
-                placeholder={t("identifierPlaceholder")}
-              />
-            </label>
+          <label className="flex flex-col gap-[6px]">
+            <span className="text-[13px] font-semibold text-[var(--text-primary)]">
+              {t("passwordLabel")}
+            </span>
+            <input
+              type="password"
+              autoComplete="current-password"
+              required
+              minLength={4}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
+              className="h-10 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--border-focus)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 disabled:opacity-50"
+              placeholder={t("passwordPlaceholder")}
+            />
+          </label>
 
-            <label className="flex flex-col gap-[6px]">
-              <span className="text-[12px] font-medium text-[var(--text-secondary)]">
-                {t("passwordLabel")}
-              </span>
-              <input
-                type="password"
-                autoComplete="current-password"
-                required
-                minLength={4}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="h-12 rounded-lg border border-[var(--border)] px-3 text-[15px] focus:border-[var(--primary)] focus:outline-none"
-                placeholder={t("passwordPlaceholder")}
-              />
-            </label>
-
-            {error && (
-              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading || !identifier || !password}
-              className="mt-2 h-12 rounded-lg bg-[var(--primary)] text-[15px] font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-60"
+          {error && (
+            <div
+              role="alert"
+              className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
             >
-              {loading ? t("submitting") : t("submit")}
-            </button>
-
-            <div className="mt-2 flex items-center justify-between text-[12px]">
-              {/* CR-0025：自助忘記密碼上線後改回可點連結 → /forgot-password（email 重設）。 */}
-              <Link href="/forgot-password" className="text-[var(--primary)] hover:underline">
-                {t("forgotPassword")}
-              </Link>
-              <Link href="/login" className="text-[var(--primary)] hover:underline">
-                {t("adminLink")}
-              </Link>
+              {error}
             </div>
-            <Link
-              href="/register"
-              className="mt-1 text-center text-[12px] text-[var(--primary)] hover:underline"
-            >
-              {t("registerLink")}
-            </Link>
-          </form>
-        </main>
+          )}
 
-        {/* mobile_footer */}
-        <footer className="my-6 text-center text-[11px] text-[var(--text-disabled)]">
+          <button
+            type="submit"
+            disabled={loading || !identifier || !password}
+            className="h-10 rounded-lg bg-[var(--primary)] text-sm font-medium text-white transition hover:bg-[var(--primary-hover)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2 disabled:opacity-50"
+          >
+            {loading ? t("submitting") : t("submit")}
+          </button>
+
+          <div className="flex items-center justify-between text-[13px]">
+            <Link
+              href="/forgot-password"
+              className="font-medium text-[var(--primary)] hover:underline"
+            >
+              {t("forgotPassword")}
+            </Link>
+            <Link
+              href="/login"
+              className="font-medium text-[var(--primary)] hover:underline"
+            >
+              {t("adminLink")}
+            </Link>
+          </div>
+          <Link
+            href="/register"
+            className="text-center text-[13px] font-medium text-[var(--primary)] hover:underline"
+          >
+            {t("registerLink")}
+          </Link>
+        </form>
+
+        <p className="mt-6 text-center text-xs text-[var(--text-disabled)]">
           {t("footerVersion")}
-        </footer>
+        </p>
       </div>
     </div>
-    </DesktopMobileGuard>
   );
 }
