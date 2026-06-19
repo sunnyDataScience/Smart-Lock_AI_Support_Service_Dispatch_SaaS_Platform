@@ -2032,6 +2032,48 @@ async def record_delay(
     )
 
 
+async def record_arrival(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    arrived_at: str | None = None,
+    gps: dict | None = None,
+    actor_user_id: str | None = None,
+) -> dict:
+    """CR-0053：技師到場事件 — 寫 work_order_events event_type='arrival' + 補 started_at（到場時點）。
+
+    修兩個 bug：(1) onsite_arrival 原誤用 record_door_check 寫 event_type='door_check'，
+    導致 submit_door_check_v2 的「需先有 arrival 事件」前置閘（查 event_type='arrival'）恆 409；
+    (2) started_at 原僅 complete_order 補，到場時點不落 → operational_kpi arrival_on_time 失真。
+    狀態限 _SUBFLOW_FROM（assigned/accepted/in_progress）。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    current = await _fetch_status_for_update(wo_id, tenant_id)
+    if current not in _SUBFLOW_FROM:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot record ARRIVAL in status '{current}'; expected one of {sorted(_SUBFLOW_FROM)}",
+            409,
+        )
+    # 補到場時點（started_at；COALESCE 不覆蓋既有，arrival KPI 用）
+    await db_module._conn.execute(
+        "UPDATE work_orders SET started_at = COALESCE(started_at, NOW()), updated_at = NOW() "
+        "WHERE id = %s::uuid",
+        (wo_id,),
+    )
+    await db_module._conn.execute(
+        "INSERT INTO work_order_events "
+        "  (work_order_id, tenant_id, actor_user_id, event_type, payload) "
+        "VALUES (%s::uuid, %s::uuid, %s, 'arrival', %s::jsonb)",
+        (wo_id, tenant_id, actor_user_id,
+         json.dumps({"arrived_at": arrived_at, "gps": gps or {}}, ensure_ascii=False)),
+    )
+    return await _publish_and_return(
+        tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.arrived"
+    )
+
+
 async def record_door_check(
     *,
     tenant_id: str,

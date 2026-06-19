@@ -68,6 +68,7 @@
 | 056 | `056-company-profile-discount-mock.sql` | CR-0046 | 🟢 idempotent ✅ 2026-06-19 套 dev | Q-11/Q-12 假資料（業主「先生成假資料再替換」）：`company_profile`（公司抬頭/客服電話/保固+取消+追加價條款，文字含「（範例…）」）+ `discount_policy`（核准門檻 10000/客服折扣上限 10%）。全 is_mock=true。`work_order_document_service` 客戶 PDF 渲染公司抬頭+條款、`quote_engine._approval_threshold` 讀 discount_policy。業主動態改 config 即替換，不需改 code。可重套 |
 | 057 | `057-workorder-warranty-expiry.sql` | CR-0047 | 🟢 idempotent ✅ 2026-06-20 套 dev | 保固期動態計算（派工單 PDF §四優化）：`work_orders` +`warranty_expiry_date` DATE。`work_order_service._auto_warranty` 接 warranty_service（resolve_period_months brand override：Yale 36/Dormakaba 60/預設 24 月）→ update_wo_fields 設 serial/購買日/裝機日時自動回填 warranty_status + 到期日（手動 warranty_status 優先）。純 ADD COLUMN 可重套 |
 | 058 | `058-workorder-teaching-note.sql` | CR-0050 | 🟢 idempotent ✅ 2026-06-20 套 dev | 完工套件補教學紀錄（BR-M08-03）：`work_orders` +`teaching_note` TEXT。complete_order 接 teaching_note 參數 + onsite/completion 端點 body 補欄；API 露 teaching_note（index 36）。純 ADD COLUMN 可重套 |
+| 059 | `059-wo-events-arrival-reassign.sql` | CR-0053 | 🟢 idempotent ✅ 2026-06-20 套 dev | 審計揪 bug（同 050 schedule_conflict 類）：work_order_events_event_type_check 漏 `arrival`/`reassign` → record_arrival 寫 arrival 違反 CHECK 致 door-check 前置閘恆 409、reassign_order 寫 reassign 違反 CHECK 致成功改派 500。CHECK 補兩值。DROP+ADD 可重套 |
 
 > 註：028-032 為 agent/CR-0020~0022 波次 migration（已實作於分支，registry 待補登）。
 > 註：036-041 為 CR-0026~0034 波次 migration（已實作於分支，registry 待補登）。

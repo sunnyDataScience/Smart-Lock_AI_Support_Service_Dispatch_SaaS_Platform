@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 2026-Q2 Tactical Refactor
 
+### Fixed
+
+- **CR-0053 到場/改派事件 3 個真 bug（branch `fix/cr-0053-arrival-doorcheck-bugs`，2026-06-20）**：7-agent 審計（對 HEAD 查證）+ 深掘揪出，同 migration 050 schedule_conflict 同類。(1) `onsite_arrival_v2` 誤呼 `record_door_check`（寫 event_type='door_check'）→ `submit_door_check_v2` 查 event_type='arrival' 前置閘**恆 409**，到場硬閘實質失效；(2) 到場不落 `started_at` → operational_kpi arrival_on_time **失真**；(3) `work_order_events` CHECK 漏 'arrival'/'reassign' → `reassign_order` 寫 'reassign' 違反 CHECK **成功改派恆 500**（無 try/except，且無成功路徑測試掩蓋）。**修**：新增 `record_arrival`（寫 'arrival' 事件 + 補 started_at）、`onsite_arrival_v2` 改呼之、**migration 059** CHECK 補 arrival+reassign、Schema_work_order_events.sql 同步（順帶補 050 漏的 schedule_conflict）。test_cr_0053 2/2（door-check 閘前 409/到場後通過/started_at 落；reassign 寫 event 不 500）+ 回歸 810 passed 0 fail。
+
 ### Added
 
 - **CR-0052 完整度 422 結構化缺漏欄位（branch `feat/cr-0052-completeness-hint`，2026-06-20）**：CR-0042 follow-up。`assert_completeness` 的 `INCOMPLETE_PROBLEM_CARD` 422 原僅在 message 字串列缺漏欄位；補 `details=[{field, issue:missing}]` 結構化（前端可逐欄高亮，不必 parse 字串）。test_cr_0052 1/1 + 回歸 808 passed 0 fail。

@@ -28,6 +28,9 @@ CREATE TABLE IF NOT EXISTS work_order_events (
                                 'door_check',
                                 'signature_submitted',
                                 'reschedule_proposed',
+                                'schedule_conflict',  -- migration 050
+                                'arrival',            -- migration 059 (CR-0053)
+                                'reassign',           -- migration 059 (CR-0053)
                                 'other'
                             )
                         ),

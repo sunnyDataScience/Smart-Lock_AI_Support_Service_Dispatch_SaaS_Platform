@@ -703,28 +703,20 @@ async def onsite_arrival_v2(
     user: CurrentUser = Depends(require_tenant),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
-    """到場事件：寫入 DOOR_CHECK 結構化事件（GPS checklist），對齊 spec ArrivalEvent。
+    """到場事件：寫入 event_type='arrival' 結構化事件（GPS + arrived_at）+ 補 started_at。
 
-    service 呼叫：work_order_service.record_door_check
-      - checklist = {"arrived_at": arrived_at, "gps": gps_dict}
-      - photos_before / photos_after = [] (到場時拍照由前端另行上傳)
-      - notes = None
+    CR-0053：原誤呼 record_door_check（寫 'door_check'）→ submit_door_check_v2 的 arrival 前置閘
+    恆 409、started_at 不落致 arrival KPI 失真。改呼 record_arrival 正確寫 'arrival' 事件 + started_at。
     狀態機限制：assigned | accepted | in_progress（_SUBFLOW_FROM）。
     """
     _cross_tenant_write(user, tenantId)
 
-    gps_dict = body.gps.model_dump(exclude_none=True)
-    checklist = {
-        "arrived_at": body.arrived_at,
-        "gps": gps_dict,
-    }
-    order = await work_order_service.record_door_check(
+    order = await work_order_service.record_arrival(
         tenant_id=tenantId,
         wo_id=woId,
-        checklist=checklist,
-        photos_before=[],
-        photos_after=[],
-        notes=None,
+        arrived_at=body.arrived_at,
+        gps=body.gps.model_dump(exclude_none=True),
+        actor_user_id=user.user_id,
     )
     payload = {
         "id": order.get("id"),
