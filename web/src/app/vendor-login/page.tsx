@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { ApiError, loginVendor } from "@/lib/api";
 import LocaleToggle from "@/components/i18n/LocaleToggle";
+import BackToHome from "@/components/layout/BackToHome";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 export default function VendorLoginPage() {
@@ -40,6 +41,7 @@ export default function VendorLoginPage() {
       <div className="absolute right-4 top-4">
         <LocaleToggle />
       </div>
+      <BackToHome className="absolute left-4 top-4" />
 
       <div className="w-full max-w-[400px] rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-8 shadow-sm">
         <div className="mb-6 flex flex-col items-center gap-3">

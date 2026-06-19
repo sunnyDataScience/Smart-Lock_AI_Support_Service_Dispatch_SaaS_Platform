@@ -104,6 +104,7 @@
     "registerTitle": "Create Account",
     "registerDesc": "Technician or vendor — pending admin approval",
     "enterBackend": "Signed in — enter console",
+    "backToHome": "Back to home",
     "footer": "SmartLock — Smart Lock AI Support & Dispatch"
   },
   "login": {

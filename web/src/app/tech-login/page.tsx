@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import DesktopMobileGuard from "@/components/tech/DesktopMobileGuard";
+import BackToHome from "@/components/layout/BackToHome";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, loginTechnician } from "@/lib/api";
 
@@ -45,6 +46,7 @@ export default function TechLoginPage() {
       }}
     >
       <div className="flex min-h-screen w-full max-w-[480px] flex-col bg-transparent px-6 pt-[env(safe-area-inset-top,0)]">
+        <BackToHome tone="onDark" className="mt-4 self-start" />
         {/* brand_header_mobile */}
         <header className="mt-12 flex flex-col items-center gap-2 text-white">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 backdrop-blur">

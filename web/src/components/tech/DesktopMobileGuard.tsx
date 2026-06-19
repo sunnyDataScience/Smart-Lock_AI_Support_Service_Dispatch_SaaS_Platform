@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Smartphone } from "lucide-react";
+import BackToHome from "@/components/layout/BackToHome";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 const MOBILE_BREAKPOINT = 768; // 寬度 ≥ 769px 視為桌面
@@ -93,6 +94,8 @@ export default function DesktopMobileGuard({
               {t("forceDesktop")}
             </button>
           </div>
+
+          <BackToHome className="mt-1" />
         </div>
       </div>
     );
