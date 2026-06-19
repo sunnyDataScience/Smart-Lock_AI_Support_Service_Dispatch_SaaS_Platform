@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CR-0051 派工資格 gate（branch `feat/cr-0051-dispatch-eligibility`，2026-06-20）**：BR-M06 / G004-G005（CR-0038 標 MISSING：「只剔 3 態，不擋 pending/suspended」）。`assign_order` 本已 gate `status='active'`，但**候選清單/自動媒合**只排除 circuit（inactive/on_leave/circuit_breaker_open），未排除生命週期不可派工狀態（pending_approval/suspended/terminated/rejected）→ 停權/未核准技師會出現在派工候選。**實作**：`_is_dispatch_eligible` 硬排除 4 種生命週期狀態，接 `_score_rows`（候選清單 + auto_match 共用）+ `get_candidate_detail` 露 `dispatch_eligible`。test_cr_0051 8/8 + 回歸 807 passed 0 fail。
+
+### Added
+
 - **CR-0050 完工套件補教學紀錄（branch `feat/cr-0050-completion-teaching-note`，2026-06-20）**：BR-M08-03 完工套件 spec 列 photos+materials+payment+sign-off+**teaching note** 五件，CR-0039 已做照片≥3/簽名/序號，本 CR 補教學紀錄。**migration 058** `work_orders.teaching_note` TEXT；`complete_order` 加 teaching_note 參數 + onsite/completion 端點 body 補欄位 + API 露（_WO_SELECT index 36 + model）。test_cr_0050 1/1 + 回歸 799 passed 0 fail。
 
 ### Added

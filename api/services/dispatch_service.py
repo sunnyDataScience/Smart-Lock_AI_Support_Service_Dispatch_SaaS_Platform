@@ -122,6 +122,16 @@ def _explain_rating(rating: float | None) -> str:
     return f"評分偏低（{rating}/5），請審慎指派"
 
 
+# CR-0051 / BR-M06 / G004-G005：生命週期「不可派工」狀態（未核准/停權/終止/退回）—
+# 與「操作性不可用」（inactive/on_leave/circuit）區分；前者一律硬排除候選，不受 exclude_circuit 影響。
+_DISPATCH_INELIGIBLE_STATUSES = {"pending_approval", "suspended", "terminated", "rejected"}
+
+
+def _is_dispatch_eligible(status: str | None) -> bool:
+    """BR-M06：技師是否具派工資格（生命週期狀態非未核准/停權/終止/退回）。"""
+    return status not in _DISPATCH_INELIGIBLE_STATUSES
+
+
 def _is_excluded_by_circuit(status: str | None) -> bool:
     """暫無 circuit_breaker_until 欄；以 status 排除明顯不可派的狀態。"""
     return status in {"inactive", "on_leave", "circuit_breaker_open"}
@@ -150,6 +160,9 @@ def _score_rows(
     out: list[dict] = []
     for r in rows:
         status = r[9]  # 對齊 _TECH_SELECT
+        # CR-0051 / BR-M06：生命週期不可派工（未核准/停權/終止/退回）一律硬排除，不受 exclude_circuit 影響
+        if not _is_dispatch_eligible(status):
+            continue
         if exclude_circuit and _is_excluded_by_circuit(status):
             continue
         tech = _tech_row_to_dict(r)
@@ -392,6 +405,7 @@ async def get_candidate_detail(
         "distance_explain": _explain_distance(None, wo_district, regions),
         "rating_explain": _explain_rating(rating),
         "excluded_by_circuit": _is_excluded_by_circuit(status),
+        "dispatch_eligible": _is_dispatch_eligible(status),  # CR-0051 BR-M06 生命週期資格
         "eta_minutes": _availability_eta(status),
     }
 
