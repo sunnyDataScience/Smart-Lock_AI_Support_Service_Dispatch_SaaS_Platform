@@ -32,9 +32,9 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
 <div class="cards">
   <div class="card blue"><div class="n">194</div><div class="l">TI 測試項（功能）</div></div>
   <div class="card green"><div class="n">161</div><div class="l">✅ 覆蓋</div></div>
-  <div class="card amber"><div class="n">8</div><div class="l">🟡 部分覆蓋</div></div>
-  <div class="card red"><div class="n">25</div><div class="l">🔴 缺口</div></div>
-  <div class="card blue"><div class="n">85.1%</div><div class="l">加權覆蓋率</div></div>
+  <div class="card amber"><div class="n">13</div><div class="l">🟡 部分覆蓋</div></div>
+  <div class="card red"><div class="n">20</div><div class="l">🔴 缺口</div></div>
+  <div class="card blue"><div class="n">86.3%</div><div class="l">加權覆蓋率</div></div>
 </div>
 <div class="cards">
   <div class="card green"><div class="n">824</div><div class="l">pytest 通過（unit+component）</div></div>
@@ -220,9 +220,9 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
       <div class="seg gap" style="width:33%"></div></div>
       <div class="modpct">67%</div></div><div class="modrow"><div class="modname">M11 <span class="modn">(19)</span></div>
       <div class="bar"><div class="seg cov" style="width:73%"></div>
-      <div class="seg par" style="width:0%"></div>
-      <div class="seg gap" style="width:26%"></div></div>
-      <div class="modpct">74%</div></div><div class="modrow"><div class="modname">M12 <span class="modn">(11)</span></div>
+      <div class="seg par" style="width:26%"></div>
+      <div class="seg gap" style="width:0%"></div></div>
+      <div class="modpct">87%</div></div><div class="modrow"><div class="modname">M12 <span class="modn">(11)</span></div>
       <div class="bar"><div class="seg cov" style="width:90%"></div>
       <div class="seg par" style="width:0%"></div>
       <div class="seg gap" style="width:9%"></div></div>
@@ -296,7 +296,7 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
 
 <h2>🧭 55 項缺口分類（矩陣 2026-06-17 製，未含本輪 session 新測試）</h2>
 <div class="note">下列「缺口」是矩陣『現況覆蓋』欄未引用測試檔者。<b>本輪 session 新增的 26 個測試檔尚未回填矩陣</b>，故 M03/M05/M06/M08/M09/M15/M16 等模組多項實際已覆蓋。真正待補的集中在：E2E 跨模組主流程、P2 金流（會議下輪）、Agent/AI（lockcore 獨立測試）。</div>
-<div class="gapcats"><div class='gapcat'><div class='gaphd' style='border-color:#0e7490'>🤖 Agent/AI（lockcore，獨立測試） <span class='gn'>(10)</span></div><ul><li><span class='mono'>TI-AIOPS-02</span> <span class='pri pri-P0'>P0</span> K8 Forbidden Eval ≥95% (200 corpus + 20 robustness) — AI 禁止 fina</li><li><span class='mono'>TI-AIOPS-08</span> <span class='pri pri-P0'>P0</span> Eval &amp; Observability pipeline (eval_reply_quality / multiturn_si</li><li><span class='mono'>TI-A03-03</span> <span class='pri pri-P0'>P0</span> Agent KPI gate：auto-resolve ≥70% / eval pass ≥85% / escalation c</li><li><span class='mono'>TI-A03-04</span> <span class='pri pri-P1'>P1</span> 對話後台 /conversations + [id] 頁面（AI 客服對話可在後台重新渲染）</li><li><span class='mono'>TI-A04-02</span> <span class='pri pri-P1'>P1</span> RAG 知識來源紅線：references 嚴格限 bronze；GDrive PDF 只引 URL 不抄內容</li><li><span class='mono'>TI-A05-01</span> <span class='pri pri-P0'>P0</span> P0 安全紅線：no final quote / no discount / no warranty_free / no leg</li><li><span class='mono'>TI-A05-02</span> <span class='pri pri-P0'>P0</span> NTD 數字無修飾語 → output guardrail regen + policy.decision log；prompt</li><li><span class='mono'>TI-A09-01</span> <span class='pri pri-P0'>P0</span> Eval 套件：LLM-as-Judge mini/full eval（W4 60 題 baseline / W8 full 2</li><li><span class='mono'>TI-A10-02</span> <span class='pri pri-P0'>P0</span> 高風險 SOP 雙審（Knowledge Owner + domain expert）+ 合約 4.4(d) 家族覆核 100%</li><li><span class='mono'>TI-A12-01</span> <span class='pri pri-P2'>P2</span> Governance &amp; PRD trace：每個 AI 行為可追溯 Final rule/source skill/decis</li></ul></div><div class='gapcat'><div class='gaphd' style='border-color:#b45309'>⏳ P2 金流（會議下輪） <span class='gn'>(6)</span></div><ul><li><span class='mono'>TI-FIN-PAY-01</span> <span class='pri pri-P0'>P0</span> Payment gate 控派工：有付款證明或訂金才可建 WO（configurable）</li><li><span class='mono'>TI-FIN-PAY-02</span> <span class='pri pri-P0'>P0</span> 三軌支付（cash / Apple Pay / Line Pay）payment:intent → confirm</li><li><span class='mono'>TI-FIN-PAY-03</span> <span class='pri pri-P0'>P0</span> Line Pay webhook idempotency + 簽章驗證（重複 webhook 不重複入帳）</li><li><span class='mono'>TI-FIN-PAY-04</span> <span class='pri pri-P1'>P1</span> 支付 fallback 兩次嘗試 audit（Line Pay 失敗 → cash fallback，payment_attem</li><li><span class='mono'>TI-FIN-PAY-05</span> <span class='pri pri-P1'>P1</span> 現金 dispute → disputes 表（24h 內回報金額不符）+ ≥50000 強制簽章</li><li><span class='mono'>TI-FIN-SETTLE-04</span> <span class='pri pri-P0'>P0</span> 結算金額 config versioning（rule_version + effective_date；閉案不可回算新 con</li></ul></div><div class='gapcat'><div class='gaphd' style='border-color:#dc2626'>🔴 真待建 <span class='gn'>(4)</span></div><ul><li><span class='mono'>TI-M01-04</span> <span class='pri pri-P1'>P1</span> A01 進線 1.5s debounce / flood dedup（合併文字/媒體/貼圖為 single logical tu</li><li><span class='mono'>TI-FIN-BOM-03</span> <span class='pri pri-P2'>P2</span> 兩層 BOM + material owner + 材料費歸屬 + 退回期限（Phase I Manual First/Ligh</li><li><span class='mono'>TI-RBAC-02</span> <span class='pri pri-P0'>P0</span> SoD 強制：role assign 同人 propose+approve 禁止</li><li><span class='mono'>TI-SYNC-02</span> <span class='pri pri-P1'>P1</span> Facts 主檔同步：phone/address/device facts ↔ ERP customer/site/device</li></ul></div><div class='gapcat'><div class='gaphd' style='border-color:#15803d'>🔄 本輪同模組已增測試（矩陣未更，需逐項覆核） <span class='gn'>(3)</span></div><ul><li><span class='mono'>TI-M04-04</span> <span class='pri pri-P0'>P0</span> AI 禁 final quote — D3-B&#x27; 不複誦 NTD + server-side flex_message_temp</li><li><span class='mono'>TI-NFR-01</span> <span class='pri pri-P1'>P1</span> 月結/對帳批次效能（大量工單/憑單批次生成延遲）+ CSV 匯出效能</li><li><span class='mono'>TI-NOTIF-03</span> <span class='pri pri-P1'>P1</span> 通知模板主管核准後發送 (報價/付款/派工/延遲/完工/RMA/退款)</li></ul></div><div class='gapcat'><div class='gaphd' style='border-color:#7c3aed'>E2E 跨模組主流程 <span class='gn'>(1)</span></div><ul><li><span class='mono'>TI-M03-14</span> <span class='pri pri-P0'>P0</span> 進線→AI→PC→WO→結案 端到端主流程（E2E main flow）</li></ul></div><div class='gapcat'><div class='gaphd' style='border-color:#b45309'>⏳ P3 Partner Portal（會議 Phase III） <span class='gn'>(1)</span></div><ul><li><span class='mono'>TI-PORTAL-01</span> <span class='pri pri-P2'>P2</span> 品牌/經銷/建商 Partner Portal — 帳號 scope 隔離（只看自己 cases/projects/settle</li></ul></div></div>
+<div class="gapcats"><div class='gapcat'><div class='gaphd' style='border-color:#0e7490'>🤖 Agent/AI（lockcore，獨立測試） <span class='gn'>(10)</span></div><ul><li><span class='mono'>TI-AIOPS-02</span> <span class='pri pri-P0'>P0</span> K8 Forbidden Eval ≥95% (200 corpus + 20 robustness) — AI 禁止 fina</li><li><span class='mono'>TI-AIOPS-08</span> <span class='pri pri-P0'>P0</span> Eval &amp; Observability pipeline (eval_reply_quality / multiturn_si</li><li><span class='mono'>TI-A03-03</span> <span class='pri pri-P0'>P0</span> Agent KPI gate：auto-resolve ≥70% / eval pass ≥85% / escalation c</li><li><span class='mono'>TI-A03-04</span> <span class='pri pri-P1'>P1</span> 對話後台 /conversations + [id] 頁面（AI 客服對話可在後台重新渲染）</li><li><span class='mono'>TI-A04-02</span> <span class='pri pri-P1'>P1</span> RAG 知識來源紅線：references 嚴格限 bronze；GDrive PDF 只引 URL 不抄內容</li><li><span class='mono'>TI-A05-01</span> <span class='pri pri-P0'>P0</span> P0 安全紅線：no final quote / no discount / no warranty_free / no leg</li><li><span class='mono'>TI-A05-02</span> <span class='pri pri-P0'>P0</span> NTD 數字無修飾語 → output guardrail regen + policy.decision log；prompt</li><li><span class='mono'>TI-A09-01</span> <span class='pri pri-P0'>P0</span> Eval 套件：LLM-as-Judge mini/full eval（W4 60 題 baseline / W8 full 2</li><li><span class='mono'>TI-A10-02</span> <span class='pri pri-P0'>P0</span> 高風險 SOP 雙審（Knowledge Owner + domain expert）+ 合約 4.4(d) 家族覆核 100%</li><li><span class='mono'>TI-A12-01</span> <span class='pri pri-P2'>P2</span> Governance &amp; PRD trace：每個 AI 行為可追溯 Final rule/source skill/decis</li></ul></div><div class='gapcat'><div class='gaphd' style='border-color:#dc2626'>🔴 真待建 <span class='gn'>(4)</span></div><ul><li><span class='mono'>TI-M01-04</span> <span class='pri pri-P1'>P1</span> A01 進線 1.5s debounce / flood dedup（合併文字/媒體/貼圖為 single logical tu</li><li><span class='mono'>TI-FIN-BOM-03</span> <span class='pri pri-P2'>P2</span> 兩層 BOM + material owner + 材料費歸屬 + 退回期限（Phase I Manual First/Ligh</li><li><span class='mono'>TI-RBAC-02</span> <span class='pri pri-P0'>P0</span> SoD 強制：role assign 同人 propose+approve 禁止</li><li><span class='mono'>TI-SYNC-02</span> <span class='pri pri-P1'>P1</span> Facts 主檔同步：phone/address/device facts ↔ ERP customer/site/device</li></ul></div><div class='gapcat'><div class='gaphd' style='border-color:#15803d'>🔄 本輪同模組已增測試（矩陣未更，需逐項覆核） <span class='gn'>(3)</span></div><ul><li><span class='mono'>TI-M04-04</span> <span class='pri pri-P0'>P0</span> AI 禁 final quote — D3-B&#x27; 不複誦 NTD + server-side flex_message_temp</li><li><span class='mono'>TI-NFR-01</span> <span class='pri pri-P1'>P1</span> 月結/對帳批次效能（大量工單/憑單批次生成延遲）+ CSV 匯出效能</li><li><span class='mono'>TI-NOTIF-03</span> <span class='pri pri-P1'>P1</span> 通知模板主管核准後發送 (報價/付款/派工/延遲/完工/RMA/退款)</li></ul></div><div class='gapcat'><div class='gaphd' style='border-color:#7c3aed'>E2E 跨模組主流程 <span class='gn'>(1)</span></div><ul><li><span class='mono'>TI-M03-14</span> <span class='pri pri-P0'>P0</span> 進線→AI→PC→WO→結案 端到端主流程（E2E main flow）</li></ul></div><div class='gapcat'><div class='gaphd' style='border-color:#b45309'>⏳ P2 金流（會議下輪） <span class='gn'>(1)</span></div><ul><li><span class='mono'>TI-FIN-SETTLE-04</span> <span class='pri pri-P0'>P0</span> 結算金額 config versioning（rule_version + effective_date；閉案不可回算新 con</li></ul></div><div class='gapcat'><div class='gaphd' style='border-color:#b45309'>⏳ P3 Partner Portal（會議 Phase III） <span class='gn'>(1)</span></div><ul><li><span class='mono'>TI-PORTAL-01</span> <span class='pri pri-P2'>P2</span> 品牌/經銷/建商 Partner Portal — 帳號 scope 隔離（只看自己 cases/projects/settle</li></ul></div></div>
 
 <h2>🧪 本 session 新增的 26 個測試檔（test_cr_0037~0062）</h2>
 <div class="note" style="line-height:2.2"><span class='tag'>test_cr_0037_payout_rules</span><span class='tag'>test_cr_0038_bucket4</span><span class='tag'>test_cr_0039_completion_gate</span><span class='tag'>test_cr_0040_evidence_governance</span><span class='tag'>test_cr_0041_exception_framework</span><span class='tag'>test_cr_0042_alpha_closeout</span><span class='tag'>test_cr_0043_wo_fields_phase2</span><span class='tag'>test_cr_0044_esales_config</span><span class='tag'>test_cr_0045_invoice_tax</span><span class='tag'>test_cr_0046_quote_text_discount</span><span class='tag'>test_cr_0047_warranty_auto</span><span class='tag'>test_cr_0048_reason_gate</span><span class='tag'>test_cr_0049_pending_scope_gate</span><span class='tag'>test_cr_0050_teaching_note</span><span class='tag'>test_cr_0051_dispatch_eligibility</span><span class='tag'>test_cr_0052_completeness_details</span><span class='tag'>test_cr_0053_arrival_doorcheck</span><span class='tag'>test_cr_0054_photos_during</span><span class='tag'>test_cr_0055_evidence_package</span><span class='tag'>test_cr_0056_completion_email</span><span class='tag'>test_cr_0057_field_tiers</span><span class='tag'>test_cr_0058_completion_materials_payment</span><span class='tag'>test_cr_0059_config_effective</span><span class='tag'>test_cr_0060_brand_auth</span><span class='tag'>test_cr_0061_gis_performance</span><span class='tag'>test_cr_0062_auto_notify</span></div>
@@ -304,8 +304,8 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
 <h2>📋 完整測試矩陣（194 項功能 × 測試）</h2>
 <div class="filters">
   <button class="on" onclick="flt(this,'all')">全部 (194)</button>
-  <button onclick="flt(this,'GAP')">🔴 缺口 (25)</button>
-  <button onclick="flt(this,'PARTIAL')">🟡 部分 (8)</button>
+  <button onclick="flt(this,'GAP')">🔴 缺口 (20)</button>
+  <button onclick="flt(this,'PARTIAL')">🟡 部分 (13)</button>
   <button onclick="flt(this,'COVERED')">✅ 覆蓋 (161)</button>
   <button onclick="fltP(this,'P0')">P0 (98)</button>
   <button onclick="fltP(this,'P1')">P1 (86)</button>
@@ -932,36 +932,36 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
       <td class="small gap">雙簽第二人不同 user 完成 approved 的完整 happy 端到端可再補強斷言；與 ADR-0106 agent single-actor exception 的交互測試</td>
       <td class="sess"><span class='cr'>CR-0044/0045 finance config</span><br><span class='cr'>CR-0063 Revenue測試</span><br><span class='cr'>CR-0067 對帳異常假綠修</span></td>
       <td><span class="badge" style="background:#16a34a">覆蓋</span></td>
-    </tr><tr data-status="GAP" data-pri="P0" data-mod="M11">
+    </tr><tr data-status="PARTIAL" data-pri="P0" data-mod="M11">
       <td class="mono">TI-FIN-PAY-01</td>
       <td>M11</td>
       <td>Payment gate 控派工：有付款證明或訂金才可建 WO（configurable）</td>
       <td><span class="pri pri-P0">P0</span></td>
       <td>整合</td>
-      <td class="small">無（CR-0011 HD-01~07 全 pending，無 payment endpoint/service；FR-0011 status: draft，blocked_by Q7=B provider 選型）</td>
-      <td class="small gap">spec 有但未實作 — 須先決 HD-01 provider 選型 + 建 payments/payment_attempts 表 + payment_service 後才能補測</td>
+      <td class="small">✅ CR-0070 mock 金流骨架（功能+測試齊全）：test_cr_0070_payment_mock.py</td>
+      <td class="small gap">（已閉環；正式 provider 串接 Sunny 下輪，schema 不變）</td>
       <td class="sess"><span class='cr'>CR-0044/0045 finance config</span><br><span class='cr'>CR-0063 Revenue測試</span><br><span class='cr'>CR-0067 對帳異常假綠修</span></td>
-      <td><span class="badge" style="background:#dc2626">缺口</span></td>
-    </tr><tr data-status="GAP" data-pri="P0" data-mod="M11">
+      <td><span class="badge" style="background:#d97706">部分</span></td>
+    </tr><tr data-status="PARTIAL" data-pri="P0" data-mod="M11">
       <td class="mono">TI-FIN-PAY-02</td>
       <td>M11</td>
       <td>三軌支付（cash / Apple Pay / Line Pay）payment:intent → confirm</td>
       <td><span class="pri pri-P0">P0</span></td>
       <td>整合</td>
-      <td class="small">無（API-PAY-V2-INTENT / CONFIRM 為 New，未實作）</td>
-      <td class="small gap">spec 有但未實作 — 依賴 HD-01 provider 選型；GA 標 P0，未實作則三軌付款不可上線</td>
+      <td class="small">✅ CR-0070 mock 金流骨架（功能+測試齊全）：test_cr_0070_payment_mock.py</td>
+      <td class="small gap">（已閉環；正式 provider 串接 Sunny 下輪，schema 不變）</td>
       <td class="sess"><span class='cr'>CR-0044/0045 finance config</span><br><span class='cr'>CR-0063 Revenue測試</span><br><span class='cr'>CR-0067 對帳異常假綠修</span></td>
-      <td><span class="badge" style="background:#dc2626">缺口</span></td>
-    </tr><tr data-status="GAP" data-pri="P0" data-mod="M11">
+      <td><span class="badge" style="background:#d97706">部分</span></td>
+    </tr><tr data-status="PARTIAL" data-pri="P0" data-mod="M11">
       <td class="mono">TI-FIN-PAY-03</td>
       <td>M11</td>
       <td>Line Pay webhook idempotency + 簽章驗證（重複 webhook 不重複入帳）</td>
       <td><span class="pri pri-P0">P0</span></td>
       <td>契約</td>
-      <td class="small">無（API-PAY-WEBHOOK-LINEPAY 未實作）</td>
-      <td class="small gap">spec 有但未實作 — 須 provider 選型 + webhook 簽章機制（HD-06/HD-07）；安全紅線（偽造簽章）P0</td>
+      <td class="small">✅ CR-0070 mock 金流骨架（功能+測試齊全）：test_cr_0070_payment_mock.py</td>
+      <td class="small gap">（已閉環；正式 provider 串接 Sunny 下輪，schema 不變）</td>
       <td class="sess"><span class='cr'>CR-0044/0045 finance config</span><br><span class='cr'>CR-0063 Revenue測試</span><br><span class='cr'>CR-0067 對帳異常假綠修</span></td>
-      <td><span class="badge" style="background:#dc2626">缺口</span></td>
+      <td><span class="badge" style="background:#d97706">部分</span></td>
     </tr><tr data-status="COVERED" data-pri="P0" data-mod="M11">
       <td class="mono">TI-FIN-INV-01</td>
       <td>M11</td>
@@ -1012,26 +1012,26 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
       <td class="small gap">補退款通知失敗 → audit + retry 整合測試，串接 line_push_outbox_service</td>
       <td class="sess"><span class='cr'>CR-0044/0045 finance config</span><br><span class='cr'>CR-0063 Revenue測試</span><br><span class='cr'>CR-0067 對帳異常假綠修</span></td>
       <td><span class="badge" style="background:#16a34a">覆蓋</span></td>
-    </tr><tr data-status="GAP" data-pri="P1" data-mod="M11">
+    </tr><tr data-status="PARTIAL" data-pri="P1" data-mod="M11">
       <td class="mono">TI-FIN-PAY-04</td>
       <td>M11</td>
       <td>支付 fallback 兩次嘗試 audit（Line Pay 失敗 → cash fallback，payment_a</td>
       <td><span class="pri pri-P1">P1</span></td>
       <td>整合</td>
-      <td class="small">無（payment_attempts 表與 fallback 邏輯未實作）</td>
-      <td class="small gap">spec 有但未實作 — 依賴 HD-03 fallback 策略決策</td>
+      <td class="small">✅ CR-0070 mock 金流骨架（功能+測試齊全）：test_cr_0070_payment_mock.py</td>
+      <td class="small gap">（已閉環；正式 provider 串接 Sunny 下輪，schema 不變）</td>
       <td class="sess"><span class='cr'>CR-0044/0045 finance config</span><br><span class='cr'>CR-0063 Revenue測試</span><br><span class='cr'>CR-0067 對帳異常假綠修</span></td>
-      <td><span class="badge" style="background:#dc2626">缺口</span></td>
-    </tr><tr data-status="GAP" data-pri="P1" data-mod="M11">
+      <td><span class="badge" style="background:#d97706">部分</span></td>
+    </tr><tr data-status="PARTIAL" data-pri="P1" data-mod="M11">
       <td class="mono">TI-FIN-PAY-05</td>
       <td>M11</td>
       <td>現金 dispute → disputes 表（24h 內回報金額不符）+ ≥50000 強制簽章</td>
       <td><span class="pri pri-P1">P1</span></td>
       <td>整合</td>
-      <td class="small">無</td>
-      <td class="small gap">spec 有但未實作 — 依賴 HD-02（簽章機制）+ HD-04（dispute 觸發者）決策</td>
+      <td class="small">✅ CR-0070 mock 金流骨架（功能+測試齊全）：test_cr_0070_payment_mock.py</td>
+      <td class="small gap">（已閉環；正式 provider 串接 Sunny 下輪，schema 不變）</td>
       <td class="sess"><span class='cr'>CR-0044/0045 finance config</span><br><span class='cr'>CR-0063 Revenue測試</span><br><span class='cr'>CR-0067 對帳異常假綠修</span></td>
-      <td><span class="badge" style="background:#dc2626">缺口</span></td>
+      <td><span class="badge" style="background:#d97706">部分</span></td>
     </tr><tr data-status="COVERED" data-pri="P1" data-mod="M11">
       <td class="mono">TI-FIN-INV-02</td>
       <td>M11</td>
@@ -2254,7 +2254,7 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
       <td><span class="badge" style="background:#16a34a">覆蓋</span></td>
     </tr></tbody></table>
 
-<p class="sub" style="margin-top:24px">說明：覆蓋判定 = 「現況覆蓋」欄是否引用實際存在的測試檔（216 個檔比對）；有引用且 gap 輕微→✅覆蓋，有引用但 gap 仍在→🟡部分，無引用→🔴缺口。加權覆蓋率 = (覆蓋 + 部分×0.5) / 總數。P2 多為金流/多租戶下輪項（會議定調）。</p>
+<p class="sub" style="margin-top:24px">說明：覆蓋判定 = 「現況覆蓋」欄是否引用實際存在的測試檔（217 個檔比對）；有引用且 gap 輕微→✅覆蓋，有引用但 gap 仍在→🟡部分，無引用→🔴缺口。加權覆蓋率 = (覆蓋 + 部分×0.5) / 總數。P2 多為金流/多租戶下輪項（會議定調）。</p>
 </div>
 <script>
 let curS='all',curP=null;
