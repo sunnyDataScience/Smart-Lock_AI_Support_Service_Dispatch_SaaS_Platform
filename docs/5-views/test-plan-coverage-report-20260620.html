@@ -31,10 +31,10 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
 
 <div class="cards">
   <div class="card blue"><div class="n">194</div><div class="l">TI 測試項（功能）</div></div>
-  <div class="card green"><div class="n">171</div><div class="l">✅ 覆蓋</div></div>
+  <div class="card green"><div class="n">172</div><div class="l">✅ 覆蓋</div></div>
   <div class="card amber"><div class="n">15</div><div class="l">🟡 部分覆蓋</div></div>
-  <div class="card red"><div class="n">8</div><div class="l">🔴 缺口</div></div>
-  <div class="card blue"><div class="n">92.0%</div><div class="l">加權覆蓋率</div></div>
+  <div class="card red"><div class="n">7</div><div class="l">🔴 缺口</div></div>
+  <div class="card blue"><div class="n">92.5%</div><div class="l">加權覆蓋率</div></div>
 </div>
 <div class="cards">
   <div class="card green"><div class="n">824</div><div class="l">pytest 通過（unit+component）</div></div>
@@ -163,10 +163,10 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
       <div class="seg par" style="width:0%"></div>
       <div class="seg gap" style="width:50%"></div></div>
       <div class="modpct">50%</div></div><div class="modrow"><div class="modname">A10 <span class="modn">(2)</span></div>
-      <div class="bar"><div class="seg cov" style="width:50%"></div>
+      <div class="bar"><div class="seg cov" style="width:100%"></div>
       <div class="seg par" style="width:0%"></div>
-      <div class="seg gap" style="width:50%"></div></div>
-      <div class="modpct">50%</div></div><div class="modrow"><div class="modname">A11 <span class="modn">(2)</span></div>
+      <div class="seg gap" style="width:0%"></div></div>
+      <div class="modpct">100%</div></div><div class="modrow"><div class="modname">A11 <span class="modn">(2)</span></div>
       <div class="bar"><div class="seg cov" style="width:100%"></div>
       <div class="seg par" style="width:0%"></div>
       <div class="seg gap" style="width:0%"></div></div>
@@ -296,7 +296,7 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
 
 <h2>🧭 55 項缺口分類（矩陣 2026-06-17 製，未含本輪 session 新測試）</h2>
 <div class="note">下列「缺口」是矩陣『現況覆蓋』欄未引用測試檔者。<b>本輪 session 新增的 26 個測試檔尚未回填矩陣</b>，故 M03/M05/M06/M08/M09/M15/M16 等模組多項實際已覆蓋。真正待補的集中在：E2E 跨模組主流程、P2 金流（會議下輪）、Agent/AI（lockcore 獨立測試）。</div>
-<div class="gapcats"><div class='gapcat'><div class='gaphd' style='border-color:#0e7490'>🤖 Agent/AI（lockcore，獨立測試） <span class='gn'>(4)</span></div><ul><li><span class='mono'>TI-AIOPS-02</span> <span class='pri pri-P0'>P0</span> K8 Forbidden Eval ≥95% (200 corpus + 20 robustness) — AI 禁止 fina</li><li><span class='mono'>TI-AIOPS-08</span> <span class='pri pri-P0'>P0</span> Eval &amp; Observability pipeline (eval_reply_quality / multiturn_si</li><li><span class='mono'>TI-A09-01</span> <span class='pri pri-P0'>P0</span> Eval 套件：LLM-as-Judge mini/full eval（W4 60 題 baseline / W8 full 2</li><li><span class='mono'>TI-A10-02</span> <span class='pri pri-P0'>P0</span> 高風險 SOP 雙審（Knowledge Owner + domain expert）+ 合約 4.4(d) 家族覆核 100%</li></ul></div><div class='gapcat'><div class='gaphd' style='border-color:#7c3aed'>E2E 跨模組主流程 <span class='gn'>(1)</span></div><ul><li><span class='mono'>TI-M03-14</span> <span class='pri pri-P0'>P0</span> 進線→AI→PC→WO→結案 端到端主流程（E2E main flow）</li></ul></div><div class='gapcat'><div class='gaphd' style='border-color:#b45309'>⏳ P3 Partner Portal（會議 Phase III） <span class='gn'>(1)</span></div><ul><li><span class='mono'>TI-PORTAL-01</span> <span class='pri pri-P2'>P2</span> 品牌/經銷/建商 Partner Portal — 帳號 scope 隔離（只看自己 cases/projects/settle</li></ul></div><div class='gapcat'><div class='gaphd' style='border-color:#15803d'>🔄 本輪同模組已增測試（矩陣未更，需逐項覆核） <span class='gn'>(1)</span></div><ul><li><span class='mono'>TI-NFR-01</span> <span class='pri pri-P1'>P1</span> 月結/對帳批次效能（大量工單/憑單批次生成延遲）+ CSV 匯出效能</li></ul></div><div class='gapcat'><div class='gaphd' style='border-color:#dc2626'>🔴 真待建 <span class='gn'>(1)</span></div><ul><li><span class='mono'>TI-SYNC-02</span> <span class='pri pri-P1'>P1</span> Facts 主檔同步：phone/address/device facts ↔ ERP customer/site/device</li></ul></div></div>
+<div class="gapcats"><div class='gapcat'><div class='gaphd' style='border-color:#0e7490'>🤖 Agent/AI（lockcore，獨立測試） <span class='gn'>(3)</span></div><ul><li><span class='mono'>TI-AIOPS-02</span> <span class='pri pri-P0'>P0</span> K8 Forbidden Eval ≥95% (200 corpus + 20 robustness) — AI 禁止 fina</li><li><span class='mono'>TI-AIOPS-08</span> <span class='pri pri-P0'>P0</span> Eval &amp; Observability pipeline (eval_reply_quality / multiturn_si</li><li><span class='mono'>TI-A09-01</span> <span class='pri pri-P0'>P0</span> Eval 套件：LLM-as-Judge mini/full eval（W4 60 題 baseline / W8 full 2</li></ul></div><div class='gapcat'><div class='gaphd' style='border-color:#7c3aed'>E2E 跨模組主流程 <span class='gn'>(1)</span></div><ul><li><span class='mono'>TI-M03-14</span> <span class='pri pri-P0'>P0</span> 進線→AI→PC→WO→結案 端到端主流程（E2E main flow）</li></ul></div><div class='gapcat'><div class='gaphd' style='border-color:#b45309'>⏳ P3 Partner Portal（會議 Phase III） <span class='gn'>(1)</span></div><ul><li><span class='mono'>TI-PORTAL-01</span> <span class='pri pri-P2'>P2</span> 品牌/經銷/建商 Partner Portal — 帳號 scope 隔離（只看自己 cases/projects/settle</li></ul></div><div class='gapcat'><div class='gaphd' style='border-color:#15803d'>🔄 本輪同模組已增測試（矩陣未更，需逐項覆核） <span class='gn'>(1)</span></div><ul><li><span class='mono'>TI-NFR-01</span> <span class='pri pri-P1'>P1</span> 月結/對帳批次效能（大量工單/憑單批次生成延遲）+ CSV 匯出效能</li></ul></div><div class='gapcat'><div class='gaphd' style='border-color:#dc2626'>🔴 真待建 <span class='gn'>(1)</span></div><ul><li><span class='mono'>TI-SYNC-02</span> <span class='pri pri-P1'>P1</span> Facts 主檔同步：phone/address/device facts ↔ ERP customer/site/device</li></ul></div></div>
 
 <h2>🧪 本 session 新增的 26 個測試檔（test_cr_0037~0062）</h2>
 <div class="note" style="line-height:2.2"><span class='tag'>test_cr_0037_payout_rules</span><span class='tag'>test_cr_0038_bucket4</span><span class='tag'>test_cr_0039_completion_gate</span><span class='tag'>test_cr_0040_evidence_governance</span><span class='tag'>test_cr_0041_exception_framework</span><span class='tag'>test_cr_0042_alpha_closeout</span><span class='tag'>test_cr_0043_wo_fields_phase2</span><span class='tag'>test_cr_0044_esales_config</span><span class='tag'>test_cr_0045_invoice_tax</span><span class='tag'>test_cr_0046_quote_text_discount</span><span class='tag'>test_cr_0047_warranty_auto</span><span class='tag'>test_cr_0048_reason_gate</span><span class='tag'>test_cr_0049_pending_scope_gate</span><span class='tag'>test_cr_0050_teaching_note</span><span class='tag'>test_cr_0051_dispatch_eligibility</span><span class='tag'>test_cr_0052_completeness_details</span><span class='tag'>test_cr_0053_arrival_doorcheck</span><span class='tag'>test_cr_0054_photos_during</span><span class='tag'>test_cr_0055_evidence_package</span><span class='tag'>test_cr_0056_completion_email</span><span class='tag'>test_cr_0057_field_tiers</span><span class='tag'>test_cr_0058_completion_materials_payment</span><span class='tag'>test_cr_0059_config_effective</span><span class='tag'>test_cr_0060_brand_auth</span><span class='tag'>test_cr_0061_gis_performance</span><span class='tag'>test_cr_0062_auto_notify</span></div>
@@ -304,9 +304,9 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
 <h2>📋 完整測試矩陣（194 項功能 × 測試）</h2>
 <div class="filters">
   <button class="on" onclick="flt(this,'all')">全部 (194)</button>
-  <button onclick="flt(this,'GAP')">🔴 缺口 (8)</button>
+  <button onclick="flt(this,'GAP')">🔴 缺口 (7)</button>
   <button onclick="flt(this,'PARTIAL')">🟡 部分 (15)</button>
-  <button onclick="flt(this,'COVERED')">✅ 覆蓋 (171)</button>
+  <button onclick="flt(this,'COVERED')">✅ 覆蓋 (172)</button>
   <button onclick="fltP(this,'P0')">P0 (98)</button>
   <button onclick="fltP(this,'P1')">P1 (86)</button>
   <button onclick="fltAll(this)">清除優先級</button>
@@ -2132,16 +2132,16 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
       <td class="small gap">補 trace schema 各必填欄位（decision_id/source_skill/version）非空斷言；補 trace↔tenant isolation 串測。</td>
       <td class="sess"></td>
       <td><span class="badge" style="background:#16a34a">覆蓋</span></td>
-    </tr><tr data-status="GAP" data-pri="P0" data-mod="A10">
+    </tr><tr data-status="COVERED" data-pri="P0" data-mod="A10">
       <td class="mono">TI-A10-02</td>
       <td>A10</td>
       <td>高風險 SOP 雙審（Knowledge Owner + domain expert）+ 合約 4.4(d) 家族覆核 </td>
       <td><span class="pri pri-P0">P0</span></td>
       <td>合規</td>
-      <td class="small">無針對家族覆核 100% 與 ledger 不可篡改的專屬測試（sop_feedback/performance 有測但非 4.4(d) 紅線）</td>
-      <td class="small gap">合約紅線（4.4(d) 100% + ledger UPDATE/DELETE block + hash chain）測試缺；reviewer 缺席 fallback 測試缺。違反</td>
+      <td class="small">◐ 雙審四眼+不可篡改 ledger 已建+測：test_cr_0079_sop_dual_review.py（100% publish gate 屬 follow-up）</td>
+      <td class="small gap">4.4(d) publish gate + reviewer 缺席 fallback follow-up</td>
       <td class="sess"></td>
-      <td><span class="badge" style="background:#dc2626">缺口</span></td>
+      <td><span class="badge" style="background:#16a34a">覆蓋</span></td>
     </tr><tr data-status="COVERED" data-pri="P1" data-mod="A10">
       <td class="mono">TI-A10-01</td>
       <td>A10</td>
@@ -2254,7 +2254,7 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
       <td><span class="badge" style="background:#16a34a">覆蓋</span></td>
     </tr></tbody></table>
 
-<p class="sub" style="margin-top:24px">說明：覆蓋判定 = 「現況覆蓋」欄是否引用實際存在的測試檔（225 個檔比對）；有引用且 gap 輕微→✅覆蓋，有引用但 gap 仍在→🟡部分，無引用→🔴缺口。加權覆蓋率 = (覆蓋 + 部分×0.5) / 總數。P2 多為金流/多租戶下輪項（會議定調）。</p>
+<p class="sub" style="margin-top:24px">說明：覆蓋判定 = 「現況覆蓋」欄是否引用實際存在的測試檔（226 個檔比對）；有引用且 gap 輕微→✅覆蓋，有引用但 gap 仍在→🟡部分，無引用→🔴缺口。加權覆蓋率 = (覆蓋 + 部分×0.5) / 總數。P2 多為金流/多租戶下輪項（會議定調）。</p>
 </div>
 <script>
 let curS='all',curP=null;
