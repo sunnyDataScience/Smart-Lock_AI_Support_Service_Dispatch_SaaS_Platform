@@ -31,20 +31,19 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
 
 <div class="cards">
   <div class="card blue"><div class="n">194</div><div class="l">TI 測試項（功能）</div></div>
-  <div class="card green"><div class="n">183</div><div class="l">✅ 覆蓋</div></div>
-  <div class="card amber"><div class="n">11</div><div class="l">🟡 部分覆蓋</div></div>
+  <div class="card green"><div class="n">180</div><div class="l">✅ 覆蓋</div></div>
+  <div class="card amber"><div class="n">14</div><div class="l">🟡 部分覆蓋</div></div>
   <div class="card red"><div class="n">0</div><div class="l">🔴 缺口</div></div>
-  <div class="card blue"><div class="n">97.2%</div><div class="l">加權覆蓋率</div></div>
+  <div class="card blue"><div class="n">96.4%</div><div class="l">加權覆蓋率</div></div>
 </div>
 <div class="cards">
-  <div class="card green"><div class="n">824</div><div class="l">pytest 通過（unit+component）</div></div>
-  <div class="card red"><div class="n">1</div><div class="l">失敗（見下方註）</div></div>
-  <div class="card blue"><div class="n">149</div><div class="l">pytest 測試檔</div></div>
-  <div class="card blue"><div class="n">45</div><div class="l">Playwright e2e spec</div></div>
+  <div class="card green"><div class="n">914</div><div class="l">api pytest 通過（unit+component）</div></div>
+  <div class="card green"><div class="n">120</div><div class="l">agent pytest 通過（含 2 live）</div></div>
+  <div class="card green"><div class="n">0</div><div class="l">失敗</div></div>
   <div class="card blue"><div class="n">98/86/10</div><div class="l">P0/P1/P2 項數</div></div>
 </div>
 
-<div class="note">⚠️ <b>1 個失敗為 pre-existing 測試衛生問題，非產品 regression</b>：<code>test_reconciliations_v2::test_list_reconciliations_with_data</code> —— 該測試建立 reconciliation 但不清理，且 list 端點分頁；本 session 反覆執行測試累積 reconciliation 列，使新建項落到首頁外致斷言失敗。reconciliation 模組本 session 未改動，單獨跑亦失敗 → 屬測試設計缺陷（建議：測試後清理 / 用 filter 查回新建項）。</div>
+<div class="note">✅ <b>全套綠燈</b>：api 914 + agent 120 = 1034 passed / 0 fail（先前 <code>test_reconciliations_v2</code> 分頁脆弱已於 CR-0067 修正）。<b>Live LLM 實機驗證（Vertex gemini-3.1-flash-lite）</b>：紅線 gate <b>9/9 全守線</b>（詢價/退款/付款/真人 → 全轉真人且零報價）、multiturn LLM-as-Judge <b>overall 0.975</b>（幻覺 0/12）、AI 進線 E2E live 通過。docker stack 重建 <b>12/12 smoke</b> + Playwright UI <b>0 console error</b>。</div>
 
 <h2>📊 四階段定義（Alpha → Beta → RC → GA）</h2>
 <table><tr><td>階段總覽</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td>階段</td><td>誰來測</td><td>環境</td><td>目的</td><td>重點 Focus</td><td>進入條件 (Entry)</td><td>退出/通過條件 (Exit)</td><td>建議時長</td><td>主要風險</td></tr><tr><td>Alpha</td><td>內部團隊（QA、開發、營運員工）</td><td>內部測試環境（local + dev Cloud Run，testcontainers Postgres，mock LINE webhook / mock LiteLLM provider）</td><td>功能尚未穩定時先抓主要 bug；驗證 happy path 與主要 alt path，建立可重複跑的 pytest / Playwright 骨架</td><td>• P0 BR happy path + 主要 alt path 功能驗證（M01-M20 核心 router/service）
@@ -163,10 +162,10 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
       <div class="seg par" style="width:0%"></div>
       <div class="seg gap" style="width:0%"></div></div>
       <div class="modpct">100%</div></div><div class="modrow"><div class="modname">A10 <span class="modn">(2)</span></div>
-      <div class="bar"><div class="seg cov" style="width:100%"></div>
-      <div class="seg par" style="width:0%"></div>
+      <div class="bar"><div class="seg cov" style="width:50%"></div>
+      <div class="seg par" style="width:50%"></div>
       <div class="seg gap" style="width:0%"></div></div>
-      <div class="modpct">100%</div></div><div class="modrow"><div class="modname">A11 <span class="modn">(2)</span></div>
+      <div class="modpct">75%</div></div><div class="modrow"><div class="modname">A11 <span class="modn">(2)</span></div>
       <div class="bar"><div class="seg cov" style="width:100%"></div>
       <div class="seg par" style="width:0%"></div>
       <div class="seg gap" style="width:0%"></div></div>
@@ -175,10 +174,10 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
       <div class="seg par" style="width:100%"></div>
       <div class="seg gap" style="width:0%"></div></div>
       <div class="modpct">50%</div></div><div class="modrow"><div class="modname">M01 <span class="modn">(6)</span></div>
-      <div class="bar"><div class="seg cov" style="width:100%"></div>
-      <div class="seg par" style="width:0%"></div>
+      <div class="bar"><div class="seg cov" style="width:83%"></div>
+      <div class="seg par" style="width:16%"></div>
       <div class="seg gap" style="width:0%"></div></div>
-      <div class="modpct">100%</div></div><div class="modrow"><div class="modname">M02 <span class="modn">(5)</span></div>
+      <div class="modpct">92%</div></div><div class="modrow"><div class="modname">M02 <span class="modn">(5)</span></div>
       <div class="bar"><div class="seg cov" style="width:100%"></div>
       <div class="seg par" style="width:0%"></div>
       <div class="seg gap" style="width:0%"></div></div>
@@ -267,10 +266,10 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
       <div class="seg par" style="width:0%"></div>
       <div class="seg gap" style="width:0%"></div></div>
       <div class="modpct">100%</div></div><div class="modrow"><div class="modname">Sync-M02 <span class="modn">(1)</span></div>
-      <div class="bar"><div class="seg cov" style="width:100%"></div>
-      <div class="seg par" style="width:0%"></div>
+      <div class="bar"><div class="seg cov" style="width:0%"></div>
+      <div class="seg par" style="width:100%"></div>
       <div class="seg gap" style="width:0%"></div></div>
-      <div class="modpct">100%</div></div><div class="modrow"><div class="modname">Sync-M03 <span class="modn">(1)</span></div>
+      <div class="modpct">50%</div></div><div class="modrow"><div class="modname">Sync-M03 <span class="modn">(1)</span></div>
       <div class="bar"><div class="seg cov" style="width:100%"></div>
       <div class="seg par" style="width:0%"></div>
       <div class="seg gap" style="width:0%"></div></div>
@@ -288,25 +287,29 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
       <div class="seg gap" style="width:0%"></div></div>
       <div class="modpct">100%</div></div>
 
-<h2>🚀 本 session（2026-06-20，26 CR）對測試計畫的補強</h2>
-<div class="note">本輪以 7-agent 審計對 HEAD 查證後，閉環審計 15 項 in-scope 待做 + 修 3 個真 bug（到場閘恆409/改派恆500/KPI失真）。對應測試計畫補強（標籤散見下表「本輪補強」欄）：
+<h2>🚀 測試計畫覆蓋衝刺（2026-06-20，CR-0063~0087 共 25 CR，三波）</h2>
+<div class="note">用多輪 scoping workflow 對 194 TI 項三方查證（spec+code+DB）後逐批補功能+測試，加權覆蓋率 <b>69.1% → 96.4%</b>，缺口 55 → 0。
 <div style="margin-top:8px">
-<span class="tag">M03 完整度/三級必填</span><span class="tag">M05 公單欄位/保固/reason/pending-scope/到場</span><span class="tag">M06 派工資格/skill/brand auth/GIS/績效</span><span class="tag">M08 完工硬閘/套件/施工照</span><span class="tag">M09 證據包</span><span class="tag">M15 異常框架</span><span class="tag">M16 事件通知</span><span class="tag">M18 config生效日</span><span class="tag">M04/M11 finance config</span>
-</div></div>
+<span class="tag">第一波 CR-0063~0070 覆蓋批次 + 金流 mock</span><span class="tag">第二波 CR-0071~0079 RBAC/通知/結算/治理/SOP</span><span class="tag">第三波 CR-0080~0087 eval/ERP/效能/partner/E2E/live</span>
+</div>
+<div style="margin-top:10px"><b>補測過程揪出並修復 ~7 個 latent 假綠 bug</b>：signature FK 違反（技師簽名必 500）、對帳異常狀態機死鎖（detected 恆 409）、通知繞核准 gate、A12 trace 未接線、RBAC role 指派零生產碼、eval 評分 0 pytest 覆蓋、partner 無 scope 隔離（vendor 可讀全品牌）。</div></div>
 
-<h2>🧭 55 項缺口分類（矩陣 2026-06-17 製，未含本輪 session 新測試）</h2>
-<div class="note">下列「缺口」是矩陣『現況覆蓋』欄未引用測試檔者。<b>本輪 session 新增的 26 個測試檔尚未回填矩陣</b>，故 M03/M05/M06/M08/M09/M15/M16 等模組多項實際已覆蓋。真正待補的集中在：E2E 跨模組主流程、P2 金流（會議下輪）、Agent/AI（lockcore 獨立測試）。</div>
-<div class="gapcats"></div>
+<h2>🧭 剩餘 14 項「部分覆蓋」分類（可測核心已做+測，full 行為待外部資源/CIA）</h2>
+<div class="note">缺口已歸 <b>0</b>。剩 14 項皆為「可測核心已實作並測過、full production 行為有尾巴」，分三類：<br>
+<b>A 卡外部資源</b>：金流 PAY-01~05（mock 骨架已測，正式 Line Pay/Apple Pay provider 需金鑰，會議決議6 下輪）、SYNC-02（reconcile/SCD2 已測，真 ERP client 需對方系統+憑證）。<br>
+<b>B 卡 agent 核心（需 CIA）</b>：debounce 接 gateway、output guardrail runtime、AI 影像 runtime-strip、trace 接 lockcore — 皆動 <code>agent/lockcore/</code> 核心，按 change-governance 須先跑 CIA。<br>
+<b>C 純 E2E 腳本</b>：X-01 完整 LINE→AI→結案單一貫穿（營運段已 component 測、AI 段已 live 驗）。</div>
+<div class="gapcats"><div class='gapcat'><div class='gaphd' style='border-color:#0e7490'>B · 卡 agent 核心（動 lockcore，需先跑 CIA） <span class='gn'>(6)</span></div><ul><li><span class='mono'>TI-M01-04</span> <span class='pri pri-P1'>P1</span> A01 進線 1.5s debounce / flood dedup（合併文字/媒體/貼圖為 single logical tu</li><li><span class='mono'>TI-AIOPS-11</span> <span class='pri pri-P0'>P0</span> SOW 2.1(4) AI 影像辨識禁用 — pre-commit static analysis + runtime doub</li><li><span class='mono'>TI-A01-01</span> <span class='pri pri-P1'>P1</span> 進線訊息 1.5s debounce / flood 合併（文字+媒體+貼圖 → single logical turn）</li><li><span class='mono'>TI-A05-02</span> <span class='pri pri-P0'>P0</span> NTD 數字無修飾語 → output guardrail regen + policy.decision log；prompt</li><li><span class='mono'>TI-A08-01</span> <span class='pri pri-P0'>P0</span> AI 影像辨識禁用（SOW 2.1(4)）：pre-commit static analysis + runtime doubl</li><li><span class='mono'>TI-A12-01</span> <span class='pri pri-P2'>P2</span> Governance &amp; PRD trace：每個 AI 行為可追溯 Final rule/source skill/decis</li></ul></div><div class='gapcat'><div class='gaphd' style='border-color:#b45309'>A · 卡外部資源（正式 provider 金鑰 / 真 ERP，下輪） <span class='gn'>(6)</span></div><ul><li><span class='mono'>TI-FIN-PAY-01</span> <span class='pri pri-P0'>P0</span> Payment gate 控派工：有付款證明或訂金才可建 WO（configurable）</li><li><span class='mono'>TI-FIN-PAY-02</span> <span class='pri pri-P0'>P0</span> 三軌支付（cash / Apple Pay / Line Pay）payment:intent → confirm</li><li><span class='mono'>TI-FIN-PAY-03</span> <span class='pri pri-P0'>P0</span> Line Pay webhook idempotency + 簽章驗證（重複 webhook 不重複入帳）</li><li><span class='mono'>TI-FIN-PAY-04</span> <span class='pri pri-P1'>P1</span> 支付 fallback 兩次嘗試 audit（Line Pay 失敗 → cash fallback，payment_attem</li><li><span class='mono'>TI-FIN-PAY-05</span> <span class='pri pri-P1'>P1</span> 現金 dispute → disputes 表（24h 內回報金額不符）+ ≥50000 強制簽章</li><li><span class='mono'>TI-SYNC-02</span> <span class='pri pri-P1'>P1</span> Facts 主檔同步：phone/address/device facts ↔ ERP customer/site/device</li></ul></div><div class='gapcat'><div class='gaphd' style='border-color:#7c3aed'>C · 純 E2E 單一貫穿腳本（營運段已測+AI 段 live 驗） <span class='gn'>(1)</span></div><ul><li><span class='mono'>TI-X-01</span> <span class='pri pri-P0'>P0</span> E2E 主流程：LINE → AI → ProblemCard → WO → 派工 → 接單 → 施工 → 完工 → 結案</li></ul></div><div class='gapcat'><div class='gaphd' style='border-color:#64748b'>其他尾巴（補充性，核心已測） <span class='gn'>(1)</span></div><ul><li><span class='mono'>TI-A10-02</span> <span class='pri pri-P0'>P0</span> 高風險 SOP 雙審（Knowledge Owner + domain expert）+ 合約 4.4(d) 家族覆核 100%</li></ul></div></div>
 
-<h2>🧪 本 session 新增的 26 個測試檔（test_cr_0037~0062）</h2>
-<div class="note" style="line-height:2.2"><span class='tag'>test_cr_0037_payout_rules</span><span class='tag'>test_cr_0038_bucket4</span><span class='tag'>test_cr_0039_completion_gate</span><span class='tag'>test_cr_0040_evidence_governance</span><span class='tag'>test_cr_0041_exception_framework</span><span class='tag'>test_cr_0042_alpha_closeout</span><span class='tag'>test_cr_0043_wo_fields_phase2</span><span class='tag'>test_cr_0044_esales_config</span><span class='tag'>test_cr_0045_invoice_tax</span><span class='tag'>test_cr_0046_quote_text_discount</span><span class='tag'>test_cr_0047_warranty_auto</span><span class='tag'>test_cr_0048_reason_gate</span><span class='tag'>test_cr_0049_pending_scope_gate</span><span class='tag'>test_cr_0050_teaching_note</span><span class='tag'>test_cr_0051_dispatch_eligibility</span><span class='tag'>test_cr_0052_completeness_details</span><span class='tag'>test_cr_0053_arrival_doorcheck</span><span class='tag'>test_cr_0054_photos_during</span><span class='tag'>test_cr_0055_evidence_package</span><span class='tag'>test_cr_0056_completion_email</span><span class='tag'>test_cr_0057_field_tiers</span><span class='tag'>test_cr_0058_completion_materials_payment</span><span class='tag'>test_cr_0059_config_effective</span><span class='tag'>test_cr_0060_brand_auth</span><span class='tag'>test_cr_0061_gis_performance</span><span class='tag'>test_cr_0062_auto_notify</span></div>
+<h2>🧪 本衝刺新增測試檔（test_cr_0063~0087）</h2>
+<div class="note" style="line-height:2.2"><span class='tag'>test_cr_0063_coverage_batch1</span><span class='tag'>test_cr_0064_coverage_batch2</span><span class='tag'>test_cr_0065_coverage_batch3</span><span class='tag'>test_cr_0066_coverage_batch4</span><span class='tag'>test_cr_0067_coverage_batch5</span><span class='tag'>test_cr_0068_audit_hash_chain</span><span class='tag'>test_cr_0069_device_serial</span><span class='tag'>test_cr_0070_payment_mock</span><span class='tag'>test_cr_0071_rbac_sod</span><span class='tag'>test_cr_0072_notif_template</span><span class='tag'>test_cr_0073_settlement_versioning</span><span class='tag'>test_cr_0074_redline</span><span class='tag'>test_cr_0075_agent_gov_api</span><span class='tag'>test_cr_0076_agent_gov</span><span class='tag'>test_cr_0077_debounce</span><span class='tag'>test_cr_0078_bom</span><span class='tag'>test_cr_0079_sop_dual_review</span><span class='tag'>test_cr_0080_eval_scoring</span><span class='tag'>test_cr_0081_forbidden_eval</span><span class='tag'>test_cr_0082_facts_erp_sync</span><span class='tag'>test_cr_0083_nfr_batch_perf</span><span class='tag'>test_cr_0084_partner_scope</span><span class='tag'>test_cr_0085_ops_e2e</span><span class='tag'>test_cr_0086_ai_intake_live</span><span class='tag'>test_cr_0087_ingest_invariants</span><span class='tag'>test_cr_0087_skill_loop_compliance</span></div>
 
 <h2>📋 完整測試矩陣（194 項功能 × 測試）</h2>
 <div class="filters">
   <button class="on" onclick="flt(this,'all')">全部 (194)</button>
   <button onclick="flt(this,'GAP')">🔴 缺口 (0)</button>
-  <button onclick="flt(this,'PARTIAL')">🟡 部分 (11)</button>
-  <button onclick="flt(this,'COVERED')">✅ 覆蓋 (183)</button>
+  <button onclick="flt(this,'PARTIAL')">🟡 部分 (14)</button>
+  <button onclick="flt(this,'COVERED')">✅ 覆蓋 (180)</button>
   <button onclick="fltP(this,'P0')">P0 (98)</button>
   <button onclick="fltP(this,'P1')">P1 (86)</button>
   <button onclick="fltAll(this)">清除優先級</button>
@@ -352,7 +355,7 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
       <td class="small gap">production 模式（secret 存在）下 dev passthrough 不得啟用的環境守衛無自動化斷言；簽章拒絕率監控未驗證</td>
       <td class="sess"></td>
       <td><span class="badge" style="background:#16a34a">覆蓋</span></td>
-    </tr><tr data-status="COVERED" data-pri="P1" data-mod="M01">
+    </tr><tr data-status="PARTIAL" data-pri="P1" data-mod="M01">
       <td class="mono">TI-M01-04</td>
       <td>M01</td>
       <td>A01 進線 1.5s debounce / flood dedup（合併文字/媒體/貼圖為 single logica</td>
@@ -361,7 +364,7 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
       <td class="small">◐ debounce 純邏輯已測；gateway runtime 接線屬 follow-up：test_cr_0077_debounce.py</td>
       <td class="small gap">runtime 接線 follow-up</td>
       <td class="sess"></td>
-      <td><span class="badge" style="background:#16a34a">覆蓋</span></td>
+      <td><span class="badge" style="background:#d97706">部分</span></td>
     </tr><tr data-status="COVERED" data-pri="P1" data-mod="M01">
       <td class="mono">TI-M01-06</td>
       <td>M01</td>
@@ -2132,7 +2135,7 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
       <td class="small gap">補 trace schema 各必填欄位（decision_id/source_skill/version）非空斷言；補 trace↔tenant isolation 串測。</td>
       <td class="sess"></td>
       <td><span class="badge" style="background:#16a34a">覆蓋</span></td>
-    </tr><tr data-status="COVERED" data-pri="P0" data-mod="A10">
+    </tr><tr data-status="PARTIAL" data-pri="P0" data-mod="A10">
       <td class="mono">TI-A10-02</td>
       <td>A10</td>
       <td>高風險 SOP 雙審（Knowledge Owner + domain expert）+ 合約 4.4(d) 家族覆核 </td>
@@ -2141,7 +2144,7 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
       <td class="small">◐ 雙審四眼+不可篡改 ledger 已建+測：test_cr_0079_sop_dual_review.py（100% publish gate 屬 follow-up）</td>
       <td class="small gap">4.4(d) publish gate + reviewer 缺席 fallback follow-up</td>
       <td class="sess"></td>
-      <td><span class="badge" style="background:#16a34a">覆蓋</span></td>
+      <td><span class="badge" style="background:#d97706">部分</span></td>
     </tr><tr data-status="COVERED" data-pri="P1" data-mod="A10">
       <td class="mono">TI-A10-01</td>
       <td>A10</td>
@@ -2212,7 +2215,7 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
       <td class="small gap">補 422 缺地址 / 409 draft 轉換 / 404 跨 tenant / pc_id 冪等回 200 的完整契約紅線測試（與 TI-A06-02 互補，此項聚焦 Sync</td>
       <td class="sess"></td>
       <td><span class="badge" style="background:#16a34a">覆蓋</span></td>
-    </tr><tr data-status="COVERED" data-pri="P1" data-mod="Sync-M02">
+    </tr><tr data-status="PARTIAL" data-pri="P1" data-mod="Sync-M02">
       <td class="mono">TI-SYNC-02</td>
       <td>Sync-M02</td>
       <td>Facts 主檔同步：phone/address/device facts ↔ ERP customer/site/de</td>
@@ -2221,7 +2224,7 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
       <td class="small">◐ reconcile/SCD2 已測；真 ERP client + agent tool 需 CIA：test_cr_0082_facts_erp_sync.py</td>
       <td class="small gap">live runner / 真 ERP / AI 段屬 needs_external</td>
       <td class="sess"></td>
-      <td><span class="badge" style="background:#16a34a">覆蓋</span></td>
+      <td><span class="badge" style="background:#d97706">部分</span></td>
     </tr><tr data-status="COVERED" data-pri="P1" data-mod="Sync-M05">
       <td class="mono">TI-SYNC-05</td>
       <td>Sync-M05</td>

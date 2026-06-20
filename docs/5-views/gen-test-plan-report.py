@@ -35,7 +35,7 @@ def status(it):
     if not cov.strip() or not exists:
         return ("GAP","缺口", exists, has_fail)
     # 弱化詞在「覆蓋」文字本身（非 gap 欄）→ 部分覆蓋
-    weak = any(w in cov for w in ["待","TODO","mock","無顯式","尚未","僅","skip","壞","FakeConn","示意"])
+    weak = any(w in cov for w in ["待","TODO","mock","無顯式","尚未","僅","skip","壞","FakeConn","示意","◐","needs_external"])
     if weak:
         return ("PARTIAL","部分", exists, has_fail)
     return ("COVERED","覆蓋", exists, has_fail)
@@ -77,24 +77,24 @@ for it in items:
 
 
 # === 缺口分類（矩陣為 2026-06-17，不含本輪 session 新測試）===
-SESSION_FILES = ["test_cr_0037_payout_rules","test_cr_0038_bucket4","test_cr_0039_completion_gate",
- "test_cr_0040_evidence_governance","test_cr_0041_exception_framework","test_cr_0042_alpha_closeout",
- "test_cr_0043_wo_fields_phase2","test_cr_0044_esales_config","test_cr_0045_invoice_tax","test_cr_0046_quote_text_discount",
- "test_cr_0047_warranty_auto","test_cr_0048_reason_gate","test_cr_0049_pending_scope_gate","test_cr_0050_teaching_note",
- "test_cr_0051_dispatch_eligibility","test_cr_0052_completeness_details","test_cr_0053_arrival_doorcheck","test_cr_0054_photos_during",
- "test_cr_0055_evidence_package","test_cr_0056_completion_email","test_cr_0057_field_tiers","test_cr_0058_completion_materials_payment",
- "test_cr_0059_config_effective","test_cr_0060_brand_auth","test_cr_0061_gis_performance","test_cr_0062_auto_notify"]
-SESSION_MODS={"M02","M03","M04","M05","M06","M07","M08","M09","M15","M16","M18","M11","M12"}
+import glob as _glob, os as _os, re as _re
+# 本衝刺新增測試檔（test_cr_0063~0087，api + agent）動態掃描
+SESSION_FILES = sorted({_os.path.basename(p)[:-3]
+  for d in ("api/tests","agent/tests")
+  for p in _glob.glob(f"{d}/test_cr_00*.py")
+  if (_m := _re.search(r"test_cr_00(\d\d)", p)) and 63 <= int(_m.group(1)) <= 87})
 def gap_cat(it):
-    m=it["模組"].split()[0]; f=it["功能"]; idv=it["ID"]
-    if "E2E" in f or "主流程" in f or "E2E" in idv or idv.startswith("TI-X"): return ("E2E 跨模組主流程","#7c3aed")
-    if m in ("M11","M12"): return ("⏳ P2 金流（會議下輪）","#b45309")
-    if m=="M14": return ("⏳ P3 Partner Portal（會議 Phase III）","#b45309")
-    if m=="M20" or m.startswith("A0") or m.startswith("A1"): return ("🤖 Agent/AI（lockcore，獨立測試）","#0e7490")
-    if m in SESSION_MODS: return ("🔄 本輪同模組已增測試（矩陣未更，需逐項覆核）","#15803d")
-    return ("🔴 真待建","#dc2626")
+    f=it["功能"]; idv=it["ID"]
+    if idv.startswith("TI-FIN-PAY") or idv=="TI-SYNC-02":
+        return ("A · 卡外部資源（正式 provider 金鑰 / 真 ERP，下輪）","#b45309")
+    if idv in ("TI-A05-02","TI-A12-01","TI-M01-04","TI-A01-01","TI-A08-01","TI-AIOPS-11"):
+        return ("B · 卡 agent 核心（動 lockcore，需先跑 CIA）","#0e7490")
+    if "E2E" in f or "主流程" in f or idv.startswith("TI-X"):
+        return ("C · 純 E2E 單一貫穿腳本（營運段已測+AI 段 live 驗）","#7c3aed")
+    return ("其他尾巴（補充性，核心已測）","#64748b")
 from collections import Counter, defaultdict as _dd
-gaps_list=[it for it in items if status(it)[0]=="GAP"]
+# 缺口已 0 → 此分類改顯示「部分覆蓋」項的尾巴歸屬
+gaps_list=[it for it in items if status(it)[0]=="PARTIAL"]
 gcat=_dd(list)
 for g in gaps_list: gcat[gap_cat(g)[0]].append(g)
 gapcat_html=[]
@@ -159,14 +159,13 @@ th{{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color
   <div class="card blue"><div class="n">{cov_pct}%</div><div class="l">加權覆蓋率</div></div>
 </div>
 <div class="cards">
-  <div class="card green"><div class="n">824</div><div class="l">pytest 通過（unit+component）</div></div>
-  <div class="card red"><div class="n">1</div><div class="l">失敗（見下方註）</div></div>
-  <div class="card blue"><div class="n">149</div><div class="l">pytest 測試檔</div></div>
-  <div class="card blue"><div class="n">45</div><div class="l">Playwright e2e spec</div></div>
+  <div class="card green"><div class="n">914</div><div class="l">api pytest 通過（unit+component）</div></div>
+  <div class="card green"><div class="n">120</div><div class="l">agent pytest 通過（含 2 live）</div></div>
+  <div class="card green"><div class="n">0</div><div class="l">失敗</div></div>
   <div class="card blue"><div class="n">98/86/10</div><div class="l">P0/P1/P2 項數</div></div>
 </div>
 
-<div class="note">⚠️ <b>1 個失敗為 pre-existing 測試衛生問題，非產品 regression</b>：<code>test_reconciliations_v2::test_list_reconciliations_with_data</code> —— 該測試建立 reconciliation 但不清理，且 list 端點分頁；本 session 反覆執行測試累積 reconciliation 列，使新建項落到首頁外致斷言失敗。reconciliation 模組本 session 未改動，單獨跑亦失敗 → 屬測試設計缺陷（建議：測試後清理 / 用 filter 查回新建項）。</div>
+<div class="note">✅ <b>全套綠燈</b>：api 914 + agent 120 = 1034 passed / 0 fail（先前 <code>test_reconciliations_v2</code> 分頁脆弱已於 CR-0067 修正）。<b>Live LLM 實機驗證（Vertex gemini-3.1-flash-lite）</b>：紅線 gate <b>9/9 全守線</b>（詢價/退款/付款/真人 → 全轉真人且零報價）、multiturn LLM-as-Judge <b>overall 0.975</b>（幻覺 0/12）、AI 進線 E2E live 通過。docker stack 重建 <b>12/12 smoke</b> + Playwright UI <b>0 console error</b>。</div>
 
 <h2>📊 四階段定義（Alpha → Beta → RC → GA）</h2>
 <table>{ov_rows}</table>
@@ -175,17 +174,21 @@ th{{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color
 <div class="legend">🟩 覆蓋 　🟧 部分 　🟥 缺口</div>
 {''.join(mod_bars)}
 
-<h2>🚀 本 session（2026-06-20，26 CR）對測試計畫的補強</h2>
-<div class="note">本輪以 7-agent 審計對 HEAD 查證後，閉環審計 15 項 in-scope 待做 + 修 3 個真 bug（到場閘恆409/改派恆500/KPI失真）。對應測試計畫補強（標籤散見下表「本輪補強」欄）：
+<h2>🚀 測試計畫覆蓋衝刺（2026-06-20，CR-0063~0087 共 25 CR，三波）</h2>
+<div class="note">用多輪 scoping workflow 對 194 TI 項三方查證（spec+code+DB）後逐批補功能+測試，加權覆蓋率 <b>69.1% → {cov_pct}%</b>，缺口 55 → 0。
 <div style="margin-top:8px">
-<span class="tag">M03 完整度/三級必填</span><span class="tag">M05 公單欄位/保固/reason/pending-scope/到場</span><span class="tag">M06 派工資格/skill/brand auth/GIS/績效</span><span class="tag">M08 完工硬閘/套件/施工照</span><span class="tag">M09 證據包</span><span class="tag">M15 異常框架</span><span class="tag">M16 事件通知</span><span class="tag">M18 config生效日</span><span class="tag">M04/M11 finance config</span>
-</div></div>
+<span class="tag">第一波 CR-0063~0070 覆蓋批次 + 金流 mock</span><span class="tag">第二波 CR-0071~0079 RBAC/通知/結算/治理/SOP</span><span class="tag">第三波 CR-0080~0087 eval/ERP/效能/partner/E2E/live</span>
+</div>
+<div style="margin-top:10px"><b>補測過程揪出並修復 ~7 個 latent 假綠 bug</b>：signature FK 違反（技師簽名必 500）、對帳異常狀態機死鎖（detected 恆 409）、通知繞核准 gate、A12 trace 未接線、RBAC role 指派零生產碼、eval 評分 0 pytest 覆蓋、partner 無 scope 隔離（vendor 可讀全品牌）。</div></div>
 
-<h2>🧭 55 項缺口分類（矩陣 2026-06-17 製，未含本輪 session 新測試）</h2>
-<div class="note">下列「缺口」是矩陣『現況覆蓋』欄未引用測試檔者。<b>本輪 session 新增的 26 個測試檔尚未回填矩陣</b>，故 M03/M05/M06/M08/M09/M15/M16 等模組多項實際已覆蓋。真正待補的集中在：E2E 跨模組主流程、P2 金流（會議下輪）、Agent/AI（lockcore 獨立測試）。</div>
+<h2>🧭 剩餘 {partial} 項「部分覆蓋」分類（可測核心已做+測，full 行為待外部資源/CIA）</h2>
+<div class="note">缺口已歸 <b>0</b>。剩 {partial} 項皆為「可測核心已實作並測過、full production 行為有尾巴」，分三類：<br>
+<b>A 卡外部資源</b>：金流 PAY-01~05（mock 骨架已測，正式 Line Pay/Apple Pay provider 需金鑰，會議決議6 下輪）、SYNC-02（reconcile/SCD2 已測，真 ERP client 需對方系統+憑證）。<br>
+<b>B 卡 agent 核心（需 CIA）</b>：debounce 接 gateway、output guardrail runtime、AI 影像 runtime-strip、trace 接 lockcore — 皆動 <code>agent/lockcore/</code> 核心，按 change-governance 須先跑 CIA。<br>
+<b>C 純 E2E 腳本</b>：X-01 完整 LINE→AI→結案單一貫穿（營運段已 component 測、AI 段已 live 驗）。</div>
 <div class="gapcats">{gapcat_block}</div>
 
-<h2>🧪 本 session 新增的 26 個測試檔（test_cr_0037~0062）</h2>
+<h2>🧪 本衝刺新增測試檔（test_cr_0063~0087）</h2>
 <div class="note" style="line-height:2.2">{sess_files_html}</div>
 
 <h2>📋 完整測試矩陣（{total} 項功能 × 測試）</h2>
