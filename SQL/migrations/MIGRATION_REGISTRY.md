@@ -79,6 +79,7 @@
 | 067 | `067-audit-hash-chain.sql` | CR-0068 | 🟢 idempotent ✅ 2026-06-20 套 dev | Audit log 篡改偵測（TI-AUDIT-03 合規紅線）：audit_events +prev_hash +entry_hash。log_event/log_event_returning_id 寫入時計 entry_hash=sha256(prev_hash+正規化內容) 接前列；verify_audit_chain() 走鏈偵測內容竄改/鏈接斷裂。migration 前歷史列 entry_hash=NULL 不回填（verify 只驗鏈段）。純 ADD COLUMN 可重套 |
 | 068 | `068-warranty-device-serial.sql` | CR-0069 | 🟢 idempotent ✅ 2026-06-20 套 dev | Device serial 唯一識別（TI-M02-05/ADR-0053）：warranty_claims +device_serial TEXT + partial index。create_warranty_claim 接收落庫；check_rma_abuse 加 device_serial 參數做 serial 級 abuse 偵測（同型號不同實體鎖不互累）。純 ADD COLUMN 可重套 |
 | 069 | `069-payments-mock.sql` | CR-0070 | 🟢 idempotent ✅ 2026-06-20 套 dev | 金流 mock 骨架（TI-FIN-PAY-01~05，會議決議5 mock-first）：新表 payments（三軌 method + idempotency_key 防重複 intent + provider_txn_id 防重複 webhook + fallback_from + is_mock）+ 註冊 payment_gate config namespace。payment_service intent/confirm/webhook 冪等驗簽/fallback audit/現金爭議/payment gate。正式 provider 串接 Sunny 下輪替換，schema 不變。可重套 |
+| 070 | `070-role-assignment-sod.sql` | CR-0071 | 🟢 idempotent ✅ 2026-06-20 套 dev | Role 指派雙人 SoD（TI-RBAC-02/FR-0019/§4.6.5）：新表 saas.role_assignment（propose+approve 雙段）+ role_assign_dual_sign_distinct CHECK（proposed_by<>approved_by，DB 硬防）。補上原本零生產碼的 user role 指派路徑（假綠）。可重套 |
 
 > 註：028-032 為 agent/CR-0020~0022 波次 migration（已實作於分支，registry 待補登）。
 > 註：036-041 為 CR-0026~0034 波次 migration（已實作於分支，registry 待補登）。
