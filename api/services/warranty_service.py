@@ -539,3 +539,26 @@ async def submit_decision(
         (new_status, resolution_clean, discount_value, claim_id),
     )
     return await get_warranty_claim(tenant_id=tenant_id, claim_id=claim_id)
+
+
+async def check_rma_abuse(
+    *, customer_id: str, device_brand: str | None = None, device_model: str | None = None,
+    window_days: int = 30, threshold: int = 3,
+) -> dict:
+    """CR-0064 / TI-RMA-04 / BR-WARRANTY-003：同客戶同機種短期 RMA 頻次偵測。
+
+    視窗內（預設 30 天）同 customer + device_brand/model 的 warranty_claims 數 ≥ threshold（預設 3）
+    → abuse_flagged，供風控告警/人工複核。回 {count, threshold, abuse_flagged}。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    cur = await db_module._conn.execute(
+        "SELECT count(*) FROM warranty_claims "
+        "WHERE customer_id = %s::uuid "
+        "  AND (%s::text IS NULL OR device_brand = %s) "
+        "  AND (%s::text IS NULL OR device_model = %s) "
+        "  AND claim_date >= (CURRENT_DATE - make_interval(days => %s))",
+        (customer_id, device_brand, device_brand, device_model, device_model, window_days),
+    )
+    cnt = int((await cur.fetchone())[0] or 0)
+    return {"count": cnt, "threshold": threshold, "abuse_flagged": cnt >= threshold}

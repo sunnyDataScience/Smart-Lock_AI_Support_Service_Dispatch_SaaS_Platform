@@ -158,8 +158,10 @@ async def test_list_reconciliations_with_data(client):
     recon_id = await _insert_reconciliation()
     try:
         headers = _make_headers(ADMIN_USER_ID)
+        # limit=100：seed 資料已成長到 20+ 筆（含未來日期 row），預設 limit=20 會把
+        # 剛建立的 row 擠出首頁；取最大頁確保新 row 必在回傳集合內（隔離安全）。
         resp = await client.get(
-            f"/tenants/{DEFAULT_TENANT_ID}/accounting/reconciliations",
+            f"/tenants/{DEFAULT_TENANT_ID}/accounting/reconciliations?limit=100",
             headers=headers,
         )
         assert resp.status_code == 200

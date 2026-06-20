@@ -161,6 +161,23 @@ async def upload_media(
         if await wcur.fetchone():
             ret_years = 2
 
+    # CR-0064 / TI-M09-01：sha256 去重 — 同 WO 同檔二次上傳回既有，不重複入庫（idempotent）。
+    if work_order_id:
+        ex = await db_module._conn.execute(
+            "SELECT id, filename, content_type, size_bytes, purpose, sha256, created_at "
+            "FROM media_files WHERE work_order_id = %s::uuid AND sha256 = %s "
+            "  AND deleted_at IS NULL LIMIT 1",
+            (work_order_id, sha256),
+        )
+        exr = await ex.fetchone()
+        if exr:
+            return {
+                "id": str(exr[0]), "url": f"/api/v1/media/{exr[0]}", "filename": exr[1],
+                "content_type": exr[2], "size_bytes": exr[3], "purpose": exr[4],
+                "work_order_id": work_order_id, "dispute_id": dispute_id, "sha256": exr[5],
+                "created_at": exr[6].isoformat() if exr[6] else None, "deduplicated": True,
+            }
+
     cur = await db_module._conn.execute(
         "INSERT INTO media_files "
         "  (id, tenant_id, uploader_user_id, work_order_id, dispute_id, "

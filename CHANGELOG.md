@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CR-0064 測試計畫覆蓋 Batch 2 — 3 個缺功能補實作+測試（branch `feat/cr-0064-coverage-batch2-funcs`，2026-06-20）**：測試計畫審計揪出 BUILD_FUNC_AND_TEST 項。本 batch 補 3 個原本「規範要求但未實作」功能：**TI-M05-02** 結案前服務地址必填硬閘（`work_order_service._enforce_completion_gate` 加 `ADDRESS_REQUIRED_FOR_CLOSE` 422）；**TI-M09-01** 媒體 sha256 去重（`media_service.upload_media` 同 WO 同檔二次上傳 idempotent 回既有 `deduplicated:true`，DB 不重複入庫）；**TI-RMA-04** RMA 濫用偵測（`warranty_service.check_rma_abuse` 同客戶同機種視窗內 ≥3 次 `abuse_flagged`）。test_cr_0064 3/3 + 回歸全套 836 passed 0 fail。附帶修 `test_reconciliations_v2` 脆弱分頁假設（seed 成長後預設 limit=20 擠出新 row → 改 limit=100）。
+
+- **CR-0063 測試計畫覆蓋 Batch 1 — 6 個已存在功能補測試（branch `feat/cr-0063-coverage-batch1`，2026-06-20，merge 80e06539）**：審計揪出 BUILD_TEST_ONLY（功能在缺測試）。補 TI-M03-09 ProblemCard 匯出 / TI-FIN-REV-01·INV-02 Revenue date-range / TI-RES-01 resolution 階層 / TI-BI-04 Scheduled Reports / TI-FIN-SETTLE-05 五類 ledger 分表。test_cr_0063 8/8。
+
 - **CR-0062 事件驅動通知自動生成（branch `feat/cr-0062-event-driven-notifications`，2026-06-20）**：審計 #6（最後一項）/ M16。通知中心原只能手動 push，生命週期事件未接通知產生。work_order_service 加 `_auto_notify`（best-effort，接 notification_service.push_notification）+ 接兩個關鍵事件：**派工→通知被指派技師**（technicians.user_id）、**完工→通知開單者**（created_by）「待審核結案」。test_cr_0062 1/1 + 回歸 0 fail。**審計 15 項待做 in-scope 全數閉環。**
 
 ### Added

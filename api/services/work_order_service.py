@@ -903,6 +903,12 @@ async def _enforce_completion_gate(
             "有未經客戶確認的範圍/加價變更，須客戶確認或主管覆寫後才可完工",
             409,
         )
+    # CR-0064 / TI-M05-02 / BR-M05：結案前服務地址必填（電子工單/派工依據）
+    acur = await db_module._conn.execute(
+        "SELECT customer_address FROM work_orders WHERE id = %s::uuid", (wo_id,))
+    arow = await acur.fetchone()
+    if not (arow and arow[0] and str(arow[0]).strip()):
+        raise ApiError("ADDRESS_REQUIRED_FOR_CLOSE", "結案前須有服務地址", 422)
     return summary
 
 
