@@ -78,6 +78,7 @@
 | 066 | `066-media-legal-hold.sql` | CR-0067 | 🟢 idempotent ✅ 2026-06-20 套 dev | Evidence 法務保留（TI-M09-03/ADR-0051）：media_files +legal_hold BOOLEAN NOT NULL DEFAULT false。soft_delete_expired_media 補 AND legal_hold IS NOT TRUE（過期但 legal_hold 不軟刪，legal_hold wins）。純 ADD COLUMN 可重套 |
 | 067 | `067-audit-hash-chain.sql` | CR-0068 | 🟢 idempotent ✅ 2026-06-20 套 dev | Audit log 篡改偵測（TI-AUDIT-03 合規紅線）：audit_events +prev_hash +entry_hash。log_event/log_event_returning_id 寫入時計 entry_hash=sha256(prev_hash+正規化內容) 接前列；verify_audit_chain() 走鏈偵測內容竄改/鏈接斷裂。migration 前歷史列 entry_hash=NULL 不回填（verify 只驗鏈段）。純 ADD COLUMN 可重套 |
 | 068 | `068-warranty-device-serial.sql` | CR-0069 | 🟢 idempotent ✅ 2026-06-20 套 dev | Device serial 唯一識別（TI-M02-05/ADR-0053）：warranty_claims +device_serial TEXT + partial index。create_warranty_claim 接收落庫；check_rma_abuse 加 device_serial 參數做 serial 級 abuse 偵測（同型號不同實體鎖不互累）。純 ADD COLUMN 可重套 |
+| 069 | `069-payments-mock.sql` | CR-0070 | 🟢 idempotent ✅ 2026-06-20 套 dev | 金流 mock 骨架（TI-FIN-PAY-01~05，會議決議5 mock-first）：新表 payments（三軌 method + idempotency_key 防重複 intent + provider_txn_id 防重複 webhook + fallback_from + is_mock）+ 註冊 payment_gate config namespace。payment_service intent/confirm/webhook 冪等驗簽/fallback audit/現金爭議/payment gate。正式 provider 串接 Sunny 下輪替換，schema 不變。可重套 |
 
 > 註：028-032 為 agent/CR-0020~0022 波次 migration（已實作於分支，registry 待補登）。
 > 註：036-041 為 CR-0026~0034 波次 migration（已實作於分支，registry 待補登）。
