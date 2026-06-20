@@ -266,13 +266,18 @@ async def co_sign_reconciliation(
 
     # INSERT saas.settlement（dual-sign 完成才建）
     payout = float(technician_payout or 0)
+    # TI-FIN-SETTLE-04：釘選建立當下的結算費率 config 版本（best-effort，缺則 NULL）
+    from services import config_m18_service
+    ver = await config_m18_service.resolve_settlement_rate_version(tenant_id=None)
     settlement_cur = await db_module._conn.execute(
         "INSERT INTO saas.settlement "
-        "  (tenant_id, reconciliation_id, technician_id, amount, currency, status) "
-        "VALUES (%s::uuid, %s::uuid, %s::uuid, %s, 'TWD', 'pending') "
+        "  (tenant_id, reconciliation_id, technician_id, amount, currency, status, "
+        "   applied_config_version_id, rate_effective_date) "
+        "VALUES (%s::uuid, %s::uuid, %s::uuid, %s, 'TWD', 'pending', %s, %s) "
         "RETURNING id, tenant_id, reconciliation_id, technician_id, amount, "
         "          currency, status, payment_method, paid_at, created_at",
-        (tenant_id, recon_id, str(technician_id), payout),
+        (tenant_id, recon_id, str(technician_id), payout,
+         ver["version_id"], ver["effective_date"]),
     )
     s_row = await settlement_cur.fetchone()
     settlement = _settlement_row_to_dict(s_row)

@@ -81,6 +81,7 @@
 | 069 | `069-payments-mock.sql` | CR-0070 | 🟢 idempotent ✅ 2026-06-20 套 dev | 金流 mock 骨架（TI-FIN-PAY-01~05，會議決議5 mock-first）：新表 payments（三軌 method + idempotency_key 防重複 intent + provider_txn_id 防重複 webhook + fallback_from + is_mock）+ 註冊 payment_gate config namespace。payment_service intent/confirm/webhook 冪等驗簽/fallback audit/現金爭議/payment gate。正式 provider 串接 Sunny 下輪替換，schema 不變。可重套 |
 | 070 | `070-role-assignment-sod.sql` | CR-0071 | 🟢 idempotent ✅ 2026-06-20 套 dev | Role 指派雙人 SoD（TI-RBAC-02/FR-0019/§4.6.5）：新表 saas.role_assignment（propose+approve 雙段）+ role_assign_dual_sign_distinct CHECK（proposed_by<>approved_by，DB 硬防）。補上原本零生產碼的 user role 指派路徑（假綠）。可重套 |
 | 071 | `071-notification-template-approval.sql` | CR-0072 | 🟢 idempotent ✅ 2026-06-20 套 dev | 通知模板核准 gate（TI-NOTIF-03/BR-M16-03）：新表 notification_template（status pending_approval→approved + notif_template_four_eyes CHECK 建立者≠核准者）+ notifications +template_id 追溯 + seed 7 類 approved 模板。對客 templated 訊息須核准才可發；CR-0062 內部 alert 直發不受 gate（分流）。WHERE NOT EXISTS 守 seed 可重套 |
+| 072 | `072-settlement-config-versioning.sql` | CR-0073 | 🟢 idempotent ✅ 2026-06-20 套 dev | 結算費率版本釘選（TI-FIN-SETTLE-04）：saas.settlement +applied_config_version_id（FK config_version）+rate_effective_date。co_sign/月結批次建 settlement 時釘選當下 active 結算費率 config 版本（resolve_settlement_rate_version 包 get_active_version），釘選後不漂移可回溯。只做 versioning wiring 不遷 80/20 計算來源。純 ADD COLUMN 可重套 |
 
 > 註：028-032 為 agent/CR-0020~0022 波次 migration（已實作於分支，registry 待補登）。
 > 註：036-041 為 CR-0026~0034 波次 migration（已實作於分支，registry 待補登）。

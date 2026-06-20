@@ -117,6 +117,10 @@ async def generate_monthly_batch(
     )
     recons = await cur.fetchall()
 
+    # TI-FIN-SETTLE-04：整批釘選同一結算費率 config 版本（best-effort，缺則 NULL）
+    from services import config_m18_service
+    batch_ver = await config_m18_service.resolve_settlement_rate_version(tenant_id=None)
+
     # 3. 各 reconciliation 建 settlement（HD-5 settled_eligible 視 wo dispute）
     inserted = 0
     total_amount = 0.0
@@ -137,12 +141,14 @@ async def generate_monthly_batch(
         await db_module._conn.execute(
             "INSERT INTO saas.settlement "
             "  (tenant_id, reconciliation_id, technician_id, amount, "
-            "   status, monthly_batch_id, settled_eligible) "
+            "   status, monthly_batch_id, settled_eligible, "
+            "   applied_config_version_id, rate_effective_date) "
             "VALUES (%s::uuid, %s::uuid, %s::uuid, %s, 'pending', "
-            "        %s::uuid, %s)",
+            "        %s::uuid, %s, %s, %s)",
             (
                 tenant_id, str(recon_id), str(tech_id),
                 float(payout or 0), batch_id, eligible,
+                batch_ver["version_id"], batch_ver["effective_date"],
             ),
         )
         inserted += 1

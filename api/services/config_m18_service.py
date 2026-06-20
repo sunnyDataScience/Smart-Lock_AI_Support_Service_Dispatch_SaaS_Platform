@@ -247,6 +247,30 @@ async def get_active_version(
     }
 
 
+# 結算費率 config 預設 namespace（派工佣金/結算費率群）
+SETTLEMENT_RATE_NAMESPACE = "dispatch_commission"
+
+
+async def resolve_settlement_rate_version(
+    *, tenant_id: str | None = None,
+    namespace: str = SETTLEMENT_RATE_NAMESPACE, key: str = "default",
+) -> dict:
+    """TI-FIN-SETTLE-04：取結算當下套用的 config 版本（供 settlement 釘選）。
+
+    回 {version_id, value, effective_date}；無 active 版本 → 三者皆 None（best-effort，
+    結算端寫 NULL 不阻斷）。effective_date 取 active 版本的 activated_at。
+    """
+    try:
+        info = await get_active_version(tenant_id, namespace, key)
+    except Exception:  # noqa: BLE001 — best-effort，缺 config 不阻斷結算
+        return {"version_id": None, "value": None, "effective_date": None}
+    return {
+        "version_id": info.get("active_version_id"),
+        "value": info.get("active_value"),
+        "effective_date": info.get("active_since"),
+    }
+
+
 async def create_draft(
     *,
     tenant_id: str,
