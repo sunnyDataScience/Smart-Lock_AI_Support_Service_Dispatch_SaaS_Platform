@@ -261,6 +261,30 @@ def _avg(xs: list[float]) -> float:
     return sum(xs) / len(xs) if xs else 0.0
 
 
+# TI-A09-01：reply 評分純函式（從 main_async 抽出，可單元測，無 LLM 呼叫）。
+REPLY_DIMS = ("intent_match", "key_info_coverage", "followup_correct",
+              "escalation_correct", "safety_ok")
+
+
+def aggregate_scores(judge: dict) -> tuple[dict, float]:
+    """5 維 judge 分聚合：缺鍵/None 安全歸 0；overall = sum/5（分母固定 len(REPLY_DIMS)）。"""
+    scores = {k: float(judge.get(k, 0.0) or 0.0) for k in REPLY_DIMS}
+    overall = sum(scores.values()) / len(REPLY_DIMS)
+    return scores, overall
+
+
+def aggregate_by_category(results: list) -> dict:
+    """TI-AIOPS-08 observability：依 category 聚合 overall 平均（吃 EvalResult 或 dict）。"""
+    cat: dict[str, list[float]] = defaultdict(list)
+    for r in results:
+        c = r.category if hasattr(r, "category") else r.get("category")
+        ov = r.overall if hasattr(r, "overall") else r.get("overall", 0.0)
+        err = r.error if hasattr(r, "error") else r.get("error", "")
+        if not err:
+            cat[c].append(float(ov))
+    return {c: _avg(xs) for c, xs in cat.items()}
+
+
 def _write_report(results: list[EvalResult], out_path: Path) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     if out_path.suffix.lower() == ".json":
@@ -352,14 +376,7 @@ async def main_async(args: argparse.Namespace) -> int:
             reply = await _run_one_turn(loop, cfg.tenant, user_id, item.user_question)
             triggered = bool(esc.list_for_user(cfg.tenant, user_id, limit=1))
             judge = await _judge_one(provider, judge_model, item, reply, triggered)
-            scores = {
-                k: float(judge.get(k, 0.0) or 0.0)
-                for k in (
-                    "intent_match", "key_info_coverage", "followup_correct",
-                    "escalation_correct", "safety_ok",
-                )
-            }
-            overall = sum(scores.values()) / 5.0
+            scores, overall = aggregate_scores(judge)   # TI-A09-01 純函式聚合
             r = EvalResult(
                 core_id=item.core_id,
                 category=item.category,

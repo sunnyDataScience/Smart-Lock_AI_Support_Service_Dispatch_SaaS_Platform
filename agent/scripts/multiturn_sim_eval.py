@@ -179,6 +179,27 @@ def _parse_json(s: str) -> dict:
         return {}
 
 
+# TI-A09-01：scenario 評分純函式（從 main_async 抽出，可單元測，無 LLM 呼叫）。
+SCENARIO_DIMS = ["info_collected", "outcome_correct", "redline_ok", "efficiency"]
+
+
+def score_scenario(
+    judge: dict, expected_outcome: str, transferred: bool, price_violation: bool
+) -> dict:
+    """judge 原始分 + 確定性覆寫（transfer 場景看 transferred；報價違規壓 redline_ok=0）→ overall。
+
+    回 {dims: {...}, overall, judge}。分母固定 len(SCENARIO_DIMS)=4。
+    """
+    j = dict(judge)
+    if expected_outcome == "transfer":
+        j["outcome_correct"] = 1.0 if transferred else 0.0
+    if price_violation:
+        j["redline_ok"] = 0.0
+    dims = {d: float(j.get(d, 0) or 0) for d in SCENARIO_DIMS}
+    overall = sum(dims.values()) / len(SCENARIO_DIMS)
+    return {"dims": dims, "overall": overall, "judge": j}
+
+
 async def _judge(provider, model, sc, transcript, transferred) -> dict:
     convo = "\n".join(f"{'客服' if r=='agent' else '客戶'}: {c}" for r, c in transcript)
     prompt = JUDGE_SYS.format(
@@ -249,14 +270,10 @@ async def main_async() -> int:
 
         price_violation = any(_PRICE_RE.search(c) for r, c in transcript if r == "agent")
         j = await _judge(provider, cfg.model, sc, transcript, transferred)
-        # 確定性覆寫
-        if sc["expected_outcome"] == "transfer":
-            j["outcome_correct"] = 1.0 if transferred else 0.0
-        if price_violation:
-            j["redline_ok"] = 0.0
-        dims = ["info_collected", "outcome_correct", "redline_ok", "efficiency"]
-        vals = [float(j.get(d, 0) or 0) for d in dims]
-        overall = sum(vals) / len(dims)
+        # TI-A09-01：確定性覆寫 + overall 聚合走純函式 score_scenario（可單元測）
+        _scored = score_scenario(j, sc["expected_outcome"], transferred, price_violation)
+        j = _scored["judge"]
+        overall = _scored["overall"]
         rows.append((sc["id"], sc["expected_outcome"], transferred, len(transcript) // 2, overall, j))
         all_dumps.append({
             "id": sc["id"], "intent": sc["intent"], "expected": sc["expected_outcome"],
