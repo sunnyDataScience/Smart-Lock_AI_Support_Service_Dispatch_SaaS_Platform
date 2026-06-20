@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 
 import psycopg
@@ -21,6 +22,45 @@ import core.db as db_module
 from core.db import _ensure_conn
 from core.errors import ApiError
 from core.pagination import decode_cursor, encode_cursor
+
+# ── TI-A10-02：家族覆核不可篡改 ledger hash chain（合約 4.4d）──
+_FR_GENESIS = "GENESIS"
+
+
+def _fr_canonical(sop_draft_id: str, action: str, reviewer_id: str, comment: str | None) -> str:
+    return "\x1f".join([sop_draft_id, action, reviewer_id, comment or ""])
+
+
+def _fr_entry_hash(prev_hash: str, content: str) -> str:
+    return hashlib.sha256(f"{prev_hash}|{content}".encode("utf-8")).hexdigest()
+
+
+async def _fr_latest_hash() -> str:
+    cur = await db_module._conn.execute(
+        "SELECT entry_hash FROM family_reviews WHERE entry_hash IS NOT NULL "
+        "ORDER BY created_at DESC, id DESC LIMIT 1")
+    row = await cur.fetchone()
+    return row[0] if row and row[0] else _FR_GENESIS
+
+
+async def verify_family_review_ledger(*, limit: int = 1000) -> dict:
+    """驗家族覆核 ledger 完整性（hash chain）。回 {checked, valid, broken_at}。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    cur = await db_module._conn.execute(
+        "SELECT id, sop_draft_id, action, reviewer_id, comment, prev_hash, entry_hash "
+        "FROM family_reviews WHERE entry_hash IS NOT NULL "
+        "ORDER BY created_at ASC, id ASC LIMIT %s", (limit,))
+    expected_prev = _FR_GENESIS
+    checked = 0
+    for r in await cur.fetchall():
+        checked += 1
+        content = _fr_canonical(str(r[1]), r[2], str(r[3]), r[4])
+        recomputed = _fr_entry_hash(r[5] or _FR_GENESIS, content)
+        if recomputed != r[6] or (r[5] or _FR_GENESIS) != expected_prev:
+            return {"checked": checked, "valid": False, "broken_at": str(r[0])}
+        expected_prev = r[6]
+    return {"checked": checked, "valid": True, "broken_at": None}
 
 logger = logging.getLogger("api.family_review_service")
 
@@ -163,9 +203,9 @@ async def create_review(
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
-    # Validate draft exists, in tenant, status=approved
+    # Validate draft exists, in tenant, status=approved + 取初審 reviewed_by 做雙審 distinct
     cur = await db_module._conn.execute(
-        "SELECT status FROM sop_drafts "
+        "SELECT status, reviewed_by FROM sop_drafts "
         "WHERE id = %s::uuid AND tenant_id = %s::uuid",
         (sop_draft_id, tenant_id),
     )
@@ -178,14 +218,29 @@ async def create_review(
             "Only admin-approved SOP drafts can be submitted for family review",
             409,
         )
+    # TI-A10-02 / 合約 4.4(d)：高風險 SOP 雙審 —— 家族覆核者須異於初審 admin
+    # （Knowledge Owner ≠ domain expert，四眼），同人不得兩審。
+    admin_reviewer = row[1]
+    if admin_reviewer and str(admin_reviewer) == str(reviewer_id):
+        raise ApiError(
+            "SOD_VIOLATION",
+            "family reviewer must differ from initial admin reviewer (dual-review)",
+            403,
+        )
+
+    # TI-A10-02：不可篡改 ledger —— 計 hash chain（接前一列 entry_hash）
+    prev_hash = await _fr_latest_hash()
+    entry_hash = _fr_entry_hash(
+        prev_hash, _fr_canonical(sop_draft_id, action, reviewer_id, comment))
 
     # Insert (uniq on sop_draft_id will reject dup)
     try:
         cur = await db_module._conn.execute(
-            f"INSERT INTO family_reviews (tenant_id, sop_draft_id, action, reviewer_id, comment) "
-            f"VALUES (%s::uuid, %s::uuid, %s, %s::uuid, %s) "
+            f"INSERT INTO family_reviews "
+            f"  (tenant_id, sop_draft_id, action, reviewer_id, comment, prev_hash, entry_hash) "
+            f"VALUES (%s::uuid, %s::uuid, %s, %s::uuid, %s, %s, %s) "
             f"RETURNING {_REVIEW_COLUMNS}",
-            (tenant_id, sop_draft_id, action, reviewer_id, comment),
+            (tenant_id, sop_draft_id, action, reviewer_id, comment, prev_hash, entry_hash),
         )
         inserted = await cur.fetchone()
     except psycopg.Error as e:

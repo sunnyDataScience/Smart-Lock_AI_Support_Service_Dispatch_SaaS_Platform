@@ -83,6 +83,7 @@
 | 071 | `071-notification-template-approval.sql` | CR-0072 | 🟢 idempotent ✅ 2026-06-20 套 dev | 通知模板核准 gate（TI-NOTIF-03/BR-M16-03）：新表 notification_template（status pending_approval→approved + notif_template_four_eyes CHECK 建立者≠核准者）+ notifications +template_id 追溯 + seed 7 類 approved 模板。對客 templated 訊息須核准才可發；CR-0062 內部 alert 直發不受 gate（分流）。WHERE NOT EXISTS 守 seed 可重套 |
 | 072 | `072-settlement-config-versioning.sql` | CR-0073 | 🟢 idempotent ✅ 2026-06-20 套 dev | 結算費率版本釘選（TI-FIN-SETTLE-04）：saas.settlement +applied_config_version_id（FK config_version）+rate_effective_date。co_sign/月結批次建 settlement 時釘選當下 active 結算費率 config 版本（resolve_settlement_rate_version 包 get_active_version），釘選後不漂移可回溯。只做 versioning wiring 不遷 80/20 計算來源。純 ADD COLUMN 可重套 |
 | 073 | `073-bom-two-layer.sql` | CR-0078 | 🟢 idempotent ✅ 2026-06-20 套 dev | 兩層 BOM（TI-FIN-BOM-03/BR-M10/Q079-087，Phase I mock）：新表 saas.product_model（第一層 brand/model）+ saas.bom_line（第二層子件 + material_owner CHECK brand/company/locksmith/customer + cost_attribution CHECK customer/brand/technician/company + return_deadline_days nullable）。Phase II 接退回狀態機。可重套 |
+| 074 | `074-family-review-ledger.sql` | CR-0079 | 🟢 idempotent ✅ 2026-06-20 套 dev | 家族覆核不可篡改 ledger（TI-A10-02/合約 4.4d 紅線）：family_reviews +prev_hash +entry_hash（hash chain 篡改偵測，複用 067 audit 機制）。雙審 distinct（家族覆核者≠初審 admin）在 service 層強制。純 ADD COLUMN 可重套 |
 
 > 註：028-032 為 agent/CR-0020~0022 波次 migration（已實作於分支，registry 待補登）。
 > 註：036-041 為 CR-0026~0034 波次 migration（已實作於分支，registry 待補登）。
