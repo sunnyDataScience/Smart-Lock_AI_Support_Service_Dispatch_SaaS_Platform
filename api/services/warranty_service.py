@@ -363,6 +363,7 @@ async def create_warranty_claim(
     work_order_id: str | None = None,
     purchase_date: str | None = None,
     dispute_reason: str | None = None,
+    device_serial: str | None = None,
 ) -> tuple[dict, bool]:
     """F-015 WarrantyClaim 建立（ADR-009 D pattern, dual-trigger）。
 
@@ -426,19 +427,19 @@ async def create_warranty_claim(
     # 4. INSERT + 自動 doc number
     cur = await db_module._conn.execute(
         "INSERT INTO warranty_claims "
-        "  (work_order_id, customer_id, device_brand, device_model, "
+        "  (work_order_id, customer_id, device_brand, device_model, device_serial, "
         "   purchase_date, warranty_start_date, warranty_end_date, "
         "   claim_date, is_within_warranty, status, dispute_reason, "
         "   claim_type, requested_by_role, document_number, "
         "   warranty_start_mode, warranty_period_months) "
-        "VALUES (%s, %s::uuid, %s, %s, "
+        "VALUES (%s, %s::uuid, %s, %s, %s, "
         "        %s::date, %s::date, %s::date, "
         "        CURRENT_DATE, %s, "
         "        'filed', %s, %s, %s, generate_doc_number('WC', 'doc_seq_wc'), "
         "        %s, %s) "
         "RETURNING id",
         (
-            work_order_id, customer_id, device_brand, device_model,
+            work_order_id, customer_id, device_brand, device_model, device_serial,
             purchase_d.isoformat() if purchase_d else None,
             start_date.isoformat(), end_date.isoformat(),
             within,
@@ -543,12 +544,15 @@ async def submit_decision(
 
 async def check_rma_abuse(
     *, customer_id: str, device_brand: str | None = None, device_model: str | None = None,
-    window_days: int = 30, threshold: int = 3,
+    device_serial: str | None = None, window_days: int = 30, threshold: int = 3,
 ) -> dict:
-    """CR-0064 / TI-RMA-04 / BR-WARRANTY-003：同客戶同機種短期 RMA 頻次偵測。
+    """CR-0064 / TI-RMA-04 / BR-WARRANTY-003：短期 RMA 頻次偵測。
 
     視窗內（預設 30 天）同 customer + device_brand/model 的 warranty_claims 數 ≥ threshold（預設 3）
     → abuse_flagged，供風控告警/人工複核。回 {count, threshold, abuse_flagged}。
+
+    CR-0069 / TI-M02-05：若給 device_serial，改以 serial 為唯一識別精準鎖定同一顆鎖
+    （同型號不同實體鎖不互相累計），其餘條件相同。
     """
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
@@ -557,8 +561,11 @@ async def check_rma_abuse(
         "WHERE customer_id = %s::uuid "
         "  AND (%s::text IS NULL OR device_brand = %s) "
         "  AND (%s::text IS NULL OR device_model = %s) "
+        "  AND (%s::text IS NULL OR device_serial = %s) "
         "  AND claim_date >= (CURRENT_DATE - make_interval(days => %s))",
-        (customer_id, device_brand, device_brand, device_model, device_model, window_days),
+        (customer_id, device_brand, device_brand, device_model, device_model,
+         device_serial, device_serial, window_days),
     )
     cnt = int((await cur.fetchone())[0] or 0)
-    return {"count": cnt, "threshold": threshold, "abuse_flagged": cnt >= threshold}
+    return {"count": cnt, "threshold": threshold, "abuse_flagged": cnt >= threshold,
+            "scope": "serial" if device_serial else "model"}
