@@ -80,6 +80,7 @@
 | 068 | `068-warranty-device-serial.sql` | CR-0069 | 🟢 idempotent ✅ 2026-06-20 套 dev | Device serial 唯一識別（TI-M02-05/ADR-0053）：warranty_claims +device_serial TEXT + partial index。create_warranty_claim 接收落庫；check_rma_abuse 加 device_serial 參數做 serial 級 abuse 偵測（同型號不同實體鎖不互累）。純 ADD COLUMN 可重套 |
 | 069 | `069-payments-mock.sql` | CR-0070 | 🟢 idempotent ✅ 2026-06-20 套 dev | 金流 mock 骨架（TI-FIN-PAY-01~05，會議決議5 mock-first）：新表 payments（三軌 method + idempotency_key 防重複 intent + provider_txn_id 防重複 webhook + fallback_from + is_mock）+ 註冊 payment_gate config namespace。payment_service intent/confirm/webhook 冪等驗簽/fallback audit/現金爭議/payment gate。正式 provider 串接 Sunny 下輪替換，schema 不變。可重套 |
 | 070 | `070-role-assignment-sod.sql` | CR-0071 | 🟢 idempotent ✅ 2026-06-20 套 dev | Role 指派雙人 SoD（TI-RBAC-02/FR-0019/§4.6.5）：新表 saas.role_assignment（propose+approve 雙段）+ role_assign_dual_sign_distinct CHECK（proposed_by<>approved_by，DB 硬防）。補上原本零生產碼的 user role 指派路徑（假綠）。可重套 |
+| 071 | `071-notification-template-approval.sql` | CR-0072 | 🟢 idempotent ✅ 2026-06-20 套 dev | 通知模板核准 gate（TI-NOTIF-03/BR-M16-03）：新表 notification_template（status pending_approval→approved + notif_template_four_eyes CHECK 建立者≠核准者）+ notifications +template_id 追溯 + seed 7 類 approved 模板。對客 templated 訊息須核准才可發；CR-0062 內部 alert 直發不受 gate（分流）。WHERE NOT EXISTS 守 seed 可重套 |
 
 > 註：028-032 為 agent/CR-0020~0022 波次 migration（已實作於分支，registry 待補登）。
 > 註：036-041 為 CR-0026~0034 波次 migration（已實作於分支，registry 待補登）。
