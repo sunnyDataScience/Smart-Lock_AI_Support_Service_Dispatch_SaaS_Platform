@@ -83,13 +83,17 @@ def _hidden_purposes(role: str | None) -> set[str]:
 
 
 async def soft_delete_expired_media() -> int:
-    """CR-0040 清除 cron（HD-4 軟刪）：retention_until 過期且未軟刪的 media 標 deleted_at。回筆數。"""
+    """CR-0040 清除 cron（HD-4 軟刪）：retention_until 過期且未軟刪的 media 標 deleted_at。回筆數。
+
+    CR-0067 / TI-M09-03：legal_hold=true（法務保留）即使過期也不刪（legal_hold wins）。
+    """
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
     cur = await db_module._conn.execute(
         "UPDATE media_files SET deleted_at = NOW() "
         "WHERE retention_until IS NOT NULL AND retention_until < NOW() "
         "  AND deleted_at IS NULL "
+        "  AND legal_hold IS NOT TRUE "
         "RETURNING id"
     )
     rows = await cur.fetchall()

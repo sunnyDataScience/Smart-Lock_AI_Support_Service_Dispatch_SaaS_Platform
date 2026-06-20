@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CR-0067 測試計畫覆蓋 Batch 5 — FALSE_GAP 確認 + M09 evidence + 對帳 +1 假綠修（branch `feat/cr-0067-coverage-batch5-falsegap`，2026-06-20）**：**TI-M09-02** Evidence visibility RBAC 矩陣測試（品牌不看環境照/會計不看門檢/內部全看，功能 CR-0040 已在補測）。**TI-M09-03** Evidence retention + legal_hold：**migration 066** media_files +legal_hold，`soft_delete_expired_media` 補 `AND legal_hold IS NOT TRUE`（過期但法務保留不刪）。**TI-FIN-RECON-02** 對帳異常三 fix_path 狀態機端到端測試（detect→propose→approve(SoD 403)→apply，invoice_supplement/voucher_reverse 缺 ref 422）。**TI-FIN-AP-03** statement 自動核准排除 disputed 測試。**TI-BI-05** Revenue 確認已由 CR-0063 覆蓋（FALSE_GAP）。**🔴 假綠修**：`reconciliation_exception` 轉換表只允許 `ops_review→fix_proposed` 卻無任何函式能 `detected→ops_review`，導致 detect_exception 產出的 detected 列永遠無法 propose_fix（恆 409，整條修正流程卡死）→ 補 `detected→fix_proposed`。test_cr_0067 7/7 + 回歸 851 passed 0 fail。
+
+### Changed
+
+- **CR-0067 reconciliation_exception 狀態機修正（🔴 latent bug）**：`_ALLOWED_TRANSITIONS["detected"]` 補 `fix_proposed`，使 propose_fix 與其 SQL（`status IN ('detected','ops_review')`）/docstring 一致。影響：對帳異常修正流程首次可從 detected 狀態真正運作（先前必 409）。
+
 - **CR-0066 測試計畫覆蓋 Batch 4 — M07/M08 現場執行 4 項 +1 假綠 bug 修（branch `feat/cr-0066-coverage-batch4-m07m08`，2026-06-20）**：**TI-M07-03** 技師接單 `accept_order`（assigned→accepted+accepted_at；錯狀態 409）補 pytest。**TI-M08-01** GPS 到場 proof：新增純函式 `compute_arrival_gps_proof`（Haversine 距離 + 容忍半徑判定），`record_arrival` 接 gps.ref_lat/ref_lng 算 proof 落 event payload。**TI-M08-03** 簽名 fallback_method 稽核：`submit_work_order_signature` 加 fallback_method（liff/qr/paper，非法 422）落 signature_data。**TI-M08-04** scope change 客戶 30min 未回覆暫停旗標 cron `flag_timed_out_scope_changes`（pending 逾時標記 + audit，不自動拒絕）。**🔴 假綠 bug 修**：`signature_service` 原用 `wo.technician_id`（=technicians.id）當 `digital_signatures.signer_id`（FK→users.id），技師簽名必 FK violation；既有測試都手動 insert 簽名繞過從未測到。改取 `technicians.user_id`。test_cr_0066 5/5 + 回歸全套 844 passed 0 fail。
 
 ### Changed

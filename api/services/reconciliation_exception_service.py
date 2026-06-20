@@ -54,7 +54,10 @@ _VALID_DETECTED_BY = {"upload_realtime", "cron_daily", "manual"}
 
 # 狀態機允許轉移（from → set of allowed to）
 _ALLOWED_TRANSITIONS: dict[str, set[str]] = {
-    "detected": {"ops_review", "closed"},        # ops 看到 → review；誤報 → closed
+    # CR-0067 假綠修：propose_fix 的 SQL/docstring 皆允許 detected→fix_proposed（CSM 直接提案，
+    # 可略過 ops_review），但原轉換表只給 detected→ops_review，且無任何函式能 detected→ops_review，
+    # 導致 detect_exception 產出的 'detected' 列永遠無法 propose_fix（恆 409）。補 fix_proposed。
+    "detected": {"ops_review", "fix_proposed", "closed"},  # ops 看到→review；CSM 直接提案；誤報→closed
     "ops_review": {"fix_proposed", "closed"},
     "fix_proposed": {"fix_approved", "ops_review"},  # 退回
     "fix_approved": {"applied"},

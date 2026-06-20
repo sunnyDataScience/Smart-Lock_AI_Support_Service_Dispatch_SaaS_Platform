@@ -75,6 +75,7 @@
 | 063 | `063-tech-skill-brand-auth.sql` | CR-0060 | 🟢 idempotent ✅ 2026-06-20 套 dev | 技師技能矩陣 + 品牌授權（BR-M07-01/審計#12#13）：新表 technician_skill（skill_code+A/B/C level）+ technician_brand_authorization（brand+authorized+cert_expires_at）+ seed 示範（active 技師 mock 技能/授權）。dispatch_service 候選/auto_match 加品牌授權過濾（未授權/過期排除）。is_mock 可調。可重套 |
 | 064 | `064-tech-gis-performance.sql` | CR-0061 | 🟢 idempotent ✅ 2026-06-20 套 dev | 媒合 GIS+多維績效（審計#10#11/BR-M06/M07-03）：technicians +latitude/longitude/on_time_rate/acceptance_rate（mock seed active）。dispatch 用 Haversine（區中心點近似，無 PostGIS）真距離 + on-time/acceptance 進排序（績效 bonus 重排）。可重套 |
 | 065 | `065-pc-idempotency-key.sql` | CR-0065 | 🟢 idempotent ✅ 2026-06-20 套 dev | ProblemCard 冪等鍵（TI-M03-06/A06/Sync-M03）：problem_cards +idempotency_key TEXT + partial index。escalation_to_draft_pc 以 sha256(conv_id+症狀+brand) 為鍵 + 24h dedup 視窗，抵抗 DLQ/outbox retry 重複建卡。純 ADD COLUMN 可重套 |
+| 066 | `066-media-legal-hold.sql` | CR-0067 | 🟢 idempotent ✅ 2026-06-20 套 dev | Evidence 法務保留（TI-M09-03/ADR-0051）：media_files +legal_hold BOOLEAN NOT NULL DEFAULT false。soft_delete_expired_media 補 AND legal_hold IS NOT TRUE（過期但 legal_hold 不軟刪，legal_hold wins）。純 ADD COLUMN 可重套 |
 
 > 註：028-032 為 agent/CR-0020~0022 波次 migration（已實作於分支，registry 待補登）。
 > 註：036-041 為 CR-0026~0034 波次 migration（已實作於分支，registry 待補登）。
