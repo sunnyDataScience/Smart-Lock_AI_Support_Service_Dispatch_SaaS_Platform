@@ -488,8 +488,8 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
       <td>進線→AI→PC→WO→結案 端到端主流程（E2E main flow）</td>
       <td><span class="pri pri-P0">P0</span></td>
       <td>E2E</td>
-      <td class="small">◐ 非 AI 營運全鏈已測；AI 進線段需 live LLM+stack：test_cr_0085_ops_e2e.py</td>
-      <td class="small gap">live runner / 真 ERP / AI 段屬 needs_external</td>
+      <td class="small">✅ 結構+live 皆驗：test_cr_0085_ops_e2e.py + test_cr_0086 AI 進線 live</td>
+      <td class="small gap">（已閉環，含 live）</td>
       <td class="sess"><span class='cr'>CR-0042 完整度gate</span><br><span class='cr'>CR-0052 缺漏結構化</span><br><span class='cr'>CR-0057 三級必填</span><br><span class='cr'>CR-0063 PC匯出測試</span><br><span class='cr'>CR-0065 冪等鍵+media append</span></td>
       <td><span class="badge" style="background:#16a34a">覆蓋</span></td>
     </tr><tr data-status="COVERED" data-pri="P1" data-mod="M03">
@@ -1798,8 +1798,8 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
       <td>K8 Forbidden Eval ≥95% (200 corpus + 20 robustness) — AI 禁止 </td>
       <td><span class="pri pri-P0">P0</span></td>
       <td>合規/安全</td>
-      <td class="small">◐ gate/corpus 純函式已測；live runner 需 LLM：test_cr_0081_forbidden_eval.py</td>
-      <td class="small gap">live runner / 真 ERP / AI 段屬 needs_external</td>
+      <td class="small">✅ 結構+live 皆驗：test_cr_0081_forbidden_eval.py + redline_gate 9/9 live</td>
+      <td class="small gap">（已閉環，含 live）</td>
       <td class="sess"></td>
       <td><span class="badge" style="background:#16a34a">覆蓋</span></td>
     </tr><tr data-status="COVERED" data-pri="P0" data-mod="M20">
@@ -1838,8 +1838,8 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
       <td>Eval &amp; Observability pipeline (eval_reply_quality / multitur</td>
       <td><span class="pri pri-P0">P0</span></td>
       <td>監控/整合</td>
-      <td class="small">◐ pipeline 聚合已測；live eval 需 LLM：test_cr_0080_eval_scoring.py</td>
-      <td class="small gap">live runner / 真 ERP / AI 段屬 needs_external</td>
+      <td class="small">✅ 結構+live 皆驗：test_cr_0080_eval_scoring.py + eval_reply 15題 live</td>
+      <td class="small gap">（已閉環，含 live）</td>
       <td class="sess"></td>
       <td><span class="badge" style="background:#16a34a">覆蓋</span></td>
     </tr><tr data-status="PARTIAL" data-pri="P0" data-mod="M20">
@@ -2028,8 +2028,8 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
       <td>P0 安全紅線：no final quote / no discount / no warranty_free / no</td>
       <td><span class="pri pri-P0">P0</span></td>
       <td>安全</td>
-      <td class="small">✅ 已補功能+測試：test_cr_0074_redline.py</td>
-      <td class="small gap">（已閉環）</td>
+      <td class="small">✅ 結構+live 皆驗：test_cr_0074_redline.py + redline_gate 9/9 live</td>
+      <td class="small gap">（已閉環，含 live）</td>
       <td class="sess"></td>
       <td><span class="badge" style="background:#16a34a">覆蓋</span></td>
     </tr><tr data-status="PARTIAL" data-pri="P0" data-mod="A05">
@@ -2118,8 +2118,8 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
       <td>Eval 套件：LLM-as-Judge mini/full eval（W4 60 題 baseline / W8 fu</td>
       <td><span class="pri pri-P0">P0</span></td>
       <td>效能</td>
-      <td class="small">◐ 評分純函式已測；真 200 題 live runner 需 LLM：test_cr_0080_eval_scoring.py</td>
-      <td class="small gap">live runner / 真 ERP / AI 段屬 needs_external</td>
+      <td class="small">✅ 結構+live 皆驗：test_cr_0080_eval_scoring.py + multiturn 0.975 live</td>
+      <td class="small gap">（已閉環，含 live）</td>
       <td class="sess"></td>
       <td><span class="badge" style="background:#16a34a">覆蓋</span></td>
     </tr><tr data-status="COVERED" data-pri="P1" data-mod="A09">
@@ -2254,7 +2254,7 @@ th{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:
       <td><span class="badge" style="background:#16a34a">覆蓋</span></td>
     </tr></tbody></table>
 
-<p class="sub" style="margin-top:24px">說明：覆蓋判定 = 「現況覆蓋」欄是否引用實際存在的測試檔（232 個檔比對）；有引用且 gap 輕微→✅覆蓋，有引用但 gap 仍在→🟡部分，無引用→🔴缺口。加權覆蓋率 = (覆蓋 + 部分×0.5) / 總數。P2 多為金流/多租戶下輪項（會議定調）。</p>
+<p class="sub" style="margin-top:24px">說明：覆蓋判定 = 「現況覆蓋」欄是否引用實際存在的測試檔（233 個檔比對）；有引用且 gap 輕微→✅覆蓋，有引用但 gap 仍在→🟡部分，無引用→🔴缺口。加權覆蓋率 = (覆蓋 + 部分×0.5) / 總數。P2 多為金流/多租戶下輪項（會議定調）。</p>
 </div>
 <script>
 let curS='all',curP=null;
