@@ -10,6 +10,7 @@ audit_events 沒有 tenant_id，本期不做 tenant 過濾（audit 為部署層�
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 from collections.abc import AsyncIterator
@@ -22,6 +23,86 @@ from core.errors import ApiError
 from core.pagination import decode_cursor, encode_cursor
 
 logger = logging.getLogger("api.audit_log_service")
+
+# ── TI-AUDIT-03：append-only sha256 hash chain（合規紅線）────────────────────
+# entry_hash = sha256(prev_hash + "|" + 正規化內容)；prev_hash 接前一列 entry_hash。
+# 竄改任一列內容 → 其 entry_hash 對不上 → verify_audit_chain 偵測得到。
+_AUDIT_GENESIS = "GENESIS"
+
+
+def _canonical_audit_content(
+    event_type: str | None, actor_id: str | None, actor_role: str | None,
+    action: str | None, target_type: str | None, target_id: str | None,
+    payload_json: str | None,
+) -> str:
+    """內容正規化為穩定字串（hash 輸入）。None → 空字串；payload 已是序列化 JSON 文字。"""
+    parts = [
+        event_type or "", actor_id or "", actor_role or "", action or "",
+        target_type or "", target_id or "", payload_json or "",
+    ]
+    return "\x1f".join(str(p) for p in parts)  # 0x1f unit separator 避免欄位邊界混淆
+
+
+def _compute_entry_hash(prev_hash: str, content: str) -> str:
+    return hashlib.sha256(f"{prev_hash}|{content}".encode("utf-8")).hexdigest()
+
+
+async def _latest_entry_hash() -> str:
+    """取最後一列 entry_hash 作 prev_hash；無鏈段 → GENESIS。"""
+    cur = await db_module._conn.execute(
+        "SELECT entry_hash FROM audit_events WHERE entry_hash IS NOT NULL "
+        "ORDER BY created_at DESC, id DESC LIMIT 1"
+    )
+    row = await cur.fetchone()
+    return row[0] if row and row[0] else _AUDIT_GENESIS
+
+
+async def _chain_fields(
+    event_type, actor_id, actor_role, action, target_type, target_id, payload,
+) -> tuple[str, str, str | None]:
+    """算 (prev_hash, entry_hash, payload_json)；payload_json 同時用於 INSERT 與 hash 內容。"""
+    payload_json = json.dumps(payload, ensure_ascii=False) if payload else None
+    payload_canon = (
+        json.dumps(payload, ensure_ascii=False, sort_keys=True) if payload else None
+    )
+    prev_hash = await _latest_entry_hash()
+    content = _canonical_audit_content(
+        event_type, actor_id, actor_role, action, target_type, target_id, payload_canon
+    )
+    return prev_hash, _compute_entry_hash(prev_hash, content), payload_json
+
+
+async def verify_audit_chain(*, limit: int = 1000) -> dict:
+    """驗證 audit hash chain 完整性（只驗有 entry_hash 的鏈段，依時序）。
+
+    回 {checked, valid, broken_at}：broken_at 為第一個對不上的列 id（valid=True 時 None）。
+    偵測兩類竄改：(1) 列內容被改 → entry_hash 重算不符；(2) 列被刪/插 → prev_hash 鏈接斷。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    cur = await db_module._conn.execute(
+        "SELECT id, event_type, actor_id, actor_role, action, target_type, target_id, "
+        "       payload, prev_hash, entry_hash "
+        "FROM audit_events WHERE entry_hash IS NOT NULL "
+        "ORDER BY created_at ASC, id ASC LIMIT %s",
+        (limit,),
+    )
+    rows = await cur.fetchall()
+    expected_prev = _AUDIT_GENESIS
+    checked = 0
+    for r in rows:
+        checked += 1
+        payload_json = json.dumps(r[7], ensure_ascii=False, sort_keys=True) if r[7] is not None else None
+        content = _canonical_audit_content(
+            r[1], str(r[2]) if r[2] else None, r[3], r[4], r[5],
+            str(r[6]) if r[6] else None, payload_json,
+        )
+        recomputed = _compute_entry_hash(r[8] or _AUDIT_GENESIS, content)
+        # (1) 內容竄改：entry_hash 對不上；(2) 鏈接斷：prev_hash 不接前一列
+        if recomputed != r[9] or (r[8] or _AUDIT_GENESIS) != expected_prev:
+            return {"checked": checked, "valid": False, "broken_at": str(r[0])}
+        expected_prev = r[9]
+    return {"checked": checked, "valid": True, "broken_at": None}
 
 
 _VALID_LOG_TYPES = {
@@ -314,10 +395,14 @@ async def log_event(
         return
     sql = (
         "INSERT INTO audit_events "
-        "(event_type, actor_id, actor_role, action, target_type, target_id, payload, ip_address) "
-        "VALUES (%s, %s::uuid, %s, %s, %s, %s::uuid, %s::jsonb, %s)"
+        "(event_type, actor_id, actor_role, action, target_type, target_id, payload, "
+        " ip_address, prev_hash, entry_hash) "
+        "VALUES (%s, %s::uuid, %s, %s, %s, %s::uuid, %s::jsonb, %s, %s, %s)"
     )
     try:
+        prev_hash, entry_hash, payload_json = await _chain_fields(
+            event_type, actor_id, actor_role, action, target_type, target_id, payload
+        )
         await db_module._conn.execute(
             sql,
             [
@@ -327,8 +412,10 @@ async def log_event(
                 action,
                 target_type,
                 target_id,
-                json.dumps(payload, ensure_ascii=False) if payload else None,
+                payload_json,
                 ip_address,
+                prev_hash,
+                entry_hash,
             ],
         )
     except Exception as exc:  # noqa: BLE001 — pragma: no cover; best-effort logging, must not fail caller
@@ -355,9 +442,13 @@ async def log_event_returning_id(
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
     sql = (
         "INSERT INTO audit_events "
-        "(event_type, actor_id, actor_role, action, target_type, target_id, payload, ip_address) "
-        "VALUES (%s, %s::uuid, %s, %s, %s, %s::uuid, %s::jsonb, %s) "
+        "(event_type, actor_id, actor_role, action, target_type, target_id, payload, "
+        " ip_address, prev_hash, entry_hash) "
+        "VALUES (%s, %s::uuid, %s, %s, %s, %s::uuid, %s::jsonb, %s, %s, %s) "
         "RETURNING id"
+    )
+    prev_hash, entry_hash, payload_json = await _chain_fields(
+        event_type, actor_id, actor_role, action, target_type, target_id, payload
     )
     cur = await db_module._conn.execute(
         sql,
@@ -368,8 +459,10 @@ async def log_event_returning_id(
             action,
             target_type,
             target_id,
-            json.dumps(payload, ensure_ascii=False) if payload else None,
+            payload_json,
             ip_address,
+            prev_hash,
+            entry_hash,
         ],
     )
     row = await cur.fetchone()
