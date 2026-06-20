@@ -2,20 +2,23 @@ import json, re, html, datetime
 plan = json.load(open("/tmp/test_plan.json"))
 items = plan["items"]
 test_files = set(l.strip() for l in open("/tmp/test_files.txt") if l.strip())
-FAILED = {"test_reconciliations_v2.py"}  # pre-existing flaky (分頁+不清理)
+FAILED = set()  # CR-0067 已修 test_reconciliations_v2 分頁脆弱；全套 856 + agent 71 綠
 
 # 本輪 session 26 CR → 模組補強對照
 SESSION = {
- "M01":[], "M02":["CR-0042 phone去重"], "M03":["CR-0042 完整度gate","CR-0052 缺漏結構化","CR-0057 三級必填"],
+ "M01":[], "M02":["CR-0042 phone去重","CR-0069 device serial"], "M03":["CR-0042 完整度gate","CR-0052 缺漏結構化","CR-0057 三級必填","CR-0063 PC匯出測試","CR-0065 冪等鍵+media append"],
  "M04":["CR-0044 取消費/有效期config","CR-0045 發票稅","CR-0046 報價文案mock"],
- "M05":["CR-0043 公單欄位Phase2","CR-0047 保固動態","CR-0048 reason gate","CR-0049 pending-scope","CR-0053 到場/改派bug"],
+ "M05":["CR-0043 公單欄位Phase2","CR-0047 保固動態","CR-0048 reason gate","CR-0049 pending-scope","CR-0053 到場/改派bug","CR-0064 結案地址閘"],
  "M06":["CR-0030 派工模式","CR-0051 派工資格","CR-0060 skill/brand auth","CR-0061 GIS/績效"],
- "M07":["CR-0038桶5 user_id","CR-0060 技師資格模型"],
- "M08":["CR-0039 完工硬閘","CR-0050 教學紀錄","CR-0058 用料/付款","CR-0054 施工中照","CR-0053 到場閘"],
- "M09":["CR-0040 Evidence治理","CR-0055 證據包聚合"],
- "M11":["CR-0044/0045 finance config"], "M12":["CR-0037 payout規則"],
+ "M07":["CR-0038桶5 user_id","CR-0060 技師資格模型","CR-0066 accept_order測試"],
+ "M08":["CR-0039 完工硬閘","CR-0050 教學紀錄","CR-0058 用料/付款","CR-0054 施工中照","CR-0053 到場閘","CR-0066 GPS proof/簽名fallback/scope timeout+簽名假綠修"],
+ "M09":["CR-0040 Evidence治理","CR-0055 證據包聚合","CR-0064 media去重","CR-0067 RBAC矩陣+legal_hold"],
+ "M11":["CR-0044/0045 finance config","CR-0063 Revenue測試","CR-0067 對帳異常假綠修"], "M12":["CR-0037 payout規則","CR-0063 5-ledger/Revenue測試"],
+ "M13":["CR-0064 RMA abuse","CR-0069 serial級abuse"],
  "M15":["CR-0041 異常框架+high_risk_hold"], "M16":["CR-0062 事件驅動通知"],
+ "M17":["CR-0068 audit hash chain"],
  "M18":["CR-0036 config治理","CR-0059 config生效日","CR-0046 discount_policy"],
+ "M19":["CR-0063 Scheduled/Revenue測試"],
 }
 def sess_for(mod):
     key = mod.split()[0].split("/")[0]
