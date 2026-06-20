@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CR-0065 測試計畫覆蓋 Batch 3 — M03 ProblemCard 2 缺功能補實作+測試（branch `feat/cr-0065-coverage-batch3-m01m03`，2026-06-20）**：**TI-M03-06** ProblemCard 冪等鍵（**migration 065** +idempotency_key）：`escalation_to_draft_pc` 以 sha256(conv_id+症狀+brand) 為鍵 + 24h dedup 視窗，抵抗 DLQ/outbox retry 重複建卡（原僅 conversation_id UNIQUE）；新增純函式 `compute_pc_idempotency_key`。**TI-M03-07** media_urls append-only（Sync-M03）：`update_card` 原**覆蓋** media_urls（會掉先前證據照）→ 改聯集去重保序 append。test_cr_0065 3/3 + 回歸全套 839 passed 0 fail。
+
 - **CR-0064 測試計畫覆蓋 Batch 2 — 3 個缺功能補實作+測試（branch `feat/cr-0064-coverage-batch2-funcs`，2026-06-20）**：測試計畫審計揪出 BUILD_FUNC_AND_TEST 項。本 batch 補 3 個原本「規範要求但未實作」功能：**TI-M05-02** 結案前服務地址必填硬閘（`work_order_service._enforce_completion_gate` 加 `ADDRESS_REQUIRED_FOR_CLOSE` 422）；**TI-M09-01** 媒體 sha256 去重（`media_service.upload_media` 同 WO 同檔二次上傳 idempotent 回既有 `deduplicated:true`，DB 不重複入庫）；**TI-RMA-04** RMA 濫用偵測（`warranty_service.check_rma_abuse` 同客戶同機種視窗內 ≥3 次 `abuse_flagged`）。test_cr_0064 3/3 + 回歸全套 836 passed 0 fail。附帶修 `test_reconciliations_v2` 脆弱分頁假設（seed 成長後預設 limit=20 擠出新 row → 改 limit=100）。
 
 - **CR-0063 測試計畫覆蓋 Batch 1 — 6 個已存在功能補測試（branch `feat/cr-0063-coverage-batch1`，2026-06-20，merge 80e06539）**：審計揪出 BUILD_TEST_ONLY（功能在缺測試）。補 TI-M03-09 ProblemCard 匯出 / TI-FIN-REV-01·INV-02 Revenue date-range / TI-RES-01 resolution 階層 / TI-BI-04 Scheduled Reports / TI-FIN-SETTLE-05 五類 ledger 分表。test_cr_0063 8/8。

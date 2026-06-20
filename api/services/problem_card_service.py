@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import base64
 import csv
+import hashlib
 import io
 import json
 import logging
@@ -26,6 +27,18 @@ from core.errors import ApiError
 from core.pagination import decode_cursor, encode_cursor
 
 logger = logging.getLogger("api.problem_card_service")
+
+
+def compute_pc_idempotency_key(
+    conv_id: str, first_symptom: str | None, brand: str | None
+) -> str:
+    """TI-M03-06 / A06：sha256(conv_id + first_unresolved_symptom + brand) 冪等鍵。
+
+    用於 24h dedup 視窗 —— 同一邏輯 turn 經 DLQ/outbox retry 重送時，產生相同鍵，
+    避免重複建卡。brand/symptom 缺漏以空字串穩定化（AI 草擬卡常缺 brand）。
+    """
+    raw = f"{conv_id}|{(first_symptom or '').strip()}|{(brand or '').strip()}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 _DB_STATUS_TO_API = {
@@ -579,6 +592,22 @@ async def escalation_to_draft_pc(
     # 症狀文字優先取客人原話摘要，否則用 agent 轉接理由
     symptom_text = (excerpt or reason or "").strip()[:1000] or "（客人轉真人，詳見對話）"
 
+    # TI-M03-06 / A06：sha256 冪等鍵 + 24h dedup 視窗（抵抗 DLQ/outbox retry 重複建卡）。
+    # brand 在 AI 草擬卡多為空，鍵以 conv_id + 症狀 為主。命中 24h 內同鍵 → 回既有（冪等）。
+    idem_key = compute_pc_idempotency_key(conv_id, symptom_text, snapshot.get("brand"))
+    kcur = await db_module._conn.execute(
+        "SELECT id FROM problem_cards "
+        "WHERE idempotency_key = %s AND created_at > NOW() - INTERVAL '24 hours' "
+        "ORDER BY created_at DESC LIMIT 1",
+        (idem_key,),
+    )
+    krow = await kcur.fetchone()
+    if krow:
+        pc_id = str(krow[0])
+        card = await get_card(tenant_id=tenant_id, pc_id=pc_id)
+        return {"problem_card_id": pc_id, "conversation_id": conv_id,
+                "created": False, "deduplicated": True, "card": card}
+
     # 去重：conversation_id UNIQUE
     cur = await db_module._conn.execute(
         "SELECT id, symptoms FROM problem_cards WHERE conversation_id = %s::uuid",
@@ -593,9 +622,10 @@ async def escalation_to_draft_pc(
         if symptom_text not in merged:
             merged.append(symptom_text)
         await db_module._conn.execute(
-            "UPDATE problem_cards SET symptoms = %s::jsonb, updated_at = NOW() "
+            "UPDATE problem_cards SET symptoms = %s::jsonb, updated_at = NOW(), "
+            "  idempotency_key = COALESCE(idempotency_key, %s) "
             "WHERE id = %s::uuid",
-            (json.dumps(merged, ensure_ascii=False), pc_id),
+            (json.dumps(merged, ensure_ascii=False), idem_key, pc_id),
         )
         card = await get_card(tenant_id=tenant_id, pc_id=pc_id)
         return {"problem_card_id": pc_id, "conversation_id": conv_id, "created": False, "card": card}
@@ -605,9 +635,9 @@ async def escalation_to_draft_pc(
     cur = await db_module._conn.execute(
         "INSERT INTO problem_cards "
         "  (conversation_id, category, symptoms, urgency, intent, status, "
-        "   source, ai_missing_fields) "
+        "   source, ai_missing_fields, idempotency_key) "
         "VALUES (%s::uuid, %s, %s::jsonb, %s, 'repair', 'incomplete', "
-        "        'ai_line', %s::jsonb) "
+        "        'ai_line', %s::jsonb, %s) "
         "RETURNING id",
         (
             conv_id,
@@ -615,6 +645,7 @@ async def escalation_to_draft_pc(
             json.dumps([symptom_text], ensure_ascii=False),
             urgency,
             json.dumps(_AI_DRAFT_MISSING_FIELDS),
+            idem_key,
         ),
     )
     row = await cur.fetchone()
@@ -794,8 +825,19 @@ async def update_card(
         sets.append("urgency = %s")
         args.append(_API_URGENCY_TO_DB[urgency])
     if media_urls is not None:
+        # TI-M03-07：media_urls append-only（Sync-M03）—— 更新不覆蓋既有，採聯集去重保序。
+        # 多模態媒體（A08）陸續上傳，覆蓋會掉先前已附的證據照；故讀既有後 append 新者。
+        mcur = await db_module._conn.execute(
+            "SELECT media_urls FROM problem_cards WHERE id = %s::uuid", (pc_id,)
+        )
+        mrow = await mcur.fetchone()
+        existing_media = mrow[0] if mrow and isinstance(mrow[0], list) else []
+        merged_media: list[str] = list(existing_media)
+        for u in media_urls:
+            if u not in merged_media:
+                merged_media.append(u)
         sets.append("media_urls = %s::jsonb")
-        args.append(json.dumps(media_urls))
+        args.append(json.dumps(merged_media))
 
     if not sets:
         return await get_card(tenant_id=tenant_id, pc_id=pc_id)
