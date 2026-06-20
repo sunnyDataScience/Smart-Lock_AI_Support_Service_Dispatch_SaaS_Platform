@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CR-0066 測試計畫覆蓋 Batch 4 — M07/M08 現場執行 4 項 +1 假綠 bug 修（branch `feat/cr-0066-coverage-batch4-m07m08`，2026-06-20）**：**TI-M07-03** 技師接單 `accept_order`（assigned→accepted+accepted_at；錯狀態 409）補 pytest。**TI-M08-01** GPS 到場 proof：新增純函式 `compute_arrival_gps_proof`（Haversine 距離 + 容忍半徑判定），`record_arrival` 接 gps.ref_lat/ref_lng 算 proof 落 event payload。**TI-M08-03** 簽名 fallback_method 稽核：`submit_work_order_signature` 加 fallback_method（liff/qr/paper，非法 422）落 signature_data。**TI-M08-04** scope change 客戶 30min 未回覆暫停旗標 cron `flag_timed_out_scope_changes`（pending 逾時標記 + audit，不自動拒絕）。**🔴 假綠 bug 修**：`signature_service` 原用 `wo.technician_id`（=technicians.id）當 `digital_signatures.signer_id`（FK→users.id），技師簽名必 FK violation；既有測試都手動 insert 簽名繞過從未測到。改取 `technicians.user_id`。test_cr_0066 5/5 + 回歸全套 844 passed 0 fail。
+
+### Changed
+
+- **CR-0066 signature_service signer 修正（🔴 latent bug）**：技師電子簽名的 signer_id 由 `wo.technician_id`（technicians 主鍵）改為 `technicians.user_id`，修正 FK→users 違反。影響：`submit_work_order_signature` 技師簽名路徑首次真正可用（先前任何真實呼叫都會 500）。
+
 - **CR-0065 測試計畫覆蓋 Batch 3 — M03 ProblemCard 2 缺功能補實作+測試（branch `feat/cr-0065-coverage-batch3-m01m03`，2026-06-20）**：**TI-M03-06** ProblemCard 冪等鍵（**migration 065** +idempotency_key）：`escalation_to_draft_pc` 以 sha256(conv_id+症狀+brand) 為鍵 + 24h dedup 視窗，抵抗 DLQ/outbox retry 重複建卡（原僅 conversation_id UNIQUE）；新增純函式 `compute_pc_idempotency_key`。**TI-M03-07** media_urls append-only（Sync-M03）：`update_card` 原**覆蓋** media_urls（會掉先前證據照）→ 改聯集去重保序 append。test_cr_0065 3/3 + 回歸全套 839 passed 0 fail。
 
 - **CR-0064 測試計畫覆蓋 Batch 2 — 3 個缺功能補實作+測試（branch `feat/cr-0064-coverage-batch2-funcs`，2026-06-20）**：測試計畫審計揪出 BUILD_FUNC_AND_TEST 項。本 batch 補 3 個原本「規範要求但未實作」功能：**TI-M05-02** 結案前服務地址必填硬閘（`work_order_service._enforce_completion_gate` 加 `ADDRESS_REQUIRED_FOR_CLOSE` 422）；**TI-M09-01** 媒體 sha256 去重（`media_service.upload_media` 同 WO 同檔二次上傳 idempotent 回既有 `deduplicated:true`，DB 不重複入庫）；**TI-RMA-04** RMA 濫用偵測（`warranty_service.check_rma_abuse` 同客戶同機種視窗內 ≥3 次 `abuse_flagged`）。test_cr_0064 3/3 + 回歸全套 836 passed 0 fail。附帶修 `test_reconciliations_v2` 脆弱分頁假設（seed 成長後預設 limit=20 擠出新 row → 改 limit=100）。

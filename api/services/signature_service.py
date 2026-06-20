@@ -43,6 +43,11 @@ def _hash_signature(role: str, wo_id: str, signed_at: str, data: str) -> str:
     return hashlib.sha256(digest_input).hexdigest()
 
 
+# TI-M08-03：簽名擷取通道 fallback 鏈 —— LIFF 初始化失敗 → QR code → 紙本。
+# fallback_method 記錄「這份簽名實際是怎麼取得的」，供結案稽核（紙本 fallback 須留痕）。
+_VALID_FALLBACK_METHODS = {"liff", "qr", "paper"}
+
+
 async def submit_work_order_signature(
     *,
     tenant_id: str,
@@ -52,6 +57,7 @@ async def submit_work_order_signature(
     gps_lat: float | None = None,
     gps_lng: float | None = None,
     signed_at: str | None = None,
+    fallback_method: str = "liff",
 ) -> dict:
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
@@ -60,14 +66,23 @@ async def submit_work_order_signature(
         raise ApiError("VALIDATION_ERROR", "customer_signature is required", 422)
     if not technician_signature or not technician_signature.strip():
         raise ApiError("VALIDATION_ERROR", "technician_signature is required", 422)
+    if fallback_method not in _VALID_FALLBACK_METHODS:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"fallback_method must be one of {sorted(_VALID_FALLBACK_METHODS)}",
+            422,
+        )
 
-    # 取 work_order + customer + technician id（含 tenant guard）
+    # 取 work_order + customer + technician 的 user_id（含 tenant guard）。
+    # 注意：digital_signatures.signer_id FK→users.id，而 wo.technician_id FK→technicians.id，
+    # 兩者不同主鍵；技師簽名的 signer 必須取 technicians.user_id（否則 FK violation）。
     cur = await db_module._conn.execute(
-        "SELECT wo.id, wo.technician_id, c.user_id "
+        "SELECT wo.id, wo.technician_id, c.user_id, t.user_id "
         "FROM work_orders wo "
         "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
         "JOIN conversations c ON pc.conversation_id = c.id "
         "JOIN users u ON c.user_id = u.id "
+        "LEFT JOIN technicians t ON wo.technician_id = t.id "
         "WHERE wo.id = %s::uuid AND u.tenant_id = %s::uuid",
         (wo_id, tenant_id),
     )
@@ -75,15 +90,23 @@ async def submit_work_order_signature(
     if not row:
         raise ApiError("NOT_FOUND", "Work order not found", 404)
 
-    technician_id = row[1]
+    wo_technician_id = row[1]
     customer_id = row[2]
+    technician_user_id = row[3]  # technicians.user_id（簽名 signer 用此，非 technicians.id）
 
-    if technician_id is None:
+    if wo_technician_id is None:
         raise ApiError(
             "VALIDATION_ERROR",
             "Work order must be assigned to a technician before signature",
             422,
         )
+    if technician_user_id is None:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "Assigned technician has no linked user account; cannot sign",
+            422,
+        )
+    technician_id = technician_user_id
 
     # 已存在雙方簽章 → 409
     cur = await db_module._conn.execute(
@@ -108,6 +131,7 @@ async def submit_work_order_signature(
             "gps_lat": gps_lat,
             "gps_lng": gps_lng,
             "signed_at": iso_signed_at,
+            "fallback_method": fallback_method,  # TI-M08-03 稽核留痕
         }
         rows_to_insert.append(
             (
@@ -126,6 +150,7 @@ async def submit_work_order_signature(
             "gps_lat": gps_lat,
             "gps_lng": gps_lng,
             "signed_at": iso_signed_at,
+            "fallback_method": fallback_method,  # TI-M08-03 稽核留痕
         }
         rows_to_insert.append(
             (

@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import re
 
 import core.db as db_module
@@ -2125,6 +2126,37 @@ async def record_delay(
     )
 
 
+# TI-M08-01：GPS 到場 proof 業務語意 —— 到場座標與服務地址參考點的 Haversine 距離，
+# 與容忍半徑比較。參考座標由 caller（地理編碼）提供於 gps.ref_lat/ref_lng；缺則 proof=None。
+_ARRIVAL_GPS_TOLERANCE_M_DEFAULT = 200.0
+
+
+def compute_arrival_gps_proof(
+    ref_lat: float | None,
+    ref_lng: float | None,
+    gps_lat: float | None,
+    gps_lng: float | None,
+    tolerance_m: float = _ARRIVAL_GPS_TOLERANCE_M_DEFAULT,
+) -> dict | None:
+    """到場 GPS proof：回 {distance_m, tolerance_m, within_tolerance}；座標缺漏 → None。
+
+    距離以 Haversine（球面近似，地球半徑 6371km）；within_tolerance = 距離 ≤ 容忍半徑。
+    """
+    if None in (ref_lat, ref_lng, gps_lat, gps_lng):
+        return None
+    r = 6371000.0  # 地球半徑（公尺）
+    p1, p2 = math.radians(ref_lat), math.radians(gps_lat)
+    dphi = math.radians(gps_lat - ref_lat)
+    dlmb = math.radians(gps_lng - ref_lng)
+    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlmb / 2) ** 2
+    dist = r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return {
+        "distance_m": round(dist, 1),
+        "tolerance_m": tolerance_m,
+        "within_tolerance": dist <= tolerance_m,
+    }
+
+
 async def record_arrival(
     *,
     tenant_id: str,
@@ -2155,16 +2187,25 @@ async def record_arrival(
         "WHERE id = %s::uuid",
         (wo_id,),
     )
+    # TI-M08-01：若 gps 帶服務地址參考座標（ref_lat/ref_lng）則算到場 proof（距離+容忍判定）。
+    g = gps or {}
+    gps_proof = compute_arrival_gps_proof(
+        g.get("ref_lat"), g.get("ref_lng"), g.get("lat"), g.get("lng")
+    )
     await db_module._conn.execute(
         "INSERT INTO work_order_events "
         "  (work_order_id, tenant_id, actor_user_id, event_type, payload) "
         "VALUES (%s::uuid, %s::uuid, %s, 'arrival', %s::jsonb)",
         (wo_id, tenant_id, actor_user_id,
-         json.dumps({"arrived_at": arrived_at, "gps": gps or {}}, ensure_ascii=False)),
+         json.dumps({"arrived_at": arrived_at, "gps": g, "gps_proof": gps_proof},
+                    ensure_ascii=False)),
     )
-    return await _publish_and_return(
+    result = await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.arrived"
     )
+    if isinstance(result, dict):
+        result["gps_proof"] = gps_proof
+    return result
 
 
 async def record_door_check(

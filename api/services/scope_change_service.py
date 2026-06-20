@@ -341,3 +341,48 @@ async def admin_override(
         "approved_by": approved_by_user_id,
         "recorded_at": datetime.now(timezone.utc).isoformat(),
     }
+
+
+# TI-M08-04：客戶 30min 未回覆 → 暫停旗標 cron（BR-M08-02）。
+# 逾時不自動拒絕（避免誤殺猶豫客戶），改標記供主管 admin_override 跟進；寫 audit 留痕。
+_CUSTOMER_RESPONSE_TIMEOUT_MIN_DEFAULT = 30
+
+
+async def flag_timed_out_scope_changes(
+    *, timeout_minutes: int = _CUSTOMER_RESPONSE_TIMEOUT_MIN_DEFAULT
+) -> dict:
+    """掃 pending 且 created_at 超過 timeout 的 scope_change，標記逾時供主管跟進。
+
+    回 {timeout_minutes, flagged_count, flagged_ids}。不變更 status（pending 不動），
+    僅每筆寫一條 audit（scope_change_customer_timeout）；已寫過者不重複（24h 內去重）。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    cur = await db_module._conn.execute(
+        "SELECT id, work_order_id FROM scope_changes "
+        "WHERE status = 'pending' "
+        "  AND created_at < NOW() - make_interval(mins => %s)",
+        (timeout_minutes,),
+    )
+    rows = await cur.fetchall()
+    flagged_ids: list[str] = []
+    for r in rows:
+        pid = str(r[0])
+        flagged_ids.append(pid)
+        try:
+            await audit_log_service.log_event(
+                event_type="scope_change",
+                actor_id=None,
+                actor_role="system",
+                action="scope_change_customer_timeout",
+                target_type="scope_changes",
+                target_id=pid,
+                payload={"work_order_id": str(r[1]), "timeout_minutes": timeout_minutes},
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("scope_change timeout audit failed for %s: %s", pid, exc)
+    return {
+        "timeout_minutes": timeout_minutes,
+        "flagged_count": len(flagged_ids),
+        "flagged_ids": flagged_ids,
+    }
