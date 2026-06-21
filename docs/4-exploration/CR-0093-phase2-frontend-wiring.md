@@ -25,11 +25,11 @@ related: [CR-0039, CR-0035, CR-0036, CR-0037, CR-0040, CR-0029, CR-0042, audit-b
 | 1 | **CR-0039 技師完工頁接正規端點** | HIGH | **壞掉**（技師完工撞 403） | ✅ done（3d94d1e3）|
 | 2 | **CR-0094 完整角色系統**（取代 CR-0040；建員工帳號 + reviewer 三方對齊）| HIGH | 安全/可用 | ✅ done（34ff399f，業主裁決「建完整角色系統」）|
 | 3 | **CR-0035 報價→應收發票前端**（開立發票/觸發月結動作） | HIGH | 缺功能 | ✅ done（372b7d67）|
-| 4 | **CR-0036/0044/0045/0046 M18 config 治理 UI**（訂金/佣金/月結/取消費/稅率/公司檔/折扣） | HIGH/MED | 缺功能（範圍大） | ⏳ 待業主（業主本輪選只做 CR-0035）|
+| 4 | **CR-0036/0044/0045/0046 M18 config 治理 UI** | HIGH/MED | 缺功能（範圍大） | ✅ done（686f2431；一頁涵蓋全 namespace + 草稿/雙簽上線）|
 | 5 | **CR-0037 拆帳規則 payout-rules 前端** | MED | 缺功能 | ✅ done（唯讀頁 + Sidebar + rolePolicy）|
-| 6 | **CR-0029 廠商專區**（核准後登入到不了頁；brand_oem 夥伴入口）| MED | 缺功能 | ⏳ |
-| 7 | **CR-0042 轉單 422 結構化錯誤 + 主管 override UI** | MED | 缺功能 | ⏳ |
-| 8 | **MED 193 端點收緊**（cross-role 讀取，逐類評估非一刀切） | MED | 安全 Phase II | ⏳ |
+| 6 | **CR-0029 廠商專區** | MED | 缺功能 | ✅ done（2f923b30；/vendors/me + /vendor 專區頁）|
+| 7 | **CR-0042 轉單 422 結構化錯誤 + 主管 override UI** | MED | 缺功能 | ✅ done（92af53f1）|
+| 8 | **MED 端點收緊**（治理/稽核讀取子集） | MED | 安全 Phase II | ✅ done（2c44fc47；7 端點保守子集，其餘逐類審查留續）|
 
 > CR-0026/0043/0047（工單欄位編輯 UI）已由本輪 CR-0091 DispatchOrderView 覆蓋。
 
