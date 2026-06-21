@@ -1,0 +1,79 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Prompt: 03 Analyze — L3 Templates</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../../../../index.html">🏠 文件總目錄</a> ／ _archive ／ extras ／ web-frontend ／ design-cloning ／ prompts ／ 03_analyze_L3_templates.md</div>
+<div class="doc"><h1 id="prompt-03-analyze--l3-templates">Prompt: 03 Analyze — L3
+Templates</h1>
+<blockquote>
+<p>用途：抽取頁面模板對齊 <code>03_templates_spec.md</code>
+執行者：Claude 主對話</p>
+</blockquote>
+<hr />
+<h2 id="給-claude-的-prompt">給 Claude 的 Prompt</h2>
+<pre><code>任務：讀取 clones/{slug}/raw/screenshots/ 與 extracted/dom-tree.md，
+輸出 clones/{slug}/analysis/L3_templates.md，對齊 03_templates_spec.md。
+
+Template = 頁面骨架（不是元件、不是模式）。
+是【整頁的版面組合方式】。
+
+對每個觀察到的頁面類型輸出：
+
+## Template: {Landing / Dashboard / List / Detail / Settings / Pricing / ...}
+
+### 區塊組成（由上到下）
+1. Header (sticky? transparent on top?)
+2. Hero Section (full-width / contained, asymmetric / centered)
+3. Feature Grid (3-col / 2-col / alternating)
+4. Social Proof
+5. CTA Section
+6. Footer
+
+### Layout 規則
+- Container max-width
+- Section vertical spacing
+- 區塊之間是否有 divider
+
+### Responsive 行為
+- Mobile：哪些區塊改變排列
+- Tablet：欄數變化
+- Desktop：是否有 wide-screen 特殊處理
+
+### Mermaid 結構圖
+```mermaid
+graph TB
+  Header --&gt; Hero
+  Hero --&gt; Features
+  Features --&gt; CTA
+  CTA --&gt; Footer</code></pre>
+<hr />
+<p>至少抽取 1 個 Template（首頁 / Landing）。
+若有多種頁面類型，依序加章節。</p>
+<p>紅線：</p>
+<ul>
+<li>Template 是版面結構，不要寫具體文案內容</li>
+<li>每個 Template 引用 L0 的 grid token</li>
+</ul>
+<pre><code>
+---
+
+## 驗收
+
+- [ ] 至少 1 個 Template 完整描述
+- [ ] 每個 Template 有 Mermaid 結構圖
+- [ ] Responsive 行為有描述
+</code></pre>
+</div></div></body></html>

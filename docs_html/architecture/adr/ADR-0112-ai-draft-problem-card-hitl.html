@@ -1,0 +1,94 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>AI 草擬問題卡（HITL）— source 標記 + 寬鬆 draft 建立</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ architecture ／ adr ／ ADR-0112-ai-draft-problem-card-hitl.md</div>
+<div class="doc"><h1 id="adr-0112--ai-草擬問題卡hitl">ADR-0112 — AI
+草擬問題卡（HITL）</h1>
+<h2 id="status">Status</h2>
+<p>Accepted（2026-06-14，CR-0022 §8 業主裁決落地）</p>
+<h2 id="context">Context</h2>
+<p>ADR-0031 已裁定「AI 草擬 ProblemCard → 客服 1-click 人審後
+convert_to_work_order，AI 永不自轉」，但從未實作。CR-0022
+要落地此鏈：LINE agent 轉真人（escalation）→ 在 API 建 一張 <strong>AI
+草擬問題卡</strong> → 客服在既有問題卡頁補全 → 既有 confirm → 既有
+convert。</p>
+<p>需決定的資料模型問題：AI 轉真人時通常<strong>尚未蒐集到
+brand/model/symptom</strong>，但既有
+<code>problem_card_service.create_card</code> 對這三欄位做 422
+必填驗證；且要能在後台<strong>區分</strong> AI 草擬 卡與客服手建卡。</p>
+<h2 id="decision">Decision</h2>
+<ol type="1">
+<li><strong>不新增 DB status</strong>：<code>problem_cards.status</code>
+既有 <code>incomplete</code> 已映射到 API
+<code>ProblemCardStatus.draft</code>（見
+<code>problem_card_service._DB_STATUS_TO_API</code>）。AI 草擬卡一律
+建為 DB <code>incomplete</code>（= API
+<code>draft</code>），<strong>沿用既有 confirm（incomplete→confirmed）→
+convert 流程，零狀態機變更</strong>。</li>
+<li><strong>新增
+<code>problem_cards.source</code></strong>（<code>'human'</code> /
+<code>'ai_line'</code>，預設 <code>'human'</code>）作為區分 AI 草擬
+與人建的唯一判準；後台佇列以此篩選。</li>
+<li><strong>新增
+<code>problem_cards.ai_missing_fields JSONB</code></strong>：AI
+草擬時記下「尚缺、待客服補」的欄位 清單（如
+brand/model/location），當客服
+hint。<strong>不做信心分數</strong>（CR-0022 §8 #5 延後）。</li>
+<li><strong>寬鬆建立路徑</strong> <code>create_draft_card</code>：跳過
+brand/model/symptom 必填驗證（DB 這些欄位本就
+nullable），允許「先建殼、客服補」。手建卡的 <code>create_card</code>
+嚴格驗證<strong>不變</strong>。</li>
+<li><strong>去重</strong>：<code>problem_cards.conversation_id</code>
+UNIQUE 天然保證一對話一卡；同對話再次 escalation →
+<strong>更新</strong>既有草擬卡（症狀附記 + missing
+fields），不重建。</li>
+<li><strong>created_by N/A</strong>：<code>problem_cards</code> 無
+<code>created_by</code> 欄位，故 CR-0022 §8 #7 在 PC 層無對應；
+<code>source='ai_line'</code> 即 AI 來源標記。工單的 created_by 於客服
+convert 時自然記為該客服。</li>
+<li><strong>AI 永不自轉</strong>（ADR-0028 charter / ADR-0031）：AI
+路徑最多到 <code>create_draft_card</code>； confirm + convert
+一律由通過認證的客服觸發。以 <code>TC-hitl-no-ai-convert</code>
+回歸測試守線。</li>
+</ol>
+<h2 id="consequences">Consequences</h2>
+<p><strong>Positive</strong>：零狀態機變更、復用既有 confirm/convert
+與問題卡頁、charter 邊界清楚可測。 <strong>Negative</strong>：AI
+草擬卡欄位稀疏，客服需讀對話補全（對話已由方案 A 在工單/問題卡頁可見，
+緩解此點）。
+<strong>Migration</strong>：<code>032-problem-card-ai-draft.sql</code>
+ADD 2 欄位，皆 nullable/有預設，反相容。</p>
+<h2 id="alternatives-considered">Alternatives Considered</h2>
+<ul>
+<li><strong>新增獨立 <code>draft</code> DB status</strong>：會 fork
+confirm 狀態機（confirm 需同時收 draft/incomplete），
+測試面更大，無實益（API 已有 draft 概念）。否決。</li>
+<li><strong>缺欄位就不建 PC、只記 alert</strong>（CR-0022 §8 #2 選項
+b）：業主選寬鬆建立，否決。</li>
+</ul>
+<h2 id="acceptance-criteria">Acceptance Criteria</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" checked="" />業主圈選 CR-0022
+§8（2026-06-14）</label></li>
+<li><label><input type="checkbox" />migration 032 套用（dev /
+prod）</label></li>
+<li><label><input type="checkbox" /><code>TC-hitl-no-ai-convert</code>
+回歸測試綠（AI 不可 convert）</label></li>
+<li><label><input type="checkbox" />ADR-0031 由「decided
+未實作」更新註記為 implemented（本 ADR 為其落地）</label></li>
+</ul>
+</div></div></body></html>

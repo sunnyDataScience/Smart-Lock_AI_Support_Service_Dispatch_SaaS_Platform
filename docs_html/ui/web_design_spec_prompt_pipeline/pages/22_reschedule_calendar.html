@@ -1,0 +1,468 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Page-Level Prompt: 技師端 — 改期日曆</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../../index.html">🏠 文件總目錄</a> ／ ui ／ web_design_spec_prompt_pipeline ／ pages ／ 22_reschedule_calendar.md</div>
+<div class="doc"><h1 id="page-level-prompt-技師端--改期日曆">Page-Level Prompt: 技師端 —
+改期日曆</h1>
+<blockquote>
+<p>IA 編號 <strong>T11</strong>。技師 / 客戶改期工單的日曆選擇 UI。與
+Flow 5 延遲通知、Flow 11 客戶不在場、Flow 14 排班衝突整合。</p>
+</blockquote>
+<hr />
+<h2 id="page-meta">[PAGE META]</h2>
+<ul>
+<li><strong>page_name</strong>: 改期日曆 Reschedule Calendar</li>
+<li><strong>route_path</strong>:
+<code>/my-orders/[id]/reschedule</code>（技師端） / 客戶走 LINE Flex
+RSVP（見 Flow 11）</li>
+<li><strong>page_type</strong>: modal-style workflow</li>
+<li><strong>ia_pages</strong>: T11</li>
+<li><strong>openapi_ops</strong>: proposeReschedule,
+getTechnicianAvailability</li>
+<li><strong>asyncapi_ops</strong>: subscribeWorkOrderUpdates</li>
+<li><strong>primary_goal</strong>:
+讓技師快速選擇新的工單時段，並觸發客戶確認流程</li>
+<li><strong>secondary_goal</strong>:
+顯示可用時段避免衝突、預覽客戶工作時間偏好</li>
+<li><strong>target_users</strong>:
+<ul>
+<li>主要：技師（當預計延遲 / 客戶不在場 / 自助改期）</li>
+<li>次要：客戶（透過 LINE Flex 看相同時段選項並 RSVP）</li>
+<li>次要：<code>dispatch_officer</code>（手動協助改期）</li>
+</ul></li>
+<li><strong>entry_point</strong>:
+<ul>
+<li>T3 工單詳情「改期」按鈕</li>
+<li>T7 延遲通知頁「直接改期」CTA</li>
+<li>Flow 11 客戶不在場 → 技師返回後選擇「請客戶改期」</li>
+<li>A37 派工人工介入「改期 + 通知客戶」按鈕</li>
+</ul></li>
+<li><strong>expected_time_on_page</strong>: 30 秒 – 2
+分鐘（技師端）</li>
+</ul>
+<hr />
+<h2 id="structure-sections">[STRUCTURE: SECTIONS]</h2>
+<ol type="1">
+<li><p><strong>wo_summary_header</strong></p>
+<ul>
+<li>section_type: summary_header</li>
+<li>section_purpose:
+固定在頂部的工單摘要（客戶、地點、當前預約時間）</li>
+</ul></li>
+<li><p><strong>customer_availability_hint</strong></p>
+<ul>
+<li>section_type: info_card</li>
+<li>section_purpose: 顯示客戶偏好時段（依歷史）與勿擾時段</li>
+</ul></li>
+<li><p><strong>calendar_view</strong></p>
+<ul>
+<li>section_type: calendar_picker</li>
+<li>section_purpose: 7 日視圖，顯示技師當前排班 + 可用時段</li>
+</ul></li>
+<li><p><strong>time_slot_picker</strong></p>
+<ul>
+<li>section_type: time_slot_grid</li>
+<li>section_purpose: 選定日期後，30 分鐘 granularity 時段網格</li>
+</ul></li>
+<li><p><strong>conflict_warning</strong></p>
+<ul>
+<li>section_type: alert_banner</li>
+<li>section_purpose: 所選時段若觸發衝突（Flow 14）即時警示</li>
+</ul></li>
+<li><p><strong>customer_notification_preview</strong></p>
+<ul>
+<li>section_type: preview_card</li>
+<li>section_purpose: 預覽將發送給客戶的 LINE Flex Message</li>
+</ul></li>
+<li><p><strong>action_bar</strong></p>
+<ul>
+<li>section_type: sticky_action</li>
+<li>section_purpose: 底部「送出改期請求 / 取消」</li>
+</ul></li>
+<li><p><strong>offline_queue_banner</strong></p>
+<ul>
+<li>section_type: status_banner</li>
+<li>section_purpose: 離線模式提示</li>
+</ul></li>
+</ol>
+<hr />
+<h2 id="section-component-spec">[SECTION COMPONENT SPEC]</h2>
+<h3 id="section-wo_summary_header">Section: wo_summary_header</h3>
+<ul>
+<li><strong>layout</strong>: 頂部 sticky，高度 96px，背景
+surface.subtle</li>
+<li><strong>elements</strong>:
+<ul>
+<li>wo_number: Heading H3 / 工單編號</li>
+<li>customer_name: Body / 客戶姓名（去識別化）</li>
+<li>address: Caption / 地址 + 距離</li>
+<li>current_scheduled_time: Badge / 「原預約：2026-04-24 14:00」</li>
+<li>close_btn: IconButton X / 返回 T3</li>
+</ul></li>
+</ul>
+<h3 id="section-customer_availability_hint">Section:
+customer_availability_hint</h3>
+<ul>
+<li><strong>layout</strong>: 次頂部，可折疊 info card</li>
+<li><strong>elements</strong>:
+<ul>
+<li>preferred_hours: Chips / 「客戶偏好週間 09:00-18:00」（依 Profile +
+歷史工單統計）</li>
+<li>dnd_hours: Chips / 「勿擾 22:00-08:00」（紅標）</li>
+<li>past_reschedule_count: Chip / 「此工單已改期 N 次」（N &gt;= 2
+時顯示警告色）</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>hidden if 無歷史資料</li>
+<li>warning if N &gt;= 3（建議人工協調）</li>
+</ul></li>
+</ul>
+<h3 id="section-calendar_view">Section: calendar_view</h3>
+<ul>
+<li><strong>layout</strong>: 7 日水平 strip（手機）/
+月視圖（平板/桌面）</li>
+<li><strong>elements</strong>:
+<ul>
+<li>date_cells: 每格顯示日期 + 可用時段數 + 當日 utilization bar</li>
+<li>today_marker: 當日以粗框標記</li>
+<li>holiday_badge: 假日顯示 icon（依客戶國/區設定）</li>
+<li>navigation: 上一週 / 下一週 / 跳到指定日</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>selected: 藍底白字</li>
+<li>unavailable: 灰色（技師請假日）</li>
+<li>fully_booked: 斜線遮罩</li>
+</ul></li>
+<li><strong>copy_constraints</strong>: 日期 Inter 14px，可用時段數
+Caption</li>
+</ul>
+<h3 id="section-time_slot_picker">Section: time_slot_picker</h3>
+<ul>
+<li><strong>layout</strong>: 所選日期下方，時段網格 4 欄 × N 列</li>
+<li><strong>elements</strong>:
+<ul>
+<li>slot_chip: 每 30 分鐘一格（08:00 / 08:30 / 09:00 ...）</li>
+<li>utilization_label: 每格標註「可用」/「緊鄰其他工單」/「不可用」</li>
+<li>estimated_duration_highlight: 根據工單預估工時（例
+1.5h）自動高亮連續可用時段</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>available: 白底</li>
+<li>selected: 主色填滿</li>
+<li>soft_conflict: 黃框 + warning icon（與鄰近工單太近）</li>
+<li>hard_conflict: 禁止（灰底不可點）</li>
+<li>customer_preferred: 淡綠背景提示</li>
+</ul></li>
+</ul>
+<h3 id="section-conflict_warning">Section: conflict_warning</h3>
+<ul>
+<li><strong>layout</strong>: 時段網格下方 alert banner</li>
+<li><strong>elements</strong>:
+<ul>
+<li>alert_icon: severity icon</li>
+<li>message: 依衝突類型：
+<ul>
+<li>soft: 「此時段前 45 分有另一工單，預計移動時間不足」</li>
+<li>customer_dnd: 「此時段在客戶勿擾時段內」</li>
+<li>holiday: 「此為假日，收費標準不同」</li>
+</ul></li>
+<li>acknowledge_btn:
+「了解並繼續」（<code>warning_acknowledged_at</code>）</li>
+<li>change_btn: 「換個時段」</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>hidden if 無衝突</li>
+<li>info / warning / critical 三色</li>
+</ul></li>
+</ul>
+<h3 id="section-customer_notification_preview">Section:
+customer_notification_preview</h3>
+<ul>
+<li><strong>layout</strong>: 可折疊區，預設展開</li>
+<li><strong>elements</strong>:
+<ul>
+<li>flex_preview: LINE Flex Message 預覽（縮圖）</li>
+<li>message_text:
+可編輯的訊息開頭（預設「很抱歉需要調整時間，請問以下時段是否方便？」）</li>
+<li>slot_options_count: 「將提供 3 個備選時段給客戶」（技師可選 1-3
+個）</li>
+<li>send_via: 單選「LINE Push」/「LINE + SMS」（SMS 需管理員授權）</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>editing: textarea focus</li>
+<li>preview: 渲染 Flex</li>
+</ul></li>
+</ul>
+<h3 id="section-action_bar">Section: action_bar</h3>
+<ul>
+<li><strong>layout</strong>: 底部 sticky，高度 72px</li>
+<li><strong>elements</strong>:
+<ul>
+<li>cancel_btn: Button Secondary / 「取消」→ 返回 T3</li>
+<li>send_btn: Button Primary / 「送出改期請求」→ 送出並關閉</li>
+<li>save_draft_btn: Button Tertiary / 「存草稿」（IndexedDB）</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>disabled if 無選擇時段 + 未 acknowledge 警告</li>
+<li>sending: spinner + disabled</li>
+<li>offline: 改為「離線暫存」</li>
+</ul></li>
+</ul>
+<h3 id="section-offline_queue_banner">Section: offline_queue_banner</h3>
+<ul>
+<li><strong>layout</strong>: 頂部（wo_summary_header 下方）</li>
+<li><strong>elements</strong>:
+<ul>
+<li>icon: offline</li>
+<li>text: 「已離線，改期請求將在連線後自動送出」</li>
+</ul></li>
+<li><strong>states</strong>: 僅離線時顯示</li>
+</ul>
+<hr />
+<h2 id="interaction--state-flow">[INTERACTION &amp; STATE FLOW]</h2>
+<h3 id="進入流程">進入流程</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">來源</th>
+<th style="text-align: left;">帶入參數</th>
+<th style="text-align: left;">初始狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">T3 改期按鈕</td>
+<td style="text-align: left;"><code>work_order_id</code></td>
+<td style="text-align: left;">今日日期選中、顯示客戶偏好</td>
+</tr>
+<tr>
+<td style="text-align: left;">T7 延遲通知</td>
+<td
+style="text-align: left;"><code>work_order_id, from=delay</code></td>
+<td style="text-align: left;">預選「當日 + 原時間 + 延遲量」</td>
+</tr>
+<tr>
+<td style="text-align: left;">Flow 11 客戶不在場</td>
+<td
+style="text-align: left;"><code>work_order_id, from=no_show</code></td>
+<td style="text-align: left;">隔日或客戶建議時段</td>
+</tr>
+<tr>
+<td style="text-align: left;">A37 派工介入</td>
+<td
+style="text-align: left;"><code>work_order_id, assisted_by=staff</code></td>
+<td style="text-align: left;">顯示 staff 身份 banner</td>
+</tr>
+</tbody>
+</table>
+<h3 id="核心互動">核心互動</h3>
+<ol type="1">
+<li>載入 wo_summary + customer_availability_hint +
+calendar_view（預設今日）</li>
+<li>技師選日期 → time_slot_picker 載入當日可用時段</li>
+<li>選時段（可多選 1-3 個備選）→ conflict_warning 即時檢測</li>
+<li>編輯 customer_notification_preview 訊息</li>
+<li>點「送出」→ API 呼叫 → 客戶 LINE Flex 推送 → 工單狀態 →
+<code>awaiting_customer_reschedule_confirm</code></li>
+<li>客戶端 LINE Flex 選擇 → webhook 回寫 → 工單新 scheduled_time + WS
+推給技師</li>
+</ol>
+<h3 id="dirty-state">Dirty State</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">動作</th>
+<th style="text-align: left;">處置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">選時段後關閉</td>
+<td style="text-align: left;">prompt「有未送出的改期，確定離開？」</td>
+</tr>
+<tr>
+<td style="text-align: left;">存草稿按鈕</td>
+<td style="text-align: left;">IndexedDB store
+<code>reschedule_drafts</code> by work_order_id</td>
+</tr>
+<tr>
+<td style="text-align: left;">重進同工單</td>
+<td style="text-align: left;">自動還原草稿（技師可決定用 or 重開）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="錯誤狀態">錯誤狀態</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">情境</th>
+<th style="text-align: left;">行為</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">時段已被他工單佔（WS 推送 Flow 14
+衝突）</td>
+<td style="text-align: left;">即時禁用該格 + Toast</td>
+</tr>
+<tr>
+<td style="text-align: left;">客戶已在另一流程（如爭議中）</td>
+<td style="text-align: left;">送出時 409 <code>CONFLICT</code> +
+禁止改期</td>
+</tr>
+<tr>
+<td style="text-align: left;">離線</td>
+<td style="text-align: left;">queue via Service Worker BG Sync</td>
+</tr>
+<tr>
+<td style="text-align: left;">客戶 LINE 封鎖公司帳號</td>
+<td style="text-align: left;">送出後 fallback 為 SMS（若有授權）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="即時更新">即時更新</h3>
+<p>訂閱 <code>/realtime/work-orders/{id}</code>：</p>
+<ul>
+<li>客戶已 RSVP 新時段 → 技師端自動顯示「客戶已確認 X 時段」+
+關閉此頁</li>
+</ul>
+<hr />
+<h2 id="data--api">[DATA &amp; API]</h2>
+<h3 id="查詢可用時段">查詢可用時段</h3>
+<pre><code>GET /api/v1/technicians/me/availability?work_order_id={id}&amp;date={YYYY-MM-DD}
+Response 200: {
+  slots: [
+    {
+      start: ISO8601, end: ISO8601,
+      status: &quot;available&quot; | &quot;soft_conflict&quot; | &quot;hard_conflict&quot;,
+      conflict_reason: &quot;buffer_insufficient&quot; | &quot;another_order&quot; | &quot;customer_dnd&quot; | null
+    }
+  ],
+  customer_preferences: {
+    preferred_hours: [&quot;09:00-18:00&quot;],
+    dnd_hours: [&quot;22:00-08:00&quot;]
+  },
+  past_reschedule_count: 1
+}</code></pre>
+<h3 id="送出改期請求">送出改期請求</h3>
+<pre><code>POST /api/v1/work-orders/{id}/reschedule
+Headers: Idempotency-Key: &lt;uuid&gt;
+Body: {
+  proposed_slots: [
+    { start: ISO8601, end: ISO8601 },
+    ...  // 1-3 個
+  ],
+  message_to_customer: string,
+  warning_acknowledged_at: ISO8601 | null,  // 若有 soft conflict
+  send_via: &quot;line&quot; | &quot;line_and_sms&quot;
+}
+Response 200: WorkOrderEnvelope (status=awaiting_customer_reschedule_confirm)
+Response 409: WORK_ORDER_CONFLICT (客戶另流程中)
+Response 422: VALIDATION_ERROR (時段格式不合)</code></pre>
+<h3 id="取消改期請求送出後">取消改期請求（送出後）</h3>
+<pre><code>POST /api/v1/work-orders/{id}/reschedule/cancel</code></pre>
+<h3 id="離線佇列">離線佇列</h3>
+<p>Service Worker 攔截 POST <code>/reschedule</code> 失敗 → IndexedDB
+queue：</p>
+<pre><code>{
+  endpoint: &quot;/api/v1/work-orders/{id}/reschedule&quot;,
+  method: &quot;POST&quot;,
+  body: {...},
+  idempotency_key: &quot;...&quot;,
+  queued_at: ISO8601
+}</code></pre>
+<h3 id="websocket">WebSocket</h3>
+<p>訂閱 <code>/realtime/work-orders/{id}</code>：</p>
+<ul>
+<li><code>work_order.reschedule_confirmed_by_customer</code> →
+關閉此頁返回 T3</li>
+<li><code>work_order.reschedule_rejected_by_customer</code> →
+顯示拒絕理由 + 重選</li>
+</ul>
+<hr />
+<h2 id="exception-to-global-rules">[EXCEPTION TO GLOBAL RULES]</h2>
+<ul>
+<li>同工單 24h 內改期次數 &gt;= 3 →
+禁止（<code>VALIDATION_ERROR</code>，顯示「請聯繫客服」）</li>
+<li>客戶勿擾時段選擇需 acknowledge</li>
+<li>假日時段自動附加費用提示（對齊
+<code>E5x--work-order-flows-supplement.md §17</code>）</li>
+<li>離線情境：UI 允許完整操作，實際送出等連線；最多 24h
+未送達則提醒重新確認</li>
+</ul>
+<hr />
+<h2 id="acceptance-criteria">[ACCEPTANCE CRITERIA]</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />進入後 &lt; 1 秒載入 7
+日可用性</label></li>
+<li><label><input type="checkbox" />時段衝突即時反映（WS +
+本地快取）</label></li>
+<li><label><input type="checkbox" />送出後客戶 LINE Flex &lt; 5
+秒抵達</label></li>
+<li><label><input type="checkbox" />客戶 RSVP
+後技師頁面自動關閉（WS）</label></li>
+<li><label><input type="checkbox" />離線暫存且連線後自動補送（成功率
+&gt; 99%）</label></li>
+<li><label><input type="checkbox" />假日 /
+勿擾時段有明確視覺警示</label></li>
+<li><label><input type="checkbox" />3 次改期限制有效執行</label></li>
+<li><label><input type="checkbox" />支援手機 / 平板 / 桌面三種
+viewport</label></li>
+</ul>
+<hr />
+<h2 id="導航與狀態-navigation--state">導航與狀態 (Navigation &amp;
+State)</h2>
+<p>對齊
+<code>docs/02-design/E5x--frontend-navigation-matrix.md §1.3</code>：</p>
+<ul>
+<li><strong>Upstream</strong>: T3 改期按鈕、T7 延遲通知頁、Flow 11
+返回後、A37 派工介入</li>
+<li><strong>Downstream</strong>: T3 工單詳情（送出後返回）、客戶 LINE
+Flex（外部流程）</li>
+<li><strong>State Persistence</strong>: 草稿 via
+IndexedDB（長期編輯型）；選擇 via URL query（日期）</li>
+<li><strong>Error Navigation</strong>: 離線排入 queue、409
+停留並提示</li>
+<li><strong>Deep Link</strong>: supported（技師 PWA 直達）</li>
+<li><strong>Multi-tab Sync</strong>: WS + BroadcastChannel（同工單其他
+tab 開啟時同步關閉）</li>
+</ul>
+<hr />
+<h2 id="校對檢核表">校對檢核表</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />30 分鐘 granularity
+是否足夠？某些工項可能需要更細粒度</label></li>
+<li><label><input type="checkbox" />客戶偏好時段的計算邏輯（歷史統計 vs
+Profile 設定）是否需單獨定義？</label></li>
+<li><label><input type="checkbox" />3 個備選時段是否為業界慣例？LINE
+Flex 最多支援幾個按鈕？</label></li>
+<li><label><input type="checkbox" />SMS fallback 需管理員授權 —
+授權流程在哪定義？</label></li>
+<li><label><input type="checkbox" />24h 3
+次改期限制是否過嚴？緊急情況如何處理？</label></li>
+<li><label><input type="checkbox" />假日附加費用提示的金額來源是否對齊
+pricing rules？</label></li>
+<li><label><input type="checkbox" />客戶端 LINE Flex RSVP
+流程是否需要獨立頁面 spec？（目前歸 Flow 11）</label></li>
+</ul>
+</div></div></body></html>

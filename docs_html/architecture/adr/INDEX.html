@@ -1,0 +1,535 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>ADR Drafts (2026-05-21) — §F Trade-off 落地索引</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ architecture ／ adr ／ INDEX.md</div>
+<div class="doc"><h1 id="adr-drafts--f-trade-off-落地索引">ADR Drafts — §F Trade-off
+落地索引</h1>
+<blockquote>
+<p>把 PAIN-POINTS-SUMMARY v2 §F 的 27 個 Trade-off 收斂為 <strong>24
+個獨立 ADR 草稿</strong>（扣除 3 個 §F.3 與 §F.1/F.2 重複者）。每份 ADR
+含：Context / Decision（推薦）/ Alternatives A/B / Consequences /
+Pre-mortem mapping / Eternal/Transient 分類 / 業主圈選驗收條件。</p>
+<p><strong>圈選流程</strong>：</p>
+<ol type="1">
+<li>業主針對每份 ADR 在 <code>### Acceptance Criteria</code> 圈選 ✅推薦
+/ A / B</li>
+<li>圈完一批後改 <code>status: draft → accepted</code> 並補
+<code>deciders</code> 簽核欄</li>
+<li>promote 到 <code>docs/architecture/adr/</code> 正式 ADR
+系列（ADR-0031~0054）</li>
+</ol>
+<p><strong>編號規劃</strong>：既有 ADR 編到 ADR-0030，本批草稿從
+<strong>ADR-0031</strong> 起。</p>
+</blockquote>
+<hr />
+<h2 id="索引表">索引表</h2>
+<h3
+id="group-1--gap-decisionsf1對應-disc-0001-3--excel-02-sheet-19">Group 1
+— GAP Decisions（§F.1，對應 DISC-0001 §3 + Excel-02 sheet 19）</h3>
+<table>
+<thead>
+<tr>
+<th>ADR</th>
+<th>主題</th>
+<th>來源</th>
+<th>阻擋層</th>
+<th>推薦摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a
+href="./ADR-0031-ai-auto-convert-to-work-order.md">ADR-0031</a></td>
+<td>AI 是否可自動 <code>convert_to_work_order</code></td>
+<td>GAP-D01</td>
+<td>Eternal Policy (B3)</td>
+<td>AI 草擬 + 1-click 人審</td>
+</tr>
+<tr>
+<td><a href="./ADR-0032-missing-address-policy.md">ADR-0032</a></td>
+<td>缺地址處理</td>
+<td>GAP-D02</td>
+<td>Eternal State Machine (B2)</td>
+<td>追問 + 後台補填 + 無地址 422 hard stop</td>
+</tr>
+<tr>
+<td><a
+href="./ADR-0033-problem-card-completeness-gate.md">ADR-0033</a></td>
+<td>ProblemCard completeness score 控派工</td>
+<td>GAP-D03</td>
+<td>Eternal Policy (B3)</td>
+<td>0.85 hard gate + 人工 override</td>
+</tr>
+<tr>
+<td><a href="./ADR-0034-urgent-red-code-definition.md">ADR-0034</a></td>
+<td>urgent / Red Code 定義</td>
+<td>GAP-D04</td>
+<td>Eternal Event Type (B5)</td>
+<td>4 類具名 Event Type</td>
+</tr>
+<tr>
+<td><a
+href="./ADR-0035-warranty-project-quote-policy.md">ADR-0035</a></td>
+<td>保固 / 建案 AI 報價邊界</td>
+<td>GAP-D05</td>
+<td>Eternal Policy (B3)</td>
+<td>AI 可給 range，永禁 final quote</td>
+</tr>
+<tr>
+<td><a href="./ADR-0036-multi-problem-card-rule.md">ADR-0036</a></td>
+<td>同 conversation 多 ProblemCard</td>
+<td>GAP-D06</td>
+<td>Eternal State Machine (B2)</td>
+<td>一 active issue 一 PC，新症狀可另建</td>
+</tr>
+<tr>
+<td><a href="./ADR-0037-conversation-auto-close.md">ADR-0037</a></td>
+<td>對話解決後客戶確認關閉</td>
+<td>GAP-D07</td>
+<td>Eternal Process (B2)</td>
+<td>quick confirm + 48h 自動關閉</td>
+</tr>
+<tr>
+<td><a href="./ADR-0038-ai-feedback-review-policy.md">ADR-0038</a></td>
+<td>AI feedback / SOP 審核機制</td>
+<td>GAP-D08</td>
+<td>Eternal Process (D2)</td>
+<td>高風險雙審 / 低風險單審</td>
+</tr>
+</tbody>
+</table>
+<h3 id="group-2--p0-核心決策f2對應-excel-01-sheet-04">Group 2 — P0
+核心決策（§F.2，對應 Excel-01 sheet 04）</h3>
+<table>
+<thead>
+<tr>
+<th>ADR</th>
+<th>主題</th>
+<th>來源</th>
+<th>阻擋層</th>
+<th>推薦摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="./ADR-0039-cancellation-fee-tiers.md">ADR-0039</a></td>
+<td>取消費分段</td>
+<td>BIZ-03 / AI-029</td>
+<td>Eternal Policy + Configurable (B3+B4)</td>
+<td>5 階段門檻 + Configurable</td>
+</tr>
+<tr>
+<td><a href="./ADR-0040-refund-approval-tiers.md">ADR-0040</a></td>
+<td>退款核准分層</td>
+<td>BIZ-04</td>
+<td>Eternal RBAC (B3+B4)</td>
+<td>5 層金額分層</td>
+</tr>
+<tr>
+<td><a href="./ADR-0041-travel-fee-split.md">ADR-0041</a></td>
+<td>車馬費歸屬</td>
+<td>BIZ-05</td>
+<td>Eternal + Configurable</td>
+<td>80% 師傅 / 20% 平台</td>
+</tr>
+<tr>
+<td><a href="./ADR-0042-rbac-four-tier-principle.md">ADR-0042</a></td>
+<td>角色權限矩陣 4 層原則</td>
+<td>BIZ-11 / AI-016</td>
+<td>Eternal Principle + Transient field (B3)</td>
+<td>4 層原則 + 具體 configurable</td>
+</tr>
+<tr>
+<td><a href="./ADR-0043-brand-project-tenant-scope.md">ADR-0043</a></td>
+<td>品牌 / 建商專案邊界</td>
+<td>BIZ-14</td>
+<td>Eternal (B1 tenant_id)</td>
+<td>合約模板 + tenant scope</td>
+</tr>
+<tr>
+<td><a href="./ADR-0044-warranty-start-date-modes.md">ADR-0044</a></td>
+<td>保固起算多模式</td>
+<td>BIZ-16</td>
+<td>Eternal (B1 Device)</td>
+<td>warranty_start_date + mode 欄位</td>
+</tr>
+<tr>
+<td><a href="./ADR-0045-acceptance-sla-policy.md">ADR-0045</a></td>
+<td>接單 SLA 10/5 min</td>
+<td>BIZ-08 / AI-048</td>
+<td>Eternal Process + Transient config</td>
+<td>一般 10min / 急件 5min + per brand override</td>
+</tr>
+</tbody>
+</table>
+<h3 id="group-3--ai-跟進清單f3對應-excel-01-sheet-18">Group 3 — AI
+跟進清單（§F.3，對應 Excel-01 sheet 18）</h3>
+<table>
+<thead>
+<tr>
+<th>ADR</th>
+<th>主題</th>
+<th>來源</th>
+<th>阻擋層</th>
+<th>推薦摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="./ADR-0046-change-request-object.md">ADR-0046</a></td>
+<td>ChangeRequest 物件化</td>
+<td>AI-017</td>
+<td>Eternal Process (B3)</td>
+<td>apply→approve→effective_date→audit</td>
+</tr>
+<tr>
+<td><a
+href="./ADR-0047-ai-forbidden-list-as-charter.md">ADR-0047</a></td>
+<td>AI 禁止決策清單入 charter</td>
+<td>AI-020</td>
+<td>Eternal Policy (B3)</td>
+<td>ADR-0028 charter + auto guardrail test</td>
+</tr>
+<tr>
+<td><a href="./ADR-0048-ai-human-handoff-rules.md">ADR-0048</a></td>
+<td>AI 轉真人 7 條件</td>
+<td>AI-040</td>
+<td>Eternal Policy (B3) + E3</td>
+<td>7 硬規則 + Eval set 自動化</td>
+</tr>
+<tr>
+<td><a
+href="./ADR-0049-onsite-scope-change-protocol.md">ADR-0049</a></td>
+<td>現場加價三件套</td>
+<td>AI-051</td>
+<td>Eternal (B3+B5)</td>
+<td>客戶簽 + Evidence 照片 + audit</td>
+</tr>
+<tr>
+<td><a href="./ADR-0050-evidence-visibility-matrix.md">ADR-0050</a></td>
+<td>Evidence 可見性矩陣</td>
+<td>AI-052</td>
+<td>Eternal RBAC (B3+B5)</td>
+<td>角色 × 案件生命週期權限</td>
+</tr>
+<tr>
+<td><a href="./ADR-0051-evidence-retention-policy.md">ADR-0051</a></td>
+<td>Evidence 保存期</td>
+<td>AI-053</td>
+<td>Eternal Policy (B3+B5)</td>
+<td>1y default / RMA+3y / 法律永久</td>
+</tr>
+<tr>
+<td><a href="./ADR-0052-material-ownership-field.md">ADR-0052</a></td>
+<td>庫存歸屬 Material.owner</td>
+<td>AI-054</td>
+<td>Eternal (B1+B4)</td>
+<td>platform/brand/locksmith 三選</td>
+</tr>
+<tr>
+<td><a href="./ADR-0053-serial-control-policy.md">ADR-0053</a></td>
+<td>Serial 控制範圍</td>
+<td>AI-055</td>
+<td>Eternal (B1 Device)</td>
+<td>主鎖 + 高價零件強制</td>
+</tr>
+<tr>
+<td><a href="./ADR-0054-ai-quote-range-only.md">ADR-0054</a></td>
+<td>AI 報價邊界（range only）</td>
+<td>AI-041</td>
+<td>Eternal Policy (B3)</td>
+<td>同 ADR-0035；獨立 ADR for charter 一致性</td>
+</tr>
+</tbody>
+</table>
+<h3 id="group-4--2026-05-22-會議新增從-pre-mortem-備註提煉">Group 4 —
+2026-05-22 會議新增（從 Pre-mortem 備註提煉）</h3>
+<table>
+<thead>
+<tr>
+<th>ADR</th>
+<th>主題</th>
+<th>來源</th>
+<th>阻擋層</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a
+href="./ADR-0055-skill-llm-decoupling-contract.md">ADR-0055</a></td>
+<td>SKILL ↔︎ LLM 解耦合約</td>
+<td>F2 / MATTER-04</td>
+<td>Eternal Contract (B3+C2)</td>
+<td>LLMGateway adapter + vendor-neutral SKILL</td>
+</tr>
+<tr>
+<td><a
+href="./ADR-0056-per-vendor-contract-attachment-spec.md">ADR-0056</a></td>
+<td>每廠商合約附件規格 + 接入流程</td>
+<td>F3 / MATTER-05</td>
+<td>Eternal Schema (B1)</td>
+<td>Contract Instance + 6 步接入 SOP</td>
+</tr>
+<tr>
+<td><a
+href="./ADR-0057-rag-document-retrieval-not-prompt.md">ADR-0057</a></td>
+<td>合約 / 規則走 RAG 文件檢索</td>
+<td>F2+F3 / MATTER-05</td>
+<td>Eternal Pattern (B3+C2)</td>
+<td>規則禁寫 prompt，走向量檢索 + citation</td>
+</tr>
+<tr>
+<td><a
+href="./ADR-0058-external-knowledge-platform-ingestion-contract.md">ADR-0058</a></td>
+<td>外部知識傳承平台 ingestion contract</td>
+<td>F6 / MATTER-07</td>
+<td>Eternal Contract (B3+C4)</td>
+<td>外部知識走 ADR-0038 雙審入 SOP 庫</td>
+</tr>
+<tr>
+<td><a
+href="./ADR-0059-smart-lock-iot-signal-ingestion-spec.md">ADR-0059</a></td>
+<td>電子鎖 IoT 狀態訊號接入規格</td>
+<td>F7 / MATTER-08</td>
+<td>Eternal Event Schema (B5+C1)</td>
+<td>6 類 event + Ingestion Gateway + AI 預填 PC</td>
+</tr>
+</tbody>
+</table>
+<h3 id="group-5--2026-05-28-至-2026-06-05-新增cr--final-spec-整合">Group
+5 — 2026-05-28 至 2026-06-05 新增（CR / Final Spec 整合）</h3>
+<table>
+<thead>
+<tr>
+<th>ADR</th>
+<th>主題</th>
+<th>來源</th>
+<th>阻擋層</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="./ADR-0100-legacy-adr-supersede-index.md">ADR-0100</a></td>
+<td>Legacy ADR supersede 索引</td>
+<td>governance</td>
+<td>meta</td>
+<td>一站式追溯 legacy ADR 狀態</td>
+</tr>
+<tr>
+<td><a
+href="./ADR-0101-product-info-extension-final-spec.md">ADR-0101</a>
+⚠️</td>
+<td>Agent KB × Final Spec 整合</td>
+<td>2026-05-28 業主</td>
+<td>Eternal</td>
+<td><strong>superseded by ADR-0107</strong>（lockcore 取代）</td>
+</tr>
+<tr>
+<td><a
+href="./ADR-0102-cancellation-fee-tiers-v2-final-spec.md">ADR-0102</a></td>
+<td>取消費 v2 final spec</td>
+<td>CR-0004 Track B</td>
+<td>Eternal Policy (B3)</td>
+<td>5 階段 + Configurable</td>
+</tr>
+<tr>
+<td><a href="./ADR-0103-kb-v2-expand-design.md">ADR-0103</a></td>
+<td>KB v2 expand design</td>
+<td>CR-0005</td>
+<td>Eternal API contract</td>
+<td>tenant-scoped + cursor 分頁</td>
+</tr>
+<tr>
+<td><a href="./ADR-0104-sop-v2-list-design.md">ADR-0104</a></td>
+<td>SOP v2 list design</td>
+<td>CR-0006</td>
+<td>Eternal API contract</td>
+<td>tenant-scoped + cursor 分頁</td>
+</tr>
+<tr>
+<td><a
+href="./ADR-0105-reschedule-doorcheck-v2-design.md">ADR-0105</a></td>
+<td>Reschedule + DoorCheck v2</td>
+<td>CR-0007</td>
+<td>Eternal API contract</td>
+<td>multi-slot 提案 + 簽章證據</td>
+</tr>
+<tr>
+<td><a
+href="./ADR-0106-agent-single-actor-refund-langgraph-exception.md">ADR-0106</a></td>
+<td>Agent single-actor refund 特例</td>
+<td>CR-0009 HD-02=a</td>
+<td>Eternal Policy (B3)</td>
+<td>LangGraph 自動退款例外（vs ADR-0040 SoD）</td>
+</tr>
+<tr>
+<td><a
+href="./ADR-0107-lockcore-supersede-product-info-trio.md">ADR-0107</a>
+⭐</td>
+<td><strong>LockCore supersede product_info trio</strong></td>
+<td>feat/agent-update (2026-06-04)</td>
+<td>Eternal Architecture lock</td>
+<td>取代 ADR-0008/0010/0101；lockcore + Agent Skills 標準唯一正典</td>
+</tr>
+</tbody>
+</table>
+<h3 id="group-6--special-variants非-nnnn-編號">Group 6 — Special
+variants（非 NNNN 編號）</h3>
+<table>
+<thead>
+<tr>
+<th>ADR</th>
+<th>主題</th>
+<th>來源</th>
+<th>阻擋層</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a
+href="./ADR-VCH-001-platform-as-voucher-keeper.md">ADR-VCH-001</a></td>
+<td>平台為 voucher keeper</td>
+<td>Track B S7</td>
+<td>Eternal Role (B3)</td>
+<td>append-only + hash chain</td>
+</tr>
+<tr>
+<td><a href="./ADR-VCH-002-voucher-retention-7y.md">ADR-VCH-002</a></td>
+<td>Voucher 保存 7 年</td>
+<td>Track B S7</td>
+<td>Eternal Policy (B3)</td>
+<td>法律合規</td>
+</tr>
+<tr>
+<td><a
+href="./ADR-PIVOT-001-v2-restart-trigger.md">ADR-PIVOT-001</a></td>
+<td>V2 restart 觸發條件</td>
+<td>CR-0003 P0</td>
+<td>meta</td>
+<td>architecture pivot 治理</td>
+</tr>
+<tr>
+<td><a
+href="./ADR-PII-002-data-minimization-schema-ci-double-defense.md">ADR-PII-002</a></td>
+<td>PII data minimization + CI 雙保險</td>
+<td>governance</td>
+<td>Eternal Security (B3+E3)</td>
+<td>schema 級 + CI 雙重防護</td>
+</tr>
+</tbody>
+</table>
+<p>⚠️ 已 superseded ADR：見對應 frontmatter <code>superseded_by</code>。
+⭐ 重大架構決策（Architecture lock）。</p>
+<hr />
+<h2 id="重複合併規則避免一事二議">重複合併規則（避免一事二議）</h2>
+<p>下列 §F.3 條目已併入 §F.1 / §F.2 對應 ADR：</p>
+<table>
+<thead>
+<tr>
+<th>§F.3 編號</th>
+<th>併入</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AI-029 取消費 5 階段</td>
+<td>ADR-0039（BIZ-03 取消費）</td>
+<td>同一決策</td>
+</tr>
+<tr>
+<td>AI-048 Acceptance SLA</td>
+<td>ADR-0045（BIZ-08 接單 SLA）</td>
+<td>同一決策</td>
+</tr>
+<tr>
+<td><del>AI-041</del></td>
+<td>獨立寫 ADR-0054</td>
+<td>雖與 D05 同主題，但 charter 一致性需獨立留證</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="adr-草稿格式">ADR 草稿格式</h2>
+<p>統一格式（每份約 40-60 行）：</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="an">id:</span><span class="co"> ADR-NNNN</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> &lt;Title&gt;</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="an">status:</span><span class="co"> draft</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> 2026-05-21</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="an">source_trade_off:</span><span class="co"> §F.X.X PAIN-POINTS-SUMMARY-2026-05-21.md</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="an">deciders:</span><span class="co"> [TBD pending 業主圈選]</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="an">related:</span><span class="co"> [list]</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="an">pre_mortem:</span><span class="co"> F&lt;X&gt;</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="an">eternal_transient:</span><span class="co"> &lt;classification&gt;</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="fu"># ADR-NNNN — &lt;Title&gt;</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="fu">## Status</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>Draft — 待業主於 §Acceptance Criteria 圈選 ✅/A/B</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="fu">## Context</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>&lt;為什麼此決策必要、利害關係人、現況&gt;</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="fu">## Decision（推薦）</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>&lt;推薦答案 + 為什麼 + 落地細節&gt;</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="fu">## Alternatives Considered</span></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="fu">### Option A</span></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a><span class="fu">### Option B</span></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a><span class="fu">## Consequences</span></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Positive</span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Negative</span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Mitigation</span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a><span class="fu">## Pre-mortem Mapping</span></span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>&lt;對應 §A 哪劇本 + 風險量化&gt;</span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a><span class="fu">## Eternal/Transient Classification</span></span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>&lt;§B 哪層 / §C 哪層&gt;</span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a><span class="fu">## Acceptance Criteria</span></span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> 業主圈選：✅ 推薦 / A / B / 其他</span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> &lt;測試 / guardrail / migration&gt;</span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> <span class="dt">&lt;</span><span class="kw">Owner</span><span class="ot"> </span><span class="er">簽核</span><span class="dt">&gt;</span></span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a><span class="fu">## See also</span></span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>§F.X.X PAIN-POINTS-SUMMARY-2026-05-21.md</span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Excel-0X sheet YY</span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>相關 ADR</span></code></pre></div>
+<hr />
+<h2 id="promotion-workflowdraft--accepted">Promotion Workflow（draft →
+accepted）</h2>
+<ol type="1">
+<li>業主在每份 ADR 的 Acceptance Criteria 圈選</li>
+<li>AI Specialist 補完 Consequences / Mitigation 量化數字</li>
+<li>Owner / Reviewer 簽核（frontmatter <code>deciders</code> 補名）</li>
+<li>改 <code>status: draft → accepted</code></li>
+<li>複製到 <code>docs/architecture/adr/</code>（snapshot
+不直接編輯，只接收 accepted 版本）</li>
+<li>更新 PAIN-POINTS-SUMMARY §0 TL;DR：標 ✅ 已關閉</li>
+</ol>
+<hr />
+<p><em>產出於 2026-05-21；source: §F PAIN-POINTS-SUMMARY-2026-05-21.md
+v2 Pre-mortem 升維。</em></p>
+</div></div></body></html>

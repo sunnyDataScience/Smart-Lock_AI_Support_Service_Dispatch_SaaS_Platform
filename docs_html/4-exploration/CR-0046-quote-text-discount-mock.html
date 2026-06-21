@@ -1,0 +1,59 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Q-11/Q-12 假資料生成（公司報價文案 + 客服優惠權限，待業主確認替換）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ 4-exploration ／ CR-0046-quote-text-discount-mock.md</div>
+<div class="doc"><h1 id="cr-0046-q-11q-12-假資料生成">CR-0046: Q-11/Q-12 假資料生成</h1>
+<blockquote>
+<p><strong>驅動</strong>：翻遍 <code>20260617資料/</code> 後確認
+Q-11/Q-12
+資料夾確實沒有（公司專屬）。業主指示「先生成假資料，確認後再替換」。值入
+M18 config → 業主改 config_version 即替換，不改 code。</p>
+</blockquote>
+<h2 id="1-生成的假資料全標-is_mock文字含範例">1. 生成的假資料（全標
+is_mock，文字含「（範例…）」）</h2>
+<p><strong>company_profile（Q-12）</strong>：</p>
+<ul>
+<li>company_name：<code>Chairlock 智慧鎖到府服務（範例待業主確認）</code></li>
+<li>customer_service_phone：<code>0800-000-000（範例待替換）</code></li>
+<li>warranty_text：本店購買安裝享原廠+安裝保固 12
+個月；自備鎖代工僅保固安裝品質…（範例待法務）</li>
+<li>cancellation_clause：派工後取消依階段
+300/500/800；已施工依實際或報價 50%（依 ADR-0102，範例）</li>
+<li>surcharge_clause：報價外工項須客戶重新確認同意才施作（範例）</li>
+</ul>
+<p><strong>discount_policy（Q-11）</strong>：approval_threshold=10000、cs_max_discount_pct=10、supervisor_required_above_pct=10。</p>
+<h2 id="2-接線">2. 接線</h2>
+<ul>
+<li><code>work_order_document_service</code>：客戶電子工單 PDF
+頂部加公司抬頭 +
+客服專線；總價後加「服務條款」段（保固/取消費/追加價，讀
+company_profile，缺則佔位文字）。</li>
+<li><code>quote_engine_service._approval_threshold</code>：報價送審門檻讀
+discount_policy（fallback 10000），取代 hardcode。</li>
+</ul>
+<h2 id="3-測試">3. 測試</h2>
+<p>test_cr_0046 3/3（門檻讀 config + company_profile/discount_policy
+齊全且標 mock）+ 回歸 792 passed 0 fail（PDF render/quote engine
+不破）。</p>
+<h2 id="4-業主如何替換真值">4. 業主如何替換真值</h2>
+<p>改 <code>saas.config_version</code>（namespace=company_profile /
+discount_policy）的 value JSON 即生效（M18 config 動態，無需改 code /
+重部署）。確認真值後把 is_mock 改 false、移除「（範例…）」字樣。</p>
+<h2 id="5-仍屬下輪-p2會議定調">5. 仍屬下輪 P2（會議定調）</h2>
+<p>報價自動帶 catalog 價 / 加價套用 / payout reconciliation 讀 045
+表（資料已備，引擎下輪金流）。</p>
+</div></div></body></html>

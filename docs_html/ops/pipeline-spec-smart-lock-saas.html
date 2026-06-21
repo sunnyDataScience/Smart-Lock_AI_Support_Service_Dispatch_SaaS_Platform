@@ -1,0 +1,548 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>CI/CD Pipeline Spec — 智慧鎖 SaaS 平台</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ ops ／ pipeline-spec-smart-lock-saas.md</div>
+<div class="doc"><h1 id="pipeline-spec--智慧鎖-saas-平台">Pipeline Spec — 智慧鎖 SaaS
+平台</h1>
+<blockquote>
+<p><strong>狀態</strong>：v1 draft（Gate 7 ready）
+<strong>更新</strong>：2026-05-28 <strong>負責人</strong>：DevOps + SRE
+<strong>對應</strong>：Gate 7 Release Ready · 對齊 ADR-0067 (M18
+governance) + BR-M18-01..05 staged rollout</p>
+</blockquote>
+<hr />
+<h2 id="0-設計原則">§0 設計原則</h2>
+<blockquote>
+<p>[devops 視角] Pipeline 通過率 / artifact 可追溯 / drift 偵測 /
+promotion gate 自動化優先。對 0-1 SaaS，<strong>先 cover P0 阻擋型
+gate，nice-to-have defer</strong>。 [sre 視角] 每個 gate 都要綁 SLO /
+error budget；rollback 路徑必畫；不可重現的 artifact 不能上線。</p>
+</blockquote>
+<p><strong>容忍例外原則</strong>：</p>
+<ul>
+<li><strong>必含</strong>：lint / contract conformance / migration gate
+/ staged rollout (M18 + app) / rollback drill</li>
+<li><strong>可 defer 到 V1.1</strong>：mutation testing / chaos drill
+自動化 / DORA dashboard 全自動採集（先手動 weekly）</li>
+</ul>
+<hr />
+<h2 id="1-git-flow">§1 Git Flow</h2>
+<pre><code>main (protected, prod)
+  ├─ release/v1.0.x (cherry-pick hotfix)
+  ├─ release/v1.1.x
+  └─ feature/*  → PR → main
+       hotfix/* → PR → main + release/*</code></pre>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Branch</th>
+<th style="text-align: left;">用途</th>
+<th style="text-align: left;">Merge gate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>main</code></td>
+<td style="text-align: left;">線上版本 SoT</td>
+<td style="text-align: left;">PR + 2 reviewer + CI green + ADR mention
+if cross-cutting</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>release/&lt;ver&gt;</code></td>
+<td style="text-align: left;">release window 緊縮版（freeze new
+feature）</td>
+<td style="text-align: left;">cherry-pick from main only</td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>hotfix/&lt;ver&gt;-&lt;issue&gt;</code></td>
+<td style="text-align: left;">P0/P1 緊急修復</td>
+<td style="text-align: left;">fast-track 1 reviewer + 強制 rollback
+plan</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>feature/&lt;name&gt;</code></td>
+<td style="text-align: left;">一般功能分支</td>
+<td style="text-align: left;">squash to main</td>
+</tr>
+</tbody>
+</table>
+<p><strong>禁止</strong>：force push to <code>main</code> /
+<code>release/*</code>；commit 含 secrets；branch 超過 14 天未
+rebase。</p>
+<p><strong>Commit message</strong>：Conventional
+Commits（<code>feat</code>/<code>fix</code>/<code>docs</code>/<code>refactor</code>/<code>chore</code>），cross-cutting
+change 必引 ADR 編號（如
+<code>feat(m18): add config read api per ADR-0068</code>）。</p>
+<hr />
+<h2 id="2-ci-stagespr--main-全部通過才能-merge">§2 CI Stages（PR → main
+全部通過才能 merge）</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">#</th>
+<th style="text-align: left;">Stage</th>
+<th style="text-align: left;">Tool</th>
+<th style="text-align: left;">Block-merge 條件</th>
+<th style="text-align: left;">Owner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">1</td>
+<td style="text-align: left;"><strong>Lint</strong></td>
+<td style="text-align: left;">ruff / eslint / mypy / OpenAPI lint</td>
+<td style="text-align: left;">any error</td>
+<td style="text-align: left;">dev</td>
+</tr>
+<tr>
+<td style="text-align: left;">2</td>
+<td style="text-align: left;"><strong>Unit test</strong></td>
+<td style="text-align: left;">pytest / vitest</td>
+<td style="text-align: left;">coverage &lt; 70% (NFR-Maint-001)</td>
+<td style="text-align: left;">dev</td>
+</tr>
+<tr>
+<td style="text-align: left;">3</td>
+<td style="text-align: left;"><strong>Contract conformance</strong></td>
+<td style="text-align: left;">OpenAPI diff vs main spec / Pact</td>
+<td style="text-align: left;">breaking change without DR</td>
+<td style="text-align: left;">sd</td>
+</tr>
+<tr>
+<td style="text-align: left;">4</td>
+<td style="text-align: left;"><strong>Integration test</strong></td>
+<td style="text-align: left;">docker-compose + testcontainers</td>
+<td style="text-align: left;">P0 path fail</td>
+<td style="text-align: left;">dev + qa</td>
+</tr>
+<tr>
+<td style="text-align: left;">5</td>
+<td style="text-align: left;"><strong>NFR smoke</strong></td>
+<td style="text-align: left;">k6 micro-load 5 min</td>
+<td style="text-align: left;">NFR-Perf-008 (M18 read P99 ≤ 50ms)
+破線</td>
+<td style="text-align: left;">sre</td>
+</tr>
+<tr>
+<td style="text-align: left;">6</td>
+<td style="text-align: left;"><strong>Forbidden Eval</strong></td>
+<td style="text-align: left;">200 題 Eval corpus</td>
+<td style="text-align: left;">pass rate &lt; 95% (NFR-Sec-007)</td>
+<td style="text-align: left;">qa</td>
+</tr>
+<tr>
+<td style="text-align: left;">7</td>
+<td style="text-align: left;"><strong>Security scan</strong></td>
+<td style="text-align: left;">trivy (container) + bandit (py) + npm
+audit</td>
+<td style="text-align: left;">critical CVE &gt; 0 / high &gt; 7d
+age</td>
+<td style="text-align: left;">sec</td>
+</tr>
+<tr>
+<td style="text-align: left;">8</td>
+<td style="text-align: left;"><strong>Secret scan</strong></td>
+<td style="text-align: left;">gitleaks</td>
+<td style="text-align: left;">any secret detected</td>
+<td style="text-align: left;">sec</td>
+</tr>
+<tr>
+<td style="text-align: left;">9</td>
+<td style="text-align: left;"><strong>Schema validation (M18
+config)</strong></td>
+<td style="text-align: left;">ajv / pydantic against published M18
+schema</td>
+<td style="text-align: left;">any config-payload PR violates schema</td>
+<td style="text-align: left;">dev</td>
+</tr>
+<tr>
+<td style="text-align: left;">10</td>
+<td style="text-align: left;"><strong>Build</strong></td>
+<td style="text-align: left;">Docker buildx → GHCR / Artifact
+Registry</td>
+<td style="text-align: left;">build fail</td>
+<td style="text-align: left;">devops</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Artifact
+tagging</strong>：<code>&lt;commit-sha&gt;-&lt;build-timestamp&gt;-&lt;branch&gt;</code>；image
+digest pinned 不可變；SBOM 隨 image 推送。</p>
+<p><strong>0-1 容忍例外</strong>：</p>
+<ul>
+<li>mutation testing 暫不擋 merge（V1.1 再評估）</li>
+<li>E2E test 跑在 nightly，不卡 PR（PR 跑 integration 即可）</li>
+</ul>
+<hr />
+<h2 id="3-cd-stagesmerge-to-main--prod">§3 CD Stages（merge to main →
+prod）</h2>
+<pre><code>[merge to main]
+     │
+     ▼
+[deploy-staging]  ← auto；含 migration dry-run
+     │
+     ▼
+[smoke-test (staging)]  ← 10 min；包含 LINE webhook ack + DGS read snapshot + M18 config read
+     │
+     ▼
+[manual gate: PM / Tech Lead approve]  ← release notes + ADR mention 必填
+     │
+     ▼
+[canary 5%] ← 10 min observation；卡 SLO baseline（NFR-Ops-006）
+     │
+     ▼
+[ramp 50%] ← 10 min observation
+     │
+     ▼
+[full 100%]
+     │
+     ▼
+[post-deploy verification]  ← KPI K1/K3/K8 + uptime + error rate 30 min watch</code></pre>
+<h3
+id="31-staged-rollout-紀律對齊-br-m18-0105--adr-0067-decision-組件-3">§3.1
+Staged rollout 紀律（對齊 BR-M18-01..05 + ADR-0067 §Decision 組件
+3）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">階段</th>
+<th style="text-align: left;">流量 %</th>
+<th style="text-align: left;">最短觀察</th>
+<th style="text-align: left;">Auto-halt 條件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">canary</td>
+<td style="text-align: left;">5%</td>
+<td style="text-align: left;">10 min</td>
+<td style="text-align: left;">error rate &gt; baseline + 50% OR P99
+latency &gt; baseline + 30% OR Forbidden Eval drop &gt; 2%</td>
+</tr>
+<tr>
+<td style="text-align: left;">ramp</td>
+<td style="text-align: left;">50%</td>
+<td style="text-align: left;">10 min</td>
+<td style="text-align: left;">同上</td>
+</tr>
+<tr>
+<td style="text-align: left;">full</td>
+<td style="text-align: left;">100%</td>
+<td style="text-align: left;">30 min post-deploy</td>
+<td style="text-align: left;">同上 + KPI K3 sentiment 連動退化</td>
+</tr>
+</tbody>
+</table>
+<p><strong>注意</strong>：M18 config 改動的 staged rollout
+走獨立軌道（admin UI 觸發），與 app version rollout
+<strong>不可同時進行</strong>（避免 confound 變因）。同時啟動 → 後送的
+staged rollout 必須等前者 full 100% + 觀察期過。</p>
+<h3 id="32-migration-gateddl-forward-only">§3.2 Migration gate（DDL
+forward-only）</h3>
+<p>每次 release 若含 migration：</p>
+<ol type="1">
+<li><strong>dry-run on staging</strong>：跑 migration + restore + 驗 row
+count + 驗 hash chain 連續性（ADR-0064 / ADR-VCH-001）</li>
+<li><strong>forward-only</strong>：禁 DROP COLUMN / DROP TABLE on 已
+ship 欄位；改名走 expand-contract 兩 release</li>
+<li><strong>rollback playbook</strong>：每個 migration 必附 compensating
+migration script（補償，非反向 DDL）— 參
+<code>rollback-plan-smart-lock-saas.md</code> §3</li>
+<li><strong>hash chain 完整性檢查</strong>：voucher / quote /
+journal_entry migration 後必跑 nightly verify job 一次 ad-hoc，無
+mismatch 才允 prod apply</li>
+<li><strong>PII migration gate</strong>：涉及 PII 欄位（per ADR-PII-002
+schema CI 雙層防線）必須過 PII-CI 檢查 + DPO sign-off</li>
+</ol>
+<h3 id="33-secrets--config-management">§3.3 Secrets / Config
+Management</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">類別</th>
+<th style="text-align: left;">機制</th>
+<th style="text-align: left;">CI 持密？</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Infrastructure secrets（DB conn / API key
+/ KMS key ref）</td>
+<td style="text-align: left;">GCP Secret Manager</td>
+<td style="text-align: left;">❌ 不持密；runtime fetch</td>
+</tr>
+<tr>
+<td style="text-align: left;">LINE channel token / OAuth credential</td>
+<td style="text-align: left;">GCP Secret Manager + 90d rotation</td>
+<td style="text-align: left;">❌</td>
+</tr>
+<tr>
+<td style="text-align: left;">OPA Rego artifact signing key</td>
+<td style="text-align: left;">KMS-managed</td>
+<td style="text-align: left;">❌</td>
+</tr>
+<tr>
+<td style="text-align: left;">M18 user-maintained config（金額 / 比例 /
+SLA / template）</td>
+<td style="text-align: left;">M18 admin UI（per ADR-0067）</td>
+<td style="text-align: left;">❌ CI 無寫入權；只能讀 schema 做驗證</td>
+</tr>
+<tr>
+<td style="text-align: left;">Code-level constants（enum / UI
+顏色）</td>
+<td style="text-align: left;">code</td>
+<td style="text-align: left;">n/a</td>
+</tr>
+</tbody>
+</table>
+<p><strong>業主自助場景</strong>：M18 admin 在 admin UI 改 config →
+schema validation → staged rollout 5%/50%/100% → rollback window
+24h；<strong>全程繞過 CI/CD pipeline</strong>（admin-only path）。</p>
+<h3 id="34-rollback-slaper-nfr-ops-003--nfr-ops-005">§3.4 Rollback
+SLA（per NFR-Ops-003 + NFR-Ops-005）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">類型</th>
+<th style="text-align: left;">目標</th>
+<th style="text-align: left;">機制</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">M18 config rollback</td>
+<td style="text-align: left;">≤ 1 min</td>
+<td style="text-align: left;">admin UI 一鍵 + staged 10% 驗</td>
+</tr>
+<tr>
+<td style="text-align: left;">App version rollback</td>
+<td style="text-align: left;">≤ 30 min</td>
+<td style="text-align: left;">Cloud Run revision pin（保留 5 個 green
+tag）</td>
+</tr>
+<tr>
+<td style="text-align: left;">DB schema rollback</td>
+<td style="text-align: left;">≤ 4 h</td>
+<td style="text-align: left;">compensating migration + PITR window
+7d</td>
+</tr>
+</tbody>
+</table>
+<p>詳見 <code>rollback-plan-smart-lock-saas.md</code>。</p>
+<hr />
+<h2 id="4-block-deploy-gates自動化">§4 Block-Deploy Gates（自動化）</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Gate</th>
+<th style="text-align: left;">Source</th>
+<th style="text-align: left;">Threshold</th>
+<th style="text-align: left;">Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Coverage</td>
+<td style="text-align: left;">CI</td>
+<td style="text-align: left;">&lt; 70%</td>
+<td style="text-align: left;">block merge</td>
+</tr>
+<tr>
+<td style="text-align: left;">Forbidden Eval</td>
+<td style="text-align: left;">CI / nightly</td>
+<td style="text-align: left;">&lt; 95% pass</td>
+<td style="text-align: left;">block deploy</td>
+</tr>
+<tr>
+<td style="text-align: left;">KPI K3 sentiment</td>
+<td style="text-align: left;">staging shadow run</td>
+<td style="text-align: left;">&lt; 88% (合約 4.4(a))</td>
+<td style="text-align: left;">block deploy</td>
+</tr>
+<tr>
+<td style="text-align: left;">OpenAPI breaking change</td>
+<td style="text-align: left;">CI</td>
+<td style="text-align: left;">breaking without DR</td>
+<td style="text-align: left;">block merge</td>
+</tr>
+<tr>
+<td style="text-align: left;">Image moderation gate</td>
+<td style="text-align: left;">CI + runtime</td>
+<td style="text-align: left;">violation &gt; 0 (SOW 2.1(4))</td>
+<td style="text-align: left;">block deploy</td>
+</tr>
+<tr>
+<td style="text-align: left;">OPA Rego artifact hash</td>
+<td style="text-align: left;">DGS startup</td>
+<td style="text-align: left;">mismatch</td>
+<td style="text-align: left;">DGS refuses start</td>
+</tr>
+<tr>
+<td style="text-align: left;">Migration hash chain verify</td>
+<td style="text-align: left;">CI on migration</td>
+<td style="text-align: left;">any mismatch</td>
+<td style="text-align: left;">block deploy</td>
+</tr>
+<tr>
+<td style="text-align: left;">Schema validation (M18 config)</td>
+<td style="text-align: left;">CI</td>
+<td style="text-align: left;">any new config key 無 schema</td>
+<td style="text-align: left;">block merge</td>
+</tr>
+<tr>
+<td style="text-align: left;">Container CVE</td>
+<td style="text-align: left;">trivy</td>
+<td style="text-align: left;">critical &gt; 0</td>
+<td style="text-align: left;">block deploy</td>
+</tr>
+<tr>
+<td style="text-align: left;">Secrets in commit</td>
+<td style="text-align: left;">gitleaks</td>
+<td style="text-align: left;">any detection</td>
+<td style="text-align: left;">block merge</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-drift-detection">§5 Drift Detection</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Layer</th>
+<th style="text-align: left;">Tool</th>
+<th style="text-align: left;">Cadence</th>
+<th style="text-align: left;">Action on drift</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Infrastructure (Terraform / Pulumi)</td>
+<td style="text-align: left;">terraform plan diff</td>
+<td style="text-align: left;">daily</td>
+<td style="text-align: left;">alert + reconcile</td>
+</tr>
+<tr>
+<td style="text-align: left;">Cloud Run env vars vs SoT</td>
+<td style="text-align: left;">gcloud diff script</td>
+<td style="text-align: left;">daily</td>
+<td style="text-align: left;">alert + reconcile</td>
+</tr>
+<tr>
+<td style="text-align: left;">M18 config vs <code>config_versions</code>
+ledger</td>
+<td style="text-align: left;">DGS startup + nightly</td>
+<td style="text-align: left;">nightly</td>
+<td style="text-align: left;">hash mismatch → P0 (per ADR-0067 §Decision
+組件 2)</td>
+</tr>
+<tr>
+<td style="text-align: left;">OPA Rego artifact vs git SoT</td>
+<td style="text-align: left;">DGS startup</td>
+<td style="text-align: left;">every deploy</td>
+<td style="text-align: left;">refuses start (per NFR-Aud-006)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-observability-hookspipeline-自監控">§6 Observability
+Hooks（pipeline 自監控）</h2>
+<p>對齊 <a href="https://dora.dev">DORA metrics</a> — 每月 review：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Metric</th>
+<th style="text-align: left;">Target</th>
+<th style="text-align: left;">來源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Deployment Frequency</td>
+<td style="text-align: left;">≥ 1/day (post-launch)</td>
+<td style="text-align: left;">CI/CD logs</td>
+</tr>
+<tr>
+<td style="text-align: left;">Lead Time for Changes</td>
+<td style="text-align: left;">&lt; 1 day (NFR-Comp-004)</td>
+<td style="text-align: left;">git → prod timestamp</td>
+</tr>
+<tr>
+<td style="text-align: left;">Change Failure Rate</td>
+<td style="text-align: left;">&lt; 15% (NFR-Comp-005)</td>
+<td style="text-align: left;">rollback / hotfix count</td>
+</tr>
+<tr>
+<td style="text-align: left;">MTTR</td>
+<td style="text-align: left;">&lt; 1 day (NFR-Comp-006)</td>
+<td style="text-align: left;">PagerDuty incidents</td>
+</tr>
+</tbody>
+</table>
+<p><strong>0-1 容忍例外</strong>：DORA dashboard 先手動 weekly
+抽算，V1.1 自動採集。</p>
+<hr />
+<h2 id="7-gate-7-exit-criteriapipeline-側">§7 Gate 7 Exit
+Criteria（pipeline 側）</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" checked="" />Git flow 文檔化（main +
+release + hotfix）</label></li>
+<li><label><input type="checkbox" checked="" />CI 10 stages 定義 +
+block-merge gate</label></li>
+<li><label><input type="checkbox" checked="" />CD staged rollout
+5%/50%/100% 對齊 ADR-0067</label></li>
+<li><label><input type="checkbox" checked="" />Migration gate（dry-run +
+forward-only + hash chain）</label></li>
+<li><label><input type="checkbox" checked="" />Secrets
+management（Secret Manager + CI 不持密）</label></li>
+<li><label><input type="checkbox" checked="" />Rollback SLA 三層（M18 /
+app / DB）</label></li>
+<li><label><input type="checkbox" checked="" />Block-deploy gates 10
+條</label></li>
+<li><label><input type="checkbox" checked="" />Drift detection daily /
+nightly</label></li>
+<li><label><input type="checkbox" checked="" />DORA metrics targets 對齊
+NFR-Comp-004..006</label></li>
+<li><label><input
+type="checkbox" /><strong>[VALUE_DECISION_NEEDED]</strong> Canary 起步 %
+— 任務要求 5%，但 ADR-0067 §Decision 組件 3 + NFR-Ops-006 寫
+10%；建議統一為 <strong>10% (per ADR)</strong> 以免 SLO baseline
+樣本不足；若業主堅持 5% 則需更新 ADR-0067 + NFR-Ops-006</label></li>
+<li><label><input
+type="checkbox" /><strong>[VALUE_DECISION_NEEDED]</strong> Release
+window 黑名單規則（週五下午 / 連假前 / 月底結帳）— pipeline 自動擋 vs
+人工 override；建議<strong>自動擋 + IT-admin override + audit
+highlight</strong></label></li>
+</ul>
+<hr />
+<h2 id="8-sign-off">§8 Sign-off</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" /><strong>DevOps
+Lead</strong>：___________ / Date: ___________</label></li>
+<li><label><input type="checkbox" /><strong>SRE
+Lead</strong>：___________ / Date: ___________</label></li>
+<li><label><input type="checkbox" /><strong>Tech
+Lead</strong>：___________ / Date: ___________</label></li>
+<li><label><input type="checkbox" /><strong>PM</strong>：___________ /
+Date: ___________</label></li>
+<li><label><input type="checkbox"
+checked="" /><strong>業主</strong>（pragmatic ops 0-1 原則）：✅
+2026-05-28 透過 task brief</label></li>
+</ul>
+<hr />
+<p><strong>Gate 7 Pipeline Spec Freeze</strong> — ✅ ready</p>
+</div></div></body></html>

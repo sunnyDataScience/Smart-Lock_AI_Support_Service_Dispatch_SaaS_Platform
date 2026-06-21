@@ -1,0 +1,335 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Change Impact Analysis — 金流結算收尾（客戶側應收/發票 + 月結 trigger 接線）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ 4-exploration ／ CR-0035-settlement-billing.md</div>
+<div class="doc"><h1 id="cr-0035-金流結算收尾">CR-0035: 金流結算收尾</h1>
+<blockquote>
+<p><strong>Tier</strong>: 4-exploration → CIA（per-change）
+<strong>Mandated by</strong>:
+<code>.claude/rules/change-governance.md</code>（命中 API contract /
+Domain model / DB schema / External integration）
+<strong>驅動來源</strong>: 20260617 gap-audit roadmap S5（金流結算）+
+雙領域盤點 + 藍圖 Phase II Finance + esales sheet 13 Q-01~Q-12
+<strong>🛑 mock-first（同 CR-0032/0034）：結構先建、數值/規則用 esales
+草稿當預設標 <code>is_mock</code>，§8
+正式值待業主一次裁決，不卡建置。</strong></p>
+</blockquote>
+<hr />
+<h2 id="1-change-statement">1. Change Statement</h2>
+<p><strong>As-is</strong>（盤點實證）：</p>
+<ul>
+<li><strong>技師撥款月結已做</strong>（CR-0012 Stage
+1/2）：<code>monthly_settlement_service</code>（generate_monthly_batch /
+CSV / 水單 mark_manual_paid）+ <code>monthly_settlements_v2</code> 5
+端點 + <code>settlement</code> / <code>monthly_settlement_batch</code>
+表。</li>
+<li><strong>缺口
+1</strong>：<code>settlements_v2 POST /tenants/{tid}/settlements/monthly</code>
+仍回 <strong>501 stub</strong>（與已實作的
+<code>monthly_settlements_v2:generate</code>
+重複，誤導為「未做」）。</li>
+<li><strong>缺口 2（真核心）</strong>：<strong>客戶側帳單斷層</strong>
+—— <code>invoices</code> 表存在但<strong>只讀</strong>（list/get，無
+create path）；報價
+<code>accepted</code>（CR-0032）後<strong>無任何後續</strong>（無
+outbox、無發票、無應收）；<code>quote.total_amount</code> 與
+<code>work_orders.customer_final_amount</code> 無接線。</li>
+</ul>
+<p><strong>To-be</strong>：報價 accepted →
+開立客戶應收發票（mock-first，best-effort）；月結 trigger 501 stub
+接通既有 service（CR-0012
+<code>generate_monthly_batch</code>）。<strong>不做</strong>完整 AR
+帳齡/AP 拆帳/佣金/傳票自動分錄（藍圖 Phase II + 待 esales，明確 out of
+scope）；<strong>LINE 報價接受通知亦為 follow-up</strong>（需 outbox
+resolver + Flex builder，CR-0028 規模，本 CR 不做）。</p>
+<blockquote>
+<p><strong>範圍邊界</strong>：技師撥款月結的完整決策見
+<strong>CR-0012</strong>（FR-0012，已實作
+generate_monthly_batch/CSV/水單）；本 CR 只補「客戶側帳單（invoices
+create）+ 月結 trigger stub 接線」。</p>
+</blockquote>
+<p><strong>Driver</strong>：報價主軸（CR-0032 Phase C
+已通到客戶確認）的下游 —— 客戶 accept 後需落應收，金流才閉環；月結 stub
+是 audit trail 的誤導點。</p>
+<h2 id="2-affected-flow">2. Affected Flow</h2>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BF</code> 報價→確認→應收</td>
+<td>New</td>
+<td>客戶 accept 報價 → best-effort 自動開立應收發票（issued）。LINE
+通知=follow-up</td>
+</tr>
+<tr>
+<td><code>SF</code> 月結觸發</td>
+<td>Modified</td>
+<td><code>settlements/monthly</code> 不再 501，接
+<code>generate_monthly_batch</code>（既有 CR-0012）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-affected-api">3. Affected API</h2>
+<table>
+<thead>
+<tr>
+<th>API</th>
+<th>Endpoint</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>月結觸發</td>
+<td><code>POST .../settlements/monthly</code></td>
+<td>Modified（501 → 接 generate_monthly_batch）</td>
+</tr>
+<tr>
+<td>報價開發票</td>
+<td><code>POST .../accounting/invoices:from-quote</code>（後台手動）</td>
+<td>New</td>
+</tr>
+<tr>
+<td>報價 accept</td>
+<td>（consumer
+<code>POST /consumer/quotes/{token}</code>，CR-0032）</td>
+<td>連動：accept → best-effort 開發票 + outbox</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-affected-data">4. Affected Data</h2>
+<table>
+<thead>
+<tr>
+<th>Entity</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>invoices</code>（既有，只讀）</td>
+<td>加 <code>create_from_quote</code>
+路徑：invoice_number、amount/tax/total（稅 mock 0 待
+Q-07）、line_items（客戶價，不含
+unit_price）、status='issued'、work_order_id（UNIQUE + INSERT ON
+CONFLICT DO NOTHING 原子冪等）</td>
+</tr>
+<tr>
+<td>migration 042</td>
+<td>invoices 加 <code>quote_id</code>（追溯來源報價，nullable
+向後相容）+ <code>is_mock</code>（金額 mock 旗標）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>不新建</strong>：AR 帳齡表 / 訂金二階段表 / 佣金表 /
+傳票自動分錄 —— Phase II（esales Q-08/Q-09 待裁）。
+<strong>不做</strong>：<code>line_push_outbox</code> quote_accepted
+PushKind / LINE 報價接受通知 —— follow-up（需 resolver + Flex
+builder）。</p>
+</blockquote>
+<h2 id="5-affected-test">5. Affected Test</h2>
+<p>invoice create_from_quote（金額/line_items 帶客戶價不含成本 /
+invoice_number 唯一 / work_order UNIQUE 冪等）；月結 trigger 接通（非
+501）；quote accept → 發票出現 + outbox
+enqueue；RBAC（應收僅後台）。</p>
+<h2 id="6-affected-architecture">6. Affected Architecture</h2>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>新 ADR？</td>
+<td>視需要（最小變更，複用既有
+invoices/outbox/settlement）；若有「報價→應收自動開立」決策則補一筆</td>
+</tr>
+<tr>
+<td>複用</td>
+<td>invoice_service（list/get + JOIN tenant
+過濾）、monthly_settlement_service（generate_monthly_batch）、line_push_outbox_service、quote_engine_service.transition</td>
+</tr>
+<tr>
+<td>Multi-tenant</td>
+<td>invoices 無 tenant_id，沿 work_order→...→users.tenant_id JOIN（同
+invoice_service 既有 pattern）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="7-human-decisions-required8">7. Human Decisions
+Required（§8）</h2>
+<p>🛑 <strong>mock-first 不卡；以下為 mock→正式的待裁清單（綁 esales
+sheet 13）。</strong></p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Question</th>
+<th>mock 預設</th>
+<th>Owner</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>quote accepted → 發票<strong>自動</strong>開立 vs 人工確認？</td>
+<td><strong>自動</strong>（best-effort，work_order UNIQUE 冪等）</td>
+<td>業主</td>
+<td>open</td>
+</tr>
+<tr>
+<td>2</td>
+<td>訂金 deposit 二階段（訂金→尾款）優先度？</td>
+<td><strong>暫不做</strong>（單張全額應收）</td>
+<td>業主</td>
+<td>open</td>
+</tr>
+<tr>
+<td>3</td>
+<td>稅務含稅/未稅 + 稅率？（esales Q-07）</td>
+<td><strong>tax=0、total=amount</strong>（mock）</td>
+<td>業主/會計</td>
+<td>open</td>
+</tr>
+<tr>
+<td>4</td>
+<td>傳票自動分錄時機 + 會計科目對應？</td>
+<td><strong>暫不做</strong>（待 esales account mapping）</td>
+<td>業主/會計</td>
+<td>open</td>
+</tr>
+<tr>
+<td>5</td>
+<td>月結 trigger 來源（GCP Scheduler vs 手動 vs in-process cron）？</td>
+<td><strong>手動 POST + internal cron header</strong>（既有）</td>
+<td>業主/SRE</td>
+<td>open</td>
+</tr>
+<tr>
+<td>6</td>
+<td>settlement 撥款是否需三維 SoD？</td>
+<td><strong>沿用 X-Initiator 單簽</strong>（既有）</td>
+<td>業主</td>
+<td>open</td>
+</tr>
+</tbody>
+</table>
+<h2 id="8-suggested-implementation-order">8. Suggested Implementation
+Order</h2>
+<ol type="1">
+<li>migration 042：invoices 加 quote_id + is_mock（idempotent）</li>
+<li>invoice_service.create_from_quote（序列號、客戶價
+line_items、冪等）</li>
+<li>quote_engine_service.transition(accept) → best-effort 開發票 +
+outbox quote_accepted</li>
+<li>settlements_v2 月結 stub 接 generate_monthly_batch</li>
+<li>API：POST .../accounting/invoices:from-quote（後台手動補開）</li>
+<li>Tests（TDD）</li>
+<li>Traceability / 三同步</li>
+</ol>
+<h2 id="9-risks--rollback">9. Risks &amp; Rollback</h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>esales 數值當正式價</td>
+<td>invoices.is_mock 旗標；正式金額/稅率走 §8 裁決</td>
+</tr>
+<tr>
+<td>accept 自動開票誤開</td>
+<td>work_order_id UNIQUE 冪等；best-effort try/except 不阻斷 accept</td>
+</tr>
+<tr>
+<td>月結 stub 接線破壞既有月結</td>
+<td>接的是同一個已測 generate_monthly_batch；回歸 CR-0012 測試</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Rollback</strong>：invoices 新欄
+nullable、發票路徑新增可逆；月結 stub 還原為 501 即可。</p>
+<h2 id="10-out-of-scope">10. Out of Scope</h2>
+<p>完整 AR 帳齡 / 訂金二階段 / 派工佣金 / 品牌結算 / 傳票自動分錄 →
+<strong>Phase II</strong>（esales Q-08/Q-09，另 CR）。 <strong>LINE
+報價接受通知</strong>（outbox quote_accepted + resolver + Flex
+builder，CR-0028 規模）、<strong>月結 cron 排程</strong>（GCP
+Scheduler）、<strong>settlement 三維 SoD</strong> → follow-up（與
+CHANGELOG / system-completion-status 一致）。</p>
+<h2 id="11-實作進度">11. 實作進度</h2>
+<ul>
+<li>✅ <strong>盤點修正</strong>：技師撥款月結 <strong>CR-0012
+已完整做</strong>（generate_monthly_batch / CSV / 水單 + 5
+端點）；真缺口=客戶側帳單 + <code>settlements/monthly</code> 501
+殼。範圍據此收斂為「報價→應收發票 + stub 接線」，完整
+AR/AP/佣金/傳票明確 out of scope（Phase II）。</li>
+<li>✅
+<strong>實作（<code>feat/cr-0035-settlement-billing</code>）</strong>：
+<ul>
+<li>migration <code>042</code>：invoices 加
+<code>quote_id</code>（追溯來源報價，nullable）+
+<code>is_mock</code>（金額 mock 旗標）+ index（idempotent）。</li>
+<li><code>invoice_service.create_from_quote</code>：accepted 報價 →
+開應收發票（invoice_number
+<code>INV-&lt;wo8&gt;-&lt;rand6&gt;</code>、客戶價 line_items
+<strong>不含 unit_price</strong>、稅 mock 0、status='issued'、is_mock
+沿報價）；<strong>work_order_id UNIQUE
+天然冪等</strong>（已有則回既有）；非 accepted → 409。</li>
+<li><code>quote_engine_service.transition(accept)</code> →
+<strong>best-effort 開票</strong>（catch 廣義
+Exception，開票失敗不阻斷客戶接受；db autocommit 不毒化連線）。</li>
+<li><code>settlements_v2 POST /settlements/monthly</code>：<strong>501 →
+202</strong>，接既有
+<code>monthly_settlement_service.generate_monthly_batch</code>（period
+預設當月，body 可指定補跑；UPSERT 冪等）。</li>
+<li>API
+<code>POST .../accounting/invoices:from-quote</code>（後台手動補開，管理角色
+<code>role_required</code> + cross-tenant guard）。</li>
+</ul></li>
+<li>✅
+<strong>測試（部分）</strong>：<code>test_settlements_v2_endpoint</code>（501→202
+接通，含 period）+ <code>test_cr_0032_quote_engine</code>（accept
+路徑回歸，best-effort 不破壞）9 pass。</li>
+<li>⏳ <strong>待 migration 042 套 dev
+DB</strong>：<code>test_cr_0035_invoice_billing.py</code>（create_from_quote
+/ 冪等 / 非 accepted 409 / 無成本外洩 + is_mock）——
+需新欄位，待套用後跑。</li>
+<li>⏳ §8 正式值：自動開票/訂金/稅務/傳票/月結來源/SoD（綁 esales
+Q-07/08）—— mock-first 不卡。</li>
+<li>分支：<code>feat/cr-0035-settlement-billing</code></li>
+</ul>
+<blockquote>
+<p><strong>Related — CR-0036</strong>：本 CR
+§8-Q2「訂金暫不做」經業主指正（esales sheet 24 已有訂金草稿值）後，由
+<strong>CR-0036</strong> 補洞：訂金/佣金/月結時程參數入 M18 config 治理
++ <code>invoice.deposit_required</code> 從 config 算。本 CR 的「訂金
+deferred」已被 CR-0036 取代。</p>
+</blockquote>
+</div></div></body></html>

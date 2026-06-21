@@ -1,0 +1,549 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Assembly Prompt: Admin Dashboard 管理後台儀表板</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../../index.html">🏠 文件總目錄</a> ／ ui ／ web_design_spec_prompt_pipeline ／ assembly ／ 02_admin_dashboard_integrated.md</div>
+<div class="doc"><h1 id="assembly-prompt-admin-dashboard-管理後台儀表板">Assembly Prompt:
+Admin Dashboard 管理後台儀表板</h1>
+<blockquote>
+<p>Global Brand System v1.0 + Page Spec → 一體化 AI Prompt
+建立日期：2026-04-21</p>
+</blockquote>
+<hr />
+<h2 id="-global-project-guideline-do-not-override-">=== GLOBAL PROJECT
+GUIDELINE (DO NOT OVERRIDE) ===</h2>
+<p>品牌：電子鎖智能客服與派工平台 角色：資深產品設計師與前端工程師
+配色：Primary #2563EB (Trust Blue) / Primary Hover #1D4ED8 / Accent
+#F59E0B (Amber CTA) / Accent Hover #D97706 / Secondary #1E293B (Sidebar)
+/ BG Page #F8FAFC / BG Surface #FFFFFF / Text Primary #0F172A / Text
+Secondary #64748B / Border #E2E8F0 語義色：Pending #6366F1 / Assigned
+#8B5CF6 / Active #3B82F6 / Warning #F59E0B / Success #10B981 / Danger
+#EF4444 字體：Inter + "Noto Sans TC", sans-serif / Code: JetBrains Mono
+字級：Display 32px/700 / H1 28px/700 / H2 24px/600 / H3 20px/600 / Body
+14px/400 / Caption 11px/400 / KPI 36px/700 圓角：SM 4px / MD 6px / LG
+8px / XL 12px 陰影：SM 0 1px 2px rgba(0,0,0,0.05) / MD 0 4px 6px -1px
+rgba(0,0,0,0.1) / LG 0 10px 15px -3px rgba(0,0,0,0.1) / Kanban 0 8px
+16px rgba(37,99,235,0.15) Grid：Admin 1440px/12col/24px gap, Sidebar
+240px/64px; Tech PWA 480px/1col/16px pad 斷點：Mobile &lt;768px / Tablet
+768-1024px / Desktop &gt;1024px; Tech PWA: Mobile &lt;480px
+技術棧：Next.js 14 (App Router) + React 19 + shadcn/ui + Tailwind CSS
+3.4 + TanStack Query + Zustand + Recharts + @vis.gl/react-google-maps +
+@dnd-kit/core
+語氣：精準、可靠、有溫度。稱呼「你」。按鈕用主動語態。錯誤先說問題再說解法。</p>
+<h3 id="重要規範">重要規範</h3>
+<ul>
+<li>所有頁面遵守此設計系統</li>
+<li>除 EXCEPTION RULES 明確說明外，不准違反</li>
+<li>元件優先使用 shadcn/ui，不自造輪子</li>
+</ul>
+<hr />
+<h2 id="-current-task-build-one-page-">=== CURRENT TASK: BUILD ONE PAGE
+===</h2>
+<p>本次任務：根據上方 Global Guideline，設計並實作「Admin Dashboard
+管理後台儀表板」。</p>
+<h3 id="page-meta">[PAGE META]</h3>
+<ul>
+<li><strong>page_name</strong>: Admin Dashboard</li>
+<li><strong>route_path</strong>: <code>/dashboard</code></li>
+<li><strong>page_type</strong>: dashboard</li>
+<li><strong>primary_goal</strong>: 以 KPI Card Dashboard
+即時呈現工單量、完工率、逾時工單、在線技師等營運關鍵指標，讓管理者一眼掌握系統運作狀態</li>
+<li><strong>secondary_goal</strong>:
+透過趨勢圖表與最近工單列表，快速發現異常並跳轉至細節頁面處理</li>
+<li><strong>target_users</strong>:
+<ul>
+<li>主要：品牌／經銷商管理員（每日多次查看）</li>
+<li>次要：營運主管（每週檢視 SLA 與 AI 準確度趨勢）</li>
+</ul></li>
+<li><strong>entry_point</strong>: 登入後預設導向 / 側邊欄點擊「儀表板」/
+點擊左上角 Logo</li>
+<li><strong>expected_time_on_page</strong>: 30 秒 - 3 分鐘（快速瀏覽 KPI
+後進入工單或技師管理）</li>
+</ul>
+<hr />
+<h3 id="structure-sections">[STRUCTURE: SECTIONS]</h3>
+<p>共 6 個主要 Section：</p>
+<ol type="1">
+<li><p><strong>kpi_cards</strong> — 主要 KPI 卡片列</p>
+<ul>
+<li>section_type: stats_cards</li>
+<li>section_purpose: 以 4 張 KPI 卡片呈現今日核心營運數據</li>
+<li>四張卡片：今日工單數 / 完工率 / 逾時工單 / 在線技師</li>
+<li>數值使用 text.kpi（36px/700 Inter）</li>
+</ul></li>
+<li><p><strong>ai_accuracy_card</strong> — AI 診斷準確率輔助 KPI</p>
+<ul>
+<li>section_type: stats_cards</li>
+<li>section_purpose: 呈現 AI 診斷準確率與 SLA 達標率</li>
+<li>2 張輔助卡片（AI 準確率 + SLA 達標率），佈局 2 欄等寬（各
+6-col）</li>
+</ul></li>
+<li><p><strong>charts_row</strong> — 趨勢圖表區</p>
+<ul>
+<li>section_type: charts</li>
+<li>section_purpose: 左側工單趨勢折線圖 + 右側技師狀態圓餅圖</li>
+<li>佈局：左 2/3（8-col）+ 右 1/3（4-col）</li>
+</ul></li>
+<li><p><strong>recent_work_orders</strong> — 最近工單表格</p>
+<ul>
+<li>section_type: data_table</li>
+<li>section_purpose: 顯示最近 10 筆工單摘要，可展開查看詳情</li>
+</ul></li>
+<li><p><strong>quick_actions</strong> — 快捷操作列</p>
+<ul>
+<li>section_type: action_bar</li>
+<li>section_purpose:
+提供管理者常用快速操作入口（建立工單、匯出報表、進入派工台）</li>
+</ul></li>
+<li><p><strong>system_alerts</strong> — 系統警示區</p>
+<ul>
+<li>section_type: alert_list</li>
+<li>section_purpose: 顯示需要立即處理的系統層級警示（WebSocket 斷線、SLA
+即將違約等）</li>
+</ul></li>
+</ol>
+<hr />
+<h3 id="section-component-spec">[SECTION COMPONENT SPEC]</h3>
+<h4 id="section-1-kpi_cards">Section 1: kpi_cards</h4>
+<ul>
+<li><strong>layout</strong>: 4 欄等寬網格（Desktop 12-col grid 每張
+3-col），間距 24px，上方 margin 24px</li>
+<li><strong>elements</strong>:
+<ul>
+<li>today_orders: KPICard / required
+<ul>
+<li>標題 "今日工單數"</li>
+<li>數值使用 text.kpi（36px/700 Inter）</li>
+<li>副標 vs 昨日 ±N%（綠色上升箭頭或紅色下降箭頭）</li>
+<li>圖標 ClipboardList</li>
+<li>卡片背景 #FFFFFF，左側 4px accent border #2563EB</li>
+<li>點擊導向 <code>/work-orders?filter=today</code></li>
+</ul></li>
+<li>completion_rate: KPICard / required
+<ul>
+<li>標題 "完工率"</li>
+<li>數值 36px/700 + "%"</li>
+<li>副標 vs 昨日 ±N%</li>
+<li>圖標 CheckCircle</li>
+<li>accent border #10B981（綠色）</li>
+<li>數值色彩閾值：≥90% 綠色 / 70-89% 琥珀色 / &lt;70% 紅色</li>
+</ul></li>
+<li>overdue_orders: KPICard / required
+<ul>
+<li>標題 "逾時工單"</li>
+<li>數值 36px/700</li>
+<li>副標 "佔總工單 N%"</li>
+<li>圖標 AlertTriangle</li>
+<li>accent border #EF4444（紅色）</li>
+<li>數值 &gt;0 時數字紅色閃爍動畫（@keyframes blink）</li>
+<li>點擊導向 <code>/work-orders?filter=overdue</code></li>
+</ul></li>
+<li>online_technicians: KPICard / required
+<ul>
+<li>標題 "在線技師"</li>
+<li>數值 36px/700 + " / {total}"</li>
+<li>副標 "可派遣 N 人"</li>
+<li>圖標 Users</li>
+<li>accent border #F59E0B（Amber）</li>
+<li>點擊導向 <code>/technicians?status=online</code></li>
+</ul></li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 白色卡片，圓角 LG (8px)，shadow-sm，左側 4px 色條</li>
+<li>hover: shadow-md，translateY(-2px) 上移，cursor pointer</li>
+<li>loading: Skeleton 動畫（標題行 w-24 h-4 + 數值行 w-16 h-10 + 副標行
+w-32 h-3）</li>
+<li>error: 卡片內顯示 "資料載入失敗" + 重試 IconButton，邊框變為
+#FEE2E2</li>
+<li>empty: 數值顯示 "—"，副標顯示 "暫無資料"</li>
+<li>realtime_update: 數值變更時 scale(1.05) + color pulse 動畫 0.3s
+ease-out</li>
+</ul></li>
+<li><strong>copy_constraints</strong>: KPI 標題最多 6 字；副標最多 15
+字；數值最大 5 位數</li>
+</ul>
+<h4 id="section-2-ai_accuracy_card">Section 2: ai_accuracy_card</h4>
+<ul>
+<li><strong>layout</strong>: 2 欄等寬（各 6-col），間距 24px，與
+kpi_cards 間距 16px</li>
+<li><strong>elements</strong>:
+<ul>
+<li>ai_accuracy: KPICard / required
+<ul>
+<li>標題 "AI 診斷準確率"</li>
+<li>數值 36px/700 + "%"</li>
+<li>副標 "近 7 日 / 樣本 N 筆"</li>
+<li>圖標 Sparkles</li>
+<li>accent border #8B5CF6（紫色）</li>
+<li>色彩閾值：≥85% 綠色 / 70-84% 琥珀色 / &lt;70% 紅色</li>
+</ul></li>
+<li>sla_compliance: KPICard / required
+<ul>
+<li>標題 "SLA 達標率"</li>
+<li>數值 36px/700 + "%"</li>
+<li>副標 "本月目標 95%"</li>
+<li>圖標 Shield</li>
+<li>accent border #2563EB</li>
+<li>內含迷你進度條（目標線 95% vs 實際值）</li>
+</ul></li>
+</ul></li>
+<li><strong>states</strong>: 同 kpi_cards 樣式規範</li>
+</ul>
+<h4 id="section-3-charts_row">Section 3: charts_row</h4>
+<ul>
+<li><strong>layout</strong>: 2 欄非等寬 — 左側 8-col 工單趨勢折線圖 +
+右側 4-col 技師狀態圓餅圖，間距 24px</li>
+<li><strong>elements</strong>:
+<ul>
+<li>work_order_trend_chart: Recharts <code>&lt;LineChart&gt;</code> /
+required
+<ul>
+<li>標題 "工單趨勢"</li>
+<li>X 軸：日期（預設近 7 天）</li>
+<li>Y 軸：工單數量</li>
+<li>雙折線：新建工單 #2563EB + 完成工單 #10B981</li>
+<li>區域填充半透明漸層 <code>&lt;Area&gt;</code></li>
+<li>右上角時間範圍切換 Tabs：7 天 / 14 天 / 30 天</li>
+<li>Tooltip 顯示具體數值 + 日期</li>
+<li><code>&lt;ResponsiveContainer width="100%" height={300}&gt;</code></li>
+</ul></li>
+<li>technician_status_chart: Recharts <code>&lt;PieChart&gt;</code> /
+required
+<ul>
+<li>標題 "技師狀態分佈"</li>
+<li>扇區：在線空閒 #10B981 / 執行中 #2563EB / 離線 #94A3B8 / 請假
+#F59E0B</li>
+<li>中央 <code>&lt;Label&gt;</code> 顯示總人數</li>
+<li>底部水平圖例 <code>&lt;Legend&gt;</code></li>
+<li>Hover 扇區放大效果 <code>activeShape</code></li>
+</ul></li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 白色卡片包裹，圓角 LG (8px)，shadow-sm，padding 24px</li>
+<li>hover: 折線圖 crosshair + tooltip；圓餅圖扇區放大 + tooltip</li>
+<li>loading: 圖表 Skeleton（矩形佔位 h-[300px] + 閃爍動畫）</li>
+<li>error: "圖表載入失敗" + 重試按鈕，替代整個圖表區域</li>
+<li>empty: 折線圖顯示空座標軸 + "暫無資料"；圓餅圖顯示灰色空心圓 +
+"暫無技師資料"</li>
+</ul></li>
+</ul>
+<h4 id="section-4-recent_work_orders">Section 4: recent_work_orders</h4>
+<ul>
+<li><strong>layout</strong>: 全寬資料表格，白色卡片包裹，圓角 LG
+(8px)，shadow-sm，最多 10 列</li>
+<li><strong>elements</strong>:
+<ul>
+<li>section_title: H2 "最近工單" + 右側 <code>&lt;Link&gt;</code>
+"查看全部 →" 導向 <code>/work-orders</code></li>
+<li>table: shadcn/ui <code>&lt;Table&gt;</code> / required
+<ul>
+<li>欄位：工單編號 (Mono)、客戶名稱、鎖型型號、狀態 (Badge)、優先度
+(Badge)、建立時間 (Caption)、指派技師 (Avatar + Name)</li>
+<li>工單編號格式：WO-YYYYMMDD-XXXX</li>
+<li>狀態 Badge 色彩：待指派 #64748B / 已指派 #8B5CF6 / 進行中 #3B82F6 /
+已完成 #10B981 / 逾時 #EF4444</li>
+<li>優先度 Badge：一般 #64748B / 急件 #F59E0B / 緊急 #EF4444</li>
+</ul></li>
+<li>expandable_rows: shadcn/ui <code>&lt;Collapsible&gt;</code> /
+optional
+<ul>
+<li>展開後顯示：問題摘要、AI 初步診斷、客戶地址</li>
+<li>背景 #F8FAFC，左側 3px #2563EB 指示條</li>
+</ul></li>
+<li>pagination_info: Caption "顯示最近 10 筆，共 {total} 筆"</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 奇偶列交替背景 #FFFFFF / #F8FAFC</li>
+<li>hover: 列背景 #EFF6FF（淺藍），cursor pointer</li>
+<li>loading: 10 列 Skeleton rows</li>
+<li>error: "工單載入失敗" + 重試按鈕</li>
+<li>empty: 插圖 + "目前沒有工單記錄" + CTA「建立工單」</li>
+</ul></li>
+</ul>
+<h4 id="section-5-quick_actions">Section 5: quick_actions</h4>
+<ul>
+<li><strong>layout</strong>: 水平排列按鈕群組，位於 kpi_cards 與
+charts_row 之間或頁面右上角</li>
+<li><strong>elements</strong>:
+<ul>
+<li>create_order_btn: shadcn/ui <code>&lt;Button&gt;</code>
+variant="default" / required
+<ul>
+<li>文字 "建立工單"</li>
+<li>圖標 Plus</li>
+<li>背景 Primary #2563EB，hover #1D4ED8</li>
+<li>點擊開啟建立工單 Modal 或導向 <code>/work-orders/create</code></li>
+</ul></li>
+<li>export_report_btn: shadcn/ui <code>&lt;Button&gt;</code>
+variant="outline" / optional
+<ul>
+<li>文字 "匯出報表"</li>
+<li>圖標 Download</li>
+</ul></li>
+<li>dispatch_board_btn: shadcn/ui <code>&lt;Button&gt;</code>
+variant="outline" / optional
+<ul>
+<li>文字 "前往派工台"</li>
+<li>圖標 LayoutDashboard</li>
+<li>點擊導向 <code>/work-orders/dispatch</code></li>
+</ul></li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 按鈕正常顯示</li>
+<li>loading: disabled + spinner</li>
+<li>disabled: opacity 50%</li>
+</ul></li>
+</ul>
+<h4 id="section-6-system_alerts">Section 6: system_alerts</h4>
+<ul>
+<li><strong>layout</strong>: 頁面頂部或 KPI 卡片上方，全寬 Alert
+條列</li>
+<li><strong>elements</strong>:
+<ul>
+<li>alert_items: shadcn/ui <code>&lt;Alert&gt;</code> 陣列 / conditional
+<ul>
+<li>variant: destructive（嚴重）/ warning（警告）/ default（資訊）</li>
+<li>顯示條件：有未處理的系統警示時才出現</li>
+<li>範例警示：
+<ul>
+<li>"有 3 筆工單即將超過 SLA 時限"（warning，點擊導向工單列表）</li>
+<li>"WebSocket 連線已中斷，資料可能非最新"（destructive）</li>
+<li>"今日有 2 位技師請假，可派遣人力不足"（warning）</li>
+</ul></li>
+<li>每筆含：圖標 + 訊息文字 + 操作按鈕（查看 / 忽略）+ 關閉 X</li>
+</ul></li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 依嚴重度排序，最多顯示 3 筆，更多收折</li>
+<li>empty: 不顯示此 Section（不佔空間）</li>
+<li>dismissed: 關閉後滑出動畫，24 小時內不再顯示同類型警示</li>
+</ul></li>
+</ul>
+<hr />
+<h3 id="interaction--state-flow">[INTERACTION &amp; STATE FLOW]</h3>
+<ol type="1">
+<li>頁面載入 → 並行請求 <code>GET /api/v1/dashboard/overview</code> +
+<code>GET /api/v1/dashboard/kpi</code> +
+<code>GET /api/v1/work-orders?limit=10&amp;sort=-created_at</code> → 各
+Section 依序渲染（KPI 優先）</li>
+<li>WebSocket 連線建立 → 訂閱 <code>ws://host/ws/dashboard</code> KPI
+即時更新頻道 → KPI 數值變更時觸發 pulse 動畫</li>
+<li>WebSocket 連線失敗 → 自動降級為 30 秒 polling（指數退避重連 1s → 2s
+→ 4s → 最大 30s）→ 狀態指示器轉為琥珀色</li>
+<li>點擊 KPI 卡片「今日工單數」→
+<code>router.push('/work-orders?filter=today')</code></li>
+<li>點擊 KPI 卡片「逾時工單」→
+<code>router.push('/work-orders?filter=overdue')</code></li>
+<li>點擊 KPI 卡片「在線技師」→
+<code>router.push('/technicians?status=online')</code></li>
+<li>圖表時間範圍切換（7天 / 14天 / 30天）→ 重新請求
+<code>GET /api/v1/dashboard/overview?range=7d|14d|30d</code> →
+圖表平滑過渡動畫</li>
+<li>點擊工單列展開 → Collapsible 動畫展開顯示 AI 診斷 + 客戶地址</li>
+<li>點擊工單編號 → <code>router.push('/work-orders/{id}')</code></li>
+<li>點擊 "查看全部" → <code>router.push('/work-orders')</code></li>
+<li>手動 refresh → 所有 query invalidation → 短暫 loading 態</li>
+</ol>
+<hr />
+<h3 id="data--api">[DATA &amp; API]</h3>
+<ul>
+<li><strong>uses_api</strong>: true</li>
+<li><strong>endpoints</strong>:
+<ul>
+<li><code>GET /api/v1/dashboard/overview</code> — 儀表板綜合資料（圖表 +
+技師分佈），query param <code>range=7d|14d|30d</code></li>
+<li><code>GET /api/v1/dashboard/kpi</code> — 6 項 KPI 即時數值 +
+對比基準值</li>
+<li><code>GET /api/v1/work-orders?limit=10&amp;sort=-created_at</code> —
+最近 10 筆工單</li>
+<li><code>WS /ws/dashboard</code> — WebSocket，推送 KPI 變更事件 +
+新工單通知</li>
+</ul></li>
+<li><strong>request_headers</strong>:
+<ul>
+<li><code>Authorization: Bearer {access_token}</code></li>
+<li><code>X-Tenant-ID: {tenant_id}</code>（多租戶隔離）</li>
+</ul></li>
+<li><strong>快取策略（TanStack Query）</strong>:
+<ul>
+<li>KPI: staleTime 30s，WebSocket 即時 invalidation</li>
+<li>圖表: staleTime 5min，切換範圍時手動 invalidation</li>
+<li>工單列表: staleTime 1min，WebSocket 推送新工單時 prepend</li>
+<li>visibilitychange 事件 → 全域 query invalidation</li>
+</ul></li>
+<li><strong>error_cases</strong>:
+<ul>
+<li>網路錯誤 → 頂部 Toast
+"網路連線異常，資料可能非最新"，使用快取繼續顯示</li>
+<li>5xx → 對應 Section inline 錯誤 + 重試按鈕（獨立 Error
+Boundary）</li>
+<li>4xx → 具體錯誤訊息</li>
+<li>401/403 → 導向 <code>/login?redirect=/dashboard</code></li>
+<li>WebSocket 斷線 → 指數退避重連，3 次失敗 → 切換 polling</li>
+<li>Zod schema 驗證失敗 → console error + Sentry，顯示 "資料異常"</li>
+</ul></li>
+</ul>
+<hr />
+<h3 id="rwd-行為">[RWD 行為]</h3>
+<table>
+<thead>
+<tr>
+<th>斷點</th>
+<th>佈局</th>
+<th>差異說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Desktop (&gt;1024px)</td>
+<td>Sidebar 240px 展開 + 主區域 12-col grid，KPI 4 欄並排，圖表 8+4
+分割</td>
+<td>完整體驗，所有資訊一目了然</td>
+</tr>
+<tr>
+<td>Tablet (768-1024px)</td>
+<td>Sidebar 收合 64px + 主區域 8-col grid，KPI 2x2
+網格，圖表上下堆疊全寬</td>
+<td>工單表格隱藏「鎖型型號」欄</td>
+</tr>
+<tr>
+<td>Mobile (&lt;768px)</td>
+<td>Sidebar 隱藏改為底部 Tab Bar + 單欄堆疊，KPI 全寬堆疊，圖表全寬</td>
+<td>工單表格改為卡片列表；secondary KPI 收合至可展開區域</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="acceptance-criteria">[ACCEPTANCE CRITERIA]</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />所有 6 個 Section
+功能正常，畫面完整渲染</label></li>
+<li><label><input type="checkbox" />4 張主要 KPI
+卡片數值正確顯示，text.kpi（36px/700）樣式套用正確</label></li>
+<li><label><input type="checkbox" />2 張輔助 KPI 卡片（AI 準確率、SLA
+達標率）正確顯示</label></li>
+<li><label><input type="checkbox" />KPI 數值根據閾值正確變色（綠 / 琥珀
+/ 紅）</label></li>
+<li><label><input type="checkbox" />逾時工單 &gt; 0
+時紅色閃爍動畫正常觸發</label></li>
+<li><label><input type="checkbox" />KPI 卡片 hover shadow-md +
+translateY(-2px)，點擊導航至對應列表頁</label></li>
+<li><label><input type="checkbox" />WebSocket 連線成功 → KPI 即時更新 +
+pulse 動畫</label></li>
+<li><label><input type="checkbox" />WebSocket 斷線 → 30s polling 降級 +
+狀態指示器琥珀色</label></li>
+<li><label><input type="checkbox" />工單趨勢折線圖：雙折線 + 區域填充 +
+Tooltip + 時間範圍切換（7/14/30 天）</label></li>
+<li><label><input type="checkbox" />技師狀態圓餅圖：4 狀態 + 中央總數 +
+圖例 + hover 放大</label></li>
+<li><label><input type="checkbox" />最近工單表格 10 筆 + 可展開列 + 狀態
+Badge 顏色正確</label></li>
+<li><label><input type="checkbox" />Loading / Error / Empty 三態在所有
+Section 均已實作</label></li>
+<li><label><input type="checkbox" />RWD 三斷點（Desktop / Tablet /
+Mobile）佈局正確</label></li>
+<li><label><input type="checkbox" />Sidebar 展開 240px / 收合 64px /
+Mobile 隱藏</label></li>
+<li><label><input type="checkbox" />快捷操作按鈕功能正常</label></li>
+<li><label><input
+type="checkbox" />系統警示條正確顯示與關閉</label></li>
+<li><label><input type="checkbox" />API 錯誤時各 Section 獨立 Error
+Boundary</label></li>
+<li><label><input type="checkbox" />首次載入完成 &lt; 2 秒</label></li>
+<li><label><input type="checkbox" />多租戶隔離正確</label></li>
+</ul>
+<hr />
+<h2 id="-exception-rules-">=== EXCEPTION RULES ===</h2>
+<ol type="1">
+<li><strong>KPI 卡片全寬 Mobile 覆寫</strong>：在 Mobile (&lt;768px)
+斷點下，KPI 卡片可使用全寬佈局（override 標準 grid
+max-width），每張卡片佔滿螢幕寬度減去 16px 左右
+padding，確保數值清晰可讀。</li>
+<li><strong>KPI 特規字級</strong>：KPI 數值使用
+36px/700（text.kpi），超出一般 Design System Body 字級範圍。此特規僅限於
+Dashboard KPI 區塊。</li>
+<li><strong>閃爍動畫</strong>：逾時工單數值的紅色閃爍動畫（<code>@keyframes blink</code>）為此頁面專屬警示效果，其餘頁面不得使用。</li>
+<li><strong>Pulse 動畫</strong>：WebSocket 即時更新的 scale + color
+transition pulse 動畫僅限 Dashboard KPI 卡片使用。</li>
+</ol>
+<hr />
+<h2 id="-output-requirements-">=== OUTPUT REQUIREMENTS ===</h2>
+<h3 id="step-1-結構確認">Step 1: 結構確認</h3>
+<p>列出本頁面的 6 個 sections、各 section
+的關鍵元件，以及資料流策略：</p>
+<ul>
+<li>kpi_cards → 4 張 KPICard（WebSocket 即時更新 / 30s polling
+fallback）</li>
+<li>ai_accuracy_card → 2 張輔助 KPICard（同上策略）</li>
+<li>charts_row → LineChart + PieChart（Recharts，staleTime 5min）</li>
+<li>recent_work_orders → Table 10 筆 + Collapsible（staleTime
+1min）</li>
+<li>quick_actions → 靜態按鈕群組（無 API）</li>
+<li>system_alerts → Alert 列表（WebSocket 推送）</li>
+</ul>
+<h3 id="step-2-設計決策說明">Step 2: 設計決策說明</h3>
+<p>提供 2-3 個關鍵設計決策與理由，例如：</p>
+<ol type="1">
+<li>KPI 卡片左側色條設計：以 4px accent border
+視覺區分各指標類型，搭配語義色建立直覺關聯</li>
+<li>WebSocket + polling 降級策略：確保資料即時性同時保障可靠性</li>
+<li>獨立 Error Boundary：單一 API 失敗不影響全頁，提升系統韌性</li>
+</ol>
+<h3 id="step-3-實作方案">Step 3: 實作方案</h3>
+<p>Option A: 完整 React/Next.js 程式碼（使用 shadcn/ui + Tailwind）</p>
+<p>請產出以下檔案結構：</p>
+<pre><code>app/(admin)/dashboard/
+├── page.tsx                    # 頁面主元件
+├── components/
+│   ├── KPICard.tsx             # KPI 卡片元件（含 pulse/blink 動畫）
+│   ├── KPICardsRow.tsx         # 4 張主要 KPI 容器
+│   ├── SecondaryKPICards.tsx   # 輔助 KPI 容器
+│   ├── WorkOrderTrendChart.tsx # Recharts 折線圖
+│   ├── TechnicianPieChart.tsx  # Recharts 圓餅圖
+│   ├── RecentOrdersTable.tsx   # 最近工單表格 + 展開列
+│   ├── QuickActions.tsx        # 快捷操作按鈕
+│   └── SystemAlerts.tsx        # 系統警示
+├── hooks/
+│   ├── useDashboardKPI.ts      # TanStack Query + WebSocket hook
+│   ├── useDashboardCharts.ts   # 圖表資料 hook
+│   └── useRecentOrders.ts      # 工單列表 hook
+└── types.ts                    # TypeScript 型別定義</code></pre>
+<h3 id="品質檢查">品質檢查</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />色彩系統一致性（Primary #2563EB /
+Accent #F59E0B / BG #F8FAFC / Surface #FFFFFF）</label></li>
+<li><label><input type="checkbox" />字體層級正確（KPI 36px/700、H1
+28px/700、H2 24px/600、Body 14px/400）</label></li>
+<li><label><input type="checkbox" />元件風格統一（shadcn/ui Table,
+Button, Badge, Alert, Collapsible）</label></li>
+<li><label><input type="checkbox" />響應式設計完整（Desktop 12-col /
+Tablet 2x2 KPI / Mobile 堆疊）</label></li>
+<li><label><input type="checkbox" />所有狀態已處理（Loading Skeleton /
+Error + Retry / Empty + CTA / Disabled）</label></li>
+<li><label><input type="checkbox" />無障礙支援（鍵盤導航 Tab / ARIA
+labels / 圖表 aria-describedby / 色彩對比 ≥4.5:1）</label></li>
+<li><label><input type="checkbox" />效能指標達標（LCP &lt; 2s / CLS &lt;
+0.1 / 圖表 lazy load / TanStack Query 快取）</label></li>
+</ul>
+<hr />
+<p>執行優先順序：Global 規範 &gt; Page 特定需求 &gt; Exception Assembly
+日期：2026-04-21 Brand System 版本：v1.0</p>
+</div></div></body></html>

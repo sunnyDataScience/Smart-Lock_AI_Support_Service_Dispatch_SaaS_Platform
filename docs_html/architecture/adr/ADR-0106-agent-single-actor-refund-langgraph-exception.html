@@ -1,0 +1,89 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Agent 自動退款 single-actor 路徑 — LangGraph 特例（CR-0009 HD-02=a 業主裁決）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ architecture ／ adr ／ ADR-0106-agent-single-actor-refund-langgraph-exception.md</div>
+<div class="doc"><h1 id="adr-0106--agent-自動退款-single-actor-langgraph-特例">ADR-0106 —
+Agent 自動退款 single-actor LangGraph 特例</h1>
+<h2 id="context">Context</h2>
+<p>ADR-0040 / <code>createRefundSod</code> 強制三維 SoD（X-Initiator /
+X-Approver / X-Executor）。但 LINE bot agent 自動退款流程（F-014
+dual-trigger）由 LangGraph 決策樹自動發起，無法在 ms 級內取得三個人類
+actor 簽核。</p>
+<p>CR-0009 HD-02 給三選一：</p>
+<ul>
+<li>(a) 新增 v2 single-actor <code>refunds:agent-initiate</code>（保留
+agent 自動退款）</li>
+<li>(b) 重構走人工 dual-sign（安全但慢）</li>
+<li>(c) 保留 v1 至 Phase II 重設計</li>
+</ul>
+<p>業主裁 <strong>(a)</strong>。</p>
+<h2 id="decision">Decision</h2>
+<p>新增 <code>POST /tenants/{tid}/refunds:agent-initiate</code> v2
+endpoint：</p>
+<ul>
+<li>接受 single actor（agent 服務帳號 JWT）</li>
+<li>Server-side enforcement：<code>user.role</code> 必為
+<code>'agent'</code> 或 <code>'system'</code>，人類用戶禁用</li>
+<li>寫入 refunds 表時
+<code>requires_dual_sign=False</code>、<code>requested_by_role='agent'</code></li>
+<li>視為「LangGraph 特例」，<strong>不違背全面 SoD 原則</strong> — 因
+agent 自動化受 LLM 反應時間限制，無法等人類 dual-sign</li>
+</ul>
+<h2 id="consequences">Consequences</h2>
+<h3 id="eternal">Eternal</h3>
+<ul>
+<li>agent 服務帳號保有單簽建退款能力</li>
+<li>agent / system role enforcement 在 BE 層（不可繞過）</li>
+<li>LangGraph 特例設計記入 ADR，不可隨意擴張到其他 service-account</li>
+</ul>
+<h3 id="transient">Transient</h3>
+<ul>
+<li>amount 上限：service 層既有
+<code>_DUAL_SIGN_THRESHOLD = NT$100,000</code>；超過自動轉 dual-sign
+模式（即便 agent 也擋）</li>
+<li>後置 review：ops dashboard 可篩
+<code>requested_by_role='agent'</code> 退款做人類後置 review/reject</li>
+</ul>
+<h2 id="safety-guards">Safety Guards</h2>
+<ol type="1">
+<li><strong>Role enforcement</strong>: BE endpoint check
+<code>user.role IN ('agent', 'system')</code></li>
+<li><strong>Amount cap</strong>: 超過 100k 走 dual-sign（DB schema
+CHECK）</li>
+<li><strong>Audit log</strong>: 寫 refund row +
+actor='agent'，可追溯任何 agent 行為</li>
+<li><strong>Rate limit</strong>: agent JWT 受 API gateway rate limit（如
+100 req/min）</li>
+<li><strong>PagerDuty alert</strong>: 若 24h 內 agent-initiate refund
+數量超過 baseline 2x → 警告（HD-05 LINE bot 監控延伸）</li>
+</ol>
+<h2 id="open-questionsphase-ii-治理">Open Questions（Phase II
+治理）</h2>
+<ul>
+<li>agent 自動退款的「金額上限」（除既有 SoD threshold 外）是否要
+per-tenant configurable？→ FR-0050 AI Governance 收斂</li>
+<li>「後置 review SLA」（人類多久內必須 review agent 退款）→ FR-0049
+Exception Approval Inbox</li>
+</ul>
+<h2 id="references">References</h2>
+<ul>
+<li>ADR-0040 refund-approval-tiers（被本 ADR
+部分例外，但原則仍適用人類路徑）</li>
+<li>CR-0009 §8 HD-02 + §11 Out of Scope</li>
+<li>refunds_v2.py:agentInitiateRefundV2 實作</li>
+</ul>
+</div></div></body></html>

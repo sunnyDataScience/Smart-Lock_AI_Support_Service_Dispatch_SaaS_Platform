@@ -1,0 +1,174 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Tenant ID Propagation — Agent 層補對稱隔離</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ architecture ／ adr ／ ADR-0030-tenant-id-propagation.md</div>
+<div class="doc"><blockquote>
+<p><strong>🔄 Migration Status (2026-05-28)</strong>:
+<code>STILL_VALID_UNDER_M17_cross-cutting</code> <strong>Reviewed
+against</strong>: 2026-05-20 final spec (xlsx) <strong>Reviewed
+on</strong>: 2026-05-28 <strong>Module scope</strong>: M17,
+cross-cutting <strong>Per ADR-0100 §1 classification</strong>
+(.claude/context/devteam/meetings/2026-05-27-1130-final-spec-migration-strategy/MoM.md)</p>
+</blockquote>
+<h1 id="adr-0030-tenant-id-propagation--agent-層補對稱隔離">ADR-0030:
+Tenant ID Propagation — Agent 層補對稱隔離</h1>
+<h2 id="status">Status</h2>
+<p>Accepted — 2026-05-16</p>
+<h2 id="context">Context</h2>
+<p>藍圖 v2 sheet 10「AI Employee Resume」明列 Audit Schema 應包含
+<code>tenant_id</code>，但實作端：</p>
+<ul>
+<li><strong>API 端</strong>：<code>api/core/deps.py:83-88</code> 每個
+endpoint 都檢查 <code>X-Tenant-ID</code>
+header，audit/conversations/problem_cards 都過濾 tenant_id ✅</li>
+<li><strong>Agent 端</strong>：LINE webhook 進來時<strong>未驗證 user_id
+屬於哪個 tenant</strong>；ContextVar 沒有
+<code>_current_tenant</code>；所有
+<code>INSERT INTO audit_log / user_facts / agent_outbox</code> 都沒帶
+tenant_id ❌</li>
+</ul>
+<p>這是不對稱：API 端假定多租戶、agent 端隱含
+single-tenant。<strong>目前 production 是 single-tenant
+部署所以沒爆</strong>，但只要某一刻接第二個 LINE channel 共用同一個
+agent process，就會 cross-tenant 洩漏 user facts。</p>
+<h2 id="decision">Decision</h2>
+<h3 id="1-立即補-tenant_id-欄位到所有-agent-side-寫入的表">1. 立即補
+tenant_id 欄位到所有 agent-side 寫入的表</h3>
+<table>
+<thead>
+<tr>
+<th>表</th>
+<th>行動</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>audit_log</code></td>
+<td><code>ADD COLUMN tenant_id VARCHAR(50) NOT NULL DEFAULT 'default'</code></td>
+<td><code>'default'</code></td>
+</tr>
+<tr>
+<td><code>user_facts</code></td>
+<td>同上</td>
+<td><code>'default'</code></td>
+</tr>
+<tr>
+<td><code>agent_outbox</code></td>
+<td>同上</td>
+<td><code>'default'</code></td>
+</tr>
+<tr>
+<td><code>belief_states</code></td>
+<td>同上</td>
+<td><code>'default'</code></td>
+</tr>
+<tr>
+<td><code>data_corrections</code></td>
+<td>同上</td>
+<td><code>'default'</code></td>
+</tr>
+<tr>
+<td><code>llm_usage_log</code></td>
+<td>同上</td>
+<td><code>'default'</code></td>
+</tr>
+<tr>
+<td><code>webhook_idempotency</code></td>
+<td>建表時直接帶</td>
+<td><code>'default'</code></td>
+</tr>
+</tbody>
+</table>
+<p>DDL 用
+<code>ALTER TABLE ... ADD COLUMN IF NOT EXISTS ... DEFAULT 'default'</code>，online
+migration，既有資料 backfill <code>'default'</code>。</p>
+<h3 id="2-agent-層加入-_current_tenant-contextvar">2. Agent 層加入
+<code>_current_tenant</code> ContextVar</h3>
+<p><code>agent/skills/tools.py</code> 既有的 ContextVar pattern
+擴展：</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>_current_tenant: ContextVar[<span class="bu">str</span>] <span class="op">=</span> ContextVar(<span class="st">&quot;current_tenant&quot;</span>, default<span class="op">=</span><span class="st">&quot;default&quot;</span>)</span></code></pre></div>
+<p><code>harness/debounce.py</code> 在 <code>agent_and_reply()</code>
+入口設定，所有下游 INSERT 都從 ContextVar 取值。</p>
+<h3 id="3-line-channel--tenant_id-mapping升級路徑不在本-cr">3. LINE
+channel → tenant_id mapping（升級路徑，不在本 CR）</h3>
+<p>當需要 onboard 第二個 tenant 時：</p>
+<ul>
+<li>加 <code>line_channel_tenant_mapping</code> 表
+<code>(line_channel_secret_id PRIMARY KEY, tenant_id VARCHAR(50))</code></li>
+<li><code>agent/app.py:webhook</code> 入口從
+<code>LINE Channel Secret</code> 反查 tenant_id（cached at
+startup）</li>
+<li>多 channel 共用同一 process 時，tenant_id 由 channel 決定</li>
+</ul>
+<p><strong>本 CR 不實作 mapping 表</strong>；只把 propagation pipeline
+鋪好，預設 <code>'default'</code>。</p>
+<h3 id="4-跨租戶查詢防護">4. 跨租戶查詢防護</h3>
+<p>所有 SELECT 必加 <code>WHERE tenant_id = $1</code>：</p>
+<ul>
+<li>ProfileManager.load_facts</li>
+<li>AdminAPIClient 撈回應內容</li>
+<li>audit_storage list queries</li>
+</ul>
+<p>加 lint
+rule：<code>grep "SELECT.*FROM (user_facts|audit_log|belief_states)" agent/ | grep -v "tenant_id"</code>
+必須為空。</p>
+<h2 id="consequences">Consequences</h2>
+<h3 id="positive">Positive</h3>
+<ul>
+<li>修補對稱性裂縫，single-tenant 部署無感升級到多租戶</li>
+<li>audit_log payload 終於對得上藍圖 sheet 10 Audit Schema 規範</li>
+<li>為 GDPR Forget List（藍圖 P1）鋪好前置：刪 user 資料時可按
+(tenant_id, user_id) 精確刪</li>
+</ul>
+<h3 id="negative">Negative</h3>
+<ul>
+<li>既有 query 需全面審視加 WHERE tenant_id（短期一次性成本）</li>
+<li>ContextVar 加新欄位 → 任何 forget set 都需要 propagate</li>
+</ul>
+<h3 id="neutral">Neutral</h3>
+<ul>
+<li>single-tenant 預設不影響當前部署，零回退風險</li>
+</ul>
+<h2 id="migration-strategy">Migration Strategy</h2>
+<ol type="1">
+<li><strong>Phase C3-a (本 CR)</strong>：加欄位 + ContextVar + INSERT 帶
+tenant_id（讀仍可不 filter）</li>
+<li><strong>Phase C3-b (本 CR)</strong>：所有 SELECT 加
+<code>WHERE tenant_id = $1</code></li>
+<li><strong>Phase C3-c (未來)</strong>：onboard 第二個 tenant 時加
+mapping 表</li>
+<li><strong>Phase C3-d (未來)</strong>：lint rule + CI check 強制 WHERE
+tenant_id</li>
+</ol>
+<h2 id="alternatives-considered">Alternatives Considered</h2>
+<ol type="1">
+<li><strong>「先不做，反正 single-tenant」</strong> —
+否決：等到出問題再補成本是 5-10 倍；且藍圖規範已有</li>
+<li><strong>「schema 不動，從 user_id 推 tenant_id」</strong> —
+否決：把業務邏輯藏在隱含 mapping 中，未來 onboard 第二 tenant 必爆</li>
+<li><strong>「Row-Level Security (Postgres RLS)」</strong> — 否決：增加
+DB-side 複雜度，application-side ContextVar + WHERE 已足夠</li>
+</ol>
+<h2 id="references">References</h2>
+<ul>
+<li>CR-0001 §5, §8 Question 3</li>
+<li>藍圖 v2.xlsx sheet 10 AI Employee Resume Audit Schema</li>
+<li><code>api/core/deps.py:83-88</code>（既有對稱實作參考）</li>
+</ul>
+</div></div></body></html>

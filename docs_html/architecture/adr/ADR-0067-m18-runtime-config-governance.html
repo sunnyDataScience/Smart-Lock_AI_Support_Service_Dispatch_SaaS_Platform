@@ -1,0 +1,723 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>ADR-0067 — M18 Runtime Configuration Governance</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ architecture ／ adr ／ ADR-0067-m18-runtime-config-governance.md</div>
+<div class="doc"><h1 id="adr-0067--m18-runtime-configuration-governance">ADR-0067 — M18
+Runtime Configuration Governance</h1>
+<blockquote>
+<p><strong>📋 Status</strong>: ✅ Accepted (2026-05-27 roundtable +
+2026-05-27 業主裁決) <strong>🗓 Date</strong>: 2026-05-27 <strong>👤
+Owner</strong>: <code>devteam-arch</code> (Architect persona) <strong>🔖
+Version</strong>: v1 <strong>🎯 Scope</strong>: cross-cutting (M18 →
+所有讀 config 的 module) <strong>🏷 Tags</strong>: configuration,
+governance, runtime, rollout, audit, m18 <strong>🔗 Feature</strong>:
+workorder-erp-final-spec-2026-05-20 <strong>🔗 Related KB</strong>:
+[[06_quality_attributes_catalog]] §1 9 維度 · [[10_resilience_patterns]]
+§3 rollout · [[13_doc_migration_playbook]] §5 ·
+[[11_data_and_stack_catalog]] §1 data classification <strong>🔗 Source
+spec</strong>: <a
+href="../../_source/01-workorder-erp.md"><code>docs/_source/01-workorder-erp.md</code></a>
+§M18 System Admin <strong>🔗 Roundtable</strong>: <a
+href="../../../.claude/context/devteam/meetings/2026-05-27-1130-final-spec-migration-strategy/MoM.md"><code>.claude/context/devteam/meetings/2026-05-27-1130-final-spec-migration-strategy/MoM.md</code></a>
+D6</p>
+</blockquote>
+<hr />
+<h2 id="clipboard-executive-summary">📋 Executive Summary</h2>
+<div class="tip">
+<div class="title">
+<p>Tip</p>
+</div>
+<p><strong>TL;DR (30s)</strong>: 新 final spec (2026-05-20) 引入
+<strong>M18 System Setup, Master Configuration &amp; IT Ops</strong> —
+把過去 hard-coded 的金額、比例、threshold、SLA、approval
+level、template、reason code 全部下放成 <strong>runtime
+config</strong>，業主可在 admin UI 自助維護。為了不讓 ops 自助變成 prod
+即時崩塌，本 ADR 規定 M18 必須具備五件事：<strong>(1) schema validation
+前置</strong>、<strong>(2) 版本化 + audit</strong>、<strong>(3) staged
+rollout（canary 10% → 50% → 100%）</strong>、<strong>(4) rollback
+window（≥ 24h 保留前版可一鍵回退）</strong>、<strong>(5) cache / TTL +
+invalidation broadcast</strong>。本 ADR 為 <strong>Phase 0 critical path
+blocker</strong> —— Phase I MVP 不能在缺這套治理的地基上跑。</p>
+</div>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>🎯 Decision</strong></td>
+<td style="text-align: left;">Option C: Runtime config with full
+governance</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>🤔 Why</strong></td>
+<td style="text-align: left;">M18 是新規格獨有 cross-cutting
+plane；blast radius 涵蓋所有讀者模組；不先 freeze 治理機制，Phase I
+上線就在不穩地基跑</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>🚀 Status</strong></td>
+<td style="text-align: left;">✅ Accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>📊 Reversibility</strong></td>
+<td style="text-align: left;">不可逆（架構約束 + 跨模組 contract）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>🎯 下一步</strong></td>
+<td style="text-align: left;">NFR matrix 補 3 條（A4） / 跨 M18 邊界
+anti-corruption ADR / Phase 0 系統設定主檔 schema</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="dart-context">🎯 Context</h2>
+<ul>
+<li><strong>觸發此決策的情境</strong>：2026-05-20 final spec 引入 M18
+模組，明文要求「金額、比例、threshold、approval level、template、reason
+code 必須 configurable」（見 <a
+href="../../_source/01-workorder-erp.md"><code>docs/_source/01-workorder-erp.md</code></a>
+§00 使用說明 規則原則段、§M18 System Admin）。Roundtable 2026-05-27
+Architect 龍蝦在 Round 2 提出 [INSIGHT]：M18 變 runtime config
+平面後多一個 failure mode — config corruption / mis-config 的 blast
+radius 涵蓋所有讀者模組，PM 與 SA 一致同意納入 Phase 0 critical
+path。</li>
+<li><strong>業務限制</strong>：
+<ul>
+<li>Phase 0/I/II 可開始 coding，且新 spec 多條 rule 是
+configurable（取消費、車馬費、退款分層、approval limit、SLA
+數字、template…），不能在 Phase I 就 hard-code</li>
+<li>業主 (system-admin / IT-admin) 需要自助修改 config 而不走 dev
+deploy（過往痛點）</li>
+</ul></li>
+<li><strong>技術限制</strong>：
+<ul>
+<li>目前 stack 沒有 runtime config plane（過往都在 code 寫死或 env
+var）</li>
+<li>跨模組讀 config 一旦 cache 不一致會出現 split-brain（例：取消費新值
+100 元，部分服務還用舊值 80 元）</li>
+<li>audit 需求高（finance / RBAC 涉及合規）</li>
+</ul></li>
+<li><strong>相關 NFR</strong>：
+<ul>
+<li><strong>Availability</strong>：config 改動不能造成 prod outage；read
+path P99 ≤ 50ms（從 cache 取）</li>
+<li><strong>Auditability</strong>：每筆 config change 需 who / when /
+what diff / why；GDPR-friendly 保留期 ≥ 7 年（與 voucher-retention 對齊
+ADR-VCH-002）</li>
+<li><strong>Operability</strong>：rollback ≤ 1 min；staged rollout 每段
+≥ 10 min observation</li>
+<li><strong>Correctness</strong>：所有讀者必須使用同一個 config version
+處理同一筆業務（quote 用 v3 算金額，付款也必須用 v3 不能用 v4）</li>
+</ul></li>
+</ul>
+<hr />
+<h2 id="triangular_ruler-decision-drivers">📐 Decision Drivers</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Priority</th>
+<th style="text-align: left;">Driver</th>
+<th style="text-align: left;">Weight</th>
+<th style="text-align: left;">Reference</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">1</td>
+<td style="text-align: left;">Operability — 業主自助、ops policy
+隨時改</td>
+<td style="text-align: left;">high</td>
+<td style="text-align: left;">[[06_quality_attributes_catalog]]
+§1.7</td>
+</tr>
+<tr>
+<td style="text-align: center;">2</td>
+<td style="text-align: left;">Reliability — 改 config 不能炸全系統</td>
+<td style="text-align: left;">high</td>
+<td style="text-align: left;">[[06_quality_attributes_catalog]] §1.1 ·
+[[10_resilience_patterns]] §3</td>
+</tr>
+<tr>
+<td style="text-align: center;">3</td>
+<td style="text-align: left;">Auditability — finance / RBAC 合規</td>
+<td style="text-align: left;">high</td>
+<td style="text-align: left;">[[11_data_and_stack_catalog]] §1-§3</td>
+</tr>
+<tr>
+<td style="text-align: center;">4</td>
+<td style="text-align: left;">Reversibility — rollback 是基本能力</td>
+<td style="text-align: left;">high</td>
+<td style="text-align: left;">[[10_resilience_patterns]] §4 RTO/RPO</td>
+</tr>
+<tr>
+<td style="text-align: center;">5</td>
+<td style="text-align: left;">Time-to-market — Phase 0 critical
+path</td>
+<td style="text-align: left;">medium</td>
+<td style="text-align: left;">roundtable D6</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="mag-options-considered">🔍 Options Considered</h2>
+<h3 id="option-a--code-deploy-only-current-baseline">Option A —
+Code-deploy only (current baseline)</h3>
+<p>所有 config 改動走 dev → PR → review → deploy 流程。沒有 runtime
+plane。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Pros</strong></td>
+<td style="text-align: left;">• 簡單，沒有額外治理機制<br>• git 即 audit
+trail<br>• 不會有 cache 一致性問題</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Cons</strong></td>
+<td style="text-align: left;">• 業主每改一個金額都要等
+deploy（過往痛點）<br>• 違反新 spec 「configurable」原則<br>•
+緊急修改（如 SLA 突發狀況）週期太長<br>• System Admin
+角色變橡皮圖章</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Fit</strong></td>
+<td style="text-align: left;">早期 startup、團隊全棧、無 ops
+自助需求</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Anti-fit</strong></td>
+<td style="text-align: left;">多 stakeholder ops 需求、新 spec 明示
+configurable</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Cost / Effort</strong></td>
+<td style="text-align: left;">S（不做事就行）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="option-b--runtime-config-without-governance-anti-pattern">Option
+B — Runtime config without governance (anti-pattern)</h3>
+<p>開個 admin UI 讓業主直接改 DB，改完即時生效。沒 validation / 沒
+staged rollout / 沒 rollback。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Pros</strong></td>
+<td style="text-align: left;">• 業主自助、立即生效<br>•
+工程成本最低</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Cons</strong></td>
+<td style="text-align: left;">• mis-config 立即炸 prod（如把退款上限打
+1000 倍）<br>• 沒 audit 法規不過<br>• 無法 rollback、無 staged
+rollout<br>• cache 不一致導致 split-brain<br>• 不符合新 spec「approval /
+生效日」要求</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Fit</strong></td>
+<td style="text-align: left;">（無 — 是 anti-pattern）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Anti-fit</strong></td>
+<td style="text-align: left;">任何 prod 系統</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Cost / Effort</strong></td>
+<td style="text-align: left;">S（但 cost of failure = ∞）</td>
+</tr>
+</tbody>
+</table>
+<h3
+id="option-c--runtime-config-with-full-governance-recommended-white_check_mark">Option
+C — Runtime config with full governance (Recommended ✅)</h3>
+<p>完整治理：validation schema + 版本化 + staged rollout + rollback
+window + cache/TTL + audit。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Pros</strong></td>
+<td style="text-align: left;">• 業主自助但有 guardrail<br>• validation
+擋 mis-config<br>• staged rollout 限制 blast radius（canary 10%
+出問題影響 &lt; 全量）<br>• rollback ≤ 1 min<br>• audit
+完整滿足合規<br>• cache invalidation broadcast 維持 split-brain
+不發生<br>• 符合新 spec「approval / 生效日」要求</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Cons</strong></td>
+<td style="text-align: left;">• 工程成本 M（schema 設計、staged rollout
+機制、cache invalidation 邏輯）<br>• 學習成本（業主需理解 staged
+rollout）<br>• Phase 0 必須先做才能解鎖 Phase I</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Fit</strong></td>
+<td style="text-align: left;">多 ops / 多 stakeholder / 合規需求高 / 新
+spec configurable</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Anti-fit</strong></td>
+<td style="text-align: left;">早期 prototype、單人團隊</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Cost / Effort</strong></td>
+<td style="text-align: left;">M（一次性投入，攤提到後續所有模組）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="white_check_mark-decision">✅ Decision</h2>
+<div class="important">
+<div class="title">
+<p>Important</p>
+</div>
+<p><strong>選擇</strong>: <strong>Option C — Runtime config with full
+governance</strong></p>
+<p><strong>理由</strong>：</p>
+<ol type="1">
+<li>新 spec §M18 明文要求 user-maintained configuration layer，Option A
+(code-deploy) 違反 spec</li>
+<li>Option B 沒治理在 prod 上是高機率事故源（mis-config 立即炸 =
+unavoidable disaster）</li>
+<li>Phase 0 投入一次治理機制，Phase I 起所有 module 受益 — ROI 高</li>
+<li>對應 [[06_quality_attributes_catalog]] §1 9 維度的 Operability +
+Reliability + Auditability 三高權重 driver</li>
+</ol>
+</div>
+<h3 id="五個治理組件規格">五個治理組件規格</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">#</th>
+<th style="text-align: left;">組件</th>
+<th style="text-align: left;">規格</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>1</strong></td>
+<td style="text-align: left;"><strong>Schema validation</strong></td>
+<td style="text-align: left;">每個 config key 必須先定義 JSON
+schema（type / range / enum / regex / required）；admin UI submit 時前端
++ 後端雙驗；validation 失敗在 admin UI 顯示具體錯訊，<strong>永不寫入
+DB</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>2</strong></td>
+<td style="text-align: left;"><strong>Versioning + audit</strong></td>
+<td style="text-align: left;">每次 commit 產
+<code>config_version: N+1</code>，含 <code>changed_by</code> /
+<code>changed_at</code> / <code>diff</code> /
+<code>reason</code>；全量留存 ≥ 7 年（與 <a
+href="ADR-VCH-002-voucher-retention-7y.md"><code>ADR-VCH-002</code></a>
+對齊）；查詢 API 可取任意 version</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>3</strong></td>
+<td style="text-align: left;"><strong>Staged rollout</strong></td>
+<td style="text-align: left;">三段：canary 10% (≥ 10 min) → ramp 50% (≥
+10 min) → full 100%；每段卡 SLO 監控（error rate / P99 latency）；超出
+baseline 自動 halt + alert</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>4</strong></td>
+<td style="text-align: left;"><strong>Rollback window</strong></td>
+<td style="text-align: left;">前一個 active version 保留 ≥ 24h；admin UI
+提供「一鍵回退」按鈕，rollback 也走 staged rollout 機制（先 10%
+回退驗證）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>5</strong></td>
+<td style="text-align: left;"><strong>Cache / TTL + invalidation
+broadcast</strong></td>
+<td style="text-align: left;">讀者使用 in-process cache (TTL 30s
+default) + pub/sub invalidation channel；config 更新時 publisher
+broadcast invalidation，所有讀者收到後立即重
+fetch；同一筆業務交易必須在交易開始時 snapshot
+<code>config_version</code>，後續所有計算使用同一
+version（<strong>不能在交易中途切換</strong>）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="跨-m18-邊界的-anti-corruption-layer">跨 M18 邊界的
+anti-corruption layer</h3>
+<p>所有模組讀 config 走 M18 Config Read API（不直接讀 DB），目的：</p>
+<ul>
+<li>統一 cache 行為</li>
+<li>統一版本快照</li>
+<li>M18 內部可改實作不影響讀者</li>
+<li>audit hook 集中</li>
+</ul>
+<h3 id="範疇">範疇</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">範疇</th>
+<th style="text-align: left;">說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>✅ 適用範圍</strong></td>
+<td style="text-align: left;">所有 user-maintained
+config：金額（取消費、車馬費、檢測費）、比例（commission、refund）、threshold（approval
+limit）、SLA 數字、reason
+code、template（通知、發票、簽核）、角色權限矩陣、status 代碼</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>❌ 不適用</strong></td>
+<td style="text-align: left;">(1) Infrastructure 設定（DB connection
+string、API key、URL）→ 走 env var / secret manager；(2) Code-level
+常數（如 enum 定義、UI 顏色）→ 走 code；(3) 用戶資料（customer /
+WorkOrder / evidence）→ 走 domain DB</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>🔓 可逆性</strong></td>
+<td style="text-align: left;">不可逆 — 一旦其他模組依賴 M18 Config Read
+API，撤銷會 break 所有 caller</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="bar_chart-consequences">📊 Consequences</h2>
+<h3 id="white_check_mark-positive">✅ Positive</h3>
+<ul>
+<li>業主可自助修改 ops policy 而不需 dev deploy（解決過往痛點）</li>
+<li>符合新 spec「configurable」原則</li>
+<li>staged rollout 限制 mis-config blast radius（10% canary → 90%
+用戶不受影響）</li>
+<li>rollback ≤ 1 min 滿足 [[10_resilience_patterns]] §4 RTO</li>
+<li>完整 audit trail 滿足合規（finance / RBAC / GDPR）</li>
+<li>cache invalidation broadcast 避免 split-brain</li>
+<li>snapshot <code>config_version</code> per 交易
+保證「同筆業務同一規則」</li>
+<li>一次性投入後 Phase I/II/III 所有 module 受益</li>
+</ul>
+<h3 id="warning-negative">⚠️ Negative</h3>
+<div class="warning">
+<div class="title">
+<p>Warning</p>
+</div>
+<p>必須明列 trade-off。</p>
+</div>
+<ul>
+<li><strong>工程成本 M</strong>：schema 設計、staged rollout 機制、cache
+invalidation 邏輯、admin UI 流程都需從零做起 — Phase 0 必須吃下這個成本
+<ul>
+<li><strong>Mitigation</strong>：複用既有 RBAC 與 audit 框架；staged
+rollout 機制可借鑑 [[10_resilience_patterns]] §3 canary 模式</li>
+</ul></li>
+<li><strong>學習成本</strong>：業主需理解 staged rollout
+三段流程，無法「按下就全量生效」
+<ul>
+<li><strong>Mitigation</strong>：admin UI 預設 staged
+rollout，提供「強制全量」escape hatch（需 IT-admin 雙簽 + audit log
+highlight）</li>
+</ul></li>
+<li><strong>Cache coherence 複雜度</strong>：pub/sub broadcast 失敗時的
+fallback 邏輯（TTL 30s 是兜底）
+<ul>
+<li><strong>Mitigation</strong>：監控 invalidation lag P99；超過 5s 觸發
+alert</li>
+</ul></li>
+<li><strong><code>config_version</code> snapshot
+在長交易中佔記憶體</strong>：如月結批次跑 1h，snapshot 不能釋放
+<ul>
+<li><strong>Mitigation</strong>：snapshot 只存 hash 不存內容；需要時用
+hash 從 versioned store 重 fetch</li>
+</ul></li>
+<li><strong>Phase I 時程 +1~2 週</strong>：Phase 0 critical path 多一條
+ADR + 實作
+<ul>
+<li><strong>Mitigation</strong>：併行：M18 治理機制與其他 Phase 0
+設定主檔可並行開發，預計不延後 Phase I 啟動</li>
+</ul></li>
+</ul>
+<h3 id="dart-follow-up-work">🎯 Follow-up Work</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Action</th>
+<th style="text-align: left;">Owner</th>
+<th style="text-align: left;">Due</th>
+<th style="text-align: left;">Reference</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">在 NFR matrix 補三條：config change
+SLA、rollback path、validation 前置</td>
+<td style="text-align: left;"><code>devteam-arch</code></td>
+<td style="text-align: left;">2026-05-29</td>
+<td style="text-align: left;">A4 (但 NFR 部分由本 ADR follow up，非業主
+Q4 那個 A4)</td>
+</tr>
+<tr>
+<td style="text-align: left;">寫跨 M18 邊界 anti-corruption ADR（Config
+Read API spec）</td>
+<td style="text-align: left;"><code>devteam-arch</code></td>
+<td style="text-align: left;">2026-06-05</td>
+<td style="text-align: left;">new ADR</td>
+</tr>
+<tr>
+<td style="text-align: left;">設計 staged rollout 監控指標 (SLI/SLO
+baseline)</td>
+<td style="text-align: left;"><code>devteam-arch</code> +
+<code>devteam-sre</code></td>
+<td style="text-align: left;">2026-06-10</td>
+<td style="text-align: left;">[[09_observability_catalog]] §6 burn rate
+alert</td>
+</tr>
+<tr>
+<td style="text-align: left;">Phase 0 系統設定主檔 JSON schema 設計</td>
+<td style="text-align: left;"><code>devteam-design</code></td>
+<td style="text-align: left;">2026-06-10</td>
+<td style="text-align: left;">[[08_api_design_catalog]] §5</td>
+</tr>
+<tr>
+<td style="text-align: left;">Runbook：M18 config rollback SOP</td>
+<td style="text-align: left;"><code>devteam-ops</code></td>
+<td style="text-align: left;">2026-06-15</td>
+<td
+style="text-align: left;"><code>docs/ops/runbook-smart-lock-saas.md</code>
+cascade</td>
+</tr>
+</tbody>
+</table>
+<h3 id="chart_with_downwards_trend-影響的下游文件">📉
+影響的下游文件</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Doc</th>
+<th style="text-align: left;">Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td
+style="text-align: left;"><code>docs/architecture/nfr-matrix-smart-lock-saas.md</code></td>
+<td style="text-align: left;"><strong>新增三條 NFR</strong>（config
+change SLA / rollback path / validation 前置）</td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>docs/architecture/api/openapi.yaml</code></td>
+<td style="text-align: left;"><strong>新增 Config Read API
+規格</strong>（GET /m18/config/{key}?version=N）</td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>docs/architecture/data/erd.md</code></td>
+<td style="text-align: left;"><strong>新增 config_versions table + audit
+log table</strong></td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>docs/ops/runbook-smart-lock-saas.md</code></td>
+<td style="text-align: left;"><strong>新增 M18 config 改動 SOP +
+rollback playbook</strong></td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>docs/qa/test-plan-smart-lock-saas.md</code></td>
+<td style="text-align: left;"><strong>新增 config staged rollout
+regression test + mis-config scenario test</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>docs/analysis/fr/</code></td>
+<td style="text-align: left;">新增 FR-26+：M18 admin UI / config change
+workflow / 一鍵 rollback（A3 cascade）</td>
+</tr>
+<tr>
+<td style="text-align: left;">所有讀 config 的 module 模組 ADR</td>
+<td style="text-align: left;">標
+<code>depends_on: ADR-0067</code>，禁直接讀 config DB</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="link-links">🔗 Links</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Asset</th>
+<th style="text-align: left;">Path</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Source Spec</strong></td>
+<td style="text-align: left;"><a
+href="../../_source/01-workorder-erp.md"><code>docs/_source/01-workorder-erp.md</code></a>
+§M18</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Related PRD</strong></td>
+<td style="text-align: left;"><a
+href="../../prd/smart-lock-saas.md"><code>docs/prd/smart-lock-saas.md</code></a>
+(待 cascade A4)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Roundtable MoM</strong></td>
+<td style="text-align: left;"><a
+href="../../../.claude/context/devteam/meetings/2026-05-27-1130-final-spec-migration-strategy/MoM.md"><code>.claude/context/devteam/meetings/2026-05-27-1130-final-spec-migration-strategy/MoM.md</code></a>
+D6</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>KB references</strong></td>
+<td style="text-align: left;">[[06_quality_attributes_catalog]] ·
+[[10_resilience_patterns]] §3-4 · [[13_doc_migration_playbook]] §5 ·
+[[11_data_and_stack_catalog]] §1-3</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Related ADRs</strong></td>
+<td style="text-align: left;"><a
+href="ADR-VCH-002-voucher-retention-7y.md"><code>ADR-VCH-002</code></a>
+(audit retention 7y 對齊) · <a
+href="ADR-0042-rbac-four-tier-principle.md"><code>ADR-0042</code></a>
+(RBAC for admin UI) · <a
+href="ADR-0061-data-governance-service-boundary.md"><code>ADR-0061</code></a>
+(跨 module data boundary)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="mag-drill-down-optional">🔍 Drill-down (optional)</h2>
+<details>
+  <summary>Click for full deliberation context, alternative discussions, and references</summary>
+
+<h3 id="deliberation-context">Deliberation context</h3>
+<ul>
+<li><strong>Roundtable</strong>: 2026-05-27 11:30~11:52，PM 龍蝦 +
+Architect 龍蝦 + Analyst (SA) 龍蝦</li>
+<li><strong>Key argument 1 (PM R1)</strong>: M18 整層 user-maintained
+config 是新規格獨有，會不會把 NFR / boundary 整個翻一遍？</li>
+<li><strong>Architect R2 answer</strong>: 會。M18 從 code-deploy 移到
+runtime config，blast radius 從「改 code 全測」變「改設定即時生效」，NFR
+要新增三條（config change SLA / rollback path / validation
+前置）。Boundary 上 M18 變 cross-cutting，所有模組讀 config 都跨 M18
+邊界 → 補 anti-corruption + cache/TTL 策略，不然 read amplification
+失控。</li>
+<li><strong>Architect R2 INSIGHT</strong>: M18 變 runtime config
+平面後多一個 failure mode（config corruption blast radius）→ Phase 0
+必須 freeze 一條 ADR「config change 治理」</li>
+<li><strong>PM R2 confirm</strong>: 納入 Phase 0 critical path。M18
+是新規格獨有 cross-cutting plane，不先 freeze config 治理 ADR，Phase I
+MVP 一上線就在不穩地基跑，rollback 成本未來指數爆炸。</li>
+</ul>
+<h3 id="alternatives-discussed-but-rejected-early">Alternatives
+discussed but rejected early</h3>
+<ul>
+<li><strong>Option D — Git-ops config via PR</strong>: 業主自助 PR 改
+config repo，CI 自動 deploy。Rejected：業主非 dev、不會 PR、且 staged
+rollout 機制需另做 — 不解決 Option A 痛點</li>
+<li><strong>Option E — Feature flag 服務（LaunchDarkly 等
+SaaS）</strong>: 不適合 — feature flag 服務是 boolean / multivariate
+flag 為主，不擅長存複雜 schema 的 ops policy（金額表、template
+body、權限矩陣）</li>
+</ul>
+<h3 id="detailed-cost-analysis">Detailed cost analysis</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Component</th>
+<th style="text-align: left;">Effort</th>
+<th style="text-align: left;">Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">JSON schema validation</td>
+<td style="text-align: left;">S</td>
+<td style="text-align: left;">用 ajv / pydantic</td>
+</tr>
+<tr>
+<td style="text-align: left;">Versioning + audit DB schema</td>
+<td style="text-align: left;">S</td>
+<td style="text-align: left;">借鑑 <a
+href="ADR-VCH-002-voucher-retention-7y.md"><code>ADR-VCH-002</code></a>
+retention 模式</td>
+</tr>
+<tr>
+<td style="text-align: left;">Staged rollout mechanism</td>
+<td style="text-align: left;">M</td>
+<td style="text-align: left;">canary % 由 ingress / app-level switch
+實作</td>
+</tr>
+<tr>
+<td style="text-align: left;">Cache + invalidation broadcast</td>
+<td style="text-align: left;">M</td>
+<td style="text-align: left;">Redis pub/sub 或 NATS</td>
+</tr>
+<tr>
+<td style="text-align: left;">Admin UI</td>
+<td style="text-align: left;">M</td>
+<td style="text-align: left;">與既有 M18 admin UI 整合</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>config_version</code> snapshot per
+交易</td>
+<td style="text-align: left;">S</td>
+<td style="text-align: left;">trace context 帶版本號</td>
+</tr>
+</tbody>
+</table>
+</details>
+
+<hr />
+<h2 id="writing_hand-sign-off">✍️ Sign-off</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" /><strong>Architect</strong> (owner):
+<code>devteam-arch-persona</code> (Round 1 + Round 2 同意) / Date:
+2026-05-27</label></li>
+<li><label><input type="checkbox" /><strong>Tech Lead</strong>:
+____________ / Date: ____________</label></li>
+<li><label><input type="checkbox" /><strong>PM</strong>
+(cross-functional): <code>devteam-pm-persona</code> (Round 2 收尾同意) /
+Date: 2026-05-27</label></li>
+<li><label><input type="checkbox" /><strong>業主</strong>: ✅ 透過
+roundtable Open Questions 全採納建議 / Date: 2026-05-27</label></li>
+</ul>
+<hr />
+<p><strong>End of ADR-0067</strong></p>
+<blockquote>
+<p>給業主：你主要要看的是 <strong>📋 Executive Summary</strong> +
+<strong>✅ Decision §五個治理組件規格</strong> + <strong>⚠️ Negative
+consequences</strong> 三段。 Phase 0 不做這份 ADR 就 coding Phase I =
+在不穩地基蓋樓。</p>
+</blockquote>
+</div></div></body></html>

@@ -1,0 +1,1979 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>00_Foundations — xAI Grok 風格 基礎系統規格</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../../../index.html">🏠 文件總目錄</a> ／ ui ／ web_design_spec_prompt_pipeline ／ design-system-specs ／ grok ／ 00_foundations_spec.md</div>
+<div class="doc"><h1 id="00_foundations--xai-grok-風格-基礎系統規格">00_Foundations — xAI
+Grok 風格 基礎系統規格</h1>
+<blockquote>
+<p>全站的物理定律。以 xAI / Grok / X
+的視覺語言為基底：純黑、銳利、幾何、極簡、單色冷感 + 一抹電氣霓虹。
+本文件為 Single Source of Truth，所有 UI
+元件、模板、頁面均以此為準。</p>
+</blockquote>
+<hr />
+<h2 id="設計哲學dna">設計哲學（DNA）</h2>
+<table>
+<thead>
+<tr>
+<th>維度</th>
+<th>價值觀</th>
+<th>反例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>顏色</strong></td>
+<td><strong>純黑 + 純白 + 灰階</strong>，嚴格單色主義（Monochrome）</td>
+<td>霓虹色、漸層、彩色卡片、發光特效</td>
+</tr>
+<tr>
+<td><strong>形狀</strong></td>
+<td>銳利幾何，最大 radius = 8px</td>
+<td>大圓角、膠囊、毛玻璃</td>
+</tr>
+<tr>
+<td><strong>字體</strong></td>
+<td>大字壓制、緊縮字距、無襯線冷感、Hero 可達 120–160px</td>
+<td>手寫感、襯線、裝飾字</td>
+</tr>
+<tr>
+<td><strong>空間</strong></td>
+<td>極大量留白、極長 vertical rhythm（section 96–192px）</td>
+<td>緊湊資訊密度</td>
+</tr>
+<tr>
+<td><strong>動效</strong></td>
+<td>短促、線性、技術感</td>
+<td>彈跳、Spring、緩入緩出、parallax</td>
+</tr>
+<tr>
+<td><strong>意象</strong></td>
+<td>抽象幾何、線條、留白</td>
+<td>黑洞 glow、星空、霓虹光暈、AI 套路視覺</td>
+</tr>
+</tbody>
+</table>
+<h3 id="嚴格禁止清單v12">嚴格禁止清單（v1.2）</h3>
+<p>為避免落入泛濫的「AI
+感」設計套路，本系統<strong>絕對禁止</strong>：</p>
+<pre><code>✗ 霓虹強調色（electric blue / violet / cyan / 任何飽和高明度色）
+✗ 任何漸層（linear-gradient / radial-gradient / conic-gradient）
+✗ 發光特效（box-shadow 光暈、text-shadow、drop-shadow glow）
+✗ Spotlight / Halo / Aurora 等氛圍光
+✗ 星空 / 粒子 / 視差背景
+✗ 毛玻璃（backdrop-filter blur 大量使用）
+✗ 彩色資料視覺化調色盤（圖表只用黑白灰）
+✗ 發光按鈕、發光文字、發光邊框
+✗ AI 主題的 3D blob、流體、網格扭曲</code></pre>
+<h3 id="允許清單">允許清單</h3>
+<pre><code>✓ #000 / #FFF / 8 階純灰
+✓ 1px hairline 邊線
+✓ Surface 抬升（用灰階差異，無陰影）
+✓ 光線模式陰影（僅 light mode，極弱）
+✓ 純色文字、純色填底
+✓ 圖表用黑白灰 + 線條粗細區分</code></pre>
+<h3 id="校準說明v12依-xai-實況修正">校準說明（v1.2，依 x.ai
+實況修正）</h3>
+<p>x.ai 官網本體採取的是<strong>極端 Monochrome</strong>：</p>
+<ul>
+<li>全站幾乎只有 <code>#000</code> 與 <code>#FFF</code>
+兩種顏色，灰階僅作為層次過渡</li>
+<li><strong>零霓虹色、零漸層、零 glow</strong></li>
+<li>CTA 使用「白底黑字 pill」或「純文字 + ↗」</li>
+<li><strong>不使用 Bento Grid、Marquee、Star Field</strong>
+等華麗手法</li>
+<li><strong>不使用 Eyebrow 眉題</strong>（多數區段直接放大標）</li>
+<li>Hero 字級顯著大於一般網站，常見 120–160px display</li>
+</ul>
+<p>本規格將：</p>
+<ol type="1">
+<li><strong>唯一模式 =
+Monochrome</strong>：白色本身即為強調色，無第二強調色</li>
+<li><strong>Bento / Marquee / Sidebar / Eyebrow 等元件 =
+可選擴展</strong>，不在 x.ai 官網主流動線使用</li>
+</ol>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ol type="1">
+<li><a href="#1-grid--layout-system">Grid &amp; Layout System</a></li>
+<li><a href="#2-color-system">Color System</a></li>
+<li><a href="#3-typography-system">Typography System</a></li>
+<li><a href="#4-spacing-system">Spacing System</a></li>
+<li><a href="#5-border--radius-system">Border &amp; Radius
+System</a></li>
+<li><a href="#6-elevation--glow-system">Elevation &amp; Glow
+System</a></li>
+<li><a href="#7-z-index-system">Z-Index System</a></li>
+<li><a href="#8-iconography">Iconography</a></li>
+<li><a href="#9-motion--animation">Motion &amp; Animation</a></li>
+<li><a href="#10-texture--background">Texture &amp; Background</a></li>
+<li><a href="#11-design-tokens-命名規範">Design Tokens 命名規範</a></li>
+<li><a href="#12-token-mode-管理">Token Mode 管理</a></li>
+</ol>
+<hr />
+<h2 id="1-grid--layout-system">1. Grid &amp; Layout System</h2>
+<p>Grok 是 Desktop-first、單一 codebase、極寬內容區 + 邊欄留白。Mobile
+採垂直堆疊。</p>
+<h3 id="11-container">1.1 Container</h3>
+<table>
+<thead>
+<tr>
+<th>屬性</th>
+<th>值</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>layout.container.max-width</code></td>
+<td>1280px</td>
+<td>主內容區最大寬度（聚焦感）</td>
+</tr>
+<tr>
+<td><code>layout.container.wide-max-width</code></td>
+<td>1440px</td>
+<td>全寬區段（Hero、表格）</td>
+</tr>
+<tr>
+<td><code>layout.container.narrow-max-width</code></td>
+<td>768px</td>
+<td>文章、文件閱讀寬度</td>
+</tr>
+<tr>
+<td><code>layout.container.padding.mobile</code></td>
+<td>20px</td>
+<td>&lt; 768px</td>
+</tr>
+<tr>
+<td><code>layout.container.padding.tablet</code></td>
+<td>32px</td>
+<td>768px–1023px</td>
+</tr>
+<tr>
+<td><code>layout.container.padding.desktop</code></td>
+<td>48px</td>
+<td>&gt;= 1024px</td>
+</tr>
+<tr>
+<td><code>layout.container.center</code></td>
+<td><code>margin: 0 auto</code></td>
+<td>居中策略</td>
+</tr>
+</tbody>
+</table>
+<h3 id="12-grid">1.2 Grid</h3>
+<table>
+<thead>
+<tr>
+<th>斷點</th>
+<th>欄數</th>
+<th>Gutter</th>
+<th>Margin</th>
+<th>Container</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mobile (&lt; 640px)</td>
+<td>4</td>
+<td>16px</td>
+<td>20px</td>
+<td>100%</td>
+</tr>
+<tr>
+<td>Tablet (640px–1023px)</td>
+<td>8</td>
+<td>24px</td>
+<td>32px</td>
+<td>100%</td>
+</tr>
+<tr>
+<td>Desktop (1024px–1279px)</td>
+<td>12</td>
+<td>32px</td>
+<td>48px</td>
+<td>100%</td>
+</tr>
+<tr>
+<td>Wide (&gt;= 1280px)</td>
+<td>12</td>
+<td>32px</td>
+<td>48px</td>
+<td>1280px max</td>
+</tr>
+<tr>
+<td>Ultra (&gt;= 1440px)</td>
+<td>12</td>
+<td>32px</td>
+<td>48px</td>
+<td>1440px max（僅 Hero）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="13-breakpoints">1.3 Breakpoints</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>breakpoint.sm</code></td>
+<td>640px</td>
+<td>Mobile → Tablet</td>
+</tr>
+<tr>
+<td><code>breakpoint.md</code></td>
+<td>768px</td>
+<td>內容區結構切換</td>
+</tr>
+<tr>
+<td><code>breakpoint.lg</code></td>
+<td>1024px</td>
+<td>Tablet → Desktop</td>
+</tr>
+<tr>
+<td><code>breakpoint.xl</code></td>
+<td>1280px</td>
+<td>Container 鎖寬</td>
+</tr>
+<tr>
+<td><code>breakpoint.2xl</code></td>
+<td>1440px</td>
+<td>Ultra wide</td>
+</tr>
+</tbody>
+</table>
+<h3 id="14-header--sidebar-layout">1.4 Header / Sidebar Layout</h3>
+<table>
+<thead>
+<tr>
+<th>屬性</th>
+<th>值</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>space.header</code></td>
+<td>64px</td>
+<td>頂部 navbar 高度</td>
+</tr>
+<tr>
+<td><code>space.header.hairline</code></td>
+<td>1px</td>
+<td>頂部下緣髮絲線</td>
+</tr>
+<tr>
+<td><code>space.sidebar</code></td>
+<td>240px</td>
+<td>桌面版側邊欄（如 Console UI）</td>
+</tr>
+<tr>
+<td><code>space.sidebar.collapsed</code></td>
+<td>56px</td>
+<td>收合時</td>
+</tr>
+<tr>
+<td><code>space.bottom-bar</code></td>
+<td>56px</td>
+<td>Mobile 底部導航</td>
+</tr>
+</tbody>
+</table>
+<h3 id="15-layout-primitives">1.5 Layout Primitives</h3>
+<table>
+<thead>
+<tr>
+<th>名稱</th>
+<th>規則</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>App Shell</td>
+<td><code>min-h-screen flex flex-col bg-canvas</code></td>
+<td>頁面外殼</td>
+</tr>
+<tr>
+<td>Sticky Nav</td>
+<td><code>h-16 sticky top-0 z-sticky border-b border-hairline backdrop-blur</code></td>
+<td>頂部導航</td>
+</tr>
+<tr>
+<td>Hero Block</td>
+<td><code>min-h-[80vh] flex items-center</code></td>
+<td>首屏視覺</td>
+</tr>
+<tr>
+<td>Console Layout</td>
+<td><code>grid grid-cols-[240px_1fr]</code></td>
+<td>工具型頁面（Sidebar + Main）</td>
+</tr>
+<tr>
+<td>Content Stack</td>
+<td><code>flex flex-col gap-section py-section</code></td>
+<td>主內容垂直堆疊</td>
+</tr>
+<tr>
+<td>Two Column</td>
+<td><code>grid grid-cols-1 md:grid-cols-2 gap-12</code></td>
+<td>平分兩欄</td>
+</tr>
+<tr>
+<td>Asymmetric Split</td>
+<td><code>grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-16</code></td>
+<td>標題 + 內容</td>
+</tr>
+<tr>
+<td>Sticky Footer</td>
+<td><code>mt-auto py-section border-t border-hairline</code></td>
+<td>頁尾</td>
+</tr>
+</tbody>
+</table>
+<h3 id="16-共通-rwd-行為規則">1.6 共通 RWD 行為規則</h3>
+<pre><code>規則 1：Desktop-first 寬度
+  - Container 在 1280px 以下吃螢幕全寬
+  - 1280px 以上鎖寬，左右自然留白即是視覺呼吸
+
+規則 2：Mobile 垂直化
+  - 所有 grid 退化為單欄堆疊
+  - 字級不縮減（保持 Grok 大字風格），改為調整 line-height
+
+規則 3：Sidebar 行為
+  - Console 類頁面：Desktop 240px、Tablet 56px icon-only、Mobile 抽屜
+  - 落地頁不使用 Sidebar
+
+規則 4：圖片策略
+  - 所有圖片優先採用 SVG / monochrome PNG
+  - 全幅背景圖必須加 noise overlay（見 §10.3）
+  - 暗色模式為主，圖片需 invert 處理或預先輸出深色版本</code></pre>
+<hr />
+<h2 id="2-color-system">2. Color System</h2>
+<p>Grok 的色彩語言 = <strong>黑、白、灰階八度音 +
+一個霓虹強調色</strong>。幾乎不出現飽和的中間色。</p>
+<h3 id="21-canvas畫布層級">2.1 Canvas（畫布層級）</h3>
+<p>從最底到最上的灰階層次，模擬 OLED 黑底上的微微抬升。</p>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+<th>對比（vs <code>text.primary</code> #FAFAFA）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>color.canvas.base</code></td>
+<td>#000000</td>
+<td>頁面最底層、Hero、暗黑模式預設背景</td>
+<td>21:1 AAA</td>
+</tr>
+<tr>
+<td><code>color.canvas.raised</code></td>
+<td>#0A0A0A</td>
+<td>卡片、區塊（細微抬升 1 層）</td>
+<td>19.8:1 AAA</td>
+</tr>
+<tr>
+<td><code>color.canvas.overlay</code></td>
+<td>#111111</td>
+<td>Modal、Popover、Dropdown</td>
+<td>18.6:1 AAA</td>
+</tr>
+<tr>
+<td><code>color.canvas.sunken</code></td>
+<td>#050505</td>
+<td>凹陷區、Code block 背景</td>
+<td>20.4:1 AAA</td>
+</tr>
+<tr>
+<td><code>color.canvas.inverse</code></td>
+<td>#FAFAFA</td>
+<td>反相區（白底黑字反差段落）</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-surface卡片與區塊">2.2 Surface（卡片與區塊）</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>color.surface.default</code></td>
+<td>#0A0A0A</td>
+<td>卡片預設</td>
+</tr>
+<tr>
+<td><code>color.surface.hover</code></td>
+<td>#141414</td>
+<td>hover 抬升</td>
+</tr>
+<tr>
+<td><code>color.surface.active</code></td>
+<td>#1A1A1A</td>
+<td>active / pressed</td>
+</tr>
+<tr>
+<td><code>color.surface.elevated</code></td>
+<td>#181818</td>
+<td>巢狀卡片內第二層</td>
+</tr>
+<tr>
+<td><code>color.surface.disabled</code></td>
+<td>#050505</td>
+<td>停用卡片（搭配低對比文字）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="23-hairline--border線條">2.3 Hairline / Border（線條）</h3>
+<p>Grok 不使用粗框線，使用 1px 髮絲線界定區塊。</p>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>color.border.hairline</code></td>
+<td>#1F1F1F</td>
+<td>預設區塊分隔（最常用）</td>
+</tr>
+<tr>
+<td><code>color.border.subtle</code></td>
+<td>#161616</td>
+<td>極弱分隔（卡片內部分組）</td>
+</tr>
+<tr>
+<td><code>color.border.default</code></td>
+<td>#2A2A2A</td>
+<td>Input 預設邊框</td>
+</tr>
+<tr>
+<td><code>color.border.strong</code></td>
+<td>#3F3F3F</td>
+<td>強調邊框、表格表頭</td>
+</tr>
+<tr>
+<td><code>color.border.focus</code></td>
+<td>#FAFAFA</td>
+<td>Focus ring（高對比白）</td>
+</tr>
+<tr>
+<td><code>color.border.accent</code></td>
+<td><code>color.accent.default</code></td>
+<td>強調框（CTA outlined）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="24-text文字層級">2.4 Text（文字層級）</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+<th>對比（vs <code>canvas.base</code>）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>color.text.primary</code></td>
+<td>#FAFAFA</td>
+<td>主要內文、標題</td>
+<td>19.6:1 AAA</td>
+</tr>
+<tr>
+<td><code>color.text.secondary</code></td>
+<td>#A1A1AA</td>
+<td>次要說明文字</td>
+<td>9.7:1 AAA</td>
+</tr>
+<tr>
+<td><code>color.text.tertiary</code></td>
+<td>#71717A</td>
+<td>標籤、metadata、時間戳</td>
+<td>5.0:1 AA</td>
+</tr>
+<tr>
+<td><code>color.text.disabled</code></td>
+<td>#52525B</td>
+<td>停用</td>
+<td>3.3:1（僅大字）</td>
+</tr>
+<tr>
+<td><code>color.text.inverse</code></td>
+<td>#0A0A0A</td>
+<td>白底上的深色字</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>color.text.accent</code></td>
+<td>#FFFFFF</td>
+<td>純白強調（標題重點）</td>
+<td>21:1 AAA</td>
+</tr>
+<tr>
+<td><code>color.text.link</code></td>
+<td><code>color.text.primary</code></td>
+<td>連結（hover 時加底線，<strong>不變色</strong>）</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="25-accent強調色">2.5 Accent（強調色）</h3>
+<blockquote>
+<p><strong>v1.2 純化</strong>：<strong>唯一強調色 =
+白色（#FFFFFF）</strong>。霓虹色、紫、青、琥珀色全部刪除，永不使用。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>color.accent.default</code></td>
+<td>#FFFFFF</td>
+<td>主強調：CTA bg、active 邊條、Focus ring、Selected indicator</td>
+</tr>
+<tr>
+<td><code>color.accent.subtle</code></td>
+<td>#1A1A1A</td>
+<td>強調色淺底（selected row、tag bg）</td>
+</tr>
+<tr>
+<td><code>color.accent.muted</code></td>
+<td>#A1A1AA</td>
+<td>弱化強調（次要連結、disabled active）</td>
+</tr>
+</tbody>
+</table>
+<p>CTA 規則：</p>
+<ul>
+<li><strong>Primary CTA</strong>：白底（<code>#FFFFFF</code>）+
+黑字（<code>#0A0A0A</code>），radius <code>radius.sm</code>（4px）或
+<code>radius.full</code>（pill）</li>
+<li><strong>Secondary CTA</strong>：純文字 + 後綴 <code>↗</code> /
+<code>→</code>，hover 加 <code>text.primary</code> 底線</li>
+<li><strong>Tertiary CTA</strong>：<code>text.secondary</code>
+純文字，hover <code>text.primary</code></li>
+</ul>
+<p>絕對不允許：</p>
+<ul>
+<li>霓虹色填底按鈕</li>
+<li>漸層按鈕</li>
+<li>邊緣發光按鈕</li>
+<li>多色 CTA（任何時候都只一個白色強調）</li>
+</ul>
+<h3 id="26-status系統語意色">2.6 Status（系統語意色）</h3>
+<blockquote>
+<p><strong>v1.2 純化</strong>：刪除彩色 bg / text，狀態僅靠<strong>單色
+icon + 文字</strong>表達。系統訊息不染色塊。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>狀態</th>
+<th>Token</th>
+<th>圖示色</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Info</td>
+<td><code>color.status.info</code></td>
+<td><code>text.primary</code> (#FAFAFA)</td>
+<td>ℹ icon + 文字</td>
+</tr>
+<tr>
+<td>Success</td>
+<td><code>color.status.success</code></td>
+<td><code>text.primary</code> (#FAFAFA)</td>
+<td>✓ icon + 文字</td>
+</tr>
+<tr>
+<td>Warning</td>
+<td><code>color.status.warning</code></td>
+<td>#C0A050（去飽和琥珀，僅作 icon）</td>
+<td>⚠ icon + 文字（<strong>僅警告必要時使用</strong>）</td>
+</tr>
+<tr>
+<td>Danger</td>
+<td><code>color.status.danger</code></td>
+<td>#D06060（去飽和紅，僅作 icon）</td>
+<td>✕ icon + 文字（<strong>僅錯誤必要時使用</strong>）</td>
+</tr>
+<tr>
+<td>Neutral</td>
+<td><code>color.status.neutral</code></td>
+<td><code>text.tertiary</code></td>
+<td>一般 metadata</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>規則：Warning / Danger 顏色<strong>僅用於
+icon</strong>，<strong>不用於背景填底</strong>。背景一律
+<code>surface.default</code> / <code>canvas.raised</code>。
+若需強調錯誤狀態，改為加粗 <code>border.default</code> 或左側 1px
+hairline，<strong>不染色</strong>。</p>
+</blockquote>
+<h3 id="27-data-visualization資料視覺化">2.7 Data
+Visualization（資料視覺化）</h3>
+<blockquote>
+<p><strong>v1.2 純化</strong>：圖表調色盤改為<strong>純黑白灰 8
+階</strong>。多系列靠線條粗細、虛實、紋理區分，<strong>不靠彩色</strong>。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>color.viz.1</code></td>
+<td>#FAFAFA</td>
+<td>主系列（最重要）</td>
+</tr>
+<tr>
+<td><code>color.viz.2</code></td>
+<td>#D4D4D8</td>
+<td>第 2 系列</td>
+</tr>
+<tr>
+<td><code>color.viz.3</code></td>
+<td>#A1A1AA</td>
+<td>第 3 系列</td>
+</tr>
+<tr>
+<td><code>color.viz.4</code></td>
+<td>#71717A</td>
+<td>第 4 系列</td>
+</tr>
+<tr>
+<td><code>color.viz.5</code></td>
+<td>#52525B</td>
+<td>第 5 系列</td>
+</tr>
+<tr>
+<td><code>color.viz.6</code></td>
+<td>#3F3F46</td>
+<td>第 6 系列</td>
+</tr>
+<tr>
+<td><code>color.viz.grid</code></td>
+<td>#1F1F1F</td>
+<td>網格線</td>
+</tr>
+<tr>
+<td><code>color.viz.axis</code></td>
+<td>#71717A</td>
+<td>軸文字</td>
+</tr>
+</tbody>
+</table>
+<p>多系列區分策略（按優先序）：</p>
+<ol type="1">
+<li>灰階明度差異（首選）</li>
+<li>線條粗細（1px / 1.5px / 2px / 2.5px）</li>
+<li>線條樣式（solid / dashed / dotted）</li>
+<li>標記點形狀（circle / square / triangle / diamond）</li>
+</ol>
+<p>絕對不引入彩色資料圖表。</p>
+<hr />
+<h2 id="3-typography-system">3. Typography System</h2>
+<p>字體選擇遵循 <strong>「Geist 系（Vercel/X 風）優先 → JetBrains Mono
+fallback」</strong> 的策略，呈現工程冷感。</p>
+<h3 id="31-font-family">3.1 Font Family</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>Stack</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>font.sans</code></td>
+<td><code>Geist, Inter, "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif</code></td>
+<td>全站預設 UI</td>
+</tr>
+<tr>
+<td><code>font.mono</code></td>
+<td><code>"Geist Mono", "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace</code></td>
+<td>Code、數據、Eyebrow tag</td>
+</tr>
+<tr>
+<td><code>font.display</code></td>
+<td><code>Geist, "Inter Display", sans-serif</code></td>
+<td>Hero / 大字標題（同 sans 但允許更大字距收緊）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="32-font-weight">3.2 Font Weight</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>font.weight.regular</code></td>
+<td>400</td>
+<td>內文</td>
+</tr>
+<tr>
+<td><code>font.weight.medium</code></td>
+<td>500</td>
+<td>UI 標籤、按鈕、表頭</td>
+</tr>
+<tr>
+<td><code>font.weight.semibold</code></td>
+<td>600</td>
+<td>副標題</td>
+</tr>
+<tr>
+<td><code>font.weight.bold</code></td>
+<td>700</td>
+<td>標題、Hero</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Grok 風格幾乎不使用 light（300）以下字重，避免脆弱感。</p>
+</blockquote>
+<h3 id="33-type-scale極端對比尺度">3.3 Type Scale（極端對比尺度）</h3>
+<p>Grok 風格的核心：<strong>Hero 巨大、Body
+偏小、之間幾乎沒有中間級</strong>，製造視覺張力。</p>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>size / line-height</th>
+<th>字重</th>
+<th>字距</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>type.display.4xl</code></td>
+<td>160px / 152px</td>
+<td>600</td>
+<td>-0.05em</td>
+<td>x.ai 風 Hero 主標（&gt;= 1440px viewport）</td>
+</tr>
+<tr>
+<td><code>type.display.3xl</code></td>
+<td>120px / 116px</td>
+<td>600</td>
+<td>-0.045em</td>
+<td>x.ai 風 Hero 主標（&gt;= 1024px viewport）</td>
+</tr>
+<tr>
+<td><code>type.display.2xl</code></td>
+<td>96px / 96px</td>
+<td>700</td>
+<td>-0.04em</td>
+<td>一般 Hero 主標題（desktop）</td>
+</tr>
+<tr>
+<td><code>type.display.xl</code></td>
+<td>72px / 76px</td>
+<td>700</td>
+<td>-0.04em</td>
+<td>Hero 主標題（tablet）</td>
+</tr>
+<tr>
+<td><code>type.display.lg</code></td>
+<td>56px / 60px</td>
+<td>700</td>
+<td>-0.03em</td>
+<td>區段大標</td>
+</tr>
+<tr>
+<td><code>type.display.md</code></td>
+<td>44px / 48px</td>
+<td>700</td>
+<td>-0.03em</td>
+<td>Section title</td>
+</tr>
+<tr>
+<td><code>type.display.sm</code></td>
+<td>36px / 40px</td>
+<td>600</td>
+<td>-0.02em</td>
+<td>Sub section title</td>
+</tr>
+<tr>
+<td><code>type.heading.xl</code></td>
+<td>28px / 36px</td>
+<td>600</td>
+<td>-0.02em</td>
+<td>Card 主標題</td>
+</tr>
+<tr>
+<td><code>type.heading.lg</code></td>
+<td>22px / 28px</td>
+<td>600</td>
+<td>-0.01em</td>
+<td>Modal 標題、Sidebar group</td>
+</tr>
+<tr>
+<td><code>type.heading.md</code></td>
+<td>18px / 24px</td>
+<td>600</td>
+<td>0</td>
+<td>List item title</td>
+</tr>
+<tr>
+<td><code>type.heading.sm</code></td>
+<td>16px / 22px</td>
+<td>600</td>
+<td>0</td>
+<td>Form group label</td>
+</tr>
+<tr>
+<td><code>type.body.lg</code></td>
+<td>18px / 28px</td>
+<td>400</td>
+<td>0</td>
+<td>大段文章內文</td>
+</tr>
+<tr>
+<td><code>type.body.md</code></td>
+<td>15px / 24px</td>
+<td>400</td>
+<td>0</td>
+<td>預設內文</td>
+</tr>
+<tr>
+<td><code>type.body.sm</code></td>
+<td>13px / 20px</td>
+<td>400</td>
+<td>0</td>
+<td>次要說明</td>
+</tr>
+<tr>
+<td><code>type.body.xs</code></td>
+<td>11px / 16px</td>
+<td>400</td>
+<td>0.02em</td>
+<td>標籤、metadata</td>
+</tr>
+<tr>
+<td><code>type.label.md</code></td>
+<td>13px / 16px</td>
+<td>500</td>
+<td>0.04em</td>
+<td>UI 按鈕、Tab</td>
+</tr>
+<tr>
+<td><code>type.label.sm</code></td>
+<td>11px / 14px</td>
+<td>500</td>
+<td>0.06em</td>
+<td>Caps eyebrow（搭配 uppercase）</td>
+</tr>
+<tr>
+<td><code>type.mono.md</code></td>
+<td>14px / 22px</td>
+<td>400</td>
+<td>0</td>
+<td>Code、JSON、命令</td>
+</tr>
+<tr>
+<td><code>type.mono.sm</code></td>
+<td>12px / 18px</td>
+<td>400</td>
+<td>0</td>
+<td>inline code</td>
+</tr>
+</tbody>
+</table>
+<h3 id="34-eyebrow-pattern眉題">3.4 Eyebrow Pattern（眉題）</h3>
+<p>Grok 標誌性元素：每個段落上方一個 mono / uppercase 小字眉題，用
+<code>/</code> 分隔。</p>
+<pre><code> ── 規則 ──
+ type.label.sm + uppercase + letter-spacing 0.08em
+ + color.text.tertiary
+ + 前後留 24px 距離
+ + 範例：「01 / FOUNDATIONS / COLOR」</code></pre>
+<h3 id="35-numeric--data-display">3.5 Numeric / Data Display</h3>
+<pre><code> - 所有數字、金額、百分比、時間戳：強制 font-variant-numeric: tabular-nums
+ - 大數字（KPI）：使用 type.display.lg 或更大 + font-mono
+ - Token: typography.tabular-nums</code></pre>
+<hr />
+<h2 id="4-spacing-system">4. Spacing System</h2>
+<p>8px base scale + 大區段刻度（Grok 大量使用 80–160px section
+padding）。</p>
+<h3 id="41-base-scale">4.1 Base Scale</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>space.0</code></td>
+<td>0px</td>
+<td>無</td>
+</tr>
+<tr>
+<td><code>space.0.5</code></td>
+<td>2px</td>
+<td>hairline padding</td>
+</tr>
+<tr>
+<td><code>space.1</code></td>
+<td>4px</td>
+<td>icon 與文字間距</td>
+</tr>
+<tr>
+<td><code>space.2</code></td>
+<td>8px</td>
+<td>緊湊元件內距</td>
+</tr>
+<tr>
+<td><code>space.3</code></td>
+<td>12px</td>
+<td>input padding（縱向）</td>
+</tr>
+<tr>
+<td><code>space.4</code></td>
+<td>16px</td>
+<td>預設區塊內距</td>
+</tr>
+<tr>
+<td><code>space.5</code></td>
+<td>20px</td>
+<td>卡片內距</td>
+</tr>
+<tr>
+<td><code>space.6</code></td>
+<td>24px</td>
+<td>卡片間距</td>
+</tr>
+<tr>
+<td><code>space.8</code></td>
+<td>32px</td>
+<td>區塊內 row 間距</td>
+</tr>
+<tr>
+<td><code>space.10</code></td>
+<td>40px</td>
+<td>子段落間距</td>
+</tr>
+<tr>
+<td><code>space.12</code></td>
+<td>48px</td>
+<td>區段標題下方</td>
+</tr>
+<tr>
+<td><code>space.16</code></td>
+<td>64px</td>
+<td>小型 section padding</td>
+</tr>
+<tr>
+<td><code>space.20</code></td>
+<td>80px</td>
+<td>預設 section padding</td>
+</tr>
+<tr>
+<td><code>space.24</code></td>
+<td>96px</td>
+<td>Hero 上下 padding（mobile）</td>
+</tr>
+<tr>
+<td><code>space.32</code></td>
+<td>128px</td>
+<td>Hero 上下 padding（desktop）</td>
+</tr>
+<tr>
+<td><code>space.40</code></td>
+<td>160px</td>
+<td>大 Hero、Landing 區段</td>
+</tr>
+<tr>
+<td><code>space.48</code></td>
+<td>192px</td>
+<td>x.ai 風超寬 Hero / Section（&gt;= 1440px viewport）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="42-semantic-spacing">4.2 Semantic Spacing</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>space.section.sm</code></td>
+<td>64px</td>
+<td>緊湊段落上下 padding</td>
+</tr>
+<tr>
+<td><code>space.section.md</code></td>
+<td>96px</td>
+<td>預設段落</td>
+</tr>
+<tr>
+<td><code>space.section.lg</code></td>
+<td>128px</td>
+<td>大段落</td>
+</tr>
+<tr>
+<td><code>space.section.xl</code></td>
+<td>160px</td>
+<td>Hero / Landing 主段落</td>
+</tr>
+<tr>
+<td><code>space.section.2xl</code></td>
+<td>192px</td>
+<td>x.ai 風 Hero（&gt;= 1440px）</td>
+</tr>
+<tr>
+<td><code>space.stack.tight</code></td>
+<td>8px</td>
+<td>緊湊堆疊</td>
+</tr>
+<tr>
+<td><code>space.stack.default</code></td>
+<td>16px</td>
+<td>預設堆疊</td>
+</tr>
+<tr>
+<td><code>space.stack.loose</code></td>
+<td>32px</td>
+<td>寬鬆堆疊</td>
+</tr>
+<tr>
+<td><code>space.gap.tight</code></td>
+<td>12px</td>
+<td>grid gap 緊湊</td>
+</tr>
+<tr>
+<td><code>space.gap.default</code></td>
+<td>24px</td>
+<td>grid gap 預設</td>
+</tr>
+<tr>
+<td><code>space.gap.loose</code></td>
+<td>48px</td>
+<td>grid gap 寬鬆</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-border--radius-system">5. Border &amp; Radius System</h2>
+<p>Grok 風格 = 銳利。<strong>最大圓角 = 8px</strong>，多數元件使用
+0–4px。</p>
+<h3 id="51-border-width">5.1 Border Width</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>border.width.0</code></td>
+<td>0</td>
+<td>無</td>
+</tr>
+<tr>
+<td><code>border.width.hairline</code></td>
+<td>1px</td>
+<td>預設（98% 場景）</td>
+</tr>
+<tr>
+<td><code>border.width.thick</code></td>
+<td>2px</td>
+<td>Focus ring、強調框</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>不使用 3px 以上。</p>
+</blockquote>
+<h3 id="52-radius">5.2 Radius</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>radius.none</code></td>
+<td>0</td>
+<td>Hero 區塊、全幅圖片、表格、Code block</td>
+</tr>
+<tr>
+<td><code>radius.xs</code></td>
+<td>2px</td>
+<td>Tag、Inline code</td>
+</tr>
+<tr>
+<td><code>radius.sm</code></td>
+<td>4px</td>
+<td>Input、Button、Badge</td>
+</tr>
+<tr>
+<td><code>radius.md</code></td>
+<td>6px</td>
+<td>Card 預設</td>
+</tr>
+<tr>
+<td><code>radius.lg</code></td>
+<td>8px</td>
+<td>Modal、Dropdown menu（最大允許）</td>
+</tr>
+<tr>
+<td><code>radius.full</code></td>
+<td>9999px</td>
+<td>Avatar、僅限圓形元件（如 IconButton 圓形版）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>不使用</strong> <code>radius.xl</code>
+以上。膠囊按鈕（pill）僅用於 Avatar 和 Status dot。</p>
+</blockquote>
+<h3 id="53-stroke-patterns">5.3 Stroke Patterns</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>stroke.dashed</code></td>
+<td><code>1px dashed color.border.subtle</code></td>
+<td>上傳區、placeholder zone</td>
+</tr>
+<tr>
+<td><code>stroke.divider.horizontal</code></td>
+<td><code>1px solid color.border.hairline</code></td>
+<td>內容區水平分隔</td>
+</tr>
+<tr>
+<td><code>stroke.divider.vertical</code></td>
+<td><code>1px solid color.border.hairline</code></td>
+<td>Sidebar 與內容分隔</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-elevation--layering-system">6. Elevation &amp; Layering
+System</h2>
+<blockquote>
+<p><strong>v1.2 純化</strong>：移除整個 Glow
+系統。<strong>禁止任何發光特效</strong>。層次只靠：</p>
+<ol type="1">
+<li><strong>Surface 抬升</strong>（灰階差異）</li>
+<li><strong>Hairline border</strong>（1px 線條）</li>
+<li><strong>Light mode 微弱陰影</strong>（僅 light 模式）</li>
+</ol>
+</blockquote>
+<h3 id="61-elevation無陰影靠灰階">6.1 Elevation（無陰影，靠灰階）</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>Surface</th>
+<th>Border</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>elevation.flat</code></td>
+<td><code>canvas.base</code></td>
+<td>無</td>
+<td>平面段落</td>
+</tr>
+<tr>
+<td><code>elevation.raised</code></td>
+<td><code>canvas.raised</code></td>
+<td><code>border.subtle</code></td>
+<td>卡片</td>
+</tr>
+<tr>
+<td><code>elevation.overlay</code></td>
+<td><code>canvas.overlay</code></td>
+<td><code>border.hairline</code></td>
+<td>Dropdown、Popover</td>
+</tr>
+<tr>
+<td><code>elevation.dialog</code></td>
+<td><code>canvas.overlay</code></td>
+<td><code>border.default</code></td>
+<td>Modal、Sheet</td>
+</tr>
+</tbody>
+</table>
+<h3 id="62-focus-indicator無發光">6.2 Focus Indicator（無發光）</h3>
+<p>Focus 必有指示，但<strong>只用純線條，不用 glow</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>focus.ring</code></td>
+<td><code>outline: 2px solid #FAFAFA; outline-offset: 2px</code></td>
+<td>預設 focus 指示</td>
+</tr>
+<tr>
+<td><code>focus.inset</code></td>
+<td><code>inset 0 0 0 2px #FAFAFA</code></td>
+<td>inline 元素 focus（input）</td>
+</tr>
+</tbody>
+</table>
+<p>CSS 範例：</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode css"><code class="sourceCode css"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="in">:focus-visible</span> {</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">outline</span><span class="ch">:</span> <span class="dv">2</span><span class="dt">px</span> <span class="dv">solid</span> <span class="fu">var(</span><span class="va">--color-text-primary</span><span class="fu">)</span><span class="op">;</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">outline-offset</span><span class="ch">:</span> <span class="dv">2</span><span class="dt">px</span><span class="op">;</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<h3 id="63-light-mode-shadow僅-light-模式極弱">6.3 Light Mode Shadow（僅
+light 模式，極弱）</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shadow.sm</code></td>
+<td><code>0 1px 2px rgba(0,0,0,0.04)</code></td>
+<td>淺色 hover 卡片</td>
+</tr>
+<tr>
+<td><code>shadow.md</code></td>
+<td><code>0 4px 12px rgba(0,0,0,0.06)</code></td>
+<td>淺色 dropdown</td>
+</tr>
+<tr>
+<td><code>shadow.lg</code></td>
+<td><code>0 16px 48px rgba(0,0,0,0.08)</code></td>
+<td>淺色 modal</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Dark mode <strong>完全不使用
+box-shadow</strong>。任何夜晚場景的「層次感」都用 surface 灰階差異。</p>
+</blockquote>
+<hr />
+<h2 id="7-z-index-system">7. Z-Index System</h2>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>z.base</code></td>
+<td>0</td>
+<td>預設</td>
+</tr>
+<tr>
+<td><code>z.docked</code></td>
+<td>10</td>
+<td>Sticky footer</td>
+</tr>
+<tr>
+<td><code>z.sticky</code></td>
+<td>100</td>
+<td>Sticky header / nav</td>
+</tr>
+<tr>
+<td><code>z.dropdown</code></td>
+<td>1000</td>
+<td>Dropdown menu</td>
+</tr>
+<tr>
+<td><code>z.popover</code></td>
+<td>1100</td>
+<td>Popover、Tooltip</td>
+</tr>
+<tr>
+<td><code>z.bottomsheet</code></td>
+<td>1150</td>
+<td>Mobile bottom sheet</td>
+</tr>
+<tr>
+<td><code>z.overlay</code></td>
+<td>1200</td>
+<td>Backdrop（Modal 背景遮罩）</td>
+</tr>
+<tr>
+<td><code>z.modal</code></td>
+<td>1300</td>
+<td>Modal dialog</td>
+</tr>
+<tr>
+<td><code>z.toast</code></td>
+<td>1400</td>
+<td>Toast / Snackbar</td>
+</tr>
+<tr>
+<td><code>z.command</code></td>
+<td>1500</td>
+<td>Command palette（最高）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-iconography">8. Iconography</h2>
+<p>Grok 偏好<strong>幾何、線性、stroke-only</strong> 的圖示風格。</p>
+<h3 id="81-icon-library">8.1 Icon Library</h3>
+<table>
+<thead>
+<tr>
+<th>用途</th>
+<th>推薦庫</th>
+<th>風格</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>主要 UI Icon</td>
+<td><strong>Lucide</strong></td>
+<td>stroke 1.5px，幾何極簡，與 Grok 風格最契合</td>
+</tr>
+<tr>
+<td>替代選項</td>
+<td>Phosphor (Light/Regular)、Tabler Icons</td>
+<td>同類風格</td>
+</tr>
+<tr>
+<td>品牌 / 社群 logo</td>
+<td>Simple Icons</td>
+<td>單色</td>
+</tr>
+<tr>
+<td>Emoji（謹慎使用）</td>
+<td>平台原生</td>
+<td>僅限對話、Status</td>
+</tr>
+</tbody>
+</table>
+<h3 id="82-icon-sizes">8.2 Icon Sizes</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>icon.xs</code></td>
+<td>12px</td>
+<td>inline 內聯（搭配 type.body.xs）</td>
+</tr>
+<tr>
+<td><code>icon.sm</code></td>
+<td>14px</td>
+<td>表單、tag</td>
+</tr>
+<tr>
+<td><code>icon.md</code></td>
+<td>16px</td>
+<td>預設 UI（搭配 button、input）</td>
+</tr>
+<tr>
+<td><code>icon.lg</code></td>
+<td>20px</td>
+<td>Sidebar、Tab、卡片 hero icon</td>
+</tr>
+<tr>
+<td><code>icon.xl</code></td>
+<td>24px</td>
+<td>大型 IconButton、Hero</td>
+</tr>
+<tr>
+<td><code>icon.2xl</code></td>
+<td>32px</td>
+<td>Section icon</td>
+</tr>
+<tr>
+<td><code>icon.3xl</code></td>
+<td>48px</td>
+<td>Empty state</td>
+</tr>
+</tbody>
+</table>
+<h3 id="83-icon-colors">8.3 Icon Colors</h3>
+<table>
+<thead>
+<tr>
+<th>場景</th>
+<th>Color Token</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>預設</td>
+<td><code>color.text.secondary</code></td>
+</tr>
+<tr>
+<td>Hover</td>
+<td><code>color.text.primary</code></td>
+</tr>
+<tr>
+<td>Active / Selected</td>
+<td><code>color.accent.electric</code></td>
+</tr>
+<tr>
+<td>Disabled</td>
+<td><code>color.text.disabled</code></td>
+</tr>
+<tr>
+<td>危險</td>
+<td><code>color.status.danger</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="84-stroke-width-convention">8.4 Stroke Width Convention</h3>
+<pre><code> - 預設 stroke = 1.5px（Lucide 預設）
+ - 大尺寸（&gt;= 24px）可用 2px
+ - 不使用 fill 圖示，除非語意明確（例如 ★ 已收藏）</code></pre>
+<hr />
+<h2 id="9-motion--animation">9. Motion &amp; Animation</h2>
+<p>Grok 動效準則：<strong>短、線、技術感</strong>。避免彈跳、avoid
+bouncy spring。</p>
+<h3 id="91-duration">9.1 Duration</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>motion.duration.instant</code></td>
+<td>50ms</td>
+<td>hover color 切換</td>
+</tr>
+<tr>
+<td><code>motion.duration.fast</code></td>
+<td>120ms</td>
+<td>tooltip、Tab 切換</td>
+</tr>
+<tr>
+<td><code>motion.duration.default</code></td>
+<td>180ms</td>
+<td>預設 transition</td>
+</tr>
+<tr>
+<td><code>motion.duration.slow</code></td>
+<td>280ms</td>
+<td>Modal、Dropdown 進場</td>
+</tr>
+<tr>
+<td><code>motion.duration.crawl</code></td>
+<td>480ms</td>
+<td>Hero 元件序列入場</td>
+</tr>
+</tbody>
+</table>
+<h3 id="92-easing">9.2 Easing</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>motion.ease.linear</code></td>
+<td><code>cubic-bezier(0, 0, 1, 1)</code></td>
+<td>進度條、infinity loader</td>
+</tr>
+<tr>
+<td><code>motion.ease.standard</code></td>
+<td><code>cubic-bezier(0.2, 0, 0.13, 1)</code></td>
+<td>預設（接近 ease-out 但更銳利）</td>
+</tr>
+<tr>
+<td><code>motion.ease.out</code></td>
+<td><code>cubic-bezier(0, 0, 0.2, 1)</code></td>
+<td>元件退場</td>
+</tr>
+<tr>
+<td><code>motion.ease.in</code></td>
+<td><code>cubic-bezier(0.4, 0, 1, 1)</code></td>
+<td>元件進場</td>
+</tr>
+<tr>
+<td><code>motion.ease.snappy</code></td>
+<td><code>cubic-bezier(0.5, 0, 0, 1)</code></td>
+<td>快速切換感</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>不提供</strong> spring / bounce easing。</p>
+</blockquote>
+<h3 id="93-common-motion-patterns">9.3 Common Motion Patterns</h3>
+<table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>規則</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fade in</td>
+<td><code>opacity 0 → 1</code>，<code>motion.duration.default</code>，<code>motion.ease.standard</code></td>
+</tr>
+<tr>
+<td>Slide up</td>
+<td><code>translateY(8px) → 0</code> + fade in</td>
+</tr>
+<tr>
+<td>Modal enter</td>
+<td><code>scale(0.96) → 1</code> + fade
+in，<code>motion.duration.slow</code></td>
+</tr>
+<tr>
+<td>Hover lift</td>
+<td><code>background-color</code>
+切換，<code>motion.duration.fast</code>（<strong>不做
+translate</strong>）</td>
+</tr>
+<tr>
+<td>Focus ring</td>
+<td><code>box-shadow</code>
+切換，<code>motion.duration.instant</code></td>
+</tr>
+<tr>
+<td>Glow pulse</td>
+<td><code>box-shadow</code> 0%/100% 同色 + 50%
+加深，infinity，<code>motion.duration.crawl × 6</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="94-reduce-motion">9.4 Reduce Motion</h3>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode css"><code class="sourceCode css"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="im">@media</span> <span class="fu">(</span><span class="kw">prefers-reduced-motion</span><span class="ch">:</span> <span class="dv">reduce</span><span class="fu">)</span> {</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">*,</span> <span class="op">*</span><span class="in">::before</span><span class="op">,</span> <span class="op">*</span><span class="in">::after</span> {</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">animation-duration</span><span class="ch">:</span> <span class="dv">0.01</span><span class="dt">ms</span> <span class="at">!important</span><span class="op">;</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">transition-duration</span><span class="ch">:</span> <span class="dv">0.01</span><span class="dt">ms</span> <span class="at">!important</span><span class="op">;</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<hr />
+<h2 id="10-texture--background">10. Texture &amp; Background</h2>
+<blockquote>
+<p><strong>v1.2 純化</strong>：刪除 spotlight、star field、線性漸層
+mask、視差。 唯一允許的紋理：<strong>dot grid</strong>（極弱）與
+<strong>noise</strong>（極弱），且僅在必要時使用。</p>
+</blockquote>
+<h3 id="101-預設背景">10.1 預設背景</h3>
+<pre><code> 全頁、所有區段預設背景 = canvas.base (#000000)
+ 卡片 / Modal / Popover 等 surface 已在 §2.2 定義
+ 
+ 規則：背景不裝飾，留白本身就是視覺</code></pre>
+<h3 id="102-dot-grid選用僅-console--docs-區塊">10.2 Dot
+Grid（<strong>選用，僅 Console / Docs 區塊</strong>）</h3>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode css"><code class="sourceCode css"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">/* token: bg.dot.default */</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>background-image<span class="in">:</span> radial-gradient<span class="in">(</span>circle<span class="op">,</span> <span class="pp">#1F1F1F</span> 1px<span class="op">,</span> transparent 1px<span class="in">)</span>;</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>background-size<span class="in">:</span> 24px 24px;</span></code></pre></div>
+<blockquote>
+<p>注意：上行 CSS 使用 <code>radial-gradient</code>
+是繪製單個圓點的技術手段，<strong>不是視覺漸層</strong>（圓點本身為純色）。這是允許的例外。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bg.dot.dim</code></td>
+<td>dot #161616，間距 24px</td>
+<td>Console 區塊（極弱）</td>
+</tr>
+<tr>
+<td><code>bg.dot.default</code></td>
+<td>dot #1F1F1F，間距 24px</td>
+<td>Docs / Console</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>禁止</strong>：用於 Landing Hero、行銷頁主視覺、Auth 頁。</p>
+</blockquote>
+<h3 id="103-noise-overlay選用僅大色塊抗條帶">10.3 Noise
+Overlay（<strong>選用，僅大色塊抗條帶</strong>）</h3>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode css"><code class="sourceCode css"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">/* token: bg.noise */</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>background-image<span class="in">:</span> url<span class="in">(</span>&quot;data<span class="in">:image</span>/svg<span class="op">+</span>xml;base64<span class="op">,</span> ...&quot;<span class="in">)</span>; <span class="co">/* 64x64 noise svg */</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>opacity<span class="in">:</span> 0<span class="fu">.02</span>;</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bg.noise.subtle</code></td>
+<td>opacity 0.02</td>
+<td>大色塊抗 banding（僅技術用途）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>規則：noise 不可見即可，opacity 上限
+0.03。任何「故意做舊質感」的用法都不允許。</p>
+</blockquote>
+<h3 id="104-已刪除的特效">10.4 已刪除的特效</h3>
+<pre><code>✗ Spotlight / Radial Gradient（v1.1 已移除）
+✗ Star Field（v1.1 已移除）
+✗ Line Grid（v1.1 已移除，過於工程感）
+✗ 視差層（永不使用）
+✗ Marquee 漸變 mask（fade 邊緣改為硬切或 24px solid 同色蓋住）</code></pre>
+<hr />
+<h2 id="11-design-tokens-命名規範">11. Design Tokens 命名規範</h2>
+<h3 id="111-命名結構">11.1 命名結構</h3>
+<pre><code>{category}.{property}.{variant?}.{state?}</code></pre>
+<p>範例：</p>
+<pre><code>color.canvas.base
+color.text.primary
+color.accent.electric.hover
+type.display.2xl
+space.section.lg
+radius.md
+motion.duration.fast
+glow.accent.md</code></pre>
+<h3 id="112-tier-系統">11.2 Tier 系統</h3>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>範圍</th>
+<th>範例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Tier 1：Primitive Tokens</strong></td>
+<td>純色值、純尺寸</td>
+<td><code>color.gray.900</code> = #0A0A0A</td>
+</tr>
+<tr>
+<td><strong>Tier 2：Semantic Tokens</strong></td>
+<td>賦予意義</td>
+<td><code>color.surface.default</code> =
+<code>color.gray.900</code></td>
+</tr>
+<tr>
+<td><strong>Tier 3：Component Tokens</strong></td>
+<td>元件專用</td>
+<td><code>button.primary.bg</code> =
+<code>color.text.primary</code></td>
+</tr>
+</tbody>
+</table>
+<p>實作優先序：<strong>Tier 2 給設計系統使用者，Tier 3
+給元件實作者</strong>。</p>
+<h3 id="113-命名禁忌">11.3 命名禁忌</h3>
+<pre><code>✗ color.background-1     （數字編號無語意）
+✗ color.dark             （形容詞，不可組合）
+✗ space.medium-large     （含糊）
+✗ color.brand-primary    （多重連字號難解析）
+
+✓ color.canvas.raised
+✓ space.section.md
+✓ color.accent.electric.hover</code></pre>
+<hr />
+<h2 id="12-token-mode-管理">12. Token Mode 管理</h2>
+<h3 id="121-預設模式dark-first">12.1 預設模式：Dark First</h3>
+<p>Grok 風格的預設模式 <strong>永遠是 dark</strong>。Light mode
+為次要選項，給「白天閱讀模式」使用者。</p>
+<pre><code> 規則：
+ 1. 所有元件設計從 dark mode 出發
+ 2. Light mode 為對偶映射，不可有「dark only」元件（例外：星空背景）
+ 3. 系統偏好檢測：prefers-color-scheme: light → 提示用戶可切換
+ 4. 切換不重整頁面，500ms 內完成（CSS variables 即時切換）</code></pre>
+<h3 id="122-mode-token-對應表">12.2 Mode Token 對應表</h3>
+<table>
+<thead>
+<tr>
+<th>Semantic Token</th>
+<th>Dark</th>
+<th>Light</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>color.canvas.base</code></td>
+<td>#000000</td>
+<td>#FFFFFF</td>
+</tr>
+<tr>
+<td><code>color.canvas.raised</code></td>
+<td>#0A0A0A</td>
+<td>#FAFAFA</td>
+</tr>
+<tr>
+<td><code>color.canvas.overlay</code></td>
+<td>#111111</td>
+<td>#FFFFFF</td>
+</tr>
+<tr>
+<td><code>color.canvas.sunken</code></td>
+<td>#050505</td>
+<td>#F4F4F5</td>
+</tr>
+<tr>
+<td><code>color.surface.default</code></td>
+<td>#0A0A0A</td>
+<td>#FFFFFF</td>
+</tr>
+<tr>
+<td><code>color.surface.hover</code></td>
+<td>#141414</td>
+<td>#F4F4F5</td>
+</tr>
+<tr>
+<td><code>color.surface.active</code></td>
+<td>#1A1A1A</td>
+<td>#E4E4E7</td>
+</tr>
+<tr>
+<td><code>color.border.hairline</code></td>
+<td>#1F1F1F</td>
+<td>#E4E4E7</td>
+</tr>
+<tr>
+<td><code>color.border.subtle</code></td>
+<td>#161616</td>
+<td>#F4F4F5</td>
+</tr>
+<tr>
+<td><code>color.border.default</code></td>
+<td>#2A2A2A</td>
+<td>#D4D4D8</td>
+</tr>
+<tr>
+<td><code>color.border.strong</code></td>
+<td>#3F3F3F</td>
+<td>#A1A1AA</td>
+</tr>
+<tr>
+<td><code>color.text.primary</code></td>
+<td>#FAFAFA</td>
+<td>#0A0A0A</td>
+</tr>
+<tr>
+<td><code>color.text.secondary</code></td>
+<td>#A1A1AA</td>
+<td>#52525B</td>
+</tr>
+<tr>
+<td><code>color.text.tertiary</code></td>
+<td>#71717A</td>
+<td>#71717A</td>
+</tr>
+<tr>
+<td><code>color.text.disabled</code></td>
+<td>#52525B</td>
+<td>#A1A1AA</td>
+</tr>
+<tr>
+<td><code>color.accent.default</code></td>
+<td>#FFFFFF</td>
+<td>#0A0A0A</td>
+</tr>
+<tr>
+<td><code>color.accent.subtle</code></td>
+<td>#1A1A1A</td>
+<td>#F4F4F5</td>
+</tr>
+<tr>
+<td><code>color.accent.muted</code></td>
+<td>#A1A1AA</td>
+<td>#71717A</td>
+</tr>
+</tbody>
+</table>
+<h3 id="123-模式切換實作建議">12.3 模式切換實作建議</h3>
+<div class="sourceCode" id="cb17"><pre
+class="sourceCode css"><code class="sourceCode css"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="in">:root</span> {</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  <span class="co">/* dark mode tokens (預設) */</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="va">--color-canvas-base</span><span class="ch">:</span> <span class="cn">#000000</span><span class="op">;</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>  <span class="va">--color-text-primary</span><span class="ch">:</span> <span class="cn">#FAFAFA</span><span class="op">;</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>  <span class="co">/* ... */</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="ex">[</span><span class="ss">data-theme</span><span class="op">=</span><span class="st">&quot;light&quot;</span><span class="ex">]</span> {</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>  <span class="va">--color-canvas-base</span><span class="ch">:</span> <span class="cn">#FFFFFF</span><span class="op">;</span></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>  <span class="va">--color-text-primary</span><span class="ch">:</span> <span class="cn">#0A0A0A</span><span class="op">;</span></span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>  <span class="co">/* ... */</span></span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a><span class="co">/* 系統偏好（僅在使用者未明確選擇時） */</span></span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a><span class="im">@media</span> <span class="fu">(</span><span class="kw">prefers-color-scheme</span><span class="ch">:</span> <span class="dv">light</span><span class="fu">)</span> {</span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>  <span class="in">:root:not(</span><span class="ex">[</span><span class="ss">data-theme</span><span class="ex">]</span><span class="in">)</span> {</span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a>    <span class="co">/* light mode override */</span></span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<h3 id="124-圖片模式適配">12.4 圖片模式適配</h3>
+<pre><code> - SVG：使用 currentColor，自動跟隨模式
+ - PNG/JPG：提供 dark / light 兩版本，&lt;picture&gt; 切換
+ - Hero 影片：dark mode 預設，light mode 不播放
+ - 截圖：必有 dark / light 兩版（或加 noise overlay 統一質感）</code></pre>
+<hr />
+<h2 id="附錄-a與-smart-lock-平台-token-的差異">附錄 A：與 Smart Lock
+平台 Token 的差異</h2>
+<table>
+<thead>
+<tr>
+<th>維度</th>
+<th>Smart Lock</th>
+<th>Grok 風格</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>預設模式</td>
+<td>Light first</td>
+<td>Dark first</td>
+</tr>
+<tr>
+<td>主色</td>
+<td>Trust Blue #2563EB</td>
+<td>Electric #5B8DEF（dark）</td>
+</tr>
+<tr>
+<td>Radius 上限</td>
+<td>12px</td>
+<td>8px</td>
+</tr>
+<tr>
+<td>Section padding</td>
+<td>64–96px</td>
+<td>96–160px</td>
+</tr>
+<tr>
+<td>字體</td>
+<td>Inter + Noto Sans TC</td>
+<td>Geist + Geist Mono</td>
+</tr>
+<tr>
+<td>陰影</td>
+<td>4 層彩色陰影</td>
+<td>無陰影，改 glow + hairline</td>
+</tr>
+<tr>
+<td>Eyebrow</td>
+<td>不使用</td>
+<td>必用（mono uppercase）</td>
+</tr>
+</tbody>
+</table>
+<p>如需在 Smart Lock 平台中嵌入 Grok 風格區塊（例如 AI
+對話模組），請以本規格為主，並在容器外加 <code>.theme-grok</code> class
+隔離 token 作用域。</p>
+<hr />
+<h2 id="附錄-b實作優先序清單">附錄 B：實作優先序清單</h2>
+<ol type="1">
+<li><strong>建立 CSS variables</strong>（覆蓋本文件 §12.2 全表）</li>
+<li><strong>設定 Tailwind config</strong>（color、spacing、typography
+對映 token）</li>
+<li><strong>載入 Geist 字型</strong>（self-host 或 Google Fonts）</li>
+<li><strong>設定 base 樣式</strong>（body 預設
+dark，font.sans，行高，font-feature-settings 開啟 tabular-nums）</li>
+<li><strong>建立 Layout primitives</strong>（Container、Stack、Grid
+Wrapper）</li>
+<li><strong>再進入 01_components_spec.md</strong> 實作元件層</li>
+</ol>
+<hr />
+<p><strong>版本</strong>：v1.0 <strong>最後更新</strong>：2026-05-02
+<strong>維護</strong>：每次新增 design token 必須同步更新本文件並通知
+Tailwind config 維護者</p>
+</div></div></body></html>

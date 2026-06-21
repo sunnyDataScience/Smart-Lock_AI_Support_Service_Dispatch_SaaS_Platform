@@ -1,0 +1,135 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>ChangeRequest 物件化 — apply → approve → effective_date → audit</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ architecture ／ adr ／ ADR-0046-change-request-object.md</div>
+<div class="doc"><blockquote>
+<p><strong>🔄 Migration Status (2026-05-28)</strong>:
+<code>STILL_VALID_UNDER_M15_M08</code> <strong>Reviewed
+against</strong>: 2026-05-20 final spec (xlsx) <strong>Reviewed
+on</strong>: 2026-05-28 <strong>Module scope</strong>: M15, M08
+<strong>Per ADR-0100 §1 classification</strong>
+(.claude/context/devteam/meetings/2026-05-27-1130-final-spec-migration-strategy/MoM.md)</p>
+</blockquote>
+<h1 id="adr-0046--changerequest-物件化">ADR-0046 — ChangeRequest
+物件化</h1>
+<h2 id="status">Status</h2>
+<p>Draft</p>
+<h2 id="context">Context</h2>
+<p>價格、權限、SLA、模板、AI SOP 等系統設定變更，目前散落各處（後台 UI /
+直接改 DB / 口頭通知）。沒有 change governance 會在 Phase II Finance
+啟動後立即崩潰：「上週改的價格是誰核准的？」「這條 SOP 何時生效？」</p>
+<p>源自 Excel-01 sheet 18 AI-017；M18 System Admin。</p>
+<h2 id="decision推薦">Decision（推薦）</h2>
+<p><strong>ChangeRequest 為 §B3 一級業務物件</strong>，所有系統設定 /
+政策 / 價格 / 權限變更走此 workflow：</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">change_request</span><span class="kw">:</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">id</span><span class="kw">:</span><span class="at"> &lt;uuid&gt;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">type</span><span class="kw">:</span><span class="at"> enum [price, permission, sla, template, ai_sop, contract, ...]</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">scope</span><span class="kw">:</span><span class="at"> &lt;target_object_id + field_path&gt;</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">before</span><span class="kw">:</span><span class="at"> &lt;current_value&gt;</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">after</span><span class="kw">:</span><span class="at"> &lt;proposed_value&gt;</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">rationale</span><span class="kw">:</span><span class="at"> &lt;text&gt;</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">requester</span><span class="kw">:</span><span class="at"> &lt;user_id&gt;</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">approvers</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">&lt;required_role_list&gt;</span><span class="kw">]</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">state</span><span class="kw">:</span><span class="at"> enum [draft, pending_approval, approved, effective, rejected, retired]</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">effective_date</span><span class="kw">:</span><span class="at"> &lt;date&gt;</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">audit_trail</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">event_list</span><span class="kw">]</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">rollback_plan</span><span class="kw">:</span><span class="at"> &lt;text&gt;</span></span></code></pre></div>
+<p>四步流程：</p>
+<ol type="1">
+<li><strong>apply</strong>：requester 提出 + rationale</li>
+<li><strong>approve</strong>：依 type 與金額決定 approver chain（與
+ADR-0040/0042 整合）</li>
+<li><strong>effective_date</strong>：approve
+後排程生效（可預約未來日期）</li>
+<li><strong>audit</strong>：所有狀態變更進 audit trail，永久留證</li>
+</ol>
+<h2 id="alternatives-considered">Alternatives Considered</h2>
+<h3 id="option-a--走-git-pr-流程">Option A — 走 Git PR 流程</h3>
+<ul>
+<li>風險：F4（非業務角色友善）</li>
+<li>客服主管 / 會計無法直接操作</li>
+</ul>
+<h3 id="option-b--純口頭--slack">Option B — 純口頭 + Slack</h3>
+<ul>
+<li>風險：F4 嚴重</li>
+<li>治理斷鏈，無 audit trail</li>
+</ul>
+<h2 id="consequences">Consequences</h2>
+<p><strong>Positive</strong>：</p>
+<ul>
+<li>所有政策 / 價格變更可追溯</li>
+<li>與 ADR-0040 退款分層、ADR-0042 RBAC 整合（誰可核准什麼）</li>
+<li>effective_date 支援預約生效（避開週末 / 月底）</li>
+</ul>
+<p><strong>Negative</strong>：</p>
+<ul>
+<li>ChangeRequest UI 需建（中等開發成本）</li>
+<li>變更速度比直接 hack DB 慢（這是 feature，不是 bug）</li>
+</ul>
+<p><strong>Mitigation</strong>：</p>
+<ul>
+<li>緊急變更走 emergency track（主管 + IT 雙簽 + 即時生效，但 audit
+強制留）</li>
+<li>ChangeRequest UI 設計優先（業務角色易用）</li>
+</ul>
+<h2 id="pre-mortem-mapping">Pre-mortem Mapping</h2>
+<p>對應 §A F4 + F5。Change governance 是合規必要；無此物件 → Phase II
+一啟動就亂。</p>
+<h2 id="eternaltransient-classification">Eternal/Transient
+Classification</h2>
+<ul>
+<li><strong>Eternal</strong>：§B3 ChangeRequest 物件 + workflow
+engine</li>
+<li><strong>Transient</strong>：UI 實作（§C5）</li>
+</ul>
+<h2 id="acceptance-criteria">Acceptance Criteria</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />業主圈選：<strong>✅ 推薦</strong> /
+Option A / Option B</label></li>
+<li><label><input type="checkbox" />IT + 主管簽核 ChangeRequest
+schema</label></li>
+<li><label><input type="checkbox" />Backend 實作 ChangeRequest CRUD +
+state machine</label></li>
+<li><label><input type="checkbox" />ChangeRequest UI 給業務角色（非 IT
+操作）</label></li>
+<li><label><input type="checkbox" />與 RBAC / Refund / Pricing
+整合</label></li>
+<li><label><input type="checkbox" />BI 報表「ChangeRequest 流量 by
+type」</label></li>
+</ul>
+<h2 id="see-also">See also</h2>
+<ul>
+<li>§F.3 AI-017 PAIN-POINTS-SUMMARY-2026-05-21.md</li>
+<li>Excel-01 sheet 18 / M18 System Admin</li>
+<li>ADR-0040 退款核准（金額分層 → approver chain）</li>
+<li>ADR-0042 RBAC 4 層</li>
+<li>ADR-0043 Contract Template（合約變更走 ChangeRequest）</li>
+<li>ADR-0038 SOP 審核（AI SOP 走 ChangeRequest 子流程）</li>
+</ul>
+<hr />
+<h2 id="supersedes--updates">Supersedes / Updates</h2>
+<ul>
+<li><strong>Superseded in part by ADR-0065 (lookup table migration,
+2026-05-26)</strong>：<code>change_request.type</code> 欄位 schema 由
+enum 改為 FK to <code>change_request_type_dim</code> lookup
+table（4-phase dual-write migration）。其他部分（state machine /
+approval workflow / audit trail）仍 active。詳見 ADR-0065 §3 migration
+plan + §5 supersedes pointer。</li>
+</ul>
+</div></div></body></html>

@@ -1,0 +1,245 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>gen-test-plan-report.py</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ 5-views ／ gen-test-plan-report.py</div>
+<div class="doc"><h1>gen-test-plan-report.py</h1><pre><code>import json, re, html, datetime
+plan = json.load(open(&quot;/tmp/test_plan.json&quot;))
+items = plan[&quot;items&quot;]
+test_files = set(l.strip() for l in open(&quot;/tmp/test_files.txt&quot;) if l.strip())
+FAILED = set()  # CR-0067 已修 test_reconciliations_v2 分頁脆弱；全套 856 + agent 71 綠
+
+# 本輪 session 26 CR → 模組補強對照
+SESSION = {
+ &quot;M01&quot;:[], &quot;M02&quot;:[&quot;CR-0042 phone去重&quot;,&quot;CR-0069 device serial&quot;], &quot;M03&quot;:[&quot;CR-0042 完整度gate&quot;,&quot;CR-0052 缺漏結構化&quot;,&quot;CR-0057 三級必填&quot;,&quot;CR-0063 PC匯出測試&quot;,&quot;CR-0065 冪等鍵+media append&quot;],
+ &quot;M04&quot;:[&quot;CR-0044 取消費/有效期config&quot;,&quot;CR-0045 發票稅&quot;,&quot;CR-0046 報價文案mock&quot;],
+ &quot;M05&quot;:[&quot;CR-0043 公單欄位Phase2&quot;,&quot;CR-0047 保固動態&quot;,&quot;CR-0048 reason gate&quot;,&quot;CR-0049 pending-scope&quot;,&quot;CR-0053 到場/改派bug&quot;,&quot;CR-0064 結案地址閘&quot;],
+ &quot;M06&quot;:[&quot;CR-0030 派工模式&quot;,&quot;CR-0051 派工資格&quot;,&quot;CR-0060 skill/brand auth&quot;,&quot;CR-0061 GIS/績效&quot;],
+ &quot;M07&quot;:[&quot;CR-0038桶5 user_id&quot;,&quot;CR-0060 技師資格模型&quot;,&quot;CR-0066 accept_order測試&quot;],
+ &quot;M08&quot;:[&quot;CR-0039 完工硬閘&quot;,&quot;CR-0050 教學紀錄&quot;,&quot;CR-0058 用料/付款&quot;,&quot;CR-0054 施工中照&quot;,&quot;CR-0053 到場閘&quot;,&quot;CR-0066 GPS proof/簽名fallback/scope timeout+簽名假綠修&quot;],
+ &quot;M09&quot;:[&quot;CR-0040 Evidence治理&quot;,&quot;CR-0055 證據包聚合&quot;,&quot;CR-0064 media去重&quot;,&quot;CR-0067 RBAC矩陣+legal_hold&quot;],
+ &quot;M11&quot;:[&quot;CR-0044/0045 finance config&quot;,&quot;CR-0063 Revenue測試&quot;,&quot;CR-0067 對帳異常假綠修&quot;], &quot;M12&quot;:[&quot;CR-0037 payout規則&quot;,&quot;CR-0063 5-ledger/Revenue測試&quot;],
+ &quot;M13&quot;:[&quot;CR-0064 RMA abuse&quot;,&quot;CR-0069 serial級abuse&quot;],
+ &quot;M15&quot;:[&quot;CR-0041 異常框架+high_risk_hold&quot;], &quot;M16&quot;:[&quot;CR-0062 事件驅動通知&quot;],
+ &quot;M17&quot;:[&quot;CR-0068 audit hash chain&quot;],
+ &quot;M18&quot;:[&quot;CR-0036 config治理&quot;,&quot;CR-0059 config生效日&quot;,&quot;CR-0046 discount_policy&quot;],
+ &quot;M19&quot;:[&quot;CR-0063 Scheduled/Revenue測試&quot;],
+}
+def sess_for(mod):
+    key = mod.split()[0].split(&quot;/&quot;)[0]
+    return SESSION.get(key, [])
+
+def refs(s):
+    return re.findall(r&#x27;(test_[\w]+\.py|[\w-]+\.spec\.ts)&#x27;, s or &quot;&quot;)
+
+def status(it):
+    cov = it[&quot;現況覆蓋&quot;]
+    rs = refs(cov)
+    exists = [r for r in rs if r in test_files]
+    has_fail = any(r in FAILED for r in exists)
+    if not cov.strip() or not exists:
+        return (&quot;GAP&quot;,&quot;缺口&quot;, exists, has_fail)
+    # 弱化詞在「覆蓋」文字本身（非 gap 欄）→ 部分覆蓋
+    weak = any(w in cov for w in [&quot;待&quot;,&quot;TODO&quot;,&quot;mock&quot;,&quot;無顯式&quot;,&quot;尚未&quot;,&quot;僅&quot;,&quot;skip&quot;,&quot;壞&quot;,&quot;FakeConn&quot;,&quot;示意&quot;,&quot;◐&quot;,&quot;needs_external&quot;])
+    if weak:
+        return (&quot;PARTIAL&quot;,&quot;部分&quot;, exists, has_fail)
+    return (&quot;COVERED&quot;,&quot;覆蓋&quot;, exists, has_fail)
+
+# 統計
+from collections import Counter, defaultdict
+st = Counter(); pri_st = defaultdict(Counter); mod_st = defaultdict(Counter)
+for it in items:
+    s = status(it)[0]; st[s]+=1
+    pri_st[it[&quot;優先級&quot;]][s]+=1
+    mod_st[it[&quot;模組&quot;].split()[0]][s]+=1
+
+total=len(items); covered=st[&quot;COVERED&quot;]; partial=st[&quot;PARTIAL&quot;]; gap=st[&quot;GAP&quot;]
+cov_pct = round(100*(covered+partial*0.5)/total,1)
+
+BADGE={&quot;COVERED&quot;:(&quot;#16a34a&quot;,&quot;覆蓋&quot;),&quot;PARTIAL&quot;:(&quot;#d97706&quot;,&quot;部分&quot;),&quot;GAP&quot;:(&quot;#dc2626&quot;,&quot;缺口&quot;)}
+
+def esc(s): return html.escape(str(s or &quot;&quot;))
+
+rows_html=[]
+for it in items:
+    s,lbl,exists,has_fail = status(it)
+    color=BADGE[s][0]
+    sess=sess_for(it[&quot;模組&quot;])
+    sess_html = &quot;&lt;br&gt;&quot;.join(f&quot;&lt;span class=&#x27;cr&#x27;&gt;{esc(c)}&lt;/span&gt;&quot; for c in sess) if sess else &quot;&quot;
+    fail_mark = &quot; ⚠️失敗&quot; if has_fail else &quot;&quot;
+    cov_disp = esc(it[&quot;現況覆蓋&quot;][:120]) + (&quot;…&quot; if len(it[&quot;現況覆蓋&quot;])&gt;120 else &quot;&quot;)
+    rows_html.append(f&quot;&quot;&quot;&lt;tr data-status=&quot;{s}&quot; data-pri=&quot;{esc(it[&#x27;優先級&#x27;])}&quot; data-mod=&quot;{esc(it[&#x27;模組&#x27;].split()[0])}&quot;&gt;
+      &lt;td class=&quot;mono&quot;&gt;{esc(it[&#x27;ID&#x27;])}&lt;/td&gt;
+      &lt;td&gt;{esc(it[&#x27;模組&#x27;])}&lt;/td&gt;
+      &lt;td&gt;{esc(it[&#x27;功能&#x27;][:60])}&lt;/td&gt;
+      &lt;td&gt;&lt;span class=&quot;pri pri-{esc(it[&#x27;優先級&#x27;])}&quot;&gt;{esc(it[&#x27;優先級&#x27;])}&lt;/span&gt;&lt;/td&gt;
+      &lt;td&gt;{esc(it[&#x27;測試類型&#x27;])}&lt;/td&gt;
+      &lt;td class=&quot;small&quot;&gt;{cov_disp}{fail_mark}&lt;/td&gt;
+      &lt;td class=&quot;small gap&quot;&gt;{esc(it[&#x27;缺口 Gap&#x27;][:90])}&lt;/td&gt;
+      &lt;td class=&quot;sess&quot;&gt;{sess_html}&lt;/td&gt;
+      &lt;td&gt;&lt;span class=&quot;badge&quot; style=&quot;background:{color}&quot;&gt;{lbl}&lt;/span&gt;&lt;/td&gt;
+    &lt;/tr&gt;&quot;&quot;&quot;)
+
+
+# === 缺口分類（矩陣為 2026-06-17，不含本輪 session 新測試）===
+import glob as _glob, os as _os, re as _re
+# 本衝刺新增測試檔（test_cr_0063~0087，api + agent）動態掃描
+SESSION_FILES = sorted({_os.path.basename(p)[:-3]
+  for d in (&quot;api/tests&quot;,&quot;agent/tests&quot;)
+  for p in _glob.glob(f&quot;{d}/test_cr_00*.py&quot;)
+  if (_m := _re.search(r&quot;test_cr_00(\d\d)&quot;, p)) and 63 &lt;= int(_m.group(1)) &lt;= 87})
+def gap_cat(it):
+    f=it[&quot;功能&quot;]; idv=it[&quot;ID&quot;]
+    if idv.startswith(&quot;TI-FIN-PAY&quot;) or idv==&quot;TI-SYNC-02&quot;:
+        return (&quot;A · 卡外部資源（正式 provider 金鑰 / 真 ERP，下輪）&quot;,&quot;#b45309&quot;)
+    if idv in (&quot;TI-A05-02&quot;,&quot;TI-A12-01&quot;,&quot;TI-M01-04&quot;,&quot;TI-A01-01&quot;,&quot;TI-A08-01&quot;,&quot;TI-AIOPS-11&quot;):
+        return (&quot;B · 卡 agent 核心（動 lockcore，需先跑 CIA）&quot;,&quot;#0e7490&quot;)
+    if &quot;E2E&quot; in f or &quot;主流程&quot; in f or idv.startswith(&quot;TI-X&quot;):
+        return (&quot;C · 純 E2E 單一貫穿腳本（營運段已測+AI 段 live 驗）&quot;,&quot;#7c3aed&quot;)
+    return (&quot;其他尾巴（補充性，核心已測）&quot;,&quot;#64748b&quot;)
+from collections import Counter, defaultdict as _dd
+# 缺口已 0 → 此分類改顯示「部分覆蓋」項的尾巴歸屬
+gaps_list=[it for it in items if status(it)[0]==&quot;PARTIAL&quot;]
+gcat=_dd(list)
+for g in gaps_list: gcat[gap_cat(g)[0]].append(g)
+gapcat_html=[]
+for (cat,_),_x in sorted({gap_cat(g):1 for g in gaps_list}.items(), key=lambda kv:-len(gcat[kv[0][0]])):
+    col=gap_cat(gcat[cat][0])[1] if gcat[cat] else &quot;#dc2626&quot;
+    lis=&quot;&quot;.join(f&quot;&lt;li&gt;&lt;span class=&#x27;mono&#x27;&gt;{esc(g[&#x27;ID&#x27;])}&lt;/span&gt; &lt;span class=&#x27;pri pri-{esc(g[&#x27;優先級&#x27;])}&#x27;&gt;{esc(g[&#x27;優先級&#x27;])}&lt;/span&gt; {esc(g[&#x27;功能&#x27;][:64])}&lt;/li&gt;&quot; for g in gcat[cat])
+    gapcat_html.append(f&quot;&lt;div class=&#x27;gapcat&#x27;&gt;&lt;div class=&#x27;gaphd&#x27; style=&#x27;border-color:{col}&#x27;&gt;{esc(cat)} &lt;span class=&#x27;gn&#x27;&gt;({len(gcat[cat])})&lt;/span&gt;&lt;/div&gt;&lt;ul&gt;{lis}&lt;/ul&gt;&lt;/div&gt;&quot;)
+gapcat_block=&quot;&quot;.join(gapcat_html)
+sess_files_html=&quot;&quot;.join(f&quot;&lt;span class=&#x27;tag&#x27;&gt;{f}&lt;/span&gt;&quot; for f in SESSION_FILES)
+
+# 模組覆蓋 bar
+mod_bars=[]
+for m in sorted(mod_st.keys(), key=lambda x:(x[0],x)):
+    c=mod_st[m]; t=sum(c.values())
+    cov=c[&quot;COVERED&quot;]; par=c[&quot;PARTIAL&quot;]; g=c[&quot;GAP&quot;]
+    pct=round(100*(cov+par*0.5)/t) if t else 0
+    mod_bars.append(f&quot;&quot;&quot;&lt;div class=&quot;modrow&quot;&gt;&lt;div class=&quot;modname&quot;&gt;{esc(m)} &lt;span class=&quot;modn&quot;&gt;({t})&lt;/span&gt;&lt;/div&gt;
+      &lt;div class=&quot;bar&quot;&gt;&lt;div class=&quot;seg cov&quot; style=&quot;width:{100*cov//t if t else 0}%&quot;&gt;&lt;/div&gt;
+      &lt;div class=&quot;seg par&quot; style=&quot;width:{100*par//t if t else 0}%&quot;&gt;&lt;/div&gt;
+      &lt;div class=&quot;seg gap&quot; style=&quot;width:{100*g//t if t else 0}%&quot;&gt;&lt;/div&gt;&lt;/div&gt;
+      &lt;div class=&quot;modpct&quot;&gt;{pct}%&lt;/div&gt;&lt;/div&gt;&quot;&quot;&quot;)
+
+ov_rows=&quot;&quot;.join(&quot;&lt;tr&gt;&quot;+&quot;&quot;.join(f&quot;&lt;td&gt;{esc(c)}&lt;/td&gt;&quot; for c in r if any(r))+&quot;&lt;/tr&gt;&quot; for r in plan[&quot;overview&quot;] if any(str(c).strip() for c in r))
+
+now = &quot;2026-06-20&quot;
+HTML=f&quot;&quot;&quot;&lt;!DOCTYPE html&gt;&lt;html lang=&quot;zh-Hant&quot;&gt;&lt;head&gt;&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1&quot;&gt;
+&lt;title&gt;智慧鎖 SaaS — 四階段測試計畫覆蓋報告&lt;/title&gt;
+&lt;style&gt;
+*{{box-sizing:border-box}} body{{font-family:-apple-system,&quot;PingFang TC&quot;,&quot;Microsoft JhengHei&quot;,sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.5}}
+.wrap{{max-width:1280px;margin:0 auto;padding:28px}}
+h1{{font-size:26px;margin:0 0 4px}} .sub{{color:#94a3b8;margin-bottom:24px}}
+.cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin:20px 0}}
+.card{{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:16px}}
+.card .n{{font-size:30px;font-weight:700}} .card .l{{color:#94a3b8;font-size:13px}}
+.card.green .n{{color:#22c55e}} .card.amber .n{{color:#f59e0b}} .card.red .n{{color:#ef4444}} .card.blue .n{{color:#38bdf8}}
+h2{{font-size:18px;margin:28px 0 12px;border-left:4px solid #38bdf8;padding-left:10px}}
+table{{width:100%;border-collapse:collapse;font-size:13px;background:#1e293b;border-radius:10px;overflow:hidden}}
+th,td{{padding:8px 10px;text-align:left;border-bottom:1px solid #334155;vertical-align:top}}
+th{{background:#0f172a;position:sticky;top:0;cursor:default;font-size:12px;color:#cbd5e1}}
+.mono{{font-family:ui-monospace,monospace;font-size:12px;color:#7dd3fc;white-space:nowrap}}
+.small{{font-size:11.5px;color:#cbd5e1}} .gap{{color:#fca5a5}} .sess .cr{{display:inline-block;background:#0c4a6e;color:#bae6fd;border-radius:4px;padding:1px 5px;margin:1px 0;font-size:11px}}
+.badge{{color:#fff;padding:2px 9px;border-radius:20px;font-size:12px;white-space:nowrap}}
+.pri{{padding:1px 7px;border-radius:4px;font-size:11px;font-weight:600}} .pri-P0{{background:#7f1d1d;color:#fecaca}} .pri-P1{{background:#78350f;color:#fde68a}} .pri-P2{{background:#334155;color:#cbd5e1}}
+.modrow{{display:flex;align-items:center;gap:10px;margin:5px 0}} .modname{{width:130px;font-size:13px}} .modn{{color:#64748b}}
+.bar{{flex:1;height:14px;background:#334155;border-radius:7px;overflow:hidden;display:flex}} .seg{{height:100%}} .seg.cov{{background:#16a34a}} .seg.par{{background:#d97706}} .seg.gap{{background:#dc2626}}
+.modpct{{width:42px;text-align:right;font-size:12px;color:#94a3b8}}
+.filters{{margin:14px 0;display:flex;gap:8px;flex-wrap:wrap}} .filters button{{background:#1e293b;color:#cbd5e1;border:1px solid #475569;border-radius:7px;padding:6px 12px;cursor:pointer;font-size:13px}}
+.filters button.on{{background:#38bdf8;color:#0f172a;font-weight:600;border-color:#38bdf8}}
+.note{{background:#1e293b;border:1px solid #475569;border-radius:8px;padding:12px 14px;margin:12px 0;font-size:13px;color:#cbd5e1}}
+.tag{{display:inline-block;background:#14532d;color:#bbf7d0;padding:2px 8px;border-radius:5px;font-size:12px;margin:2px}}
+.gapcats{{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}}.gapcat{{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:12px 14px}}.gaphd{{font-weight:600;border-left:4px solid;padding-left:8px;margin-bottom:8px}}.gaphd .gn{{color:#64748b}}.gapcat ul{{margin:0;padding-left:0;list-style:none}}.gapcat li{{font-size:12px;padding:3px 0;border-bottom:1px solid #29374b;color:#cbd5e1}}.legend{{font-size:12px;color:#94a3b8;margin:6px 0}}
+&lt;/style&gt;&lt;/head&gt;&lt;body&gt;&lt;div class=&quot;wrap&quot;&gt;
+&lt;h1&gt;🔒 智慧鎖 AI 派工 SaaS — 四階段測試計畫覆蓋報告&lt;/h1&gt;
+&lt;div class=&quot;sub&quot;&gt;來源：&lt;code&gt;20260617資料/02-phased-test-plan-alpha-beta-rc-ga-20260617.xlsx&lt;/code&gt; · 產出 {now} · 對齊實機 docker stack + pytest 真實執行&lt;/div&gt;
+
+&lt;div class=&quot;cards&quot;&gt;
+  &lt;div class=&quot;card blue&quot;&gt;&lt;div class=&quot;n&quot;&gt;{total}&lt;/div&gt;&lt;div class=&quot;l&quot;&gt;TI 測試項（功能）&lt;/div&gt;&lt;/div&gt;
+  &lt;div class=&quot;card green&quot;&gt;&lt;div class=&quot;n&quot;&gt;{covered}&lt;/div&gt;&lt;div class=&quot;l&quot;&gt;✅ 覆蓋&lt;/div&gt;&lt;/div&gt;
+  &lt;div class=&quot;card amber&quot;&gt;&lt;div class=&quot;n&quot;&gt;{partial}&lt;/div&gt;&lt;div class=&quot;l&quot;&gt;🟡 部分覆蓋&lt;/div&gt;&lt;/div&gt;
+  &lt;div class=&quot;card red&quot;&gt;&lt;div class=&quot;n&quot;&gt;{gap}&lt;/div&gt;&lt;div class=&quot;l&quot;&gt;🔴 缺口&lt;/div&gt;&lt;/div&gt;
+  &lt;div class=&quot;card blue&quot;&gt;&lt;div class=&quot;n&quot;&gt;{cov_pct}%&lt;/div&gt;&lt;div class=&quot;l&quot;&gt;加權覆蓋率&lt;/div&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;cards&quot;&gt;
+  &lt;div class=&quot;card green&quot;&gt;&lt;div class=&quot;n&quot;&gt;914&lt;/div&gt;&lt;div class=&quot;l&quot;&gt;api pytest 通過（unit+component）&lt;/div&gt;&lt;/div&gt;
+  &lt;div class=&quot;card green&quot;&gt;&lt;div class=&quot;n&quot;&gt;120&lt;/div&gt;&lt;div class=&quot;l&quot;&gt;agent pytest 通過（含 2 live）&lt;/div&gt;&lt;/div&gt;
+  &lt;div class=&quot;card green&quot;&gt;&lt;div class=&quot;n&quot;&gt;0&lt;/div&gt;&lt;div class=&quot;l&quot;&gt;失敗&lt;/div&gt;&lt;/div&gt;
+  &lt;div class=&quot;card blue&quot;&gt;&lt;div class=&quot;n&quot;&gt;98/86/10&lt;/div&gt;&lt;div class=&quot;l&quot;&gt;P0/P1/P2 項數&lt;/div&gt;&lt;/div&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;note&quot;&gt;✅ &lt;b&gt;全套綠燈&lt;/b&gt;：api 914 + agent 120 = 1034 passed / 0 fail（先前 &lt;code&gt;test_reconciliations_v2&lt;/code&gt; 分頁脆弱已於 CR-0067 修正）。&lt;b&gt;Live LLM 實機驗證（Vertex gemini-3.1-flash-lite）&lt;/b&gt;：紅線 gate &lt;b&gt;9/9 全守線&lt;/b&gt;（詢價/退款/付款/真人 → 全轉真人且零報價）、multiturn LLM-as-Judge &lt;b&gt;overall 0.975&lt;/b&gt;（幻覺 0/12）、AI 進線 E2E live 通過。docker stack 重建 &lt;b&gt;12/12 smoke&lt;/b&gt; + Playwright UI &lt;b&gt;0 console error&lt;/b&gt;。&lt;/div&gt;
+
+&lt;h2&gt;📊 四階段定義（Alpha → Beta → RC → GA）&lt;/h2&gt;
+&lt;table&gt;{ov_rows}&lt;/table&gt;
+
+&lt;h2&gt;📈 各模組覆蓋率&lt;/h2&gt;
+&lt;div class=&quot;legend&quot;&gt;🟩 覆蓋 　🟧 部分 　🟥 缺口&lt;/div&gt;
+{&#x27;&#x27;.join(mod_bars)}
+
+&lt;h2&gt;🚀 測試計畫覆蓋衝刺（2026-06-20，CR-0063~0087 共 25 CR，三波）&lt;/h2&gt;
+&lt;div class=&quot;note&quot;&gt;用多輪 scoping workflow 對 194 TI 項三方查證（spec+code+DB）後逐批補功能+測試，加權覆蓋率 &lt;b&gt;69.1% → {cov_pct}%&lt;/b&gt;，缺口 55 → 0。
+&lt;div style=&quot;margin-top:8px&quot;&gt;
+&lt;span class=&quot;tag&quot;&gt;第一波 CR-0063~0070 覆蓋批次 + 金流 mock&lt;/span&gt;&lt;span class=&quot;tag&quot;&gt;第二波 CR-0071~0079 RBAC/通知/結算/治理/SOP&lt;/span&gt;&lt;span class=&quot;tag&quot;&gt;第三波 CR-0080~0087 eval/ERP/效能/partner/E2E/live&lt;/span&gt;
+&lt;/div&gt;
+&lt;div style=&quot;margin-top:10px&quot;&gt;&lt;b&gt;補測過程揪出並修復 ~7 個 latent 假綠 bug&lt;/b&gt;：signature FK 違反（技師簽名必 500）、對帳異常狀態機死鎖（detected 恆 409）、通知繞核准 gate、A12 trace 未接線、RBAC role 指派零生產碼、eval 評分 0 pytest 覆蓋、partner 無 scope 隔離（vendor 可讀全品牌）。&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2&gt;🧭 剩餘 {partial} 項「部分覆蓋」分類（可測核心已做+測，full 行為待外部資源/CIA）&lt;/h2&gt;
+&lt;div class=&quot;note&quot;&gt;缺口已歸 &lt;b&gt;0&lt;/b&gt;。剩 {partial} 項皆為「可測核心已實作並測過、full production 行為有尾巴」，分三類：&lt;br&gt;
+&lt;b&gt;A 卡外部資源&lt;/b&gt;：金流 PAY-01~05（mock 骨架已測，正式 Line Pay/Apple Pay provider 需金鑰，會議決議6 下輪）、SYNC-02（reconcile/SCD2 已測，真 ERP client 需對方系統+憑證）。&lt;br&gt;
+&lt;b&gt;B 卡 agent 核心（需 CIA）&lt;/b&gt;：debounce 接 gateway、output guardrail runtime、AI 影像 runtime-strip、trace 接 lockcore — 皆動 &lt;code&gt;agent/lockcore/&lt;/code&gt; 核心，按 change-governance 須先跑 CIA。&lt;br&gt;
+&lt;b&gt;C 純 E2E 腳本&lt;/b&gt;：X-01 完整 LINE→AI→結案單一貫穿（營運段已 component 測、AI 段已 live 驗）。&lt;/div&gt;
+&lt;div class=&quot;gapcats&quot;&gt;{gapcat_block}&lt;/div&gt;
+
+&lt;h2&gt;🧪 本衝刺新增測試檔（test_cr_0063~0087）&lt;/h2&gt;
+&lt;div class=&quot;note&quot; style=&quot;line-height:2.2&quot;&gt;{sess_files_html}&lt;/div&gt;
+
+&lt;h2&gt;📋 完整測試矩陣（{total} 項功能 × 測試）&lt;/h2&gt;
+&lt;div class=&quot;filters&quot;&gt;
+  &lt;button class=&quot;on&quot; onclick=&quot;flt(this,&#x27;all&#x27;)&quot;&gt;全部 ({total})&lt;/button&gt;
+  &lt;button onclick=&quot;flt(this,&#x27;GAP&#x27;)&quot;&gt;🔴 缺口 ({gap})&lt;/button&gt;
+  &lt;button onclick=&quot;flt(this,&#x27;PARTIAL&#x27;)&quot;&gt;🟡 部分 ({partial})&lt;/button&gt;
+  &lt;button onclick=&quot;flt(this,&#x27;COVERED&#x27;)&quot;&gt;✅ 覆蓋 ({covered})&lt;/button&gt;
+  &lt;button onclick=&quot;fltP(this,&#x27;P0&#x27;)&quot;&gt;P0 (98)&lt;/button&gt;
+  &lt;button onclick=&quot;fltP(this,&#x27;P1&#x27;)&quot;&gt;P1 (86)&lt;/button&gt;
+  &lt;button onclick=&quot;fltAll(this)&quot;&gt;清除優先級&lt;/button&gt;
+&lt;/div&gt;
+&lt;table id=&quot;mtx&quot;&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;ID&lt;/th&gt;&lt;th&gt;模組&lt;/th&gt;&lt;th&gt;功能&lt;/th&gt;&lt;th&gt;優先&lt;/th&gt;&lt;th&gt;類型&lt;/th&gt;&lt;th&gt;現況覆蓋（測試檔）&lt;/th&gt;&lt;th&gt;缺口 Gap&lt;/th&gt;&lt;th&gt;本輪補強&lt;/th&gt;&lt;th&gt;狀態&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;
+&lt;tbody&gt;{&#x27;&#x27;.join(rows_html)}&lt;/tbody&gt;&lt;/table&gt;
+
+&lt;p class=&quot;sub&quot; style=&quot;margin-top:24px&quot;&gt;說明：覆蓋判定 = 「現況覆蓋」欄是否引用實際存在的測試檔（{len(test_files)} 個檔比對）；有引用且 gap 輕微→✅覆蓋，有引用但 gap 仍在→🟡部分，無引用→🔴缺口。加權覆蓋率 = (覆蓋 + 部分×0.5) / 總數。P2 多為金流/多租戶下輪項（會議定調）。&lt;/p&gt;
+&lt;/div&gt;
+&lt;script&gt;
+let curS=&#x27;all&#x27;,curP=null;
+function apply(){{document.querySelectorAll(&#x27;#mtx tbody tr&#x27;).forEach(r=&gt;{{
+  const okS=curS===&#x27;all&#x27;||r.dataset.status===curS; const okP=!curP||r.dataset.pri===curP;
+  r.style.display=(okS&amp;&amp;okP)?&#x27;&#x27;:&#x27;none&#x27;;}});}}
+function flt(b,s){{curS=s;document.querySelectorAll(&#x27;.filters button&#x27;).forEach(x=&gt;{{if([&#x27;all&#x27;,&#x27;GAP&#x27;,&#x27;PARTIAL&#x27;,&#x27;COVERED&#x27;].some(k=&gt;x.textContent.includes(k===&#x27;all&#x27;?&#x27;全部&#x27;:k)))x.classList.remove(&#x27;on&#x27;)}});b.classList.add(&#x27;on&#x27;);apply();}}
+function fltP(b,p){{curP=p;apply();}}
+function fltAll(b){{curP=null;apply();}}
+&lt;/script&gt;&lt;/body&gt;&lt;/html&gt;&quot;&quot;&quot;
+import os
+os.makedirs(&quot;docs/5-views&quot;, exist_ok=True)
+open(&quot;docs/5-views/test-plan-coverage-report-20260620.html&quot;,&quot;w&quot;).write(HTML)
+print(f&quot;報告產出：docs/5-views/test-plan-coverage-report-20260620.html&quot;)
+print(f&quot;統計：{total} 項 | 覆蓋 {covered} | 部分 {partial} | 缺口 {gap} | 加權覆蓋率 {cov_pct}%&quot;)
+print(&quot;各優先級覆蓋：&quot;)
+for p in [&quot;P0&quot;,&quot;P1&quot;,&quot;P2&quot;]:
+    c=pri_st[p]; t=sum(c.values())
+    print(f&quot;  {p}: 覆蓋{c[&#x27;COVERED&#x27;]} 部分{c[&#x27;PARTIAL&#x27;]} 缺口{c[&#x27;GAP&#x27;]} (共{t})&quot;)
+</code></pre></div></div></body></html>

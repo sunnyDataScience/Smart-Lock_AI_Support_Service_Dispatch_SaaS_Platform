@@ -1,0 +1,579 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Quote ↔ WorkOrder Lifecycle Hard Binding（with Emergency Carve-out）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ architecture ／ adr ／ ADR-0066-quote-workorder-lifecycle-binding.md</div>
+<div class="doc"><blockquote>
+<p><strong>🔄 Migration Status (2026-05-28)</strong>:
+<code>STILL_VALID_UNDER_M04_M05</code> <strong>Reviewed
+against</strong>: 2026-05-20 final spec (xlsx) <strong>Reviewed
+on</strong>: 2026-05-28 <strong>Module scope</strong>: M04, M05
+<strong>Per ADR-0100 §1 classification</strong>
+(.claude/context/devteam/meetings/2026-05-27-1130-final-spec-migration-strategy/MoM.md)</p>
+</blockquote>
+<h1
+id="adr-0066-quote--workorder-lifecycle-hard-bindingwith-emergency-carve-out">ADR-0066:
+Quote ↔︎ WorkOrder Lifecycle Hard Binding（with Emergency
+Carve-out）</h1>
+<h2 id="status">Status</h2>
+<p>Accepted (2026-05-26)</p>
+<h2 id="context">Context</h2>
+<p>Forum Q-01 D2 與 D5 兩議題交織：</p>
+<ul>
+<li><strong>D2</strong>：quote ↔︎ WO lifecycle 銜接（軟綁定 vs
+硬綁定）</li>
+<li><strong>D5</strong>：急件 4 類 quote 處理（locked_out /
+trapped_inside / safety_risk / angry_customer_high_risk）</li>
+</ul>
+<p>業主原話「客服報價 → 客人確認 → 才立工單」字面是 D2-A
+硬綁定（quote.customer_confirmed 為 WO.created 前置）。R1 proposer 推薦
+D2-B 軟綁定（customer_confirmed 為 WO.completed 前置而非
+created）以避免撞 ADR-0048 5min 急件規則。</p>
+<p>R3 升業主 binary choice Q1（D2 軟硬綁定）+ Q3（急件路徑）。</p>
+<p><strong>業主 2026-05-26 裁決</strong>：</p>
+<ul>
+<li><strong>Q1 = A
+硬綁定</strong>：嚴守原話字面，<code>WO.created</code> precondition +=
+<code>Quote.customer_confirmed</code></li>
+<li><strong>Q3 = A 急件跳過 quote</strong>：急件
+<code>pc.emergency_class IS NOT NULL</code> 時跳過 quote 直接 WO，事後
+4h 內補 quote audit</li>
+</ul>
+<p>本 ADR 把兩條裁決合成 lifecycle 不變式（hard binding + emergency
+carve-out），與既有 ADR-0031 / 0032 / 0048 / 0049 框架對齊。</p>
+<h2 id="decision-drivers">Decision Drivers</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Priority</th>
+<th style="text-align: left;">Driver</th>
+<th style="text-align: left;">Weight</th>
+<th style="text-align: left;">Reference</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">1</td>
+<td style="text-align: left;">業主原話字面詮釋（不曲解）</td>
+<td style="text-align: left;">critical</td>
+<td style="text-align: left;">業主直接裁決</td>
+</tr>
+<tr>
+<td style="text-align: center;">2</td>
+<td style="text-align: left;">急件路徑不被綁定阻塞（ADR-0048 5min）</td>
+<td style="text-align: left;">critical</td>
+<td style="text-align: left;">ADR-0048</td>
+</tr>
+<tr>
+<td style="text-align: center;">3</td>
+<td style="text-align: left;">Audit chain 完整性（即使 carve-out
+也要事後補）</td>
+<td style="text-align: left;">high</td>
+<td style="text-align: left;">ADR-0049 evidence</td>
+</tr>
+<tr>
+<td style="text-align: center;">4</td>
+<td style="text-align: left;">AI 不直接觸發 WO（ADR-0031 charter）</td>
+<td style="text-align: left;">critical</td>
+<td style="text-align: left;">ADR-0028 / 0031</td>
+</tr>
+<tr>
+<td style="text-align: center;">5</td>
+<td style="text-align: left;">結案 422 address hard gate 同框架</td>
+<td style="text-align: left;">high</td>
+<td style="text-align: left;">ADR-0032</td>
+</tr>
+</tbody>
+</table>
+<h2 id="options-considered">Options Considered</h2>
+<h3 id="option-a--硬綁定--急件-carve-out採用">Option A — 硬綁定 + 急件
+carve-out（採用）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Pros</strong></td>
+<td style="text-align: left;">• 嚴守業主原話<br>•
+派工後客戶拒絕場景不存在（quote 已 confirmed）<br>• Audit chain
+標準路徑完整<br>• 急件 carve-out 與 ADR-0048 5min 規則對齊</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Cons</strong></td>
+<td style="text-align: left;">• 客服建 WO 從 1-click → 2-step（建 quote
+→ 等 confirmed → 建 WO）<br>• +1.5 sprint vs 軟綁定<br>• 急件事後補
+quote audit 需特設 SLA（4h）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Fit</strong></td>
+<td style="text-align: left;">業主原話 strict 詮釋 + ADR-0048 5min
+急件框架</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Anti-fit</strong></td>
+<td style="text-align: left;">高頻派工 / 慢確認的 SLA</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Cost / Effort</strong></td>
+<td style="text-align: left;">M（+1.5 sprint）</td>
+</tr>
+</tbody>
+</table>
+<h3
+id="option-b--軟綁定d2-bcustomer_confirmed-為-wocompleted-前置">Option B
+— 軟綁定（D2-B'，customer_confirmed 為 WO.completed 前置）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Pros</strong></td>
+<td style="text-align: left;">• 1-click 維持<br>• 派工 / 結案並行<br>•
+急件零調整<br>• +0.5 sprint</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Cons</strong></td>
+<td style="text-align: left;">• 不符業主原話字面<br>• 派工後客戶拒絕 →
+需新 WO.disputed state + ADR-0039 補 reason code<br>•
+需重新教育業主「customer_confirmed 為 completed 前置而非 created
+前置」</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Fit</strong></td>
+<td style="text-align: left;">商業實用主義詮釋</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Anti-fit</strong></td>
+<td style="text-align: left;">業主裁決 Q1=A</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Cost / Effort</strong></td>
+<td style="text-align: left;">S（+0.5 sprint）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="decision">Decision</h2>
+<div class="important">
+<div class="title">
+<p>Important</p>
+</div>
+<p><strong>選擇</strong>: Option A — Hard binding（標準路徑）+ Emergency
+carve-out（急件路徑）</p>
+</div>
+<h3 id="1-標準路徑--wocreated-precondition">1. 標準路徑 —
+<code>WO.created</code> Precondition</h3>
+<pre><code>WO.created precondition = PC.confirmed
+                          AND Quote.customer_confirmed = true</code></pre>
+<p>派 WO 之前 quote 必須 customer_confirmed。</p>
+<p><strong>對應 endpoint enforce</strong>（呼應 sd-B-1）：</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">POST /work-orders</span><span class="kw">:</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">required</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">pc_id</span><span class="kw">,</span><span class="at"> tenant_id</span><span class="kw">,</span><span class="at"> created_by_role</span><span class="kw">,</span><span class="at"> quote_id</span><span class="kw">]</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">properties</span><span class="kw">:</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">quote_id</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> string</span><span class="kw">,</span><span class="at"> </span><span class="fu">format</span><span class="kw">:</span><span class="at"> uuid </span><span class="kw">}</span><span class="co">  # required</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">errors</span><span class="kw">:</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="at">    425 QUOTE_NOT_CUSTOMER_CONFIRMED</span><span class="co">  # quote.state != customer_confirmed</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="at">    409 QUOTE_STATE_INVALID</span><span class="co">            # quote.state IN {expired, rejected}</span></span></code></pre></div>
+<h3 id="2-標準路徑--wocompleted-precondition含-address-hard-gate">2.
+標準路徑 — <code>WO.completed</code> Precondition（含 address hard
+gate）</h3>
+<pre><code>WO.completed precondition = address IS NOT NULL                       -- ADR-0032
+                           AND Quote.customer_confirmed = true         -- 本 ADR
+                           AND pc.emergency_class IS NULL              -- 標準路徑</code></pre>
+<p>呼應 ADR-0032 結案 422 address hard gate，本 ADR 加
+quote.customer_confirmed 為第二硬條件。</p>
+<h3 id="3-急件-carve-out--skip-quote-直接-wo">3. 急件 Carve-out — Skip
+Quote 直接 WO</h3>
+<p>業主 Q3=A 裁決：locked_out / trapped_inside / safety_risk /
+angry_customer_high_risk 四類急件路徑跳過 quote。</p>
+<p><strong><code>WO.created</code> precondition（含
+carve-out）</strong>：</p>
+<pre><code>WO.created precondition =
+   PC.confirmed
+   AND (
+     Quote.customer_confirmed = true               -- 標準路徑
+     OR pc.emergency_class IS NOT NULL             -- 急件 carve-out
+   )</code></pre>
+<h3 id="4-急件事後補-quote-audit4h-sla">4. 急件事後補 Quote Audit（4h
+SLA）</h3>
+<p>急件路徑跳過 quote 直接 WO，但 audit chain 不可缺位。事後補：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">階段</th>
+<th style="text-align: left;">動作</th>
+<th style="text-align: left;">SLA</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">WO.in_progress / completed</td>
+<td style="text-align: left;">客服必補 quote（state:
+<code>retrospective_audit_only</code>）</td>
+<td style="text-align: left;">onsite 結束後 <strong>4h 內</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">WO.completed</td>
+<td style="text-align: left;">quote.state 從
+<code>retrospective_audit_only</code> →
+<code>customer_audit_complete</code>（客戶 LIFF 簽 / 紙本簽 / ADR-0049
+三件套）</td>
+<td style="text-align: left;">24h 內</td>
+</tr>
+<tr>
+<td style="text-align: left;">Audit alert</td>
+<td style="text-align: left;">4h 內未補 quote → page customer service
+lead + ChangeRequest type=<code>emergency_pricing_track</code> 進客服
+escalate queue</td>
+<td style="text-align: left;">hard alert</td>
+</tr>
+</tbody>
+</table>
+<h3 id="5-wocompleted-precondition含-carve-out">5.
+<code>WO.completed</code> Precondition（含 carve-out）</h3>
+<pre><code>WO.completed precondition =
+   address IS NOT NULL                              -- ADR-0032
+   AND (
+     (Quote.customer_confirmed = true
+      AND pc.emergency_class IS NULL)               -- 標準路徑
+     OR
+     (pc.emergency_class IS NOT NULL
+      AND retrospective_quote_audit_complete = true)  -- 急件 + 事後補 audit 完成
+   )</code></pre>
+<p><code>retrospective_quote_audit_complete</code> 為新
+application-level field（dba-C-3 應用層 422，非 DB CHECK）。</p>
+<h3 id="6-emergency-class-4-類對齊-adr-0034">6. Emergency Class 4
+類（對齊 ADR-0034）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><code>pc.emergency_class</code></th>
+<th style="text-align: left;">觸發條件</th>
+<th style="text-align: center;">是否走 carve-out</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>urgent.locked_out</code></td>
+<td style="text-align: left;">客戶被鎖門外</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>urgent.trapped_inside</code></td>
+<td style="text-align: left;">門內受困（小孩 / 長輩 / 寵物）</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>urgent.safety_risk</code></td>
+<td style="text-align: left;">安全風險（門鎖損壞 / 闖空門）</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>urgent.angry_high_risk</code></td>
+<td style="text-align: left;">怒客高風險</td>
+<td style="text-align: center;">✅</td>
+</tr>
+</tbody>
+</table>
+<h3 id="7-與既有-adr-對齊">7. 與既有 ADR 對齊</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">ADR</th>
+<th style="text-align: left;">對齊點</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>ADR-0031</strong> AI 永不直接
+<code>convert_to_work_order</code></td>
+<td style="text-align: left;">WO.created 由客服
+<code>created_by_role</code> 觸發；本 ADR 加 quote.customer_confirmed
+前置不改變 AI 邊界</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ADR-0032</strong> 結案 422 address
+hard gate</td>
+<td style="text-align: left;">本 ADR <code>WO.completed</code>
+precondition 與 address gate <strong>AND</strong> 串接</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ADR-0034</strong> urgent / Red
+Code 4 類</td>
+<td style="text-align: left;"><code>pc.emergency_class</code> 直接引用本
+ADR 4 類 enum</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ADR-0048</strong> 急件 5min
+強制轉真人</td>
+<td style="text-align: left;">急件路徑跳過 quote 流程，與 5min
+轉真人計時器無互踩</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ADR-0049</strong> Onsite Scope
+Change 三件套</td>
+<td style="text-align: left;">急件事後補 quote audit 走 ADR-0049
+三件套作 evidence</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ADR-0039</strong> Cancellation Fee
+Tiers</td>
+<td style="text-align: left;">標準路徑 S1「報價未確認前取消 NTD 0」與本
+ADR <code>WO.created</code> 前 quote 必須 confirmed 對齊</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ADR-0063</strong> AI Utterance
+Boundary</td>
+<td style="text-align: left;">AI 不複誦 quote
+個案數字，customer_confirmed 由客戶在 LIFF 主動操作觸發，不靠 AI
+朗讀</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ADR-0065</strong>
+ChangeRequest.type lookup table</td>
+<td style="text-align: left;">急件事後 audit 走
+<code>change_request.type = emergency_pricing_track</code> lookup
+row</td>
+</tr>
+</tbody>
+</table>
+<h3 id="8-wo-state-machine-不新增-disputed-state">8. WO State Machine
+不新增 disputed State</h3>
+<p>業主 Q1=A 後，「派工後客戶拒絕」場景不存在（quote 已
+confirmed）。<strong>不</strong>新增 WO.disputed
+state（軟綁定路徑下才會需要）。</p>
+<p>但 onsite scope change（v+1 加價）仍可能觸發拒絕路徑，走 ADR-0049
+既有 <code>customer_disagreed_partial</code> onsite 中間態（呼應 ux-S-2
+/ dba-C-5 transactional outbox）。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">範疇</th>
+<th style="text-align: left;">說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>適用範圍</strong></td>
+<td style="text-align: left;">所有 quote ↔︎ WO lifecycle binding</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>不適用</strong></td>
+<td style="text-align: left;">onsite scope change v+1 加價路徑（走
+ADR-0049 customer_disagreed_partial）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>可逆性</strong></td>
+<td style="text-align: left;">半可逆（降級為軟綁定需另開 ADR + ADR-0039
+補 reason code + WO.disputed state）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="consequences">Consequences</h2>
+<h3 id="positive">Positive</h3>
+<ul>
+<li>嚴守業主原話字面，未來爭議裁決有明文依據</li>
+<li>派工後客戶拒絕場景不存在（quote 已 confirmed），標準路徑 audit chain
+完整</li>
+<li>急件 carve-out 與 ADR-0048 5min 規則對齊，急件路徑零調整</li>
+<li>急件事後補 quote audit（4h SLA + ADR-0049 三件套）maintain 急件路徑
+audit chain</li>
+<li>AI 邊界靠 <code>WO.created</code> <code>created_by_role</code>
+enforce，不改 ADR-0031 charter</li>
+</ul>
+<h3 id="negative">Negative</h3>
+<div class="warning">
+<div class="title">
+<p>Warning</p>
+</div>
+<ul>
+<li>客服建 WO 從 1-click → 2-step（建 quote → 等 customer_confirmed → 建
+WO）</li>
+<li>+1.5 sprint vs 軟綁定</li>
+<li>急件事後補 quote audit SLA 4h 為新增客服責任，需 macro /
+培訓配套</li>
+<li><code>retrospective_quote_audit_complete</code> 為應用層 field，靠
+422 + audit_trail 留證（dba-C-3 模式），不走 DB CHECK constraint</li>
+</ul>
+</div>
+<h3 id="follow-up-work">Follow-up Work</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Action</th>
+<th style="text-align: left;">Owner</th>
+<th style="text-align: left;">Due</th>
+<th style="text-align: left;">Reference</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>WorkOrderCreate.quote_id</code>
+required + 425/409 error codes</td>
+<td style="text-align: left;">sd</td>
+<td style="text-align: left;">P3 Gate 5a</td>
+<td style="text-align: left;">§1</td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>pc.emergency_class IS NOT NULL</code>
+carve-out 在 endpoint enforce</td>
+<td style="text-align: left;">sd</td>
+<td style="text-align: left;">P3</td>
+<td style="text-align: left;">§3</td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>retrospective_quote_audit_complete</code>
+field 加進 quote 表</td>
+<td style="text-align: left;">dba</td>
+<td style="text-align: left;">P3 Gate 5b</td>
+<td style="text-align: left;">§4</td>
+</tr>
+<tr>
+<td style="text-align: left;">4h SLA 補 quote audit alert +
+ChangeRequest emergency_pricing_track 流程</td>
+<td style="text-align: left;">po + sre</td>
+<td style="text-align: left;">P4</td>
+<td style="text-align: left;">§4</td>
+</tr>
+<tr>
+<td style="text-align: left;">客服 macro 「急件已派工，請於 4h 內補報價
+audit」</td>
+<td style="text-align: left;">po + 客服主管</td>
+<td style="text-align: left;">P4</td>
+<td style="text-align: left;">§4</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0039 補 reason code
+<code>customer_quote_rejected_after_dispatch</code>（onsite scope change
+拒絕用）</td>
+<td style="text-align: left;">arch</td>
+<td style="text-align: left;">P2</td>
+<td style="text-align: left;">§8</td>
+</tr>
+</tbody>
+</table>
+<h3 id="影響的下游文件">影響的下游文件</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Doc</th>
+<th style="text-align: left;">Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td
+style="text-align: left;"><code>docs/analysis/system-spec-smart-lock-saas.md</code></td>
+<td style="text-align: left;">§2.4 WO state machine precondition + §2.3
+Quote state machine + §3 BR-WO-002 / BR-Quote-003 / BR-Quote-004</td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>docs/ux/user-flow-smart-lock-saas.md</code></td>
+<td style="text-align: left;">Flow S2 補急件 carve-out 分支 + 客服建 WO
+2-step UX</td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>docs/architecture/api/openapi.yaml</code></td>
+<td style="text-align: left;"><code>POST /work-orders</code> 加
+<code>quote_id</code> required + 425/409 + emergency carve-out
+exempt</td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>docs/architecture/data/erd.md</code></td>
+<td style="text-align: left;"><code>quote.state</code> enum 加
+<code>retrospective_audit_only</code> /
+<code>customer_audit_complete</code> +
+<code>quote.retrospective_audit_complete</code> field</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>docs/qa/test-plan-*.md</code></td>
+<td style="text-align: left;">標準路徑 + 急件 carve-out + 4h SLA alert
+演練</td>
+</tr>
+</tbody>
+</table>
+<h2 id="pre-mortem-mapping">Pre-mortem Mapping</h2>
+<ul>
+<li><strong>F1 UX friction</strong>：客服建 WO 2-step 為已接受
+trade-off（換業主原話字面 enforce）</li>
+<li><strong>F3 HITL 邊界漂移</strong>：WO.created 由
+<code>created_by_role=customer_service</code> 觸發，AI 邊界不變</li>
+<li><strong>F6 audit chain 斷裂</strong>：急件 carve-out 4h SLA 補 audit
++ ADR-0049 三件套 evidence，audit chain 不缺位</li>
+</ul>
+<h2 id="eternaltransient-classification">Eternal/Transient
+Classification</h2>
+<ul>
+<li><strong>Eternal</strong>：「quote.customer_confirmed 為 WO.created
+前置（除急件）」+「急件事後補 audit」原則</li>
+<li><strong>Transient</strong>：4h SLA 具體時長（可由業主 +
+客服主管調整）+ emergency_class 4 類 enum（每年校準）</li>
+</ul>
+<h2 id="acceptance-criteria">Acceptance Criteria</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" checked="" />業主 2026-05-26 Q1=A +
+Q3=A 裁決</label></li>
+<li><label><input type="checkbox" /><code>POST /work-orders</code>
+enforce <code>quote_id</code> required + 425/409 error
+codes</label></li>
+<li><label><input
+type="checkbox" /><code>pc.emergency_class IS NOT NULL</code> carve-out
+endpoint test pass</label></li>
+<li><label><input
+type="checkbox" /><code>retrospective_quote_audit_complete</code> field
+migration（dba）</label></li>
+<li><label><input type="checkbox" />4h SLA alert 進 Grafana + page
+customer service lead</label></li>
+<li><label><input type="checkbox" />急件 carve-out → ChangeRequest
+<code>emergency_pricing_track</code> 流程 demo（呼應 ADR-0065 lookup
+row）</label></li>
+<li><label><input type="checkbox" />WO.completed 422 hard gate（address
++ quote.customer_confirmed OR 急件 + retrospective_audit_complete）測項
+pass</label></li>
+<li><label><input type="checkbox" />客服 macro 上線 + 培訓
+100%</label></li>
+</ul>
+<h2 id="cross-references">Cross References</h2>
+<ul>
+<li>Forum final-report:
+<code>.claude/context/devteam/forum/2026-05-26-2241-Q01-quote-pricing-engine/final-report.md</code></li>
+<li>ADR-0031 AI Never Auto-convert WO</li>
+<li>ADR-0032 Missing Address Policy（結案 422 同框架）</li>
+<li>ADR-0033 Problem Card Completeness Gate</li>
+<li>ADR-0034 Urgent / Red Code 4 類</li>
+<li>ADR-0039 Cancellation Fee Tiers（補 reason code）</li>
+<li>ADR-0046 ChangeRequest Object</li>
+<li>ADR-0048 AI ↔︎ Human Handoff Rules（急件 5min）</li>
+<li>ADR-0049 Onsite Scope Change Protocol（三件套 evidence）</li>
+<li>ADR-0062 Pricing Engine Bounded Context</li>
+<li>ADR-0063 AI Utterance Boundary</li>
+<li>ADR-0065 ChangeRequest.type Lookup Table（emergency_pricing_track
+row）</li>
+</ul>
+</div></div></body></html>

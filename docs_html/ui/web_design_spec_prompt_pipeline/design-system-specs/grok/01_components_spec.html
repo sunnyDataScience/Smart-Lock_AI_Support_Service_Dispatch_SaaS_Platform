@@ -1,0 +1,1736 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>01_Components — xAI Grok 風格 元件規格</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../../../index.html">🏠 文件總目錄</a> ／ ui ／ web_design_spec_prompt_pipeline ／ design-system-specs ／ grok ／ 01_components_spec.md</div>
+<div class="doc"><h1 id="01_components--xai-grok-風格-元件規格">01_Components — xAI Grok
+風格 元件規格</h1>
+<blockquote>
+<p>元件層（Atoms / Molecules）。每個元件遵循
+<code>00_foundations_spec.md</code> 的 token 系統。 預設皆 <strong>Dark
+first</strong>，Light mode 為對偶映射。</p>
+</blockquote>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ol type="1">
+<li><a href="#1-button">Button</a></li>
+<li><a href="#2-input--textarea">Input / Textarea</a></li>
+<li><a href="#3-select--combobox">Select / Combobox</a></li>
+<li><a href="#4-checkbox--radio--switch">Checkbox / Radio /
+Switch</a></li>
+<li><a href="#5-tag--badge--chip">Tag / Badge / Chip</a></li>
+<li><a href="#6-avatar">Avatar</a></li>
+<li><a href="#7-card">Card</a></li>
+<li><a href="#8-tooltip">Tooltip</a></li>
+<li><a href="#9-popover">Popover</a></li>
+<li><a href="#10-modal--dialog">Modal / Dialog</a></li>
+<li><a href="#11-toast--snackbar">Toast / Snackbar</a></li>
+<li><a href="#12-tabs">Tabs</a></li>
+<li><a href="#13-breadcrumb">Breadcrumb</a></li>
+<li><a href="#14-pagination">Pagination</a></li>
+<li><a href="#15-progress--skeleton--spinner">Progress / Skeleton /
+Spinner</a></li>
+<li><a href="#16-code-block--inline-code">Code Block / Inline
+Code</a></li>
+<li><a href="#17-kbd--shortcut">Kbd / Shortcut</a></li>
+<li><a href="#18-divider">Divider</a></li>
+<li><a href="#19-eyebrow">Eyebrow</a></li>
+<li><a href="#20-marquee">Marquee</a></li>
+</ol>
+<hr />
+<h2 id="1-button">1. Button</h2>
+<p>Grok 按鈕：銳利、低 radius、無陰影、無發光、hover 純粹切換 surface
+顏色。</p>
+<h3 id="11-variants">1.1 Variants</h3>
+<table>
+<thead>
+<tr>
+<th>Variant</th>
+<th>用途</th>
+<th>bg</th>
+<th>text</th>
+<th>border</th>
+<th>hover bg</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>primary</code></td>
+<td>主要 CTA</td>
+<td><code>text.primary</code> (#FAFAFA)</td>
+<td><code>text.inverse</code> (#0A0A0A)</td>
+<td>none</td>
+<td><code>#E5E5E5</code></td>
+</tr>
+<tr>
+<td><code>secondary</code></td>
+<td>次要動作</td>
+<td><code>surface.default</code></td>
+<td><code>text.primary</code></td>
+<td><code>border.default</code> (1px)</td>
+<td><code>surface.hover</code></td>
+</tr>
+<tr>
+<td><code>ghost</code></td>
+<td>純文字 / icon</td>
+<td>transparent</td>
+<td><code>text.primary</code></td>
+<td>none</td>
+<td><code>surface.hover</code></td>
+</tr>
+<tr>
+<td><code>outline</code></td>
+<td>邊框型</td>
+<td>transparent</td>
+<td><code>text.primary</code></td>
+<td><code>border.default</code> (1px)</td>
+<td><code>surface.hover</code></td>
+</tr>
+<tr>
+<td><code>danger</code></td>
+<td>危險動作</td>
+<td>transparent</td>
+<td><code>status.danger</code> (icon 色)</td>
+<td><code>border.default</code> (1px)</td>
+<td><code>surface.hover</code></td>
+</tr>
+<tr>
+<td><code>link</code></td>
+<td>內聯連結式</td>
+<td>none</td>
+<td><code>text.primary</code></td>
+<td>none（hover 加底線）</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<h3 id="12-sizes">1.2 Sizes</h3>
+<table>
+<thead>
+<tr>
+<th>Size</th>
+<th>height</th>
+<th>padding-x</th>
+<th>font</th>
+<th>icon</th>
+<th>radius</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>xs</code></td>
+<td>24px</td>
+<td>8px</td>
+<td><code>type.label.sm</code></td>
+<td>12px</td>
+<td><code>radius.sm</code></td>
+</tr>
+<tr>
+<td><code>sm</code></td>
+<td>32px</td>
+<td>12px</td>
+<td><code>type.label.md</code></td>
+<td>14px</td>
+<td><code>radius.sm</code></td>
+</tr>
+<tr>
+<td><code>md</code>（預設）</td>
+<td>40px</td>
+<td>16px</td>
+<td><code>type.label.md</code></td>
+<td>16px</td>
+<td><code>radius.sm</code></td>
+</tr>
+<tr>
+<td><code>lg</code></td>
+<td>48px</td>
+<td>24px</td>
+<td><code>type.body.md</code> (medium)</td>
+<td>18px</td>
+<td><code>radius.sm</code></td>
+</tr>
+<tr>
+<td><code>xl</code></td>
+<td>56px</td>
+<td>32px</td>
+<td><code>type.body.lg</code> (medium)</td>
+<td>20px</td>
+<td><code>radius.sm</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="13-states">1.3 States</h3>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>視覺處理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Default</td>
+<td>按 §1.1 定義</td>
+</tr>
+<tr>
+<td>Hover</td>
+<td>切換 hover bg，<strong>不做 translate / scale</strong></td>
+</tr>
+<tr>
+<td>Active</td>
+<td>bg 加深一階（用 active token）</td>
+</tr>
+<tr>
+<td>Focus</td>
+<td><code>outline: 2px solid text.primary</code> +
+<code>outline-offset: 2px</code>（純白 ring，無發光）</td>
+</tr>
+<tr>
+<td>Disabled</td>
+<td><code>opacity: 0.4</code> + <code>cursor: not-allowed</code> + 移除
+hover</td>
+</tr>
+<tr>
+<td>Loading</td>
+<td>文字保留但 <code>opacity: 0</code>，覆蓋 16px spinner（§15.3）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="14-icon-button">1.4 Icon Button</h3>
+<table>
+<thead>
+<tr>
+<th>Size</th>
+<th>容器</th>
+<th>Icon</th>
+<th>radius</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sm</code></td>
+<td>32×32</td>
+<td>16px</td>
+<td><code>radius.sm</code></td>
+</tr>
+<tr>
+<td><code>md</code></td>
+<td>40×40</td>
+<td>18px</td>
+<td><code>radius.sm</code></td>
+</tr>
+<tr>
+<td><code>lg</code></td>
+<td>48×48</td>
+<td>20px</td>
+<td><code>radius.sm</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>圓形版：radius 改 <code>radius.full</code>，僅用於 Avatar
+Button（搭配大頭照）。</p>
+</blockquote>
+<h3 id="15-button-group">1.5 Button Group</h3>
+<pre><code> - segmented：水平排列、共用邊框、第一個 round-l-sm、最後 round-r-sm，中間 0
+ - split-button：主按鈕 + 右側 chevron 觸發 dropdown，中間以 1px hairline 分隔
+ - 上限：3 個按鈕，超過改用 dropdown</code></pre>
+<h3 id="16-anti-pattern">1.6 Anti-pattern</h3>
+<pre><code>✗ 漸層底色按鈕
+✗ 圓角 &gt; 8px（除 IconButton 圓形版）
+✗ 多色陰影
+✗ hover 時整個按鈕放大
+✗ 按鈕內超過 3 個 icon / 元素</code></pre>
+<hr />
+<h2 id="2-input--textarea">2. Input / Textarea</h2>
+<h3 id="21-anatomy">2.1 Anatomy</h3>
+<pre><code>[ Label ]
+[ Hint? ]
+┌──────────────────────────────────────┐
+│ [icon?] Placeholder / Value          │ ← input field
+└──────────────────────────────────────┘
+[ Error / Helper text? ]</code></pre>
+<h3 id="22-sizes">2.2 Sizes</h3>
+<table>
+<thead>
+<tr>
+<th>Size</th>
+<th>height</th>
+<th>padding</th>
+<th>font</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sm</code></td>
+<td>32px</td>
+<td>8px / 12px</td>
+<td><code>type.body.sm</code></td>
+</tr>
+<tr>
+<td><code>md</code>（預設）</td>
+<td>40px</td>
+<td>10px / 14px</td>
+<td><code>type.body.md</code></td>
+</tr>
+<tr>
+<td><code>lg</code></td>
+<td>48px</td>
+<td>12px / 16px</td>
+<td><code>type.body.md</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="23-states">2.3 States</h3>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>bg</th>
+<th>border</th>
+<th>text</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Default</td>
+<td><code>canvas.sunken</code></td>
+<td><code>border.default</code></td>
+<td><code>text.primary</code></td>
+</tr>
+<tr>
+<td>Hover</td>
+<td><code>canvas.sunken</code></td>
+<td><code>border.strong</code></td>
+<td><code>text.primary</code></td>
+</tr>
+<tr>
+<td>Focus</td>
+<td><code>canvas.sunken</code></td>
+<td><code>text.primary</code> 2px（純線條，無發光）</td>
+<td><code>text.primary</code></td>
+</tr>
+<tr>
+<td>Filled</td>
+<td>同 default</td>
+<td>同 default</td>
+<td><code>text.primary</code></td>
+</tr>
+<tr>
+<td>Error</td>
+<td><code>canvas.sunken</code></td>
+<td><code>status.danger</code></td>
+<td><code>text.primary</code></td>
+</tr>
+<tr>
+<td>Disabled</td>
+<td><code>surface.disabled</code></td>
+<td><code>border.subtle</code></td>
+<td><code>text.disabled</code></td>
+</tr>
+<tr>
+<td>ReadOnly</td>
+<td><code>surface.default</code></td>
+<td><code>border.subtle</code></td>
+<td><code>text.secondary</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="24-label--helper-text">2.4 Label &amp; Helper Text</h3>
+<table>
+<thead>
+<tr>
+<th>元素</th>
+<th>typography</th>
+<th>color</th>
+<th>margin</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Label</td>
+<td><code>type.label.md</code></td>
+<td><code>text.primary</code></td>
+<td>margin-bottom 8px</td>
+</tr>
+<tr>
+<td>Optional 標記</td>
+<td><code>type.label.sm</code> + 小寫</td>
+<td><code>text.tertiary</code></td>
+<td>inline 後綴</td>
+</tr>
+<tr>
+<td>Hint</td>
+<td><code>type.body.sm</code></td>
+<td><code>text.tertiary</code></td>
+<td>margin-bottom 8px</td>
+</tr>
+<tr>
+<td>Error</td>
+<td><code>type.body.sm</code></td>
+<td><code>status.danger</code></td>
+<td>margin-top 6px，搭配 ⚠ icon</td>
+</tr>
+<tr>
+<td>Success</td>
+<td><code>type.body.sm</code></td>
+<td><code>status.success</code></td>
+<td>margin-top 6px</td>
+</tr>
+</tbody>
+</table>
+<h3 id="25-textarea">2.5 Textarea</h3>
+<pre><code> - 預設 min-height: 96px
+ - resize: vertical only
+ - max-height: 240px（超過內部捲動）
+ - 字數計數：右下角 type.body.xs + text.tertiary</code></pre>
+<h3 id="26-input-addon">2.6 Input Addon</h3>
+<pre><code> [Prefix] [Input] [Suffix]
+ ┌────┬───────────────┬────┐
+ │ $  │ 1,200.00      │USD │
+ └────┴───────────────┴────┘
+ - Prefix/Suffix bg = surface.default
+ - 中間 input bg = canvas.sunken
+ - 分隔線 = border.subtle 1px</code></pre>
+<hr />
+<h2 id="3-select--combobox">3. Select / Combobox</h2>
+<h3 id="31-trigger">3.1 Trigger</h3>
+<p>外觀同 §2 Input，右側追加 chevron
+icon（16px，<code>text.tertiary</code>）。</p>
+<h3 id="32-dropdown-menu">3.2 Dropdown Menu</h3>
+<table>
+<thead>
+<tr>
+<th>屬性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bg</td>
+<td><code>canvas.overlay</code></td>
+</tr>
+<tr>
+<td>border</td>
+<td><code>border.hairline</code> 1px</td>
+</tr>
+<tr>
+<td>radius</td>
+<td><code>radius.lg</code> (8px)</td>
+</tr>
+<tr>
+<td>max-height</td>
+<td>320px（內部捲動）</td>
+</tr>
+<tr>
+<td>padding</td>
+<td>4px</td>
+</tr>
+<tr>
+<td>min-width</td>
+<td>trigger 寬度</td>
+</tr>
+<tr>
+<td>z-index</td>
+<td><code>z.dropdown</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="33-option-item">3.3 Option Item</h3>
+<table>
+<thead>
+<tr>
+<th>屬性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>height</td>
+<td>36px</td>
+</tr>
+<tr>
+<td>padding</td>
+<td>0 12px</td>
+</tr>
+<tr>
+<td>font</td>
+<td><code>type.body.md</code></td>
+</tr>
+<tr>
+<td>radius</td>
+<td><code>radius.xs</code></td>
+</tr>
+<tr>
+<td>hover bg</td>
+<td><code>surface.hover</code></td>
+</tr>
+<tr>
+<td>selected bg</td>
+<td><code>surface.active</code></td>
+</tr>
+<tr>
+<td>selected text</td>
+<td><code>text.primary</code></td>
+</tr>
+<tr>
+<td>selected indicator</td>
+<td>左側 2px <code>text.primary</code> 邊條</td>
+</tr>
+<tr>
+<td>icon（左）</td>
+<td>16px，可選</td>
+</tr>
+<tr>
+<td>check（右）</td>
+<td>16px，僅 selected 顯示</td>
+</tr>
+</tbody>
+</table>
+<h3 id="34-combobox-搜尋">3.4 Combobox 搜尋</h3>
+<pre><code> - 頂部固定 input（type.body.sm，無邊框，bg = transparent）
+ - 下方 1px hairline 分隔
+ - 無結果：顯示 &quot;No results found&quot;，type.body.sm + text.tertiary，置中</code></pre>
+<hr />
+<h2 id="4-checkbox--radio--switch">4. Checkbox / Radio / Switch</h2>
+<h3 id="41-checkbox">4.1 Checkbox</h3>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Box bg</th>
+<th>Box border</th>
+<th>Check icon</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Unchecked</td>
+<td>transparent</td>
+<td><code>border.default</code> 1.5px</td>
+<td>隱藏</td>
+</tr>
+<tr>
+<td>Hover</td>
+<td><code>surface.hover</code></td>
+<td><code>border.strong</code> 1.5px</td>
+<td>隱藏</td>
+</tr>
+<tr>
+<td>Checked</td>
+<td><code>text.primary</code></td>
+<td><code>text.primary</code></td>
+<td><code>text.inverse</code>（黑色 ✓）</td>
+</tr>
+<tr>
+<td>Indeterminate</td>
+<td><code>text.primary</code></td>
+<td><code>text.primary</code></td>
+<td><code>text.inverse</code> 短橫</td>
+</tr>
+<tr>
+<td>Disabled</td>
+<td>transparent</td>
+<td><code>border.subtle</code></td>
+<td>灰色</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Size</th>
+<th>box</th>
+<th>radius</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sm</code></td>
+<td>14×14</td>
+<td><code>radius.xs</code></td>
+</tr>
+<tr>
+<td><code>md</code>（預設）</td>
+<td>16×16</td>
+<td><code>radius.xs</code></td>
+</tr>
+<tr>
+<td><code>lg</code></td>
+<td>20×20</td>
+<td><code>radius.xs</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="42-radio">4.2 Radio</h3>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Outer</th>
+<th>Inner dot</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Unchecked</td>
+<td>1.5px <code>border.default</code> 圓圈</td>
+<td>隱藏</td>
+</tr>
+<tr>
+<td>Hover</td>
+<td>1.5px <code>border.strong</code></td>
+<td>隱藏</td>
+</tr>
+<tr>
+<td>Checked</td>
+<td>1.5px <code>text.primary</code></td>
+<td>8px 實心圓 <code>text.primary</code></td>
+</tr>
+<tr>
+<td>Disabled</td>
+<td>1.5px <code>border.subtle</code></td>
+<td>隱藏</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>圓形元件，<code>radius.full</code>。</p>
+</blockquote>
+<h3 id="43-switch">4.3 Switch</h3>
+<pre><code> ┌───────────┐    ┌───────────┐
+ │○          │    │          ●│
+ └───────────┘    └───────────┘
+   off              on</code></pre>
+<table>
+<thead>
+<tr>
+<th>Size</th>
+<th>Track</th>
+<th>Thumb</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sm</code></td>
+<td>28×16</td>
+<td>12×12</td>
+</tr>
+<tr>
+<td><code>md</code>（預設）</td>
+<td>36×20</td>
+<td>16×16</td>
+</tr>
+<tr>
+<td><code>lg</code></td>
+<td>44×24</td>
+<td>20×20</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Track bg</th>
+<th>Thumb bg</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Off</td>
+<td><code>surface.elevated</code></td>
+<td><code>text.secondary</code></td>
+</tr>
+<tr>
+<td>On</td>
+<td><code>text.primary</code></td>
+<td><code>text.inverse</code></td>
+</tr>
+<tr>
+<td>Disabled</td>
+<td><code>surface.disabled</code></td>
+<td><code>text.disabled</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Track radius <code>radius.full</code>，Thumb radius
+<code>radius.full</code>。動畫 <code>motion.duration.fast</code> +
+<code>motion.ease.snappy</code>。</p>
+</blockquote>
+<hr />
+<h2 id="5-tag--badge--chip">5. Tag / Badge / Chip</h2>
+<h3 id="51-tag內容分類">5.1 Tag（內容分類）</h3>
+<table>
+<thead>
+<tr>
+<th>Size</th>
+<th>height</th>
+<th>padding-x</th>
+<th>font</th>
+<th>radius</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sm</code></td>
+<td>20px</td>
+<td>6px</td>
+<td><code>type.body.xs</code></td>
+<td><code>radius.xs</code></td>
+</tr>
+<tr>
+<td><code>md</code></td>
+<td>24px</td>
+<td>8px</td>
+<td><code>type.body.xs</code></td>
+<td><code>radius.xs</code></td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Variant</th>
+<th>bg</th>
+<th>text</th>
+<th>border</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>neutral</code></td>
+<td><code>surface.elevated</code></td>
+<td><code>text.secondary</code></td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>accent</code></td>
+<td><code>surface.elevated</code></td>
+<td><code>text.primary</code></td>
+<td><code>border.default</code> 1px</td>
+</tr>
+<tr>
+<td><code>success</code></td>
+<td><code>status.success.bg</code> (#0F2A1B)</td>
+<td><code>status.success.text</code> (#BBF7D0)</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>warning</code></td>
+<td><code>status.warning.bg</code> (#2A1F0A)</td>
+<td><code>status.warning.text</code> (#FDE68A)</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>danger</code></td>
+<td><code>status.danger.bg</code> (#2A0F0F)</td>
+<td><code>status.danger.text</code> (#FECACA)</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>outline</code></td>
+<td>transparent</td>
+<td><code>text.primary</code></td>
+<td><code>border.default</code> 1px</td>
+</tr>
+</tbody>
+</table>
+<h3 id="52-badge小數字--通知點">5.2 Badge（小數字 / 通知點）</h3>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>樣式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dot</td>
+<td>6×6
+圓點，<code>radius.full</code>，<code>text.primary</code>（純白）</td>
+</tr>
+<tr>
+<td>Numeric</td>
+<td>min-w 16，h 16，padding 0
+4，<code>type.body.xs</code>，<code>radius.full</code>，<code>status.danger</code>
+bg + 白字</td>
+</tr>
+<tr>
+<td>Cap (<code>99+</code>)</td>
+<td>同 numeric，文字 <code>99+</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="53-chip可關閉">5.3 Chip（可關閉）</h3>
+<pre><code> ┌─────────────────┐
+ │ Label        ✕ │
+ └─────────────────┘
+ - 同 tag.md，右側 12px ✕ icon button
+ - hover ✕ → text.primary，bg surface.hover</code></pre>
+<hr />
+<h2 id="6-avatar">6. Avatar</h2>
+<table>
+<thead>
+<tr>
+<th>Size</th>
+<th>值</th>
+<th>Font (initials)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>xs</code></td>
+<td>20px</td>
+<td>10px / 600</td>
+</tr>
+<tr>
+<td><code>sm</code></td>
+<td>24px</td>
+<td>11px / 600</td>
+</tr>
+<tr>
+<td><code>md</code>（預設）</td>
+<td>32px</td>
+<td>13px / 600</td>
+</tr>
+<tr>
+<td><code>lg</code></td>
+<td>40px</td>
+<td>15px / 600</td>
+</tr>
+<tr>
+<td><code>xl</code></td>
+<td>56px</td>
+<td>20px / 600</td>
+</tr>
+<tr>
+<td><code>2xl</code></td>
+<td>80px</td>
+<td>28px / 600</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>屬性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>radius</td>
+<td><code>radius.full</code></td>
+</tr>
+<tr>
+<td>預設 bg</td>
+<td><code>surface.elevated</code></td>
+</tr>
+<tr>
+<td>預設 text</td>
+<td><code>text.primary</code></td>
+</tr>
+<tr>
+<td>border（多人重疊時）</td>
+<td>2px <code>canvas.base</code>（製造分離感）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="61-avatar-group">6.1 Avatar Group</h3>
+<pre><code> ◯ ◯ ◯ ◯ +5
+ - 重疊 -8px（md size）
+ - 顯示前 4 個，第 5 個改為 &quot;+N&quot; chip（同 size，bg surface.elevated，font 11px）
+ - 各 avatar 加 2px canvas.base 邊框分隔</code></pre>
+<h3 id="62-avatar-with-status-dot">6.2 Avatar with Status Dot</h3>
+<pre><code> ┌─────┐
+ │ AB  ●  ← 6px 狀態點，右下角
+ └─────┘
+ - online: status.success
+ - busy: status.danger
+ - away: status.warning
+ - offline: text.disabled
+ - 外圍 2px canvas.base 邊框</code></pre>
+<hr />
+<h2 id="7-card">7. Card</h2>
+<p>Grok 卡片：低調、銳利、無陰影、靠 surface + hairline 切分。</p>
+<h3 id="71-variants">7.1 Variants</h3>
+<table>
+<thead>
+<tr>
+<th>Variant</th>
+<th>bg</th>
+<th>border</th>
+<th>radius</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>default</code></td>
+<td><code>surface.default</code></td>
+<td><code>border.hairline</code> 1px</td>
+<td><code>radius.md</code></td>
+</tr>
+<tr>
+<td><code>flat</code></td>
+<td>transparent</td>
+<td><code>border.hairline</code> 1px</td>
+<td><code>radius.md</code></td>
+</tr>
+<tr>
+<td><code>elevated</code></td>
+<td><code>surface.default</code></td>
+<td><code>border.default</code> 1px（hover 切到
+<code>border.strong</code>，無發光）</td>
+<td><code>radius.md</code></td>
+</tr>
+<tr>
+<td><code>interactive</code></td>
+<td><code>surface.default</code></td>
+<td><code>border.hairline</code> 1px</td>
+<td><code>radius.md</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="72-anatomy">7.2 Anatomy</h3>
+<pre><code>┌────────────────────────────────────┐
+│ [Eyebrow?]                         │  ← 12px label，optional
+│                                    │
+│ Heading                            │  ← type.heading.lg
+│ Description                        │  ← type.body.md / text.secondary
+│                                    │
+│ [Body content]                     │
+│                                    │
+│ ─── (border.subtle hairline)  ──── │  ← optional footer divider
+│ Footer / Action                    │  ← type.body.sm
+└────────────────────────────────────┘</code></pre>
+<h3 id="73-padding">7.3 Padding</h3>
+<table>
+<thead>
+<tr>
+<th>Size</th>
+<th>padding</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sm</code></td>
+<td>16px</td>
+</tr>
+<tr>
+<td><code>md</code>（預設）</td>
+<td>24px</td>
+</tr>
+<tr>
+<td><code>lg</code></td>
+<td>32px</td>
+</tr>
+<tr>
+<td><code>xl</code></td>
+<td>48px</td>
+</tr>
+</tbody>
+</table>
+<h3 id="74-interactive-card">7.4 Interactive Card</h3>
+<pre><code> - cursor: pointer
+ - transition: background 180ms, border 180ms
+ - hover: bg → surface.hover, border → border.default
+ - focus: outline 2px text.primary + offset 2px（純線條，無發光）
+ - active: bg → surface.active
+ - 不做 translate / scale</code></pre>
+<h3 id="75-bento-grid-card">7.5 Bento Grid Card</h3>
+<p>Grok 風格常用「Bento」格狀展示（仿 Apple WWDC、X premium）：</p>
+<ul>
+<li>不規則尺寸（1×1、2×1、2×2 cells）</li>
+<li>每格邊框 1px <code>border.hairline</code></li>
+<li>內部允許大字 + icon + 視覺元素混搭</li>
+<li>跨格時 gap 16px</li>
+</ul>
+<hr />
+<h2 id="8-tooltip">8. Tooltip</h2>
+<table>
+<thead>
+<tr>
+<th>屬性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bg</td>
+<td><code>text.primary</code> (#FAFAFA)</td>
+</tr>
+<tr>
+<td>text</td>
+<td><code>text.inverse</code> (#0A0A0A)</td>
+</tr>
+<tr>
+<td>font</td>
+<td><code>type.body.xs</code></td>
+</tr>
+<tr>
+<td>padding</td>
+<td>6px 10px</td>
+</tr>
+<tr>
+<td>radius</td>
+<td><code>radius.xs</code></td>
+</tr>
+<tr>
+<td>max-width</td>
+<td>280px</td>
+</tr>
+<tr>
+<td>arrow</td>
+<td>6px 三角，同 bg</td>
+</tr>
+<tr>
+<td>delay open</td>
+<td>400ms</td>
+</tr>
+<tr>
+<td>delay close</td>
+<td>100ms</td>
+</tr>
+<tr>
+<td>z-index</td>
+<td><code>z.popover</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>動畫：fade + 4px
+slide（依方向），<code>motion.duration.fast</code>。</p>
+</blockquote>
+<hr />
+<h2 id="9-popover">9. Popover</h2>
+<table>
+<thead>
+<tr>
+<th>屬性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bg</td>
+<td><code>canvas.overlay</code></td>
+</tr>
+<tr>
+<td>border</td>
+<td><code>border.hairline</code> 1px</td>
+</tr>
+<tr>
+<td>radius</td>
+<td><code>radius.lg</code> (8px)</td>
+</tr>
+<tr>
+<td>padding</td>
+<td>16px</td>
+</tr>
+<tr>
+<td>min-width</td>
+<td>240px</td>
+</tr>
+<tr>
+<td>max-width</td>
+<td>400px</td>
+</tr>
+<tr>
+<td>z-index</td>
+<td><code>z.popover</code></td>
+</tr>
+<tr>
+<td>arrow</td>
+<td>可選，8px 三角，bg + border 雙層繪製</td>
+</tr>
+</tbody>
+</table>
+<pre><code> 結構：
+ [Title]            ← type.heading.sm
+ [Description]      ← type.body.sm + text.secondary
+ [Content]
+ [Footer actions]   ← 右對齊 button group</code></pre>
+<hr />
+<h2 id="10-modal--dialog">10. Modal / Dialog</h2>
+<h3 id="101-backdrop">10.1 Backdrop</h3>
+<pre><code> - bg: rgba(0, 0, 0, 0.7)
+ - backdrop-filter: blur(8px) saturate(0.6)
+ - z-index: z.overlay
+ - 動畫：fade in 180ms</code></pre>
+<h3 id="102-modal-container">10.2 Modal Container</h3>
+<table>
+<thead>
+<tr>
+<th>Size</th>
+<th>max-width</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sm</code></td>
+<td>420px</td>
+</tr>
+<tr>
+<td><code>md</code>（預設）</td>
+<td>560px</td>
+</tr>
+<tr>
+<td><code>lg</code></td>
+<td>720px</td>
+</tr>
+<tr>
+<td><code>xl</code></td>
+<td>960px</td>
+</tr>
+<tr>
+<td><code>full</code></td>
+<td>calc(100vw - 64px)</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>屬性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bg</td>
+<td><code>canvas.overlay</code></td>
+</tr>
+<tr>
+<td>border</td>
+<td><code>border.hairline</code> 1px</td>
+</tr>
+<tr>
+<td>radius</td>
+<td><code>radius.lg</code> (8px)</td>
+</tr>
+<tr>
+<td>padding</td>
+<td>0（內部用 sub-section 自行處理）</td>
+</tr>
+<tr>
+<td>max-height</td>
+<td>calc(100vh - 80px)</td>
+</tr>
+<tr>
+<td>z-index</td>
+<td><code>z.modal</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="103-anatomy">10.3 Anatomy</h3>
+<pre><code>┌────────────────────────────────────┐
+│ [Eyebrow?]                       ✕ │  ← 24px padding，header 高 64px
+│ Title                              │  ← type.heading.lg
+├────────────────────────────────────┤  ← border.hairline
+│                                    │
+│ [Body]                             │  ← padding 24px，可捲動
+│                                    │
+├────────────────────────────────────┤  ← border.hairline
+│              [Cancel] [Confirm]    │  ← footer 高 72px，padding 24px
+└────────────────────────────────────┘</code></pre>
+<h3 id="104-mobile-640px">10.4 Mobile（&lt; 640px）</h3>
+<ul>
+<li>改為
+<code>Bottom Sheet</code>：<code>fixed bottom-0</code>，<code>rounded-t-lg</code>，從底部上滑進場</li>
+<li>全寬，max-height 90vh</li>
+<li>頂部 4×40 拖曳指示條（<code>border.strong</code> bg）</li>
+</ul>
+<h3 id="105-動畫">10.5 動畫</h3>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Backdrop</th>
+<th>Modal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Enter</td>
+<td>fade 0→1 (180ms)</td>
+<td>scale 0.96→1 + fade (280ms ease.out)</td>
+</tr>
+<tr>
+<td>Exit</td>
+<td>fade 1→0 (120ms)</td>
+<td>scale 1→0.98 + fade (120ms ease.in)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="11-toast--snackbar">11. Toast / Snackbar</h2>
+<pre><code> ┌──────────────────────────────────────┐
+ │ [icon] Title                       ✕ │
+ │        Description                   │
+ │        [Action?]                     │
+ └──────────────────────────────────────┘</code></pre>
+<table>
+<thead>
+<tr>
+<th>屬性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>width</td>
+<td>360px</td>
+</tr>
+<tr>
+<td>min-height</td>
+<td>48px</td>
+</tr>
+<tr>
+<td>bg</td>
+<td><code>canvas.overlay</code></td>
+</tr>
+<tr>
+<td>border</td>
+<td><code>border.hairline</code> 1px</td>
+</tr>
+<tr>
+<td>border-left</td>
+<td>3px（依 variant：accent / status）</td>
+</tr>
+<tr>
+<td>radius</td>
+<td><code>radius.md</code></td>
+</tr>
+<tr>
+<td>padding</td>
+<td>12px 16px</td>
+</tr>
+<tr>
+<td>z-index</td>
+<td><code>z.toast</code></td>
+</tr>
+<tr>
+<td>顯示位置</td>
+<td>bottom-right，距邊 24px</td>
+</tr>
+<tr>
+<td>堆疊間距</td>
+<td>12px</td>
+</tr>
+<tr>
+<td>自動消失</td>
+<td>5s（success / info），8s（warning），不自動消失（danger）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="111-variants">11.1 Variants</h3>
+<table>
+<thead>
+<tr>
+<th>Variant</th>
+<th>left border</th>
+<th>icon</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>info</code></td>
+<td><code>text.primary</code></td>
+<td>ℹ</td>
+</tr>
+<tr>
+<td><code>success</code></td>
+<td><code>status.success</code></td>
+<td>✓</td>
+</tr>
+<tr>
+<td><code>warning</code></td>
+<td><code>status.warning</code></td>
+<td>⚠</td>
+</tr>
+<tr>
+<td><code>danger</code></td>
+<td><code>status.danger</code></td>
+<td>✕</td>
+</tr>
+<tr>
+<td><code>loading</code></td>
+<td><code>text.primary</code></td>
+<td>spinner</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="12-tabs">12. Tabs</h2>
+<h3 id="121-underline預設">12.1 Underline（預設）</h3>
+<pre><code>  Tab 1     Tab 2     Tab 3
+ ─────                       ← 2px underline，text.primary（active）
+ ───────────────────────────  ← 1px hairline，border.hairline（base line）</code></pre>
+<table>
+<thead>
+<tr>
+<th>屬性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tab height</td>
+<td>40px</td>
+</tr>
+<tr>
+<td>Tab padding-x</td>
+<td>16px</td>
+</tr>
+<tr>
+<td>字</td>
+<td><code>type.label.md</code></td>
+</tr>
+<tr>
+<td>Default text</td>
+<td><code>text.secondary</code></td>
+</tr>
+<tr>
+<td>Hover text</td>
+<td><code>text.primary</code></td>
+</tr>
+<tr>
+<td>Active text</td>
+<td><code>text.primary</code></td>
+</tr>
+<tr>
+<td>Active underline</td>
+<td>2px <code>text.primary</code>（純白）</td>
+</tr>
+<tr>
+<td>Underline animate</td>
+<td><code>transform</code>，<code>motion.duration.fast</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="122-pill">12.2 Pill</h3>
+<pre><code> ┌────┐ ┌────┐ ┌────┐
+ │Tab1│ │Tab2│ │Tab3│
+ └────┘ └────┘ └────┘
+ - 同 button.ghost，active 為 surface.elevated bg
+ - 容器 bg: surface.default, padding 4px, radius.sm</code></pre>
+<h3 id="123-vertical-tabs">12.3 Vertical Tabs</h3>
+<pre><code> │ Tab 1     │
+ │ Tab 2  ←  │  active 左側 2px text.primary
+ │ Tab 3     │
+ - 用於 Settings、文件側邊導航</code></pre>
+<hr />
+<h2 id="13-breadcrumb">13. Breadcrumb</h2>
+<pre><code> Home  /  Section  /  Sub  /  Current</code></pre>
+<table>
+<thead>
+<tr>
+<th>元素</th>
+<th>樣式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>連結</td>
+<td><code>type.body.sm</code> + <code>text.secondary</code>，hover →
+<code>text.primary</code></td>
+</tr>
+<tr>
+<td>目前頁</td>
+<td><code>type.body.sm</code> + <code>text.primary</code></td>
+</tr>
+<tr>
+<td>分隔符</td>
+<td><code>/</code>，<code>text.tertiary</code>，左右 8px</td>
+</tr>
+<tr>
+<td>高度</td>
+<td>24px</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="14-pagination">14. Pagination</h2>
+<pre><code> [&lt;]  1  2  [3]  4  5  ...  20  [&gt;]</code></pre>
+<table>
+<thead>
+<tr>
+<th>元素</th>
+<th>大小</th>
+<th>字</th>
+<th>預設</th>
+<th>Active</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>數字按鈕</td>
+<td>32×32</td>
+<td><code>type.body.sm</code></td>
+<td><code>text.secondary</code>，hover surface.hover</td>
+<td>bg <code>text.primary</code>, text <code>text.inverse</code></td>
+</tr>
+<tr>
+<td>Prev / Next</td>
+<td>32×32</td>
+<td>icon 16px</td>
+<td>同上</td>
+<td>—</td>
+</tr>
+<tr>
+<td>省略號</td>
+<td>32×32</td>
+<td><code>…</code></td>
+<td><code>text.tertiary</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Disabled prev/next：<code>opacity: 0.4</code> +
+<code>cursor: not-allowed</code>。</p>
+</blockquote>
+<hr />
+<h2 id="15-progress--skeleton--spinner">15. Progress / Skeleton /
+Spinner</h2>
+<h3 id="151-linear-progress">15.1 Linear Progress</h3>
+<pre><code> ━━━━━━━━━━━━━━━━━━━━  ← track：surface.elevated，2px height
+ ━━━━━━━━━━            ← bar：text.primary（純白）</code></pre>
+<table>
+<thead>
+<tr>
+<th>屬性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>height</td>
+<td>2px（細）/ 4px（預設）</td>
+</tr>
+<tr>
+<td>radius</td>
+<td><code>radius.full</code></td>
+</tr>
+<tr>
+<td>不確定模式</td>
+<td>infinite linear，bar
+從左滑到右循環，<code>motion.duration.crawl × 4</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="152-skeleton">15.2 Skeleton</h3>
+<pre><code> - bg: surface.default（純色，無漸層）
+ - 動畫：opacity 0.4 ↔ 1.0 交替，1.4s ease.standard infinite
+ - radius: 同被替代元素（text → 4px，avatar → full，card → md）
+ - 高度：依文字行高（16/20/24px 三種預設）
+ - 規則：禁止 shimmer 漸層動畫，改為純粹 opacity 呼吸</code></pre>
+<h3 id="153-spinner">15.3 Spinner</h3>
+<pre><code> - 圓形 SVG，stroke 1.5px
+ - 旋轉 360°，1s linear infinite
+ - 預設色：currentColor（繼承文字色）
+ - 尺寸：12 / 16 / 20 / 24 / 32</code></pre>
+<blockquote>
+<p>Loading 按鈕：spinner 16px + 文字隱藏（覆蓋層）。</p>
+</blockquote>
+<hr />
+<h2 id="16-code-block--inline-code">16. Code Block / Inline Code</h2>
+<h3 id="161-inline-code">16.1 Inline Code</h3>
+<table>
+<thead>
+<tr>
+<th>屬性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>font</td>
+<td><code>font.mono</code> + <code>type.mono.sm</code></td>
+</tr>
+<tr>
+<td>bg</td>
+<td><code>surface.elevated</code></td>
+</tr>
+<tr>
+<td>color</td>
+<td><code>text.primary</code></td>
+</tr>
+<tr>
+<td>padding</td>
+<td>1px 6px</td>
+</tr>
+<tr>
+<td>radius</td>
+<td><code>radius.xs</code></td>
+</tr>
+<tr>
+<td>邊框</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<h3 id="162-block-code">16.2 Block Code</h3>
+<pre><code>┌──────────────────────────────────────────┐
+│ [Tab: filename.ts]                  [📋] │  ← 可選 header
+├──────────────────────────────────────────┤
+│ 1   import { foo } from &#39;bar&#39;;          │
+│ 2   const x = 1;                         │
+│ 3   ...                                  │
+└──────────────────────────────────────────┘</code></pre>
+<table>
+<thead>
+<tr>
+<th>屬性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bg</td>
+<td><code>canvas.sunken</code></td>
+</tr>
+<tr>
+<td>border</td>
+<td><code>border.hairline</code> 1px</td>
+</tr>
+<tr>
+<td>radius</td>
+<td><code>radius.md</code>（無 header）/ 上下分明（有 header）</td>
+</tr>
+<tr>
+<td>padding</td>
+<td>16px 20px</td>
+</tr>
+<tr>
+<td>font</td>
+<td><code>type.mono.md</code></td>
+</tr>
+<tr>
+<td>line-number</td>
+<td><code>text.tertiary</code>，select
+時不選取（<code>user-select: none</code>）</td>
+</tr>
+<tr>
+<td>主題</td>
+<td>同 X / Vercel 風暗色（建議：Vesper / Tokyo Night Storm）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="163-toolbar">16.3 Toolbar</h3>
+<pre><code> - 右上角：Copy 按鈕（icon-only ghost button），點擊後 200ms 顯示「Copied」chip
+ - 多檔分頁：Tab 風格切換，每個 tab 為 filename
+ - 行號：選擇性顯示</code></pre>
+<hr />
+<h2 id="17-kbd--shortcut">17. Kbd / Shortcut</h2>
+<pre><code> Press  ⌘ K  to open</code></pre>
+<table>
+<thead>
+<tr>
+<th>屬性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bg</td>
+<td><code>surface.elevated</code></td>
+</tr>
+<tr>
+<td>border</td>
+<td><code>border.hairline</code> 1px (top + left highlight)</td>
+</tr>
+<tr>
+<td>radius</td>
+<td><code>radius.xs</code></td>
+</tr>
+<tr>
+<td>padding</td>
+<td>1px 6px</td>
+</tr>
+<tr>
+<td>min-width</td>
+<td>20px</td>
+</tr>
+<tr>
+<td>height</td>
+<td>20px</td>
+</tr>
+<tr>
+<td>font</td>
+<td><code>font.mono</code> 11px / 500</td>
+</tr>
+<tr>
+<td>color</td>
+<td><code>text.secondary</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>多鍵組合：<code>⌘</code> <code>+</code> <code>K</code> 三個 kbd，間距
+4px，無 + 號。</p>
+</blockquote>
+<hr />
+<h2 id="18-divider">18. Divider</h2>
+<table>
+<thead>
+<tr>
+<th>類型</th>
+<th>樣式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>水平實線</td>
+<td>1px <code>border.hairline</code>，全寬</td>
+</tr>
+<tr>
+<td>水平虛線</td>
+<td>1px dashed <code>border.subtle</code></td>
+</tr>
+<tr>
+<td>垂直</td>
+<td>1px <code>border.hairline</code>，高度由父容器決定</td>
+</tr>
+<tr>
+<td>帶文字</td>
+<td><code>─── OR ───</code>，文字 <code>type.body.xs</code> +
+<code>text.tertiary</code>，左右各 16px</td>
+</tr>
+<tr>
+<td>雙線（Hero 區用）</td>
+<td>兩條 1px hairline，間距 4px</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="19-eyebrow">19. Eyebrow</h2>
+<p>Grok 標誌性元素。</p>
+<pre><code> 01 / FOUNDATIONS / COLOR
+ ───────────────────────
+ (heading content here)</code></pre>
+<table>
+<thead>
+<tr>
+<th>屬性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>font</td>
+<td><code>font.mono</code> + <code>type.label.sm</code></td>
+</tr>
+<tr>
+<td>color</td>
+<td><code>text.tertiary</code></td>
+</tr>
+<tr>
+<td>transform</td>
+<td><code>uppercase</code></td>
+</tr>
+<tr>
+<td>letter-spacing</td>
+<td>0.08em</td>
+</tr>
+<tr>
+<td>margin-bottom</td>
+<td>12px</td>
+</tr>
+<tr>
+<td>分隔符</td>
+<td><code>/</code>（前後各 1 空格）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="191-variants">19.1 Variants</h3>
+<table>
+<thead>
+<tr>
+<th>Variant</th>
+<th>樣式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>plain</code></td>
+<td>純文字</td>
+</tr>
+<tr>
+<td><code>numbered</code></td>
+<td>起頭 <code>01</code> 數字編號</td>
+</tr>
+<tr>
+<td><code>dotted</code></td>
+<td>起頭加 <code>●</code> 6px
+圓點，<code>text.primary</code>（純白）</td>
+</tr>
+<tr>
+<td><code>with-line</code></td>
+<td>後方延伸 <code>border.hairline</code> 至父容器寬度</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="20-marquee">20. Marquee</h2>
+<p>跑馬燈，常用於 Logo wall 或文字流動。</p>
+<pre><code> [Logo1]  [Logo2]  [Logo3]  [Logo4]  [Logo5]  →</code></pre>
+<table>
+<thead>
+<tr>
+<th>屬性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>速度</td>
+<td>30s / 一輪</td>
+</tr>
+<tr>
+<td>動畫</td>
+<td><code>transform: translateX(0 → -50%)</code> linear infinite</td>
+</tr>
+<tr>
+<td>Hover</td>
+<td>暫停（<code>animation-play-state: paused</code>）</td>
+</tr>
+<tr>
+<td>Mask</td>
+<td>左右兩端 24px solid <code>canvas.base</code> 同色蓋片（<strong>禁止
+linear-gradient fade</strong>）</td>
+</tr>
+<tr>
+<td>容器</td>
+<td>overflow hidden，子元素 <code>flex shrink-0</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="元件實作優先序">元件實作優先序</h2>
+<ol type="1">
+<li>Button、Input、Card、Tag — 構成 80% 介面</li>
+<li>Modal、Dropdown、Tooltip、Toast — 互動骨幹</li>
+<li>Tabs、Pagination、Breadcrumb — 導航類</li>
+<li>Code Block、Kbd、Eyebrow — Grok 風格標誌元件</li>
+<li>Skeleton、Spinner、Progress — 狀態指示</li>
+<li>Marquee、Bento Card — Hero / 行銷頁專用</li>
+</ol>
+<hr />
+<p><strong>版本</strong>：v1.0 <strong>最後更新</strong>：2026-05-02</p>
+</div></div></body></html>

@@ -1,0 +1,616 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>FR-0022 消費者端工單追蹤 — LINE rich menu 缺口 + spec/code 衝突裁決 + draft → active 路徑</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ _audit ／ CR-0013-fr-0022-consumer-tracking-cia.md</div>
+<div class="doc"><h1 id="cr-0013--fr-0022-消費者端工單追蹤-cia">CR-0013 — FR-0022
+消費者端工單追蹤 CIA</h1>
+<blockquote>
+<p><strong>Tier</strong>: 4-exploration → Change Impact Analysis
+<strong>Mandated by</strong>:
+<code>.claude/rules/change-governance.md</code> + CR-0010 HD-03=a
+「同步開 CR-0011~0014 審查其他 4 draft FR」 <strong>Triggered
+by</strong>: MISSION 北極星 (1) draft FR = 0；FR-0022 為 4 剩餘 draft FR
+第 3 件，<strong>Web 路徑已實作但 LINE rich menu 路徑未動 + 1 個
+spec/code 衝突</strong></p>
+</blockquote>
+<hr />
+<h2 id="1-change-statement">1. Change Statement</h2>
+<p><strong>As-is</strong>：</p>
+<ul>
+<li><code>FR-0022</code>
+<code>status: draft</code>，<code>blocked_by: Q3=C  # Web token spec</code></li>
+<li><strong>Q3 已經有 ADR</strong>：<code>ADR-0015</code> (PM-Q3
+消費者端追蹤入口) <code>status: accepted</code> — blocked_by 為
+stale</li>
+<li><strong>Web 路徑已實作</strong>：
+<ul>
+<li><code>api/routers/consumer_v2.py:80 GET /consumer/work-orders/{trackingToken}</code>
+✅</li>
+<li><code>web/src/app/track/[token]/page.tsx</code> ✅（per code
+comment「已切換至 /consumer/work-orders/{token}（spec M16
+對齊）」）</li>
+<li><code>api/services/public_token.py</code> 提供 token 解析（HMAC 或
+JWT 機制）</li>
+</ul></li>
+<li><strong>LINE 路徑未實作</strong>：
+<ul>
+<li>無 rich menu 設定（grep <code>LINE_RICHMENU</code> /
+<code>richmenu</code> 全空）</li>
+<li>無「查進度」專屬 postback handler（agent/app.py 只有 F2 改期 RSVP
+<code>_handle_reschedule_postback</code>）</li>
+<li>客戶在 LINE 發訊息「查進度」會走 ReAct agent
+自然語言流，但<strong>沒有 dedicated quick-action UX</strong></li>
+</ul></li>
+<li><strong>1 個 spec/code 衝突</strong>：
+<ul>
+<li>FR-0022 §1.2 A1: 「Web token mismatch → 401 unauthorized」</li>
+<li><code>consumer_v2.py:63</code> 註解: 「驗證 consumer tracking
+token；<strong>失敗一律 404，不洩露原因</strong>」</li>
+<li>Spec 401 vs code 404 不一致，下游 UX/log/alert 策略可能受影響</li>
+</ul></li>
+<li>BR-M16-NN 3 條未編號</li>
+</ul>
+<p><strong>To-be</strong>：</p>
+<ul>
+<li><code>status: draft → active</code>（FR-0022 frontmatter）+ 移除
+stale <code>blocked_by: Q3=C</code></li>
+<li>補對應 ADR：<code>ADR-0109</code>（暫定）— Consumer Tracking LINE
+rich menu 入口決策 + 多單顯示策略 + binding 機制 + Web token 401 vs 404
+統一</li>
+<li>BR-M16-NN 群組落實際編號（<code>BR-M16-001~003</code>）</li>
+<li>依 HD-01 決定是否補 LINE rich menu 實作（另開 BUILD CR）</li>
+<li>spec FR-0022 §1.2 A1 與 code consumer_v2 對齊（依 HD-05 裁決）</li>
+</ul>
+<p><strong>Driver</strong>：</p>
+<ul>
+<li>北極星條件 (1) 4 → 3 第 3 路徑（與 CR-0011/0012 並列）</li>
+<li>FR-0022 可能是「準完工 status flip」候選（類似 FR-0019 經 CR-0010
+promote 模式），Web 已 100%，LINE 端視 HD-01 裁決而定</li>
+<li>解 spec/code 衝突（401 vs 404）— 違 governance rule
+不允許「腦補合理版本」</li>
+</ul>
+<hr />
+<h2 id="2-affected-flow">2. Affected Flow</h2>
+<table>
+<thead>
+<tr>
+<th>Flow ID</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BF-CT-001</code>（Web token 查工單）</td>
+<td>Existing</td>
+<td>已實作；本 CR 補正典化（spec 401 vs code 404 裁決後寫入 FR）</td>
+</tr>
+<tr>
+<td><code>BF-CT-002</code>（LINE rich menu tap 查進度）</td>
+<td><strong>New</strong></td>
+<td>視 HD-01 = (a)/(c) 決定是否實作</td>
+</tr>
+<tr>
+<td><code>BF-CT-003</code>（LINE 自然語言查詢）</td>
+<td>Existing</td>
+<td>ReAct agent 既有；HD-01=(b)/(c) 認列為 FR-0022 LINE 路徑實作</td>
+</tr>
+<tr>
+<td><code>SF-CT-001</code>（多單顯示策略）</td>
+<td><strong>New</strong></td>
+<td>HD-02 決定</td>
+</tr>
+<tr>
+<td><code>SF-CT-002</code>（LINE binding 自動 vs 主動）</td>
+<td><strong>New</strong></td>
+<td>HD-03 決定</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-affected-spec-fr--nfr">3. Affected Spec (FR / NFR)</h2>
+<table>
+<thead>
+<tr>
+<th>Spec ID</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FR-0022</code></td>
+<td>Status flip + 衝突解</td>
+<td>draft → active；§1.2 A1 401 ↔︎ code 404 對齊（per HD-05）</td>
+</tr>
+<tr>
+<td><code>BR-M16-001</code>（Web token TTL）</td>
+<td><strong>New 編號</strong></td>
+<td>24h vs 7day vs infinite per HD-04</td>
+</tr>
+<tr>
+<td><code>BR-M16-002</code>（LINE 入口策略）</td>
+<td><strong>New 編號</strong></td>
+<td>rich menu / ReAct / 雙路 per HD-01</td>
+</tr>
+<tr>
+<td><code>BR-M16-003</code>（多單顯示策略）</td>
+<td><strong>New 編號</strong></td>
+<td>per HD-02</td>
+</tr>
+<tr>
+<td><code>NFR-CT-001</code>（Web token 查詢 p95 &lt; 200ms）</td>
+<td><strong>New</strong></td>
+<td>簡單 GET，現有 endpoint 已達</td>
+</tr>
+<tr>
+<td><code>ADR-0015</code></td>
+<td>Referenced</td>
+<td>PM-Q3 入口 accepted；本 CR ADR-0109 為 implementation 級補完，不
+supersede</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-affected-api">4. Affected API</h2>
+<table>
+<thead>
+<tr>
+<th>API ID</th>
+<th>Endpoint</th>
+<th>Action</th>
+<th>Breaking?</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>API-CT-V2-WO-BY-TOKEN</code></td>
+<td><code>GET /consumer/work-orders/{trackingToken}</code></td>
+<td>Existing</td>
+<td>No</td>
+<td>已實作；本 CR 補 401 vs 404 裁決後若需改 401 則為 breaking</td>
+</tr>
+<tr>
+<td><code>API-CT-V2-LIST-BY-LINE</code></td>
+<td><code>GET /consumer/work-orders?line_user_id=...</code></td>
+<td><strong>New (conditional)</strong></td>
+<td>—</td>
+<td>視 HD-02 多單顯示策略；rich menu 需要時新增</td>
+</tr>
+<tr>
+<td><code>API-CT-WEBHOOK-LINE-POSTBACK</code></td>
+<td>（agent/app.py 內部 handler）</td>
+<td><strong>New (conditional)</strong></td>
+<td>—</td>
+<td>HD-01=(a)/(c) 時新增「查進度」postback 解析；走既有 LINE webhook
+結構</td>
+</tr>
+<tr>
+<td><code>API-CT-V2-BIND-LINE</code></td>
+<td><code>POST /consumer/bindings:create-line</code></td>
+<td><strong>New (conditional)</strong></td>
+<td>—</td>
+<td>HD-03=(b)/(c) 時新增主動綁定流程</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-affected-data">5. Affected Data</h2>
+<table>
+<thead>
+<tr>
+<th>Entity</th>
+<th>Action</th>
+<th>Migration</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>既有 <code>consumer_tracking_tokens</code>（若存在）</td>
+<td>Touched</td>
+<td>視 HD-04 TTL 調整；若改 7day 需 backfill 評估</td>
+</tr>
+<tr>
+<td><code>line_bindings</code>（<strong>新表，依 HD-03</strong>）</td>
+<td>New (conditional)</td>
+<td><code>(id, tenant_id, customer_id, line_user_id, bound_at, bind_method enum 'auto'/'manual')</code>
+— HD-03=(a) auto only 則沿用既有 customer.line_user_id 不新增表</td>
+</tr>
+<tr>
+<td><code>consumer_tracking_events</code> (audit)（<strong>新表
+optional</strong>）</td>
+<td>New (conditional)</td>
+<td>對應 <code>emits_events: ConsumerTrackingOpened</code> 之 audit
+紀錄；若 M17 audit 既有支援可沿用</td>
+</tr>
+<tr>
+<td><code>customers.line_user_id</code></td>
+<td>Existing</td>
+<td>已存在於 schema</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-affected-test">6. Affected Test</h2>
+<table>
+<thead>
+<tr>
+<th>Test ID</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TC-CT-001</code>（happy Web token）</td>
+<td>Existing</td>
+<td>既有 e2e 已覆蓋</td>
+</tr>
+<tr>
+<td><code>TC-CT-002</code>（token expired）</td>
+<td><strong>New</strong></td>
+<td>AC-03，HD-04 TTL 決定後寫死</td>
+</tr>
+<tr>
+<td><code>TC-CT-003</code>（token tampered）</td>
+<td>Update</td>
+<td>AC-04，依 HD-05 裁決 401 or 404</td>
+</tr>
+<tr>
+<td><code>TC-CT-004</code>（LINE rich menu tap）</td>
+<td><strong>New (conditional)</strong></td>
+<td>HD-01=(a)/(c) 時新增 e2e</td>
+</tr>
+<tr>
+<td><code>TC-CT-005</code>（LINE 自然語言查詢經 ReAct）</td>
+<td><strong>New</strong></td>
+<td>HD-01=(b)/(c) 時新增 agent integration test</td>
+</tr>
+<tr>
+<td><code>TC-CT-006</code>（多單顯示）</td>
+<td><strong>New (conditional)</strong></td>
+<td>HD-02 決定後寫對應 case</td>
+</tr>
+<tr>
+<td><code>TC-CT-007</code>（LINE binding 流）</td>
+<td><strong>New (conditional)</strong></td>
+<td>HD-03=(b)/(c) 時新增</td>
+</tr>
+<tr>
+<td><code>TC-CT-XT-001</code>（cross-tenant token isolation）</td>
+<td><strong>New</strong></td>
+<td>跨 tenant 用 trackingToken 必 fail</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Coverage delta</strong>：+5~7 新 TC（依 HD-01/02/03
+conditional 而定）</p>
+<hr />
+<h2 id="7-affected-architecture">7. Affected Architecture</h2>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Action</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Module boundary</td>
+<td>Unchanged</td>
+<td>M16 Comms 既有；agent 端維持 LINE webhook 統一入口</td>
+</tr>
+<tr>
+<td>New ADR?</td>
+<td><strong>Yes</strong></td>
+<td><code>ADR-0109</code> 暫定 — HD-01~05 outcomes</td>
+</tr>
+<tr>
+<td>External integration</td>
+<td>LINE Messaging API rich menu config</td>
+<td>HD-01=(a)/(c) 時新增 ops 任務（LINE Developer Console + setRichMenu
+API call）</td>
+</tr>
+<tr>
+<td>Realtime</td>
+<td>Touched (low)</td>
+<td><code>/realtime/consumer/{token}</code> 暫不必（pull 即可，wo status
+更新頻率低）</td>
+</tr>
+<tr>
+<td>Security</td>
+<td>Touched</td>
+<td>HD-05 401 vs 404 影響滲透測試與 audit 行為</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-human-decisions-required">8. Human Decisions Required</h2>
+<p>🛑 <strong>CIA blocks code changes until every row here has a
+recorded decision.</strong></p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Question</th>
+<th>Options</th>
+<th>Owner</th>
+<th>Status</th>
+<th>Decision</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>HD-01</strong></td>
+<td>LINE 端「查進度」入口策略</td>
+<td>(a) 強制 LINE rich menu + 專屬 postback handler（quick-action
+UX）<br>(b) 接受 ReAct 自然語言查詢即為 LINE
+路徑「實作」（客戶說「查進度」走 agent → 內部 tool 查 wo）<br>(c)
+雙路並存（rich menu 為主，ReAct 為輔）<br>(d) 只做 Web 路徑，FR-0022
+§1.1 step 1 LINE 部分降為 optional / Phase II</td>
+<td>Product</td>
+<td><strong>pending</strong></td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>HD-02</strong></td>
+<td>多單顯示策略（一個 LINE 用戶綁多個活躍 wo）</td>
+<td>(a) 顯示最新 1 筆<br>(b) list 全部活躍 wo 讓客戶點選<br>(c)
+讓客戶輸入 wo_id 過濾</td>
+<td>Product</td>
+<td><strong>pending</strong></td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>HD-03</strong></td>
+<td>LINE binding 機制</td>
+<td>(a) 自動綁（wo 建立時若 customer 有 line_user_id 自動關聯，沿用
+customers.line_user_id 欄位）<br>(b) 客戶主動綁（rich menu「綁定」流程 +
+新表 line_bindings）<br>(c) 雙路：auto 為主，使用者可主動補綁</td>
+<td>Product + Backend</td>
+<td><strong>pending</strong></td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>HD-04</strong></td>
+<td>Web token TTL</td>
+<td>(a) 24h（FR-0022 §1.2 A2 預設）<br>(b) 7 day（UX 較友善）<br>(c) 30
+day<br>(d) infinite（風險高，需審慎）</td>
+<td>Security + Product</td>
+<td><strong>pending</strong></td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>HD-05</strong></td>
+<td>Web token tampered / expired 行為（<strong>spec/code
+衝突解</strong>）</td>
+<td>(a) 401（FR-0022 §1.2 A1 spec 寫法；明確告知 token 問題）<br>(b)
+404（code consumer_v2.py:63「不洩露原因」策略；防 enumeration
+攻擊）<br>(c) 400（明確 client-side error
+但不指明原因）<br><strong>注意：選 (a) 需修 code，選 (b) 需修 FR
+spec</strong></td>
+<td>Security + Product</td>
+<td><strong>pending</strong></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9-suggested-implementation-order">9. Suggested Implementation
+Order</h2>
+<p>§8 業主裁決後，依以下順序實作：</p>
+<ol type="1">
+<li><strong>Decisions</strong> → 寫 <code>ADR-0109</code> 記錄 §8
+HD-01~05 outcomes；frontmatter <code>related: ADR-0015</code>（PM 級 vs
+implementation 級分層，不 supersede）</li>
+<li><strong>BR 編號</strong> → FR-0022 內 BR-M16-NN 改
+<code>BR-M16-001~003</code></li>
+<li><strong>Spec/Code 衝突解</strong>：依 HD-05
+<ul>
+<li>選 (a) 401 → 修 <code>consumer_v2.py:_verify_consumer_token</code>
+回 401 + docstring 同步</li>
+<li>選 (b) 404 → 修 FR-0022 §1.2 A1 改為 404 + 補「防
+enumeration」rationale</li>
+</ul></li>
+<li><strong>FR-0022 status flip</strong> → draft → active；移除 stale
+<code>blocked_by: Q3=C</code>；補 ADR-0109 至
+<code>related_adrs</code></li>
+<li><strong>LINE 路徑實作</strong>（視 HD-01 conditional）：
+<ul>
+<li>HD-01=(a)/(c) → 另開 BUILD CR：rich menu setRichMenu 部署腳本 +
+postback handler + 對應 ops</li>
+<li>HD-01=(b) → 認列 ReAct 自然語言流，不需 code 變更，補測試
+TC-CT-005</li>
+<li>HD-01=(d) → 純 Web 路徑 active，FR §1.1 step 1 LINE 條目改
+optional</li>
+</ul></li>
+<li><strong>多單顯示 + binding</strong>（視 HD-02/03 conditional）：
+<ul>
+<li>多 endpoint / schema 變更時，本 step 移至 BUILD CR</li>
+</ul></li>
+<li><strong>TM-0000 更新</strong> → 補 FR-0022 ↔︎ ADR-0109 ↔︎ API-CT-V2-*
+↔︎ TC-CT-* row</li>
+<li><strong>CR-0013 status flip</strong> → open-awaiting-decisions →
+decided</li>
+<li><strong>system-completion-status.md</strong> → draft FR
+計數推進；Flow 5/F-022 行更新</li>
+</ol>
+<hr />
+<h2 id="10-risks--rollback">10. Risks &amp; Rollback</h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Likelihood</th>
+<th>Impact</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HD-05 選 (a) 401 後增 enumeration 攻擊風險</td>
+<td>Medium</td>
+<td>Medium</td>
+<td>加 rate limit + token 結構含 HMAC 即不可預測；現有 public_token.py
+已具備</td>
+</tr>
+<tr>
+<td>LINE rich menu config / 部署人為錯</td>
+<td>Medium</td>
+<td>Low</td>
+<td>HD-01=(a)/(c) 時補 ops runbook + 設定 idempotent 腳本</td>
+</tr>
+<tr>
+<td>HD-02 多單策略選錯導致客戶體驗差</td>
+<td>Low</td>
+<td>Medium</td>
+<td>Phase 8 UAT 客戶實測再調整；A/B test optional</td>
+</tr>
+<tr>
+<td>HD-04 TTL 過長導致 token 外洩風險上升</td>
+<td>Medium</td>
+<td>High</td>
+<td>24h 為安全預設；若選 (b) 7day 須補審計</td>
+</tr>
+<tr>
+<td>自動 LINE binding 隱私同意</td>
+<td>Low</td>
+<td>High（合規）</td>
+<td>HD-03=(a) 自動綁須評估 PDPA / GDPR 是否需明示同意；若要保守則
+HD-03=(b) 主動綁</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Rollback plan</strong>：</p>
+<ul>
+<li>Spec 衝突解 (HD-05) 為單向變更（spec or code），revert 為 1-line
+修正</li>
+<li>LINE rich menu 部署有 Console 端 + code 端兩處，rollback 需
+setRichMenu(default) + revert code</li>
+<li>HD-04 TTL 調整 → config 改即可，無 schema impact</li>
+<li>ADR-0109 / FR-0022 status 改回 draft + 標 reverted
+註解（append-only）</li>
+</ul>
+<hr />
+<h2 id="11-out-of-scope">11. Out of Scope</h2>
+<ul>
+<li><strong>LINE rich menu 視覺設計圖</strong> → UX team 提，不在本
+CR</li>
+<li><strong>多語言 rich menu</strong> → V2 議題</li>
+<li><strong>客戶在 LINE 內 inline 改期 / 取消</strong>（已由 Flow 11 F2
+postback handler 處理）→ 不重複</li>
+<li><strong>Scope change consumer 流</strong>（已有
+<code>/consumer/scope-changes/{token}</code> v2）→ 不重複</li>
+<li><strong>FR-0044 customer.line_user_id schema 擴充</strong> → 既有
+customers 表已含</li>
+</ul>
+<hr />
+<h2 id="12-sign-off">12. Sign-off</h2>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Name</th>
+<th>Date</th>
+<th>Approved?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Product</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Architect</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Backend Lead</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Frontend Lead</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Security</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Compliance / Legal</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>QA Lead</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="a-取證附錄為何此-cr-是必要">§A 取證附錄（為何此 CR 是必要）</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. FR-0022 仍 draft + Q3 blocker（但 ADR-0015 已 accepted → blocked_by stale）</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> grep <span class="at">-E</span> <span class="st">&quot;^status:|^blocked_by:&quot;</span> docs/analysis/fr/FR-0022-consumer-tracking.md</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">status:</span> draft</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">blocked_by:</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="ex">-</span> Q3=C  <span class="co"># Web token spec</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> grep <span class="st">&quot;^status:&quot;</span> docs/architecture/adr/ADR-0015-pm-alignment-q3.md</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="ex">status:</span> accepted</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Web 路徑已實作（v2 endpoint + web page 都對齊 spec M16）</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> grep <span class="at">-n</span> <span class="st">&quot;@router\.\|consumer.work-orders&quot;</span> api/routers/consumer_v2.py <span class="kw">|</span> <span class="fu">head</span> <span class="at">-3</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="ex">80:</span>    <span class="st">&quot;/consumer/work-orders/{trackingToken}&quot;</span>,</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> head <span class="at">-20</span> web/src/app/track/<span class="pp">[</span><span class="ss">token</span><span class="pp">]</span>/page.tsx <span class="kw">|</span> <span class="fu">grep</span> <span class="st">&quot;consumer/work-orders&quot;</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co"># v2 spec-aligned path（CR-0002-α M16 Consumer）: /consumer/work-orders/{token}</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. LINE rich menu 未實作（grep richmenu/LINE_RICHMENU 全空）</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> grep <span class="at">-rn</span> <span class="st">&quot;LINE_RICHMENU\|richmenu\|RICH_MENU&quot;</span> agent/ api/ scripts/ <span class="dv">2</span><span class="op">&gt;</span>/dev/null</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="ex">（空）</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. agent webhook 只有 F2 改期 postback，無「查進度」postback handler</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> grep <span class="at">-n</span> <span class="st">&quot;postback&quot;</span> agent/app.py <span class="kw">|</span> <span class="fu">head</span> <span class="at">-3</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="ex">340:#</span> ── F2 客戶改期 RSVP postback handler ──</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="ex">343:async</span> def _handle_reschedule_postback<span class="er">(</span><span class="ex">event</span><span class="kw">)</span><span class="bu">:</span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a><span class="ex">（無</span> _handle_tracking_postback 或類似）</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="co"># 5. spec/code 衝突取證</span></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> grep <span class="at">-A2</span> <span class="st">&quot;A1. Web token mismatch&quot;</span> docs/analysis/fr/FR-0022-consumer-tracking.md</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a><span class="ex">A1.</span> Web token mismatch:</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>    <span class="ex">A1.1</span> 401 unauthorized</span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> grep <span class="at">-n</span> <span class="st">&quot;404\|不洩露&quot;</span> api/routers/consumer_v2.py <span class="kw">|</span> <span class="fu">head</span> <span class="at">-3</span></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a><span class="ex">63:</span>    <span class="st">&quot;&quot;&quot;驗證 consumer tracking token；失敗一律 404，不洩露原因。&quot;&quot;&quot;</span></span></code></pre></div>
+<p><strong>結論</strong>：FR-0022 為「準完工 status flip 候選」（類似
+FR-0019 經 CR-0010 promote 模式），Web 路徑 100% 已實作；LINE rich menu
+為 0%（視 HD-01 是否強制）。本 CR 列 <strong>5 HD</strong>，HD-05 解
+spec/code 401 vs 404 衝突為 critical 治理事項，必須裁決而非腦補。</p>
+</div></div></body></html>

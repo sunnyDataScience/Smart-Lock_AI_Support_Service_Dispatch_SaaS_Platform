@@ -1,0 +1,97 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Prompt: 01 Capture</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../../../../index.html">🏠 文件總目錄</a> ／ ui ／ web_design_spec_prompt_pipeline ／ design-system-specs ／ cloning ／ prompts ／ 01_capture.md</div>
+<div class="doc"><h1 id="prompt-01-capture">Prompt: 01 Capture</h1>
+<blockquote>
+<p>用途：擷取目標網站的原始素材 執行者：browser-automation-expert agent
+/ Playwright 腳本 / 手動 DevTools</p>
+</blockquote>
+<hr />
+<h2 id="給-agent-的-prompt">給 Agent 的 Prompt</h2>
+<pre><code>任務：擷取目標網站 {URL} 的原始素材，用於後續設計分析。
+
+請依序完成以下操作，將產物存到 design-system-specs/cloning/clones/{slug}/raw/ ：
+
+1. 三斷點全頁截圖
+   - 375 × 812（mobile）→ screenshots/mobile.png
+   - 768 × 1024（tablet）→ screenshots/tablet.png
+   - 1440 × 900（desktop）→ screenshots/desktop.png
+
+2. 擷取渲染後的完整 HTML
+   - 執行 document.documentElement.outerHTML
+   - 存為 dom.html
+
+3. 擷取 :root CSS 變數
+   - 執行 getComputedStyle(document.documentElement)
+   - 過濾所有 -- 開頭的屬性
+   - 存為 css-vars-raw.json
+
+4. 擷取關鍵元素的 computed style
+   - 對 button, a, h1-h6, input, .card, [class*=&quot;btn&quot;] 等
+   - 取 color, background, font-family, font-size, font-weight,
+     line-height, padding, margin, border-radius, box-shadow
+   - 存為 computed-styles.json
+
+5. 字型清單
+   - 執行 [...document.fonts].map(f =&gt; ({family: f.family, weight: f.weight, style: f.style}))
+   - 存為 fonts.json
+
+6. Media queries
+   - 從 document.styleSheets 抽出所有 @media 規則的條件
+   - 存為 media-queries.json
+
+法律紅線：
+- 只擷取公開頁面（不登入）
+- 檢查 robots.txt，禁止路徑跳過
+- 不下載圖片資源檔案</code></pre>
+<hr />
+<h2 id="手動操作版本若無-browser-mcp">手動操作版本（若無 browser
+MCP）</h2>
+<p>在目標網站 DevTools Console 執行：</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">// 1. CSS 變數</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> rootStyles <span class="op">=</span> <span class="fu">getComputedStyle</span>(<span class="bu">document</span><span class="op">.</span><span class="at">documentElement</span>)<span class="op">;</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> cssVars <span class="op">=</span> {}<span class="op">;</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (<span class="kw">let</span> i <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> i <span class="op">&lt;</span> rootStyles<span class="op">.</span><span class="at">length</span><span class="op">;</span> i<span class="op">++</span>) {</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> prop <span class="op">=</span> rootStyles[i]<span class="op">;</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (prop<span class="op">.</span><span class="fu">startsWith</span>(<span class="st">&#39;--&#39;</span>)) cssVars[prop] <span class="op">=</span> rootStyles<span class="op">.</span><span class="fu">getPropertyValue</span>(prop)<span class="op">.</span><span class="fu">trim</span>()<span class="op">;</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="fu">copy</span>(<span class="bu">JSON</span><span class="op">.</span><span class="fu">stringify</span>(cssVars<span class="op">,</span> <span class="kw">null</span><span class="op">,</span> <span class="dv">2</span>))<span class="op">;</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co">// 2. 字型</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="fu">copy</span>(<span class="bu">JSON</span><span class="op">.</span><span class="fu">stringify</span>([<span class="op">...</span><span class="bu">document</span><span class="op">.</span><span class="at">fonts</span>]<span class="op">.</span><span class="fu">map</span>(f <span class="kw">=&gt;</span> ({</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>  <span class="dt">family</span><span class="op">:</span> f<span class="op">.</span><span class="at">family</span><span class="op">,</span> <span class="dt">weight</span><span class="op">:</span> f<span class="op">.</span><span class="at">weight</span><span class="op">,</span> <span class="dt">style</span><span class="op">:</span> f<span class="op">.</span><span class="at">style</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>}))<span class="op">,</span> <span class="kw">null</span><span class="op">,</span> <span class="dv">2</span>))<span class="op">;</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="co">// 3. DOM</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="fu">copy</span>(<span class="bu">document</span><span class="op">.</span><span class="at">documentElement</span><span class="op">.</span><span class="at">outerHTML</span>)<span class="op">;</span></span></code></pre></div>
+<p>把每次 <code>copy()</code> 結果貼到對應檔案。</p>
+<hr />
+<h2 id="驗收">驗收</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" /><code>raw/screenshots/</code>
+三張截圖存在</label></li>
+<li><label><input type="checkbox" /><code>raw/dom.html</code> &gt;
+10KB</label></li>
+<li><label><input type="checkbox" /><code>raw/css-vars-raw.json</code>
+至少 5 個變數</label></li>
+<li><label><input
+type="checkbox" /><code>raw/computed-styles.json</code> 涵蓋至少 5
+種元素類型</label></li>
+</ul>
+</div></div></body></html>

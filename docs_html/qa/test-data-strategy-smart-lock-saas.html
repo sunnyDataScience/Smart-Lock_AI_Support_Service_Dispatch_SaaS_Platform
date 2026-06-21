@@ -1,0 +1,895 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Test Data Strategy — Smart Lock SaaS (Phase I MVP)</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ qa ／ test-data-strategy-smart-lock-saas.md</div>
+<div class="doc"><h1 id="test-data-strategy--smart-lock-saas-phase-i-mvp">Test Data
+Strategy — Smart Lock SaaS (Phase I MVP)</h1>
+<blockquote>
+<p>對應 Gate 6 Test Ready。台灣 0-1 SaaS pragmatic：先覆蓋 P0 happy +
+主要 alt，例外流容忍但 audit 必驗。</p>
+<p><strong>核心原則</strong>：</p>
+<ol type="1">
+<li>fixture 以「客戶旅程 + tenant 邊界 + RBAC 角色」三維鋪設，不為
+entity 而 fixture</li>
+<li>PII 一律 anonymize（生成 + masking + scrub），prod-like
+但無真人外洩</li>
+<li>場景化 fixture 以 6-stage cancellation / 5-mode warranty / SoD
+三維為主軸</li>
+<li>Phase II / nice-to-have 標 <code>defer</code>，不擋 Gate 6</li>
+</ol>
+</blockquote>
+<hr />
+<h2 id="1-tenant-邊界-fixturemulti-tenancy-isolation">§1 Tenant 邊界
+Fixture（Multi-Tenancy Isolation）</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Fixture ID</th>
+<th style="text-align: left;">名稱</th>
+<th style="text-align: left;">用途</th>
+<th style="text-align: left;">RLS 驗證</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>TENANT-B2C-001</code></td>
+<td style="text-align: left;">一般家戶（B2C 個人）</td>
+<td style="text-align: left;">直接消費場景；無建商 / 品牌綁定</td>
+<td style="text-align: left;"><code>tenant_id=B2C-001</code> only
+可見自己 customer / device / wo</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>TENANT-B2B-BUILDER-001</code></td>
+<td style="text-align: left;">建商客戶 A</td>
+<td style="text-align: left;">Project 綁定；warranty 起算 =
+handover_date</td>
+<td style="text-align: left;">builder_001 看不到 builder_002 / brand_001
+資料</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>TENANT-B2B-BUILDER-002</code></td>
+<td style="text-align: left;">建商客戶 B</td>
+<td style="text-align: left;">對照組（cross-tenant negative test）</td>
+<td style="text-align: left;">同上</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>TENANT-B2B-BRAND-001</code></td>
+<td style="text-align: left;">品牌商 A</td>
+<td style="text-align: left;">Brand → Model → Device
+維護；查詢自家保固單</td>
+<td style="text-align: left;">brand_001 看不到 brand_002 / builder
+資料</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>TENANT-B2B-PROJECT-001</code></td>
+<td style="text-align: left;">建案 A</td>
+<td style="text-align: left;">屬 builder_001 子層；500 戶 device
+pool</td>
+<td style="text-align: left;">RLS 透過 builder_id descend 驗</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Cross-tenant negative fixture</strong>：每對 tenant 至少 1 個
+read attempt + 1 個 write attempt（POST/PATCH/DELETE），預期 403/404 +
+audit log 寫 <code>cross_tenant_violation_attempted</code>。</p>
+<hr />
+<h2 id="2-智慧鎖場景-fixture5-種-warranty-mode">§2 智慧鎖場景 Fixture（5
+種 Warranty Mode）</h2>
+<p>對應 ADR-0044 v2 + BR-WARRANTY-001..007。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Fixture ID</th>
+<th style="text-align: left;">Device serial</th>
+<th style="text-align: left;">install_date</th>
+<th style="text-align: left;">warranty_mode</th>
+<th style="text-align: left;">warranty_end_date</th>
+<th style="text-align: left;">RMA history</th>
+<th style="text-align: left;">用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>DEV-WM-001</code></td>
+<td style="text-align: left;">SL-2025-00001</td>
+<td style="text-align: left;">2025-06-01</td>
+<td style="text-align: left;"><code>from_install</code></td>
+<td style="text-align: left;">2026-06-01</td>
+<td style="text-align: left;">無</td>
+<td style="text-align: left;">一般家戶 default mode</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DEV-WM-002</code></td>
+<td style="text-align: left;">SL-2025-00002</td>
+<td style="text-align: left;">(建案 N/A)</td>
+<td style="text-align: left;"><code>from_handover</code></td>
+<td style="text-align: left;">handover + 365d</td>
+<td style="text-align: left;">無</td>
+<td style="text-align: left;">B2B 建案 mode</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DEV-WM-003</code></td>
+<td style="text-align: left;">SL-2025-00003</td>
+<td style="text-align: left;">2025-01-01</td>
+<td style="text-align: left;"><code>from_install</code></td>
+<td style="text-align: left;">2025-12-30</td>
+<td style="text-align: left;">2025-08-15 ~ 2025-08-22 送修 7d</td>
+<td style="text-align: left;">RMA 後延長 7d 計算 verify (BR-WARRANTY-005
+§1)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DEV-WM-004</code></td>
+<td style="text-align: left;">SL-2025-00004</td>
+<td style="text-align: left;">2025-01-01</td>
+<td style="text-align: left;"><code>from_install</code></td>
+<td style="text-align: left;">2025-12-31</td>
+<td style="text-align: left;">2025-09-01 換馬達零件</td>
+<td style="text-align: left;">換新零件 part-level 90d 獨立重算
+verify</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DEV-WM-005</code></td>
+<td style="text-align: left;">SL-2025-00005</td>
+<td style="text-align: left;">2024-06-01</td>
+<td style="text-align: left;"><code>from_install</code></td>
+<td style="text-align: left;">2025-06-01</td>
+<td style="text-align: left;">(保固已過)</td>
+<td style="text-align: left;">out-of-warranty quote 場景</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Negative fixture（DEV-WM-NEG-*）</strong>：</p>
+<ul>
+<li><code>DEV-WM-NEG-001</code> — serial NULL → 預期 422 (BR-A02-01 +
+ADR-0053 serial mandatory)</li>
+<li><code>DEV-WM-NEG-002</code> — install_date &gt; today → 預期 422
+(BR-WARRANTY-001 起算日有效性)</li>
+<li><code>DEV-WM-NEG-003</code> — RMA 循環送修（同 device 月內 3 次）→
+預期 ops_manager 警示（BR-WARRANTY-005 anti-abuse）</li>
+</ul>
+<hr />
+<h2 id="3-客戶旅程-fixture6-stage-cancellation--退款--保固">§3 客戶旅程
+Fixture（6-Stage Cancellation + 退款 + 保固）</h2>
+<p>對應 FR-0010 + ADR-0102 + BR-CANCEL-001..008。</p>
+<h3 id="31-cancellation-6-stage-fixturefee-tier-完整覆蓋">§3.1
+Cancellation 6-Stage Fixture（fee tier 完整覆蓋）</h3>
+<p>每一階段配 1 個 happy + 1 個 alt（共 12 fixture）。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Fixture ID</th>
+<th style="text-align: left;">階段</th>
+<th style="text-align: left;">WO state</th>
+<th style="text-align: left;">Expected fee</th>
+<th style="text-align: left;">reason_code</th>
+<th style="text-align: left;">對照 BR</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>CXJ-S1-H</code></td>
+<td style="text-align: left;">S1 報價未確認</td>
+<td style="text-align: left;">quote_sent_unconfirmed</td>
+<td style="text-align: left;">NTD 0</td>
+<td style="text-align: left;">C-CHANGE_MIND</td>
+<td style="text-align: left;">BR-CANCEL-001</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>CXJ-S1-ALT</code></td>
+<td style="text-align: left;">S1 + 客服 override 嘗試調高 fee</td>
+<td style="text-align: left;">quote_pending</td>
+<td style="text-align: left;">NTD 0（hard zero）</td>
+<td style="text-align: left;">B-OUT_OF_STOCK</td>
+<td style="text-align: left;">BR-CANCEL-001 §constraints</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>CXJ-S1.5-H</code></td>
+<td style="text-align: left;">S1.5 已確認未派工</td>
+<td style="text-align: left;">quote_confirmed + technician_id NULL</td>
+<td style="text-align: left;">NTD 0</td>
+<td style="text-align: left;">C-CHANGE_MIND</td>
+<td style="text-align: left;">BR-CANCEL-002</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>CXJ-S2-H</code></td>
+<td style="text-align: left;">S2 派工未出發</td>
+<td style="text-align: left;">dispatched + gps=not_departed</td>
+<td style="text-align: left;">NTD 300</td>
+<td style="text-align: left;">C-FOUND_CHEAPER</td>
+<td style="text-align: left;">BR-CANCEL-003</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>CXJ-S2-ALT</code></td>
+<td style="text-align: left;">S2 客服 override 50% 調降</td>
+<td style="text-align: left;">dispatched</td>
+<td style="text-align: left;">NTD 150 + 主管覆核 audit row</td>
+<td style="text-align: left;">C-FOUND_CHEAPER</td>
+<td style="text-align: left;">BR-CANCEL-003 + FR-0010 AC-08</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>CXJ-S3-H</code></td>
+<td style="text-align: left;">S3 出發後</td>
+<td style="text-align: left;">en_route</td>
+<td style="text-align: left;">NTD 500（含車馬，ADR-0041 split）</td>
+<td style="text-align: left;">B-PRICE_DISPUTE</td>
+<td style="text-align: left;">BR-CANCEL-004</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>CXJ-S4-H</code></td>
+<td style="text-align: left;">S4 到場後未施工</td>
+<td style="text-align: left;">on_site + work_started=false</td>
+<td style="text-align: left;">NTD 800</td>
+<td style="text-align: left;">C-CHANGE_MIND</td>
+<td style="text-align: left;">BR-CANCEL-005</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>CXJ-S5-H</code></td>
+<td style="text-align: left;">S5 已施工 30%</td>
+<td style="text-align: left;">in_progress (progress=0.3)</td>
+<td style="text-align: left;">NTD 800（floor） + 材料 + 車馬</td>
+<td style="text-align: left;">C-NO_LONGER_NEEDED</td>
+<td style="text-align: left;">BR-CANCEL-006</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>CXJ-S5-ALT</code></td>
+<td style="text-align: left;">S5 已施工 80%</td>
+<td style="text-align: left;">in_progress (progress=0.8)</td>
+<td style="text-align: left;">proportional ≈ NTD 2,500 + 材料 +
+車馬</td>
+<td style="text-align: left;">B-SCHEDULE_CONFLICT</td>
+<td style="text-align: left;">BR-CANCEL-006 §proportional</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>CXJ-TECH-001</code></td>
+<td style="text-align: left;">師傅 initiated 首次當月</td>
+<td style="text-align: left;">dispatched</td>
+<td style="text-align: left;">NTD 0 + tech.weight -5</td>
+<td style="text-align: left;">T-SICK</td>
+<td style="text-align: left;">BR-CANCEL-007</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>CXJ-TECH-002</code></td>
+<td style="text-align: left;">師傅 initiated 同月第 2 次</td>
+<td style="text-align: left;">dispatched</td>
+<td style="text-align: left;">NTD 500 (技師扣) + tech.weight -10 + auto
+reassign</td>
+<td style="text-align: left;">T-OVERBOOKED</td>
+<td style="text-align: left;">BR-CANCEL-007</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>CXJ-TECH-003</code></td>
+<td style="text-align: left;">師傅 不可抗力（醫療證明）</td>
+<td style="text-align: left;">dispatched</td>
+<td style="text-align: left;">NTD 0 + ops_manager approve audit</td>
+<td style="text-align: left;">T-VEHICLE_ISSUE + evidence FK</td>
+<td style="text-align: left;">BR-CANCEL-007 §force-majeure</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>CXJ-NEG-001</code></td>
+<td style="text-align: left;">缺 reason code 嘗試 cancel</td>
+<td style="text-align: left;">any</td>
+<td style="text-align: left;">422 REASON_CODE_REQUIRED</td>
+<td style="text-align: left;">(空)</td>
+<td style="text-align: left;">BR-CANCEL-008</td>
+</tr>
+</tbody>
+</table>
+<h3 id="32-退款-sod-fixtureinitiator--approver--executor-三維">§3.2 退款
+SoD Fixture（initiator / approver / executor 三維）</h3>
+<p>對應 BR-REFUND-006 + ADR-0040 v2。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Fixture ID</th>
+<th style="text-align: left;">initiator</th>
+<th style="text-align: left;">approver</th>
+<th style="text-align: left;">executor</th>
+<th style="text-align: left;">amount</th>
+<th style="text-align: left;">expected</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>REF-SOD-001</code></td>
+<td style="text-align: left;">csm_a</td>
+<td style="text-align: left;">acct_a</td>
+<td style="text-align: left;">system</td>
+<td style="text-align: left;">NTD 500</td>
+<td style="text-align: left;">200 OK + 7-event audit</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>REF-SOD-002</code></td>
+<td style="text-align: left;">csm_a</td>
+<td style="text-align: left;">csm_a</td>
+<td style="text-align: left;">system</td>
+<td style="text-align: left;">NTD 500</td>
+<td style="text-align: left;"><strong>409 SoD_VIOLATION</strong>
+(initiator==approver)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>REF-SOD-003</code></td>
+<td style="text-align: left;">csm_a</td>
+<td style="text-align: left;">sup_a</td>
+<td style="text-align: left;">system</td>
+<td style="text-align: left;">NTD 50,000</td>
+<td style="text-align: left;">200 OK + L2 (主管) approve</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>REF-SOD-004</code></td>
+<td style="text-align: left;">csm_a</td>
+<td style="text-align: left;">sup_a</td>
+<td style="text-align: left;">system</td>
+<td style="text-align: left;">NTD 600,000</td>
+<td style="text-align: left;">425 + escalate L5 Sponsor (BR-REFUND-006
+§rbac-mapping)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>REF-SOD-005</code></td>
+<td style="text-align: left;">csm_a</td>
+<td style="text-align: left;">sponsor_l5</td>
+<td style="text-align: left;">system</td>
+<td style="text-align: left;">NTD 600,000</td>
+<td style="text-align: left;">200 OK + L5 audit</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>REF-SOD-NEG-001</code></td>
+<td style="text-align: left;">csm_a</td>
+<td style="text-align: left;">acct_a</td>
+<td style="text-align: left;">csm_a (manual)</td>
+<td style="text-align: left;">NTD 500</td>
+<td style="text-align: left;"><strong>409 SOD_VIOLATION</strong>
+(initiator==executor 不允許)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="33-保固-fixturewarranty-mode--rma--b2b-override">§3.3 保固
+Fixture（warranty mode × RMA × B2B override）</h3>
+<p>對應 FR-0015 + BR-WARRANTY-001..007。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Fixture ID</th>
+<th style="text-align: left;">warranty_mode</th>
+<th style="text-align: left;">RMA event</th>
+<th style="text-align: left;">B2B override</th>
+<th style="text-align: left;">expected outcome</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>WAR-H-001</code></td>
+<td style="text-align: left;">from_install</td>
+<td style="text-align: left;">無</td>
+<td style="text-align: left;">無</td>
+<td style="text-align: left;">1 year happy path</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>WAR-H-002</code></td>
+<td style="text-align: left;">from_handover</td>
+<td style="text-align: left;">無</td>
+<td style="text-align: left;">建商合約 2y</td>
+<td style="text-align: left;">end_date = handover + 730d</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>WAR-RMA-001</code></td>
+<td style="text-align: left;">from_install</td>
+<td style="text-align: left;">修 7d → 取回</td>
+<td style="text-align: left;">無</td>
+<td style="text-align: left;">end_date += 7d (BR-WARRANTY-005 §1)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>WAR-RMA-002</code></td>
+<td style="text-align: left;">from_install</td>
+<td style="text-align: left;">換馬達零件</td>
+<td style="text-align: left;">無</td>
+<td style="text-align: left;">original end_date 不延長 + 新馬達
+part-level 90d 從換裝日（BR-WARRANTY-005 §2 + BR-WARRANTY-007 BOM
+階層欄位驗）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>WAR-NEG-001</code></td>
+<td style="text-align: left;">from_install</td>
+<td style="text-align: left;">月內 3 次循環送修</td>
+<td style="text-align: left;">無</td>
+<td style="text-align: left;">ops_manager alert + audit
+<code>rma_abuse_suspected</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>WAR-NEG-002</code></td>
+<td style="text-align: left;">from_install</td>
+<td style="text-align: left;">已過保 + RMA claim</td>
+<td style="text-align: left;">無</td>
+<td style="text-align: left;">422 WARRANTY_EXPIRED</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-rbac--sponsor-sod-fixture師傅-l1-l5">§4 RBAC + Sponsor SoD
+Fixture（師傅 L1-L5）</h2>
+<p>對應 ADR-0040 + ADR-0042 + FR-0019。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Fixture ID</th>
+<th style="text-align: left;">role</th>
+<th style="text-align: left;">level</th>
+<th style="text-align: left;">permissions</th>
+<th style="text-align: left;">用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>RBAC-CSM-L1</code></td>
+<td style="text-align: left;">csm</td>
+<td style="text-align: left;">L1</td>
+<td style="text-align: left;">view + edit own + initiate refund</td>
+<td style="text-align: left;">客服基本場景</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>RBAC-ACCT-L2</code></td>
+<td style="text-align: left;">accounting</td>
+<td style="text-align: left;">L2</td>
+<td style="text-align: left;">approve refund ≤ NTD 10,000</td>
+<td style="text-align: left;">refund tier 1</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>RBAC-SUP-L3</code></td>
+<td style="text-align: left;">supervisor</td>
+<td style="text-align: left;">L3</td>
+<td style="text-align: left;">approve refund ≤ NTD 100,000 + cancel
+override</td>
+<td style="text-align: left;">refund tier 2 + cancel override</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>RBAC-OPS-L4</code></td>
+<td style="text-align: left;">ops_manager</td>
+<td style="text-align: left;">L4</td>
+<td style="text-align: left;">approve refund ≤ NTD 500,000 +
+force-majeure cancel + ops dashboard</td>
+<td style="text-align: left;">refund tier 3 + 不可抗力</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>RBAC-SPONSOR-L5</code></td>
+<td style="text-align: left;">sponsor</td>
+<td style="text-align: left;">L5</td>
+<td style="text-align: left;">approve refund &gt; NTD 500,000 (含 &gt;
+公司年收 1%)</td>
+<td style="text-align: left;">refund tier 4 + 最高審</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>RBAC-TECH-L1</code></td>
+<td style="text-align: left;">technician</td>
+<td style="text-align: left;">L1</td>
+<td style="text-align: left;">own_wo + onsite report + scope_change ≤
+500</td>
+<td style="text-align: left;">師傅標準</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>RBAC-TECH-L2</code></td>
+<td style="text-align: left;">technician</td>
+<td style="text-align: left;">L2</td>
+<td style="text-align: left;">+ scope_change ≤ 2000</td>
+<td style="text-align: left;">資深師傅</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>RBAC-TECH-L3</code></td>
+<td style="text-align: left;">technician</td>
+<td style="text-align: left;">L3</td>
+<td style="text-align: left;">+ dispatch help backup</td>
+<td style="text-align: left;">lead 師傅</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>RBAC-TECH-L4</code></td>
+<td style="text-align: left;">technician</td>
+<td style="text-align: left;">L4</td>
+<td style="text-align: left;">+ L1-L3 mentor + cross-region</td>
+<td style="text-align: left;">區域師傅</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>RBAC-TECH-L5</code></td>
+<td style="text-align: left;">technician</td>
+<td style="text-align: left;">L5</td>
+<td style="text-align: left;">+ emergency override + family review
+nominate</td>
+<td style="text-align: left;">sponsor 級技師</td>
+</tr>
+</tbody>
+</table>
+<p><strong>SoD violation negative fixture</strong>：</p>
+<ul>
+<li><code>RBAC-SOD-NEG-001</code> — csm_a 同時 initiator + approver →
+409</li>
+<li><code>RBAC-SOD-NEG-002</code> — csm_a 嘗試 approve own initiated
+refund 透過第二個 session → 409 (DB constraint enforcement)</li>
+<li><code>RBAC-SOD-NEG-003</code> — sup_a 嘗試 approve NTD 200,000 (超過
+L3 cap) → 425 + escalate to L4</li>
+</ul>
+<hr />
+<h2 id="5-synthetic-data-generationpytest-factory">§5 Synthetic Data
+Generation（pytest factory）</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># tests/fixtures/factories.py — pytest-factoryboy</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> factory <span class="im">import</span> Factory, Faker, SubFactory, LazyAttribute</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> datetime <span class="im">import</span> datetime, timedelta</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> TenantFactory(Factory):</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">class</span> Meta:</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>        model <span class="op">=</span> <span class="st">&quot;Tenant&quot;</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    tenant_id <span class="op">=</span> Faker(<span class="st">&quot;uuid4&quot;</span>)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    tenant_type <span class="op">=</span> <span class="st">&quot;b2c&quot;</span>  <span class="co"># override: b2b_builder / b2b_brand / b2b_project</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    name <span class="op">=</span> Faker(<span class="st">&quot;company&quot;</span>, locale<span class="op">=</span><span class="st">&quot;zh_TW&quot;</span>)</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    created_at <span class="op">=</span> Faker(<span class="st">&quot;date_time_this_year&quot;</span>)</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> CustomerFactory(Factory):</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">class</span> Meta:</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>        model <span class="op">=</span> <span class="st">&quot;Customer&quot;</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    customer_id <span class="op">=</span> Faker(<span class="st">&quot;uuid4&quot;</span>)</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    tenant_id <span class="op">=</span> SubFactory(TenantFactory)</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    name_enc <span class="op">=</span> Faker(<span class="st">&quot;name&quot;</span>, locale<span class="op">=</span><span class="st">&quot;zh_TW&quot;</span>)     <span class="co"># PII; will be encrypted</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    phone_enc <span class="op">=</span> Faker(<span class="st">&quot;phone_number&quot;</span>, locale<span class="op">=</span><span class="st">&quot;zh_TW&quot;</span>)</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    line_user_id <span class="op">=</span> LazyAttribute(<span class="kw">lambda</span> o: <span class="ss">f&quot;U</span><span class="sc">{</span>Faker(<span class="st">&#39;uuid4&#39;</span>)<span class="sc">.</span>evaluate(<span class="va">None</span>, <span class="va">None</span>, {<span class="st">&#39;locale&#39;</span>: <span class="st">&#39;en&#39;</span>})[:<span class="dv">32</span>]<span class="sc">}</span><span class="ss">&quot;</span>)</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> DeviceFactory(Factory):</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>    <span class="kw">class</span> Meta:</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>        model <span class="op">=</span> <span class="st">&quot;Device&quot;</span></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>    device_id <span class="op">=</span> Faker(<span class="st">&quot;uuid4&quot;</span>)</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>    serial <span class="op">=</span> LazyAttribute(<span class="kw">lambda</span> o: <span class="ss">f&quot;SL-2025-</span><span class="sc">{</span>Faker(<span class="st">&#39;random_int&#39;</span>)<span class="sc">.</span>evaluate(<span class="va">None</span>, <span class="va">None</span>, {<span class="st">&#39;locale&#39;</span>: <span class="st">&#39;en&#39;</span>, <span class="st">&#39;min&#39;</span>: <span class="dv">10000</span>, <span class="st">&#39;max&#39;</span>: <span class="dv">99999</span>})<span class="sc">}</span><span class="ss">&quot;</span>)</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>    brand_id <span class="op">=</span> <span class="st">&quot;BRAND-DEFAULT&quot;</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>    model_id <span class="op">=</span> <span class="st">&quot;MODEL-DEFAULT&quot;</span></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>    install_date <span class="op">=</span> Faker(<span class="st">&quot;date_this_year&quot;</span>)</span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>    warranty_mode <span class="op">=</span> <span class="st">&quot;from_install&quot;</span>  <span class="co"># override per scenario</span></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a><span class="co"># ... factories for WorkOrder / Quote / Refund / Cancellation</span></span></code></pre></div>
+<p><strong>規則</strong>：</p>
+<ul>
+<li>每個 factory <strong>必須</strong> 有
+<code>tenant_id</code>（multi-tenancy guard）</li>
+<li>PII 欄位用 <code>Faker(locale="zh_TW")</code> 生成真實 pattern
+假資料</li>
+<li>不從 prod dump（除非 anonymize pipeline 驗證過）</li>
+</ul>
+<hr />
+<h2 id="6-pii-anonymization-pipeline甲方歷史-200-筆轉-fixture">§6 PII
+Anonymization Pipeline（甲方歷史 200 筆轉 fixture）</h2>
+<p>對應 ADR-PII-002 資料極小化雙層防線 + ADR-0051 evidence
+retention。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">階段</th>
+<th style="text-align: left;">動作</th>
+<th style="text-align: left;">工具</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">1. Extract</td>
+<td style="text-align: left;">甲方提供 200 筆 historical case（read-only
+snapshot）</td>
+<td style="text-align: left;">DBA-managed export</td>
+</tr>
+<tr>
+<td style="text-align: left;">2. Anonymize</td>
+<td style="text-align: left;">姓名 / 電話 / 地址 / LINE id / signature
+一律替換 Faker</td>
+<td style="text-align: left;"><code>tools/anonymize_fixtures.py</code>
+(待寫)</td>
+</tr>
+<tr>
+<td style="text-align: left;">3. Scrub</td>
+<td style="text-align: left;">OCR 過 evidence photo 偵測 ID/車牌/門牌 →
+blur</td>
+<td style="text-align: left;">OpenCV + EasyOCR</td>
+</tr>
+<tr>
+<td style="text-align: left;">4. Validate</td>
+<td style="text-align: left;">re-scan 確認 no PII leak</td>
+<td style="text-align: left;"><code>tools/scan_pii.py</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">5. Store</td>
+<td
+style="text-align: left;"><code>tests/fixtures/anonymized/200_cases.json</code>
+（commit 到 git）</td>
+<td style="text-align: left;">-</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Audit</strong>：每次 anonymize 寫
+<code>tests/fixtures/anonymized/_audit.json</code> 記錄 source row count
+/ anon timestamp / scan pass。</p>
+<p><strong>Cron retention</strong>：anonymized fixture 不過期（已
+anon），但 <code>_audit.json</code> 保留 7yr 對齊 ADR-VCH-002。</p>
+<hr />
+<h2 id="7-eval-corpusai--forbidden--negative-case">§7 Eval Corpus（AI /
+Forbidden / Negative case）</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Corpus</th>
+<th style="text-align: left;">規模</th>
+<th style="text-align: left;">用途</th>
+<th style="text-align: left;">Ownership</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>K1 標準題</strong></td>
+<td style="text-align: left;">50 題</td>
+<td style="text-align: left;">AI 準確率 baseline</td>
+<td style="text-align: left;">Domain Expert + QA</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K1 OOD</strong></td>
+<td style="text-align: left;">20 題</td>
+<td style="text-align: left;">out-of-distribution；驗 AI 不編造</td>
+<td style="text-align: left;">Domain Expert</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K1 對抗</strong></td>
+<td style="text-align: left;">10 題</td>
+<td style="text-align: left;">adversarial prompt</td>
+<td style="text-align: left;">QA</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K3 情緒 labeled</strong></td>
+<td style="text-align: left;">100 題</td>
+<td style="text-align: left;">負面情緒識別 baseline</td>
+<td style="text-align: left;">Domain Expert</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K3 反諷 / 雙關</strong></td>
+<td style="text-align: left;">20 題</td>
+<td style="text-align: left;">不可誤判</td>
+<td style="text-align: left;">Domain Expert</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K8 Forbidden 200</strong></td>
+<td style="text-align: left;">200 題（final_quote 40 + discount 30 +
+warranty_free 30 + legal_safety 30 + cross_tenant 30 + image_moderation
+20 + other 20）</td>
+<td style="text-align: left;">block-deploy gate</td>
+<td style="text-align: left;">QA + Domain Expert</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K8 Robustness 抽</strong></td>
+<td style="text-align: left;">20 題改寫</td>
+<td style="text-align: left;">反過擬合驗證</td>
+<td style="text-align: left;">QA</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>AUT (utterance)</strong></td>
+<td style="text-align: left;">220 題 (200 + 20 補誘導)</td>
+<td style="text-align: left;">D3-B' 句型 verify</td>
+<td style="text-align: left;">QA</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>W4 baseline</strong></td>
+<td style="text-align: left;">60 題</td>
+<td style="text-align: left;">corpus 未齊時 warn-only block_deploy</td>
+<td style="text-align: left;">QA</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Corpus rotation</strong>：每 sprint 增 ≥ 10 題（avoid
+overfitting），不可少於 baseline。</p>
+<hr />
+<h2 id="8-test-environment-data-profile">§8 Test Environment Data
+Profile</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Env</th>
+<th style="text-align: left;">Data Source</th>
+<th style="text-align: left;">PII Status</th>
+<th style="text-align: left;">Refresh Cycle</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>local</strong></td>
+<td style="text-align: left;">synthetic（factories）</td>
+<td style="text-align: left;">全假</td>
+<td style="text-align: left;">dev 隨需 reset</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>CI</strong></td>
+<td style="text-align: left;">synthetic + 200 anonymized</td>
+<td style="text-align: left;">全 anon</td>
+<td style="text-align: left;">per pipeline</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>staging</strong></td>
+<td style="text-align: left;">synthetic + 200 anonymized</td>
+<td style="text-align: left;">全 anon</td>
+<td style="text-align: left;">每週 reset</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>shadow (W4-W8)</strong></td>
+<td style="text-align: left;">real LINE traffic + DB shadow</td>
+<td style="text-align: left;">LIVE PII (read-only, no
+customer-facing)</td>
+<td style="text-align: left;">連續</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>pre-prod (W13-W15)</strong></td>
+<td style="text-align: left;">anonymized + 50 sample real
+(业主同意)</td>
+<td style="text-align: left;">anon + opt-in real</td>
+<td style="text-align: left;">每 UAT round reset</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>prod</strong></td>
+<td style="text-align: left;">live</td>
+<td style="text-align: left;">LIVE PII</td>
+<td style="text-align: left;">-</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9-cron-job-test-datam18--dgs">§9 Cron Job Test Data（M18 +
+DGS）</h2>
+<p>對應 ADR-0067 + ADR-0061 + BR-PII-001b。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Cron Job</th>
+<th style="text-align: left;">Test Data Fixture</th>
+<th style="text-align: left;">驗證點</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>config_quote_expire_48h</code></td>
+<td style="text-align: left;">48h 前送 quote (T-49h)</td>
+<td style="text-align: left;">cron tick → quote.expired + audit
+<code>expired_by_cron</code></td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>dgs_purge_t30d_hard_delete</code></td>
+<td style="text-align: left;">T0 forget request 30d ago</td>
+<td style="text-align: left;">硬刪 row + ledger append</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>legal_hold_notify_7d</code></td>
+<td style="text-align: left;">forget request + legal_hold=true</td>
+<td style="text-align: left;">7d 內 customer notice + audit
+<code>gdpr_forget_blocked</code></td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>m18_config_observation_30min</code></td>
+<td style="text-align: left;">5% canary 啟動 + 30 min timer</td>
+<td style="text-align: left;">observation window 結束 → auto-promote 50%
+OR rollback</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>cancellation_fee_recalc</code></td>
+<td style="text-align: left;">S5 in_progress 過 24h 無收尾</td>
+<td style="text-align: left;">auto-trigger floor NTD 800</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="10-defer-to-phase-ii">§10 Defer to Phase II</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Fixture set</th>
+<th style="text-align: left;">為何 defer</th>
+<th style="text-align: left;">替代 mitigation Phase I</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Part-level warranty fixture
+(按零件保固)</td>
+<td style="text-align: left;">BR-WARRANTY-007 Phase I 整機 1yr；BOM
+欄位預留即可</td>
+<td style="text-align: left;">unit-level 整機 fixture cover</td>
+</tr>
+<tr>
+<td style="text-align: left;">Cross-platform cancellation entry (LINE /
+Web / 電話統一)</td>
+<td style="text-align: left;">FR-0052 §4 out-of-scope</td>
+<td style="text-align: left;">LINE 單一 entry fixture cover Phase I</td>
+</tr>
+<tr>
+<td style="text-align: left;">GDPR self-service portal (LIFF / Web)</td>
+<td style="text-align: left;">FR-0053 placeholder</td>
+<td style="text-align: left;">客服代客提 forget request fixture</td>
+</tr>
+<tr>
+<td style="text-align: left;">Bulk cancel (活動 / 系統異常)</td>
+<td style="text-align: left;">FR-0052 §4 out-of-scope</td>
+<td style="text-align: left;">單筆 cancel fixture loop</td>
+</tr>
+<tr>
+<td style="text-align: left;">AI 自主 final quote</td>
+<td style="text-align: left;">ADR-0047 Forbidden 永久</td>
+<td style="text-align: left;">D3-B' 句型 fixture</td>
+</tr>
+<tr>
+<td style="text-align: left;">Phase II FR-0044~0051 fixture</td>
+<td style="text-align: left;">統一 Phase II 啟動再建</td>
+<td style="text-align: left;">Phase I 標
+<code>@pytest.mark.skip("Phase II")</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="11-open-questions--value_decision_needed">§11 Open Questions /
+[VALUE_DECISION_NEEDED]</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">#</th>
+<th style="text-align: left;">議題</th>
+<th style="text-align: left;">提案</th>
+<th style="text-align: left;">建議</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">OQ-TDS-01</td>
+<td style="text-align: left;">甲方 200 筆 historical case
+<strong>是否同意</strong> anonymize 後 commit 到 public git？</td>
+<td style="text-align: left;">A) commit B) gitignore + 私有 LFS</td>
+<td style="text-align: left;">[VALUE_DECISION_NEEDED] — 業主判</td>
+</tr>
+<tr>
+<td style="text-align: left;">OQ-TDS-02</td>
+<td style="text-align: left;">Synthetic factory 是否 cover 建商 / 品牌商
+fixture seed？</td>
+<td style="text-align: left;">A) 全自動 generation B) 手動腳本 seed</td>
+<td style="text-align: left;">A</td>
+</tr>
+<tr>
+<td style="text-align: left;">OQ-TDS-03</td>
+<td style="text-align: left;">shadow run W4-W8 是否拍照前需 LINE 內客戶
+opt-in？</td>
+<td style="text-align: left;">A) 需 opt-in B) 隱式同意</td>
+<td style="text-align: left;">[VALUE_DECISION_NEEDED] — 法務 / DPO
+judge</td>
+</tr>
+<tr>
+<td style="text-align: left;">OQ-TDS-04</td>
+<td style="text-align: left;">Cron job test data 是否走 fast-forward
+time (libfaketime)</td>
+<td style="text-align: left;">A) 真 sleep B) time mock</td>
+<td style="text-align: left;">B（避免 CI 卡 30 min）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="12-cross-references">§12 Cross-references</h2>
+<ul>
+<li>主 test plan: <a
+href="test-plan-smart-lock-saas.md">test-plan-smart-lock-saas.md</a></li>
+<li>Cascade strategy: <a
+href="test-plan-cascade-strategy-2026-05-28.md">test-plan-cascade-strategy-2026-05-28.md</a></li>
+<li>Automation coverage map: <a
+href="automation-coverage-map.md">automation-coverage-map.md</a></li>
+<li>ERD: <a
+href="../architecture/data/erd-smart-lock-saas.md">docs/architecture/data/erd-smart-lock-saas.md</a></li>
+<li>DDL: <a
+href="../architecture/data/ddl-migration-001-init.sql">docs/architecture/data/ddl-migration-001-init.sql</a></li>
+<li>BR catalog: docs/analysis/br/ (122 files)</li>
+<li>FR catalog: docs/analysis/fr/ (53 files)</li>
+</ul>
+</div></div></body></html>

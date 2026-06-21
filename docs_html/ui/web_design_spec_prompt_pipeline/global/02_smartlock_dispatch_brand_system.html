@@ -1,0 +1,1340 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Brand System: Smart Lock AI Support &amp; Service Dispatch Platform</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../../index.html">🏠 文件總目錄</a> ／ ui ／ web_design_spec_prompt_pipeline ／ global ／ 02_smartlock_dispatch_brand_system.md</div>
+<div class="doc"><h1
+id="brand-system-smart-lock-ai-support--service-dispatch-platform">Brand
+System: Smart Lock AI Support &amp; Service Dispatch Platform</h1>
+<blockquote>
+<p>這是 <code>BASE_DESIGN_SYSTEM.md</code>
+的具體實作，用於「電子鎖智能客服與派工平台」。 對應
+<code>SYSTEM_DOCUMENT_SPEC.md</code> 的四層架構。
+風格依據：<code>references/ui_style_benchmark_report.md</code>
+推薦組合方案（A+B+C+E）。</p>
+</blockquote>
+<hr />
+<h2 id="global-role">[GLOBAL ROLE]</h2>
+<p>你是「電子鎖智能客服與派工平台」的資深產品架構師。你負責確保所有 AI
+生成的網頁符合品牌的安全可靠、營運效率、數據即時性特質。</p>
+<p>本平台採三端架構，共用一套 Design Token，但各端有獨立的佈局策略：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">端</th>
+<th style="text-align: left;">技術</th>
+<th style="text-align: left;">佈局策略</th>
+<th style="text-align: left;">核心風格</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Admin Panel</strong></td>
+<td style="text-align: left;">Next.js 14 + React 19 + shadcn/ui</td>
+<td style="text-align: left;">Desktop-First, 12 欄 Grid</td>
+<td style="text-align: left;">風格 A（KPI 卡片）+ 風格 B（Kanban
+派工）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Technician PWA</strong></td>
+<td style="text-align: left;">Next.js 14 + React 19 + shadcn/ui</td>
+<td style="text-align: left;">Mobile-First, 單欄</td>
+<td style="text-align: left;">風格 C（地圖中心）+ 風格
+E（設備面板）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Consumer</strong></td>
+<td style="text-align: left;">LINE Messaging API</td>
+<td style="text-align: left;">LINE 原生 UI</td>
+<td style="text-align: left;">Flex Message + Quick Reply</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="product-context-layer">[PRODUCT CONTEXT LAYER]</h2>
+<ul>
+<li><strong>產品名稱</strong>：電子鎖智能客服與派工平台 (Smart Lock AI
+Support &amp; Service Dispatch SaaS)</li>
+<li><strong>產品一句話</strong>：以 AI
+驅動的電子鎖售後服務中樞，從客戶報修到師傅完工一站式閉環。</li>
+<li><strong>目標用戶</strong>：
+<ul>
+<li>主要：電子鎖品牌商/經銷商的客服主管與營運管理者（Admin Panel）</li>
+<li>次要：現場維修技師（Technician PWA）、報修的終端消費者（LINE
+Bot）</li>
+</ul></li>
+<li><strong>核心價值主張</strong>：用 AI 取代 80%
+人工客服判斷，用自動化派工取代電話調度，將平均報修到完工時間從 48
+小時壓縮至 4 小時。</li>
+<li><strong>網站類型</strong>：B2B SaaS 後台管理 + B2C 行動服務端</li>
+<li><strong>啟用模組</strong>（對應
+<code>E3x--module-breakdown.md</code>）：
+<ul>
+<li>M1 LINE Bot 接入 🟢 V1.0</li>
+<li>M2 對話管理 🟢 V1.0</li>
+<li>M3 ProblemCard 引擎 🟢 V1.0</li>
+<li>M4 三層解決引擎 🟢 V1.0</li>
+<li>M5 知識庫管理 🟢 V1.0</li>
+<li>M6 Admin Panel V1.0 🟢 V1.0</li>
+<li>M7 SOP 自動生成 🟢 V1.0</li>
+<li>M8 LLM Gateway 🟢 V1.0</li>
+<li>M9 派工引擎 🟠 V2.0</li>
+<li>M10 報價引擎 🟠 V2.0</li>
+<li>M11 帳務模組 🟠 V2.0</li>
+<li>M12 技師 Web App 🟠 V2.0</li>
+<li>M13 Admin Panel V2.0 🟠 V2.0</li>
+</ul></li>
+<li><strong>主要任務流</strong>：
+<ol type="1">
+<li>消費者透過 LINE 報修 → AI 診斷 → 產出 ProblemCard → 自助解決 或
+觸發派工</li>
+<li>派工引擎匹配技師 → 技師接單/到場/完工回報 → 客戶確認 → 帳務結算</li>
+<li>知識沉澱：完工案例 → AI 生成 SOP 草稿 → 管理員審核 → 入庫 →
+提升下次解決率</li>
+</ol></li>
+</ul>
+<hr />
+<h2 id="brand--voice-layer">[BRAND &amp; VOICE LAYER]</h2>
+<h3 id="設計原則">設計原則</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>原則</th>
+<th>說明</th>
+<th>當衝突時</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>效率至上</td>
+<td>每個頁面只服務一個核心任務，減少切換與等待</td>
+<td>砍裝飾保操作速度</td>
+</tr>
+<tr>
+<td>2</td>
+<td>狀態透明</td>
+<td>工單、技師、設備的狀態必須即時可見、色彩明確</td>
+<td>增加狀態標示，即使版面更擁擠</td>
+</tr>
+<tr>
+<td>3</td>
+<td>數據說話</td>
+<td>用數字和圖表取代形容詞，KPI 卡片優先於文字摘要</td>
+<td>顯示「完工 87 單 / 逾時 3 單」而非「表現良好」</td>
+</tr>
+<tr>
+<td>4</td>
+<td>行動引導</td>
+<td>空狀態和異常狀態必須提供下一步操作建議</td>
+<td>提供明確 CTA 而非僅顯示錯誤</td>
+</tr>
+<tr>
+<td>5</td>
+<td>角色適配</td>
+<td>Admin 重全局監控密度；技師重單任務完成速度</td>
+<td>Admin 多資訊並排；技師單欄大按鈕</td>
+</tr>
+</tbody>
+</table>
+<h3 id="品牌性格">品牌性格</h3>
+<table>
+<thead>
+<tr>
+<th>維度</th>
+<th>我們是</th>
+<th>我們不是</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>語氣</td>
+<td>精準、可靠、有溫度</td>
+<td>冷冰冰的系統通知</td>
+</tr>
+<tr>
+<td>視覺</td>
+<td>乾淨、專業、高資訊密度</td>
+<td>花俏、裝飾性、低效</td>
+</tr>
+<tr>
+<td>態度</td>
+<td>效能導向、引導式</td>
+<td>被動等待、資訊過載不整理</td>
+</tr>
+<tr>
+<td>信任</td>
+<td>安全感、穩定感</td>
+<td>花哨、不穩定、廉價感</td>
+</tr>
+</tbody>
+</table>
+<h3 id="文案規則">文案規則</h3>
+<ul>
+<li><strong>稱呼用戶</strong>：管理員稱「你」、技師稱「你」、消費者稱「您」（LINE
+Bot 較正式）</li>
+<li><strong>按鈕動詞</strong>：主動語態
+—「接受工單」「開始作業」「提交報告」「確認完工」</li>
+<li><strong>錯誤訊息</strong>：先說發生什麼，再說怎麼修
+—「派工失敗，該區域目前無可用技師，請手動指派」</li>
+<li><strong>空狀態</strong>：引導行動
+—「目前沒有待處理工單，查看歷史記錄」</li>
+<li><strong>狀態文字</strong>：用精確動詞
+—「已派工」「技師前往中」「作業中」「待確認」而非「處理中」</li>
+<li><strong>語言</strong>：繁體中文為主，保留技術術語英文（ProblemCard,
+SLA, KPI, Kanban）</li>
+<li><strong>禁用詞</strong>：
+<ul>
+<li>避免空泛行銷話術（革命性、極致體驗、全方位）</li>
+<li>避免模糊狀態（處理中、稍等、盡快）— 改用具體時間或倒數</li>
+<li>避免雙重否定（不是不可以 → 可以）</li>
+</ul></li>
+</ul>
+<hr />
+<h2 id="visual-design-system-layer">[VISUAL DESIGN SYSTEM LAYER]</h2>
+<h3 id="color-tokens">Color Tokens</h3>
+<h4 id="品牌色系">品牌色系</h4>
+<blockquote>
+<p>設計邏輯：主色選用深藍 (Trust Blue) 傳達安全與專業 —
+電子鎖行業的核心信任色。
+輔助色選用暗灰藍提供層次。強調色選用琥珀橙作為操作召喚色（CTA），
+在大量藍灰介面中形成視覺焦點，符合派工系統「快速行動」的語義。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>色值</th>
+<th>用途</th>
+<th>語義</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>color.primary</code></td>
+<td>#2563EB</td>
+<td>主要品牌色、導航、選中態</td>
+<td>Trust Blue — 安全與專業</td>
+</tr>
+<tr>
+<td><code>color.primary.hover</code></td>
+<td>#1D4ED8</td>
+<td>主色 hover</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>color.primary.light</code></td>
+<td>#DBEAFE</td>
+<td>主色淺底、選中行背景</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>color.secondary</code></td>
+<td>#1E293B</td>
+<td>側邊導航背景、頁腳</td>
+<td>Slate Dark — 深度與權威</td>
+</tr>
+<tr>
+<td><code>color.secondary.hover</code></td>
+<td>#334155</td>
+<td>側邊導航 hover</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>color.accent</code></td>
+<td>#F59E0B</td>
+<td>CTA 按鈕、重要操作、徽章</td>
+<td>Amber — 行動召喚、注意力引導</td>
+</tr>
+<tr>
+<td><code>color.accent.hover</code></td>
+<td>#D97706</td>
+<td>CTA hover</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h4 id="語義色系工單狀態專用">語義色系（工單狀態專用）</h4>
+<blockquote>
+<p>工單有 13 種狀態（對應 <code>E5x--workflow-work-order.md</code>），
+以下定義 6 組語義色覆蓋所有狀態的視覺分類。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>色值</th>
+<th>對應工單狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>color.status.pending</code></td>
+<td>#6366F1 (Indigo)</td>
+<td><code>created</code> 已建立</td>
+</tr>
+<tr>
+<td><code>color.status.assigned</code></td>
+<td>#8B5CF6 (Violet)</td>
+<td><code>assigned</code> 已派工</td>
+</tr>
+<tr>
+<td><code>color.status.active</code></td>
+<td>#3B82F6 (Blue)</td>
+<td><code>accepted</code> 已接受、<code>in_progress</code> 進行中</td>
+</tr>
+<tr>
+<td><code>color.status.warning</code></td>
+<td>#F59E0B (Amber)</td>
+<td><code>scope_changed</code> 範圍變更、<code>material_pending</code>
+缺料中、<code>delayed</code> 延遲中</td>
+</tr>
+<tr>
+<td><code>color.status.success</code></td>
+<td>#10B981 (Emerald)</td>
+<td><code>completed</code> 已完工、<code>confirmed</code>
+已確認、<code>archived</code> 已歸檔</td>
+</tr>
+<tr>
+<td><code>color.status.danger</code></td>
+<td>#EF4444 (Red)</td>
+<td><code>rework_required</code> 返工中、<code>cancelled</code>
+已取消、<code>disputed</code> 爭議中</td>
+</tr>
+</tbody>
+</table>
+<h4 id="系統色系">系統色系</h4>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>色值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>color.success</code></td>
+<td>#10B981</td>
+<td>成功、通過、正面指標</td>
+</tr>
+<tr>
+<td><code>color.warning</code></td>
+<td>#F59E0B</td>
+<td>警告、SLA 即將逾時</td>
+</tr>
+<tr>
+<td><code>color.error</code></td>
+<td>#EF4444</td>
+<td>錯誤、逾時、負面指標</td>
+</tr>
+<tr>
+<td><code>color.info</code></td>
+<td>#3B82F6</td>
+<td>資訊提示、引導</td>
+</tr>
+</tbody>
+</table>
+<h4 id="中性色系">中性色系</h4>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>色值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>color.bg.page</code></td>
+<td>#F8FAFC</td>
+<td>頁面底色（Slate 50）</td>
+</tr>
+<tr>
+<td><code>color.bg.surface</code></td>
+<td>#FFFFFF</td>
+<td>卡片/容器底色</td>
+</tr>
+<tr>
+<td><code>color.bg.elevated</code></td>
+<td>#FFFFFF</td>
+<td>Modal/Dropdown 底色</td>
+</tr>
+<tr>
+<td><code>color.bg.sidebar</code></td>
+<td>#1E293B</td>
+<td>Admin 側邊導航底色</td>
+</tr>
+<tr>
+<td><code>color.text.primary</code></td>
+<td>#0F172A</td>
+<td>主要文字（Slate 900）</td>
+</tr>
+<tr>
+<td><code>color.text.secondary</code></td>
+<td>#64748B</td>
+<td>次要文字（Slate 500）</td>
+</tr>
+<tr>
+<td><code>color.text.disabled</code></td>
+<td>#94A3B8</td>
+<td>停用文字（Slate 400）</td>
+</tr>
+<tr>
+<td><code>color.text.inverse</code></td>
+<td>#FFFFFF</td>
+<td>深色背景上的白字</td>
+</tr>
+<tr>
+<td><code>color.border.default</code></td>
+<td>#E2E8F0</td>
+<td>預設邊框（Slate 200）</td>
+</tr>
+<tr>
+<td><code>color.border.focus</code></td>
+<td>#2563EB</td>
+<td>Focus 邊框（= Primary）</td>
+</tr>
+</tbody>
+</table>
+<h4 id="dark-modev20-預留">Dark Mode（V2.0 預留）</h4>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>Light</th>
+<th>Dark</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>color.bg.page</code></td>
+<td>#F8FAFC</td>
+<td>#0F172A</td>
+<td>頁面底色</td>
+</tr>
+<tr>
+<td><code>color.bg.surface</code></td>
+<td>#FFFFFF</td>
+<td>#1E293B</td>
+<td>卡片底色</td>
+</tr>
+<tr>
+<td><code>color.text.primary</code></td>
+<td>#0F172A</td>
+<td>#F1F5F9</td>
+<td>主要文字</td>
+</tr>
+<tr>
+<td><code>color.border.default</code></td>
+<td>#E2E8F0</td>
+<td>#334155</td>
+<td>邊框</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Dark Mode
+主要服務技師夜間作業場景。品牌色與語義色在兩種模式下保持不變。</p>
+</blockquote>
+<hr />
+<h3 id="spacing-scale">Spacing Scale</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>space.1</code></td>
+<td>4px</td>
+<td>元素內微間距（Badge 內 padding）</td>
+</tr>
+<tr>
+<td><code>space.2</code></td>
+<td>8px</td>
+<td>元素內標準間距（按鈕 icon-text gap）</td>
+</tr>
+<tr>
+<td><code>space.3</code></td>
+<td>12px</td>
+<td>標籤與文字間距</td>
+</tr>
+<tr>
+<td><code>space.4</code></td>
+<td>16px</td>
+<td>元件間距（卡片內 padding）</td>
+</tr>
+<tr>
+<td><code>space.5</code></td>
+<td>20px</td>
+<td>列表項間距</td>
+</tr>
+<tr>
+<td><code>space.6</code></td>
+<td>24px</td>
+<td>區塊間距（Section 間）</td>
+</tr>
+<tr>
+<td><code>space.8</code></td>
+<td>32px</td>
+<td>大區塊間距</td>
+</tr>
+<tr>
+<td><code>space.12</code></td>
+<td>48px</td>
+<td>Section 間距（Admin 頁面段落）</td>
+</tr>
+<tr>
+<td><code>space.16</code></td>
+<td>64px</td>
+<td>頁面級間距</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="typography">Typography</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>字級</th>
+<th>行高</th>
+<th>字重</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>text.display</code></td>
+<td>32px</td>
+<td>1.2</td>
+<td>700</td>
+<td>Dashboard 主標題</td>
+</tr>
+<tr>
+<td><code>text.heading.xl</code></td>
+<td>28px</td>
+<td>1.2</td>
+<td>700</td>
+<td>H1 頁面標題</td>
+</tr>
+<tr>
+<td><code>text.heading.lg</code></td>
+<td>24px</td>
+<td>1.3</td>
+<td>600</td>
+<td>H2 區塊標題</td>
+</tr>
+<tr>
+<td><code>text.heading.md</code></td>
+<td>20px</td>
+<td>1.4</td>
+<td>600</td>
+<td>H3 卡片標題</td>
+</tr>
+<tr>
+<td><code>text.heading.sm</code></td>
+<td>16px</td>
+<td>1.4</td>
+<td>600</td>
+<td>H4 小節標題</td>
+</tr>
+<tr>
+<td><code>text.body.lg</code></td>
+<td>16px</td>
+<td>1.6</td>
+<td>400</td>
+<td>大段落（工單描述）</td>
+</tr>
+<tr>
+<td><code>text.body.md</code></td>
+<td>14px</td>
+<td>1.5</td>
+<td>400</td>
+<td>標準段落（列表內容）</td>
+</tr>
+<tr>
+<td><code>text.body.sm</code></td>
+<td>12px</td>
+<td>1.5</td>
+<td>400</td>
+<td>小字說明（時間戳、標籤）</td>
+</tr>
+<tr>
+<td><code>text.caption</code></td>
+<td>11px</td>
+<td>1.4</td>
+<td>400</td>
+<td>標註（狀態更新記錄）</td>
+</tr>
+<tr>
+<td><code>text.kpi</code></td>
+<td>36px</td>
+<td>1.1</td>
+<td>700</td>
+<td>KPI 大數字（Dashboard 卡片）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>英文字體</strong>：Inter（SaaS 標準，高可讀性）</li>
+<li><strong>中文字體</strong>：Noto Sans TC（Google
+Fonts，繁中最佳選擇）</li>
+<li><strong>等寬字體</strong>：JetBrains Mono（工單編號、API
+回應、日誌）</li>
+<li><strong>字體降級</strong>：Inter, "Noto Sans TC", -apple-system,
+BlinkMacSystemFont, "Segoe UI", sans-serif</li>
+</ul>
+<hr />
+<h3 id="border-radius">Border Radius</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>radius.sm</code></td>
+<td>4px</td>
+<td>Tag, Badge, Status Chip</td>
+</tr>
+<tr>
+<td><code>radius.md</code></td>
+<td>6px</td>
+<td>按鈕、輸入框、Select</td>
+</tr>
+<tr>
+<td><code>radius.lg</code></td>
+<td>8px</td>
+<td>卡片、容器、KPI Card</td>
+</tr>
+<tr>
+<td><code>radius.xl</code></td>
+<td>12px</td>
+<td>Modal、大容器、地圖容器</td>
+</tr>
+<tr>
+<td><code>radius.full</code></td>
+<td>9999px</td>
+<td>Avatar、Pill Badge、進度條</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>圓角偏小 (4-8px)
+營造專業、精準的工業感，避免過度圓潤的消費級風格。</p>
+</blockquote>
+<hr />
+<h3 id="elevation-shadow">Elevation (Shadow)</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shadow.sm</code></td>
+<td>0 1px 2px rgba(0,0,0,0.05)</td>
+<td>KPI 卡片、列表行 hover</td>
+</tr>
+<tr>
+<td><code>shadow.md</code></td>
+<td>0 4px 6px -1px rgba(0,0,0,0.1)</td>
+<td>懸浮卡片、Kanban 拖拉中</td>
+</tr>
+<tr>
+<td><code>shadow.lg</code></td>
+<td>0 10px 15px -3px rgba(0,0,0,0.1)</td>
+<td>Modal、Dropdown、地圖 Popup</td>
+</tr>
+<tr>
+<td><code>shadow.kanban</code></td>
+<td>0 8px 16px rgba(37,99,235,0.15)</td>
+<td>Kanban 卡片拖拉中（帶品牌色）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="rwd--grid">RWD / Grid</h3>
+<h4 id="admin-paneldesktop-first">Admin Panel（Desktop-First）</h4>
+<table>
+<thead>
+<tr>
+<th>屬性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>最大寬度</td>
+<td>1440px</td>
+</tr>
+<tr>
+<td>欄數</td>
+<td>12</td>
+</tr>
+<tr>
+<td>欄間距</td>
+<td>24px</td>
+</tr>
+<tr>
+<td>側邊導航寬度</td>
+<td>240px（展開）/ 64px（收合）</td>
+</tr>
+<tr>
+<td>左右 Padding</td>
+<td>24px (Desktop) / 16px (Tablet)</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>斷點名稱</th>
+<th>寬度</th>
+<th>欄數</th>
+<th>側邊導航</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Desktop LG</td>
+<td>&gt; 1440px</td>
+<td>12</td>
+<td>展開 240px</td>
+<td>完整 Dashboard + 右側面板</td>
+</tr>
+<tr>
+<td>Desktop</td>
+<td>1024px - 1440px</td>
+<td>12</td>
+<td>展開 240px</td>
+<td>標準工作區</td>
+</tr>
+<tr>
+<td>Tablet</td>
+<td>768px - 1023px</td>
+<td>8</td>
+<td>收合 64px</td>
+<td>簡化佈局</td>
+</tr>
+<tr>
+<td>Mobile</td>
+<td>&lt; 768px</td>
+<td>4</td>
+<td>隱藏（漢堡選單）</td>
+<td>緊急存取用</td>
+</tr>
+</tbody>
+</table>
+<h4 id="technician-pwamobile-first">Technician PWA（Mobile-First）</h4>
+<table>
+<thead>
+<tr>
+<th>屬性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>最大寬度</td>
+<td>480px（單欄）</td>
+</tr>
+<tr>
+<td>欄數</td>
+<td>1</td>
+</tr>
+<tr>
+<td>左右 Padding</td>
+<td>16px</td>
+</tr>
+<tr>
+<td>底部導航高度</td>
+<td>56px + safe-area-inset</td>
+</tr>
+<tr>
+<td>最小觸控區域</td>
+<td>44px × 44px</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>斷點名稱</th>
+<th>寬度</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mobile</td>
+<td>&lt; 480px</td>
+<td>主要使用場景</td>
+</tr>
+<tr>
+<td>Tablet</td>
+<td>480px - 768px</td>
+<td>平板輔助（少數場景）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="ux-pattern-layer">[UX PATTERN LAYER]</h2>
+<h3 id="常用佈局-pattern">常用佈局 Pattern</h3>
+<h4 id="admin-panel">Admin Panel</h4>
+<ul>
+<li><p><strong>Dashboard（風格 A — KPI 卡片儀表板）</strong>：
+左側深色導航 (240px, #1E293B) + 主內容區</p>
+<ul>
+<li>頂部：4 欄 KPI 卡片列（今日工單數 / 完工率 / 逾時數 /
+在線技師）</li>
+<li>中部：左側 2/3 工單趨勢折線圖 + 右側 1/3 技師狀態餅圖</li>
+<li>底部：最近工單列表（可展開）</li>
+</ul></li>
+<li><p><strong>派工板（風格 B+C — Kanban + 地圖 toggle）</strong>：
+上方工具列：篩選器 + 視圖切換 Toggle（看板 | 列表 | 地圖）</p>
+<ul>
+<li><strong>Kanban 視圖</strong>：垂直欄位（待指派 → 已派工 → 進行中 →
+已完工），卡片可拖拉，每張卡片顯示：工單號 + 客戶 + 鎖型 + 技師 + SLA
+倒數</li>
+<li><strong>地圖視圖</strong>：左側 1/3 工單列表 + 右側 2/3 Google
+Maps，技師藍點 + 客戶紅點 + 路線灰線</li>
+<li><strong>列表視圖</strong>：可排序表格，支援批次操作</li>
+</ul></li>
+<li><p><strong>工單詳情（風格 E — 嵌入鎖具狀態面板）</strong>： 左側 2/3
+主內容（時間軸 + ProblemCard + 對話記錄）</p>
+<ul>
+<li>右側 1/3 側面板（鎖具設備狀態卡：型號 / 電量 / 連線 / 最近事件 +
+技師資訊卡 + 操作按鈕）</li>
+</ul></li>
+<li><p><strong>列表頁（通用）</strong>：上方篩選列（搜尋 + 狀態篩選 +
+日期範圍）+ 中間表格/卡片 + 底部分頁</p></li>
+</ul>
+<h4 id="technician-pwa">Technician PWA</h4>
+<ul>
+<li><p><strong>案件池首頁（風格 C — 地圖優先）</strong>： 全屏地圖底圖 +
+底部上滑面板（可接工單卡片列表）</p>
+<ul>
+<li>地圖顯示：技師當前位置（藍色脈衝點）+ 可接工單（紅色圖釘 +
+距離標籤）</li>
+<li>點擊圖釘 → 地圖 Popup（工單摘要 + 「查看詳情」按鈕）</li>
+</ul></li>
+<li><p><strong>工單卡（風格 A — 大卡片 + 滑動操作）</strong>：
+全寬卡片，大字顯示：客戶地址 + 鎖型 + 問題摘要 + 預估工時</p>
+<ul>
+<li>向右滑 → 接受工單（綠色）</li>
+<li>向左滑 → 拒絕工單（紅色）</li>
+<li>點擊 → 進入工單詳情</li>
+</ul></li>
+<li><p><strong>鎖具操作面板（風格 E — TTLock 風格）</strong>：
+大圖示鎖具狀態卡（型號圖片 + 電量環形圖 + 連線狀態燈）</p>
+<ul>
+<li>操作記錄時間軸（最近 10 筆）</li>
+<li>大按鈕操作區（遠端開鎖 / 重置密碼 / 查看密碼記錄）</li>
+</ul></li>
+</ul>
+<hr />
+<h3 id="狀態設計規則">狀態設計規則</h3>
+<table>
+<thead>
+<tr>
+<th>狀態</th>
+<th>規則</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Loading</td>
+<td>Skeleton screen 優先；長任務（派工匹配）顯示步驟進度條 +
+預估秒數</td>
+</tr>
+<tr>
+<td>Empty</td>
+<td>引導圖示 + 說明文字 + CTA —「目前沒有待派工單，查看已完工記錄」</td>
+</tr>
+<tr>
+<td>Error</td>
+<td>紅色提示橫幅 + 具體錯誤 + 建議動作 + 重試按鈕
+—「技師指派失敗：該區域無可用技師。建議：擴大搜尋半徑或手動指派」</td>
+</tr>
+<tr>
+<td>Disabled</td>
+<td>灰度 + cursor not-allowed + tooltip 說明原因
+—「需先完成報價才能派工」</td>
+</tr>
+<tr>
+<td>SLA 即將逾時</td>
+<td>卡片邊框變為 Amber + 脈衝動畫 + 倒數計時器</td>
+</tr>
+<tr>
+<td>SLA 已逾時</td>
+<td>卡片邊框變為 Red + 紅色 Badge「逾時」+ 自動排序至最前</td>
+</tr>
+<tr>
+<td>AI 建議</td>
+<td>Indigo (#6366F1) Badge「AI」+ 虛線邊框 + tooltip「AI 建議：指派技師
+A，因距離最近且評分最高」</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="元件狀態定義核心元件">元件狀態定義（核心元件）</h3>
+<table>
+<thead>
+<tr>
+<th>元件</th>
+<th>Variants</th>
+<th>States</th>
+<th>Sizes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Button</td>
+<td>Primary(Blue) / CTA(Amber) / Secondary(Slate) / Ghost /
+Danger(Red)</td>
+<td>Default / Hover / Active / Disabled / Loading</td>
+<td>sm / md / lg</td>
+</tr>
+<tr>
+<td>Input</td>
+<td>Text / Password / Search / Textarea</td>
+<td>Default / Focus(Blue ring) / Error(Red ring) / Disabled</td>
+<td>sm / md / lg</td>
+</tr>
+<tr>
+<td>Select</td>
+<td>Single / Multi / Async Search</td>
+<td>Default / Focus / Open / Disabled</td>
+<td>sm / md / lg</td>
+</tr>
+<tr>
+<td>Card</td>
+<td>KPI Card / Work Order Card / Kanban Card / Device Status Card</td>
+<td>Default / Hover(shadow-md) / Dragging(shadow-kanban) / Selected(Blue
+border)</td>
+<td>—</td>
+</tr>
+<tr>
+<td>StatusBadge</td>
+<td>6 語義色 × 13 工單狀態</td>
+<td>Default</td>
+<td>sm / md</td>
+</tr>
+<tr>
+<td>Modal</td>
+<td>Default / Destructive / Confirmation</td>
+<td>Open / Closing</td>
+<td>sm / md / lg</td>
+</tr>
+<tr>
+<td>Toast</td>
+<td>Success / Warning / Error / Info</td>
+<td>Entering / Visible / Exiting</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Table</td>
+<td>Default / Sortable / Selectable / Expandable</td>
+<td>Default / Loading(Skeleton) / Empty</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Map</td>
+<td>Full-screen / Split-view / Embedded</td>
+<td>Loading / Loaded / Error</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Timeline</td>
+<td>Vertical (工單歷程) / Horizontal (SLA 進度)</td>
+<td>Default / Highlighted</td>
+<td>—</td>
+</tr>
+<tr>
+<td>BottomSheet</td>
+<td>Technician PWA 專用上滑面板</td>
+<td>Collapsed / Half / Full</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="interaction--accessibility">[INTERACTION &amp;
+ACCESSIBILITY]</h2>
+<h3 id="回饋樣式">回饋樣式</h3>
+<ul>
+<li><strong>Button/Link</strong>：背景色加深 10% on Hover，按下時加深
+15%</li>
+<li><strong>Card — KPI</strong>：Hover 時 shadow-sm →
+shadow-md，無位移（避免 Dashboard 晃動）</li>
+<li><strong>Card — Kanban</strong>：拖拉時
+shadow-kanban（帶品牌藍暈），目標欄高亮 Primary Light</li>
+<li><strong>Card — Work Order
+(Technician)</strong>：左滑/右滑時顯示底層操作色塊（綠/紅）</li>
+<li><strong>Sidebar Item</strong>：Hover 時背景變為 Secondary
+Hover，Active 時左邊框 3px Primary</li>
+<li><strong>Map Pin</strong>：Hover 放大 1.2x +
+tooltip；可接工單脈衝動畫（每 2s）</li>
+<li><strong>Status 轉換</strong>：卡片狀態變更時 300ms ease
+色彩漸變動畫</li>
+</ul>
+<h3 id="錯誤訊息格式">錯誤訊息格式</h3>
+<pre><code>「[問題描述]。[建議動作]。」</code></pre>
+<ul>
+<li>表單驗證：「手機號碼格式不正確，請輸入 09 開頭的 10 位數字」</li>
+<li>API 錯誤：「工單更新失敗（伺服器回應
+500），請稍後重試或聯繫管理員」</li>
+<li>業務規則：「無法取消此工單，技師已開始作業。如需取消請聯繫管理員」</li>
+</ul>
+<h3 id="資料載入策略">資料載入策略</h3>
+<ul>
+<li>優先 Skeleton Screen（Dashboard、列表頁）</li>
+<li>地圖使用漸進式載入：先顯示底圖 → 逐步加載圖釘</li>
+<li>Kanban 使用 Optimistic UI：拖拉立即生效 → 背景 API 同步 → 失敗時回滾
++ Toast</li>
+</ul>
+<h3 id="鍵盤與無障礙">鍵盤與無障礙</h3>
+<ul>
+<li>Tab 順序：側邊導航 → 頂部工具列 → 主內容區 → 右側面板</li>
+<li>Enter/Space 可觸發所有可互動元素</li>
+<li>Escape 關閉 Modal / Dropdown / BottomSheet</li>
+<li>Kanban 支援鍵盤：Arrow Keys 移動焦點，Space 拾起/放下卡片</li>
+<li>色彩對比度：所有文字達 WCAG 2.1 AA 標準（4.5:1 正文 / 3:1
+大字）</li>
+<li>狀態不僅依賴顏色：所有狀態 Badge 同時包含文字標籤</li>
+</ul>
+<hr />
+<h2 id="tech--constraint-layer">[TECH &amp; CONSTRAINT LAYER]</h2>
+<h3 id="技術棧">技術棧</h3>
+<table>
+<thead>
+<tr>
+<th>層級</th>
+<th>選型</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Frontend Framework</td>
+<td>Next.js 14 (App Router) + React 19</td>
+</tr>
+<tr>
+<td>UI Library</td>
+<td>shadcn/ui + Radix UI Primitives</td>
+</tr>
+<tr>
+<td>Styling</td>
+<td>Tailwind CSS 3.4</td>
+</tr>
+<tr>
+<td>State</td>
+<td>TanStack Query (Server State) + Zustand (Client State) + URL
+State</td>
+</tr>
+<tr>
+<td>Forms</td>
+<td>React Hook Form + Zod</td>
+</tr>
+<tr>
+<td>Data Viz</td>
+<td>Recharts（Dashboard 圖表）</td>
+</tr>
+<tr>
+<td>Maps</td>
+<td>@vis.gl/react-google-maps + Google Maps API</td>
+</tr>
+<tr>
+<td>DnD</td>
+<td>@dnd-kit/core（Kanban 拖拉）</td>
+</tr>
+<tr>
+<td>Backend</td>
+<td>FastAPI + Uvicorn / Pydantic v2 / JWT + RBAC</td>
+</tr>
+<tr>
+<td>Database</td>
+<td>PostgreSQL 16 + pgvector 0.7 / Redis 7</td>
+</tr>
+<tr>
+<td>Hosting</td>
+<td>Docker Compose (Self-hosted)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="效能指標">效能指標</h3>
+<table>
+<thead>
+<tr>
+<th>指標</th>
+<th>Admin Panel</th>
+<th>Technician PWA</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LCP</td>
+<td>&lt; 2.5s</td>
+<td>&lt; 2.0s</td>
+</tr>
+<tr>
+<td>FID</td>
+<td>&lt; 100ms</td>
+<td>&lt; 100ms</td>
+</tr>
+<tr>
+<td>CLS</td>
+<td>&lt; 0.1</td>
+<td>&lt; 0.1</td>
+</tr>
+<tr>
+<td>TTI</td>
+<td>&lt; 3.5s</td>
+<td>&lt; 2.5s</td>
+</tr>
+<tr>
+<td>Lighthouse Score</td>
+<td>&gt; 80</td>
+<td>&gt; 90</td>
+</tr>
+</tbody>
+</table>
+<h3 id="禁用項目">禁用項目</h3>
+<ul>
+<li>禁止 Inline styles（統一使用 Tailwind utility classes）</li>
+<li>禁止自訂 CSS 動畫超過 500ms（操作回饋控制在 150-300ms）</li>
+<li>禁止 Layout Shift（所有圖片/地圖必須預留空間）</li>
+<li>禁止繞過 shadcn/ui 元件自造輪子（除非有明確理由）</li>
+<li>禁止在 Technician PWA 使用 Desktop-only 的 hover 效果</li>
+</ul>
+<hr />
+<h2 id="data-pattern-layer">[DATA PATTERN LAYER]</h2>
+<table>
+<thead>
+<tr>
+<th>類型</th>
+<th>格式</th>
+<th>範例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>日期時間</td>
+<td><code>YYYY-MM-DD HH:mm</code></td>
+<td>2026-04-21 14:30</td>
+</tr>
+<tr>
+<td>僅日期</td>
+<td><code>YYYY-MM-DD</code></td>
+<td>2026-04-21</td>
+</tr>
+<tr>
+<td>相對時間</td>
+<td><code>X 分鐘前</code> / <code>X 小時前</code> / 超過 24h 改絕對</td>
+<td>15 分鐘前</td>
+</tr>
+<tr>
+<td>數字</td>
+<td>千分位逗號</td>
+<td>1,234</td>
+</tr>
+<tr>
+<td>百分比</td>
+<td>一位小數</td>
+<td>87.3%</td>
+</tr>
+<tr>
+<td>金額</td>
+<td><code>NT$ + 千分位</code></td>
+<td>NT$ 3,500</td>
+</tr>
+<tr>
+<td>電話</td>
+<td><code>09XX-XXX-XXX</code></td>
+<td>0912-345-678</td>
+</tr>
+<tr>
+<td>工單編號</td>
+<td><code>WO-YYYYMMDD-XXXX</code></td>
+<td>WO-20260421-0001</td>
+</tr>
+<tr>
+<td>地址</td>
+<td>完整地址，可點擊開啟地圖</td>
+<td>台北市信義區松仁路 100 號</td>
+</tr>
+<tr>
+<td>距離</td>
+<td><code>X.X km</code>（&lt; 1km 顯示公尺）</td>
+<td>2.3 km / 800 m</td>
+</tr>
+<tr>
+<td>SLA 倒數</td>
+<td><code>剩餘 HH:mm</code> / 逾時改紅色 <code>逾時 HH:mm</code></td>
+<td>剩餘 01:23 / 逾時 00:15</td>
+</tr>
+<tr>
+<td>電量</td>
+<td>百分比 + 色彩（&gt; 50% 綠 / 20-50% 黃 / &lt; 20% 紅）</td>
+<td>78%</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="example-patterns">[EXAMPLE PATTERNS]</h2>
+<h3 id="pattern-1-kpi-dashboard-card風格-a">Pattern 1: KPI Dashboard
+Card（風格 A）</h3>
+<ul>
+<li><strong>核心區塊</strong>：頂部標題（text.body.sm, Secondary）+
+中部大數字（text.kpi, Primary Text）+ 底部趨勢指標（向上箭頭 + Success
+或 向下箭頭 + Error + 百分比）</li>
+<li><strong>交互設計</strong>：Hover 時 shadow
+加深，點擊跳轉至對應列表頁</li>
+<li><strong>尺寸</strong>：最小寬度 200px，等分撐滿容器</li>
+</ul>
+<pre><code>┌─────────────────────┐
+│  今日派工數           │  ← text.body.sm, color.text.secondary
+│                     │
+│     47              │  ← text.kpi, color.text.primary
+│                     │
+│  ↑ 12.5% vs 昨日    │  ← text.body.sm, color.success
+└─────────────────────┘</code></pre>
+<h3 id="pattern-2-kanban-work-order-card風格-b">Pattern 2: Kanban Work
+Order Card（風格 B）</h3>
+<ul>
+<li><strong>核心區塊</strong>：頂部（工單號 + 狀態 Badge）+ 中部（客戶名
++ 地址 + 鎖型）+ 底部（技師 Avatar + SLA 倒數）</li>
+<li><strong>交互設計</strong>：可拖拉（shadow-kanban），點擊開啟工單詳情
+Modal/Drawer</li>
+<li><strong>SLA 視覺</strong>：正常=無標示，&lt; 30min=Amber
+邊框脈衝，逾時=Red 邊框+紅色 Badge</li>
+</ul>
+<pre><code>┌─────────────────────────┐
+│ WO-0421-0023  [已派工]   │  ← heading.sm + StatusBadge(Violet)
+│                         │
+│ 王小明                   │  ← body.md, bold
+│ 台北市信義區松仁路 100 號  │  ← body.sm, secondary
+│ Yale YDM4109+            │  ← body.sm, secondary
+│                         │
+│ 👤 李師傅    ⏱ 剩餘 01:23│  ← Avatar + caption
+└─────────────────────────┘</code></pre>
+<h3 id="pattern-3-device-status-panel風格-e">Pattern 3: Device Status
+Panel（風格 E）</h3>
+<ul>
+<li><strong>核心區塊</strong>：鎖具圖示 + 型號名稱 +
+三項即時指標（電量/連線/上次操作）+ 快捷操作按鈕</li>
+<li><strong>交互設計</strong>：電量低於 20% 時環形圖變紅色 +
+脈衝動畫；離線時連線圖示變灰 + 「離線」Badge</li>
+</ul>
+<pre><code>┌─────────────────────────┐
+│  🔒 Yale YDM4109+       │  ← heading.md
+│                         │
+│  ┌──────┐ ┌──────┐ ┌──────┐
+│  │ 🔋   │ │ 📶   │ │ 🕐   │
+│  │ 78%  │ │ 在線  │ │ 2 hr │
+│  │ 電量  │ │ 連線  │ │ 前操作│
+│  └──────┘ └──────┘ └──────┘
+│                         │
+│  [遠端開鎖]  [重置密碼]   │  ← Button.CTA(Amber)
+└─────────────────────────┘</code></pre>
+<h3 id="pattern-4-technician-map-view風格-c">Pattern 4: Technician Map
+View（風格 C）</h3>
+<ul>
+<li><strong>核心區塊</strong>：全屏 Google Maps + 底部
+BottomSheet（可上滑展開工單列表）</li>
+<li><strong>交互設計</strong>：
+<ul>
+<li>技師位置：藍色脈衝點（每 2s）</li>
+<li>可接工單：紅色圖釘 + 距離標籤（2.3 km）</li>
+<li>點擊圖釘 → Popup（工單摘要卡）→ 「查看詳情」按鈕</li>
+<li>底部面板三段式：Collapsed (96px 顯示數量) → Half (50%) → Full
+(90%)</li>
+</ul></li>
+</ul>
+<hr />
+<h2 id="information-architecture">[INFORMATION ARCHITECTURE]</h2>
+<blockquote>
+<p>對應 <code>E5x--frontend-information-arch.md</code>
+的完整頁面矩陣。</p>
+</blockquote>
+<h3 id="admin-panel-導航結構">Admin Panel 導航結構</h3>
+<pre><code>Admin Panel (/admin)
+├── 🏠 儀表板 (/dashboard)                    ← V1.0, Level 1
+├── 💬 對話管理
+│   ├── 對話列表 (/conversations)              ← V1.0, Level 2
+│   └── 對話詳情 (/conversations/[id])         ← V1.0, Level 3
+├── 🎯 問題卡
+│   ├── 問題卡列表 (/problem-cards)            ← V1.0, Level 2
+│   └── 問題卡詳情 (/problem-cards/[id])       ← V1.0, Level 3
+├── 📚 知識庫
+│   ├── 案例庫 (/knowledge-base/cases)         ← V1.0, Level 2
+│   ├── 手冊管理 (/knowledge-base/manuals)     ← V1.0, Level 2
+│   └── SOP 審核 (/knowledge-base/sop-drafts)  ← V1.0, Level 2
+├── 📋 工單管理                                 ← V2.0 Section
+│   ├── 工單列表 (/work-orders)                ← V2.0, Level 2
+│   ├── 派工板 (/work-orders/dispatch)         ← V2.0, Level 2
+│   └── 工單詳情 (/work-orders/[id])           ← V2.0, Level 3
+├── 👷 技師管理                                 ← V2.0 Section
+│   ├── 技師列表 (/technicians)                ← V2.0, Level 2
+│   └── 技師詳情 (/technicians/[id])           ← V2.0, Level 3
+├── 💰 帳務管理 (/accounting)                   ← V2.0, Level 2
+├── 🔧 進階管理                                 ← V2.0 Section
+│   ├── 退款審批 (/admin/refunds)
+│   ├── 庫存管理 (/admin/inventory)
+│   ├── 保固索賠 (/admin/warranty-claims)
+│   ├── 爭議仲裁 (/admin/disputes)
+│   ├── 稽核日誌 (/admin/audit-events)
+│   └── 角色權限 (/admin/roles)
+└── ⚙️ 系統設定 (/settings)                    ← V1.0, Level 2</code></pre>
+<h3 id="technician-pwa-導航結構">Technician PWA 導航結構</h3>
+<pre><code>Technician App
+├── 🗺️ 案件池 (/pool)          ← 底部導航 Tab 1, 地圖+工單列表
+├── 📋 我的工單 (/my-orders)    ← 底部導航 Tab 2, 進行中工單列表
+├── 💰 帳戶中心 (/account)      ← 底部導航 Tab 3, 收入統計
+└── 工單詳情 (/my-orders/[id])  ← 從列表點入, 含完工回報+鎖具面板</code></pre>
+<hr />
+<p><strong>版本資訊</strong>：</p>
+<ul>
+<li>當前版本：v1.0</li>
+<li>最後更新：2026-04-21</li>
+<li>此文件為「電子鎖智能客服與派工平台」全站設計靈魂，任何 Page-Level
+Prompt 均以此為基石。</li>
+<li>相關文件：
+<ul>
+<li><code>SYSTEM_DOCUMENT_SPEC.md</code>（四層文件模板）</li>
+<li><code>BASE_DESIGN_SYSTEM.md</code>（通用模板）</li>
+<li><code>01_sunny_brand_system.md</code>（品牌範例參考）</li>
+<li><code>references/ui_style_benchmark_report.md</code>（風格參考報告）</li>
+<li><code>docs/01-define/E3x--module-breakdown.md</code>（模組分解）</li>
+<li><code>docs/02-design/E5x--frontend-information-arch.md</code>（前端資訊架構）</li>
+<li><code>docs/_flows-bdd-test/v-model-left/E5x--workflow-work-order.md</code>（工單互動流程）</li>
+</ul></li>
+</ul>
+</div></div></body></html>

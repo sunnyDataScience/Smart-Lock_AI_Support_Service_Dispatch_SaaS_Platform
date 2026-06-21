@@ -1,0 +1,290 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Background Monitors Runbook（8-monitor lifespan）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ _ops ／ background-monitors-runbook.md</div>
+<div class="doc"><h1 id="background-monitors-runbook">Background Monitors Runbook</h1>
+<blockquote>
+<p>Production 部署時 API service 啟動會自動掛 8 個背景 monitor / cron。
+本 doc 給 ops / on-call 故障排除用。</p>
+</blockquote>
+<h2 id="1-8-monitor-啟動序">§1 8-Monitor 啟動序</h2>
+<pre><code>inventory_monitor → sla_monitor → line_push_worker → recon_exc_detector
+→ dispute_escalation_cron → canary_advance_cron
+→ statement_auto_approval → gdpr_hard_delete</code></pre>
+<p>各 monitor 都是 in-process asyncio task，重啟即重新開始計時。</p>
+<h2 id="2-各-monitor-詳細">§2 各 Monitor 詳細</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Monitor</th>
+<th style="text-align: center;">預設 interval</th>
+<th style="text-align: left;">用途</th>
+<th style="text-align: left;">Env override</th>
+<th style="text-align: left;">對應 FR/CR</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>inventory_monitor</code></td>
+<td style="text-align: center;">60s</td>
+<td style="text-align: left;">低庫存背景偵測</td>
+<td style="text-align: left;">—</td>
+<td style="text-align: left;">v1.28.0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>sla_monitor</code></td>
+<td style="text-align: center;">60s</td>
+<td style="text-align: left;">quote/dispatch/response/arrival 4 SLA
+告警</td>
+<td
+style="text-align: left;"><code>SLA_MONITOR_INTERVAL_SECONDS</code></td>
+<td style="text-align: left;">v1.33.0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>line_push_outbox_worker</code></td>
+<td style="text-align: center;">10s</td>
+<td style="text-align: left;">LINE Flex push outbox poll → push</td>
+<td
+style="text-align: left;"><code>LINE_PUSH_WORKER_INTERVAL</code></td>
+<td style="text-align: left;">CR-0017 Stage 2</td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>reconciliation_exception_detector</code></td>
+<td style="text-align: center;">86400s (24h)</td>
+<td style="text-align: left;">對帳異常 daily 偵測（3 detector）</td>
+<td
+style="text-align: left;"><code>RECON_EXCEPTION_DETECTOR_INTERVAL</code></td>
+<td style="text-align: left;">CR-0018 Stage 3</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>dispute_escalation_cron</code></td>
+<td style="text-align: center;">86400s (24h)</td>
+<td style="text-align: left;">60d dispute 自動 escalation</td>
+<td
+style="text-align: left;"><code>DISPUTE_ESCALATION_CRON_INTERVAL</code></td>
+<td style="text-align: left;">WBS §8 P1</td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>config_canary_advance_cron</code></td>
+<td style="text-align: center;">300s (5min)</td>
+<td style="text-align: left;">M18 canary 5%→50%→100% 自動推進</td>
+<td
+style="text-align: left;"><code>CONFIG_CANARY_ADVANCE_INTERVAL</code></td>
+<td style="text-align: left;">WBS §8 P1</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>statement_auto_approval</code></td>
+<td style="text-align: center;">3600s (1hr)</td>
+<td style="text-align: left;">3 statement 表 dispute window 過期
+auto-approve</td>
+<td
+style="text-align: left;"><code>STATEMENT_AUTO_APPROVAL_INTERVAL</code></td>
+<td style="text-align: left;">FR-0045/0046/0047</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>gdpr_hard_delete</code></td>
+<td style="text-align: center;">86400s (24h)</td>
+<td style="text-align: left;">T+30 GDPR forget 自動硬刪
+(BR-PII-001)</td>
+<td
+style="text-align: left;"><code>GDPR_HARD_DELETE_INTERVAL</code></td>
+<td style="text-align: left;">FR-0053</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-health-即時查詢">§3 Health 即時查詢</h2>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> <span class="at">-H</span> <span class="st">&quot;Authorization: Bearer </span><span class="va">$JWT</span><span class="st">&quot;</span> <span class="dt">\</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  https://api.example.com/api/v1/admin/lifespan-monitors/health</span></code></pre></div>
+<p>回應 example：</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;monitors&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;inventory&quot;</span><span class="fu">:</span> <span class="fu">{</span><span class="dt">&quot;state&quot;</span><span class="fu">:</span> <span class="st">&quot;running&quot;</span><span class="fu">,</span> <span class="dt">&quot;interval_seconds&quot;</span><span class="fu">:</span> <span class="dv">60</span><span class="fu">,</span> <span class="er">...</span><span class="fu">},</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;sla&quot;</span><span class="fu">:</span> <span class="fu">{</span><span class="dt">&quot;state&quot;</span><span class="fu">:</span> <span class="st">&quot;running&quot;</span><span class="fu">,</span> <span class="dt">&quot;interval_seconds&quot;</span><span class="fu">:</span> <span class="dv">60</span><span class="fu">,</span> <span class="er">...</span><span class="fu">},</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;gdpr_hard_delete&quot;</span><span class="fu">:</span> <span class="fu">{</span><span class="dt">&quot;state&quot;</span><span class="fu">:</span> <span class="st">&quot;crashed&quot;</span><span class="fu">,</span> <span class="dt">&quot;task_done&quot;</span><span class="fu">:</span> <span class="kw">true</span><span class="fu">,</span> <span class="er">...</span><span class="fu">}</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">},</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;summary&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;total&quot;</span><span class="fu">:</span> <span class="dv">8</span><span class="fu">,</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;by_state&quot;</span><span class="fu">:</span> <span class="fu">{</span><span class="dt">&quot;running&quot;</span><span class="fu">:</span> <span class="dv">7</span><span class="fu">,</span> <span class="dt">&quot;crashed&quot;</span><span class="fu">:</span> <span class="dv">1</span><span class="fu">},</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;all_running&quot;</span><span class="fu">:</span> <span class="kw">false</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+<p>state 4 種：</p>
+<ul>
+<li><code>running</code> — task active + stopping signal not set →
+正常</li>
+<li><code>stopping</code> — shutdown 進行中（lifespan stop）</li>
+<li><code>crashed</code> — task done 但 stopping signal 未 set →
+<strong>異常終止，需 restart API</strong></li>
+<li><code>not_started</code> — task=None（應在 startup
+完成後不該出現此狀態）</li>
+<li><code>import_error</code> — module import 失敗（部署檔案損壞）</li>
+</ul>
+<h2 id="4-故障排除">§4 故障排除</h2>
+<h3 id="41-single-monitor-crashed">4.1 single monitor crashed</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">症狀</th>
+<th style="text-align: left;">可能原因</th>
+<th style="text-align: left;">處置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>line_push_outbox_worker</code>
+crashed</td>
+<td style="text-align: left;">LINE API quota 用罄 / 網路</td>
+<td style="text-align: left;">查 LINE Console quota；restart API</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>recon_exception_detector</code>
+crashed</td>
+<td style="text-align: left;">大 batch SQL 鎖住</td>
+<td style="text-align: left;">查 active query；下次重啟後縮 batch</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>gdpr_hard_delete</code> crashed</td>
+<td style="text-align: left;">DELETE users FK constraint 衝突</td>
+<td style="text-align: left;">查 error log 找具體 user_id；手動清 FK 再
+restart</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>statement_auto_approval</code>
+crashed</td>
+<td style="text-align: left;">三表之一 schema drift</td>
+<td style="text-align: left;">查 migration registry；補 missing
+migration</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>canary_advance_cron</code>
+crashed</td>
+<td style="text-align: left;">_dethrone_active 鎖等</td>
+<td style="text-align: left;">查 config_version table；可能
+race；restart</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>dispute_escalation_cron</code>
+crashed</td>
+<td style="text-align: left;">sla_deadline 欄位 NULL</td>
+<td style="text-align: left;">補 NULL → 正常時間；restart</td>
+</tr>
+</tbody>
+</table>
+<h3 id="42-all_runningfalse-但個別-not-import_error">4.2
+all_running=false 但個別 not import_error</h3>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 跑健康查詢</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> ... /admin/lifespan-monitors/health</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 若 crashed → kubectl rollout restart 或 docker restart api container</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co"># 重啟後 lifespan 重新啟動所有 monitor</span></span></code></pre></div>
+<h3 id="43-一個-monitor-重複-crash">4.3 一個 monitor 重複 crash</h3>
+<p>代表 root cause 未解；不要無限 restart，先：</p>
+<ol type="1">
+<li>查 logger 對應 monitor name 的 ERROR/EXCEPTION</li>
+<li>看 §4.1 對應症狀處置</li>
+<li>若是 schema/data issue → 暫設 env 加大 interval 或 disable（修改
+main.py lifespan 留待下次部署）</li>
+</ol>
+<h2 id="5-暫停-monitor-流程如業務需要">§5 暫停 monitor
+流程（如業務需要）</h2>
+<p>正常運維<strong>不應暫停 monitor</strong>；極端情況（e.g. DB
+維護）：</p>
+<ol type="1">
+<li>改 env 把 interval 設極大值（e.g.
+<code>GDPR_HARD_DELETE_INTERVAL=999999999</code>）</li>
+<li>重啟 API container</li>
+<li>monitor 仍會跑 startup_delay 後等 sleep，實質暫停</li>
+<li>DB 維護完後 reset env + restart</li>
+</ol>
+<h2 id="6-多-worker--多-instance-部署考量">§6 多 worker / 多 instance
+部署考量</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">風險</th>
+<th style="text-align: left;">影響</th>
+<th style="text-align: left;">緩解</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>line_push_outbox_worker</code> 多
+instance 同時 poll 同 row</td>
+<td style="text-align: left;">重複 push</td>
+<td style="text-align: left;">已用
+<code>FOR UPDATE SKIP LOCKED</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>gdpr_hard_delete</code> 多 instance
+同時 SELECT</td>
+<td style="text-align: left;">同 row 跑兩次 hard_delete</td>
+<td style="text-align: left;">service 內已有 status='soft_deleted'
+CAS；下次跑時 status 已 hard_deleted 自動跳過</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>statement_auto_approval</code> 多
+instance</td>
+<td style="text-align: left;">同 statement UPDATE 兩次</td>
+<td style="text-align: left;">WHERE status='pending_review'
+條件冪等；第二次 affected=0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>canary_advance_cron</code> 多
+instance</td>
+<td style="text-align: left;">同 rollout advance 兩次</td>
+<td style="text-align: left;">UPDATE WHERE current_stage 條件；CAS
+第二次無效</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>*_detector</code> /
+<code>*_escalation</code></td>
+<td style="text-align: left;">重複偵測</td>
+<td style="text-align: left;">service 內 detect_exception 有 idempotent
+check</td>
+</tr>
+</tbody>
+</table>
+<p><strong>結論</strong>：本 session 所有新 monitor 都已設計成
+multi-instance safe；舊 <code>inventory_monitor</code> /
+<code>sla_monitor</code> 使用 in-memory <code>_alerted</code> set，多
+instance 重複告警。<strong>建議</strong>：production 部署 API container
+= 1 instance；scale 由 load balancer 前置。</p>
+<h2 id="7-lifespan-startup-失敗">§7 lifespan startup 失敗</h2>
+<p>若 startup 任一 monitor <code>.start()</code> 拋 exception → API 整個
+startup fail 不能服務。</p>
+<p>排除：</p>
+<ol type="1">
+<li>看啟動 log 哪個 module import fail</li>
+<li>通常為 migration 未跑 / env 缺</li>
+<li>確認 <code>pending-apply</code> migration
+都套用（<code>SQL/migrations/MIGRATION_REGISTRY.md</code>）</li>
+</ol>
+<h2 id="8-相關文件">§8 相關文件</h2>
+<ul>
+<li><code>api/routers/lifespan_health.py</code> — 本 endpoint 實作</li>
+<li><code>api/realtime/*</code> — 各 monitor 實作</li>
+<li><code>SQL/migrations/MIGRATION_REGISTRY.md</code> — 對應 schema
+變更</li>
+<li><code>CHANGELOG.md [Unreleased] Decisions</code> — 各 monitor
+加入歷史</li>
+</ul>
+</div></div></body></html>

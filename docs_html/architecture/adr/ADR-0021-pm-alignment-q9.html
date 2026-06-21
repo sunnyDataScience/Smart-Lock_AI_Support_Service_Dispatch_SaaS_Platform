@@ -1,0 +1,106 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Scope Change 同意入口</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ architecture ／ adr ／ ADR-0021-pm-alignment-q9.md</div>
+<div class="doc"><blockquote>
+<p><strong>🔄 Migration Status (2026-05-28)</strong>:
+<code>HISTORICAL</code> <strong>Reviewed against</strong>: 2026-05-20
+final spec (xlsx) <strong>Reviewed on</strong>: 2026-05-28 <strong>Per
+ADR-0100 §1 classification</strong>
+(.claude/context/devteam/meetings/2026-05-27-1130-final-spec-migration-strategy/MoM.md)</p>
+</blockquote>
+<h1 id="adr-0021--scope-change-同意入口">ADR-0021 — Scope Change
+同意入口</h1>
+<h2 id="status">Status</h2>
+<p><strong>Accepted</strong> (拍板於 2026-05-07，作為 PM Q1-Q10 90
+分鐘對齊會議產物)</p>
+<h2 id="decision">Decision</h2>
+<p><strong>B 消費者 Web 二次確認</strong></p>
+<h2 id="context-options-consequences-從-pm-決策矩陣-10-摘錄">Context,
+Options, Consequences (從 PM 決策矩陣 §10 摘錄)</h2>
+<h2 id="10-q9--scope-change-同意入口">10. Q9 — Scope Change
+同意入口？</h2>
+<h3 id="業務脈絡">業務脈絡</h3>
+<p>F-008 技師到場後發現問題比預期大（換鎖 →
+加上換門框），需消費者同意加價。同意入口在 LINE 還是 Web？</p>
+<h3 id="影響流程">影響流程</h3>
+<ul>
+<li>F-008 Scope Change</li>
+</ul>
+<h3 id="候選方案">候選方案</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>說明</th>
+<th>UX</th>
+<th>安全</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A. LINE quick reply</strong></td>
+<td>Bot 推 Flex Message + 同意 / 拒絕按鈕</td>
+<td>客戶熟悉</td>
+<td>用戶需登入 LINE—自動驗證</td>
+</tr>
+<tr>
+<td><strong>B. Web 匿名 token</strong></td>
+<td>SMS / LINE 給短連結 → Web 簽名</td>
+<td>多步驟</td>
+<td>需 token 機制</td>
+</tr>
+<tr>
+<td><strong>C. 純 LINE 對話</strong>（無按鈕）</td>
+<td>技師寫文字訊息 + 客戶回「同意」</td>
+<td>最簡</td>
+<td>易爭議（同意算數嗎？）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="推薦預設">推薦預設</h3>
+<p><strong>A — LINE quick reply</strong>。理由：</p>
+<ol type="1">
+<li>既有 LINE Flex 機制可重用（F-018 已實作 sendChatMessage）</li>
+<li>LINE 內建用戶認證（<code>source.userId</code>）</li>
+<li>法律有效性 ≥ Web 簽名（LINE Talk 紀錄可舉證）</li>
+</ol>
+<h3 id="反向選項後果">反向選項後果</h3>
+<ul>
+<li>B：必須建 Web 匿名 token API（同 Q3 = B 的工作量）</li>
+<li>C：法律風險—「同意」字眼不夠正式，爭議時不易舉證</li>
+</ul>
+<h3 id="pm-決策">PM 決策</h3>
+<pre><code>[ ] A — LINE quick reply
+[ ] B — Web 匿名 token
+[ ] C — 純 LINE 對話
+
+理由：__________________________________
+拍板日期：______________
+拍板人：______________
+
+⚠ 法務交叉確認：LINE quick reply 點擊是否視同電子簽章？</code></pre>
+<h3 id="拍板後續更新">拍板後續更新</h3>
+<ul>
+<li><code>agent/skills/data/_common/</code>：scope-change-consent
+skill</li>
+<li><code>agent/core/line_bot.py</code>：若 A，加 Flex template</li>
+<li><code>docs/_flows-bdd-test/v-model-left/E5x--workflow-work-order.md</code>
+F-008</li>
+</ul>
+<hr />
+</div></div></body></html>

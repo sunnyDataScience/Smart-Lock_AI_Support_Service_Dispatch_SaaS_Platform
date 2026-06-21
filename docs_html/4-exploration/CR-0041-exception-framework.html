@@ -1,0 +1,244 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>CR-0041 M15 異常框架 — exception_case 實體 + return_path + high-risk pause（BR-M15-01/03）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ 4-exploration ／ CR-0041-exception-framework.md</div>
+<div class="doc"><blockquote>
+<p>✅ <strong>§8 已裁決（2026-06-19，全採建議預設）+ MVP 已實作（見
+§10）。</strong> CR-0038 階段1「公單收尾」最後一塊。</p>
+</blockquote>
+<h2 id="1-動機why">1. 動機（WHY）</h2>
+<p>會議 +
+spec：缺料/改期/加價拒絕/取消/退款/爭議/安全風險等<strong>異常不能藏在
+chat</strong>，每個異常要選 return path 並進核准。現況：</p>
+<ul>
+<li><strong>BR-M15-01 異常實體：缺</strong>。<code>generated.py</code>
+已完整設計 <code>Exception</code> model（ExceptionType 10 值 / Status 5
+態 / Severity / return_to_stage / circuit_breaker），但<strong>無 DB
+表、無 service、無真 router</strong>。</li>
+<li><strong>BR-M15-02 approval inbox：大致有</strong>（FR-0049
+<code>approval_inbox_service.list_pending_approvals</code> 已聚合
+scope_change/refund/dispute/reschedule/recon → 統一
+inbox）。但只涵蓋「已有專屬表」的核准，<strong>不涵蓋無專屬表的異常</strong>（no_show
+/ customer_absent / material_shortage / appearance_refused /
+quality_complaint）。</li>
+<li><strong>BR-M15-03 high-risk stop：缺</strong>。WO 狀態機只有
+created/assigned/accepted/in_progress/completed/cancelled，<strong>無
+high_risk_hold</strong>；保固不明/安全/加價拒絕無「暫停到核准」機制。</li>
+<li><strong><code>exceptions_v2.py</code> 命名誤導</strong>：tag 標「M15
+Exceptions」但實際 delegate
+<code>technician_schedule_service</code>（師傅排班請假/待命核准），與
+M15 異常無關。</li>
+</ul>
+<h2 id="2-觸發面向">2. 觸發面向</h2>
+<table>
+<thead>
+<tr>
+<th>面向</th>
+<th style="text-align: center;">命中</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Domain model</td>
+<td style="text-align: center;">✅</td>
+<td>新 exception_case 實體（control tower）</td>
+</tr>
+<tr>
+<td>DB schema</td>
+<td style="text-align: center;">✅</td>
+<td>exception_case 表（migration）</td>
+</tr>
+<tr>
+<td>API contract</td>
+<td style="text-align: center;">✅</td>
+<td>新 exception 端點；exceptions_v2 改名（路徑/operation_id 變動）</td>
+</tr>
+<tr>
+<td>Business rule</td>
+<td style="text-align: center;">✅</td>
+<td>return_path 選項、high-risk 觸發與暫停</td>
+</tr>
+<tr>
+<td>Test plan</td>
+<td style="text-align: center;">✅</td>
+<td>exception lifecycle + high-risk + return_path component 測試</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-現況grounded">3. 現況（grounded）</h2>
+<ul>
+<li><code>generated.py:544</code> ExceptionType(10) / :557
+ExceptionStatus(5) / :584 Exception model（含 return_to_stage /
+triggers_circuit_breaker）。<strong>只有
+model，無表/service/router</strong>。</li>
+<li><code>routers/exceptions_v2.py</code>：<code>listExceptionsInbox</code>
+/ <code>approveException</code> → 實際呼
+<code>technician_schedule_service</code>（誤命名）。</li>
+<li><code>services/approval_inbox_service.py:63 list_pending_approvals</code>：聚合
+scope_change/refund/dispute/reschedule/recon_exception（FR-0049，BR-M15-02
+大致達成）。</li>
+<li>WO
+狀態（<code>work_order_service.py</code>）：created/assigned/accepted/in_progress/completed/cancelled，無
+hold 態。</li>
+<li>既有 return-path 端點已分散存在：cancel_order / reassign_order /
+record_scope_change / dispute / refund。</li>
+</ul>
+<h2 id="4-api-契約變更">4. API 契約變更</h2>
+<ul>
+<li>新 <code>exception_case</code> 端點（建議
+<code>/tenants/{tid}/exception-cases</code>）：open / list / get /
+resolve（帶 return_path）/ escalate。</li>
+<li><code>exceptions_v2.py</code>（schedule 別名）改名 →
+<code>technician_schedule_v2</code>（路徑
+<code>:schedule-requests</code>，operation_id 修正）；釋出
+<code>exceptions</code> 命名給真框架。</li>
+<li>FR-0049 approval_inbox 加入 <code>exception</code>
+type（high-severity open exception 進統一 inbox）。</li>
+</ul>
+<h2 id="5-領域--資料">5. 領域 / 資料</h2>
+<ul>
+<li><code>saas.exception_case</code>（對齊 generated.py model）：id /
+tenant_id / work_order_id / exception_type / status / severity /
+description / <strong>return_path</strong>（HD-4）/ return_to_stage /
+triggers_circuit_breaker / actor / resolution / resolved_at /
+resolved_by / created_at / updated_at。</li>
+<li>high-risk（HD-2）：severity in (high, critical) 的 open exception →
+需核准；WO 是否加 <code>high_risk_hold</code> 旗標/狀態待裁決。</li>
+</ul>
+<h2 id="6-測試計畫">6. 測試計畫</h2>
+<p><code>test_cr_0041_exception_framework.py</code>（component）：</p>
+<ul>
+<li>open exception → status=open；high severity 進 approval inbox。</li>
+<li>resolve 帶
+return_path（continue/requote/reschedule/reassign/cancel/refund/rma/dispute
+之一）→ status=resolved + return_path 記錄。</li>
+<li>escalate → status=escalated。</li>
+<li>非法 return_path → 422。</li>
+<li>（若 HD-2 選 WO hold）WO 進 high_risk_hold → 擋 dispatch/complete
+直到 exception resolved。</li>
+</ul>
+<h2 id="7-風險">7. 風險</h2>
+<ul>
+<li>exceptions_v2 改名 = breaking（前端/caller 須改）。緩解：grep
+caller、同 PR 改前端、保留舊路徑一段（deprecation）。</li>
+<li>過度設計：return_path 9 選項多數已有端點 → 框架先做「記錄 +
+路由提示」，實際動作仍走既有端點（不重寫）。</li>
+<li>high_risk_hold 若改狀態機 = 影響既有完工/派工
+gate（須回歸測試）。</li>
+</ul>
+<hr />
+<h2 id="8-stop_sign-human-decisions-required">8. 🛑 Human Decisions
+Required</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">#</th>
+<th>決策</th>
+<th>建議預設</th>
+<th>業主裁決（2026-06-19）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><strong>HD-1</strong></td>
+<td>範圍</td>
+<td>MVP 框架</td>
+<td>✅ <strong>MVP 框架</strong>（return_path
+記錄+提示，不重寫各動作）</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>HD-2</strong></td>
+<td>high-risk 暫停模型</td>
+<td>WO <code>high_risk_hold</code> 旗標</td>
+<td>✅ <strong>WO 旗標</strong>（不改主狀態機）</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>HD-3</strong></td>
+<td>exceptions_v2 改名</td>
+<td>改名 + 讓位 + 30d</td>
+<td>✅ <strong>改名 + 讓位</strong>（真框架用 /exception-cases、舊路徑
+deprecated 30d）</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>HD-4</strong></td>
+<td>return_path 模型</td>
+<td>加 action enum</td>
+<td>✅ <strong>加 return_path action enum</strong>（9 動作）</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>HD-5</strong></td>
+<td>自動觸發</td>
+<td>手動 + 半自動（未另問，採預設）</td>
+<td>✅ <strong>手動 open 為主</strong>，半自動/各動作串接 follow-up</td>
+</tr>
+</tbody>
+</table>
+<h2 id="9-suggested-implementation-order裁決後">9. Suggested
+Implementation Order（裁決後）</h2>
+<ol type="1">
+<li>migration 049：<code>saas.exception_case</code> 表（對齊 model +
+return_path）+ （HD-2）work_orders 加 high_risk_hold 旗標。</li>
+<li><code>exception_service</code>：open / list-inbox / get /
+resolve(return_path) / escalate；high severity 標記。</li>
+<li>改名 <code>exceptions_v2</code> →
+<code>technician_schedule_v2</code>（grep caller + 前端同步）；新
+<code>exception_cases_v2</code> router。</li>
+<li>approval_inbox 加 exception type。</li>
+<li>（HD-2）dispatch/complete gate 檢查 high_risk_hold。</li>
+<li><code>test_cr_0041</code> component。</li>
+<li>redeploy smoke + 更新 CHANGELOG / 完成度 / 本 CR §進度。</li>
+</ol>
+<hr />
+<h2 id="10-進度">10. 進度</h2>
+<p>✅ <strong>MVP done（2026-06-19，branch
+<code>feat/cr-0041-exception-framework</code>）</strong>：</p>
+<ul>
+<li><strong>migration
+049</strong>：<code>saas.exception_case</code>（對齊 generated.py model
++ <code>return_path</code> action 欄 + status/severity CHECK）+
+<code>work_orders.high_risk_hold</code> 旗標。</li>
+<li><strong><code>exception_service</code></strong>：open（high/critical
++ WO → 設 high_risk_hold）/ list（status·severity filter）/ get /
+resolve（選 return_path 9 動作之一；無其他 open high-risk → 解除 hold）/
+escalate。</li>
+<li><strong><code>exception_cases_v2</code>
+router</strong>：<code>/exception-cases</code>
+open/list/get/<code>:resolve</code>/<code>:escalate</code>（resolve/escalate
+限管理角色）。</li>
+<li><strong>BR-M15-03 high_risk_hold
+gate</strong>：<code>work_order_service._assert_not_high_risk_hold</code>
+接入 <code>assign_order</code>（派工）+
+<code>complete_order</code>（完工，含 override）→ hold 時 422
+<code>HIGH_RISK_HOLD</code>。</li>
+<li><strong>改名（HD-3）</strong>：<code>exceptions_v2.py</code>（實為排班別名）加
+DEPRECATED 註記，真框架讓位 <code>/exception-cases</code>；main.py mount
+註明。</li>
+<li><strong>測試</strong> <code>test_cr_0041</code> <strong>6/6
+pass</strong>（無效 type/return_path 422 / medium 不 hold / high→hold +
+gate 擋 / resolve 解除 hold + 記 return_path / escalate + list）+ 回歸
+51 工單/完工 + 226 unit 全綠。</li>
+</ul>
+<p>⏳ <strong>follow-up</strong>：(a) <code>exceptions_v2</code>
+正式改名 <code>technician_schedule_v2</code> + 遷
+<code>admin/schedule-requests</code> 前端（30d deprecation 內）；(b)
+approval_inbox 加入 exception type（high-severity open 進統一
+inbox，BR-M15-02 補強）；(c) 既有事件半自動 open
+exception（appearance_refused/no_show/material_shortage）；(d)
+return_path 各動作與既有端點（cancel/refund/reassign）串接執行；(e)
+前端異常 inbox 頁。</p>
+</div></div></body></html>

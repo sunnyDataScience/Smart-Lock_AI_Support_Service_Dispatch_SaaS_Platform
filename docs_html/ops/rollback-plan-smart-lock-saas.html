@@ -1,0 +1,622 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Rollback Plan — 智慧鎖 SaaS 平台</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ ops ／ rollback-plan-smart-lock-saas.md</div>
+<div class="doc"><h1 id="rollback-plan--智慧鎖-saas-平台">Rollback Plan — 智慧鎖 SaaS
+平台</h1>
+<blockquote>
+<p><strong>狀態</strong>：v1 draft（Gate 7 ready）
+<strong>更新</strong>：2026-05-28 <strong>負責人</strong>：DevOps + SRE
+<strong>設計原則</strong>：rollback 是基本能力，不是失敗的證據。三層分流
++ 每層獨立 SLA + 完整 audit。 <strong>對應</strong>：BR-M18-01..05
+staged rollout 5 件套 + ADR-0067 §Decision 組件 4 rollback window</p>
+</blockquote>
+<hr />
+<h2 id="0-設計原則">§0 設計原則</h2>
+<blockquote>
+<p>[sre 視角] Rollback 不是「失敗」，是 error budget
+還在的證據。Postmortem 重點是學習，不是究責。 [devops 視角] 三層
+rollback 路徑彼此<strong>不可相依</strong>：M18 config rollback 不該需要
+redeploy app；app rollback 不該需要 schema rollback。</p>
+</blockquote>
+<p><strong>三層 rollback 模型</strong>：</p>
+<pre><code>┌─────────────────────────────────────────────────┐
+│  Layer 3: DB Schema (compensating migration)    │  RTO ≤ 4h
+│  - Forward-only migration                       │
+│  - Compensating script (非 reverse DDL)         │
+├─────────────────────────────────────────────────┤
+│  Layer 2: App Version (k8s / Cloud Run revision)│  RTO ≤ 30 min
+│  - Revision pinning to last green               │
+│  - Image immutable + SHA-tagged                 │
+├─────────────────────────────────────────────────┤
+│  Layer 1: M18 Config (admin UI instant)         │  RTO ≤ 1 min
+│  - Version-controlled config_versions ledger    │
+│  - 24h window + staged 10% verification         │
+└─────────────────────────────────────────────────┘</code></pre>
+<p><strong>經驗法則</strong>：</p>
+<ol type="1">
+<li>出問題時<strong>先試 Layer 1 (M18 config)</strong> — 90% 的 ops
+policy 改動失敗都是 config 問題</li>
+<li>確定不是 config 才動 Layer 2 (app version)</li>
+<li>只有 schema 設計失誤才動 Layer 3 (DB)</li>
+</ol>
+<hr />
+<h2 id="1-layer-1--m18-config-rollbackinstant--1-min">§1 Layer 1 — M18
+Config Rollback（instant, ≤ 1 min）</h2>
+<blockquote>
+<p>對齊 BR-M18-01..05 + ADR-0067 §Decision 組件 4 + NFR-Ops-005</p>
+</blockquote>
+<h3 id="11-觸發條件">§1.1 觸發條件</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">觸發</th>
+<th style="text-align: left;">Auto/Manual</th>
+<th style="text-align: left;">Owner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Staged rollout SLO breach (P99 latency /
+error rate &gt; baseline)</td>
+<td style="text-align: left;"><strong>auto-halt + alert</strong></td>
+<td style="text-align: left;">system → DevOps on-call</td>
+</tr>
+<tr>
+<td style="text-align: left;">KPI K3 sentiment 連動退化（M18 config
+改動後 24h 內）</td>
+<td style="text-align: left;">manual</td>
+<td style="text-align: left;">PM + QA</td>
+</tr>
+<tr>
+<td style="text-align: left;">業主後悔 / mis-config 發現（如金額多打一個
+0）</td>
+<td style="text-align: left;">manual</td>
+<td style="text-align: left;">M18 admin</td>
+</tr>
+<tr>
+<td style="text-align: left;">Audit /
+合規通報（如取消費分層改動違反合約）</td>
+<td style="text-align: left;">manual + audit log highlight</td>
+<td style="text-align: left;">法務 / DPO + IT-admin 雙簽</td>
+</tr>
+<tr>
+<td style="text-align: left;">Forbidden Eval drop &gt; 2%（M18 改動
+prompt template 後）</td>
+<td style="text-align: left;">auto-halt</td>
+<td style="text-align: left;">QA + dev</td>
+</tr>
+</tbody>
+</table>
+<h3 id="12-操作步驟admin-ui-一鍵回退">§1.2 操作步驟（admin UI
+一鍵回退）</h3>
+<pre><code>[admin UI] → 「Config Rollback」按鈕
+     │
+     ▼
+[Confirm dialog] ← 顯示：要回退到哪個 version (default: 前一個 active)
+     │              + 影響的下游模組（per ADR-0068 reader registry）
+     │              + 預計 staged rollout 時間
+     ▼
+[Validation] ← schema 驗證舊 version 仍合規（避免回退到已 deprecate 的 schema）
+     │
+     ▼
+[Staged rollout (reverse)] ← 10% (10 min) → 50% (10 min) → 100%
+     │
+     ▼
+[Audit log] ← rollback event 寫入 config_versions ledger
+     │              + 標 reason = &quot;rollback&quot; + 觸發者 + 觸發 ticket / incident ID
+     ▼
+[Verify] ← downstream module 各 emit 一個 health probe 確認讀到新 version
+     │              （per ADR-0068 X-Config-Version header）
+     ▼
+[Notify] ← Slack #ops-alerts + 影響甲方時 LINE/SMS 通知</code></pre>
+<h3 id="13-sla--constraints">§1.3 SLA &amp; Constraints</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">Target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Detect → Trigger</td>
+<td style="text-align: left;">≤ 30s（auto-halt 走自動）/ ≤ 5
+min（manual）</td>
+</tr>
+<tr>
+<td style="text-align: left;">Trigger → Full rollback</td>
+<td style="text-align: left;">≤ 1 min（per NFR-Ops-005）</td>
+</tr>
+<tr>
+<td style="text-align: left;">Rollback window 保留</td>
+<td style="text-align: left;">≥ 24h（per ADR-0067 §Decision 組件
+4）</td>
+</tr>
+<tr>
+<td style="text-align: left;">Force full rollout（跳過 staged）</td>
+<td style="text-align: left;">禁用；除非 IT-admin 雙簽 + audit
+highlight</td>
+</tr>
+<tr>
+<td style="text-align: left;">同一 config_key 24h 內 rollback 次數</td>
+<td style="text-align: left;">≤ 3（超過 freeze 該 key 24h，必須走
+ticket）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="14-anti-pattern禁止">§1.4 Anti-pattern（禁止）</h3>
+<ul>
+<li><strong>禁</strong> 直接 SQL UPDATE config DB（per ADR-0068
+anti-corruption layer — 必走 M18 Config Read API + admin UI）</li>
+<li><strong>禁</strong> rollback 跳過 staged rollout（除非 emergency
+override）</li>
+<li><strong>禁</strong> rollback 已被 marked-as-deprecated 的 schema
+version（必須先升級到下一個 still-valid version）</li>
+</ul>
+<hr />
+<h2 id="2-layer-2--app-version-rollback-30-min">§2 Layer 2 — App Version
+Rollback（≤ 30 min）</h2>
+<h3 id="21-觸發條件per-runbook-ir-001010-escalation">§2.1 觸發條件（per
+Runbook IR-001..010 escalation）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">觸發</th>
+<th style="text-align: left;">Trigger source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">AI 準確率 K1 &lt; 70%</td>
+<td style="text-align: left;">nightly KPI batch</td>
+</tr>
+<tr>
+<td style="text-align: left;">Forbidden Eval K8 &lt; 90%</td>
+<td style="text-align: left;">every deploy</td>
+</tr>
+<tr>
+<td style="text-align: left;">SLO-1 API avail &lt; 95% 7d rolling</td>
+<td style="text-align: left;">burn rate alert</td>
+</tr>
+<tr>
+<td style="text-align: left;">Uptime &lt; 90% rolling 7d</td>
+<td style="text-align: left;">SLO breach</td>
+</tr>
+<tr>
+<td style="text-align: left;">合約 4.4 UAT 不過</td>
+<td style="text-align: left;">UAT report</td>
+</tr>
+<tr>
+<td style="text-align: left;">PII leak event / cross-tenant 寫入</td>
+<td style="text-align: left;">IR-007</td>
+</tr>
+<tr>
+<td style="text-align: left;">Image moderation violation (SOW 2.1(4))
+&gt; 0</td>
+<td style="text-align: left;">IR-008</td>
+</tr>
+<tr>
+<td style="text-align: left;">部署後 Forbidden Eval drop &gt; 5%</td>
+<td style="text-align: left;">post-deploy verification</td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-操作步驟cloud-run-revision-pin">§2.2 操作步驟（Cloud Run
+revision pin）</h3>
+<pre><code>[Decision gate] ← PM + Tech Lead + DevOps on-call 三人快速簽核（≤ 10 min）
+                  P0 emergency 可由 on-call 單人決策 + 事後 audit
+     │
+     ▼
+[Identify target revision] ← 上一個 green artifact tag (commit SHA + build timestamp)
+     │                      保留 5 個 green tag for emergency
+     ▼
+[Pin Cloud Run service to target revision]
+  gcloud run services update-traffic &lt;service&gt; --to-revisions=&lt;target&gt;=100
+     │
+     ▼
+[Smoke test] ← 5 min；含 LINE webhook ack + DGS read + M18 config read
+     │
+     ▼
+[Verify SLO recovery] ← 15 min watch
+     │
+     ▼
+[Comms] ← LINE notice (if user-facing) + Admin Panel banner + 甲方 email
+     │
+     ▼
+[Postmortem] ← 1 週內出 RCA</code></pre>
+<h3 id="23-cross-service-consistency">§2.3 Cross-service
+consistency</h3>
+<p>App rollback 時必須評估：</p>
+<ul>
+<li><strong>M18 config compatibility</strong>：rollback 後的舊 app
+version 能否讀新 M18 config schema？若 schema 已演進 → 同時 rollback
+config（Layer 1 + 2 同步）</li>
+<li><strong>OpenAPI version compatibility</strong>：rollback 後 API
+是否與 mobile app / 師傅 web app 客戶端不相容？additive-only
+紀律下應該都向後相容</li>
+<li><strong>OPA Rego artifact version</strong>：rollback 後 DGS startup
+hash check 是否會失敗？保留 5 個 green artifact + rego version pin</li>
+</ul>
+<h3 id="24-sla">§2.4 SLA</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">Target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Decision gate</td>
+<td style="text-align: left;">≤ 10 min（P0 single-person decision 5
+min）</td>
+</tr>
+<tr>
+<td style="text-align: left;">Revision pin</td>
+<td style="text-align: left;">≤ 5 min</td>
+</tr>
+<tr>
+<td style="text-align: left;">Verify + smoke</td>
+<td style="text-align: left;">≤ 15 min</td>
+</tr>
+<tr>
+<td style="text-align: left;">Total</td>
+<td style="text-align: left;"><strong>≤ 30 min</strong> (per
+NFR-Ops-003)</td>
+</tr>
+<tr>
+<td style="text-align: left;">Green revision 保留數</td>
+<td style="text-align: left;">≥ 5</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2
+id="3-layer-3--db-schema-rollback-4-h-compensating-migration-only">§3
+Layer 3 — DB Schema Rollback（≤ 4 h, compensating migration only）</h2>
+<h3 id="31-紀律forward-only--compensating-migration">§3.1
+紀律：Forward-Only + Compensating Migration</h3>
+<blockquote>
+<p>對齊 ADR-0064 / ADR-VCH-001 — hash chain 一旦 chain
+建立，<strong>不可 reverse</strong>；只能寫 break marker + 新 chain（per
+Runbook IR-011 §Prevent）。</p>
+</blockquote>
+<p><strong>禁止</strong>：reverse DDL（如 <code>DROP COLUMN</code> 已
+ship 過資料的欄位、<code>DROP TABLE</code> 含資料的表）。</p>
+<p><strong>允許</strong>：compensating migration — 用 forward migration
+把資料 / schema 帶回<strong>等價</strong>舊狀態。</p>
+<h3 id="32-標準-expand-contract-模式">§3.2 標準 expand-contract
+模式</h3>
+<p>任何 schema 改動走 <strong>2-release window</strong>：</p>
+<pre><code>Release N:    expand        — 加新欄位 / 新表，雙寫；舊讀路徑仍可工作
+Release N+1:  contract      — 切到只讀新；舊欄位標 deprecated
+Release N+2:  drop (optional) — 確認無讀者後再 drop（最少 1 個 release 觀察期）</code></pre>
+<p><strong>rollback window</strong>：Release N → N+1 之間（≥ 1
+release）可安全 rollback；超過 contract 階段不可純 schema rollback，需走
+compensating migration。</p>
+<h3 id="33-操作步驟">§3.3 操作步驟</h3>
+<pre><code>[Identify schema delta] ← 對比 prod schema vs 想 rollback 的 release schema
+     │
+     ▼
+[Write compensating migration] ← forward migration，將 prod schema 帶回等價舊狀態
+     │                          包含：(a) 新欄位 default backfill (b) FK 重新指向 (c) index 重建
+     ▼
+[Hash chain integrity check] ← 對 voucher / quote / journal_entry chain run nightly verify
+     │                          per Runbook IR-011 §Diagnose SQL
+     │                          mismatch → STOP，走 forensic + repair（不 rollback）
+     ▼
+[Stage on staging] ← run on staging copy of prod (24h fresh dump)
+     │
+     ▼
+[Backup snapshot] ← PITR snapshot before applying on prod
+     │
+     ▼
+[Apply on prod] ← 在 maintenance window (低流量 / 月底結帳後)
+     │
+     ▼
+[Verify] ← row count + hash chain verify + smoke test ≥ 30 min
+     │
+     ▼
+[Pair Layer 2 rollback] ← 通常 schema rollback 必伴隨 app rollback</code></pre>
+<h3 id="34-sla--constraints">§3.4 SLA &amp; Constraints</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">Target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Decision gate</td>
+<td style="text-align: left;">≤ 1h（DBA + Tech Lead + PM 三方簽核）</td>
+</tr>
+<tr>
+<td style="text-align: left;">Compensating script 撰寫 + staging
+dry-run</td>
+<td style="text-align: left;">≤ 2h</td>
+</tr>
+<tr>
+<td style="text-align: left;">Prod apply + verify</td>
+<td style="text-align: left;">≤ 1h</td>
+</tr>
+<tr>
+<td style="text-align: left;">Total</td>
+<td style="text-align: left;"><strong>≤ 4h</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">Maintenance window</td>
+<td style="text-align: left;"><strong>避開</strong>：月底結帳期
+(25-31)、發薪日 (5/10/25)、週五下午、國定假日連假前 24h</td>
+</tr>
+<tr>
+<td style="text-align: left;">PITR window</td>
+<td style="text-align: left;">≥ 7 天（cover schema rollback decision
+time + dry-run + apply）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="35-hash-chain-特殊處理ir-011--ir-013">§3.5 Hash Chain
+特殊處理（IR-011 / IR-013）</h3>
+<p>voucher / quote pricing snapshot 一旦發生 hash chain mismatch：</p>
+<ol type="1">
+<li><strong>不走 schema rollback</strong>（rollback
+不解決資料完整性問題）</li>
+<li>走 Runbook IR-011 forensic + repair（寫
+<code>hash_chain_break_marker</code> row + 新 chain 從 marker
+後重新計算）</li>
+<li>DPO + 法務 + 甲方會計通報</li>
+<li>board-level postmortem</li>
+</ol>
+<hr />
+<h2 id="4-跨層-rollback-決策矩陣">§4 跨層 rollback 決策矩陣</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">問題類型</th>
+<th style="text-align: center;">試 Layer 1?</th>
+<th style="text-align: center;">試 Layer 2?</th>
+<th style="text-align: center;">試 Layer 3?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">取消費 / 退款金額算錯</td>
+<td style="text-align: center;">✅ first</td>
+<td style="text-align: center;">⚠️ if config 不解</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td style="text-align: left;">Approval limit / SLA threshold 設錯</td>
+<td style="text-align: center;">✅ first</td>
+<td style="text-align: center;">⚠️ if config 不解</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td style="text-align: left;">Notification template 字錯 /
+法律措辭錯</td>
+<td style="text-align: center;">✅ first</td>
+<td style="text-align: center;">❌</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td style="text-align: left;">AI prompt template 改壞（K3 退化）</td>
+<td style="text-align: center;">✅ first</td>
+<td style="text-align: center;">⚠️ if rollback config 不夠</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td style="text-align: left;">Forbidden Eval drop（code path）</td>
+<td style="text-align: center;">❌</td>
+<td style="text-align: center;">✅ first</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td style="text-align: left;">API contract bug（response shape 錯）</td>
+<td style="text-align: center;">❌</td>
+<td style="text-align: center;">✅ first</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td style="text-align: left;">Migration 後 hash chain mismatch</td>
+<td style="text-align: center;">❌</td>
+<td style="text-align: center;">❌</td>
+<td style="text-align: center;">❌ → <strong>IR-011 forensic +
+repair</strong>（特殊路徑）</td>
+</tr>
+<tr>
+<td style="text-align: left;">Schema 新欄位 nullable wrong / default
+錯</td>
+<td style="text-align: center;">❌</td>
+<td style="text-align: center;">⚠️ if compatible</td>
+<td style="text-align: center;">✅ compensating migration</td>
+</tr>
+<tr>
+<td style="text-align: left;">Cross-tenant leak / PII leak</td>
+<td style="text-align: center;"><strong>kill switch first</strong></td>
+<td style="text-align: center;">✅ urgent</td>
+<td style="text-align: center;">⚠️ if schema-level RLS bug</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-rollback-drill-scheduledr-演練">§5 Rollback Drill Schedule（DR
+演練）</h2>
+<blockquote>
+<p>[sre] 沒演練過的 rollback 路徑 = 等於沒有。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Drill</th>
+<th style="text-align: left;">Cadence</th>
+<th style="text-align: left;">演練範圍</th>
+<th style="text-align: left;">Owner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>M18 config rollback
+drill</strong></td>
+<td style="text-align: left;">monthly</td>
+<td style="text-align: left;">隨機選一個 config_key，admin UI 改 →
+staged → rollback；驗 RTO ≤ 1 min</td>
+<td style="text-align: left;">DevOps + M18 admin</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>App version rollback
+drill</strong></td>
+<td style="text-align: left;">quarterly</td>
+<td style="text-align: left;">staging 環境模擬 P0；驗 RTO ≤ 30 min；驗
+cross-service compatibility</td>
+<td style="text-align: left;">DevOps + SRE</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>DB schema compensating migration
+drill</strong></td>
+<td style="text-align: left;">quarterly</td>
+<td style="text-align: left;">staging dump → 模擬 expand-contract →
+compensating；驗 RTO ≤ 4h</td>
+<td style="text-align: left;">DBA + DevOps</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Hash chain forensic
+drill</strong></td>
+<td style="text-align: left;">semi-annual</td>
+<td style="text-align: left;">在 staging 人為製造 voucher mismatch → run
+IR-011 SQL → 修復；驗證 RPO</td>
+<td style="text-align: left;">DBA + SRE + DPO</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Full DR drill</strong>（含
+cross-region restore）</td>
+<td style="text-align: left;">annual</td>
+<td style="text-align: left;">restore from backup to staging → 驗 RTO 4h
+/ RPO 1h</td>
+<td style="text-align: left;">DevOps + SRE + DPO</td>
+</tr>
+</tbody>
+</table>
+<p><strong>0-1 容忍例外</strong>：</p>
+<ul>
+<li>年度 full DR drill V1 launch 後 1 個月內跑第一次（W17+4）</li>
+<li>monthly M18 drill 從 W17+1 起跑</li>
+</ul>
+<hr />
+<h2 id="6-communication-during-rollback">§6 Communication During
+Rollback</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Audience</th>
+<th style="text-align: left;">M18 config rollback</th>
+<th style="text-align: left;">App version rollback</th>
+<th style="text-align: left;">DB schema rollback</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">甲方 PM</td>
+<td style="text-align: left;">LINE notify（if user-facing impact）</td>
+<td style="text-align: left;">LINE + email</td>
+<td style="text-align: left;">LINE + email + maintenance window 提前 24h
+公告</td>
+</tr>
+<tr>
+<td style="text-align: left;">客服主管</td>
+<td style="text-align: left;">Slack</td>
+<td style="text-align: left;">Slack + standby</td>
+<td style="text-align: left;">Standby + briefing</td>
+</tr>
+<tr>
+<td style="text-align: left;">Consumers（LINE）</td>
+<td style="text-align: left;">通常不需通知</td>
+<td style="text-align: left;">Service notice（if user-facing）</td>
+<td style="text-align: left;">Maintenance window 公告</td>
+</tr>
+<tr>
+<td style="text-align: left;">法務 / DPO</td>
+<td style="text-align: left;">Audit log（automated）</td>
+<td style="text-align: left;">Standby（if PII / 合約 4.4 涉及）</td>
+<td style="text-align: left;">強制 sign-off（if PII schema 涉及）</td>
+</tr>
+<tr>
+<td style="text-align: left;">Internal team</td>
+<td style="text-align: left;">Slack + war room（if P0）</td>
+<td style="text-align: left;">Slack + war room</td>
+<td style="text-align: left;">War room</td>
+</tr>
+</tbody>
+</table>
+<p><strong>台灣業主習慣（三層 comms）</strong>：</p>
+<ol type="1">
+<li><strong>LINE</strong>：即時、業務時間第一手；含「現況 + ETA +
+responsible owner」</li>
+<li><strong>SMS</strong>：after-hours / P0 / 法律時限相關</li>
+<li><strong>Email</strong>：formal incident report + RCA 與下次 action
+plan</li>
+</ol>
+<hr />
+<h2 id="7-gate-7-exit-criteriarollback-側">§7 Gate 7 Exit
+Criteria（rollback 側）</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" checked="" />三層 rollback 模型 +
+各層獨立 SLA（1 min / 30 min / 4h）</label></li>
+<li><label><input type="checkbox" checked="" />對齊 BR-M18-01..05 +
+ADR-0067 §Decision 組件 4</label></li>
+<li><label><input type="checkbox" checked="" />Forward-only +
+compensating migration 紀律（對齊 ADR-0064 + ADR-VCH-001）</label></li>
+<li><label><input type="checkbox" checked="" />跨層決策矩陣</label></li>
+<li><label><input type="checkbox" checked="" />Rollback drill
+schedule（monthly / quarterly / annual）</label></li>
+<li><label><input type="checkbox" checked="" />Comms template
+台灣慣例三層</label></li>
+<li><label><input
+type="checkbox" /><strong>[VALUE_DECISION_NEEDED]</strong> M18 emergency
+「強制全量」escape hatch — ADR-0067 §Negative §學習成本 提到「需
+IT-admin 雙簽 + audit log highlight」；本 plan
+直接禁用。建議<strong>保留 escape hatch 但 24h 內 IT-admin + PM 雙簽 +
+自動補 postmortem</strong></label></li>
+<li><label><input
+type="checkbox" /><strong>[VALUE_DECISION_NEEDED]</strong> DB rollback
+maintenance window — 是否硬性「禁止月底 25-31 / 發薪日 5/10/25 /
+週五下午」？建議<strong>硬性禁止 + IT-admin override + 業主
+sign-off</strong></label></li>
+</ul>
+<hr />
+<h2 id="8-sign-off">§8 Sign-off</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" /><strong>DevOps
+Lead</strong>：___________ / Date: ___________</label></li>
+<li><label><input type="checkbox" /><strong>SRE
+Lead</strong>：___________ / Date: ___________</label></li>
+<li><label><input type="checkbox" /><strong>DBA Lead</strong>（Layer
+3）：___________ / Date: ___________</label></li>
+<li><label><input type="checkbox" /><strong>PM</strong>：___________ /
+Date: ___________</label></li>
+<li><label><input type="checkbox" /><strong>法務</strong>（hash chain /
+合規）：___________ / Date: ___________</label></li>
+<li><label><input type="checkbox" /><strong>DPO</strong>（PII / schema
+rollback）：___________ / Date: ___________</label></li>
+<li><label><input type="checkbox"
+checked="" /><strong>業主</strong>（pragmatic ops 0-1）：✅ 2026-05-28
+透過 task brief</label></li>
+</ul>
+<hr />
+<p><strong>Gate 7 Rollback Plan Freeze</strong> — ✅ ready</p>
+</div></div></body></html>

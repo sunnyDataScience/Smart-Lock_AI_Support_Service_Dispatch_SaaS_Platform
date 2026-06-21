@@ -1,0 +1,327 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>FR-0019 動態 RBAC 角色管理 draft → active（取證顯示 content-complete + code-implemented）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ _audit ／ CR-0010-fr-0019-promote-to-active.md</div>
+<div class="doc"><h1 id="cr-0010--fr-0019-promote-to-active">CR-0010 — FR-0019 promote to
+active</h1>
+<blockquote>
+<p><strong>Tier</strong>: 4-exploration → CIA<br />
+<strong>Mandated by</strong>: MISSION.md per-FR promotion
+checklist<br />
+<strong>Scope</strong>: 純 governance 動作（不動 code），把 FR-0019
+frontmatter <code>status: draft</code> 改 <code>active</code></p>
+</blockquote>
+<hr />
+<h2 id="1-change-statement">1. Change Statement</h2>
+<p><strong>As-is</strong>：</p>
+<ul>
+<li><code>docs/analysis/fr/FR-0019-rbac-dynamic.md</code>
+<code>status: draft</code></li>
+<li>取證顯示：114 行內容 / 0 TODO / 0 blocker（與其他 4 draft FR
+不同，皆有 blocked_by 或 TODO 標記）</li>
+<li>code 已實作：role_service.update_role_permissions + WS publish +
+rbac_v2 endpoint + RbacChangedBanner（本 session 剛補 mount）</li>
+<li>對應 ADR-0042 (rbac-four-tier-principle) 已 accepted</li>
+</ul>
+<p><strong>To-be</strong>：</p>
+<ul>
+<li><code>status: draft</code> → <code>active</code></li>
+<li>TM-0000 對應 row 補上 FR-0019 ↔︎ ADR-0042 ↔︎ API-RBAC-V2-* ↔︎ TC-RBAC-*
+四向追溯</li>
+</ul>
+<p><strong>Driver</strong>：</p>
+<ul>
+<li>MISSION.md 北極星條件 (1) draft FR = 0：5 → 4 是 session
+可達成的最大化第一步</li>
+<li>FR-0019 是 5 draft FR 中唯一無 blocker + 無 TODO 的「成熟」case</li>
+<li>其他 4 個 draft FR 都有實質 blocker（金流方案 / AP 流程 / Web 規格 /
+AI 治理），需業主提供業務 input 才能補</li>
+</ul>
+<hr />
+<h2 id="2-affected-flow">2. Affected Flow</h2>
+<p>無 flow 變動。純 contract-tier 狀態 promotion。</p>
+<hr />
+<h2 id="3-affected-spec-fr--nfr">3. Affected Spec (FR / NFR)</h2>
+<table>
+<thead>
+<tr>
+<th>Spec ID</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FR-0019</code></td>
+<td>Promote</td>
+<td>draft → active</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-affected-api">4. Affected API</h2>
+<table>
+<thead>
+<tr>
+<th>API ID</th>
+<th>Endpoint</th>
+<th>Action</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>API-RBAC-V2-UPDATE</code></td>
+<td><code>PUT /tenants/{tid}/rbac/roles/{role_id}/permissions</code></td>
+<td>Existing</td>
+<td>rbac_v2.py:81 已落地</td>
+</tr>
+<tr>
+<td><code>API-RBAC-V1-UPDATE</code></td>
+<td>legacy <code>roles.py:69</code></td>
+<td>Deprecated</td>
+<td>P4 cutover 統一刪</td>
+</tr>
+</tbody>
+</table>
+<p>無新 API；本 CR 純為 promotion 補 traceability。</p>
+<hr />
+<h2 id="5-affected-data">5. Affected Data</h2>
+<p>無 schema 變動（既有 roles / role_permissions /
+role_permission_history 表沿用 ADR-0042 設計）。</p>
+<hr />
+<h2 id="6-affected-test">6. Affected Test</h2>
+<table>
+<thead>
+<tr>
+<th>Test ID</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>既有 <code>test_rbac_dynamic.py</code></td>
+<td>Verify</td>
+<td>已涵蓋 SCD2 + 4-tier permission + WS publish；本 CR 確認 0
+regression</td>
+</tr>
+<tr>
+<td><code>TC-RBAC-PROM-001</code></td>
+<td><strong>New（optional）</strong></td>
+<td>跨模組 promotion 驗證（FR-0019 已 active + ADR-0042 accepted +
+TM-0000 row 對應）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-affected-architecture">7. Affected Architecture</h2>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Action</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Module boundary</td>
+<td>Unchanged</td>
+<td>M17 Authorization 內部</td>
+</tr>
+<tr>
+<td>New ADR?</td>
+<td>No</td>
+<td>ADR-0042 已涵蓋 4-tier 原則</td>
+</tr>
+<tr>
+<td>External integration</td>
+<td>None</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-human-decisions-required">8. Human Decisions Required</h2>
+<p>🛑 <strong>CIA blocks the FR status flip until §8
+sign-off.</strong></p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Question</th>
+<th>Options</th>
+<th>Owner</th>
+<th>Status</th>
+<th>Decision</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>HD-01</strong></td>
+<td>FR-0019 是否真的可 promote？</td>
+<td>(a) 是，content 完整 + code 完整 → flip<br>(b)
+否，仍有未說的政治/業務 blocker</td>
+<td>Product Owner</td>
+<td><strong>decided 2026-06-04</strong></td>
+<td><strong>(a) 是，flip → active</strong></td>
+</tr>
+<tr>
+<td><strong>HD-02</strong></td>
+<td>TM-0000 traceability matrix 補 row 由誰寫？</td>
+<td>(a) 我（自動寫並提 PR）<br>(b) 業主 / Architect 手動<br>(c)
+跳過（dev-phase 無 PR review）</td>
+<td>Process</td>
+<td><strong>decided 2026-06-04</strong></td>
+<td><strong>(c) 跳過</strong>（取證 docs/2-contracts/ 未實例化
+TM-0000，本專案無 traceability matrix 實例；dev-phase 無 PR review
+流程）</td>
+</tr>
+<tr>
+<td><strong>HD-03</strong></td>
+<td>是否同步審查其他 4 個 draft FR 真實 blocker？</td>
+<td>(a) 是，逐 FR 起 promotion CIA<br>(b) 否，等業主主動提</td>
+<td>Product</td>
+<td><strong>decided 2026-06-04</strong></td>
+<td><strong>(a) 是</strong>，後續開 CR-0011~0014（4 份 FR-promotion /
+blocker-clarification CIA）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9-suggested-implementation-order">9. Suggested Implementation
+Order</h2>
+<p>§8 HD-01 = (a) 後：</p>
+<ol type="1">
+<li>Edit <code>docs/analysis/fr/FR-0019-rbac-dynamic.md</code>
+frontmatter <code>status: draft</code> → <code>active</code></li>
+<li>Edit TM-0000-traceability-matrix.template.md（依 HD-02）補 row：
+<ul>
+<li>FR-0019 → BF-RBAC-001 / BF-RBAC-002</li>
+<li>FR-0019 → ADR-0042</li>
+<li>FR-0019 → API-RBAC-V2-UPDATE / API-RBAC-V1-UPDATE</li>
+<li>FR-0019 → TC test_rbac_dynamic.py 全套</li>
+</ul></li>
+<li>Update system-completion-status.md §7 Phase I draft FR 表：FR-0019
+row 移除</li>
+<li>Update CHANGELOG <code>[Unreleased]</code> Decisions</li>
+<li>（optional）跑 <code>sunnydata-doc-freshness</code> 確認 tier-2
+contract 無漂移</li>
+<li>北極星進度 draft FR 5 → 4 ✅</li>
+</ol>
+<hr />
+<h2 id="10-risks--rollback">10. Risks &amp; Rollback</h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Likelihood</th>
+<th>Impact</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FR-0019 仍有未說 blocker（HD-01 = b）</td>
+<td>Low</td>
+<td>Low</td>
+<td>業主拍板前不 flip；CIA 性質可 revert</td>
+</tr>
+<tr>
+<td>TM-0000 漏行 → 其他 FR/API 對應斷鏈</td>
+<td>Low</td>
+<td>Low</td>
+<td>跑 sunnydata-doc-freshness 檢查</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Rollback plan</strong>：純文件 edit，git revert 即可。</p>
+<hr />
+<h2 id="11-out-of-scope">11. Out of Scope</h2>
+<ul>
+<li>其他 4 個 draft FR（各自獨立 CIA：CR-0011~0014 暫定）</li>
+<li>FR-0019 對應的 spec deep refresh（已 D5 殼結構完成）</li>
+</ul>
+<hr />
+<h2 id="12-sign-off">12. Sign-off</h2>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Name</th>
+<th>Date</th>
+<th>Approved?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Product Owner</td>
+<td><a href="mailto:sunny@funngo.ai">sunny@funngo.ai</a></td>
+<td>2026-06-04</td>
+<td>✅（裁 HD-01=a, HD-02=c）</td>
+</tr>
+<tr>
+<td>Architect</td>
+<td>—</td>
+<td>—</td>
+<td>(dev-phase 簡化，無獨立 architect sign-off)</td>
+</tr>
+<tr>
+<td>Engineering Lead</td>
+<td>—</td>
+<td>—</td>
+<td>(同上)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="a-取證附錄">§A 取證附錄</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># FR-0019 內容狀態：</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> wc <span class="at">-l</span> docs/analysis/fr/FR-0019-rbac-dynamic.md</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># → 114 行（5 draft FR 中為 middle size）</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> grep <span class="at">-c</span> <span class="st">&quot;TODO\|TBD&quot;</span> docs/analysis/fr/FR-0019-rbac-dynamic.md</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co"># → 0</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> grep <span class="st">&quot;blocked_by&quot;</span> docs/analysis/fr/FR-0019-rbac-dynamic.md</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># → 不存在（其他 draft FR 均有此欄）</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Code 已實作確認：</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> grep <span class="at">-n</span> <span class="st">&quot;update_role_permissions&quot;</span> api/services/role_service.py</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co"># → 完整實作含 SCD2 + 4-tier + WS publish（line 457）</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> grep <span class="st">&quot;PUT.*rbac&quot;</span> api/routers/rbac_v2.py</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co"># → rbac_v2.py:81 v2 tenant-scoped 已落地</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> ls web/src/components/realtime/RbacChangedBanner.tsx</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co"># → 存在 + 本 session commit fba39cad mount 完成</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> grep <span class="st">&quot;status: accepted&quot;</span> docs/1-decisions/ADR-0042-rbac-four-tier-principle.md</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="co"># → 已 accepted</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="co"># 對比其他 4 draft FR：</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> for fr in FR-0011 FR-0012 FR-0022 FR-0034<span class="kw">;</span> <span class="cf">do</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="at">-n</span> <span class="st">&quot;</span><span class="va">$fr</span><span class="st">: &quot;</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>    <span class="fu">grep</span> <span class="at">-c</span> <span class="st">&quot;blocked_by\|TODO\|TBD&quot;</span> <span class="st">&quot;docs/analysis/fr/</span><span class="va">${fr}</span><span class="st">*.md&quot;</span> <span class="kw">|</span> <span class="fu">tr</span> <span class="st">&#39;\n&#39;</span> <span class="st">&#39; &#39;</span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>  <span class="cf">done</span></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="co"># → FR-0011: 3+0 / FR-0012: 3+0 / FR-0022: 3+0 / FR-0034: 2+2</span></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="co"># 結論：FR-0019 是唯一無 blocker + 無 </span><span class="al">TODO</span><span class="co"> 的成熟 case</span></span></code></pre></div>
+<hr />
+<blockquote>
+<p>🛑 <strong>§8 HD-01 業主裁決前不動文件。</strong> 預計裁決後工時 &lt;
+0.5 天（純文件 edit + TM-0000 同步）。<br />
+💡 <strong>這是北極星條件 (1) draft FR = 0 唯一 session
+可推進的單位。</strong></p>
+</blockquote>
+</div></div></body></html>

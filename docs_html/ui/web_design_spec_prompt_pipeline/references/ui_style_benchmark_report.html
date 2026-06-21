@@ -1,0 +1,443 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>電子鎖智能客服與派工平台 — UI 風格參考報告</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../../index.html">🏠 文件總目錄</a> ／ ui ／ web_design_spec_prompt_pipeline ／ references ／ ui_style_benchmark_report.md</div>
+<div class="doc"><h1
+id="電子鎖智能客服與派工平台--ui-風格參考報告">電子鎖智能客服與派工平台
+— UI 風格參考報告</h1>
+<blockquote>
+<p><strong>版本:</strong> v1.0 | <strong>日期:</strong> 2026-04-21
+<strong>關聯文件:</strong> <code>global/01_sunny_brand_system.md</code>,
+<code>global/BASE_DESIGN_SYSTEM.md</code>,
+<code>docs/01-define/E3x--module-breakdown.md</code>
+<strong>用途:</strong> 提供國內外成功案例作為 Figma UI
+設計的風格參考依據</p>
+</blockquote>
+<hr />
+<h2 id="一五大設計風格分類">一、五大設計風格分類</h2>
+<p>根據國內外成功案例，派工/工單 SaaS 的 UI 風格可歸納為五類：</p>
+<h3 id="風格-acard-based-kpi-dashboard卡片式儀表板">風格 A：Card-Based
+KPI Dashboard（卡片式儀表板）</h3>
+<blockquote>
+<p>關鍵詞：資訊優先、數據驅動、SMB 友善</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>平台</th>
+<th>市場</th>
+<th>特色</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Housecall Pro</strong></td>
+<td>美國</td>
+<td>白底/藍色調，首頁即今日工單+營收+待處理報價，卡片式佈局</td>
+</tr>
+<tr>
+<td><strong>Jobber</strong></td>
+<td>加拿大</td>
+<td>青綠色系，大卡片+圖標，日曆條+報價漏斗，學習曲線極低</td>
+</tr>
+<tr>
+<td><strong>Kintone (Cybozu)</strong></td>
+<td>日本</td>
+<td>粉彩色、圓角、友善排版，每條記錄內建討論串+工作流</td>
+</tr>
+<tr>
+<td><strong>NewDate (揪棒)</strong></td>
+<td>台灣</td>
+<td>乾淨極簡，工單卡片+狀態色標，LINE 整合通知</td>
+</tr>
+</tbody>
+</table>
+<p><strong>適合場景</strong>：Admin Panel 首頁 —
+展示今日派工數、待處理工單、技師在線數等 KPI。</p>
+<hr />
+<h3 id="風格-bkanban-dispatch-board看板式派工板">風格 B：Kanban Dispatch
+Board（看板式派工板）</h3>
+<blockquote>
+<p>關鍵詞：拖拉指派、狀態流轉、即時可視</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>平台</th>
+<th>市場</th>
+<th>特色</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>FieldPulse</strong></td>
+<td>美國</td>
+<td>水平泳道（每排=一位技師），拖拉派工，藍灰色調</td>
+</tr>
+<tr>
+<td><strong>Zuper</strong></td>
+<td>美國</td>
+<td>垂直看板欄（未指派→排程→進行中→完成），紫白色，SLA 倒數計時</td>
+</tr>
+<tr>
+<td><strong>Jobdone</strong></td>
+<td>台灣</td>
+<td>跨公司 PMIS，角色切換視角，時間軸+甘特派工</td>
+</tr>
+</tbody>
+</table>
+<p><strong>適合場景</strong>：派工調度頁 — dispatch 模組的核心
+UI，讓管理者一眼掌握全局。</p>
+<hr />
+<h3 id="風格-cmap-centric-view地圖中心視圖">風格 C：Map-Centric
+View（地圖中心視圖）</h3>
+<blockquote>
+<p>關鍵詞：地理定位、路線優化、IoT 設備分佈</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>平台</th>
+<th>市場</th>
+<th>特色</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ServiceM8</strong></td>
+<td>澳洲</td>
+<td>地圖即主 UI，點擊圖釘開工單卡，白綠色調，行動優先</td>
+</tr>
+<tr>
+<td><strong>MS Dynamics 365 FS</strong></td>
+<td>全球</td>
+<td>Bing Maps 嵌入，技師位置+車程半徑+IoT 警報疊加層</td>
+</tr>
+<tr>
+<td><strong>ThingsBoard</strong></td>
+<td>開源</td>
+<td>600+ Widget，即時遙測+地圖疊加+告警表格，暗色主題</td>
+</tr>
+<tr>
+<td><strong>Tuya IoT</strong></td>
+<td>中國/全球</td>
+<td>設備狀態面板+地圖+批次控制，支援明暗主題切換</td>
+</tr>
+</tbody>
+</table>
+<p><strong>適合場景</strong>：系統已整合 Google Maps API —
+可做技師即時定位+客戶地點+路線規劃的 split view。</p>
+<hr />
+<h3 id="風格-denterprise-gantt--timeline企業級甘特時間軸">風格
+D：Enterprise Gantt + Timeline（企業級甘特/時間軸）</h3>
+<blockquote>
+<p>關鍵詞：大量工單、多技師排程、高資訊密度</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>平台</th>
+<th>市場</th>
+<th>特色</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Salesforce Field Service</strong></td>
+<td>全球</td>
+<td>上半甘特時間軸+下半未指派工單列表，Lightning 設計系統</td>
+</tr>
+<tr>
+<td><strong>SAP FSM</strong></td>
+<td>全球</td>
+<td>Fiori 設計語言，甘特+列表混合，水平藍色調</td>
+</tr>
+<tr>
+<td><strong>IFS PSO</strong></td>
+<td>全球</td>
+<td>全甘特拖拉調整，支撐 10,000+ 工單，深色側欄+白畫布</td>
+</tr>
+</tbody>
+</table>
+<p><strong>適合場景</strong>：V2.0 規模化後，若單日派工量超過 50
+單，可考慮此模式。MVP 階段偏重。</p>
+<hr />
+<h3 id="風格-esmart-lock--iot-device-dashboard智慧鎖設備面板">風格
+E：Smart Lock / IoT Device Dashboard（智慧鎖設備面板）</h3>
+<blockquote>
+<p>關鍵詞：設備狀態、電量監控、遠端操作、活動日誌</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>平台</th>
+<th>市場</th>
+<th>特色</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>TTLock</strong></td>
+<td>中國/全球</td>
+<td>藍色主色，物業管理多門鎖視圖，租戶權限管理+活動日誌+遠端密碼派發</td>
+</tr>
+<tr>
+<td><strong>Kaa IoT Cloud</strong></td>
+<td>全球</td>
+<td>模板驅動，內建智慧鎖方案（電量/連線/事件時間軸元件）</td>
+</tr>
+<tr>
+<td><strong>RON Design Lab</strong></td>
+<td>設計案例</td>
+<td>漸層品牌+玻璃擬態卡片+生物辨識微互動，行動優先大觸控區</td>
+</tr>
+</tbody>
+</table>
+<p><strong>適合場景</strong>：系統核心是電子鎖 —
+可在工單詳情中嵌入鎖具狀態面板（電量、連線、操作紀錄）。</p>
+<hr />
+<h2 id="二2024-2026-設計趨勢">二、2024-2026 設計趨勢</h2>
+<table>
+<thead>
+<tr>
+<th>趨勢</th>
+<th>說明</th>
+<th>本系統如何應用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>AI 輔助排程可視化</strong></td>
+<td>AI 建議以紫色/特殊 Badge 標記，非隱藏在設定中</td>
+<td>LLM Gateway 建議可直接嵌入派工板</td>
+</tr>
+<tr>
+<td><strong>角色預設儀表板</strong></td>
+<td>不同角色登入看到不同首頁</td>
+<td>Admin/Technician/Consumer 三端本身就是分離的</td>
+</tr>
+<tr>
+<td><strong>對話式 UI</strong></td>
+<td>Chat-based 建單與狀態查詢</td>
+<td>已有 LINE Bot，Admin Panel 可加內部 chatbot</td>
+</tr>
+<tr>
+<td><strong>即時設備狀態面板</strong></td>
+<td>電量/連線/告警的即時顯示</td>
+<td>直接對應電子鎖設備監控需求</td>
+</tr>
+<tr>
+<td><strong>Dark Mode</strong></td>
+<td>ServiceTitan、Zuper 已支援</td>
+<td>技師夜間作業友善</td>
+</tr>
+<tr>
+<td><strong>微互動</strong></td>
+<td>Kanban 卡片狀態轉換動畫</td>
+<td>提升派工板操作手感</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2
+id="三對照桑尼品牌系統的風格建議">三、對照桑尼品牌系統的風格建議</h2>
+<p>根據 <code>global/01_sunny_brand_system.md</code> 設計原則：</p>
+<table>
+<thead>
+<tr>
+<th>桑尼設計原則</th>
+<th>最匹配的風格</th>
+<th>推薦參考</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>資訊優先</strong>（砍動畫保可讀性）</td>
+<td>風格 A + B 混合</td>
+<td>Housecall Pro + Zuper</td>
+</tr>
+<tr>
+<td><strong>學習友善</strong>（低認知負擔）</td>
+<td>風格 A 卡片式</td>
+<td>Jobber（業界最低學習曲線）</td>
+</tr>
+<tr>
+<td><strong>數據驅動</strong>（用數據而非形容詞）</td>
+<td>風格 A KPI 卡</td>
+<td>ServiceTitan 的 KPI Dashboard</td>
+</tr>
+<tr>
+<td><strong>鼓勵探索</strong>（空狀態引導行動）</td>
+<td>Jobber 的空狀態設計</td>
+<td>「還沒有派工任務，立即建立」</td>
+</tr>
+</tbody>
+</table>
+<h3 id="推薦組合方案">推薦組合方案</h3>
+<pre><code>Admin Panel
+├── 首頁 → 風格 A（KPI 卡片儀表板）
+├── 派工板 → 風格 B（Kanban 看板）+ 風格 C（地圖 toggle）
+├── 工單詳情 → 風格 E（嵌入鎖具狀態面板）
+└── 報表 → 風格 D（時間軸/甘特，V2.0）
+
+Technician PWA
+├── 首頁 → 風格 C（地圖優先，ServiceM8 模式）
+├── 工單卡 → 風格 A（大卡片+滑動完成）
+└── 鎖具操作 → 風格 E（TTLock 風格設備面板）
+
+Consumer LINE Bot
+└── 已有 LINE 原生 UI，補 Quick Reply + Flex Message</code></pre>
+<hr />
+<h2 id="四台灣--亞太市場補充參考">四、台灣 / 亞太市場補充參考</h2>
+<table>
+<thead>
+<tr>
+<th>平台</th>
+<th>市場</th>
+<th>類型</th>
+<th>設計特色</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Ragic</strong></td>
+<td>台灣</td>
+<td>No-code 雲端資料庫</td>
+<td>列表/表單雙視圖，白底藍色調，使用者自建工單流程</td>
+</tr>
+<tr>
+<td><strong>Jobdone (揪棒)</strong></td>
+<td>台灣</td>
+<td>營建/設備維修 PMIS</td>
+<td>跨組織協作，時間軸派工，角色切換視角</td>
+</tr>
+<tr>
+<td><strong>NewDate</strong></td>
+<td>台灣</td>
+<td>清潔/維修/物管派工</td>
+<td>極簡風，LINE 整合，卡片式工單+狀態色標</td>
+</tr>
+<tr>
+<td><strong>孟華科技</strong></td>
+<td>台灣</td>
+<td>派工維修管理</td>
+<td>多維度統計儀表板，維修 KPI 視覺化</td>
+</tr>
+<tr>
+<td><strong>鼎新電腦</strong></td>
+<td>台灣</td>
+<td>ERP 大廠</td>
+<td>傳統企業 UI，功能密集導航，近年雲端化轉型</td>
+</tr>
+<tr>
+<td><strong>Kintone (Cybozu)</strong></td>
+<td>日本</td>
+<td>No-code 工作平台</td>
+<td>粉彩色+圓角+友善排版，記錄內討論串+工作流</td>
+</tr>
+<tr>
+<td><strong>Tuya IoT</strong></td>
+<td>中國/全球</td>
+<td>智慧設備管理</td>
+<td>即時設備面板+地圖+批次控制，明暗主題</td>
+</tr>
+<tr>
+<td><strong>TTLock</strong></td>
+<td>中國/全球</td>
+<td>智慧鎖管理</td>
+<td>物業多鎖視圖，租戶權限+活動日誌+遠端密碼</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="五figma--設計資源推薦">五、Figma / 設計資源推薦</h2>
+<table>
+<thead>
+<tr>
+<th>資源</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a
+href="https://www.figma.com/community/file/1532723729743223601">AiDEA
+Smart SaaS Dashboard UI Kit (Figma Community)</a></td>
+<td>SaaS Dashboard 基礎元件</td>
+</tr>
+<tr>
+<td>Figma Community 搜 <strong>"Kanban Board UI"</strong></td>
+<td>派工看板拖拉元件</td>
+</tr>
+<tr>
+<td>Figma Community 搜 <strong>"CRM Dashboard"</strong></td>
+<td>客戶/工單管理模式</td>
+</tr>
+<tr>
+<td><a
+href="https://www.saasframe.io/categories/dashboard">SaaSFrame</a></td>
+<td>166 個真實 SaaS Dashboard 截圖參考</td>
+</tr>
+<tr>
+<td>Dribbble 搜
+<strong>"smart-lock"</strong>、<strong>"field-service"</strong>、<strong>"iot-dashboard"</strong></td>
+<td>視覺靈感</td>
+</tr>
+<tr>
+<td><a href="https://www.behance.net/musemindagency">Musemind Agency
+(Behance)</a></td>
+<td>企業級但乾淨的 Dashboard 佈局</td>
+</tr>
+<tr>
+<td><a
+href="https://rondesignlab.com/cases/smartlock-branding-smart-home-ux-ui-design">RON
+Design Lab SmartLock Case</a></td>
+<td>智慧鎖品牌+UI 設計案例</td>
+</tr>
+<tr>
+<td><a href="https://thingsboard.io/">ThingsBoard</a></td>
+<td>開源 IoT Dashboard 元件參考</td>
+</tr>
+<tr>
+<td><a href="https://www.kaaiot.com/iot-dashboards">Kaa IoT
+Dashboards</a></td>
+<td>IoT 智慧鎖模板參考</td>
+</tr>
+<tr>
+<td><a
+href="https://www.saasui.design/blog/7-saas-ui-design-trends-2026">2026
+SaaS UI Trends</a></td>
+<td>設計趨勢文章</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="六下一步行動建議">六、下一步行動建議</h2>
+<ol type="1">
+<li><strong>確認風格方向</strong> —
+從五大風格中選定主風格組合（建議：A+B+E）</li>
+<li><strong>建立 Design Token</strong> — 基於
+<code>BASE_DESIGN_SYSTEM.md</code>
+模板，填入派工平台專用的色彩/排版/元件 Token</li>
+<li><strong>Figma 原型</strong> — 使用 AiDEA UI Kit 作為基底，搭配
+Kanban + Map 元件組裝 Admin Panel 原型</li>
+<li><strong>Pencil 快速迭代</strong> — 用 Pencil + Claude Code
+快速生成各頁面的 React 元件</li>
+<li><strong>Design Review</strong> —
+對照本報告的參考案例進行設計走查</li>
+</ol>
+</div></div></body></html>

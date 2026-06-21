@@ -1,0 +1,114 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>F-016 SLA 性質</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ architecture ／ adr ／ ADR-0017-pm-alignment-q5.md</div>
+<div class="doc"><blockquote>
+<p><strong>🔄 Migration Status (2026-05-28)</strong>:
+<code>HISTORICAL</code> <strong>Reviewed against</strong>: 2026-05-20
+final spec (xlsx) <strong>Reviewed on</strong>: 2026-05-28 <strong>Per
+ADR-0100 §1 classification</strong>
+(.claude/context/devteam/meetings/2026-05-27-1130-final-spec-migration-strategy/MoM.md)</p>
+</blockquote>
+<h1 id="adr-0017--f-016-sla-性質">ADR-0017 — F-016 SLA 性質</h1>
+<h2 id="status">Status</h2>
+<p><strong>Accepted</strong> (拍板於 2026-05-07，作為 PM Q1-Q10 90
+分鐘對齊會議產物)</p>
+<h2 id="decision">Decision</h2>
+<p><strong>B Soft Target (V1 全 Soft)</strong></p>
+<h2 id="context-options-consequences-從-pm-決策矩陣-6-摘錄">Context,
+Options, Consequences (從 PM 決策矩陣 §6 摘錄)</h2>
+<h2 id="6-q5--f-0162-小時到場是-hard-sla">6. Q5 — F-016「2 小時到場」是
+hard SLA？</h2>
+<h3 id="業務脈絡">業務脈絡</h3>
+<p>F-016 派工後 2 小時內技師應到場。「破線」是僅警報、還是觸發賠償 +
+自動沖銷？</p>
+<h3 id="影響流程">影響流程</h3>
+<ul>
+<li>F-016 SLA 紅色警報</li>
+<li>F-013 / F-014（破線後賠償計算）</li>
+<li>F-005 技師接單（影響派工演算法 fairness penalty）</li>
+</ul>
+<h3 id="候選方案">候選方案</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>說明</th>
+<th>客戶補償</th>
+<th>技師處罰</th>
+<th>測試複雜度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A. Hard SLA</strong>（破線 → 升級 + 賠償）</td>
+<td>自動發 X 元抵用券 + 升級主管</td>
+<td>強制</td>
+<td>重派 + fairness 扣分</td>
+<td>賠償計算 + 沖銷測試</td>
+</tr>
+<tr>
+<td><strong>B. Soft Target</strong>（破線 → 僅警報）</td>
+<td>僅 dashboard 變紅</td>
+<td>無</td>
+<td>無</td>
+<td>alert event 測試</td>
+</tr>
+<tr>
+<td><strong>C. 階梯</strong>（2hr 警報 + 4hr 升級 + 6hr 賠償）</td>
+<td>三段式</td>
+<td>階梯</td>
+<td>階梯</td>
+<td>三段時間旅行測試</td>
+</tr>
+</tbody>
+</table>
+<h3 id="推薦預設">推薦預設</h3>
+<p><strong>B — Soft Target</strong>。理由：</p>
+<ol type="1">
+<li>V1.0 派工 fairness 機制未驗證（[[02-design/specs/dispatch-weights]]
+才剛建），不適合上 hard penalty</li>
+<li>賠償抵用券需要金流（綁 Q7）</li>
+<li>dashboard 變紅 + 升級 manager 已能讓營運處理</li>
+</ol>
+<h3 id="反向選項後果">反向選項後果</h3>
+<ul>
+<li>A：必須先有金流（Q7 = A）+ 賠償計算規則 + 自動沖銷工作流 → +10
+dev-day</li>
+<li>C：時間旅行 fixture（freezegun）測試成本中等，但需 PM
+拍三段時間</li>
+</ul>
+<h3 id="pm-決策">PM 決策</h3>
+<pre><code>[ ] A — Hard SLA（破線 → 升級 + 賠償）
+[ ] B — Soft Target（破線 → 僅警報）
+[ ] C — 階梯（2hr/4hr/6hr）
+
+理由：__________________________________
+拍板日期：______________
+拍板人：______________
+
+⚠ 業務交叉確認：與 SLA 賠償政策（合約條款）是否一致？</code></pre>
+<h3 id="拍板後續更新">拍板後續更新</h3>
+<ul>
+<li><code>api/services/sla_monitor.py</code>：alert vs penalty 分流</li>
+<li><code>docs/_flows-bdd-test/v-model-left/E5x--workflow-admin-governance.md</code>
+§SLA</li>
+<li><code>tests/golden/sla/</code>：若 A/C，加 escalation timeline
+fixture</li>
+</ul>
+<hr />
+</div></div></body></html>

@@ -1,0 +1,839 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Page-Level Prompt: 技師端 — 我的工單</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../../index.html">🏠 文件總目錄</a> ／ ui ／ web_design_spec_prompt_pipeline ／ pages ／ 12_tech_my_orders.md</div>
+<div class="doc"><h1 id="page-level-prompt-技師端--我的工單">Page-Level Prompt: 技師端 —
+我的工單</h1>
+<blockquote>
+<p>技師已接工單管理、現場作業流程、完工報告提交。涵蓋列表頁與詳情頁兩個路由。</p>
+</blockquote>
+<hr />
+<h2 id="page-meta">[PAGE META]</h2>
+<ul>
+<li><strong>page_name</strong>: 我的工單 My Orders</li>
+<li><strong>route_path</strong>:
+<code>/my-orders</code>（列表）、<code>/my-orders/[id]</code>（詳情 +
+完工報告）</li>
+<li><strong>page_type</strong>: list + detail + form (multi-view)</li>
+<li><strong>ia_pages</strong>: T2, T3</li>
+<li><strong>openapi_ops</strong>: listWorkOrders, getWorkOrder,
+completeWorkOrder, submitWorkOrderSignature</li>
+<li><strong>asyncapi_ops</strong>: subscribeWorkOrderUpdates</li>
+<li><strong>primary_goal</strong>:
+管理進行中工單，完成現場作業流程並提交完工報告</li>
+<li><strong>secondary_goal</strong>: 查看歷史工單紀錄與完工資料</li>
+<li><strong>target_users</strong>:
+<ul>
+<li>主要：已接單的外派技師（作業中頻繁使用）</li>
+<li>次要：無</li>
+</ul></li>
+<li><strong>entry_point</strong>: 底部導航第 2 個 Tab「我的工單」/
+接單成功後自動跳轉 / Push Notification 點擊</li>
+<li><strong>expected_time_on_page</strong>: 列表 30 秒–1 分鐘，詳情頁
+5–30 分鐘（視作業時間）</li>
+</ul>
+<hr />
+<h2 id="structure-sections">[STRUCTURE: SECTIONS]</h2>
+<h3 id="my-orders-列表頁"><code>/my-orders</code> 列表頁</h3>
+<ol type="1">
+<li><p><strong>page_header</strong></p>
+<ul>
+<li>section_type: header</li>
+<li>section_purpose: 頁面標題</li>
+</ul></li>
+<li><p><strong>tab_bar</strong></p>
+<ul>
+<li>section_type: tab_navigation</li>
+<li>section_purpose: 切換進行中 / 待確認 / 歷史工單</li>
+</ul></li>
+<li><p><strong>order_card_list</strong></p>
+<ul>
+<li>section_type: scrollable_list</li>
+<li>section_purpose: 顯示該分類下的工單卡片，pull-to-refresh</li>
+</ul></li>
+</ol>
+<h3 id="my-ordersid-詳情頁"><code>/my-orders/[id]</code> 詳情頁</h3>
+<ol start="4" type="1">
+<li><p><strong>detail_header</strong></p>
+<ul>
+<li>section_type: status_header</li>
+<li>section_purpose: 工單狀態條 + 工單編號</li>
+</ul></li>
+<li><p><strong>customer_section</strong></p>
+<ul>
+<li>section_type: info_block</li>
+<li>section_purpose: 客戶聯絡資訊與特殊備註</li>
+</ul></li>
+<li><p><strong>device_section</strong></p>
+<ul>
+<li>section_type: info_block</li>
+<li>section_purpose: 鎖具品牌型號 + 自動生成的工具/安全檢查清單</li>
+</ul></li>
+<li><p><strong>problem_card_section</strong></p>
+<ul>
+<li>section_type: collapsible_card</li>
+<li>section_purpose: AI 診斷的症狀與推理摘要</li>
+</ul></li>
+<li><p><strong>action_section</strong></p>
+<ul>
+<li>section_type: dynamic_actions</li>
+<li>section_purpose: 依工單狀態顯示不同操作區塊</li>
+</ul></li>
+<li><p><strong>completion_report_form</strong></p>
+<ul>
+<li>section_type: form</li>
+<li>section_purpose:
+完工報告表單（作業項目、零件、照片、測試、簽名）</li>
+</ul></li>
+<li><p><strong>bottom_navigation</strong></p>
+<ul>
+<li>section_type: navigation</li>
+<li>section_purpose: 三 Tab 底部導航列（我的工單 active）</li>
+</ul></li>
+</ol>
+<hr />
+<h2 id="section-component-spec">[SECTION COMPONENT SPEC]</h2>
+<h3 id="section-page_header列表頁">Section: page_header（列表頁）</h3>
+<ul>
+<li><strong>layout</strong>: 固定頂部，高度
+56px，背景白色，左對齊，padding 0 16px</li>
+<li><strong>elements</strong>:
+<ul>
+<li>page_title: H2 / required / 「我的工單」，Noto Sans TC 20px
+SemiBold，色 #1E293B</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 顯示標題</li>
+</ul></li>
+</ul>
+<h3 id="section-tab_bar">Section: tab_bar</h3>
+<ul>
+<li><strong>layout</strong>: 固定於 header 下方（sticky），高度
+48px，背景白色，下方 1px border #E2E8F0，三等分</li>
+<li><strong>elements</strong>:
+<ul>
+<li>tab_active: Tab / required / 「進行中」，active 底線 2px
+#2563EB，字體 14px SemiBold #2563EB，touch area 全寬/3 × 48px（≥
+44×44px）
+<ul>
+<li>包含狀態：<code>accepted</code>, <code>in_progress</code>,
+<code>scope_changed</code>, <code>material_pending</code>,
+<code>delayed</code></li>
+<li>顯示數量 Badge（如有工單）：圓形紅底白字，右上角</li>
+</ul></li>
+<li>tab_pending: Tab / required / 「待確認」，inactive 字體
+#64748B，touch area 同上
+<ul>
+<li>包含狀態：<code>completed</code>（等待客戶/管理確認）</li>
+</ul></li>
+<li>tab_history: Tab / required / 「歷史」，inactive 字體 #64748B，touch
+area 同上
+<ul>
+<li>包含狀態：<code>confirmed</code>, <code>archived</code></li>
+</ul></li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 「進行中」tab active</li>
+<li>switching: tab 切換時內容區 fade 過渡（150ms）</li>
+</ul></li>
+<li><strong>gestures</strong>:
+<ul>
+<li>點擊 tab 切換</li>
+<li>左右滑動內容區切換 tab（swipe gesture）</li>
+</ul></li>
+</ul>
+<h3 id="section-order_card_list">Section: order_card_list</h3>
+<ul>
+<li><strong>layout</strong>: 垂直可捲動列表，padding 16px，gap
+12px，padding-bottom 預留 bottom_navigation 高度（56px +
+safe-area）</li>
+<li><strong>elements</strong>:
+<ul>
+<li>order_card: Card / repeated / 全寬，圓角
+12px，背景白色，shadow-sm，padding 16px，包含：
+<ul>
+<li>card_top_row: Flex Row / required /
+<ul>
+<li>wo_number: Body SM / required / 工單編號，字體 Inter 13px，色
+#64748B</li>
+<li>status_badge: Badge / required / 狀態標籤：
+<ul>
+<li><code>accepted</code>：藍色 Badge「已接單」</li>
+<li><code>in_progress</code>：琥珀色 Badge「作業中」</li>
+<li><code>scope_changed</code>：紫色 Badge「範圍變更」</li>
+<li><code>material_pending</code>：橘色 Badge「等待材料」</li>
+<li><code>delayed</code>：紅色 Badge「延遲」</li>
+<li><code>completed</code>：綠色 Badge「已完工」</li>
+<li><code>confirmed</code>：灰色 Badge「已確認」</li>
+<li><code>archived</code>：灰色 Badge「已歸檔」</li>
+</ul></li>
+</ul></li>
+<li>address_text: Body MD Bold / required / 客戶地址，Noto Sans TC 15px
+SemiBold，最多 2 行</li>
+<li>navigate_shortcut: IconButton / required / 右側 Navigation
+圖示，touch area 44×44px，點擊開啟 Google Maps 導航</li>
+<li>schedule_row: Flex Row / required /
+<ul>
+<li>calendar_icon: Icon / required / Calendar 16px</li>
+<li>scheduled_time: Body SM / required / 預約時間，14px，色 #64748B</li>
+</ul></li>
+<li>device_row: Flex Row / required /
+<ul>
+<li>lock_icon: Icon / required / Lock 16px</li>
+<li>brand_model: Body SM / required / 鎖具品牌型號，14px</li>
+</ul></li>
+<li>sla_countdown: CountdownBadge / conditional / SLA
+倒數計時（僅進行中狀態顯示）：
+<ul>
+<li>充裕（&gt;2h）：綠底白字</li>
+<li>警告（1-2h）：橘底白字</li>
+<li>危急（&lt;1h）：紅底白字，脈衝動畫</li>
+</ul></li>
+</ul></li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 依時間排序的工單列表</li>
+<li>loading: 3 張 skeleton 卡片</li>
+<li>empty_active: 插圖（技師休息中）+ 「目前沒有進行中的工單」+
+「前往案件池接單」按鈕（min 44×44px）→ 跳轉 <code>/pool</code></li>
+<li>empty_pending: 「沒有待確認的工單」</li>
+<li>empty_history: 「還沒有歷史紀錄」</li>
+<li>error: 錯誤訊息 + 重試按鈕</li>
+<li>pull_to_refresh: 頂部下拉 Spinner</li>
+</ul></li>
+<li><strong>gestures</strong>:
+<ul>
+<li>點擊卡片 → 導航至 <code>/my-orders/{id}</code></li>
+<li>點擊導航圖示 → 開啟 Google Maps</li>
+<li>下拉 → pull-to-refresh</li>
+<li>左右滑動 → 切換 tab</li>
+</ul></li>
+</ul>
+<h3 id="section-detail_header詳情頁">Section:
+detail_header（詳情頁）</h3>
+<ul>
+<li><strong>layout</strong>: 頂部全寬色條，高度 64px，包含返回按鈕 +
+狀態 + 工單編號</li>
+<li><strong>elements</strong>:
+<ul>
+<li>back_btn: IconButton / required / 左上角 ChevronLeft，touch area
+44×44px，返回 <code>/my-orders</code></li>
+<li>status_bar: FullWidthBar / required / 全寬色條，高度
+48px，根據狀態變色：
+<ul>
+<li><code>accepted</code>：#2563EB（藍）</li>
+<li><code>in_progress</code>：#F59E0B（琥珀）</li>
+<li><code>scope_changed</code>：#8B5CF6（紫）</li>
+<li><code>material_pending</code>：#F97316（橘）</li>
+<li><code>delayed</code>：#EF4444（紅）</li>
+<li><code>completed</code>：#10B981（綠）</li>
+<li><code>confirmed</code>：#6B7280（灰）</li>
+</ul></li>
+<li>status_text: Body MD Bold / required / 狀態中文名稱，白色字體，16px
+Bold</li>
+<li>wo_number: Body SM / required / 工單編號，白色字體 80%
+opacity，13px</li>
+</ul></li>
+</ul>
+<h3 id="section-customer_section">Section: customer_section</h3>
+<ul>
+<li><strong>layout</strong>: 單欄 padding 16px，背景白色，margin-top
+8px，圓角 12px，shadow-sm</li>
+<li><strong>elements</strong>:
+<ul>
+<li>section_title: H3 / required / 「客戶資訊」，Noto Sans TC 16px
+SemiBold，色 #1E293B</li>
+<li>customer_name: Body MD / required / 客戶姓名，15px</li>
+<li>phone_button: Button Primary / required / 圖示 Phone +
+電話號碼，full-width，高度 48px，背景 #2563EB，點擊觸發
+<code>tel:</code> 系統撥號，字體 16px Bold 白色</li>
+<li>address_button: Button Outline / required / 圖示 MapPin +
+「導航至現場」，full-width，高度 48px，邊框 #2563EB，字體 #2563EB
+16px，點擊開啟 Google Maps 導航</li>
+<li>special_notes_card: AlertCard / optional / 背景 #FEF3C7，左邊框 4px
+#F59E0B，padding 12px，圖示 AlertTriangle + 特殊備註文字（Noto Sans TC
+14px），例「大樓需要門禁卡，請先聯繫管理員」</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 顯示客戶資訊</li>
+<li>no_notes: special_notes_card 不顯示</li>
+<li>calling: phone_button 短暫顯示「撥號中...」狀態</li>
+</ul></li>
+</ul>
+<h3 id="section-device_section">Section: device_section</h3>
+<ul>
+<li><strong>layout</strong>: 單欄 padding 16px，背景白色，margin-top
+8px，圓角 12px，shadow-sm</li>
+<li><strong>elements</strong>:
+<ul>
+<li>section_title: H3 / required / 「鎖具資訊」，16px SemiBold</li>
+<li>brand_model_card: Card / required / 品牌 Logo 圖片（48×48px，圓角
+8px）+ 品牌名稱 + 型號，padding 12px，背景 #F8FAFC</li>
+<li>checklist_title: Body SM Bold / required / 「作業前檢查清單」，14px
+SemiBold，色 #64748B</li>
+<li>auto_checklist: CheckboxList / required / 根據品牌型號自動生成：
+<ul>
+<li>每個 item：Checkbox（24×24px，touch area 44×44px）+ 文字標籤</li>
+<li>範例項目：
+<ul>
+<li>「已準備 {品牌} 專用工具組」</li>
+<li>「已確認電源狀況」</li>
+<li>「已閱讀安全注意事項」</li>
+<li>「已拍攝施工前照片」</li>
+</ul></li>
+<li>已勾選項目顯示刪除線 + 色 #94A3B8</li>
+</ul></li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 清單全部未勾選</li>
+<li>partial: 部分勾選</li>
+<li>complete: 全部勾選，標題旁顯示綠色 Checkmark</li>
+</ul></li>
+</ul>
+<h3 id="section-problem_card_section">Section: problem_card_section</h3>
+<ul>
+<li><strong>layout</strong>: 單欄 padding 16px，背景白色，margin-top
+8px，圓角 12px，shadow-sm</li>
+<li><strong>elements</strong>:
+<ul>
+<li>collapsible_header: Flex Row / required /
+<ul>
+<li>section_title: H3 / required / 「問題診斷摘要」，16px SemiBold</li>
+<li>toggle_icon: IconButton / required / ChevronDown/ChevronUp，touch
+area 44×44px</li>
+</ul></li>
+<li>symptom_text: Body MD / required / 「症狀：」+ 症狀描述，15px</li>
+<li>diagnosis_text: Body MD / required / 「AI 診斷：」+
+推理摘要，15px，色 #64748B</li>
+<li>confidence_badge: Badge / optional / AI 信心度（例「信心度
+85%」），背景 #DBEAFE</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>collapsed: 僅顯示 header，預設收合</li>
+<li>expanded: 展開顯示完整內容，動畫 200ms</li>
+</ul></li>
+<li><strong>copy_constraints</strong>: 症狀最多 100 字，診斷摘要最多 200
+字</li>
+</ul>
+<h3 id="section-action_section">Section: action_section</h3>
+<blockquote>
+<p>此區塊根據工單狀態動態切換，為頁面核心操作區。</p>
+</blockquote>
+<ul>
+<li><strong>layout</strong>: 單欄 padding 16px，背景白色，margin-top
+8px，圓角 12px，shadow-sm</li>
+</ul>
+<h4
+id="狀態accepted已接單前往現場">狀態：<code>accepted</code>（已接單，前往現場）</h4>
+<ul>
+<li><strong>elements</strong>:
+<ul>
+<li>navigate_btn: Button Primary / required / 圖示 Navigation +
+「導航前往」，full-width，高度 56px，背景 #2563EB，字體 18px
+Bold，點擊開啟 Google Maps 導航</li>
+<li>arrived_btn: Button CTA / required / 圖示 MapPin +
+「已到達現場」，full-width，高度 56px，背景 #F59E0B，字體 18px Bold
+白色，margin-top 12px
+<ul>
+<li>點擊 → 確認 Dialog「確定已到達現場？」→ 確認 → PATCH status →
+<code>in_progress</code></li>
+</ul></li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 兩個按鈕都可點擊</li>
+<li>navigating: navigate_btn 顯示「導航中...」（Google Maps
+已開啟）</li>
+<li>arriving: arrived_btn Spinner + 「確認中...」，disabled</li>
+</ul></li>
+</ul>
+<h4
+id="狀態in_progress作業中">狀態：<code>in_progress</code>（作業中）</h4>
+<ul>
+<li><strong>elements</strong>:
+<ul>
+<li>progress_title: H3 / required / 「作業進度」，16px SemiBold</li>
+<li>sop_checklist: CheckboxList / required / SOP
+步驟清單（根據服務類型自動生成），每項：
+<ul>
+<li>Checkbox（24×24px，touch area 44×44px）+ 步驟描述</li>
+<li>勾選時記錄時間戳</li>
+</ul></li>
+<li>report_issue_section: CollapsibleSection / required /
+<ul>
+<li>trigger_btn: Button Outline / required / 圖示 AlertTriangle +
+「回報異常」，full-width，高度 48px，紅色邊框</li>
+<li>issue_type_selector: RadioGroup / required（展開時）/ 三個選項：
+<ul>
+<li>「範圍變更」（scope_change）— 工作內容超出原報價</li>
+<li>「需要材料」（material_needed）— 缺少零件需調貨</li>
+<li>「施工延遲」（delay）— 無法按時完成</li>
+</ul></li>
+<li>issue_note: TextArea / required（展開時）/
+placeholder「請描述異常狀況...」，max 200 字，min 高度 80px</li>
+<li>submit_issue_btn: Button Destructive / required /
+「提交異常報告」，高度 48px</li>
+<li>每個 radio 選項 touch area ≥ 44×44px</li>
+</ul></li>
+<li>photo_capture_section: SectionBlock / required /
+<ul>
+<li>photo_title: Body SM Bold / required / 「施工照片（至少 1
+張）」</li>
+<li>photo_grid: Grid 3-column / required / 已拍照片縮圖（80×80px，圓角
+8px）</li>
+<li>add_photo_btn: Button Outline / required / 圖示 Camera +
+「拍照」，寬度 80px 高度 80px（符合 grid），touch area 80×80px</li>
+<li>點擊 →
+開啟系統相機（<code>&lt;input type="file" accept="image/*" capture="environment"&gt;</code>）</li>
+<li>照片自動壓縮至 1MB 以下再上傳</li>
+</ul></li>
+<li>complete_btn: Button CTA / required / 「完成作業」，full-width，高度
+56px，背景 #F59E0B，字體 18px Bold 白色
+<ul>
+<li><strong>disabled 條件</strong>：SOP 清單未全部勾選 OR 照片數量 &lt;
+1</li>
+<li>disabled 狀態：背景 #CBD5E1，不可點擊，底部提示文字說明缺少什麼</li>
+</ul></li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 顯示清單 + 拍照 + 完成按鈕（disabled）</li>
+<li>checklist_progress: 已勾 X / 總共 Y，進度條</li>
+<li>photo_uploading: 照片位置顯示上傳進度環</li>
+<li>issue_reporting: 異常回報區域展開</li>
+<li>ready_to_complete: 所有條件滿足，complete_btn 啟用（#F59E0B）</li>
+<li>completing: complete_btn Spinner + 「提交中...」</li>
+</ul></li>
+</ul>
+<h4
+id="狀態scope_changed範圍變更需新報價">狀態：<code>scope_changed</code>（範圍變更，需新報價）</h4>
+<ul>
+<li><strong>elements</strong>:
+<ul>
+<li>scope_change_notice: AlertCard / required / 背景
+#F3E8FF，「工作範圍已變更，請提交新報價」</li>
+<li>quote_form: Form / required /
+<ul>
+<li>item_list: DynamicList / required / 可新增/刪除項目
+<ul>
+<li>item_row: Flex Row / 項目名稱（Input, flex-grow）+ 金額（Input
+type=number, width 120px）+ 刪除按鈕（touch area 44×44px）</li>
+</ul></li>
+<li>add_item_btn: Button Ghost / required / 圖示 Plus +
+「新增項目」，min touch 44×44px</li>
+<li>total_display: Body LG Bold / required /
+「報價總計：${amount}」，自動加總，18px Bold 色 #1E293B</li>
+<li>submit_quote_btn: Button Primary / required /
+「提交新報價」，full-width，高度 48px</li>
+</ul></li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 空白表單，一個預設項目 row</li>
+<li>filled: 已填入項目</li>
+<li>submitting: submit_quote_btn Spinner</li>
+<li>submitted: 成功 Toast + 等待客戶確認狀態</li>
+</ul></li>
+</ul>
+<h4
+id="狀態material_pending等待材料">狀態：<code>material_pending</code>（等待材料）</h4>
+<ul>
+<li><strong>elements</strong>:
+<ul>
+<li>material_status_card: Card / required / 背景
+#FFF7ED，顯示材料請求狀態：
+<ul>
+<li>請求的材料列表</li>
+<li>各材料狀態（已訂購/運送中/已到貨）</li>
+<li>預計到貨時間</li>
+</ul></li>
+<li>material_arrived_btn: Button Primary / required /
+「材料已到，繼續作業」，full-width，高度 48px
+<ul>
+<li>點擊 → PATCH status → <code>in_progress</code></li>
+</ul></li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 等待材料</li>
+<li>material_arrived: 按鈕可用</li>
+</ul></li>
+</ul>
+<h3 id="section-completion_report_form">Section:
+completion_report_form</h3>
+<blockquote>
+<p>點擊「完成作業」後滑入的表單頁面（full-screen overlay 或 push
+route）。</p>
+</blockquote>
+<ul>
+<li><p><strong>layout</strong>: 全螢幕表單，背景 #F8FAFC，padding
+16px，可垂直捲動，底部固定提交按鈕</p></li>
+<li><p><strong>elements</strong>:</p>
+<ul>
+<li><p>form_header: Flex Row / required / 「完工報告」H2 20px SemiBold +
+關閉按鈕（X，touch area 44×44px，返回 detail）</p></li>
+<li><p>service_items_section: SectionBlock / required /</p>
+<ul>
+<li>section_title: H3 / required / 「服務項目」，16px SemiBold</li>
+<li>service_checklist: CheckboxList / required /
+預設選項（根據服務類型）：
+<ul>
+<li>「鎖芯更換」「電池更換」「韌體更新」「門框調整」「全鎖安裝」等</li>
+<li>每項 touch area ≥ 44×44px</li>
+</ul></li>
+<li>custom_item_input: Input + AddButton / optional /
+「新增自訂項目」，min touch 44×44px</li>
+</ul></li>
+<li><p>parts_used_section: SectionBlock / required /</p>
+<ul>
+<li>section_title: H3 / required / 「使用零件」，16px SemiBold</li>
+<li>parts_list: DynamicList / required /
+<ul>
+<li>part_row: Flex Row / 零件名稱（Input）+ 數量（Stepper, min 1, touch
+area 44×44px）+ 單價（Input type=number）</li>
+<li>小計自動計算顯示</li>
+</ul></li>
+<li>add_part_btn: Button Ghost / required / 圖示 Plus +
+「新增零件」，min touch 44×44px</li>
+<li>parts_total: Body MD Bold / required / 「零件小計：${amount}」</li>
+</ul></li>
+<li><p>photo_gallery_section: SectionBlock / required /</p>
+<ul>
+<li>section_title: H3 / required / 「施工照片（至少 2 張）」，16px
+SemiBold</li>
+<li>photo_requirement: Caption / required /
+「需包含：施工前、施工後照片」，色 #64748B</li>
+<li>photo_grid: Grid 3-column / required / 照片縮圖（圖片 ratio
+1:1，圓角 8px）
+<ul>
+<li>每張照片可點擊 →
+全螢幕預覽（Lightbox，pinch-to-zoom，左右滑動切換）</li>
+<li>每張照片右上角刪除按鈕（touch area 44×44px）</li>
+</ul></li>
+<li>add_photo_btn: DashedCard / required / 虛線邊框 + Camera 圖示 +
+「拍照/上傳」，80×80px，touch area 80×80px</li>
+<li>photo_count: Caption / required / 「{N}/2 張（最少 2
+張）」，未達標時紅色</li>
+</ul></li>
+<li><p><strong>photo_validation</strong>: 照片不足 2 張時提交按鈕
+disabled + 紅色提示</p></li>
+<li><p>functional_test_section: SectionBlock / required /</p>
+<ul>
+<li>section_title: H3 / required / 「功能測試結果」，16px SemiBold</li>
+<li>test_items: TestToggleList / required / 四項測試：
+<ul>
+<li>「門鎖開啟」：Pass(綠)/Fail(紅) Toggle，touch area 44×44px</li>
+<li>「自動上鎖」：Pass/Fail Toggle</li>
+<li>「鍵盤回應」：Pass/Fail Toggle</li>
+<li>「電池電量」：Pass/Fail Toggle + 電量輸入（如 Pass，Input
+type=number + "%" suffix）</li>
+</ul></li>
+<li>每項測試 Fail 時展開備註 TextArea（「請說明異常」，min 高度
+60px）</li>
+<li>test_summary: Badge / required / 全部 Pass → 綠色「全部通過」/ 有
+Fail → 紅色「{N} 項異常」</li>
+</ul></li>
+<li><p>signature_section: SectionBlock / required /</p>
+<ul>
+<li>section_title: H3 / required / 「客戶簽名」，16px SemiBold</li>
+<li>signature_instruction: Caption / required /
+「請客戶在下方簽名確認」，色 #64748B</li>
+<li>signature_pad: Canvas / required / 高度 200px，full-width，border
+2px dashed #CBD5E1，圓角 12px，背景白色
+<ul>
+<li>觸控繪製簽名（touch events，筆觸寬度 2px，色 #1E293B）</li>
+<li>繪製時 border 轉為 solid #2563EB</li>
+</ul></li>
+<li>clear_signature_btn: Button Ghost / required / 「清除重簽」，min
+touch 44×44px</li>
+<li>signature_status: Caption / required / 未簽名時：紅色「尚未簽名」/
+已簽名：綠色「已取得簽名」</li>
+</ul></li>
+<li><p>amount_summary: Card / required / 背景 #F0FDF4，padding
+16px，圓角 12px，margin-top 16px</p>
+<ul>
+<li>labor_fee: InfoRow / required / 「工資」+ 金額</li>
+<li>parts_fee: InfoRow / required / 「零件費用」+ 金額</li>
+<li>commission_rate: InfoRow / required / 「佣金比例」+ 比例值</li>
+<li>commission_amount: InfoRow Bold / required / 「您的佣金」+
+金額，18px Bold 色 #059669</li>
+<li>total_amount: InfoRow Bold / required / 「客戶應付總額」+ 金額，20px
+Bold 色 #1E293B，上方分隔線</li>
+</ul></li>
+<li><p>submit_area: FixedBottom / required / 固定底部，背景白色，padding
+16px + safe-area-inset-bottom，shadow-up</p>
+<ul>
+<li>submit_btn: Button CTA / required /
+「提交完工報告」，full-width，高度 56px，背景 #F59E0B，字體 18px Bold
+白色</li>
+<li><strong>disabled 條件</strong>：照片 &lt; 2 張 OR 未簽名 OR
+功能測試未全部完成</li>
+<li>disabled 狀態：背景 #CBD5E1，底部顯示缺少項目提示（紅色小字）</li>
+</ul></li>
+</ul></li>
+<li><p><strong>states</strong>:</p>
+<ul>
+<li>default: 空白表單</li>
+<li>filling: 部分填寫</li>
+<li>ready: 所有必填完成，submit_btn 啟用</li>
+<li>submitting: submit_btn Spinner + 「提交中...」，全表單 disabled</li>
+<li>success: 全螢幕成功動畫（Checkmark + 「完工報告已提交」），2
+秒後返回 <code>/my-orders</code></li>
+<li>upload_error: Toast「照片上傳失敗，請重試」</li>
+<li>offline_draft: 表單頂部黃色 Banner「離線模式 —
+報告已儲存為草稿，上線後自動提交」</li>
+</ul></li>
+</ul>
+<hr />
+<h2 id="interaction--state-flow">[INTERACTION &amp; STATE FLOW]</h2>
+<h3 id="主要互動流程">主要互動流程</h3>
+<ol type="1">
+<li><p><strong>列表頁載入</strong>：</p>
+<ul>
+<li>GET <code>/api/v1/technicians/me/orders</code> → 分類至三個 tab</li>
+<li>預設開啟「進行中」tab</li>
+</ul></li>
+<li><p><strong>查看工單詳情</strong>：</p>
+<ul>
+<li>點擊卡片 → 導航至 <code>/my-orders/{id}</code> → GET
+<code>/api/v1/work-orders/{id}</code></li>
+<li>渲染 detail_header + customer_section + device_section +
+problem_card + action_section</li>
+</ul></li>
+<li><p><strong>已接單 → 到達現場</strong>：</p>
+<ul>
+<li>點「導航前往」→ 開啟 Google Maps</li>
+<li>到達後點「已到達現場」→ 確認 Dialog → PATCH status
+<code>in_progress</code></li>
+<li>自動記錄到達時間 → SLA 計時參考</li>
+</ul></li>
+<li><p><strong>作業中流程</strong>：</p>
+<ul>
+<li>依 SOP checklist 逐項勾選</li>
+<li>拍攝施工照片（相機直拍 → 自動壓縮 → POST upload）</li>
+<li>若遇異常 → 展開「回報異常」→ 選擇類型 + 填寫說明 → 提交</li>
+<li>全部 checklist 勾選 + ≥ 1 張照片 →「完成作業」按鈕啟用</li>
+</ul></li>
+<li><p><strong>完工報告提交</strong>：</p>
+<ul>
+<li>點「完成作業」→ 進入 completion_report_form</li>
+<li>填寫：服務項目 → 使用零件 → 補充照片（≥ 2 張）→ 功能測試 →
+客戶簽名</li>
+<li>系統自動計算金額</li>
+<li>點「提交完工報告」→ POST
+<code>/api/v1/work-orders/{id}/completion-report</code> →
+成功返回列表</li>
+<li>工單狀態 → <code>completed</code>，出現在「待確認」tab</li>
+</ul></li>
+<li><p><strong>範圍變更流程</strong>：</p>
+<ul>
+<li>回報 scope_change → 狀態轉 <code>scope_changed</code></li>
+<li>填寫新報價項目 → POST 提交 → 等待客戶確認</li>
+<li>客戶確認後（Push Notification）→ 狀態回
+<code>in_progress</code></li>
+</ul></li>
+<li><p><strong>材料等待流程</strong>：</p>
+<ul>
+<li>回報 material_needed → 狀態轉 <code>material_pending</code></li>
+<li>材料到貨 → 點「材料已到」→ 狀態回 <code>in_progress</code></li>
+</ul></li>
+</ol>
+<h3 id="rwd-行為差異">RWD 行為差異</h3>
+<table>
+<thead>
+<tr>
+<th>斷點</th>
+<th>佈局</th>
+<th>差異說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mobile (&lt;480px)</td>
+<td>單欄全寬（主要設計）</td>
+<td>標準體驗，所有功能完整</td>
+</tr>
+<tr>
+<td>Tablet (481–768px)</td>
+<td>單欄 max-width 480px 居中</td>
+<td>左右留白</td>
+</tr>
+<tr>
+<td>Desktop (769px+)</td>
+<td>不支援（技師端為純 Mobile PWA）</td>
+<td>顯示「請使用手機操作」提示頁</td>
+</tr>
+</tbody>
+</table>
+<h3 id="資料更新策略">資料更新策略</h3>
+<ul>
+<li><strong>列表頁</strong>：每次進入頁面重新取得，pull-to-refresh
+手動更新</li>
+<li><strong>詳情頁</strong>：進入時取得最新資料，狀態變更透過 WebSocket
+即時更新</li>
+<li><strong>完工報告草稿</strong>：每 10 秒自動儲存至
+IndexedDB（防止意外關閉遺失）</li>
+<li><strong>照片上傳</strong>：拍攝後立即背景上傳，不阻塞表單填寫</li>
+</ul>
+<hr />
+<h2 id="data--api">[DATA &amp; API]</h2>
+<ul>
+<li><strong>uses_api</strong>: true</li>
+<li><strong>endpoints</strong>:
+<ul>
+<li>GET <code>/api/v1/technicians/me/orders</code> —
+取得技師所有工單。查詢參數：<code>status</code>（可多選）,
+<code>page</code>, <code>per_page</code></li>
+<li>GET <code>/api/v1/work-orders/{id}</code> —
+取得單一工單完整詳情（含客戶資訊、鎖具資訊、ProblemCard、SOP
+checklist）</li>
+<li>PATCH <code>/api/v1/work-orders/{id}/status</code> —
+更新工單狀態。Body: <code>{ status, note?, issue_type? }</code></li>
+<li>POST <code>/api/v1/work-orders/{id}/completion-report</code> —
+提交完工報告。Body:
+<code>{ service_items[], parts_used[], test_results{}, signature_image_url, photos[], total_amount }</code></li>
+<li>POST <code>/api/v1/work-orders/{id}/photos</code> —
+上傳施工照片（multipart/form-data）。回傳
+<code>{ photo_id, url, thumbnail_url }</code></li>
+<li>POST <code>/api/v1/work-orders/{id}/quote</code> —
+提交範圍變更新報價。Body:
+<code>{ items[{name, amount}], total, note }</code></li>
+</ul></li>
+<li><strong>error_cases</strong>:
+<ul>
+<li>網路錯誤：
+<ul>
+<li>列表頁：顯示快取資料 + 離線 Banner</li>
+<li>詳情頁：顯示快取資料（可能非最新）</li>
+<li>完工報告：儲存至 IndexedDB 草稿，Banner 提示「離線模式 —
+上線後自動提交」</li>
+<li>照片上傳：加入背景上傳佇列（Background Sync API）</li>
+</ul></li>
+<li>API 錯誤（5xx）：Toast「伺服器忙碌中」+ 重試按鈕</li>
+<li>狀態衝突（409）：Toast「工單狀態已變更，重新載入」+
+自動重新取得</li>
+<li>權限不足（401/403）：導向登入頁</li>
+<li>照片上傳失敗：Toast + 重試按鈕，不影響其他表單填寫</li>
+</ul></li>
+</ul>
+<hr />
+<h2 id="exception-to-global-rules">[EXCEPTION TO GLOBAL RULES]</h2>
+<ul>
+<li><strong>completion_report_form 為全螢幕
+overlay</strong>：覆蓋整個畫面（含
+BottomNav），提供沉浸式表單填寫體驗，避免誤觸導航</li>
+<li><strong>signature_pad 使用 Canvas touch
+事件</strong>：需攔截頁面滑動手勢（<code>touch-action: none</code>），防止簽名時頁面跟著滾動</li>
+<li><strong>照片自動壓縮</strong>：前端使用 <code>canvas.toBlob()</code>
+壓縮至 1MB 以下再上傳，不傳原檔</li>
+<li><strong>SLA 倒數計時</strong>：使用前端 <code>setInterval</code>
+每秒更新，不依賴 API polling</li>
+<li><strong>detail_header 色條</strong>：此頁面使用全寬色條取代標準
+AppBar，不受 container padding 限制</li>
+</ul>
+<hr />
+<h2 id="acceptance-criteria">[ACCEPTANCE CRITERIA]</h2>
+<h3 id="列表頁">列表頁</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />三個 Tab 正確篩選工單：進行中 /
+待確認 / 歷史</label></li>
+<li><label><input type="checkbox" />進行中 Tab 顯示工單數量
+Badge</label></li>
+<li><label><input type="checkbox" />工單卡片顯示：編號、狀態
+Badge、地址、時間、品牌型號</label></li>
+<li><label><input type="checkbox" />SLA
+倒數正確顯示且顏色隨剩餘時間變化（綠/橘/紅）</label></li>
+<li><label><input type="checkbox" />點擊導航圖示開啟 Google
+Maps</label></li>
+<li><label><input type="checkbox" />Pull-to-refresh
+正常運作</label></li>
+<li><label><input type="checkbox" />左右滑動可切換 Tab</label></li>
+<li><label><input type="checkbox" />Loading / Error / Empty
+三態完備</label></li>
+</ul>
+<h3 id="詳情頁">詳情頁</h3>
+<ul class="task-list">
+<li><label><input
+type="checkbox" />頂部狀態色條根據工單狀態正確變色</label></li>
+<li><label><input
+type="checkbox" />電話按鈕觸發系統撥號（<code>tel:</code>
+protocol）</label></li>
+<li><label><input type="checkbox" />導航按鈕開啟 Google
+Maps</label></li>
+<li><label><input
+type="checkbox" />特殊備註以警示卡片樣式顯示</label></li>
+<li><label><input
+type="checkbox" />品牌型號自動生成作業前檢查清單</label></li>
+<li><label><input type="checkbox" />ProblemCard 可展開/收合</label></li>
+</ul>
+<h3 id="作業中流程">作業中流程</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />SOP checklist
+可逐項勾選</label></li>
+<li><label><input type="checkbox" />拍照按鈕開啟系統相機</label></li>
+<li><label><input type="checkbox" />照片自動壓縮 + 背景上傳</label></li>
+<li><label><input
+type="checkbox" />「回報異常」展開三種類型選擇</label></li>
+<li><label><input type="checkbox" />「完成作業」按鈕在 checklist 全勾 +
+≥ 1 照片後啟用</label></li>
+<li><label><input type="checkbox" />disabled
+狀態顯示缺少項目提示</label></li>
+</ul>
+<h3 id="完工報告">完工報告</h3>
+<ul class="task-list">
+<li><p><label><input type="checkbox" />服務項目 checklist 可勾選 +
+自訂新增</label></p></li>
+<li><p><label><input
+type="checkbox" />零件列表可動態新增/刪除，小計自動計算</label></p></li>
+<li><p><label><input type="checkbox" />照片 grid
+顯示縮圖，點擊全螢幕預覽</label></p></li>
+<li><p><label><input type="checkbox" />照片不足 2 張時紅色警示 +
+提交按鈕 disabled</label></p></li>
+<li><p><label><input type="checkbox" />功能測試 Pass/Fail toggle
+正常運作</label></p></li>
+<li><p><label><input type="checkbox" />Fail
+項目展開備註欄位</label></p></li>
+<li><p><label><input
+type="checkbox" />簽名板觸控繪製流暢，不觸發頁面滾動</label></p></li>
+<li><p><label><input type="checkbox" />清除重簽功能正常</label></p></li>
+<li><p><label><input type="checkbox" />金額自動計算（工資 + 零件 =
+總額，佣金 = 工資 × 比例）</label></p></li>
+<li><p><label><input type="checkbox" />提交成功後動畫 +
+返回列表</label></p></li>
+<li><p><label><input type="checkbox" />離線模式：草稿自動儲存 +
+上線後同步</label></p></li>
+<li><p><label><input type="checkbox" />所有可點擊元素 touch target ≥
+44×44px</label></p></li>
+<li><p><label><input type="checkbox" />操作按鈕高度 ≥ 48px，主要 CTA ≥
+56px</label></p></li>
+<li><p><label><input type="checkbox" />BottomNav 正確顯示，我的工單 Tab
+active</label></p></li>
+</ul>
+<hr />
+<h2 id="導航與狀態-navigation--state">導航與狀態 (Navigation &amp;
+State)</h2>
+<p>完整 Upstream / Downstream / State Persistence / Error Navigation
+規範見
+<code>docs/02-design/E5x--frontend-navigation-matrix.md §附錄 A</code>（本檔對應段落）。</p>
+<p>本 spec 覆蓋的 IA 頁面依 <code>MAPPING.md §2</code> 查找。</p>
+</div></div></body></html>

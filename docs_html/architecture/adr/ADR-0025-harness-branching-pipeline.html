@@ -1,0 +1,262 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Harness 採 branching pipeline，PIPELINE list 為 introspection-only</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ architecture ／ adr ／ ADR-0025-harness-branching-pipeline.md</div>
+<div class="doc"><blockquote>
+<p><strong>🔄 Migration Status (2026-05-28)</strong>:
+<code>HISTORICAL</code> <strong>Reviewed against</strong>: 2026-05-20
+final spec (xlsx) <strong>Reviewed on</strong>: 2026-05-28 <strong>Per
+ADR-0100 §1 classification</strong>
+(.claude/context/devteam/meetings/2026-05-27-1130-final-spec-migration-strategy/MoM.md)</p>
+</blockquote>
+<h1
+id="adr-0025--harness-採-branching-pipelinepipeline-list-為-introspection-only">ADR-0025
+— Harness 採 branching pipeline，PIPELINE list 為
+introspection-only</h1>
+<h2 id="status">Status</h2>
+<p><strong>Accepted</strong> (拍板於 2026-05-11)</p>
+<h2 id="1-背景與問題">1. 背景與問題</h2>
+<h3 id="上下文">上下文</h3>
+<p>ADR-0024 §3 S2 Phase 4' 原方案：</p>
+<blockquote>
+<p><strong>簡化</strong>：在 <code>agent/harness/__init__.py</code> 加
+<code>PIPELINE = [layer1, layer2, ...]</code> 清單常數 +
+<code>orchestrator.agent_and_reply()</code> 改
+<code>for layer in PIPELINE: await layer.apply(ctx)</code> + 各 sibling
+module 補 <code>async def apply(ctx)</code> 介面（包現有邏輯）。</p>
+</blockquote>
+<p>Phase 4' hands-on 進入 <code>orchestrator.py</code> 510
+行內容後發現該方案的線性 pipeline 假設<strong>與實際 control flow
+不符</strong>。</p>
+<h3 id="問題">問題</h3>
+<p><code>agent_and_reply()</code> 是 <strong>branching
+pipeline</strong>，具備以下三類特性：</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>出現次數</th>
+<th>例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Early return（short-circuit）</td>
+<td>4 處</td>
+<td><code>safety_gate.check</code> 命中 → 直接 send block 後
+return；<code>data_correction</code>、<code>quick_reply</code>、<code>intent_handler</code>
+同</td>
+</tr>
+<tr>
+<td>Background fire-and-forget</td>
+<td>3 處</td>
+<td><code>profile_updater</code>、<code>pc_creator</code>、<code>memory_manager</code>
+用 <code>asyncio.create_task(...)</code> 不阻塞 reply</td>
+</tr>
+<tr>
+<td>非統一 layer signature</td>
+<td>≥ 9 處</td>
+<td>各 layer 接收的參數組合不同（user_id, reply_token, content,
+buffer_items, text_for_audit, ai_response, profile_mgr, audit_storage,
+agent, config, templates, pending_store, ...）</td>
+</tr>
+</tbody>
+</table>
+<p>統一 <code>apply(ctx)</code> 介面意味著 <code>ctx</code> 物件至少需
+12+ 欄位，每個 layer 都需了解 ctx schema → 高 coupling、低 cohesion；且
+early return / background 兩種非線性行為需引入
+<code>ctx.should_short_circuit</code> /
+<code>ctx.background_tasks</code> 等旗標，等於把原本 explicit 的 control
+flow 改成 implicit state machine — <strong>可讀性反而下降</strong>。</p>
+<h3 id="驅動因素--約束">驅動因素 / 約束</h3>
+<ul>
+<li><strong>驅動</strong>：仍要解 ADR-0024 S2 訊號 — 「新增 harness
+layer 需要可預測 onboarding 路徑 + 不必改 orchestrator hardcoded
+import」</li>
+<li><strong>約束 1</strong>：不能引入 ctx god-object（破壞 module
+邊界）</li>
+<li><strong>約束 2</strong>：不能引入 dark launch + 多 phase
+migration（ADR-0024 已拒絕 over-engineering）</li>
+<li><strong>約束 3</strong>：staging 1 週 reserved for <strong>runtime
+行為變更</strong>，純文件/介面變更不需</li>
+</ul>
+<hr />
+<h2 id="2-考量的選項">2. 考量的選項</h2>
+<h3
+id="選項一-強制-linear-pipeline--ctx-god-objectadr-0024-3-s2-原方案">選項一:
+強制 linear PIPELINE + ctx god-object（ADR-0024 §3 S2 原方案）</h3>
+<ul>
+<li><strong>描述</strong>：硬把 branching 包成
+linear（<code>ctx.should_short_circuit</code> 旗標 + background tasks
+集中於 ctx）</li>
+<li><strong>優點</strong>：onboarding 上「新增 layer 改 PIPELINE list +
+寫 apply(ctx)」一條路</li>
+<li><strong>缺點</strong>：ctx 物件 12+ 欄位、隱式 state machine、原本
+explicit short-circuit 變成隱式 flag check；coupling 升高</li>
+<li><strong>成本/複雜度</strong>：中高（11 個 module adapter +
+orchestrator 重寫 + ctx schema）+ staging 1 週</li>
+</ul>
+<h3 id="選項二-pipeline-list-為-introspection-only選定">選項二: PIPELINE
+list 為 introspection-only（<strong>選定</strong>）</h3>
+<ul>
+<li><strong>描述</strong>：保留 <code>agent_and_reply()</code> 原
+branching control flow（顯式 early return + 顯式 background）；只在
+<code>harness/__init__.py</code> 加
+<code>PIPELINE: tuple[PipelineEntry, ...]</code> 結構化常數 + 各 layer
+module 加 <code>PHASE: str = "H6" / "H_DC" / ...</code> 常數，作為 doc
+與 observability</li>
+<li><strong>優點</strong>：零 runtime 變更（不需 staging 1 週）；保留
+explicit control flow 可讀性；新增 layer 仍需改 orchestrator 但 PIPELINE
+list 提供「該加在哪裡 + 哪個 lifecycle bucket + 是否
+blocking」的清晰指引</li>
+<li><strong>缺點</strong>：沒解決「新增 layer 不需改 orchestrator」訴求
+— 但這個訴求基於對 branching pipeline 的誤判，原本就不該成立</li>
+<li><strong>成本/複雜度</strong>：低（1-2 小時）</li>
+</ul>
+<h3 id="選項三-延後-phase-4-進-backlog">選項三: 延後 Phase 4' 進
+backlog</h3>
+<ul>
+<li><strong>描述</strong>：放棄本季任何 harness 重構</li>
+<li><strong>優點</strong>：零風險</li>
+<li><strong>缺點</strong>：無法為「新增 layer
+路徑可預測」訴求做任何貢獻</li>
+</ul>
+<hr />
+<h2 id="3-決策">3. 決策</h2>
+<p><strong>選擇</strong>：選項二</p>
+<p><strong>理由</strong>：</p>
+<ol type="1">
+<li><strong>承認 hands-on 發現</strong> — <code>agent_and_reply()</code>
+本質是 branching pipeline；強推 linear 抽象是基於對 control flow
+的誤判</li>
+<li><strong>保留 explicit control flow</strong> — Linus 「good
+taste」精神：當 explicit 比 implicit
+更清楚時，不該為了形式統一犧牲可讀性</li>
+<li><strong>doc/introspection 已解 80% 訴求</strong> — 新增 layer
+時，PIPELINE list + PHASE 常數讓 contributor 一眼看到「現有 12 個
+stage、各自 lifecycle bucket、blocking vs background」</li>
+<li><strong>零 runtime 變更</strong> — 不消耗 staging 1 週
+budget；剩餘風險 budget 留給未來真正需要的重構</li>
+</ol>
+<hr />
+<h2 id="4-後果">4. 後果</h2>
+<h3 id="正面">正面</h3>
+<ul>
+<li>任何閱讀 <code>harness/__init__.py</code> 的人立即看到 12 個 stage
+inventory</li>
+<li><code>python -c "import harness; for entry in harness.PIPELINE: print(entry)"</code>
+可機讀 introspection</li>
+<li>各 layer module 的 <code>PHASE</code> 常數可用於 logging / metrics /
+audit log tagging（如「這條 audit log 來自 phase=H6 layer」）</li>
+<li>ADR-0024 §3 S2 原訴求（「新增層不需改 orchestrator hardcoded
+import」）被重新評估為<strong>不成立</strong>：branching control flow
+本質就需要 explicit wiring，不該假裝 linear</li>
+</ul>
+<h3 id="負面">負面</h3>
+<ul>
+<li>新增 layer 時仍需手動：(a) 加 module + PHASE 常數 (b) 改
+orchestrator.agent_and_reply() (c) 補 PIPELINE entry</li>
+<li>PIPELINE list 是手動維護，可能與 orchestrator 實際順序
+drift；緩解：補 lint check（future PR）對照 orchestrator import 與
+PIPELINE entry</li>
+</ul>
+<h3 id="影響範圍">影響範圍</h3>
+<table>
+<thead>
+<tr>
+<th>模組</th>
+<th>變更</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>agent/harness/__init__.py</code></td>
+<td>由空檔變為 docstring + PIPELINE 常數 + PipelineEntry NamedTuple</td>
+</tr>
+<tr>
+<td><code>agent/harness/{safety_gate,data_correction,quick_reply,intent_handler,pc_creator,profile_updater,validator_pipeline,memory_manager,agent_audit}.py</code></td>
+<td>各加 <code>PHASE: str = "..."</code> 模組層級常數</td>
+</tr>
+<tr>
+<td><code>agent/harness/orchestrator.py</code></td>
+<td><strong>不變更</strong>（保留既有 branching control flow）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="重新評估觸發">重新評估觸發</h3>
+<table>
+<thead>
+<tr>
+<th>條件</th>
+<th>動作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>harness layer 數量增至 20+</td>
+<td>重新評估是否值得抽 phase enum + linter</td>
+</tr>
+<tr>
+<td>新增 layer 需要橫切多 phase（如 cross-stage tracing）</td>
+<td>評估是否需要 ctx object</td>
+</tr>
+<tr>
+<td>Phase 4' 真實需求浮現（如 dynamic 開關 layer）</td>
+<td>重新評估 config-driven pipeline</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-不在範圍">5. 不在範圍</h2>
+<ul>
+<li>❌ orchestrator.agent_and_reply() 主控制流變更</li>
+<li>❌ ctx god-object 設計</li>
+<li>❌ apply(ctx) 統一介面</li>
+<li>❌ Linter 自動對照 PIPELINE 與 orchestrator imports（留 future
+PR；目前手動同步即可）</li>
+</ul>
+<hr />
+<h2 id="6-實作驗證">6. 實作驗證</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># uv run python (在 agent/ 內)</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">import</span> harness</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="bu">len</span>(harness.PIPELINE)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="dv">12</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> harness.PIPELINE[<span class="dv">0</span>]</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>PipelineEntry(phase_id<span class="op">=</span><span class="st">&#39;H8_IN&#39;</span>, module<span class="op">=</span><span class="st">&#39;agent_audit&#39;</span>, description<span class="op">=</span><span class="st">&#39;Inbound message audit log&#39;</span>, lifecycle<span class="op">=</span><span class="st">&#39;pre_agent&#39;</span>, blocking<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">from</span> harness <span class="im">import</span> safety_gate</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> safety_gate.PHASE</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co">&#39;H6&#39;</span></span></code></pre></div>
+<hr />
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">日期</th>
+<th style="text-align: left;">審核人</th>
+<th style="text-align: left;">備註</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">2026-05-11</td>
+<td style="text-align: left;">Tech Lead / Architect</td>
+<td style="text-align: left;">初版 — Phase 4' hands-on 修正：linear →
+branching introspection-only</td>
+</tr>
+</tbody>
+</table>
+</div></div></body></html>

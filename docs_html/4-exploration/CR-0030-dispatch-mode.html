@@ -1,0 +1,272 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Change Impact Analysis — 派工模式切換（租戶手動派 / 平台代派）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ 4-exploration ／ CR-0030-dispatch-mode.md</div>
+<div class="doc"><h1 id="cr-0030-派工模式切換">CR-0030: 派工模式切換</h1>
+<blockquote>
+<p><strong>Tier</strong>: 4-exploration → CIA（per-change，實作後歸檔）
+<strong>Mandated by</strong>:
+<code>.claude/rules/change-governance.md</code>（命中 Business flow /
+Domain model / DB schema / API contract） <strong>驅動來源</strong>:
+2026-06-17 會議 Action #7「派工模式切換 UI（租戶手動派 /
+平台代派付費）」+ §三.4（Sunny：兩家師傅都沒空時叫平台派→收費點）
+<strong>依賴</strong>: CR-0026 work_orders；single-tenant（multi-tenant
+真正派工權隔離 → CR-0031）</p>
+</blockquote>
+<hr />
+<h2 id="1-change-statement">1. Change Statement</h2>
+<p><strong>As-is</strong>：<code>assign_order</code> 無條件直接派工，無
+tenant
+層派工模式設定，平台代派的「付費」事件無法記帳追蹤；<code>dispatch:auto-match</code>
+僅回候選不自動執行。</p>
+<p><strong>To-be</strong>：租戶層 <code>dispatch_mode</code>
+三檔（manual / platform_paid /
+auto_match）；本輪做<strong>前兩檔</strong>（自動媒合留 Report
+2）。assign_order 依模式標記
+<code>work_orders.dispatched_via</code>（platform_paid →
+<code>platform</code> = 可計費事件）；後台 dispatch-queue
+頁可切換模式。</p>
+<p><strong>Driver</strong>：會議定調平台代派為收費點，需 tenant 設定 +
+可計費標記。</p>
+<h2 id="2-affected-flow--3-spec">2. Affected Flow / 3. Spec</h2>
+<table>
+<thead>
+<tr>
+<th>Flow / Spec</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BF</code> 派工</td>
+<td>Modified</td>
+<td>assign 依 dispatch_mode 標記 dispatched_via</td>
+</tr>
+<tr>
+<td><code>UF</code> dispatch-queue</td>
+<td>Modified</td>
+<td>header 加派工模式切換（管理角色）</td>
+</tr>
+<tr>
+<td><code>FR</code> 計費點</td>
+<td>New（佔位）</td>
+<td>platform_paid 標記 billable；計費規則待業主（本輪不扣款）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-affected-api">4. Affected API</h2>
+<table>
+<thead>
+<tr>
+<th>API</th>
+<th>Endpoint</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>getDispatchModeV2</code></td>
+<td><code>GET /tenants/{tid}/dispatch-mode</code></td>
+<td>New</td>
+</tr>
+<tr>
+<td><code>setDispatchModeV2</code></td>
+<td><code>POST /tenants/{tid}/dispatch-mode</code></td>
+<td>New（admin/operations_manager/tenant_admin；audit log）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-affected-data">5. Affected Data</h2>
+<table>
+<thead>
+<tr>
+<th>Entity</th>
+<th>Action</th>
+<th>Migration</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>saas.tenant.dispatch_mode</code></td>
+<td>New 欄</td>
+<td>migration 039：VARCHAR(20) DEFAULT 'manual'（app 驗證列舉）</td>
+</tr>
+<tr>
+<td><code>work_orders.dispatched_via</code></td>
+<td>New 欄</td>
+<td>migration 039：manual/platform/auto_match（platform=可計費）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="6-affected-test">6. Affected Test</h2>
+<p><code>test_cr_0030_dispatch_mode.py</code>：via_for_mode
+映射（純）；set/get round-trip + 非法 422；platform_paid 模式下
+assign_order →
+dispatched_via='platform'（end-to-end，含還原共享租戶設定）。回歸
+work_orders v2。</p>
+<h2 id="7-affected-architecture">7. Affected Architecture</h2>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Action</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>計費 gate</td>
+<td>佔位</td>
+<td>platform_paid 僅標記 dispatched_via='platform'，<strong>不硬扣
+credit</strong>（計費規則待業主，§8）</td>
+</tr>
+<tr>
+<td>自動媒合</td>
+<td>延後</td>
+<td>auto_match 設定值保留，但不自動執行（複用既有
+<code>auto_match_dispatch</code> 候選，Report 2 接）</td>
+</tr>
+<tr>
+<td>複用</td>
+<td>既有</td>
+<td>assign_order（manual 分支）/ audit_log / RBAC
+<code>role_required</code></td>
+</tr>
+<tr>
+<td>Multi-tenant</td>
+<td>可逆</td>
+<td>dispatch_mode 存 tenant 層（saas.tenant），multi-tenant
+時各租戶各自設定</td>
+</tr>
+</tbody>
+</table>
+<h2 id="8-human-decisions-required">8. Human Decisions Required</h2>
+<p>✅ <strong>會議授權用預設先做（Action #7 拍板）。</strong> 採用：</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Question</th>
+<th>Status</th>
+<th>Decision（預設）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>平台代派「付費」計費規則（單價/credit/月結）</td>
+<td>⏳ 待業主</td>
+<td>本輪只標記 dispatched_via='platform'
+供日後對帳，<strong>不硬扣款</strong>；計費規則待業主定（移後續
+CR）</td>
+</tr>
+<tr>
+<td>2</td>
+<td>模式切換權限</td>
+<td>✅ 預設</td>
+<td>admin/operations_manager/tenant_admin 可切；audit log 留痕</td>
+</tr>
+<tr>
+<td>3</td>
+<td>自動媒合（auto_match）本輪做不做</td>
+<td>✅ 預設</td>
+<td>不做（會議定調 Report 2）；enum 保留、不自動執行</td>
+</tr>
+<tr>
+<td>4</td>
+<td>manual vs platform_paid 在 single-tenant 的行為差異</td>
+<td>✅ 預設</td>
+<td>single-tenant 下兩者派工動作相同，差異在 dispatched_via
+標記（billable）；真正派工權隔離待 CR-0031 multi-tenant</td>
+</tr>
+</tbody>
+</table>
+<h2 id="9-implementation-order已實作">9. Implementation
+Order（已實作）</h2>
+<ol type="1">
+<li>✅ migration 039（saas.tenant.dispatch_mode +
+work_orders.dispatched_via）</li>
+<li>✅ <code>dispatch_mode_service</code>（get/set + via_for_mode）</li>
+<li>✅ <code>assign_order</code> 依模式標記 dispatched_via</li>
+<li>✅ API GET/POST
+<code>/tenants/{tid}/dispatch-mode</code>（dispatch_v2.py）</li>
+<li>✅ <code>test_cr_0030_dispatch_mode.py</code> 3 pass + work_orders
+回歸</li>
+<li>✅ UI dispatch-queue header DispatchModeSelector + i18n</li>
+<li>⏳ Docs sync（commit 時）</li>
+</ol>
+<h2 id="10-risks--rollback">10. Risks &amp; Rollback</h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>計費規則未定即扣款</td>
+<td>本輪只標記不扣款；§8-Q1 待業主</td>
+</tr>
+<tr>
+<td>切換共享租戶設定影響測試</td>
+<td>測試 finally 還原 manual</td>
+</tr>
+<tr>
+<td>auto_match 模式被選但不執行</td>
+<td>enum 保留、assign 仍可手動；自動執行 Report 2 補（UI hint
+標「下一階段」）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Rollback</strong>：新欄（有預設/nullable）+ 新端點 +
+UI，可逆。</p>
+<h2 id="11-out-of-scope">11. Out of Scope</h2>
+<ul>
+<li>平台代派計費引擎（credit 扣款/月結對帳）；自動媒合自動執行（Report
+2）；multi-tenant 真正派工權隔離（CR-0031）。</li>
+</ul>
+<h2 id="12-sign-off">12. Sign-off</h2>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Name</th>
+<th>Date</th>
+<th>Approved?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Product（業主）</td>
+<td>Sunny</td>
+<td>2026-06-17</td>
+<td>✅ 會議授權用預設先做</td>
+</tr>
+</tbody>
+</table>
+<h2 id="13-實作進度">13. 實作進度</h2>
+<ul>
+<li>✅ migration 039 + dispatch_mode_service + assign_order 標記 +
+GET/POST 端點 + UI 切換 + 測試 3 pass + 回歸 + tsc 0；migration 039 套
+dev DB 驗證</li>
+<li>⏳ follow-up：平台代派計費引擎（§8-Q1）、自動媒合自動執行（Report
+2）、CR-0031 multi-tenant 派工權</li>
+<li>分支：<code>feat/cr-0030-dispatch-mode</code></li>
+</ul>
+</div></div></body></html>

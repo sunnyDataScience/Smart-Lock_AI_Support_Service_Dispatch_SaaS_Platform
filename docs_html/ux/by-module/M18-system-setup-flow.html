@@ -1,0 +1,333 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>M18 System Setup — config 自助維護 user flow</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ ux ／ by-module ／ M18-system-setup-flow.md</div>
+<div class="doc"><h1 id="m18-system-setup--config-自助維護-user-flow">M18 System Setup —
+config 自助維護 user flow</h1>
+<blockquote>
+<p><strong>30 秒摘要</strong>：M18 把過去 hard-coded
+的金額、SLA、template、reason code、role permission 全部下放成 runtime
+config，業主自助維護。本檔補主檔 Flow S5 沒涵蓋的細節：config schema
+editor / template management / reason code maintenance / role permission
+matrix 編輯。<strong>核心要求</strong>：schema validation 前置 + 主管
+approve + staged rollout + audit + rollback ≤ 24h window（依
+ADR-0067）。</p>
+</blockquote>
+<hr />
+<h2 id="sequence-diagram--config-edit--staged-rollout-完整握手">Sequence
+Diagram — config edit → staged rollout 完整握手</h2>
+<pre class="mermaid"><code>sequenceDiagram
+    autonumber
+    actor admin as System / IT admin
+    actor mgr as 主管
+    participant ui as M18 Admin UI
+    participant val as Schema Validator
+    participant cfg as Config Store (versioned)
+    participant roll as Staged Rollout Orchestrator
+    participant cache as Cache (Redis)
+    participant audit as Audit Log
+    participant downstream as Downstream Services (pricing/SLA/templates)
+
+    admin -&gt;&gt; ui: 選 config domain (例: refund_threshold)
+    ui -&gt;&gt; cfg: GET current version
+    cfg --&gt;&gt; ui: v42 (active)
+    admin -&gt;&gt; ui: edit draft (refund_max: 5000 → 50000)
+    ui -&gt;&gt; val: validate(draft)
+    val --&gt;&gt; ui: ❌ 範圍檢查失敗 (max 不可 &gt; 10000)
+    ui --&gt;&gt; admin: 顯示 error + 修正建議
+    admin -&gt;&gt; ui: 改 refund_max: 8000
+    ui -&gt;&gt; val: validate(draft)
+    val --&gt;&gt; ui: ✅ pass
+    ui -&gt;&gt; mgr: 提 approval request
+    mgr -&gt;&gt; ui: approve + set effective_date
+    ui -&gt;&gt; cfg: create v43 (draft, approved)
+    cfg -&gt;&gt; audit: log(who=admin, what=diff, why=reason)
+    ui -&gt;&gt; roll: trigger staged rollout (v43)
+    roll -&gt;&gt; cache: invalidate 10% canary cohort
+    roll -&gt;&gt; downstream: serve v43 to 10% traffic
+    Note over roll,downstream: 10min observation (SLI / error rate)
+    alt canary fail
+        roll -&gt;&gt; cfg: auto rollback to v42
+        roll -&gt;&gt; audit: log(rollback_reason=canary_fail)
+        roll --&gt;&gt; ui: alert admin
+    else canary pass
+        roll -&gt;&gt; cache: invalidate 50% cohort
+        Note over roll: 10min observation
+        roll -&gt;&gt; cache: invalidate 100%
+        roll -&gt;&gt; cfg: mark v43 active
+        roll -&gt;&gt; audit: log(phase=full_rollout)
+    end</code></pre>
+<hr />
+<h2 id="state-machine--config-lifecycle">State Machine — config
+lifecycle</h2>
+<pre class="mermaid"><code>stateDiagram-v2
+    [*] --&gt; draft : admin 開始編輯
+    draft --&gt; validated : schema check pass
+    draft --&gt; validation_fail : schema check fail
+    validation_fail --&gt; draft : 修正後重試
+    validated --&gt; approved : 主管 approve + effective_date
+    validated --&gt; draft : 退回修改
+    approved --&gt; canary : staged rollout 啟動 (10%)
+    canary --&gt; staged_50 : 10min observation OK
+    canary --&gt; rolled_back : observation fail / 手動 rollback
+    staged_50 --&gt; full : 10min observation OK
+    staged_50 --&gt; rolled_back : observation fail / 手動 rollback
+    full --&gt; active : cache invalidation broadcast 完成
+    active --&gt; superseded : 新版 (v+1) full rollout 完成
+    active --&gt; rolled_back : 24h window 內手動 rollback
+    rolled_back --&gt; [*]
+    superseded --&gt; [*]</code></pre>
+<hr />
+<h2 id="ui-state-coverage業主-q-of1b-ui-only--annotation">UI State
+Coverage（業主 Q-OF1=B: UI-only + annotation）</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">Happy</th>
+<th style="text-align: left;">Empty</th>
+<th style="text-align: left;">Loading</th>
+<th style="text-align: left;">Error</th>
+<th style="text-align: left;">Offline</th>
+<th style="text-align: left;">domain state annotation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>選 config domain</strong></td>
+<td style="text-align: left;">✓ 樹狀清單（pricing / SLA / template /
+reason_code / role）</td>
+<td style="text-align: left;">沒權限 domain 隱藏</td>
+<td style="text-align: left;">載入清單 spinner</td>
+<td style="text-align: left;">403 顯示「無權限」+ contact admin</td>
+<td style="text-align: left;">banner 不允許改</td>
+<td style="text-align: left;">n/a</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>編輯 draft (schema
+editor)</strong></td>
+<td style="text-align: left;">✓ form + diff preview</td>
+<td style="text-align: left;">empty domain → template 預設</td>
+<td style="text-align: left;">載入 schema</td>
+<td style="text-align: left;">inline validation error (with hint)</td>
+<td style="text-align: left;">local cache 暫存 draft</td>
+<td style="text-align: left;">entry: draft / exit: validated</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>送 approval</strong></td>
+<td style="text-align: left;">✓ 主管收到 inbox</td>
+<td style="text-align: left;">主管不在 → escalate next-in-line</td>
+<td style="text-align: left;">提交中</td>
+<td style="text-align: left;">approval timeout (≥ 24h) → escalate</td>
+<td style="text-align: left;">banner 提交失敗 → retry</td>
+<td style="text-align: left;">exit: approved</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>staged rollout 監看</strong></td>
+<td style="text-align: left;">✓ progress bar + observation timer + SLI
+dashboard</td>
+<td style="text-align: left;">n/a</td>
+<td style="text-align: left;">10min timer 跑中</td>
+<td style="text-align: left;">canary fail → 自動 rollback + alert</td>
+<td style="text-align: left;">banner，rollout 持續但 admin 看不到
+update</td>
+<td style="text-align: left;">phase: canary → staged_50 → full</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>audit view</strong></td>
+<td style="text-align: left;">✓ 列表 + diff + filter</td>
+<td style="text-align: left;">empty「無變更」+ filter 提示</td>
+<td style="text-align: left;">載入 &lt; 3s</td>
+<td style="text-align: left;">403 reason masked + log
+audit_view_attempt</td>
+<td style="text-align: left;">cached 上次 view</td>
+<td style="text-align: left;">n/a (read-only)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>rollback</strong></td>
+<td style="text-align: left;">✓ confirm dialog + reason 必填 + diff
+preview</td>
+<td style="text-align: left;">—</td>
+<td style="text-align: left;">rollback staged 進行中</td>
+<td style="text-align: left;">超過 24h window → block + 改走 CR</td>
+<td style="text-align: left;">banner，無法觸發 rollback</td>
+<td style="text-align: left;">rollback entry: triggered / exit:
+completed</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="reason-code-lookup-table-maintenanceb-s4-cascade">Reason code
+lookup table maintenance（B-S4 cascade）</h2>
+<blockquote>
+<p>Flow S4 cancellation reason / refund reason / dispatch reject reason
+全部來自 M18 lookup table，客服 / 派工主管在 UI 提 ChangeRequest
+補項。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維護步驟</th>
+<th style="text-align: left;">UI</th>
+<th style="text-align: left;">annotation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">1. 客服發現新場景無對應 reason code</td>
+<td style="text-align: left;">M18 admin UI → reason_code domain</td>
+<td style="text-align: left;">n/a</td>
+</tr>
+<tr>
+<td style="text-align: left;">2. 客服提 ChangeRequest（含 reason /
+scenario 例）</td>
+<td style="text-align: left;">UI 走 standard config change flow</td>
+<td style="text-align: left;">entry: ChangeRequest.created</td>
+</tr>
+<tr>
+<td style="text-align: left;">3. 主管 / Knowledge owner approve</td>
+<td style="text-align: left;">inbox</td>
+<td style="text-align: left;">exit: approved</td>
+</tr>
+<tr>
+<td style="text-align: left;">4. 走 staged rollout（10% → 50% →
+100%）</td>
+<td style="text-align: left;">rollout monitor</td>
+<td style="text-align: left;">phase: canary → full</td>
+</tr>
+<tr>
+<td style="text-align: left;">5. 客服立即可在 cancel / refund / dispatch
+flow 選用</td>
+<td style="text-align: left;">自動可見</td>
+<td style="text-align: left;">n/a (active)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="role-permission-matrix-編輯m17-cascade">Role permission matrix
+編輯（M17 cascade）</h2>
+<blockquote>
+<p>修改任何角色的 can-view / can-edit / can-approve 都走 M18 config flow
++ SoD 雙簽。</p>
+</blockquote>
+<pre class="mermaid"><code>flowchart TD
+    Edit[admin 編輯 role permission matrix] --&gt; Validate{validation:&lt;br/&gt;不可給品牌商 看內部成本&lt;br/&gt;不可給師傅 看其他案件}
+    Validate --&gt;|fail| EditErr[擋住 + 顯示 M17 BR-rule]
+    Validate --&gt;|pass| DualApprove{高權限變更?&lt;br/&gt;(approve / refund / role grant)}
+    DualApprove --&gt;|是| TwoSign[要兩名主管雙簽 - SoD]
+    DualApprove --&gt;|否| OneSign[單主管 approve]
+    TwoSign --&gt; StagedRollout
+    OneSign --&gt; StagedRollout[走 staged rollout]</code></pre>
+<hr />
+<h2 id="a11y-notes--wcag-22-aa--admin-ui-加強">a11y notes — WCAG 2.2 AA
++ admin UI 加強</h2>
+<p>繼承主檔 §a11y，<strong>加強 admin UI 特有</strong>：</p>
+<ul>
+<li><strong>3.3.4 Error prevention (legal / financial / data)</strong> —
+改價格表 / 退款上限 / 角色權限時 → 雙重確認對話框 + diff preview</li>
+<li><strong>2.4.11 Focus not obscured (minimum)</strong> — staged
+rollout progress modal 不可遮 main focus；observation timer 用 toast 非
+blocking</li>
+<li><strong>3.2.6 Consistent help (WCAG 2.2 新)</strong> — admin UI
+全頁面 help 入口位置一致（右上角 ?）</li>
+<li><strong>3.3.8 Accessible authentication (WCAG 2.2 新)</strong> —
+admin MFA 不可純依賴 CAPTCHA 識讀</li>
+</ul>
+<hr />
+<h2 id="fr-反向指">FR 反向指</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">FR 反向指</th>
+<th style="text-align: left;">AC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">edit config draft</td>
+<td style="text-align: left;">FR-0043</td>
+<td style="text-align: left;">AC-01 admin 編輯 draft + autosave</td>
+</tr>
+<tr>
+<td style="text-align: left;">schema validation 前置</td>
+<td style="text-align: left;">FR-0043</td>
+<td style="text-align: left;">AC-01 validation pass / AC-02 validation
+fail message</td>
+</tr>
+<tr>
+<td style="text-align: left;">主管 approve + effective_date</td>
+<td style="text-align: left;">FR-0043</td>
+<td style="text-align: left;">AC-01 single approve / AC-02 dual sign for
+high-risk</td>
+</tr>
+<tr>
+<td style="text-align: left;">staged rollout 10% → 50% → 100%</td>
+<td style="text-align: left;">FR-0043</td>
+<td style="text-align: left;">AC-01 canary pass / AC-02 canary fail auto
+rollback / AC-03 full rollout cache invalidation</td>
+</tr>
+<tr>
+<td style="text-align: left;">cache invalidation broadcast</td>
+<td style="text-align: left;">FR-0043</td>
+<td style="text-align: left;">AC-01 sub-second propagation</td>
+</tr>
+<tr>
+<td style="text-align: left;">audit view</td>
+<td style="text-align: left;">FR-0043</td>
+<td style="text-align: left;">AC-01 filter by domain/actor/date / AC-02
+diff view / AC-03 retention ≥ 7y</td>
+</tr>
+<tr>
+<td style="text-align: left;">rollback ≤ 24h window</td>
+<td style="text-align: left;">FR-0043</td>
+<td style="text-align: left;">AC-01 within window staged rollback /
+AC-02 beyond window block</td>
+</tr>
+<tr>
+<td style="text-align: left;">reason code 維護</td>
+<td style="text-align: left;">FR-0043</td>
+<td style="text-align: left;">AC-01 ChangeRequest / AC-02 staged
+rollout</td>
+</tr>
+<tr>
+<td style="text-align: left;">role permission matrix</td>
+<td style="text-align: left;">FR-0043</td>
+<td style="text-align: left;">AC-01 SoD 雙簽 high-risk / AC-02
+validation 擋越權設定</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="引用-kb">引用 KB</h2>
+<ul>
+<li>[KB-07 §diagram_picker] — sequence + state machine 雙圖混合（admin
+操作 + 系統 lifecycle 並存場景）</li>
+<li>[KB-13 §拆檔判準] — M18 admin 獨立子檔（與主檔 Flow S5
+互補不重複）</li>
+</ul>
+<hr />
+<h2 id="相關文件">相關文件</h2>
+<ul>
+<li>主檔 Flow S5：<a
+href="../user-flow-smart-lock-saas.md"><code>../user-flow-smart-lock-saas.md#flow-s5</code></a></li>
+<li>ADR-0067：<a
+href="../../architecture/adr/ADR-0067-m18-runtime-config-governance.md"><code>../../architecture/adr/ADR-0067-m18-runtime-config-governance.md</code></a></li>
+<li>Source spec：<a
+href="../../_source/01-workorder-erp.md"><code>../../_source/01-workorder-erp.md#m18-system-admin</code></a></li>
+</ul>
+</div></div></body></html>

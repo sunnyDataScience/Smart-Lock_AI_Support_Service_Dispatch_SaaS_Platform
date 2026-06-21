@@ -1,0 +1,137 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>A03 ReAct Agent — LangGraph + tools</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ ux ／ by-module ／ A03-react-agent-flow.md</div>
+<div class="doc"><h1 id="a03-react-agent--langgraph--tools">A03 ReAct Agent — LangGraph +
+tools</h1>
+<blockquote>
+<p><strong>30 秒摘要</strong>：A03 是 chatbot 大腦，用 LangGraph 跑
+ReAct loop（reason → act → observe）；可用 tools =
+<code>load_skill</code> / <code>update_user_info</code> /
+<code>transfer_to_human</code> /
+<code>invoke_convert_to_wo</code>（後者必經 human gate）。</p>
+</blockquote>
+<h2 id="sequence-diagram--react-loop-一輪">Sequence Diagram — ReAct loop
+一輪</h2>
+<pre class="mermaid"><code>sequenceDiagram
+    autonumber
+    actor user as 消費者
+    participant a03 as A03 ReAct
+    participant llm as LLM
+    participant tools as Tool Registry
+
+    user -&gt;&gt; a03: merged turn (from A01)
+    a03 -&gt;&gt; llm: reason (current state + tools list)
+    llm --&gt;&gt; a03: action: load_skill(&quot;三聯-鎖舌卡死&quot;)
+    a03 -&gt;&gt; tools: load_skill
+    tools --&gt;&gt; a03: SOP content
+    a03 -&gt;&gt; llm: observe (SOP + reason next)
+    llm --&gt;&gt; a03: action: respond_to_user
+    a03 -&gt;&gt; user: 回覆 + Quick Reply
+    Note over a03: 若連 3 輪未收斂 → transfer_to_human</code></pre>
+<h2 id="state-machine--agent-session">State Machine — agent session</h2>
+<pre class="mermaid"><code>stateDiagram-v2
+    [*] --&gt; reasoning
+    reasoning --&gt; tool_invoking : 選擇 tool
+    tool_invoking --&gt; observing : tool 返回
+    observing --&gt; reasoning : 還需更多 step
+    observing --&gt; responding : 收斂可回覆
+    responding --&gt; waiting_user : 訊息送出
+    waiting_user --&gt; reasoning : 用戶回覆 / 新 turn
+    reasoning --&gt; handoff : 連 3 輪未收斂 / safety block
+    handoff --&gt; [*]
+    responding --&gt; [*]</code></pre>
+<h2 id="ui-state-coverage">UI State Coverage</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">Happy</th>
+<th style="text-align: left;">Empty</th>
+<th style="text-align: left;">Loading</th>
+<th style="text-align: left;">Error</th>
+<th style="text-align: left;">Offline</th>
+<th style="text-align: left;">annotation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">AI thinking</td>
+<td style="text-align: left;">✓ typing indicator</td>
+<td style="text-align: left;">n/a</td>
+<td style="text-align: left;">&lt; 3s p95</td>
+<td style="text-align: left;">LLM timeout → fallback message</td>
+<td style="text-align: left;">LINE banner</td>
+<td style="text-align: left;">session: reasoning</td>
+</tr>
+<tr>
+<td style="text-align: left;">tool invoke</td>
+<td style="text-align: left;">✓ tool 返回</td>
+<td style="text-align: left;">tool 無結果 → 改問</td>
+<td style="text-align: left;">&lt; 1s</td>
+<td style="text-align: left;">tool fail → 降級 / handoff</td>
+<td style="text-align: left;">offline 無法呼叫 → handoff</td>
+<td style="text-align: left;">tool_invoking → observing</td>
+</tr>
+<tr>
+<td style="text-align: left;">回覆送出</td>
+<td style="text-align: left;">✓ Flex / text</td>
+<td style="text-align: left;">n/a</td>
+<td style="text-align: left;">&lt; 500ms</td>
+<td style="text-align: left;">render fail → 純文字</td>
+<td style="text-align: left;">LINE 暫存</td>
+<td style="text-align: left;">exit: waiting_user</td>
+</tr>
+</tbody>
+</table>
+<h2 id="a11y-notes">a11y notes</h2>
+<ul>
+<li>typing indicator 走 LINE 原生</li>
+<li>回覆 Flex Message 朗讀順序：標題 → 內文 → button label</li>
+<li>Quick Reply ≥ 44×44 (LINE 原生)</li>
+</ul>
+<h2 id="fr-反向指">FR 反向指</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">FR</th>
+<th style="text-align: left;">AC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">ReAct loop</td>
+<td style="text-align: left;">FR-0028</td>
+<td style="text-align: left;">AC-01 load_skill / AC-02 update_user_info
+/ AC-03 transfer_to_human</td>
+</tr>
+<tr>
+<td style="text-align: left;">連 3 輪 fallback</td>
+<td style="text-align: left;">FR-0028</td>
+<td style="text-align: left;">AC-01 自動 handoff</td>
+</tr>
+</tbody>
+</table>
+<h2 id="相關">相關</h2>
+<ul>
+<li>主檔：<a
+href="../user-flow-smart-lock-saas.md"><code>../user-flow-smart-lock-saas.md#flow-s1</code></a></li>
+<li>Source：<a
+href="../../_source/02-ai-chatbot-sync.md"><code>../../_source/02-ai-chatbot-sync.md#a-m03-react-agent</code></a></li>
+</ul>
+</div></div></body></html>

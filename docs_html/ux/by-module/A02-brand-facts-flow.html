@@ -1,0 +1,145 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>A02 品牌型號 Profile — Quick Reply + facts</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ ux ／ by-module ／ A02-brand-facts-flow.md</div>
+<div class="doc"><h1 id="a02-品牌型號-profile--quick-reply--facts">A02 品牌型號 Profile —
+Quick Reply + facts</h1>
+<blockquote>
+<p><strong>30 秒摘要</strong>：當 facts 中 brand 或 model
+缺失時主動問；用 LINE Quick Reply 提供常見品牌列表，「其他」進 free
+text；收齊後寫 facts_db。</p>
+</blockquote>
+<h2 id="sequence-diagram">Sequence Diagram</h2>
+<pre class="mermaid"><code>sequenceDiagram
+    autonumber
+    actor user as 消費者
+    participant a03 as A03 ReAct
+    participant a02 as A02 Brand/Facts
+    participant db as facts_db
+
+    a03 -&gt;&gt; a02: extract from turn
+    a02 --&gt;&gt; a03: missing brand
+    a03 -&gt;&gt; user: Quick Reply [三聯 / 美樂 / 其他]
+    user -&gt;&gt; a03: 「三聯」
+    a03 -&gt;&gt; a02: update brand=三聯
+    a02 -&gt;&gt; db: write facts
+    a02 --&gt;&gt; a03: missing model
+    a03 -&gt;&gt; user: Quick Reply 三聯 models
+    user -&gt;&gt; a03: model X
+    a03 -&gt;&gt; a02: update model=X
+    a02 -&gt;&gt; db: write facts
+    a02 --&gt;&gt; a03: facts complete</code></pre>
+<h2 id="state-machine--facts-collection">State Machine — facts
+collection</h2>
+<pre class="mermaid"><code>stateDiagram-v2
+    [*] --&gt; empty
+    empty --&gt; brand_pending : 抽取出無 brand
+    brand_pending --&gt; brand_known : 客戶選擇 / 輸入
+    brand_known --&gt; model_pending : 無 model
+    model_pending --&gt; model_known : 客戶選擇 / 輸入
+    model_known --&gt; symptom_pending : 無症狀描述
+    symptom_pending --&gt; complete : 客戶描述
+    complete --&gt; [*]
+    brand_pending --&gt; brand_other : 「其他」free text
+    brand_other --&gt; brand_known</code></pre>
+<h2 id="ui-state-coverage">UI State Coverage</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">Happy</th>
+<th style="text-align: left;">Empty</th>
+<th style="text-align: left;">Loading</th>
+<th style="text-align: left;">Error</th>
+<th style="text-align: left;">Offline</th>
+<th style="text-align: left;">annotation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Quick Reply 品牌列表</td>
+<td style="text-align: left;">✓ 顯示常見 4-6 個 + 「其他」</td>
+<td style="text-align: left;">列表空 → 純 free text</td>
+<td style="text-align: left;">typing indicator</td>
+<td style="text-align: left;">Quick Reply render fail → fallback
+純文字</td>
+<td style="text-align: left;">LINE cached</td>
+<td style="text-align: left;">facts: empty → brand_pending</td>
+</tr>
+<tr>
+<td style="text-align: left;">客戶選「其他」</td>
+<td style="text-align: left;">✓ free text 輸入</td>
+<td style="text-align: left;">n/a</td>
+<td style="text-align: left;">n/a</td>
+<td style="text-align: left;">text 含特殊字 → 清理</td>
+<td style="text-align: left;">暫存</td>
+<td style="text-align: left;">brand_other → brand_known</td>
+</tr>
+<tr>
+<td style="text-align: left;">寫 facts_db</td>
+<td style="text-align: left;">✓ 200 OK</td>
+<td style="text-align: left;">n/a</td>
+<td style="text-align: left;">&lt; 100ms</td>
+<td style="text-align: left;">DB down → DLQ</td>
+<td style="text-align: left;">後台重送</td>
+<td style="text-align: left;">facts entry=complete</td>
+</tr>
+</tbody>
+</table>
+<h2
+id="a11y-notes後台-admin-端--line-端混合--wcag-22-aa-繼承自主檔">a11y
+notes（後台 Admin 端 + LINE 端混合 — WCAG 2.2 AA 繼承自主檔）</h2>
+<ul>
+<li><strong>Quick Reply label 清楚</strong>：「品牌：三聯」非「三聯」給
+screen reader（4.1.2 Name/Role/Value）</li>
+<li><strong>WCAG 2.5.5 Target size</strong>：Quick Reply button ≥
+44×44（LINE 原生符合）；後台 admin 品牌維護按鈕 ≥ 44×44</li>
+<li><strong>Keyboard navigation (2.1.1)</strong>：後台 admin facts
+編輯介面（PII 後台）全鍵盤可達，無 keyboard trap</li>
+<li><strong>Focus indicator (2.4.7)</strong>：後台 admin facts 編輯欄位
+focus ring ≥ 2px / ≥ 3:1 contrast</li>
+<li><strong>Color contrast (1.4.3)</strong>：後台 admin 衝突警告（brand
+mismatch）≥ 4.5:1；不單靠紅色 — 加 icon + 文字「衝突」</li>
+<li><strong>3.3.7 Redundant entry</strong>：客戶已於對話中提供品牌 /
+型號 → 後台 admin 不要求重輸；自動帶入</li>
+</ul>
+<h2 id="fr-反向指">FR 反向指</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">FR</th>
+<th style="text-align: left;">AC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">brand quick reply</td>
+<td style="text-align: left;">FR-0027</td>
+<td style="text-align: left;">AC-01 常見品牌列表 / AC-02 「其他」free
+text</td>
+</tr>
+</tbody>
+</table>
+<h2 id="相關">相關</h2>
+<ul>
+<li>主檔：<a
+href="../user-flow-smart-lock-saas.md"><code>../user-flow-smart-lock-saas.md#flow-s1</code></a></li>
+<li>Source：<a
+href="../../_source/02-ai-chatbot-sync.md"><code>../../_source/02-ai-chatbot-sync.md#a-m02-品牌型號profile</code></a></li>
+</ul>
+</div></div></body></html>

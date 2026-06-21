@@ -1,0 +1,350 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>選擇 Next.js 作為 V2.0 前端框架</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ architecture ／ adr ／ ADR-0005-frontend-framework-v2.md</div>
+<div class="doc"><blockquote>
+<p><strong>🔄 Migration Status (2026-05-28)</strong>:
+<code>STILL_VALID_UNDER_cross-cutting</code> <strong>Reviewed
+against</strong>: 2026-05-20 final spec (xlsx) <strong>Reviewed
+on</strong>: 2026-05-28 <strong>Module scope</strong>: cross-cutting
+<strong>Per ADR-0100 §1 classification</strong>
+(.claude/context/devteam/meetings/2026-05-27-1130-final-spec-migration-strategy/MoM.md)</p>
+</blockquote>
+<h1 id="adr-005-選擇-nextjs-作為-v20-前端框架">ADR-005: 選擇 Next.js
+作為 V2.0 前端框架</h1>
+<p><strong>狀態:</strong> 已接受 (Accepted) <strong>決策者:</strong>
+技術負責人, 開發團隊 <strong>日期:</strong> 2026-02-17</p>
+<hr />
+<h2 id="1-背景與問題陳述">1. 背景與問題陳述</h2>
+<p>平台 V2.0 階段需要開發兩個核心前端應用：</p>
+<h3 id="技師工作台technician-workbench">技師工作台（Technician
+Workbench）</h3>
+<ul>
+<li><strong>使用情境：</strong> 技師在外出場時使用手機操作，需要
+Mobile-first 設計。</li>
+<li><strong>核心功能：</strong>
+<ul>
+<li>即時接收派工通知（類 Uber 搶單/派單模式）。</li>
+<li>查看工單詳情：ProblemCard 診斷結果、客戶地址、導航連結。</li>
+<li>更新工單狀態：出發、到達、維修中、完工。</li>
+<li>拍照上傳：維修前後照片、零件更換紀錄。</li>
+<li>費用確認：標準化報價確認、客戶簽名。</li>
+<li>歷史工單查詢與統計（本月接單數、收入、評分）。</li>
+</ul></li>
+<li><strong>效能需求：</strong>
+技師在電梯、地下室等弱網路環境下操作，頁面必須快速載入，支援離線基本瀏覽。</li>
+</ul>
+<h3 id="管理後台admin-panel">管理後台（Admin Panel）</h3>
+<ul>
+<li><strong>使用情境：</strong> 管理員在桌機上操作，需要
+Desktop-optimized 設計。</li>
+<li><strong>核心功能：</strong>
+<ul>
+<li>工單管理儀表板：即時工單狀態總覽、篩選、搜尋。</li>
+<li>技師管理：技師資料 CRUD、技能矩陣編輯、服務區域設定。</li>
+<li>知識庫管理：案例庫 CRUD、PDF 手冊上傳與向量化觸發、SOP
+審核與發布。</li>
+<li>報表與對帳：服務費用統計、技師結算明細、月度對帳報表。</li>
+<li>AI 對話紀錄：查看使用者與 AI 的完整對話歷史、ProblemCard 詳情。</li>
+<li>系統設定：LINE Bot 設定、通知規則、報價規則。</li>
+</ul></li>
+</ul>
+<h3 id="技術考量">技術考量</h3>
+<ul>
+<li><strong>V1.0 階段無前端：</strong> V1.0 以 LINE Bot + 後台 API
+為主，前端是 V2.0 的新需求。</li>
+<li><strong>BFF (Backend for Frontend) 需求：</strong>
+技師工作台與管理後台的 API 需求不同，需要 BFF 層做 API 聚合與裁剪。</li>
+<li><strong>SEO 不重要：</strong>
+兩個應用都是登入後使用，不需要搜尋引擎優化。但 SSR
+對首屏效能仍有價值。</li>
+<li><strong>TypeScript 需求：</strong> 前後端 schema 共享（Pydantic
+model &lt;-&gt; TypeScript interface），強型別減少整合錯誤。</li>
+</ul>
+<h2 id="2-考量的選項">2. 考量的選項</h2>
+<h3 id="選項一-nextjsreact-生態系">選項一: Next.js（React 生態系）</h3>
+<ul>
+<li><strong>概述：</strong> 基於 React 的全端框架，由 Vercel 維護，支援
+SSR、SSG、ISR、API Routes 等多種渲染策略。</li>
+<li><strong>優點：</strong>
+<ul>
+<li><strong>App Router + Server Components：</strong> Next.js 14+ 的 App
+Router 與 React Server Components 提供更細粒度的渲染控制，減少客戶端
+JavaScript bundle。</li>
+<li><strong>API Routes 作為 BFF：</strong> 內建 API Routes 可直接作為
+BFF 層，聚合 FastAPI 的多個端點，為前端提供最佳化的資料結構。</li>
+<li><strong>React 生態系成熟度：</strong> 元件庫（shadcn/ui、Ant
+Design、Material UI）、狀態管理（Zustand、Jotai）、表單（React Hook
+Form）等選擇豐富。</li>
+<li><strong>TypeScript 支援：</strong> 原生 TypeScript
+支援，搭配自動產生的 OpenAPI client（openapi-typescript-codegen），可從
+FastAPI 的 OpenAPI spec 直接生成 TypeScript API client。</li>
+<li><strong>Mobile-first PWA：</strong> 搭配 <code>next-pwa</code> 支援
+Progressive Web
+App，技師工作台可安裝到手機桌面，支援離線快取與推播通知。</li>
+<li><strong>Image Optimization：</strong> 內建 <code>next/image</code>
+最佳化圖片載入，對技師上傳的現場照片處理有幫助。</li>
+<li><strong>Middleware：</strong> Edge Middleware
+可用於認證檢查、角色路由（技師 vs 管理員）。</li>
+</ul></li>
+<li><strong>缺點：</strong>
+<ul>
+<li>框架功能豐富，學習曲線較陡（App Router vs Pages Router、Server
+Components vs Client Components 的選擇）。</li>
+<li>Vercel 部署生態與 self-hosted 部署之間存在功能差異（部分功能在
+self-hosted 模式下受限）。</li>
+<li>React 生態系選擇過多，需要花時間做技術選型。</li>
+</ul></li>
+</ul>
+<h3 id="選項二-nuxtjsvue-生態系">選項二: Nuxt.js（Vue 生態系）</h3>
+<ul>
+<li><strong>概述：</strong> 基於 Vue.js 的全端框架，由 NuxtLabs 維護，與
+Next.js 定位類似。</li>
+<li><strong>優點：</strong>
+<ul>
+<li>Vue.js 的學習曲線較 React 平緩，模板語法更直觀。</li>
+<li>Nuxt 3 基於 Nitro server engine，支援 SSR、SSG、ISR。</li>
+<li>Vue 生態系的 UI 框架（Element Plus、Vuetify、Naive UI）品質高。</li>
+<li>Auto-import 機制減少 boilerplate。</li>
+</ul></li>
+<li><strong>缺點：</strong>
+<ul>
+<li><strong>Vue 生態系規模較小：</strong> 相較 React，Vue
+的第三方套件、元件庫、開發工具選擇較少。</li>
+<li><strong>TypeScript 支援：</strong> Vue 3 的 TypeScript
+支援有顯著改善，但在某些場景（如 template 中的型別推導）仍不如 React +
+TSX 直觀。</li>
+<li><strong>招募考量：</strong> React 開發者的市場供給大於 Vue
+開發者，未來團隊擴編時影響招募效率。</li>
+<li><strong>Server Components 缺失：</strong> Vue 目前沒有等同 React
+Server Components 的功能，在減少客戶端 JavaScript
+的策略上選擇較少。</li>
+</ul></li>
+</ul>
+<h3 id="選項三-plain-react-spacreate-react-app--vite">選項三: Plain
+React SPA（Create React App / Vite）</h3>
+<ul>
+<li><strong>概述：</strong> 純客戶端渲染的 React 單頁應用，不使用 SSR
+框架。</li>
+<li><strong>優點：</strong>
+<ul>
+<li>架構最簡單，無 server 端渲染複雜度。</li>
+<li>部署簡單（靜態檔案 + CDN）。</li>
+<li>開發體驗直覺（所有程式碼都在瀏覽器端執行）。</li>
+</ul></li>
+<li><strong>缺點：</strong>
+<ul>
+<li><strong>首屏效能差：</strong> 所有 JavaScript
+需要下載、解析、執行後才能渲染首屏。技師在弱網環境下，首屏載入可能超過 5
+秒。</li>
+<li><strong>缺乏 BFF 能力：</strong> 純 SPA 沒有 server 端，無法實作 API
+Routes 作為 BFF，需要另外建構 BFF 服務或讓前端直接呼叫
+FastAPI（增加耦合）。</li>
+<li><strong>SEO（不適用但未來考量）：</strong>
+若未來需要公開頁面（如技師個人頁、服務區域頁），SPA 無法支援 SSR。</li>
+<li><strong>缺乏 Middleware：</strong> 無法在 server
+端做認證前置檢查，所有安全邏輯都在客戶端處理。</li>
+</ul></li>
+</ul>
+<h2 id="3-決策">3. 決策</h2>
+<p><strong>選擇 Next.js 作為 V2.0 前端框架。</strong></p>
+<p>技術規格：</p>
+<ul>
+<li><strong>Next.js 版本：</strong> 15.x（App Router）</li>
+<li><strong>React 版本：</strong> 19.x</li>
+<li><strong>TypeScript：</strong> 嚴格模式
+(<code>strict: true</code>)</li>
+<li><strong>UI 元件庫：</strong> shadcn/ui（基於 Radix UI + Tailwind
+CSS，高度可客製化）</li>
+<li><strong>狀態管理：</strong> Zustand（輕量、TypeScript 友善）</li>
+<li><strong>表單處理：</strong> React Hook Form + Zod（schema
+validation）</li>
+<li><strong>API Client：</strong> openapi-typescript-codegen（從 FastAPI
+OpenAPI spec 自動生成）</li>
+<li><strong>PWA：</strong> next-pwa（技師工作台 PWA 化）</li>
+<li><strong>部署：</strong> Docker（self-hosted，搭配 Node.js standalone
+output）</li>
+</ul>
+<h3 id="應用架構">應用架構</h3>
+<pre><code>Next.js Application
+├── /app
+│   ├── /(admin)/          # 管理後台路由群組
+│   │   ├── dashboard/     # 儀表板
+│   │   ├── cases/         # 工單管理
+│   │   ├── technicians/   # 技師管理
+│   │   ├── knowledge/     # 知識庫管理
+│   │   ├── billing/       # 對帳報表
+│   │   └── settings/      # 系統設定
+│   ├── /(technician)/     # 技師工作台路由群組
+│   │   ├── orders/        # 我的工單
+│   │   ├── dispatch/      # 即時派工
+│   │   ├── history/       # 歷史紀錄
+│   │   └── profile/       # 個人資料
+│   └── /api/              # BFF API Routes
+│       ├── admin/         # Admin BFF endpoints
+│       └── technician/    # Technician BFF endpoints
+├── /components
+│   ├── ui/                # shadcn/ui base components
+│   ├── admin/             # Admin-specific components
+│   └── technician/        # Technician-specific components
+└── /lib
+    ├── api-client/        # Auto-generated API client
+    └── hooks/             # Custom React hooks</code></pre>
+<h2 id="4-決策的後果與影響">4. 決策的後果與影響</h2>
+<h3 id="正面影響">正面影響</h3>
+<ul>
+<li><strong>技師工作台效能：</strong> SSR 確保首屏 HTML 在 server
+端渲染完成後直接傳送，技師在弱網環境下首屏載入時間顯著縮短（目標 &lt; 2
+秒）。搭配 PWA Service Worker 快取，重複訪問可達到近即時載入。</li>
+<li><strong>BFF 層統一：</strong> Next.js API Routes 作為 BFF：
+<ul>
+<li>管理後台「儀表板」需要的資料可能來自 3-4 個 FastAPI 端點，BFF
+聚合為單一呼叫。</li>
+<li>技師工作台「工單詳情」需要 ProblemCard + 客戶資訊 + 導航連結，BFF
+組裝為最佳化的 payload。</li>
+<li>減少前端與 FastAPI 的直接耦合，API 變更時只需調整 BFF 層。</li>
+</ul></li>
+<li><strong>TypeScript 端到端型別安全：</strong>
+<pre><code>FastAPI (Pydantic model)
+    ↓ [自動生成 OpenAPI spec]
+openapi-typescript-codegen
+    ↓ [生成 TypeScript types + API client]
+Next.js (TypeScript)</code></pre>
+ProblemCard 的 schema 從後端到前端保持一致，欄位新增或修改時，TypeScript
+編譯器自動檢測前端需要調整的地方。</li>
+<li><strong>技師 PWA 體驗：</strong>
+<ul>
+<li>可安裝到手機桌面，全螢幕執行，接近原生 App 體驗。</li>
+<li>Service Worker
+快取靜態資源與最近的工單資料，離線時可查看已載入的工單。</li>
+<li>Web Push Notification 支援即時派工通知。</li>
+</ul></li>
+<li><strong>角色路由隔離：</strong> Next.js Middleware 在 Edge Runtime
+執行認證與角色檢查：
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode typescript"><code class="sourceCode typescript"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">// middleware.ts</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">export</span> <span class="kw">function</span> <span class="fu">middleware</span>(request<span class="op">:</span> NextRequest) {</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> role <span class="op">=</span> <span class="fu">getUserRole</span>(request)<span class="op">;</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (request<span class="op">.</span><span class="at">nextUrl</span><span class="op">.</span><span class="at">pathname</span><span class="op">.</span><span class="fu">startsWith</span>(<span class="st">&#39;/(admin)&#39;</span>) <span class="op">&amp;&amp;</span> role <span class="op">!==</span> <span class="st">&#39;admin&#39;</span>) {</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> NextResponse<span class="op">.</span><span class="fu">redirect</span>(<span class="st">&#39;/unauthorized&#39;</span>)<span class="op">;</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div></li>
+</ul>
+<h3 id="負面影響與風險">負面影響與風險</h3>
+<ul>
+<li><strong>部署複雜度增加：</strong> Next.js 需要 Node.js runtime（不像
+SPA 只需靜態檔案伺服器），Docker 部署需要額外的 Node.js 容器。</li>
+<li><strong>學習曲線：</strong> App Router、Server Components、Server
+Actions 等概念需要團隊學習。</li>
+<li><strong>Build 時間：</strong> 大型 Next.js 應用的 build
+時間可能較長（可透過 Turbopack 緩解）。</li>
+<li><strong>Vercel 生態偏向：</strong> 部分 Next.js 功能（如 ISR
+On-Demand Revalidation）在 self-hosted 模式下行為可能不同。</li>
+</ul>
+<h3 id="風險緩解措施">風險緩解措施</h3>
+<table>
+<thead>
+<tr>
+<th>風險</th>
+<th>緩解措施</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>部署複雜度</td>
+<td>使用 <code>output: 'standalone'</code> 產生最小化 Docker
+image；Docker Compose 統一編排</td>
+</tr>
+<tr>
+<td>學習曲線</td>
+<td>初期建立 2-3 個參考頁面作為 pattern，團隊依循 pattern 開發</td>
+</tr>
+<tr>
+<td>Build 時間</td>
+<td>啟用 Turbopack（<code>next dev --turbo</code>）加速開發；CI 中使用
+build cache</td>
+</tr>
+<tr>
+<td>Self-hosted 限制</td>
+<td>本專案不依賴 Vercel 特有功能（Edge Functions、Image CDN 等），僅使用
+Next.js core 功能</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-執行計畫概要">5. 執行計畫概要</h2>
+<ol type="1">
+<li><p><strong>專案初始化：</strong></p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">npx</span> create-next-app@latest admin-portal <span class="at">--typescript</span> <span class="at">--tailwind</span> <span class="at">--app</span> <span class="at">--src-dir</span></span></code></pre></div>
+<p>配置 ESLint、Prettier、Husky pre-commit hooks。</p></li>
+<li><p><strong>UI 基礎建設：</strong></p>
+<ul>
+<li>安裝 shadcn/ui 並配置 Tailwind CSS theme（品牌色彩、字型）。</li>
+<li>建立共用 Layout 元件（Admin Layout with sidebar、Technician Layout
+with bottom nav）。</li>
+<li>建立 responsive breakpoints（技師工作台 mobile-first、管理後台
+desktop-first）。</li>
+</ul></li>
+<li><p><strong>API Client 自動生成：</strong></p>
+<ul>
+<li>從 FastAPI 的 <code>/openapi.json</code> 自動生成 TypeScript API
+client。</li>
+<li>建立 CI pipeline：FastAPI OpenAPI spec 變更時自動重新生成。</li>
+</ul></li>
+<li><p><strong>核心頁面開發順序：</strong></p>
+<ul>
+<li>Phase 1：管理後台登入、儀表板、工單列表/詳情。</li>
+<li>Phase 2：技師工作台登入、即時派工、工單操作。</li>
+<li>Phase 3：知識庫管理、報表對帳、系統設定。</li>
+</ul></li>
+<li><p><strong>PWA 配置（技師工作台）：</strong></p>
+<ul>
+<li>配置 <code>next-pwa</code> 的 Service Worker 與 manifest.json。</li>
+<li>定義 cache strategy：App Shell (cache-first)、API data
+(network-first)。</li>
+<li>整合 Web Push Notification（派工通知）。</li>
+</ul></li>
+<li><p><strong>Docker 部署：</strong></p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode dockerfile"><code class="sourceCode dockerfile"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> node:20-alpine <span class="kw">AS</span> builder</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">WORKDIR</span> /app</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="kw">COPY</span> . .</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="kw">RUN</span> <span class="ex">npm</span> ci <span class="kw">&amp;&amp;</span> <span class="ex">npm</span> run build</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> node:20-alpine <span class="kw">AS</span> runner</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="kw">WORKDIR</span> /app</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="kw">COPY</span> <span class="op">--from=builder</span> /app/.next/standalone ./</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="kw">COPY</span> <span class="op">--from=builder</span> /app/.next/static ./.next/static</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="kw">COPY</span> <span class="op">--from=builder</span> /app/public ./public</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPOSE</span> 3000</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="kw">CMD</span> [<span class="st">&quot;node&quot;</span>, <span class="st">&quot;server.js&quot;</span>]</span></code></pre></div></li>
+</ol>
+<h2 id="6-相關參考">6. 相關參考</h2>
+<ul>
+<li><a href="https://nextjs.org/docs">Next.js Documentation</a></li>
+<li><a href="https://react.dev/reference/rsc/server-components">React
+Server Components</a></li>
+<li><a href="https://ui.shadcn.com/">shadcn/ui</a></li>
+<li><a href="https://github.com/shadowwalker/next-pwa">next-pwa</a></li>
+<li><a
+href="https://github.com/ferdikoomen/openapi-typescript-codegen">openapi-typescript-codegen</a></li>
+<li><a href="https://tailwindcss.com/">Tailwind CSS</a></li>
+<li><a href="https://zustand-demo.pmnd.rs/">Zustand</a></li>
+<li>ADR-001: 後端框架選型（FastAPI — OpenAPI spec 自動生成）</li>
+<li>ADR-004: LINE Bot 對話架構設計（Redis session 共用）</li>
+</ul>
+</div></div></body></html>

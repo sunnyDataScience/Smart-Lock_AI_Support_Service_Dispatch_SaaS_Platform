@@ -1,0 +1,112 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Module Boundary — web/</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ architecture ／ module-boundary ／ ARCH-0004-module-boundary-web.md</div>
+<div class="doc"><h1 id="module-boundary--web">Module Boundary — web/</h1>
+<blockquote>
+<p><strong>角色</strong>：Next.js 15 + React 19 + TypeScript admin 後台
++ 技師 Web App (PWA)。</p>
+</blockquote>
+<h2 id="owns">Owns</h2>
+<ul>
+<li>Admin Panel
+路由：<code>/dashboard</code>、<code>/conversations</code>、<code>/problem-cards</code>、<code>/work-orders</code>、<code>/technicians</code>、<code>/accounting</code>、<code>/knowledge-base</code>、<code>/admin/*</code></li>
+<li>Technician Web App
+路由：<code>/pool</code>、<code>/my-orders</code>、<code>/tech-login</code>、...</li>
+<li>Auth：JWT + Refresh + RBAC route guard</li>
+<li>Generated API types（<code>web/types/api.generated.ts</code> from
+openapi.yaml）</li>
+<li>shadcn/ui + Tailwind CSS 4 design system 實例（見
+<code>2-contracts/frontend-design-system/</code>）</li>
+<li>Recharts 圖表 / Lucide 圖示</li>
+<li>Sidebar 導航（NavItem nested）</li>
+<li>Realtime UI：SSE / WebSocket 連線</li>
+<li>Path alias <code>@/*</code> → <code>./src/*</code></li>
+</ul>
+<h2 id="does-not-own">Does NOT Own</h2>
+<ul>
+<li>業務邏輯 → <code>api/</code></li>
+<li>AI 對話 → <code>agent/</code></li>
+<li>知識庫產出 → <code>data/pipeline/</code></li>
+<li>Master data 內容 → <code>SQL/seed/</code> + admin import flow</li>
+</ul>
+<h2 id="dependencies">Dependencies</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">依賴</th>
+<th style="text-align: left;">介面</th>
+<th style="text-align: left;">用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">api/</td>
+<td style="text-align: left;">HTTP REST + WS</td>
+<td style="text-align: left;">全部後台資料</td>
+</tr>
+<tr>
+<td style="text-align: left;">openapi-typescript</td>
+<td style="text-align: left;">build step</td>
+<td style="text-align: left;">type generation</td>
+</tr>
+<tr>
+<td style="text-align: left;">shadcn/ui</td>
+<td style="text-align: left;">npm</td>
+<td style="text-align: left;">UI components</td>
+</tr>
+<tr>
+<td style="text-align: left;">Tailwind CSS 4</td>
+<td style="text-align: left;">postcss</td>
+<td style="text-align: left;">styling</td>
+</tr>
+</tbody>
+</table>
+<h2 id="acl">ACL</h2>
+<ul>
+<li>API client wrapper：<code>web/src/lib/api.ts</code>（統一錯誤
+envelope）</li>
+<li>Type-safe：所有 API 呼叫透過 generated types</li>
+<li>Auth interceptor：401 → refresh token → retry</li>
+</ul>
+<h2 id="public-api">Public API</h2>
+<p>無；web 是 consumer，不 expose API。</p>
+<p>對外 URL：</p>
+<ul>
+<li>公開 token
+路徑：<code>/track/{token}</code>（消費者工單追蹤，UF-0014）</li>
+<li>其他全部需要 JWT</li>
+</ul>
+<h2 id="health-boundaries">Health Boundaries</h2>
+<ul>
+<li>API 失敗：error boundary（global G4）→ 重試提示</li>
+<li>WS 中斷：自動重連 + UI 顯示「連線中」</li>
+<li>offline：service worker 快取靜態資源 + offline UI（G2）</li>
+</ul>
+<h2 id="page-contracts--route-map">Page contracts &amp; route map</h2>
+<ul>
+<li><strong>Anchor page contracts</strong>：<a
+href="../../2-contracts/pages/INDEX.md"><code>../../2-contracts/pages/INDEX.md</code></a>
+— 10 個關鍵入口</li>
+<li><strong>Full route → page.tsx mapping</strong>：<a
+href="../../5-views/VIEW-0003-frontend-route-map.md"><code>../../5-views/VIEW-0003-frontend-route-map.md</code></a>（AUTO，含
+IA 52 頁完整對照）</li>
+<li><strong>CRUD list/detail 頁</strong>: 直接看
+<code>web/src/app/&lt;route&gt;/page.tsx</code>，frontend-route-map 是
+SSOT</li>
+</ul>
+</div></div></body></html>

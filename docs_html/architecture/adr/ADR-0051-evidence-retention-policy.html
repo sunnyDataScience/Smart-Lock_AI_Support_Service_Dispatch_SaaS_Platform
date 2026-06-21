@@ -1,0 +1,142 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Evidence 保存期 — 1y default / RMA+3y / 法律永久</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ architecture ／ adr ／ ADR-0051-evidence-retention-policy.md</div>
+<div class="doc"><blockquote>
+<p><strong>🔄 Migration Status (2026-05-28)</strong>:
+<code>STILL_VALID_UNDER_M09_M17</code> <strong>Reviewed
+against</strong>: 2026-05-20 final spec (xlsx) <strong>Reviewed
+on</strong>: 2026-05-28 <strong>Module scope</strong>: M09, M17
+<strong>Per ADR-0100 §1 classification</strong>
+(.claude/context/devteam/meetings/2026-05-27-1130-final-spec-migration-strategy/MoM.md)</p>
+</blockquote>
+<h1 id="adr-0051--evidence-保存期">ADR-0051 — Evidence 保存期</h1>
+<h2 id="status">Status</h2>
+<p>Draft</p>
+<h2 id="context">Context</h2>
+<p>Evidence 保留多久是兩難：</p>
+<ul>
+<li>太短（90 天）：法律糾紛 / RMA 爭議無證據</li>
+<li>太長（永久）：GDPR / 個資法違反 + 儲存成本爆炸</li>
+</ul>
+<p>需依案件性質分層 + 與 PII retention 對齊。</p>
+<p>源自 Excel-01 sheet 18 AI-053；M09 Evidence。</p>
+<h2 id="decision推薦">Decision（推薦）</h2>
+<p><strong>三層保存期 + 自動清理 + 客戶刪除權執行</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>案件類型</th>
+<th>保存期</th>
+<th>觸發</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>一般完工案件</td>
+<td><strong>1 年</strong>（從結案日起算）</td>
+<td>預設</td>
+</tr>
+<tr>
+<td>RMA / 客訴案件</td>
+<td><strong>至解決日 + 3 年</strong></td>
+<td>RMA 進入</td>
+</tr>
+<tr>
+<td>法律 / 安全相關</td>
+<td><strong>永久</strong></td>
+<td>Legal flag</td>
+</tr>
+<tr>
+<td>客戶請求刪除（GDPR）</td>
+<td>7 天內執行</td>
+<td>Forget Memory 觸發（與 §E2 對齊）</td>
+</tr>
+</tbody>
+</table>
+<p>實作：</p>
+<ul>
+<li>Evidence schema 含 <code>retention_until</code> 欄位</li>
+<li>每日 cron job 清理
+<code>retention_until &lt; now AND legal_flag != true</code> 的
+Evidence</li>
+<li>清理動作進 audit log（不是直接 delete，而是 archive + 刪存儲）</li>
+<li>客戶請求刪除：呼叫 <code>forget_user_data</code> API → 標記
+legal_flag = false，重新計算 retention</li>
+</ul>
+<h2 id="alternatives-considered">Alternatives Considered</h2>
+<h3 id="option-a--永久全保留">Option A — 永久全保留</h3>
+<ul>
+<li>風險：F4 GDPR / 個資法違反</li>
+<li>儲存成本爆炸（10 年累積 PB 級照片）</li>
+</ul>
+<h3 id="option-b--90-天統一">Option B — 90 天統一</h3>
+<ul>
+<li>風險：F4 重大</li>
+<li>法律糾紛 / RMA 爭議無證據</li>
+</ul>
+<h2 id="consequences">Consequences</h2>
+<p><strong>Positive</strong>：</p>
+<ul>
+<li>三層分層覆蓋 99% case</li>
+<li>GDPR / 個資法執行有路徑（forget memory）</li>
+<li>與 §E2 Forget List + §B5 Evidence 對齊</li>
+</ul>
+<p><strong>Negative</strong>：</p>
+<ul>
+<li>Retention 判定需在 Evidence 建立時就設定 mode</li>
+<li>跨層轉換（如 RMA 開啟時把原工單 Evidence 延長）需 trigger</li>
+</ul>
+<p><strong>Mitigation</strong>：</p>
+<ul>
+<li>RMA 開啟自動 trigger 關聯 Evidence 延長 retention</li>
+<li>Legal flag 一旦設定不可逆（除非 ADR 變更）</li>
+</ul>
+<h2 id="pre-mortem-mapping">Pre-mortem Mapping</h2>
+<p>對應 §A F4。GDPR 違反 / 法律糾紛無證據都是 F4 死因。</p>
+<h2 id="eternaltransient-classification">Eternal/Transient
+Classification</h2>
+<ul>
+<li><strong>Eternal</strong>：§B3 Retention policy + §B5 Evidence + §E2
+Forget List</li>
+<li><strong>Transient</strong>：清理 cron 實作（§C5）</li>
+</ul>
+<h2 id="acceptance-criteria">Acceptance Criteria</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />業主圈選：<strong>✅ 推薦</strong> /
+Option A / Option B</label></li>
+<li><label><input type="checkbox" />Legal 簽核三層保存期符合台灣個資法 +
+GDPR</label></li>
+<li><label><input type="checkbox" />Evidence schema 加
+<code>retention_until</code> + <code>legal_flag</code></label></li>
+<li><label><input type="checkbox" />每日 cron 清理 + audit
+留證</label></li>
+<li><label><input type="checkbox" />RMA 開啟自動延長關聯 Evidence
+retention</label></li>
+<li><label><input type="checkbox" />客戶 forget request 7 天內執行（合約
++ 法律要求）</label></li>
+<li><label><input type="checkbox" />BI 報表「Evidence 儲存量 + retention
+分布」</label></li>
+</ul>
+<h2 id="see-also">See also</h2>
+<ul>
+<li>§F.3 AI-053 PAIN-POINTS-SUMMARY-2026-05-21.md</li>
+<li>Excel-01 sheet 18 / M09 Evidence</li>
+<li>ADR-0050 Evidence 可見性</li>
+<li>§E2 Memory 7 層（Forget List）</li>
+</ul>
+</div></div></body></html>

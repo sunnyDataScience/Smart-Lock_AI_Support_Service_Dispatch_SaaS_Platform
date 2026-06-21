@@ -1,0 +1,253 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>對話轉真人 handover 生命週期 — AI 條件式暫停 + 交還 AI</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ 4-exploration ／ CR-0024-handover-lifecycle.md</div>
+<div class="doc"><h1 id="cr-0024--對話轉真人-handover-生命週期">CR-0024 — 對話轉真人
+handover 生命週期</h1>
+<h2 id="1-背景與動機">1. 背景與動機</h2>
+<p>CR-0022 / ADR-0112 落地了「轉真人 → AI
+草擬問題卡」的正向流程;<code>fix/escalation-set-conversation-status</code>
+補上了「escalation → 對話翻 <code>escalated</code>」讓客服發訊框啟用。但
+handover 的<strong>生命週期只有去程、沒有回程</strong>,
+且存在一個更根本的缺口:</p>
+<h3 id="現況缺口實機追查">現況缺口(實機追查)</h3>
+<ol type="1">
+<li><strong>AI 從來沒有真的停過 🚨</strong> ——
+<code>agent/lockcore/channels/line_gateway.py:201-228</code>
+對<strong>每一則</strong>進來的 LINE 訊息都跑
+<code>handle_text_turn</code> 並回覆,<strong>從不查對話是否
+escalated</strong>。轉真人後 AI 仍自動回每一句, 結果是「AI
+與真人同時回同一個客人」。<code>escalated</code>
+狀態只讓後台發訊框亮起,並未讓 AI 閉嘴。</li>
+<li><strong>沒有「交還 AI」機制</strong> —— API 無任何 endpoint
+能把對話從 <code>escalated</code> 改回
+<code>active</code>/<code>resolved</code>; 對話一旦轉真人就永遠卡在
+escalated。</li>
+<li><strong>工單結案不連動對話</strong> ——
+<code>completeWorkOrderV2</code> / cancel 與對話狀態無 linkage。</li>
+</ol>
+<h2 id="2-觸發面向cia-gate">2. 觸發面向(CIA gate）</h2>
+<table>
+<thead>
+<tr>
+<th>面向</th>
+<th>命中</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>User/Business flow</td>
+<td>✅</td>
+<td>handover 回程(交還)為新流程分支</td>
+</tr>
+<tr>
+<td>API contract</td>
+<td>✅</td>
+<td>新增 resolve-handover endpoint + internal handover-state GET</td>
+</tr>
+<tr>
+<td>Domain model</td>
+<td>✅</td>
+<td>對話生命週期新增 <code>escalated → active</code> 轉換 + WO
+結案連動</td>
+</tr>
+<tr>
+<td>External integration</td>
+<td>✅</td>
+<td>agent gateway 行為改變(回覆前查狀態 + 條件式回覆)</td>
+</tr>
+<tr>
+<td>Architecture boundary</td>
+<td>⚠️</td>
+<td>agent 改在 <strong>channel
+層</strong>(<code>lockcore/channels/</code>),不碰 core
+runner、不加工具白名單</td>
+</tr>
+<tr>
+<td>Test plan</td>
+<td>✅</td>
+<td>新增 agent gateway 條件式回覆 + API lifecycle 測試</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-業主裁決8已於-2026-06-16-對話確認">3. 業主裁決(§8,已於
+2026-06-16 對話確認)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>決策點</th>
+<th>裁決</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D1</td>
+<td>接管期間 AI 行為</td>
+<td><strong>條件式回覆</strong> —— AI
+先判斷客人這句是否與「轉接處理中的議題」相關;<strong>相關 →
+不回(交真人)</strong>,<strong>不相關(新議題) → AI
+照常回答</strong>。</td>
+</tr>
+<tr>
+<td>D2</td>
+<td>「交還 AI」觸發方式</td>
+<td><strong>兩者都要</strong> —— (a) 對話詳情頁專屬按鈕「結束接管/交還
+AI」(b) 工單 complete/cancel 時連動。</td>
+</tr>
+<tr>
+<td>D3</td>
+<td>交還後對話結束狀態</td>
+<td><strong>回 <code>active</code></strong>,AI 接手(客人下次發話 AI
+正常接待)。</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-設計">4. 設計</h2>
+<h3 id="41-agentchannel-層architecture-lock-合規">4.1 Agent（channel
+層,Architecture Lock 合規）</h3>
+<ul>
+<li><strong>回覆前查接管狀態</strong>:gateway 在
+<code>handle_text_turn</code> 前,以 <code>INTERNAL_API_TOKEN</code> 打新
+internal GET
+<code>/internal/conversations/handover-state?session_id=&amp;line_user_id=</code>
+→ <code>{escalated: bool, reason: str|null}</code>。
+<strong>fail-soft</strong>:查不到/逾時/錯誤 →
+當作「非接管」照常回(絕不阻斷客人)。 <em>Source of truth = API
+DB</em>(因為交還由後台觸發,agent 本地 escalation_store
+不知道交還事件)。</li>
+<li><strong>條件式回覆(D1)</strong>:<code>escalated == true</code>
+時,用<strong>既有 <code>LiteLLMProvider</code></strong> 跑一次輕量分類
+(prompt:客人這句 vs 處理中議題 <code>reason</code> → 相關/延續?
+yes/no)。
+<ul>
+<li><code>related</code> → <strong>不回</strong>(或回一次性 holding
+line「專員處理中…」),交真人。</li>
+<li><code>unrelated</code> → 照常 <code>handle_text_turn</code>
+回答。</li>
+<li><strong>不新增 tool、不改 <code>CS_TOOL_ALLOWLIST</code></strong> ——
+只是一次 provider 推論呼叫。</li>
+</ul></li>
+<li>turn 持久化(方案 A)維持不變。</li>
+</ul>
+<h3 id="42-api">4.2 API</h3>
+<ul>
+<li><strong>新 endpoint</strong>(對外,RBAC admin/CS + tenant guard +
+audit):
+<code>POST /tenants/{tid}/conversations/{id}/resolve-handover</code> ——
+<code>escalated → active</code>;非 escalated → no-op/409。</li>
+<li><strong>新 internal
+GET</strong>(<code>require_internal_token</code>):<code>/internal/conversations/handover-state</code>
+—— 供 agent gateway。</li>
+<li><strong>WO
+結案連動(D2-b)</strong>:<code>work_order_service.complete_order</code> /
+<code>cancel_order</code> 成功後, 若
+<code>work_order.problem_card_id → problem_cards.conversation_id</code>
+且該對話 escalated → set <code>active</code>
+(<strong>fail-soft</strong>,不阻斷結案;寫 audit)。</li>
+</ul>
+<h3 id="43-web">4.3 Web</h3>
+<ul>
+<li>對話詳情頁(<code>/conversations/[id]</code>):escalated
+時顯示「結束接管 / 交還 AI」按鈕 → 呼叫 resolve-handover → 成功 toast +
+refetch(發訊框轉唯讀、狀態 badge 更新)。</li>
+</ul>
+<h2 id="5-影響範圍">5. 影響範圍</h2>
+<table>
+<thead>
+<tr>
+<th>檔案</th>
+<th>變更</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>api/routers/conversations_v2.py</code></td>
+<td>+ resolve-handover endpoint</td>
+</tr>
+<tr>
+<td><code>api/routers/internal_ingest.py</code></td>
+<td>+ handover-state GET</td>
+</tr>
+<tr>
+<td><code>api/services/conversation_service.py</code></td>
+<td>+ <code>resolve_handover()</code>(escalated→active)</td>
+</tr>
+<tr>
+<td><code>api/services/work_order_service.py</code></td>
+<td>complete/cancel 後連動 un-escalate(fail-soft)</td>
+</tr>
+<tr>
+<td><code>agent/lockcore/channels/line_gateway.py</code></td>
+<td>回覆前查狀態 + 條件式回覆 + relatedness 分類</td>
+</tr>
+<tr>
+<td><code>agent/lockcore/providers/litellm_provider.py</code></td>
+<td>(復用,不改)分類走既有 completion</td>
+</tr>
+<tr>
+<td><code>web/src/app/conversations/[id]/page.tsx</code> + 元件</td>
+<td>交還按鈕</td>
+</tr>
+<tr>
+<td>tests(api + agent)</td>
+<td>lifecycle + 條件式回覆</td>
+</tr>
+</tbody>
+</table>
+<h2 id="6-不在範圍--風險">6. 不在範圍 / 風險</h2>
+<ul>
+<li>relatedness 分類用 LLM,有誤判風險(把相關判成不相關 → AI
+插話)。緩解:prompt 保守(預設相關/不回)、 保留 holding line。可加開關
+<code>HANDOVER_AI_SIDE_ANSWER</code>(預設關 = 全暫停,開 = 條件式)。</li>
+<li>gateway 每輪多一次 API GET + 可能一次分類 LLM call →
+延遲略增;fail-soft 保證不阻斷。</li>
+</ul>
+<h2 id="7-建議實作順序9">7. 建議實作順序(§9)</h2>
+<ul>
+<li><strong>Phase 1(核心生命週期,交還能用)</strong>:API resolve-handover
++ WO 結案連動 + Web 按鈕
+<ul>
+<li>gateway「escalated 就全暫停」(先不分類)。→
+「轉真人→AI停→交還→AI恢復」閉環可用。</li>
+</ul></li>
+<li><strong>Phase 2(D1 智慧路由)</strong>:gateway 加 relatedness 分類,讓
+AI 在接管期間仍能回答不相關的新問題。</li>
+</ul>
+<blockquote>
+<p>Phase 1 先把回程閉環做出來(風險低、價值高);Phase 2
+疊加智慧路由(較高風險、可獨立驗證)。</p>
+</blockquote>
+<h2 id="進度">進度</h2>
+<ul>
+<li>✅ <strong>Phase 1 done</strong>（branch
+<code>feat/handover-lifecycle-phase1</code>，2026-06-16）：
+<ul>
+<li>API：<code>resolve-handover</code> endpoint（escalated→active）+
+internal <code>handover-state</code> GET + WO complete/cancel 連動
+un-escalate（fail-soft）</li>
+<li>Agent：<code>line_gateway.py</code> 回覆前查
+handover-state，escalated → AI 全暫停（只持久化客人訊息）</li>
+<li>Web：對話詳情頁「結束接管/交還 AI」按鈕</li>
+<li>測試 <code>test_handover_lifecycle.py</code> 8 passed + 回歸 32
+passed；Playwright 實證按鈕翻狀態</li>
+</ul></li>
+<li>⏳ <strong>Phase 2 pending</strong>：D1 智慧路由（relatedness
+分類，接管期間 AI 仍答無關新問題）。</li>
+</ul>
+</div></div></body></html>

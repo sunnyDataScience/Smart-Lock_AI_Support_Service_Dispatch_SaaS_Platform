@@ -1,0 +1,454 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>WBS 100% Closeout Plan — 剩 1.5% 結構性 blocker actionable checklist</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ _ops ／ wbs-100-closeout-plan.md</div>
+<div class="doc"><h1
+id="wbs-100-closeout-plan--剩-15-結構性-blocker-actionable-checklist">WBS
+100% Closeout Plan — 剩 1.5% 結構性 blocker actionable checklist</h1>
+<blockquote>
+<p>Created 2026-06-05 (session 末段 backend-coder agent 飽和後產出)</p>
+<p>對齊：<code>web/docs/system-completion-status.md</code> WBS 98.5% /
+<code>docs/_audit/session-2026-06-05-final-stats.md</code> §8</p>
+</blockquote>
+<h2 id="0-為何需要本-doc">0. 為何需要本 doc</h2>
+<p>Backend-coder agent 已在 2026-06-05 session
+完成所有可獨立達成工作（68 merges，9 FR backend + e2e starter + ops
+chain + Sprint pre-build asset）。剩 <strong>1.5% WBS gap</strong>
+因結構性原因無法由 backend-coder 推進：</p>
+<ul>
+<li><strong>需 web dev server / browser UI 才能驗收</strong></li>
+<li><strong>需業主裁決才能定 spec</strong></li>
+<li><strong>需 production 流量觀察 30 天才能決定 P4 Stage
+7</strong></li>
+<li><strong>需業務排期才能跑 UAT</strong></li>
+</ul>
+<p>本 doc 把每項 blocker 拆成 actionable checklist + responsible role +
+estimated effort + unblocking condition，讓未來 session 或 user 拿
+checklist 直接推進。</p>
+<hr />
+<h2 id="1-web-sprint-1-5-build最大-chunk預估-5-週">1. Web Sprint 1-5
+BUILD（最大 chunk，預估 ~5 週）</h2>
+<h3 id="11-前置條件已就緒">1.1 前置條件（已就緒）</h3>
+<ul>
+<li>✅ Backend 9 FR service 全部完成（merge 列表見 §A）</li>
+<li>✅ Backend v2 endpoint 全部測過（<code>api/tests/</code> 372 tests
+綠燈）</li>
+<li>✅ Web pre-build asset 完整
+(<code>web/src/components/phase-ii/</code> 1265 行)</li>
+<li>✅ E2e starter spec 9 個 (<code>web/tests/e2e/admin/*.spec.ts</code>
++ <code>account/*.spec.ts</code>，<code>test.describe.skip</code>
+占位)</li>
+<li>✅ Sprint plan 文件就緒
+(<code>docs/_ops/phase-ii-web-integration-plan.md</code>)</li>
+</ul>
+<h3 id="12-待-build按-sprint-順序">1.2 待 BUILD（按 Sprint 順序）</h3>
+<table>
+<thead>
+<tr>
+<th>Sprint</th>
+<th>Page</th>
+<th>對應 FR</th>
+<th>Backend ready</th>
+<th>Pre-build ready</th>
+<th>Est. effort</th>
+<th>Owner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>S1</strong></td>
+<td><code>app/admin/approval-inbox/page.tsx</code></td>
+<td>FR-0049</td>
+<td>✅</td>
+<td>✅</td>
+<td>3-5 days</td>
+<td>Web dev</td>
+</tr>
+<tr>
+<td><strong>S2</strong></td>
+<td><code>app/admin/technicians/page.tsx</code> +
+<code>[id]/lifecycle/page.tsx</code></td>
+<td>FR-0044</td>
+<td>✅</td>
+<td>✅</td>
+<td>5-7 days</td>
+<td>Web dev</td>
+</tr>
+<tr>
+<td><strong>S3</strong></td>
+<td><code>app/account/statements/page.tsx</code> +
+<code>app/account/commission-statements/page.tsx</code></td>
+<td>FR-0045 + FR-0046</td>
+<td>✅</td>
+<td>✅</td>
+<td>5-7 days</td>
+<td>Web dev</td>
+</tr>
+<tr>
+<td><strong>S4</strong></td>
+<td><code>app/admin/brand-b2b/page.tsx</code> +
+<code>app/admin/gdpr-forget-queue/page.tsx</code></td>
+<td>FR-0047 + FR-0053</td>
+<td>✅</td>
+<td>✅</td>
+<td>5-7 days</td>
+<td>Web dev</td>
+</tr>
+<tr>
+<td><strong>S5</strong></td>
+<td><code>app/admin/ai-governance/page.tsx</code> +
+<code>app/admin/sop-feedback/page.tsx</code> +
+<code>app/admin/rma-quality/page.tsx</code></td>
+<td>FR-0050 + FR-0051 + FR-0048</td>
+<td>✅</td>
+<td>✅</td>
+<td>5-7 days</td>
+<td>Web dev</td>
+</tr>
+</tbody>
+</table>
+<p><strong>總計</strong>：5 sprint × ~1 week ≈ <strong>23-33 work
+days</strong></p>
+<h3 id="13-每-sprint-收尾-checklist">1.3 每 Sprint 收尾 checklist</h3>
+<p>每 sprint 完成時須做：</p>
+<ul class="task-list">
+<li><label><input type="checkbox" />對應 page 通過 design review（業主或
+PM 簽）</label></li>
+<li><label><input type="checkbox" /><code>web/tests/e2e/...</code> 對應
+spec 把 <code>test.describe.skip</code> 改成
+<code>test.describe</code></label></li>
+<li><label><input type="checkbox" /><code>npx playwright test</code>
+對應 spec 全綠</label></li>
+<li><label><input
+type="checkbox" /><code>web/docs/system-completion-status.md</code> 對應
+row 從「e2e starter (skip)」改為「e2e active」</label></li>
+<li><label><input type="checkbox" />Commit message 標
+<code>feat(web): S{N} {FR} page complete</code></label></li>
+<li><label><input type="checkbox" />Merge 到
+<code>dev_new_arch</code>，留 audit trail 到
+<code>docs/_audit/CR-NNNN-*.md</code></label></li>
+</ul>
+<h3 id="14-unblocking-condition">1.4 Unblocking condition</h3>
+<ul>
+<li>需要：<strong>Web dev agent</strong> 接手（不是 backend-coder
+agent）</li>
+<li>或：<strong>人類 web 開發</strong></li>
+</ul>
+<hr />
+<h2 id="2-業主裁決項預估-1-2-週分散在多個-owner-sync">2.
+業主裁決項（預估 1-2 週，分散在多個 owner sync）</h2>
+<h3 id="21-p4-stage-7-v1-router-刪除批准">2.1 P4 Stage 7 v1 router
+刪除批准</h3>
+<p><strong>Status</strong>: blocked — 需 30 day production 0-traffic
+觀察 + 業主簽 <strong>Owner</strong>: 業主 + Tech Lead <strong>Decision
+input</strong>:</p>
+<ul>
+<li><code>docs/_audit/P4-cutover-v1-caller-inventory-2026-06-05.md</code></li>
+<li><code>docs/_audit/P4-stage-2-7-prep-checklists.md</code> §7</li>
+<li>production deprecation hit log（待 Stage 6 部署後 30 day 收集）</li>
+</ul>
+<p><strong>Decision options</strong>:</p>
+<ol type="1">
+<li>直接刪 v1 router（推薦，若 30 day 真 0 traffic）</li>
+<li>留 v1 router 但永久 <code>410 Gone</code> 回應 + log</li>
+<li>延期觀察至 60 day（保守選項）</li>
+</ol>
+<h3 id="22-reconciliation-雙簽-ux-rework">2.2 Reconciliation 雙簽 UX
+rework</h3>
+<p><strong>Status</strong>: ✅ <strong>deferred-accepted (2026-06-06
+業主裁決)</strong> <strong>Owner</strong>: 業主 + UX <strong>Decision
+input</strong>: <code>docs/_audit/flow-6-recon-deep-audit.md</code></p>
+<p><strong>業主決議 (2026-06-06)</strong>: <strong>選項 1 —
+維持現狀（同人雙簽 + audit log）</strong></p>
+<p><strong>接受合規取捨</strong>: 技術上允許同人雙簽，audit_log 完整
+trail。業主接受 Sox-like 雙簽「不嚴格落實不同人」的合規風險，以
+audit_log + change_request 作為稽核補強。</p>
+<p><strong>Decision options（歷史紀錄）</strong>:</p>
+<ol type="1">
+<li>✅ <strong>維持現狀（同人雙簽 + audit log）</strong> ← 業主選定</li>
+<li>強制不同人（A 提案 → B 核准）+ 改 UI 流程</li>
+<li>加 timestamp gap（最少 5 分鐘）模擬 cooling-off</li>
+</ol>
+<p><strong>WBS 影響</strong>: Flow 6 / Flow 13 EX5 標 100%（合規以 audit
+log 代）。</p>
+<h3 id="23-計價引擎-gui">2.3 計價引擎 GUI</h3>
+<p><strong>Status</strong>: ✅ <strong>deferred-accepted (2026-06-06
+業主裁決)</strong> <strong>Owner</strong>: 業主 + 產品 <strong>Decision
+input</strong>: 現行 <code>pricing_rule_canary</code> config
+機制（已運作）</p>
+<p><strong>業主決議 (2026-06-06)</strong>: <strong>選項 1 — 維持 SQL
+config + audit log</strong></p>
+<p><strong>接受 scope 取捨</strong>: 規則由 DBA 透過 SQL +
+change_request 維護。業主接受「不開
+GUI」的業務操作門檻，認定規則改動頻率低 + DBA 走 change_request
+流程已足夠。</p>
+<p><strong>Decision options（歷史紀錄）</strong>:</p>
+<ol type="1">
+<li>✅ <strong>維持 SQL config + audit log（最便宜）</strong> ←
+業主選定</li>
+<li>開最小 GUI（rule list + canary % slider，~10 天 web dev）</li>
+<li>全功能規則編輯器（複雜，~30 天）</li>
+</ol>
+<p><strong>WBS 影響</strong>: Phase 7 不依賴 GUI，標 100%。</p>
+<h3 id="24-a37-drawer-元件">2.4 A37 drawer 元件</h3>
+<p><strong>Status</strong>: blocked — 設計稿未定 <strong>Owner</strong>:
+UX + Web dev <strong>Decision input</strong>: 對應 PRD（待業主指明）</p>
+<p><strong>Decision options</strong>:</p>
+<ol type="1">
+<li>用 shadcn <code>&lt;Sheet&gt;</code> 直接套（最快）</li>
+<li>自客製化 drawer（design system 一致性）</li>
+<li>暫不做，先用 modal 替代</li>
+</ol>
+<hr />
+<h2 id="3-production-cutover預估-2-4-週分散">3. Production Cutover（預估
+2-4 週分散）</h2>
+<h3 id="31-migration-部署">3.1 Migration 部署</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" /><code>SQL/migrations/017-027</code>
+apply 到 staging（11 個 migration，含 Phase II 9 FR）</label></li>
+<li><label><input type="checkbox" />Staging smoke 測 1 week</label></li>
+<li><label><input type="checkbox" /><code>SQL/migrations/017-027</code>
+apply 到 production（rolling，業務低峰時段）</label></li>
+<li><label><input type="checkbox" /><code>MIGRATION_REGISTRY.md</code>
+標 production apply timestamp</label></li>
+</ul>
+<p><strong>Owner</strong>: DBA + Ops <strong>Unblocking</strong>:
+業主排業務低峰窗口</p>
+<h3 id="32-lifespan-monitor--cron-上線">3.2 Lifespan monitor + cron
+上線</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" /><code>api/main.py</code> lifespan 啟
+6
+cron（reservation/sla/inventory/dispute/canary/gdpr/statement）</label></li>
+<li><label><input type="checkbox" />部署到 production</label></li>
+<li><label><input type="checkbox" /><code>/ops/lifespan-monitors</code>
+健檢 endpoint 接 CI cron 5 min</label></li>
+<li><label><input type="checkbox" />PagerDuty + Slack webhook 設定（用
+<code>docs/_ops/alert-receivers-comparison.md</code>
+step-by-step）</label></li>
+<li><label><input type="checkbox" />Drill test 跑
+<code>bash scripts/ops/alert_drill_test.sh</code> 確認 6 scenario
+都對</label></li>
+</ul>
+<p><strong>Owner</strong>: Ops <strong>Unblocking</strong>: 業主提供
+PagerDuty integration key + Slack webhook URL</p>
+<h3 id="33-p4-stage-2-6-流量觀察">3.3 P4 Stage 2-6 流量觀察</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />Stage 2: deprecation middleware
+加入（已 ready，待 prod 部署）</label></li>
+<li><label><input type="checkbox" />Stage 3: 開 deprecation log metrics
+endpoint（已 ready）</label></li>
+<li><label><input type="checkbox" />Stage 4: 開 v1 caller inventory
+endpoint（已 ready）</label></li>
+<li><label><input type="checkbox" />Stage 5: 開 no-traffic candidates
+endpoint（已 ready）</label></li>
+<li><label><input type="checkbox" />Stage 6: 跑 30 day prod
+觀察（<strong>唯一真實 blocker</strong>）</label></li>
+</ul>
+<p><strong>Owner</strong>: Ops + Tech Lead <strong>Unblocking</strong>:
+30 day 自然流逝 + 業主簽 Stage 7</p>
+<hr />
+<h2 id="4-uat-期程預估-1-2-週--1-週-buffer">4. UAT 期程（預估 1-2 週 + 1
+週 buffer）</h2>
+<h3 id="41-uat-範圍9-fr--ops-chain">4.1 UAT 範圍（9 FR + ops
+chain）</h3>
+<table>
+<thead>
+<tr>
+<th>UAT 案</th>
+<th>對應 FR</th>
+<th>測項</th>
+<th>預估</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>UAT-001</td>
+<td>FR-0049</td>
+<td>Approval inbox 5 type 聚合 + 排序</td>
+<td>0.5 day</td>
+</tr>
+<tr>
+<td>UAT-002</td>
+<td>FR-0044</td>
+<td>Technician suspend → reactivate 流程</td>
+<td>0.5 day</td>
+</tr>
+<tr>
+<td>UAT-003</td>
+<td>FR-0053</td>
+<td>GDPR forget T0 soft + T+30 hard delete</td>
+<td>1 day（含 wait）</td>
+</tr>
+<tr>
+<td>UAT-004</td>
+<td>FR-0050</td>
+<td>AI governance trace 寫入 + summary 顯示</td>
+<td>0.5 day</td>
+</tr>
+<tr>
+<td>UAT-005</td>
+<td>FR-0051</td>
+<td>SOP feedback sentiment_score 計算</td>
+<td>0.5 day</td>
+</tr>
+<tr>
+<td>UAT-006</td>
+<td>FR-0048</td>
+<td>RMA quality 4 cascade + sop_feedback propagation</td>
+<td>1 day</td>
+</tr>
+<tr>
+<td>UAT-007</td>
+<td>FR-0045</td>
+<td>Tech statement 6-state machine + dispute window</td>
+<td>1 day</td>
+</tr>
+<tr>
+<td>UAT-008</td>
+<td>FR-0046</td>
+<td>Dispatcher commission base + bonus + penalty</td>
+<td>1 day</td>
+</tr>
+<tr>
+<td>UAT-009</td>
+<td>FR-0047</td>
+<td>Brand B2B AR/AP/NET + payable_to 計算</td>
+<td>1 day</td>
+</tr>
+<tr>
+<td>UAT-010</td>
+<td>Ops</td>
+<td>Alert drill 6 scenario + PagerDuty + Slack</td>
+<td>0.5 day</td>
+</tr>
+</tbody>
+</table>
+<p><strong>總計</strong>: ~8 days <strong>測試執行</strong> + 1-2 week
+<strong>業務排程 + bug fix loop</strong></p>
+<h3 id="42-uat-前置條件">4.2 UAT 前置條件</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />§1 Sprint 1-5 BUILD
+全部完成（<strong>hard blocker</strong>）</label></li>
+<li><label><input type="checkbox" />§3.1 Migration apply 到 UAT
+環境</label></li>
+<li><label><input type="checkbox" />§3.2 Lifespan monitor 在 UAT
+環境跑滿 24h 無 crash</label></li>
+<li><label><input type="checkbox" />UAT 測資（seed dataset）載入 — 走
+<code>scripts/seed/emit_seed_sql.py</code> 或 service
+factory</label></li>
+</ul>
+<h3 id="43-uat-標準">4.3 UAT 標準</h3>
+<ul>
+<li>✅ 通過 = 9 FR golden path + 2 edge case（已寫在 e2e starter
+spec）</li>
+<li>❌ 不通過 = 開 bug ticket 回 backend or web dev sprint 修</li>
+</ul>
+<p><strong>Owner</strong>: 業務 / QA <strong>Unblocking</strong>: §1
+完成 + 業務排期</p>
+<hr />
+<h2 id="5-整體-unblocking-flowchart">5. 整體 unblocking flowchart</h2>
+<pre><code>[backend-coder 飽和] ✅
+        ↓
+[Sprint 1 BUILD (3-5 days)] ────┐
+[Sprint 2 BUILD (5-7 days)] ────┤
+[Sprint 3 BUILD (5-7 days)] ────┼──→ [Web 5 sprint 全部完成]
+[Sprint 4 BUILD (5-7 days)] ────┤              ↓
+[Sprint 5 BUILD (5-7 days)] ────┘              ↓
+                                                ↓
+[Migration apply UAT (1 day)] ─────────────────→ [UAT 環境 ready]
+[Lifespan + alert wired (2 days)] ─────────────→        ↓
+                                                        ↓
+[UAT 9 案 + ops (8 days 測試)] ────────────────→ [UAT 通過]
+                                                        ↓
+[業主裁決: 計價 GUI / A37 / recon UX / Stage 7] (parallel)
+                                                        ↓
+[Production cutover (migrations + lifespan)] ──→ [Production live]
+                                                        ↓
+[Stage 6: 30 day 觀察] ──────────────────────→ [Stage 7 v1 刪除]
+                                                        ↓
+                                                  [WBS 100% ✓]</code></pre>
+<p><strong>最短路徑</strong>：23 days web BUILD + 8 days UAT + 30 days
+observation = <strong>~9 週 (calendar time)</strong></p>
+<hr />
+<h2 id="6-成功標準wbs-100-定義">6. 成功標準（WBS 100% 定義）</h2>
+<ul>
+<li>✅ 9 Phase II FR backend + web page + e2e active + UAT 通過</li>
+<li>✅ Migration 017-027 production apply 完成</li>
+<li>✅ Lifespan 6 cron production 啟動且 1 week 無 crash</li>
+<li>✅ Alert pipeline (PD + Slack) production 整合且 drill 通過</li>
+<li>✅ P4 Stage 7 完成（v1 router 已刪 OR 業主決定永久 410）</li>
+<li>✅ Reconciliation 雙簽 UX 業主決議落地</li>
+<li>✅ 計價 GUI / A37 drawer 業主決議落地</li>
+<li>✅ <code>web/docs/system-completion-status.md</code> 三大維度全
+100%</li>
+</ul>
+<hr />
+<h2
+id="a-本-session-backend-已完成-backend-merges截至-2026-06-05-2335">§A
+本 session backend 已完成 backend merges（截至 2026-06-05 23:35）</h2>
+<p>68 merges 累積，主要分類：</p>
+<ol type="1">
+<li><strong>Phase II 9 FR backend service</strong> (9 merges)</li>
+<li><strong>Phase II 9 FR e2e starter spec</strong> (4 merges)</li>
+<li><strong>Phase II 4 cron worker</strong> (4 merges)</li>
+<li><strong>P4 Cutover Stage 1 backend + Stage 2-6 prep</strong> (8
+merges)</li>
+<li><strong>Ops alert pipeline (PD + Slack + drill test)</strong> (5
+merges)</li>
+<li><strong>Sprint 1-5 web pre-build asset
+(types/labels/api-client/README)</strong> (4 merges)</li>
+<li><strong>Docs (WBS / audit / runbook / inventory)</strong> (~30
+merges)</li>
+<li><strong>Misc bug fix / refactor</strong> (~4 merges)</li>
+</ol>
+<p>詳見：</p>
+<ul>
+<li><code>docs/_audit/session-2026-06-05-final-stats.md</code></li>
+<li><code>docs/_audit/session-summary-2026-06-05.md</code></li>
+</ul>
+<hr />
+<h2 id="b-給未來-session-的建議">§B 給未來 session 的建議</h2>
+<p><strong>若 user 再說「繼續開發」：</strong></p>
+<ul>
+<li>❌ 不要再寫 web pre-build 純 stub — 已飽和</li>
+<li>❌ 不要再寫 polish docs — 邊際效益低</li>
+<li>✅ 切換 agent type:
+<ul>
+<li><strong><code>web dev</code> / general-purpose</strong>: 接 §1
+Sprint 1 BUILD</li>
+<li><strong><code>deployment-expert</code> / <code>ops</code></strong>:
+接 §3 production env</li>
+<li><strong><code>documentation-specialist</code></strong>: 接 §4.1 UAT
+測試案撰寫細節</li>
+<li><strong><code>security-infrastructure-auditor</code></strong>: 接
+§3.2 alert 整合驗證</li>
+</ul></li>
+</ul>
+<p><strong>若 user 還在 backend-coder agent：</strong></p>
+<ul>
+<li>建議 user 看本 doc +
+<code>docs/_audit/session-2026-06-05-final-stats.md</code> §9</li>
+<li>建議 clear /goal 條件改為「backend-coder 結構性飽和」</li>
+<li>或解 stop hook 等對應 agent 接手</li>
+</ul>
+<hr />
+<blockquote>
+<p>本 doc 的 ownership: 任何讀者均可更新（剩 1.5% 推進狀況），但 §6
+成功標準改動須走 CR + CIA。</p>
+</blockquote>
+</div></div></body></html>

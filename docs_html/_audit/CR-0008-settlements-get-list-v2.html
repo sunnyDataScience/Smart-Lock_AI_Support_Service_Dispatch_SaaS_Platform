@@ -1,0 +1,239 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Settlements GET list v2（解 accounting/page 1 caller，最小 CIA）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ _audit ／ CR-0008-settlements-get-list-v2.md</div>
+<div class="doc"><h1 id="cr-0008--settlements-get-list-v2">CR-0008 — Settlements GET list
+v2</h1>
+<blockquote>
+<p><strong>Tier</strong>: 4-exploration → CIA<br />
+<strong>Mandated by</strong>:
+<code>.claude/rules/change-governance.md</code><br />
+<strong>Scope</strong>: 最小 CIA，只補 1 個 GET endpoint。</p>
+</blockquote>
+<hr />
+<h2 id="1-change-statement">1. Change Statement</h2>
+<p><strong>As-is</strong>：</p>
+<ul>
+<li><code>settlements_v2.py</code> 只有
+<code>POST /tenants/{tid}/settlements/monthly</code>（觸發月結）</li>
+<li>web <code>accounting/page.tsx:124</code> 還在打
+<code>GET /api/v1/accounting/settlements?limit=50</code> 列 settlement
+清單</li>
+<li>無 v2 GET list endpoint 可遷</li>
+</ul>
+<p><strong>To-be</strong>：</p>
+<ul>
+<li>補 <code>GET /tenants/{tid}/settlements</code> v2 list endpoint</li>
+<li>web caller drop-in 切到 v2</li>
+</ul>
+<p><strong>Driver</strong>：</p>
+<ul>
+<li>最小可行 P3 收尾單位（1 caller × 1 endpoint）</li>
+<li>與 CR-0005/0006/0007 並列等業主裁決，但本 CIA HD 最少</li>
+</ul>
+<hr />
+<h2 id="2-affected-flow">2. Affected Flow</h2>
+<table>
+<thead>
+<tr>
+<th>Flow ID</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BF-AC-001</code>（會計 settlement 列表）</td>
+<td>Modified</td>
+<td>web 從 legacy 改 v2 tenant-scoped</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-affected-spec-fr--nfr">3. Affected Spec (FR / NFR)</h2>
+<table>
+<thead>
+<tr>
+<th>Spec ID</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FR-AC-001</code>（settlement 月結列表）</td>
+<td>Modified</td>
+<td>API surface 改 tenant-scoped</td>
+</tr>
+<tr>
+<td><code>NFR-AC-001</code>（list p95 &lt; 300ms）</td>
+<td>Unchanged</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-affected-api">4. Affected API</h2>
+<table>
+<thead>
+<tr>
+<th>API ID</th>
+<th>Endpoint</th>
+<th>Action</th>
+<th>Breaking?</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>API-SETT-V2-LIST</code></td>
+<td><code>GET /tenants/{tid}/settlements</code></td>
+<td><strong>New</strong></td>
+<td>—</td>
+<td>cursor 分頁 + status filter（pending/paid）+ period_start /
+period_end 範圍 query</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-affected-data">5. Affected Data</h2>
+<p>無 schema 變動（既有 <code>settlements</code> 表沿用）。</p>
+<hr />
+<h2 id="6-affected-test">6. Affected Test</h2>
+<table>
+<thead>
+<tr>
+<th>Test ID</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TC-SETT-001</code>（v2 list cursor）</td>
+<td><strong>New</strong></td>
+<td>cursor + 過濾條件</td>
+</tr>
+<tr>
+<td><code>TC-SETT-XT-001</code>（cross-tenant guard）</td>
+<td><strong>New</strong></td>
+<td>跨 tenant 403</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-affected-architecture">7. Affected Architecture</h2>
+<p>無 ADR；純 endpoint 補齊。</p>
+<hr />
+<h2 id="8-human-decisions-required">8. Human Decisions Required</h2>
+<p>🛑 <strong>CIA blocks code changes until every row here has a
+recorded decision.</strong></p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Question</th>
+<th>Options</th>
+<th>Owner</th>
+<th>Status</th>
+<th>Decision</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>HD-01</strong></td>
+<td>settlement list 預設過濾範圍</td>
+<td>(a) 最近 3 個月<br>(b) 最近 12 個月<br>(c) 全部（cursor 分頁）</td>
+<td>Product</td>
+<td><strong>decided 2026-06-04</strong></td>
+<td><strong>(a) 最近 3 個月</strong></td>
+</tr>
+<tr>
+<td><strong>HD-02</strong></td>
+<td>排序欄位</td>
+<td>(a) period_end desc<br>(b) created_at desc<br>(c) 兩者 secondary
+sort</td>
+<td>Product</td>
+<td><strong>decided 2026-06-04</strong></td>
+<td><strong>(a) period_end desc</strong>（實作含 created_at 作 secondary
+tie-break）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9-suggested-implementation-order">9. Suggested Implementation
+Order</h2>
+<p>§8 裁決後：</p>
+<ol type="1">
+<li><code>settlements_v2.py</code> 補 GET list endpoint（~30
+lines）</li>
+<li><code>settlement_service</code> 補 <code>list_settlements</code>
+函式（~50 lines）</li>
+<li>TC-SETT-001 + TC-SETT-XT-001</li>
+<li><code>web/src/app/accounting/page.tsx:124</code> 改
+<code>tenantPath("/settlements")</code> + query</li>
+<li>CR-0003 §5 wave-5 ✅</li>
+</ol>
+<hr />
+<h2 id="10-risks--rollback">10. Risks &amp; Rollback</h2>
+<p>無重大風險；純 additive，可逆。</p>
+<hr />
+<h2 id="11-out-of-scope">11. Out of Scope</h2>
+<ul>
+<li>settlement detail / approve（已有 reconciliations 流程處理）</li>
+<li>AP 月結（FR-0045 Phase II）</li>
+</ul>
+<hr />
+<h2 id="12-sign-off">12. Sign-off</h2>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Name</th>
+<th>Date</th>
+<th>Approved?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Product</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Engineering Lead</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="a-取證附錄">§A 取證附錄</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> grep <span class="at">-n</span> <span class="st">&quot;api/v1/accounting/settlements&quot;</span> web/src/app/accounting/page.tsx</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="co"># → 124: &quot;/api/v1/accounting/settlements?limit=50&quot;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> grep <span class="st">&quot;@router\.&quot;</span> api/routers/settlements_v2.py</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co"># → 1 個（POST monthly），缺 GET list</span></span></code></pre></div>
+<hr />
+<blockquote>
+<p>🛑 <strong>§8 裁決前不動 code。</strong> 預計裁決後工時 &lt; 0.5
+天（最小 CR）。</p>
+</blockquote>
+</div></div></body></html>

@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LockCore CS Agent — LINE 啟動 + 工單觸發手冊</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#172033; --line:#334155;
+    --text:#e2e8f0; --muted:#94a3b8; --primary:#38bdf8; --accent:#a78bfa;
+    --green:#34d399; --amber:#fbbf24; --red:#f87171; --code-bg:#0b1220;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+    line-height:1.7; font-size:16px;
+  }
+  .wrap{max-width:900px; margin:0 auto; padding:48px 24px 80px;}
+  header{border-bottom:1px solid var(--line); padding-bottom:24px; margin-bottom:24px;}
+  h1{font-size:27px; margin:0 0 8px; color:#fff;}
+  h1 .badge{font-size:13px; vertical-align:middle; background:var(--accent); color:#1a1033;
+    border-radius:999px; padding:3px 10px; margin-left:10px; font-weight:600;}
+  .sub{color:var(--muted); font-size:14px;}
+  h2{font-size:20px; color:var(--primary); margin:40px 0 14px; display:flex; align-items:center; gap:10px;}
+  h2 .n{display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px;
+    border-radius:8px; background:var(--primary); color:#04263a; font-size:15px; font-weight:700;}
+  h3{font-size:16px; color:var(--accent); margin:24px 0 8px;}
+  p{margin:10px 0;}
+  code{background:var(--code-bg); color:#7dd3fc; padding:2px 6px; border-radius:5px;
+    font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px;}
+  pre{background:var(--code-bg); border:1px solid var(--line); border-radius:10px;
+    padding:16px 18px; overflow-x:auto; margin:12px 0;}
+  pre code{background:none; color:#d1e9ff; padding:0; font-size:13.5px; line-height:1.6; display:block;}
+  pre .cmt{color:#64748b;}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14.5px;}
+  th,td{border:1px solid var(--line); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--panel2); color:var(--primary); font-weight:600;}
+  td .ok{color:var(--green);} td .warn{color:var(--amber);} td .bad{color:var(--red);}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px 22px; margin:16px 0;}
+  .note{border-left:4px solid var(--amber); background:rgba(251,191,36,.08); border-radius:0 10px 10px 0;
+    padding:12px 18px; margin:16px 0;}
+  .note strong{color:var(--amber);}
+  .tip{border-left:4px solid var(--green); background:rgba(52,211,153,.08); border-radius:0 10px 10px 0;
+    padding:12px 18px; margin:16px 0;}
+  .tip strong{color:var(--green);}
+  .danger{border-left:4px solid var(--red); background:rgba(248,113,113,.08); border-radius:0 10px 10px 0;
+    padding:12px 18px; margin:16px 0;}
+  .danger strong{color:var(--red);}
+  ol li,ul li{margin:6px 0;}
+  .steps{counter-reset:step; list-style:none; padding-left:0;}
+  .steps li{counter-increment:step; padding-left:38px; position:relative; margin:12px 0;}
+  .steps li::before{content:counter(step); position:absolute; left:0; top:0;
+    width:26px; height:26px; border-radius:50%; background:var(--primary); color:#04263a;
+    font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:center;}
+  kbd{background:#334155; border-radius:5px; padding:1px 7px; font-size:13px; border:1px solid #475569;}
+  .flow{background:var(--code-bg); border:1px solid var(--line); border-radius:10px; padding:16px 18px;
+    font-family:"SF Mono",Menlo,monospace; font-size:13px; color:#cbd5e1; line-height:1.9; overflow-x:auto;}
+  .flow .hi{color:var(--accent);}
+  footer{margin-top:56px; padding-top:20px; border-top:1px solid var(--line); color:var(--muted); font-size:13px;}
+  a{color:var(--primary);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>LockCore CS Agent <span class="badge">LINE 啟動 + 工單觸發手冊</span></h1>
+  <div class="sub">智慧鎖 AI 客服 agent — 本機啟動 · ngrok 接 LINE · 對話與工單寫回後台 · 更新 2026-06-15</div>
+</header>
+
+<div class="card">
+  <strong style="color:#fff;">三個進程，缺一不可</strong>
+  <div class="flow" style="margin-top:10px;">
+LINE 客人 ──webhook──▶ <span class="hi">① Gateway :8000</span> ──回覆──▶ LINE 客人
+                              │ 旁路（需 API 橋接）
+                              ▼
+                       <span class="hi">② API :8001</span> ──寫入──▶ <span class="hi">③ Postgres</span>
+                              │
+                       後台 /conversations、/problem-cards、工單詳情頁
+  </div>
+  <p style="margin:10px 0 0;">只起 Gateway 你能在 LINE 收到 AI 回覆，但<strong>對話與工單不會進後台</strong> —— 那需要 API + Postgres + 橋接設定都到位（§2）。</p>
+</div>
+
+<h2><span class="n">0</span>前提檢查</h2>
+<table>
+  <tr><th>項目</th><th>狀態 / 怎麼補</th></tr>
+  <tr><td>line + vertex deps</td><td><span class="ok">✅</span> 缺則 <code>cd agent &amp;&amp; uv pip install -e ".[line]" -e ".[vertex]"</code></td></tr>
+  <tr><td><code>agent/credentials.json</code>（Vertex）</td><td><span class="ok">✅</span> 已 gitignore，勿入庫</td></tr>
+  <tr><td>ngrok + authtoken</td><td><span class="ok">✅</span> 未設：<code>ngrok config add-authtoken &lt;token&gt;</code></td></tr>
+  <tr><td><code>agent/.env</code>（LINE creds + 橋接）</td><td>見 <code>agent/.env.example</code>；§2 詳述</td></tr>
+  <tr><td>Postgres（docker <code>lock_AI</code> :5433）</td><td>對話/工單寫回需要它在跑</td></tr>
+</table>
+<div class="note"><strong>最重要的陷阱：</strong>Gateway 讀的是 <code>agent/.env</code>（<code>load_dotenv(scripts/../.env)</code>），<strong>不是專案根目錄的 <code>.env</code></strong>。憑證與橋接變數一定要在這份。</div>
+
+<h2><span class="n">1</span>啟動 API（終端 1）— 對話/工單寫回的前提</h2>
+<p>用<strong>現在的 code</strong> 啟動，並帶兩個環境變數（缺了會 503 / 500）：</p>
+<pre><code>cd ~/project/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/api
+INTERNAL_API_TOKEN=dev-internal-token \
+AGENT_TENANT_ID=00000000-0000-0000-0000-000000000001 \
+POSTGRES_URI="postgresql://lock:0000@localhost:5433/lock_AI_data" \
+  uv run uvicorn main:app --host 0.0.0.0 --port 8001</code></pre>
+<table>
+  <tr><th>變數</th><th>作用</th></tr>
+  <tr><td><code>INTERNAL_API_TOKEN</code></td><td>內部 ingest 端點認證（X-Internal-Token）。未設 → ingest 一律 <span class="bad">503</span>；要與 Gateway 同值。</td></tr>
+  <tr><td><code>AGENT_TENANT_ID</code></td><td>把 agent 送的別名 <code>"locksmart"</code> 對應到實際租戶 UUID。未設 → 別名 ingest <span class="bad">400</span>（修復前是 500）。</td></tr>
+  <tr><td><code>POSTGRES_URI</code></td><td>資料庫連線。</td></tr>
+</table>
+<div class="tip"><strong>更省事：</strong>用 <code>./scripts/dev/dev-up.sh</code> 一鍵起 DB+API+Gateway+ngrok，這三個變數它都會自動 export。本手冊是「手動逐一起」的版本。</div>
+
+<h2><span class="n">2</span>啟動 Gateway（終端 2）+ 橋接設定</h2>
+<p>先確認 <code>agent/.env</code> 有這些（複製 <code>agent/.env.example</code> 來填）：</p>
+<pre><code><span class="cmt"># agent/.env — gateway 讀這份</span>
+LINE_CHANNEL_SECRET="..."            <span class="cmt"># 缺則啟動即退出</span>
+LINE_CHANNEL_ACCESS_TOKEN="..."
+INTERNAL_API_TOKEN="dev-internal-token"   <span class="cmt"># 要和 API 同值</span>
+LOCK_API_BASE_URL="http://localhost:8001" <span class="cmt"># 指向 API</span></code></pre>
+<pre><code>cd ~/project/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/agent
+uv run python scripts/line_gateway.py</code></pre>
+<p>看啟動 banner 確認橋接<strong>啟用</strong>：</p>
+<pre><code>模型:vertex_ai/gemini-3.1-flash-lite  租戶:locksmart  記憶後端:sqlite
+API 橋接:✅ 啟用 → 對話/轉真人草擬卡會寫入 http://localhost:8001
+LINE webhook 監聽 :8000/callback</code></pre>
+<div class="danger"><strong>看到「⚠️ 停用」？</strong>代表缺 <code>LOCK_API_BASE_URL</code> 或 <code>INTERNAL_API_TOKEN</code> —— 此時 LINE 還是會收到 AI 回覆，但<strong>對話/工單一律不進後台</strong>（這是 fail-soft 設計）。補進 <code>agent/.env</code> 後重啟。</div>
+
+<h2><span class="n">3</span>開 ngrok（終端 3）</h2>
+<pre><code>ngrok http 8000</code></pre>
+<p><code>Forwarding</code> 的 <code>https://xxxx.ngrok-free.app</code> 就是公開網址，Webhook URL = <code>…/callback</code>。即時面板：<a href="http://127.0.0.1:4040">http://127.0.0.1:4040</a></p>
+
+<h2><span class="n">4</span>LINE Developers Console</h2>
+<ol class="steps">
+  <li>Messaging API 分頁 → <strong>Webhook URL</strong> 貼 <code>https://xxxx.ngrok-free.app/callback</code></li>
+  <li>點 <strong>Verify</strong> → <span style="color:var(--green)">Success</span></li>
+  <li>開 <strong>Use webhook</strong></li>
+  <li>關 <strong>Auto-reply / Greeting messages</strong>（否則罐頭訊息蓋掉 AI 回覆）</li>
+  <li>手機<strong>加好友</strong> → 傳訊息</li>
+</ol>
+
+<h2><span class="n">5</span>怎麼觸發工單（完整流程）</h2>
+<p>LINE 端<strong>不會直接生工單</strong>，AI 也永不自轉（ADR-0028/0031）。鏈條是：</p>
+<div class="flow">
+LINE 客人訊息
+  ▶ agent 跑 SOP 紅線決策樹 → 命中「轉真人/派工」→ 呼叫 <span class="hi">transfer_to_human</span>
+  ▶ Gateway 偵測新 escalation → 旁路 POST /internal/escalations/ingest
+  ▶ API 建一張 <span class="hi">AI 草擬問題卡</span>（source=ai_line, status=draft, 缺欄位 hint）
+  ▶ 客服在 /problem-cards 補品牌/型號 → confirm → 開單填地址 → <span class="hi">工單 NT-xxxxxx</span>
+</div>
+<h3>① 讓 agent 轉真人/派工 — LINE 傳什麼</h3>
+<table>
+  <tr><th>觸發類別</th><th>例句</th></tr>
+  <tr><td>明確要真人</td><td>「我要找真人客服／專員」</td></tr>
+  <tr><td>金錢字眼</td><td>報價、費用、付款、發票、退費</td></tr>
+  <tr><td>要求師傅到府 / 查訂單</td><td><strong>「我家 Dormakaba 鎖馬達壞了，麻煩安排師傅到府」</strong>（最自然的觸發句）</td></tr>
+  <tr><td>試答後仍無解</td><td>先給排查步驟、客人說沒用</td></tr>
+</table>
+<h3>② 後台把草擬卡轉工單</h3>
+<ol class="steps">
+  <li><code>/problem-cards</code> → 來源篩「<strong>AI 草擬（待轉工單）</strong>」</li>
+  <li>開卡 → 補 <strong>品牌 / 型號</strong>（紫色「待補」hint 會標）</li>
+  <li><strong>確認</strong>（confirm）</li>
+  <li>點「<strong>開單</strong>」→ 填<strong>服務地址</strong>（必填）→ 送出</li>
+  <li>生出工單 <strong><code>NT-000xxx</code></strong>；工單詳情頁可看到關聯的 LINE 對話逐字稿</li>
+</ol>
+
+<h3>③ 客服直接接管回覆 + 交還 AI（CR-0024）</h3>
+<p>轉真人後，<strong>對話會自動進入「等待人工」（DB <code>escalated</code>）</strong>，這時：</p>
+<ul>
+  <li><strong>AI 自動暫停</strong> — gateway 每輪回覆前查接管狀態，escalated 時 AI 不回（只把客人訊息存進後台），避免 AI 與真人同時回。</li>
+  <li><strong>客服在對話管理回覆</strong> — <code>/conversations</code> → 點該對話 → 底部發訊框（此時才會亮）打字 → <strong>發送</strong> → 直接 push 到客人 LINE。</li>
+  <li><strong>處理完交還 AI</strong> — 兩種方式（任一即可，對話回 <code>active</code>、AI 恢復自動接待）：
+    <ol class="steps">
+      <li>對話詳情頁接管橫幅點「<strong>結束接管 / 交還 AI</strong>」按鈕</li>
+      <li>或：關聯<strong>工單結案（完成 / 取消）時自動連動</strong>交還</li>
+    </ol>
+  </li>
+</ul>
+<div class="note"><strong>前提：</strong>客服 push 回 LINE 需要 api 服務有 <code>LINE_CHANNEL_ACCESS_TOKEN</code>（compose 讀根 <code>.env</code> 已含）；發訊框只在 <code>escalated</code> 狀態亮起；角色需 admin / 客服 / 主管。</div>
+
+<h2><span class="n">6</span>驗證有沒有寫進去</h2>
+<p>不靠 LINE 也能驗證橋接通：對 ingest 端點帶 token 送一筆（會真的寫 DB）：</p>
+<pre><code>curl -s -X POST http://localhost:8001/api/v1/internal/conversations/ingest \
+  -H 'X-Internal-Token: dev-internal-token' -H 'Content-Type: application/json' \
+  -d '{"tenant_id":"locksmart","line_user_id":"Utest","session_id":"locksmart:Utest",
+       "user_text":"測試","assistant_text":"收到"}'
+<span class="cmt"># → {"data":{"conversation_id":"…","messages_appended":2},"error":null}</span></code></pre>
+<p>後台對應位置：對話 → <code>/conversations</code>；草擬工單卡 → <code>/problem-cards</code> 篩 AI 草擬。</p>
+
+<h2><span class="n">7</span>記憶後端：sqlite（預設）vs Postgres</h2>
+<p>預設本地 <code>sqlite</code>（<code>agent/memory.db</code>）。改 Postgres（CR-0023 / ADR-0113）：</p>
+<table>
+  <tr><th>步驟</th><th>動作</th></tr>
+  <tr><td>1</td><td><code>agent/config.toml</code> → <code>[memory] backend = "postgres"</code></td></tr>
+  <tr><td>2（換新環境才需）</td><td><code>docker compose exec -T db psql -U lock -d lock_AI_data &lt; SQL/migrations/033-agent-memory-schema.sql</code></td></tr>
+  <tr><td>3</td><td>啟動前 <code>export POSTGRES_URI="postgresql://lock:0000@localhost:5433/lock_AI_data"</code></td></tr>
+</table>
+<p>啟動 banner 的「記憶後端」欄會顯示目前用哪個。</p>
+
+<h2><span class="n">8</span>常見問題</h2>
+<table>
+  <tr><th>症狀</th><th>原因 / 處理</th></tr>
+  <tr><td>LINE 有回 AI，但後台沒對話/工單</td><td>Gateway banner 是「⚠️ 停用」→ 補 <code>agent/.env</code> 的 <code>INTERNAL_API_TOKEN</code>/<code>LOCK_API_BASE_URL</code>；或 API 沒在跑。</td></tr>
+  <tr><td>ingest 回 <span class="bad">500</span> / <span class="bad">400</span>（tenant）</td><td>API 缺 <code>AGENT_TENANT_ID</code>（別名 locksmart 對應不到 UUID）。重啟 API 帶上它。</td></tr>
+  <tr><td>ingest 回 <span class="bad">503</span> / <span class="bad">401</span></td><td>503=API 沒設 <code>INTERNAL_API_TOKEN</code>；401=兩邊 token 不一致。</td></tr>
+  <tr><td>啟動即 <code>缺 LINE_CHANNEL_*</code> 退出</td><td>憑證沒在 <code>agent/.env</code>。</td></tr>
+  <tr><td>傳訊息只回罐頭</td><td>Auto-reply / Greeting 沒關。</td></tr>
+  <tr><td>重啟後 LINE 收不到</td><td><strong>ngrok-free URL 每次重啟都會變</strong>，回 Console 重貼 + Verify。</td></tr>
+  <tr><td>客服在對話管理「發送」了，客人 LINE 沒收到</td><td>api 容器缺 <code>line-bot-sdk</code> 或 <code>LINE_CHANNEL_ACCESS_TOKEN</code> → push fail-soft 靜默（訊息只進 DB）。已修：sdk 納 api 正式依賴；token 在根 <code>.env</code>。查 api log <code>line_push ok/skipped</code>。</td></tr>
+  <tr><td>轉真人了，但對話管理發訊框是灰的</td><td>對話沒進 <code>escalated</code>。已修（escalation 會翻狀態）；舊對話可由後台重新觸發或確認狀態。</td></tr>
+  <tr><td>對話詳情頁狂噴 <span class="bad">404 /realtime/diagnostics</span></td><td>診斷 SSE 後端未實作，已與 WS 頻道解耦（獨立 env，預設停用）。WS 即時推送（通知/接單池）不受影響。</td></tr>
+  <tr><td>後台多頁顯示「Realtime 未配置」</td><td>web build 沒帶 <code>NEXT_PUBLIC_REALTIME_BASE_URL</code>（NEXT_PUBLIC_* 是 build-time 烤入）。compose 已預設 <code>ws://localhost:8001</code>；雲端傳 <code>wss://&lt;api 網域&gt;</code>。</td></tr>
+</table>
+
+<h2><span class="n">9</span>本機全 docker（docker compose）</h2>
+<p>用 <code>docker-compose.yml</code> 一鍵起 <strong>db / api / agent / web</strong>（沿用各自 Dockerfile）。<strong>DB 已納入 compose</strong>（<code>feat/compose-db-service</code>）——pgvector/pg17 + named volume <code>pgdata</code>，自包含、零外部依賴；<strong>ngrok 不在 compose</strong>——維持 host 上自己跑。</p>
+<pre><code><span class="cmt"># 0) 先停掉佔用 8000/8001 的原生進程（否則埠衝突）</span>
+<span class="cmt"># 1) 一鍵起三服務（背景）</span>
+docker compose up -d --build
+<span class="cmt"># 2) 對外接 LINE（照舊在 host 跑）</span>
+ngrok http 8000
+<span class="cmt"># 看 log / 停</span>
+docker compose logs -f agent
+docker compose down            <span class="cmt"># 停（保留 pgdata 資料）</span>
+docker compose down -v         <span class="cmt"># ⚠️ 連 pgdata 一起刪 — 會清空資料庫！平時別加 -v</span></code></pre>
+<table>
+  <tr><th>服務</th><th>host 埠</th><th>連線</th></tr>
+  <tr><td>db</td><td>5433 → 5432</td><td>pgvector/pg17 + volume <code>pgdata</code>（compose 內部 <code>db:5432</code>）</td></tr>
+  <tr><td>api</td><td>8001 → 8080</td><td>連 DB compose 內網 <code>db:5432</code></td></tr>
+  <tr><td>agent</td><td>8000 → 8080</td><td>連 api <code>http://api:8080</code>（compose 網路）；Vertex 用掛載的 <code>credentials.json</code></td></tr>
+  <tr><td>web</td><td>3000 → 8080</td><td>瀏覽器打 <code>http://localhost:8001</code>（build 時烤入）；即時推送 <code>ws://localhost:8001</code></td></tr>
+</table>
+<div class="note"><strong>機密 / 設定：</strong>compose 讀根 <code>.env</code>（env_file），host 專屬值（<code>POSTGRES_URI</code>/<code>LOCK_API_BASE_URL</code>/<code>INTERNAL_API_TOKEN</code>/<code>AGENT_TENANT_ID</code>）在 compose 的 <code>environment</code> 覆蓋，不必手動 export。</div>
+<div class="danger"><strong>Cloud Run 不吃 docker-compose。</strong>compose <strong>只供本機</strong>。上雲是「一個 service = 一個容器映像」，各自用 <code>scripts/deploy/{api,agent,web}.sh</code>（<code>docker build</code> 同一份 Dockerfile + <code>gcloud run deploy</code>）。共用的是 <strong>Dockerfile</strong>，不是 compose；服務間連線改各自的 Cloud Run HTTPS URL、DB 改 Cloud SQL、機密改 Secret Manager。</div>
+
+<h2><span class="n">10</span>停止</h2>
+<p>原生模式：各終端 <kbd>Ctrl</kbd>+<kbd>C</kbd>。docker 模式：<code>docker compose down</code>。確認 port 釋放：<code>lsof -nP -iTCP:8000 -sTCP:LISTEN</code> / <code>:8001</code>（無輸出 = 已停）。</p>
+
+<footer>
+  LockCore CS Agent · LINE 啟動 + 工單觸發手冊　|　Gateway: <code>agent/scripts/line_gateway.py</code>　|　本機 docker: <code>docker-compose.yml</code> · 雲端: <code>scripts/deploy/{api,agent,web}.sh</code><br>
+  相關：方案 A 對話旁路 · CR-0022/ADR-0112 HITL 草擬卡 · CR-0023/ADR-0113 記憶 Postgres · agent/Dockerfile + 000-extensions（部署容器化）。架構鎖細節見 <code>CLAUDE.md</code>。
+</footer>
+
+</div>
+</body>
+</html>

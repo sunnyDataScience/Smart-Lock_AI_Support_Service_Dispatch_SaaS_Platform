@@ -1,0 +1,1331 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>00_Foundations — 基礎系統規格</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../../index.html">🏠 文件總目錄</a> ／ ui ／ web_design_spec_prompt_pipeline ／ design-system-specs ／ 00_foundations_spec.md</div>
+<div class="doc"><h1 id="00_foundations--基礎系統規格">00_Foundations — 基礎系統規格</h1>
+<blockquote>
+<p>全站的物理定律。像地球重力一樣——你不會在不同頁面突然換重力。
+這區不是「設計稿」，而是定義所有 UI 遵循的底層規則。</p>
+</blockquote>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ol type="1">
+<li><a href="#1-grid--layout-system">Grid &amp; Layout System</a></li>
+<li><a href="#2-color-system">Color System</a></li>
+<li><a href="#3-typography-system">Typography System</a></li>
+<li><a href="#4-spacing-system">Spacing System</a></li>
+<li><a href="#5-border--radius-system">Border &amp; Radius
+System</a></li>
+<li><a href="#6-elevation--shadow-system">Elevation &amp; Shadow
+System</a></li>
+<li><a href="#7-iconography">Iconography</a></li>
+<li><a href="#8-motion--animation">Motion &amp; Animation</a></li>
+<li><a href="#9-design-tokens-命名規範">Design Tokens 命名規範</a></li>
+<li><a href="#10-token-mode-管理">Token Mode 管理</a></li>
+</ol>
+<hr />
+<h2 id="1-grid--layout-system">1. Grid &amp; Layout System</h2>
+<h3 id="11-container">1.1 Container</h3>
+<table>
+<thead>
+<tr>
+<th>屬性</th>
+<th>值</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>layout.container.max-width</code></td>
+<td>1280px</td>
+<td>主內容區最大寬度</td>
+</tr>
+<tr>
+<td><code>layout.container.padding</code></td>
+<td>16px (mobile) / 24px (tablet) / 32px (desktop)</td>
+<td>容器左右內距</td>
+</tr>
+<tr>
+<td><code>layout.container.center</code></td>
+<td><code>margin: 0 auto</code></td>
+<td>居中策略</td>
+</tr>
+</tbody>
+</table>
+<h3 id="12-grid">1.2 Grid</h3>
+<table>
+<thead>
+<tr>
+<th>斷點</th>
+<th>欄數</th>
+<th>Gutter</th>
+<th>Margin</th>
+<th>Container</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mobile (&lt; 640px)</td>
+<td>4</td>
+<td>16px</td>
+<td>16px</td>
+<td>100%</td>
+</tr>
+<tr>
+<td>Tablet (640px–1024px)</td>
+<td>8</td>
+<td>24px</td>
+<td>24px</td>
+<td>100%</td>
+</tr>
+<tr>
+<td>Desktop (&gt; 1024px)</td>
+<td>12</td>
+<td>24px</td>
+<td>32px</td>
+<td>1280px max</td>
+</tr>
+<tr>
+<td>Wide (&gt; 1440px)</td>
+<td>12</td>
+<td>32px</td>
+<td>auto</td>
+<td>1280px max</td>
+</tr>
+</tbody>
+</table>
+<h3 id="13-breakpoints">1.3 Breakpoints</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>breakpoint.sm</code></td>
+<td>640px</td>
+<td>Mobile → Tablet</td>
+</tr>
+<tr>
+<td><code>breakpoint.md</code></td>
+<td>768px</td>
+<td>Tablet 中間點</td>
+</tr>
+<tr>
+<td><code>breakpoint.lg</code></td>
+<td>1024px</td>
+<td>Tablet → Desktop</td>
+</tr>
+<tr>
+<td><code>breakpoint.xl</code></td>
+<td>1280px</td>
+<td>Desktop 標準</td>
+</tr>
+<tr>
+<td><code>breakpoint.2xl</code></td>
+<td>1536px</td>
+<td>Wide Desktop</td>
+</tr>
+</tbody>
+</table>
+<h3 id="14-layout-primitives">1.4 Layout Primitives</h3>
+<table>
+<thead>
+<tr>
+<th>名稱</th>
+<th>規則</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Page Shell</td>
+<td><code>min-h-screen</code> + <code>flex flex-col</code></td>
+<td>頁面外殼（header + main + footer）</td>
+</tr>
+<tr>
+<td>Content Area</td>
+<td><code>max-w-container</code> + <code>mx-auto</code> +
+<code>px-container</code></td>
+<td>主內容區</td>
+</tr>
+<tr>
+<td>Section</td>
+<td><code>py-section</code> (48px desktop / 32px mobile)</td>
+<td>頁面區段間距</td>
+</tr>
+<tr>
+<td>Sidebar Layout</td>
+<td><code>grid grid-cols-[240px_1fr]</code> (desktop) →
+<code>stack</code> (mobile)</td>
+<td>左側欄 + 主內容</td>
+</tr>
+<tr>
+<td>Split Layout</td>
+<td><code>grid grid-cols-2</code> (desktop) → <code>stack</code>
+(mobile)</td>
+<td>50/50 雙欄</td>
+</tr>
+</tbody>
+</table>
+<h3 id="15-rwd-行為規則">1.5 RWD 行為規則</h3>
+<pre><code>規則 1：Mobile First
+  - 所有樣式從 mobile 開始寫，向上覆蓋
+
+規則 2：斷點行為
+  - Sidebar：desktop 展開，tablet 收合為 hamburger
+  - Table：desktop 橫向，mobile 轉為 card list
+  - Form：desktop 雙欄，mobile 單欄
+  - Modal：desktop 居中彈窗，mobile 全螢幕 sheet
+
+規則 3：圖片策略
+  - 使用 srcset + sizes
+  - Mobile 載入較小圖片
+  - Hero 圖片：desktop 16:9，mobile 4:3 裁切</code></pre>
+<hr />
+<h2 id="2-color-system">2. Color System</h2>
+<h3 id="21-brand-colors">2.1 Brand Colors</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>色值</th>
+<th>用途</th>
+<th>對比規則</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>color.brand.primary</code></td>
+<td>#______</td>
+<td>主要品牌色、CTA</td>
+<td>與白底對比 &gt;= 4.5:1</td>
+</tr>
+<tr>
+<td><code>color.brand.primary.hover</code></td>
+<td>#______</td>
+<td>主色 hover（加深 10%）</td>
+<td></td>
+</tr>
+<tr>
+<td><code>color.brand.primary.active</code></td>
+<td>#______</td>
+<td>主色 active（加深 15%）</td>
+<td></td>
+</tr>
+<tr>
+<td><code>color.brand.secondary</code></td>
+<td>#______</td>
+<td>輔助色、次要元素</td>
+<td></td>
+</tr>
+<tr>
+<td><code>color.brand.accent</code></td>
+<td>#______</td>
+<td>強調色、徽章、標籤</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-semantic-colors">2.2 Semantic Colors</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>Light 色值</th>
+<th>Dark 色值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>color.success</code></td>
+<td>#22C55E</td>
+<td>#4ADE80</td>
+<td>成功、通過、正面</td>
+</tr>
+<tr>
+<td><code>color.success.bg</code></td>
+<td>#F0FDF4</td>
+<td>#052E16</td>
+<td>成功狀態背景</td>
+</tr>
+<tr>
+<td><code>color.warning</code></td>
+<td>#EAB308</td>
+<td>#FACC15</td>
+<td>警告、待辦、需注意</td>
+</tr>
+<tr>
+<td><code>color.warning.bg</code></td>
+<td>#FEFCE8</td>
+<td>#422006</td>
+<td>警告狀態背景</td>
+</tr>
+<tr>
+<td><code>color.error</code></td>
+<td>#EF4444</td>
+<td>#F87171</td>
+<td>錯誤、危險、負面</td>
+</tr>
+<tr>
+<td><code>color.error.bg</code></td>
+<td>#FEF2F2</td>
+<td>#450A0A</td>
+<td>錯誤狀態背景</td>
+</tr>
+<tr>
+<td><code>color.info</code></td>
+<td>#3B82F6</td>
+<td>#60A5FA</td>
+<td>資訊、提示</td>
+</tr>
+<tr>
+<td><code>color.info.bg</code></td>
+<td>#EFF6FF</td>
+<td>#172554</td>
+<td>資訊狀態背景</td>
+</tr>
+</tbody>
+</table>
+<h3 id="23-surface-colors">2.3 Surface Colors</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>Light</th>
+<th>Dark</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>color.bg.page</code></td>
+<td>#FFFFFF</td>
+<td>#0A0A0A</td>
+<td>頁面底色</td>
+</tr>
+<tr>
+<td><code>color.bg.surface</code></td>
+<td>#F9FAFB</td>
+<td>#18181B</td>
+<td>卡片/容器底色</td>
+</tr>
+<tr>
+<td><code>color.bg.elevated</code></td>
+<td>#FFFFFF</td>
+<td>#27272A</td>
+<td>浮層/Modal 底色</td>
+</tr>
+<tr>
+<td><code>color.bg.muted</code></td>
+<td>#F3F4F6</td>
+<td>#27272A</td>
+<td>低調背景（disabled 區）</td>
+</tr>
+<tr>
+<td><code>color.bg.overlay</code></td>
+<td>rgba(0,0,0,0.5)</td>
+<td>rgba(0,0,0,0.7)</td>
+<td>遮罩層</td>
+</tr>
+</tbody>
+</table>
+<h3 id="24-text-colors">2.4 Text Colors</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>Light</th>
+<th>Dark</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>color.text.primary</code></td>
+<td>#111827</td>
+<td>#F9FAFB</td>
+<td>主要文字</td>
+</tr>
+<tr>
+<td><code>color.text.secondary</code></td>
+<td>#6B7280</td>
+<td>#9CA3AF</td>
+<td>次要文字/說明</td>
+</tr>
+<tr>
+<td><code>color.text.tertiary</code></td>
+<td>#9CA3AF</td>
+<td>#6B7280</td>
+<td>佔位符</td>
+</tr>
+<tr>
+<td><code>color.text.disabled</code></td>
+<td>#D1D5DB</td>
+<td>#3F3F46</td>
+<td>停用狀態</td>
+</tr>
+<tr>
+<td><code>color.text.inverse</code></td>
+<td>#FFFFFF</td>
+<td>#0A0A0A</td>
+<td>反轉文字（在深色/淺色底上）</td>
+</tr>
+<tr>
+<td><code>color.text.link</code></td>
+<td>#2563EB</td>
+<td>#60A5FA</td>
+<td>連結</td>
+</tr>
+<tr>
+<td><code>color.text.link.hover</code></td>
+<td>#1D4ED8</td>
+<td>#93C5FD</td>
+<td>連結 hover</td>
+</tr>
+</tbody>
+</table>
+<h3 id="25-border-colors">2.5 Border Colors</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>Light</th>
+<th>Dark</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>color.border.default</code></td>
+<td>#E5E7EB</td>
+<td>#3F3F46</td>
+<td>預設邊框</td>
+</tr>
+<tr>
+<td><code>color.border.hover</code></td>
+<td>#D1D5DB</td>
+<td>#52525B</td>
+<td>hover 邊框</td>
+</tr>
+<tr>
+<td><code>color.border.focus</code></td>
+<td><code>color.brand.primary</code></td>
+<td><code>color.brand.primary</code></td>
+<td>Focus 邊框</td>
+</tr>
+<tr>
+<td><code>color.border.error</code></td>
+<td><code>color.error</code></td>
+<td><code>color.error</code></td>
+<td>錯誤邊框</td>
+</tr>
+</tbody>
+</table>
+<h3 id="26-對比度規則">2.6 對比度規則</h3>
+<pre><code>必須遵守 WCAG 2.1 AA 標準：
+- 一般文字（&lt; 18px）：對比度 &gt;= 4.5:1
+- 大文字（&gt;= 18px bold 或 &gt;= 24px）：對比度 &gt;= 3:1
+- UI 元件（按鈕邊框、輸入框邊框）：對比度 &gt;= 3:1
+- Focus indicator：對比度 &gt;= 3:1（相對於背景）
+
+工具：
+- Figma 插件：Contrast Checker
+- 線上：webaim.org/resources/contrastchecker</code></pre>
+<hr />
+<h2 id="3-typography-system">3. Typography System</h2>
+<h3 id="31-字體堆疊">3.1 字體堆疊</h3>
+<table>
+<thead>
+<tr>
+<th>用途</th>
+<th>字體</th>
+<th>Fallback</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>英文</td>
+<td><code>Inter</code></td>
+<td><code>-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif</code></td>
+</tr>
+<tr>
+<td>中文</td>
+<td><code>Noto Sans TC</code></td>
+<td><code>'PingFang TC', 'Microsoft JhengHei', sans-serif</code></td>
+</tr>
+<tr>
+<td>程式碼</td>
+<td><code>JetBrains Mono</code></td>
+<td><code>'Fira Code', 'SF Mono', Consolas, monospace</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="32-字級階梯">3.2 字級階梯</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>字級</th>
+<th>行高</th>
+<th>字重</th>
+<th>Letter Spacing</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>text.display</code></td>
+<td>48px / 3rem</td>
+<td>1.1</td>
+<td>700</td>
+<td>-0.02em</td>
+<td>Hero 大標題</td>
+</tr>
+<tr>
+<td><code>text.heading.xl</code></td>
+<td>36px / 2.25rem</td>
+<td>1.2</td>
+<td>700</td>
+<td>-0.01em</td>
+<td>H1 頁面標題</td>
+</tr>
+<tr>
+<td><code>text.heading.lg</code></td>
+<td>30px / 1.875rem</td>
+<td>1.25</td>
+<td>600</td>
+<td>-0.01em</td>
+<td>H2 區塊標題</td>
+</tr>
+<tr>
+<td><code>text.heading.md</code></td>
+<td>24px / 1.5rem</td>
+<td>1.3</td>
+<td>600</td>
+<td>0</td>
+<td>H3 小節標題</td>
+</tr>
+<tr>
+<td><code>text.heading.sm</code></td>
+<td>20px / 1.25rem</td>
+<td>1.4</td>
+<td>600</td>
+<td>0</td>
+<td>H4</td>
+</tr>
+<tr>
+<td><code>text.heading.xs</code></td>
+<td>16px / 1rem</td>
+<td>1.5</td>
+<td>600</td>
+<td>0.01em</td>
+<td>H5 / Overline</td>
+</tr>
+<tr>
+<td><code>text.body.lg</code></td>
+<td>18px / 1.125rem</td>
+<td>1.6</td>
+<td>400</td>
+<td>0</td>
+<td>大段落（Article）</td>
+</tr>
+<tr>
+<td><code>text.body.md</code></td>
+<td>16px / 1rem</td>
+<td>1.5</td>
+<td>400</td>
+<td>0</td>
+<td>標準段落</td>
+</tr>
+<tr>
+<td><code>text.body.sm</code></td>
+<td>14px / 0.875rem</td>
+<td>1.5</td>
+<td>400</td>
+<td>0</td>
+<td>小字說明</td>
+</tr>
+<tr>
+<td><code>text.caption</code></td>
+<td>12px / 0.75rem</td>
+<td>1.4</td>
+<td>400</td>
+<td>0.01em</td>
+<td>標註/時間戳</td>
+</tr>
+<tr>
+<td><code>text.overline</code></td>
+<td>12px / 0.75rem</td>
+<td>1.4</td>
+<td>600</td>
+<td>0.05em</td>
+<td>上標/分類標籤（大寫）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="33-中英混排規則">3.3 中英混排規則</h3>
+<pre><code>規則 1：字體順序
+  - font-family: &#39;Inter&#39;, &#39;Noto Sans TC&#39;, sans-serif
+  - 英文字體在前，中文字體在後（瀏覽器自動 fallback）
+
+規則 2：行高
+  - 純英文段落：line-height 1.5
+  - 中文或中英混排：line-height 1.6–1.8（中文字高較大）
+
+規則 3：標點符號
+  - 使用全形中文標點（，。；：「」）
+  - 數字和英文之間加半形空格（例：共 3 個項目、使用 React 框架）
+
+規則 4：數字
+  - 使用 tabular-nums（等寬數字）用於表格、金額
+  - 使用 proportional-nums 用於內文</code></pre>
+<h3 id="34-rwd-字級調整">3.4 RWD 字級調整</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>Desktop</th>
+<th>Tablet</th>
+<th>Mobile</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>text.display</code></td>
+<td>48px</td>
+<td>40px</td>
+<td>32px</td>
+</tr>
+<tr>
+<td><code>text.heading.xl</code></td>
+<td>36px</td>
+<td>30px</td>
+<td>24px</td>
+</tr>
+<tr>
+<td><code>text.heading.lg</code></td>
+<td>30px</td>
+<td>24px</td>
+<td>20px</td>
+</tr>
+<tr>
+<td>其餘</td>
+<td>不變</td>
+<td>不變</td>
+<td>不變</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-spacing-system">4. Spacing System</h2>
+<h3 id="41-spacing-scale4px-基數">4.1 Spacing Scale（4px 基數）</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途範例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>space.0.5</code></td>
+<td>2px</td>
+<td>微調</td>
+</tr>
+<tr>
+<td><code>space.1</code></td>
+<td>4px</td>
+<td>icon 與文字間距、元素內微間距</td>
+</tr>
+<tr>
+<td><code>space.1.5</code></td>
+<td>6px</td>
+<td>緊湊元件內距</td>
+</tr>
+<tr>
+<td><code>space.2</code></td>
+<td>8px</td>
+<td>元素內標準間距、相關元素間距</td>
+</tr>
+<tr>
+<td><code>space.3</code></td>
+<td>12px</td>
+<td>標籤與文字、列表項間距</td>
+</tr>
+<tr>
+<td><code>space.4</code></td>
+<td>16px</td>
+<td>元件間距、Card padding</td>
+</tr>
+<tr>
+<td><code>space.5</code></td>
+<td>20px</td>
+<td>元件群組間距</td>
+</tr>
+<tr>
+<td><code>space.6</code></td>
+<td>24px</td>
+<td>區塊間距、Section 內 padding</td>
+</tr>
+<tr>
+<td><code>space.8</code></td>
+<td>32px</td>
+<td>大區塊間距</td>
+</tr>
+<tr>
+<td><code>space.10</code></td>
+<td>40px</td>
+<td>Section 間距（mobile）</td>
+</tr>
+<tr>
+<td><code>space.12</code></td>
+<td>48px</td>
+<td>Section 間距（desktop）</td>
+</tr>
+<tr>
+<td><code>space.16</code></td>
+<td>64px</td>
+<td>頁面級間距</td>
+</tr>
+<tr>
+<td><code>space.20</code></td>
+<td>80px</td>
+<td>Hero 區域間距</td>
+</tr>
+<tr>
+<td><code>space.24</code></td>
+<td>96px</td>
+<td>超大間距</td>
+</tr>
+</tbody>
+</table>
+<h3 id="42-使用規則">4.2 使用規則</h3>
+<pre><code>規則 1：鄰近原則
+  - 相關元素間距 &lt; 不相關元素間距
+  - 例：標題與副標題之間 space.2 (8px)，標題與下一個區塊之間 space.6 (24px)
+
+規則 2：一致性原則
+  - 同層級元素使用相同間距
+  - Card 列表中每張 Card 的間距一致
+
+規則 3：層級對應
+  - 元素內部 → space.1–3 (4–12px)
+  - 元件間 → space.4–6 (16–24px)
+  - Section 間 → space.8–16 (32–64px)
+  - Page 間 → space.16–24 (64–96px)
+
+規則 4：Padding vs Margin
+  - Padding：用在容器內部（Card padding、Button padding）
+  - Margin：用在容器外部（元件間距、Section 間距）
+  - 永遠用 token，不要寫 magic number</code></pre>
+<hr />
+<h2 id="5-border--radius-system">5. Border &amp; Radius System</h2>
+<h3 id="51-border">5.1 Border</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>border.width.default</code></td>
+<td>1px</td>
+<td>標準邊框</td>
+</tr>
+<tr>
+<td><code>border.width.thick</code></td>
+<td>2px</td>
+<td>強調邊框（Focus、Active Tab）</td>
+</tr>
+<tr>
+<td><code>border.style</code></td>
+<td>solid</td>
+<td>統一使用 solid</td>
+</tr>
+</tbody>
+</table>
+<h3 id="52-border-radius">5.2 Border Radius</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>radius.none</code></td>
+<td>0px</td>
+<td>無圓角</td>
+</tr>
+<tr>
+<td><code>radius.sm</code></td>
+<td>4px</td>
+<td>小元素（Tag, Badge, Tooltip）</td>
+</tr>
+<tr>
+<td><code>radius.md</code></td>
+<td>6px</td>
+<td>按鈕、輸入框</td>
+</tr>
+<tr>
+<td><code>radius.lg</code></td>
+<td>8px</td>
+<td>卡片、容器</td>
+</tr>
+<tr>
+<td><code>radius.xl</code></td>
+<td>12px</td>
+<td>Modal、大容器</td>
+</tr>
+<tr>
+<td><code>radius.2xl</code></td>
+<td>16px</td>
+<td>大圓角卡片</td>
+</tr>
+<tr>
+<td><code>radius.full</code></td>
+<td>9999px</td>
+<td>圓形（Avatar, Pill Badge）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="53-radius-使用規則">5.3 Radius 使用規則</h3>
+<pre><code>規則：外層圓角 &gt; 內層圓角
+  - 例：Card radius.lg (8px) 內的 Button radius.md (6px)
+  - 內層 radius = 外層 radius - padding
+  - 避免「假圓角」視覺問題</code></pre>
+<hr />
+<h2 id="6-elevation--shadow-system">6. Elevation &amp; Shadow
+System</h2>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+<th>Z-Index</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shadow.none</code></td>
+<td>none</td>
+<td>平面元素</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>shadow.xs</code></td>
+<td><code>0 1px 2px rgba(0,0,0,0.05)</code></td>
+<td>輕微浮起（Input focus）</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>shadow.sm</code></td>
+<td><code>0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06)</code></td>
+<td>卡片預設</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>shadow.md</code></td>
+<td><code>0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06)</code></td>
+<td>懸浮卡片、hover</td>
+<td>2</td>
+</tr>
+<tr>
+<td><code>shadow.lg</code></td>
+<td><code>0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05)</code></td>
+<td>Dropdown、Popover</td>
+<td>3</td>
+</tr>
+<tr>
+<td><code>shadow.xl</code></td>
+<td><code>0 20px 25px rgba(0,0,0,0.1), 0 10px 10px rgba(0,0,0,0.04)</code></td>
+<td>Modal、Dialog</td>
+<td>4</td>
+</tr>
+<tr>
+<td><code>shadow.2xl</code></td>
+<td><code>0 25px 50px rgba(0,0,0,0.25)</code></td>
+<td>Toast、最高層</td>
+<td>5</td>
+</tr>
+</tbody>
+</table>
+<h3 id="z-index-規則">Z-Index 規則</h3>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Z-Index</th>
+<th>元素</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Base</td>
+<td>0</td>
+<td>頁面內容</td>
+</tr>
+<tr>
+<td>Sticky</td>
+<td>10</td>
+<td>Sticky header、Sticky sidebar</td>
+</tr>
+<tr>
+<td>Dropdown</td>
+<td>20</td>
+<td>Select dropdown、Popover</td>
+</tr>
+<tr>
+<td>Overlay</td>
+<td>30</td>
+<td>Modal backdrop</td>
+</tr>
+<tr>
+<td>Modal</td>
+<td>40</td>
+<td>Modal、Dialog、Drawer</td>
+</tr>
+<tr>
+<td>Toast</td>
+<td>50</td>
+<td>Toast、Snackbar</td>
+</tr>
+<tr>
+<td>Tooltip</td>
+<td>60</td>
+<td>Tooltip</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-iconography">7. Iconography</h2>
+<h3 id="71-icon-規格">7.1 Icon 規格</h3>
+<table>
+<thead>
+<tr>
+<th>屬性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>風格</td>
+<td>Outline（線條風格），一致線寬</td>
+</tr>
+<tr>
+<td>線寬</td>
+<td>1.5px（推薦 Lucide Icons）</td>
+</tr>
+<tr>
+<td>尺寸</td>
+<td>16px / 20px / 24px / 32px</td>
+</tr>
+<tr>
+<td>顏色</td>
+<td>繼承 <code>currentColor</code></td>
+</tr>
+<tr>
+<td>圓角</td>
+<td>與系統圓角一致</td>
+</tr>
+</tbody>
+</table>
+<h3 id="72-icon-使用規則">7.2 Icon 使用規則</h3>
+<pre><code>規則 1：尺寸對應
+  - 16px：行內 icon（Badge 內、表格操作）
+  - 20px：按鈕內 icon、導航項
+  - 24px：獨立 icon（空狀態配圖、Feature icon）
+  - 32px：大型展示用
+
+規則 2：間距
+  - Icon + Text：space.1 (4px) 到 space.2 (8px)
+  - Icon button padding：space.2 (8px)
+
+規則 3：可及性
+  - 純 icon 按鈕必須有 aria-label
+  - 裝飾性 icon 使用 aria-hidden=&quot;true&quot;</code></pre>
+<hr />
+<h2 id="8-motion--animation">8. Motion &amp; Animation</h2>
+<h3 id="81-duration">8.1 Duration</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>motion.duration.instant</code></td>
+<td>100ms</td>
+<td>Hover 狀態變化</td>
+</tr>
+<tr>
+<td><code>motion.duration.fast</code></td>
+<td>150ms</td>
+<td>Toggle、Checkbox</td>
+</tr>
+<tr>
+<td><code>motion.duration.normal</code></td>
+<td>200ms</td>
+<td>Button press、Fade in</td>
+</tr>
+<tr>
+<td><code>motion.duration.slow</code></td>
+<td>300ms</td>
+<td>Modal 開合、Drawer 滑入</td>
+</tr>
+<tr>
+<td><code>motion.duration.slower</code></td>
+<td>500ms</td>
+<td>Page transition</td>
+</tr>
+</tbody>
+</table>
+<h3 id="82-easing">8.2 Easing</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>motion.ease.default</code></td>
+<td><code>cubic-bezier(0.4, 0, 0.2, 1)</code></td>
+<td>通用</td>
+</tr>
+<tr>
+<td><code>motion.ease.in</code></td>
+<td><code>cubic-bezier(0.4, 0, 1, 1)</code></td>
+<td>元素離開</td>
+</tr>
+<tr>
+<td><code>motion.ease.out</code></td>
+<td><code>cubic-bezier(0, 0, 0.2, 1)</code></td>
+<td>元素進入</td>
+</tr>
+<tr>
+<td><code>motion.ease.spring</code></td>
+<td><code>cubic-bezier(0.34, 1.56, 0.64, 1)</code></td>
+<td>彈跳效果（謹慎使用）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="83-動效規則">8.3 動效規則</h3>
+<pre><code>規則 1：目的性
+  - 動效必須有功能目的（引導注意力、回饋操作、表示狀態變化）
+  - 不做純裝飾性動畫
+
+規則 2：可中斷
+  - 使用者操作可以中斷任何動畫
+  - 不要讓使用者等動畫跑完
+
+規則 3：減少動態偏好
+  - 遵守 prefers-reduced-motion
+  - 替代方案：用 opacity fade 取代 slide/scale
+
+規則 4：常見模式
+  - Fade in/out：opacity 0→1 / 1→0
+  - Slide up：translateY(8px→0) + opacity
+  - Scale：scale(0.95→1) + opacity（Modal 用）
+  - Collapse：height auto→0（Accordion 用）</code></pre>
+<hr />
+<h2 id="9-design-tokens-命名規範">9. Design Tokens 命名規範</h2>
+<h3 id="91-命名結構">9.1 命名結構</h3>
+<pre><code>{category}.{property}.{variant}.{state}
+
+範例：
+  color.bg.surface          ← 類別.屬性.變體
+  color.text.primary        ← 類別.屬性.變體
+  color.border.focus        ← 類別.屬性.狀態
+  text.heading.lg           ← 類別.屬性.尺寸
+  space.4                   ← 類別.值
+  radius.md                 ← 類別.尺寸
+  shadow.lg                 ← 類別.尺寸
+  motion.duration.normal    ← 類別.屬性.值</code></pre>
+<h3 id="92-命名規則">9.2 命名規則</h3>
+<pre><code>規則 1：小寫 + 點分隔（kebab 風格）
+  ✅ color.bg.surface
+  ❌ Color.Bg.Surface
+  ❌ color-bg-surface
+
+規則 2：語意化而非描述值
+  ✅ color.text.primary（語意：主要文字色）
+  ❌ color.gray.900（描述：灰色 900）
+
+規則 3：可預測性
+  - 同類 token 遵循相同結構
+  - 新增 token 時使用者能「猜到」名字
+
+規則 4：避免縮寫（除非公認）
+  ✅ color.background → 可縮寫為 color.bg（公認）
+  ❌ color.brd → 應寫 color.border</code></pre>
+<h3 id="93-token-類別總表">9.3 Token 類別總表</h3>
+<table>
+<thead>
+<tr>
+<th>類別</th>
+<th>Prefix</th>
+<th>範例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>顏色</td>
+<td><code>color.*</code></td>
+<td><code>color.brand.primary</code>,
+<code>color.text.secondary</code></td>
+</tr>
+<tr>
+<td>間距</td>
+<td><code>space.*</code></td>
+<td><code>space.4</code>, <code>space.8</code></td>
+</tr>
+<tr>
+<td>字型</td>
+<td><code>text.*</code></td>
+<td><code>text.body.md</code>, <code>text.heading.lg</code></td>
+</tr>
+<tr>
+<td>圓角</td>
+<td><code>radius.*</code></td>
+<td><code>radius.md</code>, <code>radius.lg</code></td>
+</tr>
+<tr>
+<td>陰影</td>
+<td><code>shadow.*</code></td>
+<td><code>shadow.sm</code>, <code>shadow.xl</code></td>
+</tr>
+<tr>
+<td>邊框</td>
+<td><code>border.*</code></td>
+<td><code>border.width.default</code></td>
+</tr>
+<tr>
+<td>動效</td>
+<td><code>motion.*</code></td>
+<td><code>motion.duration.fast</code></td>
+</tr>
+<tr>
+<td>佈局</td>
+<td><code>layout.*</code></td>
+<td><code>layout.container.max-width</code></td>
+</tr>
+<tr>
+<td>斷點</td>
+<td><code>breakpoint.*</code></td>
+<td><code>breakpoint.lg</code></td>
+</tr>
+<tr>
+<td>Z 軸</td>
+<td><code>z.*</code></td>
+<td><code>z.modal</code>, <code>z.tooltip</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="10-token-mode-管理">10. Token Mode 管理</h2>
+<h3 id="101-mode-定義">10.1 Mode 定義</h3>
+<table>
+<thead>
+<tr>
+<th>Mode 名稱</th>
+<th>說明</th>
+<th>切換方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>light</code></td>
+<td>淺色模式（預設）</td>
+<td><code>prefers-color-scheme</code> / 手動 toggle</td>
+</tr>
+<tr>
+<td><code>dark</code></td>
+<td>深色模式</td>
+<td>同上</td>
+</tr>
+<tr>
+<td><code>brand-A</code></td>
+<td>品牌 A 皮膚</td>
+<td>設定檔 / URL 參數</td>
+</tr>
+<tr>
+<td><code>brand-B</code></td>
+<td>品牌 B 皮膚（白標）</td>
+<td>同上</td>
+</tr>
+<tr>
+<td><code>high-contrast</code></td>
+<td>高對比模式</td>
+<td><code>prefers-contrast</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="102-token-覆蓋結構">10.2 Token 覆蓋結構</h3>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;color.bg.page&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;light&quot;</span><span class="fu">:</span> <span class="st">&quot;#FFFFFF&quot;</span><span class="fu">,</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;dark&quot;</span><span class="fu">:</span> <span class="st">&quot;#0A0A0A&quot;</span><span class="fu">,</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;high-contrast&quot;</span><span class="fu">:</span> <span class="st">&quot;#000000&quot;</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">},</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;color.text.primary&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;light&quot;</span><span class="fu">:</span> <span class="st">&quot;#111827&quot;</span><span class="fu">,</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;dark&quot;</span><span class="fu">:</span> <span class="st">&quot;#F9FAFB&quot;</span><span class="fu">,</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;high-contrast&quot;</span><span class="fu">:</span> <span class="st">&quot;#FFFFFF&quot;</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+<h3 id="103-figma-對應">10.3 Figma 對應</h3>
+<pre><code>Figma Variables → Collections:
+  ├── Primitives（原始值：gray-50, gray-100, blue-500...）
+  ├── Semantic-Light（語意對應：bg.page = gray-50）
+  ├── Semantic-Dark（語意對應：bg.page = gray-950）
+  └── Component-Specific（元件專用：button.primary.bg = brand.primary）
+
+Figma Modes:
+  - 每個 Variable Collection 可設定 Mode
+  - Frame 上切換 Mode = 全部子元素自動切換</code></pre>
+<h3 id="104-與工程的對應">10.4 與工程的對應</h3>
+<table>
+<thead>
+<tr>
+<th>設計端（Figma）</th>
+<th>工程端（CSS/Tailwind）</th>
+<th>同步方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Figma Variables</td>
+<td>CSS Custom Properties</td>
+<td>Token Studio / Style Dictionary</td>
+</tr>
+<tr>
+<td>Figma Styles</td>
+<td>Tailwind theme config</td>
+<td>手動或 token pipeline</td>
+</tr>
+<tr>
+<td>Figma Components</td>
+<td>React/Vue Components</td>
+<td>Figma MCP / Code Connect</td>
+</tr>
+</tbody>
+</table>
+<pre><code>同步流程：
+  Figma Variables
+    ↓ Token Studio plugin export
+  tokens.json (W3C Design Token 格式)
+    ↓ Style Dictionary / Token Transformer
+  CSS variables / Tailwind config / iOS / Android
+    ↓ Git commit
+  工程端自動生效</code></pre>
+<hr />
+<h2 id="figma-結構建議">Figma 結構建議</h2>
+<pre><code>📁 00_Foundations（Figma Page）
+├── 📄 Grid &amp; Layout
+│   ├── Grid 展示（Desktop / Tablet / Mobile）
+│   ├── Container 規則圖示
+│   └── Layout Primitives 範例
+├── 📄 Colors
+│   ├── Brand Colors
+│   ├── Semantic Colors（Success/Warning/Error/Info）
+│   ├── Surface Colors
+│   ├── Text Colors
+│   └── Dark Mode 對照
+├── 📄 Typography
+│   ├── 字級階梯展示
+│   ├── 中英混排範例
+│   └── RWD 字級對照
+├── 📄 Spacing
+│   ├── Spacing Scale 視覺化
+│   └── 使用規則圖示
+├── 📄 Borders &amp; Radius
+├── 📄 Shadows &amp; Elevation
+├── 📄 Icons
+│   ├── Icon 尺寸展示
+│   └── 使用規則
+└── 📄 Motion
+    ├── Duration &amp; Easing 表
+    └── 常見動效模式（影片/GIF）</code></pre>
+<hr />
+<h2 id="交付產出清單">交付產出清單</h2>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>格式</th>
+<th>給誰</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Foundation Spec</td>
+<td>Markdown（本文件）</td>
+<td>設計 + 工程</td>
+<td>規格全文</td>
+</tr>
+<tr>
+<td>Design Token Sheet</td>
+<td>JSON / YAML</td>
+<td>工程</td>
+<td>可直接被 build pipeline 消費的 token 檔</td>
+</tr>
+<tr>
+<td>Figma Variables</td>
+<td>Figma Library</td>
+<td>設計</td>
+<td>可直接在設計檔中使用</td>
+</tr>
+<tr>
+<td>Tailwind Config</td>
+<td>JS/TS</td>
+<td>工程</td>
+<td>對應 token 的 Tailwind 設定</td>
+</tr>
+<tr>
+<td>Token Change Log</td>
+<td>Markdown</td>
+<td>全團隊</td>
+<td>token 變更紀錄</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><strong>版本</strong>：v1.0 <strong>最後更新</strong>：2026-03-17
+<strong>相關文件</strong>：<code>SYSTEM_DOCUMENT_SPEC.md</code> → B1
+Design Tokens、<code>BASE_DESIGN_SYSTEM.md</code> → Visual Design System
+Layer</p>
+</div></div></body></html>

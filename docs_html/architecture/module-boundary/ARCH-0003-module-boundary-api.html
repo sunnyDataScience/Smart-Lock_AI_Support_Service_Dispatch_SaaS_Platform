@@ -1,0 +1,117 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Module Boundary — api/</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ architecture ／ module-boundary ／ ARCH-0003-module-boundary-api.md</div>
+<div class="doc"><h1 id="module-boundary--api">Module Boundary — api/</h1>
+<blockquote>
+<p><strong>角色</strong>：FastAPI REST/WebSocket
+backend；負責工單、派工、技師、帳務、退款、保固、爭議、RBAC、稽核全套後台
+API。</p>
+</blockquote>
+<h2 id="owns">Owns</h2>
+<ul>
+<li>REST API surface（OpenAPI 3.1，見
+<code>2-contracts/api/openapi.yaml</code>）</li>
+<li>WebSocket / SSE realtime（AsyncAPI 2.6，見
+<code>2-contracts/api/asyncapi.yaml</code>）</li>
+<li>JWT 認證 + RBAC middleware</li>
+<li>7 個 system role（super_admin / tenant_admin / ops_director /
+ops_manager / dispatch_officer / support_agent / auditor；見
+<code>2-contracts/modules/MC-0015-rbac.md</code>）</li>
+<li>Work Order 16 狀態機（含 SLA 監控）</li>
+<li>派工演算法（auto + manual + 拒單重派）</li>
+<li>報價引擎（V2.0）</li>
+<li>帳務模組（V2.0）</li>
+<li>退款 / 保固 / 爭議流程</li>
+<li>Audit log 寫入（hash chain TBD per V3 ADR-0010）</li>
+</ul>
+<h2 id="does-not-own">Does NOT Own</h2>
+<ul>
+<li>LINE Bot / AI 對話 → <code>agent/</code></li>
+<li>Admin Panel UI → <code>web/</code></li>
+<li>知識庫資料產出 → <code>data/pipeline/</code></li>
+<li>DB schema 演進 → <code>SQL/</code> + Alembic（待整理）</li>
+</ul>
+<h2 id="dependencies">Dependencies</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">依賴</th>
+<th style="text-align: left;">介面</th>
+<th style="text-align: left;">用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">PostgreSQL</td>
+<td style="text-align: left;">SQLAlchemy 2.0 async + asyncpg</td>
+<td style="text-align: left;">主資料庫</td>
+</tr>
+<tr>
+<td style="text-align: left;">Redis</td>
+<td style="text-align: left;">aioredis</td>
+<td style="text-align: left;">session cache + rate limit</td>
+</tr>
+<tr>
+<td style="text-align: left;">Google Maps API</td>
+<td style="text-align: left;">HTTP</td>
+<td style="text-align: left;">派工距離計算</td>
+</tr>
+<tr>
+<td style="text-align: left;">line-push-service</td>
+<td style="text-align: left;">HTTP</td>
+<td style="text-align: left;">通知消費者（reschedule / SLA）</td>
+</tr>
+<tr>
+<td style="text-align: left;">金流 provider</td>
+<td style="text-align: left;">TBD</td>
+<td style="text-align: left;">Q7=B 待選型（Stripe / 綠界 / 藍新 /
+Linepay）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="acl">ACL</h2>
+<ul>
+<li>入口 input validation：Pydantic v2 schemas</li>
+<li>跨模組事件：domain events（asyncapi.yaml §domain-events）</li>
+<li>LINE Push retry：1s / 2s / 4s 三層 + audit + fail-soft</li>
+</ul>
+<h2 id="public-api">Public API</h2>
+<p>完整見 OpenAPI；主要 endpoint 群：</p>
+<ul>
+<li><code>/api/v1/work-orders/*</code></li>
+<li><code>/api/v1/admin/dispatch-queue</code>、<code>/api/v1/admin/refunds</code>、<code>/api/v1/admin/disputes</code></li>
+<li><code>/api/v1/technicians/*</code></li>
+<li><code>/api/v1/admin/audit-events</code>、<code>/api/v1/admin/roles</code></li>
+<li><code>/api/v1/realtime/*</code>（WS）</li>
+<li><code>/api/v1/public/work-orders/{token}</code>（消費者匿名
+token，UF-0014）</li>
+<li><code>/api/admin/tenants/*</code>（V3 多租戶生命週期，未實作）</li>
+</ul>
+<h2 id="health-boundaries">Health Boundaries</h2>
+<ul>
+<li>DB 失敗 → <code>/health</code> 503，所有 endpoint 503</li>
+<li>金流 provider 失敗 → 退款 / 撥款 stuck（pending
+state），人工介入</li>
+<li>LINE Push 全失敗（4 retry 後）→ audit log 記錄，不阻擋主流程</li>
+</ul>
+<h2 id="待整理">待整理</h2>
+<p>詳細 V2.0 模組規格見 source
+<code>docs/01-define/E3x--module-breakdown.md</code> §4.1~4.5（M9
+派工引擎、M10 報價引擎、M11 帳務模組、M12 技師 Web App backend、M13
+Admin Panel V2.0 backend）。</p>
+</div></div></body></html>

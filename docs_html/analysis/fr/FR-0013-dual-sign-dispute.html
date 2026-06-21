@@ -1,0 +1,165 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>對帳爭議雙簽</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ analysis ／ fr ／ FR-0013-dual-sign-dispute.md</div>
+<div class="doc"><h1 id="fr-0013--對帳爭議雙簽">FR-0013 — 對帳爭議雙簽</h1>
+<blockquote>
+<p><strong>Migration</strong>: 2026-05-28 改為 D5 殼結構（rule →
+BR）。</p>
+</blockquote>
+<h2 id="1-use-case-skeleton">§1 Use Case Skeleton</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">欄位</th>
+<th style="text-align: left;">內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Actor</strong></td>
+<td style="text-align: left;">客戶 (open dispute) / CSM (review) /
+ops_manager (co-sign)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Secondary Actors</strong></td>
+<td style="text-align: left;">M17 Audit, M15 Exception</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Trigger</strong></td>
+<td style="text-align: left;">客戶 / 技師發起 dispute</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Precondition</strong></td>
+<td style="text-align: left;">標的 wo / payment / settlement 存在</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Main Flow</strong></td>
+<td style="text-align: left;">詳見 §1.1 → user-flow:S4-step5</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Alternative Flow</strong></td>
+<td style="text-align: left;">詳見 §1.2</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Postcondition</strong></td>
+<td style="text-align: left;">dispute row 落地；雙簽後 close</td>
+</tr>
+</tbody>
+</table>
+<h3 id="11-main-flow">§1.1 Main Flow</h3>
+<ol type="1">
+<li>客戶開 dispute（subject + reason） → user-flow:S4-step5</li>
+<li>emit <code>DisputeOpened</code></li>
+<li>CSM review + propose resolution</li>
+<li>ops_manager co-sign （[ref: BR-M15-NN dual sign]）</li>
+<li>兩方都 approve → status = closed</li>
+<li>emit <code>DisputeClosed</code></li>
+<li>END</li>
+</ol>
+<h3 id="12-alternative-flow">§1.2 Alternative Flow</h3>
+<pre><code>A1. 單方 close 嘗試 (第 5 步):
+    A1.1 系統 409 dual_sign_required
+
+A2. 60 天未解 (cron):
+    A2.1 自動升 ops_director
+    A2.2 emit `DisputeEscalated`
+
+A3. 客戶撤銷:
+    A3.1 status = closed_withdrawn
+
+A4. close 後 reopen:
+    A4.1 拒絕直接 reopen
+    A4.2 必須新建 dispute_v2 引用原 dispute</code></pre>
+<h2 id="2-acceptance-criteria">§2 Acceptance Criteria</h2>
+<h3 id="ac-01-dual-sign-close">AC-01: Dual sign close</h3>
+<pre class="gherkin"><code>Given dispute D-001 opened
+When CSM approve + ops_manager co-sign
+Then status = closed + emit `DisputeClosed`</code></pre>
+<h3 id="ac-02-single-party-reject">AC-02: Single party reject</h3>
+<pre class="gherkin"><code>When CSM 單方 close
+Then 409 dual_sign_required</code></pre>
+<h3 id="ac-03-60-天升-director">AC-03: 60 天升 director</h3>
+<pre class="gherkin"><code>Given D-001 open 60 天
+When cron
+Then 升 ops_director + emit `DisputeEscalated`</code></pre>
+<h3 id="ac-04-撤銷">AC-04: 撤銷</h3>
+<pre class="gherkin"><code>When 客戶撤銷
+Then status = closed_withdrawn</code></pre>
+<h3 id="ac-05-reopen--v2">AC-05: reopen → v2</h3>
+<pre class="gherkin"><code>Given D-001 closed
+When 客戶嘗試 reopen
+Then 必須新建 D-001-v2 引用 D-001</code></pre>
+<h2 id="3-reference-map">§3 Reference Map</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">類型</th>
+<th style="text-align: left;">ID</th>
+<th style="text-align: left;">用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">BR</td>
+<td style="text-align: left;">BR-M15-NN</td>
+<td style="text-align: left;">dual sign / 60d / 撤銷 / reopen</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR</td>
+<td style="text-align: left;">ADR-0040 v2</td>
+<td style="text-align: left;">refund tiers + SoD</td>
+</tr>
+<tr>
+<td style="text-align: left;">BR (downstream)</td>
+<td style="text-align: left;">BR-REFUND-001/006</td>
+<td style="text-align: left;">dispute 若觸發 refund 出口，使用 5-tier +
+SoD 三維（owner FR-0014）</td>
+</tr>
+<tr>
+<td style="text-align: left;">Event</td>
+<td style="text-align: left;">DisputeOpened/Closed/Escalated</td>
+<td style="text-align: left;">—</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-change-log">§4 Change Log</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Date</th>
+<th style="text-align: left;">Change</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">2026-05-10</td>
+<td style="text-align: left;">REQ-013→FR-0013</td>
+</tr>
+<tr>
+<td style="text-align: left;">2026-05-28</td>
+<td style="text-align: left;"><strong>D5 殼 rewrite</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">2026-05-28</td>
+<td style="text-align: left;"><strong>Cross-ref backfill</strong>：補
+BR-REFUND-001/006 為下游引用（dispute → refund 出口時的 5-tier +
+SoD），ADR-0040 標記 v2 PARTIAL_UPDATE</td>
+</tr>
+</tbody>
+</table>
+</div></div></body></html>

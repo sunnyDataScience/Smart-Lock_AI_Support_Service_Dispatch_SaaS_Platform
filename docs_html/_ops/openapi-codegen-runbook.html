@@ -1,0 +1,150 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>OpenAPI Codegen Runbook — Web Sprint Type Sync</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ _ops ／ openapi-codegen-runbook.md</div>
+<div class="doc"><h1 id="openapi-codegen-runbook--web-sprint-type-sync">OpenAPI Codegen
+Runbook — Web Sprint Type Sync</h1>
+<blockquote>
+<p>給 web Sprint 1-5 BUILD 用：從 backend FastAPI 自動產 web TypeScript
+types， 取代 <code>web/src/components/phase-ii/types.ts</code>
+手寫。</p>
+</blockquote>
+<h2 id="0-為何需要">0. 為何需要</h2>
+<p><code>web/src/components/phase-ii/types.ts</code> 是手寫 type
+contract（Sprint pre-build asset）；長期會與 backend service
+漂移。Sprint BUILD 開始後應 migrate 到 auto-gen，由 backend runtime
+schema 為單一 source of truth。</p>
+<h2 id="1-backend-端匯出-openapi-json">1. Backend 端：匯出 OpenAPI
+JSON</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> <span class="op">&lt;</span>project_root<span class="op">&gt;</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python scripts/ops/export_openapi.py</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 輸出: docs/architecture/api/openapi-runtime.json</span></span></code></pre></div>
+<p><strong>成功訊息範例</strong>：</p>
+<pre><code>[ok] exported 87 endpoints / 134 schemas to .../openapi-runtime.json (245,678 bytes)</code></pre>
+<h2 id="2-web-端產-typescript-types">2. Web 端：產 TypeScript types</h2>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> web</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> install <span class="at">--save-dev</span> openapi-typescript</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="ex">npx</span> openapi-typescript <span class="dt">\</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  ../docs/architecture/api/openapi-runtime.json <span class="dt">\</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">-o</span> src/types/api.generated.ts</span></code></pre></div>
+<p>或寫 npm script（建議）：</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;scripts&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;gen:types&quot;</span><span class="fu">:</span> <span class="st">&quot;openapi-typescript ../docs/architecture/api/openapi-runtime.json -o src/types/api.generated.ts&quot;</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+<h2 id="3-使用-auto-gen-types">3. 使用 auto-gen types</h2>
+<p>Sprint BUILD 時取代手寫 <code>phase-ii/types.ts</code>：</p>
+<pre class="tsx"><code>// before (Sprint pre-build)
+import type { TechStatement } from &quot;@/components/phase-ii&quot;;
+
+// after (auto-gen)
+import type { components } from &quot;@/types/api.generated&quot;;
+type TechStatement = components[&quot;schemas&quot;][&quot;TechStatement&quot;];</code></pre>
+<h2 id="4-何時跑">4. 何時跑</h2>
+<table>
+<thead>
+<tr>
+<th>觸發條件</th>
+<th>動作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Backend 新增 FR / endpoint</td>
+<td>跑 §1 + §2 + 提交 <code>openapi-runtime.json</code> 變更</td>
+</tr>
+<tr>
+<td>Backend 改 response schema</td>
+<td>同上</td>
+</tr>
+<tr>
+<td>Web Sprint 開始前</td>
+<td>跑 §1 + §2 同步最新</td>
+</tr>
+<tr>
+<td>CI 上線時</td>
+<td>加入 pre-commit hook 自動 diff 提醒（roadmap）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-已知限制">5. 已知限制</h2>
+<ul>
+<li><strong>Decimal 欄位</strong>：FastAPI 預設 <code>Decimal</code>
+序列化為 <code>string</code>，auto-gen 會是 <code>string</code> type —
+與 <code>phase-ii/types.ts</code> 手寫 convention 一致 ✅</li>
+<li><strong>Datetime</strong>：ISO string format，auto-gen 為
+<code>string</code> — 一致 ✅</li>
+<li><strong>enum</strong>：FastAPI Enum 會 gen literal union — 一致
+✅</li>
+<li><strong>空陣列預設</strong>：auto-gen 可能用
+<code>unknown[]</code>，需配合 <code>--default-non-nullable</code>
+flag</li>
+<li><strong>Custom 業務
+helper</strong>：<code>formatDecimal/formatDateTime/daysUntilDeadline</code>
+保留在 <code>phase-ii/labels.ts</code>，不會被 auto-gen 取代</li>
+</ul>
+<h2 id="6-migration-順序">6. Migration 順序</h2>
+<p>Sprint 1-5 BUILD 建議分階段 migrate：</p>
+<ol type="1">
+<li><strong>Sprint 1</strong>: 只用
+<code>phase-ii/types.ts</code>（pre-build）— 不動 OpenAPI codegen</li>
+<li><strong>Sprint 1 完成後</strong>: 跑 §1 + §2 產
+<code>api.generated.ts</code></li>
+<li><strong>Sprint 2 開始</strong>: 新 page 直接用 auto-gen；Sprint 1
+page 暫不動</li>
+<li><strong>Sprint 5 完成後</strong>: 全面 migrate；刪
+<code>phase-ii/types.ts</code>（保留 labels + api-client）</li>
+</ol>
+<h2 id="7-troubleshooting">7. Troubleshooting</h2>
+<h3
+id="cannot-import-apimainapp-錯誤"><code>cannot import api.main:app</code>
+錯誤</h3>
+<ul>
+<li>缺 deps → 跑 <code>uv sync</code></li>
+<li>DB 連線 fail → script 已設 dummy <code>POSTGRES_URI</code>，但若
+main.py 強驗則需 改 <code>OPENAPI_EXPORT_MODE=1</code> skip startup
+hooks</li>
+<li>LiteLLM provider init fail → 同上，加 skip flag</li>
+</ul>
+<h3 id="auto-gen-unknown-太多">Auto-gen <code>unknown</code> 太多</h3>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">npx</span> openapi-typescript ... <span class="dt">\</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">--default-non-nullable</span> <span class="dt">\</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">--export-type</span></span></code></pre></div>
+<h3 id="sprint-端發現-type-對不上-backend">Sprint 端發現 type 對不上
+backend</h3>
+<ol type="1">
+<li>確認 <code>openapi-runtime.json</code> 是最新（rerun §1）</li>
+<li>對比 backend service <code>_to_dict</code> shape</li>
+<li>開 issue / PR fix backend 或 web auto-gen 設定</li>
+</ol>
+<h2 id="a-對齊文件">§A 對齊文件</h2>
+<ul>
+<li><code>web/src/components/phase-ii/types.ts</code> — 手寫 Sprint
+pre-build asset</li>
+<li><code>web/src/components/phase-ii/README.md</code> §變更注意 —
+三步同步流程</li>
+<li><code>docs/_ops/wbs-100-closeout-plan.md</code> §1.2 — Sprint
+pre-build ready 條件</li>
+<li><code>docs/architecture/api/openapi.yaml</code> — 既有 hand-curated
+OpenAPI（與 runtime 並存）</li>
+</ul>
+</div></div></body></html>

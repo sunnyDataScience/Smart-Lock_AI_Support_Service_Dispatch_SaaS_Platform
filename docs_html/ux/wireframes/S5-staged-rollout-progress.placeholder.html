@@ -1,0 +1,120 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Wireframe: S5 M18 Staged Rollout Progress</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ ux ／ wireframes ／ S5-staged-rollout-progress.placeholder.md</div>
+<div class="doc"><h1 id="wireframe-s5-m18-staged-rollout-progress">Wireframe: S5 M18
+Staged Rollout Progress</h1>
+<blockquote>
+<p><strong>待繪</strong>：M18 admin UI 顯示 staged rollout 進度的畫面 —
+包含 progress bar、observation timer、SLI dashboard、canary fail 一鍵
+rollback。依據 ADR-0067。</p>
+</blockquote>
+<h2 id="30-秒摘要">30 秒摘要</h2>
+<p>admin approve config 後啟動 staged rollout，本畫面顯示 3
+階段進度（10% canary → 50% → 100%），每段 10min observation timer + SLI
+/ error rate dashboard；canary fail 自動 rollback 並 alert。</p>
+<h2 id="對應">對應</h2>
+<ul>
+<li>主檔 flow：<a
+href="../user-flow-smart-lock-saas.md"><code>../user-flow-smart-lock-saas.md#flow-s5</code></a>
+step 4 (staged rollout)</li>
+<li>by-module：<a
+href="../by-module/M18-system-setup-flow.md"><code>../by-module/M18-system-setup-flow.md</code></a></li>
+<li>ADR-0067 §staged rollout</li>
+</ul>
+<h2 id="5-ui-state-描述">5 UI state 描述</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">State</th>
+<th style="text-align: left;">描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>happy</strong></td>
+<td style="text-align: left;">3 段 progress bar (10% → 50% → 100%) +
+observation timer countdown + SLI dashboard (error rate / p99) +
+「強制全量」escape hatch (需雙簽)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>empty</strong></td>
+<td style="text-align: left;">n/a (rollout 啟動後一定有 phase)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>loading</strong></td>
+<td style="text-align: left;">observation timer 跑中 + spinner on stage
+transition</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>error</strong></td>
+<td style="text-align: left;">canary fail → 自動 rollback + red
+banner「Canary 10% 觀察期失敗：error rate 超標 → 已自動回退至 v42」+
+incident link</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>offline</strong></td>
+<td style="text-align: left;">banner「無連線 — staged rollout
+持續進行，但您看不到 update」</td>
+</tr>
+</tbody>
+</table>
+<h2 id="a11y-notes-wcag-22-aa">a11y notes (WCAG 2.2 AA)</h2>
+<ul>
+<li>progress bar 不僅靠 width % — 加文字「目前進度：10% canary，剩餘 8
+分鐘」</li>
+<li>紅 / 黃 / 綠燈 alert 不僅靠顏色，加 ARIA <code>role="alert"</code> +
+文字 severity</li>
+<li><strong>2.4.11 Focus not obscured (WCAG 2.2 新)</strong> — progress
+bar 不可被 modal 遮 focus</li>
+<li><strong>2.5.7 Dragging movements (WCAG 2.2 新)</strong> —
+「強制全量」滑桿必有點擊替代</li>
+<li>observation timer 用 toast 非 blocking modal</li>
+<li>雙簽對話框：兩個 input 各有 label + autocomplete="username"</li>
+</ul>
+<h2 id="adr-0067-對應驗證">ADR-0067 對應驗證</h2>
+<ul>
+<li>✅ 10% / 50% / 100% staged rollout</li>
+<li>✅ 每段 ≥ 10min observation</li>
+<li>✅ canary fail 自動 rollback</li>
+<li>✅ rollback window ≤ 24h</li>
+<li>✅ 「強制全量」escape hatch 需雙簽 + audit log highlight</li>
+</ul>
+<h2 id="fr-反向指">FR 反向指</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">FR</th>
+<th style="text-align: left;">AC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">staged rollout 進度</td>
+<td style="text-align: left;">FR-0043</td>
+<td style="text-align: left;">AC-01 三段 / AC-02 observation timer /
+AC-03 canary fail auto rollback</td>
+</tr>
+<tr>
+<td style="text-align: left;">強制全量 escape hatch</td>
+<td style="text-align: left;">FR-0043</td>
+<td style="text-align: left;">AC-04 雙簽 + audit highlight</td>
+</tr>
+</tbody>
+</table>
+</div></div></body></html>

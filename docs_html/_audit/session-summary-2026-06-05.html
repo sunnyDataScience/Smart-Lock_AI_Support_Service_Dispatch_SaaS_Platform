@@ -1,0 +1,388 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Session Summary 2026-06-05 — backend 大躍進</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ _audit ／ session-summary-2026-06-05.md</div>
+<div class="doc"><h1 id="session-summary-2026-06-05">Session Summary 2026-06-05</h1>
+<blockquote>
+<p>本 session 從 WBS 89% → ~98%；35+ merge commits / 342 tests passing
+in &lt;2s。 完整 scope：5 batch CR BUILD + 7 §8 P1/P2 + 2 DEFERRED + 9
+Phase II MVP + 2 cron 補強 + P4 Cutover tooling + ops 自動化。</p>
+</blockquote>
+<h2 id="1-主軸成果矩陣">§1 主軸成果矩陣</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">類別</th>
+<th style="text-align: center;">數量</th>
+<th style="text-align: left;">範圍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Batch CR BUILD</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: left;">CR-0017/0018/0019/0013/0012</td>
+</tr>
+<tr>
+<td style="text-align: left;">§8 P1/P2 backend 缺口</td>
+<td style="text-align: center;">7</td>
+<td style="text-align: left;">Pool / A37 / Dispute 60d / M18 canary /
+SOP / 客戶滿意度 / FTFR+SLA</td>
+</tr>
+<tr>
+<td style="text-align: left;">DEFERRED 解</td>
+<td style="text-align: center;">2</td>
+<td style="text-align: left;">Dispute 負值 audit / M18 SLO halt</td>
+</tr>
+<tr>
+<td style="text-align: left;">Phase II 9 FR MVP</td>
+<td style="text-align: center;">9</td>
+<td style="text-align: left;">49/44/53/50/51/48/45/46/47 全收尾</td>
+</tr>
+<tr>
+<td style="text-align: left;">Cron 補強 (Phase II)</td>
+<td style="text-align: center;">2</td>
+<td style="text-align: left;">Statement auto-approval / GDPR T+30
+hard-delete</td>
+</tr>
+<tr>
+<td style="text-align: left;">P4 Cutover tooling</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: left;">inventory docs + hit metrics + v1
+inventory + Stage 1 開動</td>
+</tr>
+<tr>
+<td style="text-align: left;">Ops 自動化</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: left;">runbook + smoke script + GH Actions
+workflow</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2-新建-backend-資產統計">§2 新建 backend 資產統計</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">資產</th>
+<th style="text-align: center;">數量</th>
+<th style="text-align: left;">列表</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">SQL migrations</td>
+<td style="text-align: center;">11</td>
+<td style="text-align: left;">017-027</td>
+</tr>
+<tr>
+<td style="text-align: left;">New routers</td>
+<td style="text-align: center;">13</td>
+<td style="text-align: left;">recon_exceptions_v2 + line_webhook +
+monthly_settlements_v2 + approval_inbox_v2 + tech_lifecycle_v2 +
+gdpr_forget_v2 + ai_governance_trace_v2 + sop_feedback_v2 +
+rma_quality_v2 + tech_statement_v2 + dispatcher_commission_v2 +
+brand_b2b_statement_v2 + deprecation_metrics + v1_inventory +
+lifespan_health (15)</td>
+</tr>
+<tr>
+<td style="text-align: left;">New services</td>
+<td style="text-align: center;">12+</td>
+<td style="text-align: left;">line_push_outbox / recon_exc /
+line_binding / monthly_settlement / approval_inbox / tech_lifecycle /
+gdpr_forget / ai_governance_trace / sop_feedback / rma_quality /
+tech_statement / dispatcher_commission / brand_b2b /
+customer_satisfaction / operational_kpi / sop_performance</td>
+</tr>
+<tr>
+<td style="text-align: left;">New cron workers</td>
+<td style="text-align: center;">6</td>
+<td style="text-align: left;">line_push_outbox / recon_exc_detector /
+dispute_escalation / canary_advance / statement_auto_approval /
+gdpr_hard_delete</td>
+</tr>
+<tr>
+<td style="text-align: left;">LINE Flex templates</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: left;">reschedule_proposal / scope_change /
+schedule_conflict (CR-0017)</td>
+</tr>
+<tr>
+<td style="text-align: left;">Loadtest 配置</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: left;">locustfile / sla / README / GH Actions
+mini</td>
+</tr>
+<tr>
+<td style="text-align: left;">Deploy scripts</td>
+<td style="text-align: center;">2</td>
+<td style="text-align: left;">LINE rich menu setup / monitors health
+smoke</td>
+</tr>
+<tr>
+<td style="text-align: left;">Ops docs</td>
+<td style="text-align: center;">2</td>
+<td style="text-align: left;">background-monitors-runbook /
+P4-cutover-inventory</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-lifespan-startup-序8-monitor">§3 Lifespan startup 序（8
+monitor）</h2>
+<pre><code>inventory → sla → line_push_outbox_worker (CR-0017)
+                → recon_exception_detector (CR-0018)
+                → dispute_escalation_cron (本 session)
+                → config_canary_advance_cron (本 session)
+                → statement_auto_approval (本 session)
+                → gdpr_hard_delete (本 session)</code></pre>
+<p>Health 查詢：<code>GET /api/v1/admin/lifespan-monitors/health</code>
+排錯：<code>docs/_ops/background-monitors-runbook.md §4</code></p>
+<h2 id="4-phase-ii-9-fr-mvp-對照">§4 Phase II 9 FR MVP 對照</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">FR</th>
+<th style="text-align: left;">Title</th>
+<th style="text-align: left;">Schema</th>
+<th style="text-align: center;">Endpoints</th>
+<th style="text-align: center;">Tests</th>
+<th style="text-align: left;">Cascade</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">FR-0049</td>
+<td style="text-align: left;">Approval Inbox</td>
+<td style="text-align: left;">純讀 5 表組合</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">10</td>
+<td style="text-align: left;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0044</td>
+<td style="text-align: left;">Tech Lifecycle</td>
+<td style="text-align: left;">020</td>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">17</td>
+<td style="text-align: left;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0053</td>
+<td style="text-align: left;">GDPR Forget</td>
+<td style="text-align: left;">021</td>
+<td style="text-align: center;">7</td>
+<td style="text-align: center;">14</td>
+<td style="text-align: left;">T+30 cron (本 session)</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0050</td>
+<td style="text-align: left;">AI Governance Trace</td>
+<td style="text-align: left;">022</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">11</td>
+<td style="text-align: left;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0051</td>
+<td style="text-align: left;">SOP Feedback</td>
+<td style="text-align: left;">023</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">12</td>
+<td style="text-align: left;">← FR-0048</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0048</td>
+<td style="text-align: left;">RMA Quality</td>
+<td style="text-align: left;">024</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">14</td>
+<td style="text-align: left;">→ FR-0051</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0045</td>
+<td style="text-align: left;">Tech AP Statement</td>
+<td style="text-align: left;">025</td>
+<td style="text-align: center;">8</td>
+<td style="text-align: center;">17</td>
+<td style="text-align: left;">Auto-approve cron</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0046</td>
+<td style="text-align: left;">Dispatcher Commission</td>
+<td style="text-align: left;">026</td>
+<td style="text-align: center;">8</td>
+<td style="text-align: center;">17</td>
+<td style="text-align: left;">Auto-approve cron</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0047</td>
+<td style="text-align: left;">Brand B2B AR/AP/NET</td>
+<td style="text-align: left;">027</td>
+<td style="text-align: center;">8</td>
+<td style="text-align: center;">20</td>
+<td style="text-align: left;">Auto-approve cron</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-p4-cutover-工具鏈">§5 P4 Cutover 工具鏈</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Tool</th>
+<th style="text-align: left;">Endpoint / Path</th>
+<th style="text-align: left;">用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">deprecation hit metrics</td>
+<td
+style="text-align: left;"><code>GET /api/v1/admin/deprecation/v1-metrics</code></td>
+<td style="text-align: left;">runtime 流量計數</td>
+</tr>
+<tr>
+<td style="text-align: left;">reset metrics</td>
+<td
+style="text-align: left;"><code>POST /api/v1/admin/deprecation/v1-metrics:reset</code></td>
+<td style="text-align: left;">開新觀察期</td>
+</tr>
+<tr>
+<td style="text-align: left;">v1 routers inventory</td>
+<td
+style="text-align: left;"><code>GET /api/v1/admin/v1-inventory</code></td>
+<td style="text-align: left;">mounted v1 endpoint 列表</td>
+</tr>
+<tr>
+<td style="text-align: left;">no-traffic candidates</td>
+<td
+style="text-align: left;"><code>GET /api/v1/admin/v1-inventory/no-traffic</code></td>
+<td style="text-align: left;">安全刪除候選自動列</td>
+</tr>
+<tr>
+<td style="text-align: left;">Inventory docs</td>
+<td
+style="text-align: left;"><code>docs/_audit/P4-cutover-v1-caller-inventory-2026-06-05.md</code></td>
+<td style="text-align: left;">8-stage roadmap</td>
+</tr>
+</tbody>
+</table>
+<p>P4 BUILD 標準流程：</p>
+<ol type="1">
+<li>reset metrics</li>
+<li>部署觀察 30 天</li>
+<li>跑 no-traffic 端點取候選清單</li>
+<li>對清單 stage-by-stage 刪除 v1 router</li>
+</ol>
+<h2 id="6-ops-production-ready-鏈">§6 Ops Production-Ready 鏈</h2>
+<pre><code>endpoint (lifespan_health)
+  → script (check_monitors_health.py)
+    → schedule (.github/workflows/monitors-health.yml /30min)
+      → alert (GH Actions failure → email/PagerDuty/Slack)
+        → runbook (docs/_ops/background-monitors-runbook.md §4)</code></pre>
+<h2 id="7-剩餘缺口2">§7 剩餘缺口（~2%）</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">項目</th>
+<th style="text-align: left;">類型</th>
+<th style="text-align: center;">工時</th>
+<th style="text-align: left;">備註</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">P4 Stage 1-6 caller 遷移</td>
+<td style="text-align: left;">Web</td>
+<td style="text-align: center;">3-5d</td>
+<td style="text-align: left;">38 v1 refs 跨 12 prefix；需 web e2e
+驗</td>
+</tr>
+<tr>
+<td style="text-align: left;">Reconciliation dual-sign UX</td>
+<td style="text-align: left;">Web</td>
+<td style="text-align: center;">1-2d</td>
+<td style="text-align: left;">產品 UX 工作；CR-0004 §8 已有 backend</td>
+</tr>
+<tr>
+<td style="text-align: left;">計價引擎 GUI</td>
+<td style="text-align: left;">Web</td>
+<td style="text-align: center;">數天</td>
+<td style="text-align: left;">純前端工作</td>
+</tr>
+<tr>
+<td style="text-align: left;">A37 candidate detail drawer 元件</td>
+<td style="text-align: left;">Web</td>
+<td style="text-align: center;">半天</td>
+<td style="text-align: left;">backend 已 (workload_heatmap)</td>
+</tr>
+<tr>
+<td style="text-align: left;">Phase 8 UAT 上線</td>
+<td style="text-align: left;">期程</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: left;">非 code 工作</td>
+</tr>
+</tbody>
+</table>
+<h2 id="8-主要-merge-commits-索引">§8 主要 merge commits 索引</h2>
+<pre><code>8768fae1 5 batch CR (CR-0017/0018/0019/0013/0012)
+7819cd80 Pool publish 契約對齊
+54c16a29 A37 workload heatmap
+0ef4c25b Dispute 60d cron
+6cc660ad M18 canary advance
+e16411fb SOP 績效 metrics
+0965533c 客戶滿意度 KPI
+d26163e6 FTFR + SLA on-time KPI
+a980e770 docs WBS 96% (中段)
+609cb427 Dispute 負值 audit
+5740dcd5 M18 SLO halt decision
+6b4eabff FR-0049 Approval Inbox
+cca14799 FR-0044 Tech Lifecycle
+742591ab FR-0053 GDPR Forget
+899aec35 FR-0050 AI Governance Trace
+e5d7d7ea FR-0051 SOP Feedback
+82da9614 FR-0048 RMA Quality
+82b4c40a FR-0045 Tech AP Statement
+f35adbe8 FR-0046 Dispatcher Commission
+2337bc0d FR-0047 Brand B2B Settlement (9 FR 收尾)
+89a44dd6 docs WBS 98% (本 session 最終)
+3cbdccc5 Statement auto-approval cron
+931ed836 GDPR hard-delete cron
+2dc12dc7 P4 Cutover inventory docs
+c349da15 v1 hit metrics
+d01ba204 v1 routers inventory
+e049de22 P4 Stage 1 stale comment
+2618a92e lifespan monitor health
+47daae8e Ops monitors runbook
+4a9ecb66 Ops smoke script
+c2856b6a CI monitors health workflow</code></pre>
+<h2 id="9-三同步遵守">§9 三同步遵守</h2>
+<p>每個 feature commit 都附 CHANGELOG.md
+<code>[Unreleased] Decisions</code> entry：</p>
+<ul>
+<li>✅ branch 名稱</li>
+<li>✅ WHY / WHAT / IMPACT 三段 commit body</li>
+<li>✅ tests passing 數</li>
+<li>✅ 設計取捨清單</li>
+<li>✅ MIGRATION_REGISTRY.md 對應 row（如有 schema 變動）</li>
+</ul>
+<p>未來 session 從 CHANGELOG <code>[Unreleased]</code> 第一條讀起即可
+onboard 本 session 全部成果。</p>
+<h2 id="10-push-建議">§10 push 建議</h2>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> push origin dev_new_arch</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="co"># 各 feature branch 已 merge，可選擇 push 保存歷史:</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co"># git push origin --all (push all branches)</span></span></code></pre></div>
+</div></div></body></html>

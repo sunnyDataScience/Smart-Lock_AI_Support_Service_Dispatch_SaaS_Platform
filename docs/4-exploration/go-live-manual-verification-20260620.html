@@ -1,0 +1,158 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>智慧鎖 SaaS — Go-Live 人工確認清單</title>
+<style>
+*{box-sizing:border-box} body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.6}
+.wrap{max-width:1180px;margin:0 auto;padding:28px}
+h1{font-size:25px;margin:0 0 4px} .sub{color:#94a3b8;margin-bottom:20px;font-size:14px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:18px 0}
+.card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:15px}
+.card .n{font-size:28px;font-weight:700} .card .l{color:#94a3b8;font-size:12.5px;margin-top:2px}
+.card.red .n{color:#ef4444} .card.amber .n{color:#f59e0b} .card.green .n{color:#22c55e} .card.blue .n{color:#38bdf8}
+h2{font-size:18px;margin:30px 0 12px;padding-left:11px;border-left:4px solid #38bdf8}
+h2.p0{border-color:#ef4444} h2.p1{border-color:#f59e0b} h2.p2{border-color:#22c55e} h2.warn{border-color:#f43f5e}
+h3{font-size:15px;margin:18px 0 8px;color:#cbd5e1}
+.note{background:#1e293b;border:1px solid #475569;border-radius:8px;padding:13px 15px;margin:14px 0;font-size:13.5px;color:#cbd5e1}
+.note.danger{background:#2a1115;border-color:#7f1d1d}
+table{width:100%;border-collapse:collapse;font-size:13px;background:#1e293b;border-radius:10px;overflow:hidden;margin:10px 0}
+th,td{padding:9px 11px;text-align:left;border-bottom:1px solid #334155;vertical-align:top}
+th{background:#0f172a;font-size:12px;color:#cbd5e1}
+.sev-hi{color:#fca5a5;font-weight:600} .sev-mid{color:#fde68a} .sev-lo{color:#86efac}
+.mono{font-family:ui-monospace,monospace;font-size:12px;color:#7dd3fc}
+.item{background:#1e293b;border:1px solid #334155;border-radius:9px;padding:12px 15px;margin:10px 0}
+.item.p0{border-left:4px solid #ef4444} .item.p1{border-left:4px solid #f59e0b} .item.p2{border-left:4px solid #22c55e}
+.item .t{font-weight:700;font-size:14px;margin-bottom:5px}
+.item .t .blk{background:#7f1d1d;color:#fecaca;font-size:11px;padding:1px 7px;border-radius:4px;margin-left:6px;font-weight:600}
+.item .row{font-size:13px;margin:3px 0} .item .row b{color:#93c5fd}
+.item .risk{color:#fca5a5;font-size:12.5px;margin-top:4px}
+.tag{display:inline-block;padding:2px 8px;border-radius:5px;font-size:12px;margin:2px}
+.tag.fix{background:#14532d;color:#bbf7d0} .tag.ext{background:#7c2d12;color:#fed7aa} .tag.dec{background:#1e3a8a;color:#bfdbfe} .tag.sign{background:#581c87;color:#e9d5ff} .tag.click{background:#374151;color:#e5e7eb}
+ol.path{counter-reset:s;list-style:none;padding-left:0} ol.path li{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:10px 14px 10px 44px;margin:8px 0;position:relative;font-size:13.5px}
+ol.path li::before{counter-increment:s;content:counter(s);position:absolute;left:12px;top:10px;background:#ef4444;color:#fff;width:22px;height:22px;border-radius:50%;text-align:center;font-weight:700;font-size:13px;line-height:22px}
+.legend{font-size:12.5px;color:#94a3b8;margin:8px 0}
+code{background:#0f172a;padding:1px 5px;border-radius:4px;font-size:12px;color:#7dd3fc}
+</style></head><body><div class="wrap">
+
+<h1>🔒 智慧鎖 AI 派工 SaaS — Go-Live 人工確認清單</h1>
+<div class="sub">產出 2026-06-20 · 來源：5-agent workflow + 主迴圈逐項 grep/DB 驗證 · 對應 CR-0063~0087（194 項 96.4% / 缺口 0 / 全套 1034 passed）</div>
+
+<div class="note"><b>為什麼測試綠了還要人工確認？</b><br>
+自動測試只證明「程式邏輯算得對」，證不到三件事：<b>(1) 數值對不對</b>——金額/費率全是 <code>is_mock=true</code> 草稿；
+<b>(2) 生產環境有沒有那條路徑</b>——多個服務寫了函式卻沒接 endpoint（測了 sink 沒測 source）；
+<b>(3) 真實外部世界</b>——真金鑰、真 LINE reply_token、PROD Cloud SQL，DEV pytest 全碰不到。</div>
+
+<div class="cards">
+  <div class="card red"><div class="n">14</div><div class="l">🔴 P0 上線前必做</div></div>
+  <div class="card amber"><div class="n">6</div><div class="l">🟡 P1 業務正確性</div></div>
+  <div class="card green"><div class="n">7</div><div class="l">🟢 P2 應排期</div></div>
+  <div class="card red"><div class="n">6</div><div class="l">⚠️ 服務未接 router（假綠）</div></div>
+  <div class="card blue"><div class="n">7</div><div class="l">最短上線路徑項數</div></div>
+</div>
+
+<h2 class="warn">⚠️ 本 session 服務層假綠（已 grep 驗證）</h2>
+<div class="note danger">補測時為「功能存在+測試過」，做了 service + component 測試（測試<b>直接呼叫 service 函式</b>），
+但以下 6 個服務<b>沒有任何 API router 接線</b>（<code>grep api/routers/</code> 全 0 命中）。component 測試會過是因為繞過 HTTP 層。
+接線前這些功能對使用者不可用、partner 安全 bug 實際未修。<b>這是我可動手補的</b>（不卡外部）。</div>
+<table>
+<tr><th>服務（CR）</th><th>router</th><th>嚴重度</th><th>說明</th></tr>
+<tr><td class="mono">partner_scope_service<br>(CR-0084)</td><td>0</td><td class="sev-hi">🔴 安全 bug 還活著</td><td>宣稱「修好 vendor 看全品牌」，但 <code>resolve_partner_scope</code> 無 endpoint 呼叫。既有 brand_b2b statement 端點仍不過濾 → vendor 仍可讀全品牌對帳。<b>修正函式=死碼。</b></td></tr>
+<tr><td class="mono">role_assignment_service<br>(CR-0071)</td><td>0</td><td class="sev-hi">🔴 高</td><td>SoD 角色指派三段（唯一生產 <code>UPDATE users.role</code> 路徑）無 endpoint/UI。邏輯對但不可達 → 確認生產角色究竟怎麼改的。</td></tr>
+<tr><td class="mono">notification_template_service<br>(CR-0072)</td><td>0</td><td class="sev-mid">🟡 中</td><td>對客通知模板核准 gate 無 endpoint，前端無法操作核准。</td></tr>
+<tr><td class="mono">payment_service<br>(CR-0070)</td><td>0</td><td class="sev-mid">🟡 中</td><td>金流本就 mock-deferred，接線可等正式 provider，但現在前端無付款路徑。</td></tr>
+<tr><td class="mono">bom_service<br>(CR-0078)</td><td>0</td><td class="sev-lo">🟢 低</td><td>Phase I 僅建模型（表 0 筆），接線屬 Phase II。</td></tr>
+<tr><td class="mono">facts_erp_sync_service<br>(CR-0082)</td><td>0</td><td class="sev-lo">🟢 低</td><td>可能由 cron/internal 觸發，未必需公開 endpoint。</td></tr>
+</table>
+<div class="legend">結論：service 邏輯（SoD、hash chain、fail-closed 隔離、付款冪等）對且測過 —— 缺的是上層薄薄的 router（endpoint + auth dependency）。</div>
+
+<h2 class="p0">🔴 P0 — 上線前必做（金錢／安全／資料，全部阻擋上線）</h2>
+
+<h3>A · 資料地基（最致命，先做）</h3>
+<div class="item p0"><div class="t">A1. PROD Cloud SQL migration 同步 <span class="blk">阻擋上線</span></div>
+<div class="row"><b>確認</b>：DEV 已套 000~075（73 列）；記憶顯示 PROD 上次 apply 是 2026-06-16 只到 ~034。035~075（41 支：完工閘/稅務/payments/role SoD/audit hash/partner scope）極可能 PROD 完全沒套。</div>
+<div class="row"><b>怎麼做</b>：cloud-sql-proxy 連 PROD → <code>gcloud sql backups create</code> 先備份 → <code>SELECT max(version) FROM public.schema_migrations</code> 對比 DEV 075 → 補 <code>./scripts/db/apply-schema-prod.sh</code> 掃 log ERROR。</div>
+<div class="risk">風險：上線整批 <code>UndefinedTable 500</code>。DEV 永遠綠看不出來。</div></div>
+
+<div class="item p0"><div class="t">A2. schema 慣例不一致（我引入的）</div>
+<div class="row"><b>確認</b>：既有 finance 表（brand_b2b_statement/reconciliation/settlement）都在 <code>saas.*</code>；但我新建的 <code>payments</code>、<code>notification_template</code> 放在 <code>public</code>。</div>
+<div class="row"><b>現況</b>：目前不是 500（service 讀 public、表也在 public、測試過）——但破壞「v2/多租戶表走 saas.*」慣例，未來若有 v2 端點期待 <code>saas.payments</code> 會炸，且少 saas 的 tenant_id 隔離。你裁決要不要搬。</div></div>
+
+<h3>B · 金流真值與 provider（等外部 + 等簽核）</h3>
+<div class="item p0"><div class="t">B1. 正式支付 provider <span class="blk">阻擋上線</span></div>
+<div class="row"><b>確認</b>：<code>payment_service</code> 全 mock，Line Pay 簽章用 hardcode 假密鑰，<b>apple_pay 完全沒 confirm/webhook handler</b>。需真金鑰 + 商家後台註冊 webhook + 補 apple_pay handler。</div>
+<div class="risk">風險：真客戶付款 webhook 收不到 → 款 stuck pending / 重複請款。</div></div>
+<div class="item p0"><div class="t">B2. 對客售價簽核 <span class="blk">阻擋上線</span></div>
+<div class="row"><b>確認</b>：<code>service_catalog</code> 32 筆全 <code>is_mock=true</code>、0 approved，卻直接寫進對客報價單（法律文件）。逐筆核 esales Q-01~Q-12 後翻 approved。</div>
+<div class="risk">風險：用未簽核 mock 價對真客戶收款，多收（客訴）或少收（虧損）。</div></div>
+<div class="item p0"><div class="t">B3. 訂金率／佣金率 <span class="blk">阻擋上線</span></div>
+<div class="row"><b>確認</b>：<code>deposit_policy</code>(0.3) / <code>dispatch_commission</code>(0.08) 兩個 active config 是 mock 草稿，直接算客戶訂金/師傅佣金。確認後出新 config_version 翻 is_mock=false。</div></div>
+<div class="item p0"><div class="t">B4. 月結拆帳基準裁決 <span class="blk">阻擋上線</span></div>
+<div class="row"><b>確認</b>：兩套並存衝突 —— <code>monthly_settlement</code> 用 hardcode 80/20；CR-0037 另建 69 筆 <code>technician_payout_rule</code>（mock）但 <code>payout_rule_service</code> 標 <b>NOT wired</b>（重算仍硬編 80% 沒查表）。你裁決統一 80/20 或差異化查表。</div></div>
+
+<h3>C · 安全閘可達性（已驗證的假綠／缺口）</h3>
+<div class="item p0"><div class="t">C1. partner scope 沒接線 <span class="blk">阻擋上線</span></div>
+<div class="row"><b>確認</b>：fix 函式無 endpoint 呼叫 → vendor 看全品牌 bug 仍活。用綁 partner A 的 vendor 帳號讀 statement，帶 partner B 或不帶參數，看是否回全 tenant 資料。</div>
+<div class="risk">風險：vendor 看到競品/其他夥伴對帳金額，商業機密外洩。</div></div>
+<div class="item p0"><div class="t">C2. RBAC 角色指派路徑不可達 <span class="blk">阻擋上線</span></div>
+<div class="row"><b>確認</b>：<code>role_assignment_service</code> 0 router → 確認生產角色怎麼改（是否有人直接 psql 繞過 SoD）。</div>
+<div class="risk">風險：單一管理員可自行提權（含自己），無第二人覆核。內部舞弊核心缺口。</div></div>
+<div class="item p0"><div class="t">C3. 撤權後 session／token 失效 <span class="blk">阻擋上線</span></div>
+<div class="row"><b>確認</b>：CHANGELOG 自承未實作。兩瀏覽器登同帳號 → A 降權 → B 舊 session 打高權 API 看是否仍 200。你裁決上線前補 token 撤銷或簽風險接受。</div>
+<div class="risk">風險：離職/停權員工在 token TTL 內仍可越權存取客戶資料。</div></div>
+<div class="item p0"><div class="t">C4. SOP publish 家族覆核 gate（合約 4.4d 紅線）<span class="blk">阻擋上線</span></div>
+<div class="row"><b>確認</b>：<code>sop_draft_service.adopt_draft</code> 只查 <code>status='approved'</code>，<b>沒查 family_reviews 覆核</b>。建草稿→admin 核→不做家族覆核→直接 adopt 會成功（應失敗）。</div>
+<div class="risk">風險：合約紅線（違反=合約終止）。未覆核高風險 SOP 進 AI 知識庫被引用。</div></div>
+<div class="item p0"><div class="t">C5. config 治理無 RBAC <span class="blk">阻擋上線</span></div>
+<div class="row"><b>確認</b>：<code>saas.config_namespace.owner_role_codes</code> <b>19/19 全空</b> → 任何登入者可改 payment_gate/discount_policy/completion_policy。用低權帳號試改 payment_gate 看能否成功。你裁決每 namespace 填哪些角色。</div>
+<div class="risk">風險：無權者可關 payment_gate（免付款即派工）、放寬折扣、降低完工閘。</div></div>
+
+<h3>D · AI 紅線（合約 4.4 級，無第二道防線）</h3>
+<div class="item p0"><div class="t">D1. 真機長對話抽驗 <span class="blk">阻擋上線</span></div>
+<div class="row"><b>確認</b>：真 LINE 打 20~30 輪含「拐彎問價/價格藏多輪/誘導複誦客戶金額/混語言錯字繞 regex」，逐則確認無 NTD 數字且轉真人。<code>redline_gate.py</code> 已 9/9 但只 9 個固定短句。</div>
+<div class="risk">風險：AI 報未授權價格/折扣 → 金錢損失 + 合約紅線（4.4 級）。</div></div>
+<div class="item p0"><div class="t">D2. inline output guardrail 缺口裁決 <span class="blk">阻擋上線</span></div>
+<div class="row"><b>確認</b>：<code>agent/lockcore</code> 內<b>無任何 output guardrail</b>（舊 safety_gate.py 隨重寫刪了），紅線 100% 靠 LLM 自判、無兜底。你二選一：接受無第二道防線上線，或開 CR 走 CIA 補。與 D1 疊加成單點失效。</div></div>
+
+<h3>E · 客戶第一接觸真實通道</h3>
+<div class="item p0"><div class="t">E1. LINE 進線→AI→轉真人完整鏈（真機真 reply_token）<span class="blk">阻擋上線</span></div>
+<div class="row"><b>確認</b>：真手機發三類訊息（產品問題/詢價退款/連發圖片貼圖文字），對照後台 <code>/conversations</code>+<code>/problem-cards</code> 同步。CR-0086 live eval 繞過了整條 webhook→reply_token→reply 通道。<b>與 D1 可用一次真 LINE session 同時覆蓋。</b></div></div>
+
+<h2 class="p1">🟡 P1 — 業務正確性與隱性缺口</h2>
+<div class="item p1"><div class="t">P1-1. 師傅 payout 正式值（Q-09）</div><div class="row">69 筆全 mock、0 approved，base_payout/夜間 0.2/急件 0.15 全草稿 → 逐筆簽核。</div></div>
+<div class="item p1"><div class="t">P1-2. 技師品牌授權 fail-open</div><div class="row"><code>dispatch_service._brand_authorized_ids</code> 該品牌無授權資料時<b>不過濾</b>（fail-open）→ PROD 缺真授權=未授權技師被派去修原廠保固鎖。提供真授權清單 + 裁決是否改 fail-closed。</div></div>
+<div class="item p1"><div class="t">P1-3. 通知模板核准 gate 可達性 + _auto_notify 繞過</div><div class="row">見上方假綠表（0 router）。裁決退款/報價金額類通知直發無核准是否可接受。</div></div>
+<div class="item p1"><div class="t">P1-4. debounce runtime 接線裁決</div><div class="row"><code>inbound_debounce.py</code> 非測試 runtime 零引用；<code>line_gateway</code> 每則即回、圖直接丟。裁決上線前是否接（涉 reply_token 時效）。</div></div>
+<div class="item p1"><div class="t">P1-5. scope／quote／tax 門檻值</div><div class="row"><code>scope_change_policy</code>(500/2000/0.5)、<code>quote_policy</code>(mock)、<code>tax_policy</code>(5% 含稅) → 會計覆核。</div></div>
+<div class="item p1"><div class="t">P1-6. AI 回答業務正確性</div><div class="row">eval 0.560 / followup 0.067（單輪 + LLM 自評）；領域專家真 LINE 跑 20+ 情境人工評產品知識/派工判斷對不對。</div></div>
+
+<h2 class="p2">🟢 P2 — 體驗／完整性（不阻擋上線，應排期）</h2>
+<div class="item p2"><div class="t">P2-1. payment_gate 派工付款閘開關</div><div class="row">無 active config → 不檢查付款即派工。與 completion_policy 疊加=金流全程無強制收款點。</div></div>
+<div class="item p2"><div class="t">P2-2. completion_policy 旗標</div><div class="row"><code>require_payment_proof=false</code> → 結案不需付款證明，客戶賴帳無攔截。</div></div>
+<div class="item p2"><div class="t">P2-3. discount_policy 正式值</div><div class="row">approval_threshold=10000 / cs_max=10%（mock）。</div></div>
+<div class="item p2"><div class="t">P2-4. auto_confirm 48h 自動結案</div><div class="row">active 已開，確認 48h 與排除 hold 單，真跑一次 cron。</div></div>
+<div class="item p2"><div class="t">P2-5. BOM 歸屬規則</div><div class="row">product_model/bom_line DEV 0 筆，owner/cost_attribution/退回期限待填。</div></div>
+<div class="item p2"><div class="t">P2-6. 現金爭議門檻 500</div><div class="row">hardcode，建議移入 M18 config。</div></div>
+<div class="item p2"><div class="t">P2-7. hash chain 偵測排程</div><div class="row"><code>verify_audit_chain</code>/<code>verify_family_review_ledger</code> 0 router（寫入接了 hash，偵測無觸發路徑）→ 排程定期驗鏈告警。</div></div>
+
+<h2>🚀 最短上線路徑（核心可動的最小確認集）</h2>
+<div class="legend">若只想先讓「客戶進線→AI/真人→報價→派工→結案→收款」核心鏈真實可動：</div>
+<ol class="path">
+<li><b>A1</b> PROD migration 同步 + schema 驗證（地基，不過下面全 500）</li>
+<li><b>B1</b> 正式金流 provider（含補 apple_pay handler）— 等金鑰 + 開發</li>
+<li><b>B2+B3</b> 對客售價 + 訂金/佣金率簽核轉正式 — 純等你簽核</li>
+<li><b>C1+C2+C5</b> partner scope + 角色指派 接線 + config RBAC — <b>我可動手接</b></li>
+<li><b>C4</b> SOP 家族覆核 gate — 合約紅線，<b>我可動手接</b></li>
+<li><b>D1+D2+E1</b> AI 紅線真機抽驗 + guardrail 裁決 + 客戶進線真機點測（一次真 LINE 覆蓋）</li>
+<li><b>C3</b> 撤權 token 失效 — 你裁決補或簽風險接受</li>
+</ol>
+
+<h2>🧭 四類缺口誠實歸屬</h2>
+<div class="note">
+<span class="tag fix">我可動手補</span> 不卡外部，一句「補」我就做：partner/role/SOP gate/config RBAC <b>接線</b>、payment/notif/bom router。<br><br>
+<span class="tag ext">等外部資源</span> 給不出就無法上線：正式金流金鑰 + webhook 註冊 + apple_pay handler、法務條款、PROD DB 連線。<br><br>
+<span class="tag dec">等你裁決開關</span> 是非題一句話定：80/20 vs 規則表、撤權 token 即時失效、payment_gate 何時開、guardrail 補不補。<br><br>
+<span class="tag sign">等你逐項簽核</span> 純人工核對填數字：對客售價 32 筆、訂金/佣金率、師傅 payout 69 筆。<br><br>
+<span class="tag click">等你親自點一遍</span> 自動測碰不到：真 LINE 驗 AI 紅線、客戶進線完整鏈、接線後 partner/角色可達性複驗。
+</div>
+
+<div class="sub" style="margin-top:30px">明細對應 <code>docs/4-exploration/go-live-manual-verification-20260620.md</code> · 每項皆經 grep/DB 查證</div>
+</div></body></html>

@@ -1,0 +1,748 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>02_Patterns — 互動模式規格</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../../index.html">🏠 文件總目錄</a> ／ ui ／ web_design_spec_prompt_pipeline ／ design-system-specs ／ 02_patterns_spec.md</div>
+<div class="doc"><h1 id="02_patterns--互動模式規格">02_Patterns — 互動模式規格</h1>
+<blockquote>
+<p>Components 是「零件」，Patterns 是「常用組裝方法」。 有了
+Patterns，團隊討論的是「選哪個」，不是「從零開始吵」。</p>
+</blockquote>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ol type="1">
+<li><a href="#1-form-patterns">Form Patterns</a></li>
+<li><a href="#2-data-table-patterns">Data Table Patterns</a></li>
+<li><a href="#3-search--filter-patterns">Search &amp; Filter
+Patterns</a></li>
+<li><a href="#4-navigation-patterns">Navigation Patterns</a></li>
+<li><a href="#5-feedback-patterns">Feedback Patterns</a></li>
+<li><a href="#6-empty--error--loading-states">Empty / Error / Loading
+States</a></li>
+<li><a href="#7-authentication-patterns">Authentication
+Patterns</a></li>
+<li><a href="#8-content-display-patterns">Content Display
+Patterns</a></li>
+<li><a href="#9-action-patterns">Action Patterns</a></li>
+<li><a href="#10-permission--access-patterns">Permission / Access
+Patterns</a></li>
+</ol>
+<hr />
+<h2 id="pattern-文件結構每個-pattern-的標準格式">Pattern 文件結構（每個
+Pattern 的標準格式）</h2>
+<pre><code>### [Pattern 名稱]
+
+**When to use**：什麼情境使用此 pattern
+**Structure**：用哪些元件組成
+**Behavior rules**：互動規則
+**Edge cases**：例外處理（錯誤、無權限、loading）
+**Copy rules**：文案模板
+**Do / Don&#39;t**：常見錯法</code></pre>
+<hr />
+<h2 id="1-form-patterns">1. Form Patterns</h2>
+<h3 id="11-single-column-form單欄表單">1.1 Single-Column
+Form（單欄表單）</h3>
+<p><strong>When to use</strong>：</p>
+<ul>
+<li>欄位 &lt; 8 個的簡單表單（登入、聯絡、設定）</li>
+<li>Mobile-first 設計</li>
+</ul>
+<p><strong>Structure</strong>：</p>
+<pre><code>┌─────────────────────────┐
+│ Form Title              │
+│ Form Description        │
+├─────────────────────────┤
+│ Label                   │
+│ ┌─────────────────────┐ │
+│ │ Input               │ │
+│ └─────────────────────┘ │
+│ Helper text             │
+│                         │
+│ Label *                 │
+│ ┌─────────────────────┐ │
+│ │ Input               │ │
+│ └─────────────────────┘ │
+│ ❌ Error message        │
+│                         │
+│ ... more fields ...     │
+│                         │
+│ ┌───────┐ ┌───────────┐ │
+│ │Cancel │ │  Submit ▶  │ │
+│ └───────┘ └───────────┘ │
+└─────────────────────────┘</code></pre>
+<p><strong>Behavior rules</strong>：</p>
+<ul>
+<li>欄位間距：<code>space.5</code> (20px)</li>
+<li>必填標示：Label 後加紅色 <code>*</code></li>
+<li>Validation timing：
+<ul>
+<li>首次：submit 時驗證全部</li>
+<li>修正後：onChange 即時驗證（已觸發過的欄位）</li>
+</ul></li>
+<li>Error display：欄位下方紅色文字 + 紅色邊框</li>
+<li>Error summary：表單頂部顯示「有 N 個欄位需要修正」（超過 5
+個錯誤時）</li>
+<li>Submit button：
+<ul>
+<li>未修改 → disabled</li>
+<li>送出中 → loading spinner + disabled</li>
+<li>成功 → success toast + redirect / close</li>
+<li>失敗 → error toast + 保留表單內容</li>
+</ul></li>
+</ul>
+<p><strong>Copy rules</strong>： | 場景 | 模板 | 範例 |
+|------|------|------| | 必填未填 | <code>請輸入{欄位名稱}</code> |
+「請輸入電子郵件」 | | 格式錯誤 | <code>{欄位名稱}格式不正確</code> |
+「電子郵件格式不正確」 | | 超過限制 |
+<code>{欄位名稱}不可超過{N}個字</code> | 「姓名不可超過 50 個字」 | |
+送出成功 | <code>{動作}成功</code> | 「設定已儲存」 | | 送出失敗 |
+<code>{動作}失敗，請稍後再試</code> | 「儲存失敗，請稍後再試」 |</p>
+<h3 id="12-multi-column-form多欄表單">1.2 Multi-Column
+Form（多欄表單）</h3>
+<p><strong>When to use</strong>：</p>
+<ul>
+<li>Desktop 上欄位多（&gt; 8 個）且有邏輯分組</li>
+<li>例：個人資料、地址填寫</li>
+</ul>
+<p><strong>Structure</strong>：</p>
+<pre><code>Desktop (&gt; 1024px)：
+┌──────────────────┬──────────────────┐
+│ First Name       │ Last Name        │
+│ [Input]          │ [Input]          │
+├──────────────────┴──────────────────┤
+│ Email                               │
+│ [Input]                             │
+├──────────────────┬──────────────────┤
+│ City             │ Zip Code         │
+│ [Input]          │ [Input]          │
+└──────────────────┴──────────────────┘
+
+Mobile (&lt; 640px)：自動轉為 Single-Column</code></pre>
+<p><strong>Rules</strong>：</p>
+<ul>
+<li>只在邏輯相關時才並排（名+姓、城市+郵遞區號）</li>
+<li>不要為了省空間而亂並排（Email 和電話不該並排）</li>
+<li>Grid: <code>grid-cols-2 gap-4</code> (desktop) →
+<code>grid-cols-1</code> (mobile)</li>
+</ul>
+<h3 id="13-stepper--wizard-form步驟式表單">1.3 Stepper / Wizard
+Form（步驟式表單）</h3>
+<p><strong>When to use</strong>：</p>
+<ul>
+<li>欄位多（&gt; 12 個）且可分成邏輯步驟</li>
+<li>例：註冊流程、結帳流程、設定精靈</li>
+</ul>
+<p><strong>Structure</strong>：</p>
+<pre><code>┌─────────────────────────────────────┐
+│  ① 基本資料  ─── ② 偏好設定  ─── ③ 確認  │
+│  (current)       (upcoming)    (upcoming)  │
+├─────────────────────────────────────┤
+│                                     │
+│  Step 1 Content                     │
+│  [Form Fields...]                   │
+│                                     │
+├─────────────────────────────────────┤
+│         ┌────────┐  ┌────────────┐  │
+│         │ 上一步 │  │  下一步 ▶  │  │
+│         └────────┘  └────────────┘  │
+└─────────────────────────────────────┘</code></pre>
+<p><strong>Behavior rules</strong>：</p>
+<ul>
+<li>步驟指示器：顯示當前步驟 + 總步驟數</li>
+<li>每步驗證：按「下一步」時驗證當前步驟</li>
+<li>可回退：已完成的步驟可點擊回去修改</li>
+<li>最後一步：顯示所有填寫內容的摘要</li>
+<li>離開保護：填寫中離開頁面要有確認 dialog</li>
+</ul>
+<h3 id="14-inline-edit行內編輯">1.4 Inline Edit（行內編輯）</h3>
+<p><strong>When to use</strong>：</p>
+<ul>
+<li>修改單一欄位（如用戶暱稱、標題）</li>
+<li>避免打開整個表單</li>
+</ul>
+<p><strong>Structure</strong>：</p>
+<pre><code>View 模式：
+  [顯示值] [✏️ Edit]
+
+Edit 模式：
+  ┌──────────────┐ ┌────┐ ┌────┐
+  │ [Input]      │ │ ✓  │ │ ✕  │
+  └──────────────┘ └────┘ └────┘</code></pre>
+<p><strong>Rules</strong>：</p>
+<ul>
+<li>點擊 Edit → Input 出現 + auto focus</li>
+<li>Enter 確認、Esc 取消</li>
+<li>儲存成功 → 恢復 View 模式 + 短暫綠色 flash</li>
+</ul>
+<hr />
+<h2 id="2-data-table-patterns">2. Data Table Patterns</h2>
+<h3 id="21-standard-data-table">2.1 Standard Data Table</h3>
+<p><strong>Structure</strong>：</p>
+<pre><code>┌─────────────────────────────────────────┐
+│ 📋 Table Title          [+ Add] [⚙️]   │
+├─────────────────────────────────────────┤
+│ 🔍 Search...   [Filter ▼] [Sort ▼]     │
+├────┬───────────┬────────┬───────┬──────┤
+│ ☐  │ Name ↕    │ Status │ Date  │ ...  │
+├────┼───────────┼────────┼───────┼──────┤
+│ ☐  │ Item 1    │ 🟢 Active │ 2024-01 │ ⋮ │
+│ ☐  │ Item 2    │ 🔴 Inactive│ 2024-02 │ ⋮ │
+│ ☐  │ Item 3    │ 🟡 Pending │ 2024-03 │ ⋮ │
+├────┴───────────┴────────┴───────┴──────┤
+│ Showing 1-10 of 156   &lt; 1 2 3 ... 16 &gt; │
+└─────────────────────────────────────────┘</code></pre>
+<p><strong>Behavior rules</strong>：</p>
+<ul>
+<li>排序：點擊 column header 切換 asc/desc/none</li>
+<li>篩選：Dropdown filter，可複選，套用後顯示 active filter tag</li>
+<li>搜尋：300ms debounce，支援模糊搜尋</li>
+<li>選取：Checkbox + Shift 可多選，選取後頂部出現 bulk action bar</li>
+<li>Row action：hover 顯示 action icons 或 「⋮」 more menu</li>
+<li>分頁：底部分頁器 + 每頁筆數選擇（10/25/50/100）</li>
+</ul>
+<p><strong>Edge cases</strong>： | 狀態 | 處理 | |------|------| |
+載入中 | 5 行 skeleton rows | | 無資料 | 插圖 + 「目前沒有任何{資料}」 +
+[新增] CTA | | 搜尋無結果 | 「找不到符合的結果」 + 建議調整關鍵字 | |
+錯誤 | 「載入失敗」 + [重試] 按鈕 | | 無權限 |
+「你沒有檢視{資料}的權限」 + 聯繫管理員 |</p>
+<p><strong>Mobile</strong>：</p>
+<ul>
+<li>&lt; 768px 轉為 Card List</li>
+<li>每張 Card 顯示：主要欄位 + 狀態 + Action 按鈕</li>
+<li>不顯示次要欄位（可展開查看）</li>
+</ul>
+<h3 id="22-bulk-action-bar">2.2 Bulk Action Bar</h3>
+<pre><code>選取 3 項時浮出：
+┌─────────────────────────────────────────┐
+│ ✓ 已選取 3 項   [刪除] [匯出] [更多 ▼]   │ [✕ 取消選取] │
+└─────────────────────────────────────────┘</code></pre>
+<p><strong>Rules</strong>：</p>
+<ul>
+<li>固定在表格頂部或螢幕底部（sticky）</li>
+<li>破壞性操作（刪除）需二次確認 dialog</li>
+<li>「全選」= 選取當前頁 / 「選取全部 156 項」link</li>
+</ul>
+<hr />
+<h2 id="3-search--filter-patterns">3. Search &amp; Filter Patterns</h2>
+<h3 id="31-search-bar">3.1 Search Bar</h3>
+<p><strong>When to use</strong>：全站搜尋或列表內搜尋</p>
+<p><strong>Structure</strong>：</p>
+<pre><code>┌──🔍──────────────────────────────┐
+│   Search...                  [✕] │
+└──────────────────────────────────┘
+↓ 輸入 2+ 字元後出現建議
+┌──────────────────────────────────┐
+│ Recent: keyword1, keyword2       │
+├──────────────────────────────────┤
+│ 🔍 suggestion 1                  │
+│ 🔍 suggestion 2                  │
+│ 🔍 suggestion 3                  │
+└──────────────────────────────────┘</code></pre>
+<p><strong>Rules</strong>：</p>
+<ul>
+<li>Debounce 300ms</li>
+<li>最少輸入 2 個字元才觸發搜尋</li>
+<li>顯示最近搜尋（max 5）</li>
+<li>Empty → 「輸入關鍵字開始搜尋」</li>
+<li>No result → 「找不到 "{keyword}" 的結果」+ 建議</li>
+</ul>
+<h3 id="32-filter-panel">3.2 Filter Panel</h3>
+<p><strong>When to use</strong>：多條件篩選（電商、後台列表）</p>
+<p><strong>Types</strong>： | 類型 | 適用 | 說明 |
+|------|------|------| | Inline Filter | 條件 &lt; 4 個 | 水平排列
+dropdown | | Filter Drawer | 條件 4-8 個 | 側邊滑出面板 | | Advanced
+Filter | 條件 &gt; 8 個 | 獨立篩選頁或 Modal |</p>
+<p><strong>Behavior</strong>：</p>
+<ul>
+<li>選擇條件後立即篩選（不需按「套用」，除非是 Advanced Filter）</li>
+<li>Active filter 顯示為可關閉的
+Tag：<code>[Status: Active ✕] [Date: Last 7 days ✕]</code></li>
+<li>「清除全部篩選」按鈕</li>
+<li>URL 同步（篩選條件反映在 URL query string）</li>
+</ul>
+<hr />
+<h2 id="4-navigation-patterns">4. Navigation Patterns</h2>
+<h3 id="41-top-navigation-bar">4.1 Top Navigation Bar</h3>
+<pre><code>Desktop：
+┌──────────────────────────────────────────────┐
+│ [Logo]  Home  Products  About  Contact  [🔍] │ [Login]│
+└──────────────────────────────────────────────┘
+
+Mobile：
+┌──────────────────────────────────────────────┐
+│ [☰]  [Logo]                          [🔍] [👤] │
+└──────────────────────────────────────────────┘</code></pre>
+<p><strong>Rules</strong>：</p>
+<ul>
+<li>Desktop：水平排列，sticky top，高度 64px</li>
+<li>Mobile：hamburger → full-screen menu overlay</li>
+<li>Active page：底部 border 或文字色加深</li>
+<li>超過 6 個項目：使用 More dropdown</li>
+</ul>
+<h3 id="42-sidebar-navigation">4.2 Sidebar Navigation</h3>
+<pre><code>展開（240px）：           收合（64px）：
+┌──────────────────┐    ┌────────┐
+│ [Logo + Name]    │    │ [Logo] │
+├──────────────────┤    ├────────┤
+│ 🏠 Dashboard     │    │  🏠    │
+│ 📊 Analytics     │    │  📊    │
+│ 👥 Users         │    │  👥    │
+│ ▼ Settings       │    │  ⚙️    │
+│   • General      │    │        │
+│   • Team         │    │        │
+├──────────────────┤    ├────────┤
+│ 👤 Profile       │    │  👤    │
+│ 🚪 Logout        │    │  🚪    │
+└──────────────────┘    └────────┘</code></pre>
+<p><strong>Rules</strong>：</p>
+<ul>
+<li>Desktop：展開 240px，可收合為 64px icon-only</li>
+<li>Mobile：overlay drawer，hamburger 觸發</li>
+<li>Active item：背景色 + 左側 indicator bar</li>
+<li>分群：用 divider 或 group label 分組</li>
+<li>Sub-navigation：Accordion 展開子項目</li>
+</ul>
+<h3 id="43-breadcrumb">4.3 Breadcrumb</h3>
+<pre><code>Home / Products / Category / Current Page</code></pre>
+<p><strong>Rules</strong>：</p>
+<ul>
+<li>超過 4 層：<code>Home / ... / Parent / Current</code></li>
+<li>最後一項（當前頁）不可點擊，字色較深</li>
+<li>Mobile：只顯示「← Back to [Parent]」</li>
+</ul>
+<h3 id="44-tab-navigation">4.4 Tab Navigation</h3>
+<pre><code>┌─────────┬──────────┬──────────┐
+│ Tab 1 ▬ │ Tab 2    │ Tab 3    │
+├─────────┴──────────┴──────────┤
+│                                │
+│  Tab 1 Content                │
+│                                │
+└────────────────────────────────┘</code></pre>
+<p><strong>Rules</strong>：</p>
+<ul>
+<li>Tab 數量 2-6 個</li>
+<li>超過 6 個 → 考慮 sidebar 或 dropdown</li>
+<li>Mobile：可水平 scroll 或轉為 dropdown select</li>
+<li>URL：每個 tab 對應一個 URL fragment（#tab-name）</li>
+</ul>
+<hr />
+<h2 id="5-feedback-patterns">5. Feedback Patterns</h2>
+<h3 id="51-回饋工具選用指南">5.1 回饋工具選用指南</h3>
+<table>
+<thead>
+<tr>
+<th>情境</th>
+<th>使用</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>操作成功確認</td>
+<td>Toast (success)</td>
+<td>非阻斷，自動消失</td>
+</tr>
+<tr>
+<td>操作失敗</td>
+<td>Toast (error)</td>
+<td>不自動消失，需手動關閉</td>
+</tr>
+<tr>
+<td>需要確認的破壞性操作</td>
+<td>Confirm Dialog</td>
+<td>阻斷，必須回應</td>
+</tr>
+<tr>
+<td>頁面級的系統通知</td>
+<td>Banner / Alert</td>
+<td>持續顯示在頁面頂部</td>
+</tr>
+<tr>
+<td>欄位級錯誤</td>
+<td>Inline Error</td>
+<td>直接在欄位下方</td>
+</tr>
+<tr>
+<td>額外說明 / 提示</td>
+<td>Tooltip</td>
+<td>hover/focus 觸發</td>
+</tr>
+<tr>
+<td>長任務進度</td>
+<td>Progress bar + Toast</td>
+<td>即時進度 + 完成通知</td>
+</tr>
+</tbody>
+</table>
+<h3 id="52-toast-使用規則">5.2 Toast 使用規則</h3>
+<pre><code>位置：右上角（desktop），頂部居中（mobile）
+堆疊：最多 3 個，新的推舊的向下
+Duration：
+  - Success/Info：5 秒自動消失
+  - Warning：8 秒自動消失
+  - Error：不自動消失，需手動關閉
+Action：可帶一個 action button（如「撤銷」）</code></pre>
+<h3 id="53-confirm-dialog-模板">5.3 Confirm Dialog 模板</h3>
+<pre><code>┌─────────────────────────────┐
+│ ⚠️ 刪除{項目}？              │
+│                             │
+│ 此操作將永久刪除{項目名稱}。  │
+│ 此操作無法復原。              │
+│                             │
+│    ┌────────┐ ┌──────────┐  │
+│    │ 取消   │ │ 確定刪除  │  │
+│    └────────┘ └──────────┘  │
+└─────────────────────────────┘</code></pre>
+<p><strong>Rules</strong>：</p>
+<ul>
+<li>標題：動詞 + 對象（「刪除課程？」）</li>
+<li>說明：後果（「此操作無法復原。」）</li>
+<li>確認按鈕：用 Danger
+variant，文案要具體（「確定刪除」而非「確定」）</li>
+<li>高危操作：要求輸入名稱（如 GitHub 刪除 repo）</li>
+</ul>
+<hr />
+<h2 id="6-empty--error--loading-states">6. Empty / Error / Loading
+States</h2>
+<h3 id="61-loading">6.1 Loading</h3>
+<table>
+<thead>
+<tr>
+<th>類型</th>
+<th>使用場景</th>
+<th>元件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Skeleton</td>
+<td>首次載入頁面/列表</td>
+<td>Skeleton rows/cards</td>
+</tr>
+<tr>
+<td>Spinner</td>
+<td>按鈕操作中、小區塊載入</td>
+<td>Spinner icon</td>
+</tr>
+<tr>
+<td>Progress bar</td>
+<td>檔案上傳、長任務</td>
+<td>Progress component</td>
+</tr>
+<tr>
+<td>Shimmer overlay</td>
+<td>區塊重新載入</td>
+<td>半透明 overlay + spinner</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Rules</strong>：</p>
+<ul>
+<li>優先 Skeleton（保留布局結構，降低感知等待時間）</li>
+<li>Spinner 只用於小區塊（不要整頁只放一個 spinner）</li>
+<li><blockquote>
+<p>10 秒：顯示「仍在處理中…」文案</p>
+</blockquote></li>
+<li><blockquote>
+<p>30 秒：顯示「似乎比預期久，你可以稍後再查看」+ 離開按鈕</p>
+</blockquote></li>
+</ul>
+<h3 id="62-empty-state">6.2 Empty State</h3>
+<pre><code>┌─────────────────────────────┐
+│                             │
+│          [插圖]              │
+│                             │
+│     還沒有任何{項目}          │
+│   {鼓勵性的說明文案}          │
+│                             │
+│     ┌─────────────────┐     │
+│     │  + 建立第一個{項目} │   │
+│     └─────────────────┘     │
+│                             │
+└─────────────────────────────┘</code></pre>
+<table>
+<thead>
+<tr>
+<th>類型</th>
+<th>文案模板</th>
+<th>CTA</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>首次使用</td>
+<td>「還沒有任何{項目}，立即建立你的第一個{項目}！」</td>
+<td>[+ 建立{項目}]</td>
+</tr>
+<tr>
+<td>搜尋無結果</td>
+<td>「找不到符合 "{keyword}" 的結果」</td>
+<td>[清除搜尋]</td>
+</tr>
+<tr>
+<td>篩選無結果</td>
+<td>「目前的篩選條件沒有符合的{項目}」</td>
+<td>[清除篩選]</td>
+</tr>
+<tr>
+<td>無權限</td>
+<td>「你沒有檢視此{項目}的權限」</td>
+<td>[聯繫管理員]</td>
+</tr>
+<tr>
+<td>無網路</td>
+<td>「無法連線，請檢查網路連線」</td>
+<td>[重試]</td>
+</tr>
+</tbody>
+</table>
+<h3 id="63-error-state">6.3 Error State</h3>
+<table>
+<thead>
+<tr>
+<th>層級</th>
+<th>處理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>欄位級</td>
+<td>Input 下方紅色文字 + 紅色邊框</td>
+</tr>
+<tr>
+<td>區塊級</td>
+<td>區塊內 inline alert + [重試]</td>
+</tr>
+<tr>
+<td>頁面級</td>
+<td>全頁面錯誤頁（404/500）</td>
+</tr>
+<tr>
+<td>系統級</td>
+<td>頂部 Banner（如：系統維護中）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Error 頁面模板</strong>：</p>
+<pre><code>┌─────────────────────────────┐
+│                             │
+│          [插圖]              │
+│                             │
+│   {錯誤代碼}：{簡短說明}      │
+│   {詳細說明 / 建議動作}       │
+│                             │
+│  ┌──────────┐ ┌───────────┐ │
+│  │ 回首頁   │ │ 重試      │ │
+│  └──────────┘ └───────────┘ │
+│                             │
+└─────────────────────────────┘</code></pre>
+<hr />
+<h2 id="7-authentication-patterns">7. Authentication Patterns</h2>
+<h3 id="71-login">7.1 Login</h3>
+<pre><code>┌─────────────────────────────┐
+│         [Logo]              │
+│     歡迎回來                 │
+│                             │
+│ Email                       │
+│ ┌─────────────────────────┐ │
+│ │ name@example.com        │ │
+│ └─────────────────────────┘ │
+│                             │
+│ 密碼                        │
+│ ┌─────────────────────────┐ │
+│ │ ••••••••         [👁]   │ │
+│ └─────────────────────────┘ │
+│                忘記密碼？    │
+│                             │
+│ ┌─────────────────────────┐ │
+│ │       登入              │ │
+│ └─────────────────────────┘ │
+│                             │
+│ ─────── 或 ───────         │
+│                             │
+│ ┌─────────────────────────┐ │
+│ │ 🇬 使用 Google 登入      │ │
+│ └─────────────────────────┘ │
+│                             │
+│    還沒有帳號？立即註冊      │
+└─────────────────────────────┘</code></pre>
+<h3 id="72-registration">7.2 Registration</h3>
+<ul>
+<li>最少必要欄位（email + password），其餘 onboarding 時再收集</li>
+<li>密碼強度指示器（weak / medium / strong）</li>
+<li>同意條款 checkbox（必填）</li>
+</ul>
+<hr />
+<h2 id="8-content-display-patterns">8. Content Display Patterns</h2>
+<h3 id="81-card-grid">8.1 Card Grid</h3>
+<pre><code>Desktop (3 columns)：
+┌──────┐ ┌──────┐ ┌──────┐
+│ Card │ │ Card │ │ Card │
+│      │ │      │ │      │
+└──────┘ └──────┘ └──────┘
+┌──────┐ ┌──────┐ ┌──────┐
+│ Card │ │ Card │ │ Card │
+└──────┘ └──────┘ └──────┘
+
+Tablet (2 columns) → Mobile (1 column)</code></pre>
+<p><strong>Rules</strong>：</p>
+<ul>
+<li>Gap: <code>space.4</code> (16px) 或 <code>space.6</code> (24px)</li>
+<li>所有 Card 等高（使用 <code>min-height</code> 或 flexbox
+<code>stretch</code>）</li>
+<li>Card 內容截斷規則：標題 2 行、描述 3 行</li>
+</ul>
+<h3 id="82-detail-page">8.2 Detail Page</h3>
+<pre><code>┌─────────────────────────────────────────┐
+│ ← Back to List                          │
+├─────────────────────────────────────────┤
+│ [Title]                    [Edit] [⋮]   │
+│ [Metadata: date, author, status]        │
+├─────────────────────────────────────────┤
+│ ┌─────────────┬───────────────────────┐ │
+│ │ Tab 1 ▬     │ Tab 2  │ Tab 3       │ │
+│ ├─────────────┴───────────────────────┤ │
+│ │                                     │ │
+│ │  Main Content                       │ │
+│ │                                     │ │
+│ └─────────────────────────────────────┘ │
+└─────────────────────────────────────────┘</code></pre>
+<hr />
+<h2 id="9-action-patterns">9. Action Patterns</h2>
+<h3 id="91-crud-操作一致性">9.1 CRUD 操作一致性</h3>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>觸發</th>
+<th>回饋</th>
+<th>確認</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Create</td>
+<td>Primary Button</td>
+<td>Success Toast</td>
+<td>不需確認</td>
+</tr>
+<tr>
+<td>Read</td>
+<td>點擊進入 detail</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Update</td>
+<td>Edit → Save</td>
+<td>Success Toast</td>
+<td>不需確認（除非影響他人）</td>
+</tr>
+<tr>
+<td>Delete</td>
+<td>Danger Button</td>
+<td>Success Toast</td>
+<td>需 Confirm Dialog</td>
+</tr>
+</tbody>
+</table>
+<h3 id="92-row-actions">9.2 Row Actions</h3>
+<pre><code>Hover 顯示：
+│ Item Name │ Status │ Date │ [✏️] [🗑] [⋮] │
+
+⋮ More Menu：
+┌──────────────┐
+│ 📋 複製       │
+│ 📥 匯出       │
+│ ──────────── │
+│ 🗑 刪除       │  ← 紅色
+└──────────────┘</code></pre>
+<hr />
+<h2 id="10-permission--access-patterns">10. Permission / Access
+Patterns</h2>
+<h3 id="101-無權限狀態">10.1 無權限狀態</h3>
+<table>
+<thead>
+<tr>
+<th>情境</th>
+<th>處理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>頁面級</td>
+<td>403 頁 + 「你沒有權限」 + [聯繫管理員]</td>
+</tr>
+<tr>
+<td>功能級</td>
+<td>按鈕 disabled + Tooltip 說明原因</td>
+</tr>
+<tr>
+<td>資料級</td>
+<td>欄位顯示 "—" 或 "[權限不足]"</td>
+</tr>
+<tr>
+<td>可升級</td>
+<td>「升級到 Pro 方案以使用此功能」+ [升級] CTA</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Rules</strong>：</p>
+<ul>
+<li>永遠告訴用戶「為什麼」不能操作</li>
+<li>永遠告訴用戶「怎麼辦」（聯繫誰、升級什麼）</li>
+<li>不要直接隱藏功能（用戶不知道有這個功能存在）</li>
+</ul>
+<hr />
+<h2 id="figma-結構建議">Figma 結構建議</h2>
+<pre><code>📁 02_Patterns（Figma Page）
+├── 📄 Forms
+│   ├── Single Column Form（含所有 validation 狀態）
+│   ├── Multi Column Form
+│   ├── Stepper / Wizard
+│   └── Inline Edit
+├── 📄 Data Tables
+│   ├── Standard Table（含 sort/filter/pagination）
+│   ├── Bulk Actions
+│   ├── Table → Card List（Mobile）
+│   └── All States（loading/empty/error）
+├── 📄 Search &amp; Filter
+│   ├── Search Bar + Suggestions
+│   ├── Inline Filters
+│   └── Filter Drawer
+├── 📄 Navigation
+│   ├── Top Nav（Desktop + Mobile）
+│   ├── Sidebar（展開 + 收合）
+│   ├── Breadcrumb
+│   └── Tab Navigation
+├── 📄 Feedback
+│   ├── Toast（all variants）
+│   ├── Confirm Dialog
+│   └── Feedback 選用決策表
+├── 📄 States
+│   ├── Loading（Skeleton / Spinner / Progress）
+│   ├── Empty States（all types）
+│   └── Error States（field / block / page）
+├── 📄 Auth
+│   ├── Login
+│   └── Registration
+└── 📄 Permission
+    ├── No Access States
+    └── Upgrade Prompts</code></pre>
+<hr />
+<p><strong>版本</strong>：v1.0 <strong>最後更新</strong>：2026-03-17
+<strong>相關文件</strong>：<code>01_components_spec.md</code>（元件清單）、<code>MODULE_REGISTRY.md</code>（模組對應）</p>
+</div></div></body></html>

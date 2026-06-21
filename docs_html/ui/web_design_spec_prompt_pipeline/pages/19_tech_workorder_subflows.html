@@ -1,0 +1,1799 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Page-Level Prompt: 技師端 — 工單非 Happy Path 子流程（6 頁合一）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../../index.html">🏠 文件總目錄</a> ／ ui ／ web_design_spec_prompt_pipeline ／ pages ／ 19_tech_workorder_subflows.md</div>
+<div class="doc"><h1
+id="page-level-prompt-技師端--工單非-happy-path-子流程6-頁合一">Page-Level
+Prompt: 技師端 — 工單非 Happy Path 子流程（6 頁合一）</h1>
+<blockquote>
+<p>技師 PWA 工單現場例外處理與交付收尾。涵蓋 T5 範圍變更、T6
+缺料回報、T7 延遲通知、T8 門面外觀檢核、T9 雙方電子簽章、T10 我的排班。
+對齊 <code>E5x--workflow-work-order</code> Flow
+3/4/5/10、<code>specs/e-signature-spec.md</code>、<code>specs/inventory-management-spec.md</code>、<code>specs/sla-availability-spec.md</code>、<code>E5x--frontend-architecture.md</code>
+§3.3 / §8.5 / §8.7。</p>
+</blockquote>
+<hr />
+<h2 id="page-meta">[PAGE META]</h2>
+<ul>
+<li><strong>page_name</strong>: 工單子流程 Work Order Subflows</li>
+<li><strong>route_path</strong>:
+<ul>
+<li><code>/my-orders/[id]/scope-change</code>（T5 範圍變更申請）</li>
+<li><code>/my-orders/[id]/material-request</code>（T6 缺料回報）</li>
+<li><code>/my-orders/[id]/delay</code>（T7 延遲通知）</li>
+<li><code>/my-orders/[id]/door-check</code>（T8 門面外觀檢核）</li>
+<li><code>/my-orders/[id]/signature</code>（T9 雙方電子簽章）</li>
+<li><code>/account/schedule</code>（T10 我的排班）</li>
+</ul></li>
+<li><strong>page_type</strong>: mobile-first form set + read-only
+calendar（6 個路由共用設計語彙）</li>
+<li><strong>ia_pages</strong>: T5, T6, T7, T8, T9, T10</li>
+<li><strong>openapi_ops</strong>: getWorkOrder,
+submitWorkOrderSignature, getTechnicianAvailability,
+proposeReschedule</li>
+<li><strong>asyncapi_ops</strong>: subscribeWorkOrderUpdates</li>
+<li><strong>primary_goal</strong>: 技師在現場遇到非 Happy Path
+例外時（範圍追加、缺料、延遲、外觀變更、收尾簽章），能以單手操作快速提交結構化資料，保障雙方權益並維持
+SLA 與合規</li>
+<li><strong>secondary_goal</strong>:
+讓技師自主管理可服務時段（T10），減少管理員介入派工排程</li>
+<li><strong>target_users</strong>:
+<ul>
+<li>主要：已接單且正在作業中的外派技師（現場 Mobile
+PWA，常伴隨弱網/隧道/戶外強光）</li>
+<li>次要：客戶（在技師手機上現場簽名 / 透過 LINE 收通知並回應）</li>
+</ul></li>
+<li><strong>entry_point</strong>:
+<ul>
+<li>T5–T9：<code>/my-orders/[id]</code> 詳情頁 action_section
+的「回報異常」或「完工收尾」按鈕 push 進入子路由</li>
+<li>T10：底部導航第 3 個 Tab「帳戶」→ 「我的排班」/
+管理員推播「排班已更新」通知點擊</li>
+</ul></li>
+<li><strong>expected_time_on_page</strong>: T5 3–8 分鐘、T6 2–4 分鐘、T7
+1–2 分鐘、T8 2–5 分鐘、T9 1–3 分鐘、T10 1–5 分鐘</li>
+</ul>
+<hr />
+<h2 id="structure-sections">[STRUCTURE: SECTIONS]</h2>
+<blockquote>
+<p>6 個路由依子流程獨立列出 sections。共用
+<code>offline_queue_indicator</code> 與 <code>sub_page_header</code>
+於所有子路由頂部。</p>
+</blockquote>
+<h3 id="共用結構">共用結構</h3>
+<ol type="1">
+<li><p><strong>sub_page_header</strong>（所有子路由）</p>
+<ul>
+<li>section_type: header</li>
+<li>section_purpose: 返回鈕 + 子流程標題 + 工單編號徽章</li>
+</ul></li>
+<li><p><strong>offline_queue_indicator</strong>（所有子路由）</p>
+<ul>
+<li>section_type: status_banner</li>
+<li>section_purpose: 離線模式提示 + 待同步動作數量</li>
+</ul></li>
+</ol>
+<h3 id="t5-my-ordersidscope-change-範圍變更申請">T5
+<code>/my-orders/[id]/scope-change</code> 範圍變更申請</h3>
+<ol start="3" type="1">
+<li><p><strong>scope_context_card</strong></p>
+<ul>
+<li>section_type: info_block</li>
+<li>section_purpose:
+顯示原工單摘要（原報價、原工項、預估工時）供對照</li>
+</ul></li>
+<li><p><strong>scope_reason_form</strong></p>
+<ul>
+<li>section_type: form</li>
+<li>section_purpose: 變更事由說明 + 現場照片佐證</li>
+</ul></li>
+<li><p><strong>scope_items_editor</strong></p>
+<ul>
+<li>section_type: dynamic_list_form</li>
+<li>section_purpose: 新增/編輯追加工項（名稱、單價、數量、小計）</li>
+</ul></li>
+<li><p><strong>scope_price_compare</strong></p>
+<ul>
+<li>section_type: comparison_card</li>
+<li>section_purpose: 原報價 vs 新報價並列，差額百分比 + 超標警示</li>
+</ul></li>
+<li><p><strong>scope_submit_area</strong></p>
+<ul>
+<li>section_type: fixed_bottom_cta</li>
+<li>section_purpose: 提交申請按鈕 + 提交後等待客戶核准狀態說明</li>
+</ul></li>
+</ol>
+<h3 id="t6-my-ordersidmaterial-request-缺料回報">T6
+<code>/my-orders/[id]/material-request</code> 缺料回報</h3>
+<ol start="8" type="1">
+<li><p><strong>material_context_card</strong></p>
+<ul>
+<li>section_type: info_block</li>
+<li>section_purpose: 當前工單工項與預設材料清單</li>
+</ul></li>
+<li><p><strong>material_missing_list</strong></p>
+<ul>
+<li>section_type: dynamic_list_form</li>
+<li>section_purpose:
+缺件清單（品牌/型號/數量），支援從庫存主檔搜尋選擇</li>
+</ul></li>
+<li><p><strong>material_alternative_picker</strong></p>
+<ul>
+<li>section_type: form</li>
+<li>section_purpose:
+替代方案選擇（是否可用替代品、替代型號、差價說明）</li>
+</ul></li>
+<li><p><strong>partial_completion_decision</strong></p>
+<ul>
+<li>section_type: radio_group</li>
+<li>section_purpose: 現場決策（完全等待 / 部分完工 / 客戶取消）</li>
+</ul></li>
+<li><p><strong>material_submit_area</strong></p>
+<ul>
+<li>section_type: fixed_bottom_cta</li>
+<li>section_purpose: 提交缺料回報並切換工單狀態為
+<code>material_pending</code></li>
+</ul></li>
+</ol>
+<h3 id="t7-my-ordersiddelay-延遲通知">T7
+<code>/my-orders/[id]/delay</code> 延遲通知</h3>
+<ol start="13" type="1">
+<li><p><strong>delay_reason_selector</strong></p>
+<ul>
+<li>section_type: radio_group</li>
+<li>section_purpose: 延遲事由快選（塞車 / 前案超時 / 設備問題 /
+其他）</li>
+</ul></li>
+<li><p><strong>new_eta_picker</strong></p>
+<ul>
+<li>section_type: datetime_picker</li>
+<li>section_purpose: 新預計到達/完工時間選擇</li>
+</ul></li>
+<li><p><strong>delay_severity_preview</strong></p>
+<ul>
+<li>section_type: preview_card</li>
+<li>section_purpose: 根據新 ETA 預覽延遲等級與對 SLA 的影響提示</li>
+</ul></li>
+<li><p><strong>delay_submit_area</strong></p>
+<ul>
+<li>section_type: fixed_bottom_cta</li>
+<li>section_purpose: 送出延遲通知（自動推 LINE 客戶 + &gt; 2h
+升級管理員）</li>
+</ul></li>
+</ol>
+<h3 id="t8-my-ordersiddoor-check-門面外觀檢核">T8
+<code>/my-orders/[id]/door-check</code> 門面外觀檢核</h3>
+<ol start="17" type="1">
+<li><p><strong>door_check_stepper</strong></p>
+<ul>
+<li>section_type: stepper</li>
+<li>section_purpose: 三步驟視覺引導（抵達拍 → 施工中 → 完工拍）</li>
+</ul></li>
+<li><p><strong>arrival_photo_group</strong></p>
+<ul>
+<li>section_type: photo_capture_grid</li>
+<li>section_purpose: 抵達時拍原始狀態（門扇全貌 / 側板特寫 / 切割區標記
+/ 現有孔位，≥ 4 張）</li>
+</ul></li>
+<li><p><strong>appearance_notice_sheet</strong></p>
+<ul>
+<li>section_type: consent_sheet</li>
+<li>section_purpose: 自動生成「門外觀變更告知書」供客戶現場過目</li>
+</ul></li>
+<li><p><strong>completion_photo_group</strong></p>
+<ul>
+<li>section_type: photo_capture_grid</li>
+<li>section_purpose: 完工後對比照（同角度 ≥ 2
+張），與抵達照自動疊圖比對</li>
+</ul></li>
+<li><p><strong>customer_field_confirm</strong></p>
+<ul>
+<li>section_type: dual_action</li>
+<li>section_purpose: 客戶現場按讚（同意）或拒絕 + 文字備註</li>
+</ul></li>
+</ol>
+<h3 id="t9-my-ordersidsignature-雙方電子簽章">T9
+<code>/my-orders/[id]/signature</code> 雙方電子簽章</h3>
+<ol start="22" type="1">
+<li><p><strong>signature_intro_card</strong></p>
+<ul>
+<li>section_type: info_block</li>
+<li>section_purpose: 顯示簽章文件類型（WORK_ORDER_COMPLETION /
+APPEARANCE_CHANGE / SCOPE_CHANGE）+ 租戶法律等級</li>
+</ul></li>
+<li><p><strong>technician_signature_pad</strong></p>
+<ul>
+<li>section_type: canvas_signature</li>
+<li>section_purpose: 技師簽章區（上半部）</li>
+</ul></li>
+<li><p><strong>customer_signature_pad</strong></p>
+<ul>
+<li>section_type: canvas_signature</li>
+<li>section_purpose: 客戶簽章區（下半部）+ 客戶姓名口頭確認
+checkbox</li>
+</ul></li>
+<li><p><strong>signature_metadata_preview</strong></p>
+<ul>
+<li>section_type: metadata_card</li>
+<li>section_purpose:
+即時顯示將寫入稽核的元資料（時間戳、GPS、IP、裝置指紋）</li>
+</ul></li>
+<li><p><strong>signature_submit_area</strong></p>
+<ul>
+<li>section_type: fixed_bottom_cta</li>
+<li>section_purpose: 雙簽完成 → 生成 PDF → 寄 LINE 給客戶 + 寫
+<code>audit-events</code></li>
+</ul></li>
+</ol>
+<h3 id="t10-accountschedule-我的排班">T10 <code>/account/schedule</code>
+我的排班</h3>
+<ol start="27" type="1">
+<li><p><strong>schedule_month_header</strong></p>
+<ul>
+<li>section_type: header_with_switcher</li>
+<li>section_purpose: 月份切換 + 本月休假/備勤額度摘要</li>
+</ul></li>
+<li><p><strong>schedule_calendar_view</strong></p>
+<ul>
+<li>section_type: month_grid</li>
+<li>section_purpose:
+唯讀月曆，顯示每日工單數、上/下班時段、休假/備勤標記</li>
+</ul></li>
+<li><p><strong>leave_request_form</strong></p>
+<ul>
+<li>section_type: bottom_sheet_form</li>
+<li>section_purpose:
+申請休假表單（日期區間、事由、是否影響已接工單）</li>
+</ul></li>
+<li><p><strong>standby_request_form</strong></p>
+<ul>
+<li>section_type: bottom_sheet_form</li>
+<li>section_purpose: 申請備勤加班表單（日期、時段、備註）</li>
+</ul></li>
+<li><p><strong>close_today_accept_switch</strong></p>
+<ul>
+<li>section_type: toggle_action</li>
+<li>section_purpose: 關閉本日接單 toggle（1h
+內無工單立即生效，否則完工後生效）</li>
+</ul></li>
+<li><p><strong>pending_requests_list</strong></p>
+<ul>
+<li>section_type: list</li>
+<li>section_purpose: 尚未審核的休假/備勤申請列表 + 取消按鈕</li>
+</ul></li>
+</ol>
+<h3 id="共用底部導航">共用底部導航</h3>
+<ol start="33" type="1">
+<li><strong>bottom_navigation</strong>
+<ul>
+<li>section_type: navigation</li>
+<li>section_purpose: 三 Tab 底部導航列（T5–T9 被 sub-page 覆蓋隱藏、T10
+顯示且「帳戶」active）</li>
+</ul></li>
+</ol>
+<hr />
+<h2 id="section-component-spec">[SECTION COMPONENT SPEC]</h2>
+<h3 id="section-sub_page_header共用">Section:
+sub_page_header（共用）</h3>
+<ul>
+<li><strong>layout</strong>: 固定頂部 sticky，高度 56px，背景白色，下方
+1px border #E2E8F0，z-index 20，padding 0
+16px，<code>flex items-center justify-between</code></li>
+<li><strong>elements</strong>:
+<ul>
+<li>back_btn: IconButton / required / 左側 ChevronLeft 24×24px，touch
+area 44×44px，點擊返回 <code>/my-orders/[id]</code> 詳情頁（T10 返回
+<code>/account</code>）</li>
+<li>page_title: H2 / required / Noto Sans TC 18px SemiBold 色
+#1E293B，最多 10
+字（例：「範圍變更申請」「缺料回報」「延遲通知」「門面檢核」「雙方簽章」「我的排班」）</li>
+<li>wo_badge: Badge / optional（T5–T9）/ 工單編號簡碼（例
+<code>#0032</code>），背景 #F1F5F9 字體 13px 色
+#64748B，點擊彈出完整編號 Tooltip</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 三元素正常顯示</li>
+<li>submitting: back_btn disabled（防止中斷提交）</li>
+</ul></li>
+<li><strong>copy_constraints</strong>: 標題最多 10
+個繁體中文字，超過截斷</li>
+</ul>
+<h3 id="section-offline_queue_indicator共用">Section:
+offline_queue_indicator（共用）</h3>
+<ul>
+<li><strong>layout</strong>: sticky 於 sub_page_header 下方，全寬，高度
+40px，z-index 19，背景 #FEF3C7，文字
+#92400E，<code>flex items-center gap-2 px-4</code></li>
+<li><strong>elements</strong>:
+<ul>
+<li>offline_icon: Icon / required / WifiOff 16px</li>
+<li>queue_text: Body SM / required / 「離線模式 — 已有 {N}
+個動作待同步」，Noto Sans TC 13px</li>
+<li>sync_hint: Caption / optional / 「恢復連線後自動送出」，字體
+12px</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>hidden: <code>navigator.onLine === true</code>
+且佇列為空時不顯示</li>
+<li>visible: 離線或有待同步項目時 slideDown 200ms</li>
+<li>syncing: 文字改「同步中 {已同步}/{總數}...」+ Spinner</li>
+<li>synced: 背景轉 #D1FAE5 文字「已全部同步」，2 秒後淡出</li>
+</ul></li>
+</ul>
+<hr />
+<h3 id="section-scope_context_cardt5">Section:
+scope_context_card（T5）</h3>
+<ul>
+<li><strong>layout</strong>: 單欄 padding 16px，背景 #F8FAFC，margin
+16px，圓角 12px，無 shadow（次要資訊區）</li>
+<li><strong>elements</strong>:
+<ul>
+<li>section_title: Caption / required / 「原工單摘要」，色 #64748B 字體
+12px</li>
+<li>original_items_list: InfoList / required / 原工項列表（名稱 + 單價 ×
+數量），每行 14px</li>
+<li>original_total: InfoRow Bold / required /
+「原報價：${amount}」，18px SemiBold 色 #1E293B</li>
+<li>original_duration: InfoRow / required / 圖示 Clock + 「預估工時 {N}
+小時」</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 顯示原始資料</li>
+<li>loading: skeleton 3 行</li>
+</ul></li>
+</ul>
+<h3 id="section-scope_reason_formt5">Section:
+scope_reason_form（T5）</h3>
+<ul>
+<li><strong>layout</strong>: 單欄 padding 16px，背景白色，margin 16px
+16px 0，圓角 12px，shadow-sm</li>
+<li><strong>elements</strong>:
+<ul>
+<li>section_title: H3 / required / 「變更原因」，16px SemiBold</li>
+<li>reason_textarea: TextArea / required / placeholder「現場發現
+...（例：鎖匣內機構變形需更換、門框需重新校正）」，min 高度 100px，字體
+15px，max 300 字，字數 counter 右下角</li>
+<li>evidence_photo_title: Body SM Bold / required / 「現場佐證照片（至少
+2 張）」，14px</li>
+<li>photo_grid: Grid 3-column / required / gap 8px，每張縮圖 ratio 1:1
+圓角 8px</li>
+<li>add_photo_btn: DashedCard / required / 虛線邊框 + Camera 圖示 +
+「拍照」，80×80px，touch area 80×80px，呼叫
+<code>&lt;input type="file" accept="image/*" capture="environment"&gt;</code>，前端壓縮至
+1MB</li>
+<li>photo_counter: Caption / required / 「{N}/2 張」，未達 2
+張時紅色</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 空白表單</li>
+<li>filled: 已填寫</li>
+<li>photo_uploading: 照片縮圖位置顯示上傳進度環</li>
+<li>photo_queued_offline: 照片縮圖右下角顯示 ⏱
+圖示（暫存本地，上線後上傳）</li>
+</ul></li>
+<li><strong>copy_constraints</strong>: 事由最多 300 字</li>
+</ul>
+<h3 id="section-scope_items_editort5">Section:
+scope_items_editor（T5）</h3>
+<ul>
+<li><strong>layout</strong>: 單欄 padding 16px，背景白色，margin 16px
+16px 0，圓角 12px，shadow-sm</li>
+<li><strong>elements</strong>:
+<ul>
+<li>section_title: H3 / required / 「追加工項」，16px SemiBold</li>
+<li>item_row: DynamicRow / repeated / padding 12px，背景 #F8FAFC，圓角
+8px，margin-bottom 8px，每列：
+<ul>
+<li>item_name_input: Input / required / placeholder「工項名稱」，高度
+48px，字體 16px，<code>flex-grow</code></li>
+<li>item_price_input: Input type=number / required /
+placeholder「單價」，寬度 100px 高度 48px，字體
+16px，右側「元」suffix</li>
+<li>item_qty_stepper: Stepper / required / <code>-</code> 按鈕 44×44px +
+數字 + <code>+</code> 按鈕 44×44px，min 1 max 99</li>
+<li>subtotal_text: Caption / required / 「小計 ${price × qty}」，色
+#64748B</li>
+<li>delete_btn: IconButton / required / Trash 圖示 24×24px，touch area
+44×44px，點擊確認後刪除該列</li>
+</ul></li>
+<li>add_item_btn: Button Outline / required / full-width 圖示 Plus +
+「新增工項」，高度 48px，邊框 #2563EB 字體 #2563EB 16px</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 1 個預設空白項目</li>
+<li>filled: ≥ 1 個項目已填</li>
+<li>empty: 全部刪除後顯示「至少保留 1 個項目」紅色提示，add_item_btn
+脈衝動畫</li>
+</ul></li>
+<li><strong>copy_constraints</strong>: 工項名稱最多 30 字</li>
+</ul>
+<h3 id="section-scope_price_comparet5">Section:
+scope_price_compare（T5）</h3>
+<ul>
+<li><strong>layout</strong>: 單欄 padding 16px，背景白色，margin
+16px，圓角 12px，shadow-sm</li>
+<li><strong>elements</strong>:
+<ul>
+<li>compare_row: Flex Row / required / 兩欄並列
+<ul>
+<li>original_block: Block / 左欄 / 「原報價」Caption 12px 色 #64748B +
+金額 20px Bold</li>
+<li>arrow_icon: Icon / required / ArrowRight 16px 色 #94A3B8</li>
+<li>new_block: Block / 右欄 / 「新報價」Caption 12px + 金額 20px
+Bold（依差額變色：增加 → #DC2626 / 持平 → #1E293B / 減少 →
+#059669）</li>
+</ul></li>
+<li>diff_badge: Badge / required / 「+${diff}（+{pct}%）」，差額 &gt; 0
+時背景 #FEE2E2 字體 #B91C1C / 差額 &lt; 0 時背景 #D1FAE5 字體
+#065F46</li>
+<li>threshold_alert: AlertCard / conditional / 當
+<code>new_price &gt; original_price × 2</code> 時顯示：
+<ul>
+<li>背景 #FEE2E2，左邊框 4px #DC2626，padding 12px，圖示 AlertTriangle +
+「超過原報價 2 倍，將進入主管審核流程（預計 1–4 小時）」字體 14px</li>
+</ul></li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>below_threshold: 無 threshold_alert</li>
+<li>above_threshold: 顯示紅色 threshold_alert +
+提交按鈕文案改「送出並等待主管審核」</li>
+</ul></li>
+</ul>
+<h3 id="section-scope_submit_areat5">Section:
+scope_submit_area（T5）</h3>
+<ul>
+<li><strong>layout</strong>: 固定底部 sticky，背景白色，padding 16px +
+safe-area-inset-bottom，shadow-up，z-index 15</li>
+<li><strong>elements</strong>:
+<ul>
+<li>submit_btn: Button CTA / required / 「送出範圍變更申請」，full-width
+高度 56px 背景 #F59E0B 字體 18px Bold 白色</li>
+<li>post_submit_hint: Caption / optional（提交成功後顯示）/ 「已推送
+LINE 給客戶，24 小時內回覆否則管理員介入」，色 #64748B 12px</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 啟用</li>
+<li>disabled: 事由空 OR 工項數 &lt; 1 OR 照片 &lt; 2 張 → 背景
+#CBD5E1，下方紅色小字列出缺少項目</li>
+<li>submitting: Spinner + 「提交中...」</li>
+<li>submitted_waiting_customer: 按鈕改為 disabled
+灰色「等待客戶核准」，倒數計時 24h</li>
+<li>submitted_waiting_supervisor:
+按鈕改「等待主管審核」（超標情境）</li>
+<li>websocket_customer_approved: 全屏 Toast「客戶已核准 ✓」2
+秒後返回詳情頁</li>
+<li>websocket_customer_rejected: Dialog「客戶已拒絕新報價」+
+三選項（僅完成原範圍 / 取消工單 / 電話協商）</li>
+</ul></li>
+</ul>
+<hr />
+<h3 id="section-material_context_cardt6">Section:
+material_context_card（T6）</h3>
+<ul>
+<li><strong>layout</strong>: 單欄 padding 16px，背景 #F8FAFC，margin
+16px，圓角 12px</li>
+<li><strong>elements</strong>:
+<ul>
+<li>section_title: Caption / required / 「工單工項與預設材料」，色
+#64748B 12px</li>
+<li>expected_parts_list: InfoList / required /
+預設所需材料（依鎖具型號），每行：名稱 + 規格 + 預設數量</li>
+</ul></li>
+</ul>
+<h3 id="section-material_missing_listt6">Section:
+material_missing_list（T6）</h3>
+<ul>
+<li><strong>layout</strong>: 單欄 padding 16px，背景白色，margin 16px
+16px 0，圓角 12px，shadow-sm</li>
+<li><strong>elements</strong>:
+<ul>
+<li>section_title: H3 / required / 「缺件清單」，16px SemiBold</li>
+<li>missing_row: DynamicRow / repeated / padding 12px，圓角 8px，背景
+#FFF7ED margin-bottom 8px
+<ul>
+<li>part_picker: SearchableSelect / required /
+placeholder「搜尋零件主檔...」，點擊彈出全螢幕搜尋（輸入 2 字以上 GET
+<code>/api/v1/inventory/parts?q=</code>），高度 48px</li>
+<li>selected_part_display: ChipList / required / 已選零件：品牌 Logo +
+名稱 + 型號（PN）</li>
+<li>stock_eta_badge: Badge / required（選擇零件後顯示）/
+<ul>
+<li>現貨充足：綠底白字「倉內有貨 {N}」</li>
+<li>需調貨：橘底白字「預計 {N} 天到貨」</li>
+<li>缺貨：紅底白字「無 ETA 需特別訂購」</li>
+</ul></li>
+<li>qty_stepper: Stepper / required / min 1 max 99，控制尺寸
+44×44px</li>
+<li>delete_btn: IconButton / required / 44×44px</li>
+</ul></li>
+<li>add_missing_btn: Button Outline / required /
+「新增缺件」，full-width 高度 48px</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 空白，一個預設空 row</li>
+<li>searching: 開啟全螢幕搜尋面板（輸入框 + 結果列表，每列 height
+56px）</li>
+<li>part_selected: 自動帶入 stock_eta_badge（來自
+<code>specs/inventory-management-spec.md</code>）</li>
+</ul></li>
+<li><strong>copy_constraints</strong>: 搜尋關鍵字 ≥ 2 字才發請求</li>
+</ul>
+<h3 id="section-material_alternative_pickert6">Section:
+material_alternative_picker（T6）</h3>
+<ul>
+<li><strong>layout</strong>: 單欄 padding 16px，背景白色，margin 16px
+16px 0，圓角 12px</li>
+<li><strong>elements</strong>:
+<ul>
+<li>section_title: H3 / required / 「替代方案」，16px SemiBold</li>
+<li>has_alternative_toggle: Toggle / required /
+「是否可用替代品？」，Switch 44×28px</li>
+<li>alternative_fields: CollapsibleBlock / conditional（toggle ON
+時展開）/
+<ul>
+<li>alt_part_picker: SearchableSelect / required / 同
+material_missing_list 的 part_picker</li>
+<li>price_diff_input: Input type=number / required /
+「替代品差價」，可正可負，suffix「元」</li>
+<li>alt_note_textarea: TextArea / optional /
+placeholder「替代說明（客戶能否接受等）」，min 80px max 150 字</li>
+</ul></li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>collapsed: 僅顯示 toggle</li>
+<li>expanded: 展開欄位，動畫 200ms</li>
+</ul></li>
+</ul>
+<h3 id="section-partial_completion_decisiont6">Section:
+partial_completion_decision（T6）</h3>
+<ul>
+<li><strong>layout</strong>: 單欄 padding 16px，背景白色，margin 16px
+16px 0，圓角 12px</li>
+<li><strong>elements</strong>:
+<ul>
+<li>section_title: H3 / required / 「現場決策」，16px SemiBold</li>
+<li>radio_group: RadioGroup / required / 三選項，每選項 touch area 全寬
+× 56px：
+<ul>
+<li>option_wait: Radio + Label / 「完全等待備料到貨（工單維持
+<code>material_pending</code>）」</li>
+<li>option_partial: Radio + Label /
+「部分完工（完成可做部分，剩餘開立關聯工單
+<code>linked_work_order_id</code>）」+
+副說明「原工單佣金按完成比例計算」</li>
+<li>option_cancel: Radio + Label / 「客戶選擇取消（豁免車馬費）」+
+副說明「對齊派工營運 §3，本次不收費」</li>
+</ul></li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 無預選</li>
+<li>selected: 選中項左側 16px 藍色圓點 + 背景 #DBEAFE</li>
+</ul></li>
+<li><strong>copy_constraints</strong>: 每選項 label 最多 50 字</li>
+</ul>
+<h3 id="section-material_submit_areat6">Section:
+material_submit_area（T6）</h3>
+<ul>
+<li><strong>layout</strong>: 固定底部 sticky，background 白，padding
+16px + safe-area-inset-bottom</li>
+<li><strong>elements</strong>:
+<ul>
+<li>submit_btn: Button CTA / required / 「提交缺料回報」，full-width
+高度 56px 背景 #F59E0B 字體 18px Bold</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>disabled: 缺件 &lt; 1 OR 決策未選 → 灰色 + 缺少項目提示</li>
+<li>submitting: Spinner</li>
+<li>submitted: 工單狀態轉 <code>material_pending</code>，返回詳情頁 +
+Toast「已通知管理員調貨，LINE 已推送客戶」</li>
+<li>partial_submitted: 額外 Dialog 顯示新建的
+<code>linked_work_order_id</code>，含「查看關聯工單」按鈕</li>
+</ul></li>
+</ul>
+<hr />
+<h3 id="section-delay_reason_selectort7">Section:
+delay_reason_selector（T7）</h3>
+<ul>
+<li><strong>layout</strong>: 單欄 padding 16px，背景白色，margin
+16px，圓角 12px，shadow-sm</li>
+<li><strong>elements</strong>:
+<ul>
+<li>section_title: H3 / required / 「延遲事由」，16px SemiBold</li>
+<li>reason_grid: Grid 2-column / required / gap 12px，每選項為 Card
+按鈕：
+<ul>
+<li>option_traffic: Card Button / 圖示 Car + 「塞車」，高度 80px，圓角
+12px，邊框 2px #E2E8F0</li>
+<li>option_prev_overrun: Card Button / 圖示 Clock + 「前案超時」</li>
+<li>option_equipment: Card Button / 圖示 Tool + 「設備問題」</li>
+<li>option_other: Card Button / 圖示 MoreHorizontal + 「其他」</li>
+</ul></li>
+<li>other_reason_input: TextArea / conditional（選 option_other
+時展開）/ placeholder「請說明...」，min 80px max 150 字</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 無預選，邊框 #E2E8F0</li>
+<li>selected: 選中項邊框 #2563EB 2px + 背景 #DBEAFE + 圖示變藍</li>
+<li>other_selected: 展開文字輸入區</li>
+</ul></li>
+</ul>
+<h3 id="section-new_eta_pickert7">Section: new_eta_picker（T7）</h3>
+<ul>
+<li><strong>layout</strong>: 單欄 padding 16px，背景白色，margin 16px
+16px 0，圓角 12px</li>
+<li><strong>elements</strong>:
+<ul>
+<li>section_title: H3 / required / 「新預計時間」，16px SemiBold</li>
+<li>current_eta_display: Caption / required / 「原預計：YYYY-MM-DD
+HH:mm」色 #64748B</li>
+<li>datetime_picker: DateTimePicker / required / 原生
+<code>&lt;input type="datetime-local"&gt;</code>，高度 48px 字體
+16px，min = now() + 10min</li>
+<li>quick_offset_chips: ChipGroup / required / 快選按鈕 gap 8px：「+15
+分」「+30 分」「+1 小時」「+2 小時」，每顆 min 48×44px</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 預設 now() + 30min</li>
+<li>picking: 開啟原生 picker</li>
+</ul></li>
+<li><strong>copy_constraints</strong>: 僅允許晚於現在時間，超過 8
+小時需額外事由說明</li>
+</ul>
+<h3 id="section-delay_severity_previewt7">Section:
+delay_severity_preview（T7）</h3>
+<ul>
+<li><strong>layout</strong>: 單欄 padding 16px，margin 16px 16px 0，圓角
+12px，背景依嚴重度變色</li>
+<li><strong>elements</strong>:
+<ul>
+<li>severity_badge: Badge / required /
+<ul>
+<li>輕微（≤ 15 分）：背景 #D1FAE5 字體 #065F46 「輕微延遲」</li>
+<li>中度（15–30 分）：背景 #FEF3C7 字體 #92400E 「中度延遲（客戶會收到
+LINE 通知）」</li>
+<li>嚴重（&gt; 30 分）：背景 #FEE2E2 字體 #B91C1C
+「嚴重延遲（客戶將收到改期/取消選項）」</li>
+<li>超長（&gt; 2h）：背景 #FEE2E2 字體 #991B1B + 圖示 AlertTriangle
+「超長延遲 — 將同步通知管理員介入，影響技師 KPI」</li>
+</ul></li>
+<li>sla_impact_text: Body SM / required / 「SLA 時鐘將重置為新 ETA」色
+#475569 14px</li>
+<li>kpi_warning_text: Body SM / conditional（嚴重/超長）/
+「本次延遲將計入 KPI（影響月結獎懲）」色 #B91C1C 14px</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 跟隨 new_eta_picker 即時計算嚴重度</li>
+</ul></li>
+</ul>
+<h3 id="section-delay_submit_areat7">Section:
+delay_submit_area（T7）</h3>
+<ul>
+<li><strong>layout</strong>: 固定底部 sticky</li>
+<li><strong>elements</strong>:
+<ul>
+<li>submit_btn: Button CTA / required / 「送出延遲通知」，full-width
+高度 56px，依嚴重度變色（輕微 #2563EB / 中度 #F59E0B / 嚴重
+#DC2626）</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>disabled: 事由未選 OR ETA 未改 → 灰色</li>
+<li>submitting: Spinner + 「提交中...」</li>
+<li>submitted: Toast「已推送 LINE 給客戶」+ 返回詳情頁，工單狀態轉
+<code>delayed</code></li>
+<li>submitted_escalated: 額外 Toast「已同步通知管理員」（&gt; 2h
+情境）</li>
+</ul></li>
+</ul>
+<hr />
+<h3 id="section-door_check_steppert8">Section:
+door_check_stepper（T8）</h3>
+<ul>
+<li><strong>layout</strong>: 全寬 sticky 於 offline_queue_indicator
+下方，背景白色高度 64px，下方 1px border</li>
+<li><strong>elements</strong>:
+<ul>
+<li>step_indicator: Stepper / required / 三步驟水平排列：
+<ul>
+<li>step_1: 「抵達拍」（Circle 24px 編號 1）</li>
+<li>step_2: 「客戶同意」</li>
+<li>step_3: 「完工拍」</li>
+<li>當前步驟背景 #2563EB 白字，已完成 #10B981 勾號，未開始 #E2E8F0</li>
+</ul></li>
+<li>progress_line: Line / required / 連接三個 Circle，已完成段
+#10B981</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>step_1_active: 僅 step_1 為藍</li>
+<li>step_2_active: step_1 完成，step_2 為藍</li>
+<li>step_3_active: step_1/2 完成，step_3 為藍</li>
+</ul></li>
+</ul>
+<h3 id="section-arrival_photo_groupt8">Section:
+arrival_photo_group（T8）</h3>
+<ul>
+<li><strong>layout</strong>: 單欄 padding 16px，背景白色，margin
+16px，圓角 12px，shadow-sm</li>
+<li><strong>elements</strong>:
+<ul>
+<li>section_title: H3 / required / 「1. 抵達時拍攝原始狀態（最少 4
+張）」，16px SemiBold</li>
+<li>required_shots_checklist: CheckList / required / 必拍清單，每項
+Checkbox + 文字：
+<ul>
+<li>「門扇全貌（含門框）」</li>
+<li>「側板特寫」</li>
+<li>「將切割/加工區域標記」</li>
+<li>「現有鎖孔/孔位」</li>
+</ul></li>
+<li>photo_grid: Grid 2-column / required / gap 8px，每張縮圖 ratio 1:1
+圓角 8px</li>
+<li>add_photo_btn: DashedCard / required / 拍照入口同 T5</li>
+<li>photo_count_text: Caption / required / 「{N}/4 張」未達 4
+張紅色</li>
+<li>exif_toggle: Toggle / required / 「保留照片 GPS
+與時間戳（建議開啟）」預設 ON，14px</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 空 grid + 4 項 checklist 未勾</li>
+<li>filled: 對應 checklist 項目勾選（建議技師逐項拍）</li>
+</ul></li>
+<li><strong>copy_constraints</strong>: 照片檔名 + hash
+於上傳時一併記錄（SHA-256）</li>
+</ul>
+<h3 id="section-appearance_notice_sheett8">Section:
+appearance_notice_sheet（T8）</h3>
+<ul>
+<li><strong>layout</strong>: 全螢幕
+overlay（從底部滑入），背景白色，padding 24px 16px，可捲動</li>
+<li><strong>elements</strong>:
+<ul>
+<li>notice_title: H2 / required / 「門外觀變更告知書」20px SemiBold</li>
+<li>auto_generated_content: Prose Block / required /
+系統依工單與照片自動生成內容：
+<ul>
+<li>工單編號、客戶姓名、日期時間</li>
+<li>「變更原因：{technician_input}」</li>
+<li>「影響區域：{area_from_photo_tags}」</li>
+<li>「可能風險：油漆起泡、變色、不可逆加工（依 Flow 10 BR-003）」</li>
+<li>「公司不承擔外觀損害責任」免責聲明（粗體紅色）</li>
+</ul></li>
+<li>original_photos_mini_grid: MiniGrid 4-column / required /
+抵達照縮圖嵌入書面</li>
+<li>customer_read_checkbox: Checkbox / required /
+「客戶已閱讀並了解以上內容」，touch area 44×44px，未勾則下一步
+disabled</li>
+<li>customer_decision_buttons: ButtonGroup / required /
+<ul>
+<li>agree_btn: Button Primary / 「客戶同意 → 前往簽章」，full-width 高度
+56px 背景 #2563EB</li>
+<li>refuse_btn: Button Outline / 「客戶拒絕 → 提供替代方案」，高度
+48px，邊框 #DC2626 字體 #DC2626</li>
+</ul></li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 展開告知書，checkbox 未勾</li>
+<li>read: checkbox 勾選後 agree_btn 啟用</li>
+<li>agree_clicked: 跳轉至 T9 簽章頁，帶
+<code>document_type=APPEARANCE_CHANGE</code></li>
+<li>refuse_clicked: 開啟替代方案 Dialog（換鎖款 / 轉接片 / 取消安裝）→
+對應 Flow 10</li>
+</ul></li>
+<li><strong>copy_constraints</strong>: 自動生成內容段落 ≤ 500 字</li>
+</ul>
+<h3 id="section-completion_photo_groupt8">Section:
+completion_photo_group（T8）</h3>
+<ul>
+<li><strong>layout</strong>: 單欄 padding 16px，背景白色，margin
+16px，圓角 12px</li>
+<li><strong>elements</strong>:
+<ul>
+<li>section_title: H3 / required / 「3. 完工後對比照（最少 2 張）」</li>
+<li>overlay_compare_helper: ComparisonCard / required / 並列縮圖（抵達
+vs 完工），滑動分隔條可左右對比，高度 240px</li>
+<li>photo_grid: Grid 2-column / required / 新拍完工照</li>
+<li>add_photo_btn: DashedCard / required</li>
+<li>diff_hint: Caption / optional / AI 自動識別差異區域（若 vision
+服務啟用）+ 標記紅框</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>empty: 僅顯示抵達照</li>
+<li>partial: 單張完工照，overlay 啟動</li>
+<li>complete: ≥ 2 張完工照</li>
+</ul></li>
+</ul>
+<h3 id="section-customer_field_confirmt8">Section:
+customer_field_confirm（T8）</h3>
+<ul>
+<li><strong>layout</strong>: 固定底部 sticky，背景白色 padding 16px +
+safe-area</li>
+<li><strong>elements</strong>:
+<ul>
+<li>like_btn: Button CTA / required / 圖示 ThumbsUp +
+「客戶確認無損壞」，高度 56px 背景 #10B981 字體 18px Bold 白色，寬度
+65%</li>
+<li>refuse_btn: Button Outline / required / 「客戶有異議」，邊框 #DC2626
+字體 #DC2626，寬度 35%</li>
+<li>note_input: Input / optional（展開時）/
+placeholder「客戶備註（選填）」，高度 48px</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 兩顆按鈕並列</li>
+<li>like_clicked: 跳轉 T9
+簽章（document_type=WORK_ORDER_COMPLETION）</li>
+<li>refuse_clicked: 自動建立爭議案件 → POST
+<code>/api/v1/disputes</code> → 導向
+<code>/admin/disputes/{id}</code>（實際由後台處理，技師端顯示「已通知管理員」）</li>
+</ul></li>
+</ul>
+<hr />
+<h3 id="section-signature_intro_cardt9">Section:
+signature_intro_card（T9）</h3>
+<ul>
+<li><strong>layout</strong>: 單欄 padding 16px，背景 #F0FDF4（綠）或
+#FEF3C7（橘，依文件類型），margin 16px，圓角 12px</li>
+<li><strong>elements</strong>:
+<ul>
+<li>doc_type_badge: Badge / required / 依 <code>document_type</code>
+顯示：
+<ul>
+<li>WORK_ORDER_COMPLETION：綠底「工單完工確認」</li>
+<li>APPEARANCE_CHANGE：橘底「外觀變更同意」</li>
+<li>SCOPE_CHANGE：紫底「範圍變更核准」</li>
+</ul></li>
+<li>legal_level_text: Body SM / required / 依租戶設定顯示法律等級：
+<ul>
+<li><code>typed</code>：「鍵入姓名確認（具初步證據效力）」</li>
+<li><code>drawn</code>：「手寫簽名（符合電子簽章法第 4 條）」</li>
+<li><code>certificate</code>：「憑證簽章（具最高法律效力）」</li>
+</ul></li>
+<li>required_parties_text: Body MD Bold / required / 「本文件需 技師 +
+客戶 雙方簽章」</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 顯示文件類型與法律等級</li>
+</ul></li>
+</ul>
+<h3 id="section-technician_signature_padt9">Section:
+technician_signature_pad（T9）</h3>
+<ul>
+<li><strong>layout</strong>: 單欄 padding 16px，背景白色，margin
+16px，圓角 12px，shadow-sm</li>
+<li><strong>elements</strong>:
+<ul>
+<li>section_title: H3 / required / 「技師簽章」+ 右側 Badge「您」16px
+SemiBold</li>
+<li>technician_name_display: Body MD / required /
+顯示技師姓名（自動帶入登入使用者）</li>
+<li>canvas: Canvas / required / 高度 180px full-width，border 2px dashed
+#CBD5E1，圓角 12px，<code>touch-action: none</code>（防止頁面滾動）
+<ul>
+<li>繪製中：border 轉 solid #2563EB，筆觸 2px 色 #1E293B</li>
+</ul></li>
+<li>clear_btn: Button Ghost / required / 「清除重簽」min touch
+44×44px</li>
+<li>signature_status_text: Caption / required / 未簽：紅色「尚未簽名」/
+已簽：綠色「✓ 已取得技師簽章」</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>empty: 空白畫布</li>
+<li>drawing: 繪製中</li>
+<li>signed: 儲存 Base64 + <code>integrity_hash</code> 前端預計算</li>
+</ul></li>
+</ul>
+<h3 id="section-customer_signature_padt9">Section:
+customer_signature_pad（T9）</h3>
+<ul>
+<li><strong>layout</strong>: 單欄 padding 16px，背景白色，margin 16px
+16px 0，圓角 12px，shadow-sm，與技師簽章區視覺區隔（左邊框 4px #F59E0B
+提示這是客戶區）</li>
+<li><strong>elements</strong>:
+<ul>
+<li>section_title: H3 / required / 「客戶簽章」+ 右側
+Badge「請客戶簽」背景 #FEF3C7</li>
+<li>customer_name_confirm: Checkbox + Input / required /
+「已口頭向客戶確認姓名：」+ Input（從工單帶入客戶姓名，可修正），高度
+48px</li>
+<li>canvas: Canvas / required / 同技師 canvas 規格</li>
+<li>clear_btn: Button Ghost / required / 「清除重簽」</li>
+<li>hand_device_hint: Caption / required /
+「請將手機橫交給客戶，方便簽名」色 #64748B 13px</li>
+<li>signature_status_text: Caption / required / 同技師</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>empty: 空白</li>
+<li>drawing: 繪製中，全螢幕禁止其他手勢（避免技師誤觸）</li>
+<li>signed: 完成</li>
+</ul></li>
+<li><strong>copy_constraints</strong>: 客戶姓名最多 20 字</li>
+</ul>
+<h3 id="section-signature_metadata_previewt9">Section:
+signature_metadata_preview（T9）</h3>
+<ul>
+<li><strong>layout</strong>: 單欄 padding 16px，背景 #F8FAFC，margin
+16px，圓角 12px，字體偏小（稽核資訊）</li>
+<li><strong>elements</strong>:
+<ul>
+<li>section_title: Caption / required /
+「以下資料將寫入稽核紀錄（不可修改）」12px 色 #64748B</li>
+<li>meta_grid: InfoGrid 2-column / required /
+<ul>
+<li>timestamp_row: InfoRow / 「時間戳」+ 即時時間（ISO 8601 +
+時區）</li>
+<li>gps_row: InfoRow / 「GPS 座標」+ 經緯度（或「已關閉」），右側 Toggle
+允許技師與客戶協商關閉</li>
+<li>ip_row: InfoRow / 「IP 位址」+ 自動取得</li>
+<li>device_row: InfoRow / 「裝置指紋」+ User-Agent 摘要</li>
+<li>doc_id_row: InfoRow / 「文件 ID」+ UUID 簡碼</li>
+<li>hash_row: InfoRow / 「完整性雜湊」+ SHA-256 前 12 碼... （對齊
+<code>e-signature-spec.md</code> §5.1）</li>
+</ul></li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 即時顯示</li>
+<li>gps_denied: GPS 座標顯示「權限未開啟」紅字</li>
+<li>offline: 提示「IP 將於上線同步時記錄」</li>
+</ul></li>
+</ul>
+<h3 id="section-signature_submit_areat9">Section:
+signature_submit_area（T9）</h3>
+<ul>
+<li><strong>layout</strong>: 固定底部 sticky，背景白色，padding 16px +
+safe-area</li>
+<li><strong>elements</strong>:
+<ul>
+<li>submit_btn: Button CTA / required / 「完成雙方簽章」，full-width
+高度 56px 背景 #F59E0B 字體 18px Bold</li>
+<li>post_submit_hint: Caption / optional / 「完成後自動生成 PDF 並透過
+LINE 寄送客戶」色 #64748B 12px</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>disabled: 任一方未簽 OR 客戶姓名未確認 → 灰色 + 底部紅字提示</li>
+<li>submitting: Spinner + 「生成 PDF 中...」</li>
+<li>pdf_generated: 全屏成功動畫（綠勾 + 「簽章完成，PDF 已寄出」），2.5
+秒後返回詳情頁或 completion_report</li>
+<li>line_send_failed: Toast「LINE
+推送失敗，已存檔於工單附件」，允許重試</li>
+<li>offline_queued: 按鈕改「離線簽章（上線後送出）」，本地 IndexedDB
+保存含 Idempotency-Key</li>
+</ul></li>
+</ul>
+<hr />
+<h3 id="section-schedule_month_headert10">Section:
+schedule_month_header（T10）</h3>
+<ul>
+<li><strong>layout</strong>: sticky 於 sub_page_header 下方，全寬，高度
+72px，背景白色，下方 1px border，padding 12px 16px</li>
+<li><strong>elements</strong>:
+<ul>
+<li>month_switcher: Flex Row / required /
+<ul>
+<li>prev_btn: IconButton / required / ChevronLeft
+44×44px，點擊切前一月</li>
+<li>current_month_text: H3 / required / 「YYYY 年 M 月」，18px SemiBold
+居中</li>
+<li>next_btn: IconButton / required / ChevronRight 44×44px（未來 3
+個月內可切）</li>
+</ul></li>
+<li>quota_row: Flex Row / required / gap 12px，三個 Chip：
+<ul>
+<li>leave_quota: Chip / 「本月休假 {used}/{total}
+天」，已用完時紅底</li>
+<li>standby_quota: Chip / 「備勤 {N} 小時」</li>
+<li>workload_chip: Chip / 「本月工單 {N} 件」</li>
+</ul></li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 當月</li>
+<li>future_limited:
+未來月份僅顯示已排定的班與休假，<code>next_btn</code> 超過 3
+個月禁用</li>
+</ul></li>
+</ul>
+<h3 id="section-schedule_calendar_viewt10">Section:
+schedule_calendar_view（T10）</h3>
+<ul>
+<li><strong>layout</strong>: 全寬月曆格線（7 欄 × N 列），padding 8px
+16px，格子正方形 <code>aspect-square</code></li>
+<li><strong>elements</strong>:
+<ul>
+<li>weekday_header: GridRow 7-col / required / 日–六 Caption 12px 色
+#64748B</li>
+<li>day_cell: Cell / repeated /
+<ul>
+<li>date_number: Body SM / required / 日期，14px，當日粗體 +
+藍底圓圈</li>
+<li>workorder_count: Badge / conditional / 右下角紅色圓點 +
+工單數字</li>
+<li>leave_marker: Stripe / conditional / 對角線條紋 + 「休」字，色
+#F59E0B</li>
+<li>standby_marker: Icon / conditional / 右上角 Moon 圖示，色
+#8B5CF6</li>
+<li>off_today_marker: Ribbon / conditional / 「已關閉接單」灰色條</li>
+</ul></li>
+<li>tap_interaction: OnTap / required / 點擊日期彈出 BottomSheet
+顯示該日詳情（工單列表 + 時段）</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 月曆顯示</li>
+<li>today_highlight: 今日藍底白字</li>
+<li>past_date: 過去日期 opacity 0.5 僅唯讀</li>
+<li>day_detail_open: BottomSheet 彈出</li>
+</ul></li>
+</ul>
+<h3 id="section-leave_request_formt10">Section:
+leave_request_form（T10）</h3>
+<ul>
+<li><strong>layout</strong>: BottomSheet 全螢幕 90%，圓角上方
+16px，padding 16px</li>
+<li><strong>elements</strong>:
+<ul>
+<li>sheet_title: H2 / required / 「申請休假」18px SemiBold</li>
+<li>date_range_picker: DateRangePicker / required / 起始日 + 結束日 各高
+48px，max 7 天（超過需主管另批）</li>
+<li>reason_select: Select / required /
+選項：「個人事假」「病假」「婚喪假」「其他」，高度 48px</li>
+<li>reason_note: TextArea / conditional（選其他時必填）/ min 80px</li>
+<li>conflict_warning: AlertCard / conditional / 若日期已有工單：背景
+#FEE2E2「該日期已有 {N} 件工單，將通知管理員重新派工」</li>
+<li>submit_leave_btn: Button Primary / required /
+「送出申請（需主管審核）」，full-width 高度 48px</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 空表單</li>
+<li>has_conflict: 顯示警告 + submit 按鈕變橘色</li>
+<li>submitting: Spinner</li>
+<li>submitted: Toast「已送審，預計 24 小時內回覆」+ 關閉 sheet</li>
+</ul></li>
+</ul>
+<h3 id="section-standby_request_formt10">Section:
+standby_request_form（T10）</h3>
+<ul>
+<li><strong>layout</strong>: BottomSheet 同 leave_request_form</li>
+<li><strong>elements</strong>:
+<ul>
+<li>sheet_title: H2 / required / 「申請備勤加班」</li>
+<li>date_picker: DatePicker / required</li>
+<li>time_range: TimeRange / required / 起訖時間，各 48px</li>
+<li>note_textarea: TextArea / optional</li>
+<li>submit_standby_btn: Button Primary / required / 「送出申請」</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>同 leave_request_form</li>
+</ul></li>
+</ul>
+<h3 id="section-close_today_accept_switcht10">Section:
+close_today_accept_switch（T10）</h3>
+<ul>
+<li><strong>layout</strong>: 單欄 padding 16px，背景白色，margin
+16px，圓角 12px</li>
+<li><strong>elements</strong>:
+<ul>
+<li>section_title: H3 / required / 「關閉本日接單」16px SemiBold</li>
+<li>toggle_switch: Switch / required / 44×28px，ON/OFF</li>
+<li>toggle_hint: Body SM / required /
+<ul>
+<li>OFF：「目前接收新工單」色 #10B981</li>
+<li>ON + 1h 內無工單：「已關閉接單（立即生效）」色 #F59E0B</li>
+<li>ON + 有工單：「完成當前 {N} 件工單後生效」色 #F59E0B</li>
+</ul></li>
+<li>emergency_override_btn: Button Outline / conditional /
+「緊急取消本日（需註明原因）」，僅緊急情境顯示</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>off: 預設開放接單</li>
+<li>on_immediate: 立即生效</li>
+<li>on_pending: 等待工單完成</li>
+</ul></li>
+</ul>
+<h3 id="section-pending_requests_listt10">Section:
+pending_requests_list（T10）</h3>
+<ul>
+<li><strong>layout</strong>: 單欄 padding 0 16px 16px，背景 #F8FAFC</li>
+<li><strong>elements</strong>:
+<ul>
+<li>section_title: H3 / required / 「待審核申請」16px SemiBold padding
+16px 0</li>
+<li>request_card: Card / repeated / padding 12px 背景白色 圓角 8px
+margin-bottom 8px
+<ul>
+<li>type_badge: Badge / 休假（橘）/ 備勤（紫）</li>
+<li>date_range: Body MD / 日期區間</li>
+<li>status_text: Caption / 「待審核 | 送出於 X 小時前」</li>
+<li>cancel_btn: Button Ghost / required / 「撤回申請」min touch
+44×44px，點擊確認 Dialog</li>
+</ul></li>
+<li>empty_state: EmptyBlock / 「沒有待審核申請」</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 列表</li>
+<li>empty: 顯示 empty_state</li>
+<li>cancelling: cancel_btn Spinner</li>
+</ul></li>
+</ul>
+<hr />
+<h3 id="section-bottom_navigationt10-顯示t5t9-隱藏">Section:
+bottom_navigation（T10 顯示，T5–T9 隱藏）</h3>
+<ul>
+<li><strong>layout</strong>: 固定底部，高度 56px + safe-area，全寬
+max-width 480px，背景白色，上方 1px border，z-index 30</li>
+<li><strong>elements</strong>:
+<ul>
+<li>tab_pool: NavTab / required / 圖示 Map + 「案件池」</li>
+<li>tab_my_orders: NavTab / required / 圖示 ClipboardList +
+「我的工單」</li>
+<li>tab_account: NavTab / required / 圖示 Wallet + 「帳戶」，T10 active
+色 #2563EB</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>hidden_on_subflow: T5–T9 子路由時 BottomNav
+隱藏（全螢幕沉浸式表單，避免誤觸）</li>
+<li>visible_on_schedule: T10 顯示，「帳戶」active</li>
+</ul></li>
+</ul>
+<hr />
+<h2 id="interaction--state-flow">[INTERACTION &amp; STATE FLOW]</h2>
+<h3 id="主要互動流程">主要互動流程</h3>
+<h4 id="t5-範圍變更">T5 範圍變更</h4>
+<ol type="1">
+<li>從 <code>/my-orders/[id]</code> action_section 點「回報異常 →
+範圍變更」→ push <code>/my-orders/[id]/scope-change</code></li>
+<li>GET <code>/api/v1/work-orders/[id]</code> 填入原報價 context</li>
+<li>技師填寫事由、至少 2 張現場照片、新增追加工項</li>
+<li>系統即時計算新總價 → 若 &gt; 原價 2× 顯示主管審核警示</li>
+<li>點「送出範圍變更申請」→ POST
+<code>/api/v1/work-orders/{id}/scope-change</code>（帶
+<code>Idempotency-Key</code>）</li>
+<li>工單狀態轉 <code>scope_changed</code>、LINE Flex 推送客戶（原價 vs
+新價 + 照片 + 核准/拒絕按鈕）</li>
+<li>WebSocket <code>/realtime/work-orders/{id}</code> 訂閱客戶回應：
+<ul>
+<li><code>customer_approved</code> → 工單回 <code>in_progress</code> +
+Toast + 返回詳情頁</li>
+<li><code>customer_rejected</code> → Dialog 三選項（僅完成原範圍 / 取消
+/ 協商）</li>
+<li>24h 無回應 → 管理員介入，技師頁面顯示「已升級管理員」</li>
+</ul></li>
+</ol>
+<h4 id="t6-缺料回報">T6 缺料回報</h4>
+<ol type="1">
+<li>從 action_section「回報異常 → 缺料」push
+<code>/my-orders/[id]/material-request</code></li>
+<li>搜尋零件主檔選缺件 → 即時查詢庫存 ETA（GET
+<code>/api/v1/inventory/parts/{id}/eta</code>）</li>
+<li>選擇是否替代、現場決策（完全等待 / 部分完工 / 取消）</li>
+<li>POST <code>/api/v1/work-orders/{id}/material-request</code></li>
+<li>若選「部分完工」→ 後端建立 <code>linked_work_order_id</code>
+新工單，前端 Dialog 顯示新工單編號</li>
+<li>若選「取消」→ 豁免車馬費，狀態轉 <code>cancelled</code></li>
+<li>管理員收到 Web Alert、客戶收到 LINE 推送（含 ETA 與選擇按鈕）</li>
+</ol>
+<h4 id="t7-延遲通知">T7 延遲通知</h4>
+<ol type="1">
+<li>從 action_section「回報異常 → 延遲」push
+<code>/my-orders/[id]/delay</code></li>
+<li>選延遲事由、datetime-picker 或快選 chip 設定新 ETA</li>
+<li><code>delay_severity_preview</code>
+即時計算嚴重度（輕微/中度/嚴重/超長）</li>
+<li>點「送出」→ POST <code>/api/v1/work-orders/{id}/delay</code></li>
+<li>後端：
+<ul>
+<li>SLA 時鐘重置為新 ETA（對齊
+<code>specs/sla-availability-spec.md</code>）</li>
+<li>依嚴重度推送 LINE 客戶（中度：僅告知；嚴重：含改期/取消按鈕）</li>
+<li><blockquote>
+<p>2h 額外通知管理員、寫入技師 KPI 延遲紀錄</p>
+</blockquote></li>
+</ul></li>
+<li>工單狀態轉 <code>delayed</code>，返回詳情頁</li>
+</ol>
+<h4 id="t8-門面外觀檢核">T8 門面外觀檢核</h4>
+<ol type="1">
+<li>從 action_section「門面檢核」push
+<code>/my-orders/[id]/door-check</code></li>
+<li>Step 1：拍原始狀態（≥ 4 張，勾選必拍 checklist）→ 照片帶 EXIF +
+SHA-256 hash</li>
+<li>Step 2：彈出自動生成的「門外觀變更告知書」→ 客戶閱讀打勾 →
+點「同意」或「拒絕」</li>
+<li>同意 → 跳轉 T9
+簽章頁（<code>document_type=APPEARANCE_CHANGE</code>）</li>
+<li>拒絕 → 替代方案 Dialog（換鎖款 / 轉接片 / 取消）→ 對應 Flow 10
+分支</li>
+<li>施工完成後返回此頁 Step 3：拍完工對比照（≥ 2 張）</li>
+<li>客戶現場按「確認無損壞」或「有異議」</li>
+<li>POST <code>/api/v1/work-orders/{id}/door-check</code> 寫入
+<code>appearance_change_notices</code> 表</li>
+</ol>
+<h4 id="t9-雙方電子簽章">T9 雙方電子簽章</h4>
+<ol type="1">
+<li>從 T8 同意後、完工報告提交前、或退款確認時進入
+<code>/my-orders/[id]/signature</code></li>
+<li>GET 文件類型 + 租戶法律等級（<code>typed</code> / <code>drawn</code>
+/ <code>certificate</code>）</li>
+<li>技師先簽（上半區 canvas），<code>touch-action: none</code>
+防頁面滾動</li>
+<li>客戶姓名 checkbox 確認 + 客戶在下半區 canvas 簽</li>
+<li><code>signature_metadata_preview</code>
+即時顯示將寫入的元資料（時間戳、GPS、IP、裝置指紋、SHA-256）</li>
+<li>點「完成雙方簽章」→ POST
+<code>/api/v1/work-orders/{id}/signature</code>（含 Idempotency-Key +
+兩筆 signature_data）</li>
+<li>後端：寫 <code>digital_signatures</code> × 2 + 生成 PDF + LINE
+推送客戶 + 寫 <code>audit-events</code>（entity=signature,
+type=CREATE）</li>
+<li>成功動畫 → 返回詳情頁或繼續 completion_report</li>
+</ol>
+<h4 id="t10-我的排班">T10 我的排班</h4>
+<ol type="1">
+<li>底部 Tab「帳戶」→「我的排班」進入
+<code>/account/schedule</code></li>
+<li>GET <code>/api/v1/technicians/me/schedule?month=YYYY-MM</code></li>
+<li>月曆顯示每日工單、休假、備勤標記</li>
+<li>點「申請休假」→ BottomSheet 填表 → POST
+<code>/api/v1/technicians/me/schedule/leave-request</code></li>
+<li>點「申請備勤加班」→ 同上 POST</li>
+<li>Toggle「關閉本日接單」→ PATCH
+<code>/api/v1/technicians/me/availability</code>：
+<ul>
+<li>1h 內無工單：立即生效（派工引擎即時收到，透過 WebSocket 廣播）</li>
+<li>有工單：標記為「完成後關閉」，系統 watch 最後工單 status</li>
+</ul></li>
+<li>待審核申請列表可撤回（DELETE request_id）</li>
+</ol>
+<h3 id="rwd-行為差異">RWD 行為差異</h3>
+<table>
+<thead>
+<tr>
+<th>斷點</th>
+<th>佈局</th>
+<th>差異說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mobile (&lt; 480px)</td>
+<td>單欄全寬（主要設計）</td>
+<td>標準體驗，T5–T9 全螢幕沉浸式表單，無 BottomNav</td>
+</tr>
+<tr>
+<td>Tablet (481–768px)</td>
+<td>單欄 max-width 480px 居中</td>
+<td>左右留白，BottomSheet 不延伸</td>
+</tr>
+<tr>
+<td>Desktop (≥ 769px)</td>
+<td>不支援（技師端為純 Mobile PWA）</td>
+<td>顯示「請使用手機操作」提示頁 + QR Code 可掃描在手機開啟</td>
+</tr>
+</tbody>
+</table>
+<h3 id="資料更新策略">資料更新策略</h3>
+<ul>
+<li><strong>T5–T9 提交</strong>：離線時進入 IndexedDB 佇列，每個動作帶
+<code>Idempotency-Key</code>（客戶端生成 UUID），恢復連線後 Service
+Worker Background Sync 依序 replay</li>
+<li><strong>T5 客戶回應</strong>：透過 WebSocket
+<code>wss://.../realtime/work-orders/{id}</code>
+即時推送（<code>scope_change_approved</code> /
+<code>scope_change_rejected</code>）+ 60 秒 Polling fallback</li>
+<li><strong>T6 庫存 ETA</strong>：選擇零件時即時 GET
+<code>/api/v1/inventory/parts/{id}/eta</code>，離線使用最近快取（標示「可能過時」）</li>
+<li><strong>T7 延遲</strong>：SLA 計算前端 + 後端雙重，前端僅為
+preview，實際以後端為準</li>
+<li><strong>T8 EXIF + GPS</strong>：照片在前端使用 <code>EXIF.js</code>
+讀取後端存入 <code>digital_signatures.signature_data</code> 附件</li>
+<li><strong>T9 PDF 生成</strong>：後端 async 任務，WebSocket
+推送完成事件；若 30 秒未完成前端顯示「PDF
+生成中，稍後可於工單附件查看」</li>
+<li><strong>T10 排班變更</strong>：提交後 WebSocket 廣播
+<code>schedule_updated</code> → 派工引擎即時收到，管理員端 A25
+同步刷新</li>
+</ul>
+<hr />
+<h2 id="data--api">[DATA &amp; API]</h2>
+<ul>
+<li><p><strong>uses_api</strong>: true</p></li>
+<li><p><strong>endpoints</strong>:</p>
+<ul>
+<li><strong>T5 範圍變更</strong>
+<ul>
+<li>GET <code>/api/v1/work-orders/{id}</code> —
+取得原工單含原報價與工項</li>
+<li>POST <code>/api/v1/work-orders/{id}/scope-change</code> —
+提交範圍變更。Header 需
+<code>Idempotency-Key: &lt;uuid&gt;</code>、<code>X-Tenant-ID</code>。Body:
+<code>{ reason, photos[], new_items[{name, unit_price, qty}], new_total, needs_supervisor_review }</code>。Response
+200：<code>{ scope_change_id, status: "pending_customer" | "pending_supervisor" }</code></li>
+<li>POST <code>/api/v1/work-orders/{id}/photos</code> —
+照片上傳（multipart）</li>
+</ul></li>
+<li><strong>T6 缺料</strong>
+<ul>
+<li>GET <code>/api/v1/inventory/parts?q=</code> — 零件主檔搜尋</li>
+<li>GET <code>/api/v1/inventory/parts/{id}/eta</code> — 即時庫存
+ETA</li>
+<li>POST <code>/api/v1/work-orders/{id}/material-request</code> —
+提交缺料。Header <code>Idempotency-Key</code>。Body:
+<code>{ missing_parts[{part_id, qty}], has_alternative, alternative_part_id?, price_diff?, decision: "wait" | "partial" | "cancel" }</code>。Response：若
+<code>decision=partial</code> 回傳
+<code>{ linked_work_order_id }</code></li>
+</ul></li>
+<li><strong>T7 延遲</strong>
+<ul>
+<li>POST <code>/api/v1/work-orders/{id}/delay</code> — 提交延遲。Header
+<code>Idempotency-Key</code>。Body:
+<code>{ reason: "traffic" | "prev_overrun" | "equipment" | "other", reason_note?, new_eta: ISO8601 }</code>。Response：<code>{ severity: "minor" | "moderate" | "severe" | "extreme", escalated_to_admin: boolean }</code></li>
+</ul></li>
+<li><strong>T8 門面檢核</strong>
+<ul>
+<li>POST <code>/api/v1/work-orders/{id}/door-check</code> — Header
+<code>Idempotency-Key</code>。Body:
+<code>{ arrival_photos[{url, sha256, exif_gps?}], appearance_notice: {change_reason, affected_area, risk_description}, customer_agreed: boolean, completion_photos[], customer_field_decision: "approved" | "disputed", customer_note? }</code></li>
+</ul></li>
+<li><strong>T9 雙方簽章</strong>
+<ul>
+<li>POST <code>/api/v1/work-orders/{id}/signature</code> — Header
+<code>Idempotency-Key</code>。Body:
+<code>{ document_type: "WORK_ORDER_COMPLETION" | "APPEARANCE_CHANGE" | "SCOPE_CHANGE", technician_signature: {image_base64, canvas_width, canvas_height}, customer_signature: {...}, customer_name_confirmed, gps?, device_fingerprint }</code>。Response：<code>{ signature_ids: [...], pdf_url, audit_event_id }</code></li>
+</ul></li>
+<li><strong>T10 排班</strong>
+<ul>
+<li>GET <code>/api/v1/technicians/me/schedule?month=YYYY-MM</code> —
+取得月班表（工單、休假、備勤）</li>
+<li>POST <code>/api/v1/technicians/me/schedule/leave-request</code> —
+Body: <code>{ start_date, end_date, reason, note? }</code></li>
+<li>POST <code>/api/v1/technicians/me/schedule/standby-request</code> —
+Body: <code>{ date, start_time, end_time, note? }</code></li>
+<li>PATCH <code>/api/v1/technicians/me/availability</code> — Body:
+<code>{ close_today: boolean, reason? }</code></li>
+<li>DELETE
+<code>/api/v1/technicians/me/schedule/requests/{request_id}</code> —
+撤回申請</li>
+</ul></li>
+<li><strong>WebSocket</strong>
+<ul>
+<li><code>wss://.../realtime/work-orders/{id}</code> — T5
+客戶回應（<code>scope_change_approved</code>/<code>rejected</code>）、T9
+PDF 完成（<code>signature_pdf_ready</code>）</li>
+<li><code>wss://.../realtime/technicians/me/schedule</code> — T10
+管理員審核結果推送（<code>leave_request_approved</code>/<code>rejected</code>）</li>
+</ul></li>
+</ul></li>
+<li><p><strong>error_cases</strong>:</p>
+<ul>
+<li>網路錯誤：
+<ul>
+<li>T5–T9 寫入：存入 IndexedDB 佇列 + offline_queue_indicator
+顯示待同步數量，Service Worker Background Sync 依 Idempotency-Key
+replay</li>
+<li>T6 庫存 ETA：使用最近快取，標示「可能過時」</li>
+<li>照片上傳：加入 Background Sync 佇列，縮圖右下角顯示 ⏱ 圖示</li>
+</ul></li>
+<li>API 錯誤（5xx）：Toast「伺服器忙碌中」+ 自動重試（exponential
+backoff，最多 3 次），失敗則存佇列</li>
+<li>冪等衝突（409 + 已存在 Idempotency-Key）：視為成功，顯示原結果</li>
+<li>權限不足（401/403）：導向登入頁 <code>/login</code></li>
+<li>狀態衝突（409 狀態錯誤）：Toast「工單狀態已變更」+ GET 最新工單 +
+自動返回詳情頁</li>
+<li>T5 客戶拒絕：Dialog 三選項，不視為錯誤</li>
+<li>T7 ETA 過早（&lt; now）：前端攔截，紅字提示</li>
+<li>T8 照片不足 4 張：提交按鈕 disabled</li>
+<li>T9 簽名 canvas 為空：disabled + 紅字「請完成雙方簽章」</li>
+<li>T9 PDF 生成失敗：Toast + 允許重試 POST，簽章資料已保存</li>
+<li>T10 休假衝突工單：警示但允許提交，後端審核時管理員決定是否重派</li>
+<li>GPS 拒絕：T8/T9 允許關閉但記錄「GPS denied」於稽核</li>
+</ul></li>
+</ul>
+<hr />
+<h2 id="exception-to-global-rules">[EXCEPTION TO GLOBAL RULES]</h2>
+<ul>
+<li><strong>T5–T9 全螢幕沉浸式表單</strong>：此 5 個子路由覆蓋
+BottomNav（z-index 比 BottomNav
+高），避免技師在現場誤觸導航離開未儲存表單。T10 則正常顯示
+BottomNav（屬常態自助頁）。</li>
+<li><strong>T8 / T9 <code>touch-action: none</code></strong>：Canvas
+區域攔截所有觸控事件，防止簽名或標記時頁面跟著滾動。需在 Canvas wrapper
+設定 <code>overscroll-behavior: contain</code>。</li>
+<li><strong>T5–T9 寫入操作強制 <code>Idempotency-Key</code>
+header</strong>：對齊 <code>E5x--frontend-architecture.md</code> §8.1 與
+§8.7，離線佇列 replay 時必需，後端以此去重。</li>
+<li><strong>T8 EXIF 與照片 hash</strong>：照片上傳前前端計算
+SHA-256（<code>crypto.subtle.digest</code>），EXIF GPS 依
+<code>exif_toggle</code> 決定是否保留（預設 ON）。對齊 Flow 10 §13.6
+證據保存規範。</li>
+<li><strong>T9 簽章雙 canvas
+不可互相覆蓋</strong>：上下區嚴格隔離，同時僅一個 canvas 可繪製（另一個
+disabled），避免技師手誤在客戶區簽。</li>
+<li><strong>T9 PDF 生成 async</strong>：點提交後前端不等待 PDF
+完成，立即返回成功頁，PDF 由後端背景任務 + WebSocket 推送。</li>
+<li><strong>T9 離線雙簽特例</strong>：離線時允許完成雙
+canvas，所有元資料（時間、GPS、指紋）於本地記錄，IP
+於上線時後端補填，PDF
+生成也延後。提交按鈕改為「離線簽章（上線後送出）」背景 #6B7280。</li>
+<li><strong>T10 月曆格子
+<code>aspect-square</code></strong>：強制正方形以保持美觀，格內 Badge
+超出時 ellipsis。</li>
+<li><strong>T5/T6/T7
+照片或檔案上傳可跨路由恢復</strong>：若技師意外切離子路由，IndexedDB
+保留表單草稿 30
+分鐘，回到同一工單子路由時自動恢復（含已拍照片縮圖）。</li>
+<li><strong>T8 疊圖比對 helper</strong>：使用 Canvas
+compositing（<code>globalCompositeOperation: "difference"</code>）在前端生成差異影像，不依賴後端
+Vision 服務（若 vision 服務可用則優先使用）。</li>
+</ul>
+<hr />
+<h2 id="acceptance-criteria">[ACCEPTANCE CRITERIA]</h2>
+<h3 id="共用">共用</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />所有按鈕高度 ≥ 48px、主要 CTA ≥
+56px、字級 ≥ 18px</label></li>
+<li><label><input type="checkbox" />所有可點擊元素 touch target ≥ 44 ×
+44px</label></li>
+<li><label><input type="checkbox" />所有寫入 API 請求帶
+<code>Idempotency-Key</code> 與 <code>X-Tenant-ID</code>
+header</label></li>
+<li><label><input type="checkbox" />離線模式：offline_queue_indicator
+正確顯示待同步數量</label></li>
+<li><label><input type="checkbox" />離線操作存入 IndexedDB，恢復連線後
+Service Worker Background Sync 依序 replay</label></li>
+<li><label><input type="checkbox" />sub_page_header 返回鈕在提交中
+disabled，防止中斷</label></li>
+<li><label><input type="checkbox" />所有子路由支援 PWA
+加到主畫面後直接開啟</label></li>
+<li><label><input type="checkbox" />Loading / Error / Empty
+三態完備</label></li>
+</ul>
+<h3 id="t5-範圍變更-1">T5 範圍變更</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />原報價 context
+正確載入並顯示</label></li>
+<li><label><input
+type="checkbox" />工項動態新增/刪除，小計與新總價即時計算</label></li>
+<li><label><input type="checkbox" />新報價 &gt; 原報價 2×
+顯示主管審核警示</label></li>
+<li><label><input type="checkbox" />照片 &lt; 2 張、事由空、工項 0
+時提交按鈕 disabled</label></li>
+<li><label><input type="checkbox" />提交後工單狀態轉
+<code>scope_changed</code></label></li>
+<li><label><input type="checkbox" />WebSocket
+客戶回應即時更新頁面狀態</label></li>
+<li><label><input type="checkbox" />24 小時未回應時 UI
+顯示「已升級管理員」</label></li>
+</ul>
+<h3 id="t6-缺料回報-1">T6 缺料回報</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />零件主檔搜尋 2 字以上觸發
+GET，顯示即時 ETA</label></li>
+<li><label><input type="checkbox" />三種庫存狀態 Badge（現貨 / 需調貨 /
+缺貨）正確顯示</label></li>
+<li><label><input type="checkbox" />替代方案 toggle
+正確展開/收合</label></li>
+<li><label><input type="checkbox" />現場決策三選項單選</label></li>
+<li><label><input type="checkbox" />選「部分完工」後 Dialog 顯示
+<code>linked_work_order_id</code></label></li>
+<li><label><input type="checkbox" />選「取消」豁免車馬費，Toast
+確認</label></li>
+</ul>
+<h3 id="t7-延遲通知-1">T7 延遲通知</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />事由 4 選
+1，選其他需補說明</label></li>
+<li><label><input type="checkbox" />datetime-picker + 快選 chip
+正確設定新 ETA</label></li>
+<li><label><input type="checkbox" />嚴重度預覽即時跟隨 ETA
+變化</label></li>
+<li><label><input type="checkbox" />超長延遲（&gt; 2h）按鈕變紅 +
+提示升級管理員</label></li>
+<li><label><input type="checkbox" />提交後工單狀態轉
+<code>delayed</code>，LINE 推送客戶</label></li>
+<li><label><input type="checkbox" />SLA 時鐘後端重置為新 ETA（驗證後台
+API 回傳）</label></li>
+</ul>
+<h3 id="t8-門面外觀檢核-1">T8 門面外觀檢核</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />Stepper 三步驟正確切換</label></li>
+<li><label><input type="checkbox" />抵達拍 ≥ 4 張 + 4 項 checklist
+勾完才能進下一步</label></li>
+<li><label><input
+type="checkbox" />告知書自動生成，含變更原因、風險、免責聲明</label></li>
+<li><label><input type="checkbox" />客戶 checkbox
+勾選後「同意」按鈕啟用</label></li>
+<li><label><input type="checkbox" />拒絕進入替代方案 Dialog（換鎖款 /
+轉接片 / 取消）</label></li>
+<li><label><input type="checkbox" />完工 ≥ 2 張對比照，overlay
+比對可用</label></li>
+<li><label><input type="checkbox" />照片 EXIF + SHA-256 hash
+一併記錄</label></li>
+<li><label><input type="checkbox" />客戶按讚/拒絕分別導向 T9
+簽章或爭議建立</label></li>
+</ul>
+<h3 id="t9-雙方電子簽章-1">T9 雙方電子簽章</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />文件類型 Badge
+正確（WORK_ORDER_COMPLETION / APPEARANCE_CHANGE /
+SCOPE_CHANGE）</label></li>
+<li><label><input type="checkbox" />法律等級文案依租戶設定顯示（typed /
+drawn / certificate）</label></li>
+<li><label><input type="checkbox" />技師 + 客戶雙 canvas
+獨立繪製不互相影響</label></li>
+<li><label><input type="checkbox" /><code>touch-action: none</code>
+防止簽名時頁面滾動</label></li>
+<li><label><input type="checkbox" />客戶姓名 checkbox
+確認後才可提交</label></li>
+<li><label><input type="checkbox" />signature_metadata_preview
+即時顯示時間戳、GPS、IP、裝置指紋、SHA-256</label></li>
+<li><label><input type="checkbox" />GPS
+可選擇關閉（記錄於稽核）</label></li>
+<li><label><input type="checkbox" />提交後生成 PDF，LINE
+推送客戶（含原始簽章影像 + 稽核元資料）</label></li>
+<li><label><input type="checkbox" /><code>audit-events</code>
+寫入（entity=signature, type=CREATE）</label></li>
+<li><label><input type="checkbox" />離線雙簽存 IndexedDB，上線後 replay
++ 後端補 IP</label></li>
+</ul>
+<h3 id="t10-我的排班-1">T10 我的排班</h3>
+<ul class="task-list">
+<li><label><input
+type="checkbox" />月曆顯示每日工單數、休假、備勤、關閉接單標記</label></li>
+<li><label><input type="checkbox" />切換月份（前後 3
+個月內）</label></li>
+<li><label><input type="checkbox" />休假額度 /
+備勤時數即時顯示</label></li>
+<li><label><input
+type="checkbox" />申請休假：日期衝突時顯示警示</label></li>
+<li><label><input type="checkbox" />申請備勤：時段正確驗證</label></li>
+<li><label><input type="checkbox" />「關閉本日接單」toggle：</label>
+<ul>
+<li>1h 內無工單立即生效</li>
+<li>有工單改為「完成後關閉」</li>
+</ul></li>
+<li><label><input type="checkbox" />待審核列表可撤回申請</label></li>
+<li><label><input type="checkbox" />申請送出後 WebSocket
+即時收到審核結果推送</label></li>
+<li><label><input type="checkbox" />與派工引擎同步（管理員端 A25
+即時刷新）</label></li>
+</ul>
+<h3 id="視覺--設計系統">視覺 / 設計系統</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />Primary #2563EB
+用於主要操作</label></li>
+<li><label><input type="checkbox" />Accent #F59E0B 用於
+CTA（提交、完成作業）</label></li>
+<li><label><input type="checkbox" />Secondary #1E293B
+用於主要文字</label></li>
+<li><label><input type="checkbox" />BG #F8FAFC 用於頁面背景</label></li>
+<li><label><input type="checkbox" />Font Inter（數字/英文）+ Noto Sans
+TC（中文）</label></li>
+<li><label><input type="checkbox" />最小支援寬度 375px</label></li>
+<li><label><input type="checkbox" />Mobile-First 單欄堆疊，底部固定
+CTA</label></li>
+<li><label><input type="checkbox" />所有狀態（default / disabled /
+loading / error / submitted / offline）視覺明確</label></li>
+</ul>
+<hr />
+<h2 id="t14-補強客戶-line-flex-rsvp-端flow-11-閉環">T1.4 補強：客戶 LINE
+Flex RSVP 端（Flow 11 閉環）</h2>
+<blockquote>
+<p>補 Flow 11 客戶不在場 / Flow 5 延遲改期時「客戶側確認新時段」UI
+缺口。雖非 Web 頁，但屬完整互動流程必要組件。</p>
+</blockquote>
+<h3 id="flex-message-spec-reschedule_rsvp">[FLEX MESSAGE SPEC]
+reschedule_rsvp</h3>
+<p>觸發：技師經 T11 改期日曆送出 1-3 個備選時段後，後端 push LINE Flex
+給客戶。</p>
+<p><strong>Hero</strong>：工單地址 map thumbnail + 技師姓名/照片</p>
+<p><strong>Body</strong>：</p>
+<ul>
+<li>title「很抱歉需要調整服務時間」</li>
+<li>work_order_line「工單 #WO-042」</li>
+<li>reason_line 技師自填訊息（120 字上限，後端 escape XSS）</li>
+<li>slot_count_hint「請從以下 N 個時段選擇您方便的」</li>
+</ul>
+<p><strong>Slot 按鈕區（1-3 個）</strong>：</p>
+<ul>
+<li>每鈕顯示 <code>2026-04-25（四）14:00-16:00</code></li>
+<li><code>postback</code> action with
+<code>data=rsvp&amp;wo_id=xxx&amp;slot_index=N</code></li>
+<li>點過後其他鈕 disabled + 該鈕標「已選擇」</li>
+</ul>
+<p><strong>Footer</strong>：</p>
+<ul>
+<li>reject_btn「都不方便，請客服聯繫」→ postback rsvp_reject</li>
+<li>expires_at「請於 2026-04-24 23:59 前回覆」（24h TTL）</li>
+</ul>
+<h3 id="後端處理對齊-flow-11">後端處理（對齊 Flow 11）</h3>
+<pre><code>LINE Webhook 收到 postback
+ → 解析 wo_id + slot_index
+ → 驗證 RSVP 未逾期 + 工單仍為 awaiting_customer_reschedule_confirm
+ → UPDATE work_orders.scheduled_time
+ → 回覆 LINE 新 Flex「已確認」
+ → WS 推給技師（/realtime/work-orders/{id}）
+ → 技師端 T11 頁面自動關閉</code></pre>
+<h3 id="例外處理">例外處理</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">情境</th>
+<th style="text-align: left;">客戶看到</th>
+<th style="text-align: left;">後端行為</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">RSVP 逾期（24h 未回）</td>
+<td style="text-align: left;">按鈕全 disabled + 「已過期」</td>
+<td style="text-align: left;">工單 →
+<code>reschedule_expired</code>，通知技師</td>
+</tr>
+<tr>
+<td style="text-align: left;">時段被他單搶先</td>
+<td style="text-align: left;">Toast「此時段剛被使用」+ 自動重發
+Flex</td>
+<td style="text-align: left;">技師端重走 T11</td>
+</tr>
+<tr>
+<td style="text-align: left;">客戶選 reject</td>
+<td style="text-align: left;">LINE 自動進人工對話</td>
+<td style="text-align: left;">工單保持、<code>support_agent</code>
+跟進</td>
+</tr>
+</tbody>
+</table>
+<h3 id="data--api-t14-補">[DATA &amp; API] T1.4 補</h3>
+<p>客戶端 RSVP 走 LINE Webhook：</p>
+<pre><code>POST /webhook (LINE Messaging API)
+Body: { events: [{ type: postback, data: &quot;rsvp&amp;wo_id=...&amp;slot_index=0&quot; }] }</code></pre>
+<p>內部處理端點：</p>
+<pre><code>POST /internal/work-orders/{id}/reschedule/rsvp
+Body: { slot_index: int, line_user_id: str, confirmed_at: ISO8601 }</code></pre>
+<h3 id="acceptance-criteria-t14">[ACCEPTANCE CRITERIA] T1.4</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />LINE Flex 正確生成（1-3
+個時段按鈕）</label></li>
+<li><label><input type="checkbox" />24h TTL 到期按鈕
+disabled</label></li>
+<li><label><input type="checkbox" />客戶選擇後 scheduled_time
+立即更新</label></li>
+<li><label><input type="checkbox" />技師 T11 接收 WS
+自動關閉</label></li>
+<li><label><input type="checkbox" />時段被搶先偵測 → 自動重發
+Flex</label></li>
+<li><label><input type="checkbox" />reject 路徑進客服佇列</label></li>
+<li><label><input type="checkbox" />稽核
+<code>work_order.reschedule_confirmed_by_customer</code>
+正確產出</label></li>
+</ul>
+<h3 id="校對檢核表t14">校對檢核表（T1.4）</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />24h TTL
+是否合理？緊急工單需更短？</label></li>
+<li><label><input type="checkbox" />LINE Flex 3 slot 按鈕 + reject 共 4
+個是否超 LINE primary action 上限？</label></li>
+<li><label><input type="checkbox" />客戶 reject
+後是否改排客服電話主動聯繫？</label></li>
+<li><label><input type="checkbox" />技師訊息 120
+字是否足夠？</label></li>
+</ul>
+<hr />
+<h2 id="t15-628--630--631-補漏">[T1.5 §6.28 / §6.30 / §6.31 補漏]</h2>
+<h3 id="628-t6-缺料回報-補強">§6.28 T6 缺料回報 補強</h3>
+<p><strong>「客戶對等待的接受度」欄位：</strong></p>
+<ul>
+<li>UI：Slider 0-10 分 + 文字選項「非常急 / 可等幾天 / 完全不急」</li>
+<li>送客戶 LINE 時附此評估</li>
+<li>API body：<code>customer_urgency_estimate: 0..10</code></li>
+</ul>
+<p><strong>「豁免車馬費」後端實現：</strong></p>
+<ul>
+<li><code>decision=cancel</code> 時
+<code>POST /work-orders/{id}/material-request/cancel</code> body 含
+<code>waive_dispatch_fee: true</code></li>
+<li>後端 <code>final_amount</code> 扣車馬費 + Accounting 記
+<code>waiver_reason=material_shortage</code></li>
+<li>A15 / A27 對帳報表顯示 waived 獨立欄</li>
+</ul>
+<h3 id="630-t8-門面檢核--t9-簽章-補強">§6.30 T8 門面檢核 + T9 簽章
+補強</h3>
+<p><strong>T8 四項必做 checklist（施工前）：</strong></p>
+<ol type="1">
+<li><label><input
+type="checkbox" />門框完整性：無裂痕、無變形、螺絲齊全</label></li>
+<li><label><input
+type="checkbox" />鎖芯/鎖體無損：拍攝原鎖狀態</label></li>
+<li><label><input type="checkbox" />周邊無刮傷：門扇正反面 +
+門框四邊拍攝</label></li>
+<li><label><input
+type="checkbox" />附件齊全：鑰匙數量、遙控器、說明書是否與訂單符合</label></li>
+</ol>
+<p>4 項皆勾 + ≥ 4 張照片才啟用「開始施工」按鈕。</p>
+<p><strong>T8 差異影像生成：</strong></p>
+<ul>
+<li>優先：<code>POST /api/v1/vision/overlay-diff</code>（後端 Vision
+服務）</li>
+<li>Fallback：Vision 失敗 → 前端 Canvas
+<code>globalCompositeOperation="difference"</code></li>
+<li>Fallback 結果標示「本地比對，精度較低」提示</li>
+</ul>
+<p><strong>T9 GPS 可開關 + 稽核：</strong></p>
+<ul>
+<li>UI：簽章頁「記錄 GPS 位置」checkbox（預設勾選）</li>
+<li>取消勾選 → 稽核欄位 <code>gps_declined: true</code> +
+<code>gps_decline_reason</code>（下拉：「隱私考量」/「定位權限未開」/「其他」）</li>
+<li>未勾選可提交但稽核保留「GPS 拒絕」事實</li>
+</ul>
+<h3 id="631-t10-技師排班-補強">§6.31 T10 技師排班 補強</h3>
+<p><strong>月休假額度管制：</strong></p>
+<ul>
+<li>上限：<code>monthly_leave_quota_hours</code>（租戶設定，預設
+24h）</li>
+<li>UI：頂部進度條「本月已用 X / Y 小時」，&gt; 80% 警告色，100%
+禁申請</li>
+<li>跨月申請：超過當月額度的日期轉下月額度</li>
+</ul>
+<p><strong>備勤加班計時：</strong></p>
+<ul>
+<li>基本費率：<code>standby_hourly_rate_twd</code>（租戶設定）</li>
+<li>實際派工觸發：從「標記備勤開始」到「首個工單接受」計費</li>
+<li>未派工：保底 2 小時，超過 2h 按實計</li>
+<li>月上限：<code>standby_monthly_cap_hours</code>（預設 40h）</li>
+</ul>
+<p><strong>申請審核 SLA：</strong></p>
+<ul>
+<li>休假 / 備勤：管理員 48h 內審核</li>
+<li>逾時自動核准 → 觸發 <code>technician.leave.auto_approved</code> +
+通知 operations_manager</li>
+<li>急件（72h 內生效）：SLA 縮至 12h，逾時自動核准 + 告警</li>
+</ul>
+<hr />
+<h2 id="導航與狀態-navigation--state">導航與狀態 (Navigation &amp;
+State)</h2>
+<p>完整 Upstream / Downstream / State Persistence / Error Navigation
+規範見
+<code>docs/02-design/E5x--frontend-navigation-matrix.md §附錄 A</code>（本檔對應段落）。</p>
+<p>本 spec 覆蓋的 IA 頁面依 <code>MAPPING.md §2</code> 查找。</p>
+</div></div></body></html>

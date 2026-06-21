@@ -1,0 +1,132 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>A01 進線 Debounce — LINE 入口與訊息合併</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ ux ／ by-module ／ A01-debounce-flow.md</div>
+<div class="doc"><h1 id="a01-進線-debounce--line-入口與訊息合併">A01 進線 Debounce — LINE
+入口與訊息合併</h1>
+<blockquote>
+<p><strong>30 秒摘要</strong>：客戶常連發訊息（一行字 + 一張照片 +
+一個貼圖），A01 在 <code>buffer_wait</code> window 內把碎訊息合併成單一
+turn 再給 A03。文字/媒體/貼圖分流；media pending 補齊；同 conversation
+只開一張 active PC。</p>
+</blockquote>
+<h2 id="sequence-diagram">Sequence Diagram</h2>
+<pre class="mermaid"><code>sequenceDiagram
+    autonumber
+    actor user as 消費者 (LINE)
+    participant webhook as LINE Webhook
+    participant a01 as A01 Debounce Buffer
+    participant a08 as A08 Multimodal
+    participant a03 as A03 ReAct
+
+    user -&gt;&gt; webhook: text「鎖壞了」
+    webhook -&gt;&gt; a01: enqueue
+    user -&gt;&gt; webhook: 照片
+    webhook -&gt;&gt; a01: enqueue (media_id)
+    user -&gt;&gt; webhook: 貼圖
+    webhook -&gt;&gt; a01: enqueue (sticker)
+    Note over a01: buffer_wait 2s timer
+    a01 -&gt;&gt; a08: process media → media_ref
+    a08 --&gt;&gt; a01: media_ref[s3://...]
+    a01 --&gt;&gt; a03: merged turn (text + media_ref + sticker_intent)</code></pre>
+<h2 id="state-machine--buffer-session">State Machine — buffer
+session</h2>
+<pre class="mermaid"><code>stateDiagram-v2
+    [*] --&gt; idle
+    idle --&gt; buffering : 第一則訊息進
+    buffering --&gt; bufferingAccum : 同 conversation 連發
+    bufferingAccum --&gt; buffering : merge 到 turn
+    buffering --&gt; media_pending : 含 media 但未下載完
+    media_pending --&gt; buffering : media 下載完成
+    buffering --&gt; flushed : buffer_wait timeout (2s)
+    flushed --&gt; [*]
+    media_pending --&gt; flushed_partial : media 下載 timeout (10s)
+    flushed_partial --&gt; [*]</code></pre>
+<h2 id="ui-state-coverage">UI State Coverage</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">Happy</th>
+<th style="text-align: left;">Empty</th>
+<th style="text-align: left;">Loading</th>
+<th style="text-align: left;">Error</th>
+<th style="text-align: left;">Offline</th>
+<th style="text-align: left;">annotation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">LINE webhook 接收</td>
+<td style="text-align: left;">✓ 即時 ack</td>
+<td style="text-align: left;">連發 throttle</td>
+<td style="text-align: left;">n/a</td>
+<td style="text-align: left;">webhook retry</td>
+<td style="text-align: left;">LINE 重送</td>
+<td style="text-align: left;">session: idle → buffering</td>
+</tr>
+<tr>
+<td style="text-align: left;">buffer_wait 合併</td>
+<td style="text-align: left;">✓ 2s 內合併</td>
+<td style="text-align: left;">單則直接 flush</td>
+<td style="text-align: left;">timer 跑中</td>
+<td style="text-align: left;">超時 partial flush</td>
+<td style="text-align: left;">n/a</td>
+<td style="text-align: left;">exit: flushed</td>
+</tr>
+<tr>
+<td style="text-align: left;">media 處理</td>
+<td style="text-align: left;">✓ A08 取得 ref</td>
+<td style="text-align: left;">n/a</td>
+<td style="text-align: left;">download bar</td>
+<td style="text-align: left;">media 大過 10MB → 提示重傳</td>
+<td style="text-align: left;">local cache</td>
+<td style="text-align: left;">media_pending → buffering</td>
+</tr>
+</tbody>
+</table>
+<h2 id="a11y-notes">a11y notes</h2>
+<ul>
+<li>LINE 端走原生 a11y；TalkBack 朗讀順序由 LINE app 控</li>
+<li>沒有對使用者直接呈現的 UI（後台 buffer），不需 WCAG SC 個別套用</li>
+</ul>
+<h2 id="fr-反向指">FR 反向指</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">FR</th>
+<th style="text-align: left;">AC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">訊息合併</td>
+<td style="text-align: left;">FR-0026</td>
+<td style="text-align: left;">AC-01 buffer_wait / AC-02 media
+pending</td>
+</tr>
+</tbody>
+</table>
+<h2 id="相關">相關</h2>
+<ul>
+<li>主檔 Flow S1：<a
+href="../user-flow-smart-lock-saas.md"><code>../user-flow-smart-lock-saas.md#flow-s1</code></a></li>
+<li>Source spec：<a
+href="../../_source/02-ai-chatbot-sync.md"><code>../../_source/02-ai-chatbot-sync.md#a-m01-進線debounce</code></a></li>
+</ul>
+</div></div></body></html>

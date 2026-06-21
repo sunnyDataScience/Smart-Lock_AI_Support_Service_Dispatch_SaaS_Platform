@@ -1,0 +1,633 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>SLO / Alerts Specification — 智慧鎖 SaaS 平台</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ ops ／ slo-spec-smart-lock-saas.md</div>
+<div class="doc"><h1 id="slo--alerts-spec--智慧鎖-saas-平台">SLO / Alerts Spec — 智慧鎖
+SaaS 平台</h1>
+<blockquote>
+<p><strong>狀態</strong>：v1 draft（Gate 7 ready）
+<strong>更新</strong>：2026-05-28 <strong>負責人</strong>：SRE（主筆）+
+DevOps <strong>設計原則</strong>：對齊 Google SRE <a
+href="https://sre.google/workbook/">SLO 工程實務</a> + DORA + NFR
+matrix。SLI 必須 <strong>user-facing</strong>（不是 infra
+metric）；alert 必須<strong>可動作</strong>（runbook link + first
+responder action）。</p>
+</blockquote>
+<hr />
+<h2 id="0-sli--slo-命名規則">§0 SLI / SLO 命名規則</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">術語</th>
+<th style="text-align: left;">定義</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>SLI</strong></td>
+<td style="text-align: left;">Service Level Indicator —
+量化使用者體驗的指標（如 P99 latency）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>SLO</strong></td>
+<td style="text-align: left;">Service Level Objective — SLI 的目標值（如
+P99 &lt; 500ms 99% of time, 30d window）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Error Budget</strong></td>
+<td style="text-align: left;">1 − SLO；budget 用完 = 凍結 feature
+deploy</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Burn rate alert</strong></td>
+<td style="text-align: left;">在 budget
+耗盡前提前告警，避免直到失效才反應</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Burn rate 三層 alert window</strong>（per Google SRE workbook
+chap 5）：</p>
+<ul>
+<li><strong>1h fast burn</strong>：14.4x — 1h 內燒掉 2% budget →
+critical page（業務時間 ≤ 15 min MTTA / off-hours ≤ 30 min）</li>
+<li><strong>6h medium burn</strong>：6x — 6h 內燒掉 5% budget →
+page</li>
+<li><strong>24h slow burn</strong>：3x — 24h 內燒掉 10% budget → warn /
+Slack</li>
+</ul>
+<hr />
+<h2 id="1-核心-7-slov1-launch-baseline">§1 核心 7 SLO（V1 launch
+baseline）</h2>
+<blockquote>
+<p>取 0-1 SaaS pragmatic 視角：<strong>只訂能監控 + 能動作的
+SLO</strong>，不訂 vanity SLO。其餘 SLI（如 DGS queue depth）走 Runbook
+§9 observability metrics 但不列 SLO。</p>
+</blockquote>
+<h3 id="slo-1--api-整體可用性">SLO-1 — API 整體可用性</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>SLI</strong></td>
+<td
+style="text-align: left;"><code>1 - (5xx_count + non-business-4xx_count) / total_request_count</code>
+— measured per endpoint，全平台 aggregate</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>公式</strong></td>
+<td
+style="text-align: left;"><code>availability_30d = sum(success_responses_30d) / sum(total_responses_30d)</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>SLO</strong></td>
+<td style="text-align: left;">≥ <strong>99.5%</strong> 30d
+rolling（營運目標）/ ≥ 95% 合約 baseline</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>量測窗</strong></td>
+<td style="text-align: left;">30 days rolling</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Burn rate alert</strong></td>
+<td style="text-align: left;">1h burn 14.4x → critical page / 6h burn 6x
+→ page / 24h burn 3x → Slack warn</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Incident severity</strong></td>
+<td style="text-align: left;">breach → P1（合約 &lt; 95% → P0）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>對應 NFR</strong></td>
+<td style="text-align: left;">NFR-Avail-001 (合約) / NFR-Avail-002
+(營運)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Runbook link</strong></td>
+<td style="text-align: left;"><code>runbook-smart-lock-saas.md</code>
+§IR-001 (LINE webhook) / IR-003 (DGS down)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="slo-2--line-ai-首回應-latency">SLO-2 — LINE AI 首回應
+latency</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>SLI</strong></td>
+<td
+style="text-align: left;"><code>count(ai_first_response_latency_seconds &lt; 5s) / count(total_ai_responses)</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>公式</strong></td>
+<td style="text-align: left;">P95 over 30d rolling</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>SLO</strong></td>
+<td style="text-align: left;">P95 &lt; <strong>5s</strong>（V1）/ P99
+&lt; 8s</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>量測窗</strong></td>
+<td style="text-align: left;">30d rolling</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Burn rate alert</strong></td>
+<td style="text-align: left;">P95 &gt; 8s for 10 min → page / P99 &gt;
+12s for 10 min → critical page</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Incident severity</strong></td>
+<td style="text-align: left;">breach → P1（影響首次體驗）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>對應 NFR</strong></td>
+<td style="text-align: left;">NFR-Perf-001 / 合約 K6</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Runbook link</strong></td>
+<td style="text-align: left;">IR-002 (LLM API 超時)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="slo-3--m18-config-read-latency-cache-hit">SLO-3 — M18 Config
+read latency (cache hit)</h3>
+<blockquote>
+<p>Per ADR-0067 §Decision 組件 5 + ADR-0068 + NFR-Perf-008 — read path
+不能成為其他模組的 latency bottleneck。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>SLI</strong></td>
+<td
+style="text-align: left;"><code>count(config_read_latency_seconds &lt; 0.05) / count(total_config_reads_cache_hit)</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>公式</strong></td>
+<td style="text-align: left;">P99 over 7d rolling</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>SLO</strong></td>
+<td style="text-align: left;">P99 ≤ <strong>50ms</strong> (cache hit) /
+P99 ≤ 200ms (cache miss)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>量測窗</strong></td>
+<td style="text-align: left;">7d rolling（read 量大、變化快）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Burn rate alert</strong></td>
+<td style="text-align: left;">P99 &gt; 100ms for 5 min → page；cache
+miss rate &gt; 20% for 10 min → warn</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Incident severity</strong></td>
+<td style="text-align: left;">P1（影響多個下游模組 latency）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>對應 NFR</strong></td>
+<td style="text-align: left;">NFR-Perf-008</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Runbook link</strong></td>
+<td style="text-align: left;">IR-012 (M18 config rollout 失敗)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="slo-4--chatbot-first-reply-availability">SLO-4 — Chatbot first
+reply availability</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>SLI</strong></td>
+<td
+style="text-align: left;"><code>count(replied_within_5s) / count(total_inbound_messages)</code>
+— 對應合約 K6</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>公式</strong></td>
+<td style="text-align: left;">(success / total) over 30d</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>SLO</strong></td>
+<td style="text-align: left;">≥ <strong>99%</strong> 5s 內回覆（含
+fallback canned response）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>量測窗</strong></td>
+<td style="text-align: left;">30d rolling</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Burn rate alert</strong></td>
+<td style="text-align: left;">&lt; 98% for 1h → page / &lt; 95% for 10
+min → critical page（fail-soft 失效）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Incident severity</strong></td>
+<td style="text-align: left;">P0 (合約 K6 + 客戶感知)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>對應 NFR</strong></td>
+<td style="text-align: left;">NFR-Avail-004 / FR-0024</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Runbook link</strong></td>
+<td style="text-align: left;">IR-001 / IR-002 / IR-015 (chatbot 大量
+fail)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="slo-5--migration--hash-chain-safety">SLO-5 — Migration &amp;
+Hash Chain Safety</h3>
+<blockquote>
+<p>對齊 ADR-0064 (quote hash chain) + ADR-VCH-001 (voucher hash chain) —
+帳本不可信 = 合規崩潰。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>SLI</strong></td>
+<td
+style="text-align: left;"><code>voucher_hash_mismatch_total + quote_hash_mismatch_total + migration_verify_failures</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>公式</strong></td>
+<td style="text-align: left;">nightly verify job pass rate 30d</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>SLO</strong></td>
+<td style="text-align: left;"><strong>0</strong> mismatch event /
+30d；nightly verify pass rate = 100%</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>量測窗</strong></td>
+<td style="text-align: left;">per nightly run；30d aggregate</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Burn rate alert</strong></td>
+<td style="text-align: left;"><strong>任一 mismatch → P0 page
+immediately</strong>（不分 burn rate，直接 critical）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Incident severity</strong></td>
+<td style="text-align: left;">P0（商業會計法 §83 違反 + 合規崩潰）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>對應 NFR</strong></td>
+<td style="text-align: left;">NFR-Aud-001..002 / NFR-Aud-007</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Runbook link</strong></td>
+<td style="text-align: left;">IR-011 (voucher mismatch) / IR-013 (quote
+hash mismatch)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="slo-6--audit-log-deliverym17--m18-audit">SLO-6 — Audit Log
+Delivery（M17 + M18 audit）</h3>
+<blockquote>
+<p>對齊 NFR-Aud-007 (M18 config change audit 100% completeness) +
+ADR-0050 (evidence audit)</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>SLI</strong></td>
+<td
+style="text-align: left;"><code>count(audit_events_persisted) / count(audit_events_emitted)</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>公式</strong></td>
+<td style="text-align: left;">(persisted / emitted) per 1h window</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>SLO</strong></td>
+<td style="text-align: left;">= <strong>100%</strong> (zero loss
+tolerance)；outbox lag P99 ≤ 30s</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>量測窗</strong></td>
+<td style="text-align: left;">hourly aggregate；30d retention</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Burn rate alert</strong></td>
+<td style="text-align: left;">any drop &lt; 100% in 1h → P0 page；outbox
+lag P99 &gt; 120s → critical</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Incident severity</strong></td>
+<td style="text-align: left;">P0（合規證據鏈斷裂 = legal exposure）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>對應 NFR</strong></td>
+<td style="text-align: left;">NFR-Aud-001 / NFR-Aud-007</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Runbook link</strong></td>
+<td style="text-align: left;">IR-004 (outbox lag) / IR-016 (evidence
+證據遺失)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="slo-7--gdpr-forget-sla">SLO-7 — GDPR Forget SLA</h3>
+<blockquote>
+<p>對齊 FR-0053 + ADR-0061 (DGS) + NFR-Priv-005</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>SLI</strong></td>
+<td
+style="text-align: left;"><code>count(gdpr_forget_completed_within_7d) / count(total_gdpr_forget_requests)</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>公式</strong></td>
+<td style="text-align: left;">per request；30d rolling</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>SLO</strong></td>
+<td style="text-align: left;">≥ <strong>99%</strong> completed within 7d
+OR customer_notice 送出（Art.12(3) 合規）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>量測窗</strong></td>
+<td style="text-align: left;">30d rolling</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Burn rate alert</strong></td>
+<td style="text-align: left;">request unfulfilled &gt; 5d → page
+DPO；&gt; 6d 30 min → critical (法律時限風險)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Incident severity</strong></td>
+<td style="text-align: left;">P0（GDPR 罰款 / 法律暴露）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>對應 NFR</strong></td>
+<td style="text-align: left;">NFR-Priv-005</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Runbook link</strong></td>
+<td style="text-align: left;">IR-005 / IR-017 (DPO forget)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-error-budget-policy">§2 Error Budget Policy</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">觸發條件</th>
+<th style="text-align: left;">Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>任一 SLO 月度 budget 消耗 &gt;
+50%</strong></td>
+<td style="text-align: left;">Slack warn + 暫緩 risky deploy（保留
+rollback、bugfix）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>任一 SLO 月度 budget 消耗 &gt;
+75%</strong></td>
+<td style="text-align: left;">freeze feature deploy；只接 rollback /
+hotfix / bugfix</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>任一 SLO 月度 budget
+耗盡</strong></td>
+<td style="text-align: left;"><strong>halt-deployment</strong> until
+下個月度 / 業主 override</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>SLO-5 (hash chain) 任一
+mismatch</strong></td>
+<td style="text-align: left;"><strong>immediate halt-deployment + freeze
+voucher writes + Runbook IR-011/013</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>SLO-6 (audit log) 任一
+drop</strong></td>
+<td style="text-align: left;"><strong>immediate halt-deployment + freeze
+mutation + Runbook IR-016</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>halt-deployment 例外</strong>：rollback / security patch /
+合約合規修補可走 fast-track（hotfix branch + 1 reviewer + 強制 rollback
+plan）。</p>
+<p><strong>Error budget 重置週期</strong>：月度（calendar
+month）；月初重置；異常事件 postmortem 必要時可申請 budget
+credit（業主裁決）。</p>
+<hr />
+<h2 id="3-alert-routing--severity">§3 Alert Routing &amp; Severity</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Severity</th>
+<th style="text-align: left;">觸發</th>
+<th style="text-align: left;">Routing</th>
+<th style="text-align: left;">Response SLA</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>P0 / critical</strong></td>
+<td style="text-align: left;">SLO-5/6/7 breach、cross-tenant leak、kill
+switch fire、SOW 2.1(4) 違反</td>
+<td style="text-align: left;">PagerDuty critical → on-call DevOps + Tech
+Lead + PM</td>
+<td style="text-align: left;">MTTA ≤ 5 min（24/7）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>P1 / page</strong></td>
+<td style="text-align: left;">SLO-1/2/4 breach、staged rollout
+auto-halt、CVE critical</td>
+<td style="text-align: left;">PagerDuty page → on-call DevOps</td>
+<td style="text-align: left;">MTTA ≤ 15 min (office) / ≤ 30 min
+(off-hours)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>P2 / warn</strong></td>
+<td style="text-align: left;">SLO-3 burn medium、cache miss rate
+spike、drift detected</td>
+<td style="text-align: left;">Slack #ops-alerts</td>
+<td style="text-align: left;">next business day</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Info</strong></td>
+<td style="text-align: left;">DORA metric monthly review、SLO budget 50%
+mark</td>
+<td style="text-align: left;">Slack #ops-info</td>
+<td style="text-align: left;">weekly review</td>
+</tr>
+</tbody>
+</table>
+<p><strong>台灣業主習慣（comms template）</strong>：</p>
+<ul>
+<li>對甲方 / 客戶：<strong>LINE 通知優先</strong>（business hours）→
+SMS（after-hours / P0）→ email（formal incident report）</li>
+<li>內部：Slack + PagerDuty</li>
+<li>P0 incident：30 min 內出第一封給甲方的「現況 + 預估 ETA +
+responsible owner」LINE 訊息</li>
+</ul>
+<hr />
+<h2 id="4-slo-dashboardgrafana">§4 SLO Dashboard（Grafana）</h2>
+<p><strong>Dashboard 結構</strong>（建議 4 個 panel group）：</p>
+<ol type="1">
+<li><strong>Top-line SLO bar</strong>：7 個 SLO 月度 budget 消耗 % +
+halt-deployment 狀態</li>
+<li><strong>Latency panels</strong>：SLO-2 (AI reply) / SLO-3 (M18 read)
+/ KPI K6</li>
+<li><strong>Reliability panels</strong>：SLO-1 (API avail) / SLO-4
+(chatbot) / SLO-6 (audit delivery)</li>
+<li><strong>Compliance panels</strong>：SLO-5 (hash chain) / SLO-7 (GDPR
+forget) / KPI K3 sentiment / Forbidden Eval K8</li>
+</ol>
+<p><strong>0-1 容忍例外</strong>：</p>
+<ul>
+<li>DR drill / chaos 監控暫不上 dashboard（quarterly manual）</li>
+<li>Per-tenant SLO 切片暫不做（V1 single tenant；V2 multi-tenant
+時再切）</li>
+</ul>
+<hr />
+<h2 id="5-與-runbook-對映表">§5 與 Runbook 對映表</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">SLO</th>
+<th style="text-align: left;">Burn → Incident Playbook</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">SLO-1 API avail</td>
+<td style="text-align: left;">IR-001 / IR-003</td>
+</tr>
+<tr>
+<td style="text-align: left;">SLO-2 AI reply latency</td>
+<td style="text-align: left;">IR-002</td>
+</tr>
+<tr>
+<td style="text-align: left;">SLO-3 M18 read latency</td>
+<td style="text-align: left;">IR-012 (M18 rollout)</td>
+</tr>
+<tr>
+<td style="text-align: left;">SLO-4 Chatbot avail</td>
+<td style="text-align: left;">IR-001 / IR-015</td>
+</tr>
+<tr>
+<td style="text-align: left;">SLO-5 Hash chain</td>
+<td style="text-align: left;">IR-011 (voucher) / IR-013 (quote)</td>
+</tr>
+<tr>
+<td style="text-align: left;">SLO-6 Audit delivery</td>
+<td style="text-align: left;">IR-004 (outbox) / IR-016 (evidence)</td>
+</tr>
+<tr>
+<td style="text-align: left;">SLO-7 GDPR forget</td>
+<td style="text-align: left;">IR-005 / IR-017</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-gate-7-exit-criteriaslo-側">§6 Gate 7 Exit Criteria（SLO
+側）</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" checked="" />7 core SLO defined（含
+hash chain + audit + GDPR forget 合規 SLO）</label></li>
+<li><label><input type="checkbox" checked="" />Burn rate alert 三層
+window 對齊 Google SRE workbook</label></li>
+<li><label><input type="checkbox" checked="" />Error budget policy（50%
+warn / 75% freeze / 100% halt）</label></li>
+<li><label><input type="checkbox" checked="" />Alert routing +
+severity（P0/P1/P2/info）+ comms template 台灣慣例</label></li>
+<li><label><input type="checkbox" checked="" />SLO ↔︎ Runbook IR
+對映表完整</label></li>
+<li><label><input
+type="checkbox" /><strong>[VALUE_DECISION_NEEDED]</strong> SLO-1 合約
+baseline 95% vs 營運 99.5% — 對外承諾用哪個？建議<strong>合約
+95%（給甲方）</strong> + <strong>營運 99.5%（內部 target，違反不違約但燒
+error budget）</strong></label></li>
+<li><label><input
+type="checkbox" /><strong>[VALUE_DECISION_NEEDED]</strong> SLO-4 chatbot
+5s 內回覆要不要含 RAG full path（NFR-Perf-003 寫 P95 &lt; 8s for
+RAG）？建議<strong>首回應指「ack + 開始處理」訊息</strong>（&lt;
+5s），RAG full reply 用 SLO-2（P95 &lt; 5s 包 LLM token）</label></li>
+</ul>
+<hr />
+<h2 id="7-sign-off">§7 Sign-off</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" /><strong>SRE
+Lead</strong>：___________ / Date: ___________</label></li>
+<li><label><input type="checkbox" /><strong>DevOps
+Lead</strong>：___________ / Date: ___________</label></li>
+<li><label><input type="checkbox" /><strong>Tech
+Lead</strong>：___________ / Date: ___________</label></li>
+<li><label><input type="checkbox" /><strong>DPO</strong>（SLO-7
+GDPR）：___________ / Date: ___________</label></li>
+<li><label><input type="checkbox" /><strong>法務</strong>（SLO-5 / SLO-6
+合規 SLO）：___________ / Date: ___________</label></li>
+<li><label><input type="checkbox"
+checked="" /><strong>業主</strong>（pragmatic ops 0-1 原則）：✅
+2026-05-28 透過 task brief</label></li>
+</ul>
+<hr />
+<p><strong>Gate 7 SLO Spec Freeze</strong> — ✅ ready</p>
+</div></div></body></html>

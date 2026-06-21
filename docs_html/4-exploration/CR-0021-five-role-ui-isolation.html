@@ -1,0 +1,352 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>5 角色帳號 + 前端 route 權限隔離（Change Impact Analysis）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ 4-exploration ／ CR-0021-five-role-ui-isolation.md</div>
+<div class="doc"><h1 id="cr-0021-5-角色帳號--前端-route-權限隔離">CR-0021: 5 角色帳號 +
+前端 route 權限隔離</h1>
+<blockquote>
+<p><strong>Mandated by</strong>:
+<code>.claude/rules/change-governance.md</code>（觸發：User flow / API
+contract / Architecture boundary） 🛑 §8 未裁決前不動 code。</p>
+</blockquote>
+<hr />
+<h2 id="1-change-statement">1. Change Statement</h2>
+<p><strong>As-is</strong>：</p>
+<ul>
+<li>權限<strong>強制在 API 層</strong>完整（<code>role_required</code> /
+<code>require_keeper</code>；A3 已用 20 條 pytest 矩陣證明）。</li>
+<li>但 <strong>前端 <code>AuthGuard</code> 只檢查 token、無 route-level
+role gating</strong>：非 admin 角色持有效 token
+仍可在瀏覽器<strong>載入</strong> <code>/admin/*</code> 頁（API 會
+403，頁面顯示空/錯誤）。</li>
+<li><strong>admin web 登入端點 <code>/auth/login</code> 只收
+<code>admin</code> /
+<code>reviewer</code></strong>；dispatcher/operations_manager/customer_service
+等後台角色<strong>登不進</strong> admin web。</li>
+<li>可登入帳號只 seed 了 admin / dispatcher / technician。</li>
+</ul>
+<p><strong>To-be</strong>（會議 2026-06-10 決議 #9「5
+種角色帳號權限上線前完成測試」）：</p>
+<ul>
+<li>5 個操作角色各有可登入帳號;admin web 登入收這些後台角色;前端依角色
+gate 路由（看不到也進不去無權限頁）。</li>
+</ul>
+<p><strong>Driver</strong>：會議決議 #9 + Iron 要以各角色點 UI
+給反饋（Action #3）。</p>
+<h2 id="2-affected-flow">2. Affected Flow</h2>
+<table>
+<thead>
+<tr>
+<th>Flow</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>登入流程</td>
+<td>Modified</td>
+<td>admin web 登入放寬收後台角色;技師仍走 tech-login</td>
+</tr>
+<tr>
+<td>後台導覽</td>
+<td>Modified</td>
+<td>sidebar 依角色隱藏無權限項;直接打 URL 也被 gate</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-affected-spec">3. Affected Spec</h2>
+<table>
+<thead>
+<tr>
+<th>Spec</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RBAC route policy（新）</td>
+<td>New</td>
+<td>role → 可存取的 nav section 對應表（前端 gate 依據;與後端
+role_required 對齊）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-affected-api">4. Affected API</h2>
+<table>
+<thead>
+<tr>
+<th>API</th>
+<th>Action</th>
+<th>Breaking?</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST /api/v1/auth/login</code>（loginAdmin）</td>
+<td><code>allowed_roles</code> 擴充</td>
+<td>No</td>
+<td>由 <code>["admin","reviewer"]</code> 加入後台角色（見
+§8-Q2）。對既有 admin/reviewer 無影響</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-affected-data">5. Affected Data</h2>
+<table>
+<thead>
+<tr>
+<th>Entity</th>
+<th>Action</th>
+<th>Migration</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>users</code>（seed）</td>
+<td>New rows</td>
+<td>補缺角色登入帳號（reviewer / operations_manager /
+customer_service…）；密碼沿用 demo bcrypt(changeme123)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="6-affected-test">6. Affected Test</h2>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>pytest <code>test_login_roles</code></td>
+<td>New</td>
+<td>各放寬角色可 <code>/auth/login</code> 取 token;technician 仍被 admin
+login 擋</td>
+</tr>
+<tr>
+<td>Playwright <code>role-ui-isolation</code></td>
+<td>New</td>
+<td>以各角色登入 → 驗 sidebar 只顯示有權限項、直接打無權限 URL
+被導開</td>
+</tr>
+<tr>
+<td>既有 <code>rbac.spec.ts</code>（@wip mock）</td>
+<td>Replace/Update</td>
+<td>改真實登入 + 真隔離（取代 mock 假 JWT）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="7-affected-architecture">7. Affected Architecture</h2>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Action</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>前端 AuthGuard</td>
+<td>Extend</td>
+<td>加 route→role gate（token-only → token+role）。demo
+風險：對應表猜錯會誤擋 → §8-Q3 須明確</td>
+</tr>
+<tr>
+<td>角色真相源</td>
+<td>Decide</td>
+<td>前端 route policy 與後端 role_required
+須對齊;避免前端比後端寬/嚴造成 confusing UX</td>
+</tr>
+<tr>
+<td>登入端點安全</td>
+<td>Review</td>
+<td>放寬 admin login 收後台角色 = 擴大可取得 admin-web token
+的角色集（仍受後端 per-endpoint guard 保護）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="8-human-decisions-required">8. Human Decisions Required</h2>
+<p>✅ <strong>2026-06-12 Sunny 裁決：Q1–Q5 全照「建議」欄。</strong>
+已實作（見 ADR-0111）。</p>
+<p>🛑 <del>每列裁決後才動 code。</del>（已解除）</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>問題</th>
+<th>選項</th>
+<th>建議</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>哪 5 個角色？</td>
+<td>(a) admin / operations_manager / dispatcher / customer_service /
+technician (b) 系統正典 admin/reviewer/technician/brand_oem/line_user
+(c) 自訂</td>
+<td><strong>(a)</strong> — 操作面最有區隔、最貼合後台 demo（technician
+走手機端）</td>
+</tr>
+<tr>
+<td>2</td>
+<td>admin web 登入放寬收哪些角色？</td>
+<td>(a) admin/reviewer/operations_manager/dispatcher/customer_service
+(b) 只加 operations_manager (c) 維持現狀只 admin/reviewer</td>
+<td><strong>(a)</strong> 收齊後台角色;technician 維持 tech-login</td>
+</tr>
+<tr>
+<td>3</td>
+<td>前端 route→role 對應（gate 依據）</td>
+<td>見下表「建議對應」</td>
+<td>照下表;未列到的頁預設 admin/ops 才可</td>
+</tr>
+<tr>
+<td>4</td>
+<td>無權限時行為</td>
+<td>(a) 導向 /dashboard (b) 顯示「無權限」頁 (c) 404</td>
+<td><strong>(a)</strong> 導 /dashboard + sidebar 隱藏該項（最不打斷
+demo）</td>
+</tr>
+<tr>
+<td>5</td>
+<td>seed 帳號密碼</td>
+<td>(a) 全用 changeme123(demo) (b) 各角色不同</td>
+<td><strong>(a)</strong> demo 一致好記;email 如 <a
+href="mailto:ops@example.com">ops@example.com</a> / <a
+href="mailto:cs@example.com">cs@example.com</a> / <a
+href="mailto:reviewer@example.com">reviewer@example.com</a></td>
+</tr>
+</tbody>
+</table>
+<h3 id="建議-routerole-對應表q3">建議 route→role 對應表（Q3）</h3>
+<table>
+<thead>
+<tr>
+<th>Nav section / 路由</th>
+<th style="text-align: center;">admin</th>
+<th style="text-align: center;">operations_manager</th>
+<th style="text-align: center;">dispatcher</th>
+<th style="text-align: center;">customer_service</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>dashboard</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>conversations / problem-cards</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>knowledge-base</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">➖</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>work-orders / dispatch-queue / material-requests</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">➖(唯讀)</td>
+</tr>
+<tr>
+<td>technicians</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">➖</td>
+</tr>
+<tr>
+<td>customers</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">➖</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>accounting（settlements/vouchers/refunds/warranty/disputes）</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">➖</td>
+<td style="text-align: center;">➖</td>
+</tr>
+<tr>
+<td>inventory</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">➖</td>
+<td style="text-align: center;">➖</td>
+</tr>
+<tr>
+<td>reports（kpi/ranking/revenue/sop-perf）</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">➖</td>
+<td style="text-align: center;">➖</td>
+</tr>
+<tr>
+<td>admin（audit-events / roles）</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">➖</td>
+<td style="text-align: center;">➖</td>
+<td style="text-align: center;">➖</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>technician：完全不進 admin web（走 /pool /my-orders 手機端）。</p>
+</blockquote>
+<h2 id="9-suggested-implementation-order8-裁決後">9. Suggested
+Implementation Order（§8 裁決後）</h2>
+<ol type="1">
+<li><strong>後端</strong>：<code>/auth/login</code> allowed_roles
+擴充（Q2）+ pytest 登入角色測試</li>
+<li><strong>Seed</strong>：補缺角色登入帳號（Q1/Q5）</li>
+<li><strong>前端</strong>：route→role policy（常數表）+ AuthGuard
+gate（Q3/Q4）+ sidebar 依角色過濾</li>
+<li><strong>Tests</strong>：Playwright role-ui-isolation（各角色 sidebar
++ URL gate）;更新/取代 rbac.spec.ts</li>
+<li><strong>Docs</strong>：CHANGELOG + 完成度文件;ADR（前端 route gating
+policy 與後端對齊原則）</li>
+</ol>
+<h2 id="10-risks--rollback">10. Risks &amp; Rollback</h2>
+<ul>
+<li><strong>風險</strong>：前端對應表與後端 role_required 不一致 →
+前端讓進但 API 403（confusing）或前端誤擋（demo
+中斷）。緩解：對應表以後端 guard 為準、列清楚、Playwright 覆蓋。</li>
+<li><strong>風險</strong>：放寬 admin login 收後台角色 = 更多角色可拿
+admin-web token;但每個 endpoint 仍受後端 guard，real security
+不變。</li>
+<li><strong>Rollback</strong>：前端 gate 為 additive（移除即回
+token-only）;登入 allowed_roles 可縮回;seed 帳號可刪。低風險。</li>
+</ul>
+</div></div></body></html>

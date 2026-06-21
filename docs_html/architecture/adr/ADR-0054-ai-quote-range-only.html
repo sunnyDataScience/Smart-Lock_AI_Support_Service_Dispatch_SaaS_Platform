@@ -1,0 +1,128 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>AI 報價邊界（range only）— 獨立 ADR for charter 一致性</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ architecture ／ adr ／ ADR-0054-ai-quote-range-only.md</div>
+<div class="doc"><blockquote>
+<p><strong>🔄 Migration Status (2026-05-28)</strong>:
+<code>STILL_VALID_UNDER_A03_M04</code> <strong>Reviewed
+against</strong>: 2026-05-20 final spec (xlsx) <strong>Reviewed
+on</strong>: 2026-05-28 <strong>Module scope</strong>: A03, M04
+<strong>Per ADR-0100 §1 classification</strong>
+(.claude/context/devteam/meetings/2026-05-27-1130-final-spec-migration-strategy/MoM.md)</p>
+</blockquote>
+<h1 id="adr-0054--ai-報價邊界range-only">ADR-0054 — AI 報價邊界（range
+only）</h1>
+<h2 id="status">Status</h2>
+<p>Draft（與 ADR-0035 同主題，<strong>獨立留證</strong>以維持 charter
+一致性的書面依據）</p>
+<h2 id="context">Context</h2>
+<p>AI 報價邊界出現在兩個 §F 條目：</p>
+<ul>
+<li>§F.1 GAP-D05 → ADR-0035 聚焦「保固 / 建案」場景</li>
+<li>§F.3 AI-041 → 本 ADR-0054 聚焦「全局 AI 報價邊界 charter
+一致性」</li>
+</ul>
+<p>雖然主題重疊，但獨立 ADR 的好處：</p>
+<ul>
+<li>ADR-0035 範圍是「保固 / 建案 case 特殊處理」</li>
+<li>ADR-0054 範圍是「<strong>所有</strong>對話 AI
+報價邊界」一致原則</li>
+<li>ADR-0028 charter Forbidden 引用本 ADR 作為「為什麼 final quote
+永禁」的論證來源</li>
+</ul>
+<p>源自 Excel-01 sheet 18 AI-041。</p>
+<h2 id="decision推薦">Decision（推薦）</h2>
+<p><strong>全域 AI 報價邊界</strong>：</p>
+<p>AI 在任何 conversation 中：</p>
+<ul>
+<li><strong>允許</strong>：給 range（如「NTD 1,500-3,500」）+
+計價結構說明 + 引導真人確認</li>
+<li><strong>允許</strong>：引用已核准 fixed-price rule（如「電池更換固定
+NTD 800」需 brand fixed-price approved）</li>
+<li><strong>禁止</strong>：個案 final quote（如「您這次是 NTD
+2,800」）</li>
+<li><strong>禁止</strong>：折扣承諾（如「我給您打 9 折」）</li>
+<li><strong>禁止</strong>：保固免費承諾（保固判定走真人，ADR-0035）</li>
+</ul>
+<p>Guardrail（§C4 AgentRuntime）實作：</p>
+<ul>
+<li>偵測「NTD <number>」+ 缺乏「範圍 / 估計 / 通常 / 約」修飾語 → 觸發
+regen</li>
+<li>偵測「折扣 / 優惠 / 打折」+ 個案語境 → 觸發 regen</li>
+<li>偵測「免費 / 不收費」+ 保固語境 → 觸發 regen + 強制
+<code>transfer_to_human</code></li>
+</ul>
+<h2 id="alternatives-considered">Alternatives Considered</h2>
+<h3 id="option-a--ai-給-final-quote--免責條款">Option A — AI 給 final
+quote + 免責條款</h3>
+<ul>
+<li>同 ADR-0035 Option A</li>
+<li>風險：F3 高 + 法律風險</li>
+</ul>
+<h3 id="option-b--連-range-都不能說">Option B — 連 range 都不能說</h3>
+<ul>
+<li>同 ADR-0035 Option B</li>
+<li>風險：F1 弱</li>
+</ul>
+<h2 id="consequences">Consequences</h2>
+<p><strong>Positive</strong>：</p>
+<ul>
+<li>ADR-0028 charter Forbidden 有明確 ADR 引用源（防止 charter
+條目被工程單方面移除）</li>
+<li>Guardrail 規則明文，model swap 不影響</li>
+<li>與 ADR-0035 / 0047 形成「保固 + 全域 + Forbidden 入
+charter」三角防線</li>
+</ul>
+<p><strong>Negative</strong>：</p>
+<ul>
+<li>與 ADR-0035 主題重疊（這是 feature，charter 一致性需獨立留證）</li>
+</ul>
+<p><strong>Mitigation</strong>：</p>
+<ul>
+<li>ADR-0035 與 ADR-0054 互引；ADR-0028 同時引用兩者</li>
+<li>若未來合併為單一 ADR，需走 ADR supersedes 流程</li>
+</ul>
+<h2 id="pre-mortem-mapping">Pre-mortem Mapping</h2>
+<p>對應 §A F3 主防線。</p>
+<h2 id="eternaltransient-classification">Eternal/Transient
+Classification</h2>
+<ul>
+<li><strong>Eternal</strong>：§B3 永恆禁區</li>
+<li><strong>Transient</strong>：Guardrail classifier（§C4）</li>
+</ul>
+<h2 id="acceptance-criteria">Acceptance Criteria</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />業主圈選：<strong>✅ 推薦</strong> /
+Option A / Option B</label></li>
+<li><label><input type="checkbox" />Legal + AI Lead
+簽核全域邊界</label></li>
+<li><label><input type="checkbox" />ADR-0028 charter Forbidden
+加入引用：<code>see ADR-0054 + ADR-0035</code></label></li>
+<li><label><input type="checkbox" />Guardrail 三規則實作 + Eval set
+覆蓋</label></li>
+<li><label><input type="checkbox" />Eval set 50+ 題誘導測試（不限保固 /
+建案場景）</label></li>
+</ul>
+<h2 id="see-also">See also</h2>
+<ul>
+<li>§F.3 AI-041 + §F.1 D05 PAIN-POINTS-SUMMARY-2026-05-21.md</li>
+<li>Excel-01 sheet 18 / Excel-02 sheet 04 G8 / sheet 08</li>
+<li>ADR-0028 AI Employee Charter</li>
+<li>ADR-0035 保固 / 建案 quote policy</li>
+<li>ADR-0047 AI Forbidden 集中 charter</li>
+</ul>
+</div></div></body></html>

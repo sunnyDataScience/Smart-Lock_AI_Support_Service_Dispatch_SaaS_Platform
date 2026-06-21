@@ -1,0 +1,501 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Quote Pricing Snapshot — Immutable Content-Addressable Table + Independent Hash Chain</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ architecture ／ adr ／ ADR-0064-quote-pricing-snapshot-hash-chain.md</div>
+<div class="doc"><blockquote>
+<p><strong>🔄 Migration Status (2026-05-28)</strong>:
+<code>STILL_VALID_UNDER_M04_M11</code> <strong>Reviewed
+against</strong>: 2026-05-20 final spec (xlsx) <strong>Reviewed
+on</strong>: 2026-05-28 <strong>Module scope</strong>: M04, M11
+<strong>Per ADR-0100 §1 classification</strong>
+(.claude/context/devteam/meetings/2026-05-27-1130-final-spec-migration-strategy/MoM.md)</p>
+</blockquote>
+<h1 id="adr-0064-quote-pricing-snapshot-hash-chain獨立鏈">ADR-0064:
+Quote Pricing Snapshot Hash Chain（獨立鏈）</h1>
+<h2 id="status">Status</h2>
+<p>Accepted (2026-05-26)</p>
+<h2 id="context">Context</h2>
+<p>Forum Q-01 dba R2 提兩條 blocker：</p>
+<ol type="1">
+<li><strong>dba-B-3(a)</strong>：<code>quote.pricing_rule_version_snapshot jsonb</code>
+embed 還是抽 FK 到 immutable snapshot table？</li>
+<li><strong>dba-B-3(b)</strong>：snapshot 是否要進 7 帳本
+<code>journal_entry</code> hash chain？</li>
+</ol>
+<p>R3 處置：</p>
+<ul>
+<li>(a) <strong>Accept</strong> dba hybrid 方案：建
+<code>pricing_rule_snapshot</code> immutable table（content-addressable
+by sha256），<code>quote.snapshot_hash text</code> FK</li>
+<li>(b) <strong>Reject</strong> 入 journal_entry hash
+chain。理由：pricing snapshot 是「業務
+audit」非「財務憑證」，合鏈會混淆兩者；replace 為 reference pointer
+模式</li>
+</ul>
+<p>DBA R3 ack <strong>withdraw</strong>（reject 理由 sound）。本 ADR
+將該 hybrid 模式 + 拒絕合鏈正式化。</p>
+<h2 id="decision-drivers">Decision Drivers</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Priority</th>
+<th style="text-align: left;">Driver</th>
+<th style="text-align: left;">Weight</th>
+<th style="text-align: left;">Reference</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">1</td>
+<td style="text-align: left;">Audit chain 完整性（K6 仲裁可追溯）</td>
+<td style="text-align: left;">critical</td>
+<td style="text-align: left;">ADR-VCH-001 / 002</td>
+</tr>
+<tr>
+<td style="text-align: center;">2</td>
+<td style="text-align: left;">業務 audit vs 財務憑證分流</td>
+<td style="text-align: left;">high</td>
+<td style="text-align: left;">KB §07 audit</td>
+</tr>
+<tr>
+<td style="text-align: center;">3</td>
+<td style="text-align: left;">Snapshot dedup（row size / storage）</td>
+<td style="text-align: left;">medium</td>
+<td style="text-align: left;">NFR-Scal</td>
+</tr>
+<tr>
+<td style="text-align: center;">4</td>
+<td style="text-align: left;">Quote 重發版本鏈不破壞</td>
+<td style="text-align: left;">high</td>
+<td style="text-align: left;">dba-B-4</td>
+</tr>
+<tr>
+<td style="text-align: center;">5</td>
+<td style="text-align: left;">不破壞 journal_entry 既有 hash chain</td>
+<td style="text-align: left;">critical</td>
+<td style="text-align: left;">ADR-VCH-001</td>
+</tr>
+</tbody>
+</table>
+<h2 id="options-considered">Options Considered</h2>
+<h3
+id="option-a--jsonb-embed-in-quotepricing_rule_version_snapshot">Option
+A — jsonb embed in quote.pricing_rule_version_snapshot</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Pros</strong></td>
+<td style="text-align: left;">• 一個 query 拿 quote + snapshot<br>• 無
+FK join</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Cons</strong></td>
+<td style="text-align: left;">• Row size 重複（同 rule 版本被 N 個 quote
+embed）<br>• Snapshot 可變性無 enforcement（理論可被 UPDATE）<br>• 無
+content-addressable dedup</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Fit</strong></td>
+<td style="text-align: left;">V0 PoC</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Anti-fit</strong></td>
+<td style="text-align: left;">V2 audit / dedup 要求</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Cost / Effort</strong></td>
+<td style="text-align: left;">XS</td>
+</tr>
+</tbody>
+</table>
+<h3
+id="option-b--fk-to-immutable-pricing_rule_snapshot-table--enter-journal_entry-hash-chain">Option
+B — FK to immutable <code>pricing_rule_snapshot</code> table + enter
+journal_entry hash chain</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Pros</strong></td>
+<td style="text-align: left;">• 一條鏈到底，K6 仲裁可一鏈追溯</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Cons</strong></td>
+<td style="text-align: left;">• <strong>混淆業務 audit
+與財務憑證</strong><br>• 影響 ADR-VCH-001 既有 hash chain
+不變式（憑證鏈每 append 需重簽）<br>• Snapshot 變更頻率（pricing rule
+改版）會推爆 journal_entry chain<br>• 稅務 audit 看到 pricing snapshot
+入鏈 → 混淆「rule 版本」與「會計憑證」</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Fit</strong></td>
+<td style="text-align: left;">單一財務 audit 系統</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Anti-fit</strong></td>
+<td style="text-align: left;">業務 audit + 財務 audit 並存的本系統</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Cost / Effort</strong></td>
+<td style="text-align: left;">M（chain 重設計）</td>
+</tr>
+</tbody>
+</table>
+<h3
+id="option-c--fk-to-immutable-pricing_rule_snapshot-table--independent-hash-chain-via-reference-pointer採用">Option
+C — FK to immutable <code>pricing_rule_snapshot</code> table +
+<strong>independent hash chain via reference
+pointer</strong>（採用）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Pros</strong></td>
+<td style="text-align: left;">• Content-addressable by sha256 → 本就
+immutable 不需 hash_prev 鏈式設計<br>• Snapshot dedup（同 rule
+版本只存一份）<br>• journal_entry hash chain 不變動（ADR-VCH-001 / 002
+鏈條完整）<br>• K6 仲裁透過
+<code>journal_entry.audit_trail.snapshot_hash</code> reference pointer
+串接，evidence-pointed-to 而非 chain-member<br>• 業務 audit
+與財務憑證分流，責任邊界清晰</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Cons</strong></td>
+<td style="text-align: left;">• 需 FK join 拿 snapshot 內容<br>•
+Reference pointer 模式要在 ADR-VCH-002 加註腳明文</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Fit</strong></td>
+<td style="text-align: left;">業務 + 財務 audit 並存</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Anti-fit</strong></td>
+<td style="text-align: left;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Cost / Effort</strong></td>
+<td style="text-align: left;">S</td>
+</tr>
+</tbody>
+</table>
+<h2 id="decision">Decision</h2>
+<div class="important">
+<div class="title">
+<p>Important</p>
+</div>
+<p><strong>選擇</strong>: Option C — Immutable snapshot
+table（content-addressable）+ <strong>獨立 hash chain via reference
+pointer</strong></p>
+</div>
+<h3 id="1-immutable-snapshot-table-schema">1. Immutable Snapshot Table
+Schema</h3>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> pricing_rule_snapshot (</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  snapshot_hash text <span class="kw">PRIMARY</span> <span class="kw">KEY</span>,           <span class="co">-- sha256 of canonical_form</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  engine_type text <span class="kw">NOT</span> <span class="kw">NULL</span>                 <span class="co">-- V2 = &#39;rule_based&#39;, V2.5 = &#39;opa&#39;</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">CHECK</span> (engine_type <span class="kw">IN</span> (<span class="st">&#39;rule_based&#39;</span>, <span class="st">&#39;opa&#39;</span>)),</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  version_id text <span class="kw">NOT</span> <span class="kw">NULL</span>,                  <span class="co">-- e.g. &quot;v2026.05.26-r3&quot;</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  policy_hash text <span class="kw">NOT</span> <span class="kw">NULL</span>,                 <span class="co">-- engine 內部 rule rows hash</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  rule_payload jsonb <span class="kw">NOT</span> <span class="kw">NULL</span>,               <span class="co">-- V2 = rule_rows array; V2.5 = Rego artifact</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  effective_at timestamptz <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  contract_template_id uuid <span class="kw">NULL</span>,            <span class="co">-- 個案 override 時填</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  created_at timestamptz <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> now()</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co">-- Append-only — DB role 禁 UPDATE / DELETE（trigger / RLS enforce）</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="kw">REVOKE</span> <span class="kw">UPDATE</span>, <span class="kw">DELETE</span> <span class="kw">ON</span> pricing_rule_snapshot <span class="kw">FROM</span> application_role;</span></code></pre></div>
+<p><strong>Content-addressable 性質</strong>：</p>
+<ul>
+<li><code>snapshot_hash</code> = sha256(canonical_form(rule_payload +
+engine_type + version_id + policy_hash + effective_at))</li>
+<li>同 rule 版本被 N 個 quote 引用時，table 內僅 1 row（dedup）</li>
+<li>INSERT ON CONFLICT (snapshot_hash) DO NOTHING — 計算端
+idempotent</li>
+</ul>
+<h3 id="2-quotesnapshot_hash-fk">2. quote.snapshot_hash FK</h3>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TABLE</span> quote</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">ADD</span> <span class="kw">COLUMN</span> snapshot_hash text <span class="kw">NOT</span> <span class="kw">NULL</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">REFERENCES</span> pricing_rule_snapshot(snapshot_hash);</span></code></pre></div>
+<p>取代 R1 提案的 <code>pricing_rule_version_snapshot jsonb</code>
+embed。Quote 重發版本（v2 / v3）時：</p>
+<ul>
+<li>同 rule 版本 →
+<code>quote_v2.snapshot_hash = quote_v1.snapshot_hash</code>（dedup）</li>
+<li>不同 rule 版本 → 新 snapshot row（content-addressable insert）</li>
+</ul>
+<h3 id="3-reject-入-journal_entry-hash-chain">3. <strong>Reject</strong>
+入 journal_entry hash chain</h3>
+<p><strong>拒絕原因</strong>：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>責任分類</strong></td>
+<td style="text-align: left;">journal_entry hash chain 是稅務 /
+會計憑證鏈（ADR-VCH-001/002 規範），具憑證等級不可變性。pricing snapshot
+是「報價當下 rule 凍結」屬業務
+audit。<strong>合鏈會混淆兩者邊界</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>變更頻率</strong></td>
+<td style="text-align: left;">pricing rule 改版 → 新 snapshot；若入
+journal chain，每次 rule 改版需推 chain 重簽（成本爆炸）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>設計冗餘</strong></td>
+<td style="text-align: left;">snapshot 是 immutable +
+content-addressable（hash =
+PK），<strong>本就無時序鏈式需求</strong>。每個 quote 引用獨立
+snapshot，snapshot 之間無時序關係</td>
+</tr>
+</tbody>
+</table>
+<h3 id="4-k6-仲裁-audit-完整性reference-pointer-模式">4. K6 仲裁 Audit
+完整性（reference pointer 模式）</h3>
+<p>K6 爭議仲裁需要回溯「客戶當時看到的金額計算根據」。設計：</p>
+<ul>
+<li><code>journal_entry.audit_trail jsonb</code> 內嵌
+<code>snapshot_hash</code> reference</li>
+<li>仲裁 query：journal_entry → audit_trail.snapshot_hash →
+pricing_rule_snapshot row</li>
+<li><strong>Reference 而非合鏈</strong>：journal_entry hash chain 仍保持
+ADR-VCH-001/002 稅務鏈條完整，pricing snapshot 是
+<strong>evidence-pointed-to 而非 chain-member</strong></li>
+</ul>
+<h3 id="5-adr-vch-002-加註腳">5. ADR-VCH-002 加註腳</h3>
+<p>ADR-VCH-002 更新加註腳明文：</p>
+<blockquote>
+<p><code>quote.snapshot_hash</code> 為 pricing rule <strong>evidence
+pointer</strong>，非 <code>journal_entry</code> hash chain member。 K6
+仲裁透過 <code>journal_entry.audit_trail.snapshot_hash</code> reference
+串接 pricing_rule_snapshot table， 不影響 voucher / journal hash chain
+既有不變式（見 ADR-0064）。</p>
+</blockquote>
+<h3 id="6-snapshot-retention連動-dpo">6. Snapshot Retention（連動
+DPO）</h3>
+<ul>
+<li>pricing_rule_snapshot 本表保留：與 quote 同生命週期（settlement 後 5
+年 hard delete）</li>
+<li><code>contract_template_id</code> 欄位可反推客戶 → 列入 BR-PII-001b
+purge 連動清單（DPO sign-off）</li>
+<li>Hard delete 時：先 verify 該 snapshot 無 active quote 引用，否則
+fail-closed（與 ADR-0061 fail-closed 模式對齊）</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">範疇</th>
+<th style="text-align: left;">說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>適用範圍</strong></td>
+<td style="text-align: left;">quote / pricing_rule audit 鏈</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>不適用</strong></td>
+<td style="text-align: left;">journal_entry / voucher 稅務憑證鏈（仍走
+ADR-VCH-001 / 002 既有 hash chain）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>可逆性</strong></td>
+<td style="text-align: left;">半可逆（reference pointer
+模式改回入鏈需重寫 audit_trail 結構 + ADR-VCH-002 update）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="consequences">Consequences</h2>
+<h3 id="positive">Positive</h3>
+<ul>
+<li>業務 audit 與財務憑證分流，責任邊界清晰</li>
+<li>Snapshot table dedup → row size 收斂</li>
+<li>journal_entry hash chain 既有不變式不破壞（ADR-VCH-001 / 002
+鏈條完整）</li>
+<li>K6 仲裁鏈透過 reference pointer 仍可追溯，evidence-grade 不退化</li>
+<li>Content-addressable insert idempotent（INSERT ON CONFLICT DO
+NOTHING）</li>
+</ul>
+<h3 id="negative">Negative</h3>
+<div class="warning">
+<div class="title">
+<p>Warning</p>
+</div>
+<ul>
+<li>Snapshot 與 journal_entry 拆鏈，K6 仲裁需 join 兩 table（追溯 query
+多一跳）→ audit_trail.snapshot_hash index 補上</li>
+<li>Audit 訓練：稅務 audit 看 journal_entry chain；業務 audit 看
+reference pointer。需在 Runbook 寫明</li>
+<li><code>pricing_rule_snapshot</code> immutable 靠 RLS / trigger
+enforce，不靠 DB 物理不可變（PostgreSQL 限制）</li>
+</ul>
+</div>
+<h3 id="follow-up-work">Follow-up Work</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Action</th>
+<th style="text-align: left;">Owner</th>
+<th style="text-align: left;">Due</th>
+<th style="text-align: left;">Reference</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>pricing_rule_snapshot</code> table +
+content-addressable insert</td>
+<td style="text-align: left;">dba</td>
+<td style="text-align: left;">P3 Gate 5b</td>
+<td style="text-align: left;">ERD §2</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>quote.snapshot_hash</code> FK
+migration</td>
+<td style="text-align: left;">dba</td>
+<td style="text-align: left;">P3 Gate 5b</td>
+<td style="text-align: left;">dba-B-3(a)</td>
+</tr>
+<tr>
+<td style="text-align: left;">RLS / trigger 禁 UPDATE / DELETE on
+snapshot table</td>
+<td style="text-align: left;">dba</td>
+<td style="text-align: left;">P3</td>
+<td style="text-align: left;">append-only</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-VCH-002 加註腳（reference pointer
+模式）</td>
+<td style="text-align: left;">arch</td>
+<td style="text-align: left;">P2</td>
+<td style="text-align: left;">本 ADR §5</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>audit_trail.snapshot_hash</code>
+index</td>
+<td style="text-align: left;">dba</td>
+<td style="text-align: left;">P3</td>
+<td style="text-align: left;">K6 query path</td>
+</tr>
+<tr>
+<td style="text-align: left;">Snapshot purge 連動 BR-PII-001b（DPO
+sign-off）</td>
+<td style="text-align: left;">dpo + dba</td>
+<td style="text-align: left;">P5</td>
+<td style="text-align: left;">ADR-0061</td>
+</tr>
+</tbody>
+</table>
+<h3 id="影響的下游文件">影響的下游文件</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Doc</th>
+<th style="text-align: left;">Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td
+style="text-align: left;"><code>docs/architecture/data/erd.md</code></td>
+<td style="text-align: left;">§2 加 <code>pricing_rule_snapshot</code>
+immutable table + <code>quote.snapshot_hash</code> FK</td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>docs/architecture/adr/ADR-VCH-002-voucher-retention-7y.md</code></td>
+<td style="text-align: left;">加註腳（§5）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>docs/qa/test-plan-*.md</code></td>
+<td style="text-align: left;">append-only enforcement 測項（嘗試 UPDATE
+/ DELETE 應失敗）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>docs/ops/runbook-*.md</code></td>
+<td style="text-align: left;">業務 audit vs 財務 audit 分流追溯路徑</td>
+</tr>
+</tbody>
+</table>
+<h2 id="pre-mortem-mapping">Pre-mortem Mapping</h2>
+<ul>
+<li><strong>F4 合規崩潰</strong>：业务 audit 與財務憑證合鏈會在 Phase II
+Finance 啟動後造成稅務 audit 混淆，本決策提前隔離</li>
+<li><strong>F6 audit chain 斷裂</strong>：journal_entry chain
+既有不變式不破壞；K6 仲裁透過 reference pointer 仍可追溯</li>
+</ul>
+<h2 id="eternaltransient-classification">Eternal/Transient
+Classification</h2>
+<ul>
+<li><strong>Eternal</strong>：「業務 audit 與財務憑證分流」原則 +
+content-addressable snapshot pattern</li>
+<li><strong>Transient</strong>：具體 sha256 算法（未來可換 sha512 +
+鏈共存期）+ snapshot retention 期（連動 BR-PII-001b）</li>
+</ul>
+<h2 id="acceptance-criteria">Acceptance Criteria</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" /><code>pricing_rule_snapshot</code>
+table 建立 + append-only enforce（RLS / trigger）</label></li>
+<li><label><input type="checkbox" /><code>quote.snapshot_hash</code> FK
+migration with down script</label></li>
+<li><label><input type="checkbox" />Content-addressable insert
+idempotent test（同 hash 重覆 insert = 0 row affected）</label></li>
+<li><label><input
+type="checkbox" /><code>journal_entry.audit_trail.snapshot_hash</code>
+reference pointer test（K6 query 可 join）</label></li>
+<li><label><input type="checkbox" />ADR-VCH-002 註腳已加（reference
+pointer 明文）</label></li>
+<li><label><input type="checkbox" />Snapshot UPDATE / DELETE 嘗試
+fail-closed test pass</label></li>
+<li><label><input type="checkbox" />Snapshot purge 連動 BR-PII-001b DPO
+sign-off</label></li>
+</ul>
+<h2 id="cross-references">Cross References</h2>
+<ul>
+<li>Forum final-report:
+<code>.claude/context/devteam/forum/2026-05-26-2241-Q01-quote-pricing-engine/final-report.md</code></li>
+<li>ADR-VCH-001 Platform as Voucher Keeper（journal hash chain
+baseline）</li>
+<li>ADR-VCH-002 Voucher Retention 7y（本 ADR §5 加註腳）</li>
+<li>ADR-0061 DGS（fail-closed 模式對齊）</li>
+<li>ADR-0050 / 0051 Evidence visibility / retention（reference pointer
+模式類比）</li>
+<li>ADR-0062 Pricing Engine Bounded Context（snapshot 由 pricing engine
+寫入）</li>
+</ul>
+</div></div></body></html>

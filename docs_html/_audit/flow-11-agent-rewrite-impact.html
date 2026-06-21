@@ -1,0 +1,161 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Flow 11 客戶不在場 — agent 重寫衝擊 deep audit</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ _audit ／ flow-11-agent-rewrite-impact.md</div>
+<div class="doc"><h1 id="flow-11-客戶不在場line-flex-rsvp-agent-重寫衝擊-deep-audit">Flow
+11 客戶不在場（LINE Flex RSVP）— agent 重寫衝擊 deep audit</h1>
+<h2 id="1-目的">1. 目的</h2>
+<p>校正 WBS Flow 11 100% claim — 取證後實際為 80%。agent
+核心重寫（commit <code>0f037f45</code> LockCore 落地）刪除舊 ReAct
+LangGraph agent 與 LINE Flex template render module；backend
+reschedule_proposal / customer-confirm / customer-reject
+鏈路完整，但<strong>客戶端 LINE 主動 push Flex carousel 鏈路
+0%</strong>。</p>
+<h2 id="2-取證">2. 取證</h2>
+<h3 id="21-white_check_mark-backend-api--完整">2.1 ✅ Backend (API) —
+完整</h3>
+<table>
+<thead>
+<tr>
+<th>元件</th>
+<th>路徑</th>
+<th>狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>service <code>propose_reschedule_v2</code></td>
+<td><code>api/services/work_order_service.py:1010</code></td>
+<td>✅ INSERT <code>saas.reschedule_proposal</code>
+獨立表（HD-04=a，CR-0007）</td>
+</tr>
+<tr>
+<td>service <code>confirm_reschedule_by_customer</code></td>
+<td><code>api/services/work_order_service.py:1116</code></td>
+<td>✅ 寫 wo.scheduled_at + WS publish</td>
+</tr>
+<tr>
+<td>service <code>reject_reschedule_by_customer</code></td>
+<td><code>api/services/work_order_service.py:1207</code></td>
+<td>✅ WS publish 給技師端</td>
+</tr>
+<tr>
+<td>endpoint
+<code>POST /tenants/{tid}/work-orders/{id}/reschedule:propose</code></td>
+<td><code>work_orders_ops_v2.py:347</code></td>
+<td>✅ admin 提案</td>
+</tr>
+<tr>
+<td>endpoint <code>POST .../reschedule:customer-confirm</code></td>
+<td><code>work_orders_ops_v2.py:391</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td>endpoint <code>POST .../reschedule:customer-reject</code></td>
+<td><code>work_orders_ops_v2.py:418</code></td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-white_check_mark-web-客戶端--完整">2.2 ✅ Web 客戶端 —
+完整</h3>
+<ul>
+<li><code>web/track/[token]/page.tsx</code> 客戶 web
+路徑可顯示提案、選時段、回送 confirm/reject。</li>
+<li>Web Token 路徑可用，但<strong>需客戶主動進入 web</strong>（沒有 LINE
+push 通知客戶有提案）。</li>
+</ul>
+<h3 id="23-x-line-flex-主動-push-鏈路--0">2.3 ❌ LINE Flex 主動 push
+鏈路 — 0%</h3>
+<p>取證命令：</p>
+<pre><code>grep -rn &quot;reschedule_proposal\|propose_reschedule_v2\|push_reschedule&quot; agent/  # → 全空
+grep -n &quot;reschedule\|propose\|flex\|Flex&quot; api/services/line_push_service.py
+# → 只有 text push (push_to_work_order_customer)，無 Flex template</code></pre>
+<p><strong>斷鏈點</strong>：admin 透過
+<code>POST /reschedule:propose</code> 寫入
+<code>saas.reschedule_proposal</code> 後，沒有任何 caller 觸發
+<code>line_push_service</code> 推 Flex carousel 給客戶 LINE。agent
+重寫前可能在 ReAct LangGraph 內某個 node 監聽 reschedule_proposal INSERT
+→ render Flex template → push；lockcore 重寫後該整段已刪。</p>
+<p><strong>影響</strong>：客戶若不在 LINE 收到 push，就不會點
+confirm/reject — endpoint 形同孤兒；改期工作流退化為「admin
+必須打電話通知客戶」+ 「客戶主動進 web/track 查看」。</p>
+<h2 id="3-wbs-修正">3. WBS 修正</h2>
+<table>
+<thead>
+<tr>
+<th>欄位</th>
+<th>修正前</th>
+<th>修正後</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Flow 11 完成度</td>
+<td><strong>100%</strong>（淺取證腦補）</td>
+<td><strong>80%</strong>（backend 完整 + web 完整，LINE Flex push 鏈路
+0%）</td>
+</tr>
+<tr>
+<td>缺口註記</td>
+<td>「T11 提案 + LINE Flex RSVP + customer-confirm/reject endpoints + WS
+推回技師」</td>
+<td>「backend / web/track 完整；<strong>LINE Flex 主動 push
+客戶</strong>鏈路因 agent 重寫被刪，lockcore 無對等實作（待 CIA 決定
+lockcore 補回 / 純 web only / 另起 LINE bot）」</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-不立即-build-的理由">4. 不立即 BUILD 的理由</h2>
+<ol type="1">
+<li><strong>agent 重寫是 architecture
+lock（ADR-0109）</strong>：lockcore + Agent Skills
+標準是業主已拍板。Flex template 重建需要先決定走 lockcore tool 還是另起
+LINE bot service。</li>
+<li><strong>CIA gate</strong>：跨 Architecture boundary（agent / api
+邊界 + external integration LINE Messaging API），須先開 CIA 列 HD
+取決於：
+<ul>
+<li>HD-1：Flex push 在 lockcore 重建 vs 純 web only vs 另起獨立 LINE bot
+service</li>
+<li>HD-2：reschedule_proposal INSERT 觸發機制（DB trigger / outbox / API
+hook）</li>
+<li>HD-3：Flex template 是 lockcore skill artifact 還是獨立 module</li>
+<li>HD-4：與 Flow 3（scope change）/ Flow 4 / Flow 5 等其他需 LINE push
+流的整合策略</li>
+</ul></li>
+</ol>
+<h2 id="5-不影響-flow-11-e2e-可用性的條件">5. 不影響 Flow 11 e2e
+可用性的條件</h2>
+<p>若僅走 Web Token 路徑（客戶從 web/track 進）：</p>
+<ul>
+<li>✅ 完整可用 — admin 提 propose，客戶從 web 收 → confirm/reject</li>
+<li>❌ 客戶必須被另外通知（電話 / SMS / email）才會知道有提案</li>
+</ul>
+<p>若需 LINE push：</p>
+<ul>
+<li>❌ 0% — 待 CIA 決議</li>
+</ul>
+<h2 id="6-後續">6. 後續</h2>
+<ul>
+<li>本 deep audit doc 收進 <code>docs/_audit/</code></li>
+<li>WBS Flow 11 80% 註記補上 audit 結論引用</li>
+<li><strong>建議下一輪開 CR-0017 — Flow 11 LINE Flex push 重建
+CIA</strong>（業主裁決路徑）</li>
+<li>在此 CR 開立並裁決前，本 audit 為 Flow 11 唯一 source of truth</li>
+</ul>
+</div></div></body></html>

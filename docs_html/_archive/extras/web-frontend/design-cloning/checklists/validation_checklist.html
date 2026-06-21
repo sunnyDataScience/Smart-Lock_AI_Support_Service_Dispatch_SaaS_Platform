@@ -1,0 +1,77 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Validation Checklist</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../../../../index.html">🏠 文件總目錄</a> ／ _archive ／ extras ／ web-frontend ／ design-cloning ／ checklists ／ validation_checklist.md</div>
+<div class="doc"><h1 id="validation-checklist">Validation Checklist</h1>
+<p>最終驗收。全項通過才能把 spec 接入 Prompt Architect Pipeline。</p>
+<h2 id="法律與倫理">法律與倫理</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />無複製商標 / logo /
+品牌名</label></li>
+<li><label><input type="checkbox" />無複製文案內容</label></li>
+<li><label><input type="checkbox" />無複製圖片 / 插畫資產</label></li>
+<li><label><input type="checkbox" />來源網站已標註於 spec
+開頭</label></li>
+</ul>
+<h2 id="設計完整性">設計完整性</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />L0 Foundations
+八章節齊全</label></li>
+<li><label><input type="checkbox" />L1 至少 5
+個元件含完整變體</label></li>
+<li><label><input type="checkbox" />L2 至少 3 個 pattern
+有具體描述</label></li>
+<li><label><input type="checkbox" />L3 至少 1 個 template 含
+Mermaid</label></li>
+<li><label><input type="checkbox" />L4 sitemap 對應到
+<code>WEBSITE_MODULE_MATRIX.md</code> 某原型</label></li>
+</ul>
+<h2 id="差異化驗證">差異化驗證</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />differentiation.md
+四章節齊全</label></li>
+<li><label><input type="checkbox" />IMPROVE 至少 3 條</label></li>
+<li><label><input type="checkbox" />OVERRIDE
+至少包含主色與字型</label></li>
+<li><label><input type="checkbox" />DROP 項目已從 spec 移除</label></li>
+</ul>
+<h2 id="技術品質">技術品質</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />顏色對比度 WCAG AA
+通過（自動工具驗證）</label></li>
+<li><label><input type="checkbox" />Token 命名對齊
+<code>00_foundations_spec.md</code> 命名規範</label></li>
+<li><label><input type="checkbox" />Token 完整度 ≥ 80%（與 00 spec
+條目數比）</label></li>
+<li><label><input type="checkbox" />所有 token 引用層級正確（L1 引
+L0、L2 引 L1...）</label></li>
+</ul>
+<h2 id="pipeline-接入">Pipeline 接入</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />spec 結構對齊
+<code>global/BASE_DESIGN_SYSTEM.md</code></label></li>
+<li><label><input type="checkbox" />與既有
+<code>00_foundations_spec.md</code> 衝突已解決</label></li>
+<li><label><input type="checkbox" />執行指令範本可貼給 Lovable / Claude
+Code</label></li>
+<li><label><input type="checkbox" />已建立連結到
+<code>references/website_recipes.md</code>（若新增原型）</label></li>
+</ul>
+<hr />
+<p>未通過 → 回到對應階段修正。 全通過 → 在 README
+進度表打勾「Validate」，spec 可被 Orchestrator 引用。</p>
+</div></div></body></html>

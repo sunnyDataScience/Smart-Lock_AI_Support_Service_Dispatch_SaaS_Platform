@@ -1,0 +1,381 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Frontend Quality Attributes — SLA / Core Web Vitals / A11y / 響應式</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ architecture ／ nfr ／ PRIN-0002-frontend-quality-attributes.md</div>
+<div class="doc"><h1 id="frontend-quality-attributes">Frontend Quality Attributes</h1>
+<blockquote>
+<p>tier-0 hard constraint：前端品質目標。違反需開 ADR + 主管核可。</p>
+</blockquote>
+<hr />
+<h2 id="1-api-sla-targets-per-endpoint">§1 API SLA Targets
+(per-endpoint)</h2>
+<blockquote>
+<p>從 <code>_pending-split-performance-baseline.md §1</code> 抽出
+baseline，所有 API 必須滿足。 對應 ISO/IEC 25010 Performance
+Efficiency。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">API operationId</th>
+<th style="text-align: left;">p50</th>
+<th style="text-align: left;">p95</th>
+<th style="text-align: left;">p99</th>
+<th style="text-align: left;">max RPS</th>
+<th style="text-align: left;">Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>createConversation</code></td>
+<td style="text-align: left;">&lt; 80ms</td>
+<td style="text-align: left;">&lt; 200ms</td>
+<td style="text-align: left;">&lt; 500ms</td>
+<td style="text-align: left;">100</td>
+<td style="text-align: left;">⚠ TBD baseline</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>analyzeMedia</code></td>
+<td style="text-align: left;">&lt; 1s</td>
+<td style="text-align: left;">&lt; 3s</td>
+<td style="text-align: left;">&lt; 6s</td>
+<td style="text-align: left;">30</td>
+<td style="text-align: left;">⚠ TBD</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>createProblemCard</code></td>
+<td style="text-align: left;">&lt; 200ms</td>
+<td style="text-align: left;">&lt; 500ms</td>
+<td style="text-align: left;">&lt; 1s</td>
+<td style="text-align: left;">50</td>
+<td style="text-align: left;">⚠ TBD</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>listProblemCards</code></td>
+<td style="text-align: left;">&lt; 50ms</td>
+<td style="text-align: left;">&lt; 100ms</td>
+<td style="text-align: left;">&lt; 200ms</td>
+<td style="text-align: left;">200</td>
+<td style="text-align: left;">⚠ TBD</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>runDispatch</code></td>
+<td style="text-align: left;">&lt; 800ms</td>
+<td style="text-align: left;">&lt; 2s</td>
+<td style="text-align: left;">&lt; 5s</td>
+<td style="text-align: left;">10</td>
+<td style="text-align: left;">⚠ TBD</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>claimOrder</code></td>
+<td style="text-align: left;">&lt; 80ms</td>
+<td style="text-align: left;">&lt; 200ms</td>
+<td style="text-align: left;">&lt; 500ms</td>
+<td style="text-align: left;">30</td>
+<td style="text-align: left;">⚠ TBD</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>updateWorkOrderStatus</code></td>
+<td style="text-align: left;">&lt; 50ms</td>
+<td style="text-align: left;">&lt; 100ms</td>
+<td style="text-align: left;">&lt; 200ms</td>
+<td style="text-align: left;">100</td>
+<td style="text-align: left;">⚠ TBD</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>submitRefundDecision</code></td>
+<td style="text-align: left;">&lt; 200ms</td>
+<td style="text-align: left;">&lt; 500ms</td>
+<td style="text-align: left;">&lt; 1s</td>
+<td style="text-align: left;">20</td>
+<td style="text-align: left;">⚠ TBD</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>exportAuditEvents</code>
+(≤100k)</td>
+<td style="text-align: left;">&lt; 2s</td>
+<td style="text-align: left;">&lt; 5s</td>
+<td style="text-align: left;">&lt; 10s</td>
+<td style="text-align: left;">5</td>
+<td style="text-align: left;">⚠ TBD</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>exportAuditEvents</code> (&gt;100k
+bg)</td>
+<td style="text-align: left;">&lt; 10s</td>
+<td style="text-align: left;">&lt; 30s</td>
+<td style="text-align: left;">&lt; 60s</td>
+<td style="text-align: left;">1</td>
+<td style="text-align: left;">⚠ TBD</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>listWorkOrders</code>
+(paginated)</td>
+<td style="text-align: left;">&lt; 80ms</td>
+<td style="text-align: left;">&lt; 200ms</td>
+<td style="text-align: left;">&lt; 500ms</td>
+<td style="text-align: left;">100</td>
+<td style="text-align: left;">⚠ TBD</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>getDashboardStats</code></td>
+<td style="text-align: left;">&lt; 200ms</td>
+<td style="text-align: left;">&lt; 500ms</td>
+<td style="text-align: left;">&lt; 1s</td>
+<td style="text-align: left;">50</td>
+<td style="text-align: left;">⚠ TBD</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>listSopDrafts</code></td>
+<td style="text-align: left;">&lt; 80ms</td>
+<td style="text-align: left;">&lt; 200ms</td>
+<td style="text-align: left;">&lt; 500ms</td>
+<td style="text-align: left;">30</td>
+<td style="text-align: left;">⚠ TBD</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>getKpiReport</code></td>
+<td style="text-align: left;">&lt; 400ms</td>
+<td style="text-align: left;">&lt; 1s</td>
+<td style="text-align: left;">&lt; 2s</td>
+<td style="text-align: left;">20</td>
+<td style="text-align: left;">⚠ TBD</td>
+</tr>
+<tr>
+<td style="text-align: left;">AsyncAPI WS publish</td>
+<td style="text-align: left;">&lt; 20ms</td>
+<td style="text-align: left;">&lt; 50ms</td>
+<td style="text-align: left;">&lt; 100ms</td>
+<td style="text-align: left;">event-driven</td>
+<td style="text-align: left;">⚠ TBD</td>
+</tr>
+</tbody>
+</table>
+<p><strong>規範</strong>：</p>
+<ul>
+<li>每個 operationId 必須有 SLA；無 SLA 的端點在 spec lint 時報警</li>
+<li><code>max RPS</code> 為單實例 baseline；水平擴展能力見
+<code>3-process/TP-0001-test-plan.md §capacity-planning</code></li>
+</ul>
+<p>實際 baseline 數字由 DevOps 跑 k6 後填入（CR follow-up）。</p>
+<hr />
+<h2 id="2-core-web-vitals-前端">§2 Core Web Vitals (前端)</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">指標</th>
+<th style="text-align: left;">目標</th>
+<th style="text-align: left;">80%-ile 用戶</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">LCP (Largest Contentful Paint)</td>
+<td style="text-align: left;">&lt; 2.5s</td>
+<td style="text-align: left;">desktop 4G</td>
+</tr>
+<tr>
+<td style="text-align: left;">FID (First Input Delay)</td>
+<td style="text-align: left;">&lt; 100ms</td>
+<td style="text-align: left;">desktop 4G</td>
+</tr>
+<tr>
+<td style="text-align: left;">INP (Interaction to Next Paint)</td>
+<td style="text-align: left;">&lt; 200ms</td>
+<td style="text-align: left;">mobile 4G</td>
+</tr>
+<tr>
+<td style="text-align: left;">CLS (Cumulative Layout Shift)</td>
+<td style="text-align: left;">&lt; 0.1</td>
+<td style="text-align: left;">both</td>
+</tr>
+<tr>
+<td style="text-align: left;">TTFB (Time to First Byte)</td>
+<td style="text-align: left;">&lt; 600ms</td>
+<td style="text-align: left;">desktop 4G</td>
+</tr>
+<tr>
+<td style="text-align: left;">FCP (First Contentful Paint)</td>
+<td style="text-align: left;">&lt; 1.8s</td>
+<td style="text-align: left;">desktop 4G</td>
+</tr>
+</tbody>
+</table>
+<p>工具：Lighthouse CI on every PR（待 Phase 後加入 quality gate）。</p>
+<hr />
+<h2 id="3-accessibility-wcag-21">§3 Accessibility (WCAG 2.1)</h2>
+<ul>
+<li><strong>目標等級</strong>：AA</li>
+<li>必通過：
+<ul>
+<li>鍵盤可達（所有互動元素）</li>
+<li>焦點可見</li>
+<li>顏色對比度 ≥ 4.5:1（normal text）/ ≥ 3:1（large text）</li>
+<li>alt text 完整（所有 img / icon button）</li>
+<li>表單 label 連結 input</li>
+<li>語意 HTML（h1-h6 階層、landmarks）</li>
+</ul></li>
+<li>工具：axe DevTools / WAVE / Lighthouse a11y</li>
+</ul>
+<hr />
+<h2 id="4-browser-support">§4 Browser Support</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Browser</th>
+<th style="text-align: left;">Version</th>
+<th style="text-align: left;">必支援</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Chrome</td>
+<td style="text-align: left;">最新 + 前 2 版</td>
+<td style="text-align: left;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;">Edge</td>
+<td style="text-align: left;">最新 + 前 2 版</td>
+<td style="text-align: left;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;">Safari</td>
+<td style="text-align: left;">最新 + 前 1 版</td>
+<td style="text-align: left;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;">Firefox</td>
+<td style="text-align: left;">最新</td>
+<td style="text-align: left;">🟡 best effort</td>
+</tr>
+<tr>
+<td style="text-align: left;">iOS Safari</td>
+<td style="text-align: left;">14+</td>
+<td style="text-align: left;">✅（技師 PWA 主戰場）</td>
+</tr>
+<tr>
+<td style="text-align: left;">Android Chrome</td>
+<td style="text-align: left;">最新</td>
+<td style="text-align: left;">✅（技師 PWA 主戰場）</td>
+</tr>
+<tr>
+<td style="text-align: left;">IE 11</td>
+<td style="text-align: left;">—</td>
+<td style="text-align: left;">❌ 不支援</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-響應式-breakpoints">§5 響應式 Breakpoints</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Token</th>
+<th style="text-align: left;">Width</th>
+<th style="text-align: left;">主要場景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>sm</code></td>
+<td style="text-align: left;">640px</td>
+<td style="text-align: left;">手機橫向</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>md</code></td>
+<td style="text-align: left;">768px</td>
+<td style="text-align: left;">平板直向</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>lg</code></td>
+<td style="text-align: left;">1024px</td>
+<td style="text-align: left;">平板橫向 / 小筆電</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>xl</code></td>
+<td style="text-align: left;">1280px</td>
+<td style="text-align: left;">桌上型主流</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>2xl</code></td>
+<td style="text-align: left;">1536px</td>
+<td style="text-align: left;">大型桌機 / 4K 縮放</td>
+</tr>
+</tbody>
+</table>
+<p>技師 PWA 必須在 <code>sm</code> 完全可用。Admin Panel 主用
+<code>lg+</code>。</p>
+<hr />
+<h2 id="6-圖片--資源限制">§6 圖片 / 資源限制</h2>
+<ul>
+<li>單次 LINE 多媒體上傳：&lt; 10MB（agent 端 multimodal limit）</li>
+<li>Web 圖片 lazy load 預設啟用</li>
+<li>WebP 優先；fallback PNG</li>
+</ul>
+<hr />
+<h2 id="7-bundle-size-budget">§7 Bundle Size Budget</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">路由群</th>
+<th style="text-align: left;">First Load JS</th>
+<th style="text-align: left;">警示閾值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>/dashboard</code></td>
+<td style="text-align: left;">&lt; 250KB</td>
+<td style="text-align: left;">超 = block PR</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/conversations</code>,
+<code>/problem-cards</code></td>
+<td style="text-align: left;">&lt; 200KB</td>
+<td style="text-align: left;">超 = warn</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/work-orders/*</code></td>
+<td style="text-align: left;">&lt; 300KB</td>
+<td style="text-align: left;">超 = warn</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/admin/*</code></td>
+<td style="text-align: left;">&lt; 350KB</td>
+<td style="text-align: left;">超 = warn</td>
+</tr>
+</tbody>
+</table>
+<p>工具：<code>@next/bundle-analyzer</code> on PR。</p>
+<hr />
+<h2 id="8-變更紀錄">§8 變更紀錄</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">日期</th>
+<th style="text-align: left;">內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">2026-05-10</td>
+<td style="text-align: left;">初版 — 整合 performance-baseline §1 SLA
+targets + Core Web Vitals + a11y + 響應式</td>
+</tr>
+</tbody>
+</table>
+</div></div></body></html>

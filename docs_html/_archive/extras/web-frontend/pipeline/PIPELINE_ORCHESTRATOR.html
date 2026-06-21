@@ -1,0 +1,173 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Assembly Prompt Template (Pipeline Orchestrator)</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../../../index.html">🏠 文件總目錄</a> ／ _archive ／ extras ／ web-frontend ／ pipeline ／ PIPELINE_ORCHESTRATOR.md</div>
+<div class="doc"><h1 id="assembly-prompt-template-pipeline-orchestrator">Assembly Prompt
+Template (Pipeline Orchestrator)</h1>
+<blockquote>
+<p>將 Global Design System + Page Spec 組裝為可直接餵給 AI 的完整
+Prompt。 對應 <code>guides/vibe_coding_build_strategy.md</code> → Step
+6。</p>
+</blockquote>
+<h2 id="使用說明">使用說明</h2>
+<ol type="1">
+<li>從 <code>global/XX_brand_system.md</code>
+提取<strong>壓縮版</strong>設計系統（只放色值+字級+間距，不放解釋）</li>
+<li>從 <code>pages/XX_page.md</code> 貼入完整頁面規格</li>
+<li>填入 Exception Rules（這個頁面的特殊規則）</li>
+<li>確認 Output Requirements 的輸出格式</li>
+</ol>
+<blockquote>
+<p><strong>Token 節省技巧</strong>：Global 區段只保留當前頁面需要的
+Tokens，不要整份複製。</p>
+</blockquote>
+<hr />
+<h2 id="-global-project-guideline-do-not-override-">=== GLOBAL PROJECT
+GUIDELINE (DO NOT OVERRIDE) ===</h2>
+<p>你是 {品牌名稱}
+的資深產品設計師與前端工程師，負責維護整個專案的設計一致性。</p>
+<h3 id="核心設計系統">核心設計系統</h3>
+<ul>
+<li><strong>配色</strong>：Primary({色值}) / Secondary({色值}) /
+Accent({色值}) / Error({色值})</li>
+<li><strong>字體</strong>：{英文字體} + {中文字體}，字級階梯 {描述}</li>
+<li><strong>元件風格</strong>：圓角 {值}，陰影 {描述}，邊框 {描述}</li>
+<li><strong>語氣</strong>：{品牌語氣關鍵字}</li>
+<li><strong>技術棧</strong>：{你選定的技術棧}</li>
+</ul>
+<h3 id="重要規範">重要規範</h3>
+<ul>
+<li>本區段定義整個專案的設計系統與風格</li>
+<li>所有頁面相關需求都必須遵守這裡的規範</li>
+<li>除非在 [EXCEPTION TO GLOBAL RULES] 中明確說明，否則不准違反</li>
+</ul>
+<hr />
+<h2 id="-current-task-build-one-page-">=== CURRENT TASK: BUILD ONE PAGE
+===</h2>
+<p>本次任務：根據上方 Global Guideline，設計並實作「{頁面名稱}」。</p>
+<h3 id="page-specification">[PAGE SPECIFICATION]</h3>
+<p><strong>頁面元資料</strong>：</p>
+<ul>
+<li>路徑：<code>{route_path}</code></li>
+<li>類型：{page_type}</li>
+<li>主要目標：{primary_goal}</li>
+<li>次要目標：{secondary_goal}（選填）</li>
+</ul>
+<p><strong>目標用戶</strong>：</p>
+<ul>
+<li>主要：{primary_users}</li>
+<li>次要：{secondary_users}</li>
+</ul>
+<p><strong>頁面結構</strong>（由上至下）：</p>
+<ol type="1">
+<li><p><strong>{section_name}</strong></p>
+<ul>
+<li>用途：{section_purpose}</li>
+<li>元件：{key_components}</li>
+<li>狀態：{states: default / hover / loading / error / empty}</li>
+</ul></li>
+<li><p><strong>{section_name}</strong></p>
+<ul>
+<li>用途：{section_purpose}</li>
+<li>元件：{key_components}</li>
+<li>狀態：{states}</li>
+</ul></li>
+</ol>
+<p>[...更多 sections]</p>
+<p><strong>互動要求</strong>：</p>
+<ul>
+<li>{interaction_requirement_1}</li>
+<li>{interaction_requirement_2}</li>
+</ul>
+<p><strong>RWD 行為</strong>：</p>
+<ul>
+<li>Desktop ({斷點}+)：{佈局描述}</li>
+<li>Tablet ({斷點})：{佈局描述}</li>
+<li>Mobile ({斷點}-)：{佈局描述}</li>
+</ul>
+<p><strong>資料處理</strong>：</p>
+<ul>
+<li>API 端點：{endpoints}</li>
+<li>載入策略：{loading_strategy}</li>
+<li>錯誤處理：{error_handling}</li>
+<li>快取策略：{cache_strategy}</li>
+</ul>
+<hr />
+<h2 id="-exception-rules-">=== EXCEPTION RULES ===</h2>
+<p>本頁面允許的例外（如有）：</p>
+<ol type="1">
+<li>{exception_1_description} - 原因：{reason}</li>
+<li>{exception_2_description} - 原因：{reason}</li>
+</ol>
+<p>若無例外，填入「無特殊例外，完全遵循 Global Guideline」。</p>
+<hr />
+<h2 id="-output-requirements-">=== OUTPUT REQUIREMENTS ===</h2>
+<p>請依照以下步驟輸出：</p>
+<h3 id="step-1-結構確認">Step 1: 結構確認</h3>
+<p>列出本頁面的：</p>
+<ul>
+<li>主要 sections 及其用途</li>
+<li>每個 section 的關鍵元件</li>
+<li>資料流與狀態管理策略</li>
+</ul>
+<h3 id="step-2-設計決策說明">Step 2: 設計決策說明</h3>
+<p>說明 2-3 個關鍵設計決策：</p>
+<ul>
+<li>決策點與選擇理由</li>
+<li>如何確保與 Global 規範一致</li>
+<li>任何必要的權衡考量</li>
+</ul>
+<h3 id="step-3-實作方案">Step 3: 實作方案</h3>
+<p>選擇以下其中一種輸出格式：</p>
+<p><strong>Option A: 完整程式碼</strong>（推薦用於 Lovable / Claude
+Code）</p>
+<pre><code>// 完整的前端實作程式碼</code></pre>
+<p><strong>Option B: 架構示意</strong>（推薦用於複雜頁面的初步規劃）</p>
+<pre><code>// 介面定義
+// 主要元件結構
+// 關鍵邏輯說明</code></pre>
+<p><strong>Option C: 偽代碼說明</strong>（推薦用於與團隊討論）</p>
+<pre><code>// 高層次邏輯流程
+// 元件組織方式</code></pre>
+<h3 id="品質檢查對照-guidesquality_checklistmd">品質檢查（對照
+<code>guides/quality_checklist.md</code>）</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />色彩系統一致性</label></li>
+<li><label><input type="checkbox" />字體層級正確</label></li>
+<li><label><input type="checkbox" />元件風格統一</label></li>
+<li><label><input
+type="checkbox" />響應式設計完整（所有斷點）</label></li>
+<li><label><input type="checkbox" />所有狀態已處理（Loading / Error /
+Empty / Disabled）</label></li>
+<li><label><input type="checkbox" />無障礙支援（鍵盤 +
+ARIA）</label></li>
+<li><label><input type="checkbox" />效能指標達標</label></li>
+</ul>
+<hr />
+<p><strong>執行優先順序</strong>：</p>
+<ol type="1">
+<li>Global 規範為最高優先級</li>
+<li>Page 特定需求次之</li>
+<li>Exception 需明確說明且最小化</li>
+</ol>
+<p><strong>版本資訊</strong>：</p>
+<ul>
+<li>Global System Prompt 版本：v{version}</li>
+<li>Assembly 日期：{date}</li>
+<li>負責人：{owner}</li>
+</ul>
+</div></div></body></html>

@@ -1,0 +1,51 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>報價有效期限分類</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ analysis ／ br ／ BR-M04-05.md</div>
+<div class="doc"><h1 id="br-m04-05--報價有效期限分類">BR-M04-05 — 報價有效期限分類</h1>
+<h2 id="rule">Rule</h2>
+<p>報價有效期依案件類型雙 default：</p>
+<ul>
+<li><strong>一般 quote = 14 天</strong></li>
+<li><strong>急件 quote = 3 天</strong>（含鎖具開鎖、緊急修繕、客戶
+SLA-soft 內案件）</li>
+</ul>
+<p>期滿自動 expired，需重新報價（不可 silent 延長）。</p>
+<h2 id="source">Source</h2>
+<ul>
+<li>docs/_source/01-workorder-erp.md §M04 報價價格（Q032）</li>
+<li>value-decisions 2026-05-28（業主裁決）</li>
+</ul>
+<h2 id="rationale">Rationale</h2>
+<p>台灣居家修繕業普遍 14-30 天；鎖具急件 3-7 天。雙 default
+對齊產業實況，比舊 7 天單一值精確。subagent 提案 7 天會打到一般 quote
+客戶（過短）也打到急件 ops（過長）。</p>
+<h2 id="constraints">Constraints</h2>
+<ul>
+<li>一般 default = 14 day</li>
+<li>急件 default = 3 day</li>
+<li>案件類型判定依 priority flag（M04 quote 表）</li>
+<li>雙 default 皆 configurable via M18（rollout 走 BR-M18-04）</li>
+<li>expired 必須在 expire 後 1 hr 內標記，且觸發 LINE 通知客戶</li>
+</ul>
+<h2 id="cross-refs">Cross-Refs</h2>
+<ul>
+<li>FR: FR-0042</li>
+<li>Related BR / ADR:</li>
+<li>BR-M18-04 (staged rollout)</li>
+</ul>
+</div></div></body></html>

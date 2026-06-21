@@ -1,0 +1,666 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>03_Templates — 頁面模板規格</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../../index.html">🏠 文件總目錄</a> ／ ui ／ web_design_spec_prompt_pipeline ／ design-system-specs ／ 03_templates_spec.md</div>
+<div class="doc"><h1 id="03_templates--頁面模板規格">03_Templates — 頁面模板規格</h1>
+<blockquote>
+<p>Templates 是「半成品模型」。
+做新功能頁，不是從空白開始，而是從模板改。</p>
+</blockquote>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ol type="1">
+<li><a href="#1-模板使用原則">模板使用原則</a></li>
+<li><a href="#2-dashboard-template">Dashboard Template</a></li>
+<li><a href="#3-list-page-template">List Page Template</a></li>
+<li><a href="#4-detail-page-template">Detail Page Template</a></li>
+<li><a href="#5-settings-page-template">Settings Page Template</a></li>
+<li><a href="#6-form--wizard-template">Form / Wizard Template</a></li>
+<li><a href="#7-landing-page-template">Landing Page Template</a></li>
+<li><a href="#8-auth-page-template">Auth Page Template</a></li>
+<li><a href="#9-error-page-template">Error Page Template</a></li>
+<li><a href="#10-template-selection-guide">Template Selection
+Guide</a></li>
+</ol>
+<hr />
+<h2 id="1-模板使用原則">1. 模板使用原則</h2>
+<pre><code>原則 1：模板是「約束」不是「裝飾」
+  - 模板定義的是資訊架構和區塊排列，不是視覺風格
+  - 視覺風格來自 00_Foundations 的 tokens
+
+原則 2：模板可嵌套
+  - Dashboard Template 內可嵌入 Data Table Pattern
+  - Detail Template 內可嵌入 Form Pattern
+
+原則 3：模板有 RWD 行為
+  - 每個模板定義 Desktop / Tablet / Mobile 的 reflow 規則
+
+原則 4：模板可組合
+  - Sidebar Layout + List Template = 後台列表頁
+  - Full Width + Landing Template = 行銷頁</code></pre>
+<hr />
+<h2 id="2-dashboard-template">2. Dashboard Template</h2>
+<h3 id="layout">Layout</h3>
+<pre><code>Desktop：
+┌──────────────────────────────────────────────────┐
+│ [Header: Logo + Nav + User Menu]          64px   │
+├────────┬─────────────────────────────────────────┤
+│        │ Page Title          [Action Button]     │
+│        ├─────────────────────────────────────────┤
+│ Sidebar│ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐       │
+│ 240px  │ │Stat │ │Stat │ │Stat │ │Stat │       │
+│        │ │Card │ │Card │ │Card │ │Card │       │
+│        │ └─────┘ └─────┘ └─────┘ └─────┘       │
+│        ├─────────────────────────────────────────┤
+│        │ ┌───────────────────┐ ┌───────────────┐ │
+│        │ │                   │ │               │ │
+│        │ │   Main Chart      │ │  Side Panel   │ │
+│        │ │                   │ │               │ │
+│        │ └───────────────────┘ └───────────────┘ │
+│        ├─────────────────────────────────────────┤
+│        │ ┌─────────────────────────────────────┐ │
+│        │ │         Recent Activity Table       │ │
+│        │ └─────────────────────────────────────┘ │
+└────────┴─────────────────────────────────────────┘
+
+Tablet：Sidebar 收合為 icon-only (64px)
+Mobile：Sidebar 隱藏為 hamburger, Stat Cards 2→1 col, Side Panel 移到下方</code></pre>
+<h3 id="spec">Spec</h3>
+<table>
+<thead>
+<tr>
+<th>區塊</th>
+<th>元件</th>
+<th>規則</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stat Cards</td>
+<td>Card (4 個)</td>
+<td><code>grid-cols-4</code> → <code>grid-cols-2</code> →
+<code>grid-cols-1</code></td>
+</tr>
+<tr>
+<td>Main Chart</td>
+<td>Chart Container</td>
+<td>佔 2/3 寬度，高度 320px</td>
+</tr>
+<tr>
+<td>Side Panel</td>
+<td>Card</td>
+<td>佔 1/3 寬度，放 Top 5 list 或 quick actions</td>
+</tr>
+<tr>
+<td>Activity Table</td>
+<td>Data Table</td>
+<td>最近 5-10 筆，有「查看全部」link</td>
+</tr>
+<tr>
+<td>Page Title</td>
+<td>text.heading.lg</td>
+<td>包含 Breadcrumb（若需要）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="內容規則">內容規則</h3>
+<pre><code>Stat Card 結構：
+  ┌──────────────────┐
+  │ 📊 Revenue       │ ← Label (caption)
+  │ $12,580          │ ← Value (heading.lg, tabular-nums)
+  │ ↑ 12.5%          │ ← Trend (success/error color)
+  └──────────────────┘
+
+  - 數字使用 tabular-nums（等寬數字）
+  - Trend：正數綠 ↑ / 負數紅 ↓ / 持平灰 →
+  - 比較期間寫在 tooltip 或 caption（vs 上月）</code></pre>
+<hr />
+<h2 id="3-list-page-template">3. List Page Template</h2>
+<h3 id="layout-1">Layout</h3>
+<pre><code>Desktop：
+┌──────────────────────────────────────────────────┐
+│ [Header]                                         │
+├────────┬─────────────────────────────────────────┤
+│        │ Page Title           [+ Create] [⚙️]    │
+│        ├─────────────────────────────────────────┤
+│Sidebar │ [🔍 Search] [Filter ▼] [Sort ▼]         │
+│        ├─────────────────────────────────────────┤
+│        │ ┌─────────────────────────────────────┐ │
+│        │ │ [Table / Card Grid]                 │ │
+│        │ │                                     │ │
+│        │ │                                     │ │
+│        │ │                                     │ │
+│        │ └─────────────────────────────────────┘ │
+│        ├─────────────────────────────────────────┤
+│        │ Showing 1-10 of 156   &lt; 1 2 3 ... &gt;    │
+└────────┴─────────────────────────────────────────┘</code></pre>
+<h3 id="spec-1">Spec</h3>
+<table>
+<thead>
+<tr>
+<th>區塊</th>
+<th>元件</th>
+<th>規則</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Page Header</td>
+<td>Title + CTA + Settings</td>
+<td>CTA 用 Primary Button</td>
+</tr>
+<tr>
+<td>Toolbar</td>
+<td>Search + Filter + Sort</td>
+<td>水平排列，mobile 收合為 icon buttons</td>
+</tr>
+<tr>
+<td>Content Area</td>
+<td>Data Table 或 Card Grid</td>
+<td>使用 02_Patterns 的 Data Table Pattern</td>
+</tr>
+<tr>
+<td>Pagination</td>
+<td>Pagination component</td>
+<td>底部固定</td>
+</tr>
+</tbody>
+</table>
+<h3 id="view-切換">View 切換</h3>
+<pre><code>某些列表支援 Table View ↔ Card Grid View 切換：
+  ┌────────────────────────────────┐
+  │ [☰ List] [▦ Grid]   View      │
+  └────────────────────────────────┘</code></pre>
+<hr />
+<h2 id="4-detail-page-template">4. Detail Page Template</h2>
+<h3 id="layout-2">Layout</h3>
+<pre><code>Desktop：
+┌──────────────────────────────────────────────────┐
+│ [Header]                                         │
+├────────┬─────────────────────────────────────────┤
+│        │ ← Back to List                          │
+│        ├─────────────────────────────────────────┤
+│        │ [Avatar] Title          [Edit] [⋮]      │
+│Sidebar │ Status: Active  |  Created: 2024-01-01  │
+│        ├─────────────────────────────────────────┤
+│        │ ┌──────────┬──────────┬──────────┐      │
+│        │ │Overview ▬│ Activity │ Settings │      │
+│        ├─┴──────────┴──────────┴──────────┤      │
+│        │                                   │      │
+│        │   Tab Content                     │      │
+│        │                                   │      │
+│        │   ┌────────────┐ ┌──────────────┐ │      │
+│        │   │ Main (2/3) │ │ Aside (1/3)  │ │      │
+│        │   └────────────┘ └──────────────┘ │      │
+└────────┴───────────────────────────────────┘      │</code></pre>
+<h3 id="spec-2">Spec</h3>
+<table>
+<thead>
+<tr>
+<th>區塊</th>
+<th>元件</th>
+<th>規則</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Back link</td>
+<td>Text link + ← icon</td>
+<td><code>← Back to {List Name}</code></td>
+</tr>
+<tr>
+<td>Header</td>
+<td>Avatar + Title + Metadata + Actions</td>
+<td>Actions 用 icon buttons 或 dropdown</td>
+</tr>
+<tr>
+<td>Tabs</td>
+<td>Tab component</td>
+<td>2-5 個 tabs</td>
+</tr>
+<tr>
+<td>Main Content</td>
+<td>寬 2/3</td>
+<td>主要資訊區</td>
+</tr>
+<tr>
+<td>Aside</td>
+<td>寬 1/3</td>
+<td>Metadata、Related items、Quick actions</td>
+</tr>
+<tr>
+<td>Mobile</td>
+<td>Aside 移到 main 下方</td>
+<td>單欄 stack</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-settings-page-template">5. Settings Page Template</h2>
+<h3 id="layout-3">Layout</h3>
+<pre><code>Desktop：
+┌──────────────────────────────────────────────────┐
+│ [Header]                                         │
+├────────┬─────────────────────────────────────────┤
+│        │ Settings                                 │
+│        ├──────────┬──────────────────────────────┤
+│Sidebar │ Settings │ Section Title                │
+│        │ Nav      │ Section description           │
+│        │          │                              │
+│        │ General ▬│ ┌──────────────────────────┐ │
+│        │ Profile  │ │ Form Fields...           │ │
+│        │ Team     │ └──────────────────────────┘ │
+│        │ Billing  │                              │
+│        │ Notif.   │ Section Title 2              │
+│        │ Security │ ┌──────────────────────────┐ │
+│        │          │ │ Form Fields...           │ │
+│        │          │ └──────────────────────────┘ │
+│        │          │                              │
+│        │          │ ┌────────┐ ┌──────────────┐  │
+│        │          │ │ Cancel │ │ Save Changes │  │
+│        │          │ └────────┘ └──────────────┘  │
+└────────┴──────────┴──────────────────────────────┘</code></pre>
+<h3 id="spec-3">Spec</h3>
+<table>
+<thead>
+<tr>
+<th>區塊</th>
+<th>元件</th>
+<th>規則</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Settings Nav</td>
+<td>Vertical nav links</td>
+<td>左側 200px，sticky</td>
+</tr>
+<tr>
+<td>Content</td>
+<td>Form sections</td>
+<td>每個 section 有 title + description</td>
+</tr>
+<tr>
+<td>Form Layout</td>
+<td>2/3 寬度 form</td>
+<td>不要佔滿全寬（太寬不好讀）</td>
+</tr>
+<tr>
+<td>Save</td>
+<td>Sticky bottom bar 或 section-level save</td>
+<td>顯示 unsaved changes indicator</td>
+</tr>
+<tr>
+<td>Mobile</td>
+<td>Settings Nav 轉為頂部 select 或 accordion</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="unsaved-changes">Unsaved Changes</h3>
+<pre><code>用戶修改後未儲存，離開前：
+  ┌─────────────────────────────┐
+  │ 你有未儲存的變更              │
+  │                             │
+  │ 離開此頁面將丟失你的變更。     │
+  │                             │
+  │  ┌──────────┐ ┌──────────┐  │
+  │  │ 不儲存   │ │ 儲存並離開 │  │
+  │  └──────────┘ └──────────┘  │
+  └─────────────────────────────┘</code></pre>
+<hr />
+<h2 id="6-form--wizard-template">6. Form / Wizard Template</h2>
+<h3 id="single-page-form">Single Page Form</h3>
+<pre><code>┌──────────────────────────────────────────────────┐
+│ [Header]                                         │
+├──────────────────────────────────────────────────┤
+│               max-width: 640px                   │
+│                                                  │
+│  Create New {Item}                               │
+│  Fill in the details below.                      │
+│                                                  │
+│  ┌────────────────────────────────────────────┐  │
+│  │ Form Section 1                             │  │
+│  │ [Fields...]                                │  │
+│  │                                            │  │
+│  │ Form Section 2                             │  │
+│  │ [Fields...]                                │  │
+│  └────────────────────────────────────────────┘  │
+│                                                  │
+│  ┌──────────┐ ┌────────────────────────────────┐ │
+│  │ Cancel   │ │        Create {Item}           │ │
+│  └──────────┘ └────────────────────────────────┘ │
+│                                                  │
+└──────────────────────────────────────────────────┘</code></pre>
+<h3 id="multi-step-wizard">Multi-Step Wizard</h3>
+<pre><code>┌──────────────────────────────────────────────────┐
+│ [Header]                                         │
+├──────────────────────────────────────────────────┤
+│                                                  │
+│  ① Basic Info ── ② Configuration ── ③ Review     │
+│                                                  │
+│  ┌────────────────────────────────────────────┐  │
+│  │ Step 1: Basic Info                         │  │
+│  │                                            │  │
+│  │ [Fields...]                                │  │
+│  └────────────────────────────────────────────┘  │
+│                                                  │
+│            ┌──────────┐ ┌──────────────────┐     │
+│            │ 上一步   │ │    下一步 →      │     │
+│            └──────────┘ └──────────────────┘     │
+│                                                  │
+└──────────────────────────────────────────────────┘</code></pre>
+<h3 id="spec-4">Spec</h3>
+<table>
+<thead>
+<tr>
+<th>屬性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Form 最大寬度</td>
+<td>640px（置中）</td>
+</tr>
+<tr>
+<td>Section 間距</td>
+<td><code>space.8</code> (32px)</td>
+</tr>
+<tr>
+<td>Field 間距</td>
+<td><code>space.5</code> (20px)</td>
+</tr>
+<tr>
+<td>Footer</td>
+<td>Sticky bottom（mobile）或 page bottom（desktop）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-landing-page-template">7. Landing Page Template</h2>
+<h3 id="layout-4">Layout</h3>
+<pre><code>Full Width (no sidebar)：
+┌──────────────────────────────────────────────────┐
+│ [Top Nav]                                        │
+├──────────────────────────────────────────────────┤
+│                                                  │
+│                   HERO SECTION                   │
+│              Headline + Subline                  │
+│           [Primary CTA] [Secondary]              │
+│               Hero Image / Video                 │
+│                                                  │
+├──────────────────────────────────────────────────┤
+│                                                  │
+│               SOCIAL PROOF                       │
+│         Logo bar / Testimonial strip             │
+│                                                  │
+├──────────────────────────────────────────────────┤
+│                                                  │
+│              FEATURES SECTION                    │
+│       ┌──────┐ ┌──────┐ ┌──────┐                │
+│       │Feat 1│ │Feat 2│ │Feat 3│                │
+│       └──────┘ └──────┘ └──────┘                │
+│                                                  │
+├──────────────────────────────────────────────────┤
+│                                                  │
+│              HOW IT WORKS                        │
+│          Step 1 → Step 2 → Step 3                │
+│                                                  │
+├──────────────────────────────────────────────────┤
+│                                                  │
+│             PRICING SECTION                      │
+│       ┌──────┐ ┌──────┐ ┌──────┐                │
+│       │Free  │ │Pro ★ │ │Enterp│                │
+│       └──────┘ └──────┘ └──────┘                │
+│                                                  │
+├──────────────────────────────────────────────────┤
+│                                                  │
+│            TESTIMONIALS                          │
+│     ┌──────┐ ┌──────┐ ┌──────┐                   │
+│     │Quote │ │Quote │ │Quote │                   │
+│     └──────┘ └──────┘ └──────┘                   │
+│                                                  │
+├──────────────────────────────────────────────────┤
+│                                                  │
+│                FAQ SECTION                       │
+│           [Accordion items]                      │
+│                                                  │
+├──────────────────────────────────────────────────┤
+│                                                  │
+│            FINAL CTA SECTION                     │
+│          Headline + [CTA Button]                 │
+│                                                  │
+├──────────────────────────────────────────────────┤
+│ [Footer: Links + Social + Legal]                 │
+└──────────────────────────────────────────────────┘</code></pre>
+<h3 id="section-規格">Section 規格</h3>
+<table>
+<thead>
+<tr>
+<th>Section</th>
+<th>Padding</th>
+<th>背景</th>
+<th>寬度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hero</td>
+<td><code>space.20</code> (80px) top/bottom</td>
+<td>可有背景色/漸層/圖片</td>
+<td>Full width</td>
+</tr>
+<tr>
+<td>Features</td>
+<td><code>space.16</code> (64px)</td>
+<td>白色或淺灰</td>
+<td>Container (1280px)</td>
+</tr>
+<tr>
+<td>Pricing</td>
+<td><code>space.16</code> (64px)</td>
+<td>對比背景色</td>
+<td>Container</td>
+</tr>
+<tr>
+<td>Testimonials</td>
+<td><code>space.12</code> (48px)</td>
+<td>白色</td>
+<td>Container</td>
+</tr>
+<tr>
+<td>FAQ</td>
+<td><code>space.12</code> (48px)</td>
+<td>淺灰</td>
+<td>Container (max 768px)</td>
+</tr>
+<tr>
+<td>Final CTA</td>
+<td><code>space.16</code> (64px)</td>
+<td>Brand color bg</td>
+<td>Full width</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-auth-page-template">8. Auth Page Template</h2>
+<pre><code>┌──────────────────────────────────────────────────┐
+│                                                  │
+│  ┌───────────────────┬────────────────────────┐  │
+│  │                   │                        │  │
+│  │    Brand Visual    │    Auth Form           │  │
+│  │    / Illustration  │    (Login / Register)  │  │
+│  │                   │                        │  │
+│  │    [Logo]         │    [Form Component]    │  │
+│  │    [Tagline]      │                        │  │
+│  │                   │                        │  │
+│  └───────────────────┴────────────────────────┘  │
+│                                                  │
+└──────────────────────────────────────────────────┘
+
+Mobile：隱藏 Brand Visual，只顯示 Logo + Form</code></pre>
+<hr />
+<h2 id="9-error-page-template">9. Error Page Template</h2>
+<pre><code>┌──────────────────────────────────────────────────┐
+│ [Header (minimal)]                               │
+├──────────────────────────────────────────────────┤
+│                                                  │
+│              ┌──────────────┐                    │
+│              │  [Illustration]                   │
+│              └──────────────┘                    │
+│                                                  │
+│               404 / 500                          │
+│           找不到這個頁面                           │
+│     你要找的頁面可能已被移動或刪除。                  │
+│                                                  │
+│         ┌──────────┐ ┌──────────┐                │
+│         │ 回首頁   │ │ 回上一頁  │                │
+│         └──────────┘ └──────────┘                │
+│                                                  │
+└──────────────────────────────────────────────────┘</code></pre>
+<h3 id="error-頁面文案">Error 頁面文案</h3>
+<table>
+<thead>
+<tr>
+<th>代碼</th>
+<th>標題</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>400</td>
+<td>請求有誤</td>
+<td>請檢查你輸入的資訊是否正確。</td>
+</tr>
+<tr>
+<td>401</td>
+<td>需要登入</td>
+<td>請登入後再試。</td>
+</tr>
+<tr>
+<td>403</td>
+<td>權限不足</td>
+<td>你沒有存取此頁面的權限。</td>
+</tr>
+<tr>
+<td>404</td>
+<td>找不到頁面</td>
+<td>你要找的頁面可能已被移動或刪除。</td>
+</tr>
+<tr>
+<td>500</td>
+<td>系統錯誤</td>
+<td>我們正在處理中，請稍後再試。</td>
+</tr>
+<tr>
+<td>503</td>
+<td>維護中</td>
+<td>系統正在進行維護，預計 {time} 恢復。</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="10-template-selection-guide">10. Template Selection Guide</h2>
+<p><strong>白話版：你要做什麼頁面 → 用什麼模板</strong></p>
+<table>
+<thead>
+<tr>
+<th>你要做的頁面</th>
+<th>用這個模板</th>
+<th>搭配的 Patterns</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>後台總覽 / 首頁</td>
+<td>Dashboard</td>
+<td>Stat Cards + Chart + Recent Table</td>
+</tr>
+<tr>
+<td>用戶列表 / 訂單列表 / 商品列表</td>
+<td>List Page</td>
+<td>Data Table + Search + Filter</td>
+</tr>
+<tr>
+<td>用戶詳情 / 訂單詳情 / 文章內容</td>
+<td>Detail Page</td>
+<td>Tabs + Content Sections</td>
+</tr>
+<tr>
+<td>系統設定 / 個人設定 / 偏好</td>
+<td>Settings Page</td>
+<td>Sidebar Nav + Form Sections</td>
+</tr>
+<tr>
+<td>新增項目 / 編輯項目</td>
+<td>Form</td>
+<td>Single/Multi Column Form</td>
+</tr>
+<tr>
+<td>多步驟流程（註冊、結帳）</td>
+<td>Wizard</td>
+<td>Stepper Form</td>
+</tr>
+<tr>
+<td>產品首頁 / 行銷頁</td>
+<td>Landing Page</td>
+<td>Hero + Features + Pricing + CTA</td>
+</tr>
+<tr>
+<td>登入 / 註冊 / 忘記密碼</td>
+<td>Auth Page</td>
+<td>Auth Form Pattern</td>
+</tr>
+<tr>
+<td>404 / 500 / 維護中</td>
+<td>Error Page</td>
+<td>Error State Pattern</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="figma-結構建議">Figma 結構建議</h2>
+<pre><code>📁 03_Templates（Figma Page）
+├── 📄 Dashboard Template
+│   ├── Desktop layout
+│   ├── Tablet layout
+│   └── Mobile layout
+├── 📄 List Page Template
+│   ├── Table view
+│   ├── Card Grid view
+│   └── Mobile card list
+├── 📄 Detail Page Template
+├── 📄 Settings Page Template
+├── 📄 Form Templates
+│   ├── Single Page Form
+│   └── Multi-Step Wizard
+├── 📄 Landing Page Template
+│   └── All sections
+├── 📄 Auth Page Template
+│   ├── Login
+│   └── Register
+└── 📄 Error Pages
+    ├── 404
+    ├── 500
+    └── Maintenance</code></pre>
+<hr />
+<p><strong>版本</strong>：v1.0 <strong>最後更新</strong>：2026-03-17
+<strong>相關文件</strong>：<code>02_patterns_spec.md</code>（Pattern
+引用）、<code>pages/page_template.md</code>（Page Spec 模板）</p>
+</div></div></body></html>

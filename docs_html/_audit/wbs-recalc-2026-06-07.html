@@ -1,0 +1,341 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>WBS 統計口徑修正 — Enhancement Roadmap 納入 — 2026-06-07</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ _audit ／ wbs-recalc-2026-06-07.md</div>
+<div class="doc"><h1 id="wbs-統計口徑修正--enhancement-roadmap-納入--2026-06-07">WBS
+統計口徑修正 — Enhancement Roadmap 納入 — 2026-06-07</h1>
+<h2 id="1-觸發事件">§1 觸發事件</h2>
+<p>業主於 6/07 操作前後端（dev server :3000 + uvicorn :8001）時，逛 12
+個 admin page 看到 83 個 disabled placeholder button：</p>
+<table>
+<thead>
+<tr>
+<th>Page</th>
+<th>disabled 數</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>/admin/inventory</td>
+<td>27</td>
+</tr>
+<tr>
+<td>/admin/reports/technician-ranking</td>
+<td>8</td>
+</tr>
+<tr>
+<td>/admin/dispatch-queue</td>
+<td>7</td>
+</tr>
+<tr>
+<td>/technicians</td>
+<td>6</td>
+</tr>
+<tr>
+<td>/accounting</td>
+<td>6</td>
+</tr>
+<tr>
+<td>/problem-cards</td>
+<td>5</td>
+</tr>
+<tr>
+<td>/accounting/revenue</td>
+<td>5</td>
+</tr>
+<tr>
+<td>/admin/reports/revenue</td>
+<td>5</td>
+</tr>
+<tr>
+<td>/work-orders</td>
+<td>4</td>
+</tr>
+<tr>
+<td>/admin/customers</td>
+<td>4</td>
+</tr>
+<tr>
+<td>/accounting/invoices</td>
+<td>4</td>
+</tr>
+<tr>
+<td>/admin/reports/kpi</td>
+<td>2</td>
+</tr>
+<tr>
+<td><strong>總計</strong></td>
+<td><strong>83</strong></td>
+</tr>
+</tbody>
+</table>
+<p>業主質疑：「WBS 99.8% 但這麼多按鈕禁用，是不是數字算錯？」</p>
+<h2 id="2-root-cause">§2 Root Cause</h2>
+<p>原 WBS 公式 4 維加權：</p>
+<table>
+<thead>
+<tr>
+<th>維度</th>
+<th>數字</th>
+<th>權重(估)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Phase 5-7 產品 MVP</td>
+<td>100%</td>
+<td>大</td>
+</tr>
+<tr>
+<td>Phase 8 UAT</td>
+<td>0%</td>
+<td>小</td>
+</tr>
+<tr>
+<td>Phase 9 P4</td>
+<td>~88%</td>
+<td>中</td>
+</tr>
+<tr>
+<td>Phase II 9 FR</td>
+<td>100%</td>
+<td>大</td>
+</tr>
+</tbody>
+</table>
+<p>→ 加權算出 99.8%</p>
+<p><strong>問題</strong>：這 4 維<strong>只算 milestone
+level</strong>，沒涵蓋 <code>web/docs/page-status.md</code> 列的 10 條
+Enhancement Roadmap（既有 admin page 的 placeholder enhancement）。</p>
+<p><code>page-status.md</code> 開頭就寫明：</p>
+<blockquote>
+<p>⏳ <strong>待接入</strong>：依賴尚未開發的模組</p>
+</blockquote>
+<p>但這些 ⏳ <strong>沒有反映到</strong>
+<code>system-completion-status.md</code> 的 WBS 數字。兩份文件 SoT
+不一致 → 業主感知落差。</p>
+<h2 id="3-enhancement-roadmap-真實完成度盤點">§3 Enhancement Roadmap
+真實完成度盤點</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Roadmap</th>
+<th>完成度</th>
+<th>證據</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>後端 5 組新 endpoints（subflow + 排班）</td>
+<td><strong>100%</strong> ✅</td>
+<td>T5-T10 完整提交流程</td>
+</tr>
+<tr>
+<td>2</td>
+<td>WebSocket / SSE server 啟用</td>
+<td><strong>~25%</strong></td>
+<td>前端 ✅，後端 server ⏳</td>
+</tr>
+<tr>
+<td>3</td>
+<td>媒體上傳 endpoint</td>
+<td><strong>100%</strong> ✅</td>
+<td>media_v2 已掛</td>
+</tr>
+<tr>
+<td>4</td>
+<td>派工 AI 推薦引擎 (A37)</td>
+<td><strong>~70%</strong></td>
+<td>backend candidate detail ready, drawer 已寫</td>
+</tr>
+<tr>
+<td>5</td>
+<td>滿意度 / NPS 模組</td>
+<td><strong>0%</strong></td>
+<td>customers / KPI 多項指標待</td>
+</tr>
+<tr>
+<td>6</td>
+<td>保固詳情頁 + 證據上傳</td>
+<td><strong>0%</strong></td>
+<td>warranty-claims / disputes 待</td>
+</tr>
+<tr>
+<td>7</td>
+<td>inventory_transactions 寫入路徑</td>
+<td><strong>0%</strong></td>
+<td>inventory 補貨/編輯/紀錄全部 disabled</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Reports metrics endpoint 擴充</td>
+<td><strong>0%</strong></td>
+<td>reports/* 切片/排序/匯出全部 disabled</td>
+</tr>
+<tr>
+<td>9</td>
+<td>批次/多步審批流程</td>
+<td><strong>~50%</strong></td>
+<td>refund 雙簽 ✅, accounting 批次 ⏳</td>
+</tr>
+<tr>
+<td>10</td>
+<td>PWA SW + 離線快取</td>
+<td><strong>~30%</strong></td>
+<td>manifest ✅ SW ⏳</td>
+</tr>
+</tbody>
+</table>
+<p><strong>平均 37.5%</strong>。</p>
+<p>對應 user 看到的 83 disabled：</p>
+<ul>
+<li><code>inventory</code> 27 個 → roadmap #7（0%）</li>
+<li><code>reports/*</code> 15 個 → roadmap #8（0%）</li>
+<li><code>accounting</code> 15 個 → roadmap #9（50%）</li>
+<li><code>customers/warranty</code> 11 個 → roadmap #5 + #6（0%）</li>
+<li><code>dispatch-queue/technicians/etc</code> 15 個 → roadmap #2 + #4
++ 其他</li>
+</ul>
+<h2 id="4-新-wbs-公式">§4 新 WBS 公式</h2>
+<h3 id="8020-split">80/20 split</h3>
+<pre><code>WBS = 原四維 × 0.8 + Enhancement × 0.2
+    = 99.8% × 0.8 + 37.5% × 0.2
+    = 79.84% + 7.5%
+    = 87.34%
+≈ 87%</code></pre>
+<h3
+id="詳細加權表system-completion-status-改用">詳細加權表（system-completion-status
+改用）</h3>
+<table>
+<thead>
+<tr>
+<th>維度</th>
+<th>完成度</th>
+<th>權重</th>
+<th>貢獻</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Phase 5-7 產品 MVP（V2.0 派工+會計+KPI）</td>
+<td>100%</td>
+<td>24%</td>
+<td>24.0%</td>
+</tr>
+<tr>
+<td><strong>Phase 5-7 Enhancement Roadmap (10 條，新加)</strong></td>
+<td><strong>37.5%</strong></td>
+<td>16%</td>
+<td>6.0%</td>
+</tr>
+<tr>
+<td>Phase 8 UAT 上線</td>
+<td>0%</td>
+<td>4%</td>
+<td>0%</td>
+</tr>
+<tr>
+<td>Phase II UAT 上線</td>
+<td>0%</td>
+<td>4%</td>
+<td>0%</td>
+</tr>
+<tr>
+<td>架構遷移 P4</td>
+<td>88%</td>
+<td>12%</td>
+<td>10.6%</td>
+</tr>
+<tr>
+<td>Phase II SaaS 模組</td>
+<td>100%</td>
+<td>20%</td>
+<td>20.0%</td>
+</tr>
+<tr>
+<td>Verified（Playwright + 整鏈路）</td>
+<td>100%</td>
+<td>20%</td>
+<td>20.0%</td>
+</tr>
+<tr>
+<td><strong>加權總計</strong></td>
+<td></td>
+<td></td>
+<td><strong>~87%</strong></td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-對-user-的承諾真實性">§5 對 user 的承諾真實性</h2>
+<table>
+<thead>
+<tr>
+<th>之前說</th>
+<th>真實情況</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>「前後端 code 都完成」</td>
+<td>對 Phase II 9 FR 是真實的；對 Phase 5-7 admin
+後台是<strong>部分真實</strong>（核心流程 100%，但 enhancement
+0-37.5%）</td>
+</tr>
+<tr>
+<td>「WBS 99.8%」</td>
+<td><strong>過於樂觀</strong>，未納入 Enhancement Roadmap</td>
+</tr>
+<tr>
+<td>「剩 0.2% 結構性」</td>
+<td>真實是「核心 + Phase II 99.8% / Enhancement 37.5%」混合</td>
+</tr>
+</tbody>
+</table>
+<h2 id="6-wbs-100-真實路徑更新版">§6 WBS 100% 真實路徑（更新版）</h2>
+<ol type="1">
+<li><strong>Phase II UAT + Phase 8 UAT 上線</strong>（業務期程）→
++4%</li>
+<li><strong>P4 Stage 7 v1 router 刪除</strong>（30 day 觀察 + 業主簽）→
++1.4%</li>
+<li><strong>Enhancement Roadmap 0% 的 4 條</strong>（NPS / 保固 /
+inventory / Reports）→ +6%（最大塊）</li>
+<li><strong>WS server 啟用</strong>（roadmap #2 25% → 100%）→ +2%</li>
+<li><strong>PWA SW</strong>（roadmap #10 30% → 100%）→ +1%</li>
+<li><strong>批次審批</strong>（roadmap #9 50% → 100%）→ +1%</li>
+</ol>
+<p>加總可推 87% → 100%。</p>
+<h2 id="7-影響文件">§7 影響文件</h2>
+<ul>
+<li>✅ <code>web/docs/system-completion-status.md</code> — 總體 99.8% →
+87%，新增 Enhancement Roadmap 維度 + 加權貢獻欄</li>
+<li>✅ <code>CHANGELOG.md</code> <code>[Unreleased]</code> — 加
+Decisions 條目</li>
+<li>✅ 本檔 <code>docs/_audit/wbs-recalc-2026-06-07.md</code></li>
+<li>⚠️ <code>pending-business-decisions-2026-06-06.html</code> —
+progress bar 98.7% → 87%（待 user 確認是否更新）</li>
+</ul>
+<h2 id="8-對齊文件">§8 對齊文件</h2>
+<ul>
+<li><code>web/docs/page-status.md</code> — 10 條 Enhancement Roadmap
+原始清單（280 lines）</li>
+<li><code>docs/_ops/wbs-100-closeout-plan.md</code> — 原 100%
+收尾計畫（未含 Enhancement）</li>
+<li>對應業主操作：12 page × 83 disabled 截圖</li>
+</ul>
+</div></div></body></html>

@@ -1,0 +1,1773 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>CR-0038 缺口盤點與補完 Roadmap（對齊 20260617資料）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ 4-exploration ／ CR-0038-gap-inventory-20260617.md</div>
+<div class="doc"><blockquote>
+<p>⚠️ 本文件為 tier-4 exploration：讀作補完動機與起點，<strong>不可當作
+current behavior 的事實</strong>。實作前個別 CR 仍須走 CIA。</p>
+</blockquote>
+<h2 id="盤點規模">盤點規模</h2>
+<table>
+<thead>
+<tr>
+<th>指標</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>查證需求 item 總數</td>
+<td><strong>245</strong></td>
+</tr>
+<tr>
+<td>涵蓋需求面</td>
+<td>17（M01-M20 + 會議 Action + esales + 測試計畫 + multi-tenant）</td>
+</tr>
+<tr>
+<td>動用 agent</td>
+<td>35（17×盤點 + 17×對抗查證 + 1×綜整）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="狀態分佈嚴格定義見下">狀態分佈（嚴格定義見下）</h3>
+<table>
+<thead>
+<tr>
+<th>狀態</th>
+<th>數量</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DONE_VERIFIED</td>
+<td>21</td>
+</tr>
+<tr>
+<td>DEFERRED_OK</td>
+<td>11</td>
+</tr>
+<tr>
+<td>PARTIAL</td>
+<td>74</td>
+</tr>
+<tr>
+<td>MOCK_ONLY</td>
+<td>25</td>
+</tr>
+<tr>
+<td>BROKEN</td>
+<td>39</td>
+</tr>
+<tr>
+<td>MISSING</td>
+<td>75</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>DONE_VERIFIED 僅 21/245（≈9%）</strong> ——
+這就是會議自評「99.8%」與「放大鏡下都是洞」的量化落差。
+狀態定義：DONE_VERIFIED=code+migration
+套用+真測試端到端可動；BROKEN=code 在但 migration
+未套/斷鏈/測試跑不了；MOCK_ONLY=僅 mock seed
+或佔位；PARTIAL=部分做；MISSING=完全沒有；DEFERRED_OK=規格明示後續
+Phase。</p>
+</blockquote>
+<hr />
+<h1 id="智慧鎖-ai-工單派工-saas--誠實缺口盤點與補完計畫">智慧鎖 AI
+工單派工 SaaS — 誠實缺口盤點與補完計畫</h1>
+<h2 id="1-總評">1. 總評</h2>
+<p>會議自評 99.8%
+是<strong>檔案存在率</strong>，不是<strong>端到端可動率</strong>。逐
+file:line 與真 DB 查證後，真實可信賴完成度約落在
+<strong>55-60%</strong>（以「DONE_VERIFIED 且非
+mock」計），且集中在工單狀態機、RBAC、退款/取消雙簽、庫存
+row-lock、報價狀態機骨架這幾塊。三大系統性問題讓「綠燈」不可信：</p>
+<ol type="1">
+<li><p><strong>Migration 標記與實際套用脫鉤（audit trail
+斷鏈）</strong>。<code>MIGRATION_REGISTRY.md</code> 把 035/045 標 🟢
+idempotent，但
+<code>to_regclass('password_reset_tokens')</code>、<code>to_regclass('technician_payout_rule')</code>
+在 dev DB 皆為 NULL — 實跑 <code>test_password_reset.py</code> /
+<code>test_cr_0037_payout_rules.py</code> 直接
+<code>UndefinedTable</code> FAIL。🟢 idempotent
+只代表「設計可重套」，不代表「已套用」。另有 014-027 標 🟡 pending-apply
+卻多數已存在於 dev DB，028-032 / 036-041 整批「registry 待補登」無狀態 —
+<strong>雙向漂移並存</strong>，沒人知道哪個環境真有哪張表。</p></li>
+<li><p><strong>金流 Flow 12 = 0
+核心實作</strong>。<code>api/services/payment*</code> /
+<code>api/routers/payment*</code>
+不存在，<code>grep CREATE TABLE payment</code> → 0 hits。唯二
+<code>line_pay</code> 是 invoice 的 filter enum 字串。所有
+AR/AP/佣金/品牌月結/代收代付的 service 都在「等一個不存在的 payment
+表來核銷」，且 80/20 拆帳、退款 5-tier 門檻、取消費 matrix 全部
+<strong>hardcode 在 Python 常數</strong>（違反會議「不可寫死
+money/refund rules」紅線）。</p></li>
+<li><p><strong>Mock 未轉正式 + 測試是 mock
+假綠</strong>。報價/拆帳/finance config 三批主檔全
+<code>is_mock=TRUE</code>，正式價待 esales Q-01~Q-12 業主回覆。CI 只跑
+226 純 unit（還指錯路徑跑已刪的 <code>tests/unit/harness</code>），945
+個 component/contract 測試 <strong>CI 0 執行</strong>；21 個 Phase II
+測試用 <code>FakeConn</code> mock DB，不驗 schema
+存在。所謂「測試綠」只覆蓋約 19% 且不碰真表。</p></li>
+</ol>
+<hr />
+<h2 id="2-缺口總表去重後依-bucket-分組">2. 缺口總表（去重後依 bucket
+分組）</h2>
+<h3 id="p1-公單">P1-公單</h3>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>title</th>
+<th>status</th>
+<th>evidence</th>
+<th>gap</th>
+<th>effort</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BR-M02-02</td>
+<td>保固 Device 主檔</td>
+<td>MOCK_ONLY</td>
+<td><code>grep CREATE TABLE device</code>→0；<code>device_warranty.py:10-12</code>
+自註「表尚未建，留 P3」，GET best-effort、PATCH 回 None 佔位</td>
+<td>建 device 表 + customer/site/warranty 關聯 + 接真資料；先 CIA</td>
+<td>L</td>
+</tr>
+<tr>
+<td>G037-completeness-score</td>
+<td>PC completeness_score 影響派工</td>
+<td>MISSING</td>
+<td><code>grep completeness</code>→0；<code>032:9</code>「不做信心分數，延後」；convert-to-WO(<code>problem_cards_v2.py:325-351</code>)無
+gate</td>
+<td>三層欄位定義+計分函式+阻擋報價/派工 gate</td>
+<td>M</td>
+</tr>
+<tr>
+<td>Q015-required-fields-tiers</td>
+<td>必填欄位三層分級</td>
+<td>PARTIAL</td>
+<td>create 僅要
+brand/model/symptom/urgency；無「派工前必填」gate；ai_missing_fields
+只是 hint</td>
+<td>三層分級+缺欄位禁報價/派工 gate</td>
+<td>M</td>
+</tr>
+<tr>
+<td>Q022/Q023/Q024-photo-video-gate</td>
+<td>照片/影片 gate</td>
+<td>MISSING</td>
+<td><code>media_urls</code>
+純存陣列；<code>grep video_required</code>→0；<code>line_gateway.py:243-245</code>
+只收 TextMessage，圖片/影片被丟棄</td>
+<td>media 完整度 gate+override 端點；line_gateway 接 Image/Video
+content</td>
+<td>L</td>
+</tr>
+<tr>
+<td>BR-M03-01-status-gate</td>
+<td>PC 完整度語意狀態</td>
+<td>PARTIAL</td>
+<td>只有技術態 draft/confirmed/resolved；無
+Ready-for-Quote/Need-Info/Need-Photo/Need-Human/Closed-Remote</td>
+<td>status 語意層擴充</td>
+<td>M</td>
+</tr>
+<tr>
+<td>BR-M04-01</td>
+<td>內外部報價成本拆項</td>
+<td>PARTIAL</td>
+<td>成本只有 <code>unit_price</code> 單欄(<code>037:24</code>)；未拆
+labor/material/travel/margin/brand cost</td>
+<td>擴 quote_line_items 成本維度或加 internal breakdown 表</td>
+<td>M</td>
+</tr>
+<tr>
+<td>esales-Q12-customer-quote-text</td>
+<td>客戶報價固定文案+同意 gate</td>
+<td>MISSING</td>
+<td><code>quotes/[token]/page.tsx:188-255</code>
+只裸金額表，無抬頭/電話/保固/取消費條款/同意勾選</td>
+<td>文案定稿+payload 補欄+前端條款區+同意 gate</td>
+<td>M</td>
+</tr>
+<tr>
+<td>Q032-validity-period</td>
+<td>報價有效期分級</td>
+<td>PARTIAL</td>
+<td>只 14d/3d 二元寫死；無依案件類型 7/15/30 天</td>
+<td>依 case type 分級+移入 config</td>
+<td>S</td>
+</tr>
+<tr>
+<td>BR-M05-01-statemachine</td>
+<td>集中狀態機治理</td>
+<td>DONE→建議重構</td>
+<td>7 組散落 <code>_*_FROM</code>
+集合(<code>work_order_service.py:359-372</code>)，無集中 transition
+圖</td>
+<td>抽成單一 <code>_ALLOWED_TRANSITIONS</code> dict</td>
+<td>M</td>
+</tr>
+<tr>
+<td>BR-M05-01-reasongate</td>
+<td>cancel/escalate/reschedule/reassign 強制 reason</td>
+<td>PARTIAL</td>
+<td>cancel/escalate 強制 422；reschedule 走 <code>reason_text</code> 無
+min_length；reassign reason 只寫 note 未落 status_reason</td>
+<td>reschedule/reassign 也強制 reason 並寫 status_reason</td>
+<td>S</td>
+</tr>
+<tr>
+<td>BR-M05-02-reopen</td>
+<td>Reopen/返修連回原工單</td>
+<td>PARTIAL</td>
+<td><code>parent_work_order_id</code> 欄+FK 已套用 dev DB，讀取有
+map；但無 reopen 建單端點/service</td>
+<td>新增 reopen service+端點，由原 WO 衍生子 WO</td>
+<td>M</td>
+</tr>
+<tr>
+<td>M05-Q052-completion-substatus</td>
+<td>完工六段細狀態</td>
+<td>PARTIAL</td>
+<td><code>completion_status</code>
+欄已套用；無轉移/enforcement/白名單</td>
+<td>六段狀態機+gate；complete 驅動細狀態</td>
+<td>M</td>
+</tr>
+<tr>
+<td>BR-M08-01/Q056</td>
+<td>GPS 到場打卡業務語意</td>
+<td>PARTIAL</td>
+<td><code>work_orders_v2.py:611-647</code> 把 GPS 塞進 freeform
+door_check；無地址範圍判定/offline queue</td>
+<td>地址範圍判定+客戶不在場流程+offline fallback</td>
+<td>M</td>
+</tr>
+<tr>
+<td>BR-M08-03/Q059</td>
+<td>完工套件(照片≥3/簽名/用料/教學/付款證明)</td>
+<td>BROKEN</td>
+<td><code>_CompletionSubmitRequest</code> 只要 photo
+min_length=1；<code>complete_order</code> 把 summary
+塞字串，不驗照片數/簽名/serial</td>
+<td>照片≥3 硬閘+簽名驗證+materials 必填+教學紀錄；前後端雙驗</td>
+<td>L</td>
+</tr>
+<tr>
+<td>Q060/TI-M08-03</td>
+<td>客戶 LIFF 簽名+fallback 鏈</td>
+<td>PARTIAL</td>
+<td><code>signature_service.py</code>
+完整(sha256+409)；但前端是技師端同機 canvas，非客戶
+LIFF；<code>grep liff/fallback</code>→0</td>
+<td>LIFF→QR→紙本 fallback 鏈+audit；補 service unit test</td>
+<td>L</td>
+</tr>
+<tr>
+<td>BR-M08-02-tier</td>
+<td>現場 scope change 分級閘門</td>
+<td>MOCK_ONLY</td>
+<td><code>record_scope_change</code> 對任何金額一律
+pending；<code>grep 501/2000/50%</code>→0；無 30min timeout cron</td>
+<td>tier 規則(501-2000/&gt;2000/≥50%)+timeout 暫停 cron</td>
+<td>L</td>
+</tr>
+<tr>
+<td>BR-M08-02-customer-confirm</td>
+<td>scope change 確認前阻擋完工</td>
+<td>PARTIAL</td>
+<td><code>respond_public</code> 客戶 accept→in_progress 有；但
+complete_order 無 pending scope 硬阻擋</td>
+<td>pending scope 期間阻擋 complete+三件套驗證</td>
+<td>M</td>
+</tr>
+<tr>
+<td>Q063-auto-confirm</td>
+<td>客戶未回 48h 自動結案 cron</td>
+<td>MISSING</td>
+<td><code>grep auto.confirm/48h</code>→命中皆無關；confirm_order
+為手動</td>
+<td>48h auto-confirm cron(排除客訴/保固/退款/爭議)</td>
+<td>M</td>
+</tr>
+<tr>
+<td>Q107-warranty-serial</td>
+<td>序號→保固期自動反查</td>
+<td>PARTIAL</td>
+<td>5-mode 起算(含 handover_date)已做，003 ✅done；但
+<code>warranty_claims</code> 無 serial 欄、無 serial 反查邏輯</td>
+<td>serial→保固期反查引擎</td>
+<td>M</td>
+</tr>
+<tr>
+<td>Q108-warranty-redispatch</td>
+<td>保固返修派工編排</td>
+<td>PARTIAL</td>
+<td>返修保固期重算+parent_work_order_id
+讀取已做；<code>grep 返修派工/fallback 資深</code>→0</td>
+<td>RMA→自動建返修工單+派原師傅 fallback 資深</td>
+<td>M</td>
+</tr>
+<tr>
+<td>BR-M09-02/Q026</td>
+<td>Evidence 角色可見性分流</td>
+<td>MISSING</td>
+<td><code>media_files</code>(<code>Schema_media.sql:18-41</code>)無
+visibility/role 欄；list 回全部 media</td>
+<td>media 加 audience 欄+依角色過濾(P0 阻擋)</td>
+<td>M</td>
+</tr>
+<tr>
+<td>BR-M09-03/Q027</td>
+<td>Evidence 保存期政策(1年/2年)</td>
+<td>MISSING</td>
+<td><code>media_files</code> 只有 created_at，無
+retention_until；<code>grep retention</code>→0</td>
+<td>加 retention_until+清除 cron(仿 gdpr forget)</td>
+<td>M</td>
+</tr>
+<tr>
+<td>Q022/Q024/G021-evidence-package</td>
+<td>checklist gate+結案 evidence package</td>
+<td>MOCK_ONLY</td>
+<td><code>record_door_check</code> 是 freeform
+placeholder；<code>grep evidence_package</code>→0</td>
+<td>結構化 checklist 驗證+結案自動組裝 package</td>
+<td>L</td>
+</tr>
+<tr>
+<td>G024/BR-M16-02</td>
+<td>電話口頭確認限制</td>
+<td>MISSING</td>
+<td><code>grep verbal/口頭/require.*confirmation</code>→0；改價/改期/取消無「必須補
+LINE」gate</td>
+<td>改價/改期/取消/退款加 system/LINE confirmation gate</td>
+<td>M</td>
+</tr>
+<tr>
+<td>media-upload-v2</td>
+<td>媒體上傳/下載/列表</td>
+<td>PARTIAL</td>
+<td>route+tenant guard 真實(<code>media_v2.py:57-185</code>)；但
+component 測試「無 DB 503=pass」，表在 <code>Schema_media.sql</code>
+非編號 migration</td>
+<td>補編號 migration 納 registry+真 DB round-trip 測試；prod 換 GCS</td>
+<td>M</td>
+</tr>
+<tr>
+<td>BR-M15-01</td>
+<td>Exception return path(9選1)</td>
+<td>MOCK_ONLY</td>
+<td><code>generated.py:584-602</code> 有完整 Exception
+模型+return_to_stage，但
+<code>grep ExceptionType in routers/services</code>→0；<code>exceptions_v2.py</code>
+實為師傅排班</td>
+<td>以 generated.py schema 落地 exception 表+9-value return_path+接
+cancel/dispute/scope/reassign</td>
+<td>L</td>
+</tr>
+<tr>
+<td>BR-M15-03</td>
+<td>High-risk stop rule</td>
+<td>MISSING</td>
+<td><code>grep high.risk/pause/stop.rule</code>→0；WO 狀態機無
+high_risk_hold 中間態</td>
+<td>加 high_risk_hold 態+5 觸發條件+approval inbox</td>
+<td>L</td>
+</tr>
+<tr>
+<td>Q066</td>
+<td>Onsite 異常回報固定順序</td>
+<td>MISSING</td>
+<td><code>grep report.exception/異常類型</code>→0；scope_changes
+非五步驟流程</td>
+<td>師傅端 5 步驟異常回報+照片 gate</td>
+<td>M</td>
+</tr>
+<tr>
+<td>Q064/G026</td>
+<td>Exception taxonomy 異常代碼</td>
+<td>MOCK_ONLY</td>
+<td><code>generated.py:544-554</code> ExceptionType 10
+值存在但零接線；與 Q065 12 類有缺口</td>
+<td>擴至 12 類+落 dim 表/config 供 return-path 路由</td>
+<td>S</td>
+</tr>
+<tr>
+<td>Q068</td>
+<td>必須暫停的異常先 pause</td>
+<td>MISSING</td>
+<td><code>grep pause</code>→0；唯一終態化是直接 cancel</td>
+<td>隨 high_risk_hold 一併實作</td>
+<td>M</td>
+</tr>
+<tr>
+<td>gate12</td>
+<td>Gate12 已選 return path 才可 approve</td>
+<td>BROKEN</td>
+<td>BR-M15-01 未接線→無統一 return-path gate</td>
+<td>exception 落地後於狀態機加 gate12</td>
+<td>M</td>
+</tr>
+<tr>
+<td>Q011-斷點</td>
+<td>M15 斷點控制點(不可 hardcode money)</td>
+<td>PARTIAL</td>
+<td>audit 部分到位、cancellation fees config 驅動；但 approvals
+未統一、goodwill 門檻未強制</td>
+<td>完成 BR-M15-01/02/03 串閉環+門檻接真 gate</td>
+<td>M</td>
+</tr>
+<tr>
+<td>spec-completeness-score</td>
+<td>M03 completeness≥0.85 轉 WO gate</td>
+<td>MISSING</td>
+<td><code>grep completeness_score</code>→0；Alpha exit 阻塞項</td>
+<td>計分+≥0.85 gate+測試</td>
+<td>M</td>
+</tr>
+<tr>
+<td>spec-m10-serial-gate</td>
+<td>serial gate at WO complete</td>
+<td>MISSING</td>
+<td><code>inventory_v2_service.py:23</code> 明示
+follow-up；complete_order 無 serial 檢查</td>
+<td>跨模組 gate 接入 complete 路徑</td>
+<td>M</td>
+</tr>
+<tr>
+<td>Action-1</td>
+<td>公單欄位補齊(CR-0026)</td>
+<td>DONE(dev)</td>
+<td>dev DB 已套 036 全欄+<code>test_cr_0026</code> 4 案 PASS</td>
+<td>prod 未套+registry 未登 036+數值 is_mock 待覆核</td>
+<td>S</td>
+</tr>
+<tr>
+<td>CR-0033</td>
+<td>三段免責同意+PDF</td>
+<td>BROKEN</td>
+<td>service/端點/PDF/web 齊全，043 🟢 idempotent；但 043 未證實套到 test
+DB</td>
+<td>確認 043 套用→component test 轉綠</td>
+<td>S</td>
+</tr>
+</tbody>
+</table>
+<h3 id="p1-lite核心">P1-Lite核心</h3>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>title</th>
+<th>status</th>
+<th>evidence</th>
+<th>gap</th>
+<th>effort</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BR-M02-01</td>
+<td>Customer 去重(phone+LINE ID)</td>
+<td>MISSING</td>
+<td><code>customer_service.py:322-333</code> 只查 line_user_id，phone
+不去重；可建重複客戶(P0)</td>
+<td>phone+line match/merge+人工合併端點</td>
+<td>M</td>
+</tr>
+<tr>
+<td>Q008</td>
+<td>一進線即建 Customer</td>
+<td>PARTIAL</td>
+<td>CRUD 真實(<code>customer_service.py:313</code>)；但
+<code>line_webhook.py</code> 不 INSERT，僅 admin 手動建</td>
+<td>各渠道進線接 create_customer(含去重)</td>
+<td>M</td>
+</tr>
+<tr>
+<td>customer-master-crud</td>
+<td>客戶 4-filter</td>
+<td>DONE(風險)</td>
+<td>端到端可動；惟 030 registry 未登 apply+filter 欄靠 roadmap worker
+多回空</td>
+<td>確認 030 apply+worker 填值</td>
+<td>S</td>
+</tr>
+<tr>
+<td>BR-M07-01</td>
+<td>師傅 onboarding 必填(bank/skill/brand auth)</td>
+<td>PARTIAL</td>
+<td><code>create_technician</code> 只 INSERT
+name/phone/email/cap/region，<strong>不寫 user_id</strong></td>
+<td>補 bank/skill matrix/brand auth+寫 user_id(連修 FR-0044 斷鏈)</td>
+<td>L</td>
+</tr>
+<tr>
+<td>G004/G005-eligibility</td>
+<td>派工前 eligibility gate</td>
+<td>MISSING</td>
+<td><code>_is_excluded_by_circuit</code> 只剔 3 態；不擋
+pending/suspended，不查 brand auth</td>
+<td>status active+技能等級+品牌授權 gate</td>
+<td>M</td>
+</tr>
+<tr>
+<td>BR-M16-01/Q073</td>
+<td>對話可見性分流</td>
+<td>MISSING</td>
+<td><code>grep visibility/audience</code>→0；只有 channel
+來源；無品牌/會計頻道</td>
+<td>message/note 加 visibility scope+依角色過濾</td>
+<td>L</td>
+</tr>
+<tr>
+<td>notifications-v2</td>
+<td>In-app 通知中心</td>
+<td>PARTIAL</td>
+<td>route 可動；但 component「503=pass」未驗 DB；type free-form 無
+registry</td>
+<td>確認表套用+真測試；type 9 模板 registry</td>
+<td>M</td>
+</tr>
+<tr>
+<td>conversation-persist-bridge</td>
+<td>LINE 對話旁路持久化</td>
+<td>PARTIAL</td>
+<td>persist code 在；但 DB round-trip 未在此環境實證</td>
+<td>真 DB 整合測試驗 persist 後查得回</td>
+<td>M</td>
+</tr>
+<tr>
+<td>BR-M13-XX dispute dual-sign</td>
+<td>爭議雙簽狀態機</td>
+<td>DONE(caveat)</td>
+<td>6 態+SoD+reopen，006 ✅done，單檔 33 pass；併跑因
+<code>core/db.py:23</code> 全域 _conn 污染 21 fail</td>
+<td>conftest 加 _conn fixture reset</td>
+<td>S</td>
+</tr>
+<tr>
+<td>BR-M17-01</td>
+<td>14 角色 RWA 矩陣</td>
+<td>PARTIAL</td>
+<td><code>_perm</code> 只 read/write/delete/locked 無 approve；5
+系統角色 vs spec 14 vs test 5 三方命名不一</td>
+<td>正規化角色 enum+補 approve 維度+CIA</td>
+<td>L</td>
+</tr>
+<tr>
+<td>BR-M17-03</td>
+<td>IT 臨時授權 time-limited</td>
+<td>MISSING</td>
+<td><code>grep it_support/temporary/jit/break.glass</code>→0；無
+it_support 角色/表</td>
+<td>新表 it_temporary_access+到期失效+audit+CIA</td>
+<td>L</td>
+</tr>
+<tr>
+<td>web-route-role-gating</td>
+<td>前端 route gating</td>
+<td>MISSING</td>
+<td><code>web/src/middleware.ts</code> 不存在；只在 API 層擋</td>
+<td>加 middleware 依 JWT role redirect</td>
+<td>M</td>
+</tr>
+<tr>
+<td>BR-M18-02</td>
+<td>Change request 生效日排程</td>
+<td>PARTIAL</td>
+<td>reason+rollback
+有；<code>grep effective_date</code>→0，無未來生效排程</td>
+<td>config 加 effective_at+scheduler+rollback_note 獨立欄</td>
+<td>M</td>
+</tr>
+<tr>
+<td>BR-M18-03</td>
+<td>初始建置匯入工具</td>
+<td>MISSING</td>
+<td><code>grep bulk.import/initial.setup</code>→0；唯一 onboard 是師傅
+lifecycle</td>
+<td>最小匯入 CLI(price/regions/roles)</td>
+<td>L</td>
+</tr>
+<tr>
+<td>esales-NPS</td>
+<td>滿意度/NPS</td>
+<td>PARTIAL</td>
+<td>service+test 有；但算 1-5 rating proxy 非標準 NPS；前端零
+caller</td>
+<td>前端接線+0-10 問卷欄位</td>
+<td>M</td>
+</tr>
+<tr>
+<td>BR-M20-01</td>
+<td>AI knowledge owner+version</td>
+<td>PARTIAL</td>
+<td>SOP draft 有版本+雙簽；但 FAQ/price range/escalation/forbidden
+無治理物件</td>
+<td>其餘知識物件加 owner+version 治理</td>
+<td>M</td>
+</tr>
+<tr>
+<td>exceptions_v2-misnamed</td>
+<td>exceptions_v2 誤命名</td>
+<td>BROKEN</td>
+<td>tag 'M15 Exception' 但 delegate technician_schedule(請假/待命)</td>
+<td>改名 technician_schedule；M15 由真 exception 框架承載</td>
+<td>S</td>
+</tr>
+<tr>
+<td>Q047</td>
+<td>客戶不在/師傅延遲 return path</td>
+<td>PARTIAL</td>
+<td><code>reassign_order</code> 已存在；但未被 exception 框架編排</td>
+<td>reassign 接成 exception return path 分支</td>
+<td>M</td>
+</tr>
+<tr>
+<td>Q014-remote-close</td>
+<td>遠端關閉需客戶 LINE 確認</td>
+<td>PARTIAL</td>
+<td><code>resolve_card</code> 支援遠端結案；但無客戶 LINE 確認 gate</td>
+<td>加客戶 LINE 確認 gate</td>
+<td>S</td>
+</tr>
+<tr>
+<td>Action-3</td>
+<td>廠商/師傅雙路註冊(CR-0029)</td>
+<td>DONE(dev)</td>
+<td>dev DB vendors 表+<code>test_cr_0029</code> 6 案 PASS</td>
+<td>prod 未套 038+registry 未登</td>
+<td>S</td>
+</tr>
+<tr>
+<td>Action-7/CR-0030</td>
+<td>派工模式切換</td>
+<td>BROKEN</td>
+<td><code>dispatched_via</code> 真寫入
+assign(<code>work_order_service.py:832-846</code>)；但 migration 039
+未登 registry/未確認套用</td>
+<td>登錄 039+確認套用→升 DONE</td>
+<td>S</td>
+</tr>
+<tr>
+<td>Action-4</td>
+<td>忘記密碼+5角色隔離(CR-0025)</td>
+<td>BROKEN</td>
+<td>5 角色隔離 PASS；但 <code>password_reset_tokens</code> 表 dev DB
+不存在，<code>test_password_reset</code> 7 案 FAIL</td>
+<td>套用 035 到 dev/prod+配 SMTP</td>
+<td>S</td>
+</tr>
+</tbody>
+</table>
+<h3 id="p1-測試">P1-測試</h3>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>title</th>
+<th>status</th>
+<th>evidence</th>
+<th>gap</th>
+<th>effort</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CI-test-suite-unit-job</td>
+<td>CI unit job 指向已刪 harness</td>
+<td>BROKEN</td>
+<td><code>.github/workflows/test-suite.yml:48</code> 跑
+<code>tests/unit</code>；實跑 5 collection ERROR
+<code>No module named harness</code></td>
+<td>testpaths 改 <code>api/tests</code> 跑
+<code>-m unit</code>；刪殘留+建 component job</td>
+<td>M</td>
+</tr>
+<tr>
+<td>api-tests-never-run-in-ci</td>
+<td>945 component/contract 測試 CI 0 執行</td>
+<td>BROKEN</td>
+<td>test-suite.yml 註解「留 nightly」但無 test nightly</td>
+<td>建 nightly：postgres container+套全
+migration+<code>-m component/contract</code></td>
+<td>L</td>
+</tr>
+<tr>
+<td>migration-apply-drift-045-035</td>
+<td>035/045 標綠未套用→test FAIL</td>
+<td>BROKEN</td>
+<td>dev DB <code>to_regclass</code>=NULL；<code>test_cr_0037</code> 實跑
+UndefinedTable</td>
+<td>各環境 <code>psql -f</code> 套 035/045+建 schema_migrations
+追蹤</td>
+<td>S</td>
+</tr>
+<tr>
+<td>migration-registry-reality-mismatch</td>
+<td>registry 與實際雙向不一致</td>
+<td>BROKEN</td>
+<td>014-027 標 pending 卻已套；028-032/036-041「待補登」</td>
+<td>全面 reconcile 逐表核對+統一狀態欄</td>
+<td>M</td>
+</tr>
+<tr>
+<td>FR-0044-lifecycle</td>
+<td>師傅生命週期狀態機</td>
+<td>BROKEN</td>
+<td>020 🟡 pending；<code>_fetch_status</code> JOIN users 但 create 不寫
+user_id→永遠 404；測試全 FakeCur mock</td>
+<td>套 020+修 create 寫 user_id+真表整合測試</td>
+<td>M</td>
+</tr>
+<tr>
+<td>phaseII-CR-tests-db-mocked</td>
+<td>21 個 FR 測試 FakeConn mock</td>
+<td>MOCK_ONLY</td>
+<td><code>grep FakeConn</code>→21 檔；不驗 schema 存在</td>
+<td>補 component 真 DB smoke(套 020-027 後 INSERT→讀回)</td>
+<td>M</td>
+</tr>
+<tr>
+<td>migration 019/025/026/027 apply</td>
+<td>M12 四支 migration</td>
+<td>BROKEN</td>
+<td>全 🟡 pending；四 statement 表 DB 不存在→端到端斷鏈</td>
+<td>依序套用+登 registry+四套測試</td>
+<td>M</td>
+</tr>
+<tr>
+<td>FR-0045 Tech AP Statement</td>
+<td>師傅 AP 月結</td>
+<td>BROKEN</td>
+<td>狀態機/dispute window code 完整但測試 DB-mocked；025 未套</td>
+<td>套 025+真表端到端</td>
+<td>S</td>
+</tr>
+<tr>
+<td>FR-0046 Dispatcher Commission</td>
+<td>派工佣金</td>
+<td>BROKEN</td>
+<td>net=base+bonus-penalty；金額靠參數傳入；026 未套</td>
+<td>套 026+佣金自動計算(讀 config 0.08)</td>
+<td>M</td>
+</tr>
+<tr>
+<td>FR-0047 Brand B2B</td>
+<td>品牌月結</td>
+<td>BROKEN</td>
+<td>AR/AP/NET 邏輯有；金額參數傳入；027 未套</td>
+<td>套 027+品牌案件自動彙整</td>
+<td>M</td>
+</tr>
+<tr>
+<td>FR-0048/BR-M13-03</td>
+<td>Quality feedback loop</td>
+<td>BROKEN</td>
+<td><code>rma_quality_finding</code> INSERT 有；024 🟡
+pending→表未建；cascade 只實打 sop_feedback</td>
+<td>套 024+補真正回寫師傅評分/dispatch eligibility</td>
+<td>M</td>
+</tr>
+<tr>
+<td>statement_auto_approval_cron</td>
+<td>dispute window 過期 auto-approve cron</td>
+<td>BROKEN</td>
+<td>cron 已 start 進 lifespan；但依賴 025/026/027 未套→query
+不存在的表</td>
+<td>套表後驗證 cron</td>
+<td>S</td>
+</tr>
+<tr>
+<td>CR-0037 test</td>
+<td>拆帳規則測試</td>
+<td>BROKEN</td>
+<td><code>test_cr_0037</code> component 需 045；045
+未套→UndefinedTable</td>
+<td>套 045 跑 69 筆 seed+RBAC</td>
+<td>S</td>
+</tr>
+<tr>
+<td>P2-UAT-003/005</td>
+<td>M12 UAT(代收未繳/月結鎖定)</td>
+<td>MISSING</td>
+<td>兩 UAT 無測試；代收 ledger+batch 鎖定機制本身缺</td>
+<td>補 UAT(需先有代收 ledger+鎖定)</td>
+<td>M</td>
+</tr>
+<tr>
+<td>CR-0032-state-machine</td>
+<td>報價狀態機</td>
+<td>BROKEN</td>
+<td>code+測試可 collect；041 未登 registry+無 DB</td>
+<td>登 037/040/041+套用+跑 component</td>
+<td>S</td>
+</tr>
+<tr>
+<td>CR-0032-snapshot-freeze</td>
+<td>pricing snapshot 凍結</td>
+<td>BROKEN</td>
+<td>code 完整；依賴 041 未驗；只凍 line items 無
+surcharge(因加價沒接)</td>
+<td>套 041+加價引擎接後重驗</td>
+<td>S</td>
+</tr>
+<tr>
+<td>CR-0032-PhaseC-consumer</td>
+<td>客戶端報價查看</td>
+<td>BROKEN</td>
+<td>token/API/前端三端齊；依 041 未驗</td>
+<td>套 041+端到端測試</td>
+<td>S</td>
+</tr>
+<tr>
+<td>CR-0034-catalog</td>
+<td>報價基礎主檔</td>
+<td>BROKEN/MOCK</td>
+<td>RBAC+前端展示完整；040 未登 registry；全 is_mock</td>
+<td>套 040+正式價待 Q-01/02</td>
+<td>S</td>
+</tr>
+<tr>
+<td>CR-0027-quote-line-items</td>
+<td>公單成本拆項</td>
+<td>BROKEN</td>
+<td>表+RBAC 設計正確；037/041 未登</td>
+<td>套 037/041+財務覆核</td>
+<td>S</td>
+</tr>
+<tr>
+<td>CR-0035-invoice-from-quote</td>
+<td>報價→應收發票</td>
+<td>BROKEN</td>
+<td>create_from_quote 完整；稅 mock 0；042 未確認套用</td>
+<td>套 042+跑 component</td>
+<td>S</td>
+</tr>
+<tr>
+<td>CR-0036-deposit-config</td>
+<td>訂金 config 治理</td>
+<td>BROKEN</td>
+<td>_resolve_deposit 讀 config 正確；044 未確認套用</td>
+<td>套 044+跑 test+二階段 deposit→balance</td>
+<td>S</td>
+</tr>
+<tr>
+<td>CR-0012 Monthly Close</td>
+<td>月結批次</td>
+<td>BROKEN</td>
+<td>generate_monthly_batch+CSV+manual paid 實作；用 80/20 split；019
+未套</td>
+<td>套 019+接真 payout 公式</td>
+<td>M</td>
+</tr>
+<tr>
+<td>settlements-monthly-501</td>
+<td>月結 trigger 接線</td>
+<td>BROKEN</td>
+<td>端點回 202；底層 monthly_settlement_batch(019)未套</td>
+<td>套 019</td>
+<td>M</td>
+</tr>
+<tr>
+<td>Action-6/CR-0028</td>
+<td>公單派出→回 LINE 鏈路</td>
+<td>PARTIAL</td>
+<td>四節點 enqueue+resolver bug fix；測試純函式/mock，resolver 4-table
+JOIN 從未對真 DB 跑</td>
+<td>起 stack 真 DB smoke(建單→派工→驗 outbox row+resolver+mock
+LINE)</td>
+<td>M</td>
+</tr>
+<tr>
+<td>CR-0017</td>
+<td>LINE Flex push outbox</td>
+<td>PARTIAL</td>
+<td>enqueue/worker/builder/postback 齊；表在
+<code>Schema_v2_extensions.sql</code> 非編號 migration</td>
+<td>補編號 migration 納 registry+確認 prod 套用</td>
+<td>S</td>
+</tr>
+<tr>
+<td>CR-0027-completion-push</td>
+<td>完工通知 LINE</td>
+<td>PARTIAL</td>
+<td>builder+enqueue 接線完成過 dispatch 單測；缺端到端真送</td>
+<td>同 CR-0028 端到端驗證</td>
+<td>S</td>
+</tr>
+<tr>
+<td>outbox-worker-resilience</td>
+<td>worker retry/backoff/dead</td>
+<td>DONE(caveat)</td>
+<td>backoff/dead/SKIP LOCKED 有硬斷言測試</td>
+<td>resolver SQL 仍 mock-only；prod 需配 token</td>
+<td>S</td>
+</tr>
+<tr>
+<td>pwd-reset-selfservice</td>
+<td>自助 email reset</td>
+<td>BROKEN</td>
+<td>code 齊；035 未套→7 failed+6 errors</td>
+<td>套 035 重跑轉綠</td>
+<td>S</td>
+</tr>
+<tr>
+<td>KPI/coverage-none</td>
+<td>revenue/family/scheduled/signature/scope_change 0 專屬測試</td>
+<td>PARTIAL</td>
+<td>service+router 存在但無對應測試(02 dump 標 none)</td>
+<td>補各 service unit+endpoint 測試</td>
+<td>S-M each</td>
+</tr>
+<tr>
+<td>contract-test-zero</td>
+<td>contract test 0 個</td>
+<td>MISSING</td>
+<td><code>grep mark.contract</code>→0；schemathesis 僅 YAML
+結構檢查</td>
+<td>57 endpoint 真打 contract test</td>
+<td>L</td>
+</tr>
+<tr>
+<td>fe-coverage-none-pages</td>
+<td>前端 12+ 頁無 e2e</td>
+<td>PARTIAL</td>
+<td>conversations/dispatch-manual/reports 等頁存在無 spec</td>
+<td>補 Playwright e2e</td>
+<td>L</td>
+</tr>
+<tr>
+<td>e2e-main-flow-4</td>
+<td>4 條跨模組 E2E</td>
+<td>MISSING</td>
+<td>各段獨立測，無貫穿 spec</td>
+<td>建 4 條 main flow(進線→AI→PC→WO→結案;財務月結)</td>
+<td>L</td>
+</tr>
+<tr>
+<td>KPI-formula-owner(BR-M19-01)</td>
+<td>KPI formula ownership</td>
+<td>MISSING</td>
+<td><code>grep formula_owner</code>→0；公式硬寫 SQL</td>
+<td>kpi_definition 表+owner+official 審批</td>
+<td>L</td>
+</tr>
+<tr>
+<td>BR-M19-02</td>
+<td>Report download audit</td>
+<td>PARTIAL</td>
+<td>role gate 有；<code>grep download_audit</code>→0 無稽核(BR
+標阻擋)</td>
+<td>建 report_download_audit 表+寫入</td>
+<td>M</td>
+</tr>
+<tr>
+<td>BR-M20-03/FR-0050/sop_feedback</td>
+<td>AI trace/feedback 生產者</td>
+<td>MOCK_ONLY</td>
+<td>表 EXISTS 但 0 筆；<code>loop.py</code> 零接
+log_decision；無前端/CSM 生產者</td>
+<td>agent loop 接 trace+前端 feedback 入口</td>
+<td>M-L</td>
+</tr>
+<tr>
+<td>Action-2</td>
+<td>Excel 功能盤點→四階段測試 plan</td>
+<td>MISSING</td>
+<td><code>grep Alpha.*Beta.*RC.*GA</code>→0 對應 0617 產出</td>
+<td>跑功能盤點產出 Alpha/Beta/RC/GA plan</td>
+<td>L</td>
+</tr>
+<tr>
+<td>Action-11</td>
+<td>啟動 Alpha+Beta 測試骨架</td>
+<td>MISSING</td>
+<td>無階段化跑+coverage gate；依賴 Action-2</td>
+<td>補洞後建 Alpha 骨架+Beta 點測流程</td>
+<td>L</td>
+</tr>
+<tr>
+<td>alpha/beta-exit-criteria</td>
+<td>Alpha/Beta exit 不可達成</td>
+<td>BROKEN</td>
+<td>spec 缺口未實作+CI 跑不到真測試</td>
+<td>補 spec-but-not-implemented 5 項+修 CI+套 migration</td>
+<td>L</td>
+</tr>
+<tr>
+<td>test-count-discrepancy</td>
+<td>99.8% 自評不可信</td>
+<td>BROKEN</td>
+<td>1171 tests 只 226 unit 能在 CI 跑且路徑錯</td>
+<td>完成度以「CI 真跑綠數」計分</td>
+<td>M</td>
+</tr>
+</tbody>
+</table>
+<h3 id="p2-金流">P2-金流</h3>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>title</th>
+<th>status</th>
+<th>evidence</th>
+<th>gap</th>
+<th>effort</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Flow12-payments-core</td>
+<td>payments 代收代付核心</td>
+<td>MISSING</td>
+<td><code>grep CREATE TABLE payment</code>→0；無 payment
+router/service</td>
+<td>建 payments 表+service+router(BR-M11-01 核銷對象)</td>
+<td>L</td>
+</tr>
+<tr>
+<td>Q088/spec-three-track</td>
+<td>三軌支付</td>
+<td>MOCK_ONLY</td>
+<td>唯二 line_pay 是 invoice enum；無收款流程/proof</td>
+<td>各 method 收款記錄+現金代收繳回</td>
+<td>L</td>
+</tr>
+<tr>
+<td>Flow12-linepay-webhook</td>
+<td>LINE Pay 整合/webhook</td>
+<td>MISSING</td>
+<td><code>grep linepay/checkout</code>→0</td>
+<td>LINE Pay request/confirm+webhook 對帳</td>
+<td>L</td>
+</tr>
+<tr>
+<td>P2-05-AR-status-9state</td>
+<td>AR 9 態狀態機</td>
+<td>MISSING</td>
+<td><code>grep ar_status/ar_ledger</code>→0；invoices 只 4 態</td>
+<td>建 AR ledger(sheet27)+9 態</td>
+<td>L</td>
+</tr>
+<tr>
+<td>BR-M11-01-reconciliation</td>
+<td>payment 核銷到 WO/訂金/尾款</td>
+<td>BROKEN</td>
+<td>現有 reconciliation 是師傅結算非客戶 payment；無 payment
+表可核銷</td>
+<td>先建 payments 表才能核銷</td>
+<td>L</td>
+</tr>
+<tr>
+<td>P2-01-deposit-trigger</td>
+<td>訂金 trigger+二階段</td>
+<td>MISSING</td>
+<td>_resolve_deposit 只算金額不判斷「哪些需訂金」</td>
+<td>deposit-required 判定引擎+balance due 流</td>
+<td>M</td>
+</tr>
+<tr>
+<td>P2-04-payment-proof</td>
+<td>Payment proof 欄位</td>
+<td>MISSING</td>
+<td><code>grep 末五碼/payment_proof</code>→0；無 payment 表</td>
+<td>proof 欄位(末五碼/截圖/收款人/確認人)</td>
+<td>M</td>
+</tr>
+<tr>
+<td>BR-M11-02-refund-tier</td>
+<td>退款 5-tier 核准</td>
+<td>BROKEN</td>
+<td>5-tier+SoD 邏輯正確、002 ✅done；但 thresholds[1k/5k/30k/100k]
+<strong>hardcode</strong>(紅線)</td>
+<td>仿 CR-0036 入 M18 config</td>
+<td>M</td>
+</tr>
+<tr>
+<td>P2-06-cancellation-matrix</td>
+<td>取消費 6 階段 matrix</td>
+<td>BROKEN</td>
+<td>階段化結構完整、001 ✅done；但費用值
+<strong>hardcode</strong>(<code>:42-48</code>)</td>
+<td>費用入 config</td>
+<td>M</td>
+</tr>
+<tr>
+<td>P2-08-travel-inspection-fee</td>
+<td>車馬費三級+80/20 拆帳</td>
+<td>PARTIAL</td>
+<td>只 min/max/per_km 線性；80/20 <strong>硬編</strong>
+<code>payout_rule_service.py:6</code> ADR-0041</td>
+<td>三級分+拆帳接 045 表+獨立 ledger</td>
+<td>M</td>
+</tr>
+<tr>
+<td>P2-12-refund-reason-code</td>
+<td>退款原因 9 類</td>
+<td>PARTIAL</td>
+<td>reason_code 用於冪等；但無 9 類 enum 驗證/主檔</td>
+<td>reason_code config namespace+enum 驗證</td>
+<td>S</td>
+</tr>
+<tr>
+<td>esales-sheet27-ar-ledger</td>
+<td>Customer AR Ledger</td>
+<td>MISSING</td>
+<td><code>grep customer_ar</code>→0；invoices 非 AR ledger</td>
+<td>建 customer AR ledger(可 mock-first)</td>
+<td>M</td>
+</tr>
+<tr>
+<td>BR-M11-03-invoice-responsibility</td>
+<td>發票責任歸屬</td>
+<td>MISSING</td>
+<td><code>grep issuer/invoice_responsibility</code>→0</td>
+<td>加 issuer_type 欄(mock-first)</td>
+<td>S</td>
+</tr>
+<tr>
+<td>invoice-tax-Q07</td>
+<td>發票稅額</td>
+<td>MOCK_ONLY</td>
+<td><code>invoice_service.py:37</code> tax=0.0 mock；esales
+規格無稅率值</td>
+<td>待 Q-07 提供稅率後接入</td>
+<td>S</td>
+</tr>
+<tr>
+<td>P2-13-upcharge-refusal</td>
+<td>現場加價拒絕 return path</td>
+<td>MISSING</td>
+<td><code>grep 加價</code> 全是報價時 modifier；無拒絕 return path</td>
+<td>加價不同意走 Exception approval</td>
+<td>M</td>
+</tr>
+<tr>
+<td>settlements-monthly-cron(P2-20)</td>
+<td>月結 cutoff cron</td>
+<td>MISSING</td>
+<td><code>main.py</code> lifespan 未掛 generate_monthly_batch；只 manual
+endpoint</td>
+<td>建 monthly_settlement_cron.py+掛 lifespan</td>
+<td>M</td>
+</tr>
+<tr>
+<td>P2-29-ai-finance-guardrail</td>
+<td>AI 金流護欄測試</td>
+<td>MISSING</td>
+<td>guardrail trace 是事後記錄，非主動斷言；工具白名單間接安全</td>
+<td>補主動阻擋斷言測試</td>
+<td>S</td>
+</tr>
+<tr>
+<td>BR-M12 payout formula engine</td>
+<td>師傅 payout 自動重算</td>
+<td>MOCK_ONLY</td>
+<td>net 純減法，金額全參數傳入；無引擎從 WO/recon 算</td>
+<td>建重算引擎(查 payout_rule+加成+扣款)</td>
+<td>L</td>
+</tr>
+<tr>
+<td>CR-0037/sheet21 payout wiring</td>
+<td>拆帳規則接 reconciliation</td>
+<td>MOCK_ONLY</td>
+<td>69 筆 seed 全 is_mock；<code>payout_rule_service.py:6</code> 自承
+NOT wired</td>
+<td>reconciliation 改查 payout_rule 取代 80/20</td>
+<td>M</td>
+</tr>
+<tr>
+<td>BR-M12-02 cash collection offset</td>
+<td>代收現金抵扣月結</td>
+<td>MOCK_ONLY</td>
+<td>cash_collection_deduction 純參數；無代收 ledger 表</td>
+<td>建代收 ledger+逾期 hold+派工暫停檢查</td>
+<td>L</td>
+</tr>
+<tr>
+<td>BR-M12-03/P2-22 dispute withholding</td>
+<td>爭議暫扣只扣 disputed amount</td>
+<td>PARTIAL</td>
+<td>月結整筆排除有 dispute 的
+settlement；<code>grep fraud/severe</code>→0</td>
+<td>改只扣 disputed_amount+fraud 分級</td>
+<td>M</td>
+</tr>
+<tr>
+<td>esales-sheet28~32 ledgers</td>
+<td>AP/commission/refund/brand/monthly ledger</td>
+<td>PARTIAL</td>
+<td>表+service 在但數值未接 config，硬編 80/20；多支 migration 未套</td>
+<td>套 migration+對齊 esales 欄位+接 config</td>
+<td>M each</td>
+</tr>
+<tr>
+<td>esales-sheet24-commission-unused</td>
+<td>佣金 config(0.08)未讀</td>
+<td>MISSING</td>
+<td>044 seed 0.08；<code>dispatcher_commission_service</code> 零讀
+config</td>
+<td>佣金引擎讀 config 算 base</td>
+<td>M</td>
+</tr>
+<tr>
+<td>esales-sheet04-pricing_matrix</td>
+<td>價格矩陣+車馬/急件套用</td>
+<td>MISSING</td>
+<td>無 matrix 表；<code>add_line:90-117</code> 只 copy 售價不套
+surcharge→金額系統性偏低</td>
+<td>建 matrix 或 add_line 接 surcharge_rule</td>
+<td>L</td>
+</tr>
+<tr>
+<td>esales-Q03~Q06-surcharge-engine</td>
+<td>加價套用引擎</td>
+<td>MISSING</td>
+<td>surcharge_rule 只是唯讀 catalog；quote engine 從不讀</td>
+<td>recompute 依案件 context 套加價</td>
+<td>L</td>
+</tr>
+<tr>
+<td>BR-M13-01/Q100</td>
+<td>獨立 RMA case(編號+連結)</td>
+<td>MISSING</td>
+<td><code>grep rma_number/RMA-YYYYMM</code>→0</td>
+<td>建 saas.rma_case+編號產生器+生命週期</td>
+<td>L</td>
+</tr>
+<tr>
+<td>BR-M13-02</td>
+<td>RMA 責任矩陣(7 分類, P0)</td>
+<td>MISSING</td>
+<td><code>grep responsibility/liability</code>→0(全 repo)</td>
+<td>責任矩陣 enum+比例 split+初判規則+CIA</td>
+<td>L</td>
+</tr>
+<tr>
+<td>Q106</td>
+<td>RMA 結果連帳務</td>
+<td>MISSING</td>
+<td>決策只 approve/reject；無結果→金額調整 wiring</td>
+<td>結果 enum+連 refund/工單金額/inventory/重派</td>
+<td>L</td>
+</tr>
+<tr>
+<td>Q101/Q109</td>
+<td>客訴分類統一+證據連動</td>
+<td>PARTIAL</td>
+<td>complaints 5 分類無接線；dispute_type 另一套</td>
+<td>統一分類 enum+連責任矩陣</td>
+<td>M</td>
+</tr>
+<tr>
+<td>BR-M10-01-bom</td>
+<td>兩層 BOM</td>
+<td>MISSING</td>
+<td><code>grep service_bom</code>→0；esales sheet18 9 筆 BOM 無
+seed</td>
+<td>建 service_bom 表+seed</td>
+<td>M</td>
+</tr>
+<tr>
+<td>Q079/SKU/supplier master</td>
+<td>品牌/SKU/供應商成本主檔</td>
+<td>MISSING</td>
+<td><code>grep brand_master/sku_master/supplier_cost</code>→0;esales
+sheet15-17</td>
+<td>建各主檔+seed</td>
+<td>M each</td>
+</tr>
+<tr>
+<td>Q084/Q083/usage variance</td>
+<td>現場用料登記+庫存 soft gate+差異</td>
+<td>MISSING</td>
+<td><code>grep material_usage/reservation</code>→0;sheet25/26</td>
+<td>建 usage 表(依賴 BOM)+派工前預檢</td>
+<td>M</td>
+</tr>
+<tr>
+<td>CR-0030-platform-paid-billing</td>
+<td>平台代派計費引擎</td>
+<td>MOCK_ONLY</td>
+<td>只標 <code>dispatched_via='platform'</code>；無計費</td>
+<td>計費規則(待業主)+接 AP/AR ledger</td>
+<td>L/M</td>
+</tr>
+<tr>
+<td>BR-M05-03-paymentgate/Flow-Gate</td>
+<td>付款 gate 控派工</td>
+<td>MISSING</td>
+<td><code>grep payment.gate</code>→0;assign 無付款檢查;依賴金流</td>
+<td>payments 狀態就緒後加 customer-confirm+paid gate</td>
+<td>L</td>
+</tr>
+<tr>
+<td>esales-sheet33-uat</td>
+<td>Phase II UAT 5 案</td>
+<td>MISSING</td>
+<td>sheet33 全 Pending;依賴未建引擎</td>
+<td>UAT 測試(引擎落地後)</td>
+<td>L</td>
+</tr>
+</tbody>
+</table>
+<h3 id="p3-多租戶">P3-多租戶</h3>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>title</th>
+<th>status</th>
+<th>evidence</th>
+<th>gap</th>
+<th>effort</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BR-M01-01</td>
+<td>Channel source 8 渠道綁 Case</td>
+<td>PARTIAL</td>
+<td>ConversationChannel enum 只 line/web/voice 3 值;非 Case 級</td>
+<td>定義 8 值 enum+承載實體+NOT NULL+CIA</td>
+<td>M</td>
+</tr>
+<tr>
+<td>BR-M01-02/Q006</td>
+<td>先建 Case 再進報價+全渠道入口</td>
+<td>MISSING</td>
+<td>唯一 case 表是 KB;<code>line_webhook</code> 不建案;7 渠道無入口</td>
+<td>新增 Case 實體(source_channel+SLA clock)+各渠道接線+CIA</td>
+<td>L</td>
+</tr>
+<tr>
+<td>Q012</td>
+<td>案件歷史保留 1 年</td>
+<td>PARTIAL</td>
+<td>歷史聚合可查;但無 Case 層歷史+無 1 年保存規則</td>
+<td>Case 層歷史+保存規則</td>
+<td>M</td>
+</tr>
+<tr>
+<td>BR-M02-03</td>
+<td>Site Group(建商/社區)</td>
+<td>MISSING</td>
+<td><code>grep site/community/builder</code>→0 表;僅 1 boolean 旗標</td>
+<td>建 site_group 表+batch 操作</td>
+<td>L</td>
+</tr>
+<tr>
+<td>Q013/Q017-triage</td>
+<td>AI 五向分診結果存儲</td>
+<td>PARTIAL</td>
+<td>分診停留在 SOP prompt;<code>grep triage_result</code>→0
+結構化落地</td>
+<td>triage_result 欄/表+agent 萃取器</td>
+<td>L</td>
+</tr>
+<tr>
+<td>BR-M03-02-escalation</td>
+<td>3 次失敗循環轉真人</td>
+<td>PARTIAL</td>
+<td>團隊刻意 prompt 推翻;transfer 無計數</td>
+<td>業主確認補計數器或接受 prompt-only</td>
+<td>M</td>
+</tr>
+<tr>
+<td>Q019-rma-complaint</td>
+<td>客訴獨立 RMA case</td>
+<td>PARTIAL</td>
+<td>API intent enum 無 complaint 值</td>
+<td>擴 intent+complaint→RMA 串接</td>
+<td>M</td>
+</tr>
+<tr>
+<td>BR-M06-eligibility-matching</td>
+<td>媒合引擎(skill/area/rating)</td>
+<td>PARTIAL</td>
+<td>加權評分有;不查 inventory/suspension/brand 經驗;distance 示意非
+GIS</td>
+<td>擴查資格維度+ST_Distance</td>
+<td>M</td>
+</tr>
+<tr>
+<td>BR-M06-02-grab-order</td>
+<td>搶單池</td>
+<td>MISSING</td>
+<td>realtime pool 是 per-tech 個人佇列非競爭池</td>
+<td>grab pool 表+FOR UPDATE 防重領+low-risk 分類</td>
+<td>L</td>
+</tr>
+<tr>
+<td>BR-M06-03-acceptance-sla</td>
+<td>接單 SLA+逾時自動改派(P0)</td>
+<td>MISSING</td>
+<td><code>grep acceptance_sla/auto_reassign</code>→0;timeout 只是 log
+enum</td>
+<td>accept_deadline+逾時 reassign+SLA 違約記錄</td>
+<td>L</td>
+</tr>
+<tr>
+<td>BR-M07-03</td>
+<td>Performance feedback 影響排序</td>
+<td>PARTIAL</td>
+<td>排序只單一 rating;on-time/acceptance/rejection 未進</td>
+<td>排序公式擴入多維 feedback</td>
+<td>M</td>
+</tr>
+<tr>
+<td>esales-G007/G008/G009</td>
+<td>三類租戶型別主檔</td>
+<td>PARTIAL</td>
+<td>saas.tenant 只 3 欄無 tenant_type;以 vendor_type 局部代替;038
+未登</td>
+<td>三類租戶主檔+CR-0031</td>
+<td>L</td>
+</tr>
+<tr>
+<td>會議§3.3 DB 隔離</td>
+<td>公單/師傅池共享 vs 客戶/報價/memory 隔離</td>
+<td>DEFERRED</td>
+<td>全靠 tenant_id 邏輯欄;無物理隔離</td>
+<td>CR-0031+ADR-0030(會議定調延後)</td>
+<td>L</td>
+</tr>
+<tr>
+<td>Action-13</td>
+<td>LINE Webhook URL+Token 分發</td>
+<td>MISSING</td>
+<td>單一 channel
+secret/token;<code>grep per-tenant channel</code>→0;無接入文件</td>
+<td>per-tenant channel 主檔+多租戶簽章+接入文件</td>
+<td>L</td>
+</tr>
+<tr>
+<td>CR-0013/migration 018</td>
+<td>LINE binding</td>
+<td>BROKEN</td>
+<td>code 完整;saas.line_binding(018) 🟡 pending 未套</td>
+<td>套用 018</td>
+<td>S</td>
+</tr>
+<tr>
+<td>BR-M20-02</td>
+<td>AI forbidden guardrail</td>
+<td>MOCK_ONLY</td>
+<td>只 prompt/knowledge 軟性指示;loop 無 output guardrail block</td>
+<td>loop output 加 guardrail+寫 trace</td>
+<td>L</td>
+</tr>
+<tr>
+<td>FR-0050 trace store</td>
+<td>AI Governance Trace</td>
+<td>MOCK_ONLY</td>
+<td>表 EXISTS 0 筆;loop 零接 log_decision</td>
+<td>loop 接 trace(best-effort)</td>
+<td>L</td>
+</tr>
+<tr>
+<td>spec-a01-debounce</td>
+<td>進線 1.5s debounce/flood</td>
+<td>MISSING</td>
+<td><code>grep debounce/flood</code>→0 業務 hit</td>
+<td>1.5s 視窗合併+24h dedup+測試</td>
+<td>M</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-已驗證完成可信賴的綠燈">3. 已驗證完成（可信賴的綠燈）</h2>
+<p>這些在 dev 環境真能端到端動，有對真 DB 跑的測試：</p>
+<ul>
+<li><strong>工單狀態機核心</strong>（<code>work_order_service.py</code>）：7
+組 action 都以 409 STATE_CONFLICT 擋非法轉移；派工前必填
+gate（<code>_assert_dispatch_ready</code> 422）；migration 036 欄位已套
+dev DB；<code>test_cr_0026</code> 4 案真 DB PASS。</li>
+<li><strong>派工模式 set/get + dispatched_via
+標記</strong>（CR-0030，dev-verified）：round-trip
+測試+assign→<code>platform</code> 真寫入。</li>
+<li><strong>庫存品項 + 異動 ledger</strong>（FR-0007）：007 ✅done
+已套用；<code>FOR UPDATE</code> row-lock + serial 422 + INSUFFICIENT 409
+真實；29 test 可跑。</li>
+<li><strong>退款雙簽 + 5-tier SoD + 取消費 6 階段</strong>（migration
+001/002 ✅done）：狀態機+同 user 防重簽完整（唯費用值 hardcode 待入
+config）。</li>
+<li><strong>爭議 dual-sign 狀態機</strong>（006 ✅done）+ <strong>保固
+5-mode + claim create/decision</strong>（003 ✅done）+ web
+三頁齊全。</li>
+<li><strong>RBAC 守衛 + 動態權限端點</strong>（034 已 prod
+套用）：<code>role_required</code> 真 raise 403；越權/階層/locked
+三重防護;56+35 passed。</li>
+<li><strong>多角色登入/註冊 + admin
+代重設</strong>：四登入頁齊;後端白名單隔離。</li>
+<li><strong>M18 config 治理</strong>（004 ✅done + 044
+idempotent）：live DB config_version=63/audit=153;訂金/佣金/月結參數入
+config + invoice 真讀;canary 自動推進 cron。</li>
+<li><strong>audit_events 查詢/匯出/保留期</strong> + <strong>outbox
+worker 韌性</strong>（backoff/dead/SKIP LOCKED 有硬斷言）。</li>
+<li><strong>客戶主檔 CRUD</strong> + <strong>知識庫 SOP ID
+外洩修復</strong>（commit 9a58d390）。</li>
+</ul>
+<p>⚠️ 注意：上述多數 migration 在 <strong>prod
+未追蹤套用</strong>，且測試套件因 <code>core/db.py</code> 全域
+<code>_conn</code> 被 FakeConn
+跨檔污染，<strong>併跑不可靠一次過</strong>（單檔可過）。</p>
+<hr />
+<h2 id="4-合理延後deferred_ok">4. 合理延後（DEFERRED_OK）</h2>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>為何現在不做</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Partner Portal 全套</strong>（BR-M14-01/02、BR-M01-03
+external scope、P2-18）</td>
+<td>會議 #11 明示 Phase III;品牌/經銷/建商自助入口非當前 single-tenant
+Beta 範圍</td>
+</tr>
+<tr>
+<td><strong>Multi-tenant 分庫/RLS</strong>（Action-12/CR-0031、§3.3
+隔離）</td>
+<td>會議定調「先補洞→Beta 綠燈→再轉 multi-tenant」;CR-0031
+尚未開,004-rls 🔒 預留待 ADR-0030</td>
+</tr>
+<tr>
+<td><strong>auto_match 自動執行</strong>（Report 2）</td>
+<td>規格明示 Report 2 後續;現在只保留模式設定值+候選計算</td>
+</tr>
+<tr>
+<td><strong>CR-0033 派工前 hard-gate + 簽名圖留痕 + legal_text
+版本主檔</strong></td>
+<td>CR-0033 §8 明示「另 CR」,設計性延後</td>
+</tr>
+<tr>
+<td><strong>供應商成本主檔 /
+品牌SKU/BOM/等級主檔</strong>（sheet15-20、17）</td>
+<td>esales sheet23 標 Phase II;無 consumer 端依賴</td>
+</tr>
+<tr>
+<td><strong>退換瑕疵料完整狀態機 / Q07 稅 / Q12 文案</strong></td>
+<td>esales 規格待業主回答,不捏造</td>
+</tr>
+<tr>
+<td><strong>Ops/外部任務</strong>（Action-5 已完成除外):Action-8 發
+URL+QR、Action-9 Irene 點測、Action-10 文件整理</td>
+<td>非 code 產出,owner=業主/Irene</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-補完-roadmap嚴格對齊會議拍板順序">5. 補完
+Roadmap（嚴格對齊會議拍板順序）</h2>
+<blockquote>
+<p>effort 加總用 S=0.4d / M=1.25d / L=3d 估算。標 <code>[ops]</code>
+為非 code。</p>
+</blockquote>
+<h3 id="階段-0前置必做否則後面全是假綠-約-3-4d">階段
+0（前置・必做，否則後面全是假綠）— 約 3-4d</h3>
+<p><strong>套用 migration + 修 CI</strong>，這是所有「BROKEN 因
+migration 未套」item 的共同前置：</p>
+<ul>
+<li><code>migration-apply-drift-045-035</code>、<code>migration-registry-reality-mismatch</code>、<code>CI-test-suite-unit-job</code></li>
+<li>套用 035/045/018/019/020/024/025/026/027 到 dev+prod，補登
+registry，建 schema_migrations 追蹤表</li>
+<li><strong>交付驗收</strong>：<code>test_password_reset</code> /
+<code>test_cr_0037</code> / FR-0044~0048 component 測試由 FAIL→PASS;CI
+<code>-m unit</code> 指向 <code>api/tests</code> 跑 226 unit 綠</li>
+</ul>
+<h3 id="階段-1--補公單收尾--約-12-15d">階段 1 — 補公單收尾 — 約
+12-15d</h3>
+<ul>
+<li><strong>公單欄位/成本/電子工單/免責收尾</strong>：Action-1（prod
+套+登 registry）、CR-0033（確認 043）、Action-6（端到端
+smoke）、CR-0027/CR-0017</li>
+<li><strong>完工硬閘</strong>：BR-M08-03（照片≥3/簽名/serial
+gate）、Q060（LIFF fallback）、spec-m10-serial-gate、M05-Q052</li>
+<li><strong>Evidence
+治理</strong>：BR-M09-02（角色可見性,P0）、BR-M09-03（保存期,P0）、Q022/G021、Q023
+影片 gate</li>
+<li><strong>M15 異常框架</strong>：BR-M15-01（以 generated.py
+落地）、BR-M15-03 high_risk_hold、exceptions_v2
+改名、Q064/Q066/gate12</li>
+<li><strong>PC 智能層</strong>：G037 completeness gate、Q015
+三層必填、spec-completeness-score</li>
+<li><strong>交付驗收</strong>：公單從進線→完工每個 gate
+可擋;完工缺照片/簽名 422;異常必選 return path</li>
+</ul>
+<h3 id="階段-2--excel-功能盤點--測試-planaction-2-約-3d">階段 2 — Excel
+功能盤點 + 測試 plan（Action-2）— 約 3d</h3>
+<ul>
+<li>跑 esales sheet 全表盤點對映 implementation,產出 Alpha/Beta/RC/GA
+四階段 plan（對齊 <code>/tmp/xlsxdump/02</code> 矩陣）</li>
+<li><strong>交付驗收</strong>：committed 測試計畫文件;coverage Dashboard
+對接</li>
+</ul>
+<h3 id="階段-3--廠商師傅雙路註冊action-3已-dev-done-約-1d">階段 3 —
+廠商/師傅雙路註冊（Action-3，已 dev-done）— 約 1d</h3>
+<ul>
+<li>prod 套用 038+登 registry;BR-M07-01 補 onboarding 必填欄位（含寫
+user_id 連修 FR-0044 斷鏈）;G004/G005 eligibility gate</li>
+<li><strong>交付驗收</strong>：兩路註冊→核准→登入分表;師傅完整資料才可派工</li>
+</ul>
+<h3 id="階段-4--密碼--權限隔離action-4cr-00250021-約-2-3d">階段 4 — 密碼
++ 權限隔離（Action-4，CR-0025/0021）— 約 2-3d</h3>
+<ul>
+<li>套 035（階段 0 已含）+配 SMTP <code>[ops]</code>;BR-M17-01
+角色矩陣正規化+approve 維度;BR-M17-03 IT
+臨時授權;web-route-role-gating</li>
+<li><strong>交付驗收</strong>：自助忘密碼 8 案綠;5 角色越權 403;前端
+route redirect</li>
+</ul>
+<h3 id="階段-5--派工模式切換action-7已-dev-done-約-05d">階段 5 —
+派工模式切換（Action-7，已 dev-done）— 約 0.5d</h3>
+<ul>
+<li>登錄 039+確認 prod 套用（platform_paid 計費引擎延後 P2）</li>
+<li><strong>交付驗收</strong>：三模式切換 UI+dispatched_via 真寫入</li>
+</ul>
+<h3 id="階段-6--alpha--beta-測試action-11下下週-約-8-10d">階段 6 — Alpha
++ Beta 測試（Action-11，下下週）— 約 8-10d</h3>
+<ul>
+<li><code>api-tests-never-run-in-ci</code>（建 nightly
+component/contract
+job）、<code>contract-test-zero</code>、<code>e2e-main-flow-4</code>、<code>fe-coverage-none-pages</code>、coverage=none
+補洞、<code>phaseII-CR-tests-db-mocked</code></li>
+<li>Irene+Johnson 點測 <code>[ops/外部]</code>（Action-8/9 解鎖）</li>
+<li><strong>交付驗收</strong>：Alpha exit（P0 happy 100%+S0=0）;Beta
+exit（P1≥90%+integration≥80%）</li>
+</ul>
+<h3 id="下一輪beta-綠燈後-p2-金流--p3-多租戶">下一輪（Beta 綠燈後）— P2
+金流 + P3 多租戶</h3>
+<ul>
+<li><strong>P2 金流</strong>（依賴鏈最深,先建 payments
+表）：Flow12-payments-core → BR-M11-01 核銷 → AR/AP ledger →
+三表月結接真公式 → 拆帳/退款/取消費<strong>入 config 解除
+hardcode</strong> → 月結 cron → pricing_matrix/surcharge
+引擎（解決金額系統性偏低）→ RMA case+責任矩陣</li>
+<li><strong>P3 多租戶</strong>（Action-12/CR-0031）：三類租戶主檔 → DB
+隔離 → Action-13 LINE channel 分發 → auto_match 自動執行</li>
+</ul>
+<p><strong>P2 金流總工時粗估 ~40-50d（L 居多）</strong>,<strong>P3
+~25-30d</strong>。</p>
+<hr />
+<h2 id="6-關鍵風險與建議">6. 關鍵風險與建議</h2>
+<ol type="1">
+<li><p><strong>【最該先動】先套
+migration、再談任何完成度</strong>。035/045 標綠未套用直接讓
+<code>test_password_reset</code>/<code>test_cr_0037</code>
+FAIL,這是「99.8% 假象」的最直接證據。在套用 + 建 schema_migrations
+追蹤表之前,<strong>任何「✅完成」都不可信</strong>。階段 0
+不做,後面全是假綠。成本最低（~3-4d）、解鎖最多。</p></li>
+<li><p><strong>CI
+是說謊的綠燈,優先修</strong>。<code>test-suite.yml:48</code> 跑已刪的
+<code>tests/unit/harness</code>（5 collection ERROR）,945 個
+component/contract 測試 <strong>0 執行</strong>,21 個 FR 測試用 FakeConn
+不碰真表。目前「CI 綠」只代表 19% 純 unit 且路徑錯。不修 CI,Alpha/Beta
+exit criteria 永遠無法客觀判定。</p></li>
+<li><p><strong>金流是最大黑洞,但依賴鏈最深,不要急著開</strong>。payments
+表不存在 → AR/AP/佣金/月結全部「等一個不存在的表來核銷」,80/20 拆帳+退款
+tier+取消費全 hardcode（會議紅線）。建議嚴守會議順序——<strong>Beta
+綠燈後才動 P2</strong>;但現在可做的零成本準備是把已有的
+refund/cancellation hardcode 值<strong>搬進 M18 config</strong>（CR-0036
+已示範路徑）,先解除紅線。</p></li>
+<li><p><strong>完工硬閘是公單的真實風險點</strong>。<code>complete_order</code>
+把簽名/照片串成字串塞 service_report,不驗照片數/簽名/serial —
+意味師傅可無照片無簽名完工。這是 Beta §46
+明列驗收項,且是客訴/帳務爭議的源頭,階段 1 優先。</p></li>
+<li><p><strong>測試 infra 的 <code>_conn</code>
+全域污染要修</strong>。<code>core/db.py</code> 全域 <code>_conn</code>
+單例被 FakeConn 跨檔污染,導致 disputes_v2/warranty
+等真實完成的模組<strong>併跑 21
+fail</strong>（單檔過）。這讓即使做對的模組在套件層也顯紅,在 conftest 加
+<code>_conn</code> fixture reset 是低成本高回報。</p></li>
+</ol>
+<hr />
+<h2 id="7-playwright-實機驗證新增發現2026-06-19階段0-收尾">7. Playwright
+實機驗證新增發現（2026-06-19，階段0 收尾）</h2>
+<p>業主要求「補完前先用 Playwright
+確認一次流程」。實跑揪出<strong>兩個本盤點未涵蓋的系統性問題</strong>——皆屬「code
+已 commit 但實際不可用」,正是會議警告的核心型態：</p>
+<h3
+id="71-第-4-大假綠根源本機prod-stack-落後-head-約-12-個-cr部署落差">7.1
+【第 4 大假綠根源】本機/prod stack 落後 HEAD 約 12 個
+CR（部署落差）</h3>
+<ul>
+<li>跑著的 docker 三容器（web/api/agent）<strong>全是 2026-06-16
+build</strong>,從未重建。CR-0025（忘記密碼）→ CR-0037 共 ~12 個 CR
+的成果<strong>一個都沒部署</strong>（連本機都沒有,prod 也停在 6-16
+首次上線）。</li>
+<li>鐵證:重建前
+<code>/auth/request-password-reset</code>、<code>/payout-rules</code>
+實機 <strong>404</strong>;web bundle 只有
+<code>login</code>/<code>tech-login</code>,無
+<code>register</code>/<code>forgot-password</code>/<code>vendor-login</code>/<code>reset-password</code>。</li>
+<li><strong>這與 migration drift 同源</strong>:團隊一直 commit
+code,但<strong>無任何自動部署</strong>,「完成度」算的是 commit
+數,不是「跑得到的東西」。</li>
+<li><strong>建議 →
+已交付</strong>:<code>scripts/dev/redeploy-local.sh</code>（一鍵
+rebuild→up→套 migration（記 schema_migrations）→ <strong>12 項 smoke
+gate</strong>;任一失敗 exit≠0,可當收尾 / CI gate）。實跑 12 passed / 0
+failed,涵蓋 payout-rules / 忘記密碼端點 /
+register·forgot-password·vendor-login 公開頁 / migration
+無漂移。把它納入每輪收尾,否則 Beta 點測永遠在測舊畫面。重建後
+<code>/payout-rules</code>(CR-0037)+<code>request-password-reset</code>(CR-0025)
+實機已 <strong>200</strong>。</li>
+</ul>
+<h3
+id="72-真-bug-已修-commit-d94ba262authguard-公開白名單漏列--註冊忘記密碼-100-不可達">7.2
+【真 bug 已修 commit d94ba262】AuthGuard 公開白名單漏列 → 註冊/忘記密碼
+100% 不可達</h3>
+<ul>
+<li><code>AuthGuard.tsx</code> 的 <code>PUBLIC_PATHS</code> 只有
+<code>/login</code>+<code>/tech-login</code>。CR-0029 的
+<code>/register</code>、<code>/vendor-login</code> 與 CR-0025 的
+<code>/forgot-password</code>、<code>/reset-password</code>
+<strong>從未加入</strong> → 未登入者一進就
+<code>router.replace("/login")</code> 彈回。</li>
+<li>致命處:這些頁的使用者（新師傅/廠商、忘記密碼者、點 email
+連結者）<strong>本就未登入</strong> → 功能對目標使用者 100%
+不可達。頁面與後端端點都做好了,只差白名單一行。</li>
+<li>與 2026-06-11 補 <code>/tech-login</code> 是<strong>同一類
+bug</strong>(漏列公開頁),當時補一條卻沒補齊其餘四條。</li>
+<li><strong>修復+驗證</strong>:四條加入
+<code>PUBLIC_PATHS</code>;rebuild web 後 Playwright 實證
+<code>/register</code>(師傅/廠商切換+表單)、<code>/forgot-password</code>(提交→enumeration-safe
+訊息)皆可達且端到端可動。</li>
+</ul>
+<h3 id="73-確認可信賴的綠燈fresh-login0-console-error">7.3
+確認可信賴的綠燈（fresh login，0 console error）</h3>
+<ul>
+<li>admin 登入 → dashboard（真實 KPI/圖表/最近工單）→
+<code>/work-orders</code>（20+ 真實工單,0 error）。</li>
+<li>後端 v2 API 帶正確 token + <code>X-Tenant-ID</code> 全 200;缺 header
+是 400 非 401。</li>
+<li>初載的 v2 401 查清為<strong>測試瀏覽器殘留過期 token</strong>,非產品
+bug（minor UX:token 過期應導回登入而非顯示舊資料+靜默 401,可列
+backlog）。WS realtime 403 為 localhost 未配 WS,屬部署面。</li>
+</ul>
+</div></div></body></html>

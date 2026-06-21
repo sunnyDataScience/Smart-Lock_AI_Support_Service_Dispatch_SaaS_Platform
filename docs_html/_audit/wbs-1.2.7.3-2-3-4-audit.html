@@ -1,0 +1,243 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>WBS 1.2.7.3.2 / 1.2.7.3.3 / 1.2.7.3.4 取證 audit</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ _audit ／ wbs-1.2.7.3-2-3-4-audit.md</div>
+<div class="doc"><h1 id="wbs-12732--12733--12734--既有覆蓋取證">WBS 1.2.7.3.2 / 1.2.7.3.3
+/ 1.2.7.3.4 — 既有覆蓋取證</h1>
+<h2 id="1-目的">1. 目的</h2>
+<p>承接 1.2.7.3.1 ✅（本 session E2E 補完）+ 1.2.7.3.5 ✅（既有 pytest
+覆蓋）後，取證 1.2.7.3 剩餘 3 項真實狀態。</p>
+<h2 id="2-12732-v10--v20-資料流驗證--真實-30">2. 1.2.7.3.2 V1.0 ↔︎ V2.0
+資料流驗證 — <strong>真實 ~30%</strong></h2>
+<h3 id="取證">取證</h3>
+<pre><code>grep -rn &quot;parity|dual_write|v1.*v2.*compat&quot; api/ 2&gt;/dev/null  # → 全空</code></pre>
+<p>無任何 automated parity test。</p>
+<h3 id="既有間接覆蓋">既有間接覆蓋</h3>
+<table>
+<thead>
+<tr>
+<th>元件</th>
+<th>機制</th>
+<th>覆蓋程度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1/v2 共用 service layer</td>
+<td><code>routers/work_orders.py</code> 與
+<code>routers/work_orders_v2.py</code> 同呼
+<code>services/work_order_service.py</code></td>
+<td>✅ code-level 一致性隱含保證</td>
+</tr>
+<tr>
+<td>v1/v2 共用 DB schema</td>
+<td>兩套 router 寫入同一個 <code>work_orders</code> 表</td>
+<td>✅ 資料同源</td>
+</tr>
+<tr>
+<td>Cross-tenant guard 對齊</td>
+<td>v2 加 <code>_cross_tenant_*</code> guard / v1 走
+<code>X-Tenant-ID</code> header</td>
+<td>⚠️ 兩套 enforcement path 但結果一致</td>
+</tr>
+<tr>
+<td>Deprecation header on v1</td>
+<td>middleware 在 v1 路徑加 <code>Deprecation: true</code> header</td>
+<td>✅ middleware-level 驗證</td>
+</tr>
+<tr>
+<td>v1 → v2 caller 遷移進度</td>
+<td>41 個真實 v1 caller 待遷（WBS §1 caller 表追蹤）</td>
+<td>⚠️ 部分</td>
+</tr>
+</tbody>
+</table>
+<h3 id="結論">結論</h3>
+<ul>
+<li>「資料流驗證」核心需求 = v1 與 v2 寫入同一筆 row / 讀取一致 →
+<strong>已透過共用 service+DB 隱含保證</strong></li>
+<li>但無 automated end-to-end parity test 驗「v1 POST + v2 GET
+結果一致」</li>
+<li>WBS 校正：30%（code-level 一致但無 black-box parity test）</li>
+<li><strong>不立即補 test 理由</strong>：P3.5 cutover 已完成、剩 41 個
+v1 caller 計畫 P4 階段遷完即廢棄 v1；寫 parity test
+在「即將廢棄」的雙軌期反向消耗工時</li>
+</ul>
+<h2 id="3-12733-師傅端-100-人併發壓測--真實-0">3. 1.2.7.3.3 師傅端 100
+人併發壓測 — <strong>真實 0%</strong></h2>
+<h3 id="取證-1">取證</h3>
+<pre><code>find . -name &quot;*.k6.js&quot; -o -name &quot;locustfile.py&quot; -o -name &quot;*.locust.py&quot;  # → 全空
+grep -rln &quot;k6|locust|artillery&quot; scripts/                                # → 全空</code></pre>
+<p>無 load test 工具 / 配置 / script。</p>
+<h3 id="結論-1">結論</h3>
+<ul>
+<li>100 人併發壓測屬上線前 NFR 驗證，需 dev/staging 環境 +
+工具（k6/locust）+ 真實流量錄製</li>
+<li>目前 0% — 工具未引入、scenario 未設計、baseline metrics 未建立</li>
+<li><strong>不立即補的理由</strong>：
+<ol type="1">
+<li>需業主提供 SLA 目標（p99 latency / throughput）才能定 pass/fail</li>
+<li>工具引入屬基礎建設變更（Architecture boundary 觸發）— 應走 CIA</li>
+<li>開發未 freeze 前壓測 baseline 會持續變動</li>
+</ol></li>
+<li><strong>建議</strong>：另開 CR-0019 — 100 人併發壓測工具與 scenario
+CIA（業主決定 k6 vs locust + SLA 目標）</li>
+</ul>
+<h2 id="4-12734-行動裝置相容性測試--真實-50">4. 1.2.7.3.4
+行動裝置相容性測試 — <strong>真實 ~50%</strong></h2>
+<h3 id="取證-2">取證</h3>
+<p><code>web/playwright.config.ts:46-50</code>：</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode typescript"><code class="sourceCode typescript"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  name<span class="op">:</span> <span class="st">&#39;tech&#39;</span><span class="op">,</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  testDir<span class="op">:</span> <span class="st">&#39;./tests/e2e/tech&#39;</span><span class="op">,</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  use<span class="op">:</span> { <span class="op">...</span>devices[<span class="st">&#39;Pixel 7&#39;</span>] }<span class="op">,</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>}<span class="op">,</span></span></code></pre></div>
+<p><code>web/public/manifest.webmanifest</code> 已就緒（PWA
+install）。</p>
+<h3 id="既有覆蓋">既有覆蓋</h3>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Playwright <code>tech</code> project 用 Pixel 7 viewport</td>
+<td>✅（Android Chrome 模擬 viewport + UA）</td>
+</tr>
+<tr>
+<td>PWA manifest + 4 SVG icon</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Responsive Tailwind class（<code>md:</code> 斷點）全頁面套用</td>
+<td>✅（grep 確認）</td>
+</tr>
+<tr>
+<td>iOS Safari 實機測試</td>
+<td>❌ 無</td>
+</tr>
+<tr>
+<td>Android 多機型矩陣（高/中/低階螢幕）</td>
+<td>❌ 無</td>
+</tr>
+<tr>
+<td>BrowserStack / Sauce Labs 帳號</td>
+<td>❌ 無（grep config 全空）</td>
+</tr>
+<tr>
+<td>跨裝置 e2e spec</td>
+<td>⚠️ 只 1 個 <code>tech</code> project，無 iPhone/iPad 等多 device
+matrix</td>
+</tr>
+</tbody>
+</table>
+<h3 id="結論-2">結論</h3>
+<ul>
+<li>Playwright <code>tech</code> project 已 cover Android Chrome
+viewport — 50% 覆蓋</li>
+<li>iOS Safari / 真實裝置矩陣未做（需實機 or cloud testing 帳號）</li>
+<li>WBS 校正：50%</li>
+<li><strong>不立即補的理由</strong>：
+<ol type="1">
+<li>真實裝置測試需業主提供 BrowserStack/Sauce Labs 帳號（採購決策）</li>
+<li>PWA 設計上已用 mobile-first responsive Tailwind，UX
+一致性已確保</li>
+<li>屬上線前 manual QA 性質，非開發階段 BUILD</li>
+</ol></li>
+</ul>
+<h2 id="5-wbs-1273-整合測試段--真實狀態校正總表">5. WBS 1.2.7.3
+整合測試段 — 真實狀態校正總表</h2>
+<table>
+<thead>
+<tr>
+<th>WBS</th>
+<th>任務</th>
+<th>校正前</th>
+<th>校正後</th>
+<th>來源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.2.7.3.1</td>
+<td>E2E 流程測試</td>
+<td>⬜ 0%</td>
+<td>✅ 80%+</td>
+<td>本 session 補 Flow 4/8/9/14 spec + 既有 15 spec</td>
+</tr>
+<tr>
+<td>1.2.7.3.2</td>
+<td>V1.0 ↔︎ V2.0 資料流</td>
+<td>⬜ 0%</td>
+<td>⚠️ 30%</td>
+<td>共用 service+DB 隱含一致，無 black-box parity test</td>
+</tr>
+<tr>
+<td>1.2.7.3.3</td>
+<td>師傅端 100 人併發壓測</td>
+<td>⬜ 0%</td>
+<td>❌ 0%</td>
+<td>工具/scenario/SLA baseline 全空（建議開 CR-0019）</td>
+</tr>
+<tr>
+<td>1.2.7.3.4</td>
+<td>行動裝置相容性測試</td>
+<td>⬜ 0%</td>
+<td>⚠️ 50%</td>
+<td>Playwright tech project + PWA manifest 50% 覆蓋</td>
+</tr>
+<tr>
+<td>1.2.7.3.5</td>
+<td>會計報表正確性驗算</td>
+<td>⬜ 0%</td>
+<td>✅ 100%</td>
+<td>4 個既有 pytest 全覆蓋（前 audit doc）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="6-1273-真實平均-52">6. 1.2.7.3 真實平均 ~52%</h2>
+<p>不是原報告標的 ⬜ 全 0%。其中 P0（E2E + 會計驗算）已達 UAT
+前置要求；P1（V1/V2 parity + load test +
+跨裝置）需業主提供工具/帳號/baseline 才能完成。</p>
+<h2 id="7-後續行動">7. 後續行動</h2>
+<table>
+<thead>
+<tr>
+<th>行動</th>
+<th>解什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>開立 CR-0019 — 100 人併發壓測 CIA</td>
+<td>解 1.2.7.3.3 工具選型 + SLA 目標決議</td>
+</tr>
+<tr>
+<td>採購 BrowserStack/Sauce Labs 帳號</td>
+<td>解 1.2.7.3.4 iOS Safari + 多機型實機</td>
+</tr>
+<tr>
+<td>P4 階段完成 41 個 v1 caller 遷 v2</td>
+<td>解 1.2.7.3.2 雙軌期廢除，parity test 自動失效</td>
+</tr>
+</tbody>
+</table>
+</div></div></body></html>

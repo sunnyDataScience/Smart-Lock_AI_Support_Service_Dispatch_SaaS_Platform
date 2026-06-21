@@ -1,0 +1,118 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>派工員角色定位</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ architecture ／ adr ／ ADR-0013-pm-alignment-q1.md</div>
+<div class="doc"><blockquote>
+<p><strong>🔄 Migration Status (2026-05-28)</strong>:
+<code>HISTORICAL</code> <strong>Reviewed against</strong>: 2026-05-20
+final spec (xlsx) <strong>Reviewed on</strong>: 2026-05-28 <strong>Per
+ADR-0100 §1 classification</strong>
+(.claude/context/devteam/meetings/2026-05-27-1130-final-spec-migration-strategy/MoM.md)</p>
+</blockquote>
+<h1 id="adr-0013--派工員角色定位">ADR-0013 — 派工員角色定位</h1>
+<h2 id="status">Status</h2>
+<p><strong>Accepted</strong> (拍板於 2026-05-07，作為 PM Q1-Q10 90
+分鐘對齊會議產物)</p>
+<h2 id="decision">Decision</h2>
+<p><strong>A 新角色 dispatch_officer</strong></p>
+<h2 id="context-options-consequences-從-pm-決策矩陣-2-摘錄">Context,
+Options, Consequences (從 PM 決策矩陣 §2 摘錄)</h2>
+<h2 id="2-q1--派工員是-v20-新角色還是客服子權限">2. Q1 — 「派工員」是
+V2.0 新角色還是客服子權限？</h2>
+<h3 id="業務脈絡">業務脈絡</h3>
+<p>[[_flows-bdd-test/v-model-left/E5x--workflow-dispatch]] §3
+描述「派工員」職責（手動派工、改派、處理 SLA 警報），但 V1.0
+沒有這個角色—所有派工由「客服」兼任。V2.0
+引入自動派工後，是否獨立此角色？</p>
+<h3 id="影響流程">影響流程</h3>
+<ul>
+<li>F-004 手動派工（actor 該寫 dispatcher 還是 customer_service）</li>
+<li>F-016 SLA 紅色警報接收者</li>
+<li>F-019 RBAC 動態調整（角色清單）</li>
+</ul>
+<h3 id="候選方案">候選方案</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>說明</th>
+<th>RBAC 影響</th>
+<th>測試成本</th>
+<th>業務風險</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A. 新角色</strong> <code>dispatcher</code></td>
+<td>獨立 user role，獨立 seed 資料、獨立 fixture</td>
+<td>seed 加 1 列、roles enum 加 1 值</td>
+<td>F-004 多 actor 矩陣（dispatcher × CS）</td>
+<td>客戶若無專職派工員→閒置帳號</td>
+</tr>
+<tr>
+<td><strong>B. 客服子權限</strong>
+<code>customer_service.can_dispatch=true</code></td>
+<td>沿用 customer_service 角色，加權限旗標</td>
+<td>RBAC table 加 1 column</td>
+<td>F-004 沿用 CS fixture，僅檢查 flag</td>
+<td>後期要拆角色困難</td>
+</tr>
+<tr>
+<td><strong>C. V1.0 不分，V2.5 再拆</strong></td>
+<td>全 CS 兼派工，未來再 ADR</td>
+<td>0 改動</td>
+<td>0 改動</td>
+<td>派工問責不明</td>
+</tr>
+</tbody>
+</table>
+<h3 id="推薦預設">推薦預設</h3>
+<p><strong>A — 新角色</strong>。理由：</p>
+<ol type="1">
+<li>E5x dispatch-operations 已用 dispatcher 用詞，spec 改動小</li>
+<li>客戶若用 SaaS，多技師客戶會有獨立派工員；單技師客戶 = 同一人多
+role</li>
+<li>拆角色比合角色難，先拆對未來友善</li>
+</ol>
+<h3 id="反向選項b--c後果">反向選項（B / C）後果</h3>
+<ul>
+<li>B：RBAC table 加 column 容易，但 F-004 無法測「dispatcher 視角專屬
+UI」</li>
+<li>C：F-004 / F-019 兩條流程降為 🔴，不能進 V2.0 GA</li>
+</ul>
+<h3 id="pm-決策">PM 決策</h3>
+<pre><code>[ ] A — 新角色 dispatcher
+[ ] B — 客服子權限 can_dispatch
+[ ] C — V1.0 不分
+
+理由：__________________________________
+拍板日期：______________
+拍板人：______________</code></pre>
+<h3 id="拍板後續更新">拍板後續更新</h3>
+<ul>
+<li><code>SQL/seeds/_admin_user.sql</code> 加 dispatcher seed</li>
+<li><code>api/models/users.py</code> enum 加
+<code>dispatcher</code></li>
+<li><code>docs/_flows-bdd-test/v-model-left/E5x--workflow-dispatch.md</code>
+§3 actor 表</li>
+<li><code>docs/_flows-bdd-test/v-model-right/E7--bdd-scenarios.md</code>
+F-004 Given 步驟</li>
+<li><code>tests/factories/technician.py</code> 反向不影響（technician
+不是 dispatcher）</li>
+</ul>
+<hr />
+</div></div></body></html>

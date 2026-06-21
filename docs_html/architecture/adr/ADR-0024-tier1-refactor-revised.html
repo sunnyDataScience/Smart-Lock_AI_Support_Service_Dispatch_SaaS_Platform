@@ -1,0 +1,677 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Tier 1 戰術級重構（2026 Q2）— hands-on 修正版</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ architecture ／ adr ／ ADR-0024-tier1-refactor-revised.md</div>
+<div class="doc"><blockquote>
+<p><strong>🔄 Migration Status (2026-05-28)</strong>:
+<code>HISTORICAL</code> <strong>Reviewed against</strong>: 2026-05-20
+final spec (xlsx) <strong>Reviewed on</strong>: 2026-05-28 <strong>Per
+ADR-0100 §1 classification</strong>
+(.claude/context/devteam/meetings/2026-05-27-1130-final-spec-migration-strategy/MoM.md)</p>
+</blockquote>
+<h1 id="adr-0024--tier-1-戰術級重構2026-q2-hands-on-修正版">ADR-0024 —
+Tier 1 戰術級重構（2026 Q2）— hands-on 修正版</h1>
+<h2 id="status">Status</h2>
+<p><strong>Accepted</strong> (拍板於 2026-05-11)；<strong>Supersedes
+ADR-0023</strong></p>
+<hr />
+<h2 id="1-為何-supersede-adr-0023">§1 為何 supersede ADR-0023</h2>
+<p>ADR-0023 於 2026-05-11 PR #62 merge 後 30 分鐘進入 Phase 1.1 hands-on
+階段，於 grep 真實 code reference 與讀檔內容後發現：</p>
+<table>
+<thead>
+<tr>
+<th>發現</th>
+<th>影響</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>report/</code> 內含 95 個 <code>v1.x.x.md</code> release
+notes（非執行期垃圾）</td>
+<td>原 plan 「加 .gitignore + 移 .dev-logs」<strong>錯誤</strong></td>
+</tr>
+<tr>
+<td><code>api/data/</code> 已正確對應 <code>agent/data/</code>（runtime
+data 軸）</td>
+<td>原 plan 「對齊 agent/storage」基於<strong>命名類比錯誤</strong></td>
+</tr>
+</tbody>
+</table>
+<p>繼而派 3 個 Explore agent 對 ADR-0023 全部 5 訊號做 <strong>hands-on
+深度驗證</strong>（讀實際
+page.tsx、orchestrator.py、project-structure.md、flow
+檔案、<code>.github/workflows/</code>），發現：</p>
+<ul>
+<li><strong>5 個訊號中 4 個處方不合理或過度設計</strong>（詳見 §3）</li>
+<li><strong>ADR-0023 內文 3 處事實錯誤</strong>（詳見 §2）</li>
+<li>整體工期估 <strong>2-3 週 → 1 週內</strong></li>
+</ul>
+<p>依「決策必須建立在事實上、不可在錯誤前提上累積技術債」原則，supersede
+ADR-0023 並改採此修正版。</p>
+<blockquote>
+<p><strong>保留 ADR-0023 的部分仍有效</strong>：6-tier docs 與 4
+大模組邊界保留不動的核心結論成立；hands-on
+修正主要在「執行處方」而非「審查結論」。</p>
+</blockquote>
+<hr />
+<h2 id="2-adr-0023-三處事實錯誤的處理">§2 ADR-0023
+三處事實錯誤的處理</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>錯誤</th>
+<th>證據</th>
+<th>處理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>E1</td>
+<td>ADR-0023 §約束3、§範圍引用「ADR-0010 已拍板 Shared DB + RLS」</td>
+<td><code>ls docs/1-decisions/ADR-*.md</code> 無 ADR-0010（跳號）</td>
+<td>本 ADR 移除引用；多租戶方案改為「待 V3 開新 ADR 拍板」</td>
+</tr>
+<tr>
+<td>E2</td>
+<td>ADR-0023 §1 稱「BF/SF/FR/ADR/<strong>UF</strong> 統一引用」</td>
+<td><code>find . -name "UF-*.md"</code> 無檔案</td>
+<td>本 ADR 標明 UF 系統「規劃中、未實作」；不列入既有 ID 系統</td>
+</tr>
+<tr>
+<td>E3</td>
+<td>ADR-0023 未提及 <code>api/agent/integrations/</code> 是空目錄</td>
+<td><code>ls api/agent/integrations/</code> 顯示 0 個檔</td>
+<td>列入 Phase 2' backlog：確認後刪除（或補 README 說明保留原因）</td>
+</tr>
+</tbody>
+</table>
+<p>另：ADR-0023 §5.3「staging 7 天零退化」無自動化機制 — 本 ADR Phase 4'
+補上具體驗證腳本路徑。</p>
+<hr />
+<h2 id="3-五個訊號-hands-on-驗證結果與修正處方">§3 五個訊號 hands-on
+驗證結果與修正處方</h2>
+<blockquote>
+<p>驗證方法：3 個 Explore agent 平行 hands-on 讀實際 code、grep
+真實引用、計數真實檔數。</p>
+</blockquote>
+<h3 id="s1--websrc-缺整合層">S1 — <code>web/src/</code> 缺整合層</h3>
+<table>
+<thead>
+<tr>
+<th>維度</th>
+<th>ADR-0023 原述</th>
+<th>hands-on 發現</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>page.tsx 總數</td>
+<td>52</td>
+<td><strong>61</strong></td>
+</tr>
+<tr>
+<td>直接 import api</td>
+<td>所有</td>
+<td><strong>13/61</strong></td>
+</tr>
+<tr>
+<td><code>lib/cache.ts</code></td>
+<td>不存在</td>
+<td><strong>已存在</strong>：30s staleTime + promise dedup、已整合
+<code>lib/api.ts</code> L22</td>
+</tr>
+<tr>
+<td>既有 hooks</td>
+<td>無</td>
+<td><strong><code>lib/useSSEChannel.ts</code></strong>、<strong><code>lib/useBroadcast.ts</code></strong>、<strong><code>lib/useRealtimeChannel.ts</code></strong>
+已存在</td>
+</tr>
+<tr>
+<td>setLoading/setError 重複</td>
+<td>質性描述</td>
+<td><strong>340 次</strong>（量化）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>修正處方</strong>：</p>
+<ul>
+<li>❌ <strong>不</strong>新增 <code>web/src/api/</code> 層（cache +
+thin client 已存在於 <code>lib/</code>）</li>
+<li>❌ <strong>不</strong>引入 SWR（<code>lib/cache.ts</code> 已具備
+staleTime + dedup）</li>
+<li>✅ 移既有 <code>lib/use{SSE,Broadcast,RealtimeChannel}.ts</code> 到
+<code>web/src/hooks/</code> 統一位置</li>
+<li>✅ 新增 <code>web/src/hooks/usePaginatedFetch.ts</code>（提煉
+setLoading/setError + error envelope 共用）</li>
+<li>✅ 改寫 <strong>13 個</strong> 直接 import api 的 page.tsx（不是 52
+個）</li>
+</ul>
+<p><strong>工期</strong>：原 1 週 → <strong>1-2 天</strong></p>
+<hr />
+<h3 id="s2--harness-缺-registry">S2 — harness 缺 registry</h3>
+<table>
+<thead>
+<tr>
+<th>維度</th>
+<th>ADR-0023 原述</th>
+<th>hands-on 發現</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>module-level state</td>
+<td>11</td>
+<td><strong>8 個</strong>（<code>_agent</code>, <code>_config</code>,
+<code>_templates</code>, <code>_profile_mgr</code>,
+<code>_audit_storage</code>, <code>_opik_tracer</code>,
+<code>_pending_store</code>, <code>_get_system_prompt</code>,
+<code>_get_conversation_id</code>）</td>
+</tr>
+<tr>
+<td>V2.0 派工/帳務 → harness 層</td>
+<td>假設「需直接改 orchestrator」</td>
+<td><strong>dispatch/refund 實際在
+<code>api/services/</code></strong>（dispatch_service.py、refund_service.py
+已存在 6+ 個月），<strong>不在 harness</strong></td>
+</tr>
+<tr>
+<td>新增 harness 層案例</td>
+<td>假設常見</td>
+<td>近半年僅 <code>pc_creator.py</code> (H_PC) 加入；走「新 module +
+orchestrator 改 1 行」</td>
+</tr>
+<tr>
+<td>declarative pipeline ROI</td>
+<td>假設高</td>
+<td><strong>過度設計</strong> — protocol + config + dark launch + 3
+layer pilot + staging 1 週，遠超 V2 實際需求</td>
+</tr>
+</tbody>
+</table>
+<p><strong>修正處方</strong>：</p>
+<ul>
+<li>❌ <strong>不</strong>做 declarative pipeline（config-driven + dark
+launch + 3 phase migration）</li>
+<li>❌ <strong>不</strong>新增 <code>agent/harness/pipeline.py</code> +
+<code>context.py</code></li>
+<li>❌ <strong>不</strong>修改 <code>agent/config.toml</code> 加
+<code>[harness.pipeline]</code></li>
+<li>✅ <strong>簡化</strong>：在 <code>agent/harness/__init__.py</code>
+加
+<code>PIPELINE = [safety_gate, data_correction, quick_reply, intent_handler, skills_prefix, validator_pipeline, profile_updater, pc_creator, memory_manager, agent_audit]</code>
+清單常數</li>
+<li>✅ <code>agent/harness/orchestrator.py</code>
+<code>agent_and_reply()</code> 改
+<code>for layer in PIPELINE: await layer.apply(ctx)</code></li>
+<li>✅ 各 sibling module 補 <code>async def apply(ctx)</code>
+介面（包現有邏輯）</li>
+<li>✅ staging 1 週仍保留（agent 行為變更，風險仍在）</li>
+</ul>
+<p><strong>工期</strong>：原 1 週 + staging 1 週 → <strong>2-3 天 +
+staging 1 週</strong></p>
+<hr />
+<h3 id="s3--頂層雜訊--legacy-殘留">S3 — 頂層雜訊 + legacy 殘留</h3>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>ADR-0023 原述</th>
+<th>hands-on 發現</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CLAUDE_TEMPLATE.md</code></td>
+<td>應搬 <code>.claude/</code></td>
+<td>是「使用者初始化範本 v4.1」（user-facing），root 位置使 SessionStart
+hook 更易定位；<strong>搬家會降低首次 onboarding 可見性</strong></td>
+</tr>
+<tr>
+<td><code>report/</code></td>
+<td>runtime 產物、加 .gitignore</td>
+<td><strong>95 個 <code>v1.x.x.md</code> release
+notes</strong>，是版控內容</td>
+</tr>
+<tr>
+<td><code>api/data/</code> 改名</td>
+<td>對齊 <code>agent/storage/</code></td>
+<td><strong>命名類比錯誤</strong>：對齊軸應是
+<code>agent/data ↔︎ api/data</code>（runtime），命名已對齊</td>
+</tr>
+<tr>
+<td><code>web_design_spec_prompt_pipeline/</code></td>
+<td>保持原狀</td>
+<td>確實 legacy（無 active 引用），但 root 留著造成新人困惑</td>
+</tr>
+<tr>
+<td><code>.hypothesis/</code> <code>.pytest_cache/</code></td>
+<td>未提及</td>
+<td><strong>未 gitignored 但 git ls-files
+無結果</strong>（漏網雜訊）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>修正處方</strong>：</p>
+<ul>
+<li>❌ <strong>不</strong>搬 <code>CLAUDE_TEMPLATE.md</code>（保留
+root）</li>
+<li>❌ <strong>不</strong>動 <code>api/data/</code> 命名</li>
+<li>❌ <strong>不</strong>動 <code>report/</code> 內容（但搬位置）</li>
+<li>✅ 搬 <code>report/</code> →
+<code>docs/1-decisions/releases/</code>（內容性質正確歸位）+ 更新
+<code>.gitignore</code> / hook / CLAUDE.md 中引用</li>
+<li>✅ 搬 <code>web_design_spec_prompt_pipeline/</code> →
+<code>docs/_archive/legacy/web_design_spec_prompt_pipeline/</code>（明確
+legacy 標記）</li>
+<li>✅ <code>.gitignore</code> 補
+<code>.hypothesis/</code>、<code>.pytest_cache/</code></li>
+<li>✅ 確認 <code>api/agent/integrations/</code> 空目錄處理（E3
+處理）</li>
+</ul>
+<p><strong>工期</strong>：原 1 天 → <strong>1-2 小時</strong></p>
+<hr />
+<h3 id="s4--tier-5-自動化未完成">S4 — Tier 5 自動化未完成</h3>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>ADR-0023 原述</th>
+<th>hands-on 發現</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>project-structure.md</code> 重複 <code>docs/</code> bug</td>
+<td>第 29-30 行</td>
+<td><strong>CONFIRMED</strong>（第 30 行縮排不同，明顯筆誤）</td>
+</tr>
+<tr>
+<td>Tier 5 文件數</td>
+<td>假設多份</td>
+<td><code>docs/5-views/</code> 共 5
+檔（<code>project-structure</code>、<code>class-relationships</code>、<code>file-dependencies</code>、<code>frontend-route-map</code>、<code>traceability-matrix</code>），<strong>只有
+1 份</strong>標 AI-AUTO</td>
+</tr>
+<tr>
+<td>自動化 ROI</td>
+<td>假設高</td>
+<td><strong>低</strong>：全檔 133 行中僅 20 行（統計 + tree）需
+regen；其餘 113 行是穩定結構描述</td>
+</tr>
+<tr>
+<td>Plan 處方</td>
+<td>generator script + Makefile + CI workflow（150+ 行新 code）</td>
+<td><strong>過度設計</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>修正處方</strong>：</p>
+<ul>
+<li>❌ <strong>不</strong>新增
+<code>scripts/ci/regen-project-structure.sh</code></li>
+<li>❌ <strong>不</strong>新增 <code>Makefile</code> target
+<code>docs-regen</code></li>
+<li>❌ <strong>不</strong>新增
+<code>.github/workflows/regen-docs.yml</code></li>
+<li>✅ <strong>3 行修正</strong>：
+<ul>
+<li>修 <code>project-structure.md</code> 第 30 行重複 <code>docs/</code>
+bug</li>
+<li>frontmatter
+<code>generator: manual (sunnydata-auto-regen TBD)</code> →
+<code>generator: manual</code>（移除 AI-AUTO 旗幟）</li>
+<li>加 <code>last_updated: 2026-05-11</code></li>
+</ul></li>
+</ul>
+<p><strong>工期</strong>：原 1 天 → <strong>30 分鐘</strong></p>
+<hr />
+<h3 id="s5--跨模組整合層缺索引">S5 — 跨模組整合層缺索引</h3>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>ADR-0023 原述</th>
+<th>hands-on 發現</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BF/SF 引用 operationId 方式</td>
+<td>假設 frontmatter 結構化</td>
+<td><strong>內文 markdown
+硬編碼</strong>（<code>openapi#operationId=...</code>）</td>
+</tr>
+<tr>
+<td>FR ↔︎ Flow 連結</td>
+<td>假設新 BF/SF ID</td>
+<td>FR-0005 等仍引用 <strong>legacy F-id</strong>（F-005），未更新</td>
+</tr>
+<tr>
+<td>INDEX.md 自動化前置工作</td>
+<td>0.5 週</td>
+<td><strong>必須先補所有 BF/SF/FR frontmatter 加
+<code>related_apis: []</code> 欄位</strong>（25 BF/SF + 25 FR）</td>
+</tr>
+<tr>
+<td>實際工期</td>
+<td>0.5 週</td>
+<td><strong>1-1.5 週</strong>（含補欄位）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>修正處方</strong>：拆兩階段</p>
+<ul>
+<li><strong>5.1</strong>（手工）：補 BF/SF/FR frontmatter
+<code>related_apis: []</code>、<code>related_pages: []</code> 欄位 — 3-5
+天</li>
+<li><strong>5.2</strong>（自動）：寫 generator 聚合 frontmatter 產出
+<code>docs/2-contracts/flows/INDEX.md</code> — 0.5 天</li>
+</ul>
+<p><strong>進入 backlog</strong>：Phase 1-4 完成後重估 ROI，視 V3
+多通道擴展時程決定是否啟動。</p>
+<p><strong>工期</strong>：原 0.5 週 → 拆兩階段（5.1: 3-5 天 / 5.2: 0.5
+天）；<strong>先進 backlog</strong></p>
+<p><strong>2026-05-12 ROI 重評估</strong>：Phase 1-4 完成後依本 ADR
+排程進行重估，結論 <strong>DEFER</strong>（成本：75 檔手工補 +
+高維護負擔 + 與 traceability-matrix.md 重疊；收益：V3
+時程不明確、新人痛點未量化）。明確啟動觸發條件（T1-T4）與移除條件（R1-R2）詳見
+<a
+href="../4-exploration/WBS-0004-phase-5-flow-index-backlog-2026-q2.md"><code>docs/4-exploration/WBS-0004-phase-5-flow-index-backlog-2026-q2.md</code></a>。</p>
+<hr />
+<h2 id="4-修正後總工期">§4 修正後總工期</h2>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>原 ADR-0023</th>
+<th>本 ADR-0024</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0' ADR + WBS + CHANGELOG</td>
+<td>0.5 天</td>
+<td>0.5 天</td>
+</tr>
+<tr>
+<td>1' Tier 5 修 bug + gitignore</td>
+<td>1 天</td>
+<td><strong>30 分鐘</strong></td>
+</tr>
+<tr>
+<td>2' 頂層雜訊歸位</td>
+<td>1 天</td>
+<td><strong>1-2 小時</strong></td>
+</tr>
+<tr>
+<td>3' web hooks 提煉</td>
+<td>1 週</td>
+<td><strong>1-2 天</strong></td>
+</tr>
+<tr>
+<td>4' harness PIPELINE 列表化</td>
+<td>1 週 + staging</td>
+<td><strong>2-3 天 + staging 1 週</strong></td>
+</tr>
+<tr>
+<td>5' Flow INDEX 兩階段</td>
+<td>0.5 週</td>
+<td><strong>進 backlog</strong>（重估 ROI）</td>
+</tr>
+<tr>
+<td><strong>總計</strong></td>
+<td>2-3 週</td>
+<td><strong>1 週（不含 5'）+ staging 1 週</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-後果與-adr-0023-4-一致差異標註">§5 後果（與 ADR-0023 §4
+一致，差異標註）</h2>
+<h3 id="正面修正後">正面（修正後）</h3>
+<ul>
+<li>V2.0 工程師新增 harness 層只需動 <code>__init__.py</code> 的
+<code>PIPELINE</code> list，不需改 orchestrator（<strong>簡化方案，非
+config-driven</strong>）</li>
+<li>web 13 個高重複 page 簡化（不是 52 個）</li>
+<li>Tier 5 文件信號為真（<code>generator: manual</code> 而非懸空 TBD
+旗幟）</li>
+<li>頂層歸位後新人 onboarding 路徑清晰（report → docs/releases、legacy →
+docs/legacy）</li>
+</ul>
+<h3 id="負面修正後">負面（修正後）</h3>
+<ul>
+<li><strong>不</strong>做 declarative pipeline → 未來多通道擴展時若
+PIPELINE 線性結構不足（如需 branching），仍可能要重構</li>
+<li><strong>不</strong>做 web/src/api/ 層 → 若 hooks 內 fetch
+邏輯仍重複，未來可能要二次抽取</li>
+<li>staging 1 週仍保留（harness PIPELINE 切換是行為變更）</li>
+</ul>
+<h3 id="影響範圍修正後">影響範圍（修正後）</h3>
+<table>
+<thead>
+<tr>
+<th>模組</th>
+<th>Phase</th>
+<th>變更類型</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>docs/1-decisions/</code></td>
+<td>0'</td>
+<td>新增 ADR-0024；標 ADR-0023 superseded</td>
+</tr>
+<tr>
+<td><code>docs/4-exploration/</code></td>
+<td>0'</td>
+<td>更新 wbs-2026-q2-tactical-refactor.md（覆寫，含變更紀錄）</td>
+</tr>
+<tr>
+<td><code>docs/5-views/VIEW-0004-project-structure.md</code></td>
+<td>1'</td>
+<td><strong>3 行修正</strong>（不是 generator）</td>
+</tr>
+<tr>
+<td><code>.gitignore</code></td>
+<td>1'</td>
+<td>補 <code>.hypothesis/</code>、<code>.pytest_cache/</code></td>
+</tr>
+<tr>
+<td><code>docs/1-decisions/releases/</code>（新）、<code>docs/_archive/legacy/</code>（新）</td>
+<td>2'</td>
+<td>接收頂層歸位內容</td>
+</tr>
+<tr>
+<td><code>report/</code>、<code>web_design_spec_prompt_pipeline/</code></td>
+<td>2'</td>
+<td>git mv（保留歷史）</td>
+</tr>
+<tr>
+<td><code>web/src/hooks/</code>（新）、<code>web/src/lib/use*.ts</code></td>
+<td>3'</td>
+<td>遷移 + 新增 usePaginatedFetch</td>
+</tr>
+<tr>
+<td><code>web/src/app/**/page.tsx</code></td>
+<td>3'</td>
+<td><strong>13 個檔</strong>（不是 52）</td>
+</tr>
+<tr>
+<td><code>agent/harness/__init__.py</code></td>
+<td>4'</td>
+<td>加 <code>PIPELINE</code> 清單常數</td>
+</tr>
+<tr>
+<td><code>agent/harness/orchestrator.py</code></td>
+<td>4'</td>
+<td><code>agent_and_reply()</code> 改迴圈</td>
+</tr>
+<tr>
+<td><code>agent/harness/{各 layer}.py</code></td>
+<td>4'</td>
+<td>補 <code>async def apply(ctx)</code> 介面</td>
+</tr>
+<tr>
+<td><code>api/agent/integrations/</code></td>
+<td>2' E3</td>
+<td>確認後刪或加 README</td>
+</tr>
+</tbody>
+</table>
+<p><strong>不變更</strong>：<code>agent/storage/</code>（code
+module）、<code>agent/data/</code>（runtime）、<code>api/data/</code>（runtime）、<code>CLAUDE_TEMPLATE.md</code>
+位置、<code>api/services/</code>、所有
+<code>docs/2-contracts/</code>。</p>
+<hr />
+<h2 id="6-不在範圍與-adr-0023-7-一致">§6 不在範圍（與 ADR-0023 §7
+一致）</h2>
+<ul>
+<li>❌ Monorepo 化（Nx / Turborepo）</li>
+<li>❌ 6-tier 文檔結構重組</li>
+<li>❌ <code>docs/2-contracts/</code> 頂層化為
+<code>/contracts/</code></li>
+<li>❌ Flow ID 命名空間改動</li>
+<li>❌ V3 多租戶 schema 隔離（待 V3 開新 ADR）</li>
+<li>❌ agent/api/web/data 四大模組合併或拆分</li>
+<li>❌ <code>api/data/</code> 改名（ADR-0023 原排，本 ADR 取消）</li>
+<li>❌ <code>report/</code> 加 gitignore（ADR-0023 原排，本 ADR
+取消）</li>
+</ul>
+<hr />
+<h2 id="7-重新評估觸發">§7 重新評估觸發</h2>
+<table>
+<thead>
+<tr>
+<th>觸發條件</th>
+<th>動作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>V3 啟動且決定走非 Shared-DB 多租戶</td>
+<td>開新 ADR 拍板 schema 隔離方案（補 ADR-0010 空缺）</td>
+</tr>
+<tr>
+<td>新增第 5 個 first-class 模組</td>
+<td>重新評估 monorepo</td>
+</tr>
+<tr>
+<td>harness PIPELINE list 出現 branching 需求</td>
+<td>重新評估 declarative pipeline（本 ADR §3 S2 預留路徑）</td>
+</tr>
+<tr>
+<td>Flow INDEX backlog 滿 3 個月仍未啟動</td>
+<td>從 backlog 移除（視為 over-optimization）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-預留-adr-編號">§8 預留 ADR 編號</h2>
+<ul>
+<li><strong>ADR-0025</strong> — 預留給 Phase 4' harness PIPELINE
+切換時的決策記錄（原 ADR-0023 預留 ADR-0024，因本 ADR 占用
+0024，下移）</li>
+</ul>
+<h2 id="9-phase-4-實作修正紀錄">§9 Phase 4' 實作修正紀錄</h2>
+<blockquote>
+<p>2026-05-11 — Phase 4' hands-on 進入 orchestrator.py 後發現本 ADR §3
+S2 的「PIPELINE 清單常數 + for layer in PIPELINE: await layer.apply(ctx)
++ 各 sibling module 補 apply(ctx)
+介面」處方<strong>部分不適用</strong>。</p>
+</blockquote>
+<h3 id="發現">發現</h3>
+<p><code>agent_and_reply()</code> 是 <strong>branching
+pipeline</strong>：</p>
+<ul>
+<li>4 個 stage 有 early return (short-circuit)</li>
+<li>3 個 stage 是 fire-and-forget background</li>
+<li>各 layer signature 非統一（不同參數組合）</li>
+</ul>
+<p>統一 <code>apply(ctx)</code> 介面意味著 12+ 欄位 ctx
+god-object，將原本 explicit short-circuit 改為 implicit flag →
+可讀性下降。</p>
+<h3 id="縮減版實作與本-3-s2-原處方差異">縮減版實作（與本 §3 S2
+原處方差異）</h3>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>§3 S2 原處方</th>
+<th>實作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>harness/__init__.py</code></td>
+<td><code>PIPELINE = [layer1, ...]</code> + 各 layer 為 module 物件</td>
+<td><code>PIPELINE: tuple[PipelineEntry, ...]</code>
+結構化常數（phase_id, module, description, lifecycle, blocking）作為
+doc/introspection</td>
+</tr>
+<tr>
+<td>各 sibling module</td>
+<td>補 <code>async def apply(ctx)</code> 介面</td>
+<td>補 <code>PHASE: str = "..."</code> 模組層級常數（9 個 layer
+module）</td>
+</tr>
+<tr>
+<td><code>orchestrator.agent_and_reply()</code></td>
+<td>改 <code>for layer in PIPELINE: await layer.apply(ctx)</code></td>
+<td><strong>不變更</strong>（保留既有 branching control flow）</td>
+</tr>
+<tr>
+<td>staging</td>
+<td>1 週</td>
+<td><strong>不需要</strong>（零 runtime 變更）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="決策記錄">決策記錄</h3>
+<p>詳見 <a href="./ADR-0025-harness-branching-pipeline.md">ADR-0025</a>
+— 「Harness 採 branching pipeline，PIPELINE list 為
+introspection-only」。</p>
+<p>ADR-0025 拍板的核心理由：</p>
+<ol type="1">
+<li><strong>承認 hands-on 發現</strong> — 本 §3 S2 的線性 pipeline
+假設基於對 agent_and_reply control flow 的誤判</li>
+<li><strong>保留 explicit control flow</strong> — Linus 「good
+taste」精神：explicit 優於 implicit</li>
+<li><strong>doc/introspection 已解 80% 訴求</strong> — 不需 ctx
+god-object 即可達成「新增 layer 路徑可預測」目標</li>
+</ol>
+<hr />
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">日期</th>
+<th style="text-align: left;">審核人</th>
+<th style="text-align: left;">備註</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">2026-05-11</td>
+<td style="text-align: left;">Tech Lead / Architect</td>
+<td style="text-align: left;">初版 — supersede ADR-0023；基於 hands-on
+驗證的修正版</td>
+</tr>
+</tbody>
+</table>
+</div></div></body></html>

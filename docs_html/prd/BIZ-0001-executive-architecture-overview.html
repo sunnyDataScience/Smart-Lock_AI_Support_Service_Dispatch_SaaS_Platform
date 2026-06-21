@@ -1,0 +1,494 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>系統架構總覽 - 電子鎖智能客服與派工平台</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ prd ／ BIZ-0001-executive-architecture-overview.md</div>
+<div class="doc"><h1 id="系統架構總覽---電子鎖智能客服與派工平台">系統架構總覽 -
+電子鎖智能客服與派工平台</h1>
+<blockquote>
+<p><strong>架構更新（2026-04-21）</strong> Layer 3 補充：LLM
+供應商抽象層使用 <strong>LiteLLM</strong>（支援 Vertex AI / OpenAI /
+Ollama 切換）。 部署平台：<strong>Google Cloud Run</strong>（Docker
+容器化）。 Layer 4 的 dispatch V2.0 / accounting V2.0 尚未實作。</p>
+</blockquote>
+<p><strong>版本:</strong> v2.0 | <strong>更新日期:</strong>
+2026-04-04</p>
+<hr />
+<h2 id="1-系統分層堆疊圖">1. 系統分層堆疊圖</h2>
+<p>由上至下六層，上層依賴下層，每層標註具體技術選型。</p>
+<pre class="mermaid"><code>graph TB
+    L1[&quot;&lt;b&gt;使用者介面層&lt;/b&gt;&lt;br/&gt;LINE Messaging API | Next.js 14 + React 19 | shadcn/ui + Tailwind | PWA&quot;]
+    L2[&quot;&lt;b&gt;API 閘道層&lt;/b&gt;&lt;br/&gt;FastAPI + Uvicorn | Pydantic v2 | OpenAPI/Swagger | JWT + RBAC&quot;]
+    L3[&quot;&lt;b&gt;AI 服務層&lt;/b&gt;&lt;br/&gt;LangGraph 0.2 + LangChain 0.3 | Google Gemini 2.5 Flash | text-embedding-004 768d | 8-Layer Harness&quot;]
+    L4[&quot;&lt;b&gt;業務領域層&lt;/b&gt;&lt;br/&gt;customer_service | knowledge_base | dispatch V2.0 | accounting V2.0&quot;]
+    L5[&quot;&lt;b&gt;資料存取層&lt;/b&gt;&lt;br/&gt;SQLAlchemy 2.0 Async | asyncpg | Alembic Migration | Redis aioredis&quot;]
+    L6[&quot;&lt;b&gt;基礎設施層&lt;/b&gt;&lt;br/&gt;PostgreSQL 16 + pgvector 0.7 | Redis 7 | Docker Compose | TLS 1.2+ / AES-256&quot;]
+
+    L1 --&gt; L2
+    L2 --&gt; L3
+    L2 --&gt; L4
+    L3 --&gt; L4
+    L4 --&gt; L5
+    L5 --&gt; L6
+
+    classDef s1 fill:#E3F2FD,stroke:#1565C0,stroke-width:2px
+    classDef s2 fill:#FFF3E0,stroke:#E65100,stroke-width:2px
+    classDef s3 fill:#EDE7F6,stroke:#4527A0,stroke-width:2px
+    classDef s4 fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px
+    classDef s5 fill:#F3E5F5,stroke:#6A1B9A,stroke-width:2px
+    classDef s6 fill:#ECEFF1,stroke:#37474F,stroke-width:2px
+    class L1 s1
+    class L2 s2
+    class L3 s3
+    class L4 s4
+    class L5 s5
+    class L6 s6</code></pre>
+<hr />
+<h2 id="2-系統架構圖---資訊流">2. 系統架構圖 - 資訊流</h2>
+<p>從消費者發起問題到結案的完整資訊流動路徑，涵蓋三類使用者、平台核心與外部系統。</p>
+<pre class="mermaid"><code>graph TD
+    subgraph 使用者
+        C[fa:fa-user 消費者 - LINE]
+        T[fa:fa-wrench 技師 - Web App]
+        A[fa:fa-user 管理員 - Admin Panel]
+    end
+
+    subgraph 平台核心
+        subgraph 介面層
+            BOT[fa:fa-comments LINE Bot AI 客服]
+            WEB[fa:fa-mobile 技師工作台]
+            ADM[fa:fa-bar-chart 營運儀表板]
+        end
+
+        subgraph AI 引擎
+            PC[fa:fa-stethoscope 問題診斷引擎]
+            RES[fa:fa-lightbulb-o 三層解決機制]
+            SOP[fa:fa-file-text SOP 自動生成]
+        end
+
+        subgraph 業務服務
+            REF[退款審批 RefundService]
+            WAR[保固管理 WarrantyService]
+            INV[庫存管理 InventoryService]
+            AUD[稽核日誌 AuditLogger]
+            EXP[資料匯出 DataExporter]
+        end
+
+        subgraph 業務引擎
+            DSP[fa:fa-cogs 智慧派工引擎]
+            PRC[fa:fa-tags 報價引擎]
+            ACC[fa:fa-money 帳務模組]
+            TM[技師匹配 TechnicianMatcher]
+            PE[定價規則 PricingEngine]
+        end
+
+        subgraph 資料層
+            DB[fa:fa-database PostgreSQL]
+            VEC[fa:fa-book pgvector 知識庫]
+            RED[fa:fa-bolt Redis 快取]
+        end
+    end
+
+    subgraph 外部服務
+        LINE_API[fa:fa-commenting LINE API]
+        GEMINI[fa:fa-cloud Google Gemini AI]
+    end
+
+    C --&gt;|1. 報修諮詢| BOT
+    C --&gt;|1b. 客訴/爭議| BOT
+    BOT --&gt;|2. 收發訊息| LINE_API
+    LINE_API --&gt;|3. Webhook| PC
+
+    PC --&gt;|4. 產生問題卡| RES
+    RES --&gt;|5a. L1 查知識庫| VEC
+    RES --&gt;|5b. L2 AI 推理| GEMINI
+    RES --&gt;|6. 回覆方案| BOT
+    RES --&gt;|7. L3 轉派工| DSP
+
+    DSP --&gt;|匹配演算法| TM
+    DSP --&gt;|8. 查詢報價| PRC
+    PRC --&gt;|定價規則| PE
+    DSP --&gt;|9. 派單通知| WEB
+    T --&gt;|10. 接單回報| WEB
+    WEB --&gt;|11. 更新工單| DSP
+    DSP --&gt;|12. 結案| ACC
+
+    ACC --&gt;|退款流程| REF
+    DSP --&gt;|保固查詢| WAR
+    DSP --&gt;|備料查詢| INV
+
+    RES -.-&gt;|成功案例| SOP
+    SOP -.-&gt;|審核後入庫| VEC
+
+    A --&gt;|監控管理| ADM
+    ADM --&gt; DSP
+    ADM --&gt; VEC
+    ADM --&gt;|匯出報表| EXP
+
+    PC --&gt; DB
+    DSP --&gt; DB
+    ACC --&gt; DB
+    RES --&gt; RED
+    AUD --&gt; DB
+
+    classDef userStyle fill:#E3F2FD,stroke:#1565C0,stroke-width:2px
+    classDef aiStyle fill:#EDE7F6,stroke:#4527A0,stroke-width:2px
+    classDef bizStyle fill:#FFF3E0,stroke:#E65100,stroke-width:2px
+    classDef svcStyle fill:#FCE4EC,stroke:#C62828,stroke-width:2px
+    classDef dataStyle fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px
+    classDef extStyle fill:#ECEFF1,stroke:#37474F,stroke-width:2px
+    class C,T,A,BOT,WEB,ADM userStyle
+    class PC,RES,SOP aiStyle
+    class DSP,PRC,ACC,TM,PE bizStyle
+    class REF,WAR,INV,AUD,EXP svcStyle
+    class DB,VEC,RED dataStyle
+    class LINE_API,GEMINI extStyle</code></pre>
+<hr />
+<h2 id="3-功能模組清單與服務列表">3. 功能模組清單與服務列表</h2>
+<h3 id="v10---ai-智能客服系統">V1.0 - AI 智能客服系統</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">模組</th>
+<th style="text-align: left;">服務</th>
+<th style="text-align: left;">職責</th>
+<th style="text-align: left;">關鍵技術</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>LINE Bot 接入</strong></td>
+<td style="text-align: left;">Webhook Handler</td>
+<td style="text-align: left;">接收 LINE Webhook、驗證簽章、路由事件</td>
+<td style="text-align: left;">FastAPI, line-bot-sdk-python 3</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>對話管理</strong></td>
+<td style="text-align: left;">ConversationManager</td>
+<td style="text-align: left;">對話狀態機
+(Idle-&gt;Collecting-&gt;Resolving-&gt;Resolved)、多輪上下文、Session
+超時 30min</td>
+<td style="text-align: left;">Redis, 狀態機模式</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>問題診斷</strong></td>
+<td style="text-align: left;">ProblemCardEngine</td>
+<td style="text-align: left;">從自然語言提取結構化問題卡
+(品牌/型號/症狀/位置)、AI 輔助欄位推斷、缺失欄位追問</td>
+<td style="text-align: left;">LangChain, Gemini 2.5 Flash</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>三層解決機制</strong></td>
+<td style="text-align: left;">ThreeLayerResolver</td>
+<td style="text-align: left;">L1: pgvector 語意搜尋 (相似度&gt;=0.85)
+-&gt; L2: RAG + Gemini 推理 -&gt; L3: 轉人工/建工單</td>
+<td style="text-align: left;">LangChain LCEL, pgvector HNSW</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>知識庫管理</strong></td>
+<td style="text-align: left;">KnowledgeBaseManager</td>
+<td style="text-align: left;">案例 CRUD、PDF
+手冊上傳-&gt;分段-&gt;Embedding、向量搜尋、增量更新</td>
+<td style="text-align: left;">PyMuPDF, text-embedding-004</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>SOP 自動生成</strong></td>
+<td style="text-align: left;">SOPGenerator</td>
+<td style="text-align: left;">監聽成功解決事件-&gt;分析對話-&gt;AI 草擬
+SOP-&gt;提交審核佇列</td>
+<td style="text-align: left;">LangChain, 事件驅動</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>LLM 閘道</strong></td>
+<td style="text-align: left;">LLMGateway</td>
+<td style="text-align: left;">統一 LLM 呼叫入口 (Gemini 2.5 Flash +
+Vertex AI)、Provider 抽象層、Prompt 模板管理、Token
+追蹤、Retry/Fallback</td>
+<td style="text-align: left;">LangChain, Google AI SDK, Vertex AI</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>管理後台</strong></td>
+<td style="text-align: left;">Admin Panel</td>
+<td style="text-align: left;">知識庫審核、對話紀錄查詢、系統監控、SOP
+上架管理</td>
+<td style="text-align: left;">FastAPI + Jinja2/HTMX (V1.0)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="v20---派工帳務與業務服務系統">V2.0 -
+派工、帳務與業務服務系統</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">模組</th>
+<th style="text-align: left;">服務</th>
+<th style="text-align: left;">職責</th>
+<th style="text-align: left;">關鍵技術</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>智慧派工</strong></td>
+<td style="text-align: left;">DispatchService</td>
+<td style="text-align: left;">技師匹配
+(技能x地區x評分x可用時段)、工單生命週期
+(Created-&gt;Assigned-&gt;InProgress-&gt;Completed)、推播通知</td>
+<td style="text-align: left;">匹配演算法, WebSocket</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>報價引擎</strong></td>
+<td style="text-align: left;">PricingService</td>
+<td style="text-align: left;">計價規則
+(品牌x鎖型x難度)、自動報價生成、客戶確認流程</td>
+<td style="text-align: left;">規則引擎模式</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>帳務結算</strong></td>
+<td style="text-align: left;">AccountingService</td>
+<td
+style="text-align: left;">對帳作業、發票/請款單生成、技師佣金計算、統計報表</td>
+<td style="text-align: left;">PostgreSQL 交易</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>技師工作台</strong></td>
+<td style="text-align: left;">Technician Web App</td>
+<td
+style="text-align: left;">可接案件列表、一鍵接單、進度回報、導航整合、個人帳務</td>
+<td style="text-align: left;">Next.js 14 + PWA</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>增強管理後台</strong></td>
+<td style="text-align: left;">Enhanced Admin Panel</td>
+<td
+style="text-align: left;">派工監控、技師管理、帳務審核、營運儀表板</td>
+<td style="text-align: left;">Next.js 14 + shadcn/ui</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>工單管理</strong></td>
+<td style="text-align: left;">WorkOrderService</td>
+<td style="text-align: left;">工單
+CRUD、狀態流轉、工單歷史追蹤、完工照片上傳</td>
+<td style="text-align: left;">SQLAlchemy, Pydantic</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>技師管理</strong></td>
+<td style="text-align: left;">TechnicianService</td>
+<td
+style="text-align: left;">技師檔案管理、技能矩陣、可用時段排程、績效評分</td>
+<td style="text-align: left;">PostgreSQL, Redis</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>品牌管理</strong></td>
+<td style="text-align: left;">BrandService</td>
+<td
+style="text-align: left;">品牌/型號主檔維護、品牌對應技師技能映射</td>
+<td style="text-align: left;">PostgreSQL</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>保固管理</strong></td>
+<td style="text-align: left;">WarrantyService</td>
+<td
+style="text-align: left;">保固期限查詢、保固條件驗證、保固理賠流程</td>
+<td style="text-align: left;">PostgreSQL</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>庫存管理</strong></td>
+<td style="text-align: left;">InventoryService</td>
+<td style="text-align: left;">零件庫存追蹤、備料建議、庫存預警</td>
+<td style="text-align: left;">PostgreSQL</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>爭議處理</strong></td>
+<td style="text-align: left;">DisputeService</td>
+<td
+style="text-align: left;">客訴案件建立、爭議調解流程、退款審批串接</td>
+<td style="text-align: left;">狀態機模式</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>退款審批</strong></td>
+<td style="text-align: left;">RefundService</td>
+<td
+style="text-align: left;">退款申請受理、多級審批流程、退款執行紀錄</td>
+<td style="text-align: left;">PostgreSQL 交易</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>客戶同意書</strong></td>
+<td style="text-align: left;">ConsentService</td>
+<td
+style="text-align: left;">服務同意書生成、客戶簽署確認、同意紀錄存檔</td>
+<td style="text-align: left;">PDF 生成</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>完工報告</strong></td>
+<td style="text-align: left;">CompletionService</td>
+<td
+style="text-align: left;">完工報告生成、照片附件管理、客戶滿意度回饋</td>
+<td style="text-align: left;">PostgreSQL, S3</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>通訊服務</strong></td>
+<td style="text-align: left;">MessagingService</td>
+<td style="text-align: left;">LINE Push 訊息、Web Push
+(技師端)、系統內通知模板</td>
+<td style="text-align: left;">LINE SDK, WebSocket</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>財務報表</strong></td>
+<td style="text-align: left;">FinanceService</td>
+<td
+style="text-align: left;">月度營收報表、技師佣金明細、應收應付統計</td>
+<td style="text-align: left;">PostgreSQL, DataExporter</td>
+</tr>
+</tbody>
+</table>
+<h3 id="跨模組共用服務">跨模組共用服務</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">服務</th>
+<th style="text-align: left;">職責</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>UserManagement</strong></td>
+<td style="text-align: left;">LINE 用戶綁定、技師/管理員帳號、JWT
+認證、RBAC 權限 (admin/technician/user)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>AuditLogger</strong></td>
+<td style="text-align: left;">稽核日誌服務，涵蓋 7 種事件類型：API
+呼叫、LLM 互動、RAG
+來源引用、管理後台審批、工單狀態變更、退款審批、資料匯出</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>RBACService</strong></td>
+<td style="text-align: left;">角色型存取控制，支援 7 種角色：super_admin
+/ admin / customer_service / technician / finance / auditor /
+line_user</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>DataExporter</strong></td>
+<td style="text-align: left;">資料匯出服務，支援 CSV/Excel/PDF
+格式，涵蓋工單報表、財務報表、稽核日誌匯出</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ESignatureService</strong></td>
+<td
+style="text-align: left;">電子簽章服務，用於服務同意書、完工確認書的數位簽署與驗證</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>NotificationService</strong></td>
+<td style="text-align: left;">LINE Push Message、Web Push
+(技師端)、系統內通知</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ObservabilityStack</strong></td>
+<td style="text-align: left;">結構化日誌 (JSON)、Harness L7
+Tracing、Health Check API</td>
+</tr>
+</tbody>
+</table>
+<h3 id="v20-設計規格文件">V2.0 設計規格文件</h3>
+<p>以下規格文件定義各服務模組的詳細設計，存放於
+<code>docs/02-design/specs/</code> 目錄：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">編號</th>
+<th style="text-align: left;">文件名稱</th>
+<th style="text-align: left;">涵蓋範圍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">01</td>
+<td style="text-align: left;">work_order_lifecycle_spec.md</td>
+<td
+style="text-align: left;">工單狀態機、狀態流轉規則、生命週期事件</td>
+</tr>
+<tr>
+<td style="text-align: left;">02</td>
+<td style="text-align: left;">technician_management_spec.md</td>
+<td
+style="text-align: left;">技師檔案、技能矩陣、可用時段、績效評分</td>
+</tr>
+<tr>
+<td style="text-align: left;">03</td>
+<td style="text-align: left;">dispatch_matching_spec.md</td>
+<td
+style="text-align: left;">技師匹配演算法、權重配置、匹配結果排序</td>
+</tr>
+<tr>
+<td style="text-align: left;">04</td>
+<td style="text-align: left;">pricing_engine_spec.md</td>
+<td style="text-align: left;">計價規則結構、加成計算、報價生成流程</td>
+</tr>
+<tr>
+<td style="text-align: left;">05</td>
+<td style="text-align: left;">warranty_service_spec.md</td>
+<td style="text-align: left;">保固查詢、保固條件驗證、理賠流程</td>
+</tr>
+<tr>
+<td style="text-align: left;">06</td>
+<td style="text-align: left;">inventory_service_spec.md</td>
+<td style="text-align: left;">庫存追蹤、備料建議、庫存預警閾值</td>
+</tr>
+<tr>
+<td style="text-align: left;">07</td>
+<td style="text-align: left;">dispute_resolution_spec.md</td>
+<td style="text-align: left;">客訴建立、爭議調解、退款審批流程</td>
+</tr>
+<tr>
+<td style="text-align: left;">08</td>
+<td style="text-align: left;">consent_esignature_spec.md</td>
+<td style="text-align: left;">同意書模板、簽署流程、數位簽章驗證</td>
+</tr>
+<tr>
+<td style="text-align: left;">09</td>
+<td style="text-align: left;">completion_report_spec.md</td>
+<td style="text-align: left;">完工報告格式、照片規範、滿意度回饋</td>
+</tr>
+<tr>
+<td style="text-align: left;">10</td>
+<td style="text-align: left;">work_order_interaction_flows.md</td>
+<td
+style="text-align: left;">工單互動流程、角色操作路徑、狀態轉換圖</td>
+</tr>
+<tr>
+<td style="text-align: left;">11</td>
+<td style="text-align: left;">finance_reporting_spec.md</td>
+<td style="text-align: left;">月度報表、佣金計算、應收應付對帳</td>
+</tr>
+<tr>
+<td style="text-align: left;">12</td>
+<td style="text-align: left;">audit_logging_spec.md</td>
+<td style="text-align: left;">7 種事件類型定義、日誌格式、保留策略</td>
+</tr>
+<tr>
+<td style="text-align: left;">13</td>
+<td style="text-align: left;">rbac_permission_spec.md</td>
+<td style="text-align: left;">7 種角色定義、權限矩陣、API 存取控制</td>
+</tr>
+<tr>
+<td style="text-align: left;">14</td>
+<td style="text-align: left;">data_export_spec.md</td>
+<td style="text-align: left;">匯出格式、排程匯出、資料脫敏規則</td>
+</tr>
+</tbody>
+</table>
+<hr />
+</div></div></body></html>

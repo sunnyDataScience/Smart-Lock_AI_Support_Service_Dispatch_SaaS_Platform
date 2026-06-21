@@ -1,0 +1,1469 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Spec ↔ Code 差異化分析報告（frozen V1.1 single source of truth vs 現行 api/ + web/）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ _audit ／ spec-code-gap-audit-2026-06-01.md</div>
+<div class="doc"><h1 id="spec--code-差異化分析報告">Spec ↔︎ Code 差異化分析報告</h1>
+<blockquote>
+<p>對照基準：<code>specs/smart-lock-saas/handoff.md</code>
+V1.1（2026-05-28 frozen）。 本報告同時扮演
+<code>.claude/rules/change-governance.md</code> 要求的 CIA（Change
+Impact Analysis）角色：§7 = impact/波次，§8 = 衝突裁決。</p>
+</blockquote>
+<hr />
+<h2 id="0-executive-summary">§0 Executive Summary</h2>
+<h3 id="核心事實必讀">核心事實（必讀）</h3>
+<p><strong>現行 <code>api/</code> 後端與 <code>web/</code>
+前端，是針對一份「已被刪除的舊合約」建出來的。</strong></p>
+<ul>
+<li>現行 <code>api/main.py:89</code> 仍宣告
+<code>Contract SSOT: docs/02-design/specs/openapi.yaml</code>。</li>
+<li>該檔已於 commit
+<code>8dca1db "chore(docs): cliff #4 — delete legacy docs/"</code>
+<strong>整批刪除</strong>。</li>
+<li><code>api/models/generated.py</code>（datamodel-codegen,
+2026-05-06）與
+<code>web/types/api.generated.ts</code>（openapi-typescript）皆由該<strong>已不存在的
+spec</strong> 生成。</li>
+<li>frozen V1.1 single-source-of-truth 已遷移到
+<code>docs/architecture/api/</code>，內容是一份<strong>實質演進過</strong>的合約（tenant-scoped
+path、SoD headers、6 階段取消、5-mode 保固、三維退款 SoD、M18 config
+governance、sync/acl ACL 層……）。</li>
+</ul>
+<p>結論：這不是「修幾個 bug」，而是<strong>程式碼整體落後 frozen
+合約一個世代</strong>。需分波次遷移。</p>
+<h3 id="嚴重度分佈endpoint-層">嚴重度分佈（endpoint 層）</h3>
+<table>
+<thead>
+<tr>
+<th>狀態</th>
+<th style="text-align: right;">數量</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>✅ 對齊（僅 path prefix 差 <code>/api/v1</code> vs
+<code>/tenants/{tid}</code>）</td>
+<td style="text-align: right;">~14</td>
+<td>概念與欄位大致符合，差在 path scheme + SoD header</td>
+</tr>
+<tr>
+<td>⚠️ 部分（路徑/動詞/形狀不同，需改造）</td>
+<td style="text-align: right;">~16</td>
+<td>如 cancel 無費用、close vs complete、quotes 缺 lifecycle</td>
+</tr>
+<tr>
+<td>❌ 缺（spec 有、code 完全沒有 REST 合約）</td>
+<td style="text-align: right;">~50</td>
+<td>quote lifecycle / dgs / change-requests / m18 / sync / acl / chatbot
+REST / sites / devices / brands / payments / exceptions</td>
+</tr>
+<tr>
+<td>➕ 多餘（code 有、spec 沒有的 legacy endpoint）</td>
+<td style="text-align: right;">~40</td>
+<td>dashboard/stats、notifications、sentiment、data-corrections、reschedule
+家族、inventory、resolution…</td>
+</tr>
+</tbody>
+</table>
+<h3
+id="業務規則紅線缺口14-條最高優先-constraint詳見-1">業務規則紅線缺口（14
+條最高優先 constraint，詳見 §1）</h3>
+<ul>
+<li>❌ 取消費 6 階段（ADR-0102 / FR-0052）—
+<strong>完全未實作</strong>，只有 <code>status='cancelled'</code></li>
+<li>❌ 退款三維 SoD + 5-tier（ADR-0040 v2 / BR-REFUND-006）— 現為 legacy
+2-step 雙簽@NT$100k</li>
+<li>❌ 保固 5-mode（ADR-0044 v2）— 現為寫死
+<code>purchase_date+90d</code></li>
+<li>❌ M18 staged rollout（ADR-0067）— 現為泛用 deep-merge config</li>
+<li>⚠️ chatbot token cap = 1024（spec 要 1500，BR-A01-02）</li>
+<li>❌ 報價有效期 14d/3d（BR-M04-05）— 未實作</li>
+<li>❌ SoD headers（X-Initiator/X-Approver/X-Executor）— 未實作（用
+approval_chain 替代）</li>
+<li>⚠️ tenant 隔離靠 WHERE-clause + JWT，<strong>無
+RLS</strong>（ADR-0030 要求 RLS policy）</li>
+<li>⚠️ append-only / hash chain — approval_chain 是 JSONB
+append，<strong>無 cryptographic hash chain</strong>（ADR-VCH-002 /
+ADR-0064）</li>
+</ul>
+<h3 id="建議遷移順序詳見-7">建議遷移順序（詳見 §7）</h3>
+<ol type="1">
+<li><strong>P1-A（本 session 切片）</strong>：Cancellation 6-stage — 跨
+API/DB/audit/SoD/test 五維，作為<strong>目標架構範式模板</strong>。</li>
+<li><strong>P1-B</strong>：Refund 三維 SoD + 5-tier；Warranty
+5-mode。</li>
+<li><strong>P1-C</strong>：報價有效期 14d/3d；chatbot token cap
+1500。</li>
+<li><strong>P2</strong>：path scheme 全面遷移 tenant-scoped + SoD header
+中介層 + RLS。</li>
+<li><strong>P3</strong>：補缺合約（quote lifecycle / m18 / sync / acl /
+dgs / change-requests / master data sites&amp;devices&amp;brands /
+chatbot REST）。</li>
+</ol>
+<hr />
+<h2 id="1-合約紅線--value-decisions-對照handoff-1-的-14-條">§1 合約紅線
++ value-decisions 對照（handoff §1 的 14 條）</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">#</th>
+<th>Constraint</th>
+<th>Source</th>
+<th>現況</th>
+<th style="text-align: center;">狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">1</td>
+<td>負面情緒識別 ≥ 90%</td>
+<td>合約 4.4(a) / AC-CONTRACT-01</td>
+<td>agent sentiment 有，未見 90% gate/monitor</td>
+<td style="text-align: center;">⚠️</td>
+</tr>
+<tr>
+<td style="text-align: right;">2</td>
+<td>家族覆核員 100% + append-only ledger</td>
+<td>合約 4.4(d) / AC-CONTRACT-02</td>
+<td><code>family_reviews</code> 有 CRUD；<strong>無 hash chain
+ledger</strong></td>
+<td style="text-align: center;">⚠️</td>
+</tr>
+<tr>
+<td style="text-align: right;">3</td>
+<td>PC 完整率 ≥ 85%</td>
+<td>合約 9.3 / AC-CONTRACT-03</td>
+<td>problem_cards 有；未見完整率 metric/alert</td>
+<td style="text-align: center;">⚠️</td>
+</tr>
+<tr>
+<td style="text-align: right;">4</td>
+<td>AI 影像辨識禁用 violation = 0</td>
+<td>SOW 2.1(4) / AC-CONTRACT-04</td>
+<td>agent 多模態占位、無 vision API（符合）；未見 Forbidden Eval
+gate</td>
+<td style="text-align: center;">⚠️</td>
+</tr>
+<tr>
+<td style="text-align: right;">5</td>
+<td>AI Forbidden Eval ≥ 95% block-deploy</td>
+<td>AC-CONTRACT-05</td>
+<td><code>/eval/forbidden/run</code>、<code>/chatbot/eval/runs</code>
+<strong>未實作</strong></td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td style="text-align: right;">6</td>
+<td>Cross-tenant isolation ZERO leak</td>
+<td>ADR-0030 / AC-CONTRACT-06</td>
+<td>WHERE-clause + JWT 隔離；<strong>無 RLS policy</strong></td>
+<td style="text-align: center;">⚠️</td>
+</tr>
+<tr>
+<td style="text-align: right;">7</td>
+<td>GDPR forget ≤ 7d</td>
+<td>BR-PII-001b / FR-0053 / AC-CONTRACT-07</td>
+<td><code>/dgs/forget</code>、<code>/dgs/evidence/*</code>
+<strong>未實作</strong></td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td style="text-align: right;">8</td>
+<td>Cancellation 6-stage</td>
+<td>ADR-0102 / FR-0052 / AC-V11-08</td>
+<td>只有
+<code>status='cancelled'</code>，<strong>無費用/階段/師傅分支</strong></td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td style="text-align: right;">9</td>
+<td>Refund SoD 三維 (initiator≠approver≠executor)</td>
+<td>BR-REFUND-006 / AC-V11-09</td>
+<td>legacy 2-step
+雙簽@NT$100k，<strong>無三維/X-headers/5-tier/refund_class</strong></td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td style="text-align: right;">10</td>
+<td>Warranty 5-mode + RMA 90d + B2B override</td>
+<td>ADR-0044 v2 / AC-V11-10</td>
+<td>寫死 <code>purchase_date+90d</code>，<strong>無 warranty_mode
+enum</strong></td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td style="text-align: right;">11</td>
+<td>Chatbot reply token ≤ 1500 + truncate</td>
+<td>BR-A01-02 / AC-V11-11</td>
+<td>config <code>max_tokens=1024</code>，無 truncate fallback</td>
+<td style="text-align: center;">⚠️</td>
+</tr>
+<tr>
+<td style="text-align: right;">12</td>
+<td>報價有效期 14d/3d</td>
+<td>BR-M04-05 / AC-V11-12</td>
+<td><strong>未實作</strong>（無 quote 有效期/狀態機）</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td style="text-align: right;">13</td>
+<td>M18 staged rollout 5/50/100 + rollback ≤1min</td>
+<td>BR-M18 / ADR-0067 / AC-V11-13</td>
+<td>泛用 deep-merge config，<strong>無 staged/rollback</strong></td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td style="text-align: right;">14</td>
+<td>三層 rollback 各層獨立 SLA</td>
+<td>rollback-plan / AC-V11-14</td>
+<td>ops 層，超出 code 範圍（部署腳本）</td>
+<td style="text-align: center;">n/a</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-endpoint-traceability95-spec-paths">§2 Endpoint
+Traceability（95 spec paths）</h2>
+<blockquote>
+<p>Code 全部掛 <code>/api/v1</code>
+前綴（<code>api/main.py:106-144</code>）。spec companion 全部
+tenant-scoped <code>/tenants/{tenantId}/...</code>。下表「Code」欄省略
+<code>/api/v1</code> 前綴。</p>
+</blockquote>
+<h3 id="21-spec-a--openapiyamlv230-m01m03m07m11m15m17m20a09-core">§2.1
+Spec A — <code>openapi.yaml</code>（v2.3.0,
+M01/M03/M07/M11/M15/M17/M20/A09 core）</h3>
+<table>
+<thead>
+<tr>
+<th>Spec path</th>
+<th>operationId</th>
+<th>Code 對應</th>
+<th style="text-align: center;">狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST /webhook/line</td>
+<td>lineWebhook</td>
+<td>agent/app.py <code>POST /webhook</code></td>
+<td style="text-align: center;">⚠️ 在 agent，path 不同</td>
+</tr>
+<tr>
+<td>POST/GET /problem-cards</td>
+<td>createProblemCard</td>
+<td>POST/GET /problem-cards</td>
+<td style="text-align: center;">✅ prefix 差</td>
+</tr>
+<tr>
+<td>GET/PATCH /problem-cards/{id}</td>
+<td>—</td>
+<td>GET/PATCH /problem-cards/{id}</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>POST /work-orders</td>
+<td>—</td>
+<td>POST /work-orders</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>POST /work-orders/{id}/close</td>
+<td>—</td>
+<td>/work-orders/{id}/complete</td>
+<td style="text-align: center;">⚠️ 名稱 close→complete</td>
+</tr>
+<tr>
+<td>POST /work-orders/{id}/onsite/scope-change</td>
+<td>—</td>
+<td>/work-orders/{id}/scope-change</td>
+<td style="text-align: center;">⚠️ 缺 /onsite</td>
+</tr>
+<tr>
+<td>POST /pricing/calculate</td>
+<td>pricingCalculate</td>
+<td>/pricing/calculate</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>POST /quotes</td>
+<td>createQuote</td>
+<td>—</td>
+<td style="text-align: center;">❌ 無 quotes 模組</td>
+</tr>
+<tr>
+<td>POST /quotes/{id}:approve</td>
+<td>approveQuote</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>POST /quotes/{id}:send-to-customer</td>
+<td>sendQuoteToCustomer</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>POST /quotes/{id}/customer-confirm</td>
+<td>customerConfirmQuote</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>POST /quotes/{id}/reject</td>
+<td>rejectQuote</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>POST /quotes/{id}:supersede</td>
+<td>supersedeQuote</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>POST /quotes/{id}/retrospective-audit</td>
+<td>retrospectiveQuoteAudit</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>POST/GET/GET/PATCH/DELETE /contract-templates(/{id})</td>
+<td>—</td>
+<td>—</td>
+<td style="text-align: center;">❌ M15 contract template 缺</td>
+</tr>
+<tr>
+<td>POST /dgs/evidence/{id}/purge</td>
+<td>—</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>POST /dgs/evidence/{id}/legal-hold</td>
+<td>—</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>POST /dgs/forget</td>
+<td>—</td>
+<td>—</td>
+<td style="text-align: center;">❌ GDPR forget 缺</td>
+</tr>
+<tr>
+<td>GET /dgs/policy/version</td>
+<td>—</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>POST /change-requests(+/{id}/approve)</td>
+<td>—</td>
+<td>—</td>
+<td style="text-align: center;">❌ M15 ChangeRequest 缺</td>
+</tr>
+<tr>
+<td>POST /sops/{id}/review/dual</td>
+<td>—</td>
+<td>sop-drafts PATCH /review</td>
+<td style="text-align: center;">⚠️ 形狀不同</td>
+</tr>
+<tr>
+<td>POST /sops/{id}/review/family</td>
+<td>—</td>
+<td>/family-reviews (POST/GET)</td>
+<td style="text-align: center;">⚠️ 形狀不同</td>
+</tr>
+<tr>
+<td>POST /eval/forbidden/run</td>
+<td>—</td>
+<td>—</td>
+<td style="text-align: center;">❌ Forbidden Eval gate 缺</td>
+</tr>
+<tr>
+<td>GET /vouchers/{id}</td>
+<td>—</td>
+<td>—</td>
+<td style="text-align: center;">⚠️ 只有 list + export</td>
+</tr>
+<tr>
+<td>GET /vouchers</td>
+<td>—</td>
+<td>/accounting/vouchers</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>POST /vouchers/{id}/void</td>
+<td>—</td>
+<td>—</td>
+<td style="text-align: center;">❌ 紅字沖銷缺</td>
+</tr>
+<tr>
+<td>GET /vouchers/export</td>
+<td>—</td>
+<td>/accounting/vouchers/{id}/export</td>
+<td style="text-align: center;">⚠️ 形狀不同</td>
+</tr>
+<tr>
+<td>GET /exports/{job_id}</td>
+<td>—</td>
+<td>—</td>
+<td style="text-align: center;">❌ async export job 缺</td>
+</tr>
+</tbody>
+</table>
+<h3
+id="22-spec-b--openapi-smart-lock-saasyamlcompanion-m01-m18--a01-a12--s-m01-m06--acl">§2.2
+Spec B — <code>openapi-smart-lock-saas.yaml</code>（companion, M01-M18 /
+A01-A12 / S-M01-M06 / ACL）</h3>
+<table>
+<thead>
+<tr>
+<th>Spec path</th>
+<th style="text-align: center;">Module</th>
+<th>Code 對應</th>
+<th style="text-align: center;">狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET /tenants/{tid}/channels(+/status)</td>
+<td style="text-align: center;">M01</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>GET /tenants/{tid}/brands</td>
+<td style="text-align: center;">M02</td>
+<td>—</td>
+<td style="text-align: center;">❌ brand master 缺</td>
+</tr>
+<tr>
+<td>POST/GET /brands/{bid}/models</td>
+<td style="text-align: center;">M02</td>
+<td>—</td>
+<td style="text-align: center;">❌ model master 缺</td>
+</tr>
+<tr>
+<td>GET/POST /tenants/{tid}/customers</td>
+<td style="text-align: center;">M04</td>
+<td>GET/POST /customers</td>
+<td style="text-align: center;">✅ prefix+tenant 差</td>
+</tr>
+<tr>
+<td>GET/POST /customers/{cid}/sites</td>
+<td style="text-align: center;">M04</td>
+<td>—</td>
+<td style="text-align: center;">❌ site master 缺</td>
+</tr>
+<tr>
+<td>POST /sites/{sid}/devices</td>
+<td style="text-align: center;">M04</td>
+<td>—</td>
+<td style="text-align: center;">❌ device master 缺</td>
+</tr>
+<tr>
+<td>GET/PATCH /devices/{did}/warranty</td>
+<td style="text-align: center;">M13</td>
+<td>—</td>
+<td style="text-align: center;">❌ device-warranty 缺（只有
+claims）</td>
+</tr>
+<tr>
+<td>GET/POST /tenants/{tid}/technicians</td>
+<td style="text-align: center;">M05</td>
+<td>GET /technicians；POST register(auth)</td>
+<td style="text-align: center;">⚠️ onboard 形狀不同</td>
+</tr>
+<tr>
+<td>POST /technicians/{tid}:suspend</td>
+<td style="text-align: center;">M05</td>
+<td>—</td>
+<td style="text-align: center;">❌ 停權缺</td>
+</tr>
+<tr>
+<td>POST /tenants/{tid}/dispatch:plan</td>
+<td style="text-align: center;">M06</td>
+<td>/dispatch/candidates + /auto-match</td>
+<td style="text-align: center;">⚠️ 近似</td>
+</tr>
+<tr>
+<td>POST /work-orders/{woId}:assign</td>
+<td style="text-align: center;">M06</td>
+<td>/work-orders/{id}/assign</td>
+<td style="text-align: center;">✅ verb/path 差</td>
+</tr>
+<tr>
+<td>POST /work-orders/{woId}:accept</td>
+<td style="text-align: center;">M06</td>
+<td>/work-orders/{id}/accept</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>POST /work-orders/{woId}/onsite/arrival</td>
+<td style="text-align: center;">M07</td>
+<td>—</td>
+<td style="text-align: center;">❌ 到場回報缺（有 door-check）</td>
+</tr>
+<tr>
+<td>POST /work-orders/{woId}/onsite/completion</td>
+<td style="text-align: center;">M07</td>
+<td>/complete + /signature</td>
+<td style="text-align: center;">⚠️ 拆成兩支</td>
+</tr>
+<tr>
+<td><strong>POST /work-orders/{woId}/cancel</strong></td>
+<td style="text-align: center;"><strong>M11</strong></td>
+<td><strong>/work-orders/{id}/cancel</strong></td>
+<td style="text-align: center;"><strong>⚠️ 存在但無 6-stage → §7 P1-A
+切片</strong></td>
+</tr>
+<tr>
+<td>POST /tenants/{tid}/refunds</td>
+<td style="text-align: center;">M11</td>
+<td>POST /refunds</td>
+<td style="text-align: center;">⚠️ 無 tenant/SoD/tier/class</td>
+</tr>
+<tr>
+<td>GET /refunds/{rid}</td>
+<td style="text-align: center;">M11</td>
+<td>GET /refunds/{id}</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>POST /tenants/{tid}/payments</td>
+<td style="text-align: center;">M11</td>
+<td>—</td>
+<td style="text-align: center;">❌ 消費者付款缺</td>
+</tr>
+<tr>
+<td>POST /tenants/{tid}/warranty-claims</td>
+<td style="text-align: center;">M13</td>
+<td>POST /warranty-claims</td>
+<td style="text-align: center;">✅（但保固判定邏輯差，見 §4）</td>
+</tr>
+<tr>
+<td>GET /partners/{pid}/dashboard</td>
+<td style="text-align: center;">M14</td>
+<td>—</td>
+<td style="text-align: center;">❌ partner portal 缺</td>
+</tr>
+<tr>
+<td>GET /exceptions:inbox</td>
+<td style="text-align: center;">M15</td>
+<td>—</td>
+<td style="text-align: center;">❌ 異常核准箱缺</td>
+</tr>
+<tr>
+<td>POST /exceptions/{eid}:approve</td>
+<td style="text-align: center;">M15</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>GET /consumer/work-orders/{token}</td>
+<td style="text-align: center;">M16</td>
+<td>/public/work-orders/{token}/status</td>
+<td style="text-align: center;">⚠️ path 不同</td>
+</tr>
+<tr>
+<td>GET/PUT /rbac/roles</td>
+<td style="text-align: center;">M17</td>
+<td>GET /roles + PATCH /roles/{name}/permissions</td>
+<td style="text-align: center;">⚠️ 形狀不同</td>
+</tr>
+<tr>
+<td>GET /audit/events</td>
+<td style="text-align: center;">M17</td>
+<td>GET /audit-logs</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>POST /audit/exports</td>
+<td style="text-align: center;">M17</td>
+<td>POST /audit-logs/export</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>GET /m18/configs</td>
+<td style="text-align: center;">M18</td>
+<td>GET /config</td>
+<td style="text-align: center;">⚠️ 泛用、非 namespace/version</td>
+</tr>
+<tr>
+<td>GET/PUT /m18/configs/{ns}/{key}</td>
+<td style="text-align: center;">M18</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>POST .../versions/{vid}:start-rollout</td>
+<td style="text-align: center;">M18</td>
+<td>—</td>
+<td style="text-align: center;">❌ staged rollout 缺</td>
+</tr>
+<tr>
+<td>POST /m18/rollouts/{rid}:rollback</td>
+<td style="text-align: center;">M18</td>
+<td>—</td>
+<td style="text-align: center;">❌ rollback 缺</td>
+</tr>
+<tr>
+<td>GET .../{ns}/{key}/audit</td>
+<td style="text-align: center;">M18</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>GET /m18/config-read/{ns}/{key}</td>
+<td style="text-align: center;">M18</td>
+<td>—</td>
+<td style="text-align: center;">❌ ACL config read 缺</td>
+</tr>
+<tr>
+<td>POST /chatbot/intake:debounce-check</td>
+<td style="text-align: center;">A01</td>
+<td>(agent harness 內部)</td>
+<td style="text-align: center;">❌ 無 REST 合約</td>
+</tr>
+<tr>
+<td>POST /chatbot/agent:respond</td>
+<td style="text-align: center;">A03</td>
+<td>(agent ReAct 內部)</td>
+<td style="text-align: center;">❌ 無 REST</td>
+</tr>
+<tr>
+<td>POST /chatbot/rag:search</td>
+<td style="text-align: center;">A04</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>POST /chatbot/guardrails:check</td>
+<td style="text-align: center;">A05</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>POST /chatbot/problem-cards:draft</td>
+<td style="text-align: center;">A06</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>POST /chatbot/handoff:request</td>
+<td style="text-align: center;">A07</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>POST /chatbot/multimodal:image</td>
+<td style="text-align: center;">A08</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>POST /chatbot/eval/runs(+/{id})</td>
+<td style="text-align: center;">A09</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>GET /chatbot/health</td>
+<td style="text-align: center;">A11</td>
+<td>agent/app.py GET /health</td>
+<td style="text-align: center;">⚠️ path 不同</td>
+</tr>
+<tr>
+<td>GET/POST /kb/documents(+/{id})</td>
+<td style="text-align: center;">KB</td>
+<td>/knowledge-base/cases + /manuals</td>
+<td style="text-align: center;">⚠️ 模型不同</td>
+</tr>
+<tr>
+<td>GET /kb/dynamic-lookup/serial-warranty</td>
+<td style="text-align: center;">KB</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>GET /kb/dynamic-lookup/project-unit-model</td>
+<td style="text-align: center;">KB</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>POST /sync/intake-capture</td>
+<td style="text-align: center;">S-M01</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>POST /sync/facts-master</td>
+<td style="text-align: center;">S-M02</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>POST /sync/pc-convert</td>
+<td style="text-align: center;">S-M03</td>
+<td>—</td>
+<td style="text-align: center;">❌（code 有
+/problem-cards/{id}/convert-to-work-order，非 sync 合約）</td>
+</tr>
+<tr>
+<td>POST /sync/convert-to-wo</td>
+<td style="text-align: center;">S-M04</td>
+<td>/problem-cards/{id}/convert-to-work-order</td>
+<td style="text-align: center;">⚠️ 近似、缺 human gate 合約</td>
+</tr>
+<tr>
+<td>POST /sync/dispatch</td>
+<td style="text-align: center;">S-M05</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>POST /sync/evidence-writeback</td>
+<td style="text-align: center;">S-M06</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>POST /acl/serial-control/lookup</td>
+<td style="text-align: center;">ACL</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>POST /acl/brand-warranty/inquire</td>
+<td style="text-align: center;">ACL</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>POST /acl/rma-partner/submit</td>
+<td style="text-align: center;">ACL</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>POST /tenants/{tid}/settlements/monthly</td>
+<td style="text-align: center;">M12</td>
+<td>GET /settlements (list)</td>
+<td style="text-align: center;">⚠️ Phase II（spec 期望 501）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="23-code-多餘-endpointspec-沒有的-legacy-表面40-條">§2.3 Code
+多餘 endpoint（spec 沒有的 legacy 表面，~40 條）</h3>
+<p><code>dashboard/stats</code>、<code>notifications/*</code>(5)、<code>sentiment/alerts</code>(2)、<code>data-corrections/*</code>(4)、<code>dispatch-logs</code>、<code>reports/kpi|revenue|export</code>、<code>inventory/items</code>、<code>roles</code>、<code>media/*</code>(4)、<code>resolution/resolve</code>、<code>pricing/rules</code>
+CRUD(3, spec 只有 calculate)、<code>work-orders/{id}/reschedule*</code>
+家族(6)、<code>work-orders/{id}/material-request|delay|door-check</code>、<code>technicians/me/*</code>
+schedule
+家族、<code>disputes/*</code>(3)、<code>reconciliations</code>(2)、<code>invoices</code>(2)。</p>
+<blockquote>
+<p>處置：spec 全贏不代表立刻刪這些 — 多數是 admin dashboard
+實用功能。建議在 P3 對 spec 提 backlog（補進 companion 或標
+out-of-scope），<strong>不要靜默刪除可運作功能</strong>（Never break
+userspace）。</p>
+</blockquote>
+<hr />
+<h2 id="3-fr-traceability53-fr摘要">§3 FR Traceability（53
+FR，摘要）</h2>
+<table>
+<thead>
+<tr>
+<th>FR</th>
+<th>標題</th>
+<th>實作位置</th>
+<th style="text-align: center;">狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FR-0001</td>
+<td>LINE 報修受理</td>
+<td>agent/app.py webhook</td>
+<td style="text-align: center;">⚠️ 在 agent</td>
+</tr>
+<tr>
+<td>FR-0002</td>
+<td>PC 智能分診</td>
+<td>problem_card_service</td>
+<td style="text-align: center;">⚠️ 部分</td>
+</tr>
+<tr>
+<td>FR-0003</td>
+<td>自動派工演算法</td>
+<td>dispatch_service auto-match</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>FR-0004</td>
+<td>手動派工 + audit</td>
+<td>dispatch assign</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>FR-0005</td>
+<td>技師接單出發</td>
+<td>work_orders accept</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>FR-0006</td>
+<td>到場拍照存證</td>
+<td>(door-check 近似)</td>
+<td style="text-align: center;">⚠️ 無 arrival</td>
+</tr>
+<tr>
+<td>FR-0007</td>
+<td>材料申請扣庫存</td>
+<td>/material-request + inventory</td>
+<td style="text-align: center;">⚠️</td>
+</tr>
+<tr>
+<td>FR-0008</td>
+<td>Scope Change</td>
+<td>/scope-change + public respond</td>
+<td style="text-align: center;">⚠️ 缺三件套合約</td>
+</tr>
+<tr>
+<td>FR-0009</td>
+<td>完工簽名雙方確認</td>
+<td>/complete + /signature + /confirm</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>FR-0010</td>
+<td>改約/延遲/取消</td>
+<td>reschedule/delay/cancel</td>
+<td style="text-align: center;">⚠️ cancel 無 6-stage</td>
+</tr>
+<tr>
+<td>FR-0011</td>
+<td>消費者付款</td>
+<td>—</td>
+<td style="text-align: center;">❌ /payments 缺</td>
+</tr>
+<tr>
+<td>FR-0012</td>
+<td>技師月結撥款</td>
+<td>settlements (list)</td>
+<td style="text-align: center;">⚠️ Phase II</td>
+</tr>
+<tr>
+<td>FR-0013</td>
+<td>對帳爭議雙簽</td>
+<td>reconciliations approve</td>
+<td style="text-align: center;">⚠️ 無三維</td>
+</tr>
+<tr>
+<td>FR-0014</td>
+<td>退款流程</td>
+<td>refunds</td>
+<td style="text-align: center;">❌ 缺三維/tier/class</td>
+</tr>
+<tr>
+<td>FR-0015</td>
+<td>保固申訴</td>
+<td>warranty-claims</td>
+<td style="text-align: center;">❌ 缺 5-mode</td>
+</tr>
+<tr>
+<td>FR-0016</td>
+<td>SLA 2hr</td>
+<td>sla_monitor</td>
+<td style="text-align: center;">⚠️ SUPERSEDED</td>
+</tr>
+<tr>
+<td>FR-0017</td>
+<td>SOP 草稿審核</td>
+<td>sop-drafts</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>FR-0018</td>
+<td>客服接管三層</td>
+<td>conversations + resolution</td>
+<td style="text-align: center;">⚠️</td>
+</tr>
+<tr>
+<td>FR-0019</td>
+<td>動態 RBAC</td>
+<td>roles + WS rbac</td>
+<td style="text-align: center;">⚠️ 形狀不同</td>
+</tr>
+<tr>
+<td>FR-0020</td>
+<td>稽核日誌匯出</td>
+<td>audit-logs + export</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>FR-0021</td>
+<td>Dashboard/報表</td>
+<td>dashboard/reports</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>FR-0022</td>
+<td>消費者工單追蹤</td>
+<td>public/work-orders</td>
+<td style="text-align: center;">⚠️ path 不同</td>
+</tr>
+<tr>
+<td>FR-0023</td>
+<td>錯誤頁/離線</td>
+<td>web 前端</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>FR-0024</td>
+<td>LINE Webhook HA</td>
+<td>agent</td>
+<td style="text-align: center;">⚠️ SUPERSEDED</td>
+</tr>
+<tr>
+<td>FR-0025</td>
+<td>多模態理解</td>
+<td>agent multimodal</td>
+<td style="text-align: center;">⚠️ 占位</td>
+</tr>
+<tr>
+<td>FR-0026</td>
+<td>Debounce 合併</td>
+<td>agent harness debounce</td>
+<td style="text-align: center;">✅ 在 agent</td>
+</tr>
+<tr>
+<td>FR-0027</td>
+<td>品牌型號 Resolver</td>
+<td>agent brand_match</td>
+<td style="text-align: center;">✅ 在 agent</td>
+</tr>
+<tr>
+<td>FR-0028</td>
+<td>Skill-Gated ReAct</td>
+<td>agent ReAct</td>
+<td style="text-align: center;">✅ 在 agent</td>
+</tr>
+<tr>
+<td>FR-0029</td>
+<td>SKILL 知識庫</td>
+<td>agent product_info</td>
+<td style="text-align: center;">✅ 在 agent</td>
+</tr>
+<tr>
+<td>FR-0030</td>
+<td>Guardrails</td>
+<td>agent output_validator</td>
+<td style="text-align: center;">✅ 在 agent</td>
+</tr>
+<tr>
+<td>FR-0031</td>
+<td>ProblemCard Bridge</td>
+<td>agent → api PC</td>
+<td style="text-align: center;">⚠️</td>
+</tr>
+<tr>
+<td>FR-0032</td>
+<td>AI Eval/觀測</td>
+<td>quality_check</td>
+<td style="text-align: center;">⚠️ 無 REST eval gate</td>
+</tr>
+<tr>
+<td>FR-0033</td>
+<td>部署健康檢查</td>
+<td>/health</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>FR-0034</td>
+<td>AI Charter (II)</td>
+<td>—</td>
+<td style="text-align: center;">n/a Phase II</td>
+</tr>
+<tr>
+<td>FR-0035-0040</td>
+<td>Sync 6 模組</td>
+<td>—</td>
+<td style="text-align: center;">❌ 無 sync REST 合約</td>
+</tr>
+<tr>
+<td>FR-0041</td>
+<td>Customer/Site/Device Master</td>
+<td>customers only</td>
+<td style="text-align: center;">⚠️ 缺 site/device</td>
+</tr>
+<tr>
+<td>FR-0042</td>
+<td>Quote 內外部視圖</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>FR-0043</td>
+<td>M18 Admin Config</td>
+<td>/config (泛用)</td>
+<td style="text-align: center;">❌ 缺 governance</td>
+</tr>
+<tr>
+<td>FR-0044-0048</td>
+<td>Technician onboarding/AP/commission/RMA (placeholder)</td>
+<td>部分</td>
+<td style="text-align: center;">⚠️ Phase II</td>
+</tr>
+<tr>
+<td>FR-0049</td>
+<td>Exception Approval Inbox</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>FR-0050-0051</td>
+<td>AI Governance/SOP Spiral (placeholder)</td>
+<td>—</td>
+<td style="text-align: center;">n/a Phase II</td>
+</tr>
+<tr>
+<td>FR-0052</td>
+<td><strong>Cancellation Fee 6-Tier</strong></td>
+<td>cancel (status only)</td>
+<td style="text-align: center;">❌ → §7 P1-A</td>
+</tr>
+<tr>
+<td>FR-0053</td>
+<td>DPO Forget/GDPR</td>
+<td>—</td>
+<td style="text-align: center;">❌</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-業務規則深差6-大項">§4 業務規則深差（6 大項）</h2>
+<h3
+id="41-cancellation-6-stageadr-0102--fr-0052--br-cancel-001008-x-完全未實作">§4.1
+Cancellation 6-stage（ADR-0102 / FR-0052 / BR-CANCEL-001..008）— ❌
+完全未實作</h3>
+<ul>
+<li><strong>Spec</strong>：伺服器端依 WO/quote 狀態機推算 6 階段（S1=0 /
+S1_5=0 / S2=300 / S3=車馬500-1200+取消費 / S4=+檢測300 / S5=partial
+公式）；師傅 initiated 三段政策（首次免責 / 同月≥2 扣 weight /
+不可抗力豁免）；reason code dictionary（13 codes，走 M18
+config）；goodwill_waiver override（delta&gt;50% 或歸零需主管）；SoD
+三維 audit。</li>
+<li><strong>Code</strong>（<code>api/services/work_order_service.py:418</code>
+<code>cancel_order</code>）：只
+<code>UPDATE work_orders SET status='cancelled'</code>。無費用、無階段、無
+reason_code、無師傅分支、無 audit 欄位。</li>
+<li><strong>修正</strong>：見計畫 Part B（本 session 切片）。建
+<code>cancellation</code> 表 + <code>cancellation_service.py</code> +
+tenant-scoped route + SoD headers + config reason_codes + audit。</li>
+</ul>
+<h3
+id="42-refund-三維-sod--5-tieradr-0040-v2--br-refund-006--fr-0014-x">§4.2
+Refund 三維 SoD + 5-tier（ADR-0040 v2 / BR-REFUND-006 / FR-0014）—
+❌</h3>
+<ul>
+<li><strong>Spec</strong>：<code>initiator ≠ approver ≠ executor</code>（DB
+CHECK + X-*
+headers）；5-tier（L1≤1k/L2≤5k/L3≤20k/L4≤100k/L5&gt;100k，L5=ops_director）；<code>refund_class</code>
+enum（product/labor/material/travel/inspection）必填；amount&gt;0。</li>
+<li><strong>Code</strong>（<code>api/services/refund_service.py</code>）：legacy
+ADR-009 2-step 雙簽，閾值寫死
+<code>_DUAL_SIGN_THRESHOLD=100000</code>；只檢查「同人不可簽兩次」（二維，非三維）；無
+tier、無 refund_class、無 X-headers。註解明言「本 phase
+不實作多步雙簽流程」。</li>
+<li><strong>修正（P1-B）</strong>：refund 表加
+<code>tier</code>/<code>refund_class</code>/三維 user id + CHECK；SoD
+header dep；tier 自動分級。</li>
+</ul>
+<h3 id="43-warranty-5-modeadr-0044-v2--ac-v11-10-x">§4.3 Warranty
+5-mode（ADR-0044 v2 / AC-V11-10）— ❌</h3>
+<ul>
+<li><strong>Spec</strong>：<code>warranty_mode</code> enum {purchase,
+handover, activation, contract, manual_override}，各 mode
+不同起算錨點；RMA 延長換新零件 90 天獨立重算；B2B 覆寫上限 5 年走
+ChangeRequest + audit。</li>
+<li><strong>Code</strong>（<code>api/services/warranty_service.py:217</code>）：寫死
+<code>purchase_date + INTERVAL '90 days'</code>，缺 purchase_date 用
+<code>today+90d</code>。無 warranty_mode 概念。</li>
+<li><strong>修正（P1-B）</strong>：device_warranty 表加
+<code>warranty_mode</code>；mode-specific 起算；RMA 重算邏輯。</li>
+</ul>
+<h3 id="44-chatbot-token-cap-1500br-a01-02--ac-v11-11-warning">§4.4
+Chatbot token cap 1500（BR-A01-02 / AC-V11-11）— ⚠️</h3>
+<ul>
+<li><strong>Spec</strong>：reply ≤ 1500 tokens + 截斷
+fallback（補「（詳情請洽客服）」），不送空回覆。</li>
+<li><strong>Code</strong>：<code>agent/config.toml</code> /
+config_service <code>max_tokens=1024</code>，無 truncate fallback。</li>
+<li><strong>修正（P1-C）</strong>：config 改 1500 + guardrails 層加截斷
+fallback。</li>
+</ul>
+<h3 id="45-報價有效期-14d3dbr-m04-05--fr-0042--ac-v11-12-x">§4.5
+報價有效期 14d/3d（BR-M04-05 / FR-0042 / AC-V11-12）— ❌</h3>
+<ul>
+<li><strong>Spec</strong>：一般報價 TTL=14d，急件=3d；過期
+<code>state=expired</code> 需重報，無靜默延長；走 M18 config。</li>
+<li><strong>Code</strong>：無 quote 模組（§2 quote lifecycle
+全缺），自然無有效期。</li>
+<li><strong>修正（P3，依賴 quote lifecycle）</strong>。</li>
+</ul>
+<h3 id="46-m18-staged-rolloutadr-0067--br-m18--ac-v11-13-x">§4.6 M18
+staged rollout（ADR-0067 / BR-M18 / AC-V11-13）— ❌</h3>
+<ul>
+<li><strong>Spec</strong>：config namespace + version + staged canary
+5→50→100%（每段 30min 觀察）+ rollback ≤1min；每 transaction snapshot
+<code>config_version</code>；ACL read
+API（<code>/m18/config-read</code>）P99≤50ms。</li>
+<li><strong>Code</strong>（<code>api/services/config_service.py</code>）：per-tenant
+JSONB，PATCH deep-merge，version++。無 namespace 隔離、無 staged
+rollout、無 rollback、無 ACL read。</li>
+<li><strong>修正（P3）</strong>：重建 config
+governance（config_namespace/version/rollout/audit 四表）。</li>
+</ul>
+<hr />
+<h2 id="5-db-schema-差異">§5 DB Schema 差異</h2>
+<h3 id="51-schema-命名">§5.1 Schema 命名</h3>
+<ul>
+<li><strong>Spec</strong>：<code>saas</code> schema（避免
+public），<code>ddl-migration-001-init.sql</code> 53 表 + 41 index + 14
+trigger。</li>
+<li><strong>Code</strong>：<code>SQL/Schema.sql</code> 等，public
+schema（無 <code>saas.</code> 前綴）。</li>
+</ul>
+<h3 id="52-表名映射spec--code">§5.2 表名映射（spec → code）</h3>
+<table>
+<thead>
+<tr>
+<th>Spec 表</th>
+<th>Code 表</th>
+<th>差異</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>work_order</code></td>
+<td><code>work_orders</code></td>
+<td>複數；無 monthly partition</td>
+</tr>
+<tr>
+<td><code>refund</code></td>
+<td><code>refund_requests</code></td>
+<td>名稱 + 缺 tier/refund_class 欄</td>
+</tr>
+<tr>
+<td><code>cancellation</code></td>
+<td>（無）</td>
+<td><strong>整表缺</strong> → P1-A 新建</td>
+</tr>
+<tr>
+<td><code>quote_version</code></td>
+<td>（無）</td>
+<td>quote lifecycle 缺</td>
+</tr>
+<tr>
+<td><code>device_warranty</code></td>
+<td>（warranty_claims 近似）</td>
+<td>缺 warranty_mode</td>
+</tr>
+<tr>
+<td><code>customer</code>/<code>site</code>/<code>device</code>/<code>brand</code>/<code>model</code></td>
+<td><code>customers</code> only</td>
+<td>site/device/brand/model master 缺</td>
+</tr>
+<tr>
+<td><code>config_namespace</code>/<code>config_version</code>/<code>config_rollout</code>/<code>config_audit</code></td>
+<td>單一 config JSONB</td>
+<td>M18 四表缺</td>
+</tr>
+<tr>
+<td><code>journal_entry</code>(append-only+hash)</td>
+<td>（vouchers/journal 近似）</td>
+<td>無 hash chain trigger</td>
+</tr>
+<tr>
+<td><code>audit_event</code>(monthly partition)</td>
+<td><code>audit_logs</code></td>
+<td>無 partition</td>
+</tr>
+</tbody>
+</table>
+<h3 id="53-結構性缺口">§5.3 結構性缺口</h3>
+<ul>
+<li><strong>RLS</strong>：spec 要求每表 <code>tenant_id</code> RLS
+policy（ADR-0030）；code 無 RLS，靠 app 層 WHERE。</li>
+<li><strong>Append-only trigger</strong>：spec
+<code>tg_block_mutation()</code> 攔 quote_version/journal_entry 的
+UPDATE/DELETE；code 無。</li>
+<li><strong>Hash chain</strong>：spec quote_version/journal_entry
+<code>hash_prev</code>+<code>hash_self</code>；code 無 cryptographic
+chain（refund approval_chain 只是 JSONB append）。</li>
+<li><strong>Partition</strong>：spec work_order/journal/audit
+monthly、message weekly、evidence LIST by retention_class；code 無
+partition。</li>
+<li><strong>PII <code>*_enc bytea</code></strong>：spec PII
+全加密欄位不出現於 API schema；code 待查（customer service 有 PII
+redaction 提及，加密程度待 P1-B 確認）。</li>
+</ul>
+<hr />
+<h2 id="6-橫切關注點">§6 橫切關注點</h2>
+<table>
+<thead>
+<tr>
+<th>面向</th>
+<th>Spec</th>
+<th>Code</th>
+<th style="text-align: center;">狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tenant 路由</td>
+<td>path <code>/tenants/{tid}/...</code></td>
+<td>JWT claim + <code>X-Tenant-ID</code> header</td>
+<td style="text-align: center;">⚠️ 機制不同</td>
+</tr>
+<tr>
+<td>SoD headers</td>
+<td><code>X-Initiator/X-Approver/X-Executor</code> → 403
+SOD_VIOLATION</td>
+<td>approval_chain JSONB</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>Config 快照</td>
+<td><code>X-Config-Version</code> per transaction</td>
+<td>無</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>Error model</td>
+<td>RFC 7807 problem+json + trace_id</td>
+<td>自訂 <code>{error_code,message,request_id,...}</code></td>
+<td style="text-align: center;">⚠️ 近似非標準</td>
+</tr>
+<tr>
+<td>Pagination</td>
+<td>cursor <code>?cursor=&amp;limit=</code></td>
+<td>cursor base64</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>Idempotency</td>
+<td>強制 Idempotency-Key</td>
+<td><code>idempotency_guard</code> 24h TTL</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>Auth</td>
+<td>OAuth2 client_credentials + JWT</td>
+<td>JWT HS256 + JTI revoke</td>
+<td style="text-align: center;">⚠️ 無 OAuth2 cc</td>
+</tr>
+<tr>
+<td>Versioning</td>
+<td>URL + header + x-phase II → 501</td>
+<td><code>/api/v1</code> 固定</td>
+<td style="text-align: center;">⚠️</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-嚴重度分級--建議遷移波次-cia-impact">§7 嚴重度分級 +
+建議遷移波次（= CIA impact）</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">波次</th>
+<th>範圍</th>
+<th style="text-align: center;">規模</th>
+<th>風險</th>
+<th>依賴</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><strong>P1-A</strong></td>
+<td>Cancellation 6-stage（本 session）</td>
+<td style="text-align: center;">M</td>
+<td>中（前端同步遷移路徑）</td>
+<td>cancellation 表、config reason_codes、SoD dep</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>P1-B</strong></td>
+<td>Refund 三維+5-tier、Warranty 5-mode</td>
+<td style="text-align: center;">M</td>
+<td>中（改既有運作中 refund/warranty）</td>
+<td>SoD dep（P1-A 共用）、DB 加欄</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>P1-C</strong></td>
+<td>Chatbot token 1500、報價有效期占位</td>
+<td style="text-align: center;">S</td>
+<td>低</td>
+<td>agent config</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>P2</strong></td>
+<td>Path scheme 全面遷移 tenant-scoped + SoD 中介層 + RLS</td>
+<td style="text-align: center;"><strong>L</strong></td>
+<td><strong>高（打爆全前端合約 + 全 DB RLS）</strong></td>
+<td>P1 範式驗證後</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>P3</strong></td>
+<td>補缺合約：quote lifecycle / m18 governance / sync / acl / dgs /
+change-requests / master(site/device/brand/model) / payments /
+exceptions / chatbot REST</td>
+<td style="text-align: center;"><strong>XL</strong></td>
+<td>高</td>
+<td>逐模組 CIA</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Linus 式提醒</strong>：P2 是「Never break
+userspace」最危險的一步——現行前端 92 條 typed client 全打
+<code>/api/v1</code>。建議 P2 採<strong>雙掛</strong>過渡（新
+tenant-scoped 路徑上線、舊路徑 thin 轉呼 + deprecation
+header），前端逐頁遷移後再撤舊路徑，而非一次切換。</p>
+</blockquote>
+<hr />
+<h2 id="8-衝突清單spec--code-真正衝突spec-全贏下的-reconcile-動作">§8
+衝突清單（spec ↔︎ code 真正衝突，spec 全贏下的 reconcile 動作）</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">#</th>
+<th>衝突點</th>
+<th>Spec（贏）</th>
+<th>Code（現況）</th>
+<th>Reconcile 動作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">C-01</td>
+<td>Contract SSOT 指向</td>
+<td><code>docs/architecture/api/</code></td>
+<td><code>api/main.py:89</code> 指向已刪
+<code>docs/02-design/specs/openapi.yaml</code></td>
+<td>修註記 + 重生 generated.py/api.generated.ts（P1-A
+先修註記，型別整體重生排 P2）</td>
+</tr>
+<tr>
+<td style="text-align: right;">C-02</td>
+<td>Cancel 語意</td>
+<td>6 階段費用 + 師傅分支</td>
+<td>只改 status</td>
+<td>P1-A 重寫</td>
+</tr>
+<tr>
+<td style="text-align: right;">C-03</td>
+<td>Refund SoD 維度</td>
+<td>三維 initiator≠approver≠executor</td>
+<td>二維（同人不可簽兩次）</td>
+<td>P1-B 加第三維 + X-headers</td>
+</tr>
+<tr>
+<td style="text-align: right;">C-04</td>
+<td>Refund 分級</td>
+<td>5-tier 金額分級</td>
+<td>單一 NT$100k 閾值</td>
+<td>P1-B 改 tier 表</td>
+</tr>
+<tr>
+<td style="text-align: right;">C-05</td>
+<td>Warranty 起算</td>
+<td>5-mode 錨點</td>
+<td>寫死 purchase+90d</td>
+<td>P1-B 加 warranty_mode</td>
+</tr>
+<tr>
+<td style="text-align: right;">C-06</td>
+<td>Token cap</td>
+<td>1500</td>
+<td>1024</td>
+<td>P1-C 改值 + truncate</td>
+</tr>
+<tr>
+<td style="text-align: right;">C-07</td>
+<td>Tenant 路由</td>
+<td>path-based</td>
+<td>header/JWT-based</td>
+<td>P2 遷移（雙掛過渡）</td>
+</tr>
+<tr>
+<td style="text-align: right;">C-08</td>
+<td>SoD 機制</td>
+<td>X-* headers</td>
+<td>approval_chain</td>
+<td>P2 中介層；P1-A 先在 cancel 落地</td>
+</tr>
+<tr>
+<td style="text-align: right;">C-09</td>
+<td>Error model</td>
+<td>RFC 7807</td>
+<td>自訂 envelope</td>
+<td>P2 對齊 problem+json</td>
+</tr>
+<tr>
+<td style="text-align: right;">C-10</td>
+<td>DB schema 名</td>
+<td><code>saas.</code> + spec 表名</td>
+<td>public + 複數 legacy 名</td>
+<td>P2/P3 整批遷移（風險高，需 migration plan）</td>
+</tr>
+<tr>
+<td style="text-align: right;">C-11</td>
+<td>Code 多餘 endpoint</td>
+<td>spec 未涵蓋</td>
+<td>~40 條 admin 功能</td>
+<td>P3 對 spec 補
+backlog，<strong>不靜默刪</strong>（先確認業主是否要保留）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ <strong>C-10 / C-11 待業主二次裁決</strong>：schema 全改名 + 多餘
+endpoint
+處置屬「會打爆現有資料/功能」的破壞性決定。本報告標記為衝突，<strong>P2/P3
+動手前需各自跑 CIA</strong>。本 session
+切片（P1-A）刻意<strong>不</strong>碰 schema 改名與舊路徑刪除，只新增
+spec-compliant 表面，以零破壞示範範式。</p>
+</blockquote>
+<hr />
+<h2 id="9-本-session-動作">§9 本 session 動作</h2>
+<p>依業主裁決「報告 + 修第一個 vertical slice」+「spec 全贏」+「全 38
+模組覆蓋」：</p>
+<ul>
+<li>✅ 本報告（§0-§8）完成全覆蓋差異化分析。</li>
+<li>⏳ 實作 <strong>P1-A Cancellation 6-stage</strong>
+垂直切片（見計畫檔 Part B）：DB <code>cancellation</code> 表 +
+<code>cancellation_service.py</code> + tenant-scoped route + SoD headers
++ config reason_codes + audit + TDD + 前端遷移。作為 P1-B/P2/P3
+的<strong>架構範式模板</strong>。</li>
+</ul>
+<hr />
+<p><strong>End of Gap Audit 2026-06-01</strong></p>
+</div></div></body></html>

@@ -1,0 +1,232 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>CR-0019 — 100 人技師併發壓測 CIA</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ _audit ／ CR-0019-load-testing-100-concurrent-technicians-cia.md</div>
+<div class="doc"><h1 id="cr-0019--100-人技師併發壓測-cia">CR-0019 — 100 人技師併發壓測
+CIA</h1>
+<h2 id="1-動機">1. 動機</h2>
+<p>WBS 1.2.7.3.3 「師傅端 100 人併發壓測」標 ⬜ 0% — 取證
+<code>docs/_audit/wbs-1.2.7.3-2-3-4-audit.md</code>
+確認工具/scenario/SLA baseline 全空。屬 UAT 前 NFR
+必驗項，但工具引入觸發 Architecture boundary（測試基礎建設層）+ SLA
+目標需業主裁決，須走 CIA。</p>
+<h2 id="2-範圍">2. 範圍</h2>
+<p><strong>In scope</strong>：壓測工具選型 + 場景設計 + SLA pass/fail
+門檻 + 整合至 CI/Cloud Run。</p>
+<p><strong>Out of scope</strong>：</p>
+<ul>
+<li>E2E 功能測試（1.2.7.3.1 已 ✅）</li>
+<li>安全壓測（DDoS / OWASP — 另 scope）</li>
+<li>DB query 慢查 audit（非黑箱壓測範疇）</li>
+</ul>
+<h2 id="3-取證">3. 取證</h2>
+<h3 id="31-既有資源-white_check_mark">3.1 既有資源 ✅</h3>
+<ul>
+<li>FastAPI backend uvicorn 部署 Cloud Run（auto-scale 0-100 instances
+預設）</li>
+<li>Cloud Run health endpoint <code>/health</code> 已就緒</li>
+<li>API smoke test <code>tests/smoke/api.sh</code> 已存在</li>
+</ul>
+<h3 id="32-0-段-x">3.2 0% 段 ❌</h3>
+<ul>
+<li><code>find . -name "*.k6.js" -o -name "locustfile.py"</code>
+全空</li>
+<li>無 GCP Cloud Load Testing 配置</li>
+<li>無 Artillery / Gatling / JMeter 配置</li>
+<li><code>scripts/perf/</code> 目錄不存在</li>
+<li>無 baseline metrics（p50/p95/p99 latency / throughput / error
+rate）</li>
+</ul>
+<h3 id="33-真實併發場景業務側">3.3 真實併發場景（業務側）</h3>
+<p>100 個技師日常行為 mix：</p>
+<ul>
+<li><strong>40%</strong> GET <code>/work-orders/pool</code>（每 30
+秒輪詢 + WS broadcast 補強）</li>
+<li><strong>25%</strong> POST <code>:accept</code> /
+<code>:assign</code>（接案）</li>
+<li><strong>15%</strong> POST <code>subflows</code>（material-request /
+delay / scope-change / door-check）</li>
+<li><strong>10%</strong> PATCH 排班 / 改期</li>
+<li><strong>5%</strong> POST <code>:complete</code></li>
+<li><strong>5%</strong> 雜項（GET 詳情、media upload）</li>
+</ul>
+<h2 id="4-human-decisions-required">4. Human Decisions Required</h2>
+<h3 id="hd-1--工具選型">HD-1 — 工具選型</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>優點</th>
+<th>缺點</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>(a) k6（JS scenario）</td>
+<td>Cloud-native；GCP/Datadog integration；scenario 寫得快；CSV/JSON
+報告</td>
+<td>收費版才能分布式；OSS 單機限 ~5000 VU</td>
+</tr>
+<tr>
+<td>(b) Locust（Python）</td>
+<td>Python 與 backend 同語言；scenario 靈活；分布式免費；Web UI</td>
+<td>性能比 k6 略差；scenario 寫起來啰嗦</td>
+</tr>
+<tr>
+<td>(c) Artillery（YAML）</td>
+<td>YAML 易讀；輕量；快速啟動</td>
+<td>scenario 表達力弱；社群小</td>
+</tr>
+<tr>
+<td>(d) GCP Cloud Load Testing</td>
+<td>與 GCP 深度整合；免維運</td>
+<td>vendor lock-in；scenario 表達力中</td>
+</tr>
+</tbody>
+</table>
+<p><strong>建議</strong>：(b) Locust — Python 與既有 codebase
+共棲；分布式免費；可直接 reuse api/services helper（如 token mint）</p>
+<h3 id="hd-2--sla-passfail-門檻">HD-2 — SLA pass/fail 門檻</h3>
+<table>
+<thead>
+<tr>
+<th>指標</th>
+<th>候選門檻</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>p95 GET latency</td>
+<td>200ms / 300ms / 500ms</td>
+</tr>
+<tr>
+<td>p95 POST latency</td>
+<td>500ms / 1000ms / 2000ms</td>
+</tr>
+<tr>
+<td>error rate (5xx)</td>
+<td>0.1% / 1% / 5%</td>
+</tr>
+<tr>
+<td>throughput</td>
+<td>50 req/s / 100 req/s / 200 req/s</td>
+</tr>
+<tr>
+<td>WebSocket 連線穩定度</td>
+<td>100% / 99% / 95%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>建議</strong>：保守 — p95 GET 500ms / p95 POST 1000ms / error
+1% / 100 req/s / WS 99%（容許 Cloud Run cold-start）</p>
+<h3 id="hd-3--100-vu-模擬深度">HD-3 — 100 VU 模擬深度</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>(a) 100 持續活躍技師（rampup 5min → 持續 30min）</td>
+</tr>
+<tr>
+<td>(b) 200 註冊技師 50% 活躍切換（更貼近現實打分布）</td>
+</tr>
+<tr>
+<td>(c) Soak test 100 持續 4hr（驗 memory leak / DB connection
+pool）</td>
+</tr>
+<tr>
+<td>(d) Spike test：0→200→0 衝擊（驗 auto-scale 速度）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>建議</strong>：(a) MVP scope；(c) 與 (d) Phase II
+收尾再做</p>
+<h3 id="hd-4--環境">HD-4 — 環境</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>(a) Staging Cloud Run（同 prod 配置）</td>
+</tr>
+<tr>
+<td>(b) 本地 docker-compose（DB + uvicorn 單機）</td>
+</tr>
+<tr>
+<td>(c) Dedicated 壓測環境（新 GCP project）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>建議</strong>：(a) — 同 prod 配置最有 reference
+value；缺點是需 staging instance budget</p>
+<h3 id="hd-5--cicd-整合策略">HD-5 — CI/CD 整合策略</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>(a) 一次性手動跑（每次 release 前 manual trigger）</td>
+</tr>
+<tr>
+<td>(b) PR-level 跑 mini 壓測（10 VU smoke）+ pre-release 跑 full（100
+VU）</td>
+</tr>
+<tr>
+<td>(c) Nightly full run + weekly trend report</td>
+</tr>
+</tbody>
+</table>
+<p><strong>建議</strong>：(b) — PR mini 防退步 + pre-release full 驗
+NFR</p>
+<h2 id="5-不立即-build-的理由">5. 不立即 BUILD 的理由</h2>
+<ul>
+<li>HD-1 工具選型影響 ~3-5 day scenario 撰寫工時</li>
+<li>HD-2 SLA 門檻直接決定 pass/fail，需業主拍板</li>
+<li>HD-3 模擬深度涉 staging budget（Cloud Run instance hours）</li>
+<li>HD-4 staging 環境若採選項 (a) 需另開 staging
+project（採購決策）</li>
+</ul>
+<h2 id="6-推薦立場如業主全採推薦">6. 推薦立場（如業主全採推薦）</h2>
+<ul>
+<li>HD-1=(b) Locust</li>
+<li>HD-2=保守門檻 (p95 GET 500ms / POST 1000ms / error 1% / 100 r/s / WS
+99%)</li>
+<li>HD-3=(a) MVP 100 VU 30min</li>
+<li>HD-4=(a) Staging Cloud Run</li>
+<li>HD-5=(b) PR mini + pre-release full</li>
+</ul>
+<p>預估 BUILD：5-7 day（Locust scenario 撰寫 + GCP scheduled job + 1 次
+baseline + 報告 dashboard）</p>
+<h2 id="7-依賴">7. 依賴</h2>
+<ul>
+<li>解凍：WBS 1.2.7.3.3 (0% → 100%)</li>
+<li>鏡像：CR-0018 (Flow 13 EX5)、CR-0017 (LINE Flex)等本 batch CIA</li>
+<li>前置：staging 環境 budget 業主批准</li>
+</ul>
+<h2 id="8-status">8. status</h2>
+<p><code>open-awaiting-decisions</code> — 等 5 HD 業主裁決後切
+CR-0019-BUILD。</p>
+</div></div></body></html>

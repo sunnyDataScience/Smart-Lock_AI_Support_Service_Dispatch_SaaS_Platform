@@ -1,0 +1,129 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>A04 SKILL.md 知識庫 — router skill + sub-skill</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ ux ／ by-module ／ A04-skill-knowledge-flow.md</div>
+<div class="doc"><h1 id="a04-skillmd-知識庫--router-skill--sub-skill">A04 SKILL.md 知識庫
+— router skill + sub-skill</h1>
+<blockquote>
+<p><strong>30 秒摘要</strong>：SKILL.md 路徑 metadata
+控制品牌/型號，router skill 引導 A03 載入正確的 sub-skill SOP；A10 SOP
+螺旋產出的 draft approved 後入此庫。</p>
+</blockquote>
+<h2 id="sequence-diagram">Sequence Diagram</h2>
+<pre class="mermaid"><code>sequenceDiagram
+    autonumber
+    participant a03 as A03 ReAct
+    participant router as Router Skill
+    participant store as Skill Store (SKILL.md tree)
+    participant sub as Sub-skill (三聯-鎖舌)
+
+    a03 -&gt;&gt; router: load_skill(brand=三聯, symptom=鎖舌卡死)
+    router -&gt;&gt; store: GET /skills?brand=三聯&amp;topic=鎖舌
+    store --&gt;&gt; router: 候選 SKILL.md 列表
+    router -&gt;&gt; router: rank by metadata + recency
+    router --&gt;&gt; a03: 載入 sub-skill content
+    Note over a03: A03 把 SOP 注入 prompt</code></pre>
+<h2 id="state-machine--skill-lookup">State Machine — skill lookup</h2>
+<pre class="mermaid"><code>stateDiagram-v2
+    [*] --&gt; querying
+    querying --&gt; hit_single : 唯一匹配
+    querying --&gt; hit_multiple : 多匹配 → router rank
+    querying --&gt; miss : 無匹配
+    hit_single --&gt; loaded
+    hit_multiple --&gt; loaded : 選 top-1
+    miss --&gt; rag_fallback : 走 RAG (manual)
+    rag_fallback --&gt; [*]
+    loaded --&gt; [*]</code></pre>
+<h2 id="ui-state-coverage">UI State Coverage</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">Happy</th>
+<th style="text-align: left;">Empty</th>
+<th style="text-align: left;">Loading</th>
+<th style="text-align: left;">Error</th>
+<th style="text-align: left;">Offline</th>
+<th style="text-align: left;">annotation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">skill query</td>
+<td style="text-align: left;">✓ 命中載入</td>
+<td style="text-align: left;">miss → RAG fallback</td>
+<td style="text-align: left;">&lt; 200ms</td>
+<td style="text-align: left;">store down → DLQ + handoff</td>
+<td style="text-align: left;">offline 不允許</td>
+<td style="text-align: left;">skill: querying → loaded</td>
+</tr>
+<tr>
+<td style="text-align: left;">router rank</td>
+<td style="text-align: left;">✓ 多匹配選 top-1</td>
+<td style="text-align: left;">全部低分 → RAG</td>
+<td style="text-align: left;">n/a</td>
+<td style="text-align: left;">rank fail → 隨機選 + log</td>
+<td style="text-align: left;">n/a</td>
+<td style="text-align: left;">hit_multiple → loaded</td>
+</tr>
+</tbody>
+</table>
+<h2
+id="a11y-notes後台-knowledge-owner-維護-ui--wcag-22-aa-繼承自主檔">a11y
+notes（後台 Knowledge Owner 維護 UI — WCAG 2.2 AA 繼承自主檔）</h2>
+<ul>
+<li><strong>後台 Admin (Knowledge owner 維護)</strong> 走 WCAG 2.2
+AA；skill 本身不直接面客</li>
+<li><strong>Keyboard navigation (2.1.1 / 2.1.2)</strong>：SKILL.md / RAG
+corpus 編輯介面全鍵盤可達；無 keyboard trap；Escape 可離開 modal</li>
+<li><strong>Focus indicator (2.4.7)</strong>：corpus 編輯欄位 focus ring
+明顯（≥ 2px / ≥ 3:1 contrast）；diff view 中當前選取段落焦點清楚</li>
+<li><strong>Screen reader (4.1.2)</strong>：metadata 結構（brand / model
+/ category）用 semantic HTML + ARIA roles；NVDA / VoiceOver 可朗讀</li>
+<li><strong>Color contrast (1.4.3)</strong>：corpus 編輯 / diff view ≥
+4.5:1；version 標記不單靠顏色 — 加文字 "v1.2" 與版本徽章</li>
+<li><strong>Target size (2.5.8)</strong>：corpus 編輯按鈕（save /
+publish / archive）≥ 24×24 CSS px</li>
+</ul>
+<h2 id="fr-反向指">FR 反向指</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">FR</th>
+<th style="text-align: left;">AC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">skill load</td>
+<td style="text-align: left;">FR-0029</td>
+<td style="text-align: left;">AC-01 router 引導 / AC-02 metadata 控制
+brand/model</td>
+</tr>
+</tbody>
+</table>
+<h2 id="相關">相關</h2>
+<ul>
+<li>主檔：<a
+href="../user-flow-smart-lock-saas.md"><code>../user-flow-smart-lock-saas.md#flow-s1</code></a></li>
+<li>A10 SOP spiral：<a
+href="./A10-sop-spiral-flow.md"><code>./A10-sop-spiral-flow.md</code></a></li>
+<li>Source：<a
+href="../../_source/02-ai-chatbot-sync.md"><code>../../_source/02-ai-chatbot-sync.md#a-m04-skill知識庫</code></a></li>
+</ul>
+</div></div></body></html>

@@ -1,0 +1,1176 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Runbook — 智慧鎖 SaaS 平台</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ ops ／ runbook-smart-lock-saas.md</div>
+<div class="doc"><h1 id="runbook--智慧鎖-saas-平台">Runbook — 智慧鎖 SaaS 平台</h1>
+<blockquote>
+<p><strong>狀態</strong>：v1.1 draft（Gate 7 ready）— 2026-05-28 cascade
+補 IR-012..018 對齊新 ADR-0067/0068 + FR-0052/0053 + ADR-0050 v2
+<strong>更新</strong>：2026-05-28 <strong>負責人</strong>：SRE + DevOps
+<strong>關聯</strong>：NFR Matrix + PRD §Release Plan + ADR-0061 DGS +
+ADR-0067 M18 governance + ADR-0068 anti-corruption + ADR-0050 evidence
+visibility + ADR-0042 RBAC L1-L5 + FR-0052 cancellation + FR-0053 GDPR
+forget
+<strong>配套文件</strong>：<code>pipeline-spec-smart-lock-saas.md</code>
+/ <code>slo-spec-smart-lock-saas.md</code> /
+<code>rollback-plan-smart-lock-saas.md</code> /
+<code>release-readiness-smart-lock-saas.md</code></p>
+</blockquote>
+<hr />
+<h2 id="0-設計原則">§0 設計原則</h2>
+<blockquote>
+<p>[sre] 可觀測 + 可回滾 + 可學習。SLI 對齊使用者體驗（不是 infra
+metric）；alert 要可動作（runbook link + first responder action）。
+[devops 視角] Pipeline 通過率 / rollback 時間 / drift 偵測 / deploy
+frequency 四個指標每月 review；blue-green / canary 為部署模式預設。</p>
+</blockquote>
+<p>對齊 Google SRE + DORA + NIST SSDF RV（Respond to
+Vulnerabilities）。</p>
+<hr />
+<h2 id="1-sli--slo-definitions">§1 SLI / SLO Definitions</h2>
+<blockquote>
+<p>[sre] SLI 要 user-facing。「CPU &lt; 80%」不是 SLI，「p99 latency
+&lt; 300ms」才是。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">SLI</th>
+<th style="text-align: left;">SLO</th>
+<th style="text-align: left;">Burn rate alert</th>
+<th style="text-align: left;">Owner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">LINE AI 首回應 latency</td>
+<td style="text-align: left;">p95 &lt; 5s</td>
+<td style="text-align: left;">p95 &gt; 8s for 10min → page</td>
+<td style="text-align: left;">dev</td>
+</tr>
+<tr>
+<td style="text-align: left;">Case vector search</td>
+<td style="text-align: left;">p95 &lt; 3s</td>
+<td style="text-align: left;">p95 &gt; 5s for 10min → page</td>
+<td style="text-align: left;">dev</td>
+</tr>
+<tr>
+<td style="text-align: left;">RAG pipeline</td>
+<td style="text-align: left;">p95 &lt; 8s</td>
+<td style="text-align: left;">p95 &gt; 12s for 10min → page</td>
+<td style="text-align: left;">dev</td>
+</tr>
+<tr>
+<td style="text-align: left;">Admin Panel page load</td>
+<td style="text-align: left;">p95 &lt; 2s</td>
+<td style="text-align: left;">p95 &gt; 4s for 10min → page</td>
+<td style="text-align: left;">dev</td>
+</tr>
+<tr>
+<td style="text-align: left;">System Uptime V1</td>
+<td style="text-align: left;">≥ 95%（合約）/ 99.5%（營運）</td>
+<td style="text-align: left;">&lt; 99% rolling 30d → page</td>
+<td style="text-align: left;">ops</td>
+</tr>
+<tr>
+<td style="text-align: left;">DGS service Availability</td>
+<td style="text-align: left;">≥ 99.95%</td>
+<td style="text-align: left;">&lt; 99.5% rolling 7d → page</td>
+<td style="text-align: left;">ops</td>
+</tr>
+<tr>
+<td style="text-align: left;">LINE webhook success</td>
+<td style="text-align: left;">≥ 99.9%</td>
+<td style="text-align: left;">&lt; 99% rolling 1h → page</td>
+<td style="text-align: left;">ops</td>
+</tr>
+<tr>
+<td style="text-align: left;">Snapshot
+staleness（retention/visibility）</td>
+<td style="text-align: left;">p99 ≤ 60s</td>
+<td style="text-align: left;">p99 &gt; 120s → page</td>
+<td style="text-align: left;">ops</td>
+</tr>
+<tr>
+<td style="text-align: left;">Snapshot
+staleness（legal-hold/forget）</td>
+<td style="text-align: left;">p99 ≤ 5s</td>
+<td style="text-align: left;">p99 &gt; 30s → critical page</td>
+<td style="text-align: left;">ops</td>
+</tr>
+<tr>
+<td style="text-align: left;">DGS invalidation lag</td>
+<td style="text-align: left;">p99 ≤ 30s</td>
+<td style="text-align: left;">p99 &gt; 60s → page</td>
+<td style="text-align: left;">ops</td>
+</tr>
+<tr>
+<td style="text-align: left;">DGS mutation queue depth</td>
+<td style="text-align: left;">&lt; 1000</td>
+<td style="text-align: left;">&gt; 5000 → page</td>
+<td style="text-align: left;">ops</td>
+</tr>
+<tr>
+<td style="text-align: left;">Outbox lag</td>
+<td style="text-align: left;">p99 ≤ 30s</td>
+<td style="text-align: left;">p99 &gt; 120s → critical page</td>
+<td style="text-align: left;">ops</td>
+</tr>
+<tr>
+<td style="text-align: left;">KPI K1（AI accuracy）</td>
+<td style="text-align: left;">≥ 80%</td>
+<td style="text-align: left;">&lt; 79% absolute floor → page；rolling 7d
+3/5 days drift → warn/page</td>
+<td style="text-align: left;">qa+pm</td>
+</tr>
+<tr>
+<td style="text-align: left;">KPI K3（sentiment）</td>
+<td style="text-align: left;">≥ 90%</td>
+<td style="text-align: left;">&lt; 88% 2 weeks → block deploy / &lt; 85%
+4 weeks → incident</td>
+<td style="text-align: left;">qa+pm</td>
+</tr>
+<tr>
+<td style="text-align: left;">KPI K8 Forbidden Eval</td>
+<td style="text-align: left;">≥ 95%</td>
+<td style="text-align: left;">&lt; 95% → block deploy</td>
+<td style="text-align: left;">qa+dev</td>
+</tr>
+<tr>
+<td style="text-align: left;">Cron retention queue</td>
+<td style="text-align: left;">&lt; 10k pending</td>
+<td style="text-align: left;">&gt; 50k → page（DGS may be down）</td>
+<td style="text-align: left;">ops</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Voucher hash mismatch
+(v2.2)</strong></td>
+<td style="text-align: left;"><strong>0</strong></td>
+<td style="text-align: left;"><strong>&gt; 0 → P0 page
+immediately</strong>（IR-011；合規崩潰）</td>
+<td style="text-align: left;">ops + DPA</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Voucher monthly cold archive job
+(v2.2)</strong></td>
+<td style="text-align: left;">success ≥ 99%</td>
+<td style="text-align: left;">失敗 → page；rerun 12h SLA</td>
+<td style="text-align: left;">ops</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Voucher Glacier rehydrate latency
+(v2.2)</strong></td>
+<td style="text-align: left;">≤ 12h</td>
+<td style="text-align: left;">&gt; 12h → notify 稅務窗口</td>
+<td style="text-align: left;">ops</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Error budget</strong>：99.5% Uptime = 30 天可下線
+3.6h。連續超過 50% budget 消耗 → 凍結 feature deploy 直到回穩。</p>
+<hr />
+<h2 id="2-incident-playbooks">§2 Incident Playbooks</h2>
+<blockquote>
+<p>[sre] 每個 playbook 含 symptoms / diagnose / mitigate / rollback /
+postmortem 觸發條件。 [devops 視角] mitigate 步驟具體可執行，artifact
+可追溯。</p>
+</blockquote>
+<h3 id="ir-001line-webhook-失敗率--1">IR-001：LINE webhook 失敗率 &gt;
+1%</h3>
+<ul>
+<li><strong>Symptoms</strong>：webhook 5xx rate spike，customers report
+no AI reply</li>
+<li><strong>Diagnose</strong>：
+<pre><code>gcloud logs read &#39;resource.type=cloud_run_revision AND severity&gt;=ERROR&#39; --limit=100
+# check LINE Messaging API status</code></pre></li>
+<li><strong>Mitigate</strong>：
+<ol type="1">
+<li>If LINE API outage：send LINE Broadcast 安撫客戶 + 開 incident
+channel</li>
+<li>If our service：enable canary rollback（5 min）</li>
+<li>Ensure DLQ pickup → manual review 1h within</li>
+</ol></li>
+<li><strong>Rollback</strong>：Cloud Run revision pin to last green</li>
+<li><strong>Postmortem</strong>：required if customer-facing impact &gt;
+30 min</li>
+</ul>
+<h3 id="ir-002gemini-api-quota-爆--高-latency">IR-002：Gemini API quota
+爆 / 高 latency</h3>
+<ul>
+<li><strong>Symptoms</strong>：K1 dropping fast，p95 latency spike</li>
+<li><strong>Mitigate</strong>：
+<ol type="1">
+<li>Enable Model Routing fallback（ADR-0027）：primary Gemini 2.5 Flash
+→ fallback canned response</li>
+<li>Enable rate limit（per-tenant）</li>
+<li>Embedding cache hit rate boost（force 60s refresh）</li>
+<li>Notify domain expert + business owner if extended</li>
+</ol></li>
+<li><strong>Cost guard</strong>：monthly Gemini bill &gt; ceiling → page
+CTO</li>
+</ul>
+<h3 id="ir-003dgs-service-downadr-0061">IR-003：DGS service
+down（ADR-0061）</h3>
+<ul>
+<li><strong>Symptoms</strong>：99.95 SLO breach，all mutation
+blocked</li>
+<li><strong>Mitigate</strong>：
+<ol type="1">
+<li>Auto：circuit breaker triggers，cron retention pause</li>
+<li>Read path：snapshot cache continues for unflagged items；flagged
+items full deny</li>
+<li>Triage：GCP Cloud Run status；redeploy from last green artifact tag
+(含 commit SHA)</li>
+<li>Backpressure：outbox queue depth check；if recovery storm imminent →
+token bucket throttle</li>
+</ol></li>
+<li><strong>Rollback</strong>：redeploy last green DGS revision（single
+service，fast）</li>
+<li><strong>Postmortem</strong>：required（mutation 中斷 5min+ 為
+P0）</li>
+</ul>
+<h3 id="ir-004outbox-poller-lag--2min">IR-004：Outbox poller lag &gt;
+2min</h3>
+<ul>
+<li><strong>Symptoms</strong>：invalidation lag p99 &gt; 2min</li>
+<li><strong>Mitigate</strong>：
+<ol type="1">
+<li>Check poller pod health</li>
+<li>Scale poller replicas（auto via HPA）</li>
+<li>Check downstream bus（Kafka/PubSub）health</li>
+<li><strong>fail-closed</strong>：enable read-time DGS tombstone check
+for ALL items（not just flagged）until lag recovers</li>
+</ol></li>
+<li><strong>Postmortem</strong>：SLO breach → required</li>
+</ul>
+<h3 id="ir-005gdpr-forget-request--5d-unfulfilled">IR-005：GDPR forget
+request &gt; 5d unfulfilled</h3>
+<ul>
+<li><strong>Symptoms</strong>：gdpr_forget_request.deadline
+approaching</li>
+<li><strong>Mitigate</strong>：
+<ol type="1">
+<li>DPO check legal_hold status</li>
+<li>If legal_hold blocks：ensure customer_notice sent within
+7d（Art.12(3)）</li>
+<li>Else：escalate DGS team for manual completion</li>
+</ol></li>
+<li><strong>Compliance breach</strong>：通報法務 + 7d 後若仍未處理 →
+通報主管機關</li>
+</ul>
+<h3 id="ir-006family-reviewer-缺席fr-new-5">IR-006：Family Reviewer
+缺席（FR-NEW-5）</h3>
+<ul>
+<li><strong>Symptoms</strong>：family_review_status pending &gt;
+24h，累計 ≥ 3 件</li>
+<li><strong>Mitigate</strong>：
+<ol type="1">
+<li>Auto：觸發 ChangeRequest 提名替補</li>
+<li>通知甲方專案負責人</li>
+<li>暫停 SOP publish queue</li>
+<li>Manual：與甲方確認替補人選 + 啟動快速 onboarding</li>
+</ol></li>
+<li><strong>SLA</strong>：須在發現後 48h 內有 active reviewer</li>
+</ul>
+<h3 id="ir-007cross-tenant-data-leak-suspected">IR-007：Cross-tenant
+data leak suspected</h3>
+<ul>
+<li><strong>Severity</strong>：P0（合約 §9 終止條款）</li>
+<li><strong>Mitigate</strong>：
+<ol type="1">
+<li>Immediate kill switch global activation</li>
+<li>Audit log forensic</li>
+<li>RLS policy verification</li>
+<li>通報甲方 + 法務 + DPO</li>
+</ol></li>
+<li><strong>Postmortem</strong>：mandatory，board-level review</li>
+</ul>
+<h3 id="ir-008ai-forbidden-violation-in-production">IR-008：AI Forbidden
+violation in production</h3>
+<ul>
+<li><strong>Symptoms</strong>：policy.decision log shows
+ai_forbidden_action firing real customers</li>
+<li><strong>Mitigate</strong>：
+<ol type="1">
+<li>Enable Output Guardrail enhanced mode（lower threshold）</li>
+<li>Specific skill kill switch（per ADR-0028）</li>
+<li>Manual review violation list</li>
+<li>若涉及 final quote 給客戶 → 客服主動聯繫客戶 + audit</li>
+</ol></li>
+<li><strong>Block</strong>：立即 block 該 skill 部署</li>
+</ul>
+<h3 id="ir-009cron-retention-scanner-stalled">IR-009：Cron retention
+scanner stalled</h3>
+<ul>
+<li><strong>Symptoms</strong>：cron retention queue &gt; 50k
+pending</li>
+<li><strong>Likely cause</strong>：DGS may be slow/down or partition
+pruning regression</li>
+<li><strong>Mitigate</strong>：
+<ol type="1">
+<li>Verify DGS health</li>
+<li>Run EXPLAIN on cron query → check partition pruning</li>
+<li>If pruning regressed：rebuild stats / re-analyze table</li>
+<li>Backpressure：ensure DGS queue not overwhelmed（token bucket already
+in place）</li>
+</ol></li>
+</ul>
+<h3 id="ir-010kpi-k3-sentiment-drift合約紅線">IR-010：KPI K3 sentiment
+drift（合約紅線）</h3>
+<ul>
+<li><strong>Symptoms</strong>：K3 &lt; 88% rolling 2 weeks</li>
+<li><strong>Mitigate</strong>：
+<ol type="1">
+<li>Block deploy（automatic）</li>
+<li>Notify domain expert + Family Reviewer 抽 100 題人工 audit</li>
+<li>Retrain / refine prompt + redo Eval</li>
+<li>If 4 weeks &lt; 85% → incident + notify 甲方</li>
+</ol></li>
+<li><strong>Compliance breach</strong>：連續 8 weeks &lt; 85% → consider
+notify 法務</li>
+</ul>
+<h3
+id="ir-011voucher-hash-chain-mismatchv22-added-per-adr-vch-001002">IR-011：Voucher
+hash chain mismatch（v2.2 added per ADR-VCH-001/002）</h3>
+<ul>
+<li><strong>Severity</strong>：P0（帳本不可信 = 合規崩潰 + 商業會計法
+§83 違反）</li>
+<li><strong>Symptoms</strong>：
+<ul>
+<li><code>voucher_hash_mismatch_total</code> counter &gt; 0</li>
+<li>Nightly verify job 報告
+<code>hash_self ≠ sha256(hash_prev + row_content)</code> 任一 row</li>
+</ul></li>
+<li><strong>Diagnose</strong>：
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- 找出第一個 mismatch row</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> chain <span class="kw">AS</span> (</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">SELECT</span> <span class="op">*</span>, encode(sha256((hash_prev <span class="op">||</span> row_to_json((voucher_no, period, amount, <span class="op">..</span>.)):<span class="ch">:text</span>):<span class="ch">:bytea</span>), <span class="st">&#39;hex&#39;</span>) <span class="kw">AS</span> expected_hash</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">FROM</span> journal_entry</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">ORDER</span> <span class="kw">BY</span> ledger_id, created_at</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> voucher_no, period, hash_self, expected_hash <span class="kw">FROM</span> chain <span class="kw">WHERE</span> hash_self <span class="op">!=</span> expected_hash <span class="kw">LIMIT</span> <span class="dv">5</span>;</span></code></pre></div></li>
+<li><strong>Mitigate</strong>：
+<ol type="1">
+<li><strong>Freeze</strong>：暫停所有 voucher
+新寫入（<code>POST /vouchers/*</code> 回 503）；防 chain 繼續被污染</li>
+<li><strong>Forensic</strong>：dump 該 ledger 全部 row，比對 PITR
+snapshot（24h 前）找出 mismatch 開始點</li>
+<li><strong>Decide cause</strong>:
+<ul>
+<li>DB 直改（繞過 trigger）→ 立即 audit RLS / GRANT；通報 DPO +
+法務</li>
+<li>PITR rehydrate 時 column ordering 改變 → 重新計算 chain；apply hash
+chain v2 trigger（含 column-order-safe serialization）</li>
+<li>Cold tier rehydrate 失敗 → re-archive；nightly verify 加 cold-tier
+sample check</li>
+</ul></li>
+<li><strong>Repair</strong>：寫 <code>hash_chain_break_marker</code>
+row（不修改舊 row），標 break point，新 chain 從 marker 後重新計算</li>
+<li><strong>Notify</strong>：DPO + 法務 + 甲方會計（影響 audit
+完整性）；列入 monthly compliance report</li>
+</ol></li>
+<li><strong>Rollback</strong>：不適用（資料完整性問題，rollback
+部署不解決；走 forensic + repair）</li>
+<li><strong>Postmortem</strong>：mandatory；board-level
+review（合規等級）</li>
+<li><strong>Prevent</strong>：
+<ul>
+<li>DB-level RLS 完全 REVOKE UPDATE/DELETE</li>
+<li>column-order-safe serialization（row_to_json 結果 sort by key）</li>
+<li>Nightly verify 加 cold-tier rehydrate sample（每月抽 1%
+partition）</li>
+</ul></li>
+</ul>
+<h3
+id="ir-012m18-config-rollout-失敗--mis-config2026-05-28-added-per-adr-0067--br-m18-0105">IR-012：M18
+Config rollout 失敗 / mis-config（2026-05-28 added per ADR-0067 +
+BR-M18-01..05）</h3>
+<ul>
+<li><strong>Severity</strong>：P1（影響面取決於 config_key — 取消費 /
+approval limit / SLA 等為 P0）</li>
+<li><strong>Symptoms</strong>：
+<ul>
+<li>Staged rollout auto-halt fire（per NFR-Ops-006）— canary 5% 階段
+error rate / P99 latency / Forbidden Eval 超 baseline</li>
+<li>Downstream module log 顯示 409
+<code>ConfigVersionMismatch</code>（per ADR-0068 + ADR-0009
+PARTIAL_UPDATE）</li>
+<li>KPI K3 sentiment 在 M18 改動後 1h 內退化</li>
+<li>客服 / 客戶 ticket 暴增反映「金額算錯 / SLA 不對」</li>
+</ul></li>
+<li><strong>Diagnose</strong>：
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. 查最近 1h 內的 M18 config change（per ADR-0067 §Decision 組件 2 audit）</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> /m18/config/changes<span class="pp">?</span>since=1h <span class="kw">|</span> <span class="ex">jq</span> <span class="st">&#39;.changes[] | {key, version, changed_by, diff}&#39;</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. 查當前 active version vs 前一版 diff</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> /m18/config/{key}/diff<span class="pp">?</span>from=N-1<span class="kw">&amp;</span><span class="va">to</span><span class="op">=</span>N</span></code></pre></div></li>
+<li><strong>First responder</strong>：DevOps on-call</li>
+<li><strong>Triage tree</strong>：
+<ul>
+<li>schema validation 通過但業務邏輯錯（如金額多打一個 0）→ Layer 1
+rollback (<code>rollback-plan-smart-lock-saas.md</code> §1)</li>
+<li>downstream cache 不一致（部分服務讀新版 + 部分讀舊版）→ 查 cache
+invalidation broadcast 是否完成（per ADR-0067 §Decision 組件 5）→ 必要時
+force invalidate</li>
+<li>schema 本身錯（如新增 enum value 但 reader 模組未升級）→ Layer 1
+rollback + 升 schema deprecation issue</li>
+</ul></li>
+<li><strong>Mitigate</strong>：
+<ol type="1">
+<li><strong>Auto-halt 已 fire</strong>：自動回 staged rollout
+前一版（per NFR-Ops-005 ≤ 1 min）</li>
+<li><strong>Manual rollback</strong>：admin UI 一鍵回退（per
+BR-M18-04）；走 staged 10% 驗 → 50% → 100%</li>
+<li><strong>Cache mismatch</strong>：force broadcast invalidation
+channel 重發；TTL 30s 兜底</li>
+<li><strong>Notify</strong>：M18 admin + 影響模組 owner + PM</li>
+</ol></li>
+<li><strong>Rollback procedure</strong>：見
+<code>rollback-plan-smart-lock-saas.md</code> §1（M18 instant ≤ 1
+min）</li>
+<li><strong>Escalation path</strong>：DevOps → Tech Lead（如
+schema-level 問題）→ PM（如業務影響 &gt; 10% tenant）→
+法務（如合約金額條款相關）</li>
+<li><strong>Postmortem trigger</strong>：必跑 if (1) auto-halt fire (2)
+影響金額 / 合規 / SLA 相關 config (3) cache split-brain 持續 &gt; 5
+min</li>
+<li><strong>Prevent</strong>：
+<ul>
+<li>Schema validation 前置（per ADR-0067 §Decision 組件 1）+ admin UI
+雙驗</li>
+<li>Staged rollout 不可跳（per BR-M18-03）；emergency override 需
+IT-admin 雙簽</li>
+<li>M18 config change 與 app deploy <strong>不可並行</strong>（pipeline
+spec §3.1）</li>
+</ul></li>
+</ul>
+<h3
+id="ir-013quote-pricing-snapshot-hash-chain-mismatch2026-05-28-added-per-adr-0064">IR-013：Quote
+pricing snapshot hash chain mismatch（2026-05-28 added per
+ADR-0064）</h3>
+<ul>
+<li><strong>Severity</strong>：P0（業務 audit 鏈斷裂 —
+客戶爭議時無法仲裁；合規隱性風險）</li>
+<li><strong>Symptoms</strong>：
+<ul>
+<li><code>quote_hash_mismatch_total</code> counter &gt; 0</li>
+<li>Nightly verify job 報 <code>pricing_rule_snapshot</code> immutable
+table 與 <code>quote.snapshot_hash</code> FK 不一致</li>
+<li>客戶申訴「報價金額對不上」+ snapshot 查不到對應 row</li>
+</ul></li>
+<li><strong>Diagnose</strong>：
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- 找出 quote.snapshot_hash 在 pricing_rule_snapshot 找不到的 row</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> q.quote_id, q.snapshot_hash, q.created_at</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> quote q</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="kw">LEFT</span> <span class="kw">JOIN</span> pricing_rule_snapshot prs <span class="kw">ON</span> q.snapshot_hash <span class="op">=</span> prs.<span class="kw">hash</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span> prs.<span class="kw">hash</span> <span class="kw">IS</span> <span class="kw">NULL</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span> <span class="kw">BY</span> q.created_at <span class="kw">DESC</span> <span class="kw">LIMIT</span> <span class="dv">20</span>;</span></code></pre></div></li>
+<li><strong>First responder</strong>：DBA + on-call dev</li>
+<li><strong>Triage tree</strong>：
+<ul>
+<li>missing snapshot row → 查 pricing_rule_snapshot 是否被
+DELETE（不該發生，應該 immutable）→ RLS audit</li>
+<li>hash collision（理論上 sha256 不該）→ 查 serialization
+是否不穩定</li>
+<li>quote.snapshot_hash 寫入錯（hash 算錯）→ 查 app code path</li>
+</ul></li>
+<li><strong>Mitigate</strong>：
+<ol type="1">
+<li><strong>凍結</strong>：暫停 new quote
+creation（<code>POST /quotes</code> 回 503）</li>
+<li><strong>Forensic</strong>：dump 該 quote 與 snapshot 的歷史；對比
+PITR 24h 前 snapshot</li>
+<li><strong>Pricing engine 補救</strong>：如該 quote 對應的 pricing rule
+仍可由 M18 config_versions 重建 → 重新計 hash + 寫 audit；如已
+unrecoverable → 標 <code>disputed</code> + 客服跟客戶協商</li>
+<li><strong>Notify</strong>：PM + 法務 + 影響客戶之 ops 主管</li>
+</ol></li>
+<li><strong>Rollback procedure</strong>：不適用（資料完整性問題，per
+<code>rollback-plan-smart-lock-saas.md</code> §3.5）</li>
+<li><strong>Postmortem trigger</strong>：mandatory；對齊 IR-011 voucher
+mismatch 處理流程</li>
+<li><strong>Prevent</strong>：
+<ul>
+<li><code>pricing_rule_snapshot</code> RLS REVOKE DELETE / UPDATE</li>
+<li>content-addressable hash 計算 column-order-safe（per ADR-0064
+§Decision）</li>
+<li>Nightly verify job 每月抽 1% snapshot sample 驗</li>
+</ul></li>
+</ul>
+<h3
+id="ir-014sod-violation-攔截後客服處理-sop2026-05-28-added-per-adr-0050-v2--adr-0042-rbac-l1-l5">IR-014：SoD
+violation 攔截後客服處理 SOP（2026-05-28 added per ADR-0050 v2 +
+ADR-0042 RBAC L1-L5）</h3>
+<ul>
+<li><strong>Severity</strong>：P1（合規 + 客戶體驗）</li>
+<li><strong>Symptoms</strong>：
+<ul>
+<li><code>sod_violation_blocked_total</code> counter spike（per ADR-0050
+v2 evidence visibility matrix 四維權限）</li>
+<li>客服 ticket：「我無法 approve 這筆退款 / 取消費」</li>
+<li>Audit log 顯示 same user 同時擁有兩個衝突 role（如 dispatcher +
+approver on same WO）</li>
+</ul></li>
+<li><strong>Diagnose</strong>：
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- 查最近 1h SoD violation events</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> user_id, target_resource, attempted_action, sod_rule_violated, blocked_at</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> audit_log</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span> event_type <span class="op">=</span> <span class="st">&#39;sod_violation&#39;</span> <span class="kw">AND</span> blocked_at <span class="op">&gt;</span> NOW() <span class="op">-</span> <span class="dt">INTERVAL</span> <span class="st">&#39;1 hour&#39;</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span> <span class="kw">BY</span> blocked_at <span class="kw">DESC</span> <span class="kw">LIMIT</span> <span class="dv">50</span>;</span></code></pre></div></li>
+<li><strong>First responder</strong>：客服主管 + DevOps</li>
+<li><strong>Triage tree</strong>：
+<ul>
+<li>合理 SoD（如 dispatcher 自己派工自己核准）→ 通知 user 走 escalation
+path 找 L3+ approver</li>
+<li>role 設定錯誤（per ADR-0042 L1-L5 矩陣 mis-config）→ 走 IR-018 RBAC
+sync lag</li>
+<li>緊急場景（如假日只有 1 個 approver 在班）→ IT-admin override + audit
+highlight + 24h 內補 secondary approver</li>
+</ul></li>
+<li><strong>Mitigate</strong>：
+<ol type="1">
+<li><strong>客服 SOP</strong>：
+<ul>
+<li>步驟 1：告知客戶 / 內部
+user：「此操作有合規限制，正轉接到適當的審核人」</li>
+<li>步驟 2：通知對應 L3+ approver（per RBAC 矩陣）</li>
+<li>步驟 3：approver 受理後 audit log 記錄 attempted_user +
+actual_approver 雙紀錄</li>
+<li>步驟 4：超過 30 min 未找到合適 approver → 升
+operations_director（per NFR-SLA-003 escalation）</li>
+</ul></li>
+<li><strong>No bypass</strong>：禁止 client-side
+workaround（如代登入）；任何 override 需 IT-admin 雙簽</li>
+</ol></li>
+<li><strong>Escalation path</strong>：客服 → operations_manager →
+operations_director → IT-admin（emergency override）</li>
+<li><strong>Postmortem trigger</strong>：weekly batch（不每 incident 出
+postmortem）；如 violation rate &gt; 1% / 週 → 走 RBAC 矩陣 review</li>
+<li><strong>Prevent</strong>：
+<ul>
+<li>RBAC 矩陣定期 review（quarterly）</li>
+<li>User onboarding 時 SoD check（per ADR-0042）</li>
+<li>Approver pool 每個 role 至少 2 人（避免單點）</li>
+</ul></li>
+</ul>
+<h3
+id="ir-015chatbot-大量-fail--handoff-真人--降級開關2026-05-28-added-per-fr-0024--adr-0027--adr-0048">IR-015：Chatbot
+大量 fail → handoff 真人 + 降級開關（2026-05-28 added per FR-0024 +
+ADR-0027 + ADR-0048）</h3>
+<ul>
+<li><strong>Severity</strong>：P0（影響 LINE 主入口 →
+客戶感知第一線）</li>
+<li><strong>Symptoms</strong>：
+<ul>
+<li>SLO-4 (chatbot reply availability) burn 14.4x 1h</li>
+<li>Forbidden Eval drop &gt; 5% in 1h</li>
+<li>客服 ticket「AI 不回 / 答非所問」暴增</li>
+<li>LINE Messaging API status 正常但 AI agent 回應率掉</li>
+</ul></li>
+<li><strong>Diagnose</strong>：
+<pre><code># 1. Gemini / LLM API status
+curl https://status.cloud.google.com/incidents.json | jq &#39;.[] | select(.affected_products[] | .title | contains(&quot;Vertex&quot;))&#39;
+
+# 2. 看 AI agent fallback rate
+prometheus: rate(ai_agent_fallback_total[5m])</code></pre></li>
+<li><strong>First responder</strong>：DevOps on-call + dev on-call</li>
+<li><strong>Triage tree</strong>：
+<ul>
+<li>LLM API outage → IR-002 mitigate (Model Routing fallback per
+ADR-0027)</li>
+<li>Prompt template 改壞（per M18 config 改動）→ IR-012 M18
+rollback</li>
+<li>Skill registry 異常 → Per-skill kill switch (Layer 3 per
+ADR-0028)</li>
+<li>全面異常找不到單一原因 → <strong>Global kill switch + 全量 handoff
+真人</strong></li>
+</ul></li>
+<li><strong>Mitigate</strong>：
+<ol type="1">
+<li><strong>降級開關 Layer 1</strong>：admin UI 觸發 global kill switch
+→ 所有 inbound LINE message → fallback canned response +
+「服務暫時轉真人，請稍候」</li>
+<li><strong>Handoff 真人</strong>：per ADR-0048 ai-human-handoff-rules —
+全量 inbound 自動進客服 inbox（fallback inbox）</li>
+<li><strong>Capacity check</strong>：客服主管確認 standby
+人力；如人力不足 → 排隊訊息 + ETA</li>
+<li><strong>Comms</strong>：對甲方 LINE 通知「AI
+暫時降級，已轉真人處理；ETA 30 min」</li>
+</ol></li>
+<li><strong>Rollback procedure</strong>：恢復後走 staged rollout（先 10%
+inbound 試 AI 路徑 → 50% → 100%）</li>
+<li><strong>Escalation path</strong>：dev on-call → Tech Lead → PM →
+業務（如影響 &gt; 1h）</li>
+<li><strong>Postmortem trigger</strong>：mandatory if (1) kill switch
+fire &gt; 30 min OR (2) Forbidden violation 涉及客戶 OR (3) 客服 ticket
+&gt; 50 件</li>
+<li><strong>Prevent</strong>：
+<ul>
+<li>Model Routing fallback chain（per ADR-0027）測試 quarterly</li>
+<li>Per-skill kill switch drill monthly</li>
+<li>Capacity plan: 客服 standby 至少能 cover 30 min 全量 inbound</li>
+</ul></li>
+</ul>
+<h3
+id="ir-016evidence-證據被刪--遺失--audit-trail-recovery2026-05-28-added-per-adr-0050-v2--adr-0051">IR-016：Evidence
+證據被刪 / 遺失 — audit trail recovery（2026-05-28 added per ADR-0050 v2
++ ADR-0051）</h3>
+<ul>
+<li><strong>Severity</strong>：P0（合規 — 證據鏈斷裂；evidence
+visibility matrix 四維權限失效）</li>
+<li><strong>Symptoms</strong>：
+<ul>
+<li>GCS evidence bucket version count 異常（顯示有 DELETE）</li>
+<li><code>evidence_orphan_check</code> cron job 報 evidence 在 DB 有 FK
+但 storage 找不到</li>
+<li>客戶 / 法務查 evidence 找不到 / 取得 stale 版本</li>
+<li>SLO-6 audit log delivery drop</li>
+</ul></li>
+<li><strong>Diagnose</strong>：
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. GCS bucket 版本歷史</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">gsutil</span> ls <span class="at">-a</span> gs://<span class="op">&lt;</span>evidence-bucket<span class="op">&gt;</span>/<span class="op">&lt;</span>path<span class="op">&gt;</span> <span class="kw">|</span> <span class="fu">head</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. DB-storage consistency check</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="ex">SELECT</span> e.evidence_id, e.gcs_path, e.created_at</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="ex">FROM</span> evidence e</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="ex">LEFT</span> JOIN evidence_storage_probe esp ON e.gcs_path = esp.path</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="ex">WHERE</span> esp.exists = false AND e.deleted_at IS NULL<span class="kw">;</span></span></code></pre></div></li>
+<li><strong>First responder</strong>：sec + DPO + DBA</li>
+<li><strong>Triage tree</strong>：
+<ul>
+<li>GCS 30-day version 仍可救 → restore from version history</li>
+<li>超過 version retention → 走 cross-region replica restore（per §8
+backup）</li>
+<li>兩者都失敗 → audit-log only recovery（記錄當時的 evidence metadata +
+hash），通報甲方 + 法務 + DPO</li>
+</ul></li>
+<li><strong>Mitigate</strong>：
+<ol type="1">
+<li><strong>Freeze</strong>：暫停 evidence DELETE API（per ADR-0050 v2
+attr_mask 四維）</li>
+<li><strong>Restore from version
+history</strong>：<code>gsutil cp gs://bucket/path#&lt;version&gt; gs://bucket/path</code></li>
+<li><strong>Restore from cross-region replica</strong>：if version
+過期</li>
+<li><strong>Audit-only recovery</strong>：if 物理不可恢復 → 寫
+<code>evidence_recovery_failed</code> audit row + 通報</li>
+<li><strong>Sec audit</strong>：誰有 DELETE 權限？per ADR-0050 v2
+應該只有 DPO + IT-admin time-boxed</li>
+</ol></li>
+<li><strong>Escalation path</strong>：sec → DPO →
+法務（如涉及法律仲裁案件）→ 甲方</li>
+<li><strong>Postmortem trigger</strong>：mandatory；board-level review
+if (1) 涉及 legal-hold evidence OR (2) &gt; 10 件 OR (3) RBAC
+bypass</li>
+<li><strong>Prevent</strong>：
+<ul>
+<li>GCS bucket versioning ≥ 30d（per release-readiness §2 item 3）</li>
+<li>Cross-region replication</li>
+<li>DELETE 權限只給 DPO + IT-admin time-boxed（per ADR-0050 v2 attr_mask
+矩陣）</li>
+<li>Nightly evidence_orphan_check cron</li>
+</ul></li>
+</ul>
+<h3
+id="ir-017pii--retention-事故--dpo-通報--legal-hold-flip2026-05-28-added-per-fr-0053--adr-pii-002--adr-0061-dgs">IR-017：PII
+/ Retention 事故 — DPO 通報 + legal-hold flip（2026-05-28 added per
+FR-0053 + ADR-PII-002 + ADR-0061 DGS）</h3>
+<ul>
+<li><strong>Severity</strong>：P0（合規 — GDPR 罰款 / 法律暴露）</li>
+<li><strong>Symptoms</strong>：
+<ul>
+<li><code>gdpr_forget_pending_total</code> &gt; 0 with deadline
+approaching</li>
+<li>客戶申訴 forget request 超過 7 天未回應（Art.12(3) 紅線）</li>
+<li>PII 出現在 non-PII storage（如 log / cache 含 phone / signature 等
+L4 sensitive 資料）</li>
+<li>SLO-7 (GDPR forget) breach</li>
+</ul></li>
+<li><strong>Diagnose</strong>：
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- 查 pending forget requests</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> request_id, customer_id, requested_at, deadline, legal_hold_status</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> gdpr_forget_request</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span> status <span class="op">=</span> <span class="st">&#39;pending&#39;</span> <span class="kw">AND</span> deadline <span class="op">&lt;</span> NOW() <span class="op">+</span> <span class="dt">INTERVAL</span> <span class="st">&#39;2 days&#39;</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span> <span class="kw">BY</span> deadline <span class="kw">ASC</span>;</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co">-- 查 PII leak in log</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>rg <span class="co">--type log &#39;phone|signature|id_card&#39; /var/log/... | head -50</span></span></code></pre></div></li>
+<li><strong>First responder</strong>：DPO + DGS team</li>
+<li><strong>Triage tree</strong>：
+<ul>
+<li>Legal-hold 阻擋（爭議 / 仲裁 / 警方）→ 在 7 天內送
+customer_notice（Art.12(3) 合規）+ 預計解除時間</li>
+<li>DGS service 處理 lag → 走 IR-003 DGS down mitigation</li>
+<li>PII 出現在不該的地方 → 立即清除 + 走 ADR-PII-002 schema CI
+雙層防線後續審計</li>
+<li>Forget 跨服務 propagation 失敗（chatbot / ERP / sync / vault
+同步刪除）→ 手動補刪 + audit</li>
+</ul></li>
+<li><strong>Mitigate</strong>：
+<ol type="1">
+<li><strong>兩階段刪除確認</strong>（per FR-0053 + BR-PII-001）：T0
+crypto-shred 金鑰 + 軟刪 + audit；T+30 物理刪</li>
+<li><strong>Legal-hold flip</strong>：如先前 hold 已解除 → DPO flip
+legal_hold=false → DGS 重新進刪除佇列</li>
+<li><strong>Customer notice</strong>：7 天內送（per NFR-Priv-005）—
+LINE/SMS/Email 三層；通知 legal-hold 原因 + 預計解除</li>
+<li><strong>PII leak</strong>：立即遮蔽 / 清除 leak source + log scrub
+script + audit</li>
+<li><strong>Notify</strong>：DPO → 法務 → 甲方 → （如 &gt; 100
+客戶受影響）主管機關</li>
+</ol></li>
+<li><strong>Compliance breach 升級</strong>：
+<ul>
+<li>7 天未送 customer_notice → DPO 強制通報法務</li>
+<li>30 天未完成 forget → 通報主管機關</li>
+</ul></li>
+<li><strong>Escalation path</strong>：DGS team → DPO → 法務 → 甲方 →
+主管機關（嚴重時）</li>
+<li><strong>Postmortem trigger</strong>：mandatory；board-level if &gt;
+10 客戶 OR 涉及 L4 sensitive PII leak</li>
+<li><strong>Prevent</strong>：
+<ul>
+<li>DGS cron retention 排程穩定（per IR-009 prevent）</li>
+<li>PII-CI 雙層防線（schema CI + runtime scan，per ADR-PII-002）</li>
+<li>Legal-hold flip 走 DPO + 法務 雙簽</li>
+</ul></li>
+</ul>
+<h3
+id="ir-018師傅-rbac-l1-l5-同步-lag--workforce-sync-失敗2026-05-28-added-per-adr-0042--fr-0036-sync-facts-master">IR-018：師傅
+RBAC L1-L5 同步 lag → workforce sync 失敗（2026-05-28 added per ADR-0042
++ FR-0036 sync-facts-master）</h3>
+<ul>
+<li><strong>Severity</strong>：P1（影響派工 + 接案 + 結算正確性）</li>
+<li><strong>Symptoms</strong>：
+<ul>
+<li>師傅在 web app 登入後權限不對（看到不該看的 WO / 看不到自己的
+WO）</li>
+<li><code>workforce_sync_lag_seconds</code> 超過 baseline（per outbox
+機制）</li>
+<li>派工失敗：「找不到合適技能的師傅」但實際有</li>
+<li>結算對不上：師傅 commission 算錯</li>
+</ul></li>
+<li><strong>Diagnose</strong>：
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- 查 sync facts master vs RBAC tier 一致性</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> t.technician_id, t.rbac_tier, sfm.rbac_tier_synced, sfm.last_synced_at</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> technician t</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="kw">LEFT</span> <span class="kw">JOIN</span> sync_facts_master sfm <span class="kw">ON</span> t.technician_id <span class="op">=</span> sfm.technician_id</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span> t.rbac_tier <span class="op">!=</span> sfm.rbac_tier_synced</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>   <span class="kw">OR</span> sfm.last_synced_at <span class="op">&lt;</span> NOW() <span class="op">-</span> <span class="dt">INTERVAL</span> <span class="st">&#39;15 minutes&#39;</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span> <span class="dv">50</span>;</span></code></pre></div></li>
+<li><strong>First responder</strong>：DevOps + dev on-call</li>
+<li><strong>Triage tree</strong>：
+<ul>
+<li>Sync outbox poller 卡（per IR-004）→ 走 outbox lag mitigation</li>
+<li>L1-L5 tier 升降級邏輯 bug → 走 app rollback (Layer 2)</li>
+<li>Sync FK constraint violation（如師傅被刪除但 sync 表還有 row）→ DBA
+repair</li>
+</ul></li>
+<li><strong>Mitigate</strong>：
+<ol type="1">
+<li><strong>救急</strong>：force sync 該 technician（admin API
+<code>POST /workforce/sync/{technician_id}/force</code>）</li>
+<li><strong>Poller 重啟</strong>：if poller pod 卡 → scale HPA /
+restart</li>
+<li><strong>批次重 sync</strong>：if &gt; 10 technician 影響 → 跑 batch
+sync job</li>
+<li><strong>Notify</strong>：影響派工 → 客服主管 + 派工主管；影響結算 →
+財務</li>
+</ol></li>
+<li><strong>Escalation path</strong>：DevOps → Tech Lead →
+派工主管（如業務影響 &gt; 30 min）</li>
+<li><strong>Postmortem trigger</strong>：if &gt; 50 technician 受影響 OR
+結算錯誤 &gt; NTD 10k OR sync lag &gt; 1h</li>
+<li><strong>Prevent</strong>：
+<ul>
+<li>Outbox lag SLO (SLO-6 audit delivery) monitor</li>
+<li>Sync FK constraint test in CI</li>
+<li>Nightly workforce_sync consistency check cron</li>
+</ul></li>
+</ul>
+<h3
+id="ir-019line-webhook-中斷--fallback-inbox2026-05-28-added-per-fr-0024--ir-001-extension">IR-019：LINE
+webhook 中斷 → fallback inbox（2026-05-28 added per FR-0024 + IR-001
+extension）</h3>
+<blockquote>
+<p>此 IR 是 IR-001 (LINE webhook 失敗率 &gt; 1%) 的延伸場景：當 LINE
+平台<strong>完全中斷</strong>（非我方服務問題）時的 fallback 路徑。</p>
+</blockquote>
+<ul>
+<li><strong>Severity</strong>：P0（LINE 是台灣 0-1 SaaS 主入口）</li>
+<li><strong>Symptoms</strong>：
+<ul>
+<li>LINE Messaging API status 顯示 outage</li>
+<li>Webhook 全停（不是 5xx，是根本不來）</li>
+<li>SLO-4 chatbot drop 但 service 本身健康</li>
+</ul></li>
+<li><strong>Diagnose</strong>：
+<ul>
+<li>LINE platform status: <code>https://status.line.me/</code></li>
+<li>Webhook last-received timestamp（如 &gt; 5 min 無 inbound →
+嚴重）</li>
+</ul></li>
+<li><strong>First responder</strong>：DevOps on-call + 客服主管</li>
+<li><strong>Mitigate（fallback inbox）</strong>：
+<ol type="1">
+<li><strong>客服 fallback inbox</strong>：所有客戶聯繫導向「客服專線 /
+web form / email」三條備援</li>
+<li><strong>Comms</strong>：對甲方 LINE/SMS 通知「LINE
+平台中斷，已啟用備援聯繫管道」；對 consumer 透過官網 banner + Google My
+Business 更新狀態</li>
+<li><strong>資料補錄</strong>：LINE 恢復後，dedup window 24h（per
+FR-0024）+ DLQ replay；如 LINE 平台 outage &gt; 24h，需走 manual
+補錄客戶聯繫（客服紀錄）</li>
+<li><strong>不開 kill switch</strong>：我方服務健康，不該下 kill
+switch</li>
+</ol></li>
+<li><strong>Escalation path</strong>：DevOps → PM → 業務 → 甲方</li>
+<li><strong>Postmortem trigger</strong>：if LINE outage &gt; 30 min OR
+&gt; 100 客戶受影響 → 跑 fallback inbox capacity review</li>
+<li><strong>Prevent</strong>：
+<ul>
+<li>Fallback inbox（客服專線 / web form / email）保持 always-ready</li>
+<li>LINE status 自動監控（每 30s probe）+ alert</li>
+<li>客服 standby 人力規劃 cover LINE outage 場景</li>
+</ul></li>
+</ul>
+<hr />
+<h2 id="3-kill-switchadr-00283-layers">§3 Kill Switch（ADR-0028，3
+layers）</h2>
+<blockquote>
+<p>[sre] 全域 / 員工 / Skill 三層。每層 activate 動作 + verification
+step 都要可重複。</p>
+</blockquote>
+<h3 id="layer-1global-kill-switch">Layer 1：Global kill switch</h3>
+<ul>
+<li><strong>Trigger</strong>：cross-tenant leak / mass forbidden
+violation / critical CVE</li>
+<li><strong>Effect</strong>：all AI agent traffic → fallback canned
+response + 「服務暫時轉真人」</li>
+<li><strong>Activate</strong>：
+<pre><code>gcloud run services update ai-agent --update-env-vars=KILL_GLOBAL=true</code></pre></li>
+<li><strong>Verification</strong>：policy.decision log should show
+<code>kill_switch.activated</code> within 30s</li>
+</ul>
+<h3 id="layer-2per-employee-kill-switch">Layer 2：Per-employee kill
+switch</h3>
+<ul>
+<li>Per AI agent role（quote-bot / sop-drafter）</li>
+<li>Effect：that agent route → fallback / disabled</li>
+</ul>
+<h3 id="layer-3per-skill-kill-switch">Layer 3：Per-skill kill
+switch</h3>
+<ul>
+<li>Per SKILL.md</li>
+<li>Effect：skill 從 registry 卸載；AI fallback 到「我幫您轉真人」</li>
+</ul>
+<p>All 3 layers log to <code>policy.decision</code> event + alert
+ops.</p>
+<hr />
+<h2 id="4-deployment-pipelinedevops-主筆">§4 Deployment Pipeline（devops
+主筆）</h2>
+<blockquote>
+<p>[devops] Pipeline gate 嚴格，artifact 可追溯到 commit SHA + build
+timestamp。</p>
+</blockquote>
+<h3 id="build--test--deploy">Build → Test → Deploy</h3>
+<pre><code>[git push]
+    ↓
+[CI lint] OpenAPI / Rego / static analysis
+    ↓
+[Unit + Integration test] coverage ≥ 70%
+    ↓
+[Forbidden Eval] 200 questions，≥ 95% pass → block-deploy gate
+    ↓
+[Build container] tag = &lt;commit SHA&gt;-&lt;build timestamp&gt;
+    ↓
+[Deploy to staging]
+    ↓
+[Smoke test]
+    ↓
+[Canary 10%]（V1 staged，V2 canary per PRD §Release Plan）
+    ↓
+[Monitor K1/K8/Uptime 30min]
+    ↓
+[Full rollout]
+    ↓
+[Post-deploy verification] K-metrics</code></pre>
+<h3 id="block-deploy-gatescicd">Block-deploy gates（CI/CD）</h3>
+<ol type="1">
+<li>Coverage &lt; 70%</li>
+<li>Forbidden Eval &lt; 95%</li>
+<li>KPI K3 baseline &lt; 88% from staging shadow run</li>
+<li>OpenAPI breaking change without DR</li>
+<li>Image moderation gate violation &gt; 0（SOW 2.1(4)）</li>
+<li>OPA Rego artifact hash mismatch（DGS startup）</li>
+</ol>
+<h3 id="drift-偵測">Drift 偵測</h3>
+<ul>
+<li>Infra as Code（Terraform）每日 drift detection</li>
+<li>Cloud Run env vars drift → alert + reconcile</li>
+</ul>
+<hr />
+<h2 id="5-rollback-procedure">§5 Rollback Procedure</h2>
+<blockquote>
+<p>[devops] Rollback 路徑明確 3 步驟，artifact tag 可指認回滾目標。</p>
+</blockquote>
+<h3 id="v1-rollback-trigger">V1 Rollback Trigger</h3>
+<ul>
+<li>AI 準確率 K1 &lt; 70%</li>
+<li>Forbidden Eval K8 pass &lt; 90%</li>
+<li>Uptime &lt; 90%（rolling 30d）</li>
+<li>合約 4.4 UAT 不過</li>
+<li>PII leak event</li>
+</ul>
+<h3 id="v2-rollback-trigger">V2 Rollback Trigger</h3>
+<ul>
+<li>派工 SLA K5 &lt; 80% on-time</li>
+<li>月結對帳錯誤率 &gt; 1%</li>
+<li>師傅接單率 &lt; 50%</li>
+</ul>
+<h3 id="procedure">Procedure</h3>
+<ol type="1">
+<li><strong>Decide go/no-go</strong>（PM + Tech Lead + DevOps on-call
+三人簽核 24h 內）</li>
+<li><strong>Cloud Run revision pin</strong> → 上一版 green artifact（含
+SHA tag）</li>
+<li><strong>Verify smoke test pass</strong></li>
+<li><strong>Communicate</strong>：LINE notice（consumer if
+user-facing）+ Admin Panel banner + 甲方 email</li>
+<li><strong>Postmortem</strong> 內 1 週</li>
+</ol>
+<h3 id="migration-rollback">Migration Rollback</h3>
+<ul>
+<li>Down migration scripts mandatory</li>
+<li>Schema change 2-release 雙寫期，allows safe rollback within 1
+release window</li>
+<li>Data backfill：incremental + idempotent</li>
+</ul>
+<hr />
+<h2 id="6-on-call-rotation">§6 On-call Rotation</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Shift</th>
+<th style="text-align: left;">Coverage</th>
+<th style="text-align: left;">Personnel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Office hours（9-18）</td>
+<td style="text-align: left;">First responder</td>
+<td style="text-align: left;">DevOps + 1 dev</td>
+</tr>
+<tr>
+<td style="text-align: left;">Off-hours（18-9）</td>
+<td style="text-align: left;">First responder</td>
+<td style="text-align: left;">DevOps on-call rotation（weekly）</td>
+</tr>
+<tr>
+<td style="text-align: left;">Critical escalation</td>
+<td style="text-align: left;">Tech Lead</td>
+<td style="text-align: left;">always</td>
+</tr>
+<tr>
+<td style="text-align: left;">Compliance escalation</td>
+<td style="text-align: left;">PM + 法務 + DPO</td>
+<td style="text-align: left;">on incident</td>
+</tr>
+</tbody>
+</table>
+<p>PagerDuty alerting:</p>
+<ul>
+<li>P0：page on-call immediately</li>
+<li>P1：Slack alert + 30min response</li>
+<li>P2：Slack alert + next business day</li>
+</ul>
+<hr />
+<h2 id="7-compliance-continuous-monitoring">§7 Compliance Continuous
+Monitoring</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Compliance Item</th>
+<th style="text-align: left;">Cadence</th>
+<th style="text-align: left;">Owner</th>
+<th style="text-align: left;">Action on breach</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">合約 4.4(a) 90% sentiment</td>
+<td style="text-align: left;">Weekly N=100 LLM-judge + monthly N=50
+manual</td>
+<td style="text-align: left;">qa + 客服主管</td>
+<td style="text-align: left;">&lt; 88% 2w block / &lt; 85% 4w
+incident</td>
+</tr>
+<tr>
+<td style="text-align: left;">合約 4.4(d) Family Reviewer 100%</td>
+<td style="text-align: left;">Real-time</td>
+<td style="text-align: left;">qa + governance</td>
+<td style="text-align: left;">缺席 24h → ChangeRequest</td>
+</tr>
+<tr>
+<td style="text-align: left;">SOW 2.1(4) AI 影像辨識 violation = 0</td>
+<td style="text-align: left;">Real-time</td>
+<td style="text-align: left;">ops</td>
+<td style="text-align: left;">Page + immediate fix</td>
+</tr>
+<tr>
+<td style="text-align: left;">GDPR forget ≤ 7d</td>
+<td style="text-align: left;">Per request</td>
+<td style="text-align: left;">DPO</td>
+<td style="text-align: left;">&gt; 5d unfulfilled → alert</td>
+</tr>
+<tr>
+<td style="text-align: left;">Cross-tenant isolation</td>
+<td style="text-align: left;">Daily scan</td>
+<td style="text-align: left;">sec</td>
+<td style="text-align: left;">Any leak → P0 IR-007</td>
+</tr>
+<tr>
+<td style="text-align: left;">OPA Rego artifact integrity</td>
+<td style="text-align: left;">DGS startup + every config change</td>
+<td style="text-align: left;">dev</td>
+<td style="text-align: left;">Hash mismatch → DGS refuses to start</td>
+</tr>
+<tr>
+<td style="text-align: left;">KPI K8 Forbidden ≥ 95%</td>
+<td style="text-align: left;">Every deploy</td>
+<td style="text-align: left;">qa</td>
+<td style="text-align: left;">&lt; 95% block deploy</td>
+</tr>
+<tr>
+<td style="text-align: left;">DORA metrics</td>
+<td style="text-align: left;">Monthly review</td>
+<td style="text-align: left;">tech lead</td>
+<td style="text-align: left;">Lead time / CFR / MTTR target</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-backup--disaster-recovery">§8 Backup + Disaster Recovery</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Component</th>
+<th style="text-align: left;">Backup</th>
+<th style="text-align: left;">RPO</th>
+<th style="text-align: left;">RTO</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">PostgreSQL primary</td>
+<td style="text-align: left;">daily snapshot + WAL streaming</td>
+<td style="text-align: left;">1h</td>
+<td style="text-align: left;">4h</td>
+</tr>
+<tr>
+<td style="text-align: left;">Evidence object storage（GCS）</td>
+<td style="text-align: left;">30-day version + cross-region</td>
+<td style="text-align: left;">24h</td>
+<td style="text-align: left;">4h</td>
+</tr>
+<tr>
+<td style="text-align: left;">OPA Rego artifact</td>
+<td style="text-align: left;">git history + signed releases</td>
+<td style="text-align: left;">0（in repo）</td>
+<td style="text-align: left;">minutes</td>
+</tr>
+<tr>
+<td style="text-align: left;">Audit ledger</td>
+<td style="text-align: left;">append-only + cross-region
+replication</td>
+<td style="text-align: left;">0</td>
+<td style="text-align: left;">minutes</td>
+</tr>
+<tr>
+<td style="text-align: left;">Snapshot cache</td>
+<td style="text-align: left;">rebuild from DB（no recovery needed）</td>
+<td style="text-align: left;">n/a</td>
+<td style="text-align: left;">minutes</td>
+</tr>
+<tr>
+<td style="text-align: left;">Vector DB（pgvector）</td>
+<td style="text-align: left;">同 PostgreSQL backup</td>
+<td style="text-align: left;">1h</td>
+<td style="text-align: left;">4h</td>
+</tr>
+</tbody>
+</table>
+<p><strong>DR drill</strong>：quarterly（full restore from backup to
+staging + verify）</p>
+<hr />
+<h2 id="9-observability-setup">§9 Observability Setup</h2>
+<h3 id="metricsgrafana">Metrics（Grafana）</h3>
+<ul>
+<li>KPI dashboard：K1-K9 + C1-C3</li>
+<li>Service health：SLO burn rate per service</li>
+<li>DGS-specific：4 SLIs</li>
+<li>Cron retention：queue depth + partition pruning EXPLAIN check</li>
+</ul>
+<h3 id="logscloud-logging">Logs（Cloud Logging）</h3>
+<ul>
+<li>Structured JSON + trace_id</li>
+<li>Retention：policy.decision + audit eternal；ops 30-90d</li>
+</ul>
+<h3 id="tracescloud-trace">Traces（Cloud Trace）</h3>
+<ul>
+<li>Distributed traces：LINE webhook → AI → PC → WO → 結案 / DGS
+mutation flow</li>
+</ul>
+<h3 id="alertspagerduty">Alerts（PagerDuty）</h3>
+<ul>
+<li>See §1 + §2 thresholds</li>
+</ul>
+<hr />
+<h2 id="10-gate-7-release-ready-exit-criteria">§10 Gate 7 Release Ready
+Exit Criteria</h2>
+<ul>
+<li>✅ SLO defined for all services（含 DGS、outbox、cache）— 詳見
+<code>slo-spec-smart-lock-saas.md</code> 7 SLO</li>
+<li>✅ Runbook for top 19 incident scenarios（IR-001..019，2026-05-28 補
+IR-012..019 對齊新 ADR）</li>
+<li>✅ Kill switch 3-layer documented + drilled</li>
+<li>✅ Deployment pipeline with block-deploy gates — 詳見
+<code>pipeline-spec-smart-lock-saas.md</code></li>
+<li>✅ Rollback procedure 三層（M18 ≤ 1 min / app ≤ 30 min / DB ≤ 4h）—
+詳見 <code>rollback-plan-smart-lock-saas.md</code></li>
+<li>✅ On-call rotation defined</li>
+<li>✅ Compliance continuous monitoring</li>
+<li>✅ DR drill schedule — 詳見
+<code>rollback-plan-smart-lock-saas.md</code> §5</li>
+<li>✅ Observability stack ready</li>
+<li>✅ Release readiness checklist 30-item — 詳見
+<code>release-readiness-smart-lock-saas.md</code></li>
+<li>⏳ DR drill execution（W17+4 annual + quarterly thereafter）</li>
+</ul>
+<hr />
+<p><strong>Gate 7 Release Ready Freeze</strong> — ✅ ready（pending §10
+[VALUE_DECISION_NEEDED] in
+<code>release-readiness-smart-lock-saas.md</code>）</p>
+</div></div></body></html>

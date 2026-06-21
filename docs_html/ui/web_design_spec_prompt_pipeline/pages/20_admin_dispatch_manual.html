@@ -1,0 +1,451 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Page-Level Prompt: 管理員端 — 派工人工介入面板</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../../index.html">🏠 文件總目錄</a> ／ ui ／ web_design_spec_prompt_pipeline ／ pages ／ 20_admin_dispatch_manual.md</div>
+<div class="doc"><h1 id="page-level-prompt-管理員端--派工人工介入面板">Page-Level Prompt:
+管理員端 — 派工人工介入面板</h1>
+<blockquote>
+<p>IA 編號 <strong>A37</strong>。當派工引擎自動派工失敗（連續 3
+次技師拒單、熔斷、無候選）或管理員主動介入時啟用的手動派工介面。</p>
+</blockquote>
+<hr />
+<h2 id="page-meta">[PAGE META]</h2>
+<ul>
+<li><strong>page_name</strong>: 派工人工介入 Dispatch Manual
+Intervention</li>
+<li><strong>route_path</strong>: <code>/admin/dispatch-manual</code> 或
+<code>/admin/dispatch-manual?work_order_id=...</code></li>
+<li><strong>page_type</strong>: action-focused workspace</li>
+<li><strong>ia_pages</strong>: A37</li>
+<li><strong>openapi_ops</strong>: listDispatchCandidates,
+assignWorkOrder, escalateWorkOrder, getWorkOrder</li>
+<li><strong>asyncapi_ops</strong>: subscribeDispatchQueue,
+subscribeWorkOrderUpdates</li>
+<li><strong>primary_goal</strong>: 讓 dispatch_officer
+在自動派工失敗情境下，快速人工指派最適技師</li>
+<li><strong>secondary_goal</strong>:
+保留完整決策紀錄（選擇理由、候選排序、審批鏈）供稽核</li>
+<li><strong>target_users</strong>:
+<ul>
+<li>主要：<code>dispatch_officer</code>、<code>operations_manager</code></li>
+<li>次要：<code>tenant_admin</code>（升級情境接手）</li>
+</ul></li>
+<li><strong>entry_point</strong>:
+<ul>
+<li>A28 派工佇列監控點「人工介入」按鈕</li>
+<li>Flow 2 逾時重派告警 → Dashboard Banner 連結</li>
+<li>Flow 14 排班衝突 → 直接帶 <code>work_order_id</code> 進入</li>
+</ul></li>
+<li><strong>expected_time_on_page</strong>: 1–3
+分鐘（平均單次介入）</li>
+</ul>
+<hr />
+<h2 id="structure-sections">[STRUCTURE: SECTIONS]</h2>
+<ol type="1">
+<li><p><strong>context_panel</strong></p>
+<ul>
+<li>section_type: summary_panel</li>
+<li>section_purpose:
+顯示需介入工單的關鍵摘要（狀態、客戶、地點、過往派工嘗試）</li>
+</ul></li>
+<li><p><strong>candidate_list</strong></p>
+<ul>
+<li>section_type: ranked_table</li>
+<li>section_purpose:
+展示候選技師，可依「綜合分」「距離」「可用性」「歷史完成率」排序</li>
+</ul></li>
+<li><p><strong>filter_sidebar</strong></p>
+<ul>
+<li>section_type: filter_panel</li>
+<li>section_purpose: 篩選候選（技能、服務區、技師分級、可用時段）</li>
+</ul></li>
+<li><p><strong>candidate_detail_drawer</strong></p>
+<ul>
+<li>section_type: side_drawer</li>
+<li>section_purpose: 點技師列展開詳情（排班、近 30
+日表現、熔斷狀態）</li>
+</ul></li>
+<li><p><strong>assign_action_panel</strong></p>
+<ul>
+<li>section_type: sticky_action</li>
+<li>section_purpose: 底部固定操作列：指派 / 改期 / 升級主管 /
+取消工單</li>
+</ul></li>
+<li><p><strong>decision_reason_modal</strong></p>
+<ul>
+<li>section_type: modal</li>
+<li>section_purpose: 指派前強制填寫理由（稽核）</li>
+</ul></li>
+<li><p><strong>audit_trail</strong></p>
+<ul>
+<li>section_type: collapsible_section</li>
+<li>section_purpose: 本工單派工嘗試歷史（含原自動派工記錄）</li>
+</ul></li>
+</ol>
+<hr />
+<h2 id="section-component-spec">[SECTION COMPONENT SPEC]</h2>
+<h3 id="section-context_panel">Section: context_panel</h3>
+<ul>
+<li><strong>layout</strong>: 頂部卡片，寬度 100%、高度 120px，背景
+surface.subtle</li>
+<li><strong>elements</strong>:
+<ul>
+<li>wo_number: Heading H3 / required / 工單編號</li>
+<li>status_badge: Badge / required /
+當前工單狀態（<code>assigning</code> /
+<code>reassign_required</code>）</li>
+<li>customer_info: Caption / required / 客戶姓名（去識別化）+
+電話（遮蔽末四碼）</li>
+<li>address: Body / required / 地址 + Map pin 開啟 Google Map</li>
+<li>urgency_badge: Badge / required / 緊急度（含 SLA 倒數計時）</li>
+<li>attempt_count: Chip / required / 「已嘗試 N 次派工」</li>
+<li>trigger_reason: Alert / required /
+「為何進入手動模式」—（自動顯示觸發原因）</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>urgent: 緊急工單背景 #FEF2F2（淡紅），SLA 倒數倒計 &lt; 15min
+時紅色閃爍</li>
+<li>normal: 預設白底</li>
+</ul></li>
+</ul>
+<h3 id="section-candidate_list">Section: candidate_list</h3>
+<ul>
+<li><strong>layout</strong>: 表格式清單，每列高度
+72px，支援虛擬滾動</li>
+<li><strong>columns</strong>:
+<ul>
+<li>checkbox: 可複選（批量推播詢問意願）</li>
+<li>avatar + name: 技師姓名 + 在線狀態 dot（綠=online, 灰=offline,
+紅=busy）</li>
+<li>level_badge: 技師分級（S/A/B/C）</li>
+<li>distance: 距離 + 預估到場時間</li>
+<li>rating: 評分（5 星 + 近 30 日完成率 %）</li>
+<li>skills_match: 技能匹配度（0-100%）</li>
+<li>availability: 可用性「立即」「30 分後」「X 小時」</li>
+<li>circuit_status: 熔斷狀態（若有，顯示紅 Badge）</li>
+<li>action: 「指派」按鈕（主要色；熔斷中 → disabled）</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>empty: 「無符合條件的技師」+ 調整篩選提示 + 「升級至主管」CTA</li>
+<li>loading: Skeleton rows × 5</li>
+<li>filtered:
+顯示符合篩選的技師數（<code>共 12 位 / 總 45 位可用</code>）</li>
+</ul></li>
+<li><strong>sort</strong>:
+<ul>
+<li>預設：綜合分數 desc（= 0.4 × 匹配度 + 0.3 × 距離權重 + 0.3 ×
+評分）</li>
+<li>可切：距離 asc / 評分 desc / 可用時間 asc</li>
+</ul></li>
+<li><strong>copy_constraints</strong>: 技師姓名全顯，若重名附後 4 碼
+id</li>
+</ul>
+<h3 id="section-filter_sidebar">Section: filter_sidebar</h3>
+<ul>
+<li><strong>layout</strong>: 左側固定 240px，手機折疊為 drawer</li>
+<li><strong>elements</strong>:
+<ul>
+<li>skill_checkbox: 鎖品牌複選（LOCKLY / Yale / August / 其他）</li>
+<li>area_select: 服務區下拉（預設本工單區）</li>
+<li>level_filter: 技師分級 S/A/B/C 複選</li>
+<li>availability_filter: 即時 / 30 分內 / 1 小時內 / 自選時段</li>
+<li>exclude_circuit: 開關「排除熔斷中技師」（預設 on）</li>
+<li>rating_min: 最低評分 slider（0-5）</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default / applied：applied 時頂部顯示「已套用 N 個篩選」+ 清除全部
+btn</li>
+</ul></li>
+</ul>
+<h3 id="section-candidate_detail_drawer">Section:
+candidate_detail_drawer</h3>
+<ul>
+<li><strong>layout</strong>: 右側 drawer 寬度 400px，點 row 展開</li>
+<li><strong>elements</strong>:
+<ul>
+<li>profile_header: 姓名 + 照片 + level</li>
+<li>current_schedule: 時間軸（當天未來 24h 排班熱力圖）</li>
+<li>performance_snapshot: 30 日完成率、平均評分、客訴數、熔斷歷史</li>
+<li>skill_matrix: 已認證技能清單（對齊 A26 技師技能認證）</li>
+<li>recent_feedback: 最近 5 則客戶評語（去識別化）</li>
+<li>deep_link_to_a14: 按「查看完整技師檔案」→ A14 技師詳情</li>
+</ul></li>
+</ul>
+<h3 id="section-assign_action_panel">Section: assign_action_panel</h3>
+<ul>
+<li><strong>layout</strong>: 底部 sticky，高度 72px，陰影
+shadow-top</li>
+<li><strong>elements</strong>:
+<ul>
+<li>primary_assign_btn: Button Primary / required / 「指派給
+[技師名]」（選中技師後啟用）</li>
+<li>alt_reschedule_btn: Button Secondary / 「改期 + 通知客戶」→ 開 T11
+改期日曆</li>
+<li>alt_escalate_btn: Button Warning / 「升級至
+operations_manager」</li>
+<li>alt_cancel_btn: Button Danger / 「取消工單（全退）」</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>no_selection: 主按鈕 disabled + 顯示「請先選擇技師」</li>
+<li>escalated: 顯示「已升級，等候主管處理」+ 禁所有 action</li>
+</ul></li>
+</ul>
+<h3 id="section-decision_reason_modal">Section:
+decision_reason_modal</h3>
+<ul>
+<li><strong>layout</strong>: 中央 modal，寬 480px</li>
+<li><strong>elements</strong>:
+<ul>
+<li>reason_select: 單選（下拉）— 預設理由：
+<ul>
+<li>auto_dispatch_exhausted（自動派工已窮盡）</li>
+<li>customer_requested_specific_tech（客戶指名）</li>
+<li>skill_shortage_override（技能不足但特殊情境覆蓋）</li>
+<li>sla_rescue（SLA 即將違反強制指派）</li>
+<li>other（手填）</li>
+</ul></li>
+<li>reason_text: Textarea / required if <code>other</code> / 10-500
+字</li>
+<li>dual_sign_required: 自動偵測 → 若指派破格（熔斷技師、跨區）→ 強制
+operations_manager 雙簽</li>
+<li>confirm_btn: Primary / 「確認指派」</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>dual_sign_pending: 提交後等待第二簽核人（倒數 + WS notify）</li>
+</ul></li>
+</ul>
+<h3 id="section-audit_trail">Section: audit_trail</h3>
+<ul>
+<li><strong>layout</strong>: 底部可折疊區，預設收合，展開後
+Timeline</li>
+<li><strong>elements</strong>:
+<ul>
+<li>timeline_item:
+每筆派工嘗試（技師、時間、結果：accepted/declined/timeout）</li>
+<li>manual_intervention_item: 本次介入記錄（操作人、理由、決策）</li>
+<li>correlation_ids: 對應的 audit_events 連結（可 deep link 到
+A20）</li>
+</ul></li>
+</ul>
+<hr />
+<h2 id="interaction--state-flow">[INTERACTION &amp; STATE FLOW]</h2>
+<h3 id="進入流程">進入流程</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">來源</th>
+<th style="text-align: left;">帶入參數</th>
+<th style="text-align: left;">初始狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">A28 派工佇列點「人工介入」</td>
+<td style="text-align: left;"><code>work_order_id</code></td>
+<td style="text-align: left;">context_panel 載入、候選自動計算</td>
+</tr>
+<tr>
+<td style="text-align: left;">Dashboard Banner（Flow 2 告警）</td>
+<td style="text-align: left;"><code>work_order_id</code>,
+<code>from=alert</code></td>
+<td style="text-align: left;">同上 + 顯示告警背景</td>
+</tr>
+<tr>
+<td style="text-align: left;">Flow 14 排班衝突</td>
+<td style="text-align: left;"><code>work_order_id</code>,
+<code>trigger=conflict</code></td>
+<td style="text-align: left;">候選預濾「可用時段」</td>
+</tr>
+<tr>
+<td style="text-align: left;">直接進入（無 id）</td>
+<td style="text-align: left;">—</td>
+<td style="text-align: left;">顯示待介入工單佇列（列表模式）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="核心互動">核心互動</h3>
+<ol type="1">
+<li>載入 context_panel + 候選候選列 + audit_trail</li>
+<li>使用者可調整 filter_sidebar → 候選即時重新排序</li>
+<li>點 row → 右側 drawer 展開詳情（不阻塞背景列表）</li>
+<li>選擇候選（checkbox 單選 / 複選批量）→ 底部 CTA 啟用</li>
+<li>點「指派給 X」→ decision_reason_modal 開啟</li>
+<li>填理由 → 偵測是否需雙簽 → 提交</li>
+<li>提交成功 → Toast「已指派」+ 返回 A28 並 highlight 此工單</li>
+<li>若雙簽 → 提交後顯示 pending 狀態，WS 等待第二簽核</li>
+</ol>
+<h3 id="例外互動">例外互動</h3>
+<ul>
+<li>熔斷中技師點擊 → Toast 說明熔斷原因 + 解除時間</li>
+<li>跨區指派 → 強制顯示警告：「距離 X km，車馬費差額 Y」</li>
+<li>批量詢問意願（複選 3+ 技師）→ 推播 LINE Flex「想接這單嗎」→
+最快接受者勝出</li>
+<li>升級主管後此頁變成唯讀（operations_manager 看到接手連結）</li>
+</ul>
+<h3 id="dirty-state">Dirty State</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">情境</th>
+<th style="text-align: left;">處置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">填到一半切換 work_order_id</td>
+<td style="text-align: left;">不保留，重新載入</td>
+</tr>
+<tr>
+<td style="text-align: left;">decision_reason_modal 填到一半關閉</td>
+<td style="text-align: left;">sessionStorage 保留 5
+分鐘（同工單再開還原）</td>
+</tr>
+<tr>
+<td style="text-align: left;">篩選條件</td>
+<td style="text-align: left;">URL query string（可書籤）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="錯誤狀態">錯誤狀態</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">情境</th>
+<th style="text-align: left;">行為</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">工單已被其他人指派（WS 事件）</td>
+<td style="text-align: left;">Toast + 自動返回 A28</td>
+</tr>
+<tr>
+<td style="text-align: left;">候選查詢失敗</td>
+<td style="text-align: left;">空狀態 + 重試 CTA</td>
+</tr>
+<tr>
+<td style="text-align: left;">雙簽逾時（&gt; 30 分）</td>
+<td style="text-align: left;">自動取消、釋放工單回自動派工</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="data--api">[DATA &amp; API]</h2>
+<h3 id="查詢候選">查詢候選</h3>
+<pre><code>GET /api/v1/dispatch/candidates?work_order_id={id}&amp;filters=...
+  → {
+      candidates: [
+        { tech_id, name, score, distance_km, rating, skill_match,
+          availability, circuit_status, level, online },
+        ...
+      ],
+      total: 45,
+      auto_dispatch_attempts: [...]  // 歷史嘗試
+    }</code></pre>
+<h3 id="指派">指派</h3>
+<pre><code>POST /api/v1/work-orders/{id}/assign
+Headers:
+  Idempotency-Key: &lt;uuid&gt;
+  X-Cross-Tenant-Reason: (若跨租戶)
+Body: {
+  technician_id: uuid,
+  reason_code: enum,
+  reason_text: string,
+  override_flags: { allow_circuit, allow_cross_area }
+}
+Response 200: WorkOrderEnvelope (status updated to assigned)
+Response 409: WORK_ORDER_CONFLICT (已被他人接)
+Response 423: TECHNICIAN_CIRCUIT_BREAKER_OPEN (需 override + 雙簽)
+Response 409: REFUND_DUAL_SIGN_REQUIRED (需第二簽核)</code></pre>
+<h3 id="升級">升級</h3>
+<pre><code>POST /api/v1/work-orders/{id}/escalate
+Body: { level: operations_manager | tenant_admin, reason }</code></pre>
+<h3 id="websocket-訂閱">WebSocket 訂閱</h3>
+<ul>
+<li><code>/realtime/dispatch-queue</code> —
+他人操作此工單時即時同步</li>
+<li><code>/realtime/work-orders/{id}</code> — 工單狀態變化</li>
+</ul>
+<hr />
+<h2 id="exception-to-global-rules">[EXCEPTION TO GLOBAL RULES]</h2>
+<ul>
+<li>指派操作強制 <code>Idempotency-Key</code>（防雙擊）</li>
+<li>若覆寫熔斷（override_flags.allow_circuit=true）→ 強制
+<code>operations_manager</code> 雙簽</li>
+<li>本頁所有動作<strong>無論成功失敗</strong>皆產出
+<code>audit_event</code>（category=dispatch.manual）</li>
+<li>跨租戶指派需帶 <code>X-Cross-Tenant-Reason</code> header（僅
+super_admin 可用，一般隔離）</li>
+</ul>
+<hr />
+<h2 id="acceptance-criteria">[ACCEPTANCE CRITERIA]</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />進入後 &lt; 2 秒載入 context + top
+20 候選</label></li>
+<li><label><input type="checkbox" />篩選後候選列表即時更新 &lt;
+500ms</label></li>
+<li><label><input type="checkbox" />指派成功後 A28
+佇列監控同步移除此工單</label></li>
+<li><label><input type="checkbox" />熔斷技師無法被指派（除 override +
+雙簽）</label></li>
+<li><label><input type="checkbox" />雙簽超時自動釋放工單</label></li>
+<li><label><input type="checkbox" />所有指派皆產出可追溯
+audit_event</label></li>
+<li><label><input type="checkbox" />深連結
+<code>?work_order_id=xxx</code> 可直達並正確載入</label></li>
+<li><label><input type="checkbox" />跨 tab 操作同一工單時 WS 同步、衝突
+Toast 提示</label></li>
+<li><label><input type="checkbox" />行動裝置（iPad Pro 12.9）可用 —
+filter_sidebar 折疊為 drawer</label></li>
+</ul>
+<hr />
+<h2 id="導航與狀態-navigation--state">導航與狀態 (Navigation &amp;
+State)</h2>
+<p>對齊
+<code>docs/02-design/E5x--frontend-navigation-matrix.md §1.3</code>：</p>
+<ul>
+<li><strong>Upstream</strong>: A28 派工佇列、Dashboard Flow 2
+Alert、Flow 14 衝突解決</li>
+<li><strong>Downstream</strong>: A12 工單詳情（指派完成返回）、T11
+改期日曆、A14 技師詳情（drawer 連結）</li>
+<li><strong>State Persistence</strong>: filter via URL
+query、reason_modal via sessionStorage（5 分鐘窗）</li>
+<li><strong>Error Navigation</strong>: 409 自動返回 A28、403
+只讀降級、deeplink 404 回 A28</li>
+<li><strong>Deep Link</strong>: supported</li>
+<li><strong>Multi-tab Sync</strong>: WS + BroadcastChannel</li>
+</ul>
+<hr />
+<h2 id="校對檢核表">校對檢核表</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />綜合分數公式 0.4/0.3/0.3
+權重是否合理？</label></li>
+<li><label><input
+type="checkbox" />批量詢問意願「最快接受者勝出」是否會造成技師間不公？</label></li>
+<li><label><input type="checkbox" />升級主管後「30
+分鐘雙簽逾時自動釋放」是否合理？</label></li>
+<li><label><input
+type="checkbox" />跨區車馬費差額顯示是否需預覽具體金額？</label></li>
+<li><label><input type="checkbox" />熔斷覆寫（override_flags）是否應限
+tenant_admin？</label></li>
+</ul>
+</div></div></body></html>

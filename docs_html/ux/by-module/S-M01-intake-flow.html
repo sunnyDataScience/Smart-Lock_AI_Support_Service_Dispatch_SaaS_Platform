@@ -1,0 +1,124 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>S-M01 Intake 資料捕捉 — 從 LINE turn 萃取</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ ux ／ by-module ／ S-M01-intake-flow.md</div>
+<div class="doc"><h1 id="s-m01-intake-資料捕捉">S-M01 Intake 資料捕捉</h1>
+<blockquote>
+<p><strong>30 秒摘要</strong>：從 LINE / user turn
+萃取可結構化資訊（channel、raw_text、media_ref、reply
+context）；<strong>不要直接開 WO</strong>（強制走 S-M03 → S-M04 human
+gate）。</p>
+</blockquote>
+<h2 id="sequence-diagram">Sequence Diagram</h2>
+<pre class="mermaid"><code>sequenceDiagram
+    autonumber
+    actor user as 消費者
+    participant a01 as A01 Debounce
+    participant sm01 as S-M01 Intake
+    participant outbox as outbox
+
+    user -&gt;&gt; a01: merged turn
+    a01 -&gt;&gt; sm01: capture (channel=line, raw_text, media_refs)
+    sm01 -&gt;&gt; sm01: 結構化 (intent guess, attachments)
+    sm01 -&gt;&gt; outbox: emit intake_event
+    Note over sm01: 不直接開 WO\n等 S-M03 PC complete + S-M04 human gate</code></pre>
+<h2 id="state-machine--intake-event">State Machine — intake event</h2>
+<pre class="mermaid"><code>stateDiagram-v2
+    [*] --&gt; captured
+    captured --&gt; structured
+    structured --&gt; outbox_pending
+    outbox_pending --&gt; emitted
+    emitted --&gt; [*]
+    outbox_pending --&gt; dlq : retry 失敗
+    dlq --&gt; [*]</code></pre>
+<h2 id="ui-state-coverage">UI State Coverage</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">Happy</th>
+<th style="text-align: left;">Empty</th>
+<th style="text-align: left;">Loading</th>
+<th style="text-align: left;">Error</th>
+<th style="text-align: left;">Offline</th>
+<th style="text-align: left;">annotation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">捕捉</td>
+<td style="text-align: left;">✓ 結構化完成</td>
+<td style="text-align: left;">empty turn 跳過</td>
+<td style="text-align: left;">&lt; 50ms</td>
+<td style="text-align: left;">結構化 fail → keep raw + log</td>
+<td style="text-align: left;">n/a</td>
+<td style="text-align: left;">captured → structured</td>
+</tr>
+<tr>
+<td style="text-align: left;">outbox emit</td>
+<td style="text-align: left;">✓ async emit</td>
+<td style="text-align: left;">n/a</td>
+<td style="text-align: left;">n/a</td>
+<td style="text-align: left;">DLQ + alert</td>
+<td style="text-align: left;">n/a</td>
+<td style="text-align: left;">emitted / dlq</td>
+</tr>
+</tbody>
+</table>
+<h2 id="a11y-notes下游-admin-監看-ui--wcag-22-aa-繼承自主檔">a11y
+notes（下游 admin 監看 UI — WCAG 2.2 AA 繼承自主檔）</h2>
+<ul>
+<li><strong>純後台 service</strong>，無客戶端 UI；下游 admin 監看 / DLQ
+介面走 WCAG 2.2 AA</li>
+<li><strong>Keyboard navigation (2.1.1)</strong>：DLQ 列表 / re-emit
+操作 / raw_text 檢視全鍵盤可達；無 keyboard trap</li>
+<li><strong>Focus indicator (2.4.7)</strong>：DLQ row focus ring 明顯（≥
+2px / ≥ 3:1 contrast）</li>
+<li><strong>Screen reader (4.1.2)</strong>：intake event
+metadata（channel / timestamp / status）用 semantic HTML + ARIA
+roles</li>
+<li><strong>Color contrast (1.4.3)</strong>：DLQ 狀態標記 ≥ 4.5:1；error
+/ DLQ badge 不單靠顏色 — 加 icon + 文字「DLQ」「Error」</li>
+<li><strong>3.3.7 Redundant entry</strong>：re-emit 時自動帶入原
+payload，admin 不需重輸 channel / customer_id</li>
+</ul>
+<h2 id="fr-反向指">FR 反向指</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">FR</th>
+<th style="text-align: left;">AC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">intake capture</td>
+<td style="text-align: left;">FR-0035</td>
+<td style="text-align: left;">AC-01 channel/raw_text/media_ref / AC-02
+不直接開 WO</td>
+</tr>
+</tbody>
+</table>
+<h2 id="相關">相關</h2>
+<ul>
+<li>主檔：<a
+href="../user-flow-smart-lock-saas.md"><code>../user-flow-smart-lock-saas.md#flow-s1</code></a></li>
+<li>Source：<a
+href="../../_source/02-ai-chatbot-sync.md"><code>../../_source/02-ai-chatbot-sync.md#s-m01-intake資料捕捉</code></a></li>
+</ul>
+</div></div></body></html>

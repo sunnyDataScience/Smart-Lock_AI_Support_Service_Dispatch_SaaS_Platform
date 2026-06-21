@@ -1,0 +1,369 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Scope Change 流程（增項 / 改價）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ analysis ／ fr ／ FR-0008-scope-change.md</div>
+<div class="doc"><h1 id="fr-0008--scope-change-流程增項--改價">FR-0008 — Scope Change
+流程（增項 / 改價）</h1>
+<blockquote>
+<p><strong>B' 殼 (2026-05-28 D5)</strong>：rule clause 搬 BR-M15-NN +
+BR-M08-NN + BR-M17-NN。 <strong>Cross-module FR 範例</strong>（D1
+治理）：本 FR 涉及 M15 (Exception) + M17 (Authorization) + M16
+(Communication) + M08 (Onsite)，是 roundtable D1 「by-module IA
+不可行」反例的關鍵案例。FR 本身只放此一份，但會出現在多個 by-module
+reverse index。</p>
+</blockquote>
+<h2 id="1-use-case-skeleton">§1 Use Case Skeleton</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">欄位</th>
+<th style="text-align: left;">內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Actor</strong></td>
+<td style="text-align: left;">師傅 (M08 現場觸發)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Secondary Actors</strong></td>
+<td style="text-align: left;">消費者 (M16 LINE 確認), Admin/主管 (M17
+高金額簽核), Customer Service (M16 協調)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Trigger</strong></td>
+<td
+style="text-align: left;">師傅現場發現原報價範圍不足，需增項或改價</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Precondition</strong></td>
+<td style="text-align: left;">WorkOrder 狀態 = <code>OnSite</code> /
+<code>InProgress</code>；原報價已 confirmed；師傅有現場 mobile app
+操作權限</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Main Flow</strong></td>
+<td style="text-align: left;">詳見 §1.1</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Alternative Flow</strong></td>
+<td style="text-align: left;">詳見 §1.2</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Postcondition</strong></td>
+<td style="text-align: left;">Change Request 已建立 ([ref: BR-M15-01 =
+ADR-0046])；客戶確認後 emit <code>ChangeRequestApproved</code>；audit
+完整保留 before/after；WorkOrder 繼續或暫停</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Out-of-Scope</strong></td>
+<td style="text-align: left;">報價首次成立（屬 FR-0042 /
+M04）；保固判定（屬 M13 / FR-0015）；refund（屬 FR-0014 / M11）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="11-main-flow">§1.1 Main Flow</h3>
+<ol type="1">
+<li>師傅於現場 mobile app 提交 Change Request：增項 / 改價內容 + 理由 +
+預估增加金額</li>
+<li>系統建立 Change Request object ([ref: BR-M15-01 = ADR-0046])；type
+依 [ref: BR-M15-NN = ADR-0065] lookup table 設定</li>
+<li>emit <code>ChangeRequestSubmitted</code> event</li>
+<li>系統判定金額層級：
+<ul>
+<li>若 增項金額 &lt; 50% 原價 → 進 §1.1.5（單客戶確認）</li>
+<li>若 ≥ 50% 原價 → [ref: BR-M15-NN]：強制走 §1.2 A2（admin 簽核）</li>
+</ul></li>
+<li>系統透過 M16 推送 LINE 通知客戶：新報價 + 簽名連結</li>
+<li>客戶在 LINE 內看到更新報價 → 點簽名連結 → 確認</li>
+<li>系統收到客戶確認，emit <code>ChangeRequestApproved</code></li>
+<li>WorkOrder 繼續，師傅 mobile app 解鎖增項操作</li>
+<li>END：postcondition 達成 + audit log 完整保留 before/after</li>
+</ol>
+<h3 id="12-alternative-flow">§1.2 Alternative Flow</h3>
+<pre><code>A1. 客戶 30 min 未回覆 (第 6 步等待):
+    A1.1 [ref: BR-M15-NN 30min 等候] → emit `WorkOrderPaused`
+    A1.2 通知 admin / 客服主管接手協調
+    A1.3 進 FR-0010 reschedule-delay flow
+
+A2. scope change ≥ 50% 原價 (第 4 步金額判定):
+    A2.1 [ref: BR-M15-NN 高金額強制簽核] → 不可僅客戶同意
+    A2.2 系統 route approval 到 admin（M17 RBAC 決定誰可簽核 [ref: ADR-0042]）
+    A2.3 admin 拒絕 → 進 §1.2 A4 reject flow
+    A2.4 admin 同意 → 仍須客戶 LINE 確認（雙簽 [ref: BR-M17-NN]）
+    A2.5 客戶確認 → emit `ChangeRequestApproved`
+    A2.6 audit log 含 admin_signoff_at + customer_signoff_at（雙時戳）
+
+A3. 範圍變更後 idempotency_key 重複 (第 1 步提交時):
+    A3.1 系統偵測重複（依 idempotency_key）
+    A3.2 回傳既有 Change Request，不重複建記錄
+
+A4. 客戶拒絕 (reject scope change) (第 6 步):
+    A4.1 emit `ChangeRequestRejected`
+    A4.2 WorkOrder 狀態 → `Paused`
+    A4.3 系統通知客服主管 + 派工主管
+    A4.4 進 [ref: ADR-0049 onsite-scope-change-protocol]：安排技師撤離
+    A4.5 計算車馬費歸屬（[ref: ADR-0041 travel-fee-split]）
+    A4.6 進 FR-0014 refund 流程（若已收款）
+
+A5. 師傅提交但 type 不在 lookup table (第 2 步):
+    A5.1 [ref: BR-M15-NN type lookup = ADR-0065]：拒絕，要求師傅選 enum
+    A5.2 free-text type 不被接受（避免 type 蔓延）
+
+A6. 系統 outage 期間師傅離線提交 (offline):
+    A6.1 mobile app 本地暫存 Change Request
+    A6.2 連線恢復後 sync 到系統，按 §1.1 流程跑（含 idempotency 檢查）</code></pre>
+<h2 id="2-acceptance-criteria-gwt">§2 Acceptance Criteria (G/W/T)</h2>
+<h3 id="ac-01-happy-path--小額增項">AC-01: Happy path — 小額增項</h3>
+<pre class="gherkin"><code>Given WorkOrder &quot;WO-001&quot; status = &quot;OnSite&quot;，原報價 NT$3000
+  And 師傅在現場提交 Change Request：增項 NT$500
+When 系統建 Change Request（type=&quot;material_addition&quot;）
+Then event `ChangeRequestSubmitted` emit
+  And 系統推送 LINE 給客戶 (含新報價 NT$3500)
+  And 等待客戶 LINE 確認</code></pre>
+<h3 id="ac-02-客戶確認後-workorder-繼續">AC-02: 客戶確認後 WorkOrder
+繼續</h3>
+<pre class="gherkin"><code>Given Change Request &quot;CR-001&quot; pending 客戶確認
+When 客戶在 LINE 點簽名連結確認
+Then event `ChangeRequestApproved` emit
+  And WorkOrder 繼續
+  And 師傅 mobile app 解鎖增項操作
+  And audit log 含 customer_signoff_at</code></pre>
+<h3 id="ac-03-客戶-30-min-未回覆--暫停">AC-03: 客戶 30 min 未回覆 →
+暫停</h3>
+<pre class="gherkin"><code>Given Change Request &quot;CR-001&quot; 已發送 LINE 30 min 前
+When 客戶仍未回覆
+Then event `WorkOrderPaused` emit
+  And 通知 admin / 客服主管接手
+  And 進 FR-0010 reschedule-delay</code></pre>
+<h3 id="ac-04-高金額強制-admin-雙簽--50">AC-04: 高金額強制 admin 雙簽 (≥
+50%)</h3>
+<pre class="gherkin"><code>Given WorkOrder &quot;WO-001&quot; 原報價 NT$3000
+  And 師傅提交 Change Request：增項 NT$2000（≥ 50%）
+When 系統判定金額層級
+Then 系統不可僅靠客戶同意 ([ref: BR-M15-NN])
+  And route approval 到 admin
+  And 客戶 + admin 雙簽都到位才 emit `ChangeRequestApproved`
+  And audit log 含 admin_signoff_at + customer_signoff_at</code></pre>
+<h3 id="ac-05-客戶拒絕--撤離">AC-05: 客戶拒絕 → 撤離</h3>
+<pre class="gherkin"><code>Given Change Request &quot;CR-001&quot; pending
+When 客戶在 LINE 點「拒絕」
+Then event `ChangeRequestRejected` emit
+  And WorkOrder status → &quot;Paused&quot;
+  And 通知客服主管 + 派工主管
+  And 系統安排師傅撤離（[ref: ADR-0049]）
+  And 車馬費歸屬計算 [ref: ADR-0041]
+  And 若已收款 → 進 FR-0014 refund</code></pre>
+<h3 id="ac-06-idempotency-重複提交">AC-06: idempotency 重複提交</h3>
+<pre class="gherkin"><code>Given Change Request &quot;CR-001&quot; 已存在 (idempotency_key=&quot;K-001&quot;)
+When 師傅重複提交相同 idempotency_key
+Then 系統回傳既有 CR-001
+  And 不重複建記錄
+  And response status = 200</code></pre>
+<h3 id="ac-07-type-lookup-table-enforce">AC-07: type lookup table
+enforce</h3>
+<pre class="gherkin"><code>Given 師傅提交 Change Request type=&quot;random_free_text&quot;
+When 系統 validate type
+Then 系統 reject 422
+  And error message &quot;type 不在允許列表&quot;
+  And 師傅必須選 enum value ([ref: ADR-0065 lookup table])</code></pre>
+<h3 id="ac-08-離線提交-sync">AC-08: 離線提交 sync</h3>
+<pre class="gherkin"><code>Given 師傅 mobile app 處於 offline 狀態
+When 師傅提交 Change Request
+Then mobile app 本地暫存 (含 idempotency_key)
+  And 連線恢復後自動 sync
+
+When sync 完成
+Then 按 §1.1 main flow 跑（含 idempotency 檢查）</code></pre>
+<h2 id="3-cross-module-routing-notes">§3 Cross-Module Routing Notes</h2>
+<blockquote>
+<p>本 FR 的 acceptance 跨四個 module，by-module reverse index
+處理方式（D1 治理）：</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Module</th>
+<th style="text-align: left;">本 FR 在該 module 的角色</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>M15</strong> (primary)</td>
+<td style="text-align: left;">Change Request object 生命週期、approval
+routing、reason code</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>M17</strong></td>
+<td style="text-align: left;">高金額 admin 簽核權限矩陣、雙簽 audit</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>M16</strong></td>
+<td style="text-align: left;">LINE 推送、客戶簽名連結、通知模板</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>M08</strong></td>
+<td style="text-align: left;">現場提交點、mobile app
+sync、車馬費計算觸發點</td>
+</tr>
+</tbody>
+</table>
+<p><code>docs/_index/by-module/M15.md</code> 列本 FR 為
+primary；M17/M16/M08 列為 secondary 引用。</p>
+<h2 id="4-reference-map">§4 Reference Map</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">類型</th>
+<th style="text-align: left;">ID</th>
+<th style="text-align: left;">用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Business Rule</td>
+<td style="text-align: left;">BR-M15-01</td>
+<td style="text-align: left;">Change Request object 結構</td>
+</tr>
+<tr>
+<td style="text-align: left;">Business Rule</td>
+<td style="text-align: left;">BR-M15-NN</td>
+<td style="text-align: left;">高金額強制簽核 / 30min 等候</td>
+</tr>
+<tr>
+<td style="text-align: left;">Business Rule</td>
+<td style="text-align: left;">BR-M08-NN</td>
+<td style="text-align: left;">現場 protocol</td>
+</tr>
+<tr>
+<td style="text-align: left;">Business Rule</td>
+<td style="text-align: left;">BR-M17-NN</td>
+<td style="text-align: left;">雙簽 audit</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR</td>
+<td style="text-align: left;">ADR-0046</td>
+<td style="text-align: left;">change-request-object</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR</td>
+<td style="text-align: left;">ADR-0049</td>
+<td style="text-align: left;">onsite-scope-change-protocol</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR</td>
+<td style="text-align: left;">ADR-0065</td>
+<td style="text-align: left;">change-request-type-lookup-table</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR</td>
+<td style="text-align: left;">ADR-0041</td>
+<td style="text-align: left;">travel-fee-split</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR</td>
+<td style="text-align: left;">ADR-0042</td>
+<td style="text-align: left;">RBAC four-tier (admin 簽核權限)</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR</td>
+<td style="text-align: left;">ADR-0040 v2</td>
+<td style="text-align: left;">refund-approval-tiers (downstream A4.6
+路徑：rejected → refund)</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR</td>
+<td style="text-align: left;">ADR-0102</td>
+<td style="text-align: left;">cancellation 6-stage cascade (downstream
+A4 路徑：rejected → cancel scenarios)</td>
+</tr>
+<tr>
+<td style="text-align: left;">BR (downstream)</td>
+<td style="text-align: left;">BR-REFUND-001/006</td>
+<td style="text-align: left;">雖 refund 規則 owner 在 FR-0014，A4.6
+出口承接 5-tier + SoD</td>
+</tr>
+<tr>
+<td style="text-align: left;">BR (downstream)</td>
+<td style="text-align: left;">BR-CANCEL-001..008</td>
+<td style="text-align: left;">A4 撤離若觸發 cancel 路徑，計費依 6-stage
+cascade（owner FR-0010）</td>
+</tr>
+<tr>
+<td style="text-align: left;">Domain Event</td>
+<td style="text-align: left;">ChangeRequestSubmitted</td>
+<td style="text-align: left;">M15 inbox</td>
+</tr>
+<tr>
+<td style="text-align: left;">Domain Event</td>
+<td style="text-align: left;">ChangeRequestApproved</td>
+<td style="text-align: left;">WO 繼續 + audit</td>
+</tr>
+<tr>
+<td style="text-align: left;">Domain Event</td>
+<td style="text-align: left;">ChangeRequestRejected</td>
+<td style="text-align: left;">WO 暫停 + refund 觸發</td>
+</tr>
+<tr>
+<td style="text-align: left;">Domain Event</td>
+<td style="text-align: left;">WorkOrderPaused</td>
+<td style="text-align: left;">M19 BI + M16 通知</td>
+</tr>
+<tr>
+<td style="text-align: left;">Source spec</td>
+<td
+style="text-align: left;"><code>docs/_source/01-workorder-erp.md#m15-異常核准</code></td>
+<td style="text-align: left;">M15 原始定義</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-change-log">§5 Change Log</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Date</th>
+<th style="text-align: left;">Change</th>
+<th style="text-align: left;">Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">2026-05-10</td>
+<td style="text-align: left;">REQ-008→FR-0008 split</td>
+<td style="text-align: left;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;">2026-05-28</td>
+<td style="text-align: left;"><strong>B' 殼 rewrite (D5)</strong>：rule
+clause 搬 BR-M15-NN + BR-M08-NN + BR-M17-NN；明標 cross-module
+nature；新增 frontmatter
+<code>mapped_to: [M15, M17, M16, M08]</code>；補 §1 skeleton + 6 條
+alternative flow + 8 條 G/W/T AC + §3 cross-module routing notes</td>
+<td style="text-align: left;">Roundtable 2026-05-27 D5 + SA
+龍蝦案例</td>
+</tr>
+<tr>
+<td style="text-align: left;">2026-05-28</td>
+<td style="text-align: left;"><strong>Cross-ref backfill</strong>：補
+ADR-0040 v2 / ADR-0102 + BR-REFUND-001/006 + BR-CANCEL-001..008
+為下游引用（A4.6 rejected → refund 出口 / A4 撤離 → cancel
+cascade）</td>
+<td style="text-align: left;">ADR cascade 2026-05-28</td>
+</tr>
+</tbody>
+</table>
+</div></div></body></html>

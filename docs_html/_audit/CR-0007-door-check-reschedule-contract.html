@@ -1,0 +1,514 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Door-check + Reschedule v2 contract 重設計（解 P3 收尾 2 caller，FR-0006/FR-0009 對齊）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ _audit ／ CR-0007-door-check-reschedule-contract.md</div>
+<div class="doc"><h1 id="cr-0007--door-check--reschedule-v2-contract-redesign">CR-0007 —
+Door-check + Reschedule v2 contract redesign</h1>
+<blockquote>
+<p><strong>Tier</strong>: 4-exploration → CIA<br />
+<strong>Mandated by</strong>:
+<code>.claude/rules/change-governance.md</code><br />
+<strong>Triggered by</strong>: P3 收尾 wave-1（a7a06133）取證 2 個
+caller 因 v1/v2 contract 不一致無 drop-in 遷</p>
+</blockquote>
+<hr />
+<h2 id="1-change-statement">1. Change Statement</h2>
+<p><strong>As-is</strong>：</p>
+<ul>
+<li><strong>Door-check</strong>：v1
+<code>POST /api/v1/work-orders/{id}/door-check</code> 收
+<code>{checklist, photos_before[], photos_after[], notes}</code>（門面完整檢核提交）；v2
+<code>POST /tenants/{tid}/work-orders/{id}/onsite/arrival</code> 只收
+<code>{arrived_at, gps}</code>（到場事件）。<strong>語意不同</strong>：v1
+是門檢提交、v2 是 GPS 簽到。</li>
+<li><strong>Reschedule</strong>：v1
+<code>POST /api/v1/work-orders/{id}/reschedule</code> 收
+<code>{proposed_slots[], message_to_customer, send_via}</code>（多時段提案給客戶選）；v2
+<code>POST /tenants/{tid}/work-orders/{id}/reschedule-request</code> 收
+<code>{new_scheduled_at, reason}</code>（單方直接改約）。<strong>語意不同</strong>：v1
+是多時段提案流、v2 是單方變更。</li>
+</ul>
+<p><strong>To-be</strong>：</p>
+<ul>
+<li>Door-check：v2 補
+<code>POST /tenants/{tid}/work-orders/{id}/door-check</code>（完整門檢提交）+
+保留現有 <code>/onsite/arrival</code>（GPS 簽到）為獨立 sub-action</li>
+<li>Reschedule：v2 補
+<code>POST /tenants/{tid}/work-orders/{id}/reschedule:propose</code>（多時段提案，對應
+FR-0009 客戶不在場 + RSVP）+ 保留
+<code>/reschedule-request</code>（單方變更）</li>
+</ul>
+<p><strong>Driver</strong>：</p>
+<ul>
+<li>MISSION.md 北極星 (3) v1 caller 清零 — door-check + reschedule 2
+caller 阻塞</li>
+<li>FR-0006「技師到場 + 門面檢核 evidence」與
+FR-0009「客戶不在場改約」spec 要求並未被 v2 完整覆蓋</li>
+<li>「P3-KEEP: legacy /reschedule（proposed_slots 多時段提案流）無
+drop-in v2」(<code>work-orders/[id]/page.tsx:1072</code>)
+是已知缺口</li>
+</ul>
+<hr />
+<h2 id="2-affected-flow">2. Affected Flow</h2>
+<table>
+<thead>
+<tr>
+<th>Flow ID</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BF-WO-006</code>（技師到場 + 門檢）</td>
+<td>Modified</td>
+<td>拆解為兩 sub-action：到場簽到（GPS）+ 門檢提交（checklist +
+photos）</td>
+</tr>
+<tr>
+<td><code>BF-WO-008</code>（多時段改約提案）</td>
+<td>New</td>
+<td>reschedule:propose 對應 Flow 11 客戶不在場 RSVP 流（與既有
+customer-confirm/reject 端點銜接）</td>
+</tr>
+<tr>
+<td><code>BF-WO-009</code>（單方改約）</td>
+<td>Unchanged</td>
+<td>既有 reschedule-request 保留</td>
+</tr>
+<tr>
+<td><code>SF-WO-010</code>（門檢 photos 媒體上傳）</td>
+<td>Unchanged</td>
+<td>走 <code>media_v2</code> 既有 endpoint，本 CR 不動</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-affected-spec-fr--nfr">3. Affected Spec (FR / NFR)</h2>
+<table>
+<thead>
+<tr>
+<th>Spec ID</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FR-0006</code>（技師到場 evidence）</td>
+<td>Clarified</td>
+<td>拆分「到場簽到」與「門檢提交」為兩個離散 action（spec
+原本綁在一起含糊）</td>
+</tr>
+<tr>
+<td><code>FR-0009</code>（完工送簽）</td>
+<td>Referenced</td>
+<td>door-check photos 對齊 spec 既有 ArrivalEvent +
+CompletionSubmit</td>
+</tr>
+<tr>
+<td><code>FR-0011-RSVP</code>（客戶不在場改約 RSVP）</td>
+<td>Modified</td>
+<td>reschedule:propose 是後端對應 endpoint</td>
+</tr>
+<tr>
+<td><code>NFR-WO-001</code>（door-check p95 &lt; 500ms）</td>
+<td>Unchanged</td>
+<td>既有效能預算</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-affected-api">4. Affected API</h2>
+<table>
+<thead>
+<tr>
+<th>API ID</th>
+<th>Endpoint</th>
+<th>Action</th>
+<th>Breaking?</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>API-WO-V2-DOOR-CHECK</code></td>
+<td><code>POST /tenants/{tid}/work-orders/{id}/door-check</code></td>
+<td><strong>New</strong></td>
+<td>—</td>
+<td>收
+<code>{checklist, photos_before[], photos_after[], notes}</code>，呼叫既有
+<code>record_door_check</code> service（v2 只是補 endpoint，service
+已存在）</td>
+</tr>
+<tr>
+<td><code>API-WO-V2-ARRIVAL</code></td>
+<td><code>POST /tenants/{tid}/work-orders/{id}/onsite/arrival</code></td>
+<td>Unchanged</td>
+<td>No</td>
+<td>保留現狀，仍為 GPS 簽到</td>
+</tr>
+<tr>
+<td><code>API-WO-V2-RESCHEDULE-PROPOSE</code></td>
+<td><code>POST /tenants/{tid}/work-orders/{id}/reschedule:propose</code></td>
+<td><strong>New</strong></td>
+<td>—</td>
+<td>收
+<code>{proposed_slots[], message_to_customer, send_via}</code>，呼叫
+<code>propose_reschedule_to_customer</code> service</td>
+</tr>
+<tr>
+<td><code>API-WO-V2-RESCHEDULE-REQUEST</code></td>
+<td><code>POST /tenants/{tid}/work-orders/{id}/reschedule-request</code></td>
+<td>Unchanged</td>
+<td>No</td>
+<td>既有單方變更保留</td>
+</tr>
+<tr>
+<td><code>API-WO-V2-RESCHEDULE-APPROVE</code></td>
+<td><code>POST /tenants/{tid}/work-orders/{id}/reschedule:approve</code></td>
+<td>Unchanged</td>
+<td>No</td>
+<td>既有核准單方變更保留</td>
+</tr>
+<tr>
+<td><code>API-WO-V1-DOOR-CHECK / RESCHEDULE</code>（legacy）</td>
+<td>廢棄</td>
+<td><strong>Yes（P4 統一刪）</strong></td>
+<td>—</td>
+<td>不在本 CR scope</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-affected-data">5. Affected Data</h2>
+<table>
+<thead>
+<tr>
+<th>Entity</th>
+<th>Action</th>
+<th>Migration</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>work_order_events</code></td>
+<td>既有 <code>door_check</code> event_type 沿用</td>
+<td>無 migration</td>
+</tr>
+<tr>
+<td><code>work_order_events</code></td>
+<td>既有 <code>reschedule_proposed</code> event_type 沿用</td>
+<td>無 migration</td>
+</tr>
+<tr>
+<td><code>scope_change_proposals</code>（可能複用為
+reschedule_proposals）</td>
+<td>評估是否新增 <code>reschedule_proposals</code> 表</td>
+<td>§8 HD-04 決策</td>
+</tr>
+</tbody>
+</table>
+<p><strong>State machine impact</strong>：work_order
+狀態機不變（door-check 仍進 <code>in_progress</code>，reschedule:propose
+仍進 <code>awaiting_customer_response</code> 子狀態）。</p>
+<hr />
+<h2 id="6-affected-test">6. Affected Test</h2>
+<table>
+<thead>
+<tr>
+<th>Test ID</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TC-WO-DC-001</code>（v2 door-check happy path）</td>
+<td><strong>New</strong></td>
+<td>checklist + photos + notes 完整提交</td>
+</tr>
+<tr>
+<td><code>TC-WO-DC-002</code>（v2 door-check 與 arrival 順序）</td>
+<td><strong>New</strong></td>
+<td>arrival → door-check 順序檢查；door-check 不需 arrival 前置（待
+HD-01）</td>
+</tr>
+<tr>
+<td><code>TC-WO-RS-001</code>（v2 reschedule:propose 多時段）</td>
+<td><strong>New</strong></td>
+<td>1-5 個 proposed_slots + LINE Flex RSVP 推送</td>
+</tr>
+<tr>
+<td><code>TC-WO-RS-002</code>（客戶選時段後 happy path）</td>
+<td><strong>New</strong></td>
+<td>與既有 customer-confirm 端點銜接</td>
+</tr>
+<tr>
+<td><code>TC-WO-XT-001</code>（cross-tenant guard）</td>
+<td><strong>New</strong></td>
+<td>跨 tenant 觸發 403</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Coverage delta</strong>：+5
+TC，<code>work_orders_v2.py</code> 從 ~60% → ~80%</p>
+<hr />
+<h2 id="7-affected-architecture">7. Affected Architecture</h2>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Action</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Module boundary</td>
+<td>Unchanged</td>
+<td>work-orders bounded context 內部</td>
+</tr>
+<tr>
+<td>New ADR?</td>
+<td><strong>Maybe</strong></td>
+<td>若 HD-01 拍「door-check 強制要 arrival 前置」需新 ADR
+記狀態機限制</td>
+</tr>
+<tr>
+<td>External integration</td>
+<td>LINE Flex</td>
+<td>reschedule:propose 推 RSVP Flex Message，沿用既有
+<code>line_push_service.push_to_work_order_customer</code></td>
+</tr>
+<tr>
+<td>WS publish</td>
+<td>既有 <code>_publish_state_change</code></td>
+<td>door-check 已有 <code>work_order.door_check_recorded</code>
+事件；reschedule:propose 已有
+<code>work_order.reschedule_proposed</code>；無新增</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-human-decisions-required">8. Human Decisions Required</h2>
+<p>🛑 <strong>CIA blocks code changes until every row here has a
+recorded decision.</strong></p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Question</th>
+<th>Options</th>
+<th>Owner</th>
+<th>Status</th>
+<th>Decision</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>HD-01</strong></td>
+<td>door-check 是否強制 arrival 前置？</td>
+<td>(a) 必須先 arrival 才能 door-check（狀態機限制）<br>(b)
+不限定（任一可獨立呼叫）<br>(c) door-check 隱含 arrival（自動補寫
+GPS=null）</td>
+<td>Product</td>
+<td><strong>decided 2026-06-04</strong></td>
+<td><strong>(a) 強制 arrival 前置</strong>（無 arrived_at → 409）</td>
+</tr>
+<tr>
+<td><strong>HD-02</strong></td>
+<td>reschedule:propose 的 proposed_slots 數量上限</td>
+<td>(a) 1-3<br>(b) 1-5<br>(c) 1-10</td>
+<td>UX</td>
+<td><strong>decided 2026-06-04</strong></td>
+<td><strong>(a) 1-3</strong>（避免客戶選擇疲勞 + LINE Flex 簡潔；DB
+CHECK constraint 落地）</td>
+</tr>
+<tr>
+<td><strong>HD-03</strong></td>
+<td>reschedule:propose 推 LINE 後 customer 回應 SLA</td>
+<td>(a) 24h<br>(b) 48h<br>(c) 客戶可設定</td>
+<td>Product</td>
+<td><strong>decided 2026-06-04</strong></td>
+<td><strong>(a) 24h</strong>（與 v1 一致；sla_deadline 預設 NOW +
+24h；cron 偵測 expired 由 Phase 5-7 收尾 backlog）</td>
+</tr>
+<tr>
+<td><strong>HD-04</strong></td>
+<td>reschedule_proposals 是否獨立 DB 表</td>
+<td>(a) 獨立表<br>(b) 複用 scope_change_proposals<br>(c) 只存
+work_order_events</td>
+<td>Architect</td>
+<td><strong>decided 2026-06-04</strong></td>
+<td><strong>(a) 獨立表</strong>（saas.reschedule_proposal；migration
+014）</td>
+</tr>
+<tr>
+<td><strong>HD-05</strong></td>
+<td>door-check checklist 結構</td>
+<td>(a) freeform jsonb<br>(b) 固定 schema<br>(c) tenant-configurable
+template</td>
+<td>Architect</td>
+<td><strong>decided 2026-06-04</strong></td>
+<td><strong>(a) freeform jsonb</strong>（既有 work_order_events.payload
+沿用，BE 不驗證內部結構）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9-suggested-implementation-order">9. Suggested Implementation
+Order</h2>
+<p>§8 業主裁決後實作：</p>
+<ol type="1">
+<li><strong>Decisions</strong> → <code>ADR-0105</code>（暫定）記錄
+HD-01~05</li>
+<li><strong>Schema migration</strong>（若 HD-04 選 a/b）→
+alembic：<code>reschedule_proposals</code> 表或
+<code>scope_change_proposals.type</code> 欄</li>
+<li><strong>Domain layer</strong> → <code>work_order_service</code>：補
+<code>submit_door_check_v2</code>、<code>propose_reschedule_v2</code>（包
+LINE Flex）</li>
+<li><strong>API layer</strong> → <code>work_orders_v2.py</code> 補 2
+endpoints + tenant-scoped + idempotency</li>
+<li><strong>Tests</strong> → TC-WO-DC-001/002 + TC-WO-RS-001/002 +
+TC-WO-XT-001</li>
+<li><strong>UI 遷移</strong> →
+<code>web/src/app/my-orders/[id]/door-check/page.tsx</code>（tech
+side）+ <code>web/src/app/work-orders/[id]/page.tsx</code>（admin
+reschedule propose）</li>
+<li><strong>LINE Flex template</strong> → reschedule RSVP Flex（slots
+radio 選擇器，banner 對齊 Flow 11）</li>
+<li><strong>Traceability</strong> → TM-0000 加 BF-WO-006~009 +
+API-WO-V2-* + TC-WO-* 對應 row</li>
+<li><strong>CR-0003 §5 進度區</strong> → wave-4 ✅ door-check +
+reschedule 2 caller 遷完</li>
+</ol>
+<hr />
+<h2 id="10-risks--rollback">10. Risks &amp; Rollback</h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Likelihood</th>
+<th>Impact</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>door-check + arrival 兩 sub-action UX 混淆</td>
+<td>Medium</td>
+<td>Medium</td>
+<td>HD-01 選 (a)（強制前置）+ 前端清楚標示「先簽到再門檢」</td>
+</tr>
+<tr>
+<td>reschedule:propose LINE Flex template 跑不出來</td>
+<td>Low</td>
+<td>High</td>
+<td>沿用 Flow 11 已驗證 customer-confirm Flex 模板，僅改 slot 渲染</td>
+</tr>
+<tr>
+<td>proposed_slots 衝突（與其他工單時段撞）</td>
+<td>Medium</td>
+<td>Low</td>
+<td>不在本 CR 處理；技師端 UI 提示，後端不強制驗</td>
+</tr>
+<tr>
+<td>HD-04 選獨立表後 v1 legacy 雙寫過渡期</td>
+<td>Low</td>
+<td>Low</td>
+<td>dev-phase 直接 cutover，無雙寫期</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Rollback plan</strong>：API endpoints 為
+new，無破壞性。Caller migration 逐檔 git revert。</p>
+<hr />
+<h2 id="11-out-of-scope">11. Out of Scope</h2>
+<ul>
+<li><strong>客戶端 RSVP UI 規格</strong>（FR-0011 待 active）→ 獨立
+CR</li>
+<li><strong>reschedule:propose
+自動算可用時段</strong>（與技師排班整合）→ 獨立 CR</li>
+<li><strong>legacy v1 door-check / reschedule router 刪除</strong> → P4
+cutover</li>
+</ul>
+<hr />
+<h2 id="12-sign-off">12. Sign-off</h2>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Name</th>
+<th>Date</th>
+<th>Approved?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Product</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Architect</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Engineering Lead</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>UX</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>QA Lead</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="a-取證附錄">§A 取證附錄</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 2 個阻塞 caller：</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> grep <span class="at">-n</span> <span class="st">&quot;api/v1/work-orders.*door-check\|api/v1/work-orders.*reschedule&quot;</span> web/src <span class="dt">\</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">-r</span> <span class="at">--include</span><span class="op">=</span><span class="st">&quot;*.tsx&quot;</span> <span class="dv">2</span><span class="op">&gt;</span>/dev/null</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># →</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co"># web/src/app/my-orders/[id]/door-check/page.tsx:161: `/api/v1/work-orders/.../door-check`</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co"># web/src/app/work-orders/[id]/page.tsx:1076: `/api/v1/work-orders/.../reschedule`</span></span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># v1 vs v2 semantic 不一致取證：</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>$ grep <span class="op">-</span>A1 <span class="st">&quot;record_door_check&quot;</span> api<span class="op">/</span>services<span class="op">/</span>work_order_service.py</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co"># v1 door-check submit ≠ v2 onsite/arrival GPS sign-in</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># v1 reschedule proposed_slots[] ≠ v2 reschedule-request single new_scheduled_at</span></span></code></pre></div>
+<hr />
+<blockquote>
+<p>🛑 <strong>§8 業主裁決前不動 code / DB schema。</strong>
+預計裁決後工時 2-3 天。</p>
+</blockquote>
+</div></div></body></html>

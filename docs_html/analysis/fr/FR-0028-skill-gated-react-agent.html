@@ -1,0 +1,393 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Chatbot Skill-Gated ReAct Agent</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ analysis ／ fr ／ FR-0028-skill-gated-react-agent.md</div>
+<div class="doc"><h1 id="fr-0028--chatbot-skill-gated-react-agent">FR-0028 — Chatbot
+Skill-Gated ReAct Agent</h1>
+<blockquote>
+<p><strong>Phase I 新增 FR (2026-05-28)</strong>，對應 A03 — chatbot
+核心 reasoning engine。 含 §2.1 Example Dialogue + a11y variant。</p>
+</blockquote>
+<h2 id="1-use-case-skeleton">§1 Use Case Skeleton</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">欄位</th>
+<th style="text-align: left;">內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Actor</strong></td>
+<td style="text-align: left;">AI Agent (system)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Secondary Actors</strong></td>
+<td style="text-align: left;">A04 RAG (knowledge), A05 Guardrails
+(output validator), A02 Resolver (facts), Tool Registry, LLM
+Gateway</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Trigger</strong></td>
+<td style="text-align: left;">A01 emit <code>MergedTurnReady</code> (per
+FR-0026)；A03 接收作 reasoning input</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Precondition</strong></td>
+<td style="text-align: left;">LLM 可用；tool registry 已 freeze；skill
+list 已 governance approved（[ref: ADR-0055 + ADR-0028]）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Main Flow</strong></td>
+<td style="text-align: left;">詳見 §1.1</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Alternative Flow</strong></td>
+<td style="text-align: left;">詳見 §1.2</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Postcondition</strong></td>
+<td style="text-align: left;">AI response 已生成（含或不含 tool
+call）；reasoning trace 寫入 audit；emit <code>SkillInvoked</code> per
+call + <code>ReasoningTraceLogged</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Out-of-Scope</strong></td>
+<td style="text-align: left;">RAG retrieval 細節（屬 A04 /
+FR-0029）；output validation（屬 A05 / FR-0030）；handoff（屬 A07 /
+FR-0032）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="11-main-flow">§1.1 Main Flow</h3>
+<ol type="1">
+<li>A03 接收 merged turn</li>
+<li>A03 build reasoning prompt（含 conversation context, user_facts,
+intent hint）</li>
+<li>A03 進 ReAct loop（iteration n）：
+<ul>
+<li>3.1 Reasoning step：LLM 生成 thought + 是否需 tool call</li>
+<li>3.2 Action step：若需 tool call → 走 §1.1.4</li>
+<li>3.3 若無 tool call → 直接 output response</li>
+</ul></li>
+<li>Tool call decision：
+<ul>
+<li>check tool 在 [ref: BR-A03-02 allowed_tools]</li>
+<li>check user permission ([ref: ADR-0042 RBAC] for tool's data
+scope)</li>
+<li>通過 → emit <code>SkillInvoked</code>，呼叫 tool</li>
+<li>不通過 → emit <code>SkillForbidden</code>，AI 改回 default fallback
+message</li>
+</ul></li>
+<li>Observation step：tool 回傳結果或 error</li>
+<li>emit <code>SkillResultReceived</code></li>
+<li>回 §1.1.3 reasoning (n+1)</li>
+<li>ReAct loop 上限 N 輪（[ref: BR-A03-03] 預設 5）→ 超出走 §1.2 A1</li>
+<li>Final answer 生成，送 A05 guardrails (FR-0030) 驗證</li>
+<li>reasoning trace 寫入 audit ([ref: BR-A03-04])</li>
+<li>emit <code>ReasoningTraceLogged</code></li>
+<li>END</li>
+</ol>
+<h3 id="12-alternative-flow">§1.2 Alternative Flow</h3>
+<pre><code>A1. ReAct loop 超 N 輪 (第 8 步):
+    A1.1 emit `ReActLoopExceeded`
+    A1.2 AI fallback「我需要更多資訊才能幫您」
+    A1.3 升 FR-0032 human handoff
+    A1.4 audit 標 &quot;REACT_LOOP_TIMEOUT&quot;
+
+A2. Tool call 失敗 (5xx / timeout) (第 5 步):
+    A2.1 [ref: BR-A03-05 fail-soft]
+    A2.2 ReAct loop 繼續（嘗試其他 tool 或不用 tool）
+    A2.3 若該 tool 為 critical (e.g. RAG) → 降級 mode
+    A2.4 emit guardrail event
+
+A3. AI 嘗試 forbidden tool (第 4 步):
+    A3.1 [ref: BR-A03-02 forbidden_tools]
+    A3.2 系統拒絕 + emit `SkillForbidden`
+    A3.3 AI 改用 allowed fallback
+    A3.4 audit 標 &quot;FORBIDDEN_TOOL_ATTEMPT&quot; + 升 alert
+
+A4. LLM Gateway 5xx (第 3 步):
+    A4.1 [ref: ADR-0027 model-routing]
+    A4.2 fallback 到 secondary model
+    A4.3 仍失敗 → AI 回「服務繁忙」+ 進 handoff
+
+A5. Tool 跨 tenant 嘗試 (第 4 步):
+    A5.1 [ref: ADR-0030] tool call 必須 carry tenant_id
+    A5.2 跨 tenant → 403
+    A5.3 emit `SkillForbidden` reason=&quot;cross_tenant&quot;
+
+A6. Reasoning trace 過大 (第 10 步):
+    A6.1 &gt; 100KB → 壓縮 + 加密
+    A6.2 完整 trace 保留 ≥ 90d（per audit policy）
+
+A7. ReAct 中途 user interrupt (新訊息進來):
+    A7.1 [ref: BR-A03-NN]：A03 取消當前 loop
+    A7.2 reasoning trace 標 &quot;USER_INTERRUPT&quot;
+    A7.3 重新 build prompt with 新訊息</code></pre>
+<h2 id="2-acceptance-criteria-gwt">§2 Acceptance Criteria (G/W/T)</h2>
+<h3 id="ac-01-happy-path--1-輪-react-出-answer">AC-01: Happy path — 1 輪
+ReAct 出 answer</h3>
+<pre class="gherkin"><code>Given merged turn = &quot;鎖打不開&quot;
+When A03 跑 ReAct
+Then iteration 1: reasoning 認定需 RAG tool
+  And emit `SkillInvoked` (tool=&quot;rag_search&quot;)
+  And tool 回傳 SOP chunk
+  And emit `SkillResultReceived`
+  And iteration 2: AI 生成 final answer
+  And emit `ReasoningTraceLogged`</code></pre>
+<h3 id="ac-02-react-loop-上限攔截">AC-02: ReAct loop 上限攔截</h3>
+<pre class="gherkin"><code>Given AI 連續 5 輪 reasoning 仍未產 final answer
+When iteration 6 嘗試開始
+Then emit `ReActLoopExceeded`
+  And AI fallback message
+  And 升 FR-0032 handoff</code></pre>
+<h3 id="ac-03-forbidden-tool-攔截">AC-03: Forbidden tool 攔截</h3>
+<pre class="gherkin"><code>Given tool &quot;external_db_write&quot; in forbidden_tools
+When AI reasoning 嘗試呼叫 &quot;external_db_write&quot;
+Then 系統拒絕
+  And emit `SkillForbidden`
+  And audit &quot;FORBIDDEN_TOOL_ATTEMPT&quot;
+  And alert AI QA lead</code></pre>
+<h3 id="ac-04-tool-fail-soft">AC-04: Tool fail-soft</h3>
+<pre class="gherkin"><code>Given RAG tool 暫時 5xx
+When AI call &quot;rag_search&quot;
+Then emit error + 不 abort
+  And AI 嘗試 reasoning without RAG (degraded mode)
+  And final answer 加 &quot;資料不齊全&quot; disclaimer</code></pre>
+<h3 id="ac-05-cross-tenant-攔截">AC-05: Cross-tenant 攔截</h3>
+<pre class="gherkin"><code>Given user 屬 tenant T-001
+When AI tool call query tenant T-002 data
+Then 系統 403
+  And emit `SkillForbidden` reason=&quot;cross_tenant&quot;
+  And audit</code></pre>
+<h3 id="ac-06-llm-gateway-fallback">AC-06: LLM gateway fallback</h3>
+<pre class="gherkin"><code>Given primary LLM (GPT-5) 5xx
+When A03 reasoning
+Then 依 [ref: ADR-0027] fallback to secondary (Claude-4)
+  And reasoning 繼續
+  And audit 標 model_used=&quot;secondary&quot;</code></pre>
+<h3 id="ac-07-user-interrupt-中途新訊息">AC-07: User interrupt
+中途新訊息</h3>
+<pre class="gherkin"><code>Given A03 在 iteration 3 reasoning 中
+When 新 merged turn 進來
+Then A03 cancel 當前 loop
+  And reasoning trace 標 &quot;USER_INTERRUPT&quot;
+  And 重新 build prompt with 新訊息</code></pre>
+<h3 id="ac-08-reasoning-trace-audit-完整性">AC-08: Reasoning trace audit
+完整性</h3>
+<pre class="gherkin"><code>Given AI 完成 5 輪 ReAct
+When 查詢 audit log
+Then 含完整 reasoning trace (含 5 個 thought + 5 個 action + 5 個 observation)
+  And 含 model_used / tokens_used / cost
+  And retention ≥ 90d</code></pre>
+<h2 id="21-example-dialogue-chatbot-fr-強制">§2.1 Example Dialogue
+(chatbot FR 強制)</h2>
+<h3 id="dialogue-1--happy-path-1-輪-react-ac-01">Dialogue 1 — Happy path
+1 輪 ReAct (AC-01)</h3>
+<pre><code>User: 三星 SHS-P718 鎖打不開
+[A03 iteration 1: reasoning=&quot;需查 SHS-P718 troubleshooting SOP&quot;, action=&quot;rag_search(&#39;SHS-P718 打不開&#39;)&quot;]
+[Emit: SkillInvoked (tool=&quot;rag_search&quot;)]
+[Tool: returns SOP &quot;SHS-P718 打不開 SOP: 1. 檢查電池 2. 重置...&quot;]
+[Emit: SkillResultReceived]
+[A03 iteration 2: reasoning=&quot;有 SOP，產 user-friendly answer&quot;]
+Bot: 三星 SHS-P718 打不開通常有兩種狀況：
+1. 電池電量不足 — 請看看鎖正面螢幕有沒有閃紅燈？
+2. 鎖芯卡住 — 試試輕輕用鑰匙轉一下
+
+請問是哪一種狀況？
+[Emit: ReasoningTraceLogged]</code></pre>
+<p><strong>a11y variant</strong>：</p>
+<ul>
+<li>多選項用 <code>&lt;ol&gt;</code> 編號（不只 emoji）</li>
+<li>Screen reader 朗讀「步驟 1 / 共 2」便於導覽</li>
+<li>後續問題用 chip-button 提供（「電池不足」「鎖芯卡住」「其他」）</li>
+</ul>
+<h3 id="dialogue-2--forbidden-tool-攔截-ac-03">Dialogue 2 — Forbidden
+tool 攔截 (AC-03)</h3>
+<pre><code>User: 幫我看看其他客戶的工單，我想參考
+[A03 reasoning: &quot;user 想看其他客戶資料 — 試 tool &#39;admin_query_all_wo&#39;&quot;]
+[Tool registry: admin_query_all_wo is forbidden for consumer role]
+[Emit: SkillForbidden (tool=&quot;admin_query_all_wo&quot;, reason=&quot;role_not_allowed&quot;)]
+Bot: 抱歉，依資料保護規定，我無法為您查詢其他客戶的工單。如您想參考一般處理流程，我可以為您介紹我們的服務內容。</code></pre>
+<p><strong>a11y variant</strong>：</p>
+<ul>
+<li>「依資料保護規定」應 link 到隱私政策（screen reader 識別
+<code>&lt;a&gt;</code>）</li>
+<li>替代提議用 chip button（「介紹服務內容」「查我的工單」）</li>
+</ul>
+<h3 id="dialogue-3--react-loop-超限-fallback-ac-02">Dialogue 3 — ReAct
+loop 超限 fallback (AC-02)</h3>
+<pre><code>User: 我家鎖 ... 啊 ... 就 ... 那個 ... 你懂吧
+[A03 iter 1: reasoning=&quot;客戶描述不清，需澄清&quot;]
+Bot: 不好意思，可以再具體描述一下嗎？例如「鎖打不開」、「按了沒反應」？
+User: 對對對 那個樣子
+[A03 iter 2: reasoning=&quot;仍不清楚，再問&quot;]
+Bot: 是按了鎖芯沒反應，還是螢幕完全沒亮？
+User: 沒亮喔
+[A03 iter 3-5: 持續嘗試確認其他細節]
+Bot: ...（每輪都嘗試 narrow down，但 confidence 持續 &lt; threshold）
+[A03 iter 6 about to start]
+[Emit: ReActLoopExceeded]
+Bot: 為了幫您更精準地處理，我幫您接客服專員直接協助，請稍等 5 分鐘。
+[Emit: HumanHandoffTriggered (reason=&quot;react_loop_timeout&quot;)]</code></pre>
+<p><strong>a11y variant</strong>：</p>
+<ul>
+<li>連續澄清過程應 ARIA role="status"（避免 screen reader
+每次大聲朗讀）</li>
+<li>handoff 訊息升級為 role="alert"</li>
+</ul>
+<h3 id="dialogue-4--tool-fail-soft-degraded-mode-ac-04">Dialogue 4 —
+Tool fail-soft degraded mode (AC-04)</h3>
+<pre><code>User: Yale YDM4109 怎麼重置？
+[A03 iter 1: tool=&quot;rag_search(&#39;YDM4109 reset&#39;)&quot;]
+[Tool fail: RAG service 5xx]
+[A03 fail-soft: 不 abort, 改用 base LLM knowledge]
+[A03 iter 2: reasoning=&quot;無 RAG, 用 base LLM 但加 disclaimer&quot;]
+Bot: Yale YDM4109 一般重置步驟（請注意：以下為通用資訊，建議以說明書為準）：
+1. 取下電池蓋
+2. 按住 reset 鈕 5 秒
+3. 重新裝電池
+
+如需精確操作，建議查說明書或讓我為您安排技師。</code></pre>
+<p><strong>a11y variant</strong>：</p>
+<ul>
+<li>「請注意」disclaimer 用 <code>&lt;aside&gt;</code> +
+<code>aria-label="重要提示"</code></li>
+<li>步驟列表後置「需要更多幫助？」chip-button</li>
+</ul>
+<h3 id="dialogue-5--user-interrupt-中途新訊息-ac-07">Dialogue 5 — User
+interrupt 中途新訊息 (AC-07)</h3>
+<pre><code>User: 我的 Samsung SHS-H700 鎖打不開
+[A03 iter 1: tool=&quot;rag_search(&#39;SHS-H700&#39;)&quot;]
+[Tool: running... 等待 1.5s]
+User: 啊不好意思！我講錯型號了，是 SHS-P718
+[A01 emit new MergedTurnReady]
+[A03 detect interrupt: cancel iter 1 mid-flight]
+[Reasoning trace 標 &quot;USER_INTERRUPT&quot;]
+[A03 重新 build prompt 含修正型號]
+[A03 iter 1 (new): tool=&quot;rag_search(&#39;SHS-P718&#39;)&quot;]
+Bot: 沒問題！您指的是三星 SHS-P718 對嗎？讓我重新為您查詢...
+（後續同 Dialogue 1）</code></pre>
+<p><strong>a11y variant</strong>：</p>
+<ul>
+<li>"interrupt 偵測" UI 顯示「✓ 已更新查詢」(role="status")</li>
+<li>typing indicator 中斷時應有 audio cue（不只視覺）</li>
+</ul>
+<h2 id="3-reference-map">§3 Reference Map</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">類型</th>
+<th style="text-align: left;">ID</th>
+<th style="text-align: left;">用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Business Rule</td>
+<td style="text-align: left;">BR-A03-01~05</td>
+<td style="text-align: left;">governance / tool registry / loop limit /
+trace / fail-soft</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR</td>
+<td style="text-align: left;">ADR-0006 / 0007 / 0027</td>
+<td style="text-align: left;">LLM model / routing</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR</td>
+<td style="text-align: left;">ADR-0010</td>
+<td style="text-align: left;">belief-augmented-react</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR</td>
+<td style="text-align: left;">ADR-0055</td>
+<td style="text-align: left;">skill-LLM decoupling</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR</td>
+<td style="text-align: left;">ADR-0063</td>
+<td style="text-align: left;">ai-utterance-boundary</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR</td>
+<td style="text-align: left;">ADR-0101</td>
+<td style="text-align: left;">agent-kb × final-spec
+integration（KB-aware tool extension）</td>
+</tr>
+<tr>
+<td style="text-align: left;">Domain Event</td>
+<td style="text-align: left;">SkillInvoked / Result / Forbidden</td>
+<td style="text-align: left;">tool registry audit</td>
+</tr>
+<tr>
+<td style="text-align: left;">Domain Event</td>
+<td style="text-align: left;">ReActLoopExceeded</td>
+<td style="text-align: left;">handoff trigger</td>
+</tr>
+<tr>
+<td style="text-align: left;">Domain Event</td>
+<td style="text-align: left;">ReasoningTraceLogged</td>
+<td style="text-align: left;">M19 BI / audit</td>
+</tr>
+<tr>
+<td style="text-align: left;">Source spec</td>
+<td
+style="text-align: left;"><code>docs/_source/02-ai-chatbot-sync.md#a-m03-react-agent</code></td>
+<td style="text-align: left;">A03 原始定義</td>
+</tr>
+<tr>
+<td style="text-align: left;">Source spec</td>
+<td
+style="text-align: left;"><code>docs/_source/02-ai-chatbot-sync.md#12-tool-registry</code></td>
+<td style="text-align: left;">tool registry</td>
+</tr>
+<tr>
+<td style="text-align: left;">Source spec</td>
+<td
+style="text-align: left;"><code>docs/_source/02-ai-chatbot-sync.md#11-model-routing</code></td>
+<td style="text-align: left;">model routing</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-change-log">§4 Change Log</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Date</th>
+<th style="text-align: left;">Change</th>
+<th style="text-align: left;">Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">2026-05-28</td>
+<td style="text-align: left;"><strong>新建</strong> Phase I MVP (A03
+系列 — chatbot 核心)</td>
+<td style="text-align: left;">Roundtable A D5 + Roundtable B D2 dialogue
+強制</td>
+</tr>
+<tr>
+<td style="text-align: left;">2026-05-28</td>
+<td style="text-align: left;"><strong>Cross-ref backfill</strong>：補
+ADR-0101（KB-aware tool extension contract）</td>
+<td style="text-align: left;">ADR cascade 2026-05-28</td>
+</tr>
+</tbody>
+</table>
+</div></div></body></html>

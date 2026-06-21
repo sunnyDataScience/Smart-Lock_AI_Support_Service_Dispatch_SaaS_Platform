@@ -1,0 +1,77 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>公單號改地區縮寫前綴 + per-region 流水（取代類型前綴）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ architecture ／ adr ／ ADR-0110-wo-region-document-numbering.md</div>
+<div class="doc"><h1 id="adr-0110--公單號改地區縮寫前綴--per-region-流水">ADR-0110 —
+公單號改地區縮寫前綴 + per-region 流水</h1>
+<h2 id="context">Context</h2>
+<p>原單據編號走統一 DB 函式
+<code>generate_doc_number(prefix, seq)</code>
+（<code>SQL/Schema_doc_numbering.sql</code>），格式
+<code>{類型前綴}-{YYYYMMDD}-{4碼}</code>， 前綴語意 =
+<strong>文件類型</strong>（ST/WO/RM/WC/SOP）。但：</p>
+<ul>
+<li><code>work_orders.document_number</code> 原本全
+NULL（工單從未發號）。</li>
+<li>2026-06-10 會議 Action #8 要求公單 ID 改格式;Sunny 2026-06-12 裁決採
+<strong><code>{2碼地區}-{流水號}</code></strong>（如
+<code>TP-000001</code>）。</li>
+</ul>
+<p>衝突點（見 CR-0020
+§7）：前綴語意從「類型」改「地區」、地區需地址（工單階段才有）、
+既有資料處置。</p>
+<blockquote>
+<p>立場留痕：會議中啟恆主張「ID 不放英文字母、純流水號」並否決地區前綴;
+Sunny 裁決覆蓋之。本 ADR 記錄最終決策。</p>
+</blockquote>
+<h2 id="decision">Decision</h2>
+<p>採 CR-0020 §8 全部裁決（Q1–Q7 照建議）：</p>
+<ol type="1">
+<li><strong>「公單」= 工單 WO
+號</strong>（<code>work_orders.document_number</code>），非對話 ST
+號。</li>
+<li><strong>格式 <code>{2碼地區}-{6碼流水}</code></strong>，per-region
+原子遞增（如 <code>TP-000001</code>）。</li>
+<li><strong>生成時機 = 工單建立時</strong>，依
+<code>customer_address</code> 解析地區碼。</li>
+<li><strong>地區前綴僅用工單</strong>;ST/RM/WC/SOP 維持既有類型前綴
+<code>generate_doc_number</code> （降衝擊，保留文件類型可辨識性）。</li>
+<li><strong>地區碼</strong>：台灣縣市 2
+碼對應（TP/NT/TY/TC/TN/KH…），解析不到 → <code>ZZ</code>。</li>
+<li><strong>既有資料</strong>：原則只新單發號;running demo DB 已一次性
+backfill 83 筆。</li>
+</ol>
+<p>實作：新增
+<code>SQL/migrations/031</code>（<code>wo_region_counter</code> 表 +
+<code>wo_region_code(addr)</code></p>
+<ul>
+<li><code>generate_wo_number(addr)</code>），工單建立 INSERT 接
+<code>generate_wo_number(address)</code>。</li>
+</ul>
+<h2 id="consequences">Consequences</h2>
+<ul>
+<li>✅ 公單號口語友善（地區 + 連號），符合業主溝通需求。</li>
+<li>✅ per-region
+原子遞增（<code>INSERT … ON CONFLICT DO UPDATE</code>），concurrency-safe。</li>
+<li>⚠️ 前綴語意分裂：工單用地區、其他單據用類型 →
+跨單據時前綴語意不一致（已限範圍降衝擊）。</li>
+<li>⚠️ 地址解析依賴 <code>customer_address</code> 格式;解析不到落
+<code>ZZ</code>（可接受、可後續強化）。</li>
+<li>既有 <code>generate_doc_number</code>
+保留不動（ST/RM/WC/SOP），blast radius 受控。</li>
+</ul>
+</div></div></body></html>

@@ -1,0 +1,252 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>A06 ProblemCard 自動建卡 — chatbot 對話流</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ ux ／ by-module ／ A06-problemcard-flow.md</div>
+<div class="doc"><h1 id="a06-problemcard-自動建卡--chatbot-對話流">A06 ProblemCard
+自動建卡 — chatbot 對話流</h1>
+<blockquote>
+<p><strong>30 秒摘要</strong>：A06 在 LINE 對話中當 facts 收齊（brand +
+症狀夠用）→ 呼叫 Admin API create ProblemCard。本檔涵蓋：A06 與 A01
+(debounce) / A02 (brand facts) / A03 (ReAct agent) / A05 (safety) / A08
+(multimodal) 的握手 sequence 與 ProblemCard lifecycle state
+machine。<strong>Phase I 核心</strong>：A06 是 chatbot → ERP
+的第一個資料化節點，沒這個就無法走 S-M03 / S-M04 同步。</p>
+</blockquote>
+<hr />
+<h2 id="sequence-diagram--facts-收齊--pc-建卡">Sequence Diagram — facts
+收齊 → PC 建卡</h2>
+<pre class="mermaid"><code>sequenceDiagram
+    autonumber
+    actor user as 消費者 (LINE)
+    participant a01 as A01 Debounce
+    participant a02 as A02 Brand/Facts
+    participant a03 as A03 ReAct Agent
+    participant a05 as A05 Safety
+    participant a08 as A08 Multimodal
+    participant a06 as A06 PC Builder
+    participant erp as ERP Admin API
+    participant smm03 as S-M03 Sync
+
+    user -&gt;&gt; a01: text + 照片 + 連發訊息
+    a01 -&gt;&gt; a01: buffer_wait (合併多訊息)
+    a01 --&gt;&gt; a03: merged turn
+    a03 -&gt;&gt; a02: extract brand/model/symptom
+    a02 --&gt;&gt; a03: facts (brand: 三聯/model: ?/symptom: 鎖舌卡死)
+    a03 -&gt;&gt; user: Quick Reply 「請選型號」
+    user -&gt;&gt; a01: 選 model X
+    a01 --&gt;&gt; a03: merged turn
+    a03 -&gt;&gt; a08: process 照片 → media_ref
+    a08 --&gt;&gt; a03: media_ref[s3://...]
+    a03 -&gt;&gt; a06: facts complete? (brand + symptom + media)
+    a06 -&gt;&gt; a06: completeness check (≥ 0.85)
+    a06 -&gt;&gt; a05: safety check (no 越權 / 無 final quote)
+    a05 --&gt;&gt; a06: pass
+    a06 -&gt;&gt; erp: POST /admin/problem-cards
+    erp --&gt;&gt; a06: PC id (state=draft)
+    a06 --&gt;&gt; a03: PC created
+    a03 -&gt;&gt; user: Flex「我們已記錄您的問題（單號 PC-1234），稍候客服 review」
+    erp -&gt;&gt; smm03: outbox event (PC.created)
+    smm03 --&gt;&gt; erp: sync OK</code></pre>
+<hr />
+<h2 id="state-machine--problemcard-lifecycle">State Machine —
+ProblemCard lifecycle</h2>
+<pre class="mermaid"><code>stateDiagram-v2
+    [*] --&gt; collecting : 對話開始
+    collecting --&gt; collectingNext : facts 不齊 (&lt; 0.85) 繼續多輪
+    collectingNext --&gt; collecting : 新一輪輸入
+    collecting --&gt; photo_pending : A08 引導拍照
+    photo_pending --&gt; collecting : 收到照片
+    collecting --&gt; safety_check : facts ≥ 0.85
+    safety_check --&gt; draft : A05 pass (no 越權)
+    safety_check --&gt; human_handoff : A05 fail / 連 3 次不齊
+    draft --&gt; reviewed : 客服 1-click review
+    reviewed --&gt; resolved : 客戶按已解決 / 三層解決成功
+    reviewed --&gt; converted : S-M04 ConvertToWO (human gate)
+    resolved --&gt; closed : 客戶確認結案 / 48h auto_closed
+    converted --&gt; [*]
+    closed --&gt; reopened : 7d 內重發訊息
+    reopened --&gt; collecting
+    human_handoff --&gt; [*]</code></pre>
+<hr />
+<h2 id="session-state對話-state-machine--chatbot-特有">Session
+state（對話 state machine — chatbot 特有）</h2>
+<pre class="mermaid"><code>stateDiagram-v2
+    [*] --&gt; idle : 用戶未進線
+    idle --&gt; typing : 用戶輸入中
+    typing --&gt; waiting : 訊息送出，AI 處理中
+    waiting --&gt; typing : AI 回覆，繼續對話
+    waiting --&gt; handoff_queued : 觸發 A07 transfer_to_human
+    waiting --&gt; fallback : AI 失敗 / safety block / 連 3 次收不齊
+    fallback --&gt; handoff_queued
+    handoff_queued --&gt; human_handling : 客服接手
+    human_handling --&gt; closed : 結案
+    waiting --&gt; resolved_check : Clarify gate
+    resolved_check --&gt; typing : 客戶答「未釐清」
+    resolved_check --&gt; closed : 客戶答「已釐清」+ 結案
+    closed --&gt; [*]</code></pre>
+<hr />
+<h2 id="ui-state-coverage業主-q-of1b-ui-only--annotation">UI State
+Coverage（業主 Q-OF1=B: UI-only + annotation）</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">Happy</th>
+<th style="text-align: left;">Empty</th>
+<th style="text-align: left;">Loading</th>
+<th style="text-align: left;">Error</th>
+<th style="text-align: left;">Offline</th>
+<th style="text-align: left;">domain state annotation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>A01 debounce buffer</strong></td>
+<td style="text-align: left;">✓ 合併 turn 後給 A03</td>
+<td style="text-align: left;">無 media → 跳過 A08</td>
+<td style="text-align: left;">buffer_wait timer (2s)</td>
+<td style="text-align: left;">media 下載失敗 → 提示重傳</td>
+<td style="text-align: left;">LINE webhook retry</td>
+<td style="text-align: left;">session: typing → waiting</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>A02 quick reply
+brand/model</strong></td>
+<td style="text-align: left;">✓ Quick Reply 顯示品牌列表</td>
+<td style="text-align: left;">品牌不在清單 → 「其他」進 free text</td>
+<td style="text-align: left;">typing indicator</td>
+<td style="text-align: left;">Quick Reply render fail → fallback
+純文字</td>
+<td style="text-align: left;">LINE 暫存後重發</td>
+<td style="text-align: left;">facts: collecting</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>A08 photo guide</strong></td>
+<td style="text-align: left;">✓ Flex「請拍鎖舌正面」+ 範例圖</td>
+<td style="text-align: left;">客戶說無相機 → 改文字描述</td>
+<td style="text-align: left;">upload progress bar</td>
+<td style="text-align: left;">照片 &gt; 10MB → 壓縮失敗，提示重拍</td>
+<td style="text-align: left;">local 暫存 + 上線重送</td>
+<td style="text-align: left;">PC entry=photo_pending /
+exit=collecting</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>A06 PC create</strong></td>
+<td style="text-align: left;">✓ Flex「已記錄問題（PC-1234）」</td>
+<td style="text-align: left;">n/a (facts 齊才觸發)</td>
+<td style="text-align: left;">API 200ms p95</td>
+<td style="text-align: left;">ERP 500 → DLQ + 客服 alert</td>
+<td style="text-align: left;">LINE banner + 後台 outbox 補送</td>
+<td style="text-align: left;">PC entry=null / exit=draft</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Clarify gate</strong></td>
+<td style="text-align: left;">✓ AI 主動問</td>
+<td style="text-align: left;">n/a (resolved 一定觸發)</td>
+<td style="text-align: left;">30s 等回應</td>
+<td style="text-align: left;">30s 未回再問 1 次</td>
+<td style="text-align: left;">banner 重發機制</td>
+<td style="text-align: left;">PC entry=draft / exit=resolved</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="a11y-notes--wcag-22-aa">a11y notes — WCAG 2.2 AA</h2>
+<p>繼承主檔 §a11y，<strong>A06 / chatbot 特有</strong>：</p>
+<ul>
+<li><strong>LINE 端</strong>：Quick Reply 按鈕走 LINE 原生
+a11y；TalkBack 朗讀 Quick Reply label 順序</li>
+<li><strong>multimodal (A08)</strong>：照片必附 alt-text（人工填，合約禁
+AI 影像辨識）；影片附字幕</li>
+<li><strong>Screen reader (NVDA/VoiceOver)</strong>：Flex Message bubble
+朗讀順序 = 標題 → 內文 → button label</li>
+<li><strong>Keyboard-only</strong>：LIFF onboarding 全可 Tab 完成；無
+keyboard trap</li>
+<li><strong>3.3.7 Redundant entry (WCAG 2.2 新)</strong>：facts
+已給過的資訊不重複問（A02 brand 已收，A06 不再問）</li>
+</ul>
+<hr />
+<h2 id="fr-反向指">FR 反向指</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">FR 反向指</th>
+<th style="text-align: left;">AC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">A01 訊息合併</td>
+<td style="text-align: left;">FR-0026</td>
+<td style="text-align: left;">AC-01 buffer_wait 合併 / AC-02 media
+pending 補齊</td>
+</tr>
+<tr>
+<td style="text-align: left;">A02 brand/model facts</td>
+<td style="text-align: left;">FR-0027</td>
+<td style="text-align: left;">AC-01 brand quick reply / AC-02 model
+fallback free text</td>
+</tr>
+<tr>
+<td style="text-align: left;">A03 ReAct agent</td>
+<td style="text-align: left;">FR-0028</td>
+<td style="text-align: left;">AC-01 load_skill / AC-02 update_user_info
+/ AC-03 transfer_to_human</td>
+</tr>
+<tr>
+<td style="text-align: left;">A05 safety guardrail</td>
+<td style="text-align: left;">FR-0030</td>
+<td style="text-align: left;">AC-01 越權字串攔截 / AC-02 final quote
+改口</td>
+</tr>
+<tr>
+<td style="text-align: left;">A06 PC create</td>
+<td style="text-align: left;">FR-0031</td>
+<td style="text-align: left;">AC-01 completeness ≥ 0.85 / AC-02 PC.draft
+→ 客服 review</td>
+</tr>
+<tr>
+<td style="text-align: left;">A08 multimodal</td>
+<td style="text-align: left;">FR-0025</td>
+<td style="text-align: left;">AC-01 photo guide / AC-02 alt-text
+必填</td>
+</tr>
+<tr>
+<td style="text-align: left;">Clarify gate</td>
+<td style="text-align: left;">FR-0005</td>
+<td style="text-align: left;">AC-02 客戶答「已釐清」才 resolved</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="引用-kb">引用 KB</h2>
+<ul>
+<li>[KB-07 §chatbot multimodal + 多輪異步 diagram picker] — sequence +
+state 雙圖混合（A6_addition 待補）</li>
+</ul>
+<hr />
+<h2 id="相關文件">相關文件</h2>
+<ul>
+<li>主檔 Flow S1：<a
+href="../user-flow-smart-lock-saas.md"><code>../user-flow-smart-lock-saas.md#flow-s1</code></a></li>
+<li>Source spec：<a
+href="../../_source/02-ai-chatbot-sync.md"><code>../../_source/02-ai-chatbot-sync.md#a-m06-problemcard</code></a></li>
+<li>同步藍圖：<a
+href="./S-M03-problemcard-convert-flow.md"><code>./S-M03-problemcard-convert-flow.md</code></a></li>
+</ul>
+</div></div></body></html>

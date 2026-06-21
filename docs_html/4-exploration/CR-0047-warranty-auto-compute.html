@@ -1,0 +1,64 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>保固期動態計算 — 序號/購買日 → 保固到期 + 保內/保外自動回填</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ 4-exploration ／ CR-0047-warranty-auto-compute.md</div>
+<div class="doc"><h1 id="cr-0047-保固期動態計算">CR-0047: 保固期動態計算</h1>
+<blockquote>
+<p><strong>驅動</strong>：派工單 PDF
+§四「保固期動態計算：輸入序號→系統自動帶保固截止日→保內/保外即刻自動化，避免人為誤判」。CR-0043
+OPT.2 標延後（warranty_service 引擎存在但未接 work_order）。</p>
+</blockquote>
+<h2 id="1-現況">1. 現況</h2>
+<ul>
+<li><code>work_orders</code> 有
+serial_number/purchase_date/install_date/brand，但
+<code>warranty_status</code> 人工填（migration
+036:31），無到期日落地欄。</li>
+<li><code>warranty_service</code>
+已有完整引擎：<code>resolve_start_date</code>（5-mode
+錨點）、<code>resolve_period_months</code>（brand override：Yale
+36/Dormakaba 60/預設 24
+月）、<code>compute_warranty_end</code>、<code>is_within_warranty</code>
+—— 但只 warranty_claims 用，未接 work_order。</li>
+</ul>
+<h2 id="2-實作">2. 實作</h2>
+<ul>
+<li><strong>migration
+057</strong>：<code>work_orders.warranty_expiry_date</code>
+DATE（nullable）。</li>
+<li><code>work_order_service._auto_warranty(brand, purchase_date, install_date)</code>：錨點優先
+purchase_date 缺則 install_date；無錨點 → (None, None)；期間查 brand
+override；回 (到期日, in/out_warranty)。</li>
+<li><code>update_wo_fields</code>：patch 動到
+serial_number/purchase_date/install_date/brand
+且<strong>未手動指定</strong> warranty_status → 自動回填 warranty_status
++ warranty_expiry_date（手動優先）。</li>
+<li>API：<code>warranty_expiry_date</code> 補 _WO_SELECT(index 35) +
+WorkOrder model + TS 型別 + 後台 sidebar「保固到期日」。</li>
+</ul>
+<h2 id="3-測試">3. 測試</h2>
+<p>test_cr_0047 6/6：純函式（過保/保內/install fallback/無錨點）+
+component（update 自動回填，Yale 36 月 brand override 端到端 →
+2010-01-01+36mo=2013-01-01；手動 warranty_status 不被覆蓋）。回歸全套
+794 passed 0 fail + tsc 0。</p>
+<h2 id="4-仍延後">4. 仍延後</h2>
+<ul>
+<li>序號→品牌/型號自動反查（需 SKU/品牌序號主檔，sheet15-17，P2）。</li>
+<li>warranty_start_mode 進階（handover/contract/brand_warranty_date
+錨點）目前只用 purchase/install。</li>
+</ul>
+</div></div></body></html>

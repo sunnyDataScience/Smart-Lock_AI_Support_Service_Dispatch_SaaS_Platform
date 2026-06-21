@@ -1,0 +1,1173 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>01_Components — 元件庫規格</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../../index.html">🏠 文件總目錄</a> ／ ui ／ web_design_spec_prompt_pipeline ／ design-system-specs ／ 01_components_spec.md</div>
+<div class="doc"><h1 id="01_components--元件庫規格">01_Components — 元件庫規格</h1>
+<blockquote>
+<p>頁面不是畫出來的，是裝出來的。
+這區的核心不是「有元件」，而是「元件可控、可擴充、可維護」。</p>
+</blockquote>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ol type="1">
+<li><a href="#1-元件分級架構">元件分級架構</a></li>
+<li><a href="#2-元件規格卡模板">元件規格卡模板</a></li>
+<li><a href="#3-p0-元件清單與規格">P0 元件清單與規格</a></li>
+<li><a href="#4-p1-元件清單">P1 元件清單</a></li>
+<li><a href="#5-p2-元件清單">P2 元件清單</a></li>
+<li><a href="#6-元件命名規範">元件命名規範</a></li>
+<li><a href="#7-元件-inventory-總表">元件 Inventory 總表</a></li>
+<li><a href="#8-do--dont-範例">Do / Don't 範例</a></li>
+</ol>
+<hr />
+<h2 id="1-元件分級架構">1. 元件分級架構</h2>
+<p>採用 Atomic Design 分層，確保元件粒度清晰。</p>
+<pre><code>Atoms（原子）
+  最小不可分割的 UI 單位
+  例：Button, Input, Badge, Avatar, Icon, Tag, Checkbox, Radio, Switch, Divider
+
+Molecules（分子）
+  2-3 個 Atom 組合而成的功能單位
+  例：Search Bar (Input + Button), Form Field (Label + Input + Error),
+      Menu Item (Icon + Text + Badge), Stat Card (Number + Label + Trend)
+
+Organisms（有機體）
+  多個 Molecules 組成的完整區塊
+  例：Navigation Bar, Data Table, Form Section, Card Grid,
+      Comment Thread, Pricing Card
+
+Templates（模板）
+  → 歸入 03_Templates</code></pre>
+<hr />
+<h2 id="2-元件規格卡模板">2. 元件規格卡模板</h2>
+<p>每個元件都必須有一張「規格卡」，像產品說明書。</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">### [元件名稱] Component Spec</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">#### Purpose（用途）</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>一句話說明這個元件「什麼時候用」。</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="fu">#### Anatomy（結構）</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>列出元件的所有組成部分。</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Root container</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Leading element (icon / avatar)</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Content (label / text)</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Trailing element (icon / badge / action)</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="fu">#### Props（可配置項）</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Prop <span class="pp">|</span> Type <span class="pp">|</span> Default <span class="pp">|</span> Options <span class="pp">|</span> 說明 <span class="pp">|</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="pp">|------|------|---------|---------|------|</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> variant <span class="pp">|</span> enum <span class="pp">|</span> primary <span class="pp">|</span> primary / secondary / ghost / danger <span class="pp">|</span> 視覺變體 <span class="pp">|</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> size <span class="pp">|</span> enum <span class="pp">|</span> md <span class="pp">|</span> sm / md / lg <span class="pp">|</span> 尺寸 <span class="pp">|</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> disabled <span class="pp">|</span> boolean <span class="pp">|</span> false <span class="pp">|</span> — <span class="pp">|</span> 停用狀態 <span class="pp">|</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> loading <span class="pp">|</span> boolean <span class="pp">|</span> false <span class="pp">|</span> — <span class="pp">|</span> 載入狀態 <span class="pp">|</span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a><span class="fu">#### States（狀態矩陣）</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> State <span class="pp">|</span> 視覺變化 <span class="pp">|</span> 觸發方式 <span class="pp">|</span></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a><span class="pp">|-------|---------|---------|</span></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Default <span class="pp">|</span> 基準樣式 <span class="pp">|</span> 初始 <span class="pp">|</span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Hover <span class="pp">|</span> 背景加深 / 陰影增加 <span class="pp">|</span> 滑鼠移入 <span class="pp">|</span></span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Active/Pressed <span class="pp">|</span> 背景再加深 / 輕微縮小 <span class="pp">|</span> 滑鼠按下 <span class="pp">|</span></span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Focus <span class="pp">|</span> Focus ring (2px outline) <span class="pp">|</span> Tab 鍵 <span class="pp">|</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Disabled <span class="pp">|</span> 降低 opacity 0.5 + cursor not-allowed <span class="pp">|</span> disabled=true <span class="pp">|</span></span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Loading <span class="pp">|</span> Spinner 取代 icon / 文字不變 <span class="pp">|</span> loading=true <span class="pp">|</span></span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a><span class="fu">#### Interaction（互動規則）</span></span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>鍵盤：Enter/Space 可觸發</span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>動效：hover transition 150ms ease</span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>回饋：click 有 ripple / scale 回饋</span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a><span class="fu">#### Accessibility</span></span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Role: button</span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>aria-label: 若只有 icon 需提供</span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>aria-disabled: disabled 時設定</span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Focus visible: 必須有 focus ring</span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a><span class="fu">#### Do / Don&#39;t</span></span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>✅ 按鈕文案用動詞開頭（送出、取消、刪除）</span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>❌ 不要在按鈕內放超過 2 行文字</span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>✅ Danger 操作用 Danger variant</span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>❌ 不要用顏色作為唯一的區分方式</span></code></pre></div>
+<hr />
+<h2 id="3-p0-元件清單與規格">3. P0 元件清單與規格</h2>
+<h3 id="31-button按鈕">3.1 Button（按鈕）</h3>
+<table>
+<thead>
+<tr>
+<th>維度</th>
+<th>規格</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Variants</td>
+<td><code>primary</code> / <code>secondary</code> / <code>ghost</code> /
+<code>danger</code> / <code>link</code></td>
+</tr>
+<tr>
+<td>Sizes</td>
+<td><code>sm</code> (32px h) / <code>md</code> (36px h) /
+<code>lg</code> (40px h)</td>
+</tr>
+<tr>
+<td>States</td>
+<td>default / hover / active / focus / disabled / loading</td>
+</tr>
+<tr>
+<td>Content</td>
+<td>text-only / icon-left / icon-right / icon-only</td>
+</tr>
+<tr>
+<td>Padding</td>
+<td>sm: <code>px-3 py-1.5</code> / md: <code>px-4 py-2</code> / lg:
+<code>px-5 py-2.5</code></td>
+</tr>
+<tr>
+<td>Radius</td>
+<td><code>radius.md</code> (6px)</td>
+</tr>
+<tr>
+<td>Font</td>
+<td><code>text.body.sm</code> (14px, 500)</td>
+</tr>
+<tr>
+<td>Min Width</td>
+<td>64px（防止太窄）</td>
+</tr>
+<tr>
+<td>Loading</td>
+<td>Spinner 替換 leading icon，文字保留，disabled interaction</td>
+</tr>
+</tbody>
+</table>
+<h3 id="32-input輸入框">3.2 Input（輸入框）</h3>
+<table>
+<thead>
+<tr>
+<th>維度</th>
+<th>規格</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Types</td>
+<td><code>text</code> / <code>password</code> / <code>email</code> /
+<code>number</code> / <code>search</code> / <code>textarea</code></td>
+</tr>
+<tr>
+<td>Sizes</td>
+<td><code>sm</code> (32px h) / <code>md</code> (36px h) /
+<code>lg</code> (40px h)</td>
+</tr>
+<tr>
+<td>States</td>
+<td>default / hover / focus / error / disabled / readonly</td>
+</tr>
+<tr>
+<td>Anatomy</td>
+<td><code>Label</code> + <code>Input Container</code> +
+<code>Helper Text / Error Message</code></td>
+</tr>
+<tr>
+<td>Padding</td>
+<td><code>px-3 py-2</code></td>
+</tr>
+<tr>
+<td>Radius</td>
+<td><code>radius.md</code> (6px)</td>
+</tr>
+<tr>
+<td>Border</td>
+<td>default: <code>border.default</code> / focus:
+<code>border.focus</code> (2px) / error: <code>border.error</code></td>
+</tr>
+<tr>
+<td>Prefix/Suffix</td>
+<td>支援 icon / text / select（如幣別選擇）</td>
+</tr>
+<tr>
+<td>Placeholder</td>
+<td><code>color.text.tertiary</code></td>
+</tr>
+<tr>
+<td>Character Count</td>
+<td>可選，右下角顯示 <code>{current}/{max}</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="33-select選擇器">3.3 Select（選擇器）</h3>
+<table>
+<thead>
+<tr>
+<th>維度</th>
+<th>規格</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Types</td>
+<td><code>single-select</code> / <code>multi-select</code> /
+<code>combobox</code>（可搜尋）</td>
+</tr>
+<tr>
+<td>Sizes</td>
+<td>sm / md / lg（同 Input）</td>
+</tr>
+<tr>
+<td>States</td>
+<td>default / hover / focus / open / disabled / error</td>
+</tr>
+<tr>
+<td>Dropdown</td>
+<td>shadow.lg, radius.lg, max-height 240px, overflow scroll</td>
+</tr>
+<tr>
+<td>Options</td>
+<td>text / icon+text / description / group header / divider</td>
+</tr>
+<tr>
+<td>Selected</td>
+<td>Checkmark icon 在右側</td>
+</tr>
+<tr>
+<td>Empty</td>
+<td>「無選項」或「無搜尋結果」文案</td>
+</tr>
+<tr>
+<td>Keyboard</td>
+<td>Arrow ↑↓ 導航、Enter 選取、Esc 關閉</td>
+</tr>
+</tbody>
+</table>
+<h3 id="34-card卡片">3.4 Card（卡片）</h3>
+<table>
+<thead>
+<tr>
+<th>維度</th>
+<th>規格</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Variants</td>
+<td><code>default</code> / <code>outlined</code> / <code>elevated</code>
+/ <code>clickable</code></td>
+</tr>
+<tr>
+<td>Padding</td>
+<td><code>space.4</code> (16px) 或 <code>space.6</code> (24px)</td>
+</tr>
+<tr>
+<td>Radius</td>
+<td><code>radius.lg</code> (8px)</td>
+</tr>
+<tr>
+<td>Shadow</td>
+<td>default: <code>shadow.sm</code> / hover (clickable):
+<code>shadow.md</code></td>
+</tr>
+<tr>
+<td>Border</td>
+<td>outlined: <code>border.default</code></td>
+</tr>
+<tr>
+<td>Anatomy</td>
+<td><code>Header</code> (optional) + <code>Body</code> (required) +
+<code>Footer</code> (optional)</td>
+</tr>
+<tr>
+<td>Header</td>
+<td>Title + Subtitle + Action (icon button / menu)</td>
+</tr>
+<tr>
+<td>Clickable</td>
+<td>整張卡片可點擊，hover 有 shadow + cursor pointer</td>
+</tr>
+</tbody>
+</table>
+<h3 id="35-modal--dialog">3.5 Modal / Dialog</h3>
+<table>
+<thead>
+<tr>
+<th>維度</th>
+<th>規格</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Variants</td>
+<td><code>default</code> / <code>destructive</code> /
+<code>form</code></td>
+</tr>
+<tr>
+<td>Sizes</td>
+<td><code>sm</code> (400px) / <code>md</code> (520px) / <code>lg</code>
+(640px) / <code>full</code> (mobile only)</td>
+</tr>
+<tr>
+<td>Anatomy</td>
+<td><code>Overlay</code> + <code>Container</code> (Header + Body +
+Footer)</td>
+</tr>
+<tr>
+<td>Overlay</td>
+<td><code>color.bg.overlay</code>, click 可關閉（destructive 除外）</td>
+</tr>
+<tr>
+<td>Header</td>
+<td>Title + Close button (X)</td>
+</tr>
+<tr>
+<td>Footer</td>
+<td>Action buttons（Primary 在右、Cancel 在左）</td>
+</tr>
+<tr>
+<td>Animation</td>
+<td>scale(0.95→1) + opacity, 200ms ease-out</td>
+</tr>
+<tr>
+<td>Close</td>
+<td>X 按鈕、Esc 鍵、Overlay 點擊</td>
+</tr>
+<tr>
+<td>Focus Trap</td>
+<td>開啟後 focus 鎖在 Modal 內</td>
+</tr>
+<tr>
+<td>Scroll</td>
+<td>Body 可 scroll，Header/Footer 固定</td>
+</tr>
+<tr>
+<td>Mobile</td>
+<td>&lt; sm 斷點轉為 full-screen sheet（bottom-up slide）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Wave 1+2 實作 prop API（@radix-ui/react-dialog
+基礎）</strong></p>
+<ul>
+<li>size: <code>sm</code> (max-w-md) / <code>md</code> (max-w-lg,
+default) / <code>lg</code> (max-w-2xl) / <code>xl</code>
+(max-w-4xl)</li>
+<li>元件家族：Modal / ModalTrigger / ModalContent / ModalHeader /
+ModalTitle / ModalDescription / ModalFooter / ModalClose</li>
+<li>focus trap + escape close 由 Radix 提供</li>
+<li>動效：fade in + scale up (150-200ms ease-out)</li>
+</ul>
+<h3 id="36-toast--notification">3.6 Toast / Notification</h3>
+<table>
+<thead>
+<tr>
+<th>維度</th>
+<th>規格</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Variants</td>
+<td><code>success</code> / <code>warning</code> / <code>error</code> /
+<code>info</code> / <code>neutral</code></td>
+</tr>
+<tr>
+<td>Position</td>
+<td>右上角（desktop）/ 頂部居中（mobile）</td>
+</tr>
+<tr>
+<td>Duration</td>
+<td>5000ms auto-dismiss（error 不自動消失）</td>
+</tr>
+<tr>
+<td>Anatomy</td>
+<td>Icon + Message + Action (optional) + Close</td>
+</tr>
+<tr>
+<td>Width</td>
+<td>min 320px / max 420px</td>
+</tr>
+<tr>
+<td>Animation</td>
+<td>slide-in from right + fade, 300ms</td>
+</tr>
+<tr>
+<td>Stack</td>
+<td>最多顯示 3 個，新的推舊的向下</td>
+</tr>
+<tr>
+<td>Accessibility</td>
+<td>role="alert", aria-live="polite"</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Wave 1+2 實作 prop API（@radix-ui/react-toast
+基礎）</strong></p>
+<ul>
+<li>ToastProvider 接於 root layout</li>
+<li>useToast() hook →
+<code>toast({ title, description?, variant?, duration? })</code></li>
+<li>variant: <code>default</code> (白底) / <code>success</code> (綠) /
+<code>warning</code> (黃) / <code>error</code> (紅)；左側 4px 彩條</li>
+<li>顯示位置: 右上 (desktop) / 上方 (mobile)</li>
+<li>動效: slide in + progress bar 倒數（duration 預設 4000ms）</li>
+</ul>
+<h3 id="37-table資料表格">3.7 Table（資料表格）</h3>
+<table>
+<thead>
+<tr>
+<th>維度</th>
+<th>規格</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Variants</td>
+<td><code>default</code> / <code>sortable</code> /
+<code>selectable</code> / <code>expandable</code></td>
+</tr>
+<tr>
+<td>States</td>
+<td>default / loading (skeleton rows) / empty / error</td>
+</tr>
+<tr>
+<td>Header</td>
+<td>固定在頂部（sticky）、可排序（↑↓ icon）</td>
+</tr>
+<tr>
+<td>Rows</td>
+<td>hover 背景色變化、selected 背景色</td>
+</tr>
+<tr>
+<td>Cell Types</td>
+<td>text / number / badge / avatar+text / action buttons</td>
+</tr>
+<tr>
+<td>Pagination</td>
+<td>底部分頁器（上一頁/下一頁/頁碼/每頁筆數）</td>
+</tr>
+<tr>
+<td>Responsive</td>
+<td>desktop 橫向表格 → mobile 轉 card list</td>
+</tr>
+<tr>
+<td>Empty State</td>
+<td>插圖 + 文字 + CTA 按鈕</td>
+</tr>
+<tr>
+<td>Loading</td>
+<td>5 行 skeleton rows</td>
+</tr>
+<tr>
+<td>Bulk Actions</td>
+<td>Checkbox 全選 → 頂部 action bar 出現</td>
+</tr>
+</tbody>
+</table>
+<h3 id="38-badge--tag">3.8 Badge / Tag</h3>
+<table>
+<thead>
+<tr>
+<th>維度</th>
+<th>規格</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Badge Variants</td>
+<td><code>default</code> / <code>dot</code> (無文字，只有圓點)</td>
+</tr>
+<tr>
+<td>Badge Sizes</td>
+<td><code>sm</code> (18px) / <code>md</code> (22px)</td>
+</tr>
+<tr>
+<td>Tag Variants</td>
+<td><code>filled</code> / <code>outlined</code> /
+<code>subtle</code></td>
+</tr>
+<tr>
+<td>Tag Colors</td>
+<td>neutral / primary / success / warning / error / info + 自訂色</td>
+</tr>
+<tr>
+<td>Tag Features</td>
+<td>closable (X icon) / icon-left</td>
+</tr>
+<tr>
+<td>Radius</td>
+<td>Badge: <code>radius.full</code> / Tag: <code>radius.sm</code></td>
+</tr>
+<tr>
+<td>Font</td>
+<td><code>text.caption</code> (12px)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="39-avatar">3.9 Avatar</h3>
+<table>
+<thead>
+<tr>
+<th>維度</th>
+<th>規格</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Types</td>
+<td><code>image</code> / <code>initial</code> (首字母) /
+<code>icon</code> (fallback)</td>
+</tr>
+<tr>
+<td>Sizes</td>
+<td><code>xs</code> (24px) / <code>sm</code> (32px) / <code>md</code>
+(40px) / <code>lg</code> (48px) / <code>xl</code> (64px)</td>
+</tr>
+<tr>
+<td>Shape</td>
+<td>Circle (<code>radius.full</code>)</td>
+</tr>
+<tr>
+<td>Fallback</td>
+<td>有圖 → 顯示圖；無圖 → 顯示首字母（取背景色 hash）；無名 → User
+icon</td>
+</tr>
+<tr>
+<td>Group</td>
+<td>Avatar Stack，重疊 -8px，最多顯示 5 個 + "+N"</td>
+</tr>
+<tr>
+<td>Status</td>
+<td>右下角狀態指示器（online/offline/busy）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="310-tabs">3.10 Tabs</h3>
+<table>
+<thead>
+<tr>
+<th>維度</th>
+<th>規格</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Variants</td>
+<td><code>underline</code> / <code>pill</code> /
+<code>outlined</code></td>
+</tr>
+<tr>
+<td>States</td>
+<td>default / hover / active / disabled</td>
+</tr>
+<tr>
+<td>Sizes</td>
+<td><code>sm</code> / <code>md</code></td>
+</tr>
+<tr>
+<td>Anatomy</td>
+<td>Tab List (horizontal) + Tab Panel</td>
+</tr>
+<tr>
+<td>Indicator</td>
+<td>underline: 2px bottom border animate / pill: background animate</td>
+</tr>
+<tr>
+<td>Overflow</td>
+<td>超過容器寬度時顯示左右箭頭 scroll</td>
+</tr>
+<tr>
+<td>Keyboard</td>
+<td>Arrow ← → 切換、Home/End 跳首尾</td>
+</tr>
+<tr>
+<td>Accessibility</td>
+<td>role="tablist" + role="tab" + role="tabpanel"</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-p1-元件清單">4. P1 元件清單</h2>
+<table>
+<thead>
+<tr>
+<th>元件</th>
+<th>說明</th>
+<th>Variants</th>
+<th>Key States</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dropdown Menu</td>
+<td>下拉選單</td>
+<td>default / nested</td>
+<td>hover / active / disabled items</td>
+</tr>
+<tr>
+<td>Popover</td>
+<td>資訊氣泡</td>
+<td>default / interactive</td>
+<td>open (click) / close</td>
+</tr>
+<tr>
+<td>Tooltip</td>
+<td>提示框</td>
+<td>default</td>
+<td>hover / focus 觸發</td>
+</tr>
+<tr>
+<td>Drawer / Sheet</td>
+<td>側邊滑出面板</td>
+<td>left / right / bottom</td>
+<td>open / closing</td>
+</tr>
+<tr>
+<td>Accordion</td>
+<td>摺疊面板</td>
+<td>single-open / multi-open</td>
+<td>expanded / collapsed</td>
+</tr>
+<tr>
+<td>Breadcrumb</td>
+<td>麵包屑導航</td>
+<td>default</td>
+<td>current / link / separator</td>
+</tr>
+<tr>
+<td>Pagination</td>
+<td>分頁器</td>
+<td>default / simple (prev/next)</td>
+<td>active / disabled</td>
+</tr>
+<tr>
+<td>Progress</td>
+<td>進度條/環</td>
+<td>bar / circle / steps</td>
+<td>value / indeterminate</td>
+</tr>
+<tr>
+<td>Skeleton</td>
+<td>載入佔位</td>
+<td>text / circle / rect</td>
+<td>pulse animation</td>
+</tr>
+<tr>
+<td>Alert / Banner</td>
+<td>頁面級通知</td>
+<td>info / success / warning / error</td>
+<td>dismissable / persistent</td>
+</tr>
+<tr>
+<td>Checkbox</td>
+<td>核取方塊</td>
+<td>default</td>
+<td>checked / unchecked / indeterminate / disabled</td>
+</tr>
+<tr>
+<td>Radio</td>
+<td>單選</td>
+<td>default</td>
+<td>selected / unselected / disabled</td>
+</tr>
+<tr>
+<td>Switch / Toggle</td>
+<td>開關</td>
+<td>default</td>
+<td>on / off / disabled</td>
+</tr>
+<tr>
+<td>Date Picker</td>
+<td>日期選擇器</td>
+<td>single / range</td>
+<td>open / selected / disabled dates</td>
+</tr>
+<tr>
+<td>File Upload</td>
+<td>檔案上傳</td>
+<td>drag-drop / button</td>
+<td>idle / dragover / uploading / success / error</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Wave 1+2 Drawer 實作 prop API</strong></p>
+<ul>
+<li>side: <code>right</code> (default) / <code>left</code> /
+<code>bottom</code>（mobile-first）</li>
+<li>size: <code>sm</code> (w-80) / <code>md</code> (w-96) /
+<code>lg</code> (w-[28rem])</li>
+<li>動效: slide in from edge (200ms ease-out)</li>
+</ul>
+<p><strong>Wave 1+2 DateRangePicker 實作 prop API</strong></p>
+<ul>
+<li>value:
+<code>DateRange = { from: Date | null; to: Date | null }</code></li>
+<li>onChange: (range) =&gt; void</li>
+<li>presets: 7 個內建（今天、昨天、過去 7 日、過去 30
+日、本月、上月、自訂）</li>
+<li>自寫雙月日曆（避免 react-day-picker / date-fns 依賴）</li>
+<li>響應式: ≥640px 雙月並排 / &lt;640px 單月</li>
+<li>鍵盤: 方向鍵跨日、Enter 選取、Esc 關閉</li>
+</ul>
+<hr />
+<h2 id="5-p2-元件清單">5. P2 元件清單</h2>
+<table>
+<thead>
+<tr>
+<th>元件</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Color Picker</td>
+<td>顏色選擇器</td>
+</tr>
+<tr>
+<td>Slider / Range</td>
+<td>滑桿</td>
+</tr>
+<tr>
+<td>Stepper / Wizard</td>
+<td>步驟指示器</td>
+</tr>
+<tr>
+<td>Timeline</td>
+<td>時間軸</td>
+</tr>
+<tr>
+<td>Tree View</td>
+<td>樹狀結構</td>
+</tr>
+<tr>
+<td>Kanban Board</td>
+<td>看板</td>
+</tr>
+<tr>
+<td>Rich Text Editor</td>
+<td>富文字編輯器</td>
+</tr>
+<tr>
+<td>Code Block</td>
+<td>程式碼區塊（含語法高亮）</td>
+</tr>
+<tr>
+<td>Chart Wrapper</td>
+<td>圖表容器（Bar / Line / Pie）</td>
+</tr>
+<tr>
+<td>Carousel</td>
+<td>輪播</td>
+</tr>
+<tr>
+<td>Command Palette</td>
+<td>命令面板 (Cmd+K)</td>
+</tr>
+<tr>
+<td>Keyboard Shortcut</td>
+<td>快捷鍵提示</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-元件命名規範">6. 元件命名規範</h2>
+<h3 id="61-figma-命名">6.1 Figma 命名</h3>
+<pre><code>格式：[Category] / [Component Name] / [Variant]
+
+範例：
+  Actions / Button / Primary
+  Actions / Button / Secondary
+  Actions / Button / Ghost
+  Inputs / Text Field / Default
+  Inputs / Text Field / Error
+  Data Display / Badge / Filled
+  Data Display / Badge / Dot
+  Feedback / Toast / Success
+  Feedback / Toast / Error
+  Navigation / Tabs / Underline
+  Navigation / Breadcrumb / Default</code></pre>
+<h3 id="62-工程命名">6.2 工程命名</h3>
+<table>
+<thead>
+<tr>
+<th>Figma 名稱</th>
+<th>React 元件名</th>
+<th>CSS Class</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Actions / Button</td>
+<td><code>&lt;Button&gt;</code></td>
+<td><code>.btn</code>, <code>.btn-primary</code></td>
+</tr>
+<tr>
+<td>Inputs / Text Field</td>
+<td><code>&lt;TextField&gt;</code></td>
+<td><code>.text-field</code></td>
+</tr>
+<tr>
+<td>Data Display / Table</td>
+<td><code>&lt;DataTable&gt;</code></td>
+<td><code>.data-table</code></td>
+</tr>
+<tr>
+<td>Feedback / Toast</td>
+<td><code>&lt;Toast&gt;</code></td>
+<td><code>.toast</code></td>
+</tr>
+<tr>
+<td>Navigation / Tabs</td>
+<td><code>&lt;Tabs&gt;</code>, <code>&lt;Tab&gt;</code>,
+<code>&lt;TabPanel&gt;</code></td>
+<td><code>.tabs</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="63-命名規則">6.3 命名規則</h3>
+<pre><code>規則 1：Figma 用 / 分層（Category / Name / Variant）
+規則 2：React 用 PascalCase（Button、TextField、DataTable）
+規則 3：CSS 用 kebab-case（.btn、.text-field、.data-table）
+規則 4：Props 用 camelCase（variant、isDisabled、onClose）
+規則 5：設計與工程名稱必須 1:1 對應（建立 Code Connect mapping）</code></pre>
+<hr />
+<h2 id="7-元件-inventory-總表">7. 元件 Inventory 總表</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>元件</th>
+<th>優先級</th>
+<th>狀態</th>
+<th>Variants 數</th>
+<th>States 覆蓋</th>
+<th>負責人</th>
+<th>版本</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Button</td>
+<td>P0</td>
+<td>☐</td>
+<td>5</td>
+<td>6/6</td>
+<td></td>
+<td>v1.0</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Input / TextField</td>
+<td>P0</td>
+<td>☐</td>
+<td>6</td>
+<td>6/6</td>
+<td></td>
+<td>v1.0</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Select</td>
+<td>P0</td>
+<td>☐</td>
+<td>3</td>
+<td>6/6</td>
+<td></td>
+<td>v1.0</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Card</td>
+<td>P0</td>
+<td>☐</td>
+<td>4</td>
+<td>3/3</td>
+<td></td>
+<td>v1.0</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Modal / Dialog</td>
+<td>P0</td>
+<td>☐</td>
+<td>3</td>
+<td>3/3</td>
+<td></td>
+<td>v1.0</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Toast</td>
+<td>P0</td>
+<td>☐</td>
+<td>5</td>
+<td>3/3</td>
+<td></td>
+<td>v1.0</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Table</td>
+<td>P0</td>
+<td>☐</td>
+<td>4</td>
+<td>4/4</td>
+<td></td>
+<td>v1.0</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Badge / Tag</td>
+<td>P0</td>
+<td>☐</td>
+<td>5</td>
+<td>2/2</td>
+<td></td>
+<td>v1.0</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Avatar</td>
+<td>P0</td>
+<td>☐</td>
+<td>3</td>
+<td>3/3</td>
+<td></td>
+<td>v1.0</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Tabs</td>
+<td>P0</td>
+<td>☐</td>
+<td>3</td>
+<td>4/4</td>
+<td></td>
+<td>v1.0</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Dropdown Menu</td>
+<td>P1</td>
+<td>☐</td>
+<td>2</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>12</td>
+<td>Popover</td>
+<td>P1</td>
+<td>☐</td>
+<td>2</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>13</td>
+<td>Tooltip</td>
+<td>P1</td>
+<td>☐</td>
+<td>1</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>14</td>
+<td>Drawer</td>
+<td>P1</td>
+<td>☐</td>
+<td>3</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>15</td>
+<td>Accordion</td>
+<td>P1</td>
+<td>☐</td>
+<td>2</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-do--dont-範例">8. Do / Don't 範例</h2>
+<h3 id="button">Button</h3>
+<table>
+<thead>
+<tr>
+<th>✅ Do</th>
+<th>❌ Don't</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>一頁只有一個 Primary CTA</td>
+<td>放 3 個 Primary 按鈕搶注意力</td>
+</tr>
+<tr>
+<td>按鈕文案用動詞：「建立專案」</td>
+<td>模糊文案：「確定」「提交」</td>
+</tr>
+<tr>
+<td>Danger 操作用 Danger variant + 確認 Dialog</td>
+<td>用 Primary variant 做刪除</td>
+</tr>
+<tr>
+<td>Loading 時 disable + 顯示 spinner</td>
+<td>Loading 時什麼都不顯示，用戶連點</td>
+</tr>
+<tr>
+<td>Icon-only 按鈕加 tooltip + aria-label</td>
+<td>Icon-only 按鈕無任何提示</td>
+</tr>
+</tbody>
+</table>
+<h3 id="input">Input</h3>
+<table>
+<thead>
+<tr>
+<th>✅ Do</th>
+<th>❌ Don't</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Label 在上方，永遠可見</td>
+<td>Label 只放在 placeholder 裡（focus 後消失）</td>
+</tr>
+<tr>
+<td>Error 顯示在 Input 下方 + 紅色邊框</td>
+<td>只用 toast 顯示表單錯誤</td>
+</tr>
+<tr>
+<td>必填欄位用 * 標示</td>
+<td>所有欄位都不標示必填</td>
+</tr>
+<tr>
+<td>Helper text 說明格式要求</td>
+<td>完全沒有格式提示，錯了才告訴用戶</td>
+</tr>
+</tbody>
+</table>
+<h3 id="modal">Modal</h3>
+<table>
+<thead>
+<tr>
+<th>✅ Do</th>
+<th>❌ Don't</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Modal 只做一件事</td>
+<td>Modal 裡塞完整的表單 + 表格 + 子 Modal</td>
+</tr>
+<tr>
+<td>破壞性操作要二次確認</td>
+<td>點刪除直接執行</td>
+</tr>
+<tr>
+<td>Mobile 轉 bottom sheet</td>
+<td>Mobile 還用小 Modal（很難點）</td>
+</tr>
+<tr>
+<td>有明確的關閉方式（X, Esc, Overlay click）</td>
+<td>只有「確定」按鈕能關 Modal</td>
+</tr>
+</tbody>
+</table>
+<h3 id="table">Table</h3>
+<table>
+<thead>
+<tr>
+<th>✅ Do</th>
+<th>❌ Don't</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>數字右對齊、文字左對齊</td>
+<td>所有內容都置中</td>
+</tr>
+<tr>
+<td>空狀態有插圖 + CTA</td>
+<td>只顯示「無資料」三個字</td>
+</tr>
+<tr>
+<td>Mobile 轉 card list</td>
+<td>Mobile 還用橫向表格（要左右滑）</td>
+</tr>
+<tr>
+<td>長文字 truncate + tooltip</td>
+<td>長文字把 row 撐高</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="figma-結構建議">Figma 結構建議</h2>
+<pre><code>📁 01_Components（Figma Page）
+├── 📄 Overview（元件總覽 + Inventory 表）
+├── 📄 Actions
+│   ├── Button（所有 variants × states × sizes）
+│   └── Icon Button
+├── 📄 Inputs
+│   ├── Text Field
+│   ├── Select
+│   ├── Checkbox / Radio / Switch
+│   ├── Date Picker
+│   └── File Upload
+├── 📄 Data Display
+│   ├── Table
+│   ├── Badge / Tag
+│   ├── Avatar
+│   ├── Card
+│   └── Tooltip
+├── 📄 Feedback
+│   ├── Toast / Notification
+│   ├── Alert / Banner
+│   ├── Modal / Dialog
+│   ├── Drawer
+│   └── Progress / Skeleton
+├── 📄 Navigation
+│   ├── Tabs
+│   ├── Breadcrumb
+│   ├── Pagination
+│   └── Menu / Dropdown
+└── 📄 Do &amp; Don&#39;t（常見錯用案例）</code></pre>
+<hr />
+<p><strong>版本</strong>：v1.0 <strong>最後更新</strong>：2026-03-17
+<strong>相關文件</strong>：<code>SYSTEM_DOCUMENT_SPEC.md</code> →
+B3、<code>BASE_DESIGN_SYSTEM.md</code> → UX Pattern Layer</p>
+</div></div></body></html>

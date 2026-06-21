@@ -1,0 +1,72 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>agent per-user 記憶後端 — SQLite → Postgres（agent schema / pg_trgm）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ architecture ／ adr ／ ADR-0113-agent-memory-postgres-backend.md</div>
+<div class="doc"><h1 id="adr-0113--agent-per-user-記憶後端sqlite--postgres">ADR-0113 —
+agent per-user 記憶後端：SQLite → Postgres</h1>
+<h2 id="status">Status</h2>
+<p>accepted（2026-06-15，CR-0023 §8 業主裁決）</p>
+<h2 id="context">Context</h2>
+<p>LockCore CS agent 的 per-user
+記憶（<code>MemoryStore</code>）與轉真人稽核（<code>EscalationStore</code>）
+原寫本地 SQLite（FTS5 trigram）。本地檔案造成：記憶資料孤島（後台
+Postgres 讀不到）、 多實例 / Cloud Run
+不共享、重啟即失。<code>provider.py</code> 自始即留可插拔
+<code>MemoryProvider</code> 抽象（「日後換後端只需新增一個
+Provider」），本 ADR 兌現該設計。</p>
+<h2 id="decision">Decision</h2>
+<p>agent 記憶後端<strong>可由 config 切換 SQLite /
+Postgres</strong>，Postgres 走與 API 共用的 lock-ai Cloud
+SQL，置於<strong>獨立 schema <code>agent</code></strong>：</p>
+<ul>
+<li><code>agent.memory_entry</code> /
+<code>agent.escalation</code>；tenant 仍存<strong>字串</strong>（如
+<code>locksmart</code>）， <strong>不對齊</strong> saas 的 UUID
+<code>tenant_id</code>（agent 多租戶模型與營運 SaaS 分離）。</li>
+<li>中文子字串檢索改 <strong>pg_trgm + GIN</strong>（取代 FTS5
+trigram），ILIKE 命中 + <code>similarity()</code> 排序。</li>
+<li>預設仍
+<code>backend="sqlite"</code>（反相容、零行為變更）；正式環境設
+<code>backend="postgres"</code> + <code>POSTGRES_URI</code>，先跑
+migration 033。</li>
+</ul>
+<h2 id="alternatives-considered">Alternatives Considered</h2>
+<ul>
+<li><strong>放 saas schema + 映射 UUID tenant</strong>：後台可直接
+join，但耦合營運 schema、需字串→UUID 映射層。否決（§8 #1 選 agent schema
+乾淨隔離）。</li>
+<li><strong>tsvector 全文檢索</strong>：中文需 zhparser/pg_jieba 斷詞
+extension，Cloud SQL 預設無、難裝。 否決（§8 #2 選 pg_trgm，stock
+extension）。</li>
+<li><strong>硬替換 SQLite</strong>：測試 / 評測 harness 失去
+<code>:memory:</code> 快速隔離。否決（§8 #3 保留切換）。</li>
+</ul>
+<h2 id="consequences">Consequences</h2>
+<p><strong>Positive</strong>：記憶持久化統一、多實例可共享、與 API 同一
+Cloud SQL 易運維； 保留 SQLite 後端讓 unit / eval 維持零依賴與 run
+隔離。</p>
+<p><strong>Negative</strong>：agent 進程新增 Postgres 連線依賴（optional
+dep <code>psycopg</code>）； tenant 字串不對齊 saas UUID，後台若要 join
+需後續映射（暫不需要）。</p>
+<p><strong>Architecture Lock</strong>：合規 —— 走既有
+<code>MemoryProvider</code> 抽象，非另寫 agent 核心； 不動
+<code>CS_TOOL_ALLOWLIST</code>（記憶非 agent tool）。</p>
+<h2 id="verification">Verification</h2>
+<p>本機 Docker <code>lock_AI_data</code>(pg17) 套用 migration 033 +
+<code>tests/test_memory_postgres.py</code> 7 passed（中文檢索 / scope
+隔離 / forget / default-deny / escalation / backend 切換）。</p>
+</div></div></body></html>

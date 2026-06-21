@@ -1,0 +1,252 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Phase II 9 FR — SLO Baseline (production observation)</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ _ops ／ slo-baseline-phase-ii.md</div>
+<div class="doc"><h1 id="phase-ii-9-fr--slo-baseline-production-observation">Phase II 9
+FR — SLO Baseline (production observation)</h1>
+<blockquote>
+<p>Created 2026-06-05
+對齊：<code>scripts/ops/load_test_phase_ii.py</code> + Stage 6
+production 30 day 觀察</p>
+<p>本 doc 預設 SLO 為 <strong>baseline 期望值</strong>，不是
+contract。production 跑滿 7 day 後若實際 p95 持續 ≤ baseline 即標
+✅；若超 baseline 1.5× 則需 開 investigation 或 escalate。</p>
+</blockquote>
+<hr />
+<h2 id="0-觀察方法">0. 觀察方法</h2>
+<ol type="1">
+<li><strong>UAT 環境壓測</strong> — 跑
+<code>load_test_phase_ii.py --concurrency 100 --duration 60</code>，輸出
+JSON 對比下方 baseline</li>
+<li><strong>Production canary</strong> — 部署後 1 week，從 Cloud SQL
+slow query + FastAPI middleware latency log 採樣</li>
+<li><strong>CI nightly</strong> — 加入 <code>monitors-health.yml</code>
+配套 workflow 跑壓測 30 min（roadmap，目前手動）</li>
+</ol>
+<hr />
+<h2 id="1-slo-baseline-表9-fr--ops">1. SLO baseline 表（9 FR +
+ops）</h2>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>endpoint</th>
+<th>p50 baseline</th>
+<th>p95 baseline</th>
+<th>p99 baseline</th>
+<th>error rate budget</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>approval_inbox</code> (FR-0049)</td>
+<td><code>GET /tenants/{tid}/approval-inbox</code></td>
+<td>80ms</td>
+<td>200ms</td>
+<td>400ms</td>
+<td>0.1%</td>
+</tr>
+<tr>
+<td><code>tech_lifecycle</code> (FR-0044)</td>
+<td><code>GET /tenants/{tid}/technicians</code></td>
+<td>60ms</td>
+<td>150ms</td>
+<td>300ms</td>
+<td>0.1%</td>
+</tr>
+<tr>
+<td><code>tech_statement</code> (FR-0045)</td>
+<td><code>GET /tenants/{tid}/me/statements</code></td>
+<td>50ms</td>
+<td>120ms</td>
+<td>250ms</td>
+<td>0.1%</td>
+</tr>
+<tr>
+<td><code>dispatcher_commission</code> (FR-0046)</td>
+<td><code>GET /tenants/{tid}/me/commission-statements</code></td>
+<td>50ms</td>
+<td>120ms</td>
+<td>250ms</td>
+<td>0.1%</td>
+</tr>
+<tr>
+<td><code>brand_b2b</code> (FR-0047)</td>
+<td><code>GET /tenants/{tid}/brand-b2b-statements</code></td>
+<td>100ms</td>
+<td>250ms</td>
+<td>500ms</td>
+<td>0.1%</td>
+</tr>
+<tr>
+<td><code>gdpr_queue</code> (FR-0053)</td>
+<td><code>GET /tenants/{tid}/gdpr/forget-requests</code></td>
+<td>40ms</td>
+<td>100ms</td>
+<td>200ms</td>
+<td>0.1%</td>
+</tr>
+<tr>
+<td><code>ai_governance</code> (FR-0050)</td>
+<td><code>GET /tenants/{tid}/ai/governance/traces</code></td>
+<td>120ms</td>
+<td>300ms</td>
+<td>600ms</td>
+<td>0.1%</td>
+</tr>
+<tr>
+<td><code>sop_feedback</code> (FR-0051)</td>
+<td><code>GET /tenants/{tid}/sop-feedback</code></td>
+<td>50ms</td>
+<td>120ms</td>
+<td>250ms</td>
+<td>0.1%</td>
+</tr>
+<tr>
+<td><code>rma_quality</code> (FR-0048)</td>
+<td><code>GET /tenants/{tid}/rma/quality-findings</code></td>
+<td>60ms</td>
+<td>150ms</td>
+<td>300ms</td>
+<td>0.1%</td>
+</tr>
+<tr>
+<td><code>ops_health</code> (lifespan)</td>
+<td><code>GET /ops/lifespan-monitors</code></td>
+<td>20ms</td>
+<td>50ms</td>
+<td>100ms</td>
+<td>0.01%</td>
+</tr>
+</tbody>
+</table>
+<h3 id="為什麼這些數字">為什麼這些數字</h3>
+<ul>
+<li><strong>Statement 類 50-100ms</strong>: 純 SELECT + 索引
+(<code>tenant_id + status + period</code>)
+<ul>
+<li>6 state machine + decimal computation。已驗 backend 372 tests 涵蓋
+filter 邏輯。</li>
+</ul></li>
+<li><strong>B2B 100-250ms</strong>: 多 join (brand_partner + work_order
+aggregate) + <code>_compute_net</code> 計算 AR/AP/NET，預期略高於單一
+statement。</li>
+<li><strong>AI governance 120-300ms</strong>: trace 量大 + decision_type
+aggregation； index 對 <code>(tenant_id, created_at DESC)</code> 應
+cover。</li>
+<li><strong>GDPR queue 40-100ms</strong>:
+量極少（高隱私事件，非熱路徑）。</li>
+<li><strong>Ops health 20ms</strong>: 純 in-memory monitor state，不打
+DB。</li>
+</ul>
+<h3 id="15-threshold-規則">1.5× threshold 規則</h3>
+<p>若觀察期內某 scenario 持續超出 1.5× baseline (e.g.
+<code>ai_governance</code> p95</p>
+<blockquote>
+<p>450ms)，須開 issue 走以下 root cause check:</p>
+</blockquote>
+<ol type="1">
+<li>Index missing → 查 <code>EXPLAIN ANALYZE</code></li>
+<li>N+1 query → 查 service <code>_to_dict</code> 是否含 nested
+fetch</li>
+<li>tenant 資料量爆增 → 拆 partition 或加 LIMIT</li>
+<li>Cron 與 user request 競爭連線 → 調 cron interval / connection
+pool</li>
+</ol>
+<hr />
+<h2 id="2-連續壓測--ci-自動-passfail">2. 連續壓測 → CI 自動
+pass/fail</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># .github/workflows/loadtest-baseline.yml (roadmap)</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Run load test against UAT</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">env</span><span class="kw">:</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">LOADTEST_BASE_URL</span><span class="kw">:</span><span class="at"> ${{ secrets.UAT_BASE_URL }}</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">LOADTEST_AUTH_TOKEN</span><span class="kw">:</span><span class="at"> ${{ secrets.UAT_TOKEN }}</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">LOADTEST_TENANT_ID</span><span class="kw">:</span><span class="at"> tenant-uat-loadtest</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">  run</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    uv run python scripts/ops/load_test_phase_ii.py \</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>      --concurrency 50 --duration 30 \</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>      --output reports/loadtest-${{ github.sha }}.json</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Compare against SLO baseline</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="fu">  run</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    python scripts/ops/loadtest_assert_slo.py \</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>      reports/loadtest-${{ github.sha }}.json \</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>      docs/_ops/slo-baseline-phase-ii.md</span></code></pre></div>
+<p><code>loadtest_assert_slo.py</code> 解析 baseline 表 vs report
+JSON，超 1.5× threshold 即 <code>sys.exit(1)</code>。（roadmap — 本
+session 不寫，留 BUILD 時實作。）</p>
+<hr />
+<h2 id="3-stage-6-production-30-day-觀察--stage-7-v1-router-刪除門檻">3.
+Stage 6 production 30 day 觀察 → Stage 7 v1 router 刪除門檻</h2>
+<p>對齊 <code>docs/_audit/P4-stage-2-7-prep-checklists.md</code> Stage
+7：</p>
+<ul>
+<li>✅ <strong>v1 endpoint deprecation hit count = 0</strong> 連續 30
+day</li>
+<li>✅ <strong>9 FR endpoint SLO 全 PASS</strong> 連續 30 day（用本 doc
+baseline）</li>
+<li>✅ <strong>無 production incident</strong> (PagerDuty critical) 與 9
+FR 相關</li>
+<li>✅ <strong>Lifespan monitor <code>running</code> 全綠</strong> 連續
+30 day</li>
+<li>✅ <strong>業主簽 P4 Stage 7 完成書</strong></li>
+</ul>
+<p>任一條未過，延期 Stage 7，繼續觀察。</p>
+<hr />
+<h2 id="4-用法--uat-跑壓測完成">4. 用法 — UAT 跑壓測完成</h2>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">LOADTEST_BASE_URL</span><span class="op">=</span>https://uat.lock-ai.example</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">LOADTEST_AUTH_TOKEN</span><span class="op">=&lt;</span>從 UAT 拿 admin token<span class="op">&gt;</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">LOADTEST_TENANT_ID</span><span class="op">=</span>tenant-uat-001</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co"># 跑全部 10 scenario × 60s × 100 concurrent</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python scripts/ops/load_test_phase_ii.py <span class="dt">\</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">--output</span> docs/_audit/loadtest-uat-2026-q3.json</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co"># 或只跑 statement 類</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python scripts/ops/load_test_phase_ii.py <span class="dt">\</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">--scenarios</span> tech_statement,dispatcher_commission,brand_b2b <span class="dt">\</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">--duration</span> 30</span></code></pre></div>
+<p>完成後對齊 <code>docs/_ops/uat-plan-2026-q3.md</code>
+UAT-010，寫入結果。</p>
+<hr />
+<h2 id="a-不在本-baseline-範圍">§A 不在本 baseline 範圍</h2>
+<ul>
+<li><strong>Agent inference latency</strong>: 屬 LiteLLM provider +
+model 端，由 <code>lockcore/providers/litellm_provider.py</code>
+自監測，與本 baseline 不相關</li>
+<li><strong>LINE webhook</strong>: 屬
+<code>scripts/line_gateway.py</code>，另立 SLO</li>
+<li><strong>背景 cron</strong>: 跑批不對 user 暴露，不適用 user-facing
+SLO</li>
+<li><strong>背景 monitor</strong>: 同上，用 <code>ops_health</code>
+endpoint 反映 collective 狀態</li>
+</ul>
+<hr />
+<h2 id="b-對齊文件">§B 對齊文件</h2>
+<ul>
+<li><code>scripts/ops/load_test_phase_ii.py</code> — 壓測 framework</li>
+<li><code>docs/_ops/wbs-100-closeout-plan.md</code> §3.3 — Stage 2-6
+觀察</li>
+<li><code>docs/_audit/P4-stage-2-7-prep-checklists.md</code> Stage
+7</li>
+<li><code>docs/_ops/uat-plan-2026-q3.md</code> UAT-010</li>
+<li><code>docs/_ops/background-monitors-runbook.md</code> lifespan +
+cron</li>
+</ul>
+</div></div></body></html>

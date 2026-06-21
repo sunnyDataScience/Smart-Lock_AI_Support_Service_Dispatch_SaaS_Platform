@@ -1,0 +1,157 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>稽核日誌完整性與匯出</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ analysis ／ fr ／ FR-0020-audit-log-export.md</div>
+<div class="doc"><h1 id="fr-0020--稽核日誌完整性與匯出">FR-0020 —
+稽核日誌完整性與匯出</h1>
+<blockquote>
+<p><strong>Migration</strong>: 2026-05-28 改為 D5 殼結構（rule →
+BR）。</p>
+</blockquote>
+<h2 id="1-use-case-skeleton">§1 Use Case Skeleton</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">欄位</th>
+<th style="text-align: left;">內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Actor</strong></td>
+<td style="text-align: left;">IT admin / 法務</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Secondary Actors</strong></td>
+<td style="text-align: left;">M17 Audit ledger, Nightly verify cron</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Trigger</strong></td>
+<td style="text-align: left;">Manual export / nightly verify</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Precondition</strong></td>
+<td style="text-align: left;">RBAC <code>audit.export</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Main Flow</strong></td>
+<td style="text-align: left;">詳見 §1.1 → user-flow:S5-step20</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Alternative Flow</strong></td>
+<td style="text-align: left;">詳見 §1.2</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Postcondition</strong></td>
+<td style="text-align: left;">匯出檔案 / hash chain verify pass</td>
+</tr>
+</tbody>
+</table>
+<h3 id="11-main-flow">§1.1 Main Flow</h3>
+<ol type="1">
+<li>Admin 選日期範圍 + 匯出格式 (PDF/CSV)</li>
+<li>系統 verify hash chain integrity (per row)</li>
+<li>匯出 file</li>
+<li>emit <code>AuditLogExported</code> (本動作也寫 audit)</li>
+<li>END</li>
+</ol>
+<h3 id="12-alternative-flow">§1.2 Alternative Flow</h3>
+<pre><code>A1. Hash chain mismatch (verify 失敗):
+    A1.1 emit `AuditTamperDetected`
+    A1.2 alert IT admin + 法務
+    A1.3 匯出附 tamper warning
+
+A2. UPDATE/DELETE attempt on audit (任一時間):
+    A2.1 DB trigger 拒絕 (append-only)
+    A2.2 此嘗試本身寫 audit
+
+A3. 缺 export permission:
+    A3.1 403 forbidden + audit
+
+A4. &gt; 7 yr 資料 query:
+    A4.1 回 410 gone (已 lifecycle 清除)</code></pre>
+<h2 id="2-acceptance-criteria">§2 Acceptance Criteria</h2>
+<h3 id="ac-01-happy-path-匯出">AC-01: Happy path 匯出</h3>
+<pre class="gherkin"><code>When admin 匯出 2025 全年 audit
+Then 系統 verify hash chain pass
+  And 匯出 PDF
+  And `AuditLogExported` emit</code></pre>
+<h3 id="ac-02-hash-chain-mismatch">AC-02: Hash chain mismatch</h3>
+<pre class="gherkin"><code>Given audit row 被竄改
+When verify
+Then `AuditTamperDetected` emit + alert</code></pre>
+<h3 id="ac-03-update-拒絕">AC-03: UPDATE 拒絕</h3>
+<pre class="gherkin"><code>When 任何 user UPDATE audit row
+Then DB trigger 拒絕
+  And 此嘗試本身寫 audit</code></pre>
+<h3 id="ac-04-7y-boundary">AC-04: 7y boundary</h3>
+<pre class="gherkin"><code>When query 7 yr + 1 day 前 audit
+Then 410 gone (lifecycle 已清)</code></pre>
+<h2 id="3-reference-map">§3 Reference Map</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">類型</th>
+<th style="text-align: left;">ID</th>
+<th style="text-align: left;">用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">BR</td>
+<td style="text-align: left;">BR-M17-NN</td>
+<td style="text-align: left;">append-only / 7y / export / hash
+chain</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR</td>
+<td style="text-align: left;">ADR-0061</td>
+<td style="text-align: left;">data governance</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR</td>
+<td style="text-align: left;">ADR-VCH-002</td>
+<td style="text-align: left;">7y retention</td>
+</tr>
+<tr>
+<td style="text-align: left;">Event</td>
+<td style="text-align: left;">AuditLogExported /
+AuditTamperDetected</td>
+<td style="text-align: left;">—</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-change-log">§4 Change Log</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Date</th>
+<th style="text-align: left;">Change</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">2026-05-10</td>
+<td style="text-align: left;">REQ-020→FR-0020</td>
+</tr>
+<tr>
+<td style="text-align: left;">2026-05-28</td>
+<td style="text-align: left;"><strong>D5 殼 rewrite</strong></td>
+</tr>
+</tbody>
+</table>
+</div></div></body></html>

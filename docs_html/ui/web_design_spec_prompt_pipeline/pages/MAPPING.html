@@ -1,0 +1,2077 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>頁面規格對應表 (Page Specification Mapping)</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../../index.html">🏠 文件總目錄</a> ／ ui ／ web_design_spec_prompt_pipeline ／ pages ／ MAPPING.md</div>
+<div class="doc"><h1 id="頁面規格對應表-page-specification-mapping">頁面規格對應表 (Page
+Specification Mapping)</h1>
+<blockquote>
+<p><strong>用途：</strong> 作為
+<code>docs/02-design/E5x--frontend-information-arch.md</code>（IA 48
+頁定義）與本目錄
+<code>web_design_spec_prompt_pipeline/pages/*.md</code>（19 份 page
+spec）之間的<strong>雙向對照索引</strong>。 <strong>維護原則：</strong>
+IA 新增/刪除頁面時同步更新本檔；pipeline 新增 spec 檔時新增對應列。</p>
+<p><strong>最後更新：</strong> 2026-04-23 · <strong>版本：</strong> v1.1
+· <strong>對應 IA 版本：</strong> v1.2 ·
+<strong>對應前端架構版本：</strong> v1.2</p>
+</blockquote>
+<hr />
+<h2 id="1-快速總覽">1. 快速總覽</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">指標</th>
+<th style="text-align: left;">數字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">IA 定義頁面總數</td>
+<td style="text-align: left;"><strong>52 頁</strong>（Admin 38 +
+Technician 12 + Global 2，V1.1 新增 A37/G1/G2/T11）</td>
+</tr>
+<tr>
+<td style="text-align: left;">Pipeline spec 檔數</td>
+<td style="text-align: left;"><strong>22
+份</strong>（<code>page_template.md</code> 不計）</td>
+</tr>
+<tr>
+<td style="text-align: left;">平均每份 spec 覆蓋頁數</td>
+<td style="text-align: left;">2.4 頁</td>
+</tr>
+<tr>
+<td style="text-align: left;">已覆蓋頁面</td>
+<td style="text-align: left;">52 / 52 ✅</td>
+</tr>
+<tr>
+<td style="text-align: left;">V1.0 頁面</td>
+<td style="text-align: left;">11 頁 / 已覆蓋 11</td>
+</tr>
+<tr>
+<td style="text-align: left;">V2.0 頁面</td>
+<td style="text-align: left;">37 頁 / 已覆蓋 37（含驗證閘新增
+A37/G1/T11）</td>
+</tr>
+<tr>
+<td style="text-align: left;">V3.0 頁面</td>
+<td style="text-align: left;">3 頁 / 已覆蓋 3</td>
+</tr>
+<tr>
+<td style="text-align: left;">V1.1 新增（plan §S 驗證閘）</td>
+<td style="text-align: left;">A37、G1、T11（Global 類另增 G2 保留）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-ia-頁面--pipeline-spec-檔forward-mapping">2. IA 頁面 →
+Pipeline spec 檔（Forward Mapping）</h2>
+<h3 id="21-admin-panel37-頁">2.1 Admin Panel（37 頁）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">IA #</th>
+<th style="text-align: left;">路徑</th>
+<th style="text-align: left;">頁面名稱</th>
+<th style="text-align: left;">版本</th>
+<th style="text-align: left;">Pipeline 檔</th>
+<th style="text-align: left;">Section 位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">A0</td>
+<td style="text-align: left;"><code>/login</code></td>
+<td style="text-align: left;">管理員登入</td>
+<td style="text-align: left;">V1.0</td>
+<td style="text-align: left;"><code>14_auth_and_settings.md</code></td>
+<td style="text-align: left;">A0 子段</td>
+</tr>
+<tr>
+<td style="text-align: left;">A1</td>
+<td style="text-align: left;"><code>/dashboard</code></td>
+<td style="text-align: left;">營運儀表板</td>
+<td style="text-align: left;">V1.0</td>
+<td style="text-align: left;"><code>02_admin_dashboard.md</code> ¹</td>
+<td style="text-align: left;">主要</td>
+</tr>
+<tr>
+<td style="text-align: left;">A2</td>
+<td style="text-align: left;"><code>/conversations</code></td>
+<td style="text-align: left;">對話列表</td>
+<td style="text-align: left;">V1.0</td>
+<td
+style="text-align: left;"><code>03_admin_conversations.md</code></td>
+<td style="text-align: left;">列表段</td>
+</tr>
+<tr>
+<td style="text-align: left;">A3</td>
+<td style="text-align: left;"><code>/conversations/[id]</code></td>
+<td style="text-align: left;">對話詳情</td>
+<td style="text-align: left;">V1.0</td>
+<td
+style="text-align: left;"><code>03_admin_conversations.md</code></td>
+<td style="text-align: left;">詳情段</td>
+</tr>
+<tr>
+<td style="text-align: left;">A4</td>
+<td style="text-align: left;"><code>/problem-cards</code></td>
+<td style="text-align: left;">問題卡列表</td>
+<td style="text-align: left;">V1.0</td>
+<td
+style="text-align: left;"><code>04_admin_problem_cards.md</code></td>
+<td style="text-align: left;">列表段</td>
+</tr>
+<tr>
+<td style="text-align: left;">A5</td>
+<td style="text-align: left;"><code>/problem-cards/[id]</code></td>
+<td style="text-align: left;">問題卡詳情</td>
+<td style="text-align: left;">V1.0</td>
+<td
+style="text-align: left;"><code>04_admin_problem_cards.md</code></td>
+<td style="text-align: left;">詳情段</td>
+</tr>
+<tr>
+<td style="text-align: left;">A6</td>
+<td style="text-align: left;"><code>/knowledge-base/cases</code></td>
+<td style="text-align: left;">案例庫</td>
+<td style="text-align: left;">V1.0</td>
+<td
+style="text-align: left;"><code>05_admin_knowledge_base.md</code></td>
+<td style="text-align: left;">Tab: 案例</td>
+</tr>
+<tr>
+<td style="text-align: left;">A7</td>
+<td
+style="text-align: left;"><code>/knowledge-base/cases/[id]</code></td>
+<td style="text-align: left;">案例詳情/編輯</td>
+<td style="text-align: left;">V1.0</td>
+<td
+style="text-align: left;"><code>05_admin_knowledge_base.md</code></td>
+<td style="text-align: left;"><code>case_form_modal</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">A8</td>
+<td style="text-align: left;"><code>/knowledge-base/manuals</code></td>
+<td style="text-align: left;">手冊管理</td>
+<td style="text-align: left;">V1.0</td>
+<td
+style="text-align: left;"><code>05_admin_knowledge_base.md</code></td>
+<td style="text-align: left;">Tab: 手冊</td>
+</tr>
+<tr>
+<td style="text-align: left;">A9</td>
+<td
+style="text-align: left;"><code>/knowledge-base/sop-drafts</code></td>
+<td style="text-align: left;">SOP 審核佇列</td>
+<td style="text-align: left;">V1.0</td>
+<td
+style="text-align: left;"><code>05_admin_knowledge_base.md</code></td>
+<td style="text-align: left;">Tab: SOP 草稿</td>
+</tr>
+<tr>
+<td style="text-align: left;">A10</td>
+<td
+style="text-align: left;"><code>/knowledge-base/sop-drafts/[id]</code></td>
+<td style="text-align: left;">SOP 審核面板</td>
+<td style="text-align: left;">V1.0</td>
+<td
+style="text-align: left;"><code>05_admin_knowledge_base.md</code></td>
+<td style="text-align: left;">SOP 審核區</td>
+</tr>
+<tr>
+<td style="text-align: left;">A11</td>
+<td style="text-align: left;"><code>/work-orders</code></td>
+<td style="text-align: left;">工單列表</td>
+<td style="text-align: left;">V2.0</td>
+<td style="text-align: left;"><code>06_admin_work_orders.md</code></td>
+<td style="text-align: left;">列表視圖</td>
+</tr>
+<tr>
+<td style="text-align: left;">A12</td>
+<td style="text-align: left;"><code>/work-orders/[id]</code></td>
+<td style="text-align: left;">工單詳情</td>
+<td style="text-align: left;">V2.0</td>
+<td
+style="text-align: left;"><code>07_admin_work_order_detail.md</code></td>
+<td style="text-align: left;">主要</td>
+</tr>
+<tr>
+<td style="text-align: left;">A13</td>
+<td style="text-align: left;"><code>/technicians</code></td>
+<td style="text-align: left;">技師管理</td>
+<td style="text-align: left;">V2.0</td>
+<td style="text-align: left;"><code>08_admin_technicians.md</code></td>
+<td style="text-align: left;">列表段</td>
+</tr>
+<tr>
+<td style="text-align: left;">A14</td>
+<td style="text-align: left;"><code>/technicians/[id]</code></td>
+<td style="text-align: left;">技師詳情</td>
+<td style="text-align: left;">V2.0</td>
+<td style="text-align: left;"><code>08_admin_technicians.md</code></td>
+<td style="text-align: left;">詳情段</td>
+</tr>
+<tr>
+<td style="text-align: left;">A15</td>
+<td style="text-align: left;"><code>/accounting</code></td>
+<td style="text-align: left;">帳務管理</td>
+<td style="text-align: left;">V2.0</td>
+<td style="text-align: left;"><code>09_admin_accounting.md</code></td>
+<td style="text-align: left;">主要</td>
+</tr>
+<tr>
+<td style="text-align: left;">A16</td>
+<td style="text-align: left;"><code>/settings</code></td>
+<td style="text-align: left;">系統設定</td>
+<td style="text-align: left;">V1.0</td>
+<td style="text-align: left;"><code>14_auth_and_settings.md</code></td>
+<td style="text-align: left;">A16 子段（4 Tabs）</td>
+</tr>
+<tr>
+<td style="text-align: left;">A17</td>
+<td style="text-align: left;"><code>/admin/refunds</code></td>
+<td style="text-align: left;">退款審批</td>
+<td style="text-align: left;">V2.0</td>
+<td style="text-align: left;"><code>10_admin_advanced.md</code></td>
+<td style="text-align: left;">子頁 1</td>
+</tr>
+<tr>
+<td style="text-align: left;">A18</td>
+<td style="text-align: left;"><code>/admin/roles</code></td>
+<td style="text-align: left;">RBAC 管理</td>
+<td style="text-align: left;">V2.0</td>
+<td style="text-align: left;"><code>10_admin_advanced.md</code></td>
+<td style="text-align: left;">子頁 6</td>
+</tr>
+<tr>
+<td style="text-align: left;">A19</td>
+<td style="text-align: left;"><code>/admin/inventory</code></td>
+<td style="text-align: left;">庫存管理</td>
+<td style="text-align: left;">V2.0</td>
+<td style="text-align: left;"><code>10_admin_advanced.md</code></td>
+<td style="text-align: left;">子頁 2</td>
+</tr>
+<tr>
+<td style="text-align: left;">A20</td>
+<td style="text-align: left;"><code>/admin/audit-events</code></td>
+<td style="text-align: left;">稽核日誌</td>
+<td style="text-align: left;">V2.0</td>
+<td style="text-align: left;"><code>10_admin_advanced.md</code></td>
+<td style="text-align: left;">子頁 5</td>
+</tr>
+<tr>
+<td style="text-align: left;">A21</td>
+<td style="text-align: left;"><code>/admin/warranty-claims</code></td>
+<td style="text-align: left;">保固索賠</td>
+<td style="text-align: left;">V2.0</td>
+<td style="text-align: left;"><code>10_admin_advanced.md</code></td>
+<td style="text-align: left;">子頁 3</td>
+</tr>
+<tr>
+<td style="text-align: left;">A22</td>
+<td style="text-align: left;"><code>/admin/disputes</code></td>
+<td style="text-align: left;">爭議仲裁</td>
+<td style="text-align: left;">V2.0</td>
+<td style="text-align: left;"><code>10_admin_advanced.md</code></td>
+<td style="text-align: left;">子頁 4</td>
+</tr>
+<tr>
+<td style="text-align: left;">A23</td>
+<td style="text-align: left;"><code>/admin/customers</code></td>
+<td style="text-align: left;">客戶主檔</td>
+<td style="text-align: left;">V2.0</td>
+<td
+style="text-align: left;"><code>15_admin_customers_and_diagnostics.md</code></td>
+<td style="text-align: left;">A23 子段</td>
+</tr>
+<tr>
+<td style="text-align: left;">A24</td>
+<td style="text-align: left;"><code>/admin/customers/[id]</code></td>
+<td style="text-align: left;">客戶詳情</td>
+<td style="text-align: left;">V2.0</td>
+<td
+style="text-align: left;"><code>15_admin_customers_and_diagnostics.md</code></td>
+<td style="text-align: left;">A24 子段（5 Tabs）</td>
+</tr>
+<tr>
+<td style="text-align: left;">A25</td>
+<td
+style="text-align: left;"><code>/admin/technicians/[id]/schedule</code></td>
+<td style="text-align: left;">技師排班</td>
+<td style="text-align: left;">V2.0</td>
+<td
+style="text-align: left;"><code>16_admin_technician_detail.md</code></td>
+<td style="text-align: left;">A25 子段</td>
+</tr>
+<tr>
+<td style="text-align: left;">A26</td>
+<td
+style="text-align: left;"><code>/admin/technicians/[id]/skills</code></td>
+<td style="text-align: left;">技師技能認證</td>
+<td style="text-align: left;">V2.0</td>
+<td
+style="text-align: left;"><code>16_admin_technician_detail.md</code></td>
+<td style="text-align: left;">A26 子段</td>
+</tr>
+<tr>
+<td style="text-align: left;">A27</td>
+<td
+style="text-align: left;"><code>/admin/technicians/[id]/settlements</code></td>
+<td style="text-align: left;">技師結算明細</td>
+<td style="text-align: left;">V2.0</td>
+<td
+style="text-align: left;"><code>16_admin_technician_detail.md</code></td>
+<td style="text-align: left;">A27 子段</td>
+</tr>
+<tr>
+<td style="text-align: left;">A28</td>
+<td style="text-align: left;"><code>/admin/dispatch-queue</code></td>
+<td style="text-align: left;">派工佇列監控</td>
+<td style="text-align: left;">V2.0</td>
+<td
+style="text-align: left;"><code>17_admin_dispatch_queue_and_reports.md</code></td>
+<td style="text-align: left;">A28 子段</td>
+</tr>
+<tr>
+<td style="text-align: left;">A29</td>
+<td style="text-align: left;"><code>/admin/reports/kpi</code></td>
+<td style="text-align: left;">KPI 儀表板</td>
+<td style="text-align: left;">V2.0</td>
+<td
+style="text-align: left;"><code>17_admin_dispatch_queue_and_reports.md</code></td>
+<td style="text-align: left;">A29 子段</td>
+</tr>
+<tr>
+<td style="text-align: left;">A30</td>
+<td
+style="text-align: left;"><code>/admin/reports/technician-ranking</code></td>
+<td style="text-align: left;">技師排行榜</td>
+<td style="text-align: left;">V2.0</td>
+<td
+style="text-align: left;"><code>17_admin_dispatch_queue_and_reports.md</code></td>
+<td style="text-align: left;">A30 子段</td>
+</tr>
+<tr>
+<td style="text-align: left;">A31</td>
+<td style="text-align: left;"><code>/admin/reports/revenue</code></td>
+<td style="text-align: left;">營收報表</td>
+<td style="text-align: left;">V2.0</td>
+<td
+style="text-align: left;"><code>17_admin_dispatch_queue_and_reports.md</code></td>
+<td style="text-align: left;">A31 子段</td>
+</tr>
+<tr>
+<td style="text-align: left;">A32</td>
+<td
+style="text-align: left;"><code>/admin/diagnostics/[conversation_id]</code></td>
+<td style="text-align: left;">AI 診斷推理檢視</td>
+<td style="text-align: left;">V2.0</td>
+<td
+style="text-align: left;"><code>15_admin_customers_and_diagnostics.md</code></td>
+<td style="text-align: left;">A32 子段</td>
+</tr>
+<tr>
+<td style="text-align: left;">A33</td>
+<td
+style="text-align: left;"><code>/admin/knowledge-base/sop-performance</code></td>
+<td style="text-align: left;">SOP 績效儀表板</td>
+<td style="text-align: left;">V2.0</td>
+<td
+style="text-align: left;"><code>15_admin_customers_and_diagnostics.md</code></td>
+<td style="text-align: left;">A33 子段</td>
+</tr>
+<tr>
+<td style="text-align: left;">A34</td>
+<td style="text-align: left;"><code>/admin/settings/tenant</code></td>
+<td style="text-align: left;">租戶設定</td>
+<td style="text-align: left;">V3.0</td>
+<td style="text-align: left;"><code>18_admin_multi_tenant.md</code></td>
+<td style="text-align: left;">A34 子段（5 Tabs）</td>
+</tr>
+<tr>
+<td style="text-align: left;">A35</td>
+<td
+style="text-align: left;"><code>/admin/settings/tenant/brand</code></td>
+<td style="text-align: left;">品牌客製</td>
+<td style="text-align: left;">V3.0</td>
+<td style="text-align: left;"><code>18_admin_multi_tenant.md</code></td>
+<td style="text-align: left;">A35 子段</td>
+</tr>
+<tr>
+<td style="text-align: left;">A36</td>
+<td style="text-align: left;"><code>/admin/super/*</code></td>
+<td style="text-align: left;">超管平台</td>
+<td style="text-align: left;">V3.0</td>
+<td style="text-align: left;"><code>18_admin_multi_tenant.md</code></td>
+<td style="text-align: left;">A36 子段</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>A37</strong></td>
+<td style="text-align: left;"><code>/admin/dispatch-manual</code></td>
+<td style="text-align: left;"><strong>派工人工介入</strong></td>
+<td style="text-align: left;">V2.0 ²</td>
+<td
+style="text-align: left;"><code>20_admin_dispatch_manual.md</code></td>
+<td style="text-align: left;">主要</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>¹ <strong>注意：</strong> <code>01_dashboard.md</code> 已於
+2026-04-23 清理（commit <code>f42ee65</code>）。 ² <strong>V1.1
+新增：</strong> A37 由 plan §S 驗證閘補入，覆蓋 Flow 2 技師 3
+次拒單後的人工派工情境。</p>
+</blockquote>
+<h3 id="22-technician-web-app11-頁">2.2 Technician Web App（11 頁）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">IA #</th>
+<th style="text-align: left;">路徑</th>
+<th style="text-align: left;">頁面名稱</th>
+<th style="text-align: left;">版本</th>
+<th style="text-align: left;">Pipeline 檔</th>
+<th style="text-align: left;">Section 位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">T0</td>
+<td style="text-align: left;"><code>/tech-login</code></td>
+<td style="text-align: left;">技師登入</td>
+<td style="text-align: left;">V2.0</td>
+<td style="text-align: left;"><code>14_auth_and_settings.md</code></td>
+<td style="text-align: left;">T0 子段</td>
+</tr>
+<tr>
+<td style="text-align: left;">T1</td>
+<td style="text-align: left;"><code>/pool</code></td>
+<td style="text-align: left;">案件池</td>
+<td style="text-align: left;">V2.0</td>
+<td style="text-align: left;"><code>11_tech_pool.md</code></td>
+<td style="text-align: left;">主要</td>
+</tr>
+<tr>
+<td style="text-align: left;">T2</td>
+<td style="text-align: left;"><code>/my-orders</code></td>
+<td style="text-align: left;">我的工單</td>
+<td style="text-align: left;">V2.0</td>
+<td style="text-align: left;"><code>12_tech_my_orders.md</code></td>
+<td style="text-align: left;">列表段</td>
+</tr>
+<tr>
+<td style="text-align: left;">T3</td>
+<td style="text-align: left;"><code>/my-orders/[id]</code></td>
+<td style="text-align: left;">工單詳情/完工回報</td>
+<td style="text-align: left;">V2.0</td>
+<td style="text-align: left;"><code>12_tech_my_orders.md</code></td>
+<td style="text-align: left;">詳情段</td>
+</tr>
+<tr>
+<td style="text-align: left;">T4</td>
+<td style="text-align: left;"><code>/account</code></td>
+<td style="text-align: left;">帳戶中心</td>
+<td style="text-align: left;">V2.0</td>
+<td style="text-align: left;"><code>13_tech_account.md</code></td>
+<td style="text-align: left;">主要</td>
+</tr>
+<tr>
+<td style="text-align: left;">T5</td>
+<td
+style="text-align: left;"><code>/my-orders/[id]/scope-change</code></td>
+<td style="text-align: left;">範圍變更申請</td>
+<td style="text-align: left;">V2.0</td>
+<td
+style="text-align: left;"><code>19_tech_workorder_subflows.md</code></td>
+<td style="text-align: left;">T5 子段</td>
+</tr>
+<tr>
+<td style="text-align: left;">T6</td>
+<td
+style="text-align: left;"><code>/my-orders/[id]/material-request</code></td>
+<td style="text-align: left;">缺料回報</td>
+<td style="text-align: left;">V2.0</td>
+<td
+style="text-align: left;"><code>19_tech_workorder_subflows.md</code></td>
+<td style="text-align: left;">T6 子段</td>
+</tr>
+<tr>
+<td style="text-align: left;">T7</td>
+<td style="text-align: left;"><code>/my-orders/[id]/delay</code></td>
+<td style="text-align: left;">延遲通知</td>
+<td style="text-align: left;">V2.0</td>
+<td
+style="text-align: left;"><code>19_tech_workorder_subflows.md</code></td>
+<td style="text-align: left;">T7 子段</td>
+</tr>
+<tr>
+<td style="text-align: left;">T8</td>
+<td
+style="text-align: left;"><code>/my-orders/[id]/door-check</code></td>
+<td style="text-align: left;">門面外觀檢核</td>
+<td style="text-align: left;">V2.0</td>
+<td
+style="text-align: left;"><code>19_tech_workorder_subflows.md</code></td>
+<td style="text-align: left;">T8 子段</td>
+</tr>
+<tr>
+<td style="text-align: left;">T9</td>
+<td
+style="text-align: left;"><code>/my-orders/[id]/signature</code></td>
+<td style="text-align: left;">雙方電子簽章</td>
+<td style="text-align: left;">V2.0</td>
+<td
+style="text-align: left;"><code>19_tech_workorder_subflows.md</code></td>
+<td style="text-align: left;">T9 子段</td>
+</tr>
+<tr>
+<td style="text-align: left;">T10</td>
+<td style="text-align: left;"><code>/account/schedule</code></td>
+<td style="text-align: left;">我的排班</td>
+<td style="text-align: left;">V2.0</td>
+<td
+style="text-align: left;"><code>19_tech_workorder_subflows.md</code></td>
+<td style="text-align: left;">T10 子段</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>T11</strong></td>
+<td
+style="text-align: left;"><code>/my-orders/[id]/reschedule</code></td>
+<td style="text-align: left;"><strong>改期日曆</strong></td>
+<td style="text-align: left;">V2.0 ²</td>
+<td
+style="text-align: left;"><code>22_reschedule_calendar.md</code></td>
+<td style="text-align: left;">主要</td>
+</tr>
+</tbody>
+</table>
+<h3 id="23-global-pages跨角色v11-新增">2.3 Global Pages（跨角色，V1.1
+新增）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">IA #</th>
+<th style="text-align: left;">路徑</th>
+<th style="text-align: left;">頁面名稱</th>
+<th style="text-align: left;">版本</th>
+<th style="text-align: left;">Pipeline 檔</th>
+<th style="text-align: left;">Section 位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>G1</strong></td>
+<td style="text-align: left;"><code>/notifications</code></td>
+<td style="text-align: left;"><strong>全域通知中心</strong></td>
+<td style="text-align: left;">V2.0 ²</td>
+<td
+style="text-align: left;"><code>21_global_notifications.md</code></td>
+<td style="text-align: left;">主要</td>
+</tr>
+<tr>
+<td style="text-align: left;">G2</td>
+<td style="text-align: left;"><code>/offline</code></td>
+<td style="text-align: left;">離線狀態頁</td>
+<td style="text-align: left;">V2.0 ²</td>
+<td style="text-align: left;"><code>23_global_offline.md</code></td>
+<td style="text-align: left;">主要</td>
+</tr>
+<tr>
+<td style="text-align: left;">G3</td>
+<td
+style="text-align: left;">多重（<code>/not-found</code>、<code>/error</code>、global-error）</td>
+<td style="text-align: left;">Next.js error
+boundaries（404/500/global-error）</td>
+<td style="text-align: left;">V1.0</td>
+<td
+style="text-align: left;"><code>23a_global_error_boundaries.md</code></td>
+<td style="text-align: left;">主要</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>³ G2 spec 於 2026-04-23 驗證閘 Stage 3 末期建立（commit
+<code>b409c8a</code>）。</p>
+</blockquote>
+<hr />
+<h2 id="3-pipeline-spec-檔--ia-頁面reverse-mapping">3. Pipeline spec 檔
+→ IA 頁面（Reverse Mapping）</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">#</th>
+<th style="text-align: left;">Pipeline 檔</th>
+<th style="text-align: right;">行數</th>
+<th style="text-align: left;">覆蓋 IA 頁</th>
+<th style="text-align: left;">主題</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><del>01</del></td>
+<td
+style="text-align: left;"><del><code>01_dashboard.md</code></del></td>
+<td style="text-align: right;">—</td>
+<td style="text-align: left;">—</td>
+<td style="text-align: left;">已清理（commit <code>f42ee65</code>）</td>
+</tr>
+<tr>
+<td style="text-align: left;">02</td>
+<td style="text-align: left;"><code>02_admin_dashboard.md</code></td>
+<td style="text-align: right;">265</td>
+<td style="text-align: left;"><strong>A1</strong></td>
+<td style="text-align: left;">Admin 營運儀表板</td>
+</tr>
+<tr>
+<td style="text-align: left;">03</td>
+<td
+style="text-align: left;"><code>03_admin_conversations.md</code></td>
+<td style="text-align: right;">324</td>
+<td style="text-align: left;"><strong>A2, A3</strong></td>
+<td style="text-align: left;">對話列表 + 詳情</td>
+</tr>
+<tr>
+<td style="text-align: left;">04</td>
+<td
+style="text-align: left;"><code>04_admin_problem_cards.md</code></td>
+<td style="text-align: right;">299</td>
+<td style="text-align: left;"><strong>A4, A5</strong></td>
+<td style="text-align: left;">問題卡列表 + 詳情</td>
+</tr>
+<tr>
+<td style="text-align: left;">05</td>
+<td
+style="text-align: left;"><code>05_admin_knowledge_base.md</code></td>
+<td style="text-align: right;">332</td>
+<td style="text-align: left;"><strong>A6, A7, A8, A9, A10</strong></td>
+<td style="text-align: left;">知識庫 3 Tabs（案例/手冊/SOP）</td>
+</tr>
+<tr>
+<td style="text-align: left;">06</td>
+<td style="text-align: left;"><code>06_admin_work_orders.md</code></td>
+<td style="text-align: right;">639</td>
+<td style="text-align: left;"><strong>A11</strong></td>
+<td style="text-align: left;">工單列表 + 派工看板</td>
+</tr>
+<tr>
+<td style="text-align: left;">07</td>
+<td
+style="text-align: left;"><code>07_admin_work_order_detail.md</code></td>
+<td style="text-align: right;">1,064</td>
+<td style="text-align: left;"><strong>A12</strong></td>
+<td style="text-align: left;">工單詳情 + T1.4 手動派工 + 客訴升級</td>
+</tr>
+<tr>
+<td style="text-align: left;">08</td>
+<td style="text-align: left;"><code>08_admin_technicians.md</code></td>
+<td style="text-align: right;">446</td>
+<td style="text-align: left;"><strong>A13, A14</strong></td>
+<td style="text-align: left;">技師列表 + 詳情</td>
+</tr>
+<tr>
+<td style="text-align: left;">09</td>
+<td style="text-align: left;"><code>09_admin_accounting.md</code></td>
+<td style="text-align: right;">428</td>
+<td style="text-align: left;"><strong>A15</strong></td>
+<td style="text-align: left;">帳務管理</td>
+</tr>
+<tr>
+<td style="text-align: left;">10</td>
+<td style="text-align: left;"><code>10_admin_advanced.md</code></td>
+<td style="text-align: right;">634</td>
+<td style="text-align: left;"><strong>A17, A18, A19, A20, A21,
+A22</strong></td>
+<td style="text-align: left;">進階管理（6 合 1）</td>
+</tr>
+<tr>
+<td style="text-align: left;">11</td>
+<td style="text-align: left;"><code>11_tech_pool.md</code></td>
+<td style="text-align: right;">320</td>
+<td style="text-align: left;"><strong>T1</strong></td>
+<td style="text-align: left;">技師案件池</td>
+</tr>
+<tr>
+<td style="text-align: left;">12</td>
+<td style="text-align: left;"><code>12_tech_my_orders.md</code></td>
+<td style="text-align: right;">502</td>
+<td style="text-align: left;"><strong>T2, T3</strong></td>
+<td style="text-align: left;">我的工單</td>
+</tr>
+<tr>
+<td style="text-align: left;">13</td>
+<td style="text-align: left;"><code>13_tech_account.md</code></td>
+<td style="text-align: right;">392</td>
+<td style="text-align: left;"><strong>T4</strong></td>
+<td style="text-align: left;">帳戶中心</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>14</strong></td>
+<td style="text-align: left;"><code>14_auth_and_settings.md</code></td>
+<td style="text-align: right;"><strong>776</strong></td>
+<td style="text-align: left;"><strong>A0, T0, A16</strong></td>
+<td style="text-align: left;">認證 + 系統設定</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>15</strong></td>
+<td
+style="text-align: left;"><code>15_admin_customers_and_diagnostics.md</code></td>
+<td style="text-align: right;"><strong>872</strong></td>
+<td style="text-align: left;"><strong>A23, A24, A32, A33</strong></td>
+<td style="text-align: left;">客戶主檔 + AI 診斷治理</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>16</strong></td>
+<td
+style="text-align: left;"><code>16_admin_technician_detail.md</code></td>
+<td style="text-align: right;"><strong>745</strong></td>
+<td style="text-align: left;"><strong>A25, A26, A27</strong></td>
+<td style="text-align: left;">技師詳細管理</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>17</strong></td>
+<td
+style="text-align: left;"><code>17_admin_dispatch_queue_and_reports.md</code></td>
+<td style="text-align: right;"><strong>881</strong></td>
+<td style="text-align: left;"><strong>A28, A29, A30, A31</strong></td>
+<td style="text-align: left;">派工監控 + 報表群</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>18</strong></td>
+<td style="text-align: left;"><code>18_admin_multi_tenant.md</code></td>
+<td style="text-align: right;"><strong>845</strong></td>
+<td style="text-align: left;"><strong>A34, A35, A36</strong></td>
+<td style="text-align: left;">多租戶管理（V3.0）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>19</strong></td>
+<td
+style="text-align: left;"><code>19_tech_workorder_subflows.md</code></td>
+<td style="text-align: right;"><strong>1,014</strong></td>
+<td style="text-align: left;"><strong>T5, T6, T7, T8, T9, T10</strong> +
+Flow 11 客戶 RSVP</td>
+<td style="text-align: left;">工單子流程 + T1.4 RSVP 補強</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>20</strong></td>
+<td
+style="text-align: left;"><code>20_admin_dispatch_manual.md</code></td>
+<td style="text-align: right;"><strong>297</strong></td>
+<td style="text-align: left;"><strong>A37</strong></td>
+<td style="text-align: left;">派工人工介入（V1.1 新增）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>21</strong></td>
+<td
+style="text-align: left;"><code>21_global_notifications.md</code></td>
+<td style="text-align: right;"><strong>324</strong></td>
+<td style="text-align: left;"><strong>G1</strong></td>
+<td style="text-align: left;">全域通知中心（V1.1 新增）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>22</strong></td>
+<td
+style="text-align: left;"><code>22_reschedule_calendar.md</code></td>
+<td style="text-align: right;"><strong>318</strong></td>
+<td style="text-align: left;"><strong>T11</strong></td>
+<td style="text-align: left;">改期日曆（V1.1 新增）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>23</strong></td>
+<td style="text-align: left;"><code>23_global_offline.md</code></td>
+<td style="text-align: right;"><strong>265</strong></td>
+<td style="text-align: left;"><strong>G2</strong></td>
+<td style="text-align: left;">離線狀態頁（V1.1 新增）</td>
+</tr>
+</tbody>
+</table>
+<p>粗體（14-19）為 2026-04-23 新增；20-23 為 2026-04-23 驗證閘（plan
+§S）補入。 行數為 2026-04-23 T1.5「導航與狀態」標準段追加後的現值（22
+份合計 <strong>12,230</strong> 行）。</p>
+<hr />
+<h2 id="4-主題分群視圖">4. 主題分群視圖</h2>
+<h3 id="41-認證層2-頁--1-檔">4.1 認證層（2 頁 / 1 檔）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">IA</th>
+<th style="text-align: left;">Pipeline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">A0 <code>/login</code>、T0
+<code>/tech-login</code></td>
+<td style="text-align: left;"><code>14_auth_and_settings.md</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="42-v10-客服閉環10-頁--5-檔">4.2 V1.0 客服閉環（10 頁 / 5
+檔）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">IA</th>
+<th style="text-align: left;">Pipeline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">A1 儀表板</td>
+<td style="text-align: left;"><code>02_admin_dashboard.md</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">A2, A3 對話</td>
+<td
+style="text-align: left;"><code>03_admin_conversations.md</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">A4, A5 問題卡</td>
+<td
+style="text-align: left;"><code>04_admin_problem_cards.md</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">A6–A10 知識庫</td>
+<td
+style="text-align: left;"><code>05_admin_knowledge_base.md</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">A16 系統設定</td>
+<td style="text-align: left;"><code>14_auth_and_settings.md</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="43-v20-派工閉環6-頁--4-檔">4.3 V2.0 派工閉環（6 頁 / 4 檔）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">IA</th>
+<th style="text-align: left;">Pipeline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">A11 工單列表</td>
+<td style="text-align: left;"><code>06_admin_work_orders.md</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">A12 工單詳情</td>
+<td
+style="text-align: left;"><code>07_admin_work_order_detail.md</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">A13, A14 技師管理</td>
+<td style="text-align: left;"><code>08_admin_technicians.md</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">A28 派工佇列監控</td>
+<td
+style="text-align: left;"><code>17_admin_dispatch_queue_and_reports.md</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="44-v20-財務與治理8-頁--2-檔">4.4 V2.0 財務與治理（8 頁 / 2
+檔）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">IA</th>
+<th style="text-align: left;">Pipeline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">A15 帳務管理</td>
+<td style="text-align: left;"><code>09_admin_accounting.md</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">A17 退款、A18 RBAC、A19 庫存、A20
+稽核、A21 保固、A22 爭議</td>
+<td style="text-align: left;"><code>10_admin_advanced.md</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="45-v20-客戶與-ai-診斷4-頁--1-檔">4.5 V2.0 客戶與 AI 診斷（4 頁 /
+1 檔）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">IA</th>
+<th style="text-align: left;">Pipeline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">A23, A24 客戶主檔、A32 診斷推理、A33 SOP
+績效</td>
+<td
+style="text-align: left;"><code>15_admin_customers_and_diagnostics.md</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="46-v20-技師詳細管理3-頁--1-檔">4.6 V2.0 技師詳細管理（3 頁 / 1
+檔）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">IA</th>
+<th style="text-align: left;">Pipeline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">A25 排班、A26 技能、A27 結算</td>
+<td
+style="text-align: left;"><code>16_admin_technician_detail.md</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="47-v20-報表中心3-頁--1-檔">4.7 V2.0 報表中心（3 頁 / 1 檔）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">IA</th>
+<th style="text-align: left;">Pipeline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">A29 KPI、A30 排行、A31 營收</td>
+<td
+style="text-align: left;"><code>17_admin_dispatch_queue_and_reports.md</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="48-v30-多租戶3-頁--1-檔">4.8 V3.0 多租戶（3 頁 / 1 檔）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">IA</th>
+<th style="text-align: left;">Pipeline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">A34 租戶設定、A35 品牌客製、A36
+超管平台</td>
+<td style="text-align: left;"><code>18_admin_multi_tenant.md</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="49-v20-技師端-mobile-first11-頁--4-檔">4.9 V2.0 技師端
+Mobile-First（11 頁 / 4 檔）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">IA</th>
+<th style="text-align: left;">Pipeline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">T1 案件池</td>
+<td style="text-align: left;"><code>11_tech_pool.md</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">T2, T3 我的工單</td>
+<td style="text-align: left;"><code>12_tech_my_orders.md</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">T4 帳戶</td>
+<td style="text-align: left;"><code>13_tech_account.md</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">T5 範圍變更、T6 缺料、T7 延遲、T8 門面、T9
+簽章、T10 排班</td>
+<td
+style="text-align: left;"><code>19_tech_workorder_subflows.md</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-關鍵互動路徑與檔案對照主要使用者旅程">5.
+關鍵互動路徑與檔案對照（主要使用者旅程）</h2>
+<h3 id="51-管理員--知識庫管理閉環v10">5.1 管理員 —
+知識庫管理閉環（V1.0）</h3>
+<pre><code>14 登入 → 02 儀表板 → 05 SOP 草稿審核 → 05 案例庫確認</code></pre>
+<h3 id="52-管理員--派工-happy-pathv20">5.2 管理員 — 派工 Happy
+Path（V2.0）</h3>
+<pre><code>02 儀表板 → 06 工單列表 → 07 工單詳情 → 08 技師指派
+                            ↓
+                   17 派工佇列監控（異常時）</code></pre>
+<h3 id="53-管理員--退款爭議治理v20">5.3 管理員 —
+退款/爭議治理（V2.0）</h3>
+<pre><code>02 儀表板告警 → 10 退款審批（雙簽）
+             → 10 爭議仲裁（證據對比）
+             → 10 稽核日誌（事後追溯）
+             → 15 診斷推理（AI 決策追溯）</code></pre>
+<h3 id="54-管理員--v30-租戶管理">5.4 管理員 — V3.0 租戶管理</h3>
+<pre><code>18 超管 → 租戶列表 → 18 租戶詳情 → 18 品牌客製（即時預覽）
+       → 18 API 金鑰（B2B 開通）</code></pre>
+<h3 id="55-技師--happy-pathv20">5.5 技師 — Happy Path（V2.0）</h3>
+<pre><code>14 技師登入 → 11 案件池 → 12 接單 → 12 工單詳情 → 12 完工回報
+                                                ↓
+                                      19 T9 雙方電子簽章</code></pre>
+<h3 id="56-技師--非-happy-path-子流程v20">5.6 技師 — 非 Happy Path
+子流程（V2.0）</h3>
+<pre><code>12 工單詳情（in_progress）
+  ├─ 19 T5 範圍變更（Flow 3）
+  ├─ 19 T6 缺料回報（Flow 4）
+  ├─ 19 T7 延遲通知（Flow 5）
+  ├─ 19 T8 門面檢核（Flow 10）
+  └─ 19 T9 雙方簽章</code></pre>
+<hr />
+<h2 id="6-共用元件與-pipeline-對應業務元件-ssot">6. 共用元件與 Pipeline
+對應（業務元件 SSOT）</h2>
+<blockquote>
+<p>自 2026-04-23（K-R 階段
+3）起，本表為<strong>業務元件的單一權威來源</strong>。
+<code>E5x--frontend-architecture.md §3.3</code>
+僅保留組織原則與技術約束，具體元件以本表為準。</p>
+<p><strong>對比 §3.3：</strong> 基礎 UI 元件（shadcn/ui 的
+Button/Input/DataTable/Kanban 等 17 個）由 architecture
+持有（技術選型）；本表僅含<strong>業務功能元件</strong>（<code>components/features/*</code>）。</p>
+</blockquote>
+<h3 id="61-業務元件完整清單">6.1 業務元件完整清單</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">元件</th>
+<th style="text-align: left;">所屬 Context</th>
+<th style="text-align: left;">用途</th>
+<th style="text-align: left;">被引用 pipeline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>ConversationTimeline</code></td>
+<td style="text-align: left;">customer_service</td>
+<td style="text-align: left;">對話訊息時間軸（含文字、圖片、AI
+回覆標記）</td>
+<td style="text-align: left;">03, 04</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>ProblemCardViewer</code></td>
+<td style="text-align: left;">customer_service</td>
+<td
+style="text-align: left;">問題卡結構化檢視（品牌、型號、故障、信心分數）</td>
+<td style="text-align: left;">04, 07</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>KnowledgeSearch</code></td>
+<td style="text-align: left;">knowledge_base</td>
+<td style="text-align: left;">知識庫全文/語意搜尋切換</td>
+<td style="text-align: left;">05</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>SOPReviewPanel</code></td>
+<td style="text-align: left;">knowledge_base</td>
+<td style="text-align: left;">SOP 草稿審核（雙欄核准/駁回/採納 +
+原始對話對照）</td>
+<td style="text-align: left;">05</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>WorkOrderKanban</code></td>
+<td style="text-align: left;">dispatch (V2.0)</td>
+<td style="text-align: left;">工單看板（5
+欄拖放：待派/已派/進行中/已完工/異常）</td>
+<td style="text-align: left;">06</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>TechnicianMap</code></td>
+<td style="text-align: left;">dispatch (V2.0)</td>
+<td style="text-align: left;">技師地圖標記（Google Maps +
+即時狀態）</td>
+<td style="text-align: left;">08, 11</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>CasePoolCard</code></td>
+<td style="text-align: left;">dispatch (V2.0)</td>
+<td style="text-align: left;">技師端案件卡片（地址/品牌/報酬/一鍵接單 +
+滑動手勢）</td>
+<td style="text-align: left;">11</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DispatchAttemptTimeline</code></td>
+<td style="text-align: left;">dispatch (V2.0)</td>
+<td style="text-align: left;">派工嘗試記錄（1~3 次 + match score +
+拒單原因）</td>
+<td style="text-align: left;">17</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DispatchCandidateList</code></td>
+<td style="text-align: left;">dispatch (V2.0, V1.1)</td>
+<td style="text-align: left;">候選技師綜合分排序表（手動派工用）</td>
+<td style="text-align: left;">20, 07</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>CompletionReportForm</code></td>
+<td style="text-align: left;">dispatch (V2.0)</td>
+<td
+style="text-align: left;">技師完工報告表單（照片/材料/工時/墊付）</td>
+<td style="text-align: left;">07, 12, 19</td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>TechnicianScheduleCalendar</code></td>
+<td style="text-align: left;">dispatch (V2.0)</td>
+<td style="text-align: left;">技師排班月/週曆（拖放選時段）</td>
+<td style="text-align: left;">16 (A25), 19 (T10)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>SkillCertificationForm</code></td>
+<td style="text-align: left;">dispatch (V2.0)</td>
+<td style="text-align: left;">技能認證表（證書上傳、到期提醒）</td>
+<td style="text-align: left;">16 (A26)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>RescheduleCalendarModal</code></td>
+<td style="text-align: left;">dispatch (V2.0, V1.1)</td>
+<td style="text-align: left;">改期日曆 + 客戶可用時段提示 +
+衝突警告</td>
+<td style="text-align: left;">22, 19 (T1.4)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>QuotationBuilder</code></td>
+<td style="text-align: left;">accounting (V2.0)</td>
+<td style="text-align: left;">報價單建構器（品牌 x 鎖型 x 工項矩陣 +
+議價記錄）</td>
+<td style="text-align: left;">07, 09</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>ReconciliationTable</code></td>
+<td style="text-align: left;">accounting (V2.0)</td>
+<td style="text-align: left;">對帳明細表（技師 x 月份 + 墊付/結算）</td>
+<td style="text-align: left;">09</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>SettlementBreakdown</code></td>
+<td style="text-align: left;">accounting (V2.0)</td>
+<td style="text-align: left;">結算明細（分潤 + 獎勵 + 扣款 + 墊付）</td>
+<td style="text-align: left;">16 (A27), 09</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>RefundApprovalWorkflow</code></td>
+<td style="text-align: left;">accounting (V2.0)</td>
+<td style="text-align: left;">退款審批 Modal（含 Dual-sign + PIN +
+Accounting voucher）</td>
+<td style="text-align: left;">10</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>SignaturePad</code></td>
+<td style="text-align: left;">e-signature (V2.0)</td>
+<td style="text-align: left;">雙方簽章（技師/客戶、管理員/財務雙簽 +
+SHA-256）</td>
+<td style="text-align: left;">10 (refund), 19 (T9)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>AuditEventRow</code></td>
+<td style="text-align: left;">audit (V2.0)</td>
+<td style="text-align: left;">可展開稽核列（before/after JSON diff + PII
+遮蔽）</td>
+<td style="text-align: left;">10</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PermissionMatrix</code></td>
+<td style="text-align: left;">rbac (V2.0)</td>
+<td style="text-align: left;">RBAC 權限矩陣（功能 × CRUD ×
+資源限定）</td>
+<td style="text-align: left;">10</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>TemporaryGrantPanel</code></td>
+<td style="text-align: left;">rbac (V2.0, V1.1)</td>
+<td style="text-align: left;">臨時授權面板（7 天上限 + 雙簽）</td>
+<td style="text-align: left;">10</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>InventoryLowStockBanner</code></td>
+<td style="text-align: left;">inventory (V2.0)</td>
+<td style="text-align: left;">低庫存告警 banner + 一鍵跳轉</td>
+<td style="text-align: left;">10, 全域</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>WarrantyClaimModal</code></td>
+<td style="text-align: left;">accounting (V2.0, V1.1)</td>
+<td style="text-align: left;">保固審核 + 技師扣罰雙簽 +
+返工工單自動建立</td>
+<td style="text-align: left;">10</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DisputeEvidencePanel</code></td>
+<td style="text-align: left;">dispute (V2.0)</td>
+<td style="text-align: left;">爭議證據時間軸（對話 + 工單狀態 +
+客戶送審）</td>
+<td style="text-align: left;">10</td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>ComplaintEscalationIndicator</code></td>
+<td style="text-align: left;">customer_service (V1.1)</td>
+<td style="text-align: left;">客訴升級指示器（anger_level 警示 + SLA
+倒數）</td>
+<td style="text-align: left;">07</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DiagnosticTraceViewer</code></td>
+<td style="text-align: left;">agent-harness (V2.0)</td>
+<td style="text-align: left;">L1/L2/L3 推理鏈視覺化 + 7 信號矩陣</td>
+<td style="text-align: left;">15</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>KPIFunnelChart</code></td>
+<td style="text-align: left;">reports (V2.0)</td>
+<td style="text-align: left;">轉換漏斗（對話 → 工單 → 完工）</td>
+<td style="text-align: left;">17 (A29)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>TechnicianRankingTable</code></td>
+<td style="text-align: left;">reports (V2.0)</td>
+<td style="text-align: left;">技師排行榜（支援下鑽）</td>
+<td style="text-align: left;">17 (A30)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>ReportScheduleForm</code></td>
+<td style="text-align: left;">reports (V2.0, V1.1)</td>
+<td style="text-align: left;">報表排程設定（cron + 多格式 +
+收件人）</td>
+<td style="text-align: left;">17</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>NotificationInbox</code></td>
+<td style="text-align: left;">realtime (V1.1)</td>
+<td style="text-align: left;">全域通知收件匣（tabs / filter /
+bulk）</td>
+<td style="text-align: left;">21</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>NotificationBell</code></td>
+<td style="text-align: left;">realtime (V1.1)</td>
+<td style="text-align: left;">header bell icon + 未讀紅點</td>
+<td style="text-align: left;">全域</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>TenantSwitcher</code></td>
+<td style="text-align: left;">multi-tenant (V3.0)</td>
+<td style="text-align: left;">超管租戶切換器（下拉 + search + cache
+clear）</td>
+<td style="text-align: left;">18 (A36 上部全域)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>BrandPreviewSandbox</code></td>
+<td style="text-align: left;">multi-tenant (V3.0)</td>
+<td style="text-align: left;">品牌客製即時預覽（Admin + LINE Flex
+並排）</td>
+<td style="text-align: left;">18 (A35)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>ApiKeyManager</code></td>
+<td style="text-align: left;">multi-tenant (V3.0)</td>
+<td style="text-align: left;">B2B API Key 建立/輪替/撤銷（Masked
+Prefix）</td>
+<td style="text-align: left;">18 (A34)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>OfflineQueueIndicator</code></td>
+<td style="text-align: left;">infrastructure</td>
+<td style="text-align: left;">Service Worker
+離線佇列狀態（技師外勤）</td>
+<td style="text-align: left;">19 (技師端全域), 23</td>
+</tr>
+</tbody>
+</table>
+<h3 id="62-基礎-ui-元件僅索引">6.2 基礎 UI 元件（僅索引）</h3>
+<blockquote>
+<p>基礎 UI 元件（<code>components/ui/*</code>，shadcn/ui 17 項 + 自訂 9
+項）見 <code>E5x--frontend-architecture.md §3.3</code> —
+屬技術選型，不在本表追蹤引用。</p>
+</blockquote>
+<h3 id="63-治理規則">6.3 治理規則</h3>
+<ul>
+<li><strong>新增業務元件：</strong> PR 必須同步更新本表一列（Context /
+用途 / 被引用 pipeline）</li>
+<li><strong>刪除業務元件：</strong> PR 必須先確認本表「被引用
+pipeline」皆已改用替代方案</li>
+<li><strong>重新命名：</strong> 新舊名並列一個 release 後刪除舊名列</li>
+<li><strong>跨 Context 重用</strong>：提升至
+<code>components/shared/</code> 後在本表「所屬 Context」標
+<code>shared</code></li>
+</ul>
+<hr />
+<h2 id="7-websocket-頻道與-pipeline-對應">7. WebSocket 頻道與 Pipeline
+對應</h2>
+<blockquote>
+<p>對齊 <code>E5x--frontend-architecture.md §2.4</code> 的 10 個 WS
+頻道，標記訂閱頁面。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">頻道</th>
+<th style="text-align: left;">訂閱頁面（IA）</th>
+<th style="text-align: left;">Pipeline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td
+style="text-align: left;"><code>/realtime/work-orders/{id}</code></td>
+<td style="text-align: left;">A12, T3</td>
+<td style="text-align: left;">07, 12</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/realtime/dispatch-queue</code></td>
+<td style="text-align: left;">A28</td>
+<td style="text-align: left;">17</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/realtime/pool/{tech_id}</code></td>
+<td style="text-align: left;">T1</td>
+<td style="text-align: left;">11</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/realtime/refunds</code></td>
+<td style="text-align: left;">A17</td>
+<td style="text-align: left;">10</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/realtime/disputes</code></td>
+<td style="text-align: left;">A22</td>
+<td style="text-align: left;">10</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/realtime/sla-alerts</code></td>
+<td style="text-align: left;">A1, A29</td>
+<td style="text-align: left;">02, 17</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/realtime/rbac</code></td>
+<td style="text-align: left;">全域（所有 session）</td>
+<td style="text-align: left;">全部</td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>/realtime/inventory/low-stock</code></td>
+<td style="text-align: left;">A19</td>
+<td style="text-align: left;">10</td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>/realtime/diagnostics/{conv_id}</code>
+(SSE)</td>
+<td style="text-align: left;">A32</td>
+<td style="text-align: left;">15</td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>/realtime/notifications/{user_id}</code></td>
+<td style="text-align: left;"><strong>G1 + 全域 header
+bell</strong></td>
+<td style="text-align: left;"><strong>21</strong> + 全部</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>新增：</strong> G1 通知中心是
+<code>/realtime/notifications/{user_id}</code>
+的主要消費頁（21_global_notifications.md）。</p>
+</blockquote>
+<h3 id="71-asyncapi-operationid-反向索引">7.1 AsyncAPI operationId
+反向索引</h3>
+<!-- BEGIN AUTO:asyncapi-ops -->
+
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">頻道</th>
+<th style="text-align: left;">AsyncAPI operationId</th>
+<th style="text-align: left;">觸發事件（event_type）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td
+style="text-align: left;"><code>/realtime/work-orders/{id}</code></td>
+<td
+style="text-align: left;"><code>subscribeWorkOrderUpdates</code></td>
+<td style="text-align: left;"><code>work_order.status.changed</code>,
+<code>work_order.assigned</code>, <code>work_order.completed</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/realtime/dispatch-queue</code></td>
+<td style="text-align: left;"><code>subscribeDispatchQueue</code></td>
+<td style="text-align: left;"><code>dispatch.queue.snapshot</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/realtime/pool/{tech_id}</code></td>
+<td style="text-align: left;"><code>subscribeTechnicianPool</code></td>
+<td style="text-align: left;"><code>work_order.available</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/realtime/refunds</code></td>
+<td style="text-align: left;"><code>subscribeRefundEvents</code></td>
+<td style="text-align: left;"><code>refund.decision.made</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/realtime/disputes</code></td>
+<td style="text-align: left;"><code>subscribeDisputeEvents</code></td>
+<td style="text-align: left;"><code>dispute.created</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/realtime/sla-alerts</code></td>
+<td style="text-align: left;"><code>subscribeSlaAlerts</code></td>
+<td style="text-align: left;"><code>sla.alert</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/realtime/rbac</code></td>
+<td style="text-align: left;"><code>subscribeRbacUpdates</code></td>
+<td style="text-align: left;"><code>rbac.permission.changed</code></td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>/realtime/inventory/low-stock</code></td>
+<td style="text-align: left;"><code>subscribeLowStockAlerts</code></td>
+<td
+style="text-align: left;"><code>inventory.low_stock.alert</code></td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>/realtime/diagnostics/{conv_id}</code>
+(SSE)</td>
+<td
+style="text-align: left;"><code>subscribeDiagnosticStream</code></td>
+<td
+style="text-align: left;"><code>diagnostic.reasoning.step</code></td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>/realtime/notifications/{user_id}</code></td>
+<td
+style="text-align: left;"><code>subscribeUserNotifications</code></td>
+<td style="text-align: left;"><code>user.notification</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>訂閱頁面（自動從 [PAGE META] asyncapi_ops
+推導）：</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">operationId</th>
+<th style="text-align: left;">訂閱頁面</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td
+style="text-align: left;"><code>subscribeDiagnosticStream</code></td>
+<td style="text-align: left;">15 (A23, A24, A32, A33)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>subscribeDispatchQueue</code></td>
+<td style="text-align: left;">17 (A28, A29, A30, A31), 20 (A37)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>subscribeDisputeEvents</code></td>
+<td style="text-align: left;">10 (A17, A18, A19, A20, A21, A22)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>subscribeLowStockAlerts</code></td>
+<td style="text-align: left;">10 (A17, A18, A19, A20, A21, A22)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>subscribeRbacUpdates</code></td>
+<td style="text-align: left;">10 (A17, A18, A19, A20, A21, A22)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>subscribeRefundEvents</code></td>
+<td style="text-align: left;">10 (A17, A18, A19, A20, A21, A22)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>subscribeSlaAlerts</code></td>
+<td style="text-align: left;">02 (A1), 17 (A28, A29, A30, A31)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>subscribeTechnicianPool</code></td>
+<td style="text-align: left;">11 (T1)</td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>subscribeUserNotifications</code></td>
+<td style="text-align: left;">21 (G1)</td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>subscribeWorkOrderUpdates</code></td>
+<td style="text-align: left;">06 (A11), 07 (A12), 11 (T1), 12 (T2, T3),
+19 (T5-T10), 20 (A37), 22 (T11)</td>
+</tr>
+</tbody>
+</table>
+<!-- END AUTO:asyncapi-ops -->
+
+<p><strong>交付語義：</strong> 全部 at-least-once + event_id 冪等（見
+asyncapi.yaml Delivery/Ordering/Replay 規範）。</p>
+<hr />
+<h2 id="75-flow--page-覆蓋矩陣2026-04-23-驗證閘新增">7.5 Flow × Page
+覆蓋矩陣（2026-04-23 驗證閘新增）</h2>
+<blockquote>
+<p>對齊 <code>E5x--workflow-work-order.md</code> 13 個 Flow + 新增 Flow
+14、<code>flows-admin-governance.md</code>
+G1-G4、<code>flows-multi-tenant.md</code> MT1-MT5。</p>
+</blockquote>
+<h3 id="工單互動-flow14-個">工單互動 Flow（14 個）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Flow</th>
+<th style="text-align: left;">主題</th>
+<th style="text-align: left;">涉及頁面（IA）</th>
+<th style="text-align: left;">Pipeline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Flow 1</td>
+<td style="text-align: left;">Happy Path</td>
+<td style="text-align: left;">T1 → T3 → T9</td>
+<td style="text-align: left;">11, 12, 19</td>
+</tr>
+<tr>
+<td style="text-align: left;">Flow 2</td>
+<td style="text-align: left;">拒單重派</td>
+<td style="text-align: left;">A11, A12, <strong>A37</strong>, T1</td>
+<td style="text-align: left;">06, 07, <strong>20</strong>, 11</td>
+</tr>
+<tr>
+<td style="text-align: left;">Flow 3</td>
+<td style="text-align: left;">範圍變更</td>
+<td style="text-align: left;">T3, T5, A12</td>
+<td style="text-align: left;">12, 19, 07</td>
+</tr>
+<tr>
+<td style="text-align: left;">Flow 4</td>
+<td style="text-align: left;">缺料處理</td>
+<td style="text-align: left;">T3, T6, A12, A19</td>
+<td style="text-align: left;">12, 19, 07, 10</td>
+</tr>
+<tr>
+<td style="text-align: left;">Flow 5</td>
+<td style="text-align: left;">延遲通知</td>
+<td style="text-align: left;">T3, T7, <strong>T11</strong></td>
+<td style="text-align: left;">12, 19, <strong>22</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">Flow 6</td>
+<td style="text-align: left;">退款雙簽</td>
+<td style="text-align: left;">A17（含雙簽 pad）</td>
+<td style="text-align: left;">10</td>
+</tr>
+<tr>
+<td style="text-align: left;">Flow 7</td>
+<td style="text-align: left;">保固爭議</td>
+<td style="text-align: left;">A21, A22, A32</td>
+<td style="text-align: left;">10, 15</td>
+</tr>
+<tr>
+<td style="text-align: left;">Flow 8</td>
+<td style="text-align: left;">二次派工</td>
+<td style="text-align: left;">A12, A13, A28</td>
+<td style="text-align: left;">07, 08, 17</td>
+</tr>
+<tr>
+<td style="text-align: left;">Flow 9</td>
+<td style="text-align: left;">客訴生命週期</td>
+<td style="text-align: left;">A12, A22, <strong>A37 升級</strong></td>
+<td style="text-align: left;">07, 10, 20</td>
+</tr>
+<tr>
+<td style="text-align: left;">Flow 10</td>
+<td style="text-align: left;">門面變更</td>
+<td style="text-align: left;">T3, T8, T9</td>
+<td style="text-align: left;">12, 19</td>
+</tr>
+<tr>
+<td style="text-align: left;">Flow 11</td>
+<td style="text-align: left;">客戶不在場</td>
+<td style="text-align: left;">T3, <strong>T11</strong>, 客戶 LINE Flex
+RSVP</td>
+<td style="text-align: left;">12, <strong>22</strong>, <strong>19 T1.4
+補強</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">Flow 12</td>
+<td style="text-align: left;">金流與支付</td>
+<td style="text-align: left;">A9 帳務、客戶 LINE 支付頁</td>
+<td style="text-align: left;">09</td>
+</tr>
+<tr>
+<td style="text-align: left;">Flow 13</td>
+<td style="text-align: left;">帳款異常 EX5</td>
+<td style="text-align: left;">A9, A20</td>
+<td style="text-align: left;">09, 10</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Flow 14</strong></td>
+<td style="text-align: left;"><strong>技師排班衝突</strong></td>
+<td style="text-align: left;"><strong>T10, A25, A28, A37</strong></td>
+<td style="text-align: left;"><strong>19, 16, 17, 20</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="管理員治理-flow4-個">管理員治理 Flow（4 個）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Flow</th>
+<th style="text-align: left;">主題</th>
+<th style="text-align: left;">涉及頁面（IA）</th>
+<th style="text-align: left;">Pipeline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">G1</td>
+<td style="text-align: left;">RBAC 角色生命週期</td>
+<td style="text-align: left;">A18</td>
+<td style="text-align: left;">10</td>
+</tr>
+<tr>
+<td style="text-align: left;">G2</td>
+<td style="text-align: left;">稽核查詢匯出</td>
+<td style="text-align: left;">A20</td>
+<td style="text-align: left;">10</td>
+</tr>
+<tr>
+<td style="text-align: left;">G3</td>
+<td style="text-align: left;">庫存低警報補貨</td>
+<td style="text-align: left;">A19, <strong>G1 通知</strong></td>
+<td style="text-align: left;">10, <strong>21</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">G4</td>
+<td style="text-align: left;">爭議仲裁</td>
+<td style="text-align: left;">A22, A17, A12</td>
+<td style="text-align: left;">10, 07</td>
+</tr>
+</tbody>
+</table>
+<h3 id="v30-多租戶-flow5-個">V3.0 多租戶 Flow（5 個）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Flow</th>
+<th style="text-align: left;">主題</th>
+<th style="text-align: left;">涉及頁面（IA）</th>
+<th style="text-align: left;">Pipeline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">MT1</td>
+<td style="text-align: left;">租戶開通</td>
+<td style="text-align: left;">A36</td>
+<td style="text-align: left;">18</td>
+</tr>
+<tr>
+<td style="text-align: left;">MT2</td>
+<td style="text-align: left;">品牌客製審核</td>
+<td style="text-align: left;">A34, A35, A36</td>
+<td style="text-align: left;">18</td>
+</tr>
+<tr>
+<td style="text-align: left;">MT3</td>
+<td style="text-align: left;">超管跨租戶</td>
+<td style="text-align: left;">A36</td>
+<td style="text-align: left;">18</td>
+</tr>
+<tr>
+<td style="text-align: left;">MT4</td>
+<td style="text-align: left;">B2B API Key</td>
+<td style="text-align: left;">A34 子 Tab</td>
+<td style="text-align: left;">18</td>
+</tr>
+<tr>
+<td style="text-align: left;">MT5</td>
+<td style="text-align: left;">租戶退場</td>
+<td style="text-align: left;">A34, A36</td>
+<td style="text-align: left;">18</td>
+</tr>
+</tbody>
+</table>
+<h3 id="全站橫切">全站橫切</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">橫切功能</th>
+<th style="text-align: left;">涉及所有頁面</th>
+<th style="text-align: left;">Pipeline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">全域通知</td>
+<td style="text-align: left;">任一頁 bell → <strong>G1</strong></td>
+<td style="text-align: left;"><strong>21</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">全域登入／登出</td>
+<td style="text-align: left;">A0, T0</td>
+<td style="text-align: left;">14</td>
+</tr>
+<tr>
+<td style="text-align: left;">全域導航規範</td>
+<td style="text-align: left;">48+ 頁</td>
+<td
+style="text-align: left;"><code>E5x--frontend-navigation-matrix.md</code>
+本表外</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-api-端點與-pipeline-對應摘要">8. API 端點與 Pipeline
+對應（摘要）</h2>
+<blockquote>
+<p>詳細 endpoint 清單見
+<code>E5x--frontend-information-arch.md §9.1</code>。此處僅列主要
+Bounded Context 對應。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">後端 Context</th>
+<th style="text-align: left;">API Base</th>
+<th style="text-align: left;">主要 Pipeline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>auth</code></td>
+<td style="text-align: left;"><code>/api/v1/auth/*</code></td>
+<td style="text-align: left;">14</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>user_management</code></td>
+<td style="text-align: left;"><code>/api/v1/users/*</code>,
+<code>/api/v1/roles/*</code></td>
+<td style="text-align: left;">14, 10</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>customer_service</code></td>
+<td style="text-align: left;"><code>/api/v1/conversations/*</code>,
+<code>/api/v1/problem-cards/*</code></td>
+<td style="text-align: left;">03, 04</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>knowledge_base</code></td>
+<td style="text-align: left;"><code>/api/v1/knowledge-base/*</code></td>
+<td style="text-align: left;">05, 15 (sop-performance)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>dispatch</code></td>
+<td style="text-align: left;"><code>/api/v1/work-orders/*</code>,
+<code>/api/v1/technicians/*</code>,
+<code>/api/v1/customers/*</code></td>
+<td style="text-align: left;">06, 07, 08, 15, 16, 17, 19</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>accounting</code></td>
+<td style="text-align: left;"><code>/api/v1/accounting/*</code>,
+<code>/api/v1/refunds/*</code>, <code>/api/v1/disputes/*</code></td>
+<td style="text-align: left;">09, 10, 16</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>inventory</code></td>
+<td style="text-align: left;"><code>/api/v1/inventory/*</code></td>
+<td style="text-align: left;">10</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>audit</code></td>
+<td style="text-align: left;"><code>/api/v1/audit-events/*</code></td>
+<td style="text-align: left;">10</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>reports</code></td>
+<td style="text-align: left;"><code>/api/v1/reports/*</code></td>
+<td style="text-align: left;">17</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>agent-harness</code></td>
+<td style="text-align: left;"><code>/api/v1/diagnostics/*</code></td>
+<td style="text-align: left;">15</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>multi-tenant</code></td>
+<td style="text-align: left;"><code>/api/v1/tenants/*</code>,
+<code>/api/v1/super/*</code></td>
+<td style="text-align: left;">18</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>e-signature</code></td>
+<td style="text-align: left;"><code>/api/v1/signatures/*</code></td>
+<td style="text-align: left;">10 (refund dual-sign), 19 (T9)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>dispatch (manual)</code></td>
+<td style="text-align: left;"><code>/api/v1/dispatch/candidates</code>,
+<code>/work-orders/{id}/assign</code></td>
+<td style="text-align: left;"><strong>20, 07</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>notifications</code></td>
+<td style="text-align: left;"><code>/api/v1/notifications/*</code></td>
+<td style="text-align: left;"><strong>21</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>reschedule</code></td>
+<td
+style="text-align: left;"><code>/api/v1/work-orders/{id}/reschedule</code>,
+<code>/technicians/me/availability</code></td>
+<td style="text-align: left;"><strong>22, 19 T1.4</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>webhook (inbound)</code></td>
+<td style="text-align: left;"><code>/webhook</code>,
+<code>/webhook/payments/*</code>, <code>/webhook/invoice</code></td>
+<td style="text-align: left;">後端內部（見
+<code>specs/webhook-spec.md</code>）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="81-openapi-operationid-反向索引">8.1 OpenAPI operationId
+反向索引</h3>
+<!-- BEGIN AUTO:openapi-ops -->
+
+<blockquote>
+<p>自動從各 page spec [PAGE META] openapi_ops 推導。手動編輯無效，執行
+<code>scripts/generate-mapping-api-index.sh</code> 重新產出。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Pipeline</th>
+<th style="text-align: left;">IA 頁面</th>
+<th style="text-align: left;">openapi_ops</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">02</td>
+<td style="text-align: left;">A1</td>
+<td style="text-align: left;"><code>listWorkOrders</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">03</td>
+<td style="text-align: left;">A2, A3</td>
+<td style="text-align: left;"><code>listConversations</code>,
+<code>getConversation</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">04</td>
+<td style="text-align: left;">A4, A5</td>
+<td style="text-align: left;"><code>listProblemCards</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">05</td>
+<td style="text-align: left;">A6-A10</td>
+<td style="text-align: left;">none</td>
+</tr>
+<tr>
+<td style="text-align: left;">06</td>
+<td style="text-align: left;">A11</td>
+<td style="text-align: left;"><code>listWorkOrders</code>,
+<code>assignWorkOrder</code>, <code>listDispatchCandidates</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">07</td>
+<td style="text-align: left;">A12</td>
+<td style="text-align: left;"><code>getWorkOrder</code>,
+<code>assignWorkOrder</code>, <code>listDispatchCandidates</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">08</td>
+<td style="text-align: left;">A13, A14</td>
+<td style="text-align: left;">none</td>
+</tr>
+<tr>
+<td style="text-align: left;">09</td>
+<td style="text-align: left;">A15</td>
+<td style="text-align: left;">none</td>
+</tr>
+<tr>
+<td style="text-align: left;">10</td>
+<td style="text-align: left;">A17-A22</td>
+<td style="text-align: left;"><code>submitRefundDecision</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">11</td>
+<td style="text-align: left;">T1</td>
+<td style="text-align: left;"><code>listWorkOrderPool</code>,
+<code>acceptWorkOrder</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">12</td>
+<td style="text-align: left;">T2, T3</td>
+<td style="text-align: left;"><code>listWorkOrders</code>,
+<code>getWorkOrder</code>, <code>completeWorkOrder</code>,
+<code>submitWorkOrderSignature</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">13</td>
+<td style="text-align: left;">T4</td>
+<td
+style="text-align: left;"><code>getTechnicianAvailability</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">14</td>
+<td style="text-align: left;">A0, T0, A16</td>
+<td style="text-align: left;"><code>loginAdmin</code>,
+<code>loginTechnician</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">15</td>
+<td style="text-align: left;">A23, A24, A32, A33</td>
+<td style="text-align: left;"><code>getConversation</code>,
+<code>listProblemCards</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">16</td>
+<td style="text-align: left;">A25-A27</td>
+<td
+style="text-align: left;"><code>getTechnicianAvailability</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">17</td>
+<td style="text-align: left;">A28-A31</td>
+<td style="text-align: left;"><code>getDispatchQueue</code>,
+<code>listDispatchCandidates</code>, <code>assignWorkOrder</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">18</td>
+<td style="text-align: left;">A34-A36</td>
+<td style="text-align: left;">none</td>
+</tr>
+<tr>
+<td style="text-align: left;">19</td>
+<td style="text-align: left;">T5-T10</td>
+<td style="text-align: left;"><code>getWorkOrder</code>,
+<code>submitWorkOrderSignature</code>,
+<code>getTechnicianAvailability</code>,
+<code>proposeReschedule</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">20</td>
+<td style="text-align: left;">A37</td>
+<td style="text-align: left;"><code>listDispatchCandidates</code>,
+<code>assignWorkOrder</code>, <code>escalateWorkOrder</code>,
+<code>getWorkOrder</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">21</td>
+<td style="text-align: left;">G1</td>
+<td style="text-align: left;"><code>listNotifications</code>,
+<code>updateNotification</code>, <code>bulkUpdateNotifications</code>,
+<code>markAllNotificationsRead</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">22</td>
+<td style="text-align: left;">T11</td>
+<td style="text-align: left;"><code>proposeReschedule</code>,
+<code>getTechnicianAvailability</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">23</td>
+<td style="text-align: left;">G2</td>
+<td style="text-align: left;">none</td>
+</tr>
+</tbody>
+</table>
+<!-- END AUTO:openapi-ops -->
+
+<p><strong>契約治理：</strong> [PAGE META] 宣告的 operationId 由 CI
+驗證（<code>check-operationid-orphans.sh</code> Check
+3/4），此表自動同步。</p>
+<hr />
+<h2 id="9-驗證檢查清單">9. 驗證檢查清單</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" checked="" />所有 IA
+頁面（52）都有對應 pipeline 檔（含 V1.1 新增 A37/G1/T11；G2
+保留）</label></li>
+<li><label><input type="checkbox" checked="" />所有 pipeline
+檔都能對應回 IA 頁面</label></li>
+<li><label><input type="checkbox" checked="" />V1.0 / V2.0 / V3.0
+版本標記一致</label></li>
+<li><label><input type="checkbox" checked="" />每個多檔共用的元件（如
+<code>SignaturePad</code>）都追溯到源 spec</label></li>
+<li><label><input type="checkbox" checked="" />WebSocket
+頻道清單覆蓋所有即時需求</label></li>
+<li><label><input type="checkbox"
+checked="" />重複檔（<code>01_dashboard.md</code> vs
+<code>02_admin_dashboard.md</code>）已於 commit <code>f42ee65</code>
+清理</label></li>
+<li><label><input type="checkbox" checked="" />Flow × Page
+矩陣建立（§7.5，含 Flow 1-14 + G1-G4 + MT1-MT5）</label></li>
+<li><label><input type="checkbox" checked="" />G2 <code>/offline</code>
+spec 檔（<code>23_global_offline.md</code>，驗證閘 Stage 3
+完成）</label></li>
+<li><label><input type="checkbox" />（待辦）若 IA
+後續新增頁面，同步更新本檔</label></li>
+</ul>
+<hr />
+<h2 id="10-變更記錄">10. 變更記錄</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">日期</th>
+<th style="text-align: left;">版本</th>
+<th style="text-align: left;">變更摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">2026-04-23</td>
+<td style="text-align: left;">v1.0</td>
+<td style="text-align: left;">初版：對應 IA v1.2（48 頁）與 pipeline 19
+份 spec 檔；建立 Forward / Reverse / 主題分群 / 使用者旅程 / 元件 / WS /
+API 多維對照</td>
+</tr>
+<tr>
+<td style="text-align: left;">2026-04-23</td>
+<td style="text-align: left;">v1.1</td>
+<td style="text-align: left;">驗證閘（plan §S）補完：註冊 A37
+派工人工介入、G1 通知中心、T11 改期日曆；新增 §2.3 Global Pages 類；§7.5
+Flow × Page 覆蓋矩陣（Flow 1-14 + G1-G4 + MT1-MT5）；清理
+01_dashboard.md；新增 dispatch(manual) / notifications / reschedule API
+對應</td>
+</tr>
+<tr>
+<td style="text-align: left;">2026-04-23</td>
+<td style="text-align: left;">v1.2</td>
+<td style="text-align: left;">Week 3：新增 §7.1 AsyncAPI operationId
+反向索引（10 WS 頻道）+ §8.1 OpenAPI operationId 反向索引（抽樣對應）+
+webhook (inbound) API context 列</td>
+</tr>
+<tr>
+<td style="text-align: left;">2026-04-23</td>
+<td style="text-align: left;">v1.3</td>
+<td style="text-align: left;">K-R 階段 3：§6 擴充為<strong>業務元件
+SSOT</strong>（加 Context + 用途欄 + V1.1 新元件），接收 Architecture
+§3.3 業務元件表外遷；Architecture §3.3 僅留組織原則。§3
+行數修正（MAPPING §3 本身無重算，跨檔總計不變）</td>
+</tr>
+</tbody>
+</table>
+</div></div></body></html>

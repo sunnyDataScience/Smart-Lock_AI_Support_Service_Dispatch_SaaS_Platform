@@ -1,0 +1,498 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>SOP v2 list expand — sop-drafts + family-reviews 列表/詳情 v2（解 P3 收尾 SOP 模組 caller）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ _audit ／ CR-0006-sop-v2-list-expand.md</div>
+<div class="doc"><h1 id="cr-0006--sop-v2-listgetcrud-expand">CR-0006 — SOP v2
+list/get/CRUD expand</h1>
+<blockquote>
+<p><strong>Tier</strong>: 4-exploration → Change Impact Analysis<br />
+<strong>Mandated by</strong>:
+<code>.claude/rules/change-governance.md</code><br />
+<strong>Triggered by</strong>: MISSION.md 迭代 —
+wave-1（a7a06133）取證後確認 SOP 模組 5 caller 因 v2 缺 list/get/CRUD
+而阻塞</p>
+</blockquote>
+<hr />
+<h2 id="1-change-statement">1. Change Statement</h2>
+<p><strong>As-is</strong>：</p>
+<ul>
+<li><code>api/routers/sops_v2.py</code> 只有 2
+個動作端點（<code>POST :review/dual</code>、<code>POST :review/family</code>）</li>
+<li>list / get / create / patch / DELETE 全在 legacy
+<code>sop_drafts.py</code> + <code>family_reviews.py</code></li>
+<li>web <code>knowledge-base/sop-drafts/*</code> (3 caller) +
+<code>family-reviews/page.tsx</code> (2 caller) 共 <strong>5 個 v1
+caller</strong> 阻塞</li>
+</ul>
+<p><strong>To-be</strong>：</p>
+<ul>
+<li><code>sops_v2.py</code> 補齊：list/get/create/patch sop_drafts +
+list pending/history family_reviews</li>
+<li>web 5 caller 全遷 v2 tenant-scoped</li>
+<li>對齊 CR-0005（KB v2）的 tenant-scoped + meta-wrapping 取捨</li>
+</ul>
+<p><strong>Driver</strong>：</p>
+<ul>
+<li>MISSION.md 北極星條件 (3)：P4 cutover 卡 P3 收尾，SOP 是 5 caller
+群（剩 42 → 37）</li>
+<li>與 CR-0005 KB 同源（CR-0003 §2 P2 列「kb documents(cases+manuals
+統一)」+「sops(sop-drafts+family-reviews)」並列）</li>
+<li>業務上 SOP feedback spiral（FR-0051）需要穩定 v2 surface 才能進
+Phase II</li>
+</ul>
+<hr />
+<h2 id="2-affected-flow">2. Affected Flow</h2>
+<table>
+<thead>
+<tr>
+<th>Flow ID</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BF-SOP-001</code>（SOP 草稿建/查/改/審）</td>
+<td>Modified</td>
+<td>UI 從 legacy <code>/sop-drafts/*</code> 改打
+<code>/sops/drafts/*</code> v2 tenant-scoped</td>
+</tr>
+<tr>
+<td><code>BF-SOP-002</code>（家族覆核 inbox）</td>
+<td>Modified</td>
+<td>family-reviews list + pending 同步遷 v2</td>
+</tr>
+<tr>
+<td><code>BF-SOP-003</code>（SOP 雙審 + 家族覆核）</td>
+<td>Unchanged</td>
+<td>sops_v2 既有 <code>:review/dual</code> + <code>:review/family</code>
+已落地，不動</td>
+</tr>
+<tr>
+<td><code>SF-SOP-004</code>（agent 異步建 SOP 草稿）</td>
+<td>Unchanged</td>
+<td>服務內部呼叫，與 web caller 無關</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-affected-spec-fr--nfr">3. Affected Spec (FR / NFR)</h2>
+<table>
+<thead>
+<tr>
+<th>Spec ID</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FR-SOP-001</code>（SOP 草稿生命週期）</td>
+<td>Modified</td>
+<td>API surface 統一到 v2 tenant-scoped</td>
+</tr>
+<tr>
+<td><code>FR-SOP-002</code>（家族覆核 inbox）</td>
+<td>Modified</td>
+<td>同上</td>
+</tr>
+<tr>
+<td><code>FR-0051</code>（SOP Feedback Spiral，Phase II）</td>
+<td>Referenced</td>
+<td>Phase II 規劃前需確保 v2 API 穩定</td>
+</tr>
+<tr>
+<td><code>NFR-SOP-001</code>（list p95 &lt; 300ms）</td>
+<td>Unchanged</td>
+<td>效能預算不變</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-affected-api">4. Affected API</h2>
+<table>
+<thead>
+<tr>
+<th>API ID</th>
+<th>Endpoint</th>
+<th>Action</th>
+<th>Breaking?</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>API-SOP-V2-LIST</code></td>
+<td><code>GET /tenants/{tid}/sops/drafts</code></td>
+<td><strong>New</strong></td>
+<td>—</td>
+<td>cursor 分頁，status filter（pending_review/approved/rejected）</td>
+</tr>
+<tr>
+<td><code>API-SOP-V2-GET</code></td>
+<td><code>GET /tenants/{tid}/sops/drafts/{id}</code></td>
+<td><strong>New</strong></td>
+<td>—</td>
+<td>單筆詳情 + family review 狀態</td>
+</tr>
+<tr>
+<td><code>API-SOP-V2-CREATE</code></td>
+<td><code>POST /tenants/{tid}/sops/drafts</code></td>
+<td><strong>New</strong></td>
+<td>—</td>
+<td>agent 異步呼叫 + 人工手動建</td>
+</tr>
+<tr>
+<td><code>API-SOP-V2-PATCH</code></td>
+<td><code>PATCH /tenants/{tid}/sops/drafts/{id}</code></td>
+<td><strong>New</strong></td>
+<td>—</td>
+<td>仍可保留 patch（reviewer/家族覆核欄位）</td>
+</tr>
+<tr>
+<td><code>API-SOP-V2-DELETE</code></td>
+<td><code>DELETE /tenants/{tid}/sops/drafts/{id}</code></td>
+<td><strong>New</strong></td>
+<td>—</td>
+<td>軟刪 vs 硬刪（§8 HD-02）</td>
+</tr>
+<tr>
+<td><code>API-FR-V2-LIST</code></td>
+<td><code>GET /tenants/{tid}/sops/family-reviews</code></td>
+<td><strong>New</strong></td>
+<td>—</td>
+<td>history + cursor + action filter</td>
+</tr>
+<tr>
+<td><code>API-FR-V2-PENDING</code></td>
+<td><code>GET /tenants/{tid}/sops/family-reviews:pending</code></td>
+<td><strong>New</strong></td>
+<td>—</td>
+<td>即將上線的 SLA 24h gate 視圖</td>
+</tr>
+<tr>
+<td><code>API-FR-V2-CREATE</code></td>
+<td><code>POST /tenants/{tid}/sops/family-reviews</code></td>
+<td>Deprecated-route</td>
+<td>—</td>
+<td>sops_v2 已有
+<code>POST /sops/{id}/review/family</code>；本路線退場</td>
+</tr>
+<tr>
+<td><code>API-SOP-V1-*</code> / <code>API-FR-V1-*</code>（legacy）</td>
+<td>全部</td>
+<td>Deprecated</td>
+<td><strong>Yes（P4 統一刪）</strong></td>
+<td>不在本 CR scope</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-affected-data">5. Affected Data</h2>
+<table>
+<thead>
+<tr>
+<th>Entity</th>
+<th>Action</th>
+<th>Migration</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sop_drafts</code></td>
+<td>加 <code>deleted_at</code> 欄（依 HD-02）</td>
+<td>一次性 ALTER；backfill=NULL</td>
+</tr>
+<tr>
+<td><code>family_reviews</code></td>
+<td>Unchanged</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>sop_audit_log</code>（若新增）</td>
+<td>New table</td>
+<td>與 CR-0005 HD-03 對齊（§8 HD-03）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-affected-test">6. Affected Test</h2>
+<table>
+<thead>
+<tr>
+<th>Test ID</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TC-SOP-001~003</code></td>
+<td>Update</td>
+<td>既有 list/get/create v1 → v2 tenant-scoped</td>
+</tr>
+<tr>
+<td><code>TC-SOP-004</code>（v2 patch reviewer）</td>
+<td><strong>New</strong></td>
+<td>review/dual 流程整合</td>
+</tr>
+<tr>
+<td><code>TC-SOP-005</code>（v2 DELETE 軟刪）</td>
+<td><strong>New</strong></td>
+<td>依 §8 HD-02 決策</td>
+</tr>
+<tr>
+<td><code>TC-FR-001</code>（family list cursor）</td>
+<td><strong>New</strong></td>
+<td>history + filter</td>
+</tr>
+<tr>
+<td><code>TC-FR-002</code>（family pending SLA 24h）</td>
+<td><strong>New</strong></td>
+<td>gate 視圖過濾邏輯</td>
+</tr>
+<tr>
+<td><code>TC-XT-SOP-001</code>（cross-tenant guard）</td>
+<td><strong>New</strong></td>
+<td>跨 tenant 操作 403</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Coverage delta</strong>：+4 TC；<code>sops_v2.py</code> 從
+~40% → ~80%</p>
+<hr />
+<h2 id="7-affected-architecture">7. Affected Architecture</h2>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Action</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Module boundary</td>
+<td>Unchanged</td>
+<td>SOP bounded context 內部</td>
+</tr>
+<tr>
+<td>New ADR?</td>
+<td>Maybe</td>
+<td>若 HD-01 與 CR-0005 響應 shape 決策不同 → 需 ADR 説明歧異</td>
+</tr>
+<tr>
+<td>External integration</td>
+<td>None</td>
+<td>不引入新整合</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-human-decisions-required">8. Human Decisions Required</h2>
+<p>🛑 <strong>CIA blocks code changes until every row here has a
+recorded decision.</strong></p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Question</th>
+<th>Options</th>
+<th>Owner</th>
+<th>Status</th>
+<th>Decision</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>HD-01</strong></td>
+<td>響應 shape 是否複用 CR-0005 HD-01 決策？</td>
+<td>(a) 與 KB 一致<br>(b) SOP 走獨立 shape（理由：欄位差異大）</td>
+<td>Architect</td>
+<td><strong>decided 2026-06-04</strong></td>
+<td><strong>(a) 與 KB 一致</strong>（業主 CR-0005 HD-01 拍 meta-wrap，本
+CR 跟進）</td>
+</tr>
+<tr>
+<td><strong>HD-02</strong></td>
+<td>SOP draft DELETE 軟/硬刪</td>
+<td>(a) 軟刪<br>(b) 硬刪<br>(c) 軟刪 + 90 天 GC</td>
+<td>Product</td>
+<td><strong>decided 2026-06-04</strong></td>
+<td><strong>(a) 軟刪（deleted_at）</strong>（與 KB CR-0005 HD-02
+一致）</td>
+</tr>
+<tr>
+<td><strong>HD-03</strong></td>
+<td>sop_audit_log</td>
+<td>(a) 與 KB 共用<br>(b) 獨立表</td>
+<td>Compliance</td>
+<td><strong>decided 2026-06-04</strong></td>
+<td><strong>(a) 共用 saas.kb_audit_log</strong>（doc_type CHECK 擴
+'sop'，需 migration alter）</td>
+</tr>
+<tr>
+<td><strong>HD-04</strong></td>
+<td><code>POST /sops/family-reviews</code> 路由保留</td>
+<td>(a) 廢棄<br>(b) 雙存</td>
+<td>Product</td>
+<td><strong>decided 2026-06-04</strong></td>
+<td><strong>(a) 廢棄</strong>（只走 sops_v2.py:87
+<code>/sops/{id}/review/family</code>）</td>
+</tr>
+<tr>
+<td><strong>HD-05</strong></td>
+<td>list pending SLA 視圖 cache</td>
+<td>(a) 即時查<br>(b) 每分鐘 cache<br>(c) WS push driven</td>
+<td>Performance</td>
+<td><strong>decided 2026-06-04</strong></td>
+<td><strong>(a) 即時查</strong>（每次 SLA
+計算；簡單上手，小表可承擔）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9-suggested-implementation-order">9. Suggested Implementation
+Order</h2>
+<p>§8 業主裁決後實作：</p>
+<ol type="1">
+<li><strong>Decisions</strong> → <code>ADR-0104</code>（暫定）記錄
+HD-01~05</li>
+<li><strong>Schema migration</strong> →
+alembic：<code>sop_drafts.deleted_at</code>（若 HD-02 選 a/c）+
+<code>sop_audit_log</code> 表（若 HD-03 選 a）</li>
+<li><strong>Domain layer</strong> → <code>sop_draft_service</code> +
+<code>family_review_service</code> 新增 <code>list_*</code> /
+<code>get_*</code> / <code>soft_delete_*</code> 函式</li>
+<li><strong>API layer</strong> → <code>sops_v2.py</code> 新增 7
+endpoints</li>
+<li><strong>Tests</strong> → TC-SOP-001~005 + TC-FR-001~002 +
+TC-XT-SOP-001</li>
+<li><strong>UI 遷移</strong> →
+<code>web/src/app/knowledge-base/sop-drafts/{page,[id]/page}.tsx</code>
++ <code>family-reviews/page.tsx</code></li>
+<li><strong>Traceability</strong> → TM-0000 更新</li>
+<li><strong>Docs sync</strong> → sunnydata-doc-freshness</li>
+<li><strong>CR-0003 §5 進度區</strong> → wave-3 ✅ SOP 5 caller
+遷完</li>
+</ol>
+<hr />
+<h2 id="10-risks--rollback">10. Risks &amp; Rollback</h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Likelihood</th>
+<th>Impact</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HD-04 雙存路由維護成本</td>
+<td>Low</td>
+<td>Low</td>
+<td>(a) 廢棄方案最簡，建議優先</td>
+</tr>
+<tr>
+<td>SLA 24h gate 計算錯導致 family reviewer 漏覆核</td>
+<td>Low</td>
+<td>High</td>
+<td>HD-05 選 (c) WS push 最即時，但需 publish hook 完整</td>
+</tr>
+<tr>
+<td>與 CR-0005 響應 shape 不一致（HD-01 (b)）→ 前端 dual codepath</td>
+<td>Medium</td>
+<td>Medium</td>
+<td>強烈建議 HD-01 選 (a) 與 KB 一致</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Rollback plan</strong>：Schema additive，可逆。Caller
+migration 逐檔 git revert。</p>
+<hr />
+<h2 id="11-out-of-scope">11. Out of Scope</h2>
+<ul>
+<li><strong>SOP Feedback Spiral 深化</strong>（FR-0051）→ Phase II</li>
+<li><strong>family review SLA 自動 escalation</strong>（24h timeout）→
+獨立 CR（可能 CR-0007）</li>
+<li><strong>legacy <code>sop_drafts.py</code> /
+<code>family_reviews.py</code> 刪除</strong> → P4 cutover</li>
+</ul>
+<hr />
+<h2 id="12-sign-off">12. Sign-off</h2>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Name</th>
+<th>Date</th>
+<th>Approved?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Product</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Architect</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Engineering Lead</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>QA Lead</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="a-取證附錄">§A 取證附錄</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 5 個 SOP 阻塞 caller：</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> grep <span class="at">-rn</span> <span class="st">&quot;api/v1/sop-drafts\|api/v1/family-reviews&quot;</span> web/src <span class="dt">\</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">--include</span><span class="op">=</span><span class="st">&quot;*.ts&quot;</span> <span class="at">--include</span><span class="op">=</span><span class="st">&quot;*.tsx&quot;</span> <span class="dv">2</span><span class="op">&gt;</span>/dev/null <span class="dt">\</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-v</span> <span class="st">&quot;^[^:]*:[0-9]*: *\*\|^[^:]*:[0-9]*: *//\|^[^:]*:[0-9]*: *#&quot;</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co"># →</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co"># web/src/app/knowledge-base/sop-drafts/page.tsx:34: path: &quot;/api/v1/sop-drafts&quot;</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># web/src/app/knowledge-base/sop-drafts/[id]/page.tsx:81: `/api/v1/sop-drafts/${id}`</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co"># web/src/app/knowledge-base/sop-drafts/[id]/page.tsx:134: `/api/v1/sop-drafts/${id}/adopt`</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co"># web/src/app/knowledge-base/sop-drafts/[id]/page.tsx:141: `/api/v1/sop-drafts/${id}`</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co"># web/src/app/knowledge-base/family-reviews/page.tsx:78: path: &quot;/api/v1/family-reviews&quot;</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co"># web/src/app/knowledge-base/family-reviews/page.tsx:100: &quot;/api/v1/family-reviews/pending&quot;</span></span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># v2 缺口取證：</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>$ grep <span class="st">&quot;@router</span><span class="er">\</span><span class="st">.&quot;</span> api<span class="op">/</span>routers<span class="op">/</span>sops_v2.py</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co"># →  2 個（review/dual + review/family），缺 list/get/create/patch/delete</span></span></code></pre></div>
+<hr />
+<blockquote>
+<p>🛑 <strong>§8 業主裁決前不動 code / DB schema。</strong>
+預計裁決後工時 2-3 天（schema 0.5d、API+service 1d、UI 0.5d、TC
+0.5d、E2E 0.5d）。</p>
+</blockquote>
+</div></div></body></html>

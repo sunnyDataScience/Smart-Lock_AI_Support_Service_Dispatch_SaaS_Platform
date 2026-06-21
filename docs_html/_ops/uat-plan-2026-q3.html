@@ -1,0 +1,310 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>UAT Plan — Phase II 9 FR + Ops Chain (2026 Q3)</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ _ops ／ uat-plan-2026-q3.md</div>
+<div class="doc"><h1 id="uat-plan--phase-ii-9-fr--ops-chain-2026-q3">UAT Plan — Phase II
+9 FR + Ops Chain (2026 Q3)</h1>
+<blockquote>
+<p>Created 2026-06-05 Owner: 業務 / QA / Tech Lead 預設執行窗口：Web
+Sprint 5 完成後 + 1-2 週</p>
+</blockquote>
+<p>對應：<code>docs/_ops/wbs-100-closeout-plan.md</code> §4</p>
+<hr />
+<h2 id="0-uat-目標">0. UAT 目標</h2>
+<p>驗收 Phase II 9 個 FR 在 web UI 端真實流程跑通，並驗 ops chain
+(lifespan monitor + alert pipeline) 在 production-like 環境正確發
+PagerDuty + Slack。</p>
+<p><strong>不在 UAT 範圍</strong>:</p>
+<ul>
+<li>Backend service 單元邏輯（已 372 tests 綠燈）</li>
+<li>載入測試 / 壓力測試（屬 SLO 驗收，另開）</li>
+<li>P4 Cutover Stage 7（屬 30 day 觀察後決策）</li>
+</ul>
+<hr />
+<h2 id="1-uat-環境準備執行-uat-前-1-週">1. UAT 環境準備（執行 UAT 前 1
+週）</h2>
+<h3 id="11-環境配置">1.1 環境配置</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />UAT GCP project 切到
+<code>lock-ai-uat</code>（與 prod 隔離）</label></li>
+<li><label><input type="checkbox" />Cloud SQL 載入 production-like
+dataset 大小（建議 ≥ 3 tenant × 50 work_order × 10
+technician）</label></li>
+<li><label><input type="checkbox" />套用
+<code>SQL/migrations/017-027</code> 全部 11 個 migration</label></li>
+<li><label><input type="checkbox" /><code>api/main.py</code> lifespan
+啟全部 6 cron</label></li>
+<li><label><input type="checkbox" />PagerDuty integration key + Slack
+webhook 都連 UAT-only channel（不污染 prod alert）</label></li>
+</ul>
+<h3 id="12-seed-測資">1.2 Seed 測資</h3>
+<p>走 <code>scripts/seed/emit_seed_sql.py</code> 或新建
+<code>scripts/seed/uat_seed.py</code>，需包含：</p>
+<ul>
+<li>3 個 tenant（A/B/C，模擬 tier 1/2/3 規模）</li>
+<li>10 個 technician（各狀態 active/suspended/pending）</li>
+<li>50 個 work_order（含 dispatched/completed/refunded/disputed）</li>
+<li>20 個 statement（FR-0045/0046/0047 各 6-7 個，含 dispute window 中 /
+已過期）</li>
+<li>5 個 forget_request（FR-0053，含
+received/legal_hold/soft_deleted）</li>
+<li>30 個 ai_decision_trace（FR-0050，分佈 5 種 decision_type）</li>
+<li>10 個 sop_feedback（FR-0051）</li>
+<li>8 個 rma_quality_finding（FR-0048）</li>
+</ul>
+<h3 id="13-角色--帳號">1.3 角色 / 帳號</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" /><code>uat-admin@lock-ai.test</code>
+— admin 全功能</label></li>
+<li><label><input
+type="checkbox" /><code>uat-dispatcher@lock-ai.test</code> —
+dispatcher，看 commission</label></li>
+<li><label><input type="checkbox" /><code>uat-tech@lock-ai.test</code> —
+technician，看 statement</label></li>
+<li><label><input type="checkbox" /><code>uat-dpo@lock-ai.test</code> —
+DPO，做 GDPR</label></li>
+</ul>
+<hr />
+<h2 id="2-uat-9--1-案執行-checklist">2. UAT 9 + 1 案執行 checklist</h2>
+<h3 id="uat-001--fr-0049-approval-inbox">UAT-001 — FR-0049 Approval
+Inbox</h3>
+<p><strong>Pre</strong>: admin 帳號登入</p>
+<p><strong>Steps</strong>:</p>
+<ol type="1">
+<li>進 <code>/admin/approval-inbox</code></li>
+<li>確認 5 種 type tab
+顯示（scope_change/refund/dispute/reschedule/recon_exception）</li>
+<li>點任一 tab，確認 list 按 <code>days_overdue</code> 降冪排</li>
+<li>Severity badge 顏色對應 LABEL: high=red / medium=orange /
+low=yellow</li>
+<li>點 item 進詳細頁，能跳到對應 work_order/refund/dispute</li>
+</ol>
+<p><strong>Pass</strong>: 5 type 都顯示 + 排序對 + badge 顏色對 + 跳轉對
+<strong>Effort</strong>: 0.5 day</p>
+<hr />
+<h3 id="uat-002--fr-0044-technician-lifecycle">UAT-002 — FR-0044
+Technician Lifecycle</h3>
+<p><strong>Pre</strong>: admin 帳號 + seed 含 pending_approval / active
+/ suspended 技師</p>
+<p><strong>Steps</strong>:</p>
+<ol type="1">
+<li>進 <code>/admin/technicians</code>，list 顯示 6 種 status badge</li>
+<li>對 pending_approval 技師按「核准」按鈕 → reason 至少 3 字 → 狀態變
+active + 寫 event</li>
+<li>對 active 技師按「停權」→ reason 至少 3 字 → 狀態變 suspended</li>
+<li>對 suspended 按「復權」→ 狀態回 active</li>
+<li>點 technician 進
+<code>/admin/technicians/[id]/lifecycle</code>，顯示 event timeline</li>
+<li>對 active 按「終止」→ 狀態 terminated（不可逆，按鈕應消失）</li>
+</ol>
+<p><strong>Pass</strong>: 狀態轉換對 + event 寫入 + 不可逆鎖定
+<strong>Effort</strong>: 0.5 day</p>
+<hr />
+<h3 id="uat-003--fr-0053-gdpr-forget">UAT-003 — FR-0053 GDPR Forget</h3>
+<p><strong>Pre</strong>: dpo 帳號 + seed 含 5 forget_request</p>
+<p><strong>Steps</strong>:</p>
+<ol type="1">
+<li>進 <code>/admin/gdpr-forget-queue</code>，顯示 5 status 過濾</li>
+<li>對 received 按「軟刪除」→ 狀態變 soft_deleted +
+<code>hard_delete_eligible_at</code> = T+30</li>
+<li>對 soft_deleted item 確認顯示倒數天數</li>
+<li>對 received 按「法務扣留」→ reason 填 → 狀態變
+legal_hold_denied</li>
+<li><strong>時間驗證</strong>（須等 30 day 或調
+<code>hard_delete_eligible_at</code> 到過去）：cron 跑後 status 變
+hard_deleted</li>
+<li>用 <code>scripts/ops/gdpr_hard_delete_cron_run_once.sh</code>
+手動觸發確認</li>
+</ol>
+<p><strong>Pass</strong>: 狀態機正確 + cron 自動 hard delete 成功
+<strong>Effort</strong>: 1 day（含模擬 wait）</p>
+<hr />
+<h3 id="uat-004--fr-0050-ai-governance">UAT-004 — FR-0050 AI
+Governance</h3>
+<p><strong>Pre</strong>: admin 帳號 + 真實對 agent 跑 5 次對話</p>
+<p><strong>Steps</strong>:</p>
+<ol type="1">
+<li>進 <code>/admin/ai-governance</code></li>
+<li>確認 5 種 decision_type 都有 trace</li>
+<li>至少 1 個 guardrail_block 顯示</li>
+<li>summary 顯示 block_rate_pct</li>
+<li>點 trace 進詳細頁，顯示 charter_rule + owner_decision_ref</li>
+</ol>
+<p><strong>Pass</strong>: 寫入正確 + summary 對 + 詳細頁顯示 governance
+lineage <strong>Effort</strong>: 0.5 day</p>
+<hr />
+<h3 id="uat-005--fr-0051-sop-feedback">UAT-005 — FR-0051 SOP
+Feedback</h3>
+<p><strong>Pre</strong>: admin / csm 帳號 + seed 10 feedback（3 positive
+/ 4 neutral / 3 negative）</p>
+<p><strong>Steps</strong>:</p>
+<ol type="1">
+<li>進 <code>/admin/sop-feedback</code></li>
+<li>篩 sop_id 看單 SOP 的 sentiment 分佈</li>
+<li>sentiment_score 計算 = (positive - negative) / total * 100，UI 顯示
+-100..+100</li>
+<li>對 negative feedback 標 follow-up，確認寫入</li>
+</ol>
+<p><strong>Pass</strong>: 篩選對 + 分數計算對 <strong>Effort</strong>:
+0.5 day</p>
+<hr />
+<h3 id="uat-006--fr-0048-rma-quality">UAT-006 — FR-0048 RMA Quality</h3>
+<p><strong>Pre</strong>: admin 帳號 + seed 8 quality_finding，含
+repeat_failure</p>
+<p><strong>Steps</strong>:</p>
+<ol type="1">
+<li>進 <code>/admin/rma-quality</code></li>
+<li>篩 brand / device_model / failure_mode 過濾</li>
+<li>對 repeat_failure 確認標記</li>
+<li><strong>Cascade 驗證</strong>：開新 warranty_claim → mark resolved →
+確認自動寫 quality_finding（4 cascade trigger）</li>
+<li><strong>SOP feedback propagation</strong>：confirmed finding
+應自動寫 sop_feedback (source=rma_finding)</li>
+</ol>
+<p><strong>Pass</strong>: 篩選 + cascade + propagation 全對
+<strong>Effort</strong>: 1 day</p>
+<hr />
+<h3 id="uat-007--fr-0045-tech-statement">UAT-007 — FR-0045 Tech
+Statement</h3>
+<p><strong>Pre</strong>: tech 帳號 + seed 6
+statement（draft/pending_review/disputed/approved/rejected/paid 各
+1）</p>
+<p><strong>Steps</strong>:</p>
+<ol type="1">
+<li>進 <code>/account/statements</code>，顯示 6 月份 statement</li>
+<li>對 pending_review 按「申訴」→ reason 至少 5 字 → 狀態變
+disputed</li>
+<li><strong>時間驗證</strong>：dispute_window_ends_at 過後申訴按鈕應
+disable</li>
+<li>admin 角色登入，對 disputed 按「核准 / 駁回」</li>
+<li>approved → 按「支付」→ 狀態 paid + paid_at 時間戳</li>
+</ol>
+<p><strong>Pass</strong>: 狀態機 + window 鎖定 + admin 雙簽
+<strong>Effort</strong>: 1 day</p>
+<hr />
+<h3 id="uat-008--fr-0046-dispatcher-commission">UAT-008 — FR-0046
+Dispatcher Commission</h3>
+<p><strong>Pre</strong>: dispatcher 帳號 + seed 6 commission
+statement</p>
+<p><strong>Steps</strong>:</p>
+<ol type="1">
+<li>進 <code>/account/commission-statements</code></li>
+<li>確認 base_commission + performance_bonus + penalty 分開顯示</li>
+<li>completion_rate_pct 顯示為百分比</li>
+<li>申訴流程同 UAT-007</li>
+</ol>
+<p><strong>Pass</strong>: 數字分項正確 + 申訴流程同 statement
+<strong>Effort</strong>: 1 day</p>
+<hr />
+<h3 id="uat-009--fr-0047-brand-b2b">UAT-009 — FR-0047 Brand B2B</h3>
+<p><strong>Pre</strong>: admin 帳號 + seed 6 brand_b2b_statement，含
+AR/AP/NET 三方向</p>
+<p><strong>Steps</strong>:</p>
+<ol type="1">
+<li>進 <code>/admin/brand-b2b</code></li>
+<li>篩 direction (AR/AP/NET) 顯示</li>
+<li>對 NET statement 確認 <code>net_payable_to</code> 計算（正→brand /
+負→platform）</li>
+<li>對 disputed 按 admin 核准</li>
+</ol>
+<p><strong>Pass</strong>: 三方向計算 + payable_to 對
+<strong>Effort</strong>: 1 day</p>
+<hr />
+<h3 id="uat-010--ops-alert-drill">UAT-010 — Ops Alert Drill</h3>
+<p><strong>Pre</strong>: PagerDuty + Slack 接 UAT channel</p>
+<p><strong>Steps</strong>:</p>
+<ol type="1">
+<li>跑 <code>bash scripts/ops/alert_drill_test.sh</code></li>
+<li>確認 6 scenario severity 都對</li>
+<li><strong>Real-fire 驗證</strong>（須 SRE 在線）：
+<ul>
+<li>殺 1 個 cron → 等 CI cron 5 min 觸發 → 確認 Slack alert</li>
+<li>殺 ≥ half cron → 確認 PagerDuty 觸發 + dedup_key 不重複</li>
+</ul></li>
+<li>resolve cron → 確認 dedup_key 觸發 PD auto-resolve（若設定）</li>
+</ol>
+<p><strong>Pass</strong>: drill test 全 6 對 + real-fire alert 都到
+<strong>Effort</strong>: 0.5 day</p>
+<hr />
+<h2 id="3-uat-通過標準">3. UAT 通過標準</h2>
+<ul>
+<li><strong>全部 10 案 Pass</strong>（含必要 retry）</li>
+<li><strong>零 critical bug 未修</strong>（high/medium 可進待辦）</li>
+<li><strong>業務 sign-off</strong>（業主 / CSM Lead）</li>
+</ul>
+<hr />
+<h2 id="4-bug-處理-sla">4. Bug 處理 SLA</h2>
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>修復 SLA</th>
+<th>Owner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Critical (流程斷)</td>
+<td>同日修 + retest</td>
+<td>Backend / Web dev</td>
+</tr>
+<tr>
+<td>High (功能錯)</td>
+<td>3 work day</td>
+<td>Backend / Web dev</td>
+</tr>
+<tr>
+<td>Medium (UX)</td>
+<td>1 sprint</td>
+<td>Web dev</td>
+</tr>
+<tr>
+<td>Low (字 / 排版)</td>
+<td>進待辦</td>
+<td>Web dev</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-uat-完成後">5. UAT 完成後</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />寫 UAT report 到
+<code>docs/_audit/uat-report-2026-q3.md</code></label></li>
+<li><label><input type="checkbox" />更新
+<code>web/docs/system-completion-status.md</code> 標 UAT
+通過</label></li>
+<li><label><input type="checkbox" />通知業主可進 production
+cutover</label></li>
+<li><label><input type="checkbox" />走
+<code>docs/_ops/release-checklist-2026-06-05.md</code> production
+部署</label></li>
+</ul>
+<hr />
+<h2 id="a-reference">§A Reference</h2>
+<ul>
+<li><code>docs/_ops/wbs-100-closeout-plan.md</code> — 整體收尾計畫</li>
+<li><code>docs/_audit/session-2026-06-05-final-stats.md</code> — backend
+完成度</li>
+<li><code>docs/_ops/phase-ii-web-integration-plan.md</code> — Sprint 1-5
+對應</li>
+<li><code>docs/_ops/background-monitors-runbook.md</code> — lifespan +
+cron 維運</li>
+<li><code>docs/_ops/alert-receivers-comparison.md</code> — PD + Slack
+設定</li>
+<li><code>scripts/ops/alert_drill_test.sh</code> — UAT-010 drill</li>
+</ul>
+</div></div></body></html>

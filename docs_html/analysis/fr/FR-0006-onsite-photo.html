@@ -1,0 +1,295 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>到場拍照存證</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ analysis ／ fr ／ FR-0006-onsite-photo.md</div>
+<div class="doc"><h1 id="fr-0006--到場拍照存證">FR-0006 — 到場拍照存證</h1>
+<blockquote>
+<p><strong>B' 殼 (2026-05-28 D5)</strong>：rule clause 搬 BR-M08-NN +
+BR-M09-NN；本檔僅保留 use case skeleton + acceptance G/W/T。</p>
+</blockquote>
+<h2 id="1-use-case-skeleton">§1 Use Case Skeleton</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">欄位</th>
+<th style="text-align: left;">內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Actor</strong></td>
+<td style="text-align: left;">技師 (現場操作)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Secondary Actors</strong></td>
+<td style="text-align: left;">M09 Evidence store (GCS), 客戶 (作為
+visibility 受眾，依 ADR-0050)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Trigger</strong></td>
+<td style="text-align: left;">技師到達現場按「打卡到場」（或 GPS
+自動偵測進入服務地址範圍）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Precondition</strong></td>
+<td style="text-align: left;">WorkOrder.assignment =
+confirmed；TechnicianDeparted 事件已 emit；技師 mobile APP online (或
+offline queue available)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Main Flow</strong></td>
+<td style="text-align: left;">詳見 §1.1</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Alternative Flow</strong></td>
+<td style="text-align: left;">詳見 §1.2</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Postcondition</strong></td>
+<td style="text-align: left;">施工前後各 ≥ 3 張照片上傳 GCS；wo.photos
+JSONB 含 metadata；emit <code>EvidenceUploaded</code> (per photo) +
+<code>ArrivalProofRecorded</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Out-of-Scope</strong></td>
+<td style="text-align: left;">客戶簽名 (FR-0009)；photo visibility 矩陣
+(屬 ADR-0050 governance)；photo retention 規則 (屬 ADR-0051)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="11-main-flow">§1.1 Main Flow</h3>
+<ol type="1">
+<li>技師到達現場，APP 觸發 GPS 打卡（[ref: BR-M08-NN]）</li>
+<li>系統驗證 GPS 座標在服務地址 100m 半徑內</li>
+<li>emit <code>ArrivalProofRecorded</code> (含 timestamp + GPS coords +
+WorkOrder ID)</li>
+<li>技師在 APP 拍施工前照片（≥ 3 張，包含現場全景 + 設備特寫 +
+損壞處）</li>
+<li>系統 validate 格式 (JPG/PNG) + size (≤ 10MB) ([ref: BR-M09-NN])</li>
+<li>系統上傳 GCS，更新 wo.photos JSONB 含 metadata (timestamp, GPS,
+EXIF, file_hash)</li>
+<li>emit <code>EvidenceUploaded</code> per photo</li>
+<li>技師執行施工</li>
+<li>施工後拍施工後照片（≥ 3 張，包含同視角對比 + 完工特寫 +
+整體環境）</li>
+<li>重複第 5-7 步</li>
+<li>END：postcondition 達成</li>
+</ol>
+<h3 id="12-alternative-flow">§1.2 Alternative Flow</h3>
+<pre><code>A1. GPS 不在服務地址 100m 半徑 (第 2 步):
+    A1.1 系統提示「不在指定地址，是否確認到場？」
+    A1.2 技師確認 + 填 reason → emit ArrivalProofRecorded with manual_override=true
+    A1.3 audit log highlight「GPS_OVERRIDE」
+    A1.4 派工主管收 alert (PII 注意：客戶地址未匹配可能是地址錯誤或客戶移動)
+
+A2. 圖檔 &gt; 10MB (第 5 步):
+    A2.1 系統回 413
+    A2.2 APP 提示「圖檔過大，請壓縮」
+    A2.3 APP 可選自動壓縮重傳（preserve EXIF）
+
+A3. 非 JPG/PNG 格式 (第 5 步):
+    A3.1 系統 reject + 提示格式
+    A3.2 不接受 HEIC（iOS 預設）→ APP 端轉檔為 JPG 後重傳
+
+A4. GCS 上傳失敗 (第 6 步):
+    A4.1 系統 retry 3 次 ([ref: BR-M09-NN])
+    A4.2 3 次失敗 → 保留 base64 於 APP local queue
+    A4.3 連線恢復後 APP 自動 sync local queue
+    A4.4 sync 完成前 wo.photos JSONB 不更新（避免空 URL）
+
+A5. 施工前未拍滿 3 張 (第 4 步):
+    A5.1 系統不允許進入施工階段（hard gate）
+    A5.2 提示「請補拍至少 3 張」
+
+A6. 施工後未拍滿 3 張 (第 9 步):
+    A6.1 完工簽名 (FR-0009) 不允許開啟
+    A6.2 提示「請補拍施工後照片」
+
+A7. 客戶要求不拍特定角度 (privacy concerns):
+    A7.1 技師 APP 標 reason=&quot;customer_refused_specific_angle&quot;
+    A7.2 允許跳過該角度，但仍需總計 ≥ 3 張
+    A7.3 audit log 記錄 reason，視覺呈現給品管 review
+
+A8. 連線完全離線 (第 1-9 步任一):
+    A8.1 GPS 打卡走 local timestamp + GPS coords，標 offline_at
+    A8.2 照片 base64 存 local queue
+    A8.3 連線恢復後 sync (依 A4 邏輯)
+    A8.4 audit log 記 offline_duration</code></pre>
+<h2 id="2-acceptance-criteria-gwt">§2 Acceptance Criteria (G/W/T)</h2>
+<h3 id="ac-01-happy-path--施工前後各-3-張">AC-01: Happy path —
+施工前後各 3 張</h3>
+<pre class="gherkin"><code>Given 技師 &quot;T-001&quot; 抵達 WorkOrder &quot;WO-001&quot; 現場
+  And GPS 在服務地址 50m 範圍內
+When T-001 APP 觸發到場打卡
+Then event `ArrivalProofRecorded` emit (含 GPS coords)
+
+When T-001 拍 3 張施工前照片 (JPG, 5MB each)
+Then 3 張上傳 GCS
+  And wo.photos JSONB 新增 3 個 entry
+  And 3 個 `EvidenceUploaded` event emit
+
+When 施工完成 + 拍 3 張施工後照片
+Then 同樣寫入 + emit
+  And FR-0009 簽名流程解鎖</code></pre>
+<h3 id="ac-02-圖檔-10mb-邊界">AC-02: 圖檔 10MB 邊界</h3>
+<pre class="gherkin"><code>When T-001 上傳 JPG size=10MB
+Then 系統接受
+  And 上傳 GCS
+
+When T-001 上傳 JPG size=10.1MB
+Then 系統回 413
+  And APP 提示「圖檔過大」</code></pre>
+<h3 id="ac-03-非-jpgpng-格式-reject">AC-03: 非 JPG/PNG 格式 reject</h3>
+<pre class="gherkin"><code>When T-001 上傳 HEIC 格式
+Then 系統 reject
+  And APP 提示轉檔
+  And APP 自動轉成 JPG 重傳成功</code></pre>
+<h3 id="ac-04-gcs-上傳失敗--retry--local-queue">AC-04: GCS 上傳失敗 →
+retry + local queue</h3>
+<pre class="gherkin"><code>Given GCS 暫時不可用
+When T-001 上傳照片
+Then 系統 retry 3 次 ([ref: BR-M09-NN])
+  And 3 次失敗 → APP 保留 base64 於 local queue
+
+When 連線恢復
+Then APP 自動 sync local queue
+  And wo.photos JSONB update
+  And `EvidenceUploaded` emit (delayed)</code></pre>
+<h3 id="ac-05-施工前未拍滿-3-張-hard-gate">AC-05: 施工前未拍滿 3 張 hard
+gate</h3>
+<pre class="gherkin"><code>Given T-001 只拍了 2 張施工前照片
+When T-001 嘗試進入施工階段
+Then 系統 hard gate 阻擋
+  And 提示「請補拍至少 3 張」</code></pre>
+<h3 id="ac-06-施工後未拍滿-3-張--完工-gate">AC-06: 施工後未拍滿 3 張 →
+完工 gate</h3>
+<pre class="gherkin"><code>Given T-001 完成施工但只拍 2 張施工後照片
+When T-001 嘗試進入 FR-0009 簽名流程
+Then FR-0009 不允許開啟
+  And 提示「請補拍施工後照片」</code></pre>
+<h3 id="ac-07-gps-不在範圍--override--audit">AC-07: GPS 不在範圍 →
+override + audit</h3>
+<pre class="gherkin"><code>Given 技師 GPS 不在服務地址 100m 範圍
+When T-001 觸發到場打卡
+Then 系統提示「不在指定地址，是否確認到場？」
+
+When T-001 確認 + 填 reason=&quot;客戶在門外等&quot;
+Then ArrivalProofRecorded emit with manual_override=true
+  And audit log highlight &quot;GPS_OVERRIDE&quot;
+  And 派工主管收 alert</code></pre>
+<h3 id="ac-08-客戶拒拍特定角度">AC-08: 客戶拒拍特定角度</h3>
+<pre class="gherkin"><code>Given 客戶要求不拍臥室角度
+When T-001 跳過該角度 + 標 reason=&quot;customer_refused_specific_angle&quot;
+Then 允許跳過
+  And 總計仍需 ≥ 3 張其他角度
+  And audit log 記錄 reason</code></pre>
+<h3 id="ac-09-完全離線情境">AC-09: 完全離線情境</h3>
+<pre class="gherkin"><code>Given 技師現場無網路
+When T-001 觸發打卡 + 拍照
+Then GPS 打卡 local timestamp + coords，標 offline_at
+  And 照片 base64 存 local queue
+
+When 連線恢復
+Then 所有 queue 內 photo + arrival proof sync
+  And audit log 記 offline_duration
+  And 不影響 retention 計算（以 commit timestamp 為準）</code></pre>
+<h2 id="3-reference-map">§3 Reference Map</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">類型</th>
+<th style="text-align: left;">ID</th>
+<th style="text-align: left;">用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Business Rule</td>
+<td style="text-align: left;">BR-M08-NN</td>
+<td style="text-align: left;">GPS 打卡 proof</td>
+</tr>
+<tr>
+<td style="text-align: left;">Business Rule</td>
+<td style="text-align: left;">BR-M09-01</td>
+<td style="text-align: left;">前後各 ≥ 3 張</td>
+</tr>
+<tr>
+<td style="text-align: left;">Business Rule</td>
+<td style="text-align: left;">BR-M09-NN</td>
+<td style="text-align: left;">size / format / retry / retention</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR</td>
+<td style="text-align: left;">ADR-0050</td>
+<td style="text-align: left;">evidence-visibility-matrix
+(PARTIAL_UPDATE, see merge report)</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR</td>
+<td style="text-align: left;">ADR-0051</td>
+<td style="text-align: left;">evidence-retention-policy</td>
+</tr>
+<tr>
+<td style="text-align: left;">Domain Event</td>
+<td style="text-align: left;">EvidenceUploaded</td>
+<td style="text-align: left;">M09 evidence store + M19 BI</td>
+</tr>
+<tr>
+<td style="text-align: left;">Domain Event</td>
+<td style="text-align: left;">ArrivalProofRecorded</td>
+<td style="text-align: left;">dispatch SLA 達成證據</td>
+</tr>
+<tr>
+<td style="text-align: left;">Source spec</td>
+<td
+style="text-align: left;"><code>docs/_source/01-workorder-erp.md#m08-現場施工</code></td>
+<td style="text-align: left;">M08 原始定義</td>
+</tr>
+<tr>
+<td style="text-align: left;">Source spec</td>
+<td
+style="text-align: left;"><code>docs/_source/01-workorder-erp.md#m09-evidence證據</code></td>
+<td style="text-align: left;">M09 原始定義</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-change-log">§4 Change Log</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Date</th>
+<th style="text-align: left;">Change</th>
+<th style="text-align: left;">Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">2026-05-10</td>
+<td style="text-align: left;">REQ-006→FR-0006 split</td>
+<td style="text-align: left;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;">2026-05-28</td>
+<td style="text-align: left;"><strong>B' 殼 rewrite (D5)</strong>：rule
+clause 搬 BR-M08-NN + BR-M09-NN；新增 frontmatter；補 §1 skeleton + 8
+alt flow + 9 G/W/T AC（含 offline + GPS override + privacy refused 等
+edge case）</td>
+<td style="text-align: left;">Roundtable 2026-05-27 D5</td>
+</tr>
+</tbody>
+</table>
+</div></div></body></html>

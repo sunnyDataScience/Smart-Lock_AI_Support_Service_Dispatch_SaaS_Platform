@@ -1,0 +1,714 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Page-Level Prompt: 財務結算管理</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../../index.html">🏠 文件總目錄</a> ／ ui ／ web_design_spec_prompt_pipeline ／ pages ／ 09_admin_accounting.md</div>
+<div class="doc"><h1 id="page-level-prompt-財務結算管理">Page-Level Prompt:
+財務結算管理</h1>
+<blockquote>
+<p>對應 <code>guides/vibe_coding_build_strategy.md</code> → Step 5。
+財務結算頁面整合技師結算、發票管理與營收報表，為平台營運的核心財務中樞。</p>
+</blockquote>
+<hr />
+<h2 id="page-meta">[PAGE META]</h2>
+<ul>
+<li><strong>page_name</strong>: 財務結算管理 Accounting &amp;
+Settlement</li>
+<li><strong>route_path</strong>: <code>/accounting</code></li>
+<li><strong>page_type</strong>: tabbed_dashboard (list + charts)</li>
+<li><strong>ia_pages</strong>: A15</li>
+<li><strong>openapi_ops</strong>: none</li>
+<li><strong>asyncapi_ops</strong>: none</li>
+<li><strong>primary_goal</strong>:
+管理技師結算流程、追蹤發票付款狀態、呈現營收數據分析</li>
+<li><strong>secondary_goal</strong>:
+提供匯出功能支援財務報表與稅務申報</li>
+<li><strong>target_users</strong>:
+<ul>
+<li>主要：平台財務管理員（每日使用）</li>
+<li>次要：平台管理員（每週檢視營收報表）</li>
+</ul></li>
+<li><strong>entry_point</strong>:
+左側導覽列「帳務與結算」→「月結算總覽」/ Dashboard 營收 KPI
+卡片點擊（導覽標籤依 E5x 7.3 節 <code>adminNavigation</code> 為準）</li>
+<li><strong>expected_time_on_page</strong>: 5-15 分鐘（結算作業）、2-5
+分鐘（報表檢視）</li>
+</ul>
+<hr />
+<h2 id="structure-sections">[STRUCTURE: SECTIONS]</h2>
+<ol type="1">
+<li><p><strong>page_header</strong></p>
+<ul>
+<li>section_type: header_bar</li>
+<li>section_purpose: 頁面標題與 Tab 導覽</li>
+</ul></li>
+<li><p><strong>tab_navigation</strong></p>
+<ul>
+<li>section_type: tabs</li>
+<li>section_purpose: 切換三大功能區塊（結算管理 / 發票管理 /
+營收報表）</li>
+<li><strong>⚠️ E5x 結構差異</strong>: E5x 7.3
+節將「營收報表」歸入「報表中心」子項
+(<code>/admin/reports/revenue</code>)，而非本頁 Tab。目前設計保留為帳務
+Tab 3，待確認是否需拆分至獨立報表頁面。</li>
+</ul></li>
+</ol>
+<h3 id="tab-1--結算管理">Tab 1 — 結算管理</h3>
+<ol start="3" type="1">
+<li><p><strong>settlement_period_selector</strong></p>
+<ul>
+<li>section_type: filter_controls</li>
+<li>section_purpose: 選擇結算月份與結算週期</li>
+</ul></li>
+<li><p><strong>settlement_table</strong></p>
+<ul>
+<li>section_type: data_table</li>
+<li>section_purpose: 技師結算清單，含批次操作</li>
+</ul></li>
+<li><p><strong>settlement_detail_modal</strong></p>
+<ul>
+<li>section_type: modal_detail</li>
+<li>section_purpose: 單筆結算明細，逐工單佣金與獎懲明細</li>
+</ul></li>
+</ol>
+<h3 id="tab-2--發票管理">Tab 2 — 發票管理</h3>
+<ol start="6" type="1">
+<li><p><strong>invoice_filter_bar</strong></p>
+<ul>
+<li>section_type: filter_controls</li>
+<li>section_purpose: 篩選發票狀態與搜尋</li>
+</ul></li>
+<li><p><strong>invoice_table</strong></p>
+<ul>
+<li>section_type: data_table</li>
+<li>section_purpose: 發票列表，含付款狀態追蹤與重試</li>
+</ul></li>
+</ol>
+<h3 id="tab-3--營收報表">Tab 3 — 營收報表</h3>
+<ol start="8" type="1">
+<li><p><strong>revenue_kpi_cards</strong></p>
+<ul>
+<li>section_type: stats_cards</li>
+<li>section_purpose: 四大營收關鍵指標</li>
+</ul></li>
+<li><p><strong>revenue_charts</strong></p>
+<ul>
+<li>section_type: charts_group</li>
+<li>section_purpose: 多維度營收圖表視覺化</li>
+</ul></li>
+<li><p><strong>export_controls</strong></p>
+<ul>
+<li>section_type: action_bar</li>
+<li>section_purpose: 資料匯出按鈕</li>
+</ul></li>
+</ol>
+<hr />
+<h2 id="section-component-spec">[SECTION COMPONENT SPEC]</h2>
+<h3 id="section-page_header">Section: page_header</h3>
+<ul>
+<li><strong>layout</strong>:
+全寬單列，<code>flex justify-between items-center</code></li>
+<li><strong>elements</strong>:
+<ul>
+<li>page_title: H1 / required / "財務結算管理"</li>
+<li>last_updated: Text Caption / required / "最後更新：{相對時間}" /
+icon: RefreshCw</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 顯示標題與更新時間</li>
+</ul></li>
+<li><strong>copy_constraints</strong>: 標題固定文案</li>
+</ul>
+<h3 id="section-tab_navigation">Section: tab_navigation</h3>
+<ul>
+<li><strong>layout</strong>: 全寬 Tab bar，shadcn/ui
+<code>&lt;Tabs&gt;</code>，底部分隔線
+<code>border-b border-gray-200</code></li>
+<li><strong>elements</strong>:
+<ul>
+<li>tab_settlement: Tab / required / icon: Wallet / "結算管理" /
+預設選中</li>
+<li>tab_invoices: Tab / required / icon: FileText / "發票管理" /
+逾期發票數 &gt;0 時顯示紅色圓點通知</li>
+<li>tab_revenue: Tab / required / icon: BarChart3 / "營收報表"</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>active: 選中 Tab 底部 2px Primary 色
+<code>border-b-2 border-[#2563EB] text-[#2563EB]</code></li>
+<li>inactive: <code>text-gray-500 hover:text-gray-700</code></li>
+<li>badge: 發票 Tab 有紅色通知點時 <code>relative</code> + 右上角
+<code>absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full</code></li>
+</ul></li>
+<li><strong>copy_constraints</strong>: Tab 名稱最多 6 字</li>
+</ul>
+<hr />
+<h3 id="tab-1-結算管理">Tab 1: 結算管理</h3>
+<h3 id="section-settlement_period_selector">Section:
+settlement_period_selector</h3>
+<ul>
+<li><strong>layout</strong>:
+單列水平排列，<code>flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm border border-gray-200</code></li>
+<li><strong>elements</strong>:
+<ul>
+<li>month_selector: Select / required / 下拉選月份 / 格式 "2026年04月" /
+預設當月 / 可選過去 12 個月</li>
+<li>settlement_cycle: SegmentedControl / required / "月結（5號）" |
+"雙週結" | "週結" / 預設依系統設定</li>
+<li>period_summary: Text Body / required / "結算期間：{start_date} -
+{end_date}"</li>
+<li>total_amount_badge: Badge Large / required / "本期總額：NT$
+{amount}" /
+<code>bg-blue-50 text-[#2563EB] text-lg font-semibold px-4 py-2 rounded-lg</code></li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 顯示當月結算概覽</li>
+<li>loading: total_amount Skeleton</li>
+<li>changing: 切換月份時整個 Tab 內容 loading</li>
+</ul></li>
+</ul>
+<h3 id="section-settlement_table">Section: settlement_table</h3>
+<ul>
+<li><strong>layout</strong>: 全寬 DataTable，shadcn/ui
+<code>&lt;Table&gt;</code>，表頭固定 + 批次操作列</li>
+<li><strong>elements</strong>:
+<ul>
+<li>batch_action_bar: Toolbar / required /
+置於表格上方，<code>flex items-center gap-3 py-3</code>
+<ul>
+<li>select_all_checkbox: Checkbox / required / 全選/取消全選</li>
+<li>selected_count: Text / required / "已選取 {count}
+筆"（有選取時顯示）</li>
+<li>batch_confirm_btn: Button Primary / required / "批次確認" / 僅在選取
+draft 狀態項目時啟用</li>
+<li>batch_pay_btn: Button Secondary / required / "批次標記已付款" /
+僅在選取 confirmed 狀態項目時啟用</li>
+</ul></li>
+<li>settlement_rows: DataTable / required / 欄位如下：
+<ul>
+<li>col_checkbox: Checkbox / required / 行選取</li>
+<li>col_technician: AvatarText / required / 技師頭像 + 姓名 /
+可點擊跳轉至技師詳情頁</li>
+<li>col_period: Text / required / 結算期間 "MM/dd - MM/dd"</li>
+<li>col_total_earnings: Text Number / required / "NT$ {amount}" /
+由「工資 + 獎金 - 扣款」計算
+<ul>
+<li>hover Tooltip 顯示明細："工資 NT<span
+class="math inline"><em>a</em> + <em>獎</em><em>金</em><em>N</em><em>T</em></span>{b}
+- 扣款 NT${c}"</li>
+</ul></li>
+<li>col_labor: Text Number / required / 工資小計</li>
+<li>col_bonus: Text Number / required / 獎金小計 / 綠色
+<code>text-green-600</code></li>
+<li>col_penalty: Text Number / required / 扣款小計 / 紅色
+<code>text-red-600</code></li>
+<li>col_status: StatusBadge / required /
+<ul>
+<li>草稿（draft）：<code>bg-gray-100 text-gray-600</code> "草稿"</li>
+<li>已確認（confirmed）：<code>bg-blue-100 text-blue-700</code>
+"已確認"</li>
+<li>已付款（paid）：<code>bg-green-100 text-green-700</code>
+"已付款"</li>
+</ul></li>
+<li>col_actions: ActionButtons / required /
+<ul>
+<li>"查看明細" — 開啟 Settlement Detail Modal</li>
+<li>"確認" — 僅 draft 狀態顯示，PATCH 為 confirmed</li>
+<li>"標記已付款" — 僅 confirmed 狀態顯示，PATCH 為 paid</li>
+</ul></li>
+</ul></li>
+<li>table_footer: Row / required /
+合計列：總工資、總獎金、總扣款、總金額 /
+<code>font-semibold bg-gray-50</code></li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 顯示結算列表，奇偶行交替色</li>
+<li>hover: 整列 <code>bg-blue-50</code></li>
+<li>loading: 8 列 Skeleton rows</li>
+<li>empty: "本期無結算資料"</li>
+<li>error: ErrorState + 重試按鈕</li>
+<li>selected: 選取列 <code>bg-blue-100</code></li>
+<li>batch_processing: 批次操作中顯示進度列 "處理中... {n}/{total}"</li>
+</ul></li>
+<li><strong>copy_constraints</strong>: 金額格式統一為 "NT$ {三位一撇}"
+如 "NT$ 15,800"</li>
+</ul>
+<h3 id="section-settlement_detail_modal">Section:
+settlement_detail_modal</h3>
+<ul>
+<li><strong>layout</strong>: Modal 大型（max-w-3xl），shadcn/ui
+<code>&lt;Dialog&gt;</code>，可捲動</li>
+<li><strong>elements</strong>:
+<ul>
+<li>modal_title: H2 / required / "{technician_name} 結算明細 —
+{period}"</li>
+<li>summary_row: StatCards / required / 水平排列四張小卡
+<ul>
+<li>total_labor: "工資合計" + NT$ {amount}</li>
+<li>total_bonus: "獎金合計" + NT$ {amount} / 綠色</li>
+<li>total_penalty: "扣款合計" + NT$ {amount} / 紅色</li>
+<li>net_amount: "淨結算額" + NT$ {amount} /
+<code>text-lg font-bold</code></li>
+</ul></li>
+<li>order_breakdown_table: DataTable / required / 工單逐筆明細：
+<ul>
+<li>col_order_id: Link / required / 工單編號（可點擊跳轉）</li>
+<li>col_service_type: Badge / required / 服務類型</li>
+<li>col_commission_rate: Text / required / 佣金比例（一般維修 70% / 安裝
+60% / 客供材料 80%）</li>
+<li>col_order_amount: Text / required / 工單金額</li>
+<li>col_commission: Text / required / 佣金金額（= 工單金額 ×
+佣金比例）</li>
+</ul></li>
+<li>bonus_list: List / required / 獎金明細
+<ul>
+<li>"+NT$100 高評價獎金" — 評分 ≥ 4.8 的工單</li>
+<li>"+NT$50 快速完工獎金" — 比預估時間快 20% 以上</li>
+</ul></li>
+<li>penalty_list: List / required / 扣款明細
+<ul>
+<li>"-NT$500 重工扣款" — 同一問題二次維修</li>
+<li>"-NT$300 客訴扣款" — 收到客戶投訴</li>
+</ul></li>
+<li>final_amount: H3 / required / "最終結算金額：NT$ {amount}" /
+<code>text-[#2563EB] font-bold text-xl</code></li>
+<li>close_btn: Button Ghost / required / "關閉"</li>
+<li>print_btn: Button Secondary / optional / icon: Printer / "列印"</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 顯示完整明細</li>
+<li>loading: Modal 內容 Skeleton</li>
+<li>empty_bonus: 獎金區塊顯示 "本期無獎金"</li>
+<li>empty_penalty: 扣款區塊顯示 "本期無扣款"</li>
+</ul></li>
+</ul>
+<hr />
+<h3 id="tab-2-發票管理">Tab 2: 發票管理</h3>
+<h3 id="section-invoice_filter_bar">Section: invoice_filter_bar</h3>
+<ul>
+<li><strong>layout</strong>:
+單列水平排列，<code>flex flex-wrap items-center gap-3</code></li>
+<li><strong>elements</strong>:
+<ul>
+<li>search_input: Input / required / icon: Search / placeholder:
+"搜尋發票編號或客戶名稱..." / debounce 300ms</li>
+<li>status_filter: Select / required /
+選項：全部、待付款（pending）、已付款（paid）、爭議中（disputed）、逾期（overdue）/
+預設「全部」</li>
+<li>payment_method_filter: Select / optional /
+選項：全部、信用卡、銀行轉帳、超商付款</li>
+<li>date_range_filter: DateRangePicker / required / 預設本月</li>
+<li>overdue_only_toggle: Toggle / optional / "僅顯示逾期" /
+啟用時列表僅顯示逾期發票</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 所有篩選器預設值</li>
+<li>active: 有篩選時顯示清除按鈕</li>
+<li>loading: 下拉選項載入中</li>
+</ul></li>
+</ul>
+<h3 id="section-invoice_table">Section: invoice_table</h3>
+<ul>
+<li><strong>layout</strong>: 全寬 DataTable，shadcn/ui
+<code>&lt;Table&gt;</code></li>
+<li><strong>elements</strong>:
+<ul>
+<li>invoice_rows: DataTable / required / 欄位如下：
+<ul>
+<li>col_invoice_id: Text Code / required / 發票編號 / 等寬字體
+<code>font-mono</code></li>
+<li>col_work_order_id: Link / required / 關聯工單編號 / 可點擊跳轉</li>
+<li>col_customer_name: Text / required / 客戶名稱</li>
+<li>col_amount: Text Number / required / "NT$ {amount}"</li>
+<li>col_payment_status: StatusBadge / required /
+<ul>
+<li>待付款（pending）：<code>bg-yellow-100 text-yellow-700</code>
+"待付款"</li>
+<li>已付款（paid）：<code>bg-green-100 text-green-700</code>
+"已付款"</li>
+<li>爭議中（disputed）：<code>bg-purple-100 text-purple-700</code>
+"爭議中"</li>
+<li>逾期（overdue）：<code>bg-red-100 text-red-700</code> "逾期"</li>
+</ul></li>
+<li>col_payment_method: Text / required / 付款方式</li>
+<li>col_issued_at: Text / required / 開立日期 yyyy/MM/dd</li>
+<li>col_due_date: Text / required / 到期日 yyyy/MM/dd / 逾期時紅字</li>
+<li>col_actions: ActionButtons / required /
+<ul>
+<li>"檢視詳情" — 開啟發票詳情 Modal</li>
+<li>"重試付款" — 僅付款失敗發票顯示 / 附帶重試次數 "(已重試 {n}/3
+次)"</li>
+<li>"標記爭議" — 開啟爭議標記 Modal</li>
+</ul></li>
+</ul></li>
+<li>overdue_highlight: Row styling / required / 逾期發票整列紅色底色
+<code>bg-red-50 border-l-4 border-red-500</code></li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 顯示發票列表</li>
+<li>hover: 整列 <code>bg-blue-50</code>（逾期列 hover 為
+<code>bg-red-100</code>）</li>
+<li>loading: 8 列 Skeleton rows</li>
+<li>empty: "無符合條件的發票"</li>
+<li>error: ErrorState + 重試按鈕</li>
+<li>retry_processing: 重試按鈕顯示 Spinner + "重試中..."</li>
+<li>retry_exhausted: 已重試 3 次後按鈕 disabled + Tooltip
+"已達最大重試次數（3 次，每次間隔 24 小時），請聯繫技術支援"</li>
+</ul></li>
+<li><strong>copy_constraints</strong>: 發票編號最多 20
+字元，客戶名稱最多 30 字元</li>
+</ul>
+<hr />
+<h3 id="tab-3-營收報表">Tab 3: 營收報表</h3>
+<h3 id="section-revenue_kpi_cards">Section: revenue_kpi_cards</h3>
+<ul>
+<li><strong>layout</strong>: 1 行 4
+列等寬卡片，<code>grid grid-cols-4 gap-6</code>，Style D — 圖表驅動</li>
+<li><strong>elements</strong>:
+<ul>
+<li>monthly_revenue_card: KPICard / required /
+<ul>
+<li>label: "本月營收"</li>
+<li>value: "NT$ {amount}" / H2 / <code>text-[#2563EB]</code></li>
+<li>trend: 對比上月 +/-% / 上升綠 ↑ / 下降紅 ↓</li>
+<li>sparkline: Recharts mini line chart / 過去 7 天趨勢</li>
+<li>icon: DollarSign /
+<code>bg-blue-100 text-blue-600 p-2 rounded-lg</code></li>
+</ul></li>
+<li>avg_order_value_card: KPICard / required /
+<ul>
+<li>label: "平均工單金額"</li>
+<li>value: "NT$ {amount}"</li>
+<li>trend: 對比上月 %</li>
+<li>icon: Calculator /
+<code>bg-green-100 text-green-600 p-2 rounded-lg</code></li>
+</ul></li>
+<li>payment_success_card: KPICard / required /
+<ul>
+<li>label: "付款成功率"</li>
+<li>value: "{percentage}%"</li>
+<li>trend: 對比上月 %</li>
+<li>color_code: ≥95% 綠 / 90-94% 琥珀 / &lt;90% 紅</li>
+<li>icon: CheckCircle / 動態色碼背景</li>
+</ul></li>
+<li>outstanding_balance_card: KPICard / required /
+<ul>
+<li>label: "未收帳款"</li>
+<li>value: "NT$ {amount}" / 金額 &gt; 閾值時紅色</li>
+<li>sub_text: "共 {count} 筆未收"</li>
+<li>icon: AlertTriangle /
+<code>bg-amber-100 text-amber-600 p-2 rounded-lg</code></li>
+</ul></li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 四張 KPI 卡片正常顯示數值 + 趨勢</li>
+<li>loading: Skeleton（數值 + sparkline 區域）</li>
+<li>error: 個別卡片可獨立顯示 "載入失敗" + 重試 icon</li>
+</ul></li>
+</ul>
+<h3 id="section-revenue_charts">Section: revenue_charts</h3>
+<ul>
+<li><strong>layout</strong>: 上方一大圖 +
+下方兩欄圖，<code>grid gap-6</code>，每張圖表
+<code>bg-white rounded-xl shadow-sm border border-gray-200 p-6</code></li>
+<li><strong>elements</strong>:
+<ul>
+<li>time_granularity_selector: SegmentedControl / required / "日" | "週"
+| "月" / 預設「月」/ 置於圖表區上方</li>
+<li>date_range_picker: DateRangePicker / required / 預設過去 6 個月</li>
+<li>revenue_combo_chart: Recharts ComposedChart / required / 全寬
+<ul>
+<li>Bar: 營收金額 / <code>fill="#2563EB"</code></li>
+<li>Line: 工單數量（右軸）/ <code>stroke="#F59E0B"</code></li>
+<li>X 軸：時間（依粒度切換）</li>
+<li>Y 軸左：營收金額 NT$</li>
+<li>Y 軸右：工單數量</li>
+<li>Tooltip: 顯示日期 + 營收 + 工單數</li>
+<li>Legend: 「營收」+「工單數」</li>
+<li>標題："營收趨勢"</li>
+</ul></li>
+<li>brand_pie_chart: Recharts PieChart / required / 下方左欄
+<ul>
+<li>各品牌營收佔比</li>
+<li>色碼系列：Primary 衍生色階</li>
+<li>Label: 品牌名 + 百分比</li>
+<li>中央顯示總營收金額（Donut 樣式）</li>
+<li>標題："品牌營收佔比"</li>
+</ul></li>
+<li>service_type_breakdown: Recharts BarChart horizontal / required /
+下方右欄
+<ul>
+<li>水平長條圖</li>
+<li>分類：一般維修 / 安裝 / 客供材料維修 / 其他</li>
+<li>每個長條顯示金額 + 工單數</li>
+<li>色碼：一般維修 <code>#2563EB</code> / 安裝 <code>#F59E0B</code> /
+客供材料 <code>#10B981</code> / 其他 <code>#8B5CF6</code></li>
+<li>標題："服務類型營收分佈"</li>
+</ul></li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 三張圖表正常呈現</li>
+<li>loading: 圖表位置 Skeleton 方塊 + pulse 動畫</li>
+<li>empty: "選定期間無營收資料" + 調整日期範圍建議</li>
+<li>error: 個別圖表獨立錯誤 + 重試</li>
+<li>hover: Recharts Tooltip 互動，Pie chart sector 放大效果</li>
+<li>granularity_change: 切換日/週/月時圖表平滑動畫過渡（Recharts
+<code>animationDuration={500}</code>）</li>
+</ul></li>
+</ul>
+<h3 id="section-export_controls">Section: export_controls</h3>
+<ul>
+<li><strong>layout</strong>:
+右對齊，<code>flex justify-end gap-3 pt-4</code></li>
+<li><strong>elements</strong>:
+<ul>
+<li>export_csv_btn: Button Secondary / required / icon: FileDown / "匯出
+CSV"</li>
+<li>export_excel_btn: Button Secondary / required / icon:
+FileSpreadsheet / "匯出 Excel"</li>
+<li>export_scope_note: Text Caption / optional /
+"匯出範圍依當前篩選條件"</li>
+</ul></li>
+<li><strong>states</strong>:
+<ul>
+<li>default: 按鈕可用</li>
+<li>exporting: 按鈕 disabled + Spinner + "匯出中..."</li>
+<li>success: Toast "檔案已下載"</li>
+<li>error: Toast "匯出失敗，請重試"</li>
+<li>no_data: 按鈕 disabled + Tooltip "無資料可匯出"</li>
+</ul></li>
+</ul>
+<hr />
+<h2 id="interaction--state-flow">[INTERACTION &amp; STATE FLOW]</h2>
+<h3 id="主要互動流程">主要互動流程</h3>
+<ol type="1">
+<li><strong>頁面載入</strong> → 預設顯示「結算管理」Tab → 呼叫
+<code>GET /api/v1/settlements?month=current</code> → 表格渲染</li>
+<li><strong>切換 Tab</strong> → URL hash 同步（<code>#settlement</code>
+/ <code>#invoices</code> / <code>#revenue</code>）→ Lazy load 對應 Tab
+資料</li>
+<li><strong>結算 — 選擇月份</strong> → 切換月份下拉 → 重新呼叫
+settlements API → 表格更新</li>
+<li><strong>結算 — 查看明細</strong> → 點擊「查看明細」→ 開啟 Modal →
+呼叫明細 API → 顯示工單逐筆佣金</li>
+<li><strong>結算 — 單筆確認</strong> → 點擊「確認」→ 確認 Dialog
+"確定要確認 {name} 的結算？" →
+<code>PATCH /api/v1/settlements/{id}</code> body:
+<code>{ status: "confirmed" }</code> → Optimistic update Badge → 成功
+Toast / 失敗 rollback</li>
+<li><strong>結算 — 批次確認</strong> → 勾選多筆 draft →
+點擊「批次確認」→ 確認 Dialog "確定要批次確認 {n} 筆結算？" → 逐筆 PATCH
+→ 進度列顯示 → 全部完成 Toast / 部分失敗列出失敗項</li>
+<li><strong>結算 — 標記已付款</strong> → 同上流程，PATCH 為
+<code>{ status: "paid" }</code></li>
+<li><strong>發票 — 重試付款</strong> → 點擊「重試付款」→ 確認 Dialog →
+<code>POST /api/v1/invoices/{id}/retry</code> → 成功 Toast / 失敗 Toast
++ 更新重試次數 / 已達 3 次上限時 disabled</li>
+<li><strong>營收 — 切換粒度</strong> → 點擊日/週/月 → 重新呼叫
+<code>GET /api/v1/reports/revenue?granularity=daily|weekly|monthly</code>
+→ 圖表動畫更新</li>
+<li><strong>營收 — 匯出</strong> → 點擊匯出按鈕 →
+<code>GET /api/v1/reports/revenue/export?format=csv|xlsx</code> →
+瀏覽器下載檔案</li>
+</ol>
+<h3 id="rwd-行為差異">RWD 行為差異</h3>
+<table>
+<thead>
+<tr>
+<th>斷點</th>
+<th>佈局</th>
+<th>差異說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Desktop (≥1280px)</td>
+<td>Tab 水平排列 / KPI 4 欄 / 圖表上1下2</td>
+<td>完整體驗</td>
+</tr>
+<tr>
+<td>Tablet (768-1279px)</td>
+<td>Tab 水平排列 / KPI 2×2 / 圖表全部垂直堆疊</td>
+<td>結算表格隱藏 labor/bonus/penalty 分項欄</td>
+</tr>
+<tr>
+<td>Mobile (&lt;768px)</td>
+<td>Tab 改為下拉選擇 / KPI 單欄堆疊 / 表格改卡片列表</td>
+<td>匯出按鈕移至頁面底部固定列</td>
+</tr>
+</tbody>
+</table>
+<h3 id="資料更新策略">資料更新策略</h3>
+<ul>
+<li>結算資料：手動操作時更新，<code>staleTime: 60_000</code></li>
+<li>發票列表：<code>staleTime: 30_000</code>，切換篩選時 refetch</li>
+<li>營收報表：<code>staleTime: 300_000</code>（5
+分鐘），圖表資料較穩定</li>
+<li>KPI 卡片：<code>staleTime: 60_000</code>，每次進入 Tab 時
+refetch</li>
+</ul>
+<hr />
+<h2 id="data--api">[DATA &amp; API]</h2>
+<ul>
+<li><strong>uses_api</strong>: true</li>
+<li><strong>endpoints</strong>:
+<ul>
+<li>GET <code>/api/v1/settlements</code> — 取得結算列表
+<ul>
+<li>Query params: <code>month</code> (yyyy-MM), <code>cycle</code>
+(monthly|biweekly|weekly), <code>status</code> (draft|confirmed|paid),
+<code>page</code>, <code>limit</code></li>
+<li>Response:
+<code>{ data: Settlement[], total: number, summary: { total_labor, total_bonus, total_penalty, net_total } }</code></li>
+</ul></li>
+<li>GET <code>/api/v1/settlements/{id}</code> — 取得結算明細
+<ul>
+<li>Response:
+<code>{ id, technician, period, orders: [{ order_id, service_type, commission_rate, order_amount, commission }], bonuses: [{ type, amount, description, order_id? }], penalties: [{ type, amount, description, order_id? }], net_amount }</code></li>
+</ul></li>
+<li>PATCH <code>/api/v1/settlements/{id}</code> — 更新結算狀態
+<ul>
+<li>Body: <code>{ status: "confirmed" | "paid" }</code></li>
+</ul></li>
+<li>GET <code>/api/v1/invoices</code> — 取得發票列表
+<ul>
+<li>Query params: <code>status</code>, <code>payment_method</code>,
+<code>date_from</code>, <code>date_to</code>, <code>search</code>,
+<code>page</code>, <code>limit</code></li>
+<li>Response: <code>{ data: Invoice[], total: number }</code></li>
+</ul></li>
+<li>POST <code>/api/v1/invoices/{id}/retry</code> — 重試發票付款
+<ul>
+<li>Response:
+<code>{ success: boolean, retry_count: number, next_retry_at?: string }</code></li>
+<li>規則：最多 3 次重試，每次間隔 24 小時</li>
+</ul></li>
+<li>GET <code>/api/v1/reports/revenue</code> — 取得營收報表資料
+<ul>
+<li>Query params: <code>granularity</code> (daily|weekly|monthly),
+<code>date_from</code>, <code>date_to</code></li>
+<li>Response:
+<code>{ timeseries: [{ date, revenue, order_count }], by_brand: [{ brand, revenue, percentage }], by_service_type: [{ type, revenue, order_count }] }</code></li>
+</ul></li>
+<li>GET <code>/api/v1/reports/kpi-dashboard</code> — 取得 KPI 資料
+<ul>
+<li>Response:
+<code>{ monthly_revenue: { value, trend_pct }, avg_order_value: { value, trend_pct }, payment_success_rate: { value, trend_pct }, outstanding_balance: { value, count } }</code></li>
+</ul></li>
+<li>GET <code>/api/v1/reports/revenue/export</code> — 匯出營收報表
+<ul>
+<li>Query params: <code>format</code> (csv|xlsx),
+<code>date_from</code>, <code>date_to</code>,
+<code>granularity</code></li>
+<li>Response: File download (binary)</li>
+</ul></li>
+</ul></li>
+<li><strong>Zustand Store</strong>:
+<ul>
+<li><code>useAccountingStore</code>: 管理當前
+Tab、月份選擇、結算批次選取狀態</li>
+</ul></li>
+<li><strong>error_cases</strong>:
+<ul>
+<li>網路錯誤：Toast "網路連線異常，請檢查網路設定" + TanStack Query
+自動重試 3 次</li>
+<li>API 409（結算狀態衝突）：Toast "結算狀態已變更，請重新整理" + 自動
+refetch</li>
+<li>API 422（無效操作）：Toast
+"操作無效：{error_message}"，如嘗試對已付款項重新確認</li>
+<li>付款重試失敗：Toast "付款重試失敗：{reason}" + 更新重試計數</li>
+<li>匯出超時：Toast
+"資料量過大，匯出處理中，完成後將寄送至您的信箱"</li>
+<li>權限不足（403）：操作按鈕 disabled + Tooltip "您沒有此操作權限"</li>
+</ul></li>
+</ul>
+<hr />
+<h2 id="exception-to-global-rules">[EXCEPTION TO GLOBAL RULES]</h2>
+<ul>
+<li>結算明細 Modal 允許超大寬度 <code>max-w-3xl</code>（Global 預設
+Modal 為 <code>max-w-lg</code>）</li>
+<li>營收報表 Tab 的圖表區域不受 Global
+最大內容寬度限制，允許全寬呈現</li>
+<li>匯出功能直接觸發瀏覽器下載，不走 Toast
+成功提示（改用下載進度指示）</li>
+</ul>
+<hr />
+<h2 id="acceptance-criteria">[ACCEPTANCE CRITERIA]</h2>
+<ul class="task-list">
+<li><p><label><input type="checkbox" />三個 Tab 切換正常，URL hash
+同步，直接輸入 hash URL 可跳至對應 Tab</label></p></li>
+<li><p><label><input type="checkbox" />結算管理 —
+月份選擇切換正常，表格資料對應正確</label></p></li>
+<li><p><label><input type="checkbox" />結算管理 —
+合計列正確計算所有列的工資、獎金、扣款、總額</label></p></li>
+<li><p><label><input type="checkbox" />結算管理 — 單筆確認/標記已付款
+Optimistic update + 成功/失敗回饋</label></p></li>
+<li><p><label><input type="checkbox" />結算管理 —
+批次操作含進度列，部分失敗有明確提示</label></p></li>
+<li><p><label><input type="checkbox" />結算明細 Modal —
+佣金比例正確（一般維修 70%、安裝 60%、客供材料 80%）</label></p></li>
+<li><p><label><input type="checkbox" />結算明細 Modal —
+獎金規則正確（+NT<span
+class="math inline">100<em>高</em><em>評</em><em>價</em>、 + <em>N</em><em>T</em></span>50
+快速完工）</label></p></li>
+<li><p><label><input type="checkbox" />結算明細 Modal —
+扣款規則正確（-NT<span
+class="math inline">500<em>重</em><em>工</em>、 − <em>N</em><em>T</em></span>300
+客訴）</label></p></li>
+<li><p><label><input type="checkbox" />發票管理 — 逾期發票紅色底色 +
+左側紅色邊框正確顯示</label></p></li>
+<li><p><label><input type="checkbox" />發票管理 — 重試付款最多 3
+次，每次間隔 24 小時，達上限後 disabled</label></p></li>
+<li><p><label><input type="checkbox" />發票 Tab
+有逾期發票時顯示紅色通知點</label></p></li>
+<li><p><label><input type="checkbox" />營收報表 — 四張 KPI
+卡片數值、趨勢、色碼正確</label></p></li>
+<li><p><label><input type="checkbox" />營收報表 — 營收趨勢圖 Bar + Line
+combo 正常，日/週/月切換有動畫</label></p></li>
+<li><p><label><input type="checkbox" />營收報表 — 品牌 Pie chart Donut
+樣式，中央顯示總額</label></p></li>
+<li><p><label><input type="checkbox" />營收報表 — 服務類型水平 Bar chart
+色碼正確</label></p></li>
+<li><p><label><input type="checkbox" />匯出 CSV / Excel
+功能正常，檔案內容正確</label></p></li>
+<li><p><label><input type="checkbox" />所有金額格式 "NT$
+{三位一撇}"</label></p></li>
+<li><p><label><input type="checkbox" />所有 Section 具備 loading / error
+/ empty 三態</label></p></li>
+<li><p><label><input type="checkbox" />RWD
+三個斷點佈局正確</label></p></li>
+<li><p><label><input type="checkbox" />首次載入效能 &lt; 2
+秒</label></p></li>
+<li><p><label><input type="checkbox" />符合 Design System
+視覺規範（Primary #2563EB、Accent #F59E0B、Secondary #1E293B、BG
+#F8FAFC、Font Inter + Noto Sans TC）</label></p></li>
+</ul>
+<hr />
+<h2 id="導航與狀態-navigation--state">導航與狀態 (Navigation &amp;
+State)</h2>
+<p>完整 Upstream / Downstream / State Persistence / Error Navigation
+規範見
+<code>docs/02-design/E5x--frontend-navigation-matrix.md §附錄 A</code>（本檔對應段落）。</p>
+<p>本 spec 覆蓋的 IA 頁面依 <code>MAPPING.md §2</code> 查找。</p>
+</div></div></body></html>

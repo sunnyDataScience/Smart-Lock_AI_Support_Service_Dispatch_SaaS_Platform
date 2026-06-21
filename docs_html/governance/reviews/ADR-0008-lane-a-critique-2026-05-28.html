@@ -1,0 +1,315 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Lane A Critique: ADR-0008 product-info-architecture-canonical</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ governance ／ reviews ／ ADR-0008-lane-a-critique-2026-05-28.md</div>
+<div class="doc"><h1
+id="lane-a-critique-adr-0008-product-info-architecture-canonical">Lane A
+Critique: ADR-0008 product-info-architecture-canonical</h1>
+<blockquote>
+<p>Date: 2026-05-28 | Intensity: standard | Personas: arch + sa
+Reviewer: <code>devteam-arch-persona</code> +
+<code>devteam-sa-persona</code> (merged by
+<code>devteam-orchestrator</code>) Reviewed against: final spec
+2026-05-20 (<code>docs/_source/01-workorder-erp.md</code> §M03 / §M10 /
+§M14) Trigger: ADR-0100 §1 row 8 — initial classification
+<code>REVIEW_REQUIRED</code> Protocol: KB-05 §Persona Agent 標準 Prompt
++ Q4=C (Roundtable A 2026-05-27)</p>
+</blockquote>
+<hr />
+<h2 id="scope-correction先校正提問範圍">Scope
+correction（先校正提問範圍）</h2>
+<p>業主 prompt 提到「M03 (Brand/Project/Site Master)」，但 final spec
+2026-05-20 §M03 = <strong>AI ProblemCard / AI Service
+Triage</strong>，不是 master data。實際的 brand / project / site
+hierarchy 分布在：</p>
+<ul>
+<li><strong>§M10 Product BOM</strong> — Brand / Model / BOM / Inventory
+/ Serial Control（BR-M10-01 two-layer BOM、BR-M10-02 material
+ownership、BR-M10-03 serial control）</li>
+<li><strong>§M14 Partner Portal</strong> — Brand / Dealer / Builder /
+Project / Site / Unit hierarchy（BR-M14-01 partner scope、BR-M14-02
+builder project setup）</li>
+<li><strong>§M02 客戶地址設備</strong> — Device-to-Customer 綁定（serial
+→ 保固 → customer site）</li>
+</ul>
+<p>下方 critique 以 M10 + M14 + M02 為對照基準（M03 在此案無相關 catalog
+變動）。</p>
+<hr />
+<h2 id="arch-critique">Arch Critique</h2>
+<p>ADR-0008 鎖的是 <strong>agent runtime knowledge base 的 mega-doc
+格式</strong>（<code>agent/product_info/{Brand}/{Model}.md</code> +
+<code>load_product_info</code> tool + <code>[可用產品資料]</code> prompt
+block），bounded context 屬於 <strong>A03 Skill-Gated ReAct Agent / A04
+RAG Pipeline</strong>。Final spec M10 鎖的是 <strong>ERP 端 Product
+Master / BOM / Inventory bounded context</strong>，兩者不是同一個
+BC，因此「直接覆寫」不成立 — ADR-0008 的 core decision（mega-doc
+canonical for agent KB）在 A03/A04 scope 內仍 hold。</p>
+<p>但 NFR 與 failure mode 層面有三個破口需要點明：</p>
+<ol type="1">
+<li><strong>Data lineage 未定義</strong>：M10 引入 brand master /
+two-layer BOM / material ownership / serial 為 ERP 端 source of
+truth；ADR-0008 把 <code>agent/product_info/*.md</code> 視為「knowledge
+canonical」，但<strong>沒寫</strong>這份 mega-doc 跟 M10 master
+的同步契約（手動 curate？ETL 從 M10 dump？trigger 條件？stale window
+NFR？）。一旦 M10 主檔更新，agent 端是否 stale → blast radius 涵蓋整個
+AI 客服回答正確性。</li>
+<li><strong>Boundary 漂移</strong>：ADR-0008 ⓪a 自承本 ADR 在
+<code>main</code>/<code>dev</code> 為 SUPERSEDED、僅在已 archive 的
+<code>refactor/agent-port</code> REINSTATED；ADR-0100 §1 把它劃為
+<code>M10 scope</code> 也與其原 scope（agent runtime）錯位。Boundary
+不一致是 ADR governance 的 anti-pattern，必須整治。</li>
+<li><strong>Multi-tenant blast radius 未處理</strong>：M14 引入
+brand-scoped / project-scoped 資料邊界（BR-M14-01 partner 只能看自己
+case；G007 brand 資料邊界），但 ADR-0008 的 mega-doc 是 <strong>flat
+brand/model</strong>，沒有 project / partner scope 維度。若 agent 在
+partner portal 場景被叫用，prompt 注入的 <code>[可用產品資料]</code>
+清單會跨越 tenant 邊界 → potential PII / business confidentiality
+leak。</li>
+</ol>
+<p>建議：ADR-0008 boundary 重新標
+<code>bounded_context: A03/A04 agent runtime KB</code>（不是
+M10），同時開新 ADR 補 data lineage + multi-tenant scope。</p>
+<hr />
+<h2 id="sa-critique">SA Critique</h2>
+<p>從 use case 完整性看，ADR-0008 原 §1 決議涵蓋的場景是「<strong>LLM
+接到客戶 query → 依 brand/model 載入 mega-doc → 回答</strong>」，對應的
+actor = customer + chatbot；precondition = brand/model
+已識別；postcondition = 客戶得到型號相關回答。Final spec 後，這個 happy
+path use case <strong>仍可驗收</strong>（quality_check 67
+案例可繼續跑）。</p>
+<p>但 final spec 衍生出 4 條新 use case ADR 沒涵蓋，逐條 acceptance
+都有缺口：</p>
+<ol type="1">
+<li><strong>UC-new-1 多品牌混搭安裝場景</strong>（Q082 Q083 material
+owner 可是 brand / company / locksmith / customer）：客戶問「我的
+Chatlock 主鎖配大內高手把手相容嗎？」— actor = customer + chatbot；目前
+mega-doc 是單品牌單型號文件，<strong>沒有 cross-brand compatibility
+章節</strong>，acceptance 無法驗收。</li>
+<li><strong>UC-new-2 序號驗保固查詢</strong>（BR-M10-03 + Q085
+主鎖/保固件須 serial 綁 WorkOrder）：客戶問「我這顆序號 SN-XXX
+還在保固嗎？」— actor = customer + chatbot + ERP；precondition = serial
+已建檔；postcondition = 回傳保固狀態。mega-doc 是 static
+knowledge，<strong>serial → warranty 是 ERP 動態查詢</strong>，ADR-0008
+工具集（<code>load_product_info</code> / <code>update_user_info</code> /
+<code>transfer_to_human</code>）<strong>沒有 serial lookup
+tool</strong>，這條 use case 直接不可驗收。</li>
+<li><strong>UC-new-3 建商專案戶別查詢</strong>（BR-M14-02 builder
+project + site group + unit list + handover date）：客戶問「我住三民社區
+1502，我家門鎖是哪一型？」— actor = builder customer +
+chatbot；precondition = 客戶綁 project + unit；postcondition = 回傳該
+unit 配的 model + 點交日 + 保固起算。mega-doc flat 結構<strong>沒有
+project → unit → model 反查路徑</strong>，acceptance 缺 alternative
+flow（unknown unit、未點交、跨建商）。</li>
+<li><strong>UC-new-4 客製 SKU / 改鑄品</strong>（G035
+替代料與相容性、Q081 兩層 BOM only）：建商案常見的 OEM rebadged
+鎖，型號不在 standard catalog 內。ADR-0008 mega-doc 是 enumerable model
+list，<strong>edge case：型號不存在於 product_info/ 時的
+fallback</strong> 沒定義 — 應該 transfer_to_human？回 "查無此型號"？目前
+acceptance 沒寫。</li>
+</ol>
+<p>加上原 ADR §4.3 CI guard「待補」、§4.4 quality_check 67 案例 baseline
+在 final spec 後<strong>沒重測</strong>，可驗收性實質下降。</p>
+<hr />
+<h2 id="orchestrator-merge">Orchestrator Merge</h2>
+<h3 id="consensus兩-persona-一致">Consensus（兩 persona 一致）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">#</th>
+<th style="text-align: left;">共識點</th>
+<th style="text-align: left;">arch 視角</th>
+<th style="text-align: left;">SA 視角</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">C1</td>
+<td style="text-align: left;">ADR-0008
+<strong>核心決議</strong>（mega-doc canonical for agent KB）<strong>未被
+final spec 直接覆寫</strong></td>
+<td style="text-align: left;">A03/A04 BC 與 M10 ERP BC 不同</td>
+<td style="text-align: left;">UC-happy-path 仍可驗收</td>
+</tr>
+<tr>
+<td style="text-align: left;">C2</td>
+<td style="text-align: left;"><strong>Multi-tenant / project scope
+是新缺口</strong></td>
+<td style="text-align: left;">M14 brand/project boundary → mega-doc flat
+結構潛在 leak</td>
+<td style="text-align: left;">UC-new-3 建商專案戶別查詢無
+acceptance</td>
+</tr>
+<tr>
+<td style="text-align: left;">C3</td>
+<td style="text-align: left;"><strong>Serial / dynamic lookup
+不在原工具集</strong></td>
+<td style="text-align: left;">ADR §1 工具集只有 3 個 static / write
+tool</td>
+<td style="text-align: left;">UC-new-2 serial→warranty 不可驗收</td>
+</tr>
+<tr>
+<td style="text-align: left;">C4</td>
+<td style="text-align: left;"><strong>ADR boundary 應重標</strong></td>
+<td style="text-align: left;">原 ADR 鎖 agent runtime，不是 M10
+ERP；ADR-0100 §1 標 M10 有誤</td>
+<td style="text-align: left;">use case actor 含 ERP integration，spec
+應明文</td>
+</tr>
+<tr>
+<td style="text-align: left;">C5</td>
+<td style="text-align: left;"><strong>ADR-0008 自身 status
+矛盾需整治</strong></td>
+<td style="text-align: left;">main/dev = SUPERSEDED，refactor/agent-port
+= REINSTATED；governance anti-pattern</td>
+<td style="text-align: left;">（非 SA 主視角，但同意阻擋驗收）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="conflict-points">Conflict points</h3>
+<p>無實質衝突。Arch 強調 NFR / boundary / blast radius，SA 強調 use case
+/ acceptance；兩者在 C1-C5 互補無對撞。<code>conflicts_count = 0</code>
+→ 不觸發 Lane B 升級。</p>
+<h3 id="final-判定">Final 判定</h3>
+<p>依 KB-04 §ADR Supersede Chain 規則 + Roundtable A Q4=C：</p>
+<ul>
+<li>ADR-0008 <strong>原 §1 主體決議</strong>（mega-doc 為 agent KB
+唯一正典格式）<strong>未被覆寫</strong> → 不是 SUPERSEDE</li>
+<li>ADR-0008 <strong>沒涵蓋的 4 條新 use case + 3 條 NFR 缺口</strong> →
+不是純 STILL_VALID</li>
+<li>結論 = <strong>PARTIAL</strong></li>
+</ul>
+<hr />
+<h2 id="verdict">Verdict</h2>
+<ul>
+<li><strong>Status</strong>: <strong>PARTIAL</strong></li>
+<li><strong>Valid 段（標
+<code>Reviewed_Still_Valid_Under_A03/A04</code>）</strong>：
+<ul>
+<li>§1 mega-doc canonical
+格式（<code>agent/product_info/{Brand}/{Model}.md</code>）</li>
+<li>§1 工具集對既有 happy path use case
+的工具切分（<code>load_product_info</code> /
+<code>update_user_info</code> / <code>transfer_to_human</code>）</li>
+<li>§1 系統 prompt 約束（<code>[可用產品資料]</code> /
+<code>load_product_info</code> 文字）</li>
+<li>§2 mega-doc vs SKILL.md trade-off 論證</li>
+<li>§3 反 revert 立場（拒絕重新引入 skills/）</li>
+<li>§4.1 模組路徑禁區</li>
+<li>§4.4 quality_check baseline（但 67 案例需依 final spec 重測）</li>
+</ul></li>
+<li><strong>Supersede 段（需另開新 ADR）</strong>：
+<ul>
+<li><strong>§1 工具集封閉性</strong> —「3 個 tool 已足夠」的隱含命題在
+UC-new-2 / UC-new-3 不成立；需加 dynamic lookup tool（serial / project /
+warranty）</li>
+<li><strong>§1 mega-doc 結構維度</strong> —「Brand/Model 雙層」在
+UC-new-3 不夠（缺 Project/Site/Unit 維度）、UC-new-1 不夠（缺
+cross-brand compatibility 章節）</li>
+<li><strong>§5 例外清單</strong> — 未涵蓋 multi-tenant data scope
+governance（M14 / BR-M14-01 / G007）</li>
+</ul></li>
+</ul>
+<h3 id="new-adr-內容大綱不寫完整只列章節骨架">New ADR
+內容大綱（不寫完整，只列章節骨架）</h3>
+<p><strong>ADR-0101 — Agent Knowledge Base × Final Spec Integration
+Contract</strong></p>
+<ol type="1">
+<li>Context
+<ul>
+<li>ADR-0008 鎖 agent KB mega-doc canonical；final spec M10/M14/M02 引入
+ERP 端 brand/project/serial 主檔</li>
+<li>跨 BC 同步契約與 multi-tenant scope 在 ADR-0008 留白</li>
+</ul></li>
+<li>Decision
+<ul>
+<li><strong>2.1 Data Lineage</strong>：M10 master → agent mega-doc
+同步策略（pull-based ETL / event-driven / 手動 curate 三選一），含 stale
+SLA</li>
+<li><strong>2.2 Tool Extension</strong>：補 dynamic lookup
+tool（serial→warranty、project→unit→model、cross-brand
+compatibility），不破 ADR-0008 §4.1 路徑禁區</li>
+<li><strong>2.3 Multi-tenant Scope</strong>：agent 在 partner portal
+場景的 <code>[可用產品資料]</code> 注入規則 — 依 caller tenant
+過濾（對齊 ADR-0030 tenant-id-propagation）</li>
+<li><strong>2.4 Custom SKU Fallback</strong>：mega-doc
+無此型號時的處理（transfer_to_human + log + 補 KB ticket）</li>
+</ul></li>
+<li>Consequences
+<ul>
+<li>ADR-0008 標
+<code>partially superseded by ADR-0101 §2.1-§2.4</code>，其餘段落
+<code>Reviewed_Still_Valid_Under_A03/A04</code></li>
+<li>quality_check 67 案例需擴充至涵蓋 UC-new-1~4</li>
+</ul></li>
+<li>Boundary 重新標
+<ul>
+<li>ADR-0008
+<code>bounded_context: agent runtime KB (A03/A04)</code></li>
+<li>ADR-0008 不是 M10 owner，ADR-0100 §1 row 8 module_scope 從
+<code>M10</code> 改為
+<code>A03/A04 (interface with M10/M14/M02)</code></li>
+</ul></li>
+<li>Status 整治
+<ul>
+<li>ADR-0008 frontmatter <code>status</code> 從目前混亂的「SUPERSEDED on
+main / REINSTATED on archived
+branch」整治成單一狀態：<code>status: partially_superseded</code>、<code>superseded_by: ADR-0101 (§2.1-§2.4)</code>、<code>reviewed_against: 2026-05-20 final spec</code>、<code>scope_clarification: agent runtime KB only, not ERP master data</code></li>
+</ul></li>
+</ol>
+<hr />
+<h2 id="recommended-next">Recommended Next</h2>
+<ol type="1">
+<li><p><strong>ADR-0008 自身</strong>：</p>
+<ul>
+<li>在 <code>🔄 Migration Status</code> block 把
+<code>REVIEW_REQUIRED (Lane A critique pending — A2.4)</code> 改為
+<code>PARTIAL — partially superseded by ADR-0101 (§2.1-§2.4 pending draft); core §1 mega-doc canonical reviewed_still_valid under A03/A04</code></li>
+<li>補 <code>scope_clarification</code> 段，明文：本 ADR 鎖 agent
+runtime KB，不是 ERP M10 master data；M10 master 是 source of
+truth，product_info mega-doc 是 derived view</li>
+<li>不動 §1-§5 原文（保留歷史 audit trail），只在 frontmatter /
+Migration Status block 加註</li>
+</ul></li>
+<li><p><strong>ADR-0100 §1 row 8 修正</strong>：</p>
+<ul>
+<li><code>Initial Classification</code> 從 <code>REVIEW_REQUIRED</code>
+改 <code>PARTIAL_SUPERSEDE</code> 並補註「(2026-05-28 Lane A
+done)」</li>
+<li><code>Module Scope</code> 從 <code>M10</code> 改
+<code>A03/A04 (interface with M10/M14/M02)</code></li>
+<li><code>Notes</code> 補：「Lane A critique 2026-05-28：core mega-doc
+canonical still valid；data lineage + multi-tenant scope + dynamic
+lookup tool 三大缺口走 ADR-0101」</li>
+<li>§2 統計表 SUPERSEDE 由 0 改為 0 + 1 PARTIAL（或新增
+PARTIAL_SUPERSEDE 欄位，建議業主先答 OQ-100-1）</li>
+<li>§2 REVIEW_REQUIRED 進度表 row 1 標 <code>✅ 2026-05-28 done</code> →
+<code>PARTIAL_SUPERSEDE</code>，rel link 指向本 critique report</li>
+</ul></li>
+<li><p><strong>後續 driver dispatch</strong>（不在本 critique
+範圍，但列給 router）：</p>
+<ul>
+<li><code>devteam-arch</code> 起草 ADR-0101 draft（含 4 個 decision
+段大綱已列）</li>
+<li><code>devteam-analyst</code> 把 UC-new-1~4 寫成 FR 殼（A03/A04 系列
+FR 中）</li>
+<li><code>devteam-qa</code> 把 UC-new-1~4 加入 quality_check 67
+案例擴充清單</li>
+</ul></li>
+</ol>
+<hr />
+<p><strong>End of critique</strong></p>
+</div></div></body></html>

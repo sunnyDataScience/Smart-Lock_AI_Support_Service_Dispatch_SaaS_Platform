@@ -1,0 +1,1899 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>PRD — 智慧鎖 AI 客服與派工平台</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ prd ／ smart-lock-saas.md</div>
+<div class="doc"><h1 id="prd--智慧鎖-ai-客服與派工平台">PRD — 智慧鎖 AI
+客服與派工平台</h1>
+<blockquote>
+<p><strong>狀態</strong>：v2.3 — Final Spec 2026-05-20 Adoption +
+Chatbot Phase Scope Finalize（v2.2 內容保留，新增 §E 對齊章節）
+<strong>更新</strong>：2026-05-28（v2.3 — Roundtable B + A4 chatbot KPI
+cascade）/ 2026-05-27（v2.3 §E baseline）/ 2026-05-24（v2.2）
+<strong>負責人</strong>：PM <strong>版本</strong>：v2.3（吸收 2026-05-20
+final spec — M01-M20 ERP + A01-A12 Chatbot + S M01-M06 Sync；roundtable
+2026-05-27 + 2026-05-28 共識 + 業主 Q1-Q4 / Q-OF1-Q-OF2 全採納建議；補
+Chatbot Phase I/II 5 條 KPI counter-metric）</p>
+<p><strong>🆕 v2.3 新增</strong>：本 PRD 範圍從「智慧鎖 AI
+客服與派工平台」（M01/M03/M06 子集）擴大成 <strong>全 M01-M20 ERP +
+Chatbot + Sync 三向矩陣</strong>。詳見末段 <strong>§E Final Spec
+2026-05-20 Adoption</strong>。v2.2 內容全部保留作 audit trail（治理模式
+D2 supersede policy），不刪除。</p>
+<p><strong>🔗 Source spec</strong>: <a
+href="../_source/01-workorder-erp.md"><code>docs/_source/01-workorder-erp.md</code></a>
+· <a
+href="../_source/02-ai-chatbot-sync.md"><code>docs/_source/02-ai-chatbot-sync.md</code></a>
+<strong>🔗 Roundtable MoM</strong>: <a
+href="../../.claude/context/devteam/meetings/2026-05-27-1130-final-spec-migration-strategy/MoM.md">Roundtable
+A 2026-05-27 final-spec-migration-strategy</a> · <a
+href="../../.claude/context/devteam/meetings/2026-05-28-1200-user-flow-IA-strategy/MoM.md">Roundtable
+B 2026-05-28 user-flow-IA-strategy</a> <strong>🔗 Cross-ref</strong>: <a
+href="../architecture/adr/ADR-0067-m18-runtime-config-governance.md">ADR-0067
+M18 Runtime Config Governance</a>（Phase 0 critical path）</p>
+</blockquote>
+<hr />
+<h2 id="clipboard-一頁讀完業主--pm-主看這段">📋 一頁讀完（業主 / PM
+主看這段）</h2>
+<blockquote>
+<p><strong>30 秒摘要</strong>：把電子鎖售後從「靠老師傅腦袋」變成「LINE
+進來、AI 接、結構化資料、可分潤」。V1.0 上線 AI 客服（W17）、V2.0
+接上派工帳務（W31）。一句話爭議：<strong>AI
+不能亂承諾，合約紅線一條都不能破</strong>，這兩件 V1.0 內必須做完。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">結論</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>這次解什麼問題</strong></td>
+<td
+style="text-align: left;">售後服務沒人標準化，新客服要訓幾個月、對帳要吵半個月、派錯案件就賠錢</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>使用者是誰</strong></td>
+<td style="text-align: left;">LINE 上的消費者（V1 同時 50 人 / V2 100 人
+/ 3-5 年 30 萬戶）/ 簽約師傅（V2 目標 500 人 / 22 縣市）/ 客服 + 管理員
+/ 家族覆核員（合約規定的稽核角色）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>要做到什麼</strong></td>
+<td style="text-align: left;">AI 準確率 ≥ 80% · 自助解決率 ≥ 60% · 接單
+SLA 10/5 分 · 系統不掉線 95%</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>最大風險</strong></td>
+<td style="text-align: left;">合約 4.4 條沒過 → 甲方可終止合約 →
+現金流斷。這條 V1 必交</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>下一步</strong></td>
+<td style="text-align: left;">開發團隊接手
+<code>specs/smart-lock-saas/handoff.md</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="dart-為什麼要做這個">🎯 為什麼要做這個</h2>
+<p><strong>現況</strong>：客服全靠老師傅。LINE
+訊息湧進來，人工一條一條問品牌、型號、地址，問完還要紙本記、Excel
+對帳、電話催收。新人要 3
+個月才上手，師傅、客戶、品牌方一個月吵一次帳。</p>
+<p><strong>做了能省什麼</strong>：</p>
+<ol type="1">
+<li>自助解決率拉到 60%，客服人力直接省 60%</li>
+<li>月結對帳從 3 天降到 4 小時</li>
+<li>第二個甲方來簽約時，不用重寫系統（多甲方架構先做）</li>
+<li>SOP 沉澱到平台，老師傅離職也帶不走 know-how</li>
+</ol>
+<p><strong>不做會死什麼</strong>：</p>
+<ul>
+<li><strong>合規崩潰</strong>（最大）：合約 4.4 條規定情緒識別 ≥ 90% /
+個資保留期 / 家族覆核紀錄，這些沒做 → 甲方可依合約終止</li>
+<li><strong>AI 越權</strong>：AI
+哪天答應客人「免費保固」，截圖一傳，品牌就賠</li>
+<li><strong>資料沒沉澱</strong>：3 年後資料都是 raw log，被大廠 vertical
+agent 取代</li>
+</ul>
+<hr />
+<h2 id="bar_chart-kpi-怎麼衡量">📊 KPI 怎麼衡量</h2>
+<blockquote>
+<p>全部都要可量化、有觀測週期、有副指標（counter-metric）防 gaming。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">編號</th>
+<th style="text-align: left;">指標</th>
+<th style="text-align: left;">目標</th>
+<th style="text-align: left;">怎麼量</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>K1</strong></td>
+<td style="text-align: left;">AI 準確率</td>
+<td style="text-align: left;">≥ 80%</td>
+<td style="text-align: left;">50 題標準集（甲方提供），UAT 跑一次 +
+每月回歸</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K2</strong></td>
+<td style="text-align: left;">自助解決率</td>
+<td style="text-align: left;">≥ 60%（上線 3 個月後）</td>
+<td style="text-align: left;">看對話日誌，分母排除急件硬轉真人；W8
+量基準線、上線前重校</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K3</strong> (v2.2 改
+counter-metric)</td>
+<td style="text-align: left;">家族覆核履約 — 改 event log 不阻擋 +
+retrospective dispute</td>
+<td style="text-align: left;">event log 完整率 ≥ <strong>95%</strong> +
+retrospective dispute rate ≤ <strong>3%</strong></td>
+<td style="text-align: left;">合約 4.4(d) 履約方式詮釋（不需修約）；每週
+BI</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K4</strong> (v2.2 V1 移除)</td>
+<td style="text-align: left;"><del>問題卡完整率</del></td>
+<td style="text-align: left;"><del>≥ 85%</del></td>
+<td style="text-align: left;">V2 才量；V1 OQ-NEW-3 第二甲方延後，K4
+跟著延</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K5</strong></td>
+<td style="text-align: left;">接單 SLA</td>
+<td style="text-align: left;">10 分 / 急件 5 分，達成率 ≥ 95%</td>
+<td style="text-align: left;">即時監控</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K6</strong></td>
+<td style="text-align: left;">AI 首次回應</td>
+<td style="text-align: left;">5 秒內 p95</td>
+<td style="text-align: left;">RUM + APM</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K7</strong></td>
+<td style="text-align: left;">系統 Uptime</td>
+<td style="text-align: left;">≥ 95%（合約）/ 99.5%（內部目標）</td>
+<td style="text-align: left;">30 天 rolling</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K8</strong></td>
+<td style="text-align: left;">AI 不該做的事 Eval</td>
+<td style="text-align: left;">≥ 95% pass，否則禁止部署</td>
+<td style="text-align: left;">200 題 corpus（<strong>Domain Expert
+出題</strong>）每次 deploy 跑</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K9</strong></td>
+<td style="text-align: left;">同時在線</td>
+<td style="text-align: left;">V1 50 / V2 100</td>
+<td style="text-align: left;">壓測</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K11</strong> (v2.2 新)</td>
+<td style="text-align: left;">月結匯出退件率</td>
+<td style="text-align: left;">≤
+<strong>5%</strong>（甲方會計收到匯出檔的退件率）</td>
+<td style="text-align: left;">V2.1 export endpoint 上線後每月量</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Counter-metric</strong>（防 KPI 被 gaming）：</p>
+<ul>
+<li><strong>C1</strong>：AI 違反禁區次數 &lt; 1 / 萬次對話</li>
+<li><strong>C2</strong>：AI 主動轉真人率 ≤ 25%（<strong>用程式判定，不是
+AI 自己標</strong>；K2 算 60% 不能靠減少硬轉真人來灌水）</li>
+<li><strong>C2b</strong>：K1 漂移警報——AI 準確率單日 &lt; 79% 立刻
+page，連兩天觸發 rollback</li>
+<li><strong>C2c</strong>：客戶放棄率 ≤ 8%（防 AI 拖延讓客人 48h 自動結案
+gaming）</li>
+<li><strong>C3</strong>：個資刪除請求 ≤ 7 天完成</li>
+<li><strong>C4</strong> (v2.2 新)：voucher hash mismatch 0 / 月（任何
+mismatch = 帳本不可信 = 立即 incident）</li>
+</ul>
+<div class="important">
+<div class="title">
+<p>Important</p>
+</div>
+<p>K1, K3, K8 是合約承諾值。UAT 沒過 = V1 不能交付。 K3
+從原「同步阻擋負面情緒識別 ≥ 90%」改為「event log 完整率 + dispute
+rate」<strong>雙計法</strong>，是 Option A 降級履約 cascade
+的結果。<strong>負面情緒識別本身仍 ≥ 90%</strong>（在 FR-NEW-8
+acceptance 維持），只是 family review 路徑改 retrospective。</p>
+</div>
+<hr />
+<h2 id="dart-範圍做什麼--不做什麼">🎯 範圍：做什麼 / 不做什麼</h2>
+<h3 id="white_check_mark-v10w1-w17做這些">✅ V1.0（W1-W17）做這些</h3>
+<p><strong>必做（合約紅線 / 上線必備）</strong>：</p>
+<ul>
+<li>LINE Bot AI 客服（文字、圖、對話記憶、情緒分流）</li>
+<li>自動產問題卡（含主動引導補資訊）</li>
+<li>三層解決機制（案例庫 → 手冊 RAG → 轉真人）</li>
+<li>後台管理（知識庫、對話監看、儀表板、RBAC 四層權限）</li>
+<li>合約 4.4 整套（90% 情緒識別、家族覆核員、個資保留期）</li>
+<li>多甲方架構先打底（合約模板 schema + API，UI 延 V2 —
+細節見折疊區）</li>
+<li>AI 禁區的 200 題 Eval pipeline（沒過就不准 deploy）</li>
+</ul>
+<p><strong>延後（不影響上線）</strong>：</p>
+<ul>
+<li><strong>Epic 4 自進化知識庫</strong> → <strong>升回
+V1</strong>（v2.2 業主裁決）。理由：OQ-NEW-1 + OQ-NEW-3 砍掉省的
+capacity 挪過來，Family Reviewer 改 retrospective（不再卡 SOP
+螺旋）。</li>
+<li><strong>家族覆核</strong> → <strong>降級履約</strong>（Option
+A）：改 event log 不阻擋 + 7 日 retrospective dispute window。BA
+主導法務一頁式詮釋備忘證明「retrospective review =
+覆核紀錄」（不需修約）。</li>
+<li><strong>第二甲方</strong> →
+<strong>延後</strong>（OQ-NEW-3）：ADR-0060 schema reserved nullable +
+對外 API 砍；V2 重啟 ~3-5 天。</li>
+<li><strong>FR-0012 月結</strong> → <strong>加 voucher</strong>（V1
+內部憑證 schema + read API + void 流程）；export endpoint 延
+V2.1（OQ-007 cascade）。</li>
+</ul>
+<h3 id="white_check_mark-v20w18-w31做這些">✅ V2.0（W18-W31）做這些</h3>
+<ul>
+<li>師傅 Web App（案件池、接單、ETA、完工報告、帳戶中心）</li>
+<li>智慧派工（自動匹配 + 手動指派）</li>
+<li>報價引擎（標準矩陣 + 特殊加價）</li>
+<li>帳務系統（7 帳本、墊款追蹤、月結、退款分層）</li>
+<li>Admin V2.0（案件全生命週期、客訴、技師管理、變更請求工作流）</li>
+</ul>
+<h3 id="x-不做避免-scope-creep">❌ 不做（避免 scope creep）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">不做</th>
+<th style="text-align: left;">原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">多語言</td>
+<td style="text-align: left;">V1/V2 繁中為主，schema 預留
+locale，海外擴張再開</td>
+</tr>
+<tr>
+<td style="text-align: left;">消費者 App</td>
+<td style="text-align: left;">LINE 為主管道，不另開 App</td>
+</tr>
+<tr>
+<td style="text-align: left;">線上金流</td>
+<td style="text-align: left;">付款線下處理，未來再評估</td>
+</tr>
+<tr>
+<td style="text-align: left;">技師 GPS 即時追蹤</td>
+<td style="text-align: left;">只記出發 / 到達時間</td>
+</tr>
+<tr>
+<td style="text-align: left;">庫存管理</td>
+<td style="text-align: left;">師傅自管</td>
+</tr>
+<tr>
+<td style="text-align: left;">消費者評分系統</td>
+<td style="text-align: left;">未來規劃</td>
+</tr>
+<tr>
+<td style="text-align: left;">語音對話</td>
+<td style="text-align: left;">只支援文字 + 圖</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>AI 影像辨識</strong></td>
+<td style="text-align: left;"><strong>合約 SOW 2.1(4)
+明文禁止</strong>，圖只當附件存</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>AI 給 final quote / 折扣 /
+免費保固</strong></td>
+<td style="text-align: left;"><strong>永禁</strong>，只能給範圍價</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>AI 直接開工單</strong></td>
+<td style="text-align: left;">永遠要客服 1-click 確認</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>跨租戶資料可見</strong></td>
+<td style="text-align: left;">tenant_id 強制隔離</td>
+</tr>
+<tr>
+<td style="text-align: left;">V1 完整多租戶</td>
+<td style="text-align: left;">V1 單一甲方，schema
+預埋租戶欄位但不開放第二租戶</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="busts_in_silhouette-使用者場景">👥 使用者場景</h2>
+<p><strong>消費者</strong>（量大但個體影響小）→ LINE 報修 → AI 對話 →
+自助解決 / 或派工 → 確認結案 <strong>簽約師傅</strong>（生態關鍵）→ 接單
+→ 到場 → 拍照 → 完工報告 → 月結 <strong>客服</strong>（人不多但天天用）→
+監看異常 → 處理 escalation → 審 SOP
+<strong>家族覆核員</strong>（合約規定）→ SOP 雙審第二關，24
+小時內審完</p>
+<p><strong>關鍵 edge case</strong>（這幾條最會出事）：</p>
+<ul>
+<li>急件 4 類（被鎖門外 / 門內受困 / 安全風險 / 怒客）→ 5
+分鐘強制轉真人</li>
+<li>地址沒填齊 → 派工不擋，但結案前一定要回填（系統強制）</li>
+<li>AI 想說 final quote / 折扣 / 免費保固 → 自動攔截 + 重講</li>
+<li>同對話多個問題卡 → 一個 active issue 一張卡，新症狀 /
+新設備可另開</li>
+<li>第二個甲方來簽約 → 不能改 code，走合約模板設定就行</li>
+</ul>
+<hr />
+<h2 id="warning-風險清單">⚠️ 風險清單</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">編號</th>
+<th style="text-align: left;">風險</th>
+<th style="text-align: left;">嚴重度</th>
+<th style="text-align: left;">怎麼擋</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>R-F4</strong></td>
+<td style="text-align: left;"><strong>合規崩潰</strong> — 4.4 / 個資沒做
+→ 甲方終止合約</td>
+<td style="text-align: left;">🔴 最高（V1 必交）</td>
+<td style="text-align: left;">4.4(a) 90% 跑 UAT；4.4(d) 家族覆核員
+100%；個資刪除 7 天執行</td>
+</tr>
+<tr>
+<td style="text-align: left;">R-F3</td>
+<td style="text-align: left;">AI 越權承諾</td>
+<td style="text-align: left;">🟡 中</td>
+<td style="text-align: left;">200 題 Eval block deploy +
+程式判定硬規則（不靠 AI 自報）</td>
+</tr>
+<tr>
+<td style="text-align: left;">R-F1</td>
+<td style="text-align: left;">3 年後資料只是 log，被大廠取代</td>
+<td style="text-align: left;">🟡 中</td>
+<td style="text-align: left;">Bronze 資料 V1 先收齊；Silver/Gold ETL
+Phase 0+ 排程</td>
+</tr>
+<tr>
+<td style="text-align: left;">R-F2</td>
+<td style="text-align: left;">換 LLM 廠商等於重寫 SOP</td>
+<td style="text-align: left;">🟡 中</td>
+<td style="text-align: left;">SKILL 跟 LLM 解耦（已立 ADR）；規則走 RAG
+不寫 prompt</td>
+</tr>
+<tr>
+<td style="text-align: left;">R-F5</td>
+<td style="text-align: left;">第二甲方來要重寫系統</td>
+<td style="text-align: left;">🟡 中</td>
+<td style="text-align: left;">tenant_id / brand_scope / locale
+一級欄位；合約模板物件化</td>
+</tr>
+<tr>
+<td style="text-align: left;">R-F6</td>
+<td style="text-align: left;">老師傅離職帶走 know-how</td>
+<td style="text-align: left;">🟡 中</td>
+<td style="text-align: left;">SOP 螺旋 + 外部知識傳承平台接入</td>
+</tr>
+<tr>
+<td style="text-align: left;">R-F7</td>
+<td style="text-align: left;">大廠出 vertical agent 取代我們</td>
+<td style="text-align: left;">🟡 中</td>
+<td style="text-align: left;">護城河三柱：師傅生態 + 物理證據 +
+合約履約</td>
+</tr>
+<tr>
+<td style="text-align: left;">R-001</td>
+<td style="text-align: left;">LLM API 費用爆預算</td>
+<td style="text-align: left;">🟡 中</td>
+<td style="text-align: left;">速率限制 + 月度上限 + Embedding cache +
+Model Routing</td>
+</tr>
+<tr>
+<td style="text-align: left;">R-005</td>
+<td style="text-align: left;">消費者描述模糊，AI 抓不到問題卡</td>
+<td style="text-align: left;">🟠 高頻</td>
+<td style="text-align: left;">漸進引導 + 主動照片引導</td>
+</tr>
+<tr>
+<td style="text-align: left;">R-NEW-1</td>
+<td style="text-align: left;">家族覆核員審不過來變瓶頸</td>
+<td style="text-align: left;">🟡 中</td>
+<td style="text-align: left;">高低風險分流：高風險雙審 / FAQ 單審 + 缺席
+fallback</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="white_check_mark-已答完的問題oq--open-questions-closed">✅
+已答完的問題（OQ — Open Questions Closed）</h2>
+<blockquote>
+<p>全部 11 條 OQ 於 2026-05-24 業主裁決 closed。詳見 2 場 roundtable
+MoM。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">編號</th>
+<th style="text-align: left;">問題</th>
+<th style="text-align: left;">答案</th>
+<th style="text-align: left;">來源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">OQ-001</td>
+<td style="text-align: left;">向量資料庫</td>
+<td style="text-align: left;">✅ <strong>pgvector</strong>（ADR-0002 升
+accepted）</td>
+<td style="text-align: left;">業主裁決 2026-05-24</td>
+</tr>
+<tr>
+<td style="text-align: left;">OQ-003</td>
+<td style="text-align: left;">部署環境</td>
+<td style="text-align: left;">✅ <strong>GCP</strong>（ADR-0005 升
+accepted）</td>
+<td style="text-align: left;">業主裁決 2026-05-24</td>
+</tr>
+<tr>
+<td style="text-align: left;">OQ-004</td>
+<td style="text-align: left;">人工轉接</td>
+<td style="text-align: left;">✅
+<strong>提供連結，客戶點擊撥接客服</strong>（取代 FR-0018 內建 chat
+設計）</td>
+<td style="text-align: left;">業主裁決 2026-05-24</td>
+</tr>
+<tr>
+<td style="text-align: left;">OQ-007</td>
+<td style="text-align: left;">記帳憑證</td>
+<td style="text-align: left;">✅ <strong>先行定義 — Platform = keeper /
+retention 7y</strong>（詳見 ADR-VCH-001/002 + MoM #2）</td>
+<td style="text-align: left;">roundtable #2</td>
+</tr>
+<tr>
+<td style="text-align: left;">OQ-008</td>
+<td style="text-align: left;">付款方式</td>
+<td style="text-align: left;">✅ <strong>現場 + 繳費連結 +
+匯款</strong>（FR-0011 拆 3 story）</td>
+<td style="text-align: left;">業主裁決 2026-05-24</td>
+</tr>
+<tr>
+<td style="text-align: left;">OQ-009</td>
+<td style="text-align: left;">LINE LIFF</td>
+<td style="text-align: left;">✅ <strong>不做</strong></td>
+<td style="text-align: left;">業主裁決 2026-05-24</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>OQ-NEW-1</strong></td>
+<td style="text-align: left;"><strong>家族覆核員</strong></td>
+<td style="text-align: left;">🔁 <strong>先不考慮 → 採 Option A
+降級履約</strong>（event log 不阻擋 + 7 日 retrospective dispute
+window）。BA 主導法務一頁式詮釋備忘證明「retrospective review =
+覆核紀錄」，不需修約</td>
+<td style="text-align: left;">roundtable #1 + 業主裁決</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>OQ-NEW-2</strong></td>
+<td style="text-align: left;"><strong>個資法規</strong></td>
+<td style="text-align: left;">✅ <strong>同時符合 GDPR +
+個資法</strong>（BR-PII-001 已 dual-regime）</td>
+<td style="text-align: left;">業主裁決</td>
+</tr>
+<tr>
+<td style="text-align: left;">OQ-NEW-3</td>
+<td style="text-align: left;">第二甲方 onboarding</td>
+<td style="text-align: left;">✅ <strong>先不考慮</strong>（ADR-0060
+schema reserved nullable / 對外 API 砍 / V2 重啟 ~3-5 天）</td>
+<td style="text-align: left;">roundtable #1 + 業主裁決</td>
+</tr>
+<tr>
+<td style="text-align: left;">OQ-NEW-4</td>
+<td style="text-align: left;">AI Forbidden 200 題 corpus</td>
+<td style="text-align: left;">✅ <strong>從 Domain Expert
+來</strong>（QA + Domain Expert 共同 ownership）</td>
+<td style="text-align: left;">業主裁決</td>
+</tr>
+<tr>
+<td style="text-align: left;">OQ-NEW-5</td>
+<td style="text-align: left;">IoT 訊號</td>
+<td style="text-align: left;">✅ <strong>V3 deferred</strong>（ADR-0059
+status = deferred）</td>
+<td style="text-align: left;">業主裁決</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>OQ-NEW-6</strong> (新)</td>
+<td style="text-align: left;">為何 OQ-007 此刻先行定義？</td>
+<td style="text-align: left;">✅ <strong>D 純清 OQ-007</strong>（無外部
+deadline），但 keeper schema 路線確認啟動</td>
+<td style="text-align: left;">roundtable #2 業主裁決</td>
+</tr>
+</tbody>
+</table>
+<div class="note">
+<div class="title">
+<p>Note</p>
+</div>
+<p>Q1=D 表示「沒外部時程壓力」— A1 三方 sign-off matrix 可放寬到 V2
+sprint planning 前，不必硬卡 W18。</p>
+</div>
+<hr />
+<h2 id="rocket-上線計畫">🚀 上線計畫</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">項目</th>
+<th style="text-align: left;">內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>V1 怎麼上</strong></td>
+<td style="text-align: left;">W13-W15 UAT（合約 4.4 驗收）→ W16 灰度 10%
+→ W17 全量</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>V2 怎麼上</strong></td>
+<td style="text-align: left;">W30 灰度 10% → 50% →
+100%，師傅平行運轉舊流程 2 週</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>時程</strong></td>
+<td style="text-align: left;">V1：W17（2026-Q2 末）/ V2：W31（2026-Q3
+末）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>監控什麼</strong></td>
+<td style="text-align: left;">KPI K1-K9 全 Dashboard + 4.4
+合規即時監控</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>什麼狀況要 rollback</strong></td>
+<td style="text-align: left;">K1 &lt; 70% / K8 &lt; 90% / Uptime &lt;
+90% / 合約 4.4 UAT 不過 / 個資外洩</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>誰決定 rollback</strong></td>
+<td style="text-align: left;">DevOps on-call 執行 + PM 決策 + Tech Lead
+技術判斷</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>緊急開關</strong></td>
+<td style="text-align: left;">三層 kill switch：全域 / 單一 AI 員工 /
+單一 SKILL</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="writing_hand-簽核">✍️ 簽核</h2>
+<ul class="task-list">
+<li><label><input type="checkbox"
+checked="" /><strong>PM</strong>：devteam-pm autonomous /
+2026-05-22</label></li>
+<li><label><input type="checkbox" checked="" /><strong>業主（CEO
+autonomous mode）</strong>：<a
+href="mailto:xdxd2455789@gmail.com">xdxd2455789@gmail.com</a> /
+2026-05-22</label></li>
+<li><label><input type="checkbox"
+checked="" /><strong>Review</strong>：<a
+href="../../.claude/context/devteam/reviews/Gate1_PRD-smart-lock-saas-2026-05-22.md"><code>reviews/Gate1_PRD-smart-lock-saas-2026-05-22.md</code></a>
++ 3 場 forum final report</label></li>
+<li><label><input type="checkbox"
+checked="" /><strong>PO</strong>（Forum F-01）：accept Option C++ + Epic
+4 → V1.5 / 2026-05-22</label></li>
+<li><label><input type="checkbox" checked="" /><strong>Lane B
+Forum</strong>：3/3 收斂 / 2026-05-22</label></li>
+<li><label><input type="checkbox" checked="" /><strong>Gate 1
+狀態</strong>：🔒 frozen（2026-05-22）</label></li>
+</ul>
+<hr />
+<details>
+<summary><strong>📦 技術 Appendix（開發 / 架構 / QA 看的）</strong> — click to expand</summary>
+
+<blockquote>
+<p>以下內容給開發團隊、架構師、QA 用。業主 / PM 主要決策不在這層。</p>
+</blockquote>
+<h3 id="a-functional-requirements-明細">A. Functional Requirements
+明細</h3>
+<blockquote>
+<p>完整 40 個 user stories（US-001~US-040）見 <a
+href="../../archive/prd-baseline/PRD-0001-2026-q1-v1-launch.md#第-3-部分使用者故事與允收標準-user-stories--uat---做什麼"><code>PRD-0001 v1.1 §3</code></a>；25
+個 FR 規格見 <a
+href="../../docs/analysis/fr/"><code>../../docs/analysis/fr/</code></a>。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">FR ID</th>
+<th style="text-align: left;">內容摘要</th>
+<th style="text-align: center;">優先級</th>
+<th style="text-align: left;">對應 ADR</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">FR-0001</td>
+<td style="text-align: left;">LINE intake（webhook / 多媒體 / Quick
+Reply）</td>
+<td style="text-align: center;">P0</td>
+<td style="text-align: left;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0002</td>
+<td style="text-align: left;">ProblemCard（自動生成 / completeness ≥
+0.85 gate）</td>
+<td style="text-align: center;">P0</td>
+<td style="text-align: left;">ADR-0033, ADR-0036</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0003~0010</td>
+<td style="text-align: left;">派工、接單、ETA、現場、完工</td>
+<td style="text-align: center;">V2</td>
+<td style="text-align: left;">ADR-0045, ADR-0049</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0011~0015</td>
+<td style="text-align: left;">報價、月結、雙簽、退款、保固</td>
+<td style="text-align: center;">V2</td>
+<td style="text-align: left;">ADR-0040, ADR-0041, ADR-0044</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0017</td>
+<td style="text-align: left;">SOP 自動生成 / 雙審 / 發布</td>
+<td style="text-align: center;">V1.5</td>
+<td style="text-align: left;">ADR-0038</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0018</td>
+<td style="text-align: left;">三層解決 + 轉真人 7 條硬規則</td>
+<td style="text-align: center;">P0</td>
+<td style="text-align: left;">ADR-0048</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0019</td>
+<td style="text-align: left;">RBAC 動態（4 層 + 後台設定）</td>
+<td style="text-align: center;">P0</td>
+<td style="text-align: left;">ADR-0042</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0021</td>
+<td style="text-align: left;">儀表板 / BI / KPI</td>
+<td style="text-align: center;">P1</td>
+<td style="text-align: left;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0024</td>
+<td style="text-align: left;">LINE webhook HA（retry / DLQ / 24h
+dedup）</td>
+<td style="text-align: center;">P0</td>
+<td style="text-align: left;">ADR-0029</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0025</td>
+<td style="text-align: left;">多模態理解（文字 + 圖 + 位置，圖不做 AI
+辨識）</td>
+<td style="text-align: center;">P0</td>
+<td style="text-align: left;">合約 SOW 2.1(4)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>FR-NEW-1</strong>（v2.1）</td>
+<td style="text-align: left;"><strong>個資保留 engine via DGS + OPA
+Policy Artifact</strong>：（a）BR-PII-001 (Rego) 版本化 + 法務 / DPO
+CODEOWNERS + DGS 啟動 hash-check + policy_version_id 入
+audit。（b）兩階段清除：T0 銷毀加密金鑰 + 軟刪 → T+30 天硬刪。（c）cron
+= 候選掃描器 / DGS = 唯一執行者 + advisory lock + transactional
+outbox。（d）GDPR 7 天含 customer notice（若 legal-hold 衝突）</td>
+<td style="text-align: center;">P0-critical</td>
+<td style="text-align: left;">ADR-0051 + ADR-0061 + Forum F-04</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>FR-NEW-2</strong>（v2.2 修）</td>
+<td style="text-align: left;"><strong>合約模板 Schema 預埋 only（V1 對外
+API 砍）</strong>：（a）Schema 凍結 + 多 partner 欄位 nullable
+reserved（OQ-NEW-3 第二甲方延後，schema 留結構但不開放）。（b）內部
+admin form 仍保留（單一甲方 ops 用）。（c）對外 API 砍，V2 重啟僅 ~3-5
+天（schema 已就緒）。原 (a)-(e) 規格在 V2 重啟時生效</td>
+<td style="text-align: center;"><strong>V1 P0-launch (schema
+only)</strong> / V2 重啟 P0</td>
+<td style="text-align: left;">ADR-0043 + <strong>ADR-0060 (v2
+update)</strong> + Forum F-01 + MoM #1</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>FR-NEW-3</strong>（v2.1）</td>
+<td style="text-align: left;"><strong>AI Forbidden 200 題 Eval
+pipeline</strong>：pass &lt; 95% block deploy；corpus 來源 mixed（人工 +
+歷史挖掘）；W4 baseline 60 題、W8 full 200 題</td>
+<td style="text-align: center;">P0-critical</td>
+<td style="text-align: left;">ADR-0047</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>FR-NEW-4</strong>（v2.1）</td>
+<td style="text-align: left;"><strong>ChangeRequest 物件化
+workflow</strong>：政策 / 價格 / 權限 / SLA / 模板 / 合約 instance
+變更走 申請 → 核准 → 生效日 → audit；先於 FR-NEW-2 audit hook</td>
+<td style="text-align: center;">P0-launch</td>
+<td style="text-align: left;">ADR-0046</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>FR-NEW-5</strong>（v2.2 修為
+event-only）</td>
+<td style="text-align: left;"><strong>家族覆核 event
+log（不阻擋流程）</strong>：（a）event log append-only + hash
+chain（沿用 purge_audit_ledger 模式）含 actor / timestamp / decision
+payload。（b）7 日 retrospective dispute window（家族覆核員可事後
+dispute）。（c）合約 §4.4(d) 履約方式詮釋 = retrospective review event
+log（法務一頁式備忘證明，不需修約）。（d）BA + PM 共同 ownership</td>
+<td style="text-align: center;"><strong>V1
+P0-critical</strong>（履約紅線從同步阻擋改 retrospective）</td>
+<td style="text-align: left;">BR-AUDIT-007 + ADR-0050 + 法務備忘 + MoM
+#1</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>FR-NEW-6</strong>（v2.1）</td>
+<td style="text-align: left;"><strong>Evidence visibility matrix
+V1（屬性過濾延 V2）</strong>：（a）V1 = 角色 × 案件生命週期
+過濾。（b）Fail-closed 三層：mutation full deny / read flagged full deny
+/ read unflagged last-known-good + X-Policy-Cache-Stale header。（c）V2
+加屬性過濾</td>
+<td style="text-align: center;">P0-critical</td>
+<td style="text-align: left;">ADR-0050 + ADR-0061</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>FR-NEW-7</strong>（v2.1 new）</td>
+<td style="text-align: left;"><strong>Security guardrail bundle
+(US-018~020)</strong>：（a）Prompt Injection 攔截率 ≥
+95%。（b）內容過濾誤攔率 &lt; 1%。（c）Output Guardrail
+限定電子鎖話題。三者整合 deterministic rule engine 寫入
+rule_triggered_by（防 AI gaming C2）</td>
+<td style="text-align: center;">P0-critical</td>
+<td style="text-align: left;">ADR-0028 + Forum F-02</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>FR-NEW-8</strong>（v2.1 new）</td>
+<td style="text-align: left;"><strong>負面情緒識別 + 主動照片引導
+(US-038~039)</strong>：（a）4.4(a) 90%，產線持續監控（每週 N=100
+LLM-judge + 每月人工 audit；連續 2 週 &lt; 88% block / 4 週 &lt; 85%
+incident）。（b）US-039 PC &lt; 0.85 時 LINE Flex Message 引導。圖片僅
+attachment（SOW 2.1(4)）</td>
+<td style="text-align: center;">P0-critical</td>
+<td style="text-align: left;">ADR-0034</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>FR-NEW-9</strong>（v2.1 new）</td>
+<td style="text-align: left;"><strong>Image content moderation gate（SOW
+2.1(4) 反向強制）</strong>：webhook 入口攔截任何 image-to-text vision
+API call，pre-commit + runtime double-gate，violation count = 0；列入
+Eval 200 題的一個 category</td>
+<td style="text-align: center;">P0-critical</td>
+<td style="text-align: left;">ADR-0047</td>
+</tr>
+</tbody>
+</table>
+<h3 id="b-nfr--技術約束摘要">B. NFR / 技術約束摘要</h3>
+<p>完整見 <a
+href="../architecture/nfr-matrix-smart-lock-saas.md"><code>../architecture/nfr-matrix-smart-lock-saas.md</code></a>。</p>
+<ul>
+<li>通訊加密 HTTPS / TLS 1.2+；資料加密 AES-256 at rest；認證 JWT +
+Refresh Token</li>
+<li>LINE webhook ≥ 99.9% success（含 retry / DLQ）</li>
+<li>DGS service availability ≥ 99.95%（合規 audit 獨立性）</li>
+<li>snapshot cache 雙軌：retention/visibility 60s TTL
+OK；legal-hold/forget push invalidation ≤ 5s</li>
+<li>後端測試覆蓋率 ≥ 70%；WCAG 2.2 AA（Web App）/ LINE 原生 a11y</li>
+<li>SKILL ↔︎ LLM 解耦（vendor swap &lt; 5 天）</li>
+</ul>
+<h3 id="c-decision-log37-adr-對-prd-影響最重要">C. Decision Log（37+ ADR
+對 PRD 影響最重要）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">ID</th>
+<th style="text-align: left;">主題</th>
+<th style="text-align: center;">狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">ADR-0001~0030</td>
+<td style="text-align: left;">Backend / DB / LLM / LINE / Frontend 等
+baseline 技術選型</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0028</td>
+<td style="text-align: left;">AI Employee Charter（Forbidden 集中）</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0029</td>
+<td style="text-align: left;">Fail-soft to durable three-pack</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0030</td>
+<td style="text-align: left;">Tenant ID propagation</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0031</td>
+<td style="text-align: left;">AI 1-click 人審才能
+convert_to_work_order</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0032</td>
+<td style="text-align: left;">地址政策（派工不擋 / 結案 422 hard
+gate）</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0033</td>
+<td style="text-align: left;">PC completeness ≥ 0.85 gate</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0034</td>
+<td style="text-align: left;">Urgent / Red Code 4 類具名</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0035 / 0054</td>
+<td style="text-align: left;">AI 報價只給 range，永禁 final</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0038</td>
+<td style="text-align: left;">SOP 雙審（高風險）/ 單審（FAQ）</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0039</td>
+<td style="text-align: left;">取消費 5 階段 + 全階段客服可覆寫</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0040</td>
+<td style="text-align: left;">退款依責任歸屬分層 5×3</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0041</td>
+<td style="text-align: left;">車馬費 80/20 + 距離級距</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0042</td>
+<td style="text-align: left;">RBAC 4 層固化 + 後台 configurable</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0043</td>
+<td style="text-align: left;">Contract Template + tenant scope</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0044</td>
+<td style="text-align: left;">Device warranty_start_mode 5 模式</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0045</td>
+<td style="text-align: left;">師傅接單 SLA（10/5 min + per-brand
+override）</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0046</td>
+<td style="text-align: left;">ChangeRequest workflow</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0047</td>
+<td style="text-align: left;">AI Forbidden 集中 + 200 題 Eval block
+deploy</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0048</td>
+<td style="text-align: left;">AI 轉真人 7 條硬規則</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0049</td>
+<td style="text-align: left;">現場 scope change 三件套 + 金額分層</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0050</td>
+<td style="text-align: left;">Evidence visibility matrix</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0051</td>
+<td style="text-align: left;">Evidence retention 分層</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0052</td>
+<td style="text-align: left;">Material owner 三選一</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0053</td>
+<td style="text-align: left;">Serial 強制（主鎖 + &gt;1000 高價）</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0055</td>
+<td style="text-align: left;">SKILL ↔︎ LLM 解耦</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0056</td>
+<td style="text-align: left;">每廠商合約附件規格</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0057</td>
+<td style="text-align: left;">合約 / 規則走 RAG，禁寫 prompt</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0058</td>
+<td style="text-align: left;">外部知識傳承平台 ingestion</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-0059</td>
+<td style="text-align: left;">電子鎖 IoT 狀態訊號接入規格</td>
+<td style="text-align: center;">🔻 V3 deferred（OQ-NEW-5 業主裁決）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ADR-0060</strong> (v2 update)</td>
+<td style="text-align: left;">Contract Template Schema Reserved
+Nullable（V1 對外 API 砍，schema 預埋）</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ADR-0061</strong> (update)</td>
+<td style="text-align: left;">DGS Boundary + OPA Rego BR-PII-001a
+status=dormant（家族覆核降級 cascade）</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ADR-PII-002</strong> (new)</td>
+<td style="text-align: left;">資料極小化：schema 約束 + CI gate
+雙層防線</td>
+<td style="text-align: center;">✅ accepted (2026-05-24)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ADR-VCH-001</strong> (new)</td>
+<td style="text-align: left;">Platform = Voucher Keeper（非
+Issuer）合規路線</td>
+<td style="text-align: center;">✅ accepted (2026-05-24)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ADR-VCH-002</strong> (new)</td>
+<td style="text-align: left;">Voucher Retention 7y（hot 2y PG + cold 5y
+S3 Glacier）+ DPA 條文</td>
+<td style="text-align: center;">✅ accepted (2026-05-24)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ADR-PIVOT-001</strong> (new)</td>
+<td style="text-align: left;">V2 重啟 trigger 機制（月活甲方 ≥ 50 +
+dispute rate ≥ 5%；或第二甲方 LOI；6 個月內未觸發 → V3 重評）</td>
+<td style="text-align: center;">✅ accepted (2026-05-24)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>BR-AUDIT-007</strong> (new)</td>
+<td style="text-align: left;">Family Reviewer event log
+三要件（append-only + hash chain + 7 日 dispute window）</td>
+<td style="text-align: center;">✅ accepted (2026-05-24)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>DR-0001</strong></td>
+<td style="text-align: left;"><del>Epic 4 → V1.5 deferred</del> →
+<strong>撤回（v2.2 升回 V1）</strong></td>
+<td style="text-align: center;">❌ withdrawn (v2.2)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>DR-0002</strong></td>
+<td style="text-align: left;">K2 60% + W8 recalibration（Forum
+F-02）</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>DR-0003</strong></td>
+<td style="text-align: left;">DGS = independent service</td>
+<td style="text-align: center;">✅ accepted</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>DR-0004</strong> (new)</td>
+<td style="text-align: left;">Option A 降級履約 — 家族覆核 event log
+不阻擋 + retrospective</td>
+<td style="text-align: center;">✅ accepted (2026-05-24)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>DR-0005</strong> (new)</td>
+<td style="text-align: left;">Voucher V1 內部憑證 scope freeze；export
+延 V2.1</td>
+<td style="text-align: center;">✅ accepted (2026-05-24)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="d-下游文件對應">D. 下游文件對應</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Asset</th>
+<th style="text-align: left;">Location</th>
+<th style="text-align: center;">Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Stakeholder map</td>
+<td style="text-align: left;"><a
+href="../governance/stakeholders.md"><code>../governance/stakeholders.md</code></a></td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;">User flow</td>
+<td style="text-align: left;"><a
+href="../ux/user-flow-smart-lock-saas.md"><code>../ux/user-flow-smart-lock-saas.md</code></a></td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;">System spec</td>
+<td style="text-align: left;"><a
+href="../analysis/system-spec-smart-lock-saas.md"><code>../analysis/system-spec-smart-lock-saas.md</code></a></td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;">C4 L1/L2</td>
+<td style="text-align: left;"><a
+href="../../docs/architecture/ARCH-0001-architecture-overview.md"><code>../../docs/architecture/ARCH-0001-architecture-overview.md</code></a></td>
+<td style="text-align: center;">✅ baseline</td>
+</tr>
+<tr>
+<td style="text-align: left;">C4 L3</td>
+<td style="text-align: left;"><a
+href="../architecture/c4-l3-smart-lock-saas.md"><code>../architecture/c4-l3-smart-lock-saas.md</code></a></td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;">OpenAPI</td>
+<td style="text-align: left;"><a
+href="../architecture/api/openapi.yaml"><code>../architecture/api/openapi.yaml</code></a></td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;">ERD</td>
+<td style="text-align: left;"><a
+href="../architecture/data/erd.md"><code>../architecture/data/erd.md</code></a></td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR matrix</td>
+<td style="text-align: left;"><a
+href="../architecture/nfr-matrix-smart-lock-saas.md"><code>../architecture/nfr-matrix-smart-lock-saas.md</code></a></td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;">Test plan</td>
+<td style="text-align: left;"><a
+href="../qa/test-plan-smart-lock-saas.md"><code>../qa/test-plan-smart-lock-saas.md</code></a></td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;">Runbook</td>
+<td style="text-align: left;"><a
+href="../ops/runbook-smart-lock-saas.md"><code>../ops/runbook-smart-lock-saas.md</code></a></td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;">Release readiness</td>
+<td style="text-align: left;"><a
+href="../ops/release-readiness.md"><code>../ops/release-readiness.md</code></a></td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;">Handoff</td>
+<td style="text-align: left;"><a
+href="../../specs/smart-lock-saas/handoff.md"><code>../../specs/smart-lock-saas/handoff.md</code></a></td>
+<td style="text-align: center;">✅</td>
+</tr>
+</tbody>
+</table>
+</details>
+
+<hr />
+<p><strong>End of PRD v2.1 / v2.2 內容</strong></p>
+<blockquote>
+<p>業主 / PM 主要看的是：<strong>📋 一頁讀完</strong> + <strong>🎯
+為什麼要做</strong> + <strong>📊 KPI</strong> + <strong>⚠️ 風險</strong>
++ <strong>⚠️ 還沒答的問題</strong> + <strong>🚀 上線計畫</strong>。</p>
+<p>折疊區的技術 Appendix 是開發團隊用的，業主可略過。</p>
+</blockquote>
+<hr />
+<h2 id="e-final-spec-2026-05-20-adoptionv23-新增">§E Final Spec
+2026-05-20 Adoption（v2.3 新增）</h2>
+<blockquote>
+<p>本章為 v2.3 新增。對應 2026-05-20 final spec（兩份 xlsx）+ 2026-05-27
+roundtable 決議 + 業主 Q1-Q4 全採納建議。 與 §A-D 並存（治理模式 D2 —
+不刪舊內容、加新章節為主）。</p>
+</blockquote>
+<h3 id="e1-範圍擴張">§E.1 範圍擴張</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">v2.2 範圍</th>
+<th style="text-align: left;">v2.3 擴張範圍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">主題</td>
+<td style="text-align: left;">智慧鎖 AI 客服與派工平台</td>
+<td style="text-align: left;">智慧鎖工單 ERP + AI Chatbot + Sync
+三向矩陣</td>
+</tr>
+<tr>
+<td style="text-align: left;">模組</td>
+<td style="text-align: left;">對應 M01 / M03 / M06 / M11 子集</td>
+<td style="text-align: left;">全 M01-M20 (20 個 ERP) + A01-A12 (12 個
+Chatbot) + S M01-M06 (6 個 Sync)</td>
+</tr>
+<tr>
+<td style="text-align: left;">Phase</td>
+<td style="text-align: left;">V1 / V2</td>
+<td style="text-align: left;">Phase 0 / Phase I / Phase II / Phase III /
+Phase IV / Phase V</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR 數</td>
+<td style="text-align: left;">25 (FR-0001~FR-0025)</td>
+<td style="text-align: left;">25 + 估 +18 (Phase I 補 A01-A12 / S
+M01-M06) + 估 +8 (Phase II) ≈ <strong>51</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">KPI 視角</td>
+<td style="text-align: left;">AI 客服 + 派工為主</td>
+<td style="text-align: left;">增加 chatbot 模組層 KPI 與
+counter-metric（見 §E.3）</td>
+</tr>
+<tr>
+<td style="text-align: left;">Configurable rule 治理</td>
+<td style="text-align: left;">hard-code 為主</td>
+<td style="text-align: left;">全面 runtime config (ADR-0067 治理)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="e2-phase-scoperoundtable-d3--業主-q2c-採納">§E.2 Phase
+Scope（roundtable D3 + 業主 Q2=C 採納）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Phase</th>
+<th style="text-align: left;">名稱</th>
+<th style="text-align: left;">Coding 狀態</th>
+<th style="text-align: left;">ERP 模組</th>
+<th style="text-align: left;">Chatbot 模組</th>
+<th style="text-align: left;">Sync 模組</th>
+<th style="text-align: left;">Exit Criteria 概要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Phase 0</strong></td>
+<td style="text-align: left;">Blueprint Freeze / System Setup</td>
+<td style="text-align: left;">可開始</td>
+<td style="text-align: left;">M17/M18 RBAC + Config + audit</td>
+<td style="text-align: left;">A05 Guardrails + A11 Health</td>
+<td style="text-align: left;">—</td>
+<td
+style="text-align: left;">服務項目、價格表、SLA、角色、狀態、template、approval
+owner 可設定；<strong>ADR-0067 M18 config 治理 freeze</strong>（critical
+path）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Phase I (MVP)</strong></td>
+<td style="text-align: left;">Market Launch Core + Chatbot Core + Sync
+Core</td>
+<td style="text-align: left;">可開始 coding</td>
+<td style="text-align: left;">M01-M06, M08, M09, M11, M13(基礎), M15,
+M16, M19(基礎)</td>
+<td style="text-align: left;">A01-A09 (含 A06 ProblemCard Bridge + A09
+Eval &amp; Obs)</td>
+<td style="text-align: left;">S M01-M06 全部（M04 ConvertToWO 強制 human
+gate）</td>
+<td
+style="text-align: left;">可跑標準案件、急件、改派、加價、取消、退款申請、基本報表；<strong>A12
+(Governance) 延 Phase II（Q2=C）</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Phase II</strong></td>
+<td style="text-align: left;">Finance / Settlement + Chatbot
+Governance</td>
+<td style="text-align: left;">可開始 coding，全部 configurable</td>
+<td style="text-align: left;">M11 完整 + M12 月結 + M15 異常深化</td>
+<td style="text-align: left;"><strong>A12 Governance &amp; PRD Trace（從
+Phase I 延）</strong> + A10 SOP Feedback 深化</td>
+<td style="text-align: left;">sync 對齊 finance event</td>
+<td style="text-align: left;">付款與月結可 export、可審核、可追
+evidence、可調 config</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Phase III</strong></td>
+<td style="text-align: left;">Partner / B2B / Warranty</td>
+<td style="text-align: left;">後續階段</td>
+<td style="text-align: left;">M14 Partner Portal + M13 完整 + M10
+完整</td>
+<td style="text-align: left;">partner/builder/warranty context
+aware</td>
+<td style="text-align: left;">partner B2B sync</td>
+<td style="text-align: left;">Partner visibility / contract rule /
+warranty responsibility 正式定義</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Phase IV</strong></td>
+<td style="text-align: left;">AI Ops / Governance 深化</td>
+<td style="text-align: left;">後續階段，guardrails 先做</td>
+<td style="text-align: left;">M20 AI Ops</td>
+<td style="text-align: left;">RAG/SOP versioning, Eval, feedback loop,
+quality review</td>
+<td style="text-align: left;">AI action/event/audit 對齊 ERP rule
+version</td>
+<td style="text-align: left;">AI 回答有來源、有版本、有評測、有
+rollback</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Phase V</strong></td>
+<td style="text-align: left;">BI / KPI Scale</td>
+<td style="text-align: left;">後續階段</td>
+<td style="text-align: left;">M19 完整 BI/KPI</td>
+<td style="text-align: left;">resolution/handoff/failure/cost/latency
+dashboard</td>
+<td style="text-align: left;">BI event 對齊</td>
+<td style="text-align: left;">KPI
+依真實資料穩定，管理層可用報表做決策</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Phase III/IV/V 骨架原則（roundtable D3）</strong>：只列
+module ID + owner + scope intent + out-of-scope bullet，<strong>不寫 NFR
+baseline</strong>；NFR 等該 phase 進入 Gate1 再補。</p>
+<h3
+id="e3-chatbot-層-kpi--counter-metricroundtable-d3-pm-收尾--q2c">§E.3
+Chatbot 層 KPI / Counter-metric（roundtable D3 PM 收尾 + Q2=C）</h3>
+<blockquote>
+<p>補在 §KPI 之後。FR 內 G/W/T 走 per-FR per-acceptance；本表是
+per-module outcome。 對應 <a
+href="../_source/02-ai-chatbot-sync.md"><code>docs/_source/02-ai-chatbot-sync.md</code></a>
+§07 Eval品質系統。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">編號</th>
+<th style="text-align: left;">指標</th>
+<th style="text-align: left;">目標</th>
+<th style="text-align: left;">適用模組</th>
+<th style="text-align: left;">怎麼量</th>
+<th style="text-align: left;">Counter-metric</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>K-AI-1</strong></td>
+<td style="text-align: left;">Chatbot 準確率（accuracy）</td>
+<td style="text-align: left;">≥ <strong>85%</strong>（v2.3 提升自 §K1
+80%）</td>
+<td style="text-align: left;">A03 ReAct Agent</td>
+<td style="text-align: left;">Eval corpus（A09 Eval &amp; Obs 提供）每
+deploy 跑</td>
+<td style="text-align: left;">C-AI-1: 違禁區事件 &lt; 1 / 萬次對話（同
+§C1）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K-AI-2</strong></td>
+<td style="text-align: left;">Human handoff rate（人工接手率）</td>
+<td style="text-align: left;">≤ <strong>30%</strong></td>
+<td style="text-align: left;">A07 Human Handoff</td>
+<td style="text-align: left;">per session / per day</td>
+<td style="text-align: left;">C-AI-2: AI 主動轉真人比 ≤ 25%（同
+§C2）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K-AI-3</strong></td>
+<td style="text-align: left;">ProblemCard 自動建立成功率</td>
+<td style="text-align: left;">≥ 70%（draft → confirmed by human）</td>
+<td style="text-align: left;">A06 ProblemCard Bridge</td>
+<td style="text-align: left;">per intake → per ProblemCard</td>
+<td style="text-align: left;">C-AI-3: ProblemCard re-edit rate ≤
+20%（避免 AI 草擬太差）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K-AI-4</strong></td>
+<td style="text-align: left;">Guardrails 攔截率</td>
+<td style="text-align: left;">100%（任何禁區 P0 都必須被攔下）</td>
+<td style="text-align: left;">A05 Guardrails</td>
+<td style="text-align: left;">紅軍測試 / regression</td>
+<td style="text-align: left;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K-AI-5</strong></td>
+<td style="text-align: left;">Multimodal 理解正確率</td>
+<td style="text-align: left;">≥ 75%（image-to-symptom mapping）</td>
+<td style="text-align: left;">A08 Multimodal</td>
+<td style="text-align: left;">帶圖案件抽樣 review</td>
+<td style="text-align: left;">C-AI-5: false confidence rate ≤ 5%（AI
+答錯但 high confidence 比率）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K-AI-6</strong></td>
+<td style="text-align: left;">RAG 引用率</td>
+<td style="text-align: left;">≥ 90%（AI 回覆引用有來源 chunk）</td>
+<td style="text-align: left;">A04 RAG Pipeline</td>
+<td style="text-align: left;">A09 Eval 自動標記</td>
+<td style="text-align: left;">C-AI-6: stale source rate ≤ 10%（超過
+effective_date 但被引用比率）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K-AI-7</strong> (2026-05-28
+cascade)</td>
+<td style="text-align: left;">Chatbot intent classification
+accuracy</td>
+<td style="text-align: left;">≥ <strong>85%</strong></td>
+<td style="text-align: left;">A03 ReAct Agent</td>
+<td style="text-align: left;">weekly eval set（A09 Eval 自動跑）</td>
+<td style="text-align: left;">C-AI-7: handoff rate <strong>不應 &lt;
+5%</strong>（假同意風險 — AI 過度自信代替合理升級）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K-AI-8</strong> (2026-05-28
+cascade)</td>
+<td style="text-align: left;">Human handoff rate</td>
+<td style="text-align: left;">≤ <strong>30%</strong></td>
+<td style="text-align: left;">A07 Human Handoff</td>
+<td style="text-align: left;">LINE message / handoff event count</td>
+<td style="text-align: left;">C-AI-8: SOP 命中率 ≥ 80%（避免 AI
+不會卻假裝會，硬撐到 handoff）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K-AI-9</strong> (2026-05-28
+cascade)</td>
+<td style="text-align: left;">Debounce window</td>
+<td style="text-align: left;"><strong>800ms ± 100ms</strong></td>
+<td style="text-align: left;">A01 Channel Intake &amp; Debounce</td>
+<td style="text-align: left;">client-side timer p95</td>
+<td style="text-align: left;">C-AI-9: false-trigger rate &lt;
+1%（debounce 太短導致斷句誤判）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K-AI-10</strong> (2026-05-28
+cascade)</td>
+<td style="text-align: left;">Multimodal fallback rate（photo too blurry
+/ unsupported format）</td>
+<td style="text-align: left;">&lt; <strong>15%</strong></td>
+<td style="text-align: left;">A08 Multimodal Understanding</td>
+<td style="text-align: left;">A09 telemetry — image quality reject
+event</td>
+<td style="text-align: left;">C-AI-10: 強制 handoff 後 24h 內客訴率 ≤
+5%（防 fallback 變成棄案）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>K-AI-11</strong> (2026-05-28
+cascade, <strong>Phase II</strong>)</td>
+<td style="text-align: left;">Long-tail KB hit rate</td>
+<td style="text-align: left;">≥ <strong>60%</strong></td>
+<td style="text-align: left;">A04 RAG Pipeline + A12 Governance</td>
+<td style="text-align: left;">RAG retrieval log（A09 標記）</td>
+<td style="text-align: left;">C-AI-11: 答非所問率 &lt; 5%（KB 命中但
+retrieval 內容不對 prompt）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>K-AI-1 vs §K1 關係</strong>：§K1 (AI 準確率 ≥ 80%) 是 v2.2
+合約承諾值；K-AI-1 是 v2.3 內部目標（向 ≥ 85% 對齊新規格 P0-20 AI
+邊界）。合約底線仍 80%，team 內部 chase 85%。</p>
+<p><strong>K-AI-7 ~ K-AI-11 補充說明</strong>（2026-05-28 業主裁決
+cascade）：</p>
+<ul>
+<li>全部對應 roundtable A Q2=C：A06 + A09 Phase I MVP / A12 Phase
+II</li>
+<li>K-AI-9 debounce 800ms 與 §10 spec source「1.5 秒」差異 → 採本 PRD
+800ms ± 100ms 為內部目標（更貼近使用者感知 &lt; 1s）；spec source
+為極限上限，coding 階段以本表為準</li>
+<li>K-AI-7 ~ K-AI-10 為 <strong>Phase I</strong>；K-AI-11 為
+<strong>Phase II</strong></li>
+<li>所有 counter-metric 都禁止 vanity gaming（防 AI 把困難 case
+一律轉真人灌準確率、或把困難圖一律拒絕灌 multimodal 通過率）</li>
+</ul>
+</blockquote>
+<h3 id="e4-sync-層-gateroundtable--spec-13-chatbot對erp">§E.4 Sync 層
+Gate（roundtable + spec §13 Chatbot對ERP）</h3>
+<blockquote>
+<p>對應 <a
+href="../_source/02-ai-chatbot-sync.md"><code>docs/_source/02-ai-chatbot-sync.md</code></a>
+§14 Sync 架構 + §24 Sync對ERP。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Sync Gate</th>
+<th style="text-align: left;">規則</th>
+<th style="text-align: left;">Phase</th>
+<th style="text-align: left;">Owner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>G-Sync-1 Quote gate</strong></td>
+<td style="text-align: left;">客戶只看實收總額；內部看成本拆分</td>
+<td style="text-align: left;">Phase I</td>
+<td style="text-align: left;">AI Specialist + Accounting</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>G-Sync-2 Payment
+gate</strong></td>
+<td style="text-align: left;">WorkOrder
+可進行僅當所需訂金/付款證明已收到</td>
+<td style="text-align: left;">Phase I</td>
+<td style="text-align: left;">AI Specialist + Accounting</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>G-Sync-3 AI convert-to-WorkOrder
+gate</strong></td>
+<td style="text-align: left;">Phase I 強制 human confirmation；Phase IV
+可考慮低風險自動化</td>
+<td style="text-align: left;">Phase I</td>
+<td style="text-align: left;">AI Specialist / Operator Leader</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>G-Sync-4 Exception approval
+gate</strong></td>
+<td
+style="text-align: left;">保固不明、高風險、退款、安全/法律、客戶拒加價
+→ 暫停等核准</td>
+<td style="text-align: left;">Phase I</td>
+<td style="text-align: left;">AI Specialist / Supervisor</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>G-Sync-5
+Cancellation/travel/refund fee</strong></td>
+<td style="text-align: left;">不可 hardcode；走 M18 config（ADR-0067
+治理）；金額未定前走 manual approval note</td>
+<td style="text-align: left;">Phase I (manual-first)</td>
+<td style="text-align: left;">Accounting</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>G-Sync-6 Communication
+templates</strong></td>
+<td
+style="text-align: left;">quote/photo/payment/dispatch/delay/extra-price/completion/RMA/refund
+都要 approved templates</td>
+<td style="text-align: left;">Phase I</td>
+<td style="text-align: left;">AI Specialist / Operator Leader</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>G-Sync-7 RBAC/audit</strong></td>
+<td style="text-align: left;">無 brand/locksmith
+all-access；can-view/can-edit/can-approve 分離</td>
+<td style="text-align: left;">Phase I</td>
+<td style="text-align: left;">AI Specialist / System Admin</td>
+</tr>
+</tbody>
+</table>
+<h3 id="e5-module-scope-mappingv22-fr--v23-module-對照">§E.5 Module
+Scope Mapping（v2.2 FR ↔︎ v2.3 module 對照）</h3>
+<blockquote>
+<p>完整 mapping 在 <a
+href="../_index/by-module/"><code>docs/_index/by-module/</code></a>（A3
+task 產出）。本段給高層視圖。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">v2.2 FR 範圍</th>
+<th style="text-align: left;">v2.3 主要對應 module</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">FR-0001 line-intake</td>
+<td style="text-align: left;">M01 + A01</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0002 problem-card-triage</td>
+<td style="text-align: left;">M03 + A06</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0003 auto-dispatch / FR-0004
+manual-dispatch</td>
+<td style="text-align: left;">M06 + M07</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0005 technician-accept / FR-0006
+onsite-photo / FR-0009 completion-sign</td>
+<td style="text-align: left;">M07 + M08 + M09</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0007 material-request</td>
+<td style="text-align: left;">M10 + M15</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0008 scope-change / FR-0010
+reschedule-delay / FR-0013 dual-sign-dispute</td>
+<td style="text-align: left;">M15（cross-cutting）</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0011 consumer-payment / FR-0014 refund
+/ FR-0015 warranty-claim</td>
+<td style="text-align: left;">M11 + M13</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0012 monthly-settlement</td>
+<td style="text-align: left;">M12</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0016 sla-2hr-soft / FR-0024
+line-webhook-ha</td>
+<td style="text-align: left;"><strong>搬到 NFR matrix</strong>（業主
+Q3=A）</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0017 sop-draft-review / FR-0018
+cs-takeover</td>
+<td style="text-align: left;">M20 + A10</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0019 rbac-dynamic / FR-0020
+audit-log-export</td>
+<td style="text-align: left;">M17</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0021 dashboard-reports</td>
+<td style="text-align: left;">M19</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0022 consumer-tracking</td>
+<td style="text-align: left;">M01 + M16</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0023 error-offline-page</td>
+<td style="text-align: left;">M18 / M11 / NFR</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-0025 multimodal-understanding</td>
+<td style="text-align: left;">A08</td>
+</tr>
+</tbody>
+</table>
+<p><strong>新增 FR-0026~ Phase I（估 +18 條）</strong>：A01-A12 整批 + S
+M01-M06 整批 + M02/M04/M07/M09/M10/M18/M20 缺漏覆蓋。 <strong>新增
+FR-0044~ Phase II（估 +8 條）</strong>：M12 / M14 / M13 完整 / A12
+Governance 等。</p>
+<h3 id="e6-與-v22-kpi-對齊備註">§E.6 與 v2.2 KPI 對齊備註</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">v2.2 KPI</th>
+<th style="text-align: left;">v2.3 對齊處理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">K1 AI 準確率 ≥ 80%</td>
+<td style="text-align: left;">保留為合約底線；新增 K-AI-1 ≥ 85%
+為內部目標</td>
+</tr>
+<tr>
+<td style="text-align: left;">K2 自助解決率 ≥ 60%</td>
+<td style="text-align: left;">保留；對應 K-AI-2 (handoff ≤ 30%) 為
+counter-metric</td>
+</tr>
+<tr>
+<td style="text-align: left;">K3 family reviewer event log</td>
+<td style="text-align: left;">保留；併入 M17 audit + ADR-VCH-002
+retention</td>
+</tr>
+<tr>
+<td style="text-align: left;">K4 <del>ProblemCard 完整率</del></td>
+<td style="text-align: left;">v2.2 已 V1 移除；v2.3 換 <strong>K-AI-3
+ProblemCard 自動建立成功率</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">K5 接單 SLA</td>
+<td style="text-align: left;">保留；對應新 spec P0「一般 10 分鐘 / 急件
+5 分鐘」</td>
+</tr>
+<tr>
+<td style="text-align: left;">K6/K7/K8/K9</td>
+<td style="text-align: left;">全部保留，不變</td>
+</tr>
+<tr>
+<td style="text-align: left;">K11 月結匯出退件率 ≤ 5%</td>
+<td style="text-align: left;">保留，對應新 spec M12</td>
+</tr>
+</tbody>
+</table>
+<h3 id="e7-業主-open-questions-決議追蹤roundtable-2026-05-27">§E.7 業主
+Open Questions 決議追蹤（roundtable 2026-05-27）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">#</th>
+<th style="text-align: left;">問題</th>
+<th style="text-align: left;">業主決議</th>
+<th style="text-align: left;">影響本 PRD 段</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Q1</td>
+<td style="text-align: left;">Phase 0/I 有對外承諾日嗎？</td>
+<td style="text-align: left;"><strong>B 無，按 phase quality
+推進</strong></td>
+<td style="text-align: left;">§E.2 phase 不綁時程，僅內部目標</td>
+</tr>
+<tr>
+<td style="text-align: left;">Q2</td>
+<td style="text-align: left;">Chatbot A06/A09/A12 是否納 Phase I
+MVP？</td>
+<td style="text-align: left;"><strong>C — A06+A09 Phase I，A12 Phase
+II</strong></td>
+<td style="text-align: left;">§E.2 Phase I / Phase II module 欄已套</td>
+</tr>
+<tr>
+<td style="text-align: left;">Q3</td>
+<td style="text-align: left;">FR-0016 / FR-0024 NFR-flavored 搬 NFR
+doc？</td>
+<td style="text-align: left;"><strong>A 搬</strong></td>
+<td style="text-align: left;">§E.5 已標「搬到 NFR matrix」；A3 task 執行
+cascade</td>
+</tr>
+<tr>
+<td style="text-align: left;">Q4</td>
+<td style="text-align: left;">ADR-100 是否走 Lane A critique？</td>
+<td style="text-align: left;"><strong>C — Reviewed Still Valid 那批走
+Lane A，supersede 那批直接 merge</strong></td>
+<td style="text-align: left;">§E §C Decision Log cascade（A2 task
+執行）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="e8-v23-新增-adr-對齊補在-c-decision-log">§E.8 v2.3 新增 ADR
+對齊（補在 §C Decision Log）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">ADR</th>
+<th style="text-align: left;">主題</th>
+<th style="text-align: left;">狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>ADR-0067</strong> (new)</td>
+<td style="text-align: left;">M18 Runtime Configuration Governance —
+Phase 0 critical path blocker</td>
+<td style="text-align: left;">✅ accepted (2026-05-27)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ADR-0100</strong> (TBD)</td>
+<td style="text-align: left;">Legacy ADR Supersede Index — 70+ ADR
+逐條評估對照表</td>
+<td style="text-align: left;">⏳ A2 task 進行中</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ADR-NEXT</strong></td>
+<td style="text-align: left;">跨 M18 邊界 Anti-corruption Layer（Config
+Read API spec）</td>
+<td style="text-align: left;">⏳ ADR-0067 follow-up</td>
+</tr>
+</tbody>
+</table>
+<h3 id="e9-decision-logdated-entries--v23-cascade">§E.9 Decision
+Log（dated entries — v2.3 cascade）</h3>
+<blockquote>
+<p>列已裁決事項與 source-of-truth 連結。新事項往下追加，不修舊條。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Date</th>
+<th style="text-align: left;">Decision</th>
+<th style="text-align: left;">Source / MoM</th>
+<th style="text-align: left;">Impacted PRD sections</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">2026-05-22</td>
+<td style="text-align: left;">v2.1 / v2.2 PRD 全 11 條 OQ closed（family
+reviewer Option A 降級履約、第二甲方延後、Epic 4 升回 V1、voucher V1
+內部）</td>
+<td style="text-align: left;">3 場 Forum final report + Gate1
+review</td>
+<td style="text-align: left;">§OQ、§K3、§K11、§C ADR-VCH/PIVOT</td>
+</tr>
+<tr>
+<td style="text-align: left;">2026-05-24</td>
+<td style="text-align: left;">OQ-007 voucher 路線（Platform = keeper /
+7y retention）+ ADR-VCH-001/002 + ADR-PIVOT-001 accepted</td>
+<td style="text-align: left;">Roundtable #2 + 業主裁決</td>
+<td style="text-align: left;">§C Decision Log、§K11</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>2026-05-27</strong></td>
+<td style="text-align: left;"><strong>Roundtable A —
+final-spec-migration-strategy</strong>：IA hybrid (D1)、ADR supersede
+策略 + ADR-100 (D2)、Phase 0/I/II 寫完整 / III-V 骨架 (D3)、Excel SoT +
+auto-dump (D4)、FR 殼 + rule 搬 BR (D5)、M18 config 治理納 Phase 0
+critical path → ADR-0067 (D6)。業主 Q1=B / Q2=C / Q3=A / Q4=C</td>
+<td style="text-align: left;"><a
+href="../../.claude/context/devteam/meetings/2026-05-27-1130-final-spec-migration-strategy/MoM.md"><code>.claude/context/devteam/meetings/2026-05-27-1130-final-spec-migration-strategy/MoM.md</code></a></td>
+<td style="text-align: left;">§E 全章</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>2026-05-28</strong></td>
+<td style="text-align: left;"><strong>Roundtable B —
+user-flow-IA-strategy</strong>：user flow IA hybrid + by-module 子檔
+(D1)、Chatbot 對話流呈現 = sequence + state + scripted dialogue 寫 FR 殼
+(D2)、user flow journey level vs FR 殼 atomic step 粒度切分 (D3)、M18
+admin journey = 主檔 Flow S5 (D4)、wireframe 抽獨立檔 (D5)。業主 Q-OF1=B
+/ Q-OF2=A (WCAG 2.2 AA)</td>
+<td style="text-align: left;"><a
+href="../../.claude/context/devteam/meetings/2026-05-28-1200-user-flow-IA-strategy/MoM.md"><code>.claude/context/devteam/meetings/2026-05-28-1200-user-flow-IA-strategy/MoM.md</code></a></td>
+<td style="text-align: left;">§UX、§E.2、§K-AI-*</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>2026-05-28</strong></td>
+<td style="text-align: left;"><strong>Chatbot Phase scope
+finalize</strong>（A4 cascade）：A06 ProblemCard Bridge + A09 Eval &amp;
+Observability 納 Phase I MVP（業主 Q2=C）；A12 Governance &amp; PRD
+Trace 延 Phase II。新增 K-AI-7 ~ K-AI-11 共 5 條 chatbot KPI /
+counter-metric</td>
+<td style="text-align: left;">本 PRD §E.3 + cascade context pack §3.2
+A4</td>
+<td style="text-align: left;">§E.3、§E.2</td>
+</tr>
+</tbody>
+</table>
+<h3 id="e10-stakeholder-map--impact-assessmentv23-cascade">§E.10
+Stakeholder Map / Impact Assessment（v2.3 cascade）</h3>
+<blockquote>
+<p>本次 cascade 影響的 stakeholder 與其行動需求。對應 <a
+href="../governance/stakeholders.md"><code>docs/governance/stakeholders.md</code></a>
+baseline。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Stakeholder 分類</th>
+<th style="text-align: left;">角色</th>
+<th style="text-align: left;">本次 cascade 影響</th>
+<th style="text-align: left;">行動需求</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Business</strong></td>
+<td style="text-align: left;">業主 / 出資方</td>
+<td style="text-align: left;">Q1=B
+無對外承諾日（quality-first），財務壓力轉內部 phase 節奏</td>
+<td style="text-align: left;">接受 Phase 推進需求；準備 Phase II finance
+/ settlement 資源</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Business</strong></td>
+<td style="text-align: left;">客服主管 + AI Ops Lead</td>
+<td style="text-align: left;">A06+A09 Phase I 上線後雙簽 AI Employee；新
+KPI K-AI-7 ~ K-AI-10 進入週報</td>
+<td style="text-align: left;">Approval chain on K-AI 4-週滾動審視；準備
+handoff rate 異常 SOP</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Business</strong></td>
+<td style="text-align: left;">法務 / DPO</td>
+<td style="text-align: left;">與 v2.2 同（家族覆核 retrospective + 個資
+GDPR + 個資法）</td>
+<td style="text-align: left;">無新動作</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Dev</strong></td>
+<td style="text-align: left;">AI engineer</td>
+<td style="text-align: left;">A06 ProblemCard Bridge + A09 Eval pipeline
+Phase I 必交；K-AI-9 debounce 800ms 客戶端實作</td>
+<td style="text-align: left;">Phase I coding 啟動，先行 KB v2.3
+對齊</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Dev</strong></td>
+<td style="text-align: left;">Knowledge owner</td>
+<td style="text-align: left;">A04 RAG 質量、A12 governance Phase II
+才接</td>
+<td style="text-align: left;">Phase I 保持 RAG citation ≥ 90%；Phase II
+接 K-AI-11 long-tail KB</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Dev</strong></td>
+<td style="text-align: left;">Backend / ERP</td>
+<td style="text-align: left;">A06 → M03 ProblemCard sync + S M03
+ConvertToWO 強制 human gate</td>
+<td style="text-align: left;">同 cascade A3 task；無新增 onboarding
+需求</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Dev</strong></td>
+<td style="text-align: left;">SRE / DevOps</td>
+<td style="text-align: left;">A09 telemetry + A11 deployment health + 新
+K-AI-9 ~ K-AI-10 監控 dashboard</td>
+<td style="text-align: left;">加 4 條新 dashboard alert（accuracy /
+handoff / debounce p95 / multimodal fallback）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Ops</strong></td>
+<td style="text-align: left;">Data steward</td>
+<td style="text-align: left;">A02 brand/model master data 對齊 Phase
+I</td>
+<td style="text-align: left;">同 v2.2，無新動作</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Ops</strong></td>
+<td style="text-align: left;">QA / Eval owner</td>
+<td style="text-align: left;">K-AI-7 weekly eval set + K-AI-10 強制
+handoff 24h 客訴抽查</td>
+<td style="text-align: left;">補 corpus 與 sampling 排程</td>
+</tr>
+</tbody>
+</table>
+<p><strong>業主 Q (open)：對 chatbot Phase I 訂的 KPI
+是否需要新增運營資源？</strong></p>
+<ul>
+<li><strong>AI Ops Lead</strong>（既有）：KPI K-AI-7/8/10 加進
+4-週滾動審視，<strong>不需</strong> 新增 headcount，但需擴充 weekly eval
+batch size（67 → 300 cases，AI QA 半人月 ramp-up）</li>
+<li><strong>客服 hub</strong>（既有）：handoff rate ≤ 30% 在現有客服
+capacity 內可吸收（V1 50 同時在線 → 至多 15 人/min handoff，遠低於目前
+30 人 / min 容量）</li>
+<li><strong>SRE on-call</strong>（既有）：4 條新 alert 走既有 PagerDuty
+rotation，無新 headcount</li>
+<li><strong>NEW resource ask</strong>: K-AI-11 (Phase II) long-tail KB ≥
+60% 需要 Knowledge owner 半人月做 long-tail corpus expansion（M20 AI Ops
+scope，列入 Phase II planning）</li>
+</ul>
+<p>→ <strong>結論：Phase I 不需新增運營資源；Phase II long-tail KB 需
+Knowledge owner 半人月 budget（已標 [VALUE_DECISION_NEEDED] 待業主 Phase
+II planning 時裁決）</strong></p>
+<hr />
+<p><strong>End of PRD v2.3</strong></p>
+<blockquote>
+<p>v2.3 採「最小破壞性 + 治理模式 D2 supersede」：v2.2 內容全部保留，本
+§E 為對齊新規格新增章節；引用 §A-D 處皆未改。 完整 v2.3 cascade 路徑見
+<code>13_doc_migration_playbook.md</code> §3 Cascade 順序：本 PRD
+更新後，下游 ERD / OpenAPI / NFR matrix / test plan / runbook 由 A3
+與後續 driver skill 處理。</p>
+</blockquote>
+</div></div></body></html>

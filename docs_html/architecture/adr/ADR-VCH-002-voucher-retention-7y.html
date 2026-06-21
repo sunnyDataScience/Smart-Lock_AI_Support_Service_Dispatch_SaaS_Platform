@@ -1,0 +1,194 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Voucher Retention 7y（hot 2y PG + cold 5y S3 Glacier）+ DPA</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ architecture ／ adr ／ ADR-VCH-002-voucher-retention-7y.md</div>
+<div class="doc"><blockquote>
+<p><strong>🔄 Migration Status (2026-05-28)</strong>:
+<code>STILL_VALID_UNDER_M11_M17</code> <strong>Reviewed
+against</strong>: 2026-05-20 final spec (xlsx) <strong>Reviewed
+on</strong>: 2026-05-28 <strong>Module scope</strong>: M11, M17
+<strong>Per ADR-0100 §1 classification</strong>
+(.claude/context/devteam/meetings/2026-05-27-1130-final-spec-migration-strategy/MoM.md)</p>
+</blockquote>
+<h1 id="adr-vch-002-voucher-retention-7-年">ADR-VCH-002: Voucher
+Retention 7 年</h1>
+<h2 id="context">Context</h2>
+<p>OQ-007 cascade — voucher 保存期。BA R2 列三條法源：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">法源</th>
+<th style="text-align: left;">保存期</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">商業會計法 §38</td>
+<td style="text-align: left;">會計憑證 5 年、會計帳簿 10 年</td>
+</tr>
+<tr>
+<td style="text-align: left;">稅捐稽徵法 §11-1</td>
+<td style="text-align: left;">5 年</td>
+</tr>
+<tr>
+<td style="text-align: left;">統一發票使用辦法 §29</td>
+<td style="text-align: left;">5 年</td>
+</tr>
+</tbody>
+</table>
+<p>業主 Q3 選 <strong>7y（取嚴）</strong>。理由：取交集上限（5y 不夠 /
+10y 過嚴），業界 SaaS 慣例 B2B SMB 可承受。</p>
+<h2 id="decision">Decision</h2>
+<h3 id="1-雙層儲存">1. 雙層儲存</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Tier</th>
+<th style="text-align: left;">保存期</th>
+<th style="text-align: left;">儲存體</th>
+<th style="text-align: left;">rehydrate SLA</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Hot</td>
+<td style="text-align: left;">2y</td>
+<td style="text-align: left;">PostgreSQL primary</td>
+<td style="text-align: left;">n/a（即時 query）</td>
+</tr>
+<tr>
+<td style="text-align: left;">Cold</td>
+<td style="text-align: left;">5y</td>
+<td style="text-align: left;">S3 Glacier Parquet</td>
+<td style="text-align: left;">12h（稅務查調可接受）</td>
+</tr>
+</tbody>
+</table>
+<p>PITR window 14d 覆蓋 hot tier。</p>
+<h3 id="2-partition-策略dba-修正">2. Partition 策略（DBA 修正）</h3>
+<p>原 monthly partition 7y = 84 partition → query plan 退化。</p>
+<p>改 <strong>yearly partition + monthly sub-partition</strong>（PG14
+declarative partitioning）：</p>
+<ul>
+<li>每年 archive 整個 yearly partition 到 cold（DETACH PARTITION 不
+lock）</li>
+<li>monthly close query 只掃當月 sub-partition</li>
+</ul>
+<h3 id="3-cold-archive-job">3. Cold archive job</h3>
+<p>monthly cron job：</p>
+<ul>
+<li>T+2y end of month → DETACH yearly partition → export Parquet →
+upload S3 Glacier</li>
+<li>留 <code>partition_archive_log</code> ledger 紀錄哪個 partition / S3
+path / Glacier vault</li>
+</ul>
+<h3 id="4-dpa-條文">4. DPA 條文</h3>
+<p>寫進 <code>docs/governance/dpa.md</code>：</p>
+<ul>
+<li>「Voucher 資料保存 7 年（hot 2y + cold 5y），符合商業會計法 §38 +
+稅捐稽徵法 §11-1 取嚴」</li>
+<li>「個資（issuer_tax_id 等）依個資法 §11 + GDPR Art.17 可
+forget；voucher 本體去識別化保留」</li>
+<li>「rehydrate SLA 12h（不適用即時查詢）」</li>
+</ul>
+<h3 id="5-cost-estimate給業主備忘">5. Cost estimate（給業主備忘）</h3>
+<p>3-5 年規模假設：30 萬戶 × 200 voucher × 7y avg ≈ 4.2 億 row。</p>
+<ul>
+<li>Hot 2y：~1.2 億 row × 1KB ≈ 120GB（PostgreSQL OK）</li>
+<li>Cold 5y：~3 億 row × 0.5KB（Parquet 壓縮）≈ 150GB Glacier</li>
+<li>S3 Glacier Deep Archive：~$0.00099/GB/month ≈ $0.15/month for
+cold（OPEX 可忽略）</li>
+</ul>
+<h2 id="consequences">Consequences</h2>
+<h3 id="正面">正面</h3>
+<ul>
+<li>取嚴 7y 滿足台灣 + GDPR 雙合規</li>
+<li>yearly+monthly partition 避免 84 partition query plan 退化</li>
+<li>cold tier 成本可忽略（Glacier Deep Archive）</li>
+<li>12h rehydrate SLA 對稅務查調可接受</li>
+</ul>
+<h3 id="負面">負面</h3>
+<ul>
+<li>monthly archive cron job 需 ops 維護</li>
+<li>跨 tier rehydrate 流程要演練（避免 cold 出問題時找不回）</li>
+<li>DPA 條文 7y 高於業界 5y（B2B SMB 可承受但要明示）</li>
+</ul>
+<h3 id="中性">中性</h3>
+<ul>
+<li>若未來上 ADR-VCH-001 issuer 升級（變開立人），retention 仍
+7y（沒影響）</li>
+</ul>
+<h2 id="nfr-達成">NFR 達成</h2>
+<ul>
+<li>NFR-Comp-001~006（合約 / DORA）</li>
+<li>NFR-Priv-001~008（PII keeper-controller）</li>
+<li>NFR-Ops-001~004（cold archive job runbook）</li>
+</ul>
+<h2 id="failure-modes">Failure Modes</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Mode</th>
+<th style="text-align: left;">Blast Radius</th>
+<th style="text-align: left;">Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Cold archive job fail</td>
+<td style="text-align: left;">帳本不齊</td>
+<td style="text-align: left;">DLQ + alert + 人工 rerun</td>
+</tr>
+<tr>
+<td style="text-align: left;">Glacier rehydrate &gt; 12h</td>
+<td style="text-align: left;">稅務查調超時</td>
+<td style="text-align: left;">SLA 寫進 DPA 預期值；提早 24h request</td>
+</tr>
+<tr>
+<td style="text-align: left;">Partition pruning regression</td>
+<td style="text-align: left;">query 變 seq scan</td>
+<td style="text-align: left;">每季 EXPLAIN 驗證</td>
+</tr>
+<tr>
+<td style="text-align: left;">Hash chain rehydrate 驗證失敗（cold
+tier）</td>
+<td style="text-align: left;">帳本不可信 = 合規崩潰</td>
+<td style="text-align: left;">nightly verify job + alert（連動
+BR-AUDIT-007）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="acceptance-criteria">Acceptance Criteria</h2>
+<ul>
+<li>✅ Hot 2y PostgreSQL + cold 5y S3 Glacier 部署</li>
+<li>✅ Yearly+monthly partition migration drilled in staging</li>
+<li>✅ Monthly archive cron job + DLQ</li>
+<li>✅ Rehydrate SLA 12h 演練 1 次</li>
+<li>✅ DPA 條文 7y 法務 sign-off</li>
+<li>✅ Cost estimate $0.15/month/30 萬戶 確認</li>
+</ul>
+<h2 id="cross-references">Cross References</h2>
+<ul>
+<li>MoM #2:
+<code>.claude/context/devteam/meetings/2026-05-24-1500-finance-voucher-spec/MoM.md</code></li>
+<li>ADR-VCH-001 keeper 路線</li>
+<li>ADR-0051 Evidence retention（不同 retention table
+但同設計模式）</li>
+<li>ERD §5 yearly+monthly partition spec</li>
+<li>Runbook §8 backup（含 cold archive runbook）</li>
+</ul>
+</div></div></body></html>

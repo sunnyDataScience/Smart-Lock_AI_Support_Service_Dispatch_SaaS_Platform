@@ -1,0 +1,693 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Lane A Critique Merge Report: ADR-0039 Cancellation Fee Tiers</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ governance ／ reviews ／ ADR-0039-lane-a-critique-2026-05-28.md</div>
+<div class="doc"><h1
+id="lane-a-critique-merge-report-adr-0039-cancellation-fee-tiers">Lane A
+Critique Merge Report: ADR-0039 Cancellation Fee Tiers</h1>
+<p><strong>日期</strong>：2026-05-28
+<strong>Target</strong>：<code>docs/architecture/adr/ADR-0039-cancellation-fee-tiers.md</code>
+<strong>Critique Personas</strong>：BA / PM
+<strong>Intensity</strong>：standard <strong>Convergence</strong>：✅
+<strong>2/2 PARTIAL_UPDATE → SUPERSEDE</strong>（升級結論：原 ADR
+階段切分與金額已被新規格部分覆寫，需寫新 ADR-XXXX 取代）
+<strong>Per</strong>：<a
+href="../../../devteam_knowledge_base/13_doc_migration_playbook.md"><code>13_doc_migration_playbook §8</code></a>
+Superseded 認定條件 + Roundtable A P0「取消費分層」cascade rule（<a
+href="../../../.claude/context/devteam/cascade-2026-05-28-context-pack.md"><code>cascade-2026-05-28-context-pack.md §1.1</code></a>）</p>
+<hr />
+<h2 id="clipboard-verdict-supersede">📋 Verdict:
+<strong>SUPERSEDE</strong></h2>
+<p>ADR-0039 的 <strong>Decision 表 §S2 金額</strong> 與
+<strong>階段切分顆粒度</strong> 與 new spec §08 P2-06 + P2-07
+直接衝突。雖然 ADR Decision 的「5 階段 + 客服覆寫 + audit + partial 公式
++ configurable」<strong>架構骨架仍 valid</strong>，但<strong>最終金額表
++ 階段邊界</strong>已被新規格重新定義，符合
+<code>§8.1 Superseded 認定</code>：「新規格 P0/BR clause 與 ADR Decision
+段落直接衝突 + 業主明確改口徑」。</p>
+<p><strong>升級理由</strong>（從 PARTIAL_UPDATE → SUPERSEDE）：</p>
+<ol type="1">
+<li><strong>S2「已派工未出發 = NTD 0」</strong> 與 new spec
+P2-07「一般取消費 NTD 300-500，需主管
+override」<strong>金額方向相反</strong></li>
+<li><strong>「已確認報價未派工」階段</strong> ADR 併入
+S1（業主備註），new spec 顯式拆出來為獨立階段（"可免或收行政費"）→
+<strong>顆粒度回歸 6 階段</strong></li>
+<li><strong>業主原始註記</strong>：「前期
+未決，需定義付款後、當日、出發後、到場後」→ Roundtable A 明文「P0
+級規則，極高機率 SUPERSEDE」</li>
+<li>cascade impact 跨 ADR-0040 / ADR-0041 / ADR-0046 / ADR-0049 /
+ADR-0066 → 牽動的決策邊界改變，光 update v2 無法乾淨表達</li>
+</ol>
+<p>→ 寫新
+ADR：<code>ADR-XXXX-cancellation-fee-tiers-v2-final-spec</code>，原
+ADR-0039 改 <code>status: Superseded by ADR-XXXX</code>。</p>
+<hr />
+<h2 id="mag-兩-persona-結論">🔍 兩 persona 結論</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Persona</th>
+<th style="text-align: left;">判定</th>
+<th style="text-align: left;">核心理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">BA</td>
+<td style="text-align: left;">SUPERSEDE</td>
+<td style="text-align: left;">new spec 顆粒度由 5 階段擴為 6 階段；S2
+金額方向相反（0 ↔︎ 收取消費）；新增「customer not
+onsite」「customer_quote_rejected_after_dispatch」「師傅延遲」等取消情境，ADR
+表未覆蓋；M15 異常核准 sheet 已 "Accepted"，rule 已凍</td>
+</tr>
+<tr>
+<td style="text-align: left;">PM</td>
+<td style="text-align: left;">SUPERSEDE</td>
+<td style="text-align: left;">業主原始政策意圖（"前期 未決，4
+段時間軸"）與 ADR-0039 v1 落點不同；KPI / 商業考量：S2 改收費影響毛利線
++ 客訴口徑；ADR-0039 v1 屬 "Eternal Policy" 標記但金額骨架已過時，需
+freeze 新 v2 給 Phase II finance scope</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="dart-adr-0039-v1-vs-final-spec-條條對比">🎯 ADR-0039 v1 vs Final
+Spec 條條對比</h2>
+<h3 id="a-階段對比核心衝突">§A 階段對比（核心衝突）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">階段邊界</th>
+<th style="text-align: left;">ADR-0039 v1</th>
+<th style="text-align: left;">Final Spec (§08 P2-06)</th>
+<th style="text-align: left;">衝突等級</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">報價未確認前</td>
+<td style="text-align: left;">S1 = NTD 0</td>
+<td style="text-align: left;">= 0</td>
+<td style="text-align: left;">✅ 一致</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>已確認報價、未派工</strong></td>
+<td style="text-align: left;">（業主備註：併入 S1）</td>
+<td style="text-align: left;"><strong>獨立階段</strong> =
+可免或收行政費</td>
+<td style="text-align: left;">🔴 <strong>顆粒度衝突</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>已派工、師傅未出發</strong></td>
+<td style="text-align: left;">S2 = <strong>NTD
+0</strong>（業主：師傅未出發無實質成本）</td>
+<td style="text-align: left;">= <strong>收取消費 NTD 300-500（P2-07）+
+主管 override</strong></td>
+<td style="text-align: left;">🔴 <strong>金額方向相反</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">師傅已出發、未到場</td>
+<td style="text-align: left;">S3 = 車馬費 NTD 500-1,200</td>
+<td style="text-align: left;">= 收車馬費</td>
+<td style="text-align: left;">✅ 對齊</td>
+</tr>
+<tr>
+<td style="text-align: left;">已到場、無法/不施工</td>
+<td style="text-align: left;">S4 = 車馬費 + 檢測費 NTD 300</td>
+<td style="text-align: left;">= 車馬費 + 檢測費</td>
+<td style="text-align: left;">✅ 對齊</td>
+</tr>
+<tr>
+<td style="text-align: left;">已施工後取消</td>
+<td style="text-align: left;">S5 = partial 公式</td>
+<td style="text-align: left;">= 依完成比例/材料/人工計費</td>
+<td style="text-align: left;">✅ 概念對齊（公式需對齊細項）</td>
+</tr>
+</tbody>
+</table>
+<p>→ <strong>2 個衝突點 + 4 個對齊</strong> = 部分覆寫達
+"金額表骨架重定義" 強度，業主政策口徑已明顯不同。</p>
+<h3 id="b-新規格引入的取消情境adr-0039-v1-未覆蓋">§B
+新規格引入的取消情境（ADR-0039 v1 未覆蓋）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">情境</th>
+<th style="text-align: left;">new spec 來源</th>
+<th style="text-align: left;">ADR-0039 v1 處理</th>
+<th style="text-align: left;">Gap</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>客戶不在場（customer not
+onsite）</strong></td>
+<td style="text-align: left;">Q047 row 210 / G038 row 322 / Q047 row
+1254：「客戶不在且師傅確認客戶無法到場，工單取消」+「客戶不在是否收車馬費？可以要收」</td>
+<td style="text-align: left;">❌ 未覆蓋</td>
+<td style="text-align: left;">需補 reason code + 對應階段（通常
+S3/S4）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>師傅延遲 /
+師傅單方面取消</strong></td>
+<td style="text-align: left;">Q047 row 210（FR-0010 已處理 reschedule
+但取消費未掛）</td>
+<td style="text-align: left;">❌
+未提及師傅方取消是否收客戶取消費（合理應 = 0 + 師傅 penalty）</td>
+<td style="text-align: left;">需補：師傅 initiated cancel 政策</td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><strong>customer_quote_rejected_after_dispatch</strong></td>
+<td style="text-align: left;">ADR-0039 v2 update note 已補（連動 Forum
+Q-01 / ADR-0066）</td>
+<td style="text-align: left;">✅ v2 已補</td>
+<td style="text-align: left;">但只覆蓋 onsite v+1
+加價拒絕，<strong>標準路徑客戶 confirm 後又拒</strong> 因 Q1=A
+硬綁定被宣告不存在 — 與 new spec Q092「仍需決策」邊界對齊度需 PM
+確認</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>客戶投訴升級轉退款
+(FR-0014)</strong></td>
+<td style="text-align: left;">FR-0014 / ADR-0040 退款分層</td>
+<td style="text-align: left;">⚠️ 邊界註記有但未對齊 ADR-0040 v2</td>
+<td style="text-align: left;">cascade</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>付款不符 /
+客戶未回覆</strong>（Q065 row 228 新規格加入）</td>
+<td
+style="text-align: left;">Q065：「另建議加入付款不符、師傅延遲、客戶未回覆」（業主答
+YES）</td>
+<td style="text-align: left;">❌ 未覆蓋</td>
+<td style="text-align: left;">需補 reason code 與費別</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="bar_chart-pm-persona--商業--kpi-視角">📊 PM persona — 商業 / KPI
+視角</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">觀察</th>
+<th style="text-align: left;">影響</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>政策口徑</strong></td>
+<td style="text-align: left;">業主在 ADR-0039 寫「S2 =
+0」基於「師傅未出發無實質成本」；final spec 改回「收取消費 NTD
+300-500」基於 P2-07「一般取消 admin 成本」邏輯</td>
+<td style="text-align: left;">客服話術腳本要重寫；客戶溝通模板（LINE
+通知文案）需 v2 化</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>毛利線</strong></td>
+<td style="text-align: left;">S2 從 0 → 300-500/case：以每月 ~3-5%
+取消率估算（Phase II 預估 1000 case/月），月增 NTD 9k-25k
+收入；但若觸發客訴升級 → 退款成本反彈</td>
+<td style="text-align: left;">邊際正向但客服 escalation 風險 ↑</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>客訴爭議</strong></td>
+<td
+style="text-align: left;">多出「已確認未派工」階段給客服「可免或收行政費」彈性
+→ 降低客訴升級率</td>
+<td style="text-align: left;">正向；但需配套 SOP</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>scope</strong></td>
+<td style="text-align: left;">new spec 將 cancellation matrix 歸 Phase
+II Finance（sheet-08）→ V1 預設金額 freeze 時程從「Phase I
+launch」改為「Phase II finance ready」</td>
+<td style="text-align: left;">ADR Acceptance Criteria 第 2 條「主管 +
+會計簽核」要 retag 為 Phase II milestone</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>與 ADR-0040 / 0041
+cascade</strong></td>
+<td style="text-align: left;">ADR-0040 退款分層 同被標
+REVIEW_REQUIRED；取消費 → 部分退款 路徑要對齊</td>
+<td style="text-align: left;">需 ADR-0040 v2 同步</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>AI 永禁直接告知金額</strong></td>
+<td style="text-align: left;">ADR-0039 已寫；new spec P2-29 進一步明文
+AI 不可核准退款 / 修改月結 / 判定保固責任 / 承諾法律安全結果</td>
+<td style="text-align: left;">ADR v2 引用 P2-29 更精確</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="dart-必補維度cascade-work">🎯 必補維度（cascade work）</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">#</th>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">來源 persona</th>
+<th style="text-align: left;">動作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">1</td>
+<td style="text-align: left;"><strong>階段表升 6 階段</strong>：拆出
+S1.5「已確認報價未派工 = 可免 / 收行政費」</td>
+<td style="text-align: left;">BA</td>
+<td style="text-align: left;">new ADR Decision 表加 1 列</td>
+</tr>
+<tr>
+<td style="text-align: left;">2</td>
+<td style="text-align: left;"><strong>S2 金額改為 configurable default
+NTD 300-500 + 主管 override</strong>（業主 confirm）</td>
+<td style="text-align: left;">BA + PM</td>
+<td style="text-align: left;">對齊 P2-07；ADR Acceptance Criteria
+補「業主第二次拍板 S2 ≠ 0」decision log</td>
+</tr>
+<tr>
+<td style="text-align: left;">3</td>
+<td style="text-align: left;"><strong>新增 reason code
+dictionary</strong>（customer_not_onsite / technician_initiated_cancel /
+unpaid_no_response / quote_rejected_after_dispatch /
+customer_dispute_to_refund /
+customer_quote_rejected_after_dispatch）</td>
+<td style="text-align: left;">BA</td>
+<td style="text-align: left;">new ADR 補 reason code enum；audit log
+必填</td>
+</tr>
+<tr>
+<td style="text-align: left;">4</td>
+<td style="text-align: left;"><strong>師傅 initiated cancel</strong>
+政策獨立段落：客戶側取消費 = 0，師傅 penalty 走 ADR-0045 acceptance SLA
++ FR-0010 penalty</td>
+<td style="text-align: left;">BA + PM</td>
+<td style="text-align: left;">new ADR 補一段 §技師方取消</td>
+</tr>
+<tr>
+<td style="text-align: left;">5</td>
+<td
+style="text-align: left;"><strong>客戶不在場「可以要收」明文化</strong>（Q047
+業主決議）→ 對應 S3/S4 階段，需 GPS + timestamp 為
+evidence（BR-M08-01）</td>
+<td style="text-align: left;">BA</td>
+<td style="text-align: left;">new ADR 補一段 §客戶不在場費；引用
+ADR-0050 evidence visibility v2</td>
+</tr>
+<tr>
+<td style="text-align: left;">6</td>
+<td style="text-align: left;"><strong>Acceptance Criteria 重
+retag</strong>：Phase II milestone owner = 會計 + 主管；M15 sheet
+"Accepted" 已凍 → 引用 sheet-04 P0 + sheet-08 + sheet-15 M15 final</td>
+<td style="text-align: left;">PM</td>
+<td style="text-align: left;">new ADR Acceptance Criteria 加
+traceability</td>
+</tr>
+<tr>
+<td style="text-align: left;">7</td>
+<td style="text-align: left;"><strong>與 ADR-0040
+cascade</strong>：取消費 → partial refund 路徑同步 v2（refund tier
+表也是 REVIEW_REQUIRED）</td>
+<td style="text-align: left;">BA + PM</td>
+<td style="text-align: left;">new ADR cross-ref ADR-0040 v2（下個
+task）</td>
+</tr>
+<tr>
+<td style="text-align: left;">8</td>
+<td style="text-align: left;"><strong>partial 公式 (S5) 對齊 ADR-0049
+onsite scope change</strong></td>
+<td style="text-align: left;">BA</td>
+<td style="text-align: left;">new ADR 保留 + 明引 ADR-0049 三件套
+evidence + ADR-0066 quote version</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="warning-跨-persona-衝突點已記錄">⚠️ 跨 persona
+衝突點（已記錄）</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">議題</th>
+<th style="text-align: left;">衝突</th>
+<th style="text-align: left;">處理建議</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">BA 主張「S2 改 0 → 300-500
+是業主政策變更」；PM 主張「S2 仍可保留 0 但加 supervisor override 為
+default」</td>
+<td style="text-align: left;">兩派同向但口徑不同</td>
+<td style="text-align: left;">建議 new ADR 寫「S2 default = NTD 300-500
+configurable per brand；客服可 override to 0 with reason code =
+goodwill_waiver」→ 兩派共識</td>
+</tr>
+<tr>
+<td style="text-align: left;">「已確認未派工」階段：PM 認為和 S1
+經濟意義一樣（成本未產生）；BA 認為應拆獨立階段以對應 spec sheet
+顆粒度</td>
+<td style="text-align: left;">顆粒度 vs 簡潔度</td>
+<td style="text-align: left;">建議拆獨立階段（合 spec）但 default 金額 =
+0 或低額行政費（合 PM 直覺）</td>
+</tr>
+<tr>
+<td style="text-align: left;">Cascade：ADR-0066 Q1=A 硬綁定使「customer
+confirm 後拒絕原 quote」case 不存在；但 new spec Q092
+仍寫「仍需決策」</td>
+<td style="text-align: left;">ADR vs spec 邊界不一致</td>
+<td style="text-align: left;">new ADR 內 §B 表明文標 case =
+"標準路徑：N/A（Q1=A 硬綁定下不存在）；onsite v+1：走
+customer_quote_rejected_after_dispatch + ADR-0049 三件套"</td>
+</tr>
+</tbody>
+</table>
+<p>→ 無需升 Lane B（兩 persona 共識 SUPERSEDE，分歧落在執行細節）。</p>
+<hr />
+<h2
+id="triangular_ruler-new-adr-大綱adr-xxxx-cancellation-fee-tiers-v2-final-spec">📐
+New ADR
+大綱：<code>ADR-XXXX-cancellation-fee-tiers-v2-final-spec</code></h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="pp">---</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">id</span><span class="kw">:</span><span class="at"> ADR-XXXX</span><span class="co">  # 待 ADR-0100 ledger 分配</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">title</span><span class="kw">:</span><span class="at"> 取消費分段 v2 — 6 階段 + reason code dictionary（final spec 2026-05-20 對齊）</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">status</span><span class="kw">:</span><span class="at"> proposed</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">date</span><span class="kw">:</span><span class="at"> 2026-05-28</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">supersedes</span><span class="kw">:</span><span class="at"> ADR-0039</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">source_trade_off</span><span class="kw">:</span><span class="at"> docs/_source/01-workorder-erp.md §04 P0 (row 143) + §08 P2-06/P2-07 + §15 M15</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu">deciders</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">業主</span><span class="kw">,</span><span class="at"> 會計</span><span class="kw">,</span><span class="at"> 主管</span><span class="kw">]</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="fu">related</span><span class="kw">:</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> ADR-0040</span><span class="co">  # refund-approval-tiers v2（同 cascade）</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> ADR-0041</span><span class="co">  # travel-fee-split（still valid）</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> ADR-0045</span><span class="co">  # acceptance-sla-policy（師傅 initiated cancel）</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> ADR-0046</span><span class="co">  # change-request-object（金額變更）</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> ADR-0049</span><span class="co">  # onsite-scope-change-protocol（S5 partial 對齊）</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> ADR-0050-v2</span><span class="co">  # evidence-visibility-matrix（GPS + 不在場證據）</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> ADR-0066</span><span class="co">  # quote-WO hard binding（S1 邊界）</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="fu">pre_mortem</span><span class="kw">:</span><span class="at"> F4 (合規崩潰) + F1 (顆粒度)</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="fu">eternal_transient</span><span class="kw">:</span><span class="at"> Eternal (6 階段骨架 + override + audit + reason code dict) / Transient (具體金額 configurable)</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="pp">---</span></span></code></pre></div>
+<h3 id="decision-1--6-階段表取代-adr-0039-5-階段">Decision §1 — 6
+階段表（取代 ADR-0039 5 階段）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">階段</th>
+<th style="text-align: left;">觸發點</th>
+<th style="text-align: left;">客戶側收費（V1 default）</th>
+<th style="text-align: left;">reason code 預設</th>
+<th style="text-align: left;">客服覆寫</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">S1</td>
+<td style="text-align: left;">報價未確認前</td>
+<td style="text-align: left;">NTD 0</td>
+<td style="text-align: left;">quote_not_confirmed</td>
+<td style="text-align: left;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>S1.5（NEW）</strong></td>
+<td style="text-align: left;"><strong>已確認報價、未派工</strong></td>
+<td style="text-align: left;"><strong>NTD 0 或行政費 NTD
+100-200（configurable）</strong></td>
+<td style="text-align: left;">quote_confirmed_no_dispatch</td>
+<td style="text-align: left;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>S2（金額改）</strong></td>
+<td style="text-align: left;">已派工、師傅未出發</td>
+<td style="text-align: left;"><strong>NTD 300-500（configurable）+
+goodwill_waiver 可 override → 0</strong></td>
+<td style="text-align: left;">dispatched_not_departed</td>
+<td style="text-align: left;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;">S3</td>
+<td style="text-align: left;">已出發、未到場</td>
+<td style="text-align: left;">車馬費 NTD 500-1,200 + 取消費（同
+S2）</td>
+<td style="text-align: left;">en_route_cancelled /
+customer_not_onsite</td>
+<td style="text-align: left;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;">S4</td>
+<td style="text-align: left;">已到場、無法/不施工</td>
+<td style="text-align: left;">車馬費 + 檢測費 NTD 300 + 取消費（同
+S2）</td>
+<td style="text-align: left;">onsite_not_executed /
+customer_refused</td>
+<td style="text-align: left;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;">S5</td>
+<td style="text-align: left;">已施工後取消</td>
+<td style="text-align: left;">partial 公式 + 車馬費（引 ADR-0049 +
+ADR-0066 quote_version）</td>
+<td style="text-align: left;">partial_completed_cancel /
+customer_quote_rejected_after_dispatch (v+1)</td>
+<td style="text-align: left;">✅</td>
+</tr>
+</tbody>
+</table>
+<h3 id="decision-2--reason-code-dictionarynew">Decision §2 — Reason Code
+Dictionary（NEW）</h3>
+<p>引 new spec Q065 row 228 業主答 YES 補充：</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cancellation_reason_codes</span><span class="kw">:</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> quote_not_confirmed</span><span class="co">          # S1</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> quote_confirmed_no_dispatch</span><span class="co">  # S1.5</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> dispatched_not_departed</span><span class="co">      # S2</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> en_route_cancelled</span><span class="co">           # S3 客戶取消</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> customer_not_onsite</span><span class="co">          # S3/S4 客戶不在</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> technician_initiated_cancel</span><span class="co">  # 師傅方（客戶側 0）</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> unpaid_no_response</span><span class="co">           # 客戶未回覆 / 付款不符 → 走系統取消</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> onsite_not_executed</span><span class="co">          # S4 不施工</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> customer_refused</span><span class="co">             # S4 拒絕</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> partial_completed_cancel</span><span class="co">     # S5</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> customer_quote_rejected_after_dispatch</span><span class="co">  # S5 onsite v+1 加價拒絕（v2 補）</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> goodwill_waiver</span><span class="co">              # 客服 override 用</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> supervisor_override</span><span class="co">          # &gt; 50% / 免收 主管 override</span></span></code></pre></div>
+<h3 id="decision-3--師傅方-initiated-cancelnew-段落">Decision §3 —
+師傅方 initiated cancel（NEW 段落）</h3>
+<p>師傅單方面取消（含 no-show、聯絡不上）→ 客戶側取消費 = 0；師傅進
+penalty queue：</p>
+<ul>
+<li>走 FR-0010 / ADR-0045（acceptance SLA）</li>
+<li>客戶側自動 emit <code>WorkOrderRescheduleRejected</code> →
+re-dispatch（FR-0003）</li>
+<li>M07 weight -5（同 30 min 內 reschedule penalty）</li>
+</ul>
+<h3 id="decision-4--override--audit沿用-adr-0039-v1補欄位">Decision §4 —
+Override + Audit（沿用 ADR-0039 v1，補欄位）</h3>
+<p>Override audit log 必填欄位（補 v1 缺項）：</p>
+<ul>
+<li><code>operator_id</code>, <code>operator_role</code>,
+<code>original_amount</code>, <code>new_amount</code>,
+<code>delta_pct</code></li>
+<li><code>reason_code</code>（來自 §2 dictionary，必須在 enum 內）</li>
+<li><code>supervisor_approval_id</code>（when delta_pct &gt; 50% or
+amount = 0）</li>
+<li><code>quote_id</code>, <code>quote_version</code>（cascade
+ADR-0066）</li>
+<li><code>evidence_ids</code>（GPS / chat / signature 等，cascade
+ADR-0050 v2）</li>
+</ul>
+<h3 id="decision-5--configurable-per-brand沿用">Decision §5 —
+Configurable per brand（沿用）</h3>
+<p>透過 ChangeRequest (ADR-0046) 修改：金額表 + reason code 中文文案 +
+客服覆寫門檻。</p>
+<h3 id="acceptance-criteria重-retag">Acceptance Criteria（重
+retag）</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" />業主第二次拍板 6 階段 + S2
+改收費（必須 2026-05-30 前確認，否則阻擋 Phase II finance scope
+freeze）</label></li>
+<li><label><input type="checkbox" />會計 + 主管簽核 V1 金額表（S1 / S1.5
+/ S2 / S3 / S4 各階段 default）</label></li>
+<li><label><input type="checkbox" />M11 AR + M15 Exception sheet
+對齊新階段表</label></li>
+<li><label><input type="checkbox" />reason code dictionary 進 M18 System
+Setup（configurable + audit）</label></li>
+<li><label><input type="checkbox" />Backend state machine 自動推算 6
+階段（新增 S1.5 status）</label></li>
+<li><label><input type="checkbox" />客服 UI 顯示「當前階段 + system
+預設金額 + 覆寫輸入框 + 試算 + reason code 下拉」</label></li>
+<li><label><input type="checkbox" />AI 永禁直接告知金額（沿用 ADR-0035 +
+new spec P2-29）</label></li>
+<li><label><input type="checkbox" />QA：6 階段切換、reason code enum
+驗證、override audit、partial 計算、師傅 initiated
+cancel、客戶不在場、&gt; 50% 主管覆核 全套 TC</label></li>
+<li><label><input type="checkbox" />cascade：ADR-0040 v2
+退款分層同步更新（取消費 → partial refund 路徑）</label></li>
+<li><label><input type="checkbox" />cascade：FR-0010 改約 / FR-0014 退款
+/ FR-0018 客訴 cross-ref new ADR</label></li>
+</ul>
+<h3 id="consequences">Consequences</h3>
+<p><strong>Positive</strong>：</p>
+<ul>
+<li>階段顆粒度完全對齊 new spec</li>
+<li>Reason code dictionary 給 BI / AI 分類提供結構化欄位</li>
+<li>師傅 initiated cancel 明文化 → 客戶口徑統一</li>
+<li>cascade chain（ADR-0040 / 0041 / 0046 / 0049 / 0066）全部對齊</li>
+</ul>
+<p><strong>Negative</strong>：</p>
+<ul>
+<li>客服 UI 多 1 個階段 + reason code 下拉 → 訓練成本</li>
+<li>S2 金額改收費可能觸發短期客訴爬升（mitigation: SOP + script）</li>
+<li>Phase II finance freeze 取決於業主 + 會計同步簽核</li>
+</ul>
+<h3 id="pre-mortem-mapping">Pre-mortem Mapping</h3>
+<p>F4（合規崩潰）+ F1（顆粒度太粗）— 完全閉合。</p>
+<hr />
+<h2 id="dart-follow-up-actions">🎯 Follow-up Actions</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">#</th>
+<th style="text-align: left;">Action</th>
+<th style="text-align: left;">Owner</th>
+<th style="text-align: left;">Priority</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">F1</td>
+<td style="text-align: left;">寫 new
+ADR：<code>ADR-XXXX-cancellation-fee-tiers-v2-final-spec</code>（依上面大綱）</td>
+<td style="text-align: left;"><code>devteam-arch</code></td>
+<td style="text-align: left;">P0</td>
+</tr>
+<tr>
+<td style="text-align: left;">F2</td>
+<td style="text-align: left;">ADR-0039 frontmatter 改
+<code>status: Superseded by ADR-XXXX</code> +
+<code>superseded_on: 2026-05-28</code> +
+<code>superseded_reason: "new spec §08 P2-06 + P2-07 6 階段表 + S2 金額方向改變"</code></td>
+<td style="text-align: left;"><code>devteam-arch</code></td>
+<td style="text-align: left;">P0</td>
+</tr>
+<tr>
+<td style="text-align: left;">F3</td>
+<td style="text-align: left;">ADR-0100 ledger 更新：ADR-0039 從
+REVIEW_REQUIRED → SUPERSEDE；分配 new ADR ID</td>
+<td style="text-align: left;"><code>devteam-arch</code></td>
+<td style="text-align: left;">P0</td>
+</tr>
+<tr>
+<td style="text-align: left;">F4</td>
+<td style="text-align: left;">ADR-0040 v2 cascade（取消費 → partial
+refund 路徑同步）</td>
+<td style="text-align: left;"><code>devteam-arch</code></td>
+<td style="text-align: left;">P1</td>
+</tr>
+<tr>
+<td style="text-align: left;">F5</td>
+<td style="text-align: left;">FR-0014 refund / FR-0010 reschedule
+frontmatter 補 related_adrs new ID + 對應 BR-M11/M15-NN</td>
+<td style="text-align: left;"><code>devteam-analyst</code></td>
+<td style="text-align: left;">P1</td>
+</tr>
+<tr>
+<td style="text-align: left;">F6</td>
+<td style="text-align: left;">new BR
+sheet：<code>BR-M15-CANCEL-01~10</code>（6 階段 + reason code + override
+規則 + 師傅 initiated）</td>
+<td style="text-align: left;"><code>devteam-analyst</code></td>
+<td style="text-align: left;">P1</td>
+</tr>
+<tr>
+<td style="text-align: left;">F7</td>
+<td style="text-align: left;">M18 System Setup
+config：cancellation_reason_codes enum + 金額表 schema</td>
+<td style="text-align: left;"><code>devteam-design</code></td>
+<td style="text-align: left;">P2</td>
+</tr>
+<tr>
+<td style="text-align: left;">F8</td>
+<td style="text-align: left;">QA test plan：6 階段 × reason code ×
+override × cascade scenarios（估 ≥ 18 TC）</td>
+<td style="text-align: left;"><code>devteam-qa</code></td>
+<td style="text-align: left;">P1</td>
+</tr>
+<tr>
+<td style="text-align: left;">F9</td>
+<td style="text-align: left;">業主裁決會議：S2 改收費 + S1.5 拆出 + 師傅
+initiated cancel 政策 三項拍板</td>
+<td style="text-align: left;"><code>devteam-router</code> 升級</td>
+<td style="text-align: left;">P0</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="bar_chart-confidence">📊 Confidence</h2>
+<ul>
+<li><strong>Verdict confidence</strong>: HIGH（2/2 persona 共識；spec
+sheet "Accepted" 已凍；Roundtable A 明文 P0 SUPERSEDE 預期）</li>
+<li><strong>Cascade 完整性</strong>: MEDIUM-HIGH（已盤點 ADR-0040 / 0041
+/ 0046 / 0049 / 0066 + FR-0010 / 0014 / 0018，但 BR-M15 細項需 analyst
+補）</li>
+<li><strong>無需 Round 2 / Lane B 升級</strong>:
+證據充分；唯一未決點（S2 default 金額、S1.5 default 金額、師傅 initiated
+政策）為<strong>業主裁決點</strong>而非 persona 衝突，走 P0
+升級即可</li>
+</ul>
+<hr />
+<h2 id="link-drill-down">🔗 Drill-down</h2>
+<ul>
+<li>原 critique 完整內容：
+<ul>
+<li>BA persona: 本檔 §A + §B</li>
+<li>PM persona: 本檔 §PM persona — 商業 / KPI 視角</li>
+</ul></li>
+<li>ADR
+原檔：<code>docs/architecture/adr/ADR-0039-cancellation-fee-tiers.md</code></li>
+<li>New spec 對照：
+<ul>
+<li><code>docs/_source/01-workorder-erp.md</code> row 143（§04 P0 取消費
+P0-09）</li>
+<li>row 437-438（§08 P2-06 / P2-07 階段 matrix + 金額）</li>
+<li>row 210 / 322 / 1088 / 1254（客戶不在場 / G038 / Q047）</li>
+<li>row 228（Q065 新增取消情境 業主答 YES）</li>
+<li>row 475（§08 M15 異常核准 Accepted）</li>
+</ul></li>
+<li>相關 ADR ledger
+更新點：<code>docs/architecture/adr/ADR-0100-legacy-adr-supersede-index.md</code>
+row 100 + row 158</li>
+<li>Cascade
+pack：<code>.claude/context/devteam/cascade-2026-05-28-context-pack.md</code>
+§1.1（Roundtable A P0 取消費分層）</li>
+<li>Roundtable A
+MoM：<code>.claude/context/devteam/meetings/2026-05-27-1130-final-spec-migration-strategy/MoM.md</code></li>
+</ul>
+<blockquote>
+<p>本次 critique 為 <strong>A2.4 task 6 條 REVIEW_REQUIRED 中第 3
+條</strong>（ADR-0050 ✅ / ADR-0008 ⏳ / ADR-0009 ⏳ / <strong>ADR-0039
+✅ 本次</strong> / ADR-0040 ⏳ / ADR-0044 ⏳）。 餘 3 條（ADR-0008 /
+0009 / 0044）下個 session 推進；ADR-0040 緊接同 session 推進（與本案
+cascade 強耦合）。</p>
+</blockquote>
+</div></div></body></html>

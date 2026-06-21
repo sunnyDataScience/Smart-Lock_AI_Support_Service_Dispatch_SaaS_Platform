@@ -1,0 +1,361 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Wireframe 目錄索引</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ ux ／ wireframes ／ index.md</div>
+<div class="doc"><h1 id="wireframe-目錄索引">Wireframe 目錄索引</h1>
+<blockquote>
+<p><strong>狀態</strong>：Placeholder 階段（Roundtable B D5）— wireframe
+抽離 user flow doc 獨立檔，圖檔本身待 figma / Pencil MCP
+階段補；本檔先列每個 flow / step 對應的 wireframe placeholder。</p>
+<p><strong>拆檔依據</strong>：粒度不同 (per-screen)、cascade 頻率不同
+(UI 改動快過 flow)、體積大 (圖檔)。state coverage matrix
+<strong>留主檔</strong>（與 journey 同層）。</p>
+</blockquote>
+<hr />
+<h2 id="索引">索引</h2>
+<h3 id="flow-s1消費者-line-報修">Flow S1：消費者 LINE 報修</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">Wireframe placeholder</th>
+<th style="text-align: left;">UI state 對應 (主檔表)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">1. LINE 報修入口</td>
+<td style="text-align: left;"><a
+href="./S1-line-intake.placeholder.md"><code>S1-line-intake.placeholder.md</code></a></td>
+<td style="text-align: left;">happy / empty / loading / error /
+offline</td>
+</tr>
+<tr>
+<td style="text-align: left;">2. 多輪對話 (A01-A03)</td>
+<td style="text-align: left;"><a
+href="./S1-multi-turn-conversation.placeholder.md"><code>S1-multi-turn-conversation.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">3. 問題卡確認 (Flex Message)</td>
+<td style="text-align: left;"><a
+href="./S1-problem-card-flex.placeholder.md"><code>S1-problem-card-flex.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">4. 三層解決 (案例庫 / RAG / 真人)</td>
+<td style="text-align: left;"><a
+href="./S1-triage-3layer.placeholder.md"><code>S1-triage-3layer.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">5. 問題釐清確認 (Clarify gate)</td>
+<td style="text-align: left;"><a
+href="./S1-clarify-gate.placeholder.md"><code>S1-clarify-gate.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">6. 工單建立 Quick Reply (AI 路徑)</td>
+<td style="text-align: left;"><a
+href="./S1-convert-to-wo-trigger.placeholder.md"><code>S1-convert-to-wo-trigger.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">7. 急件 4 類強制轉真人</td>
+<td style="text-align: left;"><a
+href="./S1-emergency-handoff.placeholder.md"><code>S1-emergency-handoff.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+</tbody>
+</table>
+<h3 id="flow-s2派工--liff-報價二段確認">Flow S2：派工 + LIFF
+報價二段確認</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">Wireframe placeholder</th>
+<th style="text-align: left;">UI state 對應</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">1. 客服 review PC inbox</td>
+<td style="text-align: left;"><a
+href="./S2-cs-pc-review-inbox.placeholder.md"><code>S2-cs-pc-review-inbox.placeholder.md</code></a></td>
+<td style="text-align: left;">happy / empty / loading / error /
+offline</td>
+</tr>
+<tr>
+<td style="text-align: left;">2. 客服內部報價 UI (Pricing Engine)</td>
+<td style="text-align: left;"><a
+href="./S2-cs-internal-quote.placeholder.md"><code>S2-cs-internal-quote.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">3. LINE Flex 報價通知 (announce only)</td>
+<td style="text-align: left;"><a
+href="./S2-line-quote-flex.placeholder.md"><code>S2-line-quote-flex.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">4. LIFF 報價明細頁 (只顯示總額 / P0)</td>
+<td style="text-align: left;"><a
+href="./S2-liff-quote-detail.placeholder.md"><code>S2-liff-quote-detail.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">5. LIFF checkbox + 確認</td>
+<td style="text-align: left;"><a
+href="./S2-liff-checkbox-confirm.placeholder.md"><code>S2-liff-checkbox-confirm.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">6. 師傅推播 Top-5</td>
+<td style="text-align: left;"><a
+href="./S2-tech-top5-push.placeholder.md"><code>S2-tech-top5-push.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">7. 師傅 Web App 接單</td>
+<td style="text-align: left;"><a
+href="./S2-tech-accept.placeholder.md"><code>S2-tech-accept.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">8. 師傅 ETA + 客戶 LINE 通知</td>
+<td style="text-align: left;"><a
+href="./S2-tech-eta-notify.placeholder.md"><code>S2-tech-eta-notify.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">9. 現場拍照 + 簽名 + 完工</td>
+<td style="text-align: left;"><a
+href="./S2-onsite-evidence.placeholder.md"><code>S2-onsite-evidence.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">10. Onsite scope_change 加價三段式</td>
+<td style="text-align: left;"><a
+href="./S2-onsite-scope-change.placeholder.md"><code>S2-onsite-scope-change.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">11. 結案 hard gate (address + quote)</td>
+<td style="text-align: left;"><a
+href="./S2-close-gate.placeholder.md"><code>S2-close-gate.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+</tbody>
+</table>
+<h3 id="flow-s3sop-螺旋">Flow S3：SOP 螺旋</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">Wireframe placeholder</th>
+<th style="text-align: left;">UI state 對應</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">1. SOP 雙審 inbox (客服主管 + Domain
+Expert)</td>
+<td style="text-align: left;"><a
+href="./S3-sop-dual-review-inbox.placeholder.md"><code>S3-sop-dual-review-inbox.placeholder.md</code></a></td>
+<td style="text-align: left;">happy / empty / loading / error /
+offline</td>
+</tr>
+<tr>
+<td style="text-align: left;">2. Family Reviewer 審核頁</td>
+<td style="text-align: left;"><a
+href="./S3-family-reviewer.placeholder.md"><code>S3-family-reviewer.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">3. SOP draft diff view</td>
+<td style="text-align: left;"><a
+href="./S3-sop-diff-view.placeholder.md"><code>S3-sop-diff-view.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+</tbody>
+</table>
+<h3 id="flow-s4合規稽核--取消--退款">Flow S4：合規稽核 / 取消 /
+退款</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">Wireframe placeholder</th>
+<th style="text-align: left;">UI state 對應</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">1. GDPR forget request UI</td>
+<td style="text-align: left;"><a
+href="./S4-gdpr-forget.placeholder.md"><code>S4-gdpr-forget.placeholder.md</code></a></td>
+<td style="text-align: left;">happy / empty / loading / error /
+offline</td>
+</tr>
+<tr>
+<td style="text-align: left;">2. 稽核員 唯讀 evidence view</td>
+<td style="text-align: left;"><a
+href="./S4-auditor-readonly.placeholder.md"><code>S4-auditor-readonly.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">3. 取消 / 改期 reason code 選擇</td>
+<td style="text-align: left;"><a
+href="./S4-cancel-reason.placeholder.md"><code>S4-cancel-reason.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">4. 退款核准分層 (低 / 中 / 高 SoD)</td>
+<td style="text-align: left;"><a
+href="./S4-refund-approval.placeholder.md"><code>S4-refund-approval.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+</tbody>
+</table>
+<h3 id="flow-s5m18-admin-journey-v2-新增">Flow S5：M18 admin journey (v2
+新增)</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">Wireframe placeholder</th>
+<th style="text-align: left;">UI state 對應</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">1. M18 admin login + role pick</td>
+<td style="text-align: left;"><a
+href="./S5-m18-login.placeholder.md"><code>S5-m18-login.placeholder.md</code></a></td>
+<td style="text-align: left;">happy / empty / loading / error /
+offline</td>
+</tr>
+<tr>
+<td style="text-align: left;">2. Config schema editor (draft)</td>
+<td style="text-align: left;"><a
+href="./S5-config-editor.placeholder.md"><code>S5-config-editor.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">3. Validation error inline</td>
+<td style="text-align: left;"><a
+href="./S5-validation-error.placeholder.md"><code>S5-validation-error.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">4. 主管 approval inbox</td>
+<td style="text-align: left;"><a
+href="./S5-approval-inbox.placeholder.md"><code>S5-approval-inbox.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">5. Staged rollout progress +
+observation</td>
+<td style="text-align: left;"><a
+href="./S5-staged-rollout-progress.placeholder.md"><code>S5-staged-rollout-progress.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">6. Audit view (filter + diff)</td>
+<td style="text-align: left;"><a
+href="./S5-audit-view.placeholder.md"><code>S5-audit-view.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">7. Rollback confirm dialog</td>
+<td style="text-align: left;"><a
+href="./S5-rollback-confirm.placeholder.md"><code>S5-rollback-confirm.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+</tbody>
+</table>
+<h3 id="partner-portal-m14">Partner Portal (M14)</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">Wireframe placeholder</th>
+<th style="text-align: left;">UI state 對應</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">1. Partner login (三角色 entry)</td>
+<td style="text-align: left;"><a
+href="./M14-partner-login.placeholder.md"><code>M14-partner-login.placeholder.md</code></a></td>
+<td style="text-align: left;">happy / empty / loading / error /
+offline</td>
+</tr>
+<tr>
+<td style="text-align: left;">2. Brand dashboard (僅自家品牌)</td>
+<td style="text-align: left;"><a
+href="./M14-brand-dashboard.placeholder.md"><code>M14-brand-dashboard.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">3. Dealer 代客建案 form</td>
+<td style="text-align: left;"><a
+href="./M14-dealer-create-case.placeholder.md"><code>M14-dealer-create-case.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">4. Builder 專案主檔 setup</td>
+<td style="text-align: left;"><a
+href="./M14-builder-project-setup.placeholder.md"><code>M14-builder-project-setup.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+<tr>
+<td style="text-align: left;">5. 月結對帳 audit download</td>
+<td style="text-align: left;"><a
+href="./M14-monthly-settlement.placeholder.md"><code>M14-monthly-settlement.placeholder.md</code></a></td>
+<td style="text-align: left;">同</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="placeholder-規範">Placeholder 規範</h2>
+<p>每個 <code>.placeholder.md</code> 至少包含：</p>
+<ol type="1">
+<li><strong>30 秒摘要</strong> — 這個 screen 做什麼，給誰用</li>
+<li><strong>對應 flow / step</strong> — 指回主檔或 by-module 子檔</li>
+<li><strong>5 個 UI state 描述</strong> (happy / empty / loading / error
+/ offline) — 文字描述（圖檔等 figma 階段補）</li>
+<li><strong>a11y notes</strong> — WCAG 2.2 AA 關鍵點（target size /
+focus / aria-label / contrast）</li>
+<li><strong>FR 反向指</strong> — <code>→ FR-NNNN / AC-NN</code></li>
+</ol>
+<p>實際 wireframe 圖檔 (figma .fig / Pencil .pen) 後續以 link 形式補入
+placeholder。</p>
+<hr />
+<h2 id="引用-kb">引用 KB</h2>
+<ul>
+<li>[KB-13 §資產拆分] — wireframe 抽離 user flow doc 的拆檔原則</li>
+</ul>
+<h2 id="相關文件">相關文件</h2>
+<ul>
+<li>主檔：<a
+href="../user-flow-smart-lock-saas.md"><code>../user-flow-smart-lock-saas.md</code></a></li>
+<li>By-module 子檔：<a
+href="../by-module/"><code>../by-module/</code></a></li>
+</ul>
+</div></div></body></html>

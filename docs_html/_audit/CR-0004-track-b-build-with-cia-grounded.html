@@ -1,0 +1,501 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Track B — 8 個 BUILD_WITH_CIA 模組 grounded CIA + 跨模組裁決</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ _audit ／ CR-0004-track-b-build-with-cia-grounded.md</div>
+<div class="doc"><h1 id="cr-0004--track-bbuild_with_ciagrounded-cia--跨模組裁決">CR-0004
+— Track B（BUILD_WITH_CIA）grounded CIA + 跨模組裁決</h1>
+<blockquote>
+<p><strong>本文是動 code 前的硬
+gate（rules/change-governance.md）。</strong> Track
+A（BUILD_TENANT_SCOPED，~35 模組含 P2-W6
+media/dispatch-logs）已完成並全綠。Track B = 8 個需「真設計」（多表 /
+狀態機 / SoD / governance / 不可逆 schema 遷移）的模組，依治理規則各需
+CIA + 業主裁 §8 後才可實作。本文彙整 8 份 grounded CIA（以
+<code>docs/</code> 為事實來源）+ Opus 對 5 個 docs 衝突的裁決 +
+跨模組實作順序。</p>
+<p>🛑 <strong>§8 未獲業主裁決前，Track B 不動任何 code / DB
+schema。</strong></p>
+</blockquote>
+<hr />
+<h2 id="0-一句話現況">0. 一句話現況</h2>
+<p>8 個模組全部 <code>risk=HIGH</code>。<strong>只有
+<code>config-m18-governance</code> 是
+<code>READY_AFTER_OWNER</code></strong>（spec 6 條 path 已在 merged
+openapi.yaml、canonical DDL §9 四表已定義、無 C-10 schema 衝突 →
+只待業主形式拍板 HD-01~06）。<strong>其餘 7 個全部
+<code>BLOCKED_ON_CONFLICT</code></strong>，幾乎都卡在同一個跨模組
+DESTRUCTIVE 決定：<strong>C5 — DB schema 命名遷移（<code>saas.*</code>
+canonical vs 現行 <code>public.*</code> legacy）</strong>。</p>
+<hr />
+<h2 id="1-c5-是主決定master-gate-一次裁全模組共用">1. C5
+是「主決定」（master gate）— 一次裁、全模組共用</h2>
+<p>gap-audit C-10/C-11 明標多張 legacy 表（<code>public.disputes</code>
+/ <code>public.reconciliations</code> /
+<code>public.inventory_items</code> /
+<code>public.data_corrections</code> / <code>public.price_rules</code> /
+<code>public.vouchers</code> /
+<code>public.problem_cards.resolution_layer</code>…）<strong>不在
+canonical 53 表
+DDL</strong>，「會打爆現有資料」「破壞性決定」「動手前各自跑 CIA」。</p>
+<p><strong>裁決官建議（仍須業主最終拍板，AI
+無權代決不可逆資料遷移）：統一一套遷移範式，避免每模組各裁產生不一致：</strong></p>
+<blockquote>
+<p>新建 <code>saas.&lt;canonical表名&gt;</code>（含
+<code>tenant_id</code>）→ <strong>dual-write 過渡</strong>（同時寫
+<code>public.*</code> + <code>saas.*</code>）+
+<strong>backfill</strong>（反推 tenant_id）→ 前端/agent caller 歸零且 v2
+E2E 綠後（CR-0003 P4 gate）才 <strong>DROP legacy <code>public.*</code>
+表</strong>。</p>
+</blockquote>
+<p>例外個案：</p>
+<ul>
+<li><strong>inventory</strong>：<code>public.inventory_items</code> 無
+tenant_id 且涉 owner 三分流帳務（ADR-0052），風險最高 → 須<strong>先決
+tenant scope</strong>（HD-INV-01）才能定 schema。</li>
+<li><strong>data-corrections</strong>：可選方案 B（<code>public</code>
+就地
+<code>ADD COLUMN IF NOT EXISTS tenant_id</code>，最小破壞）作過渡，端態仍建議遷
+<code>saas</code>。</li>
+<li><strong>vouchers</strong>：在 <code>public</code> schema，void 的
+<code>ALTER TABLE</code> 目標 schema 須先裁（HD-VCH-004）；hash chain
+backfill <strong>不可分批</strong>，須在 maintenance window
+一次完成。</li>
+<li><strong>problem_card.resolution</strong>：<code>saas.problem_card</code>
+須
+<code>ALTER TABLE ADD COLUMN resolution_layer text CHECK(L1/L2/L3) NULLABLE</code>（resolution
+HD-2）。</li>
+</ul>
+<p><strong>➡️ OWNER DECISION
+D-C5（最高優先）</strong>：是否採用上述「dual-write + backfill → P4
+DROP」統一範式？inventory/data-corrections/vouchers
+的例外是否照建議處理？</p>
+<hr />
+<h2 id="2-五個-docs-衝突的裁決opus">2. 五個 docs 衝突的裁決（Opus）</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>衝突</th>
+<th>裁決官 ruling</th>
+<th>仍需業主最終拍板？</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>C1</strong></td>
+<td>invoices：FR-0011 <code>status=draft</code>（卡 Q7 金流 provider
+未選）vs CR-0003 排 BUILD_V2 vs SOW-0001(Approved) 列
+/accounting/invoices</td>
+<td><strong>分兩段</strong>：(a) 現在可建 <strong>read-only</strong>
+list+get tenant-scoped（擴 spec
+<code>/tenants/{tid}/accounting/invoices</code>）；(b)
+<strong>付款生成/寫入凍結</strong>至 FR-0011 轉 active。tier-4
+draft「可參考不視為硬授權」，read-only 無金流副作用、不違反
+Never-break。</td>
+<td>✅ 是</td>
+</tr>
+<tr>
+<td><strong>C2</strong></td>
+<td>reconciliations/disputes：spec <strong>無</strong> path vs
+FR-0013(active P0) 要 dual-sign 三維 SoD</td>
+<td><strong>以 FR-0013 為準擴 spec</strong>（補 SoD header
+X-Initiator/X-Approver/X-Executor + ReconciliationV2/DisputeV2
+schema）</td>
+<td>✅ 是（確認擴 spec 方向）</td>
+</tr>
+<tr>
+<td><strong>C3</strong></td>
+<td>pricing-rules：spec 只有 <code>/pricing/calculate</code> vs
+ADR-0067/BR-M18 要走 M18 staged rollout vs code 有
+<code>/pricing/rules</code> CRUD</td>
+<td><strong>路徑 C 混合過渡</strong>：短期保留 tenant-scoped
+<code>/pricing/rules</code> CRUD（遷 <code>saas.price_rule</code>）+
+寫入並行寫 <code>saas.change_request</code> 走 ADR-0046/0064；Phase II
+待 config-m18 就位後將 pricing namespace 漸進納入 M18。（DDL
+config_namespace seed <strong>無</strong> pricing namespace、BR-M18
+基礎設施未實作 → 純 M18 立刻做會把 pricing 釘死）</td>
+<td>✅ 是（且 calculate 入參格式 HD-4 須另裁）</td>
+</tr>
+<tr>
+<td><strong>C4</strong></td>
+<td>resolution：standalone <code>/resolve</code> vs sub-resource
+<code>/problem-cards/{id}/resolve</code>（_source/02）vs chatbot
+命名空間</td>
+<td><strong>統一進
+<code>/tenants/{tid}/problem-cards/{id}/resolve</code>
+sub-resource</strong>；FAQ/RAG 引擎封裝為 chatbot-internal</td>
+<td>✅ 是（路由形狀 HD-1 形式拍板）</td>
+</tr>
+<tr>
+<td><strong>C5</strong></td>
+<td>DB schema 命名（見 §1）</td>
+<td><strong>跨 8 模組 DESTRUCTIVE，裁決官拒絕代決</strong> → 見 §1
+D-C5</td>
+<td>✅ <strong>是（最高優先）</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-跨模組實作順序依賴拓樸">3. 跨模組實作順序（依賴拓樸）</h2>
+<pre><code>S0 [前置 gate，全部共同阻塞]
+   業主簽核 (a) CR-0003 P0 Q1-Q6 + (b) P1-T1 spec 合併(已完成 commit 0af385ea) + (c) C5 schema 命名範式統一裁決
+        │
+        ▼
+S1 [Phase 0 critical path，最先，阻塞 pricing] ── config-m18-governance
+        │   ADR-0067「Phase I MVP 不能在缺這套治理的地基上跑」。先決 HD-01~06、跑 migration 002 GRANT、
+        │   建 router+service+staged rollout state machine+ACL read+cache。就位才解鎖 pricing 走 M18。
+        ▼
+S2 [共用 dual-sign] ── reconciliations → disputes
+        │   同源 FR-0013 三維 SoD，共用 core/deps.py require_sod_actors。先收斂 reconciliations 設計，disputes 對齊重用。
+        ▼
+S3 [schema 根基最重，阻塞 work-orders/material-request] ── inventory
+        │   FR-0007 row-lock 扣庫存；canonical 53 表完全無 inventory 表。先決 HD-INV-01(tenant scope) + 簽 ADR-0052/0053(現為 Draft)。
+        ▼
+S4 [依賴 config-m18 就位] ── pricing-rules（路徑 C）
+S5 [tenant scope 直遷，依賴 C5+RBAC] ── data-corrections（可與 S2/S4 平行）
+S6 [依賴 saas.problem_card migration + S0] ── resolution
+S7 [平台級 flat，獨立性最高，但 hash chain+schema 須先裁] ── vouchers-void</code></pre>
+<p><strong>並行性</strong>：S1(config-m18) 與 S3(inventory) 的
+CIA/決策階段可平行（不同 HD），但 S1 <strong>code
+須最先完成</strong>（Phase 0）。S2 / S5 / S7 領域不同無共用表，CIA
+與實作可開獨立 worktree 平行。S4 code block 於 S1；S6 block 於
+<code>saas.problem_card</code> migration。</p>
+<hr />
+<h2 id="4-ready-vs-blocked">4. Ready vs Blocked</h2>
+<table>
+<thead>
+<tr>
+<th>模組</th>
+<th>狀態</th>
+<th>gate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>config-m18-governance</strong></td>
+<td>🟢 <code>READY_AFTER_OWNER</code></td>
+<td>只待業主裁 HD-01~06（spec/DDL 都備齊、無 C-10 衝突）</td>
+</tr>
+<tr>
+<td>pricing-rules</td>
+<td>🔴 <code>BLOCKED_ON_CONFLICT</code></td>
+<td>C3 + C5；治理層 block 於 config-m18 就位</td>
+</tr>
+<tr>
+<td>reconciliations</td>
+<td>🔴 <code>BLOCKED_ON_CONFLICT</code></td>
+<td>C2 + C5</td>
+</tr>
+<tr>
+<td>disputes</td>
+<td>🔴 <code>BLOCKED_ON_CONFLICT</code></td>
+<td>C2 + C5 + status enum 三方不一致</td>
+</tr>
+<tr>
+<td>inventory</td>
+<td>🔴 <code>BLOCKED_ON_CONFLICT</code></td>
+<td>C5 + tenant scope（HD-INV-01）+ ADR-0052/0053 簽核</td>
+</tr>
+<tr>
+<td>data-corrections</td>
+<td>🔴 <code>BLOCKED_ON_CONFLICT</code></td>
+<td>C5 + agent harness init_db tenant_id 對稱（ADR-0030）</td>
+</tr>
+<tr>
+<td>resolution</td>
+<td>🔴 <code>BLOCKED_ON_CONFLICT</code></td>
+<td>C4 + C5（saas.problem_card resolution_layer 欄）</td>
+</tr>
+<tr>
+<td>vouchers-void</td>
+<td>🔴 <code>BLOCKED_ON_CONFLICT</code></td>
+<td>C5 + append-only 衝突（HD-VCH-002）+ keeperRole 未定義</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-8--human-decisions-required彙整業主逐項裁">5. §8 — Human
+Decisions Required（彙整，業主逐項裁）</h2>
+<blockquote>
+<p>動 code 前須全部有答案。每項標出引用 ID。建議先處理
+<strong>D-C5（§1）</strong> + <strong>S0</strong>，再依模組展開。</p>
+</blockquote>
+<h3
+id="config-m18-governances1唯一可立即啟動者">config-m18-governance（S1，唯一可立即啟動者）</h3>
+<ul>
+<li><strong>HD-01</strong>【觀察視窗】ADR-0067 §3(≥10min) vs
+BR-M18-04(active, standard 30/fast 15) vs spec(min:10/default:15)
+三方不一致。建議：BR-M18-04 active 為實作預設、spec min:10 為 API
+下限、ADR §3 為過時草案值。<strong>須形式確認。</strong></li>
+<li><strong>HD-02</strong>【config_version_used
+格式】cancellation/refund 現為 text（整列 version）。是否升
+<code>namespace:version_id</code> 複合格式？影響是否
+backfill（DESTRUCTIVE）。</li>
+<li><strong>HD-03</strong>【public.system_config 棄用時序】DROP
+時間點（P4 cutover vs 提前獨立 migration）。</li>
+<li><strong>HD-04</strong>【pricing 是否納 M18】= C3，與 pricing-rules
+HD-1 同題。</li>
+<li><strong>HD-05</strong>【pub/sub 選型】Redis Pub/Sub / NATS / DB
+LISTEN-NOTIFY / 純 TTL 30s 兜底？影響 infra 引入時序。</li>
+<li><strong>HD-06</strong>【高風險雙簽角色 + 時段限制】FR-0043 §1.2 A4
+要 IT Admin + 主管雙簽且禁半夜；spec 只有二元
+X-Initiator/X-Approver。時段限制進 API 層 enforce 或只進 UI？</li>
+</ul>
+<h3 id="inventorys3schema-根基">inventory（S3，schema 根基）</h3>
+<ul>
+<li><strong>HD-INV-01</strong>【BLOCKING】tenant scope：per-tenant
+獨立倉 vs platform-shared 共享倉？（schema 根本方向）</li>
+<li><strong>HD-INV-02</strong>【BLOCKING】C-10 命名（= C5）。</li>
+<li><strong>HD-INV-03</strong>【BLOCKING】material consume vs request
+路徑合併或分離？</li>
+<li><strong>HD-INV-04</strong>【BLOCKING，影響月結】ADR-0052 owner enum
+最終值（platform/brand/locksmith vs +customer）。<strong>ADR-0052/0053
+現為 Draft，AC 未簽 → 須業主圈選 ✅。</strong></li>
+<li><strong>HD-INV-05</strong>【BLOCKING，影響 WO complete
+gate】ADR-0053 高價件 serial 門檻（NTD 1,000?）+ 缺 serial 是否阻擋 WO
+complete？</li>
+<li><strong>HD-INV-06</strong>【影響 canonical
+DDL】<code>saas.work_order</code> 加
+<code>material_consumption JSONB</code>（分區表，須評估）。</li>
+</ul>
+<h3 id="reconciliationss2">reconciliations（S2）</h3>
+<ul>
+<li><strong>HD-1</strong> C-10 schema 命名（= C5）。</li>
+<li><strong>HD-2</strong> dual-sign 角色對應（CSM vs
+ops_manager；ADR-0042 4 層映射）。</li>
+<li><strong>HD-3</strong> settlement INSERT
+時機：single-approve→dual-sign 為 breaking，舊 pending settlement rows
+補救策略。</li>
+<li><strong>HD-4</strong> 60 天 cron escalation infra（Cloud
+Scheduler+Job vs APScheduler vs 外部腳本；與 FR-0012 月結 cron
+共用？）。</li>
+<li><strong>HD-5</strong> 確認以 FR-0013 為準擴 spec（= C2）。</li>
+</ul>
+<h3 id="disputess2">disputes（S2）</h3>
+<ul>
+<li><strong>HD-1</strong> C-10 schema 命名（= C5）。</li>
+<li><strong>HD-2</strong> status enum 三方不一致 → canonical 化（建議
+filed/in_review/mediation/resolved/escalated/closed_withdrawn）。</li>
+<li><strong>HD-3</strong> dual-sign actor 順序（ADR-0014 已
+HISTORICAL；ops_manager vs ops_director first/final-sign）。</li>
+<li><strong>HD-4</strong> resolution_amount 負值是否走 DGS mutation
+path（ADR-0061）vs 直接寫 journal_entry。</li>
+<li><strong>HD-5</strong> 60d SLA cron 規格（BR-M15-NN 仍是
+placeholder：頻率/起算點/通知方式）。</li>
+</ul>
+<h3 id="resolutions6">resolution（S6）</h3>
+<ul>
+<li><strong>HD-1</strong> 路由形狀最終裁定（= C4，建議
+sub-resource）。</li>
+<li><strong>HD-2</strong> <code>saas.problem_card</code> 加
+<code>resolution_layer</code> 的 migration timing（不可逆）。</li>
+<li><strong>HD-3</strong> FAQ/RAG/Escalation 邏輯去向（chatbot-internal
+函式 / internal REST / 刪除）。</li>
+<li><strong>HD-4</strong> Layer enum 統一（L1/L2/L3 vs
+faq_match/rag/escalation，哪套進 spec）。</li>
+<li><strong>HD-5</strong> legacy
+<code>public.problem_cards.resolution_layer</code> 是否 backfill。</li>
+</ul>
+<h3 id="pricing-ruless4">pricing-rules（S4）</h3>
+<ul>
+<li><strong>HD-1</strong>【CRITICAL】機制路徑 A/B/C 擇一（= C3，建議
+C）。</li>
+<li><strong>HD-2</strong> C-10 schema 命名（=
+C5；<code>saas.price_rule</code> vs
+<code>saas.config_version</code>）。</li>
+<li><strong>HD-3</strong> <code>config_namespace</code> pricing seed 的
+JSON schema 規格 + key 命名慣例（若走 B/C）。</li>
+<li><strong>HD-4</strong> calculate 入參格式對齊（spec pc_id/contract vs
+code brand/lock_type — domain model 不一致）。</li>
+<li><strong>HD-5</strong> legacy flat CRUD 退出時序（前端是否依賴
+<code>/admin/pricing</code>）。</li>
+</ul>
+<h3 id="data-correctionss5">data-corrections（S5）</h3>
+<ul>
+<li><strong>HD-1</strong> C-10：就地補 tenant_id（方案 B 最小破壞）vs 遷
+<code>saas.data_correction</code>（方案 A DESTRUCTIVE）。</li>
+<li><strong>HD-2</strong> status machine：補 <code>resolved</code>
+第四態 vs 維持三態。</li>
+<li><strong>HD-3</strong> approve 後 SOP draft 自動建立時間點（本 CIA
+觸發 vs phase 2 defer）。</li>
+<li><strong>HD-4</strong> approve/reject 最低角色（require_admin /
+require_knowledge_owner / require_tenant）。</li>
+<li><strong>HD-5</strong> PII/GDPR：conversation_context + user_facts
+是否納 FR-0053 two-phase delete（legal_hold 欄 + soft/hard delete
+job）。</li>
+<li><strong>附加依賴</strong>：agent harness <code>init_db</code>
+須同步補 tenant_id（ADR-0030 對稱），否則 v2
+<code>WHERE tenant_id</code> 過濾但 agent 寫入全 NULL。</li>
+</ul>
+<h3 id="vouchers-voids7">vouchers-void（S7）</h3>
+<ul>
+<li><strong>HD-VCH-001</strong> hash chain
+五欄（issuer_party/tax_doc_ref/legal_basis/hash_prev/hash_self）V1 即補
+vs V2 再補（backfill 不可逆）。</li>
+<li><strong>HD-VCH-002</strong>【blocking】原傳票
+voided_at：<code>UPDATE</code>（與 append-only/BR-AUDIT-007 衝突）vs
+新建 <code>voucher_void_event</code> 事件表。</li>
+<li><strong>HD-VCH-003</strong> keeperRole（X-Keeper-Role）value
+格式：platform admin JWT role vs Service Account
+secret。<code>core/deps.py</code> 須新增
+<code>require_keeper_role</code>（目前不存在）。</li>
+<li><strong>HD-VCH-004</strong>【blocking】schema 命名（=
+C5；<code>public.vouchers</code> vs <code>saas.vouchers</code> 的 ALTER
+TABLE 目標）。</li>
+<li><strong>HD-VCH-005</strong> 測資依賴 FR-0011(draft) VoucherIssued（=
+C1 連動）：等 provider 選型 vs 獨立先行（手動 seed）。</li>
+</ul>
+<hr />
+<h2 id="6-完整-grounded-cia-原始資料">6. 完整 grounded CIA 原始資料</h2>
+<p>8 份逐模組 grounded CIA（as-is / to-be / affected
+FR/BR/ADR/DDL/API/data/test 全文）儲存於 workflow 輸出：
+<code>.../tasks/wz3k9dl36.output</code>（result.cias）。本文已萃取每模組的
+§8 Human Decisions + 依賴 + 順序；如需逐欄全文（含 DDL
+行號引用），見該輸出檔。</p>
+<hr />
+<h2 id="7-建議下一步待業主">7. 建議下一步（待業主）</h2>
+<ol type="1">
+<li><strong>先裁 D-C5（§1 統一 schema 遷移範式）+ S0 前置</strong> —
+解鎖 7 個 BLOCKED 模組的共同 gate。</li>
+<li><strong>同步裁 config-m18 HD-01~06</strong> — 解鎖唯一
+<code>READY_AFTER_OWNER</code> 模組，可立即開 S1 worktree。</li>
+<li>其餘模組依 §3 順序，業主裁完該模組 §8 後逐一開 CIA-approved 實作
+worktree（Sonnet 開發 / Opus gate+合併）。</li>
+</ol>
+<hr />
+<h2
+id="8-white_check_mark-decisions-recorded2026-06-02業主授權按建議開發">8.
+✅ Decisions Recorded（2026-06-02，業主授權「按建議開發」）</h2>
+<p>業主於 2026-06-02
+裁示「按你建議開發」，授權採用本文裁決官的推薦處置作為正式決策。記錄如下（維持
+change-governance 稽核軌跡）：</p>
+<h3 id="master--跨模組">Master / 跨模組</h3>
+<ul>
+<li><strong>D-C5（schema 命名遷移）= 採統一範式</strong>：新建
+<code>saas.&lt;canonical表&gt;</code>（含 <code>tenant_id</code>）→
+<strong>dual-write 過渡 + backfill</strong> → caller 歸零 + v2 E2E
+綠後（<strong>P4 gate</strong>）才 DROP legacy
+<code>public.*</code>。例外照 §1（inventory 先決 tenant
+scope、data-corrections 可方案 B 就地、vouchers maintenance
+window、problem_card ADD COLUMN）。<strong>DROP 一律延至
+P4</strong>（本波次不做不可逆刪除）。</li>
+<li><strong>C1 invoices = 分兩段</strong>：read-only list+get
+可建；付款寫入凍結至 FR-0011 active。</li>
+<li><strong>C2 reconciliations/disputes = 以 FR-0013 擴
+spec</strong>（補三維 SoD header）。</li>
+<li><strong>C3 pricing-rules = 路徑 C 混合</strong>：短期 tenant-scoped
+CRUD + 並寫 <code>saas.change_request</code>；Phase II 待 config-m18
+就位納入 M18 namespace。</li>
+<li><strong>C4 resolution = 統一 sub-resource</strong>
+<code>/tenants/{tid}/problem-cards/{id}/resolve</code> + 引擎
+chatbot-internal。</li>
+</ul>
+<h3
+id="config-m18-governances1本波次先做">config-m18-governance（S1，本波次先做）</h3>
+<ul>
+<li><strong>HD-01 觀察視窗 = BR-M18-04(active)</strong>：standard 30min
+/ fast-track 15min / 硬下限 10min（API min:10）。</li>
+<li><strong>HD-02 config_version_used = 暫不改格式</strong>：保留現行
+text（整列 version），<strong>新增 namespace 粒度由新
+saas.config_version 提供</strong>；既有欄位不 backfill（避免不可逆），P4
+再評估統一格式。</li>
+<li><strong>HD-03 public.system_config DROP = 延至
+P4</strong>：dual-write 過渡（舊 config_service 續用、新
+saas.config_version 並行）。</li>
+<li><strong>HD-04 pricing 納 M18 = Phase II</strong>（同 C3 路徑
+C；本波次 config-m18 不含 pricing namespace）。</li>
+<li><strong>HD-05 pub/sub = 短期純 TTL 30s 兜底</strong>（不引入
+Redis/NATS infra；invalidation 走 in-process TTL + 重讀，pub/sub 留
+Phase II）。</li>
+<li><strong>HD-06 高風險雙簽 = API 層 enforce X-Initiator/X-Approver
+SoD；時段限制（禁半夜）暫只進 admin UI</strong>（API 層 Phase II
+補）。</li>
+</ul>
+<h3
+id="其餘模組s2-s7依序待各自開工前確認">其餘模組（S2-S7，依序待各自開工前確認）</h3>
+<ul>
+<li>inventory：<strong>HD-INV-01 tenant scope = per-tenant
+獨立倉</strong>（最貼近現行多租戶模型）；ADR-0052 owner enum =
+platform/brand/locksmith（不含 customer，對齊 ADR-0052 推薦）；ADR-0053
+serial 門檻 = NTD 1,000 且缺 serial <strong>阻擋 WO
+complete</strong>。（開工前 inventory CIA 再確認）</li>
+<li>reconciliations/disputes：dual-sign 重用
+<code>core/deps.py require_sod_actors</code>；status enum 對齊
+FR-0013；60d cron 用 Cloud Scheduler + Cloud Run
+Job（與月結共框架）。</li>
+<li>data-corrections：C-10 採方案 B 就地補 tenant_id 過渡（端態遷
+saas）；補 <code>resolved</code> 第四態；approve 觸發 SOP draft 延 phase
+2；RBAC require_admin；GDPR 納 FR-0053。</li>
+<li>vouchers-void：hash chain V1 即補；voided 用<strong>新建反向分錄 +
+voucher_void_event 事件表</strong>（不 UPDATE 原 row，守
+append-only）；keeperRole = platform admin JWT role；schema 遷
+saas（dual-write）。</li>
+<li><strong>agent refunds SoD gap（P3 發現）</strong>：agent
+自動退款流暫續用 legacy /api/v1/refunds；v2 system-actor 退款路徑列入
+refunds 後續 CR（與 vouchers 同波評估）。</li>
+</ul>
+<blockquote>
+<p><strong>實作順序仍嚴守 §3
+S0→S7</strong>；每模組開工前以本決策為基線，遇 grounded CIA
+細節衝突再回報。</p>
+</blockquote>
+<h3 id="進度">進度</h3>
+<ul>
+<li>✅ <strong>S1 config-m18 done</strong>（merge
+<code>2c4dbf1e</code>，2026-06-02）：saas.config_* 4 表 + 7 endpoint +
+SoD/audit/ACL/rollback，25 測試綠、回歸 524+1skip。Opus gate 修
+parent-restore + 繁中。Phase II：canary auto-advance/SLO halt（需
+scheduler）。</li>
+<li>✅ <strong>S2 done</strong>（reconciliations <code>4c265155</code> +
+disputes <code>b23edabf</code>）：
+<ul>
+<li>reconciliations：saas.reconciliation + saas.settlement
+dual-write；CSM review → ops_manager co-sign（跨兩 call SoD）→
+settlement INSERT。19 測試、spec +4 path。</li>
+<li>disputes：saas.dispute；FR-0013 狀態機
+filed→in_review→(mediation)→resolved|escalated|closed_withdrawn；dual-sign
+close（重用跨兩 call 範式）；reopen→新 dispute parent
+lineage（AC-05）。33 測試、spec +8 path。回歸 576+1skip。60d cron + 負值
+DGS = Phase II。</li>
+</ul></li>
+<li>✅ <strong>S3 inventory done</strong>（merge
+<code>ba42c2ab</code>）：saas.inventory_item（per-tenant + owner
+ADR-0052 + serial_required ADR-0053）+ saas.inventory_transaction；6
+endpoint；:consume/:return/:restock 用 transaction + FOR UPDATE（FR-0007
+AC-05；insufficient→409、serial→422）。29 測試、回歸 605+1skip、spec +6
+path。</li>
+<li>✅ <strong>S4 pricing-rules done</strong>（merge
+<code>039f1038</code>）：saas.price_rule CRUD + saas.change_request
+審計（路徑C，state=effective）；4 op、26 測試、spec +4 op。</li>
+<li>✅ <strong>S5 data-corrections done</strong>（merge
+<code>2e47e904</code>）：方案 B 就地補 tenant_id + 4 態 + require_admin
++ ADR-0030 harness 對稱；5 path、15 測試、spec +5 path。</li>
+<li>✅ <strong>S6 resolution done</strong>（merge
+<code>f19d8485</code>）：resolveProblemSuggestV2 引擎 v2 +
+前端遷移（C4）；3 測試、spec +1 path。</li>
+<li>✅ <strong>S7 vouchers-void done</strong>（merge
+<code>223f066e</code>）：紅字沖銷 append-only（reversal +
+voucher_void_event + hash chain + require_keeper_role）；14
+測試。voidVoucher 已在 spec。</li>
+<li>🎉 <strong>Track B S1-S7 全部完成（7/7）</strong>，基線 663+1skip
+全綠。</li>
+<li>⏳ 剩餘（goal 100%）：P3.5 track-B 前端 caller
+遷移（pricing/disputes/reconciliations/inventory/data-corrections；config
+例外留 Phase II）→ P4 cutover（刪 legacy + 型別重生 + auth 扁平化 + 刪
+DeprecationMiddleware）。</li>
+</ul>
+</div></div></body></html>

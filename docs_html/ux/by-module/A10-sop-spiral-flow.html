@@ -1,0 +1,174 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>A10 SOP 螺旋 — 成功案例 → SOP</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ ux ／ by-module ／ A10-sop-spiral-flow.md</div>
+<div class="doc"><h1 id="a10-sop-螺旋--成功案例--sop">A10 SOP 螺旋 — 成功案例 → SOP</h1>
+<blockquote>
+<p><strong>30 秒摘要</strong>：resolved + rating ≥ 4 案例觸發 LLM 草擬
+SOP draft → 雙審（高風險）或單審（FAQ）→ Family Reviewer 第二關 → 60s
+內向量化發布。Phase I 不上 auto draft，Family Reviewer
+仍可手動入庫。詳見主檔 Flow S3。</p>
+</blockquote>
+<h2 id="sequence-diagram">Sequence Diagram</h2>
+<pre class="mermaid"><code>sequenceDiagram
+    autonumber
+    participant a09 as A09 Eval
+    participant a10 as A10 SOP Builder
+    participant llm as LLM
+    participant cs as 客服主管 / Domain Expert
+    participant fr as Family Reviewer
+    participant store as Skill Store
+    actor knowledge as Knowledge Owner
+
+    a09 -&gt;&gt; a10: case resolved + rating&gt;=4
+    a10 -&gt;&gt; llm: draft SOP from conversation
+    llm --&gt;&gt; a10: SOP draft
+    a10 -&gt;&gt; a10: risk_check (報價 / 退款 / 法律 = 高風險)
+    alt 高風險
+        a10 -&gt;&gt; cs: dual review
+        cs --&gt;&gt; a10: approve
+    else FAQ
+        a10 -&gt;&gt; knowledge: single review
+        knowledge --&gt;&gt; a10: approve
+    end
+    a10 -&gt;&gt; fr: Family Reviewer 第二關 (24h SLA)
+    fr --&gt;&gt; a10: approve / reject / 缺席
+    alt approve
+        a10 -&gt;&gt; store: 向量化 + publish (60s)
+    else reject
+        a10 -&gt;&gt; a10: revise
+    end</code></pre>
+<h2 id="state-machine--sop-draft-lifecycle">State Machine — SOP draft
+lifecycle</h2>
+<pre class="mermaid"><code>stateDiagram-v2
+    [*] --&gt; triggered : case resolved + rating&gt;=4
+    triggered --&gt; drafting : LLM 草擬
+    drafting --&gt; risk_check
+    risk_check --&gt; dual_review : 高風險
+    risk_check --&gt; single_review : FAQ
+    dual_review --&gt; family_review
+    single_review --&gt; family_review
+    family_review --&gt; published : approve
+    family_review --&gt; revising : reject
+    family_review --&gt; paused : Family Reviewer 缺席 24h
+    paused --&gt; escalated : 累計 3 件
+    escalated --&gt; replacement_triggered
+    revising --&gt; drafting
+    published --&gt; [*]
+    replacement_triggered --&gt; [*]</code></pre>
+<h2 id="ui-state-coverage">UI State Coverage</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">Happy</th>
+<th style="text-align: left;">Empty</th>
+<th style="text-align: left;">Loading</th>
+<th style="text-align: left;">Error</th>
+<th style="text-align: left;">Offline</th>
+<th style="text-align: left;">annotation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">trigger draft</td>
+<td style="text-align: left;">✓ LLM draft 完成</td>
+<td style="text-align: left;">rating &lt; 4 不觸發</td>
+<td style="text-align: left;">&lt; 30s</td>
+<td style="text-align: left;">LLM down → 退手動</td>
+<td style="text-align: left;">n/a</td>
+<td style="text-align: left;">triggered → drafting</td>
+</tr>
+<tr>
+<td style="text-align: left;">dual review inbox</td>
+<td style="text-align: left;">✓ 兩名審核</td>
+<td style="text-align: left;">empty queue</td>
+<td style="text-align: left;">spinner</td>
+<td style="text-align: left;">timeout 24h → escalate</td>
+<td style="text-align: left;">banner 無法 review</td>
+<td style="text-align: left;">dual_review</td>
+</tr>
+<tr>
+<td style="text-align: left;">Family Reviewer inbox</td>
+<td style="text-align: left;">✓ 1 名審核</td>
+<td style="text-align: left;">缺席 → escalate 甲方</td>
+<td style="text-align: left;">spinner</td>
+<td style="text-align: left;">timeout 24h → pause</td>
+<td style="text-align: left;">banner</td>
+<td style="text-align: left;">family_review</td>
+</tr>
+<tr>
+<td style="text-align: left;">向量化 publish</td>
+<td style="text-align: left;">✓ 60s 內入庫</td>
+<td style="text-align: left;">n/a</td>
+<td style="text-align: left;">&lt; 60s</td>
+<td style="text-align: left;">vector store fail → retry</td>
+<td style="text-align: left;">n/a</td>
+<td style="text-align: left;">published</td>
+</tr>
+</tbody>
+</table>
+<h2 id="a11y-notes">a11y notes</h2>
+<ul>
+<li>Reviewer 後台 UI 走 WCAG 2.2 AA — 全鍵盤 + diff view (semantic
+HTML)</li>
+<li>SOP draft 內文預覽走 semantic markdown (h1-h6 結構)</li>
+<li>「approve / reject」按鈕 ≥ 44×44，focus indicator 明顯</li>
+</ul>
+<h2 id="fr-反向指">FR 反向指</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">FR</th>
+<th style="text-align: left;">AC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">auto draft trigger</td>
+<td style="text-align: left;">FR-0017 (Phase II)</td>
+<td style="text-align: left;">AC-01 rating&gt;=4 / AC-02 LLM 草擬</td>
+</tr>
+<tr>
+<td style="text-align: left;">dual / single review</td>
+<td style="text-align: left;">FR-0017</td>
+<td style="text-align: left;">AC-01 高風險 dual / AC-02 FAQ single</td>
+</tr>
+<tr>
+<td style="text-align: left;">Family Reviewer 24h SLA</td>
+<td style="text-align: left;">FR-0017</td>
+<td style="text-align: left;">AC-01 SLA enforcement / AC-02 缺席
+escalate</td>
+</tr>
+<tr>
+<td style="text-align: left;">替補機制</td>
+<td style="text-align: left;">FR-0017</td>
+<td style="text-align: left;">AC-01 累計 3 件 → ChangeRequest</td>
+</tr>
+</tbody>
+</table>
+<h2 id="相關">相關</h2>
+<ul>
+<li>主檔 Flow S3：<a
+href="../user-flow-smart-lock-saas.md"><code>../user-flow-smart-lock-saas.md#flow-s3</code></a></li>
+<li>A09 trigger source：<a
+href="./A09-eval-flow.md"><code>./A09-eval-flow.md</code></a></li>
+<li>Source：<a
+href="../../_source/02-ai-chatbot-sync.md"><code>../../_source/02-ai-chatbot-sync.md#a-m10-sop螺旋</code></a></li>
+</ul>
+</div></div></body></html>

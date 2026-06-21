@@ -1,0 +1,4677 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>整合性架構與設計文件 - 電子鎖智能客服與派工平台</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ architecture ／ ARCH-0001-architecture-overview.md</div>
+<div class="doc"><h1
+id="整合性架構與設計文件---電子鎖智能客服與派工平台">整合性架構與設計文件
+- 電子鎖智能客服與派工平台</h1>
+<h1 id="smart-lock-ai-support--service-dispatch-saas-platform">Smart
+Lock AI Support &amp; Service Dispatch SaaS Platform</h1>
+<hr />
+<p><strong>文件版本 (Document Version):</strong> <code>v2.0</code>
+<strong>最後更新 (Last Updated):</strong> <code>2026-04-04</code>
+<strong>主要作者 (Lead Author):</strong> <code>技術架構師</code>
+<strong>審核者 (Reviewers):</strong>
+<code>架構委員會, 核心開發團隊</code> <strong>狀態 (Status):</strong>
+<code>已批准 (Approved)</code></p>
+<hr />
+<h2 id="目錄-table-of-contents">目錄 (Table of Contents)</h2>
+<ul>
+<li><a href="#第-1-部分架構總覽">第 1 部分：架構總覽</a>
+<ul>
+<li><a href="#11-c4-模型視覺化架構">1.1 C4 模型：視覺化架構</a></li>
+<li><a href="#12-ddd-戰略設計">1.2 DDD 戰略設計</a></li>
+<li><a href="#13-五層-agent-架構分層">1.3 五層 Agent 架構分層</a></li>
+<li><a href="#14-software-30-設計哲學">1.4 Software 3.0
+設計哲學</a></li>
+<li><a href="#15-技術選型與決策">1.5 技術選型與決策</a></li>
+</ul></li>
+<li><a href="#第-2-部分需求摘要">第 2 部分：需求摘要</a>
+<ul>
+<li><a href="#21-功能性需求摘要">2.1 功能性需求摘要</a></li>
+<li><a href="#22-非功能性需求">2.2 非功能性需求</a></li>
+</ul></li>
+<li><a href="#第-3-部分高層次架構設計">第 3 部分：高層次架構設計</a>
+<ul>
+<li><a href="#31-架構模式">3.1 架構模式</a></li>
+<li><a href="#32-系統上下文圖">3.2 系統上下文圖</a></li>
+<li><a href="#33-系統組件圖">3.3 系統組件圖</a></li>
+<li><a href="#34-主要組件職責表">3.4 主要組件職責表</a></li>
+<li><a href="#35-關鍵用戶旅程">3.5 關鍵用戶旅程</a></li>
+</ul></li>
+<li><a href="#第-4-部分技術選型詳述">第 4 部分：技術選型詳述</a></li>
+<li><a href="#第-5-部分數據架構">第 5 部分：數據架構</a>
+<ul>
+<li><a href="#51-數據模型">5.1 數據模型</a></li>
+<li><a href="#52-數據流圖">5.2 數據流圖</a></li>
+<li><a href="#53-數據一致性策略">5.3 數據一致性策略</a></li>
+<li><a href="#54-向量索引策略">5.4 向量索引策略</a></li>
+</ul></li>
+<li><a href="#第-6-部分部署與基礎設施">第 6 部分：部署與基礎設施</a>
+<ul>
+<li><a href="#61-部署視圖">6.1 部署視圖</a></li>
+<li><a href="#62-cicd-流程">6.2 CI/CD 流程</a></li>
+<li><a href="#63-環境策略">6.3 環境策略</a></li>
+</ul></li>
+<li><a href="#第-7-部分跨領域考量">第 7 部分：跨領域考量</a>
+<ul>
+<li><a href="#71-可觀測性">7.1 可觀測性</a></li>
+<li><a href="#72-安全性">7.2 安全性</a></li>
+</ul></li>
+<li><a href="#第-8-部分風險與緩解策略">第 8
+部分：風險與緩解策略</a></li>
+<li><a href="#第-9-部分架構演進路線圖">第 9
+部分：架構演進路線圖</a></li>
+<li><a href="#第-10-部分附錄">第 10 部分：附錄</a></li>
+</ul>
+<hr />
+<p><strong>目的</strong>:
+本文件旨在將電子鎖智能客服與派工平台的業務需求轉化為一個完整、內聚的技術藍圖。系統分為兩個主要階段交付：V1.0
+聚焦 AI 智能客服（LINE Bot + AI 問診 + ProblemCard + 三層解決機制 +
+自演化知識庫 + 管理後台），V2.0 擴展至技師派工與帳務（技師工作台 Web App
++ 智能派工 + 計價引擎 + 帳務系統 +
+增強管理後台）。本文件從高層次的系統架構出發，逐步深入到具體的模組級設計，確保系統的穩固性與可維護性。</p>
+<hr />
+<h2 id="第-1-部分架構總覽">第 1 部分：架構總覽</h2>
+<p><em>此部分關注系統的宏觀結構與指導原則，回答「系統由什麼組成？」以及「它們之間如何互動？」。</em></p>
+<h3 id="11-c4-模型視覺化架構">1.1 C4 模型：視覺化架構</h3>
+<p>我們使用 <a href="https://c4model.com/">C4 模型</a>
+從不同層次視覺化軟體架構，確保從利害關係人到開發者的每個角色都能清楚理解系統結構。</p>
+<h4 id="l1---系統情境圖-system-context-diagram">L1 - 系統情境圖 (System
+Context Diagram)</h4>
+<p>描述本系統與外部使用者及外部系統的互動邊界。本平台服務三類使用者：一般用戶（透過
+LINE）、技師（透過 Web App）、管理員（透過管理後台），並與 LINE
+Messaging API 和 Google AI API 兩個外部系統整合。</p>
+<pre class="mermaid"><code>graph TB
+    subgraph &quot;外部使用者 (External Users)&quot;
+        LU[&quot;LINE 用戶&lt;br/&gt;(一般消費者 / 住戶)&lt;br/&gt;---&lt;br/&gt;透過 LINE App 發起&lt;br/&gt;電子鎖問題諮詢&quot;]
+        TU[&quot;技師&lt;br/&gt;(Technician)&lt;br/&gt;---&lt;br/&gt;V2.0 透過 Web App&lt;br/&gt;接收與處理派工單&quot;]
+        AU[&quot;管理員&lt;br/&gt;(Admin / 客服主管)&lt;br/&gt;---&lt;br/&gt;透過管理後台&lt;br/&gt;監控系統與管理知識庫&quot;]
+    end
+
+    subgraph &quot;Smart Lock AI Support Platform&quot;
+        SYS[&quot;電子鎖智能客服與派工平台&lt;br/&gt;(Smart Lock AI Platform)&lt;br/&gt;---&lt;br/&gt;提供 AI 問診、三層解決機制&lt;br/&gt;知識庫管理、派工調度、帳務處理&quot;]
+    end
+
+    subgraph &quot;外部系統 (External Systems)&quot;
+        LINE[&quot;LINE Messaging API&lt;br/&gt;---&lt;br/&gt;訊息收發、Rich Menu&lt;br/&gt;Flex Message 推送&quot;]
+        GOOGLE_AI[&quot;Google Gemini 2.5 Flash API&lt;br/&gt;---&lt;br/&gt;自然語言理解、意圖識別&lt;br/&gt;對話生成、SOP 草稿生成&quot;]
+    end
+
+    LU -- &quot;LINE 訊息&lt;br/&gt;(文字/圖片/位置)&quot; --&gt; SYS
+    SYS -- &quot;回覆訊息&lt;br/&gt;(Flex Message / 文字)&quot; --&gt; LU
+    TU -- &quot;HTTPS&lt;br/&gt;(REST API)&quot; --&gt; SYS
+    SYS -- &quot;派工通知&lt;br/&gt;(Push Notification)&quot; --&gt; TU
+    AU -- &quot;HTTPS&lt;br/&gt;(Web Admin Panel)&quot; --&gt; SYS
+    SYS -- &quot;Webhook Events&quot; --&gt; LINE
+    LINE -- &quot;Webhook Callback&quot; --&gt; SYS
+    SYS -- &quot;LLM API Calls&lt;br/&gt;(Chat Completion)&quot; --&gt; GOOGLE_AI
+    GOOGLE_AI -- &quot;AI Response&lt;br/&gt;(JSON)&quot; --&gt; SYS</code></pre>
+<h4 id="l2---容器圖-container-diagram">L2 - 容器圖 (Container
+Diagram)</h4>
+<p>描述系統由哪些可部署單元組成。V1.0 階段以 FastAPI 後端為核心，搭配
+PostgreSQL + pgvector 與 Redis。V2.0 增加 Next.js 前端。</p>
+<pre class="mermaid"><code>graph TB
+    subgraph &quot;外部使用者&quot;
+        LU[&quot;LINE 用戶&quot;]
+        TU[&quot;技師 (V2.0)&quot;]
+        AU[&quot;管理員&quot;]
+    end
+
+    subgraph &quot;外部系統&quot;
+        LINE_API[&quot;LINE Messaging API&quot;]
+        GOOGLE_AI_API[&quot;Google Gemini 2.5 Flash API&quot;]
+    end
+
+    subgraph &quot;Platform Containers&quot;
+        subgraph &quot;Web 層 (Web Tier)&quot;
+            WEBHOOK[&quot;LINE Bot Webhook Handler&lt;br/&gt;---&lt;br/&gt;Python / FastAPI&lt;br/&gt;接收 LINE Webhook 事件&lt;br/&gt;驗證簽章、路由事件&quot;]
+            ADMIN[&quot;Admin Panel&lt;br/&gt;---&lt;br/&gt;V1.0: FastAPI + Jinja2 / HTMX&lt;br/&gt;V2.0: Next.js (React/TypeScript)&lt;br/&gt;知識庫管理、系統監控&quot;]
+            TECHAPP[&quot;Technician Web App&lt;br/&gt;---&lt;br/&gt;V2.0: Next.js (React/TypeScript)&lt;br/&gt;派工接收、工單回報、導航&quot;]
+        end
+
+        subgraph &quot;API 層 (API Tier)&quot;
+            API[&quot;FastAPI Backend&lt;br/&gt;(Core Application Server)&lt;br/&gt;---&lt;br/&gt;Python 3.11+ / FastAPI / Uvicorn&lt;br/&gt;REST API / WebSocket&lt;br/&gt;業務邏輯核心&quot;]
+        end
+
+        subgraph &quot;數據層 (Data Tier)&quot;
+            PG[&quot;PostgreSQL 16&lt;br/&gt;+ pgvector Extension&lt;br/&gt;---&lt;br/&gt;主要關聯式資料庫&lt;br/&gt;向量索引 (HNSW)&lt;br/&gt;案例庫 &amp; 手冊嵌入&quot;]
+            REDIS[&quot;Redis&lt;br/&gt;---&lt;br/&gt;Session Cache&lt;br/&gt;對話狀態暫存&lt;br/&gt;Rate Limiting Counter&quot;]
+        end
+    end
+
+    LU -- &quot;LINE Messages&quot; --&gt; LINE_API
+    LINE_API -- &quot;Webhook POST&lt;br/&gt;(HTTPS + Signature)&quot; --&gt; WEBHOOK
+    WEBHOOK -- &quot;Internal Route&quot; --&gt; API
+    API -- &quot;Reply/Push API&lt;br/&gt;(HTTPS)&quot; --&gt; LINE_API
+
+    TU -- &quot;HTTPS&lt;br/&gt;(REST API)&quot; --&gt; TECHAPP
+    TECHAPP -- &quot;API Calls&lt;br/&gt;(HTTPS)&quot; --&gt; API
+
+    AU -- &quot;HTTPS&lt;br/&gt;(Browser)&quot; --&gt; ADMIN
+    ADMIN -- &quot;API Calls&lt;br/&gt;(HTTPS)&quot; --&gt; API
+
+    API -- &quot;LangChain&lt;br/&gt;(Chat Completion / Embedding)&quot; --&gt; GOOGLE_AI_API
+    API -- &quot;SQL / pgvector&lt;br/&gt;(SQLAlchemy Async)&quot; --&gt; PG
+    API -- &quot;Cache R/W&lt;br/&gt;(aioredis)&quot; --&gt; REDIS</code></pre>
+<h4 id="l3---元件圖-component-diagram---fastapi-backend-內部">L3 -
+元件圖 (Component Diagram) - FastAPI Backend 內部</h4>
+<p>針對核心容器 FastAPI
+Backend，拆解其內部的模組元件。這是系統的業務邏輯核心。</p>
+<pre class="mermaid"><code>graph TB
+    subgraph &quot;FastAPI Backend - Internal Components&quot;
+
+        subgraph &quot;Interface Layer (介面層)&quot;
+            WH[&quot;Webhook Controller&lt;br/&gt;---&lt;br/&gt;LINE 事件接收與路由&lt;br/&gt;簽章驗證&quot;]
+            REST[&quot;REST API Controllers&lt;br/&gt;---&lt;br/&gt;Admin API / Technician API&lt;br/&gt;Knowledge Base API&quot;]
+        end
+
+        subgraph &quot;Application Layer (應用層)&quot;
+            CM[&quot;Conversation Manager&lt;br/&gt;---&lt;br/&gt;對話狀態機管理&lt;br/&gt;Session 生命週期&lt;br/&gt;多輪對話上下文維護&quot;]
+            PCE[&quot;ProblemCard Engine&lt;br/&gt;---&lt;br/&gt;問題卡建立與填充&lt;br/&gt;欄位驗證與完整性檢查&lt;br/&gt;AI 輔助欄位推斷&quot;]
+            TLR[&quot;Three-Layer Resolver&lt;br/&gt;---&lt;br/&gt;L1: 知識庫精確匹配&lt;br/&gt;L2: AI 推理生成&lt;br/&gt;L3: 轉人工 / 建立工單&quot;]
+            KBM[&quot;Knowledge Base Manager&lt;br/&gt;---&lt;br/&gt;案例庫 CRUD&lt;br/&gt;手冊 PDF 解析與分段&lt;br/&gt;Embedding 生成與更新&quot;]
+            SOPGen[&quot;SOP Generator&lt;br/&gt;---&lt;br/&gt;從成功對話中&lt;br/&gt;自動草擬 SOP&lt;br/&gt;待人工審核後上架&quot;]
+        end
+
+        subgraph &quot;Application Layer V2.0 (派工與帳務)&quot;
+            DSP[&quot;Dispatch Engine&lt;br/&gt;---&lt;br/&gt;智能技師匹配&lt;br/&gt;技能 / 地區 / 評分&lt;br/&gt;工單生命週期管理&quot;]
+            PRC[&quot;Pricing Engine&lt;br/&gt;---&lt;br/&gt;品牌 x 鎖型 x 難度&lt;br/&gt;計價規則引擎&lt;br/&gt;報價生成&quot;]
+            ACC[&quot;Accounting Module&lt;br/&gt;---&lt;br/&gt;對帳作業&lt;br/&gt;發票 / 請款單&lt;br/&gt;統計報表&quot;]
+        end
+
+        subgraph &quot;Domain Layer (領域層)&quot;
+            ENT[&quot;Domain Entities&lt;br/&gt;---&lt;br/&gt;ProblemCard / Conversation&lt;br/&gt;CaseEntry / ManualChunk&lt;br/&gt;WorkOrder / Technician&lt;br/&gt;PriceRule / Invoice&quot;]
+            EVT[&quot;Domain Events&lt;br/&gt;---&lt;br/&gt;CardCompleted&lt;br/&gt;ResolutionFound&lt;br/&gt;WorkOrderCreated&lt;br/&gt;WorkOrderCompleted&quot;]
+        end
+
+        subgraph &quot;Infrastructure Layer (基礎設施層)&quot;
+            REPO[&quot;Repositories&lt;br/&gt;---&lt;br/&gt;SQLAlchemy Async Repos&lt;br/&gt;pgvector Search Repos&lt;br/&gt;Redis Cache Repos&quot;]
+            LLM[&quot;LLM Gateway&lt;br/&gt;---&lt;br/&gt;LangChain Wrapper&lt;br/&gt;Google AI API Client&lt;br/&gt;Prompt Template Manager&lt;br/&gt;Token Usage Tracker&quot;]
+            LINEsdk[&quot;LINE SDK Adapter&lt;br/&gt;---&lt;br/&gt;line-bot-sdk-python&lt;br/&gt;Message Builder&lt;br/&gt;Flex Message Templates&quot;]
+            EMB[&quot;Embedding Service&lt;br/&gt;---&lt;br/&gt;text-embedding-004&lt;br/&gt;Batch Embedding Pipeline&lt;br/&gt;Vector Normalization&quot;]
+        end
+    end
+
+    WH --&gt; CM
+    WH --&gt; PCE
+    REST --&gt; KBM
+    REST --&gt; DSP
+    REST --&gt; ACC
+
+    CM --&gt; TLR
+    CM --&gt; PCE
+    PCE --&gt; TLR
+    TLR --&gt; KBM
+    TLR --&gt; SOPGen
+    TLR --&gt; DSP
+
+    CM --&gt; ENT
+    PCE --&gt; ENT
+    TLR --&gt; ENT
+    KBM --&gt; ENT
+    DSP --&gt; ENT
+    PRC --&gt; ENT
+    ACC --&gt; ENT
+
+    CM --&gt; EVT
+    PCE --&gt; EVT
+    TLR --&gt; EVT
+    DSP --&gt; EVT
+
+    ENT --&gt; REPO
+    KBM --&gt; EMB
+    TLR --&gt; LLM
+    SOPGen --&gt; LLM
+    PCE --&gt; LLM
+    CM --&gt; LINEsdk
+    CM --&gt; REPO
+    DSP --&gt; REPO
+    PRC --&gt; REPO
+    ACC --&gt; REPO
+
+    LINEsdk --&gt; LINEEXT[&quot;LINE Messaging API&quot;]
+    LLM --&gt; GAIEXT[&quot;Google AI API&quot;]
+    REPO --&gt; PGEXT[&quot;PostgreSQL + pgvector&quot;]
+    REPO --&gt; RDEXT[&quot;Redis&quot;]</code></pre>
+<h3 id="12-ddd-戰略設計-strategic-ddd">1.2 DDD 戰略設計 (Strategic
+DDD)</h3>
+<h4 id="通用語言-ubiquitous-language">通用語言 (Ubiquitous
+Language)</h4>
+<p>以下術語在專案所有利害關係人之間共享，具有唯一且無歧義的定義：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">術語 (Term)</th>
+<th style="text-align: left;">中文名稱</th>
+<th style="text-align: left;">定義 (Definition)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>ProblemCard</strong></td>
+<td style="text-align: left;">問題卡</td>
+<td
+style="text-align: left;">一次客服對話的結構化問題描述，包含電子鎖型號
+(model)、安裝位置 (location)、門的狀態 (door_status)、網路狀態
+(network)、故障症狀 (symptoms)、用戶意圖 (intent)、處理狀態
+(status)。是三層解決機制的輸入核心。</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Conversation</strong></td>
+<td style="text-align: left;">對話</td>
+<td style="text-align: left;">用戶與系統之間的一次完整互動
+session，由多輪訊息 (messages) 組成，關聯到一張 ProblemCard。</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>CaseEntry</strong></td>
+<td style="text-align: left;">案例條目</td>
+<td
+style="text-align: left;">知識庫中的一筆案例記錄，包含問題描述、解決方案、適用品牌/型號，以及用於向量搜尋的
+embedding。</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ManualChunk</strong></td>
+<td style="text-align: left;">手冊段落</td>
+<td style="text-align: left;">電子鎖 PDF
+操作手冊經解析後的文本段落，包含 embedding，用於 RAG 檢索。</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>SOPDraft</strong></td>
+<td style="text-align: left;">SOP 草稿</td>
+<td
+style="text-align: left;">系統從成功對話中自動產生的標準作業程序草稿，需經管理員審核後才能加入知識庫。</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Three-Layer
+Resolution</strong></td>
+<td style="text-align: left;">三層解決機制</td>
+<td style="text-align: left;">問題解決的核心流程：L1 知識庫精確匹配
+-&gt; L2 AI 推理生成 -&gt; L3 轉人工/建立派工單。</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>WorkOrder</strong></td>
+<td style="text-align: left;">派工單</td>
+<td style="text-align: left;">V2.0 -
+由系統建立的到場服務工單，包含問題描述、客戶資訊、指派技師、預約時段、服務狀態。</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Technician</strong></td>
+<td style="text-align: left;">技師</td>
+<td style="text-align: left;">V2.0 - 已登錄的維修技師，包含技能清單
+(capabilities)、服務地區 (regions)、可用時段 (availability)、評分
+(rating)。</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>PriceRule</strong></td>
+<td style="text-align: left;">計價規則</td>
+<td style="text-align: left;">V2.0 - 定義服務費用的規則，以品牌 (brand)
+x 鎖型 (lock_type) x 難度 (difficulty) 為維度。</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Invoice</strong></td>
+<td style="text-align: left;">發票/請款單</td>
+<td style="text-align: left;">V2.0 -
+服務完成後產生的帳務憑證，包含服務明細、金額、付款狀態。</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Knowledge Base</strong></td>
+<td style="text-align: left;">知識庫</td>
+<td style="text-align: left;">由 CaseEntry 和 ManualChunk
+組成的可搜尋資料集合，支援向量相似度搜尋，是 L1
+解決機制的資料來源。</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Embedding</strong></td>
+<td style="text-align: left;">向量嵌入</td>
+<td style="text-align: left;">文本經 LLM embedding model
+轉換後的高維向量表示，用於語義相似度搜尋。</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Rich Menu</strong></td>
+<td style="text-align: left;">LINE 選單</td>
+<td style="text-align: left;">LINE Bot
+底部的自訂選單介面，提供快捷操作入口。</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Flex Message</strong></td>
+<td style="text-align: left;">彈性訊息</td>
+<td style="text-align: left;">LINE 的結構化訊息格式，用於呈現
+ProblemCard 摘要、解決方案步驟等。</td>
+</tr>
+</tbody>
+</table>
+<h4 id="限界上下文-bounded-contexts">限界上下文 (Bounded Contexts)</h4>
+<p>根據業務領域劃分的五個限界上下文：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">限界上下文</th>
+<th style="text-align: left;">英文名稱</th>
+<th style="text-align: left;">核心職責</th>
+<th style="text-align: left;">核心實體</th>
+<th style="text-align: left;">階段</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>客服上下文</strong></td>
+<td style="text-align: left;">CustomerService</td>
+<td style="text-align: left;">LINE Bot 互動、對話管理、ProblemCard
+建立與填充、三層解決機制執行</td>
+<td style="text-align: left;">Conversation, ProblemCard, Message</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>知識庫上下文</strong></td>
+<td style="text-align: left;">KnowledgeBase</td>
+<td style="text-align: left;">案例管理、手冊解析、Embedding
+計算、向量搜尋、SOP 自動生成與審核</td>
+<td style="text-align: left;">CaseEntry, ManualChunk, SOPDraft,
+Embedding</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>派工上下文</strong></td>
+<td style="text-align: left;">Dispatch</td>
+<td
+style="text-align: left;">工單建立與管理、技師匹配與指派、排程、工單狀態追蹤</td>
+<td style="text-align: left;">WorkOrder, Technician, Assignment</td>
+<td style="text-align: left;">V2.0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>帳務上下文</strong></td>
+<td style="text-align: left;">Accounting</td>
+<td
+style="text-align: left;">計價規則管理、報價生成、對帳、發票管理、統計報表</td>
+<td style="text-align: left;">PriceRule, Invoice, Voucher, Report</td>
+<td style="text-align: left;">V2.0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>使用者管理上下文</strong></td>
+<td style="text-align: left;">UserManagement</td>
+<td style="text-align: left;">LINE
+用戶綁定、管理員帳號管理、技師帳號管理、角色與權限控制</td>
+<td style="text-align: left;">User, Admin, Role, Permission</td>
+<td style="text-align: left;">V1.0 + V2.0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>審計上下文</strong></td>
+<td style="text-align: left;">Audit</td>
+<td style="text-align: left;">API 呼叫紀錄、LLM 互動歷史、RAG
+來源引用、管理後台審批、跨代理人訊息紀錄（合約 10.3 條）</td>
+<td style="text-align: left;">AuditLog, SentimentAlert,
+FamilyReviewRecord</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>情緒分流上下文</strong></td>
+<td style="text-align: left;">SentimentTriage</td>
+<td
+style="text-align: left;">負面情緒偵測、優先回應協議觸發、管理員即時通知（合約
+9.3 條、4.4(a) 條，識別率 &gt;= 90%）</td>
+<td style="text-align: left;">SentimentResult,
+EscalationNotification</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>爭議處理上下文</strong></td>
+<td style="text-align: left;">DisputeResolution</td>
+<td
+style="text-align: left;">客訴案件建立、爭議調解流程、退款審批、結案歸檔</td>
+<td style="text-align: left;">Dispute, RefundRequest, Resolution</td>
+<td style="text-align: left;">V2.0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>保固上下文</strong></td>
+<td style="text-align: left;">Warranty</td>
+<td
+style="text-align: left;">保固期限查詢、保固條件驗證、保固理賠流程</td>
+<td style="text-align: left;">WarrantyRecord, WarrantyClaim</td>
+<td style="text-align: left;">V2.0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>庫存上下文</strong></td>
+<td style="text-align: left;">Inventory</td>
+<td
+style="text-align: left;">零件庫存追蹤、備料建議、庫存預警、進出庫紀錄</td>
+<td style="text-align: left;">InventoryItem, StockMovement</td>
+<td style="text-align: left;">V2.0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>品牌管理上下文</strong></td>
+<td style="text-align: left;">BrandManagement</td>
+<td
+style="text-align: left;">品牌/型號主檔維護、品牌對應技師技能映射、型號生命週期管理</td>
+<td style="text-align: left;">Brand, LockModel, SkillMapping</td>
+<td style="text-align: left;">V2.0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>IoT 上下文</strong>（新增
+2026-05-22）</td>
+<td style="text-align: left;">IotSignalIngestion</td>
+<td style="text-align: left;">電子鎖 IoT 狀態訊號接收、Event Envelope
+轉換、AI 客服預填 / BI 預警</td>
+<td style="text-align: left;">IotEvent, DeviceAdapter</td>
+<td style="text-align: left;">V2.0+ (per ADR-0059)</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>2026-05-22 業主拍板 29 條 ADR</strong>（ADR-0031~0059）對
+Bounded Context 主要影響：</p>
+<ul>
+<li><strong>CustomerService</strong>：HITL 邊界鎖死（ADR-0031 / 0047 /
+0048）；ProblemCard completeness gate 0.85（ADR-0033）；多 PC
+規則（ADR-0036）；對話自動關閉（ADR-0037）</li>
+<li><strong>KnowledgeBase</strong>：SOP 雙審 /
+單審（ADR-0038）；外部知識傳承平台 ingestion contract（ADR-0058）；合約
+/ 規則走 RAG（ADR-0057）</li>
+<li><strong>UserManagement</strong>：RBAC 4 層原則（ADR-0042）；Family
+Reviewer 角色明文（合約 4.4(d)）</li>
+<li><strong>Dispatch</strong>：地址結案前硬 gate（ADR-0032）；接單 SLA
+10/5 min（ADR-0045）；現場加價三件套（ADR-0049）</li>
+<li><strong>Accounting</strong>：取消費 5 階段 +
+客服可覆寫（ADR-0039）；退款核准分層（ADR-0040）；車馬費
+80/20（ADR-0041）；Material owner（ADR-0052）；Serial
+控制（ADR-0053）；ChangeRequest 物件（ADR-0046）</li>
+<li><strong>Audit + SentimentTriage</strong>：Evidence
+可見性矩陣（ADR-0050）；Retention（ADR-0051）；4.4(a) 90% Eval
+pipeline（ADR-0047）</li>
+<li><strong>跨 Context</strong>：Contract Template 物件 +
+tenant_scope（ADR-0043）；廠商合約附件規格（ADR-0056）</li>
+<li><strong>NFR / Tooling</strong>：SKILL ↔︎ LLM
+解耦合約（ADR-0055，影響全系統 portability）</li>
+</ul>
+<p>完整 ADR 索引見 <a
+href="../../docs/architecture/adr/INDEX.md"><code>docs/architecture/adr/INDEX.md</code></a>；裁決脈絡見
+<a
+href="../../archive/meetings/2026-05-22/ACTION-ITEMS-2026-05-22.md"><code>archive/meetings/2026-05-22/ACTION-ITEMS-2026-05-22.md</code></a>。</p>
+</blockquote>
+<h4 id="上下文地圖-context-map">上下文地圖 (Context Map)</h4>
+<p>定義限界上下文之間的關係。箭頭表示依賴方向（上游 -&gt; 下游）。</p>
+<pre class="mermaid"><code>graph LR
+    subgraph &quot;V1.0 Core&quot;
+        CS[&quot;CustomerService&lt;br/&gt;(客服上下文)&lt;br/&gt;---&lt;br/&gt;核心上游&quot;]
+        KB[&quot;KnowledgeBase&lt;br/&gt;(知識庫上下文)&lt;br/&gt;---&lt;br/&gt;共享核心&quot;]
+        UM[&quot;UserManagement&lt;br/&gt;(使用者管理上下文)&lt;br/&gt;---&lt;br/&gt;通用子域&quot;]
+    end
+
+    subgraph &quot;V2.0 Extension&quot;
+        DP[&quot;Dispatch&lt;br/&gt;(派工上下文)&lt;br/&gt;---&lt;br/&gt;V2.0 核心&quot;]
+        AC[&quot;Accounting&lt;br/&gt;(帳務上下文)&lt;br/&gt;---&lt;br/&gt;V2.0 支援&quot;]
+    end
+
+    CS -- &quot;Conformist&lt;br/&gt;(查詢案例/手冊)&quot; --&gt; KB
+    CS -- &quot;Customer-Supplier&lt;br/&gt;(L3 建立工單)&quot; --&gt; DP
+    CS -- &quot;Conformist&lt;br/&gt;(用戶身分驗證)&quot; --&gt; UM
+
+    DP -- &quot;Customer-Supplier&lt;br/&gt;(服務完成 -&gt; 產生帳務)&quot; --&gt; AC
+    DP -- &quot;Conformist&lt;br/&gt;(技師身分驗證)&quot; --&gt; UM
+    DP -- &quot;Anti-Corruption Layer&lt;br/&gt;(查詢問題卡資訊)&quot; --&gt; CS
+
+    KB -- &quot;Published Language&lt;br/&gt;(SOP/案例結構)&quot; --&gt; CS
+    AC -- &quot;Conformist&lt;br/&gt;(查詢工單明細)&quot; --&gt; DP</code></pre>
+<p><strong>上下文關係說明：</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">關係</th>
+<th style="text-align: left;">模式</th>
+<th style="text-align: left;">說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">CustomerService -&gt; KnowledgeBase</td>
+<td style="text-align: left;">Conformist</td>
+<td
+style="text-align: left;">客服上下文遵循知識庫上下文定義的資料結構進行案例查詢</td>
+</tr>
+<tr>
+<td style="text-align: left;">CustomerService -&gt; Dispatch</td>
+<td style="text-align: left;">Customer-Supplier</td>
+<td style="text-align: left;">客服上下文作為需求方，當 L3
+觸發時向派工上下文提交工單建立請求</td>
+</tr>
+<tr>
+<td style="text-align: left;">KnowledgeBase -&gt; CustomerService</td>
+<td style="text-align: left;">Published Language</td>
+<td style="text-align: left;">知識庫透過公開的 CaseEntry/ManualChunk
+結構提供搜尋結果</td>
+</tr>
+<tr>
+<td style="text-align: left;">Dispatch -&gt; Accounting</td>
+<td style="text-align: left;">Customer-Supplier</td>
+<td
+style="text-align: left;">派工完成後，派工上下文觸發帳務上下文進行費用計算與請款</td>
+</tr>
+<tr>
+<td style="text-align: left;">Dispatch -&gt; CustomerService</td>
+<td style="text-align: left;">Anti-Corruption Layer</td>
+<td style="text-align: left;">派工上下文透過防腐層轉譯客服上下文的
+ProblemCard，避免領域模型耦合</td>
+</tr>
+<tr>
+<td style="text-align: left;">所有上下文 -&gt; UserManagement</td>
+<td style="text-align: left;">Conformist</td>
+<td style="text-align: left;">所有上下文遵循 UserManagement
+定義的身分與權限模型</td>
+</tr>
+</tbody>
+</table>
+<h3 id="13-agent-架構分層">1.3 Agent 架構分層</h3>
+<h4
+id="131-current-implementationsingle-react-agent--harness-中介層v10-上線版本">1.3.1
+Current Implementation：Single ReAct Agent + Harness 中介層（V1.0
+上線版本）</h4>
+<p>V1.0 實際採用 <strong>LangGraph
+<code>prebuilt.create_react_agent</code></strong> 構建單一 ReAct
+agent，配 3 個工具，並以 <strong>Harness 中介層</strong>（8
+個扁平模組檔）封裝橫切關注（debounce、safety、profile、memory、validation、audit）。依賴方向：Interface
+→ Harness → Agent → Infrastructure。</p>
+<pre><code>┌─────────────────────────────────────────────────┐
+│  1. Interface Layer                              │
+│     app.py (FastAPI webhook)  main.py (CLI)     │
+├─────────────────────────────────────────────────┤
+│  2. Harness Layer (8 個扁平模組檔)              │
+│     harness/multimodal.py        (H2)           │
+│     harness/debounce.py          (H3)           │
+│     harness/data_correction.py   (H_DC)         │
+│     harness/line_ui_factory.py   (H_QR)         │
+│     harness/profile_updater.py   (H4)           │
+│     harness/memory_manager.py    (H5)           │
+│     harness/safety_gate.py       (H6)           │
+│     harness/output_validator.py  (H7.5)         │
+├─────────────────────────────────────────────────┤
+│  3. Agent Layer (Single ReAct + 3 Tools)        │
+│     agent.py                                    │
+│       └─ create_react_agent(llm, tools=[...])  │
+│     prompts/system.md                           │
+│     skills/tools.py                             │
+│       ├─ load_skill         (load SOP content) │
+│       ├─ update_user_info   (write user_facts) │
+│       └─ transfer_to_human  (escalate)         │
+├─────────────────────────────────────────────────┤
+│  4. Infrastructure Layer                         │
+│     llms/   memory/   storage/   embeddings/    │
+│     profiles/   skills/data/   core/            │
+└─────────────────────────────────────────────────┘
+
+依賴方向：Interface → Harness → Agent → Infrastructure
+          （外層可依賴內層，反向禁止）</code></pre>
+<p><strong>各層職責定義：</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">層 (Layer)</th>
+<th style="text-align: left;">職責</th>
+<th style="text-align: left;">關鍵檔案</th>
+<th style="text-align: left;">依賴規則</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Interface</strong></td>
+<td style="text-align: left;">接收外部請求（LINE Webhook / CLI），交由
+Harness orchestrate</td>
+<td style="text-align: left;"><code>agent/app.py</code>,
+<code>agent/main.py</code></td>
+<td style="text-align: left;">僅呼叫 Harness</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Harness</strong></td>
+<td style="text-align: left;">8 個扁平模組（每個檔案約 200-600
+行）：去抖緩衝、多模態下載、資料修正攔截、Quick Reply、profile
+抽取、記憶壓縮、安全閘、輸出驗證</td>
+<td style="text-align: left;"><code>agent/harness/*.py</code>（8
+檔扁平）</td>
+<td style="text-align: left;">依賴 Agent + Infrastructure</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Agent</strong></td>
+<td style="text-align: left;">單一 ReAct agent + 3 個工具；ReAct 迴圈由
+LLM 自行決定何時 tool call、何時回覆</td>
+<td style="text-align: left;"><code>agent/agent.py</code>,
+<code>agent/prompts/system.md</code>,
+<code>agent/skills/tools.py</code></td>
+<td style="text-align: left;">依賴 Infrastructure（llms, skills,
+profiles）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Infrastructure</strong></td>
+<td style="text-align: left;">LLM
+provider、checkpointer、稽核儲存、embedding、profile 寫入、skill
+知識檔</td>
+<td style="text-align: left;"><code>agent/llms/</code>,
+<code>agent/memory/</code>, <code>agent/storage/</code>,
+<code>agent/embeddings/</code>, <code>agent/profiles/</code>,
+<code>agent/skills/data/</code>, <code>agent/core/</code></td>
+<td style="text-align: left;">最內層，不依賴其他層</td>
+</tr>
+</tbody>
+</table>
+<p><strong>ReAct 迴圈本質</strong>：LLM 收到使用者訊息 → 決定要不要呼叫
+<code>load_skill</code> 載入 SOP → 讀完 SOP 再決定要不要呼叫
+<code>update_user_info</code> 寫入 user_facts → 最終決定
+<code>transfer_to_human</code>
+或直接回覆。<code>transfer_to_human</code> 必須先有
+<code>load_skill</code> 紀錄為前置（強制多輪
+reasoning），形成「思考→行動→再思考」循環。</p>
+<h4 id="132-visionmulti-agent-sub-graph規劃中尚未實作">1.3.2
+Vision：Multi-Agent Sub-graph（規劃中，尚未實作）</h4>
+<blockquote>
+<p>⚠️ <strong>Vision (not yet implemented)</strong>: 多 sub-agent
+編排為長期架構願景。</p>
+<p>以下 7 sub-graph + 8-Layer Harness 框架（§1.4 / §3.3 / §3.4
+圖示）為理想分工，但目前由 single ReAct + 3 tools
+已能支撐當前需求。任何擴展需先評估 sub-agent 邊界、跨 agent
+通訊機制（messaging / shared state）、以及對 debounce buffer 與
+checkpoint cleanup 的影響。</p>
+</blockquote>
+<p>下表為願景版本對應的層次設計（<strong>僅供未來重構參考，現有 code
+不對應此結構</strong>）：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">層 (Layer)</th>
+<th style="text-align: left;">願景職責</th>
+<th style="text-align: left;">預期檔案</th>
+<th style="text-align: left;">狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Graph (Vision)</strong></td>
+<td style="text-align: left;">LangGraph StateGraph 編排，head
+nodes（pre_process / router / merge_answers / post_process）+ Harness
+nodes</td>
+<td style="text-align: left;"><code>agent/graph/*.py</code></td>
+<td style="text-align: left;">規劃中</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Multi-Agent (Vision)</strong></td>
+<td style="text-align: left;">7 個專業 sub-agent（hardware_technician /
+sales_representative / store_assistant / app_specialist /
+manual_librarian / web_researcher / receptionist），各自持有 prompt +
+tools 組合</td>
+<td style="text-align: left;"><code>agent/agents/__init__.py</code>,
+<code>agent/agents/prompts/</code>（13 模板）</td>
+<td style="text-align: left;">規劃中</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>8-Layer Harness Framework
+(Vision)</strong></td>
+<td style="text-align: left;">L1 Task / L2 Context / L3 Governance / L5
+Feedback / L6 Safety / L7 Observability / L8 Entropy</td>
+<td
+style="text-align: left;"><code>agent/harness/{task,context,governance,feedback,safety,observability,entropy}/</code>（願景子目錄）</td>
+<td style="text-align: left;">規劃中</td>
+</tr>
+</tbody>
+</table>
+<h3 id="14-software-30-設計哲學">1.4 Software 3.0 設計哲學</h3>
+<p>本系統遵循 Software 3.0 設計典範：知識儲存於結構化資料檔案，推理由
+LLM 透過 Prompt 驅動，Python 程式碼僅負責編排與 I/O。</p>
+<h4 id="知識即資料-knowledge-as-data">知識即資料 (Knowledge as
+Data)</h4>
+<p>所有領域知識均以結構化格式儲存，而非硬編碼於 Python 規則引擎中：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">知識類型</th>
+<th style="text-align: left;">儲存格式</th>
+<th style="text-align: left;">路徑</th>
+<th style="text-align: left;">說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">故障症狀定義</td>
+<td style="text-align: left;">TOML</td>
+<td
+style="text-align: left;"><code>agent/config/symptoms.toml</code></td>
+<td style="text-align: left;">品牌 x 型號 x 症狀的結構化描述</td>
+</tr>
+<tr>
+<td style="text-align: left;">故障樹</td>
+<td style="text-align: left;">JSON/TOML</td>
+<td
+style="text-align: left;"><code>agent/config/fault_trees/</code></td>
+<td style="text-align: left;">層級式故障診斷決策樹</td>
+</tr>
+<tr>
+<td style="text-align: left;">失敗模式</td>
+<td style="text-align: left;">JSON/TOML</td>
+<td
+style="text-align: left;"><code>agent/config/failure_modes/</code></td>
+<td style="text-align: left;">已知失敗模式與對應解決方案</td>
+</tr>
+<tr>
+<td style="text-align: left;">Agent 設定</td>
+<td style="text-align: left;">TOML</td>
+<td style="text-align: left;"><code>agent/agents/config.toml</code></td>
+<td style="text-align: left;">Agent 組合、Prompt 路徑、Tool 綁定</td>
+</tr>
+<tr>
+<td style="text-align: left;">Prompt 模板</td>
+<td style="text-align: left;">Markdown/Jinja2</td>
+<td style="text-align: left;"><code>agent/agents/prompts/</code></td>
+<td style="text-align: left;">13 個 Prompt 模板，驅動 LLM 推理</td>
+</tr>
+</tbody>
+</table>
+<h4 id="推理即-prompt-reasoning-as-prompts">推理即 Prompt (Reasoning as
+Prompts)</h4>
+<p>LLM 推理取代傳統 if/else 規則引擎。Python
+程式碼不做業務判斷，僅負責：</p>
+<ol type="1">
+<li><strong>I/O 操作</strong> -- 資料庫查詢、API 呼叫、檔案讀取</li>
+<li><strong>流程編排</strong> -- LangGraph StateGraph
+定義節點順序與條件路由</li>
+<li><strong>格式轉換</strong> -- Pydantic 模型驗證、Flex Message
+模板渲染</li>
+</ol>
+<h4 id="harness-中介層-current--v10-上線版本">Harness 中介層 (Current —
+V1.0 上線版本)</h4>
+<p>V1.0 實際 Harness 為 <strong>8
+個扁平模組檔</strong>，封裝橫切關注：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">層</th>
+<th style="text-align: left;">檔案</th>
+<th style="text-align: left;">觸發時機</th>
+<th style="text-align: left;">阻塞？</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">H2</td>
+<td
+style="text-align: left;"><code>agent/harness/multimodal.py</code></td>
+<td style="text-align: left;">收到 image/audio/video 訊息</td>
+<td style="text-align: left;">背景下載，buffer placeholder 同步替換</td>
+</tr>
+<tr>
+<td style="text-align: left;">H3</td>
+<td
+style="text-align: left;"><code>agent/harness/debounce.py</code></td>
+<td style="text-align: left;">所有訊息</td>
+<td style="text-align: left;">同步 — 合併連發訊息、編排 agent</td>
+</tr>
+<tr>
+<td style="text-align: left;">H_DC</td>
+<td
+style="text-align: left;"><code>agent/harness/data_correction.py</code></td>
+<td style="text-align: left;"><code>#資料修正</code> 關鍵字觸發</td>
+<td style="text-align: left;">同步 — 寫入 conversation context，跳過
+agent</td>
+</tr>
+<tr>
+<td style="text-align: left;">H_QR</td>
+<td
+style="text-align: left;"><code>agent/harness/line_ui_factory.py</code></td>
+<td style="text-align: left;">brand 未知時</td>
+<td style="text-align: left;">同步 — 用 Quick Reply 蒐集
+brand/model</td>
+</tr>
+<tr>
+<td style="text-align: left;">H4</td>
+<td
+style="text-align: left;"><code>agent/harness/profile_updater.py</code></td>
+<td style="text-align: left;">agent 回覆後</td>
+<td style="text-align: left;">背景 — LLM 抽取 phone/address 寫入
+user_facts</td>
+</tr>
+<tr>
+<td style="text-align: left;">H5</td>
+<td
+style="text-align: left;"><code>agent/harness/memory_manager.py</code></td>
+<td style="text-align: left;">agent 前後</td>
+<td style="text-align: left;">同步檢查 + 背景壓縮</td>
+</tr>
+<tr>
+<td style="text-align: left;">H6</td>
+<td
+style="text-align: left;"><code>agent/harness/safety_gate.py</code></td>
+<td style="text-align: left;">LLM 呼叫前</td>
+<td style="text-align: left;">同步 — 阻擋危險關鍵字</td>
+</tr>
+<tr>
+<td style="text-align: left;">H7.5</td>
+<td
+style="text-align: left;"><code>agent/harness/output_validator.py</code></td>
+<td style="text-align: left;">LLM 回覆後</td>
+<td style="text-align: left;">同步 — 阻擋洩漏內部機制的字串</td>
+</tr>
+</tbody>
+</table>
+<p>H8（稽核）為 <code>harness/debounce.py</code> 中的 audit log
+寫入步驟，背景執行。</p>
+<h4 id="8-layer-harness-framework-vision--規劃中">8-Layer Harness
+Framework (Vision — 規劃中)</h4>
+<blockquote>
+<p>⚠️ <strong>Vision (not yet implemented)</strong>: 下表為 8-Layer
+Harness 願景設計，由 ADR-009 定義。實際 V1.0 採用上述 8
+個扁平模組檔；以下分層描述供未來重構參考。</p>
+</blockquote>
+<p>每層在願景中可獨立啟用/停用：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Layer</th>
+<th style="text-align: left;">名稱</th>
+<th style="text-align: left;">願景啟用 Phase</th>
+<th style="text-align: left;">願景職責</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">L1</td>
+<td style="text-align: left;">Task Representation</td>
+<td style="text-align: left;">Phase 2</td>
+<td style="text-align: left;">task_decompose: 將自然語言轉為結構化
+ProblemCard</td>
+</tr>
+<tr>
+<td style="text-align: left;">L2</td>
+<td style="text-align: left;">Context Assembly</td>
+<td style="text-align: left;">Phase 4</td>
+<td style="text-align: left;">Token
+預算管理、上下文新鮮度評分、來源組裝</td>
+</tr>
+<tr>
+<td style="text-align: left;">L3</td>
+<td style="text-align: left;">Tool Governance</td>
+<td style="text-align: left;">Phase 3</td>
+<td style="text-align: left;">ToolRegistry 白名單、工具呼叫權限控制</td>
+</tr>
+<tr>
+<td style="text-align: left;">L4</td>
+<td style="text-align: left;">(Reserved)</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;">保留供未來擴展</td>
+</tr>
+<tr>
+<td style="text-align: left;">L5</td>
+<td style="text-align: left;">Feedback Loop</td>
+<td style="text-align: left;">Phase 5</td>
+<td style="text-align: left;">verify_answer 品質驗證、retry conditional
+edge</td>
+</tr>
+<tr>
+<td style="text-align: left;">L6</td>
+<td style="text-align: left;">Safety Gate</td>
+<td style="text-align: left;">Phase 3</td>
+<td style="text-align: left;">Regex 安全閘門 (&lt;50ms, zero LLM)、PII
+過濾</td>
+</tr>
+<tr>
+<td style="text-align: left;">L7</td>
+<td style="text-align: left;">Observability</td>
+<td style="text-align: left;">Phase 1</td>
+<td style="text-align: left;">@traced decorator、harness_traces
+table、LLM 呼叫追蹤</td>
+</tr>
+<tr>
+<td style="text-align: left;">L8</td>
+<td style="text-align: left;">Entropy Management</td>
+<td style="text-align: left;">Phase 6</td>
+<td style="text-align: left;">SOP
+自動生成、知識庫新鮮度掃描、熵值監控</td>
+</tr>
+</tbody>
+</table>
+<h4 id="品質保證機制">品質保證機制</h4>
+<p>V1.0 透過以下機制確保回覆品質（<strong>現狀</strong>）：</p>
+<ol type="1">
+<li><strong>ReAct Tool Loop</strong> -- LLM 自主決定何時
+<code>load_skill</code> 載入 SOP、何時 <code>update_user_info</code>
+寫入 facts、何時 <code>transfer_to_human</code></li>
+<li><strong>Skill Filtering</strong> -- 依使用者 brand/model
+動態注入相關 SKILL.md，限制 LLM 知識邊界</li>
+<li><strong>Output Validator (H7.5)</strong> --
+後處理檢查阻擋洩漏內部機制的字串</li>
+</ol>
+<blockquote>
+<p>⚠️ <strong>Vision (not yet implemented)</strong>:
+三重機制堆疊（Multi-Agent Fan-out / Three-Layer Cascade / Harness L5
+Verify）為願景設計，需待 multi-agent sub-graph 實作後啟用。</p>
+</blockquote>
+<h4 id="router-演進從-llm-到-config-only-vision">Router 演進：從 LLM 到
+Config-only (Vision)</h4>
+<blockquote>
+<p>⚠️ <strong>Vision (not yet implemented)</strong>: 以下 Router
+演進規劃對應 multi-agent sub-graph 願景；V1.0 single ReAct 不需要
+Router，由 LLM 自身決定 tool call 順序。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">版本</th>
+<th style="text-align: left;">Router 實作</th>
+<th style="text-align: left;">LLM 呼叫數</th>
+<th style="text-align: left;">延遲</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">V0 (舊)</td>
+<td style="text-align: left;">LLM-based task_decompose 同時做分類 +
+診斷</td>
+<td style="text-align: left;">1 次 LLM</td>
+<td style="text-align: left;">2-4s</td>
+</tr>
+<tr>
+<td style="text-align: left;">V1 (Vision)</td>
+<td style="text-align: left;">task_decompose 做分類 + 診斷 (single LLM
+call)，Router 改為 config-only 查表</td>
+<td style="text-align: left;">0 次 LLM (Router)</td>
+<td style="text-align: left;">&lt;10ms (Router)</td>
+</tr>
+</tbody>
+</table>
+<p>Router 零 LLM 設計（願景）：根據 task_decompose 輸出的 intent
+欄位，直接查詢 <code>agent/config.toml</code> 中的 agent
+映射表，不再額外呼叫 LLM 做路由決策。</p>
+<h4 id="latency-budget">Latency Budget</h4>
+<p>V1.0 Single ReAct 實際 budget：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">階段</th>
+<th style="text-align: left;">Budget</th>
+<th style="text-align: left;">說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">LINE Webhook -&gt; FastAPI</td>
+<td style="text-align: left;">&lt;200ms</td>
+<td style="text-align: left;">網路傳輸</td>
+</tr>
+<tr>
+<td style="text-align: left;">Debounce buffer (H3)</td>
+<td style="text-align: left;">1.5s</td>
+<td style="text-align: left;">等待後續訊息合併</td>
+</tr>
+<tr>
+<td style="text-align: left;">Safety Gate (H6)</td>
+<td style="text-align: left;">&lt;50ms</td>
+<td style="text-align: left;">Regex 比對，zero LLM</td>
+</tr>
+<tr>
+<td style="text-align: left;">ReAct iteration (LLM + tool call)</td>
+<td style="text-align: left;">2-5s × N</td>
+<td style="text-align: left;">LLM 自主決定 tool call 數量</td>
+</tr>
+<tr>
+<td style="text-align: left;">Output validator (H7.5)</td>
+<td style="text-align: left;">&lt;50ms</td>
+<td style="text-align: left;">Regex 比對</td>
+</tr>
+<tr>
+<td style="text-align: left;">Response format</td>
+<td style="text-align: left;">&lt;500ms</td>
+<td style="text-align: left;">LINE Flex Message 組裝</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Total</strong></td>
+<td style="text-align: left;"><strong>&lt;8s</strong></td>
+<td style="text-align: left;">目標：簡單查詢 &lt;5s</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ <strong>Vision Latency Budget</strong>（multi-agent sub-graph
+啟用後）會新增 task_decompose (2-4s)、Router (&lt;10ms)、Agent RAG
+(2-5s)、merge_answers 等階段，總 budget 需重新評估。</p>
+</blockquote>
+<h3 id="15-技術選型與決策">1.5 技術選型與決策</h3>
+<h4 id="技術棧總覽-tech-stack-overview">技術棧總覽 (Tech Stack
+Overview)</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">分類</th>
+<th style="text-align: left;">選用技術</th>
+<th style="text-align: left;">版本</th>
+<th style="text-align: left;">用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>後端語言</strong></td>
+<td style="text-align: left;">Python</td>
+<td style="text-align: left;">3.11+</td>
+<td style="text-align: left;">核心業務邏輯</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>後端框架</strong></td>
+<td style="text-align: left;">FastAPI</td>
+<td style="text-align: left;">0.110+</td>
+<td style="text-align: left;">REST API / WebSocket / Webhook</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ASGI Server</strong></td>
+<td style="text-align: left;">Uvicorn</td>
+<td style="text-align: left;">0.29+</td>
+<td style="text-align: left;">高效能非同步 HTTP Server</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>LLM 框架</strong></td>
+<td style="text-align: left;">LangChain</td>
+<td style="text-align: left;">0.2+</td>
+<td style="text-align: left;">LLM 調用抽象、Chain 編排、Prompt 管理</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>LLM 模型</strong></td>
+<td style="text-align: left;">Google Gemini 2.5 Flash</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;">意圖識別、對話生成、SOP 草稿</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Embedding 模型</strong></td>
+<td style="text-align: left;">Google text-embedding-004</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;">文本向量化 (768 維)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>關聯式資料庫</strong></td>
+<td style="text-align: left;">PostgreSQL</td>
+<td style="text-align: left;">16</td>
+<td style="text-align: left;">主要資料儲存</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>向量擴展</strong></td>
+<td style="text-align: left;">pgvector</td>
+<td style="text-align: left;">0.7+</td>
+<td style="text-align: left;">向量索引與相似度搜尋</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>快取</strong></td>
+<td style="text-align: left;">Redis</td>
+<td style="text-align: left;">7+</td>
+<td style="text-align: left;">Session 快取、Rate Limiting</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>前端框架 (V2.0)</strong></td>
+<td style="text-align: left;">Next.js (React)</td>
+<td style="text-align: left;">14+</td>
+<td style="text-align: left;">技師 Web App / 管理後台</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>前端語言 (V2.0)</strong></td>
+<td style="text-align: left;">TypeScript</td>
+<td style="text-align: left;">5+</td>
+<td style="text-align: left;">型別安全的前端開發</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Admin UI (V1.0)</strong></td>
+<td style="text-align: left;">FastAPI + Jinja2 / HTMX</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;">輕量管理後台</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>容器化</strong></td>
+<td style="text-align: left;">Docker + docker-compose</td>
+<td style="text-align: left;">24+</td>
+<td style="text-align: left;">開發與部署環境標準化</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>CI/CD</strong></td>
+<td style="text-align: left;">GitHub Actions</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;">自動化測試與部署流程</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>LINE 整合</strong></td>
+<td style="text-align: left;">line-bot-sdk-python</td>
+<td style="text-align: left;">3+</td>
+<td style="text-align: left;">LINE Messaging API 互動</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ORM</strong></td>
+<td style="text-align: left;">SQLAlchemy</td>
+<td style="text-align: left;">2.0+</td>
+<td style="text-align: left;">非同步資料庫操作</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>資料驗證</strong></td>
+<td style="text-align: left;">Pydantic</td>
+<td style="text-align: left;">2.0+</td>
+<td style="text-align: left;">Request/Response 模型驗證</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>資料遷移</strong></td>
+<td style="text-align: left;">Alembic</td>
+<td style="text-align: left;">1.13+</td>
+<td style="text-align: left;">資料庫 Schema 版本管理</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>測試框架</strong></td>
+<td style="text-align: left;">pytest + pytest-asyncio</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;">單元測試與整合測試</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>PDF 解析</strong></td>
+<td style="text-align: left;">PyMuPDF (fitz)</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;">電子鎖手冊 PDF 解析</td>
+</tr>
+</tbody>
+</table>
+<h4 id="架構決策記錄-adr-索引">架構決策記錄 (ADR) 索引</h4>
+<p>所有重大技術決策應記錄為 ADR，存放於
+<code>docs/01-define/adrs/</code> 目錄。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">ADR 編號</th>
+<th style="text-align: left;">標題</th>
+<th style="text-align: left;">狀態</th>
+<th style="text-align: left;">影響範圍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">ADR-001</td>
+<td style="text-align: left;">選用 FastAPI 作為後端框架</td>
+<td style="text-align: left;">Accepted</td>
+<td style="text-align: left;">全系統</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-002</td>
+<td style="text-align: left;">選用 PostgreSQL + pgvector
+作為資料庫與向量儲存</td>
+<td style="text-align: left;">Accepted</td>
+<td style="text-align: left;">數據層</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-003</td>
+<td style="text-align: left;">選用 LangChain + Google Gemini 2.5 Flash
+作為 LLM 方案</td>
+<td style="text-align: left;">Accepted</td>
+<td style="text-align: left;">AI 元件</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-004</td>
+<td style="text-align: left;">V1.0 採用 Modular Monolith 架構</td>
+<td style="text-align: left;">Accepted</td>
+<td style="text-align: left;">全系統</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-005</td>
+<td style="text-align: left;">選用 Redis 作為 Session 與快取方案</td>
+<td style="text-align: left;">Accepted</td>
+<td style="text-align: left;">數據層</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-006</td>
+<td style="text-align: left;">Admin UI V1.0 使用 Jinja2 + HTMX，V2.0
+遷移至 Next.js</td>
+<td style="text-align: left;">Accepted</td>
+<td style="text-align: left;">前端</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-007</td>
+<td style="text-align: left;">採用 Docker Compose 作為部署策略</td>
+<td style="text-align: left;">Accepted</td>
+<td style="text-align: left;">基礎設施</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-008</td>
+<td style="text-align: left;">Embedding 模型選用 text-embedding-004</td>
+<td style="text-align: left;">Accepted</td>
+<td style="text-align: left;">AI 元件</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-009</td>
+<td style="text-align: left;">採用 8-Layer Harness Framework 作為 Agent
+運行時保障</td>
+<td style="text-align: left;">Accepted</td>
+<td style="text-align: left;">AI 元件</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-010</td>
+<td style="text-align: left;">Router 從 LLM-based 改為 config-only
+查表</td>
+<td style="text-align: left;">Accepted</td>
+<td style="text-align: left;">AI 元件</td>
+</tr>
+<tr>
+<td style="text-align: left;">ADR-011</td>
+<td style="text-align: left;">Schema_v2_extensions.sql 擴展 6
+張業務表</td>
+<td style="text-align: left;">Accepted</td>
+<td style="text-align: left;">數據層</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="第-2-部分需求摘要">第 2 部分：需求摘要</h2>
+<h3 id="21-功能性需求摘要">2.1 功能性需求摘要</h3>
+<h4 id="v10---ai-智能客服">V1.0 - AI 智能客服</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">需求 ID</th>
+<th style="text-align: left;">功能模組</th>
+<th style="text-align: left;">描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">FR-101</td>
+<td style="text-align: left;">LINE Bot 整合</td>
+<td style="text-align: left;">接收 LINE 用戶訊息（文字/圖片/位置），回覆
+Flex Message，支援 Rich Menu</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-102</td>
+<td style="text-align: left;">多輪對話管理</td>
+<td
+style="text-align: left;">維護對話上下文，支援多輪問診流程，對話超時自動清理</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-103</td>
+<td style="text-align: left;">ProblemCard 引擎</td>
+<td style="text-align: left;">AI
+輔助從對話中提取結構化欄位，建立問題卡，識別缺失欄位並追問</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-104</td>
+<td style="text-align: left;">三層解決機制 (L1)</td>
+<td style="text-align: left;">知識庫精確匹配：向量搜尋 +
+關鍵字匹配，命中閾值 &gt;= 0.85</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-105</td>
+<td style="text-align: left;">三層解決機制 (L2)</td>
+<td style="text-align: left;">AI 推理生成：基於 ProblemCard + 手冊段落 +
+歷史案例，使用 Gemini 2.5 Flash 生成解決建議</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-106</td>
+<td style="text-align: left;">三層解決機制 (L3)</td>
+<td style="text-align: left;">轉人工/建立工單：AI
+無法解決時，收集客戶資訊準備轉接或建立派工需求</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-107</td>
+<td style="text-align: left;">知識庫管理</td>
+<td style="text-align: left;">CaseEntry CRUD、PDF
+手冊上傳與自動分段、Embedding 批次計算與更新</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-108</td>
+<td style="text-align: left;">SOP 自動生成</td>
+<td style="text-align: left;">從成功對話中萃取解決模式，自動草擬
+SOP，管理員審核後上架</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-109</td>
+<td style="text-align: left;">管理後台 (V1.0)</td>
+<td style="text-align: left;">知識庫管理介面、對話記錄查詢、ProblemCard
+統計、系統健康監控</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-110</td>
+<td style="text-align: left;">用戶意圖識別</td>
+<td style="text-align: left;">識別用戶意圖：諮詢 / 報修 / 投訴 /
+其他，引導至對應處理流程</td>
+</tr>
+</tbody>
+</table>
+<h4 id="v20---技師派工與帳務">V2.0 - 技師派工與帳務</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">需求 ID</th>
+<th style="text-align: left;">功能模組</th>
+<th style="text-align: left;">描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">FR-201</td>
+<td style="text-align: left;">技師 Web App</td>
+<td
+style="text-align: left;">技師工作台：接單/拒單、工單詳情、導航至現場、服務回報、照片上傳</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-202</td>
+<td style="text-align: left;">智能派工引擎</td>
+<td
+style="text-align: left;">根據技師技能、服務地區、可用時段、評分進行最佳匹配與自動指派</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-203</td>
+<td style="text-align: left;">工單生命週期</td>
+<td style="text-align: left;">工單狀態流轉：Created -&gt; Assigned -&gt;
+Accepted -&gt; InProgress -&gt; Completed -&gt; Closed</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-204</td>
+<td style="text-align: left;">計價引擎</td>
+<td style="text-align: left;">品牌 x 鎖型 x
+難度的計價規則管理，自動報價生成</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-205</td>
+<td style="text-align: left;">帳務系統</td>
+<td
+style="text-align: left;">服務費對帳、發票/請款單管理、月度統計報表</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-206</td>
+<td style="text-align: left;">增強管理後台</td>
+<td
+style="text-align: left;">技師管理、派工監控儀表板、帳務報表、計價規則設定</td>
+</tr>
+<tr>
+<td style="text-align: left;">FR-207</td>
+<td style="text-align: left;">通知系統</td>
+<td style="text-align: left;">LINE 推播通知（派工成功）、Web App
+即時通知（新工單）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-非功能性需求">2.2 非功能性需求</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">NFR 分類</th>
+<th style="text-align: left;">具體需求描述</th>
+<th style="text-align: left;">衡量指標/目標值</th>
+<th style="text-align: left;">階段</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>AI 準確度</strong></td>
+<td style="text-align: left;">AI 對電子鎖問題的診斷與解答準確率</td>
+<td style="text-align: left;">&gt;= 80%（50 題標準測試集）</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>並發能力</strong></td>
+<td style="text-align: left;">系統同時處理的用戶數量</td>
+<td style="text-align: left;">V1.0: 50 concurrent / V2.0: 100
+concurrent</td>
+<td style="text-align: left;">V1.0 / V2.0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>API 延遲</strong></td>
+<td style="text-align: left;">REST API 端點的回應延遲（不含 LLM
+呼叫）</td>
+<td style="text-align: left;">P95 &lt; 2 秒</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>LLM 回應延遲</strong></td>
+<td style="text-align: left;">LLM API 呼叫的端到端延遲</td>
+<td style="text-align: left;">P95 &lt; 10 秒（含網路）</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>可用性</strong></td>
+<td style="text-align: left;">系統正常運行時間</td>
+<td style="text-align: left;">&gt;= 95%（月度，合約基準）</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>資料備份</strong></td>
+<td style="text-align: left;">每日自動備份</td>
+<td style="text-align: left;">每日 1 次，保留 7 天</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>安全性</strong></td>
+<td style="text-align: left;">資料傳輸加密</td>
+<td style="text-align: left;">SSL/TLS (HTTPS)</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>安全性</strong></td>
+<td style="text-align: left;">LINE Webhook 驗證</td>
+<td style="text-align: left;">HMAC-SHA256 簽章驗證</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>安全性</strong></td>
+<td style="text-align: left;">API 認證</td>
+<td style="text-align: left;">JWT Token（Admin / Technician）</td>
+<td style="text-align: left;">V1.0 / V2.0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>部署</strong></td>
+<td style="text-align: left;">標準化部署</td>
+<td style="text-align: left;">Docker + docker-compose</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>可維護性</strong></td>
+<td style="text-align: left;">程式碼覆蓋率</td>
+<td style="text-align: left;">&gt;= 70%（核心業務邏輯）</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>可擴展性</strong></td>
+<td style="text-align: left;">V1.0 -&gt; V2.0 無需重寫核心</td>
+<td style="text-align: left;">模組化架構，新模組可插拔式添加</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="第-3-部分高層次架構設計">第 3 部分：高層次架構設計</h2>
+<h3 id="31-架構模式">3.1 架構模式</h3>
+<p>V1.0 採用以下架構模式的組合：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">模式</th>
+<th style="text-align: left;">實作方式</th>
+<th style="text-align: left;">選擇理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Modular Monolith</strong></td>
+<td style="text-align: left;"><code>agent/config.toml</code> 多個
+section 驅動組合，所有模組共享同一 Python process</td>
+<td style="text-align: left;">小型團隊（1-3 人），Cloud Run
+單服務部署，模組透過設定檔 enable/disable</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Event-Driven
+(Debounce)</strong></td>
+<td style="text-align: left;">LINE webhook + Debounce
+buffer（<code>[debounce] buffer_wait=1.5s</code>）</td>
+<td style="text-align: left;">LINE
+訊息非同步處理，連發訊息自動合併後再觸發 ReAct agent</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ReAct Pattern</strong></td>
+<td
+style="text-align: left;"><code>langgraph.prebuilt.create_react_agent</code>
+構建 single agent，LLM 與 3 個工具（load_skill / update_user_info /
+transfer_to_human）形成迴圈</td>
+<td style="text-align: left;">LLM 自主決定何時載入 SOP、何時寫
+facts、何時轉人工</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Skill Filtering</strong></td>
+<td style="text-align: left;">啟動時掃描 <code>agent/skills/data/</code>
+載入所有 SKILL.md；per-request 依 brand/model 過濾後注入
+<code>[可用技能]</code> prefix</td>
+<td style="text-align: left;">限制 LLM 知識邊界，避免品牌混淆</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Skill 擴展策略：</strong> 新增 skill 僅需在
+<code>agent/skills/data/{Brand}/{Model}/</code> 放入 SKILL.md（含
+frontmatter + Markdown SOP），下次重啟自動載入。新品牌只需在
+<code>agent/config.toml</code> 的 <code>[quick_reply]</code>
+新增條目以驅動 brand/model Quick Reply 蒐集。</p>
+<blockquote>
+<p>⚠️ <strong>Vision (not yet implemented)</strong>: <strong>Fan-out /
+Fan-in</strong> 模式（<code>Send()</code> 平行派發至多個 Agent
+子圖、<code>merge_answers</code> 節點匯流）為 multi-agent 願景，現有
+single ReAct 不採用此模式。</p>
+</blockquote>
+<h3 id="32-系統上下文圖">3.2 系統上下文圖</h3>
+<p>（見 <a href="#l1---系統情境圖-system-context-diagram">1.1 L1
+系統情境圖</a>）</p>
+<h3 id="33-系統組件圖">3.3 系統組件圖</h3>
+<h4 id="331-current--single-react-agentv10-上線版本">3.3.1 Current —
+Single ReAct Agent（V1.0 上線版本）</h4>
+<p>V1.0 實際組件互動為 single ReAct agent + 3 工具 + 8 個 Harness
+模組：</p>
+<pre class="mermaid"><code>graph TB
+    subgraph &quot;User Interfaces&quot;
+        LINE_APP[&quot;LINE App&lt;br/&gt;(一般用戶)&quot;]
+        CLI[&quot;main.py CLI&lt;br/&gt;(開發測試)&quot;]
+    end
+
+    subgraph &quot;External Services&quot;
+        LINE_API[&quot;LINE Messaging API&quot;]
+        VERTEX[&quot;Vertex AI&lt;br/&gt;(Gemini 2.5 Pro/Flash)&quot;]
+    end
+
+    subgraph &quot;agent/ (FastAPI + ReAct)&quot;
+        direction TB
+        APP[&quot;app.py&lt;br/&gt;LINE Webhook&quot;]
+
+        subgraph &quot;Harness Layer (8 flat modules)&quot;
+            H2[&quot;multimodal.py (H2)&quot;]
+            H3[&quot;debounce.py (H3)&quot;]
+            H_DC[&quot;data_correction.py (H_DC)&quot;]
+            H_QR[&quot;line_ui_factory.py (H_QR)&quot;]
+            H4[&quot;profile_updater.py (H4)&quot;]
+            H5[&quot;memory_manager.py (H5)&quot;]
+            H6[&quot;safety_gate.py (H6)&quot;]
+            H75[&quot;output_validator.py (H7.5)&quot;]
+        end
+
+        subgraph &quot;Agent Layer (Single ReAct)&quot;
+            REACT[&quot;agent.py&lt;br/&gt;create_react_agent(llm, tools)&quot;]
+            TOOL1[&quot;load_skill&quot;]
+            TOOL2[&quot;update_user_info&quot;]
+            TOOL3[&quot;transfer_to_human&quot;]
+            REACT --- TOOL1
+            REACT --- TOOL2
+            REACT --- TOOL3
+        end
+
+        subgraph &quot;Infrastructure&quot;
+            SKILLS[&quot;skills/data/&lt;br/&gt;SKILL.md files&quot;]
+            FACTS[&quot;profiles/&lt;br/&gt;user_facts SCD2&quot;]
+            CKPT[&quot;memory/&lt;br/&gt;checkpointer&quot;]
+        end
+    end
+
+    subgraph &quot;Data Stores&quot;
+        PG[&quot;PostgreSQL 16&lt;br/&gt;+ pgvector&quot;]
+    end
+
+    LINE_APP --&gt; LINE_API
+    LINE_API -- &quot;Webhook&quot; --&gt; APP
+    CLI --&gt; REACT
+
+    APP --&gt; H3
+    H3 --&gt; H6 --&gt; H_DC --&gt; H_QR --&gt; REACT
+    REACT --&gt; H75 --&gt; APP
+    REACT --&gt; H4 -.background.-&gt; FACTS
+    REACT --&gt; H5 -.background.-&gt; CKPT
+    REACT --&gt; H2 -.background.-&gt; CKPT
+
+    TOOL1 --&gt; SKILLS
+    TOOL2 --&gt; FACTS
+    REACT --&gt; VERTEX
+    APP --&gt; LINE_API
+
+    FACTS --&gt; PG
+    CKPT --&gt; PG</code></pre>
+<h4 id="332-vision--multi-agent-stategraph規劃中尚未實作">3.3.2 Vision —
+Multi-Agent StateGraph（規劃中，尚未實作）</h4>
+<blockquote>
+<p>⚠️ <strong>Vision (not yet implemented)</strong>: 以下圖示為
+multi-agent sub-graph 願景。V1.0 已能以 single ReAct
+支撐當前需求；此圖僅供未來重構參考。</p>
+</blockquote>
+<pre class="mermaid"><code>graph TB
+    subgraph &quot;User Interfaces&quot;
+        LINE_APP[&quot;LINE App&lt;br/&gt;(一般用戶)&quot;]
+        CLI[&quot;main.py CLI&lt;br/&gt;(開發測試)&quot;]
+    end
+
+    subgraph &quot;External Services&quot;
+        LINE_API[&quot;LINE Messaging API&quot;]
+        VERTEX[&quot;Vertex AI&lt;br/&gt;(Gemini 2.5 Flash&lt;br/&gt;+ text-embedding-004)&lt;br/&gt;&lt;i&gt;開發環境備選&lt;/i&gt;&quot;]
+    end
+
+    subgraph &quot;LangGraph StateGraph&quot;
+        direction TB
+
+        subgraph &quot;Head Nodes (graph/nodes.py)&quot;
+            PP[&quot;pre_process&quot;]
+            MM[&quot;manage_memory&quot;]
+            RT[&quot;router&quot;]
+            MA[&quot;merge_answers&quot;]
+            UP[&quot;update_profile&quot;]
+            PO[&quot;post_process&quot;]
+        end
+
+        subgraph &quot;Harness Nodes (Phase 0 — disabled)&quot;
+            TD[&quot;task_decompose&quot;]
+            CA[&quot;context_assemble&quot;]
+            SG[&quot;safety_gate&quot;]
+            VA[&quot;verify_answer&quot;]
+            EC[&quot;entropy_check&quot;]
+        end
+
+        subgraph &quot;Agent Subgraphs (agents/)&quot;
+            HW[&quot;hardware_technician&quot;]
+            SR[&quot;sales_representative&quot;]
+            SA[&quot;store_assistant&quot;]
+            AS[&quot;app_specialist&quot;]
+            ML[&quot;manual_librarian&quot;]
+            WR[&quot;web_researcher&quot;]
+            RC[&quot;receptionist&quot;]
+        end
+    end
+
+    subgraph &quot;Tools Layer (tools/)&quot;
+        DB_V[&quot;db_video&lt;br/&gt;(pgvector)&quot;]
+        DB_L[&quot;db_line_chat&lt;br/&gt;(pgvector)&quot;]
+        DB_W[&quot;db_website&lt;br/&gt;(pgvector)&quot;]
+        DB_Y[&quot;db_youtube&lt;br/&gt;(pgvector)&quot;]
+        DB_M[&quot;db_manuals&lt;br/&gt;(pgvector)&quot;]
+        DB_WS[&quot;db_web_search&lt;br/&gt;(DuckDuckGo)&quot;]
+        TH[&quot;transfer_to_human&quot;]
+    end
+
+    subgraph &quot;Data Stores&quot;
+        PG[&quot;PostgreSQL 16&lt;br/&gt;+ pgvector&quot;]
+    end
+
+    LINE_APP --&gt; LINE_API
+    LINE_API -- &quot;Webhook&quot; --&gt; PP
+    CLI --&gt; PP
+
+    PP --&gt; MM --&gt; RT
+    RT -- &quot;Send() fan-out&quot; --&gt; HW &amp; SR &amp; SA &amp; AS &amp; ML &amp; WR &amp; RC
+    HW &amp; SR &amp; SA &amp; AS &amp; ML &amp; WR &amp; RC --&gt; MA
+    MA --&gt; UP --&gt; PO
+
+    HW --&gt; DB_V
+    SR --&gt; DB_L
+    SA --&gt; DB_W
+    AS --&gt; DB_Y
+    ML --&gt; DB_M
+    WR --&gt; DB_WS
+    RC --&gt; TH
+
+    DB_V &amp; DB_L &amp; DB_W &amp; DB_Y &amp; DB_M --&gt; PG
+    HW &amp; SR &amp; SA &amp; AS &amp; ML &amp; WR --&gt; VERTEX
+    PO --&gt; LINE_API</code></pre>
+<blockquote>
+<p><strong>注意</strong>：正式環境使用 Gemini 2.5 Flash 作為主要
+LLM，透過 Vertex AI 存取。Provider 抽象層 (LLM Registry) 支援
+config-driven 切換至其他供應商。</p>
+</blockquote>
+<h3 id="34-主要組件職責表">3.4 主要組件職責表</h3>
+<h4 id="341-current--v10-實際組件">3.4.1 Current — V1.0 實際組件</h4>
+<p><strong>Harness 層（8 flat modules）：</strong> 詳見 §1.4 Harness
+中介層表。</p>
+<p><strong>Agent 層（Single ReAct + 3 Tools）：</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">組件</th>
+<th style="text-align: left;">檔案</th>
+<th style="text-align: left;">核心職責</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>ReAct agent</strong></td>
+<td style="text-align: left;"><code>agent/agent.py</code></td>
+<td
+style="text-align: left;"><code>create_react_agent(llm, tools)</code>
+構建 single agent；system prompt 從 <code>prompts/system.md</code>
+載入，skill list per-request 動態注入</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>load_skill</strong></td>
+<td style="text-align: left;"><code>agent/skills/tools.py</code></td>
+<td style="text-align: left;">載入 SOP 內容；含 brand
+gate（品牌不符拒絕載入）+ prefix matching
+fallback（<code>ts-door-stuck</code> 匹配 <code>ts-door-stuck-*</code>
+系列）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>update_user_info</strong></td>
+<td style="text-align: left;"><code>agent/skills/tools.py</code></td>
+<td style="text-align: left;">寫入 user_facts（SCD Type 2）；用
+<code>match_brand</code> / <code>match_model</code> 對
+<code>agent/config.toml</code> 中的清單做標準化驗證</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>transfer_to_human</strong></td>
+<td style="text-align: left;"><code>agent/skills/tools.py</code></td>
+<td style="text-align: left;">轉接人工客服；自動填入已知 facts（phone,
+address, device）至表單模板</td>
+</tr>
+</tbody>
+</table>
+<h4 id="342-vision--multi-agent-components規劃中">3.4.2 Vision —
+Multi-Agent Components（規劃中）</h4>
+<blockquote>
+<p>⚠️ <strong>Vision (not yet implemented)</strong>: 以下表格為
+multi-agent sub-graph 願景設計，<strong>現有 V1.0
+不對應這些檔案</strong>。</p>
+</blockquote>
+<p><strong>Head Nodes (Vision)：</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">節點</th>
+<th style="text-align: left;">預期檔案</th>
+<th style="text-align: left;">願景職責</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>pre_process</strong></td>
+<td style="text-align: left;"><code>agent/graph/nodes.py</code></td>
+<td style="text-align: left;">訊息前處理：解析 LINE 事件、注入
+user_profile、初始化 GraphState</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>manage_memory</strong></td>
+<td style="text-align: left;"><code>agent/graph/nodes.py</code></td>
+<td style="text-align: left;">對話記憶管理：當 messages 超過閾值（50
+則）觸發語意摘要壓縮，保留最近 20 對</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>router</strong></td>
+<td style="text-align: left;"><code>agent/graph/nodes.py</code></td>
+<td style="text-align: left;">LLM 意圖分類：根據
+<code>[[intents]]</code> 配置判斷 <code>next_agents</code>
+清單，附帶最近 3 輪上下文濃縮問題</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>merge_answers</strong></td>
+<td style="text-align: left;"><code>agent/graph/nodes.py</code></td>
+<td style="text-align: left;">多 Agent 回覆匯流：合併
+<code>ui_hints</code>，LLM 綜合多個 Agent 回答為單一連貫回覆</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>update_profile</strong></td>
+<td style="text-align: left;"><code>agent/graph/nodes.py</code></td>
+<td style="text-align: left;">使用者輪廓更新：從回覆中提取
+phone/address/device_model 等 facts，寫入 ProfileManager</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>post_process</strong></td>
+<td style="text-align: left;"><code>agent/graph/nodes.py</code></td>
+<td style="text-align: left;">回覆後處理：組裝 LINE Flex Message /
+影片卡片 / 下載卡片，寫入審計日誌</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Harness Nodes (Vision)：</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">節點</th>
+<th style="text-align: left;">預期檔案</th>
+<th style="text-align: left;">願景職責</th>
+<th style="text-align: left;">啟用階段</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>task_decompose</strong></td>
+<td
+style="text-align: left;"><code>agent/harness/task/decomposer.py</code></td>
+<td style="text-align: left;">L1：將複雜問題拆解為子任務，建立
+ProblemCard</td>
+<td style="text-align: left;">Phase 2</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>context_assemble</strong></td>
+<td
+style="text-align: left;"><code>agent/harness/context/assembler.py</code></td>
+<td style="text-align: left;">L2：token budget 控制，source freshness
+評分</td>
+<td style="text-align: left;">Phase 4</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>safety_gate</strong></td>
+<td
+style="text-align: left;"><code>agent/harness/safety/gate.py</code></td>
+<td
+style="text-align: left;">L6：攔截危險指令（拆電路板、剪電線等）</td>
+<td style="text-align: left;">Phase 3</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>verify_answer</strong></td>
+<td
+style="text-align: left;"><code>agent/harness/feedback/verifier.py</code></td>
+<td style="text-align: left;">L5：回覆品質驗證，低於 0.6 分觸發
+retry</td>
+<td style="text-align: left;">Phase 5</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>entropy_check</strong></td>
+<td
+style="text-align: left;"><code>agent/harness/entropy/checker.py</code></td>
+<td style="text-align: left;">L8：偵測新型解法，觸發 SOP 自動生成</td>
+<td style="text-align: left;">Phase 6</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Agent Sub-graphs (Vision)：</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Agent</th>
+<th style="text-align: left;">Label</th>
+<th style="text-align: left;">預期工具</th>
+<th style="text-align: left;">預期知識庫</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>hardware_technician</strong></td>
+<td style="text-align: left;">硬體維修技師</td>
+<td style="text-align: left;">db_video, transfer_to_human</td>
+<td style="text-align: left;">kb_video (pgvector)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>sales_representative</strong></td>
+<td style="text-align: left;">報價與客服專員</td>
+<td style="text-align: left;">db_line_chat, transfer_to_human</td>
+<td style="text-align: left;">kb_line_chat (pgvector)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>store_assistant</strong></td>
+<td style="text-align: left;">門市與規格助理</td>
+<td style="text-align: left;">db_website, transfer_to_human</td>
+<td style="text-align: left;">kb_website (pgvector)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>app_specialist</strong></td>
+<td style="text-align: left;">APP 設定專家</td>
+<td style="text-align: left;">db_youtube, transfer_to_human</td>
+<td style="text-align: left;">kb_youtube (pgvector)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>manual_librarian</strong></td>
+<td style="text-align: left;">說明書管理員</td>
+<td style="text-align: left;">db_manuals, transfer_to_human</td>
+<td style="text-align: left;">kb_gdrive (pgvector)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>web_researcher</strong></td>
+<td style="text-align: left;">網路搜尋助手</td>
+<td style="text-align: left;">db_web_search, transfer_to_human</td>
+<td style="text-align: left;">DuckDuckGo (即時搜尋)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>receptionist</strong></td>
+<td style="text-align: left;">前台接待專員</td>
+<td style="text-align: left;">transfer_to_human</td>
+<td style="text-align: left;">無（純對話）</td>
+</tr>
+</tbody>
+</table>
+<p>願景中每個 Agent
+子圖內部結構相同：<code>START → agent_llm → [tool_calls? → tools → agent_llm] → END</code>（ReAct
+loop）。</p>
+<h3 id="35-關鍵用戶旅程">3.5 關鍵用戶旅程</h3>
+<h4
+id="graphstate-資料結構14-欄位--vision-not-yet-implemented">GraphState
+資料結構（14 欄位） — Vision (not yet implemented)</h4>
+<blockquote>
+<p>⚠️ <strong>Vision (not yet implemented)</strong>: 下表 GraphState 為
+multi-agent sub-graph 願景的共享狀態物件設計。V1.0 single ReAct 直接使用
+LangGraph checkpointer 的 messages list，無需此複雜 state schema。</p>
+</blockquote>
+<p>GraphState
+是貫穿整個工作流的共享狀態物件，定義於（未來的）<code>agent/graph/state.py</code>：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">欄位</th>
+<th style="text-align: left;">型別</th>
+<th style="text-align: left;">Reducer</th>
+<th style="text-align: left;">用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>messages</code></td>
+<td style="text-align: left;"><code>list</code></td>
+<td style="text-align: left;"><code>add_messages</code></td>
+<td style="text-align: left;">Agent 對話歷史（LLM + Tool messages）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>question</code></td>
+<td style="text-align: left;"><code>str</code></td>
+<td style="text-align: left;"><code>_keep_last</code></td>
+<td style="text-align: left;">Router 濃縮後的使用者問題</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>user_profile</code></td>
+<td style="text-align: left;"><code>str</code></td>
+<td style="text-align: left;"><code>_keep_last</code></td>
+<td style="text-align: left;">使用者輪廓（Markdown 格式）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>answer</code></td>
+<td style="text-align: left;"><code>str</code></td>
+<td style="text-align: left;"><code>_keep_last</code></td>
+<td style="text-align: left;">最終回覆文字</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>history</code></td>
+<td style="text-align: left;"><code>list</code></td>
+<td style="text-align: left;"><code>operator.add</code></td>
+<td style="text-align: left;">節點路徑追蹤（除錯用）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>summary</code></td>
+<td style="text-align: left;"><code>str</code></td>
+<td style="text-align: left;"><code>_keep_last</code></td>
+<td style="text-align: left;">對話摘要（記憶體壓縮用）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>next_agents</code></td>
+<td style="text-align: left;"><code>list</code></td>
+<td style="text-align: left;"><code>_keep_last</code></td>
+<td style="text-align: left;">Router 派發的 Agent 清單</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>ui_hints</code></td>
+<td style="text-align: left;"><code>list</code></td>
+<td style="text-align: left;"><code>_add_or_reset</code></td>
+<td style="text-align: left;">UI metadata（影片卡、下載卡）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>response_ui</code></td>
+<td style="text-align: left;"><code>list</code></td>
+<td style="text-align: left;"><code>_keep_last</code></td>
+<td style="text-align: left;">最終 LINE Message 物件</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>task</code></td>
+<td style="text-align: left;"><code>dict</code></td>
+<td style="text-align: left;"><code>_merge_dict</code></td>
+<td style="text-align: left;">L1 Harness：任務拆解 + ProblemCard</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>context_meta</code></td>
+<td style="text-align: left;"><code>dict</code></td>
+<td style="text-align: left;"><code>_merge_dict</code></td>
+<td style="text-align: left;">L2 Harness：上下文品質指標</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>feedback</code></td>
+<td style="text-align: left;"><code>dict</code></td>
+<td style="text-align: left;"><code>_merge_dict</code></td>
+<td style="text-align: left;">L5 Harness：品質驗證結果</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>safety</code></td>
+<td style="text-align: left;"><code>dict</code></td>
+<td style="text-align: left;"><code>_merge_dict</code></td>
+<td style="text-align: left;">L6 Harness：安全審計軌跡</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>entropy</code></td>
+<td style="text-align: left;"><code>dict</code></td>
+<td style="text-align: left;"><code>_merge_dict</code></td>
+<td style="text-align: left;">L8 Harness：新型解法偵測</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Harness 欄位（task ~ entropy）預設為
+<code>{}</code>，現有節點不讀寫這些欄位，確保零破壞。</p>
+</blockquote>
+<h4 id="場景-1用戶透過-line-諮詢電子鎖問題v10-實際流程">場景 1：用戶透過
+LINE 諮詢電子鎖問題（V1.0 實際流程）</h4>
+<p><strong>前提：</strong> 用戶已加入 LINE 官方帳號好友</p>
+<pre><code>1. 用戶在 LINE 發送：「我家的門鎖打不開了」
+2. LINE Webhook POST → agent/app.py → Debounce buffer (1.5s 合併後續訊息)
+3. Safety Gate (H6): regex 阻擋危險關鍵字
+4. Data Correction (H_DC): 若含 #資料修正 → 寫 DB 跳過 agent
+5. Quick Reply (H_QR): 若 brand 未知 → Quick Reply 蒐集 brand/model
+6. Run agent (single ReAct):
+   a. 載入 user facts (brand/model) 從 DB
+   b. infer_brand_from_text 自動推論 brand
+   c. 注入 [可用技能] + [用戶資料] + [前情提要] prefix 到 user message
+   d. ReAct loop: LLM 自主決定 load_skill / update_user_info / transfer_to_human
+   e. Tool 呼叫產生 ToolMessage，LLM 讀完繼續推理或產生最終 AIMessage
+   f. 迴圈直到 LLM 不再發 tool_calls → 產生最終回覆
+7. Output validator (H7.5): 阻擋洩漏內部機制的字串
+8. Checkpoint cleanup: ToolMessage 內容換為 [已參考技能: {name}]、多模態換為 [使用者曾傳送圖片]
+9. 背景: profile_updater (H4) LLM 抽取 phone/address；memory_manager (H5) 觸發壓縮；audit log (H8)
+10. 透過 LINE Reply/Push API 回覆用戶</code></pre>
+<blockquote>
+<p>⚠️ <strong>Vision flow</strong>（multi-agent sub-graph
+啟用後）：pre_process → manage_memory → router → Send() fan-out → 7
+sub-agents → merge_answers → update_profile → post_process。</p>
+</blockquote>
+<h4 id="場景-2技師接收與完成派工單v20-派工流程">場景
+2：技師接收與完成派工單（V2.0 派工流程）</h4>
+<pre><code>1. receptionist Agent 呼叫 transfer_to_human 工具 → 收集客戶聯絡資訊
+2. Dispatch Engine 建立 WorkOrder（關聯 ProblemCard）
+3. 智能匹配：技能 × 地區 × 歷史評分 → 選出 Top-1 技師
+4. WebSocket 即時通知 → 技師 Web App 接單
+5. 技師到場打卡 → 完成服務 → 上傳照片
+6. Accounting Module 產生 Invoice → 管理員審核 → Closed</code></pre>
+<h4 id="場景-3知識庫自演化--vision-not-yet-implemented">場景
+3：知識庫自演化 — Vision (not yet implemented)</h4>
+<blockquote>
+<p>⚠️ <strong>Vision (not yet implemented)</strong>: 此流程依賴 Harness
+L8 (Entropy Management) 啟用，目前未實作。實際 V1.0 知識庫更新由
+<code>data/</code> 目錄 Medallion ETL pipeline 從外部來源（YouTube /
+Website / Google Drive）人工 + 半自動產出 SKILL.md，經
+<code>data/pipeline/silver_to_skill/approve_drafts.py</code> 審核後寫入
+<code>agent/skills/data/</code>。</p>
+</blockquote>
+<pre><code>1. entropy_check 偵測到新型解法（similarity &lt; 0.3）
+2. SOP Generator 自動草擬結構化 SOP
+3. 管理員審核 → 通過 → 計算 Embedding → 加入 pgvector 知識庫
+4. 未來同類問題可被 Agent 直接檢索命中</code></pre>
+<h3 id="36-v1v2-整合架構problemcard--workorder-資料橋接">3.6 V1↔︎V2
+整合架構：ProblemCard → WorkOrder 資料橋接</h3>
+<p>V1.0（AI 客服）與 V2.0（派工/帳務）透過 <strong>ProblemCard</strong>
+作為資料橋接點。當 AI 三層解決機制判斷為 L3（需派工）時，系統啟動
+Dispatch Pipeline。</p>
+<h4 id="資料橋接流程">資料橋接流程</h4>
+<pre class="mermaid"><code>flowchart TB
+    subgraph V1[&quot;V1.0 AI Customer Service (agent/)&quot;]
+        LINE[&quot;LINE 用戶訊息&quot;] --&gt; GRAPH[&quot;LangGraph StateGraph&quot;]
+        GRAPH --&gt; L1_3[&quot;L1/L2 Resolution&lt;br/&gt;(自助解決)&quot;]
+        GRAPH --&gt; L3[&quot;L3 Escalation&lt;br/&gt;(需要派工)&quot;]
+        GRAPH --&gt; PC[&quot;ProblemCard&lt;br/&gt;status=escalated&lt;br/&gt;domain_attributes JSONB&quot;]
+    end
+
+    subgraph BRIDGE[&quot;資料橋接點&quot;]
+        PC --&gt;|&quot;FK: problem_card_id&quot;| WO[&quot;WorkOrder&lt;br/&gt;status=created&quot;]
+    end
+
+    subgraph V2[&quot;V2.0 Dispatch &amp; Accounting&quot;]
+        WO --&gt; DISPATCH[&quot;Dispatch Engine&lt;br/&gt;技師匹配 (skill × region × rating)&quot;]
+        DISPATCH --&gt; PRICING[&quot;Pricing Engine&lt;br/&gt;報價 (brand × lock_type × difficulty)&quot;]
+        PRICING --&gt; NOTIFY[&quot;Push Notification&lt;br/&gt;技師接單池&quot;]
+        NOTIFY --&gt; ACCEPT[&quot;技師接單&lt;br/&gt;WorkOrder.status=accepted&quot;]
+        ACCEPT --&gt; COMPLETE[&quot;完工回報&lt;br/&gt;photos + GPS + materials&quot;]
+        COMPLETE --&gt; INVOICE[&quot;Invoice 生成&quot;]
+        INVOICE --&gt; SETTLE[&quot;月結對帳&lt;br/&gt;Reconciliation&quot;]
+    end
+
+    ACCEPT --&gt;|&quot;LINE Push&quot;| LINE2[&quot;通知用戶：技師已出發&quot;]
+
+    style V1 fill:#f3e5f5,stroke:#7b1fa2
+    style BRIDGE fill:#fff3e0,stroke:#e65100
+    style V2 fill:#e8f5e9,stroke:#2e7d32</code></pre>
+<h4 id="l3-escalation-原子事務">L3 Escalation 原子事務</h4>
+<p>當 <code>transfer_to_human</code> 工具被觸發時，系統在<strong>單一
+database transaction</strong> 中完成：</p>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="cf">with</span> db.begin():</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    <span class="co"># 1. ProblemCard 狀態更新</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    problem_card.status <span class="op">=</span> <span class="st">&quot;escalated&quot;</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    problem_card.resolution_level <span class="op">=</span> <span class="st">&quot;L3_escalation&quot;</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>    <span class="co"># 2. 建立 WorkOrder (FK → ProblemCard)</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>    work_order <span class="op">=</span> WorkOrder(</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>        problem_card_id<span class="op">=</span>problem_card.card_id,</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>        customer_user_id<span class="op">=</span>problem_card.user_id,</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>        description<span class="op">=</span>problem_card.symptom_summary,</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>        domain_attributes<span class="op">=</span>problem_card.domain_attributes,  <span class="co"># 繼承 JSONB</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>        estimated_price<span class="op">=</span><span class="cf">await</span> pricing_engine.estimate(problem_card),</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>    <span class="co"># 3. 技師匹配 (async, 不阻塞 transaction)</span></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>    candidates <span class="op">=</span> <span class="cf">await</span> dispatch_engine.match(work_order)</span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>    <span class="co"># 4. 建立 Assignment 候選 (batch insert)</span></span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>    assignments <span class="op">=</span> [Assignment(work_order_id<span class="op">=</span>work_order.<span class="bu">id</span>, technician_id<span class="op">=</span>t.<span class="bu">id</span>) <span class="cf">for</span> t <span class="kw">in</span> candidates[:<span class="dv">5</span>]]</span></code></pre></div>
+<p>事務失敗時 ProblemCard 狀態不變（仍為
+diagnosing），用戶看到「正在尋找技師」的 LINE 訊息。</p>
+<h4 id="v1v2-共享資料模型">V1↔︎V2 共享資料模型</h4>
+<table>
+<thead>
+<tr>
+<th>實體</th>
+<th>V1.0 寫入</th>
+<th>V2.0 讀取/寫入</th>
+<th>橋接欄位</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ProblemCard</strong></td>
+<td>建立、填充 domain_attributes</td>
+<td>讀取 symptom + domain_attributes → 建立 WorkOrder</td>
+<td><code>card_id</code> (PK)</td>
+</tr>
+<tr>
+<td><strong>User</strong></td>
+<td>LINE 綁定、profile 更新</td>
+<td>技師角色擴展、RBAC</td>
+<td><code>user_id</code> + <code>role</code> enum</td>
+</tr>
+<tr>
+<td><strong>User_Facts</strong></td>
+<td>phone, address, device_model</td>
+<td>technician skill, service_region</td>
+<td><code>attr_key</code> 擴展</td>
+</tr>
+<tr>
+<td><strong>Audit_Log</strong></td>
+<td>對話記錄</td>
+<td>派工記錄、計價記錄</td>
+<td><code>log_type</code> 擴展</td>
+</tr>
+</tbody>
+</table>
+<h4 id="架構決策為什麼不拆微服務">架構決策：為什麼不拆微服務</h4>
+<table>
+<thead>
+<tr>
+<th>評估面向</th>
+<th>Monolith</th>
+<th>Microservices</th>
+<th>結論</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Concurrent users</strong></td>
+<td>100 (目標) vs 2000+ (容量)</td>
+<td>每服務需獨立 infra + 運維</td>
+<td>容量富餘 20 倍，<strong>不需拆</strong></td>
+</tr>
+<tr>
+<td><strong>團隊規模</strong></td>
+<td>1-3 人</td>
+<td>每服務至少 1 人維護</td>
+<td>人力不足，<strong>不能拆</strong></td>
+</tr>
+<tr>
+<td><strong>資料一致性</strong></td>
+<td>Single DB transaction</td>
+<td>分散式事務 (Saga pattern)</td>
+<td>L3 escalation 需原子性，<strong>不該拆</strong></td>
+</tr>
+<tr>
+<td><strong>部署複雜度</strong></td>
+<td>1 container + 1 DB + 1 Redis</td>
+<td>N containers + service mesh + API gateway</td>
+<td>運維成本高，<strong>不值得拆</strong></td>
+</tr>
+<tr>
+<td><strong>開發效率</strong></td>
+<td>共用 model / config / harness</td>
+<td>重複定義 schema + 跨服務 API</td>
+<td>Monolith 快 3-5 倍</td>
+</tr>
+</tbody>
+</table>
+<p><strong>拆分觸發條件</strong>（未來評估）：</p>
+<ol type="1">
+<li>Concurrent users 穩定超過 <strong>500</strong> 且不同模組 scaling
+profile 明顯不同</li>
+<li>團隊超過 <strong>8 人</strong> 且各組之間的 merge conflict 頻繁</li>
+<li>Dispatch 的 P99 延遲超過 <strong>5 秒</strong> 且已完成 async +
+cache 優化仍不足</li>
+</ol>
+<p>在這三個條件<strong>同時成立</strong>之前，monolith 是正確選擇。</p>
+<hr />
+<h2 id="第-4-部分技術選型詳述">第 4 部分：技術選型詳述</h2>
+<h3 id="41-技術選型原則">4.1 技術選型原則</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">原則</th>
+<th style="text-align: left;">說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>實用主義優先</strong></td>
+<td
+style="text-align: left;">解決實際問題，拒絕過度設計。技術選型需匹配團隊規模與專案階段</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>成熟穩定</strong></td>
+<td
+style="text-align: left;">優先選擇有活躍社群、良好文檔、生產驗證的技術</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>團隊技能對齊</strong></td>
+<td
+style="text-align: left;">在滿足需求的前提下，優先選擇團隊熟悉的技術棧</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>簡潔部署</strong></td>
+<td style="text-align: left;">V1.0 階段以 Docker Compose
+單機部署為目標，避免引入不必要的基礎設施複雜度</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>可演進性</strong></td>
+<td style="text-align: left;">架構設計需預留 V2.0
+擴展空間，但不提前實現</td>
+</tr>
+</tbody>
+</table>
+<h3 id="42-技術棧詳情">4.2 技術棧詳情</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">分類</th>
+<th style="text-align: left;">選用技術</th>
+<th style="text-align: left;">選擇理由 (Justification)</th>
+<th style="text-align: left;">考量的備選方案</th>
+<th style="text-align: left;">風險/成熟度</th>
+<th style="text-align: left;">相關 ADR</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>後端框架</strong></td>
+<td style="text-align: left;">Python 3.11+ / FastAPI</td>
+<td style="text-align: left;">1. 原生 async/await 支援，適合 I/O 密集的
+LLM 呼叫場景<br/>2. 自動 OpenAPI 文檔生成，降低 API 文檔維護成本<br/>3.
+Pydantic 整合提供強型別驗證<br/>4. Python 生態在 AI/ML 領域最為豐富</td>
+<td style="text-align: left;"><strong>Django REST Framework</strong>:
+功能全面但較重，async 支援尚不成熟<br/><strong>Node.js /
+Express</strong>: 非同步效能佳，但 Python 在 AI 生態更強<br/><strong>Go
+/ Gin</strong>: 高效能，但 LLM 庫生態不如 Python</td>
+<td style="text-align: left;">成熟 (Mature)</td>
+<td style="text-align: left;">ADR-001</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>LLM 框架</strong></td>
+<td style="text-align: left;">LangChain 0.2+</td>
+<td style="text-align: left;">1. 統一抽象層，便於切換 LLM
+Provider<br/>2. 內建 Chain/Agent 編排能力<br/>3. RAG pipeline
+原生支援<br/>4. Prompt Template 管理<br/>5. 活躍社群與豐富文檔</td>
+<td style="text-align: left;"><strong>直接使用 Google AI SDK</strong>:
+更輕量，但缺乏抽象層與 RAG 支援<br/><strong>LlamaIndex</strong>: RAG
+專精，但通用性不如 LangChain<br/><strong>Semantic Kernel</strong>:
+微軟出品，Python 支援較弱</td>
+<td style="text-align: left;">成熟但迭代快</td>
+<td style="text-align: left;">ADR-003</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>LLM 模型</strong></td>
+<td style="text-align: left;">Google Gemini 2.5 Flash</td>
+<td style="text-align: left;">1.
+目前最佳的多模態理解能力（可處理用戶上傳的門鎖照片）<br/>2.
+中文對話品質優異<br/>3. Function Calling 支援結構化輸出<br/>4. 穩定的
+API 可用性</td>
+<td style="text-align: left;"><strong>Claude 3.5 Sonnet</strong>:
+同等級能力，但中文場景資料較少<br/><strong>OpenAI GPT-4o</strong>:
+同等級能力，成熟穩定<br/><strong>本地部署 LLM</strong>:
+延遲低但硬體成本高，品質不及 Gemini 2.5 Flash</td>
+<td style="text-align: left;">成熟 (Mature)</td>
+<td style="text-align: left;">ADR-003</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Embedding 模型</strong></td>
+<td style="text-align: left;">text-embedding-004</td>
+<td style="text-align: left;">1. 768 維向量，平衡精度與成本<br/>2. 與
+Gemini 2.5 Flash 同一供應商，降低整合複雜度<br/>3. 支援 dimensions
+參數可降維<br/>4. 多語言支援優異</td>
+<td style="text-align: left;"><strong>OpenAI
+text-embedding-3-small</strong>: 1536
+維，精度高但增加供應商依賴<br/><strong>Cohere Embed</strong>:
+多語言能力強，但增加供應商依賴<br/><strong>本地 BERT</strong>:
+零成本但精度差且需維護 GPU</td>
+<td style="text-align: left;">成熟 (Mature)</td>
+<td style="text-align: left;">ADR-008</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>資料庫</strong></td>
+<td style="text-align: left;">PostgreSQL 16 + pgvector</td>
+<td style="text-align: left;">1.
+單一資料庫同時提供關聯式與向量儲存，架構最簡<br/>2. pgvector 支援 HNSW
+索引，查詢效能滿足需求<br/>3. 團隊熟悉 PostgreSQL<br/>4.
+成熟的備份、複製、監控生態</td>
+<td style="text-align: left;"><strong>PostgreSQL + Pinecone</strong>:
+向量搜尋更專業，但增加基礎設施與成本<br/><strong>PostgreSQL +
+Milvus</strong>: 自建向量 DB，運維複雜度高<br/><strong>MongoDB + Atlas
+Vector</strong>: 文件型 DB，但本專案需要強事務保證</td>
+<td style="text-align: left;">成熟 (Mature)</td>
+<td style="text-align: left;">ADR-002</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>快取</strong></td>
+<td style="text-align: left;">Redis 7+</td>
+<td style="text-align: left;">1. 對話 Session 暫存（TTL 30 分鐘）<br/>2.
+Rate Limiting（LINE Webhook 防洪）<br/>3. 極低延遲（&lt; 1ms）<br/>4.
+成熟穩定，運維成本低</td>
+<td style="text-align: left;"><strong>Memcached</strong>:
+更簡單但功能不足（無 TTL 精細控制）<br/><strong>Application Memory
+Cache</strong>: 不支援多 Worker 共享</td>
+<td style="text-align: left;">成熟 (Mature)</td>
+<td style="text-align: left;">ADR-005</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>前端 (V2.0)</strong></td>
+<td style="text-align: left;">Next.js 14+ / TypeScript</td>
+<td style="text-align: left;">1. React 生態系最成熟的全端框架<br/>2.
+SSR/SSG 提升首屏載入速度<br/>3. TypeScript 型別安全<br/>4. App Router
+簡化路由管理</td>
+<td style="text-align: left;"><strong>Nuxt.js (Vue)</strong>:
+同類框架，但 React 生態更大<br/><strong>SvelteKit</strong>:
+更輕量但生態較小<br/><strong>純 React SPA</strong>: 無 SSR 支援，SEO
+與首屏效能較差</td>
+<td style="text-align: left;">成熟 (Mature)</td>
+<td style="text-align: left;">ADR-006</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Admin UI (V1.0)</strong></td>
+<td style="text-align: left;">Jinja2 + HTMX</td>
+<td style="text-align: left;">1. 伺服器端渲染，無需前端建置流程<br/>2.
+HTMX 提供類 SPA 體驗，但不需要 JavaScript 框架<br/>3. V1.0
+快速交付，V2.0 再遷移至 Next.js</td>
+<td style="text-align: left;"><strong>直接用 Next.js</strong>:
+功能更強，但 V1.0 階段前端工作量太大<br/><strong>Streamlit</strong>:
+快速原型，但自訂性差</td>
+<td style="text-align: left;">成熟 (Mature)</td>
+<td style="text-align: left;">ADR-006</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>容器化</strong></td>
+<td style="text-align: left;">Docker + docker-compose</td>
+<td style="text-align: left;">1. 開發環境與部署環境一致<br/>2.
+所有服務（API, DB, Redis）一鍵啟動<br/>3. 團隊熟悉，學習成本為零</td>
+<td style="text-align: left;"><strong>Kubernetes</strong>: V1.0 階段
+overkill<br/><strong>Podman</strong>: Docker 相容但生態較小</td>
+<td style="text-align: left;">成熟 (Mature)</td>
+<td style="text-align: left;">ADR-007</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>CI/CD</strong></td>
+<td style="text-align: left;">GitHub Actions</td>
+<td style="text-align: left;">1. 與 GitHub 程式碼倉庫無縫整合<br/>2.
+社群 Actions 豐富<br/>3. 免費額度足夠小型團隊使用</td>
+<td style="text-align: left;"><strong>GitLab CI</strong>:
+功能強大但需遷移倉庫<br/><strong>Jenkins</strong>: 靈活但維護成本高</td>
+<td style="text-align: left;">成熟 (Mature)</td>
+<td style="text-align: left;">-</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>LINE 整合</strong></td>
+<td style="text-align: left;">line-bot-sdk-python 3+</td>
+<td style="text-align: left;">1. LINE 官方維護的 Python SDK<br/>2.
+Webhook 簽章驗證內建<br/>3. Flex Message Builder API</td>
+<td style="text-align: left;"><strong>自行實作 HTTP Client</strong>:
+靈活但重複造輪子</td>
+<td style="text-align: left;">成熟 (Mature)</td>
+<td style="text-align: left;">-</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ORM</strong></td>
+<td style="text-align: left;">SQLAlchemy 2.0+ (Async)</td>
+<td style="text-align: left;">1. Python 生態最成熟的 ORM<br/>2. 2.0
+版原生 async 支援<br/>3. 靈活的查詢構建能力<br/>4. 搭配 Alembic 做
+Schema 遷移</td>
+<td style="text-align: left;"><strong>Tortoise ORM</strong>: async
+原生但生態較小<br/><strong>SQLModel</strong>: 基於 SQLAlchemy +
+Pydantic，但功能受限</td>
+<td style="text-align: left;">成熟 (Mature)</td>
+<td style="text-align: left;">-</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>PDF 解析</strong></td>
+<td style="text-align: left;">PyMuPDF (fitz)</td>
+<td style="text-align: left;">1. 解析速度快，記憶體效率高<br/>2.
+支援文本提取與頁面結構解析<br/>3. 開源免費</td>
+<td style="text-align: left;"><strong>pdfplumber</strong>:
+表格解析強但速度慢<br/><strong>Apache Tika</strong>: 功能全面但需 Java
+Runtime</td>
+<td style="text-align: left;">成熟 (Mature)</td>
+<td style="text-align: left;">-</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>測試</strong></td>
+<td style="text-align: left;">pytest + pytest-asyncio</td>
+<td style="text-align: left;">1. Python 標準測試框架<br/>2.
+豐富的插件生態<br/>3. fixture 機制簡化測試資料準備<br/>4. pytest-asyncio
+支援 async 測試</td>
+<td style="text-align: left;"><strong>unittest</strong>:
+標準庫但功能較弱</td>
+<td style="text-align: left;">成熟 (Mature)</td>
+<td style="text-align: left;">-</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="第-5-部分數據架構">第 5 部分：數據架構</h2>
+<blockquote>
+<p><strong>Schema 檔案參考</strong>：核心 Schema 定義於
+<code>SQL/Schema.sql</code>，V2.0 業務擴展定義於
+<code>SQL/Schema_v2_extensions.sql</code>。</p>
+<p><strong>Schema_v2_extensions.sql</strong> 新增 6 張業務表：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">表名</th>
+<th style="text-align: left;">所屬上下文</th>
+<th style="text-align: left;">說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>disputes</code></td>
+<td style="text-align: left;">DisputeResolution</td>
+<td style="text-align: left;">客訴/爭議案件主表</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>refund_requests</code></td>
+<td style="text-align: left;">DisputeResolution</td>
+<td style="text-align: left;">退款申請與審批紀錄</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>warranty_records</code></td>
+<td style="text-align: left;">Warranty</td>
+<td style="text-align: left;">保固紀錄與保固期限</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>inventory_items</code></td>
+<td style="text-align: left;">Inventory</td>
+<td style="text-align: left;">零件庫存主表</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>stock_movements</code></td>
+<td style="text-align: left;">Inventory</td>
+<td style="text-align: left;">庫存進出異動紀錄</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>brands</code></td>
+<td style="text-align: left;">BrandManagement</td>
+<td style="text-align: left;">品牌/型號主檔</td>
+</tr>
+</tbody>
+</table>
+</blockquote>
+<h3 id="51-數據模型">5.1 數據模型</h3>
+<h4 id="er-圖-entity-relationship-diagram">ER 圖 (Entity Relationship
+Diagram)</h4>
+<pre class="mermaid"><code>erDiagram
+    %% ===== V1.0 核心實體 =====
+
+    User {
+        uuid id PK
+        string line_user_id UK &quot;LINE platform user ID&quot;
+        string display_name
+        string phone &quot;nullable - collected at L3&quot;
+        string email &quot;nullable&quot;
+        string role &quot;line_user | admin | family_reviewer | technician&quot;
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    Conversation {
+        uuid id PK
+        uuid user_id FK
+        string session_id UK &quot;unique session identifier&quot;
+        string status &quot;active | collecting | resolving | resolved | escalated | expired&quot;
+        jsonb context &quot;multi-turn conversation context&quot;
+        int message_count
+        timestamp started_at
+        timestamp resolved_at &quot;nullable&quot;
+        timestamp expired_at &quot;nullable&quot;
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    Message {
+        uuid id PK
+        uuid conversation_id FK
+        string role &quot;user | assistant | system&quot;
+        string content_type &quot;text | image | location | flex&quot;
+        text content
+        jsonb metadata &quot;token usage, latency, etc.&quot;
+        timestamp created_at
+    }
+
+    ProblemCard {
+        uuid id PK
+        uuid conversation_id FK &quot;one-to-one&quot;
+        string brand &quot;nullable - e.g. Yale, Samsung&quot;
+        string model &quot;nullable - e.g. YDM-4109&quot;
+        string location &quot;nullable - address or area&quot;
+        string door_status &quot;nullable - locked | unlocked | jammed | unknown&quot;
+        string network_status &quot;nullable - online | offline | unknown&quot;
+        text symptoms &quot;user-described symptoms&quot;
+        string intent &quot;inquiry | repair | complaint | other&quot;
+        string status &quot;incomplete | complete | resolved | escalated&quot;
+        float completeness_score &quot;0.0 to 1.0&quot;
+        string resolution_level &quot;nullable - L1 | L2 | L3&quot;
+        jsonb extracted_fields &quot;AI-extracted raw fields&quot;
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    CaseEntry {
+        uuid id PK
+        string title
+        text problem_description
+        text solution
+        string brand &quot;nullable - applicable brand&quot;
+        string lock_type &quot;nullable - applicable lock type&quot;
+        string difficulty &quot;easy | medium | hard&quot;
+        vector embedding &quot;1536-dim pgvector&quot;
+        string source &quot;manual_input | sop_approved | imported&quot;
+        uuid approved_by FK &quot;nullable - admin who approved&quot;
+        boolean is_active
+        int hit_count &quot;times matched in L1&quot;
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    ManualChunk {
+        uuid id PK
+        uuid manual_id FK
+        string source_pdf &quot;filename of source PDF&quot;
+        int page_number
+        string chapter_title &quot;nullable&quot;
+        text content
+        int token_count
+        vector embedding &quot;1536-dim pgvector&quot;
+        timestamp created_at
+    }
+
+    Manual {
+        uuid id PK
+        string filename
+        string brand
+        string model &quot;nullable&quot;
+        int total_pages
+        int total_chunks
+        string status &quot;processing | completed | failed&quot;
+        uuid uploaded_by FK
+        timestamp created_at
+    }
+
+    SOPDraft {
+        uuid id PK
+        uuid source_conversation_id FK &quot;originating conversation&quot;
+        string title
+        text applicable_conditions &quot;when to apply this SOP&quot;
+        jsonb steps &quot;ordered list of solution steps&quot;
+        text notes &quot;additional notes / warnings&quot;
+        string status &quot;pending_review | approved | rejected | revised&quot;
+        uuid reviewed_by FK &quot;nullable&quot;
+        text review_comment &quot;nullable&quot;
+        timestamp created_at
+        timestamp reviewed_at &quot;nullable&quot;
+    }
+
+    %% ===== V2.0 擴展實體 =====
+
+    Technician {
+        uuid id PK
+        uuid user_id FK &quot;links to User&quot;
+        string name
+        string phone
+        string email
+        jsonb capabilities &quot;list of brand/lock_type skills&quot;
+        jsonb service_regions &quot;list of serviceable areas&quot;
+        jsonb availability &quot;weekly schedule slots&quot;
+        float rating &quot;1.0 to 5.0&quot;
+        int completed_orders
+        string status &quot;active | inactive | suspended&quot;
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    WorkOrder {
+        uuid id PK
+        uuid problem_card_id FK
+        uuid technician_id FK &quot;nullable until assigned&quot;
+        uuid created_by FK &quot;system or admin&quot;
+        string status &quot;created | assigned | accepted | rejected | in_progress | completed | closed | cancelled&quot;
+        string priority &quot;low | medium | high | urgent&quot;
+        text customer_name
+        string customer_phone
+        string customer_address
+        timestamp scheduled_at &quot;nullable&quot;
+        timestamp accepted_at &quot;nullable&quot;
+        timestamp started_at &quot;nullable&quot;
+        timestamp completed_at &quot;nullable&quot;
+        text service_report &quot;nullable - technician&#39;s report&quot;
+        jsonb photos &quot;nullable - uploaded photo URLs&quot;
+        float estimated_price
+        float final_price &quot;nullable&quot;
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    PriceRule {
+        uuid id PK
+        string brand
+        string lock_type
+        string difficulty &quot;easy | medium | hard&quot;
+        float base_price
+        float labor_cost
+        float parts_cost &quot;nullable&quot;
+        jsonb modifiers &quot;surcharges, discounts, etc.&quot;
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    Invoice {
+        uuid id PK
+        uuid work_order_id FK
+        string invoice_number UK
+        float amount
+        float tax
+        float total
+        string status &quot;draft | issued | paid | cancelled&quot;
+        jsonb line_items &quot;service breakdown&quot;
+        timestamp issued_at &quot;nullable&quot;
+        timestamp paid_at &quot;nullable&quot;
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% ===== Relationships =====
+
+    User ||--o{ Conversation : &quot;initiates&quot;
+    Conversation ||--o{ Message : &quot;contains&quot;
+    Conversation ||--|| ProblemCard : &quot;produces&quot;
+    Conversation ||--o| SOPDraft : &quot;generates&quot;
+    Manual ||--o{ ManualChunk : &quot;split into&quot;
+    User ||--o| Technician : &quot;is a (V2.0)&quot;
+    ProblemCard ||--o| WorkOrder : &quot;escalates to (V2.0)&quot;
+    Technician ||--o{ WorkOrder : &quot;assigned to (V2.0)&quot;
+    WorkOrder ||--o| Invoice : &quot;produces (V2.0)&quot;</code></pre>
+<h4 id="表格索引策略">表格索引策略</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">表</th>
+<th style="text-align: left;">索引名稱</th>
+<th style="text-align: left;">欄位</th>
+<th style="text-align: left;">類型</th>
+<th style="text-align: left;">用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>conversations</code></td>
+<td style="text-align: left;"><code>idx_conv_user_status</code></td>
+<td style="text-align: left;"><code>(user_id, status)</code></td>
+<td style="text-align: left;">B-tree</td>
+<td style="text-align: left;">查詢用戶活躍對話</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>conversations</code></td>
+<td style="text-align: left;"><code>idx_conv_session</code></td>
+<td style="text-align: left;"><code>(session_id)</code></td>
+<td style="text-align: left;">B-tree (Unique)</td>
+<td style="text-align: left;">Session 查詢</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>messages</code></td>
+<td style="text-align: left;"><code>idx_msg_conv_created</code></td>
+<td
+style="text-align: left;"><code>(conversation_id, created_at)</code></td>
+<td style="text-align: left;">B-tree</td>
+<td style="text-align: left;">對話訊息時序查詢</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>problem_cards</code></td>
+<td style="text-align: left;"><code>idx_pc_status</code></td>
+<td style="text-align: left;"><code>(status)</code></td>
+<td style="text-align: left;">B-tree</td>
+<td style="text-align: left;">按狀態篩選問題卡</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>problem_cards</code></td>
+<td style="text-align: left;"><code>idx_pc_brand_model</code></td>
+<td style="text-align: left;"><code>(brand, model)</code></td>
+<td style="text-align: left;">B-tree</td>
+<td style="text-align: left;">按品牌型號篩選</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>case_entries</code></td>
+<td style="text-align: left;"><code>idx_ce_embedding</code></td>
+<td style="text-align: left;"><code>(embedding)</code></td>
+<td style="text-align: left;">HNSW (pgvector)</td>
+<td style="text-align: left;">向量相似度搜尋</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>case_entries</code></td>
+<td style="text-align: left;"><code>idx_ce_brand_active</code></td>
+<td style="text-align: left;"><code>(brand, is_active)</code></td>
+<td style="text-align: left;">B-tree</td>
+<td style="text-align: left;">品牌篩選 + 啟用狀態</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>manual_chunks</code></td>
+<td style="text-align: left;"><code>idx_mc_embedding</code></td>
+<td style="text-align: left;"><code>(embedding)</code></td>
+<td style="text-align: left;">HNSW (pgvector)</td>
+<td style="text-align: left;">向量相似度搜尋</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>manual_chunks</code></td>
+<td style="text-align: left;"><code>idx_mc_manual</code></td>
+<td style="text-align: left;"><code>(manual_id)</code></td>
+<td style="text-align: left;">B-tree</td>
+<td style="text-align: left;">按手冊查詢 chunks</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>work_orders</code></td>
+<td style="text-align: left;"><code>idx_wo_tech_status</code></td>
+<td style="text-align: left;"><code>(technician_id, status)</code></td>
+<td style="text-align: left;">B-tree</td>
+<td style="text-align: left;">技師工單查詢</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>work_orders</code></td>
+<td style="text-align: left;"><code>idx_wo_status_priority</code></td>
+<td style="text-align: left;"><code>(status, priority)</code></td>
+<td style="text-align: left;">B-tree</td>
+<td style="text-align: left;">待派工工單排序</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>invoices</code></td>
+<td style="text-align: left;"><code>idx_inv_wo</code></td>
+<td style="text-align: left;"><code>(work_order_id)</code></td>
+<td style="text-align: left;">B-tree</td>
+<td style="text-align: left;">工單帳務查詢</td>
+</tr>
+</tbody>
+</table>
+<h3 id="52-數據流圖">5.2 數據流圖</h3>
+<h4 id="用戶諮詢的數據流">用戶諮詢的數據流</h4>
+<pre class="mermaid"><code>graph LR
+    subgraph &quot;Input&quot;
+        LM[&quot;LINE Message&lt;br/&gt;(text/image/location)&quot;]
+    end
+
+    subgraph &quot;Processing Pipeline&quot;
+        WH[&quot;Webhook Handler&lt;br/&gt;Parse &amp; Validate&quot;]
+        CM[&quot;Conversation Manager&lt;br/&gt;Load/Create Session&quot;]
+        PCE[&quot;ProblemCard Engine&lt;br/&gt;Extract Fields (LLM)&quot;]
+        L1[&quot;L1: Vector Search&lt;br/&gt;(pgvector cosine similarity)&quot;]
+        L2[&quot;L2: AI Reasoning&lt;br/&gt;(RAG - Gemini 2.5 Flash)&quot;]
+        L3[&quot;L3: Escalation&lt;br/&gt;(Human / WorkOrder)&quot;]
+    end
+
+    subgraph &quot;Data Stores&quot;
+        REDIS[&quot;Redis&lt;br/&gt;Session Cache&quot;]
+        PG_CONV[&quot;PostgreSQL&lt;br/&gt;conversations, messages&quot;]
+        PG_PC[&quot;PostgreSQL&lt;br/&gt;problem_cards&quot;]
+        PG_KB[&quot;PostgreSQL + pgvector&lt;br/&gt;case_entries, manual_chunks&quot;]
+        PG_WO[&quot;PostgreSQL&lt;br/&gt;work_orders (V2.0)&quot;]
+    end
+
+    subgraph &quot;Output&quot;
+        REPLY[&quot;LINE Reply&lt;br/&gt;(Flex Message)&quot;]
+    end
+
+    LM --&gt; WH
+    WH --&gt; CM
+    CM --&gt;|&quot;R/W session&quot;| REDIS
+    CM --&gt;|&quot;save messages&quot;| PG_CONV
+    CM --&gt; PCE
+    PCE --&gt;|&quot;save/update&quot;| PG_PC
+    PCE --&gt; L1
+    L1 --&gt;|&quot;vector query&quot;| PG_KB
+    L1 --&gt;|&quot;hit&quot;| REPLY
+    L1 --&gt;|&quot;miss&quot;| L2
+    L2 --&gt;|&quot;RAG context&quot;| PG_KB
+    L2 --&gt;|&quot;resolved&quot;| REPLY
+    L2 --&gt;|&quot;unresolved&quot;| L3
+    L3 --&gt;|&quot;create order&quot;| PG_WO
+    L3 --&gt; REPLY</code></pre>
+<h3 id="53-數據一致性策略">5.3 數據一致性策略</h3>
+<p>本系統為 Modular Monolith，所有模組共享同一個 PostgreSQL
+實例，因此：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">場景</th>
+<th style="text-align: left;">一致性需求</th>
+<th style="text-align: left;">策略</th>
+<th style="text-align: left;">說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Conversation + ProblemCard
+建立</strong></td>
+<td style="text-align: left;">強一致性</td>
+<td style="text-align: left;">PostgreSQL Transaction</td>
+<td style="text-align: left;">對話與問題卡必須原子性寫入，使用
+SQLAlchemy 的 Session Transaction</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>CaseEntry 更新 + Embedding
+計算</strong></td>
+<td style="text-align: left;">最終一致性</td>
+<td style="text-align: left;">非同步任務</td>
+<td style="text-align: left;">Embedding 計算是 I/O 密集操作（呼叫 Google
+AI API），允許短暫延遲。先寫入 CaseEntry，再異步計算 Embedding
+並回寫</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>WorkOrder 建立 +
+技師通知</strong></td>
+<td style="text-align: left;">最終一致性</td>
+<td style="text-align: left;">事件驅動</td>
+<td style="text-align: left;">工單寫入 DB 成功後發布 Domain
+Event，通知模組非同步推送</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>WorkOrder 完成 + Invoice
+建立</strong></td>
+<td style="text-align: left;">強一致性</td>
+<td style="text-align: left;">PostgreSQL Transaction</td>
+<td style="text-align: left;">服務完成確認與帳務記錄必須原子性寫入</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Session Cache (Redis) +
+DB</strong></td>
+<td style="text-align: left;">最終一致性</td>
+<td style="text-align: left;">Cache-Aside Pattern</td>
+<td style="text-align: left;">Redis 作為快取層，DB
+為最終事實來源。Session 過期或丟失時從 DB 重建</td>
+</tr>
+</tbody>
+</table>
+<p><strong>備份策略：</strong></p>
+<ul>
+<li>每日 01:00 AM (UTC+8) 執行 <code>pg_dump</code> 全量備份</li>
+<li>備份檔案保留 7 天，超過自動清理</li>
+<li>備份檔案壓縮後存放至獨立的備份目錄（或 S3 bucket）</li>
+<li>每月執行一次備份恢復驗證</li>
+</ul>
+<h3 id="54-向量索引策略">5.4 向量索引策略</h3>
+<h4 id="pgvector-配置">pgvector 配置</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">參數</th>
+<th style="text-align: left;">值</th>
+<th style="text-align: left;">說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>向量維度</strong></td>
+<td style="text-align: left;">768</td>
+<td style="text-align: left;">text-embedding-004 輸出維度</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>索引類型</strong></td>
+<td style="text-align: left;">HNSW</td>
+<td style="text-align: left;">查詢效能優於
+IVFFlat，無需訓練，適合增量更新</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>距離函數</strong></td>
+<td style="text-align: left;">cosine</td>
+<td style="text-align: left;">語義相似度搜尋的標準選擇</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>HNSW m</strong></td>
+<td style="text-align: left;">16</td>
+<td style="text-align: left;">每層最大連接數，平衡精度與建索引速度</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>HNSW ef_construction</strong></td>
+<td style="text-align: left;">64</td>
+<td style="text-align: left;">建索引時的搜尋寬度，越高越精確但越慢</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ef_search</strong></td>
+<td style="text-align: left;">40</td>
+<td style="text-align: left;">查詢時的搜尋寬度，runtime 可調整</td>
+</tr>
+</tbody>
+</table>
+<h4 id="索引建立-sql">索引建立 SQL</h4>
+<div class="sourceCode" id="cb15"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- CaseEntry 向量索引</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_case_entry_embedding <span class="kw">ON</span> case_entries</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="kw">USING</span> hnsw (embedding vector_cosine_ops)</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> (m <span class="op">=</span> <span class="dv">16</span>, ef_construction <span class="op">=</span> <span class="dv">64</span>);</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="co">-- ManualChunk 向量索引</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_manual_chunk_embedding <span class="kw">ON</span> manual_chunks</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a><span class="kw">USING</span> hnsw (embedding vector_cosine_ops)</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> (m <span class="op">=</span> <span class="dv">16</span>, ef_construction <span class="op">=</span> <span class="dv">64</span>);</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a><span class="co">-- 查詢時設定 ef_search</span></span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> hnsw.ef_search <span class="op">=</span> <span class="dv">40</span>;</span></code></pre></div>
+<h4 id="搜尋策略">搜尋策略</h4>
+<pre><code>L1 解決機制的向量搜尋流程：
+
+1. 將 ProblemCard 的 symptoms + brand + model 組合為查詢文本
+2. 呼叫 Embedding API 計算查詢向量
+3. 兩路查詢：
+   a. CaseEntry 向量搜尋 (cosine similarity, top-5)
+   b. ManualChunk 向量搜尋 (cosine similarity, top-5)
+4. 合併結果，以相似度分數排序
+5. 最高分 &gt;= 0.85 -&gt; L1 命中
+6. 0.70 &lt;= 最高分 &lt; 0.85 -&gt; 作為 L2 RAG 上下文
+7. 最高分 &lt; 0.70 -&gt; 標記為低信心，仍傳給 L2 參考</code></pre>
+<h4 id="資料量預估與效能">資料量預估與效能</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">指標</th>
+<th style="text-align: left;">預估值 (V1.0 上線後 6 個月)</th>
+<th style="text-align: left;">說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">CaseEntry 數量</td>
+<td style="text-align: left;">500 - 2,000 筆</td>
+<td style="text-align: left;">初始導入 + SOP 審核上架</td>
+</tr>
+<tr>
+<td style="text-align: left;">ManualChunk 數量</td>
+<td style="text-align: left;">5,000 - 20,000 筆</td>
+<td style="text-align: left;">取決於上傳的 PDF 手冊數量</td>
+</tr>
+<tr>
+<td style="text-align: left;">向量索引記憶體</td>
+<td style="text-align: left;">~100 MB</td>
+<td style="text-align: left;">每個 1536 維 float32 向量約 6KB，20K 筆約
+120MB</td>
+</tr>
+<tr>
+<td style="text-align: left;">單次向量搜尋延遲</td>
+<td style="text-align: left;">&lt; 10ms</td>
+<td style="text-align: left;">HNSW 在此規模下查詢極快</td>
+</tr>
+<tr>
+<td style="text-align: left;">Embedding 計算延遲</td>
+<td style="text-align: left;">~200ms / 次</td>
+<td style="text-align: left;">Google AI API 呼叫（含網路）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="第-6-部分部署與基礎設施">第 6 部分：部署與基礎設施</h2>
+<h3 id="61-部署視圖">6.1 部署視圖</h3>
+<p>V1.0 生產環境部署於 <strong>GCP Cloud Run</strong>（managed
+serverless container），透過 <code>scripts/deploy/agent.sh</code> 與
+<code>scripts/deploy/api.sh</code> 驅動。Container build 採用
+<strong>multi-stage Dockerfile + uv</strong> 確保可重現 build；image tag
+為 <code>{git-sha}-{timestamp}</code> 格式以支援回滾。完整部署流程與
+Dockerfile 範本詳見 <a
+href="../04-deliver/E9--deployment-and-runbooks.md">E9
+部署運維指南</a>。</p>
+<p><strong>Dockerfile 設計原則（V1.0 上線版本）：</strong></p>
+<ul>
+<li>使用 <strong>multi-stage build</strong>：builder 階段（含 build
+deps）與 runtime 階段（僅 <code>.venv</code> 與必要 source）分離</li>
+<li>利用 <code>uv.lock</code> 釘版做可重現 build：runtime 執行
+<code>uv sync --frozen --no-dev</code> 確保不帶 dev deps（如
+<code>ruff</code> / <code>pytest</code>）</li>
+<li>使用官方 <code>astral-sh/uv</code> Docker
+layer，避免下載未驗證的安裝腳本</li>
+<li>容器以非 root 使用者執行</li>
+<li>不使用 <code>latest</code> tag，明確鎖定基底 image 版本</li>
+</ul>
+<p><strong>環境變數三層 SSOT：</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">檔案</th>
+<th style="text-align: left;">用途</th>
+<th style="text-align: left;">DB 連線</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>.env.example</code></td>
+<td style="text-align: left;">通用範本（入版本控制）</td>
+<td style="text-align: left;">placeholder</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>.env.local.example</code></td>
+<td style="text-align: left;">本機開發（docker DB on port 5433）</td>
+<td
+style="text-align: left;"><code>postgresql://...@localhost:5433/...</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>.env.gcp.example</code></td>
+<td style="text-align: left;">GCP Cloud SQL via cloud-sql-proxy（port
+5432）</td>
+<td style="text-align: left;">從 Secret Manager 取，自動 URL encode</td>
+</tr>
+</tbody>
+</table>
+<p>實際 <code>.env*</code> 為 SSOT，本文件不重述其值；切換邏輯由
+<code>scripts/env/use-local.sh</code> /
+<code>scripts/env/use-gcp.sh</code> 管理（詳見 E9）。</p>
+<blockquote>
+<p>⚠️ <strong>Legacy / Vision deployment topology</strong>: 以下 Docker
+Compose + Nginx 拓撲為早期 VPS 部署設計，<strong>現已遷移至 Cloud
+Run</strong>。保留此圖供未來 self-host 部署參考。</p>
+</blockquote>
+<pre class="mermaid"><code>graph TB
+    subgraph &quot;Host Machine (VPS / Cloud VM)&quot;
+        subgraph &quot;Docker Network: smartlock-net&quot;
+
+            subgraph &quot;Reverse Proxy&quot;
+                NGINX[&quot;Nginx&lt;br/&gt;---&lt;br/&gt;SSL Termination&lt;br/&gt;Reverse Proxy&lt;br/&gt;Static File Serving&lt;br/&gt;Rate Limiting&lt;br/&gt;---&lt;br/&gt;Port: 80, 443&quot;]
+            end
+
+            subgraph &quot;Application Tier&quot;
+                API1[&quot;FastAPI App&lt;br/&gt;(Worker 1)&lt;br/&gt;---&lt;br/&gt;Uvicorn&lt;br/&gt;Port: 8000&quot;]
+                API2[&quot;FastAPI App&lt;br/&gt;(Worker 2)&lt;br/&gt;---&lt;br/&gt;Uvicorn&lt;br/&gt;Port: 8001&quot;]
+            end
+
+            subgraph &quot;Frontend Tier (V2.0)&quot;
+                NEXT[&quot;Next.js App&lt;br/&gt;---&lt;br/&gt;SSR / Static&lt;br/&gt;Port: 3000&quot;]
+            end
+
+            subgraph &quot;Data Tier&quot;
+                PG[&quot;PostgreSQL 16&lt;br/&gt;+ pgvector&lt;br/&gt;---&lt;br/&gt;Port: 5432&lt;br/&gt;Volume: pg_data&quot;]
+                RD[&quot;Redis 7&lt;br/&gt;---&lt;br/&gt;Port: 6379&lt;br/&gt;Volume: redis_data&quot;]
+            end
+
+            subgraph &quot;Utility&quot;
+                BACKUP[&quot;Backup CronJob&lt;br/&gt;---&lt;br/&gt;Daily pg_dump&lt;br/&gt;Volume: backup_data&quot;]
+            end
+        end
+    end
+
+    subgraph &quot;External&quot;
+        INTERNET[&quot;Internet&lt;br/&gt;(LINE Users / Admins / Technicians)&quot;]
+        LINE_SRV[&quot;LINE Platform&quot;]
+        GOOGLE_AI_SRV[&quot;Google AI API&quot;]
+    end
+
+    INTERNET -- &quot;HTTPS :443&quot; --&gt; NGINX
+    LINE_SRV -- &quot;Webhook POST :443&quot; --&gt; NGINX
+    NGINX -- &quot;Proxy Pass :8000/8001&quot; --&gt; API1
+    NGINX -- &quot;Proxy Pass :8000/8001&quot; --&gt; API2
+    NGINX -- &quot;Proxy Pass :3000&quot; --&gt; NEXT
+    NEXT -- &quot;API Call :8000&quot; --&gt; API1
+    API1 -- &quot;SQL :5432&quot; --&gt; PG
+    API2 -- &quot;SQL :5432&quot; --&gt; PG
+    API1 -- &quot;Cache :6379&quot; --&gt; RD
+    API2 -- &quot;Cache :6379&quot; --&gt; RD
+    API1 -- &quot;HTTPS&quot; --&gt; GOOGLE_AI_SRV
+    API2 -- &quot;HTTPS&quot; --&gt; GOOGLE_AI_SRV
+    API1 -- &quot;HTTPS&quot; --&gt; LINE_SRV
+    BACKUP -- &quot;pg_dump :5432&quot; --&gt; PG</code></pre>
+<h4 id="docker-composeyml-服務定義">docker-compose.yml 服務定義</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">服務名稱</th>
+<th style="text-align: left;">Image</th>
+<th style="text-align: left;">端口</th>
+<th style="text-align: left;">環境變數</th>
+<th style="text-align: left;">Volume</th>
+<th style="text-align: left;">備註</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>nginx</code></td>
+<td style="text-align: left;">nginx:alpine</td>
+<td style="text-align: left;">80, 443</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;"><code>./nginx/conf.d</code>,
+<code>./certs</code></td>
+<td style="text-align: left;">SSL 終止、反向代理</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>api</code></td>
+<td style="text-align: left;">自建 Dockerfile</td>
+<td style="text-align: left;">8000 (internal)</td>
+<td style="text-align: left;"><code>DATABASE_URL</code>,
+<code>REDIS_URL</code>, <code>GOOGLE_API_KEY</code>,
+<code>LINE_CHANNEL_SECRET</code>,
+<code>LINE_CHANNEL_ACCESS_TOKEN</code>, <code>JWT_SECRET</code></td>
+<td style="text-align: left;"><code>./uploads</code></td>
+<td style="text-align: left;">可用 <code>--scale api=2</code>
+水平擴展</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>web</code> (V2.0)</td>
+<td style="text-align: left;">自建 Dockerfile</td>
+<td style="text-align: left;">3000 (internal)</td>
+<td style="text-align: left;"><code>NEXT_PUBLIC_API_URL</code></td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;">Next.js SSR</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>postgres</code></td>
+<td style="text-align: left;">postgres:16-alpine</td>
+<td style="text-align: left;">5432 (internal)</td>
+<td style="text-align: left;"><code>POSTGRES_DB</code>,
+<code>POSTGRES_USER</code>, <code>POSTGRES_PASSWORD</code></td>
+<td style="text-align: left;"><code>pg_data</code></td>
+<td style="text-align: left;">啟用 pgvector extension</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>redis</code></td>
+<td style="text-align: left;">redis:7-alpine</td>
+<td style="text-align: left;">6379 (internal)</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;"><code>redis_data</code></td>
+<td style="text-align: left;">持久化 appendonly</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>backup</code></td>
+<td style="text-align: left;">postgres:16-alpine</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;"><code>backup_data</code></td>
+<td style="text-align: left;">cron 排程 pg_dump</td>
+</tr>
+</tbody>
+</table>
+<h3 id="62-cicd-流程">6.2 CI/CD 流程</h3>
+<blockquote>
+<p>📌 <strong>CI/CD 詳細範本</strong>：詳見 <a
+href="../04-deliver/E9--deployment-and-runbooks.md">E9
+部署運維指南</a>。CI workflow 採用 <code>astral-sh/setup-uv@v3</code> +
+<code>uv sync --frozen</code> 對齊 Dockerfile 的 uv 釘版策略。</p>
+</blockquote>
+<p>下圖為高層次流程示意：</p>
+<pre class="mermaid"><code>graph LR
+    subgraph &quot;Developer&quot;
+        DEV[&quot;git push&lt;br/&gt;to feature branch&quot;]
+    end
+
+    subgraph &quot;GitHub Actions Pipeline&quot;
+        subgraph &quot;PR Pipeline&quot;
+            LINT[&quot;Step 1: Lint&lt;br/&gt;---&lt;br/&gt;ruff check&lt;br/&gt;mypy type check&quot;]
+            TEST[&quot;Step 2: Test&lt;br/&gt;---&lt;br/&gt;pytest&lt;br/&gt;(unit + integration)&lt;br/&gt;coverage &gt;= 70%&quot;]
+            BUILD[&quot;Step 3: Build&lt;br/&gt;---&lt;br/&gt;docker build&lt;br/&gt;image validation&quot;]
+        end
+
+        subgraph &quot;Main Pipeline (after merge)&quot;
+            TAG[&quot;Step 4: Tag&lt;br/&gt;---&lt;br/&gt;Semantic Version&lt;br/&gt;Git Tag&quot;]
+            PUSH[&quot;Step 5: Push Image&lt;br/&gt;---&lt;br/&gt;Push to&lt;br/&gt;Container Registry&quot;]
+            DEPLOY[&quot;Step 6: Deploy&lt;br/&gt;---&lt;br/&gt;SSH + docker-compose pull&lt;br/&gt;Rolling restart&quot;]
+            SMOKE[&quot;Step 7: Smoke Test&lt;br/&gt;---&lt;br/&gt;Health check&lt;br/&gt;API validation&quot;]
+        end
+    end
+
+    subgraph &quot;Production&quot;
+        PROD[&quot;Production Server&lt;br/&gt;docker-compose up&quot;]
+    end
+
+    DEV --&gt; LINT
+    LINT --&gt;|pass| TEST
+    TEST --&gt;|pass| BUILD
+    BUILD --&gt;|merge to main| TAG
+    TAG --&gt; PUSH
+    PUSH --&gt; DEPLOY
+    DEPLOY --&gt; SMOKE
+    SMOKE --&gt; PROD</code></pre>
+<h4 id="cicd-詳細步驟">CI/CD 詳細步驟</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">步驟</th>
+<th style="text-align: left;">觸發條件</th>
+<th style="text-align: left;">工具</th>
+<th style="text-align: left;">動作</th>
+<th style="text-align: left;">失敗處理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Lint</strong></td>
+<td style="text-align: left;">PR opened / push</td>
+<td style="text-align: left;"><code>ruff</code>, <code>mypy</code></td>
+<td style="text-align: left;">程式碼風格檢查、型別檢查</td>
+<td style="text-align: left;">阻擋 PR merge</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Test</strong></td>
+<td style="text-align: left;">PR opened / push</td>
+<td style="text-align: left;"><code>pytest</code>,
+<code>pytest-cov</code></td>
+<td style="text-align: left;">單元測試 + 整合測試，覆蓋率門檻 70%</td>
+<td style="text-align: left;">阻擋 PR merge</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Build</strong></td>
+<td style="text-align: left;">PR opened / push</td>
+<td style="text-align: left;"><code>docker build</code></td>
+<td style="text-align: left;">驗證 Docker Image 可成功建置</td>
+<td style="text-align: left;">阻擋 PR merge</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Tag</strong></td>
+<td style="text-align: left;">merge to main</td>
+<td style="text-align: left;">GitHub Actions</td>
+<td style="text-align: left;">自動生成語義化版本 Tag</td>
+<td style="text-align: left;">手動介入</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Push Image</strong></td>
+<td style="text-align: left;">tag created</td>
+<td style="text-align: left;">Docker Registry</td>
+<td style="text-align: left;">推送帶版本 Tag 的 Image</td>
+<td style="text-align: left;">重試 3 次</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Deploy</strong></td>
+<td style="text-align: left;">image pushed</td>
+<td style="text-align: left;">SSH + docker-compose</td>
+<td
+style="text-align: left;"><code>docker-compose pull &amp;&amp; docker-compose up -d</code></td>
+<td style="text-align: left;">回滾至前一版本</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Smoke Test</strong></td>
+<td style="text-align: left;">deploy completed</td>
+<td style="text-align: left;">curl + custom script</td>
+<td style="text-align: left;">健康檢查端點、關鍵 API 驗證</td>
+<td style="text-align: left;">自動回滾 + 告警</td>
+</tr>
+</tbody>
+</table>
+<h3 id="63-環境策略">6.3 環境策略</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">環境</th>
+<th style="text-align: left;">用途</th>
+<th style="text-align: left;">基礎設施</th>
+<th style="text-align: left;">資料</th>
+<th style="text-align: left;">外部服務</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Development</strong></td>
+<td style="text-align: left;">本地開發與除錯</td>
+<td style="text-align: left;">Docker Compose (local)</td>
+<td style="text-align: left;">SQLite / PostgreSQL (local)，Mock
+資料</td>
+<td style="text-align: left;">LINE Bot: 使用 ngrok 暫時隧道。Google AI:
+開發帳號（設定用量上限）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Staging</strong></td>
+<td style="text-align: left;">整合測試、UAT 驗收</td>
+<td style="text-align: left;">Docker Compose (VPS)</td>
+<td style="text-align: left;">PostgreSQL
+(staging)，匿名化生產資料副本</td>
+<td style="text-align: left;">LINE Bot: 獨立的 Staging Channel。Google
+AI: 開發帳號</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Production</strong></td>
+<td style="text-align: left;">正式運行環境</td>
+<td style="text-align: left;">Docker Compose (VPS/Cloud)</td>
+<td style="text-align: left;">PostgreSQL (production)，每日備份</td>
+<td style="text-align: left;">LINE Bot: 正式 Channel。Google AI:
+正式帳號</td>
+</tr>
+</tbody>
+</table>
+<p><strong>環境隔離原則：</strong></p>
+<ul>
+<li>每個環境使用獨立的 <code>.env</code> 檔案，絕不共享密鑰</li>
+<li>Staging 與 Production 使用獨立的 LINE Channel</li>
+<li>生產 API Key 僅存在於生產環境的密鑰管理中</li>
+<li>開發環境使用 Google AI 帳號的用量上限 (usage cap) 防止誤用</li>
+</ul>
+<hr />
+<h2 id="第-7-部分跨領域考量">第 7 部分：跨領域考量</h2>
+<h3 id="71-可觀測性">7.1 可觀測性</h3>
+<h4 id="日誌-logging">日誌 (Logging)</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">項目</th>
+<th style="text-align: left;">規範</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>格式</strong></td>
+<td style="text-align: left;">JSON 結構化日誌</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>框架</strong></td>
+<td style="text-align: left;">Python <code>structlog</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>等級</strong></td>
+<td style="text-align: left;">DEBUG (dev) / INFO (staging, prod)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>必含欄位</strong></td>
+<td style="text-align: left;"><code>timestamp</code>,
+<code>level</code>, <code>message</code>, <code>request_id</code>,
+<code>user_id</code> (if available), <code>module</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>LLM 呼叫日誌</strong></td>
+<td style="text-align: left;">記錄 prompt_tokens, completion_tokens,
+total_cost, latency_ms, model, resolution_level</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>敏感資料</strong></td>
+<td style="text-align: left;">日誌中禁止記錄用戶完整訊息內容（僅記錄
+message_id 與 content_type）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>收集方式</strong></td>
+<td style="text-align: left;">V1.0: Docker logs + log rotation。V2.0:
+可接入 Loki / ELK</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>保留期限</strong></td>
+<td style="text-align: left;">30 天（INFO+）/ 7 天（DEBUG）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>日誌範例：</strong></p>
+<div class="sourceCode" id="cb19"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;timestamp&quot;</span><span class="fu">:</span> <span class="st">&quot;2026-02-17T10:30:45.123+08:00&quot;</span><span class="fu">,</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;level&quot;</span><span class="fu">:</span> <span class="st">&quot;INFO&quot;</span><span class="fu">,</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;message&quot;</span><span class="fu">:</span> <span class="st">&quot;L1 resolution hit&quot;</span><span class="fu">,</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;request_id&quot;</span><span class="fu">:</span> <span class="st">&quot;req_abc123&quot;</span><span class="fu">,</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;user_id&quot;</span><span class="fu">:</span> <span class="st">&quot;U1234567890&quot;</span><span class="fu">,</span></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;module&quot;</span><span class="fu">:</span> <span class="st">&quot;three_layer_resolver&quot;</span><span class="fu">,</span></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;conversation_id&quot;</span><span class="fu">:</span> <span class="st">&quot;conv_xyz&quot;</span><span class="fu">,</span></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;resolution_level&quot;</span><span class="fu">:</span> <span class="st">&quot;L1&quot;</span><span class="fu">,</span></span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;case_entry_id&quot;</span><span class="fu">:</span> <span class="st">&quot;ce_456&quot;</span><span class="fu">,</span></span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;similarity_score&quot;</span><span class="fu">:</span> <span class="fl">0.92</span><span class="fu">,</span></span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;latency_ms&quot;</span><span class="fu">:</span> <span class="dv">45</span></span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+<h4 id="指標-metrics">指標 (Metrics)</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">指標類別</th>
+<th style="text-align: left;">指標名稱</th>
+<th style="text-align: left;">類型</th>
+<th style="text-align: left;">說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>API 效能</strong></td>
+<td
+style="text-align: left;"><code>api_request_duration_seconds</code></td>
+<td style="text-align: left;">Histogram</td>
+<td style="text-align: left;">API 請求延遲分佈</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>API 效能</strong></td>
+<td style="text-align: left;"><code>api_request_total</code></td>
+<td style="text-align: left;">Counter</td>
+<td style="text-align: left;">API 請求總數（按 method, path,
+status）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>LLM 效能</strong></td>
+<td
+style="text-align: left;"><code>llm_call_duration_seconds</code></td>
+<td style="text-align: left;">Histogram</td>
+<td style="text-align: left;">LLM API 呼叫延遲</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>LLM 效能</strong></td>
+<td style="text-align: left;"><code>llm_token_usage_total</code></td>
+<td style="text-align: left;">Counter</td>
+<td style="text-align: left;">Token 使用量（按 model, type）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>LLM 成本</strong></td>
+<td style="text-align: left;"><code>llm_cost_usd_total</code></td>
+<td style="text-align: left;">Counter</td>
+<td style="text-align: left;">LLM 累計花費（USD）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>解決率</strong></td>
+<td style="text-align: left;"><code>resolution_total</code></td>
+<td style="text-align: left;">Counter</td>
+<td style="text-align: left;">問題解決次數（按 level: L1/L2/L3）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>解決率</strong></td>
+<td style="text-align: left;"><code>resolution_success_rate</code></td>
+<td style="text-align: left;">Gauge</td>
+<td style="text-align: left;">各層解決成功率</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>知識庫</strong></td>
+<td
+style="text-align: left;"><code>knowledge_base_entries_total</code></td>
+<td style="text-align: left;">Gauge</td>
+<td style="text-align: left;">CaseEntry 和 ManualChunk 總數</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>系統健康</strong></td>
+<td style="text-align: left;"><code>active_conversations</code></td>
+<td style="text-align: left;">Gauge</td>
+<td style="text-align: left;">當前活躍對話數</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>系統健康</strong></td>
+<td style="text-align: left;"><code>db_connection_pool_usage</code></td>
+<td style="text-align: left;">Gauge</td>
+<td style="text-align: left;">資料庫連線池使用率</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>V2.0 派工</strong></td>
+<td style="text-align: left;"><code>work_order_total</code></td>
+<td style="text-align: left;">Counter</td>
+<td style="text-align: left;">工單數量（按 status）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>V2.0 派工</strong></td>
+<td
+style="text-align: left;"><code>dispatch_match_duration_seconds</code></td>
+<td style="text-align: left;">Histogram</td>
+<td style="text-align: left;">技師匹配延遲</td>
+</tr>
+</tbody>
+</table>
+<p><strong>指標實現：</strong> V1.0 使用 FastAPI middleware 收集基礎 API
+指標，提供 <code>/metrics</code> 端點。可選接入 Prometheus +
+Grafana。</p>
+<h4 id="告警-alerting">告警 (Alerting)</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">告警名稱</th>
+<th style="text-align: left;">條件</th>
+<th style="text-align: left;">嚴重度</th>
+<th style="text-align: left;">通知管道</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">API 高延遲</td>
+<td style="text-align: left;">P95 &gt; 5s 持續 5 分鐘</td>
+<td style="text-align: left;">P2 - Warning</td>
+<td style="text-align: left;">LINE 群組通知</td>
+</tr>
+<tr>
+<td style="text-align: left;">API 錯誤率飆升</td>
+<td style="text-align: left;">5xx 比率 &gt; 5% 持續 3 分鐘</td>
+<td style="text-align: left;">P1 - Critical</td>
+<td style="text-align: left;">LINE 群組通知 + 電話</td>
+</tr>
+<tr>
+<td style="text-align: left;">LLM 呼叫失敗</td>
+<td style="text-align: left;">連續失敗 &gt; 3 次</td>
+<td style="text-align: left;">P1 - Critical</td>
+<td style="text-align: left;">LINE 群組通知</td>
+</tr>
+<tr>
+<td style="text-align: left;">資料庫連線耗盡</td>
+<td style="text-align: left;">連線池 &gt; 90%</td>
+<td style="text-align: left;">P2 - Warning</td>
+<td style="text-align: left;">LINE 群組通知</td>
+</tr>
+<tr>
+<td style="text-align: left;">磁碟使用率</td>
+<td style="text-align: left;">&gt; 85%</td>
+<td style="text-align: left;">P2 - Warning</td>
+<td style="text-align: left;">LINE 群組通知</td>
+</tr>
+<tr>
+<td style="text-align: left;">備份失敗</td>
+<td style="text-align: left;">每日備份未在預期時間完成</td>
+<td style="text-align: left;">P1 - Critical</td>
+<td style="text-align: left;">LINE 群組通知 + Email</td>
+</tr>
+</tbody>
+</table>
+<h3 id="72-安全性">7.2 安全性</h3>
+<h4 id="威脅分析與防護">威脅分析與防護</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">威脅類別</th>
+<th style="text-align: left;">具體威脅</th>
+<th style="text-align: left;">風險等級</th>
+<th style="text-align: left;">防護措施</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Prompt Injection</strong></td>
+<td style="text-align: left;">惡意用戶透過對話注入指令，操控 AI
+行為</td>
+<td style="text-align: left;">高</td>
+<td style="text-align: left;">1. System Prompt 與 User Input
+嚴格分離<br/>2. LLM 輸出過濾（禁止敏感內容）<br/>3.
+輸入長度限制（單條訊息 &lt; 2000 字元）<br/>4. 定期進行紅隊測試</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Prompt Leaking</strong></td>
+<td style="text-align: left;">用戶試圖誘導 AI 洩露 System Prompt
+內容</td>
+<td style="text-align: left;">中</td>
+<td style="text-align: left;">1. System Prompt 中加入反洩露指令<br/>2.
+輸出檢測：正則匹配 Prompt 關鍵片段<br/>3. 日誌監控異常對話模式</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>LINE Webhook 偽造</strong></td>
+<td style="text-align: left;">攻擊者偽造 LINE Webhook 請求</td>
+<td style="text-align: left;">高</td>
+<td style="text-align: left;">1. 每次 Webhook 請求驗證 HMAC-SHA256
+簽章<br/>2. 拒絕簽章不匹配的請求<br/>3. Rate Limiting（Nginx 層）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>API 未授權存取</strong></td>
+<td style="text-align: left;">未認證用戶存取管理 API 或技師 API</td>
+<td style="text-align: left;">高</td>
+<td style="text-align: left;">1. JWT Token 認證<br/>2. Role-Based Access
+Control (RBAC)<br/>3. Token 過期時間：Admin 4h / Technician 8h</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>SQL Injection</strong></td>
+<td style="text-align: left;">惡意輸入導致 SQL 注入</td>
+<td style="text-align: left;">高</td>
+<td style="text-align: left;">1. SQLAlchemy ORM 參數化查詢（禁止原生 SQL
+拼接）<br/>2. 輸入驗證（Pydantic schema）<br/>3.
+資料庫帳號最小權限原則</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>API Key 洩露</strong></td>
+<td style="text-align: left;">Google AI / LINE API Key 被洩露</td>
+<td style="text-align: left;">高</td>
+<td style="text-align: left;">1. 環境變數存放，不提交至版本控制<br/>2.
+<code>.env</code> 在 <code>.gitignore</code> 中<br/>3. 定期輪替
+Key<br/>4. 設定 Google AI 用量上限</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>DDoS / 濫用</strong></td>
+<td style="text-align: left;">惡意大量請求導致系統癱瘓</td>
+<td style="text-align: left;">中</td>
+<td style="text-align: left;">1. Nginx Rate Limiting（IP 級別）<br/>2.
+Redis 實現 API Rate Limiting（用戶級別）<br/>3. LINE Webhook
+頻率監控</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>資料竊取</strong></td>
+<td style="text-align: left;">資料庫或備份檔案被盜取</td>
+<td style="text-align: left;">中</td>
+<td style="text-align: left;">1. 資料庫僅在 Docker 內部網路暴露<br/>2.
+備份檔案加密<br/>3. SSL/TLS 傳輸加密<br/>4. VPS 防火牆只開放 80/443</td>
+</tr>
+</tbody>
+</table>
+<h4 id="認證與授權架構">認證與授權架構</h4>
+<pre><code>認證流程：
+  LINE 用戶 -&gt; 無需額外認證，以 LINE user_id 識別
+  管理員    -&gt; JWT Token（/auth/login endpoint）
+  技師      -&gt; JWT Token（/auth/login endpoint）
+
+授權模型 (RBAC)：
+  Role: line_user
+    - 僅透過 LINE Webhook 互動，無直接 API 存取
+  Role: admin
+    - 知識庫 CRUD
+    - SOP 審核
+    - 對話記錄查詢
+    - 系統設定
+    - V2.0: 技師管理、派工監控、帳務管理
+  Role: family_reviewer
+    - 甲方指定之家族成員（合約 4.4(d) 條）
+    - SOP 草稿二次覆核（一般管理員審核通過後，須家族覆核員確認方可入庫）
+    - 覆核紀錄不可刪除，供稽核查詢
+  Role: technician (V2.0)
+    - 查看指派給自己的工單
+    - 接單/拒單
+    - 服務回報
+    - 查看自己的帳務</code></pre>
+<h4 id="密鑰管理">密鑰管理</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">密鑰</th>
+<th style="text-align: left;">儲存方式</th>
+<th style="text-align: left;">存取方式</th>
+<th style="text-align: left;">輪替策略</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>GOOGLE_API_KEY</code></td>
+<td style="text-align: left;"><code>.env</code>
+檔案（不入版本控制）</td>
+<td style="text-align: left;">環境變數</td>
+<td style="text-align: left;">每季度輪替</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>LINE_CHANNEL_SECRET</code></td>
+<td style="text-align: left;"><code>.env</code> 檔案</td>
+<td style="text-align: left;">環境變數</td>
+<td style="text-align: left;">LINE 後台設定，按需輪替</td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>LINE_CHANNEL_ACCESS_TOKEN</code></td>
+<td style="text-align: left;"><code>.env</code> 檔案</td>
+<td style="text-align: left;">環境變數</td>
+<td style="text-align: left;">LINE 後台設定，按需輪替</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>JWT_SECRET</code></td>
+<td style="text-align: left;"><code>.env</code> 檔案</td>
+<td style="text-align: left;">環境變數</td>
+<td style="text-align: left;">每季度輪替</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>DATABASE_URL</code></td>
+<td style="text-align: left;"><code>.env</code> 檔案</td>
+<td style="text-align: left;">環境變數</td>
+<td style="text-align: left;">密碼每季度輪替</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>REDIS_URL</code></td>
+<td style="text-align: left;"><code>.env</code> 檔案</td>
+<td style="text-align: left;">環境變數</td>
+<td style="text-align: left;">按需設定</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="第-8-部分風險與緩解策略">第 8 部分：風險與緩解策略</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">風險類別</th>
+<th style="text-align: left;">風險描述</th>
+<th style="text-align: left;">可能性</th>
+<th style="text-align: left;">影響程度</th>
+<th style="text-align: left;">緩解策略</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>AI 品質</strong></td>
+<td style="text-align: left;">Gemini 2.5 Flash
+對特定品牌/型號的電子鎖問題診斷不準確，低於 80% 目標</td>
+<td style="text-align: left;">中</td>
+<td style="text-align: left;">高</td>
+<td style="text-align: left;">1. 建立 50
+題標準測試集，持續追蹤準確率<br/>2. 持續豐富知識庫（案例 + 手冊），提升
+L1 命中率<br/>3. Prompt Engineering 迭代優化<br/>4. SOP
+自演化機制持續改善知識品質</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>LLM API 依賴</strong></td>
+<td style="text-align: left;">Google AI API
+故障或回應延遲過高，導致系統功能降級</td>
+<td style="text-align: left;">低</td>
+<td style="text-align: left;">高</td>
+<td style="text-align: left;">1. LangChain 抽象層允許快速切換
+Provider（如 OpenAI）<br/>2. L1（知識庫搜尋）不依賴 LLM
+API，可獨立運作<br/>3. 設定 timeout (30s) + retry (3 次 exponential
+backoff)<br/>4. 降級策略：LLM 不可用時回退至 L1 + L3</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>LLM 成本</strong></td>
+<td style="text-align: left;">用戶量增長導致 Google AI API
+費用超出預算</td>
+<td style="text-align: left;">中</td>
+<td style="text-align: left;">中</td>
+<td style="text-align: left;">1. 使用較便宜的 text-embedding-004<br/>2.
+L1 命中率越高，L2 LLM 呼叫越少<br/>3. Redis 快取相同問題的回覆（TTL
+24h）<br/>4. 監控 Token 使用量，設定每日/每月告警閾值</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Prompt Injection</strong></td>
+<td style="text-align: left;">惡意用戶注入指令導致 AI 產生不當回應</td>
+<td style="text-align: left;">中</td>
+<td style="text-align: left;">高</td>
+<td style="text-align: left;">1. System Prompt
+硬化（角色固定、範圍限制）<br/>2.
+輸出過濾（敏感詞檢測、格式驗證）<br/>3. 輸入長度限制<br/>4.
+定期紅隊測試</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>資料安全</strong></td>
+<td style="text-align: left;">資料庫洩露或備份檔案被盜</td>
+<td style="text-align: left;">低</td>
+<td style="text-align: left;">高</td>
+<td style="text-align: left;">1. 資料庫不暴露外部端口<br/>2.
+備份加密<br/>3. VPS 防火牆嚴格配置<br/>4. 定期安全審計</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>V1 -&gt; V2 升級風險</strong></td>
+<td style="text-align: left;">V2.0 模組（Dispatch/Accounting）與 V1.0
+核心模組整合時產生衝突</td>
+<td style="text-align: left;">中</td>
+<td style="text-align: left;">中</td>
+<td style="text-align: left;">1. Clean Architecture
+確保模組間依賴透過介面抽象<br/>2. 限界上下文邊界清晰<br/>3. V2.0
+模組作為新 package 加入，不修改 V1.0 核心程式碼<br/>4.
+充分的整合測試</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>LINE 平台限制</strong></td>
+<td style="text-align: left;">LINE Messaging API 的 Reply Token 有效期僅
+30 秒，LLM 回應可能超時</td>
+<td style="text-align: left;">中</td>
+<td style="text-align: left;">中</td>
+<td style="text-align: left;">1. 先回覆「處理中」訊息（使用 Reply
+Token）<br/>2. LLM 完成後使用 Push Message 發送結果<br/>3. Push Message
+有免費額度限制，監控使用量</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>團隊風險</strong></td>
+<td style="text-align: left;">小型團隊（1-3
+人），關鍵人離開導致專案停滯</td>
+<td style="text-align: left;">低</td>
+<td style="text-align: left;">高</td>
+<td style="text-align: left;">1. 完善的技術文檔（本文件）<br/>2.
+程式碼註解與 Docstring<br/>3. 標準化的開發流程與 CI/CD<br/>4.
+定期知識分享</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>效能瓶頸</strong></td>
+<td style="text-align: left;">並發用戶超過預期，單機 Docker Compose
+部署無法承受</td>
+<td style="text-align: left;">低</td>
+<td style="text-align: left;">中</td>
+<td style="text-align: left;">1. V1.0 目標僅 50 concurrent，Docker
+Compose 足夠<br/>2. FastAPI + Uvicorn
+可水平擴展（<code>--scale api=N</code>）<br/>3. PostgreSQL
+連線池管理（asyncpg + pgbouncer 備案）<br/>4. Redis
+分擔熱點查詢壓力</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="第-9-部分架構演進路線圖">第 9 部分：架構演進路線圖</h2>
+<pre class="mermaid"><code>gantt
+    title 架構演進時間線（對齊 Moat M1/M2/M3 里程碑）
+    dateFormat  YYYY-MM
+    axisFormat  %Y-%m
+
+    section V1.0 AI 客服 (M1: W1-W17)
+    Single ReAct Agent + LINE Bot               :done, v10, 2026-01, 2026-04
+    SKILL.md 知識庫上線                          :done, v10kb, 2026-02, 2026-04
+    Harness 8 flat modules                       :done, h0, 2026-03, 2026-04
+
+    section V1.1 Harness 啟用 (M1 後半)
+    Phase 1: L7 Observability                    :h1, 2026-04, 2026-05
+    Phase 2: L1 Task + ProblemCard               :h2, 2026-05, 2026-06
+    Phase 3: L6 Safety + L3 Governance           :h3, 2026-06, 2026-07
+
+    section V1.2 Harness 完整 (M1→M2 銜接)
+    Phase 4: L2 Context Assembly                 :h4, 2026-07, 2026-08
+    Phase 5: L5 Feedback Loop                    :h5, 2026-08, 2026-09
+    Phase 6: L8 Entropy (SOP auto-gen)           :h6, 2026-09, 2026-10
+
+    section V2.0 派工與帳務 (M2: W18-W31)
+    Technician Web App (Next.js PWA)             :v20t, 2026-10, 2026-12
+    Smart Dispatch Engine                        :v20d, 2026-11, 2027-01
+    Pricing Engine + Accounting                  :v20a, 2027-01, 2027-02
+
+    section V3.0 智慧層 (M3: 5 個月)
+    影子驗證 + 報價信心分數                       :v30, 2027-03, 2027-06
+    預測備料 + 產業語言模型 V2                    :v31, 2027-05, 2027-08</code></pre>
+<h3 id="v10--現況-2026-04">V1.0 — 現況 (2026-04)</h3>
+<p>Single ReAct AI 客服系統已上線運作。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">項目</th>
+<th style="text-align: left;">狀態</th>
+<th style="text-align: left;">說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">LangGraph ReAct Agent</td>
+<td style="text-align: left;"><strong>上線</strong></td>
+<td style="text-align: left;"><code>prebuilt.create_react_agent</code> +
+3 tools（load_skill / update_user_info / transfer_to_human）</td>
+</tr>
+<tr>
+<td style="text-align: left;">SKILL.md 知識庫</td>
+<td style="text-align: left;"><strong>上線</strong></td>
+<td
+style="text-align: left;"><code>agent/skills/data/{Brand}/{Model}/SKILL.md</code>
+路徑階層分類；啟動掃描 + per-request brand/model filtering</td>
+</tr>
+<tr>
+<td style="text-align: left;">LINE Bot + Debounce</td>
+<td style="text-align: left;"><strong>上線</strong></td>
+<td style="text-align: left;">FastAPI webhook + 1.5 秒訊息合併緩衝</td>
+</tr>
+<tr>
+<td style="text-align: left;">User Profile (SCD Type 2)</td>
+<td style="text-align: left;"><strong>上線</strong></td>
+<td style="text-align: left;">hard_facts (PostgreSQL
+<code>user_facts</code> 表) + 透過 <code>update_user_info</code> tool 與
+H4 LLM 抽取雙路徑寫入</td>
+</tr>
+<tr>
+<td style="text-align: left;">Harness 中介層</td>
+<td style="text-align: left;"><strong>上線</strong></td>
+<td style="text-align: left;">8 個扁平模組檔（multimodal / debounce /
+data_correction / line_ui_factory / profile_updater / memory_manager /
+safety_gate / output_validator）</td>
+</tr>
+<tr>
+<td style="text-align: left;">Medallion ETL Pipeline</td>
+<td style="text-align: left;"><strong>上線</strong></td>
+<td style="text-align: left;"><code>data/</code> 目錄 source → raw →
+bronze → silver → SKILL，產出 SKILL.md 草稿</td>
+</tr>
+</tbody>
+</table>
+<p><strong>護城河對齊 (M1)</strong>：AI 客服上線、ProblemCard
+結構定義完成（Moat A 種子數據開始累積）、知識庫運作（Moat F
+數據飛輪種子）。</p>
+<blockquote>
+<p>⚠️ <strong>Vision (not yet implemented)</strong>: 8-Layer Harness
+Framework（L1-L8）、Multi-Agent sub-graph、GraphState、Send()
+fan-out/fan-in 為 V1.1+ 願景，需 multi-agent 架構重構後才能啟用。</p>
+</blockquote>
+<h3 id="v11--harness-啟用-phase-1-3">V1.1 — Harness 啟用 (Phase
+1-3)</h3>
+<p>分三階段啟用 Harness 層，每階段獨立 enable/disable。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Phase</th>
+<th style="text-align: left;">層</th>
+<th style="text-align: left;">交付物</th>
+<th style="text-align: left;">風險</th>
+<th style="text-align: left;">回滾方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Phase 1</strong></td>
+<td style="text-align: left;">L7 Observability</td>
+<td style="text-align: left;"><code>@traced</code> decorator +
+<code>harness_traces</code> table</td>
+<td style="text-align: left;">Low</td>
+<td style="text-align: left;"><code>trace_enabled = false</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Phase 2</strong></td>
+<td style="text-align: left;">L1 Task + ProblemCard</td>
+<td style="text-align: left;"><code>task_decompose</code> node +
+<code>problem_cards</code> table</td>
+<td style="text-align: left;">Medium (+1-3s)</td>
+<td
+style="text-align: left;"><code>decompose_enabled = false</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Phase 3</strong></td>
+<td style="text-align: left;">L6 Safety + L3 Governance</td>
+<td style="text-align: left;"><code>safety_gate</code> node +
+ToolRegistry</td>
+<td style="text-align: left;">Medium</td>
+<td style="text-align: left;">移除 edge</td>
+</tr>
+</tbody>
+</table>
+<p><strong>護城河加速</strong>：ProblemCard 累積啟動 Moat
+A（產業語言模型）種子數據，Safety Gate 建立 Moat I（合規壁壘）。</p>
+<h3 id="v12--harness-完整-phase-4-6">V1.2 — Harness 完整 (Phase
+4-6)</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Phase</th>
+<th style="text-align: left;">層</th>
+<th style="text-align: left;">交付物</th>
+<th style="text-align: left;">風險</th>
+<th style="text-align: left;">回滾方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Phase 4</strong></td>
+<td style="text-align: left;">L2 Context Assembly</td>
+<td style="text-align: left;"><code>context_assemble</code> node + token
+budget + freshness scoring</td>
+<td style="text-align: left;">Medium-High</td>
+<td style="text-align: left;">A/B test 50/50</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Phase 5</strong></td>
+<td style="text-align: left;">L5 Feedback Loop</td>
+<td style="text-align: left;"><code>verify_answer</code> node + retry
+conditional edge</td>
+<td style="text-align: left;">High (延遲翻倍)</td>
+<td style="text-align: left;"><code>verify_enabled = false</code> +
+<code>max_retry = 1</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Phase 6</strong></td>
+<td style="text-align: left;">L8 Entropy Management</td>
+<td style="text-align: left;"><code>entropy_check</code> node + SOP
+auto-generation + weekly freshness scan</td>
+<td style="text-align: left;">Low (背景任務)</td>
+<td
+style="text-align: left;"><code>sop_generation_enabled = false</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>目標 Graph Flow</strong>（所有 Harness 啟用後）：</p>
+<pre><code>START → pre_process → manage_memory → task_decompose → context_assemble
+→ safety_gate → router → [fan-out agents] → merge_answers → verify_answer
+→ (retry loop) → update_profile → entropy_check → post_process → END</code></pre>
+<h3 id="v20--派工與帳務-m2-w18-w31">V2.0 — 派工與帳務 (M2: W18-W31)</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">交付物</th>
+<th style="text-align: left;">技術</th>
+<th style="text-align: left;">架構影響</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Technician Web App</strong></td>
+<td style="text-align: left;">Next.js PWA + TypeScript</td>
+<td style="text-align: left;">新增前端容器，WebSocket 即時通知</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Smart Dispatch
+Engine</strong></td>
+<td style="text-align: left;">Python + PostgreSQL</td>
+<td style="text-align: left;">技能 × 地區 ×
+評分智能匹配，<code>transfer_to_human</code> 工具觸發工單建立</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Pricing Engine</strong></td>
+<td style="text-align: left;">Python + PostgreSQL</td>
+<td style="text-align: left;">品牌 × 鎖型 × 難度計價規則</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Accounting Module</strong></td>
+<td style="text-align: left;">Python + PostgreSQL</td>
+<td style="text-align: left;">Invoice/Voucher CRUD，月度報表匯出</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Admin Panel 遷移</strong></td>
+<td style="text-align: left;">Next.js (取代 Jinja2+HTMX)</td>
+<td style="text-align: left;">統一前端技術棧</td>
+</tr>
+</tbody>
+</table>
+<p><strong>V2.0 架構方針：物理分離 monorepo（agent / api / data /
+web）</strong></p>
+<p>實際 V2.0 採取 <strong>物理分離
+monorepo</strong>：<code>agent/</code>（LINE Bot +
+ReAct）、<code>api/</code>（FastAPI backend for dispatch / pricing /
+accounting）、<code>data/</code>（Medallion
+ETL）、<code>web/</code>（Next.js admin dashboard）四個獨立
+workspace，由根目錄 <code>pyproject.toml</code> + <code>uv.lock</code>
+統一管理。詳見 <a href="./E6x--project-structure.md">E6x
+結構指南</a>。</p>
+<pre><code>專案根/
+├── agent/                   # V1.0 LINE Bot + Single ReAct (上線)
+│   ├── agent.py
+│   ├── app.py
+│   ├── harness/             # 8 flat modules
+│   ├── skills/              # SKILL.md tools + data
+│   ├── llms/ memory/ storage/ embeddings/ profiles/ core/
+│   └── pyproject.toml
+├── api/                     # V2.0 NEW: FastAPI Backend
+│   ├── main.py
+│   ├── dispatch/            # 派工引擎
+│   ├── pricing/             # 計價引擎
+│   ├── accounting/          # 帳務模組
+│   └── pyproject.toml
+├── data/                    # Medallion ETL Pipeline (上線)
+│   ├── pipeline/{source_to_raw,raw_to_bronze,bronze_to_silver,silver_to_skill}/
+│   └── pyproject.toml
+├── web/                     # V2.0 NEW: Next.js Admin Dashboard
+│   ├── src/
+│   ├── package.json
+│   └── ...
+├── pyproject.toml           # uv workspace root
+└── uv.lock</code></pre>
+<blockquote>
+<p>⚠️ <strong>Vision (not yet implemented)</strong>: 早期版本規劃將 V2.0
+模組（dispatch / pricing / accounting）放入 <code>agent/</code>
+進程內共用 LangGraph。實際決定走物理分離（<code>api/</code> 獨立
+service），透過 PostgreSQL 共享而非進程內呼叫。</p>
+</blockquote>
+<p><strong>V1→V2 整合點</strong>：<code>transfer_to_human</code>
+工具觸發 L3 escalation → <code>dispatch/engine.py</code> 建立
+WorkOrder（詳見 §3.6）。</p>
+<p><strong>Performance 保證</strong> (100 concurrent)：</p>
+<table>
+<thead>
+<tr>
+<th>瓶頸</th>
+<th>緩解策略</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DB 連線耗盡</td>
+<td>SQLAlchemy pool_size=20-30, pgbouncer 備案</td>
+</tr>
+<tr>
+<td>技師匹配延遲</td>
+<td><code>asyncio.gather()</code> 平行評分，不用 sequential loop</td>
+</tr>
+<tr>
+<td>報價查詢熱點</td>
+<td>Redis 快取 PriceRule (TTL 1hr)</td>
+</tr>
+<tr>
+<td>月結批次壓力</td>
+<td>排程背景任務 (不在 request path)，read replica 分流</td>
+</tr>
+</tbody>
+</table>
+<p><strong>護城河對齊 (M2)</strong>：派工數據啟動 Moat
+C（標準化定價引擎）、Moat G（技師行為數據）。</p>
+<h3 id="v30--智慧層-m3-5-個月">V3.0 — 智慧層 (M3: 5 個月)</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">方向</th>
+<th style="text-align: left;">說明</th>
+<th style="text-align: left;">護城河</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>影子驗證</strong></td>
+<td style="text-align: left;">AI 回覆與真人客服並行比對，量化準確率</td>
+<td style="text-align: left;">Moat A V2</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>報價信心分數</strong></td>
+<td style="text-align: left;">基於歷史數據的報價可信度評分</td>
+<td style="text-align: left;">Moat B</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>預測備料</strong></td>
+<td style="text-align: left;">根據 ProblemCard 統計預測常用零件需求</td>
+<td style="text-align: left;">Moat E</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>產業語言模型 V2</strong></td>
+<td style="text-align: left;">以 ProblemCard + SOP 語料微調
+embedding</td>
+<td style="text-align: left;">Moat A</td>
+</tr>
+</tbody>
+</table>
+<h3 id="技術適配保證-24-個月">技術適配保證 (24 個月)</h3>
+<p><code>agent/</code> 透過三種不同形式的 config-driven composition 支撐
+provider 切換：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">機制</th>
+<th style="text-align: left;">形式</th>
+<th style="text-align: left;">實際 code 路徑</th>
+<th style="text-align: left;">說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Memory Backend</strong></td>
+<td style="text-align: left;">dict registry</td>
+<td style="text-align: left;"><code>agent/memory/__init__.py</code></td>
+<td style="text-align: left;">dict 註冊 in-process / sqlite / postgres
+三種 checkpointer，由 <code>config.toml</code> 字串 key 選擇</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Storage Backend</strong></td>
+<td style="text-align: left;">dict registry</td>
+<td
+style="text-align: left;"><code>agent/storage/__init__.py</code></td>
+<td style="text-align: left;">dict 註冊 in-process / sqlite / postgres
+三種 audit log storage，由 <code>config.toml</code> 字串 key 選擇</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>LLM Provider</strong></td>
+<td style="text-align: left;">LiteLLM 字串前綴路由</td>
+<td style="text-align: left;"><code>agent/llms/</code></td>
+<td style="text-align: left;">不是 dict registry，而是 LiteLLM
+統一介面：<code>config.toml</code> 給字串如
+<code>"vertex_ai/gemini-2.5-pro"</code> 或
+<code>"anthropic/claude-3-5-sonnet"</code>，LiteLLM
+內部解析前綴自動路由到對應 provider</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Embedding Provider</strong></td>
+<td style="text-align: left;">直接 build 函式</td>
+<td style="text-align: left;"><code>agent/embeddings/</code></td>
+<td style="text-align: left;">小規模直接 build（無
+registry），未來可視需求補 dict registry</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Prompt 外部化</strong></td>
+<td style="text-align: left;">檔案載入</td>
+<td style="text-align: left;"><code>agent/prompts/system.md</code></td>
+<td style="text-align: left;">所有 Prompt 存放於 markdown
+檔，非硬編碼</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Skill 擴展</strong></td>
+<td style="text-align: left;">檔案掃描</td>
+<td style="text-align: left;"><code>agent/skills/data/</code></td>
+<td style="text-align: left;">新增 SKILL.md 即新增技能；新品牌只需在
+<code>agent/config.toml</code> 的 <code>[quick_reply]</code>
+新增條目</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Harness 層層開關</strong></td>
+<td style="text-align: left;">(vision)</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;">每個 Harness 功能獨立 enable/disable
+為願景設計，現有 8 flat modules 為固定載入</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ <strong>D1 待決議</strong>：LLM provider 形式（LiteLLM
+字串路由）與 memory/storage（dict registry）不對稱。是否補 dict registry
+以統一形式，列入後續 ADR 評估。</p>
+</blockquote>
+<hr />
+<h2 id="第-10-部分附錄">第 10 部分：附錄</h2>
+<h3 id="附錄-a專案目錄結構">附錄 A：專案目錄結構</h3>
+<blockquote>
+<p>⚠️ <strong>Vision structure</strong>: 以下為 Clean Architecture / DDD
+風格的單一 <code>src/smartlock/</code> 結構，<strong>現有 V1.0
+不採用此結構</strong>。實際 V1.0 結構為四個物理分離的
+workspace（<code>agent/</code> / <code>api/</code> / <code>data/</code>
+/ <code>web/</code>），詳見 <a href="./E6x--project-structure.md">E6x
+結構指南</a>。</p>
+</blockquote>
+<pre><code>Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/   # Vision (not implemented)
+├── docs/                           # 專案文檔
+│   ├── 05_architecture_and_design_document.md   # 本文件
+│   └── adrs/                       # 架構決策記錄
+│       ├── ADR-001_backend_framework.md
+│       ├── ADR-002_database_selection.md
+│       └── ...
+├── src/
+│   └── smartlock/                  # 核心應用程式碼
+│       ├── __init__.py
+│       ├── main.py                 # FastAPI app entry point
+│       ├── config.py               # 設定管理
+│       ├── customer_service/       # 客服限界上下文
+│       │   ├── domain/
+│       │   │   ├── entities.py     # Conversation, ProblemCard, Message
+│       │   │   ├── value_objects.py
+│       │   │   ├── events.py       # Domain Events
+│       │   │   └── services.py     # ThreeLayerResolutionPolicy
+│       │   ├── application/
+│       │   │   ├── conversation_service.py
+│       │   │   ├── problem_card_service.py
+│       │   │   ├── resolution_service.py
+│       │   │   ├── dto.py
+│       │   │   └── ports.py        # Abstract interfaces
+│       │   └── infrastructure/
+│       │       ├── webhook_controller.py
+│       │       ├── conversation_repo.py
+│       │       ├── line_adapter.py
+│       │       └── llm_gateway.py
+│       ├── knowledge_base/         # 知識庫限界上下文
+│       │   ├── domain/
+│       │   ├── application/
+│       │   └── infrastructure/
+│       ├── user_management/        # 使用者管理上下文
+│       │   ├── domain/
+│       │   ├── application/
+│       │   └── infrastructure/
+│       ├── dispatch/               # 派工上下文 (V2.0)
+│       │   ├── domain/
+│       │   ├── application/
+│       │   └── infrastructure/
+│       ├── accounting/             # 帳務上下文 (V2.0)
+│       │   ├── domain/
+│       │   ├── application/
+│       │   └── infrastructure/
+│       └── shared/                 # 共享基礎設施
+│           ├── database.py         # SQLAlchemy engine &amp; session
+│           ├── redis.py            # Redis client
+│           ├── auth.py             # JWT auth utilities
+│           ├── logging.py          # Structured logging setup
+│           └── middleware.py       # CORS, request ID, timing
+├── tests/
+│   ├── unit/
+│   │   ├── customer_service/
+│   │   ├── knowledge_base/
+│   │   └── ...
+│   ├── integration/
+│   │   ├── test_line_webhook.py
+│   │   ├── test_resolution_flow.py
+│   │   └── ...
+│   └── conftest.py                # Shared fixtures
+├── migrations/                     # Alembic 資料庫遷移
+│   ├── alembic.ini
+│   ├── env.py
+│   └── versions/
+├── templates/                      # Jinja2 templates (V1.0 Admin)
+├── static/                         # Static assets (V1.0 Admin)
+├── web/                            # Next.js frontend (V2.0)
+│   ├── src/
+│   ├── package.json
+│   └── next.config.js
+├── docker/
+│   ├── Dockerfile.api
+│   ├── Dockerfile.web
+│   └── nginx/
+│       └── conf.d/
+├── docker-compose.yml
+├── docker-compose.dev.yml
+├── .env.example
+├── .gitignore
+├── pyproject.toml                  # Python project config (Poetry)
+├── README.md
+└── Makefile                        # Common dev commands</code></pre>
+<h3 id="附錄-b關鍵-api-端點概覽">附錄 B：關鍵 API 端點概覽</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">方法</th>
+<th style="text-align: left;">路徑</th>
+<th style="text-align: left;">說明</th>
+<th style="text-align: left;">認證</th>
+<th style="text-align: left;">階段</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">POST</td>
+<td style="text-align: left;"><code>/webhook/line</code></td>
+<td style="text-align: left;">LINE Webhook 接收端點</td>
+<td style="text-align: left;">LINE Signature</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">GET</td>
+<td style="text-align: left;"><code>/health</code></td>
+<td style="text-align: left;">健康檢查</td>
+<td style="text-align: left;">無</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">GET</td>
+<td style="text-align: left;"><code>/metrics</code></td>
+<td style="text-align: left;">Prometheus 指標</td>
+<td style="text-align: left;">無 (internal)</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">POST</td>
+<td style="text-align: left;"><code>/auth/login</code></td>
+<td style="text-align: left;">管理員/技師登入</td>
+<td style="text-align: left;">無</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">POST</td>
+<td style="text-align: left;"><code>/auth/refresh</code></td>
+<td style="text-align: left;">刷新 JWT Token</td>
+<td style="text-align: left;">JWT</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">GET</td>
+<td style="text-align: left;"><code>/api/v1/cases</code></td>
+<td style="text-align: left;">案例列表查詢</td>
+<td style="text-align: left;">Admin JWT</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">POST</td>
+<td style="text-align: left;"><code>/api/v1/cases</code></td>
+<td style="text-align: left;">新增案例</td>
+<td style="text-align: left;">Admin JWT</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">PUT</td>
+<td style="text-align: left;"><code>/api/v1/cases/{id}</code></td>
+<td style="text-align: left;">更新案例</td>
+<td style="text-align: left;">Admin JWT</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">DELETE</td>
+<td style="text-align: left;"><code>/api/v1/cases/{id}</code></td>
+<td style="text-align: left;">刪除案例</td>
+<td style="text-align: left;">Admin JWT</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">POST</td>
+<td style="text-align: left;"><code>/api/v1/manuals/upload</code></td>
+<td style="text-align: left;">上傳 PDF 手冊</td>
+<td style="text-align: left;">Admin JWT</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">GET</td>
+<td style="text-align: left;"><code>/api/v1/manuals</code></td>
+<td style="text-align: left;">手冊列表</td>
+<td style="text-align: left;">Admin JWT</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">GET</td>
+<td style="text-align: left;"><code>/api/v1/sop-drafts</code></td>
+<td style="text-align: left;">待審核 SOP 列表</td>
+<td style="text-align: left;">Admin JWT</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">POST</td>
+<td
+style="text-align: left;"><code>/api/v1/sop-drafts/{id}/approve</code></td>
+<td style="text-align: left;">審核通過 SOP</td>
+<td style="text-align: left;">Admin JWT</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">POST</td>
+<td
+style="text-align: left;"><code>/api/v1/sop-drafts/{id}/reject</code></td>
+<td style="text-align: left;">拒絕 SOP</td>
+<td style="text-align: left;">Admin JWT</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">GET</td>
+<td style="text-align: left;"><code>/api/v1/conversations</code></td>
+<td style="text-align: left;">對話記錄查詢</td>
+<td style="text-align: left;">Admin JWT</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">GET</td>
+<td
+style="text-align: left;"><code>/api/v1/conversations/{id}</code></td>
+<td style="text-align: left;">對話詳情</td>
+<td style="text-align: left;">Admin JWT</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">GET</td>
+<td style="text-align: left;"><code>/api/v1/problem-cards</code></td>
+<td style="text-align: left;">問題卡列表</td>
+<td style="text-align: left;">Admin JWT</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">GET</td>
+<td style="text-align: left;"><code>/api/v1/stats/dashboard</code></td>
+<td style="text-align: left;">統計儀表板</td>
+<td style="text-align: left;">Admin JWT</td>
+<td style="text-align: left;">V1.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">GET</td>
+<td style="text-align: left;"><code>/api/v2/work-orders</code></td>
+<td style="text-align: left;">工單列表</td>
+<td style="text-align: left;">Admin/Tech JWT</td>
+<td style="text-align: left;">V2.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">POST</td>
+<td style="text-align: left;"><code>/api/v2/work-orders</code></td>
+<td style="text-align: left;">建立工單</td>
+<td style="text-align: left;">Admin JWT</td>
+<td style="text-align: left;">V2.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">PUT</td>
+<td
+style="text-align: left;"><code>/api/v2/work-orders/{id}/accept</code></td>
+<td style="text-align: left;">技師接單</td>
+<td style="text-align: left;">Tech JWT</td>
+<td style="text-align: left;">V2.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">PUT</td>
+<td
+style="text-align: left;"><code>/api/v2/work-orders/{id}/reject</code></td>
+<td style="text-align: left;">技師拒單</td>
+<td style="text-align: left;">Tech JWT</td>
+<td style="text-align: left;">V2.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">PUT</td>
+<td
+style="text-align: left;"><code>/api/v2/work-orders/{id}/start</code></td>
+<td style="text-align: left;">開始服務</td>
+<td style="text-align: left;">Tech JWT</td>
+<td style="text-align: left;">V2.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">PUT</td>
+<td
+style="text-align: left;"><code>/api/v2/work-orders/{id}/complete</code></td>
+<td style="text-align: left;">完成服務</td>
+<td style="text-align: left;">Tech JWT</td>
+<td style="text-align: left;">V2.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">GET</td>
+<td style="text-align: left;"><code>/api/v2/technicians</code></td>
+<td style="text-align: left;">技師列表</td>
+<td style="text-align: left;">Admin JWT</td>
+<td style="text-align: left;">V2.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">POST</td>
+<td style="text-align: left;"><code>/api/v2/technicians</code></td>
+<td style="text-align: left;">新增技師</td>
+<td style="text-align: left;">Admin JWT</td>
+<td style="text-align: left;">V2.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">GET</td>
+<td style="text-align: left;"><code>/api/v2/price-rules</code></td>
+<td style="text-align: left;">計價規則列表</td>
+<td style="text-align: left;">Admin JWT</td>
+<td style="text-align: left;">V2.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">POST</td>
+<td style="text-align: left;"><code>/api/v2/price-rules</code></td>
+<td style="text-align: left;">新增計價規則</td>
+<td style="text-align: left;">Admin JWT</td>
+<td style="text-align: left;">V2.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">GET</td>
+<td style="text-align: left;"><code>/api/v2/invoices</code></td>
+<td style="text-align: left;">發票列表</td>
+<td style="text-align: left;">Admin JWT</td>
+<td style="text-align: left;">V2.0</td>
+</tr>
+<tr>
+<td style="text-align: left;">GET</td>
+<td style="text-align: left;"><code>/api/v2/reports/monthly</code></td>
+<td style="text-align: left;">月度統計報表</td>
+<td style="text-align: left;">Admin JWT</td>
+<td style="text-align: left;">V2.0</td>
+</tr>
+</tbody>
+</table>
+<h3 id="附錄-c環境變數清單">附錄 C：環境變數清單</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">變數名稱</th>
+<th style="text-align: left;">說明</th>
+<th style="text-align: left;">範例值</th>
+<th style="text-align: left;">必填</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>DATABASE_URL</code></td>
+<td style="text-align: left;">PostgreSQL 連線字串</td>
+<td
+style="text-align: left;"><code>postgresql+asyncpg://user:pass@postgres:5432/smartlock</code></td>
+<td style="text-align: left;">是</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>REDIS_URL</code></td>
+<td style="text-align: left;">Redis 連線字串</td>
+<td style="text-align: left;"><code>redis://redis:6379/0</code></td>
+<td style="text-align: left;">是</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GOOGLE_API_KEY</code></td>
+<td style="text-align: left;">Google AI API 金鑰</td>
+<td style="text-align: left;"><code>AIza...</code></td>
+<td style="text-align: left;">是</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GOOGLE_MODEL</code></td>
+<td style="text-align: left;">LLM 模型名稱</td>
+<td style="text-align: left;"><code>gemini-2.5-flash</code></td>
+<td style="text-align: left;">是</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GOOGLE_EMBEDDING_MODEL</code></td>
+<td style="text-align: left;">Embedding 模型名稱</td>
+<td style="text-align: left;"><code>text-embedding-004</code></td>
+<td style="text-align: left;">是</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>LINE_CHANNEL_SECRET</code></td>
+<td style="text-align: left;">LINE Channel Secret</td>
+<td style="text-align: left;"><code>abc123...</code></td>
+<td style="text-align: left;">是</td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>LINE_CHANNEL_ACCESS_TOKEN</code></td>
+<td style="text-align: left;">LINE Channel Access Token</td>
+<td style="text-align: left;"><code>xyz789...</code></td>
+<td style="text-align: left;">是</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>JWT_SECRET</code></td>
+<td style="text-align: left;">JWT 簽名密鑰</td>
+<td style="text-align: left;"><code>super-secret-key</code></td>
+<td style="text-align: left;">是</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>JWT_EXPIRY_HOURS</code></td>
+<td style="text-align: left;">JWT 過期時間（小時）</td>
+<td style="text-align: left;"><code>4</code></td>
+<td style="text-align: left;">否（預設 4）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>LOG_LEVEL</code></td>
+<td style="text-align: left;">日誌等級</td>
+<td style="text-align: left;"><code>INFO</code></td>
+<td style="text-align: left;">否（預設 INFO）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>CORS_ORIGINS</code></td>
+<td style="text-align: left;">允許的 CORS 來源</td>
+<td style="text-align: left;"><code>http://localhost:3000</code></td>
+<td style="text-align: left;">否</td>
+</tr>
+<tr>
+<td
+style="text-align: left;"><code>VECTOR_SIMILARITY_THRESHOLD</code></td>
+<td style="text-align: left;">L1 向量搜尋命中閾值</td>
+<td style="text-align: left;"><code>0.85</code></td>
+<td style="text-align: left;">否（預設 0.85）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>SESSION_TTL_SECONDS</code></td>
+<td style="text-align: left;">對話 Session 超時（秒）</td>
+<td style="text-align: left;"><code>1800</code></td>
+<td style="text-align: left;">否（預設 1800）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>MAX_CONVERSATION_TURNS</code></td>
+<td style="text-align: left;">最大對話輪數</td>
+<td style="text-align: left;"><code>20</code></td>
+<td style="text-align: left;">否（預設 20）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>ENVIRONMENT</code></td>
+<td style="text-align: left;">環境標識</td>
+<td style="text-align: left;"><code>development</code> /
+<code>staging</code> / <code>production</code></td>
+<td style="text-align: left;">否（預設 development）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="附錄-d靜態結構分析參考">附錄 D：靜態結構分析參考</h3>
+<ul>
+<li><strong>檔案依賴關係:</strong> 參考
+<code>docs/09_file_dependencies.md</code>（待產出）</li>
+<li><strong>類別關係圖:</strong> 參考
+<code>docs/10_class_relationships.md</code>（待產出）</li>
+</ul>
+<hr />
+<hr />
+<p><strong>文件審核記錄 (Review History):</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">日期</th>
+<th style="text-align: left;">審核人</th>
+<th style="text-align: left;">版本</th>
+<th style="text-align: left;">變更摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">2026-02-17</td>
+<td style="text-align: left;">技術架構師</td>
+<td style="text-align: left;">v1.0</td>
+<td style="text-align: left;">初稿完成，涵蓋 V1.0 + V2.0
+完整架構設計</td>
+</tr>
+<tr>
+<td style="text-align: left;">2026-04-01</td>
+<td style="text-align: left;">AI 架構助理</td>
+<td style="text-align: left;">v1.1</td>
+<td style="text-align: left;">新增附錄 E：實際 LangGraph 架構 + 8 層
+Agent Harness 框架</td>
+</tr>
+<tr>
+<td style="text-align: left;">2026-04-01</td>
+<td style="text-align: left;">AI 架構助理</td>
+<td style="text-align: left;">v2.0</td>
+<td style="text-align: left;">重寫 §1.3/§3/§9 對齊實際 LangGraph
+架構，移除附錄 E（內容已整合至主文）</td>
+</tr>
+<tr>
+<td style="text-align: left;">2026-04-04</td>
+<td style="text-align: left;">AI 架構助理</td>
+<td style="text-align: left;">v2.1</td>
+<td style="text-align: left;">新增 §1.4 Software 3.0 設計哲學 + Latency
+Budget；Gemini 3 Pro -&gt; 2.5 Flash；新增 4 個 Bounded Context
+(DisputeResolution, Warranty, Inventory,
+BrandManagement)；Schema_v2_extensions.sql 6 表；ADR-009/010/011</td>
+</tr>
+<tr>
+<td style="text-align: left;">2026-05-06</td>
+<td style="text-align: left;">Doc Agent C</td>
+<td style="text-align: left;">v2.2</td>
+<td style="text-align: left;">Wave 2 同步：U14（7 sub-graph 改為
+Current=Single ReAct + Vision 雙段）、U15（Harness L1-L8 子目錄改為 8
+flat modules）、U17（Registry 描述精確化為 dict registry / LiteLLM
+字串路由 / 直接 build）；§6 部署視圖標示 Cloud Run，docker-compose
+拓撲標為 Legacy；§9 V2.0 目錄結構改為四 workspace 物理分離</td>
+</tr>
+</tbody>
+</table>
+</div></div></body></html>

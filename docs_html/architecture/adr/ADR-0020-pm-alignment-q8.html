@@ -1,0 +1,105 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>非 LINE 用戶 fallback</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ architecture ／ adr ／ ADR-0020-pm-alignment-q8.md</div>
+<div class="doc"><blockquote>
+<p><strong>🔄 Migration Status (2026-05-28)</strong>:
+<code>HISTORICAL</code> <strong>Reviewed against</strong>: 2026-05-20
+final spec (xlsx) <strong>Reviewed on</strong>: 2026-05-28 <strong>Per
+ADR-0100 §1 classification</strong>
+(.claude/context/devteam/meetings/2026-05-27-1130-final-spec-migration-strategy/MoM.md)</p>
+</blockquote>
+<h1 id="adr-0020--非-line-用戶-fallback">ADR-0020 — 非 LINE 用戶
+fallback</h1>
+<h2 id="status">Status</h2>
+<p><strong>Accepted</strong> (拍板於 2026-05-07，作為 PM Q1-Q10 90
+分鐘對齊會議產物)</p>
+<h2 id="decision">Decision</h2>
+<p><strong>A LINE Push real impl + retry</strong></p>
+<h2 id="context-options-consequences-從-pm-決策矩陣-9-摘錄">Context,
+Options, Consequences (從 PM 決策矩陣 §9 摘錄)</h2>
+<h2 id="9-q8--非-line-用戶-fallback">9. Q8 — 非 LINE 用戶
+fallback？</h2>
+<h3 id="業務脈絡">業務脈絡</h3>
+<p>若客戶報修管道不是 LINE（電話 / 現場）—V1.0 是否要受理？</p>
+<h3 id="影響流程">影響流程</h3>
+<ul>
+<li>F-001 LINE 報修 → ProblemCard</li>
+<li>F-010 改約 / 延遲通知</li>
+</ul>
+<h3 id="候選方案">候選方案</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>說明</th>
+<th>測試範圍</th>
+<th>業務影響</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A. 拒收</strong>（V1.0 only LINE）</td>
+<td>電話 / 現場 → 請客戶加 LINE</td>
+<td>縮減</td>
+<td>流失非 LINE 客戶</td>
+</tr>
+<tr>
+<td><strong>B. 客服手動建單</strong></td>
+<td>電話來 → 客服輸入到 admin 後台</td>
+<td>加 admin create-PC UI</td>
+<td>多 5 dev-day</td>
+</tr>
+<tr>
+<td><strong>C. SMS 雙向</strong>（V1.5+）</td>
+<td>整合 SMS provider</td>
+<td>加 SMS test</td>
+<td>+20 dev-day</td>
+</tr>
+</tbody>
+</table>
+<h3 id="推薦預設">推薦預設</h3>
+<p><strong>A — 拒收</strong>。理由：</p>
+<ol type="1">
+<li>V1.0 客戶（電子鎖維修商）的客戶 95% 是用 LINE 報修</li>
+<li>SMS 整合需採購 + 帳號管理</li>
+<li>客服手動建單 UI 可在 V1.5 補（admin 後台已有 conversation
+list，加按鈕即可）</li>
+</ol>
+<h3 id="反向選項後果">反向選項後果</h3>
+<ul>
+<li>B：1 個 admin 新頁 + 1 個 createConversation API（已有）</li>
+<li>C：必須先選 SMS provider（Twilio? 三竹?）+ 採購</li>
+</ul>
+<h3 id="pm-決策">PM 決策</h3>
+<pre><code>[ ] A — 拒收（V1.0 only LINE）
+[ ] B — 客服手動建單
+[ ] C — SMS 雙向（V1.5+）
+
+理由：__________________________________
+拍板日期：______________
+拍板人：______________</code></pre>
+<h3 id="拍板後續更新">拍板後續更新</h3>
+<ul>
+<li><code>docs/01-define/E2--statement-of-work.md</code>：V1.0
+客戶分流</li>
+<li><code>web/src/app/conversations/new/page.tsx</code>：若 B，新建</li>
+<li><code>api/scripts/generate_models.sh</code>：若 B，補
+createConversation request body</li>
+</ul>
+<hr />
+</div></div></body></html>

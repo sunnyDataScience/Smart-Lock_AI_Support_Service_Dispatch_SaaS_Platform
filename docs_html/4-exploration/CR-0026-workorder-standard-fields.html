@@ -1,0 +1,540 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Change Impact Analysis — 公單（WorkOrder）標準化欄位補洞</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ 4-exploration ／ CR-0026-workorder-standard-fields.md</div>
+<div class="doc"><h1 id="cr-0026-公單workorder標準化欄位補洞">CR-0026:
+公單（WorkOrder）標準化欄位補洞</h1>
+<blockquote>
+<p><strong>Tier</strong>: 4-exploration → Change Impact
+Analysis（per-change，實作後歸檔） <strong>Mandated by</strong>:
+<code>.claude/rules/change-governance.md</code>（命中 Domain model / DB
+schema / API contract 多面向） <strong>Generated</strong>:
+手動（<code>sunnydata-change-impact-analysis</code> skill 未註冊，依
+<code>VibeCoding_Workflow_Templates/4-exploration/CIA-0000</code>
+模板產出，比照 CR-0025） <strong>驅動來源</strong>: 2026-06-17 lock-AI
+會議 Action #1（補公單欄位）+ §十決議 3/4 <strong>來源素材（不可信，僅引
+anchor 不抄內容）</strong>:
+<code>docs/_source/01-workorder-erp.md</code>（#m03 / #m05 / #m08 +
+Q015-Q025）、<code>20260617資料/電子鎖安裝與維修派工單整合分析報告.pdf</code>（6
+模組欄位標準化）、<code>20260617資料/AI_Blue_鎖匠ERP_報價資料庫_PhaseI_MarketLaunchCore_v1.xlsx</code>（成本資料模型，數值僅作
+mock）</p>
+</blockquote>
+<hr />
+<h2 id="1-change-statement">1. Change Statement</h2>
+<p><strong>As-is</strong>：<code>work_orders</code>
+表（<code>SQL/Schema.sql</code>）是<strong>扁平最小結構</strong>：只有
+<code>customer_name/phone/address</code>、<code>service_report</code>、<code>photos</code>(JSONB)、<code>estimated_price/final_price</code>(兩個
+FLOAT)、粗顆粒
+<code>status</code>（created/assigned/accepted/in_progress/completed/confirmed/cancelled）。<strong>缺</strong>：設備辨識（品牌/型號/序號/門型/門厚）、服務類別（安裝/保內/保外/維修）、保固欄位、完工細狀態、狀態原因（status_reason）、返修連回原單（parent）、免責同意條款、雙方簽名、結構化成本拆項。</p>
+<p><strong>To-be</strong>：公單（WorkOrder）欄位標準化，對齊藍圖 M05/M08
+與派工單分析報告 6 模組 ——
+補上<strong>設備辨識、服務類別、保固、完工細狀態機、狀態原因、返修
+parent、免責簽名、雙簽名</strong>；並確立「<strong>客戶端電子工單只露最終價、成本明細僅後台</strong>」的呈現邊界。結構化成本拆項（quote
+模組）切到 <strong>CR-0027</strong> 另案處理，本 CR 只在
+<code>work_orders</code> 保留 <code>customer_final_amount</code>
+單一對外金額欄位。</p>
+<p><strong>Driver</strong>：會議當場點 UI
+發現「公單畫面欄位有缺、Johnson
+紙本工單對不上、報價成本明細沒做」；§十決議 3「公單欄位以 esales PDF
+為對照、schema 先補前端才有資料」、決議 4「客戶端 LINE
+只看最終電子工單（含關防、最終價），成本明細只在後台」。</p>
+<h2 id="2-affected-flow">2. Affected Flow</h2>
+<table>
+<thead>
+<tr>
+<th>Flow ID</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BF</code>（WorkOrder lifecycle，對 M05）</td>
+<td>Modified</td>
+<td>公單生命週期補完工細狀態（待完工回報/待照片/待客戶確認/待客服審核/已完工/已結案）與狀態原因
+gate</td>
+</tr>
+<tr>
+<td><code>UF</code>（後台公單畫面）</td>
+<td>Modified</td>
+<td>公單編輯/檢視頁顯示新欄位（設備辨識/服務類別/保固/成本後台/簽名）</td>
+</tr>
+<tr>
+<td><code>UF</code>（客戶端電子工單）</td>
+<td>New</td>
+<td>結案產出電子工單（含關防、品項、<strong>只露最終價</strong>）→ 對接
+CR-0028 推 LINE/Email</td>
+</tr>
+<tr>
+<td><code>SF</code>（reopen/返修連回原單，對 BR-M05-02）</td>
+<td>New</td>
+<td>返修必須連回原 WorkOrder、不覆蓋歷史</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>註：User Flow 正典
+<code>docs/ux/user-flow-smart-lock-saas.md</code>（<code>status: draft</code>）目前無公單欄位層級
+flow，需補。</p>
+</blockquote>
+<h2 id="3-affected-spec-fr--nfr">3. Affected Spec (FR / NFR)</h2>
+<table>
+<thead>
+<tr>
+<th>Spec ID</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>新 <code>FR</code>（ID 待配）</td>
+<td>New</td>
+<td>公單必填/可後補/派工前必填三級欄位規則（對 M03 Q015）</td>
+</tr>
+<tr>
+<td>新 <code>FR</code>（ID 待配）</td>
+<td>New</td>
+<td>完工包必備：photos + materials used + payment status + customer
+sign-off + teaching note（對 M08 BR-M08-03）</td>
+</tr>
+<tr>
+<td>新 <code>FR</code>（ID 待配）</td>
+<td>New</td>
+<td>序號綁保固、保固期動態判定（輸序號自動帶保固截止 →
+判保內/保外）</td>
+</tr>
+<tr>
+<td><code>NFR</code>（合規）</td>
+<td>New</td>
+<td>免責條款（新機安裝同意/破壞鎖免責/個資）固定條款 + 客戶簽名留痕</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>註：現 codebase 無公單 FR 殼（work_order 直接實作於
+<code>work_order_service.py</code>）。需補 FR 正典；本 CR 先列規則來源
+anchor。</p>
+</blockquote>
+<h2 id="4-affected-api">4. Affected API</h2>
+<table>
+<thead>
+<tr>
+<th>API</th>
+<th>Endpoint</th>
+<th>Action</th>
+<th>Breaking?</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>work-order create/update</td>
+<td><code>POST/PATCH .../work-orders</code></td>
+<td>Schema change</td>
+<td>No（加欄位向後相容）</td>
+<td>新增設備/服務類別/保固/簽名欄位；舊 client 忽略多餘欄位</td>
+</tr>
+<tr>
+<td>work-order get/list</td>
+<td><code>GET .../work-orders/{id}</code></td>
+<td>Response change</td>
+<td>No</td>
+<td>回傳新欄位；<strong>成本明細欄位僅後台角色可見</strong>（RBAC
+過濾）</td>
+</tr>
+<tr>
+<td>電子工單產出</td>
+<td><code>GET .../work-orders/{id}/document</code>（新，建議）</td>
+<td>New</td>
+<td>No</td>
+<td>產生客戶版電子工單（只露最終價）；實際推送走 CR-0028</td>
+</tr>
+</tbody>
+</table>
+<p>需同步更新 <code>openapi-smart-lock-saas.yaml</code>（新增欄位 +
+可能新 document endpoint）。</p>
+<h2 id="5-affected-data">5. Affected Data</h2>
+<table>
+<thead>
+<tr>
+<th>Entity</th>
+<th>Action</th>
+<th>Migration</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>work_orders</code></td>
+<td>加欄位</td>
+<td>設備辨識：<code>brand</code> / <code>model</code> /
+<code>serial_number</code> / <code>door_type</code> /
+<code>door_thickness</code> /
+<code>is_interior_door</code>；服務類別：<code>service_category</code>(安裝/保內/保外/維修)
+/ <code>problem_type</code>；保固：<code>warranty_status</code> /
+<code>purchase_date</code> /
+<code>invoice_no</code>；完工細狀態：<code>completion_status</code>（細分，補在粗
+<code>status</code>
+之下）；<code>status_reason</code>（cancel/reopen/reschedule/refund/dispute
+必填，BR-M05-01）；<code>parent_work_order_id</code>(self-FK，返修連回，BR-M05-02)；<code>customer_final_amount</code>（對外單一金額）；<strong>全表加
+<code>tenant_id</code> 預設單租戶值</strong>（multi-tenant
+可逆準備）</td>
+</tr>
+<tr>
+<td><code>work_order_signatures</code>（新子表，建議）</td>
+<td>New</td>
+<td><code>work_order_id</code> FK /
+<code>signer_type</code>(technician/customer) /
+<code>signature_ref</code> / <code>signed_at</code> —— 雙方簽認（PDF
+模組 6）</td>
+</tr>
+<tr>
+<td><code>work_order_consents</code>（新子表，建議）</td>
+<td>New</td>
+<td><code>work_order_id</code> FK /
+<code>consent_type</code>(新機安裝/破壞鎖免責/個資) /
+<code>accepted</code> / <code>accepted_at</code> —— 免責合規（PDF 模組
+4）</td>
+</tr>
+<tr>
+<td><code>problem_cards</code></td>
+<td>可能加欄位</td>
+<td>三級必填分類落地（必填/可後補/派工前必填）—— 視 §8-Q3 裁決是否併入本
+CR</td>
+</tr>
+<tr>
+<td>結構化成本拆項</td>
+<td><strong>不在本 CR</strong></td>
+<td><code>service_catalog</code>/<code>material_catalog</code>/<code>quote</code>/<code>quote_line_item</code>
+→ <strong>CR-0027</strong>；本 CR <code>work_orders</code> 只留
+<code>customer_final_amount</code></td>
+</tr>
+</tbody>
+</table>
+<p>State machine impact：<code>work_orders</code>
+完工段細狀態機（待完工回報→待照片→待客戶確認→待客服審核→已完工→已結案，對
+M05 Q052）；返修經 <code>parent_work_order_id</code>
+連回不覆蓋歷史。</p>
+<h2 id="6-affected-test">6. Affected Test</h2>
+<table>
+<thead>
+<tr>
+<th>Test ID</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TC</code>（新）</td>
+<td>New</td>
+<td>公單建立帶完整設備/服務類別/保固欄位 → 正確儲存</td>
+</tr>
+<tr>
+<td><code>TC</code>（新）</td>
+<td>New</td>
+<td>三級必填驗證：缺「派工前必填」欄位 → 不可進 dispatch（對
+BR-M05-03）</td>
+</tr>
+<tr>
+<td><code>TC</code>（新）</td>
+<td>New</td>
+<td>cancel/reopen/reschedule 未填 status_reason → 拒絕（BR-M05-01）</td>
+</tr>
+<tr>
+<td><code>TC</code>（新）</td>
+<td>New</td>
+<td>返修建立 → <code>parent_work_order_id</code>
+連回原單、原單歷史不變（BR-M05-02）</td>
+</tr>
+<tr>
+<td><code>TC</code>（新）</td>
+<td>New</td>
+<td>序號 → 自動帶保固截止 → 判保內/保外</td>
+</tr>
+<tr>
+<td><code>TC</code>（新）</td>
+<td>New</td>
+<td>RBAC：客戶版電子工單<strong>不含</strong>成本明細、只露
+<code>customer_final_amount</code>；後台角色可見成本</td>
+</tr>
+<tr>
+<td><code>TC</code>（新 E2E）</td>
+<td>New</td>
+<td>後台填公單新欄位 → 客戶端電子工單顯示正確（Playwright）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="7-affected-architecture">7. Affected Architecture</h2>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Action</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Module 邊界</td>
+<td>釐清</td>
+<td>公單（work_order 執行/完工文件）vs 報價成本（quote
+模組）邊界：成本明細<strong>不進 work_orders</strong>，留 CR-0027 quote
+模組；work_order 只持對外最終價</td>
+</tr>
+<tr>
+<td>新 ADR？</td>
+<td><strong>Yes</strong></td>
+<td><code>ADR-NNNN</code>：(a)
+成本明細與公單的邊界（客戶端只露最終價）；(b) 電子工單 PDF
+產出與關防；(c) 序號綁保固動態判定</td>
+</tr>
+<tr>
+<td>External integration</td>
+<td>關聯</td>
+<td>電子工單推 LINE/Email 屬
+<strong>CR-0028</strong>（公單派出→回傳鏈路），本 CR
+只產文件不負責推送</td>
+</tr>
+<tr>
+<td>Multi-tenant</td>
+<td>可逆準備</td>
+<td>新欄位/子表一律帶 <code>tenant_id</code>
+預設單租戶值，不寫死省略（為 CR-0031 預留）</td>
+</tr>
+<tr>
+<td>既有資產對齊</td>
+<td>檢查</td>
+<td><code>price_rules</code>(Schema.sql:493)
+粗顆粒、<code>invoices.line_items</code>(JSONB) 與 esales 結構化模型不同
+→ CR-0027 處理，本 CR 不動</td>
+</tr>
+</tbody>
+</table>
+<h2 id="8-human-decisions-required">8. Human Decisions Required</h2>
+<p>✅ <strong>以 2026-06-17 會議為主文件授權「用藍圖/PDF
+語意當合理預設先做」（業主 Sunny 同意，日後可微調）。</strong>
+各項採用預設如下，code 標「預設值待業主確認」。</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Question</th>
+<th>Owner</th>
+<th>Status</th>
+<th>Decision（預設，2026-06-18）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>成本明細邊界</strong></td>
+<td>業主/架構</td>
+<td>✅ 預設</td>
+<td><strong>(a) 分兩 CR</strong> —— 本 CR 只留
+<code>customer_final_amount</code>，結構化拆項切 CR-0027</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>三級必填落地</strong></td>
+<td>業主</td>
+<td>✅ 預設</td>
+<td>派工前必填=品牌/型號/地址/問題類型（dispatch gate
+已實作）；problem_cards 三級分類另案</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>免責條款內容</strong></td>
+<td>業主/法務</td>
+<td>✅ 預設</td>
+<td><strong>(a) 先佔位</strong> —— <code>work_order_consents</code>
+暫不建、客戶版不出免責段（法務文字 follow-up，移 CR-0027
+電子工單一併處理）</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>客戶端電子工單呈現</strong></td>
+<td>業主</td>
+<td>⏳ 留 CR-0027</td>
+<td>屬 CR-0027 範圍（本 CR 只補欄位）</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>完工細狀態機</strong></td>
+<td>業主/派工</td>
+<td>✅ 預設</td>
+<td><strong>(a) 全做</strong> —— M05 Q052 六段（app 層驗證 enum）</td>
+</tr>
+<tr>
+<td>6</td>
+<td><strong>報價數字來源</strong></td>
+<td>業主</td>
+<td>✅ 預設</td>
+<td><strong>(a) mock seed、標待財務覆核</strong>（CR-0027 落地）</td>
+</tr>
+<tr>
+<td>7</td>
+<td><strong>序號綁保固</strong></td>
+<td>業主</td>
+<td>✅ 預設</td>
+<td><strong>(a) 本輪人工填
+<code>warranty_status</code></strong>；序號自動判定規則另案</td>
+</tr>
+</tbody>
+</table>
+<h2 id="9-suggested-implementation-order">9. Suggested Implementation
+Order</h2>
+<p>§8 裁決後，依相依順序：</p>
+<ol type="1">
+<li><strong>Decisions</strong> → 寫 <code>ADR-NNNN</code>（成本邊界 +
+電子工單 + 序號綁保固）</li>
+<li><strong>Schema</strong> → migration：<code>work_orders</code> 加欄位
++ <code>work_order_signatures</code> / <code>work_order_consents</code>
+子表（+ tenant_id 預設值）</li>
+<li><strong>Domain/Service</strong> → <code>work_order_service</code>
+補欄位驗證（三級必填、status_reason gate、返修 parent）</li>
+<li><strong>API</strong> → openapi 加欄位 + RBAC 過濾（成本欄位僅後台）+
+電子工單 document endpoint</li>
+<li><strong>Tests</strong> → 補 §6 TC（含三級必填、status_reason、RBAC
+成本遮蔽；用 TDD）</li>
+<li><strong>UI</strong> → 後台公單畫面顯示新欄位 +
+客戶版電子工單（只露最終價）</li>
+<li><strong>Traceability</strong> → 更新 traceability matrix（新
+FR/API/TC）</li>
+<li><strong>Docs sync</strong> → 更新 user-flow +
+<code>system-completion-status</code> + CHANGELOG + 本 CR §13 進度</li>
+</ol>
+<h2 id="10-risks--rollback">10. Risks &amp; Rollback</h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Likelihood</th>
+<th>Impact</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>來源汙染：直接抄 PDF/xlsx 欄位/數字進 schema</td>
+<td>Medium</td>
+<td>High</td>
+<td>一律經 <code>docs/_source</code> anchor + 人工轉寫；數值標 mock
+待覆核</td>
+</tr>
+<tr>
+<td>與 CR-0020（編號）、CR-0022（LINE 轉換）schema 衝突</td>
+<td>Medium</td>
+<td>Medium</td>
+<td>migration 前先 grep 既有 work_orders 變更、協調欄位</td>
+</tr>
+<tr>
+<td>成本明細誤入 work_orders → 客戶端外洩</td>
+<td>Low</td>
+<td>High</td>
+<td>成本拆項切 CR-0027 quote 模組；work_order 僅 final price + RBAC
+過濾</td>
+</tr>
+<tr>
+<td>免責條款無法務背書即上線</td>
+<td>Medium</td>
+<td>High</td>
+<td>§8-Q3 裁決；先佔位不出客戶版</td>
+</tr>
+<tr>
+<td>報價 mock 當正式價</td>
+<td>Medium</td>
+<td>High</td>
+<td>seed 標 mock、待財務覆核（會議共識）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Rollback plan</strong>：新增欄位皆 nullable /
+子表為新增（不動既有），可逆；客戶版電子工單掛 feature flag。</p>
+<h2 id="11-out-of-scope">11. Out of Scope</h2>
+<ul>
+<li><strong>結構化報價/成本資料模型</strong>（service_catalog/material_catalog/quote/quote_line_item）→
+<strong>CR-0027</strong></li>
+<li><strong>LINE 公單派出→派工→報價回傳鏈路</strong> →
+<strong>CR-0028</strong></li>
+<li><strong>廠商/師傅註冊</strong>、<strong>派工模式切換</strong>、<strong>multi-tenant
+三類租戶</strong> → CR-0029 / CR-0030 / CR-0031</li>
+<li>Phase II 財務結算（訂金/AR/AP/月結，esales sheet 24-33）</li>
+</ul>
+<h2 id="12-sign-off">12. Sign-off</h2>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Name</th>
+<th>Date</th>
+<th>Approved?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Product（業主）</td>
+<td>Sunny</td>
+<td>2026-06-17</td>
+<td>✅ 會議授權用預設先做</td>
+</tr>
+<tr>
+<td>Architect</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Engineering Lead</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>QA Lead</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="13-實作進度">13. 實作進度</h2>
+<ul>
+<li>✅ S2 Schema → migration
+<code>036-workorder-standard-fields.sql</code>（work_orders 16 欄 +
+scope_changes.tenant_id + backfill 84 列 + 3 index；Schema.sql
+同步）</li>
+<li>✅ S3 Domain/Service → <code>create_from_problem_card</code> 複製
+brand/model/problem_type/photos + tenant_id；<code>assign_order</code>
+dispatch gate（BR-M05-03
+<code>_assert_dispatch_ready</code>）；<code>cancel_order</code>
+status_reason 必填 gate（BR-M05-01）+ 寫結構化欄</li>
+<li>✅ S4 API → <code>WorkOrder</code> pydantic model + TS 型別 +
+<code>_WO_SELECT</code>/<code>_wo_row_to_dict</code> 補 13
+新欄（response 自動帶出）</li>
+<li>✅ S5 Tests → <code>test_cr_0026_wo_fields.py</code> 4
+pass（serializer 映射 ×3 + dispatch gate）；work_order 相關回歸 55
+pass</li>
+<li>✅ S6 UI →
+後台詳情側邊欄「公單資訊」面板（服務類別/問題類型/保固/門型/完工狀態/狀態原因）+
+綁真實 S/N；tsc 0 error；i18n zh-TW/en</li>
+<li>⏳ S1 ADR / S7 traceability matrix → 待補（後續）</li>
+<li>⏳ 客戶端電子工單 + 結構化成本 → CR-0027（Phase 3）</li>
+<li><strong>採用預設</strong>（§8）：免責先佔位、完工六段、保固人工填、成本切
+CR-0027 —— 標「預設待業主確認」</li>
+</ul>
+</div></div></body></html>

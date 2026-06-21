@@ -1,0 +1,198 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>CR-0040 Evidence 治理 — 角色可見性（BR-M09-02）+ 保存期（BR-M09-03）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ 4-exploration ／ CR-0040-evidence-governance.md</div>
+<div class="doc"><blockquote>
+<p>✅ <strong>§8 已裁決（2026-06-19，全採建議預設）+ 已實作（見
+§10）。</strong> CR-0038 階段1「公單收尾」兩個 P0（Evidence 角色可見性 +
+保存期）。</p>
+</blockquote>
+<h2 id="1-動機why">1. 動機（WHY）</h2>
+<ul>
+<li><strong>BR-M09-02
+角色可見性（P0）</strong>：<code>media_service.list_media_for_work_order</code>
+只用 <code>work_order_id + tenant_id</code>
+過濾，<strong>無角色過濾</strong> →
+品牌/會計使用者會看到<strong>全部</strong>照片，含客戶家中環境照。Q026
+明示「品牌商不可看客戶家中環境照」「會計一張足矣」。這是隱私 P0。</li>
+<li><strong>BR-M09-03 保存期（P0）</strong>：<code>media_files</code>
+只有 <code>created_at</code>，<strong>無
+<code>retention_until</code></strong>、無清除機制。Q027：預設 1
+年；保固/客訴案保留至結案 + buffer。</li>
+</ul>
+<h2 id="2-觸發面向">2. 觸發面向</h2>
+<table>
+<thead>
+<tr>
+<th>面向</th>
+<th style="text-align: center;">命中</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DB schema</td>
+<td style="text-align: center;">✅</td>
+<td>media_files 加 retention_until（+ 視 HD-1 加 audience 欄）</td>
+</tr>
+<tr>
+<td>API contract</td>
+<td style="text-align: center;">✅</td>
+<td>list media 依角色回不同子集（行為變更，非 schema）</td>
+</tr>
+<tr>
+<td>Business rule</td>
+<td style="text-align: center;">✅</td>
+<td>誰看得到哪些 purpose / 保存多久</td>
+</tr>
+<tr>
+<td>Test plan</td>
+<td style="text-align: center;">✅</td>
+<td>角色可見性 + 保存期 component 測試</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-現況groundedfileline">3. 現況（grounded，file:line）</h2>
+<ul>
+<li><code>SQL/Schema_media.sql:18</code>
+<code>media_files</code>：id/tenant_id/uploader_user_id/work_order_id/dispute_id/<code>purpose</code>(enum
+7 值)/filename/.../<code>created_at</code>。<strong>無 audience、無
+retention_until</strong>。</li>
+<li><code>media_service.py:186 list_media_for_work_order</code>：<code>WHERE work_order_id AND tenant_id</code>，零角色過濾。</li>
+<li><code>purpose</code>
+已分類：door_check_before/after、completion_before/after、dispute_evidence_customer/technician、other。</li>
+</ul>
+<h2 id="4-api-契約變更">4. API 契約變更</h2>
+<ul>
+<li><code>GET .../work-orders/{id}/media</code>（<code>media_v2</code>）回傳依<strong>呼叫者角色</strong>過濾後的子集（同端點、同
+200，但 items 因角色而異）。</li>
+<li>不新增 error code；下載端點 <code>GET /media/{id}</code>
+亦套同一可見性檢查（非授權角色取不該看的 media → 403/404）。</li>
+</ul>
+<h2 id="5-領域--資料依-hd-1-決定">5. 領域 / 資料（依 HD-1 決定）</h2>
+<ul>
+<li><strong>保存期</strong>：media_files 加
+<code>retention_until TIMESTAMPTZ</code>（建立時依 purpose/case
+類型算），+ 清除機制（cron）。</li>
+<li><strong>可見性</strong>：HD-1 決定「規則式（purpose×role
+查詢時硬過濾，不加欄位）」或「加 audience 欄（per-media
+可覆寫）」。</li>
+</ul>
+<h2 id="6-測試計畫">6. 測試計畫</h2>
+<p><code>test_cr_0040_evidence_governance.py</code>（component）：</p>
+<ul>
+<li>品牌角色 list media → 看不到 customer 環境照（door_check/completion
+before）；看得到完工成品照。</li>
+<li>客戶/師傅 → 看得到自己案件全部。</li>
+<li>下載非可見 media → 403/404。</li>
+<li>retention_until 依 purpose 正確設定（一般 1yr / 保固 2yr）。</li>
+<li>清除 cron：過期 media 被軟刪、未過期保留。</li>
+</ul>
+<h2 id="7-風險">7. 風險</h2>
+<ul>
+<li>過度限制 →
+該看的角色看不到（緩解：規則表清楚、測試覆蓋每角色）。</li>
+<li>硬刪不可逆（緩解：HD-3 軟刪優先）。</li>
+<li>既有 media 無 retention_until → backfill（建立時間 + 預設
+1yr）。</li>
+</ul>
+<hr />
+<h2 id="8-stop_sign-human-decisions-required">8. 🛑 Human Decisions
+Required</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">#</th>
+<th>決策</th>
+<th>建議預設（依 spec Q026/Q027）</th>
+<th>業主裁決（2026-06-19）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><strong>HD-1</strong></td>
+<td>可見性模型</td>
+<td><strong>規則式過濾</strong>（purpose×role，不加欄位）</td>
+<td>✅ <strong>規則式過濾</strong></td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>HD-2</strong></td>
+<td>可見性規則（Q026）</td>
+<td>品牌不看環境照、只看成品照；會計看完工/付款必要照</td>
+<td>✅ <strong>依 spec Q026</strong></td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>HD-3</strong></td>
+<td>保存期值（Q027）</td>
+<td>一般 1 年；保固/客訴 2 年</td>
+<td>✅ <strong>一般1年、保固/客訴2年</strong></td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>HD-4</strong></td>
+<td>清除方式</td>
+<td>軟刪（deleted_at）</td>
+<td>✅ <strong>軟刪</strong></td>
+</tr>
+</tbody>
+</table>
+<h2 id="9-suggested-implementation-order裁決後">9. Suggested
+Implementation Order（裁決後）</h2>
+<ol type="1">
+<li>migration 048：media_files 加 retention_until（+ deleted_at 若 HD-4
+軟刪）+ backfill 既有（created_at + 1yr）。</li>
+<li><code>media_service</code>：list/get 加角色可見性過濾（依 HD-2
+規則表）；upload 時算 retention_until。</li>
+<li><code>media_v2</code> router：list/get 傳入 user.role；download
+套可見性檢查。</li>
+<li>清除 cron（仿 gdpr forget cron）：retention_until &lt; now 的 media
+軟刪。</li>
+<li><code>test_cr_0040_evidence_governance.py</code> component。</li>
+<li>redeploy smoke + 更新 CHANGELOG / 完成度 / 本 CR §進度。</li>
+</ol>
+<hr />
+<h2 id="10-進度">10. 進度</h2>
+<p>✅ <strong>done（2026-06-19，branch
+<code>feat/cr-0040-evidence-governance</code>）</strong>：</p>
+<ul>
+<li><strong>migration 048</strong>：media_files 加
+<code>retention_until</code> + <code>deleted_at</code> + backfill
+既有（dispute 2yr / 其餘 1yr，套 dev backfill 7 筆）+ 清除 partial
+index。</li>
+<li><strong><code>media_service</code></strong>：<code>_hidden_purposes(role)</code>
+規則表（Q026：品牌隱藏環境照 door_check/completion_before、會計隱藏
+door_check）；<code>list_media_for_work_order</code> +
+<code>get_media</code> 加 <code>role</code>
+過濾（<code>purpose &lt;&gt; ALL</code> + 排除
+<code>deleted_at</code>，不可見 → <strong>404
+不洩漏存在性</strong>）；<code>upload_media</code> 算
+<code>retention_until</code>（dispute 或 warranty WO → 2yr，其餘
+1yr）；<code>soft_delete_expired_media()</code> 清除函式。</li>
+<li><strong><code>media_v2</code> router</strong>：list/get 傳
+<code>user.role</code>。</li>
+<li><strong>cron</strong>：<code>realtime/media_retention_cron.py</code>（每日軟刪過期）+
+main.py lifespan 掛載/收尾。</li>
+<li><strong>測試</strong>
+<code>test_cr_0040_evidence_governance.py</code> <strong>6/6
+pass</strong>（品牌列表排除環境照/看得到成品照 + admin 看全部 / 品牌 get
+環境照 404 / 軟刪過期 + list 排除軟刪 + 純函式規則表 ×3）；回歸 media 19
++ 226 unit 全綠。</li>
+</ul>
+<p>⏳ <strong>follow-up</strong>：(a) 客戶端（track token）evidence
+可見性對齊；(b) 保固案 retention 已涵蓋（service_category
+warranty）；(c) 前端 evidence
+面板依角色顯示（後端已過濾，前端只是少顯示）。</p>
+</div></div></body></html>

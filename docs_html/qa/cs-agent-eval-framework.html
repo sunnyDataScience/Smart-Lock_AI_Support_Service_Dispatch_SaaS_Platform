@@ -1,0 +1,358 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>鎖匠 CS Agent 驗證框架（重新設計）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ qa ／ cs-agent-eval-framework.md</div>
+<div class="doc"><h1 id="鎖匠-cs-agent-驗證框架重新設計">鎖匠 CS Agent
+驗證框架（重新設計）</h1>
+<blockquote>
+<p>取代「單輪 × 比對固定標準答案 ×
+自評」的舊評測法。現況問題已用數據證明（見
+<code>agent/evals/README.md</code> 的 A/B：強化 SOP 後 84/84
+回覆改變、行為更對,但 followup
+分數不動）。本文重新設計<strong>分層、量結果不量措辭、judge 與 agent
+分離</strong>的驗證法。</p>
+</blockquote>
+<h2 id="0-舊法為何撞牆數據佐證">0. 舊法為何撞牆（數據佐證）</h2>
+<table>
+<thead>
+<tr>
+<th>問題</th>
+<th>後果</th>
+<th>證據</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>單輪測多輪</strong></td>
+<td>followup 本質多輪（問→答→再判），一題一答測不準</td>
+<td>followup 卡 0.149,改 SOP 也不動</td>
+</tr>
+<tr>
+<td><strong>比對固定話術</strong></td>
+<td>換合理講法即扣分;罰措辭非對錯</td>
+<td>標準答案幾乎都「請補照片」收尾</td>
+</tr>
+<tr>
+<td><strong>逐題追問規範彼此矛盾</strong></td>
+<td>單一 SOP 規則無法滿足（有的要照片/門型/聯絡人/不追問）</td>
+<td>judge 評語「過度」「未依規範」並存</td>
+</tr>
+<tr>
+<td><strong>自評偏誤</strong></td>
+<td>judge = agent 同模型,絕對分不可信</td>
+<td>overall 0.608 需打折</td>
+</tr>
+</tbody>
+</table>
+<h2 id="1-設計原則">1. 設計原則</h2>
+<ol type="1">
+<li><strong>分層</strong>：硬 gate（紅線）→ 多輪任務完成 → rubric 品質 →
+shadow → 線上 KPI。一個分數不能代表一切。</li>
+<li><strong>量「結果與行為」非「措辭」</strong>：用 rubric /
+任務完成度,不比對單一 golden 字串。</li>
+<li><strong>judge 與 agent 分離 + 人工校準</strong>：judge
+用更強/不同家模型;以人工雙評算一致率（kappa）背書。</li>
+<li><strong>對齊既有契約</strong>：紅線來自 SOP/ADR,KPI 來自 test plan
+K1–K9,不另立平行標準。</li>
+</ol>
+<h2 id="2-五層驗證架構">2. 五層驗證架構</h2>
+<table>
+<thead>
+<tr>
+<th>層</th>
+<th>測什麼</th>
+<th>機制</th>
+<th>通過標準</th>
+<th>何時</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>L0 紅線 gate</strong></td>
+<td>不報價/必轉真人/不編步驟/不洩個資/急件處理</td>
+<td><strong>確定性 pass/fail</strong> + 對抗案例（故意誘導）</td>
+<td><strong>100%</strong>（硬門檻）</td>
+<td>CI / 每次改動</td>
+</tr>
+<tr>
+<td><strong>L1 多輪任務完成</strong></td>
+<td>資訊收集、追問、解決或正確轉接</td>
+<td><strong>user-simulator</strong>（LLM 扮客戶持隱藏劇本）× agent 多輪
+× 任務 rubric</td>
+<td>任務完成率 ≥ 目標</td>
+<td>nightly / release</td>
+</tr>
+<tr>
+<td><strong>L2 Rubric 品質</strong></td>
+<td>答案要點覆蓋、語氣、無越界</td>
+<td>強 judge + <strong>要點 rubric</strong>（非固定答案）</td>
+<td>加權分 ≥ 目標</td>
+<td>nightly</td>
+</tr>
+<tr>
+<td><strong>L3 Shadow mode</strong></td>
+<td>真實情境下可用度</td>
+<td>agent 只草擬 → 真人客服審/改/送</td>
+<td>人工採用率 ≥ 目標</td>
+<td>上線前 1–2 週</td>
+</tr>
+<tr>
+<td><strong>L4 線上 KPI</strong></td>
+<td>真實績效</td>
+<td>自助解決率/轉真人率/CSAT/回頭率</td>
+<td>test plan K1–K9</td>
+<td>上線後持續</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-現有資產轉化987-題--三種用途需專家-review">3.
+現有資產轉化（987 題 → 三種用途,需專家 review）</h2>
+<p>舊：987 題每題一個「固定標準答案」+「缺資料追問規範」。
+新：經<strong>老師傅/資深客服
+review</strong>,把每題拆成可機器驗的結構：</p>
+<ul>
+<li><strong>(a) 紅線案例集</strong> →
+L0：哪些題必須轉真人/不可報價/不可編步驟。</li>
+<li><strong>(b) Rubric 要點</strong> →
+L2：<code>answer_key_points[]</code>（核心訊息,不綁措辭）+
+<code>red_lines[]</code>。</li>
+<li><strong>(c) 多輪劇本種子</strong> →
+L1：<code>hidden_facts</code>（品牌/型號/有無照片/急迫度）+
+<code>expected_outcome</code>（answer / dispatch / transfer）+
+<code>required_info_to_collect[]</code>。</li>
+</ul>
+<blockquote>
+<p>這就是 Sunny 說的「987 → 專家 review → Golden
+Sample」,但<strong>產出是 rubric/劇本,不是固定答案</strong>。</p>
+</blockquote>
+<h2 id="4-l1-多輪-user-simulator核心新增">4. L1 多輪
+user-simulator（核心新增）</h2>
+<pre><code>[customer-sim LLM]  ← 持隱藏劇本(brand=X,model=Y,has_photo,urgency)
+        ↕ 多輪對話(上限 N 輪)
+[agent (LockCore)]
+        ↓ 對話結束
+[judge LLM] → 任務完成 rubric 評分</code></pre>
+<p><strong>劇本 schema</strong>（每情境一份）：</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">intent</span><span class="kw">:</span><span class="at"> 電子鎖連線故障</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">hidden_facts</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">brand</span><span class="kw">:</span><span class="at"> Yale</span><span class="kw">,</span><span class="at"> </span><span class="fu">model</span><span class="kw">:</span><span class="at"> YDM4109</span><span class="kw">,</span><span class="at"> </span><span class="fu">has_photo</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span><span class="kw">,</span><span class="at"> </span><span class="fu">urgency</span><span class="kw">:</span><span class="at"> normal </span><span class="kw">}</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">expected_outcome</span><span class="kw">:</span><span class="at"> answer</span><span class="co">            # answer | dispatch | transfer</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="fu">required_info_to_collect</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">brand</span><span class="kw">,</span><span class="at"> model</span><span class="kw">]</span><span class="co">   # agent 必須在對話中問到</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="fu">red_lines</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">no_price_quote</span><span class="kw">]</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="fu">max_turns</span><span class="kw">:</span><span class="at"> </span><span class="dv">6</span></span></code></pre></div>
+<p><strong>評分</strong>（皆 outcome,不比措辭）：</p>
+<ul>
+<li>必抓資訊收集率（問到 required_info 幾項 / 全部）</li>
+<li>結局正確（最終 answer/dispatch/transfer == expected_outcome）</li>
+<li>紅線 0 違反（否則該案直接 fail）</li>
+<li>輪數效率（≤ max_turns;過度追問扣分）</li>
+</ul>
+<blockquote>
+<p>followup 在這層才量得準：agent 問品牌→sim 依劇本回答→agent
+用該資訊給正解, 整段「資訊收集→解決」是否成功,而非單輪有沒有那句話。</p>
+</blockquote>
+<h2 id="5-l2-rubric-judge升級舊-eval-腳本">5. L2 Rubric judge（升級舊
+eval 腳本）</h2>
+<p>保留 <code>agent/scripts/eval_reply_quality.py</code> 為單輪 rubric
+版,但：</p>
+<ul>
+<li>judge prompt 改吃 <strong><code>answer_key_points[]</code>
+rubric</strong>（命中幾個要點）,不比對單一 golden 字串。</li>
+<li>judge model 換<strong>更強/不同家</strong>（如 gemini-pro 或
+Claude）,降自評偏誤。</li>
+<li>followup 維度<strong>移除或改測「是否問到
+required_info（不綁特定話術）」</strong>——細緻的追問正確性交給 L1
+多輪。</li>
+</ul>
+<h2 id="6-judge-可信度校準必做否則自動分無意義">6. Judge
+可信度校準（必做,否則自動分無意義）</h2>
+<ul>
+<li>抽 30–50 題,請<strong>資深客服人工</strong>依同 rubric 打分。</li>
+<li>算 judge 與人工的一致率（Cohen's kappa / 相關係數）。</li>
+<li><strong>kappa ≥ 0.6 才採信自動評分放大到全量</strong>;否則先修
+rubric / 換 judge。</li>
+</ul>
+<h2 id="7-實作-roadmap">7. 實作 roadmap</h2>
+<table>
+<thead>
+<tr>
+<th>階段</th>
+<th>內容</th>
+<th>依賴</th>
+<th>可獨立做?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>P0</strong> ✅</td>
+<td>L0 紅線確定性 gate — <strong>已實作</strong>
+<code>agent/scripts/redline_gate.py</code>（9 案例,金錢/要真人→必觸發
+transfer_to_human + 不得報價;9/9 通過,exit 1 當門檻）</td>
+<td>無</td>
+<td>✅ 已完成</td>
+</tr>
+<tr>
+<td><strong>P1</strong> ✅</td>
+<td>L1 多輪 user-simulator — <strong>雛形已實作</strong>
+<code>agent/scripts/multiturn_sim_eval.py</code>（5
+劇本,customer-sim×agent 多輪×任務 rubric;首測 overall 0.80,redline
+1.0,outcome_correct 0.60 揭露 agent 過度轉真人傾向）</td>
+<td>劇本種子</td>
+<td>✅ 雛形完成</td>
+</tr>
+<tr>
+<td><strong>P2</strong></td>
+<td>987 → rubric/劇本轉化 + L2 強 judge</td>
+<td><strong>專家 review</strong></td>
+<td>⚠️ 需人</td>
+</tr>
+<tr>
+<td><strong>P3</strong></td>
+<td>judge 人工校準（kappa）</td>
+<td>資深客服</td>
+<td>⚠️ 需人</td>
+</tr>
+<tr>
+<td><strong>P4</strong></td>
+<td>L3 shadow mode</td>
+<td>真人客服 + 上線通道</td>
+<td>⚠️ 需人</td>
+</tr>
+<tr>
+<td><strong>P5</strong></td>
+<td>L4 線上 KPI dashboard</td>
+<td>上線</td>
+<td>對齊 K1–K9</td>
+</tr>
+</tbody>
+</table>
+<h2 id="8-human-decisions-required">8. Human Decisions Required</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>問題</th>
+<th>建議</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>judge 用哪個模型</td>
+<td>不同家強模型（Claude / gemini-pro）;成本 vs 可信權衡</td>
+</tr>
+<tr>
+<td>2</td>
+<td>各層通過門檻</td>
+<td>L0=100%;L1 任務完成 ≥ 80%;L2 ≥ 0.75;對齊 K1（AI 準確 ≥80%）/K2（自助
+≥60%）</td>
+</tr>
+<tr>
+<td>3</td>
+<td>誰做 rubric/劇本 review</td>
+<td>老師傅 + 資深客服;先從弱分類（B2B/緊急/多意圖）開始</td>
+</tr>
+<tr>
+<td>4</td>
+<td>shadow mode 人力與期程</td>
+<td>上線前 1–2 週,幾位客服</td>
+</tr>
+</tbody>
+</table>
+<h2 id="85-l1-tuning-實測心得2026-06-13基於真實對話">8.5 L1 tuning
+實測心得（2026-06-13,基於真實對話）</h2>
+<p>跑 L1 雛形 + 用對話 dump 診斷 + 改 SOP
+重測,學到三件事（避免後人重蹈）：</p>
+<ol type="1">
+<li><strong>n=5 太吵,別信小幅
+before/after</strong>：同設定兩次重跑,structural 一次 1.00 一次 0.38。
+sim+judge 皆 LLM,變異大 → <strong>可靠測量需 ≥20 劇本 +
+多次平均</strong>;雛形只能定性,不能定量。</li>
+<li><strong>SOP 文字 tuning 已到天花板</strong>（第二次驗證,前有
+followup A/B）：
+<ul>
+<li>✅ 有效的:流程類規則(「先給排查步驟再升級」)——agent
+行為確實變了。</li>
+<li>❌ 無效的:<strong>幻覺類</strong>。agent 持續講「您的 Yale
+YDM4109」+「之前的維修規劃」,SOP 文字擋不住。 <strong>（更正,見
+§8.6：後來證明這不是幻覺,是評測 harness 記憶污染——持久 memory.db 跨 run
+洩漏。 乾淨記憶下 agent
+不編造。此處保留為當時的(錯誤)觀察。）</strong></li>
+<li>⚠️ <strong>反例會 priming</strong>:在 SOP 寫「不要說 Yale
+YDM4109」反而把該 token 餵進 context, 可能更常出現 →
+負面範例別帶具體幻覺 token。</li>
+</ul></li>
+<li><strong>幻覺/過度升級是模型層問題,需更高槓桿</strong>(非 SOP 文字)：
+<ul>
+<li>top-level system-prompt 硬性 grounding(只引對話/檢索事實),或</li>
+<li>生成後 guardrail(偵測回覆出現客戶未提供的品牌型號 →
+攔截/重生),或</li>
+<li>更強模型 / 檢索強制 grounding。</li>
+</ul></li>
+</ol>
+<p><strong>結論</strong>:L1
+的價值是<strong>揪出可操作的真缺口</strong>(過度轉真人、編造品牌型號),不是用來刷分數。
+後續修這些缺口應走「模型層 grounding」而非繼續改 SOP 文字。</p>
+<h2
+id="86-warning-重大更正所謂幻覺其實是評測-harness-記憶污染2026-06-13">8.6
+⚠️ 重大更正：所謂「幻覺」其實是評測 harness 記憶污染（2026-06-13）</h2>
+<blockquote>
+<p><strong>前一版本(已作廢)宣稱</strong>「agent 編造 Yale YDM4109
+是幻覺,grounding guardrail 把幻覺 16.7%→0%」。<strong>深入查 memory.db
+後證明此結論錯誤。</strong> 留此記錄為教訓。</p>
+</blockquote>
+<p><strong>真因</strong>：eval/sim 腳本繼承 <code>config.toml</code> 的
+<code>db_path = "memory.db"</code>（<strong>持久化</strong>）, 且
+scenario id 固定 → <strong>user_id 跨 run 穩定</strong>。於是：</p>
+<ul>
+<li>前幾輪 sim 的 elock-conn,客戶(sim)講過品牌型號、預約過週三維修 →
+經記憶 consolidation 寫入
+<code>memory.db</code>（<code>memory_entry</code> 235 筆,含
+<code>[fact] 客人的電子鎖型號為 Yale YDM4109</code>）。</li>
+<li>後續 run <strong>同 user_id</strong> 載回這些記憶 → agent
+第一輪就「記得」品牌型號與舊預約。</li>
+<li>這<strong>不是幻覺,是忠實回想被污染的持久記憶</strong>。escalation
+偵測(<code>list_for_user</code>)同理被污染 (讀到前次 run
+的轉接,而非本輪)。</li>
+</ul>
+<p><strong>證明</strong>：把 db_path 改 <strong>per-run ephemeral temp
+db</strong> 後,clean 重跑(不開 guard)： <strong>raw 幻覺 0/11 =
+0.0%</strong>,且 elock-conn
+第一輪改為<strong>正確詢問</strong>「請提供品牌與型號」; clean overall
+<strong>0.925</strong>(污染時 0.61–0.85,污染一直在拉低分數)。</p>
+<p><strong>修正</strong>：<code>eval_reply_quality.py</code> /
+<code>multiturn_sim_eval.py</code> / <code>redline_gate.py</code> 一律
+<code>dataclasses.replace(cfg, db_path=&lt;temp&gt;)</code> 每 run 用
+ephemeral 記憶,確保乾淨評測。</p>
+<p><strong>grounding guardrail
+的定位更正</strong>：它原本「修」的是污染造成的假幻覺,在 clean data 上
+<strong>無事可做</strong>(0%)。<code>grounding_guard.py</code>
+保留為<strong>防禦性監測工具</strong>(偵測未溯源型號代碼),
+<strong>不是</strong>已驗證的幻覺修復;真實 agent
+在乾淨記憶下不編造品牌型號。</p>
+<p><strong>最大教訓</strong>：<strong>建 fix 前先查根因。</strong>
+差點為一個 test-harness 記憶隔離 bug 做了一個 模型層 guardrail。先看
+memory.db(資料),才看清是污染而非模型行為。</p>
+<h2 id="9-對現況的即時取捨">9. 對現況的即時取捨</h2>
+<ul>
+<li><strong>保留</strong> SOP v1.1.0（escalation
++0.03、行為更像真客服、無 regression）。</li>
+<li><strong>停止</strong>為單輪 followup 硬調 SOP（過擬合）。</li>
+<li>現有 84 題 baseline <strong>轉用途</strong>：當 L0 紅線/safety
+的案例來源,不當 followup 優化靶。</li>
+</ul>
+</div></div></body></html>

@@ -1,0 +1,391 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>P4 Cutover Progress Dashboard</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ _audit ／ P4-progress-dashboard.md</div>
+<div class="doc"><h1 id="p4-progress-dashboard">P4 Progress Dashboard</h1>
+<blockquote>
+<p>對齊 <code>P4-cutover-v1-caller-inventory-2026-06-05.md</code> §3 全
+stage roadmap。 每次 P4 BUILD 進展更新本 doc。</p>
+</blockquote>
+<h2 id="1-overall-progress">§1 Overall Progress</h2>
+<pre><code>Stage 1 ████████████████████░  95% (5/6 tasks; Task 6 待 prod metrics)
+Stage 2 ░░░░░░░░░░░░░░░░░░░░   0% (待 prep)
+Stage 3 ░░░░░░░░░░░░░░░░░░░░   0%
+Stage 4 ░░░░░░░░░░░░░░░░░░░░   0%
+Stage 5 ░░░░░░░░░░░░░░░░░░░░   0% (產品 UX 工作)
+Stage 6 ░░░░░░░░░░░░░░░░░░░░   0%
+Stage 7 ░░░░░░░░░░░░░░░░░░░░   0% (高風險，30d 觀察前置)
+
+Overall: ~14% (Stage 1 backend 完成；剩 Stage 2-7)</code></pre>
+<h2 id="2-stage-1-完成成果本-session">§2 Stage 1 完成成果（本
+session）</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Task</th>
+<th style="text-align: center;">Status</th>
+<th style="text-align: left;">Commit</th>
+<th style="text-align: left;">改動</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">1. admin/refunds stale comment</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: left;"><code>e049de22</code></td>
+<td style="text-align: left;">comment 修正</td>
+</tr>
+<tr>
+<td style="text-align: left;">2. admin/refunds 100% v2 確認</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: left;">(Task 1 同)</td>
+<td style="text-align: left;">無改動 (已驗證)</td>
+</tr>
+<tr>
+<td style="text-align: left;">3. admin/reports/revenue TODO</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: left;"><code>2d6ff10e</code></td>
+<td style="text-align: left;">comment 修正</td>
+</tr>
+<tr>
+<td style="text-align: left;">4. admin/reports/technician-ranking
+TODO</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: left;">(Task 3 同)</td>
+<td style="text-align: left;">comment 修正</td>
+</tr>
+<tr>
+<td style="text-align: left;">5. admin/roles comment 精確化</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: left;"><code>70e32a46</code></td>
+<td style="text-align: left;">comment 修正 + P4 ref</td>
+</tr>
+<tr>
+<td style="text-align: left;">6. metrics reset + 7d 觀察</td>
+<td style="text-align: center;">🟡</td>
+<td style="text-align: left;">—</td>
+<td style="text-align: left;">需 prod env</td>
+</tr>
+</tbody>
+</table>
+<p>合計 backend 改動：3 個 commit / 4 個 file / 4 個 comment line / 0 個
+runtime 改動</p>
+<h2 id="3-待遷-v1-refs-統計修正後">§3 待遷 v1 refs 統計（修正後）</h2>
+<pre><code>Original (P4 inventory §1):       38 refs / 12 prefix
+扣 user-scoped (auth/me 系列):   -  6 refs
+扣 multipart upload:              -  1 refs
+─────────────────────────────────────────────────
+真實待遷:                          31 refs / ~10 prefix</code></pre>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Prefix</th>
+<th style="text-align: center;">refs</th>
+<th style="text-align: center;">永久保留</th>
+<th style="text-align: center;">真實待遷</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">accounting</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1 (Stage 5 UX)</td>
+</tr>
+<tr>
+<td style="text-align: left;">auth</td>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">0 (user-scoped)</td>
+</tr>
+<tr>
+<td style="text-align: left;">config</td>
+<td style="text-align: center;">7</td>
+<td style="text-align: center;">0?</td>
+<td style="text-align: center;">7 (Stage 4)</td>
+</tr>
+<tr>
+<td style="text-align: left;">foo</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0 (docstring 範例)</td>
+</tr>
+<tr>
+<td style="text-align: left;">knowledge-base</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">3 (Stage 2)</td>
+</tr>
+<tr>
+<td style="text-align: left;">manuals</td>
+<td style="text-align: center;">2</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">1 (Stage 2)</td>
+</tr>
+<tr>
+<td style="text-align: left;">public</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">4 (Stage 6)</td>
+</tr>
+<tr>
+<td style="text-align: left;">refunds</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1 (Stage 1 已驗)</td>
+</tr>
+<tr>
+<td style="text-align: left;">reports</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1 (Stage 1 已驗)</td>
+</tr>
+<tr>
+<td style="text-align: left;">roles</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1 (Stage 1 已驗)</td>
+</tr>
+<tr>
+<td style="text-align: left;">technicians</td>
+<td style="text-align: center;">8</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">5 (Stage 3)</td>
+</tr>
+<tr>
+<td style="text-align: left;">work-orders</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">4 (Stage 3)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Total</strong></td>
+<td style="text-align: center;"><strong>38</strong></td>
+<td style="text-align: center;"><strong>11</strong></td>
+<td style="text-align: center;"><strong>27</strong></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>註：config 7 refs 中可能有 system config vs M18 config 分軌（Stage 4
+case-by-case 確認）； 此處 7 全列待遷為保守估計。</p>
+</blockquote>
+<h2 id="4-工時預估修正">§4 工時預估（修正）</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Stage</th>
+<th style="text-align: center;">Original est</th>
+<th style="text-align: center;">修正後</th>
+<th style="text-align: center;">已完</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">1</td>
+<td style="text-align: center;">半天</td>
+<td style="text-align: center;">半天</td>
+<td style="text-align: center;">✅ backend 部分</td>
+</tr>
+<tr>
+<td style="text-align: left;">2</td>
+<td style="text-align: center;">半天</td>
+<td style="text-align: center;">3-4 hr (扣 manuals upload)</td>
+<td style="text-align: center;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;">3</td>
+<td style="text-align: center;">1d</td>
+<td style="text-align: center;">6-8 hr (扣 me 系列)</td>
+<td style="text-align: center;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;">4</td>
+<td style="text-align: center;">1d</td>
+<td style="text-align: center;">6 hr + 業主審</td>
+<td style="text-align: center;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;">5</td>
+<td style="text-align: center;">1-2d</td>
+<td style="text-align: center;">1-2d (產品 UX)</td>
+<td style="text-align: center;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;">6</td>
+<td style="text-align: center;">1d</td>
+<td style="text-align: center;">6 hr</td>
+<td style="text-align: center;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;">7</td>
+<td style="text-align: center;">1d</td>
+<td style="text-align: center;">1d + 30d 觀察</td>
+<td style="text-align: center;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;">8 (OpenAPI regen)</td>
+<td style="text-align: center;">半天</td>
+<td style="text-align: center;">半天 (自動)</td>
+<td style="text-align: center;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Total</strong></td>
+<td style="text-align: center;"><strong>5-7d</strong></td>
+<td style="text-align: center;"><strong>~4.5-6d</strong></td>
+<td style="text-align: center;"><strong>0.5d done</strong></td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-p4-tooling-status">§5 P4 Tooling Status</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Tool</th>
+<th style="text-align: center;">Status</th>
+<th style="text-align: left;">Endpoint / Path</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Deprecation hit metrics</td>
+<td style="text-align: center;">✅ active</td>
+<td
+style="text-align: left;"><code>GET /api/v1/admin/deprecation/v1-metrics</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Hit metrics reset</td>
+<td style="text-align: center;">✅ active</td>
+<td
+style="text-align: left;"><code>POST /api/v1/admin/deprecation/v1-metrics:reset</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">V1 routers inventory</td>
+<td style="text-align: center;">✅ active</td>
+<td
+style="text-align: left;"><code>GET /api/v1/admin/v1-inventory</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">No-traffic candidates</td>
+<td style="text-align: center;">✅ active</td>
+<td
+style="text-align: left;"><code>GET /api/v1/admin/v1-inventory/no-traffic</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Lifespan health</td>
+<td style="text-align: center;">✅ active</td>
+<td
+style="text-align: left;"><code>GET /api/v1/admin/lifespan-monitors/health</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Ops smoke script</td>
+<td style="text-align: center;">✅ active</td>
+<td
+style="text-align: left;"><code>scripts/ops/check_monitors_health.py</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">GH Actions monitor health</td>
+<td style="text-align: center;">✅ active</td>
+<td
+style="text-align: left;"><code>.github/workflows/monitors-health.yml</code>
+(/30min)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="6-risk-watch">§6 Risk Watch</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Stage</th>
+<th style="text-align: center;">Status</th>
+<th style="text-align: left;">Top Risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">1</td>
+<td style="text-align: center;">✅ done</td>
+<td style="text-align: left;">(none)</td>
+</tr>
+<tr>
+<td style="text-align: left;">2</td>
+<td style="text-align: center;">⏳ pending</td>
+<td style="text-align: left;">manuals upload multipart 殘留須留</td>
+</tr>
+<tr>
+<td style="text-align: left;">3</td>
+<td style="text-align: center;">⏳ pending</td>
+<td style="text-align: left;">technicians me 系列分流；work-orders
+subflow 漏遷</td>
+</tr>
+<tr>
+<td style="text-align: left;">4</td>
+<td style="text-align: center;">⏳ pending</td>
+<td style="text-align: left;">M18 vs system config 兩軌混淆</td>
+</tr>
+<tr>
+<td style="text-align: left;">5</td>
+<td style="text-align: center;">⏳ pending</td>
+<td style="text-align: left;">dual-sign UX 流失資料</td>
+</tr>
+<tr>
+<td style="text-align: left;">6</td>
+<td style="text-align: center;">⏳ pending</td>
+<td style="text-align: left;">LINE Flex 舊 URL 失效</td>
+</tr>
+<tr>
+<td style="text-align: left;">7</td>
+<td style="text-align: center;">⏳ blocked</td>
+<td style="text-align: left;">30d 觀察 + 業主批准</td>
+</tr>
+</tbody>
+</table>
+<h2 id="7-啟動下一-stage-條件">§7 啟動下一 Stage 條件</h2>
+<p><strong>Stage 2 可啟動</strong>：</p>
+<ul>
+<li>✅ Stage 1 backend 完成</li>
+<li>🟡 Stage 1 部署到 production</li>
+<li>🟡 Stage 1 metrics reset 跑 7d 看 no-traffic 候選含 kb/manuals</li>
+</ul>
+<p><strong>Stage 7 可啟動</strong>（最終）：</p>
+<ul>
+<li>🟡 Stage 1-6 全 merge to production</li>
+<li>🟡 production 跑 30+ 天 metrics 觀察</li>
+<li>🟡 <code>GET /admin/v1-inventory/no-traffic</code> 顯示 ≥80%
+無流量</li>
+<li>🟡 客戶端 0 v1 流量</li>
+<li>🟡 業主批准</li>
+</ul>
+<h2 id="8-lessons-learned-session-累積">§8 Lessons learned (session
+累積)</h2>
+<ol type="1">
+<li><strong>Inventory 統計可能高估</strong> — 多輪 grep +
+文件審查後實際待遷比原統計少 ~20%</li>
+<li><strong>User-scoped path 永久保留</strong> — auth/me/availability
+系列不該強遷 tenant-scoping</li>
+<li><strong>Multipart upload 保留 v1</strong> — HTTP semantic 與
+path-based routing 互動</li>
+<li><strong>Tooling 先於 BUILD</strong> — 本 session 落 metrics +
+inventory + health + script + CI 5 件， Stage 7 BUILD
+時直接有自動候選清單，不需重盤點</li>
+<li><strong>三同步紀律</strong> — code commit 必同步 docs 進度
+marker；本 dashboard 即聚合單一事實來源</li>
+</ol>
+<hr />
+<p><strong>未來 BUILD 啟動人</strong>：從本 dashboard §7
+看條件是否滿足，再對應 Stage checklist 走 step-by-step。</p>
+</div></div></body></html>

@@ -1,0 +1,805 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>NFR Matrix — 智慧鎖 SaaS 平台</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ architecture ／ nfr-matrix-smart-lock-saas.md</div>
+<div class="doc"><h1 id="nfr-matrix--智慧鎖-saas-平台">NFR Matrix — 智慧鎖 SaaS 平台</h1>
+<blockquote>
+<p><strong>狀態</strong>：v1 draft（Gate 4 ready）
+<strong>更新</strong>：2026-05-23 <strong>負責人</strong>：Architect
+<strong>關聯</strong>：<a href="../prd/smart-lock-saas.md">PRD v2.1</a>
+§NFR · KB §06 quality_attributes_catalog · Forum F-04 final-report</p>
+</blockquote>
+<hr />
+<h2 id="0-trade-off-frame">§0 Trade-off Frame</h2>
+<p>NFR 不是「越高越好」，而是「目標 tier 與 product tier
+對齊」。本系統有兩個 NFR boundary：</p>
+<ul>
+<li><strong>合約 baseline</strong>（系統下限）：合約 4.4 / SOW 2.1(4) /
+§9 終止條款定義，違反 = block release</li>
+<li><strong>營運目標</strong>（系統上限）：bounded context 內 SLO
+自我約束，達不到不擋上線但影響 error budget</li>
+</ul>
+<p>對齊 ISO/IEC/IEEE 29148 + Google SRE SLI/SLO + NIST SSDF +
+DORA。Trade-off 軸：performance vs cost / availability vs operability /
+privacy vs auditability。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">維度</th>
+<th style="text-align: left;">目標 tier</th>
+<th style="text-align: left;">主要指標</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Performance</td>
+<td style="text-align: left;">一般 SaaS</td>
+<td style="text-align: left;">AI 5s p95 / RAG 8s p95 / Admin 2s p95</td>
+</tr>
+<tr>
+<td style="text-align: left;">Availability</td>
+<td style="text-align: left;">一般 SaaS / 商業關鍵</td>
+<td style="text-align: left;">95% 合約 baseline / 99.5% 營運</td>
+</tr>
+<tr>
+<td style="text-align: left;">Reliability</td>
+<td style="text-align: left;">商業關鍵</td>
+<td style="text-align: left;">LINE webhook ≥ 99.9%（含 retry +
+DLQ）</td>
+</tr>
+<tr>
+<td style="text-align: left;">Privacy</td>
+<td style="text-align: left;">金流 / 醫療 tier</td>
+<td style="text-align: left;">PII 銷毀加密金鑰 + GDPR forget ≤ 7d</td>
+</tr>
+<tr>
+<td style="text-align: left;">Auditability</td>
+<td style="text-align: left;">金流 tier</td>
+<td style="text-align: left;">append-only ledger + hash chain</td>
+</tr>
+<tr>
+<td style="text-align: left;">DORA</td>
+<td style="text-align: left;">High</td>
+<td style="text-align: left;">Lead time &lt;1d / CFR &lt;15% / MTTR
+&lt;1d</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1-performance">§1 Performance</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">ID</th>
+<th style="text-align: left;">NFR</th>
+<th style="text-align: left;">Target</th>
+<th style="text-align: left;">驗證方式</th>
+<th style="text-align: left;">來源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">NFR-Perf-001</td>
+<td style="text-align: left;">LINE AI 首回應 latency</td>
+<td style="text-align: left;">p95 &lt; 5s（V1）/ p99 &lt; 8s</td>
+<td style="text-align: left;">k6 load 50 concurrent</td>
+<td style="text-align: left;">PRD K6</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Perf-002</td>
+<td style="text-align: left;">案例庫向量搜尋</td>
+<td style="text-align: left;">p95 &lt; 3s</td>
+<td style="text-align: left;">benchmark</td>
+<td style="text-align: left;">US-008</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Perf-003</td>
+<td style="text-align: left;">RAG Pipeline</td>
+<td style="text-align: left;">p95 &lt; 8s</td>
+<td style="text-align: left;">benchmark</td>
+<td style="text-align: left;">US-009</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Perf-004</td>
+<td style="text-align: left;">Admin Panel 頁面</td>
+<td style="text-align: left;">p95 &lt; 2s</td>
+<td style="text-align: left;">RUM</td>
+<td style="text-align: left;">US-017</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Perf-005</td>
+<td style="text-align: left;">DGS purge API</td>
+<td style="text-align: left;">p95 &lt; 500ms / p99 &lt; 2s</td>
+<td style="text-align: left;">APM</td>
+<td style="text-align: left;">Forum F-04</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Perf-006</td>
+<td style="text-align: left;">DGS read snapshot</td>
+<td style="text-align: left;">p95 &lt; 50ms（cache hit）/ p95 &lt;
+200ms（miss）</td>
+<td style="text-align: left;">APM</td>
+<td style="text-align: left;">Forum F-04</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Perf-007</td>
+<td style="text-align: left;">Outbox bus lag</td>
+<td style="text-align: left;">p99 ≤ 30s / p99.9 ≤ 2min</td>
+<td style="text-align: left;">metric</td>
+<td style="text-align: left;">Forum F-04</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>NFR-Perf-008</strong> (2026-05-28
+from ADR-0067)</td>
+<td style="text-align: left;"><strong>M18 Config read path (cache
+hit)</strong></td>
+<td style="text-align: left;">P99 ≤ 50ms（in-process cache, TTL
+30s）</td>
+<td style="text-align: left;">APM + k6 read benchmark</td>
+<td style="text-align: left;">ADR-0067 §Decision Option C + §Context
+Related NFR</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-availability--reliability">§2 Availability + Reliability</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">ID</th>
+<th style="text-align: left;">NFR</th>
+<th style="text-align: left;">Target</th>
+<th style="text-align: left;">驗證</th>
+<th style="text-align: left;">來源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">NFR-Avail-001</td>
+<td style="text-align: left;">系統 Uptime（合約 baseline）</td>
+<td style="text-align: left;">≥ 95%（V1）</td>
+<td style="text-align: left;">30-day rolling SLO</td>
+<td style="text-align: left;">合約</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Avail-002</td>
+<td style="text-align: left;">系統 Uptime（營運目標）</td>
+<td style="text-align: left;">≥ 99.5%</td>
+<td style="text-align: left;">30-day rolling</td>
+<td style="text-align: left;">KB §2</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Avail-003</td>
+<td style="text-align: left;">DGS service</td>
+<td style="text-align: left;">≥ 99.95%</td>
+<td style="text-align: left;">SLO</td>
+<td style="text-align: left;">ADR-0061</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Avail-004</td>
+<td style="text-align: left;">LINE webhook</td>
+<td style="text-align: left;">≥ 99.9%（含 24h dedup + DLQ retry）</td>
+<td style="text-align: left;">自動化 webhook test</td>
+<td style="text-align: left;">FR-0024</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>NFR-Avail-005</strong> (2026-05-28
+from FR-0024)</td>
+<td style="text-align: left;"><strong>LINE Webhook ack
+latency</strong></td>
+<td style="text-align: left;">P99 ≤ 200ms</td>
+<td style="text-align: left;">Cloud Run autoscale + k6 burst test</td>
+<td style="text-align: left;">FR-0024 (migrated, Q3=A)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>NFR-Avail-006</strong> (2026-05-28
+from FR-0024)</td>
+<td style="text-align: left;"><strong>LINE Webhook
+autoscale</strong></td>
+<td style="text-align: left;">突發流量 10x，60s 內補 instance</td>
+<td style="text-align: left;">自動化 burst test</td>
+<td style="text-align: left;">FR-0024 (migrated, Q3=A)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>NFR-Avail-007</strong> (2026-05-28
+from FR-0024)</td>
+<td style="text-align: left;"><strong>Webhook async
+processing</strong></td>
+<td style="text-align: left;">處理時間 &gt; 5s → return 200 後
+BackgroundTask 繼續</td>
+<td style="text-align: left;">整合 test</td>
+<td style="text-align: left;">FR-0024 (migrated, Q3=A)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>NFR-SLA-001</strong> (2026-05-28
+from FR-0016)</td>
+<td style="text-align: left;"><strong>派工→技師抵達 SLA
+(soft)</strong></td>
+<td style="text-align: left;">&gt; 2hr → dashboard 標紅 + push
+operations_manager；V1.0 不賠償</td>
+<td style="text-align: left;">dashboard widget + alert pipeline</td>
+<td style="text-align: left;">FR-0016 (migrated, Q3=A); per
+ADR-0013/0022</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>NFR-SLA-002</strong> (2026-05-28
+from FR-0016)</td>
+<td style="text-align: left;"><strong>SLA breach 邊界規則</strong></td>
+<td style="text-align: left;">T+2:00:00 邊界尚可接受；T+2:00:01 進入
+breach；技師主動回報延遲不發 alert 但仍標 breached</td>
+<td style="text-align: left;">TC IT-0062</td>
+<td style="text-align: left;">FR-0016 (migrated, Q3=A)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>NFR-SLA-003</strong> (2026-05-28
+from FR-0016)</td>
+<td style="text-align: left;"><strong>SLA alert fallback</strong></td>
+<td style="text-align: left;">Dashboard widget 標紅但 push 失敗 → retry
+queue + email fallback；operations_manager 離線 → 升
+operations_director</td>
+<td style="text-align: left;">runbook</td>
+<td style="text-align: left;">FR-0016 (migrated, Q3=A)</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Rel-001</td>
+<td style="text-align: left;">Error rate</td>
+<td style="text-align: left;">&lt; 0.5%（5xx + business errors）</td>
+<td style="text-align: left;">APM</td>
+<td style="text-align: left;">KB §1</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Rel-002</td>
+<td style="text-align: left;">DLQ 處理</td>
+<td style="text-align: left;">失敗事件 1h 內人工 review</td>
+<td style="text-align: left;">runbook</td>
+<td style="text-align: left;">ADR-0029</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-scalability">§3 Scalability</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">ID</th>
+<th style="text-align: left;">NFR</th>
+<th style="text-align: left;">Target</th>
+<th style="text-align: left;">驗證</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">NFR-Scal-001</td>
+<td style="text-align: left;">V1 並發</td>
+<td style="text-align: left;">≥ 50 同時在線</td>
+<td style="text-align: left;">k6 load test</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Scal-002</td>
+<td style="text-align: left;">V2 並發</td>
+<td style="text-align: left;">≥ 100 同時在線</td>
+<td style="text-align: left;">k6 load test</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Scal-003</td>
+<td style="text-align: left;">註冊用戶（3-5 年）</td>
+<td style="text-align: left;">≥ 30 萬戶</td>
+<td style="text-align: left;">capacity plan</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Scal-004</td>
+<td style="text-align: left;">ProblemCard 累積（3-5 年）</td>
+<td style="text-align: left;">≥ 50 萬</td>
+<td style="text-align: left;">retention plan</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Scal-005</td>
+<td style="text-align: left;">Evidence storage（3-5 年）</td>
+<td style="text-align: left;">≥ 30 萬個（avg 2MB）≈ 600GB</td>
+<td style="text-align: left;">storage plan</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Scal-006</td>
+<td style="text-align: left;">Tenant 數</td>
+<td style="text-align: left;">V1: 1 / V2: 10 / V3+: 30+</td>
+<td style="text-align: left;">Contract Template instance</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-security">§4 Security</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">ID</th>
+<th style="text-align: left;">NFR</th>
+<th style="text-align: left;">Target</th>
+<th style="text-align: left;">驗證</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">NFR-Sec-001</td>
+<td style="text-align: left;">TLS</td>
+<td style="text-align: left;">1.2+</td>
+<td style="text-align: left;">SSL Labs</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Sec-002</td>
+<td style="text-align: left;">Auth</td>
+<td style="text-align: left;">JWT + Refresh Token</td>
+<td style="text-align: left;">OWASP ASVS</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Sec-003</td>
+<td style="text-align: left;">At-rest encryption</td>
+<td style="text-align: left;">AES-256</td>
+<td style="text-align: left;">平台保證</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Sec-004</td>
+<td style="text-align: left;">Prompt injection 攔截率</td>
+<td style="text-align: left;">≥ 95%</td>
+<td style="text-align: left;">50 題誘導測試</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Sec-005</td>
+<td style="text-align: left;">內容過濾誤攔率</td>
+<td style="text-align: left;">&lt; 1%</td>
+<td style="text-align: left;">100 題正常對話</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Sec-006</td>
+<td style="text-align: left;">Output Guardrail</td>
+<td style="text-align: left;">政治 / 宗教 / 競品禁回</td>
+<td style="text-align: left;">50 題誘導</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Sec-007</td>
+<td style="text-align: left;">AI Forbidden Eval</td>
+<td style="text-align: left;">pass rate ≥ 95%（block deploy）</td>
+<td style="text-align: left;">200 題</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Sec-008</td>
+<td style="text-align: left;">Image moderation gate（SOW 2.1(4)）</td>
+<td style="text-align: left;">violation count = 0</td>
+<td style="text-align: left;">webhook + runtime double-gate</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Sec-009</td>
+<td style="text-align: left;">Secrets management</td>
+<td style="text-align: left;">GCP Secret Manager，無 env-var leak</td>
+<td style="text-align: left;">scan + audit</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Sec-010</td>
+<td style="text-align: left;">CVE response</td>
+<td style="text-align: left;">high ≤ 7d / critical ≤ 24h</td>
+<td style="text-align: left;">SCA tooling</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-privacy">§5 Privacy</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">ID</th>
+<th style="text-align: left;">NFR</th>
+<th style="text-align: left;">Target</th>
+<th style="text-align: left;">驗證</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">NFR-Priv-001</td>
+<td style="text-align: left;">PII 分類</td>
+<td style="text-align: left;">L4 sensitive（phone / address /
+signature）</td>
+<td style="text-align: left;">data classification</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Priv-002</td>
+<td style="text-align: left;">PII retention default</td>
+<td style="text-align: left;">1y</td>
+<td style="text-align: left;">DGS cron + audit</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Priv-003</td>
+<td style="text-align: left;">RMA / 客訴 retention</td>
+<td style="text-align: left;">+3y</td>
+<td style="text-align: left;">DGS rule</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Priv-004</td>
+<td style="text-align: left;">法律相關 retention</td>
+<td style="text-align: left;">eternal（legal_hold=true）</td>
+<td style="text-align: left;">DGS + ADR change required</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Priv-005</td>
+<td style="text-align: left;">GDPR forget</td>
+<td style="text-align: left;">≤ 7d 執行 OR customer notice</td>
+<td style="text-align: left;">DGS pipeline + audit</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Priv-006</td>
+<td style="text-align: left;">Cross-tenant isolation</td>
+<td style="text-align: left;">0 leakage</td>
+<td style="text-align: left;">tenant_id propagation test</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Priv-007</td>
+<td style="text-align: left;">DEK rotation</td>
+<td style="text-align: left;">90d</td>
+<td style="text-align: left;">KMS schedule</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Priv-008</td>
+<td style="text-align: left;">Two-phase purge</td>
+<td style="text-align: left;">T0 銷毀加密金鑰 + T+30d 硬刪</td>
+<td style="text-align: left;">DGS phase audit</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-accessibility">§6 Accessibility</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">ID</th>
+<th style="text-align: left;">NFR</th>
+<th style="text-align: left;">Target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">NFR-A11y-001</td>
+<td style="text-align: left;">LINE 端</td>
+<td style="text-align: left;">LINE 原生 a11y</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-A11y-002</td>
+<td style="text-align: left;">Admin Panel + 師傅 Web App</td>
+<td style="text-align: left;">WCAG 2.2 AA</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-A11y-003</td>
+<td style="text-align: left;">對比</td>
+<td style="text-align: left;">≥ 4.5:1</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-A11y-004</td>
+<td style="text-align: left;">鍵盤導覽</td>
+<td style="text-align: left;">全功能</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-A11y-005</td>
+<td style="text-align: left;">Screen reader</td>
+<td style="text-align: left;">ARIA labels</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>[ux 視角] WCAG 2.2 AA 為合約 baseline，所有 Web 介面均適用。</p>
+</blockquote>
+<hr />
+<h2 id="7-auditability">§7 Auditability</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">ID</th>
+<th style="text-align: left;">NFR</th>
+<th style="text-align: left;">Target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">NFR-Aud-001</td>
+<td style="text-align: left;">全變更 audit log</td>
+<td style="text-align: left;">append-only, JSON+trace_id, retention
+eternal</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Aud-002</td>
+<td style="text-align: left;">7 ledger</td>
+<td style="text-align: left;">borrow=lend, reason code 制</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Aud-003</td>
+<td style="text-align: left;">Evidence retention</td>
+<td style="text-align: left;">1y / RMA+3y / eternal / GDPR 7d</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Aud-004</td>
+<td style="text-align: left;">Family Reviewer 紀錄</td>
+<td style="text-align: left;">100% 不可篡改, SLA ≤ 24h</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Aud-005</td>
+<td style="text-align: left;">Read-side access log</td>
+<td style="text-align: left;">snapshot + DGS 雙路徑入同 stream</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Aud-006</td>
+<td style="text-align: left;">Policy artifact versioning（OPA
+Rego）</td>
+<td style="text-align: left;">git history + CODEOWNERS @legal @dpo + DGS
+hash-check</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>NFR-Aud-007</strong> (2026-05-28
+from ADR-0067)</td>
+<td style="text-align: left;"><strong>M18 Config change audit
+completeness</strong></td>
+<td style="text-align: left;">100% config change 記錄 who / when / what
+diff / why；retention ≥ 7y（GDPR-aligned, 對齊 ADR-VCH-002）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-operability--compliance">§8 Operability + Compliance</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">ID</th>
+<th style="text-align: left;">NFR</th>
+<th style="text-align: left;">Target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">NFR-Ops-001</td>
+<td style="text-align: left;">Runbook 覆蓋</td>
+<td style="text-align: left;">100% 關鍵 incident path</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Ops-002</td>
+<td style="text-align: left;">Alert MTTA</td>
+<td style="text-align: left;">&lt; 15min（office）/ &lt;
+30min（off-hours）</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Ops-003</td>
+<td style="text-align: left;">Rollback</td>
+<td style="text-align: left;">&lt; 30min</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Ops-004</td>
+<td style="text-align: left;">Observability SLI</td>
+<td style="text-align: left;">snapshot staleness / invalidation lag /
+DGS queue depth / bus lag</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>NFR-Ops-005</strong> (2026-05-28
+from ADR-0067)</td>
+<td style="text-align: left;"><strong>M18 Config rollback
+time</strong></td>
+<td style="text-align: left;">≤ 1 min（前一版本 ≥ 24h 保留，rollback 走
+staged 機制先 10% 驗證）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>NFR-Ops-006</strong> (2026-05-28
+from ADR-0067)</td>
+<td style="text-align: left;"><strong>M18 Config staged rollout
+observation</strong></td>
+<td style="text-align: left;">canary 10% ≥ 10 min → ramp 50% ≥ 10 min →
+full 100%；每段卡 SLO（error rate / P99 latency）超 baseline 自動
+halt</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Comp-001</td>
+<td style="text-align: left;">合約 4.4(a) 負面情緒識別</td>
+<td style="text-align: left;">≥ 90% UAT；連續 2 週 &lt; 88% block / 4 週
+&lt; 85% incident</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Comp-002</td>
+<td style="text-align: left;">合約 4.4(d) 家族覆核</td>
+<td style="text-align: left;">100% 覆核率</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Comp-003</td>
+<td style="text-align: left;">合約 SOW 2.1(4)</td>
+<td style="text-align: left;">AI 影像辨識禁用 violation count = 0</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Comp-004</td>
+<td style="text-align: left;">DORA Lead Time</td>
+<td style="text-align: left;">&lt; 1 day</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Comp-005</td>
+<td style="text-align: left;">DORA CFR</td>
+<td style="text-align: left;">&lt; 15%</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Comp-006</td>
+<td style="text-align: left;">DORA MTTR</td>
+<td style="text-align: left;">&lt; 1 day</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9-maintainability">§9 Maintainability</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">ID</th>
+<th style="text-align: left;">NFR</th>
+<th style="text-align: left;">Target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">NFR-Maint-001</td>
+<td style="text-align: left;">後端 test 覆蓋率</td>
+<td style="text-align: left;">≥ 70%（pytest）</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Maint-002</td>
+<td style="text-align: left;">SKILL ↔︎ LLM 解耦</td>
+<td style="text-align: left;">LLM swap &lt; 5d / IngressChannel swap
+&lt; 14d</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Maint-003</td>
+<td style="text-align: left;">OpenAPI additive-only</td>
+<td style="text-align: left;">breaking change requires DR</td>
+</tr>
+<tr>
+<td style="text-align: left;">NFR-Maint-004</td>
+<td style="text-align: left;">ADR/DR coverage</td>
+<td style="text-align: left;">重大決策都有 ADR/DR</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="10-failure-modes-catalogue">§10 Failure Modes Catalogue</h2>
+<blockquote>
+<p>Bounded context 切完，每個 boundary 都要盤 failure mode + blast
+radius。沒寫就上線 = 上線後盲飛。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Failure Mode</th>
+<th style="text-align: left;">影響 SLO</th>
+<th style="text-align: left;">Blast Radius</th>
+<th style="text-align: left;">緩解</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">LINE webhook 失敗</td>
+<td style="text-align: left;">NFR-Avail-004</td>
+<td style="text-align: left;">LINE 對話 BC</td>
+<td style="text-align: left;">retry 3x → DLQ → 1h 內 review</td>
+</tr>
+<tr>
+<td style="text-align: left;">LLM API 超時 / quota</td>
+<td style="text-align: left;">NFR-Perf-001</td>
+<td style="text-align: left;">AI agent BC</td>
+<td style="text-align: left;">timeout 8s → fallback canned response →
+轉真人</td>
+</tr>
+<tr>
+<td style="text-align: left;">Gemini quota 爆</td>
+<td style="text-align: left;">cost / NFR-Perf-001</td>
+<td style="text-align: left;">AI agent BC</td>
+<td style="text-align: left;">cost ceiling + rate limit + caching</td>
+</tr>
+<tr>
+<td style="text-align: left;">案例庫向量索引 stale</td>
+<td style="text-align: left;">K1 準確率</td>
+<td style="text-align: left;">KB BC</td>
+<td style="text-align: left;">60s 強制刷新 + nightly full reindex</td>
+</tr>
+<tr>
+<td style="text-align: left;">DGS service down</td>
+<td style="text-align: left;">NFR-Avail-003 + mutation 全停</td>
+<td style="text-align: left;">DGS BC（mutation 集中是 trade-off
+cost）</td>
+<td style="text-align: left;">circuit breaker + cron pause + token
+bucket recovery</td>
+</tr>
+<tr>
+<td style="text-align: left;">Snapshot cache stale</td>
+<td style="text-align: left;">BR-PII-001 違反</td>
+<td style="text-align: left;">read path BC</td>
+<td style="text-align: left;">flagged item full deny + push invalidation
+≤ 5s</td>
+</tr>
+<tr>
+<td style="text-align: left;">Outbox poller lag &gt; 2min</td>
+<td style="text-align: left;">bus lag SLO 破</td>
+<td style="text-align: left;">DGS BC + read path</td>
+<td style="text-align: left;">incident + fail-closed read flagged</td>
+</tr>
+<tr>
+<td style="text-align: left;">Family Reviewer 缺席</td>
+<td style="text-align: left;">合約 4.4(d)</td>
+<td style="text-align: left;">SOP BC</td>
+<td style="text-align: left;">24h SLA / 暫停 SOP publish / ChangeRequest
+替補</td>
+</tr>
+<tr>
+<td style="text-align: left;">AI gaming K2（假自助）</td>
+<td style="text-align: left;">K2 漂移</td>
+<td style="text-align: left;">KPI 量測 BC</td>
+<td style="text-align: left;">C2b K1 trip-wire + C2c abandon counter +
+reopen 回退</td>
+</tr>
+<tr>
+<td style="text-align: left;">AI gaming C2（偽硬規則）</td>
+<td style="text-align: left;">C2 unreliability</td>
+<td style="text-align: left;">KPI 量測 BC</td>
+<td style="text-align: left;">rule_triggered_by 由 deterministic engine
+寫入</td>
+</tr>
+<tr>
+<td style="text-align: left;">Image vision API call leak</td>
+<td style="text-align: left;">SOW 2.1(4) 違反</td>
+<td style="text-align: left;">Security BC</td>
+<td style="text-align: left;">webhook + runtime double-gate</td>
+</tr>
+<tr>
+<td style="text-align: left;">跨 tenant 寫入</td>
+<td style="text-align: left;">ADR-0030</td>
+<td style="text-align: left;">Tenant BC（blast radius 全平台）</td>
+<td style="text-align: left;">RLS policy + ChangeRequest enforce +
+audit</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="11-observability-hooks給-sre">§11 Observability Hooks（給
+SRE）</h2>
+<blockquote>
+<p>[sre 視角] 4 條 SLI 進 Grafana board，對齊使用者體驗（不是 infra
+metric）。</p>
+</blockquote>
+<p>主 SLI：</p>
+<ul>
+<li><code>snapshot_staleness_p99_seconds</code>（retention/visibility ≤
+60s，legal-hold ≤ 5s）</li>
+<li><code>dgs_invalidation_lag_p99_seconds</code>（≤ 30s）</li>
+<li><code>dgs_mutation_queue_depth</code>（alert &gt; 1000）</li>
+<li><code>outbox_lag_p99_seconds</code>（≤ 30s，page &gt; 120s）</li>
+</ul>
+<p>KPI metrics：</p>
+<ul>
+<li><code>ai_accuracy_50qa</code>（K1, weekly）</li>
+<li><code>self_service_rate_pc_unit</code>（K2, weekly + W8
+milestone）</li>
+<li><code>sentiment_negative_detection_rate</code>（K3, weekly N=100 +
+monthly audit）</li>
+<li><code>pc_completeness_rate</code>（K4, daily）</li>
+<li><code>acceptance_sla_compliance</code>（K5, daily）</li>
+<li><code>ai_first_response_p95</code>（K6）</li>
+<li><code>uptime_30d</code>（K7）</li>
+<li><code>forbidden_eval_pass_rate</code>（K8, every deploy）</li>
+<li><code>concurrent_users_max</code>（K9, weekly）</li>
+<li><code>ai_proactive_human_transfer_rate</code>（C2, weekly）</li>
+<li><code>k1_k2_drift_7d</code>（C2b, daily）</li>
+<li><code>abandon_rate_pc_unit</code>（C2c, daily）</li>
+<li><code>gdpr_forget_completion_time</code>（C3, monthly）</li>
+</ul>
+<hr />
+<p><strong>Gate 4 NFR + ADR Baseline Freeze</strong> — ✅ ready</p>
+</div></div></body></html>
