@@ -63,6 +63,7 @@ export default function QuotesPage() {
   const [qty, setQty] = useState(1);
   const [linkPath, setLinkPath] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [invoiceMsg, setInvoiceMsg] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -161,6 +162,25 @@ export default function QuotesPage() {
       setTimeout(() => setCopied(false), 2000);
     } catch {
       // clipboard 不可用時忽略（使用者可手動選取輸入框複製）
+    }
+  }
+
+  async function createInvoice() {
+    if (!quote) return;
+    setBusy(true);
+    setError(null);
+    setInvoiceMsg(null);
+    try {
+      const res = await api.post<{ data: { invoice_no?: string | null; id: string } }>(
+        tenantPath("/accounting/invoices:from-quote"),
+        { quote_id: quote.id },
+      );
+      const no = res.data.invoice_no || res.data.id.slice(0, 8);
+      setInvoiceMsg(t("invoiceCreated", { no }));
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -346,6 +366,22 @@ export default function QuotesPage() {
                     >
                       {t("getLink")}
                     </button>
+                  )}
+                </div>
+              )}
+
+              {/* CR-0035 報價已接受 → 開立應收發票 */}
+              {quote.state === "accepted" && (
+                <div className="flex flex-wrap items-center gap-3 rounded-lg border border-[var(--border)] bg-[#F0FDF4] p-4">
+                  <button
+                    onClick={createInvoice}
+                    disabled={busy}
+                    className="rounded bg-[#15803D] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {t("createInvoice")}
+                  </button>
+                  {invoiceMsg && (
+                    <span className="text-sm font-medium text-[#15803D]">{invoiceMsg}</span>
                   )}
                 </div>
               )}
