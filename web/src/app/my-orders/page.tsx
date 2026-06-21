@@ -7,13 +7,14 @@ import TechShell from "@/components/tech/TechShell";
 import StatusBadge from "@/components/tech/StatusBadge";
 import UrgencyBadge from "@/components/tech/UrgencyBadge";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api, getCurrentSession, tenantPath } from "@/lib/api";
+import { ApiError, api, tenantPath } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 type WorkOrderPage = components["schemas"]["WorkOrderPage"];
 type WorkOrderStatus = components["schemas"]["WorkOrderStatus"];
+type TechnicianEnvelope = components["schemas"]["TechnicianEnvelope"];
 
 type TabKey = "active" | "pending" | "history";
 
@@ -57,25 +58,19 @@ export default function MyOrdersPage() {
     [tTabs],
   );
 
-  const technicianId = useMemo(() => {
-    const session = getCurrentSession();
-    return session?.userId ?? null;
-  }, []);
-
   const fetchList = useCallback(async () => {
-    if (!technicianId) {
-      setError(t("errorNoSession"));
-      return;
-    }
     setLoading(true);
     setError(null);
     try {
-      const query: Record<string, string | number> = {
-        technician_id: technicianId,
-        limit: 50,
-      };
+      // work_orders.technician_id = technicians.id（非 JWT sub 的 user_id），先取 profile
+      const profile = await api.get<TechnicianEnvelope>("/api/v1/technicians/me");
+      const techId = profile.data?.id;
+      if (!techId) {
+        setError(t("errorNoSession"));
+        return;
+      }
       const res = await api.get<WorkOrderPage>(tenantPath("/work-orders"), {
-        query,
+        query: { technician_id: techId, limit: 50 },
       });
       setItems(res.items ?? []);
     } catch (e) {
@@ -83,7 +78,7 @@ export default function MyOrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [technicianId, t]);
+  }, [t]);
 
   useEffect(() => {
     fetchList();
