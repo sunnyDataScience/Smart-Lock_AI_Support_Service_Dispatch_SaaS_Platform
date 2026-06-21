@@ -476,7 +476,10 @@
         "reschedule": "Send reschedule",
         "assign": "Assign technician",
         "reassign": "Reassign technician",
-        "actionFailed": "Action failed: {error}"
+        "actionFailed": "Action failed: {error}",
+        "requestReschedule": "Request Reschedule",
+        "notifyDelay": "Notify Delay",
+        "materialRequest": "Material Request"
       },
       "toasts": {
         "accepted": "Dispatch accepted",
@@ -762,7 +765,10 @@
         "signatureDone": "Both parties signed",
         "escalatedOps": "Escalated to operations manager",
         "escalatedTenant": "Escalated to tenant administrator",
-        "rescheduleSent": "Reschedule request sent ({count} candidate slots)"
+        "rescheduleSent": "Reschedule request sent ({count} candidate slots)",
+        "requestRescheduleSent": "Reschedule request sent",
+        "notifyDelaySent": "Delay notification sent",
+        "materialRequestSent": "Material request sent"
       },
       "pcSummary": {
         "title": "Problem-card summary",
@@ -979,7 +985,8 @@
         "scheduled": "Scheduled time",
         "completed": "Completed time",
         "technician": "Technician",
-        "technicianPhone": "Technician phone"
+        "technicianPhone": "Technician phone",
+        "lastUpdate": "Last Update"
       },
       "etaText": "Technician arrives in approximately {min} min",
       "status": {
@@ -1862,6 +1869,75 @@
           "cancelled": "Cancelled"
         }
       }
+    },
+    "quoteCatalog": {
+      "title": "Quote Catalog",
+      "mockBadge": "Mock Data",
+      "loading": "Loading…",
+      "services": "Services ({n})",
+      "materials": "Materials ({n})",
+      "surcharges": "Surcharges ({n})",
+      "code": "Code",
+      "name": "Name",
+      "type": "Type",
+      "cost": "Cost",
+      "custPrice": "Suggested Price",
+      "ruleType": "Rule Type",
+      "value": "Value",
+      "status": "Status"
+    },
+    "quotes": {
+      "title": "Quotes",
+      "mockBadge": "Mock Data",
+      "woId": "Work Order ID",
+      "createDraft": "Create Draft",
+      "quoteId": "Quote ID",
+      "item": "Item",
+      "pickItem": "Select an item",
+      "services": "Services",
+      "materials": "Materials",
+      "qty": "Qty",
+      "addLine": "Add Item",
+      "name": "Name",
+      "category": "Category",
+      "cost": "Cost",
+      "custPrice": "Customer Price",
+      "noLines": "No items",
+      "customerLink": "Customer Link",
+      "copied": "Copied",
+      "copyLink": "Copy Link",
+      "getLink": "Get Link",
+      "snapshot": "Snapshot Hash",
+      "note": "This page shows mock data; amounts are for reference only.",
+      "state": {
+        "draft": "Draft",
+        "pending_approval": "Pending Approval",
+        "approved": "Approved",
+        "sent": "Sent",
+        "accepted": "Accepted",
+        "rejected": "Rejected",
+        "expired": "Expired"
+      },
+      "action": {
+        "submit": "Submit",
+        "send": "Send to Customer",
+        "approve": "Approve",
+        "reject": "Reject",
+        "accept": "Mark Accepted"
+      }
+    },
+    "vendorApprovals": {
+      "title": "Vendor Approvals",
+      "pendingCount": "{n} pending",
+      "loading": "Loading…",
+      "empty": "No vendors pending approval",
+      "colName": "Vendor",
+      "colType": "Type",
+      "colContact": "Contact",
+      "colAction": "Action",
+      "approve": "Approve",
+      "reject": "Reject",
+      "rejectReasonPrompt": "Enter rejection reason:"
     }
   },
   "kb": {

@@ -476,7 +476,10 @@
         "reschedule": "送出改期",
         "assign": "指派技師",
         "reassign": "重新指派",
-        "actionFailed": "操作失敗：{error}"
+        "actionFailed": "操作失敗：{error}",
+        "requestReschedule": "申請改期",
+        "notifyDelay": "通知延遲",
+        "materialRequest": "叫料申請"
       },
       "toasts": {
         "accepted": "已接受派工",
@@ -762,7 +765,10 @@
         "signatureDone": "雙方簽章完成",
         "escalatedOps": "已升級至營運主管",
         "escalatedTenant": "已升級至租戶管理員",
-        "rescheduleSent": "改期請求已送出（{count} 個備選時段）"
+        "rescheduleSent": "改期請求已送出（{count} 個備選時段）",
+        "requestRescheduleSent": "改期申請已送出",
+        "notifyDelaySent": "延遲通知已送出",
+        "materialRequestSent": "叫料申請已送出"
       },
       "pcSummary": {
         "title": "問題診斷摘要",
@@ -979,7 +985,8 @@
         "scheduled": "預約時間",
         "completed": "完工時間",
         "technician": "服務技師",
-        "technicianPhone": "技師電話"
+        "technicianPhone": "技師電話",
+        "lastUpdate": "最後更新"
       },
       "etaText": "技師預計 {min} 分鐘內抵達",
       "status": {
@@ -1862,6 +1869,75 @@
           "cancelled": "已取消"
         }
       }
+    },
+    "quoteCatalog": {
+      "title": "報價目錄",
+      "mockBadge": "示意資料",
+      "loading": "載入中…",
+      "services": "服務項目（{n}）",
+      "materials": "材料（{n}）",
+      "surcharges": "加價／費用規則（{n}）",
+      "code": "代碼",
+      "name": "名稱",
+      "type": "類型",
+      "cost": "成本",
+      "custPrice": "建議售價",
+      "ruleType": "規則類型",
+      "value": "數值",
+      "status": "狀態"
+    },
+    "quotes": {
+      "title": "報價單",
+      "mockBadge": "示意資料",
+      "woId": "工單 ID",
+      "createDraft": "建立草稿",
+      "quoteId": "報價單 ID",
+      "item": "項目",
+      "pickItem": "請選擇項目",
+      "services": "服務",
+      "materials": "材料",
+      "qty": "數量",
+      "addLine": "新增項目",
+      "name": "名稱",
+      "category": "類別",
+      "cost": "成本",
+      "custPrice": "售價",
+      "noLines": "尚無項目",
+      "customerLink": "客戶查看連結",
+      "copied": "已複製",
+      "copyLink": "複製連結",
+      "getLink": "取得連結",
+      "snapshot": "快照雜湊",
+      "note": "此頁為示意資料，報價金額僅供參考。",
+      "state": {
+        "draft": "草稿",
+        "pending_approval": "待審核",
+        "approved": "已核准",
+        "sent": "已送客戶",
+        "accepted": "已接受",
+        "rejected": "已駁回",
+        "expired": "已過期"
+      },
+      "action": {
+        "submit": "送審",
+        "send": "送客戶",
+        "approve": "核准",
+        "reject": "駁回",
+        "accept": "標記接受"
+      }
+    },
+    "vendorApprovals": {
+      "title": "廠商審核",
+      "pendingCount": "待審核 {n} 筆",
+      "loading": "載入中…",
+      "empty": "目前沒有待審核的廠商",
+      "colName": "廠商名稱",
+      "colType": "類型",
+      "colContact": "聯絡方式",
+      "colAction": "操作",
+      "approve": "核准",
+      "reject": "駁回",
+      "rejectReasonPrompt": "請輸入駁回原因："
     }
   },
   "kb": {
