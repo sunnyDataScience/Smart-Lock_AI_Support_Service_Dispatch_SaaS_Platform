@@ -37,7 +37,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Path, Query, Response
 from pydantic import BaseModel, Field
 
-from core.deps import CurrentUser, require_tenant, role_required
+from core.deps import BACKOFFICE_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
@@ -241,6 +241,28 @@ async def patch_work_order_fields_v2(
     return {"data": WorkOrder(**order).model_dump(mode="json")}
 
 
+@router.get(
+    "/tenants/{tenantId}/work-orders/{id}/consents",
+    operation_id="getWorkOrderConsentsV2",
+    summary="後台唯讀取得工單三段免責同意狀態 v2（CR-0091；複用 consent_service）",
+    tags=["M06 WorkOrder"],
+)
+async def get_work_order_consents_v2(
+    tenantId: str = Path(...),
+    id: str = Path(...),
+    user: CurrentUser = Depends(role_required(*_DISPATCH_ALLOWED_ROLES)),
+) -> dict:
+    """派工單模組 4：後台/派工人員唯讀檢視客戶三段免責同意狀態。
+
+    寫入（客戶簽署）走 consumer LIFF `/consumer/consents/{token}`；此端點僅顯示，
+    故為唯讀且走後台角色守衛（對齊同檔 fields PATCH 的 _DISPATCH_ALLOWED_ROLES）。
+    """
+    _cross_tenant_read(user, tenantId)
+    from services import consent_service
+
+    return await consent_service.get_consents(work_order_id=id, tenant_id=tenantId)
+
+
 @router.post(
     "/tenants/{tenantId}/work-orders/{id}:reopen",
     operation_id="reopenWorkOrderV2",
@@ -283,7 +305,7 @@ async def reopen_work_order_v2(
 async def create_work_order_v2(
     body: WorkOrderCreateRequest,
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     _cross_tenant_write(user, tenantId)

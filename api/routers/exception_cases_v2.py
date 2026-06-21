@@ -54,7 +54,7 @@ class _ResolveExceptionRequest(BaseModel):
 async def open_exception_case(
     body: _OpenExceptionRequest,
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(_resolve_roles),
 ) -> dict:
     _guard(user, tenantId)
     return await exception_service.open_exception(

@@ -139,6 +139,27 @@ async def require_sod_actors(
     return SodActors(initiator=x_initiator, approver=x_approver, executor=x_executor)
 
 
+# ---------------------------------------------------------------------------
+# CR-0092 — 標準角色集合（單一真相源）
+#
+# 為什麼集中在此：稽核發現 407 端點中 80 個敏感寫入只用 require_tenant（不檢查
+# 角色），任何登入者含 technician/vendor 皆可寫金流/設定/派工。各 router 原本
+# 各自定義 _BILLING_ROLES / _APPROVE_ROLES / _DISPATCH_ALLOWED_ROLES，集合不一
+# 且常漏掛。以下常數為「既有 gated 端點角色集的超集 + super_admin」：
+#   - 不破既有存取（既有集合皆為子集，只多放行 super_admin，修正其被誤擋的潛在 bug）
+#   - 對齊前端 web/src/lib/rolePolicy.ts 意圖（後台頁 admin/ops/dispatcher/cs）
+# ---------------------------------------------------------------------------
+
+#: 全權管理角色（admin governance：config / roles / audit / GDPR / data-correction）
+FULL_ACCESS_ROLES: tuple[str, ...] = ("admin", "tenant_admin", "super_admin")
+#: 營運後台寫入（accounting / billing / pricing / vendor-mgmt / warranty / 結算）
+OPS_ROLES: tuple[str, ...] = FULL_ACCESS_ROLES + ("operations_manager",)
+#: 派工寫入（dispatch / 自動媒合 / 技師生命週期管理）
+DISPATCH_ROLES: tuple[str, ...] = OPS_ROLES + ("dispatcher",)
+#: 後台唯讀／一般後台操作（含客服）
+BACKOFFICE_ROLES: tuple[str, ...] = DISPATCH_ROLES + ("customer_service",)
+
+
 def role_required(*roles: str):
     """Dependency factory 限制角色。"""
     async def _dep(

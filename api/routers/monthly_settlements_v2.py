@@ -21,7 +21,7 @@ from fastapi import APIRouter, Depends, Header, Path
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import OPS_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from services import monthly_settlement_service as svc
@@ -78,7 +78,7 @@ class MarkManualPaidBody(BaseModel):
 async def generate_batch(
     body: GenerateBatchBody,
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
     initiator: str = Depends(_require_initiator),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
@@ -153,7 +153,7 @@ async def mark_exported(
     body: MarkExportedBody,
     tenantId: str = Path(...),
     batchId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
     initiator: str = Depends(_require_initiator),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
@@ -181,7 +181,7 @@ async def mark_manual_paid(
     body: MarkManualPaidBody,
     tenantId: str = Path(...),
     settlementId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
     initiator: str = Depends(_require_initiator),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:

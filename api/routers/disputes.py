@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import OPS_ROLES, CurrentUser, require_tenant, role_required
 from models.generated import (
     Dispute,
     DisputeEnvelope,
@@ -93,7 +93,7 @@ class _DecisionRequest(_BaseModel):
 async def submit_dispute_decision(
     body: _DecisionRequest,
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     dispute = await dispute_service.submit_decision(

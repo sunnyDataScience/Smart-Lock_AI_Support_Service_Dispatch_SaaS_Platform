@@ -16,7 +16,14 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Path, Query
 from pydantic import BaseModel, Field
 
-from core.deps import CurrentUser, SodActors, require_sod_actors, require_tenant
+from core.deps import (
+    OPS_ROLES,
+    CurrentUser,
+    SodActors,
+    require_sod_actors,
+    require_tenant,
+    role_required,
+)
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import RefundDecision, RefundRequest, RefundRequestEnvelope
@@ -35,7 +42,7 @@ router = APIRouter()
 async def create_refund_sod(
     body: RefundSodRequest,
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
     sod: SodActors = Depends(require_sod_actors),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
@@ -81,7 +88,7 @@ async def submit_refund_decision_v2(
     body: RefundDecision,
     tenantId: str = Path(...),
     refundId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     # cross-tenant guard（對齊 create_refund_sod，ADR-0030）

@@ -26,7 +26,7 @@ from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, Path, Query, Response
 from fastapi.responses import JSONResponse
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import DISPATCH_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
@@ -140,7 +140,7 @@ async def create_technician_v2(
     body: _TechnicianCreateRequest,
     response: Response,
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
@@ -177,7 +177,7 @@ async def create_technician_v2(
 async def suspend_technician_v2(
     tenantId: str = Path(...),
     techId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
 ) -> JSONResponse:
     # cross-tenant guard（ADR-0030）
     if user.tenant_id and user.tenant_id != tenantId:

@@ -13,7 +13,7 @@ import logging
 from fastapi import APIRouter, Body, Depends, Path, Response
 from pydantic import BaseModel, Field
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import FULL_ACCESS_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from models.generated import Role, RolesEnvelope
 from services import role_service
@@ -70,7 +70,7 @@ async def update_role_permissions(
     response: Response,
     role_name: str = Path(..., description="角色 ID"),
     body: _UpdateRolePermissionsBody = Body(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
 ) -> dict:
     """PATCH /api/v1/roles/{role_name}/permissions — [DEPRECATED: 遷移至 PUT /tenants/{tenantId}/rbac/roles/{roleName}/permissions]"""
     # D3：標示此端點已棄用

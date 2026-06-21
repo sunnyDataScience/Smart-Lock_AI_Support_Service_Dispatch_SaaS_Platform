@@ -12,7 +12,7 @@ import logging
 from fastapi import APIRouter, Depends, Header, Path, Query
 from pydantic import BaseModel
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import DISPATCH_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from services import technician_lifecycle_service as svc
 
@@ -58,7 +58,7 @@ async def approve_onboarding(
     body: ApproveBody,
     tenantId: str = Path(...),
     technicianId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
     initiator: str = Depends(_require_initiator),
 ) -> dict:
     _guard_tenant(user, tenantId, write=True)
@@ -83,7 +83,7 @@ async def reject_onboarding(
     body: ReasonBody,
     tenantId: str = Path(...),
     technicianId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
     initiator: str = Depends(_require_initiator),
 ) -> dict:
     _guard_tenant(user, tenantId, write=True)
@@ -108,7 +108,7 @@ async def suspend_technician(
     body: ReasonBody,
     tenantId: str = Path(...),
     technicianId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
     initiator: str = Depends(_require_initiator),
 ) -> dict:
     _guard_tenant(user, tenantId, write=True)
@@ -133,7 +133,7 @@ async def reactivate_technician(
     body: ReasonBody,
     tenantId: str = Path(...),
     technicianId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
     initiator: str = Depends(_require_initiator),
 ) -> dict:
     _guard_tenant(user, tenantId, write=True)
@@ -158,7 +158,7 @@ async def terminate_technician(
     body: ReasonBody,
     tenantId: str = Path(...),
     technicianId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
     initiator: str = Depends(_require_initiator),
 ) -> dict:
     _guard_tenant(user, tenantId, write=True)
