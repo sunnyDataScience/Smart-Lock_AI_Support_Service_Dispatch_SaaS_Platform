@@ -24,6 +24,7 @@ export default function RegisterPage() {
   // vendor-only
   const [vendorType, setVendorType] = useState<VendorType>("brand");
   const [companyName, setCompanyName] = useState("");
+  const [taxId, setTaxId] = useState("");
   const [address, setAddress] = useState("");
 
   const [loading, setLoading] = useState(false);
@@ -56,7 +57,8 @@ export default function RegisterPage() {
         await api.post("/api/v1/vendors/register", {
           vendor_type: vendorType,
           name: name.trim(),
-          company_name: companyName.trim() || undefined,
+          company_name: companyName.trim(),
+          tax_id: taxId.trim(),
           phone: phone.trim(),
           email: email.trim(),
           password,
@@ -151,10 +153,30 @@ export default function RegisterPage() {
               </label>
 
               {tab === "vendor" && (
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-[var(--text-secondary)]">{t("companyName")}</span>
-                  <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} className={inputCls} />
-                </label>
+                <>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-[var(--text-secondary)]">{t("companyName")}</span>
+                    <input
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      required
+                      className={inputCls}
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-[var(--text-secondary)]">{t("taxId")}</span>
+                    <input
+                      value={taxId}
+                      onChange={(e) => setTaxId(e.target.value)}
+                      required
+                      pattern="\d{8}"
+                      inputMode="numeric"
+                      placeholder="12345678"
+                      className={inputCls}
+                    />
+                    <span className="text-xs text-[var(--text-secondary)]">{t("taxIdHint")}</span>
+                  </label>
+                </>
               )}
 
               <label className="flex flex-col gap-1 text-sm">

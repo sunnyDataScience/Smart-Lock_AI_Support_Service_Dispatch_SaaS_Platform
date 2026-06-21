@@ -132,6 +132,8 @@
     "name": "Name",
     "contactName": "Contact name",
     "companyName": "Company name",
+    "taxId": "Tax ID (統編)",
+    "taxIdHint": "8 digits, for invoicing & reconciliation",
     "phone": "Mobile",
     "email": "Email",
     "password": "Password (min 8)",

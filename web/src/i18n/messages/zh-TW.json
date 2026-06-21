@@ -132,6 +132,8 @@
     "name": "姓名",
     "contactName": "聯絡人姓名",
     "companyName": "公司名稱",
+    "taxId": "統一編號",
+    "taxIdHint": "8 碼數字，用於開立發票與對帳",
     "phone": "手機",
     "email": "Email",
     "password": "密碼（至少 8 碼）",

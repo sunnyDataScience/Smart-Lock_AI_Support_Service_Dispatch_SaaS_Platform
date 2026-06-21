@@ -282,6 +282,7 @@ async def register_vendor(req: dict) -> dict:
     password = req["password"]
     vendor_type = req["vendor_type"]
     company_name = req.get("company_name")
+    tax_id = req.get("tax_id")  # CR-0089 統一編號（B2B 開發票）
     address = req.get("address")
 
     if vendor_type not in _VENDOR_TYPES:
@@ -309,9 +310,9 @@ async def register_vendor(req: dict) -> dict:
             (user_id, tenant_id, name, phone, email, pw_hash),
         )
         await db_module._conn.execute(
-            "INSERT INTO vendors (id, tenant_id, user_id, vendor_type, name, company_name, phone, email, address, status) "
-            "VALUES (%s::uuid, %s::uuid, %s::uuid, %s, %s, %s, %s, %s, %s, 'pending_approval')",
-            (vendor_id, tenant_id, user_id, vendor_type, name, company_name, phone, email, address),
+            "INSERT INTO vendors (id, tenant_id, user_id, vendor_type, name, company_name, tax_id, phone, email, address, status) "
+            "VALUES (%s::uuid, %s::uuid, %s::uuid, %s, %s, %s, %s, %s, %s, %s, 'pending_approval')",
+            (vendor_id, tenant_id, user_id, vendor_type, name, company_name, tax_id, phone, email, address),
         )
 
     return {
@@ -322,6 +323,7 @@ async def register_vendor(req: dict) -> dict:
             "vendor_type": vendor_type,
             "name": name,
             "company_name": company_name,
+            "tax_id": tax_id,
             "phone": phone,
             "email": email,
             "status": "pending_approval",

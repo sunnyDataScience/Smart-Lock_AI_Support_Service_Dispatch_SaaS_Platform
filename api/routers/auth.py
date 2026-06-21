@@ -209,7 +209,8 @@ class VendorRegisterBody(BaseModel):
 
     vendor_type: str = Field(description="brand/locksmith/distributor")
     name: str = Field(min_length=1, max_length=150)
-    company_name: str | None = Field(default=None, max_length=150)
+    company_name: str = Field(min_length=1, max_length=150)  # CR-0089 改必填（發案者為公司）
+    tax_id: str = Field(pattern=r"^\d{8}$", description="統一編號 8 碼")  # CR-0089 新增（B2B 開發票）
     phone: str = Field(pattern=r"^09\d{8}$")
     email: EmailStr
     password: str = Field(min_length=8, max_length=72)  # bcrypt 72 byte 上限
