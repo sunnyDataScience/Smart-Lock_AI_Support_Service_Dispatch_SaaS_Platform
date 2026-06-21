@@ -89,3 +89,11 @@ PDF 6 模組欄位 vs 現有 `work_orders` 欄位對照（**幾乎全部已存�
 | inline edit 誤改既有欄位語意 | 只送 `exclude_unset` 變更欄位（patch 既有行為），唯讀模組（4/6）不開編輯 |
 
 Rollback：前端視圖為新增區塊，移除即復原；admin GET 為唯讀新端點，無副作用。
+
+## 9. 進度
+
+- ✅ S1（後端 admin consent GET + test_cr_0091 5/5 含角色隔離）done（merge 1876ae02）
+- ✅ S2（前端 DispatchOrderView 6 模組 + 內嵌編輯，首個 api.patch /fields 消費者）done（merge 4d888819）
+- ✅ S3（掛進工單詳情頁主內容區頂部）done（merge 4d888819）
+- ✅ S4（tsc 0 錯 + api/web rebuild + API smoke consent GET 路由註冊/401）done
+- ⏳ Playwright 視覺確認：因不暴力猜測 admin 憑證，留待業主登入後目視（程式/測試/API 層已驗）

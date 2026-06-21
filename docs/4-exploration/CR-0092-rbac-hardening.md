@@ -88,4 +88,8 @@ Rollback：純 dependency 替換，改回 `require_tenant` 即復原（無 schem
 
 ## 9. 進度
 
-- ✅ S1（deps 常數）done
+- ✅ S1（deps 常數）done（merge 1876ae02）
+- ✅ S2（80 HIGH 端點 require_tenant→role_required，8-batch workflow）done（merge 1876ae02）
+- ✅ S3（test_cr_0092 角色隔離 10/10）done
+- ✅ S4（全套件回歸 1386 passed / 0 fail；API smoke 硬化端點 401）done
+- ✅ S5（三處同步：CR §9 / CHANGELOG / 完成度）done
