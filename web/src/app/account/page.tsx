@@ -70,9 +70,17 @@ export default function AccountPage() {
     fetchProfile();
   }, [fetchProfile]);
 
-  function toggleOnline() {
-    // 後端目前無 PATCH /technicians/me/availability — 僅本地切換並提示
-    setOnline((v) => !v);
+  async function toggleOnline() {
+    // PATCH /api/v1/technicians/me/availability（available↔offline）
+    const next = online ? "offline" : "available";
+    setOnline(!online); // 樂觀更新
+    try {
+      await api.patch("/api/v1/technicians/me/availability", { online_state: next });
+      setTech((prev) => (prev ? { ...prev, availability: next } : prev));
+    } catch (e) {
+      setOnline(online); // 回滾
+      setError(formatErr(e));
+    }
   }
 
   async function handleLogout() {

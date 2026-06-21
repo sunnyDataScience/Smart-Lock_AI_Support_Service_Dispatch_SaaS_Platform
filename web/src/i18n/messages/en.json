@@ -2165,9 +2165,74 @@
         "forceDesktop": "Force desktop view"
       },
       "bottomNav": {
+        "home": "Home",
         "pool": "Pool",
         "myOrders": "My orders",
         "account": "Account"
+      },
+      "sidebar": {
+        "brandName": "Smart Lock",
+        "subtitle": "Technician portal",
+        "logout": "Sign out",
+        "logoutConfirm": "Sign out?"
+      }
+    },
+    "home": {
+      "title": "Home",
+      "greeting": "Hi {name}",
+      "refresh": "Refresh",
+      "status": {
+        "available": "Online",
+        "busy": "Busy",
+        "offline": "Offline",
+        "on_leave": "On leave",
+        "circuit_breaker_open": "Dispatch paused",
+        "earningsCaption": "Settled this month"
+      },
+      "goOnline": {
+        "online": "Online · tap to go offline",
+        "offline": "Go online",
+        "submitting": "Switching…",
+        "locked": "Dispatch paused",
+        "busy": "Busy",
+        "on_leave": "On leave",
+        "onlineHint": "You can receive new dispatches",
+        "offlineHint": "Tap to start receiving dispatches",
+        "readOnlyHint": "Status is set by system / schedule and can't be toggled manually",
+        "lockedHint": "Dispatch paused due to service quality; contact admin"
+      },
+      "today": {
+        "title": "Today",
+        "summary": "In progress {inProgress} · Pending {active}",
+        "loading": "Loading…",
+        "empty": "No active orders",
+        "goPool": "Go to pool",
+        "currentTag": "Current",
+        "navigate": "Navigate",
+        "viewAll": "All orders"
+      },
+      "attention": {
+        "title": "Needs attention",
+        "allClear": "Nothing needs attention",
+        "acceptedPending": "{count} accepted order(s) — schedule departure",
+        "statementDeadline": "{count} statement(s) to confirm, {days} day(s) left to dispute",
+        "statementPending": "{count} statement(s) to confirm",
+        "disputed": "{count} statement(s) in dispute"
+      },
+      "workload": {
+        "title": "This month's load",
+        "loading": "Loading…",
+        "empty": "No workload data",
+        "completionRate": "Completion",
+        "avgPerDay": "Avg/day",
+        "less": "Less",
+        "more": "More"
+      },
+      "performance": {
+        "title": "My performance",
+        "completed": "Completed",
+        "rating": "Rating",
+        "level": "Level"
       }
     },
     "techLogin": {

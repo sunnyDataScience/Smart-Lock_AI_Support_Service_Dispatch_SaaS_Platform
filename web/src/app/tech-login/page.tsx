@@ -26,7 +26,7 @@ export default function TechLoginPage() {
     setLoading(true);
     try {
       await loginTechnician(identifier.trim(), password);
-      router.replace("/pool");
+      router.replace("/home");
     } catch (e) {
       setError(
         e instanceof ApiError

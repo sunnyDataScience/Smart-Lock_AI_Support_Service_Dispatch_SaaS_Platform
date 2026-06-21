@@ -2165,9 +2165,74 @@
         "forceDesktop": "強制顯示桌面版"
       },
       "bottomNav": {
+        "home": "首頁",
         "pool": "案件池",
         "myOrders": "我的工單",
         "account": "帳戶"
+      },
+      "sidebar": {
+        "brandName": "Smart Lock",
+        "subtitle": "技師工作台",
+        "logout": "登出",
+        "logoutConfirm": "確定要登出嗎？"
+      }
+    },
+    "home": {
+      "title": "首頁",
+      "greeting": "{name}，今天好",
+      "refresh": "重新整理",
+      "status": {
+        "available": "上線中",
+        "busy": "忙碌中",
+        "offline": "已離線",
+        "on_leave": "請假中",
+        "circuit_breaker_open": "暫停派單",
+        "earningsCaption": "本月已結淨額"
+      },
+      "goOnline": {
+        "online": "上線中 · 點擊離線",
+        "offline": "上線接案",
+        "submitting": "切換中…",
+        "locked": "已暫停派單",
+        "busy": "忙碌中",
+        "on_leave": "請假中",
+        "onlineHint": "目前可接收新派單",
+        "offlineHint": "點擊開始接收派單",
+        "readOnlyHint": "目前狀態由系統 / 排班決定，無法手動切換",
+        "lockedHint": "因服務品質暫停派單，請聯繫管理員"
+      },
+      "today": {
+        "title": "今日行程",
+        "summary": "進行中 {inProgress} · 待處理 {active}",
+        "loading": "載入中…",
+        "empty": "目前沒有進行中的工單",
+        "goPool": "前往案件池接單",
+        "currentTag": "當前工單",
+        "navigate": "導航前往",
+        "viewAll": "全部工單"
+      },
+      "attention": {
+        "title": "需注意",
+        "allClear": "目前沒有待辦提醒",
+        "acceptedPending": "{count} 件已接單，記得安排出發",
+        "statementDeadline": "{count} 筆對帳單待確認，申訴期剩 {days} 天",
+        "statementPending": "{count} 筆對帳單待確認",
+        "disputed": "{count} 筆對帳單申訴處理中"
+      },
+      "workload": {
+        "title": "本月案量",
+        "loading": "載入中…",
+        "empty": "尚無案量資料",
+        "completionRate": "完成率",
+        "avgPerDay": "日均工單",
+        "less": "少",
+        "more": "多"
+      },
+      "performance": {
+        "title": "我的表現",
+        "completed": "完成工單",
+        "rating": "評分",
+        "level": "等級"
       }
     },
     "techLogin": {
