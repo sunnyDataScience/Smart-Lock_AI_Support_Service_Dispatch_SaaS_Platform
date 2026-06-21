@@ -26,7 +26,7 @@ import logging
 from fastapi import APIRouter, Depends, Header, Path, Query
 from pydantic import BaseModel, Field
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import OPS_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from services import pricing_rule_v2_service as svc
@@ -147,7 +147,7 @@ async def get_pricing_rule_v2(
 async def create_pricing_rule_v2(
     body: PricingRuleBody,
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
     initiator: str = Depends(_require_initiator),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
@@ -193,7 +193,7 @@ async def update_pricing_rule_v2(
     body: PricingRuleBody,
     tenantId: str = Path(...),
     ruleId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
     initiator: str = Depends(_require_initiator),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:

@@ -16,7 +16,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Path, Query, Request
 from pydantic import BaseModel, Field
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import FULL_ACCESS_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from models.generated import AuditLogEntry, AuditLogPage, AuditLogType
 from services import audit_log_service
@@ -51,7 +51,7 @@ async def list_audit_events_v2(
     actor_id: str | None = Query(default=None),
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
     if user.tenant_id and user.tenant_id != tenantId:
@@ -129,7 +129,7 @@ async def export_audit_events_v2(
     body: ExportAuditEventsV2Request,
     request: Request,
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
 ):
     # cross-tenant guard
     if user.tenant_id and user.tenant_id != tenantId:

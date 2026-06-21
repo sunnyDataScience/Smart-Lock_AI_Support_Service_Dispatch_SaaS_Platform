@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Path, Query, Response
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import REVIEW_ROLES, CurrentUser, require_tenant, role_required
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
     WarrantyClaim,
@@ -120,7 +120,7 @@ async def get_warranty_claim(
 async def submit_warranty_decision(
     body: WarrantyDecision,
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     decision_str = (

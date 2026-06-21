@@ -25,7 +25,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Header, Path, Query, Response
 from pydantic import BaseModel, Field
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import FULL_ACCESS_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from services import config_m18_service as svc
@@ -149,7 +149,7 @@ async def create_config_draft(
     tenantId: str = Path(...),
     namespace: str = Path(...),
     key: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
     initiator: str = Depends(_require_initiator),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
@@ -194,7 +194,7 @@ async def start_config_rollout(
     namespace: str = Path(...),
     key: str = Path(...),
     versionId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
     sod: tuple[str, str] = Depends(_require_sod_two),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
@@ -242,7 +242,7 @@ async def start_config_rollout(
 async def rollback_config(
     tenantId: str = Path(...),
     rolloutId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:

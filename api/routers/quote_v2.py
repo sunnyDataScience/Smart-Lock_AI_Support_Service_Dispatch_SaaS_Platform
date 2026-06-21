@@ -14,7 +14,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Path
 from pydantic import BaseModel, Field
 
-from core.deps import CurrentUser, require_tenant, role_required
+from core.deps import OPS_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from services import quote_engine_service as qe
 
@@ -56,7 +56,7 @@ class _DecisionBody(BaseModel):
 async def create_quote_v2(
     body: _QuoteCreateBody,
     tenantId: str = Path(...), woId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     _xt(user, tenantId)
     return {"data": await qe.create_quote(
@@ -82,7 +82,7 @@ async def get_quote_v2(
 )
 async def get_quote_public_link_v2(
     tenantId: str = Path(...), id: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     _xt(user, tenantId)
     return {"data": await qe.mint_view_token(tenant_id=tenantId, quote_id=id)}
@@ -96,7 +96,7 @@ async def get_quote_public_link_v2(
 async def add_quote_line_v2(
     body: _AddLineBody,
     tenantId: str = Path(...), id: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     _xt(user, tenantId)
     return {"data": await qe.add_line(
@@ -111,17 +111,17 @@ async def _transition(tenantId: str, id: str, action: str, user: CurrentUser, co
 
 
 @router.post("/tenants/{tenantId}/quotes/{id}:submit", operation_id="submitQuoteV2", summary="送審 v2", tags=["M04 Quote"])
-async def submit_quote_v2(tenantId: str = Path(...), id: str = Path(...), user: CurrentUser = Depends(require_tenant)) -> dict:
+async def submit_quote_v2(tenantId: str = Path(...), id: str = Path(...), user: CurrentUser = Depends(role_required(*OPS_ROLES))) -> dict:
     return await _transition(tenantId, id, "submit", user)
 
 
 @router.post("/tenants/{tenantId}/quotes/{id}:send", operation_id="sendQuoteV2", summary="送客戶 v2（凍結 snapshot）", tags=["M04 Quote"])
-async def send_quote_v2(tenantId: str = Path(...), id: str = Path(...), user: CurrentUser = Depends(require_tenant)) -> dict:
+async def send_quote_v2(tenantId: str = Path(...), id: str = Path(...), user: CurrentUser = Depends(role_required(*OPS_ROLES))) -> dict:
     return await _transition(tenantId, id, "send", user)
 
 
 @router.post("/tenants/{tenantId}/quotes/{id}:accept", operation_id="acceptQuoteV2", summary="客戶接受 v2", tags=["M04 Quote"])
-async def accept_quote_v2(tenantId: str = Path(...), id: str = Path(...), user: CurrentUser = Depends(require_tenant)) -> dict:
+async def accept_quote_v2(tenantId: str = Path(...), id: str = Path(...), user: CurrentUser = Depends(role_required(*OPS_ROLES))) -> dict:
     return await _transition(tenantId, id, "accept", user)
 
 

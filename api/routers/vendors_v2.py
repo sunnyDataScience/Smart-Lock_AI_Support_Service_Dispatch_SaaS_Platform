@@ -31,6 +31,21 @@ class _RejectBody(BaseModel):
 
 
 @router.get(
+    "/vendors/me",
+    operation_id="getVendorSelfV2",
+    summary="廠商自身 profile（CR-0029 廠商專區；以登入 user_id 取）",
+    tags=["M14 Vendor"],
+)
+async def get_vendor_self_v2(
+    user: CurrentUser = Depends(role_required("vendor")),
+) -> dict:
+    vendor = await vendor_service.get_vendor_by_user_id(user_id=user.user_id)
+    if not vendor:
+        raise ApiError("NOT_FOUND", "Vendor profile not found for current user", 404)
+    return {"data": vendor}
+
+
+@router.get(
     "/tenants/{tenantId}/vendors",
     operation_id="listVendorsV2",
     summary="廠商列表 v2（可依 status 過濾，如 pending_approval）",

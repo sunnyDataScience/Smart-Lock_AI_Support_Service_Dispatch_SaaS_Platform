@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import FULL_ACCESS_ROLES, CurrentUser, require_tenant, role_required
 from middleware.deprecation import get_v1_hit_metrics, reset_v1_hit_metrics
 
 router = APIRouter()
@@ -39,7 +39,7 @@ async def list_v1_metrics(
     response_model=dict,
 )
 async def reset_v1_metrics(
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
 ) -> dict:
     reset_v1_hit_metrics()
     return {"status": "reset_ok"}

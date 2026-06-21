@@ -12,6 +12,7 @@ import {
   Store,
   Tag,
   FileText,
+  Banknote,
   Receipt,
   Package,
   BarChart3,
@@ -75,6 +76,7 @@ const navItems: NavItem[] = [
   { icon: Store, id: "vendorApprovals", href: "/admin/vendor-approvals" },
   { icon: Tag, id: "quoteCatalog", href: "/admin/quote-catalog" },
   { icon: FileText, id: "quotes", href: "/admin/quotes" },
+  { icon: Banknote, id: "payoutRules", href: "/admin/payout-rules" },
   { icon: CircleUserRound, id: "customers", href: "/admin/customers" },
   {
     icon: Receipt,
@@ -106,6 +108,8 @@ const navItems: NavItem[] = [
     href: "/admin/audit-events",
     children: [
       { id: "roles", href: "/admin/roles" },
+      { id: "staff", href: "/admin/staff" },
+      { id: "configGovernance", href: "/admin/config-governance" },
       { id: "auditLogs", href: "/admin/audit-events" },
       { id: "sentimentAlerts", href: "/admin/sentiment-alerts" },
     ],

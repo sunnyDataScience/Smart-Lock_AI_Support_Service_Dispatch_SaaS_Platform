@@ -132,9 +132,15 @@
     "name": "Name",
     "contactName": "Contact name",
     "companyName": "Company name",
+    "taxId": "Tax ID (統編)",
+    "taxIdHint": "8 digits, for invoicing & reconciliation",
     "phone": "Mobile",
     "email": "Email",
     "password": "Password (min 8)",
+    "serviceRegions": "Service areas",
+    "serviceRegionsHint": "Comma-separated, e.g. Taipei, New Taipei (used for dispatch matching)",
+    "capabilities": "Brands you service (optional)",
+    "capabilitiesHint": "Comma-separated, e.g. Yale, Dormakaba, Kaadas",
     "address": "Address",
     "submit": "Register",
     "submitting": "Submitting…",
@@ -312,7 +318,10 @@
       "roles": "RBAC",
       "auditLogs": "Audit logs",
       "sentimentAlerts": "Sentiment alerts",
-      "settings": "Settings"
+      "settings": "Settings",
+      "staff": "Staff Accounts",
+      "payoutRules": "Payout Rules",
+      "configGovernance": "Config Governance"
     }
   },
   "pages": {
@@ -470,7 +479,10 @@
         "reschedule": "Send reschedule",
         "assign": "Assign technician",
         "reassign": "Reassign technician",
-        "actionFailed": "Action failed: {error}"
+        "actionFailed": "Action failed: {error}",
+        "requestReschedule": "Request Reschedule",
+        "notifyDelay": "Notify Delay",
+        "materialRequest": "Material Request"
       },
       "toasts": {
         "accepted": "Dispatch accepted",
@@ -756,7 +768,10 @@
         "signatureDone": "Both parties signed",
         "escalatedOps": "Escalated to operations manager",
         "escalatedTenant": "Escalated to tenant administrator",
-        "rescheduleSent": "Reschedule request sent ({count} candidate slots)"
+        "rescheduleSent": "Reschedule request sent ({count} candidate slots)",
+        "requestRescheduleSent": "Reschedule request sent",
+        "notifyDelaySent": "Delay notification sent",
+        "materialRequestSent": "Material request sent"
       },
       "pcSummary": {
         "title": "Problem-card summary",
@@ -973,7 +988,8 @@
         "scheduled": "Scheduled time",
         "completed": "Completed time",
         "technician": "Technician",
-        "technicianPhone": "Technician phone"
+        "technicianPhone": "Technician phone",
+        "lastUpdate": "Last Update"
       },
       "etaText": "Technician arrives in approximately {min} min",
       "status": {
@@ -1141,7 +1157,7 @@
         "fallbackName": "Technician",
         "ariaToggleOnline": "Toggle online/offline",
         "onlineToggleLabel": "Accepting orders",
-        "onlineToggleHint": "(API pending; current is local toggle only)",
+        "onlineToggleHint": "(Toggle online / offline to receive dispatches)",
         "monthIncome": "This month's income (API pending)",
         "incomeNote": "Income overview, commission breakdown, and settlements ship in V1.1",
         "completedOrders": "Completed",
@@ -1856,6 +1872,77 @@
           "cancelled": "Cancelled"
         }
       }
+    },
+    "quoteCatalog": {
+      "title": "Quote Catalog",
+      "mockBadge": "Mock Data",
+      "loading": "Loading…",
+      "services": "Services ({n})",
+      "materials": "Materials ({n})",
+      "surcharges": "Surcharges ({n})",
+      "code": "Code",
+      "name": "Name",
+      "type": "Type",
+      "cost": "Cost",
+      "custPrice": "Suggested Price",
+      "ruleType": "Rule Type",
+      "value": "Value",
+      "status": "Status"
+    },
+    "quotes": {
+      "title": "Quotes",
+      "mockBadge": "Mock Data",
+      "woId": "Work Order ID",
+      "createDraft": "Create Draft",
+      "quoteId": "Quote ID",
+      "item": "Item",
+      "pickItem": "Select an item",
+      "services": "Services",
+      "materials": "Materials",
+      "qty": "Qty",
+      "addLine": "Add Item",
+      "name": "Name",
+      "category": "Category",
+      "cost": "Cost",
+      "custPrice": "Customer Price",
+      "noLines": "No items",
+      "customerLink": "Customer Link",
+      "copied": "Copied",
+      "copyLink": "Copy Link",
+      "getLink": "Get Link",
+      "snapshot": "Snapshot Hash",
+      "note": "This page shows mock data; amounts are for reference only.",
+      "state": {
+        "draft": "Draft",
+        "pending_approval": "Pending Approval",
+        "approved": "Approved",
+        "sent": "Sent",
+        "accepted": "Accepted",
+        "rejected": "Rejected",
+        "expired": "Expired"
+      },
+      "action": {
+        "submit": "Submit",
+        "send": "Send to Customer",
+        "approve": "Approve",
+        "reject": "Reject",
+        "accept": "Mark Accepted"
+      },
+      "createInvoice": "Create Invoice",
+      "invoiceCreated": "Invoice created: {no}"
+    },
+    "vendorApprovals": {
+      "title": "Vendor Approvals",
+      "pendingCount": "{n} pending",
+      "loading": "Loading…",
+      "empty": "No vendors pending approval",
+      "colName": "Vendor",
+      "colType": "Type",
+      "colContact": "Contact",
+      "colAction": "Action",
+      "approve": "Approve",
+      "reject": "Reject",
+      "rejectReasonPrompt": "Enter rejection reason:"
     }
   },
   "kb": {
@@ -2153,7 +2240,8 @@
       "add": "Add",
       "notFound": "Work order not found",
       "backToList": "Back to list",
-      "refresh": "Refresh"
+      "refresh": "Refresh",
+      "clear": "Clear"
     },
     "shell": {
       "guard": {
@@ -2165,9 +2253,88 @@
         "forceDesktop": "Force desktop view"
       },
       "bottomNav": {
+        "home": "Home",
         "pool": "Pool",
         "myOrders": "My orders",
         "account": "Account"
+      },
+      "sidebar": {
+        "brandName": "Smart Lock",
+        "subtitle": "Technician portal",
+        "logout": "Sign out",
+        "logoutConfirm": "Sign out?"
+      }
+    },
+    "home": {
+      "title": "Home",
+      "greeting": "Hi {name}",
+      "refresh": "Refresh",
+      "status": {
+        "available": "Online",
+        "busy": "Busy",
+        "offline": "Offline",
+        "on_leave": "On leave",
+        "circuit_breaker_open": "Dispatch paused",
+        "earningsCaption": "Settled this month",
+        "todayCaption": "Est. earnings today",
+        "weekCaption": "Est. earnings this week"
+      },
+      "goOnline": {
+        "online": "Online · tap to go offline",
+        "offline": "Go online",
+        "submitting": "Switching…",
+        "locked": "Dispatch paused",
+        "busy": "Busy",
+        "on_leave": "On leave",
+        "onlineHint": "You can receive new dispatches",
+        "offlineHint": "Tap to start receiving dispatches",
+        "readOnlyHint": "Status is set by system / schedule and can't be toggled manually",
+        "lockedHint": "Dispatch paused due to service quality; contact admin"
+      },
+      "today": {
+        "title": "Today",
+        "summary": "In progress {inProgress} · Pending {active}",
+        "loading": "Loading…",
+        "empty": "No active orders",
+        "goPool": "Go to pool",
+        "currentTag": "Current",
+        "navigate": "Navigate",
+        "viewAll": "All orders",
+        "scheduledAt": "Scheduled {time}",
+        "overdue": "Overdue"
+      },
+      "monthly": {
+        "title": "Monthly snapshot",
+        "loading": "Loading…",
+        "gross": "Gross this month (est.)",
+        "completion": "Completion",
+        "avgArrival": "Avg arrival",
+        "rating": "Rating ({count})",
+        "estNote": "Earnings are estimated (not settled); see statements for actual payout.",
+        "recentFeedback": "Recent feedback"
+      },
+      "attention": {
+        "title": "Needs attention",
+        "allClear": "Nothing needs attention",
+        "acceptedPending": "{count} accepted order(s) — schedule departure",
+        "statementDeadline": "{count} statement(s) to confirm, {days} day(s) left to dispute",
+        "statementPending": "{count} statement(s) to confirm",
+        "disputed": "{count} statement(s) in dispute"
+      },
+      "workload": {
+        "title": "This month's load",
+        "loading": "Loading…",
+        "empty": "No workload data",
+        "completionRate": "Completion",
+        "avgPerDay": "Avg/day",
+        "less": "Less",
+        "more": "More"
+      },
+      "performance": {
+        "title": "My performance",
+        "completed": "Completed",
+        "rating": "Rating",
+        "level": "Level"
       }
     },
     "techLogin": {
@@ -2249,7 +2416,13 @@
         "errorSummaryShort": "Please enter a completion summary (at least 5 characters)",
         "submit": "Submit completion",
         "submitting": "Submitting…",
-        "note": "Note: parts list, signatures and other fields will be added in later iterations"
+        "note": "Note: parts list, signatures and other fields will be added in later iterations",
+        "signatureLabel": "Customer Signature",
+        "signatureUploadCta": "Upload customer signature",
+        "signatureUploading": "Uploading signature…",
+        "signatureDone": "Signature uploaded",
+        "photosCounter": "Photos {n}/3",
+        "gateHint": "Completion requires ≥3 photos and a customer signature"
       },
       "terminalNotice": "This order is already {status} and cannot be modified"
     },

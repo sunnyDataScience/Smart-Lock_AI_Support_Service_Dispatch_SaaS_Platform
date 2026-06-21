@@ -18,7 +18,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import SettlementTable from "@/components/accounting/SettlementTable";
 import ReconciliationsTable from "@/components/accounting/ReconciliationsTable";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { ApiError, api, tenantPath, getCurrentSession } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 import { ReportExportModal } from "@/components/admin/reports/ReportExportModal";
 
@@ -91,6 +91,8 @@ export default function AccountingPage() {
     ],
     [tS],
   );
+  const [genMsg, setGenMsg] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
   const [settlementCycle, setSettlementCycle] = useState<"month" | "biweek" | "week">("month");
   const [periodFilter, setPeriodFilter] = useState<"last3m" | "last6m" | "all">("last3m");
   const [items, setItems] = useState<Settlement[]>([]);
@@ -141,6 +143,28 @@ export default function AccountingPage() {
       setLoading(false);
     }
   }, []);
+
+  // CR-0035 觸發本月月結批次（admin manual；需 X-Initiator 行為人 header；冪等）
+  async function generateMonthly() {
+    setGenerating(true);
+    setGenMsg(null);
+    try {
+      const now = new Date();
+      await api.post(
+        tenantPath("/accounting/monthly-settlements:generate"),
+        { period_year: now.getFullYear(), period_month: now.getMonth() + 1, triggered_by: "manual" },
+        { headers: { "X-Initiator": getCurrentSession()?.userId ?? "operator" } },
+      );
+      setGenMsg(`已觸發 ${now.getFullYear()} 年 ${now.getMonth() + 1} 月月結`);
+      fetchSettlements();
+    } catch (e) {
+      setGenMsg(
+        e instanceof ApiError ? `${e.errorCode} (${e.status})：${e.message}` : String(e),
+      );
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   const fetchReconciliations = useCallback(
     async (statusFilter: ReconciliationStatus | "") => {
@@ -344,6 +368,18 @@ export default function AccountingPage() {
               </button>
             ))}
           </div>
+
+          {/* CR-0035 觸發月結批次 */}
+          <button
+            onClick={generateMonthly}
+            disabled={generating}
+            className="ml-auto rounded-md bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-50"
+          >
+            {generating ? "處理中…" : "觸發本月月結"}
+          </button>
+          {genMsg && (
+            <span className="text-[13px] font-medium text-[var(--text-secondary)]">{genMsg}</span>
+          )}
 
           {/* Spacer */}
           <div className="flex-1" />

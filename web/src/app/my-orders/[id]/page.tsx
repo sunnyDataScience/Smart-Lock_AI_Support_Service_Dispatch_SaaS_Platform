@@ -19,7 +19,6 @@ import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 type WorkOrderEnvelope = components["schemas"]["WorkOrderEnvelope"];
-type CompletionReport = components["schemas"]["CompletionReport"];
 
 const TERMINAL_STATUSES: WorkOrder["status"][] = [
   "completed",
@@ -61,6 +60,8 @@ export default function MyOrderDetailPage() {
   const [photoUploading, setPhotoUploading] = useState<"before" | "after" | null>(
     null,
   );
+  const [signature, setSignature] = useState<{ id: string; url: string } | null>(null);
+  const [sigUploading, setSigUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitOk, setSubmitOk] = useState(false);
@@ -120,6 +121,27 @@ export default function MyOrderDetailPage() {
     }
   }
 
+  async function uploadSignature(file: File) {
+    if (!wo) return;
+    setSigUploading(true);
+    setSubmitError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("purpose", "completion_signature");
+      fd.append("work_order_id", wo.id);
+      const res = await api.upload<{ id: string; url: string; filename: string }>(
+        tenantPath("/media"),
+        fd,
+      );
+      setSignature({ id: res.id, url: res.url });
+    } catch (e) {
+      setSubmitError(formatErr(e));
+    } finally {
+      setSigUploading(false);
+    }
+  }
+
   async function submitCompletion() {
     if (!wo || submitting) return;
     if (summary.trim().length < 5) {
@@ -129,24 +151,22 @@ export default function MyOrderDetailPage() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const body: CompletionReport = {
-        summary: summary.trim(),
-        ...(actualAmount.trim() ? { actual_amount: actualAmount.trim() } : {}),
-        photos_before: completionPhotos
-          .filter((p) => p.section === "before")
-          .map((p) => p.url),
-        photos_after: completionPhotos
-          .filter((p) => p.section === "after")
-          .map((p) => p.url),
-      };
-      const res = await api.post<WorkOrderEnvelope>(
-        tenantPath(`/work-orders/${encodeURIComponent(wo.id)}:complete`),
-        body,
+      // CR-0039：技師走正規完工硬閘 /onsite/completion（照片≥3 / 簽名 / 安裝案序號）。
+      // 不再打 :complete（後台 override 端點，技師會被後端 403 擋下）。
+      await api.post<{ work_order_id: string; completed_at: string | null }>(
+        tenantPath(`/work-orders/${encodeURIComponent(wo.id)}/onsite/completion`),
+        {
+          signature_evidence_id: signature?.id,
+          photo_evidence_ids: completionPhotos.map((p) => p.id),
+          notes: summary.trim(),
+        },
       );
-      setWo(res.data ?? wo);
       setSubmitOk(true);
       setShowForm(false);
       setCompletionPhotos([]);
+      setSignature(null);
+      // onsite/completion 回 {work_order_id, completed_at}（非 envelope）→ refetch 取最新狀態
+      await fetchOrder();
     } catch (e) {
       setSubmitError(formatErr(e));
     } finally {
@@ -454,7 +474,58 @@ export default function MyOrderDetailPage() {
                     ))}
                   </div>
                 )}
+                <span
+                  className={
+                    completionPhotos.length >= 3
+                      ? "text-[11px] text-[#15803D]"
+                      : "text-[11px] text-[#B45309]"
+                  }
+                >
+                  {tForm("photosCounter", { n: completionPhotos.length })}
+                </span>
               </div>
+
+              {/* CR-0039 客戶簽名（完工硬閘必填）*/}
+              <div className="flex flex-col gap-2">
+                <span className="text-[12px] font-medium text-[var(--text-secondary)]">
+                  {tForm("signatureLabel")} <span className="text-red-500">*</span>
+                </span>
+                {signature ? (
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={signature.url}
+                      alt="signature"
+                      className="h-16 w-28 rounded border border-[var(--border)] bg-white object-contain"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setSignature(null)}
+                      className="text-[12px] text-[var(--error)] hover:underline"
+                    >
+                      {tCommon("clear")}
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex h-16 cursor-pointer items-center justify-center gap-1 rounded-md border-2 border-dashed border-[var(--border)] text-[12px] text-[var(--text-secondary)] hover:border-[var(--primary)]">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) uploadSignature(f);
+                        e.target.value = "";
+                      }}
+                    />
+                    {sigUploading ? tForm("signatureUploading") : tForm("signatureUploadCta")}
+                  </label>
+                )}
+              </div>
+
+              <p className="rounded-md bg-[#F8FAFC] px-3 py-2 text-[11px] text-[var(--text-secondary)]">
+                {tForm("gateHint")}
+              </p>
 
               {submitError && (
                 <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
@@ -474,7 +545,7 @@ export default function MyOrderDetailPage() {
                 <button
                   type="button"
                   onClick={submitCompletion}
-                  disabled={submitting}
+                  disabled={submitting || completionPhotos.length < 3 || !signature}
                   className="h-11 flex-[2] rounded-lg bg-[var(--primary)] text-[14px] font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-60"
                 >
                   {submitting ? tForm("submitting") : tForm("submit")}

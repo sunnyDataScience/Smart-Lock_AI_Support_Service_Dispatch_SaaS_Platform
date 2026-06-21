@@ -26,7 +26,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Path, Query
 from pydantic import BaseModel, Field
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import OPS_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from services import monthly_settlement_service, settlement_service
@@ -49,7 +49,7 @@ class _MonthlyTriggerBody(BaseModel):
 async def trigger_monthly_settlement(
     body: _MonthlyTriggerBody | None = None,
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     """月結觸發端點（CR-0035：接通既有 CR-0012 月結批次服務，不再 501）。
@@ -153,7 +153,7 @@ class BatchSettlementBody(BaseModel):
 async def batch_settlements_v2(
     body: BatchSettlementBody,
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError(

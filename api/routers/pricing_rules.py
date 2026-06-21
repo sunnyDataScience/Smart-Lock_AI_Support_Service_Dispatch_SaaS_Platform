@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Path, Query
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import OPS_ROLES, CurrentUser, require_tenant, role_required
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
     PricingCalculateRequest,
@@ -56,7 +56,7 @@ async def list_pricing_rules(
 )
 async def create_pricing_rule(
     body: PricingRuleCreateRequest,
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     surcharges_payload = (
@@ -86,7 +86,7 @@ async def create_pricing_rule(
 async def update_pricing_rule(
     body: PricingRuleUpdateRequest,
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     surcharges_payload = (
         [s.model_dump(mode="json") for s in body.surcharges]

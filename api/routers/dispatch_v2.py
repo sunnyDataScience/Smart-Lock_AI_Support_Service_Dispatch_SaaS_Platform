@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Path, Query
 
-from core.deps import CurrentUser, require_tenant, role_required
+from core.deps import DISPATCH_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
@@ -117,7 +117,7 @@ async def get_dispatch_candidate_detail_v2(
 async def plan_dispatch_auto_match_v2(
     body: DispatchAutoMatchRequest,
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     # cross-tenant guard（ADR-0030）

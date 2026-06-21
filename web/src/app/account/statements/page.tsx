@@ -3,7 +3,7 @@
 /**
  * FR-0045 Technician AP Statement — 技師薪資對帳單 (含申訴流程)。
  *
- * 對應 backend: GET /tenants/{tid}/me/statements
+ * 對應 backend: GET /tenants/{tid}/tech-statements?technician_id={technicians.id}
  * 對應 Sprint 3 (docs/_ops/phase-ii-web-integration-plan.md §4)
  */
 
@@ -46,8 +46,15 @@ export default function MyStatementsPage() {
     setLoading(true);
     setError(null);
     try {
+      // 對帳單路由為 /tenants/{tid}/tech-statements?technician_id=（technicians.id）。
+      // 先取 profile 拿 technician_id（JWT sub 為 user_id，非 technicians.id）。
+      const profile = await api.get<{ data?: { id: string } }>(
+        "/api/v1/technicians/me",
+      );
+      const techId = profile.data?.id;
       const res = await api.get<TechStatement[] | { items: TechStatement[] }>(
-        tenantPath("/me/statements"),
+        tenantPath("/tech-statements"),
+        techId ? { query: { technician_id: techId } } : undefined,
       );
       const list = Array.isArray(res) ? res : res.items ?? [];
       setItems(list);

@@ -35,7 +35,7 @@ import logging
 from fastapi import APIRouter, Depends, Header, Path, Query, Response
 from pydantic import BaseModel, Field
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import REVIEW_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from services import dispute_v2_service as svc
@@ -187,7 +187,7 @@ async def get_dispute_v2(
 async def open_dispute_v2(
     body: OpenDisputeBody,
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
@@ -228,7 +228,7 @@ async def review_dispute_v2(
     body: ReviewDisputeBody,
     tenantId: str = Path(...),
     disputeId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
     initiator: str = Depends(_require_initiator),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
@@ -269,7 +269,7 @@ async def co_sign_dispute_v2(
     body: CoSignDisputeBody,
     tenantId: str = Path(...),
     disputeId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
     initiator: str = Depends(_require_initiator),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
@@ -310,7 +310,7 @@ async def withdraw_dispute_v2(
     body: WithdrawDisputeBody,
     tenantId: str = Path(...),
     disputeId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
@@ -348,7 +348,7 @@ async def escalate_dispute_v2(
     body: EscalateDisputeBody,
     tenantId: str = Path(...),
     disputeId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
     initiator: str = Depends(_require_initiator),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
@@ -388,7 +388,7 @@ async def reopen_dispute_v2(
     body: ReopenDisputeBody,
     tenantId: str = Path(...),
     disputeId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     """AC-05：不可直接 reopen 已關閉 dispute；必須新建 dispute 引用 parent_dispute_id。

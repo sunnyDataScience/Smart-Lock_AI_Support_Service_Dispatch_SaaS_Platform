@@ -26,6 +26,7 @@ import {
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import WorkOrderDetailSidebar from "@/components/work-orders/WorkOrderDetailSidebar";
+import DispatchOrderView from "@/components/work-orders/DispatchOrderView";
 import {
   STATUS_GROUP_MAP,
   STATUS_GROUP_TONE,
@@ -1588,6 +1589,8 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
               {t("info.banner")}
             </span>
           </div>
+
+          <DispatchOrderView order={order} onUpdated={setOrder} />
 
           <ProblemCardSummary
             pcId={order?.problem_card_id}

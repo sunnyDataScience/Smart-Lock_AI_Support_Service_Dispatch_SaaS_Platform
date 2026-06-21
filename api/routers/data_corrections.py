@@ -16,7 +16,7 @@ import logging
 
 from fastapi import APIRouter, Body, Depends, Path, Query
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import FULL_ACCESS_ROLES, CurrentUser, require_tenant, role_required
 from services import data_corrections_service
 
 logger = logging.getLogger("api.routers.data_corrections")
@@ -66,7 +66,7 @@ async def get_data_correction(
 async def approve_data_correction(
     id: int = Path(...),
     body: dict | None = Body(default=None),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
 ) -> dict:
     review_note = (body or {}).get("review_note") if body else None
     return await data_corrections_service.approve_correction(
@@ -84,7 +84,7 @@ async def approve_data_correction(
 async def reject_data_correction(
     id: int = Path(...),
     body: dict | None = Body(default=None),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
 ) -> dict:
     review_note = (body or {}).get("review_note") if body else None
     return await data_corrections_service.reject_correction(

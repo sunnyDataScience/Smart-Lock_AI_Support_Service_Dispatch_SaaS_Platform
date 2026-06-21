@@ -18,7 +18,7 @@ import logging
 from fastapi import APIRouter, Body, Depends, Path
 from pydantic import BaseModel, Field
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import FULL_ACCESS_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from models.generated import Role, RolesEnvelope
 from services import role_service
@@ -40,7 +40,7 @@ router = APIRouter()
 )
 async def list_roles_v2(
     tenantId: str = Path(..., description="租戶 ID（UUID）"),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
 ) -> dict:
     """GET /tenants/{tenantId}/rbac/roles — tenant-scoped v2。
 
@@ -82,7 +82,7 @@ async def update_role_permissions_v2(
     tenantId: str = Path(..., description="租戶 ID（UUID）"),
     roleName: str = Path(..., description="角色 ID"),
     body: _UpdateRolePermissionsBodyV2 = Body(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
 ) -> dict:
     """PUT /tenants/{tenantId}/rbac/roles/{roleName}/permissions — tenant-scoped v2。
 

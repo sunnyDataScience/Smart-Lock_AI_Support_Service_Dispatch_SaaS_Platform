@@ -18,9 +18,13 @@ export default function RegisterPage() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // technician-only（派工媒合依據：服務地區 + 可服務品牌）
+  const [serviceRegions, setServiceRegions] = useState("");
+  const [capabilities, setCapabilities] = useState("");
   // vendor-only
   const [vendorType, setVendorType] = useState<VendorType>("brand");
   const [companyName, setCompanyName] = useState("");
+  const [taxId, setTaxId] = useState("");
   const [address, setAddress] = useState("");
 
   const [loading, setLoading] = useState(false);
@@ -36,17 +40,25 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       if (tab === "technician") {
-        await api.post("/technicians/register", {
+        // 逗號（,/，/、）分隔 → 陣列（與後台 CreateTechnicianModal 同慣例）
+        const splitList = (s: string) =>
+          s.split(/[,，、]/).map((v) => v.trim()).filter(Boolean);
+        const regions = splitList(serviceRegions);
+        const caps = splitList(capabilities);
+        await api.post("/api/v1/technicians/register", {
           name: name.trim(),
           phone: phone.trim(),
           email: email.trim(),
           password,
+          regions,
+          capabilities: caps.length > 0 ? caps : undefined,
         });
       } else {
-        await api.post("/vendors/register", {
+        await api.post("/api/v1/vendors/register", {
           vendor_type: vendorType,
           name: name.trim(),
-          company_name: companyName.trim() || undefined,
+          company_name: companyName.trim(),
+          tax_id: taxId.trim(),
           phone: phone.trim(),
           email: email.trim(),
           password,
@@ -141,10 +153,30 @@ export default function RegisterPage() {
               </label>
 
               {tab === "vendor" && (
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-[var(--text-secondary)]">{t("companyName")}</span>
-                  <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} className={inputCls} />
-                </label>
+                <>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-[var(--text-secondary)]">{t("companyName")}</span>
+                    <input
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      required
+                      className={inputCls}
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-[var(--text-secondary)]">{t("taxId")}</span>
+                    <input
+                      value={taxId}
+                      onChange={(e) => setTaxId(e.target.value)}
+                      required
+                      pattern="\d{8}"
+                      inputMode="numeric"
+                      placeholder="12345678"
+                      className={inputCls}
+                    />
+                    <span className="text-xs text-[var(--text-secondary)]">{t("taxIdHint")}</span>
+                  </label>
+                </>
               )}
 
               <label className="flex flex-col gap-1 text-sm">
@@ -168,6 +200,33 @@ export default function RegisterPage() {
                 <span className="text-[var(--text-secondary)]">{t("password")}</span>
                 <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} maxLength={72} className={inputCls} />
               </label>
+
+              {tab === "technician" && (
+                <>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-[var(--text-secondary)]">{t("serviceRegions")}</span>
+                    <input
+                      value={serviceRegions}
+                      onChange={(e) => setServiceRegions(e.target.value)}
+                      required
+                      placeholder="台北市、新北市"
+                      className={inputCls}
+                    />
+                    <span className="text-xs text-[var(--text-secondary)]">{t("serviceRegionsHint")}</span>
+                  </label>
+
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-[var(--text-secondary)]">{t("capabilities")}</span>
+                    <input
+                      value={capabilities}
+                      onChange={(e) => setCapabilities(e.target.value)}
+                      placeholder="Yale、Dormakaba、Kaadas"
+                      className={inputCls}
+                    />
+                    <span className="text-xs text-[var(--text-secondary)]">{t("capabilitiesHint")}</span>
+                  </label>
+                </>
+              )}
 
               {tab === "vendor" && (
                 <label className="flex flex-col gap-1 text-sm">

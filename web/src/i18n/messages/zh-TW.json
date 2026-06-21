@@ -132,9 +132,15 @@
     "name": "姓名",
     "contactName": "聯絡人姓名",
     "companyName": "公司名稱",
+    "taxId": "統一編號",
+    "taxIdHint": "8 碼數字，用於開立發票與對帳",
     "phone": "手機",
     "email": "Email",
     "password": "密碼（至少 8 碼）",
+    "serviceRegions": "服務地區",
+    "serviceRegionsHint": "逗號分隔，例：台北市、新北市（用於工單派遣媒合）",
+    "capabilities": "可服務品牌（選填）",
+    "capabilitiesHint": "逗號分隔，例：Yale、Dormakaba、Kaadas",
     "address": "地址",
     "submit": "送出註冊",
     "submitting": "送出中…",
@@ -312,7 +318,10 @@
       "roles": "RBAC 管理",
       "auditLogs": "稽核日誌",
       "sentimentAlerts": "情緒告警",
-      "settings": "系統設定"
+      "settings": "系統設定",
+      "staff": "員工帳號",
+      "payoutRules": "拆帳規則",
+      "configGovernance": "設定治理"
     }
   },
   "pages": {
@@ -470,7 +479,10 @@
         "reschedule": "送出改期",
         "assign": "指派技師",
         "reassign": "重新指派",
-        "actionFailed": "操作失敗：{error}"
+        "actionFailed": "操作失敗：{error}",
+        "requestReschedule": "申請改期",
+        "notifyDelay": "通知延遲",
+        "materialRequest": "叫料申請"
       },
       "toasts": {
         "accepted": "已接受派工",
@@ -756,7 +768,10 @@
         "signatureDone": "雙方簽章完成",
         "escalatedOps": "已升級至營運主管",
         "escalatedTenant": "已升級至租戶管理員",
-        "rescheduleSent": "改期請求已送出（{count} 個備選時段）"
+        "rescheduleSent": "改期請求已送出（{count} 個備選時段）",
+        "requestRescheduleSent": "改期申請已送出",
+        "notifyDelaySent": "延遲通知已送出",
+        "materialRequestSent": "叫料申請已送出"
       },
       "pcSummary": {
         "title": "問題診斷摘要",
@@ -973,7 +988,8 @@
         "scheduled": "預約時間",
         "completed": "完工時間",
         "technician": "服務技師",
-        "technicianPhone": "技師電話"
+        "technicianPhone": "技師電話",
+        "lastUpdate": "最後更新"
       },
       "etaText": "技師預計 {min} 分鐘內抵達",
       "status": {
@@ -1141,7 +1157,7 @@
         "fallbackName": "技師",
         "ariaToggleOnline": "切換在線/離線",
         "onlineToggleLabel": "在線接單",
-        "onlineToggleHint": "（後端 API 待補，當前為本地切換）",
+        "onlineToggleHint": "（切換上線 / 離線，可接收派單）",
         "monthIncome": "本月收入概覽（待後端 API）",
         "incomeNote": "收入總覽、佣金組成、結算紀錄屬 V1.1 範圍",
         "completedOrders": "完成工單",
@@ -1856,6 +1872,77 @@
           "cancelled": "已取消"
         }
       }
+    },
+    "quoteCatalog": {
+      "title": "報價目錄",
+      "mockBadge": "示意資料",
+      "loading": "載入中…",
+      "services": "服務項目（{n}）",
+      "materials": "材料（{n}）",
+      "surcharges": "加價／費用規則（{n}）",
+      "code": "代碼",
+      "name": "名稱",
+      "type": "類型",
+      "cost": "成本",
+      "custPrice": "建議售價",
+      "ruleType": "規則類型",
+      "value": "數值",
+      "status": "狀態"
+    },
+    "quotes": {
+      "title": "報價單",
+      "mockBadge": "示意資料",
+      "woId": "工單 ID",
+      "createDraft": "建立草稿",
+      "quoteId": "報價單 ID",
+      "item": "項目",
+      "pickItem": "請選擇項目",
+      "services": "服務",
+      "materials": "材料",
+      "qty": "數量",
+      "addLine": "新增項目",
+      "name": "名稱",
+      "category": "類別",
+      "cost": "成本",
+      "custPrice": "售價",
+      "noLines": "尚無項目",
+      "customerLink": "客戶查看連結",
+      "copied": "已複製",
+      "copyLink": "複製連結",
+      "getLink": "取得連結",
+      "snapshot": "快照雜湊",
+      "note": "此頁為示意資料，報價金額僅供參考。",
+      "state": {
+        "draft": "草稿",
+        "pending_approval": "待審核",
+        "approved": "已核准",
+        "sent": "已送客戶",
+        "accepted": "已接受",
+        "rejected": "已駁回",
+        "expired": "已過期"
+      },
+      "action": {
+        "submit": "送審",
+        "send": "送客戶",
+        "approve": "核准",
+        "reject": "駁回",
+        "accept": "標記接受"
+      },
+      "createInvoice": "開立應收發票",
+      "invoiceCreated": "已開立發票 {no}"
+    },
+    "vendorApprovals": {
+      "title": "廠商審核",
+      "pendingCount": "待審核 {n} 筆",
+      "loading": "載入中…",
+      "empty": "目前沒有待審核的廠商",
+      "colName": "廠商名稱",
+      "colType": "類型",
+      "colContact": "聯絡方式",
+      "colAction": "操作",
+      "approve": "核准",
+      "reject": "駁回",
+      "rejectReasonPrompt": "請輸入駁回原因："
     }
   },
   "kb": {
@@ -2153,7 +2240,8 @@
       "add": "新增",
       "notFound": "找不到工單",
       "backToList": "返回列表",
-      "refresh": "重新整理"
+      "refresh": "重新整理",
+      "clear": "清除"
     },
     "shell": {
       "guard": {
@@ -2165,9 +2253,88 @@
         "forceDesktop": "強制顯示桌面版"
       },
       "bottomNav": {
+        "home": "首頁",
         "pool": "案件池",
         "myOrders": "我的工單",
         "account": "帳戶"
+      },
+      "sidebar": {
+        "brandName": "Smart Lock",
+        "subtitle": "技師工作台",
+        "logout": "登出",
+        "logoutConfirm": "確定要登出嗎？"
+      }
+    },
+    "home": {
+      "title": "首頁",
+      "greeting": "{name}，今天好",
+      "refresh": "重新整理",
+      "status": {
+        "available": "上線中",
+        "busy": "忙碌中",
+        "offline": "已離線",
+        "on_leave": "請假中",
+        "circuit_breaker_open": "暫停派單",
+        "earningsCaption": "本月已結淨額",
+        "todayCaption": "今日預估收入",
+        "weekCaption": "本週預估收入"
+      },
+      "goOnline": {
+        "online": "上線中 · 點擊離線",
+        "offline": "上線接案",
+        "submitting": "切換中…",
+        "locked": "已暫停派單",
+        "busy": "忙碌中",
+        "on_leave": "請假中",
+        "onlineHint": "目前可接收新派單",
+        "offlineHint": "點擊開始接收派單",
+        "readOnlyHint": "目前狀態由系統 / 排班決定，無法手動切換",
+        "lockedHint": "因服務品質暫停派單，請聯繫管理員"
+      },
+      "today": {
+        "title": "今日行程",
+        "summary": "進行中 {inProgress} · 待處理 {active}",
+        "loading": "載入中…",
+        "empty": "目前沒有進行中的工單",
+        "goPool": "前往案件池接單",
+        "currentTag": "當前工單",
+        "navigate": "導航前往",
+        "viewAll": "全部工單",
+        "scheduledAt": "預約 {time}",
+        "overdue": "已逾時"
+      },
+      "monthly": {
+        "title": "月度快照",
+        "loading": "載入中…",
+        "gross": "本月毛額(預估)",
+        "completion": "完成率",
+        "avgArrival": "平均到場",
+        "rating": "評分({count})",
+        "estNote": "收入為預估報酬(estimated)，非實收金額；實收以對帳單為準。",
+        "recentFeedback": "近期客戶評價"
+      },
+      "attention": {
+        "title": "需注意",
+        "allClear": "目前沒有待辦提醒",
+        "acceptedPending": "{count} 件已接單，記得安排出發",
+        "statementDeadline": "{count} 筆對帳單待確認，申訴期剩 {days} 天",
+        "statementPending": "{count} 筆對帳單待確認",
+        "disputed": "{count} 筆對帳單申訴處理中"
+      },
+      "workload": {
+        "title": "本月案量",
+        "loading": "載入中…",
+        "empty": "尚無案量資料",
+        "completionRate": "完成率",
+        "avgPerDay": "日均工單",
+        "less": "少",
+        "more": "多"
+      },
+      "performance": {
+        "title": "我的表現",
+        "completed": "完成工單",
+        "rating": "評分",
+        "level": "等級"
       }
     },
     "techLogin": {
@@ -2249,7 +2416,13 @@
         "errorSummaryShort": "請輸入完工摘要（至少 5 字）",
         "submit": "提交完工",
         "submitting": "提交中…",
-        "note": "註：零件清單、簽章等欄位於後續迭代補上"
+        "note": "註：零件清單、簽章等欄位於後續迭代補上",
+        "signatureLabel": "客戶簽名",
+        "signatureUploadCta": "上傳客戶簽名（拍照或選圖）",
+        "signatureUploading": "上傳簽名中…",
+        "signatureDone": "簽名已上傳",
+        "photosCounter": "完工照片 {n}/3",
+        "gateHint": "完工需 ≥3 張照片與客戶簽名"
       },
       "terminalNotice": "此工單已 {status}，無法再操作"
     },
