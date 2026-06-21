@@ -115,7 +115,7 @@ WBS = 原四維 × 0.8 + Enhancement × 0.2
 - ✅ `web/docs/system-completion-status.md` — 總體 99.8% → 87%，新增 Enhancement Roadmap 維度 + 加權貢獻欄
 - ✅ `CHANGELOG.md` `[Unreleased]` — 加 Decisions 條目
 - ✅ 本檔 `docs/_audit/wbs-recalc-2026-06-07.md`
-- ⚠️ `pending-business-decisions-2026-06-06.html` — progress bar 98.7% → 87%（待 user 確認是否更新）
+- ⚠️ `docs/_archive/governance/pending-business-decisions-2026-06-06.html`（已歸檔）— progress bar 98.7% → 87%（待 user 確認是否更新）
 
 ## §8 對齊文件
 

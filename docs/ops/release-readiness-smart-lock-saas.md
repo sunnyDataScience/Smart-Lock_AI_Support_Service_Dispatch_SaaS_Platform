@@ -26,7 +26,7 @@ related_docs:
   - docs/ops/runbook-smart-lock-saas.md
   - docs/ops/slo-spec-smart-lock-saas.md
   - docs/ops/rollback-plan-smart-lock-saas.md
-  - docs/ops/release-readiness.md   # legacy V1 readiness（pre-2026-05-28 cascade）— superseded by this doc
+  - docs/_archive/ops/release-readiness.md   # legacy V1 readiness（pre-2026-05-28 cascade）— superseded by this doc，已歸檔
 ---
 
 # Release Readiness Checklist — 智慧鎖 SaaS V1.0
@@ -35,7 +35,7 @@ related_docs:
 > **更新**：2026-05-28
 > **負責人**：DevOps + SRE
 > **目標上線**：V1.0 W17（per PRD §Release Plan）
-> **Supersedes**：`release-readiness.md`（已對齊新 ADR-0067 + ADR-0068 + 完整 7 gate quick reference）
+> **Supersedes**：`docs/_archive/ops/release-readiness.md`（已歸檔；已對齊新 ADR-0067 + ADR-0068 + 完整 7 gate quick reference）
 > **設計原則**：對齊 Gate 1-7 全部證據；30-item pre-release checklist；24h post-release watch；台灣 release 日期紀律。
 
 ---
