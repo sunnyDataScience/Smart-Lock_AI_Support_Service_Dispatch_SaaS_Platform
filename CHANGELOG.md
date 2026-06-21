@@ -121,6 +121,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Sidebar 導航後捲軸跳回頂端（branch `fix/sidebar-scroll-position`，2026-06-21）**：業主回報點選其他 nav 項後側欄捲軸重置。根因：`Sidebar` 在 66 個頁面各自掛載（非共用 layout），導航即整個 remount → nav 捲軸歸零。修：在 `Sidebar.tsx` 用 sessionStorage（key `sidebar:scrollTop`）記捲動位置，remount 時於 paint 前（`useLayoutEffect`，SSR 退回 `useEffect`）還原，避免閃爍。純前端、零架構/contract 變更。tsc 0 錯。
+
 - **CR-0053 到場/改派事件 3 個真 bug（branch `fix/cr-0053-arrival-doorcheck-bugs`，2026-06-20）**：7-agent 審計（對 HEAD 查證）+ 深掘揪出，同 migration 050 schedule_conflict 同類。(1) `onsite_arrival_v2` 誤呼 `record_door_check`（寫 event_type='door_check'）→ `submit_door_check_v2` 查 event_type='arrival' 前置閘**恆 409**，到場硬閘實質失效；(2) 到場不落 `started_at` → operational_kpi arrival_on_time **失真**；(3) `work_order_events` CHECK 漏 'arrival'/'reassign' → `reassign_order` 寫 'reassign' 違反 CHECK **成功改派恆 500**（無 try/except，且無成功路徑測試掩蓋）。**修**：新增 `record_arrival`（寫 'arrival' 事件 + 補 started_at）、`onsite_arrival_v2` 改呼之、**migration 059** CHECK 補 arrival+reassign、Schema_work_order_events.sql 同步（順帶補 050 漏的 schedule_conflict）。test_cr_0053 2/2（door-check 閘前 409/到場後通過/started_at 落；reassign 寫 event 不 500）+ 回歸 810 passed 0 fail。
 
 ### Added

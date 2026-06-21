@@ -23,13 +23,19 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { getCurrentSession, logout, type CurrentSession } from "@/lib/api";
 import { canAccessRoute } from "@/lib/rolePolicy";
 import NotificationBell from "./NotificationBell";
 import Hamburger from "./Hamburger";
 import { useSidebar } from "./SidebarContext";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
+
+// sidebar 捲軸位置持久化：Sidebar 在各頁各自掛載（非共用 layout），導航即 remount，
+// 故用 sessionStorage 記住 nav 捲軸，remount 時於 paint 前還原，避免每次點選跳回頂端。
+const SIDEBAR_SCROLL_KEY = "sidebar:scrollTop";
+// SSR 安全：server 端無 layout effect，退回 useEffect 避免 hydration 警告。
+const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 interface NavChild {
   /** translation key under sidebar.nav.*; e.g. "kbCases" → t("kbCases") */
@@ -167,10 +173,24 @@ export default function Sidebar() {
   const tRole = useTranslations("role");
   const [loggingOut, setLoggingOut] = useState(false);
   const [session, setSession] = useState<CurrentSession | null>(null);
+  const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     setSession(getCurrentSession());
   }, []);
+
+  // 還原 nav 捲軸位置（remount 後、paint 前），避免導航跳回頂端
+  useIsoLayoutEffect(() => {
+    const el = navRef.current;
+    if (!el) return;
+    const saved = sessionStorage.getItem(SIDEBAR_SCROLL_KEY);
+    if (saved) el.scrollTop = Number(saved) || 0;
+  }, []);
+
+  // 捲動時即時記住位置
+  function persistNavScroll(e: React.UIEvent<HTMLElement>) {
+    sessionStorage.setItem(SIDEBAR_SCROLL_KEY, String(e.currentTarget.scrollTop));
+  }
 
   async function onLogout() {
     if (loggingOut) return;
@@ -232,6 +252,8 @@ export default function Sidebar() {
       </div>
 
       <nav
+        ref={navRef}
+        onScroll={persistNavScroll}
         className="flex flex-1 flex-col gap-[2px] overflow-y-auto px-3 py-2"
         aria-label={tSidebar("pageNavAria")}
       >
