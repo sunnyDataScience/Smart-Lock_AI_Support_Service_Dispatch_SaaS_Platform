@@ -318,7 +318,8 @@
       "roles": "RBAC 管理",
       "auditLogs": "稽核日誌",
       "sentimentAlerts": "情緒告警",
-      "settings": "系統設定"
+      "settings": "系統設定",
+      "staff": "員工帳號"
     }
   },
   "pages": {

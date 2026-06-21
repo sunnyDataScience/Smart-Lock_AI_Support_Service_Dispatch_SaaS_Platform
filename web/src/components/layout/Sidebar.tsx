@@ -106,6 +106,7 @@ const navItems: NavItem[] = [
     href: "/admin/audit-events",
     children: [
       { id: "roles", href: "/admin/roles" },
+      { id: "staff", href: "/admin/staff" },
       { id: "auditLogs", href: "/admin/audit-events" },
       { id: "sentimentAlerts", href: "/admin/sentiment-alerts" },
     ],

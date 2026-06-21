@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from core.deps import FULL_ACCESS_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from models.generated import Role, RolesEnvelope
-from services import role_service
+from services import auth_service, role_service
 
 # D3：legacy 端點 Deprecation header 常數（successor 為 tenant-scoped v2 路徑）
 _DEPRECATION_HEADER = "true"
@@ -98,3 +98,42 @@ async def update_role_permissions(
         ) from exc
 
     return {"data": result}
+
+
+# ─── CR-0094：後台員工帳號建立（解「5 角色只有 admin」）────────────
+
+
+class _CreateStaffBody(BaseModel):
+    """建立後台員工帳號（admin 專用）。role 限 _STAFF_ROLES（service 驗證）。"""
+
+    name: str = Field(..., min_length=1, max_length=100)
+    email: str = Field(..., min_length=3, max_length=150)
+    password: str = Field(..., min_length=8, max_length=128)
+    role: str = Field(..., description="operations_manager / dispatcher / customer_service / reviewer / admin")
+    phone: str | None = Field(default=None, max_length=50)
+
+
+@router.get(
+    "/staff",
+    operation_id="listStaff",
+    summary="列出後台員工帳號（admin / tenant_admin / super_admin）",
+)
+async def list_staff(
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
+) -> dict:
+    return await auth_service.list_staff_users(tenant_id=user.tenant_id)
+
+
+@router.post(
+    "/staff",
+    operation_id="createStaff",
+    summary="建立後台員工帳號（admin / tenant_admin / super_admin）",
+    status_code=201,
+)
+async def create_staff(
+    body: _CreateStaffBody,
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
+) -> dict:
+    return await auth_service.create_staff_user(
+        body.model_dump(), tenant_id=user.tenant_id
+    )

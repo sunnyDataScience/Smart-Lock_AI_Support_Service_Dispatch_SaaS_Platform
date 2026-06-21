@@ -17,6 +17,7 @@ const ALL_BACKOFFICE = [
   "operations_manager",
   "dispatcher",
   "customer_service",
+  "reviewer", // CR-0094：審核員（_MATRIX：讀全部 + 寫退款/保固/爭議）可登入後台
 ];
 
 /** 路由 prefix → 允許角色。longest-prefix-wins。 */
@@ -37,14 +38,15 @@ const ROUTE_POLICY: { prefix: string; roles: string[] }[] = [
   { prefix: "/admin/vendor-approvals", roles: ["admin", "operations_manager"] },
   { prefix: "/admin/quote-catalog", roles: ["admin", "operations_manager"] },
   { prefix: "/admin/quotes", roles: ["admin", "operations_manager"] },
-  { prefix: "/accounting", roles: ["admin", "operations_manager"] },
-  { prefix: "/admin/refunds", roles: ["admin", "operations_manager"] },
-  { prefix: "/admin/warranty-claims", roles: ["admin", "operations_manager"] },
-  { prefix: "/admin/disputes", roles: ["admin", "operations_manager"] },
+  { prefix: "/accounting", roles: ["admin", "operations_manager", "reviewer"] },
+  { prefix: "/admin/refunds", roles: ["admin", "operations_manager", "reviewer"] },
+  { prefix: "/admin/warranty-claims", roles: ["admin", "operations_manager", "reviewer"] },
+  { prefix: "/admin/disputes", roles: ["admin", "operations_manager", "reviewer"] },
   { prefix: "/admin/inventory", roles: ["admin", "operations_manager"] },
   { prefix: "/admin/reports", roles: ["admin", "operations_manager"] },
   { prefix: "/admin/knowledge-base", roles: ["admin", "operations_manager"] },
   { prefix: "/admin/roles", roles: ["admin"] },
+  { prefix: "/admin/staff", roles: ["admin"] }, // CR-0094 員工帳號管理
   { prefix: "/admin/audit-events", roles: ["admin"] },
   // CR-0041 異常管理：派工/客服也需處理異常
   { prefix: "/admin/exceptions", roles: ["admin", "operations_manager", "dispatcher", "customer_service"] },

@@ -268,6 +268,95 @@ async def register_technician(req: dict) -> dict:
     }
 
 
+# CR-0094 後台員工帳號可建立的角色（對齊 auth._ADMIN_WEB_ROLES 登入集 + admin）。
+# technician/vendor 走各自 self-register；super_admin/tenant_admin 為特殊不在此開放。
+_STAFF_ROLES = ("admin", "operations_manager", "dispatcher", "customer_service", "reviewer")
+
+
+async def create_staff_user(req: dict, *, tenant_id: str) -> dict:
+    """admin 建立後台員工帳號（users 列，role ∈ _STAFF_ROLES）。
+
+    解業主「5 種角色只有 admin」—— 過去無任何建立非-admin 角色帳號的路徑。
+    admin 建立的員工即時 active（不需 self-register 的 pending_approval）。
+    email 角色限定去重（對齊 CR-0090：同 email 不同角色可並存）。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    email = (req.get("email") or "").strip()
+    name = (req.get("name") or "").strip()
+    password = req.get("password") or ""
+    role = (req.get("role") or "").strip()
+    phone = (req.get("phone") or "").strip() or None
+
+    if role not in _STAFF_ROLES:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"role must be one of: {', '.join(_STAFF_ROLES)}",
+            422,
+        )
+    if not name or not email:
+        raise ApiError("VALIDATION_ERROR", "name and email are required", 422)
+    if len(password) < 8:
+        raise ApiError("VALIDATION_ERROR", "password must be at least 8 characters", 422)
+
+    cur = await db_module._conn.execute(
+        "SELECT 1 FROM users WHERE email = %s AND role = %s LIMIT 1", (email, role)
+    )
+    if await cur.fetchone():
+        raise ApiError(
+            "EMAIL_TAKEN", f"Email {email} is already registered as {role}", 409
+        )
+
+    user_id = str(uuid.uuid4())
+    pw_hash = hash_password(password)
+    await db_module._conn.execute(
+        "INSERT INTO users (id, tenant_id, tenant_type, display_name, phone, email, password_hash, role, is_active) "
+        "VALUES (%s::uuid, %s::uuid, 'platform', %s, %s, %s, %s, %s, TRUE)",
+        (user_id, tenant_id, name, phone, email, pw_hash, role),
+    )
+    return {
+        "data": {
+            "id": user_id,
+            "tenant_id": tenant_id,
+            "name": name,
+            "email": email,
+            "phone": phone,
+            "role": role,
+            "is_active": True,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        },
+        "message": "Staff account created",
+    }
+
+
+async def list_staff_users(*, tenant_id: str) -> dict:
+    """列出後台員工帳號（供 admin 員工管理頁）。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    placeholders = ", ".join(["%s"] * len(_STAFF_ROLES))
+    cur = await db_module._conn.execute(
+        "SELECT id, display_name, email, phone, role, is_active, created_at FROM users "
+        f"WHERE tenant_id = %s::uuid AND role IN ({placeholders}) "
+        "ORDER BY created_at DESC NULLS LAST",
+        (tenant_id, *_STAFF_ROLES),
+    )
+    rows = await cur.fetchall()
+    items = [
+        {
+            "id": str(r[0]),
+            "name": r[1],
+            "email": r[2],
+            "phone": r[3],
+            "role": r[4],
+            "is_active": r[5],
+            "created_at": r[6].isoformat() if r[6] else None,
+        }
+        for r in rows
+    ]
+    return {"items": items}
+
+
 _VENDOR_TYPES = {"brand", "locksmith", "distributor"}
 
 

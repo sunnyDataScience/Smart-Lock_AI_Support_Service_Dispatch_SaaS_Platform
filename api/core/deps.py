@@ -158,6 +158,8 @@ OPS_ROLES: tuple[str, ...] = FULL_ACCESS_ROLES + ("operations_manager",)
 DISPATCH_ROLES: tuple[str, ...] = OPS_ROLES + ("dispatcher",)
 #: 後台唯讀／一般後台操作（含客服）
 BACKOFFICE_ROLES: tuple[str, ...] = DISPATCH_ROLES + ("customer_service",)
+#: 審核寫入（退款 / 保固 / 爭議）—— 對齊 role_service._MATRIX：reviewer 於此三域可寫（CR-0094）
+REVIEW_ROLES: tuple[str, ...] = OPS_ROLES + ("reviewer",)
 
 
 def role_required(*roles: str):

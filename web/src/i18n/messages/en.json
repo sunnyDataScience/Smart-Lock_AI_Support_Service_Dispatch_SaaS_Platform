@@ -318,7 +318,8 @@
       "roles": "RBAC",
       "auditLogs": "Audit logs",
       "sentimentAlerts": "Sentiment alerts",
-      "settings": "Settings"
+      "settings": "Settings",
+      "staff": "Staff Accounts"
     }
   },
   "pages": {
