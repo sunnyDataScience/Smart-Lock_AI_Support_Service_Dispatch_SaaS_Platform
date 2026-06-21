@@ -319,7 +319,8 @@
       "auditLogs": "Audit logs",
       "sentimentAlerts": "Sentiment alerts",
       "settings": "Settings",
-      "staff": "Staff Accounts"
+      "staff": "Staff Accounts",
+      "payoutRules": "Payout Rules"
     }
   },
   "pages": {

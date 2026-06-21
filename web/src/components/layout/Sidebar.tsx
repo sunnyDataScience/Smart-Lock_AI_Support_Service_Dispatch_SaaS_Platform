@@ -12,6 +12,7 @@ import {
   Store,
   Tag,
   FileText,
+  Banknote,
   Receipt,
   Package,
   BarChart3,
@@ -75,6 +76,7 @@ const navItems: NavItem[] = [
   { icon: Store, id: "vendorApprovals", href: "/admin/vendor-approvals" },
   { icon: Tag, id: "quoteCatalog", href: "/admin/quote-catalog" },
   { icon: FileText, id: "quotes", href: "/admin/quotes" },
+  { icon: Banknote, id: "payoutRules", href: "/admin/payout-rules" },
   { icon: CircleUserRound, id: "customers", href: "/admin/customers" },
   {
     icon: Receipt,
