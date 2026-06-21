@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { RefreshCw, Wrench, Star, ShieldCheck } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import StatusEarningsPill from "@/components/tech/dashboard/StatusEarningsPill";
 import GoOnlineToggle from "@/components/tech/dashboard/GoOnlineToggle";
@@ -10,9 +10,13 @@ import NeedsAttention from "@/components/tech/dashboard/NeedsAttention";
 import WorkloadHeatmap, {
   type WorkloadData,
 } from "@/components/tech/dashboard/WorkloadHeatmap";
+import MonthlySnapshot, {
+  type DashboardSummary,
+  formatNT,
+} from "@/components/tech/dashboard/MonthlySnapshot";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { api, tenantPath } from "@/lib/api";
-import { formatDecimal, type TechStatement } from "@/components/phase-ii";
+import { type TechStatement } from "@/components/phase-ii";
 import type { components } from "@/types/api.generated";
 
 type Technician = components["schemas"]["Technician"];
@@ -27,14 +31,14 @@ export default function TechHomePage() {
   const [availability, setAvailability] = useState<Availability>("offline");
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [statements, setStatements] = useState<TechStatement[]>([]);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [workload, setWorkload] = useState<WorkloadData | null>(null);
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
 
-    // 1) 先取 profile 拿 technician_id（technicians.id，非 JWT sub 的 user_id）。
-    //    工單 / 對帳單 / 負載皆以 technicians.id 過濾，故須先取得。
+    // 1) 先取 profile：availability / 姓名 / technician_id（工單過濾需 technicians.id）
     let techId: string | null = null;
     try {
       const profileRes = await api.get<TechnicianEnvelope>(
@@ -46,11 +50,11 @@ export default function TechHomePage() {
         techId = profileRes.data.id;
       }
     } catch {
-      // profile 失敗則其餘略過（多半未登入 / 401）
+      // 多半未登入 / 401
     }
 
-    // 2) 以 techId 平行抓工單 / 對帳單 / 負載
-    const [ordersRes, stmtsRes, wlRes] = await Promise.allSettled([
+    // 2) 平行抓：工單(需 techId) / 對帳單(需 techId) / 決策屏聚合(self) / 負載(self)
+    const [ordersRes, stmtsRes, summaryRes, wlRes] = await Promise.allSettled([
       techId
         ? api.get<WorkOrderPage>(tenantPath("/work-orders"), {
             query: { technician_id: techId, limit: 50 },
@@ -62,12 +66,13 @@ export default function TechHomePage() {
             { query: { technician_id: techId } },
           )
         : Promise.resolve(null),
-      techId
-        ? api.get<{ data: WorkloadData }>(
-            `/api/v1/technicians/${encodeURIComponent(techId)}/workload-heatmap`,
-            { query: { days: 30 } },
-          )
-        : Promise.resolve(null),
+      api.get<{ data: DashboardSummary }>(
+        "/api/v1/technicians/me/dashboard-summary",
+      ),
+      api.get<{ data: WorkloadData }>(
+        "/api/v1/technicians/me/workload-heatmap",
+        { query: { days: 30 } },
+      ),
     ]);
 
     if (ordersRes.status === "fulfilled" && ordersRes.value) {
@@ -76,6 +81,9 @@ export default function TechHomePage() {
     if (stmtsRes.status === "fulfilled" && stmtsRes.value) {
       const res = stmtsRes.value;
       setStatements(Array.isArray(res) ? res : (res.items ?? []));
+    }
+    if (summaryRes.status === "fulfilled" && summaryRes.value) {
+      setSummary(summaryRes.value.data ?? null);
     }
     if (wlRes.status === "fulfilled" && wlRes.value) {
       setWorkload(wlRes.value.data ?? null);
@@ -87,25 +95,26 @@ export default function TechHomePage() {
     load();
   }, [load]);
 
-  // 本月已結淨額（approved/paid 之當月對帳單 net_amount）
-  const earningsLabel = useMemo(() => {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = now.getMonth() + 1;
-    const cur = statements.find(
-      (s) =>
-        s.period_year === y &&
-        s.period_month === m &&
-        (s.status === "approved" || s.status === "paid"),
-    );
-    return cur && cur.net_amount ? formatDecimal(cur.net_amount) : null;
-  }, [statements]);
+  // 收入膠囊：上線顯示今日預估、離線顯示本週預估（口徑為 estimated_price 預估）
+  const { earningsLabel, earningsCaption } = useMemo(() => {
+    if (!summary) {
+      return { earningsLabel: null, earningsCaption: t("status.earningsCaption") };
+    }
+    return availability === "available"
+      ? {
+          earningsLabel: formatNT(summary.today_earnings),
+          earningsCaption: t("status.todayCaption"),
+        }
+      : {
+          earningsLabel: formatNT(summary.week_earnings),
+          earningsCaption: t("status.weekCaption"),
+        };
+  }, [summary, availability, t]);
 
   const greeting = tech?.name ? t("greeting", { name: tech.name }) : t("title");
 
   return (
     <TechShell wide>
-      {/* header */}
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border)] bg-white px-4 py-3 md:px-6">
         <h1 className="text-[18px] font-semibold text-[#1E293B]">{greeting}</h1>
         <button
@@ -125,7 +134,7 @@ export default function TechHomePage() {
           <StatusEarningsPill
             availability={availability}
             amountLabel={earningsLabel}
-            caption={t("status.earningsCaption")}
+            caption={earningsCaption}
           />
           <div className="flex items-center justify-center rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
             <GoOnlineToggle
@@ -135,7 +144,7 @@ export default function TechHomePage() {
           </div>
         </div>
 
-        {/* 主內容：桌面雙欄（左 今日行程+案量 / 右 需注意+績效）*/}
+        {/* 主內容：桌面雙欄 */}
         <div className="grid gap-4 md:grid-cols-2">
           <div className="flex flex-col gap-4">
             <TodayScheduleSummary orders={orders} loading={loading} />
@@ -143,41 +152,7 @@ export default function TechHomePage() {
           </div>
           <div className="flex flex-col gap-4">
             <NeedsAttention orders={orders} statements={statements} />
-            {/* 績效卡片（漸進揭露，次要）*/}
-            <section className="rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
-              <h2 className="mb-3 text-[15px] font-semibold text-[var(--text-primary)]">
-                {t("performance.title")}
-              </h2>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="rounded-lg border border-[var(--border)] p-3 text-center">
-                  <Wrench className="mx-auto h-4 w-4 text-[var(--text-secondary)]" />
-                  <span className="mt-1 block text-[16px] font-bold text-[var(--text-primary)]">
-                    {tech?.completed_orders_count ?? "—"}
-                  </span>
-                  <span className="text-[10px] text-[var(--text-disabled)]">
-                    {t("performance.completed")}
-                  </span>
-                </div>
-                <div className="rounded-lg border border-[var(--border)] p-3 text-center">
-                  <Star className="mx-auto h-4 w-4 fill-amber-400 text-amber-400" />
-                  <span className="mt-1 block text-[16px] font-bold text-[var(--text-primary)]">
-                    {tech?.rating != null ? tech.rating.toFixed(1) : "—"}
-                  </span>
-                  <span className="text-[10px] text-[var(--text-disabled)]">
-                    {t("performance.rating")}
-                  </span>
-                </div>
-                <div className="rounded-lg border border-[var(--border)] p-3 text-center">
-                  <ShieldCheck className="mx-auto h-4 w-4 text-[var(--text-secondary)]" />
-                  <span className="mt-1 block text-[16px] font-bold text-[var(--text-primary)]">
-                    {tech?.level ?? "—"}
-                  </span>
-                  <span className="text-[10px] text-[var(--text-disabled)]">
-                    {t("performance.level")}
-                  </span>
-                </div>
-              </div>
-            </section>
+            <MonthlySnapshot summary={summary} loading={loading} />
           </div>
         </div>
       </div>

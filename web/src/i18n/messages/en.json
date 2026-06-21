@@ -2187,7 +2187,9 @@
         "offline": "Offline",
         "on_leave": "On leave",
         "circuit_breaker_open": "Dispatch paused",
-        "earningsCaption": "Settled this month"
+        "earningsCaption": "Settled this month",
+        "todayCaption": "Est. earnings today",
+        "weekCaption": "Est. earnings this week"
       },
       "goOnline": {
         "online": "Online · tap to go offline",
@@ -2209,7 +2211,19 @@
         "goPool": "Go to pool",
         "currentTag": "Current",
         "navigate": "Navigate",
-        "viewAll": "All orders"
+        "viewAll": "All orders",
+        "scheduledAt": "Scheduled {time}",
+        "overdue": "Overdue"
+      },
+      "monthly": {
+        "title": "Monthly snapshot",
+        "loading": "Loading…",
+        "gross": "Gross this month (est.)",
+        "completion": "Completion",
+        "avgArrival": "Avg arrival",
+        "rating": "Rating ({count})",
+        "estNote": "Earnings are estimated (not settled); see statements for actual payout.",
+        "recentFeedback": "Recent feedback"
       },
       "attention": {
         "title": "Needs attention",

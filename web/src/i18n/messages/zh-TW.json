@@ -2187,7 +2187,9 @@
         "offline": "已離線",
         "on_leave": "請假中",
         "circuit_breaker_open": "暫停派單",
-        "earningsCaption": "本月已結淨額"
+        "earningsCaption": "本月已結淨額",
+        "todayCaption": "今日預估收入",
+        "weekCaption": "本週預估收入"
       },
       "goOnline": {
         "online": "上線中 · 點擊離線",
@@ -2209,7 +2211,19 @@
         "goPool": "前往案件池接單",
         "currentTag": "當前工單",
         "navigate": "導航前往",
-        "viewAll": "全部工單"
+        "viewAll": "全部工單",
+        "scheduledAt": "預約 {time}",
+        "overdue": "已逾時"
+      },
+      "monthly": {
+        "title": "月度快照",
+        "loading": "載入中…",
+        "gross": "本月毛額(預估)",
+        "completion": "完成率",
+        "avgArrival": "平均到場",
+        "rating": "評分({count})",
+        "estNote": "收入為預估報酬(estimated)，非實收金額；實收以對帳單為準。",
+        "recentFeedback": "近期客戶評價"
       },
       "attention": {
         "title": "需注意",
