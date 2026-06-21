@@ -109,6 +109,7 @@ const navItems: NavItem[] = [
     children: [
       { id: "roles", href: "/admin/roles" },
       { id: "staff", href: "/admin/staff" },
+      { id: "configGovernance", href: "/admin/config-governance" },
       { id: "auditLogs", href: "/admin/audit-events" },
       { id: "sentimentAlerts", href: "/admin/sentiment-alerts" },
     ],

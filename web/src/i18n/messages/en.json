@@ -320,7 +320,8 @@
       "sentimentAlerts": "Sentiment alerts",
       "settings": "Settings",
       "staff": "Staff Accounts",
-      "payoutRules": "Payout Rules"
+      "payoutRules": "Payout Rules",
+      "configGovernance": "Config Governance"
     }
   },
   "pages": {

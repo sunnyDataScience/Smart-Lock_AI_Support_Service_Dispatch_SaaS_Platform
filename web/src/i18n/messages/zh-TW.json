@@ -320,7 +320,8 @@
       "sentimentAlerts": "情緒告警",
       "settings": "系統設定",
       "staff": "員工帳號",
-      "payoutRules": "拆帳規則"
+      "payoutRules": "拆帳規則",
+      "configGovernance": "設定治理"
     }
   },
   "pages": {

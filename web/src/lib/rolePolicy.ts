@@ -49,6 +49,7 @@ const ROUTE_POLICY: { prefix: string; roles: string[] }[] = [
   { prefix: "/admin/knowledge-base", roles: ["admin", "operations_manager"] },
   { prefix: "/admin/roles", roles: ["admin"] },
   { prefix: "/admin/staff", roles: ["admin"] }, // CR-0094 員工帳號管理
+  { prefix: "/admin/config-governance", roles: ["admin"] }, // CR-0036 M18 config 治理
   { prefix: "/admin/audit-events", roles: ["admin"] },
   // CR-0041 異常管理：派工/客服也需處理異常
   { prefix: "/admin/exceptions", roles: ["admin", "operations_manager", "dispatcher", "customer_service"] },
