@@ -142,7 +142,11 @@ def page(title, body_html, breadcrumb, depth):
 
 
 def main():
-    OUT.mkdir(exist_ok=True)
+    # 清空重建（OUT 全為產物）→ 來源 docs 移檔/刪檔後不留孤兒 html
+    import shutil
+    if OUT.exists():
+        shutil.rmtree(OUT)
+    OUT.mkdir(parents=True)
     dates = git_last_dates()
     records = []  # (cat_key, rel_str, out_rel, title, desc, date)
 

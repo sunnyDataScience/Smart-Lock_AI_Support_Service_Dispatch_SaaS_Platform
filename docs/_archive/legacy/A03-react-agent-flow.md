@@ -12,6 +12,8 @@ related_kb: [KB-07]
 related_modules: [A02, A04, A05, A06, A07, A08]
 last_updated: 2026-05-28
 ---
+> ⚠️ **已封存（2026-06-21）**：本文件描述 2026-06-04 agent 重寫前的 ReAct/LangGraph 架構，已被 LockCore（fork 自 nanobot）+ Agent Skills 標準取代。現行架構見 `docs/architecture/adr/ADR-0107-lockcore-supersede-product-info-trio.md` 與 `agent/lockcore/`。保留僅供歷史參考，**勿視為當前行為**。
+
 
 # A03 ReAct Agent — LangGraph + tools
 

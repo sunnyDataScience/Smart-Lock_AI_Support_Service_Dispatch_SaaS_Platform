@@ -16,7 +16,7 @@ last_updated: 2026-05-28
 
 ## 對應
 - 主檔 flow：[`../user-flow-smart-lock-saas.md#flow-s1`](../user-flow-smart-lock-saas.md) step 1 (AI 認意圖)
-- by-module 子檔：[`../by-module/A01-debounce-flow.md`](../by-module/A01-debounce-flow.md)、[`../by-module/A03-react-agent-flow.md`](../by-module/A03-react-agent-flow.md)
+- by-module 子檔：[`../by-module/A01-debounce-flow.md`](../by-module/A01-debounce-flow.md)、~~A03-react-agent-flow~~（已封存→`../../_archive/legacy/A03-react-agent-flow.md`，ReAct/LangGraph 舊架構）
 
 ## 5 UI state 描述
 
