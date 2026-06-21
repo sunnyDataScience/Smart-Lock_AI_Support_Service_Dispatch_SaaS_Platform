@@ -89,6 +89,13 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
     | null
   >(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  // CR-0042：轉單 422 結構化錯誤（缺漏欄位 / 重複客戶）供 ConvertModal 顯示 + 主管 override
+  const [convertErr, setConvertErr] = useState<{
+    message: string;
+    missing: { field: string; tier: string }[];
+    incomplete: boolean;
+    duplicate: boolean;
+  } | null>(null);
   const [actionToast, setActionToast] = useState<string | null>(null);
   const [resolveModalOpen, setResolveModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -250,16 +257,21 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
     }
   };
 
-  const handleConvertToWO = async (info: {
-    customer_address: string;
-    customer_name?: string;
-    customer_phone?: string;
-  }) => {
+  const handleConvertToWO = async (
+    info: {
+      customer_address: string;
+      customer_name?: string;
+      customer_phone?: string;
+    },
+    overrideReason?: string,
+  ) => {
     setActionPending("convert");
     setActionError(null);
+    setConvertErr(null);
     try {
       // CR-0009 step-extend：problem_cards_v2 補 convertProblemCardToWorkOrderV2
       // CR-0022：AI 草擬卡無 profile 地址，必須在開單時由客服填服務地址（HITL）。
+      // CR-0042：主管 override 走 query param override_reason（後端 assert_completeness 接）。
       const res = await api.post<WorkOrderEnvelope>(
         tenantPath(`/problem-cards/${encodeURIComponent(id)}/convert-to-work-order`),
         {
@@ -267,14 +279,25 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
           ...(info.customer_name ? { customer_name: info.customer_name } : {}),
           ...(info.customer_phone ? { customer_phone: info.customer_phone } : {}),
         },
+        overrideReason && overrideReason.trim()
+          ? { query: { override_reason: overrideReason.trim() } }
+          : undefined,
       );
       const woId = res.data?.id;
       setConvertModalOpen(false);
-      setActionToast(
-        woId ? `工單已建立：${woId.slice(0, 8)}` : "工單已建立",
-      );
+      setActionToast(woId ? `工單已建立：${woId.slice(0, 8)}` : "工單已建立");
     } catch (e) {
-      setActionError(formatActionError(e));
+      // CR-0042：解析結構化 422 — 缺漏欄位 / 重複客戶交給 ConvertModal 顯示；其餘走 generic
+      if (e instanceof ApiError && e.status === 422 && e.errorCode === "INCOMPLETE_PROBLEM_CARD") {
+        const missing = Array.isArray(e.details)
+          ? (e.details as { field: string; tier: string }[])
+          : [];
+        setConvertErr({ message: e.message, missing, incomplete: true, duplicate: false });
+      } else if (e instanceof ApiError && e.errorCode === "DUPLICATE_CUSTOMER") {
+        setConvertErr({ message: e.message, missing: [], incomplete: false, duplicate: true });
+      } else {
+        setActionError(formatActionError(e));
+      }
     } finally {
       setActionPending(null);
     }
@@ -587,7 +610,11 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
       {convertModalOpen && (
         <ConvertModal
           pending={actionPending === "convert"}
-          onCancel={() => setConvertModalOpen(false)}
+          error={convertErr}
+          onCancel={() => {
+            setConvertModalOpen(false);
+            setConvertErr(null);
+          }}
           onSubmit={handleConvertToWO}
         />
       )}
@@ -856,23 +883,56 @@ function ResolveModal({
   );
 }
 
+const FIELD_LABEL: Record<string, string> = {
+  brand: "品牌",
+  model: "型號",
+  symptom: "故障症狀",
+  urgency: "急迫度",
+  customer_address: "服務地址",
+};
+const TIER_LABEL: Record<string, { label: string; cls: string }> = {
+  required: { label: "必填", cls: "bg-[#FEE2E2] text-[#B91C1C]" },
+  pre_dispatch: { label: "派工前", cls: "bg-[#FEF3C7] text-[#92400E]" },
+  optional: { label: "選填", cls: "bg-[#F1F5F9] text-[var(--text-secondary)]" },
+};
+
 function ConvertModal({
   pending,
+  error,
   onCancel,
   onSubmit,
 }: {
   pending: boolean;
+  error: {
+    message: string;
+    missing: { field: string; tier: string }[];
+    incomplete: boolean;
+    duplicate: boolean;
+  } | null;
   onCancel: () => void;
-  onSubmit: (info: {
-    customer_address: string;
-    customer_name?: string;
-    customer_phone?: string;
-  }) => Promise<void>;
+  onSubmit: (
+    info: {
+      customer_address: string;
+      customer_name?: string;
+      customer_phone?: string;
+    },
+    overrideReason?: string,
+  ) => Promise<void>;
 }) {
   const [address, setAddress] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [overrideReason, setOverrideReason] = useState("");
   const canSubmit = address.trim().length > 0 && !pending;
+  const submit = (override?: string) =>
+    onSubmit(
+      {
+        customer_address: address.trim(),
+        customer_name: name.trim() || undefined,
+        customer_phone: phone.trim() || undefined,
+      },
+      override,
+    );
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
@@ -923,6 +983,45 @@ function ConvertModal({
             />
           </label>
         </div>
+        {/* CR-0042 重複客戶 422 → 欄位級提示 */}
+        {error?.duplicate && (
+          <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
+            ⚠ 此電話已有客戶資料：{error.message}
+          </div>
+        )}
+
+        {/* CR-0042 完整度不足 422 → 結構化缺漏欄位 + 主管 override */}
+        {error?.incomplete && (
+          <div className="mt-3 flex flex-col gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2.5">
+            <span className="text-[12px] font-semibold text-red-700">問題卡完整度不足，缺以下欄位：</span>
+            <div className="flex flex-wrap gap-1.5">
+              {error.missing.length === 0 ? (
+                <span className="text-[12px] text-red-700">{error.message}</span>
+              ) : (
+                error.missing.map((m) => (
+                  <span key={m.field} className="inline-flex items-center gap-1 rounded bg-white px-2 py-[2px] text-[12px] text-[var(--text-primary)]">
+                    {FIELD_LABEL[m.field] ?? m.field}
+                    <span className={`rounded px-1 text-[10px] ${(TIER_LABEL[m.tier] ?? TIER_LABEL.optional).cls}`}>
+                      {(TIER_LABEL[m.tier] ?? TIER_LABEL.optional).label}
+                    </span>
+                  </span>
+                ))
+              )}
+            </div>
+            <label className="mt-1 flex flex-col gap-1">
+              <span className="text-[11px] text-[var(--text-secondary)]">主管強制開單原因（填寫後可 override 完整度檢查）</span>
+              <input
+                type="text"
+                value={overrideReason}
+                onChange={(e) => setOverrideReason(e.target.value)}
+                maxLength={500}
+                placeholder="例：客戶現場急修，欄位事後補登"
+                className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] outline-none focus:border-[var(--primary)]"
+              />
+            </label>
+          </div>
+        )}
+
         <div className="mt-5 flex justify-end gap-2">
           <button
             onClick={onCancel}
@@ -931,19 +1030,23 @@ function ConvertModal({
           >
             取消
           </button>
-          <button
-            onClick={() =>
-              onSubmit({
-                customer_address: address.trim(),
-                customer_name: name.trim() || undefined,
-                customer_phone: phone.trim() || undefined,
-              })
-            }
-            disabled={!canSubmit}
-            className="rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {pending ? "建立中…" : "確認開單"}
-          </button>
+          {error?.incomplete ? (
+            <button
+              onClick={() => submit(overrideReason)}
+              disabled={!canSubmit || overrideReason.trim().length < 4}
+              className="rounded-md bg-[#B45309] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {pending ? "建立中…" : "主管強制開單"}
+            </button>
+          ) : (
+            <button
+              onClick={() => submit()}
+              disabled={!canSubmit}
+              className="rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {pending ? "建立中…" : "確認開單"}
+            </button>
+          )}
         </div>
       </div>
     </div>
