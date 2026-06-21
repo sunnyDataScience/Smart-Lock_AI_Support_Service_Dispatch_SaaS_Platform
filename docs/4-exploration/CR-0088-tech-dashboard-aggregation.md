@@ -86,16 +86,18 @@ Coverage delta: +4~5 TCs（agent/api 後端 pytest）。
 
 ## 8. Human Decisions Required
 
-🛑 **CIA 在每列有決策前，阻擋 P1 後端實作。**
+✅ **業主已裁決（2026-06-21）；P1 已實作並實機驗證（兩端點 200、258 unit 綠）。**
 
-| # | 問題 | 選項 | 負責 | 狀態 | 決策 |
-|---|---|---|---|---|---|
-| 1 | 這輪要做哪些 P1？ | (a) 只做即時收入(今日/本週) (b) 即時收入 + 月度快照KPI(毛額/完成率/排名)〔推薦〕 (c) 全做含 SLA/評價(需 work_orders migration) | 業主 | open | — |
-| 2 | 收入口徑 | (a) 完工工單 `estimated_reward` 加總（預估，立即可算）〔推薦先用〕 (b) 實收淨額（需對齊金流/結算，較重） | 業主/財務 | open | — |
-| 3 | 「租戶內排名」是否對技師開放？ | (a) 開放（激勵） (b) 不開放（避免考核壓力，研究指部分系統隱藏）〔保守推薦〕 (c) 由後台開關控制 | 業主 | open | — |
-| 4 | 端點形狀 | (a) 單一 `/me/dashboard-summary` 一次回所有數字〔推薦〕 (b) 拆多個小端點 | 架構 | open | — |
-| 5 | 是否納入「平均到場時間 / SLA 倒數」？（需 work_orders 新增時間戳欄位 + migration） | (a) 本 CR 納入 (b) 不做，另開 CR〔推薦〕 | 業主 | open | — |
-| 6 | workload-heatmap IDOR（`require_tenant` 未鎖 self，任何同租戶人可查他人 workload） | (a) 加 self-guard 到既有端點 (b) 新增 `/me/workload-heatmap` self-scoped (c) 暫不處理（記安全債）〔建議 a 或 b〕 | 架構/安全 | open | — |
+| # | 問題 | 負責 | 狀態 | 決策 |
+|---|---|---|---|---|
+| 1 | 這輪要做哪些 P1？ | 業主 | ✅ decided | **(c) 全做含 SLA/客戶評價**。盤點後發現所需欄位 work_orders 皆已具備 → **零 migration** 即達成 |
+| 2 | 收入口徑 | 業主/財務 | ✅ decided | **(a) estimated_price 預估加總**（UI 膠囊與月度卡均標註「預估、非實收」） |
+| 3 | 「租戶內排名」是否對技師開放？ | 業主 | ✅ decided | **(b) 不開放** — 聚合端點與前端均不含 rank |
+| 4 | 端點形狀 | 架構 | ✅ decided | **(a) 單一 `/me/dashboard-summary`** |
+| 5 | 平均到場 / SLA | 業主 | ✅ decided | **納入** — 平均到場用 `started_at - accepted_at`、SLA 逾時用 `scheduled_at`/`scheduled_time`（皆現有欄位，免 migration）；客戶評價用既有 `rating/feedback`（confirm_order 寫入路徑，真資料） |
+| 6 | workload-heatmap IDOR | 架構/安全 | ✅ decided | **(b) 新增 `/me/workload-heatmap`** self-scoped。**註：既有 admin 版 `/technicians/{id}/workload-heatmap` 的 require_tenant 未鎖 self 仍存在**，前端已全改用 /me；舊端點 self-guard/下架為後續清理項 |
+
+> **實作備註（2026-06-21）**：本 CR 原假設「全做」需 work_orders schema migration（sla_deadline/arrival timestamps/customer rating），實作前盤點 DB 發現 `accepted_at / started_at / completed_at / scheduled_at / estimated_price / rating(1-5 CHECK) / feedback` **皆已存在**且 rating/feedback 有 `confirm_order` 寫入路徑 → **零 migration 達成全部 §8-1=(c)**。commit：`feat(api) 86e70483` + `feat(web) 4050f80e`。
 
 ## 9. Suggested Implementation Order
 
