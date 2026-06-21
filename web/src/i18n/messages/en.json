@@ -2235,7 +2235,8 @@
       "add": "Add",
       "notFound": "Work order not found",
       "backToList": "Back to list",
-      "refresh": "Refresh"
+      "refresh": "Refresh",
+      "clear": "Clear"
     },
     "shell": {
       "guard": {
@@ -2410,7 +2411,13 @@
         "errorSummaryShort": "Please enter a completion summary (at least 5 characters)",
         "submit": "Submit completion",
         "submitting": "Submitting…",
-        "note": "Note: parts list, signatures and other fields will be added in later iterations"
+        "note": "Note: parts list, signatures and other fields will be added in later iterations",
+        "signatureLabel": "Customer Signature",
+        "signatureUploadCta": "Upload customer signature",
+        "signatureUploading": "Uploading signature…",
+        "signatureDone": "Signature uploaded",
+        "photosCounter": "Photos {n}/3",
+        "gateHint": "Completion requires ≥3 photos and a customer signature"
       },
       "terminalNotice": "This order is already {status} and cannot be modified"
     },

@@ -2235,7 +2235,8 @@
       "add": "新增",
       "notFound": "找不到工單",
       "backToList": "返回列表",
-      "refresh": "重新整理"
+      "refresh": "重新整理",
+      "clear": "清除"
     },
     "shell": {
       "guard": {
@@ -2410,7 +2411,13 @@
         "errorSummaryShort": "請輸入完工摘要（至少 5 字）",
         "submit": "提交完工",
         "submitting": "提交中…",
-        "note": "註：零件清單、簽章等欄位於後續迭代補上"
+        "note": "註：零件清單、簽章等欄位於後續迭代補上",
+        "signatureLabel": "客戶簽名",
+        "signatureUploadCta": "上傳客戶簽名（拍照或選圖）",
+        "signatureUploading": "上傳簽名中…",
+        "signatureDone": "簽名已上傳",
+        "photosCounter": "完工照片 {n}/3",
+        "gateHint": "完工需 ≥3 張照片與客戶簽名"
       },
       "terminalNotice": "此工單已 {status}，無法再操作"
     },
