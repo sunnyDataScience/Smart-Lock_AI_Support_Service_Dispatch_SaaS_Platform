@@ -280,7 +280,7 @@ export default function SopReviewPage({
                     href={`/problem-cards/${draft.problem_card_id}`}
                     className="text-sm font-medium text-[var(--primary)]"
                   >
-                    {draft.problem_card_id.slice(0, 8)}
+                    {tR("sourceCard")} →
                   </Link>
                 </div>
               )}
