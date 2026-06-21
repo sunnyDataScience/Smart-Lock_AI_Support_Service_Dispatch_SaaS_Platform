@@ -109,7 +109,7 @@ export default function PoolPage() {
   }
 
   return (
-    <TechShell>
+    <TechShell wide>
       {/* Page Header */}
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border)] bg-white px-4 py-3">
         <div>
@@ -143,14 +143,14 @@ export default function PoolPage() {
         </div>
       )}
 
-      {/* List */}
-      <div className="flex flex-col gap-3 px-4 py-4">
+      {/* List — 手機單欄、桌面多欄網格 */}
+      <div className="grid grid-cols-1 gap-3 px-4 py-4 md:grid-cols-2 xl:grid-cols-3">
         {loading && items.length === 0 ? (
-          <div className="flex h-40 items-center justify-center text-[13px] text-[var(--text-secondary)]">
+          <div className="col-span-full flex h-40 items-center justify-center text-[13px] text-[var(--text-secondary)]">
             {t("loading")}
           </div>
         ) : items.length === 0 ? (
-          <div className="flex h-60 flex-col items-center justify-center gap-2 text-[var(--text-secondary)]">
+          <div className="col-span-full flex h-60 flex-col items-center justify-center gap-2 text-[var(--text-secondary)]">
             <MapPin className="h-10 w-10 text-[var(--text-disabled)]" />
             <p className="text-[14px]">{t("empty")}</p>
             <button

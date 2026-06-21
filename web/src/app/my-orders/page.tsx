@@ -95,7 +95,7 @@ export default function MyOrdersPage() {
   );
 
   return (
-    <TechShell>
+    <TechShell wide>
       {/* page_header */}
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border)] bg-white px-4 py-3">
         <h1 className="text-[18px] font-semibold text-[#1E293B]">{t("title")}</h1>
@@ -145,13 +145,13 @@ export default function MyOrdersPage() {
         </div>
       )}
 
-      <div className="flex flex-col gap-3 px-4 py-4">
+      <div className="grid grid-cols-1 gap-3 px-4 py-4 md:grid-cols-2 xl:grid-cols-3">
         {loading && items.length === 0 ? (
-          <div className="flex h-40 items-center justify-center text-[13px] text-[var(--text-secondary)]">
+          <div className="col-span-full flex h-40 items-center justify-center text-[13px] text-[var(--text-secondary)]">
             {tCommon("loading")}
           </div>
         ) : visible.length === 0 ? (
-          <div className="flex h-60 flex-col items-center justify-center gap-2 text-[var(--text-secondary)]">
+          <div className="col-span-full flex h-60 flex-col items-center justify-center gap-2 text-[var(--text-secondary)]">
             <ClipboardList className="h-10 w-10 text-[var(--text-disabled)]" />
             <p className="text-[14px]">{tEmpty(tab)}</p>
             {tab === "active" && (

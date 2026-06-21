@@ -1141,7 +1141,7 @@
         "fallbackName": "技師",
         "ariaToggleOnline": "切換在線/離線",
         "onlineToggleLabel": "在線接單",
-        "onlineToggleHint": "（後端 API 待補，當前為本地切換）",
+        "onlineToggleHint": "（切換上線 / 離線，可接收派單）",
         "monthIncome": "本月收入概覽（待後端 API）",
         "incomeNote": "收入總覽、佣金組成、結算紀錄屬 V1.1 範圍",
         "completedOrders": "完成工單",

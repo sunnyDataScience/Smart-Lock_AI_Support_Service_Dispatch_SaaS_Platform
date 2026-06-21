@@ -102,7 +102,7 @@ export default function AccountPage() {
   const availLabel = tAvail(availability);
 
   return (
-    <TechShell>
+    <TechShell wide>
       {/* profile_header — 漸層背景 */}
       <div
         className="px-4 pt-6 pb-8 text-white"
@@ -161,6 +161,8 @@ export default function AccountPage() {
         </div>
       )}
 
+      {/* 桌面：內容區改 2 欄吃滿寬度（手機維持單欄堆疊）*/}
+      <div className="md:grid md:grid-cols-2 md:items-start md:gap-x-4 md:px-2">
       {/* income_overview / performance_dashboard — MVP 顯示骨架 */}
       <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
@@ -302,6 +304,7 @@ export default function AccountPage() {
           <ChevronRight className="h-4 w-4 text-[var(--text-disabled)]" />
         </button>
       </section>
+      </div>
 
       <p className="px-4 pb-4 text-center text-[10px] text-[var(--text-disabled)]">
         {t("footer")}

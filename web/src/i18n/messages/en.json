@@ -1141,7 +1141,7 @@
         "fallbackName": "Technician",
         "ariaToggleOnline": "Toggle online/offline",
         "onlineToggleLabel": "Accepting orders",
-        "onlineToggleHint": "(API pending; current is local toggle only)",
+        "onlineToggleHint": "(Toggle online / offline to receive dispatches)",
         "monthIncome": "This month's income (API pending)",
         "incomeNote": "Income overview, commission breakdown, and settlements ship in V1.1",
         "completedOrders": "Completed",
