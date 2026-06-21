@@ -23,8 +23,8 @@ export default function VendorLoginPage() {
     setLoading(true);
     try {
       await loginVendor(email.trim(), password);
-      // 廠商專區建置中（CR-0031）；先導向總覽
-      router.replace("/dashboard");
+      // CR-0029：導向廠商專區（原導 /dashboard 會被 rolePolicy 擋住）
+      router.replace("/vendor");
     } catch (err) {
       if (err instanceof ApiError) setError(`${err.errorCode} (${err.status})：${err.message}`);
       else if (err instanceof Error) setError(err.message);

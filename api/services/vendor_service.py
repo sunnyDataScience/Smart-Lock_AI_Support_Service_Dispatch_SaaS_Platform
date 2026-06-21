@@ -38,6 +38,18 @@ def _row_to_vendor(r: tuple) -> dict:
     }
 
 
+async def get_vendor_by_user_id(*, user_id: str) -> dict | None:
+    """CR-0029：依登入 user_id 取廠商自身 profile（廠商專區 /vendors/me 用）。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    cur = await db_module._conn.execute(
+        f"SELECT {_VENDOR_SELECT} FROM vendors WHERE user_id = %s::uuid LIMIT 1",
+        (user_id,),
+    )
+    r = await cur.fetchone()
+    return _row_to_vendor(r) if r else None
+
+
 async def list_vendors(*, tenant_id: str, status: str | None = None) -> dict:
     """列出廠商（可依 status 過濾，如 pending_approval）。"""
     if not await _ensure_conn():

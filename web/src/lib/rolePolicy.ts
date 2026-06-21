@@ -22,6 +22,7 @@ const ALL_BACKOFFICE = [
 
 /** 路由 prefix → 允許角色。longest-prefix-wins。 */
 const ROUTE_POLICY: { prefix: string; roles: string[] }[] = [
+  { prefix: "/vendor", roles: ["vendor"] }, // CR-0029 廠商專區（/vendor-login 為公開頁，不受此規則影響）
   { prefix: "/dashboard", roles: ALL_BACKOFFICE },
   { prefix: "/conversations", roles: ALL_BACKOFFICE },
   { prefix: "/problem-cards", roles: ALL_BACKOFFICE },
