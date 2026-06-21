@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import FULL_ACCESS_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from models.generated import AuditLogEntry, AuditLogPage, AuditLogType
 from services import audit_log_service
@@ -49,7 +49,7 @@ async def list_audit_logs(
     actor_id: str | None = Query(default=None),
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
 ) -> dict:
     # D3 Deprecation header（no Sunset date set）
     tid = user.tenant_id or "{tid}"
@@ -130,7 +130,7 @@ async def export_audit_events(
     body: ExportAuditEventsRequest,
     request: Request,
     response: Response,
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
 ):
     # D3 Deprecation header（no Sunset date set）
     tid = user.tenant_id or "{tid}"

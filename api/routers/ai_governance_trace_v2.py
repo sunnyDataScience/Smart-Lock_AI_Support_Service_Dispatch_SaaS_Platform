@@ -13,7 +13,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Path, Query
 from pydantic import BaseModel
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import OPS_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from services import ai_governance_trace_service as svc
 
@@ -80,7 +80,7 @@ async def list_traces(
     start_date: date | None = Query(default=None),
     end_date: date | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=500),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     _guard_tenant(user, tenantId)
     return await svc.list_traces(
@@ -105,7 +105,7 @@ async def get_summary(
     tenantId: str = Path(...),
     start_date: date | None = Query(default=None),
     end_date: date | None = Query(default=None),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     _guard_tenant(user, tenantId)
     return await svc.get_trace_summary(

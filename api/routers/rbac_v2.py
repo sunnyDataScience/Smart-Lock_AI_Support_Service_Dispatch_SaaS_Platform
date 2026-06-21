@@ -40,7 +40,7 @@ router = APIRouter()
 )
 async def list_roles_v2(
     tenantId: str = Path(..., description="租戶 ID（UUID）"),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
 ) -> dict:
     """GET /tenants/{tenantId}/rbac/roles — tenant-scoped v2。
 

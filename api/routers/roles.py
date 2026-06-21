@@ -36,7 +36,7 @@ router = APIRouter()
 )
 async def list_roles(
     response: Response,
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
 ) -> dict:
     # D3：標示此端點已棄用，後繼為 tenant-scoped v2
     tid = user.tenant_id or "{tenantId}"
