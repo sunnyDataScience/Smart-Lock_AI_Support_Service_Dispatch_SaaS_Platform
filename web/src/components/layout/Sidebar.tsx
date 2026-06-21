@@ -111,7 +111,7 @@ const navItems: NavItem[] = [
   {
     icon: ShieldCheck,
     id: "audit",
-    href: "/admin/audit-events",
+    href: "/admin/roles", // 父項點選導向角色管理（對齊「父 href = 第一個子項」慣例）
     children: [
       { id: "roles", href: "/admin/roles" },
       { id: "staff", href: "/admin/staff" },
